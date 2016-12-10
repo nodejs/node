@@ -31,9 +31,8 @@
 
 function osr_this() {
   var a = 1;
-  // Trigger OSR. First check if optimization is disabled.
-  if (%GetOptimizationStatus(osr_this) == 4) return 1;
-  while (%GetOptimizationCount(osr_this) == 0) {}
+  while (%GetOptimizationCount(osr_this) == 2) ;
   return a;
 }
+assertEquals(1, osr_this());
 assertEquals(1, osr_this());

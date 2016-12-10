@@ -7,7 +7,6 @@ Statistical profiling result from v8.log, (13 ticks, 2 unaccounted, 0 excluded).
 
  [JavaScript]:
    ticks  total  nonlib   name
-      1    7.7%   11.1%  LazyCompile: exp native math.js:41
 
  [C++]:
    ticks  total  nonlib   name
@@ -18,7 +17,7 @@ Statistical profiling result from v8.log, (13 ticks, 2 unaccounted, 0 excluded).
 
  [Summary]:
    ticks  total  nonlib   name
-      1    7.7%   11.1%  JavaScript
+      0    0.0%    0.0%  JavaScript
       5   38.5%   55.6%  C++
       0    0.0%    0.0%  GC
       4   30.8%          Shared libraries
@@ -45,6 +44,10 @@ Statistical profiling result from v8.log, (13 ticks, 2 unaccounted, 0 excluded).
       2  100.0%    LazyCompile: exp native math.js:41
       2  100.0%      Script: exp.js
 
+      2   15.4%  UNKNOWN
+      1   50.0%    LazyCompile: exp native math.js:41
+      1  100.0%      Script: exp.js
+
       1    7.7%  v8::internal::JSObject::LookupOwnRealNamedProperty(v8::internal::String*, v8::internal::LookupResult*)
       1  100.0%    Script: exp.js
 
@@ -56,7 +59,4 @@ Statistical profiling result from v8.log, (13 ticks, 2 unaccounted, 0 excluded).
       1    7.7%  exp
       1  100.0%    LazyCompile: exp native math.js:41
       1  100.0%      Script: exp.js
-
-      1    7.7%  LazyCompile: exp native math.js:41
-      1  100.0%    Script: exp.js
 

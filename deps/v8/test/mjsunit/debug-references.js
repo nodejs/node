@@ -25,7 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug --turbo-deoptimization
+// Flags: --expose-debug-as debug --stack-trace-on-illegal
+
 // Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug
 
@@ -98,7 +99,8 @@ function listener(event, exec_state, event_data, data) {
     listenerComplete = true;
   }
   } catch (e) {
-    exception = e
+    exception = e;
+    print(e + "\n" + e.stack);
   };
 };
 

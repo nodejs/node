@@ -1,27 +1,4 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-
-
+'use strict';
 // Can't test this when 'make test' doesn't assign a tty to the stdout.
 // Yet another use-case for require('tty').spawn ?
 var common = require('../common');
@@ -60,10 +37,10 @@ var readlineFakeStream = function() {
         }
       });
   var _stdoutWrite = process.stdout.write;
-  process.stdout.write = function (data) {
+  process.stdout.write = function(data) {
     data.split('').forEach(rl.written_bytes.push.bind(rl.written_bytes));
     _stdoutWrite.apply(this, arguments);
-  }
+  };
   rl.written_bytes = written_bytes;
   return rl;
 };
@@ -73,7 +50,7 @@ var written_bytes_length, refreshed;
 
 rl.write('foo');
 assert.equal(3, rl.cursor);
-[key.xterm, key.rxvt, key.gnome, key.putty].forEach(function (key) {
+[key.xterm, key.rxvt, key.gnome, key.putty].forEach(function(key) {
   rl.write.apply(rl, key.home);
   assert.equal(0, rl.cursor);
   rl.write.apply(rl, key.end);
@@ -96,7 +73,7 @@ rl.write.apply(rl, key.xterm.home);
   {cursor: 7, key: key.xterm.metab},
   {cursor: 4, key: key.xterm.metab},
   {cursor: 0, key: key.xterm.metab},
-].forEach(function (action) {
+].forEach(function(action) {
   written_bytes_length = rl.written_bytes.length;
   rl.write.apply(rl, action.key);
   assert.equal(action.cursor, rl.cursor);
@@ -107,7 +84,14 @@ rl.write.apply(rl, key.xterm.home);
 rl = readlineFakeStream();
 rl.write('foo bar.hop/zoo');
 rl.write.apply(rl, key.xterm.home);
-['bar.hop/zoo', '.hop/zoo', 'hop/zoo', '/zoo', 'zoo', ''].forEach(function (expectedLine) {
+[
+  'bar.hop/zoo',
+  '.hop/zoo',
+  'hop/zoo',
+  '/zoo',
+  'zoo',
+  ''
+].forEach(function(expectedLine) {
   rl.write.apply(rl, key.xterm.metad);
   assert.equal(0, rl.cursor);
   assert.equal(expectedLine, rl.line);

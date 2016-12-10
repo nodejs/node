@@ -1,119 +1,114 @@
-
 module.exports = completion
 
-completion.usage = "npm completion >> ~/.bashrc\n"
-                 + "npm completion >> ~/.zshrc\n"
-                 + "source <(npm completion)"
+completion.usage = 'source <(npm completion)'
 
-var npm = require("./npm.js")
-  , npmconf = require("./config/core.js")
-  , configDefs = npmconf.defs
-  , configTypes = configDefs.types
-  , shorthands = configDefs.shorthands
-  , nopt = require("nopt")
-  , configNames = Object.keys(configTypes).filter(function (e) {
-      return e.charAt(0) !== "_"
-    })
-  , shorthandNames = Object.keys(shorthands)
-  , allConfs = configNames.concat(shorthandNames)
-  , once = require("once")
-
+var npm = require('./npm.js')
+var npmconf = require('./config/core.js')
+var configDefs = npmconf.defs
+var configTypes = configDefs.types
+var shorthands = configDefs.shorthands
+var nopt = require('nopt')
+var configNames = Object.keys(configTypes)
+  .filter(function (e) { return e.charAt(0) !== '_' })
+var shorthandNames = Object.keys(shorthands)
+var allConfs = configNames.concat(shorthandNames)
+var once = require('once')
+var isWindowsShell = require('./utils/is-windows-shell.js')
+var output = require('./utils/output.js')
 
 completion.completion = function (opts, cb) {
   if (opts.w > 3) return cb()
 
-  var fs = require("graceful-fs")
-    , path = require("path")
-    , bashExists = null
-    , zshExists = null
-  fs.stat(path.resolve(process.env.HOME, ".bashrc"), function (er) {
+  var fs = require('graceful-fs')
+  var path = require('path')
+  var bashExists = null
+  var zshExists = null
+  fs.stat(path.resolve(process.env.HOME, '.bashrc'), function (er) {
     bashExists = !er
     next()
   })
-  fs.stat(path.resolve(process.env.HOME, ".zshrc"), function (er) {
+  fs.stat(path.resolve(process.env.HOME, '.zshrc'), function (er) {
     zshExists = !er
     next()
   })
   function next () {
     if (zshExists === null || bashExists === null) return
     var out = []
-    if (zshExists) out.push("~/.zshrc")
-    if (bashExists) out.push("~/.bashrc")
-    if (opts.w === 2) out = out.map(function (m) {
-      return [">>", m]
-    })
+    if (zshExists) out.push('~/.zshrc')
+    if (bashExists) out.push('~/.bashrc')
+    if (opts.w === 2) {
+      out = out.map(function (m) {
+        return ['>>', m]
+      })
+    }
     cb(null, out)
   }
 }
 
 function completion (args, cb) {
-  if (process.platform === "win32") {
-    var e = new Error("npm completion not supported on windows")
-    e.code = "ENOTSUP"
-    e.errno = require("constants").ENOTSUP
+  if (isWindowsShell) {
+    var e = new Error('npm completion supported only in MINGW / Git bash on Windows')
+    e.code = 'ENOTSUP'
+    e.errno = require('constants').ENOTSUP
     return cb(e)
   }
 
   // if the COMP_* isn't in the env, then just dump the script.
-  if (process.env.COMP_CWORD === undefined
-    ||process.env.COMP_LINE === undefined
-    ||process.env.COMP_POINT === undefined
-    ) return dumpScript(cb)
+  if (process.env.COMP_CWORD === undefined ||
+      process.env.COMP_LINE === undefined ||
+      process.env.COMP_POINT === undefined) {
+    return dumpScript(cb)
+  }
 
   console.error(process.env.COMP_CWORD)
   console.error(process.env.COMP_LINE)
   console.error(process.env.COMP_POINT)
 
-  //console.log("abracadabrasauce\nabracad cat monger")
-  //if (Math.random() * 3 < 1) console.log("man\\ bear\\ pig")
-  //else if (Math.random() * 3 < 1)
-  //  console.log("porkchop\\ sandwiches\nporkman")
-  //else console.log("encephylophagy")
-
   // get the partial line and partial word,
   // if the point isn't at the end.
   // ie, tabbing at: npm foo b|ar
   var w = +process.env.COMP_CWORD
-    , words = args.map(unescape)
-    , word = words[w]
-    , line = process.env.COMP_LINE
-    , point = +process.env.COMP_POINT
-    , partialLine = line.substr(0, point)
-    , partialWords = words.slice(0, w)
+  var words = args.map(unescape)
+  var word = words[w]
+  var line = process.env.COMP_LINE
+  var point = +process.env.COMP_POINT
+  var partialLine = line.substr(0, point)
+  var partialWords = words.slice(0, w)
 
   // figure out where in that last word the point is.
   var partialWord = args[w]
-    , i = partialWord.length
-  while (partialWord.substr(0, i) !== partialLine.substr(-1*i) && i > 0) {
-    i --
+  var i = partialWord.length
+  while (partialWord.substr(0, i) !== partialLine.substr(-1 * i) && i > 0) {
+    i--
   }
   partialWord = unescape(partialWord.substr(0, i))
   partialWords.push(partialWord)
 
-  var opts = { words : words
-             , w : w
-             , word : word
-             , line : line
-             , lineLength : line.length
-             , point : point
-             , partialLine : partialLine
-             , partialWords : partialWords
-             , partialWord : partialWord
-             , raw: args
-             }
+  var opts = {
+    words: words,
+    w: w,
+    word: word,
+    line: line,
+    lineLength: line.length,
+    point: point,
+    partialLine: partialLine,
+    partialWords: partialWords,
+    partialWord: partialWord,
+    raw: args
+  }
 
   cb = wrapCb(cb, opts)
 
   console.error(opts)
 
-  if (partialWords.slice(0, -1).indexOf("--") === -1) {
-    if (word.charAt(0) === "-") return configCompl(opts, cb)
-    if (words[w - 1]
-        && words[w - 1].charAt(0) === "-"
-        && !isFlag(words[w - 1])) {
+  if (partialWords.slice(0, -1).indexOf('--') === -1) {
+    if (word.charAt(0) === '-') return configCompl(opts, cb)
+    if (words[w - 1] &&
+        words[w - 1].charAt(0) === '-' &&
+        !isFlag(words[w - 1])) {
       // awaiting a value for a non-bool config.
       // don't even try to do this for now
-      console.error("configValueCompl")
+      console.error('configValueCompl')
       return configValueCompl(opts, cb)
     }
   }
@@ -145,21 +140,21 @@ function completion (args, cb) {
 }
 
 function dumpScript (cb) {
-  var fs = require("graceful-fs")
-    , path = require("path")
-    , p = path.resolve(__dirname, "utils/completion.sh")
+  var fs = require('graceful-fs')
+  var path = require('path')
+  var p = path.resolve(__dirname, 'utils/completion.sh')
 
   // The Darwin patch below results in callbacks first for the write and then
   // for the error handler, so make sure we only call our callback once.
   cb = once(cb)
 
-  fs.readFile(p, "utf8", function (er, d) {
+  fs.readFile(p, 'utf8', function (er, d) {
     if (er) return cb(er)
-    d = d.replace(/^\#\!.*?\n/, "")
+    d = d.replace(/^\#\!.*?\n/, '')
 
     process.stdout.write(d, function () { cb() })
-    process.stdout.on("error", function (er) {
-      // Darwin is a real dick sometimes.
+    process.stdout.on('error', function (er) {
+      // Darwin is a pain sometimes.
       //
       // This is necessary because the "source" or "." program in
       // bash on OS X closes its file argument before reading
@@ -169,67 +164,72 @@ function dumpScript (cb) {
       // Really, one should not be tossing away EPIPE errors, or any
       // errors, so casually.  But, without this, `. <(npm completion)`
       // can never ever work on OS X.
-      if (er.errno === "EPIPE") er = null
+      if (er.errno === 'EPIPE') er = null
       cb(er)
     })
-
   })
 }
 
 function unescape (w) {
-  if (w.charAt(0) === "\"") return w.replace(/^"|"$/g, "")
-  else return w.replace(/\\ /g, " ")
+  if (w.charAt(0) === '\'') return w.replace(/^'|'$/g, '')
+  else return w.replace(/\\ /g, ' ')
 }
 
 function escape (w) {
   if (!w.match(/\s+/)) return w
-  return "\"" + w + "\""
+  return '\'' + w + '\''
 }
 
 // The command should respond with an array.  Loop over that,
 // wrapping quotes around any that have spaces, and writing
 // them to stdout.  Use console.log, not the outfd config.
 // If any of the items are arrays, then join them with a space.
-// Ie, returning ["a", "b c", ["d", "e"]] would allow it to expand
-// to: "a", "b c", or "d" "e"
-function wrapCb (cb, opts) { return function (er, compls) {
-  if (!Array.isArray(compls)) compls = compls ? [compls] : []
-  compls = compls.map(function (c) {
-    if (Array.isArray(c)) c = c.map(escape).join(" ")
-    else c = escape(c)
-    return c
-  })
-  if (opts.partialWord) compls = compls.filter(function (c) {
-    return c.indexOf(opts.partialWord) === 0
-  })
-  console.error([er && er.stack, compls, opts.partialWord])
-  if (er || compls.length === 0) return cb(er)
+// Ie, returning ['a', 'b c', ['d', 'e']] would allow it to expand
+// to: 'a', 'b c', or 'd' 'e'
+function wrapCb (cb, opts) {
+  return function (er, compls) {
+    if (!Array.isArray(compls)) compls = compls ? [compls] : []
+    compls = compls.map(function (c) {
+      if (Array.isArray(c)) c = c.map(escape).join(' ')
+      else c = escape(c)
+      return c
+    })
 
-  console.log(compls.join("\n"))
-  cb()
-}}
+    if (opts.partialWord) {
+      compls = compls.filter(function (c) {
+        return c.indexOf(opts.partialWord) === 0
+      })
+    }
+
+    console.error([er && er.stack, compls, opts.partialWord])
+    if (er || compls.length === 0) return cb(er)
+
+    output(compls.join('\n'))
+    cb()
+  }
+}
 
 // the current word has a dash.  Return the config names,
 // with the same number of dashes as the current word has.
 function configCompl (opts, cb) {
   var word = opts.word
-    , split = word.match(/^(-+)((?:no-)*)(.*)$/)
-    , dashes = split[1]
-    , no = split[2]
-    , flags = configNames.filter(isFlag)
+  var split = word.match(/^(-+)((?:no-)*)(.*)$/)
+  var dashes = split[1]
+  var no = split[2]
+  var flags = configNames.filter(isFlag)
   console.error(flags)
 
   return cb(null, allConfs.map(function (c) {
     return dashes + c
   }).concat(flags.map(function (f) {
-    return dashes + (no || "no-") + f
+    return dashes + (no || 'no-') + f
   })))
 }
 
 // expand with the valid values of various config values.
 // not yet implemented.
 function configValueCompl (opts, cb) {
-  console.error("configValue", opts)
+  console.error('configValue', opts)
   return cb(null, [])
 }
 
@@ -237,8 +237,8 @@ function configValueCompl (opts, cb) {
 function isFlag (word) {
   // shorthands never take args.
   var split = word.match(/^(-*)((?:no-)+)?(.*)$/)
-    , no = split[2]
-    , conf = split[3]
+  var no = split[2]
+  var conf = split[3]
   return no || configTypes[conf] === Boolean || shorthands[conf]
 }
 

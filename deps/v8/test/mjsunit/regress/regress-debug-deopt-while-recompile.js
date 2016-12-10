@@ -26,7 +26,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --expose-debug-as debug --allow-natives-syntax
-// Flags: --turbo-deoptimization
 
 Debug = debug.Debug;
 
@@ -78,8 +77,8 @@ f();
 g();
 
 // Assert that break point is set at expected location.
-assertTrue(Debug.showBreakPoints(f).indexOf("[B0]var baz = bar;") > 0);
-assertTrue(Debug.showBreakPoints(g).indexOf("[B0]var baz = bar;") > 0);
+assertTrue(Debug.showBreakPoints(f).indexOf("var baz = [B0]bar;") > 0);
+assertTrue(Debug.showBreakPoints(g).indexOf("var baz = [B0]bar;") > 0);
 
 assertEquals(2, listened);
 assertNull(exception);

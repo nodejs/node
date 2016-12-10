@@ -28,16 +28,6 @@
 
 #define MAX_BYTES 1024 * 1024
 
-#ifdef _WIN32
-
-TEST_IMPL(tcp_try_write) {
-
-  MAKE_VALGRIND_HAPPY();
-  return 0;
-}
-
-#else  /* !_WIN32 */
-
 static uv_tcp_t server;
 static uv_tcp_t client;
 static uv_tcp_t incoming;
@@ -68,6 +58,11 @@ static void connect_cb(uv_connect_t* req, int status) {
       break;
     }
   } while (1);
+
+  do {
+    buf = uv_buf_init("", 0);
+    r = uv_try_write((uv_stream_t*) &client, &buf, 1);
+  } while (r != 0);
   uv_close((uv_handle_t*) &client, close_cb);
 }
 
@@ -138,5 +133,3 @@ TEST_IMPL(tcp_try_write) {
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
-
-#endif  /* !_WIN32 */

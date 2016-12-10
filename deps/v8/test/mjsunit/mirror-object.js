@@ -125,12 +125,7 @@ function testObjectMirror(obj, cls_name, ctor_name, hasSpecialProperties) {
         // Check that serialized name is correct.
         assertEquals(properties[i].name(), fromJSON.properties[i].name, 'Unexpected serialized name');
 
-        // If property type is normal property type is not serialized.
-        if (properties[i].propertyType() != debug.PropertyType.Normal) {
-          assertEquals(properties[i].propertyType(), fromJSON.properties[i].propertyType, 'Unexpected serialized property type');
-        } else {
-          assertTrue(typeof(fromJSON.properties[i].propertyType) === 'undefined', 'Unexpected serialized property type');
-        }
+        assertEquals(properties[i].propertyType(), fromJSON.properties[i].propertyType, 'Unexpected serialized property type');
 
         // If there are no attributes attributes are not serialized.
         if (properties[i].attributes() != debug.PropertyAttribute.None) {
@@ -205,23 +200,23 @@ assertFalse(math_mirror.property("E").canDelete());
 
 // Test objects with JavaScript accessors.
 o = {}
-o.__defineGetter__('a', function(){return 'a';});
-o.__defineSetter__('b', function(){});
-o.__defineGetter__('c', function(){throw 'c';});
-o.__defineSetter__('c', function(){throw 'c';});
+o.__defineGetter__('a', function (){return 'a';});
+o.__defineSetter__('b', function (){});
+o.__defineGetter__('c', function (){throw 'c';});
+o.__defineSetter__('c', function (){throw 'c';});
 testObjectMirror(o, 'Object', 'Object');
 mirror = debug.MakeMirror(o);
 // a has getter but no setter.
 assertTrue(mirror.property('a').hasGetter());
 assertFalse(mirror.property('a').hasSetter());
-assertEquals(debug.PropertyType.Callbacks, mirror.property('a').propertyType());
+assertEquals(debug.PropertyType.AccessorConstant, mirror.property('a').propertyType());
 assertEquals('function', mirror.property('a').getter().type());
 assertEquals('undefined', mirror.property('a').setter().type());
 assertEquals('function (){return \'a\';}', mirror.property('a').getter().source());
 // b has setter but no getter.
 assertFalse(mirror.property('b').hasGetter());
 assertTrue(mirror.property('b').hasSetter());
-assertEquals(debug.PropertyType.Callbacks, mirror.property('b').propertyType());
+assertEquals(debug.PropertyType.AccessorConstant, mirror.property('b').propertyType());
 assertEquals('undefined', mirror.property('b').getter().type());
 assertEquals('function', mirror.property('b').setter().type());
 assertEquals('function (){}', mirror.property('b').setter().source());
@@ -229,7 +224,7 @@ assertFalse(mirror.property('b').isException());
 // c has both getter and setter. The getter throws an exception.
 assertTrue(mirror.property('c').hasGetter());
 assertTrue(mirror.property('c').hasSetter());
-assertEquals(debug.PropertyType.Callbacks, mirror.property('c').propertyType());
+assertEquals(debug.PropertyType.AccessorConstant, mirror.property('c').propertyType());
 assertEquals('function', mirror.property('c').getter().type());
 assertEquals('function', mirror.property('c').setter().type());
 assertEquals('function (){throw \'c\';}', mirror.property('c').getter().source());
@@ -270,3 +265,27 @@ assertEquals(Number, property_map["[[TargetFunction]]"].value().value());
 assertTrue("[[BoundArgs]]" in property_map);
 assertEquals("object", property_map["[[BoundArgs]]"].value().type());
 assertEquals(1, property_map["[[BoundArgs]]"].value().value().length);
+
+// Test JSProxy internal properties.
+var target = {};
+var handler = {
+  get: function (target, name, receiver) {
+    return target[name];
+  },
+  set: function(target, name, value, receiver) {
+    target[name] = value;
+    return value;
+  }
+}
+ip = debug.ObjectMirror.GetInternalProperties(new Proxy(target, handler));
+assertEquals(3, ip.length);
+var property_map = {};
+for (var i = 0; i < ip.length; i++) {
+  property_map[ip[i].name()] = ip[i];
+}
+assertTrue("[[Target]]" in property_map);
+assertEquals(target, property_map["[[Target]]"].value().value());
+assertTrue("[[Handler]]" in property_map);
+assertEquals(handler, property_map["[[Handler]]"].value().value());
+assertTrue("[[IsRevoked]]" in property_map);
+assertEquals(false, property_map["[[IsRevoked]]"].value().value());

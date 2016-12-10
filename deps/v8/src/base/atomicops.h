@@ -42,17 +42,15 @@ namespace base {
 
 typedef char Atomic8;
 typedef int32_t Atomic32;
-#if defined(__native_client__)
-typedef int64_t Atomic64;
-#elif defined(V8_HOST_ARCH_64_BIT)
+#if defined(V8_HOST_ARCH_64_BIT)
 // We need to be able to go between Atomic64 and AtomicWord implicitly.  This
 // means Atomic64 and AtomicWord should be the same type on 64-bit.
 #if defined(__ILP32__)
 typedef int64_t Atomic64;
 #else
 typedef intptr_t Atomic64;
+#endif  // defined(__ILP32__)
 #endif  // defined(V8_HOST_ARCH_64_BIT)
-#endif  // defined(__native_client__)
 
 // Use AtomicWord for a machine-sized pointer.  It will use the Atomic32 or
 // Atomic64 routines below, depending on your architecture.
@@ -133,7 +131,8 @@ Atomic64 Acquire_Load(volatile const Atomic64* ptr);
 Atomic64 Release_Load(volatile const Atomic64* ptr);
 #endif  // V8_HOST_ARCH_64_BIT
 
-} }  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 // Include our platform specific implementation.
 #if defined(THREAD_SANITIZER)
@@ -142,25 +141,27 @@ Atomic64 Release_Load(volatile const Atomic64* ptr);
 #include "src/base/atomicops_internals_x86_msvc.h"
 #elif defined(__APPLE__)
 #include "src/base/atomicops_internals_mac.h"
-#elif defined(__native_client__)
-#include "src/base/atomicops_internals_portable.h"
 #elif defined(__GNUC__) && V8_HOST_ARCH_ARM64
 #include "src/base/atomicops_internals_arm64_gcc.h"
 #elif defined(__GNUC__) && V8_HOST_ARCH_ARM
 #include "src/base/atomicops_internals_arm_gcc.h"
+#elif defined(__GNUC__) && V8_HOST_ARCH_PPC
+#include "src/base/atomicops_internals_ppc_gcc.h"
 #elif defined(__GNUC__) && (V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64)
 #include "src/base/atomicops_internals_x86_gcc.h"
 #elif defined(__GNUC__) && V8_HOST_ARCH_MIPS
 #include "src/base/atomicops_internals_mips_gcc.h"
 #elif defined(__GNUC__) && V8_HOST_ARCH_MIPS64
 #include "src/base/atomicops_internals_mips64_gcc.h"
+#elif defined(__GNUC__) && V8_HOST_ARCH_S390
+#include "src/base/atomicops_internals_s390_gcc.h"
 #else
 #error "Atomic operations are not supported on your platform"
 #endif
 
 // On some platforms we need additional declarations to make
 // AtomicWord compatible with our other Atomic* types.
-#if defined(__APPLE__) || defined(__OpenBSD__)
+#if defined(__APPLE__) || defined(__OpenBSD__) || defined(V8_OS_AIX)
 #include "src/base/atomicops_internals_atomicword_compat.h"
 #endif
 

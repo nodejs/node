@@ -62,26 +62,6 @@ function assertKind(expected, obj, name_opt) {
   assertEquals(expected, getKind(obj), name_opt);
 }
 
-// Test: If a call site goes megamorphic, it retains the ability to
-// use allocation site feedback (if FLAG_allocation_site_pretenuring
-// is on).
-(function() {
-  function bar(t, len) {
-    return new t(len);
-  }
-
-  a = bar(Array, 10);
-  a[0] = 3.5;
-  b = bar(Array, 1);
-  assertKind(elements_kind.fast_double, b);
-  c = bar(Object, 3);
-  b = bar(Array, 10);
-  // TODO(mvstanton): re-enable when FLAG_allocation_site_pretenuring
-  // is on in the build.
-  // assertKind(elements_kind.fast_double, b);
-})();
-
-
 // Test: ensure that crankshafted array constructor sites are deopted
 // if another function is used.
 (function() {
@@ -216,4 +196,22 @@ function assertKind(expected, obj, name_opt) {
   if (4 != %GetOptimizationStatus(bar)) {
     assertFalse(isHoley(a));
   }
+})();
+
+// Test: Make sure that crankshaft continues with feedback for large arrays.
+(function() {
+  function bar(len) { return new Array(len); }
+  var size = 100001;
+  // Perform a gc, because we are allocating a very large array and if a gc
+  // happens during the allocation we could lose our memento.
+  gc();
+  bar(size)[0] = 'string';
+  var res = bar(size);
+  assertKind(elements_kind.fast, bar(size));
+    %OptimizeFunctionOnNextCall(bar);
+  assertKind(elements_kind.fast, bar(size));
+  // But there is a limit, based on the size of the old generation, currently
+  // 22937600, but double it to prevent the test being too brittle.
+  var large_size = 22937600 * 2;
+  assertKind(elements_kind.dictionary, bar(large_size));
 })();

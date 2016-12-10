@@ -1,38 +1,17 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
-
+'use strict';
 var common = require('../common');
 var assert = require('assert');
+
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
+}
+var https = require('https');
 
 var fs = require('fs');
 var net = require('net');
 var http = require('http');
-var https = require('https');
 
-var proxyPort = common.PORT + 1;
 var gotRequest = false;
 
 var key = fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem');
@@ -60,22 +39,23 @@ var proxy = net.createServer(function(clientSocket) {
   clientSocket.on('data', function(chunk) {
     if (!serverSocket) {
       // Verify the CONNECT request
-      assert.equal('CONNECT localhost:' + common.PORT + ' HTTP/1.1\r\n' +
+      assert.equal(`CONNECT localhost:${server.address().port} HTTP/1.1\r\n` +
                    'Proxy-Connections: keep-alive\r\n' +
-                   'Host: localhost:' + proxyPort + '\r\n\r\n',
+                   `Host: localhost:${proxy.address().port}\r\n` +
+                   'Connection: close\r\n\r\n',
                    chunk);
 
       console.log('PROXY: got CONNECT request');
       console.log('PROXY: creating a tunnel');
 
       // create the tunnel
-      serverSocket = net.connect(common.PORT, function() {
+      serverSocket = net.connect(server.address().port, function() {
         console.log('PROXY: replying to client CONNECT request');
 
         // Send the response
         clientSocket.write('HTTP/1.1 200 OK\r\nProxy-Connections: keep' +
                            '-alive\r\nConnections: keep-alive\r\nVia: ' +
-                           'localhost:' + proxyPort + '\r\n\r\n');
+                           `localhost:${proxy.address().port}\r\n\r\n`);
       });
 
       serverSocket.on('data', function(chunk) {
@@ -95,15 +75,15 @@ var proxy = net.createServer(function(clientSocket) {
   });
 });
 
-server.listen(common.PORT);
+server.listen(0);
 
-proxy.listen(proxyPort, function() {
+proxy.listen(0, function() {
   console.log('CLIENT: Making CONNECT request');
 
   var req = http.request({
-    port: proxyPort,
+    port: this.address().port,
     method: 'CONNECT',
-    path: 'localhost:' + common.PORT,
+    path: `localhost:${server.address().port}`,
     headers: {
       'Proxy-Connections': 'keep-alive'
     }

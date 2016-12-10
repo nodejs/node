@@ -165,25 +165,23 @@ void DumpHeapStats(const char *minidump_file) {
 
   const int new_space_size = READ_FIELD(1);
   const int new_space_capacity = READ_FIELD(2);
-  const int old_pointer_space_size = READ_FIELD(3);
-  const int old_pointer_space_capacity = READ_FIELD(4);
-  const int old_data_space_size = READ_FIELD(5);
-  const int old_data_space_capacity = READ_FIELD(6);
-  const int code_space_size = READ_FIELD(7);
-  const int code_space_capacity = READ_FIELD(8);
-  const int map_space_size = READ_FIELD(9);
-  const int map_space_capacity = READ_FIELD(10);
-  const int cell_space_size = READ_FIELD(11);
-  const int cell_space_capacity = READ_FIELD(12);
-  const int lo_space_size = READ_FIELD(13);
-  const int global_handle_count = READ_FIELD(14);
-  const int weak_global_handle_count = READ_FIELD(15);
-  const int pending_global_handle_count = READ_FIELD(16);
-  const int near_death_global_handle_count = READ_FIELD(17);
-  const int destroyed_global_handle_count = READ_FIELD(18);
-  const int memory_allocator_size = READ_FIELD(19);
-  const int memory_allocator_capacity = READ_FIELD(20);
-  const int os_error = READ_FIELD(23);
+  const int old_space_size = READ_FIELD(3);
+  const int old_space_capacity = READ_FIELD(4);
+  const int code_space_size = READ_FIELD(5);
+  const int code_space_capacity = READ_FIELD(6);
+  const int map_space_size = READ_FIELD(7);
+  const int map_space_capacity = READ_FIELD(8);
+  const int cell_space_size = READ_FIELD(9);
+  const int cell_space_capacity = READ_FIELD(10);
+  const int lo_space_size = READ_FIELD(11);
+  const int global_handle_count = READ_FIELD(12);
+  const int weak_global_handle_count = READ_FIELD(13);
+  const int pending_global_handle_count = READ_FIELD(14);
+  const int near_death_global_handle_count = READ_FIELD(15);
+  const int destroyed_global_handle_count = READ_FIELD(16);
+  const int memory_allocator_size = READ_FIELD(17);
+  const int memory_allocator_capacity = READ_FIELD(18);
+  const int os_error = READ_FIELD(19);
 #undef READ_FIELD
 
   int objects_per_type[v8::internal::LAST_TYPE + 1] = {0};
@@ -225,10 +223,8 @@ void DumpHeapStats(const char *minidump_file) {
     printf("\t%-25s\t% 10.3f MB\n", #stat ":", toM(stat));
   PRINT_MB_STAT(new_space_size);
   PRINT_MB_STAT(new_space_capacity);
-  PRINT_MB_STAT(old_pointer_space_size);
-  PRINT_MB_STAT(old_pointer_space_capacity);
-  PRINT_MB_STAT(old_data_space_size);
-  PRINT_MB_STAT(old_data_space_capacity);
+  PRINT_MB_STAT(old_space_size);
+  PRINT_MB_STAT(old_space_capacity);
   PRINT_MB_STAT(code_space_size);
   PRINT_MB_STAT(code_space_capacity);
   PRINT_MB_STAT(map_space_size);

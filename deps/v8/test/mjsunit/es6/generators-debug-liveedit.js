@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug
+// Flags: --expose-debug-as debug --allow-natives-syntax
 
 var Debug = debug.Debug;
 var LiveEdit = Debug.LiveEdit;
@@ -54,7 +54,7 @@ function patch(fun, from, to) {
       print("Change log: " + JSON.stringify(log) + "\n");
     }
   }
-  Debug.ExecuteInDebugContext(debug, false);
+  %ExecuteInDebugContext(debug);
 }
 
 // Try to edit a MakeGenerator while it's running, then again while it's

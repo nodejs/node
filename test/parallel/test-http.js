@@ -1,54 +1,30 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var url = require('url');
-
-function p(x) {
-  common.error(common.inspect(x));
-}
+'use strict';
+require('../common');
+const assert = require('assert');
+const http = require('http');
+const url = require('url');
 
 var responses_sent = 0;
 var responses_recvd = 0;
 var body0 = '';
 var body1 = '';
 
-var server = http.Server(function(req, res) {
-  if (responses_sent == 0) {
-    assert.equal('GET', req.method);
-    assert.equal('/hello', url.parse(req.url).pathname);
+const server = http.Server(function(req, res) {
+  if (responses_sent === 0) {
+    assert.strictEqual('GET', req.method);
+    assert.strictEqual('/hello', url.parse(req.url).pathname);
 
     console.dir(req.headers);
-    assert.equal(true, 'accept' in req.headers);
-    assert.equal('*/*', req.headers['accept']);
+    assert.strictEqual(true, 'accept' in req.headers);
+    assert.strictEqual('*/*', req.headers['accept']);
 
-    assert.equal(true, 'foo' in req.headers);
-    assert.equal('bar', req.headers['foo']);
+    assert.strictEqual(true, 'foo' in req.headers);
+    assert.strictEqual('bar', req.headers['foo']);
   }
 
-  if (responses_sent == 1) {
-    assert.equal('POST', req.method);
-    assert.equal('/world', url.parse(req.url).pathname);
+  if (responses_sent === 1) {
+    assert.strictEqual('POST', req.method);
+    assert.strictEqual('/world', url.parse(req.url).pathname);
     this.close();
   }
 
@@ -62,48 +38,47 @@ var server = http.Server(function(req, res) {
 
   //assert.equal('127.0.0.1', res.connection.remoteAddress);
 });
-server.listen(common.PORT);
+server.listen(0);
 
 server.on('listening', function() {
-  var agent = new http.Agent({ port: common.PORT, maxSockets: 1 });
+  const agent = new http.Agent({ port: this.address().port, maxSockets: 1 });
   http.get({
-    port: common.PORT,
+    port: this.address().port,
     path: '/hello',
     headers: {'Accept': '*/*', 'Foo': 'bar'},
     agent: agent
   }, function(res) {
-    assert.equal(200, res.statusCode);
+    assert.strictEqual(200, res.statusCode);
     responses_recvd += 1;
     res.setEncoding('utf8');
     res.on('data', function(chunk) { body0 += chunk; });
-    common.debug('Got /hello response');
+    console.error('Got /hello response');
   });
 
   setTimeout(function() {
-    var req = http.request({
-      port: common.PORT,
+    const req = http.request({
+      port: server.address().port,
       method: 'POST',
       path: '/world',
       agent: agent
     }, function(res) {
-      assert.equal(200, res.statusCode);
+      assert.strictEqual(200, res.statusCode);
       responses_recvd += 1;
       res.setEncoding('utf8');
       res.on('data', function(chunk) { body1 += chunk; });
-      common.debug('Got /world response');
+      console.error('Got /world response');
     });
     req.end();
   }, 1);
 });
 
 process.on('exit', function() {
-  common.debug('responses_recvd: ' + responses_recvd);
-  assert.equal(2, responses_recvd);
+  console.error('responses_recvd: ' + responses_recvd);
+  assert.strictEqual(2, responses_recvd);
 
-  common.debug('responses_sent: ' + responses_sent);
-  assert.equal(2, responses_sent);
+  console.error('responses_sent: ' + responses_sent);
+  assert.strictEqual(2, responses_sent);
 
-  assert.equal('The path was /hello', body0);
-  assert.equal('The path was /world', body1);
+  assert.strictEqual('The path was /hello', body0);
+  assert.strictEqual('The path was /world', body1);
 });
-

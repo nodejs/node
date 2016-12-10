@@ -18,7 +18,7 @@ var p = new Promise(function(resolve, reject) {
   resolve();
 });
 
-var q = p.chain(
+var q = p.then(
   function() {
     log.push("reject");
     return Promise.reject(Error("uncaught reject"));  // event
@@ -60,10 +60,7 @@ function testDone(iteration) {
     }
   }
 
-  // Run testDone through the Object.observe processing loop.
-  var dummy = {};
-  Object.observe(dummy, checkResult);
-  dummy.dummy = dummy;
+  %EnqueueMicrotask(checkResult);
 }
 
 testDone(0);

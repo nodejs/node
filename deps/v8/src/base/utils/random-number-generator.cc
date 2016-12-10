@@ -97,15 +97,14 @@ int RandomNumberGenerator::NextInt(int max) {
 
 
 double RandomNumberGenerator::NextDouble() {
-  return ((static_cast<int64_t>(Next(26)) << 27) + Next(27)) /
-      static_cast<double>(static_cast<int64_t>(1) << 53);
+  XorShift128(&state0_, &state1_);
+  return ToDouble(state0_, state1_);
 }
 
 
 int64_t RandomNumberGenerator::NextInt64() {
-  uint64_t lo = bit_cast<unsigned>(Next(32));
-  uint64_t hi = bit_cast<unsigned>(Next(32));
-  return lo | (hi << 32);
+  XorShift128(&state0_, &state1_);
+  return bit_cast<int64_t>(state0_ + state1_);
 }
 
 
@@ -119,21 +118,27 @@ void RandomNumberGenerator::NextBytes(void* buffer, size_t buflen) {
 int RandomNumberGenerator::Next(int bits) {
   DCHECK_LT(0, bits);
   DCHECK_GE(32, bits);
-  // Do unsigned multiplication, which has the intended modulo semantics, while
-  // signed multiplication would expose undefined behavior.
-  uint64_t product = static_cast<uint64_t>(seed_) * kMultiplier;
-  // Assigning a uint64_t to an int64_t is implementation defined, but this
-  // should be OK. Use a static_cast to explicitly state that we know what we're
-  // doing. (Famous last words...)
-  int64_t seed = static_cast<int64_t>((product + kAddend) & kMask);
-  seed_ = seed;
-  return static_cast<int>(seed >> (48 - bits));
+  XorShift128(&state0_, &state1_);
+  return static_cast<int>((state0_ + state1_) >> (64 - bits));
 }
 
 
 void RandomNumberGenerator::SetSeed(int64_t seed) {
   initial_seed_ = seed;
-  seed_ = (seed ^ kMultiplier) & kMask;
+  state0_ = MurmurHash3(bit_cast<uint64_t>(seed));
+  state1_ = MurmurHash3(~state0_);
+  CHECK(state0_ != 0 || state1_ != 0);
 }
 
-} }  // namespace v8::base
+
+uint64_t RandomNumberGenerator::MurmurHash3(uint64_t h) {
+  h ^= h >> 33;
+  h *= V8_UINT64_C(0xFF51AFD7ED558CCD);
+  h ^= h >> 33;
+  h *= V8_UINT64_C(0xC4CEB9FE1A85EC53);
+  h ^= h >> 33;
+  return h;
+}
+
+}  // namespace base
+}  // namespace v8

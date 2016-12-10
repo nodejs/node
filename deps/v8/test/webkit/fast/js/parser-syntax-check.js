@@ -21,6 +21,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --no-harmony-restrictive-declarations
+
 description(
 "This test checks that the following expressions or statements are valid ECMASCRIPT code or should throw parse error"
 );
@@ -291,21 +293,21 @@ invalid("for ( %a ; ; ) { }");
 valid  ("for (a in b) break");
 valid  ("for (a() in b) break");
 valid  ("for (a().l[4] in b) break");
-valid  ("for (new a in b in c in d) break");
-valid  ("for (new new new a in b) break");
+invalid("for (new a in b in c in d) break");
+invalid("for (new new new a in b) break");
 invalid("for (delete new a() in b) break");
 invalid("for (a * a in b) break");
-valid  ("for ((a * a) in b) break");
+invalid("for ((a * a) in b) break");
 invalid("for (a++ in b) break");
-valid  ("for ((a++) in b) break");
+invalid("for ((a++) in b) break");
 invalid("for (++a in b) break");
-valid  ("for ((++a) in b) break");
+invalid("for ((++a) in b) break");
 invalid("for (a, b in c) break");
 invalid("for (a,b in c ;;) break");
 valid  ("for (a,(b in c) ;;) break");
-valid  ("for ((a, b) in c) break");
+invalid("for ((a, b) in c) break");
 invalid("for (a ? b : c in c) break");
-valid  ("for ((a ? b : c) in c) break");
+invalid("for ((a ? b : c) in c) break");
 valid  ("for (var a in b in c) break");
 valid  ("for (var a = 5 += 6 in b) break");
 invalid("for (var a += 5 in b) break");

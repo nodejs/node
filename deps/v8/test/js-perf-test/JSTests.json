@@ -1,0 +1,223 @@
+{
+  "name": "JSTests",
+  "run_count": 5,
+  "run_count_android_arm": 3,
+  "run_count_android_arm64": 3,
+  "timeout": 120,
+  "units": "score",
+  "total": true,
+  "resources": ["base.js"],
+  "tests": [
+    {
+      "name": "Generators",
+      "path": ["Generators"],
+      "main": "run.js",
+      "resources": ["generators.js"],
+      "flags": ["--harmony-function-sent"],
+      "results_regexp": "^Generators\\-Generators\\(Score\\): (.+)$"
+    },
+    {
+      "name": "GeneratorsIgnition",
+      "path": ["Generators"],
+      "main": "run.js",
+      "resources": ["generators.js"],
+      "flags": [
+        "--harmony-function-sent",
+        "--ignition"
+      ],
+      "results_regexp": "^Generators\\-Generators\\(Score\\): (.+)$"
+    },
+    {
+      "name": "GeneratorsIgnitionTurbofan",
+      "path": ["Generators"],
+      "main": "run.js",
+      "resources": ["generators.js"],
+      "flags": [
+        "--harmony-function-sent",
+        "--ignition",
+        "--turbo",
+        "--turbo-from-bytecode"
+      ],
+      "results_regexp": "^Generators\\-Generators\\(Score\\): (.+)$"
+    },
+    {
+      "name": "RestParameters",
+      "path": ["RestParameters"],
+      "main": "run.js",
+      "resources": ["rest.js"],
+      "run_count": 5,
+      "units": "score",
+      "results_regexp": "^%s\\-RestParameters\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Basic1"}
+      ]
+    },
+    {
+      "name": "SpreadCalls",
+      "path": ["SpreadCalls"],
+      "main": "run.js",
+      "resources": ["spreadcalls.js"],
+      "run_count": 5,
+      "units": "score",
+      "results_regexp": "^%s\\-SpreadCalls\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Call"},
+        {"name": "CallMethod"},
+        {"name": "CallNew"}
+      ]
+    },
+    {
+      "name": "Classes",
+      "path": ["Classes"],
+      "main": "run.js",
+      "resources": ["super.js", "default-constructor.js"],
+      "results_regexp": "^%s\\-Classes\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Super"},
+        {"name": "DefaultConstructor"}
+      ]
+    },
+    {
+      "name": "Collections",
+      "path": ["Collections"],
+      "main": "run.js",
+      "resources": [
+        "common.js",
+        "map.js",
+        "run.js",
+        "set.js",
+        "weakmap.js",
+        "weakset.js"
+      ],
+      "results_regexp": "^%s\\-Collections\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Map-Smi"},
+        {"name": "Map-String"},
+        {"name": "Map-Object"},
+        {"name": "Map-Iteration"},
+        {"name": "Set-Smi"},
+        {"name": "Set-String"},
+        {"name": "Set-Object"},
+        {"name": "Set-Iteration"},
+        {"name": "WeakMap"},
+        {"name": "WeakSet"}
+      ]
+    },
+    {
+      "name": "Iterators",
+      "path": ["Iterators"],
+      "main": "run.js",
+      "resources": ["forof.js"],
+      "results_regexp": "^%s\\-Iterators\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "ForOf"}
+      ]
+    },
+    {
+      "name": "Strings",
+      "path": ["Strings"],
+      "main": "run.js",
+      "resources": ["harmony-string.js"],
+      "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "StringFunctions"}
+      ]
+    },
+    {
+      "name": "Templates",
+      "path": ["Templates"],
+      "main": "run.js",
+      "resources": ["templates.js"],
+      "run_count": 5,
+      "units": "score",
+      "results_regexp": "^%s\\-Templates\\(Score\\): (.+)$",
+      "total": true,
+      "tests": [
+        {"name": "Untagged"},
+        {"name": "LargeUntagged"},
+        {"name": "Tagged"}
+      ]
+    },
+    {
+      "name": "Object",
+      "path": ["Object"],
+      "main": "run.js",
+      "flags": ["--harmony"],
+      "resources": [
+        "assign.js",
+        "values.js",
+        "entries.js"
+      ],
+      "results_regexp": "^%s\\-Object\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Assign"},
+        {"name": "Entries"},
+        {"name": "EntriesMegamorphic"},
+        {"name": "Values"},
+        {"name": "ValuesMegamorphic"}
+      ]
+    },
+    {
+      "name": "Scope",
+      "path": ["Scope"],
+      "main": "run.js",
+      "resources": ["with.js"],
+      "results_regexp": "^%s\\-Scope\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "With"}
+      ]
+    },
+    {
+      "name": "Exceptions",
+      "path": ["Exceptions"],
+      "main": "run.js",
+      "resources": ["try-catch.js"],
+      "results_regexp": "^%s\\-Exceptions\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Try-Catch"}
+      ]
+    },
+    {
+      "name": "Keys",
+      "path": ["Keys"],
+      "main": "run.js",
+      "resources": ["keys.js"],
+      "results_regexp": "^%s\\-Keys\\(Score\\): (.+)$",
+      "run_count": 3,
+      "run_count_android_arm": 2,
+      "run_count_android_arm64": 2,
+      "tests": [
+        {"name": "Object.keys()"},
+        {"name": "for-in"},
+        {"name": "for-in hasOwnProperty()"},
+        {"name": "for (i < Object.keys().length)"},
+        {"name": "Object.keys().forEach()"},
+        {"name": "for (i < array.length)"},
+        {"name": "for (i < length)"}
+      ]
+    },
+    {
+      "name": "PropertyQueries",
+      "path": ["PropertyQueries"],
+      "main": "run.js",
+      "resources": ["property-queries.js"],
+      "results_regexp": "^%s\\-PropertyQueries\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "in--INTERN-prop"},
+        {"name": "in--DEINTERN-prop"},
+        {"name": "in--NE-INTERN-prop"},
+        {"name": "in--NE-DEINTERN-prop"},
+        {"name": "in--el"},
+        {"name": "in--el-str"},
+        {"name": "in--NE-el"},
+        {"name": "Object.hasOwnProperty--INTERN-prop"},
+        {"name": "Object.hasOwnProperty--DEINTERN-prop"},
+        {"name": "Object.hasOwnProperty--NE-INTERN-prop"},
+        {"name": "Object.hasOwnProperty--NE-DEINTERN-prop"},
+        {"name": "Object.hasOwnProperty--el"},
+        {"name": "Object.hasOwnProperty--el-str"},
+        {"name": "Object.hasOwnProperty--NE-el"}
+      ]
+    }
+  ]
+}

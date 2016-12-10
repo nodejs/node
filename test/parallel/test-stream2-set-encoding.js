@@ -1,26 +1,5 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-var common = require('../common.js');
+'use strict';
+require('../common');
 var assert = require('assert');
 var R = require('_stream_readable');
 var util = require('util');
@@ -43,9 +22,9 @@ function run() {
   var fn = next[1];
   console.log('# %s', name);
   fn({
-    same: assert.deepEqual,
+    same: assert.deepStrictEqual,
     equal: assert.equal,
-    end: function () {
+    end: function() {
       count--;
       run();
     }
@@ -53,7 +32,7 @@ function run() {
 }
 
 // ensure all tests have run
-process.on("exit", function () {
+process.on('exit', function() {
   assert.equal(count, 0);
 });
 
@@ -87,10 +66,9 @@ TestReader.prototype._read = function(n) {
     }
 
     this.pos += n;
-    var ret = new Buffer(n);
-    ret.fill('a');
+    var ret = Buffer.alloc(n, 'a');
 
-    console.log("this.push(ret)", ret)
+    console.log('this.push(ret)', ret);
 
     return this.push(ret);
   }.bind(this), 1);
@@ -168,32 +146,32 @@ test('setEncoding hex with read(13)', function(t) {
   tr.setEncoding('hex');
   var out = [];
   var expect =
-    [ "6161616161616",
-      "1616161616161",
-      "6161616161616",
-      "1616161616161",
-      "6161616161616",
-      "1616161616161",
-      "6161616161616",
-      "1616161616161",
-      "6161616161616",
-      "1616161616161",
-      "6161616161616",
-      "1616161616161",
-      "6161616161616",
-      "1616161616161",
-      "6161616161616",
-      "16161" ];
+    [ '6161616161616',
+      '1616161616161',
+      '6161616161616',
+      '1616161616161',
+      '6161616161616',
+      '1616161616161',
+      '6161616161616',
+      '1616161616161',
+      '6161616161616',
+      '1616161616161',
+      '6161616161616',
+      '1616161616161',
+      '6161616161616',
+      '1616161616161',
+      '6161616161616',
+      '16161' ];
 
   tr.on('readable', function flow() {
-    console.log("readable once")
+    console.log('readable once');
     var chunk;
     while (null !== (chunk = tr.read(13)))
       out.push(chunk);
   });
 
   tr.on('end', function() {
-    console.log("END")
+    console.log('END');
     t.same(out, expect);
     t.end();
   });
@@ -300,22 +278,22 @@ test('encoding: hex with read(13)', function(t) {
   var tr = new TestReader(100, { encoding: 'hex' });
   var out = [];
   var expect =
-    [ "6161616161616",
-      "1616161616161",
-      "6161616161616",
-      "1616161616161",
-      "6161616161616",
-      "1616161616161",
-      "6161616161616",
-      "1616161616161",
-      "6161616161616",
-      "1616161616161",
-      "6161616161616",
-      "1616161616161",
-      "6161616161616",
-      "1616161616161",
-      "6161616161616",
-      "16161" ];
+    [ '6161616161616',
+      '1616161616161',
+      '6161616161616',
+      '1616161616161',
+      '6161616161616',
+      '1616161616161',
+      '6161616161616',
+      '1616161616161',
+      '6161616161616',
+      '1616161616161',
+      '6161616161616',
+      '1616161616161',
+      '6161616161616',
+      '1616161616161',
+      '6161616161616',
+      '16161' ];
 
   tr.on('readable', function flow() {
     var chunk;

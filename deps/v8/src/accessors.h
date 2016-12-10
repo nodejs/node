@@ -5,17 +5,26 @@
 #ifndef V8_ACCESSORS_H_
 #define V8_ACCESSORS_H_
 
+#include "include/v8.h"
 #include "src/allocation.h"
 #include "src/globals.h"
+#include "src/handles.h"
+#include "src/property-details.h"
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class AccessorInfo;
 
 // The list of accessor descriptors. This is a second-order macro
 // taking a macro to be applied to all accessor descriptor names.
 #define ACCESSOR_INFO_LIST(V)     \
   V(ArgumentsIterator)            \
   V(ArrayLength)                  \
+  V(BoundFunctionLength)          \
+  V(BoundFunctionName)            \
+  V(ErrorStack)                   \
   V(FunctionArguments)            \
   V(FunctionCaller)               \
   V(FunctionName)                 \
@@ -35,7 +44,14 @@ namespace internal {
   V(ScriptType)                   \
   V(ScriptSourceUrl)              \
   V(ScriptSourceMappingUrl)       \
+  V(ScriptIsEmbedderDebugScript)  \
   V(StringLength)
+
+#define ACCESSOR_SETTER_LIST(V) \
+  V(ReconfigureToDataProperty)  \
+  V(ArrayLengthSetter)          \
+  V(ErrorStackSetter)           \
+  V(FunctionPrototypeSetter)
 
 // Accessors contains all predefined proxy accessors.
 
@@ -46,15 +62,17 @@ class Accessors : public AllStatic {
   static void name##Getter(                               \
       v8::Local<v8::Name> name,                           \
       const v8::PropertyCallbackInfo<v8::Value>& info);   \
-  static void name##Setter(                               \
-      v8::Local<v8::Name> name,                           \
-      v8::Local<v8::Value> value,                         \
-      const v8::PropertyCallbackInfo<void>& info);   \
   static Handle<AccessorInfo> name##Info(                 \
       Isolate* isolate,                                   \
       PropertyAttributes attributes);
   ACCESSOR_INFO_LIST(ACCESSOR_INFO_DECLARATION)
 #undef ACCESSOR_INFO_DECLARATION
+
+#define ACCESSOR_SETTER_DECLARATION(name)                                \
+  static void name(v8::Local<v8::Name> name, v8::Local<v8::Value> value, \
+                   const v8::PropertyCallbackInfo<void>& info);
+  ACCESSOR_SETTER_LIST(ACCESSOR_SETTER_DECLARATION)
+#undef ACCESSOR_SETTER_DECLARATION
 
   enum DescriptorId {
 #define ACCESSOR_INFO_DECLARATION(name) \
@@ -68,17 +86,11 @@ class Accessors : public AllStatic {
   // Accessor functions called directly from the runtime system.
   MUST_USE_RESULT static MaybeHandle<Object> FunctionSetPrototype(
       Handle<JSFunction> object, Handle<Object> value);
-  static Handle<Object> FunctionGetArguments(Handle<JSFunction> object);
-
-  // Accessor infos.
-  static Handle<AccessorInfo> MakeModuleExport(
-      Handle<String> name, int index, PropertyAttributes attributes);
+  static Handle<JSObject> FunctionGetArguments(Handle<JSFunction> object);
 
   // Returns true for properties that are accessors to object fields.
   // If true, *object_offset contains offset of object field.
-  template <class T>
-  static bool IsJSObjectFieldAccessor(typename T::TypeHandle type,
-                                      Handle<Name> name,
+  static bool IsJSObjectFieldAccessor(Handle<Map> map, Handle<Name> name,
                                       int* object_offset);
 
   static Handle<AccessorInfo> MakeAccessor(
@@ -87,17 +99,9 @@ class Accessors : public AllStatic {
       AccessorNameGetterCallback getter,
       AccessorNameSetterCallback setter,
       PropertyAttributes attributes);
-
-  static Handle<ExecutableAccessorInfo> CloneAccessor(
-      Isolate* isolate,
-      Handle<ExecutableAccessorInfo> accessor);
-
-
- private:
-  // Helper functions.
-  static Handle<Object> FlattenNumber(Isolate* isolate, Handle<Object> value);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ACCESSORS_H_

@@ -26,7 +26,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --expose-debug-as debug
-// Flags: --turbo-deoptimization
 
 // If a function parameter is forced to be context allocated,
 // debug evaluate need to resolve it to a context slot instead of
@@ -41,7 +40,7 @@ function listener(event, exec_state, event_data, data) {
   if (event != Debug.DebugEvent.Break) return;
   try {
     assertEquals(expected, exec_state.frame(0).evaluate('arg').value());
-    exec_state.frame(0).evaluate('arg = "evaluated";');
+    exec_state.frame(0).evaluate('arg = "evaluated";');  // no effect
   } catch (e) {
     exception = e;
   }

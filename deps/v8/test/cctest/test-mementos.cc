@@ -36,7 +36,7 @@ static void SetUpNewSpaceWithPoisonedMementoAtTop() {
   NewSpace* new_space = heap->new_space();
 
   // Make sure we can allocate some objects without causing a GC later.
-  heap->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
+  heap->CollectAllGarbage();
 
   // Allocate a string, the GC may suspect a memento behind the string.
   Handle<SeqOneByteString> string =
@@ -58,8 +58,25 @@ TEST(Regress340063) {
   if (!i::FLAG_allocation_site_pretenuring) return;
   v8::HandleScope scope(CcTest::isolate());
 
+  SetUpNewSpaceWithPoisonedMementoAtTop();
+
+  // Call GC to see if we can handle a poisonous memento right after the
+  // current new space top pointer.
+  CcTest::i_isolate()->heap()->CollectAllGarbage(
+      Heap::kAbortIncrementalMarkingMask);
+}
+
+
+TEST(Regress470390) {
+  CcTest::InitializeVM();
+  if (!i::FLAG_allocation_site_pretenuring) return;
+  v8::HandleScope scope(CcTest::isolate());
 
   SetUpNewSpaceWithPoisonedMementoAtTop();
+
+  // Set the new space limit to be equal to the top.
+  Address top = CcTest::i_isolate()->heap()->new_space()->top();
+  *(CcTest::i_isolate()->heap()->new_space()->allocation_limit_address()) = top;
 
   // Call GC to see if we can handle a poisonous memento right after the
   // current new space top pointer.
@@ -77,45 +94,4 @@ TEST(BadMementoAfterTopForceScavenge) {
 
   // Force GC to test the poisoned memento handling
   CcTest::i_isolate()->heap()->CollectGarbage(i::NEW_SPACE);
-}
-
-
-TEST(PretenuringCallNew) {
-  CcTest::InitializeVM();
-  if (!i::FLAG_allocation_site_pretenuring) return;
-  if (!i::FLAG_pretenuring_call_new) return;
-
-  v8::HandleScope scope(CcTest::isolate());
-  Isolate* isolate = CcTest::i_isolate();
-  Heap* heap = isolate->heap();
-
-  int call_count = 10;
-  i::ScopedVector<char> test_buf(1024);
-  const char* program =
-      "function f() {"
-      "  this.a = 3;"
-      "  this.b = {};"
-      "  return this;"
-      "};"
-      "var a;"
-      "for(var i = 0; i < %d; i++) {"
-      "  a = new f();"
-      "}"
-      "a;";
-  i::SNPrintF(test_buf, program, call_count);
-  v8::Local<v8::Value> res = CompileRun(test_buf.start());
-  Handle<JSObject> o =
-      v8::Utils::OpenHandle(*v8::Handle<v8::Object>::Cast(res));
-
-  // The object of class f should have a memento secreted behind it.
-  Address memento_address = o->address() + o->map()->instance_size();
-  AllocationMemento* memento =
-      reinterpret_cast<AllocationMemento*>(memento_address + kHeapObjectTag);
-  CHECK_EQ(memento->map(), heap->allocation_memento_map());
-
-  // Furthermore, how many mementos did we create? The count should match
-  // call_count. Note, that mementos are allocated during the inobject slack
-  // tracking phase.
-  AllocationSite* site = memento->GetAllocationSite();
-  CHECK_EQ(call_count, site->pretenure_create_count()->value());
 }

@@ -35,7 +35,8 @@ if (!%IsConcurrentRecompilationSupported()) {
 
 function g() {  // g() cannot be optimized.
   const x = 1;
-  x++;
+  // TODO(adamk): Is this test still testing anything?
+  // x++;
 }
 
 function f(x) {

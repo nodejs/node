@@ -1,11 +1,11 @@
 {
   "copyright": "Copyright (c) 2014 IBM Corporation and Others. All Rights Reserved.",
-  "comment": "icutrim.py config: Trim down ICU to just English, needed for node.js use.",
+  "comment": "icutrim.py config: Trim down ICU to just a certain locale set, needed for node.js use.",
   "variables": {
     "none": {
       "only": []
     },
-    "en_only": {
+    "locales": {
       "only": [
         "root",
         "en"
@@ -15,25 +15,25 @@
     }
   },
   "trees": {
-    "ROOT": "en_only",
+    "ROOT": "locales",
     "brkitr": "none",
-    "coll": "en_only",
-    "curr": "en_only",
+    "coll": "locales",
+    "curr": "locales",
     "lang": "none",
     "rbnf": "none",
     "region": "none",
-    "zone": "en_only",
+    "zone": "locales",
     "converters": "none",
-    "stringprep": "none",
-    "translit": "none",
+    "stringprep": "locales",
+    "translit": "locales",
     "brkfiles": "none",
     "brkdict": "none",
-    "confusables": "none"
+    "confusables": "none",
+    "unit": "none"
   },
   "remove": [
     "cnvalias.icu",
     "postalCodeData.res",
-    "uts46.nrm",
     "genderList.res",
     "brkitr/root.res",
     "unames.icu"

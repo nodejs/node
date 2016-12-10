@@ -1,26 +1,5 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-var common = require('../common.js');
+'use strict';
+require('../common');
 var Readable = require('_stream_readable');
 var Writable = require('_stream_writable');
 var assert = require('assert');
@@ -43,7 +22,7 @@ function run() {
   var fn = next[1];
   console.log('# %s', name);
   fn({
-    same: assert.deepEqual,
+    same: assert.deepStrictEqual,
     equal: assert.equal,
     end: function() {
       count--;
@@ -54,7 +33,7 @@ function run() {
 
 // ensure all tests have run
 process.on('exit', function() {
-  assert.equal(count, 0);
+  assert.strictEqual(count, 0);
 });
 
 process.nextTick(run);
@@ -93,9 +72,9 @@ test('can read objects from stream', function(t) {
   var v2 = r.read();
   var v3 = r.read();
 
-  assert.deepEqual(v1, { one: '1' });
-  assert.deepEqual(v2, { two: '2' });
-  assert.deepEqual(v3, null);
+  assert.deepStrictEqual(v1, { one: '1' });
+  assert.deepStrictEqual(v2, { two: '2' });
+  assert.deepStrictEqual(v3, null);
 
   t.end();
 });
@@ -104,7 +83,7 @@ test('can pipe objects into stream', function(t) {
   var r = fromArray([{ one: '1'}, { two: '2' }]);
 
   r.pipe(toArray(function(list) {
-    assert.deepEqual(list, [
+    assert.deepStrictEqual(list, [
       { one: '1' },
       { two: '2' }
     ]);
@@ -118,7 +97,7 @@ test('read(n) is ignored', function(t) {
 
   var value = r.read(2);
 
-  assert.deepEqual(value, { one: '1' });
+  assert.deepStrictEqual(value, { one: '1' });
 
   t.end();
 });
@@ -132,7 +111,7 @@ test('can read objects from _read (sync)', function(t) {
   };
 
   r.pipe(toArray(function(list) {
-    assert.deepEqual(list, [
+    assert.deepStrictEqual(list, [
       { one: '1' },
       { two: '2' }
     ]);
@@ -152,7 +131,7 @@ test('can read objects from _read (async)', function(t) {
   };
 
   r.pipe(toArray(function(list) {
-    assert.deepEqual(list, [
+    assert.deepStrictEqual(list, [
       { one: '1' },
       { two: '2' }
     ]);
@@ -173,7 +152,7 @@ test('can read strings as objects', function(t) {
   r.push(null);
 
   r.pipe(toArray(function(array) {
-    assert.deepEqual(array, list);
+    assert.deepStrictEqual(array, list);
 
     t.end();
   }));
@@ -188,10 +167,8 @@ test('read(0) for object streams', function(t) {
   r.push('foobar');
   r.push(null);
 
-  var v = r.read(0);
-
   r.pipe(toArray(function(array) {
-    assert.deepEqual(array, ['foobar']);
+    assert.deepStrictEqual(array, ['foobar']);
 
     t.end();
   }));
@@ -209,7 +186,7 @@ test('falsey values', function(t) {
   r.push(null);
 
   r.pipe(toArray(function(array) {
-    assert.deepEqual(array, [false, 0, '']);
+    assert.deepStrictEqual(array, [false, 0, '']);
 
     t.end();
   }));
@@ -233,16 +210,16 @@ test('high watermark _read', function(t) {
 
   var v = r.read();
 
-  assert.equal(calls, 0);
-  assert.equal(v, '1');
+  assert.strictEqual(calls, 0);
+  assert.strictEqual(v, '1');
 
   var v2 = r.read();
-  assert.equal(v2, '2');
+  assert.strictEqual(v2, '2');
 
   var v3 = r.read();
-  assert.equal(v3, '3');
+  assert.strictEqual(v3, '3');
 
-  assert.equal(calls, 1);
+  assert.strictEqual(calls, 1);
 
   t.end();
 });
@@ -255,7 +232,7 @@ test('high watermark push', function(t) {
   r._read = function(n) {};
   for (var i = 0; i < 6; i++) {
     var bool = r.push(i);
-    assert.equal(bool, i === 5 ? false : true);
+    assert.strictEqual(bool, i !== 5);
   }
 
   t.end();
@@ -265,7 +242,7 @@ test('can write objects to stream', function(t) {
   var w = new Writable({ objectMode: true });
 
   w._write = function(chunk, encoding, cb) {
-    assert.deepEqual(chunk, { foo: 'bar' });
+    assert.deepStrictEqual(chunk, { foo: 'bar' });
     cb();
   };
 
@@ -287,7 +264,7 @@ test('can write multiple objects to stream', function(t) {
   };
 
   w.on('finish', function() {
-    assert.deepEqual(list, [0, 1, 2, 3, 4]);
+    assert.deepStrictEqual(list, [0, 1, 2, 3, 4]);
 
     t.end();
   });
@@ -312,7 +289,7 @@ test('can write strings as objects', function(t) {
   };
 
   w.on('finish', function() {
-    assert.deepEqual(list, ['0', '1', '2', '3', '4']);
+    assert.deepStrictEqual(list, ['0', '1', '2', '3', '4']);
 
     t.end();
   });
@@ -332,7 +309,7 @@ test('buffers finish until cb is called', function(t) {
   var called = false;
 
   w._write = function(chunk, encoding, cb) {
-    assert.equal(chunk, 'foo');
+    assert.strictEqual(chunk, 'foo');
 
     process.nextTick(function() {
       called = true;
@@ -341,7 +318,7 @@ test('buffers finish until cb is called', function(t) {
   };
 
   w.on('finish', function() {
-    assert.equal(called, true);
+    assert.strictEqual(called, true);
 
     t.end();
   });

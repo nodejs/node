@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 function argc0() {
   return arguments.length;
 }
@@ -188,3 +190,84 @@ function arg_set(x) { return (arguments[x] = 117); }
 assertEquals(undefined, arg_get(0xFFFFFFFF));
 assertEquals(true, arg_del(0xFFFFFFFF));
 assertEquals(117, arg_set(0xFFFFFFFF));
+
+(function() {
+  function f(a) { return arguments; }
+  var a = f(1,2,3);
+  // Turn arguments into slow.
+  assertTrue(%HasSloppyArgumentsElements(a));
+  a[10000] = 1;
+  assertTrue(%HasSloppyArgumentsElements(a));
+  // Make it fast again by adding values.
+  for (var i = 0; i < 1000; i++) {
+    a[i] = 1.5;
+  }
+  assertTrue(%HasSloppyArgumentsElements(a));
+})();
+
+(function testDeleteArguments() {
+  function f() { return arguments };
+  var args = f(1, 2);
+  assertEquals(1, args[0]);
+  assertEquals(2, args[1]);
+  assertEquals(2, args.length);
+
+  delete args[0];
+  assertEquals(undefined, args[0]);
+  assertEquals(2, args[1]);
+  assertEquals(2, args.length);
+
+  delete args[1];
+  assertEquals(undefined, args[0]);
+  assertEquals(undefined, args[1]);
+  assertEquals(2, args.length);
+})();
+
+(function testDeleteFastSloppyArguments() {
+  function f(a) { return arguments };
+  var args = f(1, 2);
+  assertEquals(1, args[0]);
+  assertEquals(2, args[1]);
+  assertEquals(2, args.length);
+
+  delete args[0];
+  assertEquals(undefined, args[0]);
+  assertEquals(2, args[1]);
+  assertEquals(2, args.length);
+
+  delete args[1];
+  assertEquals(undefined, args[0]);
+  assertEquals(undefined, args[1]);
+  assertEquals(2, args.length);
+})();
+
+(function testDeleteSlowSloppyArguments() {
+  var key = 10000;
+  function f(a) {
+    arguments[key] = key;
+    return arguments
+  };
+  var args = f(1, 2);
+  assertEquals(1, args[0]);
+  assertEquals(2, args[1]);
+  assertEquals(key, args[key]);
+  assertEquals(2, args.length);
+
+  delete args[0];
+  assertEquals(undefined, args[0]);
+  assertEquals(2, args[1]);
+  assertEquals(key, args[key]);
+  assertEquals(2, args.length);
+
+  delete args[1];
+  assertEquals(undefined, args[0]);
+  assertEquals(undefined, args[1]);
+  assertEquals(key, args[key]);
+  assertEquals(2, args.length);
+
+  delete args[key];
+  assertEquals(undefined, args[0]);
+  assertEquals(undefined, args[1]);
+  assertEquals(undefined, args[key]);
+  assertEquals(2, args.length);
+})();

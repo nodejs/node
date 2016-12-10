@@ -309,6 +309,22 @@ LS_MACRO_LIST(DEFINE_FUNCTION)
 LSPAIR_MACRO_LIST(DEFINE_FUNCTION)
 #undef DEFINE_FUNCTION
 
+#define DECLARE_FUNCTION(FN, OP)                                    \
+  void MacroAssembler::FN(const Register& rt, const Register& rn) { \
+    DCHECK(allow_macro_instructions_);                              \
+    OP(rt, rn);                                                     \
+  }
+LDA_STL_MACRO_LIST(DECLARE_FUNCTION)
+#undef DECLARE_FUNCTION
+
+#define DECLARE_FUNCTION(FN, OP)                                  \
+  void MacroAssembler::FN(const Register& rs, const Register& rt, \
+                          const Register& rn) {                   \
+    DCHECK(allow_macro_instructions_);                            \
+    OP(rs, rt, rn);                                               \
+  }
+STLX_MACRO_LIST(DECLARE_FUNCTION)
+#undef DECLARE_FUNCTION
 
 void MacroAssembler::Asr(const Register& rd,
                          const Register& rn,
@@ -869,15 +885,6 @@ void MacroAssembler::Isb() {
 }
 
 
-void MacroAssembler::Ldnp(const CPURegister& rt,
-                          const CPURegister& rt2,
-                          const MemOperand& src) {
-  DCHECK(allow_macro_instructions_);
-  DCHECK(!AreAliased(rt, rt2));
-  ldnp(rt, rt2, src);
-}
-
-
 void MacroAssembler::Ldr(const CPURegister& rt, const Immediate& imm) {
   DCHECK(allow_macro_instructions_);
   ldr(rt, imm);
@@ -1134,14 +1141,6 @@ void MacroAssembler::Umull(const Register& rd, const Register& rn,
 }
 
 
-void MacroAssembler::Stnp(const CPURegister& rt,
-                          const CPURegister& rt2,
-                          const MemOperand& dst) {
-  DCHECK(allow_macro_instructions_);
-  stnp(rt, rt2, dst);
-}
-
-
 void MacroAssembler::Sxtb(const Register& rd, const Register& rn) {
   DCHECK(allow_macro_instructions_);
   DCHECK(!rd.IsZero());
@@ -1244,14 +1243,7 @@ void MacroAssembler::Uxtw(const Register& rd, const Register& rn) {
 void MacroAssembler::BumpSystemStackPointer(const Operand& space) {
   DCHECK(!csp.Is(sp_));
   if (!TmpList()->IsEmpty()) {
-    if (CpuFeatures::IsSupported(ALWAYS_ALIGN_CSP)) {
-      UseScratchRegisterScope temps(this);
-      Register temp = temps.AcquireX();
-      Sub(temp, StackPointer(), space);
-      Bic(csp, temp, 0xf);
-    } else {
-      Sub(csp, StackPointer(), space);
-    }
+    Sub(csp, StackPointer(), space);
   } else {
     // TODO(jbramley): Several callers rely on this not using scratch
     // registers, so we use the assembler directly here. However, this means
@@ -1288,11 +1280,7 @@ void MacroAssembler::SyncSystemStackPointer() {
   DCHECK(emit_debug_code());
   DCHECK(!csp.Is(sp_));
   { InstructionAccurateScope scope(this);
-    if (CpuFeatures::IsSupported(ALWAYS_ALIGN_CSP)) {
-      bic(csp, StackPointer(), 0xf);
-    } else {
-      mov(csp, StackPointer());
-    }
+    mov(csp, StackPointer());
   }
   AssertStackConsistency();
 }
@@ -1462,32 +1450,6 @@ void MacroAssembler::IsObjectNameType(Register object,
 }
 
 
-void MacroAssembler::IsObjectJSObjectType(Register heap_object,
-                                          Register map,
-                                          Register scratch,
-                                          Label* fail) {
-  Ldr(map, FieldMemOperand(heap_object, HeapObject::kMapOffset));
-  IsInstanceJSObjectType(map, scratch, fail);
-}
-
-
-void MacroAssembler::IsInstanceJSObjectType(Register map,
-                                            Register scratch,
-                                            Label* fail) {
-  Ldrb(scratch, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  // If cmp result is lt, the following ccmp will clear all flags.
-  // Z == 0, N == V implies gt condition.
-  Cmp(scratch, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE);
-  Ccmp(scratch, LAST_NONCALLABLE_SPEC_OBJECT_TYPE, NoFlag, ge);
-
-  // If we didn't get a valid label object just fall through and leave the
-  // flags updated.
-  if (fail != NULL) {
-    B(gt, fail);
-  }
-}
-
-
 void MacroAssembler::IsObjectJSStringType(Register object,
                                           Register type,
                                           Label* not_string,
@@ -1516,7 +1478,8 @@ void MacroAssembler::Push(Handle<Object> handle) {
 }
 
 
-void MacroAssembler::Claim(uint64_t count, uint64_t unit_size) {
+void MacroAssembler::Claim(int64_t count, uint64_t unit_size) {
+  DCHECK(count >= 0);
   uint64_t size = count * unit_size;
 
   if (size == 0) {
@@ -1544,6 +1507,7 @@ void MacroAssembler::Claim(const Register& count, uint64_t unit_size) {
     return;
   }
 
+  AssertPositiveOrZero(count);
   if (!csp.Is(StackPointer())) {
     BumpSystemStackPointer(size);
   }
@@ -1571,7 +1535,8 @@ void MacroAssembler::ClaimBySMI(const Register& count_smi, uint64_t unit_size) {
 }
 
 
-void MacroAssembler::Drop(uint64_t count, uint64_t unit_size) {
+void MacroAssembler::Drop(int64_t count, uint64_t unit_size) {
+  DCHECK(count >= 0);
   uint64_t size = count * unit_size;
 
   if (size == 0) {
@@ -1602,6 +1567,7 @@ void MacroAssembler::Drop(const Register& count, uint64_t unit_size) {
     return;
   }
 
+  AssertPositiveOrZero(count);
   Add(StackPointer(), StackPointer(), size);
 
   if (!csp.Is(StackPointer()) && emit_debug_code()) {
@@ -1711,6 +1677,7 @@ void MacroAssembler::AnnotateInstrumentation(const char* marker_name) {
   movn(xzr, (marker_name[1] << 8) | marker_name[0]);
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM64_MACRO_ASSEMBLER_ARM64_INL_H_

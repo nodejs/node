@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --no-harmony-restrictive-declarations
+
 function foo(f) { eval(f); }
 
 // Ensure that compiling a declaration of a function does not crash.

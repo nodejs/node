@@ -1,1 +1,3 @@
-var binding = require('./build/Release/binding');
+'use strict';
+const common = require('../../common');
+require(`./build/${common.buildType}/binding`);

@@ -6,32 +6,46 @@
 #define V8_COMPILER_JS_CONTEXT_SPECIALIZATION_H_
 
 #include "src/compiler/graph-reducer.h"
-#include "src/compiler/js-graph.h"
-#include "src/contexts.h"
-#include "src/v8.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
+// Forward declarations.
+class JSGraph;
+class JSOperatorBuilder;
+
+
 // Specializes a given JSGraph to a given context, potentially constant folding
 // some {LoadContext} nodes or strength reducing some {StoreContext} nodes.
-class JSContextSpecializer {
+class JSContextSpecialization final : public AdvancedReducer {
  public:
-  JSContextSpecializer(CompilationInfo* info, JSGraph* jsgraph, Node* context)
-      : info_(info), jsgraph_(jsgraph), context_(context) {}
+  JSContextSpecialization(Editor* editor, JSGraph* jsgraph,
+                          MaybeHandle<Context> context)
+      : AdvancedReducer(editor), jsgraph_(jsgraph), context_(context) {}
 
-  void SpecializeToContext();
+  Reduction Reduce(Node* node) final;
+
+ private:
   Reduction ReduceJSLoadContext(Node* node);
   Reduction ReduceJSStoreContext(Node* node);
 
- private:
-  CompilationInfo* info_;
-  JSGraph* jsgraph_;
-  Node* context_;
+  // Returns the {Context} to specialize {node} to (if any).
+  MaybeHandle<Context> GetSpecializationContext(Node* node);
+
+  Isolate* isolate() const;
+  JSOperatorBuilder* javascript() const;
+  JSGraph* jsgraph() const { return jsgraph_; }
+  MaybeHandle<Context> context() const { return context_; }
+
+  JSGraph* const jsgraph_;
+  MaybeHandle<Context> context_;
+
+  DISALLOW_COPY_AND_ASSIGN(JSContextSpecialization);
 };
-}
-}
-}  // namespace v8::internal::compiler
+
+}  // namespace compiler
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_COMPILER_JS_CONTEXT_SPECIALIZATION_H_

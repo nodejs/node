@@ -1,39 +1,23 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
+'use strict';
 //
 
 var common = require('../common');
 
 if (!common.opensslCli) {
-  console.error('Skipping because node compiled without OpenSSL CLI.');
-  process.exit(0);
+  common.skip('node compiled without OpenSSL CLI.');
+  return;
+}
+
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
 }
 
 var join = require('path').join;
 var net = require('net');
 var assert = require('assert');
 var fs = require('fs');
-var crypto = require('crypto');
 var tls = require('tls');
-var exec = require('child_process').exec;
 var spawn = require('child_process').spawn;
 
 test1();
@@ -55,14 +39,6 @@ function test2() {
 }
 
 function test(keyfn, certfn, check, next) {
-  // FIXME: Avoid the common PORT as this test currently hits a C-level
-  // assertion error with node_g. The program aborts without HUPing
-  // the openssl s_server thus causing many tests to fail with
-  // EADDRINUSE.
-  var PORT = common.PORT + 5;
-
-  var connections = 0;
-
   keyfn = join(common.fixturesDir, keyfn);
   var key = fs.readFileSync(keyfn).toString();
 
@@ -70,7 +46,7 @@ function test(keyfn, certfn, check, next) {
   var cert = fs.readFileSync(certfn).toString();
 
   var server = spawn(common.opensslCli, ['s_server',
-                                         '-accept', PORT,
+                                         '-accept', common.PORT,
                                          '-cert', certfn,
                                          '-key', keyfn]);
   server.stdout.pipe(process.stdout);
@@ -139,7 +115,7 @@ function test(keyfn, certfn, check, next) {
     pair.encrypted.pipe(s);
     s.pipe(pair.encrypted);
 
-    s.connect(PORT);
+    s.connect(common.PORT);
 
     s.on('connect', function() {
       console.log('client connected');

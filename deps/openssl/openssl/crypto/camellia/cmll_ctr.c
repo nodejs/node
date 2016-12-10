@@ -1,4 +1,4 @@
-/* crypto/camellia/camellia_ctr.c -*- mode:C; c-file-style: "eay" -*- */
+/* crypto/camellia/camellia_ctr.c */
 /* ====================================================================
  * Copyright (c) 2006 The OpenSSL Project.  All rights reserved.
  *
@@ -7,7 +7,7 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer. 
+ *    notice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -53,12 +53,12 @@
 #include <openssl/modes.h>
 
 void Camellia_ctr128_encrypt(const unsigned char *in, unsigned char *out,
-	size_t length, const CAMELLIA_KEY *key,
-	unsigned char ivec[CAMELLIA_BLOCK_SIZE],
-	unsigned char ecount_buf[CAMELLIA_BLOCK_SIZE],
-	unsigned int *num) 
-	{
+                             size_t length, const CAMELLIA_KEY *key,
+                             unsigned char ivec[CAMELLIA_BLOCK_SIZE],
+                             unsigned char ecount_buf[CAMELLIA_BLOCK_SIZE],
+                             unsigned int *num)
+{
 
-	CRYPTO_ctr128_encrypt(in,out,length,key,ivec,ecount_buf,num,(block128_f)Camellia_encrypt);
-	}
-
+    CRYPTO_ctr128_encrypt(in, out, length, key, ivec, ecount_buf, num,
+                          (block128_f) Camellia_encrypt);
+}

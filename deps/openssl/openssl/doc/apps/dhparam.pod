@@ -71,8 +71,10 @@ check if the parameters are valid primes and generator.
 
 =item B<-2>, B<-5>
 
-The generator to use, either 2 or 5. 2 is the default. If present then the
-input file is ignored and parameters are generated instead.
+The generator to use, either 2 or 5. If present then the
+input file is ignored and parameters are generated instead. If not
+present but B<numbits> is present, parameters are generated with the
+default generator 2.
 
 =item B<-rand> I<file(s)>
 
@@ -85,9 +87,10 @@ all others.
 =item I<numbits>
 
 this option specifies that a parameter set should be generated of size
-I<numbits>. It must be the last option. If not present then a value of 512
-is used. If this option is present then the input file is ignored and 
-parameters are generated instead.
+I<numbits>. It must be the last option. If this option is present then
+the input file is ignored and parameters are generated instead. If
+this option is not present but a generator (B<-2> or B<-5>) is
+present, parameters are generated with a default length of 2048 bits.
 
 =item B<-noout>
 

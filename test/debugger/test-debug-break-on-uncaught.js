@@ -1,47 +1,22 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
+'use strict';
+const common = require('../common');
+const path = require('path');
+const assert = require('assert');
+const spawn = require('child_process').spawn;
+const debug = require('_debugger');
 
-var path = require('path');
-var assert = require('assert');
-var spawn = require('child_process').spawn;
-var common = require('../common');
-var debug = require('_debugger');
+var scenarios = [];
 
-addScenario('global.js', null, 2);
-addScenario('timeout.js', null, 2);
-addScenario('domain.js', null, 10);
-
-// Exception is thrown from vm.js via module.js (internal file)
-//   var compiledWrapper = runInThisContext(wrapper, filename, 0, true);
-addScenario('parse-error.js', 'vm.js', null);
+addScenario('global.js', 2);
+addScenario('timeout.js', 2);
 
 run();
 
 /***************** IMPLEMENTATION *****************/
 
-var scenarios;
-function addScenario(scriptName, throwsInFile, throwsOnLine) {
-  if (!scenarios) scenarios = [];
+function addScenario(scriptName, throwsOnLine) {
   scenarios.push(
-    runScenario.bind(null, scriptName, throwsInFile, throwsOnLine, run)
+    runScenario.bind(null, scriptName, throwsOnLine, run)
   );
 }
 
@@ -50,10 +25,10 @@ function run() {
   if (next) next();
 }
 
-function runScenario(scriptName, throwsInFile, throwsOnLine, next) {
+function runScenario(scriptName, throwsOnLine, next) {
   console.log('**[ %s ]**', scriptName);
   var asserted = false;
-  var port = common.PORT + 1337;
+  var port = common.PORT;
 
   var testScript = path.join(
     common.fixturesDir,
@@ -65,11 +40,22 @@ function runScenario(scriptName, throwsInFile, throwsOnLine, next) {
   child.on('close', function() {
     assert(asserted, 'debugger did not pause on exception');
     if (next) next();
-  })
+  });
 
   var exceptions = [];
 
-  setTimeout(setupClient.bind(null, runTest), 200);
+  var stderr = '';
+
+  function stderrListener(data) {
+    stderr += data;
+    if (stderr.includes('Debugger listening on port')) {
+      setTimeout(setupClient.bind(null, runTest), 200);
+      child.stderr.removeListener('data', stderrListener);
+    }
+  }
+
+  child.stderr.setEncoding('utf8');
+  child.stderr.on('data', stderrListener);
 
   function setupClient(callback) {
     var client = new debug.Client();
@@ -113,11 +99,11 @@ function runScenario(scriptName, throwsInFile, throwsOnLine, next) {
   }
 
   function assertHasPaused(client) {
+    assert(exceptions.length, 'no exceptions thrown, race condition in test?');
     assert.equal(exceptions.length, 1, 'debugger did not pause on exception');
     assert.equal(exceptions[0].uncaught, true);
-    assert.equal(exceptions[0].script.name, throwsInFile || testScript);
-    if (throwsOnLine != null)
-      assert.equal(exceptions[0].sourceLine + 1, throwsOnLine);
+    assert.equal(exceptions[0].script.name, testScript);
+    assert.equal(exceptions[0].sourceLine + 1, throwsOnLine);
     asserted = true;
     client.reqContinue(assert.ifError);
   }

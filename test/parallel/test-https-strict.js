@@ -1,38 +1,18 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
-
+'use strict';
+const common = require('../common');
 // disable strict server certificate validation by the client
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
-var common = require('../common');
 var assert = require('assert');
+
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
+}
+var https = require('https');
 
 var fs = require('fs');
 var path = require('path');
-var https = require('https');
 
 function file(fname) {
   return path.resolve(common.fixturesDir, 'keys', fname);
@@ -85,19 +65,14 @@ var server3 = server(options3);
 
 var listenWait = 0;
 
-var port = common.PORT;
-var port1 = port++;
-var port2 = port++;
-var port3 = port++;
-server1.listen(port1, listening());
-server2.listen(port2, listening());
-server3.listen(port3, listening());
+server1.listen(0, listening());
+server2.listen(0, listening());
+server3.listen(0, listening());
 
 var responseErrors = {};
 var expectResponseCount = 0;
 var responseCount = 0;
 var pending = 0;
-
 
 
 function server(options, port) {
@@ -121,7 +96,7 @@ function listening() {
     if (listenWait === 0) {
       allListening();
     }
-  }
+  };
 }
 
 function makeReq(path, port, error, host, ca) {
@@ -131,7 +106,7 @@ function makeReq(path, port, error, host, ca) {
     path: path,
     ca: ca
   };
-  var whichCa = 0;
+
   if (!ca) {
     options.agent = agent0;
   } else {
@@ -148,16 +123,16 @@ function makeReq(path, port, error, host, ca) {
   }
 
   if (host) {
-    options.headers = { host: host }
+    options.headers = { host: host };
   }
   var req = https.get(options);
   expectResponseCount++;
-  var server = port === port1 ? server1
-      : port === port2 ? server2
-      : port === port3 ? server3
+  var server = port === server1.address().port ? server1
+      : port === server2.address().port ? server2
+      : port === server3.address().port ? server3
       : null;
 
-  if (!server) throw new Error('invalid port: '+port);
+  if (!server) throw new Error('invalid port: ' + port);
   server.expectCount++;
 
   req.on('response', function(res) {
@@ -171,11 +146,14 @@ function makeReq(path, port, error, host, ca) {
       server3.close();
     }
     res.resume();
-  })
+  });
 }
 
 function allListening() {
   // ok, ready to start the tests!
+  const port1 = server1.address().port;
+  const port2 = server2.address().port;
+  const port3 = server3.address().port;
 
   // server1: host 'agent1', signed by ca1
   makeReq('/inv1', port1, 'UNABLE_TO_VERIFY_LEAF_SIGNATURE');

@@ -11,10 +11,10 @@ Additionally, npm's package registry implementation supports several
 write APIs as well, to allow for publishing packages and managing user
 account information.
 
-The official public npm registry is at <http://registry.npmjs.org/>.  It
+The official public npm registry is at <https://registry.npmjs.org/>.  It
 is powered by a CouchDB database, of which there is a public mirror at
-<http://skimdb.npmjs.com/registry>.  The code for the couchapp is
-available at <http://github.com/npm/npm-registry-couchapp>.
+<https://skimdb.npmjs.com/registry>.  The code for the couchapp is
+available at <https://github.com/npm/npm-registry-couchapp>.
 
 The registry URL used is determined by the scope of the package (see
 `npm-scope(7)`). If no scope is specified, the default registry is used, which is
@@ -31,9 +31,10 @@ similar) design doc to implement the APIs.
 If you set up continuous replication from the official CouchDB, and then
 set your internal CouchDB as the registry config, then you'll be able
 to read any published packages, in addition to your private ones, and by
-default will only publish internally.  If you then want to publish a
-package for the whole world to see, you can simply override the
-`--registry` config for that command.
+default will only publish internally. 
+
+If you then want to publish a package for the whole world to see, you can
+simply override the `--registry` option for that `publish` command.
 
 ## I don't want my package published in the official registry. It's private.
 
@@ -57,7 +58,7 @@ effectively implement the entire CouchDB API anyway.
 
 ## Is there a website or something to see package docs and such?
 
-Yes, head over to <https://npmjs.org/>
+Yes, head over to <https://npmjs.com/>
 
 ## SEE ALSO
 

@@ -111,7 +111,10 @@ install:
 		for l in $(LIBNAMES); do \
 			( echo installing $$l; \
 			  pfx=lib; \
-			  if [ "$(PLATFORM)" != "Cygwin" ]; then \
+			  if expr "$(PLATFORM)" : "Cygwin" >/dev/null; then \
+				sfx=".so"; \
+				cp cyg$$l.dll $(INSTALL_PREFIX)$(INSTALLTOP)/$(LIBDIR)/engines/$$pfx$$l$$sfx.new; \
+			  else \
 				case "$(CFLAGS)" in \
 				*DSO_BEOS*)	sfx=".so";;	\
 				*DSO_DLFCN*)	sfx=`expr "$(SHLIB_EXT)" : '.*\(\.[a-z][a-z]*\)' \| ".so"`;;	\
@@ -120,9 +123,6 @@ install:
 				*)		sfx=".bad";;	\
 				esac; \
 				cp $$pfx$$l$$sfx $(INSTALL_PREFIX)$(INSTALLTOP)/$(LIBDIR)/engines/$$pfx$$l$$sfx.new; \
-			  else \
-				sfx=".so"; \
-				cp cyg$$l.dll $(INSTALL_PREFIX)$(INSTALLTOP)/$(LIBDIR)/engines/$$pfx$$l$$sfx.new; \
 			  fi; \
 			  chmod 555 $(INSTALL_PREFIX)$(INSTALLTOP)/$(LIBDIR)/engines/$$pfx$$l$$sfx.new; \
 			  mv -f $(INSTALL_PREFIX)$(INSTALLTOP)/$(LIBDIR)/engines/$$pfx$$l$$sfx.new $(INSTALL_PREFIX)$(INSTALLTOP)/$(LIBDIR)/engines/$$pfx$$l$$sfx ); \
@@ -146,12 +146,15 @@ lint:
 	lint -DLINT $(INCLUDES) $(SRC)>fluff
 	@target=lint; $(RECURSIVE_MAKE)
 
-depend:
-	@if [ -z "$(THIS)" ]; then \
-	    $(MAKE) -f $(TOP)/Makefile reflect THIS=$@; \
-	fi
-	@[ -z "$(THIS)" ] || $(MAKEDEPEND) -- $(CFLAG) $(INCLUDES) $(DEPFLAG) -- $(PROGS) $(LIBSRC)
+update: local_depend
+	@if [ -z "$(THIS)" ]; then $(MAKE) -f $(TOP)/Makefile reflect THIS=$@; fi
+	@[ -z "$(THIS)" ] || (set -e; target=update; $(RECURSIVE_MAKE) )
+
+depend: local_depend
+	@if [ -z "$(THIS)" ]; then $(MAKE) -f $(TOP)/Makefile reflect THIS=$@; fi
 	@[ -z "$(THIS)" ] || (set -e; target=depend; $(RECURSIVE_MAKE) )
+local_depend:
+	@[ -z "$(THIS)" ] || $(MAKEDEPEND) -- $(CFLAG) $(INCLUDES) $(DEPFLAG) -- $(PROGS) $(LIBSRC)
 
 dclean:
 	$(PERL) -pe 'if (/^# DO NOT DELETE THIS LINE/) {print; exit(0);}' $(MAKEFILE) >Makefile.new
@@ -213,17 +216,17 @@ e_atalla.o: ../include/openssl/symhacks.h ../include/openssl/x509.h
 e_atalla.o: ../include/openssl/x509_vfy.h e_atalla.c e_atalla_err.c
 e_atalla.o: e_atalla_err.h vendor_defns/atalla.h
 e_capi.o: ../include/openssl/asn1.h ../include/openssl/bio.h
-e_capi.o: ../include/openssl/bn.h ../include/openssl/buffer.h
-e_capi.o: ../include/openssl/crypto.h ../include/openssl/e_os2.h
-e_capi.o: ../include/openssl/ec.h ../include/openssl/ecdh.h
-e_capi.o: ../include/openssl/ecdsa.h ../include/openssl/engine.h
-e_capi.o: ../include/openssl/evp.h ../include/openssl/lhash.h
-e_capi.o: ../include/openssl/obj_mac.h ../include/openssl/objects.h
-e_capi.o: ../include/openssl/opensslconf.h ../include/openssl/opensslv.h
-e_capi.o: ../include/openssl/ossl_typ.h ../include/openssl/pkcs7.h
-e_capi.o: ../include/openssl/safestack.h ../include/openssl/sha.h
-e_capi.o: ../include/openssl/stack.h ../include/openssl/symhacks.h
-e_capi.o: ../include/openssl/x509.h ../include/openssl/x509_vfy.h e_capi.c
+e_capi.o: ../include/openssl/buffer.h ../include/openssl/crypto.h
+e_capi.o: ../include/openssl/e_os2.h ../include/openssl/ec.h
+e_capi.o: ../include/openssl/ecdh.h ../include/openssl/ecdsa.h
+e_capi.o: ../include/openssl/engine.h ../include/openssl/evp.h
+e_capi.o: ../include/openssl/lhash.h ../include/openssl/obj_mac.h
+e_capi.o: ../include/openssl/objects.h ../include/openssl/opensslconf.h
+e_capi.o: ../include/openssl/opensslv.h ../include/openssl/ossl_typ.h
+e_capi.o: ../include/openssl/pkcs7.h ../include/openssl/safestack.h
+e_capi.o: ../include/openssl/sha.h ../include/openssl/stack.h
+e_capi.o: ../include/openssl/symhacks.h ../include/openssl/x509.h
+e_capi.o: ../include/openssl/x509_vfy.h e_capi.c
 e_chil.o: ../include/openssl/asn1.h ../include/openssl/bio.h
 e_chil.o: ../include/openssl/bn.h ../include/openssl/buffer.h
 e_chil.o: ../include/openssl/crypto.h ../include/openssl/dh.h

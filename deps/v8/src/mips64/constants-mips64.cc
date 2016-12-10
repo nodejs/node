@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_MIPS64
 
 #include "src/mips64/constants-mips64.h"
@@ -128,22 +126,28 @@ int FPURegisters::Number(const char* name) {
 // -----------------------------------------------------------------------------
 // Instructions.
 
-bool Instruction::IsForbiddenInBranchDelay() const {
-  const int op = OpcodeFieldRaw();
-  switch (op) {
+bool Instruction::IsForbiddenAfterBranchInstr(Instr instr) {
+  Opcode opcode = static_cast<Opcode>(instr & kOpcodeMask);
+  switch (opcode) {
     case J:
     case JAL:
     case BEQ:
     case BNE:
-    case BLEZ:
-    case BGTZ:
+    case BLEZ:  // POP06 bgeuc/bleuc, blezalc, bgezalc
+    case BGTZ:  // POP07 bltuc/bgtuc, bgtzalc, bltzalc
     case BEQL:
     case BNEL:
-    case BLEZL:
-    case BGTZL:
+    case BLEZL:  // POP26 bgezc, blezc, bgec/blec
+    case BGTZL:  // POP27 bgtzc, bltzc, bltc/bgtc
+    case BC:
+    case BALC:
+    case POP10:  // beqzalc, bovc, beqc
+    case POP30:  // bnezalc, bnvc, bnec
+    case POP66:  // beqzc, jic
+    case POP76:  // bnezc, jialc
       return true;
     case REGIMM:
-      switch (RtFieldRaw()) {
+      switch (instr & kRtFieldMask) {
         case BLTZ:
         case BGEZ:
         case BLTZAL:
@@ -154,10 +158,21 @@ bool Instruction::IsForbiddenInBranchDelay() const {
       }
       break;
     case SPECIAL:
-      switch (FunctionFieldRaw()) {
+      switch (instr & kFunctionFieldMask) {
         case JR:
         case JALR:
           return true;
+        default:
+          return false;
+      }
+      break;
+    case COP1:
+      switch (instr & kRsFieldMask) {
+        case BC1:
+        case BC1EQZ:
+        case BC1NEZ:
+          return true;
+          break;
         default:
           return false;
       }
@@ -169,10 +184,14 @@ bool Instruction::IsForbiddenInBranchDelay() const {
 
 
 bool Instruction::IsLinkingInstruction() const {
-  const int op = OpcodeFieldRaw();
-  switch (op) {
+  switch (OpcodeFieldRaw()) {
     case JAL:
       return true;
+    case POP76:
+      if (RsFieldRawNoAssert() == JIALC)
+        return true;  // JIALC
+      else
+        return false;  // BNEZC
     case REGIMM:
       switch (RtFieldRaw()) {
         case BGEZAL:
@@ -214,149 +233,7 @@ bool Instruction::IsTrap() const {
 }
 
 
-Instruction::Type Instruction::InstructionType() const {
-  switch (OpcodeFieldRaw()) {
-    case SPECIAL:
-      switch (FunctionFieldRaw()) {
-        case JR:
-        case JALR:
-        case BREAK:
-        case SLL:
-        case DSLL:
-        case DSLL32:
-        case SRL:
-        case DSRL:
-        case DSRL32:
-        case SRA:
-        case DSRA:
-        case DSRA32:
-        case SLLV:
-        case DSLLV:
-        case SRLV:
-        case DSRLV:
-        case SRAV:
-        case DSRAV:
-        case MFHI:
-        case MFLO:
-        case MULT:
-        case DMULT:
-        case MULTU:
-        case DMULTU:
-        case DIV:
-        case DDIV:
-        case DIVU:
-        case DDIVU:
-        case ADD:
-        case DADD:
-        case ADDU:
-        case DADDU:
-        case SUB:
-        case DSUB:
-        case SUBU:
-        case DSUBU:
-        case AND:
-        case OR:
-        case XOR:
-        case NOR:
-        case SLT:
-        case SLTU:
-        case TGE:
-        case TGEU:
-        case TLT:
-        case TLTU:
-        case TEQ:
-        case TNE:
-        case MOVZ:
-        case MOVN:
-        case MOVCI:
-          return kRegisterType;
-        default:
-          return kUnsupported;
-      }
-      break;
-    case SPECIAL2:
-      switch (FunctionFieldRaw()) {
-        case MUL:
-        case CLZ:
-          return kRegisterType;
-        default:
-          return kUnsupported;
-      }
-      break;
-    case SPECIAL3:
-      switch (FunctionFieldRaw()) {
-        case INS:
-        case EXT:
-          return kRegisterType;
-        default:
-          return kUnsupported;
-      }
-      break;
-    case COP1:    // Coprocessor instructions.
-      switch (RsFieldRawNoAssert()) {
-        case BC1:   // Branch on coprocessor condition.
-        case BC1EQZ:
-        case BC1NEZ:
-          return kImmediateType;
-        default:
-          return kRegisterType;
-      }
-      break;
-    case COP1X:
-      return kRegisterType;
-    // 16 bits Immediate type instructions. e.g.: addi dest, src, imm16.
-    case REGIMM:
-    case BEQ:
-    case BNE:
-    case BLEZ:
-    case BGTZ:
-    case ADDI:
-    case DADDI:
-    case ADDIU:
-    case DADDIU:
-    case SLTI:
-    case SLTIU:
-    case ANDI:
-    case ORI:
-    case XORI:
-    case LUI:
-    case BEQL:
-    case BNEL:
-    case BLEZL:
-    case BGTZL:
-    case BEQZC:
-    case BNEZC:
-    case LB:
-    case LH:
-    case LWL:
-    case LW:
-    case LWU:
-    case LD:
-    case LBU:
-    case LHU:
-    case LWR:
-    case SB:
-    case SH:
-    case SWL:
-    case SW:
-    case SD:
-    case SWR:
-    case LWC1:
-    case LDC1:
-    case SWC1:
-    case SDC1:
-      return kImmediateType;
-    // 26 bits immediate type instructions. e.g.: j imm26.
-    case J:
-    case JAL:
-      return kJumpType;
-    default:
-      return kUnsupported;
-  }
-  return kUnsupported;
-}
-
-
-} }   // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_MIPS64

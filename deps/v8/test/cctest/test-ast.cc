@@ -29,7 +29,7 @@
 
 #include "src/v8.h"
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
@@ -38,11 +38,11 @@ TEST(List) {
   List<AstNode*>* list = new List<AstNode*>(0);
   CHECK_EQ(0, list->length());
 
-  Isolate* isolate = CcTest::i_isolate();
-  Zone zone(isolate);
+  v8::base::AccountingAllocator allocator;
+  Zone zone(&allocator);
   AstValueFactory value_factory(&zone, 0);
-  AstNodeFactory<AstNullVisitor> factory(&value_factory);
-  AstNode* node = factory.NewEmptyStatement(RelocInfo::kNoPosition);
+  AstNodeFactory factory(&value_factory);
+  AstNode* node = factory.NewEmptyStatement(kNoSourcePosition);
   list->Add(node);
   CHECK_EQ(1, list->length());
   CHECK_EQ(node, list->at(0));

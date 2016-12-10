@@ -1,7 +1,5 @@
 #!/usr/bin/env python
-import glob
 import os
-import shlex
 import sys
 
 script_dir = os.path.dirname(__file__)
@@ -30,16 +28,21 @@ if __name__ == '__main__':
     args.append(os.path.join(node_root, 'node.gyp'))
     common_fn  = os.path.join(node_root, 'common.gypi')
     options_fn = os.path.join(node_root, 'config.gypi')
+    options_fips_fn = os.path.join(node_root, 'config_fips.gypi')
   else:
     args.append(os.path.join(os.path.abspath(node_root), 'node.gyp'))
     common_fn  = os.path.join(os.path.abspath(node_root), 'common.gypi')
     options_fn = os.path.join(os.path.abspath(node_root), 'config.gypi')
+    options_fips_fn = os.path.join(os.path.abspath(node_root), 'config_fips.gypi')
 
   if os.path.exists(common_fn):
     args.extend(['-I', common_fn])
 
   if os.path.exists(options_fn):
     args.extend(['-I', options_fn])
+
+  if os.path.exists(options_fips_fn):
+    args.extend(['-I', options_fips_fn])
 
   args.append('--depth=' + node_root)
 
@@ -53,5 +56,12 @@ if __name__ == '__main__':
 
   args.append('-Dcomponent=static_library')
   args.append('-Dlibrary=static_library')
+
+  # Don't compile with -B and -fuse-ld=, we don't bundle ld.gold.  Can't be
+  # set in common.gypi due to how deps/v8/build/toolchain.gypi uses them.
+  args.append('-Dlinux_use_bundled_binutils=0')
+  args.append('-Dlinux_use_bundled_gold=0')
+  args.append('-Dlinux_use_gold_flags=0')
+
   gyp_args = list(args)
   run_gyp(gyp_args)

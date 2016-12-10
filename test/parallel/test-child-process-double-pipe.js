@@ -1,38 +1,16 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-var is_windows = process.platform === 'win32';
-
-var common = require('../common');
-var assert = require('assert'),
-    os = require('os'),
-    util = require('util'),
-    spawn = require('child_process').spawn;
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const os = require('os');
+const util = require('util');
+const spawn = require('child_process').spawn;
 
 // We're trying to reproduce:
 // $ echo "hello\nnode\nand\nworld" | grep o | sed s/o/a/
 
 var grep, sed, echo;
 
-if (is_windows) {
+if (common.isWindows) {
   grep = spawn('grep', ['--binary', 'o']),
   sed = spawn('sed', ['--binary', 's/o/O/']),
   echo = spawn('cmd.exe',
@@ -53,7 +31,6 @@ if (is_windows) {
  * This test checks child processes exit, meaning they don't hang like
  * explained above.
  */
-
 
 
 // pipe echo | grep
@@ -86,7 +63,6 @@ sed.on('exit', function() {
 });
 
 
-
 // pipe grep | sed
 grep.stdout.on('data', function(data) {
   console.error('grep stdout ' + data.length);
@@ -106,7 +82,6 @@ grep.stdout.on('end', function(code) {
 });
 
 
-
 var result = '';
 
 // print sed's output
@@ -116,5 +91,5 @@ sed.stdout.on('data', function(data) {
 });
 
 sed.stdout.on('end', function(code) {
-  assert.equal(result, 'hellO' + os.EOL + 'nOde' + os.EOL  +'wOrld' + os.EOL);
+  assert.strictEqual(result, `hellO${os.EOL}nOde${os.EOL}wOrld${os.EOL}`);
 });

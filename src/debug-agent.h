@@ -22,12 +22,17 @@
 #ifndef SRC_DEBUG_AGENT_H_
 #define SRC_DEBUG_AGENT_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
+#include "node_mutex.h"
+#include "util.h"
+#include "util-inl.h"
 #include "uv.h"
 #include "v8.h"
 #include "v8-debug.h"
-#include "queue.h"
 
 #include <string.h>
+#include <string>
 
 // Forward declaration to break recursive dependency chain with src/env.h.
 namespace node {
@@ -37,7 +42,31 @@ class Environment;
 namespace node {
 namespace debugger {
 
-class AgentMessage;
+class AgentMessage {
+ public:
+  AgentMessage(uint16_t* val, int length) : length_(length) {
+    if (val == nullptr) {
+      data_ = val;
+    } else {
+      data_ = new uint16_t[length];
+      memcpy(data_, val, length * sizeof(*data_));
+    }
+  }
+
+  ~AgentMessage() {
+    delete[] data_;
+    data_ = nullptr;
+  }
+
+  inline const uint16_t* data() const { return data_; }
+  inline int length() const { return length_; }
+
+  ListNode<AgentMessage> member;
+
+ private:
+  uint16_t* data_;
+  int length_;
+};
 
 class Agent {
  public:
@@ -47,7 +76,7 @@ class Agent {
   typedef void (*DispatchHandler)(node::Environment* env);
 
   // Start the debugger agent thread
-  bool Start(int port, bool wait);
+  bool Start(const char* host, int port, bool wait);
   // Listen for debug events
   void Enable();
   // Stop the debugger agent
@@ -84,14 +113,14 @@ class Agent {
     kRunning
   };
 
-  // TODO(indutny): Verify that there are no races
   State state_;
 
+  std::string host_;
   int port_;
   bool wait_;
 
   uv_sem_t start_sem_;
-  uv_mutex_t message_mutex_;
+  node::Mutex message_mutex_;
   uv_async_t child_signal_;
 
   uv_thread_t thread_;
@@ -100,38 +129,14 @@ class Agent {
   uv_loop_t child_loop_;
   v8::Persistent<v8::Object> api_;
 
-  QUEUE messages_;
+  ListHead<AgentMessage, &AgentMessage::member> messages_;
 
   DispatchHandler dispatch_handler_;
 };
 
-class AgentMessage {
- public:
-  AgentMessage(uint16_t* val, int length) : length_(length) {
-    if (val == nullptr) {
-      data_ = val;
-    } else {
-      data_ = new uint16_t[length];
-      memcpy(data_, val, length * sizeof(*data_));
-    }
-  }
-
-  ~AgentMessage() {
-    delete[] data_;
-    data_ = nullptr;
-  }
-
-  inline const uint16_t* data() const { return data_; }
-  inline int length() const { return length_; }
-
-  QUEUE member;
-
- private:
-  uint16_t* data_;
-  int length_;
-};
-
 }  // namespace debugger
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_DEBUG_AGENT_H_

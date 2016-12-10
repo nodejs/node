@@ -29,6 +29,7 @@
 // Flags: --expose-debug-as debug
 
 Debug = debug.Debug
+Debug.setListener(function(){});
 
 function f() {a=1;b=2};
 function g() {
@@ -46,3 +47,5 @@ Debug.clearBreakPoint(bp);
 %OptimizeFunctionOnNextCall(Debug.setBreakPoint);
 bp = Debug.setBreakPoint(f, 0, 0);
 Debug.clearBreakPoint(bp);
+
+Debug.setListener(null);

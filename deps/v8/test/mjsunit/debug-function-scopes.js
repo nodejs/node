@@ -42,13 +42,7 @@ function CheckScope(scope_mirror, scope_expectations, expected_scope_type) {
   }
 }
 
-// A copy of the scope types from mirror-debugger.js.
-var ScopeType = { Global: 0,
-                  Local: 1,
-                  With: 2,
-                  Closure: 3,
-                  Catch: 4,
-                  Block: 5 };
+var ScopeType = debug.ScopeType;
 
 var f1 = (function F1(x) {
   function F2(y) {
@@ -68,21 +62,23 @@ var f1 = (function F1(x) {
 
 var mirror = Debug.MakeMirror(f1);
 
-assertEquals(5, mirror.scopeCount());
+assertEquals(6, mirror.scopeCount());
 
 CheckScope(mirror.scope(0), { a: 4, b: 5 }, ScopeType.Closure);
 CheckScope(mirror.scope(1), { w: 5, v: "Capybara" }, ScopeType.With);
-CheckScope(mirror.scope(2), { y: 17, z: 22 }, ScopeType.Closure);
+CheckScope(mirror.scope(2), { z: 22 }, ScopeType.Closure);
 CheckScope(mirror.scope(3), { x: 5 }, ScopeType.Closure);
-CheckScope(mirror.scope(4), {}, ScopeType.Global);
+CheckScope(mirror.scope(4), {}, ScopeType.Script);
+CheckScope(mirror.scope(5), {}, ScopeType.Global);
 
 var f2 = function() { return 5; }
 
 var mirror = Debug.MakeMirror(f2);
 
-assertEquals(1, mirror.scopeCount());
+assertEquals(2, mirror.scopeCount());
 
-CheckScope(mirror.scope(0), {}, ScopeType.Global);
+CheckScope(mirror.scope(0), {}, ScopeType.Script);
+CheckScope(mirror.scope(1), {}, ScopeType.Global);
 
 var f3 = (function F1(invisible_parameter) {
   var invisible1 = 1;
@@ -99,11 +95,12 @@ var f3 = (function F1(invisible_parameter) {
 
 var mirror = Debug.MakeMirror(f3);
 
-assertEquals(3, mirror.scopeCount());
+assertEquals(4, mirror.scopeCount());
 
 CheckScope(mirror.scope(0), { visible2: 20 }, ScopeType.Closure);
 CheckScope(mirror.scope(1), { visible1: 10 }, ScopeType.Closure);
-CheckScope(mirror.scope(2), {}, ScopeType.Global);
+CheckScope(mirror.scope(2), {}, ScopeType.Script);
+CheckScope(mirror.scope(3), {}, ScopeType.Global);
 
 
 var f4 = (function One() {
@@ -122,11 +119,12 @@ var f4 = (function One() {
 
 var mirror = Debug.MakeMirror(f4);
 
-assertEquals(3, mirror.scopeCount());
+assertEquals(4, mirror.scopeCount());
 
 CheckScope(mirror.scope(0), { e2: "I'm error 2" }, ScopeType.Catch);
 CheckScope(mirror.scope(1), { e1: "I'm error 1" }, ScopeType.Catch);
-CheckScope(mirror.scope(2), {}, ScopeType.Global);
+CheckScope(mirror.scope(2), {}, ScopeType.Script);
+CheckScope(mirror.scope(3), {}, ScopeType.Global);
 
 
 var f5 = (function Raz(p1, p2) {
@@ -141,11 +139,12 @@ var f5 = (function Raz(p1, p2) {
 
 var mirror = Debug.MakeMirror(f5);
 
-assertEquals(3, mirror.scopeCount());
+assertEquals(4, mirror.scopeCount());
 
 CheckScope(mirror.scope(0), { p4: 20, p6: 22 }, ScopeType.Closure);
 CheckScope(mirror.scope(1), { p1: 1 }, ScopeType.Closure);
-CheckScope(mirror.scope(2), {}, ScopeType.Global);
+CheckScope(mirror.scope(2), {}, ScopeType.Script);
+CheckScope(mirror.scope(3), {}, ScopeType.Global);
 
 
 function CheckNoScopeVisible(f) {
@@ -156,6 +155,3 @@ function CheckNoScopeVisible(f) {
 CheckNoScopeVisible(Number);
 
 CheckNoScopeVisible(Function.toString);
-
-// This getter is known to be implemented as closure.
-CheckNoScopeVisible(new Error().__lookupGetter__("stack"));

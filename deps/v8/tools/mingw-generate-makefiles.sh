@@ -27,7 +27,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # Monkey-patch GYP.
-cat > build/gyp/gyp.mingw << EOF
+cat > tools/gyp/gyp.mingw << EOF
 #!/usr/bin/env python
 
 # Copyright (c) 2009 Google Inc. All rights reserved.
@@ -74,11 +74,11 @@ EOF
 find out -name '*.mk' -or -name 'Makefile*' -exec rm {} \;
 
 # Generate fresh Makefiles.
-mv build/gyp/gyp build/gyp/gyp.original
-mv build/gyp/gyp.mingw build/gyp/gyp
+mv tools/gyp/gyp tools/gyp/gyp.original
+mv tools/gyp/gyp.mingw tools/gyp/gyp
 make out/Makefile.ia32
-mv build/gyp/gyp build/gyp/gyp.mingw
-mv build/gyp/gyp.original build/gyp/gyp
+mv tools/gyp/gyp tools/gyp/gyp.mingw
+mv tools/gyp/gyp.original tools/gyp/gyp
 
 # Patch generated Makefiles: replace most backslashes with forward slashes,
 # fix library names in linker flags.

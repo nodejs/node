@@ -1,35 +1,19 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const zlib = require('zlib');
+const path = require('path');
+const fs = require('fs');
+const util = require('util');
+const stream = require('stream');
 
-var common = require('../common.js');
-var assert = require('assert');
-var zlib = require('zlib');
-var path = require('path');
-
-var zlibPairs =
-    [[zlib.Deflate, zlib.Inflate],
-     [zlib.Gzip, zlib.Gunzip],
-     [zlib.Deflate, zlib.Unzip],
-     [zlib.Gzip, zlib.Unzip],
-     [zlib.DeflateRaw, zlib.InflateRaw]];
+var zlibPairs = [
+  [zlib.Deflate, zlib.Inflate],
+  [zlib.Gzip, zlib.Gunzip],
+  [zlib.Deflate, zlib.Unzip],
+  [zlib.Gzip, zlib.Unzip],
+  [zlib.DeflateRaw, zlib.InflateRaw]
+];
 
 // how fast to trickle through the slowstream
 var trickle = [128, 1024, 1024 * 1024];
@@ -56,22 +40,17 @@ if (!process.env.PUMMEL) {
   strategy = [0];
 }
 
-var fs = require('fs');
-
 var testFiles = ['person.jpg', 'elipses.txt', 'empty.txt'];
 
 if (process.env.FAST) {
   zlibPairs = [[zlib.Gzip, zlib.Unzip]];
-  var testFiles = ['person.jpg'];
+  testFiles = ['person.jpg'];
 }
 
-var tests = {};
+const tests = {};
 testFiles.forEach(function(file) {
   tests[file] = fs.readFileSync(path.resolve(common.fixturesDir, file));
 });
-
-var util = require('util');
-var stream = require('stream');
 
 
 // stream that saves everything
@@ -93,7 +72,7 @@ BufferStream.prototype.write = function(c) {
 BufferStream.prototype.end = function(c) {
   if (c) this.write(c);
   // flatten
-  var buf = new Buffer(this.length);
+  var buf = Buffer.allocUnsafe(this.length);
   var i = 0;
   this.chunks.forEach(function(c) {
     c.copy(buf, i);
@@ -145,13 +124,11 @@ SlowStream.prototype.resume = function() {
 
 SlowStream.prototype.end = function(chunk) {
   // walk over the chunk in blocks.
-  var self = this;
-  self.chunk = chunk;
-  self.length = chunk.length;
-  self.resume();
-  return self.ended;
+  this.chunk = chunk;
+  this.length = chunk.length;
+  this.resume();
+  return this.ended;
 };
-
 
 
 // for each of the files, make sure that compressing and
@@ -187,9 +164,9 @@ Object.keys(tests).forEach(function(file) {
                 // verify that the same exact buffer comes out the other end.
                 buf.on('data', function(c) {
                   var msg = file + ' ' +
-                      chunkSize + ' ' +
-                      JSON.stringify(opts) + ' ' +
-                      Def.name + ' -> ' + Inf.name;
+                            chunkSize + ' ' +
+                            JSON.stringify(opts) + ' ' +
+                            Def.name + ' -> ' + Inf.name;
                   var ok = true;
                   var testNum = ++done;
                   for (var i = 0; i < Math.max(c.length, test.length); i++) {
@@ -219,11 +196,16 @@ Object.keys(tests).forEach(function(file) {
                 ss.pipe(def).pipe(inf).pipe(buf);
                 ss.end(test);
               });
-            }); }); }); }); }); }); // sad stallman is sad.
+            });
+          });
+        });
+      });
+    });
+  });
 });
 
 process.on('exit', function(code) {
   console.log('1..' + done);
-  assert.equal(done, total, (total - done) + ' tests left unfinished');
-  assert.ok(!failures, 'some test failures');
+  assert.strictEqual(done, total, (total - done) + ' tests left unfinished');
+  assert.strictEqual(failures, 0, 'some test failures');
 });

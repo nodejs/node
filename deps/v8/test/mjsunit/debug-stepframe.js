@@ -11,7 +11,7 @@ function f0() {
   try {
     throw 1;
   } catch (e) {
-    try{
+    try {
       f1();
     } catch (e) {
       var v02 = 2;          // Break 13
@@ -19,6 +19,8 @@ function f0() {
   }
   var v03 = 3;
   var v04 = 4;
+  eval('var v05 = 5;        // Break 14');
+  var v06 = 6;              // Break 15
 }
 
 function f1() {
@@ -80,7 +82,6 @@ Object.defineProperty(o, "set", { set : set });
 Debug = debug.Debug;
 var break_count = 0
 var exception = null;
-var step_size;
 
 function listener(event, exec_state, event_data, data) {
   if (event != Debug.DebugEvent.Break) return;
@@ -90,22 +91,20 @@ function listener(event, exec_state, event_data, data) {
     var match = line.match(/\/\/ Break (\d+)$/);
     assertEquals(2, match.length);
     assertEquals(break_count, parseInt(match[1]));
-    break_count += step_size;
-    exec_state.prepareStep(Debug.StepAction.StepFrame, step_size);
+    break_count ++;
+    exec_state.prepareStep(Debug.StepAction.StepFrame);
   } catch (e) {
     print(e + e.stack);
     exception = e;
   }
 }
 
-for (step_size = 1; step_size < 6; step_size++) {
-  print("step size = " + step_size);
-  break_count = 0;
-  Debug.setListener(listener);
-  debugger;                 // Break 0
-  f0();
-  Debug.setListener(null);  // Break 14
-  assertTrue(break_count > 14);
-}
+
+break_count = 0;
+Debug.setListener(listener);
+debugger;                 // Break 0
+f0();
+Debug.setListener(null);  // Break 16
+assertTrue(break_count > 14);
 
 assertNull(exception);

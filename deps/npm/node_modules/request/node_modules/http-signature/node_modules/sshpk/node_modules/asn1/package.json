@@ -1,0 +1,99 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "asn1@~0.2.3",
+        "scope": null,
+        "escapedName": "asn1",
+        "name": "asn1",
+        "rawSpec": "~0.2.3",
+        "spec": ">=0.2.3 <0.3.0",
+        "type": "range"
+      },
+      "/Users/rebecca/code/npm/node_modules/request/node_modules/http-signature/node_modules/sshpk"
+    ]
+  ],
+  "_from": "asn1@>=0.2.3 <0.3.0",
+  "_id": "asn1@0.2.3",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/request/http-signature/sshpk/asn1",
+  "_npmUser": {
+    "name": "pfmooney",
+    "email": "patrick.f.mooney@gmail.com"
+  },
+  "_npmVersion": "1.4.28",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "asn1@~0.2.3",
+    "scope": null,
+    "escapedName": "asn1",
+    "name": "asn1",
+    "rawSpec": "~0.2.3",
+    "spec": ">=0.2.3 <0.3.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/request/http-signature/sshpk"
+  ],
+  "_resolved": "https://registry.npmjs.org/asn1/-/asn1-0.2.3.tgz",
+  "_shasum": "dac8787713c9966849fc8180777ebe9c1ddf3b86",
+  "_shrinkwrap": null,
+  "_spec": "asn1@~0.2.3",
+  "_where": "/Users/rebecca/code/npm/node_modules/request/node_modules/http-signature/node_modules/sshpk",
+  "author": {
+    "name": "Mark Cavage",
+    "email": "mcavage@gmail.com"
+  },
+  "bugs": {
+    "url": "https://github.com/mcavage/node-asn1/issues"
+  },
+  "contributors": [
+    {
+      "name": "David Gwynne",
+      "email": "loki@animata.net"
+    },
+    {
+      "name": "Yunong Xiao",
+      "email": "yunong@joyent.com"
+    },
+    {
+      "name": "Alex Wilson",
+      "email": "alex.wilson@joyent.com"
+    }
+  ],
+  "dependencies": {},
+  "description": "Contains parsers and serializers for ASN.1 (currently BER only)",
+  "devDependencies": {
+    "tap": "0.4.8"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "dac8787713c9966849fc8180777ebe9c1ddf3b86",
+    "tarball": "https://registry.npmjs.org/asn1/-/asn1-0.2.3.tgz"
+  },
+  "homepage": "https://github.com/mcavage/node-asn1",
+  "license": "MIT",
+  "main": "lib/index.js",
+  "maintainers": [
+    {
+      "name": "mcavage",
+      "email": "mcavage@gmail.com"
+    },
+    {
+      "name": "pfmooney",
+      "email": "patrick.f.mooney@gmail.com"
+    }
+  ],
+  "name": "asn1",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/mcavage/node-asn1.git"
+  },
+  "scripts": {
+    "test": "tap ./tst"
+  },
+  "version": "0.2.3"
+}

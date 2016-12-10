@@ -1,48 +1,29 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
+'use strict';
+const common = require('../common');
+const assert = require('assert');
 
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
 }
+const tls = require('tls');
 
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var tls = require('tls');
-var fs = require('fs');
-var join = require('path').join;
+const cluster = require('cluster');
+const fs = require('fs');
+const join = require('path').join;
 
-var workerCount = 4;
-var expectedReqCount = 16;
+const workerCount = 4;
+const expectedReqCount = 16;
 
 if (cluster.isMaster) {
-  var reusedCount = 0;
-  var reqCount = 0;
-  var lastSession = null;
-  var shootOnce = false;
+  let reusedCount = 0;
+  let reqCount = 0;
+  let lastSession = null;
+  let shootOnce = false;
 
   function shoot() {
     console.error('[master] connecting');
-    var c = tls.connect(common.PORT, {
+    const c = tls.connect(common.PORT, {
       session: lastSession,
       rejectUnauthorized: false
     }, function() {
@@ -60,8 +41,7 @@ if (cluster.isMaster) {
   }
 
   function fork() {
-    var worker = cluster.fork();
-    var workerReqCount = 0;
+    const worker = cluster.fork();
     worker.on('message', function(msg) {
       console.error('[master] got %j', msg);
       if (msg === 'reused') {
@@ -76,27 +56,27 @@ if (cluster.isMaster) {
       console.error('[master] worker died');
     });
   }
-  for (var i = 0; i < workerCount; i++) {
+  for (let i = 0; i < workerCount; i++) {
     fork();
   }
 
   process.on('exit', function() {
-    assert.equal(reqCount, expectedReqCount);
-    assert.equal(reusedCount + 1, reqCount);
+    assert.strictEqual(reqCount, expectedReqCount);
+    assert.strictEqual(reusedCount + 1, reqCount);
   });
   return;
 }
 
-var keyFile = join(common.fixturesDir, 'agent.key');
-var certFile = join(common.fixturesDir, 'agent.crt');
-var key = fs.readFileSync(keyFile);
-var cert = fs.readFileSync(certFile);
-var options = {
+const keyFile = join(common.fixturesDir, 'agent.key');
+const certFile = join(common.fixturesDir, 'agent.crt');
+const key = fs.readFileSync(keyFile);
+const cert = fs.readFileSync(certFile);
+const options = {
   key: key,
   cert: cert
 };
 
-var server = tls.createServer(options, function(c) {
+const server = tls.createServer(options, function(c) {
   if (c.isSessionReused()) {
     process.send('reused');
   } else {

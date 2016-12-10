@@ -14,7 +14,8 @@ if [ "$MAKEDEPEND" = "" ]; then MAKEDEPEND=makedepend; fi
 cp Makefile Makefile.save
 # fake the presence of Kerberos
 touch $TOP/krb5.h
-if expr "$MAKEDEPEND" : '.*gcc$' > /dev/null; then
+if ${MAKEDEPEND} --version 2>&1 | grep "clang" > /dev/null ||
+   echo $MAKEDEPEND | grep "gcc" > /dev/null; then
     args=""
     while [ $# -gt 0 ]; do
 	if [ "$1" != "--" ]; then args="$args $1"; fi

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/x64/codegen-x64.h"
 
 #if V8_TARGET_ARCH_X64
 
@@ -32,149 +32,28 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
 #define __ masm.
 
 
-UnaryMathFunction CreateExpFunction() {
-  if (!FLAG_fast_math) return &std::exp;
-  size_t actual_size;
-  byte* buffer =
-      static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
-  if (buffer == NULL) return &std::exp;
-  ExternalReference::InitializeMathExpData();
-
-  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
-  // xmm0: raw double input.
-  XMMRegister input = xmm0;
-  XMMRegister result = xmm1;
-  __ pushq(rax);
-  __ pushq(rbx);
-
-  MathExpGenerator::EmitMathExp(&masm, input, result, xmm2, rax, rbx);
-
-  __ popq(rbx);
-  __ popq(rax);
-  __ movsd(xmm0, result);
-  __ Ret();
-
-  CodeDesc desc;
-  masm.GetCode(&desc);
-  DCHECK(!RelocInfo::RequiresRelocation(desc));
-
-  CpuFeatures::FlushICache(buffer, actual_size);
-  base::OS::ProtectCode(buffer, actual_size);
-  return FUNCTION_CAST<UnaryMathFunction>(buffer);
-}
-
-
-UnaryMathFunction CreateSqrtFunction() {
+UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
   size_t actual_size;
   // Allocate buffer in executable space.
   byte* buffer =
       static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
-  if (buffer == NULL) return &std::sqrt;
+  if (buffer == nullptr) return nullptr;
 
-  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
+  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
+                      CodeObjectRequired::kNo);
   // xmm0: raw double input.
   // Move double input into registers.
-  __ sqrtsd(xmm0, xmm0);
+  __ Sqrtsd(xmm0, xmm0);
   __ Ret();
 
   CodeDesc desc;
   masm.GetCode(&desc);
   DCHECK(!RelocInfo::RequiresRelocation(desc));
 
-  CpuFeatures::FlushICache(buffer, actual_size);
+  Assembler::FlushICache(isolate, buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
-  return FUNCTION_CAST<UnaryMathFunction>(buffer);
+  return FUNCTION_CAST<UnaryMathFunctionWithIsolate>(buffer);
 }
-
-
-#ifdef _WIN64
-typedef double (*ModuloFunction)(double, double);
-// Define custom fmod implementation.
-ModuloFunction CreateModuloFunction() {
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(
-      base::OS::Allocate(Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
-  Assembler masm(NULL, buffer, static_cast<int>(actual_size));
-  // Generated code is put into a fixed, unmovable, buffer, and not into
-  // the V8 heap. We can't, and don't, refer to any relocatable addresses
-  // (e.g. the JavaScript nan-object).
-
-  // Windows 64 ABI passes double arguments in xmm0, xmm1 and
-  // returns result in xmm0.
-  // Argument backing space is allocated on the stack above
-  // the return address.
-
-  // Compute x mod y.
-  // Load y and x (use argument backing store as temporary storage).
-  __ movsd(Operand(rsp, kRegisterSize * 2), xmm1);
-  __ movsd(Operand(rsp, kRegisterSize), xmm0);
-  __ fld_d(Operand(rsp, kRegisterSize * 2));
-  __ fld_d(Operand(rsp, kRegisterSize));
-
-  // Clear exception flags before operation.
-  {
-    Label no_exceptions;
-    __ fwait();
-    __ fnstsw_ax();
-    // Clear if Illegal Operand or Zero Division exceptions are set.
-    __ testb(rax, Immediate(5));
-    __ j(zero, &no_exceptions);
-    __ fnclex();
-    __ bind(&no_exceptions);
-  }
-
-  // Compute st(0) % st(1)
-  {
-    Label partial_remainder_loop;
-    __ bind(&partial_remainder_loop);
-    __ fprem();
-    __ fwait();
-    __ fnstsw_ax();
-    __ testl(rax, Immediate(0x400 /* C2 */));
-    // If C2 is set, computation only has partial result. Loop to
-    // continue computation.
-    __ j(not_zero, &partial_remainder_loop);
-  }
-
-  Label valid_result;
-  Label return_result;
-  // If Invalid Operand or Zero Division exceptions are set,
-  // return NaN.
-  __ testb(rax, Immediate(5));
-  __ j(zero, &valid_result);
-  __ fstp(0);  // Drop result in st(0).
-  int64_t kNaNValue = V8_INT64_C(0x7ff8000000000000);
-  __ movq(rcx, kNaNValue);
-  __ movq(Operand(rsp, kRegisterSize), rcx);
-  __ movsd(xmm0, Operand(rsp, kRegisterSize));
-  __ jmp(&return_result);
-
-  // If result is valid, return that.
-  __ bind(&valid_result);
-  __ fstp_d(Operand(rsp, kRegisterSize));
-  __ movsd(xmm0, Operand(rsp, kRegisterSize));
-
-  // Clean up FPU stack and exceptions and return xmm0
-  __ bind(&return_result);
-  __ fstp(0);  // Unload y.
-
-  Label clear_exceptions;
-  __ testb(rax, Immediate(0x3f /* Any Exception*/));
-  __ j(not_zero, &clear_exceptions);
-  __ ret(0);
-  __ bind(&clear_exceptions);
-  __ fnclex();
-  __ ret(0);
-
-  CodeDesc desc;
-  masm.GetCode(&desc);
-  base::OS::ProtectCode(buffer, actual_size);
-  // Call the function from C++ through this pointer.
-  return FUNCTION_CAST<ModuloFunction>(buffer);
-}
-
-#endif
 
 #undef __
 
@@ -293,7 +172,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   // Allocate new backing store.
   __ bind(&new_backing_store);
   __ leap(rdi, Operand(r9, times_8, FixedArray::kHeaderSize));
-  __ Allocate(rdi, r14, r11, r15, fail, TAG_OBJECT);
+  __ Allocate(rdi, r14, r11, r15, fail, NO_ALLOCATION_FLAGS);
   // Set backing store's map
   __ LoadRoot(rdi, Heap::kFixedDoubleArrayMapRootIndex);
   __ movp(FieldOperand(r14, HeapObject::kMapOffset), rdi);
@@ -332,9 +211,9 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   // rbx: current element (smi-tagged)
   __ JumpIfNotSmi(rbx, &convert_hole);
   __ SmiToInteger32(rbx, rbx);
-  __ Cvtlsi2sd(xmm0, rbx);
-  __ movsd(FieldOperand(r14, r9, times_8, FixedDoubleArray::kHeaderSize),
-           xmm0);
+  __ Cvtlsi2sd(kScratchDoubleReg, rbx);
+  __ Movsd(FieldOperand(r14, r9, times_8, FixedDoubleArray::kHeaderSize),
+           kScratchDoubleReg);
   __ jmp(&entry);
   __ bind(&convert_hole);
 
@@ -378,6 +257,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ CompareRoot(r8, Heap::kEmptyFixedArrayRootIndex);
   __ j(equal, &only_change_map);
 
+  __ Push(rsi);
   __ Push(rax);
 
   __ movp(r8, FieldOperand(rdx, JSObject::kElementsOffset));
@@ -385,7 +265,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   // r8 : source FixedDoubleArray
   // r9 : number of elements
   __ leap(rdi, Operand(r9, times_pointer_size, FixedArray::kHeaderSize));
-  __ Allocate(rdi, r11, r14, r15, &gc_required, TAG_OBJECT);
+  __ Allocate(rdi, r11, r14, r15, &gc_required, NO_ALLOCATION_FLAGS);
   // r11: destination FixedArray
   __ LoadRoot(rdi, Heap::kFixedArrayMapRootIndex);
   __ movp(FieldOperand(r11, HeapObject::kMapOffset), rdi);
@@ -416,7 +296,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   // Call into runtime if GC is required.
   __ bind(&gc_required);
   __ Pop(rax);
-  __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+  __ Pop(rsi);
   __ jmp(fail);
 
   // Box doubles into heap numbers.
@@ -470,7 +350,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
                       EMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
   __ Pop(rax);
-  __ movp(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+  __ Pop(rsi);
 
   __ bind(&only_change_map);
   // Set transitioned map.
@@ -587,68 +467,17 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ bind(&done);
 }
 
-
-void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
-                                   XMMRegister input,
-                                   XMMRegister result,
-                                   XMMRegister double_scratch,
-                                   Register temp1,
-                                   Register temp2) {
-  DCHECK(!input.is(result));
-  DCHECK(!input.is(double_scratch));
-  DCHECK(!result.is(double_scratch));
-  DCHECK(!temp1.is(temp2));
-  DCHECK(ExternalReference::math_exp_constants(0).address() != NULL);
-  DCHECK(!masm->serializer_enabled());  // External references not serializable.
-
-  Label done;
-
-  __ Move(kScratchRegister, ExternalReference::math_exp_constants(0));
-  __ movsd(double_scratch, Operand(kScratchRegister, 0 * kDoubleSize));
-  __ xorpd(result, result);
-  __ ucomisd(double_scratch, input);
-  __ j(above_equal, &done);
-  __ ucomisd(input, Operand(kScratchRegister, 1 * kDoubleSize));
-  __ movsd(result, Operand(kScratchRegister, 2 * kDoubleSize));
-  __ j(above_equal, &done);
-  __ movsd(double_scratch, Operand(kScratchRegister, 3 * kDoubleSize));
-  __ movsd(result, Operand(kScratchRegister, 4 * kDoubleSize));
-  __ mulsd(double_scratch, input);
-  __ addsd(double_scratch, result);
-  __ movq(temp2, double_scratch);
-  __ subsd(double_scratch, result);
-  __ movsd(result, Operand(kScratchRegister, 6 * kDoubleSize));
-  __ leaq(temp1, Operand(temp2, 0x1ff800));
-  __ andq(temp2, Immediate(0x7ff));
-  __ shrq(temp1, Immediate(11));
-  __ mulsd(double_scratch, Operand(kScratchRegister, 5 * kDoubleSize));
-  __ Move(kScratchRegister, ExternalReference::math_exp_log_table());
-  __ shlq(temp1, Immediate(52));
-  __ orq(temp1, Operand(kScratchRegister, temp2, times_8, 0));
-  __ Move(kScratchRegister, ExternalReference::math_exp_constants(0));
-  __ subsd(double_scratch, input);
-  __ movsd(input, double_scratch);
-  __ subsd(result, double_scratch);
-  __ mulsd(input, double_scratch);
-  __ mulsd(result, input);
-  __ movq(input, temp1);
-  __ mulsd(result, Operand(kScratchRegister, 7 * kDoubleSize));
-  __ subsd(result, double_scratch);
-  __ addsd(result, Operand(kScratchRegister, 8 * kDoubleSize));
-  __ mulsd(result, input);
-
-  __ bind(&done);
-}
-
 #undef __
 
 
-CodeAgingHelper::CodeAgingHelper() {
+CodeAgingHelper::CodeAgingHelper(Isolate* isolate) {
+  USE(isolate);
   DCHECK(young_sequence_.length() == kNoCodeAgeSequenceLength);
   // The sequence of instructions that is patched out for aging code is the
   // following boilerplate stack-building prologue that is found both in
   // FUNCTION and OPTIMIZED_FUNCTION code:
-  CodePatcher patcher(young_sequence_.start(), young_sequence_.length());
+  CodePatcher patcher(isolate, young_sequence_.start(),
+                      young_sequence_.length());
   patcher.masm()->pushq(rbp);
   patcher.masm()->movp(rbp, rsp);
   patcher.masm()->Push(rsi);
@@ -692,10 +521,10 @@ void Code::PatchPlatformCodeAge(Isolate* isolate,
   uint32_t young_length = isolate->code_aging_helper()->young_sequence_length();
   if (age == kNoAgeCodeAge) {
     isolate->code_aging_helper()->CopyYoungSequenceTo(sequence);
-    CpuFeatures::FlushICache(sequence, young_length);
+    Assembler::FlushICache(isolate, sequence, young_length);
   } else {
     Code* stub = GetCodeAgeStub(isolate, age, parity);
-    CodePatcher patcher(sequence, young_length);
+    CodePatcher patcher(isolate, sequence, young_length);
     patcher.masm()->call(stub->instruction_start());
     patcher.masm()->Nop(
         kNoCodeAgeSequenceLength - Assembler::kShortCallInstructionLength);
@@ -724,6 +553,7 @@ Operand StackArgumentsAccessor::GetArgumentOperand(int index) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_X64

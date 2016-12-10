@@ -26,8 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // On MacOS X 10.7.5, this test needs a stack size of at least 788 kBytes.
-// Flags: --stack-size=800
-// Flags: --turbo-deoptimization
+// On PPC64, this test needs a stack size of at least 698 kBytes.
+// Flags: --stack-size=1000
 
 // Test that we can make large object literals that work.
 // Also test that we can attempt to make even larger object literals without

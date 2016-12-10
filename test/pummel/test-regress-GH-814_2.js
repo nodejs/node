@@ -1,24 +1,4 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+'use strict';
 // Flags: --expose_gc
 
 var common = require('../common');
@@ -41,7 +21,7 @@ function tailCB(data) {
     console.error('[FAIL]\n DATA -> ');
     console.error(data);
     console.error('\n');
-    throw Error('Buffers GC test -> FAIL');
+    throw new Error('Buffers GC test -> FAIL');
   }
 }
 
@@ -64,13 +44,13 @@ function writer() {
       }, 555);
     } else {
       fs.write(testFD, newBuffer(kBufSize, 0x61), 0, kBufSize, -1, writerCB);
-      gc();
-      gc();
-      gc();
-      gc();
-      gc();
-      gc();
-      var nuBuf = new Buffer(kBufSize);
+      global.gc();
+      global.gc();
+      global.gc();
+      global.gc();
+      global.gc();
+      global.gc();
+      var nuBuf = Buffer.allocUnsafe(kBufSize);
       neverWrittenBuffer.copy(nuBuf);
       if (bufPool.push(nuBuf) > 100) {
         bufPool.length = 0;
@@ -90,13 +70,11 @@ function writerCB(err, written) {
 }
 
 
-
-
 // ******************* UTILITIES
 
 
 function newBuffer(size, value) {
-  var buffer = new Buffer(size);
+  var buffer = Buffer.allocUnsafe(size);
   while (size--) {
     buffer[size] = value;
   }

@@ -1,0 +1,26 @@
+{{# def.definitions }}
+{{# def.errors }}
+{{# def.setupKeyword }}
+{{# def.$data }}
+
+{{ var $i = 'i' + $lvl; }}
+{{? !$isData }}
+  var schema{{=$lvl}} = validate.schema{{=$schemaPath}};
+{{?}}
+var {{=$valid}};
+
+{{?$isData}}{{# def.check$dataIsArray }}{{?}}
+
+{{=$valid}} = false;
+
+for (var {{=$i}}=0; {{=$i}}<schema{{=$lvl}}.length; {{=$i}}++)
+  if (equal({{=$data}}, schema{{=$lvl}}[{{=$i}}])) {
+    {{=$valid}} = true;
+    break;
+  }
+
+{{? $isData }}  }  {{?}}
+
+{{# def.checkError:'enum' }}
+
+{{? $breakOnError }} else { {{?}}

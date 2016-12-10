@@ -21,7 +21,7 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer. 
+ *    notice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -70,11 +70,12 @@
 #include "ech_locl.h"
 
 int ECDH_compute_key(void *out, size_t outlen, const EC_POINT *pub_key,
-	EC_KEY *eckey,
-	void *(*KDF)(const void *in, size_t inlen, void *out, size_t *outlen))
+                     EC_KEY *eckey,
+                     void *(*KDF) (const void *in, size_t inlen, void *out,
+                                   size_t *outlen))
 {
-	ECDH_DATA *ecdh = ecdh_check(eckey);
-	if (ecdh == NULL)
-		return 0;
-	return ecdh->meth->compute_key(out, outlen, pub_key, eckey, KDF);
+    ECDH_DATA *ecdh = ecdh_check(eckey);
+    if (ecdh == NULL)
+        return 0;
+    return ecdh->meth->compute_key(out, outlen, pub_key, eckey, KDF);
 }

@@ -32,6 +32,7 @@ from os.path import isdir
 from os.path import join
 import platform
 import re
+import subprocess
 import urllib2
 
 
@@ -73,6 +74,8 @@ def GuessOS():
     return 'solaris'
   elif system == 'NetBSD':
     return 'netbsd'
+  elif system == 'AIX':
+    return 'aix'
   else:
     return None
 
@@ -99,6 +102,10 @@ def DefaultArch():
     return 'ia32'
   elif machine == 'amd64':
     return 'ia32'
+  elif machine == 's390x':
+    return 's390'
+  elif machine == 'ppc64':
+    return 'ppc'
   else:
     return None
 
@@ -117,5 +124,36 @@ def IsWindows():
 def URLRetrieve(source, destination):
   """urllib is broken for SSL connections via a proxy therefore we
   can't use urllib.urlretrieve()."""
+  if IsWindows():
+    try:
+      # In python 2.7.6 on windows, urlopen has a problem with redirects.
+      # Try using curl instead. Note, this is fixed in 2.7.8.
+      subprocess.check_call(["curl", source, '-k', '-L', '-o', destination])
+      return
+    except:
+      # If there's no curl, fall back to urlopen.
+      print "Curl is currently not installed. Falling back to python."
+      pass
   with open(destination, 'w') as f:
     f.write(urllib2.urlopen(source).read())
+
+
+class FrozenDict(dict):
+  def __setitem__(self, *args, **kwargs):
+    raise Exception('Tried to mutate a frozen dict')
+
+  def update(self, *args, **kwargs):
+    raise Exception('Tried to mutate a frozen dict')
+
+
+def Freeze(obj):
+  if isinstance(obj, dict):
+    return FrozenDict((k, Freeze(v)) for k, v in obj.iteritems())
+  elif isinstance(obj, set):
+    return frozenset(obj)
+  elif isinstance(obj, list):
+    return tuple(Freeze(item) for item in obj)
+  else:
+    # Make sure object is hashable.
+    hash(obj)
+    return obj

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
 #if V8_TARGET_ARCH_ARM64
 
 #include "src/ic/access-compiler.h"
@@ -28,26 +26,25 @@ void PropertyAccessCompiler::GenerateTailCall(MacroAssembler* masm,
 // we use the same assignments as ARM to remain on the safe side.
 
 Register* PropertyAccessCompiler::load_calling_convention() {
-  // receiver, name, scratch1, scratch2, scratch3, scratch4.
+  // receiver, name, scratch1, scratch2, scratch3.
   Register receiver = LoadDescriptor::ReceiverRegister();
   Register name = LoadDescriptor::NameRegister();
-  static Register registers[] = {receiver, name, x3, x0, x4, x5};
+  static Register registers[] = {receiver, name, x3, x0, x4};
   return registers;
 }
 
 
 Register* PropertyAccessCompiler::store_calling_convention() {
-  // receiver, value, scratch1, scratch2, scratch3.
+  // receiver, value, scratch1, scratch2.
   Register receiver = StoreDescriptor::ReceiverRegister();
   Register name = StoreDescriptor::NameRegister();
-  DCHECK(x3.is(ElementTransitionAndStoreDescriptor::MapRegister()));
-  static Register registers[] = {receiver, name, x3, x4, x5};
+  static Register registers[] = {receiver, name, x3, x4};
   return registers;
 }
 
 
 #undef __
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_TARGET_ARCH_ARM64

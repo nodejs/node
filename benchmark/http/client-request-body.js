@@ -1,4 +1,5 @@
 // Measure the time it takes for the HTTP client to send a request body.
+'use strict';
 
 var common = require('../common.js');
 var http = require('http');
@@ -7,7 +8,7 @@ var bench = common.createBenchmark(main, {
   dur: [5],
   type: ['asc', 'utf', 'buf'],
   bytes: [32, 256, 1024],
-  method: ['write', 'end  '] // two spaces added to line up each row
+  method: ['write', 'end']
 });
 
 function main(conf) {
@@ -18,8 +19,7 @@ function main(conf) {
   var chunk;
   switch (conf.type) {
     case 'buf':
-      chunk = new Buffer(len);
-      chunk.fill('x');
+      chunk = Buffer.alloc(len, 'x');
       break;
     case 'utf':
       encoding = 'utf8';
@@ -65,5 +65,6 @@ function main(conf) {
 
   function done() {
     bench.end(nreqs);
+    process.exit(0);
   }
 }

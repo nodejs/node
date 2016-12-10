@@ -14,7 +14,7 @@ dump_url (const char *url, const struct http_parser_url *u)
       continue;
     }
 
-    printf("\tfield_data[%u]: off: %u len: %u part: \"%.*s\n",
+    printf("\tfield_data[%u]: off: %u, len: %u, part: %.*s\n",
            i,
            u->field_data[i].off,
            u->field_data[i].len,
@@ -24,16 +24,19 @@ dump_url (const char *url, const struct http_parser_url *u)
 }
 
 int main(int argc, char ** argv) {
+  struct http_parser_url u;
+  int len, connect, result;
+
   if (argc != 3) {
     printf("Syntax : %s connect|get url\n", argv[0]);
     return 1;
   }
-  struct http_parser_url u;
-  int len = strlen(argv[2]);
-  int connect = strcmp("connect", argv[1]) == 0 ? 1 : 0;
+  len = strlen(argv[2]);
+  connect = strcmp("connect", argv[1]) == 0 ? 1 : 0;
   printf("Parsing %s, connect %d\n", argv[2], connect);
 
-  int result = http_parser_parse_url(argv[2], len, connect, &u);
+  http_parser_url_init(&u);
+  result = http_parser_parse_url(argv[2], len, connect, &u);
   if (result != 0) {
     printf("Parse error : %d\n", result);
     return result;

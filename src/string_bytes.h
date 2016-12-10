@@ -1,61 +1,73 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 #ifndef SRC_STRING_BYTES_H_
 #define SRC_STRING_BYTES_H_
 
-// Decodes a v8::Handle<v8::String> or Buffer to a raw char*
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
+// Decodes a v8::Local<v8::String> or Buffer to a raw char*
 
 #include "v8.h"
 #include "node.h"
+#include "env.h"
+#include "env-inl.h"
+#include "util.h"
 
 namespace node {
 
-extern int WRITE_UTF8_FLAGS;
-
 class StringBytes {
  public:
+  class InlineDecoder : public MaybeStackBuffer<char> {
+   public:
+    inline bool Decode(Environment* env,
+                       v8::Local<v8::String> string,
+                       v8::Local<v8::Value> encoding,
+                       enum encoding _default) {
+      enum encoding enc = ParseEncoding(env->isolate(), encoding, _default);
+      if (!StringBytes::IsValidString(env->isolate(), string, enc)) {
+        env->ThrowTypeError("Bad input string");
+        return false;
+      }
+
+      const size_t storage = StringBytes::StorageSize(env->isolate(),
+                                                      string,
+                                                      enc);
+      AllocateSufficientStorage(storage);
+      const size_t length = StringBytes::Write(env->isolate(),
+                                               out(),
+                                               storage,
+                                               string,
+                                               enc);
+
+      // No zero terminator is included when using this method.
+      SetLength(length);
+      return true;
+    }
+
+    inline size_t size() const { return length(); }
+  };
+
   // Does the string match the encoding? Quick but non-exhaustive.
   // Example: a HEX string must have a length that's a multiple of two.
   // FIXME(bnoordhuis) IsMaybeValidString()? Naming things is hard...
   static bool IsValidString(v8::Isolate* isolate,
-                            v8::Handle<v8::String> string,
+                            v8::Local<v8::String> string,
                             enum encoding enc);
 
   // Fast, but can be 2 bytes oversized for Base64, and
   // as much as triple UTF-8 strings <= 65536 chars in length
   static size_t StorageSize(v8::Isolate* isolate,
-                            v8::Handle<v8::Value> val,
+                            v8::Local<v8::Value> val,
                             enum encoding enc);
 
   // Precise byte count, but slightly slower for Base64 and
   // very much slower for UTF-8
   static size_t Size(v8::Isolate* isolate,
-                     v8::Handle<v8::Value> val,
+                     v8::Local<v8::Value> val,
                      enum encoding enc);
 
   // If the string is external then assign external properties to data and len,
   // then return true. If not return false.
   static bool GetExternalParts(v8::Isolate* isolate,
-                               v8::Handle<v8::Value> val,
+                               v8::Local<v8::Value> val,
                                const char** data,
                                size_t* len);
 
@@ -66,7 +78,7 @@ class StringBytes {
   static size_t Write(v8::Isolate* isolate,
                       char* buf,
                       size_t buflen,
-                      v8::Handle<v8::Value> val,
+                      v8::Local<v8::Value> val,
                       enum encoding enc,
                       int* chars_written = nullptr);
 
@@ -82,53 +94,22 @@ class StringBytes {
                                      const uint16_t* buf,
                                      size_t buflen);
 
-  // Deprecated legacy interface
+  static v8::Local<v8::Value> Encode(v8::Isolate* isolate,
+                                     const char* buf,
+                                     enum encoding encoding);
 
-  NODE_DEPRECATED("Use IsValidString(isolate, ...)",
-                  static inline bool IsValidString(
-      v8::Handle<v8::String> string,
-      enum encoding enc) {
-    return IsValidString(v8::Isolate::GetCurrent(), string, enc);
-  })
-
-  NODE_DEPRECATED("Use StorageSize(isolate, ...)",
-                  static inline size_t StorageSize(v8::Handle<v8::Value> val,
-                                                  enum encoding enc) {
-    return StorageSize(v8::Isolate::GetCurrent(), val, enc);
-  })
-
-  NODE_DEPRECATED("Use Size(isolate, ...)",
-                  static inline size_t Size(v8::Handle<v8::Value> val,
-                                            enum encoding enc) {
-    return Size(v8::Isolate::GetCurrent(), val, enc);
-  })
-
-  NODE_DEPRECATED("Use GetExternalParts(isolate, ...)",
-                  static inline bool GetExternalParts(v8::Handle<v8::Value> val,
-                                                      const char** data,
-                                                      size_t* len) {
-    return GetExternalParts(v8::Isolate::GetCurrent(), val, data, len);
-  })
-
-  NODE_DEPRECATED("Use Write(isolate, ...)",
-                  static inline size_t Write(char* buf,
-                                             size_t buflen,
-                                             v8::Handle<v8::Value> val,
-                                             enum encoding enc,
-                                             int* chars_written = nullptr) {
-    v8::Isolate* isolate = v8::Isolate::GetCurrent();
-    return Write(isolate, buf, buflen, val, enc, chars_written);
-  })
-
-  NODE_DEPRECATED("Use Encode(isolate, ...)",
-                  static inline v8::Local<v8::Value> Encode(
-      const char* buf,
-      size_t buflen,
-      enum encoding encoding) {
-    return Encode(v8::Isolate::GetCurrent(), buf, buflen, encoding);
-  })
+ private:
+  static size_t WriteUCS2(char* buf,
+                          size_t buflen,
+                          size_t nbytes,
+                          const char* data,
+                          v8::Local<v8::String> str,
+                          int flags,
+                          size_t* chars_written);
 };
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_STRING_BYTES_H_

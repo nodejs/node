@@ -53,8 +53,11 @@ TEST_IMPL(pipe_close_stdout_read_stdin) {
   int pid;
   int fd[2];
   int status;
+  char buf;
+  uv_pipe_t stdin_pipe;
 
-  pipe(fd);
+  r = pipe(fd);
+  ASSERT(r == 0);
 
   if ((pid = fork()) == 0) {
     /*
@@ -62,12 +65,13 @@ TEST_IMPL(pipe_close_stdout_read_stdin) {
      * The write side will be closed by the parent process.
     */
     close(fd[1]);
+    /* block until write end of pipe is closed */
+    read(fd[0], &buf, 1);
     close(0);
-    dup(fd[0]);
+    r = dup(fd[0]);
+    ASSERT(r != -1);
 
     /* Create a stream that reads from the pipe. */
-    uv_pipe_t stdin_pipe;
-
     r = uv_pipe_init(uv_default_loop(), (uv_pipe_t *)&stdin_pipe, 0);
     ASSERT(r == 0);
 

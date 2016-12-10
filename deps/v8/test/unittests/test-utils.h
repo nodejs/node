@@ -13,10 +13,10 @@
 
 namespace v8 {
 
-std::ostream& operator<<(std::ostream&, ExternalArrayType);
+class ArrayBufferAllocator;
 
 
-class TestWithIsolate : public ::testing::Test {
+class TestWithIsolate : public virtual ::testing::Test {
  public:
   TestWithIsolate();
   virtual ~TestWithIsolate();
@@ -27,6 +27,7 @@ class TestWithIsolate : public ::testing::Test {
   static void TearDownTestCase();
 
  private:
+  static v8::ArrayBuffer::Allocator* array_buffer_allocator_;
   static Isolate* isolate_;
   Isolate::Scope isolate_scope_;
   HandleScope handle_scope_;
@@ -41,6 +42,10 @@ class TestWithContext : public virtual TestWithIsolate {
   virtual ~TestWithContext();
 
   const Local<Context>& context() const { return context_; }
+
+  v8::internal::Isolate* i_isolate() const {
+    return reinterpret_cast<v8::internal::Isolate*>(isolate());
+  }
 
  private:
   Local<Context> context_;
@@ -83,23 +88,40 @@ class TestWithIsolate : public virtual ::v8::TestWithIsolate {
   Isolate* isolate() const {
     return reinterpret_cast<Isolate*>(::v8::TestWithIsolate::isolate());
   }
+  base::RandomNumberGenerator* random_number_generator() const;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(TestWithIsolate);
 };
 
 
-class TestWithZone : public TestWithIsolate {
+class TestWithZone : public virtual ::testing::Test {
  public:
-  TestWithZone() : zone_(isolate()) {}
+  TestWithZone() : zone_(&allocator_) {}
   virtual ~TestWithZone();
 
   Zone* zone() { return &zone_; }
 
  private:
+  base::AccountingAllocator allocator_;
   Zone zone_;
 
   DISALLOW_COPY_AND_ASSIGN(TestWithZone);
+};
+
+
+class TestWithIsolateAndZone : public virtual TestWithIsolate {
+ public:
+  TestWithIsolateAndZone() : zone_(&allocator_) {}
+  virtual ~TestWithIsolateAndZone();
+
+  Zone* zone() { return &zone_; }
+
+ private:
+  base::AccountingAllocator allocator_;
+  Zone zone_;
+
+  DISALLOW_COPY_AND_ASSIGN(TestWithIsolateAndZone);
 };
 
 }  // namespace internal

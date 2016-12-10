@@ -24,6 +24,9 @@ class Vector {
     DCHECK(length == 0 || (length > 0 && data != NULL));
   }
 
+  template <int N>
+  explicit Vector(T (&arr)[N]) : start_(arr), length_(N) {}
+
   static Vector<T> New(int length) {
     return Vector<T>(NewArray<T>(length), length);
   }
@@ -31,9 +34,9 @@ class Vector {
   // Returns a vector using the same backing storage as this one,
   // spanning from and including 'from', to but not including 'to'.
   Vector<T> SubVector(int from, int to) {
-    SLOW_DCHECK(to <= length_);
-    SLOW_DCHECK(from < to);
     DCHECK(0 <= from);
+    SLOW_DCHECK(from < to);
+    SLOW_DCHECK(static_cast<unsigned>(to) <= static_cast<unsigned>(length_));
     return Vector<T>(start() + from, to - from);
   }
 
@@ -69,13 +72,33 @@ class Vector {
     return Vector<T>(result, length_);
   }
 
-  void Sort(int (*cmp)(const T*, const T*)) {
-    std::sort(start(), start() + length(), RawComparer(cmp));
+  template <typename CompareFunction>
+  void Sort(CompareFunction cmp, size_t s, size_t l) {
+    std::sort(start() + s, start() + s + l, RawComparer<CompareFunction>(cmp));
+  }
+
+  template <typename CompareFunction>
+  void Sort(CompareFunction cmp) {
+    std::sort(start(), start() + length(), RawComparer<CompareFunction>(cmp));
   }
 
   void Sort() {
     std::sort(start(), start() + length());
   }
+
+  template <typename CompareFunction>
+  void StableSort(CompareFunction cmp, size_t s, size_t l) {
+    std::stable_sort(start() + s, start() + s + l,
+                     RawComparer<CompareFunction>(cmp));
+  }
+
+  template <typename CompareFunction>
+  void StableSort(CompareFunction cmp) {
+    std::stable_sort(start(), start() + length(),
+                     RawComparer<CompareFunction>(cmp));
+  }
+
+  void StableSort() { std::stable_sort(start(), start() + length()); }
 
   void Truncate(int length) {
     DCHECK(length <= length_);
@@ -122,15 +145,16 @@ class Vector {
   T* start_;
   int length_;
 
+  template <typename CookedComparer>
   class RawComparer {
    public:
-    explicit RawComparer(int (*cmp)(const T*, const T*)) : cmp_(cmp) {}
+    explicit RawComparer(CookedComparer cmp) : cmp_(cmp) {}
     bool operator()(const T& a, const T& b) {
       return cmp_(&a, &b) < 0;
     }
 
    private:
-    int (*cmp_)(const T*, const T*);
+    CookedComparer cmp_;
   };
 };
 
@@ -180,7 +204,12 @@ inline Vector<char> MutableCStrVector(char* data, int max) {
   return Vector<char>(data, (length < max) ? length : max);
 }
 
+template <typename T, int N>
+inline Vector<T> ArrayVector(T (&arr)[N]) {
+  return Vector<T>(arr);
+}
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_VECTOR_H_

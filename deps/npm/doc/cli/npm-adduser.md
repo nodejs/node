@@ -5,6 +5,8 @@ npm-adduser(1) -- Add a registry user account
 
     npm adduser [--registry=url] [--scope=@orgname] [--always-auth]
 
+    aliases: login, add-user
+
 ## DESCRIPTION
 
 Create or verify a user named `<username>` in the specified registry, and
@@ -13,13 +15,14 @@ the default registry will be used (see `npm-config(7)`).
 
 The username, password, and email are read in from prompts.
 
-You may use this command to change your email address, but not username
-or password.
+To reset your password, go to <https://www.npmjs.com/forgot>
 
-To reset your password, go to <https://www.npmjs.org/forgot>
+To change your email address, go to <https://www.npmjs.com/email-edit>
 
 You may use this command multiple times with the same user account to
-authorize on a new machine.
+authorize on a new machine.  When authenticating on a new machine,
+the username, password and email address must all match with
+your existing record.
 
 `npm login` is an alias to `adduser` and behaves exactly the same way.
 
@@ -27,7 +30,7 @@ authorize on a new machine.
 
 ### registry
 
-Default: http://registry.npmjs.org/
+Default: https://registry.npmjs.org/
 
 The base URL of the npm package registry. If `scope` is also specified,
 this registry will only be used for packages with that scope. See `npm-scope(7)`.
@@ -56,9 +59,11 @@ registries. Can be used with `--registry` and / or `--scope`, e.g.
     npm adduser --registry=http://private-registry.example.com --always-auth
 
 This will ensure that all requests to that registry (including for tarballs)
-include an authorization header. See `always-auth` in `npm-config(7)` for more
-details on always-auth. Registry-specific configuaration of `always-auth` takes
-precedence over any global configuration.
+include an authorization header. This setting may be necessary for use with
+private registries where metadata and package tarballs are stored on hosts with
+different hostnames. See `always-auth` in `npm-config(7)` for more details on
+always-auth. Registry-specific configuration of `always-auth` takes precedence
+over any global configuration.
 
 ## SEE ALSO
 

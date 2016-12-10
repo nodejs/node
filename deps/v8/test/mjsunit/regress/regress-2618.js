@@ -25,14 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --use-osr --allow-natives-syntax --no-concurrent-osr
+// Flags: --use-osr --allow-natives-syntax --ignition-osr --turbo-from-bytecode
 
 function f() {
   do {
     do {
-      for (var i = 0; i < 10000000; i++) {
-        // This should run long enough to trigger OSR.
-      }
+      for (var i = 0; i < 10; i++) %OptimizeOsr();
     } while (false);
   } while (false);
 }
@@ -57,7 +55,7 @@ function g() {
             do {
               do {
                 do {
-                  for (var i = 0; i < 10000000; i++) { }
+                  for (var i = 0; i < 10; i++) %OptimizeOsr();
                 } while (false);
               } while (false);
             } while (false);

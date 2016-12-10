@@ -3,7 +3,7 @@ npm-index(7) -- Index of all npm documentation
 
 ### README(1)
 
-node package manager
+a JavaScript package manager
 
 ## Command Line Documentation
 
@@ -11,7 +11,11 @@ Using npm on the command line
 
 ### npm(1)
 
-node package manager
+javascript package manager
+
+### npm-access(1)
+
+Set access level on published packages
 
 ### npm-adduser(1)
 
@@ -53,6 +57,10 @@ Reduce duplication
 
 Deprecate a version of a package
 
+### npm-dist-tag(1)
+
+Modify package distribution tags
+
 ### npm-docs(1)
 
 Docs for a package in a web browser maybe
@@ -77,6 +85,10 @@ Get help on npm
 
 Interactively create a package.json file
 
+### npm-install-test(1)
+
+Install package(s) and run tests
+
 ### npm-install(1)
 
 Install a package
@@ -84,6 +96,10 @@ Install a package
 ### npm-link(1)
 
 Symlink a package folder
+
+### npm-logout(1)
+
+Log out of the registry
 
 ### npm-ls(1)
 
@@ -100,6 +116,10 @@ Manage package owners
 ### npm-pack(1)
 
 Create a tarball from a package
+
+### npm-ping(1)
+
+Ping npm registry
 
 ### npm-prefix(1)
 
@@ -123,11 +143,7 @@ Open package repository page in the browser
 
 ### npm-restart(1)
 
-Start a package
-
-### npm-rm(1)
-
-Remove a package
+Restart a package
 
 ### npm-root(1)
 
@@ -165,6 +181,10 @@ Stop a package
 
 Tag a published version
 
+### npm-team(1)
+
+Manage organization teams and team memberships
+
 ### npm-test(1)
 
 Test a package
@@ -196,162 +216,6 @@ Display npm username
 ## API Documentation
 
 Using npm in your Node programs
-
-### npm(3)
-
-node package manager
-
-### npm-bin(3)
-
-Display npm bin folder
-
-### npm-bugs(3)
-
-Bugs for a package in a web browser maybe
-
-### npm-cache(3)
-
-manage the npm cache programmatically
-
-### npm-commands(3)
-
-npm commands
-
-### npm-config(3)
-
-Manage the npm configuration files
-
-### npm-deprecate(3)
-
-Deprecate a version of a package
-
-### npm-docs(3)
-
-Docs for a package in a web browser maybe
-
-### npm-edit(3)
-
-Edit an installed package
-
-### npm-explore(3)
-
-Browse an installed package
-
-### npm-help-search(3)
-
-Search the help pages
-
-### npm-init(3)
-
-Interactively create a package.json file
-
-### npm-install(3)
-
-install a package programmatically
-
-### npm-link(3)
-
-Symlink a package folder
-
-### npm-load(3)
-
-Load config settings
-
-### npm-ls(3)
-
-List installed packages
-
-### npm-outdated(3)
-
-Check for outdated packages
-
-### npm-owner(3)
-
-Manage package owners
-
-### npm-pack(3)
-
-Create a tarball from a package
-
-### npm-prefix(3)
-
-Display prefix
-
-### npm-prune(3)
-
-Remove extraneous packages
-
-### npm-publish(3)
-
-Publish a package
-
-### npm-rebuild(3)
-
-Rebuild a package
-
-### npm-repo(3)
-
-Open package repository page in the browser
-
-### npm-restart(3)
-
-Start a package
-
-### npm-root(3)
-
-Display npm root
-
-### npm-run-script(3)
-
-Run arbitrary package scripts
-
-### npm-search(3)
-
-Search for packages
-
-### npm-shrinkwrap(3)
-
-programmatically generate package shrinkwrap file
-
-### npm-start(3)
-
-Start a package
-
-### npm-stop(3)
-
-Stop a package
-
-### npm-tag(3)
-
-Tag a published version
-
-### npm-test(3)
-
-Test a package
-
-### npm-uninstall(3)
-
-uninstall a package programmatically
-
-### npm-unpublish(3)
-
-Remove a package from the registry
-
-### npm-update(3)
-
-Update a package
-
-### npm-version(3)
-
-Bump a package version
-
-### npm-view(3)
-
-View registry info
-
-### npm-whoami(3)
-
-Display npm username
 
 ## Files
 
@@ -389,13 +253,13 @@ Developer Guide
 
 Handling Module Name Disputes
 
-### npm-faq(7)
-
-Frequently Asked Questions
-
 ### npm-index(7)
 
 Index of all npm documentation
+
+### npm-orgs(7)
+
+Working with Teams & Orgs
 
 ### npm-registry(7)
 

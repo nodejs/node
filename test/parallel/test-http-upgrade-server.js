@@ -1,25 +1,5 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-var common = require('../common');
+'use strict';
+require('../common');
 var assert = require('assert');
 
 var util = require('util');
@@ -36,20 +16,19 @@ function createTestServer() {
 }
 
 function testServer() {
-  var server = this;
-  http.Server.call(server, function() {});
+  http.Server.call(this, function() {});
 
-  server.on('connection', function() {
+  this.on('connection', function() {
     requests_recv++;
   });
 
-  server.on('request', function(req, res) {
+  this.on('request', function(req, res) {
     res.writeHead(200, {'Content-Type': 'text/plain'});
     res.write('okay');
     res.end();
   });
 
-  server.on('upgrade', function(req, socket, upgradeHead) {
+  this.on('upgrade', function(req, socket, upgradeHead) {
     socket.write('HTTP/1.1 101 Web Socket Protocol Handshake\r\n' +
                  'Upgrade: WebSocket\r\n' +
                  'Connection: Upgrade\r\n' +
@@ -59,7 +38,7 @@ function testServer() {
 
     socket.on('data', function(d) {
       var data = d.toString('utf8');
-      if (data == 'kill') {
+      if (data === 'kill') {
         socket.end();
       } else {
         socket.write(data, 'utf8');
@@ -80,8 +59,8 @@ function writeReq(socket, data, encoding) {
 /*-----------------------------------------------
   connection: Upgrade with listener
 -----------------------------------------------*/
-function test_upgrade_with_listener(_server) {
-  var conn = net.createConnection(common.PORT);
+function test_upgrade_with_listener() {
+  var conn = net.createConnection(server.address().port);
   conn.setEncoding('utf8');
   var state = 0;
 
@@ -99,11 +78,11 @@ function test_upgrade_with_listener(_server) {
 
     assert.equal('string', typeof data);
 
-    if (state == 1) {
+    if (state === 1) {
       assert.equal('HTTP/1.1 101', data.substr(0, 12));
       assert.equal('WjN}|M(6', request_upgradeHead.toString('utf8'));
       conn.write('test', 'utf8');
-    } else if (state == 2) {
+    } else if (state === 2) {
       assert.equal('test', data);
       conn.write('kill', 'utf8');
     }
@@ -112,7 +91,7 @@ function test_upgrade_with_listener(_server) {
   conn.on('end', function() {
     assert.equal(2, state);
     conn.end();
-    _server.removeAllListeners('upgrade');
+    server.removeAllListeners('upgrade');
     test_upgrade_no_listener();
   });
 }
@@ -123,7 +102,7 @@ function test_upgrade_with_listener(_server) {
 var test_upgrade_no_listener_ended = false;
 
 function test_upgrade_no_listener() {
-  var conn = net.createConnection(common.PORT);
+  var conn = net.createConnection(server.address().port);
   conn.setEncoding('utf8');
 
   conn.on('connect', function() {
@@ -148,7 +127,7 @@ function test_upgrade_no_listener() {
   connection: normal
 -----------------------------------------------*/
 function test_standard_http() {
-  var conn = net.createConnection(common.PORT);
+  var conn = net.createConnection(server.address().port);
   conn.setEncoding('utf8');
 
   conn.on('connect', function() {
@@ -169,9 +148,9 @@ function test_standard_http() {
 
 var server = createTestServer();
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   // All tests get chained after this:
-  test_upgrade_with_listener(server);
+  test_upgrade_with_listener();
 });
 
 

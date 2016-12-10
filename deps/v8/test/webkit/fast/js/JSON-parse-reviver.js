@@ -75,12 +75,13 @@ function arrayReviver(i,v) {
             debug("");
             debug("Ensure that when visiting a deleted property value is undefined");
             shouldBeUndefined("value");
+            this.length = 3;
             v = "undelete the property";
-            expectedLength = this.length = 3;
+            expectedLength = 4;
             break;
 
         case 4:
-            if (this.length != 3) {
+            if (this.length != 4) {
                 testFailed("Did not call reviver for deleted property");
                 expectedLength = this.length = 3;
                 break;

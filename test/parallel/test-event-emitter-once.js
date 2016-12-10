@@ -1,34 +1,11 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const EventEmitter = require('events');
 
-var common = require('../common');
-var assert = require('assert');
-var events = require('events');
+const e = new EventEmitter();
 
-var e = new events.EventEmitter();
-var times_hello_emited = 0;
-
-e.once('hello', function(a, b) {
-  times_hello_emited++;
-});
+e.once('hello', common.mustCall(function(a, b) {}));
 
 e.emit('hello', 'a', 'b');
 e.emit('hello', 'a', 'b');
@@ -36,30 +13,24 @@ e.emit('hello', 'a', 'b');
 e.emit('hello', 'a', 'b');
 
 var remove = function() {
-  assert.fail(1, 0, 'once->foo should not be emitted', '!');
+  common.fail('once->foo should not be emitted');
 };
 
 e.once('foo', remove);
 e.removeListener('foo', remove);
 e.emit('foo');
 
-process.on('exit', function() {
-  assert.equal(1, times_hello_emited);
-});
+e.once('e', common.mustCall(function() {
+  e.emit('e');
+}));
 
-var times_recurse_emitted = 0;
-
-e.once('e', function() {
-	e.emit('e');
-	times_recurse_emitted++;
-});
-
-e.once('e', function() {
-	times_recurse_emitted++;
-});
+e.once('e', common.mustCall(function() {}));
 
 e.emit('e');
 
-process.on('exit', function() {
-  assert.equal(2, times_recurse_emitted);
-});
+// Verify that the listener must be a function
+assert.throws(() => {
+  const ee = new EventEmitter();
+
+  ee.once('foo', null);
+}, /^TypeError: "listener" argument must be a function$/);

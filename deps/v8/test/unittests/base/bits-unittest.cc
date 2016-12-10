@@ -255,6 +255,25 @@ TEST(Bits, SignedMod32) {
 }
 
 
+TEST(Bits, UnsignedAddOverflow32) {
+  uint32_t val = 0;
+  EXPECT_FALSE(UnsignedAddOverflow32(0, 0, &val));
+  EXPECT_EQ(0u, val);
+  EXPECT_TRUE(
+      UnsignedAddOverflow32(std::numeric_limits<uint32_t>::max(), 1u, &val));
+  EXPECT_EQ(std::numeric_limits<uint32_t>::min(), val);
+  EXPECT_TRUE(UnsignedAddOverflow32(std::numeric_limits<uint32_t>::max(),
+                                    std::numeric_limits<uint32_t>::max(),
+                                    &val));
+  TRACED_FORRANGE(uint32_t, i, 1, 50) {
+    TRACED_FORRANGE(uint32_t, j, 1, i) {
+      EXPECT_FALSE(UnsignedAddOverflow32(i, j, &val));
+      EXPECT_EQ(i + j, val);
+    }
+  }
+}
+
+
 TEST(Bits, UnsignedDiv32) {
   TRACED_FORRANGE(uint32_t, i, 0, 50) {
     EXPECT_EQ(0u, UnsignedDiv32(i, 0));

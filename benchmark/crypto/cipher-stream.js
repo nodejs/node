@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common.js');
 
 var bench = common.createBenchmark(main, {
@@ -30,7 +31,7 @@ function main(conf) {
   var bob_secret = bob.computeSecret(alice.getPublicKey(), pubEnc, 'hex');
 
   // alice_secret and bob_secret should be the same
-  assert(alice_secret == bob_secret);
+  assert(alice_secret === bob_secret);
 
   var alice_cipher = crypto.createCipher(conf.cipher, alice_secret);
   var bob_cipher = crypto.createDecipher(conf.cipher, bob_secret);
@@ -47,8 +48,7 @@ function main(conf) {
       encoding = 'utf8';
       break;
     case 'buf':
-      message = new Buffer(conf.len);
-      message.fill('b');
+      message = Buffer.alloc(conf.len, 'b');
       break;
     default:
       throw new Error('unknown message type: ' + conf.type);
@@ -85,17 +85,17 @@ function streamWrite(alice, bob, message, encoding, writes) {
 
 function legacyWrite(alice, bob, message, encoding, writes) {
   var written = 0;
+  var enc, dec;
   for (var i = 0; i < writes; i++) {
-    var enc = alice.update(message, encoding);
-    var dec = bob.update(enc);
+    enc = alice.update(message, encoding);
+    dec = bob.update(enc);
     written += dec.length;
   }
-  var enc = alice.final();
-  var dec = bob.update(enc);
+  enc = alice.final();
+  dec = bob.update(enc);
   written += dec.length;
   dec = bob.final();
   written += dec.length;
-  var bits = written * 8;
   var gbits = written / (1024 * 1024 * 1024);
   bench.end(gbits);
 }

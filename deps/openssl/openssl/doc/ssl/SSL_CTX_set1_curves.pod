@@ -1,0 +1,103 @@
+=pod
+
+=head1 NAME
+
+SSL_CTX_set1_curves, SSL_CTX_set1_curves_list, SSL_set1_curves,
+SSL_set1_curves_list, SSL_get1_curves, SSL_get_shared_curve,
+SSL_CTX_set_ecdh_auto, SSL_set_ecdh_auto - EC supported curve functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ int SSL_CTX_set1_curves(SSL_CTX *ctx, int *clist, int clistlen);
+ int SSL_CTX_set1_curves_list(SSL_CTX *ctx, char *list);
+
+ int SSL_set1_curves(SSL *ssl, int *clist, int clistlen);
+ int SSL_set1_curves_list(SSL *ssl, char *list);
+
+ int SSL_get1_curves(SSL *ssl, int *curves);
+ int SSL_get_shared_curve(SSL *s, int n);
+
+ int SSL_CTX_set_ecdh_auto(SSL_CTX *ctx, int onoff);
+ int SSL_set_ecdh_auto(SSL *s, int onoff);
+
+=head1 DESCRIPTION
+
+SSL_CTX_set1_curves() sets the supported curves for B<ctx> to B<clistlen>
+curves in the array B<clist>. The array consist of all NIDs of curves in
+preference order. For a TLS client the curves are used directly in the
+supported curves extension. For a TLS server the curves are used to 
+determine the set of shared curves.
+
+SSL_CTX_set1_curves_list() sets the supported curves for B<ctx> to
+string B<list>. The string is a colon separated list of curve NIDs or
+names, for example "P-521:P-384:P-256".
+
+SSL_set1_curves() and SSL_set1_curves_list() are similar except they set
+supported curves for the SSL structure B<ssl>.
+
+SSL_get1_curves() returns the set of supported curves sent by a client
+in the supported curves extension. It returns the total number of 
+supported curves. The B<curves> parameter can be B<NULL> to simply
+return the number of curves for memory allocation purposes. The
+B<curves> array is in the form of a set of curve NIDs in preference
+order. It can return zero if the client did not send a supported curves
+extension.
+
+SSL_get_shared_curve() returns shared curve B<n> for a server-side
+SSL B<ssl>. If B<n> is -1 then the total number of shared curves is
+returned, which may be zero. Other than for diagnostic purposes,
+most applications will only be interested in the first shared curve
+so B<n> is normally set to zero. If the value B<n> is out of range,
+NID_undef is returned.
+
+SSL_CTX_set_ecdh_auto() and SSL_set_ecdh_auto() set automatic curve
+selection for server B<ctx> or B<ssl> to B<onoff>. If B<onoff> is 1 then 
+the highest preference curve is automatically used for ECDH temporary
+keys used during key exchange.
+
+All these functions are implemented as macros.
+
+=head1 NOTES
+
+If an application wishes to make use of several of these functions for
+configuration purposes either on a command line or in a file it should
+consider using the SSL_CONF interface instead of manually parsing options.
+
+The functions SSL_CTX_set_ecdh_auto() and SSL_set_ecdh_auto() can be used to
+make a server always choose the most appropriate curve for a client. If set
+it will override any temporary ECDH parameters set by a server. Previous
+versions of OpenSSL could effectively only use a single ECDH curve set
+using a function such as SSL_CTX_set_ecdh_tmp(). Newer applications should
+just call:
+
+ SSL_CTX_set_ecdh_auto(ctx, 1);
+
+and they will automatically support ECDH using the most appropriate shared
+curve.
+
+=head1 RETURN VALUES
+
+SSL_CTX_set1_curves(), SSL_CTX_set1_curves_list(), SSL_set1_curves(),
+SSL_set1_curves_list(), SSL_CTX_set_ecdh_auto() and SSL_set_ecdh_auto()
+return 1 for success and 0 for failure.
+
+SSL_get1_curves() returns the number of curves, which may be zero.
+
+SSL_get_shared_curve() returns the NID of shared curve B<n> or NID_undef if there
+is no shared curve B<n>; or the total number of shared curves if B<n>
+is -1.
+
+When called on a client B<ssl>, SSL_get_shared_curve() has no meaning and
+returns -1.
+
+=head1 SEE ALSO
+
+L<SSL_CTX_add_extra_chain_cert(3)|SSL_CTX_add_extra_chain_cert(3)>
+
+=head1 HISTORY
+
+These functions were first added to OpenSSL 1.0.2.
+
+=cut

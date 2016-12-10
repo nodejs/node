@@ -1,0 +1,85 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "jsprim@^1.2.2",
+        "scope": null,
+        "escapedName": "jsprim",
+        "name": "jsprim",
+        "rawSpec": "^1.2.2",
+        "spec": ">=1.2.2 <2.0.0",
+        "type": "range"
+      },
+      "/Users/rebecca/code/npm/node_modules/request/node_modules/http-signature"
+    ]
+  ],
+  "_from": "jsprim@>=1.2.2 <2.0.0",
+  "_id": "jsprim@1.3.1",
+  "_inCache": true,
+  "_location": "/request/http-signature/jsprim",
+  "_nodeVersion": "0.12.7",
+  "_npmOperationalInternal": {
+    "host": "packages-16-east.internal.npmjs.com",
+    "tmp": "tmp/jsprim-1.3.1.tgz_1473725209917_0.5387293708045036"
+  },
+  "_npmUser": {
+    "name": "dap",
+    "email": "dap@cs.brown.edu"
+  },
+  "_npmVersion": "2.15.9",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "jsprim@^1.2.2",
+    "scope": null,
+    "escapedName": "jsprim",
+    "name": "jsprim",
+    "rawSpec": "^1.2.2",
+    "spec": ">=1.2.2 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/request/http-signature"
+  ],
+  "_resolved": "https://registry.npmjs.org/jsprim/-/jsprim-1.3.1.tgz",
+  "_shasum": "2a7256f70412a29ee3670aaca625994c4dcff252",
+  "_shrinkwrap": null,
+  "_spec": "jsprim@^1.2.2",
+  "_where": "/Users/rebecca/code/npm/node_modules/request/node_modules/http-signature",
+  "bugs": {
+    "url": "https://github.com/davepacheco/node-jsprim/issues"
+  },
+  "dependencies": {
+    "extsprintf": "1.0.2",
+    "json-schema": "0.2.3",
+    "verror": "1.3.6"
+  },
+  "description": "utilities for primitive JavaScript types",
+  "devDependencies": {},
+  "directories": {},
+  "dist": {
+    "shasum": "2a7256f70412a29ee3670aaca625994c4dcff252",
+    "tarball": "https://registry.npmjs.org/jsprim/-/jsprim-1.3.1.tgz"
+  },
+  "engines": [
+    "node >=0.6.0"
+  ],
+  "gitHead": "825aba45c6cff4340c18cdae363ccb5bdf840bd7",
+  "homepage": "https://github.com/davepacheco/node-jsprim#readme",
+  "license": "MIT",
+  "main": "./lib/jsprim.js",
+  "maintainers": [
+    {
+      "name": "dap",
+      "email": "dap@cs.brown.edu"
+    }
+  ],
+  "name": "jsprim",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/davepacheco/node-jsprim.git"
+  },
+  "scripts": {},
+  "version": "1.3.1"
+}

@@ -26,23 +26,23 @@ This page tests toString conversion of RegExp objects, particularly wrt to '/' c
 On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
 
 
-FAIL RegExp('/').source should be \/. Was /.
+PASS RegExp('/').source is "\\/"
 PASS RegExp('').source is "(?:)"
 PASS RegExp.prototype.source is "(?:)"
-FAIL RegExp('/').toString() should be /\//. Was ///.
+PASS RegExp('/').toString() is "/\\//"
 PASS RegExp('').toString() is "/(?:)/"
 PASS RegExp.prototype.toString() is "/(?:)/"
-FAIL testForwardSlash("^/$", "/"); should be true. Threw exception SyntaxError: Unexpected end of input
-FAIL testForwardSlash("^/$", "/"); should be true. Threw exception SyntaxError: Unexpected end of input
-FAIL testForwardSlash("^\/$", "/"); should be true. Threw exception SyntaxError: Unexpected end of input
+PASS testForwardSlash("^/$", "/"); is true
+PASS testForwardSlash("^/$", "/"); is true
+PASS testForwardSlash("^\/$", "/"); is true
 PASS testForwardSlash("^\\/$", "\/"); is true
 PASS testForwardSlash("^\\\/$", "\/"); is true
-FAIL testForwardSlash("^\\\\/$", "\\/"); should be true. Threw exception SyntaxError: Unexpected end of input
-FAIL testForwardSlash("^\\\\\/$", "\\/"); should be true. Threw exception SyntaxError: Unexpected end of input
-FAIL testForwardSlash("x/x/x", "x\/x\/x"); should be true. Threw exception SyntaxError: Unexpected end of input
-FAIL testForwardSlash("x\/x/x", "x\/x\/x"); should be true. Threw exception SyntaxError: Unexpected end of input
-FAIL testForwardSlash("x/x\/x", "x\/x\/x"); should be true. Threw exception SyntaxError: Unexpected end of input
-FAIL testForwardSlash("x\/x\/x", "x\/x\/x"); should be true. Threw exception SyntaxError: Unexpected end of input
+PASS testForwardSlash("^\\\\/$", "\\/"); is true
+PASS testForwardSlash("^\\\\\/$", "\\/"); is true
+PASS testForwardSlash("x/x/x", "x\/x\/x"); is true
+PASS testForwardSlash("x\/x/x", "x\/x\/x"); is true
+PASS testForwardSlash("x/x\/x", "x\/x\/x"); is true
+PASS testForwardSlash("x\/x\/x", "x\/x\/x"); is true
 FAIL testLineTerminator("\n"); should be false. Was true.
 PASS testLineTerminator("\\n"); is false
 FAIL testLineTerminator("\r"); should be false. Was true.
@@ -51,10 +51,11 @@ FAIL testLineTerminator("\u2028"); should be false. Was true.
 PASS testLineTerminator("\\u2028"); is false
 FAIL testLineTerminator("\u2029"); should be false. Was true.
 PASS testLineTerminator("\\u2029"); is false
-PASS RegExp('[/]').source is '[/]'
-FAIL RegExp('\\[/]').source should be \[\/]. Was \[/].
+FAIL RegExp('[/]').source should be [/]. Was [\/].
+PASS RegExp('\\[/]').source is '\\[\\/]'
 PASS var o = new RegExp(); o.toString() === '/'+o.source+'/' && eval(o.toString()+'.exec(String())') is [""]
 PASS successfullyParsed is true
 
 TEST COMPLETE
+
 

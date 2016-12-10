@@ -23,8 +23,7 @@ The stable branch is effectively frozen; patches that change the libuv
 API/ABI or affect the run-time behavior of applications get rejected.
 
 In case of doubt, open an issue in the [issue tracker][], post your question
-to the [libuv mailing list], or contact one of project maintainers
-(@bnoordhuis, @piscisaureus, @indutny or @saghul) on [IRC][].
+to the [libuv mailing list], or contact one of [project maintainers][] on [IRC][].
 
 Especially do so if you plan to work on something big.  Nothing is more
 frustrating than seeing your hard work go to waste because your vision
@@ -49,7 +48,7 @@ the [Google C/C++ style guide]. Some of the key points, as well as some
 additional guidelines, are enumerated below.
 
 * Code that is specific to unix-y platforms should be placed in `src/unix`, and
-  declarations go into `src/uv-unix.h`.
+  declarations go into `include/uv-unix.h`.
 
 * Source code that is Windows-specific goes into `src/win`, and related
   publicly exported types, functions and macro declarations should generally
@@ -138,7 +137,10 @@ $ git rebase upstream/v1.x  # or upstream/master
 ### TEST
 
 Bug fixes and features should come with tests.  Add your tests in the
-`test/` directory. Tests also need to be registered in `test/test-list.h`.
+`test/` directory. Each new test needs to be registered in `test/test-list.h`. If you add a new test file, it needs to be registered in two places:
+- `Makefile.am`: add the file's name to the `test_run_tests_SOURCES` list.
+- `uv.gyp`: add the file's name to the `sources` list in the `run-tests` target.
+
 Look at other tests to see how they should be structured (license boilerplate,
 the way entry points are declared, etc.).
 
@@ -163,4 +165,5 @@ not send out notifications when you add commits.
 [issue tracker]: https://github.com/libuv/libuv/issues
 [libuv mailing list]: http://groups.google.com/group/libuv
 [IRC]: http://webchat.freelibuv.net/?channels=libuv
-[Google C/C++ style guide]: http://google-styleguide.googlecode.com/svn/trunk/cppguide.xml
+[Google C/C++ style guide]: https://google.github.io/styleguide/cppguide.html
+[project maintainers]: https://github.com/libuv/libuv/blob/master/MAINTAINERS.md

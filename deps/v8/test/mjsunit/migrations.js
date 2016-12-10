@@ -274,22 +274,6 @@ var migrations = [
     },
   },
   {
-    name: "observe",
-    migr: function(o, i) { Object.observe(o, function(){}); },
-  },
-  {
-    name: "%EnableAccessChecks",
-    migr: function(o, i) {
-      if (typeof (o) !== 'function') %EnableAccessChecks(o);
-    },
-  },
-  {
-    name: "%DisableAccessChecks",
-    migr: function(o, i) {
-      if ((typeof (o) !== 'function') && (o !== global)) %DisableAccessChecks(o);
-    },
-  },
-  {
     name: "seal",
     migr: function(o, i) { Object.seal(o); },
   },

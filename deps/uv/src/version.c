@@ -21,10 +21,6 @@
 
 #include "uv.h"
 
-#define UV_VERSION  ((UV_VERSION_MAJOR << 16) | \
-                     (UV_VERSION_MINOR <<  8) | \
-                     (UV_VERSION_PATCH))
-
 #define UV_STRINGIFY(v) UV_STRINGIFY_HELPER(v)
 #define UV_STRINGIFY_HELPER(v) #v
 
@@ -40,7 +36,7 @@
 
 
 unsigned int uv_version(void) {
-  return UV_VERSION;
+  return UV_VERSION_HEX;
 }
 
 

@@ -50,7 +50,8 @@ import re
 import sys
 
 #
-# Miscellaneous constants, tags, and masks used for object identification.
+# Miscellaneous constants such as tags and masks used for object identification,
+# enumeration values used as indexes in internal tables, etc..
 #
 consts_misc = [
     { 'name': 'FirstNonstringType',     'value': 'FIRST_NONSTRING_TYPE' },
@@ -82,7 +83,7 @@ consts_misc = [
     { 'name': 'OddballTrue',            'value': 'Oddball::kTrue' },
     { 'name': 'OddballTheHole',         'value': 'Oddball::kTheHole' },
     { 'name': 'OddballNull',            'value': 'Oddball::kNull' },
-    { 'name': 'OddballArgumentMarker',  'value': 'Oddball::kArgumentMarker' },
+    { 'name': 'OddballArgumentsMarker', 'value': 'Oddball::kArgumentsMarker' },
     { 'name': 'OddballUndefined',       'value': 'Oddball::kUndefined' },
     { 'name': 'OddballUninitialized',   'value': 'Oddball::kUninitialized' },
     { 'name': 'OddballOther',           'value': 'Oddball::kOther' },
@@ -91,13 +92,39 @@ consts_misc = [
     { 'name': 'prop_idx_first',
         'value': 'DescriptorArray::kFirstIndex' },
     { 'name': 'prop_type_field',
-        'value': 'FIELD' },
+        'value': 'DATA' },
+    { 'name': 'prop_type_const_field',
+        'value': 'DATA_CONSTANT' },
     { 'name': 'prop_type_mask',
         'value': 'PropertyDetails::TypeField::kMask' },
     { 'name': 'prop_index_mask',
         'value': 'PropertyDetails::FieldIndexField::kMask' },
     { 'name': 'prop_index_shift',
         'value': 'PropertyDetails::FieldIndexField::kShift' },
+    { 'name': 'prop_representation_mask',
+        'value': 'PropertyDetails::RepresentationField::kMask' },
+    { 'name': 'prop_representation_shift',
+        'value': 'PropertyDetails::RepresentationField::kShift' },
+    { 'name': 'prop_representation_integer8',
+        'value': 'Representation::Kind::kInteger8' },
+    { 'name': 'prop_representation_uinteger8',
+        'value': 'Representation::Kind::kUInteger8' },
+    { 'name': 'prop_representation_integer16',
+        'value': 'Representation::Kind::kInteger16' },
+    { 'name': 'prop_representation_uinteger16',
+        'value': 'Representation::Kind::kUInteger16' },
+    { 'name': 'prop_representation_smi',
+        'value': 'Representation::Kind::kSmi' },
+    { 'name': 'prop_representation_integer32',
+        'value': 'Representation::Kind::kInteger32' },
+    { 'name': 'prop_representation_double',
+        'value': 'Representation::Kind::kDouble' },
+    { 'name': 'prop_representation_heapobject',
+        'value': 'Representation::Kind::kHeapObject' },
+    { 'name': 'prop_representation_tagged',
+        'value': 'Representation::Kind::kTagged' },
+    { 'name': 'prop_representation_external',
+        'value': 'Representation::Kind::kExternal' },
 
     { 'name': 'prop_desc_key',
         'value': 'DescriptorArray::kDescriptorKey' },
@@ -121,38 +148,96 @@ consts_misc = [
         'value': 'Map::ElementsKindBits::kShift' },
     { 'name': 'bit_field3_dictionary_map_shift',
         'value': 'Map::DictionaryMap::kShift' },
+    { 'name': 'bit_field3_number_of_own_descriptors_mask',
+        'value': 'Map::NumberOfOwnDescriptorsBits::kMask' },
+    { 'name': 'bit_field3_number_of_own_descriptors_shift',
+        'value': 'Map::NumberOfOwnDescriptorsBits::kShift' },
 
     { 'name': 'off_fp_context',
         'value': 'StandardFrameConstants::kContextOffset' },
     { 'name': 'off_fp_constant_pool',
         'value': 'StandardFrameConstants::kConstantPoolOffset' },
-    { 'name': 'off_fp_marker',
-        'value': 'StandardFrameConstants::kMarkerOffset' },
     { 'name': 'off_fp_function',
         'value': 'JavaScriptFrameConstants::kFunctionOffset' },
     { 'name': 'off_fp_args',
         'value': 'JavaScriptFrameConstants::kLastParameterOffset' },
+
+    { 'name': 'scopeinfo_idx_nparams',
+        'value': 'ScopeInfo::kParameterCount' },
+    { 'name': 'scopeinfo_idx_nstacklocals',
+        'value': 'ScopeInfo::kStackLocalCount' },
+    { 'name': 'scopeinfo_idx_ncontextlocals',
+        'value': 'ScopeInfo::kContextLocalCount' },
+    { 'name': 'scopeinfo_idx_ncontextglobals',
+        'value': 'ScopeInfo::kContextGlobalCount' },
+    { 'name': 'scopeinfo_idx_first_vars',
+        'value': 'ScopeInfo::kVariablePartIndex' },
+
+    { 'name': 'sharedfunctioninfo_start_position_mask',
+        'value': 'SharedFunctionInfo::kStartPositionMask' },
+    { 'name': 'sharedfunctioninfo_start_position_shift',
+        'value': 'SharedFunctionInfo::kStartPositionShift' },
+
+    { 'name': 'jsarray_buffer_was_neutered_mask',
+        'value': 'JSArrayBuffer::WasNeutered::kMask' },
+    { 'name': 'jsarray_buffer_was_neutered_shift',
+        'value': 'JSArrayBuffer::WasNeutered::kShift' },
+
+    { 'name': 'context_idx_closure',
+        'value': 'Context::CLOSURE_INDEX' },
+    { 'name': 'context_idx_native',
+        'value': 'Context::NATIVE_CONTEXT_INDEX' },
+    { 'name': 'context_idx_prev',
+        'value': 'Context::PREVIOUS_INDEX' },
+    { 'name': 'context_idx_ext',
+        'value': 'Context::EXTENSION_INDEX' },
+    { 'name': 'context_min_slots',
+        'value': 'Context::MIN_CONTEXT_SLOTS' },
+
+    { 'name': 'namedictionaryshape_prefix_size',
+        'value': 'NameDictionaryShape::kPrefixSize' },
+    { 'name': 'namedictionaryshape_entry_size',
+        'value': 'NameDictionaryShape::kEntrySize' },
+    { 'name': 'globaldictionaryshape_entry_size',
+        'value': 'GlobalDictionaryShape::kEntrySize' },
+
+    { 'name': 'namedictionary_prefix_start_index',
+        'value': 'NameDictionary::kPrefixStartIndex' },
+
+    { 'name': 'seedednumberdictionaryshape_prefix_size',
+        'value': 'SeededNumberDictionaryShape::kPrefixSize' },
+    { 'name': 'seedednumberdictionaryshape_entry_size',
+        'value': 'SeededNumberDictionaryShape::kEntrySize' },
+
+    { 'name': 'unseedednumberdictionaryshape_prefix_size',
+        'value': 'UnseededNumberDictionaryShape::kPrefixSize' },
+    { 'name': 'unseedednumberdictionaryshape_entry_size',
+        'value': 'UnseededNumberDictionaryShape::kEntrySize' }
 ];
 
 #
 # The following useful fields are missing accessors, so we define fake ones.
+# Please note that extra accessors should _only_ be added to expose offsets that
+# can be used to access actual V8 objects' properties. They should not be added
+# for exposing other values. For instance, enumeration values or class'
+# constants should be exposed by adding an entry in the "consts_misc" table, not
+# in this "extras_accessors" table.
 #
 extras_accessors = [
+    'JSFunction, context, Context, kContextOffset',
     'HeapObject, map, Map, kMapOffset',
     'JSObject, elements, Object, kElementsOffset',
     'FixedArray, data, uintptr_t, kHeaderSize',
+    'JSArrayBuffer, backing_store, Object, kBackingStoreOffset',
+    'JSArrayBufferView, byte_offset, Object, kByteOffsetOffset',
+    'JSTypedArray, length, Object, kLengthOffset',
     'Map, instance_attributes, int, kInstanceAttributesOffset',
-    'Map, inobject_properties, int, kInObjectPropertiesOffset',
+    'Map, inobject_properties_or_constructor_function_index, int, kInObjectPropertiesOrConstructorFunctionIndexOffset',
     'Map, instance_size, int, kInstanceSizeOffset',
     'Map, bit_field, char, kBitFieldOffset',
     'Map, bit_field2, char, kBitField2Offset',
-    'Map, bit_field3, SMI, kBitField3Offset',
+    'Map, bit_field3, int, kBitField3Offset',
     'Map, prototype, Object, kPrototypeOffset',
-    'NameDictionaryShape, prefix_size, int, kPrefixSize',
-    'NameDictionaryShape, entry_size, int, kEntrySize',
-    'SeededNumberDictionaryShape, prefix_size, int, kPrefixSize',
-    'UnseededNumberDictionaryShape, prefix_size, int, kPrefixSize',
-    'NumberDictionaryShape, entry_size, int, kEntrySize',
     'Oddball, kind_offset, int, kKindOffset',
     'HeapNumber, value, double, kValueOffset',
     'ConsString, first, String, kFirstOffset',
@@ -161,6 +246,7 @@ extras_accessors = [
     'SeqOneByteString, chars, char, kHeaderSize',
     'SeqTwoByteString, chars, char, kHeaderSize',
     'SharedFunctionInfo, code, Code, kCodeOffset',
+    'SharedFunctionInfo, scope_info, ScopeInfo, kScopeInfoOffset',
     'SlicedString, parent, String, kParentOffset',
     'Code, instruction_start, uintptr_t, kHeaderSize',
     'Code, instruction_size, int, kInstructionSizeOffset',
@@ -195,6 +281,7 @@ header = '''
 #include "src/v8.h"
 #include "src/frames.h"
 #include "src/frames-inl.h" /* for architecture-specific frame constants */
+#include "src/contexts.h"
 
 using namespace v8::internal;
 
@@ -213,6 +300,20 @@ STACK_FRAME_TYPE_LIST(FRAME_CONST)
 footer = '''
 }
 '''
+
+#
+# Get the base class
+#
+def get_base_class(klass):
+        if (klass == 'Object'):
+                return klass;
+
+        if (not (klass in klasses)):
+                return None;
+
+        k = klasses[klass];
+
+        return get_base_class(k['parent']);
 
 #
 # Loads class hierarchy and type information from "objects.h".
@@ -246,18 +347,20 @@ def load_objects():
                         in_insttype = False;
                         continue;
 
-                line = re.sub('//.*', '', line.rstrip().lstrip());
+                line = re.sub('//.*', '', line.strip());
 
                 if (in_insttype):
                         typestr += line;
                         continue;
 
-                match = re.match('class (\w[^\s:]*)(: public (\w[^\s{]*))?\s*{',
+                match = re.match('class (\w[^:]*)(: public (\w[^{]*))?\s*{\s*',
                     line);
 
                 if (match):
-                        klass = match.group(1);
+                        klass = match.group(1).strip();
                         pklass = match.group(3);
+                        if (pklass):
+                                pklass = pklass.strip();
                         klasses[klass] = { 'parent': pklass };
 
         #
@@ -508,6 +611,9 @@ def emit_config():
         keys.sort();
         for klassname in keys:
                 pklass = klasses[klassname]['parent'];
+                bklass = get_base_class(klassname);
+                if (bklass != 'Object'):
+                        continue;
                 if (pklass == None):
                         continue;
 

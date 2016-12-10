@@ -2,8 +2,8 @@
 
 =head1 NAME
 
-HMAC, HMAC_Init, HMAC_Update, HMAC_Final, HMAC_cleanup - HMAC message
-authentication code
+HMAC, HMAC_CTX_init, HMAC_Init, HMAC_Init_ex, HMAC_Update, HMAC_Final, HMAC_CTX_cleanup,
+HMAC_cleanup - HMAC message authentication code
 
 =head1 SYNOPSIS
 
@@ -60,13 +60,17 @@ function B<evp_md> and the key B<key> which is B<key_len> bytes
 long. It is deprecated and only included for backward compatibility
 with OpenSSL 0.9.6b.
 
-HMAC_Init_ex() initializes or reuses a B<HMAC_CTX> structure to use
-the function B<evp_md> and key B<key>. Either can be NULL, in which
-case the existing one will be reused. HMAC_CTX_init() must have been
-called before the first use of an B<HMAC_CTX> in this
-function. B<N.B. HMAC_Init() had this undocumented behaviour in
-previous versions of OpenSSL - failure to switch to HMAC_Init_ex() in
-programs that expect it will cause them to stop working>.
+HMAC_Init_ex() initializes or reuses a B<HMAC_CTX> structure to use the hash
+function B<evp_md> and key B<key>. If both are NULL (or B<evp_md> is the same
+as the previous digest used by B<ctx> and B<key> is NULL) the existing key is
+reused. B<ctx> must have been created with HMAC_CTX_new() before the first use
+of an B<HMAC_CTX> in this function. B<N.B. HMAC_Init() had this undocumented
+behaviour in previous versions of OpenSSL - failure to switch to HMAC_Init_ex()
+in programs that expect it will cause them to stop working>.
+
+B<NB: if HMAC_Init_ex() is called with B<key> NULL and B<evp_md> is not the
+same as the previous digest used by B<ctx> then an error is returned
+because reuse of an existing key with a different digest is not supported.>
 
 HMAC_Update() can be called repeatedly with chunks of the message to
 be authenticated (B<len> bytes at B<data>).

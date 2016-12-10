@@ -1,0 +1,6 @@
+## Test-specific linter rules
+
+rules:
+  ## common module is mandatory in tests
+  required-modules: [2, common]
+  prefer-assert-methods: 2

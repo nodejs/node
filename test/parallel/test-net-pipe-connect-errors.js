@@ -1,54 +1,32 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-var fs = require('fs');
-var net = require('net');
-var path = require('path');
-var assert = require('assert');
-var common = require('../common');
-
-var notSocketErrorFired = false;
-var noEntErrorFired = false;
-var accessErrorFired = false;
+'use strict';
+const common = require('../common');
+const fs = require('fs');
+const net = require('net');
+const path = require('path');
+const assert = require('assert');
 
 // Test if ENOTSOCK is fired when trying to connect to a file which is not
 // a socket.
 
 var emptyTxt;
 
-if (process.platform === 'win32') {
+if (common.isWindows) {
   // on Win, common.PIPE will be a named pipe, so we use an existing empty
   // file instead
   emptyTxt = path.join(common.fixturesDir, 'empty.txt');
 } else {
-  // use common.PIPE to ensure we stay within POSIX socket path length
-  // restrictions, even on CI
-  emptyTxt = common.PIPE + '.txt';
+  common.refreshTmpDir();
+  // Keep the file name very short so tht we don't exceed the 108 char limit
+  // on CI for a POSIX socket. Even though this isn't actually a socket file,
+  // the error will be different from the one we are expecting if we exceed the
+  // limit.
+  emptyTxt = common.tmpDir + '0.txt';
 
   function cleanup() {
     try {
       fs.unlinkSync(emptyTxt);
     } catch (e) {
-      if (e.code != 'ENOENT')
-        throw e;
+      assert.strictEqual(e.code, 'ENOENT');
     }
   }
   process.on('exit', cleanup);
@@ -57,54 +35,41 @@ if (process.platform === 'win32') {
 }
 
 var notSocketClient = net.createConnection(emptyTxt, function() {
-  assert.ok(false);
+  common.fail('connection callback should not run');
 });
 
-notSocketClient.on('error', function(err) {
-  assert(err.code === 'ENOTSOCK' || err.code === 'ECONNREFUSED');
-  notSocketErrorFired = true;
-});
+notSocketClient.on('error', common.mustCall(function(err) {
+  assert(err.code === 'ENOTSOCK' || err.code === 'ECONNREFUSED',
+         `received ${err.code} instead of ENOTSOCK or ECONNREFUSED`);
+}));
 
 
 // Trying to connect to not-existing socket should result in ENOENT error
 var noEntSocketClient = net.createConnection('no-ent-file', function() {
-  assert.ok(false);
+  common.fail('connection to non-existent socket, callback should not run');
 });
 
-noEntSocketClient.on('error', function(err) {
-  assert.equal(err.code, 'ENOENT');
-  noEntErrorFired = true;
-});
+noEntSocketClient.on('error', common.mustCall(function(err) {
+  assert.strictEqual(err.code, 'ENOENT');
+}));
 
 
 // On Windows or when running as root, a chmod has no effect on named pipes
-if (process.platform !== 'win32' && process.getuid() !== 0) {
+if (!common.isWindows && process.getuid() !== 0) {
   // Trying to connect to a socket one has no access to should result in EACCES
-  var accessServer = net.createServer(function() {
-    assert.ok(false);
+  const accessServer = net.createServer(function() {
+    common.fail('server callback should not run');
   });
-  accessServer.listen(common.PIPE, function() {
+  accessServer.listen(common.PIPE, common.mustCall(function() {
     fs.chmodSync(common.PIPE, 0);
 
     var accessClient = net.createConnection(common.PIPE, function() {
-      assert.ok(false);
+      common.fail('connection should get EACCES, callback should not run');
     });
 
-    accessClient.on('error', function(err) {
-      assert.equal(err.code, 'EACCES');
-      accessErrorFired = true;
+    accessClient.on('error', common.mustCall(function(err) {
+      assert.strictEqual(err.code, 'EACCES');
       accessServer.close();
-    });
-  });
+    }));
+  }));
 }
-
-
-// Assert that all error events were fired
-process.on('exit', function() {
-  assert.ok(notSocketErrorFired);
-  assert.ok(noEntErrorFired);
-  if (process.platform !== 'win32' && process.getuid() !== 0) {
-    assert.ok(accessErrorFired);
-  }
-});
-

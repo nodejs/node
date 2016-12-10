@@ -56,7 +56,7 @@ class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
   bool has_been_disposed() { return has_been_disposed_; }
 
   virtual void Dispose() {
-    DCHECK(!has_been_disposed_);
+    CHECK(!has_been_disposed_);
     has_been_disposed_ = true;
   }
 
@@ -75,7 +75,7 @@ class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
 
 class TestObjectVisitor : public ObjectVisitor {
  public:
-  virtual void VisitPointers(Object** start, Object** end) {
+  void VisitPointers(Object** start, Object** end) override {
     for (Object** o = start; o != end; ++o)
       visited.Add(*o);
   }
@@ -121,16 +121,16 @@ TEST(IterateObjectGroupsOldApi) {
     global_handles->IterateObjectGroups(&visitor, &CanSkipCallback);
 
     // CanSkipCallback was called for all objects.
-    DCHECK(can_skip_called_objects.length() == 4);
-    DCHECK(can_skip_called_objects.Contains(*g1s1.location()));
-    DCHECK(can_skip_called_objects.Contains(*g1s2.location()));
-    DCHECK(can_skip_called_objects.Contains(*g2s1.location()));
-    DCHECK(can_skip_called_objects.Contains(*g2s2.location()));
+    CHECK(can_skip_called_objects.length() == 4);
+    CHECK(can_skip_called_objects.Contains(*g1s1.location()));
+    CHECK(can_skip_called_objects.Contains(*g1s2.location()));
+    CHECK(can_skip_called_objects.Contains(*g2s1.location()));
+    CHECK(can_skip_called_objects.Contains(*g2s2.location()));
 
     // Nothing was visited.
-    DCHECK(visitor.visited.length() == 0);
-    DCHECK(!info1.has_been_disposed());
-    DCHECK(!info2.has_been_disposed());
+    CHECK(visitor.visited.length() == 0);
+    CHECK(!info1.has_been_disposed());
+    CHECK(!info2.has_been_disposed());
   }
 
   // Iterate again, now only skip the second object group.
@@ -145,18 +145,18 @@ TEST(IterateObjectGroupsOldApi) {
     global_handles->IterateObjectGroups(&visitor, &CanSkipCallback);
 
     // CanSkipCallback was called for all objects.
-    DCHECK(can_skip_called_objects.length() == 3 ||
-           can_skip_called_objects.length() == 4);
-    DCHECK(can_skip_called_objects.Contains(*g1s2.location()));
-    DCHECK(can_skip_called_objects.Contains(*g2s1.location()));
-    DCHECK(can_skip_called_objects.Contains(*g2s2.location()));
+    CHECK(can_skip_called_objects.length() == 3 ||
+          can_skip_called_objects.length() == 4);
+    CHECK(can_skip_called_objects.Contains(*g1s2.location()));
+    CHECK(can_skip_called_objects.Contains(*g2s1.location()));
+    CHECK(can_skip_called_objects.Contains(*g2s2.location()));
 
     // The first group was visited.
-    DCHECK(visitor.visited.length() == 2);
-    DCHECK(visitor.visited.Contains(*g1s1.location()));
-    DCHECK(visitor.visited.Contains(*g1s2.location()));
-    DCHECK(info1.has_been_disposed());
-    DCHECK(!info2.has_been_disposed());
+    CHECK(visitor.visited.length() == 2);
+    CHECK(visitor.visited.Contains(*g1s1.location()));
+    CHECK(visitor.visited.Contains(*g1s2.location()));
+    CHECK(info1.has_been_disposed());
+    CHECK(!info2.has_been_disposed());
   }
 
   // Iterate again, don't skip anything.
@@ -166,15 +166,15 @@ TEST(IterateObjectGroupsOldApi) {
     global_handles->IterateObjectGroups(&visitor, &CanSkipCallback);
 
     // CanSkipCallback was called for all objects.
-    DCHECK(can_skip_called_objects.length() == 1);
-    DCHECK(can_skip_called_objects.Contains(*g2s1.location()) ||
-           can_skip_called_objects.Contains(*g2s2.location()));
+    CHECK(can_skip_called_objects.length() == 1);
+    CHECK(can_skip_called_objects.Contains(*g2s1.location()) ||
+          can_skip_called_objects.Contains(*g2s2.location()));
 
     // The second group was visited.
-    DCHECK(visitor.visited.length() == 2);
-    DCHECK(visitor.visited.Contains(*g2s1.location()));
-    DCHECK(visitor.visited.Contains(*g2s2.location()));
-    DCHECK(info2.has_been_disposed());
+    CHECK(visitor.visited.length() == 2);
+    CHECK(visitor.visited.Contains(*g2s1.location()));
+    CHECK(visitor.visited.Contains(*g2s2.location()));
+    CHECK(info2.has_been_disposed());
   }
 }
 
@@ -216,16 +216,16 @@ TEST(IterateObjectGroups) {
     global_handles->IterateObjectGroups(&visitor, &CanSkipCallback);
 
     // CanSkipCallback was called for all objects.
-    DCHECK(can_skip_called_objects.length() == 4);
-    DCHECK(can_skip_called_objects.Contains(*g1s1.location()));
-    DCHECK(can_skip_called_objects.Contains(*g1s2.location()));
-    DCHECK(can_skip_called_objects.Contains(*g2s1.location()));
-    DCHECK(can_skip_called_objects.Contains(*g2s2.location()));
+    CHECK(can_skip_called_objects.length() == 4);
+    CHECK(can_skip_called_objects.Contains(*g1s1.location()));
+    CHECK(can_skip_called_objects.Contains(*g1s2.location()));
+    CHECK(can_skip_called_objects.Contains(*g2s1.location()));
+    CHECK(can_skip_called_objects.Contains(*g2s2.location()));
 
     // Nothing was visited.
-    DCHECK(visitor.visited.length() == 0);
-    DCHECK(!info1.has_been_disposed());
-    DCHECK(!info2.has_been_disposed());
+    CHECK(visitor.visited.length() == 0);
+    CHECK(!info1.has_been_disposed());
+    CHECK(!info2.has_been_disposed());
   }
 
   // Iterate again, now only skip the second object group.
@@ -240,18 +240,18 @@ TEST(IterateObjectGroups) {
     global_handles->IterateObjectGroups(&visitor, &CanSkipCallback);
 
     // CanSkipCallback was called for all objects.
-    DCHECK(can_skip_called_objects.length() == 3 ||
-           can_skip_called_objects.length() == 4);
-    DCHECK(can_skip_called_objects.Contains(*g1s2.location()));
-    DCHECK(can_skip_called_objects.Contains(*g2s1.location()));
-    DCHECK(can_skip_called_objects.Contains(*g2s2.location()));
+    CHECK(can_skip_called_objects.length() == 3 ||
+          can_skip_called_objects.length() == 4);
+    CHECK(can_skip_called_objects.Contains(*g1s2.location()));
+    CHECK(can_skip_called_objects.Contains(*g2s1.location()));
+    CHECK(can_skip_called_objects.Contains(*g2s2.location()));
 
     // The first group was visited.
-    DCHECK(visitor.visited.length() == 2);
-    DCHECK(visitor.visited.Contains(*g1s1.location()));
-    DCHECK(visitor.visited.Contains(*g1s2.location()));
-    DCHECK(info1.has_been_disposed());
-    DCHECK(!info2.has_been_disposed());
+    CHECK(visitor.visited.length() == 2);
+    CHECK(visitor.visited.Contains(*g1s1.location()));
+    CHECK(visitor.visited.Contains(*g1s2.location()));
+    CHECK(info1.has_been_disposed());
+    CHECK(!info2.has_been_disposed());
   }
 
   // Iterate again, don't skip anything.
@@ -261,15 +261,15 @@ TEST(IterateObjectGroups) {
     global_handles->IterateObjectGroups(&visitor, &CanSkipCallback);
 
     // CanSkipCallback was called for all objects.
-    DCHECK(can_skip_called_objects.length() == 1);
-    DCHECK(can_skip_called_objects.Contains(*g2s1.location()) ||
-           can_skip_called_objects.Contains(*g2s2.location()));
+    CHECK(can_skip_called_objects.length() == 1);
+    CHECK(can_skip_called_objects.Contains(*g2s1.location()) ||
+          can_skip_called_objects.Contains(*g2s2.location()));
 
     // The second group was visited.
-    DCHECK(visitor.visited.length() == 2);
-    DCHECK(visitor.visited.Contains(*g2s1.location()));
-    DCHECK(visitor.visited.Contains(*g2s2.location()));
-    DCHECK(info2.has_been_disposed());
+    CHECK(visitor.visited.length() == 2);
+    CHECK(visitor.visited.Contains(*g2s1.location()));
+    CHECK(visitor.visited.Contains(*g2s2.location()));
+    CHECK(info2.has_been_disposed());
   }
 }
 
@@ -306,16 +306,16 @@ TEST(ImplicitReferences) {
   List<ImplicitRefGroup*>* implicit_refs =
       global_handles->implicit_ref_groups();
   USE(implicit_refs);
-  DCHECK(implicit_refs->length() == 2);
-  DCHECK(implicit_refs->at(0)->parent ==
-         reinterpret_cast<HeapObject**>(g1s1.location()));
-  DCHECK(implicit_refs->at(0)->length == 2);
-  DCHECK(implicit_refs->at(0)->children[0] == g1c1.location());
-  DCHECK(implicit_refs->at(0)->children[1] == g1c2.location());
-  DCHECK(implicit_refs->at(1)->parent ==
-         reinterpret_cast<HeapObject**>(g2s1.location()));
-  DCHECK(implicit_refs->at(1)->length == 1);
-  DCHECK(implicit_refs->at(1)->children[0] == g2c1.location());
+  CHECK(implicit_refs->length() == 2);
+  CHECK(implicit_refs->at(0)->parent ==
+        reinterpret_cast<HeapObject**>(g1s1.location()));
+  CHECK(implicit_refs->at(0)->length == 2);
+  CHECK(implicit_refs->at(0)->children[0] == g1c1.location());
+  CHECK(implicit_refs->at(0)->children[1] == g1c2.location());
+  CHECK(implicit_refs->at(1)->parent ==
+        reinterpret_cast<HeapObject**>(g2s1.location()));
+  CHECK(implicit_refs->at(1)->length == 1);
+  CHECK(implicit_refs->at(1)->children[0] == g2c1.location());
   global_handles->RemoveObjectGroups();
   global_handles->RemoveImplicitRefGroups();
 }
@@ -337,7 +337,9 @@ TEST(EternalHandles) {
     indices[i] = -1;
     HandleScope scope(isolate);
     v8::Local<v8::Object> object = v8::Object::New(v8_isolate);
-    object->Set(i, v8::Integer::New(v8_isolate, i));
+    object->Set(v8_isolate->GetCurrentContext(), i,
+                v8::Integer::New(v8_isolate, i))
+        .FromJust();
     // Create with internal api
     eternal_handles->Create(
         isolate, *v8::Utils::OpenHandle(*object), &indices[i]);
@@ -360,10 +362,12 @@ TEST(EternalHandles) {
         // Test external api
         local = eternals[i].Get(v8_isolate);
       }
-      v8::Local<v8::Object> object = v8::Handle<v8::Object>::Cast(local);
-      v8::Local<v8::Value> value = object->Get(i);
+      v8::Local<v8::Object> object = v8::Local<v8::Object>::Cast(local);
+      v8::Local<v8::Value> value =
+          object->Get(v8_isolate->GetCurrentContext(), i).ToLocalChecked();
       CHECK(value->IsInt32());
-      CHECK_EQ(i, value->Int32Value());
+      CHECK_EQ(i,
+               value->Int32Value(v8_isolate->GetCurrentContext()).FromJust());
     }
   }
 
@@ -379,4 +383,89 @@ TEST(EternalHandles) {
   }
 
   CHECK_EQ(2*kArrayLength + 1, eternal_handles->NumberOfHandles());
+}
+
+
+TEST(PersistentBaseGetLocal) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Object> o = v8::Object::New(isolate);
+  CHECK(!o.IsEmpty());
+  v8::Persistent<v8::Object> p(isolate, o);
+  CHECK(o == p.Get(isolate));
+  CHECK(v8::Local<v8::Object>::New(isolate, p) == p.Get(isolate));
+
+  v8::Global<v8::Object> g(isolate, o);
+  CHECK(o == g.Get(isolate));
+  CHECK(v8::Local<v8::Object>::New(isolate, g) == g.Get(isolate));
+}
+
+
+void WeakCallback(const v8::WeakCallbackInfo<void>& data) {}
+
+
+TEST(WeakPersistentSmi) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Number> n = v8::Number::New(isolate, 0);
+  v8::Global<v8::Number> g(isolate, n);
+
+  // Should not crash.
+  g.SetWeak<void>(nullptr, &WeakCallback, v8::WeakCallbackType::kParameter);
+}
+
+void finalizer(const v8::WeakCallbackInfo<v8::Global<v8::Object>>& data) {
+  data.GetParameter()->ClearWeak();
+  v8::Local<v8::Object> o =
+      v8::Local<v8::Object>::New(data.GetIsolate(), *data.GetParameter());
+  o->Set(data.GetIsolate()->GetCurrentContext(), v8_str("finalizer"),
+         v8_str("was here"))
+      .FromJust();
+}
+
+TEST(FinalizerWeakness) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+
+  v8::Global<v8::Object> g;
+  int identity;
+
+  {
+    v8::HandleScope scope(isolate);
+    v8::Local<v8::Object> o = v8::Object::New(isolate);
+    identity = o->GetIdentityHash();
+    g.Reset(isolate, o);
+    g.SetWeak(&g, finalizer, v8::WeakCallbackType::kFinalizer);
+  }
+
+  CcTest::i_isolate()->heap()->CollectAllAvailableGarbage();
+
+  CHECK(!g.IsEmpty());
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Object> o = v8::Local<v8::Object>::New(isolate, g);
+  CHECK_EQ(identity, o->GetIdentityHash());
+  CHECK(o->Has(isolate->GetCurrentContext(), v8_str("finalizer")).FromJust());
+}
+
+TEST(PhatomHandlesWithoutCallbacks) {
+  CcTest::InitializeVM();
+  v8::Isolate* isolate = CcTest::isolate();
+
+  v8::Global<v8::Object> g1, g2;
+  {
+    v8::HandleScope scope(isolate);
+    g1.Reset(isolate, v8::Object::New(isolate));
+    g1.SetWeak();
+    g2.Reset(isolate, v8::Object::New(isolate));
+    g2.SetWeak();
+  }
+
+  CHECK_EQ(0, isolate->NumberOfPhantomHandleResetsSinceLastCall());
+  CcTest::i_isolate()->heap()->CollectAllAvailableGarbage();
+  CHECK_EQ(2, isolate->NumberOfPhantomHandleResetsSinceLastCall());
+  CHECK_EQ(0, isolate->NumberOfPhantomHandleResetsSinceLastCall());
 }

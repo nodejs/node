@@ -16,6 +16,12 @@
 
 namespace v8 {
 namespace base {
+
+namespace internal {
+template <typename T>
+class CheckedNumeric;
+}
+
 namespace bits {
 
 // CountPopulation32(value) returns the number of bits set in |value|.
@@ -41,6 +47,17 @@ inline unsigned CountPopulation64(uint64_t value) {
   return CountPopulation32(static_cast<uint32_t>(value)) +
          CountPopulation32(static_cast<uint32_t>(value >> 32));
 #endif
+}
+
+
+// Overloaded versions of CountPopulation32/64.
+inline unsigned CountPopulation(uint32_t value) {
+  return CountPopulation32(value);
+}
+
+
+inline unsigned CountPopulation(uint64_t value) {
+  return CountPopulation64(value);
 }
 
 
@@ -81,6 +98,19 @@ inline unsigned CountLeadingZeros64(uint64_t value) {
 }
 
 
+// ReverseBits(value) returns |value| in reverse bit order.
+template <typename T>
+T ReverseBits(T value) {
+  DCHECK((sizeof(value) == 1) || (sizeof(value) == 2) || (sizeof(value) == 4) ||
+         (sizeof(value) == 8));
+  T result = 0;
+  for (unsigned i = 0; i < (sizeof(value) * 8); i++) {
+    result = (result << 1) | (value & 1);
+    value >>= 1;
+  }
+  return result;
+}
+
 // CountTrailingZeros32(value) returns the number of zero bits preceding the
 // least significant 1 bit in |value| if |value| is non-zero, otherwise it
 // returns 32.
@@ -94,8 +124,8 @@ inline unsigned CountTrailingZeros32(uint32_t value) {
 #else
   if (value == 0) return 32;
   unsigned count = 0;
-  for (value ^= value - 1; value >>= 1; ++count)
-    ;
+  for (value ^= value - 1; value >>= 1; ++count) {
+  }
   return count;
 #endif
 }
@@ -110,12 +140,20 @@ inline unsigned CountTrailingZeros64(uint64_t value) {
 #else
   if (value == 0) return 64;
   unsigned count = 0;
-  for (value ^= value - 1; value >>= 1; ++count)
-    ;
+  for (value ^= value - 1; value >>= 1; ++count) {
+  }
   return count;
 #endif
 }
 
+// Overloaded versions of CountTrailingZeros32/64.
+inline unsigned CountTrailingZeros(uint32_t value) {
+  return CountTrailingZeros32(value);
+}
+
+inline unsigned CountTrailingZeros(uint64_t value) {
+  return CountTrailingZeros64(value);
+}
 
 // Returns true iff |value| is a power of 2.
 inline bool IsPowerOfTwo32(uint32_t value) {
@@ -148,15 +186,28 @@ inline uint32_t RoundDownToPowerOfTwo32(uint32_t value) {
 }
 
 
+// Precondition: 0 <= shift < 32
 inline uint32_t RotateRight32(uint32_t value, uint32_t shift) {
   if (shift == 0) return value;
   return (value >> shift) | (value << (32 - shift));
 }
 
+// Precondition: 0 <= shift < 32
+inline uint32_t RotateLeft32(uint32_t value, uint32_t shift) {
+  if (shift == 0) return value;
+  return (value << shift) | (value >> (32 - shift));
+}
 
+// Precondition: 0 <= shift < 64
 inline uint64_t RotateRight64(uint64_t value, uint64_t shift) {
   if (shift == 0) return value;
   return (value >> shift) | (value << (64 - shift));
+}
+
+// Precondition: 0 <= shift < 64
+inline uint64_t RotateLeft64(uint64_t value, uint64_t shift) {
+  if (shift == 0) return value;
+  return (value << shift) | (value >> (64 - shift));
 }
 
 
@@ -187,6 +238,34 @@ inline bool SignedSubOverflow32(int32_t lhs, int32_t rhs, int32_t* val) {
 #endif
 }
 
+// SignedMulOverflow32(lhs,rhs,val) performs a signed multiplication of |lhs|
+// and |rhs| and stores the result into the variable pointed to by |val| and
+// returns true if the signed multiplication resulted in an overflow.
+bool SignedMulOverflow32(int32_t lhs, int32_t rhs, int32_t* val);
+
+// SignedAddOverflow64(lhs,rhs,val) performs a signed summation of |lhs| and
+// |rhs| and stores the result into the variable pointed to by |val| and
+// returns true if the signed summation resulted in an overflow.
+inline bool SignedAddOverflow64(int64_t lhs, int64_t rhs, int64_t* val) {
+  uint64_t res = static_cast<uint64_t>(lhs) + static_cast<uint64_t>(rhs);
+  *val = bit_cast<int64_t>(res);
+  return ((res ^ lhs) & (res ^ rhs) & (1ULL << 63)) != 0;
+}
+
+
+// SignedSubOverflow64(lhs,rhs,val) performs a signed subtraction of |lhs| and
+// |rhs| and stores the result into the variable pointed to by |val| and
+// returns true if the signed subtraction resulted in an overflow.
+inline bool SignedSubOverflow64(int64_t lhs, int64_t rhs, int64_t* val) {
+  uint64_t res = static_cast<uint64_t>(lhs) - static_cast<uint64_t>(rhs);
+  *val = bit_cast<int64_t>(res);
+  return ((res ^ lhs) & (res ^ ~rhs) & (1ULL << 63)) != 0;
+}
+
+// SignedMulOverflow64(lhs,rhs,val) performs a signed multiplication of |lhs|
+// and |rhs| and stores the result into the variable pointed to by |val| and
+// returns true if the signed multiplication resulted in an overflow.
+bool SignedMulOverflow64(int64_t lhs, int64_t rhs, int64_t* val);
 
 // SignedMulHigh32(lhs, rhs) multiplies two signed 32-bit values |lhs| and
 // |rhs|, extracts the most significant 32 bits of the result, and returns
@@ -212,6 +291,19 @@ int32_t SignedDiv32(int32_t lhs, int32_t rhs);
 int32_t SignedMod32(int32_t lhs, int32_t rhs);
 
 
+// UnsignedAddOverflow32(lhs,rhs,val) performs an unsigned summation of |lhs|
+// and |rhs| and stores the result into the variable pointed to by |val| and
+// returns true if the unsigned summation resulted in an overflow.
+inline bool UnsignedAddOverflow32(uint32_t lhs, uint32_t rhs, uint32_t* val) {
+#if V8_HAS_BUILTIN_SADD_OVERFLOW
+  return __builtin_uadd_overflow(lhs, rhs, val);
+#else
+  *val = lhs + rhs;
+  return *val < (lhs | rhs);
+#endif
+}
+
+
 // UnsignedDiv32(lhs, rhs) divides |lhs| by |rhs| and returns the quotient
 // truncated to uint32. If |rhs| is zero, then zero is returned.
 inline uint32_t UnsignedDiv32(uint32_t lhs, uint32_t rhs) {
@@ -224,6 +316,21 @@ inline uint32_t UnsignedDiv32(uint32_t lhs, uint32_t rhs) {
 inline uint32_t UnsignedMod32(uint32_t lhs, uint32_t rhs) {
   return rhs ? lhs % rhs : 0u;
 }
+
+
+// Clamp |value| on overflow and underflow conditions.
+int64_t FromCheckedNumeric(const internal::CheckedNumeric<int64_t> value);
+
+
+// SignedSaturatedAdd64(lhs, rhs) adds |lhs| and |rhs|,
+// checks and returns the result.
+int64_t SignedSaturatedAdd64(int64_t lhs, int64_t rhs);
+
+
+// SignedSaturatedSub64(lhs, rhs) substracts |lhs| by |rhs|,
+// checks and returns the result.
+int64_t SignedSaturatedSub64(int64_t lhs, int64_t rhs);
+
 
 }  // namespace bits
 }  // namespace base

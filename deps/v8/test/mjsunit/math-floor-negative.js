@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --noenable_sse4_1 --allow-natives-syntax
+// Flags: --noenable-sse4-1 --allow-natives-syntax
 
 function test1() {
   // Trigger overflow when converting/truncating double to integer.

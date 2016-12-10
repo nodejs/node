@@ -12,6 +12,6 @@ Debug.setBreakOnUncaughtException();
 Debug.setListener(function(event, exec_state, event_data, data) { });
 
 var p = new Promise(function(resolve, reject) { resolve(); });
-var q = p.chain(function() {
+var q = p.then(function() {
   new Promise(function(resolve, reject) { resolve(); });
 });

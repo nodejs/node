@@ -1,28 +1,8 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 #include "node_crypto_bio.h"
 #include "openssl/bio.h"
 #include "util.h"
 #include "util-inl.h"
+#include <limits.h>
 #include <string.h>
 
 namespace node {
@@ -45,6 +25,26 @@ BIO* NodeBIO::New() {
   // The const_cast doesn't violate const correctness.  OpenSSL's usage of
   // BIO_METHOD is effectively const but BIO_new() takes a non-const argument.
   return BIO_new(const_cast<BIO_METHOD*>(&method));
+}
+
+
+BIO* NodeBIO::NewFixed(const char* data, size_t len) {
+  BIO* bio = New();
+
+  if (bio == nullptr ||
+      len > INT_MAX ||
+      BIO_write(bio, data, len) != static_cast<int>(len) ||
+      BIO_set_mem_eof_return(bio, 0) != 1) {
+    BIO_free(bio);
+    return nullptr;
+  }
+
+  return bio;
+}
+
+
+void NodeBIO::AssignEnvironment(Environment* env) {
+  env_ = env;
 }
 
 
@@ -164,9 +164,10 @@ int NodeBIO::Gets(BIO* bio, char* out, int size) {
 }
 
 
-long NodeBIO::Ctrl(BIO* bio, int cmd, long num, void* ptr) {
+long NodeBIO::Ctrl(BIO* bio, int cmd, long num,  // NOLINT(runtime/int)
+                   void* ptr) {
   NodeBIO* nbio;
-  long ret;
+  long ret;  // NOLINT(runtime/int)
 
   nbio = FromBIO(bio);
   ret = 1;
@@ -188,7 +189,6 @@ long NodeBIO::Ctrl(BIO* bio, int cmd, long num, void* ptr) {
       break;
     case BIO_C_SET_BUF_MEM:
       CHECK(0 && "Can't use SET_BUF_MEM_PTR with NodeBIO");
-      abort();
       break;
     case BIO_C_GET_BUF_MEM_PTR:
       CHECK(0 && "Can't use GET_BUF_MEM_PTR with NodeBIO");
@@ -420,7 +420,7 @@ void NodeBIO::TryAllocateForWrite(size_t hint) {
                              kThroughputBufferLength;
     if (len < hint)
       len = hint;
-    Buffer* next = new Buffer(len);
+    Buffer* next = new Buffer(env_, len);
 
     if (w == nullptr) {
       next->next_ = next;

@@ -1,25 +1,5 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-var common = require('../common');
+'use strict';
+require('../common');
 var assert = require('assert');
 
 var http = require('http');
@@ -56,7 +36,7 @@ server.on('checkContinue', function(req, res) {
         assert.ifError(er);
         res.write('foo', 'ascii', function(er) {
           assert.ifError(er);
-          res.end(new Buffer('bar'), 'buffer', function(er) {
+          res.end(Buffer.from('bar'), 'buffer', function(er) {
             serverEndCb = true;
           });
         });
@@ -70,9 +50,9 @@ server.on('checkContinue', function(req, res) {
   });
 });
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   var req = http.request({
-    port: common.PORT,
+    port: this.address().port,
     method: 'PUT',
     headers: { 'expect': '100-continue' }
   });
@@ -80,7 +60,7 @@ server.listen(common.PORT, function() {
     // ok, good to go.
     req.write('YmF6', 'base64', function(er) {
       assert.ifError(er);
-      req.write(new Buffer('quux'), function(er) {
+      req.write(Buffer.from('quux'), function(er) {
         assert.ifError(er);
         req.end('626c657267', 'hex', function(er) {
           assert.ifError(er);

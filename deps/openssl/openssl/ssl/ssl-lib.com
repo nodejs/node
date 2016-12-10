@@ -216,13 +216,13 @@ $!
 $ LIB_SSL = "s2_meth, s2_srvr, s2_clnt, s2_lib, s2_enc, s2_pkt,"+ -
 	    "s3_meth, s3_srvr, s3_clnt, s3_lib, s3_enc, s3_pkt, s3_both, s3_cbc,"+ -
 	    "s23_meth,s23_srvr,s23_clnt,s23_lib,        s23_pkt,"+ -
-	    "t1_meth, t1_srvr, t1_clnt, t1_lib, t1_enc,"+ -
+	    "t1_meth, t1_srvr, t1_clnt, t1_lib, t1_enc, t1_ext,"+ -
 	    "d1_meth, d1_srvr, d1_clnt, d1_lib, d1_pkt,"+ -
-	    "d1_both,d1_enc,d1_srtp,"+ -
+	    "d1_both,d1_srtp,"+ -
 	    "ssl_lib,ssl_err2,ssl_cert,ssl_sess,"+ -
 	    "ssl_ciph,ssl_stat,ssl_rsa,"+ -
-	    "ssl_asn1,ssl_txt,ssl_algs,"+ -
-	    "bio_ssl,ssl_err,kssl,tls_srp,t1_reneg,ssl_utst"
+	    "ssl_asn1,ssl_txt,ssl_algs,ssl_conf,"+ -
+	    "bio_ssl,ssl_err,kssl,t1_reneg,tls_srp,t1_trce,ssl_utst"
 $!
 $ COMPILEWITH_CC5 = ""
 $!
@@ -860,7 +860,7 @@ $ IF F$TYPE(USER_CCFLAGS) .NES. "" THEN CCEXTRAFLAGS = USER_CCFLAGS
 $ CCDISABLEWARNINGS = "" !!! "MAYLOSEDATA3" !!! "LONGLONGTYPE,LONGLONGSUFX,FOUNDCR"
 $ IF F$TYPE(USER_CCDISABLEWARNINGS) .NES. ""
 $ THEN
-$     IF CCDISABLEWARNINGS .NES. "" THEN CCDISABLEWARNINGS = CCDISABLEWARNINGS + ","
+$     IF CCDISABLEWARNINGS .NES. THEN CCDISABLEWARNINGS = CCDISABLEWARNINGS + ","
 $     CCDISABLEWARNINGS = CCDISABLEWARNINGS + USER_CCDISABLEWARNINGS
 $ ENDIF
 $!
@@ -941,7 +941,7 @@ $     CC = "CC"
 $     IF ARCH.EQS."VAX" .AND. F$TRNLNM("DECC$CC_DEFAULT").NES."/DECC" -
 	 THEN CC = "CC/DECC"
 $     CC = CC + " /''CC_OPTIMIZE' /''DEBUGGER' /STANDARD=RELAXED"+ -
-       "''POINTER_SIZE' /NOLIST /PREFIX=ALL" + -
+       "''POINTER_SIZE' /NOLIST /PREFIX=ALL /EXTERN_MODEL=STRICT_REFDEF" + -
        " /INCLUDE=(''CC_INCLUDES') " + CCEXTRAFLAGS
 $!
 $!    Define The Linker Options File Name.

@@ -1,35 +1,12 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-var common = require('../common'),
-    assert = require('assert'),
-    Stream = require('stream'),
-    repl = require('repl');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const repl = require('repl');
 
 common.globalCheck = false;
 
-// create a dummy stream that does nothing
-var stream = new Stream();
-stream.write = stream.pause = stream.resume = function(){};
-stream.readable = stream.writable = true;
+// Create a dummy stream that does nothing
+const stream = new common.ArrayStream();
 
 // 1, mostly defaults
 var r1 = repl.start({
@@ -46,6 +23,8 @@ assert.equal(r1.terminal, true);
 assert.equal(r1.useColors, r1.terminal);
 assert.equal(r1.useGlobal, false);
 assert.equal(r1.ignoreUndefined, false);
+assert.equal(r1.replMode, repl.REPL_MODE_SLOPPY);
+assert.equal(r1.historySize, 30);
 
 // test r1 for backwards compact
 assert.equal(r1.rli.input, stream);
@@ -66,7 +45,8 @@ var r2 = repl.start({
   useGlobal: true,
   ignoreUndefined: true,
   eval: evaler,
-  writer: writer
+  writer: writer,
+  replMode: repl.REPL_MODE_STRICT
 });
 assert.equal(r2.input, stream);
 assert.equal(r2.output, stream);
@@ -77,6 +57,7 @@ assert.equal(r2.useColors, true);
 assert.equal(r2.useGlobal, true);
 assert.equal(r2.ignoreUndefined, true);
 assert.equal(r2.writer, writer);
+assert.equal(r2.replMode, repl.REPL_MODE_STRICT);
 
 // test r2 for backwards compact
 assert.equal(r2.rli.input, stream);
@@ -85,3 +66,28 @@ assert.equal(r2.rli.input, r2.inputStream);
 assert.equal(r2.rli.output, r2.outputStream);
 assert.equal(r2.rli.terminal, false);
 
+// testing out "magic" replMode
+var r3 = repl.start({
+  input: stream,
+  output: stream,
+  writer: writer,
+  replMode: repl.REPL_MODE_MAGIC,
+  historySize: 50
+});
+
+assert.equal(r3.replMode, repl.REPL_MODE_MAGIC);
+assert.equal(r3.historySize, 50);
+
+// Verify that defaults are used when no arguments are provided
+const r4 = repl.start();
+
+assert.strictEqual(r4._prompt, '> ');
+assert.strictEqual(r4.input, process.stdin);
+assert.strictEqual(r4.output, process.stdout);
+assert.strictEqual(r4.terminal, !!r4.output.isTTY);
+assert.strictEqual(r4.useColors, r4.terminal);
+assert.strictEqual(r4.useGlobal, false);
+assert.strictEqual(r4.ignoreUndefined, false);
+assert.strictEqual(r4.replMode, repl.REPL_MODE_SLOPPY);
+assert.strictEqual(r4.historySize, 30);
+r4.close();

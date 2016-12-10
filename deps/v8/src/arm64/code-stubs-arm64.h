@@ -97,7 +97,7 @@ class RecordWriteStub: public PlatformCodeStub {
     INCREMENTAL_COMPACTION
   };
 
-  virtual bool SometimesSetsUpAFrame() { return false; }
+  bool SometimesSetsUpAFrame() override { return false; }
 
   static Mode GetMode(Code* stub) {
     // Find the mode depending on the first two instructions.
@@ -131,6 +131,7 @@ class RecordWriteStub: public PlatformCodeStub {
   static void Patch(Code* stub, Mode mode) {
     // We are going to patch the two first instructions of the stub.
     PatchingAssembler patcher(
+        stub->GetIsolate(),
         reinterpret_cast<Instruction*>(stub->instruction_start()), 2);
     Instruction* instr1 = patcher.InstructionAt(0);
     Instruction* instr2 = patcher.InstructionAt(kInstructionSize);
@@ -138,8 +139,10 @@ class RecordWriteStub: public PlatformCodeStub {
     DCHECK(instr1->IsPCRelAddressing() || instr1->IsUncondBranchImm());
     DCHECK(instr2->IsPCRelAddressing() || instr2->IsUncondBranchImm());
     // Retrieve the offsets to the labels.
-    int32_t offset_to_incremental_noncompacting = instr1->ImmPCOffset();
-    int32_t offset_to_incremental_compacting = instr2->ImmPCOffset();
+    auto offset_to_incremental_noncompacting =
+        static_cast<int32_t>(instr1->ImmPCOffset());
+    auto offset_to_incremental_compacting =
+        static_cast<int32_t>(instr2->ImmPCOffset());
 
     switch (mode) {
       case STORE_BUFFER_ONLY:
@@ -275,9 +278,9 @@ class RecordWriteStub: public PlatformCodeStub {
     kUpdateRememberedSetOnNoNeedToInformIncrementalMarker
   };
 
-  virtual inline Major MajorKey() const FINAL OVERRIDE { return RecordWrite; }
+  inline Major MajorKey() const final { return RecordWrite; }
 
-  virtual void Generate(MacroAssembler* masm) OVERRIDE;
+  void Generate(MacroAssembler* masm) override;
   void GenerateIncremental(MacroAssembler* masm, Mode mode);
   void CheckNeedsToInformIncrementalMarker(
       MacroAssembler* masm,
@@ -285,7 +288,7 @@ class RecordWriteStub: public PlatformCodeStub {
       Mode mode);
   void InformIncrementalMarker(MacroAssembler* masm);
 
-  void Activate(Code* code) {
+  void Activate(Code* code) override {
     code->GetHeap()->incremental_marking()->ActivateGeneratedStub(code);
   }
 
@@ -328,7 +331,7 @@ class DirectCEntryStub: public PlatformCodeStub {
   void GenerateCall(MacroAssembler* masm, Register target);
 
  private:
-  bool NeedsImmovableCode() { return true; }
+  bool NeedsImmovableCode() override { return true; }
 
   DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(DirectCEntry, PlatformCodeStub);
@@ -360,7 +363,7 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
                                      Register scratch1,
                                      Register scratch2);
 
-  virtual bool SometimesSetsUpAFrame() { return false; }
+  bool SometimesSetsUpAFrame() override { return false; }
 
  private:
   static const int kInlinedProbes = 4;
@@ -382,6 +385,7 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(NameDictionaryLookup, PlatformCodeStub);
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM64_CODE_STUBS_ARM64_H_

@@ -1,72 +1,43 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
+'use strict';
+const common = require('../common');
 
-var common = require('../common');
-var assert = require('assert');
-var tls = require('tls');
-var fs = require('fs');
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
+}
+const tls = require('tls');
 
-var clientConnected = 0;
-var serverConnected = 0;
-var serverCloseCallbacks = 0;
-var serverCloseEvents = 0;
+const fs = require('fs');
 
-var options = {
+let serverConnected = 0;
+
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
-var server = tls.Server(options, function(socket) {
+const server = tls.Server(options, common.mustCall(function(socket) {
   if (++serverConnected === 2) {
-    server.close(function() {
-      ++serverCloseCallbacks;
-    });
-    server.on('close', function() {
-      ++serverCloseEvents;
-    });
+    server.close(common.mustCall(function() {}));
+    server.on('close', common.mustCall(function() {}));
   }
-});
+}, 2));
 
-server.listen(common.PORT, function() {
-  var client1 = tls.connect({
-    port: common.PORT,
+server.listen(0, function() {
+  const client1options = {
+    port: this.address().port,
     rejectUnauthorized: false
-  }, function() {
-    ++clientConnected;
+  };
+  const client1 = tls.connect(client1options, common.mustCall(function() {
     client1.end();
-  });
+  }));
 
-  var client2 = tls.connect({
-    port: common.PORT,
+  const client2options = {
+    port: this.address().port,
     rejectUnauthorized: false
-  });
-  client2.on('secureConnect', function() {
-    ++clientConnected;
+  };
+  const client2 = tls.connect(client2options);
+  client2.on('secureConnect', common.mustCall(function() {
     client2.end();
-  });
-});
-
-process.on('exit', function() {
-  assert.equal(clientConnected, 2);
-  assert.equal(serverConnected, 2);
-  assert.equal(serverCloseCallbacks, 1);
-  assert.equal(serverCloseEvents, 1);
+  }));
 });

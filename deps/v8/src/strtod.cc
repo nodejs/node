@@ -2,16 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/strtod.h"
+
 #include <stdarg.h>
 #include <cmath>
-
-#include "src/v8.h"
 
 #include "src/bignum.h"
 #include "src/cached-powers.h"
 #include "src/double.h"
 #include "src/globals.h"
-#include "src/strtod.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -419,4 +418,5 @@ double Strtod(Vector<const char> buffer, int exponent) {
   return BignumStrtod(trimmed, exponent, guess);
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

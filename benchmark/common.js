@@ -1,199 +1,223 @@
-var assert = require('assert');
-var path = require('path');
-var silent = +process.env.NODE_BENCH_SILENT;
+'use strict';
 
-exports.PORT = process.env.PORT || 12346;
-
-// If this is the main module, then run the benchmarks
-if (module === require.main) {
-  var type = process.argv[2];
-  if (!type) {
-    console.error('usage:\n ./node benchmark/common.js <type>');
-    process.exit(1);
-  }
-
-  var fs = require('fs');
-  var dir = path.join(__dirname, type);
-  var tests = fs.readdirSync(dir);
-  var spawn = require('child_process').spawn;
-
-  runBenchmarks();
-}
-
-function runBenchmarks() {
-  var test = tests.shift();
-  if (!test)
-    return;
-
-  if (test.match(/^[\._]/))
-    return process.nextTick(runBenchmarks);
-
-  console.error(type + '/' + test);
-  test = path.resolve(dir, test);
-
-  var a = (process.execArgv || []).concat(test);
-  var child = spawn(process.execPath, a, { stdio: 'inherit' });
-  child.on('close', function(code) {
-    if (code)
-      process.exit(code);
-    else {
-      console.log('');
-      runBenchmarks();
-    }
-  });
-}
+const child_process = require('child_process');
+const http_benchmarkers = require('./_http-benchmarkers.js');
 
 exports.createBenchmark = function(fn, options) {
   return new Benchmark(fn, options);
 };
 
 function Benchmark(fn, options) {
-  this.fn = fn;
-  this.options = options;
-  this.config = parseOpts(options);
-  this._name = require.main.filename.split(/benchmark[\/\\]/).pop();
-  this._start = [0,0];
+  this.name = require.main.filename.slice(__dirname.length + 1);
+  const parsed_args = this._parseArgs(process.argv.slice(2), options);
+  this.options = parsed_args.cli;
+  this.extra_options = parsed_args.extra;
+  this.queue = this._queue(this.options);
+  this.config = this.queue[0];
+
+  this._time = [0, 0]; // holds process.hrtime value
   this._started = false;
-  var self = this;
-  process.nextTick(function() {
-    self._run();
-  });
+
+  // this._run will use fork() to create a new process for each configuration
+  // combination.
+  if (process.env.hasOwnProperty('NODE_RUN_BENCHMARK_FN')) {
+    process.nextTick(() => fn(this.config));
+  } else {
+    process.nextTick(() => this._run());
+  }
 }
 
-// benchmark an http server.
-Benchmark.prototype.http = function(p, args, cb) {
-  var self = this;
-  var wrk = path.resolve(__dirname, '..', 'tools', 'wrk', 'wrk');
-  var regexp = /Requests\/sec:[ \t]+([0-9\.]+)/;
-  var spawn = require('child_process').spawn;
-  var url = 'http://127.0.0.1:' + exports.PORT + p;
-
-  args = args.concat(url);
-
-  var out = '';
-  var child = spawn(wrk, args);
-
-  child.stdout.setEncoding('utf8');
-
-  child.stdout.on('data', function(chunk) {
-    out += chunk;
-  });
-
-  child.on('close', function(code) {
-    if (cb)
-      cb(code);
-
-    if (code) {
-      console.error('wrk failed with ' + code);
-      process.exit(code)
-    }
-    var m = out.match(regexp);
-    var qps = m && +m[1];
-    if (!qps) {
-      console.error('%j', out);
-      console.error('wrk produced strange output');
+Benchmark.prototype._parseArgs = function(argv, options) {
+  const cliOptions = Object.assign({}, options);
+  const extraOptions = {};
+  // Parse configuration arguments
+  for (const arg of argv) {
+    const match = arg.match(/^(.+?)=([\s\S]*)$/);
+    if (!match || !match[1]) {
+      console.error('bad argument: ' + arg);
       process.exit(1);
     }
-    self.report(+qps);
+
+    if (options[match[1]]) {
+      // Infer the type from the options object and parse accordingly
+      const isNumber = typeof options[match[1]][0] === 'number';
+      const value = isNumber ? +match[2] : match[2];
+      cliOptions[match[1]] = [value];
+    } else {
+      extraOptions[match[1]] = match[2];
+    }
+  }
+  return { cli: cliOptions, extra: extraOptions };
+};
+
+Benchmark.prototype._queue = function(options) {
+  const queue = [];
+  const keys = Object.keys(options);
+
+  // Perform a depth-first walk though all options to generate a
+  // configuration list that contains all combinations.
+  function recursive(keyIndex, prevConfig) {
+    const key = keys[keyIndex];
+    const values = options[key];
+    const type = typeof values[0];
+
+    for (const value of values) {
+      if (typeof value !== 'number' && typeof value !== 'string') {
+        throw new TypeError(`configuration "${key}" had type ${typeof value}`);
+      }
+      if (typeof value !== type) {
+        // This is a requirement for being able to consistently and predictably
+        // parse CLI provided configuration values.
+        throw new TypeError(`configuration "${key}" has mixed types`);
+      }
+
+      const currConfig = Object.assign({ [key]: value }, prevConfig);
+
+      if (keyIndex + 1 < keys.length) {
+        recursive(keyIndex + 1, currConfig);
+      } else {
+        queue.push(currConfig);
+      }
+    }
+  }
+
+  if (keys.length > 0) {
+    recursive(0, {});
+  } else {
+    queue.push({});
+  }
+
+  return queue;
+};
+
+// Benchmark an http server.
+exports.default_http_benchmarker =
+  http_benchmarkers.default_http_benchmarker;
+exports.PORT = http_benchmarkers.PORT;
+
+Benchmark.prototype.http = function(options, cb) {
+  const self = this;
+  const http_options = Object.assign({ }, options);
+  http_options.benchmarker = http_options.benchmarker ||
+                             self.config.benchmarker ||
+                             self.extra_options.benchmarker ||
+                             exports.default_http_benchmarker;
+  http_benchmarkers.run(http_options, function(error, code, used_benchmarker,
+                                               result, elapsed) {
+    if (cb) {
+      cb(code);
+    }
+    if (error) {
+      console.error(error);
+      process.exit(code || 1);
+    }
+    self.config.benchmarker = used_benchmarker;
+    self.report(result, elapsed);
   });
 };
 
 Benchmark.prototype._run = function() {
-  if (this.config)
-    return this.fn(this.config);
+  const self = this;
 
-  // one more more options weren't set.
-  // run with all combinations
-  var main = require.main.filename;
-  var settings = [];
-  var queueLen = 1;
-  var options = this.options;
+  (function recursive(queueIndex) {
+    const config = self.queue[queueIndex];
 
-  var queue = Object.keys(options).reduce(function(set, key) {
-    var vals = options[key];
-    assert(Array.isArray(vals));
+    // set NODE_RUN_BENCHMARK_FN to indicate that the child shouldn't construct
+    // a configuration queue, but just execute the benchmark function.
+    const childEnv = Object.assign({}, process.env);
+    childEnv.NODE_RUN_BENCHMARK_FN = '';
 
-    // match each item in the set with each item in the list
-    var newSet = new Array(set.length * vals.length);
-    var j = 0;
-    set.forEach(function(s) {
-      vals.forEach(function(val) {
-        newSet[j++] = s.concat(key + '=' + val);
-      });
-    });
-    return newSet;
-  }, [[main]]);
-
-  var spawn = require('child_process').spawn;
-  var node = process.execPath;
-  var i = 0;
-  function run() {
-    var argv = queue[i++];
-    if (!argv)
-      return;
-    var child = spawn(node, argv, { stdio: 'inherit' });
-    child.on('close', function(code, signal) {
-      if (code)
-        console.error('child process exited with code ' + code);
-      else
-        run();
-    });
-  }
-  run();
-};
-
-function parseOpts(options) {
-  // verify that there's an option provided for each of the options
-  // if they're not *all* specified, then we return null.
-  var keys = Object.keys(options);
-  var num = keys.length;
-  var conf = {};
-  for (var i = 2; i < process.argv.length; i++) {
-    var m = process.argv[i].match(/^(.+)=(.+)$/);
-    if (!m || !m[1] || !m[2] || !options[m[1]])
-      return null;
-    else {
-      conf[m[1]] = isFinite(m[2]) ? +m[2] : m[2]
-      num--;
+    // Create configuration arguments
+    const childArgs = [];
+    for (const key of Object.keys(config)) {
+      childArgs.push(`${key}=${config[key]}`);
     }
-  }
-  // still go ahead and set whatever WAS set, if it was.
-  if (num !== 0) {
-    Object.keys(conf).forEach(function(k) {
-      options[k] = [conf[k]];
+    for (const key of Object.keys(self.extra_options)) {
+      childArgs.push(`${key}=${self.extra_options[key]}`);
+    }
+
+    const child = child_process.fork(require.main.filename, childArgs, {
+      env: childEnv,
+      execArgv: ['--expose_internals'].concat(process.execArgv)
     });
-  }
-  return num === 0 ? conf : null;
+    child.on('message', sendResult);
+    child.on('close', function(code) {
+      if (code) {
+        process.exit(code);
+        return;
+      }
+
+      if (queueIndex + 1 < self.queue.length) {
+        recursive(queueIndex + 1);
+      }
+    });
+  })(0);
 };
 
 Benchmark.prototype.start = function() {
-  if (this._started)
+  if (this._started) {
     throw new Error('Called start more than once in a single benchmark');
+  }
   this._started = true;
-  this._start = process.hrtime();
+  this._time = process.hrtime();
 };
 
 Benchmark.prototype.end = function(operations) {
-  var elapsed = process.hrtime(this._start);
-  if (!this._started)
+  // get elapsed time now and do error checking later for accuracy.
+  const elapsed = process.hrtime(this._time);
+
+  if (!this._started) {
     throw new Error('called end without start');
-  if (typeof operations !== 'number')
+  }
+  if (typeof operations !== 'number') {
     throw new Error('called end() without specifying operation count');
-  var time = elapsed[0] + elapsed[1]/1e9;
-  var rate = operations/time;
-  this.report(rate);
+  }
+
+  const time = elapsed[0] + elapsed[1] / 1e9;
+  const rate = operations / time;
+  this.report(rate, elapsed);
 };
 
-Benchmark.prototype.report = function(value) {
-  var heading = this.getHeading();
-  if (!silent)
-    console.log('%s: %s', heading, value.toFixed(0));
-  process.exit(0);
-};
+function formatResult(data) {
+  // Construct configuration string, " A=a, B=b, ..."
+  let conf = '';
+  for (const key of Object.keys(data.conf)) {
+    conf += ' ' + key + '=' + JSON.stringify(data.conf[key]);
+  }
 
-Benchmark.prototype.getHeading = function() {
-  var conf = this.config;
-  return this._name + ' ' + Object.keys(conf).map(function(key) {
-    return key + '=' + conf[key];
-  }).join(' ');
+  return `${data.name}${conf}: ${data.rate}`;
 }
+
+function sendResult(data) {
+  if (process.send) {
+    // If forked, report by process send
+    process.send(data);
+  } else {
+    // Otherwise report by stdout
+    console.log(formatResult(data));
+  }
+}
+exports.sendResult = sendResult;
+
+Benchmark.prototype.report = function(rate, elapsed) {
+  sendResult({
+    name: this.name,
+    conf: this.config,
+    rate: rate,
+    time: elapsed[0] + elapsed[1] / 1e9
+  });
+};
+
+exports.v8ForceOptimization = function(method) {
+  if (typeof method !== 'function')
+    return;
+
+  const v8 = require('v8');
+  v8.setFlagsFromString('--allow_natives_syntax');
+
+  const args = Array.prototype.slice.call(arguments, 1);
+  method.apply(null, args);
+  eval('%OptimizeFunctionOnNextCall(method)');
+  method.apply(null, args);
+  return eval('%GetOptimizationStatus(method)');
+};

@@ -26,31 +26,7 @@
 #include "task.h"
 #include "uv.h"
 
-char executable_path[PATHMAX] = { '\0' };
-
-int tap_output = 0;
-
-
-static void log_progress(int total,
-                         int passed,
-                         int failed,
-                         int todos,
-                         int skipped,
-                         const char* name) {
-  int progress;
-
-  if (total == 0)
-    total = 1;
-
-  progress = 100 * (passed + failed + skipped + todos) / total;
-  LOGF("[%% %3d|+ %3d|- %3d|T %3d|S %3d]: %s",
-       progress,
-       passed,
-       failed,
-       todos,
-       skipped,
-       name);
-}
+char executable_path[sizeof(executable_path)];
 
 
 const char* fmt(double d) {
@@ -94,7 +70,6 @@ int run_tests(int benchmark_output) {
   int total;
   int passed;
   int failed;
-  int todos;
   int skipped;
   int current;
   int test_result;
@@ -108,14 +83,12 @@ int run_tests(int benchmark_output) {
     }
   }
 
-  if (tap_output) {
-    LOGF("1..%d\n", total);
-  }
+  fprintf(stderr, "1..%d\n", total);
+  fflush(stderr);
 
   /* Run all tests. */
   passed = 0;
   failed = 0;
-  todos = 0;
   skipped = 0;
   current = 1;
   for (task = TASKS; task->main; task++) {
@@ -123,28 +96,13 @@ int run_tests(int benchmark_output) {
       continue;
     }
 
-    if (!tap_output)
-      rewind_cursor();
-
-    if (!benchmark_output && !tap_output) {
-      log_progress(total, passed, failed, todos, skipped, task->task_name);
-    }
-
     test_result = run_test(task->task_name, benchmark_output, current);
     switch (test_result) {
     case TEST_OK: passed++; break;
-    case TEST_TODO: todos++; break;
     case TEST_SKIP: skipped++; break;
     default: failed++;
     }
     current++;
-  }
-
-  if (!tap_output)
-    rewind_cursor();
-
-  if (!benchmark_output && !tap_output) {
-    log_progress(total, passed, failed, todos, skipped, "Done.\n");
   }
 
   return failed;
@@ -164,10 +122,6 @@ void log_tap_result(int test_count,
     result = "ok";
     directive = "";
     break;
-  case TEST_TODO:
-    result = "not ok";
-    directive = " # TODO ";
-    break;
   case TEST_SKIP:
     result = "ok";
     directive = " # SKIP ";
@@ -177,21 +131,21 @@ void log_tap_result(int test_count,
     directive = "";
   }
 
-  if ((status == TEST_SKIP || status == TEST_TODO) &&
-      process_output_size(process) > 0) {
+  if (status == TEST_SKIP && process_output_size(process) > 0) {
     process_read_last_line(process, reason, sizeof reason);
   } else {
     reason[0] = '\0';
   }
 
-  LOGF("%s %d - %s%s%s\n", result, test_count, test, directive, reason);
+  fprintf(stderr, "%s %d - %s%s%s\n", result, test_count, test, directive, reason);
+  fflush(stderr);
 }
 
 
 int run_test(const char* test,
              int benchmark_output,
              int test_count) {
-  char errmsg[1024] = "no error";
+  char errmsg[1024] = "";
   process_info_t processes[1024];
   process_info_t *main_proc;
   task_entry_t* task;
@@ -207,6 +161,8 @@ int run_test(const char* test,
 #ifndef _WIN32
   /* Clean up stale socket from previous run. */
   remove(TEST_PIPENAME);
+  remove(TEST_PIPENAME_2);
+  remove(TEST_PIPENAME_3);
 #endif
 
   /* If it's a helper the user asks for, start it directly. */
@@ -314,60 +270,53 @@ out:
     FATAL("process_wait failed");
   }
 
-  if (tap_output)
-    log_tap_result(test_count, test, status, &processes[i]);
+  log_tap_result(test_count, test, status, &processes[i]);
 
   /* Show error and output from processes if the test failed. */
-  if (status != 0 || task->show_output) {
-    if (tap_output) {
-      LOGF("#");
-    } else if (status == TEST_TODO) {
-      LOGF("\n`%s` todo\n", test);
-    } else if (status == TEST_SKIP) {
-      LOGF("\n`%s` skipped\n", test);
-    } else if (status != 0) {
-      LOGF("\n`%s` failed: %s\n", test, errmsg);
-    } else {
-      LOGF("\n");
-    }
+  if ((status != TEST_OK && status != TEST_SKIP) || task->show_output) {
+    if (strlen(errmsg) > 0)
+      fprintf(stderr, "# %s\n", errmsg);
+    fprintf(stderr, "# ");
+    fflush(stderr);
 
     for (i = 0; i < process_count; i++) {
       switch (process_output_size(&processes[i])) {
        case -1:
-        LOGF("Output from process `%s`: (unavailable)\n",
-             process_get_name(&processes[i]));
+        fprintf(stderr, "Output from process `%s`: (unavailable)\n",
+                process_get_name(&processes[i]));
+        fflush(stderr);
         break;
 
        case 0:
-        LOGF("Output from process `%s`: (no output)\n",
-             process_get_name(&processes[i]));
+        fprintf(stderr, "Output from process `%s`: (no output)\n",
+                process_get_name(&processes[i]));
+        fflush(stderr);
         break;
 
        default:
-        LOGF("Output from process `%s`:\n", process_get_name(&processes[i]));
-        process_copy_output(&processes[i], fileno(stderr));
+        fprintf(stderr, "Output from process `%s`:\n", process_get_name(&processes[i]));
+        fflush(stderr);
+        process_copy_output(&processes[i], stderr);
         break;
       }
-    }
-
-    if (!tap_output) {
-      LOG("=============================================================\n");
     }
 
   /* In benchmark mode show concise output from the main process. */
   } else if (benchmark_output) {
     switch (process_output_size(main_proc)) {
      case -1:
-      LOGF("%s: (unavailable)\n", test);
+      fprintf(stderr, "%s: (unavailable)\n", test);
+      fflush(stderr);
       break;
 
      case 0:
-      LOGF("%s: (no output)\n", test);
+      fprintf(stderr, "%s: (no output)\n", test);
+      fflush(stderr);
       break;
 
      default:
       for (i = 0; i < process_count; i++) {
-        process_copy_output(&processes[i], fileno(stderr));
+        process_copy_output(&processes[i], stderr);
       }
       break;
     }
@@ -397,7 +346,8 @@ int run_test_part(const char* test, const char* part) {
     }
   }
 
-  LOGF("No test part with that name: %s:%s\n", test, part);
+  fprintf(stderr, "No test part with that name: %s:%s\n", test, part);
+  fflush(stderr);
   return 255;
 }
 
@@ -450,5 +400,23 @@ void print_tests(FILE* stream) {
     } else {
       printf("%s\n", task->task_name);
     }
+  }
+}
+
+
+void print_lines(const char* buffer, size_t size, FILE* stream) {
+  const char* start;
+  const char* end;
+
+  start = buffer;
+  while ((end = memchr(start, '\n', &buffer[size] - start))) {
+    fprintf(stream, "# %.*s\n", (int) (end - start), start);
+    fflush(stream);
+    start = end + 1;
+  }
+
+  if (start < &buffer[size]) {
+    fprintf(stream, "# %s\n", start);
+    fflush(stream);
   }
 }

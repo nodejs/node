@@ -1,21 +1,34 @@
-
+'use strict';
 var common = require('../common.js');
+
+var types = [
+  'UInt8',
+  'UInt16LE',
+  'UInt16BE',
+  'UInt32LE',
+  'UInt32BE',
+  'Int8',
+  'Int16LE',
+  'Int16BE',
+  'Int32LE',
+  'Int32BE',
+  'FloatLE',
+  'FloatBE',
+  'DoubleLE',
+  'DoubleBE'
+];
+
 var bench = common.createBenchmark(main, {
-  noAssert: [false, true],
+  noAssert: ['false', 'true'],
   buffer: ['fast', 'slow'],
-  type: ['UInt8', 'UInt16LE', 'UInt16BE',
-         'UInt32LE', 'UInt32BE',
-         'Int8', 'Int16LE', 'Int16BE',
-         'Int32LE', 'Int32BE',
-         'FloatLE', 'FloatBE',
-         'DoubleLE', 'DoubleBE'],
+  type: types,
   millions: [1]
 });
 
-const INT8   = 0x7f;
-const INT16  = 0x7fff;
-const INT32  = 0x7fffffff;
-const UINT8  = (INT8 * 2) + 1;
+const INT8 = 0x7f;
+const INT16 = 0x7fff;
+const INT32 = 0x7fffffff;
+const UINT8 = (INT8 * 2) + 1;
 const UINT16 = (INT16 * 2) + 1;
 const UINT32 = INT32;
 
@@ -48,10 +61,10 @@ function main(conf) {
 function benchInt(buff, fn, len, noAssert) {
   var m = mod[fn];
   var testFunction = new Function('buff', [
-    "for (var i = 0; i !== " + len + "; i++) {",
-    "  buff." + fn + "(i & " + m + ", 0, " + JSON.stringify(noAssert) + ");",
-    "}"
-  ].join("\n"));
+    'for (var i = 0; i !== ' + len + '; i++) {',
+    '  buff.' + fn + '(i & ' + m + ', 0, ' + JSON.stringify(noAssert) + ');',
+    '}'
+  ].join('\n'));
   bench.start();
   testFunction(buff);
   bench.end(len / 1e6);
@@ -59,10 +72,10 @@ function benchInt(buff, fn, len, noAssert) {
 
 function benchFloat(buff, fn, len, noAssert) {
   var testFunction = new Function('buff', [
-    "for (var i = 0; i !== " + len + "; i++) {",
-    "  buff." + fn + "(i, 0, " + JSON.stringify(noAssert) + ");",
-    "}"
-  ].join("\n"));
+    'for (var i = 0; i !== ' + len + '; i++) {',
+    '  buff.' + fn + '(i, 0, ' + JSON.stringify(noAssert) + ');',
+    '}'
+  ].join('\n'));
   bench.start();
   testFunction(buff);
   bench.end(len / 1e6);

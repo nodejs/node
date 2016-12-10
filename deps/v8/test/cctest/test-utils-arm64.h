@@ -36,7 +36,8 @@
 #include "src/macro-assembler.h"
 
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 
 // RegisterDump: Object allowing integer, floating point and flags registers
@@ -59,7 +60,7 @@ class RegisterDump {
     if (code == kSPRegInternalCode) {
       return wspreg();
     }
-    DCHECK(RegAliasesMatch(code));
+    CHECK(RegAliasesMatch(code));
     return dump_.w_[code];
   }
 
@@ -67,13 +68,13 @@ class RegisterDump {
     if (code == kSPRegInternalCode) {
       return spreg();
     }
-    DCHECK(RegAliasesMatch(code));
+    CHECK(RegAliasesMatch(code));
     return dump_.x_[code];
   }
 
   // FPRegister accessors.
   inline uint32_t sreg_bits(unsigned code) const {
-    DCHECK(FPRegAliasesMatch(code));
+    CHECK(FPRegAliasesMatch(code));
     return dump_.s_[code];
   }
 
@@ -82,7 +83,7 @@ class RegisterDump {
   }
 
   inline uint64_t dreg_bits(unsigned code) const {
-    DCHECK(FPRegAliasesMatch(code));
+    CHECK(FPRegAliasesMatch(code));
     return dump_.d_[code];
   }
 
@@ -92,19 +93,19 @@ class RegisterDump {
 
   // Stack pointer accessors.
   inline int64_t spreg() const {
-    DCHECK(SPRegAliasesMatch());
+    CHECK(SPRegAliasesMatch());
     return dump_.sp_;
   }
 
-  inline int64_t wspreg() const {
-    DCHECK(SPRegAliasesMatch());
-    return dump_.wsp_;
+  inline int32_t wspreg() const {
+    CHECK(SPRegAliasesMatch());
+    return static_cast<int32_t>(dump_.wsp_);
   }
 
   // Flags accessors.
-  inline uint64_t flags_nzcv() const {
-    DCHECK(IsComplete());
-    DCHECK((dump_.flags_ & ~Flags_mask) == 0);
+  inline uint32_t flags_nzcv() const {
+    CHECK(IsComplete());
+    CHECK((dump_.flags_ & ~Flags_mask) == 0);
     return dump_.flags_ & Flags_mask;
   }
 
@@ -120,21 +121,21 @@ class RegisterDump {
   // w<code>. A failure of this test most likely represents a failure in the
   // ::Dump method, or a failure in the simulator.
   bool RegAliasesMatch(unsigned code) const {
-    DCHECK(IsComplete());
-    DCHECK(code < kNumberOfRegisters);
+    CHECK(IsComplete());
+    CHECK(code < kNumberOfRegisters);
     return ((dump_.x_[code] & kWRegMask) == dump_.w_[code]);
   }
 
   // As RegAliasesMatch, but for the stack pointer.
   bool SPRegAliasesMatch() const {
-    DCHECK(IsComplete());
+    CHECK(IsComplete());
     return ((dump_.sp_ & kWRegMask) == dump_.wsp_);
   }
 
   // As RegAliasesMatch, but for floating-point registers.
   bool FPRegAliasesMatch(unsigned code) const {
-    DCHECK(IsComplete());
-    DCHECK(code < kNumberOfFPRegisters);
+    CHECK(IsComplete());
+    CHECK(code < kNumberOfFPRegisters);
     return (dump_.d_[code] & kSRegMask) == dump_.s_[code];
   }
 
@@ -229,5 +230,8 @@ void ClobberFP(MacroAssembler* masm, RegList reg_list,
 // using this method, the clobber value is always the default for the basic
 // Clobber or ClobberFP functions.
 void Clobber(MacroAssembler* masm, CPURegList reg_list);
+
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM64_TEST_UTILS_ARM64_H_

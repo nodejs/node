@@ -1,49 +1,34 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-var common = require('../common');
+'use strict';
+const common = require('../common');
 
 if (!common.opensslCli) {
-  console.error('Skipping because node compiled without OpenSSL CLI.');
-  process.exit(0);
+  common.skip('node compiled without OpenSSL CLI.');
+  return;
 }
 
-doTest({ tickets: false } , function() {
-  doTest({ tickets: true } , function() {
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
+}
+
+doTest({ tickets: false }, function() {
+  doTest({ tickets: true }, function() {
     console.error('all done');
   });
 });
 
 function doTest(testOptions, callback) {
-  var assert = require('assert');
-  var tls = require('tls');
-  var fs = require('fs');
-  var join = require('path').join;
-  var spawn = require('child_process').spawn;
+  const assert = require('assert');
+  const tls = require('tls');
+  const fs = require('fs');
+  const join = require('path').join;
+  const spawn = require('child_process').spawn;
 
-  var keyFile = join(common.fixturesDir, 'agent.key');
-  var certFile = join(common.fixturesDir, 'agent.crt');
-  var key = fs.readFileSync(keyFile);
-  var cert = fs.readFileSync(certFile);
-  var options = {
+  const keyFile = join(common.fixturesDir, 'agent.key');
+  const certFile = join(common.fixturesDir, 'agent.crt');
+  const key = fs.readFileSync(keyFile);
+  const cert = fs.readFileSync(certFile);
+  const options = {
     key: key,
     cert: cert,
     ca: [cert],
@@ -53,7 +38,7 @@ function doTest(testOptions, callback) {
   var resumeCount = 0;
   var session;
 
-  var server = tls.createServer(options, function(cleartext) {
+  const server = tls.createServer(options, function(cleartext) {
     cleartext.on('error', function(er) {
       // We're ok with getting ECONNRESET in this test, but it's
       // timing-dependent, and thus unreliable. Any other errors
@@ -85,30 +70,51 @@ function doTest(testOptions, callback) {
       callback(null, session.data);
     }, 100);
   });
-  server.listen(common.PORT, function() {
-    var client = spawn(common.opensslCli, [
+
+  server.listen(0, function() {
+    const args = [
       's_client',
       '-tls1',
-      '-connect', 'localhost:' + common.PORT,
+      '-connect', `localhost:${this.address().port}`,
       '-servername', 'ohgod',
       '-key', join(common.fixturesDir, 'agent.key'),
       '-cert', join(common.fixturesDir, 'agent.crt'),
       '-reconnect'
-    ].concat(testOptions.tickets ? [] : '-no_ticket'), {
-      stdio: [ 0, 1, 'pipe' ]
-    });
-    var err = '';
-    client.stderr.setEncoding('utf8');
-    client.stderr.on('data', function(chunk) {
-      err += chunk;
-    });
-    client.on('exit', function(code) {
-      console.error('done');
-      assert.equal(code, 0);
-      server.close(function() {
-        setTimeout(callback, 100);
+    ].concat(testOptions.tickets ? [] : '-no_ticket');
+
+    // for the performance and stability issue in s_client on Windows
+    if (common.isWindows)
+      args.push('-no_rand_screen');
+
+    function spawnClient() {
+      const client = spawn(common.opensslCli, args, {
+        stdio: [ 0, 1, 'pipe' ]
       });
-    });
+      var err = '';
+      client.stderr.setEncoding('utf8');
+      client.stderr.on('data', function(chunk) {
+        err += chunk;
+      });
+
+      client.on('exit', common.mustCall(function(code, signal) {
+        if (code !== 0) {
+          // If SmartOS and connection refused, then retry. See
+          // https://github.com/nodejs/node/issues/2663.
+          if (common.isSunOS && err.includes('Connection refused')) {
+            requestCount = 0;
+            spawnClient();
+            return;
+          }
+          common.fail(`code: ${code}, signal: ${signal}, output: ${err}`);
+        }
+        assert.equal(code, 0);
+        server.close(common.mustCall(function() {
+          setTimeout(callback, 100);
+        }));
+      }));
+    }
+
+    spawnClient();
   });
 
   process.on('exit', function() {

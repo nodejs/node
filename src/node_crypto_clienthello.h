@@ -1,26 +1,7 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
 #ifndef SRC_NODE_CRYPTO_CLIENTHELLO_H_
 #define SRC_NODE_CRYPTO_CLIENTHELLO_H_
+
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node.h"
 
@@ -77,8 +58,6 @@ class ClientHelloParser {
   inline bool IsEnded() const;
 
  private:
-  static const uint8_t kSSL2TwoByteHeaderBit = 0x80;
-  static const uint8_t kSSL2HeaderMask = 0x3f;
   static const size_t kMaxTLSFrameLen = 16 * 1024 + 5;
   static const size_t kMaxSSLExFrameLen = 32 * 1024;
   static const uint8_t kServernameHostname = 0;
@@ -88,7 +67,6 @@ class ClientHelloParser {
   enum ParseState {
     kWaiting,
     kTLSHeader,
-    kSSL2Header,
     kPaused,
     kEnded
   };
@@ -113,13 +91,10 @@ class ClientHelloParser {
 
   bool ParseRecordHeader(const uint8_t* data, size_t avail);
   void ParseHeader(const uint8_t* data, size_t avail);
-  void ParseExtension(ExtensionType type,
+  void ParseExtension(const uint16_t type,
                       const uint8_t* data,
                       size_t len);
   bool ParseTLSClientHello(const uint8_t* data, size_t avail);
-#ifdef OPENSSL_NO_SSL2
-  bool ParseSSL2ClientHello(const uint8_t* data, size_t avail);
-#endif  // OPENSSL_NO_SSL2
 
   ParseState state_;
   OnHelloCb onhello_cb_;
@@ -138,5 +113,7 @@ class ClientHelloParser {
 };
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_CRYPTO_CLIENTHELLO_H_

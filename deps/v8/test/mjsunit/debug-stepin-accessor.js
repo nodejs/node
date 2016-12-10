@@ -41,14 +41,14 @@ var expected_function_name = null;
 function listener(event, exec_state, event_data, data) {
   try {
     if (event == Debug.DebugEvent.Break) {
-      if (state == 1) {
-        exec_state.prepareStep(Debug.StepAction.StepIn, 2);
-        state = 2;
-      } else if (state == 2) {
+      if (state == 3) {
         assertEquals(expected_source_line_text,
                      event_data.sourceLineText());
         assertEquals(expected_function_name, event_data.func().name());
-        state = 3;
+        state = 4;
+      } else {
+        exec_state.prepareStep(Debug.StepAction.StepIn);
+        state++;
       }
     }
   } catch(e) {
@@ -96,21 +96,21 @@ var d = {
 };
 
 function testGetter1_1() {
-  expected_function_name = 'getter1';
+  expected_function_name = 'get getter1';
   expected_source_line_text = '    return this.name;  // getter 1';
   debugger;
   var x = c.getter1;
 }
 
 function testGetter1_2() {
-  expected_function_name = 'getter1';
+  expected_function_name = 'get getter1';
   expected_source_line_text = '    return this.name;  // getter 1';
   debugger;
   var x = c['getter1'];
 }
 
 function testGetter1_3() {
-  expected_function_name = 'getter1';
+  expected_function_name = 'get getter1';
   expected_source_line_text = '    return this.name;  // getter 1';
   for (var i = 1; i < 2; i++) {
     debugger;
@@ -119,14 +119,14 @@ function testGetter1_3() {
 }
 
 function testGetter1_4() {
-  expected_function_name = 'getter1';
+  expected_function_name = 'get getter1';
   expected_source_line_text = '    return this.name;  // getter 1';
   debugger;
   var x = d.c.getter1;
 }
 
 function testGetter1_5() {
-  expected_function_name = 'getter1';
+  expected_function_name = 'get getter1';
   expected_source_line_text = '    return this.name;  // getter 1';
   for (var i = 2; i != 1; i--);
   debugger;
@@ -134,7 +134,7 @@ function testGetter1_5() {
 }
 
 function testGetter2_1() {
-  expected_function_name = 'getter2';
+  expected_function_name = 'get getter2';
   expected_source_line_text = '    return {  // getter 2';
   for (var i = 2; i != 1; i--);
   debugger;
@@ -172,21 +172,21 @@ function testIndexedSetter3_1() {
 }
 
 function testSetter1_1() {
-  expected_function_name = 'setter1';
+  expected_function_name = 'set setter1';
   expected_source_line_text = '    this.name = n;  // setter 1';
   debugger;
   d.c.setter1 = 'aa';
 }
 
 function testSetter1_2() {
-  expected_function_name = 'setter1';
+  expected_function_name = 'set setter1';
   expected_source_line_text = '    this.name = n;  // setter 1';
   debugger;
   d.c['setter1'] = 'bb';
 }
 
 function testSetter1_3() {
-  expected_function_name = 'setter1';
+  expected_function_name = 'set setter1';
   expected_source_line_text = '    this.name = n;  // setter 1';
   for (var i = 2; i != 1; i--);
   debugger;
@@ -199,14 +199,14 @@ var e = {
 e.__proto__ = c;
 
 function testProtoGetter1_1() {
-  expected_function_name = 'getter1';
+  expected_function_name = 'get getter1';
   expected_source_line_text = '    return this.name;  // getter 1';
   debugger;
   var x = e.getter1;
 }
 
 function testProtoSetter1_1() {
-  expected_function_name = 'setter1';
+  expected_function_name = 'set setter1';
   expected_source_line_text = '    this.name = n;  // setter 1';
   debugger;
   e.setter1 = 'aa';
@@ -227,7 +227,7 @@ function testProtoIndexedSetter3_1() {
 }
 
 function testProtoSetter1_2() {
-  expected_function_name = 'setter1';
+  expected_function_name = 'set setter1';
   expected_source_line_text = '    this.name = n;  // setter 1';
   for (var i = 2; i != 1; i--);
   debugger;
@@ -240,8 +240,8 @@ for (var n in this) {
   }
   state = 1;
   this[n]();
-  assertNull(exception);
-  assertEquals(3, state);
+  if (exception) throw exception;
+  assertEquals(4, state);
 }
 
 // Get rid of the debug event listener.

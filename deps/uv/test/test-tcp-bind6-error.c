@@ -39,6 +39,9 @@ TEST_IMPL(tcp_bind6_error_addrinuse) {
   uv_tcp_t server1, server2;
   int r;
 
+  if (!can_ipv6())
+    RETURN_SKIP("IPv6 not supported");
+
   ASSERT(0 == uv_ip6_addr("::", TEST_PORT, &addr));
 
   r = uv_tcp_init(uv_default_loop(), &server1);
@@ -73,6 +76,9 @@ TEST_IMPL(tcp_bind6_error_addrnotavail) {
   uv_tcp_t server;
   int r;
 
+  if (!can_ipv6())
+    RETURN_SKIP("IPv6 not supported");
+
   ASSERT(0 == uv_ip6_addr("4:4:4:4:4:4:4:4", TEST_PORT, &addr));
 
   r = uv_tcp_init(uv_default_loop(), &server);
@@ -97,6 +103,9 @@ TEST_IMPL(tcp_bind6_error_fault) {
   struct sockaddr_in6* garbage_addr;
   uv_tcp_t server;
   int r;
+
+  if (!can_ipv6())
+    RETURN_SKIP("IPv6 not supported");
 
   garbage_addr = (struct sockaddr_in6*) &garbage;
 
@@ -123,6 +132,9 @@ TEST_IMPL(tcp_bind6_error_inval) {
   uv_tcp_t server;
   int r;
 
+  if (!can_ipv6())
+    RETURN_SKIP("IPv6 not supported");
+
   ASSERT(0 == uv_ip6_addr("::", TEST_PORT, &addr1));
   ASSERT(0 == uv_ip6_addr("::", TEST_PORT_2, &addr2));
 
@@ -148,6 +160,9 @@ TEST_IMPL(tcp_bind6_localhost_ok) {
   struct sockaddr_in6 addr;
   uv_tcp_t server;
   int r;
+
+  if (!can_ipv6())
+    RETURN_SKIP("IPv6 not supported");
 
   ASSERT(0 == uv_ip6_addr("::1", TEST_PORT, &addr));
 

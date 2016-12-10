@@ -1,22 +1,23 @@
-var test = require("tap").test
-var npmconf = require("../../lib/config/core.js")
-var common = require("./00-config-setup.js")
-var path = require("path")
+var test = require('tap').test
+var npmconf = require('../../lib/config/core.js')
+var common = require('./00-config-setup.js')
+var path = require('path')
 
 var ucData = common.ucData
 
 var envData = common.envData
 var envDataFix = common.envDataFix
 
-var gcData = { "package-config:foo": "boo" }
+var gcData = { 'package-config:foo': 'boo' }
 
-var biData = { "builtin-config": true }
+var biData = { 'builtin-config': true }
 
-var cli = { foo: "bar", heading: "foo", "git-tag-version": false }
+var cli = { foo: 'bar', heading: 'foo', 'git-tag-version': false }
 
 var projectData = {
-  "save-prefix": "~",
-  "proprietary-attribs": false
+  'save-prefix': '~',
+  'proprietary-attribs': false,
+  'legacy-bundling': true
 }
 
 var expectList = [
@@ -33,27 +34,27 @@ var expectSources = {
   env: {
     data: envDataFix,
     source: envData,
-    prefix: ""
+    prefix: ''
   },
   project: {
-    path: path.resolve(__dirname, "..", "..", ".npmrc"),
-    type: "ini",
+    path: path.resolve(__dirname, '..', '..', '.npmrc'),
+    type: 'ini',
     data: projectData
   },
   user: {
     path: common.userconfig,
-    type: "ini",
+    type: 'ini',
     data: ucData
   },
   global: {
     path: common.globalconfig,
-    type: "ini",
+    type: 'ini',
     data: gcData
   },
   builtin: { data: biData }
 }
 
-test("with builtin", function (t) {
+test('with builtin', function (t) {
   npmconf.load(cli, common.builtin, function (er, conf) {
     if (er) throw er
     t.same(conf.list, expectList)
@@ -61,8 +62,8 @@ test("with builtin", function (t) {
     t.same(npmconf.rootConf.list, [])
     t.equal(npmconf.rootConf.root, npmconf.defs.defaults)
     t.equal(conf.root, npmconf.defs.defaults)
-    t.equal(conf.get("heading"), "foo")
-    t.equal(conf.get("git-tag-version"), false)
+    t.equal(conf.get('heading'), 'foo')
+    t.equal(conf.get('git-tag-version'), false)
     t.end()
   })
 })

@@ -1,5 +1,8 @@
+'use strict';
 // just like test/gc/http-client.js,
 // but with an on('error') handler that does nothing.
+
+require('../common');
 
 function serverHandler(req, res) {
   req.resume();
@@ -7,30 +10,27 @@ function serverHandler(req, res) {
   res.end('Hello World\n');
 }
 
-var http  = require('http'),
-    weak    = require('weak'),
-    done    = 0,
-    count   = 0,
-    countGC = 0,
-    todo    = 500,
-    common = require('../common.js'),
-    assert = require('assert'),
-    PORT = common.PORT;
+const http = require('http');
+const weak = require('weak');
+const assert = require('assert');
+const todo = 500;
+let done = 0;
+let count = 0;
+let countGC = 0;
 
-console.log('We should do '+ todo +' requests');
+console.log('We should do ' + todo + ' requests');
 
-var http = require('http');
 var server = http.createServer(serverHandler);
-server.listen(PORT, getall);
+server.listen(0, runTest);
 
 function getall() {
   if (count >= todo)
     return;
 
-  (function(){
+  (function() {
     function cb(res) {
       res.resume();
-      done+=1;
+      done += 1;
       statusLater();
     }
     function onerror(er) {
@@ -40,32 +40,34 @@ function getall() {
     var req = http.get({
       hostname: 'localhost',
       pathname: '/',
-      port: PORT
+      port: server.address().port
     }, cb).on('error', onerror);
 
     count++;
     weak(req, afterGC);
-  })()
+  })();
 
   setImmediate(getall);
 }
 
-for (var i = 0; i < 10; i++)
-  getall();
+function runTest() {
+  for (var i = 0; i < 10; i++)
+    getall();
+}
 
-function afterGC(){
-  countGC ++;
+function afterGC() {
+  countGC++;
 }
 
 var timer;
 function statusLater() {
-  gc();
+  global.gc();
   if (timer) clearTimeout(timer);
   timer = setTimeout(status, 1);
 }
 
 function status() {
-  gc();
+  global.gc();
   console.log('Done: %d/%d', done, todo);
   console.log('Collected: %d/%d', countGC, count);
   if (done === todo) {
@@ -74,4 +76,3 @@ function status() {
     process.exit(0);
   }
 }
-

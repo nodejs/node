@@ -4,41 +4,20 @@
 
 #include "test/unittests/test-utils.h"
 
+#include "include/libplatform/libplatform.h"
 #include "src/base/platform/time.h"
+#include "src/debug/debug.h"
 #include "src/flags.h"
-#include "src/isolate-inl.h"
+#include "src/isolate.h"
+#include "src/v8.h"
 
 namespace v8 {
 
-std::ostream& operator<<(std::ostream& os, ExternalArrayType type) {
-  switch (type) {
-    case kExternalInt8Array:
-      return os << "ExternalInt8Array";
-    case kExternalUint8Array:
-      return os << "ExternalUint8Array";
-    case kExternalInt16Array:
-      return os << "ExternalInt16Array";
-    case kExternalUint16Array:
-      return os << "ExternalUint16Array";
-    case kExternalInt32Array:
-      return os << "ExternalInt32Array";
-    case kExternalUint32Array:
-      return os << "ExternalUint32Array";
-    case kExternalFloat32Array:
-      return os << "ExternalFloat32Array";
-    case kExternalFloat64Array:
-      return os << "ExternalFloat64Array";
-    case kExternalUint8ClampedArray:
-      return os << "ExternalUint8ClampedArray";
-  }
-  UNREACHABLE();
-  return os;
-}
-
+// static
+v8::ArrayBuffer::Allocator* TestWithIsolate::array_buffer_allocator_ = nullptr;
 
 // static
-Isolate* TestWithIsolate::isolate_ = NULL;
-
+Isolate* TestWithIsolate::isolate_ = nullptr;
 
 TestWithIsolate::TestWithIsolate()
     : isolate_scope_(isolate()), handle_scope_(isolate()) {}
@@ -51,7 +30,10 @@ TestWithIsolate::~TestWithIsolate() {}
 void TestWithIsolate::SetUpTestCase() {
   Test::SetUpTestCase();
   EXPECT_EQ(NULL, isolate_);
-  isolate_ = v8::Isolate::New();
+  v8::Isolate::CreateParams create_params;
+  array_buffer_allocator_ = v8::ArrayBuffer::Allocator::NewDefaultAllocator();
+  create_params.array_buffer_allocator = array_buffer_allocator_;
+  isolate_ = v8::Isolate::New(create_params);
   EXPECT_TRUE(isolate_ != NULL);
 }
 
@@ -59,8 +41,12 @@ void TestWithIsolate::SetUpTestCase() {
 // static
 void TestWithIsolate::TearDownTestCase() {
   ASSERT_TRUE(isolate_ != NULL);
+  v8::Platform* platform = internal::V8::GetCurrentPlatform();
+  ASSERT_TRUE(platform != NULL);
+  while (platform::PumpMessageLoop(platform, isolate_)) continue;
   isolate_->Dispose();
   isolate_ = NULL;
+  delete array_buffer_allocator_;
   Test::TearDownTestCase();
 }
 
@@ -82,7 +68,7 @@ inline int64_t GetRandomSeedFromFlag(int random_seed) {
 }  // namespace
 
 TestWithRandomNumberGenerator::TestWithRandomNumberGenerator()
-    : rng_(GetRandomSeedFromFlag(internal::FLAG_random_seed)) {}
+    : rng_(GetRandomSeedFromFlag(::v8::internal::FLAG_random_seed)) {}
 
 
 TestWithRandomNumberGenerator::~TestWithRandomNumberGenerator() {}
@@ -94,8 +80,14 @@ namespace internal {
 
 TestWithIsolate::~TestWithIsolate() {}
 
+TestWithIsolateAndZone::~TestWithIsolateAndZone() {}
 
 Factory* TestWithIsolate::factory() const { return isolate()->factory(); }
+
+
+base::RandomNumberGenerator* TestWithIsolate::random_number_generator() const {
+  return isolate()->random_number_generator();
+}
 
 
 TestWithZone::~TestWithZone() {}

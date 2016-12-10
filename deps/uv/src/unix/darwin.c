@@ -37,7 +37,7 @@
 #include <unistd.h>  /* sysconf */
 
 
-int uv__platform_loop_init(uv_loop_t* loop, int default_loop) {
+int uv__platform_loop_init(uv_loop_t* loop) {
   loop->cf_state = NULL;
 
   if (uv__kqueue_init(loop))
@@ -65,28 +65,33 @@ uint64_t uv__hrtime(uv_clocktype_t type) {
 
 
 int uv_exepath(char* buffer, size_t* size) {
-  uint32_t usize;
-  int result;
-  char* path;
-  char* fullpath;
+  /* realpath(exepath) may be > PATH_MAX so double it to be on the safe side. */
+  char abspath[PATH_MAX * 2 + 1];
+  char exepath[PATH_MAX + 1];
+  uint32_t exepath_size;
+  size_t abspath_size;
 
-  if (buffer == NULL || size == NULL)
+  if (buffer == NULL || size == NULL || *size == 0)
     return -EINVAL;
 
-  usize = *size;
-  result = _NSGetExecutablePath(buffer, &usize);
-  if (result) return result;
+  exepath_size = sizeof(exepath);
+  if (_NSGetExecutablePath(exepath, &exepath_size))
+    return -EIO;
 
-  path = malloc(2 * PATH_MAX);
-  fullpath = realpath(buffer, path);
-  if (fullpath == NULL) {
-    SAVE_ERRNO(free(path));
+  if (realpath(exepath, abspath) != abspath)
     return -errno;
-  }
 
-  strncpy(buffer, fullpath, *size);
-  free(fullpath);
-  *size = strlen(buffer);
+  abspath_size = strlen(abspath);
+  if (abspath_size == 0)
+    return -EIO;
+
+  *size -= 1;
+  if (*size > abspath_size)
+    *size = abspath_size;
+
+  memcpy(buffer, abspath, *size);
+  buffer[*size] = '\0';
+
   return 0;
 }
 
@@ -193,9 +198,11 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
     return -EINVAL;  /* FIXME(bnoordhuis) Translate error. */
   }
 
-  *cpu_infos = malloc(numcpus * sizeof(**cpu_infos));
-  if (!(*cpu_infos))
-    return -ENOMEM;  /* FIXME(bnoordhuis) Deallocate info? */
+  *cpu_infos = uv__malloc(numcpus * sizeof(**cpu_infos));
+  if (!(*cpu_infos)) {
+    vm_deallocate(mach_task_self(), (vm_address_t)info, msg_type);
+    return -ENOMEM;
+  }
 
   *count = numcpus;
 
@@ -208,7 +215,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
     cpu_info->cpu_times.idle = (uint64_t)(info[i].cpu_ticks[2]) * multiplier;
     cpu_info->cpu_times.irq = 0;
 
-    cpu_info->model = strdup(model);
+    cpu_info->model = uv__strdup(model);
     cpu_info->speed = cpuspeed/1000000;
   }
   vm_deallocate(mach_task_self(), (vm_address_t)info, msg_type);
@@ -221,10 +228,10 @@ void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
   int i;
 
   for (i = 0; i < count; i++) {
-    free(cpu_infos[i].model);
+    uv__free(cpu_infos[i].model);
   }
 
-  free(cpu_infos);
+  uv__free(cpu_infos);
 }
 
 
@@ -250,9 +257,11 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
     (*count)++;
   }
 
-  *addresses = malloc(*count * sizeof(**addresses));
-  if (!(*addresses))
+  *addresses = uv__malloc(*count * sizeof(**addresses));
+  if (!(*addresses)) {
+    freeifaddrs(addrs);
     return -ENOMEM;
+  }
 
   address = *addresses;
 
@@ -270,7 +279,7 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
     if (ent->ifa_addr->sa_family == AF_LINK)
       continue;
 
-    address->name = strdup(ent->ifa_name);
+    address->name = uv__strdup(ent->ifa_name);
 
     if (ent->ifa_addr->sa_family == AF_INET6) {
       address->address.address6 = *((struct sockaddr_in6*) ent->ifa_addr);
@@ -319,8 +328,8 @@ void uv_free_interface_addresses(uv_interface_address_t* addresses,
   int i;
 
   for (i = 0; i < count; i++) {
-    free(addresses[i].name);
+    uv__free(addresses[i].name);
   }
 
-  free(addresses);
+  uv__free(addresses);
 }

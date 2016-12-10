@@ -1,33 +1,12 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var http = require('http');
 var net = require('net');
-var PORT = common.PORT;
 var spawn = require('child_process').spawn;
 
-if (process.platform === 'win32') {
-  console.error('This test is disabled on windows.');
+if (common.isWindows) {
+  common.skip('This test is disabled on windows.');
   return;
 }
 
@@ -58,9 +37,9 @@ function test() {
     // now make sure that we can request to the child, then kill it.
     http.get({
       server: 'localhost',
-      port: PORT,
+      port: child.port,
       path: '/',
-    }).on('response', function (res) {
+    }).on('response', function(res) {
       var s = '';
       res.on('data', function(c) {
         s += c.toString();
@@ -76,25 +55,25 @@ function test() {
         assert.equal(s, 'hello from child\n');
         assert.equal(res.statusCode, 200);
       });
-    })
+    });
   }
 }
 
-// Listen on PORT, and then pass the handle to the detached child.
+// Listen on port, and then pass the handle to the detached child.
 // Then output the child's pid, and immediately exit.
 function parent() {
   var server = net.createServer(function(conn) {
-    throw new Error('Should not see connections on parent');
     conn.end('HTTP/1.1 403 Forbidden\r\n\r\nI got problems.\r\n');
-  }).listen(PORT, function() {
-    console.error('server listening on %d', PORT);
+    throw new Error('Should not see connections on parent');
+  }).listen(0, function() {
+    console.error('server listening on %d', this.address().port);
 
     var child = spawn(process.execPath, [__filename, 'child'], {
       stdio: [ 0, 1, 2, server._handle ],
       detached: true
     });
 
-    console.log('%j\n', { pid: child.pid });
+    console.log('%j\n', { pid: child.pid, port: this.address().port });
 
     // Now close the parent, so that the child is the only thing
     // referencing that handle.  Note that connections will still
@@ -116,4 +95,3 @@ function child() {
     console.error('child listening on fd=3');
   });
 }
-

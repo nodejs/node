@@ -94,6 +94,9 @@ req: sreq.o $(A_OBJ) $(DLIBCRYPTO)
 sreq.o: req.c 
 	$(CC) -c $(INCLUDES) $(CFLAG) -o sreq.o req.c
 
+openssl-vms.cnf: openssl.cnf
+	$(PERL) $(TOP)/VMS/VMSify-conf.pl < openssl.cnf > openssl-vms.cnf
+
 files:
 	$(PERL) $(TOP)/util/files.pl Makefile >> $(TOP)/MINFO
 
@@ -127,12 +130,12 @@ links:
 lint:
 	lint -DLINT $(INCLUDES) $(SRC)>fluff
 
-depend:
-	@if [ -z "$(THIS)" ]; then \
-	    $(MAKE) -f $(TOP)/Makefile reflect THIS=$@; \
-	else \
-	    $(MAKEDEPEND) -- $(CFLAG) $(INCLUDES) $(DEPFLAG) -- $(PROGS) $(SRC); \
-	fi
+update: openssl-vms.cnf local_depend
+
+depend: local_depend
+	@if [ -z "$(THIS)" ]; then $(MAKE) -f $(TOP)/Makefile reflect THIS=$@; fi
+local_depend:
+	@[ -z "$(THIS)" ] || $(MAKEDEPEND) -- $(CFLAG) $(INCLUDES) $(DEPFLAG) -- $(PROGS) $(SRC)
 
 dclean:
 	$(PERL) -pe 'if (/^# DO NOT DELETE THIS LINE/) {print; exit(0);}' $(MAKEFILE) >Makefile.new
@@ -144,10 +147,10 @@ clean:
 	rm -f req
 
 $(DLIBSSL):
-	(cd ..; $(MAKE) DIRS=ssl all)
+	(cd ..; $(MAKE) build_libssl)
 
 $(DLIBCRYPTO):
-	(cd ..; $(MAKE) DIRS=crypto all)
+	(cd ..; $(MAKE) build_libcrypto)
 
 $(EXE): progs.h $(E_OBJ) $(PROGRAM).o $(DLIBCRYPTO) $(DLIBSSL)
 	$(RM) $(EXE)

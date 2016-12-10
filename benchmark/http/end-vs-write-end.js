@@ -6,28 +6,26 @@
 // always as hot as it could be.
 //
 // Verify that our assumptions are valid.
+'use strict';
 
 var common = require('../common.js');
-var PORT = common.PORT;
 
 var bench = common.createBenchmark(main, {
   type: ['asc', 'utf', 'buf'],
   kb: [64, 128, 256, 1024],
   c: [100],
-  method: ['write', 'end  '] // two spaces added to line up each row
+  method: ['write', 'end']
 });
 
 function main(conf) {
-  http = require('http');
+  const http = require('http');
   var chunk;
   var len = conf.kb * 1024;
   switch (conf.type) {
     case 'buf':
-      chunk = new Buffer(len);
-      chunk.fill('x');
+      chunk = Buffer.alloc(len, 'x');
       break;
     case 'utf':
-      encoding = 'utf8';
       chunk = new Array(len / 2 + 1).join('ü');
       break;
     case 'asc':
@@ -45,14 +43,15 @@ function main(conf) {
   }
 
   var method = conf.method === 'write' ? write : end;
-  var args = ['-d', '10s', '-t', 8, '-c', conf.c];
 
   var server = http.createServer(function(req, res) {
     method(res);
   });
 
   server.listen(common.PORT, function() {
-    bench.http('/', args, function() {
+    bench.http({
+      connections: conf.c
+    }, function() {
       server.close();
     });
   });

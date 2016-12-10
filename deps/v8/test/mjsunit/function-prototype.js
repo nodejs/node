@@ -34,6 +34,9 @@ function TestNonObjectPrototype(value) {
   var f = new F();
   assertEquals(value, F.prototype);
   assertEquals(Object.prototype, f.__proto__);
+  // Test that map transitions don't break anything.
+  F.property = "value";
+  assertEquals(value, F.prototype);
 }
 
 var values = [123, "asdf", true];

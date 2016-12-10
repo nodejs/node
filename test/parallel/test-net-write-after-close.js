@@ -1,55 +1,23 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-var common = require('../common');
-var assert = require('assert');
+'use strict';
+const common = require('../common');
 var net = require('net');
 
-var gotError = false;
-var gotWriteCB = false;
-
-process.on('exit', function() {
-  assert(gotError);
-  assert(gotWriteCB);
-});
-
-var server = net.createServer(function(socket) {
+var server = net.createServer(common.mustCall(function(socket) {
   socket.resume();
 
-  socket.on('error', function(error) {
+  socket.on('error', common.mustCall(function(error) {
     console.error('got error, closing server', error);
     server.close();
-    gotError = true;
-  });
+  }));
 
-  setTimeout(function() {
+  setTimeout(common.mustCall(function() {
     console.error('about to try to write');
-    socket.write('test', function(e) {
-      gotWriteCB = true;
-    });
-  }, 250);
-});
+    socket.write('test', common.mustCall(function(e) {}));
+  }), 250);
+}));
 
-server.listen(common.PORT, function() {
-  var client = net.connect(common.PORT, function() {
+server.listen(0, function() {
+  var client = net.connect(this.address().port, function() {
     client.end();
   });
 });

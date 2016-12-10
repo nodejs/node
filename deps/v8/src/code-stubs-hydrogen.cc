@@ -2,13 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/code-stubs.h"
+
+#include <memory>
 
 #include "src/bailout-reason.h"
-#include "src/code-stubs.h"
+#include "src/crankshaft/hydrogen.h"
+#include "src/crankshaft/lithium.h"
 #include "src/field-index.h"
-#include "src/hydrogen.h"
-#include "src/lithium.h"
+#include "src/ic/ic.h"
 
 namespace v8 {
 namespace internal {
@@ -34,79 +36,65 @@ static LChunk* OptimizeGraph(HGraph* graph) {
 
 class CodeStubGraphBuilderBase : public HGraphBuilder {
  public:
-  CodeStubGraphBuilderBase(Isolate* isolate, HydrogenCodeStub* stub)
-      : HGraphBuilder(&info_),
+  explicit CodeStubGraphBuilderBase(CompilationInfo* info, CodeStub* code_stub)
+      : HGraphBuilder(info, code_stub->GetCallInterfaceDescriptor()),
         arguments_length_(NULL),
-        info_(stub, isolate),
-        descriptor_(stub),
+        info_(info),
+        code_stub_(code_stub),
+        descriptor_(code_stub),
         context_(NULL) {
-    int parameter_count = descriptor_.GetEnvironmentParameterCount();
-    parameters_.Reset(new HParameter*[parameter_count]);
+    int parameter_count = GetParameterCount();
+    parameters_.reset(new HParameter*[parameter_count]);
   }
   virtual bool BuildGraph();
 
  protected:
   virtual HValue* BuildCodeStub() = 0;
+  int GetParameterCount() const { return descriptor_.GetParameterCount(); }
+  int GetRegisterParameterCount() const {
+    return descriptor_.GetRegisterParameterCount();
+  }
   HParameter* GetParameter(int parameter) {
-    DCHECK(parameter < descriptor_.GetEnvironmentParameterCount());
+    DCHECK(parameter < GetParameterCount());
     return parameters_[parameter];
+  }
+  Representation GetParameterRepresentation(int parameter) {
+    return RepresentationFromType(descriptor_.GetParameterType(parameter));
+  }
+  bool IsParameterCountRegister(int index) const {
+    return descriptor_.GetRegisterParameter(index)
+        .is(descriptor_.stack_parameter_count());
   }
   HValue* GetArgumentsLength() {
     // This is initialized in BuildGraph()
     DCHECK(arguments_length_ != NULL);
     return arguments_length_;
   }
-  CompilationInfo* info() { return &info_; }
-  HydrogenCodeStub* stub() { return info_.code_stub(); }
+  CompilationInfo* info() { return info_; }
+  CodeStub* stub() { return code_stub_; }
   HContext* context() { return context_; }
-  Isolate* isolate() { return info_.isolate(); }
+  Isolate* isolate() { return info_->isolate(); }
 
-  HLoadNamedField* BuildLoadNamedField(HValue* object,
-                                       FieldIndex index);
+  HLoadNamedField* BuildLoadNamedField(HValue* object, FieldIndex index);
   void BuildStoreNamedField(HValue* object, HValue* value, FieldIndex index,
                             Representation representation,
                             bool transition_to_field);
 
-  enum ArgumentClass {
-    NONE,
-    SINGLE,
-    MULTIPLE
-  };
+  HValue* BuildPushElement(HValue* object, HValue* argc,
+                           HValue* argument_elements, ElementsKind kind);
 
-  HValue* UnmappedCase(HValue* elements, HValue* key);
+  HValue* UnmappedCase(HValue* elements, HValue* key, HValue* value);
+  HValue* EmitKeyedSloppyArguments(HValue* receiver, HValue* key,
+                                   HValue* value);
 
-  HValue* BuildArrayConstructor(ElementsKind kind,
-                                AllocationSiteOverrideMode override_mode,
-                                ArgumentClass argument_class);
-  HValue* BuildInternalArrayConstructor(ElementsKind kind,
-                                        ArgumentClass argument_class);
-
-  // BuildCheckAndInstallOptimizedCode emits code to install the optimized
-  // function found in the optimized code map at map_index in js_function, if
-  // the function at map_index matches the given native_context. Builder is
-  // left in the "Then()" state after the install.
-  void BuildCheckAndInstallOptimizedCode(HValue* js_function,
-                                         HValue* native_context,
-                                         IfBuilder* builder,
-                                         HValue* optimized_map,
-                                         HValue* map_index);
-  void BuildInstallCode(HValue* js_function, HValue* shared_info);
-
-  HInstruction* LoadFromOptimizedCodeMap(HValue* optimized_map,
-                                         HValue* iterator,
-                                         int field_offset);
-  void BuildInstallFromOptimizedCodeMap(HValue* js_function,
-                                        HValue* shared_info,
-                                        HValue* native_context);
+  HValue* BuildToString(HValue* input, bool convert);
+  HValue* BuildToPrimitive(HValue* input, HValue* input_map);
 
  private:
-  HValue* BuildArraySingleArgumentConstructor(JSArrayBuilder* builder);
-  HValue* BuildArrayNArgumentsConstructor(JSArrayBuilder* builder,
-                                          ElementsKind kind);
-
-  SmartArrayPointer<HParameter*> parameters_;
+  std::unique_ptr<HParameter* []> parameters_;
   HValue* arguments_length_;
-  CompilationInfoWithZone info_;
+  CompilationInfo* info_;
+  CodeStub* code_stub_;
   CodeStubDescriptor descriptor_;
   HContext* context_;
 };
@@ -117,13 +105,14 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   isolate()->counters()->code_stubs()->Increment();
 
   if (FLAG_trace_hydrogen_stubs) {
-    const char* name = CodeStub::MajorName(stub()->MajorKey(), false);
+    const char* name = CodeStub::MajorName(stub()->MajorKey());
     PrintF("-----------------------------------------------------------\n");
     PrintF("Compiling stub %s using hydrogen\n", name);
-    isolate()->GetHTracer()->TraceCompilation(&info_);
+    isolate()->GetHTracer()->TraceCompilation(info());
   }
 
-  int param_count = descriptor_.GetEnvironmentParameterCount();
+  int param_count = GetParameterCount();
+  int register_param_count = GetRegisterParameterCount();
   HEnvironment* start_environment = graph()->start_environment();
   HBasicBlock* next_block = CreateBasicBlock(start_environment);
   Goto(next_block);
@@ -133,12 +122,17 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
   bool runtime_stack_params = descriptor_.stack_parameter_count().is_valid();
   HInstruction* stack_parameter_count = NULL;
   for (int i = 0; i < param_count; ++i) {
-    Representation r = descriptor_.GetEnvironmentParameterRepresentation(i);
-    HParameter* param = Add<HParameter>(i,
-                                        HParameter::REGISTER_PARAMETER, r);
-    start_environment->Bind(i, param);
+    Representation r = GetParameterRepresentation(i);
+    HParameter* param;
+    if (i >= register_param_count) {
+      param = Add<HParameter>(i - register_param_count,
+                              HParameter::STACK_PARAMETER, r);
+    } else {
+      param = Add<HParameter>(i, HParameter::REGISTER_PARAMETER, r);
+      start_environment->Bind(i, param);
+    }
     parameters_[i] = param;
-    if (descriptor_.IsEnvironmentParameterCountRegister(i)) {
+    if (i < register_param_count && IsParameterCountRegister(i)) {
       param->set_type(HType::Smi());
       stack_parameter_count = param;
       arguments_length_ = stack_parameter_count;
@@ -147,12 +141,15 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
 
   DCHECK(!runtime_stack_params || arguments_length_ != NULL);
   if (!runtime_stack_params) {
-    stack_parameter_count = graph()->GetConstantMinus1();
+    stack_parameter_count =
+        Add<HConstant>(param_count - register_param_count - 1);
+    // graph()->GetConstantMinus1();
     arguments_length_ = graph()->GetConstant0();
   }
 
   context_ = Add<HContext>();
   start_environment->BindContext(context_);
+  start_environment->Bind(param_count, context_);
 
   Add<HSimulate>(BailoutId::StubEntry());
 
@@ -189,8 +186,10 @@ bool CodeStubGraphBuilderBase::BuildGraph() {
 template <class Stub>
 class CodeStubGraphBuilder: public CodeStubGraphBuilderBase {
  public:
-  CodeStubGraphBuilder(Isolate* isolate, Stub* stub)
-      : CodeStubGraphBuilderBase(isolate, stub) {}
+  explicit CodeStubGraphBuilder(CompilationInfo* info, CodeStub* stub)
+      : CodeStubGraphBuilderBase(info, stub) {}
+
+  typedef typename Stub::Descriptor Descriptor;
 
  protected:
   virtual HValue* BuildCodeStub() {
@@ -212,7 +211,7 @@ class CodeStubGraphBuilder: public CodeStubGraphBuilderBase {
     IfBuilder builder(this);
     builder.IfNot<HCompareObjectEqAndBranch, HValue*>(undefined, undefined);
     builder.Then();
-    builder.ElseDeopt("Forced deopt to runtime");
+    builder.ElseDeopt(DeoptimizeReason::kForcedDeoptToRuntime);
     return undefined;
   }
 
@@ -225,7 +224,7 @@ Handle<Code> HydrogenCodeStub::GenerateLightweightMissCode(
   Factory* factory = isolate()->factory();
 
   // Generate the new code.
-  MacroAssembler masm(isolate(), NULL, 256);
+  MacroAssembler masm(isolate(), NULL, 256, CodeObjectRequired::kYes);
 
   {
     // Update the static counter each time a new code stub is generated.
@@ -244,21 +243,60 @@ Handle<Code> HydrogenCodeStub::GenerateLightweightMissCode(
   masm.GetCode(&desc);
 
   // Copy the generated code into a heap object.
-  Code::Flags flags = Code::ComputeFlags(
-      GetCodeKind(),
-      GetICState(),
-      GetExtraICState(),
-      GetStubType());
   Handle<Code> new_object = factory->NewCode(
-      desc, flags, masm.CodeObject(), NeedsImmovableCode());
+      desc, GetCodeFlags(), masm.CodeObject(), NeedsImmovableCode());
   return new_object;
 }
 
+Handle<Code> HydrogenCodeStub::GenerateRuntimeTailCall(
+    CodeStubDescriptor* descriptor) {
+  const char* name = CodeStub::MajorName(MajorKey());
+  Zone zone(isolate()->allocator());
+  CallInterfaceDescriptor interface_descriptor(GetCallInterfaceDescriptor());
+  CodeStubAssembler assembler(isolate(), &zone, interface_descriptor,
+                              GetCodeFlags(), name);
+  int total_params = interface_descriptor.GetStackParameterCount() +
+                     interface_descriptor.GetRegisterParameterCount();
+  switch (total_params) {
+    case 0:
+      assembler.TailCallRuntime(descriptor->miss_handler_id(),
+                                assembler.Parameter(0));
+      break;
+    case 1:
+      assembler.TailCallRuntime(descriptor->miss_handler_id(),
+                                assembler.Parameter(1), assembler.Parameter(0));
+      break;
+    case 2:
+      assembler.TailCallRuntime(descriptor->miss_handler_id(),
+                                assembler.Parameter(2), assembler.Parameter(0),
+                                assembler.Parameter(1));
+      break;
+    case 3:
+      assembler.TailCallRuntime(descriptor->miss_handler_id(),
+                                assembler.Parameter(3), assembler.Parameter(0),
+                                assembler.Parameter(1), assembler.Parameter(2));
+      break;
+    case 4:
+      assembler.TailCallRuntime(descriptor->miss_handler_id(),
+                                assembler.Parameter(4), assembler.Parameter(0),
+                                assembler.Parameter(1), assembler.Parameter(2),
+                                assembler.Parameter(3));
+      break;
+    default:
+      UNIMPLEMENTED();
+      break;
+  }
+  return assembler.GenerateCode();
+}
 
 template <class Stub>
 static Handle<Code> DoGenerateCode(Stub* stub) {
   Isolate* isolate = stub->isolate();
   CodeStubDescriptor descriptor(stub);
+
+  if (FLAG_minimal && descriptor.has_miss_handler()) {
+    return stub->GenerateRuntimeTailCall(&descriptor);
+  }
 
   // If we are uninitialized we can use a light-weight stub to enter
   // the runtime that is significantly faster than using the standard
@@ -271,7 +309,16 @@ static Handle<Code> DoGenerateCode(Stub* stub) {
   if (FLAG_profile_hydrogen_code_stub_compilation) {
     timer.Start();
   }
-  CodeStubGraphBuilder<Stub> builder(isolate, stub);
+  Zone zone(isolate->allocator());
+  CompilationInfo info(CStrVector(CodeStub::MajorName(stub->MajorKey())),
+                       isolate, &zone, stub->GetCodeFlags());
+  // Parameter count is number of stack parameters.
+  int parameter_count = descriptor.GetStackParameterCount();
+  if (descriptor.function_mode() == NOT_JS_FUNCTION_STUB_MODE) {
+    parameter_count--;
+  }
+  info.set_parameter_count(parameter_count);
+  CodeStubGraphBuilder<Stub> builder(&info, stub);
   LChunk* chunk = OptimizeGraph(builder.CreateGraph());
   Handle<Code> code = chunk->Codegen();
   if (FLAG_profile_hydrogen_code_stub_compilation) {
@@ -286,8 +333,8 @@ static Handle<Code> DoGenerateCode(Stub* stub) {
 template <>
 HValue* CodeStubGraphBuilder<NumberToStringStub>::BuildCodeStub() {
   info()->MarkAsSavesCallerDoubles();
-  HValue* number = GetParameter(NumberToStringStub::kNumber);
-  return BuildNumberToString(number, Type::Number(zone()));
+  HValue* number = GetParameter(Descriptor::kArgument);
+  return BuildNumberToString(number, Type::Number());
 }
 
 
@@ -301,15 +348,24 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
   Factory* factory = isolate()->factory();
   HValue* undefined = graph()->GetConstantUndefined();
   AllocationSiteMode alloc_site_mode = casted_stub()->allocation_site_mode();
+  HValue* closure = GetParameter(Descriptor::kClosure);
+  HValue* literal_index = GetParameter(Descriptor::kLiteralIndex);
 
+  // TODO(turbofan): This codestub has regressed to need a frame on ia32 at some
+  // point and wasn't caught since it wasn't built in the snapshot. We should
+  // probably just replace with a TurboFan stub rather than fixing it.
+#if !(V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87)
   // This stub is very performance sensitive, the generated code must be tuned
   // so that it doesn't build and eager frame.
   info()->MarkMustNotHaveEagerFrame();
+#endif
 
-  HInstruction* allocation_site = Add<HLoadKeyed>(GetParameter(0),
-                                                  GetParameter(1),
-                                                  static_cast<HValue*>(NULL),
-                                                  FAST_ELEMENTS);
+  HValue* literals_array = Add<HLoadNamedField>(
+      closure, nullptr, HObjectAccess::ForLiteralsPointer());
+
+  HInstruction* allocation_site = Add<HLoadKeyed>(
+      literals_array, literal_index, nullptr, nullptr, FAST_ELEMENTS,
+      NEVER_RETURN_HOLE, LiteralsArray::kOffsetToFirstLiteral - kHeapObjectTag);
   IfBuilder checker(this);
   checker.IfNot<HCompareObjectEqAndBranch, HValue*>(allocation_site,
                                                     undefined);
@@ -317,8 +373,8 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
 
   HObjectAccess access = HObjectAccess::ForAllocationSiteOffset(
       AllocationSite::kTransitionInfoOffset);
-  HInstruction* boilerplate = Add<HLoadNamedField>(
-      allocation_site, static_cast<HValue*>(NULL), access);
+  HInstruction* boilerplate =
+      Add<HLoadNamedField>(allocation_site, nullptr, access);
   HValue* elements = AddLoadElements(boilerplate);
   HValue* capacity = AddLoadFixedArrayLength(elements);
   IfBuilder zero_capacity(this);
@@ -354,7 +410,7 @@ HValue* CodeStubGraphBuilder<FastCloneShallowArrayStub>::BuildCodeStub() {
   if_fixed_cow.End();
   zero_capacity.End();
 
-  checker.ElseDeopt("Uninitialized boilerplate literals");
+  checker.ElseDeopt(DeoptimizeReason::kUninitializedBoilerplateLiterals);
   checker.End();
 
   return environment()->Pop();
@@ -365,161 +421,432 @@ Handle<Code> FastCloneShallowArrayStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 
+template <>
+HValue* CodeStubGraphBuilder<LoadScriptContextFieldStub>::BuildCodeStub() {
+  int context_index = casted_stub()->context_index();
+  int slot_index = casted_stub()->slot_index();
+
+  HValue* script_context = BuildGetScriptContext(context_index);
+  return Add<HLoadNamedField>(script_context, nullptr,
+                              HObjectAccess::ForContextSlot(slot_index));
+}
+
+
+Handle<Code> LoadScriptContextFieldStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
+
 
 template <>
-HValue* CodeStubGraphBuilder<FastCloneShallowObjectStub>::BuildCodeStub() {
-  HValue* undefined = graph()->GetConstantUndefined();
+HValue* CodeStubGraphBuilder<StoreScriptContextFieldStub>::BuildCodeStub() {
+  int context_index = casted_stub()->context_index();
+  int slot_index = casted_stub()->slot_index();
 
-  HInstruction* allocation_site = Add<HLoadKeyed>(GetParameter(0),
-                                                  GetParameter(1),
-                                                  static_cast<HValue*>(NULL),
-                                                  FAST_ELEMENTS);
+  HValue* script_context = BuildGetScriptContext(context_index);
+  Add<HStoreNamedField>(script_context,
+                        HObjectAccess::ForContextSlot(slot_index),
+                        GetParameter(2), STORE_TO_INITIALIZED_ENTRY);
+  // TODO(ishell): Remove this unused stub.
+  return GetParameter(2);
+}
 
-  IfBuilder checker(this);
-  checker.IfNot<HCompareObjectEqAndBranch, HValue*>(allocation_site,
-                                                    undefined);
-  checker.And();
 
-  HObjectAccess access = HObjectAccess::ForAllocationSiteOffset(
-      AllocationSite::kTransitionInfoOffset);
-  HInstruction* boilerplate = Add<HLoadNamedField>(
-      allocation_site, static_cast<HValue*>(NULL), access);
+Handle<Code> StoreScriptContextFieldStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
 
-  int length = casted_stub()->length();
-  if (length == 0) {
-    // Empty objects have some slack added to them.
-    length = JSObject::kInitialGlobalObjectUnusedPropertiesCount;
-  }
-  int size = JSObject::kHeaderSize + length * kPointerSize;
-  int object_size = size;
-  if (FLAG_allocation_site_pretenuring) {
-    size += AllocationMemento::kSize;
-  }
-
-  HValue* boilerplate_map = Add<HLoadNamedField>(
-      boilerplate, static_cast<HValue*>(NULL),
-      HObjectAccess::ForMap());
-  HValue* boilerplate_size = Add<HLoadNamedField>(
-      boilerplate_map, static_cast<HValue*>(NULL),
-      HObjectAccess::ForMapInstanceSize());
-  HValue* size_in_words = Add<HConstant>(object_size >> kPointerSizeLog2);
-  checker.If<HCompareNumericAndBranch>(boilerplate_size,
-                                       size_in_words, Token::EQ);
-  checker.Then();
-
-  HValue* size_in_bytes = Add<HConstant>(size);
-
-  HInstruction* object = Add<HAllocate>(size_in_bytes, HType::JSObject(),
-      NOT_TENURED, JS_OBJECT_TYPE);
-
-  for (int i = 0; i < object_size; i += kPointerSize) {
-    HObjectAccess access = HObjectAccess::ForObservableJSObjectOffset(i);
-    Add<HStoreNamedField>(
-        object, access, Add<HLoadNamedField>(
-            boilerplate, static_cast<HValue*>(NULL), access));
+HValue* CodeStubGraphBuilderBase::BuildPushElement(HValue* object, HValue* argc,
+                                                   HValue* argument_elements,
+                                                   ElementsKind kind) {
+  // Precheck whether all elements fit into the array.
+  if (!IsFastObjectElementsKind(kind)) {
+    LoopBuilder builder(this, context(), LoopBuilder::kPostIncrement);
+    HValue* start = graph()->GetConstant0();
+    HValue* key = builder.BeginBody(start, argc, Token::LT);
+    {
+      HInstruction* argument =
+          Add<HAccessArgumentsAt>(argument_elements, argc, key);
+      IfBuilder can_store(this);
+      can_store.IfNot<HIsSmiAndBranch>(argument);
+      if (IsFastDoubleElementsKind(kind)) {
+        can_store.And();
+        can_store.IfNot<HCompareMap>(argument,
+                                     isolate()->factory()->heap_number_map());
+      }
+      can_store.ThenDeopt(DeoptimizeReason::kFastPathFailed);
+      can_store.End();
+    }
+    builder.EndBody();
   }
 
-  DCHECK(FLAG_allocation_site_pretenuring || (size == object_size));
-  if (FLAG_allocation_site_pretenuring) {
-    BuildCreateAllocationMemento(
-        object, Add<HConstant>(object_size), allocation_site);
+  HValue* length = Add<HLoadNamedField>(object, nullptr,
+                                        HObjectAccess::ForArrayLength(kind));
+  HValue* new_length = AddUncasted<HAdd>(length, argc);
+  HValue* max_key = AddUncasted<HSub>(new_length, graph()->GetConstant1());
+
+  HValue* elements = Add<HLoadNamedField>(object, nullptr,
+                                          HObjectAccess::ForElementsPointer());
+  elements = BuildCheckForCapacityGrow(object, elements, kind, length, max_key,
+                                       true, STORE);
+
+  LoopBuilder builder(this, context(), LoopBuilder::kPostIncrement);
+  HValue* start = graph()->GetConstant0();
+  HValue* key = builder.BeginBody(start, argc, Token::LT);
+  {
+    HValue* argument = Add<HAccessArgumentsAt>(argument_elements, argc, key);
+    HValue* index = AddUncasted<HAdd>(key, length);
+    AddElementAccess(elements, index, argument, object, nullptr, kind, STORE);
+  }
+  builder.EndBody();
+  return new_length;
+}
+
+template <>
+HValue* CodeStubGraphBuilder<FastArrayPushStub>::BuildCodeStub() {
+  // TODO(verwaest): Fix deoptimizer messages.
+  HValue* argc = GetArgumentsLength();
+  HInstruction* argument_elements = Add<HArgumentsElements>(false, false);
+  HInstruction* object = Add<HAccessArgumentsAt>(argument_elements, argc,
+                                                 graph()->GetConstantMinus1());
+  BuildCheckHeapObject(object);
+  HValue* map = Add<HLoadNamedField>(object, nullptr, HObjectAccess::ForMap());
+  Add<HCheckInstanceType>(object, HCheckInstanceType::IS_JS_ARRAY);
+
+  // Disallow pushing onto prototypes. It might be the JSArray prototype.
+  // Disallow pushing onto non-extensible objects.
+  {
+    HValue* bit_field2 =
+        Add<HLoadNamedField>(map, nullptr, HObjectAccess::ForMapBitField2());
+    HValue* mask =
+        Add<HConstant>(static_cast<int>(Map::IsPrototypeMapBits::kMask) |
+                       (1 << Map::kIsExtensible));
+    HValue* bits = AddUncasted<HBitwise>(Token::BIT_AND, bit_field2, mask);
+    IfBuilder check(this);
+    check.If<HCompareNumericAndBranch>(
+        bits, Add<HConstant>(1 << Map::kIsExtensible), Token::NE);
+    check.ThenDeopt(DeoptimizeReason::kFastPathFailed);
+    check.End();
   }
 
-  environment()->Push(object);
-  checker.ElseDeopt("Uninitialized boilerplate in fast clone");
-  checker.End();
+  // Disallow pushing onto arrays in dictionary named property mode. We need to
+  // figure out whether the length property is still writable.
+  {
+    HValue* bit_field3 =
+        Add<HLoadNamedField>(map, nullptr, HObjectAccess::ForMapBitField3());
+    HValue* mask = Add<HConstant>(static_cast<int>(Map::DictionaryMap::kMask));
+    HValue* bit = AddUncasted<HBitwise>(Token::BIT_AND, bit_field3, mask);
+    IfBuilder check(this);
+    check.If<HCompareNumericAndBranch>(bit, mask, Token::EQ);
+    check.ThenDeopt(DeoptimizeReason::kFastPathFailed);
+    check.End();
+  }
+
+  // Check whether the length property is writable. The length property is the
+  // only default named property on arrays. It's nonconfigurable, hence is
+  // guaranteed to stay the first property.
+  {
+    HValue* descriptors =
+        Add<HLoadNamedField>(map, nullptr, HObjectAccess::ForMapDescriptors());
+    HValue* details = Add<HLoadKeyed>(
+        descriptors, Add<HConstant>(DescriptorArray::ToDetailsIndex(0)),
+        nullptr, nullptr, FAST_SMI_ELEMENTS);
+    HValue* mask =
+        Add<HConstant>(READ_ONLY << PropertyDetails::AttributesField::kShift);
+    HValue* bit = AddUncasted<HBitwise>(Token::BIT_AND, details, mask);
+    IfBuilder readonly(this);
+    readonly.If<HCompareNumericAndBranch>(bit, mask, Token::EQ);
+    readonly.ThenDeopt(DeoptimizeReason::kFastPathFailed);
+    readonly.End();
+  }
+
+  HValue* null = Add<HLoadRoot>(Heap::kNullValueRootIndex);
+  HValue* empty = Add<HLoadRoot>(Heap::kEmptyFixedArrayRootIndex);
+  environment()->Push(map);
+  LoopBuilder check_prototypes(this);
+  check_prototypes.BeginBody(1);
+  {
+    HValue* parent_map = environment()->Pop();
+    HValue* prototype = Add<HLoadNamedField>(parent_map, nullptr,
+                                             HObjectAccess::ForPrototype());
+
+    IfBuilder is_null(this);
+    is_null.If<HCompareObjectEqAndBranch>(prototype, null);
+    is_null.Then();
+    check_prototypes.Break();
+    is_null.End();
+
+    HValue* prototype_map =
+        Add<HLoadNamedField>(prototype, nullptr, HObjectAccess::ForMap());
+    HValue* instance_type = Add<HLoadNamedField>(
+        prototype_map, nullptr, HObjectAccess::ForMapInstanceType());
+    IfBuilder check_instance_type(this);
+    check_instance_type.If<HCompareNumericAndBranch>(
+        instance_type, Add<HConstant>(LAST_CUSTOM_ELEMENTS_RECEIVER),
+        Token::LTE);
+    check_instance_type.ThenDeopt(DeoptimizeReason::kFastPathFailed);
+    check_instance_type.End();
+
+    HValue* elements = Add<HLoadNamedField>(
+        prototype, nullptr, HObjectAccess::ForElementsPointer());
+    IfBuilder no_elements(this);
+    no_elements.IfNot<HCompareObjectEqAndBranch>(elements, empty);
+    no_elements.ThenDeopt(DeoptimizeReason::kFastPathFailed);
+    no_elements.End();
+
+    environment()->Push(prototype_map);
+  }
+  check_prototypes.EndBody();
+
+  HValue* bit_field2 =
+      Add<HLoadNamedField>(map, nullptr, HObjectAccess::ForMapBitField2());
+  HValue* kind = BuildDecodeField<Map::ElementsKindBits>(bit_field2);
+
+  // Below we only check the upper bound of the relevant ranges to include both
+  // holey and non-holey versions. We check them in order smi, object, double
+  // since smi < object < double.
+  STATIC_ASSERT(FAST_SMI_ELEMENTS < FAST_HOLEY_SMI_ELEMENTS);
+  STATIC_ASSERT(FAST_HOLEY_SMI_ELEMENTS < FAST_HOLEY_ELEMENTS);
+  STATIC_ASSERT(FAST_ELEMENTS < FAST_HOLEY_ELEMENTS);
+  STATIC_ASSERT(FAST_HOLEY_ELEMENTS < FAST_HOLEY_DOUBLE_ELEMENTS);
+  STATIC_ASSERT(FAST_DOUBLE_ELEMENTS < FAST_HOLEY_DOUBLE_ELEMENTS);
+  IfBuilder has_smi_elements(this);
+  has_smi_elements.If<HCompareNumericAndBranch>(
+      kind, Add<HConstant>(FAST_HOLEY_SMI_ELEMENTS), Token::LTE);
+  has_smi_elements.Then();
+  {
+    HValue* new_length = BuildPushElement(object, argc, argument_elements,
+                                          FAST_HOLEY_SMI_ELEMENTS);
+    environment()->Push(new_length);
+  }
+  has_smi_elements.Else();
+  {
+    IfBuilder has_object_elements(this);
+    has_object_elements.If<HCompareNumericAndBranch>(
+        kind, Add<HConstant>(FAST_HOLEY_ELEMENTS), Token::LTE);
+    has_object_elements.Then();
+    {
+      HValue* new_length = BuildPushElement(object, argc, argument_elements,
+                                            FAST_HOLEY_ELEMENTS);
+      environment()->Push(new_length);
+    }
+    has_object_elements.Else();
+    {
+      IfBuilder has_double_elements(this);
+      has_double_elements.If<HCompareNumericAndBranch>(
+          kind, Add<HConstant>(FAST_HOLEY_DOUBLE_ELEMENTS), Token::LTE);
+      has_double_elements.Then();
+      {
+        HValue* new_length = BuildPushElement(object, argc, argument_elements,
+                                              FAST_HOLEY_DOUBLE_ELEMENTS);
+        environment()->Push(new_length);
+      }
+      has_double_elements.ElseDeopt(DeoptimizeReason::kFastPathFailed);
+      has_double_elements.End();
+    }
+    has_object_elements.End();
+  }
+  has_smi_elements.End();
 
   return environment()->Pop();
 }
 
-
-Handle<Code> FastCloneShallowObjectStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
+Handle<Code> FastArrayPushStub::GenerateCode() { return DoGenerateCode(this); }
 
 template <>
-HValue* CodeStubGraphBuilder<CreateAllocationSiteStub>::BuildCodeStub() {
-  HValue* size = Add<HConstant>(AllocationSite::kSize);
-  HInstruction* object = Add<HAllocate>(size, HType::JSObject(), TENURED,
-      JS_OBJECT_TYPE);
+HValue* CodeStubGraphBuilder<FastFunctionBindStub>::BuildCodeStub() {
+  // TODO(verwaest): Fix deoptimizer messages.
+  HValue* argc = GetArgumentsLength();
+  HInstruction* argument_elements = Add<HArgumentsElements>(false, false);
+  HInstruction* object = Add<HAccessArgumentsAt>(argument_elements, argc,
+                                                 graph()->GetConstantMinus1());
+  BuildCheckHeapObject(object);
+  HValue* map = Add<HLoadNamedField>(object, nullptr, HObjectAccess::ForMap());
+  Add<HCheckInstanceType>(object, HCheckInstanceType::IS_JS_FUNCTION);
 
-  // Store the map
-  Handle<Map> allocation_site_map = isolate()->factory()->allocation_site_map();
-  AddStoreMapConstant(object, allocation_site_map);
+  // Disallow binding of slow-mode functions. We need to figure out whether the
+  // length and name property are in the original state.
+  {
+    HValue* bit_field3 =
+        Add<HLoadNamedField>(map, nullptr, HObjectAccess::ForMapBitField3());
+    HValue* mask = Add<HConstant>(static_cast<int>(Map::DictionaryMap::kMask));
+    HValue* bit = AddUncasted<HBitwise>(Token::BIT_AND, bit_field3, mask);
+    IfBuilder check(this);
+    check.If<HCompareNumericAndBranch>(bit, mask, Token::EQ);
+    check.ThenDeopt(DeoptimizeReason::kFastPathFailed);
+    check.End();
+  }
 
-  // Store the payload (smi elements kind)
-  HValue* initial_elements_kind = Add<HConstant>(GetInitialFastElementsKind());
-  Add<HStoreNamedField>(object,
-                        HObjectAccess::ForAllocationSiteOffset(
-                            AllocationSite::kTransitionInfoOffset),
-                        initial_elements_kind);
+  // Check whether the length and name properties are still present as
+  // AccessorInfo objects. In that case, their value can be recomputed even if
+  // the actual value on the object changes.
+  {
+    HValue* descriptors =
+        Add<HLoadNamedField>(map, nullptr, HObjectAccess::ForMapDescriptors());
 
-  // Unlike literals, constructed arrays don't have nested sites
-  Add<HStoreNamedField>(object,
-                        HObjectAccess::ForAllocationSiteOffset(
-                            AllocationSite::kNestedSiteOffset),
-                        graph()->GetConstant0());
+    HValue* descriptors_length = Add<HLoadNamedField>(
+        descriptors, nullptr, HObjectAccess::ForFixedArrayLength());
+    IfBuilder range(this);
+    range.If<HCompareNumericAndBranch>(descriptors_length,
+                                       graph()->GetConstant1(), Token::LTE);
+    range.ThenDeopt(DeoptimizeReason::kFastPathFailed);
+    range.End();
 
-  // Pretenuring calculation field.
-  Add<HStoreNamedField>(object,
-                        HObjectAccess::ForAllocationSiteOffset(
-                            AllocationSite::kPretenureDataOffset),
-                        graph()->GetConstant0());
+    // Verify .length.
+    const int length_index = JSFunction::kLengthDescriptorIndex;
+    HValue* maybe_length = Add<HLoadKeyed>(
+        descriptors, Add<HConstant>(DescriptorArray::ToKeyIndex(length_index)),
+        nullptr, nullptr, FAST_ELEMENTS);
+    Unique<Name> length_string = Unique<Name>::CreateUninitialized(
+        isolate()->factory()->length_string());
+    Add<HCheckValue>(maybe_length, length_string, false);
 
-  // Pretenuring memento creation count field.
-  Add<HStoreNamedField>(object,
-                        HObjectAccess::ForAllocationSiteOffset(
-                            AllocationSite::kPretenureCreateCountOffset),
-                        graph()->GetConstant0());
+    HValue* maybe_length_accessor = Add<HLoadKeyed>(
+        descriptors,
+        Add<HConstant>(DescriptorArray::ToValueIndex(length_index)), nullptr,
+        nullptr, FAST_ELEMENTS);
+    BuildCheckHeapObject(maybe_length_accessor);
+    Add<HCheckMaps>(maybe_length_accessor,
+                    isolate()->factory()->accessor_info_map());
 
-  // Store an empty fixed array for the code dependency.
-  HConstant* empty_fixed_array =
-    Add<HConstant>(isolate()->factory()->empty_fixed_array());
-  Add<HStoreNamedField>(
-      object,
-      HObjectAccess::ForAllocationSiteOffset(
-          AllocationSite::kDependentCodeOffset),
-      empty_fixed_array);
+    // Verify .name.
+    const int name_index = JSFunction::kNameDescriptorIndex;
+    HValue* maybe_name = Add<HLoadKeyed>(
+        descriptors, Add<HConstant>(DescriptorArray::ToKeyIndex(name_index)),
+        nullptr, nullptr, FAST_ELEMENTS);
+    Unique<Name> name_string =
+        Unique<Name>::CreateUninitialized(isolate()->factory()->name_string());
+    Add<HCheckValue>(maybe_name, name_string, false);
 
-  // Link the object to the allocation site list
-  HValue* site_list = Add<HConstant>(
-      ExternalReference::allocation_sites_list_address(isolate()));
-  HValue* site = Add<HLoadNamedField>(
-      site_list, static_cast<HValue*>(NULL),
-      HObjectAccess::ForAllocationSiteList());
-  // TODO(mvstanton): This is a store to a weak pointer, which we may want to
-  // mark as such in order to skip the write barrier, once we have a unified
-  // system for weakness. For now we decided to keep it like this because having
-  // an initial write barrier backed store makes this pointer strong until the
-  // next GC, and allocation sites are designed to survive several GCs anyway.
-  Add<HStoreNamedField>(
-      object,
-      HObjectAccess::ForAllocationSiteOffset(AllocationSite::kWeakNextOffset),
-      site);
-  Add<HStoreNamedField>(site_list, HObjectAccess::ForAllocationSiteList(),
+    HValue* maybe_name_accessor = Add<HLoadKeyed>(
+        descriptors, Add<HConstant>(DescriptorArray::ToValueIndex(name_index)),
+        nullptr, nullptr, FAST_ELEMENTS);
+    BuildCheckHeapObject(maybe_name_accessor);
+    Add<HCheckMaps>(maybe_name_accessor,
+                    isolate()->factory()->accessor_info_map());
+  }
+
+  // Choose the right bound function map based on whether the target is
+  // constructable.
+  {
+    HValue* bit_field =
+        Add<HLoadNamedField>(map, nullptr, HObjectAccess::ForMapBitField());
+    HValue* mask = Add<HConstant>(static_cast<int>(1 << Map::kIsConstructor));
+    HValue* bits = AddUncasted<HBitwise>(Token::BIT_AND, bit_field, mask);
+
+    HValue* native_context = BuildGetNativeContext();
+    IfBuilder is_constructor(this);
+    is_constructor.If<HCompareNumericAndBranch>(bits, mask, Token::EQ);
+    is_constructor.Then();
+    {
+      HValue* map = Add<HLoadNamedField>(
+          native_context, nullptr,
+          HObjectAccess::ForContextSlot(
+              Context::BOUND_FUNCTION_WITH_CONSTRUCTOR_MAP_INDEX));
+      environment()->Push(map);
+    }
+    is_constructor.Else();
+    {
+      HValue* map = Add<HLoadNamedField>(
+          native_context, nullptr,
+          HObjectAccess::ForContextSlot(
+              Context::BOUND_FUNCTION_WITHOUT_CONSTRUCTOR_MAP_INDEX));
+      environment()->Push(map);
+    }
+    is_constructor.End();
+  }
+  HValue* bound_function_map = environment()->Pop();
+
+  // Verify that __proto__ matches that of a the target bound function.
+  {
+    HValue* prototype =
+        Add<HLoadNamedField>(map, nullptr, HObjectAccess::ForPrototype());
+    HValue* expected_prototype = Add<HLoadNamedField>(
+        bound_function_map, nullptr, HObjectAccess::ForPrototype());
+    IfBuilder equal_prototype(this);
+    equal_prototype.IfNot<HCompareObjectEqAndBranch>(prototype,
+                                                     expected_prototype);
+    equal_prototype.ThenDeopt(DeoptimizeReason::kFastPathFailed);
+    equal_prototype.End();
+  }
+
+  // Allocate the arguments array.
+  IfBuilder empty_args(this);
+  empty_args.If<HCompareNumericAndBranch>(argc, graph()->GetConstant1(),
+                                          Token::LTE);
+  empty_args.Then();
+  { environment()->Push(Add<HLoadRoot>(Heap::kEmptyFixedArrayRootIndex)); }
+  empty_args.Else();
+  {
+    HValue* elements_length = AddUncasted<HSub>(argc, graph()->GetConstant1());
+    HValue* elements =
+        BuildAllocateAndInitializeArray(FAST_ELEMENTS, elements_length);
+
+    LoopBuilder builder(this, context(), LoopBuilder::kPostIncrement);
+    HValue* start = graph()->GetConstant1();
+    HValue* key = builder.BeginBody(start, argc, Token::LT);
+    {
+      HValue* argument = Add<HAccessArgumentsAt>(argument_elements, argc, key);
+      HValue* index = AddUncasted<HSub>(key, graph()->GetConstant1());
+      AddElementAccess(elements, index, argument, elements, nullptr,
+                       FAST_ELEMENTS, STORE);
+    }
+    builder.EndBody();
+    environment()->Push(elements);
+  }
+  empty_args.End();
+  HValue* elements = environment()->Pop();
+
+  // Find the 'this' to bind.
+  IfBuilder no_receiver(this);
+  no_receiver.If<HCompareNumericAndBranch>(argc, graph()->GetConstant0(),
+                                           Token::EQ);
+  no_receiver.Then();
+  { environment()->Push(Add<HLoadRoot>(Heap::kUndefinedValueRootIndex)); }
+  no_receiver.Else();
+  {
+    environment()->Push(Add<HAccessArgumentsAt>(argument_elements, argc,
+                                                graph()->GetConstant0()));
+  }
+  no_receiver.End();
+  HValue* receiver = environment()->Pop();
+
+  // Allocate the resulting bound function.
+  HValue* size = Add<HConstant>(JSBoundFunction::kSize);
+  HValue* bound_function =
+      Add<HAllocate>(size, HType::JSObject(), NOT_TENURED,
+                     JS_BOUND_FUNCTION_TYPE, graph()->GetConstant0());
+  Add<HStoreNamedField>(bound_function, HObjectAccess::ForMap(),
+                        bound_function_map);
+  HValue* empty_fixed_array = Add<HLoadRoot>(Heap::kEmptyFixedArrayRootIndex);
+  Add<HStoreNamedField>(bound_function, HObjectAccess::ForPropertiesPointer(),
+                        empty_fixed_array);
+  Add<HStoreNamedField>(bound_function, HObjectAccess::ForElementsPointer(),
+                        empty_fixed_array);
+  Add<HStoreNamedField>(bound_function, HObjectAccess::ForBoundTargetFunction(),
                         object);
 
-  HInstruction* feedback_vector = GetParameter(0);
-  HInstruction* slot = GetParameter(1);
-  Add<HStoreKeyed>(feedback_vector, slot, object, FAST_ELEMENTS,
-                   INITIALIZING_STORE);
-  return feedback_vector;
+  Add<HStoreNamedField>(bound_function, HObjectAccess::ForBoundThis(),
+                        receiver);
+  Add<HStoreNamedField>(bound_function, HObjectAccess::ForBoundArguments(),
+                        elements);
+
+  return bound_function;
 }
 
-
-Handle<Code> CreateAllocationSiteStub::GenerateCode() {
+Handle<Code> FastFunctionBindStub::GenerateCode() {
   return DoGenerateCode(this);
 }
-
 
 template <>
 HValue* CodeStubGraphBuilder<LoadFastElementStub>::BuildCodeStub() {
+  LoadKeyedHoleMode hole_mode = casted_stub()->convert_hole_to_undefined()
+                                    ? CONVERT_HOLE_TO_UNDEFINED
+                                    : NEVER_RETURN_HOLE;
+
   HInstruction* load = BuildUncheckedMonomorphicElementAccess(
-      GetParameter(LoadDescriptor::kReceiverIndex),
-      GetParameter(LoadDescriptor::kNameIndex), NULL,
-      casted_stub()->is_js_array(), casted_stub()->elements_kind(), LOAD,
-      NEVER_RETURN_HOLE, STANDARD_STORE);
+      GetParameter(Descriptor::kReceiver), GetParameter(Descriptor::kName),
+      NULL, casted_stub()->is_js_array(), casted_stub()->elements_kind(), LOAD,
+      hole_mode, STANDARD_STORE);
   return load;
 }
 
@@ -538,21 +865,22 @@ HLoadNamedField* CodeStubGraphBuilderBase::BuildLoadNamedField(
   HObjectAccess access = index.is_inobject()
       ? HObjectAccess::ForObservableJSObjectOffset(offset, representation)
       : HObjectAccess::ForBackingStoreOffset(offset, representation);
-  if (index.is_double()) {
+  if (index.is_double() &&
+      (!FLAG_unbox_double_fields || !index.is_inobject())) {
     // Load the heap number.
     object = Add<HLoadNamedField>(
-        object, static_cast<HValue*>(NULL),
-        access.WithRepresentation(Representation::Tagged()));
+        object, nullptr, access.WithRepresentation(Representation::Tagged()));
     // Load the double value from it.
     access = HObjectAccess::ForHeapNumberValue();
   }
-  return Add<HLoadNamedField>(object, static_cast<HValue*>(NULL), access);
+  return Add<HLoadNamedField>(object, nullptr, access);
 }
 
 
 template<>
 HValue* CodeStubGraphBuilder<LoadFieldStub>::BuildCodeStub() {
-  return BuildLoadNamedField(GetParameter(0), casted_stub()->index());
+  return BuildLoadNamedField(GetParameter(Descriptor::kReceiver),
+                             casted_stub()->index());
 }
 
 
@@ -563,49 +891,49 @@ Handle<Code> LoadFieldStub::GenerateCode() {
 
 template <>
 HValue* CodeStubGraphBuilder<LoadConstantStub>::BuildCodeStub() {
-  HValue* map = AddLoadMap(GetParameter(0), NULL);
+  HValue* map = AddLoadMap(GetParameter(Descriptor::kReceiver), NULL);
   HObjectAccess descriptors_access = HObjectAccess::ForObservableJSObjectOffset(
       Map::kDescriptorsOffset, Representation::Tagged());
-  HValue* descriptors =
-      Add<HLoadNamedField>(map, static_cast<HValue*>(NULL), descriptors_access);
+  HValue* descriptors = Add<HLoadNamedField>(map, nullptr, descriptors_access);
   HObjectAccess value_access = HObjectAccess::ForObservableJSObjectOffset(
       DescriptorArray::GetValueOffset(casted_stub()->constant_index()));
-  return Add<HLoadNamedField>(descriptors, static_cast<HValue*>(NULL),
-                              value_access);
+  return Add<HLoadNamedField>(descriptors, nullptr, value_access);
 }
 
 
 Handle<Code> LoadConstantStub::GenerateCode() { return DoGenerateCode(this); }
 
 
-HValue* CodeStubGraphBuilderBase::UnmappedCase(HValue* elements, HValue* key) {
-  HValue* result;
-  HInstruction* backing_store = Add<HLoadKeyed>(
-      elements, graph()->GetConstant1(), static_cast<HValue*>(NULL),
-      FAST_ELEMENTS, ALLOW_RETURN_HOLE);
+HValue* CodeStubGraphBuilderBase::UnmappedCase(HValue* elements, HValue* key,
+                                               HValue* value) {
+  HValue* result = NULL;
+  HInstruction* backing_store =
+      Add<HLoadKeyed>(elements, graph()->GetConstant1(), nullptr, nullptr,
+                      FAST_ELEMENTS, ALLOW_RETURN_HOLE);
   Add<HCheckMaps>(backing_store, isolate()->factory()->fixed_array_map());
-  HValue* backing_store_length =
-      Add<HLoadNamedField>(backing_store, static_cast<HValue*>(NULL),
-                           HObjectAccess::ForFixedArrayLength());
+  HValue* backing_store_length = Add<HLoadNamedField>(
+      backing_store, nullptr, HObjectAccess::ForFixedArrayLength());
   IfBuilder in_unmapped_range(this);
   in_unmapped_range.If<HCompareNumericAndBranch>(key, backing_store_length,
                                                  Token::LT);
   in_unmapped_range.Then();
   {
-    result = Add<HLoadKeyed>(backing_store, key, static_cast<HValue*>(NULL),
-                             FAST_HOLEY_ELEMENTS, NEVER_RETURN_HOLE);
+    if (value == NULL) {
+      result = Add<HLoadKeyed>(backing_store, key, nullptr, nullptr,
+                               FAST_HOLEY_ELEMENTS, NEVER_RETURN_HOLE);
+    } else {
+      Add<HStoreKeyed>(backing_store, key, value, nullptr, FAST_HOLEY_ELEMENTS);
+    }
   }
-  in_unmapped_range.ElseDeopt("Outside of range");
+  in_unmapped_range.ElseDeopt(DeoptimizeReason::kOutsideOfRange);
   in_unmapped_range.End();
   return result;
 }
 
 
-template <>
-HValue* CodeStubGraphBuilder<KeyedLoadSloppyArgumentsStub>::BuildCodeStub() {
-  HValue* receiver = GetParameter(LoadDescriptor::kReceiverIndex);
-  HValue* key = GetParameter(LoadDescriptor::kNameIndex);
-
+HValue* CodeStubGraphBuilderBase::EmitKeyedSloppyArguments(HValue* receiver,
+                                                           HValue* key,
+                                                           HValue* value) {
   // Mapped arguments are actual arguments. Unmapped arguments are values added
   // to the arguments object after it was created for the call. Mapped arguments
   // are stored in the context at indexes given by elements[key + 2]. Unmapped
@@ -632,18 +960,19 @@ HValue* CodeStubGraphBuilder<KeyedLoadSloppyArgumentsStub>::BuildCodeStub() {
   // index into the context array given at elements[0]. Return the value at
   // context[t].
 
+  bool is_load = value == NULL;
+
   key = AddUncasted<HForceRepresentation>(key, Representation::Smi());
   IfBuilder positive_smi(this);
   positive_smi.If<HCompareNumericAndBranch>(key, graph()->GetConstant0(),
                                             Token::LT);
-  positive_smi.ThenDeopt("key is negative");
+  positive_smi.ThenDeopt(DeoptimizeReason::kKeyIsNegative);
   positive_smi.End();
 
   HValue* constant_two = Add<HConstant>(2);
-  HValue* elements = AddLoadElements(receiver, static_cast<HValue*>(NULL));
-  HValue* elements_length =
-      Add<HLoadNamedField>(elements, static_cast<HValue*>(NULL),
-                           HObjectAccess::ForFixedArrayLength());
+  HValue* elements = AddLoadElements(receiver, nullptr);
+  HValue* elements_length = Add<HLoadNamedField>(
+      elements, nullptr, HObjectAccess::ForFixedArrayLength());
   HValue* adjusted_length = AddUncasted<HSub>(elements_length, constant_two);
   IfBuilder in_range(this);
   in_range.If<HCompareNumericAndBranch>(key, adjusted_length, Token::LT);
@@ -651,8 +980,8 @@ HValue* CodeStubGraphBuilder<KeyedLoadSloppyArgumentsStub>::BuildCodeStub() {
   {
     HValue* index = AddUncasted<HAdd>(key, constant_two);
     HInstruction* mapped_index =
-        Add<HLoadKeyed>(elements, index, static_cast<HValue*>(NULL),
-                        FAST_HOLEY_ELEMENTS, ALLOW_RETURN_HOLE);
+        Add<HLoadKeyed>(elements, index, nullptr, nullptr, FAST_HOLEY_ELEMENTS,
+                        ALLOW_RETURN_HOLE);
 
     IfBuilder is_valid(this);
     is_valid.IfNot<HCompareObjectEqAndBranch>(mapped_index,
@@ -662,26 +991,32 @@ HValue* CodeStubGraphBuilder<KeyedLoadSloppyArgumentsStub>::BuildCodeStub() {
       // TODO(mvstanton): I'd like to assert from this point, that if the
       // mapped_index is not the hole that it is indeed, a smi. An unnecessary
       // smi check is being emitted.
-      HValue* the_context =
-          Add<HLoadKeyed>(elements, graph()->GetConstant0(),
-                          static_cast<HValue*>(NULL), FAST_ELEMENTS);
-      DCHECK(Context::kHeaderSize == FixedArray::kHeaderSize);
-      HValue* result =
-          Add<HLoadKeyed>(the_context, mapped_index, static_cast<HValue*>(NULL),
-                          FAST_ELEMENTS, ALLOW_RETURN_HOLE);
-      environment()->Push(result);
+      HValue* the_context = Add<HLoadKeyed>(elements, graph()->GetConstant0(),
+                                            nullptr, nullptr, FAST_ELEMENTS);
+      STATIC_ASSERT(Context::kHeaderSize == FixedArray::kHeaderSize);
+      if (is_load) {
+        HValue* result =
+            Add<HLoadKeyed>(the_context, mapped_index, nullptr, nullptr,
+                            FAST_ELEMENTS, ALLOW_RETURN_HOLE);
+        environment()->Push(result);
+      } else {
+        DCHECK(value != NULL);
+        Add<HStoreKeyed>(the_context, mapped_index, value, nullptr,
+                         FAST_ELEMENTS);
+        environment()->Push(value);
+      }
     }
     is_valid.Else();
     {
-      HValue* result = UnmappedCase(elements, key);
-      environment()->Push(result);
+      HValue* result = UnmappedCase(elements, key, value);
+      environment()->Push(is_load ? result : value);
     }
     is_valid.End();
   }
   in_range.Else();
   {
-    HValue* result = UnmappedCase(elements, key);
-    environment()->Push(result);
+    HValue* result = UnmappedCase(elements, key, value);
+    environment()->Push(is_load ? result : value);
   }
   in_range.End();
 
@@ -689,7 +1024,31 @@ HValue* CodeStubGraphBuilder<KeyedLoadSloppyArgumentsStub>::BuildCodeStub() {
 }
 
 
+template <>
+HValue* CodeStubGraphBuilder<KeyedLoadSloppyArgumentsStub>::BuildCodeStub() {
+  HValue* receiver = GetParameter(Descriptor::kReceiver);
+  HValue* key = GetParameter(Descriptor::kName);
+
+  return EmitKeyedSloppyArguments(receiver, key, NULL);
+}
+
+
 Handle<Code> KeyedLoadSloppyArgumentsStub::GenerateCode() {
+  return DoGenerateCode(this);
+}
+
+
+template <>
+HValue* CodeStubGraphBuilder<KeyedStoreSloppyArgumentsStub>::BuildCodeStub() {
+  HValue* receiver = GetParameter(Descriptor::kReceiver);
+  HValue* key = GetParameter(Descriptor::kName);
+  HValue* value = GetParameter(Descriptor::kValue);
+
+  return EmitKeyedSloppyArguments(receiver, key, value);
+}
+
+
+Handle<Code> KeyedStoreSloppyArgumentsStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 
@@ -705,30 +1064,31 @@ void CodeStubGraphBuilderBase::BuildStoreNamedField(
           : HObjectAccess::ForBackingStoreOffset(offset, representation);
 
   if (representation.IsDouble()) {
-    HObjectAccess heap_number_access =
-        access.WithRepresentation(Representation::Tagged());
-    if (transition_to_field) {
-      // The store requires a mutable HeapNumber to be allocated.
-      NoObservableSideEffectsScope no_side_effects(this);
-      HInstruction* heap_number_size = Add<HConstant>(HeapNumber::kSize);
+    if (!FLAG_unbox_double_fields || !index.is_inobject()) {
+      HObjectAccess heap_number_access =
+          access.WithRepresentation(Representation::Tagged());
+      if (transition_to_field) {
+        // The store requires a mutable HeapNumber to be allocated.
+        NoObservableSideEffectsScope no_side_effects(this);
+        HInstruction* heap_number_size = Add<HConstant>(HeapNumber::kSize);
 
-      // TODO(hpayer): Allocation site pretenuring support.
-      HInstruction* heap_number =
-          Add<HAllocate>(heap_number_size, HType::HeapObject(), NOT_TENURED,
-                         MUTABLE_HEAP_NUMBER_TYPE);
-      AddStoreMapConstant(heap_number,
-                          isolate()->factory()->mutable_heap_number_map());
-      Add<HStoreNamedField>(heap_number, HObjectAccess::ForHeapNumberValue(),
-                            value);
-      // Store the new mutable heap number into the object.
-      access = heap_number_access;
-      value = heap_number;
-    } else {
-      // Load the heap number.
-      object = Add<HLoadNamedField>(object, static_cast<HValue*>(NULL),
-                                    heap_number_access);
-      // Store the double value into it.
-      access = HObjectAccess::ForHeapNumberValue();
+        // TODO(hpayer): Allocation site pretenuring support.
+        HInstruction* heap_number =
+            Add<HAllocate>(heap_number_size, HType::HeapObject(), NOT_TENURED,
+                           MUTABLE_HEAP_NUMBER_TYPE, graph()->GetConstant0());
+        AddStoreMapConstant(heap_number,
+                            isolate()->factory()->mutable_heap_number_map());
+        Add<HStoreNamedField>(heap_number, HObjectAccess::ForHeapNumberValue(),
+                              value);
+        // Store the new mutable heap number into the object.
+        access = heap_number_access;
+        value = heap_number;
+      } else {
+        // Load the heap number.
+        object = Add<HLoadNamedField>(object, nullptr, heap_number_access);
+        // Store the double value into it.
+        access = HObjectAccess::ForHeapNumberValue();
+      }
     }
   } else if (representation.IsHeapObject()) {
     BuildCheckHeapObject(value);
@@ -740,9 +1100,10 @@ void CodeStubGraphBuilderBase::BuildStoreNamedField(
 
 template <>
 HValue* CodeStubGraphBuilder<StoreFieldStub>::BuildCodeStub() {
-  BuildStoreNamedField(GetParameter(0), GetParameter(2), casted_stub()->index(),
+  BuildStoreNamedField(GetParameter(Descriptor::kReceiver),
+                       GetParameter(Descriptor::kValue), casted_stub()->index(),
                        casted_stub()->representation(), false);
-  return GetParameter(2);
+  return GetParameter(Descriptor::kValue);
 }
 
 
@@ -751,13 +1112,25 @@ Handle<Code> StoreFieldStub::GenerateCode() { return DoGenerateCode(this); }
 
 template <>
 HValue* CodeStubGraphBuilder<StoreTransitionStub>::BuildCodeStub() {
-  HValue* object = GetParameter(StoreTransitionDescriptor::kReceiverIndex);
+  HValue* object = GetParameter(StoreTransitionHelper::ReceiverIndex());
+  HValue* value = GetParameter(StoreTransitionHelper::ValueIndex());
+  StoreTransitionStub::StoreMode store_mode = casted_stub()->store_mode();
 
-  switch (casted_stub()->store_mode()) {
+  if (store_mode != StoreTransitionStub::StoreMapOnly) {
+    value = GetParameter(StoreTransitionHelper::ValueIndex());
+    Representation representation = casted_stub()->representation();
+    if (representation.IsDouble()) {
+      // In case we are storing a double, assure that the value is a double
+      // before manipulating the properties backing store. Otherwise the actual
+      // store may deopt, leaving the backing store in an overallocated state.
+      value = AddUncasted<HForceRepresentation>(value, representation);
+    }
+  }
+
+  switch (store_mode) {
     case StoreTransitionStub::ExtendStorageAndStoreMapAndValue: {
-      HValue* properties =
-          Add<HLoadNamedField>(object, static_cast<HValue*>(NULL),
-                               HObjectAccess::ForPropertiesPointer());
+      HValue* properties = Add<HLoadNamedField>(
+          object, nullptr, HObjectAccess::ForPropertiesPointer());
       HValue* length = AddLoadFixedArrayLength(properties);
       HValue* delta =
           Add<HConstant>(static_cast<int32_t>(JSObject::kFieldsAdded));
@@ -782,18 +1155,17 @@ HValue* CodeStubGraphBuilder<StoreTransitionStub>::BuildCodeStub() {
     // Fall through.
     case StoreTransitionStub::StoreMapAndValue:
       // Store the new value into the "extended" object.
-      BuildStoreNamedField(
-          object, GetParameter(StoreTransitionDescriptor::kValueIndex),
-          casted_stub()->index(), casted_stub()->representation(), true);
+      BuildStoreNamedField(object, value, casted_stub()->index(),
+                           casted_stub()->representation(), true);
     // Fall through.
 
     case StoreTransitionStub::StoreMapOnly:
       // And finally update the map.
       Add<HStoreNamedField>(object, HObjectAccess::ForMap(),
-                            GetParameter(StoreTransitionDescriptor::kMapIndex));
+                            GetParameter(StoreTransitionHelper::MapIndex()));
       break;
   }
-  return GetParameter(StoreTransitionDescriptor::kValueIndex);
+  return value;
 }
 
 
@@ -803,29 +1175,14 @@ Handle<Code> StoreTransitionStub::GenerateCode() {
 
 
 template <>
-HValue* CodeStubGraphBuilder<StringLengthStub>::BuildCodeStub() {
-  HValue* string = BuildLoadNamedField(GetParameter(0),
-      FieldIndex::ForInObjectOffset(JSValue::kValueOffset));
-  return BuildLoadNamedField(string,
-      FieldIndex::ForInObjectOffset(String::kLengthOffset));
-}
-
-
-Handle<Code> StringLengthStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
-template <>
 HValue* CodeStubGraphBuilder<StoreFastElementStub>::BuildCodeStub() {
   BuildUncheckedMonomorphicElementAccess(
-      GetParameter(StoreDescriptor::kReceiverIndex),
-      GetParameter(StoreDescriptor::kNameIndex),
-      GetParameter(StoreDescriptor::kValueIndex), casted_stub()->is_js_array(),
+      GetParameter(Descriptor::kReceiver), GetParameter(Descriptor::kName),
+      GetParameter(Descriptor::kValue), casted_stub()->is_js_array(),
       casted_stub()->elements_kind(), STORE, NEVER_RETURN_HOLE,
       casted_stub()->store_mode());
 
-  return GetParameter(2);
+  return GetParameter(Descriptor::kValue);
 }
 
 
@@ -836,15 +1193,61 @@ Handle<Code> StoreFastElementStub::GenerateCode() {
 
 template <>
 HValue* CodeStubGraphBuilder<TransitionElementsKindStub>::BuildCodeStub() {
+  ElementsKind const from_kind = casted_stub()->from_kind();
+  ElementsKind const to_kind = casted_stub()->to_kind();
+  HValue* const object = GetParameter(Descriptor::kObject);
+  HValue* const map = GetParameter(Descriptor::kMap);
+
+  // The {object} is known to be a JSObject (otherwise it wouldn't have elements
+  // anyways).
+  object->set_type(HType::JSObject());
+
   info()->MarkAsSavesCallerDoubles();
 
-  BuildTransitionElementsKind(GetParameter(0),
-                              GetParameter(1),
-                              casted_stub()->from_kind(),
-                              casted_stub()->to_kind(),
-                              casted_stub()->is_js_array());
+  DCHECK_IMPLIES(IsFastHoleyElementsKind(from_kind),
+                 IsFastHoleyElementsKind(to_kind));
 
-  return GetParameter(0);
+  if (AllocationSite::GetMode(from_kind, to_kind) == TRACK_ALLOCATION_SITE) {
+    Add<HTrapAllocationMemento>(object);
+  }
+
+  if (!IsSimpleMapChangeTransition(from_kind, to_kind)) {
+    HInstruction* elements = AddLoadElements(object);
+
+    IfBuilder if_objecthaselements(this);
+    if_objecthaselements.IfNot<HCompareObjectEqAndBranch>(
+        elements, Add<HConstant>(isolate()->factory()->empty_fixed_array()));
+    if_objecthaselements.Then();
+    {
+      // Determine the elements capacity.
+      HInstruction* elements_length = AddLoadFixedArrayLength(elements);
+
+      // Determine the effective (array) length.
+      IfBuilder if_objectisarray(this);
+      if_objectisarray.If<HHasInstanceTypeAndBranch>(object, JS_ARRAY_TYPE);
+      if_objectisarray.Then();
+      {
+        // The {object} is a JSArray, load the special "length" property.
+        Push(Add<HLoadNamedField>(object, nullptr,
+                                  HObjectAccess::ForArrayLength(from_kind)));
+      }
+      if_objectisarray.Else();
+      {
+        // The {object} is some other JSObject.
+        Push(elements_length);
+      }
+      if_objectisarray.End();
+      HValue* length = Pop();
+
+      BuildGrowElementsCapacity(object, elements, from_kind, to_kind, length,
+                                elements_length);
+    }
+    if_objecthaselements.End();
+  }
+
+  Add<HStoreNamedField>(object, HObjectAccess::ForMap(), map);
+
+  return object;
 }
 
 
@@ -852,249 +1255,16 @@ Handle<Code> TransitionElementsKindStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 
-
-template <>
-HValue* CodeStubGraphBuilder<AllocateHeapNumberStub>::BuildCodeStub() {
-  HValue* result =
-      Add<HAllocate>(Add<HConstant>(HeapNumber::kSize), HType::HeapNumber(),
-                     NOT_TENURED, HEAP_NUMBER_TYPE);
-  AddStoreMapConstant(result, isolate()->factory()->heap_number_map());
-  return result;
-}
-
-
-Handle<Code> AllocateHeapNumberStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
-HValue* CodeStubGraphBuilderBase::BuildArrayConstructor(
-    ElementsKind kind,
-    AllocationSiteOverrideMode override_mode,
-    ArgumentClass argument_class) {
-  HValue* constructor = GetParameter(ArrayConstructorStubBase::kConstructor);
-  HValue* alloc_site = GetParameter(ArrayConstructorStubBase::kAllocationSite);
-  JSArrayBuilder array_builder(this, kind, alloc_site, constructor,
-                               override_mode);
-  HValue* result = NULL;
-  switch (argument_class) {
-    case NONE:
-      // This stub is very performance sensitive, the generated code must be
-      // tuned so that it doesn't build and eager frame.
-      info()->MarkMustNotHaveEagerFrame();
-      result = array_builder.AllocateEmptyArray();
-      break;
-    case SINGLE:
-      result = BuildArraySingleArgumentConstructor(&array_builder);
-      break;
-    case MULTIPLE:
-      result = BuildArrayNArgumentsConstructor(&array_builder, kind);
-      break;
-  }
-
-  return result;
-}
-
-
-HValue* CodeStubGraphBuilderBase::BuildInternalArrayConstructor(
-    ElementsKind kind, ArgumentClass argument_class) {
-  HValue* constructor = GetParameter(
-      InternalArrayConstructorStubBase::kConstructor);
-  JSArrayBuilder array_builder(this, kind, constructor);
-
-  HValue* result = NULL;
-  switch (argument_class) {
-    case NONE:
-      // This stub is very performance sensitive, the generated code must be
-      // tuned so that it doesn't build and eager frame.
-      info()->MarkMustNotHaveEagerFrame();
-      result = array_builder.AllocateEmptyArray();
-      break;
-    case SINGLE:
-      result = BuildArraySingleArgumentConstructor(&array_builder);
-      break;
-    case MULTIPLE:
-      result = BuildArrayNArgumentsConstructor(&array_builder, kind);
-      break;
-  }
-  return result;
-}
-
-
-HValue* CodeStubGraphBuilderBase::BuildArraySingleArgumentConstructor(
-    JSArrayBuilder* array_builder) {
-  // Smi check and range check on the input arg.
-  HValue* constant_one = graph()->GetConstant1();
-  HValue* constant_zero = graph()->GetConstant0();
-
-  HInstruction* elements = Add<HArgumentsElements>(false);
-  HInstruction* argument = Add<HAccessArgumentsAt>(
-      elements, constant_one, constant_zero);
-
-  return BuildAllocateArrayFromLength(array_builder, argument);
-}
-
-
-HValue* CodeStubGraphBuilderBase::BuildArrayNArgumentsConstructor(
-    JSArrayBuilder* array_builder, ElementsKind kind) {
-  // Insert a bounds check because the number of arguments might exceed
-  // the kInitialMaxFastElementArray limit. This cannot happen for code
-  // that was parsed, but calling via Array.apply(thisArg, [...]) might
-  // trigger it.
-  HValue* length = GetArgumentsLength();
-  HConstant* max_alloc_length =
-      Add<HConstant>(JSObject::kInitialMaxFastElementArray);
-  HValue* checked_length = Add<HBoundsCheck>(length, max_alloc_length);
-
-  // We need to fill with the hole if it's a smi array in the multi-argument
-  // case because we might have to bail out while copying arguments into
-  // the array because they aren't compatible with a smi array.
-  // If it's a double array, no problem, and if it's fast then no
-  // problem either because doubles are boxed.
-  //
-  // TODO(mvstanton): consider an instruction to memset fill the array
-  // with zero in this case instead.
-  JSArrayBuilder::FillMode fill_mode = IsFastSmiElementsKind(kind)
-      ? JSArrayBuilder::FILL_WITH_HOLE
-      : JSArrayBuilder::DONT_FILL_WITH_HOLE;
-  HValue* new_object = array_builder->AllocateArray(checked_length,
-                                                    max_alloc_length,
-                                                    checked_length,
-                                                    fill_mode);
-  HValue* elements = array_builder->GetElementsLocation();
-  DCHECK(elements != NULL);
-
-  // Now populate the elements correctly.
-  LoopBuilder builder(this,
-                      context(),
-                      LoopBuilder::kPostIncrement);
-  HValue* start = graph()->GetConstant0();
-  HValue* key = builder.BeginBody(start, checked_length, Token::LT);
-  HInstruction* argument_elements = Add<HArgumentsElements>(false);
-  HInstruction* argument = Add<HAccessArgumentsAt>(
-      argument_elements, checked_length, key);
-
-  Add<HStoreKeyed>(elements, key, argument, kind);
-  builder.EndBody();
-  return new_object;
-}
-
-
-template <>
-HValue* CodeStubGraphBuilder<ArrayNoArgumentConstructorStub>::BuildCodeStub() {
-  ElementsKind kind = casted_stub()->elements_kind();
-  AllocationSiteOverrideMode override_mode = casted_stub()->override_mode();
-  return BuildArrayConstructor(kind, override_mode, NONE);
-}
-
-
-Handle<Code> ArrayNoArgumentConstructorStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
-template <>
-HValue* CodeStubGraphBuilder<ArraySingleArgumentConstructorStub>::
-    BuildCodeStub() {
-  ElementsKind kind = casted_stub()->elements_kind();
-  AllocationSiteOverrideMode override_mode = casted_stub()->override_mode();
-  return BuildArrayConstructor(kind, override_mode, SINGLE);
-}
-
-
-Handle<Code> ArraySingleArgumentConstructorStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
-template <>
-HValue* CodeStubGraphBuilder<ArrayNArgumentsConstructorStub>::BuildCodeStub() {
-  ElementsKind kind = casted_stub()->elements_kind();
-  AllocationSiteOverrideMode override_mode = casted_stub()->override_mode();
-  return BuildArrayConstructor(kind, override_mode, MULTIPLE);
-}
-
-
-Handle<Code> ArrayNArgumentsConstructorStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
-template <>
-HValue* CodeStubGraphBuilder<InternalArrayNoArgumentConstructorStub>::
-    BuildCodeStub() {
-  ElementsKind kind = casted_stub()->elements_kind();
-  return BuildInternalArrayConstructor(kind, NONE);
-}
-
-
-Handle<Code> InternalArrayNoArgumentConstructorStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
-template <>
-HValue* CodeStubGraphBuilder<InternalArraySingleArgumentConstructorStub>::
-    BuildCodeStub() {
-  ElementsKind kind = casted_stub()->elements_kind();
-  return BuildInternalArrayConstructor(kind, SINGLE);
-}
-
-
-Handle<Code> InternalArraySingleArgumentConstructorStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
-template <>
-HValue* CodeStubGraphBuilder<InternalArrayNArgumentsConstructorStub>::
-    BuildCodeStub() {
-  ElementsKind kind = casted_stub()->elements_kind();
-  return BuildInternalArrayConstructor(kind, MULTIPLE);
-}
-
-
-Handle<Code> InternalArrayNArgumentsConstructorStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
-template <>
-HValue* CodeStubGraphBuilder<CompareNilICStub>::BuildCodeInitializedStub() {
-  Isolate* isolate = graph()->isolate();
-  CompareNilICStub* stub = casted_stub();
-  HIfContinuation continuation;
-  Handle<Map> sentinel_map(isolate->heap()->meta_map());
-  Type* type = stub->GetType(zone(), sentinel_map);
-  BuildCompareNil(GetParameter(0), type, &continuation);
-  IfBuilder if_nil(this, &continuation);
-  if_nil.Then();
-  if (continuation.IsFalseReachable()) {
-    if_nil.Else();
-    if_nil.Return(graph()->GetConstant0());
-  }
-  if_nil.End();
-  return continuation.IsTrueReachable()
-      ? graph()->GetConstant1()
-      : graph()->GetConstantUndefined();
-}
-
-
-Handle<Code> CompareNilICStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
 template <>
 HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
   BinaryOpICState state = casted_stub()->state();
 
-  HValue* left = GetParameter(BinaryOpICStub::kLeft);
-  HValue* right = GetParameter(BinaryOpICStub::kRight);
+  HValue* left = GetParameter(Descriptor::kLeft);
+  HValue* right = GetParameter(Descriptor::kRight);
 
-  Type* left_type = state.GetLeftType(zone());
-  Type* right_type = state.GetRightType(zone());
-  Type* result_type = state.GetResultType(zone());
+  Type* left_type = state.GetLeftType();
+  Type* right_type = state.GetRightType();
+  Type* result_type = state.GetResultType();
 
   DCHECK(!left_type->Is(Type::None()) && !right_type->Is(Type::None()) &&
          (state.HasSideEffects() || !result_type->Is(Type::None())));
@@ -1111,18 +1281,15 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
       if_leftisstring.If<HIsStringAndBranch>(left);
       if_leftisstring.Then();
       {
-        Push(BuildBinaryOperation(
-                    state.op(), left, right,
-                    Type::String(zone()), right_type,
-                    result_type, state.fixed_right_arg(),
-                    allocation_mode));
+        Push(BuildBinaryOperation(state.op(), left, right, Type::String(),
+                                  right_type, result_type,
+                                  state.fixed_right_arg(), allocation_mode));
       }
       if_leftisstring.Else();
       {
-        Push(BuildBinaryOperation(
-                    state.op(), left, right,
-                    left_type, right_type, result_type,
-                    state.fixed_right_arg(), allocation_mode));
+        Push(BuildBinaryOperation(state.op(), left, right, left_type,
+                                  right_type, result_type,
+                                  state.fixed_right_arg(), allocation_mode));
       }
       if_leftisstring.End();
       result = Pop();
@@ -1131,48 +1298,29 @@ HValue* CodeStubGraphBuilder<BinaryOpICStub>::BuildCodeInitializedStub() {
       if_rightisstring.If<HIsStringAndBranch>(right);
       if_rightisstring.Then();
       {
-        Push(BuildBinaryOperation(
-                    state.op(), left, right,
-                    left_type, Type::String(zone()),
-                    result_type, state.fixed_right_arg(),
-                    allocation_mode));
+        Push(BuildBinaryOperation(state.op(), left, right, left_type,
+                                  Type::String(), result_type,
+                                  state.fixed_right_arg(), allocation_mode));
       }
       if_rightisstring.Else();
       {
-        Push(BuildBinaryOperation(
-                    state.op(), left, right,
-                    left_type, right_type, result_type,
-                    state.fixed_right_arg(), allocation_mode));
+        Push(BuildBinaryOperation(state.op(), left, right, left_type,
+                                  right_type, result_type,
+                                  state.fixed_right_arg(), allocation_mode));
       }
       if_rightisstring.End();
       result = Pop();
     }
   } else {
-    result = BuildBinaryOperation(
-            state.op(), left, right,
-            left_type, right_type, result_type,
-            state.fixed_right_arg(), allocation_mode);
+    result = BuildBinaryOperation(state.op(), left, right, left_type,
+                                  right_type, result_type,
+                                  state.fixed_right_arg(), allocation_mode);
   }
 
   // If we encounter a generic argument, the number conversion is
   // observable, thus we cannot afford to bail out after the fact.
   if (!state.HasSideEffects()) {
     result = EnforceNumberType(result, result_type);
-  }
-
-  // Reuse the double box of one of the operands if we are allowed to (i.e.
-  // chained binops).
-  if (state.CanReuseDoubleBox()) {
-    HValue* operand = (state.mode() == OVERWRITE_LEFT) ? left : right;
-    IfBuilder if_heap_number(this);
-    if_heap_number.If<HHasInstanceTypeAndBranch>(operand, HEAP_NUMBER_TYPE);
-    if_heap_number.Then();
-    Add<HStoreNamedField>(operand, HObjectAccess::ForHeapNumberValue(), result);
-    Push(operand);
-    if_heap_number.Else();
-    Push(result);
-    if_heap_number.End();
-    result = Pop();
   }
 
   return result;
@@ -1188,24 +1336,156 @@ template <>
 HValue* CodeStubGraphBuilder<BinaryOpWithAllocationSiteStub>::BuildCodeStub() {
   BinaryOpICState state = casted_stub()->state();
 
-  HValue* allocation_site = GetParameter(
-      BinaryOpWithAllocationSiteStub::kAllocationSite);
-  HValue* left = GetParameter(BinaryOpWithAllocationSiteStub::kLeft);
-  HValue* right = GetParameter(BinaryOpWithAllocationSiteStub::kRight);
+  HValue* allocation_site = GetParameter(Descriptor::kAllocationSite);
+  HValue* left = GetParameter(Descriptor::kLeft);
+  HValue* right = GetParameter(Descriptor::kRight);
 
-  Type* left_type = state.GetLeftType(zone());
-  Type* right_type = state.GetRightType(zone());
-  Type* result_type = state.GetResultType(zone());
+  Type* left_type = state.GetLeftType();
+  Type* right_type = state.GetRightType();
+  Type* result_type = state.GetResultType();
   HAllocationMode allocation_mode(allocation_site);
 
-  return BuildBinaryOperation(state.op(), left, right,
-                              left_type, right_type, result_type,
-                              state.fixed_right_arg(), allocation_mode);
+  return BuildBinaryOperation(state.op(), left, right, left_type, right_type,
+                              result_type, state.fixed_right_arg(),
+                              allocation_mode);
 }
 
 
 Handle<Code> BinaryOpWithAllocationSiteStub::GenerateCode() {
   return DoGenerateCode(this);
+}
+
+
+HValue* CodeStubGraphBuilderBase::BuildToString(HValue* input, bool convert) {
+  if (!convert) return BuildCheckString(input);
+  IfBuilder if_inputissmi(this);
+  HValue* inputissmi = if_inputissmi.If<HIsSmiAndBranch>(input);
+  if_inputissmi.Then();
+  {
+    // Convert the input smi to a string.
+    Push(BuildNumberToString(input, Type::SignedSmall()));
+  }
+  if_inputissmi.Else();
+  {
+    HValue* input_map =
+        Add<HLoadNamedField>(input, inputissmi, HObjectAccess::ForMap());
+    HValue* input_instance_type = Add<HLoadNamedField>(
+        input_map, inputissmi, HObjectAccess::ForMapInstanceType());
+    IfBuilder if_inputisstring(this);
+    if_inputisstring.If<HCompareNumericAndBranch>(
+        input_instance_type, Add<HConstant>(FIRST_NONSTRING_TYPE), Token::LT);
+    if_inputisstring.Then();
+    {
+      // The input is already a string.
+      Push(input);
+    }
+    if_inputisstring.Else();
+    {
+      // Convert to primitive first (if necessary), see
+      // ES6 section 12.7.3 The Addition operator.
+      IfBuilder if_inputisprimitive(this);
+      STATIC_ASSERT(FIRST_PRIMITIVE_TYPE == FIRST_TYPE);
+      if_inputisprimitive.If<HCompareNumericAndBranch>(
+          input_instance_type, Add<HConstant>(LAST_PRIMITIVE_TYPE), Token::LTE);
+      if_inputisprimitive.Then();
+      {
+        // The input is already a primitive.
+        Push(input);
+      }
+      if_inputisprimitive.Else();
+      {
+        // Convert the input to a primitive.
+        Push(BuildToPrimitive(input, input_map));
+      }
+      if_inputisprimitive.End();
+      // Convert the primitive to a string value.
+      ToStringStub stub(isolate());
+      HValue* values[] = {context(), Pop()};
+      Push(AddUncasted<HCallWithDescriptor>(Add<HConstant>(stub.GetCode()), 0,
+                                            stub.GetCallInterfaceDescriptor(),
+                                            ArrayVector(values)));
+    }
+    if_inputisstring.End();
+  }
+  if_inputissmi.End();
+  return Pop();
+}
+
+
+HValue* CodeStubGraphBuilderBase::BuildToPrimitive(HValue* input,
+                                                   HValue* input_map) {
+  // Get the native context of the caller.
+  HValue* native_context = BuildGetNativeContext();
+
+  // Determine the initial map of the %ObjectPrototype%.
+  HValue* object_function_prototype_map =
+      Add<HLoadNamedField>(native_context, nullptr,
+                           HObjectAccess::ForContextSlot(
+                               Context::OBJECT_FUNCTION_PROTOTYPE_MAP_INDEX));
+
+  // Determine the initial map of the %StringPrototype%.
+  HValue* string_function_prototype_map =
+      Add<HLoadNamedField>(native_context, nullptr,
+                           HObjectAccess::ForContextSlot(
+                               Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX));
+
+  // Determine the initial map of the String function.
+  HValue* string_function = Add<HLoadNamedField>(
+      native_context, nullptr,
+      HObjectAccess::ForContextSlot(Context::STRING_FUNCTION_INDEX));
+  HValue* string_function_initial_map = Add<HLoadNamedField>(
+      string_function, nullptr, HObjectAccess::ForPrototypeOrInitialMap());
+
+  // Determine the map of the [[Prototype]] of {input}.
+  HValue* input_prototype =
+      Add<HLoadNamedField>(input_map, nullptr, HObjectAccess::ForPrototype());
+  HValue* input_prototype_map =
+      Add<HLoadNamedField>(input_prototype, nullptr, HObjectAccess::ForMap());
+
+  // For string wrappers (JSValue instances with [[StringData]] internal
+  // fields), we can shortcirciut the ToPrimitive if
+  //
+  //  (a) the {input} map matches the initial map of the String function,
+  //  (b) the {input} [[Prototype]] is the unmodified %StringPrototype% (i.e.
+  //      no one monkey-patched toString, @@toPrimitive or valueOf), and
+  //  (c) the %ObjectPrototype% (i.e. the [[Prototype]] of the
+  //      %StringPrototype%) is also unmodified, that is no one sneaked a
+  //      @@toPrimitive into the %ObjectPrototype%.
+  //
+  // If all these assumptions hold, we can just take the [[StringData]] value
+  // and return it.
+  // TODO(bmeurer): This just repairs a regression introduced by removing the
+  // weird (and broken) intrinsic %_IsStringWrapperSafeForDefaultValue, which
+  // was intendend to something similar to this, although less efficient and
+  // wrong in the presence of @@toPrimitive. Long-term we might want to move
+  // into the direction of having a ToPrimitiveStub that can do common cases
+  // while staying in JavaScript land (i.e. not going to C++).
+  IfBuilder if_inputisstringwrapper(this);
+  if_inputisstringwrapper.If<HCompareObjectEqAndBranch>(
+      input_map, string_function_initial_map);
+  if_inputisstringwrapper.And();
+  if_inputisstringwrapper.If<HCompareObjectEqAndBranch>(
+      input_prototype_map, string_function_prototype_map);
+  if_inputisstringwrapper.And();
+  if_inputisstringwrapper.If<HCompareObjectEqAndBranch>(
+      Add<HLoadNamedField>(Add<HLoadNamedField>(input_prototype_map, nullptr,
+                                                HObjectAccess::ForPrototype()),
+                           nullptr, HObjectAccess::ForMap()),
+      object_function_prototype_map);
+  if_inputisstringwrapper.Then();
+  {
+    Push(BuildLoadNamedField(
+        input, FieldIndex::ForInObjectOffset(JSValue::kValueOffset)));
+  }
+  if_inputisstringwrapper.Else();
+  {
+    // TODO(bmeurer): Add support for fast ToPrimitive conversion using
+    // a dedicated ToPrimitiveStub.
+    Add<HPushArguments>(input);
+    Push(Add<HCallRuntime>(Runtime::FunctionForId(Runtime::kToPrimitive), 1));
+  }
+  if_inputisstringwrapper.End();
+  return Pop();
 }
 
 
@@ -1215,15 +1495,17 @@ HValue* CodeStubGraphBuilder<StringAddStub>::BuildCodeInitializedStub() {
   StringAddFlags flags = stub->flags();
   PretenureFlag pretenure_flag = stub->pretenure_flag();
 
-  HValue* left = GetParameter(StringAddStub::kLeft);
-  HValue* right = GetParameter(StringAddStub::kRight);
+  HValue* left = GetParameter(Descriptor::kLeft);
+  HValue* right = GetParameter(Descriptor::kRight);
 
   // Make sure that both arguments are strings if not known in advance.
   if ((flags & STRING_ADD_CHECK_LEFT) == STRING_ADD_CHECK_LEFT) {
-    left = BuildCheckString(left);
+    left =
+        BuildToString(left, (flags & STRING_ADD_CONVERT) == STRING_ADD_CONVERT);
   }
   if ((flags & STRING_ADD_CHECK_RIGHT) == STRING_ADD_CHECK_RIGHT) {
-    right = BuildCheckString(right);
+    right = BuildToString(right,
+                          (flags & STRING_ADD_CONVERT) == STRING_ADD_CONVERT);
   }
 
   return BuildStringAdd(left, right, HAllocationMode(pretenure_flag));
@@ -1234,82 +1516,100 @@ Handle<Code> StringAddStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 
-
 template <>
-HValue* CodeStubGraphBuilder<ToBooleanStub>::BuildCodeInitializedStub() {
-  ToBooleanStub* stub = casted_stub();
-  HValue* true_value = NULL;
-  HValue* false_value = NULL;
-
-  switch (stub->mode()) {
-    case ToBooleanStub::RESULT_AS_SMI:
-      true_value = graph()->GetConstant1();
-      false_value = graph()->GetConstant0();
-      break;
-    case ToBooleanStub::RESULT_AS_ODDBALL:
-      true_value = graph()->GetConstantTrue();
-      false_value = graph()->GetConstantFalse();
-      break;
-    case ToBooleanStub::RESULT_AS_INVERSE_ODDBALL:
-      true_value = graph()->GetConstantFalse();
-      false_value = graph()->GetConstantTrue();
-      break;
-  }
-
+HValue* CodeStubGraphBuilder<ToBooleanICStub>::BuildCodeInitializedStub() {
+  ToBooleanICStub* stub = casted_stub();
   IfBuilder if_true(this);
-  if_true.If<HBranch>(GetParameter(0), stub->types());
+  if_true.If<HBranch>(GetParameter(Descriptor::kArgument), stub->types());
   if_true.Then();
-  if_true.Return(true_value);
+  if_true.Return(graph()->GetConstantTrue());
   if_true.Else();
   if_true.End();
-  return false_value;
+  return graph()->GetConstantFalse();
 }
 
-
-Handle<Code> ToBooleanStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
+Handle<Code> ToBooleanICStub::GenerateCode() { return DoGenerateCode(this); }
 
 template <>
 HValue* CodeStubGraphBuilder<StoreGlobalStub>::BuildCodeInitializedStub() {
   StoreGlobalStub* stub = casted_stub();
-  Handle<Object> placeholer_value(Smi::FromInt(0), isolate());
-  Handle<PropertyCell> placeholder_cell =
-      isolate()->factory()->NewPropertyCell(placeholer_value);
-
-  HParameter* value = GetParameter(StoreDescriptor::kValueIndex);
-
+  HParameter* value = GetParameter(Descriptor::kValue);
   if (stub->check_global()) {
     // Check that the map of the global has not changed: use a placeholder map
     // that will be replaced later with the global object's map.
-    Handle<Map> placeholder_map = isolate()->factory()->meta_map();
-    HValue* global = Add<HConstant>(
-        StoreGlobalStub::global_placeholder(isolate()));
-    Add<HCheckMaps>(global, placeholder_map);
+    HParameter* proxy = GetParameter(Descriptor::kReceiver);
+    HValue* proxy_map =
+        Add<HLoadNamedField>(proxy, nullptr, HObjectAccess::ForMap());
+    HValue* global =
+        Add<HLoadNamedField>(proxy_map, nullptr, HObjectAccess::ForPrototype());
+    HValue* map_cell = Add<HConstant>(isolate()->factory()->NewWeakCell(
+        StoreGlobalStub::global_map_placeholder(isolate())));
+    HValue* expected_map = Add<HLoadNamedField>(
+        map_cell, nullptr, HObjectAccess::ForWeakCellValue());
+    HValue* map =
+        Add<HLoadNamedField>(global, nullptr, HObjectAccess::ForMap());
+    IfBuilder map_check(this);
+    map_check.IfNot<HCompareObjectEqAndBranch>(expected_map, map);
+    map_check.ThenDeopt(DeoptimizeReason::kUnknownMap);
+    map_check.End();
   }
 
-  HValue* cell = Add<HConstant>(placeholder_cell);
-  HObjectAccess access(HObjectAccess::ForCellPayload(isolate()));
-  HValue* cell_contents = Add<HLoadNamedField>(
-      cell, static_cast<HValue*>(NULL), access);
+  HValue* weak_cell = Add<HConstant>(isolate()->factory()->NewWeakCell(
+      StoreGlobalStub::property_cell_placeholder(isolate())));
+  HValue* cell = Add<HLoadNamedField>(weak_cell, nullptr,
+                                      HObjectAccess::ForWeakCellValue());
+  Add<HCheckHeapObject>(cell);
+  HObjectAccess access = HObjectAccess::ForPropertyCellValue();
+  // Load the payload of the global parameter cell. A hole indicates that the
+  // cell has been invalidated and that the store must be handled by the
+  // runtime.
+  HValue* cell_contents = Add<HLoadNamedField>(cell, nullptr, access);
 
-  if (stub->is_constant()) {
+  auto cell_type = stub->cell_type();
+  if (cell_type == PropertyCellType::kConstant ||
+      cell_type == PropertyCellType::kUndefined) {
+    // This is always valid for all states a cell can be in.
     IfBuilder builder(this);
     builder.If<HCompareObjectEqAndBranch>(cell_contents, value);
     builder.Then();
-    builder.ElseDeopt("Unexpected cell contents in constant global store");
+    builder.ElseDeopt(
+        DeoptimizeReason::kUnexpectedCellContentsInConstantGlobalStore);
     builder.End();
   } else {
-    // Load the payload of the global parameter cell. A hole indicates that the
-    // property has been deleted and that the store must be handled by the
-    // runtime.
     IfBuilder builder(this);
     HValue* hole_value = graph()->GetConstantHole();
     builder.If<HCompareObjectEqAndBranch>(cell_contents, hole_value);
     builder.Then();
-    builder.Deopt("Unexpected cell contents in global store");
+    builder.Deopt(DeoptimizeReason::kUnexpectedCellContentsInGlobalStore);
     builder.Else();
+    // When dealing with constant types, the type may be allowed to change, as
+    // long as optimized code remains valid.
+    if (cell_type == PropertyCellType::kConstantType) {
+      switch (stub->constant_type()) {
+        case PropertyCellConstantType::kSmi:
+          access = access.WithRepresentation(Representation::Smi());
+          break;
+        case PropertyCellConstantType::kStableMap: {
+          // It is sufficient here to check that the value and cell contents
+          // have identical maps, no matter if they are stable or not or if they
+          // are the maps that were originally in the cell or not. If optimized
+          // code will deopt when a cell has a unstable map and if it has a
+          // dependency on a stable map, it will deopt if the map destabilizes.
+          Add<HCheckHeapObject>(value);
+          Add<HCheckHeapObject>(cell_contents);
+          HValue* expected_map = Add<HLoadNamedField>(cell_contents, nullptr,
+                                                      HObjectAccess::ForMap());
+          HValue* map =
+              Add<HLoadNamedField>(value, nullptr, HObjectAccess::ForMap());
+          IfBuilder map_check(this);
+          map_check.IfNot<HCompareObjectEqAndBranch>(expected_map, map);
+          map_check.ThenDeopt(DeoptimizeReason::kUnknownMap);
+          map_check.End();
+          access = access.WithRepresentation(Representation::HeapObject());
+          break;
+        }
+      }
+    }
     Add<HStoreNamedField>(cell, access, value);
     builder.End();
   }
@@ -1323,16 +1623,17 @@ Handle<Code> StoreGlobalStub::GenerateCode() {
 }
 
 
-template<>
+template <>
 HValue* CodeStubGraphBuilder<ElementsTransitionAndStoreStub>::BuildCodeStub() {
-  HValue* value = GetParameter(ElementsTransitionAndStoreStub::kValueIndex);
-  HValue* map = GetParameter(ElementsTransitionAndStoreStub::kMapIndex);
-  HValue* key = GetParameter(ElementsTransitionAndStoreStub::kKeyIndex);
-  HValue* object = GetParameter(ElementsTransitionAndStoreStub::kObjectIndex);
+  HValue* object = GetParameter(StoreTransitionHelper::ReceiverIndex());
+  HValue* key = GetParameter(StoreTransitionHelper::NameIndex());
+  HValue* value = GetParameter(StoreTransitionHelper::ValueIndex());
+  HValue* map = GetParameter(StoreTransitionHelper::MapIndex());
 
   if (FLAG_trace_elements_transitions) {
     // Tracing elements transitions is the job of the runtime.
-    Add<HDeoptimize>("Tracing elements transitions", Deoptimizer::EAGER);
+    Add<HDeoptimize>(DeoptimizeReason::kTracingElementsTransitions,
+                     Deoptimizer::EAGER);
   } else {
     info()->MarkAsSavesCallerDoubles();
 
@@ -1357,275 +1658,10 @@ Handle<Code> ElementsTransitionAndStoreStub::GenerateCode() {
 }
 
 
-void CodeStubGraphBuilderBase::BuildCheckAndInstallOptimizedCode(
-    HValue* js_function,
-    HValue* native_context,
-    IfBuilder* builder,
-    HValue* optimized_map,
-    HValue* map_index) {
-  HValue* osr_ast_id_none = Add<HConstant>(BailoutId::None().ToInt());
-  HValue* context_slot = LoadFromOptimizedCodeMap(
-      optimized_map, map_index, SharedFunctionInfo::kContextOffset);
-  HValue* osr_ast_slot = LoadFromOptimizedCodeMap(
-      optimized_map, map_index, SharedFunctionInfo::kOsrAstIdOffset);
-  builder->If<HCompareObjectEqAndBranch>(native_context,
-                                         context_slot);
-  builder->AndIf<HCompareObjectEqAndBranch>(osr_ast_slot, osr_ast_id_none);
-  builder->Then();
-  HValue* code_object = LoadFromOptimizedCodeMap(optimized_map,
-      map_index, SharedFunctionInfo::kCachedCodeOffset);
-  // and the literals
-  HValue* literals = LoadFromOptimizedCodeMap(optimized_map,
-      map_index, SharedFunctionInfo::kLiteralsOffset);
-
-  Counters* counters = isolate()->counters();
-  AddIncrementCounter(counters->fast_new_closure_install_optimized());
-
-  // TODO(fschneider): Idea: store proper code pointers in the optimized code
-  // map and either unmangle them on marking or do nothing as the whole map is
-  // discarded on major GC anyway.
-  Add<HStoreCodeEntry>(js_function, code_object);
-  Add<HStoreNamedField>(js_function, HObjectAccess::ForLiteralsPointer(),
-                        literals);
-
-  // Now link a function into a list of optimized functions.
-  HValue* optimized_functions_list = Add<HLoadNamedField>(
-      native_context, static_cast<HValue*>(NULL),
-      HObjectAccess::ForContextSlot(Context::OPTIMIZED_FUNCTIONS_LIST));
-  Add<HStoreNamedField>(js_function,
-                        HObjectAccess::ForNextFunctionLinkPointer(),
-                        optimized_functions_list);
-
-  // This store is the only one that should have a write barrier.
-  Add<HStoreNamedField>(native_context,
-           HObjectAccess::ForContextSlot(Context::OPTIMIZED_FUNCTIONS_LIST),
-           js_function);
-
-  // The builder continues in the "then" after this function.
-}
-
-
-void CodeStubGraphBuilderBase::BuildInstallCode(HValue* js_function,
-                                                HValue* shared_info) {
-  Add<HStoreNamedField>(js_function,
-                        HObjectAccess::ForNextFunctionLinkPointer(),
-                        graph()->GetConstantUndefined());
-  HValue* code_object = Add<HLoadNamedField>(
-      shared_info, static_cast<HValue*>(NULL), HObjectAccess::ForCodeOffset());
-  Add<HStoreCodeEntry>(js_function, code_object);
-}
-
-
-HInstruction* CodeStubGraphBuilderBase::LoadFromOptimizedCodeMap(
-    HValue* optimized_map,
-    HValue* iterator,
-    int field_offset) {
-  // By making sure to express these loads in the form [<hvalue> + constant]
-  // the keyed load can be hoisted.
-  DCHECK(field_offset >= 0 && field_offset < SharedFunctionInfo::kEntryLength);
-  HValue* field_slot = iterator;
-  if (field_offset > 0) {
-    HValue* field_offset_value = Add<HConstant>(field_offset);
-    field_slot = AddUncasted<HAdd>(iterator, field_offset_value);
-  }
-  HInstruction* field_entry = Add<HLoadKeyed>(optimized_map, field_slot,
-      static_cast<HValue*>(NULL), FAST_ELEMENTS);
-  return field_entry;
-}
-
-
-void CodeStubGraphBuilderBase::BuildInstallFromOptimizedCodeMap(
-    HValue* js_function,
-    HValue* shared_info,
-    HValue* native_context) {
-  Counters* counters = isolate()->counters();
-  IfBuilder is_optimized(this);
-  HInstruction* optimized_map = Add<HLoadNamedField>(
-      shared_info, static_cast<HValue*>(NULL),
-      HObjectAccess::ForOptimizedCodeMap());
-  HValue* null_constant = Add<HConstant>(0);
-  is_optimized.If<HCompareObjectEqAndBranch>(optimized_map, null_constant);
-  is_optimized.Then();
-  {
-    BuildInstallCode(js_function, shared_info);
-  }
-  is_optimized.Else();
-  {
-    AddIncrementCounter(counters->fast_new_closure_try_optimized());
-    // optimized_map points to fixed array of 3-element entries
-    // (native context, optimized code, literals).
-    // Map must never be empty, so check the first elements.
-    HValue* first_entry_index =
-        Add<HConstant>(SharedFunctionInfo::kEntriesStart);
-    IfBuilder already_in(this);
-    BuildCheckAndInstallOptimizedCode(js_function, native_context, &already_in,
-                                      optimized_map, first_entry_index);
-    already_in.Else();
-    {
-      // Iterate through the rest of map backwards. Do not double check first
-      // entry. After the loop, if no matching optimized code was found,
-      // install unoptimized code.
-      // for(i = map.length() - SharedFunctionInfo::kEntryLength;
-      //     i > SharedFunctionInfo::kEntriesStart;
-      //     i -= SharedFunctionInfo::kEntryLength) { .. }
-      HValue* shared_function_entry_length =
-          Add<HConstant>(SharedFunctionInfo::kEntryLength);
-      LoopBuilder loop_builder(this,
-                               context(),
-                               LoopBuilder::kPostDecrement,
-                               shared_function_entry_length);
-      HValue* array_length = Add<HLoadNamedField>(
-          optimized_map, static_cast<HValue*>(NULL),
-          HObjectAccess::ForFixedArrayLength());
-      HValue* start_pos = AddUncasted<HSub>(array_length,
-                                            shared_function_entry_length);
-      HValue* slot_iterator = loop_builder.BeginBody(start_pos,
-                                                     first_entry_index,
-                                                     Token::GT);
-      {
-        IfBuilder done_check(this);
-        BuildCheckAndInstallOptimizedCode(js_function, native_context,
-                                          &done_check,
-                                          optimized_map,
-                                          slot_iterator);
-        // Fall out of the loop
-        loop_builder.Break();
-      }
-      loop_builder.EndBody();
-
-      // If slot_iterator equals first entry index, then we failed to find and
-      // install optimized code
-      IfBuilder no_optimized_code_check(this);
-      no_optimized_code_check.If<HCompareNumericAndBranch>(
-          slot_iterator, first_entry_index, Token::EQ);
-      no_optimized_code_check.Then();
-      {
-        // Store the unoptimized code
-        BuildInstallCode(js_function, shared_info);
-      }
-    }
-  }
-}
-
-
-template<>
-HValue* CodeStubGraphBuilder<FastNewClosureStub>::BuildCodeStub() {
-  Counters* counters = isolate()->counters();
-  Factory* factory = isolate()->factory();
-  HInstruction* empty_fixed_array =
-      Add<HConstant>(factory->empty_fixed_array());
-  HValue* shared_info = GetParameter(0);
-
-  AddIncrementCounter(counters->fast_new_closure_total());
-
-  // Create a new closure from the given function info in new space
-  HValue* size = Add<HConstant>(JSFunction::kSize);
-  HInstruction* js_function = Add<HAllocate>(size, HType::JSObject(),
-                                             NOT_TENURED, JS_FUNCTION_TYPE);
-
-  int map_index = Context::FunctionMapIndex(casted_stub()->strict_mode(),
-                                            casted_stub()->kind());
-
-  // Compute the function map in the current native context and set that
-  // as the map of the allocated object.
-  HInstruction* native_context = BuildGetNativeContext();
-  HInstruction* map_slot_value = Add<HLoadNamedField>(
-      native_context, static_cast<HValue*>(NULL),
-      HObjectAccess::ForContextSlot(map_index));
-  Add<HStoreNamedField>(js_function, HObjectAccess::ForMap(), map_slot_value);
-
-  // Initialize the rest of the function.
-  Add<HStoreNamedField>(js_function, HObjectAccess::ForPropertiesPointer(),
-                        empty_fixed_array);
-  Add<HStoreNamedField>(js_function, HObjectAccess::ForElementsPointer(),
-                        empty_fixed_array);
-  Add<HStoreNamedField>(js_function, HObjectAccess::ForLiteralsPointer(),
-                        empty_fixed_array);
-  Add<HStoreNamedField>(js_function, HObjectAccess::ForPrototypeOrInitialMap(),
-                        graph()->GetConstantHole());
-  Add<HStoreNamedField>(js_function,
-                        HObjectAccess::ForSharedFunctionInfoPointer(),
-                        shared_info);
-  Add<HStoreNamedField>(js_function, HObjectAccess::ForFunctionContextPointer(),
-                        context());
-
-  // Initialize the code pointer in the function to be the one
-  // found in the shared function info object.
-  // But first check if there is an optimized version for our context.
-  if (FLAG_cache_optimized_code) {
-    BuildInstallFromOptimizedCodeMap(js_function, shared_info, native_context);
-  } else {
-    BuildInstallCode(js_function, shared_info);
-  }
-
-  return js_function;
-}
-
-
-Handle<Code> FastNewClosureStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
-template<>
-HValue* CodeStubGraphBuilder<FastNewContextStub>::BuildCodeStub() {
-  int length = casted_stub()->slots() + Context::MIN_CONTEXT_SLOTS;
-
-  // Get the function.
-  HParameter* function = GetParameter(FastNewContextStub::kFunction);
-
-  // Allocate the context in new space.
-  HAllocate* function_context = Add<HAllocate>(
-      Add<HConstant>(length * kPointerSize + FixedArray::kHeaderSize),
-      HType::HeapObject(), NOT_TENURED, FIXED_ARRAY_TYPE);
-
-  // Set up the object header.
-  AddStoreMapConstant(function_context,
-                      isolate()->factory()->function_context_map());
-  Add<HStoreNamedField>(function_context,
-                        HObjectAccess::ForFixedArrayLength(),
-                        Add<HConstant>(length));
-
-  // Set up the fixed slots.
-  Add<HStoreNamedField>(function_context,
-                        HObjectAccess::ForContextSlot(Context::CLOSURE_INDEX),
-                        function);
-  Add<HStoreNamedField>(function_context,
-                        HObjectAccess::ForContextSlot(Context::PREVIOUS_INDEX),
-                        context());
-  Add<HStoreNamedField>(function_context,
-                        HObjectAccess::ForContextSlot(Context::EXTENSION_INDEX),
-                        graph()->GetConstant0());
-
-  // Copy the global object from the previous context.
-  HValue* global_object = Add<HLoadNamedField>(
-      context(), static_cast<HValue*>(NULL),
-      HObjectAccess::ForContextSlot(Context::GLOBAL_OBJECT_INDEX));
-  Add<HStoreNamedField>(function_context,
-                        HObjectAccess::ForContextSlot(
-                            Context::GLOBAL_OBJECT_INDEX),
-                        global_object);
-
-  // Initialize the rest of the slots to undefined.
-  for (int i = Context::MIN_CONTEXT_SLOTS; i < length; ++i) {
-    Add<HStoreNamedField>(function_context,
-                          HObjectAccess::ForContextSlot(i),
-                          graph()->GetConstantUndefined());
-  }
-
-  return function_context;
-}
-
-
-Handle<Code> FastNewContextStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
 template <>
 HValue* CodeStubGraphBuilder<LoadDictionaryElementStub>::BuildCodeStub() {
-  HValue* receiver = GetParameter(LoadDescriptor::kReceiverIndex);
-  HValue* key = GetParameter(LoadDescriptor::kNameIndex);
+  HValue* receiver = GetParameter(Descriptor::kReceiver);
+  HValue* key = GetParameter(Descriptor::kName);
 
   Add<HCheckSmi>(key);
 
@@ -1645,11 +1681,16 @@ Handle<Code> LoadDictionaryElementStub::GenerateCode() {
 template<>
 HValue* CodeStubGraphBuilder<RegExpConstructResultStub>::BuildCodeStub() {
   // Determine the parameters.
-  HValue* length = GetParameter(RegExpConstructResultStub::kLength);
-  HValue* index = GetParameter(RegExpConstructResultStub::kIndex);
-  HValue* input = GetParameter(RegExpConstructResultStub::kInput);
+  HValue* length = GetParameter(Descriptor::kLength);
+  HValue* index = GetParameter(Descriptor::kIndex);
+  HValue* input = GetParameter(Descriptor::kInput);
 
+  // TODO(turbofan): This codestub has regressed to need a frame on ia32 at some
+  // point and wasn't caught since it wasn't built in the snapshot. We should
+  // probably just replace with a TurboFan stub rather than fixing it.
+#if !(V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87)
   info()->MarkMustNotHaveEagerFrame();
+#endif
 
   return BuildRegExpConstructResult(length, index, input);
 }
@@ -1664,8 +1705,10 @@ template <>
 class CodeStubGraphBuilder<KeyedLoadGenericStub>
     : public CodeStubGraphBuilderBase {
  public:
-  CodeStubGraphBuilder(Isolate* isolate, KeyedLoadGenericStub* stub)
-      : CodeStubGraphBuilderBase(isolate, stub) {}
+  explicit CodeStubGraphBuilder(CompilationInfo* info, CodeStub* stub)
+      : CodeStubGraphBuilderBase(info, stub) {}
+
+  typedef KeyedLoadGenericStub::Descriptor Descriptor;
 
  protected:
   virtual HValue* BuildCodeStub();
@@ -1680,13 +1723,6 @@ class CodeStubGraphBuilder<KeyedLoadGenericStub>
                             HValue* instance_type,
                             HValue* bit_field2,
                             ElementsKind kind);
-
-  void BuildExternalElementLoad(HGraphBuilder::IfBuilder* if_builder,
-                                HValue* receiver,
-                                HValue* key,
-                                HValue* instance_type,
-                                HValue* bit_field2,
-                                ElementsKind kind);
 
   KeyedLoadGenericStub* casted_stub() {
     return static_cast<KeyedLoadGenericStub*>(stub());
@@ -1709,8 +1745,6 @@ void CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildElementsKindLimitCheck(
 void CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildFastElementLoad(
     HGraphBuilder::IfBuilder* if_builder, HValue* receiver, HValue* key,
     HValue* instance_type, HValue* bit_field2, ElementsKind kind) {
-  DCHECK(!IsExternalArrayElementsKind(kind));
-
   BuildElementsKindLimitCheck(if_builder, bit_field2, kind);
 
   IfBuilder js_array_check(this);
@@ -1730,24 +1764,9 @@ void CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildFastElementLoad(
 }
 
 
-void CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildExternalElementLoad(
-    HGraphBuilder::IfBuilder* if_builder, HValue* receiver, HValue* key,
-    HValue* instance_type, HValue* bit_field2, ElementsKind kind) {
-  DCHECK(IsExternalArrayElementsKind(kind));
-
-  BuildElementsKindLimitCheck(if_builder, bit_field2, kind);
-
-  Push(BuildUncheckedMonomorphicElementAccess(receiver, key, NULL,
-                                              false, kind,
-                                              LOAD, NEVER_RETURN_HOLE,
-                                              STANDARD_STORE));
-}
-
-
 HValue* CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildCodeStub() {
-  HValue* receiver = GetParameter(LoadDescriptor::kReceiverIndex);
-  HValue* key = GetParameter(LoadDescriptor::kNameIndex);
-
+  HValue* receiver = GetParameter(Descriptor::kReceiver);
+  HValue* key = GetParameter(Descriptor::kName);
   // Split into a smi/integer case and unique string case.
   HIfContinuation index_name_split_continuation(graph()->CreateBasicBlock(),
                                                 graph()->CreateBasicBlock());
@@ -1764,16 +1783,14 @@ HValue* CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildCodeStub() {
       (1 << Map::kHasIndexedInterceptor);
     BuildJSObjectCheck(receiver, bit_field_mask);
 
-    HValue* map = Add<HLoadNamedField>(receiver, static_cast<HValue*>(NULL),
-                                       HObjectAccess::ForMap());
+    HValue* map =
+        Add<HLoadNamedField>(receiver, nullptr, HObjectAccess::ForMap());
 
     HValue* instance_type =
-      Add<HLoadNamedField>(map, static_cast<HValue*>(NULL),
-                           HObjectAccess::ForMapInstanceType());
+        Add<HLoadNamedField>(map, nullptr, HObjectAccess::ForMapInstanceType());
 
-    HValue* bit_field2 = Add<HLoadNamedField>(map,
-                                              static_cast<HValue*>(NULL),
-                                              HObjectAccess::ForMapBitField2());
+    HValue* bit_field2 =
+        Add<HLoadNamedField>(map, nullptr, HObjectAccess::ForMapBitField2());
 
     IfBuilder kind_if(this);
     BuildFastElementLoad(&kind_if, receiver, key, instance_type, bit_field2,
@@ -1797,51 +1814,18 @@ HValue* CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildCodeStub() {
     }
     kind_if.Else();
 
-    // The SLOPPY_ARGUMENTS_ELEMENTS check generates a "kind_if.Then"
+    // The SLOW_SLOPPY_ARGUMENTS_ELEMENTS check generates a "kind_if.Then"
+    STATIC_ASSERT(FAST_SLOPPY_ARGUMENTS_ELEMENTS <
+                  SLOW_SLOPPY_ARGUMENTS_ELEMENTS);
     BuildElementsKindLimitCheck(&kind_if, bit_field2,
-                                SLOPPY_ARGUMENTS_ELEMENTS);
+                                SLOW_SLOPPY_ARGUMENTS_ELEMENTS);
     // Non-strict elements are not handled.
-    Add<HDeoptimize>("non-strict elements in KeyedLoadGenericStub",
+    Add<HDeoptimize>(DeoptimizeReason::kNonStrictElementsInKeyedLoadGenericStub,
                      Deoptimizer::EAGER);
     Push(graph()->GetConstant0());
 
-    kind_if.Else();
-    BuildExternalElementLoad(&kind_if, receiver, key, instance_type, bit_field2,
-                             EXTERNAL_INT8_ELEMENTS);
-
-    kind_if.Else();
-    BuildExternalElementLoad(&kind_if, receiver, key, instance_type, bit_field2,
-                             EXTERNAL_UINT8_ELEMENTS);
-
-    kind_if.Else();
-    BuildExternalElementLoad(&kind_if, receiver, key, instance_type, bit_field2,
-                             EXTERNAL_INT16_ELEMENTS);
-
-    kind_if.Else();
-    BuildExternalElementLoad(&kind_if, receiver, key, instance_type, bit_field2,
-                             EXTERNAL_UINT16_ELEMENTS);
-
-    kind_if.Else();
-    BuildExternalElementLoad(&kind_if, receiver, key, instance_type, bit_field2,
-                             EXTERNAL_INT32_ELEMENTS);
-
-    kind_if.Else();
-    BuildExternalElementLoad(&kind_if, receiver, key, instance_type, bit_field2,
-                             EXTERNAL_UINT32_ELEMENTS);
-
-    kind_if.Else();
-    BuildExternalElementLoad(&kind_if, receiver, key, instance_type, bit_field2,
-                             EXTERNAL_FLOAT32_ELEMENTS);
-
-    kind_if.Else();
-    BuildExternalElementLoad(&kind_if, receiver, key, instance_type, bit_field2,
-                             EXTERNAL_FLOAT64_ELEMENTS);
-
-    kind_if.Else();
-    BuildExternalElementLoad(&kind_if, receiver, key, instance_type, bit_field2,
-                             EXTERNAL_UINT8_CLAMPED_ELEMENTS);
-
-    kind_if.ElseDeopt("ElementsKind unhandled in KeyedLoadGenericStub");
+    kind_if.ElseDeopt(
+        DeoptimizeReason::kElementsKindUnhandledInKeyedLoadGenericStub);
 
     kind_if.End();
   }
@@ -1863,23 +1847,22 @@ HValue* CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildCodeStub() {
       BuildNonGlobalObjectCheck(receiver);
 
       HValue* properties = Add<HLoadNamedField>(
-          receiver, static_cast<HValue*>(NULL),
-          HObjectAccess::ForPropertiesPointer());
+          receiver, nullptr, HObjectAccess::ForPropertiesPointer());
 
       HValue* hash =
-          Add<HLoadNamedField>(key, static_cast<HValue*>(NULL),
-          HObjectAccess::ForNameHashField());
+          Add<HLoadNamedField>(key, nullptr, HObjectAccess::ForNameHashField());
 
       hash = AddUncasted<HShr>(hash, Add<HConstant>(Name::kHashShift));
 
-      HValue* value = BuildUncheckedDictionaryElementLoad(receiver,
-                                                          properties,
-                                                          key,
-                                                          hash);
+      HValue* value =
+          BuildUncheckedDictionaryElementLoad(receiver, properties, key, hash);
       Push(value);
     }
     if_dict_properties.Else();
     {
+      // TODO(dcarney): don't use keyed lookup cache, but convert to use
+      // megamorphic stub cache.
+      UNREACHABLE();
       //  Key is string, properties are fast mode
       HValue* hash = BuildKeyedLookupCacheHash(receiver, key);
 
@@ -1887,8 +1870,8 @@ HValue* CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildCodeStub() {
           ExternalReference::keyed_lookup_cache_keys(isolate());
       HValue* cache_keys = Add<HConstant>(cache_keys_ref);
 
-      HValue* map = Add<HLoadNamedField>(receiver, static_cast<HValue*>(NULL),
-                                         HObjectAccess::ForMap());
+      HValue* map =
+          Add<HLoadNamedField>(receiver, nullptr, HObjectAccess::ForMap());
       HValue* base_index = AddUncasted<HMul>(hash, Add<HConstant>(2));
       base_index->ClearFlag(HValue::kCanOverflow);
 
@@ -1910,12 +1893,12 @@ HValue* CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildCodeStub() {
               Add<HConstant>(probe_base + KeyedLookupCache::kKeyIndex));
           key_index->ClearFlag(HValue::kCanOverflow);
           HValue* map_to_check =
-              Add<HLoadKeyed>(cache_keys, map_index, static_cast<HValue*>(NULL),
+              Add<HLoadKeyed>(cache_keys, map_index, nullptr, nullptr,
                               FAST_ELEMENTS, NEVER_RETURN_HOLE, 0);
           lookup_if->If<HCompareObjectEqAndBranch>(map_to_check, map);
           lookup_if->And();
           HValue* key_to_check =
-              Add<HLoadKeyed>(cache_keys, key_index, static_cast<HValue*>(NULL),
+              Add<HLoadKeyed>(cache_keys, key_index, nullptr, nullptr,
                               FAST_ELEMENTS, NEVER_RETURN_HOLE, 0);
           lookup_if->If<HCompareObjectEqAndBranch>(key_to_check, key);
           lookup_if->Then();
@@ -1926,9 +1909,9 @@ HValue* CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildCodeStub() {
                 Add<HConstant>(cache_field_offsets_ref);
             HValue* index = AddUncasted<HAdd>(hash, Add<HConstant>(probe));
             index->ClearFlag(HValue::kCanOverflow);
-            HValue* property_index = Add<HLoadKeyed>(
-                cache_field_offsets, index, static_cast<HValue*>(NULL),
-                EXTERNAL_INT32_ELEMENTS, NEVER_RETURN_HOLE, 0);
+            HValue* property_index =
+                Add<HLoadKeyed>(cache_field_offsets, index, nullptr, cache_keys,
+                                INT32_ELEMENTS, NEVER_RETURN_HOLE, 0);
             Push(property_index);
           }
           lookup_if->Else();
@@ -1949,7 +1932,6 @@ HValue* CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildCodeStub() {
         // KeyedLookupCache miss; call runtime.
         Add<HPushArguments>(receiver, key);
         Push(Add<HCallRuntime>(
-            isolate()->factory()->empty_string(),
             Runtime::FunctionForId(Runtime::kKeyedGetProperty), 2));
       }
       inline_or_runtime.End();
@@ -1966,48 +1948,5 @@ Handle<Code> KeyedLoadGenericStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 
-
-template <>
-HValue* CodeStubGraphBuilder<VectorLoadStub>::BuildCodeStub() {
-  HValue* receiver = GetParameter(VectorLoadICDescriptor::kReceiverIndex);
-  Add<HDeoptimize>("Always deopt", Deoptimizer::EAGER);
-  return receiver;
-}
-
-
-Handle<Code> VectorLoadStub::GenerateCode() { return DoGenerateCode(this); }
-
-
-template <>
-HValue* CodeStubGraphBuilder<VectorKeyedLoadStub>::BuildCodeStub() {
-  HValue* receiver = GetParameter(VectorLoadICDescriptor::kReceiverIndex);
-  Add<HDeoptimize>("Always deopt", Deoptimizer::EAGER);
-  return receiver;
-}
-
-
-Handle<Code> VectorKeyedLoadStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
-Handle<Code> MegamorphicLoadStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
-template <>
-HValue* CodeStubGraphBuilder<MegamorphicLoadStub>::BuildCodeStub() {
-  // The return address is on the stack.
-  HValue* receiver = GetParameter(LoadDescriptor::kReceiverIndex);
-  HValue* name = GetParameter(LoadDescriptor::kNameIndex);
-
-  // Probe the stub cache.
-  Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
-      Code::ComputeHandlerFlags(Code::LOAD_IC));
-  Add<HTailCallThroughMegamorphicCache>(receiver, name, flags);
-
-  // We never continue.
-  return graph()->GetConstant0();
-}
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

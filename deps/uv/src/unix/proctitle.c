@@ -55,7 +55,7 @@ char** uv_setup_args(int argc, char** argv) {
   /* Add space for the argv pointers. */
   size += (argc + 1) * sizeof(char*);
 
-  new_argv = malloc(size);
+  new_argv = uv__malloc(size);
   if (new_argv == NULL)
     return argv;
   args_mem = new_argv;
@@ -87,16 +87,19 @@ int uv_set_process_title(const char* title) {
 
 
 int uv_get_process_title(char* buffer, size_t size) {
-  if (process_title.len > 0)
-    strncpy(buffer, process_title.str, size);
-  else if (size > 0)
-    buffer[0] = '\0';
+  if (buffer == NULL || size == 0)
+    return -EINVAL;
+  else if (size <= process_title.len)
+    return -ENOBUFS;
+
+  memcpy(buffer, process_title.str, process_title.len + 1);
+  buffer[process_title.len] = '\0';
 
   return 0;
 }
 
 
 UV_DESTRUCTOR(static void free_args_mem(void)) {
-  free(args_mem);  /* Keep valgrind happy. */
+  uv__free(args_mem);  /* Keep valgrind happy. */
   args_mem = NULL;
 }

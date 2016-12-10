@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug --harmony-scoping
+// Flags: --expose-debug-as debug
 // The functions used for testing backtraces. They are at the top to make the
 // testing of source line/column easier.
 
@@ -52,6 +52,7 @@ function listener(event, exec_state, event_data, data) {
     }
   } catch (e) {
     exception = e;
+    print(e + e.stack);
   }
 }
 

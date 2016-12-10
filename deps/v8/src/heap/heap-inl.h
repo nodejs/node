@@ -8,46 +8,86 @@
 #include <cmath>
 
 #include "src/base/platform/platform.h"
-#include "src/cpu-profiler.h"
+#include "src/counters.h"
 #include "src/heap/heap.h"
+#include "src/heap/incremental-marking-inl.h"
+#include "src/heap/mark-compact.h"
+#include "src/heap/remembered-set.h"
+#include "src/heap/spaces-inl.h"
 #include "src/heap/store-buffer.h"
-#include "src/heap/store-buffer-inl.h"
-#include "src/heap-profiler.h"
 #include "src/isolate.h"
 #include "src/list-inl.h"
+#include "src/log.h"
 #include "src/msan.h"
-#include "src/objects.h"
+#include "src/objects-inl.h"
+#include "src/type-feedback-vector-inl.h"
 
 namespace v8 {
 namespace internal {
 
-void PromotionQueue::insert(HeapObject* target, int size) {
+void PromotionQueue::insert(HeapObject* target, int32_t size,
+                            bool was_marked_black) {
   if (emergency_stack_ != NULL) {
-    emergency_stack_->Add(Entry(target, size));
+    emergency_stack_->Add(Entry(target, size, was_marked_black));
     return;
   }
 
-  if (NewSpacePage::IsAtStart(reinterpret_cast<Address>(rear_))) {
-    NewSpacePage* rear_page =
-        NewSpacePage::FromAddress(reinterpret_cast<Address>(rear_));
-    DCHECK(!rear_page->prev_page()->is_anchor());
-    rear_ = reinterpret_cast<intptr_t*>(rear_page->prev_page()->area_end());
-  }
-
-  if ((rear_ - 2) < limit_) {
+  if ((rear_ - 1) < limit_) {
     RelocateQueueHead();
-    emergency_stack_->Add(Entry(target, size));
+    emergency_stack_->Add(Entry(target, size, was_marked_black));
     return;
   }
 
-  *(--rear_) = reinterpret_cast<intptr_t>(target);
-  *(--rear_) = size;
+  struct Entry* entry = reinterpret_cast<struct Entry*>(--rear_);
+  entry->obj_ = target;
+  entry->size_ = size;
+  entry->was_marked_black_ = was_marked_black;
+
 // Assert no overflow into live objects.
 #ifdef DEBUG
   SemiSpace::AssertValidRange(target->GetIsolate()->heap()->new_space()->top(),
                               reinterpret_cast<Address>(rear_));
 #endif
 }
+
+
+#define ROOT_ACCESSOR(type, name, camel_name) \
+  type* Heap::name() { return type::cast(roots_[k##camel_name##RootIndex]); }
+ROOT_LIST(ROOT_ACCESSOR)
+#undef ROOT_ACCESSOR
+
+#define STRUCT_MAP_ACCESSOR(NAME, Name, name) \
+  Map* Heap::name##_map() { return Map::cast(roots_[k##Name##MapRootIndex]); }
+STRUCT_LIST(STRUCT_MAP_ACCESSOR)
+#undef STRUCT_MAP_ACCESSOR
+
+#define STRING_ACCESSOR(name, str) \
+  String* Heap::name() { return String::cast(roots_[k##name##RootIndex]); }
+INTERNALIZED_STRING_LIST(STRING_ACCESSOR)
+#undef STRING_ACCESSOR
+
+#define SYMBOL_ACCESSOR(name) \
+  Symbol* Heap::name() { return Symbol::cast(roots_[k##name##RootIndex]); }
+PRIVATE_SYMBOL_LIST(SYMBOL_ACCESSOR)
+#undef SYMBOL_ACCESSOR
+
+#define SYMBOL_ACCESSOR(name, description) \
+  Symbol* Heap::name() { return Symbol::cast(roots_[k##name##RootIndex]); }
+PUBLIC_SYMBOL_LIST(SYMBOL_ACCESSOR)
+WELL_KNOWN_SYMBOL_LIST(SYMBOL_ACCESSOR)
+#undef SYMBOL_ACCESSOR
+
+#define ROOT_ACCESSOR(type, name, camel_name)                                 \
+  void Heap::set_##name(type* value) {                                        \
+    /* The deserializer makes use of the fact that these common roots are */  \
+    /* never in new space and never on a page that is being compacted.    */  \
+    DCHECK(!deserialization_complete() ||                                     \
+           RootCanBeWrittenAfterInitialization(k##camel_name##RootIndex));    \
+    DCHECK(k##camel_name##RootIndex >= kOldSpaceRoots || !InNewSpace(value)); \
+    roots_[k##camel_name##RootIndex] = value;                                 \
+  }
+ROOT_LIST(ROOT_ACCESSOR)
+#undef ROOT_ACCESSOR
 
 
 template <>
@@ -89,12 +129,11 @@ AllocationResult Heap::AllocateOneByteInternalizedString(
   // Compute map and object size.
   Map* map = one_byte_internalized_string_map();
   int size = SeqOneByteString::SizeFor(str.length());
-  AllocationSpace space = SelectSpace(size, OLD_DATA_SPACE, TENURED);
 
   // Allocate string.
-  HeapObject* result;
+  HeapObject* result = nullptr;
   {
-    AllocationResult allocation = AllocateRaw(size, space, OLD_DATA_SPACE);
+    AllocationResult allocation = AllocateRaw(size, OLD_SPACE);
     if (!allocation.To(&result)) return allocation;
   }
 
@@ -121,12 +160,11 @@ AllocationResult Heap::AllocateTwoByteInternalizedString(Vector<const uc16> str,
   // Compute map and object size.
   Map* map = internalized_string_map();
   int size = SeqTwoByteString::SizeFor(str.length());
-  AllocationSpace space = SelectSpace(size, OLD_DATA_SPACE, TENURED);
 
   // Allocate string.
-  HeapObject* result;
+  HeapObject* result = nullptr;
   {
-    AllocationResult allocation = AllocateRaw(size, space, OLD_DATA_SPACE);
+    AllocationResult allocation = AllocateRaw(size, OLD_SPACE);
     if (!allocation.To(&result)) return allocation;
   }
 
@@ -157,19 +195,13 @@ AllocationResult Heap::CopyFixedDoubleArray(FixedDoubleArray* src) {
 }
 
 
-AllocationResult Heap::CopyConstantPoolArray(ConstantPoolArray* src) {
-  if (src->length() == 0) return src;
-  return CopyConstantPoolArrayWithMap(src, src->map());
-}
-
-
 AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
-                                   AllocationSpace retry_space) {
+                                   AllocationAlignment alignment) {
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
   DCHECK(gc_state_ == NOT_IN_GC);
 #ifdef DEBUG
-  if (FLAG_gc_interval >= 0 && AllowAllocationFailure::IsAllowed(isolate_) &&
+  if (FLAG_gc_interval >= 0 && !always_allocate() &&
       Heap::allocation_timeout_-- <= 0) {
     return AllocationResult::Retry(space);
   }
@@ -177,13 +209,14 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
   isolate_->counters()->objs_since_last_young()->Increment();
 #endif
 
-  HeapObject* object;
+  bool large_object = size_in_bytes > Page::kMaxRegularHeapObjectSize;
+  HeapObject* object = nullptr;
   AllocationResult allocation;
   if (NEW_SPACE == space) {
-    allocation = new_space_.AllocateRaw(size_in_bytes);
-    if (always_allocate() && allocation.IsRetry() && retry_space != NEW_SPACE) {
-      space = retry_space;
+    if (large_object) {
+      space = LO_SPACE;
     } else {
+      allocation = new_space_.AllocateRaw(size_in_bytes, alignment);
       if (allocation.To(&object)) {
         OnAllocationEvent(object, size_in_bytes);
       }
@@ -191,32 +224,34 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
     }
   }
 
-  if (OLD_POINTER_SPACE == space) {
-    allocation = old_pointer_space_->AllocateRaw(size_in_bytes);
-  } else if (OLD_DATA_SPACE == space) {
-    allocation = old_data_space_->AllocateRaw(size_in_bytes);
+  // Here we only allocate in the old generation.
+  if (OLD_SPACE == space) {
+    if (large_object) {
+      allocation = lo_space_->AllocateRaw(size_in_bytes, NOT_EXECUTABLE);
+    } else {
+      allocation = old_space_->AllocateRaw(size_in_bytes, alignment);
+    }
   } else if (CODE_SPACE == space) {
     if (size_in_bytes <= code_space()->AreaSize()) {
-      allocation = code_space_->AllocateRaw(size_in_bytes);
+      allocation = code_space_->AllocateRawUnaligned(size_in_bytes);
     } else {
-      // Large code objects are allocated in large object space.
       allocation = lo_space_->AllocateRaw(size_in_bytes, EXECUTABLE);
     }
   } else if (LO_SPACE == space) {
+    DCHECK(large_object);
     allocation = lo_space_->AllocateRaw(size_in_bytes, NOT_EXECUTABLE);
-  } else if (CELL_SPACE == space) {
-    allocation = cell_space_->AllocateRaw(size_in_bytes);
-  } else if (PROPERTY_CELL_SPACE == space) {
-    allocation = property_cell_space_->AllocateRaw(size_in_bytes);
+  } else if (MAP_SPACE == space) {
+    allocation = map_space_->AllocateRawUnaligned(size_in_bytes);
   } else {
-    DCHECK(MAP_SPACE == space);
-    allocation = map_space_->AllocateRaw(size_in_bytes);
+    // NEW_SPACE is not allowed here.
+    UNREACHABLE();
   }
   if (allocation.To(&object)) {
     OnAllocationEvent(object, size_in_bytes);
   } else {
     old_gen_exhausted_ = true;
   }
+
   return allocation;
 }
 
@@ -229,14 +264,21 @@ void Heap::OnAllocationEvent(HeapObject* object, int size_in_bytes) {
 
   if (FLAG_verify_predictable) {
     ++allocations_count_;
+    // Advance synthetic time by making a time request.
+    MonotonicallyIncreasingTimeInMs();
 
     UpdateAllocationsHash(object);
     UpdateAllocationsHash(size_in_bytes);
 
-    if ((FLAG_dump_allocations_digest_at_alloc > 0) &&
-        (--dump_allocations_hash_countdown_ == 0)) {
-      dump_allocations_hash_countdown_ = FLAG_dump_allocations_digest_at_alloc;
+    if (allocations_count_ % FLAG_dump_allocations_digest_at_alloc == 0) {
       PrintAlloctionsHash();
+    }
+  }
+
+  if (FLAG_trace_allocation_stack_interval > 0) {
+    if (!FLAG_verify_predictable) ++allocations_count_;
+    if (allocations_count_ % FLAG_trace_allocation_stack_interval == 0) {
+      isolate()->PrintStack(stdout, Isolate::kPrintStackConcise);
     }
   }
 }
@@ -249,25 +291,21 @@ void Heap::OnMoveEvent(HeapObject* target, HeapObject* source,
     heap_profiler->ObjectMoveEvent(source->address(), target->address(),
                                    size_in_bytes);
   }
-
-  if (isolate_->logger()->is_logging_code_events() ||
-      isolate_->cpu_profiler()->is_profiling()) {
-    if (target->IsSharedFunctionInfo()) {
-      PROFILE(isolate_, SharedFunctionInfoMoveEvent(source->address(),
-                                                    target->address()));
-    }
+  if (target->IsSharedFunctionInfo()) {
+    LOG_CODE_EVENT(isolate_, SharedFunctionInfoMoveEvent(source->address(),
+                                                         target->address()));
   }
 
   if (FLAG_verify_predictable) {
     ++allocations_count_;
+    // Advance synthetic time by making a time request.
+    MonotonicallyIncreasingTimeInMs();
 
     UpdateAllocationsHash(source);
     UpdateAllocationsHash(target);
     UpdateAllocationsHash(size_in_bytes);
 
-    if ((FLAG_dump_allocations_digest_at_alloc > 0) &&
-        (--dump_allocations_hash_countdown_ == 0)) {
-      dump_allocations_hash_countdown_ = FLAG_dump_allocations_digest_at_alloc;
+    if (allocations_count_ % FLAG_dump_allocations_digest_at_alloc == 0) {
       PrintAlloctionsHash();
     }
   }
@@ -298,9 +336,8 @@ void Heap::UpdateAllocationsHash(uint32_t value) {
 }
 
 
-void Heap::PrintAlloctionsHash() {
-  uint32_t hash = StringHasher::GetHashCore(raw_allocations_hash_);
-  PrintF("\n### Allocations = %u, hash = 0x%08x\n", allocations_count_, hash);
+void Heap::RegisterExternalString(String* string) {
+  external_string_table_.AddString(string);
 }
 
 
@@ -327,10 +364,6 @@ bool Heap::InNewSpace(Object* object) {
   return result;
 }
 
-
-bool Heap::InNewSpace(Address address) { return new_space_.Contains(address); }
-
-
 bool Heap::InFromSpace(Object* object) {
   return new_space_.FromSpaceContains(object);
 }
@@ -340,102 +373,87 @@ bool Heap::InToSpace(Object* object) {
   return new_space_.ToSpaceContains(object);
 }
 
+bool Heap::InOldSpace(Object* object) { return old_space_->Contains(object); }
 
-bool Heap::InOldPointerSpace(Address address) {
-  return old_pointer_space_->Contains(address);
+bool Heap::InNewSpaceSlow(Address address) {
+  return new_space_.ContainsSlow(address);
 }
 
-
-bool Heap::InOldPointerSpace(Object* object) {
-  return InOldPointerSpace(reinterpret_cast<Address>(object));
+bool Heap::InOldSpaceSlow(Address address) {
+  return old_space_->ContainsSlow(address);
 }
-
-
-bool Heap::InOldDataSpace(Address address) {
-  return old_data_space_->Contains(address);
-}
-
-
-bool Heap::InOldDataSpace(Object* object) {
-  return InOldDataSpace(reinterpret_cast<Address>(object));
-}
-
 
 bool Heap::OldGenerationAllocationLimitReached() {
-  if (!incremental_marking()->IsStopped()) return false;
+  if (!incremental_marking()->IsStopped() && !ShouldOptimizeForMemoryUsage()) {
+    return false;
+  }
   return OldGenerationSpaceAvailable() < 0;
 }
 
-
+template <PromotionMode promotion_mode>
 bool Heap::ShouldBePromoted(Address old_address, int object_size) {
-  NewSpacePage* page = NewSpacePage::FromAddress(old_address);
+  Page* page = Page::FromAddress(old_address);
   Address age_mark = new_space_.age_mark();
+
+  if (promotion_mode == PROMOTE_MARKED) {
+    MarkBit mark_bit = ObjectMarking::MarkBitFrom(old_address);
+    if (!Marking::IsWhite(mark_bit)) {
+      return true;
+    }
+  }
+
   return page->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK) &&
          (!page->ContainsLimit(age_mark) || old_address < age_mark);
 }
 
-
-void Heap::RecordWrite(Address address, int offset) {
-  if (!InNewSpace(address)) store_buffer_.Mark(address + offset);
-}
-
-
-void Heap::RecordWrites(Address address, int start, int len) {
-  if (!InNewSpace(address)) {
-    for (int i = 0; i < len; i++) {
-      store_buffer_.Mark(address + start + i * kPointerSize);
-    }
-  }
-}
-
-
-OldSpace* Heap::TargetSpace(HeapObject* object) {
-  InstanceType type = object->map()->instance_type();
-  AllocationSpace space = TargetSpaceId(type);
-  return (space == OLD_POINTER_SPACE) ? old_pointer_space_ : old_data_space_;
-}
-
-
-AllocationSpace Heap::TargetSpaceId(InstanceType type) {
-  // Heap numbers and sequential strings are promoted to old data space, all
-  // other object types are promoted to old pointer space.  We do not use
-  // object->IsHeapNumber() and object->IsSeqString() because we already
-  // know that object has the heap object tag.
-
-  // These objects are never allocated in new space.
-  DCHECK(type != MAP_TYPE);
-  DCHECK(type != CODE_TYPE);
-  DCHECK(type != ODDBALL_TYPE);
-  DCHECK(type != CELL_TYPE);
-  DCHECK(type != PROPERTY_CELL_TYPE);
-
-  if (type <= LAST_NAME_TYPE) {
-    if (type == SYMBOL_TYPE) return OLD_POINTER_SPACE;
-    DCHECK(type < FIRST_NONSTRING_TYPE);
-    // There are four string representations: sequential strings, external
-    // strings, cons strings, and sliced strings.
-    // Only the latter two contain non-map-word pointers to heap objects.
-    return ((type & kIsIndirectStringMask) == kIsIndirectStringTag)
-               ? OLD_POINTER_SPACE
-               : OLD_DATA_SPACE;
+PromotionMode Heap::CurrentPromotionMode() {
+  if (incremental_marking()->IsMarking()) {
+    return PROMOTE_MARKED;
   } else {
-    return (type <= LAST_DATA_TYPE) ? OLD_DATA_SPACE : OLD_POINTER_SPACE;
+    return DEFAULT_PROMOTION;
   }
 }
 
+void Heap::RecordWrite(Object* object, int offset, Object* o) {
+  if (!InNewSpace(o) || !object->IsHeapObject() || InNewSpace(object)) {
+    return;
+  }
+  RememberedSet<OLD_TO_NEW>::Insert(
+      Page::FromAddress(reinterpret_cast<Address>(object)),
+      HeapObject::cast(object)->address() + offset);
+}
+
+void Heap::RecordWriteIntoCode(Code* host, RelocInfo* rinfo, Object* value) {
+  if (InNewSpace(value)) {
+    RecordWriteIntoCodeSlow(host, rinfo, value);
+  }
+}
+
+void Heap::RecordFixedArrayElements(FixedArray* array, int offset, int length) {
+  if (InNewSpace(array)) return;
+  Page* page = Page::FromAddress(reinterpret_cast<Address>(array));
+  for (int i = 0; i < length; i++) {
+    if (!InNewSpace(array->get(offset + i))) continue;
+    RememberedSet<OLD_TO_NEW>::Insert(
+        page,
+        reinterpret_cast<Address>(array->RawFieldOfElementAt(offset + i)));
+  }
+}
+
+Address* Heap::store_buffer_top_address() {
+  return store_buffer()->top_address();
+}
 
 bool Heap::AllowedToBeMigrated(HeapObject* obj, AllocationSpace dst) {
   // Object migration is governed by the following rules:
   //
-  // 1) Objects in new-space can be migrated to one of the old spaces
+  // 1) Objects in new-space can be migrated to the old space
   //    that matches their target space or they stay in new-space.
   // 2) Objects in old-space stay in the same space when migrating.
   // 3) Fillers (two or more words) can migrate due to left-trimming of
-  //    fixed arrays in new-space, old-data-space and old-pointer-space.
+  //    fixed arrays in new-space or old space.
   // 4) Fillers (one word) can never migrate, they are skipped by
   //    incremental marking explicitly to prevent invalid pattern.
-  // 5) Short external strings can end up in old pointer space when a cons
-  //    string in old pointer space is made external (String::MakeExternal).
   //
   // Since this function is used for debugging only, we do not place
   // asserts here, but check everything explicitly.
@@ -445,17 +463,13 @@ bool Heap::AllowedToBeMigrated(HeapObject* obj, AllocationSpace dst) {
   AllocationSpace src = chunk->owner()->identity();
   switch (src) {
     case NEW_SPACE:
-      return dst == src || dst == TargetSpaceId(type);
-    case OLD_POINTER_SPACE:
-      return dst == src && (dst == TargetSpaceId(type) || obj->IsFiller() ||
-                            obj->IsExternalString());
-    case OLD_DATA_SPACE:
-      return dst == src && dst == TargetSpaceId(type);
+      return dst == src || dst == OLD_SPACE;
+    case OLD_SPACE:
+      return dst == src &&
+             (dst == OLD_SPACE || obj->IsFiller() || obj->IsExternalString());
     case CODE_SPACE:
       return dst == src && type == CODE_TYPE;
     case MAP_SPACE:
-    case CELL_SPACE:
-    case PROPERTY_CELL_SPACE:
     case LO_SPACE:
       return false;
   }
@@ -463,116 +477,114 @@ bool Heap::AllowedToBeMigrated(HeapObject* obj, AllocationSpace dst) {
   return false;
 }
 
-
 void Heap::CopyBlock(Address dst, Address src, int byte_size) {
   CopyWords(reinterpret_cast<Object**>(dst), reinterpret_cast<Object**>(src),
             static_cast<size_t>(byte_size / kPointerSize));
 }
 
-
-void Heap::MoveBlock(Address dst, Address src, int byte_size) {
-  DCHECK(IsAligned(byte_size, kPointerSize));
-
-  int size_in_words = byte_size / kPointerSize;
-
-  if ((dst < src) || (dst >= (src + byte_size))) {
-    Object** src_slot = reinterpret_cast<Object**>(src);
-    Object** dst_slot = reinterpret_cast<Object**>(dst);
-    Object** end_slot = src_slot + size_in_words;
-
-    while (src_slot != end_slot) {
-      *dst_slot++ = *src_slot++;
-    }
-  } else {
-    MemMove(dst, src, static_cast<size_t>(byte_size));
-  }
-}
-
-
-void Heap::ScavengePointer(HeapObject** p) { ScavengeObject(p, *p); }
-
-
+template <Heap::FindMementoMode mode>
 AllocationMemento* Heap::FindAllocationMemento(HeapObject* object) {
-  // Check if there is potentially a memento behind the object. If
-  // the last word of the memento is on another page we return
-  // immediately.
   Address object_address = object->address();
   Address memento_address = object_address + object->Size();
   Address last_memento_word_address = memento_address + kPointerSize;
-  if (!NewSpacePage::OnSamePage(object_address, last_memento_word_address)) {
-    return NULL;
+  // If the memento would be on another page, bail out immediately.
+  if (!Page::OnSamePage(object_address, last_memento_word_address)) {
+    return nullptr;
   }
-
   HeapObject* candidate = HeapObject::FromAddress(memento_address);
   Map* candidate_map = candidate->map();
   // This fast check may peek at an uninitialized word. However, the slow check
   // below (memento_address == top) ensures that this is safe. Mark the word as
   // initialized to silence MemorySanitizer warnings.
   MSAN_MEMORY_IS_INITIALIZED(&candidate_map, sizeof(candidate_map));
-  if (candidate_map != allocation_memento_map()) return NULL;
+  if (candidate_map != allocation_memento_map()) {
+    return nullptr;
+  }
 
-  // Either the object is the last object in the new space, or there is another
-  // object of at least word size (the header map word) following it, so
-  // suffices to compare ptr and top here. Note that technically we do not have
-  // to compare with the current top pointer of the from space page during GC,
-  // since we always install filler objects above the top pointer of a from
-  // space page when performing a garbage collection. However, always performing
-  // the test makes it possible to have a single, unified version of
-  // FindAllocationMemento that is used both by the GC and the mutator.
-  Address top = NewSpaceTop();
-  DCHECK(memento_address == top ||
-         memento_address + HeapObject::kHeaderSize <= top ||
-         !NewSpacePage::OnSamePage(memento_address, top));
-  if (memento_address == top) return NULL;
+  // Bail out if the memento is below the age mark, which can happen when
+  // mementos survived because a page got moved within new space.
+  Page* object_page = Page::FromAddress(object_address);
+  if (object_page->IsFlagSet(Page::NEW_SPACE_BELOW_AGE_MARK)) {
+    Address age_mark =
+        reinterpret_cast<SemiSpace*>(object_page->owner())->age_mark();
+    if (!object_page->Contains(age_mark)) {
+      return nullptr;
+    }
+    // Do an exact check in the case where the age mark is on the same page.
+    if (object_address < age_mark) {
+      return nullptr;
+    }
+  }
 
-  AllocationMemento* memento = AllocationMemento::cast(candidate);
-  if (!memento->IsValid()) return NULL;
-  return memento;
+  AllocationMemento* memento_candidate = AllocationMemento::cast(candidate);
+
+  // Depending on what the memento is used for, we might need to perform
+  // additional checks.
+  Address top;
+  switch (mode) {
+    case Heap::kForGC:
+      return memento_candidate;
+    case Heap::kForRuntime:
+      if (memento_candidate == nullptr) return nullptr;
+      // Either the object is the last object in the new space, or there is
+      // another object of at least word size (the header map word) following
+      // it, so suffices to compare ptr and top here.
+      top = NewSpaceTop();
+      DCHECK(memento_address == top ||
+             memento_address + HeapObject::kHeaderSize <= top ||
+             !Page::OnSamePage(memento_address, top - 1));
+      if ((memento_address != top) && memento_candidate->IsValid()) {
+        return memento_candidate;
+      }
+      return nullptr;
+    default:
+      UNREACHABLE();
+  }
+  UNREACHABLE();
+  return nullptr;
 }
 
-
-void Heap::UpdateAllocationSiteFeedback(HeapObject* object,
-                                        ScratchpadSlotMode mode) {
-  Heap* heap = object->GetHeap();
-  DCHECK(heap->InFromSpace(object));
-
+template <Heap::UpdateAllocationSiteMode mode>
+void Heap::UpdateAllocationSite(HeapObject* object,
+                                base::HashMap* pretenuring_feedback) {
+  DCHECK(InFromSpace(object));
   if (!FLAG_allocation_site_pretenuring ||
       !AllocationSite::CanTrack(object->map()->instance_type()))
     return;
+  AllocationMemento* memento_candidate = FindAllocationMemento<kForGC>(object);
+  if (memento_candidate == nullptr) return;
 
-  AllocationMemento* memento = heap->FindAllocationMemento(object);
-  if (memento == NULL) return;
-
-  if (memento->GetAllocationSite()->IncrementMementoFoundCount()) {
-    heap->AddAllocationSiteToScratchpad(memento->GetAllocationSite(), mode);
+  if (mode == kGlobal) {
+    DCHECK_EQ(pretenuring_feedback, global_pretenuring_feedback_);
+    // Entering global pretenuring feedback is only used in the scavenger, where
+    // we are allowed to actually touch the allocation site.
+    if (!memento_candidate->IsValid()) return;
+    AllocationSite* site = memento_candidate->GetAllocationSite();
+    DCHECK(!site->IsZombie());
+    // For inserting in the global pretenuring storage we need to first
+    // increment the memento found count on the allocation site.
+    if (site->IncrementMementoFoundCount()) {
+      global_pretenuring_feedback_->LookupOrInsert(site,
+                                                   ObjectHash(site->address()));
+    }
+  } else {
+    DCHECK_EQ(mode, kCached);
+    DCHECK_NE(pretenuring_feedback, global_pretenuring_feedback_);
+    // Entering cached feedback is used in the parallel case. We are not allowed
+    // to dereference the allocation site and rather have to postpone all checks
+    // till actually merging the data.
+    Address key = memento_candidate->GetAllocationSiteUnchecked();
+    base::HashMap::Entry* e =
+        pretenuring_feedback->LookupOrInsert(key, ObjectHash(key));
+    DCHECK(e != nullptr);
+    (*bit_cast<intptr_t*>(&e->value))++;
   }
 }
 
 
-void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
-  DCHECK(object->GetIsolate()->heap()->InFromSpace(object));
-
-  // We use the first word (where the map pointer usually is) of a heap
-  // object to record the forwarding pointer.  A forwarding pointer can
-  // point to an old space, the code space, or the to space of the new
-  // generation.
-  MapWord first_word = object->map_word();
-
-  // If the first word is a forwarding address, the object has already been
-  // copied.
-  if (first_word.IsForwardingAddress()) {
-    HeapObject* dest = first_word.ToForwardingAddress();
-    DCHECK(object->GetIsolate()->heap()->InFromSpace(*p));
-    *p = dest;
-    return;
-  }
-
-  UpdateAllocationSiteFeedback(object, IGNORE_SCRATCHPAD_SLOT);
-
-  // AllocationMementos are unrooted and shouldn't survive a scavenge
-  DCHECK(object->map() != object->GetHeap()->allocation_memento_map());
-  // Call the slow part of scavenge object.
-  return ScavengeObjectSlow(p, object);
+void Heap::RemoveAllocationSitePretenuringFeedback(AllocationSite* site) {
+  global_pretenuring_feedback_->Remove(
+      site, static_cast<uint32_t>(bit_cast<uintptr_t>(site)));
 }
 
 
@@ -587,59 +599,11 @@ bool Heap::CollectGarbage(AllocationSpace space, const char* gc_reason,
 Isolate* Heap::isolate() {
   return reinterpret_cast<Isolate*>(
       reinterpret_cast<intptr_t>(this) -
-      reinterpret_cast<size_t>(reinterpret_cast<Isolate*>(4)->heap()) + 4);
+      reinterpret_cast<size_t>(reinterpret_cast<Isolate*>(16)->heap()) + 16);
 }
 
 
-// Calls the FUNCTION_CALL function and retries it up to three times
-// to guarantee that any allocations performed during the call will
-// succeed if there's enough memory.
-
-// Warning: Do not use the identifiers __object__, __maybe_object__ or
-// __scope__ in a call to this macro.
-
-#define RETURN_OBJECT_UNLESS_RETRY(ISOLATE, RETURN_VALUE) \
-  if (__allocation__.To(&__object__)) {                   \
-    DCHECK(__object__ != (ISOLATE)->heap()->exception()); \
-    RETURN_VALUE;                                         \
-  }
-
-#define CALL_AND_RETRY(ISOLATE, FUNCTION_CALL, RETURN_VALUE, RETURN_EMPTY)    \
-  do {                                                                        \
-    AllocationResult __allocation__ = FUNCTION_CALL;                          \
-    Object* __object__ = NULL;                                                \
-    RETURN_OBJECT_UNLESS_RETRY(ISOLATE, RETURN_VALUE)                         \
-    (ISOLATE)->heap()->CollectGarbage(__allocation__.RetrySpace(),            \
-                                      "allocation failure");                  \
-    __allocation__ = FUNCTION_CALL;                                           \
-    RETURN_OBJECT_UNLESS_RETRY(ISOLATE, RETURN_VALUE)                         \
-    (ISOLATE)->counters()->gc_last_resort_from_handles()->Increment();        \
-    (ISOLATE)->heap()->CollectAllAvailableGarbage("last resort gc");          \
-    {                                                                         \
-      AlwaysAllocateScope __scope__(ISOLATE);                                 \
-      __allocation__ = FUNCTION_CALL;                                         \
-    }                                                                         \
-    RETURN_OBJECT_UNLESS_RETRY(ISOLATE, RETURN_VALUE)                         \
-    /* TODO(1181417): Fix this. */                                            \
-    v8::internal::Heap::FatalProcessOutOfMemory("CALL_AND_RETRY_LAST", true); \
-    RETURN_EMPTY;                                                             \
-  } while (false)
-
-#define CALL_AND_RETRY_OR_DIE(ISOLATE, FUNCTION_CALL, RETURN_VALUE, \
-                              RETURN_EMPTY)                         \
-  CALL_AND_RETRY(ISOLATE, FUNCTION_CALL, RETURN_VALUE, RETURN_EMPTY)
-
-#define CALL_HEAP_FUNCTION(ISOLATE, FUNCTION_CALL, TYPE)                      \
-  CALL_AND_RETRY_OR_DIE(ISOLATE, FUNCTION_CALL,                               \
-                        return Handle<TYPE>(TYPE::cast(__object__), ISOLATE), \
-                        return Handle<TYPE>())
-
-
-#define CALL_HEAP_FUNCTION_VOID(ISOLATE, FUNCTION_CALL) \
-  CALL_AND_RETRY_OR_DIE(ISOLATE, FUNCTION_CALL, return, return)
-
-
-void ExternalStringTable::AddString(String* string) {
+void Heap::ExternalStringTable::AddString(String* string) {
   DCHECK(string->IsExternalString());
   if (heap_->InNewSpace(string)) {
     new_space_strings_.Add(string);
@@ -649,7 +613,7 @@ void ExternalStringTable::AddString(String* string) {
 }
 
 
-void ExternalStringTable::Iterate(ObjectVisitor* v) {
+void Heap::ExternalStringTable::Iterate(ObjectVisitor* v) {
   if (!new_space_strings_.is_empty()) {
     Object** start = &new_space_strings_[0];
     v->VisitPointers(start, start + new_space_strings_.length());
@@ -663,30 +627,30 @@ void ExternalStringTable::Iterate(ObjectVisitor* v) {
 
 // Verify() is inline to avoid ifdef-s around its calls in release
 // mode.
-void ExternalStringTable::Verify() {
+void Heap::ExternalStringTable::Verify() {
 #ifdef DEBUG
   for (int i = 0; i < new_space_strings_.length(); ++i) {
     Object* obj = Object::cast(new_space_strings_[i]);
     DCHECK(heap_->InNewSpace(obj));
-    DCHECK(obj != heap_->the_hole_value());
+    DCHECK(!obj->IsTheHole(heap_->isolate()));
   }
   for (int i = 0; i < old_space_strings_.length(); ++i) {
     Object* obj = Object::cast(old_space_strings_[i]);
     DCHECK(!heap_->InNewSpace(obj));
-    DCHECK(obj != heap_->the_hole_value());
+    DCHECK(!obj->IsTheHole(heap_->isolate()));
   }
 #endif
 }
 
 
-void ExternalStringTable::AddOldString(String* string) {
+void Heap::ExternalStringTable::AddOldString(String* string) {
   DCHECK(string->IsExternalString());
   DCHECK(!heap_->InNewSpace(string));
   old_space_strings_.Add(string);
 }
 
 
-void ExternalStringTable::ShrinkNewStrings(int position) {
+void Heap::ExternalStringTable::ShrinkNewStrings(int position) {
   new_space_strings_.Rewind(position);
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
@@ -695,13 +659,40 @@ void ExternalStringTable::ShrinkNewStrings(int position) {
 #endif
 }
 
+// static
+int DescriptorLookupCache::Hash(Object* source, Name* name) {
+  DCHECK(name->IsUniqueName());
+  // Uses only lower 32 bits if pointers are larger.
+  uint32_t source_hash =
+      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(source)) >>
+      kPointerSizeLog2;
+  uint32_t name_hash = name->hash_field();
+  return (source_hash ^ name_hash) % kLength;
+}
+
+int DescriptorLookupCache::Lookup(Map* source, Name* name) {
+  int index = Hash(source, name);
+  Key& key = keys_[index];
+  if ((key.source == source) && (key.name == name)) return results_[index];
+  return kAbsent;
+}
+
+
+void DescriptorLookupCache::Update(Map* source, Name* name, int result) {
+  DCHECK(result != kAbsent);
+  int index = Hash(source, name);
+  Key& key = keys_[index];
+  key.source = source;
+  key.name = name;
+  results_[index] = result;
+}
+
 
 void Heap::ClearInstanceofCache() {
   set_instanceof_cache_function(Smi::FromInt(0));
 }
 
-
-Object* Heap::ToBoolean(bool condition) {
+Oddball* Heap::ToBoolean(bool condition) {
   return condition ? true_value() : false_value();
 }
 
@@ -712,47 +703,68 @@ void Heap::CompletelyClearInstanceofCache() {
 }
 
 
+uint32_t Heap::HashSeed() {
+  uint32_t seed = static_cast<uint32_t>(hash_seed()->value());
+  DCHECK(FLAG_randomize_hashes || seed == 0);
+  return seed;
+}
+
+
+int Heap::NextScriptId() {
+  int last_id = last_script_id()->value();
+  if (last_id == Smi::kMaxValue) {
+    last_id = 1;
+  } else {
+    last_id++;
+  }
+  set_last_script_id(Smi::FromInt(last_id));
+  return last_id;
+}
+
+void Heap::SetArgumentsAdaptorDeoptPCOffset(int pc_offset) {
+  DCHECK(arguments_adaptor_deopt_pc_offset() == Smi::FromInt(0));
+  set_arguments_adaptor_deopt_pc_offset(Smi::FromInt(pc_offset));
+}
+
+void Heap::SetConstructStubDeoptPCOffset(int pc_offset) {
+  DCHECK(construct_stub_deopt_pc_offset() == Smi::FromInt(0));
+  set_construct_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
+}
+
+void Heap::SetGetterStubDeoptPCOffset(int pc_offset) {
+  DCHECK(getter_stub_deopt_pc_offset() == Smi::FromInt(0));
+  set_getter_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
+}
+
+void Heap::SetSetterStubDeoptPCOffset(int pc_offset) {
+  DCHECK(setter_stub_deopt_pc_offset() == Smi::FromInt(0));
+  set_setter_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
+}
+
+void Heap::SetInterpreterEntryReturnPCOffset(int pc_offset) {
+  DCHECK(interpreter_entry_return_pc_offset() == Smi::FromInt(0));
+  set_interpreter_entry_return_pc_offset(Smi::FromInt(pc_offset));
+}
+
+int Heap::GetNextTemplateSerialNumber() {
+  int next_serial_number = next_template_serial_number()->value() + 1;
+  set_next_template_serial_number(Smi::FromInt(next_serial_number));
+  return next_serial_number;
+}
+
+void Heap::SetSerializedTemplates(FixedArray* templates) {
+  DCHECK_EQ(empty_fixed_array(), serialized_templates());
+  set_serialized_templates(templates);
+}
+
 AlwaysAllocateScope::AlwaysAllocateScope(Isolate* isolate)
-    : heap_(isolate->heap()), daf_(isolate) {
-  // We shouldn't hit any nested scopes, because that requires
-  // non-handle code to call handle code. The code still works but
-  // performance will degrade, so we want to catch this situation
-  // in debug mode.
-  DCHECK(heap_->always_allocate_scope_depth_ == 0);
-  heap_->always_allocate_scope_depth_++;
+    : heap_(isolate->heap()) {
+  heap_->always_allocate_scope_count_.Increment(1);
 }
 
 
 AlwaysAllocateScope::~AlwaysAllocateScope() {
-  heap_->always_allocate_scope_depth_--;
-  DCHECK(heap_->always_allocate_scope_depth_ == 0);
-}
-
-
-#ifdef VERIFY_HEAP
-NoWeakObjectVerificationScope::NoWeakObjectVerificationScope() {
-  Isolate* isolate = Isolate::Current();
-  isolate->heap()->no_weak_object_verification_scope_depth_++;
-}
-
-
-NoWeakObjectVerificationScope::~NoWeakObjectVerificationScope() {
-  Isolate* isolate = Isolate::Current();
-  isolate->heap()->no_weak_object_verification_scope_depth_--;
-}
-#endif
-
-
-GCCallbacksScope::GCCallbacksScope(Heap* heap) : heap_(heap) {
-  heap_->gc_callbacks_depth_++;
-}
-
-
-GCCallbacksScope::~GCCallbacksScope() { heap_->gc_callbacks_depth_--; }
-
-
-bool GCCallbacksScope::CheckReenter() {
-  return heap_->gc_callbacks_depth_ == 1;
+  heap_->always_allocate_scope_count_.Increment(-1);
 }
 
 
@@ -772,7 +784,7 @@ void VerifySmisVisitor::VisitPointers(Object** start, Object** end) {
     CHECK((*current)->IsSmi());
   }
 }
-}
-}  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_HEAP_HEAP_INL_H_

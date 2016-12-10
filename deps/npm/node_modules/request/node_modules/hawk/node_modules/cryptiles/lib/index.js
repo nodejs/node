@@ -59,7 +59,7 @@ exports.fixedTimeComparison = function (a, b) {
     for (var i = 0, il = a.length; i < il; ++i) {
         var ac = a.charCodeAt(i);
         var bc = b.charCodeAt(i);
-        mismatch += (ac === bc ? 0 : 1);
+        mismatch |= (ac ^ bc);
     }
 
     return (mismatch === 0);

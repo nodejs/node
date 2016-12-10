@@ -1,30 +1,33 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var util = require('util');
+
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
+}
 var tls = require('tls');
 
+
 var tests = [
+  // False-y values.
+  {
+    host: false,
+    cert: { subject: { CN: 'a.com' } },
+    error: 'Host: false. is not cert\'s CN: a.com'
+  },
+  {
+    host: null,
+    cert: { subject: { CN: 'a.com' } },
+    error: 'Host: null. is not cert\'s CN: a.com'
+  },
+  {
+    host: undefined,
+    cert: { subject: { CN: 'a.com' } },
+    error: 'Host: undefined. is not cert\'s CN: a.com'
+  },
+
   // Basic CN handling
   { host: 'a.com', cert: { subject: { CN: 'a.com' } } },
   { host: 'a.com', cert: { subject: { CN: 'A.COM' } } },
@@ -34,14 +37,41 @@ var tests = [
     error: 'Host: a.com. is not cert\'s CN: b.com'
   },
   { host: 'a.com', cert: { subject: { CN: 'a.com.' } } },
+  {
+    host: 'a.com',
+    cert: { subject: { CN: '.a.com' } },
+    error: 'Host: a.com. is not cert\'s CN: .a.com'
+  },
 
   // Wildcards in CN
   { host: 'b.a.com', cert: { subject: { CN: '*.a.com' } } },
+  {
+    host: 'ba.com',
+    cert: { subject: { CN: '*.a.com' } },
+    error: 'Host: ba.com. is not cert\'s CN: *.a.com'
+  },
+  {
+    host: '\n.b.com',
+    cert: { subject: { CN: '*n.b.com' } },
+    error: 'Host: \n.b.com. is not cert\'s CN: *n.b.com'
+  },
   { host: 'b.a.com', cert: {
     subjectaltname: 'DNS:omg.com',
     subject: { CN: '*.a.com' } },
     error: 'Host: b.a.com. is not in the cert\'s altnames: ' +
            'DNS:omg.com'
+  },
+  {
+    host: 'b.a.com',
+    cert: { subject: { CN: 'b*b.a.com' } },
+    error: 'Host: b.a.com. is not cert\'s CN: b*b.a.com'
+  },
+
+  // Empty Cert
+  {
+    host: 'a.com',
+    cert: { },
+    error: 'Cert is empty'
   },
 
   // Multiple CN fields
@@ -205,6 +235,20 @@ var tests = [
     },
     error: 'Host: localhost. is not in the cert\'s altnames: ' +
            'DNS:a.com'
+  },
+  // IDNA
+  {
+    host: 'xn--bcher-kva.example.com',
+    cert: { subject: { CN: '*.example.com' } },
+  },
+  // RFC 6125, section 6.4.3: "[...] the client SHOULD NOT attempt to match
+  // a presented identifier where the wildcard character is embedded within
+  // an A-label [...]"
+  {
+    host: 'xn--bcher-kva.example.com',
+    cert: { subject: { CN: 'xn--*.example.com' } },
+    error: 'Host: xn--bcher-kva.example.com. is not cert\'s CN: ' +
+            'xn--*.example.com',
   },
 ];
 

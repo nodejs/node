@@ -28,6 +28,8 @@
 #ifndef GAY_SHORTEST_H_
 #define GAY_SHORTEST_H_
 
+#include "src/vector.h"
+
 namespace v8 {
 namespace internal {
 
@@ -39,6 +41,7 @@ struct PrecomputedShortest {
 
 Vector<const PrecomputedShortest> PrecomputedShortestRepresentations();
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // GAY_SHORTEST_H_

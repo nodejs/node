@@ -44,5 +44,21 @@ TEST(WorkerThreadTest, Basic) {
   queue.Terminate();
 }
 
+TEST(WorkerThreadTest, PostSingleTask) {
+  TaskQueue queue;
+  WorkerThread thread1(&queue);
+  WorkerThread thread2(&queue);
+
+  InSequence s;
+  StrictMock<MockTask>* task = new StrictMock<MockTask>;
+  EXPECT_CALL(*task, Run());
+  EXPECT_CALL(*task, Die());
+  queue.Append(task);
+
+  // The next call should not time out.
+  queue.BlockUntilQueueEmptyForTesting();
+  queue.Terminate();
+}
+
 }  // namespace platform
 }  // namespace v8

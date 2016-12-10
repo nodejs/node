@@ -1,6 +1,8 @@
 // Load modules
 
-var Fs = require('fs');
+var Crypto = require('crypto');
+var Path = require('path');
+var Util = require('util');
 var Escape = require('./escape');
 
 
@@ -26,25 +28,53 @@ exports.clone = function (obj, seen) {
         return seen.copy[lookup];
     }
 
-    var newObj = (obj instanceof Array) ? [] : {};
+    var newObj;
+    var cloneDeep = false;
+
+    if (!Array.isArray(obj)) {
+        if (Buffer.isBuffer(obj)) {
+            newObj = new Buffer(obj);
+        }
+        else if (obj instanceof Date) {
+            newObj = new Date(obj.getTime());
+        }
+        else if (obj instanceof RegExp) {
+            newObj = new RegExp(obj);
+        }
+        else {
+            var proto = Object.getPrototypeOf(obj);
+            if (proto &&
+                proto.isImmutable) {
+
+                newObj = obj;
+            }
+            else {
+                newObj = Object.create(proto);
+                cloneDeep = true;
+            }
+        }
+    }
+    else {
+        newObj = [];
+        cloneDeep = true;
+    }
 
     seen.orig.push(obj);
     seen.copy.push(newObj);
 
-    for (var i in obj) {
-        if (obj.hasOwnProperty(i)) {
-            if (obj[i] instanceof Buffer) {
-                newObj[i] = new Buffer(obj[i]);
-            }
-            else if (obj[i] instanceof Date) {
-                newObj[i] = new Date(obj[i].getTime());
-            }
-            else if (obj[i] instanceof RegExp) {
-                var flags = '' + (obj[i].global ? 'g' : '') + (obj[i].ignoreCase ? 'i' : '') + (obj[i].multiline ? 'm' : '');
-                newObj[i] = new RegExp(obj[i].source, flags);
+    if (cloneDeep) {
+        var keys = Object.getOwnPropertyNames(obj);
+        for (var i = 0, il = keys.length; i < il; ++i) {
+            var key = keys[i];
+            var descriptor = Object.getOwnPropertyDescriptor(obj, key);
+            if (descriptor &&
+                (descriptor.get ||
+                 descriptor.set)) {
+
+                Object.defineProperty(newObj, key, descriptor);
             }
             else {
-                newObj[i] = exports.clone(obj[i], seen);
+                newObj[key] = exports.clone(obj[key], seen);
             }
         }
     }
@@ -53,25 +83,25 @@ exports.clone = function (obj, seen) {
 };
 
 
-// Merge all the properties of source into target, source wins in conflic, and by default null and undefined from source are applied
-
+// Merge all the properties of source into target, source wins in conflict, and by default null and undefined from source are applied
+/*eslint-disable */
 exports.merge = function (target, source, isNullOverride /* = true */, isMergeArrays /* = true */) {
-
-    exports.assert(target && typeof target == 'object', 'Invalid target value: must be an object');
+/*eslint-enable */
+    exports.assert(target && typeof target === 'object', 'Invalid target value: must be an object');
     exports.assert(source === null || source === undefined || typeof source === 'object', 'Invalid source value: must be null, undefined, or an object');
 
     if (!source) {
         return target;
     }
 
-    if (source instanceof Array) {
-        exports.assert(target instanceof Array, 'Cannot merge array onto an object');
+    if (Array.isArray(source)) {
+        exports.assert(Array.isArray(target), 'Cannot merge array onto an object');
         if (isMergeArrays === false) {                                                  // isMergeArrays defaults to true
             target.length = 0;                                                          // Must not change target assignment
         }
 
         for (var i = 0, il = source.length; i < il; ++i) {
-            target.push(source[i]);
+            target.push(exports.clone(source[i]));
         }
 
         return target;
@@ -85,16 +115,22 @@ exports.merge = function (target, source, isNullOverride /* = true */, isMergeAr
             typeof value === 'object') {
 
             if (!target[key] ||
-                typeof target[key] !== 'object') {
+                typeof target[key] !== 'object' ||
+                (Array.isArray(target[key]) ^ Array.isArray(value)) ||
+                value instanceof Date ||
+                Buffer.isBuffer(value) ||
+                value instanceof RegExp) {
 
                 target[key] = exports.clone(value);
             }
             else {
-                exports.merge(target[key], source[key], isNullOverride, isMergeArrays);
+                exports.merge(target[key], value, isNullOverride, isMergeArrays);
             }
         }
         else {
-            if (value !== null && value !== undefined) {            // Explicit to preserve empty strings
+            if (value !== null &&
+                value !== undefined) {                              // Explicit to preserve empty strings
+
                 target[key] = value;
             }
             else if (isNullOverride !== false) {                    // Defaults to true
@@ -109,9 +145,9 @@ exports.merge = function (target, source, isNullOverride /* = true */, isMergeAr
 
 // Apply options to a copy of the defaults
 
-exports.applyToDefaults = function (defaults, options) {
+exports.applyToDefaults = function (defaults, options, isNullOverride) {
 
-    exports.assert(defaults && typeof defaults == 'object', 'Invalid defaults value: must be an object');
+    exports.assert(defaults && typeof defaults === 'object', 'Invalid defaults value: must be an object');
     exports.assert(!options || options === true || typeof options === 'object', 'Invalid options value: must be true, falsy or an object');
 
     if (!options) {                                                 // If no options, return null
@@ -124,7 +160,206 @@ exports.applyToDefaults = function (defaults, options) {
         return copy;
     }
 
-    return exports.merge(copy, options, false, false);
+    return exports.merge(copy, options, isNullOverride === true, false);
+};
+
+
+// Clone an object except for the listed keys which are shallow copied
+
+exports.cloneWithShallow = function (source, keys) {
+
+    if (!source ||
+        typeof source !== 'object') {
+
+        return source;
+    }
+
+    var storage = internals.store(source, keys);    // Move shallow copy items to storage
+    var copy = exports.clone(source);               // Deep copy the rest
+    internals.restore(copy, source, storage);       // Shallow copy the stored items and restore
+    return copy;
+};
+
+
+internals.store = function (source, keys) {
+
+    var storage = {};
+    for (var i = 0, il = keys.length; i < il; ++i) {
+        var key = keys[i];
+        var value = exports.reach(source, key);
+        if (value !== undefined) {
+            storage[key] = value;
+            internals.reachSet(source, key, undefined);
+        }
+    }
+
+    return storage;
+};
+
+
+internals.restore = function (copy, source, storage) {
+
+    var keys = Object.keys(storage);
+    for (var i = 0, il = keys.length; i < il; ++i) {
+        var key = keys[i];
+        internals.reachSet(copy, key, storage[key]);
+        internals.reachSet(source, key, storage[key]);
+    }
+};
+
+
+internals.reachSet = function (obj, key, value) {
+
+    var path = key.split('.');
+    var ref = obj;
+    for (var i = 0, il = path.length; i < il; ++i) {
+        var segment = path[i];
+        if (i + 1 === il) {
+            ref[segment] = value;
+        }
+
+        ref = ref[segment];
+    }
+};
+
+
+// Apply options to defaults except for the listed keys which are shallow copied from option without merging
+
+exports.applyToDefaultsWithShallow = function (defaults, options, keys) {
+
+    exports.assert(defaults && typeof defaults === 'object', 'Invalid defaults value: must be an object');
+    exports.assert(!options || options === true || typeof options === 'object', 'Invalid options value: must be true, falsy or an object');
+    exports.assert(keys && Array.isArray(keys), 'Invalid keys');
+
+    if (!options) {                                                 // If no options, return null
+        return null;
+    }
+
+    var copy = exports.cloneWithShallow(defaults, keys);
+
+    if (options === true) {                                         // If options is set to true, use defaults
+        return copy;
+    }
+
+    var storage = internals.store(options, keys);   // Move shallow copy items to storage
+    exports.merge(copy, options, false, false);     // Deep copy the rest
+    internals.restore(copy, options, storage);      // Shallow copy the stored items and restore
+    return copy;
+};
+
+
+// Deep object or array comparison
+
+exports.deepEqual = function (obj, ref, options, seen) {
+
+    options = options || { prototype: true };
+
+    var type = typeof obj;
+
+    if (type !== typeof ref) {
+        return false;
+    }
+
+    if (type !== 'object' ||
+        obj === null ||
+        ref === null) {
+
+        if (obj === ref) {                                                      // Copied from Deep-eql, copyright(c) 2013 Jake Luer, jake@alogicalparadox.com, MIT Licensed, https://github.com/chaijs/deep-eql
+            return obj !== 0 || 1 / obj === 1 / ref;        // -0 / +0
+        }
+
+        return obj !== obj && ref !== ref;                  // NaN
+    }
+
+    seen = seen || [];
+    if (seen.indexOf(obj) !== -1) {
+        return true;                            // If previous comparison failed, it would have stopped execution
+    }
+
+    seen.push(obj);
+
+    if (Array.isArray(obj)) {
+        if (!Array.isArray(ref)) {
+            return false;
+        }
+
+        if (!options.part && obj.length !== ref.length) {
+            return false;
+        }
+
+        for (var i = 0, il = obj.length; i < il; ++i) {
+            if (options.part) {
+                var found = false;
+                for (var r = 0, rl = ref.length; r < rl; ++r) {
+                    if (exports.deepEqual(obj[i], ref[r], options, seen)) {
+                        found = true;
+                        break;
+                    }
+                }
+
+                return found;
+            }
+
+            if (!exports.deepEqual(obj[i], ref[i], options, seen)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    if (Buffer.isBuffer(obj)) {
+        if (!Buffer.isBuffer(ref)) {
+            return false;
+        }
+
+        if (obj.length !== ref.length) {
+            return false;
+        }
+
+        for (var j = 0, jl = obj.length; j < jl; ++j) {
+            if (obj[j] !== ref[j]) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    if (obj instanceof Date) {
+        return (ref instanceof Date && obj.getTime() === ref.getTime());
+    }
+
+    if (obj instanceof RegExp) {
+        return (ref instanceof RegExp && obj.toString() === ref.toString());
+    }
+
+    if (options.prototype) {
+        if (Object.getPrototypeOf(obj) !== Object.getPrototypeOf(ref)) {
+            return false;
+        }
+    }
+
+    var keys = Object.getOwnPropertyNames(obj);
+
+    if (!options.part && keys.length !== Object.getOwnPropertyNames(ref).length) {
+        return false;
+    }
+
+    for (var k = 0, kl = keys.length; k < kl; ++k) {
+        var key = keys[k];
+        var descriptor = Object.getOwnPropertyDescriptor(obj, key);
+        if (descriptor.get) {
+            if (!exports.deepEqual(descriptor, Object.getOwnPropertyDescriptor(ref, key), options, seen)) {
+                return false;
+            }
+        }
+        else if (!exports.deepEqual(obj[key], ref[key], options, seen)) {
+            return false;
+        }
+    }
+
+    return true;
 };
 
 
@@ -181,7 +416,7 @@ exports.intersect = function (array1, array2, justFirst) {
     }
 
     var common = [];
-    var hash = (array1 instanceof Array ? exports.mapToObject(array1) : array1);
+    var hash = (Array.isArray(array1) ? exports.mapToObject(array1) : array1);
     var found = {};
     for (var i = 0, il = array2.length; i < il; ++i) {
         if (hash[array2[i]] && !found[array2[i]]) {
@@ -198,17 +433,129 @@ exports.intersect = function (array1, array2, justFirst) {
 };
 
 
-// Find which keys are present
+// Test if the reference contains the values
 
-exports.matchKeys = function (obj, keys) {
+exports.contain = function (ref, values, options) {
 
-    var matched = [];
-    for (var i = 0, il = keys.length; i < il; ++i) {
-        if (obj.hasOwnProperty(keys[i])) {
-            matched.push(keys[i]);
+    /*
+        string -> string(s)
+        array -> item(s)
+        object -> key(s)
+        object -> object (key:value)
+    */
+
+    var valuePairs = null;
+    if (typeof ref === 'object' &&
+        typeof values === 'object' &&
+        !Array.isArray(ref) &&
+        !Array.isArray(values)) {
+
+        valuePairs = values;
+        values = Object.keys(values);
+    }
+    else {
+        values = [].concat(values);
+    }
+
+    options = options || {};            // deep, once, only, part
+
+    exports.assert(arguments.length >= 2, 'Insufficient arguments');
+    exports.assert(typeof ref === 'string' || typeof ref === 'object', 'Reference must be string or an object');
+    exports.assert(values.length, 'Values array cannot be empty');
+
+    var compare, compareFlags;
+    if (options.deep) {
+        compare = exports.deepEqual;
+
+        var hasOnly = options.hasOwnProperty('only'), hasPart = options.hasOwnProperty('part');
+
+        compareFlags = {
+            prototype: hasOnly ? options.only : hasPart ? !options.part : false,
+            part: hasOnly ? !options.only : hasPart ? options.part : true
+        };
+    }
+    else {
+        compare = function (a, b) {
+
+            return a === b;
+        };
+    }
+
+    var misses = false;
+    var matches = new Array(values.length);
+    for (var i = 0, il = matches.length; i < il; ++i) {
+        matches[i] = 0;
+    }
+
+    if (typeof ref === 'string') {
+        var pattern = '(';
+        for (i = 0, il = values.length; i < il; ++i) {
+            var value = values[i];
+            exports.assert(typeof value === 'string', 'Cannot compare string reference to non-string value');
+            pattern += (i ? '|' : '') + exports.escapeRegex(value);
+        }
+
+        var regex = new RegExp(pattern + ')', 'g');
+        var leftovers = ref.replace(regex, function ($0, $1) {
+
+            var index = values.indexOf($1);
+            ++matches[index];
+            return '';          // Remove from string
+        });
+
+        misses = !!leftovers;
+    }
+    else if (Array.isArray(ref)) {
+        for (i = 0, il = ref.length; i < il; ++i) {
+            for (var j = 0, jl = values.length, matched = false; j < jl && matched === false; ++j) {
+                matched = compare(values[j], ref[i], compareFlags) && j;
+            }
+
+            if (matched !== false) {
+                ++matches[matched];
+            }
+            else {
+                misses = true;
+            }
         }
     }
-    return matched;
+    else {
+        var keys = Object.keys(ref);
+        for (i = 0, il = keys.length; i < il; ++i) {
+            var key = keys[i];
+            var pos = values.indexOf(key);
+            if (pos !== -1) {
+                if (valuePairs &&
+                    !compare(valuePairs[key], ref[key], compareFlags)) {
+
+                    return false;
+                }
+
+                ++matches[pos];
+            }
+            else {
+                misses = true;
+            }
+        }
+    }
+
+    var result = false;
+    for (i = 0, il = matches.length; i < il; ++i) {
+        result = result || !!matches[i];
+        if ((options.once && matches[i] > 1) ||
+            (!options.part && !matches[i])) {
+
+            return false;
+        }
+    }
+
+    if (options.only &&
+        misses) {
+
+        return false;
+    }
+
+    return result;
 };
 
 
@@ -231,63 +578,55 @@ exports.flatten = function (array, target) {
 };
 
 
-// Remove keys
-
-exports.removeKeys = function (object, keys) {
-
-    for (var i = 0, il = keys.length; i < il; i++) {
-        delete object[keys[i]];
-    }
-};
-
-
 // Convert an object key chain string ('a.b.c') to reference (object[a][b][c])
 
-exports.reach = function (obj, chain) {
+exports.reach = function (obj, chain, options) {
 
-    var path = chain.split('.');
+    if (chain === false ||
+        chain === null ||
+        typeof chain === 'undefined') {
+
+        return obj;
+    }
+
+    options = options || {};
+    if (typeof options === 'string') {
+        options = { separator: options };
+    }
+
+    var path = chain.split(options.separator || '.');
     var ref = obj;
     for (var i = 0, il = path.length; i < il; ++i) {
-        if (ref) {
-            ref = ref[path[i]];
+        var key = path[i];
+        if (key[0] === '-' && Array.isArray(ref)) {
+            key = key.slice(1, key.length);
+            key = ref.length - key;
         }
+
+        if (!ref ||
+            !ref.hasOwnProperty(key) ||
+            (typeof ref !== 'object' && options.functions === false)) {         // Only object and function can have properties
+
+            exports.assert(!options.strict || i + 1 === il, 'Missing segment', key, 'in reach path ', chain);
+            exports.assert(typeof ref === 'object' || options.functions === true || typeof ref !== 'function', 'Invalid segment', key, 'in reach path ', chain);
+            ref = options.default;
+            break;
+        }
+
+        ref = ref[key];
     }
 
     return ref;
 };
 
 
-// Inherits a selected set of methods from an object, wrapping functions in asynchronous syntax and catching errors
+exports.reachTemplate = function (obj, template, options) {
 
-exports.inheritAsync = function (self, obj, keys) {
+    return template.replace(/{([^}]+)}/g, function ($0, chain) {
 
-    keys = keys || null;
-
-    for (var i in obj) {
-        if (obj.hasOwnProperty(i)) {
-            if (keys instanceof Array &&
-                keys.indexOf(i) < 0) {
-
-                continue;
-            }
-
-            self.prototype[i] = (function (fn) {
-
-                return function (next) {
-
-                    var result = null;
-                    try {
-                        result = fn();
-                    }
-                    catch (err) {
-                        return next(err);
-                    }
-
-                    return next(null, result);
-                };
-            })(obj[i]);
-        }
-    }
+        var value = exports.reach(obj, chain, options);
+        return (value === undefined || value === null ? '' : value);
+    });
 };
 
 
@@ -327,7 +666,7 @@ exports.callStack = function (slice) {
     };
 
     var capture = {};
-    Error.captureStackTrace(capture, arguments.callee);
+    Error.captureStackTrace(capture, arguments.callee);     /*eslint no-caller:0 */
     var stack = capture.stack;
 
     Error.prepareStackTrace = v8;
@@ -374,51 +713,28 @@ exports.assert = function (condition /*, msg1, msg2, msg3 */) {
         return;
     }
 
-    var msgs = Array.prototype.slice.call(arguments, 1);
+    if (arguments.length === 2 && arguments[1] instanceof Error) {
+        throw arguments[1];
+    }
+
+    var msgs = [];
+    for (var i = 1, il = arguments.length; i < il; ++i) {
+        if (arguments[i] !== '') {
+            msgs.push(arguments[i]);            // Avoids Array.slice arguments leak, allowing for V8 optimizations
+        }
+    }
+
     msgs = msgs.map(function (msg) {
 
-        return typeof msg === 'string' ? msg : msg instanceof Error ? msg.message : JSON.stringify(msg);
+        return typeof msg === 'string' ? msg : msg instanceof Error ? msg.message : exports.stringify(msg);
     });
     throw new Error(msgs.join(' ') || 'Unknown error');
 };
 
 
-exports.loadDirModules = function (path, excludeFiles, target) {      // target(filename, name, capName)
-
-    var exclude = {};
-    for (var i = 0, il = excludeFiles.length; i < il; ++i) {
-        exclude[excludeFiles[i] + '.js'] = true;
-    }
-
-    var files = Fs.readdirSync(path);
-    for (i = 0, il = files.length; i < il; ++i) {
-        var filename = files[i];
-        if (/\.js$/.test(filename) &&
-            !exclude[filename]) {
-
-            var name = filename.substr(0, filename.lastIndexOf('.'));
-            var capName = name.charAt(0).toUpperCase() + name.substr(1).toLowerCase();
-
-            if (typeof target !== 'function') {
-                target[capName] = require(path + '/' + name);
-            }
-            else {
-                target(path + '/' + name, name, capName);
-            }
-        }
-    }
-};
-
-
-exports.rename = function (obj, from, to) {
-
-    obj[to] = obj[from];
-    delete obj[from];
-};
-
-
 exports.Timer = function () {
 
+    this.ts = 0;
     this.reset();
 };
 
@@ -435,20 +751,29 @@ exports.Timer.prototype.elapsed = function () {
 };
 
 
-// Load and parse package.json process root or given directory
+exports.Bench = function () {
 
-exports.loadPackage = function (dir) {
+    this.ts = 0;
+    this.reset();
+};
 
-    var result = {};
-    var filepath = (dir || process.env.PWD) + '/package.json';
-    if (Fs.existsSync(filepath)) {
-        try {
-            result = JSON.parse(Fs.readFileSync(filepath));
-        }
-        catch (e) { }
-    }
 
-    return result;
+exports.Bench.prototype.reset = function () {
+
+    this.ts = exports.Bench.now();
+};
+
+
+exports.Bench.prototype.elapsed = function () {
+
+    return exports.Bench.now() - this.ts;
+};
+
+
+exports.Bench.now = function () {
+
+    var ts = process.hrtime();
+    return (ts[0] * 1e3) + (ts[1] / 1e6);
 };
 
 
@@ -461,43 +786,28 @@ exports.escapeRegex = function (string) {
 };
 
 
-// Return an error as first argument of a callback
-
-exports.toss = function (condition /*, [message], next */) {
-
-    var message = (arguments.length === 3 ? arguments[1] : '');
-    var next = (arguments.length === 3 ? arguments[2] : arguments[1]);
-
-    var err = (message instanceof Error ? message : (message ? new Error(message) : (condition instanceof Error ? condition : new Error())));
-
-    if (condition instanceof Error ||
-        !condition) {
-
-        return next(err);
-    }
-};
-
-
 // Base64url (RFC 4648) encode
 
-exports.base64urlEncode = function (value) {
+exports.base64urlEncode = function (value, encoding) {
 
-    return (new Buffer(value, 'binary')).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/\=/g, '');
+    var buf = (Buffer.isBuffer(value) ? value : new Buffer(value, encoding || 'binary'));
+    return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/\=/g, '');
 };
 
 
 // Base64url (RFC 4648) decode
 
-exports.base64urlDecode = function (encoded) {
+exports.base64urlDecode = function (value, encoding) {
 
-    if (encoded &&
-        !encoded.match(/^[\w\-]*$/)) {
+    if (value &&
+        !/^[\w\-]*$/.test(value)) {
 
         return new Error('Invalid character');
     }
 
     try {
-        return (new Buffer(encoded.replace(/-/g, '+').replace(/:/g, '/'), 'base64')).toString('binary');
+        var buf = new Buffer(value, 'base64');
+        return (encoding === 'buffer' ? buf : buf.toString(encoding || 'binary'));
     }
     catch (err) {
         return err;
@@ -511,7 +821,7 @@ exports.escapeHeaderAttribute = function (attribute) {
 
     // Allowed value characters: !#$%&'()*+,-./:;<=>?@[]^_`{|}~ and space, a-z, A-Z, 0-9, \, "
 
-    exports.assert(attribute.match(/^[ \w\!#\$%&'\(\)\*\+,\-\.\/\:;<\=>\?@\[\]\^`\{\|\}~\"\\]*$/), 'Bad attribute value (' + attribute + ')');
+    exports.assert(/^[ \w\!#\$%&'\(\)\*\+,\-\.\/\:;<\=>\?@\[\]\^`\{\|\}~\"\\]*$/.test(attribute), 'Bad attribute value (' + attribute + ')');
 
     return attribute.replace(/\\/g, '\\\\').replace(/\"/g, '\\"');                             // Escape quotes and slash
 };
@@ -529,49 +839,6 @@ exports.escapeJavaScript = function (string) {
 };
 
 
-/*
-var event = {
-    timestamp: now.getTime(),
-    tags: ['tag'],
-    data: { some: 'data' }
-};
-*/
-
-exports.consoleFunc = console.log;
-
-exports.printEvent = function (event) {
-
-    var pad = function (value) {
-
-        return (value < 10 ? '0' : '') + value;
-    };
-
-    var now = new Date(event.timestamp);
-    var timestring = (now.getYear() - 100).toString() +
-        pad(now.getMonth() + 1) +
-        pad(now.getDate()) +
-        '/' +
-        pad(now.getHours()) +
-        pad(now.getMinutes()) +
-        pad(now.getSeconds()) +
-        '.' +
-        now.getMilliseconds();
-
-    var data = event.data;
-    if (typeof event.data !== 'string') {
-        try {
-            data = JSON.stringify(event.data);
-        }
-        catch (e) {
-            data = 'JSON Error: ' + e.message;
-        }
-    }
-
-    var output = timestring + ', ' + event.tags[0] + ', ' + data;
-    exports.consoleFunc(output);
-};
-
-
 exports.nextTick = function (callback) {
 
     return function () {
@@ -582,4 +849,145 @@ exports.nextTick = function (callback) {
             callback.apply(null, args);
         });
     };
+};
+
+
+exports.once = function (method) {
+
+    if (method._hoekOnce) {
+        return method;
+    }
+
+    var once = false;
+    var wrapped = function () {
+
+        if (!once) {
+            once = true;
+            method.apply(null, arguments);
+        }
+    };
+
+    wrapped._hoekOnce = true;
+
+    return wrapped;
+};
+
+
+exports.isAbsolutePath = function (path, platform) {
+
+    if (!path) {
+        return false;
+    }
+
+    if (Path.isAbsolute) {                      // node >= 0.11
+        return Path.isAbsolute(path);
+    }
+
+    platform = platform || process.platform;
+
+    // Unix
+
+    if (platform !== 'win32') {
+        return path[0] === '/';
+    }
+
+    // Windows
+
+    return !!/^(?:[a-zA-Z]:[\\\/])|(?:[\\\/]{2}[^\\\/]+[\\\/]+[^\\\/])/.test(path);        // C:\ or \\something\something
+};
+
+
+exports.isInteger = function (value) {
+
+    return (typeof value === 'number' &&
+            parseFloat(value) === parseInt(value, 10) &&
+            !isNaN(value));
+};
+
+
+exports.ignore = function () { };
+
+
+exports.inherits = Util.inherits;
+
+
+exports.format = Util.format;
+
+
+exports.transform = function (source, transform, options) {
+
+    exports.assert(source === null || source === undefined || typeof source === 'object' || Array.isArray(source), 'Invalid source object: must be null, undefined, an object, or an array');
+
+    if (Array.isArray(source)) {
+        var results = [];
+        for (var i = 0, il = source.length; i < il; ++i) {
+            results.push(exports.transform(source[i], transform, options));
+        }
+        return results;
+    }
+
+    var result = {};
+    var keys = Object.keys(transform);
+
+    for (var k = 0, kl = keys.length; k < kl; ++k) {
+        var key = keys[k];
+        var path = key.split('.');
+        var sourcePath = transform[key];
+
+        exports.assert(typeof sourcePath === 'string', 'All mappings must be "." delineated strings');
+
+        var segment;
+        var res = result;
+
+        while (path.length > 1) {
+            segment = path.shift();
+            if (!res[segment]) {
+                res[segment] = {};
+            }
+            res = res[segment];
+        }
+        segment = path.shift();
+        res[segment] = exports.reach(source, sourcePath, options);
+    }
+
+    return result;
+};
+
+
+exports.uniqueFilename = function (path, extension) {
+
+    if (extension) {
+        extension = extension[0] !== '.' ? '.' + extension : extension;
+    }
+    else {
+        extension = '';
+    }
+
+    path = Path.resolve(path);
+    var name = [Date.now(), process.pid, Crypto.randomBytes(8).toString('hex')].join('-') + extension;
+    return Path.join(path, name);
+};
+
+
+exports.stringify = function () {
+
+    try {
+        return JSON.stringify.apply(null, arguments);
+    }
+    catch (err) {
+        return '[Cannot display object: ' + err.message + ']';
+    }
+};
+
+
+exports.shallow = function (source) {
+
+    var target = {};
+    var keys = Object.keys(source);
+    for (var i = 0, il = keys.length; i < il; ++i) {
+        var key = keys[i];
+        target[key] = source[key];
+    }
+
+    return target;
 };

@@ -43,7 +43,7 @@ shouldBe("String.prototype.length","0");
 
 // check DontDelete
 shouldBe("delete Array.prototype.length","false");
-shouldBe("delete Function.prototype.length","false");
+shouldBe("delete Function.prototype.length","true");
 shouldBe("delete String.prototype.length","false");
 
 // check DontEnum

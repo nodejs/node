@@ -1,32 +1,12 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var path = require('path');
 var fs = require('fs');
 
-var expectFilePath = process.platform === 'win32' ||
-                     process.platform === 'linux' ||
-                     process.platform === 'darwin';
+var expectFilePath = common.isWindows ||
+                     common.isLinux ||
+                     common.isOSX;
 
 var watchSeenOne = 0;
 var watchSeenTwo = 0;
@@ -41,28 +21,19 @@ var filenameTwo = 'hasOwnProperty';
 var filepathTwo = filenameTwo;
 var filepathTwoAbs = path.join(testDir, filenameTwo);
 
-var filenameThree = 'newfile.txt';
-var testsubdir = path.join(testDir, 'testsubdir');
-var filepathThree = path.join(testsubdir, filenameThree);
-
-
 process.on('exit', function() {
   assert.ok(watchSeenOne > 0);
   assert.ok(watchSeenTwo > 0);
   assert.ok(watchSeenThree > 0);
 });
 
-// Clean up stale files (if any) from previous run.
-try { fs.unlinkSync(filepathOne); } catch (e) { }
-try { fs.unlinkSync(filepathTwoAbs); } catch (e) { }
-try { fs.unlinkSync(filepathThree); } catch (e) { }
-try { fs.rmdirSync(testsubdir); } catch (e) { }
+common.refreshTmpDir();
 
 fs.writeFileSync(filepathOne, 'hello');
 
 assert.doesNotThrow(
     function() {
-      var watcher = fs.watch(filepathOne)
+      var watcher = fs.watch(filepathOne);
       watcher.on('change', function(event, filename) {
         assert.equal('change', event);
 
@@ -75,9 +46,9 @@ assert.doesNotThrow(
     }
 );
 
-setTimeout(function() {
+setImmediate(function() {
   fs.writeFileSync(filepathOne, 'world');
-}, 10);
+});
 
 
 process.chdir(testDir);
@@ -98,17 +69,18 @@ assert.doesNotThrow(
     }
 );
 
-setTimeout(function() {
+setImmediate(function() {
   fs.writeFileSync(filepathTwoAbs, 'pardner');
-}, 10);
+});
 
-try { fs.unlinkSync(filepathThree); } catch (e) {}
-try { fs.mkdirSync(testsubdir, 0700); } catch (e) {}
+const filenameThree = 'newfile.txt';
+const testsubdir = fs.mkdtempSync(testDir + path.sep);
+const filepathThree = path.join(testsubdir, filenameThree);
 
 assert.doesNotThrow(
     function() {
       var watcher = fs.watch(testsubdir, function(event, filename) {
-        var renameEv = process.platform === 'sunos' ? 'change' : 'rename';
+        var renameEv = common.isSunOS ? 'change' : 'rename';
         assert.equal(renameEv, event);
         if (expectFilePath) {
           assert.equal('newfile.txt', filename);
@@ -121,10 +93,10 @@ assert.doesNotThrow(
     }
 );
 
-setTimeout(function() {
+setImmediate(function() {
   var fd = fs.openSync(filepathThree, 'w');
   fs.closeSync(fd);
-}, 10);
+});
 
 // https://github.com/joyent/node/issues/2293 - non-persistent watcher should
 // not block the event loop
@@ -144,7 +116,7 @@ assert.throws(function() {
 oldhandle.close(); // clean up
 
 assert.throws(function() {
-  var w = fs.watchFile(__filename, {persistent:false}, function(){});
+  var w = fs.watchFile(__filename, {persistent: false}, function() {});
   oldhandle = w._handle;
   w._handle = { stop: w._handle.stop };
   w.stop();

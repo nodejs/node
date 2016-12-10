@@ -2,15 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/bignum-dtoa.h"
+
 #include <cmath>
 
 #include "src/base/logging.h"
-#include "src/utils.h"
-
-#include "src/bignum-dtoa.h"
-
 #include "src/bignum.h"
 #include "src/double.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -632,4 +631,5 @@ static void FixupMultiply10(int estimated_power, bool is_even,
   }
 }
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

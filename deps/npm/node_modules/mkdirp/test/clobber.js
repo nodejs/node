@@ -2,6 +2,7 @@ var mkdirp = require('../').mkdirp;
 var path = require('path');
 var fs = require('fs');
 var test = require('tap').test;
+var _0755 = parseInt('0755', 8);
 
 var ps = [ '', 'tmp' ];
 
@@ -29,7 +30,7 @@ test('clobber-pre', function (t) {
 
 test('clobber', function (t) {
     t.plan(2);
-    mkdirp(file, 0755, function (err) {
+    mkdirp(file, _0755, function (err) {
         t.ok(err);
         t.equal(err.code, 'ENOTDIR');
         t.end();

@@ -5,14 +5,10 @@
 #ifndef V8_ARM_CODEGEN_ARM_H_
 #define V8_ARM_CODEGEN_ARM_H_
 
-#include "src/ast.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {
-
-
-enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 
 
 class StringCharLoadGenerator : public AllStatic {
@@ -31,22 +27,7 @@ class StringCharLoadGenerator : public AllStatic {
 };
 
 
-class MathExpGenerator : public AllStatic {
- public:
-  // Register input isn't modified. All other registers are clobbered.
-  static void EmitMathExp(MacroAssembler* masm,
-                          DwVfpRegister input,
-                          DwVfpRegister result,
-                          DwVfpRegister double_scratch1,
-                          DwVfpRegister double_scratch2,
-                          Register temp1,
-                          Register temp2,
-                          Register temp3);
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(MathExpGenerator);
-};
-
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM_CODEGEN_ARM_H_

@@ -6,7 +6,7 @@
 #ifndef V8_I18N_H_
 #define V8_I18N_H_
 
-#include "src/v8.h"
+#include "src/handles.h"
 #include "unicode/uversion.h"
 
 namespace U_ICU_NAMESPACE {
@@ -18,6 +18,9 @@ class SimpleDateFormat;
 
 namespace v8 {
 namespace internal {
+
+// Forward declarations.
+class ObjectTemplateInfo;
 
 class I18N {
  public:
@@ -48,8 +51,7 @@ class DateFormat {
 
   // Release memory we allocated for the DateFormat once the JS object that
   // holds the pointer gets garbage collected.
-  static void DeleteDateFormat(
-      const v8::WeakCallbackData<v8::Value, void>& data);
+  static void DeleteDateFormat(const v8::WeakCallbackInfo<void>& data);
 
  private:
   DateFormat();
@@ -72,8 +74,7 @@ class NumberFormat {
 
   // Release memory we allocated for the NumberFormat once the JS object that
   // holds the pointer gets garbage collected.
-  static void DeleteNumberFormat(
-      const v8::WeakCallbackData<v8::Value, void>& data);
+  static void DeleteNumberFormat(const v8::WeakCallbackInfo<void>& data);
 
  private:
   NumberFormat();
@@ -95,8 +96,7 @@ class Collator {
 
   // Release memory we allocated for the Collator once the JS object that holds
   // the pointer gets garbage collected.
-  static void DeleteCollator(
-      const v8::WeakCallbackData<v8::Value, void>& data);
+  static void DeleteCollator(const v8::WeakCallbackInfo<void>& data);
 
  private:
   Collator();
@@ -118,13 +118,13 @@ class BreakIterator {
 
   // Release memory we allocated for the BreakIterator once the JS object that
   // holds the pointer gets garbage collected.
-  static void DeleteBreakIterator(
-      const v8::WeakCallbackData<v8::Value, void>& data);
+  static void DeleteBreakIterator(const v8::WeakCallbackInfo<void>& data);
 
  private:
   BreakIterator();
 };
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_I18N_H_

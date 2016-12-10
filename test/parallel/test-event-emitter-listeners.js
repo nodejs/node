@@ -1,52 +1,65 @@
+'use strict';
 
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-var common = require('../common');
-var assert = require('assert');
-var events = require('events');
+require('../common');
+const assert = require('assert');
+const events = require('events');
+const util = require('util');
 
 function listener() {}
 function listener2() {}
+class TestStream { constructor() { } }
+util.inherits(TestStream, events.EventEmitter);
 
-var e1 = new events.EventEmitter();
-e1.on('foo', listener);
-var fooListeners = e1.listeners('foo');
-assert.deepEqual(e1.listeners('foo'), [listener]);
-e1.removeAllListeners('foo');
-assert.deepEqual(e1.listeners('foo'), []);
-assert.deepEqual(fooListeners, [listener]);
+{
+  const ee = new events.EventEmitter();
+  ee.on('foo', listener);
+  const fooListeners = ee.listeners('foo');
+  assert.deepStrictEqual(ee.listeners('foo'), [listener]);
+  ee.removeAllListeners('foo');
+  assert.deepStrictEqual(ee.listeners('foo'), []);
+  assert.deepStrictEqual(fooListeners, [listener]);
+}
 
-var e2 = new events.EventEmitter();
-e2.on('foo', listener);
-var e2ListenersCopy = e2.listeners('foo');
-assert.deepEqual(e2ListenersCopy, [listener]);
-assert.deepEqual(e2.listeners('foo'), [listener]);
-e2ListenersCopy.push(listener2);
-assert.deepEqual(e2.listeners('foo'), [listener]);
-assert.deepEqual(e2ListenersCopy, [listener, listener2]);
+{
+  const ee = new events.EventEmitter();
+  ee.on('foo', listener);
+  const eeListenersCopy = ee.listeners('foo');
+  assert.deepStrictEqual(eeListenersCopy, [listener]);
+  assert.deepStrictEqual(ee.listeners('foo'), [listener]);
+  eeListenersCopy.push(listener2);
+  assert.deepStrictEqual(ee.listeners('foo'), [listener]);
+  assert.deepStrictEqual(eeListenersCopy, [listener, listener2]);
+}
 
-var e3 = new events.EventEmitter();
-e3.on('foo', listener);
-var e3ListenersCopy = e3.listeners('foo');
-e3.on('foo', listener2);
-assert.deepEqual(e3.listeners('foo'), [listener, listener2]);
-assert.deepEqual(e3ListenersCopy, [listener]);
+{
+  const ee = new events.EventEmitter();
+  ee.on('foo', listener);
+  const eeListenersCopy = ee.listeners('foo');
+  ee.on('foo', listener2);
+  assert.deepStrictEqual(ee.listeners('foo'), [listener, listener2]);
+  assert.deepStrictEqual(eeListenersCopy, [listener]);
+}
+
+{
+  const ee = new events.EventEmitter();
+  ee.once('foo', listener);
+  assert.deepStrictEqual(ee.listeners('foo'), [listener]);
+}
+
+{
+  const ee = new events.EventEmitter();
+  ee.on('foo', listener);
+  ee.once('foo', listener2);
+  assert.deepStrictEqual(ee.listeners('foo'), [listener, listener2]);
+}
+
+{
+  const ee = new events.EventEmitter();
+  ee._events = undefined;
+  assert.deepStrictEqual(ee.listeners('foo'), []);
+}
+
+{
+  const s = new TestStream();
+  assert.deepStrictEqual(s.listeners('foo'), []);
+}

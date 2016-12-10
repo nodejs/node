@@ -1,39 +1,16 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-if (!process.versions.openssl) {
-  console.error('Skipping because node compiled without OpenSSL.');
-  process.exit(0);
-}
-
+'use strict';
+const common = require('../common');
 // disable strict server certificate validation by the client
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
-var common = require('../common');
-var assert = require('assert');
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
+}
 var https = require('https');
+
 var tls = require('tls');
 var fs = require('fs');
-
-var seen_req = false;
 
 var options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
@@ -44,18 +21,17 @@ var options = {
 tls.SLAB_BUFFER_SIZE = 1;
 
 var server = https.createServer(options);
-server.on('upgrade', function(req, socket, upgrade) {
+server.on('upgrade', common.mustCall(function(req, socket, upgrade) {
   socket.on('data', function(data) {
     throw new Error('Unexpected data: ' + data);
   });
   socket.end('HTTP/1.1 200 Ok\r\n\r\n');
-  seen_req = true;
-});
+}));
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   var req = https.request({
     host: '127.0.0.1',
-    port: common.PORT,
+    port: this.address().port,
     agent: false,
     headers: {
       Connection: 'Upgrade',
@@ -67,9 +43,4 @@ server.listen(common.PORT, function() {
   });
 
   req.end();
-});
-
-process.on('exit', function() {
-  assert(seen_req);
-  console.log('ok');
 });

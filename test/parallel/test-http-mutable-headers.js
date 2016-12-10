@@ -1,25 +1,5 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-var common = require('../common');
+'use strict';
+require('../common');
 var assert = require('assert');
 var http = require('http');
 
@@ -42,10 +22,10 @@ var cookies = [
 var s = http.createServer(function(req, res) {
   switch (test) {
     case 'headers':
-      assert.throws(function() { res.setHeader() });
-      assert.throws(function() { res.setHeader('someHeader') });
-      assert.throws(function() { res.getHeader() });
-      assert.throws(function() { res.removeHeader() });
+      assert.throws(function() { res.setHeader(); });
+      assert.throws(function() { res.setHeader('someHeader'); });
+      assert.throws(function() { res.getHeader(); });
+      assert.throws(function() { res.removeHeader(); });
 
       res.setHeader('x-test-header', 'testing');
       res.setHeader('X-TEST-HEADER2', 'testing');
@@ -81,7 +61,7 @@ var s = http.createServer(function(req, res) {
   res.end(content);
 });
 
-s.listen(common.PORT, nextTest);
+s.listen(0, nextTest);
 
 
 function nextTest() {
@@ -91,7 +71,7 @@ function nextTest() {
 
   var bufferedResponse = '';
 
-  http.get({ port: common.PORT }, function(response) {
+  http.get({ port: s.address().port }, function(response) {
     console.log('TEST: ' + test);
     console.log('STATUS: ' + response.statusCode);
     console.log('HEADERS: ');
@@ -104,8 +84,8 @@ function nextTest() {
                      'testing');
         assert.equal(response.headers['x-test-array-header'],
                      [1, 2, 3].join(', '));
-        assert.deepEqual(cookies,
-                         response.headers['set-cookie']);
+        assert.deepStrictEqual(cookies,
+                               response.headers['set-cookie']);
         assert.equal(response.headers['x-test-header2'] !== undefined, false);
         // Make the next request
         test = 'contentLength';
@@ -130,7 +110,7 @@ function nextTest() {
         break;
 
       default:
-        throw Error('?');
+        throw new Error('?');
     }
 
     response.setEncoding('utf8');
@@ -150,4 +130,3 @@ function nextTest() {
 process.on('exit', function() {
   assert.equal(4, testsComplete);
 });
-

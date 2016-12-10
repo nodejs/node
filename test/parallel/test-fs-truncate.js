@@ -1,32 +1,13 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
+'use strict';
 var common = require('../common');
 var assert = require('assert');
 var path = require('path');
 var fs = require('fs');
 var tmp = common.tmpDir;
 var filename = path.resolve(tmp, 'truncate-file.txt');
-var data = new Buffer(1024 * 16);
-data.fill('x');
+var data = Buffer.alloc(1024 * 16, 'x');
+
+common.refreshTmpDir();
 
 var stat;
 
@@ -61,20 +42,12 @@ assert.equal(stat.size, 0);
 fs.closeSync(fd);
 
 // async tests
-var success = 0;
-testTruncate(function(er) {
+testTruncate(common.mustCall(function(er) {
   if (er) throw er;
-  success++;
-  testFtruncate(function(er) {
+  testFtruncate(common.mustCall(function(er) {
     if (er) throw er;
-    success++;
-  });
-});
-
-process.on('exit', function() {
-  assert.equal(success, 2);
-  console.log('ok');
-});
+  }));
+}));
 
 function testTruncate(cb) {
   fs.writeFile(filename, data, function(er) {
@@ -132,4 +105,44 @@ function testFtruncate(cb) {
       });
     });
   });
+}
+
+
+// Make sure if the size of the file is smaller than the length then it is
+// filled with zeroes.
+
+{
+  const file1 = path.resolve(tmp, 'truncate-file-1.txt');
+  fs.writeFileSync(file1, 'Hi');
+  fs.truncateSync(file1, 4);
+  assert(fs.readFileSync(file1).equals(Buffer.from('Hi\u0000\u0000')));
+}
+
+{
+  const file2 = path.resolve(tmp, 'truncate-file-2.txt');
+  fs.writeFileSync(file2, 'Hi');
+  const fd = fs.openSync(file2, 'r+');
+  process.on('exit', () => fs.closeSync(fd));
+  fs.ftruncateSync(fd, 4);
+  assert(fs.readFileSync(file2).equals(Buffer.from('Hi\u0000\u0000')));
+}
+
+{
+  const file3 = path.resolve(tmp, 'truncate-file-3.txt');
+  fs.writeFileSync(file3, 'Hi');
+  fs.truncate(file3, 4, common.mustCall(function(err) {
+    assert.ifError(err);
+    assert(fs.readFileSync(file3).equals(Buffer.from('Hi\u0000\u0000')));
+  }));
+}
+
+{
+  const file4 = path.resolve(tmp, 'truncate-file-4.txt');
+  fs.writeFileSync(file4, 'Hi');
+  const fd = fs.openSync(file4, 'r+');
+  process.on('exit', () => fs.closeSync(fd));
+  fs.ftruncate(fd, 4, common.mustCall(function(err) {
+    assert.ifError(err);
+    assert(fs.readFileSync(file4).equals(Buffer.from('Hi\u0000\u0000')));
+  }));
 }

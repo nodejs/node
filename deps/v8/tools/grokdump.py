@@ -135,10 +135,11 @@ def FullDump(reader, heap):
     if is_ascii is not False:
       # Output in the same format as the Unix hd command
       addr = start
-      for slot in xrange(location, location + size, 16):
+      for i in xrange(0, size, 16):
+        slot = i + location
         hex_line = ""
         asc_line = ""
-        for i in xrange(0, 16):
+        for i in xrange(16):
           if slot + i < location + size:
             byte = ctypes.c_uint8.from_buffer(reader.minidump, slot + i).value
             if byte >= 0x20 and byte < 0x7f:
@@ -158,9 +159,9 @@ def FullDump(reader, heap):
     if is_executable is not True and is_ascii is not True:
       print "%s - %s" % (reader.FormatIntPtr(start),
                          reader.FormatIntPtr(start + size))
-      for slot in xrange(start,
-                         start + size,
-                         reader.PointerSize()):
+      print start + size + 1;
+      for i in xrange(0, size, reader.PointerSize()):
+        slot = start + i
         maybe_address = reader.ReadUIntPtr(slot)
         heap_object = heap.FindObject(maybe_address)
         print "%s: %s" % (reader.FormatIntPtr(slot),
@@ -345,6 +346,59 @@ MINIDUMP_CONTEXT_ARM = Descriptor([
                               MD_CONTEXT_ARM_FLOATING_POINT))
 ])
 
+
+MD_CONTEXT_ARM64 =  0x80000000
+MD_CONTEXT_ARM64_INTEGER = (MD_CONTEXT_ARM64 | 0x00000002)
+MD_CONTEXT_ARM64_FLOATING_POINT = (MD_CONTEXT_ARM64 | 0x00000004)
+MD_FLOATINGSAVEAREA_ARM64_FPR_COUNT = 64
+
+MINIDUMP_FLOATING_SAVE_AREA_ARM = Descriptor([
+  ("fpscr", ctypes.c_uint64),
+  ("regs", ctypes.c_uint64 * MD_FLOATINGSAVEAREA_ARM64_FPR_COUNT),
+])
+
+MINIDUMP_CONTEXT_ARM64 = Descriptor([
+  ("context_flags", ctypes.c_uint64),
+  # MD_CONTEXT_ARM64_INTEGER.
+  ("r0", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r1", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r2", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r3", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r4", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r5", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r6", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r7", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r8", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r9", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r10", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r11", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r12", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r13", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r14", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r15", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r16", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r17", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r18", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r19", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r20", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r21", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r22", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r23", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r24", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r25", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r26", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r27", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("r28", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("fp", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("lr", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("sp", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("pc", EnableOnFlag(ctypes.c_uint64, MD_CONTEXT_ARM64_INTEGER)),
+  ("cpsr", ctypes.c_uint32),
+  ("float_save", EnableOnFlag(MINIDUMP_FLOATING_SAVE_AREA_ARM.ctype,
+                              MD_CONTEXT_ARM64_FLOATING_POINT))
+])
+
+
 MD_CONTEXT_AMD64 = 0x00100000
 MD_CONTEXT_AMD64_CONTROL = (MD_CONTEXT_AMD64 | 0x00000001)
 MD_CONTEXT_AMD64_INTEGER = (MD_CONTEXT_AMD64 | 0x00000002)
@@ -434,6 +488,12 @@ MINIDUMP_MEMORY_LIST = Descriptor([
   ("ranges", lambda m: MINIDUMP_MEMORY_DESCRIPTOR.ctype * m.range_count)
 ])
 
+MINIDUMP_MEMORY_LIST_Mac = Descriptor([
+  ("range_count", ctypes.c_uint32),
+  ("junk", ctypes.c_uint32),
+  ("ranges", lambda m: MINIDUMP_MEMORY_DESCRIPTOR.ctype * m.range_count)
+])
+
 MINIDUMP_MEMORY_LIST64 = Descriptor([
   ("range_count", ctypes.c_uint64),
   ("base_rva", ctypes.c_uint64),
@@ -452,6 +512,12 @@ MINIDUMP_THREAD = Descriptor([
 
 MINIDUMP_THREAD_LIST = Descriptor([
   ("thread_count", ctypes.c_uint32),
+  ("threads", lambda t: MINIDUMP_THREAD.ctype * t.thread_count)
+])
+
+MINIDUMP_THREAD_LIST_Mac = Descriptor([
+  ("thread_count", ctypes.c_uint32),
+  ("junk", ctypes.c_uint32),
   ("threads", lambda t: MINIDUMP_THREAD.ctype * t.thread_count)
 ])
 
@@ -489,12 +555,19 @@ MINIDUMP_MODULE_LIST = Descriptor([
   ("modules", lambda t: MINIDUMP_RAW_MODULE.ctype * t.number_of_modules)
 ])
 
+MINIDUMP_MODULE_LIST_Mac = Descriptor([
+  ("number_of_modules", ctypes.c_uint32),
+  ("junk", ctypes.c_uint32),
+  ("modules", lambda t: MINIDUMP_RAW_MODULE.ctype * t.number_of_modules)
+])
+
 MINIDUMP_RAW_SYSTEM_INFO = Descriptor([
   ("processor_architecture", ctypes.c_uint16)
 ])
 
 MD_CPU_ARCHITECTURE_X86 = 0
 MD_CPU_ARCHITECTURE_ARM = 5
+MD_CPU_ARCHITECTURE_ARM64 = 0x8003
 MD_CPU_ARCHITECTURE_AMD64 = 9
 
 class FuncSymbol:
@@ -549,6 +622,7 @@ class MinidumpReader(object):
         self.arch = system_info.processor_architecture
         assert self.arch in [MD_CPU_ARCHITECTURE_AMD64,
                              MD_CPU_ARCHITECTURE_ARM,
+                             MD_CPU_ARCHITECTURE_ARM64,
                              MD_CPU_ARCHITECTURE_X86]
     assert not self.arch is None
 
@@ -567,9 +641,15 @@ class MinidumpReader(object):
         elif self.arch == MD_CPU_ARCHITECTURE_ARM:
           self.exception_context = MINIDUMP_CONTEXT_ARM.Read(
               self.minidump, self.exception.thread_context.rva)
+        elif self.arch == MD_CPU_ARCHITECTURE_ARM64:
+          self.exception_context = MINIDUMP_CONTEXT_ARM64.Read(
+              self.minidump, self.exception.thread_context.rva)
         DebugPrint(self.exception_context)
       elif d.stream_type == MD_THREAD_LIST_STREAM:
         thread_list = MINIDUMP_THREAD_LIST.Read(self.minidump, d.location.rva)
+        if ctypes.sizeof(thread_list) + 4 == d.location.data_size:
+          thread_list = MINIDUMP_THREAD_LIST_Mac.Read(
+              self.minidump, d.location.rva)
         assert ctypes.sizeof(thread_list) == d.location.data_size
         DebugPrint(thread_list)
         for thread in thread_list.threads:
@@ -579,12 +659,19 @@ class MinidumpReader(object):
         assert self.module_list is None
         self.module_list = MINIDUMP_MODULE_LIST.Read(
           self.minidump, d.location.rva)
+        if ctypes.sizeof(self.module_list) + 4 == d.location.data_size:
+          self.module_list = MINIDUMP_MODULE_LIST_Mac.Read(
+              self.minidump, d.location.rva)
         assert ctypes.sizeof(self.module_list) == d.location.data_size
+        DebugPrint(self.module_list)
       elif d.stream_type == MD_MEMORY_LIST_STREAM:
         print >>sys.stderr, "Warning: This is not a full minidump!"
         assert self.memory_list is None
         self.memory_list = MINIDUMP_MEMORY_LIST.Read(
           self.minidump, d.location.rva)
+        if ctypes.sizeof(self.memory_list) + 4 == d.location.data_size:
+          self.memory_list = MINIDUMP_MEMORY_LIST_Mac.Read(
+              self.minidump, d.location.rva)
         assert ctypes.sizeof(self.memory_list) == d.location.data_size
         DebugPrint(self.memory_list)
       elif d.stream_type == MD_MEMORY_64_LIST_STREAM:
@@ -614,6 +701,8 @@ class MinidumpReader(object):
       return self.ReadU64(address)
     elif self.arch == MD_CPU_ARCHITECTURE_ARM:
       return self.ReadU32(address)
+    elif self.arch == MD_CPU_ARCHITECTURE_ARM64:
+      return self.ReadU64(address)
     elif self.arch == MD_CPU_ARCHITECTURE_X86:
       return self.ReadU32(address)
 
@@ -626,13 +715,16 @@ class MinidumpReader(object):
       return ctypes.c_uint64.from_buffer(self.minidump, location).value
     elif self.arch == MD_CPU_ARCHITECTURE_ARM:
       return ctypes.c_uint32.from_buffer(self.minidump, location).value
+    elif self.arch == MD_CPU_ARCHITECTURE_ARM64:
+      return ctypes.c_uint64.from_buffer(self.minidump, location).value
     elif self.arch == MD_CPU_ARCHITECTURE_X86:
       return ctypes.c_uint32.from_buffer(self.minidump, location).value
 
   def IsProbableASCIIRegion(self, location, length):
     ascii_bytes = 0
     non_ascii_bytes = 0
-    for loc in xrange(location, location + length):
+    for i in xrange(length):
+      loc = location + i
       byte = ctypes.c_uint8.from_buffer(self.minidump, loc).value
       if byte >= 0x7f:
         non_ascii_bytes += 1
@@ -653,7 +745,8 @@ class MinidumpReader(object):
   def IsProbableExecutableRegion(self, location, length):
     opcode_bytes = 0
     sixty_four = self.arch == MD_CPU_ARCHITECTURE_AMD64
-    for loc in xrange(location, location + length):
+    for i in xrange(length):
+      loc = location + i
       byte = ctypes.c_uint8.from_buffer(self.minidump, loc).value
       if (byte == 0x8b or           # mov
           byte == 0x89 or           # mov reg-reg
@@ -701,7 +794,8 @@ class MinidumpReader(object):
   def FindWord(self, word, alignment=0):
     def search_inside_region(reader, start, size, location):
       location = (location + alignment) & ~alignment
-      for loc in xrange(location, location + size - self.PointerSize()):
+      for i in xrange(size - self.PointerSize()):
+        loc = location + i
         if reader._ReadWord(loc) == word:
           slot = start + (loc - location)
           print "%s: %s" % (reader.FormatIntPtr(slot),
@@ -712,7 +806,8 @@ class MinidumpReader(object):
     aligned_res = []
     unaligned_res = []
     def search_inside_region(reader, start, size, location):
-      for loc in xrange(location, location + size - self.PointerSize()):
+      for i in xrange(size - self.PointerSize()):
+        loc = location + i
         if reader._ReadWord(loc) == word:
           slot = start + (loc - location)
           if slot % self.PointerSize() == 0:
@@ -749,6 +844,9 @@ class MinidumpReader(object):
     elif self.arch == MD_CPU_ARCHITECTURE_ARM:
       arch = "arm"
       possible_objdump_flags = ["", "--disassembler-options=force-thumb"]
+    elif self.arch == MD_CPU_ARCHITECTURE_ARM64:
+      arch = "arm64"
+      possible_objdump_flags = ["", "--disassembler-options=force-thumb"]
     elif self.arch == MD_CPU_ARCHITECTURE_AMD64:
       arch = "x64"
     results = [ disasm.GetDisasmLines(self.minidump_name,
@@ -770,6 +868,8 @@ class MinidumpReader(object):
       return self.exception_context.rip
     elif self.arch == MD_CPU_ARCHITECTURE_ARM:
       return self.exception_context.pc
+    elif self.arch == MD_CPU_ARCHITECTURE_ARM64:
+      return self.exception_context.pc
     elif self.arch == MD_CPU_ARCHITECTURE_X86:
       return self.exception_context.eip
 
@@ -777,6 +877,8 @@ class MinidumpReader(object):
     if self.arch == MD_CPU_ARCHITECTURE_AMD64:
       return self.exception_context.rsp
     elif self.arch == MD_CPU_ARCHITECTURE_ARM:
+      return self.exception_context.sp
+    elif self.arch == MD_CPU_ARCHITECTURE_ARM64:
       return self.exception_context.sp
     elif self.arch == MD_CPU_ARCHITECTURE_X86:
       return self.exception_context.esp
@@ -786,6 +888,8 @@ class MinidumpReader(object):
       return self.exception_context.rbp
     elif self.arch == MD_CPU_ARCHITECTURE_ARM:
       return None
+    elif self.arch == MD_CPU_ARCHITECTURE_ARM64:
+      return self.exception_context.fp
     elif self.arch == MD_CPU_ARCHITECTURE_X86:
       return self.exception_context.ebp
 
@@ -794,6 +898,8 @@ class MinidumpReader(object):
       return "%016x" % value
     elif self.arch == MD_CPU_ARCHITECTURE_ARM:
       return "%08x" % value
+    elif self.arch == MD_CPU_ARCHITECTURE_ARM64:
+      return "%016x" % value
     elif self.arch == MD_CPU_ARCHITECTURE_X86:
       return "%08x" % value
 
@@ -802,6 +908,8 @@ class MinidumpReader(object):
       return 8
     elif self.arch == MD_CPU_ARCHITECTURE_ARM:
       return 4
+    elif self.arch == MD_CPU_ARCHITECTURE_ARM64:
+      return 8
     elif self.arch == MD_CPU_ARCHITECTURE_X86:
       return 4
 
@@ -942,8 +1050,11 @@ class HeapObject(object):
     p.Print(str(self))
 
   def __str__(self):
+    instance_type = "???"
+    if self.map is not None:
+      instance_type = INSTANCE_TYPES[self.map.instance_type]
     return "HeapObject(%s, %s)" % (self.heap.reader.FormatIntPtr(self.address),
-                                   INSTANCE_TYPES[self.map.instance_type])
+                                   instance_type)
 
   def ObjectField(self, offset):
     field_value = self.heap.reader.ReadUIntPtr(self.address + offset)
@@ -1358,9 +1469,9 @@ class JSFunction(HeapObject):
 
   def __str__(self):
     inferred_name = ""
-    if self.shared.Is(SharedFunctionInfo):
+    if self.shared is not None and self.shared.Is(SharedFunctionInfo):
       inferred_name = self.shared.inferred_name
-    return "JSFunction(%s, %s)" % \
+    return "JSFunction(%s, %s) " % \
           (self.heap.reader.FormatIntPtr(self.address), inferred_name)
 
   def _GetSource(self):
@@ -1562,6 +1673,8 @@ class V8Heap(object):
       return (1 << 4) - 1
     elif self.reader.arch == MD_CPU_ARCHITECTURE_ARM:
       return (1 << 4) - 1
+    elif self.reader.arch == MD_CPU_ARCHITECTURE_ARM64:
+      return (1 << 4) - 1
     elif self.reader.arch == MD_CPU_ARCHITECTURE_X86:
       return (1 << 5) - 1
 
@@ -1590,7 +1703,7 @@ class KnownMap(HeapObject):
 
 COMMENT_RE = re.compile(r"^C (0x[0-9a-fA-F]+) (.*)$")
 PAGEADDRESS_RE = re.compile(
-    r"^P (mappage|pointerpage|datapage) (0x[0-9a-fA-F]+)$")
+    r"^P (mappage|oldpage) (0x[0-9a-fA-F]+)$")
 
 
 class InspectionInfo(object):
@@ -1667,8 +1780,7 @@ class InspectionPadawan(object):
     self.reader = reader
     self.heap = heap
     self.known_first_map_page = 0
-    self.known_first_data_page = 0
-    self.known_first_pointer_page = 0
+    self.known_first_old_page = 0
 
   def __getattr__(self, name):
     """An InspectionPadawan can be used instead of V8Heap, even though
@@ -1684,13 +1796,11 @@ class InspectionPadawan(object):
 
   def IsInKnownOldSpace(self, tagged_address):
     page_address = tagged_address & ~self.heap.PageAlignmentMask()
-    return page_address in [self.known_first_data_page,
-                            self.known_first_pointer_page]
+    return page_address == self.known_first_old_page
 
   def ContainingKnownOldSpaceName(self, tagged_address):
     page_address = tagged_address & ~self.heap.PageAlignmentMask()
-    if page_address == self.known_first_data_page: return "OLD_DATA_SPACE"
-    if page_address == self.known_first_pointer_page: return "OLD_POINTER_SPACE"
+    if page_address == self.known_first_old_page: return "OLD_SPACE"
     return None
 
   def SenseObject(self, tagged_address):
@@ -1747,11 +1857,9 @@ class InspectionPadawan(object):
 
   def PrintKnowledge(self):
     print "  known_first_map_page = %s\n"\
-          "  known_first_data_page = %s\n"\
-          "  known_first_pointer_page = %s" % (
+          "  known_first_old_page = %s" % (
           self.reader.FormatIntPtr(self.known_first_map_page),
-          self.reader.FormatIntPtr(self.known_first_data_page),
-          self.reader.FormatIntPtr(self.known_first_pointer_page))
+          self.reader.FormatIntPtr(self.known_first_old_page))
 
 WEB_HEADER = """
 <!DOCTYPE html>
@@ -2066,7 +2174,7 @@ class InspectionWebHandler(BaseHTTPServer.BaseHTTPRequestHandler):
       self.send_error(404, 'Web parameter error: %s' % e.message)
 
 
-HTML_REG_FORMAT = "<span class=\"register\"><b>%s</b>:&nbsp;%s</span>\n"
+HTML_REG_FORMAT = "<span class=\"register\"><b>%s</b>:&nbsp;%s</span><br/>\n"
 
 
 class InspectionWebFormatter(object):
@@ -2093,12 +2201,10 @@ class InspectionWebFormatter(object):
 
     self.padawan = InspectionPadawan(self.reader, self.heap)
     self.comments = InspectionInfo(minidump_name, self.reader)
-    self.padawan.known_first_data_page = (
-        self.comments.get_page_address("datapage"))
+    self.padawan.known_first_old_page = (
+        self.comments.get_page_address("oldpage"))
     self.padawan.known_first_map_page = (
         self.comments.get_page_address("mappage"))
-    self.padawan.known_first_pointer_page = (
-        self.comments.get_page_address("pointerpage"))
 
   def set_comment(self, straddress, comment):
     try:
@@ -2110,12 +2216,10 @@ class InspectionWebFormatter(object):
   def set_page_address(self, kind, straddress):
     try:
       address = int(straddress, 0)
-      if kind == "datapage":
-        self.padawan.known_first_data_page = address
+      if kind == "oldpage":
+        self.padawan.known_first_old_page = address
       elif kind == "mappage":
         self.padawan.known_first_map_page = address
-      elif kind == "pointerpage":
-        self.padawan.known_first_pointer_page = address
       self.comments.save_page_address(kind, address)
     except ValueError:
       print "Invalid address"
@@ -2235,7 +2339,7 @@ class InspectionWebFormatter(object):
     f.write("<h3>Exception context</h3>")
     f.write('<div class="code">\n')
     f.write("Thread id: %d" % exception_thread.id)
-    f.write("&nbsp;&nbsp; Exception code: %08X\n" %
+    f.write("&nbsp;&nbsp; Exception code: %08X<br/>\n" %
             self.reader.exception.exception.code)
     if details == InspectionWebFormatter.CONTEXT_FULL:
       if self.reader.exception.exception.parameter_count > 0:
@@ -2248,7 +2352,7 @@ class InspectionWebFormatter(object):
       f.write(HTML_REG_FORMAT %
               (r, self.format_address(self.reader.Register(r))))
     # TODO(vitalyr): decode eflags.
-    if self.reader.arch == MD_CPU_ARCHITECTURE_ARM:
+    if self.reader.arch in [MD_CPU_ARCHITECTURE_ARM, MD_CPU_ARCHITECTURE_ARM64]:
       f.write("<b>cpsr</b>: %s" % bin(self.reader.exception_context.cpsr)[2:])
     else:
       f.write("<b>eflags</b>: %s" %
@@ -2316,7 +2420,8 @@ class InspectionWebFormatter(object):
     f.write('<div class="code">')
     f.write("<table class=\"codedump\">\n")
 
-    for slot in xrange(start_address, end_address, size):
+    for j in xrange(0, end_address - start_address, size):
+      slot = start_address + j
       heap_object = ""
       maybe_address = None
       end_region = region[0] + region[1]
@@ -2353,7 +2458,7 @@ class InspectionWebFormatter(object):
       f.write(address_fmt % self.format_address(slot))
       f.write("  ")
       self.td_from_address(f, maybe_address)
-      f.write(":&nbsp; %s &nbsp;</td>\n" % straddress)
+      f.write(":&nbsp;%s&nbsp;</td>\n" % straddress)
       f.write("  <td>")
       if maybe_address != None:
         self.output_comment_box(
@@ -2391,7 +2496,8 @@ class InspectionWebFormatter(object):
 
     start = self.align_down(start_address, line_width)
 
-    for address in xrange(start, end_address):
+    for i in xrange(end_address - start):
+      address = start + i
       if address % 64 == 0:
         if address != start:
           f.write("<br>")
@@ -2460,7 +2566,7 @@ class InspectionWebFormatter(object):
             (start_address, end_address, highlight_address, expand))
     f.write('<div class="code">')
     f.write("<table class=\"codedump\">\n");
-    for i in xrange(0, len(lines)):
+    for i in xrange(len(lines)):
       line = lines[i]
       next_address = count
       if i + 1 < len(lines):
@@ -2586,12 +2692,9 @@ class InspectionWebFormatter(object):
       page_address = address & ~self.heap.PageAlignmentMask()
 
       f.write("Page info: \n")
-      self.output_page_info(f, "data", self.padawan.known_first_data_page, \
+      self.output_page_info(f, "old", self.padawan.known_first_old_page, \
                             page_address)
       self.output_page_info(f, "map", self.padawan.known_first_map_page, \
-                            page_address)
-      self.output_page_info(f, "pointer", \
-                            self.padawan.known_first_pointer_page, \
                             page_address)
 
       if not self.reader.IsValidAddress(address):
@@ -2807,17 +2910,22 @@ class InspectionShell(cmd.Cmd):
     else:
       print "%s\n" % string
 
-  def do_dd(self, address):
+  def do_dd(self, args):
     """
-     Interpret memory at the given address (if available) as a sequence
-     of words. Automatic alignment is not performed.
+     Interpret memory in the given region [address, address + num * word_size)
+     (if available) as a sequence of words. Automatic alignment is not performed.
+     If the num is not specified, a default value of 16 words is used.
+     Synopsis: dd 0x<address> 0x<num>
     """
-    start = int(address, 16)
+    args = args.split(' ')
+    start = int(args[0], 16)
+    num = int(args[1], 16) if len(args) > 1 else 0x10
     if (start & self.heap.ObjectAlignmentMask()) != 0:
       print "Warning: Dumping un-aligned memory, is this what you had in mind?"
-    for slot in xrange(start,
-                       start + self.reader.PointerSize() * 10,
-                       self.reader.PointerSize()):
+    for i in xrange(0,
+                    self.reader.PointerSize() * num,
+                    self.reader.PointerSize()):
+      slot = start + i
       if not self.reader.IsValidAddress(slot):
         print "Address is not contained within the minidump!"
         return
@@ -2890,14 +2998,14 @@ class InspectionShell(cmd.Cmd):
     """
     self.padawan.PrintKnowledge()
 
-  def do_kd(self, address):
+  def do_ko(self, address):
     """
      Teach V8 heap layout information to the inspector. Set the first
-     data-space page by passing any pointer into that page.
+     old space page by passing any pointer into that page.
     """
     address = int(address, 16)
     page_address = address & ~self.heap.PageAlignmentMask()
-    self.padawan.known_first_data_page = page_address
+    self.padawan.known_first_old_page = page_address
 
   def do_km(self, address):
     """
@@ -2907,15 +3015,6 @@ class InspectionShell(cmd.Cmd):
     address = int(address, 16)
     page_address = address & ~self.heap.PageAlignmentMask()
     self.padawan.known_first_map_page = page_address
-
-  def do_kp(self, address):
-    """
-     Teach V8 heap layout information to the inspector. Set the first
-     pointer-space page by passing any pointer into that page.
-    """
-    address = int(address, 16)
-    page_address = address & ~self.heap.PageAlignmentMask()
-    self.padawan.known_first_pointer_page = page_address
 
   def do_list(self, smth):
     """
@@ -2995,6 +3094,11 @@ CONTEXT_FOR_ARCH = {
     MD_CPU_ARCHITECTURE_ARM:
       ['r0', 'r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8', 'r9',
        'r10', 'r11', 'r12', 'sp', 'lr', 'pc'],
+    MD_CPU_ARCHITECTURE_ARM64:
+      ['r0', 'r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r7', 'r8', 'r9',
+       'r10', 'r11', 'r12', 'r13', 'r14', 'r15', 'r16', 'r17', 'r18', 'r19',
+       'r20', 'r21', 'r22', 'r23', 'r24', 'r25', 'r26', 'r27', 'r28',
+       'fp', 'lr', 'sp', 'pc'],
     MD_CPU_ARCHITECTURE_X86:
       ['eax', 'ebx', 'ecx', 'edx', 'edi', 'esi', 'ebp', 'esp', 'eip']
 }
@@ -3042,7 +3146,7 @@ def AnalyzeMinidump(options, minidump_name):
     for r in CONTEXT_FOR_ARCH[reader.arch]:
       print "    %s: %s" % (r, reader.FormatIntPtr(reader.Register(r)))
     # TODO(vitalyr): decode eflags.
-    if reader.arch == MD_CPU_ARCHITECTURE_ARM:
+    if reader.arch in [MD_CPU_ARCHITECTURE_ARM, MD_CPU_ARCHITECTURE_ARM64]:
       print "    cpsr: %s" % bin(reader.exception_context.cpsr)[2:]
     else:
       print "    eflags: %s" % bin(reader.exception_context.eflags)[2:]
@@ -3080,6 +3184,10 @@ def AnalyzeMinidump(options, minidump_name):
 
     lines = reader.GetDisasmLines(disasm_start, disasm_bytes)
 
+    if not lines:
+      print "Could not disassemble using %s." % OBJDUMP_BIN
+      print "Pass path to architecture specific objdump via --objdump?"
+
     for line in lines:
       print FormatDisasmLine(disasm_start, heap, line)
     print
@@ -3101,20 +3209,38 @@ def AnalyzeMinidump(options, minidump_name):
   elif not options.command:
     if reader.exception is not None:
       frame_pointer = reader.ExceptionFP()
+      in_oom_dump_area = False
       print "Annotated stack (from exception.esp to bottom):"
       for slot in xrange(stack_top, stack_bottom, reader.PointerSize()):
         ascii_content = [c if c >= '\x20' and c <  '\x7f' else '.'
                          for c in reader.ReadBytes(slot, reader.PointerSize())]
         maybe_address = reader.ReadUIntPtr(slot)
+        maybe_address_contents = None
+        if maybe_address >= stack_top and maybe_address <= stack_bottom:
+          maybe_address_contents = reader.ReadUIntPtr(maybe_address)
+          if maybe_address_contents == 0xdecade00:
+            in_oom_dump_area = True
         heap_object = heap.FindObject(maybe_address)
         maybe_symbol = reader.FindSymbol(maybe_address)
+        oom_comment = ""
+        if in_oom_dump_area:
+          if maybe_address_contents == 0xdecade00:
+            oom_comment = " <----- HeapStats start marker"
+          elif maybe_address_contents == 0xdecade01:
+            oom_comment = " <----- HeapStats end marker"
+          elif maybe_address_contents is not None:
+            oom_comment = " %d (%d Mbytes)" % (maybe_address_contents,
+                                            maybe_address_contents >> 20)
         if slot == frame_pointer:
           maybe_symbol = "<---- frame pointer"
           frame_pointer = maybe_address
-        print "%s: %s %s %s" % (reader.FormatIntPtr(slot),
-                                reader.FormatIntPtr(maybe_address),
-                                "".join(ascii_content),
-                                maybe_symbol or "")
+        print "%s: %s %s %s%s" % (reader.FormatIntPtr(slot),
+                                  reader.FormatIntPtr(maybe_address),
+                                   "".join(ascii_content),
+                                   maybe_symbol or "",
+                                   oom_comment)
+        if maybe_address_contents == 0xdecade01:
+          in_oom_dump_area = False
         if heap_object:
           heap_object.Print(Printer())
           print

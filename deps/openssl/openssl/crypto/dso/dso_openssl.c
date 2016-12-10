@@ -1,6 +1,7 @@
 /* dso_openssl.c */
-/* Written by Geoff Thorpe (geoff@geoffthorpe.net) for the OpenSSL
- * project 2000.
+/*
+ * Written by Geoff Thorpe (geoff@geoffthorpe.net) for the OpenSSL project
+ * 2000.
  */
 /* ====================================================================
  * Copyright (c) 2000 The OpenSSL Project.  All rights reserved.
@@ -10,7 +11,7 @@
  * are met:
  *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer. 
+ *    notice, this list of conditions and the following disclaimer.
  *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
@@ -63,21 +64,20 @@
 /* We just pinch the method from an appropriate "default" method. */
 
 DSO_METHOD *DSO_METHOD_openssl(void)
-	{
+{
 #ifdef DEF_DSO_METHOD
-	return(DEF_DSO_METHOD());
+    return (DEF_DSO_METHOD());
 #elif defined(DSO_DLFCN)
-	return(DSO_METHOD_dlfcn());
+    return (DSO_METHOD_dlfcn());
 #elif defined(DSO_DL)
-	return(DSO_METHOD_dl());
+    return (DSO_METHOD_dl());
 #elif defined(DSO_WIN32)
-	return(DSO_METHOD_win32());
+    return (DSO_METHOD_win32());
 #elif defined(DSO_VMS)
-	return(DSO_METHOD_vms());
+    return (DSO_METHOD_vms());
 #elif defined(DSO_BEOS)
-	return(DSO_METHOD_beos());
+    return (DSO_METHOD_beos());
 #else
-	return(DSO_METHOD_null());
+    return (DSO_METHOD_null());
 #endif
-	}
-
+}

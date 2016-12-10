@@ -2,42 +2,95 @@
 
 =head1 NAME
 
-OPENSSL_ia32cap - finding the IA-32 processor capabilities
+OPENSSL_ia32cap, OPENSSL_ia32cap_loc - the IA-32 processor capabilities vector
 
 =head1 SYNOPSIS
 
  unsigned long *OPENSSL_ia32cap_loc(void);
- #define OPENSSL_ia32cap (*(OPENSSL_ia32cap_loc()))
+ #define OPENSSL_ia32cap ((OPENSSL_ia32cap_loc())[0])
 
 =head1 DESCRIPTION
 
 Value returned by OPENSSL_ia32cap_loc() is address of a variable
-containing IA-32 processor capabilities bit vector as it appears in EDX
-register after executing CPUID instruction with EAX=1 input value (see
-Intel Application Note #241618). Naturally it's meaningful on IA-32[E]
-platforms only. The variable is normally set up automatically upon
-toolkit initialization, but can be manipulated afterwards to modify
-crypto library behaviour. For the moment of this writing six bits are
-significant, namely:
+containing IA-32 processor capabilities bit vector as it appears in
+EDX:ECX register pair after executing CPUID instruction with EAX=1
+input value (see Intel Application Note #241618). Naturally it's
+meaningful on x86 and x86_64 platforms only. The variable is normally
+set up automatically upon toolkit initialization, but can be
+manipulated afterwards to modify crypto library behaviour. For the
+moment of this writing following bits are significant:
 
-1. bit #28 denoting Hyperthreading, which is used to distiguish
-   cores with shared cache;
-2. bit #26 denoting SSE2 support;
-3. bit #25 denoting SSE support;
-4. bit #23 denoting MMX support;
-5. bit #20, reserved by Intel, is used to choose between RC4 code
-   pathes;
-6. bit #4 denoting presence of Time-Stamp Counter.
+=over
+
+=item bit #4 denoting presence of Time-Stamp Counter.
+
+=item bit #19 denoting availability of CLFLUSH instruction;
+
+=item bit #20, reserved by Intel, is used to choose among RC4 code paths;
+
+=item bit #23 denoting MMX support;
+
+=item bit #24, FXSR bit, denoting availability of XMM registers;
+
+=item bit #25 denoting SSE support;
+
+=item bit #26 denoting SSE2 support;
+
+=item bit #28 denoting Hyperthreading, which is used to distinguish
+cores with shared cache;
+
+=item bit #30, reserved by Intel, denotes specifically Intel CPUs;
+
+=item bit #33 denoting availability of PCLMULQDQ instruction;
+
+=item bit #41 denoting SSSE3, Supplemental SSE3, support;
+
+=item bit #43 denoting AMD XOP support (forced to zero on non-AMD CPUs);
+
+=item bit #57 denoting AES-NI instruction set extension;
+
+=item bit #59, OSXSAVE bit, denoting availability of YMM registers;
+
+=item bit #60 denoting AVX extension;
+
+=item bit #62 denoting availability of RDRAND instruction;
+
+=back
 
 For example, clearing bit #26 at run-time disables high-performance
-SSE2 code present in the crypto library. You might have to do this if
-target OpenSSL application is executed on SSE2 capable CPU, but under
-control of OS which does not support SSE2 extentions. Even though you
-can manipulate the value programmatically, you most likely will find it
-more appropriate to set up an environment variable with the same name
-prior starting target application, e.g. on Intel P4 processor 'env
-OPENSSL_ia32cap=0x12900010 apps/openssl', to achieve same effect
-without modifying the application source code. Alternatively you can
-reconfigure the toolkit with no-sse2 option and recompile.
+SSE2 code present in the crypto library, while clearing bit #24
+disables SSE2 code operating on 128-bit XMM register bank. You might
+have to do the latter if target OpenSSL application is executed on SSE2
+capable CPU, but under control of OS that does not enable XMM
+registers. Even though you can manipulate the value programmatically,
+you most likely will find it more appropriate to set up an environment
+variable with the same name prior starting target application, e.g. on
+Intel P4 processor 'env OPENSSL_ia32cap=0x16980010 apps/openssl', or
+better yet 'env OPENSSL_ia32cap=~0x1000000 apps/openssl' to achieve same
+effect without modifying the application source code. Alternatively you
+can reconfigure the toolkit with no-sse2 option and recompile.
 
-=cut
+Less intuitive is clearing bit #28. The truth is that it's not copied
+from CPUID output verbatim, but is adjusted to reflect whether or not
+the data cache is actually shared between logical cores. This in turn
+affects the decision on whether or not expensive countermeasures
+against cache-timing attacks are applied, most notably in AES assembler
+module.
+
+The vector is further extended with EBX value returned by CPUID with
+EAX=7 and ECX=0 as input. Following bits are significant:
+
+=over
+
+=item bit #64+3 denoting availability of BMI1 instructions, e.g. ANDN;
+
+=item bit #64+5 denoting availability of AVX2 instructions;
+
+=item bit #64+8 denoting availability of BMI2 instructions, e.g. MUXL
+and RORX;
+
+=item bit #64+18 denoting availability of RDSEED instruction;
+
+=item bit #64+19 denoting availability of ADCX and ADOX instructions;
+
+=back

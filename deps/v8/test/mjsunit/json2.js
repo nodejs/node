@@ -35,7 +35,9 @@ assertTrue(JSON.stringify(this, null, 0).indexOf('"a":12345') > 0);
 // Test JSON.stringify of array in dictionary mode.
 function TestStringify(expected, input) {
   assertEquals(expected, JSON.stringify(input));
-  assertEquals(expected, JSON.stringify(input, null, 0));
+  assertEquals(expected, JSON.stringify(input, (key, value) => value));
+  assertEquals(JSON.stringify(input, null, "="),
+               JSON.stringify(input, (key, value) => value, "="));
 }
 
 var array_1 = [];
@@ -76,7 +78,7 @@ var getter_obj = { get getter() {
                          return 123;
                        } };
 TestStringify('{"getter":123}', getter_obj);
-assertEquals(2, counter);
+assertEquals(4, counter);
 
 // Test toJSON function.
 var tojson_obj = { toJSON: function() {
@@ -85,7 +87,7 @@ var tojson_obj = { toJSON: function() {
                            },
                    a: 1};
 TestStringify('[1,2]', tojson_obj);
-assertEquals(4, counter);
+assertEquals(8, counter);
 
 // Test that we don't recursively look for the toJSON function.
 var tojson_proto_obj = { a: 'fail' };
@@ -183,3 +185,8 @@ try {
   externalizeString(str, true);
 } catch (e) { }
 TestStringify("\"external\"", str, null, 0);
+
+var o = {};
+o.somespecialproperty = 10;
+o["\x19"] = 10;
+assertThrows("JSON.parse('{\"somespecialproperty\":100, \"\x19\":10}')");

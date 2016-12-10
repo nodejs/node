@@ -27,7 +27,7 @@
 
 import test
 import os
-from os.path import join, dirname, exists, basename, isdir
+from os.path import join, exists, basename, isdir
 import re
 
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")

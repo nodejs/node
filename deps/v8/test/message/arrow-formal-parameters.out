@@ -1,0 +1,4 @@
+*%(basename)s:5: SyntaxError: Duplicate parameter name not allowed in this context
+(b, a, a, d) => a
+           ^
+SyntaxError: Duplicate parameter name not allowed in this context

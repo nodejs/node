@@ -13,7 +13,7 @@ ZonePool::StatsScope::StatsScope(ZonePool* zone_pool)
       total_allocated_bytes_at_start_(zone_pool->GetTotalAllocatedBytes()),
       max_allocated_bytes_(0) {
   zone_pool_->stats_.push_back(this);
-  for (auto zone : zone_pool_->used_) {
+  for (Zone* zone : zone_pool_->used_) {
     size_t size = static_cast<size_t>(zone->allocation_size());
     std::pair<InitialValues::iterator, bool> res =
         initial_values_.insert(std::make_pair(zone, size));
@@ -64,10 +64,8 @@ void ZonePool::StatsScope::ZoneReturned(Zone* zone) {
   }
 }
 
-
-ZonePool::ZonePool(Isolate* isolate)
-    : isolate_(isolate), max_allocated_bytes_(0), total_deleted_bytes_(0) {}
-
+ZonePool::ZonePool(base::AccountingAllocator* allocator)
+    : max_allocated_bytes_(0), total_deleted_bytes_(0), allocator_(allocator) {}
 
 ZonePool::~ZonePool() {
   DCHECK(used_.empty());
@@ -104,10 +102,10 @@ Zone* ZonePool::NewEmptyZone() {
     zone = unused_.back();
     unused_.pop_back();
   } else {
-    zone = new Zone(isolate_);
+    zone = new Zone(allocator_);
   }
   used_.push_back(zone);
-  DCHECK_EQ(0, zone->allocation_size());
+  DCHECK_EQ(0u, zone->allocation_size());
   return zone;
 }
 
@@ -117,7 +115,7 @@ void ZonePool::ReturnZone(Zone* zone) {
   // Update max.
   max_allocated_bytes_ = std::max(max_allocated_bytes_, current_total);
   // Update stats.
-  for (auto stat_scope : stats_) {
+  for (StatsScope* stat_scope : stats_) {
     stat_scope->ZoneReturned(zone);
   }
   // Remove from used.
@@ -130,7 +128,7 @@ void ZonePool::ReturnZone(Zone* zone) {
     delete zone;
   } else {
     zone->DeleteAll();
-    DCHECK_EQ(0, zone->allocation_size());
+    DCHECK_EQ(0u, zone->allocation_size());
     unused_.push_back(zone);
   }
 }

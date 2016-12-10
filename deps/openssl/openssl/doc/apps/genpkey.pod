@@ -128,6 +128,15 @@ The number of bits in the prime parameter B<p>.
 
 The value to use for the generator B<g>.
 
+=item B<dh_rfc5114:num>
+
+If this option is set then the appropriate RFC5114 parameters are used
+instead of generating new parameters. The value B<num> can take the
+values 1, 2 or 3 corresponding to RFC5114 DH parameters consisting of
+1024 bit group with 160 bit subgroup, 2048 bit group with 224 bit subgroup
+and 2048 bit group with 256 bit subgroup as mentioned in RFC5114 sections
+2.1, 2.2 and 2.3 respectively.
+
 =back
 
 =head1 EC PARAMETER GENERATION OPTIONS
@@ -205,6 +214,10 @@ Generate 1024 bit DH parameters:
 
  openssl genpkey -genparam -algorithm DH -out dhp.pem \
 					-pkeyopt dh_paramgen_prime_len:1024
+
+Output RFC5114 2048 bit DH parameters with 224 bit subgroup:
+
+ openssl genpkey -genparam -algorithm DH -out dhp.pem -pkeyopt dh_rfc5114:2
 
 Generate DH key from parameters:
 

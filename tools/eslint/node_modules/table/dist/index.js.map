@@ -1,0 +1,1 @@
+{"version":3,"sources":["index.js"],"names":[],"mappings":";;;;;;;AAAA;;;;AACA;;;;AACA;;;;;;QAGI,Y;QACA,mB","file":"index.js","sourcesContent":["import table from './table';\nimport createStream from './createStream';\nimport getBorderCharacters from './getBorderCharacters';\n\nexport {\n    createStream,\n    getBorderCharacters\n};\n\nexport default table;\n"]}

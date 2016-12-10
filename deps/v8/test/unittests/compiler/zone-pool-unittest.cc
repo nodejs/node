@@ -12,7 +12,7 @@ namespace compiler {
 
 class ZonePoolTest : public TestWithIsolate {
  public:
-  ZonePoolTest() : zone_pool_(isolate()) {}
+  ZonePoolTest() : zone_pool_(&allocator_) {}
 
  protected:
   ZonePool* zone_pool() { return &zone_pool_; }
@@ -32,12 +32,13 @@ class ZonePoolTest : public TestWithIsolate {
 
   size_t Allocate(Zone* zone) {
     size_t bytes = rng.NextInt(25) + 7;
-    int size_before = zone->allocation_size();
-    zone->New(static_cast<int>(bytes));
-    return static_cast<size_t>(zone->allocation_size() - size_before);
+    size_t size_before = zone->allocation_size();
+    zone->New(bytes);
+    return zone->allocation_size() - size_before;
   }
 
  private:
+  base::AccountingAllocator allocator_;
   ZonePool zone_pool_;
   base::RandomNumberGenerator rng;
 };

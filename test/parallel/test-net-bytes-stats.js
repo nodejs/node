@@ -1,32 +1,8 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-
-
-var common = require('../common');
+'use strict';
+require('../common');
 var assert = require('assert');
 var net = require('net');
 
-var tcpPort = common.PORT;
 var bytesRead = 0;
 var bytesWritten = 0;
 var count = 0;
@@ -43,9 +19,9 @@ var tcp = net.Server(function(s) {
   });
 });
 
-tcp.listen(common.PORT, function doTest() {
+tcp.listen(0, function doTest() {
   console.error('listening');
-  var socket = net.createConnection(tcpPort);
+  var socket = net.createConnection(this.address().port);
 
   socket.on('connect', function() {
     count++;
@@ -68,7 +44,7 @@ tcp.listen(common.PORT, function doTest() {
     console.log('Bytes written: ' + bytesWritten);
     if (count < 2) {
       console.error('RECONNECTING');
-      socket.connect(tcpPort);
+      socket.connect(tcp.address().port);
     } else {
       tcp.close();
     }

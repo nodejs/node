@@ -1,30 +1,13 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-
-var assert = require('assert');
-var readline = require('readline');
-var EventEmitter = require('events').EventEmitter;
-var inherits = require('util').inherits;
+// Flags: --expose_internals
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const readline = require('readline');
+const internalReadline = require('internal/readline');
+const EventEmitter = require('events').EventEmitter;
+const inherits = require('util').inherits;
+const Writable = require('stream').Writable;
+const Readable = require('stream').Readable;
 
 function FakeInput() {
   EventEmitter.call(this);
@@ -43,10 +26,57 @@ function isWarned(emitter) {
   return false;
 }
 
+{
+  // Default crlfDelay is 100ms
+  const fi = new FakeInput();
+  const rli = new readline.Interface({ input: fi, output: fi });
+  assert.strictEqual(rli.crlfDelay, 100);
+  rli.close();
+}
+
+{
+  // Minimum crlfDelay is 100ms
+  const fi = new FakeInput();
+  const rli = new readline.Interface({ input: fi, output: fi, crlfDelay: 0});
+  assert.strictEqual(rli.crlfDelay, 100);
+  rli.close();
+}
+
+{
+  // Maximum crlfDelay is 2000ms
+  const fi = new FakeInput();
+  const rli = new readline.Interface({
+    input: fi,
+    output: fi,
+    crlfDelay: 1 << 30
+  });
+  assert.strictEqual(rli.crlfDelay, 2000);
+  rli.close();
+}
+
 [ true, false ].forEach(function(terminal) {
   var fi;
   var rli;
   var called;
+
+  // disable history
+  fi = new FakeInput();
+  rli = new readline.Interface({ input: fi, output: fi, terminal: terminal,
+                              historySize: 0 });
+  assert.strictEqual(rli.historySize, 0);
+
+  fi.emit('data', 'asdf\n');
+  assert.deepStrictEqual(rli.history, terminal ? [] : undefined);
+  rli.close();
+
+  // default history size 30
+  fi = new FakeInput();
+  rli = new readline.Interface({ input: fi, output: fi, terminal: terminal});
+  assert.strictEqual(rli.historySize, 30);
+
+  fi.emit('data', 'asdf\n');
+  assert.deepStrictEqual(rli.history, terminal ? ['asdf'] : undefined);
+  rli.close();
 
   // sending a full line
   fi = new FakeInput();
@@ -121,7 +151,7 @@ function isWarned(emitter) {
   assert.equal(callCount, expectedLines.length - 1);
   rli.close();
 
-  // sending multiple newlines at once that does not end with a new(empty) 
+  // sending multiple newlines at once that does not end with a new(empty)
   // line and a `end` event
   fi = new FakeInput();
   rli = new readline.Interface({ input: fi, output: fi, terminal: terminal });
@@ -133,7 +163,7 @@ function isWarned(emitter) {
   });
   rli.on('close', function() {
     callCount++;
-  })
+  });
   fi.emit('data', expectedLines.join('\n'));
   fi.emit('end');
   assert.equal(callCount, expectedLines.length);
@@ -197,8 +227,86 @@ function isWarned(emitter) {
   assert.equal(callCount, expectedLines.length);
   rli.close();
 
+  // Emit two line events when the delay
+  //   between \r and \n exceeds crlfDelay
+  {
+    const fi = new FakeInput();
+    const delay = 200;
+    const rli = new readline.Interface({
+      input: fi,
+      output: fi,
+      terminal: terminal,
+      crlfDelay: delay
+    });
+    let callCount = 0;
+    rli.on('line', function(line) {
+      callCount++;
+    });
+    fi.emit('data', '\r');
+    setTimeout(common.mustCall(() => {
+      fi.emit('data', '\n');
+      assert.equal(callCount, 2);
+      rli.close();
+    }), delay * 2);
+  }
+
+  // \t when there is no completer function should behave like an ordinary
+  //   character
+  fi = new FakeInput();
+  rli = new readline.Interface({ input: fi, output: fi, terminal: true });
+  called = false;
+  rli.on('line', function(line) {
+    assert.equal(line, '\t');
+    assert.strictEqual(called, false);
+    called = true;
+  });
+  fi.emit('data', '\t');
+  fi.emit('data', '\n');
+  assert.ok(called);
+  rli.close();
+
+  // \t does not become part of the input when there is a completer function
+  fi = new FakeInput();
+  var completer = function(line) {
+    return [[], line];
+  };
+  rli = new readline.Interface({
+    input: fi,
+    output: fi,
+    terminal: true,
+    completer: completer
+  });
+  called = false;
+  rli.on('line', function(line) {
+    assert.equal(line, 'foo');
+    assert.strictEqual(called, false);
+    called = true;
+  });
+  for (var character of '\tfo\to\t') {
+    fi.emit('data', character);
+  }
+  fi.emit('data', '\n');
+  assert.ok(called);
+  rli.close();
+
+  // constructor throws if completer is not a function or undefined
+  fi = new FakeInput();
+  assert.throws(function() {
+    readline.createInterface({
+      input: fi,
+      completer: 'string is not valid'
+    });
+  }, function(err) {
+    if (err instanceof TypeError) {
+      if (/Argument "completer" must be a function/.test(err)) {
+        return true;
+      }
+    }
+    return false;
+  });
+
   // sending a multi-byte utf8 char over multiple writes
-  var buf = Buffer('☮', 'utf8');
+  var buf = Buffer.from('☮', 'utf8');
   fi = new FakeInput();
   rli = new readline.Interface({ input: fi, output: fi, terminal: terminal });
   callCount = 0;
@@ -207,37 +315,42 @@ function isWarned(emitter) {
     assert.equal(line, buf.toString('utf8'));
   });
   [].forEach.call(buf, function(i) {
-    fi.emit('data', Buffer([i]));
+    fi.emit('data', Buffer.from([i]));
   });
   assert.equal(callCount, 0);
   fi.emit('data', '\n');
   assert.equal(callCount, 1);
   rli.close();
 
-  // keypress
-  [
-    ['a'],
-    ['\x1b'],
-    ['\x1b[31m'],
-    ['\x1b[31m', '\x1b[39m'],
-    ['\x1b[31m', 'a', '\x1b[39m', 'a']
-  ].forEach(function (keypresses) {
-    fi = new FakeInput();
-    callCount = 0;
-    var remainingKeypresses = keypresses.slice();
-    function keypressListener (ch, key) {
-      callCount++;
-      if (ch) assert(!key.code);
-      assert.equal(key.sequence, remainingKeypresses.shift());
-    };
-    readline.emitKeypressEvents(fi);
-    fi.on('keypress', keypressListener);
-    fi.emit('data', keypresses.join(''));
-    assert.equal(callCount, keypresses.length);
-    assert.equal(remainingKeypresses.length, 0);
-    fi.removeListener('keypress', keypressListener);
-    fi.emit('data', ''); // removes listener
+  // Regression test for repl freeze, #1968:
+  // check that nothing fails if 'keypress' event throws.
+  fi = new FakeInput();
+  rli = new readline.Interface({ input: fi, output: fi, terminal: true });
+  var keys = [];
+  fi.on('keypress', function(key) {
+    keys.push(key);
+    if (key === 'X') {
+      throw new Error('bad thing happened');
+    }
   });
+  try {
+    fi.emit('data', 'fooX');
+  } catch (e) { }
+  fi.emit('data', 'bar');
+  assert.equal(keys.join(''), 'fooXbar');
+  rli.close();
+
+  // calling readline without `new`
+  fi = new FakeInput();
+  rli = readline.Interface({ input: fi, output: fi, terminal: terminal });
+  called = false;
+  rli.on('line', function(line) {
+    called = true;
+    assert.equal(line, 'asdf');
+  });
+  fi.emit('data', 'asdf\n');
+  assert.ok(called);
+  rli.close();
 
   if (terminal) {
     // question
@@ -259,45 +372,56 @@ function isWarned(emitter) {
     rli.question(expectedLines.join('\n'), function() {
       rli.close();
     });
-    var cursorPos = rli._getCursorPos();
+    cursorPos = rli._getCursorPos();
     assert.equal(cursorPos.rows, expectedLines.length - 1);
     assert.equal(cursorPos.cols, expectedLines.slice(-1)[0].length);
     rli.close();
   }
 
+  // isFullWidthCodePoint() should return false for non-numeric values
+  [true, false, null, undefined, {}, [], 'あ'].forEach((v) => {
+    assert.strictEqual(internalReadline.isFullWidthCodePoint('あ'), false);
+  });
+
   // wide characters should be treated as two columns.
-  assert.equal(readline.isFullWidthCodePoint('a'.charCodeAt(0)), false);
-  assert.equal(readline.isFullWidthCodePoint('あ'.charCodeAt(0)), true);
-  assert.equal(readline.isFullWidthCodePoint('谢'.charCodeAt(0)), true);
-  assert.equal(readline.isFullWidthCodePoint('고'.charCodeAt(0)), true);
-  assert.equal(readline.isFullWidthCodePoint(0x1f251), true); // surrogate
-  assert.equal(readline.codePointAt('ABC', 0), 0x41);
-  assert.equal(readline.codePointAt('あいう', 1), 0x3044);
-  assert.equal(readline.codePointAt('\ud800\udc00', 0),  // surrogate
-      0x10000);
-  assert.equal(readline.codePointAt('\ud800\udc00A', 2), // surrogate
-      0x41);
-  assert.equal(readline.getStringWidth('abcde'), 5);
-  assert.equal(readline.getStringWidth('古池や'), 6);
-  assert.equal(readline.getStringWidth('ノード.js'), 9);
-  assert.equal(readline.getStringWidth('你好'), 4);
-  assert.equal(readline.getStringWidth('안녕하세요'), 10);
-  assert.equal(readline.getStringWidth('A\ud83c\ude00BC'), 5); // surrogate
+  assert.equal(internalReadline.isFullWidthCodePoint('a'.charCodeAt(0)), false);
+  assert.equal(internalReadline.isFullWidthCodePoint('あ'.charCodeAt(0)), true);
+  assert.equal(internalReadline.isFullWidthCodePoint('谢'.charCodeAt(0)), true);
+  assert.equal(internalReadline.isFullWidthCodePoint('고'.charCodeAt(0)), true);
+  assert.equal(internalReadline.isFullWidthCodePoint(0x1f251), true);
+  assert.equal(internalReadline.getStringWidth('abcde'), 5);
+  assert.equal(internalReadline.getStringWidth('古池や'), 6);
+  assert.equal(internalReadline.getStringWidth('ノード.js'), 9);
+  assert.equal(internalReadline.getStringWidth('你好'), 4);
+  assert.equal(internalReadline.getStringWidth('안녕하세요'), 10);
+  assert.equal(internalReadline.getStringWidth('A\ud83c\ude00BC'), 5);
 
   // check if vt control chars are stripped
-  assert.equal(readline.stripVTControlCharacters('\u001b[31m> \u001b[39m'), '> ');
-  assert.equal(readline.stripVTControlCharacters('\u001b[31m> \u001b[39m> '), '> > ');
-  assert.equal(readline.stripVTControlCharacters('\u001b[31m\u001b[39m'), '');
-  assert.equal(readline.stripVTControlCharacters('> '), '> ');
-  assert.equal(readline.getStringWidth('\u001b[31m> \u001b[39m'), 2);
-  assert.equal(readline.getStringWidth('\u001b[31m> \u001b[39m> '), 4);
-  assert.equal(readline.getStringWidth('\u001b[31m\u001b[39m'), 0);
-  assert.equal(readline.getStringWidth('> '), 2);
+  assert.strictEqual(
+    internalReadline.stripVTControlCharacters('\u001b[31m> \u001b[39m'),
+    '> '
+  );
+  assert.strictEqual(
+    internalReadline.stripVTControlCharacters('\u001b[31m> \u001b[39m> '),
+    '> > '
+  );
+  assert.strictEqual(
+    internalReadline.stripVTControlCharacters('\u001b[31m\u001b[39m'),
+    ''
+  );
+  assert.strictEqual(
+    internalReadline.stripVTControlCharacters('> '),
+    '> '
+  );
+  assert.equal(internalReadline.getStringWidth('\u001b[31m> \u001b[39m'), 2);
+  assert.equal(internalReadline.getStringWidth('\u001b[31m> \u001b[39m> '), 4);
+  assert.equal(internalReadline.getStringWidth('\u001b[31m\u001b[39m'), 0);
+  assert.equal(internalReadline.getStringWidth('> '), 2);
 
-  assert.deepEqual(fi.listeners(terminal ? 'keypress' : 'data'), []);
+  assert.deepStrictEqual(fi.listeners(terminal ? 'keypress' : 'data'), []);
 
   // check EventEmitter memory leak
-  for (var i=0; i<12; i++) {
+  for (var i = 0; i < 12; i++) {
     var rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout
@@ -320,7 +444,7 @@ function isWarned(emitter) {
   assert.ok(called);
 
   assert.doesNotThrow(function() {
-    rli.setPrompt("ddd> ");
+    rli.setPrompt('ddd> ');
   });
 
   assert.doesNotThrow(function() {
@@ -332,11 +456,35 @@ function isWarned(emitter) {
   });
 
   assert.doesNotThrow(function() {
-    rli.question("What do you think of node.js? ", function(answer) {
-      console.log("Thank you for your valuable feedback:", answer);
+    rli.question('What do you think of node.js? ', function(answer) {
+      console.log('Thank you for your valuable feedback:', answer);
       rli.close();
-    })
+    });
   });
 
-});
+  {
+    const expected = terminal
+      ? ['\u001b[1G', '\u001b[0J', '$ ', '\u001b[3G']
+      : ['$ '];
 
+    let counter = 0;
+    const output = new Writable({
+      write: common.mustCall((chunk, enc, cb) => {
+        assert.strictEqual(chunk.toString(), expected[counter++]);
+        cb();
+        rl.close();
+      }, expected.length)
+    });
+
+    const rl = readline.createInterface({
+      input: new Readable({ read: () => {} }),
+      output: output,
+      prompt: '$ ',
+      terminal: terminal
+    });
+
+    rl.prompt();
+
+    assert.strictEqual(rl._prompt, '$ ');
+  }
+});

@@ -1,0 +1,27 @@
+prefix parallel
+
+# To mark a test as flaky, list the test name in the appropriate section
+# below, without ".js", followed by ": PASS,FLAKY". Example:
+# sample-test                        : PASS,FLAKY
+
+[true] # This section applies to all platforms
+
+[$system==win32]
+
+[$system==linux]
+
+[$system==macos]
+
+[$arch==arm || $arch==arm64]
+
+[$system==solaris] # Also applies to SmartOS
+
+[$system==freebsd]
+
+# fs-watch currently needs special configuration on AIX and we
+# want to improve under https://github.com/nodejs/node/issues/5085.
+# Tests are disabled so CI can be green and we can spot other
+# regressions until this work is complete
+[$system==aix]
+test-fs-watch-enoent                 : FAIL, PASS
+test-fs-watch-encoding               : FAIL, PASS

@@ -5,6 +5,8 @@
 #ifndef V8_LIST_H_
 #define V8_LIST_H_
 
+#include <algorithm>
+
 #include "src/checks.h"
 #include "src/utils.h"
 
@@ -63,7 +65,7 @@ class List {
   // backing store (e.g. Add).
   inline T& operator[](int i) const {
     DCHECK(0 <= i);
-    SLOW_DCHECK(i < length_);
+    SLOW_DCHECK(static_cast<unsigned>(i) < static_cast<unsigned>(length_));
     return data_[i];
   }
   inline T& at(int i) const { return operator[](i); }
@@ -137,6 +139,9 @@ class List {
   // Drop the last 'count' elements from the list.
   INLINE(void RewindBy(int count)) { Rewind(length_ - count); }
 
+  // Swaps the contents of the two lists.
+  INLINE(void Swap(List<T, AllocationPolicy>* list));
+
   // Halve the capacity if fill level is less than a quarter.
   INLINE(void Trim(AllocationPolicy allocator = AllocationPolicy()));
 
@@ -149,11 +154,24 @@ class List {
   void Iterate(Visitor* visitor);
 
   // Sort all list entries (using QuickSort)
-  void Sort(int (*cmp)(const T* x, const T* y));
+  template <typename CompareFunction>
+  void Sort(CompareFunction cmp, size_t start, size_t length);
+  template <typename CompareFunction>
+  void Sort(CompareFunction cmp);
   void Sort();
+  template <typename CompareFunction>
+  void StableSort(CompareFunction cmp, size_t start, size_t length);
+  template <typename CompareFunction>
+  void StableSort(CompareFunction cmp);
+  void StableSort();
 
   INLINE(void Initialize(int capacity,
-                         AllocationPolicy allocator = AllocationPolicy()));
+                         AllocationPolicy allocator = AllocationPolicy())) {
+    DCHECK(capacity >= 0);
+    data_ = (capacity > 0) ? NewData(capacity, allocator) : NULL;
+    capacity_ = capacity;
+    length_ = 0;
+  }
 
  private:
   T* data_;
@@ -189,15 +207,13 @@ size_t GetMemoryUsedByList(const List<T, P>& list) {
 
 
 class Map;
-template<class> class TypeImpl;
-struct HeapTypeConfig;
-typedef TypeImpl<HeapTypeConfig> HeapType;
+class FieldType;
 class Code;
 template<typename T> class Handle;
 typedef List<Map*> MapList;
 typedef List<Code*> CodeList;
 typedef List<Handle<Map> > MapHandleList;
-typedef List<Handle<HeapType> > TypeHandleList;
+typedef List<Handle<FieldType> > TypeHandleList;
 typedef List<Handle<Code> > CodeHandleList;
 
 // Perform binary search for an element in an already sorted
@@ -211,7 +227,8 @@ template <typename T>
 int SortedListBSearch(const List<T>& list, T elem);
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 
 #endif  // V8_LIST_H_

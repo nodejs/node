@@ -39,7 +39,7 @@ N/A
 API
 ---
 
-.. c:function:: int uv_idle_init(uv_loop_t*, uv_idle_t* idle)
+.. c:function:: int uv_idle_init(uv_loop_t* loop, uv_idle_t* idle)
 
     Initialize the handle.
 

@@ -50,12 +50,14 @@ class zone_allocator {
   }
   void destroy(pointer p) { p->~T(); }
 
-  bool operator==(zone_allocator const& other) {
+  bool operator==(zone_allocator const& other) const {
     return zone_ == other.zone_;
   }
-  bool operator!=(zone_allocator const& other) {
+  bool operator!=(zone_allocator const& other) const {
     return zone_ != other.zone_;
   }
+
+  Zone* zone() { return zone_; }
 
  private:
   zone_allocator();
@@ -64,6 +66,7 @@ class zone_allocator {
 
 typedef zone_allocator<bool> ZoneBoolAllocator;
 typedef zone_allocator<int> ZoneIntAllocator;
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ZONE_ALLOCATOR_H_

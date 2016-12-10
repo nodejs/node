@@ -5,8 +5,8 @@
 #ifndef V8_COMPILER_SOURCE_POSITION_H_
 #define V8_COMPILER_SOURCE_POSITION_H_
 
-#include "src/assembler.h"
 #include "src/compiler/node-aux-data.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -14,22 +14,18 @@ namespace compiler {
 
 // Encapsulates encoding and decoding of sources positions from which Nodes
 // originated.
-class SourcePosition FINAL {
+class SourcePosition final {
  public:
   explicit SourcePosition(int raw = kUnknownPosition) : raw_(raw) {}
 
   static SourcePosition Unknown() { return SourcePosition(kUnknownPosition); }
   bool IsUnknown() const { return raw() == kUnknownPosition; }
-
-  static SourcePosition Invalid() { return SourcePosition(kInvalidPosition); }
-  bool IsInvalid() const { return raw() == kInvalidPosition; }
+  bool IsKnown() const { return raw() != kUnknownPosition; }
 
   int raw() const { return raw_; }
 
  private:
-  static const int kInvalidPosition = -2;
-  static const int kUnknownPosition = RelocInfo::kNoPosition;
-  STATIC_ASSERT(kInvalidPosition != kUnknownPosition);
+  static const int kUnknownPosition = kNoSourcePosition;
   int raw_;
 };
 
@@ -42,10 +38,9 @@ inline bool operator!=(const SourcePosition& lhs, const SourcePosition& rhs) {
   return !(lhs == rhs);
 }
 
-
-class SourcePositionTable FINAL {
+class SourcePositionTable final : public ZoneObject {
  public:
-  class Scope {
+  class Scope final {
    public:
     Scope(SourcePositionTable* source_positions, SourcePosition position)
         : source_positions_(source_positions),
@@ -61,30 +56,28 @@ class SourcePositionTable FINAL {
 
    private:
     void Init(SourcePosition position) {
-      if (!position.IsUnknown() || prev_position_.IsInvalid()) {
-        source_positions_->current_position_ = position;
-      }
+      if (position.IsKnown()) source_positions_->current_position_ = position;
     }
 
-    SourcePositionTable* source_positions_;
-    SourcePosition prev_position_;
+    SourcePositionTable* const source_positions_;
+    SourcePosition const prev_position_;
     DISALLOW_COPY_AND_ASSIGN(Scope);
   };
 
   explicit SourcePositionTable(Graph* graph);
-  ~SourcePositionTable() {
-    if (decorator_ != NULL) RemoveDecorator();
-  }
 
   void AddDecorator();
   void RemoveDecorator();
 
   SourcePosition GetSourcePosition(Node* node) const;
+  void SetSourcePosition(Node* node, SourcePosition position);
+
+  void Print(std::ostream& os) const;
 
  private:
   class Decorator;
 
-  Graph* graph_;
+  Graph* const graph_;
   Decorator* decorator_;
   SourcePosition current_position_;
   NodeAuxData<SourcePosition> table_;
@@ -96,4 +89,4 @@ class SourcePositionTable FINAL {
 }  // namespace internal
 }  // namespace v8
 
-#endif
+#endif  // V8_COMPILER_SOURCE_POSITION_H_

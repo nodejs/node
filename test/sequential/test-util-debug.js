@@ -1,25 +1,5 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-var common = require('../common');
+'use strict';
+const common = require('../common');
 var assert = require('assert');
 
 if (process.argv[2] === 'child')
@@ -43,11 +23,10 @@ function test(environ, shouldWrite) {
                 'TUD %PID%: number=1234 string=asdf obj={"foo":"bar"}\n';
   }
   var expectOut = 'ok\n';
-  var didTest = false;
 
   var spawn = require('child_process').spawn;
   var child = spawn(process.execPath, [__filename, 'child'], {
-    env: { NODE_DEBUG: environ }
+    env: Object.assign(process.env, { NODE_DEBUG: environ })
   });
 
   expectErr = expectErr.split('%PID%').join(child.pid);
@@ -64,17 +43,12 @@ function test(environ, shouldWrite) {
     out += c;
   });
 
-  child.on('close', function(c) {
+  child.on('close', common.mustCall(function(c) {
     assert(!c);
     assert.equal(err, expectErr);
     assert.equal(out, expectOut);
-    didTest = true;
     console.log('ok %j %j', environ, shouldWrite);
-  });
-
-  process.on('exit', function() {
-    assert(didTest);
-  });
+  }));
 }
 
 

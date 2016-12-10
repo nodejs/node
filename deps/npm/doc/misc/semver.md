@@ -4,6 +4,8 @@ semver(7) -- The semantic versioner for npm
 ## Usage
 
     $ npm install semver
+    $ node
+    var semver = require('semver')
 
     semver.valid('1.2.3') // '1.2.3'
     semver.valid('a.b.c') // null
@@ -16,18 +18,35 @@ As a command-line utility:
 
     $ semver -h
 
-    Usage: semver <version> [<version> [...]] [-r <range> | -i <inc> | -d <dec>]
-    Test if version(s) satisfy the supplied range(s), and sort them.
+    SemVer 5.1.0
 
-    Multiple versions or ranges may be supplied, unless increment
-    or decrement options are specified.  In that case, only a single
-    version may be used, and it is incremented by the specified level
+    A JavaScript implementation of the http://semver.org/ specification
+    Copyright Isaac Z. Schlueter
+
+    Usage: semver [options] <version> [<version> [...]]
+    Prints valid versions sorted by SemVer precedence
+
+    Options:
+    -r --range <range>
+            Print versions that match the specified range.
+
+    -i --increment [<level>]
+            Increment a version by the specified level.  Level can
+            be one of: major, minor, patch, premajor, preminor,
+            prepatch, or prerelease.  Default level is 'patch'.
+            Only one version may be specified.
+
+    --preid <identifier>
+            Identifier to be used to prefix premajor, preminor,
+            prepatch or prerelease version increments.
+
+    -l --loose
+            Interpret versions and ranges loosely
 
     Program exits successfully if any valid version satisfies
     all supplied ranges, and prints all satisfying versions.
 
-    If no versions are valid, or ranges are not satisfied,
-    then exits failure.
+    If no satisfying versions are found, then exits failure.
 
     Versions are printed in ascending order, so supplying
     multiple versions to the utility will just sort them.
@@ -101,6 +120,30 @@ the user is indicating that they are aware of the risk.  However, it
 is still not appropriate to assume that they have opted into taking a
 similar risk on the *next* set of prerelease versions.
 
+#### Prerelease Identifiers
+
+The method `.inc` takes an additional `identifier` string argument that
+will append the value of the string as a prerelease identifier:
+
+```javascript
+> semver.inc('1.2.3', 'prerelease', 'beta')
+'1.2.4-beta.0'
+```
+
+command-line example:
+
+```shell
+$ semver 1.2.3 -i prerelease --preid beta
+1.2.4-beta.0
+```
+
+Which then can be used to increment further:
+
+```shell
+$ semver 1.2.4-beta.0 -i prerelease
+1.2.4-beta.1
+```
+
 ### Advanced Range Syntax
 
 Advanced range syntax desugars to primitive comparators in
@@ -161,8 +204,6 @@ comparator.  Allows minor-level changes if not.
   `1.2.4-beta.2` would not, because it is a prerelease of a
   different `[major, minor, patch]` tuple.
 
-Note: this is the same as the `~>` operator in rubygems.
-
 #### Caret Ranges `^1.2.3` `^0.2.5` `^0.0.4`
 
 Allows changes that do not modify the left-most non-zero digit in the
@@ -206,6 +247,30 @@ zero.
 * `^1.x` := `>=1.0.0 <2.0.0`
 * `^0.x` := `>=0.0.0 <1.0.0`
 
+### Range Grammar
+
+Putting all this together, here is a Backus-Naur grammar for ranges,
+for the benefit of parser authors:
+
+```bnf
+range-set  ::= range ( logical-or range ) *
+logical-or ::= ( ' ' ) * '||' ( ' ' ) *
+range      ::= hyphen | simple ( ' ' simple ) * | ''
+hyphen     ::= partial ' - ' partial
+simple     ::= primitive | partial | tilde | caret
+primitive  ::= ( '<' | '>' | '>=' | '<=' | '=' | ) partial
+partial    ::= xr ( '.' xr ( '.' xr qualifier ? )? )?
+xr         ::= 'x' | 'X' | '*' | nr
+nr         ::= '0' | ['1'-'9'] ( ['0'-'9'] ) *
+tilde      ::= '~' partial
+caret      ::= '^' partial
+qualifier  ::= ( '-' pre )? ( '+' build )?
+pre        ::= parts
+build      ::= parts
+parts      ::= part ( '.' part ) *
+part       ::= nr | [-0-9A-Za-z]+
+```
+
 ## Functions
 
 All methods and classes take a final `loose` boolean argument that, if
@@ -226,6 +291,11 @@ strings that they parse.
     same as `prepatch`. It increments the patch version, then makes a
     prerelease. If the input version is already a prerelease it simply
     increments it.
+* `prerelease(v)`: Returns an array of prerelease components, or null
+  if none exist. Example: `prerelease('1.2.3-alpha.1') -> ['alpha', 1]`
+* `major(v)`: Return the major version number.
+* `minor(v)`: Return the minor version number.
+* `patch(v)`: Return the patch version number.
 
 ### Comparison
 
@@ -245,6 +315,9 @@ strings that they parse.
   `v2` is greater.  Sorts in ascending order if passed to `Array.sort()`.
 * `rcompare(v1, v2)`: The reverse of compare.  Sorts an array of versions
   in descending order when passed to `Array.sort()`.
+* `diff(v1, v2)`: Returns difference between two versions by the release type
+  (`major`, `premajor`, `minor`, `preminor`, `patch`, `prepatch`, or `prerelease`),
+  or null if the versions are the same.
 
 
 ### Ranges
@@ -253,6 +326,8 @@ strings that they parse.
 * `satisfies(version, range)`: Return true if the version satisfies the
   range.
 * `maxSatisfying(versions, range)`: Return the highest version in the list
+  that satisfies the range, or `null` if none of them do.
+* `minSatisfying(versions, range)`: Return the lowest version in the list
   that satisfies the range, or `null` if none of them do.
 * `gtr(version, range)`: Return `true` if version is greater than all the
   versions possible in the range.

@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
+#include "src/v8threads.h"
 
 #include "src/api.h"
 #include "src/bootstrapper.h"
-#include "src/debug.h"
+#include "src/debug/debug.h"
 #include "src/execution.h"
-#include "src/regexp-stack.h"
-#include "src/v8threads.h"
+#include "src/isolate-inl.h"
+#include "src/regexp/regexp-stack.h"
 
 namespace v8 {
 
@@ -27,7 +27,7 @@ base::Atomic32 g_locker_was_ever_used_ = 0;
 // the lock for a given isolate.
 void Locker::Initialize(v8::Isolate* isolate) {
   DCHECK(isolate != NULL);
-  has_lock_= false;
+  has_lock_ = false;
   top_level_ = true;
   isolate_ = reinterpret_cast<i::Isolate*>(isolate);
   // Record that the Locker has been used at least once.

@@ -364,12 +364,6 @@ void Instrument::VisitLoadStorePairPreIndex(Instruction* instr) {
 }
 
 
-void Instrument::VisitLoadStorePairNonTemporal(Instruction* instr) {
-  Update();
-  InstrumentLoadStorePair(instr);
-}
-
-
 void Instrument::VisitLoadLiteral(Instruction* instr) {
   Update();
   static Counter* counter = GetCounter("Load Literal");
@@ -435,6 +429,31 @@ void Instrument::VisitLoadStoreUnsignedOffset(Instruction* instr) {
   InstrumentLoadStore(instr);
 }
 
+void Instrument::VisitLoadStoreAcquireRelease(Instruction* instr) {
+  Update();
+  static Counter* load_counter = GetCounter("Load Acquire");
+  static Counter* store_counter = GetCounter("Store Release");
+
+  switch (instr->Mask(LoadStoreAcquireReleaseMask)) {
+    case LDAR_b:   // Fall-through.
+    case LDAR_h:   // Fall-through.
+    case LDAR_w:   // Fall-through.
+    case LDAR_x:   // Fall-through.
+    case LDAXR_b:  // Fall-through.
+    case LDAXR_h:  // Fall-through.
+    case LDAXR_w:  // Fall-through.
+    case LDAXR_x: load_counter->Increment(); break;
+    case STLR_b:   // Fall-through.
+    case STLR_h:   // Fall-through.
+    case STLR_w:   // Fall-through.
+    case STLR_x:   // Fall-through.
+    case STLXR_b:  // Fall-through.
+    case STLXR_h:  // Fall-through.
+    case STLXR_w:  // Fall-through.
+    case STLXR_x: store_counter->Increment(); break;
+    default: UNREACHABLE();
+  }
+}
 
 void Instrument::VisitLogicalShifted(Instruction* instr) {
   Update();
@@ -591,4 +610,5 @@ void Instrument::VisitUnimplemented(Instruction* instr) {
 }
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8

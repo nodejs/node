@@ -1,36 +1,15 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var net = require('net');
+'use strict';
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
+const net = require('net');
 
 if (cluster.isWorker) {
-  net.createServer(function(socket) {
+  net.createServer((socket) => {
     socket.end('echo');
   }).listen(common.PORT, '127.0.0.1');
 
-  net.createServer(function(socket) {
+  net.createServer((socket) => {
     socket.end('echo');
   }).listen(common.PORT + 1, '127.0.0.1');
 
@@ -38,25 +17,25 @@ if (cluster.isWorker) {
   var servers = 2;
 
   // test a single TCP server
-  var testConnection = function(port, cb) {
-    var socket = net.connect(port, '127.0.0.1', function() {
+  const testConnection = function(port, cb) {
+    var socket = net.connect(port, '127.0.0.1', () => {
       // buffer result
       var result = '';
-      socket.on('data', function(chunk) { result += chunk; });
+      socket.on('data', common.mustCall((chunk) => { result += chunk; }));
 
       // check result
-      socket.on('end', function() {
+      socket.on('end', common.mustCall(() => {
         cb(result === 'echo');
-      });
+      }));
     });
   };
 
   // test both servers created in the cluster
-  var testCluster = function(cb) {
+  const testCluster = function(cb) {
     var done = 0;
 
     for (var i = 0, l = servers; i < l; i++) {
-      testConnection(common.PORT + i, function(success) {
+      testConnection(common.PORT + i, (success) => {
         assert.ok(success);
         done += 1;
         if (done === servers) {
@@ -67,40 +46,38 @@ if (cluster.isWorker) {
   };
 
   // start two workers and execute callback when both is listening
-  var startCluster = function(cb) {
+  const startCluster = function(cb) {
     var workers = 8;
     var online = 0;
 
     for (var i = 0, l = workers; i < l; i++) {
-
-      var worker = cluster.fork();
-      worker.on('listening', function() {
+      cluster.fork().on('listening', common.mustCall(() => {
         online += 1;
         if (online === workers * servers) {
           cb();
         }
-      });
+      }, servers));
     }
   };
 
 
-  var results = {
+  const results = {
     start: 0,
     test: 0,
     disconnect: 0
   };
 
-  var test = function(again) {
+  const test = function(again) {
     //1. start cluster
-    startCluster(function() {
+    startCluster(() => {
       results.start += 1;
 
       //2. test cluster
-      testCluster(function() {
+      testCluster(() => {
         results.test += 1;
 
         //3. disconnect cluster
-        cluster.disconnect(function() {
+        cluster.disconnect(() => {
           results.disconnect += 1;
 
           // run test again to confirm cleanup
@@ -114,9 +91,9 @@ if (cluster.isWorker) {
 
   test(true);
 
-  process.once('exit', function() {
-    assert.equal(results.start, 2);
-    assert.equal(results.test, 2);
-    assert.equal(results.disconnect, 2);
+  process.once('exit', () => {
+    assert.strictEqual(results.start, 2);
+    assert.strictEqual(results.test, 2);
+    assert.strictEqual(results.disconnect, 2);
   });
 }

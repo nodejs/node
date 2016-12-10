@@ -5,10 +5,8 @@
 #ifndef V8_ALLOCATION_SITE_SCOPES_H_
 #define V8_ALLOCATION_SITE_SCOPES_H_
 
-#include "src/ast.h"
 #include "src/handles.h"
 #include "src/objects.h"
-#include "src/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -36,7 +34,7 @@ class AllocationSiteContext {
 
   void InitializeTraversal(Handle<AllocationSite> site) {
     top_ = site;
-    current_ = Handle<AllocationSite>(*top_, isolate());
+    current_ = Handle<AllocationSite>::New(*top_, isolate());
   }
 
  private:
@@ -75,7 +73,6 @@ class AllocationSiteUsageContext : public AllocationSiteContext {
       // Advance current site
       Object* nested_site = current()->nested_site();
       // Something is wrong if we advance to the end of the list here.
-      DCHECK(nested_site->IsAllocationSite());
       update_current_site(AllocationSite::cast(nested_site));
     }
     return Handle<AllocationSite>(*current(), isolate());
@@ -96,6 +93,7 @@ class AllocationSiteUsageContext : public AllocationSiteContext {
 };
 
 
-} }  // namespace v8::internal
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ALLOCATION_SITE_SCOPES_H_

@@ -1,25 +1,5 @@
-// Copyright Joyent, Inc. and other Node contributors.
-//
-// Permission is hereby granted, free of charge, to any person obtaining a
-// copy of this software and associated documentation files (the
-// "Software"), to deal in the Software without restriction, including
-// without limitation the rights to use, copy, modify, merge, publish,
-// distribute, sublicense, and/or sell copies of the Software, and to permit
-// persons to whom the Software is furnished to do so, subject to the
-// following conditions:
-//
-// The above copyright notice and this permission notice shall be included
-// in all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
-// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
-// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
-// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
-// USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-var common = require('../common');
+'use strict';
+require('../common');
 var assert = require('assert');
 
 // This test verifies that:
@@ -33,9 +13,8 @@ var stream = require('stream');
 var hwm = 10;
 var r = stream.Readable({ highWaterMark: hwm });
 var chunks = 10;
-var t = (chunks * 5);
 
-var data = new Buffer(chunks * hwm + Math.ceil(hwm / 2));
+var data = Buffer.allocUnsafe(chunks * hwm + Math.ceil(hwm / 2));
 for (var i = 0; i < data.length; i++) {
   var c = 'asdf'.charCodeAt(i % 4);
   data[i] = c;
@@ -69,7 +48,7 @@ r._read = function(n) {
 
 function pushError() {
   assert.throws(function() {
-    r.push(new Buffer(1));
+    r.push(Buffer.allocUnsafe(1));
   });
 }
 
@@ -85,7 +64,7 @@ var ended = false;
 r.on('end', function() {
   assert(!ended, 'end emitted more than once');
   assert.throws(function() {
-    r.unshift(new Buffer(1));
+    r.unshift(Buffer.allocUnsafe(1));
   });
   ended = true;
   w.end();
@@ -96,7 +75,7 @@ r.on('readable', function() {
   while (null !== (chunk = r.read(10))) {
     w.write(chunk);
     if (chunk.length > 4)
-      r.unshift(new Buffer('1234'));
+      r.unshift(Buffer.from('1234'));
   }
 });
 
