@@ -371,7 +371,7 @@ within the action function for commands registered using the
 added: v0.1.91
 -->
 
-* `options` {Object}
+* `options` {Object | String}
   * `prompt` {String} The input prompt to display. Defaults to `> `.
   * `input` {Readable} The Readable stream from which REPL input will be read.
     Defaults to `process.stdin`.
@@ -412,6 +412,15 @@ added: v0.1.91
     with a custom `eval` function. Defaults to `false`.
 
 The `repl.start()` method creates and starts a `repl.REPLServer` instance.
+
+If `options` is a string, then it specifies the input prompt:
+
+```js
+const repl = require('repl');
+
+// a Unix style prompt
+repl.start('$ ');
+```
 
 ## The Node.js REPL
 
