@@ -289,9 +289,11 @@ Collaborators and has passed the CI, as long as there is consensus
 But, if there are non-trivial changes in this Pull Request, it still
 needs to wait for at least another 48 hours (72 hours on a weekend).
 
-GitHub often shows the Pull Request as `Closed` at this point,
-but don't worry. If you look at the branch you raised your Pull Request
-against (probably `master`), you should see a commit with
+When the Pull Request is landed, the person who land this will post
+a comment to the Pull Request page mentioning the commit(s) in which
+it is landed. GitHub often shows the Pull Request as `Closed` at this
+point, but don't worry. If you look at the branch you raised your
+Pull Request against (probably `master`), you should see a commit with
 your name on it. Congratulations and thanks for your contribution!
 
 <a id="developers-certificate-of-origin"></a>
