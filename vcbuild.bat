@@ -39,6 +39,7 @@ set enable_vtune_arg=
 set configure_flags=
 set build_addons=
 set dll=
+set test_node_inspect=
 
 :next-arg
 if "%1"=="" goto args-done
@@ -68,6 +69,7 @@ if /i "%1"=="test-internet" set test_args=%test_args% internet&goto arg-ok
 if /i "%1"=="test-pummel"   set test_args=%test_args% pummel&goto arg-ok
 if /i "%1"=="test-all"      set test_args=%test_args% sequential parallel message gc inspector internet pummel&set build_testgc_addon=1&set jslint=1&goto arg-ok
 if /i "%1"=="test-known-issues" set test_args=%test_args% known_issues&goto arg-ok
+if /i "%1"=="test-node-inspect" set test_node_inspect=1&goto arg-ok
 if /i "%1"=="jslint"        set jslint=1&goto arg-ok
 if /i "%1"=="jslint-ci"     set jslint_ci=1&goto arg-ok
 if /i "%1"=="package"       set package=1&goto arg-ok
@@ -331,6 +333,12 @@ EndLocal
 goto run-tests
 
 :run-tests
+if not defined test_node_inspect goto node-tests
+set USE_EMBEDDED_NODE_INSPECT=1
+%config%\node tools\test-npm-package.js --install deps\node-inspect test
+goto node-tests
+
+:node-tests
 if "%test_args%"=="" goto jslint
 if "%config%"=="Debug" set test_args=--mode=debug %test_args%
 if "%config%"=="Release" set test_args=--mode=release %test_args%
