@@ -9,13 +9,16 @@ const server = http.createServer((req, res) => {
   res.end('');
 });
 
+// Maximum allowed value for timeouts
+const timeout = Math.pow(2, 31) - 1;
+
 const options = {
   agent,
   method: 'GET',
   port: undefined,
   host: common.localhostIPv4,
   path: '/',
-  timeout: common.platformTimeout(100)
+  timeout: timeout
 };
 
 server.listen(0, options.host, common.mustCall(() => {
