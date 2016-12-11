@@ -3441,10 +3441,6 @@ void LoadEnvironment(Environment* env) {
 
   env->SetMethod(env->process_object(), "_rawDebug", RawDebug);
 
-  // Expose the global object as a property on itself
-  // (Allows you to set stuff on `global` from anywhere in JavaScript.)
-  global->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "global"), global);
-
   // Now we call 'f' with the 'process' variable that we've built up with
   // all our bindings. Inside bootstrap_node.js and internal/process we'll
   // take care of assigning things to their places.
@@ -3452,8 +3448,8 @@ void LoadEnvironment(Environment* env) {
   // We start the process this way in order to be more modular. Developers
   // who do not like how bootstrap_node.js sets up the module system but do
   // like Node's I/O bindings may want to replace 'f' with their own function.
-  Local<Value> arg = env->process_object();
-  f->Call(Null(env->isolate()), 1, &arg);
+  Local<Value> argv[] = { global, env->process_object() };
+  f->Call(Null(env->isolate()), arraysize(argv), argv);
 }
 
 static void PrintHelp() {

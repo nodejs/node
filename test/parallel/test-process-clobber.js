@@ -1,5 +1,7 @@
 /* eslint-disable no-global-assign */
-/* eslint-disable required-modules */
 'use strict';
 
-process = null;  // Should not bring down program.
+require('../common');
+const assert = require('assert');
+
+assert.throws(() => process = null, /Cannot assign to read only property/);
