@@ -87,7 +87,7 @@ const source = dgram.createSocket('udp4');
 var interval;
 
 source.on('close', function() {
-  clearTimeout(interval);
+  clearInterval(interval);
 });
 
 if (process.env.BOUND === 'y') {
