@@ -91,6 +91,7 @@ class SigintWatchdogHelper {
   static void* RunSigintWatchdog(void* arg);
   static void HandleSignal(int signum);
 #else
+  bool watchdog_disabled_;
   static BOOL WINAPI WinCtrlCHandlerRoutine(DWORD dwCtrlType);
 #endif
 };
