@@ -140,6 +140,7 @@ global or scoped variable, the input `fs` will be evaluated on-demand as
 
 The default evaluator will, by default, assign the result of the most recently
 evaluated expression to the special variable `_` (underscore).
+Explicitly setting `_` to a value will disable this behavior.
 
 ```js
 > [ 'a', 'b', 'c' ]
@@ -147,10 +148,13 @@ evaluated expression to the special variable `_` (underscore).
 > _.length
 3
 > _ += 1
+Expression assignment to _ now disabled.
+4
+> 1 + 1
+2
+> _
 4
 ```
-
-Explicitly setting `_` to a value will disable this behavior.
 
 ### Custom Evaluation Functions
 
