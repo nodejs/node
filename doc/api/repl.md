@@ -217,10 +217,10 @@ following example, for instance, simply converts any input text to upper case:
 ```js
 const repl = require('repl');
 
-const r = repl.start({prompt: '>', eval: myEval, writer: myWriter});
+const r = repl.start({prompt: '> ', eval: myEval, writer: myWriter});
 
 function myEval(cmd, context, filename, callback) {
-  callback(null,cmd);
+  callback(null, cmd);
 }
 
 function myWriter(output) {
@@ -275,7 +275,7 @@ function initializeContext(context) {
   context.m = 'test';
 }
 
-const r = repl.start({prompt: '>'});
+const r = repl.start({prompt: '> '});
 initializeContext(r.context);
 
 r.on('reset', initializeContext);
@@ -286,15 +286,15 @@ reset to its initial value using the `.clear` command:
 
 ```js
 $ ./node example.js
->m
+> m
 'test'
->m = 1
+> m = 1
 1
->m
+> m
 1
->.clear
+> .clear
 Clearing context...
->m
+> m
 'test'
 >
 ```
@@ -371,8 +371,9 @@ within the action function for commands registered using the
 added: v0.1.91
 -->
 
-* `options` {Object}
-  * `prompt` {String} The input prompt to display. Defaults to `> `.
+* `options` {Object | String}
+  * `prompt` {String} The input prompt to display. Defaults to `> `
+    (with a trailing space).
   * `input` {Readable} The Readable stream from which REPL input will be read.
     Defaults to `process.stdin`.
   * `output` {Writable} The Writable stream to which REPL output will be
