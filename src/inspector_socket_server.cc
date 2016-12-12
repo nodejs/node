@@ -210,6 +210,7 @@ InspectorSocketServer::InspectorSocketServer(SocketServerDelegate* delegate,
                                              int port) : loop_(nullptr),
                                                          delegate_(delegate),
                                                          port_(port),
+                                                         server_(uv_tcp_t()),
                                                          closer_(nullptr),
                                                          next_session_id_(0) { }
 
@@ -400,6 +401,7 @@ void InspectorSocketServer::SocketConnectedCallback(uv_stream_t* server,
                                                     int status) {
   if (status == 0) {
     InspectorSocketServer* socket_server = InspectorSocketServer::From(server);
+    // Memory is freed when the socket closes.
     SocketSession* session =
         new SocketSession(socket_server, socket_server->next_session_id_++);
     if (inspector_accept(server, session->Socket(), HandshakeCallback) != 0) {
