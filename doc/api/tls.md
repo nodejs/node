@@ -965,12 +965,12 @@ added: v0.3.2
   * `passphrase` {string} A string containing the passphrase for the private
     key or pfx.
   * `cert` {string|string[]|Buffer|Buffer[]} A string, `Buffer`, array of
-    strings, or array of `Buffer`s containing the certificate key of the server
-    in PEM format. (Required)
+    strings, or array of `Buffer`s containing the server's certificate chain
+    (server's certificate and intermediates) in PEM format. (Required)
   * `ca` {string|string[]|Buffer|Buffer[]} A string, `Buffer`, array of strings,
     or array of `Buffer`s of trusted certificates in PEM format. If this is
     omitted several well known "root" CAs (like VeriSign) will be used. These
-    are used to authorize connections.
+    are used to authorize connections. Useful for `requestCert` option.
   * `crl` {string|string[]} Either a string or array of strings of PEM encoded
     CRLs (Certificate Revocation List).
   * `ciphers` {string} A string describing the ciphers to use or exclude,
@@ -994,8 +994,8 @@ added: v0.3.2
   * `honorCipherOrder` {boolean} When choosing a cipher, use the server's
     preferences instead of the client preferences. Defaults to `true`.
   * `requestCert` {boolean} If `true` the server will request a certificate from
-    clients that connect and attempt to verify that certificate. Defaults to
-    `false`.
+    clients that connect and attempt to verify that certificate against
+    certificates provided in `ca` option. Defaults to `false`.
   * `rejectUnauthorized` {boolean} If `true` the server will reject any
     connection which is not authorized with the list of supplied CAs. This
     option only has an effect if `requestCert` is `true`. Defaults to `false`.
@@ -1079,7 +1079,7 @@ const fs = require('fs');
 
 const options = {
   key: fs.readFileSync('server-key.pem'),
-  cert: fs.readFileSync('server-cert.pem'),
+  cert: fs.readFileSync('server-cert-chain.pem'),
 
   // This is necessary only if using the client certificate authentication.
   requestCert: true,
