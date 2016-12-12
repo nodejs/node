@@ -78,15 +78,15 @@ The default evaluator supports direct evaluation of JavaScript expressions:
 ```js
 > 1 + 1
 2
-> var m = 2
+> const m = 2
 undefined
 > m + 1
 3
 ```
 
-Unless otherwise scoped within blocks (e.g. `{ ... }`) or functions, variables
-declared either implicitly or using the `var` keyword are declared at the
-`global` scope.
+Unless otherwise scoped within blocks or functions, variables declared
+either implicitly, or using the `const`, `let`, or `var` keywords
+are declared at the global scope.
 
 #### Global and Local Scope
 
@@ -96,7 +96,7 @@ it to the `context` object associated with each `REPLServer`.  For example:
 
 ```js
 const repl = require('repl');
-var msg = 'message';
+const msg = 'message';
 
 repl.start('> ').context.m = msg;
 ```
@@ -115,7 +115,7 @@ To specify read-only globals, context properties must be defined using
 
 ```js
 const repl = require('repl');
-var msg = 'message';
+const msg = 'message';
 
 const r = repl.start('> ');
 Object.defineProperty(r.context, 'm', {
@@ -183,7 +183,7 @@ to the provided callback function:
 
 ```js
 function eval(cmd, context, filename, callback) {
-  var result;
+  let result;
   try {
     result = vm.runInThisContext(cmd);
   } catch (e) {
@@ -275,7 +275,7 @@ function initializeContext(context) {
   context.m = 'test';
 }
 
-var r = repl.start({prompt: '>'});
+const r = repl.start({prompt: '>'});
 initializeContext(r.context);
 
 r.on('reset', initializeContext);
@@ -321,7 +321,7 @@ The following example shows two new commands added to the REPL instance:
 ```js
 const repl = require('repl');
 
-var replServer = repl.start({prompt: '> '});
+const replServer = repl.start({prompt: '> '});
 replServer.defineCommand('sayhello', {
   help: 'Say hello',
   action: function(name) {
@@ -421,7 +421,7 @@ without passing any arguments (or by passing the `-i` argument):
 
 ```js
 $ node
-> a = [1, 2, 3];
+> const a = [1, 2, 3];
 [ 1, 2, 3 ]
 > a.forEach((v) => {
 ...   console.log(v);
@@ -493,7 +493,7 @@ socket, and a TCP socket:
 ```js
 const net = require('net');
 const repl = require('repl');
-var connections = 0;
+let connections = 0;
 
 repl.start({
   prompt: 'Node.js via stdin> ',
