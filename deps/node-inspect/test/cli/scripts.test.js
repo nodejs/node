@@ -1,10 +1,13 @@
 'use strict';
+const Path = require('path');
+
 const { test } = require('tap');
 
 const startCLI = require('./start-cli');
 
 test('list scripts', (t) => {
-  const cli = startCLI(['examples/empty.js']);
+  const script = Path.join('examples', 'empty.js');
+  const cli = startCLI([script]);
 
   function onFatal(error) {
     cli.quit();
@@ -17,7 +20,7 @@ test('list scripts', (t) => {
     .then(() => {
       t.match(
         cli.output,
-        /^\* \d+: examples\/empty\.js/,
+        /^\* \d+: examples(?:\/|\\)empty\.js/,
         'lists the user script');
       t.notMatch(
         cli.output,
@@ -28,7 +31,7 @@ test('list scripts', (t) => {
     .then(() => {
       t.match(
         cli.output,
-        /\* \d+: examples\/empty\.js/,
+        /\* \d+: examples(?:\/|\\)empty\.js/,
         'lists the user script');
       t.match(
         cli.output,

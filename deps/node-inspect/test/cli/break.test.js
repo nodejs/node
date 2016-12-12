@@ -1,10 +1,13 @@
 'use strict';
+const Path = require('path');
+
 const { test } = require('tap');
 
 const startCLI = require('./start-cli');
 
 test('stepping through breakpoints', (t) => {
-  const cli = startCLI(['examples/break.js']);
+  const script = Path.join('examples', 'break.js');
+  const cli = startCLI([script]);
 
   function onFatal(error) {
     cli.quit();
@@ -16,7 +19,7 @@ test('stepping through breakpoints', (t) => {
     .then(() => {
       t.match(
         cli.output,
-        'break in examples/break.js:1',
+        `break in ${script}:1`,
         'pauses in the first line of the script');
       t.match(
         cli.output,
@@ -27,7 +30,7 @@ test('stepping through breakpoints', (t) => {
     .then(() => {
       t.match(
         cli.output,
-        'break in examples/break.js:2',
+        `break in ${script}:2`,
         'pauses in next line of the script');
       t.match(
         cli.output,
@@ -38,7 +41,7 @@ test('stepping through breakpoints', (t) => {
     .then(() => {
       t.match(
         cli.output,
-        'break in examples/break.js:3',
+        `break in ${script}:3`,
         'pauses in next line of the script');
       t.match(
         cli.output,
@@ -49,7 +52,7 @@ test('stepping through breakpoints', (t) => {
     .then(() => {
       t.match(
         cli.output,
-        'break in examples/break.js:10',
+        `break in ${script}:10`,
         'pauses on the next breakpoint');
       t.match(
         cli.output,
@@ -65,8 +68,8 @@ test('stepping through breakpoints', (t) => {
     .then(() => t.notMatch(cli.output, 'Could not resolve breakpoint'))
     .then(() => cli.command('breakpoints'))
     .then(() => {
-      t.match(cli.output, '#0 examples/break.js:6');
-      t.match(cli.output, '#1 examples/break.js:16');
+      t.match(cli.output, `#0 ${script}:6`);
+      t.match(cli.output, `#1 ${script}:16`);
     })
 
     .then(() => cli.command('list()'))
@@ -98,21 +101,21 @@ test('stepping through breakpoints', (t) => {
     .then(() => {
       t.match(
         cli.output,
-        'break in examples/break.js:16',
+        `break in ${script}:16`,
         'found breakpoint we set above w/ line number only');
     })
     .then(() => cli.stepCommand('cont'))
     .then(() => {
       t.match(
         cli.output,
-        'break in examples/break.js:6',
+        `break in ${script}:6`,
         'found breakpoint we set above w/ line number & script');
     })
     .then(() => cli.stepCommand(''))
     .then(() => {
       t.match(
         cli.output,
-        'debugCommand in examples/break.js:14',
+        `debugCommand in ${script}:14`,
         'found function breakpoint we set above');
     })
     .then(() => cli.quit())
@@ -120,7 +123,9 @@ test('stepping through breakpoints', (t) => {
 });
 
 test('sb before loading file', (t) => {
-  const cli = startCLI(['examples/cjs/index.js']);
+  const script = Path.join('examples', 'cjs', 'index.js');
+  const otherScript = Path.join('examples', 'cjs', 'other.js');
+  const cli = startCLI([script]);
 
   function onFatal(error) {
     cli.quit();
@@ -140,7 +145,7 @@ test('sb before loading file', (t) => {
     .then(() => {
       t.match(
         cli.output,
-        'break in examples/cjs/other.js:3',
+        `break in ${otherScript}:3`,
         'found breakpoint in file that was not loaded yet');
     })
     .then(() => cli.quit())
@@ -148,7 +153,8 @@ test('sb before loading file', (t) => {
 });
 
 test('clearBreakpoint', (t) => {
-  const cli = startCLI(['examples/break.js']);
+  const script = Path.join('examples', 'break.js');
+  const cli = startCLI([script]);
 
   function onFatal(error) {
     cli.quit();
@@ -161,8 +167,8 @@ test('clearBreakpoint', (t) => {
     .then(() => cli.command('sb("break.js", 9)'))
     .then(() => cli.command('breakpoints'))
     .then(() => {
-      t.match(cli.output, '#0 examples/break.js:3');
-      t.match(cli.output, '#1 examples/break.js:9');
+      t.match(cli.output, `#0 ${script}:3`);
+      t.match(cli.output, `#1 ${script}:9`);
     })
     .then(() => cli.command('clearBreakpoint("break.js", 4)'))
     .then(() => {
@@ -175,13 +181,13 @@ test('clearBreakpoint', (t) => {
     .then(() => cli.command('clearBreakpoint("break.js", 3)'))
     .then(() => cli.command('breakpoints'))
     .then(() => {
-      t.match(cli.output, '#0 examples/break.js:9');
+      t.match(cli.output, `#0 ${script}:9`);
     })
     .then(() => cli.stepCommand('cont'))
     .then(() => {
       t.match(
         cli.output,
-        'break in examples/break.js:9',
+        `break in ${script}:9`,
         'hits the 2nd breakpoint because the 1st was cleared');
     })
     .then(() => cli.quit())

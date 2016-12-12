@@ -1,3 +1,11 @@
+### 1.10.2
+
+* Run tests on windows - **[@jkrems](https://github.com/jkrems)** [#16](https://github.com/buggerjs/node-inspect/pull/16)
+  - [`5a57f98`](https://github.com/buggerjs/node-inspect/commit/5a57f9865e02eef0763c2a7f26236c34a632ccdd) **chore:** Run tests on windows
+  - [`0a04b50`](https://github.com/buggerjs/node-inspect/commit/0a04b50cc8b4dc6ce868927c635c479d75ce71f4) **chore:** Bump nlm to get rid of postinstall
+  - [`4a8b27c`](https://github.com/buggerjs/node-inspect/commit/4a8b27cea814a37895effd2a0c1b85dbfee3a7f4) **test:** Remove unix path assumptions
+
+
 ### 1.10.1
 
 * [`4ba3c72`](https://github.com/buggerjs/node-inspect/commit/4ba3c72270fae9a71343ddca11aa27980678a67c) **refactor:** Undo weird bundling into one file

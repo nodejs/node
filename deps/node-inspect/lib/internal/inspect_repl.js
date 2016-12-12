@@ -81,7 +81,7 @@ function isNativeUrl(url) {
 }
 
 function getRelativePath(filename) {
-  const dir = `${Path.resolve()}/`;
+  const dir = Path.join(Path.resolve(), 'x').slice(0, -1);
 
   // Change path to relative, if possible
   if (filename.indexOf(dir) === 0) {

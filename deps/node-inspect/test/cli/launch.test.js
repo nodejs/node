@@ -1,10 +1,13 @@
 'use strict';
+const Path = require('path');
+
 const { test } = require('tap');
 
 const startCLI = require('./start-cli');
 
 test('examples/empty.js', (t) => {
-  const cli = startCLI(['examples/empty.js']);
+  const script = Path.join('examples', 'empty.js');
+  const cli = startCLI([script]);
   return cli.waitForPrompt()
     .then(() => {
       t.match(cli.output, 'debug>', 'prints a prompt');
@@ -32,7 +35,8 @@ test('examples/empty.js', (t) => {
 });
 
 test('run after quit / restart', (t) => {
-  const cli = startCLI(['examples/three-lines.js']);
+  const script = Path.join('examples', 'three-lines.js');
+  const cli = startCLI([script]);
 
   function onFatal(error) {
     cli.quit();
@@ -45,7 +49,7 @@ test('run after quit / restart', (t) => {
     .then(() => {
       t.match(
         cli.output,
-        'break in examples/three-lines.js:2',
+        `break in ${script}:2`,
         'steps to the 2nd line');
     })
     .then(() => cli.command('cont'))
@@ -55,6 +59,10 @@ test('run after quit / restart', (t) => {
         cli.output,
         'Waiting for the debugger to disconnect',
         'the child was done');
+    })
+    .then(() => {
+      // On windows the socket won't close by itself
+      return cli.command('kill');
     })
     .then(() => cli.command('cont'))
     .then(() => cli.waitFor(/start the app/))
@@ -66,21 +74,21 @@ test('run after quit / restart', (t) => {
     .then(() => {
       t.match(
         cli.output,
-        'break in examples/three-lines.js:1',
+        `break in ${script}:1`,
         'is back at the beginning');
     })
     .then(() => cli.stepCommand('n'))
     .then(() => {
       t.match(
         cli.output,
-        'break in examples/three-lines.js:2',
+        `break in ${script}:2`,
         'steps to the 2nd line');
     })
     .then(() => cli.stepCommand('restart'))
     .then(() => {
       t.match(
         cli.output,
-        'break in examples/three-lines.js:1',
+        `break in ${script}:1`,
         'is back at the beginning');
     })
     .then(() => cli.command('kill'))
@@ -94,7 +102,7 @@ test('run after quit / restart', (t) => {
     .then(() => {
       t.match(
         cli.output,
-        'break in examples/three-lines.js:1',
+        `break in ${script}:1`,
         'is back at the beginning');
     })
     .then(() => cli.quit())

@@ -5,6 +5,7 @@ const startCLI = require('./start-cli');
 
 test('Debugger agent direct access', (t) => {
   const cli = startCLI(['examples/empty.js']);
+  const scriptPattern = /^\* (\d+): examples(?:\/|\\)empty.js/;
 
   function onFatal(error) {
     cli.quit();
@@ -15,7 +16,7 @@ test('Debugger agent direct access', (t) => {
     .then(() => cli.waitForPrompt())
     .then(() => cli.command('scripts'))
     .then(() => {
-      const [, scriptId] = cli.output.match(/^\* (\d+): examples\/empty.js/);
+      const [, scriptId] = cli.output.match(scriptPattern);
       return cli.command(
         `Debugger.getScriptSource({ scriptId: '${scriptId}' })`
       );
