@@ -127,3 +127,71 @@ additional_tests.forEach((test) => {
   if (test.search) assert.strictEqual(test.search, u.search);
   if (test.hash) assert.strictEqual(test.hash, u.hash);
 });
+
+// test inspect
+const allTests = additional_tests.slice();
+for (const test of tests) {
+  if (test.failure || typeof test === 'string') continue;
+  allTests.push(test);
+}
+
+for (const test of allTests) {
+  const url = test.url
+    ? new URL(test.url)
+    : new URL(test.input, test.base);
+
+  for (const showHidden of [true, false]) {
+    const res = url.inspect(null, {
+      showHidden: showHidden
+    });
+
+    const lines = res.split('\n');
+
+    const firstLine = lines[0];
+    assert.strictEqual(firstLine, 'URL {');
+
+    const lastLine = lines[lines.length - 1];
+    assert.strictEqual(lastLine, '}');
+
+    const innerLines = lines.slice(1, lines.length - 1);
+    const keys = new Set();
+    for (const line of innerLines) {
+      const i = line.indexOf(': ');
+      const k = line.slice(0, i).trim();
+      const v = line.slice(i + 2);
+      assert.strictEqual(keys.has(k), false, 'duplicate key found: ' + k);
+      keys.add(k);
+
+      const hidden = new Set([
+        'password',
+        'cannot-be-base',
+        'special'
+      ]);
+      if (showHidden) {
+        if (!hidden.has(k)) {
+          assert.strictEqual(v, url[k], k);
+          continue;
+        }
+
+        if (k === 'password') {
+          assert.strictEqual(v, url[k], k);
+        }
+        if (k === 'cannot-be-base') {
+          assert.ok(v.match(/^true$|^false$/), k + ' is Boolean');
+        }
+        if (k === 'special') {
+          assert.ok(v.match(/^true$|^false$/), k + ' is Boolean');
+        }
+        continue;
+      }
+
+      // showHidden is false
+      if (k === 'password') {
+        assert.strictEqual(v, '--------', k);
+        continue;
+      }
+      assert.strictEqual(hidden.has(k), false, 'no hidden keys: ' + k);
+      assert.strictEqual(v, url[k], k);
+    }
+  }
+}
