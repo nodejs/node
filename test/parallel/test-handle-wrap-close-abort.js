@@ -1,16 +1,19 @@
 'use strict';
-require('../common');
+const common = require('../common');
 
-process.on('uncaughtException', function() { });
+function noop() {}
+const uncaughtExceptionHandler = common.mustCall(noop, 2);
+
+process.on('uncaughtException', uncaughtExceptionHandler);
 
 setTimeout(function() {
   process.nextTick(function() {
-    var c = setInterval(function() {
+    const c = setInterval(function() {
       clearInterval(c);
       throw new Error('setInterval');
-    });
+    }, 1);
   });
   setTimeout(function() {
     throw new Error('setTimeout');
-  });
+  }, 1);
 });
