@@ -186,7 +186,7 @@ multi-line input, the eval function can return an instance of `repl.Recoverable`
 to the provided callback function:
 
 ```js
-function eval(cmd, context, filename, callback) {
+function myEval(cmd, context, filename, callback) {
   let result;
   try {
     result = vm.runInThisContext(cmd);
