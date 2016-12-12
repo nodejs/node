@@ -370,13 +370,13 @@ class InspectorSocketTest : public ::testing::Test {
     uv_tcp_init(&loop, &client_socket);
     uv_ip4_addr("127.0.0.1", PORT, &addr);
     uv_tcp_bind(&server, reinterpret_cast<const struct sockaddr*>(&addr), 0);
-    int err = uv_listen(reinterpret_cast<uv_stream_t*>(&server),
-                        1, on_new_connection);
-    GTEST_ASSERT_EQ(0, err);
+    GTEST_ASSERT_EQ(0, uv_listen(reinterpret_cast<uv_stream_t*>(&server),
+                                 1, on_new_connection));
     uv_connect_t connect;
     connect.data = nullptr;
-    uv_tcp_connect(&connect, &client_socket,
-                   reinterpret_cast<const sockaddr*>(&addr), on_connection);
+    GTEST_ASSERT_EQ(0, uv_tcp_connect(&connect, &client_socket,
+                                      reinterpret_cast<const sockaddr*>(&addr),
+                                      on_connection));
     uv_tcp_nodelay(&client_socket, 1);  // The buffering messes up the test
     SPIN_WHILE(!connect.data || !connected);
     really_close(reinterpret_cast<uv_handle_t*>(&server));

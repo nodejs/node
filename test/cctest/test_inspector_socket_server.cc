@@ -86,7 +86,8 @@ class TestInspectorServerDelegate : public SocketServerDelegate {
  public:
   TestInspectorServerDelegate() : connected(0), disconnected(0),
                                   targets_({ MAIN_TARGET_ID,
-                                             UNCONNECTABLE_TARGET_ID }) {}
+                                             UNCONNECTABLE_TARGET_ID }),
+                                  session_id_(0) {}
 
   void Connect(InspectorSocketServer* server) {
     server_ = server;
@@ -152,6 +153,7 @@ class SocketWrapper {
   explicit SocketWrapper(uv_loop_t* loop) : closed_(false),
                                             eof_(false),
                                             loop_(loop),
+                                            socket_(uv_tcp_t()),
                                             connected_(false),
                                             sending_(false) { }
 
