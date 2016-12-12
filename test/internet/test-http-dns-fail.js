@@ -5,34 +5,25 @@
  */
 
 const common = require('../common');
-var assert = require('assert');
-var http = require('http');
-
-var hadError = 0;
+const assert = require('assert');
+const http = require('http');
 
 function httpreq(count) {
-  if (1 < count) return;
+  if (count > 1) return;
 
-  var req = http.request({
+  const req = http.request({
     host: 'not-a-real-domain-name.nobody-would-register-this-as-a-tld',
     port: 80,
     path: '/',
     method: 'GET'
   }, common.fail);
 
-  req.on('error', function(e) {
-    console.log(e.message);
+  req.on('error', common.mustCall((e) => {
     assert.strictEqual(e.code, 'ENOTFOUND');
-    hadError++;
     httpreq(count + 1);
-  });
+  }));
 
   req.end();
 }
 
 httpreq(0);
-
-
-process.on('exit', function() {
-  assert.equal(2, hadError);
-});
