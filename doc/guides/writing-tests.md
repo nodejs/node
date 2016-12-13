@@ -19,7 +19,6 @@ Tests can be added for multiple reasons:
 - When fixing regressions and bugs.
 - When expanding test coverage.
 
-
 ## Test structure
 
 Let's analyze this very basic test from the Node.js test suite:
@@ -55,16 +54,21 @@ Let's analyze this very basic test from the Node.js test suite:
 const common = require('../common');
 ```
 
-These two lines are mandatory and should be included on every test.
-The `common` module is a helper module that provides useful tools for the tests.
-If for some reason, no functionality from `common` is used, it should still be
-included like this:
+The first line enables strict mode. All tests should be in strict mode unless
+the nature of the test requires that the test run without it.
+
+The second line loads the `common` module. The `common` module is a helper
+module that provides useful tools for the tests.
+
+Even if no functions or other properties exported by `common` are used in a
+test, the `common` module should still be included. This is because the `common`
+module includes code that will cause tests to fail if variables are leaked into
+the global space. In situations where no functions or other properties exported
+by `common` are used, it can be included without assigning it to an identifier:
 
 ```javascript
 require('../common');
 ```
-
-Why? It checks for leaks of globals.
 
 **Lines 4-5**
 
@@ -75,7 +79,6 @@ Why? It checks for leaks of globals.
 
 A test should start with a comment containing a brief description of what it is
 designed to test.
-
 
 **Lines 7-8**
 
