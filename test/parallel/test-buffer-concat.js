@@ -35,7 +35,8 @@ function assertWrongList(value) {
     Buffer.concat(value);
   }, function(err) {
     return err instanceof TypeError &&
-           err.message === '"list" argument must be an Array of Buffers';
+           err.message === '"list" argument must be an Array of Buffer ' +
+                           'or Uint8Array instances';
   });
 }
 

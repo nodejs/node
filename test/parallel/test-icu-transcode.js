@@ -40,7 +40,7 @@ for (const test in tests) {
 
 assert.throws(
   () => buffer.transcode(null, 'utf8', 'ascii'),
-  /^TypeError: "source" argument must be a Buffer$/
+  /^TypeError: "source" argument must be a Buffer or Uint8Array$/
 );
 
 assert.throws(
