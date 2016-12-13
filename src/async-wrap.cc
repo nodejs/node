@@ -201,7 +201,7 @@ void AsyncWrap::DestroyIdsCb(uv_idle_t* handle) {
 
   TryCatch try_catch(env->isolate());
 
-  std::vector<int64_t> destroy_ids_list;
+  std::vector<double> destroy_ids_list;
   destroy_ids_list.swap(*env->destroy_ids_list());
   for (auto current_id : destroy_ids_list) {
     // Want each callback to be cleaned up after itself, instead of cleaning
@@ -236,7 +236,7 @@ AsyncWrap::AsyncWrap(Environment* env,
                      ProviderType provider,
                      AsyncWrap* parent)
     : BaseObject(env, object), bits_(static_cast<uint32_t>(provider) << 1),
-      uid_(env->get_async_wrap_uid()) {
+      id_(env->get_async_wrap_uid()) {
   CHECK_NE(provider, PROVIDER_NONE);
   CHECK_GE(object->InternalFieldCount(), 1);
 
@@ -258,14 +258,14 @@ AsyncWrap::AsyncWrap(Environment* env,
   HandleScope scope(env->isolate());
 
   Local<Value> argv[] = {
-    Number::New(env->isolate(), get_uid()),
+    Number::New(env->isolate(), get_id()),
     Int32::New(env->isolate(), provider),
     Null(env->isolate()),
     Null(env->isolate())
   };
 
   if (parent != nullptr) {
-    argv[2] = Number::New(env->isolate(), parent->get_uid());
+    argv[2] = Number::New(env->isolate(), parent->get_id());
     argv[3] = parent->object();
   }
 
@@ -290,7 +290,7 @@ AsyncWrap::~AsyncWrap() {
   if (env()->destroy_ids_list()->empty())
     uv_idle_start(env()->destroy_ids_idle_handle(), DestroyIdsCb);
 
-  env()->destroy_ids_list()->push_back(get_uid());
+  env()->destroy_ids_list()->push_back(get_id());
 }
 
 
@@ -301,7 +301,7 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
 
   Local<Function> pre_fn = env()->async_hooks_pre_function();
   Local<Function> post_fn = env()->async_hooks_post_function();
-  Local<Value> uid = Number::New(env()->isolate(), get_uid());
+  Local<Value> uid = Number::New(env()->isolate(), get_id());
   Local<Object> context = object();
   Local<Object> domain;
   bool has_domain = false;

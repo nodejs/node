@@ -171,7 +171,7 @@ inline Environment::Environment(IsolateData* isolate_data,
       printed_error_(false),
       trace_sync_io_(false),
       makecallback_cntr_(0),
-      async_wrap_uid_(0),
+      async_wrap_id_(0),
       debugger_agent_(this),
 #if HAVE_INSPECTOR
       inspector_agent_(this),
@@ -320,11 +320,11 @@ inline void Environment::set_trace_sync_io(bool value) {
   trace_sync_io_ = value;
 }
 
-inline int64_t Environment::get_async_wrap_uid() {
-  return ++async_wrap_uid_;
+inline double Environment::get_async_wrap_uid() {
+  return ++async_wrap_id_;
 }
 
-inline std::vector<int64_t>* Environment::destroy_ids_list() {
+inline std::vector<double>* Environment::destroy_ids_list() {
   return &destroy_ids_list_;
 }
 

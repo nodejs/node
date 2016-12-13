@@ -68,7 +68,7 @@ class AsyncWrap : public BaseObject {
 
   inline ProviderType provider_type() const;
 
-  inline int64_t get_uid() const;
+  inline double get_id() const;
 
   // Only call these within a valid HandleScope.
   v8::Local<v8::Value> MakeCallback(const v8::Local<v8::Function> cb,
@@ -91,7 +91,7 @@ class AsyncWrap : public BaseObject {
   // expected the context object will receive a _asyncQueue object property
   // that will be used to call pre/post in MakeCallback.
   uint32_t bits_;
-  const int64_t uid_;
+  const double id_;
 };
 
 void LoadAsyncWrapperInfo(Environment* env);

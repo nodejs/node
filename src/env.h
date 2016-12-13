@@ -465,10 +465,10 @@ class Environment {
   void PrintSyncTrace() const;
   inline void set_trace_sync_io(bool value);
 
-  inline int64_t get_async_wrap_uid();
+  inline double get_async_wrap_uid();
 
   // List of id's that have been destroyed and need the destroy() cb called.
-  inline std::vector<int64_t>* destroy_ids_list();
+  inline std::vector<double>* destroy_ids_list();
 
   inline double* heap_statistics_buffer() const;
   inline void set_heap_statistics_buffer(double* pointer);
@@ -567,8 +567,8 @@ class Environment {
   bool printed_error_;
   bool trace_sync_io_;
   size_t makecallback_cntr_;
-  int64_t async_wrap_uid_;
-  std::vector<int64_t> destroy_ids_list_;
+  double async_wrap_id_;
+  std::vector<double> destroy_ids_list_;
   debugger::Agent debugger_agent_;
 #if HAVE_INSPECTOR
   inspector::Agent inspector_agent_;
