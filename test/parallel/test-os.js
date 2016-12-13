@@ -62,6 +62,9 @@ assert.ok(type.length > 0);
 var release = os.release();
 console.log('release = ', release);
 assert.ok(release.length > 0);
+//TODO: Check format on more than just AIX
+if (common.isAix)
+  assert.ok(/^\d+\.\d+$/.test(release));
 
 var platform = os.platform();
 console.log('platform = ', platform);
