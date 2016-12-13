@@ -78,9 +78,9 @@ let paused = false;
   file4.on('data', function(data) {
     contentRead += data.toString('utf-8');
   });
-  file4.on('end', function() {
+  file4.on('end', common.mustCall(function() {
     assert.strictEqual(contentRead, 'yz');
-  });
+  }));
 }
 
 {
@@ -91,9 +91,9 @@ let paused = false;
   file5.on('data', function(data) {
     file5.data += data.toString('utf-8');
   });
-  file5.on('end', function() {
+  file5.on('end', common.mustCall(function() {
     assert.strictEqual(file5.data, 'yz\n');
-  });
+  }));
 }
 
 // https://github.com/joyent/node/issues/2320
@@ -105,9 +105,9 @@ let paused = false;
   file6.on('data', function(data) {
     file6.data += data.toString('utf-8');
   });
-  file6.on('end', function() {
+  file6.on('end', common.mustCall(function() {
     assert.strictEqual(file6.data, 'yz\n');
-  });
+  }));
 }
 
 {
@@ -127,9 +127,9 @@ let paused = false;
     stream.data += chunk;
   });
 
-  stream.on('end', function() {
+  stream.on('end', common.mustCall(function() {
     assert.strictEqual(stream.data, 'x');
-  });
+  }));
 }
 
 // pause and then resume immediately.
@@ -144,13 +144,13 @@ let paused = false;
     fs.createReadStream(rangeFile, Object.create({autoClose: false }));
   assert.strictEqual(file7.autoClose, false);
   file7.on('data', function() {});
-  file7.on('end', function() {
-    process.nextTick(function() {
+  file7.on('end', common.mustCall(function() {
+    process.nextTick(common.mustCall(function() {
       assert(!file7.closed);
       assert(!file7.destroyed);
       file7Next();
-    });
-  });
+    }));
+  }));
 
   function file7Next() {
     // This will tell us if the fd is usable again or not.
@@ -159,9 +159,9 @@ let paused = false;
     file7.on('data', function(data) {
       file7.data += data;
     });
-    file7.on('end', function() {
+    file7.on('end', common.mustCall(function() {
       assert.strictEqual(file7.data, 'xyz\n');
-    });
+    }));
   }
   process.on('exit', function() {
     assert(file7.closed);
