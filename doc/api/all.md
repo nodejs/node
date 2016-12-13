@@ -18,6 +18,7 @@
 @include globals
 @include http
 @include https
+@include inspector
 @include modules
 @include net
 @include os
