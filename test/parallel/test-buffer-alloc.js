@@ -3,8 +3,10 @@ const common = require('../common');
 const assert = require('assert');
 const vm = require('vm');
 
-const Buffer = require('buffer').Buffer;
-const SlowBuffer = require('buffer').SlowBuffer;
+const buffer = require('buffer');
+const Buffer = buffer.Buffer;
+const SlowBuffer = buffer.SlowBuffer;
+
 
 const b = Buffer.allocUnsafe(1024);
 assert.strictEqual(1024, b.length);
@@ -791,10 +793,6 @@ Buffer.from(Buffer.allocUnsafe(0), 0, 0);
   assert(buf.equals(copy));
 }
 
-// issue GH-4331
-assert.throws(() => Buffer.allocUnsafe(0xFFFFFFFF), RangeError);
-assert.throws(() => Buffer.allocUnsafe(0xFFFFFFFFF), RangeError);
-
 // issue GH-5587
 assert.throws(() => Buffer.alloc(8).writeFloatLE(0, 5), RangeError);
 assert.throws(() => Buffer.alloc(16).writeDoubleLE(0, 9), RangeError);
@@ -1001,10 +999,6 @@ assert.throws(() => Buffer.from('', 'buffer'), TypeError);
     assert.strictEqual(c[i], i);
   }
 }
-
-assert.throws(() => Buffer.allocUnsafe((-1 >>> 0) + 1), RangeError);
-assert.throws(() => Buffer.allocUnsafeSlow((-1 >>> 0) + 1), RangeError);
-assert.throws(() => SlowBuffer((-1 >>> 0) + 1), RangeError);
 
 if (common.hasCrypto) {
   // Test truncation after decode

@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const buffer = require('buffer');
 const Buffer = buffer.Buffer;
@@ -51,10 +51,10 @@ assert.strictEqual(SlowBuffer('string').length, 0);
 // should throw with invalid length
 assert.throws(function() {
   SlowBuffer(Infinity);
-}, /^RangeError: Invalid array buffer length$/);
+}, common.bufferMaxSizeMsg);
 assert.throws(function() {
   SlowBuffer(-1);
-}, /^RangeError: Invalid array buffer length$/);
+}, /^RangeError: "size" argument must not be negative$/);
 assert.throws(function() {
   SlowBuffer(buffer.kMaxLength + 1);
-}, /^RangeError: (Invalid typed array length|Array buffer allocation failed)$/);
+}, common.bufferMaxSizeMsg);
