@@ -951,6 +951,16 @@
             }, {
               'type': 'executable',
             }],
+            ['target_arch=="ppc64"', {
+              'ldflags': [
+                '-Wl,-blibpath:/usr/lib:/lib:/opt/freeware/lib/pthread/ppc64'
+              ],
+            }],
+            ['target_arch=="ppc"', {
+              'ldflags': [
+                '-Wl,-blibpath:/usr/lib:/lib:/opt/freeware/lib/pthread'
+              ],
+            }]
           ],
           'dependencies': ['<(node_core_target_name)', 'node_exp'],
 
