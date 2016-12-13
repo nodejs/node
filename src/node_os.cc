@@ -85,7 +85,13 @@ static void GetOSRelease(const FunctionCallbackInfo<Value>& args) {
   if (uname(&info) < 0) {
     return env->ThrowErrnoException(errno, "uname");
   }
+# ifdef _AIX
+  char release[256];
+  sprintf(release, "%s.%s", info.version, info.release);
+  rval = release;
+# else
   rval = info.release;
+# endif
 #else  // Windows
   char release[256];
   OSVERSIONINFOW info;
