@@ -6,6 +6,7 @@ const assert = require('assert');
 const os = require('os');
 const child_process = require('child_process');
 const stream = require('stream');
+const buffer = require('buffer');
 const util = require('util');
 const Timer = process.binding('timer_wrap').Timer;
 
@@ -29,7 +30,9 @@ exports.isLinux = process.platform === 'linux';
 exports.isOSX = process.platform === 'darwin';
 
 exports.enoughTestMem = os.totalmem() > 0x40000000; /* 1 Gb */
-
+exports.bufferMaxSizeMsg = new RegExp('^RangeError: "size" argument' +
+                                      ' must not be larger than ' +
+                                      buffer.kMaxLength + '$');
 const cpus = os.cpus();
 exports.enoughTestCpu = Array.isArray(cpus) &&
                         (cpus.length > 1 || cpus[0].speed > 999);
