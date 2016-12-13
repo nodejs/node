@@ -22,20 +22,28 @@ class Value;
 class Message;
 }  // namespace v8
 
+namespace v8_inspector {
+class StringView;
+}  // namespace v8_inspector
+
 namespace node {
 namespace inspector {
 
 class AgentImpl;
+
+class InspectorSessionDelegate {
+ public:
+  virtual bool WaitForFrontendMessage() = 0;
+  virtual void OnMessage(const v8_inspector::StringView& message) = 0;
+};
 
 class Agent {
  public:
   explicit Agent(node::Environment* env);
   ~Agent();
 
-  // Start the inspector agent thread
   bool Start(v8::Platform* platform, const char* path,
              const DebugOptions& options);
-  // Stop the inspector agent
   void Stop();
 
   bool IsStarted();
@@ -44,8 +52,14 @@ class Agent {
   void FatalException(v8::Local<v8::Value> error,
                       v8::Local<v8::Message> message);
   void SchedulePauseOnNextStatement(const std::string& reason);
+  void Connect(InspectorSessionDelegate* delegate);
+  void Disconnect();
+  void Dispatch(const v8_inspector::StringView& message);
+  InspectorSessionDelegate* delegate();
+  void RunMessageLoop();
  private:
   AgentImpl* impl;
+  friend class AgentImpl;
 };
 
 }  // namespace inspector

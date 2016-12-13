@@ -134,10 +134,10 @@ bool DebugOptions::ParseOption(const std::string& option) {
 int DebugOptions::port() const {
   int port = port_;
   if (port < 0) {
-#if HAVE_INSPECTOR
-    port = inspector_enabled_ ? default_inspector_port : default_debugger_port;
-#else
     port = default_debugger_port;
+#if HAVE_INSPECTOR
+    if (!debugger_enabled_ || inspector_enabled_)
+      port = default_inspector_port;
 #endif  // HAVE_INSPECTOR
   }
   return port;
