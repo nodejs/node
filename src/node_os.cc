@@ -87,7 +87,8 @@ static void GetOSRelease(const FunctionCallbackInfo<Value>& args) {
   }
 # ifdef _AIX
   char release[256];
-  sprintf(release, "%s.%s", info.version, info.release);
+  snprintf(release, sizeof(release),
+           "%s.%s", info.version, info.release);
   rval = release;
 # else
   rval = info.release;
