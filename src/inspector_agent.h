@@ -59,6 +59,7 @@ class Agent {
   void FatalException(v8::Local<v8::Value> error,
                       v8::Local<v8::Message> message);
   void Connect(InspectorSessionDelegate* delegate);
+  InspectorSessionDelegate* delegate();
   void Disconnect();
   void Dispatch(const v8_inspector::StringView& message);
   void RunMessageLoop();
