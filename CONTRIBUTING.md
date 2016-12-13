@@ -287,7 +287,14 @@ After your Pull Request has been approved by one or more Node.js
 Collaborators and has passed the CI, as long as there is consensus
 (no objections from a Collaborator), it can be merged by a Collaborator.
 But, if there are non-trivial changes in this Pull Request, it still
-needs to wait for at least another 48 hours (72 hours on a weekend).
+needs to wait for at least another 48 hours (72 hours on a weekend)
+so that more input can be made before it gets landed.
+If the Pull Request is labeled as `semver-major`, the wait could
+be longer, because it introduces changes that can potentially
+break other people's code in the Node.js ecosystem, and can not be
+released until the major version number of Node.js increases.
+All these precautions are important because Node.js is widely used,
+so don't be discouraged!
 
 When the Pull Request is landed, the person who land this will post
 a comment to the Pull Request page mentioning the commit(s) in which
