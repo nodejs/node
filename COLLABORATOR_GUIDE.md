@@ -126,7 +126,7 @@ information regarding the change process:
   - Protects against the assumption that GitHub will be around forever.
 
 Review the commit message to ensure that it adheres to the guidelines
-outlined in the [contributing](https://github.com/nodejs/node/blob/master/CONTRIBUTING.md#step-3-commit) guide.
+outlined in the [contributing](./CONTRIBUTING.md#step-3-commit) guide.
 
 See the commit log for examples such as
 [this one](https://github.com/nodejs/node/commit/b636ba8186) if unsure
@@ -237,7 +237,8 @@ Save the file and close the editor. You'll be asked to enter a new
 commit message for that commit. This is a good moment to fix incorrect
 commit logs, ensure that they are properly formatted, and add
 `Reviewed-By` lines.
-* The commit message text must conform to the [commit message guidelines](../CONTRIBUTING.md#step-3-commit).
+* The commit message text must conform to the
+[commit message guidelines](./CONTRIBUTING.md#step-3-commit).
 
 Time to push it:
 
