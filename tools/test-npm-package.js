@@ -17,7 +17,7 @@
  */
 'use strict';
 const { spawn, spawnSync } = require('child_process');
-const { createWriteStream, rmdirSync } = require('fs');
+const { createWriteStream, mkdirSync, rmdirSync } = require('fs');
 const path = require('path');
 
 const common = require('../test/common');
@@ -28,7 +28,7 @@ const nodePath = path.dirname(process.execPath);
 
 function spawnCopyDeepSync(source, destination) {
   if (common.isWindows) {
-    // TODO: test that this properly copies *into* destination
+    mkdirSync(destination); // prevent interactive prompt
     return spawnSync('xcopy.exe', ['/E', source, destination]);
   } else {
     return spawnSync('cp', ['-r', `${source}/`, destination]);
