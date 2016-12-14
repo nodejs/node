@@ -807,9 +807,9 @@ before last `'disconnect'` or `'exit'` event is emitted.
 ```js
 // Go through all workers
 function eachWorker(callback) {
-  for (var id in cluster.workers) {
+  Object.keys(cluster.workers).forEach((id) => {
     callback(cluster.workers[id]);
-  }
+  });
 }
 eachWorker((worker) => {
   worker.send('big announcement to all workers');
