@@ -588,7 +588,7 @@ If you need to support older versions and don't need the worker object,
 you can work around the discrepancy by checking the number of arguments:
 
 ```js
-cluster.on('message', function(worker, message, handle) {
+cluster.on('message', (worker, message, handle) => {
   if (arguments.length === 2) {
     handle = message;
     message = worker;
