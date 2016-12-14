@@ -42,11 +42,9 @@ let paused = false;
   file.on('end', common.mustCall(function() {}));
 
 
-  file.on('close', common.mustCall(function() {}));
-
-  process.on('exit', function() {
+  file.on('close', common.mustCall(function() {
     assert.strictEqual(file.length, 30000);
-  });
+  }));
 }
 
 {
@@ -62,11 +60,9 @@ let paused = false;
     }
   });
 
-  file3.on('close', common.mustCall(function() {}));
-
-  process.on('exit', function() {
+  file3.on('close', common.mustCall(function() {
     assert.strictEqual(file3.length, 10000);
-  });
+  }));
 }
 
 {
