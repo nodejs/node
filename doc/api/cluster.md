@@ -209,7 +209,7 @@ if (cluster.isMaster) {
 
   // Count requests
   function messageHandler(msg) {
-    if (msg.cmd && msg.cmd == 'notifyRequest') {
+    if (msg.cmd && msg.cmd === 'notifyRequest') {
       numReqs += 1;
     }
   }
