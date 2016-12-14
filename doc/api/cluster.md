@@ -15,6 +15,8 @@ const http = require('http');
 const numCPUs = require('os').cpus().length;
 
 if (cluster.isMaster) {
+  console.log(`Master ${process.pid} is running`);
+
   // Fork workers.
   for (let i = 0; i < numCPUs; i++) {
     cluster.fork();
@@ -30,17 +32,20 @@ if (cluster.isMaster) {
     res.writeHead(200);
     res.end('hello world\n');
   }).listen(8000);
+
+  console.log(`Worker ${process.pid} started`);
 }
 ```
 
 Running Node.js will now share port 8000 between the workers:
 
 ```txt
-$ NODE_DEBUG=cluster node server.js
-23521,Master Worker 23524 online
-23521,Master Worker 23526 online
-23521,Master Worker 23523 online
-23521,Master Worker 23528 online
+$ node server.js
+Master 3596 is running
+Worker 4324 started
+Worker 4520 started
+Worker 6056 started
+Worker 5644 started
 ```
 
 Please note that on Windows, it is not yet possible to set up a named pipe
