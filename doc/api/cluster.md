@@ -16,7 +16,7 @@ const numCPUs = require('os').cpus().length;
 
 if (cluster.isMaster) {
   // Fork workers.
-  for (var i = 0; i < numCPUs; i++) {
+  for (let i = 0; i < numCPUs; i++) {
     cluster.fork();
   }
 
@@ -202,7 +202,7 @@ const http = require('http');
 if (cluster.isMaster) {
 
   // Keep track of http requests
-  var numReqs = 0;
+  let numReqs = 0;
   setInterval(() => {
     console.log('numReqs =', numReqs);
   }, 1000);
@@ -216,7 +216,7 @@ if (cluster.isMaster) {
 
   // Start workers and listen for messages containing notifyRequest
   const numCPUs = require('os').cpus().length;
-  for (var i = 0; i < numCPUs; i++) {
+  for (let i = 0; i < numCPUs; i++) {
     cluster.fork();
   }
 
@@ -285,8 +285,8 @@ the `'disconnect'` event has not been emitted after some time.
 
 ```js
 if (cluster.isMaster) {
-  var worker = cluster.fork();
-  var timeout;
+  const worker = cluster.fork();
+  let timeout;
 
   worker.on('listening', (address) => {
     worker.send('shutdown');
@@ -302,7 +302,7 @@ if (cluster.isMaster) {
 
 } else if (cluster.isWorker) {
   const net = require('net');
-  var server = net.createServer((socket) => {
+  const server = net.createServer((socket) => {
     // connections never end
   });
 
@@ -428,7 +428,7 @@ This example will echo back all messages from the master:
 
 ```js
 if (cluster.isMaster) {
-  var worker = cluster.fork();
+  const worker = cluster.fork();
   worker.send('hi there');
 
 } else if (cluster.isWorker) {
@@ -524,7 +524,7 @@ When a new worker is forked the cluster module will emit a `'fork'` event.
 This can be used to log worker activity, and create your own timeout.
 
 ```js
-var timeouts = [];
+const timeouts = [];
 function errorMsg() {
   console.error('Something must be wrong with the connection ...');
 }
@@ -821,7 +821,7 @@ the worker's unique id is the easiest way to find the worker.
 
 ```js
 socket.on('data', (id) => {
-  var worker = cluster.workers[id];
+  const worker = cluster.workers[id];
 });
 ```
 
