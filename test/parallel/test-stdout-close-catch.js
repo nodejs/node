@@ -13,9 +13,11 @@ const cmd = JSON.stringify(process.execPath) + ' ' +
 
 const child = child_process.exec(cmd);
 let output = '';
-const outputExpect = { 'code': 'EPIPE',
-                     'errno': 'EPIPE',
-                     'syscall': 'write' };
+const outputExpect = {
+  code: 'EPIPE',
+  errno: 'EPIPE',
+  syscall: 'write'
+};
 
 child.stderr.on('data', function(c) {
   output += c;
@@ -32,4 +34,4 @@ child.on('close', common.mustCall(function(code) {
 
   assert.deepStrictEqual(output, outputExpect);
   console.log('ok');
-}), 1);
+}));
