@@ -237,6 +237,22 @@ url.resolve('http://example.com/', '/one')    // 'http://example.com/one'
 url.resolve('http://example.com/one', '/two') // 'http://example.com/two'
 ```
 
+`url.resolve` behaves differently based on the protocol of the URL in the
+`from` parameter. Protocols like `http`, `https`, `file`, and `ftp` are treated
+specially to match browser behavior, like so.
+
+```js
+url.resolve("https://foo.tld", "bar");      // 'https://foo.tld/bar'
+url.resolve("ftps://foo.tld", "bar");       // 'ftps://bar'
+```
+
+Uniform behavior can be reinstated by leaving a trailing slash on the `from`
+parameter, like so.
+
+```js
+url.resolve("ftps://foo.tld/", "bar");      // 'ftps://foo.tld/bar'
+```
+
 ## Escaped Characters
 
 URLs are only permitted to contain a certain range of characters. Spaces (`' '`)
