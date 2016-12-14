@@ -242,7 +242,7 @@ test-inspector: all
 	$(PYTHON) tools/test.py inspector
 
 test-node-inspect: $(NODE_EXE)
-	NODE=$(NODE) tools/test-node-inspect.sh
+	$(NODE) tools/test-npm-package --install deps/node-inspect test
 
 test-tick-processor: all
 	$(PYTHON) tools/test.py tick-processor
