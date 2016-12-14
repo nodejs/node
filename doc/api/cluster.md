@@ -204,7 +204,7 @@ if (cluster.isMaster) {
   // Keep track of http requests
   let numReqs = 0;
   setInterval(() => {
-    console.log('numReqs =', numReqs);
+    console.log(`numReqs = ${numReqs}`);
   }, 1000);
 
   // Count requests
