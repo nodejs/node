@@ -237,64 +237,29 @@ $ git commit --amend
 $ git push --force-with-lease origin my-branch
 ```
 
-When the commits in your Pull Request get landed, they will be squashed into
-one commit per logical change, with metadata added to the commit message
-(including links to the Pull Request, links to relevant issues,
-and the names of the reviewers). The squashing will be done by someone
-who has the commit access to the repository. The commit history of
-your Pull Request, however, will stay intact on the Pull Request
-page (as long as you don't delete your fork branch, at which point
-it disappears).
-
-Notes: For the size of "one logical change",
-[0b5191f](https://github.com/nodejs/node/commit/0b5191f15d0f311c804d542b67e2e922d98834f8)
-can be a good example. It touches the implementation, the documentation,
-and the tests, but is still one logical change.
-
 **Important:** The `git push --force-with-lease` command is one of the few ways
 to delete history in git. Before you use it, make sure you understand the risks.
 If in doubt, you can always ask for guidance in the Pull Request or on
 [IRC in the #node-dev channel](https://webchat.freenode.net?channels=node-dev&uio=d4).
 
 Feel free to post a comment in the Pull Request to ping reviewers if you are
-awaiting an answer on something.
+awaiting an answer on something. If you encounter words or acronyms that
+seem unfamiliar, check out the [glossary](https://sites.google.com/a/chromium.org/dev/glossary).
 
-Notes: if the reviewer mentions *nits* in their comments, that means
-"requests for changes that are not essential". Usually these nits are
-related to coding styles or typos. It's always a good idea to pay
-attention to the detail!
+Note that your commits usually get squashed when they are landed (see
+notes about [commit squashing](#commit-squashing)).
 
 ### Step 8: Landing
 
-In order to get landed, a Pull Request needs to be reviewed and approved by
-at least one Node.js Collaborator (either by saying LGTM,
-which stands for "Looks Good To Me", or by using GitHub's Approve button).
-GitHub's Pull Request review feature is used in this process. For more
-information, check out [the video tutorial](https://www.youtube.com/watch?v=HW0RPaJqm4g)
-or [the official documentation](https://help.github.com/articles/reviewing-changes-in-pull-requests/).
-
-Notes: After you push new changes to your branch, you need to get the
-approval for these new changes again, even if GitHub shows "Approved"
-because the reviwers have hit the buttons before.
-
-If this Pull Request touches more than the documentation, then it also
-needs an all-green CI (Continuous Integration) test run. Only a
-Collaborator can request a CI run. Usually one of them will do it
-for you as approvals for the Pull Request come in.
-If not, you can ask a Collaborator to request a CI run.
-
-After your Pull Request has been approved by one or more Node.js
-Collaborators and has passed the CI, as long as there is consensus
-(no objections from a Collaborator), it can be merged by a Collaborator.
-But, if there are non-trivial changes in this Pull Request, it still
-needs to wait for at least another 48 hours (72 hours on a weekend)
-so that more input can be made before it gets landed.
-If the Pull Request is labeled as `semver-major`, the wait could
-be longer, because it introduces changes that can potentially
-break other people's code in the Node.js ecosystem, and can not be
-released until the major version number of Node.js increases.
-All these precautions are important because Node.js is widely used,
-so don't be discouraged!
+In order to get landed, a Pull Request needs to be reviewed and
+[approved](#getting-approvals-for-your-pull-request) by
+at least one Node.js Collaborator. If this Pull Request touches
+more than the documentation, then it also needs an all-green
+[CI (Continuous Integration) test run](#ci-testing). After that,
+as long as there is no objections from a Collaborator, this
+Pull Request can be merged. If you find your Pull Request waiting
+longer than you expect, see
+[notes about the waiting time](#waiting-until-the-pull-request-gets-landed).
 
 When the Pull Request is landed, the person who land this will post
 a comment to the Pull Request page mentioning the commit(s) in which
@@ -302,6 +267,58 @@ it is landed. GitHub often shows the Pull Request as `Closed` at this
 point, but don't worry. If you look at the branch you raised your
 Pull Request against (probably `master`), you should see a commit with
 your name on it. Congratulations and thanks for your contribution!
+
+## Additional Notes
+
+### Commit Squashing
+
+When the commits in your Pull Request get landed, they will be squashed
+into one commit per logical change, with metadata added to the commit
+message (including links to the Pull Request, links to relevant issues,
+and the names of the reviewers). As long as you don't delete
+your fork branch, the commit history of your Pull Request will stay
+intact on the Pull Request page.
+
+For the size of "one logical change",
+[0b5191f](https://github.com/nodejs/node/commit/0b5191f15d0f311c804d542b67e2e922d98834f8)
+can be a good example. It touches the implementation, the documentation,
+and the tests, but is still one logical change.
+
+### Getting Approvals for Your Pull Request
+
+The approval can be made either by saying LGTM, which stands for
+"Looks Good To Me", or by using GitHub's Approve button. 
+GitHub's Pull Request review feature is used during the process.
+For more information, check out
+[the video tutorial](https://www.youtube.com/watch?v=HW0RPaJqm4g)
+or [the official documentation](https://help.github.com/articles/reviewing-changes-in-pull-requests/).
+
+After you push new changes to your branch, you need to get the
+approval for these new changes again, even if GitHub shows "Approved"
+because the reviwers have hit the buttons before.
+
+### CI Testing
+
+If your Pull Request contains executable code, it needs to be tested
+to make sure the code works on the platforms that Node.js
+supports. This is done by running the code through the CI system.
+
+Only a Collaborator can request a CI run. Usually one of them will do it
+for you as approvals for the Pull Request come in.
+If not, you can ask a Collaborator to request a CI run.
+
+### Waiting Until the Pull Request Gets Landed
+
+If there are non-trivial changes in this Pull Request, after it
+gets approved and passes the CI, it still needs to wait
+for at least another 48 hours (72 hours on a weekend)
+so that more input can be made before it gets landed.
+
+If the Pull Request is labeled as `semver-major`, the wait could
+be longer, since it can not be released until the major
+version number of Node.js increases.
+All these precautions are important because Node.js is widely used,
+so don't be discouraged!
 
 <a id="developers-certificate-of-origin"></a>
 ## Developer's Certificate of Origin 1.1
