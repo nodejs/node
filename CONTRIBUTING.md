@@ -253,15 +253,15 @@ notes about [commit squashing](#commit-squashing)).
 
 In order to get landed, a Pull Request needs to be reviewed and
 [approved](#getting-approvals-for-your-pull-request) by
-at least one Node.js Collaborator. If this Pull Request touches
-more than the documentation, then it also needs an all-green
+at least one Node.js Collaborator. If the Pull Request touches
+more than the documentation, then it also need to pass a
 [CI (Continuous Integration) test run](#ci-testing). After that,
-as long as there is no objections from a Collaborator, this
+as long as there are no objections from a Collaborator, the
 Pull Request can be merged. If you find your Pull Request waiting
-longer than you expect, see
+longer than you expect, see the
 [notes about the waiting time](#waiting-until-the-pull-request-gets-landed).
 
-When the Pull Request is landed, the person who land this will post
+When a collaborator lands your Pull Request, they will post
 a comment to the Pull Request page mentioning the commit(s) in which
 it is landed. GitHub often shows the Pull Request as `Closed` at this
 point, but don't worry. If you look at the branch you raised your
@@ -295,7 +295,7 @@ or [the official documentation](https://help.github.com/articles/reviewing-chang
 
 After you push new changes to your branch, you need to get the
 approval for these new changes again, even if GitHub shows "Approved"
-because the reviwers have hit the buttons before.
+because the reviewers have hit the buttons before.
 
 ### CI Testing
 
@@ -309,14 +309,12 @@ If not, you can ask a Collaborator to request a CI run.
 
 ### Waiting Until the Pull Request Gets Landed
 
-If there are non-trivial changes in this Pull Request, after it
-gets approved and passes the CI, it still needs to wait
-for at least another 48 hours (72 hours on a weekend)
-so that more input can be made before it gets landed.
-
-If the Pull Request is labeled as `semver-major`, the wait could
-be longer, since it can not be released until the major
-version number of Node.js increases.
+After the Pull Request gets approved and passes the CI,
+it still needs to wait for at least another 48 hours (72
+hours on a weekend) so that everyone has a chance to 
+weigh in. If the changes are trivial, collaborators may 
+decide it doesn't need to wait. But if the Pull Request is
+labeled as `semver-major`, it can take longer than the minimum.
 All these precautions are important because Node.js is widely used,
 so don't be discouraged!
 
