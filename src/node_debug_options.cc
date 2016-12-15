@@ -30,7 +30,8 @@ int parse_and_validate_port(const std::string& port) {
 }
 
 std::pair<std::string, int> split_host_port(const std::string& arg) {
-  // IPv6, no port
+  // remove_brackets only works if no port is specified
+  // so if it has an effect only an IPv6 address was specified
   std::string host = remove_brackets(arg);
   if (host.length() < arg.length())
     return {host, -1};
@@ -46,6 +47,7 @@ std::pair<std::string, int> split_host_port(const std::string& arg) {
     }
     return {"", parse_and_validate_port(arg)};
   }
+  // host and port found
   return std::make_pair(remove_brackets(arg.substr(0, colon)),
                         parse_and_validate_port(arg.substr(colon + 1)));
 }
@@ -90,6 +92,7 @@ bool DebugOptions::ParseOption(const std::string& option) {
     argument = option.substr(pos + 1);
   }
 
+  // --debug and --inspect are mutually exclusive
   if (option_name == "--debug") {
     debugger_enabled_ = true;
   } else if (option_name == "--debug-brk") {
@@ -98,7 +101,15 @@ bool DebugOptions::ParseOption(const std::string& option) {
   } else if (option_name == "--inspect") {
     debugger_enabled_ = true;
     enable_inspector = true;
-  } else if (option_name != "--debug-port" || !has_argument) {
+  } else if (option_name == "--inspect-brk") {
+    debugger_enabled_ = true;
+    enable_inspector = true;
+    wait_connect_ = true;
+  } else if ((option_name != "--debug-port" &&
+              option_name != "--inspect-port") ||
+              !has_argument) {
+    // only other valid possibility is --debug-port,
+    // which requires an argument
     return false;
   }
 
@@ -112,20 +123,17 @@ bool DebugOptions::ParseOption(const std::string& option) {
 #endif
   }
 
-  if (!has_argument) {
-    return true;
+  // argument can be specified for *any* option to specify host:port
+  if (has_argument) {
+    std::pair<std::string, int> host_port = split_host_port(argument);
+    if (!host_port.first.empty()) {
+      host_name_ = host_port.first;
+    }
+    if (host_port.second >= 0) {
+      port_ = host_port.second;
+    }
   }
 
-  // FIXME(bnoordhuis) Move IPv6 address parsing logic to lib/net.js.
-  // It seems reasonable to support [address]:port notation
-  // in net.Server#listen() and net.Socket#connect().
-  std::pair<std::string, int> host_port = split_host_port(argument);
-  if (!host_port.first.empty()) {
-    host_name_ = host_port.first;
-  }
-  if (host_port.second >= 0) {
-    port_ = host_port.second;
-  }
   return true;
 }
 
