@@ -3460,7 +3460,6 @@ static void PrintHelp() {
   // XXX: If you add an option here, please also add it to doc/node.1 and
   // doc/api/cli.md
   printf("Usage: node [options] [ -e script | script.js ] [arguments] \n"
-         "       node debug script.js [arguments] \n"
          "\n"
          "Options:\n"
          "  -v, --version         print Node.js version\n"

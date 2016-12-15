@@ -92,6 +92,9 @@ bool DebugOptions::ParseOption(const std::string& option) {
 
   if (option_name == "--debug") {
     debugger_enabled_ = true;
+    fprintf(stderr,
+            "--debug is deprecated and will be removed in "
+            "a future version. Please use --inspect instead.\n\n");
   } else if (option_name == "--debug-brk") {
     debugger_enabled_ = true;
     wait_connect_ = true;
