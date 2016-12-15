@@ -225,9 +225,9 @@ if (cluster.isMaster) {
     cluster.fork();
   }
 
-  Object.keys(cluster.workers).forEach((id) => {
+  for (const id in cluster.workers) {
     cluster.workers[id].on('message', messageHandler);
-  });
+  }
 
 } else {
 
@@ -812,9 +812,9 @@ before last `'disconnect'` or `'exit'` event is emitted.
 ```js
 // Go through all workers
 function eachWorker(callback) {
-  Object.keys(cluster.workers).forEach((id) => {
+  for (const id in cluster.workers) {
     callback(cluster.workers[id]);
-  });
+  }
 }
 eachWorker((worker) => {
   worker.send('big announcement to all workers');
