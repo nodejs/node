@@ -51,13 +51,12 @@ server.listen(0, common.mustCall(function() {
   tls.connect({
     port: this.address().port,
     key: rawKey,
-    passphrase: 'passphrase', // Ignored.
+    passphrase: 'ignored',
     cert: cert,
     rejectUnauthorized: false
   }, common.mustCall(function() {}));
 
   // Buffer[]
-  /* XXX(sam) Should work, but its unimplemented ATM.
   tls.connect({
     port: this.address().port,
     key: [passKey],
@@ -65,7 +64,6 @@ server.listen(0, common.mustCall(function() {
     cert: [cert],
     rejectUnauthorized: false
   }, common.mustCall(function() {}));
-  */
 
   tls.connect({
     port: this.address().port,
@@ -77,7 +75,7 @@ server.listen(0, common.mustCall(function() {
   tls.connect({
     port: this.address().port,
     key: [rawKey],
-    passphrase: 'passphrase', // Ignored.
+    passphrase: 'ignored',
     cert: [cert],
     rejectUnauthorized: false
   }, common.mustCall(function() {}));
@@ -101,13 +99,12 @@ server.listen(0, common.mustCall(function() {
   tls.connect({
     port: this.address().port,
     key: rawKey.toString(),
-    passphrase: 'passphrase', // Ignored.
+    passphrase: 'ignored',
     cert: cert.toString(),
     rejectUnauthorized: false
   }, common.mustCall(function() {}));
 
   // String[]
-  /* XXX(sam) Should work, but its unimplemented ATM.
   tls.connect({
     port: this.address().port,
     key: [passKey.toString()],
@@ -115,7 +112,6 @@ server.listen(0, common.mustCall(function() {
     cert: [cert.toString()],
     rejectUnauthorized: false
   }, common.mustCall(function() {}));
-  */
 
   tls.connect({
     port: this.address().port,
@@ -127,7 +123,7 @@ server.listen(0, common.mustCall(function() {
   tls.connect({
     port: this.address().port,
     key: [rawKey.toString()],
-    passphrase: 'passphrase', // Ignored.
+    passphrase: 'ignored',
     cert: [cert.toString()],
     rejectUnauthorized: false
   }, common.mustCall(function() {}));
@@ -142,6 +138,22 @@ server.listen(0, common.mustCall(function() {
 
   tls.connect({
     port: this.address().port,
+    key: [{pem: passKey, passphrase: 'passphrase'}],
+    passphrase: 'ignored',
+    cert: cert,
+    rejectUnauthorized: false
+  }, common.mustCall(function() {}));
+
+  tls.connect({
+    port: this.address().port,
+    key: [{pem: passKey}],
+    passphrase: 'passphrase',
+    cert: cert,
+    rejectUnauthorized: false
+  }, common.mustCall(function() {}));
+
+  tls.connect({
+    port: this.address().port,
     key: [{pem: passKey.toString(), passphrase: 'passphrase'}],
     cert: cert,
     rejectUnauthorized: false
@@ -149,31 +161,14 @@ server.listen(0, common.mustCall(function() {
 
   tls.connect({
     port: this.address().port,
-    key: [{pem: rawKey, passphrase: 'passphrase'}],
+    key: [{pem: rawKey, passphrase: 'ignored'}],
     cert: cert,
     rejectUnauthorized: false
   }, common.mustCall(function() {}));
 
   tls.connect({
     port: this.address().port,
-    key: [{pem: rawKey.toString(), passphrase: 'passphrase'}],
-    cert: cert,
-    rejectUnauthorized: false
-  }, common.mustCall(function() {}));
-
-  /* XXX(sam) Should work, but unimplemented ATM
-  tls.connect({
-    port: this.address().port,
-    key: [{pem: rawKey}],
-    passphrase: 'passphrase',
-    cert: cert,
-    rejectUnauthorized: false
-  }, common.mustCall(function() {}));
-
-  tls.connect({
-    port: this.address().port,
-    key: [{pem: rawKey.toString()}],
-    passphrase: 'passphrase',
+    key: [{pem: rawKey.toString(), passphrase: 'ignored'}],
     cert: cert,
     rejectUnauthorized: false
   }, common.mustCall(function() {}));
@@ -181,6 +176,22 @@ server.listen(0, common.mustCall(function() {
   tls.connect({
     port: this.address().port,
     key: [{pem: rawKey}],
+    passphrase: 'ignored',
+    cert: cert,
+    rejectUnauthorized: false
+  }, common.mustCall(function() {}));
+
+  tls.connect({
+    port: this.address().port,
+    key: [{pem: rawKey.toString()}],
+    passphrase: 'ignored',
+    cert: cert,
+    rejectUnauthorized: false
+  }, common.mustCall(function() {}));
+
+  tls.connect({
+    port: this.address().port,
+    key: [{pem: rawKey}],
     cert: cert,
     rejectUnauthorized: false
   }, common.mustCall(function() {}));
@@ -191,14 +202,72 @@ server.listen(0, common.mustCall(function() {
     cert: cert,
     rejectUnauthorized: false
   }, common.mustCall(function() {}));
-  */
 })).unref();
 
+// Missing passphrase
+assert.throws(function() {
+  tls.connect({
+    port: server.address().port,
+    key: passKey,
+    cert: cert,
+    rejectUnauthorized: false
+  });
+}, /bad password read/);
+
+assert.throws(function() {
+  tls.connect({
+    port: server.address().port,
+    key: [passKey],
+    cert: cert,
+    rejectUnauthorized: false
+  });
+}, /bad password read/);
+
+assert.throws(function() {
+  tls.connect({
+    port: server.address().port,
+    key: [{pem: passKey}],
+    cert: cert,
+    rejectUnauthorized: false
+  });
+}, /bad password read/);
+
+// Invalid passphrase
 assert.throws(function() {
   tls.connect({
     port: server.address().port,
     key: passKey,
     passphrase: 'invalid',
+    cert: cert,
+    rejectUnauthorized: false
+  });
+}, /bad decrypt/);
+
+assert.throws(function() {
+  tls.connect({
+    port: server.address().port,
+    key: [passKey],
+    passphrase: 'invalid',
+    cert: cert,
+    rejectUnauthorized: false
+  });
+}, /bad decrypt/);
+
+assert.throws(function() {
+  tls.connect({
+    port: server.address().port,
+    key: [{pem: passKey}],
+    passphrase: 'invalid',
+    cert: cert,
+    rejectUnauthorized: false
+  });
+}, /bad decrypt/);
+
+assert.throws(function() {
+  tls.connect({
+    port: server.address().port,
+    key: [{pem: passKey, passphrase: 'invalid'}],
+    passphrase: 'passphrase', // Valid but unused
     cert: cert,
     rejectUnauthorized: false
   });
