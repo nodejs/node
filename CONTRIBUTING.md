@@ -244,9 +244,10 @@ If in doubt, you can always ask for guidance in the Pull Request or on
 
 Feel free to post a comment in the Pull Request to ping reviewers if you are
 awaiting an answer on something. If you encounter words or acronyms that
-seem unfamiliar, check out the [glossary](https://sites.google.com/a/chromium.org/dev/glossary).
+seem unfamiliar, check out this
+[glossary](https://sites.google.com/a/chromium.org/dev/glossary).
 
-Note that your commits usually get squashed when they are landed (see
+Note that multiple commits often get squashed when they are landed (see the
 notes about [commit squashing](#commit-squashing)).
 
 ### Step 8: Landing
@@ -262,8 +263,8 @@ longer than you expect, see the
 [notes about the waiting time](#waiting-until-the-pull-request-gets-landed).
 
 When a collaborator lands your Pull Request, they will post
-a comment to the Pull Request page mentioning the commit(s) in which
-it is landed. GitHub often shows the Pull Request as `Closed` at this
+a comment to the Pull Request page mentioning the commit(s) it
+landed as. GitHub often shows the Pull Request as `Closed` at this
 point, but don't worry. If you look at the branch you raised your
 Pull Request against (probably `master`), you should see a commit with
 your name on it. Congratulations and thanks for your contribution!
@@ -286,14 +287,14 @@ and the tests, but is still one logical change.
 
 ### Getting Approvals for Your Pull Request
 
-The approval can be made either by saying LGTM, which stands for
+A Pull Request is approved either by saying LGTM, which stands for
 "Looks Good To Me", or by using GitHub's Approve button. 
-GitHub's Pull Request review feature is used during the process.
+GitHub's Pull Request review feature can be used during the process.
 For more information, check out
 [the video tutorial](https://www.youtube.com/watch?v=HW0RPaJqm4g)
 or [the official documentation](https://help.github.com/articles/reviewing-changes-in-pull-requests/).
 
-After you push new changes to your branch, you need to get the
+After you push new changes to your branch, you need to get
 approval for these new changes again, even if GitHub shows "Approved"
 because the reviewers have hit the buttons before.
 
@@ -313,10 +314,16 @@ After the Pull Request gets approved and passes the CI,
 it still needs to wait for at least another 48 hours (72
 hours on a weekend) so that everyone has a chance to 
 weigh in. If the changes are trivial, collaborators may 
-decide it doesn't need to wait. But if the Pull Request is
-labeled as `semver-major`, it can take longer than the minimum.
+decide it doesn't need to wait. A Pull Request may well take
+longer to be merged in.
 All these precautions are important because Node.js is widely used,
 so don't be discouraged!
+
+### Check Out the Collaborator's Guide
+
+If you want to know more about the code review and the landing process,
+you can take a look at the
+[collaborator's guide](https://github.com/nodejs/node/blob/master/COLLABORATOR_GUIDE.md).
 
 <a id="developers-certificate-of-origin"></a>
 ## Developer's Certificate of Origin 1.1
