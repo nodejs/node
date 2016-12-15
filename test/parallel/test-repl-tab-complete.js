@@ -1,8 +1,14 @@
 'use strict';
 
-var common = require('../common');
-var assert = require('assert');
-var repl = require('repl');
+const common = require('../common');
+const assert = require('assert');
+
+// We have to change the directory to ../fixtures before requiring repl
+// in order to make the tests for completion of node_modules work properly
+// since repl modifies module.paths.
+process.chdir(common.fixturesDir);
+
+const repl = require('repl');
 
 function getNoResultsFunction() {
   return common.mustCall((err, data) => {
@@ -195,6 +201,15 @@ testMe.complete('require(\'n', common.mustCall(function(error, data) {
       assert(/^n/.test(completion));
   });
 }));
+
+{
+  const expected = ['@nodejsscope', '@nodejsscope/'];
+  putIn.run(['.clear']);
+  testMe.complete('require(\'@nodejs', common.mustCall((err, data) => {
+    assert.strictEqual(err, null);
+    assert.deepStrictEqual(data, [expected, '@nodejs']);
+  }));
+}
 
 // Make sure tab completion works on context properties
 putIn.run(['.clear']);
