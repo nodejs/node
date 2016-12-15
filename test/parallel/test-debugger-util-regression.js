@@ -9,6 +9,11 @@ const fixture = path.join(
   'debugger-util-regression-fixture.js'
 );
 
+const deprecationWarning = [
+  '`node debug` is deprecated, ',
+  'use `node inspect` instead.\n\n'
+].join('');
+
 const args = [
   'debug',
   `--port=${common.PORT}`,
@@ -49,5 +54,6 @@ process.on('exit', (code) => {
   assert.strictEqual(code, 0, 'the program should exit cleanly');
   assert.strictEqual(stdout.includes('{ a: \'b\' }'), true,
                      'the debugger should print the result of util.inspect');
-  assert.strictEqual(stderr, '', 'stderr should be empty');
+  assert.strictEqual(stderr, deprecationWarning,
+                     'stderr should print deprecation warning');
 });
