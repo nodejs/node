@@ -891,12 +891,13 @@ added: v0.11.13
     individually. PFX is usually encrypted, if it is, `passphrase` will be used
     to decrypt it.
   * `key` {string|string[]|Buffer|Buffer[]|Object[]} Optional private keys in
-    PEM format. Single keys will be decrypted with `passphrase` if necessary.
-    Multiple keys, probably using different algorithms, can be provided either
-    as an array of unencrypted key strings or buffers, or an array of objects in
-    the form `{pem: <string|buffer>, passphrase: <string>}`. The object form can
-    only occur in an array, and it _must_ include a passphrase, even if key is
-    not encrypted.
+    PEM format. PEM allows the option of private keys being encrypted. Encrypted
+    keys will be decrypted with `options.passphrase`.  Multiple keys using
+    different algorithms can be provided either as an array of unencrypted key
+    strings or buffers, or an array of objects in the form `{pem:
+    <string|buffer>[, passphrase: <string>]}`. The object form can only occur in
+    an array. `object.passphrase` is optional. Encrypted keys will be decrypted
+    with `object.passphrase` if provided, or `options.passphrase` if it is not.
   * `passphrase` {string} Optional shared passphrase used for a single private
     key and/or a PFX.
   * `cert` {string|string[]|Buffer|Buffer[]} Optional cert chains in PEM format.
