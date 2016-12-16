@@ -13,28 +13,28 @@ if (common.isWindows) {
 
 if (cluster.isMaster) {
   common.refreshTmpDir();
-  var worker = cluster.fork();
-  worker.on('message', common.mustCall(function(msg) {
-    assert.equal(msg, 'DONE');
+  const worker = cluster.fork();
+  worker.on('message', common.mustCall((msg) => {
+    assert.strictEqual(msg, 'DONE');
   }));
-  worker.on('exit', function() {
-    process.exit();
-  });
+  worker.on('exit', common.mustCall(() => {}));
   return;
 }
 
-http.createServer(function(req, res) {
-  assert.equal(req.connection.remoteAddress, undefined);
-  assert.equal(req.connection.localAddress, undefined); // TODO common.PIPE?
+http.createServer(common.mustCall((req, res) => {
+  assert.strictEqual(req.connection.remoteAddress, undefined);
+  assert.strictEqual(req.connection.localAddress, undefined);
+  // TODO common.PIPE?
+
   res.writeHead(200);
   res.end('OK');
-}).listen(common.PIPE, function() {
-  http.get({ socketPath: common.PIPE, path: '/' }, function(res) {
+})).listen(common.PIPE, common.mustCall(() => {
+  http.get({ socketPath: common.PIPE, path: '/' }, common.mustCall((res) => {
     res.resume();
-    res.on('end', function(err) {
-      if (err) throw err;
+    res.on('end', common.mustCall((err) => {
+      assert.ifError(err);
       process.send('DONE');
       process.exit();
-    });
-  });
-});
+    }));
+  }));
+}));
