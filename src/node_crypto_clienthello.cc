@@ -2,6 +2,9 @@
 #include "node_crypto_clienthello-inl.h"
 #include "node_buffer.h"  // Buffer
 
+// FUTURE TODO export maximum TLS ticket size:
+static const size_t kTLSTicketSizeMask = 0xFFFF;
+
 namespace node {
 
 void ClientHelloParser::Parse(const uint8_t* data, size_t avail) {
@@ -146,7 +149,8 @@ void ClientHelloParser::ParseExtension(const uint16_t type,
       ocsp_request_ = 1;
       break;
     case kTLSSessionTicket:
-      tls_ticket_size_ = len;
+      // TBD POSSIBLE DATA LOSS:
+      tls_ticket_size_ = static_cast<uint16_t>(len & kTLSTicketSizeMask);
       tls_ticket_ = data + len;
       break;
     default:

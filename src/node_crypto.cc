@@ -1536,8 +1536,9 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
                                     String::kNormalString, mem->length));
       (void) BIO_reset(bio);
 
-      BN_ULONG exponent_word = BN_get_word(rsa->e);
-      BIO_printf(bio, "0x%lx", exponent_word);
+      unsigned long exponent =  // NOLINT(runtime/int)
+        static_cast<unsigned long>(BN_get_word(rsa->e));  // NOLINT(runtime/int)
+      BIO_printf(bio, "0x%lx", exponent);
 
       BIO_get_mem_ptr(bio, &mem);
       info->Set(env->exponent_string(),
