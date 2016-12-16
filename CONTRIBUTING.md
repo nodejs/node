@@ -254,12 +254,11 @@ notes about [commit squashing](#commit-squashing)).
 
 In order to get landed, a Pull Request needs to be reviewed and
 [approved](#getting-approvals-for-your-pull-request) by
-at least one Node.js Collaborator. If the Pull Request touches
-more than the documentation, then it also need to pass a
-[CI (Continuous Integration) test run](#ci-testing). After that,
-as long as there are no objections from a Collaborator, the
-Pull Request can be merged. If you find your Pull Request waiting
-longer than you expect, see the
+at least one Node.js Collaborator and pass a
+[CI (Continuous Integration) test run](#ci-testing).
+After that, as long as there are no objections
+from a Collaborator, the Pull Request can be merged. If you find your
+Pull Request waiting longer than you expect, see the
 [notes about the waiting time](#waiting-until-the-pull-request-gets-landed).
 
 When a collaborator lands your Pull Request, they will post
@@ -276,9 +275,8 @@ your name on it. Congratulations and thanks for your contribution!
 When the commits in your Pull Request get landed, they will be squashed
 into one commit per logical change, with metadata added to the commit
 message (including links to the Pull Request, links to relevant issues,
-and the names of the reviewers). As long as you don't delete
-your fork branch, the commit history of your Pull Request will stay
-intact on the Pull Request page.
+and the names of the reviewers). The commit history of your Pull Request,
+however, will stay intact on the Pull Request page.
 
 For the size of "one logical change",
 [0b5191f](https://github.com/nodejs/node/commit/0b5191f15d0f311c804d542b67e2e922d98834f8)
@@ -301,8 +299,8 @@ because the reviewers have hit the buttons before.
 
 ### CI Testing
 
-If your Pull Request contains executable code, it needs to be tested
-to make sure the code works on the platforms that Node.js
+Every Pull Request needs to be tested
+to make sure the it works on the platforms that Node.js
 supports. This is done by running the code through the CI system.
 
 Only a Collaborator can request a CI run. Usually one of them will do it
