@@ -6,7 +6,6 @@ const fs = require('fs');
 
 const emptyFile = path.join(common.fixturesDir, 'empty.txt');
 
-
 fs.open(emptyFile, 'r', common.mustCall((error, fd) => {
 
   assert.ifError(error);
@@ -38,5 +37,5 @@ fs.open(emptyFile, 'r', common.mustCall((error, fd) => {
 
   setTimeout(common.mustCall(() => {
     assert.strictEqual(read.isPaused(), true);
-  }), common.platformTimeout(50));
+  }, common.platformTimeout(50));
 }));
