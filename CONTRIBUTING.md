@@ -283,7 +283,8 @@ intact on the Pull Request page.
 For the size of "one logical change",
 [0b5191f](https://github.com/nodejs/node/commit/0b5191f15d0f311c804d542b67e2e922d98834f8)
 can be a good example. It touches the implementation, the documentation,
-and the tests, but is still one logical change.
+and the tests, but is still one logical change. In general, the tests should
+always pass when each individual commit lands on the master branch.
 
 ### Getting Approvals for Your Pull Request
 
@@ -310,14 +311,13 @@ If not, you can ask a Collaborator to request a CI run.
 
 ### Waiting Until the Pull Request Gets Landed
 
-After the Pull Request gets approved and passes the CI,
-it still needs to wait for at least another 48 hours (72
-hours on a weekend) so that everyone has a chance to 
-weigh in. If the changes are trivial, collaborators may 
-decide it doesn't need to wait. A Pull Request may well take
-longer to be merged in.
-All these precautions are important because Node.js is widely used,
-so don't be discouraged!
+A Pull Request needs to stay open for at least 48 hours (72 hours on a
+weekend) from when it is submitted, even after it gets approved and
+passes the CI. This is to make sure that everyone has a chance to 
+weigh in. If the changes are trivial, collaborators may decide it
+doesn't need to wait. A Pull Request may well take longer to be
+merged in. All these precautions are important because Node.js is
+widely used, so don't be discouraged!
 
 ### Check Out the Collaborator's Guide
 
