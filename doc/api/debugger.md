@@ -167,6 +167,10 @@ breakpoint)
 
 ## Advanced Usage
 
+### TCP-based protocol
+
+> Stability: 0 - Deprecated: Use [V8 Inspector Integration][] instead. The debug protocol used by the `--debug` flag was removed from V8.
+
 An alternative way of enabling and accessing the debugger is to start
 Node.js with the `--debug` command-line flag or by signaling an existing
 Node.js process with `SIGUSR1`.
@@ -179,12 +183,13 @@ process or via URI reference to the listening debugger:
 * `node debug <URI>` - Connects to the process via the URI such as
 localhost:5858
 
-## V8 Inspector Integration for Node.js
+### V8 Inspector Integration for Node.js
 
 **NOTE: This is an experimental feature.**
 
 V8 Inspector integration allows attaching Chrome DevTools to Node.js
 instances for debugging and profiling.
+It uses the [Chrome Debugging Protocol][].
 
 V8 Inspector can be enabled by passing the `--inspect` flag when starting a
 Node.js application. It is also possible to supply a custom port with that flag,
@@ -201,4 +206,6 @@ To start debugging, open the following URL in Chrome:
     chrome-devtools://devtools/remote/serve_file/@60cd6e859b9f557d2312f5bf532f6aec5f284980/inspector.html?experiments=true&v8only=true&ws=localhost:9229/node
 ```
 
-[TCP-based protocol]: https://github.com/v8/v8/wiki/Debugging-Protocol
+[Chrome Debugging Protocol]: https://chromedevtools.github.io/debugger-protocol-viewer/
+[TCP-based protocol]: #debugger_tcp_based_protocol
+[V8 Inspector Integration]: #debugger_v8_inspector_integration_for_node_js
