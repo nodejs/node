@@ -347,7 +347,7 @@
             }
         },
         {
-            "comment": "Port number is unchanges if empty in the new value. Note: this may change, see https://github.com/whatwg/url/pull/113",
+            "comment": "Port number is unchanged if not specified",
             "href": "http://example.net:8080",
             "new_value": "example.com:",
             "expected": {
@@ -358,7 +358,6 @@
             }
         },
         {
-
             "comment": "The empty host is not valid for special schemes",
             "href": "http://example.net",
             "new_value": "",
@@ -763,14 +762,14 @@
             }
         },
         {
-            "comment": "Port number is unchanged if empty in the new value. Note: this may change, see https://github.com/whatwg/url/pull/113",
+            "comment": "Port number is removed if empty is the new value",
             "href": "http://example.net:8080",
             "new_value": "",
             "expected": {
-                "href": "http://example.net:8080/",
-                "host": "example.net:8080",
+                "href": "http://example.net/",
+                "host": "example.net",
                 "hostname": "example.net",
-                "port": "8080"
+                "port": ""
             }
         },
         {
@@ -975,6 +974,15 @@
                 "href": "http://example.net/..%c3%89t%C3%A9",
                 "pathname": "/..%c3%89t%C3%A9"
             }
+        },
+        {
+            "comment": "? needs to be encoded",
+            "href": "http://example.net",
+            "new_value": "?",
+            "expected": {
+                "href": "http://example.net/%3F",
+                "pathname": "/%3F"
+            }
         }
     ],
     "search": [
@@ -1011,7 +1019,6 @@
             }
         },
         {
-"skip": "we do not pass this, but we do match chromes behavior",
             "href": "https://example.net?lang=en-US#nav",
             "new_value": "?",
             "expected": {
@@ -1096,7 +1103,6 @@
             }
         },
         {
-"skip": "we do not pass this, but we do match chromes behavior",
             "href": "https://example.net?lang=en-US#nav",
             "new_value": "#",
             "expected": {
@@ -1113,12 +1119,12 @@
             }
         },
         {
-            "comment": "No percent-encoding at all (!); nuls, tabs, and newlines are removed",
+            "comment": "Simple percent-encoding; nuls, tabs, and newlines are removed",
             "href": "a:/",
             "new_value": "\u0000\u0001\t\n\r\u001f !\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~\u007f\u0080\u0081Éé",
             "expected": {
-                "href": "a:/#\u0001\u001f !\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~\u007f\u0080\u0081Éé",
-                "hash": "#\u0001\u001f !\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~\u007f\u0080\u0081Éé"
+                "href": "a:/#%01%1F !\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~%7F%C2%80%C2%81%C3%89%C3%A9",
+                "hash": "#%01%1F !\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~%7F%C2%80%C2%81%C3%89%C3%A9"
             }
         },
         {
@@ -1126,8 +1132,8 @@
             "href": "http://example.net",
             "new_value": "%c3%89té",
             "expected": {
-                "href": "http://example.net/#%c3%89té",
-                "hash": "#%c3%89té"
+                "href": "http://example.net/#%c3%89t%C3%A9",
+                "hash": "#%c3%89t%C3%A9"
             }
         }
     ]
