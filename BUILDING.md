@@ -24,7 +24,7 @@ On OS X, you will also need:
     this under the menu `Xcode -> Preferences -> Downloads`
   * This step will install `gcc` and the related toolchain containing `make`
 
-* You may want to setup [firewall rules](tools/macosx-firewall.sh) to avoid
+* After building, you may want to setup [firewall rules](tools/macosx-firewall.sh) to avoid
 popups asking to accept incoming network connections when running tests:
 
 ```console
