@@ -261,7 +261,7 @@ namespace url {
     return type;
   }
 
-  static inline int ParseNumber(const char* start, const char* end) {
+  static inline int64_t ParseNumber(const char* start, const char* end) {
     unsigned R = 10;
     if (end - start >= 2 && start[0] == '0' && (start[1] | 0x20) == 'x') {
       start += 2;
@@ -293,7 +293,7 @@ namespace url {
       }
       p++;
     }
-    return strtol(start, NULL, R);
+    return strtoll(start, NULL, R);
   }
 
   static url_host_type ParseIPv4Host(url_host* host,
@@ -305,7 +305,8 @@ namespace url {
     const char* end = pointer + length;
     int parts = 0;
     uint32_t val = 0;
-    unsigned numbers[4];
+    uint64_t numbers[4];
+    int tooBigNumbers = 0;
     if (length == 0)
       goto end;
 
@@ -313,20 +314,16 @@ namespace url {
       const char ch = pointer < end ? pointer[0] : kEOL;
       const int remaining = end - pointer - 1;
       if (ch == '.' || ch == kEOL) {
-        if (++parts > 4 || pointer - mark == 0)
-          break;
-        int n = ParseNumber(mark, pointer);
-        if (n < 0) {
-          type = HOST_TYPE_DOMAIN;
+        if (++parts > 4)
           goto end;
-        }
-        if (pointer - mark == 10) {
-          numbers[parts - 1] = n;
+        if (pointer - mark == 0)
           break;
-        }
+        int64_t n = ParseNumber(mark, pointer);
+        if (n < 0)
+          goto end;
+
         if (n > 255) {
-          type = HOST_TYPE_FAILED;
-          goto end;
+          tooBigNumbers++;
         }
         numbers[parts - 1] = n;
         mark = pointer + 1;
@@ -335,14 +332,23 @@ namespace url {
       }
       pointer++;
     }
+    CHECK_GT(parts, 0);
+
+    // If any but the last item in numbers is greater than 255, return failure.
+    // If the last item in numbers is greater than or equal to
+    // 256^(5 - the number of items in numbers), return failure.
+    if (tooBigNumbers > 1 ||
+        (tooBigNumbers == 1 && numbers[parts - 1] <= 255) ||
+        numbers[parts - 1] >= pow(256, static_cast<double>(5 - parts))) {
+      type = HOST_TYPE_FAILED;
+      goto end;
+    }
 
     type = HOST_TYPE_IPV4;
-    if (parts > 0) {
-      val = numbers[parts - 1];
-      for (int n = 0; n < parts - 1; n++) {
-        double b = 3-n;
-        val += numbers[n] * pow(256, b);
-      }
+    val = numbers[parts - 1];
+    for (int n = 0; n < parts - 1; n++) {
+      double b = 3 - n;
+      val += numbers[n] * pow(256, b);
     }
 
     host->value.ipv4 = val;
@@ -616,6 +622,13 @@ namespace url {
       default:
         return false;
     }
+  }
+
+  static inline void ShortenUrlPath(struct url_data* url) {
+    if (url->path.empty()) return;
+    if (url->path.size() == 1 && url->scheme == "file:" &&
+        NORMALIZED_WINDOWS_DRIVE_LETTER(url->path[0])) return;
+    url->path.pop_back();
   }
 
   static void Parse(Environment* env,
@@ -895,8 +908,7 @@ namespace url {
                 if (DOES_HAVE_PATH(base)) {
                   SET_HAVE_PATH()
                   url.path = base.path;
-                  if (!url.path.empty())
-                    url.path.pop_back();
+                  ShortenUrlPath(&url);
                 }
                 url.port = base.port;
                 state = kPath;
@@ -1112,8 +1124,7 @@ namespace url {
                   SET_HAVE_PATH()
                   url.path = base.path;
                 }
-                if (!url.path.empty())
-                  url.path.pop_back();
+                ShortenUrlPath(&url);
               }
               state = kPath;
               continue;
@@ -1172,8 +1183,7 @@ namespace url {
               special_back_slash ||
               (!state_override && (ch == '?' || ch == '#'))) {
             if (IsDoubleDotSegment(buffer)) {
-              if (!url.path.empty())
-                url.path.pop_back();
+              ShortenUrlPath(&url);
               if (ch != '/' && !special_back_slash) {
                 SET_HAVE_PATH()
                 url.path.push_back("");
@@ -1247,7 +1257,7 @@ namespace url {
             case 0:
               break;
             default:
-              buffer += ch;
+              AppendOrEscape(&buffer, ch, SimpleEncodeSet);
           }
           break;
         default:
