@@ -98,6 +98,29 @@ def npm_files(action):
   else:
     assert(0) # unhandled action type
 
+def node_inspect_files(action):
+  target_path = 'lib/node_modules/node-inspect/'
+
+  # don't install npm if the target path is a symlink, it probably means
+  # that a dev version of npm is installed there
+  if os.path.islink(abspath(install_path, target_path)): return
+
+  # npm has a *lot* of files and it'd be a pain to maintain a fixed list here
+  # so we walk its source directory instead...
+  for dirname, subdirs, basenames in os.walk('deps/node-inspect', topdown=True):
+    subdirs[:] = filter('test'.__ne__, subdirs) # skip test suites
+    paths = [os.path.join(dirname, basename) for basename in basenames]
+    action(paths, target_path + dirname[18:] + '/')
+
+  # create/remove symlink
+  link_path = abspath(install_path, 'bin/node-inspect')
+  if action == uninstall:
+    action([link_path], 'bin/node-inspect')
+  elif action == install:
+    try_symlink('../lib/node_modules/node-inspect/cli.js', link_path)
+  else:
+    assert(0) # unhandled action type
+
 def subdir_files(path, dest, action):
   ret = {}
   for dirpath, dirnames, filenames in os.walk(path):
@@ -140,6 +163,7 @@ def files(action):
     action(['doc/node.1'], 'share/man/man1/')
 
   if 'true' == variables.get('node_install_npm'): npm_files(action)
+  if 'true' == variables.get('node_install_inspect'): node_inspect_files(action)
 
   headers(action)
 
