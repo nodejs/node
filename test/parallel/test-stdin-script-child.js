@@ -1,14 +1,14 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var spawn = require('child_process').spawn;
-var child = spawn(process.execPath, [], {
+const spawn = require('child_process').spawn;
+const child = spawn(process.execPath, [], {
   env: Object.assign(process.env, {
     NODE_DEBUG: process.argv[2]
   })
 });
-var wanted = child.pid + '\n';
+const wanted = child.pid + '\n';
 var found = '';
 
 child.stdout.setEncoding('utf8');
@@ -22,11 +22,11 @@ child.stderr.on('data', function(c) {
 });
 
 child.on('close', function(c) {
-  assert(!c);
-  assert.equal(found, wanted);
+  assert.strictEqual(c, 0);
+  assert.strictEqual(found, wanted);
   console.log('ok');
 });
 
 setTimeout(function() {
   child.stdin.end('console.log(process.pid)');
-});
+}, 1);
