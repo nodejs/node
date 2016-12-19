@@ -21,7 +21,8 @@ function checkThrowsArguments(context, node) {
       });
     } else if (args.length > 1) {
       const error = args[1];
-      if (error.type === 'Literal' && typeof error.value === 'string') {
+      if (error.type === 'Literal' && typeof error.value === 'string' ||
+          error.type === 'TemplateLiteral') {
         context.report({
           message: 'Unexpected string as second argument',
           node: error
