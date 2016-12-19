@@ -204,6 +204,28 @@ exports.hasIPv6 = Object.keys(ifaces).some(function(name) {
   });
 });
 
+/*
+ * Check that when running a test with
+ * `$node --abort-on-uncaught-exception $file child`
+ * the process aborts.
+ */
+exports.childShouldThrowAndAbort = function() {
+  var testCmd = '';
+  if (!exports.isWindows) {
+    // Do not create core files, as it can take a lot of disk space on
+    // continuous testing and developers' machines
+    testCmd += 'ulimit -c 0 && ';
+  }
+  testCmd += `${process.argv[0]} --abort-on-uncaught-exception `;
+  testCmd += `${process.argv[1]} child`;
+  const child = child_process.exec(testCmd);
+  child.on('exit', function onExit(exitCode, signal) {
+    const errMsg = 'Test should have aborted ' +
+                   `but instead exited with exit code ${exitCode}` +
+                   ` and signal ${signal}`;
+    assert(exports.nodeProcessAborted(exitCode, signal), errMsg);
+  });
+};
 
 exports.ddCommand = function(filename, kilobytes) {
   if (exports.isWindows) {
