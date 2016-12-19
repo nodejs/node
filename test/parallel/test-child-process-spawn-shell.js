@@ -3,6 +3,24 @@ const common = require('../common');
 const assert = require('assert');
 const cp = require('child_process');
 
+/**
+ * find git use command `where`
+ *
+ * @returns {String|undefined} git安装目录
+ */
+function whereIsGit() {
+	var output;
+	try {
+		output = cp.spawnSync('where', ['git']).output;
+	} catch(ex) {
+		//
+	}
+
+	if(output && output[1] && /^(.+?)\\cmd\\git.exe$/i.test(output[1].toString().trim())) {
+		return RegExp.$1;
+	}
+}
+
 // Verify that a shell is, in fact, executed
 const doesNotExist = cp.spawn('does-not-exist', {shell: true});
 
@@ -62,3 +80,23 @@ env.stdout.on('data', (data) => {
 env.on('close', common.mustCall((code, signal) => {
   assert.strictEqual(envOutput.trim(), 'buzz');
 }));
+
+if (common.isWindows) {
+  let git = whereIsGit();
+  if(git) {
+    // Verify that shell features can be used
+    const cmd = 'echo bar | cat';
+    const command = cp.spawn(cmd, {
+        encoding: 'utf8',
+        shell: git
+    });
+    let commandOutput = '';
+
+    command.stdout.on('data', (data) => {
+      commandOutput += data;
+    });
+    command.on('close', common.mustCall((code, signal) => {
+      assert.strictEqual(commandOutput.trim(), 'bar');
+    }));
+  }
+}
