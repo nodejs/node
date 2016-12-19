@@ -39,6 +39,7 @@ log.disableColor = function () {
 log.level = 'info'
 
 log.gauge = new Gauge(stream, {
+  enabled: false, // no progress bars unless asked
   theme: {hasColor: log.useColor()},
   template: [
     {type: 'progressbar', length: 20},
@@ -51,8 +52,9 @@ log.gauge = new Gauge(stream, {
 
 log.tracker = new Progress.TrackerGroup()
 
-// no progress bars unless asked
-log.progressEnabled = false
+// we track this separately as we may need to temporarily disable the
+// display of the status bar for our own loggy purposes.
+log.progressEnabled = log.gauge.isEnabled()
 
 var unicodeEnabled
 
@@ -77,15 +79,13 @@ log.setGaugeTemplate = function (template) {
 log.enableProgress = function () {
   if (this.progressEnabled) return
   this.progressEnabled = true
-  if (this._pause) return
   this.tracker.on('change', this.showProgress)
+  if (this._pause) return
   this.gauge.enable()
-  this.showProgress()
 }
 
 log.disableProgress = function () {
   if (!this.progressEnabled) return
-  this.clearProgress()
   this.progressEnabled = false
   this.tracker.removeListener('change', this.showProgress)
   this.gauge.disable()
@@ -147,6 +147,7 @@ log.showProgress = function (name, completed) {
 // temporarily stop emitting, but don't drop
 log.pause = function () {
   this._paused = true
+  if (this.progressEnabled) this.gauge.disable()
 }
 
 log.resume = function () {
@@ -158,7 +159,7 @@ log.resume = function () {
   b.forEach(function (m) {
     this.emitLog(m)
   }, this)
-  if (this.progressEnabled) this.enableProgress()
+  if (this.progressEnabled) this.gauge.enable()
 }
 
 log._buffer = []

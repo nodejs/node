@@ -139,12 +139,16 @@ already installed, since that would result in a shrinkwrap that
 wouldn&#39;t actually work. Similarly, the command will fail if there are
 extraneous packages (not referenced by <code>package.json</code>), since that would
 indicate that <code>package.json</code> is not correct.</p>
-<p>Since <code>npm shrinkwrap</code> is intended to lock down your dependencies for
-production use, <code>devDependencies</code> will not be included unless you
-explicitly set the <code>--dev</code> flag when you run <code>npm shrinkwrap</code>.  If
-installed <code>devDependencies</code> are excluded, then npm will print a
-warning.  If you want them to be installed with your module by
-default, please consider adding them to <code>dependencies</code> instead.</p>
+<p>Starting with npm v4.0.1, <code>devDependencies</code> are included when you run
+<code>npm shrinkwrap</code> and follow the usual rules as to when they&#39;re installed.
+As of npm v3.10.8, if you run <code>npm install --only=production</code> or
+<code>npm install --production</code> with a shrinkwrap including your development
+dependencies they won&#39;t be installed. Similarly, if the environment
+variable <code>NODE_ENV</code> is <code>production</code> then they won&#39;t be installed. If you
+need compatibility with versions of npm prior to v3.10.8 or otherwise
+don&#39;t want them in your shrinkwrap you can exclude development
+dependencies with:
+<code>npm shrinkwrap --only=prod</code> or <code>npm shrinkwrap --production</code>.</p>
 <p>If shrinkwrapped package A depends on shrinkwrapped package B, B&#39;s
 shrinkwrap will not be used as part of the installation of A. However,
 because A&#39;s shrinkwrap is constructed from a valid installation of B
@@ -176,5 +180,5 @@ contents rather than versions.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-shrinkwrap &mdash; npm@3.10.10</p>
+<p id="footer">npm-shrinkwrap &mdash; npm@4.0.5</p>
 

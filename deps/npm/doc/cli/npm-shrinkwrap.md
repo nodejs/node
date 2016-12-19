@@ -158,12 +158,16 @@ wouldn't actually work. Similarly, the command will fail if there are
 extraneous packages (not referenced by `package.json`), since that would
 indicate that `package.json` is not correct.
 
-Since `npm shrinkwrap` is intended to lock down your dependencies for
-production use, `devDependencies` will not be included unless you
-explicitly set the `--dev` flag when you run `npm shrinkwrap`.  If
-installed `devDependencies` are excluded, then npm will print a
-warning.  If you want them to be installed with your module by
-default, please consider adding them to `dependencies` instead.
+Starting with npm v4.0.1, `devDependencies` are included when you run
+`npm shrinkwrap` and follow the usual rules as to when they're installed.
+As of npm v3.10.8, if you run `npm install --only=production` or
+`npm install --production` with a shrinkwrap including your development
+dependencies they won't be installed. Similarly, if the environment
+variable `NODE_ENV` is `production` then they won't be installed. If you
+need compatibility with versions of npm prior to v3.10.8 or otherwise
+don't want them in your shrinkwrap you can exclude development
+dependencies with:
+`npm shrinkwrap --only=prod` or `npm shrinkwrap --production`.
 
 If shrinkwrapped package A depends on shrinkwrapped package B, B's
 shrinkwrap will not be used as part of the installation of A. However,
