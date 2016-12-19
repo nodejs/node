@@ -76,8 +76,27 @@ StreamWrap::StreamWrap(Environment* env,
 void StreamWrap::AddMethods(Environment* env,
                             v8::Local<v8::FunctionTemplate> target,
                             int flags) {
+  enum PropertyAttribute attributes =
+      static_cast<PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
   env->SetProtoMethod(target, "setBlocking", SetBlocking);
+  target->InstanceTemplate()->SetAccessor(env->external_uv_stream_string(),
+                                          GetExternalUVStream,
+                                          nullptr,
+                                          env->as_external(),
+                                          v8::DEFAULT,
+                                          attributes);
   StreamBase::AddMethods<StreamWrap>(env, target, flags);
+}
+
+
+void StreamWrap::GetExternalUVStream(
+    v8::Local<v8::String> key,
+    const v8::PropertyCallbackInfo<v8::Value>& args) {
+  StreamWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+
+  Local<External> ext = External::New(args.GetIsolate(), wrap->stream());
+  args.GetReturnValue().Set(ext);
 }
 
 

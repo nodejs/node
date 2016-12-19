@@ -75,6 +75,9 @@ class StreamWrap : public HandleWrap, public StreamBase {
 
  private:
   static void SetBlocking(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetExternalUVStream(
+      v8::Local<v8::String> key,
+      const v8::PropertyCallbackInfo<v8::Value>& args);
 
   // Callbacks for libuv
   static void OnAlloc(uv_handle_t* handle,

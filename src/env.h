@@ -106,6 +106,7 @@ namespace node {
   V(ext_key_usage_string, "ext_key_usage")                                    \
   V(external_string, "external")                                              \
   V(external_stream_string, "_externalStream")                                \
+  V(external_uv_stream_string, "_externalUVStream")                           \
   V(family_string, "family")                                                  \
   V(fatal_exception_string, "_fatalException")                                \
   V(fd_string, "fd")                                                          \
