@@ -56,7 +56,7 @@ test('->optdep:a->dep:b', function (t) {
   moduleB.parent = tree
 
   t.plan(3)
-  actions.postinstall('/', '/', moduleA, mockLog, function (er) {
+  actions.postinstall('/', moduleA, mockLog, function (er) {
     t.is(er && er.code, 'ELIFECYCLE', 'Lifecycle failed')
     t.ok(moduleA.failed, 'moduleA (optional dep) is marked failed')
     t.ok(moduleB.failed, 'moduleB (direct dep of moduleA) is marked as failed')
@@ -108,7 +108,7 @@ test('->dep:b,->optdep:a->dep:b', function (t) {
   moduleB.parent = tree
 
   t.plan(3)
-  actions.postinstall('/', '/', moduleA, mockLog, function (er) {
+  actions.postinstall('/', moduleA, mockLog, function (er) {
     t.ok(er && er.code === 'ELIFECYCLE', 'Lifecycle failed')
     t.ok(moduleA.failed, 'moduleA (optional dep) is marked failed')
     t.ok(!moduleB.failed, 'moduleB (direct dep of moduleA) is marked as failed')

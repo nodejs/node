@@ -1,2 +1,2 @@
 /* eslint-env browser */
-module.exports = window.FormData;
+module.exports = typeof self == 'object' ? self.FormData : window.FormData;

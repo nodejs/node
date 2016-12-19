@@ -113,7 +113,7 @@ var sortActions = module.exports.sortActions = function (differences) {
   return sorted
 }
 
-function diffTrees (oldTree, newTree) {
+var diffTrees = module.exports._diffTrees = function (oldTree, newTree) {
   validate('OO', arguments)
   var differences = []
   var flatOldTree = flattenTree(oldTree)
@@ -144,7 +144,9 @@ function diffTrees (oldTree, newTree) {
       }
     } else {
       var vername = getNameAndVersion(pkg.package)
-      if (toRemoveByNameAndVer[vername] && toRemoveByNameAndVer[vername].length && !pkg.fromBundle) {
+      var removing = toRemoveByNameAndVer[vername] && toRemoveByNameAndVer[vername].length
+      var bundlesOrFromBundle = pkg.fromBundle || pkg.package.bundleDependencies
+      if (removing && !bundlesOrFromBundle) {
         var flatname = toRemoveByNameAndVer[vername].shift()
         pkg.fromPath = toRemove[flatname].path
         differences.push(['move', pkg])

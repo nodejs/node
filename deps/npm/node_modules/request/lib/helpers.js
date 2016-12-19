@@ -3,17 +3,9 @@
 var jsonSafeStringify = require('json-stringify-safe')
   , crypto = require('crypto')
 
-function deferMethod() {
-  if (typeof setImmediate === 'undefined') {
-    return process.nextTick
-  }
-
-  return setImmediate
-}
-
-function isFunction(value) {
-  return typeof value === 'function'
-}
+var defer = typeof setImmediate === 'undefined'
+  ? process.nextTick
+  : setImmediate
 
 function paramsHaveRequestBody(params) {
   return (
@@ -63,7 +55,6 @@ function version () {
   }
 }
 
-exports.isFunction            = isFunction
 exports.paramsHaveRequestBody = paramsHaveRequestBody
 exports.safeStringify         = safeStringify
 exports.md5                   = md5
@@ -71,4 +62,4 @@ exports.isReadStream          = isReadStream
 exports.toBase64              = toBase64
 exports.copy                  = copy
 exports.version               = version
-exports.defer                 = deferMethod()
+exports.defer                 = defer

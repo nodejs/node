@@ -16,7 +16,7 @@ var rename = require('../../utils/rename.js')
   folders.
 */
 
-module.exports = function (top, buildpath, pkg, log, next) {
+module.exports = function (staging, pkg, log, next) {
   log.silly('move', pkg.fromPath, pkg.path)
   chain([
     [lifecycle, pkg.package, 'preuninstall', pkg.fromPath, false, true],

@@ -16,6 +16,7 @@ var childPath = require('../utils/child-path.js')
 
 module.exports = function (tree, swdeps, finishInflating) {
   if (!npm.config.get('shrinkwrap')) return finishInflating()
+  tree.loaded = true
   return inflateShrinkwrap(tree.path, tree, swdeps, finishInflating)
 }
 
@@ -23,9 +24,17 @@ function inflateShrinkwrap (topPath, tree, swdeps, finishInflating) {
   validate('SOOF', arguments)
   var onDisk = {}
   tree.children.forEach(function (child) { onDisk[moduleName(child)] = child })
-  tree.children = []
   var dev = npm.config.get('dev') || (!/^prod(uction)?$/.test(npm.config.get('only')) && !npm.config.get('production')) || /^dev(elopment)?$/.test(npm.config.get('only'))
   var prod = !/^dev(elopment)?$/.test(npm.config.get('only'))
+
+  // If the shrinkwrap has no dev dependencies in it then we'll leave the one's
+  // already on disk. If it DOES have dev dependencies then ONLY those in the
+  // shrinkwrap will be included.
+  var swHasDev = Object.keys(swdeps).some(function (name) { return swdeps[name].dev })
+  tree.children = swHasDev ? [] : tree.children.filter(function (child) {
+    return tree.package.devDependencies[moduleName(child)]
+  })
+
   return asyncMap(Object.keys(swdeps), doRealizeAndInflate, finishInflating)
 
   function doRealizeAndInflate (name, next) {
@@ -40,6 +49,7 @@ function inflateShrinkwrap (topPath, tree, swdeps, finishInflating) {
       var child = onDisk[name]
       if (childIsEquivalent(sw, requested, child)) {
         if (!child.fromShrinkwrap) child.fromShrinkwrap = requested.raw
+        if (sw.dev) child.shrinkwrapDev = true
         tree.children.push(child)
         annotateMetadata(child.package, requested, requested.raw, topPath)
         return inflateShrinkwrap(topPath, child, dependencies || {}, next)
@@ -69,7 +79,7 @@ function inflateShrinkwrap (topPath, tree, swdeps, finishInflating) {
     return function () {
       var child = createChild({
         package: pkg,
-        loaded: false,
+        loaded: true,
         parent: tree,
         fromShrinkwrap: pkg._from,
         path: childPath(tree.path, pkg),

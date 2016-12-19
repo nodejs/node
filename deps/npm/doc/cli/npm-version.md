@@ -85,6 +85,15 @@ and tag up to the server, and deletes the `build/temp` directory.
 
 Commit and tag the version change.
 
+### sign-git-tag
+
+* Default: false
+* Type: Boolean
+
+Pass the `-s` flag to git to sign the tag.
+
+Note that you must have a default GPG key set up in your git config for this to work properly.
+
 ## SEE ALSO
 
 * npm-init(1)
