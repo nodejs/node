@@ -98,9 +98,9 @@ openssl dhparam -outform PEM -out dhparam.pem 2048
 ```
 
 If using Perfect Forward Secrecy using `ECDHE`, Diffie-Hellman parameters are
-not required and a default ECDHE curve will be used. The `ecdheCurve` property
-can be used when creating a TLS Server to specify the name of an
-alternative curve to use.
+not required and a default ECDHE curve will be used. The `ecdhCurve` property
+can be used when creating a TLS Server to specify the name of an alternative
+curve to use, see [`tls.createServer()`] for more info.
 
 ### ALPN, NPN and SNI
 
