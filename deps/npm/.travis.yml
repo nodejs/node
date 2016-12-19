@@ -13,12 +13,16 @@ matrix:
       env: DEPLOY_VERSION=testing COVERALLS_REPO_TOKEN="$COVERALLS_OPTIONAL_TOKEN"
       script:
         - "node . run tap-cover -- \"test/tap/*.js\""
-        - "unset COVERALLS_REPO_TOKEN ; node . run tap -- \"test/slow/*.js\" \"test/broken-under-*/*.js\""
+        - "unset COVERALLS_REPO_TOKEN ; node . run tap -- \"test/broken-under-*/*.js\""
     # previous LTS is next most important
     - node_js: "4"
       env: DEPLOY_VERSION=testing
     # then master
     - node_js: "7"
+      env: DEPLOY_VERSION=testing
+    # then 0.12, which is still in maintenance mode until the end of 2016 I guess?
+    # https://github.com/nodejs/LTS#lts-schedule
+    - node_js: "0.12"
       env: DEPLOY_VERSION=testing
 before_install:
   # required by test/tap/registry.js
@@ -29,6 +33,7 @@ cache:
   directories:
   - $HOME/.npm
   - node_modules/.bin
+  - node_modules/.cache
   - node_modules/deep-equal
   - node_modules/marked
   - node_modules/marked-man
@@ -45,4 +50,4 @@ install:
   - "node . install --ignore-scripts"
   - "make -j4 doc"
 script:
-  - "node . run tap -- \"test/tap/*.js\" \"test/slow/*.js\" \"test/broken-under-nyc/*.js\""
+  - "node . run tap -- \"test/tap/*.js\" \"test/broken-under-nyc/*.js\""
