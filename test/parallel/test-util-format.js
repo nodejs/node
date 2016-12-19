@@ -48,15 +48,17 @@ assert.throws(function() {
   util.format('%d', symbol);
 }, TypeError);
 
-// Integer format specifier
+// Number format specifier
 assert.strictEqual(util.format('%d'), '%d');
 assert.strictEqual(util.format('%d', 42.0), '42');
 assert.strictEqual(util.format('%d', 42), '42');
 assert.strictEqual(util.format('%d', '42'), '42');
 assert.strictEqual(util.format('%d', '42.0'), '42');
-assert.strictEqual(util.format('%d', 1.5), '1');
-assert.strictEqual(util.format('%d', -0.5), '0');
-assert.strictEqual(util.format('%d', ''), 'NaN');
+assert.strictEqual(util.format('%d', 1.5), '1.5');
+assert.strictEqual(util.format('%d', -0.5), '-0.5');
+assert.strictEqual(util.format('%d', ''), '0');
+
+// Integer format specifier
 assert.strictEqual(util.format('%i'), '%i');
 assert.strictEqual(util.format('%i', 42.0), '42');
 assert.strictEqual(util.format('%i', 42), '42');
