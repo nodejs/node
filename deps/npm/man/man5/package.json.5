@@ -1,4 +1,4 @@
-.TH "PACKAGE\.JSON" "5" "November 2016" "" ""
+.TH "PACKAGE\.JSON" "5" "December 2016" "" ""
 .SH "NAME"
 \fBpackage.json\fR \- Specifics of npm's package\.json handling
 .SH DESCRIPTION
@@ -520,7 +520,7 @@ See npm help 7 semver for more details about specifying version ranges\.
 .IP \(bu 2
 \fBuser/repo\fP See 'GitHub URLs' below
 .IP \(bu 2
-\fBtag\fP A specific version tagged and published as \fBtag\fP  See npm help \fBnpm\-tag\fP
+\fBtag\fP A specific version tagged and published as \fBtag\fP  See npm help \fBnpm\-dist\-tag\fP
 .IP \(bu 2
 \fBpath/path/path\fP See Local Paths \fI#local\-paths\fR below
 
@@ -581,8 +581,8 @@ included\.  For example:
   "name": "foo",
   "version": "0\.0\.0",
   "dependencies": {
-    "express": "visionmedia/express",
-    "mocha": "visionmedia/mocha#4727d357ea",
+    "express": "expressjs/express",
+    "mocha": "mochajs/mocha#4727d357ea",
     "module": "user/repo#feature\\/branch"
   }
 }
@@ -635,7 +635,7 @@ from the root of a package, and can be managed like any other npm
 configuration param\.  See npm help 7 \fBnpm\-config\fP for more on the topic\.
 .P
 For build steps that are not platform\-specific, such as compiling
-CoffeeScript or other languages to JavaScript, use the \fBprepublish\fP
+CoffeeScript or other languages to JavaScript, use the \fBprepare\fP
 script to do this, and make the required package a devDependency\.
 .P
 For example:
@@ -649,14 +649,14 @@ For example:
     "coffee\-script": "~1\.6\.3"
   },
   "scripts": {
-    "prepublish": "coffee \-o lib/ \-c src/waza\.coffee"
+    "prepare": "coffee \-o lib/ \-c src/waza\.coffee"
   },
   "main": "lib/waza\.js"
 }
 .fi
 .RE
 .P
-The \fBprepublish\fP script will be run before publishing, so that users
+The \fBprepare\fP script will be run before publishing, so that users
 can consume the functionality without requiring them to compile it
 themselves\.  In dev mode (ie, locally running \fBnpm install\fP), it'll
 run this script as well, so that you can test it easily\.

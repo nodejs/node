@@ -244,6 +244,13 @@
   "application/dicom": {
     "source": "iana"
   },
+  "application/dicom+json": {
+    "source": "iana",
+    "compressible": true
+  },
+  "application/dicom+xml": {
+    "source": "iana"
+  },
   "application/dii": {
     "source": "iana"
   },
@@ -3206,6 +3213,9 @@
     "source": "apache",
     "extensions": ["oxt"]
   },
+  "application/vnd.openstreetmap.data+xml": {
+    "source": "iana"
+  },
   "application/vnd.openxmlformats-officedocument.custom-properties+xml": {
     "source": "iana"
   },
@@ -3948,6 +3958,9 @@
   "application/vnd.tmobile-livetv": {
     "source": "iana",
     "extensions": ["tmo"]
+  },
+  "application/vnd.tri.onesource": {
+    "source": "iana"
   },
   "application/vnd.trid.tpt": {
     "source": "iana",
@@ -4871,6 +4884,13 @@
   "application/yang": {
     "source": "iana",
     "extensions": ["yang"]
+  },
+  "application/yang-data+json": {
+    "source": "iana",
+    "compressible": true
+  },
+  "application/yang-data+xml": {
+    "source": "iana"
   },
   "application/yin+xml": {
     "source": "iana",

@@ -1,4 +1,4 @@
-.TH "NPM\-CONFIG" "7" "November 2016" "" ""
+.TH "NPM\-CONFIG" "7" "December 2016" "" ""
 .SH "NAME"
 \fBnpm-config\fR \- More than you probably want to know about npm configuration
 .SH DESCRIPTION
@@ -18,7 +18,10 @@ interpreted as a configuration parameter\.  For example, putting
 configuration parameter to \fBbar\fP\|\.  Any environment configurations that
 are not given a value will be given the value of \fBtrue\fP\|\.  Config
 values are case\-insensitive, so \fBNPM_CONFIG_FOO=bar\fP will work the
-same\.
+same\. However, please note that inside npm\-scripts \fI/misc/scripts\fR
+npm will set it's own environment variables and Node will prefer
+those lowercase versions over any uppercase ones that you might set\.
+For details see this issue \fIhttps://github\.com/npm/npm/issues/14528\fR\|\.
 .SS npmrc Files
 .P
 The four relevant files are:
@@ -389,9 +392,6 @@ Type: Boolean
 .RE
 .P
 Install \fBdev\-dependencies\fP along with packages\.
-.P
-Note that \fBdev\-dependencies\fP are also installed if the \fBnpat\fP flag is
-set\.
 .SS dry\-run
 .RS 0
 .IP \(bu 2
@@ -695,9 +695,9 @@ Type: Boolean
 .P
 Whether or not to output JSON data, rather than the normal output\.
 .P
-This feature is currently experimental, and the output data structures
-for many commands is either not implemented in JSON yet, or subject to
-change\.  Only the output from \fBnpm ls \-\-json\fP is currently valid\.
+This feature is currently experimental, and the output data structures for many
+commands is either not implemented in JSON yet, or subject to change\.  Only the
+output from \fBnpm ls \-\-json\fP and \fBnpm search \-\-json\fP are currently valid\.
 .SS key
 .RS 0
 .IP \(bu 2
@@ -841,16 +841,6 @@ Type: semver or false
 .RE
 .P
 The node version to use when checking a package's \fBengines\fP map\.
-.SS npat
-.RS 0
-.IP \(bu 2
-Default: false
-.IP \(bu 2
-Type: Boolean
-
-.RE
-.P
-Run tests on installation\.
 .SS onload\-script
 .RS 0
 .IP \(bu 2
@@ -905,7 +895,7 @@ Type: Boolean
 .RE
 .P
 Output parseable results from commands that write to
-standard output\.
+standard output\. For \fBnpm search\fP, this will be tab\-separated table format\.
 .SS prefix
 .RS 0
 .IP \(bu 2
@@ -1097,7 +1087,7 @@ patch upgrades\.
 .SS scope
 .RS 0
 .IP \(bu 2
-Default: ""
+Default: the scope of the current project, if any, or ""
 .IP \(bu 2
 Type: String
 
@@ -1108,16 +1098,29 @@ in to a private registry for the first time:
 \fBnpm login \-\-scope=@organization \-\-registry=registry\.organization\.com\fP, which
 will cause \fB@organization\fP to be mapped to the registry for future installation
 of packages specified according to the pattern \fB@organization/package\fP\|\.
-.SS searchopts
+.SS scripts\-prepend\-node\-path
 .RS 0
 .IP \(bu 2
-Default: ""
+Default: "warn\-only"
 .IP \(bu 2
-Type: String
+Type: Boolean, \fB"auto"\fP or \fB"warn\-only"\fP
 
 .RE
 .P
-Space\-separated options that are always passed to search\.
+If set to \fBtrue\fP, add the directory in which the current \fBnode\fP executable
+resides to the \fBPATH\fP environment variable when running scripts,
+even if that means that \fBnpm\fP will invoke a different \fBnode\fP executable than
+the one which it is running\.
+.P
+If set to \fBfalse\fP, never modify \fBPATH\fP with that\.
+.P
+If set to \fB"warn\-only"\fP, never modify \fBPATH\fP but print a warning if \fBnpm\fP thinks
+that you may want to run it with \fBtrue\fP, e\.g\. because the \fBnode\fP executable
+in the \fBPATH\fP is not the one \fBnpm\fP was invoked with\.
+.P
+If set to \fBauto\fP, only add that directory to the \fBPATH\fP environment variable
+if the \fBnode\fP executable with which \fBnpm\fP was invoked and the one that is found
+first on the \fBPATH\fP are different\.
 .SS searchexclude
 .RS 0
 .IP \(bu 2
@@ -1128,20 +1131,26 @@ Type: String
 .RE
 .P
 Space\-separated options that limit the results from search\.
-.SS searchsort
+.SS searchopts
 .RS 0
 .IP \(bu 2
-Default: "name"
+Default: ""
 .IP \(bu 2
 Type: String
-.IP \(bu 2
-Values: "name", "\-name", "date", "\-date", "description",
-"\-description", "keywords", "\-keywords"
 
 .RE
 .P
-Indication of which field to sort search results by\.  Prefix with a \fB\-\fP
-character to indicate reverse sort\.
+Space\-separated options that are always passed to search\.
+.SS searchstaleness
+.RS 0
+.IP \(bu 2
+Default: 900 (15 minutes)
+.IP \(bu 2
+Type: Number
+
+.RE
+.P
+The age of the cache, in seconds, before another registry request is made\.
 .SS shell
 .RS 0
 .IP \(bu 2

@@ -2,7 +2,7 @@
 
 [![npm package](https://nodei.co/npm/tough-cookie.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/tough-cookie/)
 
-[![Build Status](https://travis-ci.org/SalesforceEng/tough-cookie.png?branch=master)](https://travis-ci.org/SalesforceEng/tough-cookie)
+[![Build Status](https://travis-ci.org/salesforce/tough-cookie.png?branch=master)](https://travis-ci.org/salesforce/tough-cookie)
 
 # Synopsis
 

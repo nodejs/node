@@ -32,45 +32,125 @@ test('setup', function (t) {
 })
 
 test('make sure the path is correct, without directory of current node', function (t) {
-  checkPath(false, t)
+  checkPath({
+    withDirOfCurrentNode: false,
+    prependNodePathSetting: false
+  }, t)
 })
 
 test('make sure the path is correct, with directory of current node', function (t) {
-  checkPath(true, t)
+  checkPath({
+    withDirOfCurrentNode: true,
+    prependNodePathSetting: false
+  }, t)
 })
 
-function checkPath (withDirOfCurrentNode, t) {
+test('make sure the path is correct, with directory of current node but ignored node path', function (t) {
+  checkPath({
+    withDirOfCurrentNode: true,
+    prependNodePathSetting: true
+  }, t)
+})
+
+test('make sure the path is correct, without directory of current node and automatic detection', function (t) {
+  checkPath({
+    withDirOfCurrentNode: false,
+    prependNodePathSetting: 'auto'
+  }, t)
+})
+
+test('make sure the path is correct, with directory of current node and automatic detection', function (t) {
+  checkPath({
+    withDirOfCurrentNode: true,
+    prependNodePathSetting: 'auto'
+  }, t)
+})
+
+test('make sure the path is correct, without directory of current node and warn-only detection', function (t) {
+  checkPath({
+    withDirOfCurrentNode: false,
+    prependNodePathSetting: 'warn-only'
+  }, t)
+})
+
+test('make sure the path is correct, with directory of current node and warn-only detection', function (t) {
+  checkPath({
+    withDirOfCurrentNode: true,
+    prependNodePathSetting: 'warn-only'
+  }, t)
+})
+
+test('make sure there is no warning with a symlinked node and warn-only detection', {
+  skip: isWindows && 'symlinks are weird on windows'
+}, function (t) {
+  checkPath({
+    withDirOfCurrentNode: false,
+    extraNode: true,
+    prependNodePathSetting: 'warn-only',
+    symlinkNodeInsteadOfCopying: true
+  }, t)
+})
+
+test('make sure the path is correct, with directory of current node and warn-only detection and an extra node in path', function (t) {
+  checkPath({
+    withDirOfCurrentNode: false,
+    extraNode: true,
+    prependNodePathSetting: 'warn-only'
+  }, t)
+})
+
+function checkPath (testconfig, t) {
+  var withDirOfCurrentNode = testconfig.withDirOfCurrentNode
+  var prependNodePathSetting = testconfig.prependNodePathSetting
+  var symlinkedNode = testconfig.symlinkNodeInsteadOfCopying
+  var extraNode = testconfig.extraNode
+
   var newPATH = PATH
   var currentNodeExecPath = process.execPath
   if (withDirOfCurrentNode) {
-    var newNodeExeDir = path.join(pkg, 'node-bin')
+    var newNodeExeDir = path.join(pkg, 'node-bin', 'my_bundled_node')
     mkdirp.sync(newNodeExeDir)
-    currentNodeExecPath = path.join(newNodeExeDir, 'my_bundled_' + path.basename(process.execPath))
-    fs.writeFileSync(currentNodeExecPath, fs.readFileSync(process.execPath))
-    fs.chmodSync(currentNodeExecPath, '755')
-  } else {
+    currentNodeExecPath = path.join(newNodeExeDir, path.basename(process.execPath))
+    rimraf.sync(currentNodeExecPath)
+
+    if (!symlinkedNode) {
+      fs.writeFileSync(currentNodeExecPath, fs.readFileSync(process.execPath))
+      fs.chmodSync(currentNodeExecPath, '755')
+    } else {
+      fs.symlinkSync(process.execPath, currentNodeExecPath)
+    }
+  }
+
+  if (!withDirOfCurrentNode) {
     // Ensure that current node interpreter will be found in the PATH,
     // so the PATH won't be prepended with its parent directory
     newPATH = [path.dirname(process.execPath), PATH].join(process.platform === 'win32' ? ';' : ':')
   }
+
   common.npm(['run-script', 'env'], {
     cwd: pkg,
     nodeExecPath: currentNodeExecPath,
     env: {
-      PATH: newPATH
+      PATH: newPATH,
+      npm_config_scripts_prepend_node_path: prependNodePathSetting
     },
-    stdio: [ 0, 'pipe', 2 ]
-  }, function (er, code, stdout) {
+    stdio: [ 0, 'pipe', 'pipe' ]
+  }, function (er, code, stdout, stderr) {
     if (er) throw er
+    if (!stderr.match(/^(npm WARN.*)?\n*$/)) console.error(stderr)
     t.equal(code, 0, 'exit code')
     var lineMatch = function (line) {
       return /^PATH=/i.test(line)
     }
     // extract just the path value
-    stdout = stdout.split(/\r?\n/).filter(lineMatch).pop().replace(/^PATH=/, '')
+    stdout = stdout.split(/\r?\n/)
+    var observedPath = stdout.filter(lineMatch).pop().replace(/^PATH=/, '')
     var pathSplit = process.platform === 'win32' ? ';' : ':'
     var root = path.resolve(__dirname, '../..')
-    var actual = stdout.split(pathSplit).map(function (p) {
+    var actual = observedPath.split(pathSplit).map(function (p) {
+      if (p.indexOf(pkg) === 0) {
+        p = '{{PKG}}' + p.substr(pkg.length)
+      }
       if (p.indexOf(root) === 0) {
         p = '{{ROOT}}' + p.substr(root.length)
       }
@@ -83,9 +163,36 @@ function checkPath (withDirOfCurrentNode, t) {
 
     // get the ones we tacked on, then the system-specific requirements
     var expectedPaths = ['{{ROOT}}/bin/node-gyp-bin',
-                         '{{ROOT}}/test/broken-under-nyc-and-travis/lifecycle-path/node_modules/.bin']
-    if (withDirOfCurrentNode) {
-      expectedPaths.push('{{ROOT}}/test/broken-under-nyc-and-travis/lifecycle-path/node-bin')
+                         '{{PKG}}/node_modules/.bin']
+
+    // Check that the behaviour matches the configuration that was actually
+    // used by the child process, as the coverage tooling may set the
+    // --scripts-prepend-node-path option on its own.
+    var realPrependNodePathSetting = stdout.filter(function (line) {
+      return line.match(/npm_config_scripts_prepend_node_path=(true|auto)/)
+    }).length > 0
+
+    if (prependNodePathSetting === 'warn-only') {
+      if (symlinkedNode) {
+        t.equal(stderr, '', 'does not spit out a warning')
+      } else if (withDirOfCurrentNode) {
+        t.match(stderr, /npm WARN lifecycle/, 'spit out a warning')
+        t.match(stderr, /npm is using .*node-bin.my_bundled_node(.exe)?/, 'mention the path of the binary npm itself is using.')
+        if (extraNode) {
+          var regex = new RegExp(
+            'The node binary used for scripts is.*' +
+            process.execPath.replace(/[/\\]/g, '.'))
+          t.match(stderr, regex, 'reports the current binary vs conflicting')
+        } else {
+          t.match(stderr, /there is no node binary in the current PATH/, 'informs user that there is no node binary in PATH')
+        }
+      } else {
+        t.same(stderr, '')
+      }
+    }
+
+    if (withDirOfCurrentNode && realPrependNodePathSetting) {
+      expectedPaths.push('{{PKG}}/node-bin/my_bundled_node')
     }
     var expect = expectedPaths.concat(newPATH.split(pathSplit)).map(function (p) {
       return p.replace(/\\/g, '/')

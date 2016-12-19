@@ -1,8 +1,9 @@
 'use strict'
 var lifecycle = require('../../utils/lifecycle.js')
 var packageId = require('../../utils/package-id.js')
+var moduleStagingPath = require('../module-staging-path.js')
 
-module.exports = function (top, buildpath, pkg, log, next) {
-  log.silly('preinstall', packageId(pkg), buildpath)
-  lifecycle(pkg.package, 'preinstall', buildpath, false, false, next)
+module.exports = function (staging, pkg, log, next) {
+  log.silly('preinstall', packageId(pkg))
+  lifecycle(pkg.package, 'preinstall', moduleStagingPath(staging, pkg), false, false, next)
 }

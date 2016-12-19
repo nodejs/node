@@ -1,6 +1,6 @@
 npm(1) -- a JavaScript package manager
 ==============================
-[![Build Status](https://img.shields.io/travis/npm/npm/master.svg)](https://travis-ci.org/npm/npm)
+[![Build Status](https://img.shields.io/travis/npm/npm/latest.svg)](https://travis-ci.org/npm/npm)
 ## SYNOPSIS
 
 This is just enough info to get you up and running.
@@ -27,15 +27,15 @@ terms of use for the default public registry are available at
 
 ## Super Easy Install
 
-npm is bundled with [node](http://nodejs.org/download/).
+npm is bundled with [node](https://nodejs.org/en/download/).
 
 ### Windows Computers
 
-[Get the MSI](http://nodejs.org/download/).  npm is in it.
+[Get the MSI](https://nodejs.org/en/download/).  npm is in it.
 
 ### Apple Macintosh Computers
 
-[Get the pkg](http://nodejs.org/download/).  npm is in it.
+[Get the pkg](https://nodejs.org/en/download/).  npm is in it.
 
 ### Other Sorts of Unices
 
@@ -156,7 +156,7 @@ When you find issues, please report them:
 Be sure to include *all* of the output from the npm command that didn't work
 as expected.  The `npm-debug.log` file is also helpful to provide.
 
-You can also look for isaacs in #node.js on irc://irc.freenode.net.  He
+You can also look for isaacs in #node.js on irc://irc.freenode.net.  She
 will no doubt tell you to put the output in a gist or email.
 
 ## SEE ALSO

@@ -1,6 +1,10 @@
 # Changes
 
 
+## v1.2.12
+
+* Removed unused require
+
 ## v1.2.11
 
 * Prevent changelog script from being included in package
