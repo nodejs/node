@@ -36,7 +36,7 @@ Collaborators or additional evidence that the issue has relevance, the
 issue may be closed. Remember that issues can always be re-opened if
 necessary.
 
-[**See "Who to CC in issues"**](./onboarding-extras.md#who-to-cc-in-issues)
+[**See "Who to CC in issues"**](./doc/onboarding-extras.md#who-to-cc-in-issues)
 
 ## Accepting Modifications
 
