@@ -300,7 +300,7 @@ because the reviewers have hit the buttons before.
 ### CI Testing
 
 Every Pull Request needs to be tested
-to make sure the it works on the platforms that Node.js
+to make sure that it works on the platforms that Node.js
 supports. This is done by running the code through the CI system.
 
 Only a Collaborator can request a CI run. Usually one of them will do it
