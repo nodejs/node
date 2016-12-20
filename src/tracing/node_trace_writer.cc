@@ -57,8 +57,9 @@ NodeTraceWriter::~NodeTraceWriter() {
 void NodeTraceWriter::OpenNewFileForStreaming() {
   ++file_num_;
   uv_fs_t req;
-  std::string log_file = "node_trace." + std::to_string(file_num_) + ".log";
-  fd_ = uv_fs_open(tracing_loop_, &req, log_file.c_str(),
+  std::ostringstream log_file;
+  log_file << "node_trace." << file_num_ << ".log";
+  fd_ = uv_fs_open(tracing_loop_, &req, log_file.str().c_str(),
       O_CREAT | O_WRONLY | O_TRUNC, 0644, NULL);
   CHECK_NE(fd_, -1);
   uv_fs_req_cleanup(&req);
