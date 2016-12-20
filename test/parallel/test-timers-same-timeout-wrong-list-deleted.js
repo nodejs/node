@@ -16,16 +16,6 @@ const assert = require('assert');
 const Timer = process.binding('timer_wrap').Timer;
 
 const TIMEOUT = common.platformTimeout(100);
-const start = Timer.now();
-
-// This bug also prevents the erroneously dereferenced timer's callback
-// from being called, so we can't use it's execution or lack thereof
-// to assert that the bug is fixed.
-process.on('exit', function() {
-  const end = Timer.now();
-  assert.equal(end - start < TIMEOUT * 2, true,
-               'Elapsed time does not include second timer\'s timeout.');
-});
 
 const handle1 = setTimeout(common.mustCall(function() {
   // Cause the old TIMEOUT list to be deleted
@@ -42,27 +32,22 @@ const handle1 = setTimeout(common.mustCall(function() {
     // erroneously deleted. If we are able to cancel the timer successfully,
     // the bug is fixed.
     clearTimeout(handle2);
+
     setImmediate(common.mustCall(function() {
       setImmediate(common.mustCall(function() {
-        const activeHandles = process._getActiveHandles();
-        const activeTimers = activeHandles.filter(function(handle) {
-          return handle instanceof Timer;
-        });
+        const activeTimers = getActiveTimers();
 
         // Make sure our clearTimeout succeeded. One timer finished and
         // the other was canceled, so none should be active.
-        assert.equal(activeTimers.length, 0, 'No Timers remain.');
+        assert.strictEqual(activeTimers.length, 0, 'Timers remain.');
       }));
     }));
-  }), 10);
+  }), 1);
 
   // Make sure our timers got added to the list.
-  const activeHandles = process._getActiveHandles();
-  const activeTimers = activeHandles.filter(function(handle) {
-    return handle instanceof Timer;
-  });
+  const activeTimers = getActiveTimers();
   const shortTimer = activeTimers.find(function(handle) {
-    return handle._list.msecs === 10;
+    return handle._list.msecs === 1;
   });
   const longTimers = activeTimers.filter(function(handle) {
     return handle._list.msecs === TIMEOUT;
@@ -70,11 +55,18 @@ const handle1 = setTimeout(common.mustCall(function() {
 
   // Make sure our clearTimeout succeeded. One timer finished and
   // the other was canceled, so none should be active.
-  assert.equal(activeTimers.length, 3, 'There are 3 timers in the list.');
-  assert(shortTimer instanceof Timer, 'The shorter timer is in the list.');
-  assert.equal(longTimers.length, 2, 'Both longer timers are in the list.');
+  assert.strictEqual(activeTimers.length, 3,
+                     'There should be 3 timers in the list.');
+  assert(shortTimer instanceof Timer, 'The shorter timer is not in the list.');
+  assert.strictEqual(longTimers.length, 2,
+                     'Both longer timers should be in the list.');
 
   // When this callback completes, `listOnTimeout` should now look at the
   // correct list and refrain from removing the new TIMEOUT list which
   // contains the reference to the newer timer.
 }), TIMEOUT);
+
+function getActiveTimers() {
+  const activeHandles = process._getActiveHandles();
+  return activeHandles.filter((handle) => handle instanceof Timer);
+}
