@@ -113,6 +113,9 @@
       'deps/v8/tools/tickprocessor.js',
       'deps/v8/tools/SourceMap.js',
       'deps/v8/tools/tickprocessor-driver.js',
+      'deps/node-inspect/lib/_inspect.js',
+      'deps/node-inspect/lib/internal/inspect_client.js',
+      'deps/node-inspect/lib/internal/inspect_repl.js',
     ],
     'conditions': [
       [ 'node_shared=="true"', {
