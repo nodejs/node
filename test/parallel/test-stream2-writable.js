@@ -46,7 +46,7 @@ function run() {
   console.log('# %s', name);
   fn({
     same: assert.deepStrictEqual,
-    equal: assert.equal,
+    equal: assert.strictEqual,
     end: function() {
       count--;
       run();
@@ -56,7 +56,7 @@ function run() {
 
 // ensure all tests have run
 process.on('exit', function() {
-  assert.equal(count, 0);
+  assert.strictEqual(count, 0);
 });
 
 process.nextTick(run);
@@ -136,18 +136,18 @@ test('write bufferize', function(t) {
   });
 
   var encodings =
-      [ 'hex',
-        'utf8',
-        'utf-8',
-        'ascii',
-        'latin1',
-        'binary',
-        'base64',
-        'ucs2',
-        'ucs-2',
-        'utf16le',
-        'utf-16le',
-        undefined ];
+    [ 'hex',
+      'utf8',
+      'utf-8',
+      'ascii',
+      'latin1',
+      'binary',
+      'base64',
+      'ucs2',
+      'ucs-2',
+      'utf16le',
+      'utf-16le',
+      undefined ];
 
   tw.on('finish', function() {
     t.same(tw.buffer, chunks, 'got the expected chunks');
@@ -174,18 +174,18 @@ test('write no bufferize', function(t) {
   };
 
   var encodings =
-      [ 'hex',
-        'utf8',
-        'utf-8',
-        'ascii',
-        'latin1',
-        'binary',
-        'base64',
-        'ucs2',
-        'ucs-2',
-        'utf16le',
-        'utf-16le',
-        undefined ];
+    [ 'hex',
+      'utf8',
+      'utf-8',
+      'ascii',
+      'latin1',
+      'binary',
+      'base64',
+      'ucs2',
+      'ucs-2',
+      'utf16le',
+      'utf-16le',
+      undefined ];
 
   tw.on('finish', function() {
     t.same(tw.buffer, chunks, 'got the expected chunks');
@@ -201,7 +201,7 @@ test('write no bufferize', function(t) {
 
 test('write callbacks', function(t) {
   var callbacks = chunks.map(function(chunk, i) {
-    return [i, function(er) {
+    return [i, function() {
       callbacks._called[i] = chunk;
     }];
   }).reduce(function(set, x) {
@@ -272,7 +272,7 @@ test('end callback called after write callback', function(t) {
 test('encoding should be ignored for buffers', function(t) {
   var tw = new W();
   var hex = '018b5e9a8f6236ffe30e31baf80d2cf6eb';
-  tw._write = function(chunk, encoding, cb) {
+  tw._write = function(chunk) {
     t.equal(chunk.toString('hex'), hex);
     t.end();
   };
@@ -284,7 +284,7 @@ test('writables are not pipable', function(t) {
   var w = new W();
   w._write = function() {};
   var gotError = false;
-  w.on('error', function(er) {
+  w.on('error', function() {
     gotError = true;
   });
   w.pipe(process.stdout);
@@ -297,7 +297,7 @@ test('duplexes are pipable', function(t) {
   d._read = function() {};
   d._write = function() {};
   var gotError = false;
-  d.on('error', function(er) {
+  d.on('error', function() {
     gotError = true;
   });
   d.pipe(process.stdout);
@@ -331,7 +331,7 @@ test('dont end while writing', function(t) {
     setTimeout(function() {
       this.writing = false;
       cb();
-    });
+    }, 1);
   };
   w.on('finish', function() {
     assert(wrote);
@@ -368,7 +368,7 @@ test('finish does not come before sync _write cb', function(t) {
     assert(writeCb);
     t.end();
   });
-  w.write(Buffer.alloc(0), function(er) {
+  w.write(Buffer.alloc(0), function() {
     writeCb = true;
   });
   w.end();
