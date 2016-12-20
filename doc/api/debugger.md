@@ -178,6 +178,10 @@ process or via URI reference to the listening debugger:
 * `node debug -p <pid>` - Connects to the process via the `pid`
 * `node debug <URI>` - Connects to the process via the URI such as
 localhost:5858
+* `node --debug` - Enables debugging and accept commands on tcp port 5858.
+* `node --debug-port=<port>` - Changes the connection port. e.g. `--debug-port=9000`
+* `node --debug-brk` - Breaks on the first line and wait for a debugger client to connect .
+* `node --debug-brk=<port>` - Break on first line and listen on a custom port.
 
 ## V8 Inspector Integration for Node.js
 
