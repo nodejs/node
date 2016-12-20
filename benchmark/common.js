@@ -185,7 +185,9 @@ function formatResult(data) {
     conf += ' ' + key + '=' + JSON.stringify(data.conf[key]);
   }
 
-  return `${data.name}${conf}: ${data.rate}`;
+  const rate = Math.floor(data.rate)
+                   .toString().replace(/(\d)(?=(\d\d\d)+(?!\d))/g, '$1,');
+  return `${data.name}${conf}: ${rate}`;
 }
 
 function sendResult(data) {
