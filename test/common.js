@@ -14,6 +14,16 @@ const execSync = require('child_process').execSync;
 const testRoot = process.env.NODE_TEST_DIR ?
                    fs.realpathSync(process.env.NODE_TEST_DIR) : __dirname;
 
+// If env var is set then enable noop async_hook hooks for testing.
+if (process.env.NODE_TEST_WITH_ASYNC_HOOKS) {
+  require('async_hooks').createHook({
+    init() { },
+    before() { },
+    after() { },
+    destroy() { },
+  }).enable();
+}
+
 exports.fixturesDir = path.join(__dirname, 'fixtures');
 exports.tmpDirName = 'tmp';
 // PORT should match the definition in test/testpy/__init__.py.
