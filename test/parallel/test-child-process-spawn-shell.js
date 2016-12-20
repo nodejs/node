@@ -9,16 +9,17 @@ const cp = require('child_process');
  * @returns {String|undefined} git安装目录
  */
 function whereIsGit() {
-	var output;
-	try {
-		output = cp.spawnSync('where', ['git']).output;
-	} catch(ex) {
-		//
-	}
+  var output;
+  try {
+    output = cp.spawnSync('where', ['git']).output;
+  } catch (ex) {
+    //
+  }
 
-	if(output && output[1] && /^(.+?)\\cmd\\git.exe$/i.test(output[1].toString().trim())) {
-		return RegExp.$1;
-	}
+  if (output && output[1] &&
+    /^(.+?)\\cmd\\git.exe$/i.test(output[1].toString().trim())) {
+    return RegExp.$1;
+  }
 }
 
 // Verify that a shell is, in fact, executed
@@ -82,13 +83,13 @@ env.on('close', common.mustCall((code, signal) => {
 }));
 
 if (common.isWindows) {
-  let git = whereIsGit();
-  if(git) {
+  const gitPath = whereIsGit();
+  if (gitPath) {
     // Verify that shell features can be used
     const cmd = 'echo bar | cat';
     const command = cp.spawn(cmd, {
-        encoding: 'utf8',
-        shell: git
+      encoding: 'utf8',
+      shell: gitPath + '\\bin\\sh.exe'
     });
     let commandOutput = '';
 
