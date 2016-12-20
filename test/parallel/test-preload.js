@@ -139,7 +139,7 @@ childProcess.exec(
 // https://github.com/nodejs/node/issues/1691
 process.chdir(common.fixturesDir);
 childProcess.exec(
-  nodeBinary + ' ' + '--expose_debug_as=v8debug ' + '--require ' +
+  nodeBinary + ' ' + '--expose_natives_as=v8natives ' + '--require ' +
     fixture('cluster-preload.js') + ' ' + 'cluster-preload-test.js',
   function(err, stdout, stderr) {
     assert.ifError(err);
