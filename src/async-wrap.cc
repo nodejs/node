@@ -435,9 +435,8 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
     return Local<Value>();
   }
 
-  // TODO(trevnorris): It will be confusing for developers if there's a caught
-  // uncaught exception. Which leads to none of their after() callbacks being
-  // called.
+  // If the callback failed then the after() hooks will be called at the end
+  // of _fatalException().
   if (async_hooks->fields()[AsyncHooks::kAfter] > 0) {
     if (uid.IsEmpty())
       uid = Number::New(env()->isolate(), get_id());
