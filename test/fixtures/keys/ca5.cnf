@@ -1,0 +1,35 @@
+[ ca ]
+default_ca      = CA_default
+
+[ CA_default ]
+serial = ca5-serial
+crl = ca5-crl.pem
+database = ca5-database.txt
+name_opt = CA_default
+cert_opt = CA_default
+default_crl_days = 999
+default_md = sha512
+x509_extensions        = v3_ca
+
+
+[ req ]
+days                   = 9999
+distinguished_name     = req_distinguished_name
+attributes             = req_attributes
+prompt                 = no
+output_password        = password
+
+[ req_distinguished_name ]
+C                      = US
+ST                     = CA
+L                      = SF
+O                      = The Node.js Foundation
+OU                     = Node.js
+CN                     = ca5
+emailAddress           = ca5@example.org
+
+[ req_attributes ]
+challengePassword              = A challenge password
+
+[ v3_ca ]
+basicConstraints = CA:TRUE
