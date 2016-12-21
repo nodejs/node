@@ -199,7 +199,9 @@ void AsyncWrap::DestroyIdsCb(uv_idle_t* handle) {
 
   TryCatch try_catch(env->isolate());
 
-  for (auto current_id : *env->destroy_ids_list()) {
+  std::vector<int64_t> destroy_ids_list;
+  destroy_ids_list.swap(*env->destroy_ids_list());
+  for (auto current_id : destroy_ids_list) {
     // Want each callback to be cleaned up after itself, instead of cleaning
     // them all up after the while() loop completes.
     HandleScope scope(env->isolate());
@@ -212,6 +214,8 @@ void AsyncWrap::DestroyIdsCb(uv_idle_t* handle) {
       FatalException(env->isolate(), try_catch);
     }
   }
+
+  env->destroy_ids_list()->clear();
 }
 
 
