@@ -201,14 +201,18 @@ inline Environment::Environment(IsolateData* isolate_data,
 inline Environment::~Environment() {
   v8::HandleScope handle_scope(isolate());
 
-  while (HandleCleanup* hc = handle_cleanup_queue_.PopFront()) {
-    handle_cleanup_waiting_++;
-    hc->cb_(this, hc->handle_, hc->arg_);
-    delete hc;
-  }
-
-  while (handle_cleanup_waiting_ != 0)
+#define HANDLE_CLEANUP(queue) \
+  while (HandleCleanup* hc = queue.PopFront()) {   \
+    handle_cleanup_waiting_++;                     \
+    hc->cb_(this, hc->handle_, hc->arg_);          \
+    delete hc;                                     \
+  }                                                \
+  while (handle_cleanup_waiting_ != 0)             \
     uv_run(event_loop(), UV_RUN_ONCE);
+
+  HANDLE_CLEANUP(handle_cleanup_queue_);
+  HANDLE_CLEANUP(handle_cleanup_queue_delayed_);
+#undef HANDLE_CLEANUP
 
   context()->SetAlignedPointerInEmbedderData(kContextEmbedderDataIndex,
                                              nullptr);
@@ -262,6 +266,12 @@ inline void Environment::RegisterHandleCleanup(uv_handle_t* handle,
                                                HandleCleanupCb cb,
                                                void *arg) {
   handle_cleanup_queue_.PushBack(new HandleCleanup(handle, cb, arg));
+}
+
+inline void Environment::RegisterHandleCleanupDelayed(uv_handle_t* handle,
+                                                      HandleCleanupCb cb,
+                                                      void *arg) {
+  handle_cleanup_queue_delayed_.PushBack(new HandleCleanup(handle, cb, arg));
 }
 
 inline void Environment::FinishHandleCleanup(uv_handle_t* handle) {

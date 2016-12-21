@@ -441,6 +441,11 @@ class Environment {
   inline void RegisterHandleCleanup(uv_handle_t* handle,
                                     HandleCleanupCb cb,
                                     void *arg);
+  // Register clean-up cb to be called after all regular clean-up
+  // callbacks have been called.
+  inline void RegisterHandleCleanupDelayed(uv_handle_t* handle,
+                                           HandleCleanupCb cb,
+                                           void *arg);
   inline void FinishHandleCleanup(uv_handle_t* handle);
 
   inline AsyncHooks* async_hooks();
@@ -579,6 +584,8 @@ class Environment {
   ReqWrapQueue req_wrap_queue_;
   ListHead<HandleCleanup,
            &HandleCleanup::handle_cleanup_queue_> handle_cleanup_queue_;
+  ListHead<HandleCleanup,
+           &HandleCleanup::handle_cleanup_queue_> handle_cleanup_queue_delayed_;
   int handle_cleanup_waiting_;
 
   double* heap_statistics_buffer_ = nullptr;

@@ -76,6 +76,12 @@ void Environment::Start(int argc,
       reinterpret_cast<uv_handle_t*>(&idle_check_handle_),
       close_and_finish,
       nullptr);
+  // The destroy ids idle handle has to be closed after all other
+  // handles have been closed for the destroy hook callback to be called.
+  RegisterHandleCleanupDelayed(
+      reinterpret_cast<uv_handle_t*>(destroy_ids_idle_handle()),
+      close_and_finish,
+      nullptr);
 
   if (start_profiler_idle_notifier) {
     StartProfilerIdleNotifier();
