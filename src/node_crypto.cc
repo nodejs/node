@@ -709,10 +709,14 @@ static X509_STORE* NewRootCertStore() {
   }
 
   X509_STORE* store = X509_STORE_new();
+#if defined(NODE_OPENSSL_CERT_STORE)
+  X509_STORE_set_default_paths(store);
+#else
   for (auto& cert : *root_certs_vector) {
     X509_up_ref(cert);
     X509_STORE_add_cert(store, cert);
   }
+#endif
 
   return store;
 }
