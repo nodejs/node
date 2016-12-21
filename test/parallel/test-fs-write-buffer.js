@@ -106,3 +106,23 @@ common.refreshTmpDir();
     fs.write(fd, expected, undefined, undefined, cb);
   }));
 }
+
+// fs.write with a Uint8Array, without the offset and length parameters:
+{
+  const filename = path.join(common.tmpDir, 'write6.txt');
+  fs.open(filename, 'w', 0o644, common.mustCall(function(err, fd) {
+    assert.ifError(err);
+
+    const cb = common.mustCall(function(err, written) {
+      assert.ifError(err);
+
+      assert.strictEqual(expected.length, written);
+      fs.closeSync(fd);
+
+      const found = fs.readFileSync(filename, 'utf8');
+      assert.deepStrictEqual(expected.toString(), found);
+    });
+
+    fs.write(fd, Uint8Array.from(expected), cb);
+  }));
+}
