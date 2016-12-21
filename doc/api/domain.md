@@ -257,7 +257,7 @@ serverDomain.run(() => {
 
 ## domain.create()
 
-* return: {Domain}
+* Returns: {Domain}
 
 Returns a new Domain object.
 
@@ -337,7 +337,7 @@ specified emitter.
 ### domain.bind(callback)
 
 * `callback` {Function} The callback function
-* return: {Function} The bound function
+* Returns: {Function} The bound function
 
 The returned function will be a wrapper around the supplied callback
 function.  When the returned function is called, any errors that are
@@ -365,7 +365,7 @@ d.on('error', (er) => {
 ### domain.intercept(callback)
 
 * `callback` {Function} The callback function
-* return: {Function} The intercepted function
+* Returns: {Function} The intercepted function
 
 This method is almost identical to [`domain.bind(callback)`][].  However, in
 addition to catching thrown errors, it will also intercept [`Error`][]
