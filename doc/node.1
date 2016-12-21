@@ -173,6 +173,22 @@ used to enable FIPS-compliant crypto if Node.js is built with
 \fB./configure \-\-openssl\-fips\fR.
 
 .TP
+.BR \-\-use\-openssl\-ca,\-\-use\-bundled\-ca
+Use OpenSSL's default CA store or use bundled Mozilla CA store as supplied by
+current NodeJS version. The default store is selectable at build-time.
+
+Using OpenSSL store allows for external modifications of the store. For most
+Linux and BSD distributions, this store is maintained by the distribution
+maintainers and system administrators. OpenSSL CA store location is dependent on
+configuration of the OpenSSL library but this can be altered at runtime using
+environmental variables.
+
+The bundled CA store, as supplied by NodeJS, is a snapshot of Mozilla CA store
+that is fixed at release time. It is identical on all supported platforms.
+
+See \fBSSL_CERT_DIR\fR and \fBSSL_CERT_FILE\fR.
+
+.TP
 .BR \-\-icu\-data\-dir =\fIfile\fR
 Specify ICU data load path. (overrides \fBNODE_ICU_DATA\fR)
 
@@ -216,6 +232,7 @@ Setting this will void any guarantee that stdio will not be interleaved or
 dropped at program exit. \fBAvoid use.\fR
 
 .TP
+
 .BR OPENSSL_CONF = \fIfile\fR
 Load an OpenSSL configuration file on startup. Among other uses, this can be
 used to enable FIPS-compliant crypto if Node.js is built with
@@ -225,6 +242,14 @@ If the
 \fB\-\-openssl\-config\fR
 command line option is used, the environment variable is ignored.
 
+.BR SSL_CERT_DIR = \fIdir\fR
+If \fB\-\-use\-openssl\-ca\fR is enabled, this overrides and sets OpenSSL's directory
+containing trusted certificates.
+
+.TP
+.BR SSL_CERT_FILE = \fIfile\fR
+If \fB\-\-use\-openssl\-ca\fR is enabled, this overrides and sets OpenSSL's
+file containing trusted certificates.
 
 .SH BUGS
 Bugs are tracked in GitHub Issues:

@@ -174,6 +174,14 @@ static std::string icu_data_dir;  // NOLINT(runtime/string)
 bool no_deprecation = false;
 
 #if HAVE_OPENSSL
+// use OpenSSL's cert store instead of bundled certs
+bool ssl_openssl_cert_store =
+#if defined(NODE_OPENSSL_CERT_STORE)
+        true;
+#else
+        false;
+#endif
+
 # if NODE_FIPS_MODE
 // used by crypto module
 bool enable_fips_crypto = false;
@@ -3685,7 +3693,18 @@ static void PrintHelp() {
          "  --v8-options          print v8 command line options\n"
          "  --v8-pool-size=num    set v8's thread pool size\n"
 #if HAVE_OPENSSL
-         "  --tls-cipher-list=val use an alternative default TLS cipher list\n"
+         "  --tls-cipher-list=val    use an alternative default TLS cipher "
+         "list\n"
+         "  --use-bundled-ca         use bundled CA store"
+#if !defined(NODE_OPENSSL_CERT_STORE)
+         " (default)"
+#endif
+         "\n"
+         "  --use-openssl-ca         use OpenSSL's default CA store"
+#if defined(NODE_OPENSSL_CERT_STORE)
+         " (default)"
+#endif
+         "\n"
 #if NODE_FIPS_MODE
          "  --enable-fips         enable FIPS crypto at startup\n"
          "  --force-fips          force FIPS crypto (cannot be disabled)\n"
@@ -3854,6 +3873,10 @@ static void ParseArgs(int* argc,
 #if HAVE_OPENSSL
     } else if (strncmp(arg, "--tls-cipher-list=", 18) == 0) {
       default_cipher_list = arg + 18;
+    } else if (strncmp(arg, "--use-openssl-ca", 16) == 0) {
+      ssl_openssl_cert_store = true;
+    } else if (strncmp(arg, "--use-bundled-ca", 16) == 0) {
+      ssl_openssl_cert_store = false;
 #if NODE_FIPS_MODE
     } else if (strcmp(arg, "--enable-fips") == 0) {
       enable_fips_crypto = true;
