@@ -16,7 +16,7 @@ setTimeout(function() {
 
 let resCount = 0;
 const p = new debug.Protocol();
-p.onResponse = function(res) {
+p.onResponse = function() {
   resCount++;
 };
 
@@ -89,7 +89,7 @@ function addTest(cb) {
 addTest(function(client, done) {
   console.error('requesting version');
   client.reqVersion(function(err, v) {
-    assert.ok(!err);
+    assert.ifError(err);
     console.log('version: %s', v);
     assert.strictEqual(process.versions.v8, v);
     done();
@@ -99,13 +99,13 @@ addTest(function(client, done) {
 addTest(function(client, done) {
   console.error('requesting scripts');
   client.reqScripts(function(err) {
-    assert.ok(!err);
+    assert.ifError(err);
     console.error('got %d scripts', Object.keys(client.scripts).length);
 
     let foundMainScript = false;
     for (const k in client.scripts) {
       const script = client.scripts[k];
-      if (script && script.name === 'node.js') {
+      if (script && script.name === 'bootstrap_node.js') {
         foundMainScript = true;
         break;
       }
@@ -119,7 +119,7 @@ addTest(function(client, done) {
   console.error('eval 2+2');
   client.reqEval('2+2', function(err, res) {
     console.error(res);
-    assert.ok(!err);
+    assert.ifError(err);
     assert.strictEqual(res.text, '4');
     assert.strictEqual(res.value, 4);
     done();
@@ -137,7 +137,7 @@ function doTest(cb, done) {
   const args = ['--debug=' + debugPort, '-e', script];
   nodeProcess = spawn(process.execPath, args);
 
-  nodeProcess.stdout.once('data', function(c) {
+  nodeProcess.stdout.once('data', function() {
     console.log('>>> new node process: %d', nodeProcess.pid);
     let failed = true;
     try {
@@ -158,7 +158,7 @@ function doTest(cb, done) {
     console.error('got stderr data %j', data);
     nodeProcess.stderr.resume();
     b += data;
-    if (didTryConnect === false && b.match(/Debugger listening on port/)) {
+    if (didTryConnect === false && b.match(/Debugger listening on /)) {
       didTryConnect = true;
 
       // The timeout is here to expose a race in the bootstrap process.
@@ -168,10 +168,10 @@ function doTest(cb, done) {
 
       function tryConnect() {
         // Wait for some data before trying to connect
-        var c = new debug.Client();
+        const c = new debug.Client();
         console.error('>>> connecting...');
         c.connect(debug.port);
-        c.on('break', function(brk) {
+        c.on('break', function() {
           c.reqContinue(function() {});
         });
         c.on('ready', function() {
@@ -199,7 +199,7 @@ function doTest(cb, done) {
 
 
 function run() {
-  var t = tests[0];
+  const t = tests[0];
   if (!t) return;
 
   doTest(t, function() {
