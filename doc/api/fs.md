@@ -1281,7 +1281,7 @@ added: v0.0.2
 -->
 
 * `fd` {Integer}
-* `buffer` {String | Buffer}
+* `buffer` {String | Buffer | Uint8Array}
 * `offset` {Integer}
 * `length` {Integer}
 * `position` {Integer}
@@ -1427,7 +1427,7 @@ added: v0.1.21
 -->
 
 * `fd` {Integer}
-* `buffer` {String | Buffer}
+* `buffer` {String | Buffer | Uint8Array}
 * `offset` {Integer}
 * `length` {Integer}
 * `position` {Integer}
@@ -1824,7 +1824,7 @@ added: v0.0.2
 -->
 
 * `fd` {Integer}
-* `buffer` {Buffer}
+* `buffer` {Buffer | Uint8Array}
 * `offset` {Integer}
 * `length` {Integer}
 * `position` {Integer}
@@ -1891,7 +1891,7 @@ added: v0.1.29
 -->
 
 * `file` {String | Buffer | Integer} filename or file descriptor
-* `data` {String | Buffer}
+* `data` {String | Buffer | Uint8Array}
 * `options` {Object | String}
   * `encoding` {String | Null} default = `'utf8'`
   * `mode` {Integer} default = `0o666`
@@ -1934,7 +1934,7 @@ added: v0.1.29
 -->
 
 * `file` {String | Buffer | Integer} filename or file descriptor
-* `data` {String | Buffer}
+* `data` {String | Buffer | Uint8Array}
 * `options` {Object | String}
   * `encoding` {String | Null} default = `'utf8'`
   * `mode` {Integer} default = `0o666`
@@ -1948,7 +1948,7 @@ added: v0.1.21
 -->
 
 * `fd` {Integer}
-* `buffer` {Buffer}
+* `buffer` {Buffer | Uint8Array}
 * `offset` {Integer}
 * `length` {Integer}
 * `position` {Integer}

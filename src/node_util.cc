@@ -29,7 +29,8 @@ using v8::Value;
   V(isSet, IsSet)                                                             \
   V(isSetIterator, IsSetIterator)                                             \
   V(isSharedArrayBuffer, IsSharedArrayBuffer)                                 \
-  V(isTypedArray, IsTypedArray)
+  V(isTypedArray, IsTypedArray)                                               \
+  V(isUint8Array, IsUint8Array)
 
 
 #define V(_, ucname) \
