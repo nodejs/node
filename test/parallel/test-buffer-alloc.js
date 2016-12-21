@@ -990,7 +990,7 @@ assert.throws(() => Buffer.from('', 'buffer'), TypeError);
 {
   let a = [0];
   for (let i = 0; i < 7; ++i) a = a.concat(a);
-  a = a.map((_, i) => {return i;});
+  a = a.map((_, i) => { return i; });
   const b = Buffer.from(a);
   const c = Buffer.from(b);
   assert.strictEqual(b.length, a.length);
