@@ -2,18 +2,14 @@
 
 require('../common');
 const assert = require('assert');
-const URL = require('url').URL;
-
-const m = new URL('http://example.org');
-let params = m.searchParams;
-
-// Until we export URLSearchParams
-const URLSearchParams = params.constructor;
+const url = require('url');
+const URL = url.URL;
+const URLSearchParams = url.URLSearchParams;
 
 let a, b, i;
 
 // ForEach Check
-params = new URLSearchParams('a=1&b=2&c=3');
+const params = new URLSearchParams('a=1&b=2&c=3');
 const keys = [];
 const values = [];
 params.forEach(function(value, key) {
