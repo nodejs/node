@@ -127,7 +127,7 @@ const char* const root_certs[] = {
 std::string extra_root_certs_file;  // NOLINT(runtime/string)
 
 X509_STORE* root_cert_store;
-std::vector<X509*>* root_certs_vector;
+std::vector<X509*> root_certs_vector;
 
 // Just to generate static methods
 template class SSLWrap<TLSWrap>;
@@ -694,9 +694,7 @@ static int X509_up_ref(X509* cert) {
 
 
 static X509_STORE* NewRootCertStore() {
-  if (!root_certs_vector) {
-    root_certs_vector = new std::vector<X509*>;
-
+  if (root_certs_vector.empty()) {
     for (size_t i = 0; i < arraysize(root_certs); i++) {
       BIO* bp = NodeBIO::NewFixed(root_certs[i], strlen(root_certs[i]));
       X509 *x509 = PEM_read_bio_X509(bp, nullptr, CryptoPemCallback, nullptr);
@@ -705,12 +703,12 @@ static X509_STORE* NewRootCertStore() {
       // Parse errors from the built-in roots are fatal.
       CHECK_NE(x509, nullptr);
 
-      root_certs_vector->push_back(x509);
+      root_certs_vector.push_back(x509);
     }
   }
 
   X509_STORE* store = X509_STORE_new();
-  for (auto& cert : *root_certs_vector) {
+  for (X509 *cert : root_certs_vector) {
     X509_up_ref(cert);
     X509_STORE_add_cert(store, cert);
   }
