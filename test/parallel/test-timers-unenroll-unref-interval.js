@@ -1,6 +1,7 @@
 'use strict';
 
 const common = require('../common');
+const assert = require('assert');
 const timers = require('timers');
 
 {
@@ -30,6 +31,19 @@ const timers = require('timers');
 {
   const interval = setInterval(common.mustCall(() => {
     interval._onTimeout = null;
+  }), 1).unref();
+}
+
+{
+  const interval = setInterval(common.mustCall(() => {
+    // This case is only necessary / valid prior to
+    // c8c2544cd9c339cdde881fc9a7f0851971b94d72
+    // which is not on the v4.x branch.
+    assert.strictEqual(typeof interval._repeat, 'function');
+
+    process.nextTick(common.mustCall(() => {
+      interval._repeat = null;
+    }));
   }), 1).unref();
 }
 
