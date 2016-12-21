@@ -243,6 +243,24 @@ Load an OpenSSL configuration file on startup. Among other uses, this can be
 used to enable FIPS-compliant crypto if Node.js is built with
 `./configure --openssl-fips`.
 
+### `--use-openssl-ca`, `--use-bundled-ca`
+<!-- YAML
+added: REPLACEME
+-->
+
+Use OpenSSL's default CA store or use bundled Mozilla CA store as supplied by
+current NodeJS version. The default store is selectable at build-time.
+
+Using OpenSSL store allows for external modifications of the store. For most
+Linux and BSD distributions, this store is maintained by the distribution
+maintainers and system administrators. OpenSSL CA store location is dependent on
+configuration of the OpenSSL library but this can be altered at runtime using
+environmental variables.
+
+The bundled CA store, as supplied by NodeJS, is a snapshot of Mozilla CA store
+that is fixed at release time. It is identical on all supported platforms.
+
+See `SSL_CERT_DIR` and `SSL_CERT_FILE`.
 
 ### `--icu-data-dir=file`
 <!-- YAML
@@ -339,6 +357,24 @@ used to enable FIPS-compliant crypto if Node.js is built with `./configure
 
 If the [`--openssl-config`][] command line option is used, the environment
 variable is ignored.
+
+### `SSL_CERT_DIR=dir`
+
+If `--use-openssl-ca` is enabled, this overrides and sets OpenSSL's directory
+containing trusted certificates.
+
+Note: Be aware that unless the child environment is explicitly set, this
+evironment variable will be inherited by any child processes, and if they use
+OpenSSL, it may cause them to trust the same CAs as node.
+
+### `SSL_CERT_FILE=file`
+
+If `--use-openssl-ca` is enabled, this overrides and sets OpenSSL's file
+containing trusted certificates.
+
+Note: Be aware that unless the child environment is explicitly set, this
+evironment variable will be inherited by any child processes, and if they use
+OpenSSL, it may cause them to trust the same CAs as node.
 
 [emit_warning]: process.html#process_process_emitwarning_warning_name_ctor
 [Buffer]: buffer.html#buffer_buffer
