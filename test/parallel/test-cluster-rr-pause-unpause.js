@@ -40,7 +40,6 @@ function runTest(worker1, worker2) {
   getSeveralTimes((result) => {
     assert(result.includes(1));
     assert(result.includes(2));
-    const oldState = worker1.state;
     cluster.pause(worker1);
     getSeveralTimes((result) => {
       assert(!result.includes(1));
