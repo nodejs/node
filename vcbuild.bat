@@ -335,6 +335,7 @@ goto run-tests
 
 :run-tests
 if not defined test_node_inspect goto node-tests
+set USE_EMBEDDED_NODE_INSPECT=1
 %config%\node tools\test-npm-package.js --install deps\node-inspect test
 goto node-tests
 

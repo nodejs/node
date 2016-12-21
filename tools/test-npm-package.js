@@ -107,8 +107,8 @@ function parseArgs(args) {
   let rebuild = false;
   let install = false;
   let logfile = null;
-  let testArgs = [];
-  args.forEach(arg => {
+  const testArgs = [];
+  args.forEach((arg) => {
     if (srcDir) {
       testArgs.push(arg);
       return;

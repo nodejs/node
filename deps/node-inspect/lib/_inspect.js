@@ -24,17 +24,18 @@ const { spawn } = require('child_process');
 const { EventEmitter } = require('events');
 const util = require('util');
 
-const [ InspectClient, createRepl ] = (typeof __dirname !== 'undefined') ?
-    // This copy of node-inspect is on-disk, relative paths make sense.
-    [
-      require('./internal/inspect_client'),
-      require('./internal/inspect_repl')
-    ] :
-    // This copy of node-inspect is built into the node executable.
-    [
-      require('node-inspect/lib/internal/inspect_client'),
-      require('node-inspect/lib/internal/inspect_repl')
-    ];
+const [ InspectClient, createRepl ] =
+  (typeof __dirname !== 'undefined') ?
+  // This copy of node-inspect is on-disk, relative paths make sense.
+  [
+    require('./internal/inspect_client'),
+    require('./internal/inspect_repl')
+  ] :
+  // This copy of node-inspect is built into the node executable.
+  [
+    require('node-inspect/lib/internal/inspect_client'),
+    require('node-inspect/lib/internal/inspect_repl')
+  ];
 
 const debuglog = util.debuglog('inspect');
 

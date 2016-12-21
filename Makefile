@@ -242,7 +242,8 @@ test-inspector: all
 	$(PYTHON) tools/test.py inspector
 
 test-node-inspect: $(NODE_EXE)
-	$(NODE) tools/test-npm-package --install deps/node-inspect test
+	USE_EMBEDDED_NODE_INSPECT=1 $(NODE) tools/test-npm-package \
+		--install deps/node-inspect test
 
 test-tick-processor: all
 	$(PYTHON) tools/test.py tick-processor

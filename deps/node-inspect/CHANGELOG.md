@@ -1,3 +1,13 @@
+### 1.10.4
+
+* [`1c31bf7`](https://github.com/buggerjs/node-inspect/commit/1c31bf7d1b3ea1b424ae0662526596670cb506c9) **chore:** Support embedded mode
+
+
+### 1.10.3
+
+* [`7b20379`](https://github.com/buggerjs/node-inspect/commit/7b20379069af692a9038a31a4465f72db9eb532f) **chore:** Mark .eslintrc as root
+
+
 ### 1.10.2
 
 * Run tests on windows - **[@jkrems](https://github.com/jkrems)** [#16](https://github.com/buggerjs/node-inspect/pull/16)

@@ -1,7 +1,10 @@
 'use strict';
 const spawn = require('child_process').spawn;
 
-const CLI = require.resolve('../../cli.js');
+const CLI =
+  process.env.USE_EMBEDDED_NODE_INSPECT === '1' ?
+  'inspect' :
+  require.resolve('../../cli.js');
 
 function startCLI(args) {
   const child = spawn(process.execPath, [CLI, ...args]);
