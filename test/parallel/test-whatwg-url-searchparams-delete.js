@@ -2,13 +2,11 @@
 
 require('../common');
 const assert = require('assert');
-const URL = require('url').URL;
+const url = require('url');
+const URL = url.URL;
+const URLSearchParams = url.URLSearchParams;
 
-const m = new URL('http://example.org');
-let params = m.searchParams;
-
-// Until we export URLSearchParams
-const URLSearchParams = params.constructor;
+let params;
 
 // Delete basics
 params = new URLSearchParams('a=b&c=d');
