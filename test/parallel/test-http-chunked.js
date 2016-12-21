@@ -25,7 +25,7 @@ server.listen(0, function() {
     port: this.address().port
   }, function(x) {
     x.setEncoding('utf8');
-    x.on('data', function(c) {data += c;});
+    x.on('data', function(c) { data += c; });
     x.on('error', function(e) {
       throw e;
     });
@@ -37,7 +37,7 @@ server.listen(0, function() {
       server.close();
     });
   });
-  get.on('error', function(e) {throw e;});
+  get.on('error', function(e) { throw e; });
   get.end();
 
 });
