@@ -880,6 +880,8 @@ class Parser : public ParserBase<ParserTraits> {
     PatternContext SetAssignmentContextIfNeeded(Expression* node);
     PatternContext SetInitializerContextIfNeeded(Expression* node);
 
+    void RewriteParameterScopes(Expression* expr);
+
     Variable* CreateTempVar(Expression* value = nullptr);
 
     AstNodeFactory* factory() const { return parser_->factory(); }
