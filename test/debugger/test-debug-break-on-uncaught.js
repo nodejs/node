@@ -5,7 +5,7 @@ const assert = require('assert');
 const spawn = require('child_process').spawn;
 const debug = require('_debugger');
 
-var scenarios = [];
+const scenarios = [];
 
 addScenario('global.js', 2);
 addScenario('timeout.js', 2);
@@ -21,34 +21,33 @@ function addScenario(scriptName, throwsOnLine) {
 }
 
 function run() {
-  var next = scenarios.shift();
+  const next = scenarios.shift();
   if (next) next();
 }
 
 function runScenario(scriptName, throwsOnLine, next) {
-  console.log('**[ %s ]**', scriptName);
-  var asserted = false;
-  var port = common.PORT;
+  let asserted = false;
+  const port = common.PORT;
 
-  var testScript = path.join(
+  const testScript = path.join(
     common.fixturesDir,
     'uncaught-exceptions',
     scriptName
   );
 
-  var child = spawn(process.execPath, [ '--debug-brk=' + port, testScript ]);
+  const child = spawn(process.execPath, [ '--debug-brk=' + port, testScript ]);
   child.on('close', function() {
     assert(asserted, 'debugger did not pause on exception');
     if (next) next();
   });
 
-  var exceptions = [];
+  const exceptions = [];
 
-  var stderr = '';
+  let stderr = '';
 
   function stderrListener(data) {
     stderr += data;
-    if (stderr.includes('Debugger listening on port')) {
+    if (stderr.includes('Debugger listening on ')) {
       setTimeout(setupClient.bind(null, runTest), 200);
       child.stderr.removeListener('data', stderrListener);
     }
@@ -58,7 +57,7 @@ function runScenario(scriptName, throwsOnLine, next) {
   child.stderr.on('data', stderrListener);
 
   function setupClient(callback) {
-    var client = new debug.Client();
+    const client = new debug.Client();
 
     client.once('ready', callback.bind(null, client));
 
@@ -83,14 +82,14 @@ function runScenario(scriptName, throwsOnLine, next) {
           enabled: true
         }
       },
-      function(error, result) {
+      function(error) {
         assert.ifError(error);
 
         client.on('exception', function(event) {
           exceptions.push(event.body);
         });
 
-        client.reqContinue(function(error, result) {
+        client.reqContinue(function(error) {
           assert.ifError(error);
           setTimeout(assertHasPaused.bind(null, client), 100);
         });
