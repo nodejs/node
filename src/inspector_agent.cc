@@ -135,7 +135,6 @@ class InspectorAgentDelegate: public node::inspector::SocketServerDelegate {
 class AgentImpl {
  public:
   explicit AgentImpl(node::Environment* env);
-  ~AgentImpl();
 
   // Start the inspector agent thread
   bool Start(v8::Platform* platform, const char* path,
@@ -194,7 +193,6 @@ class AgentImpl {
   State state_;
   node::Environment* parent_env_;
 
-  uv_async_t* data_written_;
   uv_async_t io_thread_req_;
   V8NodeInspector* inspector_;
   v8::Platform* platform_;
@@ -335,7 +333,6 @@ AgentImpl::AgentImpl(Environment* env) : delegate_(nullptr),
                                          shutting_down_(false),
                                          state_(State::kNew),
                                          parent_env_(env),
-                                         data_written_(new uv_async_t()),
                                          inspector_(nullptr),
                                          platform_(nullptr),
                                          dispatching_messages_(false),
@@ -343,16 +340,6 @@ AgentImpl::AgentImpl(Environment* env) : delegate_(nullptr),
                                          server_(nullptr) {
   CHECK_EQ(0, uv_sem_init(&start_sem_, 0));
   memset(&io_thread_req_, 0, sizeof(io_thread_req_));
-  CHECK_EQ(0, uv_async_init(env->event_loop(), data_written_, nullptr));
-  uv_unref(reinterpret_cast<uv_handle_t*>(data_written_));
-}
-
-AgentImpl::~AgentImpl() {
-  auto close_cb = [](uv_handle_t* handle) {
-    delete reinterpret_cast<uv_async_t*>(handle);
-  };
-  uv_close(reinterpret_cast<uv_handle_t*>(data_written_), close_cb);
-  data_written_ = nullptr;
 }
 
 void InspectorConsoleCall(const v8::FunctionCallbackInfo<v8::Value>& info) {
@@ -622,7 +609,6 @@ void AgentImpl::PostIncomingMessage(InspectorAction action, int session_id,
     platform_->CallOnForegroundThread(isolate,
                                       new DispatchOnInspectorBackendTask(this));
     isolate->RequestInterrupt(InterruptCallback, this);
-    uv_async_send(data_written_);
   }
   NotifyMessageReceived();
 }
@@ -676,7 +662,6 @@ void AgentImpl::DispatchMessages() {
       }
     }
   } while (!tasks.empty());
-  uv_async_send(data_written_);
   dispatching_messages_ = false;
 }
 
