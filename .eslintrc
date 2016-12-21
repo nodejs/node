@@ -76,6 +76,7 @@ rules:
 
   # Stylistic Issues
   # http://eslint.org/docs/rules/#stylistic-issues
+  block-spacing: 2
   brace-style: [2, 1tbs, {allowSingleLine: true}]
   comma-spacing: 2
   comma-style: 2
