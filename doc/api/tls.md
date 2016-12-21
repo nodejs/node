@@ -906,10 +906,21 @@ added: v0.11.13
     the same order as their private keys in `key`. If the intermediate
     certificates are not provided, the peer will not be able to validate the
     certificate, and the handshake will fail.
-  * `ca`{string|string[]|Buffer|Buffer[]} Optional CA certificates to trust.
-    Default is the well-known CAs from Mozilla. When connecting to peers that
-    use certificates issued privately, or self-signed, the private root CA or
-    self-signed certificate must be provided to verify the peer.
+  * `ca` {string|string[]|Buffer|Buffer[]} Optionally override the trusted CA
+    certificates. Default is to trust the well-known CAs curated by Mozilla.
+    Mozilla's CAs are completely replaced when CAs are explicitly specified
+    using this option. The value can be a string or Buffer, or an Array of
+    strings and/or Buffers. Any string or Buffer can contain multiple PEM CAs
+    concatenated together. The peer's certificate must be chainable to a CA
+    trusted by the server for the connection to be authenticated.  When using
+    certificates that are not chainable to a well-known CA, the certificate's CA
+    must be explicitly specified as a trusted or the connection will fail to
+    authenticate.
+    If the peer uses a certificate that doesn't match or chain to one of the
+    default CAs, use the `ca` option to provide a CA certificate that the peer's
+    certificate can match or chain to.
+    For self-signed certificates, the certificate is its own CA, and must be
+    provided.
   * `crl` {string|string[]|Buffer|Buffer[]} Optional PEM formatted
     CRLs (Certificate Revocation Lists).
   * `ciphers` {string} Optional cipher suite specification, replacing the
