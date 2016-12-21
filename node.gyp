@@ -14,6 +14,7 @@
     'node_shared_openssl%': 'false',
     'node_use_mdb%': 'false',
     'node_v8_options%': '',
+    'node_module_version%': '',
     'library_files': [
       'src/node.js',
       'lib/_debugger.js',
