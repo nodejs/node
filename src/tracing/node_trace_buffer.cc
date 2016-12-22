@@ -4,10 +4,9 @@ namespace node {
 namespace tracing {
 
 InternalTraceBuffer::InternalTraceBuffer(size_t max_chunks, uint32_t id,
-    NodeTraceWriter* trace_writer, NodeTraceBuffer* external_buffer)
+                                         NodeTraceWriter* trace_writer)
     : flushing_(false), max_chunks_(max_chunks),
-      trace_writer_(trace_writer), external_buffer_(external_buffer),
-      id_(id) {
+      trace_writer_(trace_writer), id_(id) {
   chunks_.resize(max_chunks);
 }
 
@@ -90,8 +89,8 @@ void InternalTraceBuffer::ExtractHandle(
 NodeTraceBuffer::NodeTraceBuffer(size_t max_chunks,
     NodeTraceWriter* trace_writer, uv_loop_t* tracing_loop)
     : tracing_loop_(tracing_loop), trace_writer_(trace_writer),
-      buffer1_(max_chunks, 0, trace_writer, this),
-      buffer2_(max_chunks, 1, trace_writer, this) {
+      buffer1_(max_chunks, 0, trace_writer),
+      buffer2_(max_chunks, 1, trace_writer) {
   current_buf_.store(&buffer1_);
 
   flush_signal_.data = this;
