@@ -1273,8 +1273,8 @@ If the `decodeStrings` property is set in the constructor options, then
 indicate the character encoding of the string. This is to support
 implementations that have an optimized handling for certain string
 data encodings. If the `decodeStrings` property is explicitly set to `false`,
-the `encoding` argument can be safely ignored, and `chunk` will always be a
-`Buffer`.
+the `encoding` argument can be safely ignored, and `chunk` will remain the same
+object that is passed to `.write()`.
 
 The `writable._write()` method is prefixed with an underscore because it is
 internal to the class that defines it, and should never be called directly by
