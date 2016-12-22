@@ -287,7 +287,7 @@ always pass when each individual commit lands on the master branch.
 ### Getting Approvals for Your Pull Request
 
 A Pull Request is approved either by saying LGTM, which stands for
-"Looks Good To Me", or by using GitHub's Approve button. 
+"Looks Good To Me", or by using GitHub's Approve button.
 GitHub's Pull Request review feature can be used during the process.
 For more information, check out
 [the video tutorial](https://www.youtube.com/watch?v=HW0RPaJqm4g)
@@ -311,7 +311,7 @@ If not, you can ask a Collaborator to request a CI run.
 
 A Pull Request needs to stay open for at least 48 hours (72 hours on a
 weekend) from when it is submitted, even after it gets approved and
-passes the CI. This is to make sure that everyone has a chance to 
+passes the CI. This is to make sure that everyone has a chance to
 weigh in. If the changes are trivial, collaborators may decide it
 doesn't need to wait. A Pull Request may well take longer to be
 merged in. All these precautions are important because Node.js is
