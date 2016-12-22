@@ -5,8 +5,9 @@ namespace tracing {
 
 InternalTraceBuffer::InternalTraceBuffer(size_t max_chunks, uint32_t id,
     NodeTraceWriter* trace_writer, NodeTraceBuffer* external_buffer)
-    : id_(id), flushing_(false), max_chunks_(max_chunks),
-      trace_writer_(trace_writer), external_buffer_(external_buffer) {
+    : flushing_(false), max_chunks_(max_chunks),
+      trace_writer_(trace_writer), external_buffer_(external_buffer),
+      id_(id) {
   chunks_.resize(max_chunks);
 }
 
