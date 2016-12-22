@@ -117,6 +117,15 @@ Print a stack trace whenever synchronous I/O is detected after the first turn
 of the event loop.
 
 .TP
+.BR \-\-trace\-events\-enabled
+Enables the collection of trace event tracing information.
+
+.TP
+.BR \-\-trace\-event\-categories " " \fIcategories\fR
+A comma separated list of categories that should be traced when trace event
+tracing is enabled using \fB--trace-events-enabled\fR.
+
+.TP
 .BR \-\-zero\-fill\-buffers
 Automatically zero-fills all newly allocated Buffer and SlowBuffer instances.
 
@@ -182,12 +191,16 @@ Specify ICU data load path. (overrides \fBNODE_ICU_DATA\fR)
 \',\'\-separated list of core modules that should print debug information.
 
 .TP
-.BR NODE_PATH =\fIpath\fR[:\fI...\fR]
-\':\'\-separated list of directories prefixed to the module search path.
+.BR NODE_DISABLE_COLORS =\fI1\fR
+When set to \fI1\fR, colors will not be used in the REPL.
 
 .TP
-.BR NODE_DISABLE_COLORS=1
-When set to 1 colors will not be used in the REPL.
+.BR NODE_EXTRA_CA_CERTS =\fIfile\fR
+When set, the well known "root" CAs (like VeriSign) will be extended with the
+extra certificates in \fIfile\fR. The file should consist of one or more
+trusted certificates in PEM format. A message will be emitted (once) with
+\fBprocess.emitWarning()\fR if the file is missing or misformatted, but any
+errors are otherwise ignored.
 
 .TP
 .BR NODE_ICU_DATA =\fIfile\fR
@@ -195,15 +208,19 @@ Data path for ICU (Intl object) data. Will extend linked-in data when compiled
 with small\-icu support.
 
 .TP
+.BR NODE_PATH =\fIpath\fR[:\fI...\fR]
+\':\'\-separated list of directories prefixed to the module search path.
+
+.TP
 .BR NODE_REPL_HISTORY =\fIfile\fR
 Path to the file used to store the persistent REPL history. The default path
-is ~/.node_repl_history, which is overridden by this variable. Setting the
+is \fB~/.node_repl_history\fR, which is overridden by this variable. Setting the
 value to an empty string ("" or " ") disables persistent REPL history.
 
 .TP
-.BR NODE_TTY_UNSAFE_ASYNC=1
-When set to 1, writes to stdout and stderr will be non-blocking and asynchronous
-when outputting to a TTY on platforms which support async stdio.
+.BR NODE_TTY_UNSAFE_ASYNC =\fI1\fR
+When set to \fI1\fR, writes to stdout and stderr will be non-blocking and
+asynchronous when outputting to a TTY on platforms which support async stdio.
 Setting this will void any guarantee that stdio will not be interleaved or
 dropped at program exit. \fBAvoid use.\fR
 
