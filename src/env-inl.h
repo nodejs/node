@@ -201,18 +201,25 @@ inline Environment::Environment(IsolateData* isolate_data,
 inline Environment::~Environment() {
   v8::HandleScope handle_scope(isolate());
 
-#define HANDLE_CLEANUP(queue) \
-  while (HandleCleanup* hc = queue.PopFront()) {   \
-    handle_cleanup_waiting_++;                     \
-    hc->cb_(this, hc->handle_, hc->arg_);          \
-    delete hc;                                     \
-  }                                                \
-  while (handle_cleanup_waiting_ != 0)             \
+  while (HandleCleanup* hc = handle_cleanup_queue_.PopFront()) {
+    handle_cleanup_waiting_++;
+    hc->cb_(this, hc->handle_, hc->arg_);
+    delete hc;
+  }
+
+  while (handle_cleanup_waiting_ != 0)
     uv_run(event_loop(), UV_RUN_ONCE);
 
-  HANDLE_CLEANUP(handle_cleanup_queue_);
-  HANDLE_CLEANUP(handle_cleanup_queue_delayed_);
-#undef HANDLE_CLEANUP
+  // Closing the destroy_ids_idle_handle_ within the handle cleanup queue
+  // prevents the async wrap destroy hook from being called.
+  uv_handle_t* handle = reinterpret_cast<uv_handle_t*>(&destroy_ids_idle_handle_);
+  handle->data = this;
+  uv_close(handle, [](uv_handle_t* handle) {
+    static_cast<Environment*>(handle->data)->FinishHandleCleanup(handle);
+  });
+
+  while (handle_cleanup_waiting_ != 0)
+    uv_run(event_loop(), UV_RUN_ONCE);
 
   context()->SetAlignedPointerInEmbedderData(kContextEmbedderDataIndex,
                                              nullptr);
@@ -266,12 +273,6 @@ inline void Environment::RegisterHandleCleanup(uv_handle_t* handle,
                                                HandleCleanupCb cb,
                                                void *arg) {
   handle_cleanup_queue_.PushBack(new HandleCleanup(handle, cb, arg));
-}
-
-inline void Environment::RegisterHandleCleanupDelayed(uv_handle_t* handle,
-                                                      HandleCleanupCb cb,
-                                                      void *arg) {
-  handle_cleanup_queue_delayed_.PushBack(new HandleCleanup(handle, cb, arg));
 }
 
 inline void Environment::FinishHandleCleanup(uv_handle_t* handle) {
