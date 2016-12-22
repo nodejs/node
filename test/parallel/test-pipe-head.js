@@ -8,10 +8,10 @@ const join = require('path').join;
 const nodePath = process.argv[0];
 const script = join(common.fixturesDir, 'print-10-lines.js');
 
-const cmd = '"' + nodePath + '" "' + script + '" | head -2';
+const cmd = `"${nodePath}" "${script}" | head -2`;
 
 exec(cmd, common.mustCall(function(err, stdout, stderr) {
-  if (err) throw err;
+  assert.ifError(err);
   const lines = stdout.split('\n');
   assert.strictEqual(3, lines.length);
 }));
