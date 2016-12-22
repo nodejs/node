@@ -35,7 +35,7 @@ const assert = require('assert');
 
 const SSL_OP_NO_TICKET = require('crypto').constants.SSL_OP_NO_TICKET;
 
-const pfx = fixtures.readKey('agent1-pfx.pem');
+const pfx = fixtures.readKey('agent1.pfx');
 
 function test(testOptions, cb) {
 
