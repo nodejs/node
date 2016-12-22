@@ -10,9 +10,15 @@ const result = buf.readUInt8(2);
 assert.strictEqual(result, 168);
 
 assert.throws(
-   () => { buf.readUInt8(5); }, RangeError);
+  () => {
+    buf.readUInt8(5);
+  },
+  /Index out of range/
+);
 
 assert.doesNotThrow(
-   () => { assert.strictEqual(buf.readUInt8(5, 0, false), undefined); },
-   'readUIntBE() should not throw if noAssert is true'
+  () => {
+    buf.readUInt8(5, true);
+  },
+  'readUInt8() should not throw if noAssert is true'
 );
