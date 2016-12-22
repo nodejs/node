@@ -20,8 +20,7 @@ class NodeTraceBuffer;
 class InternalTraceBuffer {
  public:
   InternalTraceBuffer(size_t max_chunks, uint32_t id,
-                      NodeTraceWriter* trace_writer,
-                      NodeTraceBuffer* external_buffer);
+                      NodeTraceWriter* trace_writer);
 
   TraceObject* AddTraceEvent(uint64_t* handle);
   TraceObject* GetEventByHandle(uint64_t handle);
@@ -44,7 +43,6 @@ class InternalTraceBuffer {
   bool flushing_;
   size_t max_chunks_;
   NodeTraceWriter* trace_writer_;
-  NodeTraceBuffer* external_buffer_;
   std::vector<std::unique_ptr<TraceBufferChunk>> chunks_;
   size_t total_chunks_ = 0;
   uint32_t current_chunk_seq_ = 1;
