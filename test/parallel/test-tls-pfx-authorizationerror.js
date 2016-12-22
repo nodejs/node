@@ -11,7 +11,7 @@ const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const tls = require('tls');
 
-const pfx = fixtures.readKey('agent1-pfx.pem');
+const pfx = fixtures.readKey('agent1.pfx');
 
 const server = tls
   .createServer(

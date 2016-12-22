@@ -92,13 +92,13 @@ agent1-cert.pem: agent1-csr.pem ca1-cert.pem ca1-key.pem
 		-CAcreateserial \
 		-out agent1-cert.pem
 
-agent1-pfx.pem: agent1-cert.pem agent1-key.pem ca1-cert.pem
+agent1.pfx: agent1-cert.pem agent1-key.pem ca1-cert.pem
 	openssl pkcs12 -export \
 		-descert \
 		-in agent1-cert.pem \
 		-inkey agent1-key.pem \
 		-certfile ca1-cert.pem \
-		-out agent1-pfx.pem \
+		-out agent1.pfx \
 		-password pass:sample
 
 agent1-verify: agent1-cert.pem ca1-cert.pem
@@ -334,12 +334,12 @@ ec-cert.pem: ec-csr.pem ec-key.pem
 		-signkey ec-key.pem \
 		-out ec-cert.pem
 
-ec-pfx.pem: ec-cert.pem ec-key.pem
+ec.pfx: ec-cert.pem ec-key.pem
 	openssl pkcs12 -export \
 		-descert \
 		-in ec-cert.pem \
 		-inkey ec-key.pem \
-		-out ec-pfx.pem \
+		-out ec.pfx \
 		-password pass:
 
 dh512.pem:
