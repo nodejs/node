@@ -9,8 +9,8 @@ cat.stdin.write('hello');
 cat.stdin.write(' ');
 cat.stdin.write('world');
 
-assert.ok(cat.stdin.writable);
-assert.ok(!cat.stdin.readable);
+assert.strictEqual(cat.stdin.writable, true);
+assert.strictEqual(cat.stdin.readable, false);
 
 cat.stdin.end();
 
