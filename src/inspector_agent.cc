@@ -31,10 +31,6 @@ namespace {
 using v8_inspector::StringBuffer;
 using v8_inspector::StringView;
 
-static const uint8_t PROTOCOL_JSON[] = {
-#include "v8_inspector_protocol_json.h"  // NOLINT(build/include_order)
-};
-
 std::string GetProcessTitle() {
   // uv_get_process_title will trim the title if it is too long.
   char title[2048];
