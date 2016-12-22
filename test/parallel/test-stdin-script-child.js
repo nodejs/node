@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const spawn = require('child_process').spawn;
@@ -21,11 +21,11 @@ child.stderr.on('data', function(c) {
   console.error('> ' + c.trim().split(/\n/).join('\n> '));
 });
 
-child.on('close', function(c) {
+child.on('close', common.mustCall(function(c) {
   assert.strictEqual(c, 0);
   assert.strictEqual(found, wanted);
   console.log('ok');
-});
+}));
 
 setTimeout(function() {
   child.stdin.end('console.log(process.pid)');
