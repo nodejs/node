@@ -212,8 +212,10 @@ inline Environment::~Environment() {
 
   // Closing the destroy_ids_idle_handle_ within the handle cleanup queue
   // prevents the async wrap destroy hook from being called.
-  uv_handle_t* handle = reinterpret_cast<uv_handle_t*>(&destroy_ids_idle_handle_);
+  uv_handle_t* handle =
+    reinterpret_cast<uv_handle_t*>(&destroy_ids_idle_handle_);
   handle->data = this;
+  handle_cleanup_waiting_ = 1;
   uv_close(handle, [](uv_handle_t* handle) {
     static_cast<Environment*>(handle->data)->FinishHandleCleanup(handle);
   });
