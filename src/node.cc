@@ -2983,6 +2983,13 @@ void StopProfilerIdleNotifier(const FunctionCallbackInfo<Value>& args) {
   env->StopProfilerIdleNotifier();
 }
 
+#define NONENUMERABLE_PROPERTY(obj, str, var)                                 \
+  do {                                                                        \
+    obj->DefineOwnProperty(env->context(),                                    \
+                           OneByteString(env->isolate(), str),                \
+                           var,                                               \
+                           v8::DontEnum).FromJust();                          \
+  } while (0)
 
 #define READONLY_PROPERTY(obj, str, var)                                      \
   do {                                                                        \
@@ -3450,9 +3457,9 @@ void LoadEnvironment(Environment* env) {
 
   env->SetMethod(env->process_object(), "_rawDebug", RawDebug);
 
-  // Expose the global object as a property on itself
+  // Expose the global object as a non-enumerable property on itself
   // (Allows you to set stuff on `global` from anywhere in JavaScript.)
-  global->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "global"), global);
+  NONENUMERABLE_PROPERTY(global, "global", global);
 
   // Now we call 'f' with the 'process' variable that we've built up with
   // all our bindings. Inside bootstrap_node.js and internal/process we'll
