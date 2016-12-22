@@ -3482,8 +3482,7 @@ static void PrintHelp() {
          "repeated)\n"
          "  --no-deprecation         silence deprecation warnings\n"
          "  --trace-deprecation      show stack traces on deprecations\n"
-         "  --throw-deprecation      throw an exception anytime a deprecated "
-         "function is used\n"
+         "  --throw-deprecation      throw an exception on deprecations\n"
          "  --no-warnings            silence all process warnings\n"
          "  --trace-warnings         show stack traces on process warnings\n"
          "  --trace-sync-io          show stack trace when use of sync IO\n"
@@ -3514,27 +3513,29 @@ static void PrintHelp() {
          "  --icu-data-dir=dir       set ICU data load path to dir\n"
          "                           (overrides NODE_ICU_DATA)\n"
 #if !defined(NODE_HAVE_SMALL_ICU)
-         "                           note: linked-in ICU data is\n"
-         "                           present.\n"
+         "                           note: linked-in ICU data is present\n"
 #endif
          "  --preserve-symlinks      preserve symbolic links when resolving\n"
-         "                           and caching modules.\n"
+         "                           and caching modules\n"
 #endif
          "\n"
          "Environment variables:\n"
-#ifdef _WIN32
-         "NODE_PATH                  ';'-separated list of directories\n"
-#else
-         "NODE_PATH                  ':'-separated list of directories\n"
-#endif
-         "                           prefixed to the module search path.\n"
+         "NODE_DEBUG                 ','-separated list of core modules that\n"
+         "                           should print debug information\n"
          "NODE_DISABLE_COLORS        set to 1 to disable colors in the REPL\n"
+         "NODE_EXTRA_CA_CERTS        path to additional CA certificates file\n"
 #if defined(NODE_HAVE_I18N_SUPPORT)
          "NODE_ICU_DATA              data path for ICU (Intl object) data\n"
 #if !defined(NODE_HAVE_SMALL_ICU)
          "                           (will extend linked-in data)\n"
 #endif
 #endif
+#ifdef _WIN32
+         "NODE_PATH                  ';'-separated list of directories\n"
+#else
+         "NODE_PATH                  ':'-separated list of directories\n"
+#endif
+         "                           prefixed to the module search path\n"
          "NODE_REPL_HISTORY          path to the persistent REPL history file\n"
          "\n"
          "Documentation can be found at https://nodejs.org/\n");
