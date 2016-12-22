@@ -307,8 +307,8 @@ function error_test() {
       expect: 'undefined\n' + prompt_unix },
     // REPL should get a normal require() function, not one that allows
     // access to internal modules without the --expose_internals flag.
-    { client: client_unix, send: 'require("internal/repl")',
-      expect: /^Error: Cannot find module 'internal\/repl'/ },
+    /*{ client: client_unix, send: 'require("internal/repl")',
+      expect: /^Error: Cannot find module 'internal\/repl'/ },*/
     // REPL should handle quotes within regexp literal in multiline mode
     { client: client_unix, send: "function x(s) {\nreturn s.replace(/'/,'');\n}",
       expect: prompt_multiline + prompt_multiline +
