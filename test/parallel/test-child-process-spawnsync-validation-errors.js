@@ -2,6 +2,7 @@
 const common = require('../common');
 const assert = require('assert');
 const spawnSync = require('child_process').spawnSync;
+const signals = process.binding('constants').os.signals;
 
 function pass(option, value) {
   // Run the command with the specified option. Since it's not a real command,
@@ -184,18 +185,32 @@ if (!common.isWindows) {
 {
   // Validate the killSignal option
   const typeErr = /^TypeError: "killSignal" must be a string or number$/;
-  const rangeErr = /^RangeError: "killSignal" cannot be 0$/;
   const unknownSignalErr = /^Error: Unknown signal:/;
 
   pass('killSignal', undefined);
   pass('killSignal', null);
   pass('killSignal', 'SIGKILL');
-  pass('killSignal', 500);
-  fail('killSignal', 0, rangeErr);
   fail('killSignal', 'SIGNOTAVALIDSIGNALNAME', unknownSignalErr);
   fail('killSignal', true, typeErr);
   fail('killSignal', false, typeErr);
   fail('killSignal', [], typeErr);
   fail('killSignal', {}, typeErr);
   fail('killSignal', common.noop, typeErr);
+
+  // Invalid signal names and numbers should fail
+  fail('killSignal', 500, unknownSignalErr);
+  fail('killSignal', 0, unknownSignalErr);
+  fail('killSignal', -200, unknownSignalErr);
+  fail('killSignal', 3.14, unknownSignalErr);
+
+  Object.getOwnPropertyNames(Object.prototype).forEach((property) => {
+    fail('killSignal', property, unknownSignalErr);
+  });
+
+  // Valid signal names and numbers should pass
+  for (const signalName in signals) {
+    pass('killSignal', signals[signalName]);
+    pass('killSignal', signalName);
+    pass('killSignal', signalName.toLowerCase());
+  }
 }
