@@ -485,12 +485,6 @@
       }
     }
 
-    function TickObject(c, args) {
-      this.callback = c;
-      this.domain = process.domain || null;
-      this.args = args;
-    }
-
     function nextTick(callback) {
       // on the way out, don't bother. it won't get fired anyway.
       if (process._exiting)
@@ -503,7 +497,11 @@
           args.push(arguments[i]);
       }
 
-      nextTickQueue.push(new TickObject(callback, args));
+      nextTickQueue.push({
+        callback,
+        domain: process.domain || null,
+        args
+      });
       tickInfo[kLength]++;
     }
 
