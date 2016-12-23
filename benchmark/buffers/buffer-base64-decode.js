@@ -7,7 +7,7 @@ const bench = common.createBenchmark(main, {
 });
 
 function main(conf) {
-  const n = +conf.len;
+  const n = +conf.n;
   const s = 'abcd'.repeat(8 << 20);
   s.match(/./);  // Flatten string.
   assert.strictEqual(s.length % 4, 0);
