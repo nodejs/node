@@ -8,6 +8,7 @@
 
 #include "src/arguments.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
+#include "src/compiler.h"
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/full-codegen/full-codegen.h"
@@ -419,8 +420,8 @@ RUNTIME_FUNCTION(Runtime_SetAllocationTimeout) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 2 || args.length() == 3);
 #ifdef DEBUG
-  CONVERT_SMI_ARG_CHECKED(interval, 0);
-  CONVERT_SMI_ARG_CHECKED(timeout, 1);
+  CONVERT_INT32_ARG_CHECKED(interval, 0);
+  CONVERT_INT32_ARG_CHECKED(timeout, 1);
   isolate->heap()->set_allocation_timeout(timeout);
   FLAG_gc_interval = interval;
   if (args.length() == 3) {
@@ -456,7 +457,6 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
   }
   args[0]->Print(os);
   if (args[0]->IsHeapObject()) {
-    os << "\n";
     HeapObject::cast(args[0])->map()->Print(os);
   }
 #else
@@ -768,7 +768,34 @@ RUNTIME_FUNCTION(Runtime_DeserializeWasmModule) {
   if (!maybe_compiled_module.ToHandle(&compiled_module)) {
     return isolate->heap()->undefined_value();
   }
-  return *wasm::CreateCompiledModuleObject(isolate, compiled_module);
+  return *wasm::CreateCompiledModuleObject(isolate, compiled_module,
+                                           wasm::ModuleOrigin::kWasmOrigin);
+}
+
+RUNTIME_FUNCTION(Runtime_ValidateWasmInstancesChain) {
+  HandleScope shs(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, module_obj, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, instance_count, 1);
+  wasm::testing::ValidateInstancesChain(isolate, module_obj,
+                                        instance_count->value());
+  return isolate->heap()->ToBoolean(true);
+}
+
+RUNTIME_FUNCTION(Runtime_ValidateWasmModuleState) {
+  HandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, module_obj, 0);
+  wasm::testing::ValidateModuleState(isolate, module_obj);
+  return isolate->heap()->ToBoolean(true);
+}
+
+RUNTIME_FUNCTION(Runtime_ValidateWasmOrphanedInstance) {
+  HandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, instance_obj, 0);
+  wasm::testing::ValidateOrphanedInstance(isolate, instance_obj);
+  return isolate->heap()->ToBoolean(true);
 }
 
 }  // namespace internal

@@ -5,7 +5,7 @@
 #ifndef V8_COMPILER_LOOP_VARIABLE_OPTIMIZER_H_
 #define V8_COMPILER_LOOP_VARIABLE_OPTIMIZER_H_
 
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -106,7 +106,7 @@ class LoopVariableOptimizer {
   Graph* graph_;
   CommonOperatorBuilder* common_;
   Zone* zone_;
-  ZoneMap<int, const VariableLimits*> limits_;
+  ZoneVector<const VariableLimits*> limits_;
   ZoneMap<int, InductionVariable*> induction_vars_;
 };
 

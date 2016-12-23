@@ -34,7 +34,7 @@ void ScavengeJob::IdleTask::RunInternal(double deadline_in_seconds) {
                                  new_space_capacity)) {
     if (EnoughIdleTimeForScavenge(
             idle_time_in_ms, scavenge_speed_in_bytes_per_ms, new_space_size)) {
-      heap->CollectGarbage(NEW_SPACE, "idle task: scavenge");
+      heap->CollectGarbage(NEW_SPACE, GarbageCollectionReason::kIdleTask);
     } else {
       // Immediately request another idle task that can get larger idle time.
       job_->RescheduleIdleTask(heap);

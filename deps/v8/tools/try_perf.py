@@ -49,6 +49,7 @@ PUBLIC_BENCHMARKS = [
   'simdjs',
   'sunspider',
   'sunspider-ignition',
+  'unity',
   'wasm',
 ]
 

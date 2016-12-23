@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import("../gni/isolate.gni")
+import("//build_overrides/v8.gni")
 
 group("gn_all") {
   testonly = true
@@ -18,6 +19,10 @@ group("gn_all") {
       "cctest:generate-bytecode-expectations",
       "unittests:unittests",
     ]
+  }
+
+  if (v8_enable_inspector_override) {
+    deps += [ "inspector:inspector-test" ]
   }
 
   if (v8_test_isolation_mode != "noop") {

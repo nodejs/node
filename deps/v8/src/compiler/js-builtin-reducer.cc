@@ -10,9 +10,9 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/compiler/type-cache.h"
+#include "src/compiler/types.h"
 #include "src/objects-inl.h"
-#include "src/type-cache.h"
-#include "src/types.h"
 
 namespace v8 {
 namespace internal {
@@ -275,8 +275,8 @@ Reduction JSBuiltinReducer::ReduceArrayPush(Node* node) {
     // here is to learn on deopt, i.e. disable Array.prototype.push inlining
     // for this function.
     if (IsFastSmiElementsKind(receiver_map->elements_kind())) {
-      value = effect = graph()->NewNode(simplified()->CheckTaggedSigned(),
-                                        value, effect, control);
+      value = effect =
+          graph()->NewNode(simplified()->CheckSmi(), value, effect, control);
     } else if (IsFastDoubleElementsKind(receiver_map->elements_kind())) {
       value = effect =
           graph()->NewNode(simplified()->CheckNumber(), value, effect, control);
@@ -318,6 +318,123 @@ Reduction JSBuiltinReducer::ReduceArrayPush(Node* node) {
                              jsgraph()->OneConstant());
 
     ReplaceWithValue(node, value, effect, control);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+namespace {
+
+bool HasInstanceTypeWitness(Node* receiver, Node* effect,
+                            InstanceType instance_type) {
+  for (Node* dominator = effect;;) {
+    if (dominator->opcode() == IrOpcode::kCheckMaps &&
+        dominator->InputAt(0) == receiver) {
+      // Check if all maps have the given {instance_type}.
+      for (int i = 1; i < dominator->op()->ValueInputCount(); ++i) {
+        Node* const map = NodeProperties::GetValueInput(dominator, i);
+        Type* const map_type = NodeProperties::GetType(map);
+        if (!map_type->IsConstant()) return false;
+        Handle<Map> const map_value =
+            Handle<Map>::cast(map_type->AsConstant()->Value());
+        if (map_value->instance_type() != instance_type) return false;
+      }
+      return true;
+    }
+    switch (dominator->opcode()) {
+      case IrOpcode::kStoreField: {
+        FieldAccess const& access = FieldAccessOf(dominator->op());
+        if (access.base_is_tagged == kTaggedBase &&
+            access.offset == HeapObject::kMapOffset) {
+          return false;
+        }
+        break;
+      }
+      case IrOpcode::kStoreElement:
+      case IrOpcode::kStoreTypedElement:
+        break;
+      default: {
+        DCHECK_EQ(1, dominator->op()->EffectOutputCount());
+        if (dominator->op()->EffectInputCount() != 1 ||
+            !dominator->op()->HasProperty(Operator::kNoWrite)) {
+          // Didn't find any appropriate CheckMaps node.
+          return false;
+        }
+        break;
+      }
+    }
+    dominator = NodeProperties::GetEffectInput(dominator);
+  }
+}
+
+}  // namespace
+
+// ES6 section 20.3.4.10 Date.prototype.getTime ( )
+Reduction JSBuiltinReducer::ReduceDateGetTime(Node* node) {
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  if (HasInstanceTypeWitness(receiver, effect, JS_DATE_TYPE)) {
+    Node* value = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSDateValue()), receiver,
+        effect, control);
+    ReplaceWithValue(node, value, effect, control);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 19.2.3.6 Function.prototype [ @@hasInstance ] ( V )
+Reduction JSBuiltinReducer::ReduceFunctionHasInstance(Node* node) {
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* object = (node->op()->ValueInputCount() >= 3)
+                     ? NodeProperties::GetValueInput(node, 2)
+                     : jsgraph()->UndefinedConstant();
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // TODO(turbofan): If JSOrdinaryToInstance raises an exception, the
+  // stack trace doesn't contain the @@hasInstance call; we have the
+  // corresponding bug in the baseline case. Some massaging of the frame
+  // state would be necessary here.
+
+  // Morph this {node} into a JSOrdinaryHasInstance node.
+  node->ReplaceInput(0, receiver);
+  node->ReplaceInput(1, object);
+  node->ReplaceInput(2, context);
+  node->ReplaceInput(3, frame_state);
+  node->ReplaceInput(4, effect);
+  node->ReplaceInput(5, control);
+  node->TrimInputCount(6);
+  NodeProperties::ChangeOp(node, javascript()->OrdinaryHasInstance());
+  return Changed(node);
+}
+
+// ES6 section 18.2.2 isFinite ( number )
+Reduction JSBuiltinReducer::ReduceGlobalIsFinite(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::PlainPrimitive())) {
+    // isFinite(a:plain-primitive) -> NumberEqual(a', a')
+    // where a' = NumberSubtract(ToNumber(a), ToNumber(a))
+    Node* input = ToNumber(r.GetJSCallInput(0));
+    Node* diff = graph()->NewNode(simplified()->NumberSubtract(), input, input);
+    Node* value = graph()->NewNode(simplified()->NumberEqual(), diff, diff);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 18.2.3 isNaN ( number )
+Reduction JSBuiltinReducer::ReduceGlobalIsNaN(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::PlainPrimitive())) {
+    // isNaN(a:plain-primitive) -> BooleanNot(NumberEqual(a', a'))
+    // where a' = ToNumber(a)
+    Node* input = ToNumber(r.GetJSCallInput(0));
+    Node* check = graph()->NewNode(simplified()->NumberEqual(), input, input);
+    Node* value = graph()->NewNode(simplified()->BooleanNot(), check);
     return Replace(value);
   }
   return NoChange();
@@ -737,6 +854,60 @@ Reduction JSBuiltinReducer::ReduceMathTrunc(Node* node) {
   return NoChange();
 }
 
+// ES6 section 20.1.2.2 Number.isFinite ( number )
+Reduction JSBuiltinReducer::ReduceNumberIsFinite(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::Number())) {
+    // Number.isFinite(a:number) -> NumberEqual(a', a')
+    // where a' = NumberSubtract(a, a)
+    Node* input = r.GetJSCallInput(0);
+    Node* diff = graph()->NewNode(simplified()->NumberSubtract(), input, input);
+    Node* value = graph()->NewNode(simplified()->NumberEqual(), diff, diff);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 20.1.2.3 Number.isInteger ( number )
+Reduction JSBuiltinReducer::ReduceNumberIsInteger(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::Number())) {
+    // Number.isInteger(x:number) -> NumberEqual(NumberSubtract(x, x'), #0)
+    // where x' = NumberTrunc(x)
+    Node* input = r.GetJSCallInput(0);
+    Node* trunc = graph()->NewNode(simplified()->NumberTrunc(), input);
+    Node* diff = graph()->NewNode(simplified()->NumberSubtract(), input, trunc);
+    Node* value = graph()->NewNode(simplified()->NumberEqual(), diff,
+                                   jsgraph()->ZeroConstant());
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 20.1.2.4 Number.isNaN ( number )
+Reduction JSBuiltinReducer::ReduceNumberIsNaN(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::Number())) {
+    // Number.isNaN(a:number) -> BooleanNot(NumberEqual(a, a))
+    Node* input = r.GetJSCallInput(0);
+    Node* check = graph()->NewNode(simplified()->NumberEqual(), input, input);
+    Node* value = graph()->NewNode(simplified()->BooleanNot(), check);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+// ES6 section 20.1.2.5 Number.isSafeInteger ( number )
+Reduction JSBuiltinReducer::ReduceNumberIsSafeInteger(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(type_cache_.kSafeInteger)) {
+    // Number.isInteger(x:safe-integer) -> #true
+    Node* value = jsgraph()->TrueConstant();
+    return Replace(value);
+  }
+  return NoChange();
+}
+
 // ES6 section 20.1.2.13 Number.parseInt ( string, radix )
 Reduction JSBuiltinReducer::ReduceNumberParseInt(Node* node) {
   JSCallReduction r(node);
@@ -887,50 +1058,145 @@ Reduction JSBuiltinReducer::ReduceStringCharCodeAt(Node* node) {
   return NoChange();
 }
 
-namespace {
+Reduction JSBuiltinReducer::ReduceStringIteratorNext(Node* node) {
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* context = NodeProperties::GetContextInput(node);
+  if (HasInstanceTypeWitness(receiver, effect, JS_STRING_ITERATOR_TYPE)) {
+    Node* string = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSStringIteratorString()),
+        receiver, effect, control);
+    Node* index = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSStringIteratorIndex()),
+        receiver, effect, control);
+    Node* length = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForStringLength()), string,
+        effect, control);
 
-bool HasInstanceTypeWitness(Node* receiver, Node* effect,
-                            InstanceType instance_type) {
-  for (Node* dominator = effect;;) {
-    if (dominator->opcode() == IrOpcode::kCheckMaps &&
-        dominator->InputAt(0) == receiver) {
-      // Check if all maps have the given {instance_type}.
-      for (int i = 1; i < dominator->op()->ValueInputCount(); ++i) {
-        Node* const map = NodeProperties::GetValueInput(dominator, i);
-        Type* const map_type = NodeProperties::GetType(map);
-        if (!map_type->IsConstant()) return false;
-        Handle<Map> const map_value =
-            Handle<Map>::cast(map_type->AsConstant()->Value());
-        if (map_value->instance_type() != instance_type) return false;
-      }
-      return true;
-    }
-    switch (dominator->opcode()) {
-      case IrOpcode::kStoreField: {
-        FieldAccess const& access = FieldAccessOf(dominator->op());
-        if (access.base_is_tagged == kTaggedBase &&
-            access.offset == HeapObject::kMapOffset) {
-          return false;
+    // branch0: if (index < length)
+    Node* check0 =
+        graph()->NewNode(simplified()->NumberLessThan(), index, length);
+    Node* branch0 =
+        graph()->NewNode(common()->Branch(BranchHint::kTrue), check0, control);
+
+    Node* etrue0 = effect;
+    Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
+    Node* done_true;
+    Node* vtrue0;
+    {
+      done_true = jsgraph()->FalseConstant();
+      Node* lead = graph()->NewNode(simplified()->StringCharCodeAt(), string,
+                                    index, if_true0);
+
+      // branch1: if ((lead & 0xFC00) === 0xD800)
+      Node* check1 = graph()->NewNode(
+          simplified()->NumberEqual(),
+          graph()->NewNode(simplified()->NumberBitwiseAnd(), lead,
+                           jsgraph()->Int32Constant(0xFC00)),
+          jsgraph()->Int32Constant(0xD800));
+      Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                       check1, if_true0);
+      Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+      Node* vtrue1;
+      {
+        Node* next_index = graph()->NewNode(simplified()->NumberAdd(), index,
+                                            jsgraph()->OneConstant());
+        // branch2: if ((index + 1) < length)
+        Node* check2 = graph()->NewNode(simplified()->NumberLessThan(),
+                                        next_index, length);
+        Node* branch2 = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                         check2, if_true1);
+        Node* if_true2 = graph()->NewNode(common()->IfTrue(), branch2);
+        Node* vtrue2;
+        {
+          Node* trail = graph()->NewNode(simplified()->StringCharCodeAt(),
+                                         string, next_index, if_true2);
+          // branch3: if ((trail & 0xFC00) === 0xDC00)
+          Node* check3 = graph()->NewNode(
+              simplified()->NumberEqual(),
+              graph()->NewNode(simplified()->NumberBitwiseAnd(), trail,
+                               jsgraph()->Int32Constant(0xFC00)),
+              jsgraph()->Int32Constant(0xDC00));
+          Node* branch3 = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                           check3, if_true2);
+          Node* if_true3 = graph()->NewNode(common()->IfTrue(), branch3);
+          Node* vtrue3;
+          {
+            vtrue3 = graph()->NewNode(
+                simplified()->NumberBitwiseOr(),
+// Need to swap the order for big-endian platforms
+#if V8_TARGET_BIG_ENDIAN
+                graph()->NewNode(simplified()->NumberShiftLeft(), lead,
+                                 jsgraph()->Int32Constant(16)),
+                trail);
+#else
+                graph()->NewNode(simplified()->NumberShiftLeft(), trail,
+                                 jsgraph()->Int32Constant(16)),
+                lead);
+#endif
+          }
+
+          Node* if_false3 = graph()->NewNode(common()->IfFalse(), branch3);
+          Node* vfalse3 = lead;
+          if_true2 = graph()->NewNode(common()->Merge(2), if_true3, if_false3);
+          vtrue2 =
+              graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
+                               vtrue3, vfalse3, if_true2);
         }
-        break;
+
+        Node* if_false2 = graph()->NewNode(common()->IfFalse(), branch2);
+        Node* vfalse2 = lead;
+        if_true1 = graph()->NewNode(common()->Merge(2), if_true2, if_false2);
+        vtrue1 =
+            graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
+                             vtrue2, vfalse2, if_true1);
       }
-      case IrOpcode::kStoreElement:
-        break;
-      default: {
-        DCHECK_EQ(1, dominator->op()->EffectOutputCount());
-        if (dominator->op()->EffectInputCount() != 1 ||
-            !dominator->op()->HasProperty(Operator::kNoWrite)) {
-          // Didn't find any appropriate CheckMaps node.
-          return false;
-        }
-        break;
-      }
+
+      Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
+      Node* vfalse1 = lead;
+      if_true0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
+      vtrue0 =
+          graph()->NewNode(common()->Phi(MachineRepresentation::kWord32, 2),
+                           vtrue1, vfalse1, if_true0);
+      vtrue0 = graph()->NewNode(
+          simplified()->StringFromCodePoint(UnicodeEncoding::UTF16), vtrue0);
+
+      // Update iterator.[[NextIndex]]
+      Node* char_length = etrue0 = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForStringLength()), vtrue0,
+          etrue0, if_true0);
+      index = graph()->NewNode(simplified()->NumberAdd(), index, char_length);
+      etrue0 = graph()->NewNode(
+          simplified()->StoreField(AccessBuilder::ForJSStringIteratorIndex()),
+          receiver, index, etrue0, if_true0);
     }
-    dominator = NodeProperties::GetEffectInput(dominator);
+
+    Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
+    Node* done_false;
+    Node* vfalse0;
+    {
+      vfalse0 = jsgraph()->UndefinedConstant();
+      done_false = jsgraph()->TrueConstant();
+    }
+
+    control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
+    effect = graph()->NewNode(common()->EffectPhi(2), etrue0, effect, control);
+    Node* value =
+        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                         vtrue0, vfalse0, control);
+    Node* done =
+        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                         done_true, done_false, control);
+
+    value = effect = graph()->NewNode(javascript()->CreateIterResultObject(),
+                                      value, done, context, effect);
+
+    ReplaceWithValue(node, value, effect, control);
+    return Replace(value);
   }
+  return NoChange();
 }
-
-}  // namespace
 
 Reduction JSBuiltinReducer::ReduceArrayBufferViewAccessor(
     Node* node, InstanceType instance_type, FieldAccess const& access) {
@@ -939,27 +1205,21 @@ Reduction JSBuiltinReducer::ReduceArrayBufferViewAccessor(
   Node* control = NodeProperties::GetControlInput(node);
   if (HasInstanceTypeWitness(receiver, effect, instance_type)) {
     // Load the {receiver}s field.
-    Node* receiver_length = effect = graph()->NewNode(
+    Node* receiver_value = effect = graph()->NewNode(
         simplified()->LoadField(access), receiver, effect, control);
 
     // Check if the {receiver}s buffer was neutered.
     Node* receiver_buffer = effect = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
         receiver, effect, control);
-    Node* receiver_buffer_bitfield = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSArrayBufferBitField()),
-        receiver_buffer, effect, control);
-    Node* check = graph()->NewNode(
-        simplified()->NumberEqual(),
-        graph()->NewNode(
-            simplified()->NumberBitwiseAnd(), receiver_buffer_bitfield,
-            jsgraph()->Constant(JSArrayBuffer::WasNeutered::kMask)),
-        jsgraph()->ZeroConstant());
+    Node* check = effect =
+        graph()->NewNode(simplified()->ArrayBufferWasNeutered(),
+                         receiver_buffer, effect, control);
 
     // Default to zero if the {receiver}s buffer was neutered.
     Node* value = graph()->NewNode(
-        common()->Select(MachineRepresentation::kTagged, BranchHint::kTrue),
-        check, receiver_length, jsgraph()->ZeroConstant());
+        common()->Select(MachineRepresentation::kTagged, BranchHint::kFalse),
+        check, jsgraph()->ZeroConstant(), receiver_value);
 
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);
@@ -978,6 +1238,17 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       return ReduceArrayPop(node);
     case kArrayPush:
       return ReduceArrayPush(node);
+    case kDateGetTime:
+      return ReduceDateGetTime(node);
+    case kFunctionHasInstance:
+      return ReduceFunctionHasInstance(node);
+      break;
+    case kGlobalIsFinite:
+      reduction = ReduceGlobalIsFinite(node);
+      break;
+    case kGlobalIsNaN:
+      reduction = ReduceGlobalIsNaN(node);
+      break;
     case kMathAbs:
       reduction = ReduceMathAbs(node);
       break;
@@ -1077,6 +1348,18 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
     case kMathTrunc:
       reduction = ReduceMathTrunc(node);
       break;
+    case kNumberIsFinite:
+      reduction = ReduceNumberIsFinite(node);
+      break;
+    case kNumberIsInteger:
+      reduction = ReduceNumberIsInteger(node);
+      break;
+    case kNumberIsNaN:
+      reduction = ReduceNumberIsNaN(node);
+      break;
+    case kNumberIsSafeInteger:
+      reduction = ReduceNumberIsSafeInteger(node);
+      break;
     case kNumberParseInt:
       reduction = ReduceNumberParseInt(node);
       break;
@@ -1087,6 +1370,8 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       return ReduceStringCharAt(node);
     case kStringCharCodeAt:
       return ReduceStringCharCodeAt(node);
+    case kStringIteratorNext:
+      return ReduceStringIteratorNext(node);
     case kDataViewByteLength:
       return ReduceArrayBufferViewAccessor(
           node, JS_DATA_VIEW_TYPE,
@@ -1144,6 +1429,10 @@ CommonOperatorBuilder* JSBuiltinReducer::common() const {
 
 SimplifiedOperatorBuilder* JSBuiltinReducer::simplified() const {
   return jsgraph()->simplified();
+}
+
+JSOperatorBuilder* JSBuiltinReducer::javascript() const {
+  return jsgraph()->javascript();
 }
 
 }  // namespace compiler

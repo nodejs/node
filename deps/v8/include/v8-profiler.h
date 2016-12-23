@@ -46,6 +46,20 @@ template class V8_EXPORT std::vector<v8::CpuProfileDeoptInfo>;
 
 namespace v8 {
 
+/**
+ * TracingCpuProfiler monitors tracing being enabled/disabled
+ * and emits CpuProfile trace events once v8.cpu_profile2 tracing category
+ * is enabled. It has no overhead unless the category is enabled.
+ */
+class V8_EXPORT TracingCpuProfiler {
+ public:
+  static std::unique_ptr<TracingCpuProfiler> Create(Isolate*);
+  virtual ~TracingCpuProfiler() = default;
+
+ protected:
+  TracingCpuProfiler() = default;
+};
+
 // TickSample captures the information collected for each sample.
 struct TickSample {
   // Internal profiling (with --prof + tools/$OS-tick-processor) wants to
@@ -131,11 +145,25 @@ class V8_EXPORT CpuProfileNode {
   /** Returns function name (empty string for anonymous functions.) */
   Local<String> GetFunctionName() const;
 
+  /**
+   * Returns function name (empty string for anonymous functions.)
+   * The string ownership is *not* passed to the caller. It stays valid until
+   * profile is deleted. The function is thread safe.
+   */
+  const char* GetFunctionNameStr() const;
+
   /** Returns id of the script where function is located. */
   int GetScriptId() const;
 
   /** Returns resource name for script from where the function originates. */
   Local<String> GetScriptResourceName() const;
+
+  /**
+   * Returns resource name for script from where the function originates.
+   * The string ownership is *not* passed to the caller. It stays valid until
+   * profile is deleted. The function is thread safe.
+   */
+  const char* GetScriptResourceNameStr() const;
 
   /**
    * Returns the number, 1-based, of the line where the function originates.

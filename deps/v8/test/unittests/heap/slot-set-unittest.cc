@@ -52,14 +52,16 @@ TEST(SlotSet, Iterate) {
     }
   }
 
-  set.Iterate([](Address slot_address) {
-    uintptr_t intaddr = reinterpret_cast<uintptr_t>(slot_address);
-    if (intaddr % 3 == 0) {
-      return KEEP_SLOT;
-    } else {
-      return REMOVE_SLOT;
-    }
-  });
+  set.Iterate(
+      [](Address slot_address) {
+        uintptr_t intaddr = reinterpret_cast<uintptr_t>(slot_address);
+        if (intaddr % 3 == 0) {
+          return KEEP_SLOT;
+        } else {
+          return REMOVE_SLOT;
+        }
+      },
+      SlotSet::KEEP_EMPTY_BUCKETS);
 
   for (int i = 0; i < Page::kPageSize; i += kPointerSize) {
     if (i % 21 == 0) {
@@ -147,29 +149,34 @@ TEST(TypedSlotSet, Iterate) {
   uint32_t j = 0;
   for (uint32_t i = 0; i < TypedSlotSet::kMaxOffset;
        i += kDelta, j += kHostDelta) {
-    SlotType type = static_cast<SlotType>(i % NUMBER_OF_SLOT_TYPES);
+    SlotType type = static_cast<SlotType>(i % CLEARED_SLOT);
     set.Insert(type, j, i);
     ++added;
   }
   int iterated = 0;
-  set.Iterate([&iterated, kDelta, kHostDelta](SlotType type, Address host_addr,
-                                              Address addr) {
-    uint32_t i = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(addr));
-    uint32_t j = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(host_addr));
-    EXPECT_EQ(i % NUMBER_OF_SLOT_TYPES, static_cast<uint32_t>(type));
-    EXPECT_EQ(0, i % kDelta);
-    EXPECT_EQ(0, j % kHostDelta);
-    ++iterated;
-    return i % 2 == 0 ? KEEP_SLOT : REMOVE_SLOT;
-  });
+  set.Iterate(
+      [&iterated, kDelta, kHostDelta](SlotType type, Address host_addr,
+                                      Address addr) {
+        uint32_t i = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(addr));
+        uint32_t j =
+            static_cast<uint32_t>(reinterpret_cast<uintptr_t>(host_addr));
+        EXPECT_EQ(i % CLEARED_SLOT, static_cast<uint32_t>(type));
+        EXPECT_EQ(0, i % kDelta);
+        EXPECT_EQ(0, j % kHostDelta);
+        ++iterated;
+        return i % 2 == 0 ? KEEP_SLOT : REMOVE_SLOT;
+      },
+      TypedSlotSet::KEEP_EMPTY_CHUNKS);
   EXPECT_EQ(added, iterated);
   iterated = 0;
-  set.Iterate([&iterated](SlotType type, Address host_addr, Address addr) {
-    uint32_t i = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(addr));
-    EXPECT_EQ(0, i % 2);
-    ++iterated;
-    return KEEP_SLOT;
-  });
+  set.Iterate(
+      [&iterated](SlotType type, Address host_addr, Address addr) {
+        uint32_t i = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(addr));
+        EXPECT_EQ(0, i % 2);
+        ++iterated;
+        return KEEP_SLOT;
+      },
+      TypedSlotSet::KEEP_EMPTY_CHUNKS);
   EXPECT_EQ(added / 2, iterated);
 }
 

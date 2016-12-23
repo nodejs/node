@@ -6,6 +6,7 @@
 #include "src/libsampler/sampler.h"
 
 #include "src/base/platform/platform.h"
+#include "src/base/platform/time.h"
 #include "test/cctest/cctest.h"
 
 

@@ -9,8 +9,8 @@
 #include "src/compiler/node-marker.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
-#include "src/zone-containers.h"
-#include "src/zone.h"
+#include "src/zone/zone-containers.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -28,7 +28,7 @@ LoopVariableOptimizer::LoopVariableOptimizer(Graph* graph,
     : graph_(graph),
       common_(common),
       zone_(zone),
-      limits_(zone),
+      limits_(graph->NodeCount(), zone),
       induction_vars_(zone) {}
 
 void LoopVariableOptimizer::Run() {
@@ -40,14 +40,13 @@ void LoopVariableOptimizer::Run() {
     queue.pop();
     queued.Set(node, false);
 
-    DCHECK(limits_.find(node->id()) == limits_.end());
+    DCHECK_NULL(limits_[node->id()]);
     bool all_inputs_visited = true;
     int inputs_end = (node->opcode() == IrOpcode::kLoop)
                          ? kFirstBackedge
                          : node->op()->ControlInputCount();
     for (int i = 0; i < inputs_end; i++) {
-      auto input = limits_.find(NodeProperties::GetControlInput(node, i)->id());
-      if (input == limits_.end()) {
+      if (limits_[NodeProperties::GetControlInput(node, i)->id()] == nullptr) {
         all_inputs_visited = false;
         break;
       }
@@ -55,7 +54,7 @@ void LoopVariableOptimizer::Run() {
     if (!all_inputs_visited) continue;
 
     VisitNode(node);
-    DCHECK(limits_.find(node->id()) != limits_.end());
+    DCHECK_NOT_NULL(limits_[node->id()]);
 
     // Queue control outputs.
     for (Edge edge : node->use_edges()) {

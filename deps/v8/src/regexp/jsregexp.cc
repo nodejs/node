@@ -8,7 +8,6 @@
 
 #include "src/base/platform/platform.h"
 #include "src/compilation-cache.h"
-#include "src/compiler.h"
 #include "src/elements.h"
 #include "src/execution.h"
 #include "src/factory.h"

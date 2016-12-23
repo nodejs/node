@@ -10,7 +10,6 @@
 #include <sstream>
 
 #include "src/ast/context-slot-cache.h"
-#include "src/base/accounting-allocator.h"
 #include "src/base/hashmap.h"
 #include "src/base/platform/platform.h"
 #include "src/base/sys-info.h"
@@ -28,6 +27,7 @@
 #include "src/external-reference-table.h"
 #include "src/frames-inl.h"
 #include "src/ic/stub-cache.h"
+#include "src/interface-descriptors.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
 #include "src/libsampler/sampler.h"
@@ -43,6 +43,7 @@
 #include "src/version.h"
 #include "src/vm-state-inl.h"
 #include "src/wasm/wasm-module.h"
+#include "src/zone/accounting-allocator.h"
 
 namespace v8 {
 namespace internal {
@@ -315,21 +316,7 @@ void Isolate::PushStackTraceAndDie(unsigned int magic, void* ptr1, void* ptr2,
   base::OS::Abort();
 }
 
-static Handle<FixedArray> MaybeGrow(Isolate* isolate,
-                                    Handle<FixedArray> elements,
-                                    int cur_position, int new_size) {
-  if (new_size > elements->length()) {
-    int new_capacity = JSObject::NewElementsCapacity(elements->length());
-    Handle<FixedArray> new_elements =
-        isolate->factory()->NewFixedArrayWithHoles(new_capacity);
-    for (int i = 0; i < cur_position; i++) {
-      new_elements->set(i, elements->get(i));
-    }
-    elements = new_elements;
-  }
-  DCHECK(new_size <= elements->length());
-  return elements;
-}
+namespace {
 
 class StackTraceHelper {
  public:
@@ -351,21 +338,17 @@ class StackTraceHelper {
         break;
     }
     encountered_strict_function_ = false;
-    sloppy_frames_ = 0;
   }
 
+  // Poison stack frames below the first strict mode frame.
   // The stack trace API should not expose receivers and function
   // objects on frames deeper than the top-most one with a strict mode
-  // function. The number of sloppy frames is stored as first element in
-  // the result array.
-  void CountSloppyFrames(JSFunction* fun) {
+  // function.
+  bool IsStrictFrame(JSFunction* fun) {
     if (!encountered_strict_function_) {
-      if (is_strict(fun->shared()->language_mode())) {
-        encountered_strict_function_ = true;
-      } else {
-        sloppy_frames_++;
-      }
+      encountered_strict_function_ = is_strict(fun->shared()->language_mode());
     }
+    return encountered_strict_function_;
   }
 
   // Determines whether the given stack frame should be displayed in a stack
@@ -374,8 +357,6 @@ class StackTraceHelper {
     return ShouldIncludeFrame(fun) && IsNotInNativeScript(fun) &&
            IsInSameSecurityContext(fun);
   }
-
-  int sloppy_frames() const { return sloppy_frames_; }
 
  private:
   // This mechanism excludes a number of uninteresting frames from the stack
@@ -422,11 +403,8 @@ class StackTraceHelper {
   const Handle<Object> caller_;
   bool skip_next_frame_;
 
-  int sloppy_frames_;
   bool encountered_strict_function_;
 };
-
-namespace {
 
 // TODO(jgruber): Fix all cases in which frames give us a hole value (e.g. the
 // receiver in RegExp constructor frames.
@@ -435,35 +413,36 @@ Handle<Object> TheHoleToUndefined(Isolate* isolate, Handle<Object> in) {
              ? Handle<Object>::cast(isolate->factory()->undefined_value())
              : in;
 }
+
+bool GetStackTraceLimit(Isolate* isolate, int* result) {
+  Handle<JSObject> error = isolate->error_function();
+
+  Handle<String> key = isolate->factory()->stackTraceLimit_string();
+  Handle<Object> stack_trace_limit = JSReceiver::GetDataProperty(error, key);
+  if (!stack_trace_limit->IsNumber()) return false;
+
+  // Ensure that limit is not negative.
+  *result = Max(FastD2IChecked(stack_trace_limit->Number()), 0);
+  return true;
 }
+
+}  // namespace
 
 Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
                                                 FrameSkipMode mode,
                                                 Handle<Object> caller) {
   DisallowJavascriptExecution no_js(this);
 
-  // Get stack trace limit.
-  Handle<JSObject> error = error_function();
-  Handle<String> stackTraceLimit =
-      factory()->InternalizeUtf8String("stackTraceLimit");
-  DCHECK(!stackTraceLimit.is_null());
-  Handle<Object> stack_trace_limit =
-      JSReceiver::GetDataProperty(error, stackTraceLimit);
-  if (!stack_trace_limit->IsNumber()) return factory()->undefined_value();
-  int limit = FastD2IChecked(stack_trace_limit->Number());
-  limit = Max(limit, 0);  // Ensure that limit is not negative.
+  int limit;
+  if (!GetStackTraceLimit(this, &limit)) return factory()->undefined_value();
 
-  int initial_size = Min(limit, 10);
-  Handle<FixedArray> elements =
-      factory()->NewFixedArrayWithHoles(initial_size * 4 + 1);
+  const int initial_size = Min(limit, 10);
+  Handle<FrameArray> elements = factory()->NewFrameArray(initial_size);
 
   StackTraceHelper helper(this, mode, caller);
 
-  // First element is reserved to store the number of sloppy frames.
-  int cursor = 1;
-  int frames_seen = 0;
-  for (StackFrameIterator iter(this); !iter.done() && frames_seen < limit;
-       iter.Advance()) {
+  for (StackFrameIterator iter(this);
+       !iter.done() && elements->FrameCount() < limit; iter.Advance()) {
     StackFrame* frame = iter.frame();
 
     switch (frame->type()) {
@@ -481,26 +460,27 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
 
           // Filter out internal frames that we do not want to show.
           if (!helper.IsVisibleInStackTrace(*fun)) continue;
-          helper.CountSloppyFrames(*fun);
 
           Handle<Object> recv = frames[i].receiver();
           Handle<AbstractCode> abstract_code = frames[i].abstract_code();
+          const int offset = frames[i].code_offset();
+
+          bool force_constructor = false;
           if (frame->type() == StackFrame::BUILTIN) {
             // Help CallSite::IsConstructor correctly detect hand-written
             // construct stubs.
-            Code* code = Code::cast(*abstract_code);
-            if (code->is_construct_stub()) {
-              recv = handle(heap()->call_site_constructor_symbol(), this);
+            if (Code::cast(*abstract_code)->is_construct_stub()) {
+              force_constructor = true;
             }
           }
-          Handle<Smi> offset(Smi::FromInt(frames[i].code_offset()), this);
 
-          elements = MaybeGrow(this, elements, cursor, cursor + 4);
-          elements->set(cursor++, *TheHoleToUndefined(this, recv));
-          elements->set(cursor++, *fun);
-          elements->set(cursor++, *abstract_code);
-          elements->set(cursor++, *offset);
-          frames_seen++;
+          int flags = 0;
+          if (helper.IsStrictFrame(*fun)) flags |= FrameArray::kIsStrict;
+          if (force_constructor) flags |= FrameArray::kForceConstructor;
+
+          elements = FrameArray::AppendJSFrame(
+              elements, TheHoleToUndefined(this, recv), fun, abstract_code,
+              offset, flags);
         }
       } break;
 
@@ -510,54 +490,49 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
 
         // Filter out internal frames that we do not want to show.
         if (!helper.IsVisibleInStackTrace(*fun)) continue;
-        helper.CountSloppyFrames(*fun);
 
-        Handle<Code> code = handle(exit_frame->LookupCode(), this);
-        int offset =
+        Handle<Object> recv(exit_frame->receiver(), this);
+        Handle<Code> code(exit_frame->LookupCode(), this);
+        const int offset =
             static_cast<int>(exit_frame->pc() - code->instruction_start());
 
-        // In order to help CallSite::IsConstructor detect builtin constructors,
-        // we reuse the receiver field to pass along a special symbol.
-        Handle<Object> recv;
-        if (exit_frame->IsConstructor()) {
-          recv = factory()->call_site_constructor_symbol();
-        } else {
-          recv = handle(exit_frame->receiver(), this);
-        }
+        int flags = 0;
+        if (helper.IsStrictFrame(*fun)) flags |= FrameArray::kIsStrict;
+        if (exit_frame->IsConstructor()) flags |= FrameArray::kForceConstructor;
 
-        elements = MaybeGrow(this, elements, cursor, cursor + 4);
-        elements->set(cursor++, *recv);
-        elements->set(cursor++, *fun);
-        elements->set(cursor++, *code);
-        elements->set(cursor++, Smi::FromInt(offset));
-        frames_seen++;
+        elements = FrameArray::AppendJSFrame(elements, recv, fun,
+                                             Handle<AbstractCode>::cast(code),
+                                             offset, flags);
       } break;
 
       case StackFrame::WASM: {
         WasmFrame* wasm_frame = WasmFrame::cast(frame);
+        Handle<Object> wasm_object(wasm_frame->wasm_obj(), this);
+        const int wasm_function_index = wasm_frame->function_index();
         Code* code = wasm_frame->unchecked_code();
-        Handle<AbstractCode> abstract_code =
-            Handle<AbstractCode>(AbstractCode::cast(code), this);
-        int offset =
+        Handle<AbstractCode> abstract_code(AbstractCode::cast(code), this);
+        const int offset =
             static_cast<int>(wasm_frame->pc() - code->instruction_start());
-        elements = MaybeGrow(this, elements, cursor, cursor + 4);
-        elements->set(cursor++, wasm_frame->wasm_obj());
-        elements->set(cursor++, Smi::FromInt(wasm_frame->function_index()));
-        elements->set(cursor++, *abstract_code);
-        elements->set(cursor++, Smi::FromInt(offset));
-        frames_seen++;
+
+        // TODO(wasm): The wasm object returned by the WasmFrame should always
+        //             be a wasm object.
+        DCHECK(wasm::IsWasmObject(*wasm_object) ||
+               wasm_object->IsUndefined(this));
+
+        elements = FrameArray::AppendWasmFrame(
+            elements, wasm_object, wasm_function_index, abstract_code, offset,
+            FrameArray::kIsWasmFrame);
       } break;
 
       default:
         break;
     }
   }
-  elements->set(0, Smi::FromInt(helper.sloppy_frames()));
-  elements->Shrink(cursor);
-  Handle<JSArray> result = factory()->NewJSArrayWithElements(elements);
-  result->set_length(Smi::FromInt(cursor));
+
+  elements->ShrinkToFit();
+
   // TODO(yangguo): Queue this structured stack trace for preprocessing on GC.
-  return result;
+  return factory()->NewJSArrayWithElements(elements);
 }
 
 MaybeHandle<JSReceiver> Isolate::CaptureAndSetDetailedStackTrace(
@@ -764,19 +739,6 @@ class CaptureStackTraceHelper {
   Handle<String> constructor_key_;
 };
 
-
-int PositionFromStackTrace(Handle<FixedArray> elements, int index) {
-  DisallowHeapAllocation no_gc;
-  Object* maybe_code = elements->get(index + 2);
-  if (maybe_code->IsSmi()) {
-    return Smi::cast(maybe_code)->value();
-  } else {
-    AbstractCode* abstract_code = AbstractCode::cast(maybe_code);
-    int code_offset = Smi::cast(elements->get(index + 3))->value();
-    return abstract_code->SourcePosition(code_offset);
-  }
-}
-
 Handle<JSArray> Isolate::CaptureCurrentStackTrace(
     int frame_limit, StackTrace::StackTraceOptions options) {
   DisallowJavascriptExecution no_js(this);
@@ -963,6 +925,10 @@ bool Isolate::MayAccess(Handle<Context> accessing_context,
 
 
 Object* Isolate::StackOverflow() {
+  if (FLAG_abort_on_stack_overflow) {
+    FATAL("Aborting on stack overflow");
+  }
+
   DisallowJavascriptExecution no_js(this);
   HandleScope scope(this);
 
@@ -979,7 +945,8 @@ Object* Isolate::StackOverflow() {
 
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap && FLAG_stress_compaction) {
-    heap()->CollectAllGarbage(Heap::kNoGCFlags, "trigger compaction");
+    heap()->CollectAllGarbage(Heap::kNoGCFlags,
+                              GarbageCollectionReason::kTesting);
   }
 #endif  // VERIFY_HEAP
 
@@ -1017,6 +984,8 @@ void Isolate::RequestInterrupt(InterruptCallback callback, void* data) {
 
 
 void Isolate::InvokeApiInterruptCallbacks() {
+  RuntimeCallTimerScope runtimeTimer(
+      this, &RuntimeCallStats::InvokeApiInterruptCallbacks);
   // Note: callback below should be called outside of execution access lock.
   while (true) {
     InterruptEntry entry;
@@ -1180,8 +1149,8 @@ Object* Isolate::UnwindAndFindHandler() {
   Address handler_sp = nullptr;
   Address handler_fp = nullptr;
 
-  // Special handling of termination exceptions, uncatchable by JavaScript code,
-  // we unwind the handlers until the top ENTRY handler is found.
+  // Special handling of termination exceptions, uncatchable by JavaScript and
+  // Wasm code, we unwind the handlers until the top ENTRY handler is found.
   bool catchable_by_js = is_catchable_by_javascript(exception);
 
   // Compute handler and stack unwinding information by performing a full walk
@@ -1201,6 +1170,28 @@ Object* Isolate::UnwindAndFindHandler() {
       handler_sp = handler->address() + StackHandlerConstants::kSize;
       offset = Smi::cast(code->handler_table()->get(0))->value();
       break;
+    }
+
+    if (FLAG_wasm_eh_prototype) {
+      if (frame->is_wasm() && is_catchable_by_wasm(exception)) {
+        int stack_slots = 0;  // Will contain stack slot count of frame.
+        WasmFrame* wasm_frame = static_cast<WasmFrame*>(frame);
+        offset = wasm_frame->LookupExceptionHandlerInTable(&stack_slots);
+        if (offset >= 0) {
+          // Compute the stack pointer from the frame pointer. This ensures that
+          // argument slots on the stack are dropped as returning would.
+          Address return_sp = frame->fp() +
+                              StandardFrameConstants::kFixedFrameSizeAboveFp -
+                              stack_slots * kPointerSize;
+
+          // Gather information from the frame.
+          code = frame->LookupCode();
+
+          handler_sp = return_sp;
+          handler_fp = frame->fp();
+          break;
+        }
+      }
     }
 
     // For optimized frames we perform a lookup in the handler table.
@@ -1349,6 +1340,8 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
       JavaScriptFrame* js_frame = static_cast<JavaScriptFrame*>(frame);
       HandlerTable::CatchPrediction prediction = PredictException(js_frame);
       if (prediction == HandlerTable::DESUGARING) return CAUGHT_BY_DESUGARING;
+      if (prediction == HandlerTable::ASYNC_AWAIT) return CAUGHT_BY_ASYNC_AWAIT;
+      if (prediction == HandlerTable::PROMISE) return CAUGHT_BY_PROMISE;
       if (prediction != HandlerTable::UNCAUGHT) return CAUGHT_BY_JAVASCRIPT;
     }
 
@@ -1425,36 +1418,20 @@ Object* Isolate::PromoteScheduledException() {
 
 
 void Isolate::PrintCurrentStackTrace(FILE* out) {
-  StackTraceFrameIterator it(this);
-  while (!it.done()) {
+  for (StackTraceFrameIterator it(this); !it.done(); it.Advance()) {
+    if (!it.is_javascript()) continue;
+
     HandleScope scope(this);
-    // Find code position if recorded in relocation info.
-    StandardFrame* frame = it.frame();
-    AbstractCode* abstract_code;
-    int code_offset;
-    if (frame->is_interpreted()) {
-      InterpretedFrame* iframe = reinterpret_cast<InterpretedFrame*>(frame);
-      abstract_code = AbstractCode::cast(iframe->GetBytecodeArray());
-      code_offset = iframe->GetBytecodeOffset();
-    } else {
-      DCHECK(frame->is_java_script() || frame->is_wasm());
-      Code* code = frame->LookupCode();
-      abstract_code = AbstractCode::cast(code);
-      code_offset = static_cast<int>(frame->pc() - code->instruction_start());
-    }
-    int pos = abstract_code->SourcePosition(code_offset);
-    JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
-    Handle<Object> pos_obj(Smi::FromInt(pos), this);
-    // Fetch function and receiver.
-    Handle<JSFunction> fun(js_frame->function(), this);
-    Handle<Object> recv(js_frame->receiver(), this);
-    // Advance to the next JavaScript frame and determine if the
-    // current frame is the top-level frame.
-    it.Advance();
-    Handle<Object> is_top_level = factory()->ToBoolean(it.done());
-    // Generate and print stack trace line.
-    Handle<String> line =
-        Execution::GetStackTraceLine(recv, fun, pos_obj, is_top_level);
+    JavaScriptFrame* frame = it.javascript_frame();
+
+    Handle<Object> receiver(frame->receiver(), this);
+    Handle<JSFunction> function(frame->function(), this);
+    Handle<AbstractCode> code(AbstractCode::cast(frame->LookupCode()), this);
+    const int offset =
+        static_cast<int>(frame->pc() - code->instruction_start());
+
+    JSStackFrame site(this, receiver, function, code, offset);
+    Handle<String> line = site.ToString().ToHandleChecked();
     if (line->length() > 0) {
       line->PrintOn(out);
       PrintF(out, "\n");
@@ -1522,22 +1499,25 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
   if (!property->IsJSArray()) return false;
   Handle<JSArray> simple_stack_trace = Handle<JSArray>::cast(property);
 
-  Handle<FixedArray> elements(FixedArray::cast(simple_stack_trace->elements()));
-  int elements_limit = Smi::cast(simple_stack_trace->length())->value();
+  Handle<FrameArray> elements(FrameArray::cast(simple_stack_trace->elements()));
 
-  for (int i = 1; i < elements_limit; i += 4) {
-    Handle<Object> fun_obj = handle(elements->get(i + 1), this);
-    if (fun_obj->IsSmi()) {
+  const int frame_count = elements->FrameCount();
+  for (int i = 0; i < frame_count; i++) {
+    if (elements->IsWasmFrame(i)) {
       // TODO(clemensh): handle wasm frames
       return false;
     }
-    Handle<JSFunction> fun = Handle<JSFunction>::cast(fun_obj);
+
+    Handle<JSFunction> fun = handle(elements->Function(i), this);
     if (!fun->shared()->IsSubjectToDebugging()) continue;
 
     Object* script = fun->shared()->script();
     if (script->IsScript() &&
         !(Script::cast(script)->source()->IsUndefined(this))) {
-      int pos = PositionFromStackTrace(elements, i);
+      AbstractCode* abstract_code = elements->Code(i);
+      const int code_offset = elements->Offset(i)->value();
+      const int pos = abstract_code->SourcePosition(code_offset);
+
       Handle<Script> casted_script(Script::cast(script));
       *target = MessageLocation(casted_script, pos, pos + 1);
       return true;
@@ -1752,6 +1732,22 @@ void Isolate::PopPromise() {
   global_handles()->Destroy(global_promise.location());
 }
 
+bool Isolate::PromiseHasUserDefinedRejectHandler(Handle<Object> promise) {
+  Handle<JSFunction> fun = promise_has_user_defined_reject_handler();
+  Handle<Object> has_reject_handler;
+  // If we are, e.g., overflowing the stack, don't try to call out to JS
+  if (!AllowJavascriptExecution::IsAllowed(this)) return false;
+  // Call the registered function to check for a handler
+  if (Execution::TryCall(this, fun, promise, 0, NULL)
+          .ToHandle(&has_reject_handler)) {
+    return has_reject_handler->IsTrue(this);
+  }
+  // If an exception is thrown in the course of execution of this built-in
+  // function, it indicates either a bug, or a synthetic uncatchable
+  // exception in the shutdown path. In either case, it's OK to predict either
+  // way in DevTools.
+  return false;
+}
 
 Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
   Handle<Object> undefined = factory()->undefined_value();
@@ -1762,18 +1758,49 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
   if (prediction == NOT_CAUGHT || prediction == CAUGHT_BY_EXTERNAL) {
     return undefined;
   }
+  Handle<Object> retval = undefined;
+  PromiseOnStack* promise_on_stack = tltop->promise_on_stack_;
   for (JavaScriptFrameIterator it(this); !it.done(); it.Advance()) {
     switch (PredictException(it.frame())) {
       case HandlerTable::UNCAUGHT:
-        break;
+        continue;
       case HandlerTable::CAUGHT:
       case HandlerTable::DESUGARING:
-        return undefined;
+        if (retval->IsJSObject()) {
+          // Caught the result of an inner async/await invocation.
+          // Mark the inner promise as caught in the "synchronous case" so
+          // that Debug::OnException will see. In the synchronous case,
+          // namely in the code in an async function before the first
+          // await, the function which has this exception event has not yet
+          // returned, so the generated Promise has not yet been marked
+          // by AsyncFunctionAwaitCaught with promiseHandledHintSymbol.
+          Handle<Symbol> key = factory()->promise_handled_hint_symbol();
+          JSObject::SetProperty(Handle<JSObject>::cast(retval), key,
+                                factory()->true_value(), STRICT)
+              .Assert();
+        }
+        return retval;
       case HandlerTable::PROMISE:
-        return tltop->promise_on_stack_->promise();
+        return promise_on_stack
+                   ? Handle<Object>::cast(promise_on_stack->promise())
+                   : undefined;
+      case HandlerTable::ASYNC_AWAIT: {
+        // If in the initial portion of async/await, continue the loop to pop up
+        // successive async/await stack frames until an asynchronous one with
+        // dependents is found, or a non-async stack frame is encountered, in
+        // order to handle the synchronous async/await catch prediction case:
+        // assume that async function calls are awaited.
+        if (!promise_on_stack) return retval;
+        retval = promise_on_stack->promise();
+        if (PromiseHasUserDefinedRejectHandler(retval)) {
+          return retval;
+        }
+        promise_on_stack = promise_on_stack->prev();
+        continue;
+      }
     }
   }
-  return undefined;
+  return retval;
 }
 
 
@@ -1904,13 +1931,13 @@ void Isolate::ThreadDataTable::RemoveAllThreads(Isolate* isolate) {
 #define TRACE_ISOLATE(tag)
 #endif
 
-class VerboseAccountingAllocator : public base::AccountingAllocator {
+class VerboseAccountingAllocator : public AccountingAllocator {
  public:
   VerboseAccountingAllocator(Heap* heap, size_t sample_bytes)
       : heap_(heap), last_memory_usage_(0), sample_bytes_(sample_bytes) {}
 
-  void* Allocate(size_t size) override {
-    void* memory = base::AccountingAllocator::Allocate(size);
+  v8::internal::Segment* AllocateSegment(size_t size) override {
+    v8::internal::Segment* memory = AccountingAllocator::AllocateSegment(size);
     if (memory) {
       size_t current = GetCurrentMemoryUsage();
       if (last_memory_usage_.Value() + sample_bytes_ < current) {
@@ -1921,8 +1948,8 @@ class VerboseAccountingAllocator : public base::AccountingAllocator {
     return memory;
   }
 
-  void Free(void* memory, size_t bytes) override {
-    base::AccountingAllocator::Free(memory, bytes);
+  void FreeSegment(v8::internal::Segment* memory) override {
+    AccountingAllocator::FreeSegment(memory);
     size_t current = GetCurrentMemoryUsage();
     if (current + sample_bytes_ < last_memory_usage_.Value()) {
       PrintJSON(current);
@@ -1977,9 +2004,8 @@ Isolate::Isolate(bool enable_serializer)
       unicode_cache_(NULL),
       allocator_(FLAG_trace_gc_object_stats
                      ? new VerboseAccountingAllocator(&heap_, 256 * KB)
-                     : new base::AccountingAllocator()),
+                     : new AccountingAllocator()),
       runtime_zone_(new Zone(allocator_)),
-      interface_descriptor_zone_(new Zone(allocator_)),
       inner_pointer_to_code_cache_(NULL),
       global_handles_(NULL),
       eternal_handles_(NULL),
@@ -2004,8 +2030,6 @@ Isolate::Isolate(bool enable_serializer)
       deferred_handles_head_(NULL),
       optimizing_compile_dispatcher_(NULL),
       stress_deopt_count_(0),
-      virtual_handler_register_(NULL),
-      virtual_slot_register_(NULL),
       next_optimization_id_(0),
       js_calls_from_api_counter_(0),
 #if TRACE_MAPS
@@ -2258,9 +2282,6 @@ Isolate::~Isolate() {
   delete runtime_zone_;
   runtime_zone_ = nullptr;
 
-  delete interface_descriptor_zone_;
-  interface_descriptor_zone_ = nullptr;
-
   delete allocator_;
   allocator_ = nullptr;
 
@@ -2399,6 +2420,12 @@ bool Isolate::Init(Deserializer* des) {
     return false;
   }
 
+// Initialize the interface descriptors ahead of time.
+#define INTERFACE_DESCRIPTOR(V) \
+  { V##Descriptor(this); }
+  INTERFACE_DESCRIPTOR_LIST(INTERFACE_DESCRIPTOR)
+#undef INTERFACE_DESCRIPTOR
+
   deoptimizer_data_ = new DeoptimizerData(heap()->memory_allocator());
 
   const bool create_heap_objects = (des == NULL);
@@ -2436,13 +2463,19 @@ bool Isolate::Init(Deserializer* des) {
   runtime_profiler_ = new RuntimeProfiler(this);
 
   // If we are deserializing, read the state into the now-empty heap.
-  if (!create_heap_objects) {
-    des->Deserialize(this);
-  }
-  load_stub_cache_->Initialize();
-  store_stub_cache_->Initialize();
-  if (FLAG_ignition || serializer_enabled()) {
-    interpreter_->Initialize();
+  {
+    AlwaysAllocateScope always_allocate(this);
+
+    if (!create_heap_objects) {
+      des->Deserialize(this);
+    }
+    load_stub_cache_->Initialize();
+    store_stub_cache_->Initialize();
+    if (FLAG_ignition || serializer_enabled()) {
+      interpreter_->Initialize();
+    }
+
+    heap_.NotifyDeserializationComplete();
   }
 
   // Finish initialization of ThreadLocal after deserialization is done.
@@ -2472,8 +2505,6 @@ bool Isolate::Init(Deserializer* des) {
            Internals::kExternalMemoryLimitOffset);
 
   time_millis_at_init_ = heap_.MonotonicallyIncreasingTimeInMs();
-
-  heap_.NotifyDeserializationComplete();
 
   if (!create_heap_objects) {
     // Now that the heap is consistent, it's OK to generate the code for the
@@ -2620,7 +2651,8 @@ void Isolate::DumpAndResetCompilationStats() {
   turbo_statistics_ = nullptr;
   delete hstatistics_;
   hstatistics_ = nullptr;
-  if (FLAG_runtime_call_stats) {
+  if (FLAG_runtime_call_stats &&
+      !TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED()) {
     OFStream os(stdout);
     counters()->runtime_call_stats()->Print(os);
     counters()->runtime_call_stats()->Reset();
@@ -2823,6 +2855,15 @@ void Isolate::InvalidateArraySpeciesProtector() {
   DCHECK(!IsArraySpeciesLookupChainIntact());
 }
 
+void Isolate::InvalidateStringLengthOverflowProtector() {
+  DCHECK(factory()->string_length_protector()->value()->IsSmi());
+  DCHECK(IsStringLengthOverflowIntact());
+  PropertyCell::SetValueWithInvalidation(
+      factory()->string_length_protector(),
+      handle(Smi::FromInt(kArrayProtectorInvalid), this));
+  DCHECK(!IsStringLengthOverflowIntact());
+}
+
 bool Isolate::IsAnyInitialArrayPrototype(Handle<JSArray> array) {
   DisallowHeapAllocation no_gc;
   return IsInAnyContext(*array, Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
@@ -2964,9 +3005,44 @@ void Isolate::ReportPromiseReject(Handle<JSObject> promise,
       v8::Utils::StackTraceToLocal(stack_trace)));
 }
 
+void Isolate::PromiseResolveThenableJob(Handle<PromiseContainer> container,
+                                        MaybeHandle<Object>* result,
+                                        MaybeHandle<Object>* maybe_exception) {
+  if (debug()->is_active()) {
+    Handle<Object> before_debug_event(container->before_debug_event(), this);
+    if (before_debug_event->IsJSObject()) {
+      debug()->OnAsyncTaskEvent(Handle<JSObject>::cast(before_debug_event));
+    }
+  }
+
+  Handle<JSReceiver> thenable(container->thenable(), this);
+  Handle<JSFunction> resolve(container->resolve(), this);
+  Handle<JSFunction> reject(container->reject(), this);
+  Handle<JSReceiver> then(container->then(), this);
+  Handle<Object> argv[] = {resolve, reject};
+  *result = Execution::TryCall(this, then, thenable, arraysize(argv), argv,
+                               maybe_exception);
+
+  Handle<Object> reason;
+  if (maybe_exception->ToHandle(&reason)) {
+    DCHECK(result->is_null());
+    Handle<Object> reason_arg[] = {reason};
+    *result =
+        Execution::TryCall(this, reject, factory()->undefined_value(),
+                           arraysize(reason_arg), reason_arg, maybe_exception);
+  }
+
+  if (debug()->is_active()) {
+    Handle<Object> after_debug_event(container->after_debug_event(), this);
+    if (after_debug_event->IsJSObject()) {
+      debug()->OnAsyncTaskEvent(Handle<JSObject>::cast(after_debug_event));
+    }
+  }
+}
 
 void Isolate::EnqueueMicrotask(Handle<Object> microtask) {
-  DCHECK(microtask->IsJSFunction() || microtask->IsCallHandlerInfo());
+  DCHECK(microtask->IsJSFunction() || microtask->IsCallHandlerInfo() ||
+         microtask->IsPromiseContainer());
   Handle<FixedArray> queue(heap()->microtask_queue(), this);
   int num_tasks = pending_microtask_count();
   DCHECK(num_tasks <= queue->length());
@@ -2995,6 +3071,8 @@ void Isolate::RunMicrotasks() {
 
 
 void Isolate::RunMicrotasksInternal() {
+  if (!pending_microtask_count()) return;
+  TRACE_EVENT0("v8.execute", "RunMicrotasks");
   while (pending_microtask_count() > 0) {
     HandleScope scope(this);
     int num_tasks = pending_microtask_count();
@@ -3006,18 +3084,41 @@ void Isolate::RunMicrotasksInternal() {
     Isolate* isolate = this;
     FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < num_tasks, i++, {
       Handle<Object> microtask(queue->get(i), this);
-      if (microtask->IsJSFunction()) {
-        Handle<JSFunction> microtask_function =
-            Handle<JSFunction>::cast(microtask);
+
+      if (microtask->IsCallHandlerInfo()) {
+        Handle<CallHandlerInfo> callback_info =
+            Handle<CallHandlerInfo>::cast(microtask);
+        v8::MicrotaskCallback callback =
+            v8::ToCData<v8::MicrotaskCallback>(callback_info->callback());
+        void* data = v8::ToCData<void*>(callback_info->data());
+        callback(data);
+      } else {
         SaveContext save(this);
-        set_context(microtask_function->context()->native_context());
+        Context* context = microtask->IsJSFunction()
+                               ? Handle<JSFunction>::cast(microtask)->context()
+                               : Handle<PromiseContainer>::cast(microtask)
+                                     ->resolve()
+                                     ->context();
+        set_context(context->native_context());
         handle_scope_implementer_->EnterMicrotaskContext(
-            handle(microtask_function->context(), this));
+            Handle<Context>(context, this));
+
+        MaybeHandle<Object> result;
         MaybeHandle<Object> maybe_exception;
-        MaybeHandle<Object> result = Execution::TryCall(
-            this, microtask_function, factory()->undefined_value(), 0, NULL,
-            &maybe_exception);
+
+        if (microtask->IsJSFunction()) {
+          Handle<JSFunction> microtask_function =
+              Handle<JSFunction>::cast(microtask);
+          result = Execution::TryCall(this, microtask_function,
+                                      factory()->undefined_value(), 0, NULL,
+                                      &maybe_exception);
+        } else {
+          PromiseResolveThenableJob(Handle<PromiseContainer>::cast(microtask),
+                                    &result, &maybe_exception);
+        }
+
         handle_scope_implementer_->LeaveMicrotaskContext();
+
         // If execution is terminating, just bail out.
         if (result.is_null() && maybe_exception.is_null()) {
           // Clear out any remaining callbacks in the queue.
@@ -3025,13 +3126,6 @@ void Isolate::RunMicrotasksInternal() {
           set_pending_microtask_count(0);
           return;
         }
-      } else {
-        Handle<CallHandlerInfo> callback_info =
-            Handle<CallHandlerInfo>::cast(microtask);
-        v8::MicrotaskCallback callback =
-            v8::ToCData<v8::MicrotaskCallback>(callback_info->callback());
-        void* data = v8::ToCData<void*>(callback_info->data());
-        callback(data);
       }
     });
   }
@@ -3179,6 +3273,15 @@ void Isolate::IsolateInForegroundNotification() {
   is_isolate_in_background_ = false;
 }
 
+void Isolate::PrintWithTimestamp(const char* format, ...) {
+  base::OS::Print("[%d:%p] %8.0f ms: ", base::OS::GetCurrentProcessId(),
+                  static_cast<void*>(this), time_millis_since_init());
+  va_list arguments;
+  va_start(arguments, format);
+  base::OS::VPrint(format, arguments);
+  va_end(arguments);
+}
+
 bool StackLimitCheck::JsHasOverflowed(uintptr_t gap) const {
   StackGuard* stack_guard = isolate_->stack_guard();
 #ifdef USE_SIMULATOR
@@ -3188,6 +3291,21 @@ bool StackLimitCheck::JsHasOverflowed(uintptr_t gap) const {
   if (jssp - gap < stack_guard->real_jslimit()) return true;
 #endif  // USE_SIMULATOR
   return GetCurrentStackPosition() - gap < stack_guard->real_climit();
+}
+
+SaveContext::SaveContext(Isolate* isolate)
+    : isolate_(isolate), prev_(isolate->save_context()) {
+  if (isolate->context() != NULL) {
+    context_ = Handle<Context>(isolate->context());
+  }
+  isolate->set_save_context(this);
+
+  c_entry_fp_ = isolate->c_entry_fp(isolate->thread_local_top());
+}
+
+SaveContext::~SaveContext() {
+  isolate_->set_context(context_.is_null() ? NULL : *context_);
+  isolate_->set_save_context(prev_);
 }
 
 #ifdef DEBUG

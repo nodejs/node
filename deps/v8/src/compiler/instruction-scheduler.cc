@@ -11,11 +11,16 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-// Compare the two nodes and return true if node1 is a better candidate than
-// node2 (i.e. node1 should be scheduled before node2).
-bool InstructionScheduler::CriticalPathFirstQueue::CompareNodes(
-    ScheduleGraphNode *node1, ScheduleGraphNode *node2) const {
-  return node1->total_latency() > node2->total_latency();
+void InstructionScheduler::SchedulingQueueBase::AddNode(
+    ScheduleGraphNode* node) {
+  // We keep the ready list sorted by total latency so that we can quickly find
+  // the next best candidate to schedule.
+  auto it = nodes_.begin();
+  while ((it != nodes_.end()) &&
+         ((*it)->total_latency() >= node->total_latency())) {
+    ++it;
+  }
+  nodes_.insert(it, node);
 }
 
 
@@ -24,12 +29,10 @@ InstructionScheduler::CriticalPathFirstQueue::PopBestCandidate(int cycle) {
   DCHECK(!IsEmpty());
   auto candidate = nodes_.end();
   for (auto iterator = nodes_.begin(); iterator != nodes_.end(); ++iterator) {
-    // We only consider instructions that have all their operands ready and
-    // we try to schedule the critical path first.
+    // We only consider instructions that have all their operands ready.
     if (cycle >= (*iterator)->start_cycle()) {
-      if ((candidate == nodes_.end()) || CompareNodes(*iterator, *candidate)) {
-        candidate = iterator;
-      }
+      candidate = iterator;
+      break;
     }
   }
 
@@ -133,9 +136,9 @@ void InstructionScheduler::AddInstruction(Instruction* instr) {
       last_live_in_reg_marker_->AddSuccessor(new_node);
     }
 
-    // Make sure that new instructions are not scheduled before the last
-    // deoptimization point.
-    if (last_deopt_ != nullptr) {
+    // Make sure that instructions are not scheduled before the last
+    // deoptimization point when they depend on it.
+    if ((last_deopt_ != nullptr) && DependsOnDeoptimization(instr)) {
       last_deopt_->AddSuccessor(new_node);
     }
 
@@ -242,7 +245,6 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kArchTruncateDoubleToI:
     case kArchStackSlot:
     case kArchDebugBreak:
-    case kArchImpossible:
     case kArchComment:
     case kIeee754Float64Acos:
     case kIeee754Float64Acosh:

@@ -2,22 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/osr.h"
 #include "src/ast/scopes.h"
-#include "src/compiler.h"
+#include "src/compilation-info.h"
 #include "src/compiler/all-nodes.h"
-#include "src/compiler/common-operator.h"
 #include "src/compiler/common-operator-reducer.h"
+#include "src/compiler/common-operator.h"
 #include "src/compiler/dead-code-elimination.h"
 #include "src/compiler/frame.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/graph-trimmer.h"
 #include "src/compiler/graph-visualizer.h"
+#include "src/compiler/graph.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/loop-analysis.h"
-#include "src/compiler/node.h"
 #include "src/compiler/node-marker.h"
-#include "src/compiler/osr.h"
+#include "src/compiler/node.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -270,11 +271,8 @@ void OsrHelper::Deconstruct(JSGraph* jsgraph, CommonOperatorBuilder* common,
     }
   }
 
-  if (osr_loop_entry == nullptr) {
-    // No OSR entry found, do nothing.
-    CHECK(osr_normal_entry);
-    return;
-  }
+  CHECK_NOT_NULL(osr_normal_entry);  // Should have found the OSR normal entry.
+  CHECK_NOT_NULL(osr_loop_entry);    // Should have found the OSR loop entry.
 
   for (Node* use : osr_loop_entry->uses()) {
     if (use->opcode() == IrOpcode::kLoop) {

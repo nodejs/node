@@ -3,8 +3,6 @@
 #
 
 ---
-pool type: mixed
-execute: yes
 wrap: yes
 
 ---
@@ -13,9 +11,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 7
+bytecode array length: 9
 bytecodes: [
                 B(Mov), R(new_target), R(0),
+                B(Ldar), R(new_target),
   /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(Ldar), R(0),
   /*   53 S> */ B(Return),
@@ -31,9 +30,10 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 6
+bytecode array length: 8
 bytecodes: [
                 B(Mov), R(new_target), R(0),
+                B(Ldar), R(new_target),
   /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(LdaUndefined),
   /*   46 S> */ B(Return),

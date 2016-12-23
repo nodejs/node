@@ -8,8 +8,9 @@
 #include <iosfwd>
 
 #include "src/field-index.h"
+#include "src/machine-type.h"
 #include "src/objects.h"
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -17,9 +18,12 @@ namespace internal {
 // Forward declarations.
 class CompilationDependencies;
 class Factory;
-class TypeCache;
 
 namespace compiler {
+
+// Forward declarations.
+class Type;
+class TypeCache;
 
 // Whether we are loading a property or storing to a property.
 enum class AccessMode { kLoad, kStore };
@@ -66,7 +70,9 @@ class PropertyAccessInfo final {
                                          Handle<Object> constant,
                                          MaybeHandle<JSObject> holder);
   static PropertyAccessInfo DataField(
-      MapList const& receiver_maps, FieldIndex field_index, Type* field_type,
+      MapList const& receiver_maps, FieldIndex field_index,
+      MachineRepresentation field_representation, Type* field_type,
+      MaybeHandle<Map> field_map = MaybeHandle<Map>(),
       MaybeHandle<JSObject> holder = MaybeHandle<JSObject>(),
       MaybeHandle<Map> transition_map = MaybeHandle<Map>());
   static PropertyAccessInfo AccessorConstant(MapList const& receiver_maps,
@@ -90,6 +96,10 @@ class PropertyAccessInfo final {
   Handle<Object> constant() const { return constant_; }
   FieldIndex field_index() const { return field_index_; }
   Type* field_type() const { return field_type_; }
+  MachineRepresentation field_representation() const {
+    return field_representation_;
+  }
+  MaybeHandle<Map> field_map() const { return field_map_; }
   MapList const& receiver_maps() const { return receiver_maps_; }
 
  private:
@@ -99,7 +109,9 @@ class PropertyAccessInfo final {
                      Handle<Object> constant, MapList const& receiver_maps);
   PropertyAccessInfo(MaybeHandle<JSObject> holder,
                      MaybeHandle<Map> transition_map, FieldIndex field_index,
-                     Type* field_type, MapList const& receiver_maps);
+                     MachineRepresentation field_representation,
+                     Type* field_type, MaybeHandle<Map> field_map,
+                     MapList const& receiver_maps);
 
   Kind kind_;
   MapList receiver_maps_;
@@ -107,7 +119,9 @@ class PropertyAccessInfo final {
   MaybeHandle<Map> transition_map_;
   MaybeHandle<JSObject> holder_;
   FieldIndex field_index_;
+  MachineRepresentation field_representation_;
   Type* field_type_;
+  MaybeHandle<Map> field_map_;
 };
 
 

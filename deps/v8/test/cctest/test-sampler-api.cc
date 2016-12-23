@@ -7,6 +7,7 @@
 #include <map>
 #include <string>
 #include "include/v8.h"
+#include "src/flags.h"
 #include "src/simulator.h"
 #include "test/cctest/cctest.h"
 

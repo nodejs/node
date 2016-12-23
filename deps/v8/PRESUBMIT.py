@@ -216,6 +216,38 @@ def _CheckNoProductionCodeUsingTestOnlyFunctions(input_api, output_api):
     return []
 
 
+def _CheckMissingFiles(input_api, output_api):
+  """Runs verify_source_deps.py to ensure no files were added that are not in
+  GN.
+  """
+  # We need to wait until we have an input_api object and use this
+  # roundabout construct to import checkdeps because this file is
+  # eval-ed and thus doesn't have __file__.
+  original_sys_path = sys.path
+  try:
+    sys.path = sys.path + [input_api.os_path.join(
+        input_api.PresubmitLocalPath(), 'tools')]
+    from verify_source_deps import missing_gn_files, missing_gyp_files
+  finally:
+    # Restore sys.path to what it was before.
+    sys.path = original_sys_path
+
+  gn_files = missing_gn_files()
+  gyp_files = missing_gyp_files()
+  results = []
+  if gn_files:
+    results.append(output_api.PresubmitError(
+        "You added one or more source files but didn't update the\n"
+        "corresponding BUILD.gn files:\n",
+        gn_files))
+  if gyp_files:
+    results.append(output_api.PresubmitError(
+        "You added one or more source files but didn't update the\n"
+        "corresponding gyp files:\n",
+        gyp_files))
+  return results
+
+
 def _CommonChecks(input_api, output_api):
   """Checks common to both upload and commit."""
   results = []
@@ -231,6 +263,7 @@ def _CommonChecks(input_api, output_api):
       _CheckNoProductionCodeUsingTestOnlyFunctions(input_api, output_api))
   results.extend(
       _CheckNoInlineHeaderIncludesInNormalHeaders(input_api, output_api))
+  results.extend(_CheckMissingFiles(input_api, output_api))
   return results
 
 

@@ -93,7 +93,8 @@ class AstPrinter final : public AstVisitor<AstPrinter> {
                                     Variable* var,
                                     Handle<Object> value);
   void PrintLabelsIndented(ZoneList<const AstRawString*>* labels);
-  void PrintProperties(ZoneList<ObjectLiteral::Property*>* properties);
+  void PrintObjectProperties(ZoneList<ObjectLiteral::Property*>* properties);
+  void PrintClassProperties(ZoneList<ClassLiteral::Property*>* properties);
   void PrintTryStatement(TryStatement* try_statement);
 
   void inc_indent() { indent_++; }

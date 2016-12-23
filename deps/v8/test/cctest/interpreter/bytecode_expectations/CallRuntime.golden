@@ -3,8 +3,6 @@
 #
 
 ---
-pool type: mixed
-execute: yes
 wrap: no
 test function name: f
 
@@ -78,13 +76,13 @@ bytecode array length: 14
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   15 S> */ B(LdrUndefined), R(0),
-                B(CreateArrayLiteral), U8(0), U8(0), U8(3),
+                B(CreateArrayLiteral), U8(0), U8(0), U8(9),
                 B(Star), R(1),
-                B(CallJSRuntime), U8(134), R(0), U8(2),
+                B(CallJSRuntime), U8(141), R(0), U8(2),
   /*   44 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::FIXED_ARRAY_TYPE,
+  FIXED_ARRAY_TYPE,
 ]
 handlers: [
 ]

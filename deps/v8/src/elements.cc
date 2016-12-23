@@ -911,6 +911,30 @@ class ElementsAccessorBase : public ElementsAccessor {
     Subclass::GrowCapacityAndConvertImpl(object, capacity);
   }
 
+  bool GrowCapacity(Handle<JSObject> object, uint32_t index) final {
+    // This function is intended to be called from optimized code. We don't
+    // want to trigger lazy deopts there, so refuse to handle cases that would.
+    if (object->map()->is_prototype_map() ||
+        object->WouldConvertToSlowElements(index)) {
+      return false;
+    }
+    Handle<FixedArrayBase> old_elements(object->elements());
+    uint32_t new_capacity = JSObject::NewElementsCapacity(index + 1);
+    DCHECK(static_cast<uint32_t>(old_elements->length()) < new_capacity);
+    Handle<FixedArrayBase> elements =
+        ConvertElementsWithCapacity(object, old_elements, kind(), new_capacity);
+
+    DCHECK_EQ(object->GetElementsKind(), kind());
+    // Transition through the allocation site as well if present.
+    if (JSObject::UpdateAllocationSite<AllocationSiteUpdateMode::kCheckOnly>(
+            object, kind())) {
+      return false;
+    }
+
+    object->set_elements(*elements);
+    return true;
+  }
+
   void Delete(Handle<JSObject> obj, uint32_t entry) final {
     Subclass::DeleteImpl(obj, entry);
   }
@@ -1165,13 +1189,13 @@ class ElementsAccessorBase : public ElementsAccessor {
   static uint32_t GetEntryForIndexImpl(JSObject* holder,
                                        FixedArrayBase* backing_store,
                                        uint32_t index, PropertyFilter filter) {
+    uint32_t length = Subclass::GetMaxIndex(holder, backing_store);
     if (IsHoleyElementsKind(kind())) {
-      return index < Subclass::GetCapacityImpl(holder, backing_store) &&
+      return index < length &&
                      !BackingStore::cast(backing_store)->is_the_hole(index)
                  ? index
                  : kMaxUInt32;
     } else {
-      uint32_t length = Subclass::GetMaxIndex(holder, backing_store);
       return index < length ? index : kMaxUInt32;
     }
   }
@@ -2922,8 +2946,7 @@ class SloppyArgumentsElementsAccessor
     FixedArray* parameter_map = FixedArray::cast(parameters);
     uint32_t length = parameter_map->length() - 2;
     if (entry < length) {
-      return !GetParameterMapArg(parameter_map, entry)
-                  ->IsTheHole(parameter_map->GetIsolate());
+      return HasParameterMapArg(parameter_map, entry);
     }
 
     FixedArrayBase* arguments = FixedArrayBase::cast(parameter_map->get(1));
@@ -2951,8 +2974,7 @@ class SloppyArgumentsElementsAccessor
                                        FixedArrayBase* parameters,
                                        uint32_t index, PropertyFilter filter) {
     FixedArray* parameter_map = FixedArray::cast(parameters);
-    Object* probe = GetParameterMapArg(parameter_map, index);
-    if (!probe->IsTheHole(holder->GetIsolate())) return index;
+    if (HasParameterMapArg(parameter_map, index)) return index;
 
     FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
     uint32_t entry = ArgumentsAccessor::GetEntryForIndexImpl(holder, arguments,
@@ -2971,11 +2993,11 @@ class SloppyArgumentsElementsAccessor
     return ArgumentsAccessor::GetDetailsImpl(arguments, entry - length);
   }
 
-  static Object* GetParameterMapArg(FixedArray* parameter_map, uint32_t index) {
+  static bool HasParameterMapArg(FixedArray* parameter_map, uint32_t index) {
     uint32_t length = parameter_map->length() - 2;
-    return index < length
-               ? parameter_map->get(index + 2)
-               : Object::cast(parameter_map->GetHeap()->the_hole_value());
+    if (index >= length) return false;
+    return !parameter_map->get(index + 2)->IsTheHole(
+        parameter_map->GetIsolate());
   }
 
   static void DeleteImpl(Handle<JSObject> obj, uint32_t entry) {
@@ -3012,7 +3034,7 @@ class SloppyArgumentsElementsAccessor
       Handle<FixedArrayBase> backing_store, GetKeysConversion convert,
       PropertyFilter filter, Handle<FixedArray> list, uint32_t* nof_indices,
       uint32_t insertion_index = 0) {
-    FixedArray* parameter_map = FixedArray::cast(*backing_store);
+    Handle<FixedArray> parameter_map(FixedArray::cast(*backing_store), isolate);
     uint32_t length = parameter_map->length() - 2;
 
     for (uint32_t i = 0; i < length; ++i) {
@@ -3038,18 +3060,19 @@ class SloppyArgumentsElementsAccessor
                                        uint32_t start_from, uint32_t length) {
     DCHECK(JSObject::PrototypeHasNoElements(isolate, *object));
     Handle<Map> original_map = handle(object->map(), isolate);
-    FixedArray* parameter_map = FixedArray::cast(object->elements());
+    Handle<FixedArray> parameter_map(FixedArray::cast(object->elements()),
+                                     isolate);
     bool search_for_hole = value->IsUndefined(isolate);
 
     for (uint32_t k = start_from; k < length; ++k) {
       uint32_t entry =
-          GetEntryForIndexImpl(*object, parameter_map, k, ALL_PROPERTIES);
+          GetEntryForIndexImpl(*object, *parameter_map, k, ALL_PROPERTIES);
       if (entry == kMaxUInt32) {
         if (search_for_hole) return Just(true);
         continue;
       }
 
-      Handle<Object> element_k = GetImpl(parameter_map, entry);
+      Handle<Object> element_k = GetImpl(*parameter_map, entry);
 
       if (element_k->IsAccessorPair()) {
         LookupIterator it(isolate, object, k, LookupIterator::OWN);
@@ -3078,16 +3101,17 @@ class SloppyArgumentsElementsAccessor
                                          uint32_t start_from, uint32_t length) {
     DCHECK(JSObject::PrototypeHasNoElements(isolate, *object));
     Handle<Map> original_map = handle(object->map(), isolate);
-    FixedArray* parameter_map = FixedArray::cast(object->elements());
+    Handle<FixedArray> parameter_map(FixedArray::cast(object->elements()),
+                                     isolate);
 
     for (uint32_t k = start_from; k < length; ++k) {
       uint32_t entry =
-          GetEntryForIndexImpl(*object, parameter_map, k, ALL_PROPERTIES);
+          GetEntryForIndexImpl(*object, *parameter_map, k, ALL_PROPERTIES);
       if (entry == kMaxUInt32) {
         continue;
       }
 
-      Handle<Object> element_k = GetImpl(parameter_map, entry);
+      Handle<Object> element_k = GetImpl(*parameter_map, entry);
 
       if (element_k->IsAccessorPair()) {
         LookupIterator it(isolate, object, k, LookupIterator::OWN);

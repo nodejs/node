@@ -136,8 +136,6 @@ MUST_USE_RESULT MaybeHandle<Object> Invoke(Isolate* isolate, bool is_construct,
       PrintDeserializedCodeInfo(Handle<JSFunction>::cast(target));
     }
     RuntimeCallTimerScope timer(isolate, &RuntimeCallStats::JS_Execution);
-    TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-        isolate, &tracing::TraceEventStatsTable::JS_Execution);
     value = CALL_GENERATED_CODE(isolate, stub_entry, orig_func, func, recv,
                                 argc, argv);
   }
@@ -434,31 +432,6 @@ void StackGuard::InitThread(const ExecutionAccess& lock) {
 
 
 // --- C a l l s   t o   n a t i v e s ---
-
-
-Handle<String> Execution::GetStackTraceLine(Handle<Object> recv,
-                                            Handle<JSFunction> fun,
-                                            Handle<Object> pos,
-                                            Handle<Object> is_global) {
-  Isolate* isolate = fun->GetIsolate();
-  Handle<Object> strict_mode = isolate->factory()->ToBoolean(false);
-
-  MaybeHandle<Object> maybe_callsite =
-      CallSiteUtils::Construct(isolate, recv, fun, pos, strict_mode);
-  if (maybe_callsite.is_null()) {
-    isolate->clear_pending_exception();
-    return isolate->factory()->empty_string();
-  }
-
-  MaybeHandle<String> maybe_to_string =
-      CallSiteUtils::ToString(isolate, maybe_callsite.ToHandleChecked());
-  if (maybe_to_string.is_null()) {
-    isolate->clear_pending_exception();
-    return isolate->factory()->empty_string();
-  }
-
-  return maybe_to_string.ToHandleChecked();
-}
 
 
 void StackGuard::HandleGCInterrupt() {

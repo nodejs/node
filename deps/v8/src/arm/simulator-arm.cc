@@ -575,8 +575,8 @@ void Simulator::set_last_debugger_input(char* input) {
   last_debugger_input_ = input;
 }
 
-void Simulator::FlushICache(base::HashMap* i_cache, void* start_addr,
-                            size_t size) {
+void Simulator::FlushICache(base::CustomMatcherHashMap* i_cache,
+                            void* start_addr, size_t size) {
   intptr_t start = reinterpret_cast<intptr_t>(start_addr);
   int intra_line = (start & CachePage::kLineMask);
   start -= intra_line;
@@ -596,7 +596,8 @@ void Simulator::FlushICache(base::HashMap* i_cache, void* start_addr,
   }
 }
 
-CachePage* Simulator::GetCachePage(base::HashMap* i_cache, void* page) {
+CachePage* Simulator::GetCachePage(base::CustomMatcherHashMap* i_cache,
+                                   void* page) {
   base::HashMap::Entry* entry = i_cache->LookupOrInsert(page, ICacheHash(page));
   if (entry->value == NULL) {
     CachePage* new_page = new CachePage();
@@ -607,7 +608,8 @@ CachePage* Simulator::GetCachePage(base::HashMap* i_cache, void* page) {
 
 
 // Flush from start up to and not including start + size.
-void Simulator::FlushOnePage(base::HashMap* i_cache, intptr_t start, int size) {
+void Simulator::FlushOnePage(base::CustomMatcherHashMap* i_cache,
+                             intptr_t start, int size) {
   DCHECK(size <= CachePage::kPageSize);
   DCHECK(AllOnOnePage(start, size - 1));
   DCHECK((start & CachePage::kLineMask) == 0);
@@ -619,7 +621,8 @@ void Simulator::FlushOnePage(base::HashMap* i_cache, intptr_t start, int size) {
   memset(valid_bytemap, CachePage::LINE_INVALID, size >> CachePage::kLineShift);
 }
 
-void Simulator::CheckICache(base::HashMap* i_cache, Instruction* instr) {
+void Simulator::CheckICache(base::CustomMatcherHashMap* i_cache,
+                            Instruction* instr) {
   intptr_t address = reinterpret_cast<intptr_t>(instr);
   void* page = reinterpret_cast<void*>(address & (~CachePage::kPageMask));
   void* line = reinterpret_cast<void*>(address & (~CachePage::kLineMask));
@@ -652,7 +655,7 @@ void Simulator::Initialize(Isolate* isolate) {
 Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   i_cache_ = isolate_->simulator_i_cache();
   if (i_cache_ == NULL) {
-    i_cache_ = new base::HashMap(&ICacheMatch);
+    i_cache_ = new base::CustomMatcherHashMap(&ICacheMatch);
     isolate_->set_simulator_i_cache(i_cache_);
   }
   Initialize(isolate);
@@ -783,7 +786,8 @@ class Redirection {
 
 
 // static
-void Simulator::TearDown(base::HashMap* i_cache, Redirection* first) {
+void Simulator::TearDown(base::CustomMatcherHashMap* i_cache,
+                         Redirection* first) {
   Redirection::DeleteChain(first);
   if (i_cache != nullptr) {
     for (base::HashMap::Entry* entry = i_cache->Start(); entry != nullptr;
@@ -2886,26 +2890,24 @@ void Simulator::DecodeType3(Instruction* instr) {
           return;
         }
       }
-      if (FLAG_enable_sudiv) {
-        if (instr->Bits(5, 4) == 0x1) {
-          if ((instr->Bit(22) == 0x0) && (instr->Bit(20) == 0x1)) {
-            // (s/u)div (in V8 notation matching ARM ISA format) rn = rm/rs
-            // Format(instr, "'(s/u)div'cond'b 'rn, 'rm, 'rs);
-            int rm = instr->RmValue();
-            int32_t rm_val = get_register(rm);
-            int rs = instr->RsValue();
-            int32_t rs_val = get_register(rs);
-            int32_t ret_val = 0;
-            // udiv
-            if (instr->Bit(21) == 0x1) {
-              ret_val = bit_cast<int32_t>(base::bits::UnsignedDiv32(
-                  bit_cast<uint32_t>(rm_val), bit_cast<uint32_t>(rs_val)));
-            } else {
-              ret_val = base::bits::SignedDiv32(rm_val, rs_val);
-            }
-            set_register(rn, ret_val);
-            return;
+      if (instr->Bits(5, 4) == 0x1) {
+        if ((instr->Bit(22) == 0x0) && (instr->Bit(20) == 0x1)) {
+          // (s/u)div (in V8 notation matching ARM ISA format) rn = rm/rs
+          // Format(instr, "'(s/u)div'cond'b 'rn, 'rm, 'rs);
+          int rm = instr->RmValue();
+          int32_t rm_val = get_register(rm);
+          int rs = instr->RsValue();
+          int32_t rs_val = get_register(rs);
+          int32_t ret_val = 0;
+          // udiv
+          if (instr->Bit(21) == 0x1) {
+            ret_val = bit_cast<int32_t>(base::bits::UnsignedDiv32(
+                bit_cast<uint32_t>(rm_val), bit_cast<uint32_t>(rs_val)));
+          } else {
+            ret_val = base::bits::SignedDiv32(rm_val, rs_val);
           }
+          set_register(rn, ret_val);
+          return;
         }
       }
       // Format(instr, "'memop'cond'b 'rd, ['rn, -'shift_rm]'w");
@@ -3026,7 +3028,17 @@ void Simulator::DecodeType7(Instruction* instr) {
   if (instr->Bit(24) == 1) {
     SoftwareInterrupt(instr);
   } else {
-    DecodeTypeVFP(instr);
+    switch (instr->CoprocessorValue()) {
+      case 10:  // Fall through.
+      case 11:
+        DecodeTypeVFP(instr);
+        break;
+      case 15:
+        DecodeTypeCP15(instr);
+        break;
+      default:
+        UNIMPLEMENTED();
+    }
   }
 }
 
@@ -3335,6 +3347,31 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
   }
 }
 
+void Simulator::DecodeTypeCP15(Instruction* instr) {
+  DCHECK((instr->TypeValue() == 7) && (instr->Bit(24) == 0x0));
+  DCHECK(instr->CoprocessorValue() == 15);
+
+  if (instr->Bit(4) == 1) {
+    // mcr
+    int crn = instr->Bits(19, 16);
+    int crm = instr->Bits(3, 0);
+    int opc1 = instr->Bits(23, 21);
+    int opc2 = instr->Bits(7, 5);
+    if ((opc1 == 0) && (crn == 7)) {
+      // ARMv6 memory barrier operations.
+      // Details available in ARM DDI 0406C.b, B3-1750.
+      if (((crm == 10) && (opc2 == 5)) ||  // CP15DMB
+          ((crm == 10) && (opc2 == 4)) ||  // CP15DSB
+          ((crm == 5) && (opc2 == 4))) {   // CP15ISB
+        // These are ignored by the simulator for now.
+      } else {
+        UNIMPLEMENTED();
+      }
+    }
+  } else {
+    UNIMPLEMENTED();
+  }
+}
 
 void Simulator::DecodeVMOVBetweenCoreAndSinglePrecisionRegisters(
     Instruction* instr) {
@@ -3750,6 +3787,21 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           e++;
         }
         set_q_register(Vd, reinterpret_cast<uint64_t*>(to));
+      } else if ((instr->Bits(21, 16) == 0x32) && (instr->Bits(11, 7) == 0) &&
+                 (instr->Bit(4) == 0)) {
+        int vd = instr->VFPDRegValue(kDoublePrecision);
+        int vm = instr->VFPMRegValue(kDoublePrecision);
+        if (instr->Bit(6) == 0) {
+          // vswp Dd, Dm.
+          uint64_t dval, mval;
+          get_d_register(vd, &dval);
+          get_d_register(vm, &mval);
+          set_d_register(vm, &dval);
+          set_d_register(vd, &mval);
+        } else {
+          // Q register vswp unimplemented.
+          UNIMPLEMENTED();
+        }
       } else {
         UNIMPLEMENTED();
       }
@@ -3848,6 +3900,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
       } else if (instr->SpecialValue() == 0xA && instr->Bits(22, 20) == 7) {
         // dsb, dmb, isb: ignore instruction for now.
         // TODO(binji): implement
+        // Also refer to the ARMv6 CP15 equivalents in DecodeTypeCP15.
       } else {
         UNIMPLEMENTED();
       }
@@ -3904,6 +3957,69 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
             default:
               UNREACHABLE();  // Case analysis is exhaustive.
               break;
+          }
+          sd_value = canonicalizeNaN(sd_value);
+          set_s_register_from_float(d, sd_value);
+        }
+      } else if ((instr->Opc1Value() == 0x4) && (instr->Bits(11, 9) == 0x5) &&
+                 (instr->Bit(4) == 0x0)) {
+        if (instr->SzValue() == 0x1) {
+          int m = instr->VFPMRegValue(kDoublePrecision);
+          int n = instr->VFPNRegValue(kDoublePrecision);
+          int d = instr->VFPDRegValue(kDoublePrecision);
+          double dn_value = get_double_from_d_register(n);
+          double dm_value = get_double_from_d_register(m);
+          double dd_value;
+          if (instr->Bit(6) == 0x1) {  // vminnm
+            if ((dn_value < dm_value) || std::isnan(dm_value)) {
+              dd_value = dn_value;
+            } else if ((dm_value < dn_value) || std::isnan(dn_value)) {
+              dd_value = dm_value;
+            } else {
+              DCHECK_EQ(dn_value, dm_value);
+              // Make sure that we pick the most negative sign for +/-0.
+              dd_value = std::signbit(dn_value) ? dn_value : dm_value;
+            }
+          } else {  // vmaxnm
+            if ((dn_value > dm_value) || std::isnan(dm_value)) {
+              dd_value = dn_value;
+            } else if ((dm_value > dn_value) || std::isnan(dn_value)) {
+              dd_value = dm_value;
+            } else {
+              DCHECK_EQ(dn_value, dm_value);
+              // Make sure that we pick the most positive sign for +/-0.
+              dd_value = std::signbit(dn_value) ? dm_value : dn_value;
+            }
+          }
+          dd_value = canonicalizeNaN(dd_value);
+          set_d_register_from_double(d, dd_value);
+        } else {
+          int m = instr->VFPMRegValue(kSinglePrecision);
+          int n = instr->VFPNRegValue(kSinglePrecision);
+          int d = instr->VFPDRegValue(kSinglePrecision);
+          float sn_value = get_float_from_s_register(n);
+          float sm_value = get_float_from_s_register(m);
+          float sd_value;
+          if (instr->Bit(6) == 0x1) {  // vminnm
+            if ((sn_value < sm_value) || std::isnan(sm_value)) {
+              sd_value = sn_value;
+            } else if ((sm_value < sn_value) || std::isnan(sn_value)) {
+              sd_value = sm_value;
+            } else {
+              DCHECK_EQ(sn_value, sm_value);
+              // Make sure that we pick the most negative sign for +/-0.
+              sd_value = std::signbit(sn_value) ? sn_value : sm_value;
+            }
+          } else {  // vmaxnm
+            if ((sn_value > sm_value) || std::isnan(sm_value)) {
+              sd_value = sn_value;
+            } else if ((sm_value > sn_value) || std::isnan(sn_value)) {
+              sd_value = sm_value;
+            } else {
+              DCHECK_EQ(sn_value, sm_value);
+              // Make sure that we pick the most positive sign for +/-0.
+              sd_value = std::signbit(sn_value) ? sm_value : sn_value;
+            }
           }
           sd_value = canonicalizeNaN(sd_value);
           set_s_register_from_float(d, sd_value);

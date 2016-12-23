@@ -1461,9 +1461,9 @@ Address WasmFrame::GetCallerStackPointer() const {
 }
 
 Object* WasmFrame::wasm_obj() const {
-  FixedArray* deopt_data = LookupCode()->deoptimization_data();
-  DCHECK(deopt_data->length() == 2);
-  return deopt_data->get(0);
+  Object* ret = wasm::GetOwningWasmInstance(LookupCode());
+  if (ret == nullptr) ret = *(isolate()->factory()->undefined_value());
+  return ret;
 }
 
 uint32_t WasmFrame::function_index() const {
@@ -1476,6 +1476,15 @@ Script* WasmFrame::script() const {
   Handle<JSObject> wasm(JSObject::cast(wasm_obj()), isolate());
   Handle<wasm::WasmDebugInfo> debug_info = wasm::GetDebugInfo(wasm);
   return wasm::WasmDebugInfo::GetFunctionScript(debug_info, function_index());
+}
+
+int WasmFrame::LookupExceptionHandlerInTable(int* stack_slots) {
+  DCHECK_NOT_NULL(stack_slots);
+  Code* code = LookupCode();
+  HandlerTable* table = HandlerTable::cast(code->handler_table());
+  int pc_offset = static_cast<int>(pc() - code->entry());
+  *stack_slots = code->stack_slots();
+  return table->LookupReturn(pc_offset);
 }
 
 namespace {

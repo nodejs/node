@@ -12,7 +12,6 @@
 #include "include/v8.h"
 
 #include "src/base/logging.h"
-#include "src/compiler.h"
 #include "src/runtime/runtime.h"
 
 #include "src/interpreter/bytecode-array-iterator.h"
@@ -47,11 +46,17 @@ std::string BytecodeExpectationsPrinter::WrapCodeInFunction(
   return program_stream.str();
 }
 
-v8::Local<v8::Script> BytecodeExpectationsPrinter::Compile(
+v8::Local<v8::Script> BytecodeExpectationsPrinter::CompileScript(
     const char* program) const {
   v8::Local<v8::String> source = V8StringFromUTF8(program);
   return v8::Script::Compile(isolate_->GetCurrentContext(), source)
       .ToLocalChecked();
+}
+
+v8::Local<v8::Module> BytecodeExpectationsPrinter::CompileModule(
+    const char* program) const {
+  v8::ScriptCompiler::Source source(V8StringFromUTF8(program));
+  return v8::ScriptCompiler::CompileModule(isolate_, &source).ToLocalChecked();
 }
 
 void BytecodeExpectationsPrinter::Run(v8::Local<v8::Script> script) const {
@@ -72,6 +77,13 @@ BytecodeExpectationsPrinter::GetBytecodeArrayForGlobal(
       i::handle(js_function->shared()->bytecode_array(), i_isolate());
 
   return bytecodes;
+}
+
+i::Handle<i::BytecodeArray>
+BytecodeExpectationsPrinter::GetBytecodeArrayForModule(
+    v8::Local<v8::Module> module) const {
+  i::Handle<i::Module> i_module = v8::Utils::OpenHandle(*module);
+  return i::handle(i_module->shared()->bytecode_array(), i_isolate());
 }
 
 i::Handle<i::BytecodeArray>
@@ -151,6 +163,9 @@ void BytecodeExpectationsPrinter::PrintBytecodeOperand(
       case OperandType::kIdx:
         stream << bytecode_iterator.GetIndexOperand(op_index);
         break;
+      case OperandType::kUImm:
+        stream << bytecode_iterator.GetUnsignedImmediateOperand(op_index);
+        break;
       case OperandType::kImm:
         stream << bytecode_iterator.GetImmediateOperand(op_index);
         break;
@@ -225,32 +240,21 @@ void BytecodeExpectationsPrinter::PrintV8String(std::ostream& stream,
 
 void BytecodeExpectationsPrinter::PrintConstant(
     std::ostream& stream, i::Handle<i::Object> constant) const {
-  switch (const_pool_type_) {
-    case ConstantPoolType::kString:
-      CHECK(constant->IsString());
+  if (constant->IsSmi()) {
+    stream << "Smi [";
+    i::Smi::cast(*constant)->SmiPrint(stream);
+    stream << "]";
+  } else {
+    stream << i::HeapObject::cast(*constant)->map()->instance_type();
+    if (constant->IsHeapNumber()) {
+      stream << " [";
+      i::HeapNumber::cast(*constant)->HeapNumberPrint(stream);
+      stream << "]";
+    } else if (constant->IsString()) {
+      stream << " [";
       PrintV8String(stream, i::String::cast(*constant));
-      break;
-    case ConstantPoolType::kNumber:
-      if (constant->IsSmi()) {
-        i::Smi::cast(*constant)->SmiPrint(stream);
-      } else if (constant->IsHeapNumber()) {
-        i::HeapNumber::cast(*constant)->HeapNumberPrint(stream);
-      } else {
-        UNREACHABLE();
-      }
-      break;
-    case ConstantPoolType::kMixed:
-      if (constant->IsSmi()) {
-        stream << "kInstanceTypeDontCare";
-      } else {
-        stream << "InstanceType::"
-               << i::HeapObject::cast(*constant)->map()->instance_type();
-      }
-      break;
-    case ConstantPoolType::kUnknown:
-    default:
-      UNREACHABLE();
-      return;
+      stream << "]";
+    }
   }
 }
 
@@ -335,13 +339,20 @@ void BytecodeExpectationsPrinter::PrintExpectation(
       wrap_ ? WrapCodeInFunction(test_function_name_.c_str(), snippet)
             : snippet;
 
-  v8::Local<v8::Script> script = Compile(source_code.c_str());
-
-  if (execute_) Run(script);
-
-  i::Handle<i::BytecodeArray> bytecode_array =
-      top_level_ ? GetBytecodeArrayForScript(script)
-                 : GetBytecodeArrayForGlobal(test_function_name_.c_str());
+  i::Handle<i::BytecodeArray> bytecode_array;
+  if (module_) {
+    CHECK(top_level_ && !wrap_);
+    v8::Local<v8::Module> module = CompileModule(source_code.c_str());
+    bytecode_array = GetBytecodeArrayForModule(module);
+  } else {
+    v8::Local<v8::Script> script = CompileScript(source_code.c_str());
+    if (top_level_) {
+      bytecode_array = GetBytecodeArrayForScript(script);
+    } else {
+      Run(script);
+      bytecode_array = GetBytecodeArrayForGlobal(test_function_name_.c_str());
+    }
+  }
 
   stream << "---\n";
   PrintCodeSnippet(stream, snippet);

@@ -120,7 +120,7 @@ class TextView extends View {
     if (style != undefined) {
       span.classList.add(style);
     }
-    span.innerText = text;
+    span.innerHTML = text;
     return span;
   }
 

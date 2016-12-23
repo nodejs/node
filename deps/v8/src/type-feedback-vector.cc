@@ -102,9 +102,7 @@ Handle<TypeFeedbackMetadata> TypeFeedbackMetadata::New(Isolate* isolate,
 
   Handle<UnseededNumberDictionary> names;
   if (name_count) {
-    names = UnseededNumberDictionary::New(
-        isolate, base::bits::RoundUpToPowerOfTwo32(name_count), TENURED,
-        USE_CUSTOM_MINIMUM_CAPACITY);
+    names = UnseededNumberDictionary::New(isolate, name_count, TENURED);
   }
 
   int name_index = 0;
@@ -114,7 +112,10 @@ Handle<TypeFeedbackMetadata> TypeFeedbackMetadata::New(Isolate* isolate,
     if (SlotRequiresName(kind)) {
       Handle<String> name = spec->GetName(name_index);
       DCHECK(!name.is_null());
-      names = UnseededNumberDictionary::AtNumberPut(names, i, name);
+      Handle<UnseededNumberDictionary> new_names =
+          UnseededNumberDictionary::AtNumberPut(names, i, name);
+      DCHECK_EQ(*new_names, *names);
+      names = new_names;
       name_index++;
     }
   }
@@ -202,6 +203,10 @@ const char* TypeFeedbackMetadata::Kind2String(FeedbackVectorSlotKind kind) {
       return "STORE_IC";
     case FeedbackVectorSlotKind::KEYED_STORE_IC:
       return "KEYED_STORE_IC";
+    case FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC:
+      return "INTERPRETER_BINARYOP_IC";
+    case FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC:
+      return "INTERPRETER_COMPARE_IC";
     case FeedbackVectorSlotKind::GENERAL:
       return "STUB";
     case FeedbackVectorSlotKind::KINDS_NUMBER:
@@ -230,11 +235,13 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::New(
   const int slot_count = metadata->slot_count();
   const int length = slot_count + kReservedIndexCount;
   if (length == kReservedIndexCount) {
-    return Handle<TypeFeedbackVector>::cast(factory->empty_fixed_array());
+    return Handle<TypeFeedbackVector>::cast(
+        factory->empty_type_feedback_vector());
   }
 
   Handle<FixedArray> array = factory->NewFixedArray(length, TENURED);
   array->set(kMetadataIndex, *metadata);
+  array->set(kInvocationCountIndex, Smi::FromInt(0));
 
   DisallowHeapAllocation no_gc;
 
@@ -250,12 +257,18 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::New(
     Object* value;
     if (kind == FeedbackVectorSlotKind::LOAD_GLOBAL_IC) {
       value = *factory->empty_weak_cell();
+    } else if (kind == FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC ||
+               kind == FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC) {
+      value = Smi::FromInt(0);
     } else {
       value = *uninitialized_sentinel;
     }
     array->set(index, value, SKIP_WRITE_BARRIER);
+
+    value = kind == FeedbackVectorSlotKind::CALL_IC ? Smi::FromInt(0)
+                                                    : *uninitialized_sentinel;
     for (int j = 1; j < entry_size; j++) {
-      array->set(index + j, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
+      array->set(index + j, value, SKIP_WRITE_BARRIER);
     }
     i += entry_size;
   }
@@ -332,6 +345,13 @@ void TypeFeedbackVector::ClearSlotsImpl(SharedFunctionInfo* shared,
         case FeedbackVectorSlotKind::KEYED_STORE_IC: {
           KeyedStoreICNexus nexus(this, slot);
           nexus.Clear(shared->code());
+          break;
+        }
+        case FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC:
+        case FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC: {
+          DCHECK(Get(slot)->IsSmi());
+          // don't clear these smi slots.
+          // Set(slot, Smi::FromInt(0));
           break;
         }
         case FeedbackVectorSlotKind::GENERAL: {
@@ -620,16 +640,25 @@ InlineCacheState CallICNexus::StateFromFeedback() const {
 
 int CallICNexus::ExtractCallCount() {
   Object* call_count = GetFeedbackExtra();
-  if (call_count->IsSmi()) {
-    int value = Smi::cast(call_count)->value();
-    return value;
-  }
-  return -1;
+  CHECK(call_count->IsSmi());
+  int value = Smi::cast(call_count)->value();
+  return value;
 }
 
+float CallICNexus::ComputeCallFrequency() {
+  double const invocation_count = vector()->invocation_count();
+  double const call_count = ExtractCallCount();
+  return static_cast<float>(call_count / invocation_count);
+}
 
 void CallICNexus::Clear(Code* host) { CallIC::Clear(GetIsolate(), host, this); }
 
+void CallICNexus::ConfigureUninitialized() {
+  Isolate* isolate = GetIsolate();
+  SetFeedback(*TypeFeedbackVector::UninitializedSentinel(isolate),
+              SKIP_WRITE_BARRIER);
+  SetFeedbackExtra(Smi::FromInt(0), SKIP_WRITE_BARRIER);
+}
 
 void CallICNexus::ConfigureMonomorphicArray() {
   Object* feedback = GetFeedback();
@@ -650,9 +679,12 @@ void CallICNexus::ConfigureMonomorphic(Handle<JSFunction> function) {
 
 
 void CallICNexus::ConfigureMegamorphic() {
-  FeedbackNexus::ConfigureMegamorphic();
+  SetFeedback(*TypeFeedbackVector::MegamorphicSentinel(GetIsolate()),
+              SKIP_WRITE_BARRIER);
+  Smi* count = Smi::cast(GetFeedbackExtra());
+  int new_count = count->value() + 1;
+  SetFeedbackExtra(Smi::FromInt(new_count), SKIP_WRITE_BARRIER);
 }
-
 
 void CallICNexus::ConfigureMegamorphic(int call_count) {
   SetFeedback(*TypeFeedbackVector::MegamorphicSentinel(GetIsolate()),
@@ -1020,5 +1052,38 @@ IcCheckType KeyedStoreICNexus::GetKeyType() const {
   }
   return IsPropertyNameFeedback(feedback) ? PROPERTY : ELEMENT;
 }
+
+InlineCacheState BinaryOpICNexus::StateFromFeedback() const {
+  BinaryOperationHint hint = GetBinaryOperationFeedback();
+  if (hint == BinaryOperationHint::kNone) {
+    return UNINITIALIZED;
+  } else if (hint == BinaryOperationHint::kAny) {
+    return GENERIC;
+  }
+
+  return MONOMORPHIC;
+}
+
+InlineCacheState CompareICNexus::StateFromFeedback() const {
+  CompareOperationHint hint = GetCompareOperationFeedback();
+  if (hint == CompareOperationHint::kNone) {
+    return UNINITIALIZED;
+  } else if (hint == CompareOperationHint::kAny) {
+    return GENERIC;
+  }
+
+  return MONOMORPHIC;
+}
+
+BinaryOperationHint BinaryOpICNexus::GetBinaryOperationFeedback() const {
+  int feedback = Smi::cast(GetFeedback())->value();
+  return BinaryOperationHintFromFeedback(feedback);
+}
+
+CompareOperationHint CompareICNexus::GetCompareOperationFeedback() const {
+  int feedback = Smi::cast(GetFeedback())->value();
+  return CompareOperationHintFromFeedback(feedback);
+}
+
 }  // namespace internal
 }  // namespace v8

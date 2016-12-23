@@ -1,8 +1,8 @@
 {
   "name": "JSTests",
-  "run_count": 5,
-  "run_count_android_arm": 3,
-  "run_count_android_arm64": 3,
+  "run_count": 3,
+  "run_count_android_arm": 1,
+  "run_count_android_arm64": 1,
   "timeout": 120,
   "units": "score",
   "total": true,
@@ -45,7 +45,6 @@
       "path": ["RestParameters"],
       "main": "run.js",
       "resources": ["rest.js"],
-      "run_count": 5,
       "units": "score",
       "results_regexp": "^%s\\-RestParameters\\(Score\\): (.+)$",
       "tests": [
@@ -57,7 +56,6 @@
       "path": ["SpreadCalls"],
       "main": "run.js",
       "resources": ["spreadcalls.js"],
-      "run_count": 5,
       "units": "score",
       "results_regexp": "^%s\\-SpreadCalls\\(Score\\): (.+)$",
       "tests": [
@@ -119,8 +117,28 @@
       "main": "run.js",
       "resources": ["harmony-string.js"],
       "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+      "run_count": 1,
+      "timeout": 240,
       "tests": [
         {"name": "StringFunctions"}
+      ]
+    },
+    {
+      "name": "StringIterators",
+      "path": ["StringIterators"],
+      "main": "run.js",
+      "resources": ["string-iterator.js"],
+      "results_regexp": "^%s\\-StringIterators\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Spread_OneByteShort"},
+        {"name": "Spread_TwoByteShort"},
+        {"name": "Spread_WithSurrogatePairsShort"},
+        {"name": "ForOf_OneByteShort"},
+        {"name": "ForOf_TwoByteShort"},
+        {"name": "ForOf_WithSurrogatePairsShort"},
+        {"name": "ForOf_OneByteLong"},
+        {"name": "ForOf_TwoByteLong"},
+        {"name": "ForOf_WithSurrogatePairsLong"}
       ]
     },
     {
@@ -128,7 +146,6 @@
       "path": ["Templates"],
       "main": "run.js",
       "resources": ["templates.js"],
-      "run_count": 5,
       "units": "score",
       "results_regexp": "^%s\\-Templates\\(Score\\): (.+)$",
       "total": true,
@@ -183,9 +200,6 @@
       "main": "run.js",
       "resources": ["keys.js"],
       "results_regexp": "^%s\\-Keys\\(Score\\): (.+)$",
-      "run_count": 3,
-      "run_count_android_arm": 2,
-      "run_count_android_arm64": 2,
       "tests": [
         {"name": "Object.keys()"},
         {"name": "for-in"},

@@ -28,8 +28,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32Imul:
     case kIA32ImulHigh:
     case kIA32UmulHigh:
-    case kIA32Idiv:
-    case kIA32Udiv:
     case kIA32Not:
     case kIA32Neg:
     case kIA32Shl:
@@ -102,6 +100,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
       return (instr->addressing_mode() == kMode_None)
           ? kNoOpcodeFlags
           : kIsLoadOperation | kHasSideEffect;
+
+    case kIA32Idiv:
+    case kIA32Udiv:
+      return (instr->addressing_mode() == kMode_None)
+                 ? kMayNeedDeoptCheck
+                 : kMayNeedDeoptCheck | kIsLoadOperation | kHasSideEffect;
 
     case kIA32Movsxbl:
     case kIA32Movzxbl:

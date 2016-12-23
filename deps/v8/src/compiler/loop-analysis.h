@@ -8,7 +8,7 @@
 #include "src/base/iterator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/node.h"
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {

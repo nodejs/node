@@ -3,8 +3,6 @@
 #
 
 ---
-pool type: number
-execute: yes
 wrap: yes
 
 ---
@@ -47,13 +45,13 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 17
+bytecode array length: 18
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(LdaZero),
                 B(Star), R(0),
                 B(LdaSmi), U8(1),
-  /*   43 E> */ B(TestLessThan), R(0),
+  /*   43 E> */ B(TestLessThan), R(0), U8(2),
                 B(JumpIfFalse), U8(6),
                 B(LdaSmi), U8(2),
                 B(Jump), U8(4),

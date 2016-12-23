@@ -46,7 +46,7 @@ class RegExpImpl {
 
   // See ECMA-262 section 15.10.6.2.
   // This function calls the garbage collector if necessary.
-  MUST_USE_RESULT static MaybeHandle<Object> Exec(
+  V8_EXPORT_PRIVATE MUST_USE_RESULT static MaybeHandle<Object> Exec(
       Handle<JSRegExp> regexp, Handle<String> subject, int index,
       Handle<JSObject> lastMatchInfo);
 
@@ -200,7 +200,7 @@ class RegExpImpl {
   // is not tracked, however.  As a conservative approximation we track the
   // total regexp code compiled including code that has subsequently been freed
   // and the total executable memory at any point.
-  static const int kRegExpExecutableMemoryLimit = 16 * MB;
+  static const size_t kRegExpExecutableMemoryLimit = 16 * MB;
   static const int kRegExpCompiledLimit = 1 * MB;
   static const int kRegExpTooLargeToOptimize = 20 * KB;
 

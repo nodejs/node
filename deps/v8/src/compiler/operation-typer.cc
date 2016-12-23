@@ -5,10 +5,10 @@
 #include "src/compiler/operation-typer.h"
 
 #include "src/compiler/common-operator.h"
+#include "src/compiler/type-cache.h"
+#include "src/compiler/types.h"
 #include "src/factory.h"
 #include "src/isolate.h"
-#include "src/type-cache.h"
-#include "src/types.h"
 
 #include "src/objects-inl.h"
 
@@ -458,6 +458,16 @@ Type* OperationTyper::NumberTrunc(Type* type) {
   if (type->Is(cache_.kIntegerOrMinusZeroOrNaN)) return type;
   // TODO(bmeurer): We could infer a more precise type here.
   return cache_.kIntegerOrMinusZeroOrNaN;
+}
+
+Type* OperationTyper::NumberToBoolean(Type* type) {
+  DCHECK(type->Is(Type::Number()));
+  if (!type->IsInhabited()) return Type::None();
+  if (type->Is(cache_.kZeroish)) return singleton_false_;
+  if (type->Is(Type::PlainNumber()) && (type->Max() < 0 || 0 < type->Min())) {
+    return singleton_true_;  // Ruled out nan, -0 and +0.
+  }
+  return Type::Boolean();
 }
 
 Type* OperationTyper::NumberToInt32(Type* type) {

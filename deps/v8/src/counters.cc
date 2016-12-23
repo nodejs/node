@@ -282,18 +282,15 @@ void RuntimeCallCounter::Dump(std::stringstream& out) {
 }
 
 // static
-void RuntimeCallStats::Enter(Isolate* isolate, RuntimeCallTimer* timer,
+void RuntimeCallStats::Enter(RuntimeCallStats* stats, RuntimeCallTimer* timer,
                              CounterId counter_id) {
-  RuntimeCallStats* stats = isolate->counters()->runtime_call_stats();
   RuntimeCallCounter* counter = &(stats->*counter_id);
   timer->Start(counter, stats->current_timer_);
   stats->current_timer_ = timer;
 }
 
 // static
-void RuntimeCallStats::Leave(Isolate* isolate, RuntimeCallTimer* timer) {
-  RuntimeCallStats* stats = isolate->counters()->runtime_call_stats();
-
+void RuntimeCallStats::Leave(RuntimeCallStats* stats, RuntimeCallTimer* timer) {
   if (stats->current_timer_ == timer) {
     stats->current_timer_ = timer->Stop();
   } else {
@@ -307,9 +304,8 @@ void RuntimeCallStats::Leave(Isolate* isolate, RuntimeCallTimer* timer) {
 }
 
 // static
-void RuntimeCallStats::CorrectCurrentCounterId(Isolate* isolate,
+void RuntimeCallStats::CorrectCurrentCounterId(RuntimeCallStats* stats,
                                                CounterId counter_id) {
-  RuntimeCallStats* stats = isolate->counters()->runtime_call_stats();
   DCHECK_NOT_NULL(stats->current_timer_);
   RuntimeCallCounter* counter = &(stats->*counter_id);
   stats->current_timer_->counter_ = counter;
@@ -342,7 +338,9 @@ void RuntimeCallStats::Print(std::ostream& os) {
 }
 
 void RuntimeCallStats::Reset() {
-  if (!FLAG_runtime_call_stats) return;
+  if (!FLAG_runtime_call_stats &&
+      !TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED())
+    return;
 #define RESET_COUNTER(name) this->name.Reset();
   FOR_EACH_MANUAL_COUNTER(RESET_COUNTER)
 #undef RESET_COUNTER
@@ -362,6 +360,41 @@ void RuntimeCallStats::Reset() {
 #define RESET_COUNTER(name) this->Handler_##name.Reset();
   FOR_EACH_HANDLER_COUNTER(RESET_COUNTER)
 #undef RESET_COUNTER
+
+  in_use_ = true;
+}
+
+std::string RuntimeCallStats::Dump() {
+  buffer_.str(std::string());
+  buffer_.clear();
+  buffer_ << "{";
+#define DUMP_COUNTER(name) \
+  if (this->name.count > 0) this->name.Dump(buffer_);
+  FOR_EACH_MANUAL_COUNTER(DUMP_COUNTER)
+#undef DUMP_COUNTER
+
+#define DUMP_COUNTER(name, nargs, result_size) \
+  if (this->Runtime_##name.count > 0) this->Runtime_##name.Dump(buffer_);
+  FOR_EACH_INTRINSIC(DUMP_COUNTER)
+#undef DUMP_COUNTER
+
+#define DUMP_COUNTER(name) \
+  if (this->Builtin_##name.count > 0) this->Builtin_##name.Dump(buffer_);
+  BUILTIN_LIST_C(DUMP_COUNTER)
+#undef DUMP_COUNTER
+
+#define DUMP_COUNTER(name) \
+  if (this->API_##name.count > 0) this->API_##name.Dump(buffer_);
+  FOR_EACH_API_COUNTER(DUMP_COUNTER)
+#undef DUMP_COUNTER
+
+#define DUMP_COUNTER(name) \
+  if (this->Handler_##name.count > 0) this->Handler_##name.Dump(buffer_);
+  FOR_EACH_HANDLER_COUNTER(DUMP_COUNTER)
+#undef DUMP_COUNTER
+  buffer_ << "\"END\":[]}";
+  in_use_ = false;
+  return buffer_.str();
 }
 
 }  // namespace internal

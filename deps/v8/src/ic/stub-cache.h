@@ -10,6 +10,7 @@
 namespace v8 {
 namespace internal {
 
+class SmallMapList;
 
 // The stub cache is used for megamorphic property accesses.
 // It maps (map, name, type) to property access handlers. The cache does not

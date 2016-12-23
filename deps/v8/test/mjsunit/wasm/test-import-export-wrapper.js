@@ -26,8 +26,8 @@ var expect_no_elison = 1;
         .addFunction("second_export", sig_index)
         .addBody([
             kExprGetLocal, 0,
-            kExprCallImport, kArity1, 0,
-            kExprReturn, kArity1
+            kExprCallFunction, 0,
+            kExprReturn
         ])
         .exportFunc();
 
@@ -39,8 +39,8 @@ var expect_no_elison = 1;
         .addFunction("first_export", sig_index)
         .addBody([
             kExprGetLocal, 0,
-            kExprCallFunction, kArity1, 1,
-            kExprReturn, kArity1
+            kExprCallFunction, 2,
+            kExprReturn
         ])
         .exportFunc();
     first_module
@@ -49,8 +49,8 @@ var expect_no_elison = 1;
             kExprI32Const, 1,
             kExprGetLocal, 0,
             kExprI32Add,
-            kExprCallImport, kArity1, 0,
-            kExprReturn, kArity1
+            kExprCallFunction, 0,
+            kExprReturn
         ]);
 
     var f = second_module
@@ -83,8 +83,8 @@ var expect_no_elison = 1;
         .addFunction("second_export", sig_index_1)
         .addBody([
             kExprGetLocal, 0,
-            kExprCallImport, kArity1, 0,
-            kExprReturn, kArity1
+            kExprCallFunction, 0,
+            kExprReturn
         ])
         .exportFunc();
 
@@ -97,8 +97,8 @@ var expect_no_elison = 1;
         .addBody([
             kExprGetLocal, 0,
             kExprGetLocal, 1,
-            kExprCallFunction, kArity2, 1,
-            kExprReturn, kArity1
+            kExprCallFunction, 2,
+            kExprReturn
         ])
         .exportFunc();
     first_module
@@ -106,8 +106,8 @@ var expect_no_elison = 1;
         .addBody([
             kExprGetLocal, 0,
             kExprGetLocal, 1,
-            kExprCallImport, kArity2, 0,
-            kExprReturn, kArity1
+            kExprCallFunction, 0,
+            kExprReturn
         ]);
 
     var f = second_module
@@ -142,8 +142,8 @@ var expect_no_elison = 1;
             kExprGetLocal, 0,
             kExprGetLocal, 1,
             kExprGetLocal, 2,
-            kExprCallImport, kArity3, 0,
-            kExprReturn, kArity1
+            kExprCallFunction, 0,
+            kExprReturn
         ])
         .exportFunc();
 
@@ -156,8 +156,8 @@ var expect_no_elison = 1;
         .addBody([
             kExprGetLocal, 0,
             kExprGetLocal, 1,
-            kExprCallFunction, kArity2, 1,
-            kExprReturn, kArity1
+            kExprCallFunction, 2,
+            kExprReturn
         ])
         .exportFunc();
     first_module
@@ -165,8 +165,8 @@ var expect_no_elison = 1;
         .addBody([
             kExprGetLocal, 0,
             kExprGetLocal, 1,
-            kExprCallImport, kArity2, 0,
-            kExprReturn, kArity1
+            kExprCallFunction, 0,
+            kExprReturn
         ]);
 
     var f = second_module
@@ -200,8 +200,8 @@ var expect_no_elison = 1;
         .addBody([
             kExprGetLocal, 0,
             kExprGetLocal, 1,
-            kExprCallImport, kArity2, 0,
-            kExprReturn, kArity1
+            kExprCallFunction, 0,
+            kExprReturn
         ])
         .exportFunc();
 
@@ -214,8 +214,8 @@ var expect_no_elison = 1;
         .addBody([
             kExprGetLocal, 0,
             kExprGetLocal, 1,
-            kExprCallFunction, kArity2, 1,
-            kExprReturn, kArity1
+            kExprCallFunction, 2,
+            kExprReturn
         ])
         .exportFunc();
     first_module
@@ -223,8 +223,8 @@ var expect_no_elison = 1;
         .addBody([
             kExprGetLocal, 0,
             kExprGetLocal, 1,
-            kExprCallImport, kArity2, 0,
-            kExprReturn, kArity1
+            kExprCallFunction, 0,
+            kExprReturn
         ]);
 
     var f = second_module

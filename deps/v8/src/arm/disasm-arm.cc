@@ -105,6 +105,8 @@ class Decoder {
   void DecodeType6(Instruction* instr);
   // Type 7 includes special Debugger instructions.
   int DecodeType7(Instruction* instr);
+  // CP15 coprocessor instructions.
+  void DecodeTypeCP15(Instruction* instr);
   // For VFP support.
   void DecodeTypeVFP(Instruction* instr);
   void DecodeType6CoprocessorIns(Instruction* instr);
@@ -1279,18 +1281,16 @@ void Decoder::DecodeType3(Instruction* instr) {
           break;
         }
       }
-      if (FLAG_enable_sudiv) {
-        if (instr->Bits(5, 4) == 0x1) {
-          if ((instr->Bit(22) == 0x0) && (instr->Bit(20) == 0x1)) {
-            if (instr->Bit(21) == 0x1) {
-              // UDIV (in V8 notation matching ARM ISA format) rn = rm/rs
-              Format(instr, "udiv'cond'b 'rn, 'rm, 'rs");
-            } else {
-              // SDIV (in V8 notation matching ARM ISA format) rn = rm/rs
-              Format(instr, "sdiv'cond'b 'rn, 'rm, 'rs");
-            }
-            break;
+      if (instr->Bits(5, 4) == 0x1) {
+        if ((instr->Bit(22) == 0x0) && (instr->Bit(20) == 0x1)) {
+          if (instr->Bit(21) == 0x1) {
+            // UDIV (in V8 notation matching ARM ISA format) rn = rm/rs
+            Format(instr, "udiv'cond'b 'rn, 'rm, 'rs");
+          } else {
+            // SDIV (in V8 notation matching ARM ISA format) rn = rm/rs
+            Format(instr, "sdiv'cond'b 'rn, 'rm, 'rs");
           }
+          break;
         }
       }
       Format(instr, "'memop'cond'b 'rd, ['rn, -'shift_rm]'w");
@@ -1374,7 +1374,18 @@ int Decoder::DecodeType7(Instruction* instr) {
       Format(instr, "svc'cond 'svc");
     }
   } else {
-    DecodeTypeVFP(instr);
+    switch (instr->CoprocessorValue()) {
+      case 10:  // Fall through.
+      case 11:
+        DecodeTypeVFP(instr);
+        break;
+      case 15:
+        DecodeTypeCP15(instr);
+        break;
+      default:
+        Unknown(instr);
+        break;
+    }
   }
   return Instruction::kInstrSize;
 }
@@ -1556,6 +1567,34 @@ void Decoder::DecodeTypeVFP(Instruction* instr) {
   }
 }
 
+void Decoder::DecodeTypeCP15(Instruction* instr) {
+  VERIFY((instr->TypeValue() == 7) && (instr->Bit(24) == 0x0));
+  VERIFY(instr->CoprocessorValue() == 15);
+
+  if (instr->Bit(4) == 1) {
+    int crn = instr->Bits(19, 16);
+    int crm = instr->Bits(3, 0);
+    int opc1 = instr->Bits(23, 21);
+    int opc2 = instr->Bits(7, 5);
+    if ((opc1 == 0) && (crn == 7)) {
+      // ARMv6 memory barrier operations.
+      // Details available in ARM DDI 0406C.b, B3-1750.
+      if ((crm == 10) && (opc2 == 5)) {
+        Format(instr, "mcr'cond (CP15DMB)");
+      } else if ((crm == 10) && (opc2 == 4)) {
+        Format(instr, "mcr'cond (CP15DSB)");
+      } else if ((crm == 5) && (opc2 == 4)) {
+        Format(instr, "mcr'cond (CP15ISB)");
+      } else {
+        Unknown(instr);
+      }
+    } else {
+      Unknown(instr);
+    }
+  } else {
+    Unknown(instr);
+  }
+}
 
 void Decoder::DecodeVMOVBetweenCoreAndSinglePrecisionRegisters(
     Instruction* instr) {
@@ -1786,6 +1825,13 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         int imm3 = instr->Bits(21, 19);
         out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                                     "vmovl.u%d q%d, d%d", imm3*8, Vd, Vm);
+      } else if ((instr->Bits(21, 16) == 0x32) && (instr->Bits(11, 7) == 0) &&
+                 (instr->Bit(4) == 0)) {
+        int Vd = instr->VFPDRegValue(kDoublePrecision);
+        int Vm = instr->VFPMRegValue(kDoublePrecision);
+        char rtype = (instr->Bit(6) == 0) ? 'd' : 'q';
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "vswp %c%d, %c%d", rtype, Vd, rtype, Vm);
       } else {
         Unknown(instr);
       }
@@ -1897,6 +1943,22 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
           default:
             UNREACHABLE();  // Case analysis is exhaustive.
             break;
+        }
+      } else if ((instr->Opc1Value() == 0x4) && (instr->Bits(11, 9) == 0x5) &&
+                 (instr->Bit(4) == 0x0)) {
+        // VMAXNM, VMINNM (floating-point)
+        if (instr->SzValue() == 0x1) {
+          if (instr->Bit(6) == 0x1) {
+            Format(instr, "vminnm.f64 'Dd, 'Dn, 'Dm");
+          } else {
+            Format(instr, "vmaxnm.f64 'Dd, 'Dn, 'Dm");
+          }
+        } else {
+          if (instr->Bit(6) == 0x1) {
+            Format(instr, "vminnm.f32 'Sd, 'Sn, 'Sm");
+          } else {
+            Format(instr, "vmaxnm.f32 'Sd, 'Sn, 'Sm");
+          }
         }
       } else {
         Unknown(instr);

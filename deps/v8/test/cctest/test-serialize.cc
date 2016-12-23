@@ -38,7 +38,6 @@
 #include "src/heap/spaces.h"
 #include "src/macro-assembler.h"
 #include "src/objects.h"
-#include "src/parsing/parser.h"
 #include "src/runtime/runtime.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/snapshot/deserializer.h"
@@ -91,7 +90,8 @@ static Vector<const byte> Serialize(v8::Isolate* isolate) {
   }
 
   Isolate* internal_isolate = reinterpret_cast<Isolate*>(isolate);
-  internal_isolate->heap()->CollectAllAvailableGarbage("serialize");
+  internal_isolate->heap()->CollectAllAvailableGarbage(
+      i::GarbageCollectionReason::kTesting);
   StartupSerializer ser(internal_isolate,
                         v8::SnapshotCreator::FunctionCodeHandling::kClear);
   ser.SerializeStrongReferences();
@@ -264,8 +264,10 @@ static void PartiallySerializeObject(Vector<const byte>* startup_blob_out,
         isolate->bootstrapper()->SourceLookup<Natives>(i);
       }
     }
-    heap->CollectAllGarbage();
-    heap->CollectAllGarbage();
+    heap->CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask,
+                            i::GarbageCollectionReason::kTesting);
+    heap->CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask,
+                            i::GarbageCollectionReason::kTesting);
 
     Object* raw_foo;
     {
@@ -367,7 +369,8 @@ static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
     }
     // If we don't do this then we end up with a stray root pointing at the
     // context even after we have disposed of env.
-    heap->CollectAllGarbage();
+    heap->CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask,
+                            i::GarbageCollectionReason::kTesting);
 
     {
       v8::HandleScope handle_scope(v8_isolate);
@@ -485,7 +488,8 @@ static void PartiallySerializeCustomContext(
     }
     // If we don't do this then we end up with a stray root pointing at the
     // context even after we have disposed of env.
-    isolate->heap()->CollectAllAvailableGarbage("snapshotting");
+    isolate->heap()->CollectAllAvailableGarbage(
+        i::GarbageCollectionReason::kTesting);
 
     {
       v8::HandleScope handle_scope(v8_isolate);
@@ -811,7 +815,7 @@ TEST(SnapshotDataBlobWithWarmup) {
     // Running the warmup script has effect on whether functions are
     // pre-compiled, but does not pollute the context.
     CHECK(IsCompiled("Math.abs"));
-    CHECK(!IsCompiled("Number.isFinite"));
+    CHECK(!IsCompiled("Number.parseInt"));
     CHECK(CompileRun("Math.random")->IsFunction());
   }
   isolate->Dispose();
@@ -821,8 +825,8 @@ TEST(CustomSnapshotDataBlobWithWarmup) {
   DisableTurbofan();
   const char* source =
       "function f() { return Math.abs(1); }\n"
-      "function g() { return Number.isFinite(1); }\n"
-      "Number.isNaN(1);"
+      "function g() { return Number.parseInt(1); }\n"
+      "Number.parseFloat(1);"
       "var a = 5";
   const char* warmup = "a = f()";
 
@@ -846,8 +850,8 @@ TEST(CustomSnapshotDataBlobWithWarmup) {
     CHECK(IsCompiled("f"));
     CHECK(IsCompiled("Math.abs"));
     CHECK(!IsCompiled("g"));
-    CHECK(!IsCompiled("Number.isFinite"));
-    CHECK(!IsCompiled("Number.isNaN"));
+    CHECK(!IsCompiled("Number.parseInt"));
+    CHECK(!IsCompiled("Number.parseFloat"));
     CHECK_EQ(5, CompileRun("a")->Int32Value(context).FromJust());
   }
   isolate->Dispose();
@@ -1178,13 +1182,13 @@ TEST(CodeSerializerThreeBigStrings) {
 
   Vector<const uint8_t> source_b =
       ConstructSource(STATIC_CHAR_VECTOR("var b = \""), STATIC_CHAR_VECTOR("b"),
-                      STATIC_CHAR_VECTOR("\";"), 600000);
+                      STATIC_CHAR_VECTOR("\";"), 400000);
   Handle<String> source_b_str =
       f->NewStringFromOneByte(source_b).ToHandleChecked();
 
   Vector<const uint8_t> source_c =
       ConstructSource(STATIC_CHAR_VECTOR("var c = \""), STATIC_CHAR_VECTOR("c"),
-                      STATIC_CHAR_VECTOR("\";"), 500000);
+                      STATIC_CHAR_VECTOR("\";"), 400000);
   Handle<String> source_c_str =
       f->NewStringFromOneByte(source_c).ToHandleChecked();
 
@@ -1217,10 +1221,10 @@ TEST(CodeSerializerThreeBigStrings) {
   v8::Maybe<int32_t> result =
       CompileRun("(a + b).length")
           ->Int32Value(v8::Isolate::GetCurrent()->GetCurrentContext());
-  CHECK_EQ(600000 + 700000, result.FromJust());
+  CHECK_EQ(400000 + 700000, result.FromJust());
   result = CompileRun("(b + c).length")
                ->Int32Value(v8::Isolate::GetCurrent()->GetCurrentContext());
-  CHECK_EQ(500000 + 600000, result.FromJust());
+  CHECK_EQ(400000 + 400000, result.FromJust());
   Heap* heap = isolate->heap();
   v8::Local<v8::String> result_str =
       CompileRun("a")
@@ -1895,7 +1899,6 @@ TEST(CodeSerializerEmbeddedObject) {
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
-  Heap* heap = isolate->heap();
   v8::HandleScope scope(CcTest::isolate());
 
   size_t actual_size;
@@ -1935,7 +1938,7 @@ TEST(CodeSerializerEmbeddedObject) {
   CHECK(rit2.rinfo()->target_object()->IsHeapNumber());
   CHECK_EQ(0.3, HeapNumber::cast(rit2.rinfo()->target_object())->value());
 
-  heap->CollectAllAvailableGarbage();
+  CcTest::CollectAllAvailableGarbage();
 
   RelocIterator rit3(copy->code(),
                      RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT));

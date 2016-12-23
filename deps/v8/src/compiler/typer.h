@@ -7,18 +7,13 @@
 
 #include "src/compiler/graph.h"
 #include "src/compiler/operation-typer.h"
-#include "src/types.h"
 
 namespace v8 {
 namespace internal {
-
-// Forward declarations.
-class TypeCache;
-
 namespace compiler {
 
+// Forward declarations.
 class LoopVariableOptimizer;
-class OperationTyper;
 
 class Typer {
  public:

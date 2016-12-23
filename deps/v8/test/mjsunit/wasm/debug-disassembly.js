@@ -45,10 +45,10 @@ function listener(event, exec_state, event_data, data) {
           assertTrue(!!line, "line number must occur in disassembly");
           assertTrue(line.length > columnNr, "column number must be valid");
           var expected_string;
-          if (name.endsWith("/0")) {
+          if (name.endsWith("/1")) {
             // Function 0 calls the imported function.
-            expected_string = "kExprCallImport,";
-          } else if (name.endsWith("/1")) {
+            expected_string = "kExprCallFunction,";
+          } else if (name.endsWith("/2")) {
             // Function 1 calls function 0.
             expected_string = "kExprCallFunction,";
           } else {
@@ -76,7 +76,7 @@ var builder = new WasmModuleBuilder();
 builder.addImport("func", kSig_v_v);
 
 builder.addFunction("call_import", kSig_v_v)
-  .addBody([kExprCallImport, kArity0, 0])
+  .addBody([kExprCallFunction, 0])
   .exportFunc();
 
 // Add a bit of unneccessary code to increase the byte offset.
@@ -87,8 +87,8 @@ builder.addFunction("call_call_import", kSig_v_v)
       kExprI32Const, (-7 & 0x7f), kExprSetLocal, 1,
         kExprGetLocal, 0, kExprGetLocal, 1, kExprI32Add, kExprI64UConvertI32,
         kExprI64Const, 0,
-      kExprI64Ne, kExprIf,
-        kExprCallFunction, kArity0, 0,
+      kExprI64Ne, kExprIf, kAstStmt,
+        kExprCallFunction, 1,
       kExprEnd
   ])
   .exportFunc();

@@ -12,6 +12,8 @@
 namespace v8 {
 namespace internal {
 
+// Forward declarations.
+class Callable;
 class Zone;
 
 namespace compiler {
@@ -71,10 +73,8 @@ class EffectControlLinearizer {
                                       Node* effect, Node* control);
   ValueEffectControl LowerCheckIf(Node* node, Node* frame_state, Node* effect,
                                   Node* control);
-  ValueEffectControl LowerCheckTaggedPointer(Node* node, Node* frame_state,
-                                             Node* effect, Node* control);
-  ValueEffectControl LowerCheckTaggedSigned(Node* node, Node* frame_state,
-                                            Node* effect, Node* control);
+  ValueEffectControl LowerCheckHeapObject(Node* node, Node* frame_state,
+                                          Node* effect, Node* control);
   ValueEffectControl LowerCheckedInt32Add(Node* node, Node* frame_state,
                                           Node* effect, Node* control);
   ValueEffectControl LowerCheckedInt32Sub(Node* node, Node* frame_state,
@@ -89,8 +89,16 @@ class EffectControlLinearizer {
                                            Node* effect, Node* control);
   ValueEffectControl LowerCheckedInt32Mul(Node* node, Node* frame_state,
                                           Node* effect, Node* control);
+  ValueEffectControl LowerCheckedInt32ToTaggedSigned(Node* node,
+                                                     Node* frame_state,
+                                                     Node* effect,
+                                                     Node* control);
   ValueEffectControl LowerCheckedUint32ToInt32(Node* node, Node* frame_state,
                                                Node* effect, Node* control);
+  ValueEffectControl LowerCheckedUint32ToTaggedSigned(Node* node,
+                                                      Node* frame_state,
+                                                      Node* effect,
+                                                      Node* control);
   ValueEffectControl LowerCheckedFloat64ToInt32(Node* node, Node* frame_state,
                                                 Node* effect, Node* control);
   ValueEffectControl LowerCheckedTaggedSignedToInt32(Node* node,
@@ -101,8 +109,14 @@ class EffectControlLinearizer {
                                                Node* effect, Node* control);
   ValueEffectControl LowerCheckedTaggedToFloat64(Node* node, Node* frame_state,
                                                  Node* effect, Node* control);
+  ValueEffectControl LowerCheckedTaggedToTaggedSigned(Node* node,
+                                                      Node* frame_state,
+                                                      Node* effect,
+                                                      Node* control);
   ValueEffectControl LowerChangeTaggedToFloat64(Node* node, Node* effect,
                                                 Node* control);
+  ValueEffectControl LowerTruncateTaggedToBit(Node* node, Node* effect,
+                                              Node* control);
   ValueEffectControl LowerTruncateTaggedToFloat64(Node* node, Node* effect,
                                                   Node* control);
   ValueEffectControl LowerTruncateTaggedToWord32(Node* node, Node* effect,
@@ -122,10 +136,19 @@ class EffectControlLinearizer {
                                          Node* control);
   ValueEffectControl LowerObjectIsUndetectable(Node* node, Node* effect,
                                                Node* control);
+  ValueEffectControl LowerArrayBufferWasNeutered(Node* node, Node* effect,
+                                                 Node* control);
   ValueEffectControl LowerStringCharCodeAt(Node* node, Node* effect,
                                            Node* control);
   ValueEffectControl LowerStringFromCharCode(Node* node, Node* effect,
                                              Node* control);
+  ValueEffectControl LowerStringFromCodePoint(Node* node, Node* effect,
+                                              Node* control);
+  ValueEffectControl LowerStringEqual(Node* node, Node* effect, Node* control);
+  ValueEffectControl LowerStringLessThan(Node* node, Node* effect,
+                                         Node* control);
+  ValueEffectControl LowerStringLessThanOrEqual(Node* node, Node* effect,
+                                                Node* control);
   ValueEffectControl LowerCheckFloat64Hole(Node* node, Node* frame_state,
                                            Node* effect, Node* control);
   ValueEffectControl LowerCheckTaggedHole(Node* node, Node* frame_state,
@@ -165,6 +188,8 @@ class EffectControlLinearizer {
   ValueEffectControl BuildCheckedHeapNumberOrOddballToFloat64(
       CheckTaggedInputMode mode, Node* value, Node* frame_state, Node* effect,
       Node* control);
+  ValueEffectControl LowerStringComparison(Callable const& callable, Node* node,
+                                           Node* effect, Node* control);
 
   Node* ChangeInt32ToSmi(Node* value);
   Node* ChangeUint32ToSmi(Node* value);

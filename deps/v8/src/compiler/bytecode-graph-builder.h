@@ -5,10 +5,11 @@
 #ifndef V8_COMPILER_BYTECODE_GRAPH_BUILDER_H_
 #define V8_COMPILER_BYTECODE_GRAPH_BUILDER_H_
 
-#include "src/compiler.h"
 #include "src/compiler/bytecode-branch-analysis.h"
 #include "src/compiler/bytecode-loop-analysis.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/liveness-analyzer.h"
+#include "src/compiler/state-values-utils.h"
 #include "src/compiler/type-hint-analyzer.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-flags.h"
@@ -16,6 +17,9 @@
 
 namespace v8 {
 namespace internal {
+
+class CompilationInfo;
+
 namespace compiler {
 
 // The BytecodeGraphBuilder produces a high-level IR graph based on
@@ -23,7 +27,7 @@ namespace compiler {
 class BytecodeGraphBuilder {
  public:
   BytecodeGraphBuilder(Zone* local_zone, CompilationInfo* info,
-                       JSGraph* jsgraph);
+                       JSGraph* jsgraph, float invocation_frequency);
 
   // Creates a graph by visiting bytecodes.
   bool CreateGraph();
@@ -113,16 +117,22 @@ class BytecodeGraphBuilder {
                                     interpreter::Register first_arg,
                                     size_t arity);
 
+  // Computes register liveness and replaces dead ones in frame states with the
+  // undefined values.
+  void ClearNonLiveSlotsInFrameStates();
+
   void BuildCreateLiteral(const Operator* op);
   void BuildCreateArguments(CreateArgumentsType type);
   Node* BuildLoadContextSlot();
-  Node* BuildLoadGlobal(TypeofMode typeof_mode);
+  Node* BuildLoadGlobal(uint32_t feedback_slot_index, TypeofMode typeof_mode);
   void BuildStoreGlobal(LanguageMode language_mode);
   Node* BuildNamedLoad();
   void BuildNamedStore(LanguageMode language_mode);
   Node* BuildKeyedLoad();
   void BuildKeyedStore(LanguageMode language_mode);
   void BuildLdaLookupSlot(TypeofMode typeof_mode);
+  void BuildLdaLookupContextSlot(TypeofMode typeof_mode);
+  void BuildLdaLookupGlobalSlot(TypeofMode typeof_mode);
   void BuildStaLookupSlot(LanguageMode language_mode);
   void BuildCall(TailCallMode tail_call_mode);
   void BuildThrow();
@@ -135,15 +145,30 @@ class BytecodeGraphBuilder {
   void BuildForInNext();
   void BuildInvokeIntrinsic();
 
+  // Check the context chain for extensions, for lookup fast paths.
+  Environment* CheckContextExtensions(uint32_t depth);
+
   // Helper function to create binary operation hint from the recorded
   // type feedback.
   BinaryOperationHint GetBinaryOperationHint(int operand_index);
 
+  // Helper function to create compare operation hint from the recorded
+  // type feedback.
+  CompareOperationHint GetCompareOperationHint();
+
+  // Helper function to compute call frequency from the recorded type
+  // feedback.
+  float ComputeCallFrequency(int slot_id) const;
+
   // Control flow plumbing.
   void BuildJump();
-  void BuildConditionalJump(Node* condition);
+  void BuildJumpIf(Node* condition);
+  void BuildJumpIfNot(Node* condition);
   void BuildJumpIfEqual(Node* comperand);
-  void BuildJumpIfToBooleanEqual(Node* boolean_comperand);
+  void BuildJumpIfTrue();
+  void BuildJumpIfFalse();
+  void BuildJumpIfToBooleanTrue();
+  void BuildJumpIfToBooleanFalse();
   void BuildJumpIfNotHole();
 
   // Simulates control flow by forward-propagating environments.
@@ -153,6 +178,10 @@ class BytecodeGraphBuilder {
 
   // Simulates control flow that exits the function body.
   void MergeControlToLeaveFunction(Node* exit);
+
+  // Builds entry points that are used by OSR deconstruction.
+  void BuildOSRLoopEntryPoint(int current_offset);
+  void BuildOSRNormalEntryPoint();
 
   // Builds loop exit nodes for every exited loop between the current bytecode
   // offset and {target_offset}.
@@ -221,12 +250,19 @@ class BytecodeGraphBuilder {
     loop_analysis_ = loop_analysis;
   }
 
+  LivenessAnalyzer* liveness_analyzer() { return &liveness_analyzer_; }
+
+  bool IsLivenessAnalysisEnabled() const {
+    return this->is_liveness_analysis_enabled_;
+  }
+
 #define DECLARE_VISIT_BYTECODE(name, ...) void Visit##name();
   BYTECODE_LIST(DECLARE_VISIT_BYTECODE)
 #undef DECLARE_VISIT_BYTECODE
 
   Zone* local_zone_;
   JSGraph* jsgraph_;
+  float const invocation_frequency_;
   Handle<BytecodeArray> bytecode_array_;
   Handle<HandlerTable> exception_handler_table_;
   Handle<TypeFeedbackVector> feedback_vector_;
@@ -257,6 +293,13 @@ class BytecodeGraphBuilder {
 
   // Control nodes that exit the function body.
   ZoneVector<Node*> exit_controls_;
+
+  bool const is_liveness_analysis_enabled_;
+
+  StateValuesCache state_values_cache_;
+
+  // Analyzer of register liveness.
+  LivenessAnalyzer liveness_analyzer_;
 
   static int const kBinaryOperationHintIndex = 1;
   static int const kCountOperationHintIndex = 0;

@@ -7,6 +7,7 @@
 
 #include <functional>
 #include <map>
+#include <memory>
 #include <queue>
 #include <vector>
 
@@ -51,15 +52,20 @@ class DefaultPlatform : public Platform {
   const uint8_t* GetCategoryGroupEnabled(const char* name) override;
   const char* GetCategoryGroupName(
       const uint8_t* category_enabled_flag) override;
-  uint64_t AddTraceEvent(char phase, const uint8_t* category_enabled_flag,
-                         const char* name, const char* scope, uint64_t id,
-                         uint64_t bind_id, int32_t num_args,
-                         const char** arg_names, const uint8_t* arg_types,
-                         const uint64_t* arg_values,
-                         unsigned int flags) override;
+  using Platform::AddTraceEvent;
+  uint64_t AddTraceEvent(
+      char phase, const uint8_t* category_enabled_flag, const char* name,
+      const char* scope, uint64_t id, uint64_t bind_id, int32_t num_args,
+      const char** arg_names, const uint8_t* arg_types,
+      const uint64_t* arg_values,
+      std::unique_ptr<v8::ConvertableToTraceFormat>* arg_convertables,
+      unsigned int flags) override;
   void UpdateTraceEventDuration(const uint8_t* category_enabled_flag,
                                 const char* name, uint64_t handle) override;
   void SetTracingController(tracing::TracingController* tracing_controller);
+
+  void AddTraceStateObserver(TraceStateObserver* observer) override;
+  void RemoveTraceStateObserver(TraceStateObserver* observer) override;
 
  private:
   static const int kMaxThreadPoolSize;
@@ -79,7 +85,7 @@ class DefaultPlatform : public Platform {
            std::priority_queue<DelayedEntry, std::vector<DelayedEntry>,
                                std::greater<DelayedEntry> > >
       main_thread_delayed_queue_;
-  tracing::TracingController* tracing_controller_;
+  std::unique_ptr<tracing::TracingController> tracing_controller_;
 
   DISALLOW_COPY_AND_ASSIGN(DefaultPlatform);
 };

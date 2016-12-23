@@ -36,4 +36,9 @@
   'date-format/timezone': [PASS, ['no_snap', SKIP]],
   'number-format/check-digit-ranges': [PASS, ['no_snap', SKIP]],
 }],  # 'arch == arm64 and mode == debug and simulator_run == True and variant == ignition'
+
+['variant == asm_wasm', {
+  '*': [SKIP],
+}],  # variant == asm_wasm
+
 ]

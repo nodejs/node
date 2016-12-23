@@ -15,13 +15,14 @@ namespace interpreter {
 // registers. The bytecode generator uses temporary registers
 // liberally for correctness and convenience and this stage removes
 // transfers that are not required and preserves correctness.
-class BytecodeRegisterOptimizer final : public BytecodePipelineStage,
-                                        public TemporaryRegisterObserver,
-                                        public ZoneObject {
+class BytecodeRegisterOptimizer final
+    : public BytecodePipelineStage,
+      public BytecodeRegisterAllocator::Observer,
+      public ZoneObject {
  public:
   BytecodeRegisterOptimizer(Zone* zone,
-                            TemporaryRegisterAllocator* register_allocator,
-                            int parameter_count,
+                            BytecodeRegisterAllocator* register_allocator,
+                            int fixed_registers_count, int parameter_count,
                             BytecodePipelineStage* next_stage);
   virtual ~BytecodeRegisterOptimizer() {}
 
@@ -31,7 +32,7 @@ class BytecodeRegisterOptimizer final : public BytecodePipelineStage,
   void BindLabel(BytecodeLabel* label) override;
   void BindLabel(const BytecodeLabel& target, BytecodeLabel* label) override;
   Handle<BytecodeArray> ToBytecodeArray(
-      Isolate* isolate, int fixed_register_count, int parameter_count,
+      Isolate* isolate, int register_count, int parameter_count,
       Handle<FixedArray> handler_table) override;
 
  private:
@@ -39,34 +40,32 @@ class BytecodeRegisterOptimizer final : public BytecodePipelineStage,
 
   class RegisterInfo;
 
-  // TemporaryRegisterObserver interface.
-  void TemporaryRegisterFreeEvent(Register reg) override;
+  // BytecodeRegisterAllocator::Observer interface.
+  void RegisterAllocateEvent(Register reg) override;
+  void RegisterListAllocateEvent(RegisterList reg_list) override;
+  void RegisterListFreeEvent(RegisterList reg) override;
 
   // Helpers for BytecodePipelineStage interface.
   void FlushState();
-  void WriteToNextStage(BytecodeNode* node) const;
-  void WriteToNextStage(BytecodeNode* node,
-                        const BytecodeSourceInfo& output_info) const;
 
   // Update internal state for register transfer from |input| to
   // |output| using |source_info| as source position information if
   // any bytecodes are emitted due to transfer.
   void RegisterTransfer(RegisterInfo* input, RegisterInfo* output,
-                        const BytecodeSourceInfo& source_info);
+                        BytecodeSourceInfo* source_info);
 
   // Emit a register transfer bytecode from |input| to |output|.
-  void OutputRegisterTransfer(
-      RegisterInfo* input, RegisterInfo* output,
-      const BytecodeSourceInfo& source_info = BytecodeSourceInfo());
+  void OutputRegisterTransfer(RegisterInfo* input, RegisterInfo* output,
+                              BytecodeSourceInfo* source_info = nullptr);
 
   // Emits a Nop to preserve source position information in the
   // bytecode pipeline.
-  void EmitNopForSourceInfo(const BytecodeSourceInfo& source_info) const;
+  void EmitNopForSourceInfo(BytecodeSourceInfo* source_info) const;
 
   // Handlers for bytecode nodes for register to register transfers.
-  void DoLdar(const BytecodeNode* const node);
-  void DoMov(const BytecodeNode* const node);
-  void DoStar(const BytecodeNode* const node);
+  void DoLdar(BytecodeNode* node);
+  void DoMov(BytecodeNode* node);
+  void DoStar(BytecodeNode* node);
 
   // Operand processing methods for bytecodes other than those
   // performing register to register transfers.
@@ -133,6 +132,7 @@ class BytecodeRegisterOptimizer final : public BytecodePipelineStage,
   const Register accumulator_;
   RegisterInfo* accumulator_info_;
   const Register temporary_base_;
+  int max_register_index_;
 
   // Direct mapping to register info.
   ZoneVector<RegisterInfo*> register_info_table_;

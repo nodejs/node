@@ -10,7 +10,7 @@
 #include "src/base/bits.h"
 #include "src/globals.h"
 #include "src/signature.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -22,12 +22,14 @@ enum class MachineRepresentation : uint8_t {
   kWord16,
   kWord32,
   kWord64,
-  kFloat32,
-  kFloat64,  // must follow kFloat32
-  kSimd128,  // must follow kFloat64
   kTaggedSigned,
   kTaggedPointer,
-  kTagged
+  kTagged,
+  // FP representations must be last, and in order of increasing size.
+  kFloat32,
+  kFloat64,
+  kSimd128,
+  kFirstFPRepresentation = kFloat32
 };
 
 const char* MachineReprToString(MachineRepresentation);
@@ -61,6 +63,8 @@ class MachineType {
 
   MachineRepresentation representation() const { return representation_; }
   MachineSemantic semantic() const { return semantic_; }
+
+  bool IsNone() { return representation() == MachineRepresentation::kNone; }
 
   bool IsSigned() {
     return semantic() == MachineSemantic::kInt32 ||
@@ -119,6 +123,14 @@ class MachineType {
     return MachineType(MachineRepresentation::kWord64,
                        MachineSemantic::kUint64);
   }
+  static MachineType TaggedPointer() {
+    return MachineType(MachineRepresentation::kTaggedPointer,
+                       MachineSemantic::kAny);
+  }
+  static MachineType TaggedSigned() {
+    return MachineType(MachineRepresentation::kTaggedSigned,
+                       MachineSemantic::kInt32);
+  }
   static MachineType AnyTagged() {
     return MachineType(MachineRepresentation::kTagged, MachineSemantic::kAny);
   }
@@ -161,7 +173,7 @@ class MachineType {
     return MachineType(MachineRepresentation::kBit, MachineSemantic::kNone);
   }
 
-  static MachineType TypeForRepresentation(MachineRepresentation& rep,
+  static MachineType TypeForRepresentation(const MachineRepresentation& rep,
                                            bool isSigned = true) {
     switch (rep) {
       case MachineRepresentation::kNone:
@@ -184,6 +196,10 @@ class MachineType {
         return MachineType::Simd128();
       case MachineRepresentation::kTagged:
         return MachineType::AnyTagged();
+      case MachineRepresentation::kTaggedSigned:
+        return MachineType::TaggedSigned();
+      case MachineRepresentation::kTaggedPointer:
+        return MachineType::TaggedPointer();
       default:
         UNREACHABLE();
         return MachineType::None();
@@ -204,14 +220,22 @@ V8_INLINE size_t hash_value(MachineType type) {
          static_cast<size_t>(type.semantic()) * 16;
 }
 
-std::ostream& operator<<(std::ostream& os, MachineRepresentation rep);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           MachineRepresentation rep);
 std::ostream& operator<<(std::ostream& os, MachineSemantic type);
 std::ostream& operator<<(std::ostream& os, MachineType type);
 
 inline bool IsFloatingPoint(MachineRepresentation rep) {
-  return rep == MachineRepresentation::kFloat32 ||
-         rep == MachineRepresentation::kFloat64 ||
-         rep == MachineRepresentation::kSimd128;
+  return rep >= MachineRepresentation::kFirstFPRepresentation;
+}
+
+inline bool CanBeTaggedPointer(MachineRepresentation rep) {
+  return rep == MachineRepresentation::kTagged ||
+         rep == MachineRepresentation::kTaggedPointer;
+}
+
+inline bool IsAnyTagged(MachineRepresentation rep) {
+  return CanBeTaggedPointer(rep) || rep == MachineRepresentation::kTaggedSigned;
 }
 
 // Gets the log2 of the element size in bytes of the machine type.

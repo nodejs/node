@@ -44,7 +44,7 @@ Object* ThrowRedeclarationError(Isolate* isolate, Handle<String> name,
 Object* DeclareGlobal(
     Isolate* isolate, Handle<JSGlobalObject> global, Handle<String> name,
     Handle<Object> value, PropertyAttributes attr, bool is_var,
-    bool is_function, RedeclarationType redeclaration_type,
+    bool is_function_declaration, RedeclarationType redeclaration_type,
     Handle<TypeFeedbackVector> feedback_vector = Handle<TypeFeedbackVector>(),
     FeedbackVectorSlot slot = FeedbackVectorSlot::Invalid()) {
   Handle<ScriptContextTable> script_contexts(
@@ -60,7 +60,14 @@ Object* DeclareGlobal(
   }
 
   // Do the lookup own properties only, see ES5 erratum.
-  LookupIterator it(global, name, global, LookupIterator::OWN_SKIP_INTERCEPTOR);
+  LookupIterator::Configuration lookup_config(
+      LookupIterator::Configuration::OWN_SKIP_INTERCEPTOR);
+  if (is_function_declaration) {
+    // For function declarations, use the interceptor on the declaration. For
+    // non-functions, use it only on initialization.
+    lookup_config = LookupIterator::Configuration::OWN;
+  }
+  LookupIterator it(global, name, global, lookup_config);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
   if (!maybe.IsJust()) return isolate->heap()->exception();
 
@@ -71,7 +78,7 @@ Object* DeclareGlobal(
     // Skip var re-declarations.
     if (is_var) return isolate->heap()->undefined_value();
 
-    DCHECK(is_function);
+    DCHECK(is_function_declaration);
     if ((old_attributes & DONT_DELETE) != 0) {
       // Only allow reconfiguring globals to functions in user code (no
       // natives, which are marked as read-only).
@@ -83,9 +90,9 @@ Object* DeclareGlobal(
       if (old_details.IsReadOnly() || old_details.IsDontEnum() ||
           (it.state() == LookupIterator::ACCESSOR &&
            it.GetAccessors()->IsAccessorPair())) {
-        // ES#sec-globaldeclarationinstantiation 5.d:
+        // ECMA-262 section 15.1.11 GlobalDeclarationInstantiation 5.d:
         // If hasRestrictedGlobal is true, throw a SyntaxError exception.
-        // ES#sec-evaldeclarationinstantiation 8.a.iv.1.b:
+        // ECMA-262 section 18.2.1.3 EvalDeclarationInstantiation 8.a.iv.1.b:
         // If fnDefinable is false, throw a TypeError exception.
         return ThrowRedeclarationError(isolate, name, redeclaration_type);
       }
@@ -100,6 +107,10 @@ Object* DeclareGlobal(
     // onload callback. To avoid this situation, we first delete the property
     // before readding it as a regular data property below.
     if (it.state() == LookupIterator::ACCESSOR) it.Delete();
+  }
+
+  if (is_function_declaration) {
+    it.Restart();
   }
 
   // Define or redefine own property.
@@ -294,9 +305,8 @@ Object* DeclareEvalHelper(Isolate* isolate, Handle<String> name,
       DCHECK(context->IsBlockContext());
       object = isolate->factory()->NewJSObject(
           isolate->context_extension_function());
-      Handle<HeapObject> extension =
-          isolate->factory()->NewSloppyBlockWithEvalContextExtension(
-              handle(context->scope_info()), object);
+      Handle<HeapObject> extension = isolate->factory()->NewContextExtension(
+          handle(context->scope_info()), object);
       context->set_extension(*extension);
     } else {
       object = handle(context->extension_object(), isolate);
@@ -665,8 +675,6 @@ RUNTIME_FUNCTION(Runtime_NewScriptContext) {
   Handle<Context> result =
       isolate->factory()->NewScriptContext(closure, scope_info);
 
-  result->InitializeGlobalSlots();
-
   DCHECK(function->context() == isolate->context());
   DCHECK(*global_object == result->global_object());
 
@@ -691,26 +699,41 @@ RUNTIME_FUNCTION(Runtime_NewFunctionContext) {
 
 RUNTIME_FUNCTION(Runtime_PushWithContext) {
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, extension_object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 1);
+  CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 2);
   Handle<Context> current(isolate->context());
-  Handle<Context> context =
-      isolate->factory()->NewWithContext(function, current, extension_object);
+  Handle<Context> context = isolate->factory()->NewWithContext(
+      function, current, scope_info, extension_object);
   isolate->set_context(*context);
   return *context;
 }
 
+RUNTIME_FUNCTION(Runtime_PushModuleContext) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Module, module, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 1);
+  CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 2);
+  DCHECK(function->context() == isolate->context());
+
+  Handle<Context> context =
+      isolate->factory()->NewModuleContext(module, function, scope_info);
+  isolate->set_context(*context);
+  return *context;
+}
 
 RUNTIME_FUNCTION(Runtime_PushCatchContext) {
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, thrown_object, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 2);
+  CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 2);
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 3);
   Handle<Context> current(isolate->context());
   Handle<Context> context = isolate->factory()->NewCatchContext(
-      function, current, name, thrown_object);
+      function, current, scope_info, name, thrown_object);
   isolate->set_context(*context);
   return *context;
 }

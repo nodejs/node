@@ -14,7 +14,7 @@ namespace internal {
 
 void MarkCompactCollector::PushBlack(HeapObject* obj) {
   DCHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(obj)));
-  if (marking_deque_.Push(obj)) {
+  if (marking_deque()->Push(obj)) {
     MemoryChunk::IncrementLiveBytesFromGC(obj, obj->Size());
   } else {
     MarkBit mark_bit = ObjectMarking::MarkBitFrom(obj);
@@ -25,7 +25,7 @@ void MarkCompactCollector::PushBlack(HeapObject* obj) {
 
 void MarkCompactCollector::UnshiftBlack(HeapObject* obj) {
   DCHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(obj)));
-  if (!marking_deque_.Unshift(obj)) {
+  if (!marking_deque()->Unshift(obj)) {
     MemoryChunk::IncrementLiveBytesFromGC(obj, -obj->Size());
     MarkBit mark_bit = ObjectMarking::MarkBitFrom(obj);
     Marking::BlackToGrey(mark_bit);

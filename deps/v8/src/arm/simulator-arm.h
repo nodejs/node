@@ -200,7 +200,7 @@ class Simulator {
   // Call on program start.
   static void Initialize(Isolate* isolate);
 
-  static void TearDown(base::HashMap* i_cache, Redirection* first);
+  static void TearDown(base::CustomMatcherHashMap* i_cache, Redirection* first);
 
   // V8 generally calls into generated JS code with 5 parameters and into
   // generated RegExp code with 7 parameters. This is a convenience function,
@@ -222,7 +222,8 @@ class Simulator {
   char* last_debugger_input() { return last_debugger_input_; }
 
   // ICache checking.
-  static void FlushICache(base::HashMap* i_cache, void* start, size_t size);
+  static void FlushICache(base::CustomMatcherHashMap* i_cache, void* start,
+                          size_t size);
 
   // Returns true if pc register contains one of the 'special_values' defined
   // below (bad_lr, end_sim_pc).
@@ -327,6 +328,9 @@ class Simulator {
   void DecodeType6(Instruction* instr);
   void DecodeType7(Instruction* instr);
 
+  // CP15 coprocessor instructions.
+  void DecodeTypeCP15(Instruction* instr);
+
   // Support for VFP.
   void DecodeTypeVFP(Instruction* instr);
   void DecodeType6CoprocessorIns(Instruction* instr);
@@ -341,9 +345,12 @@ class Simulator {
   void InstructionDecode(Instruction* instr);
 
   // ICache.
-  static void CheckICache(base::HashMap* i_cache, Instruction* instr);
-  static void FlushOnePage(base::HashMap* i_cache, intptr_t start, int size);
-  static CachePage* GetCachePage(base::HashMap* i_cache, void* page);
+  static void CheckICache(base::CustomMatcherHashMap* i_cache,
+                          Instruction* instr);
+  static void FlushOnePage(base::CustomMatcherHashMap* i_cache, intptr_t start,
+                           int size);
+  static CachePage* GetCachePage(base::CustomMatcherHashMap* i_cache,
+                                 void* page);
 
   // Runtime call support.
   static void* RedirectExternalReference(
@@ -403,7 +410,7 @@ class Simulator {
   char* last_debugger_input_;
 
   // Icache simulation
-  base::HashMap* i_cache_;
+  base::CustomMatcherHashMap* i_cache_;
 
   // Registered breakpoints.
   Instruction* break_pc_;

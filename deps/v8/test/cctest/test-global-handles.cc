@@ -25,8 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "src/api.h"
+#include "src/factory.h"
 #include "src/global-handles.h"
-
+#include "src/isolate.h"
+#include "src/objects.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
@@ -349,7 +352,7 @@ TEST(EternalHandles) {
     CHECK(!eternals[i].IsEmpty());
   }
 
-  isolate->heap()->CollectAllAvailableGarbage();
+  CcTest::CollectAllAvailableGarbage();
 
   for (int i = 0; i < kArrayLength; i++) {
     for (int j = 0; j < 2; j++) {
@@ -442,7 +445,7 @@ TEST(FinalizerWeakness) {
     g.SetWeak(&g, finalizer, v8::WeakCallbackType::kFinalizer);
   }
 
-  CcTest::i_isolate()->heap()->CollectAllAvailableGarbage();
+  CcTest::CollectAllAvailableGarbage();
 
   CHECK(!g.IsEmpty());
   v8::HandleScope scope(isolate);
@@ -465,7 +468,7 @@ TEST(PhatomHandlesWithoutCallbacks) {
   }
 
   CHECK_EQ(0, isolate->NumberOfPhantomHandleResetsSinceLastCall());
-  CcTest::i_isolate()->heap()->CollectAllAvailableGarbage();
+  CcTest::CollectAllAvailableGarbage();
   CHECK_EQ(2, isolate->NumberOfPhantomHandleResetsSinceLastCall());
   CHECK_EQ(0, isolate->NumberOfPhantomHandleResetsSinceLastCall());
 }

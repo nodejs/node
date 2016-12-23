@@ -227,6 +227,14 @@
   'unicode-test': [SKIP],
   'whitespaces': [SKIP],
 
+  # Async function tests taking too long
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5411
+  'harmony/async-function-debug-scopes': [SKIP],
+  'harmony/async-debug-caught-exception-cases0': [SKIP],
+  'harmony/async-debug-caught-exception-cases1': [SKIP],
+  'harmony/async-debug-caught-exception-cases2': [SKIP],
+  'harmony/async-debug-caught-exception-cases3': [SKIP],
+
   # TODO(mstarzinger): Takes too long with TF.
   'array-sort': [PASS, NO_VARIANTS],
   'regress/regress-91008': [PASS, NO_VARIANTS],
@@ -531,6 +539,12 @@
 }],  # 'system == windows'
 
 ##############################################################################
+['system == macos', {
+  # BUG(v8:5333)
+  'big-object-literal': [SKIP],
+}],  # 'system == macos'
+
+##############################################################################
 ['arch == s390 or arch == s390x', {
 
   # Stack manipulations in LiveEdit is not implemented for this arch.
@@ -561,6 +575,13 @@
 
   # Too slow.
   'es6/tail-call-megatest*': [SKIP],
+
+  # Ongoing implementation of modules.
+  # https://bugs.chromium.org/p/v8/issues/detail?id=1569
+  # The deopt fuzzer currently does not respect the 'variant != ignition' rule
+  # further down in this file, so we have to duplicate this here.
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5374
+  'modules-*': [SKIP],
 }],  # 'deopt_fuzzer == True'
 
 ##############################################################################
@@ -632,47 +653,17 @@
   # Might trigger stack overflow.
   'unicode-test': [SKIP],
 
-  # TODO(mythria, 4780): Related to type feedback for calls in interpreter.
-  'array-literal-feedback': [FAIL],
-  'regress/regress-4121': [FAIL],
-
   # TODO(4680): Test doesn't know about three tier compiler pipeline.
   'assert-opt-and-deopt': [SKIP],
 
-  # BUG(rmcilroy,4989): Function is optimized without type feedback and so immediately deopts again, causing check failure in the test.
-  'compiler/deopt-inlined-from-call': [FAIL],
-  'compiler/increment-typefeedback': [FAIL],
+  # Fails because concurrent compilation is not triggered on bytecode.
+  # Check in Runtime_OptimizeFunctionOnNextCall.
   'compiler/manual-concurrent-recompile': [FAIL],
-  'constant-folding-2': [FAIL],
-  'debug-is-active': [FAIL],
-  'deopt-with-fp-regs': [FAIL],
-  'deserialize-optimize-inner': [FAIL],
-  'div-mul-minus-one': [FAIL],
-  'double-intrinsics': [FAIL],
-  'elements-transition-hoisting': [FAIL],
-  'es6/block-let-crankshaft': [FAIL],
-  'es6/block-let-crankshaft-sloppy': [FAIL],
-  'getters-on-elements': [FAIL],
-  'harmony/do-expressions': [FAIL],
-  'math-floor-of-div-minus-zero': [FAIL],
-  'regress/regress-2132': [FAIL],
-  'regress/regress-2339': [FAIL],
-  'regress/regress-3176': [FAIL],
-  'regress/regress-3709': [FAIL],
-  'regress/regress-385565': [FAIL],
-  'regress/regress-crbug-594183': [FAIL],
   'regress/regress-embedded-cons-string': [FAIL],
-  'regress/regress-map-invalidation-2': [FAIL],
-  'regress/regress-param-local-type': [FAIL],
   'regress/regress-prepare-break-while-recompile': [FAIL],
-  'shift-for-integer-div': [FAIL],
-  'sin-cos': [FAIL],
-  'smi-mul-const': [FAIL],
-  'smi-mul': [FAIL],
-  'unary-minus-deopt': [FAIL],
-  'array-constructor-feedback': [FAIL],
-  'array-feedback': [FAIL],
-  'allocation-site-info': [FAIL],
+
+  # BUG(v8:5451): Flaky crashes.
+  'wasm/asm-wasm': [PASS, ['gc_stress', SKIP]],
 }],  # variant == ignition
 
 ['variant == ignition and arch == arm64', {
@@ -706,43 +697,15 @@
 
 ##############################################################################
 ['variant == ignition_staging', {
-  'allocation-site-info': [FAIL],
-  'array-constructor-feedback': [FAIL],
-  'array-feedback': [FAIL],
-  'array-literal-feedback': [FAIL],
   'assert-opt-and-deopt': [SKIP],
-  'compiler/deopt-inlined-from-call': [FAIL],
-  'compiler/increment-typefeedback': [FAIL],
-  'compiler/manual-concurrent-recompile': [FAIL],
-  'constant-folding-2': [FAIL],
-  'debug-is-active': [FAIL],
   'debug-liveedit-double-call': [FAIL],
-  'deopt-with-fp-regs': [FAIL],
-  'deserialize-optimize-inner': [FAIL],
-  'div-mul-minus-one': [FAIL],
-  'elements-transition-hoisting': [FAIL],
-  'es6/block-let-crankshaft': [FAIL],
-  'es6/block-let-crankshaft-sloppy': [FAIL],
-  'getters-on-elements': [FAIL],
-  'harmony/do-expressions': [FAIL],
-  'math-floor-of-div-minus-zero': [FAIL],
-  'regress/regress-2132': [FAIL],
-  'regress/regress-2339': [FAIL],
-  'regress/regress-3176': [FAIL],
-  'regress/regress-3709': [FAIL],
-  'regress/regress-385565': [FAIL],
-  'regress/regress-4121': [FAIL],
-  'regress/regress-crbug-594183': [FAIL],
-  'regress/regress-embedded-cons-string': [FAIL],
-  'regress/regress-map-invalidation-2': [FAIL],
-  'regress/regress-param-local-type': [FAIL],
-  'regress/regress-prepare-break-while-recompile': [FAIL],
   'regress-sync-optimized-lists': [FAIL],
-  'shift-for-integer-div': [FAIL],
-  'sin-cos': [FAIL],
-  'smi-mul-const': [FAIL],
-  'smi-mul': [FAIL],
-  'unary-minus-deopt': [FAIL],
+
+  # Fails because concurrent compilation is not triggered on bytecode.
+  # Check in Runtime_OptimizeFunctionOnNextCall.
+  'compiler/manual-concurrent-recompile': [FAIL],
+  'regress/regress-embedded-cons-string': [FAIL],
+  'regress/regress-prepare-break-while-recompile': [FAIL],
 
   # Flaky.
   'asm/int32div': [SKIP],
@@ -753,6 +716,8 @@
   # Might trigger stack overflow.
   'unicode-test': [SKIP],
 
+  # BUG(v8:5451): Flaky crashes.
+  'wasm/asm-wasm': [PASS, ['gc_stress', SKIP]],
 }],  # variant == ignition_staging
 
 ##############################################################################
@@ -761,13 +726,6 @@
 
   # Might trigger stack overflow.
   'unicode-test': [SKIP],
-
-  # TODO(mythria, 4780): Related to type feedback for calls in interpreter.
-  'array-literal-feedback': [FAIL],
-  'regress/regress-4121': [FAIL],
-  'array-constructor-feedback': [FAIL],
-  'array-feedback': [FAIL],
-  'allocation-site-info': [FAIL],
 
   'wasm/asm-wasm-f32': [PASS, ['arch in [arm64]', SKIP]],
   'wasm/asm-wasm-f64': [PASS, ['arch in [arm64]', SKIP]],
@@ -818,6 +776,24 @@
 }],  # variant == ignition_turbofan and msan
 
 ##############################################################################
+['variant == ignition or variant == ignition_staging or variant == ignition_turbofan', {
+  # Modules for which execution must fail (e.g. because of unresolved imports).
+  # Eventually we should test for the precise error message, but for now we only
+  # ensure that there is an error.
+  'modules-fail*': [FAIL],
+
+  # Modules which are only meant to be imported from by other tests, not to be
+  # tested standalone.
+  'modules-skip*': [SKIP],
+}],  # variant == ignition or variant == ignition_staging or variant == ignition_turbofan
+
+['variant != ignition and variant != ignition_staging and variant != ignition_turbofan', {
+  # Ongoing implementation of modules.
+  # https://bugs.chromium.org/p/v8/issues/detail?id=1569
+  'modules-*': [SKIP],
+}],  # variant != ignition and variant != ignition_staging and variant != ignition_turbofan
+
+##############################################################################
 ['gcov_coverage', {
   # Tests taking too long.
   'array-functions-prototype-misc': [SKIP],
@@ -827,12 +803,22 @@
 }],  # 'gcov_coverage'
 
 ##############################################################################
-# This test allocates a 2G block of memory and if there are multiple
-# varients this leads kills by the OOM killer, crashes or messages
-# indicating the OS cannot allocate memory, exclude for Node.js runs
-# re-evalute when we move up to v8 5.1
-[ALWAYS, {
-'regress/regress-crbug-514081': [PASS, NO_VARIANTS],
-}],  # ALWAYS
+['variant == asm_wasm', {
+  # Skip stuff uninteresting for asm.js
+  'bugs/*': [SKIP],
+  'compiler/*': [SKIP],
+  'es6/*': [SKIP],
+  'es7/*': [SKIP],
+  'es8/*': [SKIP],
+  'harmony/*': [SKIP],
+  'ignition/*': [SKIP],
+  'lithium/*': [SKIP],
+  'third_party/*': [SKIP],
+  'tools/*': [SKIP],
+  'apply': [SKIP],
+  'math-*': [SKIP],
+  'unicode-test': [SKIP],
+  'whitespaces': [SKIP],
+}],  # variant == asm_wasm
 
 ]

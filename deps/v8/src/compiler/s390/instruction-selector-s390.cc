@@ -327,6 +327,11 @@ void InstructionSelector::VisitLoad(Node* node) {
   Emit(code, 1, outputs, input_count, inputs);
 }
 
+void InstructionSelector::VisitProtectedLoad(Node* node) {
+  // TODO(eholk)
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::VisitStore(Node* node) {
   S390OperandGenerator g(this);
   Node* base = node->InputAt(0);
@@ -1099,7 +1104,7 @@ void InstructionSelector::VisitInt64Mul(Node* node) {
   Node* right = m.right().node();
   if (g.CanBeImmediate(right, kInt32Imm) &&
       base::bits::IsPowerOfTwo64(g.GetImmediate(right))) {
-    int power = 31 - base::bits::CountLeadingZeros64(g.GetImmediate(right));
+    int power = 63 - base::bits::CountLeadingZeros64(g.GetImmediate(right));
     Emit(kS390_ShiftLeft64, g.DefineSameAsFirst(node), g.UseRegister(left),
          g.UseImmediate(power));
     return;

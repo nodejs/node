@@ -22,6 +22,9 @@ enum LocalTypeCode {
   kLocalS128 = 5
 };
 
+// Type code for multi-value block types.
+static const uint8_t kMultivalBlock = 0x41;
+
 // We reuse the internal machine type to represent WebAssembly AST types.
 // A typedef improves readability without adding a whole new type system.
 typedef MachineRepresentation LocalType;
@@ -44,7 +47,7 @@ const WasmCodePosition kNoCodePosition = -1;
 
 // Control expressions and blocks.
 #define FOREACH_CONTROL_OPCODE(V) \
-  V(Nop, 0x00, _)                 \
+  V(Unreachable, 0x00, _)         \
   V(Block, 0x01, _)               \
   V(Loop, 0x02, _)                \
   V(If, 0x03, _)                  \
@@ -54,13 +57,10 @@ const WasmCodePosition kNoCodePosition = -1;
   V(BrIf, 0x07, _)                \
   V(BrTable, 0x08, _)             \
   V(Return, 0x09, _)              \
-  V(Unreachable, 0x0a, _)         \
+  V(Nop, 0x0a, _)                 \
   V(Throw, 0xfa, _)               \
-  V(TryCatch, 0xfb, _)            \
-  V(TryCatchFinally, 0xfc, _)     \
-  V(TryFinally, 0xfd, _)          \
+  V(Try, 0xfb, _)                 \
   V(Catch, 0xfe, _)               \
-  V(Finally, 0xff, _)             \
   V(End, 0x0F, _)
 
 // Constants, locals, globals, and calls.
@@ -71,9 +71,10 @@ const WasmCodePosition kNoCodePosition = -1;
   V(F32Const, 0x13, _)         \
   V(GetLocal, 0x14, _)         \
   V(SetLocal, 0x15, _)         \
+  V(TeeLocal, 0x19, _)         \
+  V(Drop, 0x0b, _)             \
   V(CallFunction, 0x16, _)     \
   V(CallIndirect, 0x17, _)     \
-  V(CallImport, 0x18, _)       \
   V(I8Const, 0xcb, _)          \
   V(GetGlobal, 0xbb, _)        \
   V(SetGlobal, 0xbc, _)
@@ -273,141 +274,144 @@ const WasmCodePosition kNoCodePosition = -1;
   V(I32AsmjsSConvertF64, 0xe2, i_d)    \
   V(I32AsmjsUConvertF64, 0xe3, i_d)
 
-#define FOREACH_SIMD_OPCODE(V)         \
-  V(F32x4Splat, 0xe500, s_f)           \
-  V(F32x4ExtractLane, 0xe501, f_si)    \
-  V(F32x4ReplaceLane, 0xe502, s_sif)   \
-  V(F32x4Abs, 0xe503, s_s)             \
-  V(F32x4Neg, 0xe504, s_s)             \
-  V(F32x4Sqrt, 0xe505, s_s)            \
-  V(F32x4RecipApprox, 0xe506, s_s)     \
-  V(F32x4SqrtApprox, 0xe507, s_s)      \
-  V(F32x4Add, 0xe508, s_ss)            \
-  V(F32x4Sub, 0xe509, s_ss)            \
-  V(F32x4Mul, 0xe50a, s_ss)            \
-  V(F32x4Div, 0xe50b, s_ss)            \
-  V(F32x4Min, 0xe50c, s_ss)            \
-  V(F32x4Max, 0xe50d, s_ss)            \
-  V(F32x4MinNum, 0xe50e, s_ss)         \
-  V(F32x4MaxNum, 0xe50f, s_ss)         \
-  V(F32x4Eq, 0xe510, s_ss)             \
-  V(F32x4Ne, 0xe511, s_ss)             \
-  V(F32x4Lt, 0xe512, s_ss)             \
-  V(F32x4Le, 0xe513, s_ss)             \
-  V(F32x4Gt, 0xe514, s_ss)             \
-  V(F32x4Ge, 0xe515, s_ss)             \
-  V(F32x4Select, 0xe516, s_sss)        \
-  V(F32x4Swizzle, 0xe517, s_s)         \
-  V(F32x4Shuffle, 0xe518, s_ss)        \
-  V(F32x4FromInt32x4, 0xe519, s_s)     \
-  V(F32x4FromUint32x4, 0xe51a, s_s)    \
-  V(I32x4Splat, 0xe51b, s_i)           \
-  V(I32x4ExtractLane, 0xe51c, i_si)    \
-  V(I32x4ReplaceLane, 0xe51d, s_sii)   \
-  V(I32x4Neg, 0xe51e, s_s)             \
-  V(I32x4Add, 0xe51f, s_ss)            \
-  V(I32x4Sub, 0xe520, s_ss)            \
-  V(I32x4Mul, 0xe521, s_ss)            \
-  V(I32x4Min_s, 0xe522, s_ss)          \
-  V(I32x4Max_s, 0xe523, s_ss)          \
-  V(I32x4Shl, 0xe524, s_si)            \
-  V(I32x4Shr_s, 0xe525, s_si)          \
-  V(I32x4Eq, 0xe526, s_ss)             \
-  V(I32x4Ne, 0xe527, s_ss)             \
-  V(I32x4Lt_s, 0xe528, s_ss)           \
-  V(I32x4Le_s, 0xe529, s_ss)           \
-  V(I32x4Gt_s, 0xe52a, s_ss)           \
-  V(I32x4Ge_s, 0xe52b, s_ss)           \
-  V(I32x4Select, 0xe52c, s_sss)        \
-  V(I32x4Swizzle, 0xe52d, s_s)         \
-  V(I32x4Shuffle, 0xe52e, s_ss)        \
-  V(I32x4FromFloat32x4, 0xe52f, s_s)   \
-  V(I32x4Min_u, 0xe530, s_ss)          \
-  V(I32x4Max_u, 0xe531, s_ss)          \
-  V(I32x4Shr_u, 0xe532, s_ss)          \
-  V(I32x4Lt_u, 0xe533, s_ss)           \
-  V(I32x4Le_u, 0xe534, s_ss)           \
-  V(I32x4Gt_u, 0xe535, s_ss)           \
-  V(I32x4Ge_u, 0xe536, s_ss)           \
-  V(Ui32x4FromFloat32x4, 0xe537, s_s)  \
-  V(I16x8Splat, 0xe538, s_i)           \
-  V(I16x8ExtractLane, 0xe539, i_si)    \
-  V(I16x8ReplaceLane, 0xe53a, s_sii)   \
-  V(I16x8Neg, 0xe53b, s_s)             \
-  V(I16x8Add, 0xe53c, s_ss)            \
-  V(I16x8AddSaturate_s, 0xe53d, s_ss)  \
-  V(I16x8Sub, 0xe53e, s_ss)            \
-  V(I16x8SubSaturate_s, 0xe53f, s_ss)  \
-  V(I16x8Mul, 0xe540, s_ss)            \
-  V(I16x8Min_s, 0xe541, s_ss)          \
-  V(I16x8Max_s, 0xe542, s_ss)          \
-  V(I16x8Shl, 0xe543, s_si)            \
-  V(I16x8Shr_s, 0xe544, s_si)          \
-  V(I16x8Eq, 0xe545, s_ss)             \
-  V(I16x8Ne, 0xe546, s_ss)             \
-  V(I16x8Lt_s, 0xe547, s_ss)           \
-  V(I16x8Le_s, 0xe548, s_ss)           \
-  V(I16x8Gt_s, 0xe549, s_ss)           \
-  V(I16x8Ge_s, 0xe54a, s_ss)           \
-  V(I16x8Select, 0xe54b, s_sss)        \
-  V(I16x8Swizzle, 0xe54c, s_s)         \
-  V(I16x8Shuffle, 0xe54d, s_ss)        \
-  V(I16x8AddSaturate_u, 0xe54e, s_ss)  \
-  V(I16x8SubSaturate_u, 0xe54f, s_ss)  \
-  V(I16x8Min_u, 0xe550, s_ss)          \
-  V(I16x8Max_u, 0xe551, s_ss)          \
-  V(I16x8Shr_u, 0xe552, s_si)          \
-  V(I16x8Lt_u, 0xe553, s_ss)           \
-  V(I16x8Le_u, 0xe554, s_ss)           \
-  V(I16x8Gt_u, 0xe555, s_ss)           \
-  V(I16x8Ge_u, 0xe556, s_ss)           \
-  V(I8x16Splat, 0xe557, s_i)           \
-  V(I8x16ExtractLane, 0xe558, i_si)    \
-  V(I8x16ReplaceLane, 0xe559, s_sii)   \
-  V(I8x16Neg, 0xe55a, s_s)             \
-  V(I8x16Add, 0xe55b, s_ss)            \
-  V(I8x16AddSaturate_s, 0xe55c, s_ss)  \
-  V(I8x16Sub, 0xe55d, s_ss)            \
-  V(I8x16SubSaturate_s, 0xe55e, s_ss)  \
-  V(I8x16Mul, 0xe55f, s_ss)            \
-  V(I8x16Min_s, 0xe560, s_ss)          \
-  V(I8x16Max_s, 0xe561, s_ss)          \
-  V(I8x16Shl, 0xe562, s_si)            \
-  V(I8x16Shr_s, 0xe563, s_si)          \
-  V(I8x16Eq, 0xe564, s_ss)             \
-  V(I8x16Neq, 0xe565, s_ss)            \
-  V(I8x16Lt_s, 0xe566, s_ss)           \
-  V(I8x16Le_s, 0xe567, s_ss)           \
-  V(I8x16Gt_s, 0xe568, s_ss)           \
-  V(I8x16Ge_s, 0xe569, s_ss)           \
-  V(I8x16Select, 0xe56a, s_sss)        \
-  V(I8x16Swizzle, 0xe56b, s_s)         \
-  V(I8x16Shuffle, 0xe56c, s_ss)        \
-  V(I8x16AddSaturate_u, 0xe56d, s_ss)  \
-  V(I8x16Sub_saturate_u, 0xe56e, s_ss) \
-  V(I8x16Min_u, 0xe56f, s_ss)          \
-  V(I8x16Max_u, 0xe570, s_ss)          \
-  V(I8x16Shr_u, 0xe571, s_ss)          \
-  V(I8x16Lt_u, 0xe572, s_ss)           \
-  V(I8x16Le_u, 0xe573, s_ss)           \
-  V(I8x16Gt_u, 0xe574, s_ss)           \
-  V(I8x16Ge_u, 0xe575, s_ss)           \
-  V(S128And, 0xe576, s_ss)             \
-  V(S128Ior, 0xe577, s_ss)             \
-  V(S128Xor, 0xe578, s_ss)             \
+#define FOREACH_SIMD_0_OPERAND_OPCODE(V) \
+  V(F32x4Splat, 0xe500, s_f)             \
+  V(F32x4ReplaceLane, 0xe502, s_sif)     \
+  V(F32x4Abs, 0xe503, s_s)               \
+  V(F32x4Neg, 0xe504, s_s)               \
+  V(F32x4Sqrt, 0xe505, s_s)              \
+  V(F32x4RecipApprox, 0xe506, s_s)       \
+  V(F32x4SqrtApprox, 0xe507, s_s)        \
+  V(F32x4Add, 0xe508, s_ss)              \
+  V(F32x4Sub, 0xe509, s_ss)              \
+  V(F32x4Mul, 0xe50a, s_ss)              \
+  V(F32x4Div, 0xe50b, s_ss)              \
+  V(F32x4Min, 0xe50c, s_ss)              \
+  V(F32x4Max, 0xe50d, s_ss)              \
+  V(F32x4MinNum, 0xe50e, s_ss)           \
+  V(F32x4MaxNum, 0xe50f, s_ss)           \
+  V(F32x4Eq, 0xe510, s_ss)               \
+  V(F32x4Ne, 0xe511, s_ss)               \
+  V(F32x4Lt, 0xe512, s_ss)               \
+  V(F32x4Le, 0xe513, s_ss)               \
+  V(F32x4Gt, 0xe514, s_ss)               \
+  V(F32x4Ge, 0xe515, s_ss)               \
+  V(F32x4Select, 0xe516, s_sss)          \
+  V(F32x4Swizzle, 0xe517, s_s)           \
+  V(F32x4Shuffle, 0xe518, s_ss)          \
+  V(F32x4FromInt32x4, 0xe519, s_s)       \
+  V(F32x4FromUint32x4, 0xe51a, s_s)      \
+  V(I32x4Splat, 0xe51b, s_i)             \
+  V(I32x4ReplaceLane, 0xe51d, s_sii)     \
+  V(I32x4Neg, 0xe51e, s_s)               \
+  V(I32x4Add, 0xe51f, s_ss)              \
+  V(I32x4Sub, 0xe520, s_ss)              \
+  V(I32x4Mul, 0xe521, s_ss)              \
+  V(I32x4Min_s, 0xe522, s_ss)            \
+  V(I32x4Max_s, 0xe523, s_ss)            \
+  V(I32x4Shl, 0xe524, s_si)              \
+  V(I32x4Shr_s, 0xe525, s_si)            \
+  V(I32x4Eq, 0xe526, s_ss)               \
+  V(I32x4Ne, 0xe527, s_ss)               \
+  V(I32x4Lt_s, 0xe528, s_ss)             \
+  V(I32x4Le_s, 0xe529, s_ss)             \
+  V(I32x4Gt_s, 0xe52a, s_ss)             \
+  V(I32x4Ge_s, 0xe52b, s_ss)             \
+  V(I32x4Select, 0xe52c, s_sss)          \
+  V(I32x4Swizzle, 0xe52d, s_s)           \
+  V(I32x4Shuffle, 0xe52e, s_ss)          \
+  V(I32x4FromFloat32x4, 0xe52f, s_s)     \
+  V(I32x4Min_u, 0xe530, s_ss)            \
+  V(I32x4Max_u, 0xe531, s_ss)            \
+  V(I32x4Shr_u, 0xe532, s_ss)            \
+  V(I32x4Lt_u, 0xe533, s_ss)             \
+  V(I32x4Le_u, 0xe534, s_ss)             \
+  V(I32x4Gt_u, 0xe535, s_ss)             \
+  V(I32x4Ge_u, 0xe536, s_ss)             \
+  V(Ui32x4FromFloat32x4, 0xe537, s_s)    \
+  V(I16x8Splat, 0xe538, s_i)             \
+  V(I16x8ReplaceLane, 0xe53a, s_sii)     \
+  V(I16x8Neg, 0xe53b, s_s)               \
+  V(I16x8Add, 0xe53c, s_ss)              \
+  V(I16x8AddSaturate_s, 0xe53d, s_ss)    \
+  V(I16x8Sub, 0xe53e, s_ss)              \
+  V(I16x8SubSaturate_s, 0xe53f, s_ss)    \
+  V(I16x8Mul, 0xe540, s_ss)              \
+  V(I16x8Min_s, 0xe541, s_ss)            \
+  V(I16x8Max_s, 0xe542, s_ss)            \
+  V(I16x8Shl, 0xe543, s_si)              \
+  V(I16x8Shr_s, 0xe544, s_si)            \
+  V(I16x8Eq, 0xe545, s_ss)               \
+  V(I16x8Ne, 0xe546, s_ss)               \
+  V(I16x8Lt_s, 0xe547, s_ss)             \
+  V(I16x8Le_s, 0xe548, s_ss)             \
+  V(I16x8Gt_s, 0xe549, s_ss)             \
+  V(I16x8Ge_s, 0xe54a, s_ss)             \
+  V(I16x8Select, 0xe54b, s_sss)          \
+  V(I16x8Swizzle, 0xe54c, s_s)           \
+  V(I16x8Shuffle, 0xe54d, s_ss)          \
+  V(I16x8AddSaturate_u, 0xe54e, s_ss)    \
+  V(I16x8SubSaturate_u, 0xe54f, s_ss)    \
+  V(I16x8Min_u, 0xe550, s_ss)            \
+  V(I16x8Max_u, 0xe551, s_ss)            \
+  V(I16x8Shr_u, 0xe552, s_si)            \
+  V(I16x8Lt_u, 0xe553, s_ss)             \
+  V(I16x8Le_u, 0xe554, s_ss)             \
+  V(I16x8Gt_u, 0xe555, s_ss)             \
+  V(I16x8Ge_u, 0xe556, s_ss)             \
+  V(I8x16Splat, 0xe557, s_i)             \
+  V(I8x16ReplaceLane, 0xe559, s_sii)     \
+  V(I8x16Neg, 0xe55a, s_s)               \
+  V(I8x16Add, 0xe55b, s_ss)              \
+  V(I8x16AddSaturate_s, 0xe55c, s_ss)    \
+  V(I8x16Sub, 0xe55d, s_ss)              \
+  V(I8x16SubSaturate_s, 0xe55e, s_ss)    \
+  V(I8x16Mul, 0xe55f, s_ss)              \
+  V(I8x16Min_s, 0xe560, s_ss)            \
+  V(I8x16Max_s, 0xe561, s_ss)            \
+  V(I8x16Shl, 0xe562, s_si)              \
+  V(I8x16Shr_s, 0xe563, s_si)            \
+  V(I8x16Eq, 0xe564, s_ss)               \
+  V(I8x16Neq, 0xe565, s_ss)              \
+  V(I8x16Lt_s, 0xe566, s_ss)             \
+  V(I8x16Le_s, 0xe567, s_ss)             \
+  V(I8x16Gt_s, 0xe568, s_ss)             \
+  V(I8x16Ge_s, 0xe569, s_ss)             \
+  V(I8x16Select, 0xe56a, s_sss)          \
+  V(I8x16Swizzle, 0xe56b, s_s)           \
+  V(I8x16Shuffle, 0xe56c, s_ss)          \
+  V(I8x16AddSaturate_u, 0xe56d, s_ss)    \
+  V(I8x16Sub_saturate_u, 0xe56e, s_ss)   \
+  V(I8x16Min_u, 0xe56f, s_ss)            \
+  V(I8x16Max_u, 0xe570, s_ss)            \
+  V(I8x16Shr_u, 0xe571, s_ss)            \
+  V(I8x16Lt_u, 0xe572, s_ss)             \
+  V(I8x16Le_u, 0xe573, s_ss)             \
+  V(I8x16Gt_u, 0xe574, s_ss)             \
+  V(I8x16Ge_u, 0xe575, s_ss)             \
+  V(S128And, 0xe576, s_ss)               \
+  V(S128Ior, 0xe577, s_ss)               \
+  V(S128Xor, 0xe578, s_ss)               \
   V(S128Not, 0xe579, s_s)
 
+#define FOREACH_SIMD_1_OPERAND_OPCODE(V) \
+  V(F32x4ExtractLane, 0xe501, _)         \
+  V(I32x4ExtractLane, 0xe51c, _)         \
+  V(I16x8ExtractLane, 0xe539, _)         \
+  V(I8x16ExtractLane, 0xe558, _)
+
 // All opcodes.
-#define FOREACH_OPCODE(V)        \
-  FOREACH_CONTROL_OPCODE(V)      \
-  FOREACH_MISC_OPCODE(V)         \
-  FOREACH_SIMPLE_OPCODE(V)       \
-  FOREACH_SIMPLE_MEM_OPCODE(V)   \
-  FOREACH_STORE_MEM_OPCODE(V)    \
-  FOREACH_LOAD_MEM_OPCODE(V)     \
-  FOREACH_MISC_MEM_OPCODE(V)     \
-  FOREACH_ASMJS_COMPAT_OPCODE(V) \
-  FOREACH_SIMD_OPCODE(V)
+#define FOREACH_OPCODE(V)          \
+  FOREACH_CONTROL_OPCODE(V)        \
+  FOREACH_MISC_OPCODE(V)           \
+  FOREACH_SIMPLE_OPCODE(V)         \
+  FOREACH_SIMPLE_MEM_OPCODE(V)     \
+  FOREACH_STORE_MEM_OPCODE(V)      \
+  FOREACH_LOAD_MEM_OPCODE(V)       \
+  FOREACH_MISC_MEM_OPCODE(V)       \
+  FOREACH_ASMJS_COMPAT_OPCODE(V)   \
+  FOREACH_SIMD_0_OPERAND_OPCODE(V) \
+  FOREACH_SIMD_1_OPERAND_OPCODE(V)
 
 // All signatures.
 #define FOREACH_SIGNATURE(V)         \
@@ -443,12 +447,10 @@ const WasmCodePosition kNoCodePosition = -1;
 #define FOREACH_SIMD_SIGNATURE(V)                  \
   V(s_s, kAstS128, kAstS128)                       \
   V(s_f, kAstS128, kAstF32)                        \
-  V(f_si, kAstF32, kAstS128, kAstI32)              \
   V(s_sif, kAstS128, kAstS128, kAstI32, kAstF32)   \
   V(s_ss, kAstS128, kAstS128, kAstS128)            \
   V(s_sss, kAstS128, kAstS128, kAstS128, kAstS128) \
   V(s_i, kAstS128, kAstI32)                        \
-  V(i_si, kAstI32, kAstS128, kAstI32)              \
   V(s_sii, kAstS128, kAstS128, kAstI32, kAstI32)   \
   V(s_si, kAstS128, kAstS128, kAstI32)
 
@@ -489,6 +491,8 @@ class WasmOpcodes {
   static const char* OpcodeName(WasmOpcode opcode);
   static const char* ShortOpcodeName(WasmOpcode opcode);
   static FunctionSig* Signature(WasmOpcode opcode);
+  static FunctionSig* AsmjsSignature(WasmOpcode opcode);
+  static bool IsPrefixOpcode(WasmOpcode opcode);
 
   static int TrapReasonToMessageId(TrapReason reason);
   static const char* TrapReasonMessage(TrapReason reason);
@@ -496,6 +500,8 @@ class WasmOpcodes {
   static byte MemSize(MachineType type) {
     return 1 << ElementSizeLog2Of(type.representation());
   }
+
+  static byte MemSize(LocalType type) { return 1 << ElementSizeLog2Of(type); }
 
   static LocalTypeCode LocalTypeCodeFor(LocalType type) {
     switch (type) {
@@ -507,10 +513,10 @@ class WasmOpcodes {
         return kLocalF32;
       case kAstF64:
         return kLocalF64;
-      case kAstStmt:
-        return kLocalVoid;
       case kAstS128:
         return kLocalS128;
+      case kAstStmt:
+        return kLocalVoid;
       default:
         UNREACHABLE();
         return kLocalVoid;

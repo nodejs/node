@@ -6,7 +6,7 @@
 
 #include "src/base/functional.h"
 #include "src/heap/heap-inl.h"
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {

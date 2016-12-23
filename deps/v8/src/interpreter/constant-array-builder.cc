@@ -4,6 +4,7 @@
 
 #include "src/interpreter/constant-array-builder.h"
 
+#include <functional>
 #include <set>
 
 #include "src/isolate.h"
@@ -72,9 +73,11 @@ STATIC_CONST_MEMBER_DEFINITION const size_t
 
 ConstantArrayBuilder::ConstantArrayBuilder(Zone* zone,
                                            Handle<Object> the_hole_value)
-    : constants_map_(zone),
+    : constants_map_(16, base::KeyEqualityMatcher<Address>(),
+                     ZoneAllocationPolicy(zone)),
       smi_map_(zone),
       smi_pairs_(zone),
+      zone_(zone),
       the_hole_value_(the_hole_value) {
   idx_slice_[0] =
       new (zone) ConstantArraySlice(zone, 0, k8BitCapacity, OperandSize::kByte);
@@ -153,16 +156,11 @@ Handle<FixedArray> ConstantArrayBuilder::ToFixedArray(Isolate* isolate) {
 }
 
 size_t ConstantArrayBuilder::Insert(Handle<Object> object) {
-  auto entry = constants_map_.find(object.address());
-  return (entry == constants_map_.end()) ? AllocateEntry(object)
-                                         : entry->second;
-}
-
-ConstantArrayBuilder::index_t ConstantArrayBuilder::AllocateEntry(
-    Handle<Object> object) {
-  index_t index = AllocateIndex(object);
-  constants_map_[object.address()] = index;
-  return index;
+  return constants_map_
+      .LookupOrInsert(object.address(), ObjectHash(object.address()),
+                      [&]() { return AllocateIndex(object); },
+                      ZoneAllocationPolicy(zone_))
+      ->value;
 }
 
 ConstantArrayBuilder::index_t ConstantArrayBuilder::AllocateIndex(

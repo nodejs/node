@@ -347,10 +347,13 @@ bool Rewriter::Rewrite(ParseInfo* info) {
     Variable* result = closure_scope->NewTemporary(
         info->ast_value_factory()->dot_result_string());
     // The name string must be internalized at this point.
+    info->ast_value_factory()->Internalize(info->isolate());
     DCHECK(!result->name().is_null());
     Processor processor(info->isolate(), closure_scope, result,
                         info->ast_value_factory());
     processor.Process(body);
+    // Internalize any values created during rewriting.
+    info->ast_value_factory()->Internalize(info->isolate());
     if (processor.HasStackOverflow()) return false;
 
     if (processor.result_assigned()) {

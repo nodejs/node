@@ -250,10 +250,7 @@ bool VirtualMemory::ReleaseRegion(void* address, size_t size) {
   return munmap(address, size) == 0;
 }
 
-
-bool VirtualMemory::HasLazyCommits() {
-  return false;
-}
+bool VirtualMemory::HasLazyCommits() { return true; }
 
 }  // namespace base
 }  // namespace v8

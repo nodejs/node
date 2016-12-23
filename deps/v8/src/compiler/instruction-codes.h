@@ -57,7 +57,6 @@ enum class RecordWriteMode { kValueIsMap, kValueIsPointer, kValueIsAny };
   V(ArchTableSwitch)                      \
   V(ArchNop)                              \
   V(ArchDebugBreak)                       \
-  V(ArchImpossible)                       \
   V(ArchComment)                          \
   V(ArchThrowTerminator)                  \
   V(ArchDeoptimize)                       \

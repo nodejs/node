@@ -64,12 +64,9 @@ void Builtins::Generate_CopyFastSmiOrObjectElements(
   // Load the {object}s elements.
   Node* source = assembler->LoadObjectField(object, JSObject::kElementsOffset);
 
-  CodeStubAssembler::ParameterMode mode =
-      assembler->Is64() ? CodeStubAssembler::INTEGER_PARAMETERS
-                        : CodeStubAssembler::SMI_PARAMETERS;
-  Node* length = (mode == CodeStubAssembler::INTEGER_PARAMETERS)
-                     ? assembler->LoadAndUntagFixedArrayBaseLength(source)
-                     : assembler->LoadFixedArrayBaseLength(source);
+  CodeStubAssembler::ParameterMode mode = assembler->OptimalParameterMode();
+  Node* length = assembler->UntagParameter(
+      assembler->LoadFixedArrayBaseLength(source), mode);
 
   // Check if we can allocate in new space.
   ElementsKind kind = FAST_ELEMENTS;
@@ -111,9 +108,8 @@ void Builtins::Generate_GrowFastDoubleElements(CodeStubAssembler* assembler) {
 
   Label runtime(assembler, CodeStubAssembler::Label::kDeferred);
   Node* elements = assembler->LoadElements(object);
-  elements = assembler->CheckAndGrowElementsCapacity(
-      context, elements, FAST_DOUBLE_ELEMENTS, key, &runtime);
-  assembler->StoreObjectField(object, JSObject::kElementsOffset, elements);
+  elements = assembler->TryGrowElementsCapacity(
+      object, elements, FAST_DOUBLE_ELEMENTS, key, &runtime);
   assembler->Return(elements);
 
   assembler->Bind(&runtime);
@@ -132,9 +128,8 @@ void Builtins::Generate_GrowFastSmiOrObjectElements(
 
   Label runtime(assembler, CodeStubAssembler::Label::kDeferred);
   Node* elements = assembler->LoadElements(object);
-  elements = assembler->CheckAndGrowElementsCapacity(
-      context, elements, FAST_ELEMENTS, key, &runtime);
-  assembler->StoreObjectField(object, JSObject::kElementsOffset, elements);
+  elements = assembler->TryGrowElementsCapacity(object, elements, FAST_ELEMENTS,
+                                                key, &runtime);
   assembler->Return(elements);
 
   assembler->Bind(&runtime);

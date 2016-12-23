@@ -119,14 +119,20 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   DCHECK(kDoubleRegZero.code() == 14);
   DCHECK(kScratchDoubleReg.code() == 15);
 
-  // Check CPU flags for number of registers, setting the Z condition flag.
-  __ CheckFor32DRegs(ip);
+  {
+    // We use a run-time check for VFP32DREGS.
+    CpuFeatureScope scope(masm(), VFP32DREGS,
+                          CpuFeatureScope::kDontCheckSupported);
 
-  // Push registers d0-d15, and possibly d16-d31, on the stack.
-  // If d16-d31 are not pushed, decrease the stack pointer instead.
-  __ vstm(db_w, sp, d16, d31, ne);
-  __ sub(sp, sp, Operand(16 * kDoubleSize), LeaveCC, eq);
-  __ vstm(db_w, sp, d0, d15);
+    // Check CPU flags for number of registers, setting the Z condition flag.
+    __ CheckFor32DRegs(ip);
+
+    // Push registers d0-d15, and possibly d16-d31, on the stack.
+    // If d16-d31 are not pushed, decrease the stack pointer instead.
+    __ vstm(db_w, sp, d16, d31, ne);
+    __ sub(sp, sp, Operand(16 * kDoubleSize), LeaveCC, eq);
+    __ vstm(db_w, sp, d0, d15);
+  }
 
   // Push all 16 registers (needed to populate FrameDescription::registers_).
   // TODO(1588) Note that using pc with stm is deprecated, so we should perhaps
@@ -258,9 +264,6 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ bind(&outer_loop_header);
   __ cmp(r4, r1);
   __ b(lt, &outer_push_loop);
-
-  // Check CPU flags for number of registers, setting the Z condition flag.
-  __ CheckFor32DRegs(ip);
 
   __ ldr(r1, MemOperand(r0, Deoptimizer::input_offset()));
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {

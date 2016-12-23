@@ -77,8 +77,12 @@ Reduction CommonOperatorReducer::ReduceBranch(Node* node) {
   // Swap IfTrue/IfFalse on {branch} if {cond} is a BooleanNot and use the input
   // to BooleanNot as new condition for {branch}. Note we assume that {cond} was
   // already properly optimized before we get here (as guaranteed by the graph
-  // reduction logic).
-  if (cond->opcode() == IrOpcode::kBooleanNot) {
+  // reduction logic). The same applies if {cond} is a Select acting as boolean
+  // not (i.e. true being returned in the false case and vice versa).
+  if (cond->opcode() == IrOpcode::kBooleanNot ||
+      (cond->opcode() == IrOpcode::kSelect &&
+       DecideCondition(cond->InputAt(1)) == Decision::kFalse &&
+       DecideCondition(cond->InputAt(2)) == Decision::kTrue)) {
     for (Node* const use : node->uses()) {
       switch (use->opcode()) {
         case IrOpcode::kIfTrue:

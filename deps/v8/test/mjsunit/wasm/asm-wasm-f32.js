@@ -159,6 +159,11 @@ function f32_gteq(a, b) {
   return 0;
 }
 
+function f32_neg(a) {
+  a = fround(a);
+  return fround(-a);
+}
+
 
 var inputs = [
   0, 1, 2, 3, 4,
@@ -211,6 +216,7 @@ var funcs = [
   f32_lteq,
   f32_gt,
   f32_gteq,
+  f32_neg,
 ];
 
 (function () {

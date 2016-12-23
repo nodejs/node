@@ -1023,6 +1023,7 @@ TEST(BoundFunctionCall) {
 
 // This tests checks distribution of the samples through the source lines.
 static void TickLines(bool optimize) {
+  if (!optimize) i::FLAG_crankshaft = false;
   CcTest::InitializeVM();
   LocalContext env;
   i::FLAG_allow_natives_syntax = true;
@@ -1032,10 +1033,15 @@ static void TickLines(bool optimize) {
   i::HandleScope scope(isolate);
 
   i::EmbeddedVector<char, 512> script;
+  i::EmbeddedVector<char, 64> optimize_call;
 
   const char* func_name = "func";
-  const char* opt_func =
-      optimize ? "%OptimizeFunctionOnNextCall" : "%NeverOptimizeFunction";
+  if (optimize) {
+    i::SNPrintF(optimize_call, "%%OptimizeFunctionOnNextCall(%s);\n",
+                func_name);
+  } else {
+    optimize_call[0] = '\0';
+  }
   i::SNPrintF(script,
               "function %s() {\n"
               "  var n = 0;\n"
@@ -1045,10 +1051,10 @@ static void TickLines(bool optimize) {
               "    n += m * m * m;\n"
               "  }\n"
               "}\n"
-              "%s();"
-              "%s(%s);\n"
+              "%s();\n"
+              "%s"
               "%s();\n",
-              func_name, func_name, opt_func, func_name, func_name);
+              func_name, func_name, optimize_call.start(), func_name);
 
   CompileRun(script.start());
 
@@ -1164,7 +1170,7 @@ TEST(FunctionCallSample) {
 
   // Collect garbage that might have be generated while installing
   // extensions.
-  CcTest::heap()->CollectAllGarbage();
+  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
 
   CompileRun(call_function_test_source);
   v8::Local<v8::Function> function = GetFunction(env.local(), "start");
@@ -1671,9 +1677,11 @@ static void CheckFunctionDetails(v8::Isolate* isolate,
                                  int script_id, int line, int column) {
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
   CHECK(v8_str(name)->Equals(context, node->GetFunctionName()).FromJust());
+  CHECK_EQ(0, strcmp(name, node->GetFunctionNameStr()));
   CHECK(v8_str(script_name)
             ->Equals(context, node->GetScriptResourceName())
             .FromJust());
+  CHECK_EQ(0, strcmp(script_name, node->GetScriptResourceNameStr()));
   CHECK_EQ(script_id, node->GetScriptId());
   CHECK_EQ(line, node->GetLineNumber());
   CHECK_EQ(column, node->GetColumnNumber());

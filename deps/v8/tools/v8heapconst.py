@@ -89,7 +89,7 @@ INSTANCE_TYPES = {
   163: "ALIASED_ARGUMENTS_ENTRY_TYPE",
   164: "BOX_TYPE",
   173: "PROTOTYPE_INFO_TYPE",
-  174: "SLOPPY_BLOCK_WITH_EVAL_CONTEXT_EXTENSION_TYPE",
+  174: "CONTEXT_EXTENSION_TYPE",
   167: "FIXED_ARRAY_TYPE",
   148: "FIXED_DOUBLE_ARRAY_TYPE",
   168: "SHARED_FUNCTION_INFO_TYPE",
@@ -232,7 +232,7 @@ KNOWN_MAPS = {
   0x09231: (165, "DebugInfoMap"),
   0x0925d: (166, "BreakPointInfoMap"),
   0x09289: (173, "PrototypeInfoMap"),
-  0x092b5: (174, "SloppyBlockWithEvalContextExtensionMap"),
+  0x092b5: (174, "ContextExtensionMap"),
 }
 
 # List of known V8 objects.

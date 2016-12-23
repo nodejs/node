@@ -5,9 +5,9 @@
 #ifndef V8_COMPILER_TYPE_HINT_ANALYZER_H_
 #define V8_COMPILER_TYPE_HINT_ANALYZER_H_
 
-#include "src/compiler/type-hints.h"
 #include "src/handles.h"
-#include "src/zone-containers.h"
+#include "src/type-hints.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -49,8 +49,6 @@ class TypeHintAnalyzer final {
 
   DISALLOW_COPY_AND_ASSIGN(TypeHintAnalyzer);
 };
-
-BinaryOperationHint BinaryOperationHintFromFeedback(int type_feedback);
 
 }  // namespace compiler
 }  // namespace internal

@@ -319,6 +319,7 @@ CodeEntry* ProfilerListener::NewCodeEntry(
 }
 
 void ProfilerListener::AddObserver(CodeEventObserver* observer) {
+  base::LockGuard<base::Mutex> guard(&mutex_);
   if (std::find(observers_.begin(), observers_.end(), observer) !=
       observers_.end())
     return;
@@ -326,6 +327,7 @@ void ProfilerListener::AddObserver(CodeEventObserver* observer) {
 }
 
 void ProfilerListener::RemoveObserver(CodeEventObserver* observer) {
+  base::LockGuard<base::Mutex> guard(&mutex_);
   auto it = std::find(observers_.begin(), observers_.end(), observer);
   if (it == observers_.end()) return;
   observers_.erase(it);

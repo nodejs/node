@@ -4,9 +4,9 @@
 
 #include "src/field-type.h"
 
+#include "src/ast/ast-types.h"
 #include "src/handles-inl.h"
 #include "src/ostreams.h"
-#include "src/types.h"
 
 namespace v8 {
 namespace internal {
@@ -71,11 +71,11 @@ bool FieldType::NowIs(FieldType* other) {
 
 bool FieldType::NowIs(Handle<FieldType> other) { return NowIs(*other); }
 
-Type* FieldType::Convert(Zone* zone) {
-  if (IsAny()) return Type::NonInternal();
-  if (IsNone()) return Type::None();
+AstType* FieldType::Convert(Zone* zone) {
+  if (IsAny()) return AstType::NonInternal();
+  if (IsNone()) return AstType::None();
   DCHECK(IsClass());
-  return Type::Class(AsClass(), zone);
+  return AstType::Class(AsClass(), zone);
 }
 
 void FieldType::PrintTo(std::ostream& os) {

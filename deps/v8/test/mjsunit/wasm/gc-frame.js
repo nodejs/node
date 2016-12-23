@@ -27,7 +27,8 @@ function makeFFI(func, t) {
       kExprGetLocal, 7,         // --
       kExprGetLocal, 8,         // --
       kExprGetLocal, 9,         // --
-      kExprCallImport, 10, 0,   // --
+      kExprCallFunction, 0,     // --
+      kExprDrop,                // --
       kExprGetLocal, 0,         // --
       kExprGetLocal, 1,         // --
       kExprGetLocal, 2,         // --
@@ -38,7 +39,7 @@ function makeFFI(func, t) {
       kExprGetLocal, 7,         // --
       kExprGetLocal, 8,         // --
       kExprGetLocal, 9,         // --
-      kExprCallImport, 10, 0    // --
+      kExprCallFunction, 0,    // --
     ])                          // --
     .exportFunc();
 

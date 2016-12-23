@@ -5,8 +5,8 @@
 #ifndef V8_WASM_SWITCH_LOGIC_H
 #define V8_WASM_SWITCH_LOGIC_H
 
-#include "src/zone-containers.h"
-#include "src/zone.h"
+#include "src/zone/zone-containers.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {

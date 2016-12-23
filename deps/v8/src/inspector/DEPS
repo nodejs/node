@@ -1,0 +1,8 @@
+include_rules = [
+  "-src",
+  "+src/inspector",
+  "+src/base/atomicops.h",
+  "+src/base/macros.h",
+  "+src/base/logging.h",
+  "+src/base/platform/platform.h",
+]
