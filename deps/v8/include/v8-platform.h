@@ -7,6 +7,8 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <memory>
+#include <string>
 
 namespace v8 {
 
@@ -17,24 +19,38 @@ class Isolate;
  */
 class Task {
  public:
-  virtual ~Task() {}
+  virtual ~Task() = default;
 
   virtual void Run() = 0;
 };
 
-
 /**
-* An IdleTask represents a unit of work to be performed in idle time.
-* The Run method is invoked with an argument that specifies the deadline in
-* seconds returned by MonotonicallyIncreasingTime().
-* The idle task is expected to complete by this deadline.
-*/
+ * An IdleTask represents a unit of work to be performed in idle time.
+ * The Run method is invoked with an argument that specifies the deadline in
+ * seconds returned by MonotonicallyIncreasingTime().
+ * The idle task is expected to complete by this deadline.
+ */
 class IdleTask {
  public:
-  virtual ~IdleTask() {}
+  virtual ~IdleTask() = default;
   virtual void Run(double deadline_in_seconds) = 0;
 };
 
+/**
+ * The interface represents complex arguments to trace events.
+ */
+class ConvertableToTraceFormat {
+ public:
+  virtual ~ConvertableToTraceFormat() = default;
+
+  /**
+   * Append the class info to the provided |out| string. The appended
+   * data must be a valid JSON object. Strings must be properly quoted, and
+   * escaped. There is no processing applied to the content after it is
+   * appended.
+   */
+  virtual void AppendAsTraceFormat(std::string* out) const = 0;
+};
 
 /**
  * V8 Platform abstraction layer.
@@ -54,7 +70,7 @@ class Platform {
     kLongRunningTask
   };
 
-  virtual ~Platform() {}
+  virtual ~Platform() = default;
 
   /**
    * Gets the number of threads that are used to execute background tasks. Is
@@ -159,11 +175,43 @@ class Platform {
   }
 
   /**
+   * Adds a trace event to the platform tracing system. This function call is
+   * usually the result of a TRACE_* macro from trace_event_common.h when
+   * tracing and the category of the particular trace are enabled. It is not
+   * advisable to call this function on its own; it is really only meant to be
+   * used by the trace macros. The returned handle can be used by
+   * UpdateTraceEventDuration to update the duration of COMPLETE events.
+   */
+  virtual uint64_t AddTraceEvent(
+      char phase, const uint8_t* category_enabled_flag, const char* name,
+      const char* scope, uint64_t id, uint64_t bind_id, int32_t num_args,
+      const char** arg_names, const uint8_t* arg_types,
+      const uint64_t* arg_values,
+      std::unique_ptr<ConvertableToTraceFormat>* arg_convertables,
+      unsigned int flags) {
+    return AddTraceEvent(phase, category_enabled_flag, name, scope, id, bind_id,
+                         num_args, arg_names, arg_types, arg_values, flags);
+  }
+
+  /**
    * Sets the duration field of a COMPLETE trace event. It must be called with
    * the handle returned from AddTraceEvent().
    **/
   virtual void UpdateTraceEventDuration(const uint8_t* category_enabled_flag,
                                         const char* name, uint64_t handle) {}
+
+  class TraceStateObserver {
+   public:
+    virtual ~TraceStateObserver() = default;
+    virtual void OnTraceEnabled() = 0;
+    virtual void OnTraceDisabled() = 0;
+  };
+
+  /** Adds tracing state change observer. */
+  virtual void AddTraceStateObserver(TraceStateObserver*) {}
+
+  /** Removes tracing state change observer. */
+  virtual void RemoveTraceStateObserver(TraceStateObserver*) {}
 };
 
 }  // namespace v8

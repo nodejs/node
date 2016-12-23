@@ -9,6 +9,7 @@
 #include "src/debug/debug-frames.h"
 #include "src/debug/debug-scopes.h"
 #include "src/debug/debug.h"
+#include "src/debug/liveedit.h"
 #include "src/frames-inl.h"
 #include "src/globals.h"
 #include "src/interpreter/bytecodes.h"
@@ -1521,7 +1522,8 @@ RUNTIME_FUNCTION(Runtime_GetDebugContext) {
 RUNTIME_FUNCTION(Runtime_CollectGarbage) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
-  isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags, "%CollectGarbage");
+  isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags,
+                                     GarbageCollectionReason::kRuntime);
   return isolate->heap()->undefined_value();
 }
 

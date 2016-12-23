@@ -12,7 +12,7 @@
 #include "src/signature.h"
 #include "src/utils.h"
 #include "src/wasm/wasm-result.h"
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -208,6 +208,19 @@ class Decoder {
 
   // Consume {size} bytes and send them to the bit bucket, advancing {pc_}.
   void consume_bytes(int size) {
+    TRACE("  +%d  %-20s: %d bytes\n", static_cast<int>(pc_ - start_), "skip",
+          size);
+    if (checkAvailable(size)) {
+      pc_ += size;
+    } else {
+      pc_ = limit_;
+    }
+  }
+
+  // Consume {size} bytes and send them to the bit bucket, advancing {pc_}.
+  void consume_bytes(uint32_t size, const char* name = "skip") {
+    TRACE("  +%d  %-20s: %d bytes\n", static_cast<int>(pc_ - start_), name,
+          size);
     if (checkAvailable(size)) {
       pc_ += size;
     } else {

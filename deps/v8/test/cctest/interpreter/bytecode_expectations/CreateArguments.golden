@@ -3,8 +3,6 @@
 #
 
 ---
-pool type: string
-execute: yes
 wrap: no
 test function name: f
 
@@ -41,7 +39,7 @@ bytecodes: [
                 B(Star), R(0),
   /*   10 E> */ B(StackCheck),
   /*   15 S> */ B(LdaZero),
-  /*   31 E> */ B(LdaKeyedProperty), R(0), U8(1),
+  /*   31 E> */ B(LdaKeyedProperty), R(0), U8(2),
   /*   36 S> */ B(Return),
 ]
 constant pool: [
@@ -76,17 +74,17 @@ snippet: "
 "
 frame size: 2
 parameter count: 2
-bytecode array length: 18
+bytecode array length: 19
 bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(1),
                 B(Ldar), R(arg0),
-                B(StaContextSlot), R(context), U8(4),
+                B(StaContextSlot), R(context), U8(4), U8(0),
                 B(CreateMappedArguments),
                 B(Star), R(0),
   /*   10 E> */ B(StackCheck),
   /*   16 S> */ B(LdaZero),
-  /*   32 E> */ B(LdaKeyedProperty), R(0), U8(1),
+  /*   32 E> */ B(LdaKeyedProperty), R(0), U8(2),
   /*   37 S> */ B(Return),
 ]
 constant pool: [
@@ -101,16 +99,16 @@ snippet: "
 "
 frame size: 2
 parameter count: 4
-bytecode array length: 25
+bytecode array length: 28
 bytecodes: [
                 B(CreateFunctionContext), U8(3),
                 B(PushContext), R(1),
                 B(Ldar), R(arg0),
-                B(StaContextSlot), R(context), U8(6),
+                B(StaContextSlot), R(context), U8(6), U8(0),
                 B(Ldar), R(arg1),
-                B(StaContextSlot), R(context), U8(5),
+                B(StaContextSlot), R(context), U8(5), U8(0),
                 B(Ldar), R(arg2),
-                B(StaContextSlot), R(context), U8(4),
+                B(StaContextSlot), R(context), U8(4), U8(0),
                 B(CreateMappedArguments),
                 B(Star), R(0),
   /*   10 E> */ B(StackCheck),

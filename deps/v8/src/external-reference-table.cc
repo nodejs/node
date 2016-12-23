@@ -215,10 +215,6 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "double_constants.minus_one_half");
   Add(ExternalReference::stress_deopt_count(isolate).address(),
       "Isolate::stress_deopt_count_address()");
-  Add(ExternalReference::virtual_handler_register(isolate).address(),
-      "Isolate::virtual_handler_register()");
-  Add(ExternalReference::virtual_slot_register(isolate).address(),
-      "Isolate::virtual_slot_register()");
   Add(ExternalReference::runtime_function_table_address(isolate).address(),
       "Runtime::runtime_function_table_address()");
   Add(ExternalReference::is_tail_call_elimination_enabled_address(isolate)

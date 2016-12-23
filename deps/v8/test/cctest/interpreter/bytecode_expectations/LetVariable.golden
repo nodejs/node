@@ -3,8 +3,6 @@
 #
 
 ---
-pool type: string
-execute: yes
 wrap: yes
 
 ---
@@ -48,7 +46,7 @@ bytecodes: [
   /*   56 S> */ B(Return),
 ]
 constant pool: [
-  "x",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
 ]
 handlers: [
 ]
@@ -59,7 +57,7 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 26
+bytecode array length: 29
 bytecodes: [
                 B(LdaTheHole),
                 B(Star), R(0),
@@ -72,11 +70,12 @@ bytecodes: [
                 B(Star), R(2),
   /*   45 E> */ B(CallRuntime), U16(Runtime::kThrowReferenceError), R(2), U8(1),
                 B(Mov), R(1), R(0),
+                B(Mov), R(1), R(0),
                 B(LdaUndefined),
   /*   52 S> */ B(Return),
 ]
 constant pool: [
-  "x",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
 ]
 handlers: [
 ]
@@ -106,7 +105,7 @@ bytecodes: [
   /*   54 S> */ B(Return),
 ]
 constant pool: [
-  "x",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
 ]
 handlers: [
 ]

@@ -141,6 +141,7 @@ void ValidateAtomicIndex(CodeStubAssembler* a, compiler::Node* index_word,
   using namespace compiler;
   // Check if the index is in bounds. If not, throw RangeError.
   CodeStubAssembler::Label if_inbounds(a), if_notinbounds(a);
+  // TODO(jkummerow): Use unsigned comparison instead of "i<0 || i>length".
   a->Branch(
       a->WordOr(a->Int32LessThan(index_word, a->Int32Constant(0)),
                 a->Int32GreaterThanOrEqual(index_word, array_length_word)),
@@ -227,8 +228,7 @@ void Builtins::Generate_AtomicsStore(CodeStubAssembler* a) {
   ValidateAtomicIndex(a, index_word32, array_length_word32, context);
   Node* index_word = a->ChangeUint32ToWord(index_word32);
 
-  Callable to_integer = CodeFactory::ToInteger(a->isolate());
-  Node* value_integer = a->CallStub(to_integer, context, value);
+  Node* value_integer = a->ToInteger(context, value);
   Node* value_word32 = a->TruncateTaggedToWord32(context, value_integer);
 
   CodeStubAssembler::Label u8(a), u16(a), u32(a), other(a);
@@ -248,8 +248,8 @@ void Builtins::Generate_AtomicsStore(CodeStubAssembler* a) {
   a->Return(value_integer);
 
   a->Bind(&u16);
-  a->SmiTag(a->AtomicStore(MachineRepresentation::kWord16, backing_store,
-                           a->WordShl(index_word, 1), value_word32));
+  a->AtomicStore(MachineRepresentation::kWord16, backing_store,
+                 a->WordShl(index_word, 1), value_word32);
   a->Return(value_integer);
 
   a->Bind(&u32);

@@ -2780,12 +2780,49 @@ void Assembler::mul_d(FPURegister fd, FPURegister fs, FPURegister ft) {
   GenInstrRegister(COP1, D, ft, fs, fd, MUL_D);
 }
 
+void Assembler::madd_s(FPURegister fd, FPURegister fr, FPURegister fs,
+                       FPURegister ft) {
+  DCHECK(kArchVariant == kMips64r2);
+  GenInstrRegister(COP1X, fr, ft, fs, fd, MADD_S);
+}
 
 void Assembler::madd_d(FPURegister fd, FPURegister fr, FPURegister fs,
     FPURegister ft) {
+  DCHECK(kArchVariant == kMips64r2);
   GenInstrRegister(COP1X, fr, ft, fs, fd, MADD_D);
 }
 
+void Assembler::msub_s(FPURegister fd, FPURegister fr, FPURegister fs,
+                       FPURegister ft) {
+  DCHECK(kArchVariant == kMips64r2);
+  GenInstrRegister(COP1X, fr, ft, fs, fd, MSUB_S);
+}
+
+void Assembler::msub_d(FPURegister fd, FPURegister fr, FPURegister fs,
+                       FPURegister ft) {
+  DCHECK(kArchVariant == kMips64r2);
+  GenInstrRegister(COP1X, fr, ft, fs, fd, MSUB_D);
+}
+
+void Assembler::maddf_s(FPURegister fd, FPURegister fs, FPURegister ft) {
+  DCHECK(kArchVariant == kMips64r6);
+  GenInstrRegister(COP1, S, ft, fs, fd, MADDF_S);
+}
+
+void Assembler::maddf_d(FPURegister fd, FPURegister fs, FPURegister ft) {
+  DCHECK(kArchVariant == kMips64r6);
+  GenInstrRegister(COP1, D, ft, fs, fd, MADDF_D);
+}
+
+void Assembler::msubf_s(FPURegister fd, FPURegister fs, FPURegister ft) {
+  DCHECK(kArchVariant == kMips64r6);
+  GenInstrRegister(COP1, S, ft, fs, fd, MSUBF_S);
+}
+
+void Assembler::msubf_d(FPURegister fd, FPURegister fs, FPURegister ft) {
+  DCHECK(kArchVariant == kMips64r6);
+  GenInstrRegister(COP1, D, ft, fs, fd, MSUBF_D);
+}
 
 void Assembler::div_s(FPURegister fd, FPURegister fs, FPURegister ft) {
   GenInstrRegister(COP1, S, ft, fs, fd, DIV_D);
@@ -2818,13 +2855,11 @@ void Assembler::mov_s(FPURegister fd, FPURegister fs) {
 
 
 void Assembler::neg_s(FPURegister fd, FPURegister fs) {
-  DCHECK(kArchVariant == kMips64r2);
   GenInstrRegister(COP1, S, f0, fs, fd, NEG_D);
 }
 
 
 void Assembler::neg_d(FPURegister fd, FPURegister fs) {
-  DCHECK(kArchVariant == kMips64r2);
   GenInstrRegister(COP1, D, f0, fs, fd, NEG_D);
 }
 

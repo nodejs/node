@@ -525,8 +525,8 @@ class NativeObjectsExplorer {
   bool embedder_queried_;
   HeapObjectsSet in_groups_;
   // RetainedObjectInfo* -> List<HeapObject*>*
-  base::HashMap objects_by_info_;
-  base::HashMap native_groups_;
+  base::CustomMatcherHashMap objects_by_info_;
+  base::CustomMatcherHashMap native_groups_;
   HeapEntriesAllocator* synthetic_entries_allocator_;
   HeapEntriesAllocator* native_entries_allocator_;
   // Used during references extraction.
@@ -613,7 +613,7 @@ class HeapSnapshotJSONSerializer {
   static const int kNodeFieldsCount;
 
   HeapSnapshot* snapshot_;
-  base::HashMap strings_;
+  base::CustomMatcherHashMap strings_;
   int next_node_id_;
   int next_string_id_;
   OutputStreamWriter* writer_;

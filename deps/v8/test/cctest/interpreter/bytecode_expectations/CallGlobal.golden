@@ -3,8 +3,6 @@
 #
 
 ---
-pool type: string
-execute: yes
 wrap: no
 test function name: f
 
@@ -20,8 +18,8 @@ bytecode array length: 12
 bytecodes: [
   /*   27 E> */ B(StackCheck),
   /*   32 S> */ B(LdrUndefined), R(1),
-                B(LdrGlobal), U8(3), R(0),
-  /*   39 E> */ B(Call), R(0), R(1), U8(1), U8(1),
+                B(LdrGlobal), U8(4), R(0),
+  /*   39 E> */ B(Call), R(0), R(1), U8(1), U8(2),
   /*   44 S> */ B(Return),
 ]
 constant pool: [
@@ -41,14 +39,14 @@ bytecode array length: 24
 bytecodes: [
   /*   34 E> */ B(StackCheck),
   /*   39 S> */ B(LdrUndefined), R(1),
-                B(LdrGlobal), U8(3), R(0),
+                B(LdrGlobal), U8(4), R(0),
                 B(LdaSmi), U8(1),
                 B(Star), R(2),
                 B(LdaSmi), U8(2),
                 B(Star), R(3),
                 B(LdaSmi), U8(3),
                 B(Star), R(4),
-  /*   46 E> */ B(Call), R(0), R(1), U8(4), U8(1),
+  /*   46 E> */ B(Call), R(0), R(1), U8(4), U8(2),
   /*   58 S> */ B(Return),
 ]
 constant pool: [

@@ -5,6 +5,8 @@
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 
 #include "src/base/atomicops.h"
+#include "src/compilation-info.h"
+#include "src/compiler.h"
 #include "src/full-codegen/full-codegen.h"
 #include "src/isolate.h"
 #include "src/tracing/trace-event.h"

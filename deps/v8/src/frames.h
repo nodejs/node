@@ -525,6 +525,8 @@ class StackFrame BASE_EMBEDDED {
 
   Isolate* isolate() const { return isolate_; }
 
+  void operator=(const StackFrame& original) = delete;
+
  protected:
   inline explicit StackFrame(StackFrameIteratorBase* iterator);
   virtual ~StackFrame() { }
@@ -563,9 +565,6 @@ class StackFrame BASE_EMBEDDED {
   friend class StackFrameIteratorBase;
   friend class StackHandlerIterator;
   friend class SafeStackFrameIterator;
-
- private:
-  void operator=(const StackFrame& original);
 };
 
 
@@ -1056,6 +1055,10 @@ class WasmFrame : public StandardFrame {
   // Printing support.
   void Print(StringStream* accumulator, PrintMode mode,
              int index) const override;
+
+  // Lookup exception handler for current {pc}, returns -1 if none found. Also
+  // returns the stack slot count of the entire frame.
+  int LookupExceptionHandlerInTable(int* data);
 
   // Determine the code for the frame.
   Code* unchecked_code() const override;

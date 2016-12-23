@@ -3,8 +3,6 @@
 #
 
 ---
-pool type: mixed
-execute: yes
 wrap: yes
 
 ---
@@ -13,22 +11,22 @@ snippet: "
 "
 frame size: 10
 parameter count: 1
-bytecode array length: 86
+bytecode array length: 89
 bytecodes: [
                 B(CreateFunctionContext), U8(3),
                 B(PushContext), R(0),
                 B(Ldar), R(this),
-                B(StaContextSlot), R(context), U8(4),
+                B(StaContextSlot), R(context), U8(4), U8(0),
                 B(CreateMappedArguments),
-                B(StaContextSlot), R(context), U8(5),
+                B(StaContextSlot), R(context), U8(6), U8(0),
                 B(Ldar), R(new_target),
-                B(StaContextSlot), R(context), U8(6),
+                B(StaContextSlot), R(context), U8(5), U8(0),
   /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(CreateClosure), U8(0), U8(2),
   /*   36 E> */ B(StaLookupSlotSloppy), U8(1),
   /*   52 S> */ B(LdaConstant), U8(2),
-                B(Star), R(3),
-                B(CallRuntimeForPair), U16(Runtime::kLoadLookupSlotForCall), R(3), U8(1), R(1),
+                B(Star), R(4),
+                B(CallRuntimeForPair), U16(Runtime::kLoadLookupSlotForCall), R(4), U8(1), R(1),
                 B(LdaConstant), U8(3),
                 B(Star), R(3),
                 B(LdaZero),
@@ -46,14 +44,14 @@ bytecodes: [
   /*   62 S> */ B(LdaConstant), U8(1),
                 B(Star), R(3),
                 B(CallRuntimeForPair), U16(Runtime::kLoadLookupSlotForCall), R(3), U8(1), R(1),
-  /*   69 E> */ B(Call), R(1), R(2), U8(1), U8(3),
+  /*   69 E> */ B(Call), R(1), R(2), U8(1), U8(4),
   /*   74 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::SHARED_FUNCTION_INFO_TYPE,
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["g"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["eval"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
 ]
 handlers: [
 ]

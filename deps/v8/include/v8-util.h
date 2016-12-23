@@ -206,14 +206,19 @@ class PersistentValueMapBase {
   }
 
   /**
-   * Call V8::RegisterExternallyReferencedObject with the map value for given
-   * key.
+   * Deprecated. Call V8::RegisterExternallyReferencedObject with the map value
+   * for given key.
+   * TODO(hlopko) Remove once migration to reporter is finished.
    */
-  void RegisterExternallyReferencedObject(K& key) {
+  void RegisterExternallyReferencedObject(K& key) {}
+
+  /**
+   * Use EmbedderReachableReferenceReporter with the map value for given key.
+   */
+  void RegisterExternallyReferencedObject(
+      EmbedderReachableReferenceReporter* reporter, K& key) {
     DCHECK(Contains(key));
-    V8::RegisterExternallyReferencedObject(
-        reinterpret_cast<internal::Object**>(FromVal(Traits::Get(&impl_, key))),
-        reinterpret_cast<internal::Isolate*>(GetIsolate()));
+    reporter->ReportExternalReference(FromVal(Traits::Get(&impl_, key)));
   }
 
   /**

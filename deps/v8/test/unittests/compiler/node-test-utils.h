@@ -83,6 +83,8 @@ Matcher<Node*> IsReturn2(const Matcher<Node*>& value_matcher,
                          const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsTerminate(const Matcher<Node*>& effect_matcher,
                            const Matcher<Node*>& control_matcher);
+Matcher<Node*> IsTypeGuard(const Matcher<Node*>& value_matcher,
+                           const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsExternalConstant(
     const Matcher<ExternalReference>& value_matcher);
 Matcher<Node*> IsHeapConstant(Handle<HeapObject> value);
@@ -384,6 +386,9 @@ Matcher<Node*> IsInt64Sub(const Matcher<Node*>& lhs_matcher,
                           const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsJSAdd(const Matcher<Node*>& lhs_matcher,
                        const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsBitcastTaggedToWord(const Matcher<Node*>& input_matcher);
+Matcher<Node*> IsBitcastWordToTagged(const Matcher<Node*>& input_matcher);
+Matcher<Node*> IsBitcastWordToTaggedSigned(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsTruncateFloat64ToWord32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsChangeFloat64ToInt32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsChangeFloat64ToUint32(const Matcher<Node*>& input_matcher);
@@ -405,7 +410,11 @@ Matcher<Node*> IsFloat64Max(const Matcher<Node*>& lhs_matcher,
                             const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsFloat64Min(const Matcher<Node*>& lhs_matcher,
                             const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsFloat64Add(const Matcher<Node*>& lhs_matcher,
+                            const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsFloat64Sub(const Matcher<Node*>& lhs_matcher,
+                            const Matcher<Node*>& rhs_matcher);
+Matcher<Node*> IsFloat64Mul(const Matcher<Node*>& lhs_matcher,
                             const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsFloat64Abs(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsFloat64Neg(const Matcher<Node*>& input_matcher);
@@ -425,6 +434,7 @@ Matcher<Node*> IsToNumber(const Matcher<Node*>& base_matcher,
                           const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsLoadContext(const Matcher<ContextAccess>& access_matcher,
                              const Matcher<Node*>& context_matcher);
+Matcher<Node*> IsNumberToBoolean(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsNumberToInt32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsNumberToUint32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsParameter(const Matcher<int> index_matcher);

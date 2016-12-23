@@ -677,6 +677,38 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
   return *object;
 }
 
+RUNTIME_FUNCTION(Runtime_DefineDataProperty) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 5);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
+  CONVERT_PROPERTY_ATTRIBUTES_CHECKED(attrs, 3);
+  CONVERT_SMI_ARG_CHECKED(set_function_name, 4);
+
+  if (set_function_name) {
+    DCHECK(value->IsJSFunction());
+    JSFunction::SetName(Handle<JSFunction>::cast(value), name,
+                        isolate->factory()->empty_string());
+  }
+
+  PropertyDescriptor desc;
+  desc.set_writable(!(attrs & ReadOnly));
+  desc.set_enumerable(!(attrs & DontEnum));
+  desc.set_configurable(!(attrs & DontDelete));
+  desc.set_value(value);
+
+  Maybe<bool> result = JSReceiver::DefineOwnProperty(isolate, receiver, name,
+                                                     &desc, Object::DONT_THROW);
+  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+  if (result.IsNothing()) {
+    DCHECK(isolate->has_pending_exception());
+    return isolate->heap()->exception();
+  }
+
+  return *receiver;
+}
+
 // Return property without being observable by accessors or interceptors.
 RUNTIME_FUNCTION(Runtime_GetDataProperty) {
   HandleScope scope(isolate);
@@ -926,6 +958,33 @@ RUNTIME_FUNCTION(Runtime_CreateDataProperty) {
       JSReceiver::CreateDataProperty(&it, value, Object::THROW_ON_ERROR),
       isolate->heap()->exception());
   return *value;
+}
+
+RUNTIME_FUNCTION(Runtime_LoadModuleExport) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  Handle<Module> module(isolate->context()->module());
+  return *Module::LoadExport(module, name);
+}
+
+RUNTIME_FUNCTION(Runtime_LoadModuleImport) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, module_request, 1);
+  Handle<Module> module(isolate->context()->module());
+  return *Module::LoadImport(module, name, module_request->value());
+}
+
+RUNTIME_FUNCTION(Runtime_StoreModuleExport) {
+  HandleScope scope(isolate);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
+  Handle<Module> module(isolate->context()->module());
+  Module::StoreExport(module, name, value);
+  return isolate->heap()->undefined_value();
 }
 
 }  // namespace internal

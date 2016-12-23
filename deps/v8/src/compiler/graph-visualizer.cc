@@ -9,7 +9,7 @@
 #include <string>
 
 #include "src/code-stubs.h"
-#include "src/compiler.h"
+#include "src/compilation-info.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/node-properties.h"
@@ -239,7 +239,7 @@ class JSONGraphEdgeWriter {
 
 
 std::ostream& operator<<(std::ostream& os, const AsJSON& ad) {
-  base::AccountingAllocator allocator;
+  AccountingAllocator allocator;
   Zone tmp_zone(&allocator);
   os << "{\n\"nodes\":[";
   JSONGraphNodeWriter(os, &tmp_zone, &ad.graph, ad.positions).Print();
@@ -629,7 +629,7 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
 
 
 std::ostream& operator<<(std::ostream& os, const AsC1VCompilation& ac) {
-  base::AccountingAllocator allocator;
+  AccountingAllocator allocator;
   Zone tmp_zone(&allocator);
   GraphC1Visualizer(os, &tmp_zone).PrintCompilation(ac.info_);
   return os;
@@ -637,7 +637,7 @@ std::ostream& operator<<(std::ostream& os, const AsC1VCompilation& ac) {
 
 
 std::ostream& operator<<(std::ostream& os, const AsC1V& ac) {
-  base::AccountingAllocator allocator;
+  AccountingAllocator allocator;
   Zone tmp_zone(&allocator);
   GraphC1Visualizer(os, &tmp_zone)
       .PrintSchedule(ac.phase_, ac.schedule_, ac.positions_, ac.instructions_);
@@ -647,7 +647,7 @@ std::ostream& operator<<(std::ostream& os, const AsC1V& ac) {
 
 std::ostream& operator<<(std::ostream& os,
                          const AsC1VRegisterAllocationData& ac) {
-  base::AccountingAllocator allocator;
+  AccountingAllocator allocator;
   Zone tmp_zone(&allocator);
   GraphC1Visualizer(os, &tmp_zone).PrintLiveRanges(ac.phase_, ac.data_);
   return os;
@@ -658,7 +658,7 @@ const int kOnStack = 1;
 const int kVisited = 2;
 
 std::ostream& operator<<(std::ostream& os, const AsRPO& ar) {
-  base::AccountingAllocator allocator;
+  AccountingAllocator allocator;
   Zone local_zone(&allocator);
 
   // Do a post-order depth-first search on the RPO graph. For every node,

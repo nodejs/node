@@ -229,6 +229,10 @@ void InstructionSelector::VisitLoad(Node* node) {
   }
 }
 
+void InstructionSelector::VisitProtectedLoad(Node* node) {
+  // TODO(eholk)
+  UNIMPLEMENTED();
+}
 
 void InstructionSelector::VisitStore(Node* node) {
   PPCOperandGenerator g(this);

@@ -14,7 +14,7 @@
 #include "src/char-predicates-inl.h"
 #include "src/conversions-inl.h"
 #include "src/list-inl.h"
-#include "src/parsing/parser.h"
+#include "src/parsing/duplicate-finder.h"  // For Scanner::FindSymbol
 
 namespace v8 {
 namespace internal {
@@ -26,25 +26,60 @@ Handle<String> Scanner::LiteralBuffer::Internalize(Isolate* isolate) const {
   return isolate->factory()->InternalizeTwoByteString(two_byte_literal());
 }
 
+// ----------------------------------------------------------------------------
+// Scanner::BookmarkScope
 
-// Default implementation for streams that do not support bookmarks.
-bool Utf16CharacterStream::SetBookmark() { return false; }
-void Utf16CharacterStream::ResetToBookmark() { UNREACHABLE(); }
+const size_t Scanner::BookmarkScope::kBookmarkAtFirstPos =
+    std::numeric_limits<size_t>::max() - 2;
+const size_t Scanner::BookmarkScope::kNoBookmark =
+    std::numeric_limits<size_t>::max() - 1;
+const size_t Scanner::BookmarkScope::kBookmarkWasApplied =
+    std::numeric_limits<size_t>::max();
 
+void Scanner::BookmarkScope::Set() {
+  DCHECK_EQ(bookmark_, kNoBookmark);
+  DCHECK_EQ(scanner_->next_next_.token, Token::UNINITIALIZED);
+
+  // The first token is a bit special, since current_ will still be
+  // uninitialized. In this case, store kBookmarkAtFirstPos and special-case it
+  // when
+  // applying the bookmark.
+  DCHECK_IMPLIES(
+      scanner_->current_.token == Token::UNINITIALIZED,
+      scanner_->current_.location.beg_pos == scanner_->next_.location.beg_pos);
+  bookmark_ = (scanner_->current_.token == Token::UNINITIALIZED)
+                  ? kBookmarkAtFirstPos
+                  : scanner_->location().beg_pos;
+}
+
+void Scanner::BookmarkScope::Apply() {
+  DCHECK(HasBeenSet());  // Caller hasn't called SetBookmark.
+  if (bookmark_ == kBookmarkAtFirstPos) {
+    scanner_->SeekNext(0);
+  } else {
+    scanner_->SeekNext(bookmark_);
+    scanner_->Next();
+    DCHECK_EQ(scanner_->location().beg_pos, bookmark_);
+  }
+  bookmark_ = kBookmarkWasApplied;
+}
+
+bool Scanner::BookmarkScope::HasBeenSet() {
+  return bookmark_ != kNoBookmark && bookmark_ != kBookmarkWasApplied;
+}
+
+bool Scanner::BookmarkScope::HasBeenApplied() {
+  return bookmark_ == kBookmarkWasApplied;
+}
 
 // ----------------------------------------------------------------------------
 // Scanner
 
 Scanner::Scanner(UnicodeCache* unicode_cache)
     : unicode_cache_(unicode_cache),
-      bookmark_c0_(kNoBookmark),
       octal_pos_(Location::invalid()),
       decimal_with_leading_zero_pos_(Location::invalid()),
       found_html_comment_(false) {
-  bookmark_current_.literal_chars = &bookmark_current_literal_;
-  bookmark_current_.raw_literal_chars = &bookmark_current_raw_literal_;
-  bookmark_next_.literal_chars = &bookmark_next_literal_;
-  bookmark_next_.raw_literal_chars = &bookmark_next_raw_literal_;
 }
 
 
@@ -305,14 +340,14 @@ static inline bool IsLittleEndianByteOrderMark(uc32 c) {
   return c == 0xFFFE;
 }
 
-
 bool Scanner::SkipWhiteSpace() {
   int start_position = source_pos();
 
   while (true) {
     while (true) {
-      // The unicode cache accepts unsigned inputs.
-      if (c0_ < 0) break;
+      // Don't skip behind the end of input.
+      if (c0_ == kEndOfInput) break;
+
       // Advance as long as character is a WhiteSpace or LineTerminator.
       // Remember if the latter is the case.
       if (unicode_cache_->IsLineTerminator(c0_)) {
@@ -328,25 +363,27 @@ bool Scanner::SkipWhiteSpace() {
     // line (with only whitespace in front of it), we treat the rest
     // of the line as a comment. This is in line with the way
     // SpiderMonkey handles it.
-    if (c0_ == '-' && has_line_terminator_before_next_) {
-      Advance();
-      if (c0_ == '-') {
-        Advance();
-        if (c0_ == '>') {
-          // Treat the rest of the line as a comment.
-          SkipSingleLineComment();
-          // Continue skipping white space after the comment.
-          continue;
-        }
-        PushBack('-');  // undo Advance()
-      }
-      PushBack('-');  // undo Advance()
-    }
-    // Return whether or not we skipped any characters.
-    return source_pos() != start_position;
-  }
-}
+    if (c0_ != '-' || !has_line_terminator_before_next_) break;
 
+    Advance();
+    if (c0_ != '-') {
+      PushBack('-');  // undo Advance()
+      break;
+    }
+
+    Advance();
+    if (c0_ != '>') {
+      PushBack2('-', '-');  // undo 2x Advance();
+      break;
+    }
+
+    // Treat the rest of the line as a comment.
+    SkipSingleLineComment();
+  }
+
+  // Return whether or not we skipped any characters.
+  return source_pos() != start_position;
+}
 
 Token::Value Scanner::SkipSingleLineComment() {
   Advance();
@@ -356,7 +393,7 @@ Token::Value Scanner::SkipSingleLineComment() {
   // separately by the lexical grammar and becomes part of the
   // stream of input elements for the syntactic grammar (see
   // ECMA-262, section 7.4).
-  while (c0_ >= 0 && !unicode_cache_->IsLineTerminator(c0_)) {
+  while (c0_ != kEndOfInput && !unicode_cache_->IsLineTerminator(c0_)) {
     Advance();
   }
 
@@ -366,7 +403,7 @@ Token::Value Scanner::SkipSingleLineComment() {
 
 Token::Value Scanner::SkipSourceURLComment() {
   TryToParseSourceURLComment();
-  while (c0_ >= 0 && !unicode_cache_->IsLineTerminator(c0_)) {
+  while (c0_ != kEndOfInput && !unicode_cache_->IsLineTerminator(c0_)) {
     Advance();
   }
 
@@ -377,11 +414,11 @@ Token::Value Scanner::SkipSourceURLComment() {
 void Scanner::TryToParseSourceURLComment() {
   // Magic comments are of the form: //[#@]\s<name>=\s*<value>\s*.* and this
   // function will just return if it cannot parse a magic comment.
-  if (c0_ < 0 || !unicode_cache_->IsWhiteSpace(c0_)) return;
+  if (c0_ == kEndOfInput || !unicode_cache_->IsWhiteSpace(c0_)) return;
   Advance();
   LiteralBuffer name;
-  while (c0_ >= 0 && !unicode_cache_->IsWhiteSpaceOrLineTerminator(c0_) &&
-         c0_ != '=') {
+  while (c0_ != kEndOfInput &&
+         !unicode_cache_->IsWhiteSpaceOrLineTerminator(c0_) && c0_ != '=') {
     name.AddChar(c0_);
     Advance();
   }
@@ -399,10 +436,10 @@ void Scanner::TryToParseSourceURLComment() {
     return;
   Advance();
   value->Reset();
-  while (c0_ >= 0 && unicode_cache_->IsWhiteSpace(c0_)) {
+  while (c0_ != kEndOfInput && unicode_cache_->IsWhiteSpace(c0_)) {
     Advance();
   }
-  while (c0_ >= 0 && !unicode_cache_->IsLineTerminator(c0_)) {
+  while (c0_ != kEndOfInput && !unicode_cache_->IsLineTerminator(c0_)) {
     // Disallowed characters.
     if (c0_ == '"' || c0_ == '\'') {
       value->Reset();
@@ -415,7 +452,7 @@ void Scanner::TryToParseSourceURLComment() {
     Advance();
   }
   // Allow whitespace at the end.
-  while (c0_ >= 0 && !unicode_cache_->IsLineTerminator(c0_)) {
+  while (c0_ != kEndOfInput && !unicode_cache_->IsLineTerminator(c0_)) {
     if (!unicode_cache_->IsWhiteSpace(c0_)) {
       value->Reset();
       break;
@@ -429,10 +466,10 @@ Token::Value Scanner::SkipMultiLineComment() {
   DCHECK(c0_ == '*');
   Advance();
 
-  while (c0_ >= 0) {
+  while (c0_ != kEndOfInput) {
     uc32 ch = c0_;
     Advance();
-    if (c0_ >= 0 && unicode_cache_->IsLineTerminator(ch)) {
+    if (c0_ != kEndOfInput && unicode_cache_->IsLineTerminator(ch)) {
       // Following ECMA-262, section 7.4, a comment containing
       // a newline will make the comment count as a line-terminator.
       has_multiline_comment_before_next_ = true;
@@ -450,24 +487,24 @@ Token::Value Scanner::SkipMultiLineComment() {
   return Token::ILLEGAL;
 }
 
-
 Token::Value Scanner::ScanHtmlComment() {
   // Check for <!-- comments.
   DCHECK(c0_ == '!');
   Advance();
-  if (c0_ == '-') {
-    Advance();
-    if (c0_ == '-') {
-      found_html_comment_ = true;
-      return SkipSingleLineComment();
-    }
-    PushBack('-');  // undo Advance()
+  if (c0_ != '-') {
+    PushBack('!');  // undo Advance()
+    return Token::LT;
   }
-  PushBack('!');  // undo Advance()
-  DCHECK(c0_ == '!');
-  return Token::LT;
-}
 
+  Advance();
+  if (c0_ != '-') {
+    PushBack2('-', '!');  // undo 2x Advance()
+    return Token::LT;
+  }
+
+  found_html_comment_ = true;
+  return SkipSingleLineComment();
+}
 
 void Scanner::Scan() {
   next_.literal_chars = NULL;
@@ -716,7 +753,7 @@ void Scanner::Scan() {
         break;
 
       default:
-        if (c0_ < 0) {
+        if (c0_ == kEndOfInput) {
           token = Token::EOS;
         } else if (unicode_cache_->IsIdentifierStart(c0_)) {
           token = ScanIdentifierOrKeyword();
@@ -790,7 +827,7 @@ void Scanner::SeekForward(int pos) {
   // Positions inside the lookahead token aren't supported.
   DCHECK(pos >= current_pos);
   if (pos != current_pos) {
-    source_->SeekForward(pos - source_->pos());
+    source_->Seek(pos);
     Advance();
     // This function is only called to seek to the location
     // of the end of a function (at the "}" token). It doesn't matter
@@ -808,7 +845,8 @@ bool Scanner::ScanEscape() {
   Advance<capture_raw>();
 
   // Skip escaped newlines.
-  if (!in_template_literal && c0_ >= 0 && unicode_cache_->IsLineTerminator(c)) {
+  if (!in_template_literal && c0_ != kEndOfInput &&
+      unicode_cache_->IsLineTerminator(c)) {
     // Allow CR+LF newlines in multiline string literals.
     if (IsCarriageReturn(c) && IsLineFeed(c0_)) Advance<capture_raw>();
     // Allow LF+CR newlines in multiline string literals.
@@ -894,7 +932,7 @@ Token::Value Scanner::ScanString() {
       HandleLeadSurrogate();
       break;
     }
-    if (c0_ < 0 || c0_ == '\n' || c0_ == '\r') return Token::ILLEGAL;
+    if (c0_ == kEndOfInput || c0_ == '\n' || c0_ == '\r') return Token::ILLEGAL;
     if (c0_ == quote) {
       literal.Complete();
       Advance<false, false>();
@@ -906,12 +944,12 @@ Token::Value Scanner::ScanString() {
     AddLiteralChar(c);
   }
 
-  while (c0_ != quote && c0_ >= 0
-         && !unicode_cache_->IsLineTerminator(c0_)) {
+  while (c0_ != quote && c0_ != kEndOfInput &&
+         !unicode_cache_->IsLineTerminator(c0_)) {
     uc32 c = c0_;
     Advance();
     if (c == '\\') {
-      if (c0_ < 0 || !ScanEscape<false, false>()) {
+      if (c0_ == kEndOfInput || !ScanEscape<false, false>()) {
         return Token::ILLEGAL;
       }
     } else {
@@ -957,7 +995,7 @@ Token::Value Scanner::ScanTemplateSpan() {
       ReduceRawLiteralLength(2);
       break;
     } else if (c == '\\') {
-      if (c0_ > 0 && unicode_cache_->IsLineTerminator(c0_)) {
+      if (c0_ != kEndOfInput && unicode_cache_->IsLineTerminator(c0_)) {
         // The TV of LineContinuation :: \ LineTerminatorSequence is the empty
         // code unit sequence.
         uc32 lastChar = c0_;
@@ -1155,7 +1193,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
   // section 7.8.3, page 17 (note that we read only one decimal digit
   // if the value is 0).
   if (IsDecimalDigit(c0_) ||
-      (c0_ >= 0 && unicode_cache_->IsIdentifierStart(c0_)))
+      (c0_ != kEndOfInput && unicode_cache_->IsIdentifierStart(c0_)))
     return Token::ILLEGAL;
 
   literal.Complete();
@@ -1382,7 +1420,7 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
   }
 
   // Scan the rest of the identifier characters.
-  while (c0_ >= 0 && unicode_cache_->IsIdentifierPart(c0_)) {
+  while (c0_ != kEndOfInput && unicode_cache_->IsIdentifierPart(c0_)) {
     if (c0_ != '\\') {
       uc32 next_char = c0_;
       Advance();
@@ -1408,7 +1446,7 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
 Token::Value Scanner::ScanIdentifierSuffix(LiteralScope* literal,
                                            bool escaped) {
   // Scan the rest of the identifier characters.
-  while (c0_ >= 0 && unicode_cache_->IsIdentifierPart(c0_)) {
+  while (c0_ != kEndOfInput && unicode_cache_->IsIdentifierPart(c0_)) {
     if (c0_ == '\\') {
       uc32 c = ScanIdentifierUnicodeEscape();
       escaped = true;
@@ -1465,10 +1503,12 @@ bool Scanner::ScanRegExpPattern() {
   }
 
   while (c0_ != '/' || in_character_class) {
-    if (c0_ < 0 || unicode_cache_->IsLineTerminator(c0_)) return false;
+    if (c0_ == kEndOfInput || unicode_cache_->IsLineTerminator(c0_))
+      return false;
     if (c0_ == '\\') {  // Escape sequence.
       AddLiteralCharAdvance();
-      if (c0_ < 0 || unicode_cache_->IsLineTerminator(c0_)) return false;
+      if (c0_ == kEndOfInput || unicode_cache_->IsLineTerminator(c0_))
+        return false;
       AddLiteralCharAdvance();
       // If the escape allows more characters, i.e., \x??, \u????, or \c?,
       // only "safe" characters are allowed (letters, digits, underscore),
@@ -1499,7 +1539,7 @@ Maybe<RegExp::Flags> Scanner::ScanRegExpFlags() {
 
   // Scan regular expression flags.
   int flags = 0;
-  while (c0_ >= 0 && unicode_cache_->IsIdentifierPart(c0_)) {
+  while (c0_ != kEndOfInput && unicode_cache_->IsIdentifierPart(c0_)) {
     RegExp::Flags flag = RegExp::kNone;
     switch (c0_) {
       case 'g':
@@ -1574,202 +1614,31 @@ bool Scanner::ContainsDot() {
 
 
 int Scanner::FindSymbol(DuplicateFinder* finder, int value) {
+  // TODO(vogelheim): Move this logic into the calling class; this can be fully
+  //                  implemented using the public interface.
   if (is_literal_one_byte()) {
     return finder->AddOneByteSymbol(literal_one_byte_string(), value);
   }
   return finder->AddTwoByteSymbol(literal_two_byte_string(), value);
 }
 
+void Scanner::SeekNext(size_t position) {
+  // Use with care: This cleanly resets most, but not all scanner state.
+  // TODO(vogelheim): Fix this, or at least DCHECK the relevant conditions.
 
-bool Scanner::SetBookmark() {
-  if (c0_ != kNoBookmark && bookmark_c0_ == kNoBookmark &&
-      next_next_.token == Token::UNINITIALIZED && source_->SetBookmark()) {
-    bookmark_c0_ = c0_;
-    CopyTokenDesc(&bookmark_current_, &current_);
-    CopyTokenDesc(&bookmark_next_, &next_);
-    return true;
-  }
-  return false;
-}
-
-
-void Scanner::ResetToBookmark() {
-  DCHECK(BookmarkHasBeenSet());  // Caller hasn't called SetBookmark.
-
-  source_->ResetToBookmark();
-  c0_ = bookmark_c0_;
-  CopyToNextTokenDesc(&bookmark_current_);
-  current_ = next_;
-  CopyToNextTokenDesc(&bookmark_next_);
-  bookmark_c0_ = kBookmarkWasApplied;
-}
-
-
-bool Scanner::BookmarkHasBeenSet() { return bookmark_c0_ >= 0; }
-
-
-bool Scanner::BookmarkHasBeenReset() {
-  return bookmark_c0_ == kBookmarkWasApplied;
-}
-
-
-void Scanner::DropBookmark() { bookmark_c0_ = kNoBookmark; }
-
-void Scanner::CopyToNextTokenDesc(TokenDesc* from) {
-  StartLiteral();
-  StartRawLiteral();
-  CopyTokenDesc(&next_, from);
-  if (next_.literal_chars->length() == 0) next_.literal_chars = nullptr;
-  if (next_.raw_literal_chars->length() == 0) next_.raw_literal_chars = nullptr;
-}
-
-void Scanner::CopyTokenDesc(TokenDesc* to, TokenDesc* from) {
-  DCHECK_NOT_NULL(to);
-  DCHECK_NOT_NULL(from);
-  to->token = from->token;
-  to->location = from->location;
-  to->literal_chars->CopyFrom(from->literal_chars);
-  to->raw_literal_chars->CopyFrom(from->raw_literal_chars);
-}
-
-
-int DuplicateFinder::AddOneByteSymbol(Vector<const uint8_t> key, int value) {
-  return AddSymbol(key, true, value);
-}
-
-
-int DuplicateFinder::AddTwoByteSymbol(Vector<const uint16_t> key, int value) {
-  return AddSymbol(Vector<const uint8_t>::cast(key), false, value);
-}
-
-
-int DuplicateFinder::AddSymbol(Vector<const uint8_t> key,
-                               bool is_one_byte,
-                               int value) {
-  uint32_t hash = Hash(key, is_one_byte);
-  byte* encoding = BackupKey(key, is_one_byte);
-  base::HashMap::Entry* entry = map_.LookupOrInsert(encoding, hash);
-  int old_value = static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
-  entry->value =
-    reinterpret_cast<void*>(static_cast<intptr_t>(value | old_value));
-  return old_value;
-}
-
-
-int DuplicateFinder::AddNumber(Vector<const uint8_t> key, int value) {
-  DCHECK(key.length() > 0);
-  // Quick check for already being in canonical form.
-  if (IsNumberCanonical(key)) {
-    return AddOneByteSymbol(key, value);
-  }
-
-  int flags = ALLOW_HEX | ALLOW_OCTAL | ALLOW_IMPLICIT_OCTAL | ALLOW_BINARY;
-  double double_value = StringToDouble(
-      unicode_constants_, key, flags, 0.0);
-  int length;
-  const char* string;
-  if (!std::isfinite(double_value)) {
-    string = "Infinity";
-    length = 8;  // strlen("Infinity");
-  } else {
-    string = DoubleToCString(double_value,
-                             Vector<char>(number_buffer_, kBufferSize));
-    length = StrLength(string);
-  }
-  return AddSymbol(Vector<const byte>(reinterpret_cast<const byte*>(string),
-                                      length), true, value);
-}
-
-
-bool DuplicateFinder::IsNumberCanonical(Vector<const uint8_t> number) {
-  // Test for a safe approximation of number literals that are already
-  // in canonical form: max 15 digits, no leading zeroes, except an
-  // integer part that is a single zero, and no trailing zeros below
-  // the decimal point.
-  int pos = 0;
-  int length = number.length();
-  if (number.length() > 15) return false;
-  if (number[pos] == '0') {
-    pos++;
-  } else {
-    while (pos < length &&
-           static_cast<unsigned>(number[pos] - '0') <= ('9' - '0')) pos++;
-  }
-  if (length == pos) return true;
-  if (number[pos] != '.') return false;
-  pos++;
-  bool invalid_last_digit = true;
-  while (pos < length) {
-    uint8_t digit = number[pos] - '0';
-    if (digit > '9' - '0') return false;
-    invalid_last_digit = (digit == 0);
-    pos++;
-  }
-  return !invalid_last_digit;
-}
-
-
-uint32_t DuplicateFinder::Hash(Vector<const uint8_t> key, bool is_one_byte) {
-  // Primitive hash function, almost identical to the one used
-  // for strings (except that it's seeded by the length and representation).
-  int length = key.length();
-  uint32_t hash = (length << 1) | (is_one_byte ? 1 : 0);
-  for (int i = 0; i < length; i++) {
-    uint32_t c = key[i];
-    hash = (hash + c) * 1025;
-    hash ^= (hash >> 6);
-  }
-  return hash;
-}
-
-
-bool DuplicateFinder::Match(void* first, void* second) {
-  // Decode lengths.
-  // Length + representation is encoded as base 128, most significant heptet
-  // first, with a 8th bit being non-zero while there are more heptets.
-  // The value encodes the number of bytes following, and whether the original
-  // was Latin1.
-  byte* s1 = reinterpret_cast<byte*>(first);
-  byte* s2 = reinterpret_cast<byte*>(second);
-  uint32_t length_one_byte_field = 0;
-  byte c1;
-  do {
-    c1 = *s1;
-    if (c1 != *s2) return false;
-    length_one_byte_field = (length_one_byte_field << 7) | (c1 & 0x7f);
-    s1++;
-    s2++;
-  } while ((c1 & 0x80) != 0);
-  int length = static_cast<int>(length_one_byte_field >> 1);
-  return memcmp(s1, s2, length) == 0;
-}
-
-
-byte* DuplicateFinder::BackupKey(Vector<const uint8_t> bytes,
-                                 bool is_one_byte) {
-  uint32_t one_byte_length = (bytes.length() << 1) | (is_one_byte ? 1 : 0);
-  backing_store_.StartSequence();
-  // Emit one_byte_length as base-128 encoded number, with the 7th bit set
-  // on the byte of every heptet except the last, least significant, one.
-  if (one_byte_length >= (1 << 7)) {
-    if (one_byte_length >= (1 << 14)) {
-      if (one_byte_length >= (1 << 21)) {
-        if (one_byte_length >= (1 << 28)) {
-          backing_store_.Add(
-              static_cast<uint8_t>((one_byte_length >> 28) | 0x80));
-        }
-        backing_store_.Add(
-            static_cast<uint8_t>((one_byte_length >> 21) | 0x80u));
-      }
-      backing_store_.Add(
-          static_cast<uint8_t>((one_byte_length >> 14) | 0x80u));
-    }
-    backing_store_.Add(static_cast<uint8_t>((one_byte_length >> 7) | 0x80u));
-  }
-  backing_store_.Add(static_cast<uint8_t>(one_byte_length & 0x7f));
-
-  backing_store_.AddBlock(bytes);
-  return backing_store_.EndSequence().start();
+  // To re-scan from a given character position, we need to:
+  // 1, Reset the current_, next_ and next_next_ tokens
+  //    (next_ + next_next_ will be overwrittem by Next(),
+  //     current_ will remain unchanged, so overwrite it fully.)
+  current_ = {{0, 0}, nullptr, nullptr, 0, Token::UNINITIALIZED};
+  next_.token = Token::UNINITIALIZED;
+  next_next_.token = Token::UNINITIALIZED;
+  // 2, reset the source to the desired position,
+  source_->Seek(position);
+  // 3, re-scan, by scanning the look-ahead char + 1 token (next_).
+  c0_ = source_->Advance();
+  Next();
+  DCHECK_EQ(next_.location.beg_pos, position);
 }
 
 }  // namespace internal

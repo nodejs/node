@@ -934,7 +934,7 @@ TEST(Regress436816) {
   CHECK(object->map()->HasFastPointerLayout());
 
   // Trigger GCs and heap verification.
-  CcTest::heap()->CollectAllGarbage();
+  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
 }
 
 
@@ -991,7 +991,7 @@ TEST(DescriptorArrayTrimming) {
 
   // Call GC that should trim both |map|'s descriptor array and layout
   // descriptor.
-  CcTest::heap()->CollectAllGarbage();
+  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
 
   // The unused tail of the layout descriptor is now "clean" again.
   CHECK(map->layout_descriptor()->IsConsistentWithMap(*map, true));
@@ -1057,7 +1057,7 @@ TEST(DoScavenge) {
   CHECK(isolate->heap()->new_space()->Contains(*obj));
 
   // Do scavenge so that |obj| is moved to survivor space.
-  CcTest::heap()->CollectGarbage(i::NEW_SPACE);
+  CcTest::CollectGarbage(i::NEW_SPACE);
 
   // Create temp object in the new space.
   Handle<JSArray> temp = factory->NewJSArray(0, FAST_ELEMENTS);
@@ -1074,7 +1074,7 @@ TEST(DoScavenge) {
 
   // Now |obj| moves to old gen and it has a double field that looks like
   // a pointer to a from semi-space.
-  CcTest::heap()->CollectGarbage(i::NEW_SPACE, "boom");
+  CcTest::CollectGarbage(i::NEW_SPACE);
 
   CHECK(isolate->heap()->old_space()->Contains(*obj));
 
@@ -1155,14 +1155,14 @@ TEST(DoScavengeWithIncrementalWriteBarrier) {
   CHECK(MarkCompactCollector::IsOnEvacuationCandidate(*obj_value));
 
   // Trigger GCs so that |obj| moves to old gen.
-  heap->CollectGarbage(i::NEW_SPACE);  // in survivor space now
-  heap->CollectGarbage(i::NEW_SPACE);  // in old gen now
+  CcTest::CollectGarbage(i::NEW_SPACE);  // in survivor space now
+  CcTest::CollectGarbage(i::NEW_SPACE);  // in old gen now
 
   CHECK(isolate->heap()->old_space()->Contains(*obj));
   CHECK(isolate->heap()->old_space()->Contains(*obj_value));
   CHECK(MarkCompactCollector::IsOnEvacuationCandidate(*obj_value));
 
-  heap->CollectGarbage(i::OLD_SPACE, "boom");
+  CcTest::CollectGarbage(i::OLD_SPACE);
 
   // |obj_value| must be evacuated.
   CHECK(!MarkCompactCollector::IsOnEvacuationCandidate(*obj_value));
@@ -1412,7 +1412,7 @@ static void TestWriteBarrier(Handle<Map> map, Handle<Map> new_map,
   obj->RawFastDoublePropertyAtPut(double_field_index, boom_value);
 
   // Trigger GC to evacuate all candidates.
-  CcTest::heap()->CollectGarbage(NEW_SPACE, "boom");
+  CcTest::CollectGarbage(NEW_SPACE);
 
   if (check_tagged_value) {
     FieldIndex tagged_field_index =
@@ -1491,7 +1491,7 @@ static void TestIncrementalWriteBarrier(Handle<Map> map, Handle<Map> new_map,
   obj->RawFastDoublePropertyAtPut(double_field_index, boom_value);
 
   // Trigger GC to evacuate all candidates.
-  CcTest::heap()->CollectGarbage(OLD_SPACE, "boom");
+  CcTest::CollectGarbage(OLD_SPACE);
 
   // Ensure that the values are still there and correct.
   CHECK(!MarkCompactCollector::IsOnEvacuationCandidate(*obj_value));

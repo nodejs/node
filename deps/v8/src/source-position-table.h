@@ -8,7 +8,7 @@
 #include "src/assert-scope.h"
 #include "src/checks.h"
 #include "src/handles.h"
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {

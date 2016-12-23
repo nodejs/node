@@ -15,3 +15,4 @@ assertEquals('object', typeof WebAssembly);
 assertEquals('function', typeof WebAssembly.Module);
 assertEquals('function', typeof WebAssembly.Instance);
 assertEquals('function', typeof WebAssembly.compile);
+assertEquals('function', typeof WebAssembly.validate);

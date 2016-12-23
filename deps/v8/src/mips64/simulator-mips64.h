@@ -122,6 +122,39 @@ class CachePage {
   char validity_map_[kValidityMapSize];  // One byte per line.
 };
 
+class SimInstructionBase : public InstructionBase {
+ public:
+  Type InstructionType() const { return type_; }
+  inline Instruction* instr() const { return instr_; }
+  inline int32_t operand() const { return operand_; }
+
+ protected:
+  SimInstructionBase() : operand_(-1), instr_(nullptr), type_(kUnsupported) {}
+  explicit SimInstructionBase(Instruction* instr) {}
+
+  int32_t operand_;
+  Instruction* instr_;
+  Type type_;
+
+ private:
+  DISALLOW_ASSIGN(SimInstructionBase);
+};
+
+class SimInstruction : public InstructionGetters<SimInstructionBase> {
+ public:
+  SimInstruction() {}
+
+  explicit SimInstruction(Instruction* instr) { *this = instr; }
+
+  SimInstruction& operator=(Instruction* instr) {
+    operand_ = *reinterpret_cast<const int32_t*>(instr);
+    instr_ = instr;
+    type_ = InstructionBase::InstructionType();
+    DCHECK(reinterpret_cast<void*>(&operand_) == this);
+    return *this;
+  }
+};
+
 class Simulator {
  public:
   friend class MipsDebugger;
@@ -226,7 +259,7 @@ class Simulator {
   // Call on program start.
   static void Initialize(Isolate* isolate);
 
-  static void TearDown(base::HashMap* i_cache, Redirection* first);
+  static void TearDown(base::CustomMatcherHashMap* i_cache, Redirection* first);
 
   // V8 generally calls into generated JS code with 5 parameters and into
   // generated RegExp code with 7 parameters. This is a convenience function,
@@ -246,7 +279,8 @@ class Simulator {
   char* last_debugger_input() { return last_debugger_input_; }
 
   // ICache checking.
-  static void FlushICache(base::HashMap* i_cache, void* start, size_t size);
+  static void FlushICache(base::CustomMatcherHashMap* i_cache, void* start,
+                          size_t size);
 
   // Returns true if pc register contains one of the 'special_values' defined
   // below (bad_ra, end_sim_pc).
@@ -314,6 +348,8 @@ class Simulator {
   inline int32_t SetDoubleHIW(double* addr);
   inline int32_t SetDoubleLOW(double* addr);
 
+  SimInstruction instr_;
+
   // functions called from DecodeTypeRegister.
   void DecodeTypeRegisterCOP1();
 
@@ -335,40 +371,36 @@ class Simulator {
   void DecodeTypeRegisterLRsType();
 
   // Executing is handled based on the instruction type.
-  void DecodeTypeRegister(Instruction* instr);
+  void DecodeTypeRegister();
 
-  Instruction* currentInstr_;
-  inline Instruction* get_instr() const { return currentInstr_; }
-  inline void set_instr(Instruction* instr) { currentInstr_ = instr; }
-
-  inline int32_t rs_reg() const { return currentInstr_->RsValue(); }
+  inline int32_t rs_reg() const { return instr_.RsValue(); }
   inline int64_t rs() const { return get_register(rs_reg()); }
   inline uint64_t rs_u() const {
     return static_cast<uint64_t>(get_register(rs_reg()));
   }
-  inline int32_t rt_reg() const { return currentInstr_->RtValue(); }
+  inline int32_t rt_reg() const { return instr_.RtValue(); }
   inline int64_t rt() const { return get_register(rt_reg()); }
   inline uint64_t rt_u() const {
     return static_cast<uint64_t>(get_register(rt_reg()));
   }
-  inline int32_t rd_reg() const { return currentInstr_->RdValue(); }
-  inline int32_t fr_reg() const { return currentInstr_->FrValue(); }
-  inline int32_t fs_reg() const { return currentInstr_->FsValue(); }
-  inline int32_t ft_reg() const { return currentInstr_->FtValue(); }
-  inline int32_t fd_reg() const { return currentInstr_->FdValue(); }
-  inline int32_t sa() const { return currentInstr_->SaValue(); }
-  inline int32_t lsa_sa() const { return currentInstr_->LsaSaValue(); }
+  inline int32_t rd_reg() const { return instr_.RdValue(); }
+  inline int32_t fr_reg() const { return instr_.FrValue(); }
+  inline int32_t fs_reg() const { return instr_.FsValue(); }
+  inline int32_t ft_reg() const { return instr_.FtValue(); }
+  inline int32_t fd_reg() const { return instr_.FdValue(); }
+  inline int32_t sa() const { return instr_.SaValue(); }
+  inline int32_t lsa_sa() const { return instr_.LsaSaValue(); }
 
   inline void SetResult(const int32_t rd_reg, const int64_t alu_out) {
     set_register(rd_reg, alu_out);
     TraceRegWr(alu_out);
   }
 
-  void DecodeTypeImmediate(Instruction* instr);
-  void DecodeTypeJump(Instruction* instr);
+  void DecodeTypeImmediate();
+  void DecodeTypeJump();
 
   // Used for breakpoints and traps.
-  void SoftwareInterrupt(Instruction* instr);
+  void SoftwareInterrupt();
 
   // Compact branch guard.
   void CheckForbiddenSlot(int64_t current_pc) {
@@ -414,9 +446,12 @@ class Simulator {
   }
 
   // ICache.
-  static void CheckICache(base::HashMap* i_cache, Instruction* instr);
-  static void FlushOnePage(base::HashMap* i_cache, intptr_t start, size_t size);
-  static CachePage* GetCachePage(base::HashMap* i_cache, void* page);
+  static void CheckICache(base::CustomMatcherHashMap* i_cache,
+                          Instruction* instr);
+  static void FlushOnePage(base::CustomMatcherHashMap* i_cache, intptr_t start,
+                           size_t size);
+  static CachePage* GetCachePage(base::CustomMatcherHashMap* i_cache,
+                                 void* page);
 
   enum Exception {
     none,
@@ -461,7 +496,7 @@ class Simulator {
   char* last_debugger_input_;
 
   // Icache simulation.
-  base::HashMap* i_cache_;
+  base::CustomMatcherHashMap* i_cache_;
 
   v8::internal::Isolate* isolate_;
 

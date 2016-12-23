@@ -11,6 +11,7 @@
 #include "src/assembler.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
+#include "src/double.h"
 
 namespace v8 {
 namespace internal {
@@ -161,6 +162,17 @@ struct FloatMatcher final : public ValueMatcher<T, kOpcode> {
   bool IsNegative() const { return this->HasValue() && this->Value() < 0.0; }
   bool IsNaN() const { return this->HasValue() && std::isnan(this->Value()); }
   bool IsZero() const { return this->Is(0.0) && !std::signbit(this->Value()); }
+  bool IsNormal() const {
+    return this->HasValue() && std::isnormal(this->Value());
+  }
+  bool IsPositiveOrNegativePowerOf2() const {
+    if (!this->HasValue() || (this->Value() == 0.0)) {
+      return false;
+    }
+    Double value = Double(this->Value());
+    return !value.IsInfinite() &&
+           base::bits::IsPowerOfTwo64(value.Significand());
+  }
 };
 
 typedef FloatMatcher<float, IrOpcode::kFloat32Constant> Float32Matcher;

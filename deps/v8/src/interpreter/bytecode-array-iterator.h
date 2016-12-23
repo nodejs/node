@@ -31,6 +31,7 @@ class BytecodeArrayIterator {
   }
 
   uint32_t GetFlagOperand(int operand_index) const;
+  uint32_t GetUnsignedImmediateOperand(int operand_index) const;
   int32_t GetImmediateOperand(int operand_index) const;
   uint32_t GetIndexOperand(int operand_index) const;
   uint32_t GetRegisterCountOperand(int operand_index) const;

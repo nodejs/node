@@ -6,7 +6,7 @@
 #define V8_DATAFLOW_H_
 
 #include "src/allocation.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {

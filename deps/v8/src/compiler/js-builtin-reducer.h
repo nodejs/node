@@ -14,7 +14,6 @@ namespace internal {
 // Forward declarations.
 class CompilationDependencies;
 class Factory;
-class TypeCache;
 
 namespace compiler {
 
@@ -22,8 +21,9 @@ namespace compiler {
 class CommonOperatorBuilder;
 struct FieldAccess;
 class JSGraph;
+class JSOperatorBuilder;
 class SimplifiedOperatorBuilder;
-
+class TypeCache;
 
 class JSBuiltinReducer final : public AdvancedReducer {
  public:
@@ -43,6 +43,10 @@ class JSBuiltinReducer final : public AdvancedReducer {
  private:
   Reduction ReduceArrayPop(Node* node);
   Reduction ReduceArrayPush(Node* node);
+  Reduction ReduceDateGetTime(Node* node);
+  Reduction ReduceFunctionHasInstance(Node* node);
+  Reduction ReduceGlobalIsFinite(Node* node);
+  Reduction ReduceGlobalIsNaN(Node* node);
   Reduction ReduceMathAbs(Node* node);
   Reduction ReduceMathAcos(Node* node);
   Reduction ReduceMathAcosh(Node* node);
@@ -76,10 +80,15 @@ class JSBuiltinReducer final : public AdvancedReducer {
   Reduction ReduceMathTan(Node* node);
   Reduction ReduceMathTanh(Node* node);
   Reduction ReduceMathTrunc(Node* node);
+  Reduction ReduceNumberIsFinite(Node* node);
+  Reduction ReduceNumberIsInteger(Node* node);
+  Reduction ReduceNumberIsNaN(Node* node);
+  Reduction ReduceNumberIsSafeInteger(Node* node);
   Reduction ReduceNumberParseInt(Node* node);
   Reduction ReduceStringCharAt(Node* node);
   Reduction ReduceStringCharCodeAt(Node* node);
   Reduction ReduceStringFromCharCode(Node* node);
+  Reduction ReduceStringIteratorNext(Node* node);
   Reduction ReduceArrayBufferViewAccessor(Node* node,
                                           InstanceType instance_type,
                                           FieldAccess const& access);
@@ -94,6 +103,7 @@ class JSBuiltinReducer final : public AdvancedReducer {
   Isolate* isolate() const;
   CommonOperatorBuilder* common() const;
   SimplifiedOperatorBuilder* simplified() const;
+  JSOperatorBuilder* javascript() const;
   CompilationDependencies* dependencies() const { return dependencies_; }
 
   CompilationDependencies* const dependencies_;

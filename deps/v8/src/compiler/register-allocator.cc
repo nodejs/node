@@ -1041,6 +1041,8 @@ void TopLevelLiveRange::Merge(TopLevelLiveRange* other, Zone* zone) {
 
   TopLevel()->UpdateParentForAllChildren(TopLevel());
   TopLevel()->UpdateSpillRangePostMerge(other);
+  TopLevel()->set_has_slot_use(TopLevel()->has_slot_use() ||
+                               other->has_slot_use());
 
 #if DEBUG
   Verify();
@@ -1113,9 +1115,9 @@ void TopLevelLiveRange::AddUseInterval(LifetimePosition start,
       first_interval_ = interval;
     } else {
       // Order of instruction's processing (see ProcessInstructions) guarantees
-      // that each new use interval either precedes or intersects with
-      // last added interval.
-      DCHECK(start < first_interval_->end());
+      // that each new use interval either precedes, intersects with or touches
+      // the last added interval.
+      DCHECK(start <= first_interval_->end());
       first_interval_->set_start(Min(start, first_interval_->start()));
       first_interval_->set_end(Max(end, first_interval_->end()));
     }
@@ -2383,17 +2385,15 @@ LifetimePosition RegisterAllocator::GetSplitPositionForInstruction(
   return ret;
 }
 
-
-void RegisterAllocator::SplitAndSpillRangesDefinedByMemoryOperand(
-    bool operands_only) {
+void RegisterAllocator::SplitAndSpillRangesDefinedByMemoryOperand() {
   size_t initial_range_count = data()->live_ranges().size();
   for (size_t i = 0; i < initial_range_count; ++i) {
     TopLevelLiveRange* range = data()->live_ranges()[i];
     if (!CanProcessRange(range)) continue;
-    if (range->HasNoSpillType() || (operands_only && range->HasSpillRange())) {
+    if (range->HasNoSpillType() ||
+        (range->HasSpillRange() && !range->has_slot_use())) {
       continue;
     }
-
     LifetimePosition start = range->Start();
     TRACE("Live range %d:%d is defined by a spill operand.\n",
           range->TopLevel()->vreg(), range->relative_id());
@@ -2571,8 +2571,7 @@ void LinearScanAllocator::AllocateRegisters() {
   DCHECK(active_live_ranges().empty());
   DCHECK(inactive_live_ranges().empty());
 
-  SplitAndSpillRangesDefinedByMemoryOperand(code()->VirtualRegisterCount() <=
-                                            num_allocatable_registers());
+  SplitAndSpillRangesDefinedByMemoryOperand();
 
   for (TopLevelLiveRange* range : data()->live_ranges()) {
     if (!CanProcessRange(range)) continue;
@@ -3273,8 +3272,8 @@ void ReferenceMapPopulator::PopulateReferenceMaps() {
         spill_operand = range->GetSpillRangeOperand();
       }
       DCHECK(spill_operand.IsStackSlot());
-      DCHECK_EQ(MachineRepresentation::kTagged,
-                AllocatedOperand::cast(spill_operand).representation());
+      DCHECK(CanBeTaggedPointer(
+          AllocatedOperand::cast(spill_operand).representation()));
     }
 
     LiveRange* cur = range;
@@ -3336,8 +3335,8 @@ void ReferenceMapPopulator::PopulateReferenceMaps() {
             safe_point);
         InstructionOperand operand = cur->GetAssignedOperand();
         DCHECK(!operand.IsStackSlot());
-        DCHECK_EQ(MachineRepresentation::kTagged,
-                  AllocatedOperand::cast(operand).representation());
+        DCHECK(CanBeTaggedPointer(
+            AllocatedOperand::cast(operand).representation()));
         map->RecordReference(AllocatedOperand::cast(operand));
       }
     }

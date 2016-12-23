@@ -2,22 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/bit-vector.h"
 #include "src/compiler/escape-analysis.h"
+#include "src/bit-vector.h"
 #include "src/compiler/escape-analysis-reducer.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/types.h"
-#include "src/zone-containers.h"
+#include "src/compiler/types.h"
+#include "src/zone/zone-containers.h"
 #include "test/unittests/compiler/graph-unittest.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-class EscapeAnalysisTest : public GraphTest {
+class EscapeAnalysisTest : public TypedGraphTest {
  public:
   EscapeAnalysisTest()
       : simplified_(zone()),
@@ -468,8 +468,7 @@ TEST_F(EscapeAnalysisTest, DeoptReplacement) {
   ASSERT_EQ(object1, NodeProperties::GetValueInput(object_state, 0));
 }
 
-
-TEST_F(EscapeAnalysisTest, DeoptReplacementIdentity) {
+TEST_F(EscapeAnalysisTest, DISABLED_DeoptReplacementIdentity) {
   Node* object1 = Constant(1);
   BeginRegion();
   Node* allocation = Allocate(Constant(kPointerSize * 2));

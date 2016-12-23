@@ -16,7 +16,7 @@ function testCallImport(func, expected, a, b) {
     .addBody([
       kExprGetLocal, 0,            // --
       kExprGetLocal, 1,            // --
-      kExprCallImport, 2, 0])      // --
+      kExprCallFunction, 0])         // --
     .exportAs("main");
 
   var main = builder.instantiate({func: func}).exports.main;

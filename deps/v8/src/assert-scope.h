@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 #include "src/base/macros.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -33,14 +34,13 @@ enum PerIsolateAssertType {
   COMPILATION_ASSERT
 };
 
-
 template <PerThreadAssertType kType, bool kAllow>
 class PerThreadAssertScope {
  public:
-  PerThreadAssertScope();
-  ~PerThreadAssertScope();
+  V8_EXPORT_PRIVATE PerThreadAssertScope();
+  V8_EXPORT_PRIVATE ~PerThreadAssertScope();
 
-  static bool IsAllowed();
+  V8_EXPORT_PRIVATE static bool IsAllowed();
 
  private:
   PerThreadAssertData* data_;

@@ -2,6 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/factory.h"
+#include "src/heap/mark-compact.h"
+#include "src/isolate.h"
+// FIXME(mstarzinger, marja): This is weird, but required because of the missing
+// (disallowed) include: src/factory.h -> src/objects-inl.h
+#include "src/objects-inl.h"
+// FIXME(mstarzinger, marja): This is weird, but required because of the missing
+// (disallowed) include: src/type-feedback-vector.h ->
+// src/type-feedback-vector-inl.h
+#include "src/type-feedback-vector-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-tester.h"
 #include "test/cctest/heap/heap-utils.h"
@@ -58,7 +68,7 @@ HEAP_TEST(CompactionFullAbortedPage) {
       CheckAllObjectsOnPage(compaction_page_handles, to_be_aborted_page);
 
       heap->set_force_oom(true);
-      heap->CollectAllGarbage();
+      CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
       heap->mark_compact_collector()->EnsureSweepingCompleted();
 
       // Check that all handles still point to the same page, i.e., compaction
@@ -118,7 +128,7 @@ HEAP_TEST(CompactionPartiallyAbortedPage) {
             Page::FromAddress(page_to_fill_handles.front()->address());
 
         heap->set_force_oom(true);
-        heap->CollectAllGarbage();
+        CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
         heap->mark_compact_collector()->EnsureSweepingCompleted();
 
         bool migration_aborted = false;
@@ -200,7 +210,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
           Page::FromAddress(page_to_fill_handles.front()->address());
 
       heap->set_force_oom(true);
-      heap->CollectAllGarbage();
+      CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
       heap->mark_compact_collector()->EnsureSweepingCompleted();
 
       // The following check makes sure that we compacted "some" objects, while
@@ -293,7 +303,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithStoreBufferEntries) {
           Page::FromAddress(page_to_fill_handles.front()->address());
 
       heap->set_force_oom(true);
-      heap->CollectAllGarbage();
+      CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
       heap->mark_compact_collector()->EnsureSweepingCompleted();
 
       // The following check makes sure that we compacted "some" objects, while
@@ -343,7 +353,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithStoreBufferEntries) {
       // If store buffer entries are not properly filtered/reset for aborted
       // pages we have now a broken address at an object slot in old space and
       // the following scavenge will crash.
-      heap->CollectGarbage(NEW_SPACE);
+      CcTest::CollectGarbage(NEW_SPACE);
     }
   }
 }

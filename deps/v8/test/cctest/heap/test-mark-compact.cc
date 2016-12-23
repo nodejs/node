@@ -84,19 +84,22 @@ TEST(Promotion) {
 
     heap::SealCurrentObjects(heap);
 
-    int array_length =
-        heap::FixedArrayLenFromSize(Page::kMaxRegularHeapObjectSize);
+    int array_length = heap::FixedArrayLenFromSize(kMaxRegularHeapObjectSize);
     Handle<FixedArray> array = isolate->factory()->NewFixedArray(array_length);
 
     // Array should be in the new space.
     CHECK(heap->InSpace(*array, NEW_SPACE));
-    heap->CollectAllGarbage();
-    heap->CollectAllGarbage();
+    CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+    CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
     CHECK(heap->InSpace(*array, OLD_SPACE));
   }
 }
 
 HEAP_TEST(NoPromotion) {
+  // Page promotion allows pages to be moved to old space even in the case of
+  // OOM scenarios.
+  FLAG_page_promotion = false;
+
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   {
@@ -105,15 +108,14 @@ HEAP_TEST(NoPromotion) {
 
     heap::SealCurrentObjects(heap);
 
-    int array_length =
-        heap::FixedArrayLenFromSize(Page::kMaxRegularHeapObjectSize);
+    int array_length = heap::FixedArrayLenFromSize(kMaxRegularHeapObjectSize);
     Handle<FixedArray> array = isolate->factory()->NewFixedArray(array_length);
 
     heap->set_force_oom(true);
     // Array should be in the new space.
     CHECK(heap->InSpace(*array, NEW_SPACE));
-    heap->CollectAllGarbage();
-    heap->CollectAllGarbage();
+    CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+    CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
     CHECK(heap->InSpace(*array, NEW_SPACE));
   }
 }
@@ -130,7 +132,7 @@ HEAP_TEST(MarkCompactCollector) {
   Handle<JSGlobalObject> global(isolate->context()->global_object());
 
   // call mark-compact when heap is empty
-  heap->CollectGarbage(OLD_SPACE, "trigger 1");
+  CcTest::CollectGarbage(OLD_SPACE);
 
   // keep allocating garbage in new space until it fails
   const int arraysize = 100;
@@ -138,14 +140,14 @@ HEAP_TEST(MarkCompactCollector) {
   do {
     allocation = heap->AllocateFixedArray(arraysize);
   } while (!allocation.IsRetry());
-  heap->CollectGarbage(NEW_SPACE, "trigger 2");
+  CcTest::CollectGarbage(NEW_SPACE);
   heap->AllocateFixedArray(arraysize).ToObjectChecked();
 
   // keep allocating maps until it fails
   do {
     allocation = heap->AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
   } while (!allocation.IsRetry());
-  heap->CollectGarbage(MAP_SPACE, "trigger 3");
+  CcTest::CollectGarbage(MAP_SPACE);
   heap->AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize).ToObjectChecked();
 
   { HandleScope scope(isolate);
@@ -157,7 +159,7 @@ HEAP_TEST(MarkCompactCollector) {
     factory->NewJSObject(function);
   }
 
-  heap->CollectGarbage(OLD_SPACE, "trigger 4");
+  CcTest::CollectGarbage(OLD_SPACE);
 
   { HandleScope scope(isolate);
     Handle<String> func_name = factory->InternalizeUtf8String("theFunction");
@@ -175,7 +177,7 @@ HEAP_TEST(MarkCompactCollector) {
     JSReceiver::SetProperty(obj, prop_name, twenty_three, SLOPPY).Check();
   }
 
-  heap->CollectGarbage(OLD_SPACE, "trigger 5");
+  CcTest::CollectGarbage(OLD_SPACE);
 
   { HandleScope scope(isolate);
     Handle<String> obj_name = factory->InternalizeUtf8String("theObject");
@@ -218,7 +220,7 @@ TEST(MapCompact) {
   // be able to trigger map compaction.
   // To give an additional chance to fail, try to force compaction which
   // should be impossible right now.
-  CcTest::heap()->CollectAllGarbage(Heap::kForceCompactionMask);
+  CcTest::CollectAllGarbage(Heap::kForceCompactionMask);
   // And now map pointers should be encodable again.
   CHECK(CcTest::heap()->map_space()->MapPointersEncodable());
 }
@@ -299,7 +301,7 @@ HEAP_TEST(ObjectGroups) {
                                  g2c1.location());
   }
   // Do a full GC
-  heap->CollectGarbage(OLD_SPACE);
+  CcTest::CollectGarbage(OLD_SPACE);
 
   // All object should be alive.
   CHECK_EQ(0, NumberOfWeakCalls);
@@ -326,7 +328,7 @@ HEAP_TEST(ObjectGroups) {
                                  g2c1.location());
   }
 
-  heap->CollectGarbage(OLD_SPACE);
+  CcTest::CollectGarbage(OLD_SPACE);
 
   // All objects should be gone. 5 global handles in total.
   CHECK_EQ(5, NumberOfWeakCalls);
@@ -339,7 +341,7 @@ HEAP_TEST(ObjectGroups) {
       g2c1.location(), reinterpret_cast<void*>(&g2c1_and_id),
       &WeakPointerCallback, v8::WeakCallbackType::kParameter);
 
-  heap->CollectGarbage(OLD_SPACE);
+  CcTest::CollectGarbage(OLD_SPACE);
   CHECK_EQ(7, NumberOfWeakCalls);
 }
 

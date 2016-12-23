@@ -5,7 +5,7 @@
 #include "src/compiler/code-generator.h"
 
 #include "src/arm/macro-assembler-arm.h"
-#include "src/ast/scopes.h"
+#include "src/compilation-info.h"
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
@@ -271,6 +271,37 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   UnwindingInfoWriter* const unwinding_info_writer_;
 };
 
+template <typename T>
+class OutOfLineFloatMin final : public OutOfLineCode {
+ public:
+  OutOfLineFloatMin(CodeGenerator* gen, T result, T left, T right)
+      : OutOfLineCode(gen), result_(result), left_(left), right_(right) {}
+
+  void Generate() final { __ FloatMinOutOfLine(result_, left_, right_); }
+
+ private:
+  T const result_;
+  T const left_;
+  T const right_;
+};
+typedef OutOfLineFloatMin<SwVfpRegister> OutOfLineFloat32Min;
+typedef OutOfLineFloatMin<DwVfpRegister> OutOfLineFloat64Min;
+
+template <typename T>
+class OutOfLineFloatMax final : public OutOfLineCode {
+ public:
+  OutOfLineFloatMax(CodeGenerator* gen, T result, T left, T right)
+      : OutOfLineCode(gen), result_(result), left_(left), right_(right) {}
+
+  void Generate() final { __ FloatMaxOutOfLine(result_, left_, right_); }
+
+ private:
+  T const result_;
+  T const left_;
+  T const right_;
+};
+typedef OutOfLineFloatMax<SwVfpRegister> OutOfLineFloat32Max;
+typedef OutOfLineFloatMax<DwVfpRegister> OutOfLineFloat64Max;
 
 Condition FlagsConditionToCondition(FlagsCondition condition) {
   switch (condition) {
@@ -707,9 +738,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchDebugBreak:
       __ stop("kArchDebugBreak");
       break;
-    case kArchImpossible:
-      __ Abort(kConversionFromImpossibleValue);
-      break;
     case kArchComment: {
       Address comment_string = i.InputExternalReference(0).address();
       __ RecordComment(reinterpret_cast<const char*>(comment_string));
@@ -725,8 +753,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           BuildTranslation(instr, -1, 0, OutputFrameStateCombine::Ignore());
       Deoptimizer::BailoutType bailout_type =
           Deoptimizer::BailoutType(MiscField::decode(instr->opcode()));
-      CodeGenResult result =
-          AssembleDeoptimizerCall(deopt_state_id, bailout_type);
+      CodeGenResult result = AssembleDeoptimizerCall(
+          deopt_state_id, bailout_type, current_source_position_);
       if (result != kSuccess) return result;
       break;
     }
@@ -1199,33 +1227,51 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmVnegF64:
       __ vneg(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
-    case kArmVrintmF32:
+    case kArmVrintmF32: {
+      CpuFeatureScope scope(masm(), ARMv8);
       __ vrintm(i.OutputFloat32Register(), i.InputFloat32Register(0));
       break;
-    case kArmVrintmF64:
+    }
+    case kArmVrintmF64: {
+      CpuFeatureScope scope(masm(), ARMv8);
       __ vrintm(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
-    case kArmVrintpF32:
+    }
+    case kArmVrintpF32: {
+      CpuFeatureScope scope(masm(), ARMv8);
       __ vrintp(i.OutputFloat32Register(), i.InputFloat32Register(0));
       break;
-    case kArmVrintpF64:
+    }
+    case kArmVrintpF64: {
+      CpuFeatureScope scope(masm(), ARMv8);
       __ vrintp(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
-    case kArmVrintzF32:
+    }
+    case kArmVrintzF32: {
+      CpuFeatureScope scope(masm(), ARMv8);
       __ vrintz(i.OutputFloat32Register(), i.InputFloat32Register(0));
       break;
-    case kArmVrintzF64:
+    }
+    case kArmVrintzF64: {
+      CpuFeatureScope scope(masm(), ARMv8);
       __ vrintz(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
-    case kArmVrintaF64:
+    }
+    case kArmVrintaF64: {
+      CpuFeatureScope scope(masm(), ARMv8);
       __ vrinta(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
-    case kArmVrintnF32:
+    }
+    case kArmVrintnF32: {
+      CpuFeatureScope scope(masm(), ARMv8);
       __ vrintn(i.OutputFloat32Register(), i.InputFloat32Register(0));
       break;
-    case kArmVrintnF64:
+    }
+    case kArmVrintnF64: {
+      CpuFeatureScope scope(masm(), ARMv8);
       __ vrintn(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
       break;
+    }
     case kArmVcvtF32F64: {
       __ vcvt_f32_f64(i.OutputFloat32Register(), i.InputDoubleRegister(0));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -1380,145 +1426,59 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArmFloat32Max: {
-      FloatRegister left_reg = i.InputFloat32Register(0);
-      FloatRegister right_reg = i.InputFloat32Register(1);
-      FloatRegister result_reg = i.OutputFloat32Register();
-      Label result_is_nan, return_left, return_right, check_zero, done;
-      __ VFPCompareAndSetFlags(left_reg, right_reg);
-      __ b(mi, &return_right);
-      __ b(gt, &return_left);
-      __ b(vs, &result_is_nan);
-      // Left equals right => check for -0.
-      __ VFPCompareAndSetFlags(left_reg, 0.0);
-      if (left_reg.is(result_reg) || right_reg.is(result_reg)) {
-        __ b(ne, &done);  // left == right != 0.
+      SwVfpRegister result = i.OutputFloat32Register();
+      SwVfpRegister left = i.InputFloat32Register(0);
+      SwVfpRegister right = i.InputFloat32Register(1);
+      if (left.is(right)) {
+        __ Move(result, left);
       } else {
-        __ b(ne, &return_left);  // left == right != 0.
+        auto ool = new (zone()) OutOfLineFloat32Max(this, result, left, right);
+        __ FloatMax(result, left, right, ool->entry());
+        __ bind(ool->exit());
       }
-      // At this point, both left and right are either 0 or -0.
-      // Since we operate on +0 and/or -0, vadd and vand have the same effect;
-      // the decision for vadd is easy because vand is a NEON instruction.
-      __ vadd(result_reg, left_reg, right_reg);
-      __ b(&done);
-      __ bind(&result_is_nan);
-      __ vadd(result_reg, left_reg, right_reg);
-      __ b(&done);
-      __ bind(&return_right);
-      __ Move(result_reg, right_reg);
-      if (!left_reg.is(result_reg)) __ b(&done);
-      __ bind(&return_left);
-      __ Move(result_reg, left_reg);
-      __ bind(&done);
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
     case kArmFloat64Max: {
-      DwVfpRegister left_reg = i.InputDoubleRegister(0);
-      DwVfpRegister right_reg = i.InputDoubleRegister(1);
-      DwVfpRegister result_reg = i.OutputDoubleRegister();
-      Label result_is_nan, return_left, return_right, check_zero, done;
-      __ VFPCompareAndSetFlags(left_reg, right_reg);
-      __ b(mi, &return_right);
-      __ b(gt, &return_left);
-      __ b(vs, &result_is_nan);
-      // Left equals right => check for -0.
-      __ VFPCompareAndSetFlags(left_reg, 0.0);
-      if (left_reg.is(result_reg) || right_reg.is(result_reg)) {
-        __ b(ne, &done);  // left == right != 0.
+      DwVfpRegister result = i.OutputDoubleRegister();
+      DwVfpRegister left = i.InputDoubleRegister(0);
+      DwVfpRegister right = i.InputDoubleRegister(1);
+      if (left.is(right)) {
+        __ Move(result, left);
       } else {
-        __ b(ne, &return_left);  // left == right != 0.
+        auto ool = new (zone()) OutOfLineFloat64Max(this, result, left, right);
+        __ FloatMax(result, left, right, ool->entry());
+        __ bind(ool->exit());
       }
-      // At this point, both left and right are either 0 or -0.
-      // Since we operate on +0 and/or -0, vadd and vand have the same effect;
-      // the decision for vadd is easy because vand is a NEON instruction.
-      __ vadd(result_reg, left_reg, right_reg);
-      __ b(&done);
-      __ bind(&result_is_nan);
-      __ vadd(result_reg, left_reg, right_reg);
-      __ b(&done);
-      __ bind(&return_right);
-      __ Move(result_reg, right_reg);
-      if (!left_reg.is(result_reg)) __ b(&done);
-      __ bind(&return_left);
-      __ Move(result_reg, left_reg);
-      __ bind(&done);
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
     case kArmFloat32Min: {
-      FloatRegister left_reg = i.InputFloat32Register(0);
-      FloatRegister right_reg = i.InputFloat32Register(1);
-      FloatRegister result_reg = i.OutputFloat32Register();
-      Label result_is_nan, return_left, return_right, check_zero, done;
-      __ VFPCompareAndSetFlags(left_reg, right_reg);
-      __ b(mi, &return_left);
-      __ b(gt, &return_right);
-      __ b(vs, &result_is_nan);
-      // Left equals right => check for -0.
-      __ VFPCompareAndSetFlags(left_reg, 0.0);
-      if (left_reg.is(result_reg) || right_reg.is(result_reg)) {
-        __ b(ne, &done);  // left == right != 0.
+      SwVfpRegister result = i.OutputFloat32Register();
+      SwVfpRegister left = i.InputFloat32Register(0);
+      SwVfpRegister right = i.InputFloat32Register(1);
+      if (left.is(right)) {
+        __ Move(result, left);
       } else {
-        __ b(ne, &return_left);  // left == right != 0.
+        auto ool = new (zone()) OutOfLineFloat32Min(this, result, left, right);
+        __ FloatMin(result, left, right, ool->entry());
+        __ bind(ool->exit());
       }
-      // At this point, both left and right are either 0 or -0.
-      // We could use a single 'vorr' instruction here if we had NEON support.
-      // The algorithm is: -((-L) + (-R)), which in case of L and R being
-      // different registers is most efficiently expressed as -((-L) - R).
-      __ vneg(left_reg, left_reg);
-      if (left_reg.is(right_reg)) {
-        __ vadd(result_reg, left_reg, right_reg);
-      } else {
-        __ vsub(result_reg, left_reg, right_reg);
-      }
-      __ vneg(result_reg, result_reg);
-      __ b(&done);
-      __ bind(&result_is_nan);
-      __ vadd(result_reg, left_reg, right_reg);
-      __ b(&done);
-      __ bind(&return_right);
-      __ Move(result_reg, right_reg);
-      if (!left_reg.is(result_reg)) __ b(&done);
-      __ bind(&return_left);
-      __ Move(result_reg, left_reg);
-      __ bind(&done);
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
     case kArmFloat64Min: {
-      DwVfpRegister left_reg = i.InputDoubleRegister(0);
-      DwVfpRegister right_reg = i.InputDoubleRegister(1);
-      DwVfpRegister result_reg = i.OutputDoubleRegister();
-      Label result_is_nan, return_left, return_right, check_zero, done;
-      __ VFPCompareAndSetFlags(left_reg, right_reg);
-      __ b(mi, &return_left);
-      __ b(gt, &return_right);
-      __ b(vs, &result_is_nan);
-      // Left equals right => check for -0.
-      __ VFPCompareAndSetFlags(left_reg, 0.0);
-      if (left_reg.is(result_reg) || right_reg.is(result_reg)) {
-        __ b(ne, &done);  // left == right != 0.
+      DwVfpRegister result = i.OutputDoubleRegister();
+      DwVfpRegister left = i.InputDoubleRegister(0);
+      DwVfpRegister right = i.InputDoubleRegister(1);
+      if (left.is(right)) {
+        __ Move(result, left);
       } else {
-        __ b(ne, &return_left);  // left == right != 0.
+        auto ool = new (zone()) OutOfLineFloat64Min(this, result, left, right);
+        __ FloatMin(result, left, right, ool->entry());
+        __ bind(ool->exit());
       }
-      // At this point, both left and right are either 0 or -0.
-      // We could use a single 'vorr' instruction here if we had NEON support.
-      // The algorithm is: -((-L) + (-R)), which in case of L and R being
-      // different registers is most efficiently expressed as -((-L) - R).
-      __ vneg(left_reg, left_reg);
-      if (left_reg.is(right_reg)) {
-        __ vadd(result_reg, left_reg, right_reg);
-      } else {
-        __ vsub(result_reg, left_reg, right_reg);
-      }
-      __ vneg(result_reg, result_reg);
-      __ b(&done);
-      __ bind(&result_is_nan);
-      __ vadd(result_reg, left_reg, right_reg);
-      __ b(&done);
-      __ bind(&return_right);
-      __ Move(result_reg, right_reg);
-      if (!left_reg.is(result_reg)) __ b(&done);
-      __ bind(&return_left);
-      __ Move(result_reg, left_reg);
-      __ bind(&done);
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
     case kArmFloat64SilenceNaN: {
@@ -1679,7 +1639,8 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
 }
 
 CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
-    int deoptimization_id, Deoptimizer::BailoutType bailout_type) {
+    int deoptimization_id, Deoptimizer::BailoutType bailout_type,
+    SourcePosition pos) {
   Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
       isolate(), deoptimization_id, bailout_type);
   // TODO(turbofan): We should be able to generate better code by sharing the
@@ -1688,7 +1649,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   if (deopt_entry == nullptr) return kTooManyDeoptimizationBailouts;
   DeoptimizeReason deoptimization_reason =
       GetDeoptimizationReason(deoptimization_id);
-  __ RecordDeoptReason(deoptimization_reason, 0, deoptimization_id);
+  __ RecordDeoptReason(deoptimization_reason, pos.raw(), deoptimization_id);
   __ Call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
   __ CheckConstPool(false, false);
   return kSuccess;
@@ -1967,33 +1928,31 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     __ vstr(temp_1, src);
   } else if (source->IsFPRegister()) {
     LowDwVfpRegister temp = kScratchDoubleReg;
-      DwVfpRegister src = g.ToDoubleRegister(source);
-      if (destination->IsFPRegister()) {
-        DwVfpRegister dst = g.ToDoubleRegister(destination);
-        __ Move(temp, src);
-        __ Move(src, dst);
-        __ Move(dst, temp);
-      } else {
-        DCHECK(destination->IsFPStackSlot());
-        MemOperand dst = g.ToMemOperand(destination);
-        __ Move(temp, src);
-        __ vldr(src, dst);
-        __ vstr(temp, dst);
-      }
+    DwVfpRegister src = g.ToDoubleRegister(source);
+    if (destination->IsFPRegister()) {
+      DwVfpRegister dst = g.ToDoubleRegister(destination);
+      __ vswp(src, dst);
+    } else {
+      DCHECK(destination->IsFPStackSlot());
+      MemOperand dst = g.ToMemOperand(destination);
+      __ Move(temp, src);
+      __ vldr(src, dst);
+      __ vstr(temp, dst);
+    }
   } else if (source->IsFPStackSlot()) {
     DCHECK(destination->IsFPStackSlot());
     Register temp_0 = kScratchReg;
     LowDwVfpRegister temp_1 = kScratchDoubleReg;
     MemOperand src0 = g.ToMemOperand(source);
     MemOperand dst0 = g.ToMemOperand(destination);
-      MemOperand src1(src0.rn(), src0.offset() + kPointerSize);
-      MemOperand dst1(dst0.rn(), dst0.offset() + kPointerSize);
-      __ vldr(temp_1, dst0);  // Save destination in temp_1.
-      __ ldr(temp_0, src0);   // Then use temp_0 to copy source to destination.
-      __ str(temp_0, dst0);
-      __ ldr(temp_0, src1);
-      __ str(temp_0, dst1);
-      __ vstr(temp_1, src0);
+    MemOperand src1(src0.rn(), src0.offset() + kPointerSize);
+    MemOperand dst1(dst0.rn(), dst0.offset() + kPointerSize);
+    __ vldr(temp_1, dst0);  // Save destination in temp_1.
+    __ ldr(temp_0, src0);   // Then use temp_0 to copy source to destination.
+    __ str(temp_0, dst0);
+    __ ldr(temp_0, src1);
+    __ str(temp_0, dst1);
+    __ vstr(temp_1, src0);
   } else {
     // No other combinations are possible.
     UNREACHABLE();

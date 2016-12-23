@@ -24,7 +24,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
  public:
   explicit BytecodeGenerator(CompilationInfo* info);
 
-  void GenerateBytecode();
+  void GenerateBytecode(uintptr_t stack_limit);
   Handle<BytecodeArray> FinalizeBytecode(Isolate* isolate);
 
 #define DECLARE_VISIT(type) void Visit##type(type* node);
@@ -36,7 +36,6 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitStatements(ZoneList<Statement*>* statments);
 
  private:
-  class AccumulatorResultScope;
   class ContextScope;
   class ControlScope;
   class ControlScopeForBreakable;
@@ -47,9 +46,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   class ExpressionResultScope;
   class EffectResultScope;
   class GlobalDeclarationsBuilder;
-  class RegisterResultScope;
   class RegisterAllocationScope;
   class TestResultScope;
+  class ValueResultScope;
 
   enum class TestFallthrough { kThen, kElse, kNone };
 
@@ -73,8 +72,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   // Used by flow control routines to evaluate loop condition.
   void VisitCondition(Expression* expr);
 
-  // Helper visitors which perform common operations.
-  Register VisitArguments(ZoneList<Expression*>* arguments);
+  // Visit the arguments expressions in |args| and store them in |args_regs|
+  // starting at register |first_argument_register| in the list.
+  void VisitArguments(ZoneList<Expression*>* args, RegisterList arg_regs,
+                      size_t first_argument_register = 0);
 
   // Visit a keyed super property load. The optional
   // |opt_receiver_out| register will have the receiver stored to it
@@ -104,15 +105,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitVariableAssignment(Variable* variable, Token::Value op,
                                FeedbackVectorSlot slot);
 
-  void BuildNamedSuperPropertyStore(Register receiver, Register home_object,
-                                    Register name, Register value);
-  void BuildKeyedSuperPropertyStore(Register receiver, Register home_object,
-                                    Register key, Register value);
-  void BuildNamedSuperPropertyLoad(Register receiver, Register home_object,
-                                   Register name);
-  void BuildKeyedSuperPropertyLoad(Register receiver, Register home_object,
-                                   Register key);
-
+  void BuildReturn();
+  void BuildReThrow();
   void BuildAbort(BailoutReason bailout_reason);
   void BuildThrowIfHole(Handle<String> name);
   void BuildThrowIfNotHole(Handle<String> name);
@@ -125,6 +119,12 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildIndexedJump(Register value, size_t start_index, size_t size,
                         ZoneVector<BytecodeLabel>& targets);
 
+  void BuildNewLocalActivationContext();
+  void BuildLocalActivationContextInitialization();
+  void BuildNewLocalBlockContext(Scope* scope);
+  void BuildNewLocalCatchContext(Variable* variable, Scope* scope);
+  void BuildNewLocalWithContext(Scope* scope);
+
   void VisitGeneratorPrologue();
 
   void VisitArgumentsObject(Variable* variable);
@@ -133,18 +133,12 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitClassLiteralForRuntimeDefinition(ClassLiteral* expr);
   void VisitClassLiteralProperties(ClassLiteral* expr, Register literal,
                                    Register prototype);
-  void VisitClassLiteralStaticPrototypeWithComputedName(Register name);
   void VisitThisFunctionVariable(Variable* variable);
   void VisitNewTargetVariable(Variable* variable);
-  void VisitNewLocalFunctionContext();
-  void VisitBuildLocalActivationContext();
   void VisitBlockDeclarationsAndStatements(Block* stmt);
-  void VisitNewLocalBlockContext(Scope* scope);
-  void VisitNewLocalCatchContext(Variable* variable);
-  void VisitNewLocalWithContext();
   void VisitFunctionClosureForContext();
   void VisitSetHomeObject(Register value, Register home_object,
-                          ObjectLiteralProperty* property, int slot_number = 0);
+                          LiteralProperty* property, int slot_number = 0);
   void VisitObjectLiteralAccessor(Register home_object,
                                   ObjectLiteralProperty* property,
                                   Register value_out);
@@ -168,13 +162,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitForTest(Expression* expr, BytecodeLabels* then_labels,
                     BytecodeLabels* else_labels, TestFallthrough fallthrough);
 
-  // Methods for tracking and remapping register.
-  void RecordStoreToRegister(Register reg);
-  Register LoadFromAliasedRegister(Register reg);
-
-  // Initialize an array of temporary registers with consecutive registers.
-  template <size_t N>
-  void InitializeWithConsecutiveRegisters(Register (&registers)[N]);
+  // Returns the runtime function id for a store to super for the function's
+  // language mode.
+  inline Runtime::FunctionId StoreToSuperRuntimeId();
+  inline Runtime::FunctionId StoreKeyedToSuperRuntimeId();
 
   inline BytecodeArrayBuilder* builder() const { return builder_; }
   inline Zone* zone() const { return zone_; }
@@ -193,12 +184,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
     execution_result_ = execution_result;
   }
   ExpressionResultScope* execution_result() const { return execution_result_; }
-  inline void set_register_allocator(
-      RegisterAllocationScope* register_allocator) {
-    register_allocator_ = register_allocator;
-  }
-  RegisterAllocationScope* register_allocator() const {
-    return register_allocator_;
+  BytecodeRegisterAllocator* register_allocator() const {
+    return builder()->register_allocator();
   }
 
   GlobalDeclarationsBuilder* globals_builder() { return globals_builder_; }
@@ -222,7 +209,6 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   ControlScope* execution_control_;
   ContextScope* execution_context_;
   ExpressionResultScope* execution_result_;
-  RegisterAllocationScope* register_allocator_;
 
   ZoneVector<BytecodeLabel> generator_resume_points_;
   Register generator_state_;

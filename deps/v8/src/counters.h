@@ -11,8 +11,10 @@
 #include "src/base/platform/time.h"
 #include "src/builtins/builtins.h"
 #include "src/globals.h"
+#include "src/isolate.h"
 #include "src/objects.h"
 #include "src/runtime/runtime.h"
+#include "src/tracing/trace-event.h"
 
 namespace v8 {
 namespace internal {
@@ -566,12 +568,15 @@ class RuntimeCallTimer {
   V(Message_GetLineNumber)                                 \
   V(Message_GetSourceLine)                                 \
   V(Message_GetStartColumn)                                \
+  V(Module_Evaluate)                                       \
+  V(Module_Instantiate)                                    \
   V(NumberObject_New)                                      \
   V(NumberObject_NumberValue)                              \
   V(Object_CallAsConstructor)                              \
   V(Object_CallAsFunction)                                 \
   V(Object_CreateDataProperty)                             \
   V(Object_DefineOwnProperty)                              \
+  V(Object_DefineProperty)                                 \
   V(Object_Delete)                                         \
   V(Object_DeleteProperty)                                 \
   V(Object_ForceSet)                                       \
@@ -657,7 +662,10 @@ class RuntimeCallTimer {
   V(UnboundScript_GetName)                                 \
   V(UnboundScript_GetSourceMappingURL)                     \
   V(UnboundScript_GetSourceURL)                            \
-  V(Value_TypeOf)
+  V(Value_TypeOf)                                          \
+  V(ValueDeserializer_ReadHeader)                          \
+  V(ValueDeserializer_ReadValue)                           \
+  V(ValueSerializer_WriteValue)
 
 #define FOR_EACH_MANUAL_COUNTER(V)                  \
   V(AccessorGetterCallback)                         \
@@ -674,13 +682,18 @@ class RuntimeCallTimer {
   V(DeoptimizeCode)                                 \
   V(FunctionCallback)                               \
   V(GC)                                             \
+  V(GenericNamedPropertyDefinerCallback)            \
   V(GenericNamedPropertyDeleterCallback)            \
+  V(GenericNamedPropertyDescriptorCallback)         \
   V(GenericNamedPropertyQueryCallback)              \
   V(GenericNamedPropertySetterCallback)             \
+  V(IndexedPropertyDefinerCallback)                 \
   V(IndexedPropertyDeleterCallback)                 \
+  V(IndexedPropertyDescriptorCallback)              \
   V(IndexedPropertyGetterCallback)                  \
   V(IndexedPropertyQueryCallback)                   \
   V(IndexedPropertySetterCallback)                  \
+  V(InvokeApiInterruptCallbacks)                    \
   V(InvokeFunctionCallback)                         \
   V(JS_Execution)                                   \
   V(Map_SetPrototype)                               \
@@ -765,66 +778,51 @@ class RuntimeCallStats {
 
   // Starting measuring the time for a function. This will establish the
   // connection to the parent counter for properly calculating the own times.
-  static void Enter(Isolate* isolate, RuntimeCallTimer* timer,
+  static void Enter(RuntimeCallStats* stats, RuntimeCallTimer* timer,
                     CounterId counter_id);
 
   // Leave a scope for a measured runtime function. This will properly add
   // the time delta to the current_counter and subtract the delta from its
   // parent.
-  static void Leave(Isolate* isolate, RuntimeCallTimer* timer);
+  static void Leave(RuntimeCallStats* stats, RuntimeCallTimer* timer);
 
   // Set counter id for the innermost measurement. It can be used to refine
   // event kind when a runtime entry counter is too generic.
-  static void CorrectCurrentCounterId(Isolate* isolate, CounterId counter_id);
+  static void CorrectCurrentCounterId(RuntimeCallStats* stats,
+                                      CounterId counter_id);
 
   void Reset();
-  void Print(std::ostream& os);
+  V8_NOINLINE void Print(std::ostream& os);
+  V8_NOINLINE std::string Dump();
 
-  RuntimeCallStats() { Reset(); }
+  RuntimeCallStats() {
+    Reset();
+    in_use_ = false;
+  }
+
   RuntimeCallTimer* current_timer() { return current_timer_; }
+  bool InUse() { return in_use_; }
 
  private:
+  std::stringstream buffer_;
   // Counter to track recursive time events.
   RuntimeCallTimer* current_timer_ = NULL;
+  // Used to track nested tracing scopes.
+  bool in_use_;
 };
 
-#define TRACE_RUNTIME_CALL_STATS(isolate, counter_name) \
-  do {                                                  \
-    if (FLAG_runtime_call_stats) {                      \
-      RuntimeCallStats::CorrectCurrentCounterId(        \
-          isolate, &RuntimeCallStats::counter_name);    \
-    }                                                   \
+#define TRACE_RUNTIME_CALL_STATS(isolate, counter_name)                 \
+  do {                                                                  \
+    if (V8_UNLIKELY(TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED() || \
+                    FLAG_runtime_call_stats)) {                         \
+      RuntimeCallStats::CorrectCurrentCounterId(                        \
+          isolate->counters()->runtime_call_stats(),                    \
+          &RuntimeCallStats::counter_name);                             \
+    }                                                                   \
   } while (false)
 
 #define TRACE_HANDLER_STATS(isolate, counter_name) \
   TRACE_RUNTIME_CALL_STATS(isolate, Handler_##counter_name)
-
-// A RuntimeCallTimerScopes wraps around a RuntimeCallTimer to measure the
-// the time of C++ scope.
-class RuntimeCallTimerScope {
- public:
-  inline RuntimeCallTimerScope(Isolate* isolate,
-                               RuntimeCallStats::CounterId counter_id) {
-    if (V8_UNLIKELY(FLAG_runtime_call_stats)) {
-      isolate_ = isolate;
-      RuntimeCallStats::Enter(isolate_, &timer_, counter_id);
-    }
-  }
-  // This constructor is here just to avoid calling GetIsolate() when the
-  // stats are disabled and the isolate is not directly available.
-  inline RuntimeCallTimerScope(HeapObject* heap_object,
-                               RuntimeCallStats::CounterId counter_id);
-
-  inline ~RuntimeCallTimerScope() {
-    if (V8_UNLIKELY(FLAG_runtime_call_stats)) {
-      RuntimeCallStats::Leave(isolate_, &timer_);
-    }
-  }
-
- private:
-  Isolate* isolate_;
-  RuntimeCallTimer timer_;
-};
 
 #define HISTOGRAM_RANGE_LIST(HR)                                              \
   /* Generic range histograms */                                              \
@@ -836,6 +834,9 @@ class RuntimeCallTimerScope {
   HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 6, 6)             \
   HR(errors_thrown_per_context, V8.ErrorsThrownPerContext, 0, 200, 20)        \
   HR(debug_feature_usage, V8.DebugFeatureUsage, 1, 7, 7)                      \
+  HR(incremental_marking_reason, V8.GCIncrementalMarkingReason, 0, 21, 22)    \
+  HR(mark_compact_reason, V8.GCMarkCompactReason, 0, 21, 22)                  \
+  HR(scavenge_reason, V8.GCScavengeReason, 0, 21, 22)                         \
   /* Asm/Wasm. */                                                             \
   HR(wasm_functions_per_module, V8.WasmFunctionsPerModule, 1, 10000, 51)
 
@@ -1236,6 +1237,36 @@ class Counters {
   explicit Counters(Isolate* isolate);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Counters);
+};
+
+// A RuntimeCallTimerScopes wraps around a RuntimeCallTimer to measure the
+// the time of C++ scope.
+class RuntimeCallTimerScope {
+ public:
+  inline RuntimeCallTimerScope(Isolate* isolate,
+                               RuntimeCallStats::CounterId counter_id);
+  // This constructor is here just to avoid calling GetIsolate() when the
+  // stats are disabled and the isolate is not directly available.
+  inline RuntimeCallTimerScope(HeapObject* heap_object,
+                               RuntimeCallStats::CounterId counter_id);
+
+  inline ~RuntimeCallTimerScope() {
+    if (V8_UNLIKELY(isolate_ != nullptr)) {
+      RuntimeCallStats::Leave(isolate_->counters()->runtime_call_stats(),
+                              &timer_);
+    }
+  }
+
+ private:
+  V8_INLINE void Initialize(Isolate* isolate,
+                            RuntimeCallStats::CounterId counter_id) {
+    isolate_ = isolate;
+    RuntimeCallStats::Enter(isolate_->counters()->runtime_call_stats(), &timer_,
+                            counter_id);
+  }
+
+  Isolate* isolate_ = nullptr;
+  RuntimeCallTimer timer_;
 };
 
 }  // namespace internal

@@ -1,0 +1,10 @@
+include_rules = [
+  "-src",
+  "+src/base/macros.h",
+  "+src/base/platform/platform.h",
+  "+src/flags.h",
+  "+src/inspector/string-16.h",
+  "+src/locked-queue-inl.h",
+  "+src/utils.h",
+  "+src/vector.h",
+]

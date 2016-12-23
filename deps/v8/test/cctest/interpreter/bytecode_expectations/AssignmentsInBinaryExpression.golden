@@ -3,8 +3,6 @@
 #
 
 ---
-pool type: string
-execute: yes
 wrap: yes
 
 ---
@@ -66,7 +64,7 @@ snippet: "
   x = x + (x = 100) + (x = 101);
   return x;
 "
-frame size: 3
+frame size: 2
 parameter count: 1
 bytecode array length: 28
 bytecodes: [
@@ -76,11 +74,11 @@ bytecodes: [
   /*   46 S> */ B(LdaSmi), U8(100),
                 B(Mov), R(0), R(1),
                 B(Star), R(0),
-  /*   57 E> */ B(Add), R(1), U8(1),
-                B(Star), R(2),
+  /*   57 E> */ B(Add), R(1), U8(2),
+                B(Star), R(1),
                 B(LdaSmi), U8(101),
                 B(Star), R(0),
-  /*   69 E> */ B(Add), R(2), U8(2),
+  /*   69 E> */ B(Add), R(1), U8(3),
                 B(Star), R(0),
   /*   77 S> */ B(Nop),
   /*   87 S> */ B(Return),
@@ -97,7 +95,7 @@ snippet: "
   x++;
   return x;
 "
-frame size: 3
+frame size: 2
 parameter count: 1
 bytecode array length: 29
 bytecodes: [
@@ -106,13 +104,13 @@ bytecodes: [
                 B(Star), R(0),
   /*   46 S> */ B(LdaSmi), U8(56),
                 B(Star), R(0),
-  /*   61 E> */ B(Sub), R(0), U8(1),
-                B(Star), R(2),
+  /*   61 E> */ B(Sub), R(0), U8(2),
+                B(Star), R(1),
                 B(LdaSmi), U8(57),
                 B(Star), R(0),
-  /*   68 E> */ B(Add), R(2), U8(2),
+  /*   68 E> */ B(Add), R(1), U8(3),
                 B(Star), R(0),
-  /*   75 S> */ B(Inc), U8(3),
+  /*   75 S> */ B(Inc), U8(4),
                 B(Star), R(0),
   /*   80 S> */ B(Nop),
   /*   90 S> */ B(Return),
@@ -128,7 +126,7 @@ snippet: "
   var y = x + (x = 1) + (x = 2) + (x = 3);
   return y;
 "
-frame size: 4
+frame size: 3
 parameter count: 1
 bytecode array length: 37
 bytecodes: [
@@ -138,15 +136,15 @@ bytecodes: [
   /*   76 S> */ B(LdaSmi), U8(1),
                 B(Mov), R(0), R(2),
                 B(Star), R(0),
-  /*   61 E> */ B(Add), R(2), U8(1),
-                B(Star), R(3),
+  /*   61 E> */ B(Add), R(2), U8(2),
+                B(Star), R(2),
                 B(LdaSmi), U8(2),
                 B(Star), R(0),
-  /*   71 E> */ B(Add), R(3), U8(2),
+  /*   71 E> */ B(Add), R(2), U8(3),
                 B(Star), R(2),
                 B(LdaSmi), U8(3),
                 B(Star), R(0),
-  /*   81 E> */ B(Add), R(2), U8(3),
+  /*   81 E> */ B(Add), R(2), U8(4),
                 B(Star), R(1),
   /*   87 S> */ B(Nop),
   /*   97 S> */ B(Return),
@@ -162,7 +160,7 @@ snippet: "
   var x = x + (x = 1) + (x = 2) + (x = 3);
   return x;
 "
-frame size: 3
+frame size: 2
 parameter count: 1
 bytecode array length: 37
 bytecodes: [
@@ -172,15 +170,15 @@ bytecodes: [
   /*   76 S> */ B(LdaSmi), U8(1),
                 B(Mov), R(0), R(1),
                 B(Star), R(0),
-  /*   61 E> */ B(Add), R(1), U8(1),
-                B(Star), R(2),
+  /*   61 E> */ B(Add), R(1), U8(2),
+                B(Star), R(1),
                 B(LdaSmi), U8(2),
                 B(Star), R(0),
-  /*   71 E> */ B(Add), R(2), U8(2),
+  /*   71 E> */ B(Add), R(1), U8(3),
                 B(Star), R(1),
                 B(LdaSmi), U8(3),
                 B(Star), R(0),
-  /*   81 E> */ B(Add), R(1), U8(3),
+  /*   81 E> */ B(Add), R(1), U8(4),
                 B(Star), R(0),
   /*   87 S> */ B(Nop),
   /*   97 S> */ B(Return),
@@ -195,7 +193,7 @@ snippet: "
   var x = 10, y = 20;
   return x + (x = 1) + (x + 1) * (y = 2) + (y = 3) + (x = 4) + (y = 5) + y;
 "
-frame size: 5
+frame size: 4
 parameter count: 1
 bytecode array length: 72
 bytecodes: [
@@ -207,29 +205,29 @@ bytecodes: [
   /*   54 S> */ B(LdaSmi), U8(1),
                 B(Mov), R(0), R(2),
                 B(Star), R(0),
-  /*   68 E> */ B(Add), R(2), U8(1),
+  /*   68 E> */ B(Add), R(2), U8(2),
+                B(Star), R(2),
+  /*   76 E> */ B(AddSmi), U8(1), R(0), U8(3),
                 B(Star), R(3),
-  /*   76 E> */ B(AddSmi), U8(1), R(0), U8(2),
-                B(Star), R(4),
                 B(LdaSmi), U8(2),
                 B(Star), R(1),
-  /*   88 E> */ B(Mul), R(4), U8(3),
-                B(Add), R(3), U8(4),
+  /*   88 E> */ B(Mul), R(3), U8(4),
+                B(Add), R(2), U8(5),
                 B(Star), R(2),
                 B(LdaSmi), U8(3),
                 B(Star), R(1),
-  /*   98 E> */ B(Add), R(2), U8(5),
-                B(Star), R(3),
+  /*   98 E> */ B(Add), R(2), U8(6),
+                B(Star), R(2),
                 B(LdaSmi), U8(4),
                 B(Star), R(0),
-  /*  108 E> */ B(Add), R(3), U8(6),
+  /*  108 E> */ B(Add), R(2), U8(7),
                 B(Star), R(2),
                 B(LdaSmi), U8(5),
                 B(Star), R(1),
-  /*  118 E> */ B(Add), R(2), U8(7),
-                B(Star), R(3),
+  /*  118 E> */ B(Add), R(2), U8(8),
+                B(Star), R(2),
                 B(Ldar), R(1),
-  /*  125 E> */ B(Add), R(3), U8(8),
+  /*  125 E> */ B(Add), R(2), U8(9),
   /*  128 S> */ B(Return),
 ]
 constant pool: [
@@ -242,7 +240,7 @@ snippet: "
   var x = 17;
   return 1 + x + (x++) + (++x);
 "
-frame size: 4
+frame size: 3
 parameter count: 1
 bytecode array length: 41
 bytecodes: [
@@ -252,19 +250,19 @@ bytecodes: [
   /*   46 S> */ B(LdaSmi), U8(1),
                 B(Star), R(1),
                 B(Ldar), R(0),
-  /*   57 E> */ B(Add), R(1), U8(1),
-                B(Star), R(2),
+  /*   57 E> */ B(Add), R(1), U8(2),
+                B(Star), R(1),
                 B(Ldar), R(0),
-                B(ToNumber), R(1),
-                B(Inc), U8(2),
+                B(ToNumber), R(2),
+                B(Inc), U8(3),
                 B(Star), R(0),
-                B(Ldar), R(1),
-  /*   63 E> */ B(Add), R(2), U8(3),
-                B(Star), R(3),
+                B(Ldar), R(2),
+  /*   63 E> */ B(Add), R(1), U8(4),
+                B(Star), R(1),
                 B(Ldar), R(0),
-                B(Inc), U8(4),
+                B(Inc), U8(5),
                 B(Star), R(0),
-  /*   72 E> */ B(Add), R(3), U8(5),
+  /*   72 E> */ B(Add), R(1), U8(6),
   /*   76 S> */ B(Return),
 ]
 constant pool: [

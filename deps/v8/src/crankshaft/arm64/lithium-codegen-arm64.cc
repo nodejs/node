@@ -583,14 +583,14 @@ void LCodeGen::DoPrologue(LPrologue* instr) {
   Comment(";;; Prologue begin");
 
   // Allocate a local context if needed.
-  if (info()->scope()->num_heap_slots() > 0) {
+  if (info()->scope()->NeedsContext()) {
     Comment(";;; Allocate local context");
     bool need_write_barrier = true;
     // Argument to NewContext is the function, which is in x1.
     int slots = info()->scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
     Safepoint::DeoptMode deopt_mode = Safepoint::kNoLazyDeopt;
     if (info()->scope()->is_script_scope()) {
-      __ Mov(x10, Operand(info()->scope()->GetScopeInfo(info()->isolate())));
+      __ Mov(x10, Operand(info()->scope()->scope_info()));
       __ Push(x1, x10);
       __ CallRuntime(Runtime::kNewScriptContext);
       deopt_mode = Safepoint::kLazyDeopt;
@@ -1403,7 +1403,7 @@ void LCodeGen::DoAllocate(LAllocate* instr) {
 
   if (instr->size()->IsConstantOperand()) {
     int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
-    CHECK(size <= Page::kMaxRegularHeapObjectSize);
+    CHECK(size <= kMaxRegularHeapObjectSize);
     __ Allocate(size, result, temp1, temp2, deferred->entry(), flags);
   } else {
     Register size = ToRegister32(instr->size());
@@ -1499,7 +1499,7 @@ void LCodeGen::DoFastAllocate(LFastAllocate* instr) {
   }
   if (instr->size()->IsConstantOperand()) {
     int32_t size = ToInteger32(LConstantOperand::cast(instr->size()));
-    CHECK(size <= Page::kMaxRegularHeapObjectSize);
+    CHECK(size <= kMaxRegularHeapObjectSize);
     __ FastAllocate(size, result, scratch1, scratch2, flags);
   } else {
     Register size = ToRegister(instr->size());
@@ -1973,7 +1973,16 @@ void LCodeGen::DoCallWithDescriptor(LCallWithDescriptor* instr) {
     generator.AfterCall();
   }
 
-  RecordPushedArgumentsDelta(instr->hydrogen()->argument_delta());
+  HCallWithDescriptor* hinstr = instr->hydrogen();
+  RecordPushedArgumentsDelta(hinstr->argument_delta());
+
+  // HCallWithDescriptor instruction is translated to zero or more
+  // LPushArguments (they handle parameters passed on the stack) followed by
+  // a LCallWithDescriptor. Each LPushArguments instruction generated records
+  // the number of arguments pushed thus we need to offset them here.
+  // The |argument_delta()| used above "knows" only about JS parameters while
+  // we are dealing here with particular calling convention details.
+  RecordPushedArgumentsDelta(-hinstr->descriptor().GetStackParameterCount());
 }
 
 
@@ -3015,20 +3024,6 @@ void LCodeGen::EmitVectorLoadICRegisters(T* instr) {
   Handle<TypeFeedbackVector> vector = instr->hydrogen()->feedback_vector();
   __ Mov(vector_register, vector);
   // No need to allocate this register.
-  FeedbackVectorSlot slot = instr->hydrogen()->slot();
-  int index = vector->GetIndex(slot);
-  __ Mov(slot_register, Smi::FromInt(index));
-}
-
-
-template <class T>
-void LCodeGen::EmitVectorStoreICRegisters(T* instr) {
-  Register vector_register = ToRegister(instr->temp_vector());
-  Register slot_register = ToRegister(instr->temp_slot());
-
-  AllowDeferredHandleDereference vector_structure_check;
-  Handle<TypeFeedbackVector> vector = instr->hydrogen()->feedback_vector();
-  __ Mov(vector_register, vector);
   FeedbackVectorSlot slot = instr->hydrogen()->slot();
   int index = vector->GetIndex(slot);
   __ Mov(slot_register, Smi::FromInt(index));
@@ -4933,21 +4928,6 @@ void LCodeGen::DoStoreKeyedFixed(LStoreKeyedFixed* instr) {
 }
 
 
-void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
-  DCHECK(ToRegister(instr->context()).is(cp));
-  DCHECK(ToRegister(instr->object()).is(StoreDescriptor::ReceiverRegister()));
-  DCHECK(ToRegister(instr->key()).is(StoreDescriptor::NameRegister()));
-  DCHECK(ToRegister(instr->value()).is(StoreDescriptor::ValueRegister()));
-
-  EmitVectorStoreICRegisters<LStoreKeyedGeneric>(instr);
-
-  Handle<Code> ic = CodeFactory::KeyedStoreICInOptimizedCode(
-                        isolate(), instr->language_mode())
-                        .code();
-  CallCode(ic, RelocInfo::CODE_TARGET, instr);
-}
-
-
 void LCodeGen::DoMaybeGrowElements(LMaybeGrowElements* instr) {
   class DeferredMaybeGrowElements final : public LDeferredCode {
    public:
@@ -5128,21 +5108,6 @@ void LCodeGen::DoStoreNamedField(LStoreNamedField* instr) {
                         instr->hydrogen()->SmiCheckForWriteBarrier(),
                         instr->hydrogen()->PointersToHereCheckForValue());
   }
-}
-
-
-void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
-  DCHECK(ToRegister(instr->context()).is(cp));
-  DCHECK(ToRegister(instr->object()).is(StoreDescriptor::ReceiverRegister()));
-  DCHECK(ToRegister(instr->value()).is(StoreDescriptor::ValueRegister()));
-
-  EmitVectorStoreICRegisters<LStoreNamedGeneric>(instr);
-
-  __ Mov(StoreDescriptor::NameRegister(), Operand(instr->name()));
-  Handle<Code> ic =
-      CodeFactory::StoreICInOptimizedCode(isolate(), instr->language_mode())
-          .code();
-  CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
 

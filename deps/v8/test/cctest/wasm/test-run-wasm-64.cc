@@ -11,8 +11,8 @@
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
-#include "test/cctest/wasm/test-signatures.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/common/wasm/test-signatures.h"
 
 // If the target architecture is 64-bit, enable all tests.
 #if !V8_TARGET_ARCH_32_BIT || V8_TARGET_ARCH_X64
@@ -32,7 +32,6 @@
 #define asu64(x) static_cast<uint64_t>(x)
 
 #define B2(a, b) kExprBlock, a, b, kExprEnd
-#define B1(a) kExprBlock, a, kExprEnd
 
 // Can't bridge macro land with nested macros.
 #if V8_TARGET_ARCH_MIPS
@@ -835,8 +834,8 @@ WASM_EXEC_TEST(CallI64Parameter) {
     WasmRunner<int32_t> r(&module);
     BUILD(
         r,
-        WASM_I32_CONVERT_I64(WASM_CALL_FUNCTIONN(
-            19, index, WASM_I64V_9(0xbcd12340000000b),
+        WASM_I32_CONVERT_I64(WASM_CALL_FUNCTION(
+            index, WASM_I64V_9(0xbcd12340000000b),
             WASM_I64V_9(0xbcd12340000000c), WASM_I32V_1(0xd),
             WASM_I32_CONVERT_I64(WASM_I64V_9(0xbcd12340000000e)),
             WASM_I64V_9(0xbcd12340000000f), WASM_I64V_10(0xbcd1234000000010),
@@ -1119,7 +1118,7 @@ WASM_EXEC_TEST(Call_Int64Sub) {
 
   // Build the caller function.
   WasmRunner<int64_t> r(&module, MachineType::Int64(), MachineType::Int64());
-  BUILD(r, WASM_CALL_FUNCTION2(index, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  BUILD(r, WASM_CALL_FUNCTION(index, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
 
   FOR_INT32_INPUTS(i) {
     FOR_INT32_INPUTS(j) {
@@ -1154,7 +1153,11 @@ WASM_EXEC_TEST(LoadStoreI64_sx) {
         ZERO_OFFSET,          // --
         kExprI64StoreMem,     // --
         ZERO_ALIGNMENT,       // --
-        ZERO_OFFSET           // --
+        ZERO_OFFSET,          // --
+        kExprI8Const,     0,  // --
+        loads[m],             // --
+        ZERO_ALIGNMENT,       // --
+        ZERO_OFFSET,          // --
     };
 
     r.Build(code, code + arraysize(code));
@@ -1256,10 +1259,9 @@ WASM_EXEC_TEST(F64ReinterpretI64) {
   int64_t* memory = module.AddMemoryElems<int64_t>(8);
   WasmRunner<int64_t> r(&module, MachineType::Int64());
 
-  BUILD(r,
-        WASM_BLOCK(WASM_STORE_MEM(MachineType::Float64(), WASM_ZERO,
-                                  WASM_F64_REINTERPRET_I64(WASM_GET_LOCAL(0))),
-                   WASM_GET_LOCAL(0)));
+  BUILD(r, WASM_STORE_MEM(MachineType::Float64(), WASM_ZERO,
+                          WASM_F64_REINTERPRET_I64(WASM_GET_LOCAL(0))),
+        WASM_GET_LOCAL(0));
 
   FOR_INT32_INPUTS(i) {
     int64_t expected = static_cast<int64_t>(*i) * 0x300010001;
@@ -1320,18 +1322,17 @@ WASM_EXEC_TEST(MemI64_Sum) {
   WasmRunner<uint64_t> r(&module, MachineType::Int32());
   const byte kSum = r.AllocateLocal(kAstI64);
 
-  BUILD(r,
-        WASM_BLOCK(
-            WASM_WHILE(
-                WASM_GET_LOCAL(0),
-                WASM_BLOCK(
-                    WASM_SET_LOCAL(
-                        kSum, WASM_I64_ADD(WASM_GET_LOCAL(kSum),
-                                           WASM_LOAD_MEM(MachineType::Int64(),
-                                                         WASM_GET_LOCAL(0)))),
-                    WASM_SET_LOCAL(
-                        0, WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_I8(8))))),
-            WASM_GET_LOCAL(1)));
+  BUILD(
+      r,
+      WASM_WHILE(
+          WASM_GET_LOCAL(0),
+          WASM_BLOCK(
+              WASM_SET_LOCAL(kSum,
+                             WASM_I64_ADD(WASM_GET_LOCAL(kSum),
+                                          WASM_LOAD_MEM(MachineType::Int64(),
+                                                        WASM_GET_LOCAL(0)))),
+              WASM_SET_LOCAL(0, WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_I8(8))))),
+      WASM_GET_LOCAL(1));
 
   // Run 4 trials.
   for (int i = 0; i < 3; i++) {
@@ -1353,7 +1354,8 @@ WASM_EXEC_TEST(StoreMemI64_alignment) {
   for (byte i = 0; i <= 3; i++) {
     WasmRunner<int64_t> r(&module, MachineType::Int64());
     BUILD(r, WASM_STORE_MEM_ALIGNMENT(MachineType::Int64(), WASM_ZERO, i,
-                                      WASM_GET_LOCAL(0)));
+                                      WASM_GET_LOCAL(0)),
+          WASM_GET_LOCAL(0));
     module.RandomizeMemory(1111);
     module.WriteMemory<int64_t>(&memory[0], 0);
 
@@ -1371,10 +1373,10 @@ WASM_EXEC_TEST(I64Global) {
   int64_t* global = module.AddGlobal<int64_t>(kAstI64);
   WasmRunner<int32_t> r(&module, MachineType::Int32());
   // global = global + p0
-  BUILD(r, B2(WASM_SET_GLOBAL(
-                  0, WASM_I64_AND(WASM_GET_GLOBAL(0),
-                                  WASM_I64_SCONVERT_I32(WASM_GET_LOCAL(0)))),
-              WASM_ZERO));
+  BUILD(r, WASM_SET_GLOBAL(
+               0, WASM_I64_AND(WASM_GET_GLOBAL(0),
+                               WASM_I64_SCONVERT_I32(WASM_GET_LOCAL(0)))),
+        WASM_ZERO);
 
   module.WriteMemory<int64_t>(global, 0xFFFFFFFFFFFFFFFFLL);
   for (int i = 9; i < 444444; i += 111111) {
@@ -1464,7 +1466,7 @@ static void CompileCallIndirectMany(LocalType param) {
   // with many many parameters.
   TestSignatures sigs;
   for (byte num_params = 0; num_params < 40; num_params++) {
-    v8::base::AccountingAllocator allocator;
+    v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator);
     HandleScope scope(CcTest::InitIsolateOnce());
     TestingModule module(kExecuteCompiled);
@@ -1477,11 +1479,11 @@ static void CompileCallIndirectMany(LocalType param) {
     WasmFunctionCompiler t(sig, &module);
 
     std::vector<byte> code;
-    ADD_CODE(code, kExprI8Const, 0);
     for (byte p = 0; p < num_params; p++) {
       ADD_CODE(code, kExprGetLocal, p);
     }
-    ADD_CODE(code, kExprCallIndirect, static_cast<byte>(num_params), 1);
+    ADD_CODE(code, kExprI8Const, 0);
+    ADD_CODE(code, kExprCallIndirect, 1);
 
     t.Build(&code[0], &code[0] + code.size());
     t.Compile();
@@ -1504,7 +1506,7 @@ static void Run_WasmMixedCall_N(WasmExecutionMode execution_mode, int start) {
 
   int num_params = static_cast<int>(arraysize(mixed)) - start;
   for (int which = 0; which < num_params; which++) {
-    v8::base::AccountingAllocator allocator;
+    v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator);
     TestingModule module(execution_mode);
     module.AddMemory(1024);
@@ -1540,8 +1542,7 @@ static void Run_WasmMixedCall_N(WasmExecutionMode execution_mode, int start) {
     }
 
     // Call the selector function.
-    ADD_CODE(code, kExprCallFunction, static_cast<byte>(num_params),
-             static_cast<byte>(index));
+    ADD_CODE(code, kExprCallFunction, static_cast<byte>(index));
 
     // Store the result in memory.
     ADD_CODE(code,

@@ -276,12 +276,13 @@ class AsmTyperHarnessBuilder {
  private:
   Variable* DeclareVariable(VariableName var_name) {
     auto* name_ast_string = ast_value_factory_.GetOneByteString(var_name.name_);
+    ast_value_factory_.Internalize(isolate_);
     return var_name.mode_ == DYNAMIC_GLOBAL
                ? outer_scope_->DeclareDynamicGlobal(name_ast_string,
-                                                    Variable::NORMAL)
+                                                    NORMAL_VARIABLE)
                : module_->scope()->DeclareLocal(name_ast_string, VAR,
                                                 kCreatedInitialized,
-                                                Variable::NORMAL);
+                                                NORMAL_VARIABLE);
   }
 
   bool ValidateAllStatements(FunctionDeclaration* fun_decl) {
@@ -514,7 +515,6 @@ TEST(ErrorsInGlobalVariableDefinition) {
       {"var v = __fround__(1.0);", "expected call fround(literal)"},
       {"var v = fround(1.0, 1.0);", "expected call fround(literal)"},
       {"var v = fround(not_fround);", "literal argument for call to fround"},
-      {"var v = fround(1);", "literal argument to be a floating point"},
       {"var v = stdlib.nan", "Invalid import"},
       {"var v = stdlib.Math.nan", "Invalid import"},
       {"var v = stdlib.Mathh.E", "Invalid import"},

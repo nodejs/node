@@ -129,13 +129,13 @@ Register NamedStoreHandlerCompiler::FrontendHeader(Register object_reg,
 
 Register PropertyHandlerCompiler::Frontend(Handle<Name> name) {
   Label miss;
-  if (IC::ICUseVector(kind())) {
+  if (IC::ShouldPushPopSlotAndVector(kind())) {
     PushVectorAndSlot();
   }
   Register reg = FrontendHeader(receiver(), name, &miss, RETURN_HOLDER);
   FrontendFooter(name, &miss);
   // The footer consumes the vector and slot from the stack if miss occurs.
-  if (IC::ICUseVector(kind())) {
+  if (IC::ShouldPushPopSlotAndVector(kind())) {
     DiscardVectorAndSlot();
   }
   return reg;
@@ -209,12 +209,12 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadConstant(Handle<Name> name,
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadNonexistent(
     Handle<Name> name) {
   Label miss;
-  if (IC::ICUseVector(kind())) {
+  if (IC::ShouldPushPopSlotAndVector(kind())) {
     DCHECK(kind() == Code::LOAD_IC);
     PushVectorAndSlot();
   }
   NonexistentFrontendHeader(name, &miss, scratch2(), scratch3());
-  if (IC::ICUseVector(kind())) {
+  if (IC::ShouldPushPopSlotAndVector(kind())) {
     DiscardVectorAndSlot();
   }
   GenerateLoadConstant(isolate()->factory()->undefined_value());
@@ -247,7 +247,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
 
 
 void NamedLoadHandlerCompiler::InterceptorVectorSlotPush(Register holder_reg) {
-  if (IC::ICUseVector(kind())) {
+  if (IC::ShouldPushPopSlotAndVector(kind())) {
     if (holder_reg.is(receiver())) {
       PushVectorAndSlot();
     } else {
@@ -260,7 +260,7 @@ void NamedLoadHandlerCompiler::InterceptorVectorSlotPush(Register holder_reg) {
 
 void NamedLoadHandlerCompiler::InterceptorVectorSlotPop(Register holder_reg,
                                                         PopMode mode) {
-  if (IC::ICUseVector(kind())) {
+  if (IC::ShouldPushPopSlotAndVector(kind())) {
     if (mode == DISCARD) {
       DiscardVectorAndSlot();
     } else {
@@ -438,7 +438,31 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
     Handle<Map> transition, Handle<Name> name) {
   Label miss;
 
-  PushVectorAndSlot();
+  // Ensure that the StoreTransitionStub we are going to call has the same
+  // number of stack arguments. This means that we don't have to adapt them
+  // if we decide to call the transition or miss stub.
+  STATIC_ASSERT(Descriptor::kStackArgumentsCount ==
+                StoreTransitionDescriptor::kStackArgumentsCount);
+  STATIC_ASSERT(Descriptor::kStackArgumentsCount == 0 ||
+                Descriptor::kStackArgumentsCount == 3);
+  STATIC_ASSERT(Descriptor::kParameterCount - Descriptor::kValue ==
+                StoreTransitionDescriptor::kParameterCount -
+                    StoreTransitionDescriptor::kValue);
+  STATIC_ASSERT(Descriptor::kParameterCount - Descriptor::kSlot ==
+                StoreTransitionDescriptor::kParameterCount -
+                    StoreTransitionDescriptor::kSlot);
+  STATIC_ASSERT(Descriptor::kParameterCount - Descriptor::kVector ==
+                StoreTransitionDescriptor::kParameterCount -
+                    StoreTransitionDescriptor::kVector);
+
+  if (Descriptor::kPassLastArgsOnStack) {
+    __ LoadParameterFromStack<Descriptor>(value(), Descriptor::kValue);
+  }
+
+  bool need_save_restore = IC::ShouldPushPopSlotAndVector(kind());
+  if (need_save_restore) {
+    PushVectorAndSlot();
+  }
 
   // Check that we are allowed to write this.
   bool is_nonexistent = holder()->map() == transition->GetBackPointer();
@@ -470,23 +494,17 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
   DCHECK(!transition->is_access_check_needed());
 
   // Call to respective StoreTransitionStub.
-  bool virtual_args = StoreTransitionHelper::HasVirtualSlotArg();
-  Register map_reg = StoreTransitionHelper::MapRegister();
+  Register map_reg = StoreTransitionDescriptor::MapRegister();
 
   if (details.type() == DATA_CONSTANT) {
     DCHECK(descriptors->GetValue(descriptor)->IsJSFunction());
-    Register tmp =
-        virtual_args ? StoreWithVectorDescriptor::VectorRegister() : map_reg;
-    GenerateRestoreMap(transition, tmp, scratch2(), &miss);
-    GenerateConstantCheck(tmp, descriptor, value(), scratch2(), &miss);
-    if (virtual_args) {
-      // This will move the map from tmp into map_reg.
-      RearrangeVectorAndSlot(tmp, map_reg);
-    } else {
+    GenerateRestoreMap(transition, map_reg, scratch1(), &miss);
+    GenerateConstantCheck(map_reg, descriptor, value(), scratch1(), &miss);
+    if (need_save_restore) {
       PopVectorAndSlot();
     }
     GenerateRestoreName(name);
-    StoreTransitionStub stub(isolate());
+    StoreMapStub stub(isolate());
     GenerateTailCall(masm(), stub.GetCode());
 
   } else {
@@ -498,24 +516,29 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
         Map::cast(transition->GetBackPointer())->unused_property_fields() == 0
             ? StoreTransitionStub::ExtendStorageAndStoreMapAndValue
             : StoreTransitionStub::StoreMapAndValue;
-
-    Register tmp =
-        virtual_args ? StoreWithVectorDescriptor::VectorRegister() : map_reg;
-    GenerateRestoreMap(transition, tmp, scratch2(), &miss);
-    if (virtual_args) {
-      RearrangeVectorAndSlot(tmp, map_reg);
-    } else {
+    GenerateRestoreMap(transition, map_reg, scratch1(), &miss);
+    if (need_save_restore) {
       PopVectorAndSlot();
     }
-    GenerateRestoreName(name);
-    StoreTransitionStub stub(isolate(),
-                             FieldIndex::ForDescriptor(*transition, descriptor),
-                             representation, store_mode);
+    // We need to pass name on the stack.
+    PopReturnAddress(this->name());
+    __ Push(name);
+    PushReturnAddress(this->name());
+
+    FieldIndex index = FieldIndex::ForDescriptor(*transition, descriptor);
+    __ Move(StoreNamedTransitionDescriptor::FieldOffsetRegister(),
+            Smi::FromInt(index.index() << kPointerSizeLog2));
+
+    StoreTransitionStub stub(isolate(), index.is_inobject(), representation,
+                             store_mode);
     GenerateTailCall(masm(), stub.GetCode());
   }
 
-  GenerateRestoreName(&miss, name);
-  PopVectorAndSlot();
+  __ bind(&miss);
+  if (need_save_restore) {
+    PopVectorAndSlot();
+  }
+  GenerateRestoreName(name);
   TailCallBuiltin(masm(), MissBuiltin(kind()));
 
   return GetCode(kind(), name);
@@ -534,7 +557,10 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreField(LookupIterator* it) {
   FieldType* field_type = *it->GetFieldType();
   bool need_save_restore = false;
   if (RequiresFieldTypeChecks(field_type)) {
-    need_save_restore = IC::ICUseVector(kind());
+    need_save_restore = IC::ShouldPushPopSlotAndVector(kind());
+    if (Descriptor::kPassLastArgsOnStack) {
+      __ LoadParameterFromStack<Descriptor>(value(), Descriptor::kValue);
+    }
     if (need_save_restore) PushVectorAndSlot();
     GenerateFieldTypeChecks(field_type, value(), &miss);
     if (need_save_restore) PopVectorAndSlot();
@@ -568,6 +594,9 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
     GenerateTailCall(masm(), slow_stub);
   }
   Register holder = Frontend(name);
+  if (Descriptor::kPassLastArgsOnStack) {
+    __ LoadParameterFromStack<Descriptor>(value(), Descriptor::kValue);
+  }
   GenerateApiAccessorCall(masm(), call_optimization, handle(object->map()),
                           receiver(), scratch2(), true, value(), holder,
                           accessor_index);
@@ -601,13 +630,21 @@ Handle<Object> ElementHandlerCompiler::GetKeyedLoadHandler(
     TRACE_HANDLER_STATS(isolate, KeyedLoadIC_KeyedLoadSloppyArgumentsStub);
     return KeyedLoadSloppyArgumentsStub(isolate).GetCode();
   }
+  bool is_js_array = instance_type == JS_ARRAY_TYPE;
   if (elements_kind == DICTIONARY_ELEMENTS) {
+    if (FLAG_tf_load_ic_stub) {
+      int config = KeyedLoadElementsKind::encode(elements_kind) |
+                   KeyedLoadConvertHole::encode(false) |
+                   KeyedLoadIsJsArray::encode(is_js_array) |
+                   LoadHandlerTypeBit::encode(kLoadICHandlerForElements);
+      return handle(Smi::FromInt(config), isolate);
+    }
     TRACE_HANDLER_STATS(isolate, KeyedLoadIC_LoadDictionaryElementStub);
     return LoadDictionaryElementStub(isolate).GetCode();
   }
   DCHECK(IsFastElementsKind(elements_kind) ||
          IsFixedTypedArrayElementsKind(elements_kind));
-  bool is_js_array = instance_type == JS_ARRAY_TYPE;
+  // TODO(jkummerow): Use IsHoleyElementsKind(elements_kind).
   bool convert_hole_to_undefined =
       is_js_array && elements_kind == FAST_HOLEY_ELEMENTS &&
       *receiver_map == isolate->get_initial_js_array_map(elements_kind);

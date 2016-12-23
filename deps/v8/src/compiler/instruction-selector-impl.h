@@ -90,6 +90,12 @@ class OperandGenerator {
                                         GetVReg(node)));
   }
 
+  InstructionOperand UseAnyAtEnd(Node* node) {
+    return Use(node, UnallocatedOperand(UnallocatedOperand::ANY,
+                                        UnallocatedOperand::USED_AT_END,
+                                        GetVReg(node)));
+  }
+
   InstructionOperand UseAny(Node* node) {
     return Use(node, UnallocatedOperand(UnallocatedOperand::ANY,
                                         UnallocatedOperand::USED_AT_START,

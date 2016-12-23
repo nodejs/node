@@ -1,4 +1,0 @@
-*%(basename)s:17: SyntaxError: Tail call expression in try block
-      return continue f()  ;
-             ^^^^^^^^^^^^
-SyntaxError: Tail call expression in try block

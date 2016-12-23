@@ -6,30 +6,34 @@
 """Script to generate V8's gn arguments based on common developer defaults
 or builder configurations.
 
-Goma is used by default if a goma folder is detected. The compiler proxy is
-assumed to run.
+Goma is used by default if detected. The compiler proxy is assumed to run.
 
-This script can be added to the PATH and be used on other v8 checkouts than
-the including one. It always runs for the checkout that nests the CWD.
+This script can be added to the PATH and be used on other checkouts. It always
+runs for the checkout nesting the CWD.
 
 Configurations of this script live in infra/mb/mb_config.pyl.
+
+Available actions are: {gen,list}. Omitting the action defaults to "gen".
 
 -------------------------------------------------------------------------------
 
 Examples:
 
-# Generate the x64.release config in out.gn/x64.release.
-v8gen.py x64.release
+# Generate the ia32.release config in out.gn/ia32.release.
+v8gen.py ia32.release
 
-# Generate into out.gn/foo and disable goma auto-detect.
-v8gen.py -b x64.release foo --no-goma
+# Generate into out.gn/foo without goma auto-detect.
+v8gen.py gen -b ia32.release foo --no-goma
 
 # Pass additional gn arguments after -- (don't use spaces within gn args).
-v8gen.py x64.optdebug -- v8_enable_slow_dchecks=true
+v8gen.py ia32.optdebug -- v8_enable_slow_dchecks=true
 
 # Generate gn arguments of 'V8 Linux64 - builder' from 'client.v8'. To switch
 # off goma usage here, the args.gn file must be edited manually.
 v8gen.py -m client.v8 -b 'V8 Linux64 - builder'
+
+# Show available configurations.
+v8gen.py list
 
 -------------------------------------------------------------------------------
 """
@@ -40,8 +44,14 @@ import re
 import subprocess
 import sys
 
+CONFIG = os.path.join('infra', 'mb', 'mb_config.pyl')
 GOMA_DEFAULT = os.path.join(os.path.expanduser("~"), 'goma')
 OUT_DIR = 'out.gn'
+
+TOOLS_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.join(TOOLS_PATH, 'mb'))
+
+import mb
 
 
 def _sanitize_nonalpha(text):
@@ -57,30 +67,40 @@ class GenerateGnArgs(object):
     self._gn_args = args[index + 1:]
 
   def _parse_arguments(self, args):
-    parser = argparse.ArgumentParser(
+    self.parser = argparse.ArgumentParser(
       description=__doc__,
       formatter_class=argparse.RawTextHelpFormatter,
     )
-    parser.add_argument(
+
+    def add_common_options(p):
+      p.add_argument(
+          '-m', '--master', default='developer_default',
+          help='config group or master from mb_config.pyl - default: '
+               'developer_default')
+      p.add_argument(
+          '-v', '--verbosity', action='count',
+          help='print wrapped commands (use -vv to print output of wrapped '
+               'commands)')
+
+    subps = self.parser.add_subparsers()
+
+    # Command: gen.
+    gen_cmd = subps.add_parser(
+        'gen', help='generate a new set of build files (default)')
+    gen_cmd.set_defaults(func=self.cmd_gen)
+    add_common_options(gen_cmd)
+    gen_cmd.add_argument(
         'outdir', nargs='?',
         help='optional gn output directory')
-    parser.add_argument(
+    gen_cmd.add_argument(
         '-b', '--builder',
         help='build configuration or builder name from mb_config.pyl, e.g. '
              'x64.release')
-    parser.add_argument(
-        '-m', '--master', default='developer_default',
-        help='config group or master from mb_config.pyl - default: '
-             'developer_default')
-    parser.add_argument(
+    gen_cmd.add_argument(
         '-p', '--pedantic', action='store_true',
         help='run gn over command-line gn args to catch errors early')
-    parser.add_argument(
-        '-v', '--verbosity', action='count',
-        help='print wrapped commands (use -vv to print output of wrapped '
-             'commands)')
 
-    goma = parser.add_mutually_exclusive_group()
+    goma = gen_cmd.add_mutually_exclusive_group()
     goma.add_argument(
         '-g' , '--goma',
         action='store_true', default=None, dest='goma',
@@ -91,27 +111,83 @@ class GenerateGnArgs(object):
         help='don\'t use goma auto detection - goma might still be used if '
              'specified as a gn arg')
 
-    options = parser.parse_args(args)
+    # Command: list.
+    list_cmd = subps.add_parser(
+        'list', help='list available configurations')
+    list_cmd.set_defaults(func=self.cmd_list)
+    add_common_options(list_cmd)
 
-    if not options.outdir and not options.builder:
-      parser.error('please specify either an output directory or '
-                   'a builder/config name (-b), e.g. x64.release')
+    # Default to "gen" unless global help is requested.
+    if not args or args[0] not in subps.choices.keys() + ['-h', '--help']:
+      args = ['gen'] + args
 
-    if not options.outdir:
+    return self.parser.parse_args(args)
+
+  def cmd_gen(self):
+    if not self._options.outdir and not self._options.builder:
+      self.parser.error('please specify either an output directory or '
+                        'a builder/config name (-b), e.g. x64.release')
+
+    if not self._options.outdir:
       # Derive output directory from builder name.
-      options.outdir = _sanitize_nonalpha(options.builder)
+      self._options.outdir = _sanitize_nonalpha(self._options.builder)
     else:
       # Also, if this should work on windows, we might need to use \ where
       # outdir is used as path, while using / if it's used in a gn context.
-      if options.outdir.startswith('/'):
-        parser.error(
+      if self._options.outdir.startswith('/'):
+        self.parser.error(
             'only output directories relative to %s are supported' % OUT_DIR)
 
-    if not options.builder:
+    if not self._options.builder:
       # Derive builder from output directory.
-      options.builder = options.outdir
+      self._options.builder = self._options.outdir
 
-    return options
+    # Check for builder/config in mb config.
+    if self._options.builder not in self._mbw.masters[self._options.master]:
+      print '%s does not exist in %s for %s' % (
+          self._options.builder, CONFIG, self._options.master)
+      return 1
+
+    # TODO(machenbach): Check if the requested configurations has switched to
+    # gn at all.
+
+    # The directories are separated with slashes in a gn context (platform
+    # independent).
+    gn_outdir = '/'.join([OUT_DIR, self._options.outdir])
+
+    # Call MB to generate the basic configuration.
+    self._call_cmd([
+      sys.executable,
+      '-u', os.path.join('tools', 'mb', 'mb.py'),
+      'gen',
+      '-f', CONFIG,
+      '-m', self._options.master,
+      '-b', self._options.builder,
+      gn_outdir,
+    ])
+
+    # Handle extra gn arguments.
+    gn_args_path = os.path.join(OUT_DIR, self._options.outdir, 'args.gn')
+
+    # Append command-line args.
+    modified = self._append_gn_args(
+        'command-line', gn_args_path, '\n'.join(self._gn_args))
+
+    # Append goma args.
+    # TODO(machenbach): We currently can't remove existing goma args from the
+    # original config. E.g. to build like a bot that uses goma, but switch
+    # goma off.
+    modified |= self._append_gn_args(
+        'goma', gn_args_path, self._goma_args)
+
+    # Regenerate ninja files to check for errors in the additional gn args.
+    if modified and self._options.pedantic:
+      self._call_cmd(['gn', 'gen', gn_outdir])
+    return 0
+
+  def cmd_list(self):
+    print '\n'.join(sorted(self._mbw.masters[self._options.master]))
+    return 0
 
   def verbose_print_1(self, text):
     if self._options.verbosity >= 1:
@@ -189,6 +265,13 @@ class GenerateGnArgs(object):
       f.write('\n# Additional %s args:\n' % type)
       f.write(more_gn_args)
       f.write('\n')
+
+    # Artificially increment modification time as our modifications happen too
+    # fast. This makes sure that gn is properly rebuilding the ninja files.
+    mtime = os.path.getmtime(gn_args_path) + 1
+    with open(gn_args_path, 'aw'):
+      os.utime(gn_args_path, (mtime, mtime))
+
     return True
 
   def main(self):
@@ -199,39 +282,21 @@ class GenerateGnArgs(object):
       self.verbose_print_1('cd ' + workdir)
       os.chdir(workdir)
 
-    # The directories are separated with slashes in a gn context (platform
-    # independent).
-    gn_outdir = '/'.join([OUT_DIR, self._options.outdir])
+    # Initialize MB as a library.
+    self._mbw = mb.MetaBuildWrapper()
 
-    # Call MB to generate the basic configuration.
-    self._call_cmd([
-      sys.executable,
-      '-u', os.path.join('tools', 'mb', 'mb.py'),
-      'gen',
-      '-f', os.path.join('infra', 'mb', 'mb_config.pyl'),
-      '-m', self._options.master,
-      '-b', self._options.builder,
-      gn_outdir,
-    ])
+    # TODO(machenbach): Factor out common methods independent of mb arguments.
+    self._mbw.ParseArgs(['lookup', '-f', CONFIG])
+    self._mbw.ReadConfigFile()
 
-    # Handle extra gn arguments.
-    gn_args_path = os.path.join(OUT_DIR, self._options.outdir, 'args.gn')
+    if not self._options.master in self._mbw.masters:
+      print '%s not found in %s\n' % (self._options.master, CONFIG)
+      print 'Choose one of:\n%s\n' % (
+          '\n'.join(sorted(self._mbw.masters.keys())))
+      return 1
 
-    # Append command-line args.
-    modified = self._append_gn_args(
-        'command-line', gn_args_path, '\n'.join(self._gn_args))
+    return self._options.func()
 
-    # Append goma args.
-    # TODO(machenbach): We currently can't remove existing goma args from the
-    # original config. E.g. to build like a bot that uses goma, but switch
-    # goma off.
-    modified |= self._append_gn_args(
-        'goma', gn_args_path, self._goma_args)
-
-    # Regenerate ninja files to check for errors in the additional gn args.
-    if modified and self._options.pedantic:
-      self._call_cmd(['gn', 'gen', gn_outdir])
-    return 0
 
 if __name__ == "__main__":
   gen = GenerateGnArgs(sys.argv[1:])

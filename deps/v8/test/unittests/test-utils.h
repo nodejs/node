@@ -8,7 +8,8 @@
 #include "include/v8.h"
 #include "src/base/macros.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/zone.h"
+#include "src/zone/accounting-allocator.h"
+#include "src/zone/zone.h"
 #include "testing/gtest-support.h"
 
 namespace v8 {
@@ -103,7 +104,7 @@ class TestWithZone : public virtual ::testing::Test {
   Zone* zone() { return &zone_; }
 
  private:
-  base::AccountingAllocator allocator_;
+  v8::internal::AccountingAllocator allocator_;
   Zone zone_;
 
   DISALLOW_COPY_AND_ASSIGN(TestWithZone);
@@ -118,7 +119,7 @@ class TestWithIsolateAndZone : public virtual TestWithIsolate {
   Zone* zone() { return &zone_; }
 
  private:
-  base::AccountingAllocator allocator_;
+  v8::internal::AccountingAllocator allocator_;
   Zone zone_;
 
   DISALLOW_COPY_AND_ASSIGN(TestWithIsolateAndZone);

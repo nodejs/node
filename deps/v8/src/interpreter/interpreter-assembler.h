@@ -32,6 +32,9 @@ class InterpreterAssembler : public CodeStubAssembler {
   // Returns the index immediate for bytecode operand |operand_index| in the
   // current bytecode.
   compiler::Node* BytecodeOperandIdx(int operand_index);
+  // Returns the UImm8 immediate for bytecode operand |operand_index| in the
+  // current bytecode.
+  compiler::Node* BytecodeOperandUImm(int operand_index);
   // Returns the Imm8 immediate for bytecode operand |operand_index| in the
   // current bytecode.
   compiler::Node* BytecodeOperandImm(int operand_index);
@@ -52,6 +55,15 @@ class InterpreterAssembler : public CodeStubAssembler {
   // Context.
   compiler::Node* GetContext();
   void SetContext(compiler::Node* value);
+
+  // Context at |depth| in the context chain starting at |context|.
+  compiler::Node* GetContextAtDepth(compiler::Node* context,
+                                    compiler::Node* depth);
+
+  // Goto the given |target| if the context chain starting at |context| has any
+  // extensions up to the given |depth|.
+  void GotoIfHasContextExtensionUpToDepth(compiler::Node* context,
+                                          compiler::Node* depth, Label* target);
 
   // Number of registers.
   compiler::Node* RegisterCount();
@@ -92,6 +104,11 @@ class InterpreterAssembler : public CodeStubAssembler {
   // Load the TypeFeedbackVector for the current function.
   compiler::Node* LoadTypeFeedbackVector();
 
+  // Increment the call count for a CALL_IC or construct call.
+  // The call count is located at feedback_vector[slot_id + 1].
+  compiler::Node* IncrementCallCount(compiler::Node* type_feedback_vector,
+                                     compiler::Node* slot_id);
+
   // Call JSFunction or Callable |function| with |arg_count|
   // arguments (not including receiver) and the first argument
   // located at |first_arg|. Type feedback is collected in the
@@ -120,7 +137,9 @@ class InterpreterAssembler : public CodeStubAssembler {
                                 compiler::Node* context,
                                 compiler::Node* new_target,
                                 compiler::Node* first_arg,
-                                compiler::Node* arg_count);
+                                compiler::Node* arg_count,
+                                compiler::Node* slot_id,
+                                compiler::Node* type_feedback_vector);
 
   // Call runtime function with |arg_count| arguments and the first argument
   // located at |first_arg|.

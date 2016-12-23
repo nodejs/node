@@ -403,9 +403,8 @@ void Serializer::ObjectSerializer::SerializeExternalString() {
         ExternalTwoByteString::cast(string)->resource()->data());
   }
 
-  AllocationSpace space = (allocation_size > Page::kMaxRegularHeapObjectSize)
-                              ? LO_SPACE
-                              : OLD_SPACE;
+  AllocationSpace space =
+      (allocation_size > kMaxRegularHeapObjectSize) ? LO_SPACE : OLD_SPACE;
   SerializePrologue(space, allocation_size, map);
 
   // Output the rest of the imaginary string.

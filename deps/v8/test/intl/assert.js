@@ -27,6 +27,14 @@
 
 // Some methods are taken from v8/test/mjsunit/mjsunit.js
 
+
+function classOf(object) {
+   // Argument must not be null or undefined.
+   var string = Object.prototype.toString.call(object);
+   // String has format [object <ClassName>].
+   return string.substring(8, string.length - 1);
+}
+
 /**
  * Compares two objects for key/value equality.
  * Returns true if they are equal, false otherwise.

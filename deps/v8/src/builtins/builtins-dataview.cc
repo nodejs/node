@@ -129,5 +129,209 @@ BUILTIN(DataViewPrototypeGetByteOffset) {
   return data_view->byte_offset();
 }
 
+namespace {
+
+bool NeedToFlipBytes(bool is_little_endian) {
+#ifdef V8_TARGET_LITTLE_ENDIAN
+  return !is_little_endian;
+#else
+  return is_little_endian;
+#endif
+}
+
+template <size_t n>
+void CopyBytes(uint8_t* target, uint8_t const* source) {
+  for (size_t i = 0; i < n; i++) {
+    *(target++) = *(source++);
+  }
+}
+
+template <size_t n>
+void FlipBytes(uint8_t* target, uint8_t const* source) {
+  source = source + (n - 1);
+  for (size_t i = 0; i < n; i++) {
+    *(target++) = *(source--);
+  }
+}
+
+// ES6 section 24.2.1.1 GetViewValue (view, requestIndex, isLittleEndian, type)
+template <typename T>
+MaybeHandle<Object> GetViewValue(Isolate* isolate, Handle<JSDataView> data_view,
+                                 Handle<Object> request_index,
+                                 bool is_little_endian) {
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, request_index,
+      Object::ToIndex(isolate, request_index,
+                      MessageTemplate::kInvalidDataViewAccessorOffset),
+      Object);
+  size_t get_index = 0;
+  if (!TryNumberToSize(*request_index, &get_index)) {
+    THROW_NEW_ERROR(
+        isolate, NewRangeError(MessageTemplate::kInvalidDataViewAccessorOffset),
+        Object);
+  }
+  Handle<JSArrayBuffer> buffer(JSArrayBuffer::cast(data_view->buffer()),
+                               isolate);
+  size_t const data_view_byte_offset = NumberToSize(data_view->byte_offset());
+  size_t const data_view_byte_length = NumberToSize(data_view->byte_length());
+  if (get_index + sizeof(T) > data_view_byte_length ||
+      get_index + sizeof(T) < get_index) {  // overflow
+    THROW_NEW_ERROR(
+        isolate, NewRangeError(MessageTemplate::kInvalidDataViewAccessorOffset),
+        Object);
+  }
+  union {
+    T data;
+    uint8_t bytes[sizeof(T)];
+  } v;
+  size_t const buffer_offset = data_view_byte_offset + get_index;
+  DCHECK_GE(NumberToSize(buffer->byte_length()), buffer_offset + sizeof(T));
+  uint8_t const* const source =
+      static_cast<uint8_t*>(buffer->backing_store()) + buffer_offset;
+  if (NeedToFlipBytes(is_little_endian)) {
+    FlipBytes<sizeof(T)>(v.bytes, source);
+  } else {
+    CopyBytes<sizeof(T)>(v.bytes, source);
+  }
+  return isolate->factory()->NewNumber(v.data);
+}
+
+template <typename T>
+T DataViewConvertValue(double value);
+
+template <>
+int8_t DataViewConvertValue<int8_t>(double value) {
+  return static_cast<int8_t>(DoubleToInt32(value));
+}
+
+template <>
+int16_t DataViewConvertValue<int16_t>(double value) {
+  return static_cast<int16_t>(DoubleToInt32(value));
+}
+
+template <>
+int32_t DataViewConvertValue<int32_t>(double value) {
+  return DoubleToInt32(value);
+}
+
+template <>
+uint8_t DataViewConvertValue<uint8_t>(double value) {
+  return static_cast<uint8_t>(DoubleToUint32(value));
+}
+
+template <>
+uint16_t DataViewConvertValue<uint16_t>(double value) {
+  return static_cast<uint16_t>(DoubleToUint32(value));
+}
+
+template <>
+uint32_t DataViewConvertValue<uint32_t>(double value) {
+  return DoubleToUint32(value);
+}
+
+template <>
+float DataViewConvertValue<float>(double value) {
+  return static_cast<float>(value);
+}
+
+template <>
+double DataViewConvertValue<double>(double value) {
+  return value;
+}
+
+// ES6 section 24.2.1.2 SetViewValue (view, requestIndex, isLittleEndian, type,
+//                                    value)
+template <typename T>
+MaybeHandle<Object> SetViewValue(Isolate* isolate, Handle<JSDataView> data_view,
+                                 Handle<Object> request_index,
+                                 bool is_little_endian, Handle<Object> value) {
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, request_index,
+      Object::ToIndex(isolate, request_index,
+                      MessageTemplate::kInvalidDataViewAccessorOffset),
+      Object);
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, value, Object::ToNumber(value), Object);
+  size_t get_index = 0;
+  if (!TryNumberToSize(*request_index, &get_index)) {
+    THROW_NEW_ERROR(
+        isolate, NewRangeError(MessageTemplate::kInvalidDataViewAccessorOffset),
+        Object);
+  }
+  Handle<JSArrayBuffer> buffer(JSArrayBuffer::cast(data_view->buffer()),
+                               isolate);
+  size_t const data_view_byte_offset = NumberToSize(data_view->byte_offset());
+  size_t const data_view_byte_length = NumberToSize(data_view->byte_length());
+  if (get_index + sizeof(T) > data_view_byte_length ||
+      get_index + sizeof(T) < get_index) {  // overflow
+    THROW_NEW_ERROR(
+        isolate, NewRangeError(MessageTemplate::kInvalidDataViewAccessorOffset),
+        Object);
+  }
+  union {
+    T data;
+    uint8_t bytes[sizeof(T)];
+  } v;
+  v.data = DataViewConvertValue<T>(value->Number());
+  size_t const buffer_offset = data_view_byte_offset + get_index;
+  DCHECK(NumberToSize(buffer->byte_length()) >= buffer_offset + sizeof(T));
+  uint8_t* const target =
+      static_cast<uint8_t*>(buffer->backing_store()) + buffer_offset;
+  if (NeedToFlipBytes(is_little_endian)) {
+    FlipBytes<sizeof(T)>(target, v.bytes);
+  } else {
+    CopyBytes<sizeof(T)>(target, v.bytes);
+  }
+  return isolate->factory()->undefined_value();
+}
+
+}  // namespace
+
+#define DATA_VIEW_PROTOTYPE_GET(Type, type)                                \
+  BUILTIN(DataViewPrototypeGet##Type) {                                    \
+    HandleScope scope(isolate);                                            \
+    CHECK_RECEIVER(JSDataView, data_view, "DataView.prototype.get" #Type); \
+    Handle<Object> byte_offset = args.atOrUndefined(isolate, 1);           \
+    Handle<Object> is_little_endian = args.atOrUndefined(isolate, 2);      \
+    Handle<Object> result;                                                 \
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(                                    \
+        isolate, result,                                                   \
+        GetViewValue<type>(isolate, data_view, byte_offset,                \
+                           is_little_endian->BooleanValue()));             \
+    return *result;                                                        \
+  }
+DATA_VIEW_PROTOTYPE_GET(Int8, int8_t)
+DATA_VIEW_PROTOTYPE_GET(Uint8, uint8_t)
+DATA_VIEW_PROTOTYPE_GET(Int16, int16_t)
+DATA_VIEW_PROTOTYPE_GET(Uint16, uint16_t)
+DATA_VIEW_PROTOTYPE_GET(Int32, int32_t)
+DATA_VIEW_PROTOTYPE_GET(Uint32, uint32_t)
+DATA_VIEW_PROTOTYPE_GET(Float32, float)
+DATA_VIEW_PROTOTYPE_GET(Float64, double)
+#undef DATA_VIEW_PROTOTYPE_GET
+
+#define DATA_VIEW_PROTOTYPE_SET(Type, type)                                \
+  BUILTIN(DataViewPrototypeSet##Type) {                                    \
+    HandleScope scope(isolate);                                            \
+    CHECK_RECEIVER(JSDataView, data_view, "DataView.prototype.set" #Type); \
+    Handle<Object> byte_offset = args.atOrUndefined(isolate, 1);           \
+    Handle<Object> value = args.atOrUndefined(isolate, 2);                 \
+    Handle<Object> is_little_endian = args.atOrUndefined(isolate, 3);      \
+    Handle<Object> result;                                                 \
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(                                    \
+        isolate, result,                                                   \
+        SetViewValue<type>(isolate, data_view, byte_offset,                \
+                           is_little_endian->BooleanValue(), value));      \
+    return *result;                                                        \
+  }
+DATA_VIEW_PROTOTYPE_SET(Int8, int8_t)
+DATA_VIEW_PROTOTYPE_SET(Uint8, uint8_t)
+DATA_VIEW_PROTOTYPE_SET(Int16, int16_t)
+DATA_VIEW_PROTOTYPE_SET(Uint16, uint16_t)
+DATA_VIEW_PROTOTYPE_SET(Int32, int32_t)
+DATA_VIEW_PROTOTYPE_SET(Uint32, uint32_t)
+DATA_VIEW_PROTOTYPE_SET(Float32, float)
+DATA_VIEW_PROTOTYPE_SET(Float64, double)
+#undef DATA_VIEW_PROTOTYPE_SET
+
 }  // namespace internal
 }  // namespace v8

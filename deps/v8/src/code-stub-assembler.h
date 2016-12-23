@@ -19,6 +19,20 @@ class StubCache;
 
 enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 
+#define HEAP_CONSTANT_LIST(V)                 \
+  V(BooleanMap, BooleanMap)                   \
+  V(empty_string, EmptyString)                \
+  V(EmptyFixedArray, EmptyFixedArray)         \
+  V(FixedArrayMap, FixedArrayMap)             \
+  V(FixedCOWArrayMap, FixedCOWArrayMap)       \
+  V(FixedDoubleArrayMap, FixedDoubleArrayMap) \
+  V(HeapNumberMap, HeapNumberMap)             \
+  V(MinusZeroValue, MinusZero)                \
+  V(NanValue, Nan)                            \
+  V(NullValue, Null)                          \
+  V(TheHoleValue, TheHole)                    \
+  V(UndefinedValue, Undefined)
+
 // Provides JavaScript-specific "macro-assembler" functionality on top of the
 // CodeAssembler. By factoring the JavaScript-isms out of the CodeAssembler,
 // it's possible to add JavaScript-specific useful CodeAssembler "macros"
@@ -46,17 +60,40 @@ class CodeStubAssembler : public compiler::CodeAssembler {
 
   typedef base::Flags<AllocationFlag> AllocationFlags;
 
-  enum ParameterMode { INTEGER_PARAMETERS, SMI_PARAMETERS };
+  // TODO(ishell): Fix all loads/stores from arrays by int32 offsets/indices
+  // and eventually remove INTEGER_PARAMETERS in favour of INTPTR_PARAMETERS.
+  enum ParameterMode { INTEGER_PARAMETERS, SMI_PARAMETERS, INTPTR_PARAMETERS };
 
-  compiler::Node* BooleanMapConstant();
-  compiler::Node* EmptyStringConstant();
-  compiler::Node* HeapNumberMapConstant();
+  // On 32-bit platforms, there is a slight performance advantage to doing all
+  // of the array offset/index arithmetic with SMIs, since it's possible
+  // to save a few tag/untag operations without paying an extra expense when
+  // calculating array offset (the smi math can be folded away) and there are
+  // fewer live ranges. Thus only convert indices to untagged value on 64-bit
+  // platforms.
+  ParameterMode OptimalParameterMode() const {
+    return Is64() ? INTPTR_PARAMETERS : SMI_PARAMETERS;
+  }
+
+  compiler::Node* UntagParameter(compiler::Node* value, ParameterMode mode) {
+    if (mode != SMI_PARAMETERS) value = SmiUntag(value);
+    return value;
+  }
+
+  compiler::Node* TagParameter(compiler::Node* value, ParameterMode mode) {
+    if (mode != SMI_PARAMETERS) value = SmiTag(value);
+    return value;
+  }
+
   compiler::Node* NoContextConstant();
-  compiler::Node* NanConstant();
-  compiler::Node* NullConstant();
-  compiler::Node* MinusZeroConstant();
-  compiler::Node* UndefinedConstant();
-  compiler::Node* TheHoleConstant();
+#define HEAP_CONSTANT_ACCESSOR(rootName, name) compiler::Node* name##Constant();
+  HEAP_CONSTANT_LIST(HEAP_CONSTANT_ACCESSOR)
+#undef HEAP_CONSTANT_ACCESSOR
+
+#define HEAP_CONSTANT_TEST(rootName, name) \
+  compiler::Node* Is##name(compiler::Node* value);
+  HEAP_CONSTANT_LIST(HEAP_CONSTANT_TEST)
+#undef HEAP_CONSTANT_TEST
+
   compiler::Node* HashSeed();
   compiler::Node* StaleRegisterConstant();
 
@@ -66,6 +103,7 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* Float64Ceil(compiler::Node* x);
   compiler::Node* Float64Floor(compiler::Node* x);
   compiler::Node* Float64Round(compiler::Node* x);
+  compiler::Node* Float64RoundToEven(compiler::Node* x);
   compiler::Node* Float64Trunc(compiler::Node* x);
 
   // Tag a Word as a Smi value.
@@ -86,14 +124,20 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* SmiSub(compiler::Node* a, compiler::Node* b);
   compiler::Node* SmiSubWithOverflow(compiler::Node* a, compiler::Node* b);
   compiler::Node* SmiEqual(compiler::Node* a, compiler::Node* b);
+  compiler::Node* SmiAbove(compiler::Node* a, compiler::Node* b);
   compiler::Node* SmiAboveOrEqual(compiler::Node* a, compiler::Node* b);
+  compiler::Node* SmiBelow(compiler::Node* a, compiler::Node* b);
   compiler::Node* SmiLessThan(compiler::Node* a, compiler::Node* b);
   compiler::Node* SmiLessThanOrEqual(compiler::Node* a, compiler::Node* b);
+  compiler::Node* SmiMax(compiler::Node* a, compiler::Node* b);
   compiler::Node* SmiMin(compiler::Node* a, compiler::Node* b);
   // Computes a % b for Smi inputs a and b; result is not necessarily a Smi.
   compiler::Node* SmiMod(compiler::Node* a, compiler::Node* b);
   // Computes a * b for Smi inputs a and b; result is not necessarily a Smi.
   compiler::Node* SmiMul(compiler::Node* a, compiler::Node* b);
+  compiler::Node* SmiOr(compiler::Node* a, compiler::Node* b) {
+    return WordOr(a, b);
+  }
 
   // Allocate an object of the given size.
   compiler::Node* Allocate(compiler::Node* size, AllocationFlags flags = kNone);
@@ -106,7 +150,7 @@ class CodeStubAssembler : public compiler::CodeAssembler {
 
   // Check a value for smi-ness
   compiler::Node* WordIsSmi(compiler::Node* a);
-  // Check that the value is a positive smi.
+  // Check that the value is a non-negative smi.
   compiler::Node* WordIsPositiveSmi(compiler::Node* a);
 
   void BranchIfSmiEqual(compiler::Node* a, compiler::Node* b, Label* if_true,
@@ -142,10 +186,6 @@ class CodeStubAssembler : public compiler::CodeAssembler {
     BranchIfSimd128Equal(lhs, LoadMap(lhs), rhs, LoadMap(rhs), if_equal,
                          if_notequal);
   }
-
-  void BranchIfSameValueZero(compiler::Node* a, compiler::Node* b,
-                             compiler::Node* context, Label* if_true,
-                             Label* if_false);
 
   void BranchIfFastJSArray(compiler::Node* object, compiler::Node* context,
                            Label* if_true, Label* if_false);
@@ -188,6 +228,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadProperties(compiler::Node* object);
   // Load the elements backing store of a JSObject.
   compiler::Node* LoadElements(compiler::Node* object);
+  // Load the length of a JSArray instance.
+  compiler::Node* LoadJSArrayLength(compiler::Node* array);
   // Load the length of a fixed array base instance.
   compiler::Node* LoadFixedArrayBaseLength(compiler::Node* array);
   // Load the length of a fixed array base instance.
@@ -200,6 +242,8 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadMapBitField3(compiler::Node* map);
   // Load the instance type of a map.
   compiler::Node* LoadMapInstanceType(compiler::Node* map);
+  // Load the ElementsKind of a map.
+  compiler::Node* LoadMapElementsKind(compiler::Node* map);
   // Load the instance descriptors of a map.
   compiler::Node* LoadMapDescriptors(compiler::Node* map);
   // Load the prototype of a map.
@@ -208,13 +252,16 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadMapInstanceSize(compiler::Node* map);
   // Load the inobject properties count of a Map (valid only for JSObjects).
   compiler::Node* LoadMapInobjectProperties(compiler::Node* map);
+  // Load the constructor function index of a Map (only for primitive maps).
+  compiler::Node* LoadMapConstructorFunctionIndex(compiler::Node* map);
   // Load the constructor of a Map (equivalent to Map::GetConstructor()).
   compiler::Node* LoadMapConstructor(compiler::Node* map);
 
-  // Load the hash field of a name.
+  // Load the hash field of a name as an uint32 value.
   compiler::Node* LoadNameHashField(compiler::Node* name);
-  // Load the hash value of a name. If {if_hash_not_computed} label
-  // is specified then it also checks if hash is actually computed.
+  // Load the hash value of a name as an uint32 value.
+  // If {if_hash_not_computed} label is specified then it also checks if
+  // hash is actually computed.
   compiler::Node* LoadNameHash(compiler::Node* name,
                                Label* if_hash_not_computed = nullptr);
 
@@ -226,25 +273,30 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadWeakCellValue(compiler::Node* weak_cell,
                                     Label* if_cleared = nullptr);
 
-  compiler::Node* AllocateUninitializedFixedArray(compiler::Node* length);
-
   // Load an array element from a FixedArray.
   compiler::Node* LoadFixedArrayElement(
-      compiler::Node* object, compiler::Node* int32_index,
-      int additional_offset = 0,
+      compiler::Node* object, compiler::Node* index, int additional_offset = 0,
       ParameterMode parameter_mode = INTEGER_PARAMETERS);
   // Load an array element from a FixedArray, untag it and return it as Word32.
   compiler::Node* LoadAndUntagToWord32FixedArrayElement(
-      compiler::Node* object, compiler::Node* int32_index,
-      int additional_offset = 0,
+      compiler::Node* object, compiler::Node* index, int additional_offset = 0,
       ParameterMode parameter_mode = INTEGER_PARAMETERS);
   // Load an array element from a FixedDoubleArray.
   compiler::Node* LoadFixedDoubleArrayElement(
-      compiler::Node* object, compiler::Node* int32_index,
-      MachineType machine_type, int additional_offset = 0,
-      ParameterMode parameter_mode = INTEGER_PARAMETERS);
+      compiler::Node* object, compiler::Node* index, MachineType machine_type,
+      int additional_offset = 0,
+      ParameterMode parameter_mode = INTEGER_PARAMETERS,
+      Label* if_hole = nullptr);
+
+  // Load Float64 value by |base| + |offset| address. If the value is a double
+  // hole then jump to |if_hole|. If |machine_type| is None then only the hole
+  // check is generated.
+  compiler::Node* LoadDoubleWithHoleCheck(
+      compiler::Node* base, compiler::Node* offset, Label* if_hole,
+      MachineType machine_type = MachineType::Float64());
 
   // Context manipulation
+  compiler::Node* LoadContextElement(compiler::Node* context, int slot_index);
   compiler::Node* LoadNativeContext(compiler::Node* context);
 
   compiler::Node* LoadJSArrayElementsMap(ElementsKind kind,
@@ -256,8 +308,14 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   // Store a field to an object on the heap.
   compiler::Node* StoreObjectField(
       compiler::Node* object, int offset, compiler::Node* value);
+  compiler::Node* StoreObjectField(compiler::Node* object,
+                                   compiler::Node* offset,
+                                   compiler::Node* value);
   compiler::Node* StoreObjectFieldNoWriteBarrier(
       compiler::Node* object, int offset, compiler::Node* value,
+      MachineRepresentation rep = MachineRepresentation::kTagged);
+  compiler::Node* StoreObjectFieldNoWriteBarrier(
+      compiler::Node* object, compiler::Node* offset, compiler::Node* value,
       MachineRepresentation rep = MachineRepresentation::kTagged);
   // Store the Map of an HeapObject.
   compiler::Node* StoreMapNoWriteBarrier(compiler::Node* object,
@@ -275,9 +333,10 @@ class CodeStubAssembler : public compiler::CodeAssembler {
       ParameterMode parameter_mode = INTEGER_PARAMETERS);
 
   // Allocate a HeapNumber without initializing its value.
-  compiler::Node* AllocateHeapNumber();
+  compiler::Node* AllocateHeapNumber(MutableMode mode = IMMUTABLE);
   // Allocate a HeapNumber with a specific value.
-  compiler::Node* AllocateHeapNumberWithValue(compiler::Node* value);
+  compiler::Node* AllocateHeapNumberWithValue(compiler::Node* value,
+                                              MutableMode mode = IMMUTABLE);
   // Allocate a SeqOneByteString with the given length.
   compiler::Node* AllocateSeqOneByteString(int length);
   compiler::Node* AllocateSeqOneByteString(compiler::Node* context,
@@ -286,37 +345,122 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* AllocateSeqTwoByteString(int length);
   compiler::Node* AllocateSeqTwoByteString(compiler::Node* context,
                                            compiler::Node* length);
-  // Allocated an JSArray
-  compiler::Node* AllocateJSArray(ElementsKind kind, compiler::Node* array_map,
-                                  compiler::Node* capacity,
-                                  compiler::Node* length,
-                                  compiler::Node* allocation_site = nullptr,
-                                  ParameterMode mode = INTEGER_PARAMETERS);
+
+  // Allocate a SlicedOneByteString with the given length, parent and offset.
+  // |length| and |offset| are expected to be tagged.
+  compiler::Node* AllocateSlicedOneByteString(compiler::Node* length,
+                                              compiler::Node* parent,
+                                              compiler::Node* offset);
+  // Allocate a SlicedTwoByteString with the given length, parent and offset.
+  // |length| and |offset| are expected to be tagged.
+  compiler::Node* AllocateSlicedTwoByteString(compiler::Node* length,
+                                              compiler::Node* parent,
+                                              compiler::Node* offset);
+
+  // Allocate a RegExpResult with the given length (the number of captures,
+  // including the match itself), index (the index where the match starts),
+  // and input string. |length| and |index| are expected to be tagged, and
+  // |input| must be a string.
+  compiler::Node* AllocateRegExpResult(compiler::Node* context,
+                                       compiler::Node* length,
+                                       compiler::Node* index,
+                                       compiler::Node* input);
+
+  // Allocate a JSArray without elements and initialize the header fields.
+  compiler::Node* AllocateUninitializedJSArrayWithoutElements(
+      ElementsKind kind, compiler::Node* array_map, compiler::Node* length,
+      compiler::Node* allocation_site);
+  // Allocate and return a JSArray with initialized header fields and its
+  // uninitialized elements.
+  // The ParameterMode argument is only used for the capacity parameter.
+  std::pair<compiler::Node*, compiler::Node*>
+  AllocateUninitializedJSArrayWithElements(
+      ElementsKind kind, compiler::Node* array_map, compiler::Node* length,
+      compiler::Node* allocation_site, compiler::Node* capacity,
+      ParameterMode capacity_mode = INTEGER_PARAMETERS);
+  // Allocate a JSArray and fill elements with the hole.
+  // The ParameterMode argument is only used for the capacity parameter.
+  compiler::Node* AllocateJSArray(
+      ElementsKind kind, compiler::Node* array_map, compiler::Node* capacity,
+      compiler::Node* length, compiler::Node* allocation_site = nullptr,
+      ParameterMode capacity_mode = INTEGER_PARAMETERS);
 
   compiler::Node* AllocateFixedArray(ElementsKind kind,
                                      compiler::Node* capacity,
                                      ParameterMode mode = INTEGER_PARAMETERS,
                                      AllocationFlags flags = kNone);
 
-  void FillFixedArrayWithHole(ElementsKind kind, compiler::Node* array,
-                              compiler::Node* from_index,
-                              compiler::Node* to_index,
-                              ParameterMode mode = INTEGER_PARAMETERS);
+  void FillFixedArrayWithValue(ElementsKind kind, compiler::Node* array,
+                               compiler::Node* from_index,
+                               compiler::Node* to_index,
+                               Heap::RootListIndex value_root_index,
+                               ParameterMode mode = INTEGER_PARAMETERS);
 
+  // Copies all elements from |from_array| of |length| size to
+  // |to_array| of the same size respecting the elements kind.
   void CopyFixedArrayElements(
       ElementsKind kind, compiler::Node* from_array, compiler::Node* to_array,
-      compiler::Node* element_count,
+      compiler::Node* length,
+      WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
+      ParameterMode mode = INTEGER_PARAMETERS) {
+    CopyFixedArrayElements(kind, from_array, kind, to_array, length, length,
+                           barrier_mode, mode);
+  }
+
+  // Copies |element_count| elements from |from_array| to |to_array| of
+  // |capacity| size respecting both array's elements kinds.
+  void CopyFixedArrayElements(
+      ElementsKind from_kind, compiler::Node* from_array, ElementsKind to_kind,
+      compiler::Node* to_array, compiler::Node* element_count,
+      compiler::Node* capacity,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
       ParameterMode mode = INTEGER_PARAMETERS);
+
+  // Copies |character_count| elements from |from_string| to |to_string|
+  // starting at the |from_index|'th character. |from_index| and
+  // |character_count| must be Smis s.t.
+  // 0 <= |from_index| <= |from_index| + |character_count| < from_string.length.
+  void CopyStringCharacters(compiler::Node* from_string,
+                            compiler::Node* to_string,
+                            compiler::Node* from_index,
+                            compiler::Node* character_count,
+                            String::Encoding encoding);
+
+  // Loads an element from |array| of |from_kind| elements by given |offset|
+  // (NOTE: not index!), does a hole check if |if_hole| is provided and
+  // converts the value so that it becomes ready for storing to array of
+  // |to_kind| elements.
+  compiler::Node* LoadElementAndPrepareForStore(compiler::Node* array,
+                                                compiler::Node* offset,
+                                                ElementsKind from_kind,
+                                                ElementsKind to_kind,
+                                                Label* if_hole);
 
   compiler::Node* CalculateNewElementsCapacity(
       compiler::Node* old_capacity, ParameterMode mode = INTEGER_PARAMETERS);
 
-  compiler::Node* CheckAndGrowElementsCapacity(compiler::Node* context,
-                                               compiler::Node* elements,
-                                               ElementsKind kind,
-                                               compiler::Node* key,
-                                               Label* fail);
+  // Tries to grow the |elements| array of given |object| to store the |key|
+  // or bails out if the growing gap is too big. Returns new elements.
+  compiler::Node* TryGrowElementsCapacity(compiler::Node* object,
+                                          compiler::Node* elements,
+                                          ElementsKind kind,
+                                          compiler::Node* key, Label* bailout);
+
+  // Tries to grow the |capacity|-length |elements| array of given |object|
+  // to store the |key| or bails out if the growing gap is too big. Returns
+  // new elements.
+  compiler::Node* TryGrowElementsCapacity(compiler::Node* object,
+                                          compiler::Node* elements,
+                                          ElementsKind kind,
+                                          compiler::Node* key,
+                                          compiler::Node* capacity,
+                                          ParameterMode mode, Label* bailout);
+
+  // Grows elements capacity of given object. Returns new elements.
+  compiler::Node* GrowElementsCapacity(
+      compiler::Node* object, compiler::Node* elements, ElementsKind from_kind,
+      ElementsKind to_kind, compiler::Node* capacity,
+      compiler::Node* new_capacity, ParameterMode mode, Label* bailout);
 
   // Allocation site manipulation
   void InitializeAllocationMemento(compiler::Node* base_allocation,
@@ -347,19 +491,67 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                               PrimitiveType primitive_type,
                               char const* method_name);
 
+  // Throws a TypeError for {method_name} if {value} is not of the given
+  // instance type. Returns {value}'s map.
+  compiler::Node* ThrowIfNotInstanceType(compiler::Node* context,
+                                         compiler::Node* value,
+                                         InstanceType instance_type,
+                                         char const* method_name);
+
+  // Type checks.
+  compiler::Node* IsStringInstanceType(compiler::Node* instance_type);
+  compiler::Node* IsJSReceiverInstanceType(compiler::Node* instance_type);
+
   // String helpers.
   // Load a character from a String (might flatten a ConsString).
   compiler::Node* StringCharCodeAt(compiler::Node* string,
                                    compiler::Node* smi_index);
   // Return the single character string with only {code}.
   compiler::Node* StringFromCharCode(compiler::Node* code);
+  // Return a new string object which holds a substring containing the range
+  // [from,to[ of string.  |from| and |to| are expected to be tagged.
+  compiler::Node* SubString(compiler::Node* context, compiler::Node* string,
+                            compiler::Node* from, compiler::Node* to);
 
-  // Returns a node that is true if the given bit is set in |word32|.
+  compiler::Node* StringFromCodePoint(compiler::Node* codepoint,
+                                      UnicodeEncoding encoding);
+
+  // Type conversion helpers.
+  // Convert a String to a Number.
+  compiler::Node* StringToNumber(compiler::Node* context,
+                                 compiler::Node* input);
+  // Convert an object to a name.
+  compiler::Node* ToName(compiler::Node* context, compiler::Node* input);
+  // Convert a Non-Number object to a Number.
+  compiler::Node* NonNumberToNumber(compiler::Node* context,
+                                    compiler::Node* input);
+  // Convert any object to a Number.
+  compiler::Node* ToNumber(compiler::Node* context, compiler::Node* input);
+
+  enum ToIntegerTruncationMode {
+    kNoTruncation,
+    kTruncateMinusZero,
+  };
+
+  // Convert any object to an Integer.
+  compiler::Node* ToInteger(compiler::Node* context, compiler::Node* input,
+                            ToIntegerTruncationMode mode = kNoTruncation);
+
+  // Returns a node that contains a decoded (unsigned!) value of a bit
+  // field |T| in |word32|. Returns result as an uint32 node.
   template <typename T>
   compiler::Node* BitFieldDecode(compiler::Node* word32) {
     return BitFieldDecode(word32, T::kShift, T::kMask);
   }
 
+  // Returns a node that contains a decoded (unsigned!) value of a bit
+  // field |T| in |word32|. Returns result as a word-size node.
+  template <typename T>
+  compiler::Node* BitFieldDecodeWord(compiler::Node* word32) {
+    return ChangeUint32ToWord(BitFieldDecode<T>(word32));
+  }
+
+  // Decodes an unsigned (!) value from |word32| to an uint32 node.
   compiler::Node* BitFieldDecode(compiler::Node* word32, uint32_t shift,
                                  uint32_t mask);
 
@@ -399,9 +591,9 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* ComputeIntegerHash(compiler::Node* key, compiler::Node* seed);
 
   template <typename Dictionary>
-  void NumberDictionaryLookup(compiler::Node* dictionary, compiler::Node* key,
-                              Label* if_found, Variable* var_entry,
-                              Label* if_not_found);
+  void NumberDictionaryLookup(compiler::Node* dictionary,
+                              compiler::Node* intptr_index, Label* if_found,
+                              Variable* var_entry, Label* if_not_found);
 
   // Tries to check if {object} has own {unique_name} property.
   void TryHasOwnProperty(compiler::Node* object, compiler::Node* map,
@@ -454,9 +646,9 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                          Label* if_not_found, Label* if_bailout);
 
   void TryLookupElement(compiler::Node* object, compiler::Node* map,
-                        compiler::Node* instance_type, compiler::Node* index,
-                        Label* if_found, Label* if_not_found,
-                        Label* if_bailout);
+                        compiler::Node* instance_type,
+                        compiler::Node* intptr_index, Label* if_found,
+                        Label* if_not_found, Label* if_bailout);
 
   // This is a type of a lookup in holder generator function. In case of a
   // property lookup the {key} is guaranteed to be a unique name and in case of
@@ -484,7 +676,7 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                                       compiler::Node* callable,
                                       compiler::Node* object);
 
-  // LoadIC helpers.
+  // Load/StoreIC helpers.
   struct LoadICParameters {
     LoadICParameters(compiler::Node* context, compiler::Node* receiver,
                      compiler::Node* name, compiler::Node* slot,
@@ -502,6 +694,15 @@ class CodeStubAssembler : public compiler::CodeAssembler {
     compiler::Node* vector;
   };
 
+  struct StoreICParameters : public LoadICParameters {
+    StoreICParameters(compiler::Node* context, compiler::Node* receiver,
+                      compiler::Node* name, compiler::Node* value,
+                      compiler::Node* slot, compiler::Node* vector)
+        : LoadICParameters(context, receiver, name, slot, vector),
+          value(value) {}
+    compiler::Node* value;
+  };
+
   // Load type feedback vector from the stub caller's frame.
   compiler::Node* LoadTypeFeedbackVectorForStub();
 
@@ -513,12 +714,12 @@ class CodeStubAssembler : public compiler::CodeAssembler {
   compiler::Node* LoadReceiverMap(compiler::Node* receiver);
 
   // Checks monomorphic case. Returns {feedback} entry of the vector.
-  compiler::Node* TryMonomorphicCase(const LoadICParameters* p,
+  compiler::Node* TryMonomorphicCase(compiler::Node* slot,
+                                     compiler::Node* vector,
                                      compiler::Node* receiver_map,
                                      Label* if_handler, Variable* var_handler,
                                      Label* if_miss);
-  void HandlePolymorphicCase(const LoadICParameters* p,
-                             compiler::Node* receiver_map,
+  void HandlePolymorphicCase(compiler::Node* receiver_map,
                              compiler::Node* feedback, Label* if_handler,
                              Variable* var_handler, Label* if_miss,
                              int unroll_count);
@@ -543,9 +744,80 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                          compiler::Node* name, Label* if_handler,
                          Variable* var_handler, Label* if_miss);
 
+  // Extends properties backing store by JSObject::kFieldsAdded elements.
+  void ExtendPropertiesBackingStore(compiler::Node* object);
+
+  compiler::Node* PrepareValueForWrite(compiler::Node* value,
+                                       Representation representation,
+                                       Label* bailout);
+
+  void StoreNamedField(compiler::Node* object, FieldIndex index,
+                       Representation representation, compiler::Node* value,
+                       bool transition_to_field);
+
+  void StoreNamedField(compiler::Node* object, compiler::Node* offset,
+                       bool is_inobject, Representation representation,
+                       compiler::Node* value, bool transition_to_field);
+
+  // Emits keyed sloppy arguments load. Returns either the loaded value.
+  compiler::Node* LoadKeyedSloppyArguments(compiler::Node* receiver,
+                                           compiler::Node* key,
+                                           Label* bailout) {
+    return EmitKeyedSloppyArguments(receiver, key, nullptr, bailout);
+  }
+
+  // Emits keyed sloppy arguments store.
+  void StoreKeyedSloppyArguments(compiler::Node* receiver, compiler::Node* key,
+                                 compiler::Node* value, Label* bailout) {
+    DCHECK_NOT_NULL(value);
+    EmitKeyedSloppyArguments(receiver, key, value, bailout);
+  }
+
+  // Loads script context from the script context table.
+  compiler::Node* LoadScriptContext(compiler::Node* context, int context_index);
+
+  compiler::Node* Int32ToUint8Clamped(compiler::Node* int32_value);
+  compiler::Node* Float64ToUint8Clamped(compiler::Node* float64_value);
+
+  compiler::Node* PrepareValueForWriteToTypedArray(compiler::Node* key,
+                                                   ElementsKind elements_kind,
+                                                   Label* bailout);
+
+  // Store value to an elements array with given elements kind.
+  void StoreElement(compiler::Node* elements, ElementsKind kind,
+                    compiler::Node* index, compiler::Node* value,
+                    ParameterMode mode);
+
+  void EmitElementStore(compiler::Node* object, compiler::Node* key,
+                        compiler::Node* value, bool is_jsarray,
+                        ElementsKind elements_kind,
+                        KeyedAccessStoreMode store_mode, Label* bailout);
+
+  compiler::Node* CheckForCapacityGrow(compiler::Node* object,
+                                       compiler::Node* elements,
+                                       ElementsKind kind,
+                                       compiler::Node* length,
+                                       compiler::Node* key, ParameterMode mode,
+                                       bool is_js_array, Label* bailout);
+
+  compiler::Node* CopyElementsOnWrite(compiler::Node* object,
+                                      compiler::Node* elements,
+                                      ElementsKind kind, compiler::Node* length,
+                                      ParameterMode mode, Label* bailout);
+
   void LoadIC(const LoadICParameters* p);
   void LoadGlobalIC(const LoadICParameters* p);
   void KeyedLoadIC(const LoadICParameters* p);
+  void KeyedLoadICGeneric(const LoadICParameters* p);
+  void StoreIC(const StoreICParameters* p);
+
+  void TransitionElementsKind(compiler::Node* object, compiler::Node* map,
+                              ElementsKind from_kind, ElementsKind to_kind,
+                              bool is_jsarray, Label* bailout);
+
+  void TrapAllocationMemento(compiler::Node* object, Label* memento_found);
+
+  compiler::Node* PageFromAddress(compiler::Node* address);
 
   // Get the enumerable length from |map| and return the result as a Smi.
   compiler::Node* EnumLength(compiler::Node* map);
@@ -562,9 +834,13 @@ class CodeStubAssembler : public compiler::CodeAssembler {
       compiler::Node* feedback_vector, compiler::Node* slot,
       compiler::Node* value);
 
-  compiler::Node* GetFixedAarrayAllocationSize(compiler::Node* element_count,
-                                               ElementsKind kind,
-                                               ParameterMode mode) {
+  // Create a new AllocationSite and install it into a feedback vector.
+  compiler::Node* CreateAllocationSiteInFeedbackVector(
+      compiler::Node* feedback_vector, compiler::Node* slot);
+
+  compiler::Node* GetFixedArrayAllocationSize(compiler::Node* element_count,
+                                              ElementsKind kind,
+                                              ParameterMode mode) {
     return ElementOffsetFromIndex(element_count, kind, mode,
                                   FixedArray::kHeaderSize);
   }
@@ -572,17 +848,34 @@ class CodeStubAssembler : public compiler::CodeAssembler {
  private:
   enum ElementSupport { kOnlyProperties, kSupportElements };
 
+  void DescriptorLookupLinear(compiler::Node* unique_name,
+                              compiler::Node* descriptors, compiler::Node* nof,
+                              Label* if_found, Variable* var_name_index,
+                              Label* if_not_found);
+  compiler::Node* CallGetterIfAccessor(compiler::Node* value,
+                                       compiler::Node* details,
+                                       compiler::Node* context,
+                                       compiler::Node* receiver,
+                                       Label* if_bailout);
+
   void HandleLoadICHandlerCase(
       const LoadICParameters* p, compiler::Node* handler, Label* miss,
       ElementSupport support_elements = kOnlyProperties);
   compiler::Node* TryToIntptr(compiler::Node* key, Label* miss);
-  void EmitBoundsCheck(compiler::Node* object, compiler::Node* elements,
-                       compiler::Node* intptr_key, compiler::Node* is_jsarray,
-                       Label* miss);
+  void EmitFastElementsBoundsCheck(compiler::Node* object,
+                                   compiler::Node* elements,
+                                   compiler::Node* intptr_index,
+                                   compiler::Node* is_jsarray_condition,
+                                   Label* miss);
   void EmitElementLoad(compiler::Node* object, compiler::Node* elements,
                        compiler::Node* elements_kind, compiler::Node* key,
-                       Label* if_hole, Label* rebox_double,
-                       Variable* var_double_value, Label* miss);
+                       compiler::Node* is_jsarray_condition, Label* if_hole,
+                       Label* rebox_double, Variable* var_double_value,
+                       Label* unimplemented_elements_kind, Label* out_of_bounds,
+                       Label* miss);
+  void BranchIfPrototypesHaveNoElements(compiler::Node* receiver_map,
+                                        Label* definitely_no_elements,
+                                        Label* possibly_elements);
 
   compiler::Node* ElementOffsetFromIndex(compiler::Node* index,
                                          ElementsKind kind, ParameterMode mode,
@@ -596,8 +889,22 @@ class CodeStubAssembler : public compiler::CodeAssembler {
                                        AllocationFlags flags,
                                        compiler::Node* top_adddress,
                                        compiler::Node* limit_address);
+  // Allocate and return a JSArray of given total size in bytes with header
+  // fields initialized.
+  compiler::Node* AllocateUninitializedJSArray(ElementsKind kind,
+                                               compiler::Node* array_map,
+                                               compiler::Node* length,
+                                               compiler::Node* allocation_site,
+                                               compiler::Node* size_in_bytes);
 
   compiler::Node* SmiShiftBitsConstant();
+
+  // Emits keyed sloppy arguments load if the |value| is nullptr or store
+  // otherwise. Returns either the loaded value or |value|.
+  compiler::Node* EmitKeyedSloppyArguments(compiler::Node* receiver,
+                                           compiler::Node* key,
+                                           compiler::Node* value,
+                                           Label* bailout);
 
   static const int kElementLoopUnrollThreshold = 8;
 };

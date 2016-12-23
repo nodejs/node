@@ -5,6 +5,8 @@
 
 #include "src/i18n.h"
 
+#include <memory>
+
 #include "src/api.h"
 #include "src/factory.h"
 #include "src/isolate.h"
@@ -115,13 +117,11 @@ icu::SimpleDateFormat* CreateICUDateFormat(
   icu::SimpleDateFormat* date_format = NULL;
   icu::UnicodeString skeleton;
   if (ExtractStringSetting(isolate, options, "skeleton", &skeleton)) {
-    icu::DateTimePatternGenerator* generator =
-        icu::DateTimePatternGenerator::createInstance(icu_locale, status);
+    std::unique_ptr<icu::DateTimePatternGenerator> generator(
+        icu::DateTimePatternGenerator::createInstance(icu_locale, status));
     icu::UnicodeString pattern;
-    if (U_SUCCESS(status)) {
+    if (U_SUCCESS(status))
       pattern = generator->getBestPattern(skeleton, status);
-      delete generator;
-    }
 
     date_format = new icu::SimpleDateFormat(pattern, icu_locale, status);
     if (U_SUCCESS(status)) {
@@ -132,7 +132,7 @@ icu::SimpleDateFormat* CreateICUDateFormat(
   if (U_FAILURE(status)) {
     delete calendar;
     delete date_format;
-    date_format = NULL;
+    date_format = nullptr;
   }
 
   return date_format;

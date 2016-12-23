@@ -49,27 +49,6 @@ namespace internal {
 //      Args: name
 #define BUILTIN_LIST(CPP, API, TFJ, TFS, ASM, ASH, DBG)                       \
   ASM(Abort)                                                                  \
-  /* Handlers */                                                              \
-  ASH(KeyedLoadIC_Megamorphic, KEYED_LOAD_IC, kNoExtraICState)                \
-  ASM(KeyedLoadIC_Miss)                                                       \
-  ASH(KeyedLoadIC_Slow, HANDLER, Code::KEYED_LOAD_IC)                         \
-  ASH(KeyedStoreIC_Megamorphic, KEYED_STORE_IC, kNoExtraICState)              \
-  ASH(KeyedStoreIC_Megamorphic_Strict, KEYED_STORE_IC,                        \
-      StoreICState::kStrictModeState)                                         \
-  ASM(KeyedStoreIC_Miss)                                                      \
-  ASH(KeyedStoreIC_Slow, HANDLER, Code::KEYED_STORE_IC)                       \
-  TFS(LoadGlobalIC_Miss, BUILTIN, kNoExtraICState, LoadGlobalWithVector)      \
-  TFS(LoadGlobalIC_Slow, HANDLER, Code::LOAD_GLOBAL_IC, LoadGlobalWithVector) \
-  ASH(LoadIC_Getter_ForDeopt, LOAD_IC, kNoExtraICState)                       \
-  TFS(LoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector)                  \
-  ASH(LoadIC_Normal, HANDLER, Code::LOAD_IC)                                  \
-  TFS(LoadIC_Slow, HANDLER, Code::LOAD_IC, LoadWithVector)                    \
-  TFS(StoreIC_Miss, BUILTIN, kNoExtraICState, StoreWithVector)                \
-  ASH(StoreIC_Normal, HANDLER, Code::STORE_IC)                                \
-  ASH(StoreIC_Setter_ForDeopt, STORE_IC, StoreICState::kStrictModeState)      \
-  TFS(StoreIC_SlowSloppy, HANDLER, Code::STORE_IC, StoreWithVector)           \
-  TFS(StoreIC_SlowStrict, HANDLER, Code::STORE_IC, StoreWithVector)           \
-                                                                              \
   /* Code aging */                                                            \
   CODE_AGE_LIST_WITH_ARG(DECLARE_CODE_AGE_BUILTIN, ASM)                       \
                                                                               \
@@ -118,14 +97,24 @@ namespace internal {
   ASM(InterruptCheck)                                                         \
   ASM(StackCheck)                                                             \
                                                                               \
+  /* String helpers */                                                        \
+  TFS(StringEqual, BUILTIN, kNoExtraICState, Compare)                         \
+  TFS(StringNotEqual, BUILTIN, kNoExtraICState, Compare)                      \
+  TFS(StringLessThan, BUILTIN, kNoExtraICState, Compare)                      \
+  TFS(StringLessThanOrEqual, BUILTIN, kNoExtraICState, Compare)               \
+  TFS(StringGreaterThan, BUILTIN, kNoExtraICState, Compare)                   \
+  TFS(StringGreaterThanOrEqual, BUILTIN, kNoExtraICState, Compare)            \
+                                                                              \
   /* Interpreter */                                                           \
   ASM(InterpreterEntryTrampoline)                                             \
   ASM(InterpreterMarkBaselineOnReturn)                                        \
   ASM(InterpreterPushArgsAndCall)                                             \
   ASM(InterpreterPushArgsAndCallFunction)                                     \
-  ASM(InterpreterPushArgsAndConstruct)                                        \
   ASM(InterpreterPushArgsAndTailCall)                                         \
   ASM(InterpreterPushArgsAndTailCallFunction)                                 \
+  ASM(InterpreterPushArgsAndConstruct)                                        \
+  ASM(InterpreterPushArgsAndConstructFunction)                                \
+  ASM(InterpreterPushArgsAndConstructArray)                                   \
   ASM(InterpreterEnterBytecodeDispatch)                                       \
   ASM(InterpreterOnStackReplacement)                                          \
                                                                               \
@@ -162,6 +151,7 @@ namespace internal {
   TFS(GrowFastDoubleElements, BUILTIN, kNoExtraICState, GrowArrayElements)    \
   TFS(GrowFastSmiOrObjectElements, BUILTIN, kNoExtraICState,                  \
       GrowArrayElements)                                                      \
+  TFS(OrdinaryHasInstance, BUILTIN, kNoExtraICState, Compare)                 \
                                                                               \
   /* Debugger */                                                              \
   DBG(FrameDropper_LiveEdit)                                                  \
@@ -179,8 +169,33 @@ namespace internal {
   TFS(NonPrimitiveToPrimitive_String, BUILTIN, kNoExtraICState,               \
       TypeConversion)                                                         \
   TFS(StringToNumber, BUILTIN, kNoExtraICState, TypeConversion)               \
+  TFS(ToName, BUILTIN, kNoExtraICState, TypeConversion)                       \
   TFS(NonNumberToNumber, BUILTIN, kNoExtraICState, TypeConversion)            \
-  ASM(ToNumber)                                                               \
+  TFS(ToNumber, BUILTIN, kNoExtraICState, TypeConversion)                     \
+  TFS(ToString, BUILTIN, kNoExtraICState, TypeConversion)                     \
+                                                                              \
+  /* Handlers */                                                              \
+  ASH(KeyedLoadIC_Megamorphic, KEYED_LOAD_IC, kNoExtraICState)                \
+  TFS(KeyedLoadIC_Megamorphic_TF, KEYED_LOAD_IC, kNoExtraICState,             \
+      LoadWithVector)                                                         \
+  ASM(KeyedLoadIC_Miss)                                                       \
+  ASH(KeyedLoadIC_Slow, HANDLER, Code::KEYED_LOAD_IC)                         \
+  ASH(KeyedStoreIC_Megamorphic, KEYED_STORE_IC, kNoExtraICState)              \
+  ASH(KeyedStoreIC_Megamorphic_Strict, KEYED_STORE_IC,                        \
+      StoreICState::kStrictModeState)                                         \
+  ASM(KeyedStoreIC_Miss)                                                      \
+  ASH(KeyedStoreIC_Slow, HANDLER, Code::KEYED_STORE_IC)                       \
+  TFS(LoadGlobalIC_Miss, BUILTIN, kNoExtraICState, LoadGlobalWithVector)      \
+  TFS(LoadGlobalIC_Slow, HANDLER, Code::LOAD_GLOBAL_IC, LoadGlobalWithVector) \
+  ASH(LoadIC_Getter_ForDeopt, LOAD_IC, kNoExtraICState)                       \
+  TFS(LoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector)                  \
+  ASH(LoadIC_Normal, HANDLER, Code::LOAD_IC)                                  \
+  TFS(LoadIC_Slow, HANDLER, Code::LOAD_IC, LoadWithVector)                    \
+  TFS(StoreIC_Miss, BUILTIN, kNoExtraICState, StoreWithVector)                \
+  ASH(StoreIC_Normal, HANDLER, Code::STORE_IC)                                \
+  ASH(StoreIC_Setter_ForDeopt, STORE_IC, StoreICState::kStrictModeState)      \
+  TFS(StoreIC_SlowSloppy, HANDLER, Code::STORE_IC, StoreWithVector)           \
+  TFS(StoreIC_SlowStrict, HANDLER, Code::STORE_IC, StoreWithVector)           \
                                                                               \
   /* Built-in functions for Javascript */                                     \
   /* Special internal builtins */                                             \
@@ -244,46 +259,62 @@ namespace internal {
   CPP(DataViewPrototypeGetBuffer)                                             \
   CPP(DataViewPrototypeGetByteLength)                                         \
   CPP(DataViewPrototypeGetByteOffset)                                         \
+  CPP(DataViewPrototypeGetInt8)                                               \
+  CPP(DataViewPrototypeSetInt8)                                               \
+  CPP(DataViewPrototypeGetUint8)                                              \
+  CPP(DataViewPrototypeSetUint8)                                              \
+  CPP(DataViewPrototypeGetInt16)                                              \
+  CPP(DataViewPrototypeSetInt16)                                              \
+  CPP(DataViewPrototypeGetUint16)                                             \
+  CPP(DataViewPrototypeSetUint16)                                             \
+  CPP(DataViewPrototypeGetInt32)                                              \
+  CPP(DataViewPrototypeSetInt32)                                              \
+  CPP(DataViewPrototypeGetUint32)                                             \
+  CPP(DataViewPrototypeSetUint32)                                             \
+  CPP(DataViewPrototypeGetFloat32)                                            \
+  CPP(DataViewPrototypeSetFloat32)                                            \
+  CPP(DataViewPrototypeGetFloat64)                                            \
+  CPP(DataViewPrototypeSetFloat64)                                            \
                                                                               \
   /* Date */                                                                  \
   CPP(DateConstructor)                                                        \
   CPP(DateConstructor_ConstructStub)                                          \
   /* ES6 section 20.3.4.2 Date.prototype.getDate ( ) */                       \
-  ASM(DatePrototypeGetDate)                                                   \
+  TFJ(DatePrototypeGetDate, 1)                                                \
   /* ES6 section 20.3.4.3 Date.prototype.getDay ( ) */                        \
-  ASM(DatePrototypeGetDay)                                                    \
+  TFJ(DatePrototypeGetDay, 1)                                                 \
   /* ES6 section 20.3.4.4 Date.prototype.getFullYear ( ) */                   \
-  ASM(DatePrototypeGetFullYear)                                               \
+  TFJ(DatePrototypeGetFullYear, 1)                                            \
   /* ES6 section 20.3.4.5 Date.prototype.getHours ( ) */                      \
-  ASM(DatePrototypeGetHours)                                                  \
+  TFJ(DatePrototypeGetHours, 1)                                               \
   /* ES6 section 20.3.4.6 Date.prototype.getMilliseconds ( ) */               \
-  ASM(DatePrototypeGetMilliseconds)                                           \
+  TFJ(DatePrototypeGetMilliseconds, 1)                                        \
   /* ES6 section 20.3.4.7 Date.prototype.getMinutes ( ) */                    \
-  ASM(DatePrototypeGetMinutes)                                                \
+  TFJ(DatePrototypeGetMinutes, 1)                                             \
   /* ES6 section 20.3.4.8 Date.prototype.getMonth */                          \
-  ASM(DatePrototypeGetMonth)                                                  \
+  TFJ(DatePrototypeGetMonth, 1)                                               \
   /* ES6 section 20.3.4.9 Date.prototype.getSeconds ( ) */                    \
-  ASM(DatePrototypeGetSeconds)                                                \
+  TFJ(DatePrototypeGetSeconds, 1)                                             \
   /* ES6 section 20.3.4.10 Date.prototype.getTime ( ) */                      \
-  ASM(DatePrototypeGetTime)                                                   \
+  TFJ(DatePrototypeGetTime, 1)                                                \
   /* ES6 section 20.3.4.11 Date.prototype.getTimezoneOffset ( ) */            \
-  ASM(DatePrototypeGetTimezoneOffset)                                         \
+  TFJ(DatePrototypeGetTimezoneOffset, 1)                                      \
   /* ES6 section 20.3.4.12 Date.prototype.getUTCDate ( ) */                   \
-  ASM(DatePrototypeGetUTCDate)                                                \
+  TFJ(DatePrototypeGetUTCDate, 1)                                             \
   /* ES6 section 20.3.4.13 Date.prototype.getUTCDay ( ) */                    \
-  ASM(DatePrototypeGetUTCDay)                                                 \
+  TFJ(DatePrototypeGetUTCDay, 1)                                              \
   /* ES6 section 20.3.4.14 Date.prototype.getUTCFullYear ( ) */               \
-  ASM(DatePrototypeGetUTCFullYear)                                            \
+  TFJ(DatePrototypeGetUTCFullYear, 1)                                         \
   /* ES6 section 20.3.4.15 Date.prototype.getUTCHours ( ) */                  \
-  ASM(DatePrototypeGetUTCHours)                                               \
+  TFJ(DatePrototypeGetUTCHours, 1)                                            \
   /* ES6 section 20.3.4.16 Date.prototype.getUTCMilliseconds ( ) */           \
-  ASM(DatePrototypeGetUTCMilliseconds)                                        \
+  TFJ(DatePrototypeGetUTCMilliseconds, 1)                                     \
   /* ES6 section 20.3.4.17 Date.prototype.getUTCMinutes ( ) */                \
-  ASM(DatePrototypeGetUTCMinutes)                                             \
+  TFJ(DatePrototypeGetUTCMinutes, 1)                                          \
   /* ES6 section 20.3.4.18 Date.prototype.getUTCMonth ( ) */                  \
-  ASM(DatePrototypeGetUTCMonth)                                               \
+  TFJ(DatePrototypeGetUTCMonth, 1)                                            \
   /* ES6 section 20.3.4.19 Date.prototype.getUTCSeconds ( ) */                \
-  ASM(DatePrototypeGetUTCSeconds)                                             \
+  TFJ(DatePrototypeGetUTCSeconds, 1)                                          \
   CPP(DatePrototypeGetYear)                                                   \
   CPP(DatePrototypeSetYear)                                                   \
   CPP(DateNow)                                                                \
@@ -342,16 +373,21 @@ namespace internal {
   TFJ(GeneratorPrototypeThrow, 2)                                             \
   CPP(AsyncFunctionConstructor)                                               \
                                                                               \
-  /* Encode and decode */                                                     \
+  /* Global object */                                                         \
   CPP(GlobalDecodeURI)                                                        \
   CPP(GlobalDecodeURIComponent)                                               \
   CPP(GlobalEncodeURI)                                                        \
   CPP(GlobalEncodeURIComponent)                                               \
   CPP(GlobalEscape)                                                           \
   CPP(GlobalUnescape)                                                         \
-                                                                              \
-  /* Eval */                                                                  \
   CPP(GlobalEval)                                                             \
+  /* ES6 section 18.2.2 isFinite ( number ) */                                \
+  TFJ(GlobalIsFinite, 2)                                                      \
+  /* ES6 section 18.2.3 isNaN ( number ) */                                   \
+  TFJ(GlobalIsNaN, 2)                                                         \
+                                                                              \
+  /* ES6 #sec-%iteratorprototype%-@@iterator */                               \
+  TFJ(IteratorPrototypeIterator, 1)                                           \
                                                                               \
   /* JSON */                                                                  \
   CPP(JsonParse)                                                              \
@@ -432,6 +468,14 @@ namespace internal {
   ASM(NumberConstructor)                                                      \
   /* ES6 section 20.1.1.1 Number ( [ value ] ) for the [[Construct]] case */  \
   ASM(NumberConstructor_ConstructStub)                                        \
+  /* ES6 section 20.1.2.2 Number.isFinite ( number ) */                       \
+  TFJ(NumberIsFinite, 2)                                                      \
+  /* ES6 section 20.1.2.3 Number.isInteger ( number ) */                      \
+  TFJ(NumberIsInteger, 2)                                                     \
+  /* ES6 section 20.1.2.4 Number.isNaN ( number ) */                          \
+  TFJ(NumberIsNaN, 2)                                                         \
+  /* ES6 section 20.1.2.5 Number.isSafeInteger ( number ) */                  \
+  TFJ(NumberIsSafeInteger, 2)                                                 \
   CPP(NumberPrototypeToExponential)                                           \
   CPP(NumberPrototypeToFixed)                                                 \
   CPP(NumberPrototypeToLocaleString)                                          \
@@ -489,6 +533,10 @@ namespace internal {
   CPP(ReflectSet)                                                             \
   CPP(ReflectSetPrototypeOf)                                                  \
                                                                               \
+  /* RegExp */                                                                \
+  CPP(RegExpConstructor)                                                      \
+  TFJ(RegExpPrototypeExec, 2)                                                 \
+                                                                              \
   /* SharedArrayBuffer */                                                     \
   CPP(SharedArrayBufferPrototypeGetByteLength)                                \
   TFJ(AtomicsLoad, 3)                                                         \
@@ -504,6 +552,17 @@ namespace internal {
   TFJ(StringPrototypeCharAt, 2)                                               \
   /* ES6 section 21.1.3.2 String.prototype.charCodeAt ( pos ) */              \
   TFJ(StringPrototypeCharCodeAt, 2)                                           \
+  /* ES6 section 21.1.3.9 */                                                  \
+  /* String.prototype.lastIndexOf ( searchString [ , position ] ) */          \
+  CPP(StringPrototypeLastIndexOf)                                             \
+  /* ES6 section 21.1.3.10 String.prototype.localeCompare ( that ) */         \
+  CPP(StringPrototypeLocaleCompare)                                           \
+  /* ES6 section 21.1.3.12 String.prototype.normalize ( [form] ) */           \
+  CPP(StringPrototypeNormalize)                                               \
+  /* ES6 section B.2.3.1 String.prototype.substr ( start, length ) */         \
+  TFJ(StringPrototypeSubstr, 3)                                               \
+  /* ES6 section 21.1.3.19 String.prototype.substring ( start, end ) */       \
+  TFJ(StringPrototypeSubstring, 3)                                            \
   /* ES6 section 21.1.3.25 String.prototype.toString () */                    \
   TFJ(StringPrototypeToString, 1)                                             \
   CPP(StringPrototypeTrim)                                                    \
@@ -511,6 +570,11 @@ namespace internal {
   CPP(StringPrototypeTrimRight)                                               \
   /* ES6 section 21.1.3.28 String.prototype.valueOf () */                     \
   TFJ(StringPrototypeValueOf, 1)                                              \
+  /* ES6 #sec-string.prototype-@@iterator */                                  \
+  TFJ(StringPrototypeIterator, 1)                                             \
+                                                                              \
+  /* StringIterator */                                                        \
+  TFJ(StringIteratorPrototypeNext, 1)                                         \
                                                                               \
   /* Symbol */                                                                \
   CPP(SymbolConstructor)                                                      \
@@ -590,6 +654,7 @@ class Builtins {
   Handle<Code> InterpreterPushArgsAndCall(
       TailCallMode tail_call_mode,
       CallableType function_type = CallableType::kAny);
+  Handle<Code> InterpreterPushArgsAndConstruct(CallableType function_type);
 
   Code* builtin(Name name) {
     // Code::cast cannot be used here since we access builtins
@@ -643,7 +708,10 @@ class Builtins {
       MacroAssembler* masm, TailCallMode tail_call_mode,
       CallableType function_type);
 
-  static void Generate_DatePrototype_GetField(MacroAssembler* masm,
+  static void Generate_InterpreterPushArgsAndConstructImpl(
+      MacroAssembler* masm, CallableType function_type);
+
+  static void Generate_DatePrototype_GetField(CodeStubAssembler* masm,
                                               int field_index);
 
   enum class MathMaxMinKind { kMax, kMin };

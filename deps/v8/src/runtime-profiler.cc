@@ -9,6 +9,7 @@
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
 #include "src/compilation-cache.h"
+#include "src/compiler.h"
 #include "src/execution.h"
 #include "src/frames-inl.h"
 #include "src/full-codegen/full-codegen.h"
@@ -54,6 +55,33 @@ static const int kOSRCodeSizeAllowancePerTickIgnition =
 static const int kMaxSizeEarlyOpt =
     5 * FullCodeGenerator::kCodeSizeMultiplier;
 
+#define OPTIMIZATION_REASON_LIST(V)                            \
+  V(DoNotOptimize, "do not optimize")                          \
+  V(HotAndStable, "hot and stable")                            \
+  V(HotEnoughForBaseline, "hot enough for baseline")           \
+  V(HotWithoutMuchTypeInfo, "not much type info but very hot") \
+  V(SmallFunction, "small function")
+
+enum class OptimizationReason : uint8_t {
+#define OPTIMIZATION_REASON_CONSTANTS(Constant, message) k##Constant,
+  OPTIMIZATION_REASON_LIST(OPTIMIZATION_REASON_CONSTANTS)
+#undef OPTIMIZATION_REASON_CONSTANTS
+};
+
+char const* OptimizationReasonToString(OptimizationReason reason) {
+  static char const* reasons[] = {
+#define OPTIMIZATION_REASON_TEXTS(Constant, message) message,
+      OPTIMIZATION_REASON_LIST(OPTIMIZATION_REASON_TEXTS)
+#undef OPTIMIZATION_REASON_TEXTS
+  };
+  size_t const index = static_cast<size_t>(reason);
+  DCHECK_LT(index, arraysize(reasons));
+  return reasons[index];
+}
+
+std::ostream& operator<<(std::ostream& os, OptimizationReason reason) {
+  return os << OptimizationReasonToString(reason);
+}
 
 RuntimeProfiler::RuntimeProfiler(Isolate* isolate)
     : isolate_(isolate),
@@ -79,8 +107,15 @@ static void GetICCounts(JSFunction* function, int* ic_with_type_info_count,
 
   // Harvest vector-ics as well
   TypeFeedbackVector* vector = function->feedback_vector();
-  int with = 0, gen = 0;
-  vector->ComputeCounts(&with, &gen);
+  int with = 0, gen = 0, type_vector_ic_count = 0;
+  const bool is_interpreted =
+      function->shared()->code()->is_interpreter_trampoline_builtin();
+
+  vector->ComputeCounts(&with, &gen, &type_vector_ic_count, is_interpreted);
+  if (is_interpreted) {
+    DCHECK_EQ(*ic_total_count, 0);
+    *ic_total_count = type_vector_ic_count;
+  }
   *ic_with_type_info_count += with;
   *ic_generic_count += gen;
 
@@ -112,13 +147,17 @@ static void TraceRecompile(JSFunction* function, const char* reason,
   }
 }
 
-void RuntimeProfiler::Optimize(JSFunction* function, const char* reason) {
-  TraceRecompile(function, reason, "optimized");
+void RuntimeProfiler::Optimize(JSFunction* function,
+                               OptimizationReason reason) {
+  DCHECK_NE(reason, OptimizationReason::kDoNotOptimize);
+  TraceRecompile(function, OptimizationReasonToString(reason), "optimized");
   function->AttemptConcurrentOptimization();
 }
 
-void RuntimeProfiler::Baseline(JSFunction* function, const char* reason) {
-  TraceRecompile(function, reason, "baseline");
+void RuntimeProfiler::Baseline(JSFunction* function,
+                               OptimizationReason reason) {
+  DCHECK_NE(reason, OptimizationReason::kDoNotOptimize);
+  TraceRecompile(function, OptimizationReasonToString(reason), "baseline");
 
   // TODO(4280): Fix this to check function is compiled for the interpreter
   // once we have a standard way to check that. For now function will only
@@ -237,9 +276,9 @@ void RuntimeProfiler::MaybeOptimizeFullCodegen(JSFunction* function,
         generic_percentage <= FLAG_generic_ic_threshold) {
       // If this particular function hasn't had any ICs patched for enough
       // ticks, optimize it now.
-      Optimize(function, "hot and stable");
+      Optimize(function, OptimizationReason::kHotAndStable);
     } else if (ticks >= kTicksWhenNotEnoughTypeInfo) {
-      Optimize(function, "not much type info but very hot");
+      Optimize(function, OptimizationReason::kHotWithoutMuchTypeInfo);
     } else {
       shared_code->set_profiler_ticks(ticks + 1);
       if (FLAG_trace_opt_verbose) {
@@ -258,7 +297,7 @@ void RuntimeProfiler::MaybeOptimizeFullCodegen(JSFunction* function,
                 &generic_percentage);
     if (type_percentage >= FLAG_type_info_threshold &&
         generic_percentage <= FLAG_generic_ic_threshold) {
-      Optimize(function, "small function");
+      Optimize(function, OptimizationReason::kSmallFunction);
     } else {
       shared_code->set_profiler_ticks(ticks + 1);
     }
@@ -271,30 +310,15 @@ void RuntimeProfiler::MaybeBaselineIgnition(JSFunction* function,
                                             JavaScriptFrame* frame) {
   if (function->IsInOptimizationQueue()) return;
 
-  SharedFunctionInfo* shared = function->shared();
-  int ticks = shared->profiler_ticks();
-
-  // TODO(rmcilroy): Also ensure we only OSR top-level code if it is smaller
-  // than kMaxToplevelSourceSize.
-
   if (FLAG_always_osr) {
     AttemptOnStackReplacement(frame, AbstractCode::kMaxLoopNestingMarker);
     // Fall through and do a normal baseline compile as well.
-  } else if (!frame->is_optimized() &&
-             (function->IsMarkedForBaseline() ||
-              function->IsMarkedForOptimization() ||
-              function->IsMarkedForConcurrentOptimization() ||
-              function->IsOptimized())) {
-    // Attempt OSR if we are still running interpreted code even though the
-    // the function has long been marked or even already been optimized.
-    int64_t allowance =
-        kOSRCodeSizeAllowanceBaseIgnition +
-        static_cast<int64_t>(ticks) * kOSRCodeSizeAllowancePerTickIgnition;
-    if (shared->bytecode_array()->Size() <= allowance) {
-      AttemptOnStackReplacement(frame);
-    }
+  } else if (MaybeOSRIgnition(function, frame)) {
     return;
   }
+
+  SharedFunctionInfo* shared = function->shared();
+  int ticks = shared->profiler_ticks();
 
   if (shared->optimization_disabled() &&
       shared->disable_optimization_reason() == kOptimizationDisabledForTest) {
@@ -304,7 +328,7 @@ void RuntimeProfiler::MaybeBaselineIgnition(JSFunction* function,
   }
 
   if (ticks >= kProfilerTicksBeforeBaseline) {
-    Baseline(function, "hot enough for baseline");
+    Baseline(function, OptimizationReason::kHotEnoughForBaseline);
   }
 }
 
@@ -312,30 +336,15 @@ void RuntimeProfiler::MaybeOptimizeIgnition(JSFunction* function,
                                             JavaScriptFrame* frame) {
   if (function->IsInOptimizationQueue()) return;
 
-  SharedFunctionInfo* shared = function->shared();
-  int ticks = shared->profiler_ticks();
-
-  // TODO(rmcilroy): Also ensure we only OSR top-level code if it is smaller
-  // than kMaxToplevelSourceSize.
-
   if (FLAG_always_osr) {
     AttemptOnStackReplacement(frame, AbstractCode::kMaxLoopNestingMarker);
     // Fall through and do a normal optimized compile as well.
-  } else if (!frame->is_optimized() &&
-             (function->IsMarkedForBaseline() ||
-              function->IsMarkedForOptimization() ||
-              function->IsMarkedForConcurrentOptimization() ||
-              function->IsOptimized())) {
-    // Attempt OSR if we are still running interpreted code even though the
-    // the function has long been marked or even already been optimized.
-    int64_t allowance =
-        kOSRCodeSizeAllowanceBaseIgnition +
-        static_cast<int64_t>(ticks) * kOSRCodeSizeAllowancePerTickIgnition;
-    if (shared->bytecode_array()->Size() <= allowance) {
-      AttemptOnStackReplacement(frame);
-    }
+  } else if (MaybeOSRIgnition(function, frame)) {
     return;
   }
+
+  SharedFunctionInfo* shared = function->shared();
+  int ticks = shared->profiler_ticks();
 
   if (shared->optimization_disabled()) {
     if (shared->deopt_count() >= FLAG_max_opt_count) {
@@ -348,7 +357,50 @@ void RuntimeProfiler::MaybeOptimizeIgnition(JSFunction* function,
     }
     return;
   }
+
   if (function->IsOptimized()) return;
+
+  OptimizationReason reason = ShouldOptimizeIgnition(function, frame);
+
+  if (reason != OptimizationReason::kDoNotOptimize) {
+    Optimize(function, reason);
+  }
+}
+
+bool RuntimeProfiler::MaybeOSRIgnition(JSFunction* function,
+                                       JavaScriptFrame* frame) {
+  if (!FLAG_ignition_osr) return false;
+
+  SharedFunctionInfo* shared = function->shared();
+  int ticks = shared->profiler_ticks();
+
+  // TODO(rmcilroy): Also ensure we only OSR top-level code if it is smaller
+  // than kMaxToplevelSourceSize.
+
+  bool osr_before_baselined = function->IsMarkedForBaseline() &&
+                              ShouldOptimizeIgnition(function, frame) !=
+                                  OptimizationReason::kDoNotOptimize;
+  if (!frame->is_optimized() &&
+      (osr_before_baselined || function->IsMarkedForOptimization() ||
+       function->IsMarkedForConcurrentOptimization() ||
+       function->IsOptimized())) {
+    // Attempt OSR if we are still running interpreted code even though the
+    // the function has long been marked or even already been optimized.
+    int64_t allowance =
+        kOSRCodeSizeAllowanceBaseIgnition +
+        static_cast<int64_t>(ticks) * kOSRCodeSizeAllowancePerTickIgnition;
+    if (shared->bytecode_array()->Size() <= allowance) {
+      AttemptOnStackReplacement(frame);
+    }
+    return true;
+  }
+  return false;
+}
+
+OptimizationReason RuntimeProfiler::ShouldOptimizeIgnition(
+    JSFunction* function, JavaScriptFrame* frame) {
+  SharedFunctionInfo* shared = function->shared();
+  int ticks = shared->profiler_ticks();
 
   if (ticks >= kProfilerTicksBeforeOptimization) {
     int typeinfo, generic, total, type_percentage, generic_percentage;
@@ -358,9 +410,9 @@ void RuntimeProfiler::MaybeOptimizeIgnition(JSFunction* function,
         generic_percentage <= FLAG_generic_ic_threshold) {
       // If this particular function hasn't had any ICs patched for enough
       // ticks, optimize it now.
-      Optimize(function, "hot and stable");
+      return OptimizationReason::kHotAndStable;
     } else if (ticks >= kTicksWhenNotEnoughTypeInfo) {
-      Optimize(function, "not much type info but very hot");
+      return OptimizationReason::kHotWithoutMuchTypeInfo;
     } else {
       if (FLAG_trace_opt_verbose) {
         PrintF("[not yet optimizing ");
@@ -368,10 +420,12 @@ void RuntimeProfiler::MaybeOptimizeIgnition(JSFunction* function,
         PrintF(", not enough type info: %d/%d (%d%%)]\n", typeinfo, total,
                type_percentage);
       }
+      return OptimizationReason::kDoNotOptimize;
     }
   }
   // TODO(rmcilroy): Consider whether we should optimize small functions when
   // they are first seen on the stack (e.g., kMaxSizeEarlyOpt).
+  return OptimizationReason::kDoNotOptimize;
 }
 
 void RuntimeProfiler::MarkCandidatesForOptimization() {
@@ -418,7 +472,6 @@ void RuntimeProfiler::MarkCandidatesForOptimization() {
   }
   any_ic_changed_ = false;
 }
-
 
 }  // namespace internal
 }  // namespace v8

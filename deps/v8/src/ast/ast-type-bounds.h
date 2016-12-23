@@ -7,8 +7,8 @@
 #ifndef V8_AST_AST_TYPE_BOUNDS_H_
 #define V8_AST_AST_TYPE_BOUNDS_H_
 
-#include "src/types.h"
-#include "src/zone-containers.h"
+#include "src/ast/ast-types.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -20,18 +20,18 @@ class AstTypeBounds {
   explicit AstTypeBounds(Zone* zone) : bounds_map_(zone) {}
   ~AstTypeBounds() {}
 
-  Bounds get(Expression* expression) const {
-    ZoneMap<Expression*, Bounds>::const_iterator i =
+  AstBounds get(Expression* expression) const {
+    ZoneMap<Expression*, AstBounds>::const_iterator i =
         bounds_map_.find(expression);
-    return (i != bounds_map_.end()) ? i->second : Bounds::Unbounded();
+    return (i != bounds_map_.end()) ? i->second : AstBounds::Unbounded();
   }
 
-  void set(Expression* expression, Bounds bounds) {
+  void set(Expression* expression, AstBounds bounds) {
     bounds_map_[expression] = bounds;
   }
 
  private:
-  ZoneMap<Expression*, Bounds> bounds_map_;
+  ZoneMap<Expression*, AstBounds> bounds_map_;
 };
 
 }  // namespace internal

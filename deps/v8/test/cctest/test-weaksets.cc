@@ -29,7 +29,16 @@
 
 #include "src/v8.h"
 
+#include "src/factory.h"
 #include "src/global-handles.h"
+#include "src/isolate.h"
+// FIXME(mstarzinger, marja): This is weird, but required because of the missing
+// (disallowed) include: src/factory.h -> src/objects-inl.h
+#include "src/objects-inl.h"
+// FIXME(mstarzinger, marja): This is weird, but required because of the missing
+// (disallowed) include: src/type-feedback-vector.h ->
+// src/type-feedback-vector-inl.h
+#include "src/type-feedback-vector-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 
@@ -70,7 +79,6 @@ TEST(WeakSet_Weakness) {
   LocalContext context;
   Isolate* isolate = GetIsolateFrom(&context);
   Factory* factory = isolate->factory();
-  Heap* heap = isolate->heap();
   HandleScope scope(isolate);
   Handle<JSWeakSet> weakset = AllocateJSWeakSet(isolate);
   GlobalHandles* global_handles = isolate->global_handles();
@@ -95,7 +103,7 @@ TEST(WeakSet_Weakness) {
   CHECK_EQ(1, ObjectHashTable::cast(weakset->table())->NumberOfElements());
 
   // Force a full GC.
-  heap->CollectAllGarbage(false);
+  CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(0, NumberOfWeakCalls);
   CHECK_EQ(1, ObjectHashTable::cast(weakset->table())->NumberOfElements());
   CHECK_EQ(
@@ -111,7 +119,7 @@ TEST(WeakSet_Weakness) {
   }
   CHECK(global_handles->IsWeak(key.location()));
 
-  heap->CollectAllGarbage(false);
+  CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(1, NumberOfWeakCalls);
   CHECK_EQ(0, ObjectHashTable::cast(weakset->table())->NumberOfElements());
   CHECK_EQ(
@@ -123,7 +131,6 @@ TEST(WeakSet_Shrinking) {
   LocalContext context;
   Isolate* isolate = GetIsolateFrom(&context);
   Factory* factory = isolate->factory();
-  Heap* heap = isolate->heap();
   HandleScope scope(isolate);
   Handle<JSWeakSet> weakset = AllocateJSWeakSet(isolate);
 
@@ -149,7 +156,7 @@ TEST(WeakSet_Shrinking) {
   CHECK_EQ(32, ObjectHashTable::cast(weakset->table())->NumberOfElements());
   CHECK_EQ(
       0, ObjectHashTable::cast(weakset->table())->NumberOfDeletedElements());
-  heap->CollectAllGarbage(false);
+  CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
   CHECK_EQ(0, ObjectHashTable::cast(weakset->table())->NumberOfElements());
   CHECK_EQ(
       32, ObjectHashTable::cast(weakset->table())->NumberOfDeletedElements());
@@ -192,7 +199,7 @@ TEST(WeakSet_Regress2060a) {
 
   // Force compacting garbage collection.
   CHECK(FLAG_always_compact);
-  heap->CollectAllGarbage();
+  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
 }
 
 
@@ -234,7 +241,7 @@ TEST(WeakSet_Regress2060b) {
   // Force compacting garbage collection. The subsequent collections are used
   // to verify that key references were actually updated.
   CHECK(FLAG_always_compact);
-  heap->CollectAllGarbage();
-  heap->CollectAllGarbage();
-  heap->CollectAllGarbage();
+  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
 }

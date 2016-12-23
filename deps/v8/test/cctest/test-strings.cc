@@ -40,6 +40,7 @@
 #include "src/objects.h"
 #include "src/unicode-decoder.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/heap/heap-utils.h"
 
 // Adapted from http://en.wikipedia.org/wiki/Multiply-with-carry
 class MyRandomNumberGenerator {
@@ -1239,8 +1240,8 @@ TEST(SliceFromSlice) {
 UNINITIALIZED_TEST(OneByteArrayJoin) {
   v8::Isolate::CreateParams create_params;
   // Set heap limits.
-  create_params.constraints.set_max_semi_space_size(1 * Page::kPageSize / MB);
-  create_params.constraints.set_max_old_space_size(6 * Page::kPageSize / MB);
+  create_params.constraints.set_max_semi_space_size(1);
+  create_params.constraints.set_max_old_space_size(6);
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   isolate->Enter();
@@ -1319,6 +1320,46 @@ TEST(RobustSubStringStub) {
   CheckException("%_SubString(slice, 0, 17);");
 }
 
+TEST(RobustSubStringStubExternalStrings) {
+  // Ensure that the specific combination of calling the SubStringStub on an
+  // external string and triggering a GC on string allocation does not crash.
+  // See crbug.com/649967.
+
+  FLAG_allow_natives_syntax = true;
+#ifdef VERIFY_HEAP
+  FLAG_verify_heap = true;
+#endif
+
+  CcTest::InitializeVM();
+  v8::HandleScope handle_scope(CcTest::isolate());
+
+  v8::Local<v8::String> underlying =
+      CompileRun(
+          "var str = 'abcdefghijklmnopqrstuvwxyz';"
+          "str")
+          ->ToString(CcTest::isolate()->GetCurrentContext())
+          .ToLocalChecked();
+  CHECK(v8::Utils::OpenHandle(*underlying)->IsSeqOneByteString());
+
+  const int length = underlying->Length();
+  uc16* two_byte = NewArray<uc16>(length + 1);
+  underlying->Write(two_byte);
+
+  Resource* resource = new Resource(two_byte, length);
+  CHECK(underlying->MakeExternal(resource));
+  CHECK(v8::Utils::OpenHandle(*underlying)->IsExternalTwoByteString());
+
+  v8::Local<v8::Script> script = v8_compile(v8_str("%_SubString(str, 5, 8)"));
+
+  // Trigger a GC on string allocation.
+  i::heap::SimulateFullSpace(CcTest::heap()->new_space());
+
+  v8::Local<v8::Value> result;
+  CHECK(script->Run(v8::Isolate::GetCurrent()->GetCurrentContext())
+            .ToLocal(&result));
+  Handle<String> string = v8::Utils::OpenHandle(v8::String::Cast(*result));
+  CHECK_EQ(0, strcmp("fgh", string->ToCString().get()));
+}
 
 namespace {
 

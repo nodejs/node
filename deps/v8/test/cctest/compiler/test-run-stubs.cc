@@ -4,6 +4,7 @@
 
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
+#include "src/compilation-info.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/js-graph.h"
@@ -11,7 +12,6 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/pipeline.h"
-#include "src/parsing/parser.h"
 #include "test/cctest/compiler/function-tester.h"
 
 namespace v8 {

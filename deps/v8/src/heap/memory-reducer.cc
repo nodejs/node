@@ -73,7 +73,8 @@ void MemoryReducer::NotifyTimer(const Event& event) {
       PrintIsolate(heap()->isolate(), "Memory reducer: started GC #%d\n",
                    state_.started_gcs);
     }
-    heap()->StartIdleIncrementalMarking();
+    heap()->StartIdleIncrementalMarking(
+        GarbageCollectionReason::kMemoryReducer);
   } else if (state_.action == kWait) {
     if (!heap()->incremental_marking()->IsStopped() &&
         heap()->ShouldOptimizeForMemoryUsage()) {
@@ -84,12 +85,10 @@ void MemoryReducer::NotifyTimer(const Event& event) {
       double deadline = heap()->MonotonicallyIncreasingTimeInMs() +
                         kIncrementalMarkingDelayMs;
       heap()->incremental_marking()->AdvanceIncrementalMarking(
-          deadline, i::IncrementalMarking::StepActions(
-                        i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                        i::IncrementalMarking::FORCE_MARKING,
-                        i::IncrementalMarking::FORCE_COMPLETION));
+          deadline, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
+          IncrementalMarking::FORCE_COMPLETION, StepOrigin::kTask);
       heap()->FinalizeIncrementalMarkingIfComplete(
-          "Memory reducer: finalize incremental marking");
+          GarbageCollectionReason::kFinalizeMarkingViaTask);
     }
     // Re-schedule the timer.
     ScheduleTimer(event.time_ms, state_.next_gc_start_ms - event.time_ms);

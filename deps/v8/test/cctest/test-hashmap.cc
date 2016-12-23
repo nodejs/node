@@ -34,17 +34,13 @@
 
 using namespace v8::internal;
 
-static bool DefaultMatchFun(void* a, void* b) {
-  return a == b;
-}
-
 
 typedef uint32_t (*IntKeyHash)(uint32_t key);
 
 
 class IntSet {
  public:
-  explicit IntSet(IntKeyHash hash) : hash_(hash), map_(DefaultMatchFun)  {}
+  explicit IntSet(IntKeyHash hash) : hash_(hash) {}
 
   void Insert(int x) {
     CHECK_NE(0, x);  // 0 corresponds to (void*)NULL - illegal key value

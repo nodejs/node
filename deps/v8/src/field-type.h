@@ -5,6 +5,7 @@
 #ifndef V8_FIELD_TYPE_H_
 #define V8_FIELD_TYPE_H_
 
+#include "src/ast/ast-types.h"
 #include "src/handles.h"
 #include "src/objects.h"
 #include "src/ostreams.h"
@@ -38,7 +39,7 @@ class FieldType : public Object {
   bool NowStable();
   bool NowIs(FieldType* other);
   bool NowIs(Handle<FieldType> other);
-  Type* Convert(Zone* zone);
+  AstType* Convert(Zone* zone);
 
   void PrintTo(std::ostream& os);
 };

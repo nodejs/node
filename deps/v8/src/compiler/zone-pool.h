@@ -9,7 +9,7 @@
 #include <set>
 #include <vector>
 
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -61,7 +61,7 @@ class ZonePool final {
     DISALLOW_COPY_AND_ASSIGN(StatsScope);
   };
 
-  explicit ZonePool(base::AccountingAllocator* allocator);
+  explicit ZonePool(AccountingAllocator* allocator);
   ~ZonePool();
 
   size_t GetMaxAllocatedBytes();
@@ -82,7 +82,7 @@ class ZonePool final {
   Stats stats_;
   size_t max_allocated_bytes_;
   size_t total_deleted_bytes_;
-  base::AccountingAllocator* allocator_;
+  AccountingAllocator* allocator_;
 
   DISALLOW_COPY_AND_ASSIGN(ZonePool);
 };

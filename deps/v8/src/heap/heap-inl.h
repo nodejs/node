@@ -8,7 +8,7 @@
 #include <cmath>
 
 #include "src/base/platform/platform.h"
-#include "src/counters.h"
+#include "src/counters-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/mark-compact.h"
@@ -24,6 +24,16 @@
 
 namespace v8 {
 namespace internal {
+
+AllocationSpace AllocationResult::RetrySpace() {
+  DCHECK(IsRetry());
+  return static_cast<AllocationSpace>(Smi::cast(object_)->value());
+}
+
+HeapObject* AllocationResult::ToObjectChecked() {
+  CHECK(!IsRetry());
+  return HeapObject::cast(object_);
+}
 
 void PromotionQueue::insert(HeapObject* target, int32_t size,
                             bool was_marked_black) {
@@ -50,6 +60,62 @@ void PromotionQueue::insert(HeapObject* target, int32_t size,
 #endif
 }
 
+void PromotionQueue::remove(HeapObject** target, int32_t* size,
+                            bool* was_marked_black) {
+  DCHECK(!is_empty());
+  if (front_ == rear_) {
+    Entry e = emergency_stack_->RemoveLast();
+    *target = e.obj_;
+    *size = e.size_;
+    *was_marked_black = e.was_marked_black_;
+    return;
+  }
+
+  struct Entry* entry = reinterpret_cast<struct Entry*>(--front_);
+  *target = entry->obj_;
+  *size = entry->size_;
+  *was_marked_black = entry->was_marked_black_;
+
+  // Assert no underflow.
+  SemiSpace::AssertValidRange(reinterpret_cast<Address>(rear_),
+                              reinterpret_cast<Address>(front_));
+}
+
+Page* PromotionQueue::GetHeadPage() {
+  return Page::FromAllocationAreaAddress(reinterpret_cast<Address>(rear_));
+}
+
+void PromotionQueue::SetNewLimit(Address limit) {
+  // If we are already using an emergency stack, we can ignore it.
+  if (emergency_stack_) return;
+
+  // If the limit is not on the same page, we can ignore it.
+  if (Page::FromAllocationAreaAddress(limit) != GetHeadPage()) return;
+
+  limit_ = reinterpret_cast<struct Entry*>(limit);
+
+  if (limit_ <= rear_) {
+    return;
+  }
+
+  RelocateQueueHead();
+}
+
+bool PromotionQueue::IsBelowPromotionQueue(Address to_space_top) {
+  // If an emergency stack is used, the to-space address cannot interfere
+  // with the promotion queue.
+  if (emergency_stack_) return true;
+
+  // If the given to-space top pointer and the head of the promotion queue
+  // are not on the same page, then the to-space objects are below the
+  // promotion queue.
+  if (GetHeadPage() != Page::FromAddress(to_space_top)) {
+    return true;
+  }
+  // If the to space top pointer is smaller or equal than the promotion
+  // queue head, then the to-space objects are below the promotion queue.
+  return reinterpret_cast<struct Entry*>(to_space_top) <= rear_;
+}
 
 #define ROOT_ACCESSOR(type, name, camel_name) \
   type* Heap::name() { return type::cast(roots_[k##camel_name##RootIndex]); }
@@ -89,6 +155,37 @@ WELL_KNOWN_SYMBOL_LIST(SYMBOL_ACCESSOR)
 ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
+PagedSpace* Heap::paged_space(int idx) {
+  DCHECK_NE(idx, LO_SPACE);
+  DCHECK_NE(idx, NEW_SPACE);
+  return static_cast<PagedSpace*>(space_[idx]);
+}
+
+Space* Heap::space(int idx) { return space_[idx]; }
+
+Address* Heap::NewSpaceAllocationTopAddress() {
+  return new_space_->allocation_top_address();
+}
+
+Address* Heap::NewSpaceAllocationLimitAddress() {
+  return new_space_->allocation_limit_address();
+}
+
+Address* Heap::OldSpaceAllocationTopAddress() {
+  return old_space_->allocation_top_address();
+}
+
+Address* Heap::OldSpaceAllocationLimitAddress() {
+  return old_space_->allocation_limit_address();
+}
+
+void Heap::UpdateNewSpaceAllocationCounter() {
+  new_space_allocation_counter_ = NewSpaceAllocationCounter();
+}
+
+size_t Heap::NewSpaceAllocationCounter() {
+  return new_space_allocation_counter_ + new_space()->AllocatedSinceLastGC();
+}
 
 template <>
 bool inline Heap::IsOneByte(Vector<const char> str, int chars) {
@@ -209,14 +306,14 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
   isolate_->counters()->objs_since_last_young()->Increment();
 #endif
 
-  bool large_object = size_in_bytes > Page::kMaxRegularHeapObjectSize;
+  bool large_object = size_in_bytes > kMaxRegularHeapObjectSize;
   HeapObject* object = nullptr;
   AllocationResult allocation;
   if (NEW_SPACE == space) {
     if (large_object) {
       space = LO_SPACE;
     } else {
-      allocation = new_space_.AllocateRaw(size_in_bytes, alignment);
+      allocation = new_space_->AllocateRaw(size_in_bytes, alignment);
       if (allocation.To(&object)) {
         OnAllocationEvent(object, size_in_bytes);
       }
@@ -248,8 +345,6 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
   }
   if (allocation.To(&object)) {
     OnAllocationEvent(object, size_in_bytes);
-  } else {
-    old_gen_exhausted_ = true;
   }
 
   return allocation;
@@ -355,9 +450,17 @@ void Heap::FinalizeExternalString(String* string) {
   }
 }
 
+Address Heap::NewSpaceTop() { return new_space_->top(); }
+
+bool Heap::DeoptMaybeTenuredAllocationSites() {
+  return new_space_->IsAtMaximumCapacity() && maximum_size_scavenges_ == 0;
+}
 
 bool Heap::InNewSpace(Object* object) {
-  bool result = new_space_.Contains(object);
+  // Inlined check from NewSpace::Contains.
+  bool result =
+      object->IsHeapObject() &&
+      Page::FromAddress(HeapObject::cast(object)->address())->InNewSpace();
   DCHECK(!result ||                 // Either not in new space
          gc_state_ != NOT_IN_GC ||  // ... or in the middle of GC
          InToSpace(object));        // ... or in to-space (where we allocate).
@@ -365,35 +468,32 @@ bool Heap::InNewSpace(Object* object) {
 }
 
 bool Heap::InFromSpace(Object* object) {
-  return new_space_.FromSpaceContains(object);
+  return object->IsHeapObject() &&
+         MemoryChunk::FromAddress(HeapObject::cast(object)->address())
+             ->IsFlagSet(Page::IN_FROM_SPACE);
 }
 
 
 bool Heap::InToSpace(Object* object) {
-  return new_space_.ToSpaceContains(object);
+  return object->IsHeapObject() &&
+         MemoryChunk::FromAddress(HeapObject::cast(object)->address())
+             ->IsFlagSet(Page::IN_TO_SPACE);
 }
 
 bool Heap::InOldSpace(Object* object) { return old_space_->Contains(object); }
 
 bool Heap::InNewSpaceSlow(Address address) {
-  return new_space_.ContainsSlow(address);
+  return new_space_->ContainsSlow(address);
 }
 
 bool Heap::InOldSpaceSlow(Address address) {
   return old_space_->ContainsSlow(address);
 }
 
-bool Heap::OldGenerationAllocationLimitReached() {
-  if (!incremental_marking()->IsStopped() && !ShouldOptimizeForMemoryUsage()) {
-    return false;
-  }
-  return OldGenerationSpaceAvailable() < 0;
-}
-
 template <PromotionMode promotion_mode>
 bool Heap::ShouldBePromoted(Address old_address, int object_size) {
   Page* page = Page::FromAddress(old_address);
-  Address age_mark = new_space_.age_mark();
+  Address age_mark = new_space_->age_mark();
 
   if (promotion_mode == PROMOTE_MARKED) {
     MarkBit mark_bit = ObjectMarking::MarkBitFrom(old_address);
@@ -587,8 +687,8 @@ void Heap::RemoveAllocationSitePretenuringFeedback(AllocationSite* site) {
       site, static_cast<uint32_t>(bit_cast<uintptr_t>(site)));
 }
 
-
-bool Heap::CollectGarbage(AllocationSpace space, const char* gc_reason,
+bool Heap::CollectGarbage(AllocationSpace space,
+                          GarbageCollectionReason gc_reason,
                           const v8::GCCallbackFlags callbackFlags) {
   const char* collector_reason = NULL;
   GarbageCollector collector = SelectGarbageCollector(space, &collector_reason);
@@ -658,35 +758,6 @@ void Heap::ExternalStringTable::ShrinkNewStrings(int position) {
   }
 #endif
 }
-
-// static
-int DescriptorLookupCache::Hash(Object* source, Name* name) {
-  DCHECK(name->IsUniqueName());
-  // Uses only lower 32 bits if pointers are larger.
-  uint32_t source_hash =
-      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(source)) >>
-      kPointerSizeLog2;
-  uint32_t name_hash = name->hash_field();
-  return (source_hash ^ name_hash) % kLength;
-}
-
-int DescriptorLookupCache::Lookup(Map* source, Name* name) {
-  int index = Hash(source, name);
-  Key& key = keys_[index];
-  if ((key.source == source) && (key.name == name)) return results_[index];
-  return kAbsent;
-}
-
-
-void DescriptorLookupCache::Update(Map* source, Name* name, int result) {
-  DCHECK(result != kAbsent);
-  int index = Hash(source, name);
-  Key& key = keys_[index];
-  key.source = source;
-  key.name = name;
-  results_[index] = result;
-}
-
 
 void Heap::ClearInstanceofCache() {
   set_instanceof_cache_function(Smi::FromInt(0));

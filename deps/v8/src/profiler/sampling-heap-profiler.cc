@@ -259,8 +259,8 @@ v8::AllocationProfile::Node* SamplingHeapProfiler::TranslateAllocationNode(
 
 v8::AllocationProfile* SamplingHeapProfiler::GetAllocationProfile() {
   if (flags_ & v8::HeapProfiler::kSamplingForceGC) {
-    isolate_->heap()->CollectAllGarbage(Heap::kNoGCFlags,
-                                        "SamplingHeapProfiler");
+    isolate_->heap()->CollectAllGarbage(
+        Heap::kNoGCFlags, GarbageCollectionReason::kSamplingProfiler);
   }
   // To resolve positions to line/column numbers, we will need to look up
   // scripts. Build a map to allow fast mapping from script id to script.

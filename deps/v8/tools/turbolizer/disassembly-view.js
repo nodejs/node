@@ -159,6 +159,7 @@ class DisassemblyView extends TextView {
     view.pos_start = -1;
     view.addr_event_counts = null;
     view.total_event_counts = null;
+    view.max_event_counts = null;
     view.pos_lines = new Array();
     // Comment lines for line 0 include sourcePosition already, only need to
     // add sourcePosition for lines > 0.
@@ -181,21 +182,29 @@ class DisassemblyView extends TextView {
       view.addr_event_counts = eventCounts;
 
       view.total_event_counts = {};
-      for (var ev_name in view.addr_event_counts) {
+      view.max_event_counts = {};
+      for (let ev_name in view.addr_event_counts) {
         let keys = Object.keys(view.addr_event_counts[ev_name]);
         let values = keys.map(key => view.addr_event_counts[ev_name][key]);
         view.total_event_counts[ev_name] = values.reduce((a, b) => a + b);
+        view.max_event_counts[ev_name] = values.reduce((a, b) => Math.max(a, b));
       }
     }
     else {
       view.addr_event_counts = null;
       view.total_event_counts = null;
+      view.max_event_counts = null;
     }
   }
 
   // Shorten decimals and remove trailing zeroes for readability.
   humanize(num) {
     return num.toFixed(3).replace(/\.?0+$/, "") + "%";
+  }
+
+  // Interpolate between the given start and end values by a fraction of val/max.
+  interpolate(val, max, start, end) {
+    return start + (end - start) * (val / max);
   }
 
   processLine(line) {
@@ -214,30 +223,49 @@ class DisassemblyView extends TextView {
 
     // Add profiling data per instruction if available.
     if (view.total_event_counts) {
-      let event_selector = document.getElementById('event-selector');
-      if (event_selector.length !== 0) {
-        let event = event_selector.value;
-        let matches = /^(0x[0-9a-fA-F]+)\s+\d+\s+[0-9a-fA-F]+/.exec(line);
-        if (matches) {
+      let matches = /^(0x[0-9a-fA-F]+)\s+\d+\s+[0-9a-fA-F]+/.exec(line);
+      if (matches) {
+        let newFragments = [];
+        for (let event in view.addr_event_counts) {
           let count = view.addr_event_counts[event][matches[1]];
-          let str = "";
-          let css_cls = undefined;
+          let str = " ";
+          let css_cls = "prof";
           if(count !== undefined) {
             let perc = count / view.total_event_counts[event] * 100;
 
-            str = "(" + view.humanize(perc) + ") ";
+            let col = { r: 255, g: 255, b: 255 };
+            for (let i = 0; i < PROF_COLS.length; i++) {
+              if (perc === PROF_COLS[i].perc) {
+                col = PROF_COLS[i].col;
+                break;
+              }
+              else if (perc > PROF_COLS[i].perc && perc < PROF_COLS[i + 1].perc) {
+                let col1 = PROF_COLS[i].col;
+                let col2 = PROF_COLS[i + 1].col;
 
-            css_cls = "prof-low";
-            if(perc > PROF_HIGH)
-              css_cls = "prof-high";
-            else if(perc > PROF_MED)
-              css_cls = "prof-med";
+                let val = perc - PROF_COLS[i].perc;
+                let max = PROF_COLS[i + 1].perc - PROF_COLS[i].perc;
+
+                col.r = Math.round(view.interpolate(val, max, col1.r, col2.r));
+                col.g = Math.round(view.interpolate(val, max, col1.g, col2.g));
+                col.b = Math.round(view.interpolate(val, max, col1.b, col2.b));
+                break;
+              }
+            }
+
+            str = UNICODE_BLOCK;
+
+            let fragment = view.createFragment(str, css_cls);
+            fragment.title = event + ": " + view.humanize(perc) + " (" + count + ")";
+            fragment.style.color = "rgb(" + col.r + ", " + col.g + ", " + col.b + ")";
+
+            newFragments.push(fragment);
           }
-          // Pad extra spaces to keep alignment for all instructions.
-          str = (" ".repeat(10) + str).slice(-10);
+          else
+            newFragments.push(view.createFragment(str, css_cls));
 
-          fragments.splice(0, 0, view.createFragment(str, css_cls));
         }
+        fragments = newFragments.concat(fragments);
       }
     }
     return fragments;

@@ -22,7 +22,9 @@ InstructionSelector::InstructionSelector(
     Zone* zone, size_t node_count, Linkage* linkage,
     InstructionSequence* sequence, Schedule* schedule,
     SourcePositionTable* source_positions, Frame* frame,
-    SourcePositionMode source_position_mode, Features features)
+    SourcePositionMode source_position_mode, Features features,
+    EnableScheduling enable_scheduling,
+    EnableSerialization enable_serialization)
     : zone_(zone),
       linkage_(linkage),
       sequence_(sequence),
@@ -37,13 +39,16 @@ InstructionSelector::InstructionSelector(
       effect_level_(node_count, 0, zone),
       virtual_registers_(node_count,
                          InstructionOperand::kInvalidVirtualRegister, zone),
+      virtual_register_rename_(zone),
       scheduler_(nullptr),
-      frame_(frame) {
+      enable_scheduling_(enable_scheduling),
+      enable_serialization_(enable_serialization),
+      frame_(frame),
+      instruction_selection_failed_(false) {
   instructions_.reserve(node_count);
 }
 
-
-void InstructionSelector::SelectInstructions() {
+bool InstructionSelector::SelectInstructions() {
   // Mark the inputs of all phis in loop headers as used.
   BasicBlockVector* blocks = schedule()->rpo_order();
   for (auto const block : *blocks) {
@@ -62,22 +67,26 @@ void InstructionSelector::SelectInstructions() {
   // Visit each basic block in post order.
   for (auto i = blocks->rbegin(); i != blocks->rend(); ++i) {
     VisitBlock(*i);
+    if (instruction_selection_failed()) return false;
   }
 
   // Schedule the selected instructions.
-  if (FLAG_turbo_instruction_scheduling &&
-      InstructionScheduler::SchedulerSupported()) {
+  if (UseInstructionScheduling()) {
     scheduler_ = new (zone()) InstructionScheduler(zone(), sequence());
   }
 
   for (auto const block : *blocks) {
     InstructionBlock* instruction_block =
         sequence()->InstructionBlockAt(RpoNumber::FromInt(block->rpo_number()));
+    for (size_t i = 0; i < instruction_block->phis().size(); i++) {
+      UpdateRenamesInPhi(instruction_block->PhiAt(i));
+    }
     size_t end = instruction_block->code_end();
     size_t start = instruction_block->code_start();
     DCHECK_LE(end, start);
     StartBlock(RpoNumber::FromInt(block->rpo_number()));
     while (start-- > end) {
+      UpdateRenames(instructions_[start]);
       AddInstruction(instructions_[start]);
     }
     EndBlock(RpoNumber::FromInt(block->rpo_number()));
@@ -85,11 +94,11 @@ void InstructionSelector::SelectInstructions() {
 #if DEBUG
   sequence()->ValidateSSA();
 #endif
+  return true;
 }
 
 void InstructionSelector::StartBlock(RpoNumber rpo) {
-  if (FLAG_turbo_instruction_scheduling &&
-      InstructionScheduler::SchedulerSupported()) {
+  if (UseInstructionScheduling()) {
     DCHECK_NOT_NULL(scheduler_);
     scheduler_->StartBlock(rpo);
   } else {
@@ -99,8 +108,7 @@ void InstructionSelector::StartBlock(RpoNumber rpo) {
 
 
 void InstructionSelector::EndBlock(RpoNumber rpo) {
-  if (FLAG_turbo_instruction_scheduling &&
-      InstructionScheduler::SchedulerSupported()) {
+  if (UseInstructionScheduling()) {
     DCHECK_NOT_NULL(scheduler_);
     scheduler_->EndBlock(rpo);
   } else {
@@ -110,8 +118,7 @@ void InstructionSelector::EndBlock(RpoNumber rpo) {
 
 
 void InstructionSelector::AddInstruction(Instruction* instr) {
-  if (FLAG_turbo_instruction_scheduling &&
-      InstructionScheduler::SchedulerSupported()) {
+  if (UseInstructionScheduling()) {
     DCHECK_NOT_NULL(scheduler_);
     scheduler_->AddInstruction(instr);
   } else {
@@ -206,6 +213,13 @@ Instruction* InstructionSelector::Emit(
     InstructionCode opcode, size_t output_count, InstructionOperand* outputs,
     size_t input_count, InstructionOperand* inputs, size_t temp_count,
     InstructionOperand* temps) {
+  if (output_count >= Instruction::kMaxOutputCount ||
+      input_count >= Instruction::kMaxInputCount ||
+      temp_count >= Instruction::kMaxTempCount) {
+    set_instruction_selection_failed();
+    return nullptr;
+  }
+
   Instruction* instr =
       Instruction::New(instruction_zone(), opcode, output_count, outputs,
                        input_count, inputs, temp_count, temps);
@@ -253,6 +267,53 @@ bool InstructionSelector::IsOnlyUserOfNodeInSameBlock(Node* user,
     }
   }
   return true;
+}
+
+void InstructionSelector::UpdateRenames(Instruction* instruction) {
+  for (size_t i = 0; i < instruction->InputCount(); i++) {
+    TryRename(instruction->InputAt(i));
+  }
+}
+
+void InstructionSelector::UpdateRenamesInPhi(PhiInstruction* phi) {
+  for (size_t i = 0; i < phi->operands().size(); i++) {
+    int vreg = phi->operands()[i];
+    int renamed = GetRename(vreg);
+    if (vreg != renamed) {
+      phi->RenameInput(i, renamed);
+    }
+  }
+}
+
+int InstructionSelector::GetRename(int virtual_register) {
+  int rename = virtual_register;
+  while (true) {
+    if (static_cast<size_t>(rename) >= virtual_register_rename_.size()) break;
+    int next = virtual_register_rename_[rename];
+    if (next == InstructionOperand::kInvalidVirtualRegister) {
+      break;
+    }
+    rename = next;
+  }
+  return rename;
+}
+
+void InstructionSelector::TryRename(InstructionOperand* op) {
+  if (!op->IsUnallocated()) return;
+  int vreg = UnallocatedOperand::cast(op)->virtual_register();
+  int rename = GetRename(vreg);
+  if (rename != vreg) {
+    UnallocatedOperand::cast(op)->set_virtual_register(rename);
+  }
+}
+
+void InstructionSelector::SetRename(const Node* node, const Node* rename) {
+  int vreg = GetVirtualRegister(node);
+  if (static_cast<size_t>(vreg) >= virtual_register_rename_.size()) {
+    int invalid = InstructionOperand::kInvalidVirtualRegister;
+    virtual_register_rename_.resize(vreg + 1, invalid);
+  }
+  virtual_register_rename_[vreg] = GetVirtualRegister(rename);
 }
 
 int InstructionSelector::GetVirtualRegister(const Node* node) {
@@ -330,6 +391,12 @@ void InstructionSelector::SetEffectLevel(Node* node, int effect_level) {
   effect_level_[id] = effect_level;
 }
 
+bool InstructionSelector::CanAddressRelativeToRootsRegister() const {
+  return (enable_serialization_ == kDisableSerialization &&
+          (linkage()->GetIncomingDescriptor()->flags() &
+           CallDescriptor::kCanUseRoots));
+}
+
 void InstructionSelector::MarkAsRepresentation(MachineRepresentation rep,
                                                const InstructionOperand& op) {
   UnallocatedOperand unalloc = UnallocatedOperand::cast(op);
@@ -350,6 +417,10 @@ enum class FrameStateInputKind { kAny, kStackSlot };
 InstructionOperand OperandForDeopt(OperandGenerator* g, Node* input,
                                    FrameStateInputKind kind,
                                    MachineRepresentation rep) {
+  if (rep == MachineRepresentation::kNone) {
+    return g->TempImmediate(FrameStateDescriptor::kImpossibleValue);
+  }
+
   switch (input->opcode()) {
     case IrOpcode::kInt32Constant:
     case IrOpcode::kInt64Constant:
@@ -362,15 +433,13 @@ InstructionOperand OperandForDeopt(OperandGenerator* g, Node* input,
       UNREACHABLE();
       break;
     default:
-      if (rep == MachineRepresentation::kNone) {
-        return g->TempImmediate(FrameStateDescriptor::kImpossibleValue);
-      } else {
-        switch (kind) {
-          case FrameStateInputKind::kStackSlot:
-            return g->UseUniqueSlot(input);
-          case FrameStateInputKind::kAny:
-            return g->UseAny(input);
-        }
+      switch (kind) {
+        case FrameStateInputKind::kStackSlot:
+          return g->UseUniqueSlot(input);
+        case FrameStateInputKind::kAny:
+          // Currently deopts "wrap" other operations, so the deopt's inputs
+          // are potentially needed untill the end of the deoptimising code.
+          return g->UseAnyAtEnd(input);
       }
   }
   UNREACHABLE();
@@ -716,7 +785,6 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
   }
 }
 
-
 void InstructionSelector::VisitBlock(BasicBlock* block) {
   DCHECK(!current_block_);
   current_block_ = block;
@@ -753,6 +821,7 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
     // up".
     size_t current_node_end = instructions_.size();
     VisitNode(node);
+    if (instruction_selection_failed()) return;
     std::reverse(instructions_.begin() + current_node_end, instructions_.end());
     if (instructions_.size() == current_node_end) continue;
     // Mark source position on first instruction emitted.
@@ -1053,8 +1122,14 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitUint64LessThanOrEqual(node);
     case IrOpcode::kUint64Mod:
       return MarkAsWord64(node), VisitUint64Mod(node);
+    case IrOpcode::kBitcastTaggedToWord:
+      return MarkAsRepresentation(MachineType::PointerRepresentation(), node),
+             VisitBitcastTaggedToWord(node);
     case IrOpcode::kBitcastWordToTagged:
       return MarkAsReference(node), VisitBitcastWordToTagged(node);
+    case IrOpcode::kBitcastWordToTaggedSigned:
+      return MarkAsRepresentation(MachineRepresentation::kTaggedSigned, node),
+             EmitIdentity(node);
     case IrOpcode::kChangeFloat32ToFloat64:
       return MarkAsFloat64(node), VisitChangeFloat32ToFloat64(node);
     case IrOpcode::kChangeInt32ToFloat64:
@@ -1065,19 +1140,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsWord32(node), VisitChangeFloat64ToInt32(node);
     case IrOpcode::kChangeFloat64ToUint32:
       return MarkAsWord32(node), VisitChangeFloat64ToUint32(node);
-    case IrOpcode::kImpossibleToWord32:
-      return MarkAsWord32(node), VisitImpossibleToWord32(node);
-    case IrOpcode::kImpossibleToWord64:
-      return MarkAsWord64(node), VisitImpossibleToWord64(node);
-    case IrOpcode::kImpossibleToFloat32:
-      return MarkAsFloat32(node), VisitImpossibleToFloat32(node);
-    case IrOpcode::kImpossibleToFloat64:
-      return MarkAsFloat64(node), VisitImpossibleToFloat64(node);
-    case IrOpcode::kImpossibleToTagged:
-      MarkAsRepresentation(MachineType::PointerRepresentation(), node);
-      return VisitImpossibleToTagged(node);
-    case IrOpcode::kImpossibleToBit:
-      return MarkAsWord32(node), VisitImpossibleToBit(node);
     case IrOpcode::kFloat64SilenceNaN:
       MarkAsFloat64(node);
       if (CanProduceSignalingNaN(node->InputAt(0))) {
@@ -1304,50 +1366,20 @@ void InstructionSelector::VisitNode(Node* node) {
     }
     case IrOpcode::kAtomicStore:
       return VisitAtomicStore(node);
+    case IrOpcode::kProtectedLoad:
+      return VisitProtectedLoad(node);
     case IrOpcode::kUnsafePointerAdd:
       MarkAsRepresentation(MachineType::PointerRepresentation(), node);
       return VisitUnsafePointerAdd(node);
+    case IrOpcode::kCreateInt32x4:
+      return MarkAsSimd128(node), VisitCreateInt32x4(node);
+    case IrOpcode::kInt32x4ExtractLane:
+      return MarkAsWord32(node), VisitInt32x4ExtractLane(node);
     default:
       V8_Fatal(__FILE__, __LINE__, "Unexpected operator #%d:%s @ node #%d",
                node->opcode(), node->op()->mnemonic(), node->id());
       break;
   }
-}
-
-void InstructionSelector::VisitImpossibleToWord32(Node* node) {
-  OperandGenerator g(this);
-  Emit(kArchImpossible, g.DefineAsConstant(node, Constant(0)));
-}
-
-void InstructionSelector::VisitImpossibleToWord64(Node* node) {
-  OperandGenerator g(this);
-  Emit(kArchImpossible,
-       g.DefineAsConstant(node, Constant(static_cast<int64_t>(0))));
-}
-
-void InstructionSelector::VisitImpossibleToFloat32(Node* node) {
-  OperandGenerator g(this);
-  Emit(kArchImpossible, g.DefineAsConstant(node, Constant(0.0f)));
-}
-
-void InstructionSelector::VisitImpossibleToFloat64(Node* node) {
-  OperandGenerator g(this);
-  Emit(kArchImpossible, g.DefineAsConstant(node, Constant(0.0)));
-}
-
-void InstructionSelector::VisitImpossibleToBit(Node* node) {
-  OperandGenerator g(this);
-  Emit(kArchImpossible, g.DefineAsConstant(node, Constant(0)));
-}
-
-void InstructionSelector::VisitImpossibleToTagged(Node* node) {
-  OperandGenerator g(this);
-#if V8_TARGET_ARCH_64_BIT
-  Emit(kArchImpossible,
-       g.DefineAsConstant(node, Constant(static_cast<int64_t>(0))));
-#else   // V8_TARGET_ARCH_64_BIT
-  Emit(kArchImpossible, g.DefineAsConstant(node, Constant(0)));
-#endif  // V8_TARGET_ARCH_64_BIT
 }
 
 void InstructionSelector::VisitLoadStackPointer(Node* node) {
@@ -1493,8 +1525,14 @@ void InstructionSelector::VisitStackSlot(Node* node) {
        sequence()->AddImmediate(Constant(slot)), 0, nullptr);
 }
 
+void InstructionSelector::VisitBitcastTaggedToWord(Node* node) {
+  OperandGenerator g(this);
+  Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(node->InputAt(0)));
+}
+
 void InstructionSelector::VisitBitcastWordToTagged(Node* node) {
-  EmitIdentity(node);
+  OperandGenerator g(this);
+  Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(node->InputAt(0)));
 }
 
 // 32 bit targets do not implement the following instructions.
@@ -1647,7 +1685,6 @@ void InstructionSelector::VisitBitcastFloat64ToInt64(Node* node) {
 void InstructionSelector::VisitBitcastInt64ToFloat64(Node* node) {
   UNIMPLEMENTED();
 }
-
 #endif  // V8_TARGET_ARCH_32_BIT
 
 // 64 bit targets do not implement the following instructions.
@@ -1665,6 +1702,14 @@ void InstructionSelector::VisitWord32PairShr(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitWord32PairSar(Node* node) { UNIMPLEMENTED(); }
 #endif  // V8_TARGET_ARCH_64_BIT
 
+#if !V8_TARGET_ARCH_X64
+void InstructionSelector::VisitCreateInt32x4(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitInt32x4ExtractLane(Node* node) {
+  UNIMPLEMENTED();
+}
+#endif  // !V8_TARGET_ARCH_X64
+
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }
 
 void InstructionSelector::VisitParameter(Node* node) {
@@ -1680,13 +1725,17 @@ void InstructionSelector::VisitParameter(Node* node) {
   Emit(kArchNop, op);
 }
 
+namespace {
+LinkageLocation ExceptionLocation() {
+  return LinkageLocation::ForRegister(kReturnRegister0.code(),
+                                      MachineType::IntPtr());
+}
+}
 
 void InstructionSelector::VisitIfException(Node* node) {
   OperandGenerator g(this);
-  Node* call = node->InputAt(1);
-  DCHECK_EQ(IrOpcode::kCall, call->opcode());
-  const CallDescriptor* descriptor = CallDescriptorOf(call->op());
-  Emit(kArchNop, g.DefineAsLocation(node, descriptor->GetReturnLocation(0)));
+  DCHECK_EQ(IrOpcode::kCall, node->InputAt(1)->opcode());
+  Emit(kArchNop, g.DefineAsLocation(node, ExceptionLocation()));
 }
 
 
@@ -1812,9 +1861,11 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   // Emit the call instruction.
   size_t const output_count = buffer.outputs.size();
   auto* outputs = output_count ? &buffer.outputs.front() : nullptr;
-  Emit(opcode, output_count, outputs, buffer.instruction_args.size(),
-       &buffer.instruction_args.front())
-      ->MarkAsCall();
+  Instruction* call_instr =
+      Emit(opcode, output_count, outputs, buffer.instruction_args.size(),
+           &buffer.instruction_args.front());
+  if (instruction_selection_failed()) return;
+  call_instr->MarkAsCall();
 }
 
 
@@ -1920,9 +1971,11 @@ void InstructionSelector::VisitTailCall(Node* node) {
     // Emit the call instruction.
     size_t output_count = buffer.outputs.size();
     auto* outputs = &buffer.outputs.front();
-    Emit(opcode, output_count, outputs, buffer.instruction_args.size(),
-         &buffer.instruction_args.front())
-        ->MarkAsCall();
+    Instruction* call_instr =
+        Emit(opcode, output_count, outputs, buffer.instruction_args.size(),
+             &buffer.instruction_args.front());
+    if (instruction_selection_failed()) return;
+    call_instr->MarkAsCall();
     Emit(kArchRet, 0, nullptr, output_count, outputs);
   }
 }
@@ -1984,8 +2037,8 @@ Instruction* InstructionSelector::EmitDeoptimize(
 
 void InstructionSelector::EmitIdentity(Node* node) {
   OperandGenerator g(this);
-  Node* value = node->InputAt(0);
-  Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
+  MarkAsUsed(node->InputAt(0));
+  SetRename(node, node->InputAt(0));
 }
 
 void InstructionSelector::VisitDeoptimize(DeoptimizeKind kind,
