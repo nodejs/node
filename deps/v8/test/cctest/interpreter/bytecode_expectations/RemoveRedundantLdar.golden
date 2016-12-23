@@ -3,8 +3,6 @@
 #
 
 ---
-pool type: number
-execute: yes
 wrap: yes
 
 ---
@@ -18,20 +16,20 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 26
+bytecode array length: 28
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   45 S> */ B(LdaSmi), U8(1),
                 B(Star), R(0),
   /*   48 E> */ B(StackCheck),
   /*   64 S> */ B(Ldar), R(0),
-  /*   78 E> */ B(Add), R(0), U8(1),
+  /*   78 E> */ B(Add), R(0), U8(2),
                 B(Star), R(0),
   /*   86 S> */ B(LdaSmi), U8(10),
-  /*   95 E> */ B(TestGreaterThan), R(0),
+  /*   95 E> */ B(TestGreaterThan), R(0), U8(3),
                 B(JumpIfFalse), U8(4),
-  /*  101 S> */ B(Jump), U8(4),
-                B(Jump), U8(-16),
+  /*  101 S> */ B(Jump), U8(5),
+                B(JumpLoop), U8(-17), U8(0),
   /*  110 S> */ B(Ldar), R(0),
   /*  123 S> */ B(Return),
 ]
@@ -51,17 +49,17 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 23
+bytecode array length: 24
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   45 S> */ B(LdaSmi), U8(1),
                 B(Star), R(0),
   /*   48 E> */ B(StackCheck),
   /*   55 S> */ B(Nop),
-  /*   69 E> */ B(Add), R(0), U8(1),
+  /*   69 E> */ B(Add), R(0), U8(2),
                 B(Star), R(0),
   /*   77 S> */ B(LdaSmi), U8(10),
-  /*   86 E> */ B(TestGreaterThan), R(0),
+  /*   86 E> */ B(TestGreaterThan), R(0), U8(3),
                 B(JumpIfFalse), U8(4),
   /*   92 S> */ B(Jump), U8(2),
   /*  118 S> */ B(Ldar), R(0),
@@ -86,7 +84,7 @@ bytecodes: [
   /*   45 S> */ B(LdaSmi), U8(1),
                 B(Star), R(0),
   /*   50 S> */ B(Nop),
-  /*   64 E> */ B(Add), R(0), U8(1),
+  /*   64 E> */ B(Add), R(0), U8(2),
                 B(Star), R(0),
   /*   72 S> */ B(Nop),
   /*   85 S> */ B(Return),

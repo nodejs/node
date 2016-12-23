@@ -6,7 +6,7 @@
 #define V8_COMPILER_BYTECODE_LOOP_ANALYSIS_H_
 
 #include "src/handles.h"
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {

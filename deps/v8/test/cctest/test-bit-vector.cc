@@ -35,7 +35,7 @@
 using namespace v8::internal;
 
 TEST(BitVector) {
-  v8::base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator);
   {
     BitVector v(15, &zone);

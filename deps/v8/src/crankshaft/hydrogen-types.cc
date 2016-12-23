@@ -12,17 +12,17 @@ namespace v8 {
 namespace internal {
 
 // static
-HType HType::FromType(Type* type) {
-  if (Type::Any()->Is(type)) return HType::Any();
+HType HType::FromType(AstType* type) {
+  if (AstType::Any()->Is(type)) return HType::Any();
   if (!type->IsInhabited()) return HType::None();
-  if (type->Is(Type::SignedSmall())) return HType::Smi();
-  if (type->Is(Type::Number())) return HType::TaggedNumber();
-  if (type->Is(Type::Null())) return HType::Null();
-  if (type->Is(Type::String())) return HType::String();
-  if (type->Is(Type::Boolean())) return HType::Boolean();
-  if (type->Is(Type::Undefined())) return HType::Undefined();
-  if (type->Is(Type::Object())) return HType::JSObject();
-  if (type->Is(Type::DetectableReceiver())) return HType::JSReceiver();
+  if (type->Is(AstType::SignedSmall())) return HType::Smi();
+  if (type->Is(AstType::Number())) return HType::TaggedNumber();
+  if (type->Is(AstType::Null())) return HType::Null();
+  if (type->Is(AstType::String())) return HType::String();
+  if (type->Is(AstType::Boolean())) return HType::Boolean();
+  if (type->Is(AstType::Undefined())) return HType::Undefined();
+  if (type->Is(AstType::Object())) return HType::JSObject();
+  if (type->Is(AstType::DetectableReceiver())) return HType::JSReceiver();
   return HType::Tagged();
 }
 

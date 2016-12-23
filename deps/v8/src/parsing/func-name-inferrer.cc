@@ -45,9 +45,11 @@ void FuncNameInferrer::PushVariableName(const AstRawString* name) {
 }
 
 void FuncNameInferrer::RemoveAsyncKeywordFromEnd() {
-  DCHECK(names_stack_.length() > 0);
-  DCHECK(names_stack_.last().name->IsOneByteEqualTo("async"));
-  names_stack_.RemoveLast();
+  if (IsOpen()) {
+    DCHECK(names_stack_.length() > 0);
+    DCHECK(names_stack_.last().name->IsOneByteEqualTo("async"));
+    names_stack_.RemoveLast();
+  }
 }
 
 const AstString* FuncNameInferrer::MakeNameFromStack() {

@@ -1022,7 +1022,8 @@ class Assembler : public AssemblerBase {
   void bkpt(uint32_t imm16);  // v5 and above
   void svc(uint32_t imm24, Condition cond = al);
 
-  // Synchronization instructions
+  // Synchronization instructions.
+  // On ARMv6, an equivalent CP15 operation will be used.
   void dmb(BarrierOption option);
   void dsb(BarrierOption option);
   void isb(BarrierOption option);
@@ -1258,6 +1259,19 @@ class Assembler : public AssemblerBase {
   void vcmp(const SwVfpRegister src1, const float src2,
             const Condition cond = al);
 
+  void vmaxnm(const DwVfpRegister dst,
+              const DwVfpRegister src1,
+              const DwVfpRegister src2);
+  void vmaxnm(const SwVfpRegister dst,
+              const SwVfpRegister src1,
+              const SwVfpRegister src2);
+  void vminnm(const DwVfpRegister dst,
+              const DwVfpRegister src1,
+              const DwVfpRegister src2);
+  void vminnm(const SwVfpRegister dst,
+              const SwVfpRegister src1,
+              const SwVfpRegister src2);
+
   // VSEL supports cond in {eq, ne, ge, lt, gt, le, vs, vc}.
   void vsel(const Condition cond,
             const DwVfpRegister dst,
@@ -1289,8 +1303,8 @@ class Assembler : public AssemblerBase {
               const Condition cond = al);
 
   // Support for NEON.
-  // All these APIs support D0 to D31 and Q0 to Q15.
 
+  // All these APIs support D0 to D31 and Q0 to Q15.
   void vld1(NeonSize size,
             const NeonListOperand& dst,
             const NeonMemOperand& src);
@@ -1298,6 +1312,9 @@ class Assembler : public AssemblerBase {
             const NeonListOperand& src,
             const NeonMemOperand& dst);
   void vmovl(NeonDataType dt, QwNeonRegister dst, DwVfpRegister src);
+
+  // Currently, vswp supports only D0 to D31.
+  void vswp(DwVfpRegister srcdst0, DwVfpRegister srcdst1);
 
   // Pseudo instructions
 
@@ -1584,6 +1601,12 @@ class Assembler : public AssemblerBase {
   bool is_const_pool_blocked() const {
     return (const_pool_blocked_nesting_ > 0) ||
            (pc_offset() < no_const_pool_before_);
+  }
+
+  bool VfpRegisterIsAvailable(DwVfpRegister reg) {
+    DCHECK(reg.is_valid());
+    return IsEnabled(VFP32DREGS) ||
+           (reg.reg_code < LowDwVfpRegister::kMaxNumLowRegisters);
   }
 
  private:

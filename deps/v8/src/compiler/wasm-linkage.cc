@@ -11,7 +11,7 @@
 
 #include "src/compiler/linkage.h"
 
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -131,7 +131,7 @@ LinkageLocation stackloc(int i, MachineType type) {
 // == s390x ==================================================================
 // ===========================================================================
 #define GP_PARAM_REGISTERS r2, r3, r4, r5, r6
-#define GP_RETURN_REGISTERS r2
+#define GP_RETURN_REGISTERS r2, r3
 #define FP_PARAM_REGISTERS d0, d2, d4, d6
 #define FP_RETURN_REGISTERS d0, d2, d4, d6
 

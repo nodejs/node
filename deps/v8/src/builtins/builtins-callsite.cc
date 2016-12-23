@@ -14,7 +14,7 @@ namespace internal {
 #define CHECK_CALLSITE(recv, method)                                          \
   CHECK_RECEIVER(JSObject, recv, method);                                     \
   if (!JSReceiver::HasOwnProperty(                                            \
-           recv, isolate->factory()->call_site_position_symbol())             \
+           recv, isolate->factory()->call_site_frame_array_symbol())          \
            .FromMaybe(false)) {                                               \
     THROW_NEW_ERROR_RETURN_FAILURE(                                           \
         isolate,                                                              \
@@ -29,172 +29,152 @@ Object* PositiveNumberOrNull(int value, Isolate* isolate) {
   return isolate->heap()->null_value();
 }
 
+Handle<FrameArray> GetFrameArray(Isolate* isolate, Handle<JSObject> object) {
+  Handle<Object> frame_array_obj = JSObject::GetDataProperty(
+      object, isolate->factory()->call_site_frame_array_symbol());
+  return Handle<FrameArray>::cast(frame_array_obj);
+}
+
+int GetFrameIndex(Isolate* isolate, Handle<JSObject> object) {
+  Handle<Object> frame_index_obj = JSObject::GetDataProperty(
+      object, isolate->factory()->call_site_frame_index_symbol());
+  return Smi::cast(*frame_index_obj)->value();
+}
+
 }  // namespace
 
 BUILTIN(CallSitePrototypeGetColumnNumber) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "getColumnNumber");
-
-  CallSite call_site(isolate, recv);
-  CHECK(call_site.IsJavaScript() || call_site.IsWasm());
-  return PositiveNumberOrNull(call_site.GetColumnNumber(), isolate);
+  FrameArrayIterator it(isolate, GetFrameArray(isolate, recv),
+                        GetFrameIndex(isolate, recv));
+  return PositiveNumberOrNull(it.Frame()->GetColumnNumber(), isolate);
 }
 
 BUILTIN(CallSitePrototypeGetEvalOrigin) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "getEvalOrigin");
-
-  CallSite call_site(isolate, recv);
-  CHECK(call_site.IsJavaScript() || call_site.IsWasm());
-  return *call_site.GetEvalOrigin();
+  FrameArrayIterator it(isolate, GetFrameArray(isolate, recv),
+                        GetFrameIndex(isolate, recv));
+  return *it.Frame()->GetEvalOrigin();
 }
 
 BUILTIN(CallSitePrototypeGetFileName) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "getFileName");
-
-  CallSite call_site(isolate, recv);
-  CHECK(call_site.IsJavaScript() || call_site.IsWasm());
-  return *call_site.GetFileName();
+  FrameArrayIterator it(isolate, GetFrameArray(isolate, recv),
+                        GetFrameIndex(isolate, recv));
+  return *it.Frame()->GetFileName();
 }
-
-namespace {
-
-bool CallSiteIsStrict(Isolate* isolate, Handle<JSObject> receiver) {
-  Handle<Object> strict;
-  Handle<Symbol> symbol = isolate->factory()->call_site_strict_symbol();
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, strict,
-                                     JSObject::GetProperty(receiver, symbol));
-  return strict->BooleanValue();
-}
-
-}  // namespace
 
 BUILTIN(CallSitePrototypeGetFunction) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "getFunction");
+  FrameArrayIterator it(isolate, GetFrameArray(isolate, recv),
+                        GetFrameIndex(isolate, recv));
 
-  if (CallSiteIsStrict(isolate, recv))
-    return *isolate->factory()->undefined_value();
-
-  Handle<Symbol> symbol = isolate->factory()->call_site_function_symbol();
-  RETURN_RESULT_OR_FAILURE(isolate, JSObject::GetProperty(recv, symbol));
+  StackFrameBase* frame = it.Frame();
+  if (frame->IsStrict()) return isolate->heap()->undefined_value();
+  return *frame->GetFunction();
 }
 
 BUILTIN(CallSitePrototypeGetFunctionName) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "getFunctionName");
-
-  CallSite call_site(isolate, recv);
-  CHECK(call_site.IsJavaScript() || call_site.IsWasm());
-  return *call_site.GetFunctionName();
+  FrameArrayIterator it(isolate, GetFrameArray(isolate, recv),
+                        GetFrameIndex(isolate, recv));
+  return *it.Frame()->GetFunctionName();
 }
 
 BUILTIN(CallSitePrototypeGetLineNumber) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "getLineNumber");
-
-  CallSite call_site(isolate, recv);
-  CHECK(call_site.IsJavaScript() || call_site.IsWasm());
-
-  int line_number = call_site.IsWasm() ? call_site.wasm_func_index()
-                                       : call_site.GetLineNumber();
-  return PositiveNumberOrNull(line_number, isolate);
+  FrameArrayIterator it(isolate, GetFrameArray(isolate, recv),
+                        GetFrameIndex(isolate, recv));
+  return PositiveNumberOrNull(it.Frame()->GetLineNumber(), isolate);
 }
 
 BUILTIN(CallSitePrototypeGetMethodName) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "getMethodName");
-
-  CallSite call_site(isolate, recv);
-  CHECK(call_site.IsJavaScript() || call_site.IsWasm());
-  return *call_site.GetMethodName();
+  FrameArrayIterator it(isolate, GetFrameArray(isolate, recv),
+                        GetFrameIndex(isolate, recv));
+  return *it.Frame()->GetMethodName();
 }
 
 BUILTIN(CallSitePrototypeGetPosition) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "getPosition");
-
-  Handle<Symbol> symbol = isolate->factory()->call_site_position_symbol();
-  RETURN_RESULT_OR_FAILURE(isolate, JSObject::GetProperty(recv, symbol));
+  FrameArrayIterator it(isolate, GetFrameArray(isolate, recv),
+                        GetFrameIndex(isolate, recv));
+  return Smi::FromInt(it.Frame()->GetPosition());
 }
 
 BUILTIN(CallSitePrototypeGetScriptNameOrSourceURL) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "getScriptNameOrSourceUrl");
-
-  CallSite call_site(isolate, recv);
-  CHECK(call_site.IsJavaScript() || call_site.IsWasm());
-  return *call_site.GetScriptNameOrSourceUrl();
+  FrameArrayIterator it(isolate, GetFrameArray(isolate, recv),
+                        GetFrameIndex(isolate, recv));
+  return *it.Frame()->GetScriptNameOrSourceUrl();
 }
 
 BUILTIN(CallSitePrototypeGetThis) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "getThis");
+  FrameArrayIterator it(isolate, GetFrameArray(isolate, recv),
+                        GetFrameIndex(isolate, recv));
 
-  if (CallSiteIsStrict(isolate, recv))
-    return *isolate->factory()->undefined_value();
-
-  Handle<Object> receiver;
-  Handle<Symbol> symbol = isolate->factory()->call_site_receiver_symbol();
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
-                                     JSObject::GetProperty(recv, symbol));
-
-  if (*receiver == isolate->heap()->call_site_constructor_symbol())
-    return *isolate->factory()->undefined_value();
-
-  return *receiver;
+  StackFrameBase* frame = it.Frame();
+  if (frame->IsStrict()) return isolate->heap()->undefined_value();
+  return *frame->GetReceiver();
 }
 
 BUILTIN(CallSitePrototypeGetTypeName) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "getTypeName");
-
-  CallSite call_site(isolate, recv);
-  CHECK(call_site.IsJavaScript() || call_site.IsWasm());
-  return *call_site.GetTypeName();
+  FrameArrayIterator it(isolate, GetFrameArray(isolate, recv),
+                        GetFrameIndex(isolate, recv));
+  return *it.Frame()->GetTypeName();
 }
 
 BUILTIN(CallSitePrototypeIsConstructor) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "isConstructor");
-
-  CallSite call_site(isolate, recv);
-  CHECK(call_site.IsJavaScript() || call_site.IsWasm());
-  return isolate->heap()->ToBoolean(call_site.IsConstructor());
+  FrameArrayIterator it(isolate, GetFrameArray(isolate, recv),
+                        GetFrameIndex(isolate, recv));
+  return isolate->heap()->ToBoolean(it.Frame()->IsConstructor());
 }
 
 BUILTIN(CallSitePrototypeIsEval) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "isEval");
-
-  CallSite call_site(isolate, recv);
-  CHECK(call_site.IsJavaScript() || call_site.IsWasm());
-  return isolate->heap()->ToBoolean(call_site.IsEval());
+  FrameArrayIterator it(isolate, GetFrameArray(isolate, recv),
+                        GetFrameIndex(isolate, recv));
+  return isolate->heap()->ToBoolean(it.Frame()->IsEval());
 }
 
 BUILTIN(CallSitePrototypeIsNative) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "isNative");
-
-  CallSite call_site(isolate, recv);
-  CHECK(call_site.IsJavaScript() || call_site.IsWasm());
-  return isolate->heap()->ToBoolean(call_site.IsNative());
+  FrameArrayIterator it(isolate, GetFrameArray(isolate, recv),
+                        GetFrameIndex(isolate, recv));
+  return isolate->heap()->ToBoolean(it.Frame()->IsNative());
 }
 
 BUILTIN(CallSitePrototypeIsToplevel) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "isToplevel");
-
-  CallSite call_site(isolate, recv);
-  CHECK(call_site.IsJavaScript() || call_site.IsWasm());
-  return isolate->heap()->ToBoolean(call_site.IsToplevel());
+  FrameArrayIterator it(isolate, GetFrameArray(isolate, recv),
+                        GetFrameIndex(isolate, recv));
+  return isolate->heap()->ToBoolean(it.Frame()->IsToplevel());
 }
 
 BUILTIN(CallSitePrototypeToString) {
   HandleScope scope(isolate);
   CHECK_CALLSITE(recv, "toString");
-  RETURN_RESULT_OR_FAILURE(isolate, CallSiteUtils::ToString(isolate, recv));
+  FrameArrayIterator it(isolate, GetFrameArray(isolate, recv),
+                        GetFrameIndex(isolate, recv));
+  RETURN_RESULT_OR_FAILURE(isolate, it.Frame()->ToString());
 }
 
 #undef CHECK_CALLSITE

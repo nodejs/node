@@ -5,7 +5,7 @@
 #ifndef V8_EFFECTS_H_
 #define V8_EFFECTS_H_
 
-#include "src/types.h"
+#include "src/ast/ast-types.h"
 
 namespace v8 {
 namespace internal {
@@ -28,31 +28,31 @@ struct Effect {
   enum Modality { POSSIBLE, DEFINITE };
 
   Modality modality;
-  Bounds bounds;
+  AstBounds bounds;
 
   Effect() : modality(DEFINITE) {}
-  explicit Effect(Bounds b, Modality m = DEFINITE) : modality(m), bounds(b) {}
+  explicit Effect(AstBounds b, Modality m = DEFINITE)
+      : modality(m), bounds(b) {}
 
   // The unknown effect.
   static Effect Unknown(Zone* zone) {
-    return Effect(Bounds::Unbounded(), POSSIBLE);
+    return Effect(AstBounds::Unbounded(), POSSIBLE);
   }
 
   static Effect Forget(Zone* zone) {
-    return Effect(Bounds::Unbounded(), DEFINITE);
+    return Effect(AstBounds::Unbounded(), DEFINITE);
   }
 
   // Sequential composition, as in 'e1; e2'.
   static Effect Seq(Effect e1, Effect e2, Zone* zone) {
     if (e2.modality == DEFINITE) return e2;
-    return Effect(Bounds::Either(e1.bounds, e2.bounds, zone), e1.modality);
+    return Effect(AstBounds::Either(e1.bounds, e2.bounds, zone), e1.modality);
   }
 
   // Alternative composition, as in 'cond ? e1 : e2'.
   static Effect Alt(Effect e1, Effect e2, Zone* zone) {
-    return Effect(
-        Bounds::Either(e1.bounds, e2.bounds, zone),
-        e1.modality == POSSIBLE ? POSSIBLE : e2.modality);
+    return Effect(AstBounds::Either(e1.bounds, e2.bounds, zone),
+                  e1.modality == POSSIBLE ? POSSIBLE : e2.modality);
   }
 };
 
@@ -84,10 +84,10 @@ class EffectsMixin: public Base {
         ? locator.value() : Effect::Unknown(Base::zone());
   }
 
-  Bounds LookupBounds(Var var) {
+  AstBounds LookupBounds(Var var) {
     Effect effect = Lookup(var);
-    return effect.modality == Effect::DEFINITE
-        ? effect.bounds : Bounds::Unbounded();
+    return effect.modality == Effect::DEFINITE ? effect.bounds
+                                               : AstBounds::Unbounded();
   }
 
   // Sequential composition.

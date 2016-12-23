@@ -16,7 +16,7 @@ function testCallFFI(ffi) {
     .addBody([
       kExprGetLocal, 0,              // --
       kExprGetLocal, 1,              // --
-      kExprCallFunction, kArity2, 0, // --
+      kExprCallFunction, 0, // --
     ])    // --
     .exportFunc();
 
@@ -77,4 +77,41 @@ assertThrows(function() {
   assertThrows(function() {
       module.exports.function_with_invalid_signature(33, 88);
     }, TypeError);
+})();
+
+(function I64ParamsInSignatureThrows() {
+  var builder = new WasmModuleBuilder();
+
+  builder.addMemory(1, 1, true);
+  builder.addFunction("function_with_invalid_signature", kSig_i_l)
+    .addBody([
+       kExprGetLocal, 0,
+       kExprI32ConvertI64
+     ])
+    .exportFunc()
+
+  var module = builder.instantiate();
+
+  assertThrows(function() {
+      module.exports.function_with_invalid_signature(33);
+    }, TypeError);
+})();
+
+(function I64JSImportThrows() {
+  var builder = new WasmModuleBuilder();
+  var sig_index = builder.addType(kSig_i_i);
+  var sig_i64_index = builder.addType(kSig_i_l);
+  var index = builder.addImport("func", sig_i64_index);
+  builder.addFunction("main", sig_index)
+    .addBody([
+      kExprGetLocal, 0,
+      kExprI64SConvertI32,
+      kExprCallFunction, index  // --
+    ])        // --
+    .exportFunc();
+  var func = function() {return {};};
+  var main = builder.instantiate({func: func}).exports.main;
+  assertThrows(function() {
+    main(13);
+  }, TypeError);
 })();

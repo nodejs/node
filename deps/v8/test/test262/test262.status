@@ -26,6 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 [
+
 [ALWAYS, {
   ###################### NEEDS INVESTIGATION #######################
 
@@ -33,6 +34,11 @@
   # shadowed elements in a for..in loop.
   # https://code.google.com/p/v8/issues/detail?id=705
   'language/statements/for-in/12.6.4-2': [PASS, FAIL_OK],
+
+  # Date tests that fail in CE(S)T timezone.
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5449
+  'built-ins/Date/prototype/setFullYear/new-value-time-clip': [PASS, FAIL],
+  'built-ins/Date/prototype/setMonth/new-value-time-clip': [PASS, FAIL],
 
   ###################### MISSING ES6 FEATURES #######################
 
@@ -94,37 +100,19 @@
   'language/expressions/postfix-decrement/S11.3.2_A5_*': [FAIL],
   'language/expressions/prefix-decrement/S11.4.5_A5_*': [FAIL],
   'language/expressions/prefix-increment/S11.4.4_A5_*': [FAIL],
+  'language/statements/variable/binding-resolution': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4253
   'language/asi/S7.9_A5.7_T1': [PASS, FAIL_OK],
 
   ###### BEGIN REGEXP SUBCLASSING SECTION ######
-  # Times out
-  'built-ins/RegExp/prototype/Symbol.match/coerce-global': [SKIP],
-
-  # Sticky support busted
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5361
   'built-ins/RegExp/prototype/Symbol.replace/y-init-lastindex': [FAIL],
   'built-ins/RegExp/prototype/Symbol.replace/y-set-lastindex': [FAIL],
 
-  # https://code.google.com/p/v8/issues/detail?id=4504
-  # https://bugs.chromium.org/p/chromium/issues/detail?id=624318
-  'built-ins/RegExp/prototype/Symbol.match/builtin-failure-set-lastindex-err': [PASS, FAIL],
-  'built-ins/RegExp/prototype/Symbol.match/builtin-failure-y-set-lastindex-err': [PASS, FAIL],
-  'built-ins/RegExp/prototype/Symbol.match/builtin-success-g-set-lastindex-err': [SKIP],
-  'built-ins/RegExp/prototype/Symbol.match/builtin-success-y-set-lastindex-err': [PASS, FAIL],
-  'built-ins/RegExp/prototype/Symbol.match/g-init-lastindex-err': [PASS, FAIL],
-  'built-ins/RegExp/prototype/Symbol.match/g-match-empty-set-lastindex-err': [PASS, FAIL],
-  'built-ins/RegExp/prototype/Symbol.match/y-fail-lastindex-no-write': [PASS, FAIL],
-  'built-ins/RegExp/prototype/Symbol.replace/g-init-lastindex-err': [PASS, FAIL],
-  'built-ins/RegExp/prototype/Symbol.replace/y-fail-lastindex-no-write': [PASS, FAIL],
-  'built-ins/RegExp/prototype/Symbol.search/set-lastindex-init-err': [PASS, FAIL],
-  'built-ins/RegExp/prototype/Symbol.search/set-lastindex-restore-err': [PASS, FAIL],
-  'built-ins/RegExp/prototype/exec/y-fail-lastindex-no-write': [PASS, FAIL],
-  'built-ins/RegExp/prototype/test/y-fail-lastindex-no-write': [PASS, FAIL],
-
-  # SKIP rather than FAIL, as the test checks for an exception which
-  # happens to be thrown for some other reason.
-  'built-ins/RegExp/prototype/Symbol.split/str-result-get-length-err': [SKIP],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5360
+  'built-ins/RegExp/prototype/Symbol.match/builtin-failure-set-lastindex-err': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.search/set-lastindex-restore-err': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5123
   'built-ins/RegExp/prototype/Symbol.replace/coerce-global': [FAIL],
@@ -132,25 +120,15 @@
 
   ###### END REGEXP SUBCLASSING SECTION ######
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5360
+  'built-ins/RegExp/prototype/Symbol.match/builtin-coerce-lastindex-err': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.match/builtin-failure-set-lastindex': [FAIL],
+  'built-ins/RegExp/prototype/Symbol.search/set-lastindex-restore': [FAIL],
+
   # https://code.google.com/p/v8/issues/detail?id=4360
   'intl402/Collator/10.1.1_1': [FAIL],
   'intl402/DateTimeFormat/12.1.1_1': [FAIL],
   'intl402/NumberFormat/11.1.1_1': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4784
-  'built-ins/TypedArray/prototype/set/typedarray-arg-negative-integer-offset-throws': [FAIL],
-  'built-ins/TypedArray/prototype/set/array-arg-negative-integer-offset-throws': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4901
-  'built-ins/TypedArrays/internals/DefineOwnProperty/key-is-greater-than-last-index': [FAIL],
-  'built-ins/TypedArrays/internals/DefineOwnProperty/key-is-lower-than-zero': [FAIL],
-  'built-ins/TypedArrays/internals/DefineOwnProperty/key-is-minus-zero': [FAIL],
-  'built-ins/TypedArrays/internals/DefineOwnProperty/key-is-not-integer': [FAIL],
-  'built-ins/TypedArrays/internals/DefineOwnProperty/key-is-numericindex-desc-not-writable': [FAIL],
-  'built-ins/TypedArrays/internals/Set/key-is-minus-zero': [FAIL],
-  'built-ins/TypedArrays/internals/Set/key-is-not-integer': [FAIL],
-  'built-ins/TypedArrays/internals/Set/key-is-out-of-bounds': [FAIL],
-  'built-ins/TypedArrays/internals/Set/tonumber-value-throws': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4895
   'built-ins/TypedArrays/internals/HasProperty/detached-buffer': [FAIL],
@@ -215,6 +193,8 @@
   'built-ins/DataView/prototype/byteOffset/detached-buffer': [FAIL],
   'built-ins/DataView/detached-buffer': [FAIL],
   'built-ins/ArrayBuffer/prototype/byteLength/detached-buffer': [FAIL],
+  'built-ins/DataView/prototype/setFloat64/detached-buffer-after-toindex-byteoffset': [FAIL],
+  'built-ins/DataView/prototype/setInt16/detached-buffer-after-toindex-byteoffset': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4648
   'built-ins/TypedArray/prototype/copyWithin/detached-buffer': [FAIL],
@@ -298,11 +278,17 @@
   'language/eval-code/direct/non-definable-function-with-variable': [FAIL],
   'language/eval-code/indirect/non-definable-function-with-function': [FAIL],
   'language/eval-code/indirect/non-definable-function-with-variable': [FAIL],
+  'language/global-code/script-decl-func-err-non-configurable': [FAIL],
+  'language/global-code/script-decl-var-collision': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4124
   'built-ins/Simd/*': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4958
+  'built-ins/Function/prototype/toString/AsyncFunction': [FAIL],
+  'built-ins/Function/prototype/toString/async-function-declaration': [FAIL],
+  'built-ins/Function/prototype/toString/async-function-expression': [FAIL],
+  'built-ins/Function/prototype/toString/async-method': [FAIL],
   'built-ins/Function/prototype/toString/Function': [FAIL],
   'built-ins/Function/prototype/toString/GeneratorFunction': [FAIL],
   'built-ins/Function/prototype/toString/function-declaration': [FAIL],
@@ -325,13 +311,6 @@
   'built-ins/Function/prototype/toString/setter-class-static': [FAIL],
   'built-ins/Function/prototype/toString/setter-object': [FAIL],
   'built-ins/Function/prototype/toString/unicode': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=1569
-  'language/eval-code/direct/export': [SKIP],
-  'language/eval-code/direct/import': [SKIP],
-  'language/eval-code/indirect/export': [SKIP],
-  'language/eval-code/indirect/import': [SKIP],
-  'language/module-code/*': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5012
   # http://bugs.icu-project.org/trac/ticket/12671
@@ -420,8 +399,89 @@
   'annexB/built-ins/Date/prototype/setYear/time-clip': [FAIL],
   'annexB/built-ins/Date/prototype/setYear/year-number-relative': [FAIL],
 
-  # Fixed by https://github.com/tc39/test262/pull/662.
-  'built-ins/Object/getOwnPropertyDescriptors/duplicate-keys': [FAIL],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5155
+  'language/white-space/mongolian-vowel-separator': [FAIL],
+  'language/white-space/mongolian-vowel-separator-eval': [FAIL],
+  'built-ins/RegExp/S15.10.2.12_A2_T1': [FAIL],
+  'built-ins/RegExp/S15.10.2.12_A1_T1': [FAIL],
+  'built-ins/parseFloat/S15.1.2.3_A2_T10_U180E': [FAIL],
+  'built-ins/parseInt/S15.1.2.2_A2_T10_U180E': [FAIL],
+  'built-ins/String/prototype/trim/u180e': [FAIL],
+  'built-ins/Number/S9.3.1_A3_T2_U180E': [FAIL],
+  'built-ins/Number/S9.3.1_A3_T1_U180E': [FAIL],
+  'built-ins/Number/S9.3.1_A2_U180E': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5051
+  'language/expressions/arrow-function/params-trailing-comma': [FAIL],
+  'language/expressions/arrow-function/params-trailing-comma-length': [FAIL],
+  'language/expressions/function/params-trailing-comma': [FAIL],
+  'language/expressions/function/params-trailing-comma-arguments': [FAIL],
+  'language/expressions/function/params-trailing-comma-length': [FAIL],
+  'language/expressions/generators/params-trailing-comma': [FAIL],
+  'language/expressions/generators/params-trailing-comma-arguments': [FAIL],
+  'language/expressions/generators/params-trailing-comma-length': [FAIL],
+  'language/expressions/object/method-definition/params-trailing-comma': [FAIL],
+  'language/expressions/object/method-definition/params-trailing-comma-arguments': [FAIL],
+  'language/expressions/object/method-definition/params-trailing-comma-length': [FAIL],
+  'language/statements/class/definition/params-trailing-comma': [FAIL],
+  'language/statements/class/definition/params-trailing-comma-arguments': [FAIL],
+  'language/statements/class/definition/params-trailing-comma-length': [FAIL],
+  'language/statements/function/params-trailing-comma': [FAIL],
+  'language/statements/function/params-trailing-comma-arguments': [FAIL],
+  'language/statements/function/params-trailing-comma-length': [FAIL],
+  'language/statements/generators/params-trailing-comma': [FAIL],
+  'language/statements/generators/params-trailing-comma-arguments': [FAIL],
+  'language/statements/generators/params-trailing-comma-length': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5326
+  'language/expressions/super/call-new-target-undef': [FAIL],
+  'language/eval-code/direct/super-call-fn': [FAIL],
+  'language/expressions/super/prop-dot-fn-no-super-bndng': [FAIL],
+  'language/expressions/super/prop-expr-fn-no-super-bndng': [FAIL],
+  'language/expressions/super/prop-expr-fn-eval-before-has-super': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5064
+  'language/expressions/arrow-function/params-dflt-duplicates': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5244
+  'intl402/NumberFormat/prototype/formatToParts/*': [SKIP],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5327
+  'built-ins/TypedArray/prototype/set/array-arg-negative-integer-offset-throws': [FAIL],
+  'built-ins/TypedArray/prototype/set/typedarray-arg-negative-integer-offset-throws': [FAIL],
+  'built-ins/TypedArrays/internals/Set/key-is-minus-zero': [FAIL],
+  'built-ins/TypedArrays/internals/Set/key-is-not-integer': [FAIL],
+  'built-ins/TypedArrays/internals/Set/key-is-out-of-bounds': [FAIL],
+  'built-ins/TypedArrays/internals/Set/tonumber-value-throws': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5328
+  'built-ins/TypedArrays/internals/DefineOwnProperty/key-is-numericindex-desc-not-writable': [FAIL],
+  'built-ins/TypedArrays/internals/DefineOwnProperty/key-is-not-integer': [FAIL],
+  'built-ins/TypedArrays/internals/DefineOwnProperty/key-is-minus-zero': [FAIL],
+  'built-ins/TypedArrays/internals/DefineOwnProperty/key-is-lower-than-zero': [FAIL],
+  'built-ins/TypedArrays/internals/DefineOwnProperty/key-is-greater-than-last-index': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5329
+  'built-ins/RegExp/prototype/source/value-line-terminator': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5112
+  'annexB/language/eval-code/direct/func-block-decl-eval-func-no-skip-try': [FAIL],
+  'annexB/language/eval-code/direct/func-if-decl-else-decl-a-eval-func-no-skip-try': [FAIL],
+  'annexB/language/eval-code/direct/func-if-decl-else-decl-b-eval-func-no-skip-try': [FAIL],
+  'annexB/language/eval-code/direct/func-if-decl-else-stmt-eval-func-no-skip-try': [FAIL],
+  'annexB/language/eval-code/direct/func-if-decl-no-else-eval-func-no-skip-try': [FAIL],
+  'annexB/language/eval-code/direct/func-if-stmt-else-decl-eval-func-no-skip-try': [FAIL],
+  'annexB/language/eval-code/direct/func-switch-case-eval-func-no-skip-try': [FAIL],
+  'annexB/language/eval-code/direct/func-switch-dflt-eval-func-no-skip-try': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5334
+  'built-ins/Proxy/setPrototypeOf/internals-call-order': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5336
+  'language/expressions/super/call-proto-not-ctor': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5337
+  'language/expressions/arrow-function/dstr-dflt-ary-ptrn-rest-ary-rest': [SKIP],
 
   ######################## NEEDS INVESTIGATION ###########################
 
@@ -483,32 +543,6 @@
   # Test262 Bug: https://bugs.ecmascript.org/show_bug.cgi?id=596
   'built-ins/Array/prototype/sort/bug_596_1': [PASS, FAIL_OK],
 
-  # https://github.com/tc39/test262/issues/677
-  'built-ins/RegExp/prototype/source/15.10.7.1-1': [FAIL],
-  'built-ins/RegExp/prototype/global/15.10.7.2-1': [FAIL],
-  'built-ins/RegExp/prototype/ignoreCase/15.10.7.3-1': [FAIL],
-  'built-ins/RegExp/prototype/multiline/15.10.7.4-1': [FAIL],
-
-  # https://github.com/tc39/test262/issues/694
-  'built-ins/TypedArrays/length-arg-toindex-length': [FAIL],
-
-  # https://github.com/tc39/test262/issues/696
-  'language/statements/class/subclass/builtin-objects/ArrayBuffer/regular-subclassing': [FAIL],
-
-  # https://github.com/tc39/test262/issues/685
-  'built-ins/DataView/prototype/setUint8/range-check-after-value-conversion': [FAIL],
-  'built-ins/DataView/prototype/setUint16/range-check-after-value-conversion': [FAIL],
-  'built-ins/DataView/prototype/setUint32/range-check-after-value-conversion': [FAIL],
-  'built-ins/DataView/prototype/setInt8/range-check-after-value-conversion': [FAIL],
-  'built-ins/DataView/prototype/setInt16/range-check-after-value-conversion': [FAIL],
-  'built-ins/DataView/prototype/setInt32/range-check-after-value-conversion': [FAIL],
-  'built-ins/DataView/prototype/setFloat32/range-check-after-value-conversion': [FAIL],
-  'built-ins/DataView/prototype/setFloat64/range-check-after-value-conversion': [FAIL],
-
-  # https://github.com/tc39/test262/issues/686
-  'built-ins/DataView/prototype/setFloat32/toindex-byteoffset': [FAIL],
-  'built-ins/DataView/prototype/setFloat64/toindex-byteoffset': [FAIL],
-
   ############################ SKIPPED TESTS #############################
 
   # These tests take a looong time to run.
@@ -544,8 +578,10 @@
   'built-ins/String/prototype/normalize/return-normalized-string-using-default-parameter': [SKIP],
 
   # Case-conversion is not fully compliant to the Unicode spec with i18n off.
+  'built-ins/String/prototype/toLocaleLowerCase/Final_Sigma_U180E': [FAIL],
   'built-ins/String/prototype/toLocaleLowerCase/special_casing_conditional': [FAIL],
   'built-ins/String/prototype/toLocaleLowerCase/supplementary_plane': [FAIL],
+  'built-ins/String/prototype/toLowerCase/Final_Sigma_U180E': [FAIL],
   'built-ins/String/prototype/toLowerCase/special_casing_conditional': [FAIL],
   'built-ins/String/prototype/toLowerCase/supplementary_plane': [FAIL],
   'built-ins/String/prototype/toLocaleUpperCase/supplementary_plane': [FAIL],
@@ -587,5 +623,25 @@
   'built-ins/ArrayBuffer/allocation-limit': [SKIP],
   'built-ins/ArrayBuffer/length-is-too-large-throws': [SKIP],
 }],  # asan == True or msan == True or tsan == True
+
+['variant == asm_wasm', {
+  '*': [SKIP],
+}],  # variant == asm_wasm
+
+# Module-related tests
+# https://bugs.chromium.org/p/v8/issues/detail?id=1569
+['variant != ignition and variant != ignition_staging and variant != ignition_turbofan', {
+  'language/eval-code/direct/export': [SKIP],
+  'language/eval-code/direct/import': [SKIP],
+  'language/eval-code/indirect/export': [SKIP],
+  'language/eval-code/indirect/import': [SKIP],
+  'language/module-code/*': [SKIP],
+}],  # variant != ignition and variant != ignition_staging and variant != ignition_turbofan
+['variant == ignition or variant == ignition_staging or variant == ignition_turbofan', {
+  'language/module-code/comment-*': [SKIP],
+  'language/module-code/eval-*': [SKIP],
+  'language/module-code/instn-*': [SKIP],
+  'language/module-code/namespace/*': [SKIP],
+}],  # variant == ignition or variant == ignition_staging or variant == ignition_turbofan
 
 ]

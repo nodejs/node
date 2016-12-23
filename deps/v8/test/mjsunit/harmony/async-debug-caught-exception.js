@@ -87,3 +87,58 @@ Debug.setListener(null);
 Debug.clearBreakOnUncaughtException();
 assertEquals([], log);
 assertNull(exception);
+
+log = [];
+Debug.setListener(listener);
+Debug.setBreakOnException();
+
+// "rethrown" uncaught exceptions in return don't cause another event
+async function propagate_inner() { return thrower(); }
+async function propagate_outer() { return propagate_inner(); }
+
+propagate_outer();
+%RunMicrotasks();
+assertEquals(["a"], log);
+assertNull(exception);
+
+// Also don't propagate if an await interceded
+log = [];
+async function propagate_await() { await 1; return thrower(); }
+async function propagate_await_outer() { return propagate_await(); }
+propagate_await_outer();
+%RunMicrotasks();
+assertEquals(["a"], log);
+assertNull(exception);
+
+Debug.clearBreakOnException();
+Debug.setBreakOnUncaughtException();
+
+log = [];
+Promise.resolve().then(() => Promise.reject()).catch(() => log.push("d")); // Exception c
+%RunMicrotasks();
+assertEquals(["d"], log);
+assertNull(exception);
+
+Debug.clearBreakOnUncaughtException();
+Debug.setListener(null);
+
+// If devtools is turned on in the middle, then catch prediction
+// could be wrong (here, it mispredicts the exception as caught),
+// but shouldn't crash.
+
+log = [];
+
+var resolve;
+var turnOnListenerPromise = new Promise(r => resolve = r);
+async function confused() {
+  await turnOnListenerPromise;
+  throw foo
+}
+confused();
+Promise.resolve().then(() => {
+  Debug.setListener(listener);
+  Debug.setBreakOnUncaughtException();
+  resolve();
+});
+
+assertEquals([], log);

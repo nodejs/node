@@ -53,6 +53,9 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
 
   void DiscardVectorAndSlot();
 
+  void PushReturnAddress(Register tmp);
+  void PopReturnAddress(Register tmp);
+
   // TODO(verwaest): Make non-static.
   static void GenerateApiAccessorCall(MacroAssembler* masm,
                                       const CallOptimization& optimization,
@@ -212,12 +215,23 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
 
 class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
  public:
+  // All store handlers use StoreWithVectorDescriptor calling convention.
+  typedef StoreWithVectorDescriptor Descriptor;
+
   explicit NamedStoreHandlerCompiler(Isolate* isolate, Handle<Map> map,
                                      Handle<JSObject> holder)
       : PropertyHandlerCompiler(isolate, Code::STORE_IC, map, holder,
-                                kCacheOnReceiver) {}
+                                kCacheOnReceiver) {
+#ifdef DEBUG
+    if (Descriptor::kPassLastArgsOnStack) {
+      ZapStackArgumentsRegisterAliases();
+    }
+#endif
+  }
 
   virtual ~NamedStoreHandlerCompiler() {}
+
+  void ZapStackArgumentsRegisterAliases();
 
   Handle<Code> CompileStoreTransition(Handle<Map> transition,
                                       Handle<Name> name);
@@ -249,10 +263,6 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
   virtual void FrontendFooter(Handle<Name> name, Label* miss);
   void GenerateRestoreName(Label* label, Handle<Name> name);
 
-  // Pop the vector and slot into appropriate registers, moving the map in
-  // the process. (This is an accomodation for register pressure on ia32).
-  void RearrangeVectorAndSlot(Register current_map, Register destination_map);
-
  private:
   void GenerateRestoreName(Handle<Name> name);
   void GenerateRestoreMap(Handle<Map> transition, Register map_reg,
@@ -283,8 +293,6 @@ class ElementHandlerCompiler : public PropertyHandlerCompiler {
                                             Isolate* isolate);
   void CompileElementHandlers(MapHandleList* receiver_maps,
                               List<Handle<Object>>* handlers);
-
-  static void GenerateStoreSlow(MacroAssembler* masm);
 };
 }  // namespace internal
 }  // namespace v8

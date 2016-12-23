@@ -988,6 +988,7 @@ function TestFunctionTable(stdlib, foreign, buffer) {
   return {caller:caller};
 }
 
+print("TestFunctionTable...");
 var module = TestFunctionTable(stdlib);
 assertEquals(55, module.caller(0, 0, 33, 22));
 assertEquals(11, module.caller(0, 1, 33, 22));
@@ -1040,6 +1041,7 @@ function TestForeignFunctions() {
   assertEquals(103, module.caller(23, 103));
 }
 
+print("TestForeignFunctions...");
 TestForeignFunctions();
 
 
@@ -1581,3 +1583,89 @@ function TestLoopsWithUnsigned() {
 }
 
 assertWasm(323, TestLoopsWithUnsigned);
+
+
+function TestSingleFunctionModule() {
+  "use asm";
+  function add(a, b) {
+    a = a | 0;
+    b = b | 0;
+    return (a + b) | 0;
+  }
+  return add;
+}
+
+assertEquals(7, TestSingleFunctionModule()(3, 4));
+
+
+function TestNotZero() {
+  "use asm";
+  function caller() {
+    if (!0) {
+      return 44;
+    } else {
+      return 55;
+    }
+    return 0;
+  }
+  return {caller: caller};
+}
+
+assertWasm(44, TestNotZero);
+
+
+function TestNotOne() {
+  "use asm";
+  function caller() {
+    if (!1) {
+      return 44;
+    } else {
+      return 55;
+    }
+    return 0;
+  }
+  return {caller: caller};
+}
+
+assertWasm(55, TestNotOne);
+
+
+function TestDotfulFloat(stdlib) {
+  "use asm";
+  var fround = stdlib.Math.fround;
+  var foo = fround(55.0);
+  function caller() {
+    return +foo;
+  }
+  return {caller: caller};
+}
+
+assertWasm(55, TestDotfulFloat);
+
+
+function TestDotlessFloat(stdlib) {
+  "use asm";
+  var fround = stdlib.Math.fround;
+  var foo = fround(55);
+  function caller() {
+    return +foo;
+  }
+  return {caller: caller};
+}
+
+assertWasm(55, TestDotlessFloat);
+
+
+function TestFloatGlobals(stdlib) {
+  "use asm";
+  var fround = stdlib.Math.fround;
+  var foo = fround(1.25);
+  function caller() {
+    foo = fround(foo + fround(1.0));
+    foo = fround(foo + fround(1.0));
+    return +foo;
+  }
+  return {caller: caller};
+}
+
+assertWasm(3.25, TestFloatGlobals);

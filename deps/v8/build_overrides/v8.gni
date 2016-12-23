@@ -11,10 +11,8 @@ if (is_android) {
   import("//build/config/android/config.gni")
 }
 
-if (((v8_current_cpu == "x86" ||
-      v8_current_cpu == "x64" ||
-      v8_current_cpu=="x87") &&
-     (is_linux || is_mac)) ||
+if (((v8_current_cpu == "x86" || v8_current_cpu == "x64" ||
+      v8_current_cpu == "x87") && (is_linux || is_mac)) ||
     (v8_current_cpu == "ppc64" && is_linux)) {
   v8_enable_gdbjit_default = true
 }
@@ -23,4 +21,12 @@ v8_imminent_deprecation_warnings_default = true
 
 # Add simple extras solely for the purpose of the cctests.
 v8_extra_library_files = [ "//test/cctest/test-extra.js" ]
-v8_experimental_extra_library_files = [ "//test/cctest/test-experimental-extra.js" ]
+v8_experimental_extra_library_files =
+    [ "//test/cctest/test-experimental-extra.js" ]
+
+declare_args() {
+  # Enable inspector. See include/v8-inspector.h.
+  v8_enable_inspector = false
+}
+
+v8_enable_inspector_override = v8_enable_inspector

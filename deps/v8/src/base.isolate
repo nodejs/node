@@ -4,7 +4,6 @@
 {
   'includes': [
     '../third_party/icu/icu.isolate',
-    '../gypfiles/config/win/msvs_dependencies.isolate',
   ],
   'conditions': [
     ['v8_use_snapshot=="true" and v8_use_external_startup_data==1', {
@@ -12,13 +11,6 @@
         'files': [
           '<(PRODUCT_DIR)/natives_blob.bin',
           '<(PRODUCT_DIR)/snapshot_blob.bin',
-        ],
-      },
-    }],
-    ['OS=="mac" and asan==1', {
-      'variables': {
-        'files': [
-          '<(PRODUCT_DIR)/libclang_rt.asan_osx_dynamic.dylib',
         ],
       },
     }],

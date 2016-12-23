@@ -319,7 +319,7 @@ static void CheckAccessorArgsCorrect(
   CHECK(info.Data()
             ->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("data"))
             .FromJust());
-  CcTest::heap()->CollectAllGarbage();
+  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
   CHECK(info.GetIsolate() == CcTest::isolate());
   CHECK(info.This() == info.Holder());
   CHECK(info.Data()

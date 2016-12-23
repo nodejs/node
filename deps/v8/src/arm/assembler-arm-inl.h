@@ -46,7 +46,7 @@
 namespace v8 {
 namespace internal {
 
-bool CpuFeatures::SupportsCrankshaft() { return IsSupported(VFP3); }
+bool CpuFeatures::SupportsCrankshaft() { return true; }
 
 bool CpuFeatures::SupportsSimd128() { return false; }
 

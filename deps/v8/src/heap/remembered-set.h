@@ -116,10 +116,13 @@ class RememberedSet {
       size_t pages = (chunk->size() + Page::kPageSize - 1) / Page::kPageSize;
       int new_count = 0;
       for (size_t page = 0; page < pages; page++) {
-        new_count += slots[page].Iterate(callback);
+        new_count +=
+            slots[page].Iterate(callback, SlotSet::PREFREE_EMPTY_BUCKETS);
       }
-      if (new_count == 0) {
-        ReleaseSlotSet(chunk);
+      // Only old-to-old slot sets are released eagerly. Old-new-slot sets are
+      // released by the sweeper threads.
+      if (direction == OLD_TO_OLD && new_count == 0) {
+        chunk->ReleaseOldToOldSlots();
       }
     }
   }
@@ -149,10 +152,13 @@ class RememberedSet {
   static void RemoveRangeTyped(MemoryChunk* page, Address start, Address end) {
     TypedSlotSet* slots = GetTypedSlotSet(page);
     if (slots != nullptr) {
-      slots->Iterate([start, end](SlotType slot_type, Address host_addr,
-                                  Address slot_addr) {
-        return start <= slot_addr && slot_addr < end ? REMOVE_SLOT : KEEP_SLOT;
-      });
+      slots->Iterate(
+          [start, end](SlotType slot_type, Address host_addr,
+                       Address slot_addr) {
+            return start <= slot_addr && slot_addr < end ? REMOVE_SLOT
+                                                         : KEEP_SLOT;
+          },
+          TypedSlotSet::PREFREE_EMPTY_CHUNKS);
     }
   }
 
@@ -173,7 +179,7 @@ class RememberedSet {
   static void IterateTyped(MemoryChunk* chunk, Callback callback) {
     TypedSlotSet* slots = GetTypedSlotSet(chunk);
     if (slots != nullptr) {
-      int new_count = slots->Iterate(callback);
+      int new_count = slots->Iterate(callback, TypedSlotSet::KEEP_EMPTY_CHUNKS);
       if (new_count == 0) {
         ReleaseTypedSlotSet(chunk);
       }
@@ -216,19 +222,9 @@ class RememberedSet {
     }
   }
 
-  static void ReleaseSlotSet(MemoryChunk* chunk) {
-    if (direction == OLD_TO_OLD) {
-      chunk->ReleaseOldToOldSlots();
-    } else {
-      chunk->ReleaseOldToNewSlots();
-    }
-  }
-
   static void ReleaseTypedSlotSet(MemoryChunk* chunk) {
     if (direction == OLD_TO_OLD) {
       chunk->ReleaseTypedOldToOldSlots();
-    } else {
-      chunk->ReleaseTypedOldToNewSlots();
     }
   }
 
@@ -363,7 +359,7 @@ class UpdateTypedSlotHelper {
       case OBJECT_SLOT: {
         return callback(reinterpret_cast<Object**>(addr));
       }
-      case NUMBER_OF_SLOT_TYPES:
+      case CLEARED_SLOT:
         break;
     }
     UNREACHABLE();
@@ -382,7 +378,7 @@ inline SlotType SlotTypeForRelocInfoMode(RelocInfo::Mode rmode) {
     return DEBUG_TARGET_SLOT;
   }
   UNREACHABLE();
-  return NUMBER_OF_SLOT_TYPES;
+  return CLEARED_SLOT;
 }
 
 }  // namespace internal

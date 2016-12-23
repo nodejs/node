@@ -38,6 +38,15 @@ class JSBuiltinReducerTest : public TypedGraphTest {
     return reducer.Reduce(node);
   }
 
+  Node* GlobalFunction(const char* name) {
+    Handle<JSFunction> f = Handle<JSFunction>::cast(
+        Object::GetProperty(
+            isolate()->global_object(),
+            isolate()->factory()->NewStringFromAsciiChecked(name))
+            .ToHandleChecked());
+    return HeapConstant(f);
+  }
+
   Node* MathFunction(const char* name) {
     Handle<Object> m =
         JSObject::GetProperty(isolate()->global_object(),
@@ -99,6 +108,91 @@ Type* const kNumberTypes[] = {
 
 }  // namespace
 
+
+// -----------------------------------------------------------------------------
+// isFinite
+
+TEST_F(JSBuiltinReducerTest, GlobalIsFiniteWithNumber) {
+  Node* function = GlobalFunction("isFinite");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  TRACED_FOREACH(Type*, t0, kNumberTypes) {
+    Node* p0 = Parameter(t0, 0);
+    Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                  UndefinedConstant(), p0, context, frame_state,
+                                  effect, control);
+    Reduction r = Reduce(call);
+
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsNumberEqual(IsNumberSubtract(p0, p0),
+                                               IsNumberSubtract(p0, p0)));
+  }
+}
+
+TEST_F(JSBuiltinReducerTest, GlobalIsFiniteWithPlainPrimitive) {
+  Node* function = GlobalFunction("isFinite");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  Node* p0 = Parameter(Type::PlainPrimitive(), 0);
+  Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                UndefinedConstant(), p0, context, frame_state,
+                                effect, control);
+  Reduction r = Reduce(call);
+
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsNumberEqual(IsNumberSubtract(IsPlainPrimitiveToNumber(p0),
+                                             IsPlainPrimitiveToNumber(p0)),
+                            IsNumberSubtract(IsPlainPrimitiveToNumber(p0),
+                                             IsPlainPrimitiveToNumber(p0))));
+}
+
+// -----------------------------------------------------------------------------
+// isNaN
+
+TEST_F(JSBuiltinReducerTest, GlobalIsNaNWithNumber) {
+  Node* function = GlobalFunction("isNaN");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  TRACED_FOREACH(Type*, t0, kNumberTypes) {
+    Node* p0 = Parameter(t0, 0);
+    Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                  UndefinedConstant(), p0, context, frame_state,
+                                  effect, control);
+    Reduction r = Reduce(call);
+
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsBooleanNot(IsNumberEqual(p0, p0)));
+  }
+}
+
+TEST_F(JSBuiltinReducerTest, GlobalIsNaNWithPlainPrimitive) {
+  Node* function = GlobalFunction("isNaN");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  Node* p0 = Parameter(Type::PlainPrimitive(), 0);
+  Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                UndefinedConstant(), p0, context, frame_state,
+                                effect, control);
+  Reduction r = Reduce(call);
+
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsBooleanNot(IsNumberEqual(IsPlainPrimitiveToNumber(p0),
+                                         IsPlainPrimitiveToNumber(p0))));
+}
 
 // -----------------------------------------------------------------------------
 // Math.abs
@@ -1312,6 +1406,97 @@ TEST_F(JSBuiltinReducerTest, MathTruncWithPlainPrimitive) {
 
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsNumberTrunc(IsPlainPrimitiveToNumber(p0)));
+}
+
+// -----------------------------------------------------------------------------
+// Number.isFinite
+
+TEST_F(JSBuiltinReducerTest, NumberIsFiniteWithNumber) {
+  Node* function = NumberFunction("isFinite");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  TRACED_FOREACH(Type*, t0, kNumberTypes) {
+    Node* p0 = Parameter(t0, 0);
+    Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                  UndefinedConstant(), p0, context, frame_state,
+                                  effect, control);
+    Reduction r = Reduce(call);
+
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsNumberEqual(IsNumberSubtract(p0, p0),
+                                               IsNumberSubtract(p0, p0)));
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Number.isInteger
+
+TEST_F(JSBuiltinReducerTest, NumberIsIntegerWithNumber) {
+  Node* function = NumberFunction("isInteger");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  TRACED_FOREACH(Type*, t0, kNumberTypes) {
+    Node* p0 = Parameter(t0, 0);
+    Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                  UndefinedConstant(), p0, context, frame_state,
+                                  effect, control);
+    Reduction r = Reduce(call);
+
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(),
+                IsNumberEqual(IsNumberSubtract(p0, IsNumberTrunc(p0)),
+                              IsNumberConstant(0.0)));
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Number.isNaN
+
+TEST_F(JSBuiltinReducerTest, NumberIsNaNWithNumber) {
+  Node* function = NumberFunction("isNaN");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  TRACED_FOREACH(Type*, t0, kNumberTypes) {
+    Node* p0 = Parameter(t0, 0);
+    Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                  UndefinedConstant(), p0, context, frame_state,
+                                  effect, control);
+    Reduction r = Reduce(call);
+
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsBooleanNot(IsNumberEqual(p0, p0)));
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Number.isSafeInteger
+
+TEST_F(JSBuiltinReducerTest, NumberIsSafeIntegerWithIntegral32) {
+  Node* function = NumberFunction("isSafeInteger");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  TRACED_FOREACH(Type*, t0, kIntegral32Types) {
+    Node* p0 = Parameter(t0, 0);
+    Node* call = graph()->NewNode(javascript()->CallFunction(3), function,
+                                  UndefinedConstant(), p0, context, frame_state,
+                                  effect, control);
+    Reduction r = Reduce(call);
+
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsTrueConstant());
+  }
 }
 
 // -----------------------------------------------------------------------------

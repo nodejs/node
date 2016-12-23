@@ -3,8 +3,6 @@
 #
 
 ---
-pool type: string
-execute: yes
 wrap: no
 test function name: f
 
@@ -19,13 +17,13 @@ parameter count: 1
 bytecode array length: 12
 bytecodes: [
   /*   26 E> */ B(StackCheck),
-  /*   31 S> */ B(LdrGlobal), U8(1), R(0),
-                B(BitwiseAndSmi), U8(1), R(0), U8(3),
-  /*   45 E> */ B(StaGlobalSloppy), U8(0), U8(4),
+  /*   31 S> */ B(LdrGlobal), U8(2), R(0),
+                B(BitwiseAndSmi), U8(1), R(0), U8(4),
+  /*   45 E> */ B(StaGlobalSloppy), U8(0), U8(5),
   /*   51 S> */ B(Return),
 ]
 constant pool: [
-  "global",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["global"],
 ]
 handlers: [
 ]
@@ -41,13 +39,13 @@ parameter count: 1
 bytecode array length: 12
 bytecodes: [
   /*   27 E> */ B(StackCheck),
-  /*   32 S> */ B(LdrGlobal), U8(1), R(0),
-                B(AddSmi), U8(1), R(0), U8(3),
-  /*   51 E> */ B(StaGlobalSloppy), U8(0), U8(4),
+  /*   32 S> */ B(LdrGlobal), U8(2), R(0),
+                B(AddSmi), U8(1), R(0), U8(4),
+  /*   51 E> */ B(StaGlobalSloppy), U8(0), U8(5),
   /*   57 S> */ B(Return),
 ]
 constant pool: [
-  "unallocated",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["unallocated"],
 ]
 handlers: [
 ]

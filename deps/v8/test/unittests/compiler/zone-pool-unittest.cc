@@ -38,7 +38,7 @@ class ZonePoolTest : public TestWithIsolate {
   }
 
  private:
-  base::AccountingAllocator allocator_;
+  v8::internal::AccountingAllocator allocator_;
   ZonePool zone_pool_;
   base::RandomNumberGenerator rng;
 };

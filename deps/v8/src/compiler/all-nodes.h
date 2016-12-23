@@ -6,7 +6,7 @@
 #define V8_COMPILER_ALL_NODES_H_
 
 #include "src/compiler/node.h"
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -16,9 +16,13 @@ namespace compiler {
 // from end.
 class AllNodes {
  public:
-  // Constructor. Traverses the graph and builds the {reachable} sets. When
-  // {only_inputs} is true, find the nodes reachable through input edges;
-  // these are all live nodes.
+  // Constructor. Traverses the graph and builds the {reachable} set of nodes
+  // reachable from {end}. When {only_inputs} is true, find the nodes
+  // reachable through input edges; these are all live nodes.
+  AllNodes(Zone* local_zone, Node* end, const Graph* graph,
+           bool only_inputs = true);
+  // Constructor. Traverses the graph and builds the {reachable} set of nodes
+  // reachable from the End node.
   AllNodes(Zone* local_zone, const Graph* graph, bool only_inputs = true);
 
   bool IsLive(Node* node) {
@@ -35,6 +39,8 @@ class AllNodes {
   NodeVector reachable;  // Nodes reachable from end.
 
  private:
+  void Mark(Zone* local_zone, Node* end, const Graph* graph);
+
   BoolVector is_reachable_;
   const bool only_inputs_;
 };

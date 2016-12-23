@@ -10,7 +10,7 @@
 #include "src/compiler/opcodes.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/zone-pool.h"
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {

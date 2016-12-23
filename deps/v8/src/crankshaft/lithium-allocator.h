@@ -9,7 +9,7 @@
 #include "src/base/compiler-specific.h"
 #include "src/crankshaft/compilation-phase.h"
 #include "src/crankshaft/lithium.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {

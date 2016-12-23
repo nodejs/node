@@ -11,6 +11,8 @@
 namespace v8 {
 namespace internal {
 
+class ParseInfo;
+
 // Iterate over the actual scopes visible from a stack frame or from a closure.
 // The iteration proceeds from the innermost visible nested scope outwards.
 // All scopes are backed by an actual context except the local scope,

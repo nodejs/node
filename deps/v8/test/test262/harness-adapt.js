@@ -89,3 +89,7 @@ function $DONE(arg){
 
     quit(0);
 };
+
+var $ = {
+  evalScript(script) { return Realm.eval(Realm.current(), script); }
+};

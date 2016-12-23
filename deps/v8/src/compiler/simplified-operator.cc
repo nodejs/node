@@ -7,7 +7,7 @@
 #include "src/base/lazy-instance.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
-#include "src/types.h"
+#include "src/compiler/types.h"
 
 namespace v8 {
 namespace internal {
@@ -208,8 +208,7 @@ CheckFloat64HoleMode CheckFloat64HoleModeOf(const Operator* op) {
 }
 
 CheckForMinusZeroMode CheckMinusZeroModeOf(const Operator* op) {
-  DCHECK(op->opcode() == IrOpcode::kChangeFloat64ToTagged ||
-         op->opcode() == IrOpcode::kCheckedInt32Mul ||
+  DCHECK(op->opcode() == IrOpcode::kCheckedInt32Mul ||
          op->opcode() == IrOpcode::kCheckedFloat64ToInt32 ||
          op->opcode() == IrOpcode::kCheckedTaggedToInt32);
   return OpParameter<CheckForMinusZeroMode>(op);
@@ -332,6 +331,16 @@ NumberOperationHint NumberOperationHintOf(const Operator* op) {
   return OpParameter<NumberOperationHint>(op);
 }
 
+PretenureFlag PretenureFlagOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kAllocate, op->opcode());
+  return OpParameter<PretenureFlag>(op);
+}
+
+UnicodeEncoding UnicodeEncodingOf(const Operator* op) {
+  DCHECK(op->opcode() == IrOpcode::kStringFromCodePoint);
+  return OpParameter<UnicodeEncoding>(op);
+}
+
 #define PURE_OP_LIST(V)                                          \
   V(BooleanNot, Operator::kNoProperties, 1, 0)                   \
   V(NumberEqual, Operator::kCommutative, 2, 0)                   \
@@ -381,6 +390,7 @@ NumberOperationHint NumberOperationHintOf(const Operator* op) {
   V(NumberTan, Operator::kNoProperties, 1, 0)                    \
   V(NumberTanh, Operator::kNoProperties, 1, 0)                   \
   V(NumberTrunc, Operator::kNoProperties, 1, 0)                  \
+  V(NumberToBoolean, Operator::kNoProperties, 1, 0)              \
   V(NumberToInt32, Operator::kNoProperties, 1, 0)                \
   V(NumberToUint32, Operator::kNoProperties, 1, 0)               \
   V(NumberSilenceNaN, Operator::kNoProperties, 1, 0)             \
@@ -393,11 +403,13 @@ NumberOperationHint NumberOperationHintOf(const Operator* op) {
   V(ChangeTaggedToInt32, Operator::kNoProperties, 1, 0)          \
   V(ChangeTaggedToUint32, Operator::kNoProperties, 1, 0)         \
   V(ChangeTaggedToFloat64, Operator::kNoProperties, 1, 0)        \
+  V(ChangeFloat64ToTagged, Operator::kNoProperties, 1, 0)        \
   V(ChangeInt31ToTaggedSigned, Operator::kNoProperties, 1, 0)    \
   V(ChangeInt32ToTagged, Operator::kNoProperties, 1, 0)          \
   V(ChangeUint32ToTagged, Operator::kNoProperties, 1, 0)         \
   V(ChangeTaggedToBit, Operator::kNoProperties, 1, 0)            \
   V(ChangeBitToTagged, Operator::kNoProperties, 1, 0)            \
+  V(TruncateTaggedToBit, Operator::kNoProperties, 1, 0)          \
   V(TruncateTaggedToWord32, Operator::kNoProperties, 1, 0)       \
   V(TruncateTaggedToFloat64, Operator::kNoProperties, 1, 0)      \
   V(ObjectIsCallable, Operator::kNoProperties, 1, 0)             \
@@ -418,22 +430,25 @@ NumberOperationHint NumberOperationHintOf(const Operator* op) {
   V(SpeculativeNumberLessThan)                \
   V(SpeculativeNumberLessThanOrEqual)
 
-#define CHECKED_OP_LIST(V)            \
-  V(CheckBounds, 2, 1)                \
-  V(CheckIf, 1, 0)                    \
-  V(CheckNumber, 1, 1)                \
-  V(CheckString, 1, 1)                \
-  V(CheckTaggedHole, 1, 1)            \
-  V(CheckTaggedPointer, 1, 1)         \
-  V(CheckTaggedSigned, 1, 1)          \
-  V(CheckedInt32Add, 2, 1)            \
-  V(CheckedInt32Sub, 2, 1)            \
-  V(CheckedInt32Div, 2, 1)            \
-  V(CheckedInt32Mod, 2, 1)            \
-  V(CheckedUint32Div, 2, 1)           \
-  V(CheckedUint32Mod, 2, 1)           \
-  V(CheckedUint32ToInt32, 1, 1)       \
-  V(CheckedTaggedSignedToInt32, 1, 1) \
+#define CHECKED_OP_LIST(V)             \
+  V(CheckBounds, 2, 1)                 \
+  V(CheckHeapObject, 1, 1)             \
+  V(CheckIf, 1, 0)                     \
+  V(CheckNumber, 1, 1)                 \
+  V(CheckSmi, 1, 1)                    \
+  V(CheckString, 1, 1)                 \
+  V(CheckTaggedHole, 1, 1)             \
+  V(CheckedInt32Add, 2, 1)             \
+  V(CheckedInt32Sub, 2, 1)             \
+  V(CheckedInt32Div, 2, 1)             \
+  V(CheckedInt32Mod, 2, 1)             \
+  V(CheckedUint32Div, 2, 1)            \
+  V(CheckedUint32Mod, 2, 1)            \
+  V(CheckedUint32ToInt32, 1, 1)        \
+  V(CheckedUint32ToTaggedSigned, 1, 1) \
+  V(CheckedInt32ToTaggedSigned, 1, 1)  \
+  V(CheckedTaggedSignedToInt32, 1, 1)  \
+  V(CheckedTaggedToTaggedSigned, 1, 1) \
   V(CheckedTruncateTaggedToWord32, 1, 1)
 
 struct SimplifiedOperatorGlobalCache final {
@@ -458,18 +473,24 @@ struct SimplifiedOperatorGlobalCache final {
   CHECKED_OP_LIST(CHECKED)
 #undef CHECKED
 
-  template <CheckForMinusZeroMode kMode>
-  struct ChangeFloat64ToTaggedOperator final
-      : public Operator1<CheckForMinusZeroMode> {
-    ChangeFloat64ToTaggedOperator()
-        : Operator1<CheckForMinusZeroMode>(
-              IrOpcode::kChangeFloat64ToTagged, Operator::kPure,
-              "ChangeFloat64ToTagged", 1, 0, 0, 1, 0, 0, kMode) {}
+  template <UnicodeEncoding kEncoding>
+  struct StringFromCodePointOperator final : public Operator1<UnicodeEncoding> {
+    StringFromCodePointOperator()
+        : Operator1<UnicodeEncoding>(IrOpcode::kStringFromCodePoint,
+                                     Operator::kPure, "StringFromCodePoint", 1,
+                                     0, 0, 1, 0, 0, kEncoding) {}
   };
-  ChangeFloat64ToTaggedOperator<CheckForMinusZeroMode::kCheckForMinusZero>
-      kChangeFloat64ToTaggedCheckForMinusZeroOperator;
-  ChangeFloat64ToTaggedOperator<CheckForMinusZeroMode::kDontCheckForMinusZero>
-      kChangeFloat64ToTaggedDontCheckForMinusZeroOperator;
+  StringFromCodePointOperator<UnicodeEncoding::UTF16>
+      kStringFromCodePointOperatorUTF16;
+  StringFromCodePointOperator<UnicodeEncoding::UTF32>
+      kStringFromCodePointOperatorUTF32;
+
+  struct ArrayBufferWasNeuteredOperator final : public Operator {
+    ArrayBufferWasNeuteredOperator()
+        : Operator(IrOpcode::kArrayBufferWasNeutered, Operator::kEliminatable,
+                   "ArrayBufferWasNeutered", 1, 1, 1, 1, 1, 0) {}
+  };
+  ArrayBufferWasNeuteredOperator kArrayBufferWasNeutered;
 
   template <CheckForMinusZeroMode kMode>
   struct CheckedInt32MulOperator final
@@ -614,19 +635,8 @@ SimplifiedOperatorBuilder::SimplifiedOperatorBuilder(Zone* zone)
   const Operator* SimplifiedOperatorBuilder::Name() { return &cache_.k##Name; }
 PURE_OP_LIST(GET_FROM_CACHE)
 CHECKED_OP_LIST(GET_FROM_CACHE)
+GET_FROM_CACHE(ArrayBufferWasNeutered)
 #undef GET_FROM_CACHE
-
-const Operator* SimplifiedOperatorBuilder::ChangeFloat64ToTagged(
-    CheckForMinusZeroMode mode) {
-  switch (mode) {
-    case CheckForMinusZeroMode::kCheckForMinusZero:
-      return &cache_.kChangeFloat64ToTaggedCheckForMinusZeroOperator;
-    case CheckForMinusZeroMode::kDontCheckForMinusZero:
-      return &cache_.kChangeFloat64ToTaggedDontCheckForMinusZeroOperator;
-  }
-  UNREACHABLE();
-  return nullptr;
-}
 
 const Operator* SimplifiedOperatorBuilder::CheckedInt32Mul(
     CheckForMinusZeroMode mode) {
@@ -756,6 +766,18 @@ const Operator* SimplifiedOperatorBuilder::StoreBuffer(BufferAccess access) {
     return &cache_.kStoreBuffer##Type;
     TYPED_ARRAYS(STORE_BUFFER)
 #undef STORE_BUFFER
+  }
+  UNREACHABLE();
+  return nullptr;
+}
+
+const Operator* SimplifiedOperatorBuilder::StringFromCodePoint(
+    UnicodeEncoding encoding) {
+  switch (encoding) {
+    case UnicodeEncoding::UTF16:
+      return &cache_.kStringFromCodePointOperatorUTF16;
+    case UnicodeEncoding::UTF32:
+      return &cache_.kStringFromCodePointOperatorUTF32;
   }
   UNREACHABLE();
   return nullptr;

@@ -16,8 +16,6 @@ namespace internal {
 class CompilationDependencies;
 class Factory;
 class FeedbackNexus;
-class TypeCache;
-
 
 namespace compiler {
 
@@ -30,7 +28,7 @@ class JSOperatorBuilder;
 class MachineOperatorBuilder;
 class PropertyAccessInfo;
 class SimplifiedOperatorBuilder;
-
+class TypeCache;
 
 // Specializes a given JSGraph to a given native context, potentially constant
 // folding some {LoadGlobal} nodes or strength reducing some {StoreGlobal}
@@ -55,6 +53,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   Reduction Reduce(Node* node) final;
 
  private:
+  Reduction ReduceJSInstanceOf(Node* node);
   Reduction ReduceJSLoadContext(Node* node);
   Reduction ReduceJSLoadNamed(Node* node);
   Reduction ReduceJSStoreNamed(Node* node);
@@ -120,7 +119,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                        std::vector<Handle<Map>> const& maps);
 
   // Construct an appropriate heap object check.
-  Node* BuildCheckTaggedPointer(Node* receiver, Node* effect, Node* control);
+  Node* BuildCheckHeapObject(Node* receiver, Node* effect, Node* control);
 
   // Adds stability dependencies on all prototypes of every class in
   // {receiver_type} up to (and including) the {holder}.

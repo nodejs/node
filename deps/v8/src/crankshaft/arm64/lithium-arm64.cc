@@ -252,29 +252,11 @@ void LStoreContextSlot::PrintDataTo(StringStream* stream) {
 }
 
 
-void LStoreKeyedGeneric::PrintDataTo(StringStream* stream) {
-  object()->PrintTo(stream);
-  stream->Add("[");
-  key()->PrintTo(stream);
-  stream->Add("] <- ");
-  value()->PrintTo(stream);
-}
-
-
 void LStoreNamedField::PrintDataTo(StringStream* stream) {
   object()->PrintTo(stream);
   std::ostringstream os;
   os << hydrogen()->access();
   stream->Add(os.str().c_str());
-  stream->Add(" <- ");
-  value()->PrintTo(stream);
-}
-
-
-void LStoreNamedGeneric::PrintDataTo(StringStream* stream) {
-  object()->PrintTo(stream);
-  stream->Add(".");
-  stream->Add(String::cast(*name())->ToCString().get());
   stream->Add(" <- ");
   value()->PrintTo(stream);
 }
@@ -726,7 +708,7 @@ LInstruction* LChunkBuilder::AssignEnvironment(LInstruction* instr) {
 
 LInstruction* LChunkBuilder::DoPrologue(HPrologue* instr) {
   LInstruction* result = new (zone()) LPrologue();
-  if (info_->scope()->num_heap_slots() > 0) {
+  if (info_->scope()->NeedsContext()) {
     result = MarkAsCall(result, instr);
   }
   return result;
@@ -981,6 +963,9 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
 LInstruction* LChunkBuilder::DoCallWithDescriptor(
     HCallWithDescriptor* instr) {
   CallInterfaceDescriptor descriptor = instr->descriptor();
+  DCHECK_EQ(descriptor.GetParameterCount() +
+                LCallWithDescriptor::kImplicitRegisterParameterCount,
+            instr->OperandCount());
 
   LOperand* target = UseRegisterOrConstantAtStart(instr->target());
   ZoneList<LOperand*> ops(instr->OperandCount(), zone());
@@ -989,14 +974,29 @@ LInstruction* LChunkBuilder::DoCallWithDescriptor(
   // Context
   LOperand* op = UseFixed(instr->OperandAt(1), cp);
   ops.Add(op, zone());
-  // Other register parameters
-  for (int i = LCallWithDescriptor::kImplicitRegisterParameterCount;
-       i < instr->OperandCount(); i++) {
-    op =
-        UseFixed(instr->OperandAt(i),
-                 descriptor.GetRegisterParameter(
-                     i - LCallWithDescriptor::kImplicitRegisterParameterCount));
+  // Load register parameters.
+  int i = 0;
+  for (; i < descriptor.GetRegisterParameterCount(); i++) {
+    op = UseFixed(instr->OperandAt(
+                      i + LCallWithDescriptor::kImplicitRegisterParameterCount),
+                  descriptor.GetRegisterParameter(i));
     ops.Add(op, zone());
+  }
+  // Push stack parameters.
+  if (i < descriptor.GetParameterCount()) {
+    int argc = descriptor.GetParameterCount() - i;
+    AddInstruction(new (zone()) LPreparePushArguments(argc), instr);
+    LPushArguments* push_args = new (zone()) LPushArguments(zone());
+    for (; i < descriptor.GetParameterCount(); i++) {
+      if (push_args->ShouldSplitPush()) {
+        AddInstruction(push_args, instr);
+        push_args = new (zone()) LPushArguments(zone());
+      }
+      op = UseRegisterAtStart(instr->OperandAt(
+          i + LCallWithDescriptor::kImplicitRegisterParameterCount));
+      push_args->AddArgument(op);
+    }
+    AddInstruction(push_args, instr);
   }
 
   LCallWithDescriptor* result = new(zone()) LCallWithDescriptor(descriptor,
@@ -2209,26 +2209,6 @@ LInstruction* LChunkBuilder::DoStoreKeyed(HStoreKeyed* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoStoreKeyedGeneric(HStoreKeyedGeneric* instr) {
-  LOperand* context = UseFixed(instr->context(), cp);
-  LOperand* object =
-      UseFixed(instr->object(), StoreDescriptor::ReceiverRegister());
-  LOperand* key = UseFixed(instr->key(), StoreDescriptor::NameRegister());
-  LOperand* value = UseFixed(instr->value(), StoreDescriptor::ValueRegister());
-
-  DCHECK(instr->object()->representation().IsTagged());
-  DCHECK(instr->key()->representation().IsTagged());
-  DCHECK(instr->value()->representation().IsTagged());
-
-  LOperand* slot = FixedTemp(StoreWithVectorDescriptor::SlotRegister());
-  LOperand* vector = FixedTemp(StoreWithVectorDescriptor::VectorRegister());
-
-  LStoreKeyedGeneric* result = new (zone())
-      LStoreKeyedGeneric(context, object, key, value, slot, vector);
-  return MarkAsCall(result, instr);
-}
-
-
 LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   // TODO(jbramley): It might be beneficial to allow value to be a constant in
   // some cases. x64 makes use of this with FLAG_track_fields, for example.
@@ -2255,21 +2235,6 @@ LInstruction* LChunkBuilder::DoStoreNamedField(HStoreNamedField* instr) {
   }
 
   return new(zone()) LStoreNamedField(object, value, temp0, temp1);
-}
-
-
-LInstruction* LChunkBuilder::DoStoreNamedGeneric(HStoreNamedGeneric* instr) {
-  LOperand* context = UseFixed(instr->context(), cp);
-  LOperand* object =
-      UseFixed(instr->object(), StoreDescriptor::ReceiverRegister());
-  LOperand* value = UseFixed(instr->value(), StoreDescriptor::ValueRegister());
-
-  LOperand* slot = FixedTemp(StoreWithVectorDescriptor::SlotRegister());
-  LOperand* vector = FixedTemp(StoreWithVectorDescriptor::VectorRegister());
-
-  LStoreNamedGeneric* result =
-      new (zone()) LStoreNamedGeneric(context, object, value, slot, vector);
-  return MarkAsCall(result, instr);
 }
 
 

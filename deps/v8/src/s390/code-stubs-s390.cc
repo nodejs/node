@@ -1726,7 +1726,6 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // r4 : feedback vector
   // r5 : slot in feedback vector (Smi)
   Label initialize, done, miss, megamorphic, not_array_function;
-  Label done_initialize_count, done_increment_count;
 
   DCHECK_EQ(*TypeFeedbackVector::MegamorphicSentinel(masm->isolate()),
             masm->isolate()->heap()->megamorphic_symbol());
@@ -1749,7 +1748,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   Register weak_value = r9;
   __ LoadP(weak_value, FieldMemOperand(r7, WeakCell::kValueOffset));
   __ CmpP(r3, weak_value);
-  __ beq(&done_increment_count, Label::kNear);
+  __ beq(&done, Label::kNear);
   __ CompareRoot(r7, Heap::kmegamorphic_symbolRootIndex);
   __ beq(&done, Label::kNear);
   __ LoadP(feedback_map, FieldMemOperand(r7, HeapObject::kMapOffset));
@@ -1772,7 +1771,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, r7);
   __ CmpP(r3, r7);
   __ bne(&megamorphic);
-  __ b(&done_increment_count, Label::kNear);
+  __ b(&done, Label::kNear);
 
   __ bind(&miss);
 
@@ -1802,32 +1801,22 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // slot.
   CreateAllocationSiteStub create_stub(masm->isolate());
   CallStubInRecordCallTarget(masm, &create_stub);
-  __ b(&done_initialize_count, Label::kNear);
+  __ b(&done, Label::kNear);
 
   __ bind(&not_array_function);
 
   CreateWeakCellStub weak_cell_stub(masm->isolate());
   CallStubInRecordCallTarget(masm, &weak_cell_stub);
 
-  __ bind(&done_initialize_count);
-  // Initialize the call counter.
-  __ LoadSmiLiteral(r7, Smi::FromInt(1));
-  __ SmiToPtrArrayOffset(r6, r5);
-  __ AddP(r6, r4, r6);
-  __ StoreP(r7, FieldMemOperand(r6, count_offset), r0);
-  __ b(&done, Label::kNear);
+  __ bind(&done);
 
-  __ bind(&done_increment_count);
-
-  // Increment the call count for monomorphic function calls.
+  // Increment the call count for all function calls.
   __ SmiToPtrArrayOffset(r7, r5);
   __ AddP(r7, r4, r7);
 
   __ LoadP(r6, FieldMemOperand(r7, count_offset));
   __ AddSmiLiteral(r6, r6, Smi::FromInt(1), r0);
   __ StoreP(r6, FieldMemOperand(r7, count_offset), r0);
-
-  __ bind(&done);
 }
 
 void CallConstructStub::Generate(MacroAssembler* masm) {
@@ -1873,6 +1862,17 @@ void CallConstructStub::Generate(MacroAssembler* masm) {
   __ Jump(isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
 }
 
+// Note: feedback_vector and slot are clobbered after the call.
+static void IncrementCallCount(MacroAssembler* masm, Register feedback_vector,
+                               Register slot, Register temp) {
+  const int count_offset = FixedArray::kHeaderSize + kPointerSize;
+  __ SmiToPtrArrayOffset(temp, slot);
+  __ AddP(feedback_vector, feedback_vector, temp);
+  __ LoadP(slot, FieldMemOperand(feedback_vector, count_offset));
+  __ AddSmiLiteral(slot, slot, Smi::FromInt(1), temp);
+  __ StoreP(slot, FieldMemOperand(feedback_vector, count_offset), temp);
+}
+
 void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   // r3 - function
   // r5 - slot id
@@ -1885,12 +1885,7 @@ void CallICStub::HandleArrayCase(MacroAssembler* masm, Label* miss) {
   __ mov(r2, Operand(arg_count()));
 
   // Increment the call count for monomorphic function calls.
-  const int count_offset = FixedArray::kHeaderSize + kPointerSize;
-  __ SmiToPtrArrayOffset(r7, r5);
-  __ AddP(r4, r4, r7);
-  __ LoadP(r5, FieldMemOperand(r4, count_offset));
-  __ AddSmiLiteral(r5, r5, Smi::FromInt(1), r0);
-  __ StoreP(r5, FieldMemOperand(r4, count_offset), r0);
+  IncrementCallCount(masm, r4, r5, r1);
 
   __ LoadRR(r4, r6);
   __ LoadRR(r5, r3);
@@ -1902,7 +1897,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // r3 - function
   // r5 - slot id (Smi)
   // r4 - vector
-  Label extra_checks_or_miss, call, call_function;
+  Label extra_checks_or_miss, call, call_function, call_count_incremented;
   int argc = arg_count();
   ParameterCount actual(argc);
 
@@ -1933,13 +1928,11 @@ void CallICStub::Generate(MacroAssembler* masm) {
   // convincing us that we have a monomorphic JSFunction.
   __ JumpIfSmi(r3, &extra_checks_or_miss);
 
-  // Increment the call count for monomorphic function calls.
-  const int count_offset = FixedArray::kHeaderSize + kPointerSize;
-  __ LoadP(r5, FieldMemOperand(r8, count_offset));
-  __ AddSmiLiteral(r5, r5, Smi::FromInt(1), r0);
-  __ StoreP(r5, FieldMemOperand(r8, count_offset), r0);
-
   __ bind(&call_function);
+
+  // Increment the call count for monomorphic function calls.
+  IncrementCallCount(masm, r4, r5, r1);
+
   __ mov(r2, Operand(argc));
   __ Jump(masm->isolate()->builtins()->CallFunction(convert_mode(),
                                                     tail_call_mode()),
@@ -1979,6 +1972,11 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ StoreP(ip, FieldMemOperand(r8, FixedArray::kHeaderSize), r0);
 
   __ bind(&call);
+
+  // Increment the call count for megamorphic function calls.
+  IncrementCallCount(masm, r4, r5, r1);
+
+  __ bind(&call_count_incremented);
   __ mov(r2, Operand(argc));
   __ Jump(masm->isolate()->builtins()->Call(convert_mode(), tail_call_mode()),
           RelocInfo::CODE_TARGET);
@@ -2005,10 +2003,6 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ CmpP(r6, ip);
   __ bne(&miss);
 
-  // Initialize the call counter.
-  __ LoadSmiLiteral(r7, Smi::FromInt(1));
-  __ StoreP(r7, FieldMemOperand(r8, count_offset), r0);
-
   // Store the function. Use a stub since we need a frame for allocation.
   // r4 - vector
   // r5 - slot
@@ -2016,9 +2010,13 @@ void CallICStub::Generate(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     CreateWeakCellStub create_stub(masm->isolate());
+    __ Push(r4);
+    __ Push(r5);
     __ Push(cp, r3);
     __ CallStub(&create_stub);
     __ Pop(cp, r3);
+    __ Pop(r5);
+    __ Pop(r4);
   }
 
   __ b(&call_function);
@@ -2028,7 +2026,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ bind(&miss);
   GenerateMiss(masm);
 
-  __ b(&call);
+  __ b(&call_count_incremented);
 }
 
 void CallICStub::GenerateMiss(MacroAssembler* masm) {
@@ -2204,297 +2202,6 @@ void StringHelper::GenerateCopyCharacters(MacroAssembler* masm, Register dest,
   __ bind(&done);
 }
 
-void SubStringStub::Generate(MacroAssembler* masm) {
-  Label runtime;
-
-  // Stack frame on entry.
-  //  lr: return address
-  //  sp[0]: to
-  //  sp[4]: from
-  //  sp[8]: string
-
-  // This stub is called from the native-call %_SubString(...), so
-  // nothing can be assumed about the arguments. It is tested that:
-  //  "string" is a sequential string,
-  //  both "from" and "to" are smis, and
-  //  0 <= from <= to <= string.length.
-  // If any of these assumptions fail, we call the runtime system.
-
-  const int kToOffset = 0 * kPointerSize;
-  const int kFromOffset = 1 * kPointerSize;
-  const int kStringOffset = 2 * kPointerSize;
-
-  __ LoadP(r4, MemOperand(sp, kToOffset));
-  __ LoadP(r5, MemOperand(sp, kFromOffset));
-
-  // If either to or from had the smi tag bit set, then fail to generic runtime
-  __ JumpIfNotSmi(r4, &runtime);
-  __ JumpIfNotSmi(r5, &runtime);
-  __ SmiUntag(r4);
-  __ SmiUntag(r5);
-  // Both r4 and r5 are untagged integers.
-
-  // We want to bailout to runtime here if From is negative.
-  __ blt(&runtime);  // From < 0.
-
-  __ CmpLogicalP(r5, r4);
-  __ bgt(&runtime);  // Fail if from > to.
-  __ SubP(r4, r4, r5);
-
-  // Make sure first argument is a string.
-  __ LoadP(r2, MemOperand(sp, kStringOffset));
-  __ JumpIfSmi(r2, &runtime);
-  Condition is_string = masm->IsObjectStringType(r2, r3);
-  __ b(NegateCondition(is_string), &runtime);
-
-  Label single_char;
-  __ CmpP(r4, Operand(1));
-  __ b(eq, &single_char);
-
-  // Short-cut for the case of trivial substring.
-  Label return_r2;
-  // r2: original string
-  // r4: result string length
-  __ LoadP(r6, FieldMemOperand(r2, String::kLengthOffset));
-  __ SmiUntag(r0, r6);
-  __ CmpLogicalP(r4, r0);
-  // Return original string.
-  __ beq(&return_r2);
-  // Longer than original string's length or negative: unsafe arguments.
-  __ bgt(&runtime);
-  // Shorter than original string's length: an actual substring.
-
-  // Deal with different string types: update the index if necessary
-  // and put the underlying string into r7.
-  // r2: original string
-  // r3: instance type
-  // r4: length
-  // r5: from index (untagged)
-  Label underlying_unpacked, sliced_string, seq_or_external_string;
-  // If the string is not indirect, it can only be sequential or external.
-  STATIC_ASSERT(kIsIndirectStringMask == (kSlicedStringTag & kConsStringTag));
-  STATIC_ASSERT(kIsIndirectStringMask != 0);
-  __ mov(r0, Operand(kIsIndirectStringMask));
-  __ AndP(r0, r3);
-  __ beq(&seq_or_external_string);
-
-  __ mov(r0, Operand(kSlicedNotConsMask));
-  __ AndP(r0, r3);
-  __ bne(&sliced_string);
-  // Cons string.  Check whether it is flat, then fetch first part.
-  __ LoadP(r7, FieldMemOperand(r2, ConsString::kSecondOffset));
-  __ CompareRoot(r7, Heap::kempty_stringRootIndex);
-  __ bne(&runtime);
-  __ LoadP(r7, FieldMemOperand(r2, ConsString::kFirstOffset));
-  // Update instance type.
-  __ LoadP(r3, FieldMemOperand(r7, HeapObject::kMapOffset));
-  __ LoadlB(r3, FieldMemOperand(r3, Map::kInstanceTypeOffset));
-  __ b(&underlying_unpacked);
-
-  __ bind(&sliced_string);
-  // Sliced string.  Fetch parent and correct start index by offset.
-  __ LoadP(r7, FieldMemOperand(r2, SlicedString::kParentOffset));
-  __ LoadP(r6, FieldMemOperand(r2, SlicedString::kOffsetOffset));
-  __ SmiUntag(r3, r6);
-  __ AddP(r5, r3);  // Add offset to index.
-  // Update instance type.
-  __ LoadP(r3, FieldMemOperand(r7, HeapObject::kMapOffset));
-  __ LoadlB(r3, FieldMemOperand(r3, Map::kInstanceTypeOffset));
-  __ b(&underlying_unpacked);
-
-  __ bind(&seq_or_external_string);
-  // Sequential or external string.  Just move string to the expected register.
-  __ LoadRR(r7, r2);
-
-  __ bind(&underlying_unpacked);
-
-  if (FLAG_string_slices) {
-    Label copy_routine;
-    // r7: underlying subject string
-    // r3: instance type of underlying subject string
-    // r4: length
-    // r5: adjusted start index (untagged)
-    __ CmpP(r4, Operand(SlicedString::kMinLength));
-    // Short slice.  Copy instead of slicing.
-    __ blt(&copy_routine);
-    // Allocate new sliced string.  At this point we do not reload the instance
-    // type including the string encoding because we simply rely on the info
-    // provided by the original string.  It does not matter if the original
-    // string's encoding is wrong because we always have to recheck encoding of
-    // the newly created string's parent anyways due to externalized strings.
-    Label two_byte_slice, set_slice_header;
-    STATIC_ASSERT((kStringEncodingMask & kOneByteStringTag) != 0);
-    STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
-    __ mov(r0, Operand(kStringEncodingMask));
-    __ AndP(r0, r3);
-    __ beq(&two_byte_slice);
-    __ AllocateOneByteSlicedString(r2, r4, r8, r9, &runtime);
-    __ b(&set_slice_header);
-    __ bind(&two_byte_slice);
-    __ AllocateTwoByteSlicedString(r2, r4, r8, r9, &runtime);
-    __ bind(&set_slice_header);
-    __ SmiTag(r5);
-    __ StoreP(r7, FieldMemOperand(r2, SlicedString::kParentOffset));
-    __ StoreP(r5, FieldMemOperand(r2, SlicedString::kOffsetOffset));
-    __ b(&return_r2);
-
-    __ bind(&copy_routine);
-  }
-
-  // r7: underlying subject string
-  // r3: instance type of underlying subject string
-  // r4: length
-  // r5: adjusted start index (untagged)
-  Label two_byte_sequential, sequential_string, allocate_result;
-  STATIC_ASSERT(kExternalStringTag != 0);
-  STATIC_ASSERT(kSeqStringTag == 0);
-  __ mov(r0, Operand(kExternalStringTag));
-  __ AndP(r0, r3);
-  __ beq(&sequential_string);
-
-  // Handle external string.
-  // Rule out short external strings.
-  STATIC_ASSERT(kShortExternalStringTag != 0);
-  __ mov(r0, Operand(kShortExternalStringTag));
-  __ AndP(r0, r3);
-  __ bne(&runtime);
-  __ LoadP(r7, FieldMemOperand(r7, ExternalString::kResourceDataOffset));
-  // r7 already points to the first character of underlying string.
-  __ b(&allocate_result);
-
-  __ bind(&sequential_string);
-  // Locate first character of underlying subject string.
-  STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqOneByteString::kHeaderSize);
-  __ AddP(r7, Operand(SeqOneByteString::kHeaderSize - kHeapObjectTag));
-
-  __ bind(&allocate_result);
-  // Sequential acii string.  Allocate the result.
-  STATIC_ASSERT((kOneByteStringTag & kStringEncodingMask) != 0);
-  __ mov(r0, Operand(kStringEncodingMask));
-  __ AndP(r0, r3);
-  __ beq(&two_byte_sequential);
-
-  // Allocate and copy the resulting one-byte string.
-  __ AllocateOneByteString(r2, r4, r6, r8, r9, &runtime);
-
-  // Locate first character of substring to copy.
-  __ AddP(r7, r5);
-  // Locate first character of result.
-  __ AddP(r3, r2, Operand(SeqOneByteString::kHeaderSize - kHeapObjectTag));
-
-  // r2: result string
-  // r3: first character of result string
-  // r4: result string length
-  // r7: first character of substring to copy
-  STATIC_ASSERT((SeqOneByteString::kHeaderSize & kObjectAlignmentMask) == 0);
-  StringHelper::GenerateCopyCharacters(masm, r3, r7, r4, r5,
-                                       String::ONE_BYTE_ENCODING);
-  __ b(&return_r2);
-
-  // Allocate and copy the resulting two-byte string.
-  __ bind(&two_byte_sequential);
-  __ AllocateTwoByteString(r2, r4, r6, r8, r9, &runtime);
-
-  // Locate first character of substring to copy.
-  __ ShiftLeftP(r3, r5, Operand(1));
-  __ AddP(r7, r3);
-  // Locate first character of result.
-  __ AddP(r3, r2, Operand(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
-
-  // r2: result string.
-  // r3: first character of result.
-  // r4: result length.
-  // r7: first character of substring to copy.
-  STATIC_ASSERT((SeqTwoByteString::kHeaderSize & kObjectAlignmentMask) == 0);
-  StringHelper::GenerateCopyCharacters(masm, r3, r7, r4, r5,
-                                       String::TWO_BYTE_ENCODING);
-
-  __ bind(&return_r2);
-  Counters* counters = isolate()->counters();
-  __ IncrementCounter(counters->sub_string_native(), 1, r5, r6);
-  __ Drop(3);
-  __ Ret();
-
-  // Just jump to runtime to create the sub string.
-  __ bind(&runtime);
-  __ TailCallRuntime(Runtime::kSubString);
-
-  __ bind(&single_char);
-  // r2: original string
-  // r3: instance type
-  // r4: length
-  // r5: from index (untagged)
-  __ SmiTag(r5, r5);
-  StringCharAtGenerator generator(r2, r5, r4, r2, &runtime, &runtime, &runtime,
-                                  RECEIVER_IS_STRING);
-  generator.GenerateFast(masm);
-  __ Drop(3);
-  __ Ret();
-  generator.SkipSlow(masm, &runtime);
-}
-
-void ToStringStub::Generate(MacroAssembler* masm) {
-  // The ToString stub takes one argument in r2.
-  Label done;
-  Label is_number;
-  __ JumpIfSmi(r2, &is_number);
-
-  __ CompareObjectType(r2, r3, r3, FIRST_NONSTRING_TYPE);
-  // r2: receiver
-  // r3: receiver instance type
-  __ blt(&done);
-
-  Label not_heap_number;
-  __ CmpP(r3, Operand(HEAP_NUMBER_TYPE));
-  __ bne(&not_heap_number);
-  __ bind(&is_number);
-  NumberToStringStub stub(isolate());
-  __ TailCallStub(&stub);
-  __ bind(&not_heap_number);
-
-  Label not_oddball;
-  __ CmpP(r3, Operand(ODDBALL_TYPE));
-  __ bne(&not_oddball);
-  __ LoadP(r2, FieldMemOperand(r2, Oddball::kToStringOffset));
-  __ Ret();
-  __ bind(&not_oddball);
-
-  __ push(r2);  // Push argument.
-  __ TailCallRuntime(Runtime::kToString);
-
-  __ bind(&done);
-  __ Ret();
-}
-
-void ToNameStub::Generate(MacroAssembler* masm) {
-  // The ToName stub takes one argument in r2.
-  Label is_number;
-  __ JumpIfSmi(r2, &is_number);
-
-  STATIC_ASSERT(FIRST_NAME_TYPE == FIRST_TYPE);
-  __ CompareObjectType(r2, r3, r3, LAST_NAME_TYPE);
-  // r2: receiver
-  // r3: receiver instance type
-  __ Ret(le);
-
-  Label not_heap_number;
-  __ CmpP(r3, Operand(HEAP_NUMBER_TYPE));
-  __ bne(&not_heap_number);
-  __ bind(&is_number);
-  NumberToStringStub stub(isolate());
-  __ TailCallStub(&stub);
-  __ bind(&not_heap_number);
-
-  Label not_oddball;
-  __ CmpP(r3, Operand(ODDBALL_TYPE));
-  __ bne(&not_oddball);
-  __ LoadP(r2, FieldMemOperand(r2, Oddball::kToStringOffset));
-  __ Ret();
-  __ bind(&not_oddball);
-
-  __ push(r2);  // Push argument.
-  __ TailCallRuntime(Runtime::kToName);
-}
 
 void StringHelper::GenerateFlatOneByteStringEquals(MacroAssembler* masm,
                                                    Register left,
@@ -3357,18 +3064,6 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
   Label need_incremental;
   Label need_incremental_pop_scratch;
 
-  DCHECK((~Page::kPageAlignmentMask & 0xffff) == 0);
-  __ AndP(regs_.scratch0(), regs_.object(), Operand(~Page::kPageAlignmentMask));
-  __ LoadP(
-      regs_.scratch1(),
-      MemOperand(regs_.scratch0(), MemoryChunk::kWriteBarrierCounterOffset));
-  __ SubP(regs_.scratch1(), regs_.scratch1(), Operand(1));
-  __ StoreP(
-      regs_.scratch1(),
-      MemOperand(regs_.scratch0(), MemoryChunk::kWriteBarrierCounterOffset));
-  __ CmpP(regs_.scratch1(), Operand::Zero());  // S390, we could do better here
-  __ blt(&need_incremental);
-
   // Let's look at the color of the object:  If it is not black we don't have
   // to inform the incremental marker.
   __ JumpIfBlack(regs_.object(), regs_.scratch0(), regs_.scratch1(), &on_black);
@@ -3785,7 +3480,7 @@ static void HandlePolymorphicStoreCase(MacroAssembler* masm, Register feedback,
   __ LoadP(receiver_map, MemOperand(pointer_reg, kPointerSize * 2));
 
   // Load the map into the correct register.
-  DCHECK(feedback.is(VectorStoreTransitionDescriptor::MapRegister()));
+  DCHECK(feedback.is(StoreTransitionDescriptor::MapRegister()));
   __ LoadRR(feedback, too_far);
 
   __ AddP(ip, receiver_map, Operand(Code::kHeaderSize - kHeapObjectTag));
@@ -4521,7 +4216,7 @@ void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
     // Fall back to %AllocateInNewSpace (if not too big).
     Label too_big_for_new_space;
     __ bind(&allocate);
-    __ CmpP(r9, Operand(Page::kMaxRegularHeapObjectSize));
+    __ CmpP(r9, Operand(kMaxRegularHeapObjectSize));
     __ bgt(&too_big_for_new_space);
     {
       FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
@@ -4896,7 +4591,7 @@ void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
   // Fall back to %AllocateInNewSpace (if not too big).
   Label too_big_for_new_space;
   __ bind(&allocate);
-  __ CmpP(r9, Operand(Page::kMaxRegularHeapObjectSize));
+  __ CmpP(r9, Operand(kMaxRegularHeapObjectSize));
   __ bgt(&too_big_for_new_space);
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);

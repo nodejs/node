@@ -72,9 +72,7 @@ namespace compiler {
 
 namespace {
 
-// 16 bits was chosen fairly arbitrarily; it seems enough now. 8 bits is too
-// few.
-typedef uint16_t StoreOffset;
+typedef uint32_t StoreOffset;
 
 struct UnobservableStore {
   NodeId id_;
@@ -171,11 +169,11 @@ class RedundantStoreFinder final {
   const UnobservablesSet unobservables_visited_empty_;
 };
 
-// To safely cast an offset from a FieldAccess, which has a wider range
-// (namely int).
+// To safely cast an offset from a FieldAccess, which has a potentially wider
+// range (namely int).
 StoreOffset ToOffset(int offset) {
-  CHECK(0 <= offset && offset < (1 << 8 * sizeof(StoreOffset)));
-  return (StoreOffset)offset;
+  CHECK(0 <= offset);
+  return static_cast<StoreOffset>(offset);
 }
 
 StoreOffset ToOffset(const FieldAccess& access) {
@@ -405,11 +403,9 @@ void RedundantStoreFinder::VisitEffectfulNode(Node* node) {
     // Mark effect inputs for visiting.
     for (int i = 0; i < node->op()->EffectInputCount(); i++) {
       Node* input = NodeProperties::GetEffectInput(node, i);
-      if (!HasBeenVisited(input)) {
-        TRACE("    marking #%d:%s for revisit", input->id(),
-              input->op()->mnemonic());
-        MarkForRevisit(input);
-      }
+      TRACE("    marking #%d:%s for revisit", input->id(),
+            input->op()->mnemonic());
+      MarkForRevisit(input);
     }
   }
 }

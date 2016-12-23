@@ -18,7 +18,7 @@ RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 1);
-  CHECK(function->shared()->is_resumable());
+  CHECK(IsResumableFunction(function->shared()->kind()));
 
   Handle<FixedArray> operand_stack;
   if (function->shared()->HasBytecodeArray()) {
@@ -49,7 +49,7 @@ RUNTIME_FUNCTION(Runtime_SuspendJSGeneratorObject) {
 
   JavaScriptFrameIterator stack_iterator(isolate);
   JavaScriptFrame* frame = stack_iterator.frame();
-  CHECK(frame->function()->shared()->is_resumable());
+  CHECK(IsResumableFunction(frame->function()->shared()->kind()));
   DCHECK_EQ(frame->function(), generator_object->function());
   DCHECK(frame->function()->shared()->is_compiled());
   DCHECK(!frame->function()->IsOptimized());

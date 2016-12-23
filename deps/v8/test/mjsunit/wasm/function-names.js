@@ -19,11 +19,11 @@ var expected_names = ["exec_unreachable", "☠", null,
 
 for (var func_name of func_names) {
   last_func_index = builder.addFunction(func_name, kSig_v_v)
-    .addBody([kExprCallFunction, kArity0, last_func_index]).index;
+    .addBody([kExprCallFunction, last_func_index]).index;
 }
 
 builder.addFunction("main", kSig_v_v)
-  .addBody([kExprCallFunction, kArity0, last_func_index])
+  .addBody([kExprCallFunction, last_func_index])
   .exportFunc();
 
 var module = builder.instantiate();

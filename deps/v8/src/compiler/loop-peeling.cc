@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/loop-peeling.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
-#include "src/compiler/loop-peeling.h"
-#include "src/compiler/node.h"
 #include "src/compiler/node-marker.h"
 #include "src/compiler/node-properties.h"
-#include "src/zone.h"
+#include "src/compiler/node.h"
+#include "src/zone/zone.h"
 
 // Loop peeling is an optimization that copies the body of a loop, creating
 // a new copy of the body called the "peeled iteration" that represents the

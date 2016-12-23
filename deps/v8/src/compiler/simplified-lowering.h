@@ -12,17 +12,13 @@
 
 namespace v8 {
 namespace internal {
-
-// Forward declarations.
-class TypeCache;
-
-
 namespace compiler {
 
 // Forward declarations.
 class RepresentationChanger;
 class RepresentationSelector;
 class SourcePositionTable;
+class TypeCache;
 
 class SimplifiedLowering final {
  public:
@@ -45,6 +41,9 @@ class SimplifiedLowering final {
   void DoStoreBuffer(Node* node);
   void DoShift(Node* node, Operator const* op, Type* rhs_type);
   void DoStringToNumber(Node* node);
+  void DoIntegral32ToBit(Node* node);
+  void DoOrderedNumberToBit(Node* node);
+  void DoNumberToBit(Node* node);
 
  private:
   JSGraph* const jsgraph_;

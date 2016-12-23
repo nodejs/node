@@ -65,8 +65,8 @@ assertFails(kSig_i_dd, [kExprGetLocal, 0]);
   var func = builder.addFunction("", kSig_v_v)
     .addBody([kExprNop]);
 
-  builder.addExplicitSection([kDeclStart, 0]);
-  builder.addExplicitSection([kDeclStart, 0]);
+  builder.addExplicitSection([kStartSectionCode, 0]);
+  builder.addExplicitSection([kStartSectionCode, 0]);
 
   assertThrows(builder.instantiate);
 })();
@@ -84,7 +84,7 @@ assertFails(kSig_i_dd, [kExprGetLocal, 0]);
   builder.addStart(func.index);
 
   var module = builder.instantiate();
-  var memory = module.exports.memory;
+  var memory = module.exports.memory.buffer;
   var view = new Int8Array(memory);
   assertEquals(77, view[0]);
 })();
@@ -102,7 +102,7 @@ assertFails(kSig_i_dd, [kExprGetLocal, 0]);
 
   builder.addImport("foo", sig_index);
   var func = builder.addFunction("", sig_index)
-    .addBody([kExprCallImport, kArity0, 0]);
+    .addBody([kExprCallFunction, 0]);
 
   builder.addStart(func.index);
 

@@ -140,17 +140,6 @@ RUNTIME_FUNCTION_RETURN_TRIPLE(Runtime_ForInPrepare) {
   return MakeTriple(*cache_type, *cache_array, Smi::FromInt(cache_length));
 }
 
-
-RUNTIME_FUNCTION(Runtime_ForInDone) {
-  SealHandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_SMI_ARG_CHECKED(index, 0);
-  CONVERT_SMI_ARG_CHECKED(length, 1);
-  DCHECK_LE(0, index);
-  DCHECK_LE(index, length);
-  return isolate->heap()->ToBoolean(index == length);
-}
-
 RUNTIME_FUNCTION(Runtime_ForInHasProperty) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
@@ -186,16 +175,6 @@ RUNTIME_FUNCTION(Runtime_ForInNext) {
   }
   RETURN_RESULT_OR_FAILURE(isolate,
                            HasEnumerableProperty(isolate, receiver, key));
-}
-
-
-RUNTIME_FUNCTION(Runtime_ForInStep) {
-  SealHandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_SMI_ARG_CHECKED(index, 0);
-  DCHECK_LE(0, index);
-  DCHECK_LT(index, Smi::kMaxValue);
-  return Smi::FromInt(index + 1);
 }
 
 }  // namespace internal

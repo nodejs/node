@@ -30,29 +30,29 @@ var sig_index = builder.addType(kSig_i_v)
 builder.addFunction("main", kSig_i_i)
   .addBody([
       // offset 1
-      kExprBlock,
+        kExprBlock, kAstI32,
             kExprGetLocal, 0,
             kExprI32Const, 2,
           kExprI32LtU,
-        kExprIf,
-        // offset 8
+        kExprIf, kAstStmt,
+        // offset 9
               kExprI32Const, 0x7e /* -2 */,
               kExprGetLocal, 0,
             kExprI32DivU,
-          // offset 13
+          // offset 15
           kExprI32LoadMem, 0, 0,
-          kExprBr, 1, 1,
+          kExprBr, 1,
         kExprEnd,
-        // offset 20
+        // offset 21
             kExprGetLocal, 0,
             kExprI32Const, 2,
           kExprI32Eq,
-        kExprIf,
+        kExprIf, kAstStmt,
           kExprUnreachable,
         kExprEnd,
-        // offset 28
-          kExprGetLocal, 0,
-        kExprCallIndirect, kArity0, sig_index,
+        // offset 30
+        kExprGetLocal, 0,
+        kExprCallIndirect, sig_index,
       kExprEnd,
   ])
   .exportAs("main");
@@ -72,7 +72,7 @@ function testWasmTrap(value, reason, position) {
 }
 
 // The actual tests:
-testWasmTrap(0, kTrapDivByZero,      12);
-testWasmTrap(1, kTrapMemOutOfBounds, 13);
-testWasmTrap(2, kTrapUnreachable,    26);
-testWasmTrap(3, kTrapFuncInvalid,    30);
+testWasmTrap(0, kTrapDivByZero,      14);
+testWasmTrap(1, kTrapMemOutOfBounds, 15);
+testWasmTrap(2, kTrapUnreachable,    28);
+testWasmTrap(3, kTrapFuncInvalid,    32);

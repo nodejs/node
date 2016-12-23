@@ -33,10 +33,13 @@
     'generated_file': '<(SHARED_INTERMEDIATE_DIR)/resources.cc',
     'cctest_sources': [  ### gcmole(all) ###
       'asmjs/test-asm-typer.cc',
+      'ast-types-fuzz.h',
       'compiler/c-signature.h',
+      'compiler/call-tester.h',
       'compiler/codegen-tester.cc',
       'compiler/codegen-tester.h',
       'compiler/code-assembler-tester.h',
+      'compiler/function-tester.cc',
       'compiler/function-tester.h',
       'compiler/graph-builder-tester.h',
       'compiler/test-basic-block-profiler.cc',
@@ -76,9 +79,12 @@
       'compiler/test-run-stubs.cc',
       'compiler/test-run-variables.cc',
       'compiler/test-run-wasm-machops.cc',
-      'compiler/test-simplified-lowering.cc',
+      'compiler/value-helper.h',
       'cctest.cc',
+      'cctest.h',
+      'expression-type-collector-macros.h',
       'interpreter/interpreter-tester.cc',
+      'interpreter/interpreter-tester.h',
       'interpreter/source-position-matcher.cc',
       'interpreter/source-position-matcher.h',
       'interpreter/test-bytecode-generator.cc',
@@ -88,8 +94,11 @@
       'interpreter/bytecode-expectations-printer.cc',
       'interpreter/bytecode-expectations-printer.h',
       'gay-fixed.cc',
+      'gay-fixed.h',
       'gay-precision.cc',
+      'gay-precision.h',
       'gay-shortest.cc',
+      'gay-shortest.h',
       'heap/heap-tester.h',
       'heap/heap-utils.cc',
       'heap/heap-utils.h',
@@ -104,8 +113,12 @@
       'heap/test-spaces.cc',
       'libplatform/test-tracing.cc',
       'libsampler/test-sampler.cc',
+      'parsing/test-scanner-streams.cc',
+      'parsing/test-scanner.cc',
       'print-extension.cc',
+      'print-extension.h',
       'profiler-extension.cc',
+      'profiler-extension.h',
       'test-access-checks.cc',
       'test-accessors.cc',
       'test-api.cc',
@@ -138,6 +151,7 @@
       'test-elements-kind.cc',
       'test-fast-dtoa.cc',
       'test-feedback-vector.cc',
+      'test-feedback-vector.h',
       'test-field-type-tracking.cc',
       'test-fixed-dtoa.cc',
       'test-flags.cc',
@@ -155,6 +169,7 @@
       'test-lockers.cc',
       'test-log.cc',
       'test-mementos.cc',
+      'test-modules.cc',
       'test-object.cc',
       'test-parsing.cc',
       'test-platform.cc',
@@ -174,6 +189,7 @@
       'test-trace-event.cc',
       'test-transitions.cc',
       'test-typedarrays.cc',
+      'test-ast-types.cc',
       'test-types.cc',
       'test-unbound-queue.cc',
       'test-unboxed-doubles.cc',
@@ -185,6 +201,8 @@
       'test-weakmaps.cc',
       'test-weaksets.cc',
       'trace-extension.cc',
+      'trace-extension.h',
+      'types-fuzz.h',
       'wasm/test-run-wasm.cc',
       'wasm/test-run-wasm-64.cc',
       'wasm/test-run-wasm-asmjs.cc',
@@ -192,7 +210,6 @@
       'wasm/test-run-wasm-js.cc',
       'wasm/test-run-wasm-module.cc',
       'wasm/test-run-wasm-relocation.cc',
-      'wasm/test-signatures.h',
       'wasm/test-wasm-function-name-table.cc',
       'wasm/test-wasm-stack.cc',
       'wasm/test-wasm-trap-position.cc',
@@ -201,6 +218,7 @@
     'cctest_sources_ia32': [  ### gcmole(arch:ia32) ###
       'test-assembler-ia32.cc',
       'test-code-stubs.cc',
+      'test-code-stubs.h',
       'test-code-stubs-ia32.cc',
       'test-disasm-ia32.cc',
       'test-macro-assembler-ia32.cc',
@@ -210,15 +228,18 @@
     'cctest_sources_x64': [  ### gcmole(arch:x64) ###
       'test-assembler-x64.cc',
       'test-code-stubs.cc',
+      'test-code-stubs.h',
       'test-code-stubs-x64.cc',
       'test-disasm-x64.cc',
       'test-macro-assembler-x64.cc',
       'test-log-stack-tracer.cc',
-      'test-run-wasm-relocation-x64.cc'
+      'test-run-wasm-relocation-x64.cc',
+      'wasm/test-run-wasm-simd.cc'
     ],
     'cctest_sources_arm': [  ### gcmole(arch:arm) ###
       'test-assembler-arm.cc',
       'test-code-stubs.cc',
+      'test-code-stubs.h',
       'test-code-stubs-arm.cc',
       'test-disasm-arm.cc',
       'test-macro-assembler-arm.cc',
@@ -226,8 +247,10 @@
     ],
     'cctest_sources_arm64': [  ### gcmole(arch:arm64) ###
       'test-utils-arm64.cc',
+      'test-utils-arm64.h',
       'test-assembler-arm64.cc',
       'test-code-stubs.cc',
+      'test-code-stubs.h',
       'test-code-stubs-arm64.cc',
       'test-disasm-arm64.cc',
       'test-fuzz-arm64.cc',
@@ -238,16 +261,19 @@
     'cctest_sources_s390': [  ### gcmole(arch:s390) ###
       'test-assembler-s390.cc',
       'test-code-stubs.cc',
+      'test-code-stubs.h',
       'test-disasm-s390.cc'
     ],
     'cctest_sources_ppc': [  ### gcmole(arch:ppc) ###
       'test-assembler-ppc.cc',
       'test-code-stubs.cc',
+      'test-code-stubs.h',
       'test-disasm-ppc.cc'
     ],
     'cctest_sources_mips': [  ### gcmole(arch:mips) ###
       'test-assembler-mips.cc',
       'test-code-stubs.cc',
+      'test-code-stubs.h',
       'test-code-stubs-mips.cc',
       'test-disasm-mips.cc',
       'test-macro-assembler-mips.cc'
@@ -255,6 +281,7 @@
     'cctest_sources_mipsel': [  ### gcmole(arch:mipsel) ###
       'test-assembler-mips.cc',
       'test-code-stubs.cc',
+      'test-code-stubs.h',
       'test-code-stubs-mips.cc',
       'test-disasm-mips.cc',
       'test-macro-assembler-mips.cc'
@@ -262,6 +289,7 @@
     'cctest_sources_mips64': [  ### gcmole(arch:mips64) ###
       'test-assembler-mips64.cc',
       'test-code-stubs.cc',
+      'test-code-stubs.h',
       'test-code-stubs-mips64.cc',
       'test-disasm-mips64.cc',
       'test-macro-assembler-mips64.cc'
@@ -269,6 +297,7 @@
     'cctest_sources_mips64el': [  ### gcmole(arch:mips64el) ###
       'test-assembler-mips64.cc',
       'test-code-stubs.cc',
+      'test-code-stubs.h',
       'test-code-stubs-mips64.cc',
       'test-disasm-mips64.cc',
       'test-macro-assembler-mips64.cc'
@@ -276,6 +305,7 @@
     'cctest_sources_x87': [  ### gcmole(arch:x87) ###
       'test-assembler-x87.cc',
       'test-code-stubs.cc',
+      'test-code-stubs.h',
       'test-code-stubs-x87.cc',
       'test-disasm-x87.cc',
       'test-macro-assembler-x87.cc',
@@ -296,6 +326,9 @@
         '../..',
       ],
       'sources': [
+        '../common/wasm/test-signatures.h',
+        '../common/wasm/wasm-module-runner.cc',
+        '../common/wasm/wasm-module-runner.h',
         '<@(cctest_sources)',
         '<(generated_file)',
       ],

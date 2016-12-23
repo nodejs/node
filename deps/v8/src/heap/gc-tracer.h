@@ -63,6 +63,7 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
 #define INCREMENTAL_SCOPES(F)                                      \
   /* MC_INCREMENTAL is the top-level incremental marking scope. */ \
   F(MC_INCREMENTAL)                                                \
+  F(MC_INCREMENTAL_SWEEPING)                                       \
   F(MC_INCREMENTAL_WRAPPER_PROLOGUE)                               \
   F(MC_INCREMENTAL_WRAPPER_TRACING)                                \
   F(MC_INCREMENTAL_FINALIZE)                                       \
@@ -134,23 +135,23 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
 class GCTracer {
  public:
   struct IncrementalMarkingInfos {
-    IncrementalMarkingInfos()
-        : cumulative_duration(0), longest_step(0), steps(0) {}
+    IncrementalMarkingInfos() : duration(0), longest_step(0), steps(0) {}
 
     void Update(double duration) {
       steps++;
-      cumulative_duration += duration;
+      this->duration += duration;
       if (duration > longest_step) {
         longest_step = duration;
       }
     }
 
     void ResetCurrentCycle() {
+      duration = 0;
       longest_step = 0;
       steps = 0;
     }
 
-    double cumulative_duration;
+    double duration;
     double longest_step;
     int steps;
   };
@@ -192,7 +193,8 @@ class GCTracer {
       START = 3
     };
 
-    Event(Type type, const char* gc_reason, const char* collector_reason);
+    Event(Type type, GarbageCollectionReason gc_reason,
+          const char* collector_reason);
 
     // Returns a string describing the event type.
     const char* TypeName(bool short_name) const;
@@ -200,7 +202,7 @@ class GCTracer {
     // Type of event
     Type type;
 
-    const char* gc_reason;
+    GarbageCollectionReason gc_reason;
     const char* collector_reason;
 
     // Timestamp set in the constructor.
@@ -219,10 +221,10 @@ class GCTracer {
     intptr_t end_object_size;
 
     // Size of memory allocated from OS set in constructor.
-    intptr_t start_memory_size;
+    size_t start_memory_size;
 
     // Size of memory allocated from OS set in destructor.
-    intptr_t end_memory_size;
+    size_t end_memory_size;
 
     // Total amount of space either wasted or contained in one of free lists
     // before the current GC.
@@ -241,21 +243,11 @@ class GCTracer {
     // Bytes marked since creation of tracer (value at start of event).
     intptr_t cumulative_incremental_marking_bytes;
 
-    // Bytes marked since
-    // - last event for SCAVENGER events
-    // - last INCREMENTAL_MARK_COMPACTOR event for INCREMENTAL_MARK_COMPACTOR
-    // events
+    // Bytes marked incrementally for INCREMENTAL_MARK_COMPACTOR
     intptr_t incremental_marking_bytes;
 
-    // Cumulative pure duration of incremental marking steps since creation of
-    // tracer. (value at start of event)
-    double cumulative_pure_incremental_marking_duration;
-
-    // Duration of pure incremental marking steps since
-    // - last event for SCAVENGER events
-    // - last INCREMENTAL_MARK_COMPACTOR event for INCREMENTAL_MARK_COMPACTOR
-    // events
-    double pure_incremental_marking_duration;
+    // Duration of incremental marking steps for INCREMENTAL_MARK_COMPACTOR.
+    double incremental_marking_duration;
 
     // Amounts of time spent in different scopes during GC.
     double scopes[Scope::NUMBER_OF_SCOPES];
@@ -270,7 +262,7 @@ class GCTracer {
   explicit GCTracer(Heap* heap);
 
   // Start collecting data.
-  void Start(GarbageCollector collector, const char* gc_reason,
+  void Start(GarbageCollector collector, GarbageCollectionReason gc_reason,
              const char* collector_reason);
 
   // Stop collecting data and print results.
@@ -291,26 +283,6 @@ class GCTracer {
 
   // Log an incremental marking step.
   void AddIncrementalMarkingStep(double duration, intptr_t bytes);
-
-  // Log time spent in marking.
-  void AddMarkingTime(double duration) {
-    cumulative_marking_duration_ += duration;
-  }
-
-  // Time spent in marking.
-  double cumulative_marking_duration() const {
-    return cumulative_marking_duration_;
-  }
-
-  // Log time spent in sweeping on main thread.
-  void AddSweepingTime(double duration) {
-    cumulative_sweeping_duration_ += duration;
-  }
-
-  // Time spent in sweeping on main thread.
-  double cumulative_sweeping_duration() const {
-    return cumulative_sweeping_duration_;
-  }
 
   // Compute the average incremental marking speed in bytes/millisecond.
   // Returns 0 if no events have been recorded.
@@ -381,11 +353,14 @@ class GCTracer {
   // Discard all recorded survival events.
   void ResetSurvivalEvents();
 
+  void NotifyIncrementalMarkingStart();
+
   V8_INLINE void AddScopeSample(Scope::ScopeId scope, double duration) {
     DCHECK(scope < Scope::NUMBER_OF_SCOPES);
     if (scope >= Scope::FIRST_INCREMENTAL_SCOPE &&
         scope <= Scope::LAST_INCREMENTAL_SCOPE) {
-      incremental_marking_scopes_[scope].Update(duration);
+      incremental_marking_scopes_[scope - Scope::FIRST_INCREMENTAL_SCOPE]
+          .Update(duration);
     } else {
       current_.scopes[scope] += duration;
     }
@@ -400,6 +375,7 @@ class GCTracer {
   FRIEND_TEST(GCTracerTest, RegularScope);
   FRIEND_TEST(GCTracerTest, IncrementalMarkingDetails);
   FRIEND_TEST(GCTracerTest, IncrementalScope);
+  FRIEND_TEST(GCTracerTest, IncrementalMarkingSpeed);
 
   // Returns the average speed of the events in the buffer.
   // If the buffer is empty, the result is 0.
@@ -408,9 +384,9 @@ class GCTracer {
   static double AverageSpeed(const RingBuffer<BytesAndDuration>& buffer,
                              const BytesAndDuration& initial, double time_ms);
 
-  void MergeBaseline(const Event& baseline);
-
   void ResetForTesting();
+  void ResetIncrementalMarkingCounters();
+  void RecordIncrementalMarkingSpeed(intptr_t bytes, double duration);
 
   // Print one detailed trace line in name=value format.
   // TODO(ernstm): Move to Heap.
@@ -444,37 +420,23 @@ class GCTracer {
   // Previous tracer event.
   Event previous_;
 
-  // Previous INCREMENTAL_MARK_COMPACTOR event.
-  Event previous_incremental_mark_compactor_event_;
+  // Size of incremental marking steps (in bytes) accumulated since the end of
+  // the last mark compact GC.
+  intptr_t incremental_marking_bytes_;
 
-  // Cumulative size of incremental marking steps (in bytes) since creation of
-  // tracer.
-  intptr_t cumulative_incremental_marking_bytes_;
+  // Duration of incremental marking steps since the end of the last mark-
+  // compact event.
+  double incremental_marking_duration_;
 
-  // Cumulative duration of incremental marking steps since creation of tracer.
-  double cumulative_incremental_marking_duration_;
+  double incremental_marking_start_time_;
 
-  // Cumulative duration of pure incremental marking steps since creation of
-  // tracer.
-  double cumulative_pure_incremental_marking_duration_;
-
-  // Total marking time.
-  // This timer is precise when run with --print-cumulative-gc-stat
-  double cumulative_marking_duration_;
+  double recorded_incremental_marking_speed_;
 
   // Incremental scopes carry more information than just the duration. The infos
   // here are merged back upon starting/stopping the GC tracer.
   IncrementalMarkingInfos
       incremental_marking_scopes_[Scope::NUMBER_OF_INCREMENTAL_SCOPES];
 
-  // Total sweeping time on the main thread.
-  // This timer is precise when run with --print-cumulative-gc-stat
-  // TODO(hpayer): Account for sweeping time on sweeper threads. Add a
-  // different field for that.
-  // TODO(hpayer): This timer right now just holds the sweeping time
-  // of the initial atomic sweeping pause. Make sure that it accumulates
-  // all sweeping operations performed on the main thread.
-  double cumulative_sweeping_duration_;
 
   // Timestamp and allocation counter at the last sampled allocation event.
   double allocation_time_ms_;
@@ -494,12 +456,11 @@ class GCTracer {
   // Separate timer used for --runtime_call_stats
   RuntimeCallTimer timer_;
 
-  RingBuffer<BytesAndDuration> recorded_incremental_marking_steps_;
   RingBuffer<BytesAndDuration> recorded_scavenges_total_;
   RingBuffer<BytesAndDuration> recorded_scavenges_survived_;
   RingBuffer<BytesAndDuration> recorded_compactions_;
-  RingBuffer<BytesAndDuration> recorded_mark_compacts_;
   RingBuffer<BytesAndDuration> recorded_incremental_mark_compacts_;
+  RingBuffer<BytesAndDuration> recorded_mark_compacts_;
   RingBuffer<BytesAndDuration> recorded_new_generation_allocations_;
   RingBuffer<BytesAndDuration> recorded_old_generation_allocations_;
   RingBuffer<double> recorded_context_disposal_times_;

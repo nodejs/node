@@ -31,11 +31,8 @@ namespace internal {
 class MockPlatform : public v8::Platform {
  public:
   explicit MockPlatform(v8::Platform* platform)
-      : platform_(platform), idle_task_(nullptr), delayed_task_(nullptr) {}
-  virtual ~MockPlatform() {
-    delete idle_task_;
-    delete delayed_task_;
-  }
+      : platform_(platform), task_(nullptr) {}
+  virtual ~MockPlatform() { delete task_; }
 
   void CallOnBackgroundThread(Task* task,
                               ExpectedRuntime expected_runtime) override {
@@ -43,15 +40,12 @@ class MockPlatform : public v8::Platform {
   }
 
   void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override {
-    platform_->CallOnForegroundThread(isolate, task);
+    task_ = task;
   }
 
   void CallDelayedOnForegroundThread(v8::Isolate* isolate, Task* task,
                                      double delay_in_seconds) override {
-    if (delayed_task_ != nullptr) {
-      delete delayed_task_;
-    }
-    delayed_task_ = task;
+    platform_->CallDelayedOnForegroundThread(isolate, task, delay_in_seconds);
   }
 
   double MonotonicallyIncreasingTime() override {
@@ -60,30 +54,21 @@ class MockPlatform : public v8::Platform {
 
   void CallIdleOnForegroundThread(v8::Isolate* isolate,
                                   IdleTask* task) override {
-    CHECK(nullptr == idle_task_);
-    idle_task_ = task;
+    platform_->CallIdleOnForegroundThread(isolate, task);
   }
 
   bool IdleTasksEnabled(v8::Isolate* isolate) override { return true; }
 
-  bool PendingIdleTask() { return idle_task_ != nullptr; }
+  bool PendingTask() { return task_ != nullptr; }
 
-  void PerformIdleTask(double idle_time_in_seconds) {
-    IdleTask* task = idle_task_;
-    idle_task_ = nullptr;
-    task->Run(MonotonicallyIncreasingTime() + idle_time_in_seconds);
-    delete task;
-  }
-
-  bool PendingDelayedTask() { return delayed_task_ != nullptr; }
-
-  void PerformDelayedTask() {
-    Task* task = delayed_task_;
-    delayed_task_ = nullptr;
+  void PerformTask() {
+    Task* task = task_;
+    task_ = nullptr;
     task->Run();
     delete task;
   }
 
+  using Platform::AddTraceEvent;
   uint64_t AddTraceEvent(char phase, const uint8_t* categoryEnabledFlag,
                          const char* name, const char* scope, uint64_t id,
                          uint64_t bind_id, int numArgs, const char** argNames,
@@ -108,12 +93,10 @@ class MockPlatform : public v8::Platform {
 
  private:
   v8::Platform* platform_;
-  IdleTask* idle_task_;
-  Task* delayed_task_;
+  Task* task_;
 };
 
-
-TEST(IncrementalMarkingUsingIdleTasks) {
+TEST(IncrementalMarkingUsingTasks) {
   if (!i::FLAG_incremental_marking) return;
   CcTest::InitializeVM();
   v8::Platform* old_platform = i::V8::GetCurrentPlatform();
@@ -122,16 +105,10 @@ TEST(IncrementalMarkingUsingIdleTasks) {
   i::heap::SimulateFullSpace(CcTest::heap()->old_space());
   i::IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   marking->Stop();
-  marking->Start();
-  CHECK(platform.PendingIdleTask());
-  const double kLongIdleTimeInSeconds = 1;
-  const double kShortIdleTimeInSeconds = 0.010;
-  const int kShortStepCount = 10;
-  for (int i = 0; i < kShortStepCount && platform.PendingIdleTask(); i++) {
-    platform.PerformIdleTask(kShortIdleTimeInSeconds);
-  }
-  while (platform.PendingIdleTask()) {
-    platform.PerformIdleTask(kLongIdleTimeInSeconds);
+  marking->Start(i::GarbageCollectionReason::kTesting);
+  CHECK(platform.PendingTask());
+  while (platform.PendingTask()) {
+    platform.PerformTask();
   }
   CHECK(marking->IsStopped());
   i::V8::SetPlatformForTesting(old_platform);
@@ -140,55 +117,25 @@ TEST(IncrementalMarkingUsingIdleTasks) {
 
 TEST(IncrementalMarkingUsingIdleTasksAfterGC) {
   if (!i::FLAG_incremental_marking) return;
+
   CcTest::InitializeVM();
   v8::Platform* old_platform = i::V8::GetCurrentPlatform();
   MockPlatform platform(old_platform);
   i::V8::SetPlatformForTesting(&platform);
   i::heap::SimulateFullSpace(CcTest::heap()->old_space());
-  CcTest::heap()->CollectAllGarbage();
+  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+  // Perform any pending idle tasks.
+  while (platform.PendingTask()) {
+    platform.PerformTask();
+  }
+  CHECK(!platform.PendingTask());
   i::IncrementalMarking* marking = CcTest::heap()->incremental_marking();
   marking->Stop();
-  marking->Start();
-  CHECK(platform.PendingIdleTask());
-  const double kLongIdleTimeInSeconds = 1;
-  const double kShortIdleTimeInSeconds = 0.010;
-  const int kShortStepCount = 10;
-  for (int i = 0; i < kShortStepCount && platform.PendingIdleTask(); i++) {
-    platform.PerformIdleTask(kShortIdleTimeInSeconds);
+  marking->Start(i::GarbageCollectionReason::kTesting);
+  CHECK(platform.PendingTask());
+  while (platform.PendingTask()) {
+    platform.PerformTask();
   }
-  while (platform.PendingIdleTask()) {
-    platform.PerformIdleTask(kLongIdleTimeInSeconds);
-  }
-  CHECK(marking->IsStopped());
-  i::V8::SetPlatformForTesting(old_platform);
-}
-
-
-TEST(IncrementalMarkingUsingDelayedTasks) {
-  if (!i::FLAG_incremental_marking) return;
-  CcTest::InitializeVM();
-  v8::Platform* old_platform = i::V8::GetCurrentPlatform();
-  MockPlatform platform(old_platform);
-  i::V8::SetPlatformForTesting(&platform);
-  i::heap::SimulateFullSpace(CcTest::heap()->old_space());
-  i::IncrementalMarking* marking = CcTest::heap()->incremental_marking();
-  marking->Stop();
-  marking->Start();
-  CHECK(platform.PendingIdleTask());
-  // The delayed task should be a no-op if the idle task makes progress.
-  const int kIgnoredDelayedTaskStepCount = 1000;
-  for (int i = 0; i < kIgnoredDelayedTaskStepCount; i++) {
-    // Dummy idle task progress.
-    marking->incremental_marking_job()->NotifyIdleTaskProgress();
-    CHECK(platform.PendingDelayedTask());
-    platform.PerformDelayedTask();
-  }
-  // Once we stop notifying idle task progress, the delayed tasks
-  // should finish marking.
-  while (!marking->IsStopped() && platform.PendingDelayedTask()) {
-    platform.PerformDelayedTask();
-  }
-  // There could be pending delayed task from memory reducer after GC finishes.
   CHECK(marking->IsStopped());
   i::V8::SetPlatformForTesting(old_platform);
 }

@@ -2,111 +2,107 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-{ 'variables': {
-    'protocol_path': '../../third_party/WebKit/Source/platform/inspector_protocol',
-    'protocol_sources': [
-      '<(SHARED_INTERMEDIATE_DIR)/inspector/Console.cpp',
-      '<(SHARED_INTERMEDIATE_DIR)/inspector/Console.h',
-      '<(SHARED_INTERMEDIATE_DIR)/inspector/Debugger.cpp',
-      '<(SHARED_INTERMEDIATE_DIR)/inspector/Debugger.h',
-      '<(SHARED_INTERMEDIATE_DIR)/inspector/HeapProfiler.cpp',
-      '<(SHARED_INTERMEDIATE_DIR)/inspector/HeapProfiler.h',
-      '<(SHARED_INTERMEDIATE_DIR)/inspector/Profiler.cpp',
-      '<(SHARED_INTERMEDIATE_DIR)/inspector/Profiler.h',
-      '<(SHARED_INTERMEDIATE_DIR)/inspector/public/Debugger.h',
-      '<(SHARED_INTERMEDIATE_DIR)/inspector/public/Runtime.h',
-      '<(SHARED_INTERMEDIATE_DIR)/inspector/Runtime.cpp',
-      '<(SHARED_INTERMEDIATE_DIR)/inspector/Runtime.h',
-    ]
+{
+  'variables': {
+    'protocol_path': '<(PRODUCT_DIR)/../../third_party/WebKit/Source/platform/inspector_protocol',
   },
+  'includes': [
+    'inspector.gypi',
+    '<(PRODUCT_DIR)/../../../third_party/WebKit/Source/platform/inspector_protocol/inspector_protocol.gypi',
+  ],
   'targets': [
-    { 'target_name': 'inspector_protocol_sources',
+    { 'target_name': 'inspector_injected_script',
       'type': 'none',
-      'variables': {
-        'jinja_module_files': [
-          # jinja2/__init__.py contains version string, so sufficient for package
-          '../third_party/jinja2/__init__.py',
-          '../third_party/markupsafe/__init__.py',  # jinja2 dep
-        ]
-      },
       'actions': [
         {
-          'action_name': 'generate_inspector_protocol_sources',
+          'action_name': 'convert_js_to_cpp_char_array',
           'inputs': [
-            # Source generator script.
-            '<(protocol_path)/CodeGenerator.py',
-            # Source code templates.
-            '<(protocol_path)/Exported_h.template',
-            '<(protocol_path)/Imported_h.template',
-            '<(protocol_path)/TypeBuilder_h.template',
-            '<(protocol_path)/TypeBuilder_cpp.template',
-            # Protocol definition.
+            'build/xxd.py',
+            '<(inspector_injected_script_source)',
+          ],
+          'outputs': [
+            '<(inspector_generated_injected_script)',
+          ],
+          'action': [
+            'python',
+            'build/xxd.py',
+            'InjectedScriptSource_js',
+            'injected-script-source.js',
+            '<@(_outputs)'
+          ],
+        },
+      ],
+      # Since this target generates header files, it needs to be a hard dependency.
+      'hard_dependency': 1,
+    },
+    { 'target_name': 'inspector_debugger_script',
+      'type': 'none',
+      'actions': [
+        {
+          'action_name': 'convert_js_to_cpp_char_array',
+          'inputs': [
+            'build/xxd.py',
+            '<(inspector_debugger_script_source)',
+          ],
+          'outputs': [
+            '<(inspector_generated_debugger_script)',
+          ],
+          'action': [
+            'python',
+            'build/xxd.py',
+            'DebuggerScript_js',
+            'debugger-script.js',
+            '<@(_outputs)'
+          ],
+        },
+      ],
+      # Since this target generates header files, it needs to be a hard dependency.
+      'hard_dependency': 1,
+    },
+    { 'target_name': 'protocol_compatibility',
+      'type': 'none',
+      'actions': [
+        {
+          'action_name': 'protocol_compatibility',
+          'inputs': [
             'js_protocol.json',
           ],
           'outputs': [
-            '<@(protocol_sources)',
+            '<@(SHARED_INTERMEDIATE_DIR)/src/js_protocol.stamp',
+          ],
+          'action': [
+            'python',
+            '<(protocol_path)/CheckProtocolCompatibility.py',
+            '--stamp', '<@(_outputs)',
+            'js_protocol.json',
+          ],
+          'message': 'Generating inspector protocol sources from protocol json definition',
+        },
+      ]
+    },
+    { 'target_name': 'protocol_generated_sources',
+      'type': 'none',
+      'dependencies': [ 'protocol_compatibility' ],
+      'actions': [
+        {
+          'action_name': 'protocol_generated_sources',
+          'inputs': [
+            'js_protocol.json',
+            'inspector_protocol_config.json',
+            '<@(inspector_protocol_files)',
+          ],
+          'outputs': [
+            '<@(inspector_generated_sources)',
           ],
           'action': [
             'python',
             '<(protocol_path)/CodeGenerator.py',
-            '--protocol', 'js_protocol.json',
-            '--string_type', 'String16',
-            '--export_macro', 'PLATFORM_EXPORT',
-            '--output_dir', '<(SHARED_INTERMEDIATE_DIR)/inspector',
-            '--output_package', 'inspector',
-            '--exported_dir', '<(SHARED_INTERMEDIATE_DIR)/inspector/public',
-            '--exported_package', 'inspector/public',
+            '--jinja_dir', '<(PRODUCT_DIR)/../../third_party',
+            '--output_base', '<(SHARED_INTERMEDIATE_DIR)/src/inspector',
+            '--config', 'inspector_protocol_config.json',
           ],
-          'message': 'Generating Inspector protocol backend sources from json definitions',
+          'message': 'Generating inspector protocol sources from protocol json',
         },
-      ]
-    },
-    { 'target_name': 'inspector_protocol',
-      'type': 'static_library',
-      'dependencies': [
-        'inspector_protocol_sources',
-      ],
-      'include_dirs+': [
-        '<(protocol_path)/../..',
-        '<(SHARED_INTERMEDIATE_DIR)',
-      ],
-      'defines': [
-        'V8_INSPECTOR_USE_STL',
-      ],
-      'msvs_disabled_warnings': [
-        4267,  # Truncation from size_t to int.
-        4305,  # Truncation from 'type1' to 'type2'.
-        4324,  # Struct padded due to declspec(align).
-        4714,  # Function marked forceinline not inlined.
-        4800,  # Value forced to bool.
-        4996,  # Deprecated function call.
-      ],
-      'sources': [
-        '<@(protocol_sources)',
-        '<(protocol_path)/Allocator.h',
-        '<(protocol_path)/Array.h',
-        '<(protocol_path)/BackendCallback.h',
-        '<(protocol_path)/CodeGenerator.py',
-        '<(protocol_path)/Collections.h',
-        '<(protocol_path)/DispatcherBase.cpp',
-        '<(protocol_path)/DispatcherBase.h',
-        '<(protocol_path)/ErrorSupport.cpp',
-        '<(protocol_path)/ErrorSupport.h',
-        '<(protocol_path)/FrontendChannel.h',
-        '<(protocol_path)/Maybe.h',
-        '<(protocol_path)/Object.cpp',
-        '<(protocol_path)/Object.h',
-        '<(protocol_path)/Parser.cpp',
-        '<(protocol_path)/Parser.h',
-        '<(protocol_path)/Platform.h',
-        '<(protocol_path)/PlatformSTL.h',
-        '<(protocol_path)/String16.cpp',
-        '<(protocol_path)/String16.h',
-        '<(protocol_path)/String16STL.cpp',
-        '<(protocol_path)/String16STL.h',
-        '<(protocol_path)/ValueConversions.h',
-        '<(protocol_path)/Values.cpp',
-        '<(protocol_path)/Values.h',
       ]
     },
   ],

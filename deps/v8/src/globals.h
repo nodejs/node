@@ -14,6 +14,32 @@
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 
+#ifdef V8_OS_WIN
+
+// Setup for Windows shared library export.
+#ifdef BUILDING_V8_SHARED
+#define V8_EXPORT_PRIVATE __declspec(dllexport)
+#elif USING_V8_SHARED
+#define V8_EXPORT_PRIVATE __declspec(dllimport)
+#else
+#define V8_EXPORT_PRIVATE
+#endif  // BUILDING_V8_SHARED
+
+#else  // V8_OS_WIN
+
+// Setup for Linux shared library export.
+#if V8_HAS_ATTRIBUTE_VISIBILITY
+#ifdef BUILDING_V8_SHARED
+#define V8_EXPORT_PRIVATE __attribute__((visibility("default")))
+#else
+#define V8_EXPORT_PRIVATE
+#endif
+#else
+#define V8_EXPORT_PRIVATE
+#endif
+
+#endif  // V8_OS_WIN
+
 // Unfortunately, the INFINITY macro cannot be used with the '-pedantic'
 // warning flag and certain versions of GCC due to a bug:
 // http://gcc.gnu.org/bugzilla/show_bug.cgi?id=11931
@@ -161,10 +187,6 @@ const size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
 #if V8_OS_WIN
 const size_t kMinimumCodeRangeSize = 4 * MB;
 const size_t kReservedCodeRangePages = 1;
-// On PPC Linux PageSize is 4MB
-#elif V8_HOST_ARCH_PPC && V8_TARGET_ARCH_PPC && V8_OS_LINUX
-const size_t kMinimumCodeRangeSize = 12 * MB;
-const size_t kReservedCodeRangePages = 0;
 #else
 const size_t kMinimumCodeRangeSize = 3 * MB;
 const size_t kReservedCodeRangePages = 0;
@@ -193,9 +215,17 @@ const size_t kCodeRangeAreaAlignment = 4 * KB;  // OS page.
 const size_t kReservedCodeRangePages = 0;
 #endif
 
-// The external allocation limit should be below 256 MB on all architectures
-// to avoid that resource-constrained embedders run low on memory.
-const int kExternalAllocationLimit = 192 * 1024 * 1024;
+// Trigger an incremental GCs once the external memory reaches this limit.
+const int kExternalAllocationSoftLimit = 64 * MB;
+
+// Maximum object size that gets allocated into regular pages. Objects larger
+// than that size are allocated in large object space and are never moved in
+// memory. This also applies to new space allocation, since objects are never
+// migrated from new space to large object space. Takes double alignment into
+// account.
+//
+// Current value: Page::kAllocatableMemory (on 32-bit arch) - 512 (slack).
+const int kMaxRegularHeapObjectSize = 507136;
 
 STATIC_ASSERT(kPointerSize == (1 << kPointerSizeLog2));
 
@@ -722,6 +752,7 @@ struct AccessorDescriptor {
 enum CpuFeature {
   // x86
   SSE4_1,
+  SSSE3,
   SSE3,
   SAHF,
   AVX,
@@ -732,13 +763,10 @@ enum CpuFeature {
   POPCNT,
   ATOM,
   // ARM
-  VFP3,
-  ARMv7,
-  ARMv8,
-  SUDIV,
-  MOVW_MOVT_IMMEDIATE_LOADS,
-  VFP32DREGS,
-  NEON,
+  // - Standard configurations. The baseline is ARMv6+VFPv2.
+  ARMv7,        // ARMv7-A + VFPv3-D32 + NEON
+  ARMv7_SUDIV,  // ARMv7-A + VFPv4-D32 + NEON + SUDIV
+  ARMv8,        // ARMv8-A (+ all of the above)
   // MIPS, MIPS64
   FPU,
   FP64FPU,
@@ -755,10 +783,14 @@ enum CpuFeature {
   DISTINCT_OPS,
   GENERAL_INSTR_EXT,
   FLOATING_POINT_EXT,
-  // PPC/S390
-  UNALIGNED_ACCESSES,
 
-  NUMBER_OF_CPU_FEATURES
+  NUMBER_OF_CPU_FEATURES,
+
+  // ARM feature aliases (based on the standard configurations above).
+  VFPv3 = ARMv7,
+  NEON = ARMv7,
+  VFP32DREGS = ARMv7,
+  SUDIV = ARMv7_SUDIV
 };
 
 // Defines hints about receiver values based on structural knowledge.
@@ -840,8 +872,7 @@ enum SmiCheckType {
   DO_SMI_CHECK
 };
 
-
-enum ScopeType {
+enum ScopeType : uint8_t {
   EVAL_SCOPE,      // The top-level scope for an eval source.
   FUNCTION_SCOPE,  // The top-level scope for a function.
   MODULE_SCOPE,    // The scope introduced by a module literal
@@ -878,11 +909,9 @@ const double kMaxSafeInteger = 9007199254740991.0;  // 2^53-1
 
 
 // The order of this enum has to be kept in sync with the predicates below.
-enum VariableMode {
+enum VariableMode : uint8_t {
   // User declared variables:
   VAR,  // declared via 'var', and 'function' declarations
-
-  CONST_LEGACY,  // declared via legacy 'const' declarations
 
   LET,  // declared via 'let' declarations (first lexical)
 
@@ -899,10 +928,44 @@ enum VariableMode {
                    // variable is global unless it has been shadowed
                    // by an eval-introduced variable
 
-  DYNAMIC_LOCAL  // requires dynamic lookup, but we know that the
-                 // variable is local and where it is unless it
-                 // has been shadowed by an eval-introduced
-                 // variable
+  DYNAMIC_LOCAL,  // requires dynamic lookup, but we know that the
+                  // variable is local and where it is unless it
+                  // has been shadowed by an eval-introduced
+                  // variable
+
+  kLastVariableMode = DYNAMIC_LOCAL
+};
+
+// Printing support
+#ifdef DEBUG
+inline const char* VariableMode2String(VariableMode mode) {
+  switch (mode) {
+    case VAR:
+      return "VAR";
+    case LET:
+      return "LET";
+    case CONST:
+      return "CONST";
+    case DYNAMIC:
+      return "DYNAMIC";
+    case DYNAMIC_GLOBAL:
+      return "DYNAMIC_GLOBAL";
+    case DYNAMIC_LOCAL:
+      return "DYNAMIC_LOCAL";
+    case TEMPORARY:
+      return "TEMPORARY";
+  }
+  UNREACHABLE();
+  return NULL;
+}
+#endif
+
+enum VariableKind : uint8_t {
+  NORMAL_VARIABLE,
+  FUNCTION_VARIABLE,
+  THIS_VARIABLE,
+  SLOPPY_FUNCTION_NAME_VARIABLE,
+  kLastKind = SLOPPY_FUNCTION_NAME_VARIABLE
 };
 
 inline bool IsDynamicVariableMode(VariableMode mode) {
@@ -911,7 +974,8 @@ inline bool IsDynamicVariableMode(VariableMode mode) {
 
 
 inline bool IsDeclaredVariableMode(VariableMode mode) {
-  return mode >= VAR && mode <= CONST;
+  STATIC_ASSERT(VAR == 0);  // Implies that mode >= VAR.
+  return mode <= CONST;
 }
 
 
@@ -919,12 +983,7 @@ inline bool IsLexicalVariableMode(VariableMode mode) {
   return mode >= LET && mode <= CONST;
 }
 
-
-inline bool IsImmutableVariableMode(VariableMode mode) {
-  return mode == CONST || mode == CONST_LEGACY;
-}
-
-enum class VariableLocation {
+enum VariableLocation : uint8_t {
   // Before and during variable allocation, a variable whose location is
   // not yet determined.  After allocation, a variable looked up as a
   // property on the global object (and possibly absent).  name() is the
@@ -945,19 +1004,15 @@ enum class VariableLocation {
   // corresponding scope.
   CONTEXT,
 
-  // An indexed slot in a script context that contains a respective global
-  // property cell.  name() is the variable name, index() is the variable
-  // index in the context object on the heap, starting at 0.  scope() is the
-  // corresponding script scope.
-  GLOBAL,
-
   // A named slot in a heap context.  name() is the variable name in the
   // context object on the heap, with lookup starting at the current
   // context.  index() is invalid.
   LOOKUP,
 
   // A named slot in a module's export table.
-  MODULE
+  MODULE,
+
+  kLastVariableLocation = MODULE
 };
 
 // ES6 Draft Rev3 10.2 specifies declarative environment records with mutable
@@ -991,14 +1046,9 @@ enum class VariableLocation {
 // The following enum specifies a flag that indicates if the binding needs a
 // distinct initialization step (kNeedsInitialization) or if the binding is
 // immediately initialized upon creation (kCreatedInitialized).
-enum InitializationFlag {
-  kNeedsInitialization,
-  kCreatedInitialized
-};
+enum InitializationFlag : uint8_t { kNeedsInitialization, kCreatedInitialized };
 
-
-enum MaybeAssignedFlag { kNotAssigned, kMaybeAssigned };
-
+enum MaybeAssignedFlag : uint8_t { kNotAssigned, kMaybeAssigned };
 
 // Serialized in PreparseData, so numeric values should not be changed.
 enum ParseErrorType { kSyntaxError = 0, kReferenceError = 1 };
@@ -1024,6 +1074,7 @@ enum FunctionKind : uint16_t {
   kGetterFunction = 1 << 6,
   kSetterFunction = 1 << 7,
   kAsyncFunction = 1 << 8,
+  kModule = 1 << 9,
   kAccessorFunction = kGetterFunction | kSetterFunction,
   kDefaultBaseConstructor = kDefaultConstructor | kBaseConstructor,
   kDefaultSubclassConstructor = kDefaultConstructor | kSubclassConstructor,
@@ -1037,6 +1088,7 @@ inline bool IsValidFunctionKind(FunctionKind kind) {
   return kind == FunctionKind::kNormalFunction ||
          kind == FunctionKind::kArrowFunction ||
          kind == FunctionKind::kGeneratorFunction ||
+         kind == FunctionKind::kModule ||
          kind == FunctionKind::kConciseMethod ||
          kind == FunctionKind::kConciseGeneratorMethod ||
          kind == FunctionKind::kGetterFunction ||
@@ -1063,13 +1115,18 @@ inline bool IsGeneratorFunction(FunctionKind kind) {
   return kind & FunctionKind::kGeneratorFunction;
 }
 
+inline bool IsModule(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  return kind & FunctionKind::kModule;
+}
+
 inline bool IsAsyncFunction(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
   return kind & FunctionKind::kAsyncFunction;
 }
 
 inline bool IsResumableFunction(FunctionKind kind) {
-  return IsGeneratorFunction(kind) || IsAsyncFunction(kind);
+  return IsGeneratorFunction(kind) || IsAsyncFunction(kind) || IsModule(kind);
 }
 
 inline bool IsConciseMethod(FunctionKind kind) {
@@ -1152,10 +1209,58 @@ inline uint32_t ObjectHash(Address address) {
 // at different points by performing an 'OR' operation. Type feedback moves
 // to a more generic type when we combine feedback.
 // kSignedSmall -> kNumber  -> kAny
+//                 kString  -> kAny
 class BinaryOperationFeedback {
+ public:
+  enum {
+    kNone = 0x0,
+    kSignedSmall = 0x1,
+    kNumber = 0x3,
+    kString = 0x4,
+    kAny = 0xF
+  };
+};
+
+// TODO(epertoso): consider unifying this with BinaryOperationFeedback.
+class CompareOperationFeedback {
  public:
   enum { kNone = 0x00, kSignedSmall = 0x01, kNumber = 0x3, kAny = 0x7 };
 };
+
+// Describes how exactly a frame has been dropped from stack.
+enum LiveEditFrameDropMode {
+  // No frame has been dropped.
+  LIVE_EDIT_FRAMES_UNTOUCHED,
+  // The top JS frame had been calling debug break slot stub. Patch the
+  // address this stub jumps to in the end.
+  LIVE_EDIT_FRAME_DROPPED_IN_DEBUG_SLOT_CALL,
+  // The top JS frame had been calling some C++ function. The return address
+  // gets patched automatically.
+  LIVE_EDIT_FRAME_DROPPED_IN_DIRECT_CALL,
+  LIVE_EDIT_FRAME_DROPPED_IN_RETURN_CALL,
+  LIVE_EDIT_CURRENTLY_SET_MODE
+};
+
+enum class UnicodeEncoding : uint8_t {
+  // Different unicode encodings in a |word32|:
+  UTF16,  // hi 16bits -> trailing surrogate or 0, low 16bits -> lead surrogate
+  UTF32,  // full UTF32 code unit / Unicode codepoint
+};
+
+inline size_t hash_value(UnicodeEncoding encoding) {
+  return static_cast<uint8_t>(encoding);
+}
+
+inline std::ostream& operator<<(std::ostream& os, UnicodeEncoding encoding) {
+  switch (encoding) {
+    case UnicodeEncoding::UTF16:
+      return os << "UTF16";
+    case UnicodeEncoding::UTF32:
+      return os << "UTF32";
+  }
+  UNREACHABLE();
+  return os;
+}
 
 }  // namespace internal
 }  // namespace v8

@@ -14,7 +14,7 @@ namespace internal {
 ExternalReferenceEncoder::ExternalReferenceEncoder(Isolate* isolate) {
   map_ = isolate->external_reference_map();
   if (map_ != NULL) return;
-  map_ = new base::HashMap(base::HashMap::PointersMatch);
+  map_ = new base::HashMap();
   ExternalReferenceTable* table = ExternalReferenceTable::instance(isolate);
   for (int i = 0; i < table->size(); ++i) {
     Address addr = table->address(i);

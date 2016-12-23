@@ -424,7 +424,7 @@ void MoveOptimizer::OptimizeMerge(InstructionBlock* block) {
 namespace {
 
 bool IsSlot(const InstructionOperand& op) {
-  return op.IsStackSlot() || op.IsDoubleStackSlot();
+  return op.IsStackSlot() || op.IsFPStackSlot();
 }
 
 

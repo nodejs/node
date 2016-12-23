@@ -32,6 +32,7 @@ class EscapeAnalysis {
   bool IsEscaped(Node* node);
   bool CompareVirtualObjects(Node* left, Node* right);
   Node* GetOrCreateObjectState(Node* effect, Node* node);
+  bool IsCyclicObjectState(Node* effect, Node* node);
   bool ExistsVirtualAllocate();
 
  private:
@@ -75,6 +76,7 @@ class EscapeAnalysis {
   EscapeStatusAnalysis* status_analysis_;
   ZoneVector<VirtualState*> virtual_states_;
   ZoneVector<Node*> replacements_;
+  ZoneSet<VirtualObject*> cycle_detection_;
   MergeCache* cache_;
 
   DISALLOW_COPY_AND_ASSIGN(EscapeAnalysis);

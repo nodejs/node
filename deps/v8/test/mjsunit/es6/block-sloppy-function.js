@@ -67,6 +67,24 @@
   assertEquals(1, f);
 })();
 
+(function shadowingLetDoesntBindGenerator() {
+  let f = function *f() {
+    while(true) {
+      yield 1;
+    }
+  };
+  assertEquals(1, f().next().value);
+  {
+    function *f() {
+      while(true) {
+        yield 2;
+      }
+    }
+    assertEquals(2, f().next().value);
+  }
+  assertEquals(1, f().next().value);
+})();
+
 (function shadowingClassDoesntBind() {
   class f { }
   assertEquals('class f { }', f.toString());

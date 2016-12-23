@@ -15,7 +15,7 @@
 #include "src/heap/heap.h"
 #include "src/machine-type.h"
 #include "src/runtime/runtime.h"
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -54,8 +54,10 @@ class RawMachineLabel;
   V(IntPtrGreaterThanOrEqual)                    \
   V(IntPtrEqual)                                 \
   V(Uint32LessThan)                              \
+  V(Uint32LessThanOrEqual)                       \
   V(Uint32GreaterThanOrEqual)                    \
   V(UintPtrLessThan)                             \
+  V(UintPtrGreaterThan)                          \
   V(UintPtrGreaterThanOrEqual)                   \
   V(WordEqual)                                   \
   V(WordNotEqual)                                \
@@ -133,7 +135,9 @@ class RawMachineLabel;
   V(Float64Tanh)                        \
   V(Float64ExtractLowWord32)            \
   V(Float64ExtractHighWord32)           \
+  V(BitcastTaggedToWord)                \
   V(BitcastWordToTagged)                \
+  V(BitcastWordToTaggedSigned)          \
   V(TruncateFloat64ToFloat32)           \
   V(TruncateFloat64ToWord32)            \
   V(TruncateInt64ToInt32)               \
@@ -144,10 +148,14 @@ class RawMachineLabel;
   V(ChangeUint32ToFloat64)              \
   V(ChangeUint32ToUint64)               \
   V(RoundFloat64ToInt32)                \
+  V(RoundInt32ToFloat32)                \
+  V(Float64SilenceNaN)                  \
   V(Float64RoundDown)                   \
   V(Float64RoundUp)                     \
+  V(Float64RoundTiesEven)               \
   V(Float64RoundTruncate)               \
-  V(Word32Clz)
+  V(Word32Clz)                          \
+  V(Word32BinaryNot)
 
 // A "public" interface used by components outside of compiler directory to
 // create code objects with TurboFan's backend. This class is mostly a thin shim
@@ -185,6 +193,7 @@ class CodeAssembler {
   bool Is64() const;
   bool IsFloat64RoundUpSupported() const;
   bool IsFloat64RoundDownSupported() const;
+  bool IsFloat64RoundTiesEvenSupported() const;
   bool IsFloat64RoundTruncateSupported() const;
 
   class Label;
@@ -283,10 +292,18 @@ class CodeAssembler {
   CODE_ASSEMBLER_UNARY_OP_LIST(DECLARE_CODE_ASSEMBLER_UNARY_OP)
 #undef DECLARE_CODE_ASSEMBLER_UNARY_OP
 
+  // Changes an intptr_t to a double, e.g. for storing an element index
+  // outside Smi range in a HeapNumber. Lossless on 32-bit,
+  // rounds on 64-bit (which doesn't affect valid element indices).
+  Node* RoundIntPtrToFloat64(Node* value);
   // No-op on 32-bit, otherwise zero extend.
   Node* ChangeUint32ToWord(Node* value);
   // No-op on 32-bit, otherwise sign extend.
   Node* ChangeInt32ToIntPtr(Node* value);
+
+  // No-op that guarantees that the value is kept alive till this point even
+  // if GC happens.
+  Node* Retain(Node* value);
 
   // Projections
   Node* Projection(int index, Node* value);
@@ -315,6 +332,9 @@ class CodeAssembler {
   Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,
                         Node* arg1, Node* arg2, Node* arg3, Node* arg4,
                         Node* arg5);
+  Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,
+                        Node* arg1, Node* arg2, Node* arg3, Node* arg4,
+                        Node* arg5, Node* arg6);
 
   // A pair of a zero-based argument index and a value.
   // It helps writing arguments order independent code.
@@ -331,6 +351,8 @@ class CodeAssembler {
                  Node* arg2, size_t result_size = 1);
   Node* CallStub(Callable const& callable, Node* context, Node* arg1,
                  Node* arg2, Node* arg3, size_t result_size = 1);
+  Node* CallStub(Callable const& callable, Node* context, Node* arg1,
+                 Node* arg2, Node* arg3, Node* arg4, size_t result_size = 1);
   Node* CallStubN(Callable const& callable, Node** args,
                   size_t result_size = 1);
 
@@ -364,8 +386,13 @@ class CodeAssembler {
                  const Arg& arg3, const Arg& arg4, const Arg& arg5,
                  size_t result_size = 1);
 
+  Node* CallStubN(const CallInterfaceDescriptor& descriptor,
+                  int js_parameter_count, Node* target, Node** args,
+                  size_t result_size = 1);
   Node* CallStubN(const CallInterfaceDescriptor& descriptor, Node* target,
-                  Node** args, size_t result_size = 1);
+                  Node** args, size_t result_size = 1) {
+    return CallStubN(descriptor, 0, target, args, result_size);
+  }
 
   Node* TailCallStub(Callable const& callable, Node* context, Node* arg1,
                      size_t result_size = 1);
@@ -387,6 +414,9 @@ class CodeAssembler {
   Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
                      Node* context, Node* arg1, Node* arg2, Node* arg3,
                      Node* arg4, size_t result_size = 1);
+  Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
+                     Node* context, Node* arg1, Node* arg2, Node* arg3,
+                     Node* arg4, Node* arg5, size_t result_size = 1);
 
   Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
                      Node* context, const Arg& arg1, const Arg& arg2,
@@ -405,6 +435,11 @@ class CodeAssembler {
                Node* receiver, Node* arg1, size_t result_size = 1);
   Node* CallJS(Callable const& callable, Node* context, Node* function,
                Node* receiver, Node* arg1, Node* arg2, size_t result_size = 1);
+
+  // Call to a C function with two arguments.
+  Node* CallCFunction2(MachineType return_type, MachineType arg0_type,
+                       MachineType arg1_type, Node* function, Node* arg0,
+                       Node* arg1);
 
   // Exception handling support.
   void GotoIfException(Node* node, Label* if_exception,

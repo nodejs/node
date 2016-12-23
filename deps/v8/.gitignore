@@ -85,12 +85,13 @@ shell_g
 /tools/luci-go/linux64/isolate
 /tools/luci-go/mac64/isolate
 /tools/luci-go/win64/isolate.exe
-/tools/mb
 /tools/oom_dump/oom_dump
 /tools/oom_dump/oom_dump.o
 /tools/swarming_client
 /tools/visual_studio/Debug
 /tools/visual_studio/Release
+/test/fuzzer/wasm
+/test/fuzzer/wasm_asmjs
 /v8.log.ll
 /xcodebuild
 TAGS
@@ -105,3 +106,7 @@ turbo*.cfg
 turbo*.dot
 turbo*.json
 v8.ignition_dispatches_table.json
+/test/fuzzer/wasm.tar.gz
+/test/fuzzer/wasm_asmjs.tar.gz
+/src/inspector/build/closure-compiler.tar.gz
+/src/inspector/build/closure-compiler

@@ -22,19 +22,7 @@ namespace wasm {
 // Error codes for programmatic checking of the decoder's verification.
 enum ErrorCode {
   kSuccess,
-  kError,                 // TODO(titzer): remove me
-  kOutOfMemory,           // decoder ran out of memory
-  kEndOfCode,             // end of code reached prematurely
-  kInvalidOpcode,         // found invalid opcode
-  kUnreachableCode,       // found unreachable code
-  kImproperContinue,      // improperly nested continue
-  kImproperBreak,         // improperly nested break
-  kReturnCount,           // return count mismatch
-  kTypeError,             // type mismatch
-  kInvalidLocalIndex,     // invalid local
-  kInvalidGlobalIndex,    // invalid global
-  kInvalidFunctionIndex,  // invalid function
-  kInvalidMemType         // invalid memory type
+  kError,  // TODO(titzer): introduce real error codes
 };
 
 // The overall result of decoding a function or a module.
@@ -97,33 +85,37 @@ std::ostream& operator<<(std::ostream& os, const Result<T>& result) {
 std::ostream& operator<<(std::ostream& os, const ErrorCode& error_code);
 
 // A helper for generating error messages that bubble up to JS exceptions.
-class ErrorThrower {
+class V8_EXPORT_PRIVATE ErrorThrower {
  public:
-  ErrorThrower(Isolate* isolate, const char* context)
+  ErrorThrower(i::Isolate* isolate, const char* context)
       : isolate_(isolate), context_(context) {}
   ~ErrorThrower();
 
   PRINTF_FORMAT(2, 3) void Error(const char* fmt, ...);
+  PRINTF_FORMAT(2, 3) void TypeError(const char* fmt, ...);
+  PRINTF_FORMAT(2, 3) void RangeError(const char* fmt, ...);
 
   template <typename T>
   void Failed(const char* error, Result<T>& result) {
     std::ostringstream str;
     str << error << result;
-    return Error("%s", str.str().c_str());
+    Error("%s", str.str().c_str());
   }
 
-  i::Handle<i::String> Reify() {
-    auto result = message_;
-    message_ = i::Handle<i::String>();
+  i::Handle<i::Object> Reify() {
+    i::Handle<i::Object> result = exception_;
+    exception_ = i::Handle<i::Object>::null();
     return result;
   }
 
-  bool error() const { return !message_.is_null(); }
+  bool error() const { return !exception_.is_null(); }
 
  private:
-  Isolate* isolate_;
+  void Format(i::Handle<i::JSFunction> constructor, const char* fmt, va_list);
+
+  i::Isolate* isolate_;
   const char* context_;
-  i::Handle<i::String> message_;
+  i::Handle<i::Object> exception_;
 };
 }  // namespace wasm
 }  // namespace internal

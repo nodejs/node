@@ -402,6 +402,30 @@ Node* RawMachineAssembler::TailCallRuntime5(Runtime::FunctionId function,
   return tail_call;
 }
 
+Node* RawMachineAssembler::TailCallRuntime6(Runtime::FunctionId function,
+                                            Node* arg1, Node* arg2, Node* arg3,
+                                            Node* arg4, Node* arg5, Node* arg6,
+                                            Node* context) {
+  const int kArity = 6;
+  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
+      zone(), function, kArity, Operator::kNoProperties,
+      CallDescriptor::kSupportsTailCalls);
+  int return_count = static_cast<int>(desc->ReturnCount());
+
+  Node* centry = HeapConstant(CEntryStub(isolate(), return_count).GetCode());
+  Node* ref = AddNode(
+      common()->ExternalConstant(ExternalReference(function, isolate())));
+  Node* arity = Int32Constant(kArity);
+
+  Node* nodes[] = {centry, arg1, arg2, arg3,  arg4,
+                   arg5,   arg6, ref,  arity, context};
+  Node* tail_call = MakeNode(common()->TailCall(desc), arraysize(nodes), nodes);
+
+  schedule()->AddTailCall(CurrentBlock(), tail_call);
+  current_block_ = nullptr;
+  return tail_call;
+}
+
 Node* RawMachineAssembler::CallCFunction0(MachineType return_type,
                                           Node* function) {
   MachineSignature::Builder builder(zone(), 1, 0);

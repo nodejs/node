@@ -148,9 +148,8 @@ class ParseInfo {
 
   // Getters for individual compiler hints.
   bool is_declaration() const;
-  bool is_arrow() const;
-  bool is_async() const;
-  bool is_default_constructor() const;
+  bool requires_class_field_init() const;
+  bool is_class_field_initializer() const;
   FunctionKind function_kind() const;
 
   //--------------------------------------------------------------------------
@@ -159,11 +158,15 @@ class ParseInfo {
   Isolate* isolate() const { return isolate_; }
   Handle<SharedFunctionInfo> shared_info() const { return shared_; }
   Handle<Script> script() const { return script_; }
-  Handle<Context> context() const { return context_; }
+  MaybeHandle<ScopeInfo> maybe_outer_scope_info() const {
+    return maybe_outer_scope_info_;
+  }
   void clear_script() { script_ = Handle<Script>::null(); }
   void set_isolate(Isolate* isolate) { isolate_ = isolate; }
   void set_shared_info(Handle<SharedFunctionInfo> shared) { shared_ = shared; }
-  void set_context(Handle<Context> context) { context_ = context; }
+  void set_outer_scope_info(Handle<ScopeInfo> outer_scope_info) {
+    maybe_outer_scope_info_ = outer_scope_info;
+  }
   void set_script(Handle<Script> script) { script_ = script; }
   //--------------------------------------------------------------------------
 
@@ -178,7 +181,10 @@ class ParseInfo {
   void ReopenHandlesInNewHandleScope() {
     shared_ = Handle<SharedFunctionInfo>(*shared_);
     script_ = Handle<Script>(*script_);
-    context_ = Handle<Context>(*context_);
+    Handle<ScopeInfo> outer_scope_info;
+    if (maybe_outer_scope_info_.ToHandle(&outer_scope_info)) {
+      maybe_outer_scope_info_ = Handle<ScopeInfo>(*outer_scope_info);
+    }
   }
 
 #ifdef DEBUG
@@ -224,7 +230,7 @@ class ParseInfo {
   Isolate* isolate_;
   Handle<SharedFunctionInfo> shared_;
   Handle<Script> script_;
-  Handle<Context> context_;
+  MaybeHandle<ScopeInfo> maybe_outer_scope_info_;
 
   //----------- Inputs+Outputs of parsing and scope analysis -----------------
   ScriptData** cached_data_;  // used if available, populated if requested.

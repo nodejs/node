@@ -12,8 +12,6 @@ namespace internal {
 
 // Forward declarations.
 class CompilationDependencies;
-class TypeCache;
-
 
 namespace compiler {
 
@@ -22,7 +20,7 @@ class CommonOperatorBuilder;
 class JSGraph;
 class JSOperatorBuilder;
 class SimplifiedOperatorBuilder;
-
+class TypeCache;
 
 // Specializes a given JSGraph to a given global object, potentially constant
 // folding some {JSLoadGlobal} nodes or strength reducing some {JSStoreGlobal}

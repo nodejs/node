@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --expose-gc
 
 // Ensure `Array.prototype.indexOf` functions correctly for numerous elements
 // kinds, and various exotic receiver types,
@@ -107,7 +107,7 @@ var kTests = {
 
     DICTIONARY_ELEMENTS() {
       var array = [];
-      Object.defineProperty(array, 4, { get() { return NaN; } });
+      Object.defineProperty(array, 4, { get() { gc(); return NaN; } });
       Object.defineProperty(array, 7, { value: Function });
 
       assertTrue(%HasDictionaryElements(array));
@@ -226,7 +226,7 @@ var kTests = {
 
     DICTIONARY_ELEMENTS() {
       var object = { length: 8 };
-      Object.defineProperty(object, 4, { get() { return NaN; } });
+      Object.defineProperty(object, 4, { get() { gc(); return NaN; } });
       Object.defineProperty(object, 7, { value: Function });
 
       assertTrue(%HasDictionaryElements(object));
@@ -244,8 +244,10 @@ var kTests = {
           return {
             __proto__: {},
             get 0() {
+              gc();
               this.__proto__.__proto__ = {
                 get 1() {
+                  gc();
                   this[2] = "c";
                   return "b";
                 }
@@ -313,7 +315,7 @@ var kTests = {
 
     SLOW_SLOPPY_ARGUMENTS_ELEMENTS() {
       var args = (function(a, a) { return arguments; })("foo", NaN, "bar");
-      Object.defineProperty(args, 3, { get() { return "silver"; } });
+      Object.defineProperty(args, 3, { get() { gc(); return "silver"; } });
       Object.defineProperty(args, "length", { value: 4 });
       assertTrue(%HasSloppyArgumentsElements(args));
 

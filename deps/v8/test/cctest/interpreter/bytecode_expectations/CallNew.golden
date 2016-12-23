@@ -3,8 +3,6 @@
 #
 
 ---
-pool type: mixed
-execute: yes
 wrap: no
 test function name: f
 
@@ -16,12 +14,12 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 11
+bytecode array length: 12
 bytecodes: [
   /*   45 E> */ B(StackCheck),
-  /*   50 S> */ B(LdrGlobal), U8(3), R(0),
+  /*   50 S> */ B(LdrGlobal), U8(4), R(0),
                 B(Ldar), R(0),
-  /*   57 E> */ B(New), R(0), R(0), U8(0),
+  /*   57 E> */ B(New), R(0), R(0), U8(0), U8(2),
   /*   68 S> */ B(Return),
 ]
 constant pool: [
@@ -37,14 +35,14 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 15
+bytecode array length: 16
 bytecodes: [
   /*   58 E> */ B(StackCheck),
-  /*   63 S> */ B(LdrGlobal), U8(3), R(0),
+  /*   63 S> */ B(LdrGlobal), U8(4), R(0),
                 B(LdaSmi), U8(3),
                 B(Star), R(1),
                 B(Ldar), R(0),
-  /*   70 E> */ B(New), R(0), R(1), U8(1),
+  /*   70 E> */ B(New), R(0), R(1), U8(1), U8(2),
   /*   82 S> */ B(Return),
 ]
 constant pool: [
@@ -65,10 +63,10 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 23
+bytecode array length: 24
 bytecodes: [
   /*  100 E> */ B(StackCheck),
-  /*  105 S> */ B(LdrGlobal), U8(3), R(0),
+  /*  105 S> */ B(LdrGlobal), U8(4), R(0),
                 B(LdaSmi), U8(3),
                 B(Star), R(1),
                 B(LdaSmi), U8(4),
@@ -76,7 +74,7 @@ bytecodes: [
                 B(LdaSmi), U8(5),
                 B(Star), R(3),
                 B(Ldar), R(0),
-  /*  112 E> */ B(New), R(0), R(1), U8(3),
+  /*  112 E> */ B(New), R(0), R(1), U8(3), U8(2),
   /*  130 S> */ B(Return),
 ]
 constant pool: [

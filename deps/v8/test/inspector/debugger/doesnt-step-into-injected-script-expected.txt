@@ -1,0 +1,17 @@
+Check that stepInto at then end of the script go to next user script instead InjectedScriptSource.js.
+Stack trace:
+boo:0:38
+:0:50
+
+Perform stepInto
+Stack trace:
+boo:0:48
+:0:50
+
+Perform stepInto
+Stack trace:
+:0:51
+
+Perform stepInto
+Stack trace:
+foo:0:12

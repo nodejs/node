@@ -1,0 +1,119 @@
+Tests that Runtime.awaitPromise works.
+
+Running test: testResolvedPromise
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 239
+            type : number
+            value : 239
+        }
+    }
+}
+
+Running test: testRejectedPromise
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 0
+            exception : {
+                type : object
+                value : {
+                    a : 1
+                }
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 0
+            stackTrace : {
+                callFrames : [
+                ]
+            }
+            text : Uncaught (in promise)
+        }
+        result : {
+            type : object
+            value : {
+                a : 1
+            }
+        }
+    }
+}
+
+Running test: testRejectedPromiseWithStack
+{
+    id : <messageId>
+    result : {
+        exceptionDetails : {
+            columnNumber : 0
+            exception : {
+                description : 239
+                type : number
+                value : 239
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 0
+            stackTrace : {
+                callFrames : [
+                ]
+                parent : {
+                    callFrames : [
+                        [0] : {
+                            columnNumber : 4
+                            functionName : rejectPromise
+                            lineNumber : 17
+                            scriptId : <scriptId>
+                            url : test.js
+                        }
+                        [1] : {
+                            columnNumber : 0
+                            functionName : 
+                            lineNumber : 0
+                            scriptId : <scriptId>
+                            url : 
+                        }
+                    ]
+                    description : Promise.reject
+                }
+            }
+            text : Uncaught (in promise)
+        }
+        result : {
+            description : 239
+            type : number
+            value : 239
+        }
+    }
+}
+
+Running test: testPendingPromise
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 239
+            type : number
+            value : 239
+        }
+    }
+}
+
+Running test: testResolvedWithoutArgsPromise
+{
+    id : <messageId>
+    result : {
+        result : {
+            type : undefined
+        }
+    }
+}
+
+Running test: testGarbageCollectedPromise
+{
+    error : {
+        code : -32000
+        message : Promise was collected
+    }
+    id : <messageId>
+}

@@ -13,7 +13,6 @@
 namespace v8 {
 namespace internal {
 
-
 // static
 LookupIterator LookupIterator::PropertyOrElement(Isolate* isolate,
                                                  Handle<Object> receiver,
@@ -421,11 +420,6 @@ void LookupIterator::Delete() {
         isolate_, is_prototype_map
                       ? &RuntimeCallStats::PrototypeObject_DeleteProperty
                       : &RuntimeCallStats::Object_DeleteProperty);
-    TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-        isolate_,
-        (is_prototype_map
-             ? &tracing::TraceEventStatsTable::PrototypeObject_DeleteProperty
-             : &tracing::TraceEventStatsTable::Object_DeleteProperty));
 
     PropertyNormalizationMode mode =
         is_prototype_map ? KEEP_INOBJECT_PROPERTIES : CLEAR_INOBJECT_PROPERTIES;

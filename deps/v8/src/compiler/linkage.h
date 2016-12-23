@@ -11,7 +11,7 @@
 #include "src/frames.h"
 #include "src/machine-type.h"
 #include "src/runtime/runtime.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {

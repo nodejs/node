@@ -9,10 +9,11 @@
 
 // Clients of this interface shouldn't depend on lots of compiler internals.
 // Do not include anything from src/compiler here!
+#include "src/compilation-info.h"
 #include "src/compiler.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -132,8 +133,12 @@ class WasmGraphBuilder {
               wasm::WasmCodePosition position = wasm::kNoCodePosition);
   Node* Unop(wasm::WasmOpcode opcode, Node* input,
              wasm::WasmCodePosition position = wasm::kNoCodePosition);
+  Node* GrowMemory(Node* input);
+  Node* Throw(Node* input);
+  Node* Catch(Node* input, wasm::WasmCodePosition position);
   unsigned InputCount(Node* node);
   bool IsPhiWithMerge(Node* phi, Node* merge);
+  bool ThrowsException(Node* node, Node** if_success, Node** if_exception);
   void AppendToMerge(Node* merge, Node* from);
   void AppendToPhi(Node* phi, Node* from);
 
@@ -150,12 +155,11 @@ class WasmGraphBuilder {
   Node* ReturnVoid();
   Node* Unreachable(wasm::WasmCodePosition position);
 
-  Node* CallDirect(uint32_t index, Node** args,
+  Node* CallDirect(uint32_t index, Node** args, Node*** rets,
                    wasm::WasmCodePosition position);
-  Node* CallImport(uint32_t index, Node** args,
-                   wasm::WasmCodePosition position);
-  Node* CallIndirect(uint32_t index, Node** args,
+  Node* CallIndirect(uint32_t index, Node** args, Node*** rets,
                      wasm::WasmCodePosition position);
+
   void BuildJSToWasmWrapper(Handle<Code> wasm_code, wasm::FunctionSig* sig);
   void BuildWasmToJSWrapper(Handle<JSReceiver> target, wasm::FunctionSig* sig);
 
@@ -167,7 +171,7 @@ class WasmGraphBuilder {
   //-----------------------------------------------------------------------
   // Operations that concern the linear memory.
   //-----------------------------------------------------------------------
-  Node* MemSize(uint32_t offset);
+  Node* CurrentMemoryPages();
   Node* GetGlobal(uint32_t index);
   Node* SetGlobal(uint32_t index, Node* val);
   Node* LoadMem(wasm::LocalType type, MachineType memtype, Node* index,
@@ -194,7 +198,10 @@ class WasmGraphBuilder {
 
   void SetSourcePosition(Node* node, wasm::WasmCodePosition position);
 
+  Node* DefaultS128Value();
+
   Node* SimdOp(wasm::WasmOpcode opcode, const NodeVector& inputs);
+  Node* SimdExtractLane(wasm::WasmOpcode opcode, uint8_t lane, Node* input);
 
  private:
   static const int kDefaultBufferSize = 16;
@@ -223,6 +230,7 @@ class WasmGraphBuilder {
   Graph* graph();
 
   Node* String(const char* string);
+  Node* MemSize(uint32_t offset);
   Node* MemBuffer(uint32_t offset);
   void BoundsCheckMem(MachineType memtype, Node* index, uint32_t offset,
                       wasm::WasmCodePosition position);
@@ -234,7 +242,7 @@ class WasmGraphBuilder {
   Node* MaskShiftCount64(Node* node);
 
   Node* BuildCCall(MachineSignature* sig, Node** args);
-  Node* BuildWasmCall(wasm::FunctionSig* sig, Node** args,
+  Node* BuildWasmCall(wasm::FunctionSig* sig, Node** args, Node*** rets,
                       wasm::WasmCodePosition position);
 
   Node* BuildF32CopySign(Node* left, Node* right);
@@ -301,6 +309,7 @@ class WasmGraphBuilder {
 
   Node* BuildJavaScriptToNumber(Node* node, Node* context, Node* effect,
                                 Node* control);
+
   Node* BuildChangeInt32ToTagged(Node* value);
   Node* BuildChangeFloat64ToTagged(Node* value);
   Node* BuildChangeTaggedToFloat64(Node* value);
@@ -315,7 +324,6 @@ class WasmGraphBuilder {
   Node* BuildAllocateHeapNumberWithValue(Node* value, Node* control);
   Node* BuildLoadHeapNumberValue(Node* value, Node* control);
   Node* BuildHeapNumberValueIndexConstant();
-  Node* BuildGrowMemory(Node* input);
 
   // Asm.js specific functionality.
   Node* BuildI32AsmjsSConvertF32(Node* input);
@@ -334,6 +342,9 @@ class WasmGraphBuilder {
     if (buf != buffer) memcpy(buf, buffer, old_count * sizeof(Node*));
     return buf;
   }
+
+  int AddParameterNodes(Node** args, int pos, int param_count,
+                        wasm::FunctionSig* sig);
 };
 }  // namespace compiler
 }  // namespace internal

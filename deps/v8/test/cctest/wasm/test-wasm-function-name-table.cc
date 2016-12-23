@@ -41,9 +41,9 @@ void testFunctionNameTable(Vector<Vector<const char>> names) {
                      name.start() + name.length());
     // Make every second function name null-terminated.
     if (func_index % 2) all_names.push_back('\0');
-    module.functions.push_back({nullptr, 0, 0,
-                                static_cast<uint32_t>(name_offset),
-                                static_cast<uint32_t>(name.length()), 0, 0});
+    module.functions.push_back(
+        {nullptr, 0, 0, static_cast<uint32_t>(name_offset),
+         static_cast<uint32_t>(name.length()), 0, 0, false, false});
     ++func_index;
   }
 

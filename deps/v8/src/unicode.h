@@ -141,6 +141,8 @@ class Utf8 {
   // The unicode replacement character, used to signal invalid unicode
   // sequences (e.g. an orphan surrogate) when converting to a UTF-8 encoding.
   static const uchar kBadChar = 0xFFFD;
+  static const uchar kBufferEmpty = 0x0;
+  static const uchar kIncomplete = 0xFFFFFFFC;  // any non-valid code point.
   static const unsigned kMaxEncodedSize   = 4;
   static const unsigned kMaxOneByteChar   = 0x7f;
   static const unsigned kMaxTwoByteChar   = 0x7ff;
@@ -155,6 +157,11 @@ class Utf8 {
   // UTF-8.
   static const unsigned kMax16BitCodeUnitSize  = 3;
   static inline uchar ValueOf(const byte* str, size_t length, size_t* cursor);
+
+  typedef uint32_t Utf8IncrementalBuffer;
+  static uchar ValueOfIncremental(byte next_byte,
+                                  Utf8IncrementalBuffer* buffer);
+  static uchar ValueOfIncrementalFinish(Utf8IncrementalBuffer* buffer);
 
   // Excludes non-characters from the set of valid code points.
   static inline bool IsValidCharacter(uchar c);
