@@ -136,9 +136,7 @@ for (const test of tests) {
 }
 
 for (const test of allTests) {
-  const url = test.url
-    ? new URL(test.url)
-    : new URL(test.input, test.base);
+  const url = test.url ? new URL(test.url) : new URL(test.input, test.base);
 
   for (const showHidden of [true, false]) {
     const res = url.inspect(null, {
