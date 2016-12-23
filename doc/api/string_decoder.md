@@ -2,9 +2,9 @@
 
 > Stability: 2 - Stable
 
-The `string_decoder` module provides an API for decoding `Buffer` objects into
-strings in a manner that preserves encoded multi-byte UTF-8 and UTF-16
-characters. It can be accessed using:
+The `string_decoder` module provides an API for decoding `Buffer` and
+`Uint8Array` objects into strings in a manner that preserves encoded multi-byte
+UTF-8 and UTF-16 characters. It can be accessed using:
 
 ```js
 const StringDecoder = require('string_decoder').StringDecoder;
@@ -53,9 +53,14 @@ Creates a new `StringDecoder` instance.
 ### stringDecoder.end([buffer])
 <!-- YAML
 added: v0.9.3
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/11613
+    description: The `buffer` argument can now be a `Uint8Array` instance.
 -->
 
-* `buffer` {Buffer} A `Buffer` containing the bytes to decode.
+* `buffer` {Buffer|Uint8Array} A `Buffer` or `Uint8Array` containing the bytes
+  to decode.
 
 Returns any remaining input stored in the internal buffer as a string. Bytes
 representing incomplete UTF-8 and UTF-16 characters will be replaced with
@@ -69,12 +74,16 @@ is performed before returning the remaining input.
 added: v0.1.99
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/11613
+    description: The `buffer` argument can now be a `Uint8Array` instance.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/9618
     description: Each invalid character is now replaced by a single replacement
                  character instead of one for each individual byte.
 -->
 
-* `buffer` {Buffer} A `Buffer` containing the bytes to decode.
+* `buffer` {Buffer|Uint8Array} A `Buffer` or `Uint8Array` containing the bytes
+  to decode.
 
 Returns a decoded string, ensuring that any incomplete multibyte characters at
 the end of the `Buffer` are omitted from the returned string and stored in an
