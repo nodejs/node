@@ -3,13 +3,7 @@ const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
-var ntimeouts = 0;
 var nchunks = 0;
-
-process.on('exit', function() {
-  assert.equal(ntimeouts, 1);
-  assert.equal(nchunks, 2);
-});
 
 const options = {
   method: 'GET',
@@ -21,7 +15,7 @@ const options = {
 const server = http.createServer(function(req, res) {
   res.writeHead(200, {'Content-Length': '2'});
   res.write('*');
-  setTimeout(function() { res.end('*'); }, common.platformTimeout(100));
+  server.once('timeout', common.mustCall(function() { res.end('*'); }));
 });
 
 server.listen(0, options.host, function() {
@@ -30,19 +24,19 @@ server.listen(0, options.host, function() {
   req.end();
 
   function onresponse(res) {
-    req.setTimeout(50, function() {
-      assert.equal(nchunks, 1); // should have received the first chunk by now
-      ntimeouts++;
-    });
+    req.setTimeout(50, common.mustCall(function() {
+      assert.strictEqual(nchunks, 1); // should have received the first chunk
+      server.emit('timeout');
+    }));
 
-    res.on('data', function(data) {
-      assert.equal('' + data, '*');
+    res.on('data', common.mustCall(function(data) {
+      assert.strictEqual('' + data, '*');
       nchunks++;
-    });
+    }, 2));
 
-    res.on('end', function() {
-      assert.equal(nchunks, 2);
+    res.on('end', common.mustCall(function() {
+      assert.strictEqual(nchunks, 2);
       server.close();
-    });
+    }));
   }
 });
