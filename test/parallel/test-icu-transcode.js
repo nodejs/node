@@ -70,3 +70,8 @@ assert.deepStrictEqual(
       buffer.transcode(uint8array, 'latin1', 'utf16le'),
       Buffer.from('hä', 'utf16le'));
 }
+
+{
+  const dest = buffer.transcode(new Uint8Array(), 'utf8', 'latin1');
+  assert.strictEqual(dest.length, 0);
+}
