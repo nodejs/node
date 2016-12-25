@@ -65,8 +65,17 @@ Writer.prototype.emit = function() {};
 Writer.prototype.prependListener = function() {};
 
 
+function flow() {
+  var dest = this.dest;
+  var res = dest.write(chunk, encoding);
+  if (!res)
+    dest.once('drain', this.flow);
+  else
+    process.nextTick(this.flow);
+}
+
 function Reader() {
-  this.flow = this.flow.bind(this);
+  this.flow = flow.bind(this);
   this.readable = true;
 }
 
@@ -74,15 +83,6 @@ Reader.prototype.pipe = function(dest) {
   this.dest = dest;
   this.flow();
   return dest;
-};
-
-Reader.prototype.flow = function() {
-  var dest = this.dest;
-  var res = dest.write(chunk, encoding);
-  if (!res)
-    dest.once('drain', this.flow);
-  else
-    process.nextTick(this.flow);
 };
 
 
