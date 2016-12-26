@@ -1245,12 +1245,31 @@ void DefineZlibConstants(Local<Object> target) {
 }
 
 void DefineConstants(v8::Isolate* isolate, Local<Object> target) {
+  Environment* env = Environment::GetCurrent(isolate);
+
   Local<Object> os_constants = Object::New(isolate);
+  CHECK(os_constants->SetPrototype(env->context(),
+                                   Null(env->isolate())).FromJust());
+
   Local<Object> err_constants = Object::New(isolate);
+  CHECK(err_constants->SetPrototype(env->context(),
+                                    Null(env->isolate())).FromJust());
+
   Local<Object> sig_constants = Object::New(isolate);
+  CHECK(sig_constants->SetPrototype(env->context(),
+                                    Null(env->isolate())).FromJust());
+
   Local<Object> fs_constants = Object::New(isolate);
+  CHECK(fs_constants->SetPrototype(env->context(),
+                                   Null(env->isolate())).FromJust());
+
   Local<Object> crypto_constants = Object::New(isolate);
+  CHECK(crypto_constants->SetPrototype(env->context(),
+                                       Null(env->isolate())).FromJust());
+
   Local<Object> zlib_constants = Object::New(isolate);
+  CHECK(zlib_constants->SetPrototype(env->context(),
+                                     Null(env->isolate())).FromJust());
 
   DefineErrnoConstants(err_constants);
   DefineWindowsErrorConstants(err_constants);
