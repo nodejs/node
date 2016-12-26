@@ -79,6 +79,17 @@ parser.add_option('--dest-cpu',
     choices=valid_arch,
     help='CPU architecture to build for ({0})'.format(', '.join(valid_arch)))
 
+parser.add_option('--cross-compiling',
+    action='store_true',
+    dest='cross_compiling',
+    default=None,
+    help='force build to be considered as cross compiled')
+parser.add_option('--no-cross-compiling',
+    action='store_false',
+    dest='cross_compiling',
+    default=None,
+    help='force build to be considered as NOT cross compiled')
+
 parser.add_option('--dest-os',
     action='store',
     dest='dest_os',
@@ -765,7 +776,9 @@ def configure_node(o):
   o['variables']['target_arch'] = target_arch
   o['variables']['node_byteorder'] = sys.byteorder
 
-  cross_compiling = target_arch != host_arch
+  cross_compiling = (options.cross_compiling
+                     if options.cross_compiling is not None
+                     else target_arch != host_arch)
   want_snapshots = not options.without_snapshot
   o['variables']['want_separate_host_toolset'] = int(
       cross_compiling and want_snapshots)
