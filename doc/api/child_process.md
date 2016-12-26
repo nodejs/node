@@ -149,6 +149,10 @@ added: v0.1.90
 Spawns a shell then executes the `command` within that shell, buffering any
 generated output.
 
+**Note: Never pass unsanitised user input to this function. Any input
+containing shell metacharacters may be used to trigger arbitrary command
+execution.**
+
 ```js
 const exec = require('child_process').exec;
 exec('cat *.js bad_file | wc -l', (error, stdout, stderr) => {
@@ -323,6 +327,10 @@ added: v0.1.90
 The `child_process.spawn()` method spawns a new process using the given
 `command`, with command line arguments in `args`. If omitted, `args` defaults
 to an empty array.
+
+**Note: If the `shell` option is enabled, do not pass unsanitised user input to
+this function. Any input containing shell metacharacters may be used to
+trigger arbitrary command execution.**
 
 A third argument may be used to specify additional options, with these defaults:
 
@@ -645,6 +653,10 @@ If the process times out, or has a non-zero exit code, this method ***will***
 throw.  The [`Error`][] object will contain the entire result from
 [`child_process.spawnSync()`][]
 
+**Note: Never pass unsanitised user input to this function. Any input
+containing shell metacharacters may be used to trigger arbitrary command
+execution.**
+
 ### child_process.spawnSync(command[, args][, options])
 <!-- YAML
 added: v0.11.12
@@ -689,6 +701,10 @@ and `killSignal` is sent, the method won't return until the process has
 completely exited. Note that if the process intercepts and handles the
 `SIGTERM` signal and doesn't exit, the parent process will wait until the child
 process has exited.
+
+**Note: If the `shell` option is enabled, do not pass unsanitised user input to
+this function. Any input containing shell metacharacters may be used to
+trigger arbitrary command execution.**
 
 ## Class: ChildProcess
 <!-- YAML
