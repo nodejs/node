@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 
 // if printing, add to out file
 const originalRefreshSizeWrapperStderr = process.stderr._refreshSize;
@@ -7,12 +7,24 @@ const originalRefreshSizeWrapperStdout = process.stdout._refreshSize;
 
 const refreshSizeWrapperStderr = () => {
   console.log('calling stderr._refreshSize');
-  originalRefreshSizeWrapperStderr.call(process.stderr);
+  try {
+    originalRefreshSizeWrapperStderr.call(process.stderr);
+  } catch (e) {
+    // EINVAL happens on SmartOS if emulation is incomplete
+    if (!common.isSunOS || e.code !== 'EINVAL')
+      throw e;
+  }
 };
 
 const refreshSizeWrapperStdout = () => {
   console.log('calling stdout._refreshSize');
-  originalRefreshSizeWrapperStdout.call(process.stdout);
+  try {
+    originalRefreshSizeWrapperStdout.call(process.stdout);
+  } catch (e) {
+    // EINVAL happens on SmartOS if emulation is incomplete
+    if (!common.isSunOS || e.code !== 'EINVAL')
+      throw e;
+  }
 };
 
 process.stderr._refreshSize = refreshSizeWrapperStderr;
