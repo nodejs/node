@@ -1,25 +1,31 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var spawn = require('child_process').spawn;
+const common = require('../common');
+const assert = require('assert');
+const spawn = require('child_process').spawn;
+const path = require('path');
 
-var buffer = '';
-var scriptToDebug = common.fixturesDir + '/empty.js';
-
-function fail() {
-  assert(0); // `--debug-brk script.js` should not quit
-}
+const PORT = common.PORT;
+const scriptToDebug = path.join(common.fixturesDir, 'empty.js');
 
 // running with debug agent
-var child = spawn(process.execPath, ['--debug-brk=5959', scriptToDebug]);
-
-console.error(process.execPath, '--debug-brk=5959', scriptToDebug);
+const child = spawn(process.execPath, [`--debug-brk=${PORT}`, scriptToDebug]);
 
 // connect to debug agent
-var interfacer = spawn(process.execPath, ['debug', 'localhost:5959']);
-
-console.error(process.execPath, 'debug', 'localhost:5959');
+const interfacer = spawn(process.execPath, ['debug', `localhost:${PORT}`]);
 interfacer.stdout.setEncoding('utf-8');
+
+// fail the test if either of the processes exit normally
+const debugBreakExit = common.fail.bind(null, 'child should not exit normally');
+const debugExit = common.fail.bind(null, 'interfacer should not exit normally');
+child.on('exit', debugBreakExit);
+interfacer.on('exit', debugExit);
+
+let buffer = '';
+const expected = [
+  `\bconnecting to localhost:${PORT} ... ok`,
+  '\bbreak in test/fixtures/empty.js:2'
+];
+const actual = [];
 interfacer.stdout.on('data', function(data) {
   data = (buffer + data).split('\n');
   buffer = data.pop();
@@ -30,22 +36,26 @@ interfacer.stdout.on('data', function(data) {
 
 interfacer.on('line', function(line) {
   line = line.replace(/^(debug> *)+/, '');
-  console.log(line);
-  var expected = '\bconnecting to localhost:5959 ... ok';
-  assert.ok(expected == line, 'Got unexpected line: ' + line);
+  if (expected.includes(line)) {
+    actual.push(line);
+  }
 });
 
 // allow time to start up the debugger
 setTimeout(function() {
-  child.removeListener('exit', fail);
+  // remove the exit handlers before killing the processes
+  child.removeListener('exit', debugBreakExit);
+  interfacer.removeListener('exit', debugExit);
+
   child.kill();
-  interfacer.removeListener('exit', fail);
   interfacer.kill();
-}, 2000);
+}, common.platformTimeout(2000));
 
 process.on('exit', function() {
+  // additional checks to ensure that both the processes were actually killed
   assert(child.killed);
   assert(interfacer.killed);
+  assert.deepStrictEqual(actual, expected);
 });
 
 interfacer.stderr.pipe(process.stderr);
