@@ -59,9 +59,21 @@ inline uint32_t* IsolateData::zero_fill_field() const {
   return zero_fill_field_;
 }
 
-inline Environment::AsyncHooks::AsyncHooks() : fields_(), uid_fields_() {
+inline Environment::AsyncHooks::AsyncHooks(v8::Isolate* isolate)
+    : fields_(),
+      uid_fields_() {
   // kAsyncUidCntr should start at 1 because that'll be the id for bootstrap.
   uid_fields_[AsyncHooks::kAsyncUidCntr] = 1;
+#define V(Provider)                                                           \
+  providers_[AsyncWrap::PROVIDER_ ## Provider].Set(                           \
+      isolate,                                                                \
+      v8::String::NewFromOneByte(                                             \
+        isolate,                                                              \
+        reinterpret_cast<const uint8_t*>(#Provider),                          \
+        v8::NewStringType::kInternalized,                                     \
+        sizeof(#Provider) - 1).ToLocalChecked());
+  NODE_ASYNC_PROVIDER_TYPES(V)
+#undef V
 }
 
 inline uint32_t* Environment::AsyncHooks::fields() {
@@ -74,6 +86,12 @@ inline int Environment::AsyncHooks::fields_count() const {
 
 inline double* Environment::AsyncHooks::uid_fields() {
   return uid_fields_;
+}
+
+inline v8::Local<v8::String> Environment::AsyncHooks::provider_string(
+    v8::Isolate* isolate,
+    int idx) {
+  return providers_[idx].Get(isolate);
 }
 
 inline int Environment::AsyncHooks::uid_fields_count() const {
@@ -167,6 +185,7 @@ inline Environment::Environment(IsolateData* isolate_data,
                                 v8::Local<v8::Context> context)
     : isolate_(context->GetIsolate()),
       isolate_data_(isolate_data),
+      async_hooks_(context->GetIsolate()),
       timer_base_(uv_now(isolate_data->event_loop())),
       using_domains_(false),
       printed_error_(false),

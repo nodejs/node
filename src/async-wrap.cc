@@ -20,11 +20,9 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
-using v8::NewStringType;
 using v8::Number;
 using v8::Object;
 using v8::RetainedObjectInfo;
-using v8::String;
 using v8::TryCatch;
 using v8::Uint32Array;
 using v8::Value;
@@ -303,15 +301,6 @@ void LoadAsyncWrapperInfo(Environment* env) {
 }
 
 
-// TODO(trevnorris): Look into the overhead of using this. Can't use it anway
-// if it switches to using persistent strings instead.
-static const char* GetProviderName(AsyncWrap::ProviderType provider) {
-  CHECK_GT(provider, 0);
-  CHECK_LE(provider, AsyncWrap::PROVIDERS_LENGTH);
-  return provider_names[provider];
-}
-
-
 AsyncWrap::AsyncWrap(Environment* env,
                      Local<Object> object,
                      ProviderType provider)
@@ -357,12 +346,7 @@ void AsyncWrap::Reset() {
 
   Local<Value> argv[] = {
     Number::New(env()->isolate(), get_id()),
-    // TODO(trevnorris): Very slow and bad. Use another way to more quickly get
-    // the correct provider string. Something like storing them on
-    // PER_ISOLATE_STRING_PROPERTIES in env.h
-    String::NewFromUtf8(env()->isolate(),
-                        GetProviderName(provider_type()),
-                        NewStringType::kNormal).ToLocalChecked(),
+    env()->async_hooks()->provider_string(env()->isolate(), provider_type()),
     object(),
     Number::New(env()->isolate(), get_trigger_id()),
   };

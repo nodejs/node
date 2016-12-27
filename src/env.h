@@ -337,6 +337,7 @@ class Environment {
     inline int fields_count() const;
     inline double* uid_fields();
     inline int uid_fields_count() const;
+    inline v8::Local<v8::String> provider_string(v8::Isolate* isolate, int idx);
 
     class InitScope {
      public:
@@ -392,6 +393,10 @@ class Environment {
    private:
     friend class Environment;  // So we can call the constructor.
     inline AsyncHooks();
+    inline explicit AsyncHooks(v8::Isolate* isolate);
+
+    // Keep a list of all Persistent strings used for Provider types.
+    v8::Eternal<v8::String> providers_[AsyncWrap::PROVIDERS_LENGTH];
 
     uint32_t fields_[kFieldsCount];
     // Gives us 2^53-1 unique ids. Good enough for now and makes the operation
