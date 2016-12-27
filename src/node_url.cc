@@ -618,7 +618,7 @@ namespace url {
     }
   }
 
-  static void Parse(Environment* env,
+  static bool Parse(Environment* env,
                     Local<Value> recv,
                     const char* input,
                     const size_t len,
@@ -1294,7 +1294,7 @@ namespace url {
         argv[ARG_PATH] = Copy(isolate, url.path);
     }
 
-    cb->Call(context, recv, 9, argv);
+    return cb->Call(context, recv, 9, argv).IsEmpty();
   }
 
   static void Parse(const FunctionCallbackInfo<Value>& args) {
@@ -1313,6 +1313,9 @@ namespace url {
     if (args[1]->IsNumber())
       override = (enum url_parse_state)(args[1]->Uint32Value());
 
+    // The return value is a bool that indicates whether v8::Function::Call()
+    // threw or not. Though not sure what we're supposed to do with that vlaue
+    // at the moment, but v8::MaybeLocal requires us to check anyway.
     Parse(env, args.This(),
           *input, input.length(),
           override,
