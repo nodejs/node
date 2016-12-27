@@ -439,8 +439,11 @@ Local<Value> BuildStatsObject(Environment* env, const uv_stat_t* s) {
   // Unsigned integers. It does not actually seem to be specified whether
   // uid and gid are unsigned or not, but in practice they are unsigned,
   // and Node’s (F)Chown functions do check their arguments for unsignedness.
+  // TBD POSSIBLE DATA LOSS:
 #define X(name)                                                               \
-  Local<Value> name = Integer::NewFromUnsigned(env->isolate(), s->st_##name); \
+  Local<Value> name =                                                         \
+      Integer::NewFromUnsigned(env->isolate(),                                \
+                               static_cast<uint32_t>(s->st_##name));          \
   if (name.IsEmpty())                                                         \
     return Local<Object>();                                                   \
 
@@ -454,8 +457,10 @@ Local<Value> BuildStatsObject(Environment* env, const uv_stat_t* s) {
 #undef X
 
   // Integers.
+  // TBD POSSIBLE DATA LOSS (Windows)
 #define X(name)                                                               \
-  Local<Value> name = Integer::New(env->isolate(), s->st_##name);             \
+  Local<Value> name = Integer::New(env->isolate(),                            \
+                                   static_cast<int>(s->st_##name));           \
   if (name.IsEmpty())                                                         \
     return Local<Object>();                                                   \
 
@@ -575,11 +580,12 @@ static void InternalModuleReadFile(const FunctionCallbackInfo<Value>& args) {
     start = 3;  // Skip UTF-8 BOM.
   }
 
+  // TBD POSSIBLE DATA LOSS:
   Local<String> chars_string =
       String::NewFromUtf8(env->isolate(),
                           &chars[start],
                           String::kNormalString,
-                          offset - start);
+                          static_cast<int>(offset - start));
   args.GetReturnValue().Set(chars_string);
 }
 

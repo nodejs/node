@@ -793,8 +793,10 @@ void WriteFloatGeneric(const FunctionCallbackInfo<Value>& args) {
   if (ts_obj_length > 0)
     CHECK_NE(ts_obj_data, nullptr);
 
-  T val = args[1]->NumberValue(env->context()).FromMaybe(0);
-  size_t offset = args[2]->IntegerValue(env->context()).FromMaybe(0);
+  // TBD POSSIBLE DATA LOSS:
+  T val = static_cast<T>(args[1]->NumberValue(env->context()).FromMaybe(0));
+  size_t offset =
+      static_cast<size_t>(args[2]->IntegerValue(env->context()).FromMaybe(0));
 
   size_t memcpy_num = sizeof(T);
 
