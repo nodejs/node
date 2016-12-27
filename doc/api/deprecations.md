@@ -506,10 +506,10 @@ The [`util._extend()`][] API has been deprecated.
 <a id="DEP0061"></a>
 ### DEP0061: fs.SyncWriteStream
 
-Type: Documentation-only
+Type: Runtime
 
 The `fs.SyncWriteStream` class was never intended to be a publicly accessible
-API.
+API. No alternative API is available. Please use a userland alternative.
 
 [alloc]: buffer.html#buffer_class_method_buffer_alloc_size_fill_encoding
 [alloc_unsafe_size]: buffer.html#buffer_class_method_buffer_allocunsafe_size
