@@ -1,9 +1,9 @@
 'use strict';
 
 const common = require('../common');
-
+let crypto
 try {
-  var crypto = require('crypto');
+  crypto = require('crypto');
 } catch (e) {
   common.skip('node compiled without OpenSSL.');
   return;

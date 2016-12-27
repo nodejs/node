@@ -1,9 +1,10 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
+const assert = require('assert');
+let crypto;
 
 try {
-  var crypto = require('crypto');
+  crypto = require('crypto');
 } catch (e) {
   common.skip('node compiled without OpenSSL.');
   return;
@@ -85,7 +86,8 @@ var p = crypto.createDiffieHellman(
 p.setPublicKey(apub, 'hex');
 p.setPrivateKey(apriv, 'hex');
 
-assert.equal(
+assert.strictEqual(
   p.computeSecret(bpub, 'hex', 'hex').toString('hex'),
   secret
 );
+	

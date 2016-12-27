@@ -9,7 +9,7 @@ const assert = require('assert');
 const domain = require('domain');
 const child_process = require('child_process');
 
-var errorHandlerCalled = false;
+let errorHandlerCalled = false;
 
 const tests = [
   function nextTick() {
