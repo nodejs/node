@@ -32,7 +32,9 @@ class SocketServerDelegate {
 class InspectorSocketServer {
  public:
   using ServerCallback = void (*)(InspectorSocketServer*);
-  InspectorSocketServer(SocketServerDelegate* delegate, int port);
+  InspectorSocketServer(SocketServerDelegate* delegate,
+                        int port,
+                        FILE* out = stderr);
   bool Start(uv_loop_t* loop);
   void Stop(ServerCallback callback);
   void Send(int session_id, const std::string& message);
@@ -66,6 +68,7 @@ class InspectorSocketServer {
   Closer* closer_;
   std::map<int, SocketSession*> connected_sessions_;
   int next_session_id_;
+  FILE* out_;
 
   friend class SocketSession;
   friend class Closer;
