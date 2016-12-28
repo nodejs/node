@@ -22,7 +22,7 @@ class Agent {
   uv_thread_t thread_;
   uv_loop_t tracing_loop_;
   v8::Platform* platform_ = nullptr;
-  TracingController* tracing_controller_;
+  TracingController* tracing_controller_ = nullptr;
 };
 
 }  // namespace tracing
