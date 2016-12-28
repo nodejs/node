@@ -4,8 +4,8 @@ require('../common');
 const strictEqual = require('assert').strictEqual;
 const url = require('url');
 
-const domainToASCII = url.URL.domainToASCII;
-const domainToUnicode = url.URL.domainToUnicode;
+const domainToASCII = url.domainToASCII;
+const domainToUnicode = url.domainToUnicode;
 
 const domainWithASCII = [
   ['ıídيٴ', 'xn--d-iga7ro0q9f'],

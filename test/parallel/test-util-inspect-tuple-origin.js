@@ -3,10 +3,10 @@
 require('../common');
 const assert = require('assert');
 const inspect = require('util').inspect;
-const URL = require('url').URL;
+const originFor = require('url').originFor;
 
 assert.strictEqual(
-    inspect(URL.originFor('http://test.com:8000')),
+    inspect(originFor('http://test.com:8000')),
     `TupleOrigin {
       scheme: http,
       host: test.com,
@@ -16,7 +16,7 @@ assert.strictEqual(
   );
 
 assert.strictEqual(
-    inspect(URL.originFor('http://test.com')),
+    inspect(originFor('http://test.com')),
     `TupleOrigin {
       scheme: http,
       host: test.com,
@@ -27,7 +27,7 @@ assert.strictEqual(
 
 
 assert.strictEqual(
-    inspect(URL.originFor('https://test.com')),
+    inspect(originFor('https://test.com')),
     `TupleOrigin {
       scheme: https,
       host: test.com,
