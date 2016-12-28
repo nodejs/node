@@ -42,3 +42,15 @@ params.append('first', 10);
 params.delete('first');
 assert.strictEqual(false, params.has('first'),
                    'Search params object has no "first" name');
+
+// https://github.com/nodejs/node/issues/10480
+// Emptying searchParams should correctly update url's query
+{
+  const url = new URL('http://domain?var=1&var=2&var=3');
+  for (const param of url.searchParams.keys()) {
+    url.searchParams.delete(param);
+  }
+  assert.strictEqual(url.searchParams.toString(), '');
+  assert.strictEqual(url.search, '');
+  assert.strictEqual(url.href, 'http://domain/');
+}
