@@ -70,7 +70,7 @@ class Timeout {
 class InspectorSocketServerTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    uv_loop_init(&loop);
+    EXPECT_EQ(0, uv_loop_init(&loop));
   }
 
   void TearDown() override {
