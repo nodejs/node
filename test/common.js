@@ -614,7 +614,7 @@ exports.WPT = {
   assert_true: (value, message) => assert.strictEqual(value, true, message),
   assert_false: (value, message) => assert.strictEqual(value, false, message),
   assert_throws: (code, func, desc) => {
-    assert.throws(func, (err) => {
+    assert.throws(func, function(err) {
       return typeof err === 'object' && 'name' in err && err.name === code.name;
     }, desc);
   },
