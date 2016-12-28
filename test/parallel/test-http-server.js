@@ -16,23 +16,23 @@ var server = http.createServer(function(req, res) {
   req.id = request_number++;
 
   if (req.id === 0) {
-    assert.equal('GET', req.method);
-    assert.equal('/hello', url.parse(req.url).pathname);
-    assert.equal('world', qs.parse(url.parse(req.url).query).hello);
-    assert.equal('b==ar', qs.parse(url.parse(req.url).query).foo);
+    assert.strictEqual('GET', req.method);
+    assert.strictEqual('/hello', url.parse(req.url).pathname);
+    assert.strictEqual('world', qs.parse(url.parse(req.url).query).hello);
+    assert.strictEqual('b==ar', qs.parse(url.parse(req.url).query).foo);
   }
 
   if (req.id === 1) {
-    assert.equal('POST', req.method);
-    assert.equal('/quit', url.parse(req.url).pathname);
+    assert.strictEqual('POST', req.method);
+    assert.strictEqual('/quit', url.parse(req.url).pathname);
   }
 
   if (req.id === 2) {
-    assert.equal('foo', req.headers['x-x']);
+    assert.strictEqual('foo', req.headers['x-x']);
   }
 
   if (req.id === 3) {
-    assert.equal('bar', req.headers['x-x']);
+    assert.strictEqual('bar', req.headers['x-x']);
     this.close();
   }
 
@@ -75,7 +75,7 @@ server.on('listening', function() {
       // you set server.httpAllowHalfOpen=true, which we've done
       // above.
       c.end();
-      assert.equal(c.readyState, 'readOnly');
+      assert.strictEqual(c.readyState, 'readOnly');
       requests_sent += 2;
     }
 
@@ -86,19 +86,19 @@ server.on('listening', function() {
   });
 
   c.on('close', function() {
-    assert.equal(c.readyState, 'closed');
+    assert.strictEqual(c.readyState, 'closed');
   });
 });
 
 process.on('exit', function() {
-  assert.equal(4, request_number);
-  assert.equal(4, requests_sent);
+  assert.strictEqual(4, request_number);
+  assert.strictEqual(4, requests_sent);
 
   var hello = new RegExp('/hello');
-  assert.equal(true, hello.exec(server_response) != null);
+  assert.notStrictEqual(null, hello.exec(server_response));
 
   var quit = new RegExp('/quit');
-  assert.equal(true, quit.exec(server_response) != null);
+  assert.notStrictEqual(null, quit.exec(server_response));
 
-  assert.equal(true, client_got_eof);
+  assert.strictEqual(true, client_got_eof);
 });
