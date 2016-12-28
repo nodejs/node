@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const Readable = require('_stream_readable');
 const Writable = require('_stream_writable');
@@ -13,7 +13,7 @@ function TestReadable(opt) {
   this._ended = false;
 }
 
-TestReadable.prototype._read = function(n) {
+TestReadable.prototype._read = function() {
   if (this._ended)
     this.emit('error', new Error('_read called twice'));
   this._ended = true;
@@ -35,31 +35,18 @@ TestWritable.prototype._write = function(chunk, encoding, cb) {
 
 // this one should not emit 'end' until we read() from it later.
 const ender = new TestReadable();
-let enderEnded = false;
 
 // what happens when you pipe() a Readable that's already ended?
 const piper = new TestReadable();
 // pushes EOF null, and length=0, so this will trigger 'end'
 piper.read();
 
-setTimeout(function() {
-  ender.on('end', function() {
-    enderEnded = true;
-  });
-  assert(!enderEnded);
+setTimeout(common.mustCall(function() {
+  ender.on('end', common.mustCall(function() {}));
   const c = ender.read();
-  assert.equal(c, null);
+  assert.strictEqual(c, null);
 
   const w = new TestWritable();
-  let writableFinished = false;
-  w.on('finish', function() {
-    writableFinished = true;
-  });
+  w.on('finish', common.mustCall(function() {}));
   piper.pipe(w);
-
-  process.on('exit', function() {
-    assert(enderEnded);
-    assert(writableFinished);
-    console.log('ok');
-  });
-});
+}), 1);
