@@ -886,12 +886,11 @@ EOF
               if ($args{src} =~ /\.S$/) {
                    (my $target = $args{src}) =~ s|\.S$|.s|;
                    return <<"EOF";
-$target: $args{generator}->[0] $deps
+$target: $args{src}
+	\$(CC) $incs \$(CFLAGS) -P -E $args{src} -o \$@
+$args{src}: $args{generator}->[0] $deps
 	( trap "rm -f \$@.*" INT 0; \\
-	  $generator \$@.S; \\
-	  \$(CC) $incs \$(CFLAGS) -E \$@.S | \\
-	  \$(PERL) -ne '/^#(line)?\\s*[0-9]+/ or print' > \$@.i && \\
-	  mv -f \$@.i \$@ )
+	  $generator \$@ )
 EOF
               }
               # Otherwise....
