@@ -300,9 +300,9 @@ class SocketWrapper {
 class ServerHolder {
  public:
   template <typename Delegate>
-  ServerHolder(Delegate* delegate, int port)
+  ServerHolder(Delegate* delegate, int port, FILE* out = NULL)
                : closed(false), paused(false), sessions_terminated(false),
-                 server_(delegate, port) {
+                 server_(delegate, port, out) {
     delegate->Connect(&server_);
   }
 
