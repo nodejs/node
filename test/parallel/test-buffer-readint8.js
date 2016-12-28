@@ -1,0 +1,20 @@
+'use strict';
+require('../common');
+const assert = require('assert');
+
+// testing basic functionality of readInt8()
+
+const buf = Buffer.from([0xa4, 0xfd, 0x48, 0xea]);
+const result = buf.readInt8(1);
+
+assert.strictEqual(result, -3);
+
+assert.throws(
+  () => buf.readInt8(5),
+  /^RangeError: Index out of range$/
+);
+
+assert.doesNotThrow(
+  () => buf.readInt8(5, true),
+  'readInt8() should not throw if noAssert is true'
+);

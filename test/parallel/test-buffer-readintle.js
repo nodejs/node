@@ -2,19 +2,19 @@
 require('../common');
 const assert = require('assert');
 
-// testing basic functionality of readUIntLE()
+// testing basic functionality of readIntLE()
 
 const buf = Buffer.from([0xa4, 0xfd, 0x48, 0xea]);
-const result = buf.readUIntLE(2);
+const result = buf.readIntLE(2, 1);
 
 assert.strictEqual(result, 0x48);
 
 assert.throws(
-  () => buf.readUIntLE(5),
+  () => buf.readIntLE(5, 1),
   /^RangeError: Index out of range$/
 );
 
 assert.doesNotThrow(
-  () => buf.readUIntLE(5, 0, true),
-  'readUIntLE() should not throw if noAssert is true'
+  () => buf.readIntLE(5, 1, true),
+  'readIntLE() should not throw if noAssert is true'
 );
