@@ -1,5 +1,6 @@
 <!--
-Thank you for your pull request. Please review below requirements.
+Thank you for your pull request. Please provide a description above and review
+the requirements below.
 
 Bug fixes and new features should include tests and possibly benchmarks.
 
@@ -16,7 +17,3 @@ Contributors guide: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
 
 ##### Affected core subsystem(s)
 <!-- Provide affected core subsystem(s) (like doc, cluster, crypto, etc). -->
-
-
-##### Description of change
-<!-- Provide a description of the change below this comment. -->
