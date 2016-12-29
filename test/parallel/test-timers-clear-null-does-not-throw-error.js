@@ -5,14 +5,14 @@ const assert = require('assert');
 // This test makes sure clearing timers with
 // 'null' or no input does not throw error
 
-assert.doesNotThrow(() => clearInterval(null));
+assert.doesNotThrow(() => { return clearInterval(null); });
 
-assert.doesNotThrow(() => clearInterval());
+assert.doesNotThrow(() => { return clearInterval(); });
 
-assert.doesNotThrow(() => clearTimeout(null));
+assert.doesNotThrow(() => { return clearTimeout(null); });
 
-assert.doesNotThrow(() => clearTimeout());
+assert.doesNotThrow(() => { return clearTimeout(); });
 
-assert.doesNotThrow(() => clearImmediate(null));
+assert.doesNotThrow(() => { return clearImmediate(null); });
 
-assert.doesNotThrow(() => clearImmediate());
+assert.doesNotThrow(() => { return clearImmediate(); });

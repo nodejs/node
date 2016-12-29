@@ -129,10 +129,10 @@ const re16 = /Buffer size must be a multiple of 16-bits/;
 const re32 = /Buffer size must be a multiple of 32-bits/;
 const re64 = /Buffer size must be a multiple of 64-bits/;
 
-assert.throws(() => Buffer.from(buf3).swap16(), re16);
-assert.throws(() => Buffer.alloc(1025).swap16(), re16);
-assert.throws(() => Buffer.from(buf3).swap32(), re32);
-assert.throws(() => buf3.slice(1, 3).swap32(), re32);
-assert.throws(() => Buffer.alloc(1025).swap32(), re32);
-assert.throws(() => buf3.slice(1, 3).swap64(), re64);
-assert.throws(() => Buffer.alloc(1025).swap64(), re64);
+assert.throws(() => { return Buffer.from(buf3).swap16(); }, re16);
+assert.throws(() => { return Buffer.alloc(1025).swap16(); }, re16);
+assert.throws(() => { return Buffer.from(buf3).swap32(); }, re32);
+assert.throws(() => { return buf3.slice(1, 3).swap32(); }, re32);
+assert.throws(() => { return Buffer.alloc(1025).swap32(); }, re32);
+assert.throws(() => { return buf3.slice(1, 3).swap64(); }, re64);
+assert.throws(() => { return Buffer.alloc(1025).swap64(); }, re64);

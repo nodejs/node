@@ -23,7 +23,7 @@ server.listen(options, function() {
   options.port = this.address().port;
   const conn = net.connect(options);
   conn.setEncoding('utf8');
-  conn.on('data', (data) => answer += data);
+  conn.on('data', (data) => { return answer += data; });
   conn.write('require("baz")\nrequire("./baz")\n.exit\n');
 });
 

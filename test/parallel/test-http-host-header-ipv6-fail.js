@@ -36,4 +36,4 @@ const server = http.createServer(common.mustCall(function(req, res) {
   server.close(true);
 }));
 
-server.listen(0, hostname, () => httpreq());
+server.listen(0, hostname, () => { return httpreq(); });

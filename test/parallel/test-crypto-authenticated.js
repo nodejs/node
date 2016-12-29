@@ -441,6 +441,8 @@ for (const i in TEST_CASES) {
                             '6fKjEjR3Vl30EUYC');
   encrypt.update('blah', 'ascii');
   encrypt.final();
-  assert.throws(() => encrypt.getAuthTag(), / state/);
-  assert.throws(() => encrypt.setAAD(Buffer.from('123', 'ascii')), / state/);
+  assert.throws(() => { return encrypt.getAuthTag(); }, / state/);
+  assert.throws(() => {
+    return encrypt.setAAD(Buffer.from('123', 'ascii'));
+  }, / state/);
 }

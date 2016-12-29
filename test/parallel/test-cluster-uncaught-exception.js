@@ -19,7 +19,7 @@ if (isTestRunner) {
   }));
 } else if (cluster.isMaster) {
   process.on('uncaughtException', common.mustCall(() => {
-    process.nextTick(() => process.exit(MAGIC_EXIT_CODE));
+    process.nextTick(() => { return process.exit(MAGIC_EXIT_CODE); });
   }));
   cluster.fork();
   throw new Error('kill master');

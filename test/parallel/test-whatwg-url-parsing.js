@@ -18,7 +18,9 @@ for (const test of tests) {
     continue;
 
   if (test.failure) {
-    assert.throws(() => new URL(test.input, test.base), /Invalid URL/);
+    assert.throws(() => {
+      return new URL(test.input, test.base);
+    }, /Invalid URL/);
   } else {
     assert.doesNotThrow(() => {
       const url = new URL(test.input, test.base);

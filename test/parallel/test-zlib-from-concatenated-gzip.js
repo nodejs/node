@@ -50,7 +50,7 @@ fs.createReadStream(pmmFileGz)
   .on('error', (err) => {
     assert.ifError(err);
   })
-  .on('data', (data) => pmmResultBuffers.push(data))
+  .on('data', (data) => { return pmmResultBuffers.push(data); })
   .on('finish', common.mustCall(() => {
     assert.deepStrictEqual(Buffer.concat(pmmResultBuffers), pmmExpected,
                            'result should match original random garbage');
@@ -64,7 +64,7 @@ fs.createReadStream(pmmFileGz)
     .on('error', (err) => {
       assert.ifError(err);
     })
-    .on('data', (data) => resultBuffers.push(data))
+    .on('data', (data) => { return resultBuffers.push(data); })
     .on('finish', common.mustCall(() => {
       assert.strictEqual(
         Buffer.concat(resultBuffers).toString(),

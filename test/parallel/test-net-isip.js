@@ -35,9 +35,11 @@ assert.equal(net.isIP(null), 0);
 assert.equal(net.isIP(123), 0);
 assert.equal(net.isIP(true), 0);
 assert.equal(net.isIP({}), 0);
-assert.equal(net.isIP({ toString: () => '::2001:252:1:255.255.255.255' }), 6);
-assert.equal(net.isIP({ toString: () => '127.0.0.1' }), 4);
-assert.equal(net.isIP({ toString: () => 'bla' }), 0);
+assert.equal(net.isIP({ toString: () => {
+  return '::2001:252:1:255.255.255.255';
+} }), 6);
+assert.equal(net.isIP({ toString: () => { return '127.0.0.1'; } }), 4);
+assert.equal(net.isIP({ toString: () => { return 'bla'; } }), 0);
 
 assert.equal(net.isIPv4('127.0.0.1'), true);
 assert.equal(net.isIPv4('example.com'), false);
@@ -49,10 +51,10 @@ assert.equal(net.isIPv4(123), false);
 assert.equal(net.isIPv4(true), false);
 assert.equal(net.isIPv4({}), false);
 assert.equal(net.isIPv4({
-  toString: () => '::2001:252:1:255.255.255.255'
+  toString: () => { return '::2001:252:1:255.255.255.255'; }
 }), false);
-assert.equal(net.isIPv4({ toString: () => '127.0.0.1' }), true);
-assert.equal(net.isIPv4({ toString: () => 'bla' }), false);
+assert.equal(net.isIPv4({ toString: () => { return '127.0.0.1'; } }), true);
+assert.equal(net.isIPv4({ toString: () => { return 'bla'; } }), false);
 
 assert.equal(net.isIPv6('127.0.0.1'), false);
 assert.equal(net.isIPv6('example.com'), false);
@@ -64,7 +66,7 @@ assert.equal(net.isIPv6(123), false);
 assert.equal(net.isIPv6(true), false);
 assert.equal(net.isIPv6({}), false);
 assert.equal(net.isIPv6({
-  toString: () => '::2001:252:1:255.255.255.255'
+  toString: () => { return '::2001:252:1:255.255.255.255'; }
 }), true);
-assert.equal(net.isIPv6({ toString: () => '127.0.0.1' }), false);
-assert.equal(net.isIPv6({ toString: () => 'bla' }), false);
+assert.equal(net.isIPv6({ toString: () => { return '127.0.0.1'; } }), false);
+assert.equal(net.isIPv6({ toString: () => { return 'bla'; } }), false);

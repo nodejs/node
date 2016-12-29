@@ -28,7 +28,7 @@ data = Buffer.concat([
   Buffer(10).fill(0)
 ]);
 
-assert.throws(() => zlib.gunzipSync(data));
+assert.throws(() => { return zlib.gunzipSync(data); });
 
 zlib.gunzip(data, common.mustCall((err, result) => {
   assert(err);
@@ -42,7 +42,7 @@ data = Buffer.concat([
   Buffer([0x1f, 0x8b, 0xff, 0xff])
 ]);
 
-assert.throws(() => zlib.gunzipSync(data));
+assert.throws(() => { return zlib.gunzipSync(data); });
 
 zlib.gunzip(data, common.mustCall((err, result) => {
   assert(err);

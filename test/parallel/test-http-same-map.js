@@ -6,7 +6,8 @@ const assert = require('assert');
 const http = require('http');
 
 const server =
-    http.createServer(onrequest).listen(0, common.localhostIPv4, () => next(0));
+    http.createServer(onrequest)
+      .listen(0, common.localhostIPv4, () => { return next(0); });
 
 function onrequest(req, res) {
   res.end('ok');
@@ -19,14 +20,14 @@ onrequest.responses = [];
 function next(n) {
   const { address: host, port } = server.address();
   const req = http.get({ host, port });
-  req.once('response', (res) => onresponse(n, req, res));
+  req.once('response', (res) => { return onresponse(n, req, res); });
 }
 
 function onresponse(n, req, res) {
   res.resume();
 
   if (n < 3) {
-    res.once('end', () => next(n + 1));
+    res.once('end', () => { return next(n + 1); });
   } else {
     server.close();
   }

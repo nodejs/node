@@ -37,5 +37,5 @@ warningThrowToString.toString = function() {
 process.emitWarning(warningThrowToString);
 
 // TypeError is thrown on invalid output
-assert.throws(() => process.emitWarning(1), TypeError);
-assert.throws(() => process.emitWarning({}), TypeError);
+assert.throws(() => { return process.emitWarning(1); }, TypeError);
+assert.throws(() => { return process.emitWarning({}); }, TypeError);

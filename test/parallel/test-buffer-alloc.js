@@ -54,39 +54,39 @@ assert.strictEqual(0, d.length);
 }
 
 // Test invalid encoding for Buffer.toString
-assert.throws(() => b.toString('invalid'),
+assert.throws(() => { return b.toString('invalid'); },
               /Unknown encoding: invalid/);
 // invalid encoding for Buffer.write
-assert.throws(() => b.write('test string', 0, 5, 'invalid'),
+assert.throws(() => { return b.write('test string', 0, 5, 'invalid'); },
               /Unknown encoding: invalid/);
 // unsupported arguments for Buffer.write
-assert.throws(() => b.write('test', 'utf8', 0),
+assert.throws(() => { return b.write('test', 'utf8', 0); },
               /is no longer supported/);
 
 
 // try to create 0-length buffers
-assert.doesNotThrow(() => Buffer.from(''));
-assert.doesNotThrow(() => Buffer.from('', 'ascii'));
-assert.doesNotThrow(() => Buffer.from('', 'latin1'));
-assert.doesNotThrow(() => Buffer.alloc(0));
-assert.doesNotThrow(() => Buffer.allocUnsafe(0));
-assert.doesNotThrow(() => new Buffer(''));
-assert.doesNotThrow(() => new Buffer('', 'ascii'));
-assert.doesNotThrow(() => new Buffer('', 'latin1'));
-assert.doesNotThrow(() => new Buffer('', 'binary'));
-assert.doesNotThrow(() => Buffer(0));
+assert.doesNotThrow(() => { return Buffer.from(''); });
+assert.doesNotThrow(() => { return Buffer.from('', 'ascii'); });
+assert.doesNotThrow(() => { return Buffer.from('', 'latin1'); });
+assert.doesNotThrow(() => { return Buffer.alloc(0); });
+assert.doesNotThrow(() => { return Buffer.allocUnsafe(0); });
+assert.doesNotThrow(() => { return new Buffer(''); });
+assert.doesNotThrow(() => { return new Buffer('', 'ascii'); });
+assert.doesNotThrow(() => { return new Buffer('', 'latin1'); });
+assert.doesNotThrow(() => { return new Buffer('', 'binary'); });
+assert.doesNotThrow(() => { return Buffer(0); });
 
 // try to write a 0-length string beyond the end of b
-assert.throws(() => b.write('', 2048), RangeError);
+assert.throws(() => { return b.write('', 2048); }, RangeError);
 
 // throw when writing to negative offset
-assert.throws(() => b.write('a', -1), RangeError);
+assert.throws(() => { return b.write('a', -1); }, RangeError);
 
 // throw when writing past bounds from the pool
-assert.throws(() => b.write('a', 2048), RangeError);
+assert.throws(() => { return b.write('a', 2048); }, RangeError);
 
 // throw when writing to negative offset
-assert.throws(() => b.write('a', -1), RangeError);
+assert.throws(() => { return b.write('a', -1); }, RangeError);
 
 // try to copy 0 bytes worth of data into an empty buffer
 b.copy(Buffer.alloc(0), 0, 0, 0);
@@ -111,7 +111,7 @@ b.copy(Buffer.alloc(1), 0, 2048, 2048);
 
 // Offset points to the end of the buffer
 // (see https://github.com/nodejs/node/issues/8127).
-assert.doesNotThrow(() => Buffer.alloc(1).write('', 1, 0));
+assert.doesNotThrow(() => { return Buffer.alloc(1).write('', 1, 0); });
 
 // ASCII slice test
 {
@@ -512,7 +512,7 @@ assert.strictEqual(Buffer.from('=bad'.repeat(1e4), 'base64').length, 0);
 
 // Test single hex character throws TypeError
 // - https://github.com/nodejs/node/issues/6770
-assert.throws(() => Buffer.from('A', 'hex'), TypeError);
+assert.throws(() => { return Buffer.from('A', 'hex'); }, TypeError);
 
 // Test single base64 char encodes as 0
 assert.strictEqual(Buffer.from('A', 'base64').length, 0);
@@ -531,7 +531,7 @@ assert.strictEqual(Buffer.from('A', 'base64').length, 0);
 function buildBuffer(data) {
   if (Array.isArray(data)) {
     const buffer = Buffer.allocUnsafe(data.length);
-    data.forEach((v, k) => buffer[k] = v);
+    data.forEach((v, k) => { return buffer[k] = v; });
     return buffer;
   }
   return null;
@@ -794,32 +794,58 @@ Buffer.from(Buffer.allocUnsafe(0), 0, 0);
 }
 
 // issue GH-5587
-assert.throws(() => Buffer.alloc(8).writeFloatLE(0, 5), RangeError);
-assert.throws(() => Buffer.alloc(16).writeDoubleLE(0, 9), RangeError);
+assert.throws(
+  () => { return Buffer.alloc(8).writeFloatLE(0, 5); },
+  RangeError
+);
+assert.throws(
+  () => { return Buffer.alloc(16).writeDoubleLE(0, 9); },
+  RangeError
+);
 
 // attempt to overflow buffers, similar to previous bug in array buffers
-assert.throws(() => Buffer.allocUnsafe(8).readFloatLE(0xffffffff),
-              RangeError);
-assert.throws(() => Buffer.allocUnsafe(8).writeFloatLE(0.0, 0xffffffff),
-              RangeError);
-assert.throws(() => Buffer.allocUnsafe(8).readFloatLE(0xffffffff),
-              RangeError);
-assert.throws(() => Buffer.allocUnsafe(8).writeFloatLE(0.0, 0xffffffff),
-              RangeError);
+assert.throws(
+  () => { return Buffer.allocUnsafe(8).readFloatLE(0xffffffff); },
+  RangeError
+);
+assert.throws(
+  () => { return Buffer.allocUnsafe(8).writeFloatLE(0.0, 0xffffffff); },
+  RangeError
+);
+assert.throws(
+  () => { return Buffer.allocUnsafe(8).readFloatLE(0xffffffff); },
+  RangeError
+);
+assert.throws(
+  () => { return Buffer.allocUnsafe(8).writeFloatLE(0.0, 0xffffffff); },
+  RangeError
+);
 
 
 // ensure negative values can't get past offset
-assert.throws(() => Buffer.allocUnsafe(8).readFloatLE(-1), RangeError);
-assert.throws(() => Buffer.allocUnsafe(8).writeFloatLE(0.0, -1), RangeError);
-assert.throws(() => Buffer.allocUnsafe(8).readFloatLE(-1), RangeError);
-assert.throws(() => Buffer.allocUnsafe(8).writeFloatLE(0.0, -1), RangeError);
+assert.throws(
+  () => { return Buffer.allocUnsafe(8).readFloatLE(-1); },
+  RangeError
+);
+assert.throws(
+  () => { return Buffer.allocUnsafe(8).writeFloatLE(0.0, -1); },
+  RangeError
+);
+assert.throws(
+  () => { return Buffer.allocUnsafe(8).readFloatLE(-1); },
+  RangeError
+);
+assert.throws(
+  () => { return Buffer.allocUnsafe(8).writeFloatLE(0.0, -1); },
+  RangeError
+);
 
 // offset checks
 {
   const buf = Buffer.allocUnsafe(0);
 
-  assert.throws(() => buf.readUInt8(0), RangeError);
-  assert.throws(() => buf.readInt8(0), RangeError);
+  assert.throws(() => { return buf.readUInt8(0); }, RangeError);
+  assert.throws(() => { return buf.readInt8(0); }, RangeError);
 }
 
 {
@@ -832,19 +858,19 @@ assert.throws(() => Buffer.allocUnsafe(8).writeFloatLE(0.0, -1), RangeError);
 [16, 32].forEach((bits) => {
   const buf = Buffer.allocUnsafe(bits / 8 - 1);
 
-  assert.throws(() => buf[`readUInt${bits}BE`](0),
+  assert.throws(() => { return buf[`readUInt${bits}BE`](0); },
                 RangeError,
                 `readUInt${bits}BE()`);
 
-  assert.throws(() => buf[`readUInt${bits}LE`](0),
+  assert.throws(() => { return buf[`readUInt${bits}LE`](0); },
                 RangeError,
                 `readUInt${bits}LE()`);
 
-  assert.throws(() => buf[`readInt${bits}BE`](0),
+  assert.throws(() => { return buf[`readInt${bits}BE`](0); },
                 RangeError,
                 `readInt${bits}BE()`);
 
-  assert.throws(() => buf[`readInt${bits}LE`](0),
+  assert.throws(() => { return buf[`readInt${bits}LE`](0); },
                 RangeError,
                 `readInt${bits}LE()`);
 });
@@ -981,7 +1007,7 @@ assert.throws(() => Buffer.allocUnsafe(8).writeFloatLE(0.0, -1), RangeError);
 }
 
 // Regression test for #5482: should throw but not assert in C++ land.
-assert.throws(() => Buffer.from('', 'buffer'), TypeError);
+assert.throws(() => { return Buffer.from('', 'buffer'); }, TypeError);
 
 // Regression test for #6111. Constructing a buffer from another buffer
 // should a) work, and b) not corrupt the source buffer.
@@ -1021,14 +1047,14 @@ assert(Buffer.allocUnsafe(1).parent instanceof ArrayBuffer);
 Buffer.poolSize = ps;
 
 // Test Buffer.copy() segfault
-assert.throws(() => Buffer.allocUnsafe(10).copy(),
+assert.throws(() => { return Buffer.allocUnsafe(10).copy(); },
               /TypeError: argument should be a Buffer/);
 
 const regErrorMsg = new RegExp('First argument must be a string, Buffer, ' +
                                'ArrayBuffer, Array, or array-like object.');
 
-assert.throws(() => Buffer.from(), regErrorMsg);
-assert.throws(() => Buffer.from(null), regErrorMsg);
+assert.throws(() => { return Buffer.from(); }, regErrorMsg);
+assert.throws(() => { return Buffer.from(null); }, regErrorMsg);
 
 // Test prototype getters don't throw
 assert.strictEqual(Buffer.prototype.parent, undefined);
@@ -1047,12 +1073,12 @@ assert.strictEqual(SlowBuffer.prototype.offset, undefined);
                          Buffer.from(''));
 
   // Check pool offset after that by trying to write string into the pool.
-  assert.doesNotThrow(() => Buffer.from('abc'));
+  assert.doesNotThrow(() => { return Buffer.from('abc'); });
 }
 
 
 // Test that ParseArrayIndex handles full uint32
-assert.throws(() => Buffer.from(new ArrayBuffer(0), -1 >>> 0),
+assert.throws(() => { return Buffer.from(new ArrayBuffer(0), -1 >>> 0); },
               /RangeError: 'offset' is out of bounds/);
 
 // ParseArrayIndex() should reject values that don't fit in a 32 bits size_t.
@@ -1071,16 +1097,16 @@ assert.throws(() => {
 }
 
 // Regression test
-assert.doesNotThrow(() => Buffer.from(new ArrayBuffer()));
+assert.doesNotThrow(() => { return Buffer.from(new ArrayBuffer()); });
 
 // Test that ArrayBuffer from a different context is detected correctly
 const arrayBuf = vm.runInNewContext('new ArrayBuffer()');
-assert.doesNotThrow(() => Buffer.from(arrayBuf));
-assert.doesNotThrow(() => Buffer.from({ buffer: arrayBuf }));
+assert.doesNotThrow(() => { return Buffer.from(arrayBuf); });
+assert.doesNotThrow(() => { return Buffer.from({ buffer: arrayBuf }); });
 
-assert.throws(() => Buffer.alloc({ valueOf: () => 1 }),
+assert.throws(() => { return Buffer.alloc({ valueOf: () => { return 1; } }); },
               /"size" argument must be a number/);
-assert.throws(() => Buffer.alloc({ valueOf: () => -1 }),
+assert.throws(() => { return Buffer.alloc({ valueOf: () => { return -1; } }); },
               /"size" argument must be a number/);
 
 assert.strictEqual(Buffer.prototype.toLocaleString, Buffer.prototype.toString);

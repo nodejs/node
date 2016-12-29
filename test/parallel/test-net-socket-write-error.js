@@ -14,5 +14,5 @@ function connectToServer() {
 
     client.end();
   })
-  .on('end', () => server.close());
+  .on('end', () => { return server.close(); });
 }

@@ -66,12 +66,12 @@ b.writeDoubleBE(11.11, 0, true);
   buf[0] = 9;
   assert.strictEqual(ab[1], 9);
 
-  assert.throws(() => Buffer.from(ab.buffer, 6), (err) => {
+  assert.throws(() => { return Buffer.from(ab.buffer, 6); }, (err) => {
     assert(err instanceof RangeError);
     assert(/'offset' is out of bounds/.test(err.message));
     return true;
   });
-  assert.throws(() => Buffer.from(ab.buffer, 3, 6), (err) => {
+  assert.throws(() => { return Buffer.from(ab.buffer, 3, 6); }, (err) => {
     assert(err instanceof RangeError);
     assert(/'length' is out of bounds/.test(err.message));
     return true;
@@ -94,12 +94,12 @@ b.writeDoubleBE(11.11, 0, true);
   buf[0] = 9;
   assert.strictEqual(ab[1], 9);
 
-  assert.throws(() => Buffer(ab.buffer, 6), (err) => {
+  assert.throws(() => { return Buffer(ab.buffer, 6); }, (err) => {
     assert(err instanceof RangeError);
     assert(/'offset' is out of bounds/.test(err.message));
     return true;
   });
-  assert.throws(() => Buffer(ab.buffer, 3, 6), (err) => {
+  assert.throws(() => { return Buffer(ab.buffer, 3, 6); }, (err) => {
     assert(err instanceof RangeError);
     assert(/'length' is out of bounds/.test(err.message));
     return true;

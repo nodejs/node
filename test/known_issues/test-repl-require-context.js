@@ -16,7 +16,7 @@ const r = repl.start({
 
 let output = '';
 outputStream.setEncoding('utf8');
-outputStream.on('data', (data) => output += data);
+outputStream.on('data', (data) => { return output += data; });
 
 r.on('exit', common.mustCall(() => {
   const results = output.split('\n').map((line) => {

@@ -11,14 +11,21 @@ assert.deepStrictEqual(qs.escape([5, 10]), '5%2C10');
 
 // using toString for objects
 assert.strictEqual(
-  qs.escape({test: 5, toString: () => 'test', valueOf: () => 10 }),
+  qs.escape({
+    test: 5,
+    toString: () => { return 'test'; },
+    valueOf: () => { return 10; }
+  }),
   'test'
 );
 
 // toString is not callable, must throw an error
-assert.throws(() => qs.escape({toString: 5}));
+assert.throws(() => { return qs.escape({toString: 5}); });
 
 // should use valueOf instead of non-callable toString
-assert.strictEqual(qs.escape({toString: 5, valueOf: () => 'test'}), 'test');
+assert.strictEqual(qs.escape({
+  toString: 5,
+  valueOf: () => { return 'test'; }
+}), 'test');
 
-assert.throws(() => qs.escape(Symbol('test')));
+assert.throws(() => { return qs.escape(Symbol('test')); });

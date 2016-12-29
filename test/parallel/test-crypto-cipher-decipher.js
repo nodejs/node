@@ -125,18 +125,24 @@ testCipher2(Buffer.from('0123456789abcdef'));
   let decipher = crypto.createDecipher('aes192', key);
 
   let txt;
-  assert.doesNotThrow(() => txt = decipher.update(ciph, 'base64', 'ucs2'));
-  assert.doesNotThrow(() => txt += decipher.final('ucs2'));
+  assert.doesNotThrow(() => {
+    return txt = decipher.update(ciph, 'base64', 'ucs2');
+  });
+  assert.doesNotThrow(() => { return txt += decipher.final('ucs2'); });
   assert.strictEqual(txt, plaintext, 'decrypted result in ucs2');
 
   decipher = crypto.createDecipher('aes192', key);
-  assert.doesNotThrow(() => txt = decipher.update(ciph, 'base64', 'ucs-2'));
-  assert.doesNotThrow(() => txt += decipher.final('ucs-2'));
+  assert.doesNotThrow(() => {
+    return txt = decipher.update(ciph, 'base64', 'ucs-2');
+  });
+  assert.doesNotThrow(() => { return txt += decipher.final('ucs-2'); });
   assert.strictEqual(txt, plaintext, 'decrypted result in ucs-2');
 
   decipher = crypto.createDecipher('aes192', key);
-  assert.doesNotThrow(() => txt = decipher.update(ciph, 'base64', 'utf-16le'));
-  assert.doesNotThrow(() => txt += decipher.final('utf-16le'));
+  assert.doesNotThrow(() => {
+    return txt = decipher.update(ciph, 'base64', 'utf-16le');
+  });
+  assert.doesNotThrow(() => { return txt += decipher.final('utf-16le'); });
   assert.strictEqual(txt, plaintext, 'decrypted result in utf-16le');
 }
 

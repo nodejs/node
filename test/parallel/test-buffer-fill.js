@@ -134,8 +134,8 @@ testBufs('61c8b462c8b563c8b6', 4, 1, 'hex');
 testBufs('61c8b462c8b563c8b6', 12, 1, 'hex');
 // Make sure this operation doesn't go on forever
 buf1.fill('yKJh', 'hex');
-assert.throws(() =>
-      buf1.fill('\u0222', 'hex'), /^TypeError: Invalid hex string$/);
+assert.throws(() => { return buf1.fill('\u0222', 'hex'); },
+              /^TypeError: Invalid hex string$/);
 
 
 // BASE64
@@ -181,25 +181,22 @@ deepStrictEqualValues(genBuffer(4, [hexBufFill, 1, -1]), [0, 0, 0, 0]);
 
 
 // Check exceptions
-assert.throws(() => buf1.fill(0, -1), /^RangeError: Out of range index$/);
-assert.throws(() =>
-             buf1.fill(0, 0, buf1.length + 1),
+assert.throws(() => { return buf1.fill(0, -1); },
+              /^RangeError: Out of range index$/);
+assert.throws(() => { return buf1.fill(0, 0, buf1.length + 1); },
+              /^RangeError: Out of range index$/);
+assert.throws(() => { return buf1.fill('', -1); },
+              /^RangeError: Out of range index$/);
+assert.throws(() => { return buf1.fill('', 0, buf1.length + 1); },
              /^RangeError: Out of range index$/);
-assert.throws(() => buf1.fill('', -1), /^RangeError: Out of range index$/);
-assert.throws(() =>
-             buf1.fill('', 0, buf1.length + 1),
-             /^RangeError: Out of range index$/);
-assert.throws(() =>
-             buf1.fill('a', 0, buf1.length, 'node rocks!'),
+assert.throws(() => { return buf1.fill('a', 0, buf1.length, 'node rocks!'); },
              /^TypeError: Unknown encoding: node rocks!$/);
-assert.throws(() =>
-             buf1.fill('a', 0, 0, NaN),
+assert.throws(() => { return buf1.fill('a', 0, 0, NaN); },
              /^TypeError: encoding must be a string$/);
-assert.throws(() =>
-             buf1.fill('a', 0, 0, null),
+assert.throws(() => { return buf1.fill('a', 0, 0, null); },
              /^TypeError: encoding must be a string$/);
-assert.throws(() =>
-             buf1.fill('a', 0, 0, 'foo'), /^TypeError: Unknown encoding: foo$/);
+assert.throws(() => { return buf1.fill('a', 0, 0, 'foo'); },
+              /^TypeError: Unknown encoding: foo$/);
 
 
 function genBuffer(size, args) {
@@ -269,11 +266,9 @@ function testBufs(string, offset, length, encoding) {
 }
 
 // Make sure these throw.
-assert.throws(() =>
-             Buffer.allocUnsafe(8).fill('a', -1),
+assert.throws(() => { return Buffer.allocUnsafe(8).fill('a', -1); },
              /^RangeError: Out of range index$/);
-assert.throws(() =>
-             Buffer.allocUnsafe(8).fill('a', 0, 9),
+assert.throws(() => { return Buffer.allocUnsafe(8).fill('a', 0, 9); },
              /^RangeError: Out of range index$/);
 
 // Make sure this doesn't hang indefinitely.

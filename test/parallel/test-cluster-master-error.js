@@ -83,7 +83,7 @@ if (cluster.isWorker) {
     const pollWorkers = function() {
       // When master is dead all workers should be dead too
       var alive = false;
-      workers.forEach((pid) => alive = common.isAlive(pid));
+      workers.forEach((pid) => { return alive = common.isAlive(pid); });
       if (alive) {
         setTimeout(pollWorkers, 50);
       } else {

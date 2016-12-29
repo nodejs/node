@@ -66,7 +66,7 @@ if (cluster.isWorker) {
     results.worker_exitedAfterDisconnect = worker.exitedAfterDisconnect;
     results.worker_state = worker.state;
     if (results.worker_emitExit > 0) {
-      process.nextTick(() => finish_test());
+      process.nextTick(() => { return finish_test(); });
     }
   }));
 
@@ -77,7 +77,7 @@ if (cluster.isWorker) {
     results.worker_emitExit += 1;
     results.worker_died = !common.isAlive(worker.process.pid);
     if (results.worker_emitDisconnect > 0) {
-      process.nextTick(() => finish_test());
+      process.nextTick(() => { return finish_test(); });
     }
   }));
 

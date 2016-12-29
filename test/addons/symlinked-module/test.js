@@ -30,5 +30,5 @@ const sub = require('./submodule');
   const mod = require(path.join(i, 'binding.node'));
   assert.notStrictEqual(mod, null);
   assert.strictEqual(mod.hello(), 'world');
-  assert.doesNotThrow(() => sub.test(i));
+  assert.doesNotThrow(() => { return sub.test(i); });
 });

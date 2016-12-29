@@ -50,7 +50,7 @@ if (common.isWindows) {
     assert.strictEqual(hadPendingSignals1, false);
     assert.strictEqual(hadPendingSignals2, true);
   }));
-}].reduceRight((a, b) => common.mustCall(b).bind(null, a))();
+}].reduceRight((a, b) => { return common.mustCall(b).bind(null, a); })();
 
 function waitForPendingSignal(cb) {
   if (binding.watchdogHasPendingSigint())

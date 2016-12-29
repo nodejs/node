@@ -172,30 +172,38 @@ const handleError = (error, name) => {
 
 const regexNonASCII = /[^\x20-\x7E]/;
 const testBattery = {
-  encode: (test) => assert.strictEqual(
-    punycode.encode(test.decoded),
-    test.encoded
-  ),
-  decode: (test) => assert.strictEqual(
-    punycode.decode(test.encoded),
-    test.decoded
-  ),
-  toASCII: (test) => assert.strictEqual(
-    punycode.toASCII(test.decoded),
-    regexNonASCII.test(test.decoded) ?
-      `xn--${test.encoded}` :
+  encode: (test) => {
+    return assert.strictEqual(
+      punycode.encode(test.decoded),
+      test.encoded
+    );
+  },
+  decode: (test) => {
+    return assert.strictEqual(
+      punycode.decode(test.encoded),
       test.decoded
-  ),
-  toUnicode: (test) => assert.strictEqual(
-    punycode.toUnicode(
+    );
+  },
+  toASCII: (test) => {
+    return assert.strictEqual(
+      punycode.toASCII(test.decoded),
       regexNonASCII.test(test.decoded) ?
         `xn--${test.encoded}` :
         test.decoded
-    ),
-    regexNonASCII.test(test.decoded) ?
-      test.decoded.toLowerCase() :
-      test.decoded
-  )
+    );
+  },
+  toUnicode: (test) => {
+    return assert.strictEqual(
+      punycode.toUnicode(
+        regexNonASCII.test(test.decoded) ?
+          `xn--${test.encoded}` :
+          test.decoded
+      ),
+      regexNonASCII.test(test.decoded) ?
+        test.decoded.toLowerCase() :
+        test.decoded
+    );
+  }
 };
 
 tests.forEach((testCase) => {

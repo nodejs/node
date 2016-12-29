@@ -85,7 +85,7 @@ function checkHttpResponse(port, path, callback) {
     let response = '';
     res.setEncoding('utf8');
     res
-      .on('data', (data) => response += data.toString())
+      .on('data', (data) => { return response += data.toString(); })
       .on('end', () => {
         let err = null;
         let json = undefined;
@@ -116,7 +116,8 @@ function makeBufferingDataCallback(dataCallback) {
 }
 
 function timeout(message, multiplicator) {
-  return setTimeout(() => common.fail(message), TIMEOUT * (multiplicator || 1));
+  return setTimeout(() => { return common.fail(message); },
+                    TIMEOUT * (multiplicator || 1));
 }
 
 const TestSession = function(socket, harness) {
@@ -143,7 +144,10 @@ const TestSession = function(socket, harness) {
       if (consumed)
         buffer = buffer.slice(consumed);
     } while (consumed);
-  }).on('close', () => assert(this.expectClose_, 'Socket closed prematurely'));
+  }).on('close',
+        () => {
+          return assert(this.expectClose_, 'Socket closed prematurely');
+        });
 };
 
 TestSession.prototype.scriptUrlForId = function(id) {
@@ -195,7 +199,7 @@ TestSession.prototype.sendAll_ = function(commands, callback) {
       command = command();
     this.messages_[this.lastId_] = command;
     send(this.socket_, command, this.lastId_,
-         () => this.sendAll_(commands.slice(1), callback));
+         () => { return this.sendAll_(commands.slice(1), callback); });
   }
 };
 
@@ -231,7 +235,7 @@ TestSession.prototype.createCallbackWithTimeout_ = function(message) {
       });
     });
   });
-  return () => promise.then((callback) => callback());
+  return () => { return promise.then((callback) => { return callback(); }); };
 };
 
 TestSession.prototype.expectMessages = function(expects) {
@@ -293,11 +297,12 @@ TestSession.prototype.disconnect = function(childDone) {
 };
 
 TestSession.prototype.testHttpResponse = function(path, check) {
-  return this.enqueue((callback) =>
-      checkHttpResponse(this.harness_.port, path, (err, response) => {
-        check.call(this, err, response);
-        callback();
-      }));
+  return this.enqueue((callback) => {
+    return checkHttpResponse(this.harness_.port, path, (err, response) => {
+      check.call(this, err, response);
+      callback();
+    });
+  });
 };
 
 
@@ -311,7 +316,7 @@ const Harness = function(port, childProcess) {
   this.running_ = true;
 
   childProcess.stdout.on('data', makeBufferingDataCallback(
-      (line) => console.log('[out]', line)));
+      (line) => { return console.log('[out]', line); }));
 
 
   childProcess.stderr.on('data', makeBufferingDataCallback((message) => {
@@ -398,7 +403,7 @@ Harness.prototype.wsHandshake = function(devtoolsUrl, tests, readyCallback) {
       });
     }
     enqueue(tests);
-  }).on('response', () => common.fail('Upgrade was not received'));
+  }).on('response', () => { return common.fail('Upgrade was not received'); });
 };
 
 Harness.prototype.runFrontendSession = function(tests) {

@@ -155,30 +155,39 @@ module.exports = {
               // either edge of the character class. To account for this,
               // filter out '-' characters that appear in the middle of a
               // character class.
-              .filter((charInfo) => !(charInfo.text === '-' &&
-                                      (charInfo.index !== charClass.start &&
-                                       charInfo.index !== charClass.end)))
+              .filter((charInfo) => {
+                return !(charInfo.text === '-' &&
+                  (charInfo.index !== charClass.start &&
+                   charInfo.index !== charClass.end));
+              })
 
               // The '^' character is a special case if it's at the beginning
               // of the character class. To account for this, filter out '^'
               // characters that appear at the start of a character class.
               //
-              .filter((charInfo) => !(charInfo.text === '^' &&
-                                    charInfo.index === charClass.start))
+              .filter((charInfo) => {
+                return !(charInfo.text === '^' &&
+                  charInfo.index === charClass.start);
+              })
 
               // Filter out characters that aren't escaped.
-              .filter((charInfo) => charInfo.escaped)
+              .filter((charInfo) => { return charInfo.escaped; })
 
               // Filter out characters that are valid to escape, based on
               // their position in the regular expression.
-              .filter((charInfo) => !REGEX_CHARCLASS_ESCAPES.has(charInfo.text))
+              .filter((charInfo) => {
+                return !REGEX_CHARCLASS_ESCAPES.has(charInfo.text);
+              })
 
               // Filter out overridden character list.
-              .filter((charInfo) => !overrideSet.has(charInfo.text))
+              .filter((charInfo) => {
+                return !overrideSet.has(charInfo.text);
+              })
 
               // Report all the remaining characters.
-              .forEach((charInfo) =>
-                report(node, charInfo.index, charInfo.text));
+              .forEach((charInfo) => {
+                return report(node, charInfo.index, charInfo.text);
+              });
           });
       }
     }

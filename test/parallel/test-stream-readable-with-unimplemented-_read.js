@@ -5,4 +5,4 @@ const assert = require('assert');
 
 const readable = new stream.Readable();
 
-assert.throws(() => readable.read(), /not implemented/);
+assert.throws(() => { return readable.read(); }, /not implemented/);

@@ -8,4 +8,5 @@ const re = new RegExp(
   'NODE_MODULE_VERSION 42. This version of Node.js requires\n' +
   `NODE_MODULE_VERSION ${process.versions.modules}.`);
 
-assert.throws(() => require(`./build/${common.buildType}/binding`), re);
+assert.throws(() => { return require(`./build/${common.buildType}/binding`); },
+              re);

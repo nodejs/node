@@ -77,7 +77,7 @@ cp.exec(ddcmd, function(err, stdout, stderr) {
       res.write(data);
     });
 
-    cat.stdout.on('end', () => res.end());
+    cat.stdout.on('end', () => { return res.end(); });
 
     // End the response on exit (and log errors)
     cat.on('exit', (code) => {
@@ -90,6 +90,6 @@ cp.exec(ddcmd, function(err, stdout, stderr) {
   });
 
   server.listen(0, () => {
-    executeRequest(() => server.close());
+    executeRequest(() => { return server.close(); });
   });
 });

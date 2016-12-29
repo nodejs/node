@@ -14,20 +14,22 @@ const globalTestCases = [
   [undefined, 'undefined']
 ];
 
-const globalTest = (useGlobal, cb, output) => (err, repl) => {
-  if (err)
-    return cb(err);
+const globalTest = (useGlobal, cb, output) => {
+  return (err, repl) => {
+    if (err)
+      return cb(err);
 
-  // The REPL registers 'module' and 'require' globals
-  common.allowGlobals(repl.context.module, repl.context.require);
+    // The REPL registers 'module' and 'require' globals
+    common.allowGlobals(repl.context.module, repl.context.require);
 
-  let str = '';
-  output.on('data', (data) => (str += data));
-  global.lunch = 'tacos';
-  repl.write('global.lunch;\n');
-  repl.close();
-  delete global.lunch;
-  cb(null, str.trim());
+    let str = '';
+    output.on('data', (data) => { return (str += data); });
+    global.lunch = 'tacos';
+    repl.write('global.lunch;\n');
+    repl.close();
+    delete global.lunch;
+    cb(null, str.trim());
+  };
 };
 
 // Test how the global object behaves in each state for useGlobal
@@ -46,18 +48,20 @@ for (const [option, expected] of globalTestCases) {
 // suite is aware of it, causing a failure to be flagged.
 //
 const processTestCases = [false, undefined];
-const processTest = (useGlobal, cb, output) => (err, repl) => {
-  if (err)
-    return cb(err);
+const processTest = (useGlobal, cb, output) => {
+  return (err, repl) => {
+    if (err)
+      return cb(err);
 
-  let str = '';
-  output.on('data', (data) => (str += data));
+    let str = '';
+    output.on('data', (data) => { return (str += data); });
 
-  // if useGlobal is false, then `let process` should work
-  repl.write('let process;\n');
-  repl.write('21 * 2;\n');
-  repl.close();
-  cb(null, str.trim());
+    // if useGlobal is false, then `let process` should work
+    repl.write('let process;\n');
+    repl.write('21 * 2;\n');
+    repl.close();
+    cb(null, str.trim());
+  };
 };
 
 for (const option of processTestCases) {

@@ -13,8 +13,8 @@ function isPipeName(s) {
 }
 
 const listenVariants = [
-  (port, cb) => net.Server().listen({port}, cb),
-  (port, cb) => net.Server().listen(port, cb)
+  (port, cb) => { return net.Server().listen({port}, cb); },
+  (port, cb) => { return net.Server().listen(port, cb); }
 ];
 
 listenVariants.forEach((listenVariant, i) => {
@@ -35,11 +35,12 @@ listenVariants.forEach((listenVariant, i) => {
       // skip this, because listen(port) can also be listen(path)
       return;
     }
-    assert.throws(() => listenVariant(port, common.fail),
+    assert.throws(() => { return listenVariant(port, common.fail); },
                   /"port" argument must be >= 0 and < 65536/i);
   });
 
-  [null, true, false].forEach((port) =>
-    assert.throws(() => listenVariant(port, common.fail),
-                  /invalid listen argument/i));
+  [null, true, false].forEach((port) => {
+    return assert.throws(() => { return listenVariant(port, common.fail); },
+                         /invalid listen argument/i);
+  });
 });

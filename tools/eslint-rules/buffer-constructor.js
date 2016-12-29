@@ -19,7 +19,7 @@ function test(context, node) {
 
 module.exports = function(context) {
   return {
-    'NewExpression': (node) => test(context, node),
-    'CallExpression': (node) => test(context, node)
+    'NewExpression': (node) => { return test(context, node); },
+    'CallExpression': (node) => { return test(context, node); }
   };
 };

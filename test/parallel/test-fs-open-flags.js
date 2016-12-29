@@ -38,16 +38,16 @@ assert.equal(stringToFlags('xa+'), O_APPEND | O_CREAT | O_RDWR | O_EXCL);
   });
 
 assert.throws(
-  () => stringToFlags({}),
+  () => { return stringToFlags({}); },
   /Unknown file open flag: \[object Object\]/
 );
 
 assert.throws(
-  () => stringToFlags(true),
+  () => { return stringToFlags(true); },
   /Unknown file open flag: true/
 );
 
 assert.throws(
-  () => stringToFlags(null),
+  () => { return stringToFlags(null); },
   /Unknown file open flag: null/
 );

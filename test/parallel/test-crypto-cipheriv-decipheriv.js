@@ -69,8 +69,10 @@ crypto.createCipheriv('aes-128-ecb', Buffer.alloc(16), Buffer.alloc(0));
 // But non-empty IVs should be rejected.
 for (let n = 1; n < 256; n += 1) {
   assert.throws(
-      () => crypto.createCipheriv('aes-128-ecb', Buffer.alloc(16),
-                                  Buffer.alloc(n)),
+      () => {
+        return crypto.createCipheriv('aes-128-ecb', Buffer.alloc(16),
+                                     Buffer.alloc(n));
+      },
       /Invalid IV length/);
 }
 
@@ -81,15 +83,19 @@ crypto.createCipheriv('aes-128-cbc', Buffer.alloc(16), Buffer.alloc(16));
 for (let n = 0; n < 256; n += 1) {
   if (n === 16) continue;
   assert.throws(
-      () => crypto.createCipheriv('aes-128-cbc', Buffer.alloc(16),
-                                  Buffer.alloc(n)),
+      () => {
+        return crypto.createCipheriv('aes-128-cbc', Buffer.alloc(16),
+                                     Buffer.alloc(n));
+      },
       /Invalid IV length/);
 }
 
 // Zero-sized IV should be rejected in GCM mode.
 assert.throws(
-    () => crypto.createCipheriv('aes-128-gcm', Buffer.alloc(16),
-                                Buffer.alloc(0)),
+    () => {
+      return crypto.createCipheriv('aes-128-gcm', Buffer.alloc(16),
+                                   Buffer.alloc(0));
+    },
     /Invalid IV length/);
 
 // But all other IV lengths should be accepted.

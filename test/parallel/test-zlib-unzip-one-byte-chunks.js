@@ -14,7 +14,7 @@ const unzip = zlib.createUnzip()
   .on('error', (err) => {
     assert.ifError(err);
   })
-  .on('data', (data) => resultBuffers.push(data))
+  .on('data', (data) => { return resultBuffers.push(data); })
   .on('finish', common.mustCall(() => {
     assert.deepStrictEqual(Buffer.concat(resultBuffers).toString(), 'abcdef',
                            'result should match original string');

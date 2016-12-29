@@ -32,5 +32,9 @@ fs.mkdtemp(path.join(common.tmpDir, 'bar.'), {}, common.mustCall(handler));
 
 // Making sure that not passing a callback doesn't crash, as a default function
 // is passed internally.
-assert.doesNotThrow(() => fs.mkdtemp(path.join(common.tmpDir, 'bar-')));
-assert.doesNotThrow(() => fs.mkdtemp(path.join(common.tmpDir, 'bar-'), {}));
+assert.doesNotThrow(() => {
+  return fs.mkdtemp(path.join(common.tmpDir, 'bar-'));
+});
+assert.doesNotThrow(() => {
+  return fs.mkdtemp(path.join(common.tmpDir, 'bar-'), {});
+});

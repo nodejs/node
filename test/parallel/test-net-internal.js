@@ -17,4 +17,4 @@ for (var n = 0; n <= 0xFFFF; n++) {
 const bad = [-1, 'a', {}, [], false, true, 0xFFFF + 1, Infinity,
              -Infinity, NaN, undefined, null, '', ' ', 1.1, '0x',
              '-0x1', '-0o1', '-0b1', '0o', '0b'];
-bad.forEach((i) => assert(!isLegalPort(i)));
+bad.forEach((i) => { return assert(!isLegalPort(i)); });

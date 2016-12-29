@@ -24,7 +24,7 @@ const inputString = 'ΩΩLorem ipsum dolor sit amet, consectetur adipiscing eli'
   zlib[methods.comp](inputString, function(err, compressed) {
     assert(!err);
     const truncated = compressed.slice(0, compressed.length / 2);
-    const toUTF8 = (buffer) => buffer.toString('utf-8');
+    const toUTF8 = (buffer) => { return buffer.toString('utf-8'); };
 
     // sync sanity
     assert.doesNotThrow(function() {

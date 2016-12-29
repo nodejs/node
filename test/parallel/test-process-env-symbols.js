@@ -24,4 +24,6 @@ assert.throws(() => {
 }, errRegExp);
 
 // Checks that well-known symbols like `Symbol.toStringTag` won’t throw.
-assert.doesNotThrow(() => Object.prototype.toString.call(process.env));
+assert.doesNotThrow(() => {
+  return Object.prototype.toString.call(process.env);
+});
