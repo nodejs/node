@@ -29,26 +29,19 @@ added: v0.1.27
 
 * {String}
 
-The name of the directory that the currently executing script resides in.
+The directory name of the current module. This the same as the
+[`path.dirname()`][] of the [`__filename`][].
+
+`__dirname` isn't actually a global but rather local to each module.
 
 Example: running `node example.js` from `/Users/mjr`
 
 ```js
 console.log(__dirname);
 // Prints: /Users/mjr
+console.log(path.dirname(__filename));
+// Prints: /Users/mjr
 ```
-
-`__dirname` isn't actually a global but rather local to each module.
-
-For instance, given two modules: `a` and `b`, where `b` is a dependency of
-`a` and there is a directory structure of:
-
-* `/Users/mjr/app/a.js`
-* `/Users/mjr/app/node_modules/b/b.js`
-
-References to `__dirname` within `b.js` will return
-`/Users/mjr/app/node_modules/b` while references to `__dirname` within `a.js`
-will return `/Users/mjr/app`.
 
 ## \_\_filename
 <!-- YAML
@@ -59,19 +52,36 @@ added: v0.0.1
 
 * {String}
 
-The filename of the code being executed.  This is the resolved absolute path
-of this code file.  For a main program this is not necessarily the same
-filename used in the command line.  The value inside a module is the path
-to that module file.
+The file name of the current module. This is the resolved absolute path of the
+current module file.
 
-Example: running `node example.js` from `/Users/mjr`
+For a main program this is not necessarily the same as the file name used in the
+command line.
+
+See [`__dirname`][] for the directory name of the current module.
+
+`__filename` isn't actually a global but rather local to each module.
+
+Examples:
+
+Running `node example.js` from `/Users/mjr`
 
 ```js
 console.log(__filename);
 // Prints: /Users/mjr/example.js
+console.log(__dirname);
+// Prints: /Users/mjr
 ```
 
-`__filename` isn't actually a global but rather local to each module.
+Given two modules: `a` and `b`, where `b` is a dependency of
+`a` and there is a directory structure of:
+
+* `/Users/mjr/app/a.js`
+* `/Users/mjr/app/node_modules/b/b.js`
+
+References to `__filename` within `b.js` will return
+`/Users/mjr/app/node_modules/b/b.js` while references to `__filename` within
+`a.js` will return `/Users/mjr/app/a.js`.
 
 ## clearImmediate(immediateObject)
 <!-- YAML
@@ -262,7 +272,10 @@ added: v0.0.1
 
 [`setTimeout`] is described in the [timers][] section.
 
+[`__dirname`]: #globals_dirname
+[`__filename`]: #globals_filename
 [`console`]: console.html
+[`path.dirname()`]: path.html#path_path_dirname_path
 [`process` object]: process.html#process_process
 [buffer section]: buffer.html
 [module system documentation]: modules.html
