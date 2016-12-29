@@ -1,4 +1,6 @@
 'use strict';
+require('../common');
+
 /*
  * This test makes sure that non-integer timer delays do not make the process
  * hang. See https://github.com/joyent/node/issues/8065 and
@@ -14,8 +16,6 @@
  * expire correctly. 50 timers has always been more than enough to reproduce
  * it 100%.
  */
-
-require('../common');
 
 const TIMEOUT_DELAY = 1.1;
 const NB_TIMEOUTS_FIRED = 50;
