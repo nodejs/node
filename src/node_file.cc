@@ -27,6 +27,7 @@
 namespace node {
 
 using v8::Array;
+using v8::ArrayBuffer;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Float64Array;
@@ -1443,25 +1444,18 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
 }
 
 
-// To use this pass in a Float64Array(2) as the second argument. The asyncId
-// and triggerId will be written to both indexes. This is much faster than
+// The asyncId and triggerId will be written to both indexes of the
+// Float64Array stored on Environment::AsyncHooks. This is much faster than
 // creating and returning an Array.
 static void GetIdsFromFd(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   if (!args[0]->IsInt32())
     return TYPE_ERROR("fd must be an int");
-  if (!args[1]->IsFloat64Array())
-    return TYPE_ERROR("arr must be a Float64Array");
 
-  Local<Float64Array> arr = args[1].As<Float64Array>();
-  if (arr->Length() < 2)
-    return env->ThrowRangeError("typed array is not large enough");
-
-  double* ptr = reinterpret_cast<double*>(arr->Buffer()->GetContents().Data());
+  auto ptr = env->get_fd_async_ids_inst();
   node_fd_async_ids slot = env->get_fd_async_id(args[0]->Int32Value());
-  ptr[0] = slot.async_id;
-  ptr[1] = slot.trigger_id;
-  args.GetReturnValue().Set(arr);
+  ptr->async_id = slot.async_id;
+  ptr->trigger_id = slot.trigger_id;
 }
 
 
@@ -1472,6 +1466,7 @@ void FSInitialize(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   env->set_fs_stats_constructor_function(stats_constructor);
 }
+
 
 void InitFs(Local<Object> target,
             Local<Value> unused,
@@ -1522,6 +1517,17 @@ void InitFs(Local<Object> target,
   env->SetMethod(target, "mkdtemp", Mkdtemp);
 
   env->SetMethod(target, "getIdsFromFd", GetIdsFromFd);
+
+  // Set Float64Array used by GetIdsFromFd() to quickly retrieve an asyncId
+  // from the unordered_map.
+  node_fd_async_ids* fd_ids_inst = env->get_fd_async_ids_inst();
+  Local<ArrayBuffer> ab =
+    ArrayBuffer::New(env->isolate(),
+                     reinterpret_cast<double*>(fd_ids_inst),
+                     2);
+  Local<String> name = FIXED_ONE_BYTE_STRING(env->isolate(), "fd_async_ids");
+  Local<Float64Array> value = Float64Array::New(ab, 0, 2);
+  target->Set(env->context(), name, value).ToChecked();
 
   StatWatcher::Initialize(env, target);
 

@@ -555,6 +555,7 @@ class Environment {
   inline void erase_fd_async_id(int fd);
   inline node_fd_async_ids get_fd_async_id(int fd);
   inline void insert_fd_async_ids(int fd, double async_id, double trigger_id);
+  inline node_fd_async_ids* get_fd_async_ids_inst();
 
   // List of id's that have been destroyed and need the destroy() cb called.
   inline std::vector<double>* destroy_ids_list();
@@ -658,6 +659,7 @@ class Environment {
   size_t makecallback_cntr_;
   double async_wrap_id_;
   std::vector<double> destroy_ids_list_;
+  node_fd_async_ids fd_async_ids_inst_;
   std::unordered_map<int, node_fd_async_ids> fd_async_id_map_;
   debugger::Agent debugger_agent_;
 #if HAVE_INSPECTOR

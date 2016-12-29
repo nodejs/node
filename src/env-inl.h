@@ -191,6 +191,7 @@ inline Environment::Environment(IsolateData* isolate_data,
       printed_error_(false),
       trace_sync_io_(false),
       makecallback_cntr_(0),
+      fd_async_ids_inst_(),
       debugger_agent_(this),
 #if HAVE_INSPECTOR
       inspector_agent_(this),
@@ -387,6 +388,10 @@ inline void Environment::insert_fd_async_ids(int fd,
                                              double async_id,
                                              double trigger_id) {
   fd_async_id_map_[fd] = { async_id, trigger_id };
+}
+
+inline node_fd_async_ids* Environment::get_fd_async_ids_inst() {
+  return &fd_async_ids_inst_;
 }
 
 inline double* Environment::heap_statistics_buffer() const {
