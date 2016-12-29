@@ -7,7 +7,7 @@ function range(n) {
 }
 
 function timeout(nargs) {
-  var args = range(nargs);
+  const args = range(nargs);
   setTimeout.apply(null, [callback, 1].concat(args));
 
   function callback() {
@@ -17,8 +17,8 @@ function timeout(nargs) {
 }
 
 function interval(nargs) {
-  var args = range(nargs);
-  var timer = setTimeout.apply(null, [callback, 1].concat(args));
+  const args = range(nargs);
+  const timer = setTimeout.apply(null, [callback, 1].concat(args));
 
   function callback() {
     clearInterval(timer);
