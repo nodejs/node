@@ -95,10 +95,10 @@ process.on('exit', function() {
   assert.strictEqual(4, requests_sent);
 
   var hello = new RegExp('/hello');
-  assert.notEqual(null, hello.exec(server_response));
+  assert.notStrictEqual(null, hello.exec(server_response));
 
   var quit = new RegExp('/quit');
-  assert.notEqual(null, quit.exec(server_response));
+  assert.notStrictEqual(null, quit.exec(server_response));
 
   assert.strictEqual(true, client_got_eof);
 });
