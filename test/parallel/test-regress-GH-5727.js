@@ -1,10 +1,12 @@
+// Flags: --expose-internals
 'use strict';
 const common = require('../common');
 const assert = require('assert');
 const net = require('net');
+const errors = require('internal/errors');
 
 const invalidPort = -1 >>> 0;
-const errorMessage = /"port" argument must be >= 0 and < 65536/;
+const errorMessage = new RegExp(`${errors.message('INVALID_PORT')}`);
 
 net.Server().listen(common.PORT, function() {
   const address = this.address();

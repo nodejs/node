@@ -77,6 +77,7 @@
       'lib/internal/buffer.js',
       'lib/internal/child_process.js',
       'lib/internal/cluster.js',
+      'lib/internal/errors.js',
       'lib/internal/freelist.js',
       'lib/internal/fs.js',
       'lib/internal/linkedlist.js',
