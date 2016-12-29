@@ -8,8 +8,6 @@ const StringDecoder = require('string_decoder').StringDecoder;
 let decoder = new StringDecoder();
 assert.strictEqual(decoder.encoding, 'utf8');
 
-process.stdout.write('scanning ');
-
 // UTF-8
 test('utf-8', Buffer.from('$', 'utf-8'), '$');
 test('utf-8', Buffer.from('¢', 'utf-8'), '¢');
@@ -42,23 +40,21 @@ test('utf-8', Buffer.from('C9B5A941', 'hex'), '\u0275\ufffdA');
 test('utf-8', Buffer.from('E2', 'hex'), '\ufffd');
 test('utf-8', Buffer.from('E241', 'hex'), '\ufffdA');
 test('utf-8', Buffer.from('CCCCB8', 'hex'), '\ufffd\u0338');
-test('utf-8', Buffer.from('F0B841', 'hex'), '\ufffd\ufffdA');
+test('utf-8', Buffer.from('F0B841', 'hex'), '\ufffdA');
 test('utf-8', Buffer.from('F1CCB8', 'hex'), '\ufffd\u0338');
 test('utf-8', Buffer.from('F0FB00', 'hex'), '\ufffd\ufffd\0');
 test('utf-8', Buffer.from('CCE2B8B8', 'hex'), '\ufffd\u2e38');
-test('utf-8', Buffer.from('E2B8CCB8', 'hex'), '\ufffd\ufffd\u0338');
+test('utf-8', Buffer.from('E2B8CCB8', 'hex'), '\ufffd\u0338');
 test('utf-8', Buffer.from('E2FBCC01', 'hex'), '\ufffd\ufffd\ufffd\u0001');
-test('utf-8', Buffer.from('EDA0B5EDB08D', 'hex'), // CESU-8 of U+1D40D
-     '\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd');
 test('utf-8', Buffer.from('CCB8CDB9', 'hex'), '\u0338\u0379');
+// CESU-8 of U+1D40D
+test('utf-8', Buffer.from('EDA0B5EDB08D', 'hex'), '\ufffd\ufffd');
 
 // UCS-2
 test('ucs2', Buffer.from('ababc', 'ucs2'), 'ababc');
 
 // UTF-16LE
 test('utf16le', Buffer.from('3DD84DDC', 'hex'), '\ud83d\udc4d'); // thumbs up
-
-console.log(' crayon!');
 
 // Additional UTF-8 tests
 decoder = new StringDecoder('utf8');
@@ -67,7 +63,7 @@ assert.strictEqual(decoder.end(), '\ufffd');
 
 decoder = new StringDecoder('utf8');
 assert.strictEqual(decoder.write(Buffer.from('E18B', 'hex')), '');
-assert.strictEqual(decoder.end(), '\ufffd\ufffd');
+assert.strictEqual(decoder.end(), '\ufffd');
 
 decoder = new StringDecoder('utf8');
 assert.strictEqual(decoder.write(Buffer.from('\ufffd')), '\ufffd');
@@ -131,7 +127,6 @@ function test(encoding, input, expected, singleSequence) {
       output += decoder.write(input.slice(write[0], write[1]));
     });
     output += decoder.end();
-    process.stdout.write('.');
     if (output !== expected) {
       const message =
         'Expected "' + unicodeEscape(expected) + '", ' +
