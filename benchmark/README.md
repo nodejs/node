@@ -287,37 +287,84 @@ chunk     encoding       mean confidence.interval
 ## Creating a benchmark
 
 All benchmarks use the `require('../common.js')` module. This contains the
-`createBenchmark(main, configs)` method which will setup your benchmark.
+`createBenchmark(main, configs[, options])` method which will setup your
+benchmark.
 
-The first argument `main` is the benchmark function, the second argument
-specifies the benchmark parameters. `createBenchmark` will run all possible
-combinations of these parameters, unless specified otherwise. Note that the
-configuration values can only be strings or numbers.
+The arguments of `createBenchmark` are:
 
-`createBenchmark` also creates a `bench` object, which is used for timing
+* `main` {Function} The benchmark function,
+  where the code running operations and controlling timers should go
+* `configs` {Object} The benchmark parameters. `createBenchmark` will run all
+  possible combinations of these parameters, unless specified otherwise.
+  Each configuration is a property with an array of possible values.
+  Note that the configuration values can only be strings or numbers.
+* `options` {Object} The benchmark options. At the moment only the `flags`
+  option for specifying command line flags is supported.
+
+`createBenchmark` returns a `bench` object, which is used for timing
 the runtime of the benchmark. Run `bench.start()` after the initialization
 and `bench.end(n)` when the benchmark is done. `n` is the number of operations
 you performed in the benchmark.
+
+The benchmark script will be run twice:
+
+The first pass will configure the benchmark with the combination of
+parameters specified in `configs`, and WILL NOT run the `main` function.
+In this pass, no flags except the ones directly passed via commands
+that you run the benchmarks with will be used.
+
+In the second pass, the `main` function will be run, and the process
+will be launched with:
+
+* The flags you've passed into `createBenchmark` (the third argument)
+* The flags in the command that you run this benchmark with
+
+Beware that any code outside the `main` function will be run twice
+in different processes. This could be troublesome if the code
+outside the `main` function has side effects. In general, prefer putting
+the code inside the `main` function if it's more than just declaration.
 
 ```js
 'use strict';
 const common = require('../common.js');
 const SlowBuffer = require('buffer').SlowBuffer;
 
-const bench = common.createBenchmark(main, {
+const configs = {
+  // Number of operations, specified here so they show up in the report.
+  // Most benchmarks just use one value for all runs.
   n: [1024],
-  type: ['fast', 'slow'],
-  size: [16, 128, 1024]
-});
+  type: ['fast', 'slow'],  // Custom configurations
+  size: [16, 128, 1024]  // Custom configurations
+};
+
+const options = {
+  // Add --expose-internals if you want to require internal modules in main
+  flags: ['--zero-fill-buffers']
+};
+
+// main and configs are required, options is optional.
+const bench = common.createBenchmark(main, configs, options);
+
+// Note that any code outside main will be run twice,
+// in different processes, with different command line arguments.
 
 function main(conf) {
+  // You will only get the flags that you have passed to createBenchmark
+  // earlier when main is run. If you want to benchmark the internal modules,
+  // require them here. For example:
+  // const URL = require('internal/url').URL
+
+  // Start the timer
   bench.start();
 
+  // Do operations here
   const BufferConstructor = conf.type === 'fast' ? Buffer : SlowBuffer;
 
   for (let i = 0; i < conf.n; i++) {
     new BufferConstructor(conf.size);
   }
+
+  // End the timer, pass in the number of operations
   bench.end(conf.n);
 }
 ```
