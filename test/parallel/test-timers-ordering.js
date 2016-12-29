@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
 const assert = require('assert');
-const Timer = process.binding('timer_wrap').Timer;
 
+const Timer = process.binding('timer_wrap').Timer;
 const N = 30;
 
 let last_i = 0;
