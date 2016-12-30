@@ -32,12 +32,12 @@ if (cluster.isWorker) {
   // start worker
   var worker = cluster.fork();
 
-  var socket;
   // Disconnect worker when it is ready
   worker.once('listening', function() {
-    net.createConnection(common.PORT, common.localhostIPv4, function() {
-      socket = this;
-      this.on('data', function() {
+    const socket = net.createConnection(common.PORT, common.localhostIPv4);
+
+    socket.on('connect', function() {
+      socket.on('data', function() {
         console.log('got data from client');
         // socket definitely connected to worker if we got data
         worker.disconnect();
