@@ -24,7 +24,7 @@ assert.strictEqual(params.get('a'), '');
 
 // More get() basics
 params = new URLSearchParams('first=second&third&&');
-assert.notEqual(params, null, 'constructor returned non-null value.');
+assert.notStrictEqual(params, null, 'constructor returned non-null value.');
 assert.strictEqual(true, params.has('first'),
                    'Search params object has name "first"');
 assert.strictEqual(params.get('first'), 'second',
