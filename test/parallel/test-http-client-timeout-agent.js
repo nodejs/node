@@ -50,9 +50,8 @@ server.listen(0, options.host, function() {
       this.destroy();
     });
     req.setTimeout(50, function() {
-      var req = this;
       console.log('req#' + this.id + ' timeout');
-      req.abort();
+      this.abort();
       requests_done += 1;
     });
     req.end();
