@@ -102,24 +102,24 @@ SlowStream.prototype.pause = function() {
 };
 
 SlowStream.prototype.resume = function() {
-  var self = this;
-  if (self.ended) return;
-  self.emit('resume');
-  if (!self.chunk) return;
-  self.paused = false;
-  emit();
-  function emit() {
-    if (self.paused) return;
-    if (self.offset >= self.length) {
-      self.ended = true;
-      return self.emit('end');
+  const emit = () => {
+    if (this.paused) return;
+    if (this.offset >= this.length) {
+      this.ended = true;
+      return this.emit('end');
     }
-    var end = Math.min(self.offset + self.trickle, self.length);
-    var c = self.chunk.slice(self.offset, end);
-    self.offset += c.length;
-    self.emit('data', c);
+    var end = Math.min(this.offset + this.trickle, this.length);
+    var c = this.chunk.slice(this.offset, end);
+    this.offset += c.length;
+    this.emit('data', c);
     process.nextTick(emit);
-  }
+  };
+
+  if (this.ended) return;
+  this.emit('resume');
+  if (!this.chunk) return;
+  this.paused = false;
+  emit();
 };
 
 SlowStream.prototype.end = function(chunk) {
