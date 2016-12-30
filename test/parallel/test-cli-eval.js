@@ -12,6 +12,11 @@ const child = require('child_process');
 const path = require('path');
 const nodejs = `"${process.execPath}"`;
 
+if (process.argv.length > 2) {
+  console.log(process.argv.slice(2).join(' '));
+  process.exit(0);
+}
+
 // Assert that nothing is written to stdout.
 child.exec(`${nodejs} --eval 42`, common.mustCall((err, stdout, stderr) => {
   assert.ifError(err);
@@ -163,3 +168,38 @@ child.exec(`${nodejs} --use-strict -p process.execArgv`,
   });
   proc.send('ping');
 }
+
+[ '-arg1',
+  '-arg1 arg2 --arg3',
+  '--',
+  'arg1 -- arg2',
+].forEach(function(args) {
+
+  // Ensure that arguments are successfully passed to eval.
+  const opt = ' --eval "console.log(process.argv.slice(1).join(\' \'))"';
+  const cmd = `${nodejs}${opt} -- ${args}`;
+  child.exec(cmd, common.mustCall(function(err, stdout, stderr) {
+    assert.strictEqual(stdout, args + '\n');
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(err, null);
+  }));
+
+  // Ensure that arguments are successfully passed to print.
+  const popt = ' --print "process.argv.slice(1).join(\' \')"';
+  const pcmd = `${nodejs}${popt} -- ${args}`;
+  child.exec(pcmd, common.mustCall(function(err, stdout, stderr) {
+    assert.strictEqual(stdout, args + '\n');
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(err, null);
+  }));
+
+  // Ensure that arguments are successfully passed to a script.
+  // The first argument after '--' should be interpreted as a script
+  // filename.
+  const filecmd = `${nodejs} -- ${__filename} ${args}`;
+  child.exec(filecmd, common.mustCall(function(err, stdout, stderr) {
+    assert.strictEqual(stdout, args + '\n');
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(err, null);
+  }));
+});
