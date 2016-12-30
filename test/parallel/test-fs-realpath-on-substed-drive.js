@@ -42,12 +42,12 @@ assert(Buffer.isBuffer(result));
 assert(result.equals(filenameBuffer));
 
 fs.realpath(filename, common.mustCall(function(err, result) {
-  assert(!err);
+  assert.ifError(err);
   assert.strictEqual(result, filename);
 }));
 
 fs.realpath(filename, 'buffer', common.mustCall(function(err, result) {
-  assert(!err);
+  assert.ifError(err);
   assert(Buffer.isBuffer(result));
   assert(result.equals(filenameBuffer));
 }));

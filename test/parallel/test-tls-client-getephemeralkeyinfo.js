@@ -46,7 +46,7 @@ function test(size, type, name, next) {
   });
 
   server.on('close', common.mustCall(function(err) {
-    assert(!err);
+    assert.ifError(err);
     if (next) next();
   }));
 

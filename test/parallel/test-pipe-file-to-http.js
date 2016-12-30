@@ -38,7 +38,7 @@ server.on('listening', function() {
   const cmd = common.ddCommand(filename, 10240);
 
   cp.exec(cmd, function(err) {
-    if (err) throw err;
+    assert.ifError(err);
     makeRequest();
   });
 });
