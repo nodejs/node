@@ -37,6 +37,7 @@ node \- Server-side JavaScript runtime
 .RI [ script.js \ |
 .B -e
 .RI \&" script \&"]
+.B [--]
 .RI [ arguments ]
 .br
 .B node debug
@@ -174,6 +175,13 @@ used to enable FIPS-compliant crypto if Node.js is built with
 .TP
 .BR \-\-icu\-data\-dir =\fIfile\fR
 Specify ICU data load path. (overrides \fBNODE_ICU_DATA\fR)
+
+.TP
+.BR \-\-\fR
+Indicate the end of node options. Pass the rest of the arguments to the script.
+
+If no script filename or eval/print script is supplied prior to this, then
+the next argument will be used as a script filename.
 
 .SH ENVIRONMENT VARIABLES
 

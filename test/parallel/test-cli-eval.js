@@ -11,6 +11,10 @@ const child = require('child_process');
 const path = require('path');
 const nodejs = '"' + process.execPath + '"';
 
+if (process.argv.length > 2) {
+  console.log(process.argv.slice(2).join(' '));
+  process.exit(0);
+}
 
 // replace \ by / because windows uses backslashes in paths, but they're still
 // interpreted as the escape character when put between quotes.
@@ -113,3 +117,38 @@ child.exec(nodejs + ` -e 'require("child_process").fork("${emptyFile}")'`,
   assert.strictEqual(proc.stderr, '');
   assert.strictEqual(proc.stdout, 'start\nbeforeExit\nexit\n');
 }
+
+[ '-arg1',
+  '-arg1 arg2 --arg3',
+  '--',
+  'arg1 -- arg2',
+].forEach(function(args) {
+
+  // Ensure that arguments are successfully passed to eval.
+  const opt = ' --eval "console.log(process.argv.slice(1).join(\' \'))"';
+  const cmd = `${nodejs}${opt} -- ${args}`;
+  child.exec(cmd, common.mustCall(function(err, stdout, stderr) {
+    assert.strictEqual(stdout, args + '\n');
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(err, null);
+  }));
+
+  // Ensure that arguments are successfully passed to print.
+  const popt = ' --print "process.argv.slice(1).join(\' \')"';
+  const pcmd = `${nodejs}${popt} -- ${args}`;
+  child.exec(pcmd, common.mustCall(function(err, stdout, stderr) {
+    assert.strictEqual(stdout, args + '\n');
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(err, null);
+  }));
+
+  // Ensure that arguments are successfully passed to a script.
+  // The first argument after '--' should be interpreted as a script
+  // filename.
+  const filecmd = `${nodejs} -- ${__filename} ${args}`;
+  child.exec(filecmd, common.mustCall(function(err, stdout, stderr) {
+    assert.strictEqual(stdout, args + '\n');
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(err, null);
+  }));
+});

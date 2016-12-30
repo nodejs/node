@@ -10,7 +10,7 @@ To view this documentation as a manual page in your terminal, run `man node`.
 
 ## Synopsis
 
-`node [options] [v8 options] [script.js | -e "script"] [arguments]`
+`node [options] [v8 options] [script.js | -e "script"] [--] [arguments]`
 
 `node debug [script.js | -e "script" | <host>:<port>] …`
 
@@ -250,6 +250,15 @@ added: v0.11.15
 -->
 
 Specify ICU data load path. (overrides `NODE_ICU_DATA`)
+
+### `--`
+<!-- YAML
+added: REPLACEME
+-->
+
+Indicate the end of node options. Pass the rest of the arguments to the script.
+If no script filename or eval/print script is supplied prior to this, then
+the next argument will be used as a script filename.
 
 ## Environment Variables
 
