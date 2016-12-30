@@ -2187,7 +2187,7 @@ static void WaitForInspectorDisconnect(Environment* env) {
   if (env->inspector_agent()->IsConnected()) {
     // Restore signal dispositions, the app is done and is no longer
     // capable of handling signals.
-#ifdef __POSIX__
+#if defined(__POSIX__) && !defined(NODE_SHARED_MODE)
     struct sigaction act;
     memset(&act, 0, sizeof(act));
     for (unsigned nr = 1; nr < kMaxSignal; nr += 1) {
@@ -4069,6 +4069,7 @@ inline void PlatformInit() {
 
   CHECK_EQ(err, 0);
 
+#ifndef NODE_SHARED_MODE
   // Restore signal dispositions, the parent process may have changed them.
   struct sigaction act;
   memset(&act, 0, sizeof(act));
@@ -4082,6 +4083,7 @@ inline void PlatformInit() {
     act.sa_handler = (nr == SIGPIPE) ? SIG_IGN : SIG_DFL;
     CHECK_EQ(0, sigaction(nr, &act, nullptr));
   }
+#endif  // !NODE_SHARED_MODE
 
   RegisterSignalHandler(SIGINT, SignalExit, true);
   RegisterSignalHandler(SIGTERM, SignalExit, true);
