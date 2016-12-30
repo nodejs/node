@@ -1,7 +1,7 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var http = require('http');
+const assert = require('assert');
+const http = require('http');
 
 // Verify that ServerResponse.getHeader() works correctly even after
 // the response header has been sent. Issue 752 on github.

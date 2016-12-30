@@ -2,8 +2,8 @@
 // Make sure the domain stack is a stack
 
 require('../common');
-var assert = require('assert');
-var domain = require('domain');
+const assert = require('assert');
+const domain = require('domain');
 
 function names(array) {
   return array.map(function(d) {

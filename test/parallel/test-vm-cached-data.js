@@ -15,8 +15,8 @@ function produce(source, count) {
 
   const out = spawnSync(process.execPath, [ '-e', `
     'use strict';
-    var assert = require('assert');
-    var vm = require('vm');
+    const assert = require('assert');
+    const vm = require('vm');
 
     var data;
     for (var i = 0; i < ${count}; i++) {

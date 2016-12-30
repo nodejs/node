@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var Writable = require('stream').Writable;
+const Writable = require('stream').Writable;
 
 var _writeCalled = false;
 function _write(d, e, n) {

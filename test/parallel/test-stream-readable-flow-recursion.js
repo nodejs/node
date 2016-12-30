@@ -1,13 +1,13 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 // this test verifies that passing a huge number to read(size)
 // will push up the highWaterMark, and cause the stream to read
 // more data continuously, but without triggering a nextTick
 // warning or RangeError.
 
-var Readable = require('stream').Readable;
+const Readable = require('stream').Readable;
 
 // throw an error if we trigger a nextTick warning.
 process.throwDeprecation = true;

@@ -1,7 +1,7 @@
 // See test/simple/test-sendfd.js for a complete description of what this
 // script is doing and how it fits into the test as a whole.
 
-var net = require('net');
+const net = require('net');
 
 var receivedData = [];
 var receivedFDs = [];

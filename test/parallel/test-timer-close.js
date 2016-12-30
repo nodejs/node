@@ -1,6 +1,6 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 var t = new (process.binding('timer_wrap').Timer)();
 var called = 0;

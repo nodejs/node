@@ -2,7 +2,7 @@
 require('../common');
 process.env.NODE_FORCE_READLINE = 1;
 
-var repl = require('./helper-debugger-repl.js');
+const repl = require('./helper-debugger-repl.js');
 
 repl.startDebugger('breakpoints.js');
 

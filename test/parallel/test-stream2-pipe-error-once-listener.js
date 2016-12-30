@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
 
-var util = require('util');
-var stream = require('stream');
+const util = require('util');
+const stream = require('stream');
 
 
 var Read = function() {

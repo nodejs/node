@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var net = require('net');
-var cluster = require('cluster');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const net = require('net');
+const cluster = require('cluster');
 
 console.error('Cluster listen fd test', process.argv[2] || 'runner');
 
@@ -68,7 +68,7 @@ function test(cb) {
     const port = this.address().port;
     console.error('server listening on %d', port);
 
-    var spawn = require('child_process').spawn;
+    const spawn = require('child_process').spawn;
     var master = spawn(process.execPath, [__filename, 'master'], {
       stdio: [ 0, 'pipe', 2, server._handle, 'ipc' ],
       detached: true

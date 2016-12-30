@@ -2,7 +2,7 @@
 // Make sure that the domain stack doesn't get out of hand.
 
 require('../common');
-var domain = require('domain');
+const domain = require('domain');
 
 var a = domain.create();
 a.name = 'a';

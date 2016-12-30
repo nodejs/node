@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var R = require('_stream_readable');
-var util = require('util');
+const assert = require('assert');
+const R = require('_stream_readable');
+const util = require('util');
 
 // tiny node-tap lookalike.
 var tests = [];

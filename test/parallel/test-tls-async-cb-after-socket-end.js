@@ -10,7 +10,7 @@ const path = require('path');
 const fs = require('fs');
 const SSL_OP_NO_TICKET = require('crypto').constants.SSL_OP_NO_TICKET;
 
-var tls = require('tls');
+const tls = require('tls');
 
 var options = {
   secureOptions: SSL_OP_NO_TICKET,

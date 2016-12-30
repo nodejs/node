@@ -1,8 +1,8 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var fork = require('child_process').fork;
-var net = require('net');
+const assert = require('assert');
+const fork = require('child_process').fork;
+const net = require('net');
 var count = 12;
 
 if (process.argv[2] === 'child') {

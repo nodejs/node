@@ -1,13 +1,13 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
 
-var https = require('https');
-var fs = require('fs');
+const https = require('https');
+const fs = require('fs');
 
 var options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),

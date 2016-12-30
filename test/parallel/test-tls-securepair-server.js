@@ -1,17 +1,17 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var join = require('path').join;
-var net = require('net');
-var fs = require('fs');
-var spawn = require('child_process').spawn;
+const join = require('path').join;
+const net = require('net');
+const fs = require('fs');
+const spawn = require('child_process').spawn;
 
 var key = fs.readFileSync(join(common.fixturesDir, 'agent.key')).toString();
 var cert = fs.readFileSync(join(common.fixturesDir, 'agent.crt')).toString();

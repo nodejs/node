@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
-var http = require('http');
-var url = require('url');
+const http = require('http');
+const url = require('url');
 
 var server = http.createServer(common.mustCall(function(req, res) {
   res.end();

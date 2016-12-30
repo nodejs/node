@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var stream = require('stream');
+const stream = require('stream');
 
 var queue = [];
 for (var decode = 0; decode < 2; decode++) {

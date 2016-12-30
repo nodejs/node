@@ -1,10 +1,10 @@
 'use strict';
 require('../common');
-var R = require('_stream_readable');
-var W = require('_stream_writable');
-var assert = require('assert');
+const R = require('_stream_readable');
+const W = require('_stream_writable');
+const assert = require('assert');
 
-var util = require('util');
+const util = require('util');
 
 var ondataCalled = 0;
 

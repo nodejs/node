@@ -1,9 +1,9 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var Readable = require('stream').Readable;
-var util = require('util');
+const Readable = require('stream').Readable;
+const util = require('util');
 
 util.inherits(MyStream, Readable);
 function MyStream(options) {

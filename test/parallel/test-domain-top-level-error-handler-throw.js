@@ -13,7 +13,7 @@ const domainErrHandlerExMessage = 'exception from domain error handler';
 const internalExMessage = 'You should NOT see me';
 
 if (process.argv[2] === 'child') {
-  var domain = require('domain');
+  const domain = require('domain');
   var d = domain.create();
 
   d.on('error', function() {
@@ -26,8 +26,8 @@ if (process.argv[2] === 'child') {
     });
   });
 } else {
-  var fork = require('child_process').fork;
-  var assert = require('assert');
+  const fork = require('child_process').fork;
+  const assert = require('assert');
 
   var child = fork(process.argv[1], ['child'], {silent: true});
   var stderrOutput = '';

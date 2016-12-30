@@ -1,9 +1,9 @@
 'use strict';
 
 const common = require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var EventEmitter = require('events').EventEmitter;
+const EventEmitter = require('events').EventEmitter;
 
 var e = new EventEmitter();
 var fl;  // foo listeners

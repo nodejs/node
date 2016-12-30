@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var net = require('net');
-var spawn = require('child_process').spawn;
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const net = require('net');
+const spawn = require('child_process').spawn;
 
 if (common.isWindows) {
   common.skip('This test is disabled on windows.');
