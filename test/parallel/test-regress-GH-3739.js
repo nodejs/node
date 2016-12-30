@@ -27,5 +27,5 @@ assert(common.fileExists(dir), 'Directory is not accessible');
 
 // Test if file exists asynchronously
 fs.access(dir, function(err) {
-  assert(!err, 'Directory is not accessible');
+  assert.ifError(err);
 });

@@ -36,7 +36,7 @@ function test(keylen, expectedCipher, cb) {
   });
 
   server.on('close', function(err) {
-    assert(!err);
+    assert.ifError(err);
     if (cb) cb();
   });
 
