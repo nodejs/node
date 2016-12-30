@@ -39,9 +39,7 @@ function testHttp() {
 
   httpServer.listen(0, function(er) {
     console.error(`test http server listening on ${this.address().port}`);
-
-    if (er) throw er;
-
+    assert.ifError(er);
     http.get({
       method: 'GET',
       path: '/' + (counter++),

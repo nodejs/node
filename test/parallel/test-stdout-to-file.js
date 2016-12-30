@@ -28,8 +28,7 @@ function test(size, useBuffer, cb) {
   console.log(`${size} chars to ${tmpFile}...`);
 
   childProcess.exec(cmd, common.mustCall(function(err) {
-    if (err) throw err;
-
+    assert.ifError(err);
     console.log('done!');
 
     var stat = fs.statSync(tmpFile);

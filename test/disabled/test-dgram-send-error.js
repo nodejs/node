@@ -34,7 +34,7 @@ function onMessage(message, info) {
 }
 
 function afterSend(err) {
-  if (err) throw err;
+  assert.ifError(err);
   packetsSent++;
 }
 
