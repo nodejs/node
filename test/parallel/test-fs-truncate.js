@@ -43,9 +43,9 @@ fs.closeSync(fd);
 
 // async tests
 testTruncate(common.mustCall(function(er) {
-  if (er) throw er;
+  assert.ifError(er);
   testFtruncate(common.mustCall(function(er) {
-    if (er) throw er;
+    assert.ifError(er);
   }));
 }));
 
