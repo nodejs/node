@@ -214,12 +214,12 @@ class SocketSession {
 InspectorSocketServer::InspectorSocketServer(SocketServerDelegate* delegate,
                                              int port,
                                              FILE* out) : loop_(nullptr),
-                                                         delegate_(delegate),
-                                                         port_(port),
-                                                         server_(uv_tcp_t()),
-                                                         closer_(nullptr),
-                                                         next_session_id_(0),
-                                                         out_(out) { }
+                                                          delegate_(delegate),
+                                                          port_(port),
+                                                          server_(uv_tcp_t()),
+                                                          closer_(nullptr),
+                                                          next_session_id_(0),
+                                                          out_(out) { }
 
 
 // static
