@@ -37,5 +37,5 @@ timers.enroll(foo, 1);
 timers._unrefActive(foo);
 
 setTimeout(function() {
-  assert.notEqual(nbTimersFired, 2);
+  assert.notStrictEqual(nbTimersFired, 2);
 }, 20);

@@ -49,7 +49,7 @@ server.listen(0, function() {
     assert(gotServerEnd);
     assert(gotServerError);
     assert.equal(gotServerError.code, 'EPIPE');
-    assert.notEqual(gotServerError.message, 'write after end');
+    assert.notStrictEqual(gotServerError.message, 'write after end');
     console.log('ok');
   });
 
