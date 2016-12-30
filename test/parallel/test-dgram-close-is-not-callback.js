@@ -1,6 +1,6 @@
 'use strict';
-var common = require('../common');
-var dgram = require('dgram');
+const common = require('../common');
+const dgram = require('dgram');
 
 var buf = Buffer.alloc(1024, 42);
 

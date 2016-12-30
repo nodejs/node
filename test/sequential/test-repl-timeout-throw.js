@@ -37,7 +37,7 @@ child.stdout.once('data', function() {
 
   function eeTest() {
     child.stdin.write('setTimeout(function() {\n' +
-                      '  var events = require("events");\n' +
+                      '  const events = require("events");\n' +
                       '  var e = new events.EventEmitter;\n' +
                       '  process.nextTick(function() {\n' +
                       '    e.on("x", thrower);\n' +

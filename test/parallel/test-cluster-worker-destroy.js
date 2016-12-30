@@ -9,7 +9,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-var cluster = require('cluster');
+const cluster = require('cluster');
 var worker1, worker2;
 
 if (cluster.isMaster) {

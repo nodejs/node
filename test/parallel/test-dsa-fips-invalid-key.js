@@ -1,14 +1,14 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasFipsCrypto) {
   common.skip('node compiled without FIPS OpenSSL.');
   return;
 }
 
-var crypto = require('crypto');
-var fs = require('fs');
+const crypto = require('crypto');
+const fs = require('fs');
 
 var input = 'hello';
 

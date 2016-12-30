@@ -1,7 +1,7 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var os = require('os');
+const assert = require('assert');
+const os = require('os');
 
 switch (process.argv[2]) {
   case 'child':
@@ -13,7 +13,7 @@ switch (process.argv[2]) {
 }
 
 function parent() {
-  var spawn = require('child_process').spawn;
+  const spawn = require('child_process').spawn;
   var child = spawn(process.execPath, [__filename, 'child']);
 
   var output = '';

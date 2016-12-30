@@ -1,16 +1,15 @@
 'use strict';
 require('../common');
-var stream = require('stream');
-var Readable = stream.Readable;
-var Writable = stream.Writable;
-var assert = require('assert');
+const Readable = require('stream').Readable;
+const Writable = require('stream').Writable;
+const assert = require('assert');
 
-var EE = require('events').EventEmitter;
+const EE = require('events').EventEmitter;
 
 
 // a mock thing a bit like the net.Socket/tcp_wrap.handle interaction
 
-stream = new Readable({
+const stream = new Readable({
   highWaterMark: 16,
   encoding: 'utf8'
 });

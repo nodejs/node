@@ -4,8 +4,8 @@
 // https://groups.google.com/forum/#!topic/nodejs-dev/jR7-5UDqXkw
 
 const common = require('../common');
-var net = require('net');
-var assert = require('assert');
+const net = require('net');
+const assert = require('assert');
 
 var start = new Date();
 

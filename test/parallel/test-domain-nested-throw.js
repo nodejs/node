@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var domain = require('domain');
+const domain = require('domain');
 
 var dispose;
 switch (process.argv[2]) {
@@ -19,7 +19,7 @@ switch (process.argv[2]) {
 
 function parent() {
   var node = process.execPath;
-  var spawn = require('child_process').spawn;
+  const spawn = require('child_process').spawn;
   var opt = { stdio: 'inherit' };
   var child = spawn(node, [__filename, 'true'], opt);
   child.on('exit', function(c) {

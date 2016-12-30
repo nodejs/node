@@ -90,7 +90,7 @@ const tests = [
     });
 
     d.run(function() {
-      var fs = require('fs');
+      const fs = require('fs');
       fs.exists('/non/existing/file', function onExists(exists) {
         throw new Error('boom!');
       });
@@ -212,7 +212,7 @@ const tests = [
 
     d.run(function() {
       d2.run(function() {
-        var fs = require('fs');
+        const fs = require('fs');
         fs.exists('/non/existing/file', function onExists(exists) {
           throw new Error('boom!');
         });

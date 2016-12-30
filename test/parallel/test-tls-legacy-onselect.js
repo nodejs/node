@@ -1,12 +1,12 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
-var net = require('net');
+const tls = require('tls');
+const net = require('net');
 
 var server = net.Server(common.mustCall(function(raw) {
   var pair = tls.createSecurePair(null, true, false, false);

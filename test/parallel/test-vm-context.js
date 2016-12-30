@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var vm = require('vm');
+const vm = require('vm');
 var Script = vm.Script;
 var script = new Script('"passed";');
 
@@ -48,7 +48,7 @@ assert.ok(gh1140Exception,
 
 // Issue GH-693:
 console.error('test RegExp as argument to assert.throws');
-script = vm.createScript('var assert = require(\'assert\'); assert.throws(' +
+script = vm.createScript('const assert = require(\'assert\'); assert.throws(' +
                          'function() { throw "hello world"; }, /hello/);',
                          'some.js');
 script.runInNewContext({ require: require });

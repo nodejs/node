@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 
 // this test only fails with CentOS 6.3 using kernel version 2.6.32
 // On other linuxes and darwin, the `read` call gets an ECONNRESET in
@@ -18,7 +18,7 @@ switch (process.argv[2]) {
 }
 
 function server() {
-  var net = require('net');
+  const net = require('net');
   var content = Buffer.alloc(64 * 1024 * 1024, '#');
   net.createServer(function(socket) {
     this.close();
@@ -35,7 +35,7 @@ function server() {
 }
 
 function client() {
-  var net = require('net');
+  const net = require('net');
   var client = net.connect({
     host: common.localhostIPv4,
     port: common.PORT
@@ -45,7 +45,7 @@ function client() {
 }
 
 function parent() {
-  var spawn = require('child_process').spawn;
+  const spawn = require('child_process').spawn;
   var node = process.execPath;
 
   var s = spawn(node, [__filename, 'server'], {

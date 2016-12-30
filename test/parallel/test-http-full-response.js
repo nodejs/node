@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 // This test requires the program 'ab'
-var http = require('http');
-var exec = require('child_process').exec;
+const http = require('http');
+const exec = require('child_process').exec;
 
 var bodyLength = 12345;
 

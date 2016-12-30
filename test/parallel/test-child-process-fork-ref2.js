@@ -1,6 +1,6 @@
 'use strict';
 require('../common');
-var fork = require('child_process').fork;
+const fork = require('child_process').fork;
 
 if (process.argv[2] === 'child') {
   console.log('child -> call disconnect');

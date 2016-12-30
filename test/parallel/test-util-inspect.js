@@ -270,7 +270,7 @@ assert.strictEqual(util.inspect(value), '{ 2010-02-14T11:48:40.000Z aprop: 42 }'
 );
 
 // test the internal isDate implementation
-var Date2 = require('vm').runInNewContext('Date');
+const Date2 = vm.runInNewContext('Date');
 var d = new Date2();
 var orig = util.inspect(d);
 Date2.prototype.foo = 'bar';
@@ -294,7 +294,7 @@ assert.strictEqual(util.inspect(new Array(5)), '[ , , , ,  ]');
 
 // test for Array constructor in different context
 {
-  const Debug = require('vm').runInDebugContext('Debug');
+  const Debug = vm.runInDebugContext('Debug');
   const map = new Map();
   map.set(1, 2);
   const mirror = Debug.MakeMirror(map.entries(), true);
@@ -308,13 +308,13 @@ assert.strictEqual(util.inspect(new Array(5)), '[ , , , ,  ]');
 }
 
 // test for other constructors in different context
-var obj = require('vm').runInNewContext('(function(){return {}})()', {});
+let obj = vm.runInNewContext('(function(){return {}})()', {});
 assert.strictEqual(util.inspect(obj), '{}');
-obj = require('vm').runInNewContext('var m=new Map();m.set(1,2);m', {});
+obj = vm.runInNewContext('var m=new Map();m.set(1,2);m', {});
 assert.strictEqual(util.inspect(obj), 'Map { 1 => 2 }');
-obj = require('vm').runInNewContext('var s=new Set();s.add(1);s.add(2);s', {});
+obj = vm.runInNewContext('var s=new Set();s.add(1);s.add(2);s', {});
 assert.strictEqual(util.inspect(obj), 'Set { 1, 2 }');
-obj = require('vm').runInNewContext('fn=function(){};new Promise(fn,fn)', {});
+obj = vm.runInNewContext('fn=function(){};new Promise(fn,fn)', {});
 assert.strictEqual(util.inspect(obj), 'Promise { <pending> }');
 
 // test for property descriptors

@@ -1,9 +1,9 @@
 'use strict';
 // verify that connect reqs are properly cleaned up
 
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
 var ROUNDS = 10;
 var ATTEMPTS_PER_ROUND = 100;

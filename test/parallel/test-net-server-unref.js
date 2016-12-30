@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common');
-var net = require('net');
+const net = require('net');
 
 var s = net.createServer();
 s.listen(0);

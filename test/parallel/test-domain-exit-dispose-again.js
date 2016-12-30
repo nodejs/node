@@ -6,8 +6,8 @@
 // the same invocation of listOnTimeout, _are_ called.
 
 require('../common');
-var assert = require('assert');
-var domain = require('domain');
+const assert = require('assert');
+const domain = require('domain');
 var disposalFailed = false;
 
 // Repeatedly schedule a timer with a delay different than the timers attached

@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var path = require('path');
+const assert = require('assert');
+const path = require('path');
 
 if (common.isWindows) {
   var file = path.join(common.fixturesDir, 'a.js');

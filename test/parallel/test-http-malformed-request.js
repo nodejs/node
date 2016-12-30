@@ -1,9 +1,9 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var net = require('net');
-var http = require('http');
-var url = require('url');
+const assert = require('assert');
+const net = require('net');
+const http = require('http');
+const url = require('url');
 
 // Make sure no exceptions are thrown when receiving malformed HTTP
 // requests.

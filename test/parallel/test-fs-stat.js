@@ -1,7 +1,7 @@
 /* eslint-disable strict */
 const common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
+const assert = require('assert');
+const fs = require('fs');
 
 fs.stat('.', common.mustCall(function(err, stats) {
   assert.ifError(err);

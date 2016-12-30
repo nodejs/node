@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 //messages
 var PREFIX = 'NODE_';
@@ -18,7 +18,7 @@ if (process.argv[2] === 'child') {
 
 } else {
 
-  var fork = require('child_process').fork;
+  const fork = require('child_process').fork;
   var child = fork(process.argv[1], ['child']);
 
   child.once('message', common.mustCall(function(data) {

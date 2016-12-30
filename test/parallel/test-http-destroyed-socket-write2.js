@@ -1,11 +1,11 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 // Verify that ECONNRESET is raised when writing to a http request
 // where the server has ended the socket.
 
-var http = require('http');
+const http = require('http');
 var server = http.createServer(function(req, res) {
   setImmediate(function() {
     res.destroy();

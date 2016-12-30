@@ -1,6 +1,6 @@
 'use strict';
 require('../common');
-var http = require('http');
+const http = require('http');
 
 // Simple test of Node's HTTP Client choking on a response
 // with a 'Content-Length: 0 ' response header.
