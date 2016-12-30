@@ -31,8 +31,7 @@ function test(decode, uncork, multi, next) {
     expectCount++;
     var expect = expectCount;
     return function(er) {
-      if (er)
-        throw er;
+      assert.ifError(er);
       counter++;
       assert.equal(counter, expect);
     };

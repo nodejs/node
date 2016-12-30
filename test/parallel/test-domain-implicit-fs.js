@@ -31,7 +31,7 @@ d.run(function() {
     var fs = require('fs');
     fs.readdir(__dirname, function() {
       fs.open('this file does not exist', 'r', function(er) {
-        if (er) throw er;
+        assert.ifError(er);
         throw new Error('should not get here!');
       });
     });

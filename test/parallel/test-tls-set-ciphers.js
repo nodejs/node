@@ -42,7 +42,7 @@ server.listen(0, '127.0.0.1', function() {
     cmd += ' -no_rand_screen';
 
   exec(cmd, function(err, stdout, stderr) {
-    if (err) throw err;
+    assert.ifError(err);
     response = stdout;
     server.close();
   });

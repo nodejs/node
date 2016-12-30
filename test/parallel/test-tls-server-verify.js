@@ -282,7 +282,7 @@ function runTest(port, testIndex) {
           requestCert: true,
           rejectUnauthorized: false
         }, function(err) {
-          assert(!err);
+          assert.ifError(err);
           c.write('\n_renegotiated\n');
           handleConnection(c);
         });

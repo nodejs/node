@@ -45,7 +45,7 @@ function run(test) {
   };
 
   REPL.createInternalRepl(env, opts, function(err, repl) {
-    if (err) throw err;
+    assert.ifError(err);
 
     // The REPL registers 'module' and 'require' globals
     common.allowGlobals(repl.context.module, repl.context.require);

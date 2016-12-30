@@ -386,10 +386,10 @@ function test_up_multiple(cb) {
   assertEqualPath(fs.realpathSync(abedabeda), abedabeda_real);
   assertEqualPath(fs.realpathSync(abedabed), abedabed_real);
   fs.realpath(abedabeda, function(er, real) {
-    if (er) throw er;
+    assert.ifError(er);
     assertEqualPath(abedabeda_real, real);
     fs.realpath(abedabed, function(er, real) {
-      if (er) throw er;
+      assert.ifError(er);
       assertEqualPath(abedabed_real, real);
       cb();
       cleanup();
@@ -476,7 +476,7 @@ const tests = [
 const numtests = tests.length;
 var testsRun = 0;
 function runNextTest(err) {
-  if (err) throw err;
+  assert.ifError(err);
   const test = tests.shift();
   if (!test) {
     return console.log(numtests +
