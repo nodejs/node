@@ -12,11 +12,11 @@ var data = true;
 var expected = data + '';
 
 fs.open(fn, 'w', 0o644, common.mustCall(function(err, fd) {
-  if (err) throw err;
+  assert.ifError(err);
   console.log('open done');
   fs.write(fd, data, 0, 'utf8', common.mustCall(function(err, written) {
     console.log('write done');
-    if (err) throw err;
+    assert.ifError(err);
     assert.equal(Buffer.byteLength(expected), written);
     fs.closeSync(fd);
     const found = fs.readFileSync(fn, 'utf8');

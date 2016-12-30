@@ -29,11 +29,10 @@ tempFdSync(function(fd) {
 
 function tempFd(callback) {
   fs.open(fn, 'r', function(err, fd) {
-    if (err) throw err;
-
+    assert.ifError(err);
     callback(fd, function() {
       fs.close(fd, function(err) {
-        if (err) throw err;
+        assert.ifError(err);
       });
     });
   });
