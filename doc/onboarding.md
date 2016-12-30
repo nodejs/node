@@ -6,8 +6,9 @@ onboarding session.
 ## One week before the onboarding session
 
 * Confirm that the new Collaborator is using two-factor authentication on their
-  GitHub account. Collaborator accounts have elevated privileges and are
-  required to use two-factor authentication.
+  GitHub account. Without two-factor authentication enabled, accounts cannot be
+  given elevated privileges such as the ability to land code in the main
+  repository or to start continuous integration (CI) jobs.
 
 ## Fifteen minutes before the onboarding session
 
