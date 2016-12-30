@@ -1,8 +1,8 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var net = require('net');
+const assert = require('assert');
+const http = require('http');
+const net = require('net');
 
 var expected = {
   '0.9': 'I AM THE WALRUS',

@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common');
-var http = require('http');
+const http = require('http');
 
 var server = http.Server(function(req, res) {
   console.log('Server accepted request.');

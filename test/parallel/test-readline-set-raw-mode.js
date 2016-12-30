@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var readline = require('readline');
-var Stream = require('stream');
+const assert = require('assert');
+const readline = require('readline');
+const Stream = require('stream');
 
 var stream = new Stream();
 var expectedRawMode = true;

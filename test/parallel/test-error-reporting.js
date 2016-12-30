@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var exec = require('child_process').exec;
-var path = require('path');
+const common = require('../common');
+const assert = require('assert');
+const exec = require('child_process').exec;
+const path = require('path');
 
 function errExec(script, callback) {
   var cmd = '"' + process.argv[0] + '" "' +

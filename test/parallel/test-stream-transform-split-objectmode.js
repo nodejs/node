@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var Transform = require('stream').Transform;
+const Transform = require('stream').Transform;
 
 var parser = new Transform({ readableObjectMode: true });
 

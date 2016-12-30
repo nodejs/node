@@ -1,10 +1,10 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var Readable = require('_stream_readable');
-var Writable = require('_stream_writable');
-var EE = require('events').EventEmitter;
+const Readable = require('_stream_readable');
+const Writable = require('_stream_writable');
+const EE = require('events').EventEmitter;
 
 var testRuns = 0, completedRuns = 0;
 function runTest(highWaterMark, objectMode, produce) {

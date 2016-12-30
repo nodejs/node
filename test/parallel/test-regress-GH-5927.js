@@ -1,7 +1,7 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var readline = require('readline');
+const assert = require('assert');
+const readline = require('readline');
 
 var rl = readline.createInterface(process.stdin, process.stdout);
 rl.resume();

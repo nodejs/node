@@ -1,6 +1,6 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 var r = process.memoryUsage();
 assert.ok(r.rss > 0);

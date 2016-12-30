@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var path = require('path');
-var fs = require('fs');
+const common = require('../common');
+const path = require('path');
+const fs = require('fs');
 
 var testDir = common.tmpDir;
 var testsubdir = path.join(testDir, 'testsubdir');

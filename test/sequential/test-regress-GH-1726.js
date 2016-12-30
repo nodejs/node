@@ -5,8 +5,8 @@
 // https://github.com/joyent/node/issues/1726
 
 require('../common');
-var assert = require('assert');
-var ch = require('child_process');
+const assert = require('assert');
+const ch = require('child_process');
 
 var gen = +(process.argv[2] || 0);
 var maxGen = 5;

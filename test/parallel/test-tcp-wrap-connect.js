@@ -1,6 +1,6 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 var TCP = process.binding('tcp_wrap').TCP;
 var TCPConnectWrap = process.binding('tcp_wrap').TCPConnectWrap;
 var ShutdownWrap = process.binding('stream_wrap').ShutdownWrap;
@@ -39,7 +39,7 @@ var connectCount = 0;
 var endCount = 0;
 var shutdownCount = 0;
 
-var server = require('net').Server(function(s) {
+const server = require('net').Server(function(s) {
   connectCount++;
   s.resume();
   s.on('end', function() {

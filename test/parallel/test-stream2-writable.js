@@ -1,10 +1,10 @@
 'use strict';
 require('../common');
-var W = require('_stream_writable');
-var D = require('_stream_duplex');
-var assert = require('assert');
+const W = require('_stream_writable');
+const D = require('_stream_duplex');
+const assert = require('assert');
 
-var util = require('util');
+const util = require('util');
 util.inherits(TestWriter, W);
 
 function TestWriter() {

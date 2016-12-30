@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var Transform = require('stream').Transform;
+const Transform = require('stream').Transform;
 
 var _transformCalled = false;
 function _transform(d, e, n) {

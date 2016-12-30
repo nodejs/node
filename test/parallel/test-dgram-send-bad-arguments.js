@@ -1,7 +1,7 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var dgram = require('dgram');
+const assert = require('assert');
+const dgram = require('dgram');
 
 var buf = Buffer.from('test');
 var host = '127.0.0.1';

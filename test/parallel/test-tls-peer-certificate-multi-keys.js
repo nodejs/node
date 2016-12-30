@@ -1,16 +1,16 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var fs = require('fs');
-var util = require('util');
-var join = require('path').join;
+const fs = require('fs');
+const util = require('util');
+const join = require('path').join;
 
 var options = {
   key: fs.readFileSync(join(common.fixturesDir, 'agent.key')),

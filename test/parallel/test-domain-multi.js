@@ -2,8 +2,8 @@
 // Tests of multiple domains happening at once.
 
 require('../common');
-var assert = require('assert');
-var domain = require('domain');
+const assert = require('assert');
+const domain = require('domain');
 
 var caughtA = false;
 var caughtB = false;
@@ -19,7 +19,7 @@ a.on('error', function(er) {
 });
 
 
-var http = require('http');
+const http = require('http');
 var server = http.createServer(function(req, res) {
   // child domain of a.
   var b = domain.create();

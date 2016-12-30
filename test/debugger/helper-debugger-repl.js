@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var spawn = require('child_process').spawn;
+const assert = require('assert');
+const spawn = require('child_process').spawn;
 
 process.env.NODE_DEBUGGER_TIMEOUT = 2000;
 var port = common.PORT;

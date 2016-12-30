@@ -13,8 +13,8 @@ function newBuffer(size, value) {
   return buffer;
 }
 
-var fs = require('fs');
-var testFileName = require('path').join(common.tmpDir, 'GH-814_testFile.txt');
+const fs = require('fs');
+const testFileName = require('path').join(common.tmpDir, 'GH-814_testFile.txt');
 var testFileFD = fs.openSync(testFileName, 'w');
 console.log(testFileName);
 
@@ -25,7 +25,7 @@ var neverWrittenBuffer = newBuffer(kBufSize, 0x2e); //0x2e === '.'
 var bufPool = [];
 
 
-var tail = require('child_process').spawn('tail', ['-f', testFileName]);
+const tail = require('child_process').spawn('tail', ['-f', testFileName]);
 tail.stdout.on('data', tailCB);
 
 function tailCB(data) {

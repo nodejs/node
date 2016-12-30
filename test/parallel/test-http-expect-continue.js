@@ -1,7 +1,7 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var http = require('http');
+const assert = require('assert');
+const http = require('http');
 
 var outstanding_reqs = 0;
 var test_req_body = 'some stuff...\n';
