@@ -5,9 +5,9 @@ onboarding session.
 
 ## One week before the onboarding session
 
-* Ask the new Collaborator if they are using two-factor authentication on their
-  GitHub account. If they are not, suggest that they enable it as their account
-  will have elevated privileges in many of the Node.js repositories.
+* Confirm that the new Collaborator is using two-factor authentication on their
+  GitHub account. Collaborator accounts have elevated privileges and are
+  required to use two-factor authentication.
 
 ## Fifteen minutes before the onboarding session
 
