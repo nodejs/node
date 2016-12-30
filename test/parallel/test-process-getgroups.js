@@ -13,7 +13,7 @@ if (typeof process.getgroups === 'function') {
   assert(Array.isArray(groups));
   assert(groups.length > 0);
   exec('id -G', function(err, stdout) {
-    if (err) throw err;
+    assert.ifError(err);
     var real_groups = stdout.match(/\d+/g).map(Number);
     assert.equal(groups.length, real_groups.length);
     check(groups, real_groups);

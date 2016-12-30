@@ -76,7 +76,7 @@ if (process.argv[2] === 'child') {
           serverPort,
           '127.0.0.1',
           function(err) {
-            if (err) throw err;
+            assert.ifError(err);
           }
         );
       }

@@ -22,7 +22,7 @@ const inputString = 'ΩΩLorem ipsum dolor sit amet, consectetur adipiscing eli'
   { comp: 'deflateRaw', decomp: 'inflateRaw', decompSync: 'inflateRawSync' }
 ].forEach(function(methods) {
   zlib[methods.comp](inputString, function(err, compressed) {
-    assert(!err);
+    assert.ifError(err);
     const truncated = compressed.slice(0, compressed.length / 2);
     const toUTF8 = (buffer) => buffer.toString('utf-8');
 
