@@ -104,8 +104,7 @@ TEST(function test_resolve6_ttl(done) {
 
 TEST(function test_resolveMx(done) {
   var req = dns.resolveMx('gmail.com', function(err, result) {
-    if (err) throw err;
-
+    assert.ifError(err);
     assert.ok(result.length > 0);
 
     for (var i = 0; i < result.length; i++) {
@@ -140,8 +139,7 @@ TEST(function test_resolveMx_failure(done) {
 
 TEST(function test_resolveNs(done) {
   var req = dns.resolveNs('rackspace.com', function(err, names) {
-    if (err) throw err;
-
+    assert.ifError(err);
     assert.ok(names.length > 0);
 
     for (var i = 0; i < names.length; i++) {
@@ -171,8 +169,7 @@ TEST(function test_resolveNs_failure(done) {
 
 TEST(function test_resolveSrv(done) {
   var req = dns.resolveSrv('_jabber._tcp.google.com', function(err, result) {
-    if (err) throw err;
-
+    assert.ifError(err);
     assert.ok(result.length > 0);
 
     for (var i = 0; i < result.length; i++) {
@@ -209,8 +206,7 @@ TEST(function test_resolveSrv_failure(done) {
 
 TEST(function test_resolvePtr(done) {
   var req = dns.resolvePtr('8.8.8.8.in-addr.arpa', function(err, result) {
-    if (err) throw err;
-
+    assert.ifError(err);
     assert.ok(result.length > 0);
 
     for (var i = 0; i < result.length; i++) {
@@ -240,8 +236,7 @@ TEST(function test_resolvePtr_failure(done) {
 
 TEST(function test_resolveNaptr(done) {
   var req = dns.resolveNaptr('sip2sip.info', function(err, result) {
-    if (err) throw err;
-
+    assert.ifError(err);
     assert.ok(result.length > 0);
 
     for (var i = 0; i < result.length; i++) {
@@ -278,8 +273,7 @@ TEST(function test_resolveNaptr_failure(done) {
 
 TEST(function test_resolveSoa(done) {
   var req = dns.resolveSoa('nodejs.org', function(err, result) {
-    if (err) throw err;
-
+    assert.ifError(err);
     assert.ok(result);
     assert.strictEqual(typeof result, 'object');
 
@@ -325,8 +319,7 @@ TEST(function test_resolveSoa_failure(done) {
 
 TEST(function test_resolveCname(done) {
   var req = dns.resolveCname('www.microsoft.com', function(err, names) {
-    if (err) throw err;
-
+    assert.ifError(err);
     assert.ok(names.length > 0);
 
     for (var i = 0; i < names.length; i++) {
@@ -357,7 +350,7 @@ TEST(function test_resolveCname_failure(done) {
 
 TEST(function test_resolveTxt(done) {
   var req = dns.resolveTxt('google.com', function(err, records) {
-    if (err) throw err;
+    assert.ifError(err);
     assert.strictEqual(records.length, 1);
     assert.ok(util.isArray(records[0]));
     assert.strictEqual(records[0][0].indexOf('v=spf1'), 0);
@@ -398,7 +391,7 @@ TEST(function test_lookup_failure(done) {
 
 TEST(function test_lookup_null(done) {
   var req = dns.lookup(null, function(err, ip, family) {
-    if (err) throw err;
+    assert.ifError(err);
     assert.strictEqual(ip, null);
     assert.strictEqual(family, 4);
 
@@ -411,7 +404,7 @@ TEST(function test_lookup_null(done) {
 
 TEST(function test_lookup_ip_all(done) {
   var req = dns.lookup('127.0.0.1', {all: true}, function(err, ips, family) {
-    if (err) throw err;
+    assert.ifError(err);
     assert.ok(Array.isArray(ips));
     assert.ok(ips.length > 0);
     assert.strictEqual(ips[0].address, '127.0.0.1');
@@ -426,7 +419,7 @@ TEST(function test_lookup_ip_all(done) {
 
 TEST(function test_lookup_null_all(done) {
   var req = dns.lookup(null, {all: true}, function(err, ips, family) {
-    if (err) throw err;
+    assert.ifError(err);
     assert.ok(Array.isArray(ips));
     assert.strictEqual(ips.length, 0);
 
@@ -439,7 +432,7 @@ TEST(function test_lookup_null_all(done) {
 
 TEST(function test_lookup_all_mixed(done) {
   var req = dns.lookup('www.google.com', {all: true}, function(err, ips) {
-    if (err) throw err;
+    assert.ifError(err);
     assert.ok(Array.isArray(ips));
     assert.ok(ips.length > 0);
 

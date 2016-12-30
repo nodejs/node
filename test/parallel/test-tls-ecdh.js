@@ -33,7 +33,7 @@ server.listen(0, '127.0.0.1', common.mustCall(function() {
     cmd += ' -no_rand_screen';
 
   exec(cmd, common.mustCall(function(err, stdout, stderr) {
-    if (err) throw err;
+    assert.ifError(err);
     assert(stdout.includes(reply));
     server.close();
   }));

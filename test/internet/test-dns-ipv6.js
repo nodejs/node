@@ -87,7 +87,7 @@ TEST(function test_lookup_ipv6_explicit(done) {
 /* This ends up just being too problematic to test
 TEST(function test_lookup_ipv6_implicit(done) {
   var req = dns.lookup('ipv6.google.com', function(err, ip, family) {
-    if (err) throw err;
+    assert.ifError(err);
     assert.ok(net.isIPv6(ip));
     assert.strictEqual(family, 6);
 
@@ -196,7 +196,7 @@ TEST(function test_lookupservice_ip_ipv6(done) {
 /* Disabled because it appears to be not working on linux. */
 /* TEST(function test_lookup_localhost_ipv6(done) {
   var req = dns.lookup('localhost', 6, function(err, ip, family) {
-    if (err) throw err;
+    assert.ifError(err);
     assert.ok(net.isIPv6(ip));
     assert.strictEqual(family, 6);
 

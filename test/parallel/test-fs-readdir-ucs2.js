@@ -19,7 +19,7 @@ const fullpath = Buffer.concat([root, filebuff]);
 fs.closeSync(fs.openSync(fullpath, 'w+'));
 
 fs.readdir(common.tmpDir, 'ucs2', (err, list) => {
-  if (err) throw err;
+  assert.ifError(err);
   assert.equal(1, list.length);
   const fn = list[0];
   assert.deepStrictEqual(filebuff, Buffer.from(fn, 'ucs2'));
