@@ -23,11 +23,11 @@ dest.on('data', function(x) {
 src.pipe(tx).pipe(dest);
 
 var i = -1;
-var int = setInterval(function() {
+setImmediate(function int() {
   if (i > 10) {
     src.end();
-    clearInterval(int);
   } else {
     src.write(i++);
+    setImmediate(int);
   }
 });
