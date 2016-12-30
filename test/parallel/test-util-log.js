@@ -1,7 +1,7 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var util = require('util');
+const assert = require('assert');
+const util = require('util');
 
 assert.ok(process.stdout.writable);
 assert.ok(process.stderr.writable);

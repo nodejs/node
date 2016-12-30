@@ -5,9 +5,9 @@ if (!common.hasCrypto) {
   return;
 }
 
-var fs = require('fs');
-var https = require('https');
-var crypto = require('crypto');
+const fs = require('fs');
+const https = require('https');
+const crypto = require('crypto');
 
 var options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),

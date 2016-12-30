@@ -1,14 +1,14 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var stream = require('stream');
-var util = require('util');
+const common = require('../common');
+const assert = require('assert');
+const stream = require('stream');
+const util = require('util');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var crypto = require('crypto');
+const crypto = require('crypto');
 
 // Small stream to buffer converter
 function Stream2buffer(callback) {

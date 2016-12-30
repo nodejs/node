@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var net = require('net');
+const net = require('net');
 
 var N = 50;
 var client_recv_count = 0;

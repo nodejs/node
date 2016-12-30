@@ -1,8 +1,8 @@
-var d = require('./d');
+const d = require('./d');
 
-var assert = require('assert');
+const assert = require('assert');
 
-var package = require('./package');
+const package = require('./package');
 
 assert.equal('world', package.hello);
 

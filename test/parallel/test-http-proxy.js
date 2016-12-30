@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var http = require('http');
-var url = require('url');
+const assert = require('assert');
+const http = require('http');
+const url = require('url');
 
 var cookies = [
   'session_token=; path=/; expires=Sun, 15-Sep-2030 13:48:52 GMT',

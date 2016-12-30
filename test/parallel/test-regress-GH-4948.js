@@ -2,7 +2,7 @@
 // https://github.com/joyent/node/issues/4948
 
 require('../common');
-var http = require('http');
+const http = require('http');
 
 var reqCount = 0;
 var server = http.createServer(function(serverReq, serverRes) {
@@ -31,7 +31,7 @@ var server = http.createServer(function(serverReq, serverRes) {
   serverRes.write('some data');
 }).listen(0, function() {
   // simulate a client request that closes early
-  var net = require('net');
+  const net = require('net');
 
   var sock = new net.Socket();
   sock.connect(this.address().port, 'localhost');

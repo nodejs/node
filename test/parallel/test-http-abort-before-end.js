@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
-var http = require('http');
-var assert = require('assert');
+const http = require('http');
+const assert = require('assert');
 
 var server = http.createServer(common.fail);
 

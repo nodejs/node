@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var common = require('../common');
-var assert = require('assert');
-var domain = require('domain');
+const common = require('../common');
+const assert = require('assert');
+const domain = require('domain');
 
 // no matter what happens, we should increment a 10 times.
 var a = 0;

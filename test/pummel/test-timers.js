@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 var WINDOW = 200; // why is does this need to be so big?
 

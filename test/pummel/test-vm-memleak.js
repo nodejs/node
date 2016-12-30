@@ -2,7 +2,7 @@
 // Flags: --max_old_space_size=32
 
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 var start = Date.now();
 var maxMem = 0;

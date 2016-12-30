@@ -1,8 +1,8 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var net = require('net');
+const net = require('net');
 
 var host = '*'.repeat(256);
 

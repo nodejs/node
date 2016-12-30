@@ -1,12 +1,12 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var join = require('path').join;
-var fs = require('fs');
+const assert = require('assert');
+const join = require('path').join;
+const fs = require('fs');
 
 common.refreshTmpDir();
 
-var repl = require('repl');
+const repl = require('repl');
 
 var works = [['inner.one'], 'inner.o'];
 

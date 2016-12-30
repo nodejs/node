@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var dns = require('dns');
-var domain = require('domain');
+const assert = require('assert');
+const dns = require('dns');
+const domain = require('domain');
 
 var methods = [
   'resolve4',

@@ -5,7 +5,7 @@
 // Flags: --expose_gc
 
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 var HTTPParser = process.binding('http_parser').HTTPParser;
 
 var kOnHeaders = HTTPParser.kOnHeaders | 0;

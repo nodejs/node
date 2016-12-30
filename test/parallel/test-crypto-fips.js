@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var spawnSync = require('child_process').spawnSync;
-var path = require('path');
+const common = require('../common');
+const assert = require('assert');
+const spawnSync = require('child_process').spawnSync;
+const path = require('path');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');

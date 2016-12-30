@@ -7,7 +7,7 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var https = require('https');
+const https = require('https');
 
 if (!common.hasMultiLocalhost()) {
   common.skip('platform-specific test.');

@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var execSync = require('child_process').execSync;
-var execFileSync = require('child_process').execFileSync;
+const execSync = require('child_process').execSync;
+const execFileSync = require('child_process').execFileSync;
 
 var TIMER = 200;
 var SLEEP = 2000;

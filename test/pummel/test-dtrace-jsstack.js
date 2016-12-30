@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var os = require('os');
+const assert = require('assert');
+const os = require('os');
 
 if (!common.isSunOS) {
   common.skip('no DTRACE support');
@@ -31,7 +31,7 @@ var doogle = function() {
   bagnoogle('The bfs command', '(almost) like ed(1)');
 };
 
-var spawn = require('child_process').spawn;
+const spawn = require('child_process').spawn;
 
 /*
  * We're going to use DTrace to stop us, gcore us, and set us running again

@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var net = require('net');
-var http = require('http');
-var util = require('util');
+const net = require('net');
+const http = require('http');
+const util = require('util');
 
 function Agent() {
   http.Agent.call(this);

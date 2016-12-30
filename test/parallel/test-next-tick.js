@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 process.nextTick(common.mustCall(function() {
   process.nextTick(common.mustCall(function() {
