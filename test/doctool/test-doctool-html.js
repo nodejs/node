@@ -96,7 +96,7 @@ testData.forEach(function(item) {
           const actual = output.replace(/\s/g, '');
           // Assert that the input stripped of all whitespace contains the
           // expected list
-          assert.notEqual(actual.indexOf(expected), -1);
+          assert.notStrictEqual(actual.indexOf(expected), -1);
         }));
     }));
   }));
