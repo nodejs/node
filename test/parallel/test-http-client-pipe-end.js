@@ -1,8 +1,8 @@
 'use strict';
 // see https://github.com/joyent/node/issues/3257
 
-var common = require('../common');
-var http = require('http');
+const common = require('../common');
+const http = require('http');
 
 var server = http.createServer(function(req, res) {
   req.resume();

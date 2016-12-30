@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var stream = require('stream');
+const stream = require('stream');
 var Readable = stream.Readable;
 var Writable = stream.Writable;
 

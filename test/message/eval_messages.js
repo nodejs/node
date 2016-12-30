@@ -2,7 +2,7 @@
 
 require('../common');
 
-var spawn = require('child_process').spawn;
+const spawn = require('child_process').spawn;
 
 function run(cmd, strict, cb) {
   var args = [];

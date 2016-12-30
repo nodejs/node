@@ -1,10 +1,10 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var net = require('net');
-var http = require('http');
-var url = require('url');
-var qs = require('querystring');
+const assert = require('assert');
+const net = require('net');
+const http = require('http');
+const url = require('url');
+const qs = require('querystring');
 
 var request_number = 0;
 var requests_sent = 0;

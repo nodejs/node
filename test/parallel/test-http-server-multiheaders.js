@@ -4,8 +4,8 @@
 // that support it, and dropping duplicates for other fields.
 
 require('../common');
-var assert = require('assert');
-var http = require('http');
+const assert = require('assert');
+const http = require('http');
 
 var srv = http.createServer(function(req, res) {
   assert.equal(req.headers.accept, 'abc, def, ghijklmnopqrst');

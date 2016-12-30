@@ -3,8 +3,8 @@
 // Ref(http):
 // groups.google.com/group/nodejs-dev/browse_thread/thread/e20f2f8df0296d3f
 const common = require('../common');
-var assert = require('assert');
-var spawn = require('child_process').spawn;
+const assert = require('assert');
+const spawn = require('child_process').spawn;
 
 console.log('start');
 

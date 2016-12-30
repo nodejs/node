@@ -1,6 +1,6 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 // setImmediate should run clear its queued cbs once per event loop turn
 // but immediates queued while processing the current queue should happen

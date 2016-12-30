@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common');
-var dgram = require('dgram');
+const dgram = require('dgram');
 
 var source = dgram.createSocket('udp4');
 var target = dgram.createSocket('udp4');

@@ -1,8 +1,8 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var util = require('util');
-var repl = require('repl');
+const assert = require('assert');
+const util = require('util');
+const repl = require('repl');
 
 // This test adds global variables
 common.globalCheck = false;

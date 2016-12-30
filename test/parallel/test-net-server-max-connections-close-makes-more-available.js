@@ -1,8 +1,8 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var net = require('net');
+const net = require('net');
 
 // Sets the server's maxConnections property to 1.
 // Open 2 connections (connection 0 and connection 1).

@@ -1,8 +1,8 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var EventEmitter = require('events').EventEmitter;
-var util = require('util');
+const assert = require('assert');
+const EventEmitter = require('events').EventEmitter;
+const util = require('util');
 
 util.inherits(MyEE, EventEmitter);
 

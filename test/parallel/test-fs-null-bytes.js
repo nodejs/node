@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
 
 function check(async, sync) {
   const expected = /Path must be a string without null bytes/;

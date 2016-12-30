@@ -1,8 +1,8 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var net = require('net');
+const assert = require('assert');
+const http = require('http');
+const net = require('net');
 
 // If an HTTP server is broken and sends data after the end of the response,
 // node should ignore it and drop the connection.

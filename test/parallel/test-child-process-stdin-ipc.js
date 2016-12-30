@@ -1,8 +1,8 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var spawn = require('child_process').spawn;
+const spawn = require('child_process').spawn;
 
 if (process.argv[2] === 'child') {
   // Just reference stdin, it should start it

@@ -8,8 +8,8 @@ console.trace = function() {
   throw new Error('no tracing should happen here');
 };
 
-var http = require('http');
-var net = require('net');
+const http = require('http');
+const net = require('net');
 
 var numRequests = 20;
 var first = false;

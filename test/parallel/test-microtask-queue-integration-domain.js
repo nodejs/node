@@ -1,6 +1,6 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 // Requiring the domain module here changes the function that is used by node to
 // call process.nextTick's callbacks to a variant that specifically handles

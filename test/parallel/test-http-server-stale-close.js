@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var http = require('http');
-var util = require('util');
-var fork = require('child_process').fork;
+const http = require('http');
+const util = require('util');
+const fork = require('child_process').fork;
 
 if (process.env.NODE_TEST_FORK_PORT) {
   var req = http.request({

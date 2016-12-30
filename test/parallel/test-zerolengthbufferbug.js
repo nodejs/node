@@ -2,7 +2,7 @@
 // Serving up a zero-length buffer should work.
 
 const common = require('../common');
-var http = require('http');
+const http = require('http');
 
 var server = http.createServer(function(req, res) {
   var buffer = Buffer.alloc(0);

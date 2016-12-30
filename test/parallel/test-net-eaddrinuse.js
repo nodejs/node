@@ -1,7 +1,7 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var net = require('net');
+const assert = require('assert');
+const net = require('net');
 
 var server1 = net.createServer(function(socket) {
 });

@@ -2,10 +2,10 @@
 // In previous versions of Node.js (e.g., 0.6.0), this sort of thing would halt
 // after http.globalAgent.maxSockets number of files.
 // See https://groups.google.com/forum/#!topic/nodejs-dev/V5fB69hFa9o
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const fs = require('fs');
 
 http.globalAgent.maxSockets = 1;
 

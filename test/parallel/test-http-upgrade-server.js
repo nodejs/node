@@ -1,10 +1,10 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var util = require('util');
-var net = require('net');
-var http = require('http');
+const util = require('util');
+const net = require('net');
+const http = require('http');
 
 
 var requests_recv = 0;

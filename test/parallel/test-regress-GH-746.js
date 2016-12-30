@@ -3,7 +3,7 @@
 // This is a regression test for GH-746.
 
 const common = require('../common');
-var net = require('net');
+const net = require('net');
 
 process.stdin.destroy();
 

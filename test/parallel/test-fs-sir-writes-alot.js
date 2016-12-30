@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var fs = require('fs');
-var assert = require('assert');
-var join = require('path').join;
+const common = require('../common');
+const fs = require('fs');
+const assert = require('assert');
+const join = require('path').join;
 
 var filename = join(common.tmpDir, 'out.txt');
 

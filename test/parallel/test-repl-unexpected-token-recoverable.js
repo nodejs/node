@@ -3,9 +3,9 @@
  * This is a regression test for https://github.com/joyent/node/issues/8874.
  */
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var spawn = require('child_process').spawn;
+const spawn = require('child_process').spawn;
 // use -i to force node into interactive mode, despite stdout not being a TTY
 var args = [ '-i' ];
 var child = spawn(process.execPath, args);

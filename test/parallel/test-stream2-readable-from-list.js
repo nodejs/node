@@ -1,9 +1,9 @@
 // Flags: --expose_internals
 'use strict';
 require('../common');
-var assert = require('assert');
-var fromList = require('_stream_readable')._fromList;
-var BufferList = require('internal/streams/BufferList');
+const assert = require('assert');
+const fromList = require('_stream_readable')._fromList;
+const BufferList = require('internal/streams/BufferList');
 
 // tiny node-tap lookalike.
 var tests = [];

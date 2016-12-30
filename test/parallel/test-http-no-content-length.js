@@ -1,8 +1,8 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var net = require('net');
-var http = require('http');
+const assert = require('assert');
+const net = require('net');
+const http = require('http');
 
 var server = net.createServer(function(socket) {
   // Neither Content-Length nor Connection

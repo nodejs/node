@@ -7,17 +7,17 @@
 // This test is to be sure that the https client is handling this case
 // correctly.
 
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var https = require('https');
-var tls = require('tls');
+const https = require('https');
+const tls = require('tls');
 
-var fs = require('fs');
+const fs = require('fs');
 
 var options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),

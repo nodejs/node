@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var vm = require('vm');
-var spawn = require('child_process').spawn;
+const assert = require('assert');
+const vm = require('vm');
+const spawn = require('child_process').spawn;
 
 if (process.argv[2] === 'child') {
   var code = 'var j = 0;\n' +

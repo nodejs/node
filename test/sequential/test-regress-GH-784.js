@@ -7,9 +7,9 @@
 // The next two are made with server on - they should come back successful.
 // The next two are made with the server off - and so on.  Without the fix
 // we were experiencing parse errors and instead of ECONNREFUSED.
-var common = require('../common');
-var http = require('http');
-var assert = require('assert');
+const common = require('../common');
+const http = require('http');
+const assert = require('assert');
 
 
 var server = http.createServer(function(req, res) {

@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var exec = require('child_process').exec;
+const assert = require('assert');
+const exec = require('child_process').exec;
 
 if (common.isOSX) {
   common.skip('Output of `id -G` is unreliable on Darwin.');

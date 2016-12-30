@@ -1,9 +1,9 @@
 // Flags: --expose_internals
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var fs = require('fs');
+const fs = require('fs');
 
 var O_APPEND = fs.constants.O_APPEND || 0;
 var O_CREAT = fs.constants.O_CREAT || 0;

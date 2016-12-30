@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 console.error('load test-module-loading-error.js');
 

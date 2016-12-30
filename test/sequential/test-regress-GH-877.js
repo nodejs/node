@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var http = require('http');
-var assert = require('assert');
+const common = require('../common');
+const http = require('http');
+const assert = require('assert');
 
 var N = 20;
 var responses = 0;

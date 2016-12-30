@@ -1,7 +1,7 @@
 'use strict';
 // Requires special privileges
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 var oldgid = process.getgid();
 process.setgid('nobody');

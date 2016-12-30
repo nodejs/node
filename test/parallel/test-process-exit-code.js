@@ -1,6 +1,6 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 switch (process.argv[2]) {
   case 'child1':
@@ -70,7 +70,7 @@ function parent() {
 }
 
 function test(arg, exit) {
-  var spawn = require('child_process').spawn;
+  const spawn = require('child_process').spawn;
   var node = process.execPath;
   var f = __filename;
   var option = { stdio: [ 0, 1, 'ignore' ] };

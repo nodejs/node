@@ -1,7 +1,7 @@
 'use strict';
 require('../common');
-var stream = require('stream');
-var Buffer = require('buffer').Buffer;
+const stream = require('stream');
+const Buffer = require('buffer').Buffer;
 
 var r = new stream.Readable();
 r._read = function(size) {

@@ -29,7 +29,7 @@ const fs = require('fs');
 const domainErrHandlerExMessage = 'exception from domain error handler';
 
 if (process.argv[2] === 'child') {
-  var domain = require('domain');
+  const domain = require('domain');
   var d = domain.create();
 
   process.on('uncaughtException', function onUncaughtException() {
@@ -80,7 +80,7 @@ if (process.argv[2] === 'child') {
     throw new Error('Error from domain.run callback');
   });
 } else {
-  var exec = require('child_process').exec;
+  const exec = require('child_process').exec;
 
   function testDomainExceptionHandling(cmdLineOption, options) {
     if (typeof cmdLineOption === 'object') {

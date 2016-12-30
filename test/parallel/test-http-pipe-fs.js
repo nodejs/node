@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var http = require('http');
-var fs = require('fs');
-var path = require('path');
+const common = require('../common');
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
 
 common.refreshTmpDir();
 
