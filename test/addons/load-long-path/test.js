@@ -33,5 +33,5 @@ fs.writeFileSync(addonDestinationPath, contents);
 
 // Attempt to load at long path destination
 const addon = require(addonDestinationPath);
-assert.notEqual(addon, null);
+assert.notStrictEqual(addon, null);
 assert.strictEqual(addon.hello(), 'world');
