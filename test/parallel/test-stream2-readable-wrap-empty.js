@@ -1,8 +1,8 @@
 'use strict';
 const common = require('../common');
 
-var Readable = require('_stream_readable');
-var EE = require('events').EventEmitter;
+const Readable = require('_stream_readable');
+const EE = require('events').EventEmitter;
 
 var oldStream = new EE();
 oldStream.pause = function() {};

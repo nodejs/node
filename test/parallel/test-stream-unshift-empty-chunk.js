@@ -1,10 +1,10 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 // This test verifies that stream.unshift(Buffer.alloc(0)) or
 // stream.unshift('') does not set state.reading=false.
-var Readable = require('stream').Readable;
+const Readable = require('stream').Readable;
 
 var r = new Readable();
 var nChunks = 10;

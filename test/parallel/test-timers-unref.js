@@ -1,6 +1,6 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 let interval_fired = false;
 let timeout_fired = false;

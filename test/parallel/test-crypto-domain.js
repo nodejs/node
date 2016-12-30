@@ -1,13 +1,13 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var domain = require('domain');
+const common = require('../common');
+const assert = require('assert');
+const domain = require('domain');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var crypto = require('crypto');
+const crypto = require('crypto');
 
 function test(fn) {
   var ex = new Error('BAM');

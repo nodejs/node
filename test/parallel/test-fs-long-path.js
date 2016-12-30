@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var fs = require('fs');
-var path = require('path');
+const common = require('../common');
+const fs = require('fs');
+const path = require('path');
 
 if (!common.isWindows) {
   common.skip('this test is Windows-specific.');

@@ -3,8 +3,8 @@
 // doesn't break anything.
 
 require('../common');
-var assert = require('assert');
-var Stream = require('stream').Stream;
+const assert = require('assert');
+const Stream = require('stream').Stream;
 var rr = [];
 var ww = [];
 var cnt = 100;

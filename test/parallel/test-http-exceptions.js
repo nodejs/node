@@ -1,6 +1,6 @@
 'use strict';
 require('../common');
-var http = require('http');
+const http = require('http');
 
 var server = http.createServer(function(req, res) {
   intentionally_not_defined(); // eslint-disable-line no-undef

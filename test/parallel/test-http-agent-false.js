@@ -1,7 +1,7 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var http = require('http');
+const assert = require('assert');
+const http = require('http');
 
 // sending `agent: false` when `port: null` is also passed in (i.e. the result
 // of a `url.parse()` call with the default port used, 80 or 443), should not

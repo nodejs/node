@@ -1,9 +1,9 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 // verify that stdout is never read from.
-var net = require('net');
+const net = require('net');
 var read = net.Socket.prototype.read;
 
 net.Socket.prototype.read = function() {
@@ -20,7 +20,7 @@ else
   parent();
 
 function parent() {
-  var spawn = require('child_process').spawn;
+  const spawn = require('child_process').spawn;
   var node = process.execPath;
 
   var c1 = spawn(node, [__filename, 'child']);

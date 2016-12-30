@@ -7,7 +7,7 @@ function test() {
   const d = domain.create();
 
   d.run(function() {
-    var fs = require('fs');
+    const fs = require('fs');
     fs.exists('/non/existing/file', function onExists() {
       throw new Error('boom!');
     });

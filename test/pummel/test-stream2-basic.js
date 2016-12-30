@@ -1,10 +1,10 @@
 'use strict';
 require('../common');
-var R = require('_stream_readable');
-var assert = require('assert');
+const R = require('_stream_readable');
+const assert = require('assert');
 
-var util = require('util');
-var EE = require('events').EventEmitter;
+const util = require('util');
+const EE = require('events').EventEmitter;
 
 function TestReader(n) {
   R.apply(this);

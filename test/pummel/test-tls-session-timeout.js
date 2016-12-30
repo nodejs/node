@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 
 if (!common.opensslCli) {
   common.skip('node compiled without OpenSSL CLI.');
@@ -22,11 +22,11 @@ doTest();
 //   that we used has expired by now.
 
 function doTest() {
-  var assert = require('assert');
-  var tls = require('tls');
-  var fs = require('fs');
-  var join = require('path').join;
-  var spawn = require('child_process').spawn;
+  const assert = require('assert');
+  const tls = require('tls');
+  const fs = require('fs');
+  const join = require('path').join;
+  const spawn = require('child_process').spawn;
 
   var SESSION_TIMEOUT = 1;
 

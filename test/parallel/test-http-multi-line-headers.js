@@ -1,9 +1,9 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var http = require('http');
-var net = require('net');
+const http = require('http');
+const net = require('net');
 
 var server = net.createServer(function(conn) {
   var body = 'Yet another node.js server.';

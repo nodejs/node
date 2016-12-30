@@ -1,22 +1,22 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 
 if (!common.opensslCli) {
   common.skip('node compiled without OpenSSL CLI.');
   return;
 }
 
-var assert = require('assert');
-var join = require('path').join;
+const assert = require('assert');
+const join = require('path').join;
 
-var fs = require('fs');
-var spawn = require('child_process').spawn;
+const fs = require('fs');
+const spawn = require('child_process').spawn;
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var https = require('https');
+const https = require('https');
 
 var options = {
   key: fs.readFileSync(common.fixturesDir + '/agent.key'),

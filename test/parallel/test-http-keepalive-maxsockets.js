@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var http = require('http');
+const http = require('http');
 
 
 var serverSockets = [];

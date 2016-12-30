@@ -1,9 +1,9 @@
 'use strict';
 // Can't test this when 'make test' doesn't assign a tty to the stdout.
 // Yet another use-case for require('tty').spawn ?
-var common = require('../common');
-var assert = require('assert');
-var readline = require('readline');
+const common = require('../common');
+const assert = require('assert');
+const readline = require('readline');
 
 var key = {
   xterm: {

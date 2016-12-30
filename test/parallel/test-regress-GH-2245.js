@@ -1,6 +1,6 @@
 /* eslint-disable strict */
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 /*
 In Node.js 0.10, a bug existed that caused strict functions to not capture

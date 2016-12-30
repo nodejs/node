@@ -26,15 +26,15 @@
 //     seen in a response yet. This is intended to ensure that all blobs
 //     sent out have been relayed back to us.
 
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var buffer = require('buffer');
-var child_process = require('child_process');
-var fs = require('fs');
-var net = require('net');
+const buffer = require('buffer');
+const child_process = require('child_process');
+const fs = require('fs');
+const net = require('net');
 var netBinding = process.binding('net');
-var path = require('path');
+const path = require('path');
 
 var DATA = {
   'ppid' : process.pid,

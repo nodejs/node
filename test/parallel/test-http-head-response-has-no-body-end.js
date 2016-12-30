@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common');
-var http = require('http');
+const http = require('http');
 
 // This test is to make sure that when the HTTP server
 // responds to a HEAD request with data to res.end,

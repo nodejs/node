@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var http = require('http');
-var net = require('net');
+const assert = require('assert');
+const http = require('http');
+const net = require('net');
 
 var SERVER_RESPONSES = [
   'HTTP/1.0 200 ok\r\nContent-Length: 0\r\n\r\n',

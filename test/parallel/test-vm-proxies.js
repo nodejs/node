@@ -1,8 +1,8 @@
 'use strict';
 
 require('../common');
-var assert = require('assert');
-var vm = require('vm');
+const assert = require('assert');
+const vm = require('vm');
 
 // src/node_contextify.cc filters out the Proxy object from the parent
 // context.  Make sure that the new context has a Proxy object of its own.

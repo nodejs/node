@@ -1,7 +1,7 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var http = require('http');
+const assert = require('assert');
+const http = require('http');
 
 // Simple test of Node's HTTP ServerResponse.statusCode
 // ServerResponse.prototype.statusCode

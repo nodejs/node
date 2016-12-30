@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var inspect = require('util').inspect;
-var StringDecoder = require('string_decoder').StringDecoder;
+const assert = require('assert');
+const inspect = require('util').inspect;
+const StringDecoder = require('string_decoder').StringDecoder;
 
 // Test default encoding
 var decoder = new StringDecoder();

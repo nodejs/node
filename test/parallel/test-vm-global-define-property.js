@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var vm = require('vm');
+const vm = require('vm');
 
 var code =
     'Object.defineProperty(this, "f", {\n' +

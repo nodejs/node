@@ -1,14 +1,14 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var fs = require('fs');
+const fs = require('fs');
 
 var buf = Buffer.allocUnsafe(10000);
 var received = 0;

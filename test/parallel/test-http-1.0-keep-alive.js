@@ -1,7 +1,7 @@
 'use strict';
 require('../common');
-var http = require('http');
-var net = require('net');
+const http = require('http');
+const net = require('net');
 
 // Check that our HTTP server correctly handles HTTP/1.0 keep-alive requests.
 check([{

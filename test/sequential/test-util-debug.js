@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 if (process.argv[2] === 'child')
   child();
@@ -24,7 +24,7 @@ function test(environ, shouldWrite) {
   }
   var expectOut = 'ok\n';
 
-  var spawn = require('child_process').spawn;
+  const spawn = require('child_process').spawn;
   var child = spawn(process.execPath, [__filename, 'child'], {
     env: Object.assign(process.env, { NODE_DEBUG: environ })
   });
@@ -53,7 +53,7 @@ function test(environ, shouldWrite) {
 
 
 function child() {
-  var util = require('util');
+  const util = require('util');
   var debug = util.debuglog('tud');
   debug('this', { is: 'a' }, /debugging/);
   debug('number=%d string=%s obj=%j', 1234, 'asdf', { foo: 'bar' });

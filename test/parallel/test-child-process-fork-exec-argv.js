@@ -1,7 +1,7 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var child_process = require('child_process');
+const assert = require('assert');
+const child_process = require('child_process');
 var spawn = child_process.spawn;
 var fork = child_process.fork;
 

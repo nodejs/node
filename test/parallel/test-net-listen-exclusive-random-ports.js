@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var net = require('net');
+const assert = require('assert');
+const cluster = require('cluster');
+const net = require('net');
 
 function noop() {}
 

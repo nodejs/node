@@ -1,9 +1,9 @@
 'use strict';
 // Flags: --expose-gc
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var vm = require('vm');
+const vm = require('vm');
 
 console.error('run in a new empty context');
 var context = vm.createContext();

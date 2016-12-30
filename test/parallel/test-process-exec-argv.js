@@ -1,7 +1,7 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var spawn = require('child_process').spawn;
+const assert = require('assert');
+const spawn = require('child_process').spawn;
 
 if (process.argv[2] === 'child') {
   process.stdout.write(JSON.stringify(process.execArgv));

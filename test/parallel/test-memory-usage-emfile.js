@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var fs = require('fs');
+const fs = require('fs');
 
 var files = [];
 
