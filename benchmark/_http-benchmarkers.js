@@ -61,7 +61,7 @@ WrkBenchmarker.prototype.create = function(options) {
 WrkBenchmarker.prototype.processResults = function(output) {
   const match = output.match(this.regexp);
   const result = match && +match[1];
-  if (!result) {
+  if (!isFinite(result)) {
     return undefined;
   } else {
     return result;
@@ -126,7 +126,7 @@ exports.run = function(options, callback) {
     }
 
     const result = benchmarker.processResults(stdout);
-    if (!result) {
+    if (result === undefined) {
       callback(new Error(`${options.benchmarker} produced strange output: ` +
                          stdout, code));
       return;
