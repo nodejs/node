@@ -27,6 +27,7 @@
 namespace node {
 
 using v8::Array;
+using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Function;
@@ -397,6 +398,30 @@ static void Access(const FunctionCallbackInfo<Value>& args) {
   } else {
     SYNC_CALL(access, *path, *path, mode);
   }
+}
+
+static void AccessibleSync(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args.GetIsolate());
+  HandleScope scope(env->isolate());
+
+  if (args.Length() < 2)
+    return TYPE_ERROR("path and mode are required");
+  if (!args[1]->IsInt32())
+    return TYPE_ERROR("mode must be an integer");
+
+  BufferValue path(env->isolate(), args[0]);
+  ASSERT_PATH(path)
+
+  int mode = static_cast<int>(args[1]->Int32Value());
+
+  fs_req_wrap req_wrap;
+  env->PrintSyncTrace();
+  int err = uv_fs_access(
+    env->event_loop(), &req_wrap.req, *path, mode, nullptr);
+
+  bool failed = err < 0;
+
+  args.GetReturnValue().Set(Boolean::New(env->isolate(), !failed));
 }
 
 
@@ -1452,6 +1477,7 @@ void InitFs(Local<Object> target,
               env->NewFunctionTemplate(FSInitialize)->GetFunction());
 
   env->SetMethod(target, "access", Access);
+  env->SetMethod(target, "accessibleSync", AccessibleSync);
   env->SetMethod(target, "close", Close);
   env->SetMethod(target, "open", Open);
   env->SetMethod(target, "read", Read);
