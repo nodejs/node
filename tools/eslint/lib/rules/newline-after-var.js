@@ -21,7 +21,9 @@ module.exports = {
             {
                 enum: ["never", "always"]
             }
-        ]
+        ],
+
+        fixable: "whitespace"
     },
 
     create(context) {
@@ -35,7 +37,7 @@ module.exports = {
         const mode = context.options[0] === "never" ? "never" : "always";
 
         // Cache starting and ending line numbers of comments for faster lookup
-        const commentEndLine = sourceCode.getAllComments().reduce(function(result, token) {
+        const commentEndLine = sourceCode.getAllComments().reduce((result, token) => {
             result[token.loc.start.line] = token.loc.end.line;
             return result;
         }, {});
@@ -120,20 +122,24 @@ module.exports = {
         }
 
         /**
+        * Gets the last line of a group of consecutive comments
+        * @param {number} commentStartLine The starting line of the group
+        * @returns {number} The number of the last comment line of the group
+        */
+        function getLastCommentLineOfBlock(commentStartLine) {
+            const currentCommentEnd = commentEndLine[commentStartLine];
+
+            return commentEndLine[currentCommentEnd + 1] ? getLastCommentLineOfBlock(currentCommentEnd + 1) : currentCommentEnd;
+        }
+
+        /**
          * Determine if a token starts more than one line after a comment ends
          * @param  {token}   token            The token being checked
          * @param {integer}  commentStartLine The line number on which the comment starts
          * @returns {boolean}                 True if `token` does not start immediately after a comment
          */
         function hasBlankLineAfterComment(token, commentStartLine) {
-            const commentEnd = commentEndLine[commentStartLine];
-
-            // If there's another comment, repeat check for blank line
-            if (commentEndLine[commentEnd + 1]) {
-                return hasBlankLineAfterComment(token, commentEnd + 1);
-            }
-
-            return (token.loc.start.line > commentEndLine[commentStartLine] + 1);
+            return token.loc.start.line > getLastCommentLineOfBlock(commentStartLine) + 1;
         }
 
         /**
@@ -145,8 +151,18 @@ module.exports = {
          * @returns {void}
          */
         function checkForBlankLine(node) {
+
+            /*
+             * lastToken is the last token on the node's line. It will usually also be the last token of the node, but it will
+             * sometimes be second-last if there is a semicolon on a different line.
+             */
             const lastToken = getLastToken(node),
-                nextToken = sourceCode.getTokenAfter(node),
+
+                /*
+                 * If lastToken is the last token of the node, nextToken should be the token after the node. Otherwise, nextToken
+                 * is the last token of the node.
+                 */
+                nextToken = lastToken === sourceCode.getLastToken(node) ? sourceCode.getTokenAfter(node) : sourceCode.getLastToken(node),
                 nextLineNum = lastToken.loc.end.line + 1;
 
             // Ignore if there is no following statement
@@ -180,7 +196,17 @@ module.exports = {
             const hasNextLineComment = (typeof commentEndLine[nextLineNum] !== "undefined");
 
             if (mode === "never" && noNextLineToken && !hasNextLineComment) {
-                context.report(node, NEVER_MESSAGE, { identifier: node.name });
+                context.report({
+                    node,
+                    message: NEVER_MESSAGE,
+                    data: { identifier: node.name },
+                    fix(fixer) {
+                        const NEWLINE_REGEX = /\r\n|\r|\n|\u2028|\u2029/;
+                        const linesBetween = sourceCode.getText().slice(lastToken.range[1], nextToken.range[0]).split(NEWLINE_REGEX);
+
+                        return fixer.replaceTextRange([lastToken.range[1], nextToken.range[0]], `${linesBetween.slice(0, -1).join("")}\n${linesBetween[linesBetween.length - 1]}`);
+                    }
+                });
             }
 
             // Token on the next line, or comment without blank line
@@ -190,7 +216,18 @@ module.exports = {
                     hasNextLineComment && !hasBlankLineAfterComment(nextToken, nextLineNum)
                 )
             ) {
-                context.report(node, ALWAYS_MESSAGE, { identifier: node.name });
+                context.report({
+                    node,
+                    message: ALWAYS_MESSAGE,
+                    data: { identifier: node.name },
+                    fix(fixer) {
+                        if ((noNextLineToken ? getLastCommentLineOfBlock(nextLineNum) : lastToken.loc.end.line) === nextToken.loc.start.line) {
+                            return fixer.insertTextBefore(nextToken, "\n\n");
+                        }
+
+                        return fixer.insertTextBeforeRange([nextToken.range[0] - nextToken.loc.start.column, nextToken.range[1]], "\n");
+                    }
+                });
             }
         }
 

@@ -92,7 +92,8 @@ function checkAsyncFunction(opts, required) {
 function getRegenerator(opts, required) {
   try {
     if (!regenerator) {
-      regenerator = require('' + 'regenerator');
+      var name = 'regenerator';
+      regenerator = require(name);
       regenerator.runtime();
     }
     if (!opts.async || opts.async === true)
@@ -113,7 +114,10 @@ function regeneratorTranspile(code) {
 function getNodent(opts, required) {
   /* jshint evil: true */
   try {
-    if (!nodent) nodent = require('' + 'nodent')({ log: false, dontInstallRequireHook: true });
+    if (!nodent) {
+      var name = 'nodent';
+      nodent = require(name)({ log: false, dontInstallRequireHook: true });
+    }
     if (opts.async != 'es7') {
       if (opts.async && opts.async !== true) console.warn('nodent transpiles only es7 async functions');
       opts.async = 'es7';

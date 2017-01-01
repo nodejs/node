@@ -10,7 +10,7 @@ var baseIndexOf = require('./_baseIndexOf');
  * @returns {boolean} Returns `true` if `target` is found, else `false`.
  */
 function arrayIncludes(array, value) {
-  var length = array ? array.length : 0;
+  var length = array == null ? 0 : array.length;
   return !!length && baseIndexOf(array, value, 0) > -1;
 }
 

@@ -86,7 +86,7 @@ module.exports = {
             {
                 type: "object",
                 properties: {
-                    allowIndirect: {type: "boolean"}
+                    allowIndirect: { type: "boolean" }
                 },
                 additionalProperties: false
             }

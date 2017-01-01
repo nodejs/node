@@ -34,10 +34,10 @@ module.exports = {
         function report(node) {
             const parent = context.getAncestors().pop();
 
-            context.report(node, parent.type === "Program" ?
+            context.report({ node, message: parent.type === "Program" ?
                 "Block is redundant." :
                 "Nested block is redundant."
-            );
+            });
         }
 
         /**

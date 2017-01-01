@@ -28,7 +28,7 @@ module.exports = {
                     const parent = context.getAncestors().pop();
 
                     if (!parent || parent.type !== "MemberExpression" || node !== parent.property || parent.computed) {
-                        context.report(node, "Unexpected use of undefined.");
+                        context.report({ node, message: "Unexpected use of undefined." });
                     }
                 }
             }

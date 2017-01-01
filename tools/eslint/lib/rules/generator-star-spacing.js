@@ -28,8 +28,8 @@ module.exports = {
                     {
                         type: "object",
                         properties: {
-                            before: {type: "boolean"},
-                            after: {type: "boolean"}
+                            before: { type: "boolean" },
+                            after: { type: "boolean" }
                         },
                         additionalProperties: false
                     }

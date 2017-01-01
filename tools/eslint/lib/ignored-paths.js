@@ -72,160 +72,161 @@ function mergeDefaultOptions(options) {
 //------------------------------------------------------------------------------
 
 /**
- * IgnoredPaths
- * @constructor
- * @class IgnoredPaths
- * @param {Object} options object containing 'ignore', 'ignorePath' and 'patterns' properties
+ * IgnoredPaths class
  */
-function IgnoredPaths(options) {
-
-    options = mergeDefaultOptions(options);
+class IgnoredPaths {
 
     /**
-     * add pattern to node-ignore instance
-     * @param {Object} ig, instance of node-ignore
-     * @param {string} pattern, pattern do add to ig
-     * @returns {array} raw ignore rules
+     * @param {Object} options object containing 'ignore', 'ignorePath' and 'patterns' properties
      */
-    function addPattern(ig, pattern) {
-        return ig.addPattern(pattern);
-    }
+    constructor(options) {
+        options = mergeDefaultOptions(options);
 
-    /**
-     * add ignore file to node-ignore instance
-     * @param {Object} ig, instance of node-ignore
-     * @param {string} filepath, file to add to ig
-     * @returns {array} raw ignore rules
-     */
-    function addIgnoreFile(ig, filepath) {
-        ig.ignoreFiles.push(filepath);
-        return ig.add(fs.readFileSync(filepath, "utf8"));
-    }
-
-    this.defaultPatterns = [].concat(DEFAULT_IGNORE_DIRS, options.patterns || []);
-    this.baseDir = options.cwd;
-
-    this.ig = {
-        custom: ignore(),
-        default: ignore()
-    };
-
-    // Add a way to keep track of ignored files.  This was present in node-ignore
-    // 2.x, but dropped for now as of 3.0.10.
-    this.ig.custom.ignoreFiles = [];
-    this.ig.default.ignoreFiles = [];
-
-    if (options.dotfiles !== true) {
-
-        /*
-         * ignore files beginning with a dot, but not files in a parent or
-         * ancestor directory (which in relative format will begin with `../`).
+        /**
+         * add pattern to node-ignore instance
+         * @param {Object} ig, instance of node-ignore
+         * @param {string} pattern, pattern do add to ig
+         * @returns {array} raw ignore rules
          */
-        addPattern(this.ig.default, [".*", "!../"]);
-    }
+        function addPattern(ig, pattern) {
+            return ig.addPattern(pattern);
+        }
 
-    addPattern(this.ig.default, this.defaultPatterns);
+        /**
+         * add ignore file to node-ignore instance
+         * @param {Object} ig, instance of node-ignore
+         * @param {string} filepath, file to add to ig
+         * @returns {array} raw ignore rules
+         */
+        function addIgnoreFile(ig, filepath) {
+            ig.ignoreFiles.push(filepath);
+            return ig.add(fs.readFileSync(filepath, "utf8"));
+        }
 
-    if (options.ignore !== false) {
-        let ignorePath;
+        this.defaultPatterns = [].concat(DEFAULT_IGNORE_DIRS, options.patterns || []);
+        this.baseDir = options.cwd;
 
-        if (options.ignorePath) {
-            debug("Using specific ignore file");
+        this.ig = {
+            custom: ignore(),
+            default: ignore()
+        };
 
-            try {
-                fs.statSync(options.ignorePath);
-                ignorePath = options.ignorePath;
-            } catch (e) {
-                e.message = `Cannot read ignore file: ${options.ignorePath}\nError: ${e.message}`;
-                throw e;
+        // Add a way to keep track of ignored files.  This was present in node-ignore
+        // 2.x, but dropped for now as of 3.0.10.
+        this.ig.custom.ignoreFiles = [];
+        this.ig.default.ignoreFiles = [];
+
+        if (options.dotfiles !== true) {
+
+            /*
+             * ignore files beginning with a dot, but not files in a parent or
+             * ancestor directory (which in relative format will begin with `../`).
+             */
+            addPattern(this.ig.default, [".*", "!../"]);
+        }
+
+        addPattern(this.ig.default, this.defaultPatterns);
+
+        if (options.ignore !== false) {
+            let ignorePath;
+
+            if (options.ignorePath) {
+                debug("Using specific ignore file");
+
+                try {
+                    fs.statSync(options.ignorePath);
+                    ignorePath = options.ignorePath;
+                } catch (e) {
+                    e.message = `Cannot read ignore file: ${options.ignorePath}\nError: ${e.message}`;
+                    throw e;
+                }
+            } else {
+                debug(`Looking for ignore file in ${options.cwd}`);
+                ignorePath = findIgnoreFile(options.cwd);
+
+                try {
+                    fs.statSync(ignorePath);
+                    debug(`Loaded ignore file ${ignorePath}`);
+                } catch (e) {
+                    debug("Could not find ignore file in cwd");
+                    this.options = options;
+                }
             }
-        } else {
-            debug(`Looking for ignore file in ${options.cwd}`);
-            ignorePath = findIgnoreFile(options.cwd);
 
-            try {
-                fs.statSync(ignorePath);
-                debug(`Loaded ignore file ${ignorePath}`);
-            } catch (e) {
-                debug("Could not find ignore file in cwd");
-                this.options = options;
+            if (ignorePath) {
+                debug(`Adding ${ignorePath}`);
+                this.baseDir = path.dirname(path.resolve(options.cwd, ignorePath));
+                addIgnoreFile(this.ig.custom, ignorePath);
+                addIgnoreFile(this.ig.default, ignorePath);
+            }
+
+            if (options.ignorePattern) {
+                addPattern(this.ig.custom, options.ignorePattern);
+                addPattern(this.ig.default, options.ignorePattern);
             }
         }
 
-        if (ignorePath) {
-            debug(`Adding ${ignorePath}`);
-            this.baseDir = path.dirname(path.resolve(options.cwd, ignorePath));
-            addIgnoreFile(this.ig.custom, ignorePath);
-            addIgnoreFile(this.ig.default, ignorePath);
-        }
-
-        if (options.ignorePattern) {
-            addPattern(this.ig.custom, options.ignorePattern);
-            addPattern(this.ig.default, options.ignorePattern);
-        }
+        this.options = options;
     }
-
-    this.options = options;
-
-}
-
-/**
- * Determine whether a file path is included in the default or custom ignore patterns
- * @param {string} filepath Path to check
- * @param {string} [category=null] check 'default', 'custom' or both (null)
- * @returns {boolean} true if the file path matches one or more patterns, false otherwise
- */
-IgnoredPaths.prototype.contains = function(filepath, category) {
-
-    let result = false;
-    const absolutePath = path.resolve(this.options.cwd, filepath);
-    const relativePath = pathUtil.getRelativePath(absolutePath, this.options.cwd);
-
-    if ((typeof category === "undefined") || (category === "default")) {
-        result = result || (this.ig.default.filter([relativePath]).length === 0);
-    }
-
-    if ((typeof category === "undefined") || (category === "custom")) {
-        result = result || (this.ig.custom.filter([relativePath]).length === 0);
-    }
-
-    return result;
-
-};
-
-/**
- * Returns a list of dir patterns for glob to ignore
- * @returns {function()} method to check whether a folder should be ignored by glob.
- */
-IgnoredPaths.prototype.getIgnoredFoldersGlobChecker = function() {
-
-    const ig = ignore().add(DEFAULT_IGNORE_DIRS);
-
-    if (this.options.ignore) {
-        ig.add(this.ig.custom);
-    }
-
-    const filter = ig.createFilter();
 
     /**
-     * TODO
-     * 1.
-     * Actually, it should be `this.options.baseDir`, which is the base dir of `ignore-path`,
-     * as well as Line 177.
-     * But doing this leads to a breaking change and fails tests.
-     * Related to #6759
+     * Determine whether a file path is included in the default or custom ignore patterns
+     * @param {string} filepath Path to check
+     * @param {string} [category=null] check 'default', 'custom' or both (null)
+     * @returns {boolean} true if the file path matches one or more patterns, false otherwise
      */
-    const base = this.options.cwd;
+    contains(filepath, category) {
 
-    return function(absolutePath) {
-        const relative = pathUtil.getRelativePath(absolutePath, base);
+        let result = false;
+        const absolutePath = path.resolve(this.options.cwd, filepath);
+        const relativePath = pathUtil.getRelativePath(absolutePath, this.options.cwd);
 
-        if (!relative) {
-            return false;
+        if ((typeof category === "undefined") || (category === "default")) {
+            result = result || (this.ig.default.filter([relativePath]).length === 0);
         }
 
-        return !filter(relative);
-    };
-};
+        if ((typeof category === "undefined") || (category === "custom")) {
+            result = result || (this.ig.custom.filter([relativePath]).length === 0);
+        }
+
+        return result;
+
+    }
+
+    /**
+     * Returns a list of dir patterns for glob to ignore
+     * @returns {function()} method to check whether a folder should be ignored by glob.
+     */
+    getIgnoredFoldersGlobChecker() {
+
+        const ig = ignore().add(DEFAULT_IGNORE_DIRS);
+
+        if (this.options.ignore) {
+            ig.add(this.ig.custom);
+        }
+
+        const filter = ig.createFilter();
+
+        /**
+         * TODO
+         * 1.
+         * Actually, it should be `this.options.baseDir`, which is the base dir of `ignore-path`,
+         * as well as Line 177.
+         * But doing this leads to a breaking change and fails tests.
+         * Related to #6759
+         */
+        const base = this.options.cwd;
+
+        return function(absolutePath) {
+            const relative = pathUtil.getRelativePath(absolutePath, base);
+
+            if (!relative) {
+                return false;
+            }
+
+            return !filter(relative);
+        };
+    }
+}
 
 module.exports = IgnoredPaths;

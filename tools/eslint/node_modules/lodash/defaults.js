@@ -1,7 +1,7 @@
 var apply = require('./_apply'),
-    assignInDefaults = require('./_assignInDefaults'),
     assignInWith = require('./assignInWith'),
-    baseRest = require('./_baseRest');
+    baseRest = require('./_baseRest'),
+    customDefaultsAssignIn = require('./_customDefaultsAssignIn');
 
 /**
  * Assigns own and inherited enumerable string keyed properties of source
@@ -25,7 +25,7 @@ var apply = require('./_apply'),
  * // => { 'a': 1, 'b': 2 }
  */
 var defaults = baseRest(function(args) {
-  args.push(undefined, assignInDefaults);
+  args.push(undefined, customDefaultsAssignIn);
   return apply(assignInWith, undefined, args);
 });
 

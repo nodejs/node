@@ -33,7 +33,7 @@ module.exports = {
          * @returns {void}
          */
         function displayReport(node) {
-            context.report(node, "Unnecessary 'else' after 'return'.");
+            context.report({ node, message: "Unnecessary 'else' after 'return'." });
         }
 
         /**

@@ -655,7 +655,12 @@ pp.checkVariableExport = function(exports, decls) {
 }
 
 pp.shouldParseExportStatement = function() {
-  return this.type.keyword || this.isLet() || this.isAsyncFunction()
+  return this.type.keyword === "var"
+    || this.type.keyword === "const"
+    || this.type.keyword === "class"
+    || this.type.keyword === "function"
+    || this.isLet()
+    || this.isAsyncFunction()
 }
 
 // Parses a comma-separated list of module exports.
