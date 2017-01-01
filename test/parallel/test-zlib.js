@@ -150,9 +150,9 @@ Object.keys(tests).forEach(function(file) {
                 var Def = pair[0];
                 var Inf = pair[1];
                 var opts = { level: level,
-                  windowBits: windowBits,
-                  memLevel: memLevel,
-                  strategy: strategy };
+                             windowBits: windowBits,
+                             memLevel: memLevel,
+                             strategy: strategy };
 
                 total++;
 

@@ -184,20 +184,20 @@ deepStrictEqualValues(genBuffer(4, [hexBufFill, 1, -1]), [0, 0, 0, 0]);
 assert.throws(() => buf1.fill(0, -1), /^RangeError: Out of range index$/);
 assert.throws(() =>
              buf1.fill(0, 0, buf1.length + 1),
-             /^RangeError: Out of range index$/);
+              /^RangeError: Out of range index$/);
 assert.throws(() => buf1.fill('', -1), /^RangeError: Out of range index$/);
 assert.throws(() =>
              buf1.fill('', 0, buf1.length + 1),
-             /^RangeError: Out of range index$/);
+              /^RangeError: Out of range index$/);
 assert.throws(() =>
              buf1.fill('a', 0, buf1.length, 'node rocks!'),
-             /^TypeError: Unknown encoding: node rocks!$/);
+              /^TypeError: Unknown encoding: node rocks!$/);
 assert.throws(() =>
              buf1.fill('a', 0, 0, NaN),
-             /^TypeError: encoding must be a string$/);
+              /^TypeError: encoding must be a string$/);
 assert.throws(() =>
              buf1.fill('a', 0, 0, null),
-             /^TypeError: encoding must be a string$/);
+              /^TypeError: encoding must be a string$/);
 assert.throws(() =>
              buf1.fill('a', 0, 0, 'foo'), /^TypeError: Unknown encoding: foo$/);
 
@@ -271,10 +271,10 @@ function testBufs(string, offset, length, encoding) {
 // Make sure these throw.
 assert.throws(() =>
              Buffer.allocUnsafe(8).fill('a', -1),
-             /^RangeError: Out of range index$/);
+              /^RangeError: Out of range index$/);
 assert.throws(() =>
              Buffer.allocUnsafe(8).fill('a', 0, 9),
-             /^RangeError: Out of range index$/);
+              /^RangeError: Out of range index$/);
 
 // Make sure this doesn't hang indefinitely.
 Buffer.allocUnsafe(8).fill('');

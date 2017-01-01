@@ -60,7 +60,7 @@ function isWarned(emitter) {
   // disable history
   fi = new FakeInput();
   rli = new readline.Interface({ input: fi, output: fi, terminal: terminal,
-                              historySize: 0 });
+                                 historySize: 0 });
   assert.strictEqual(rli.historySize, 0);
 
   fi.emit('data', 'asdf\n');

@@ -14,15 +14,15 @@ var crypto = require('crypto');
 var certPem = fs.readFileSync(common.fixturesDir + '/test_cert.pem', 'ascii');
 var keyPem = fs.readFileSync(common.fixturesDir + '/test_key.pem', 'ascii');
 var rsaPubPem = fs.readFileSync(common.fixturesDir + '/test_rsa_pubkey.pem',
-    'ascii');
+                                'ascii');
 var rsaKeyPem = fs.readFileSync(common.fixturesDir + '/test_rsa_privkey.pem',
-    'ascii');
+                                'ascii');
 var rsaKeyPemEncrypted = fs.readFileSync(
   common.fixturesDir + '/test_rsa_privkey_encrypted.pem', 'ascii');
 var dsaPubPem = fs.readFileSync(common.fixturesDir + '/test_dsa_pubkey.pem',
-    'ascii');
+                                'ascii');
 var dsaKeyPem = fs.readFileSync(common.fixturesDir + '/test_dsa_privkey.pem',
-    'ascii');
+                                'ascii');
 var dsaKeyPemEncrypted = fs.readFileSync(
   common.fixturesDir + '/test_dsa_privkey_encrypted.pem', 'ascii');
 
