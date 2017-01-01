@@ -91,7 +91,7 @@ module.exports = {
             }
 
             if (complexity > THRESHOLD) {
-                context.report(node, "Function '{{name}}' has a complexity of {{complexity}}.", { name, complexity });
+                context.report({ node, message: "Function '{{name}}' has a complexity of {{complexity}}.", data: { name, complexity } });
             }
         }
 

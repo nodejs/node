@@ -1,6 +1,6 @@
 var arrayEachRight = require('./_arrayEachRight'),
     baseEachRight = require('./_baseEachRight'),
-    baseIteratee = require('./_baseIteratee'),
+    castFunction = require('./_castFunction'),
     isArray = require('./isArray');
 
 /**
@@ -25,7 +25,7 @@ var arrayEachRight = require('./_arrayEachRight'),
  */
 function forEachRight(collection, iteratee) {
   var func = isArray(collection) ? arrayEachRight : baseEachRight;
-  return func(collection, baseIteratee(iteratee, 3));
+  return func(collection, castFunction(iteratee));
 }
 
 module.exports = forEachRight;

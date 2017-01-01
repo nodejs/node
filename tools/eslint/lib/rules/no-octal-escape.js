@@ -36,8 +36,7 @@ module.exports = {
 
                     // \0 is actually not considered an octal
                     if (match[2] !== "0" || typeof match[3] !== "undefined") {
-                        context.report(node, "Don't use octal: '\\{{octalDigit}}'. Use '\\u....' instead.",
-                                { octalDigit });
+                        context.report({ node, message: "Don't use octal: '\\{{octalDigit}}'. Use '\\u....' instead.", data: { octalDigit } });
                     }
                 }
             }

@@ -1,17 +1,8 @@
-var isObjectLike = require('./isObjectLike');
+var baseGetTag = require('./_baseGetTag'),
+    isObjectLike = require('./isObjectLike');
 
 /** `Object#toString` result references. */
 var weakSetTag = '[object WeakSet]';
-
-/** Used for built-in method references. */
-var objectProto = Object.prototype;
-
-/**
- * Used to resolve the
- * [`toStringTag`](http://ecma-international.org/ecma-262/7.0/#sec-object.prototype.tostring)
- * of values.
- */
-var objectToString = objectProto.toString;
 
 /**
  * Checks if `value` is classified as a `WeakSet` object.
@@ -31,7 +22,7 @@ var objectToString = objectProto.toString;
  * // => false
  */
 function isWeakSet(value) {
-  return isObjectLike(value) && objectToString.call(value) == weakSetTag;
+  return isObjectLike(value) && baseGetTag(value) == weakSetTag;
 }
 
 module.exports = isWeakSet;

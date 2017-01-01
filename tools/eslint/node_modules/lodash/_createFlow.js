@@ -5,17 +5,14 @@ var LodashWrapper = require('./_LodashWrapper'),
     isArray = require('./isArray'),
     isLaziable = require('./_isLaziable');
 
-/** Used as the size to enable large array optimizations. */
-var LARGE_ARRAY_SIZE = 200;
-
 /** Error message constants. */
 var FUNC_ERROR_TEXT = 'Expected a function';
 
 /** Used to compose bitmasks for function metadata. */
-var CURRY_FLAG = 8,
-    PARTIAL_FLAG = 32,
-    ARY_FLAG = 128,
-    REARG_FLAG = 256;
+var WRAP_CURRY_FLAG = 8,
+    WRAP_PARTIAL_FLAG = 32,
+    WRAP_ARY_FLAG = 128,
+    WRAP_REARG_FLAG = 256;
 
 /**
  * Creates a `_.flow` or `_.flowRight` function.
@@ -50,7 +47,7 @@ function createFlow(fromRight) {
           data = funcName == 'wrapper' ? getData(func) : undefined;
 
       if (data && isLaziable(data[0]) &&
-            data[1] == (ARY_FLAG | CURRY_FLAG | PARTIAL_FLAG | REARG_FLAG) &&
+            data[1] == (WRAP_ARY_FLAG | WRAP_CURRY_FLAG | WRAP_PARTIAL_FLAG | WRAP_REARG_FLAG) &&
             !data[4].length && data[9] == 1
           ) {
         wrapper = wrapper[getFuncName(data[0])].apply(wrapper, data[3]);
@@ -64,8 +61,7 @@ function createFlow(fromRight) {
       var args = arguments,
           value = args[0];
 
-      if (wrapper && args.length == 1 &&
-          isArray(value) && value.length >= LARGE_ARRAY_SIZE) {
+      if (wrapper && args.length == 1 && isArray(value)) {
         return wrapper.plant(value).value();
       }
       var index = 0,

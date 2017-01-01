@@ -1,7 +1,7 @@
-var assignInDefaults = require('./_assignInDefaults'),
-    assignInWith = require('./assignInWith'),
+var assignInWith = require('./assignInWith'),
     attempt = require('./attempt'),
     baseValues = require('./_baseValues'),
+    customDefaultsAssignIn = require('./_customDefaultsAssignIn'),
     escapeStringChar = require('./_escapeStringChar'),
     isError = require('./isError'),
     isIterateeCall = require('./_isIterateeCall'),
@@ -141,9 +141,9 @@ function template(string, options, guard) {
     options = undefined;
   }
   string = toString(string);
-  options = assignInWith({}, options, settings, assignInDefaults);
+  options = assignInWith({}, options, settings, customDefaultsAssignIn);
 
-  var imports = assignInWith({}, options.imports, settings.imports, assignInDefaults),
+  var imports = assignInWith({}, options.imports, settings.imports, customDefaultsAssignIn),
       importsKeys = keys(imports),
       importsValues = baseValues(imports, importsKeys);
 
