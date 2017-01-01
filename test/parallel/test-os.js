@@ -107,8 +107,8 @@ switch (platform) {
       const filter = function(e) { return e.address === '127.0.0.1'; };
       const actual = interfaces.lo.filter(filter);
       const expected = [{ address: '127.0.0.1', netmask: '255.0.0.0',
-                        mac: '00:00:00:00:00:00', family: 'IPv4',
-                        internal: true }];
+                          mac: '00:00:00:00:00:00', family: 'IPv4',
+                          internal: true }];
       assert.deepStrictEqual(actual, expected);
       break;
     }
@@ -117,8 +117,8 @@ switch (platform) {
       const filter = function(e) { return e.address === '127.0.0.1'; };
       const actual = interfaces['Loopback Pseudo-Interface 1'].filter(filter);
       const expected = [{ address: '127.0.0.1', netmask: '255.0.0.0',
-                        mac: '00:00:00:00:00:00', family: 'IPv4',
-                        internal: true }];
+                          mac: '00:00:00:00:00:00', family: 'IPv4',
+                          internal: true }];
       assert.deepStrictEqual(actual, expected);
       break;
     }

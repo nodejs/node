@@ -11,13 +11,15 @@ const util = require('util');
 common.refreshTmpDir();
 
 const linkTarget = path.join(common.fixturesDir,
-  '/module-require-symlink/node_modules/dep2/');
+                             '/module-require-symlink/node_modules/dep2/');
 
-const linkDir = path.join(common.fixturesDir,
-  '/module-require-symlink/node_modules/dep1/node_modules/dep2');
+const linkDir = path.join(
+  common.fixturesDir,
+  '/module-require-symlink/node_modules/dep1/node_modules/dep2'
+);
 
 const linkScriptTarget = path.join(common.fixturesDir,
-  '/module-require-symlink/symlinked.js');
+                                   '/module-require-symlink/symlinked.js');
 
 const linkScript = path.join(common.tmpDir, 'module-require-symlink.js');
 
