@@ -56,8 +56,9 @@ if (format === 'csv') {
       conf = conf.replace(/"/g, '""');
       console.log(`"${data.name}", "${conf}", ${data.rate}, ${data.time}`);
     } else {
-      const rate = Math.floor(data.rate)
-                       .toString().replace(/(\d)(?=(\d\d\d)+(?!\d))/g, '$1,');
+      var rate = data.rate.toString().split('.');
+      rate[0] = rate[0].replace(/(\d)(?=(\d\d\d)+(?!\d))/g, '$1,');
+      rate = (rate[1] ? rate.join('.') : rate[0]);
       console.log(`${data.name} ${conf}: ${rate}`);
     }
   });
