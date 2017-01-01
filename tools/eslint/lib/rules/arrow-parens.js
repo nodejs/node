@@ -58,7 +58,9 @@ module.exports = {
                 requireForBlockBody &&
                 node.params.length === 1 &&
                 node.params[0].type === "Identifier" &&
-                node.body.type !== "BlockStatement"
+                !node.params[0].typeAnnotation &&
+                node.body.type !== "BlockStatement" &&
+                !node.returnType
             ) {
                 if (token.type === "Punctuator" && token.value === "(") {
                     context.report({
@@ -95,7 +97,12 @@ module.exports = {
             }
 
             // "as-needed": x => x
-            if (asNeeded && node.params.length === 1 && node.params[0].type === "Identifier") {
+            if (asNeeded &&
+                node.params.length === 1 &&
+                node.params[0].type === "Identifier" &&
+                !node.params[0].typeAnnotation &&
+                !node.returnType
+            ) {
                 if (token.type === "Punctuator" && token.value === "(") {
                     context.report({
                         node,

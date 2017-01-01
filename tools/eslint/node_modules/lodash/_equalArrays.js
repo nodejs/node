@@ -2,9 +2,9 @@ var SetCache = require('./_SetCache'),
     arraySome = require('./_arraySome'),
     cacheHas = require('./_cacheHas');
 
-/** Used to compose bitmasks for comparison styles. */
-var UNORDERED_COMPARE_FLAG = 1,
-    PARTIAL_COMPARE_FLAG = 2;
+/** Used to compose bitmasks for value comparisons. */
+var COMPARE_PARTIAL_FLAG = 1,
+    COMPARE_UNORDERED_FLAG = 2;
 
 /**
  * A specialized version of `baseIsEqualDeep` for arrays with support for
@@ -13,15 +13,14 @@ var UNORDERED_COMPARE_FLAG = 1,
  * @private
  * @param {Array} array The array to compare.
  * @param {Array} other The other array to compare.
- * @param {Function} equalFunc The function to determine equivalents of values.
+ * @param {number} bitmask The bitmask flags. See `baseIsEqual` for more details.
  * @param {Function} customizer The function to customize comparisons.
- * @param {number} bitmask The bitmask of comparison flags. See `baseIsEqual`
- *  for more details.
+ * @param {Function} equalFunc The function to determine equivalents of values.
  * @param {Object} stack Tracks traversed `array` and `other` objects.
  * @returns {boolean} Returns `true` if the arrays are equivalent, else `false`.
  */
-function equalArrays(array, other, equalFunc, customizer, bitmask, stack) {
-  var isPartial = bitmask & PARTIAL_COMPARE_FLAG,
+function equalArrays(array, other, bitmask, customizer, equalFunc, stack) {
+  var isPartial = bitmask & COMPARE_PARTIAL_FLAG,
       arrLength = array.length,
       othLength = other.length;
 
@@ -35,7 +34,7 @@ function equalArrays(array, other, equalFunc, customizer, bitmask, stack) {
   }
   var index = -1,
       result = true,
-      seen = (bitmask & UNORDERED_COMPARE_FLAG) ? new SetCache : undefined;
+      seen = (bitmask & COMPARE_UNORDERED_FLAG) ? new SetCache : undefined;
 
   stack.set(array, other);
   stack.set(other, array);
@@ -61,7 +60,7 @@ function equalArrays(array, other, equalFunc, customizer, bitmask, stack) {
     if (seen) {
       if (!arraySome(other, function(othValue, othIndex) {
             if (!cacheHas(seen, othIndex) &&
-                (arrValue === othValue || equalFunc(arrValue, othValue, customizer, bitmask, stack))) {
+                (arrValue === othValue || equalFunc(arrValue, othValue, bitmask, customizer, stack))) {
               return seen.push(othIndex);
             }
           })) {
@@ -70,7 +69,7 @@ function equalArrays(array, other, equalFunc, customizer, bitmask, stack) {
       }
     } else if (!(
           arrValue === othValue ||
-            equalFunc(arrValue, othValue, customizer, bitmask, stack)
+            equalFunc(arrValue, othValue, bitmask, customizer, stack)
         )) {
       result = false;
       break;

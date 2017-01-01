@@ -91,8 +91,7 @@ module.exports = {
             const len = ++functionStack[functionStack.length - 1];
 
             if (len > maxDepth) {
-                context.report(node, "Blocks are nested too deeply ({{depth}}).",
-                        { depth: len });
+                context.report({ node, message: "Blocks are nested too deeply ({{depth}}).", data: { depth: len } });
             }
         }
 
