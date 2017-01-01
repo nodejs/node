@@ -165,7 +165,6 @@ rules:
   # Custom rules in tools/eslint-rules
   align-multiline-assignment: 2
   assert-throws-arguments: [2, { requireTwo: true }]
-  no-useless-regex-char-class-escape: [2, { override: ['[', ']'] }]
 
 # Global scoped method and vars
 globals:
