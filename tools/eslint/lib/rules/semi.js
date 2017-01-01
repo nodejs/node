@@ -39,7 +39,7 @@ module.exports = {
                         {
                             type: "object",
                             properties: {
-                                omitLastInOneLineBlock: {type: "boolean"}
+                                omitLastInOneLineBlock: { type: "boolean" }
                             },
                             additionalProperties: false
                         }
@@ -53,7 +53,7 @@ module.exports = {
 
     create(context) {
 
-        const OPT_OUT_PATTERN = /^[-[(\/+]$/; // One of [(/+-, but not ++ or --
+        const OPT_OUT_PATTERN = /^[-[(/+`]/; // One of [(/+-`
         const options = context.options[1];
         const never = context.options[0] === "never",
             exceptOneLine = options && options.omitLastInOneLineBlock === true,
@@ -127,7 +127,7 @@ module.exports = {
 
             const lastTokenLine = lastToken.loc.end.line;
             const nextTokenLine = nextToken.loc.start.line;
-            const isOptOutToken = OPT_OUT_PATTERN.test(nextToken.value);
+            const isOptOutToken = OPT_OUT_PATTERN.test(nextToken.value) && nextToken.value !== "++" && nextToken.value !== "--";
             const isDivider = (nextToken.value === "}" || nextToken.value === ";");
 
             return (lastTokenLine !== nextTokenLine && !isOptOutToken) || isDivider;

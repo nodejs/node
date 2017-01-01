@@ -90,7 +90,7 @@ const debug = require("debug")("eslint:cli-engine");
  * @private
  */
 function calculateStatsPerFile(messages) {
-    return messages.reduce(function(stat, message) {
+    return messages.reduce((stat, message) => {
         if (message.fatal || message.severity === 2) {
             stat.errorCount++;
         } else {
@@ -110,7 +110,7 @@ function calculateStatsPerFile(messages) {
  * @private
  */
 function calculateStatsPerRun(results) {
-    return results.reduce(function(stat, result) {
+    return results.reduce((stat, result) => {
         stat.errorCount += result.errorCount;
         stat.warningCount += result.warningCount;
         return stat;
@@ -241,7 +241,7 @@ function processText(text, configHelper, filename, fix, allowInlineConfig) {
         const parsedBlocks = processor.preprocess(text, filename);
         const unprocessedMessages = [];
 
-        parsedBlocks.forEach(function(block) {
+        parsedBlocks.forEach(block => {
             unprocessedMessages.push(eslint.verify(block, config, {
                 filename,
                 allowInlineConfig
@@ -320,11 +320,11 @@ function createIgnoreResult(filePath, baseDir) {
     const isInBowerComponents = baseDir && /^bower_components/.test(path.relative(baseDir, filePath));
 
     if (isHidden) {
-        message = "File ignored by default.  Use a negated ignore pattern (like \"--ignore-pattern \'!<relative/path/to/filename>\'\") to override.";
+        message = "File ignored by default.  Use a negated ignore pattern (like \"--ignore-pattern '!<relative/path/to/filename>'\") to override.";
     } else if (isInNodeModules) {
-        message = "File ignored by default. Use \"--ignore-pattern \'!node_modules/*\'\" to override.";
+        message = "File ignored by default. Use \"--ignore-pattern '!node_modules/*'\" to override.";
     } else if (isInBowerComponents) {
-        message = "File ignored by default. Use \"--ignore-pattern \'!bower_components/*\'\" to override.";
+        message = "File ignored by default. Use \"--ignore-pattern '!bower_components/*'\" to override.";
     } else {
         message = "File ignored because of a matching ignore pattern. Use \"--no-ignore\" to override.";
     }
@@ -442,7 +442,7 @@ function CLIEngine(options) {
     options = Object.assign(
         Object.create(null),
         defaultOptions,
-        {cwd: process.cwd()},
+        { cwd: process.cwd() },
         options
     );
 
@@ -466,15 +466,15 @@ function CLIEngine(options) {
     if (this.options.rulePaths) {
         const cwd = this.options.cwd;
 
-        this.options.rulePaths.forEach(function(rulesdir) {
+        this.options.rulePaths.forEach(rulesdir => {
             debug(`Loading rules from ${rulesdir}`);
             rules.load(rulesdir, cwd);
         });
     }
 
-    Object.keys(this.options.rules || {}).forEach(function(name) {
+    Object.keys(this.options.rules || {}).forEach(name => {
         validator.validateRuleOptions(name, this.options.rules[name], "CLI");
-    }.bind(this));
+    });
 }
 
 /**
@@ -526,7 +526,7 @@ CLIEngine.getFormatter = function(format) {
 CLIEngine.getErrorResults = function(results) {
     const filtered = [];
 
-    results.forEach(function(result) {
+    results.forEach(result => {
         const filteredMessages = result.messages.filter(isErrorMessage);
 
         if (filteredMessages.length > 0) {
@@ -549,9 +549,7 @@ CLIEngine.getErrorResults = function(results) {
  * @returns {void}
  */
 CLIEngine.outputFixes = function(report) {
-    report.results.filter(function(result) {
-        return result.hasOwnProperty("output");
-    }).forEach(function(result) {
+    report.results.filter(result => result.hasOwnProperty("output")).forEach(result => {
         fs.writeFileSync(result.filePath, result.output);
     });
 };
@@ -708,7 +706,7 @@ CLIEngine.prototype = {
         patterns = this.resolveFileGlobPatterns(patterns);
         const fileList = globUtil.listFilesToProcess(patterns, options);
 
-        fileList.forEach(function(fileInfo) {
+        fileList.forEach(fileInfo => {
             executeOnFile(fileInfo.filename, fileInfo.ignored);
         });
 
@@ -793,5 +791,7 @@ CLIEngine.prototype = {
     getFormatter: CLIEngine.getFormatter
 
 };
+
+CLIEngine.version = pkg.version;
 
 module.exports = CLIEngine;

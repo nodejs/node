@@ -19,8 +19,7 @@ var hasOwnProperty = objectProto.hasOwnProperty;
  * @since 0.1.0
  * @category Collection
  * @param {Array|Object} collection The collection to iterate over.
- * @param {Function} [iteratee=_.identity]
- *  The iteratee to transform keys.
+ * @param {Function} [iteratee=_.identity] The iteratee to transform keys.
  * @returns {Object} Returns the composed aggregate object.
  * @example
  *

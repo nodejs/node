@@ -157,28 +157,6 @@ module.exports = {
         }
 
         /**
-         * Checks whether a given node is inside of a loop or not.
-         *
-         * @param {ASTNode} node - A node to check.
-         * @returns {boolean} `true` if the node is inside of a loop.
-         * @private
-         */
-        function isInsideOfLoop(node) {
-            while (node) {
-                if (astUtils.isLoop(node)) {
-                    return true;
-                }
-                if (astUtils.isFunction(node)) {
-                    return false;
-                }
-
-                node = node.parent;
-            }
-
-            return false;
-        }
-
-        /**
          * Checks the position of given nodes.
          *
          * @param {ASTNode} inner - A node which is expected as inside.
@@ -215,7 +193,7 @@ module.exports = {
             const granpa = parent.parent;
             const refScope = ref.from.variableScope;
             const varScope = ref.resolved.scope.variableScope;
-            const canBeUsedLater = refScope !== varScope || isInsideOfLoop(id);
+            const canBeUsedLater = refScope !== varScope || astUtils.isInLoop(id);
 
             /*
              * Inherits the previous node if this reference is in the node.
@@ -390,15 +368,11 @@ module.exports = {
          * @private
          */
         function isUsedVariable(variable) {
-            const functionNodes = variable.defs.filter(function(def) {
-                    return def.type === "FunctionName";
-                }).map(function(def) {
-                    return def.node;
-                }),
+            const functionNodes = variable.defs.filter(def => def.type === "FunctionName").map(def => def.node),
                 isFunctionDefinition = functionNodes.length > 0;
             let rhsNode = null;
 
-            return variable.references.some(function(ref) {
+            return variable.references.some(ref => {
                 if (isForInRef(ref)) {
                     return true;
                 }

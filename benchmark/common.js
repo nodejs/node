@@ -58,7 +58,7 @@ function runBenchmarks() {
   if (!test)
     return;
 
-  if (test.match(/^[\._]/))
+  if (test.match(/^[._]/))
     return process.nextTick(runBenchmarks);
 
   if (outputFormat == 'default')
@@ -86,7 +86,7 @@ function Benchmark(fn, options) {
   this.fn = fn;
   this.options = options;
   this.config = parseOpts(options);
-  this._name = require.main.filename.split(/benchmark[\/\\]/).pop();
+  this._name = require.main.filename.split(/benchmark[/\\]/).pop();
   this._start = [0, 0];
   this._started = false;
 
@@ -101,7 +101,7 @@ function Benchmark(fn, options) {
 Benchmark.prototype.http = function(p, args, cb) {
   hasWrk();
   var self = this;
-  var regexp = /Requests\/sec:[ \t]+([0-9\.]+)/;
+  var regexp = /Requests\/sec:[ \t]+([0-9.]+)/;
   var url = 'http://127.0.0.1:' + exports.PORT + p;
 
   args = args.concat(url);

@@ -83,7 +83,12 @@ rules:
   computed-property-spacing: 2
   eol-last: 2
   func-call-spacing: 2
-  indent: [2, 2, {SwitchCase: 1, MemberExpression: 1}]
+  func-name-matching: 2
+  indent: [2, 2, {ArrayExpression: first,
+                  CallExpression: {arguments: first},
+                  MemberExpression: 1, 
+                  ObjectExpression: first,
+                  SwitchCase: 1}]
   key-spacing: [2, {mode: minimum}]
   keyword-spacing: 2
   linebreak-style: [2, unix]

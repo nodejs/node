@@ -30,7 +30,7 @@
 
   {{# def.resetCompositeRule }}
 
-  if (valid{{=$it.level}}) {
+  if ({{=$nextValid}}) {
     {{# def.error:'not' }}
   } else {
     {{# def.resetErrors }}

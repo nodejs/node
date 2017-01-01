@@ -22,9 +22,7 @@ module.exports = {
             type: "array",
             items: [
                 {
-                    enum: Object.keys(nodeTypes).map(function(k) {
-                        return nodeTypes[k];
-                    })
+                    enum: Object.keys(nodeTypes).map(k => nodeTypes[k])
                 }
             ],
             uniqueItems: true,
@@ -40,10 +38,10 @@ module.exports = {
          * @returns {void}
          */
         function warn(node) {
-            context.report(node, "Using '{{type}}' is not allowed.", node);
+            context.report({ node, message: "Using '{{type}}' is not allowed.", data: node });
         }
 
-        return context.options.reduce(function(result, nodeType) {
+        return context.options.reduce((result, nodeType) => {
             result[nodeType] = warn;
 
             return result;

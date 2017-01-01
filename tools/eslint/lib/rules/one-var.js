@@ -66,18 +66,18 @@ module.exports = {
         };
 
         if (typeof mode === "string") { // simple options configuration with just a string
-            options.var = { uninitialized: mode, initialized: mode};
-            options.let = { uninitialized: mode, initialized: mode};
-            options.const = { uninitialized: mode, initialized: mode};
+            options.var = { uninitialized: mode, initialized: mode };
+            options.let = { uninitialized: mode, initialized: mode };
+            options.const = { uninitialized: mode, initialized: mode };
         } else if (typeof mode === "object") { // options configuration is an object
             if (mode.hasOwnProperty("var") && typeof mode.var === "string") {
-                options.var = { uninitialized: mode.var, initialized: mode.var};
+                options.var = { uninitialized: mode.var, initialized: mode.var };
             }
             if (mode.hasOwnProperty("let") && typeof mode.let === "string") {
-                options.let = { uninitialized: mode.let, initialized: mode.let};
+                options.let = { uninitialized: mode.let, initialized: mode.let };
             }
             if (mode.hasOwnProperty("const") && typeof mode.const === "string") {
-                options.const = { uninitialized: mode.const, initialized: mode.const};
+                options.const = { uninitialized: mode.const, initialized: mode.const };
             }
             if (mode.hasOwnProperty("uninitialized")) {
                 if (!options.var) {
@@ -123,8 +123,8 @@ module.exports = {
          */
         function startBlock() {
             blockStack.push({
-                let: {initialized: false, uninitialized: false},
-                const: {initialized: false, uninitialized: false}
+                let: { initialized: false, uninitialized: false },
+                const: { initialized: false, uninitialized: false }
             });
         }
 
@@ -134,7 +134,7 @@ module.exports = {
          * @private
          */
         function startFunction() {
-            functionStack.push({initialized: false, uninitialized: false});
+            functionStack.push({ initialized: false, uninitialized: false });
             startBlock();
         }
 

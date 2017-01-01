@@ -147,7 +147,6 @@ function checkMetaValidity(context, exportsNode, ruleIsFixable) {
 
     if (ruleIsFixable && !hasMetaFixable(metaProperty)) {
         context.report(metaProperty, "Rule is fixable, but is missing a meta.fixable property.");
-        return;
     }
 }
 
@@ -216,7 +215,7 @@ module.exports = {
 
             "Program:exit"() {
                 if (!isCorrectExportsFormat(exportsNode)) {
-                    context.report(exportsNode, "Rule does not export an Object. Make sure the rule follows the new rule format.");
+                    context.report({ node: exportsNode, message: "Rule does not export an Object. Make sure the rule follows the new rule format." });
                     return;
                 }
 

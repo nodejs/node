@@ -72,7 +72,7 @@ SourceCodeFixer.applyFixes = function(sourceCode, messages) {
     let lastFixPos = text.length + 1,
         prefix = (sourceCode.hasBOM ? BOM : "");
 
-    messages.forEach(function(problem) {
+    messages.forEach(problem => {
         if (problem.hasOwnProperty("fix")) {
             fixes.push(problem);
         } else {
@@ -84,14 +84,12 @@ SourceCodeFixer.applyFixes = function(sourceCode, messages) {
         debug("Found fixes to apply");
 
         // sort in reverse order of occurrence
-        fixes.sort(function(a, b) {
-            return b.fix.range[1] - a.fix.range[1] || b.fix.range[0] - a.fix.range[0];
-        });
+        fixes.sort((a, b) => b.fix.range[1] - a.fix.range[1] || b.fix.range[0] - a.fix.range[0]);
 
         // split into array of characters for easier manipulation
         const chars = text.split("");
 
-        fixes.forEach(function(problem) {
+        fixes.forEach(problem => {
             const fix = problem.fix;
             let start = fix.range[0];
             const end = fix.range[1];

@@ -44,14 +44,10 @@ module.exports = {
 
         const config = context.options[0] || {};
         const exceptions = config.exceptions || [];
-        let modifiedBuiltins = Object.keys(globals.builtin).filter(function(builtin) {
-            return builtin[0].toUpperCase() === builtin[0];
-        });
+        let modifiedBuiltins = Object.keys(globals.builtin).filter(builtin => builtin[0].toUpperCase() === builtin[0]);
 
         if (exceptions.length) {
-            modifiedBuiltins = modifiedBuiltins.filter(function(builtIn) {
-                return exceptions.indexOf(builtIn) === -1;
-            });
+            modifiedBuiltins = modifiedBuiltins.filter(builtIn => exceptions.indexOf(builtIn) === -1);
         }
 
         return {
@@ -72,7 +68,7 @@ module.exports = {
                     return;
                 }
 
-                modifiedBuiltins.forEach(function(builtin) {
+                modifiedBuiltins.forEach(builtin => {
                     if (lhs.object.object.name === builtin) {
                         context.report({
                             node,

@@ -57,9 +57,7 @@ module.exports = {
          * @private
          */
         function isAllowed(identifier) {
-            return ALLOWED_VARIABLES.some(function(ident) {
-                return ident === identifier;
-            });
+            return ALLOWED_VARIABLES.some(ident => ident === identifier);
         }
 
         /**

@@ -30,10 +30,8 @@ module.exports = {
          * @returns {void}
          */
         function checkVariable(variable) {
-            astUtils.getModifyingReferences(variable.references).forEach(function(reference) {
-                context.report(
-                    reference.identifier,
-                    "Do not assign to the exception parameter.");
+            astUtils.getModifyingReferences(variable.references).forEach(reference => {
+                context.report({ node: reference.identifier, message: "Do not assign to the exception parameter." });
             });
         }
 

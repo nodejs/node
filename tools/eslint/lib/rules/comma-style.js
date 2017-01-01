@@ -41,10 +41,22 @@ module.exports = {
     create(context) {
         const style = context.options[0] || "last",
             sourceCode = context.getSourceCode();
-        let exceptions = {};
+        const exceptions = {
+            ArrayPattern: true,
+            ArrowFunctionExpression: true,
+            CallExpression: true,
+            FunctionDeclaration: true,
+            FunctionExpression: true,
+            ImportDeclaration: true,
+            ObjectPattern: true,
+        };
 
         if (context.options.length === 2 && context.options[1].hasOwnProperty("exceptions")) {
-            exceptions = context.options[1].exceptions;
+            const keys = Object.keys(context.options[1].exceptions);
+
+            for (let i = 0; i < keys.length; i++) {
+                exceptions[keys[i]] = context.options[1].exceptions[keys[i]];
+            }
         }
 
         //--------------------------------------------------------------------------
@@ -119,7 +131,7 @@ module.exports = {
             if (astUtils.isTokenOnSameLine(commaToken, currentItemToken) &&
                     astUtils.isTokenOnSameLine(previousItemToken, commaToken)) {
 
-                return;
+                // do nothing.
 
             } else if (!astUtils.isTokenOnSameLine(commaToken, currentItemToken) &&
                     !astUtils.isTokenOnSameLine(previousItemToken, commaToken)) {
@@ -166,14 +178,14 @@ module.exports = {
          */
         function validateComma(node, property) {
             const items = node[property],
-                arrayLiteral = (node.type === "ArrayExpression");
+                arrayLiteral = (node.type === "ArrayExpression" || node.type === "ArrayPattern");
 
             if (items.length > 1 || arrayLiteral) {
 
                 // seed as opening [
                 let previousItemToken = sourceCode.getFirstToken(node);
 
-                items.forEach(function(item) {
+                items.forEach(item => {
                     const commaToken = item ? sourceCode.getTokenBefore(item) : previousItemToken,
                         currentItemToken = item ? sourceCode.getFirstToken(item) : sourceCode.getTokenAfter(commaToken),
                         reportItem = item || currentItemToken,
@@ -245,9 +257,44 @@ module.exports = {
                 validateComma(node, "properties");
             };
         }
+        if (!exceptions.ObjectPattern) {
+            nodes.ObjectPattern = function(node) {
+                validateComma(node, "properties");
+            };
+        }
         if (!exceptions.ArrayExpression) {
             nodes.ArrayExpression = function(node) {
                 validateComma(node, "elements");
+            };
+        }
+        if (!exceptions.ArrayPattern) {
+            nodes.ArrayPattern = function(node) {
+                validateComma(node, "elements");
+            };
+        }
+        if (!exceptions.FunctionDeclaration) {
+            nodes.FunctionDeclaration = function(node) {
+                validateComma(node, "params");
+            };
+        }
+        if (!exceptions.FunctionExpression) {
+            nodes.FunctionExpression = function(node) {
+                validateComma(node, "params");
+            };
+        }
+        if (!exceptions.ArrowFunctionExpression) {
+            nodes.ArrowFunctionExpression = function(node) {
+                validateComma(node, "params");
+            };
+        }
+        if (!exceptions.CallExpression) {
+            nodes.CallExpression = function(node) {
+                validateComma(node, "arguments");
+            };
+        }
+        if (!exceptions.ImportDeclaration) {
+            nodes.ImportDeclaration = function(node) {
+                validateComma(node, "specifiers");
             };
         }
 

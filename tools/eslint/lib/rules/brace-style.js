@@ -30,7 +30,9 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        fixable: "whitespace"
     },
 
     create(context) {
@@ -70,6 +72,28 @@ module.exports = {
         }
 
         /**
+        * Reports a place where a newline unexpectedly appears
+        * @param {ASTNode} node The node to report
+        * @param {string} message The message to report
+        * @param {Token} firstToken The token before the unexpected newline
+        * @returns {void}
+        */
+        function reportExtraNewline(node, message, firstToken) {
+            context.report({
+                node,
+                message,
+                fix(fixer) {
+                    const secondToken = sourceCode.getTokenAfter(firstToken);
+                    const textBetween = sourceCode.getText().slice(firstToken.range[1], secondToken.range[0]);
+                    const NEWLINE_REGEX = /\r\n|\r|\n|\u2028|\u2029/g;
+
+                    // Don't do a fix if there is a comment between the tokens.
+                    return textBetween.trim() ? null : fixer.replaceTextRange([firstToken.range[1], secondToken.range[0]], textBetween.replace(NEWLINE_REGEX, ""));
+                }
+            });
+        }
+
+        /**
          * Binds a list of properties to a function that verifies that the opening
          * curly brace is on the same line as its controlling statement of a given
          * node.
@@ -81,7 +105,7 @@ module.exports = {
             const blockProperties = arguments;
 
             return function(node) {
-                Array.prototype.forEach.call(blockProperties, function(blockProp) {
+                Array.prototype.forEach.call(blockProperties, blockProp => {
                     const block = node[blockProp];
 
                     if (!isBlock(block)) {
@@ -98,9 +122,13 @@ module.exports = {
                     }
 
                     if (style !== "allman" && previousToken.loc.start.line !== curlyToken.loc.start.line) {
-                        context.report(node, OPEN_MESSAGE);
+                        reportExtraNewline(node, OPEN_MESSAGE, previousToken);
                     } else if (style === "allman" && previousToken.loc.start.line === curlyToken.loc.start.line) {
-                        context.report(node, OPEN_MESSAGE_ALLMAN);
+                        context.report({
+                            node,
+                            message: OPEN_MESSAGE_ALLMAN,
+                            fix: fixer => fixer.insertTextBefore(curlyToken, "\n")
+                        });
                     }
 
                     if (!block.body.length) {
@@ -108,11 +136,19 @@ module.exports = {
                     }
 
                     if (curlyToken.loc.start.line === block.body[0].loc.start.line) {
-                        context.report(block.body[0], BODY_MESSAGE);
+                        context.report({
+                            node: block.body[0],
+                            message: BODY_MESSAGE,
+                            fix: fixer => fixer.insertTextAfter(curlyToken, "\n")
+                        });
                     }
 
-                    if (curlyTokenEnd.loc.start.line === block.body[block.body.length - 1].loc.start.line) {
-                        context.report(block.body[block.body.length - 1], CLOSE_MESSAGE_SINGLE);
+                    if (curlyTokenEnd.loc.start.line === block.body[block.body.length - 1].loc.end.line) {
+                        context.report({
+                            node: block.body[block.body.length - 1],
+                            message: CLOSE_MESSAGE_SINGLE,
+                            fix: fixer => fixer.insertTextBefore(curlyTokenEnd, "\n")
+                        });
                     }
                 });
             };
@@ -135,10 +171,14 @@ module.exports = {
                     if (tokens[0].loc.start.line !== tokens[1].loc.start.line &&
                         node.consequent.type === "BlockStatement" &&
                         isCurlyPunctuator(tokens[0])) {
-                        context.report(node.alternate, CLOSE_MESSAGE);
+                        reportExtraNewline(node.alternate, CLOSE_MESSAGE, tokens[0]);
                     }
                 } else if (tokens[0].loc.start.line === tokens[1].loc.start.line) {
-                    context.report(node.alternate, CLOSE_MESSAGE_STROUSTRUP_ALLMAN);
+                    context.report({
+                        node: node.alternate,
+                        message: CLOSE_MESSAGE_STROUSTRUP_ALLMAN,
+                        fix: fixer => fixer.insertTextAfter(tokens[0], "\n")
+                    });
                 }
 
             }
@@ -158,10 +198,14 @@ module.exports = {
 
                 if (style === "1tbs") {
                     if (tokens[0].loc.start.line !== tokens[1].loc.start.line) {
-                        context.report(node.finalizer, CLOSE_MESSAGE);
+                        reportExtraNewline(node.finalizer, CLOSE_MESSAGE, tokens[0]);
                     }
                 } else if (tokens[0].loc.start.line === tokens[1].loc.start.line) {
-                    context.report(node.finalizer, CLOSE_MESSAGE_STROUSTRUP_ALLMAN);
+                    context.report({
+                        node: node.finalizer,
+                        message: CLOSE_MESSAGE_STROUSTRUP_ALLMAN,
+                        fix: fixer => fixer.insertTextAfter(tokens[0], "\n")
+                    });
                 }
             }
         }
@@ -181,11 +225,15 @@ module.exports = {
             if (isBlock(node.body)) {
                 if (style === "1tbs") {
                     if (previousToken.loc.start.line !== firstToken.loc.start.line) {
-                        context.report(node, CLOSE_MESSAGE);
+                        reportExtraNewline(node, CLOSE_MESSAGE, previousToken);
                     }
                 } else {
                     if (previousToken.loc.start.line === firstToken.loc.start.line) {
-                        context.report(node, CLOSE_MESSAGE_STROUSTRUP_ALLMAN);
+                        context.report({
+                            node,
+                            message: CLOSE_MESSAGE_STROUSTRUP_ALLMAN,
+                            fix: fixer => fixer.insertTextAfter(previousToken, "\n")
+                        });
                     }
                 }
             }
@@ -207,9 +255,13 @@ module.exports = {
             }
 
             if (style !== "allman" && tokens[0].loc.start.line !== tokens[1].loc.start.line) {
-                context.report(node, OPEN_MESSAGE);
+                reportExtraNewline(node, OPEN_MESSAGE, tokens[0]);
             } else if (style === "allman" && tokens[0].loc.start.line === tokens[1].loc.start.line) {
-                context.report(node, OPEN_MESSAGE_ALLMAN);
+                context.report({
+                    node,
+                    message: OPEN_MESSAGE_ALLMAN,
+                    fix: fixer => fixer.insertTextBefore(tokens[1], "\n")
+                });
             }
         }
 

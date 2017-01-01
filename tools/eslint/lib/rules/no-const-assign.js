@@ -30,11 +30,8 @@ module.exports = {
          * @returns {void}
          */
         function checkVariable(variable) {
-            astUtils.getModifyingReferences(variable.references).forEach(function(reference) {
-                context.report(
-                    reference.identifier,
-                    "'{{name}}' is constant.",
-                    {name: reference.identifier.name});
+            astUtils.getModifyingReferences(variable.references).forEach(reference => {
+                context.report({ node: reference.identifier, message: "'{{name}}' is constant.", data: { name: reference.identifier.name } });
             });
         }
 

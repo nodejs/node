@@ -20,7 +20,7 @@
  */
 function emitComments(comments, emitter, locs, eventName) {
     if (comments.length > 0) {
-        comments.forEach(function(node) {
+        comments.forEach(node => {
             const index = locs.indexOf(node.loc);
 
             if (index >= 0) {

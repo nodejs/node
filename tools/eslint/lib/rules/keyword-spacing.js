@@ -16,10 +16,10 @@ const astUtils = require("../ast-utils"),
 // Constants
 //------------------------------------------------------------------------------
 
-const PREV_TOKEN = /^[\)\]\}>]$/;
-const NEXT_TOKEN = /^(?:[\(\[\{<~!]|\+\+?|--?)$/;
-const PREV_TOKEN_M = /^[\)\]\}>*]$/;
-const NEXT_TOKEN_M = /^[\{*]$/;
+const PREV_TOKEN = /^[)\]}>]$/;
+const NEXT_TOKEN = /^(?:[([{<~!]|\+\+?|--?)$/;
+const PREV_TOKEN_M = /^[)\]}>*]$/;
+const NEXT_TOKEN_M = /^[{*]$/;
 const TEMPLATE_OPEN_PAREN = /\$\{$/;
 const TEMPLATE_CLOSE_PAREN = /^\}/;
 const CHECK_TYPE = /^(?:JSXElement|RegularExpression|String|Template)$/;
@@ -77,16 +77,16 @@ module.exports = {
             {
                 type: "object",
                 properties: {
-                    before: {type: "boolean"},
-                    after: {type: "boolean"},
+                    before: { type: "boolean" },
+                    after: { type: "boolean" },
                     overrides: {
                         type: "object",
-                        properties: KEYS.reduce(function(retv, key) {
+                        properties: KEYS.reduce((retv, key) => {
                             retv[key] = {
                                 type: "object",
                                 properties: {
-                                    before: {type: "boolean"},
-                                    after: {type: "boolean"}
+                                    before: { type: "boolean" },
+                                    after: { type: "boolean" }
                                 },
                                 additionalProperties: false
                             };

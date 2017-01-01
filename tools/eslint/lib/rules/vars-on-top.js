@@ -100,7 +100,7 @@ module.exports = {
          */
         function globalVarCheck(node, parent) {
             if (!isVarOnTop(node, parent.body)) {
-                context.report(node, errorMessage);
+                context.report({ node, message: errorMessage });
             }
         }
 
@@ -115,7 +115,7 @@ module.exports = {
             if (!(/Function/.test(grandParent.type) &&
                     parent.type === "BlockStatement" &&
                     isVarOnTop(node, parent.body))) {
-                context.report(node, errorMessage);
+                context.report({ node, message: errorMessage });
             }
         }
 

@@ -114,26 +114,18 @@ module.exports = {
 
         return {
             "Program:exit"() {
-                let lines = sourceCode.lines.map(function(text, i) {
-                    return { lineNumber: i + 1, text };
-                });
+                let lines = sourceCode.lines.map((text, i) => ({ lineNumber: i + 1, text }));
 
                 if (skipBlankLines) {
-                    lines = lines.filter(function(l) {
-                        return l.text.trim() !== "";
-                    });
+                    lines = lines.filter(l => l.text.trim() !== "");
                 }
 
                 if (skipComments) {
                     const comments = sourceCode.getAllComments();
 
-                    const commentLines = lodash.flatten(comments.map(function(comment) {
-                        return getLinesWithoutCode(comment);
-                    }));
+                    const commentLines = lodash.flatten(comments.map(comment => getLinesWithoutCode(comment)));
 
-                    lines = lines.filter(function(l) {
-                        return !lodash.includes(commentLines, l.lineNumber);
-                    });
+                    lines = lines.filter(l => !lodash.includes(commentLines, l.lineNumber));
                 }
 
                 if (lines.length > max) {
