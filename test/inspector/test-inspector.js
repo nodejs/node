@@ -114,10 +114,10 @@ function testSetBreakpointAndResume(session) {
   const commands = [
       { 'method': 'Debugger.setBreakpointByUrl',
         'params': { 'lineNumber': 5,
-                     'url': session.mainScriptPath,
-                     'columnNumber': 0,
-                     'condition': ''
-                   }
+                    'url': session.mainScriptPath,
+                    'columnNumber': 0,
+                    'condition': ''
+        }
       },
       { 'method': 'Debugger.resume'},
       [ { 'method': 'Debugger.getScriptSource',
