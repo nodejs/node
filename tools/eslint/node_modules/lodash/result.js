@@ -1,6 +1,5 @@
 var castPath = require('./_castPath'),
     isFunction = require('./isFunction'),
-    isKey = require('./_isKey'),
     toKey = require('./_toKey');
 
 /**
@@ -33,15 +32,15 @@ var castPath = require('./_castPath'),
  * // => 'default'
  */
 function result(object, path, defaultValue) {
-  path = isKey(path, object) ? [path] : castPath(path);
+  path = castPath(path, object);
 
   var index = -1,
       length = path.length;
 
   // Ensure the loop is entered when path is empty.
   if (!length) {
-    object = undefined;
     length = 1;
+    object = undefined;
   }
   while (++index < length) {
     var value = object == null ? undefined : object[toKey(path[index])];

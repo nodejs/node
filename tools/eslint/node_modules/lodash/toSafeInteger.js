@@ -29,7 +29,9 @@ var MAX_SAFE_INTEGER = 9007199254740991;
  * // => 3
  */
 function toSafeInteger(value) {
-  return baseClamp(toInteger(value), -MAX_SAFE_INTEGER, MAX_SAFE_INTEGER);
+  return value
+    ? baseClamp(toInteger(value), -MAX_SAFE_INTEGER, MAX_SAFE_INTEGER)
+    : (value === 0 ? value : 0);
 }
 
 module.exports = toSafeInteger;

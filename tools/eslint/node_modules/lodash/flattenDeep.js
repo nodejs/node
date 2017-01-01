@@ -18,7 +18,7 @@ var INFINITY = 1 / 0;
  * // => [1, 2, 3, 4, 5]
  */
 function flattenDeep(array) {
-  var length = array ? array.length : 0;
+  var length = array == null ? 0 : array.length;
   return length ? baseFlatten(array, INFINITY) : [];
 }
 

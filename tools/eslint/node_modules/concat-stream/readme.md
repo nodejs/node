@@ -16,7 +16,7 @@ There are also `objectMode` streams that emit things other than Buffers, and you
 
 ## Related
 
-`stream-each` is part of the [mississippi stream utility collection](https://github.com/maxogden/mississippi) which includes more useful stream modules similar to this one.
+`concat-stream` is part of the [mississippi stream utility collection](https://github.com/maxogden/mississippi) which includes more useful stream modules similar to this one.
 
 ### examples
 

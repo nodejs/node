@@ -1,8 +1,19 @@
 var common = require('./common');
 var fs = require('fs');
 
+common.register('touch', _touch, {
+  cmdOptions: {
+    'a': 'atime_only',
+    'c': 'no_create',
+    'd': 'date',
+    'm': 'mtime_only',
+    'r': 'reference',
+  },
+});
+
 //@
-//@ ### touch([options,] file)
+//@ ### touch([options,] file [, file ...])
+//@ ### touch([options,] file_array)
 //@ Available options:
 //@
 //@ + `-a`: Change only the access time
@@ -23,28 +34,18 @@ var fs = require('fs');
 //@ A FILE argument that does not exist is created empty, unless -c is supplied.
 //@ This is a partial implementation of *[touch(1)](http://linux.die.net/man/1/touch)*.
 function _touch(opts, files) {
-  opts = common.parseOptions(opts, {
-    'a': 'atime_only',
-    'c': 'no_create',
-    'd': 'date',
-    'm': 'mtime_only',
-    'r': 'reference',
-  });
-
   if (!files) {
-    common.error('no paths given');
-  }
-
-  if (Array.isArray(files)) {
-    files.forEach(function(f) {
-      touchFile(opts, f);
-    });
+    common.error('no files given');
   } else if (typeof files === 'string') {
-    touchFile(opts, files);
+    files = [].slice.call(arguments, 1);
   } else {
     common.error('file arg should be a string file path or an Array of string file paths');
   }
 
+  files.forEach(function (f) {
+    touchFile(opts, f);
+  });
+  return '';
 }
 
 function touchFile(opts, file) {
