@@ -109,9 +109,9 @@ h3.digest();
 assert.throws(function() {
   h3.digest();
 },
-  /Digest already called/);
+              /Digest already called/);
 
 assert.throws(function() {
   h3.update('foo');
 },
-  /Digest already called/);
+              /Digest already called/);
