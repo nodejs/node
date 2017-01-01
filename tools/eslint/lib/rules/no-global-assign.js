@@ -23,7 +23,7 @@ module.exports = {
                 properties: {
                     exceptions: {
                         type: "array",
-                        items: {type: "string"},
+                        items: { type: "string" },
                         uniqueItems: true
                     }
                 },

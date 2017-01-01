@@ -28,7 +28,7 @@ module.exports = {
                 const wrapperObjects = ["String", "Number", "Boolean", "Math", "JSON"];
 
                 if (wrapperObjects.indexOf(node.callee.name) > -1) {
-                    context.report(node, "Do not use {{fn}} as a constructor.", { fn: node.callee.name });
+                    context.report({ node, message: "Do not use {{fn}} as a constructor.", data: { fn: node.callee.name } });
                 }
             }
         };

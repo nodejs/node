@@ -1,6 +1,10 @@
 var common = require('./common');
 var fs = require('fs');
 
+common.register('cat', _cat, {
+  canReceivePipe: true,
+});
+
 //@
 //@ ### cat(file [, file ...])
 //@ ### cat(file_array)
@@ -15,26 +19,22 @@ var fs = require('fs');
 //@
 //@ Returns a string containing the given file, or a concatenated string
 //@ containing the files if more than one file is given (a new line character is
-//@ introduced between each file). Wildcard `*` accepted.
+//@ introduced between each file).
 function _cat(options, files) {
-  var cat = '';
+  var cat = common.readFromPipe();
 
-  if (!files)
-    common.error('no paths given');
+  if (!files && !cat) common.error('no paths given');
 
-  if (typeof files === 'string')
-    files = [].slice.call(arguments, 1);
-  // if it's array leave it as it is
+  files = [].slice.call(arguments, 1);
 
-  files = common.expand(files);
-
-  files.forEach(function(file) {
-    if (!fs.existsSync(file))
+  files.forEach(function (file) {
+    if (!fs.existsSync(file)) {
       common.error('no such file or directory: ' + file);
+    }
 
     cat += fs.readFileSync(file, 'utf8');
   });
 
-  return common.ShellString(cat);
+  return cat;
 }
 module.exports = _cat;

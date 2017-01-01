@@ -108,7 +108,7 @@ module.exports = {
                 properties: {
                     allow: {
                         type: "array",
-                        items: {enum: ALLOW_OPTIONS},
+                        items: { enum: ALLOW_OPTIONS },
                         uniqueItems: true
                     }
                 },
