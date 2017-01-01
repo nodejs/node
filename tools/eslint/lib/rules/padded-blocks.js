@@ -173,7 +173,7 @@ module.exports = {
                 if (!blockHasBottomPadding) {
                     context.report({
                         node,
-                        loc: {line: closeBrace.loc.end.line, column: closeBrace.loc.end.column - 1 },
+                        loc: { line: closeBrace.loc.end.line, column: closeBrace.loc.end.column - 1 },
                         fix(fixer) {
                             return fixer.insertTextBefore(closeBrace, "\n");
                         },
@@ -199,7 +199,7 @@ module.exports = {
 
                     context.report({
                         node,
-                        loc: {line: closeBrace.loc.end.line, column: closeBrace.loc.end.column - 1 },
+                        loc: { line: closeBrace.loc.end.line, column: closeBrace.loc.end.column - 1 },
                         message: NEVER_MESSAGE,
                         fix(fixer) {
                             return fixer.replaceTextRange([previousToken.end, closeBrace.start - closeBrace.loc.start.column], "\n");

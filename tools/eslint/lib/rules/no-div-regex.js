@@ -29,7 +29,7 @@ module.exports = {
                 const token = sourceCode.getFirstToken(node);
 
                 if (token.type === "RegularExpression" && token.value[1] === "=") {
-                    context.report(node, "A regular expression literal can be confused with '/='.");
+                    context.report({ node, message: "A regular expression literal can be confused with '/='." });
                 }
             }
         };

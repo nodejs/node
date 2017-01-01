@@ -24,7 +24,7 @@ module.exports = {
 
         return {
             ContinueStatement(node) {
-                context.report(node, "Unexpected use of continue statement.");
+                context.report({ node, message: "Unexpected use of continue statement." });
             }
         };
 

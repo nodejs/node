@@ -20,17 +20,17 @@ var {{=$valid}} = false;
 
     {{# def.insertSubschemaCode }}
   {{??}}
-    var valid{{=$it.level}} = true;
+    var {{=$nextValid}} = true;
   {{?}}
 
   {{? $i }}
-    if (valid{{=$it.level}} && prevValid{{=$lvl}})
+    if ({{=$nextValid}} && prevValid{{=$lvl}})
       {{=$valid}} = false;
     else {
     {{ $closingBraces += '}'; }}
   {{?}}
 
-    if (valid{{=$it.level}}) {{=$valid}} = prevValid{{=$lvl}} = true;
+    if ({{=$nextValid}}) {{=$valid}} = prevValid{{=$lvl}} = true;
 {{~}}
 
 {{# def.resetCompositeRule }}

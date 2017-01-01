@@ -1,7 +1,6 @@
 var assignValue = require('./_assignValue'),
     castPath = require('./_castPath'),
     isIndex = require('./_isIndex'),
-    isKey = require('./_isKey'),
     isObject = require('./isObject'),
     toKey = require('./_toKey');
 
@@ -19,7 +18,7 @@ function baseSet(object, path, value, customizer) {
   if (!isObject(object)) {
     return object;
   }
-  path = isKey(path, object) ? [path] : castPath(path);
+  path = castPath(path, object);
 
   var index = -1,
       length = path.length,

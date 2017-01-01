@@ -3,9 +3,13 @@
 {{# def.setupKeyword }}
 {{# def.$data }}
 
-{{ var $i = 'i' + $lvl; }}
+{{
+  var $i = 'i' + $lvl
+    , $vSchema = 'schema' + $lvl;
+}}
+
 {{? !$isData }}
-  var schema{{=$lvl}} = validate.schema{{=$schemaPath}};
+  var {{=$vSchema}} = validate.schema{{=$schemaPath}};
 {{?}}
 var {{=$valid}};
 
@@ -13,8 +17,8 @@ var {{=$valid}};
 
 {{=$valid}} = false;
 
-for (var {{=$i}}=0; {{=$i}}<schema{{=$lvl}}.length; {{=$i}}++)
-  if (equal({{=$data}}, schema{{=$lvl}}[{{=$i}}])) {
+for (var {{=$i}}=0; {{=$i}}<{{=$vSchema}}.length; {{=$i}}++)
+  if (equal({{=$data}}, {{=$vSchema}}[{{=$i}}])) {
     {{=$valid}} = true;
     break;
   }

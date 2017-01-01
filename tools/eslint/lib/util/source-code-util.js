@@ -29,7 +29,7 @@ const debug = require("debug")("eslint:source-code-util");
  */
 function getSourceCodeOfFile(filename, options) {
     debug("getting sourceCode of", filename);
-    const opts = Object.assign({}, options, { rules: {}});
+    const opts = Object.assign({}, options, { rules: {} });
     const cli = new CLIEngine(opts);
     const results = cli.executeOnFiles([filename]);
 
@@ -71,7 +71,7 @@ function getSourceCodeOfFiles(patterns, options, cb) {
         patterns = [patterns];
     }
 
-    const defaultOptions = Object.assign({}, baseDefaultOptions, {cwd: process.cwd()});
+    const defaultOptions = Object.assign({}, baseDefaultOptions, { cwd: process.cwd() });
 
     if (typeof options === "undefined") {
         opts = defaultOptions;
@@ -84,14 +84,14 @@ function getSourceCodeOfFiles(patterns, options, cb) {
     debug("constructed options:", opts);
     patterns = globUtil.resolveFileGlobPatterns(patterns, opts);
 
-    const filenames = globUtil.listFilesToProcess(patterns, opts).reduce(function(files, fileInfo) {
-        return !fileInfo.ignored ? files.concat(fileInfo.filename) : files;
-    }, []);
+    const filenames = globUtil.listFilesToProcess(patterns, opts)
+        .filter(fileInfo => !fileInfo.ignored)
+        .reduce((files, fileInfo) => files.concat(fileInfo.filename), []);
 
     if (filenames.length === 0) {
         debug(`Did not find any files matching pattern(s): ${patterns}`);
     }
-    filenames.forEach(function(filename) {
+    filenames.forEach(filename => {
         const sourceCode = getSourceCodeOfFile(filename, opts);
 
         if (sourceCode) {
