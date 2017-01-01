@@ -5,7 +5,7 @@ if (process.argv[2] === 'child') {
   const send = () => {
     while (process.send(msg));
     // Wait: backlog of unsent messages exceeds threshold
-    setTimeout(send, 20);
+    setImmediate(send);
   };
   send();
 } else {
