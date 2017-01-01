@@ -27,8 +27,8 @@ module.exports = {
             {
                 type: "object",
                 properties: {
-                    builtinGlobals: {type: "boolean"},
-                    hoist: {enum: ["all", "functions", "never"]},
+                    builtinGlobals: { type: "boolean" },
+                    hoist: { enum: ["all", "functions", "never"] },
                     allow: {
                         type: "array",
                         items: {

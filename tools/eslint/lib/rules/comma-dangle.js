@@ -112,11 +112,11 @@ module.exports = {
                     {
                         type: "object",
                         properties: {
-                            arrays: {$refs: "#/defs/valueWithIgnore"},
-                            objects: {$refs: "#/defs/valueWithIgnore"},
-                            imports: {$refs: "#/defs/valueWithIgnore"},
-                            exports: {$refs: "#/defs/valueWithIgnore"},
-                            functions: {$refs: "#/defs/valueWithIgnore"}
+                            arrays: { $refs: "#/defs/valueWithIgnore" },
+                            objects: { $refs: "#/defs/valueWithIgnore" },
+                            imports: { $refs: "#/defs/valueWithIgnore" },
+                            exports: { $refs: "#/defs/valueWithIgnore" },
+                            functions: { $refs: "#/defs/valueWithIgnore" }
                         },
                         additionalProperties: false
                     }
@@ -171,15 +171,10 @@ module.exports = {
         function getTrailingToken(node, lastItem) {
             switch (node.type) {
                 case "ObjectExpression":
-                case "ObjectPattern":
                 case "ArrayExpression":
-                case "ArrayPattern":
                 case "CallExpression":
                 case "NewExpression":
                     return sourceCode.getLastToken(node, 1);
-                case "FunctionDeclaration":
-                case "FunctionExpression":
-                    return sourceCode.getTokenBefore(node.body, 1);
                 default: {
                     const nextToken = sourceCode.getTokenAfter(lastItem);
 

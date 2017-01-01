@@ -31,7 +31,7 @@ function doJSON(input, filename, cb) {
     // <!-- type = module -->
     // This is for cases where the markdown semantic structure is lacking.
     if (type === 'paragraph' || type === 'html') {
-      var metaExpr = /<!--([^=]+)=([^\-]+)-->\n*/g;
+      var metaExpr = /<!--([^=]+)=([^-]+)-->\n*/g;
       text = text.replace(metaExpr, function(_0, k, v) {
         current[k.trim()] = v.trim();
         return '';
@@ -371,7 +371,7 @@ function parseListItem(item) {
     item.name = 'return';
     text = text.replace(retExpr, '');
   } else {
-    var nameExpr = /^['`"]?([^'`": \{]+)['`"]?\s*:?\s*/;
+    var nameExpr = /^['`"]?([^'`": {]+)['`"]?\s*:?\s*/;
     var name = text.match(nameExpr);
     if (name) {
       item.name = name[1];
@@ -388,7 +388,7 @@ function parseListItem(item) {
   }
 
   text = text.trim();
-  var typeExpr = /^\{([^\}]+)\}/;
+  var typeExpr = /^\{([^}]+)\}/;
   var type = text.match(typeExpr);
   if (type) {
     item.type = type[1];
@@ -546,12 +546,12 @@ function deepCopy_(src) {
 var eventExpr = /^Event(?::|\s)+['"]?([^"']+).*$/i;
 var classExpr = /^Class:\s*([^ ]+).*?$/i;
 var propExpr = /^(?:property:?\s*)?[^.]+\.([^ .()]+)\s*?$/i;
-var braceExpr = /^(?:property:?\s*)?[^.\[]+(\[[^\]]+\])\s*?$/i;
+var braceExpr = /^(?:property:?\s*)?[^.[]+(\[[^\]]+\])\s*?$/i;
 var classMethExpr =
   /^class\s*method\s*:?[^.]+\.([^ .()]+)\([^)]*\)\s*?$/i;
 var methExpr =
   /^(?:method:?\s*)?(?:[^.]+\.)?([^ .()]+)\([^)]*\)\s*?$/i;
-var newExpr = /^new ([A-Z][a-zA-Z]+)\([^\)]*\)\s*?$/;
+var newExpr = /^new ([A-Z][a-zA-Z]+)\([^)]*\)\s*?$/;
 var paramExpr = /\((.*)\);?$/;
 
 function newSection(tok) {

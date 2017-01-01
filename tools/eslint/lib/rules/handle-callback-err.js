@@ -59,9 +59,7 @@ module.exports = {
          * @returns {array} All parameters of the given scope.
          */
         function getParameters(scope) {
-            return scope.variables.filter(function(variable) {
-                return variable.defs[0] && variable.defs[0].type === "Parameter";
-            });
+            return scope.variables.filter(variable => variable.defs[0] && variable.defs[0].type === "Parameter");
         }
 
         /**
@@ -76,7 +74,7 @@ module.exports = {
 
             if (firstParameter && matchesConfiguredErrorName(firstParameter.name)) {
                 if (firstParameter.references.length === 0) {
-                    context.report(node, "Expected error to be handled.");
+                    context.report({ node, message: "Expected error to be handled." });
                 }
             }
         }

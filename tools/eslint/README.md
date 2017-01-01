@@ -13,7 +13,7 @@
 [Rules](http://eslint.org/docs/rules/) |
 [Contributing](http://eslint.org/docs/developer-guide/contributing) |
 [Reporting Bugs](http://eslint.org/docs/developer-guide/contributing/reporting-bugs) |
-[Code of Conduct](https://jquery.org/conduct/) |
+[Code of Conduct](https://js.foundation/conduct/) |
 [Twitter](https://twitter.com/geteslint) |
 [Mailing List](https://groups.google.com/group/eslint) |
 [Chat Room](https://gitter.im/eslint/eslint)
@@ -210,10 +210,7 @@ ESLint has full support for ECMAScript 6. By default, this support is off. You c
 
 ESLint doesn't natively support experimental ECMAScript language features. You can use [babel-eslint](https://github.com/babel/babel-eslint) to use any option available in Babel.
 
-Once a language feature has been adopted into the ECMAScript standard, we will accept
-issues and pull requests related to the new feature, subject to our [contributing
-guidelines](http://eslint.org/docs/developer-guide/contributing). Until then, please use
-the appropriate parser and plugin(s) for your experimental feature.
+Once a language feature has been adopted into the ECMAScript standard (stage 4 according to the [TC39 process](https://tc39.github.io/process-document/)), we will accept issues and pull requests related to the new feature, subject to our [contributing guidelines](http://eslint.org/docs/developer-guide/contributing). Until then, please use the appropriate parser and plugin(s) for your experimental feature.
 
 ### Where to ask for help?
 

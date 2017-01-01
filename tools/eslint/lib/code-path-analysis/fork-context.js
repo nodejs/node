@@ -99,21 +99,20 @@ function mergeExtraSegments(context, segments) {
 
 /**
  * A class to manage forking.
- *
- * @constructor
- * @param {IdGenerator} idGenerator - An identifier generator for segments.
- * @param {ForkContext|null} upper - An upper fork context.
- * @param {number} count - A number of parallel segments.
  */
-function ForkContext(idGenerator, upper, count) {
-    this.idGenerator = idGenerator;
-    this.upper = upper;
-    this.count = count;
-    this.segmentsList = [];
-}
+class ForkContext {
 
-ForkContext.prototype = {
-    constructor: ForkContext,
+    /**
+     * @param {IdGenerator} idGenerator - An identifier generator for segments.
+     * @param {ForkContext|null} upper - An upper fork context.
+     * @param {number} count - A number of parallel segments.
+     */
+    constructor(idGenerator, upper, count) {
+        this.idGenerator = idGenerator;
+        this.upper = upper;
+        this.count = count;
+        this.segmentsList = [];
+    }
 
     /**
      * The head segments.
@@ -123,7 +122,7 @@ ForkContext.prototype = {
         const list = this.segmentsList;
 
         return list.length === 0 ? [] : list[list.length - 1];
-    },
+    }
 
     /**
      * A flag which shows empty.
@@ -131,7 +130,7 @@ ForkContext.prototype = {
      */
     get empty() {
         return this.segmentsList.length === 0;
-    },
+    }
 
     /**
      * A flag which shows reachable.
@@ -141,7 +140,7 @@ ForkContext.prototype = {
         const segments = this.head;
 
         return segments.length > 0 && segments.some(isReachable);
-    },
+    }
 
     /**
      * Creates new segments from this context.
@@ -152,7 +151,7 @@ ForkContext.prototype = {
      */
     makeNext(begin, end) {
         return makeSegments(this, begin, end, CodePathSegment.newNext);
-    },
+    }
 
     /**
      * Creates new segments from this context.
@@ -164,7 +163,7 @@ ForkContext.prototype = {
      */
     makeUnreachable(begin, end) {
         return makeSegments(this, begin, end, CodePathSegment.newUnreachable);
-    },
+    }
 
     /**
      * Creates new segments from this context.
@@ -177,7 +176,7 @@ ForkContext.prototype = {
      */
     makeDisconnected(begin, end) {
         return makeSegments(this, begin, end, CodePathSegment.newDisconnected);
-    },
+    }
 
     /**
      * Adds segments into this context.
@@ -190,7 +189,7 @@ ForkContext.prototype = {
         assert(segments.length >= this.count, `${segments.length} >= ${this.count}`);
 
         this.segmentsList.push(mergeExtraSegments(this, segments));
-    },
+    }
 
     /**
      * Replaces the head segments with given segments.
@@ -203,7 +202,7 @@ ForkContext.prototype = {
         assert(segments.length >= this.count, `${segments.length} >= ${this.count}`);
 
         this.segmentsList.splice(-1, 1, mergeExtraSegments(this, segments));
-    },
+    }
 
     /**
      * Adds all segments of a given fork context into this context.
@@ -219,7 +218,7 @@ ForkContext.prototype = {
         for (let i = 0; i < source.length; ++i) {
             this.segmentsList.push(source[i]);
         }
-    },
+    }
 
     /**
      * Clears all secments in this context.
@@ -229,34 +228,34 @@ ForkContext.prototype = {
     clear() {
         this.segmentsList = [];
     }
-};
 
-/**
- * Creates the root fork context.
- *
- * @param {IdGenerator} idGenerator - An identifier generator for segments.
- * @returns {ForkContext} New fork context.
- */
-ForkContext.newRoot = function(idGenerator) {
-    const context = new ForkContext(idGenerator, null, 1);
+    /**
+     * Creates the root fork context.
+     *
+     * @param {IdGenerator} idGenerator - An identifier generator for segments.
+     * @returns {ForkContext} New fork context.
+     */
+    static newRoot(idGenerator) {
+        const context = new ForkContext(idGenerator, null, 1);
 
-    context.add([CodePathSegment.newRoot(idGenerator.next())]);
+        context.add([CodePathSegment.newRoot(idGenerator.next())]);
 
-    return context;
-};
+        return context;
+    }
 
-/**
- * Creates an empty fork context preceded by a given context.
- *
- * @param {ForkContext} parentContext - The parent fork context.
- * @param {boolean} forkLeavingPath - A flag which shows inside of `finally` block.
- * @returns {ForkContext} New fork context.
- */
-ForkContext.newEmpty = function(parentContext, forkLeavingPath) {
-    return new ForkContext(
-        parentContext.idGenerator,
-        parentContext,
-        (forkLeavingPath ? 2 : 1) * parentContext.count);
-};
+    /**
+     * Creates an empty fork context preceded by a given context.
+     *
+     * @param {ForkContext} parentContext - The parent fork context.
+     * @param {boolean} forkLeavingPath - A flag which shows inside of `finally` block.
+     * @returns {ForkContext} New fork context.
+     */
+    static newEmpty(parentContext, forkLeavingPath) {
+        return new ForkContext(
+            parentContext.idGenerator,
+            parentContext,
+            (forkLeavingPath ? 2 : 1) * parentContext.count);
+    }
+}
 
 module.exports = ForkContext;

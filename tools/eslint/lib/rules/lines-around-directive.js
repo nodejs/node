@@ -64,14 +64,31 @@ module.exports = {
         }
 
         /**
+        * Gets the last token of a node that is on the same line as the rest of the node.
+        * This will usually be the last token of the node, but it will be the second-to-last token if the node has a trailing
+        * semicolon on a different line.
+        * @param {ASTNode} node A directive node
+        * @returns {Token} The last token of the node on the line
+        */
+        function getLastTokenOnLine(node) {
+            const lastToken = sourceCode.getLastToken(node);
+            const secondToLastToken = sourceCode.getTokenBefore(lastToken);
+
+            return lastToken.type === "Punctuator" && lastToken.value === ";" && lastToken.loc.start.line > secondToLastToken.loc.end.line
+                ? secondToLastToken
+                : lastToken;
+        }
+
+        /**
          * Check if node is followed by a blank newline.
          * @param {ASTNode} node Node to check.
          * @returns {boolean} Whether or not the passed in node is followed by a blank newline.
          */
         function hasNewlineAfter(node) {
-            const tokenAfter = sourceCode.getTokenOrCommentAfter(node);
+            const lastToken = getLastTokenOnLine(node);
+            const tokenAfter = sourceCode.getTokenOrCommentAfter(lastToken);
 
-            return tokenAfter.loc.start.line - node.loc.end.line >= 2;
+            return tokenAfter.loc.start.line - lastToken.loc.end.line >= 2;
         }
 
         /**
@@ -91,10 +108,12 @@ module.exports = {
                     location
                 },
                 fix(fixer) {
+                    const lastToken = getLastTokenOnLine(node);
+
                     if (expected) {
-                        return location === "before" ? fixer.insertTextBefore(node, "\n") : fixer.insertTextAfter(node, "\n");
+                        return location === "before" ? fixer.insertTextBefore(node, "\n") : fixer.insertTextAfter(lastToken, "\n");
                     }
-                    return fixer.removeRange(location === "before" ? [node.range[0] - 1, node.range[0]] : [node.range[1], node.range[1] + 1]);
+                    return fixer.removeRange(location === "before" ? [node.range[0] - 1, node.range[0]] : [lastToken.range[1], lastToken.range[1] + 1]);
                 }
             });
         }

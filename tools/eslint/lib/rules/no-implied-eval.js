@@ -21,7 +21,7 @@ module.exports = {
     },
 
     create(context) {
-        const CALLEE_RE = /set(?:Timeout|Interval)|execScript/;
+        const CALLEE_RE = /^(setTimeout|setInterval|execScript)$/;
 
         /*
          * Figures out if we should inspect a given binary expression. Is a stack
@@ -105,7 +105,7 @@ module.exports = {
                 // remove the entire substack, to avoid duplicate reports
                 const substack = impliedEvalAncestorsStack.pop();
 
-                context.report(substack[0], "Implied eval. Consider passing a function instead of a string.");
+                context.report({ node: substack[0], message: "Implied eval. Consider passing a function instead of a string." });
             }
         }
 

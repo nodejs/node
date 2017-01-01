@@ -179,7 +179,7 @@ module.exports = {
                     return;
                 }
 
-                codePath.traverseSegments(function(segment, controller) {
+                codePath.traverseSegments((segment, controller) => {
                     const info = segInfoMap[segment.id];
 
                     for (let i = 0; i < info.invalidNodes.length; ++i) {
@@ -236,8 +236,8 @@ module.exports = {
 
                 // Update information inside of the loop.
                 funcInfo.codePath.traverseSegments(
-                    {first: toSegment, last: fromSegment},
-                    function(segment, controller) {
+                    { first: toSegment, last: fromSegment },
+                    (segment, controller) => {
                         const info = segInfoMap[segment.id];
 
                         if (info.superCalled) {

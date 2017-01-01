@@ -10,7 +10,7 @@
  */
 function arrayAggregator(array, setter, iteratee, accumulator) {
   var index = -1,
-      length = array ? array.length : 0;
+      length = array == null ? 0 : array.length;
 
   while (++index < length) {
     var value = array[index];

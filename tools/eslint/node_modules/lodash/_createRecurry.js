@@ -3,12 +3,12 @@ var isLaziable = require('./_isLaziable'),
     setWrapToString = require('./_setWrapToString');
 
 /** Used to compose bitmasks for function metadata. */
-var BIND_FLAG = 1,
-    BIND_KEY_FLAG = 2,
-    CURRY_BOUND_FLAG = 4,
-    CURRY_FLAG = 8,
-    PARTIAL_FLAG = 32,
-    PARTIAL_RIGHT_FLAG = 64;
+var WRAP_BIND_FLAG = 1,
+    WRAP_BIND_KEY_FLAG = 2,
+    WRAP_CURRY_BOUND_FLAG = 4,
+    WRAP_CURRY_FLAG = 8,
+    WRAP_PARTIAL_FLAG = 32,
+    WRAP_PARTIAL_RIGHT_FLAG = 64;
 
 /**
  * Creates a function that wraps `func` to continue currying.
@@ -28,17 +28,17 @@ var BIND_FLAG = 1,
  * @returns {Function} Returns the new wrapped function.
  */
 function createRecurry(func, bitmask, wrapFunc, placeholder, thisArg, partials, holders, argPos, ary, arity) {
-  var isCurry = bitmask & CURRY_FLAG,
+  var isCurry = bitmask & WRAP_CURRY_FLAG,
       newHolders = isCurry ? holders : undefined,
       newHoldersRight = isCurry ? undefined : holders,
       newPartials = isCurry ? partials : undefined,
       newPartialsRight = isCurry ? undefined : partials;
 
-  bitmask |= (isCurry ? PARTIAL_FLAG : PARTIAL_RIGHT_FLAG);
-  bitmask &= ~(isCurry ? PARTIAL_RIGHT_FLAG : PARTIAL_FLAG);
+  bitmask |= (isCurry ? WRAP_PARTIAL_FLAG : WRAP_PARTIAL_RIGHT_FLAG);
+  bitmask &= ~(isCurry ? WRAP_PARTIAL_RIGHT_FLAG : WRAP_PARTIAL_FLAG);
 
-  if (!(bitmask & CURRY_BOUND_FLAG)) {
-    bitmask &= ~(BIND_FLAG | BIND_KEY_FLAG);
+  if (!(bitmask & WRAP_CURRY_BOUND_FLAG)) {
+    bitmask &= ~(WRAP_BIND_FLAG | WRAP_BIND_KEY_FLAG);
   }
   var newData = [
     func, bitmask, thisArg, newPartials, newHolders, newPartialsRight,

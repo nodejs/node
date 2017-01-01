@@ -41,7 +41,7 @@ module.exports = {
                 context.report({
                     message: "Do not access Object.prototype method '{{prop}}' from target object.",
                     loc: node.callee.property.loc.start,
-                    data: {prop: propName},
+                    data: { prop: propName },
                     node
                 });
             }

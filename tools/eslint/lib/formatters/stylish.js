@@ -33,7 +33,7 @@ module.exports = function(results) {
         warnings = 0,
         summaryColor = "yellow";
 
-    results.forEach(function(result) {
+    results.forEach(result => {
         const messages = result.messages;
 
         if (messages.length === 0) {
@@ -44,7 +44,7 @@ module.exports = function(results) {
         output += `${chalk.underline(result.filePath)}\n`;
 
         output += `${table(
-            messages.map(function(message) {
+            messages.map(message => {
                 let messageType;
 
                 if (message.fatal || message.severity === 2) {
@@ -71,11 +71,7 @@ module.exports = function(results) {
                     return chalk.stripColor(str).length;
                 }
             }
-        ).split("\n").map(function(el) {
-            return el.replace(/(\d+)\s+(\d+)/, function(m, p1, p2) {
-                return chalk.dim(`${p1}:${p2}`);
-            });
-        }).join("\n")}\n\n`;
+        ).split("\n").map(el => el.replace(/(\d+)\s+(\d+)/, (m, p1, p2) => chalk.dim(`${p1}:${p2}`))).join("\n")}\n\n`;
     });
 
     if (total > 0) {

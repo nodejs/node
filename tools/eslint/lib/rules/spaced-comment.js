@@ -240,7 +240,7 @@ module.exports = {
         const config = context.options[1] || {};
         const balanced = config.block && config.block.balanced;
 
-        const styleRules = ["block", "line"].reduce(function(rule, type) {
+        const styleRules = ["block", "line"].reduce((rule, type) => {
             const markers = parseMarkersOption(config[type] && config[type].markers || config.markers);
             const exceptions = config[type] && config[type].exceptions || config.exceptions || [];
             const endNeverPattern = "[ \t]+$";

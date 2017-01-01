@@ -27,6 +27,9 @@ module.exports = {
                             },
                             FunctionDeclaration: {
                                 type: "boolean"
+                            },
+                            ArrowFunctionExpression: {
+                                type: "boolean"
                             }
                         },
                         additionalProperties: false
@@ -52,7 +55,7 @@ module.exports = {
          * @returns {void}
          */
         function report(node) {
-            context.report(node, "Missing JSDoc comment.");
+            context.report({ node, message: "Missing JSDoc comment." });
         }
 
         /**
@@ -96,6 +99,11 @@ module.exports = {
             },
             ClassDeclaration(node) {
                 if (options.ClassDeclaration) {
+                    checkJsDoc(node);
+                }
+            },
+            ArrowFunctionExpression(node) {
+                if (options.ArrowFunctionExpression && node.parent.type === "VariableDeclarator") {
                     checkJsDoc(node);
                 }
             }

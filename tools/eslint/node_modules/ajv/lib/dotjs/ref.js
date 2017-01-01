@@ -67,13 +67,14 @@ module.exports = function generate_ref(it, $keyword) {
     } else if ($refVal.inline) {
       var $it = it.util.copy(it);
       $it.level++;
+      var $nextValid = 'valid' + $it.level;
       $it.schema = $refVal.schema;
       $it.schemaPath = '';
       $it.errSchemaPath = $schema;
       var $code = it.validate($it).replace(/validate\.schema/g, $refVal.code);
       out += ' ' + ($code) + ' ';
       if ($breakOnError) {
-        out += ' if (valid' + ($it.level) + ') { ';
+        out += ' if (' + ($nextValid) + ') { ';
       }
     } else {
       $async = $refVal.$async === true;

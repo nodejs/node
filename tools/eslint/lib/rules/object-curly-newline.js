@@ -61,7 +61,7 @@ function normalizeOptionValue(value) {
         multiline = true;
     }
 
-    return {multiline, minProperties};
+    return { multiline, minProperties };
 }
 
 /**
@@ -80,7 +80,7 @@ function normalizeOptions(options) {
 
     const value = normalizeOptionValue(options);
 
-    return {ObjectExpression: value, ObjectPattern: value};
+    return { ObjectExpression: value, ObjectPattern: value };
 }
 
 //------------------------------------------------------------------------------

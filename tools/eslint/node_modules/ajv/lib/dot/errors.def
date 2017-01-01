@@ -64,7 +64,7 @@
       throw new ValidationError(vErrors);
     {{??}}
       validate.errors = vErrors;
-      return false
+      return false;
     {{?}}
   {{?}}
 #}}

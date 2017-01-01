@@ -51,7 +51,7 @@ QUOTE_SETTINGS.backtick.convert = function(str) {
     if (newQuote === oldQuote) {
         return str;
     }
-    return newQuote + str.slice(1, -1).replace(/\\(\${|\r\n?|\n|.)|["'`]|\${|(\r\n?|\n)/g, function(match, escaped, newline) {
+    return newQuote + str.slice(1, -1).replace(/\\(\${|\r\n?|\n|.)|["'`]|\${|(\r\n?|\n)/g, (match, escaped, newline) => {
         if (escaped === oldQuote || oldQuote === "`" && escaped === "${") {
             return escaped; // unescape
         }
@@ -258,7 +258,11 @@ module.exports = {
                     return;
                 }
 
-                const shouldWarn = node.quasis.length === 1 && (node.quasis[0].value.cooked.indexOf("\n") === -1);
+                /*
+                 * A warning should be produced if the template literal only has one TemplateElement, and has no unescaped newlines.
+                 * An unescaped newline is a newline preceded by an even number of backslashes.
+                 */
+                const shouldWarn = node.quasis.length === 1 && !/(^|[^\\])(\\\\)*[\r\n\u2028\u2029]/.test(node.quasis[0].value.raw);
 
                 if (shouldWarn) {
                     context.report({
@@ -268,6 +272,15 @@ module.exports = {
                             description: settings.description,
                         },
                         fix(fixer) {
+                            if (isPartOfDirectivePrologue(node)) {
+
+                                /*
+                                 * TemplateLiterals in a directive prologue aren't actually directives, but if they're
+                                 * in the directive prologue, then fixing them might turn them into directives and change
+                                 * the behavior of the code.
+                                 */
+                                return null;
+                            }
                             return fixer.replaceText(node, settings.convert(sourceCode.getText(node)));
                         }
                     });
