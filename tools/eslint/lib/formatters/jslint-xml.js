@@ -17,12 +17,12 @@ module.exports = function(results) {
     output += "<?xml version=\"1.0\" encoding=\"utf-8\"?>";
     output += "<jslint>";
 
-    results.forEach(function(result) {
+    results.forEach(result => {
         const messages = result.messages;
 
         output += `<file name="${result.filePath}">`;
 
-        messages.forEach(function(message) {
+        messages.forEach(message => {
             output += [
                 `<issue line="${message.line}"`,
                 `char="${message.column}"`,

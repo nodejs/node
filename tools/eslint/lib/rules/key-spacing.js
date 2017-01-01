@@ -417,8 +417,8 @@ module.exports = {
         function report(property, side, whitespace, expected, mode) {
             const diff = whitespace.length - expected,
                 nextColon = getNextColon(property.key),
-                tokenBeforeColon = sourceCode.getTokenBefore(nextColon),
-                tokenAfterColon = sourceCode.getTokenAfter(nextColon),
+                tokenBeforeColon = sourceCode.getTokenOrCommentBefore(nextColon),
+                tokenAfterColon = sourceCode.getTokenOrCommentAfter(nextColon),
                 isKeySide = side === "key",
                 locStart = isKeySide ? tokenBeforeColon.loc.start : tokenAfterColon.loc.start,
                 isExtra = diff > 0,
@@ -514,7 +514,7 @@ module.exports = {
                 return [node.properties];
             }
 
-            return node.properties.reduce(function(groups, property) {
+            return node.properties.reduce((groups, property) => {
                 const currentGroup = last(groups),
                     prev = last(currentGroup);
 
@@ -579,7 +579,7 @@ module.exports = {
          * @returns {void}
          */
         function verifyAlignment(node) {
-            createGroups(node).forEach(function(group) {
+            createGroups(node).forEach(group => {
                 verifyGroupAlignment(group.filter(isKeyValueProperty));
             });
         }

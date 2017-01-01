@@ -44,19 +44,19 @@ module.exports = {
      * @returns {void}
      */
     testEventGeneratorInterface(instance) {
-        this.describe("should implement EventGenerator interface", function() {
-            this.it("should have `emitter` property.", function() {
+        this.describe("should implement EventGenerator interface", () => {
+            this.it("should have `emitter` property.", () => {
                 assert.equal(typeof instance.emitter, "object");
                 assert.equal(typeof instance.emitter.emit, "function");
             });
 
-            this.it("should have `enterNode` property.", function() {
+            this.it("should have `enterNode` property.", () => {
                 assert.equal(typeof instance.enterNode, "function");
             });
 
-            this.it("should have `leaveNode` property.", function() {
+            this.it("should have `leaveNode` property.", () => {
                 assert.equal(typeof instance.leaveNode, "function");
             });
-        }.bind(this));
+        });
     }
 };

@@ -101,7 +101,7 @@ module.exports = {
 
                 const child = sourceCode.getTokenAfter(node.expressions[0]);
 
-                context.report(node, child.loc.start, "Unexpected use of comma operator.");
+                context.report({ node, loc: child.loc.start, message: "Unexpected use of comma operator." });
             }
         };
 
