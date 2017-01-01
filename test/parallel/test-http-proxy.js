@@ -10,8 +10,8 @@ var cookies = [
 ];
 
 var headers = {'content-type': 'text/plain',
-                'set-cookie': cookies,
-                'hello': 'world' };
+               'set-cookie': cookies,
+               'hello': 'world' };
 
 var backend = http.createServer(function(req, res) {
   console.error('backend request');
