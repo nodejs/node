@@ -115,7 +115,7 @@ var rfc4231 = [
     key: Buffer.from('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'hex'),
     data: Buffer.from('ddddddddddddddddddddddddddddddddddddddddddddddddd' +
                      'ddddddddddddddddddddddddddddddddddddddddddddddddddd',
-                     'hex'),
+                      'hex'),
     hmac: {
       sha224: '7fb3cb3588c6c1f6ffa9694d7d6ad2649365b0c1f65d69d1ec8333ea',
       sha256:
@@ -132,10 +132,10 @@ var rfc4231 = [
   },
   {
     key: Buffer.from('0102030405060708090a0b0c0d0e0f10111213141516171819',
-                    'hex'),
+                     'hex'),
     data: Buffer.from('cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdc' +
                      'dcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd',
-                     'hex'),
+                      'hex'),
     hmac: {
       sha224: '6c11506874013cac6a2abc1bb382627cec6a90d86efc012de7afec5a',
       sha256:
@@ -256,16 +256,16 @@ var rfc2202_md5 = [
     key: Buffer.from('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'hex'),
     data: Buffer.from('ddddddddddddddddddddddddddddddddddddddddddddddddd' +
                      'ddddddddddddddddddddddddddddddddddddddddddddddddddd',
-                     'hex'),
+                      'hex'),
     hmac: '56be34521d144c88dbb8c733f0e8b3f6'
   },
   {
     key: Buffer.from('0102030405060708090a0b0c0d0e0f10111213141516171819',
-                    'hex'),
+                     'hex'),
     data: Buffer.from('cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdc' +
                      'dcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd' +
                      'cdcdcdcdcd',
-                     'hex'),
+                      'hex'),
     hmac: '697eaf0aca3a3aea3a75164746ffaa79'
   },
   {
@@ -278,7 +278,7 @@ var rfc2202_md5 = [
                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
                     'aaaaaaaaaaaaaaaaaaaaaa',
-                    'hex'),
+                     'hex'),
     data: 'Test Using Larger Than Block-Size Key - Hash Key First',
     hmac: '6b1ab7fe4bd7bf8f0b62e6ce61b9d0cd'
   },
@@ -287,7 +287,7 @@ var rfc2202_md5 = [
                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
                     'aaaaaaaaaaaaaaaaaaaaaa',
-                    'hex'),
+                     'hex'),
     data:
         'Test Using Larger Than Block-Size Key and Larger Than One ' +
         'Block-Size Data',
@@ -310,16 +310,16 @@ var rfc2202_sha1 = [
     data: Buffer.from('ddddddddddddddddddddddddddddddddddddddddddddd' +
                      'ddddddddddddddddddddddddddddddddddddddddddddd' +
                      'dddddddddd',
-                     'hex'),
+                      'hex'),
     hmac: '125d7342b9ac11cd91a39af48aa17b4f63f175d3'
   },
   {
     key: Buffer.from('0102030405060708090a0b0c0d0e0f10111213141516171819',
-                    'hex'),
+                     'hex'),
     data: Buffer.from('cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdc' +
                      'dcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd' +
                      'cdcdcdcdcd',
-                     'hex'),
+                      'hex'),
     hmac: '4c9007f4026250c6bc8414f9bf50c86c2d7235da'
   },
   {
@@ -332,7 +332,7 @@ var rfc2202_sha1 = [
                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
                     'aaaaaaaaaaaaaaaaaaaaaa',
-                    'hex'),
+                     'hex'),
     data: 'Test Using Larger Than Block-Size Key - Hash Key First',
     hmac: 'aa4ae5e15272d00e95705637ce8a3b55ed402112'
   },
@@ -341,7 +341,7 @@ var rfc2202_sha1 = [
                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
                     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' +
                     'aaaaaaaaaaaaaaaaaaaaaa',
-                    'hex'),
+                     'hex'),
     data:
         'Test Using Larger Than Block-Size Key and Larger Than One ' +
         'Block-Size Data',

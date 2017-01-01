@@ -19,9 +19,9 @@ for (const prop in url) {
 // https://heycam.github.io/webidl/#es-attributes
 // https://heycam.github.io/webidl/#es-stringifier
 const expected = ['toString',
-  'href', 'origin', 'protocol',
-  'username', 'password', 'host', 'hostname', 'port',
-  'pathname', 'search', 'searchParams', 'hash'];
+                  'href', 'origin', 'protocol',
+                  'username', 'password', 'host', 'hostname', 'port',
+                  'pathname', 'search', 'searchParams', 'hash'];
 
 assert.deepStrictEqual(props, expected);
 
