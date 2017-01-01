@@ -5,6 +5,12 @@
 "use strict";
 
 //--------------------------------------------------------------------------
+// Requirements
+//--------------------------------------------------------------------------
+
+const astUtils = require("../ast-utils");
+
+//--------------------------------------------------------------------------
 // Helpers
 //--------------------------------------------------------------------------
 
@@ -54,13 +60,16 @@ function looksLikeLiteral(node) {
 /**
  * Attempts to derive a Literal node from nodes that are treated like literals.
  * @param {ASTNode} node Node to normalize.
- * @returns {ASTNode} The original node if the node is already a Literal, or a
- *                    normalized Literal node with the negative number as the
- *                    value if the node represents a negative number literal,
- *                    otherwise null if the node cannot be converted to a
- *                    normalized literal.
+ * @param {number} [defaultValue] The default value to be returned if the node
+ *                                is not a Literal.
+ * @returns {ASTNode} One of the following options.
+ *  1. The original node if the node is already a Literal
+ *  2. A normalized Literal node with the negative number as the value if the
+ *     node represents a negative number literal.
+ *  3. The Literal node which has the `defaultValue` argument if it exists.
+ *  4. Otherwise `null`.
  */
-function getNormalizedLiteral(node) {
+function getNormalizedLiteral(node, defaultValue) {
     if (node.type === "Literal") {
         return node;
     }
@@ -70,6 +79,14 @@ function getNormalizedLiteral(node) {
             type: "Literal",
             value: -node.argument.value,
             raw: `-${node.argument.value}`
+        };
+    }
+
+    if (defaultValue) {
+        return {
+            type: "Literal",
+            value: defaultValue,
+            raw: String(defaultValue)
         };
     }
 
@@ -98,12 +115,26 @@ function same(a, b) {
         case "Literal":
             return a.value === b.value;
 
-        case "MemberExpression":
+        case "MemberExpression": {
+            const nameA = astUtils.getStaticPropertyName(a);
+
+            // x.y = x["y"]
+            if (nameA) {
+                return (
+                    same(a.object, b.object) &&
+                    nameA === astUtils.getStaticPropertyName(b)
+                );
+            }
 
             // x[0] = x[0]
             // x[y] = x[y]
             // x.y = x.y
-            return same(a.object, b.object) && same(a.property, b.property);
+            return (
+                a.computed === b.computed &&
+                same(a.object, b.object) &&
+                same(a.property, b.property)
+            );
+        }
 
         case "ThisExpression":
             return true;
@@ -178,7 +209,7 @@ module.exports = {
 
                 return (node.operator === "&&" &&
                     (leftLiteral = getNormalizedLiteral(left.left)) &&
-                    (rightLiteral = getNormalizedLiteral(right.right)) &&
+                    (rightLiteral = getNormalizedLiteral(right.right, Number.POSITIVE_INFINITY)) &&
                     leftLiteral.value <= rightLiteral.value &&
                     same(left.right, right.left));
             }
@@ -191,7 +222,7 @@ module.exports = {
                 let leftLiteral, rightLiteral;
 
                 return (node.operator === "||" &&
-                    (leftLiteral = getNormalizedLiteral(left.right)) &&
+                    (leftLiteral = getNormalizedLiteral(left.right, Number.NEGATIVE_INFINITY)) &&
                     (rightLiteral = getNormalizedLiteral(right.left)) &&
                     leftLiteral.value <= rightLiteral.value &&
                     same(left.left, right.right));

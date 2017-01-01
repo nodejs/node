@@ -89,11 +89,11 @@ module.exports = {
                 const lines = sourceCode.lines,
                     comments = sourceCode.getAllComments();
 
-                comments.forEach(function(comment) {
+                comments.forEach(comment => {
                     ignoredLocs.push(comment.loc);
                 });
 
-                ignoredLocs.sort(function(first, second) {
+                ignoredLocs.sort((first, second) => {
                     if (beforeLoc(first, second.start.line, second.start.column)) {
                         return 1;
                     }
@@ -114,7 +114,7 @@ module.exports = {
                     regex = /^(?=[\t ]* \t)/;
                 }
 
-                lines.forEach(function(line, i) {
+                lines.forEach((line, i) => {
                     const match = regex.exec(line);
 
                     if (match) {
@@ -132,7 +132,7 @@ module.exports = {
                             return;
                         }
 
-                        context.report(node, { line: lineNumber, column }, "Mixed spaces and tabs.");
+                        context.report({ node, loc: { line: lineNumber, column }, message: "Mixed spaces and tabs." });
                     }
                 });
             }

@@ -24,7 +24,7 @@ module.exports = {
 
         return {
             DebuggerStatement(node) {
-                context.report(node, "Unexpected 'debugger' statement.");
+                context.report({ node, message: "Unexpected 'debugger' statement." });
             }
         };
 

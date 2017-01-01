@@ -5,6 +5,19 @@
 
 "use strict";
 
+const astUtils = require("../ast-utils");
+
+// Operators that always result in a boolean value
+const BOOLEAN_OPERATORS = new Set(["==", "===", "!=", "!==", ">", ">=", "<", "<=", "in", "instanceof"]);
+const OPERATOR_INVERSES = {
+    "==": "!=",
+    "!=": "==",
+    "===": "!==",
+    "!==": "==="
+
+    // Operators like < and >= are not true inverses, since both will return false with NaN.
+};
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -27,12 +40,15 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        fixable: "code"
     },
 
     create(context) {
         const options = context.options[0] || {};
         const defaultAssignment = options.defaultAssignment !== false;
+        const sourceCode = context.getSourceCode();
 
         /**
          * Test if the node is a boolean literal
@@ -42,6 +58,34 @@ module.exports = {
          */
         function isBooleanLiteral(node) {
             return node.type === "Literal" && typeof node.value === "boolean";
+        }
+
+        /**
+         * Creates an expression that represents the boolean inverse of the expression represented by the original node
+         * @param {ASTNode} node A node representing an expression
+         * @returns {string} A string representing an inverted expression
+         */
+        function invertExpression(node) {
+            if (node.type === "BinaryExpression" && Object.prototype.hasOwnProperty.call(OPERATOR_INVERSES, node.operator)) {
+                const operatorToken = sourceCode.getTokensBetween(node.left, node.right).find(token => token.value === node.operator);
+
+                return sourceCode.getText().slice(node.range[0], operatorToken.range[0]) + OPERATOR_INVERSES[node.operator] + sourceCode.getText().slice(operatorToken.range[1], node.range[1]);
+            }
+
+            if (astUtils.getPrecedence(node) < astUtils.getPrecedence({ type: "UnaryExpression" })) {
+                return `!(${astUtils.getParenthesisedText(sourceCode, node)})`;
+            }
+            return `!${astUtils.getParenthesisedText(sourceCode, node)}`;
+        }
+
+        /**
+         * Tests if a given node always evaluates to a boolean value
+         * @param {ASTNode} node - An expression node
+         * @returns {boolean} True if it is determined that the node will always evaluate to a boolean value
+         */
+        function isBooleanExpression(node) {
+            return node.type === "BinaryExpression" && BOOLEAN_OPERATORS.has(node.operator) ||
+                node.type === "UnaryExpression" && node.operator === "!";
         }
 
         /**
@@ -60,9 +104,34 @@ module.exports = {
 
             ConditionalExpression(node) {
                 if (isBooleanLiteral(node.alternate) && isBooleanLiteral(node.consequent)) {
-                    context.report(node, node.consequent.loc.start, "Unnecessary use of boolean literals in conditional expression.");
+                    context.report({
+                        node,
+                        loc: node.consequent.loc.start,
+                        message: "Unnecessary use of boolean literals in conditional expression.",
+                        fix(fixer) {
+                            if (node.consequent.value === node.alternate.value) {
+
+                                // Replace `foo ? true : true` with just `true`, but don't replace `foo() ? true : true`
+                                return node.test.type === "Identifier" ? fixer.replaceText(node, node.consequent.value.toString()) : null;
+                            }
+                            if (node.alternate.value) {
+
+                                // Replace `foo() ? false : true` with `!(foo())`
+                                return fixer.replaceText(node, invertExpression(node.test));
+                            }
+
+                            // Replace `foo ? true : false` with `foo` if `foo` is guaranteed to be a boolean, or `!!foo` otherwise.
+
+                            return fixer.replaceText(node, isBooleanExpression(node.test) ? astUtils.getParenthesisedText(sourceCode, node.test) : `!${invertExpression(node.test)}`);
+                        }
+                    });
                 } else if (!defaultAssignment && matchesDefaultAssignment(node)) {
-                    context.report(node, node.consequent.loc.start, "Unnecessary use of conditional expression for default assignment.");
+                    context.report({
+                        node,
+                        loc: node.consequent.loc.start,
+                        message: "Unnecessary use of conditional expression for default assignment.",
+                        fix: fixer => fixer.replaceText(node, `${astUtils.getParenthesisedText(sourceCode, node.test)} || ${astUtils.getParenthesisedText(sourceCode, node.alternate)}`)
+                    });
                 }
             }
         };

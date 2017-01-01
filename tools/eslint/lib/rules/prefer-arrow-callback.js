@@ -63,7 +63,7 @@ function getVariableOfArguments(scope) {
  *   {boolean} retv.isLexicalThis - `true` if the node is with `.bind(this)`.
  */
 function getCallbackInfo(node) {
-    const retv = {isCallback: false, isLexicalThis: false};
+    const retv = { isCallback: false, isLexicalThis: false };
     let parent = node.parent;
 
     while (node) {
@@ -176,7 +176,7 @@ module.exports = {
          * @returns {void}
          */
         function enterScope() {
-            stack.push({this: false, super: false, meta: false});
+            stack.push({ this: false, super: false, meta: false });
         }
 
         /**

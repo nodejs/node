@@ -5,24 +5,25 @@
 
 
 {{## def.validateItems:startFrom:
-  for (var i{{=$lvl}} = {{=startFrom}}; i{{=$lvl}} < {{=$data}}.length; i{{=$lvl}}++) {
+  for (var {{=$idx}} = {{=startFrom}}; {{=$idx}} < {{=$data}}.length; {{=$idx}}++) {
     {{
-      $it.errorPath = it.util.getPathExpr(it.errorPath, 'i' + $lvl, it.opts.jsonPointers, true);
-      var $passData = $data + '[i' + $lvl + ']';
-      $it.dataPathArr[$dataNxt] = 'i' + $lvl;
+      $it.errorPath = it.util.getPathExpr(it.errorPath, $idx, it.opts.jsonPointers, true);
+      var $passData = $data + '[' + $idx + ']';
+      $it.dataPathArr[$dataNxt] = $idx;
     }}
 
     {{# def.generateSubschemaCode }}
     {{# def.optimizeValidate }}
 
     {{? $breakOnError }}
-      if (!valid{{=$it.level}}) break;
+      if (!{{=$nextValid}}) break;
     {{?}}
   }
 #}}
 
 {{
-  var $dataNxt = $it.dataLevel = it.dataLevel + 1
+  var $idx = 'i' + $lvl
+    , $dataNxt = $it.dataLevel = it.dataLevel + 1
     , $nextData = 'data' + $dataNxt
     , $currentBaseId = it.baseId;
 }}
@@ -46,7 +47,7 @@ var {{=$valid}};
 
   {{~ $schema:$sch:$i }}
     {{? {{# def.nonEmptySchema:$sch }} }}
-      valid{{=$it.level}} = true;
+      {{=$nextValid}} = true;
 
       if ({{=$data}}.length > {{=$i}}) {
         {{
@@ -72,7 +73,7 @@ var {{=$valid}};
       $it.schemaPath = it.schemaPath + '.additionalItems';
       $it.errSchemaPath = it.errSchemaPath + '/additionalItems';
     }}
-    valid{{=$it.level}} = true;
+    {{=$nextValid}} = true;
 
     if ({{=$data}}.length > {{= $schema.length }}) {
       {{# def.validateItems: $schema.length }}

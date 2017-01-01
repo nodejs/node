@@ -120,7 +120,14 @@ module.exports = {
                     loc: lastCalleeToken.loc.start,
                     message: "Unexpected space between function name and paren.",
                     fix(fixer) {
-                        return fixer.removeRange([prevToken.range[1], parenToken.range[0]]);
+
+                        // Only autofix if there is no newline
+                        // https://github.com/eslint/eslint/issues/7787
+                        if (!hasNewline) {
+                            return fixer.removeRange([prevToken.range[1], parenToken.range[0]]);
+                        }
+
+                        return null;
                     }
                 });
             } else if (!never && !hasWhitespace) {

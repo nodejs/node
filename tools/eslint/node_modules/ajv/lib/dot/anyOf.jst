@@ -24,7 +24,7 @@
 
     {{# def.insertSubschemaCode }}
 
-    {{=$valid}} = {{=$valid}} || valid{{=$it.level}};
+    {{=$valid}} = {{=$valid}} || {{=$nextValid}};
 
     if (!{{=$valid}}) {
     {{ $closingBraces += '}'; }}

@@ -22,7 +22,7 @@ module.exports = {
             {
                 type: "object",
                 properties: {
-                    props: {type: "boolean"}
+                    props: { type: "boolean" }
                 },
                 additionalProperties: false
             }
@@ -102,15 +102,9 @@ module.exports = {
                 (index === 0 || references[index - 1].identifier !== identifier)
             ) {
                 if (reference.isWrite()) {
-                    context.report(
-                        identifier,
-                        "Assignment to function parameter '{{name}}'.",
-                        {name: identifier.name});
+                    context.report({ node: identifier, message: "Assignment to function parameter '{{name}}'.", data: { name: identifier.name } });
                 } else if (props && isModifyingProp(reference)) {
-                    context.report(
-                        identifier,
-                        "Assignment to property of function parameter '{{name}}'.",
-                        {name: identifier.name});
+                    context.report({ node: identifier, message: "Assignment to property of function parameter '{{name}}'.", data: { name: identifier.name } });
                 }
             }
         }

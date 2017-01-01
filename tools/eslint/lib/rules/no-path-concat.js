@@ -39,7 +39,7 @@ module.exports = {
                         (right.type === "Identifier" && MATCHER.test(right.name)))
                 ) {
 
-                    context.report(node, "Use path.join() or path.resolve() instead of + to create paths.");
+                    context.report({ node, message: "Use path.join() or path.resolve() instead of + to create paths." });
                 }
             }
 

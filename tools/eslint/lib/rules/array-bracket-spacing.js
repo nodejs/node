@@ -179,8 +179,10 @@ module.exports = {
 
             const first = sourceCode.getFirstToken(node),
                 second = sourceCode.getFirstToken(node, 1),
-                penultimate = sourceCode.getLastToken(node, 1),
-                last = sourceCode.getLastToken(node),
+                last = node.typeAnnotation
+                    ? sourceCode.getTokenBefore(node.typeAnnotation)
+                    : sourceCode.getLastToken(node),
+                penultimate = sourceCode.getTokenBefore(last),
                 firstElement = node.elements[0],
                 lastElement = node.elements[node.elements.length - 1];
 

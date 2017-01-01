@@ -36,7 +36,7 @@ var FUNC_ERROR_TEXT = 'Expected a function';
  * // => 'no match'
  */
 function cond(pairs) {
-  var length = pairs ? pairs.length : 0,
+  var length = pairs == null ? 0 : pairs.length,
       toIteratee = baseIteratee;
 
   pairs = !length ? [] : arrayMap(pairs, function(pair) {

@@ -26,7 +26,22 @@ const assert = require("assert"),
     Traverser = require("./util/traverser"),
     RuleContext = require("./rule-context"),
     rules = require("./rules"),
-    timing = require("./timing");
+    timing = require("./timing"),
+
+    pkg = require("../package.json");
+
+
+//------------------------------------------------------------------------------
+// Typedefs
+//------------------------------------------------------------------------------
+
+/**
+ * The result of a parsing operation from parseForESLint()
+ * @typedef {Object} CustomParseResult
+ * @property {ASTNode} ast The ESTree AST Program node.
+ * @property {Object} services An object containing additional services related
+ *      to the parser.
+ */
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -45,7 +60,7 @@ function parseBooleanConfig(string, comment) {
     // Collapse whitespace around `:` and `,` to make parsing easier
     string = string.replace(/\s*([:,])\s*/g, "$1");
 
-    string.split(/\s|,+/).forEach(function(name) {
+    string.split(/\s|,+/).forEach(name => {
         if (!name) {
             return;
         }
@@ -95,7 +110,7 @@ function parseJsonConfig(string, location, messages) {
     // Optionator cannot parse commaless notations.
     // But we are supporting that. So this is a fallback for that.
     items = {};
-    string = string.replace(/([a-zA-Z0-9\-\/]+):/g, "\"$1\":").replace(/(\]|[0-9])\s+(?=")/, "$1,");
+    string = string.replace(/([a-zA-Z0-9\-/]+):/g, "\"$1\":").replace(/(]|[0-9])\s+(?=")/, "$1,");
     try {
         items = JSON.parse(`{${string}}`);
     } catch (ex) {
@@ -126,7 +141,7 @@ function parseListConfig(string) {
     // Collapse whitespace around ,
     string = string.replace(/\s*,\s*/g, ",");
 
-    string.split(/,+/).forEach(function(name) {
+    string.split(/,+/).forEach(name => {
         name = name.trim();
         if (!name) {
             return;
@@ -153,7 +168,7 @@ function addDeclaredGlobals(program, globalScope, config) {
 
     Object.assign(declaredGlobals, builtin);
 
-    Object.keys(config.env).forEach(function(name) {
+    Object.keys(config.env).forEach(name => {
         if (config.env[name]) {
             const env = Environments.get(name),
                 environmentGlobals = env && env.globals;
@@ -168,7 +183,7 @@ function addDeclaredGlobals(program, globalScope, config) {
     Object.assign(declaredGlobals, config.globals);
     Object.assign(explicitGlobals, config.astGlobals);
 
-    Object.keys(declaredGlobals).forEach(function(name) {
+    Object.keys(declaredGlobals).forEach(name => {
         let variable = globalScope.set.get(name);
 
         if (!variable) {
@@ -180,7 +195,7 @@ function addDeclaredGlobals(program, globalScope, config) {
         variable.writeable = declaredGlobals[name];
     });
 
-    Object.keys(explicitGlobals).forEach(function(name) {
+    Object.keys(explicitGlobals).forEach(name => {
         let variable = globalScope.set.get(name);
 
         if (!variable) {
@@ -194,7 +209,7 @@ function addDeclaredGlobals(program, globalScope, config) {
     });
 
     // mark all exported variables as such
-    Object.keys(exportedGlobals).forEach(function(name) {
+    Object.keys(exportedGlobals).forEach(name => {
         const variable = globalScope.set.get(name);
 
         if (variable) {
@@ -207,7 +222,7 @@ function addDeclaredGlobals(program, globalScope, config) {
      * Since we augment the global scope using configuration, we need to update
      * references and remove the ones that were added by configuration.
      */
-    globalScope.through = globalScope.through.filter(function(reference) {
+    globalScope.through = globalScope.through.filter(reference => {
         const name = reference.identifier.name;
         const variable = globalScope.set.get(name);
 
@@ -238,7 +253,7 @@ function addDeclaredGlobals(program, globalScope, config) {
 function disableReporting(reportingConfig, start, rulesToDisable) {
 
     if (rulesToDisable.length) {
-        rulesToDisable.forEach(function(rule) {
+        rulesToDisable.forEach(rule => {
             reportingConfig.push({
                 start,
                 end: null,
@@ -266,7 +281,7 @@ function enableReporting(reportingConfig, start, rulesToEnable) {
     let i;
 
     if (rulesToEnable.length) {
-        rulesToEnable.forEach(function(rule) {
+        rulesToEnable.forEach(rule => {
             for (i = reportingConfig.length - 1; i >= 0; i--) {
                 if (!reportingConfig[i].end && reportingConfig[i].rule === rule) {
                     reportingConfig[i].end = start;
@@ -313,7 +328,7 @@ function modifyConfigsFromComments(filename, ast, config, reportingConfig, messa
     };
     const commentRules = {};
 
-    ast.comments.forEach(function(comment) {
+    ast.comments.forEach(comment => {
 
         let value = comment.value.trim();
         const match = /^(eslint(-\w+){0,3}|exported|globals?)(\s|$)/.exec(value);
@@ -347,7 +362,7 @@ function modifyConfigsFromComments(filename, ast, config, reportingConfig, messa
                     case "eslint": {
                         const items = parseJsonConfig(value, comment.loc, messages);
 
-                        Object.keys(items).forEach(function(name) {
+                        Object.keys(items).forEach(name => {
                             const ruleValue = items[name];
 
                             validator.validateRuleOptions(name, ruleValue, `${filename} line ${comment.loc.start.line}`);
@@ -371,7 +386,7 @@ function modifyConfigsFromComments(filename, ast, config, reportingConfig, messa
     });
 
     // apply environment configs
-    Object.keys(commentConfig.env).forEach(function(name) {
+    Object.keys(commentConfig.env).forEach(name => {
         const env = Environments.get(name);
 
         if (env) {
@@ -442,11 +457,11 @@ function prepareConfig(config) {
     let parserOptions = {};
 
     if (typeof config.rules === "object") {
-        Object.keys(config.rules).forEach(function(k) {
+        Object.keys(config.rules).forEach(k => {
             const rule = config.rules[k];
 
             if (rule === null) {
-                throw new Error(`Invalid config for rule '${k}'\.`);
+                throw new Error(`Invalid config for rule '${k}'.`);
             }
             if (Array.isArray(rule)) {
                 copiedRules[k] = rule.slice();
@@ -458,7 +473,7 @@ function prepareConfig(config) {
 
     // merge in environment parserOptions
     if (typeof config.env === "object") {
-        Object.keys(config.env).forEach(function(envName) {
+        Object.keys(config.env).forEach(envName => {
             const env = Environments.get(envName);
 
             if (config.env[envName] && env && env.parserOptions) {
@@ -598,7 +613,8 @@ module.exports = (function() {
      * @param {string} text The text to parse.
      * @param {Object} config The ESLint configuration object.
      * @param {string} filePath The path to the file being parsed.
-     * @returns {ASTNode} The AST if successful or null if not.
+     * @returns {ASTNode|CustomParseResult} The AST or parse result if successful,
+     *      or null if not.
      * @private
      */
     function parse(text, config, filePath) {
@@ -642,7 +658,11 @@ module.exports = (function() {
          * problem that ESLint identified just like any other.
          */
         try {
-            return parser.parse(text, parserOptions);
+            if (typeof parser.parseForESLint === "function") {
+                return parser.parseForESLint(text, parserOptions);
+            } else {
+                return parser.parse(text, parserOptions);
+            }
         } catch (ex) {
 
             // If the message includes a leading line number, strip it:
@@ -738,6 +758,7 @@ module.exports = (function() {
     api.verify = function(textOrSourceCode, config, filenameOrOptions, saveState) {
         const text = (typeof textOrSourceCode === "string") ? textOrSourceCode : null;
         let ast,
+            parseResult,
             shebang,
             allowInlineConfig;
 
@@ -759,7 +780,7 @@ module.exports = (function() {
 
         if (envInFile) {
             if (!config || !config.env) {
-                config = Object.assign({}, config || {}, {env: envInFile});
+                config = Object.assign({}, config || {}, { env: envInFile });
             } else {
                 config = Object.assign({}, config);
                 config.env = Object.assign({}, config.env, envInFile);
@@ -778,14 +799,22 @@ module.exports = (function() {
                 return messages;
             }
 
-            ast = parse(
-                stripUnicodeBOM(text).replace(/^#!([^\r\n]+)/, function(match, captured) {
+            parseResult = parse(
+                stripUnicodeBOM(text).replace(/^#!([^\r\n]+)/, (match, captured) => {
                     shebang = captured;
                     return `//${captured}`;
                 }),
                 config,
                 currentFilename
             );
+
+            // if this result is from a parseForESLint() method, normalize
+            if (parseResult && parseResult.ast) {
+                ast = parseResult.ast;
+            } else {
+                ast = parseResult;
+                parseResult = null;
+            }
 
             if (ast) {
                 sourceCode = new SourceCode(text, ast);
@@ -808,9 +837,7 @@ module.exports = (function() {
             ConfigOps.normalize(config);
 
             // enable appropriate rules
-            Object.keys(config.rules).filter(function(key) {
-                return getRuleSeverity(config.rules[key]) > 0;
-            }).forEach(function(key) {
+            Object.keys(config.rules).filter(key => getRuleSeverity(config.rules[key]) > 0).forEach(key => {
                 let ruleCreator;
 
                 ruleCreator = rules.get(key);
@@ -832,13 +859,16 @@ module.exports = (function() {
                 try {
                     const ruleContext = new RuleContext(
                         key, api, severity, options,
-                        config.settings, config.parserOptions, config.parser, ruleCreator.meta);
+                        config.settings, config.parserOptions, config.parser,
+                        ruleCreator.meta,
+                        (parseResult && parseResult.services ? parseResult.services : {})
+                    );
 
                     const rule = ruleCreator.create ? ruleCreator.create(ruleContext) :
                         ruleCreator(ruleContext);
 
                     // add all the node types as listeners
-                    Object.keys(rule).forEach(function(nodeType) {
+                    Object.keys(rule).forEach(nodeType => {
                         api.on(nodeType, timing.enabled
                             ? timing.time(key, rule[nodeType])
                             : rule[nodeType]
@@ -904,7 +934,7 @@ module.exports = (function() {
         }
 
         // sort by line and column
-        messages.sort(function(a, b) {
+        messages.sort((a, b) => {
             const lineDiff = a.line - b.line;
 
             if (lineDiff === 0) {
@@ -957,7 +987,7 @@ module.exports = (function() {
         }
 
         if (opts) {
-            message = message.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, function(fullMatch, term) {
+            message = message.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, (fullMatch, term) => {
                 if (term in opts) {
                     return opts[term];
                 }
@@ -1027,7 +1057,7 @@ module.exports = (function() {
     };
 
     // copy over methods
-    Object.keys(externalMethods).forEach(function(methodName) {
+    Object.keys(externalMethods).forEach(methodName => {
         const exMethodName = externalMethods[methodName];
 
         // All functions expected to have less arguments than 5.
@@ -1152,7 +1182,7 @@ module.exports = (function() {
      * @returns {void}
      */
     api.defineRules = function(rulesToDefine) {
-        Object.getOwnPropertyNames(rulesToDefine).forEach(function(ruleId) {
+        Object.getOwnPropertyNames(rulesToDefine).forEach(ruleId => {
             defineRule(ruleId, rulesToDefine[ruleId]);
         });
     };
@@ -1164,6 +1194,16 @@ module.exports = (function() {
     api.defaults = function() {
         return require("../conf/eslint.json");
     };
+
+    /**
+     * Gets an object with all loaded rules.
+     * @returns {Map} All loaded rules
+     */
+    api.getRules = function() {
+        return rules.getAllLoadedRules();
+    };
+
+    api.version = pkg.version;
 
     /**
      * Gets variables that are declared by a specified node.

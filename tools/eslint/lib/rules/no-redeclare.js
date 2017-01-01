@@ -21,7 +21,7 @@ module.exports = {
             {
                 type: "object",
                 properties: {
-                    builtinGlobals: {type: "boolean"}
+                    builtinGlobals: { type: "boolean" }
                 },
                 additionalProperties: false
             }
@@ -40,20 +40,15 @@ module.exports = {
          * @private
          */
         function findVariablesInScope(scope) {
-            scope.variables.forEach(function(variable) {
+            scope.variables.forEach(variable => {
                 const hasBuiltin = options.builtinGlobals && "writeable" in variable;
                 const count = (hasBuiltin ? 1 : 0) + variable.identifiers.length;
 
                 if (count >= 2) {
-                    variable.identifiers.sort(function(a, b) {
-                        return a.range[1] - b.range[1];
-                    });
+                    variable.identifiers.sort((a, b) => a.range[1] - b.range[1]);
 
                     for (let i = (hasBuiltin ? 0 : 1), l = variable.identifiers.length; i < l; i++) {
-                        context.report(
-                            variable.identifiers[i],
-                            "'{{a}}' is already defined.",
-                            {a: variable.name});
+                        context.report({ node: variable.identifiers[i], message: "'{{a}}' is already defined.", data: { a: variable.name } });
                     }
                 }
             });

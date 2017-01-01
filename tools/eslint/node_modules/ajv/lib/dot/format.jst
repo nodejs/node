@@ -15,13 +15,19 @@
 
 {{## def.$dataCheckFormat:
   {{# def.$dataNotType:'string' }}
-  ({{=$format}} && !(typeof {{=$format}} == 'function'
+  ({{? $unknownFormats === true || $allowUnknown }}
+     ({{=$schemaValue}} && !{{=$format}}
+      {{? $allowUnknown }}
+        && self._opts.unknownFormats.indexOf({{=$schemaValue}}) == -1
+      {{?}}) ||
+   {{?}}
+   ({{=$format}} && !(typeof {{=$format}} == 'function'
                      ? {{? it.async}}
                         (async{{=$lvl}} ? {{=it.yieldAwait}} {{=$format}}({{=$data}}) : {{=$format}}({{=$data}}))
                        {{??}}
                         {{=$format}}({{=$data}})
                        {{?}}
-                     : {{=$format}}.test({{=$data}})))
+                     : {{=$format}}.test({{=$data}}))))
 #}}
 
 {{## def.checkFormat:
@@ -37,6 +43,11 @@
 #}}
 
 
+{{
+  var $unknownFormats = it.opts.unknownFormats
+    , $allowUnknown = Array.isArray($unknownFormats);
+}}
+
 {{? $isData }}
   {{ var $format = 'format' + $lvl; }}
   var {{=$format}} = formats[{{=$schemaValue}}];
@@ -44,13 +55,28 @@
                           && !({{=$format}} instanceof RegExp)
                           && {{=$format}}.validate;
   if (isObject{{=$lvl}}) {
-    var async{{=$lvl}} = {{=$format}}.async;
+    {{? it.async}}
+      var async{{=$lvl}} = {{=$format}}.async;
+    {{?}}
     {{=$format}} = {{=$format}}.validate;
   }
   if ({{# def.$dataCheckFormat }}) {
 {{??}}
   {{ var $format = it.formats[$schema]; }}
-  {{? !$format }}{{# def.skipFormat }}{{?}}
+  {{? !$format }}
+    {{? $unknownFormats === true || ($allowUnknown && $unknownFormats.indexOf($schema) == -1) }}
+      {{ throw new Error('unknown format "' + $schema + '" is used in schema at path "' + it.errSchemaPath + '"'); }}
+    {{??}}
+      {{
+        if (!$allowUnknown) {
+          console.warn('unknown format "' + $schema + '" ignored in schema at path "' + it.errSchemaPath + '"');
+          if ($unknownFormats !== 'ignore')
+            console.warn('In the next major version it will throw exception. See option unknownFormats for more information');
+        }
+      }}
+      {{# def.skipFormat }}
+    {{?}}
+  {{?}}
   {{
     var $isObject = typeof $format == 'object'
                     && !($format instanceof RegExp)

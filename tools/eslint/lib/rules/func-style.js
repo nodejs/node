@@ -44,7 +44,7 @@ module.exports = {
                 stack.push(false);
 
                 if (!enforceDeclarations && node.parent.type !== "ExportDefaultDeclaration") {
-                    context.report(node, "Expected a function expression.");
+                    context.report({ node, message: "Expected a function expression." });
                 }
             },
             "FunctionDeclaration:exit"() {
@@ -55,7 +55,7 @@ module.exports = {
                 stack.push(false);
 
                 if (enforceDeclarations && node.parent.type === "VariableDeclarator") {
-                    context.report(node.parent, "Expected a function declaration.");
+                    context.report({ node: node.parent, message: "Expected a function declaration." });
                 }
             },
             "FunctionExpression:exit"() {
@@ -78,7 +78,7 @@ module.exports = {
                 const hasThisExpr = stack.pop();
 
                 if (enforceDeclarations && !hasThisExpr && node.parent.type === "VariableDeclarator") {
-                    context.report(node.parent, "Expected a function declaration.");
+                    context.report({ node: node.parent, message: "Expected a function declaration." });
                 }
             };
         }

@@ -33,6 +33,18 @@ function isUnreachable(segment) {
     return !segment.reachable;
 }
 
+/**
+* Checks whether a given node is a `constructor` method in an ES6 class
+* @param {ASTNode} node A node to check
+* @returns {boolean} `true` if the node is a `constructor` method
+*/
+function isClassConstructor(node) {
+    return node.type === "FunctionExpression" &&
+        node.parent &&
+        node.parent.type === "MethodDefinition" &&
+        node.parent.kind === "constructor";
+}
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -77,7 +89,8 @@ module.exports = {
              */
             if (!funcInfo.hasReturnValue ||
                 funcInfo.codePath.currentSegments.every(isUnreachable) ||
-                astUtils.isES5Constructor(node)
+                astUtils.isES5Constructor(node) ||
+                isClassConstructor(node)
             ) {
                 return;
             }
@@ -86,7 +99,7 @@ module.exports = {
             if (node.type === "Program") {
 
                 // The head of program.
-                loc = {line: 1, column: 0};
+                loc = { line: 1, column: 0 };
                 type = "program";
             } else if (node.type === "ArrowFunctionExpression") {
 
@@ -113,7 +126,7 @@ module.exports = {
                 node,
                 loc,
                 message: "Expected to return a value at the end of this {{type}}.",
-                data: {type}
+                data: { type }
             });
         }
 

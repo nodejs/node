@@ -114,7 +114,7 @@ module.exports = {
                 const current = stack.getCurrent();
 
                 if (current && !current.valid) {
-                    context.report(node, "Unexpected 'this'.");
+                    context.report({ node, message: "Unexpected 'this'." });
                 }
             }
         };

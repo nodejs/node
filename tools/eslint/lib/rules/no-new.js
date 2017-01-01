@@ -28,7 +28,7 @@ module.exports = {
             ExpressionStatement(node) {
 
                 if (node.expression.type === "NewExpression") {
-                    context.report(node, "Do not use 'new' for side effects.");
+                    context.report({ node, message: "Do not use 'new' for side effects." });
                 }
             }
         };

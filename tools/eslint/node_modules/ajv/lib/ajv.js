@@ -15,7 +15,11 @@ var compileSchema = require('./compile')
 module.exports = Ajv;
 
 Ajv.prototype.compileAsync = async.compile;
-Ajv.prototype.addKeyword = require('./keyword');
+
+var customKeyword = require('./keyword');
+Ajv.prototype.addKeyword = customKeyword.add;
+Ajv.prototype.getKeyword = customKeyword.get;
+Ajv.prototype.removeKeyword = customKeyword.remove;
 Ajv.ValidationError = require('./compile/validation_error');
 
 var META_SCHEMA_ID = 'http://json-schema.org/draft-04/schema';
