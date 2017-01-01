@@ -112,7 +112,7 @@ assert.doesNotThrow(() => dns.lookup(NaN, noop));
  */
 assert.throws(() => {
   dns.lookup('www.google.com', { hints: (dns.V4MAPPED | dns.ADDRCONFIG) + 1 },
-    noop);
+             noop);
 }, /^TypeError: Invalid argument: hints must use valid flags$/);
 
 assert.throws(() => dns.lookup('www.google.com'),

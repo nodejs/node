@@ -64,7 +64,7 @@ assert.doesNotThrow(makeBlock(a.notStrictEqual, 2, '2'),
 // deepEqual joy!
 // 7.2
 assert.doesNotThrow(makeBlock(a.deepEqual, new Date(2000, 3, 14),
-                    new Date(2000, 3, 14)),
+                              new Date(2000, 3, 14)),
                     'deepEqual(new Date(2000, 3, 14), new Date(2000, 3, 14))');
 
 assert.throws(makeBlock(a.deepEqual, new Date(), new Date(2000, 3, 14)),
@@ -81,7 +81,7 @@ assert.doesNotThrow(makeBlock(
   a.notDeepEqual,
   new Date(),
   new Date(2000, 3, 14)),
-  'notDeepEqual(new Date(), new Date(2000, 3, 14))'
+                    'notDeepEqual(new Date(), new Date(2000, 3, 14))'
 );
 
 // 7.3
@@ -388,7 +388,7 @@ assert.doesNotThrow(function() { assert.ifError(); });
 assert.throws(() => {
   assert.doesNotThrow(makeBlock(thrower, Error), 'user message');
 }, /Got unwanted exception. user message/,
-   'a.doesNotThrow ignores user message');
+              'a.doesNotThrow ignores user message');
 
 // make sure that validating using constructor really works
 threw = false;
@@ -512,7 +512,7 @@ testAssertionMessage({}, '{}');
 testAssertionMessage(circular, '{ y: 1, x: [Circular] }');
 testAssertionMessage({a: undefined, b: null}, '{ a: undefined, b: null }');
 testAssertionMessage({a: NaN, b: Infinity, c: -Infinity},
-    '{ a: NaN, b: Infinity, c: -Infinity }');
+                     '{ a: NaN, b: Infinity, c: -Infinity }');
 
 // #2893
 try {
