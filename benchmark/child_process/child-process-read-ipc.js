@@ -1,7 +1,7 @@
 'use strict';
 if (process.argv[2] === 'child') {
   const len = +process.argv[3];
-  const msg = `"${'.'.repeat(len)}"`;
+  const msg = '.'.repeat(len);
   const send = () => {
     while (process.send(msg));
     // Wait: backlog of unsent messages exceeds threshold
@@ -24,7 +24,7 @@ if (process.argv[2] === 'child') {
     const dur = +conf.dur;
     const len = +conf.len;
 
-    const options = { 'stdio': ['ignore', 'ignore', 'ignore', 'ipc'] };
+    const options = { 'stdio': ['ignore', 1, 2, 'ipc'] };
     const child = spawn(process.argv[0],
       [process.argv[1], 'child', len], options);
 
