@@ -21,10 +21,10 @@ var server = http.createServer(function(req, res) {
 
 server.listen(0, '127.0.0.1', function() {
   var options = { host: 'localhost',
-    port: this.address().port,
-    path: '/',
-    method: 'GET',
-    localAddress: '127.0.0.2' };
+                  port: this.address().port,
+                  path: '/',
+                  method: 'GET',
+                  localAddress: '127.0.0.2' };
 
   var req = http.request(options, function(res) {
     res.on('end', function() {

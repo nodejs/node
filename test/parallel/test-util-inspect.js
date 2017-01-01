@@ -42,7 +42,7 @@ assert.strictEqual(util.inspect({'a': {'b': { 'c': 2}}}, false, 1),
                    '{ a: { b: [Object] } }');
 assert.strictEqual(util.inspect(Object.create({},
   {visible: {value: 1, enumerable: true}, hidden: {value: 2}})),
-  '{ visible: 1 }'
+                   '{ visible: 1 }'
 );
 
 {
@@ -206,8 +206,9 @@ for (const showHidden of [true, false]) {
 // Objects without prototype
 {
   const out = util.inspect(Object.create(null,
-    { name: {value: 'Tim', enumerable: true},
-      hidden: {value: 'secret'}}), true);
+                                         { name: {value: 'Tim',
+                                                  enumerable: true},
+                                           hidden: {value: 'secret'}}), true);
   if (out !== "{ [hidden]: 'secret', name: 'Tim' }" &&
       out !== "{ name: 'Tim', [hidden]: 'secret' }") {
     common.fail(`unexpected value for out ${out}`);
@@ -216,8 +217,8 @@ for (const showHidden of [true, false]) {
 
 assert.strictEqual(
   util.inspect(Object.create(null,
-    {name: {value: 'Tim', enumerable: true},
-      hidden: {value: 'secret'}})),
+                             {name: {value: 'Tim', enumerable: true},
+                              hidden: {value: 'secret'}})),
   '{ name: \'Tim\' }'
 );
 

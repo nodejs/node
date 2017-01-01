@@ -49,22 +49,24 @@ if (process.argv[2] === 'child') {
 }
 
 function runTestWithoutAbortOnUncaughtException() {
-  child_process.exec(createTestCmdLine(),
-      function onTestDone(err, stdout, stderr) {
-        // When _not_ passing --abort-on-uncaught-exception, the process'
-        // uncaughtException handler _must_ be called, and thus the error
-        // message must include only the message of the error thrown from the
-        // process' uncaughtException handler.
-        assert(stderr.includes(uncaughtExceptionHandlerErrMsg),
-               'stderr output must include proper uncaughtException ' +
-               'handler\'s error\'s message');
-        assert(!stderr.includes(domainErrMsg), 'stderr output must not ' +
-          'include domain\'s error\'s message');
+  child_process.exec(
+    createTestCmdLine(),
+    function onTestDone(err, stdout, stderr) {
+      // When _not_ passing --abort-on-uncaught-exception, the process'
+      // uncaughtException handler _must_ be called, and thus the error
+      // message must include only the message of the error thrown from the
+      // process' uncaughtException handler.
+      assert(stderr.includes(uncaughtExceptionHandlerErrMsg),
+             'stderr output must include proper uncaughtException ' +
+             'handler\'s error\'s message');
+      assert(!stderr.includes(domainErrMsg),
+             'stderr output must not include domain\'s error\'s message');
 
-        assert.notEqual(err.code, 0,
-                        'child process should have exited with a non-zero ' +
-                        'exit code, but did not');
-      });
+      assert.notStrictEqual(err.code, 0,
+                            'child process should have exited with a ' +
+                            'non-zero exit code, but did not');
+    }
+  );
 }
 
 function runTestWithAbortOnUncaughtException() {
