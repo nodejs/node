@@ -65,10 +65,10 @@ module.exports = {
 
             ThrowStatement(node) {
                 if (!couldBeError(node.argument)) {
-                    context.report(node, "Expected an object to be thrown.");
+                    context.report({ node, message: "Expected an object to be thrown." });
                 } else if (node.argument.type === "Identifier") {
                     if (node.argument.name === "undefined") {
-                        context.report(node, "Do not throw undefined.");
+                        context.report({ node, message: "Do not throw undefined." });
                     }
                 }
 

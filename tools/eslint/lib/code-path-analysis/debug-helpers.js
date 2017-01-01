@@ -108,7 +108,7 @@ module.exports = {
             }
 
             if (segment.internal.nodes.length > 0) {
-                text += segment.internal.nodes.map(function(node) {
+                text += segment.internal.nodes.map(node => {
                     switch (node.type) {
                         case "Identifier": return `${node.type} (${node.name})`;
                         case "Literal": return `${node.type} (${node.value})`;
@@ -116,7 +116,7 @@ module.exports = {
                     }
                 }).join("\\n");
             } else if (segment.internal.exitNodes.length > 0) {
-                text += segment.internal.exitNodes.map(function(node) {
+                text += segment.internal.exitNodes.map(node => {
                     switch (node.type) {
                         case "Identifier": return `${node.type}:exit (${node.name})`;
                         case "Literal": return `${node.type}:exit (${node.value})`;
@@ -176,7 +176,7 @@ module.exports = {
             stack.push([nextSegment, 0]);
         }
 
-        codePath.returnedSegments.forEach(function(finalSegment) {
+        codePath.returnedSegments.forEach(finalSegment => {
             if (lastId === finalSegment.id) {
                 text += "->final";
             } else {
@@ -185,7 +185,7 @@ module.exports = {
             lastId = null;
         });
 
-        codePath.thrownSegments.forEach(function(finalSegment) {
+        codePath.thrownSegments.forEach(finalSegment => {
             if (lastId === finalSegment.id) {
                 text += "->thrown";
             } else {

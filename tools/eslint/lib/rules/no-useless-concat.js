@@ -93,10 +93,11 @@ module.exports = {
                         operatorToken = sourceCode.getTokenAfter(operatorToken);
                     }
 
-                    context.report(
+                    context.report({
                         node,
-                        operatorToken.loc.start,
-                        "Unexpected string concatenation of literals.");
+                        loc: operatorToken.loc.start,
+                        message: "Unexpected string concatenation of literals."
+                    });
                 }
             }
         };

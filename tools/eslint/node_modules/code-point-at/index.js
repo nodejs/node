@@ -1,6 +1,5 @@
+/* eslint-disable babel/new-cap, xo/throw-new-error */
 'use strict';
-var numberIsNan = require('number-is-nan');
-
 module.exports = function (str, pos) {
 	if (str === null || str === undefined) {
 		throw TypeError();
@@ -11,7 +10,7 @@ module.exports = function (str, pos) {
 	var size = str.length;
 	var i = pos ? Number(pos) : 0;
 
-	if (numberIsNan(i)) {
+	if (Number.isNaN(i)) {
 		i = 0;
 	}
 
@@ -25,7 +24,7 @@ module.exports = function (str, pos) {
 		var second = str.charCodeAt(i + 1);
 
 		if (second >= 0xDC00 && second <= 0xDFFF) {
-			return (first - 0xD800) * 0x400 + second - 0xDC00 + 0x10000;
+			return ((first - 0xD800) * 0x400) + second - 0xDC00 + 0x10000;
 		}
 	}
 

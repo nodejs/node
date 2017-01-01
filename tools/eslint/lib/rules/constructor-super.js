@@ -261,8 +261,8 @@ module.exports = {
                 const isRealLoop = toSegment.prevSegments.length >= 2;
 
                 funcInfo.codePath.traverseSegments(
-                    {first: toSegment, last: fromSegment},
-                    function(segment) {
+                    { first: toSegment, last: fromSegment },
+                    segment => {
                         const info = segInfoMap[segment.id];
                         const prevSegments = segment.prevSegments;
 

@@ -4,10 +4,11 @@
 {{# def.setupKeyword }}
 {{# def.$data }}
 
+{{ var $vSchema = 'schema' + $lvl; }}
 
 {{## def.setupLoop:
   {{? !$isData }}
-    var schema{{=$lvl}} = validate.schema{{=$schemaPath}};
+    var {{=$vSchema}} = validate.schema{{=$schemaPath}};
   {{?}}
 
   {{
@@ -51,8 +52,8 @@
 
       {{?$isData}}{{# def.check$dataIsArray }}{{?}}
 
-      for (var {{=$i}} = 0; {{=$i}} < schema{{=$lvl}}.length; {{=$i}}++) {
-        {{=$valid}} = {{=$data}}[schema{{=$lvl}}[{{=$i}}]] !== undefined;
+      for (var {{=$i}} = 0; {{=$i}} < {{=$vSchema}}.length; {{=$i}}++) {
+        {{=$valid}} = {{=$data}}[{{=$vSchema}}[{{=$i}}]] !== undefined;
         if (!{{=$valid}}) break;
       }
 
@@ -69,13 +70,13 @@
     {{? $loopRequired }}
       {{# def.setupLoop }}
       {{? $isData }}
-        if (schema{{=$lvl}} && !Array.isArray(schema{{=$lvl}})) {
+        if ({{=$vSchema}} && !Array.isArray({{=$vSchema}})) {
           {{# def.addError:'required' }}
-        } else if (schema{{=$lvl}} !== undefined) {
+        } else if ({{=$vSchema}} !== undefined) {
       {{?}}
 
-      for (var {{=$i}} = 0; {{=$i}} < schema{{=$lvl}}.length; {{=$i}}++) {
-        if ({{=$data}}[schema{{=$lvl}}[{{=$i}}]] === undefined) {
+      for (var {{=$i}} = 0; {{=$i}} < {{=$vSchema}}.length; {{=$i}}++) {
+        if ({{=$data}}[{{=$vSchema}}[{{=$i}}]] === undefined) {
           {{# def.addError:'required' }}
         }
       }

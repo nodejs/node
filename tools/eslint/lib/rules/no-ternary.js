@@ -25,7 +25,7 @@ module.exports = {
         return {
 
             ConditionalExpression(node) {
-                context.report(node, "Ternary operator used.");
+                context.report({ node, message: "Ternary operator used." });
             }
 
         };

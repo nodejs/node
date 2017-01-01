@@ -1,4 +1,5 @@
-var basePickBy = require('./_basePickBy');
+var basePickBy = require('./_basePickBy'),
+    hasIn = require('./hasIn');
 
 /**
  * The base implementation of `_.pick` without support for individual
@@ -6,13 +7,12 @@ var basePickBy = require('./_basePickBy');
  *
  * @private
  * @param {Object} object The source object.
- * @param {string[]} props The property identifiers to pick.
+ * @param {string[]} paths The property paths to pick.
  * @returns {Object} Returns the new object.
  */
-function basePick(object, props) {
-  object = Object(object);
-  return basePickBy(object, props, function(value, key) {
-    return key in object;
+function basePick(object, paths) {
+  return basePickBy(object, paths, function(value, path) {
+    return hasIn(object, path);
   });
 }
 
