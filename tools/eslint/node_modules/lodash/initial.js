@@ -15,7 +15,7 @@ var baseSlice = require('./_baseSlice');
  * // => [1, 2]
  */
 function initial(array) {
-  var length = array ? array.length : 0;
+  var length = array == null ? 0 : array.length;
   return length ? baseSlice(array, 0, -1) : [];
 }
 

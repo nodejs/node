@@ -42,9 +42,9 @@ module.exports = {
                         {
                             type: "object",
                             properties: {
-                                conditionalAssign: {type: "boolean"},
-                                nestedBinaryExpressions: {type: "boolean"},
-                                returnAssign: {type: "boolean"}
+                                conditionalAssign: { type: "boolean" },
+                                nestedBinaryExpressions: { type: "boolean" },
+                                returnAssign: { type: "boolean" }
                             },
                             additionalProperties: false
                         }
@@ -348,12 +348,12 @@ module.exports = {
                 report(node.callee);
             }
             if (node.arguments.length === 1) {
-                if (hasDoubleExcessParens(node.arguments[0]) && precedence(node.arguments[0]) >= precedence({type: "AssignmentExpression"})) {
+                if (hasDoubleExcessParens(node.arguments[0]) && precedence(node.arguments[0]) >= precedence({ type: "AssignmentExpression" })) {
                     report(node.arguments[0]);
                 }
             } else {
-                [].forEach.call(node.arguments, function(arg) {
-                    if (hasExcessParens(arg) && precedence(arg) >= precedence({type: "AssignmentExpression"})) {
+                [].forEach.call(node.arguments, arg => {
+                    if (hasExcessParens(arg) && precedence(arg) >= precedence({ type: "AssignmentExpression" })) {
                         report(arg);
                     }
                 });
@@ -381,8 +381,8 @@ module.exports = {
 
         return {
             ArrayExpression(node) {
-                [].forEach.call(node.elements, function(e) {
-                    if (e && hasExcessParens(e) && precedence(e) >= precedence({type: "AssignmentExpression"})) {
+                [].forEach.call(node.elements, e => {
+                    if (e && hasExcessParens(e) && precedence(e) >= precedence({ type: "AssignmentExpression" })) {
                         report(e);
                     }
                 });
@@ -394,7 +394,7 @@ module.exports = {
                 }
 
                 if (node.body.type !== "BlockStatement") {
-                    if (sourceCode.getFirstToken(node.body).value !== "{" && hasExcessParens(node.body) && precedence(node.body) >= precedence({type: "AssignmentExpression"})) {
+                    if (sourceCode.getFirstToken(node.body).value !== "{" && hasExcessParens(node.body) && precedence(node.body) >= precedence({ type: "AssignmentExpression" })) {
                         report(node.body);
                         return;
                     }
@@ -402,7 +402,6 @@ module.exports = {
                     // Object literals *must* be parenthesised
                     if (node.body.type === "ObjectExpression" && hasDoubleExcessParens(node.body)) {
                         report(node.body);
-                        return;
                     }
                 }
             },
@@ -425,15 +424,15 @@ module.exports = {
                     return;
                 }
 
-                if (hasExcessParens(node.test) && precedence(node.test) >= precedence({type: "LogicalExpression", operator: "||"})) {
+                if (hasExcessParens(node.test) && precedence(node.test) >= precedence({ type: "LogicalExpression", operator: "||" })) {
                     report(node.test);
                 }
 
-                if (hasExcessParens(node.consequent) && precedence(node.consequent) >= precedence({type: "AssignmentExpression"})) {
+                if (hasExcessParens(node.consequent) && precedence(node.consequent) >= precedence({ type: "AssignmentExpression" })) {
                     report(node.consequent);
                 }
 
-                if (hasExcessParens(node.alternate) && precedence(node.alternate) >= precedence({type: "AssignmentExpression"})) {
+                if (hasExcessParens(node.alternate) && precedence(node.alternate) >= precedence({ type: "AssignmentExpression" })) {
                     report(node.alternate);
                 }
             },
@@ -509,7 +508,7 @@ module.exports = {
                         !(
                             (node.object.type === "Literal" &&
                             typeof node.object.value === "number" &&
-                            /^[0-9]+$/.test(sourceCode.getFirstToken(node.object).value))
+                            astUtils.isDecimalInteger(node.object))
                             ||
 
                             // RegExp literal is allowed to have parens (#1589)
@@ -532,10 +531,10 @@ module.exports = {
             NewExpression: dryCallNew,
 
             ObjectExpression(node) {
-                [].forEach.call(node.properties, function(e) {
+                [].forEach.call(node.properties, e => {
                     const v = e.value;
 
-                    if (v && hasExcessParens(v) && precedence(v) >= precedence({type: "AssignmentExpression"})) {
+                    if (v && hasExcessParens(v) && precedence(v) >= precedence({ type: "AssignmentExpression" })) {
                         report(v);
                     }
                 });
@@ -558,7 +557,7 @@ module.exports = {
             },
 
             SequenceExpression(node) {
-                [].forEach.call(node.expressions, function(e) {
+                [].forEach.call(node.expressions, e => {
                     if (hasExcessParens(e) && precedence(e) >= precedence(node)) {
                         report(e);
                     }
@@ -591,7 +590,7 @@ module.exports = {
 
             VariableDeclarator(node) {
                 if (node.init && hasExcessParens(node.init) &&
-                        precedence(node.init) >= precedence({type: "AssignmentExpression"}) &&
+                        precedence(node.init) >= precedence({ type: "AssignmentExpression" }) &&
 
                         // RegExp literal is allowed to have parens (#1589)
                         !(node.init.type === "Literal" && node.init.regex)) {

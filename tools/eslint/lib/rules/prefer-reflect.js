@@ -1,6 +1,7 @@
 /**
  * @fileoverview Rule to suggest using "Reflect" api over Function/Object methods
  * @author Keith Cirkel <http://keithcirkel.co.uk>
+ * @deprecated in ESLint v3.9.0
  */
 "use strict";
 
@@ -13,8 +14,11 @@ module.exports = {
         docs: {
             description: "require `Reflect` methods where applicable",
             category: "ECMAScript 6",
-            recommended: false
+            recommended: false,
+            replacedBy: []
         },
+
+        deprecated: true,
 
         schema: [
             {
@@ -79,10 +83,10 @@ module.exports = {
          * @returns {void}
          */
         function report(node, existing, substitute) {
-            context.report(node, "Avoid using {{existing}}, instead use {{substitute}}.", {
+            context.report({ node, message: "Avoid using {{existing}}, instead use {{substitute}}.", data: {
                 existing,
                 substitute
-            });
+            } });
         }
 
         return {

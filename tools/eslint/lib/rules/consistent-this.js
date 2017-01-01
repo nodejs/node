@@ -43,9 +43,7 @@ module.exports = {
          * @returns {void}
          */
         function reportBadAssignment(node, alias) {
-            context.report(node,
-                "Designated alias '{{alias}}' is not assigned to 'this'.",
-                { alias });
+            context.report({ node, message: "Designated alias '{{alias}}' is not assigned to 'this'.", data: { alias } });
         }
 
         /**
@@ -64,8 +62,7 @@ module.exports = {
                     reportBadAssignment(node, name);
                 }
             } else if (isThis) {
-                context.report(node,
-                    "Unexpected alias '{{name}}' for 'this'.", { name });
+                context.report({ node, message: "Unexpected alias '{{name}}' for 'this'.", data: { name } });
             }
         }
 
@@ -84,16 +81,14 @@ module.exports = {
                 return;
             }
 
-            if (variable.defs.some(function(def) {
-                return def.node.type === "VariableDeclarator" &&
-                def.node.init !== null;
-            })) {
+            if (variable.defs.some(def => def.node.type === "VariableDeclarator" &&
+                def.node.init !== null)) {
                 return;
             }
 
             // The alias has been declared and not assigned: check it was
             // assigned later in the same scope.
-            if (!variable.references.some(function(reference) {
+            if (!variable.references.some(reference => {
                 const write = reference.writeExpr;
 
                 return (
@@ -102,9 +97,7 @@ module.exports = {
                     write.parent.operator === "="
                 );
             })) {
-                variable.defs.map(function(def) {
-                    return def.node;
-                }).forEach(function(node) {
+                variable.defs.map(def => def.node).forEach(node => {
                     reportBadAssignment(node, alias);
                 });
             }
@@ -117,7 +110,7 @@ module.exports = {
         function ensureWasAssigned() {
             const scope = context.getScope();
 
-            aliases.forEach(function(alias) {
+            aliases.forEach(alias => {
                 checkWasAssigned(alias, scope);
             });
         }

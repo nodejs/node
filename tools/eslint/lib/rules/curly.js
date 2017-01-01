@@ -74,10 +74,11 @@ module.exports = {
          * @private
          */
         function isCollapsedOneLiner(node) {
-            const before = sourceCode.getTokenBefore(node),
-                last = sourceCode.getLastToken(node);
+            const before = sourceCode.getTokenBefore(node);
+            const last = sourceCode.getLastToken(node);
+            const lastExcludingSemicolon = last.type === "Punctuator" && last.value === ";" ? sourceCode.getTokenBefore(last) : last;
 
-            return before.loc.start.line === last.loc.end.line;
+            return before.loc.start.line === lastExcludingSemicolon.loc.end.line;
         }
 
         /**
@@ -195,7 +196,7 @@ module.exports = {
                 return true;
             }
 
-            if (/^[(\[\/`+-]/.test(tokenAfter.value)) {
+            if (/^[([/`+-]/.test(tokenAfter.value)) {
 
                 // If the next token starts with a character that would disrupt ASI, insert a semicolon.
                 return true;
@@ -289,7 +290,9 @@ module.exports = {
                 }
             } else if (multiOrNest) {
                 if (hasBlock && body.body.length === 1 && isOneLiner(body.body[0])) {
-                    expected = false;
+                    const leadingComments = sourceCode.getComments(body.body[0]).leading;
+
+                    expected = leadingComments.length > 0;
                 } else if (!isOneLiner(body)) {
                     expected = true;
                 }
@@ -337,14 +340,14 @@ module.exports = {
                  * all have braces.
                  * If all nodes shouldn't have braces, make sure they don't.
                  */
-                const expected = preparedChecks.some(function(preparedCheck) {
+                const expected = preparedChecks.some(preparedCheck => {
                     if (preparedCheck.expected !== null) {
                         return preparedCheck.expected;
                     }
                     return preparedCheck.actual;
                 });
 
-                preparedChecks.forEach(function(preparedCheck) {
+                preparedChecks.forEach(preparedCheck => {
                     preparedCheck.expected = expected;
                 });
             }
@@ -359,7 +362,7 @@ module.exports = {
         return {
             IfStatement(node) {
                 if (node.parent.type !== "IfStatement") {
-                    prepareIfChecks(node).forEach(function(preparedCheck) {
+                    prepareIfChecks(node).forEach(preparedCheck => {
                         preparedCheck.check();
                     });
                 }

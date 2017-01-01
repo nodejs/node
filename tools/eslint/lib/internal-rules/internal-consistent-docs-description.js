@@ -95,7 +95,6 @@ function checkMetaDocsDescription(context, exportsNode) {
                 firstWord
             }
         });
-        return;
     }
 }
 

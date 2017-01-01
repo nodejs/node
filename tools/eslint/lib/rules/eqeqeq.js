@@ -47,7 +47,9 @@ module.exports = {
                     additionalItems: false
                 }
             ]
-        }
+        },
+
+        fixable: "code"
     },
 
     create(context) {
@@ -112,22 +114,32 @@ module.exports = {
         function getOperatorLocation(node) {
             const opToken = sourceCode.getTokenAfter(node.left);
 
-            return {line: opToken.loc.start.line, column: opToken.loc.start.column};
+            return { line: opToken.loc.start.line, column: opToken.loc.start.column };
         }
 
         /**
          * Reports a message for this rule.
          * @param {ASTNode} node The binary expression node that was checked
-         * @param {string} message The message to report
+         * @param {string} expectedOperator The operator that was expected (either '==', '!=', '===', or '!==')
          * @returns {void}
          * @private
          */
-        function report(node, message) {
+        function report(node, expectedOperator) {
             context.report({
                 node,
                 loc: getOperatorLocation(node),
-                message,
-                data: { op: node.operator.charAt(0) }
+                message: "Expected '{{expectedOperator}}' and instead saw '{{actualOperator}}'.",
+                data: { expectedOperator, actualOperator: node.operator },
+                fix(fixer) {
+
+                    // If the comparison is a `typeof` comparison or both sides are literals with the same type, then it's safe to fix.
+                    if (isTypeOfBinary(node) || areLiteralsAndSameType(node)) {
+                        const operatorToken = sourceCode.getTokensBetween(node.left, node.right).find(token => token.value === node.operator);
+
+                        return fixer.replaceText(operatorToken, expectedOperator);
+                    }
+                    return null;
+                }
             });
         }
 
@@ -137,7 +149,7 @@ module.exports = {
 
                 if (node.operator !== "==" && node.operator !== "!=") {
                     if (enforceInverseRuleForNull && isNull) {
-                        report(node, "Expected '{{op}}=' and instead saw '{{op}}=='.");
+                        report(node, node.operator.slice(0, -1));
                     }
                     return;
                 }
@@ -151,7 +163,7 @@ module.exports = {
                     return;
                 }
 
-                report(node, "Expected '{{op}}==' and instead saw '{{op}}='.");
+                report(node, `${node.operator}=`);
             }
         };
 
