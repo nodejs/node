@@ -29,7 +29,7 @@ module.exports = {
                 if (node.property &&
                         (node.property.type === "Identifier" && node.property.name === "__iterator__" && !node.computed) ||
                         (node.property.type === "Literal" && node.property.value === "__iterator__")) {
-                    context.report(node, "Reserved name '__iterator__'.");
+                    context.report({ node, message: "Reserved name '__iterator__'." });
                 }
             }
         };

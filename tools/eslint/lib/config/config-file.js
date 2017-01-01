@@ -235,7 +235,7 @@ function loadConfigFile(file) {
 function writeJSONConfigFile(config, filePath) {
     debug(`Writing JSON config file: ${filePath}`);
 
-    const content = stringify(config, {cmp: sortByKey, space: 4});
+    const content = stringify(config, { cmp: sortByKey, space: 4 });
 
     fs.writeFileSync(filePath, content, "utf8");
 }
@@ -253,7 +253,7 @@ function writeYAMLConfigFile(config, filePath) {
     // lazy load YAML to improve performance when not used
     const yaml = require("js-yaml");
 
-    const content = yaml.safeDump(config, {sortKeys: true});
+    const content = yaml.safeDump(config, { sortKeys: true });
 
     fs.writeFileSync(filePath, content, "utf8");
 }
@@ -268,7 +268,7 @@ function writeYAMLConfigFile(config, filePath) {
 function writeJSConfigFile(config, filePath) {
     debug(`Writing JS config file: ${filePath}`);
 
-    const content = `module.exports = ${stringify(config, {cmp: sortByKey, space: 4})};`;
+    const content = `module.exports = ${stringify(config, { cmp: sortByKey, space: 4 })};`;
 
     fs.writeFileSync(filePath, content, "utf8");
 }
@@ -359,7 +359,7 @@ function applyExtends(config, filePath, relativeTo) {
     }
 
     // Make the last element in an array take the highest precedence
-    config = configExtends.reduceRight(function(previousValue, parentPath) {
+    config = configExtends.reduceRight((previousValue, parentPath) => {
 
         if (parentPath === "eslint:recommended") {
 
@@ -430,7 +430,7 @@ function normalizePackageName(name, prefix) {
          * it's a scoped package
          * package name is "eslint-config", or just a username
          */
-        const scopedPackageShortcutRegex = new RegExp(`^(@[^\/]+)(?:\/(?:${prefix})?)?$`),
+        const scopedPackageShortcutRegex = new RegExp(`^(@[^/]+)(?:/(?:${prefix})?)?$`),
             scopedPackageNameRegex = new RegExp(`^${prefix}(-|$)`);
 
         if (scopedPackageShortcutRegex.test(name)) {
@@ -441,7 +441,7 @@ function normalizePackageName(name, prefix) {
              * for scoped packages, insert the eslint-config after the first / unless
              * the path is already @scope/eslint or @scope/eslint-config-xxx
              */
-            name = name.replace(/^@([^\/]+)\/(.*)$/, `@$1/${prefix}-$2`);
+            name = name.replace(/^@([^/]+)\/(.*)$/, `@$1/${prefix}-$2`);
         }
     } else if (name.indexOf(`${prefix}-`) !== 0) {
         name = `${prefix}-${name}`;

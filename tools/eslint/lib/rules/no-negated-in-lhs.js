@@ -29,7 +29,7 @@ module.exports = {
 
             BinaryExpression(node) {
                 if (node.operator === "in" && node.left.type === "UnaryExpression" && node.left.operator === "!") {
-                    context.report(node, "The 'in' expression's left operand is negated.");
+                    context.report({ node, message: "The 'in' expression's left operand is negated." });
                 }
             }
         };

@@ -24,7 +24,7 @@ module.exports = {
 
         return {
             WithStatement(node) {
-                context.report(node, "Unexpected use of 'with' statement.");
+                context.report({ node, message: "Unexpected use of 'with' statement." });
             }
         };
 

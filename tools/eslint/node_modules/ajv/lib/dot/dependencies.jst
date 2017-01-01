@@ -45,7 +45,7 @@ var missing{{=$lvl}};
 {{ for (var $property in $schemaDeps) { }}
   {{ var $sch = $schemaDeps[$property]; }}
   {{? {{# def.nonEmptySchema:$sch }} }}
-    valid{{=$it.level}} = true;
+    {{=$nextValid}} = true;
 
     if ({{=$data}}['{{= $property }}'] !== undefined) {
       {{ 

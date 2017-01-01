@@ -76,7 +76,7 @@ module.exports = {
             const locStart = node.loc.start;
             const locEnd = node.loc.end;
 
-            errors = errors.filter(function(error) {
+            errors = errors.filter(error => {
                 const errorLoc = error[1];
 
                 if (errorLoc.line >= locStart.line && errorLoc.line <= locEnd.line) {
@@ -142,7 +142,7 @@ module.exports = {
         function checkForIrregularWhitespace(node) {
             const sourceLines = sourceCode.lines;
 
-            sourceLines.forEach(function(sourceLine, lineIndex) {
+            sourceLines.forEach((sourceLine, lineIndex) => {
                 const lineNumber = lineIndex + 1;
                 let match;
 
@@ -233,7 +233,7 @@ module.exports = {
                 }
 
                 // If we have any errors remaining report on them
-                errors.forEach(function(error) {
+                errors.forEach(error => {
                     context.report.apply(context, error);
                 });
             };

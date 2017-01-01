@@ -21,16 +21,10 @@ const lodash = require("lodash"),
  * @returns {Array} An array of line numbers.
  */
 function getEmptyLineNums(lines) {
-    const emptyLines = lines.map(function(line, i) {
-        return {
-            code: line.trim(),
-            num: i + 1
-        };
-    }).filter(function(line) {
-        return !line.code;
-    }).map(function(line) {
-        return line.num;
-    });
+    const emptyLines = lines.map((line, i) => ({
+        code: line.trim(),
+        num: i + 1
+    })).filter(line => !line.code).map(line => line.num);
 
     return emptyLines;
 }
@@ -43,7 +37,7 @@ function getEmptyLineNums(lines) {
 function getCommentLineNums(comments) {
     const lines = [];
 
-    comments.forEach(function(token) {
+    comments.forEach(token => {
         const start = token.loc.start.line;
         const end = token.loc.end.line;
 

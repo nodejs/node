@@ -43,9 +43,7 @@ function processPath(options) {
     const cwd = (options && options.cwd) || process.cwd();
     let extensions = (options && options.extensions) || [".js"];
 
-    extensions = extensions.map(function(ext) {
-        return ext.charAt(0) === "." ? ext.substr(1) : ext;
-    });
+    extensions = extensions.map(ext => ext.replace(/^\./, ""));
 
     let suffix = "/**";
 
@@ -67,7 +65,7 @@ function processPath(options) {
         const resolvedPath = path.resolve(cwd, pathname);
 
         if (shell.test("-d", resolvedPath)) {
-            newPath = pathname.replace(/[\/\\]$/, "") + suffix;
+            newPath = pathname.replace(/[/\\]$/, "") + suffix;
         }
 
         return pathUtil.convertPathToPosix(newPath);
@@ -145,12 +143,12 @@ function listFilesToProcess(globPatterns, options) {
         if (added[filename]) {
             return;
         }
-        files.push({filename, ignored});
+        files.push({ filename, ignored });
         added[filename] = true;
     }
 
     debug("Creating list of files to process.");
-    globPatterns.forEach(function(pattern) {
+    globPatterns.forEach(pattern => {
         const file = path.resolve(cwd, pattern);
 
         if (shell.test("-f", file)) {
@@ -160,9 +158,9 @@ function listFilesToProcess(globPatterns, options) {
         } else {
 
             // regex to find .hidden or /.hidden patterns, but not ./relative or ../relative
-            const globIncludesDotfiles = /(?:(?:^\.)|(?:[\/\\]\.))[^\/\\\.].*/.test(pattern);
+            const globIncludesDotfiles = /(?:(?:^\.)|(?:[/\\]\.))[^/\\.].*/.test(pattern);
 
-            const ignoredPaths = new IgnoredPaths(Object.assign({}, options, {dotfiles: options.dotfiles || globIncludesDotfiles}));
+            const ignoredPaths = new IgnoredPaths(Object.assign({}, options, { dotfiles: options.dotfiles || globIncludesDotfiles }));
             const shouldIgnore = ignoredPaths.getIgnoredFoldersGlobChecker();
             const globOptions = {
                 nodir: true,
@@ -170,7 +168,7 @@ function listFilesToProcess(globPatterns, options) {
                 cwd,
             };
 
-            new GlobSync(pattern, globOptions, shouldIgnore).found.forEach(function(globMatch) {
+            new GlobSync(pattern, globOptions, shouldIgnore).found.forEach(globMatch => {
                 addFile(path.resolve(cwd, globMatch), false, ignoredPaths);
             });
         }

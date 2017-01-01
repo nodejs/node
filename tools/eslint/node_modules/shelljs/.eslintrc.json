@@ -1,0 +1,32 @@
+{
+  "env": {
+    "node": true
+  },
+  "extends": "airbnb-base/legacy",
+  "rules": {
+    "comma-dangle": 0,
+    "global-require": 0,
+    "vars-on-top": 0,
+    "spaced-comment": [2, "always", { "markers": ["@", "@include"], "exceptions": ["@"] }],
+    "no-param-reassign": 0,
+    "no-console": 0,
+    "curly": [2, "multi-line"],
+    "func-names": 0,
+    "quote-props": 0,
+    "no-underscore-dangle": 0,
+    "max-len": 0,
+    "no-use-before-define": 0,
+    "no-empty": 0,
+    "no-else-return": 0,
+    "no-throw-literal": 0,
+    "newline-per-chained-call": 0,
+    "consistent-return": 0,
+    "no-mixed-operators": 0,
+    "no-prototype-builtins": 0,
+    "new-cap": [2, {
+      "capIsNewExceptions": [
+        "ShellString"
+      ]}
+    ]
+  }
+}

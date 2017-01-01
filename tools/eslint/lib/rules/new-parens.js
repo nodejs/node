@@ -29,20 +29,6 @@ function isClosingParen(token) {
     return token.type === "Punctuator" && token.value === ")";
 }
 
-/**
- * Checks whether the given node is inside of another given node.
- *
- * @param {ASTNode|Token} inner - The inner node to check.
- * @param {ASTNode|Token} outer - The outer node to check.
- * @returns {boolean} `true` if the `inner` is in `outer`.
- */
-function isInRange(inner, outer) {
-    const ir = inner.range;
-    const or = outer.range;
-
-    return or[0] <= ir[0] && ir[1] <= or[1];
-}
-
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -65,14 +51,15 @@ module.exports = {
 
         return {
             NewExpression(node) {
-                let token = sourceCode.getTokenAfter(node.callee);
-
-                // Skip ')'
-                while (token && isClosingParen(token)) {
-                    token = sourceCode.getTokenAfter(token);
+                if (node.arguments.length !== 0) {
+                    return;  // shortcut: if there are arguments, there have to be parens
                 }
 
-                if (!(token && isOpeningParen(token) && isInRange(token, node))) {
+                const lastToken = sourceCode.getLastToken(node);
+                const hasLastParen = lastToken && isClosingParen(lastToken);
+                const hasParens = hasLastParen && isOpeningParen(sourceCode.getTokenBefore(lastToken));
+
+                if (!hasParens) {
                     context.report({
                         node,
                         message: "Missing '()' invoking a constructor.",
