@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ********************************************************************************
 *   Copyright (C) 1997-2016, International Business Machines
@@ -270,9 +272,15 @@ public:
      * @stable ICU 3.6
      */
     enum DtContextType {
-         FORMAT,
-         STANDALONE,
-         DT_CONTEXT_COUNT
+        FORMAT,
+        STANDALONE,
+#ifndef U_HIDE_DEPRECATED_API
+        /**
+         * One more than the highest normal DtContextType value.
+         * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
+         */
+        DT_CONTEXT_COUNT
+#endif  // U_HIDE_DEPRECATED_API
     };
 
     /**
@@ -280,17 +288,21 @@ public:
      * @stable ICU 3.6
      */
     enum DtWidthType {
-         ABBREVIATED,
-         WIDE,
-         NARROW,
-         /**
-          * Short width is currently only supported for weekday names.
-          * @stable ICU 51
-          */
-         SHORT,
-         /**
-          */
-         DT_WIDTH_COUNT = 4
+        ABBREVIATED,
+        WIDE,
+        NARROW,
+        /**
+         * Short width is currently only supported for weekday names.
+         * @stable ICU 51
+         */
+        SHORT,
+#ifndef U_HIDE_DEPRECATED_API
+        /**
+         * One more than the highest normal DtWidthType value.
+         * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
+         */
+        DT_WIDTH_COUNT = 4
+#endif  // U_HIDE_DEPRECATED_API
     };
 
     /**

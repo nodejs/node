@@ -38,9 +38,9 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
-        var mode = (function(option) {
+        const mode = (function(option) {
             if (!option || typeof option === "string") {
                 return {
                     before: { before: true, after: false },
@@ -51,6 +51,26 @@ module.exports = {
             }
             return option;
         }(context.options[0]));
+
+        const sourceCode = context.getSourceCode();
+
+        /**
+         * Gets `*` token from a given node.
+         *
+         * @param {ASTNode} node - A node to get `*` token. This is one of
+         *      FunctionDeclaration, FunctionExpression, Property, and
+         *      MethodDefinition.
+         * @returns {Token} `*` token.
+         */
+        function getStarToken(node) {
+            let token = sourceCode.getFirstToken(node);
+
+            while (token.value !== "*") {
+                token = sourceCode.getTokenAfter(token);
+            }
+
+            return token;
+        }
 
         /**
          * Checks the spacing between two tokens before or after the star token.
@@ -63,16 +83,21 @@ module.exports = {
          */
         function checkSpacing(side, leftToken, rightToken) {
             if (!!(rightToken.range[0] - leftToken.range[1]) !== mode[side]) {
-                var after = leftToken.value === "*";
-                var spaceRequired = mode[side];
-                var node = after ? leftToken : rightToken;
-                var type = spaceRequired ? "Missing" : "Unexpected";
-                var message = type + " space " + side + " *.";
+                const after = leftToken.value === "*";
+                const spaceRequired = mode[side];
+                const node = after ? leftToken : rightToken;
+                const type = spaceRequired ? "Missing" : "Unexpected";
+                const message = "{{type}} space {{side}} *.";
+                const data = {
+                    type,
+                    side
+                };
 
                 context.report({
-                    node: node,
-                    message: message,
-                    fix: function(fixer) {
+                    node,
+                    message,
+                    data,
+                    fix(fixer) {
                         if (spaceRequired) {
                             if (after) {
                                 return fixer.insertTextAfter(node, " ");
@@ -91,25 +116,27 @@ module.exports = {
          * @returns {void}
          */
         function checkFunction(node) {
-            var prevToken, starToken, nextToken;
+            let starToken;
 
             if (!node.generator) {
                 return;
             }
 
             if (node.parent.method || node.parent.type === "MethodDefinition") {
-                starToken = context.getTokenBefore(node, 1);
+                starToken = getStarToken(node.parent);
             } else {
-                starToken = context.getFirstToken(node, 1);
+                starToken = getStarToken(node);
             }
 
-            // Only check before when preceded by `function` keyword
-            prevToken = context.getTokenBefore(starToken);
+            // Only check before when preceded by `function`|`static` keyword
+            const prevToken = sourceCode.getTokenBefore(starToken);
+
             if (prevToken.value === "function" || prevToken.value === "static") {
                 checkSpacing("before", prevToken, starToken);
             }
 
-            nextToken = context.getTokenAfter(starToken);
+            const nextToken = sourceCode.getTokenAfter(starToken);
+
             checkSpacing("after", starToken, nextToken);
         }
 

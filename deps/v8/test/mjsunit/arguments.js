@@ -204,3 +204,70 @@ assertEquals(117, arg_set(0xFFFFFFFF));
   }
   assertTrue(%HasSloppyArgumentsElements(a));
 })();
+
+(function testDeleteArguments() {
+  function f() { return arguments };
+  var args = f(1, 2);
+  assertEquals(1, args[0]);
+  assertEquals(2, args[1]);
+  assertEquals(2, args.length);
+
+  delete args[0];
+  assertEquals(undefined, args[0]);
+  assertEquals(2, args[1]);
+  assertEquals(2, args.length);
+
+  delete args[1];
+  assertEquals(undefined, args[0]);
+  assertEquals(undefined, args[1]);
+  assertEquals(2, args.length);
+})();
+
+(function testDeleteFastSloppyArguments() {
+  function f(a) { return arguments };
+  var args = f(1, 2);
+  assertEquals(1, args[0]);
+  assertEquals(2, args[1]);
+  assertEquals(2, args.length);
+
+  delete args[0];
+  assertEquals(undefined, args[0]);
+  assertEquals(2, args[1]);
+  assertEquals(2, args.length);
+
+  delete args[1];
+  assertEquals(undefined, args[0]);
+  assertEquals(undefined, args[1]);
+  assertEquals(2, args.length);
+})();
+
+(function testDeleteSlowSloppyArguments() {
+  var key = 10000;
+  function f(a) {
+    arguments[key] = key;
+    return arguments
+  };
+  var args = f(1, 2);
+  assertEquals(1, args[0]);
+  assertEquals(2, args[1]);
+  assertEquals(key, args[key]);
+  assertEquals(2, args.length);
+
+  delete args[0];
+  assertEquals(undefined, args[0]);
+  assertEquals(2, args[1]);
+  assertEquals(key, args[key]);
+  assertEquals(2, args.length);
+
+  delete args[1];
+  assertEquals(undefined, args[0]);
+  assertEquals(undefined, args[1]);
+  assertEquals(key, args[key]);
+  assertEquals(2, args.length);
+
+  delete args[key];
+  assertEquals(undefined, args[0]);
+  assertEquals(undefined, args[1]);
+  assertEquals(undefined, args[key]);
+  assertEquals(2, args.length);
+})();

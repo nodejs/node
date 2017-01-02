@@ -58,8 +58,17 @@ std::ostream& operator<<(std::ostream& os, FrameStateType type) {
     case FrameStateType::kArgumentsAdaptor:
       os << "ARGUMENTS_ADAPTOR";
       break;
+    case FrameStateType::kTailCallerFunction:
+      os << "TAIL_CALLER_FRAME";
+      break;
     case FrameStateType::kConstructStub:
       os << "CONSTRUCT_STUB";
+      break;
+    case FrameStateType::kGetterStub:
+      os << "GETTER_STUB";
+      break;
+    case FrameStateType::kSetterStub:
+      os << "SETTER_STUB";
       break;
   }
   return os;

@@ -59,17 +59,15 @@ function requiredByAllLinked (node) {
   return node.requiredBy.filter(isLink).length === node.requiredBy.length
 }
 
-function isNotReqByTop (req) {
-  return req !== '/' &&     // '/' is the top level itself
-         req !== '#USER' && // #USER
-         req !== '#EXTRANEOUS'
+function isNotTopOrExtraneous (node) {
+  return !node.isTop && !node.userRequired && !node.existing
 }
 
 var sortActions = module.exports.sortActions = function (differences) {
   var actions = {}
   differences.forEach(function (action) {
     var child = action[1]
-    actions[child.package._location] = action
+    actions[child.location] = action
   })
 
   var sorted = []
@@ -77,14 +75,18 @@ var sortActions = module.exports.sortActions = function (differences) {
 
   var sortedlocs = Object.keys(actions).sort(sortByLocation)
 
-  // Do top level deps first, this stops the sorting by required order from
-  // unsorting these deps.
+  // We're going to sort the actions taken on top level dependencies first, before
+  // considering the order of transitive deps. Because we're building our list
+  // from the bottom up, this means we will return a list with top level deps LAST.
+  // This is important in terms of keeping installations as consistent as possible
+  // as folks add new dependencies.
   var toplocs = sortedlocs.filter(function (location) {
     var mod = actions[location][1]
-    if (!mod.package._requiredBy) return true
-    // If the module is required by ANY non-top level package
-    // then we don't want to include this.
-    return !mod.package._requiredBy.some(isNotReqByTop)
+    if (!mod.requiredBy) return true
+    // If this module is required by any non-top level module
+    // or by any extraneous module, eg user requested or existing
+    // then we don't want to give this priority sorting.
+    return !mod.requiredBy.some(isNotTopOrExtraneous)
   })
 
   toplocs.concat(sortedlocs).forEach(function (location) {
@@ -94,12 +96,16 @@ var sortActions = module.exports.sortActions = function (differences) {
   function sortByLocation (aa, bb) {
     return bb.localeCompare(aa)
   }
+  function sortModuleByLocation (aa, bb) {
+    return sortByLocation(aa && aa.location, bb && bb.location)
+  }
   function sortByDeps (action) {
     var mod = action[1]
-    if (added[mod.package._location]) return
-    added[mod.package._location] = action
-    mod.package._requiredBy.sort().forEach(function (location) {
-      if (actions[location]) sortByDeps(actions[location])
+    if (added[mod.location]) return
+    added[mod.location] = action
+    if (!mod.requiredBy) mod.requiredBy = []
+    mod.requiredBy.sort(sortModuleByLocation).forEach(function (mod) {
+      if (actions[mod.location]) sortByDeps(actions[mod.location])
     })
     sorted.unshift(action)
   }
@@ -107,7 +113,7 @@ var sortActions = module.exports.sortActions = function (differences) {
   return sorted
 }
 
-function diffTrees (oldTree, newTree) {
+var diffTrees = module.exports._diffTrees = function (oldTree, newTree) {
   validate('OO', arguments)
   var differences = []
   var flatOldTree = flattenTree(oldTree)
@@ -138,7 +144,9 @@ function diffTrees (oldTree, newTree) {
       }
     } else {
       var vername = getNameAndVersion(pkg.package)
-      if (toRemoveByNameAndVer[vername] && toRemoveByNameAndVer[vername].length && !pkg.fromBundle) {
+      var removing = toRemoveByNameAndVer[vername] && toRemoveByNameAndVer[vername].length
+      var bundlesOrFromBundle = pkg.fromBundle || pkg.package.bundleDependencies
+      if (removing && !bundlesOrFromBundle) {
         var flatname = toRemoveByNameAndVer[vername].shift()
         pkg.fromPath = toRemove[flatname].path
         differences.push(['move', pkg])

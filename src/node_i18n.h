@@ -15,6 +15,13 @@ namespace i18n {
 
 bool InitializeICUDirectory(const char* icu_data_path);
 
+int32_t ToASCII(MaybeStackBuffer<char>* buf,
+                const char* input,
+                size_t length);
+int32_t ToUnicode(MaybeStackBuffer<char>* buf,
+                  const char* input,
+                  size_t length);
+
 }  // namespace i18n
 }  // namespace node
 

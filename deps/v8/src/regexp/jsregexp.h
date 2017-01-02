@@ -47,10 +47,8 @@ class RegExpImpl {
   // See ECMA-262 section 15.10.6.2.
   // This function calls the garbage collector if necessary.
   MUST_USE_RESULT static MaybeHandle<Object> Exec(
-      Handle<JSRegExp> regexp,
-      Handle<String> subject,
-      int index,
-      Handle<JSArray> lastMatchInfo);
+      Handle<JSRegExp> regexp, Handle<String> subject, int index,
+      Handle<JSObject> lastMatchInfo);
 
   // Prepares a JSRegExp object with Irregexp-specific data.
   static void IrregexpInitialize(Handle<JSRegExp> re,
@@ -71,11 +69,9 @@ class RegExpImpl {
                          int32_t* output,
                          int output_size);
 
-
   static Handle<Object> AtomExec(Handle<JSRegExp> regexp,
-                                 Handle<String> subject,
-                                 int index,
-                                 Handle<JSArray> lastMatchInfo);
+                                 Handle<String> subject, int index,
+                                 Handle<JSObject> lastMatchInfo);
 
   enum IrregexpResult { RE_FAILURE = 0, RE_SUCCESS = 1, RE_EXCEPTION = -1 };
 
@@ -106,17 +102,13 @@ class RegExpImpl {
   // captured positions.  On a failure, the result is the null value.
   // Returns an empty handle in case of an exception.
   MUST_USE_RESULT static MaybeHandle<Object> IrregexpExec(
-      Handle<JSRegExp> regexp,
-      Handle<String> subject,
-      int index,
-      Handle<JSArray> lastMatchInfo);
+      Handle<JSRegExp> regexp, Handle<String> subject, int index,
+      Handle<JSObject> lastMatchInfo);
 
   // Set last match info.  If match is NULL, then setting captures is omitted.
-  static Handle<JSArray> SetLastMatchInfo(Handle<JSArray> last_match_info,
-                                          Handle<String> subject,
-                                          int capture_count,
-                                          int32_t* match);
-
+  static Handle<JSObject> SetLastMatchInfo(Handle<JSObject> last_match_info,
+                                           Handle<String> subject,
+                                           int capture_count, int32_t* match);
 
   class GlobalCache {
    public:
@@ -196,6 +188,8 @@ class RegExpImpl {
   // For acting on the JSRegExp data FixedArray.
   static int IrregexpMaxRegisterCount(FixedArray* re);
   static void SetIrregexpMaxRegisterCount(FixedArray* re, int value);
+  static void SetIrregexpCaptureNameMap(FixedArray* re,
+                                        Handle<FixedArray> value);
   static int IrregexpNumberOfCaptures(FixedArray* re);
   static int IrregexpNumberOfRegisters(FixedArray* re);
   static ByteArray* IrregexpByteCode(FixedArray* re, bool is_one_byte);
@@ -1530,6 +1524,7 @@ struct RegExpCompileData {
   RegExpNode* node;
   bool simple;
   bool contains_anchor;
+  Handle<FixedArray> capture_name_map;
   Handle<String> error;
   int capture_count;
 };

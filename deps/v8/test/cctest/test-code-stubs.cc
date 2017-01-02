@@ -42,9 +42,18 @@ using namespace v8::internal;
 
 
 int STDCALL ConvertDToICVersion(double d) {
+#if defined(V8_TARGET_BIG_ENDIAN)
+  const int kExponentIndex = 0;
+  const int kMantissaIndex = 1;
+#elif defined(V8_TARGET_LITTLE_ENDIAN)
+  const int kExponentIndex = 1;
+  const int kMantissaIndex = 0;
+#else
+#error Unsupported endianness
+#endif
   union { double d; uint32_t u[2]; } dbl;
   dbl.d = d;
-  uint32_t exponent_bits = dbl.u[1];
+  uint32_t exponent_bits = dbl.u[kExponentIndex];
   int32_t shifted_mask = static_cast<int32_t>(Double::kExponentMask >> 32);
   int32_t exponent = (((exponent_bits & shifted_mask) >>
                        (Double::kPhysicalSignificandSize - 32)) -
@@ -58,7 +67,8 @@ int STDCALL ConvertDToICVersion(double d) {
     static_cast<uint32_t>(Double::kPhysicalSignificandSize);
   if (unsigned_exponent >= max_exponent) {
     if ((exponent - Double::kPhysicalSignificandSize) < 32) {
-      result = dbl.u[0] << (exponent - Double::kPhysicalSignificandSize);
+      result = dbl.u[kMantissaIndex]
+               << (exponent - Double::kPhysicalSignificandSize);
     }
   } else {
     uint64_t big_result =

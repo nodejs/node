@@ -1,6 +1,6 @@
 'use strict';
-const assert = require('assert');
 const common = require('../common');
+const assert = require('assert');
 const fork = require('child_process').fork;
 const net = require('net');
 const count = 12;
@@ -75,7 +75,7 @@ if (process.argv[2] === 'child') {
     }
 
     child.once('message', function(m) {
-      assert(m.status === 'closed');
+      assert.strictEqual(m.status, 'closed');
       server.getConnections(function(err, num) {
         closeSockets(i + 1);
       });

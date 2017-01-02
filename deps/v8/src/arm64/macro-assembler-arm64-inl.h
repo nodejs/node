@@ -309,6 +309,22 @@ LS_MACRO_LIST(DEFINE_FUNCTION)
 LSPAIR_MACRO_LIST(DEFINE_FUNCTION)
 #undef DEFINE_FUNCTION
 
+#define DECLARE_FUNCTION(FN, OP)                                    \
+  void MacroAssembler::FN(const Register& rt, const Register& rn) { \
+    DCHECK(allow_macro_instructions_);                              \
+    OP(rt, rn);                                                     \
+  }
+LDA_STL_MACRO_LIST(DECLARE_FUNCTION)
+#undef DECLARE_FUNCTION
+
+#define DECLARE_FUNCTION(FN, OP)                                  \
+  void MacroAssembler::FN(const Register& rs, const Register& rt, \
+                          const Register& rn) {                   \
+    DCHECK(allow_macro_instructions_);                            \
+    OP(rs, rt, rn);                                               \
+  }
+STLX_MACRO_LIST(DECLARE_FUNCTION)
+#undef DECLARE_FUNCTION
 
 void MacroAssembler::Asr(const Register& rd,
                          const Register& rn,

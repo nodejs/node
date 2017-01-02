@@ -17,6 +17,9 @@ namespace v8 {
 class Isolate;
 
 namespace internal {
+
+class SourcePositionTableIterator;
+
 namespace interpreter {
 
 class BytecodeArrayIterator;
@@ -36,6 +39,7 @@ class BytecodeExpectationsPrinter final {
         const_pool_type_(t),
         execute_(true),
         wrap_(true),
+        top_level_(false),
         test_function_name_(kDefaultTopFunctionName) {}
 
   void PrintExpectation(std::ostream& stream,  // NOLINT
@@ -64,12 +68,15 @@ class BytecodeExpectationsPrinter final {
   void PrintEscapedString(std::ostream& stream,  // NOLINT
                           const std::string& string) const;
   void PrintBytecodeOperand(std::ostream& stream,  // NOLINT
-                            const BytecodeArrayIterator& bytecode_iter,
+                            const BytecodeArrayIterator& bytecode_iterator,
                             const Bytecode& bytecode, int op_index,
                             int parameter_count) const;
   void PrintBytecode(std::ostream& stream,  // NOLINT
-                     const BytecodeArrayIterator& bytecode_iter,
+                     const BytecodeArrayIterator& bytecode_iterator,
                      int parameter_count) const;
+  void PrintSourcePosition(std::ostream& stream,  // NOLINT
+                           SourcePositionTableIterator& source_iterator,
+                           int bytecode_offset) const;
   void PrintV8String(std::ostream& stream,  // NOLINT
                      i::String* string) const;
   void PrintConstant(std::ostream& stream,  // NOLINT
@@ -110,6 +117,7 @@ class BytecodeExpectationsPrinter final {
   std::string test_function_name_;
 
   static const char* const kDefaultTopFunctionName;
+  static const char* const kIndent;
 };
 
 }  // namespace interpreter

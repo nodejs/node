@@ -305,6 +305,20 @@ uchar Utf8::CalculateValue(const byte* str, size_t max_length, size_t* cursor) {
          0x03C82080;
 }
 
+bool Utf8::Validate(const byte* bytes, size_t length) {
+  size_t cursor = 0;
+
+  // Performance optimization: Skip over single-byte values first.
+  while (cursor < length && bytes[cursor] <= kMaxOneByteChar) {
+    ++cursor;
+  }
+
+  while (cursor < length) {
+    uchar c = ValueOf(bytes + cursor, length - cursor, &cursor);
+    if (!IsValidCharacter(c)) return false;
+  }
+  return true;
+}
 
 // Uppercase:            point.category == 'Lu'
 

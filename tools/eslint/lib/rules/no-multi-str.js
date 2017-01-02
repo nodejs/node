@@ -20,7 +20,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         /**
          * Determines if a given node is part of JSX syntax.
@@ -38,8 +38,8 @@ module.exports = {
 
         return {
 
-            Literal: function(node) {
-                var lineBreak = /\n/;
+            Literal(node) {
+                const lineBreak = /\n/;
 
                 if (lineBreak.test(node.raw) && !isJSXElement(node.parent)) {
                     context.report(node, "Multiline support is limited to browsers supporting ES5 only.");

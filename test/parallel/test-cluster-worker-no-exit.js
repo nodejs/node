@@ -1,8 +1,8 @@
 'use strict';
+const common = require('../common');
 var assert = require('assert');
 var cluster = require('cluster');
 var net = require('net');
-var common = require('../common');
 
 var destroyed;
 var success;

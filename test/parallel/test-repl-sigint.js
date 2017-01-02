@@ -4,7 +4,7 @@ const assert = require('assert');
 
 const spawn = require('child_process').spawn;
 
-if (process.platform === 'win32') {
+if (common.isWindows) {
   // No way to send CTRL_C_EVENT to processes from JS right now.
   common.skip('platform not supported');
   return;

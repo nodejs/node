@@ -20,8 +20,8 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
-        var scopeInfo = null;
+    create(context) {
+        let scopeInfo = null;
 
         /**
          * Adds a scope info to the stack.
@@ -68,8 +68,8 @@ module.exports = {
                 return;
             }
 
-            var label = node.label.name;
-            var info = scopeInfo;
+            const label = node.label.name;
+            let info = scopeInfo;
 
             while (info) {
                 if (info.label === label) {

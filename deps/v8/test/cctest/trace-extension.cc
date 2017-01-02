@@ -27,7 +27,7 @@
 
 #include "test/cctest/trace-extension.h"
 
-#include "src/profiler/sampler.h"
+#include "include/v8-profiler.h"
 #include "src/vm-state-inl.h"
 #include "test/cctest/cctest.h"
 
@@ -86,17 +86,13 @@ Address TraceExtension::GetFP(const v8::FunctionCallbackInfo<v8::Value>& args) {
 #else
 #error Host architecture is neither 32-bit nor 64-bit.
 #endif
-  printf("Trace: %p\n", fp);
+  printf("Trace: %p\n", static_cast<void*>(fp));
   return fp;
 }
 
+static struct { v8::TickSample* sample; } trace_env = {nullptr};
 
-static struct {
-  TickSample* sample;
-} trace_env = { NULL };
-
-
-void TraceExtension::InitTraceEnv(TickSample* sample) {
+void TraceExtension::InitTraceEnv(v8::TickSample* sample) {
   trace_env.sample = sample;
 }
 
@@ -107,8 +103,8 @@ void TraceExtension::DoTrace(Address fp) {
   // sp is only used to define stack high bound
   regs.sp =
       reinterpret_cast<Address>(trace_env.sample) - 10240;
-  trace_env.sample->Init(CcTest::i_isolate(), regs,
-                         TickSample::kSkipCEntryFrame, true);
+  trace_env.sample->Init(CcTest::isolate(), regs,
+                         v8::TickSample::kSkipCEntryFrame, true);
 }
 
 

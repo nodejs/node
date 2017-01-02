@@ -67,20 +67,31 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
 
   // Stop inlinining once the maximum allowed level is reached.
   int level = 0;
-  for (Node* frame_state = NodeProperties::GetFrameStateInput(node, 0);
+  for (Node* frame_state = NodeProperties::GetFrameStateInput(node);
        frame_state->opcode() == IrOpcode::kFrameState;
-       frame_state = NodeProperties::GetFrameStateInput(frame_state, 0)) {
+       frame_state = NodeProperties::GetFrameStateInput(frame_state)) {
     if (++level > FLAG_max_inlining_levels) return NoChange();
   }
 
   // Gather feedback on how often this call site has been hit before.
   int calls = -1;  // Same default as CallICNexus::ExtractCallCount.
-  // TODO(turbofan): We also want call counts for constructor calls.
   if (node->opcode() == IrOpcode::kJSCallFunction) {
     CallFunctionParameters p = CallFunctionParametersOf(node->op());
     if (p.feedback().IsValid()) {
       CallICNexus nexus(p.feedback().vector(), p.feedback().slot());
       calls = nexus.ExtractCallCount();
+    }
+  } else {
+    DCHECK_EQ(IrOpcode::kJSCallConstruct, node->opcode());
+    CallConstructParameters p = CallConstructParametersOf(node->op());
+    if (p.feedback().IsValid()) {
+      int const extra_index =
+          p.feedback().vector()->GetIndex(p.feedback().slot()) + 1;
+      Handle<Object> feedback_extra(p.feedback().vector()->get(extra_index),
+                                    function->GetIsolate());
+      if (feedback_extra->IsSmi()) {
+        calls = Handle<Smi>::cast(feedback_extra)->value();
+      }
     }
   }
 
@@ -121,7 +132,10 @@ void JSInliningHeuristic::Finalize() {
 
 bool JSInliningHeuristic::CandidateCompare::operator()(
     const Candidate& left, const Candidate& right) const {
-  return left.node != right.node && left.calls >= right.calls;
+  if (left.calls != right.calls) {
+    return left.calls > right.calls;
+  }
+  return left.node < right.node;
 }
 
 

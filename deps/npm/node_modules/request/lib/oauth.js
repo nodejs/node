@@ -3,7 +3,7 @@
 var url = require('url')
   , qs = require('qs')
   , caseless = require('caseless')
-  , uuid = require('node-uuid')
+  , uuid = require('uuid')
   , oauth = require('oauth-sign')
   , crypto = require('crypto')
 

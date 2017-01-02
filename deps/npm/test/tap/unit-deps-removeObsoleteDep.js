@@ -11,7 +11,7 @@ var deps = requireInject('../../lib/install/deps.js', {
   }
 })
 
-var removeObsoleteDep = deps._removeObsoleteDep
+var removeObsoleteDep = deps.removeObsoleteDep
 
 test('removeObsoleteDep', function (t) {
   var child1 = {requiredBy: []}

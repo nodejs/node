@@ -1,0 +1,77 @@
+# Copyright 2016 The V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# The sources are kept automatically in sync with unittests.gyp.
+
+import("../../gni/v8.gni")
+
+gypi_values = exec_script("//build/gypi_to_gn.py",
+                          [ rebase_path("unittests.gyp") ],
+                          "scope",
+                          [ "unittests.gyp" ])
+
+v8_executable("unittests") {
+  testonly = true
+
+  sources = gypi_values.unittests_sources
+
+  if (v8_current_cpu == "arm") {
+    sources += gypi_values.unittests_sources_arm
+  } else if (v8_current_cpu == "arm64") {
+    sources += gypi_values.unittests_sources_arm64
+  } else if (v8_current_cpu == "x86") {
+    sources += gypi_values.unittests_sources_ia32
+  } else if (v8_current_cpu == "mips" || v8_current_cpu == "mipsel") {
+    sources += gypi_values.unittests_sources_mips
+  } else if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
+    sources += gypi_values.unittests_sources_mips64
+  } else if (v8_current_cpu == "x64") {
+    sources += gypi_values.unittests_sources_x64
+  } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
+    sources += gypi_values.unittests_sources_ppc
+  } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
+    sources += gypi_values.unittests_sources_s390
+  }
+
+  configs = [
+    "../..:external_config",
+    "../..:internal_config_base",
+  ]
+
+  # TODO(machenbach): Translate from gyp.
+  #['OS=="aix"', {
+  #  'ldflags': [ '-Wl,-bbigtoc' ],
+  #}],
+
+  deps = [
+    "../..:v8_libplatform",
+    "//build/config/sanitizers:deps",
+    "//build/win:default_exe_manifest",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+
+  if (is_component_build) {
+    # compiler-unittests can't be built against a shared library, so we
+    # need to depend on the underlying static target in that case.
+    deps += [ "../..:v8_maybe_snapshot" ]
+  } else {
+    deps += [ "../..:v8" ]
+  }
+
+  if (is_win) {
+    # This warning is benignly triggered by the U16 and U32 macros in
+    # bytecode-utils.h.
+    # C4309: 'static_cast': truncation of constant value
+    cflags = [ "/wd4309" ]
+
+    # Suppress warnings about importing locally defined symbols.
+    if (is_component_build) {
+      ldflags = [
+        "/ignore:4049",
+        "/ignore:4217",
+      ]
+    }
+  }
+}

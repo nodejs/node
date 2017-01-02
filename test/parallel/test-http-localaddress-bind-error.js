@@ -1,10 +1,8 @@
 'use strict';
-require('../common');
-var assert = require('assert');
+const common = require('../common');
 var http = require('http');
 
 var invalidLocalAddress = '1.2.3.4';
-var gotError = false;
 
 var server = http.createServer(function(req, res) {
   console.log('Connect from: ' + req.connection.remoteAddress);
@@ -16,7 +14,7 @@ var server = http.createServer(function(req, res) {
   req.resume();
 });
 
-server.listen(0, '127.0.0.1', function() {
+server.listen(0, '127.0.0.1', common.mustCall(function() {
   http.request({
     host: 'localhost',
     port: this.address().port,
@@ -24,14 +22,9 @@ server.listen(0, '127.0.0.1', function() {
     method: 'GET',
     localAddress: invalidLocalAddress
   }, function(res) {
-    assert.fail(null, null, 'unexpectedly got response from server');
-  }).on('error', function(e) {
+    common.fail('unexpectedly got response from server');
+  }).on('error', common.mustCall(function(e) {
     console.log('client got error: ' + e.message);
-    gotError = true;
     server.close();
-  }).end();
-});
-
-process.on('exit', function() {
-  assert.ok(gotError);
-});
+  })).end();
+}));

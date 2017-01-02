@@ -15,14 +15,12 @@ var options = {
   cert: fs.readFileSync(common.fixturesDir + '/keys/ec-cert.pem')
 };
 
-var cert = null;
-
 var server = tls.createServer(options, function(conn) {
   conn.end('ok');
-}).listen(0, function() {
+}).listen(0, common.mustCall(function() {
   var c = tls.connect(this.address().port, {
     rejectUnauthorized: false
-  }, function() {
+  }, common.mustCall(function() {
     c.on('end', common.mustCall(function() {
       c.end();
       server.close();
@@ -32,11 +30,7 @@ var server = tls.createServer(options, function(conn) {
       assert.equal(data, 'ok');
     });
 
-    cert = c.getPeerCertificate();
-  });
-});
-
-process.on('exit', function() {
-  assert(cert);
-  assert.equal(cert.subject.C, 'US');
-});
+    const cert = c.getPeerCertificate();
+    assert.strictEqual(cert.subject.C, 'US');
+  }));
+}));

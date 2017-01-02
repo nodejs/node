@@ -2,7 +2,7 @@ var identity = require('./identity'),
     metaMap = require('./_metaMap');
 
 /**
- * The base implementation of `setData` without support for hot loop detection.
+ * The base implementation of `setData` without support for hot loop shorting.
  *
  * @private
  * @param {Function} func The function to associate metadata with.

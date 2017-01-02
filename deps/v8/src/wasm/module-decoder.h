@@ -14,7 +14,7 @@ namespace wasm {
 // Decodes the bytes of a WASM module between {module_start} and {module_end}.
 ModuleResult DecodeWasmModule(Isolate* isolate, Zone* zone,
                               const byte* module_start, const byte* module_end,
-                              bool verify_functions, bool asm_js);
+                              bool verify_functions, ModuleOrigin origin);
 
 // Exposed for testing. Decodes a single function signature, allocating it
 // in the given zone. Returns {nullptr} upon failure.
@@ -26,6 +26,13 @@ FunctionSig* DecodeWasmSignatureForTesting(Zone* zone, const byte* start,
 FunctionResult DecodeWasmFunction(Isolate* isolate, Zone* zone, ModuleEnv* env,
                                   const byte* function_start,
                                   const byte* function_end);
+
+// Extracts the function offset table from the wasm module bytes.
+// Returns a vector with <offset, length> entries, or failure if the wasm bytes
+// are detected as invalid. Note that this validation is not complete.
+FunctionOffsetsResult DecodeWasmFunctionOffsets(const byte* module_start,
+                                                const byte* module_end);
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

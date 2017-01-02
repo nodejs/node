@@ -5,7 +5,7 @@
 
 "use strict";
 
-var astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -18,7 +18,7 @@ module.exports = {
             category: "Stylistic Issues",
             recommended: false
         },
-
+        fixable: "code",
         schema: [
             {
                 enum: ["first", "last"]
@@ -38,10 +38,10 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
-
-        var style = context.options[0] || "last",
-            exceptions = {};
+    create(context) {
+        const style = context.options[0] || "last",
+            sourceCode = context.getSourceCode();
+        let exceptions = {};
 
         if (context.options.length === 2 && context.options[1].hasOwnProperty("exceptions")) {
             exceptions = context.options[1].exceptions;
@@ -59,6 +59,49 @@ module.exports = {
          */
         function isComma(token) {
             return !!token && (token.type === "Punctuator") && (token.value === ",");
+        }
+
+        /**
+         * Modified text based on the style
+         * @param {string} styleType Style type
+         * @param {string} text Source code text
+         * @returns {string} modified text
+         * @private
+         */
+        function getReplacedText(styleType, text) {
+            switch (styleType) {
+                case "between":
+                    return `,${text.replace("\n", "")}`;
+
+                case "first":
+                    return `${text},`;
+
+                case "last":
+                    return `,${text}`;
+
+                default:
+                    return "";
+            }
+        }
+
+        /**
+         * Determines the fixer function for a given style.
+         * @param {string} styleType comma style
+         * @param {ASTNode} previousItemToken The token to check.
+         * @param {ASTNode} commaToken The token to check.
+         * @param {ASTNode} currentItemToken The token to check.
+         * @returns {Function} Fixer function
+         * @private
+         */
+        function getFixerFunction(styleType, previousItemToken, commaToken, currentItemToken) {
+            const text =
+                sourceCode.text.slice(previousItemToken.range[1], commaToken.range[0]) +
+                sourceCode.text.slice(commaToken.range[1], currentItemToken.range[0]);
+            const range = [previousItemToken.range[1], currentItemToken.range[0]];
+
+            return function(fixer) {
+                return fixer.replaceTextRange(range, getReplacedText(styleType, text));
+            };
         }
 
         /**
@@ -82,21 +125,35 @@ module.exports = {
                     !astUtils.isTokenOnSameLine(previousItemToken, commaToken)) {
 
                 // lone comma
-                context.report(reportItem, {
-                    line: commaToken.loc.end.line,
-                    column: commaToken.loc.start.column
-                }, "Bad line breaking before and after ','.");
+                context.report({
+                    node: reportItem,
+                    loc: {
+                        line: commaToken.loc.end.line,
+                        column: commaToken.loc.start.column
+                    },
+                    message: "Bad line breaking before and after ','.",
+                    fix: getFixerFunction("between", previousItemToken, commaToken, currentItemToken)
+                });
 
             } else if (style === "first" && !astUtils.isTokenOnSameLine(commaToken, currentItemToken)) {
 
-                context.report(reportItem, "',' should be placed first.");
+                context.report({
+                    node: reportItem,
+                    message: "',' should be placed first.",
+                    fix: getFixerFunction(style, previousItemToken, commaToken, currentItemToken)
+                });
 
             } else if (style === "last" && astUtils.isTokenOnSameLine(commaToken, currentItemToken)) {
 
-                context.report(reportItem, {
-                    line: commaToken.loc.end.line,
-                    column: commaToken.loc.end.column
-                }, "',' should be placed last.");
+                context.report({
+                    node: reportItem,
+                    loc: {
+                        line: commaToken.loc.end.line,
+                        column: commaToken.loc.end.column
+                    },
+                    message: "',' should be placed last.",
+                    fix: getFixerFunction(style, previousItemToken, commaToken, currentItemToken)
+                });
             }
         }
 
@@ -108,19 +165,24 @@ module.exports = {
          * @returns {void}
          */
         function validateComma(node, property) {
-            var items = node[property],
-                arrayLiteral = (node.type === "ArrayExpression"),
-                previousItemToken;
+            const items = node[property],
+                arrayLiteral = (node.type === "ArrayExpression");
 
             if (items.length > 1 || arrayLiteral) {
 
                 // seed as opening [
-                previousItemToken = context.getFirstToken(node);
+                let previousItemToken = sourceCode.getFirstToken(node);
 
                 items.forEach(function(item) {
-                    var commaToken = item ? context.getTokenBefore(item) : previousItemToken,
-                        currentItemToken = item ? context.getFirstToken(item) : context.getTokenAfter(commaToken),
-                        reportItem = item || currentItemToken;
+                    const commaToken = item ? sourceCode.getTokenBefore(item) : previousItemToken,
+                        currentItemToken = item ? sourceCode.getFirstToken(item) : sourceCode.getTokenAfter(commaToken),
+                        reportItem = item || currentItemToken,
+                        tokenBeforeComma = sourceCode.getTokenBefore(commaToken);
+
+                    // Check if previous token is wrapped in parentheses
+                    if (tokenBeforeComma && tokenBeforeComma.value === ")") {
+                        previousItemToken = tokenBeforeComma;
+                    }
 
                     /*
                      * This works by comparing three token locations:
@@ -141,7 +203,7 @@ module.exports = {
                                 currentItemToken, reportItem);
                     }
 
-                    previousItemToken = item ? context.getLastToken(item) : previousItemToken;
+                    previousItemToken = item ? sourceCode.getLastToken(item) : previousItemToken;
                 });
 
                 /*
@@ -152,12 +214,12 @@ module.exports = {
                  */
                 if (arrayLiteral) {
 
-                    var lastToken = context.getLastToken(node),
-                        nextToLastToken = context.getTokenBefore(lastToken);
+                    const lastToken = sourceCode.getLastToken(node),
+                        nextToLastToken = sourceCode.getTokenBefore(lastToken);
 
                     if (isComma(nextToLastToken)) {
                         validateCommaItemSpacing(
-                            context.getTokenBefore(nextToLastToken),
+                            sourceCode.getTokenBefore(nextToLastToken),
                             nextToLastToken,
                             lastToken,
                             lastToken
@@ -171,7 +233,7 @@ module.exports = {
         // Public
         //--------------------------------------------------------------------------
 
-        var nodes = {};
+        const nodes = {};
 
         if (!exceptions.VariableDeclaration) {
             nodes.VariableDeclaration = function(node) {

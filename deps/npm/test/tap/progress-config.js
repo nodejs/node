@@ -13,19 +13,22 @@ var requireInject = require('require-inject')
 
 // Make sure existing environment vars don't muck up the test
 process.env = {}
-
-function hasOnlyAscii (s) {
-  return /^[\000-\177]*$/.test(s)
-}
+// Pretend that stderr is a tty regardless, so we can get consistent
+// results.
+process.stderr.isTTY = true
 
 test('setup', function (t) {
   fs.writeFileSync(configName, '')
   t.done()
 })
 
+function getFreshNpm () {
+  return requireInject.withEmptyCache('../../lib/npm.js', {npmlog: log})
+}
+
 test('disabled', function (t) {
   t.plan(1)
-  var npm = requireInject('../../lib/npm.js', {})
+  var npm = getFreshNpm()
   npm.load({userconfig: configName, progress: false}, function () {
     t.is(log.progressEnabled, false, 'should be disabled')
   })
@@ -33,7 +36,7 @@ test('disabled', function (t) {
 
 test('enabled', function (t) {
   t.plan(1)
-  var npm = requireInject('../../lib/npm.js', {})
+  var npm = getFreshNpm()
   npm.load({userconfig: configName, progress: true}, function () {
     t.is(log.progressEnabled, true, 'should be enabled')
   })
@@ -41,7 +44,7 @@ test('enabled', function (t) {
 
 test('default', function (t) {
   t.plan(1)
-  var npm = requireInject('../../lib/npm.js', {})
+  var npm = getFreshNpm()
   npm.load({userconfig: configName}, function () {
     t.is(log.progressEnabled, true, 'should be enabled')
   })
@@ -49,41 +52,37 @@ test('default', function (t) {
 
 test('default-travis', function (t) {
   t.plan(1)
-  global.process.env.TRAVIS = 'true'
-  var npm = requireInject('../../lib/npm.js', {})
+  process.env.TRAVIS = 'true'
+  var npm = getFreshNpm()
   npm.load({userconfig: configName}, function () {
     t.is(log.progressEnabled, false, 'should be disabled')
-    delete global.process.env.TRAVIS
+    delete process.env.TRAVIS
   })
 })
 
 test('default-ci', function (t) {
   t.plan(1)
-  global.process.env.CI = 'true'
-  var npm = requireInject('../../lib/npm.js', {})
+  process.env.CI = 'true'
+  var npm = getFreshNpm()
   npm.load({userconfig: configName}, function () {
     t.is(log.progressEnabled, false, 'should be disabled')
-    delete global.process.env.CI
+    delete process.env.CI
   })
 })
 
 test('unicode-true', function (t) {
-  t.plan(6)
-  var npm = requireInject('../../lib/npm.js', {})
+  var npm = getFreshNpm()
   npm.load({userconfig: configName, unicode: true}, function () {
-    Object.keys(log.gauge.theme).forEach(function (key) {
-      t.notOk(hasOnlyAscii(log.gauge.theme[key]), 'only unicode')
-    })
+    t.is(log.gauge._theme.hasUnicode, true, 'unicode will be selected')
+    t.done()
   })
 })
 
 test('unicode-false', function (t) {
-  t.plan(6)
-  var npm = requireInject('../../lib/npm.js', {})
+  var npm = getFreshNpm()
   npm.load({userconfig: configName, unicode: false}, function () {
-    Object.keys(log.gauge.theme).forEach(function (key) {
-      t.ok(hasOnlyAscii(log.gauge.theme[key]), 'only ASCII')
-    })
+    t.is(log.gauge._theme.hasUnicode, false, 'unicode will NOT be selected')
+    t.done()
   })
 })
 

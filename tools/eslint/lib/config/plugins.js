@@ -8,19 +8,18 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var debug = require("debug"),
-    Environments = require("./environments"),
-    rules = require("../rules");
+const Environments = require("./environments"),
+    Rules = require("../rules");
+
+const debug = require("debug")("eslint:plugins");
 
 //------------------------------------------------------------------------------
 // Private
 //------------------------------------------------------------------------------
 
-debug = debug("eslint:plugins");
+let plugins = Object.create(null);
 
-var plugins = Object.create(null);
-
-var PLUGIN_NAME_PREFIX = "eslint-plugin-",
+const PLUGIN_NAME_PREFIX = "eslint-plugin-",
     NAMESPACE_REGEX = /^@.*\//i;
 
 /**
@@ -56,9 +55,9 @@ function removeNamespace(pluginName) {
 
 module.exports = {
 
-    removePrefix: removePrefix,
-    getNamespace: getNamespace,
-    removeNamespace: removeNamespace,
+    removePrefix,
+    getNamespace,
+    removeNamespace,
 
     /**
      * Defines a plugin with a given name rather than loading from disk.
@@ -66,18 +65,22 @@ module.exports = {
      * @param {Object} plugin The plugin object.
      * @returns {void}
      */
-    define: function(pluginName, plugin) {
-        var pluginNameWithoutNamespace = removeNamespace(pluginName),
-            pluginNameWithoutPrefix = removePrefix(pluginNameWithoutNamespace);
-
-        plugins[pluginNameWithoutPrefix] = plugin;
+    define(pluginName, plugin) {
+        const pluginNamespace = getNamespace(pluginName),
+            pluginNameWithoutNamespace = removeNamespace(pluginName),
+            pluginNameWithoutPrefix = removePrefix(pluginNameWithoutNamespace),
+            shortName = pluginNamespace + pluginNameWithoutPrefix;
 
         // load up environments and rules
-        Environments.importPlugin(plugin, pluginNameWithoutPrefix);
+        plugins[shortName] = plugin;
+        Environments.importPlugin(plugin, shortName);
+        Rules.importPlugin(plugin, shortName);
 
-        if (plugin.rules) {
-            rules.import(plugin.rules, pluginNameWithoutPrefix);
-        }
+        // load up environments and rules for the name that '@scope/' was omitted
+        // 3 lines below will be removed by 4.0.0
+        plugins[pluginNameWithoutPrefix] = plugin;
+        Environments.importPlugin(plugin, pluginNameWithoutPrefix);
+        Rules.importPlugin(plugin, pluginNameWithoutPrefix);
     },
 
     /**
@@ -85,7 +88,7 @@ module.exports = {
      * @param {string} pluginName The name of the plugin to retrieve.
      * @returns {Object} The plugin or null if not loaded.
      */
-    get: function(pluginName) {
+    get(pluginName) {
         return plugins[pluginName] || null;
     },
 
@@ -93,7 +96,7 @@ module.exports = {
      * Returns all plugins that are loaded.
      * @returns {Object} The plugins cache.
      */
-    getAll: function() {
+    getAll() {
         return plugins;
     },
 
@@ -103,21 +106,33 @@ module.exports = {
      * @returns {void}
      * @throws {Error} If the plugin cannot be loaded.
      */
-    load: function(pluginName) {
-        var pluginNamespace = getNamespace(pluginName),
+    load(pluginName) {
+        const pluginNamespace = getNamespace(pluginName),
             pluginNameWithoutNamespace = removeNamespace(pluginName),
             pluginNameWithoutPrefix = removePrefix(pluginNameWithoutNamespace),
-            plugin = null;
+            shortName = pluginNamespace + pluginNameWithoutPrefix,
+            longName = pluginNamespace + PLUGIN_NAME_PREFIX + pluginNameWithoutPrefix;
+        let plugin = null;
 
-        if (!plugins[pluginNameWithoutPrefix]) {
+        if (pluginName.match(/\s+/)) {
+            const whitespaceError = new Error(`Whitespace found in plugin name '${pluginName}'`);
+
+            whitespaceError.messageTemplate = "whitespace-found";
+            whitespaceError.messageData = {
+                pluginName: longName
+            };
+            throw whitespaceError;
+        }
+
+        if (!plugins[shortName]) {
             try {
-                plugin = require(pluginNamespace + PLUGIN_NAME_PREFIX + pluginNameWithoutPrefix);
+                plugin = require(longName);
             } catch (err) {
-                debug("Failed to load plugin eslint-plugin-" + pluginNameWithoutPrefix + ". Proceeding without it.");
-                err.message = "Failed to load plugin " + pluginName + ": " + err.message;
+                debug(`Failed to load plugin ${longName}.`);
+                err.message = `Failed to load plugin ${pluginName}: ${err.message}`;
                 err.messageTemplate = "plugin-missing";
                 err.messageData = {
-                    pluginName: pluginNameWithoutPrefix
+                    pluginName: longName
                 };
                 throw err;
             }
@@ -132,7 +147,7 @@ module.exports = {
      * @returns {void}
      * @throws {Error} If a plugin cannot be loaded.
      */
-    loadAll: function(pluginNames) {
+    loadAll(pluginNames) {
         pluginNames.forEach(this.load, this);
     },
 
@@ -140,7 +155,7 @@ module.exports = {
      * Resets plugin information. Use for tests only.
      * @returns {void}
      */
-    testReset: function() {
+    testReset() {
         plugins = Object.create(null);
     }
 };

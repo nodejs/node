@@ -1,108 +1,81 @@
 /* eslint-disable strict */
-require('../common');
+const common = require('../common');
 var assert = require('assert');
 var fs = require('fs');
-var got_error = false;
-var success_count = 0;
 
-fs.stat('.', function(err, stats) {
-  if (err) {
-    got_error = true;
-  } else {
-    console.dir(stats);
-    assert.ok(stats.mtime instanceof Date);
-    success_count++;
-  }
-  assert(this === global);
-});
+fs.stat('.', common.mustCall(function(err, stats) {
+  assert.ifError(err);
+  assert.ok(stats.mtime instanceof Date);
+  assert.strictEqual(this, global);
+}));
 
-fs.stat('.', function(err, stats) {
+fs.stat('.', common.mustCall(function(err, stats) {
   assert.ok(stats.hasOwnProperty('blksize'));
   assert.ok(stats.hasOwnProperty('blocks'));
-});
+}));
 
-fs.lstat('.', function(err, stats) {
-  if (err) {
-    got_error = true;
-  } else {
-    console.dir(stats);
-    assert.ok(stats.mtime instanceof Date);
-    success_count++;
-  }
-  assert(this === global);
-});
+fs.lstat('.', common.mustCall(function(err, stats) {
+  assert.ifError(err);
+  assert.ok(stats.mtime instanceof Date);
+  assert.strictEqual(this, global);
+}));
 
 // fstat
-fs.open('.', 'r', undefined, function(err, fd) {
+fs.open('.', 'r', undefined, common.mustCall(function(err, fd) {
   assert.ok(!err);
   assert.ok(fd);
 
-  fs.fstat(fd, function(err, stats) {
-    if (err) {
-      got_error = true;
-    } else {
-      console.dir(stats);
-      assert.ok(stats.mtime instanceof Date);
-      success_count++;
-      fs.close(fd);
-    }
-    assert(this === global);
-  });
+  fs.fstat(fd, common.mustCall(function(err, stats) {
+    assert.ifError(err);
+    assert.ok(stats.mtime instanceof Date);
+    fs.close(fd);
+    assert.strictEqual(this, global);
+  }));
 
-  assert(this === global);
-});
+  assert.strictEqual(this, global);
+}));
 
 // fstatSync
-fs.open('.', 'r', undefined, function(err, fd) {
+fs.open('.', 'r', undefined, common.mustCall(function(err, fd) {
   var stats;
   try {
     stats = fs.fstatSync(fd);
   } catch (err) {
-    got_error = true;
+    common.fail(err);
   }
   if (stats) {
     console.dir(stats);
     assert.ok(stats.mtime instanceof Date);
-    success_count++;
   }
   fs.close(fd);
-});
+}));
 
 console.log(`stating:  ${__filename}`);
-fs.stat(__filename, function(err, s) {
-  if (err) {
-    got_error = true;
-  } else {
-    console.dir(s);
-    success_count++;
+fs.stat(__filename, common.mustCall(function(err, s) {
+  assert.ifError(err);
 
-    console.log('isDirectory: ' + JSON.stringify(s.isDirectory()));
-    assert.equal(false, s.isDirectory());
+  console.dir(s);
 
-    console.log('isFile: ' + JSON.stringify(s.isFile()));
-    assert.equal(true, s.isFile());
+  console.log('isDirectory: ' + JSON.stringify(s.isDirectory()));
+  assert.equal(false, s.isDirectory());
 
-    console.log('isSocket: ' + JSON.stringify(s.isSocket()));
-    assert.equal(false, s.isSocket());
+  console.log('isFile: ' + JSON.stringify(s.isFile()));
+  assert.equal(true, s.isFile());
 
-    console.log('isBlockDevice: ' + JSON.stringify(s.isBlockDevice()));
-    assert.equal(false, s.isBlockDevice());
+  console.log('isSocket: ' + JSON.stringify(s.isSocket()));
+  assert.equal(false, s.isSocket());
 
-    console.log('isCharacterDevice: ' + JSON.stringify(s.isCharacterDevice()));
-    assert.equal(false, s.isCharacterDevice());
+  console.log('isBlockDevice: ' + JSON.stringify(s.isBlockDevice()));
+  assert.equal(false, s.isBlockDevice());
 
-    console.log('isFIFO: ' + JSON.stringify(s.isFIFO()));
-    assert.equal(false, s.isFIFO());
+  console.log('isCharacterDevice: ' + JSON.stringify(s.isCharacterDevice()));
+  assert.equal(false, s.isCharacterDevice());
 
-    console.log('isSymbolicLink: ' + JSON.stringify(s.isSymbolicLink()));
-    assert.equal(false, s.isSymbolicLink());
+  console.log('isFIFO: ' + JSON.stringify(s.isFIFO()));
+  assert.equal(false, s.isFIFO());
 
-    assert.ok(s.mtime instanceof Date);
-  }
-});
+  console.log('isSymbolicLink: ' + JSON.stringify(s.isSymbolicLink()));
+  assert.equal(false, s.isSymbolicLink());
 
-process.on('exit', function() {
-  assert.equal(5, success_count);
-  assert.equal(false, got_error);
-});
-
+  assert.ok(s.mtime instanceof Date);
+}));

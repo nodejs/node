@@ -1,15 +1,12 @@
-var baseHas = require('./_baseHas'),
+var arrayLikeKeys = require('./_arrayLikeKeys'),
     baseKeys = require('./_baseKeys'),
-    indexKeys = require('./_indexKeys'),
-    isArrayLike = require('./isArrayLike'),
-    isIndex = require('./_isIndex'),
-    isPrototype = require('./_isPrototype');
+    isArrayLike = require('./isArrayLike');
 
 /**
  * Creates an array of the own enumerable property names of `object`.
  *
  * **Note:** Non-object values are coerced to objects. See the
- * [ES spec](http://ecma-international.org/ecma-262/6.0/#sec-object.keys)
+ * [ES spec](http://ecma-international.org/ecma-262/7.0/#sec-object.keys)
  * for more details.
  *
  * @static
@@ -34,23 +31,7 @@ var baseHas = require('./_baseHas'),
  * // => ['0', '1']
  */
 function keys(object) {
-  var isProto = isPrototype(object);
-  if (!(isProto || isArrayLike(object))) {
-    return baseKeys(object);
-  }
-  var indexes = indexKeys(object),
-      skipIndexes = !!indexes,
-      result = indexes || [],
-      length = result.length;
-
-  for (var key in object) {
-    if (baseHas(object, key) &&
-        !(skipIndexes && (key == 'length' || isIndex(key, length))) &&
-        !(isProto && key == 'constructor')) {
-      result.push(key);
-    }
-  }
-  return result;
+  return isArrayLike(object) ? arrayLikeKeys(object) : baseKeys(object);
 }
 
 module.exports = keys;

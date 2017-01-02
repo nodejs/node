@@ -39,12 +39,6 @@ function test2() {
 }
 
 function test(keyfn, certfn, check, next) {
-  // FIXME: Avoid the common PORT as this test currently hits a C-level
-  // assertion error with node_g. The program aborts without HUPing
-  // the openssl s_server thus causing many tests to fail with
-  // EADDRINUSE.
-  var PORT = common.PORT + 5;
-
   keyfn = join(common.fixturesDir, keyfn);
   var key = fs.readFileSync(keyfn).toString();
 
@@ -52,7 +46,7 @@ function test(keyfn, certfn, check, next) {
   var cert = fs.readFileSync(certfn).toString();
 
   var server = spawn(common.opensslCli, ['s_server',
-                                         '-accept', PORT,
+                                         '-accept', common.PORT,
                                          '-cert', certfn,
                                          '-key', keyfn]);
   server.stdout.pipe(process.stdout);
@@ -121,7 +115,7 @@ function test(keyfn, certfn, check, next) {
     pair.encrypted.pipe(s);
     s.pipe(pair.encrypted);
 
-    s.connect(PORT);
+    s.connect(common.PORT);
 
     s.on('connect', function() {
       console.log('client connected');

@@ -24,10 +24,9 @@ class FuzzerSupport {
   FuzzerSupport(const FuzzerSupport&);
   FuzzerSupport& operator=(const FuzzerSupport&);
 
-  class ArrayBufferAllocator;
 
   v8::Platform* platform_;
-  ArrayBufferAllocator* allocator_;
+  v8::ArrayBuffer::Allocator* allocator_;
   v8::Isolate* isolate_;
   v8::Global<v8::Context> context_;
 };

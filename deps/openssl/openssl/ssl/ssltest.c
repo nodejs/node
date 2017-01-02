@@ -3141,9 +3141,12 @@ static unsigned int psk_server_callback(SSL *ssl, const char *identity,
 
 static int do_test_cipherlist(void)
 {
+#if !defined(OPENSSL_NO_SSL2) || !defined(OPENSSL_NO_SSL3) || \
+    !defined(OPENSSL_NO_TLS1)
     int i = 0;
     const SSL_METHOD *meth;
     const SSL_CIPHER *ci, *tci = NULL;
+#endif
 
 #ifndef OPENSSL_NO_SSL2
     fprintf(stderr, "testing SSLv2 cipher list order: ");

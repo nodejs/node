@@ -39,4 +39,3 @@ process.on('exit', function(c) {
 });
 
 read.pipe(write);
-

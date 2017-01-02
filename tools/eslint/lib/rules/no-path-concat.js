@@ -19,9 +19,9 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
-        var MATCHER = /^__(?:dir|file)name$/;
+        const MATCHER = /^__(?:dir|file)name$/;
 
         //--------------------------------------------------------------------------
         // Public
@@ -29,9 +29,9 @@ module.exports = {
 
         return {
 
-            BinaryExpression: function(node) {
+            BinaryExpression(node) {
 
-                var left = node.left,
+                const left = node.left,
                     right = node.right;
 
                 if (node.operator === "+" &&

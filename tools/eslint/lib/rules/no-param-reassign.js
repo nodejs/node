@@ -8,7 +8,7 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-var stopNodePattern = /(?:Statement|Declaration|Function(?:Expression)?|Program)$/;
+const stopNodePattern = /(?:Statement|Declaration|Function(?:Expression)?|Program)$/;
 
 module.exports = {
     meta: {
@@ -29,8 +29,8 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
-        var props = context.options[0] && Boolean(context.options[0].props);
+    create(context) {
+        const props = context.options[0] && Boolean(context.options[0].props);
 
         /**
          * Checks whether or not the reference modifies properties of its variable.
@@ -38,8 +38,8 @@ module.exports = {
          * @returns {boolean} Whether or not the reference modifies properties of its variable.
          */
         function isModifyingProp(reference) {
-            var node = reference.identifier;
-            var parent = node.parent;
+            let node = reference.identifier;
+            let parent = node.parent;
 
             while (parent && !stopNodePattern.test(parent.type)) {
                 switch (parent.type) {
@@ -92,7 +92,7 @@ module.exports = {
          * @returns {void}
          */
         function checkReference(reference, index, references) {
-            var identifier = reference.identifier;
+            const identifier = reference.identifier;
 
             if (identifier &&
                 !reference.init &&

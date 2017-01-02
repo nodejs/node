@@ -9,18 +9,19 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var esutils = require("esutils");
+const esutils = require("esutils");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-var anyFunctionPattern = /^(?:Function(?:Declaration|Expression)|ArrowFunctionExpression)$/;
-var arrayOrTypedArrayPattern = /Array$/;
-var arrayMethodPattern = /^(?:every|filter|find|findIndex|forEach|map|some)$/;
-var bindOrCallOrApplyPattern = /^(?:bind|call|apply)$/;
-var breakableTypePattern = /^(?:(?:Do)?While|For(?:In|Of)?|Switch)Statement$/;
-var thisTagPattern = /^[\s\*]*@this/m;
+const anyFunctionPattern = /^(?:Function(?:Declaration|Expression)|ArrowFunctionExpression)$/;
+const anyLoopPattern = /^(?:DoWhile|For|ForIn|ForOf|While)Statement$/;
+const arrayOrTypedArrayPattern = /Array$/;
+const arrayMethodPattern = /^(?:every|filter|find|findIndex|forEach|map|some)$/;
+const bindOrCallOrApplyPattern = /^(?:bind|call|apply)$/;
+const breakableTypePattern = /^(?:(?:Do)?While|For(?:In|Of)?|Switch)Statement$/;
+const thisTagPattern = /^[\s\*]*@this/m;
 
 /**
  * Checks reference if is non initializer and writable.
@@ -31,15 +32,14 @@ var thisTagPattern = /^[\s\*]*@this/m;
  * @private
  */
 function isModifyingReference(reference, index, references) {
-    var identifier = reference.identifier,
-        modifyingDifferentIdentifier;
+    const identifier = reference.identifier;
 
     /*
      * Destructuring assignments can have multiple default value, so
      * possibly there are multiple writeable references for the same
      * identifier.
      */
-    modifyingDifferentIdentifier = index === 0 ||
+    const modifyingDifferentIdentifier = index === 0 ||
         references[index - 1].identifier !== identifier;
 
     return (identifier &&
@@ -50,15 +50,22 @@ function isModifyingReference(reference, index, references) {
 }
 
 /**
+ * Checks whether the given string starts with uppercase or not.
+ *
+ * @param {string} s - The string to check.
+ * @returns {boolean} `true` if the string starts with uppercase.
+ */
+function startsWithUpperCase(s) {
+    return s[0] !== s[0].toLocaleLowerCase();
+}
+
+/**
  * Checks whether or not a node is a constructor.
  * @param {ASTNode} node - A function node to check.
  * @returns {boolean} Wehether or not a node is a constructor.
  */
 function isES5Constructor(node) {
-    return (
-        node.id &&
-        node.id.name[0] === node.id.name[0].toLocaleUpperCase()
-    );
+    return (node.id && startsWithUpperCase(node.id.name));
 }
 
 /**
@@ -159,7 +166,7 @@ function isMethodWhichHasThisArg(node) {
  * @returns {boolean} Whether or not the node has a `@this` tag in its comments.
  */
 function hasJSDocThisTag(node, sourceCode) {
-    var jsdocComment = sourceCode.getJSDocComment(node);
+    const jsdocComment = sourceCode.getJSDocComment(node);
 
     if (jsdocComment && thisTagPattern.test(jsdocComment.value)) {
         return true;
@@ -176,14 +183,14 @@ function hasJSDocThisTag(node, sourceCode) {
 
 /**
  * Determines if a node is surrounded by parentheses.
- * @param {RuleContext} context The context object passed to the rule
+ * @param {SourceCode} sourceCode The ESLint source code object
  * @param {ASTNode} node The node to be checked.
  * @returns {boolean} True if the node is parenthesised.
  * @private
  */
-function isParenthesised(context, node) {
-    var previousToken = context.getTokenBefore(node),
-        nextToken = context.getTokenAfter(node);
+function isParenthesised(sourceCode, node) {
+    const previousToken = sourceCode.getTokenBefore(node),
+        nextToken = sourceCode.getTokenAfter(node);
 
     return Boolean(previousToken && nextToken) &&
         previousToken.value === "(" && previousToken.range[1] <= node.range[0] &&
@@ -203,23 +210,23 @@ module.exports = {
      * @returns {boolean} Whether or not the tokens are on the same line.
      * @public
      */
-    isTokenOnSameLine: function(left, right) {
+    isTokenOnSameLine(left, right) {
         return left.loc.end.line === right.loc.start.line;
     },
 
-    isNullOrUndefined: isNullOrUndefined,
-    isCallee: isCallee,
-    isES5Constructor: isES5Constructor,
-    getUpperFunction: getUpperFunction,
-    isArrayFromMethod: isArrayFromMethod,
-    isParenthesised: isParenthesised,
+    isNullOrUndefined,
+    isCallee,
+    isES5Constructor,
+    getUpperFunction,
+    isArrayFromMethod,
+    isParenthesised,
 
     /**
      * Checks whether or not a given node is a string literal.
      * @param {ASTNode} node - A node to check.
      * @returns {boolean} `true` if the node is a string literal.
      */
-    isStringLiteral: function(node) {
+    isStringLiteral(node) {
         return (
             (node.type === "Literal" && typeof node.value === "string") ||
             node.type === "TemplateLiteral"
@@ -240,7 +247,7 @@ module.exports = {
      * @param {ASTNode} node - A node to check.
      * @returns {boolean} `true` if the node is breakable.
      */
-    isBreakableStatement: function(node) {
+    isBreakableStatement(node) {
         return breakableTypePattern.test(node.type);
     },
 
@@ -250,7 +257,7 @@ module.exports = {
      * @param {ASTNode} node - A node to get.
      * @returns {string|null} The label or `null`.
      */
-    getLabel: function(node) {
+    getLabel(node) {
         if (node.parent.type === "LabeledStatement") {
             return node.parent.label.name;
         }
@@ -263,7 +270,7 @@ module.exports = {
      * @returns {Reference[]} An array of only references which are non initializer and writable.
      * @public
      */
-    getModifyingReferences: function(references) {
+    getModifyingReferences(references) {
         return references.filter(isModifyingReference);
     },
 
@@ -274,7 +281,7 @@ module.exports = {
      * @returns {boolean} True if the text is surrounded by the character, false if not.
      * @private
      */
-    isSurroundedBy: function(val, character) {
+    isSurroundedBy(val, character) {
         return val[0] === character && val[val.length - 1] === character;
     },
 
@@ -283,8 +290,8 @@ module.exports = {
      * @param {LineComment|BlockComment} node The node to be checked
      * @returns {boolean} `true` if the node is an ESLint directive comment
      */
-    isDirectiveComment: function(node) {
-        var comment = node.value.trim();
+    isDirectiveComment(node) {
+        const comment = node.value.trim();
 
         return (
             node.type === "Line" && comment.indexOf("eslint-") === 0 ||
@@ -316,11 +323,11 @@ module.exports = {
      * @param {string} name - A variable name to find.
      * @returns {escope.Variable|null} A found variable or `null`.
      */
-    getVariableByName: function(initScope, name) {
-        var scope = initScope;
+    getVariableByName(initScope, name) {
+        let scope = initScope;
 
         while (scope) {
-            var variable = scope.set.get(name);
+            const variable = scope.set.get(name);
 
             if (variable) {
                 return variable;
@@ -344,22 +351,23 @@ module.exports = {
      * If the location is below, this judges `this` is valid.
      *
      * - The location is not on an object literal.
-     * - The location does not assign to a property.
+     * - The location is not assigned to a variable which starts with an uppercase letter.
      * - The location is not on an ES2015 class.
-     * - The location does not call its `bind`/`call`/`apply` method directly.
+     * - Its `bind`/`call`/`apply` method is not called directly.
      * - The function is not a callback of array methods (such as `.forEach()`) if `thisArg` is given.
      *
      * @param {ASTNode} node - A function node to check.
      * @param {SourceCode} sourceCode - A SourceCode instance to get comments.
      * @returns {boolean} The function node is the default `this` binding.
      */
-    isDefaultThisBinding: function(node, sourceCode) {
+    isDefaultThisBinding(node, sourceCode) {
         if (isES5Constructor(node) || hasJSDocThisTag(node, sourceCode)) {
             return false;
         }
+        const isAnonymous = node.id === null;
 
         while (node) {
-            var parent = node.parent;
+            const parent = node.parent;
 
             switch (parent.type) {
 
@@ -378,37 +386,57 @@ module.exports = {
                 //     // setup...
                 //     return function foo() { ... };
                 //   })();
-                case "ReturnStatement":
-                    var func = getUpperFunction(parent);
+                case "ReturnStatement": {
+                    const func = getUpperFunction(parent);
 
                     if (func === null || !isCallee(func)) {
                         return true;
                     }
                     node = func.parent;
                     break;
+                }
 
                 // e.g.
                 //   var obj = { foo() { ... } };
                 //   var obj = { foo: function() { ... } };
-                case "Property":
-                    return false;
-
-                // e.g.
-                //   obj.foo = foo() { ... };
-                case "AssignmentExpression":
-                    return (
-                        parent.right !== node ||
-                        parent.left.type !== "MemberExpression"
-                    );
-
-                // e.g.
                 //   class A { constructor() { ... } }
                 //   class A { foo() { ... } }
                 //   class A { get foo() { ... } }
                 //   class A { set foo() { ... } }
                 //   class A { static foo() { ... } }
+                case "Property":
                 case "MethodDefinition":
-                    return false;
+                    return parent.value !== node;
+
+                // e.g.
+                //   obj.foo = function foo() { ... };
+                //   Foo = function() { ... };
+                //   [obj.foo = function foo() { ... }] = a;
+                //   [Foo = function() { ... }] = a;
+                case "AssignmentExpression":
+                case "AssignmentPattern":
+                    if (parent.right === node) {
+                        if (parent.left.type === "MemberExpression") {
+                            return false;
+                        }
+                        if (isAnonymous &&
+                            parent.left.type === "Identifier" &&
+                            startsWithUpperCase(parent.left.name)
+                        ) {
+                            return false;
+                        }
+                    }
+                    return true;
+
+                // e.g.
+                //   var Foo = function() { ... };
+                case "VariableDeclarator":
+                    return !(
+                        isAnonymous &&
+                        parent.init === node &&
+                        parent.id.type === "Identifier" &&
+                        startsWithUpperCase(parent.id.name)
+                    );
 
                 // e.g.
                 //   var foo = function foo() { ... }.bind(obj);
@@ -460,5 +488,255 @@ module.exports = {
 
         /* istanbul ignore next */
         return true;
+    },
+
+    /**
+     * Get the precedence level based on the node type
+     * @param {ASTNode} node node to evaluate
+     * @returns {int} precedence level
+     * @private
+     */
+    getPrecedence(node) {
+        switch (node.type) {
+            case "SequenceExpression":
+                return 0;
+
+            case "AssignmentExpression":
+            case "ArrowFunctionExpression":
+            case "YieldExpression":
+                return 1;
+
+            case "ConditionalExpression":
+                return 3;
+
+            case "LogicalExpression":
+                switch (node.operator) {
+                    case "||":
+                        return 4;
+                    case "&&":
+                        return 5;
+
+                    // no default
+                }
+
+                /* falls through */
+
+            case "BinaryExpression":
+
+                switch (node.operator) {
+                    case "|":
+                        return 6;
+                    case "^":
+                        return 7;
+                    case "&":
+                        return 8;
+                    case "==":
+                    case "!=":
+                    case "===":
+                    case "!==":
+                        return 9;
+                    case "<":
+                    case "<=":
+                    case ">":
+                    case ">=":
+                    case "in":
+                    case "instanceof":
+                        return 10;
+                    case "<<":
+                    case ">>":
+                    case ">>>":
+                        return 11;
+                    case "+":
+                    case "-":
+                        return 12;
+                    case "*":
+                    case "/":
+                    case "%":
+                        return 13;
+
+                    // no default
+                }
+
+                /* falls through */
+
+            case "UnaryExpression":
+            case "AwaitExpression":
+                return 14;
+
+            case "UpdateExpression":
+                return 15;
+
+            case "CallExpression":
+
+                // IIFE is allowed to have parens in any position (#655)
+                if (node.callee.type === "FunctionExpression") {
+                    return -1;
+                }
+                return 16;
+
+            case "NewExpression":
+                return 17;
+
+            // no default
+        }
+        return 18;
+    },
+
+    /**
+     * Checks whether a given node is a loop node or not.
+     * The following types are loop nodes:
+     *
+     * - DoWhileStatement
+     * - ForInStatement
+     * - ForOfStatement
+     * - ForStatement
+     * - WhileStatement
+     *
+     * @param {ASTNode|null} node - A node to check.
+     * @returns {boolean} `true` if the node is a loop node.
+     */
+    isLoop(node) {
+        return Boolean(node && anyLoopPattern.test(node.type));
+    },
+
+    /**
+     * Checks whether a given node is a function node or not.
+     * The following types are function nodes:
+     *
+     * - ArrowFunctionExpression
+     * - FunctionDeclaration
+     * - FunctionExpression
+     *
+     * @param {ASTNode|null} node - A node to check.
+     * @returns {boolean} `true` if the node is a function node.
+     */
+    isFunction(node) {
+        return Boolean(node && anyFunctionPattern.test(node.type));
+    },
+
+    /**
+     * Gets the property name of a given node.
+     * The node can be a MemberExpression, a Property, or a MethodDefinition.
+     *
+     * If the name is dynamic, this returns `null`.
+     *
+     * For examples:
+     *
+     *     a.b           // => "b"
+     *     a["b"]        // => "b"
+     *     a['b']        // => "b"
+     *     a[`b`]        // => "b"
+     *     a[100]        // => "100"
+     *     a[b]          // => null
+     *     a["a" + "b"]  // => null
+     *     a[tag`b`]     // => null
+     *     a[`${b}`]     // => null
+     *
+     *     let a = {b: 1}            // => "b"
+     *     let a = {["b"]: 1}        // => "b"
+     *     let a = {['b']: 1}        // => "b"
+     *     let a = {[`b`]: 1}        // => "b"
+     *     let a = {[100]: 1}        // => "100"
+     *     let a = {[b]: 1}          // => null
+     *     let a = {["a" + "b"]: 1}  // => null
+     *     let a = {[tag`b`]: 1}     // => null
+     *     let a = {[`${b}`]: 1}     // => null
+     *
+     * @param {ASTNode} node - The node to get.
+     * @returns {string|null} The property name if static. Otherwise, null.
+     */
+    getStaticPropertyName(node) {
+        let prop;
+
+        switch (node && node.type) {
+            case "Property":
+            case "MethodDefinition":
+                prop = node.key;
+                break;
+
+            case "MemberExpression":
+                prop = node.property;
+                break;
+
+            // no default
+        }
+
+        switch (prop && prop.type) {
+            case "Literal":
+                return String(prop.value);
+
+            case "TemplateLiteral":
+                if (prop.expressions.length === 0 && prop.quasis.length === 1) {
+                    return prop.quasis[0].value.cooked;
+                }
+                break;
+
+            case "Identifier":
+                if (!node.computed) {
+                    return prop.name;
+                }
+                break;
+
+            // no default
+        }
+
+        return null;
+    },
+
+    /**
+     * Get directives from directive prologue of a Program or Function node.
+     * @param {ASTNode} node - The node to check.
+     * @returns {ASTNode[]} The directives found in the directive prologue.
+     */
+    getDirectivePrologue(node) {
+        const directives = [];
+
+        // Directive prologues only occur at the top of files or functions.
+        if (
+            node.type === "Program" ||
+            node.type === "FunctionDeclaration" ||
+            node.type === "FunctionExpression" ||
+
+            // Do not check arrow functions with implicit return.
+            // `() => "use strict";` returns the string `"use strict"`.
+            (node.type === "ArrowFunctionExpression" && node.body.type === "BlockStatement")
+        ) {
+            const statements = node.type === "Program" ? node.body : node.body.body;
+
+            for (const statement of statements) {
+                if (
+                    statement.type === "ExpressionStatement" &&
+                    statement.expression.type === "Literal"
+                ) {
+                    directives.push(statement);
+                } else {
+                    break;
+                }
+            }
+        }
+
+        return directives;
+    },
+
+
+    /**
+     * Determines whether this node is a decimal integer literal. If a node is a decimal integer literal, a dot added
+     after the node will be parsed as a decimal point, rather than a property-access dot.
+     * @param {ASTNode} node - The node to check.
+     * @returns {boolean} `true` if this node is a decimal integer.
+     * @example
+     *
+     * 5       // true
+     * 5.      // false
+     * 5.0     // false
+     * 05      // false
+     * 0x5     // false
+     * 0b101   // false
+     * 0o5     // false
+     * 5e0     // false
+     * '5'     // false
+     */
+    isDecimalInteger(node) {
+        return node.type === "Literal" && typeof node.value === "number" && /^(0|[1-9]\d*)$/.test(node.raw);
     }
 };

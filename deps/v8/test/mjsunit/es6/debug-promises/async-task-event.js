@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug
+// Flags: --expose-debug-as debug --allow-natives-syntax
 
 Debug = debug.Debug;
 
@@ -16,8 +16,8 @@ var expected = [
   "didHandle #1",
   "willHandle #2",
   "then #2",
-  "enqueue #3",
   "didHandle #2",
+  "enqueue #3",
   "willHandle #3",
   "didHandle #3"
 ];
@@ -57,5 +57,7 @@ p.then(function() {
   assertLog("then #2");
 });
 resolver();
+
+%RunMicrotasks();
 
 assertNull(exception);

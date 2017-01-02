@@ -324,6 +324,10 @@ class CFGBuilder : public ZoneObject {
       case IrOpcode::kSwitch:
         BuildBlocksForSuccessors(node);
         break;
+#define BUILD_BLOCK_JS_CASE(Name) case IrOpcode::k##Name:
+        JS_OP_LIST(BUILD_BLOCK_JS_CASE)
+// JS opcodes are just like calls => fall through.
+#undef BUILD_BLOCK_JS_CASE
       case IrOpcode::kCall:
         if (NodeProperties::IsExceptionalCall(node)) {
           BuildBlocksForSuccessors(node);
@@ -364,6 +368,10 @@ class CFGBuilder : public ZoneObject {
         scheduler_->UpdatePlacement(node, Scheduler::kFixed);
         ConnectThrow(node);
         break;
+#define CONNECT_BLOCK_JS_CASE(Name) case IrOpcode::k##Name:
+        JS_OP_LIST(CONNECT_BLOCK_JS_CASE)
+// JS opcodes are just like calls => fall through.
+#undef CONNECT_BLOCK_JS_CASE
       case IrOpcode::kCall:
         if (NodeProperties::IsExceptionalCall(node)) {
           scheduler_->UpdatePlacement(node, Scheduler::kFixed);
@@ -1538,6 +1546,8 @@ class ScheduleLateNodeVisitor {
   }
 
   BasicBlock* GetBlockForUse(Edge edge) {
+    // TODO(titzer): ignore uses from dead nodes (not visited in PrepareUses()).
+    // Dead uses only occur if the graph is not trimmed before scheduling.
     Node* use = edge.from();
     if (IrOpcode::IsPhiOpcode(use->opcode())) {
       // If the use is from a coupled (i.e. floating) phi, compute the common
@@ -1545,7 +1555,8 @@ class ScheduleLateNodeVisitor {
       if (scheduler_->GetPlacement(use) == Scheduler::kCoupled) {
         TRACE("  inspecting uses of coupled #%d:%s\n", use->id(),
               use->op()->mnemonic());
-        DCHECK_EQ(edge.to(), NodeProperties::GetControlInput(use));
+        // TODO(titzer): reenable once above TODO is addressed.
+        //        DCHECK_EQ(edge.to(), NodeProperties::GetControlInput(use));
         return GetCommonDominatorOfUses(use);
       }
       // If the use is from a fixed (i.e. non-floating) phi, we use the

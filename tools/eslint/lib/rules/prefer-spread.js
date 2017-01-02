@@ -5,7 +5,7 @@
 
 "use strict";
 
-var astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -23,7 +23,8 @@ function isVariadicApplyCalling(node) {
         node.callee.property.name === "apply" &&
         node.callee.computed === false &&
         node.arguments.length === 2 &&
-        node.arguments[1].type !== "ArrayExpression"
+        node.arguments[1].type !== "ArrayExpression" &&
+        node.arguments[1].type !== "SpreadElement"
     );
 }
 
@@ -31,17 +32,17 @@ function isVariadicApplyCalling(node) {
  * Checks whether or not the tokens of two given nodes are same.
  * @param {ASTNode} left - A node 1 to compare.
  * @param {ASTNode} right - A node 2 to compare.
- * @param {RuleContext} context - The ESLint rule context object.
+ * @param {SourceCode} sourceCode - The ESLint source code object.
  * @returns {boolean} the source code for the given node.
  */
-function equalTokens(left, right, context) {
-    var tokensL = context.getTokens(left);
-    var tokensR = context.getTokens(right);
+function equalTokens(left, right, sourceCode) {
+    const tokensL = sourceCode.getTokens(left);
+    const tokensR = sourceCode.getTokens(right);
 
     if (tokensL.length !== tokensR.length) {
         return false;
     }
-    for (var i = 0; i < tokensL.length; ++i) {
+    for (let i = 0; i < tokensL.length; ++i) {
         if (tokensL[i].type !== tokensR[i].type ||
             tokensL[i].value !== tokensR[i].value
         ) {
@@ -78,22 +79,40 @@ module.exports = {
             recommended: false
         },
 
-        schema: []
+        schema: [],
+
+        fixable: "code"
     },
 
-    create: function(context) {
+    create(context) {
+        const sourceCode = context.getSourceCode();
+
         return {
-            CallExpression: function(node) {
+            CallExpression(node) {
                 if (!isVariadicApplyCalling(node)) {
                     return;
                 }
 
-                var applied = node.callee.object;
-                var expectedThis = (applied.type === "MemberExpression") ? applied.object : null;
-                var thisArg = node.arguments[0];
+                const applied = node.callee.object;
+                const expectedThis = (applied.type === "MemberExpression") ? applied.object : null;
+                const thisArg = node.arguments[0];
 
-                if (isValidThisArg(expectedThis, thisArg, context)) {
-                    context.report(node, "use the spread operator instead of the '.apply()'.");
+                if (isValidThisArg(expectedThis, thisArg, sourceCode)) {
+                    context.report({
+                        node,
+                        message: "Use the spread operator instead of '.apply()'.",
+                        fix(fixer) {
+                            if (expectedThis && expectedThis.type !== "Identifier") {
+
+                                // Don't fix cases where the `this` value could be a computed expression.
+                                return null;
+                            }
+
+                            const propertyDot = sourceCode.getTokensBetween(applied, node.callee.property).find(token => token.value === ".");
+
+                            return fixer.replaceTextRange([propertyDot.range[0], node.range[1]], `(...${sourceCode.getText(node.arguments[1])})`);
+                        }
+                    });
                 }
             }
         };

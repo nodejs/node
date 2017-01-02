@@ -2,7 +2,8 @@ var apply = require('./_apply'),
     castPath = require('./_castPath'),
     isKey = require('./_isKey'),
     last = require('./last'),
-    parent = require('./_parent');
+    parent = require('./_parent'),
+    toKey = require('./_toKey');
 
 /**
  * The base implementation of `_.invoke` without support for individual
@@ -20,7 +21,7 @@ function baseInvoke(object, path, args) {
     object = parent(object, path);
     path = last(path);
   }
-  var func = object == null ? object : object[path];
+  var func = object == null ? object : object[toKey(path)];
   return func == null ? undefined : apply(func, object, args);
 }
 

@@ -5,7 +5,7 @@
 
 "use strict";
 
-var astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -22,7 +22,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         /**
          * Finds and reports references that are non initializer and writable.

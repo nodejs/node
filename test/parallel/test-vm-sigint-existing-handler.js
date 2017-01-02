@@ -5,7 +5,7 @@ const vm = require('vm');
 
 const spawn = require('child_process').spawn;
 
-if (process.platform === 'win32') {
+if (common.isWindows) {
   // No way to send CTRL_C_EVENT to processes from JS right now.
   common.skip('platform not supported');
   return;
@@ -43,7 +43,7 @@ if (process.argv[2] === 'child') {
 
   process.on('SIGINT', common.mustCall(() => {
     // Handler attached _after_ execution.
-    if (afterHandlerCalled++ == 0) {
+    if (afterHandlerCalled++ === 0) {
       // The first time it just bounces back to check that the `once()`
       // handler is not called the second time.
       process.kill(parent, 'SIGUSR2');
@@ -61,15 +61,18 @@ if (process.argv[2] === 'child') {
 }
 
 process.env.REPL_TEST_PPID = process.pid;
-const child = spawn(process.execPath, [ __filename, 'child' ], {
-  stdio: [null, 'inherit', 'inherit']
-});
 
+// Set the `SIGUSR2` handler before spawning the child process to make sure
+// the signal is always handled.
 process.on('SIGUSR2', common.mustCall(() => {
   // First kill() breaks the while(true) loop, second one invokes the real
   // signal handlers.
   process.kill(child.pid, 'SIGINT');
 }, 3));
+
+const child = spawn(process.execPath, [__filename, 'child'], {
+  stdio: [null, 'inherit', 'inherit']
+});
 
 child.on('close', function(code, signal) {
   assert.strictEqual(signal, null);

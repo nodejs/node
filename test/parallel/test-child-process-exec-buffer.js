@@ -1,33 +1,24 @@
 'use strict';
-require('../common');
-var assert = require('assert');
-var exec = require('child_process').exec;
-var os = require('os');
-
-var success_count = 0;
-
-var str = 'hello';
+const common = require('../common');
+const assert = require('assert');
+const exec = require('child_process').exec;
+const os = require('os');
+const str = 'hello';
 
 // default encoding
-exec('echo ' + str, function(err, stdout, stderr) {
-  assert.ok('string', typeof stdout, 'Expected stdout to be a string');
-  assert.ok('string', typeof stderr, 'Expected stderr to be a string');
-  assert.equal(str + os.EOL, stdout);
-
-  success_count++;
-});
+exec('echo ' + str, common.mustCall(function(err, stdout, stderr) {
+  assert.strictEqual(typeof stdout, 'string', 'Expected stdout to be a string');
+  assert.strictEqual(typeof stderr, 'string', 'Expected stderr to be a string');
+  assert.strictEqual(str + os.EOL, stdout);
+}));
 
 // no encoding (Buffers expected)
 exec('echo ' + str, {
   encoding: null
-}, function(err, stdout, stderr) {
-  assert.ok(stdout instanceof Buffer, 'Expected stdout to be a Buffer');
-  assert.ok(stderr instanceof Buffer, 'Expected stderr to be a Buffer');
-  assert.equal(str + os.EOL, stdout.toString());
-
-  success_count++;
-});
-
-process.on('exit', function() {
-  assert.equal(2, success_count);
-});
+}, common.mustCall(function(err, stdout, stderr) {
+  assert.strictEqual(stdout instanceof Buffer, true,
+                     'Expected stdout to be a Buffer');
+  assert.strictEqual(stderr instanceof Buffer, true,
+                     'Expected stderr to be a Buffer');
+  assert.strictEqual(str + os.EOL, stdout.toString());
+}));

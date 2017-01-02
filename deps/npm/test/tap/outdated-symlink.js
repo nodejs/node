@@ -15,7 +15,8 @@ var extend = Object.assign || require('util')._extend
 var fakeRoot = path.join(pkg, 'fakeRoot')
 var OPTS = {
   env: extend(extend({}, process.env), {
-    'npm_config_prefix': fakeRoot
+    'npm_config_prefix': fakeRoot,
+    'registry': common.registry
   })
 }
 

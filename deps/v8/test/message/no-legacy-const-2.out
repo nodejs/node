@@ -1,5 +1,0 @@
-*%(basename)s:8: SyntaxError: Unexpected token const
-const = 42;
-^^^^^
-
-SyntaxError: Unexpected token const

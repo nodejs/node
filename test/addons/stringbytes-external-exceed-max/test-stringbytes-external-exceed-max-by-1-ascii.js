@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../../common');
-const binding = require('./build/Release/binding');
+const binding = require(`./build/${common.buildType}/binding`);
 const assert = require('assert');
 
 const skipMessage = 'intensive toString tests due to memory confinements';

@@ -56,6 +56,8 @@
 #include "src/mips/codegen-mips.h"  // NOLINT
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/mips64/codegen-mips64.h"  // NOLINT
+#elif V8_TARGET_ARCH_S390
+#include "src/s390/codegen-s390.h"  // NOLINT
 #elif V8_TARGET_ARCH_X87
 #include "src/x87/codegen-x87.h"  // NOLINT
 #else
@@ -67,7 +69,7 @@ namespace internal {
 
 
 class CompilationInfo;
-
+class EhFrameWriter;
 
 class CodeGenerator {
  public:
@@ -76,7 +78,9 @@ class CodeGenerator {
 
   // Allocate and install the code.
   static Handle<Code> MakeCodeEpilogue(MacroAssembler* masm,
-                                       CompilationInfo* info);
+                                       EhFrameWriter* unwinding,
+                                       CompilationInfo* info,
+                                       Handle<Object> self_reference);
 
   // Print the code after compiling it.
   static void PrintCode(Handle<Code> code, CompilationInfo* info);
@@ -91,16 +95,13 @@ class CodeGenerator {
 // generated code both in runtime and compiled code.
 typedef double (*UnaryMathFunctionWithIsolate)(double x, Isolate* isolate);
 
-UnaryMathFunctionWithIsolate CreateExpFunction(Isolate* isolate);
 UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate);
 
 
 double modulo(double x, double y);
 
 // Custom implementation of math functions.
-double fast_exp(double input, Isolate* isolate);
 double fast_sqrt(double input, Isolate* isolate);
-void lazily_initialize_fast_exp(Isolate* isolate);
 void lazily_initialize_fast_sqrt(Isolate* isolate);
 
 

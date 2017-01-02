@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 var assert = require('assert');
 var EventEmitter = require('events').EventEmitter;
 var util = require('util');
@@ -13,10 +13,7 @@ function MyEE(cb) {
   EventEmitter.call(this);
 }
 
-var called = false;
-var myee = new MyEE(function() {
-  called = true;
-});
+var myee = new MyEE(common.mustCall(function() {}));
 
 
 util.inherits(ErrorEE, EventEmitter);
@@ -29,7 +26,6 @@ assert.throws(function() {
 }, /blerg/);
 
 process.on('exit', function() {
-  assert(called);
   assert(!(myee._events instanceof Object));
   assert.deepStrictEqual(Object.keys(myee._events), []);
   console.log('ok');

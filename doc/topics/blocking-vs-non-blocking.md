@@ -6,7 +6,7 @@ prior knowledge of those topics is required. Readers are assumed to have a
 basic understanding of the JavaScript language and Node.js callback pattern.
 
 > "I/O" refers primarily to interaction with the system's disk and
-network supported by [libuv](http://libuv.org/).
+> network supported by [libuv](http://libuv.org/).
 
 
 ## Blocking
@@ -93,7 +93,7 @@ occurring.
 
 As an example, let's consider a case where each request to a web server takes
 50ms to complete and 45ms of that 50ms is database I/O that can be done
-asychronously. Choosing **non-blocking** asynchronous operations frees up that
+asynchronously. Choosing **non-blocking** asynchronous operations frees up that
 45ms per request to handle other requests. This is a significant difference in
 capacity just by choosing to use **non-blocking** methods instead of
 **blocking** methods.

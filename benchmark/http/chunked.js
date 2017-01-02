@@ -20,8 +20,6 @@ function main(conf) {
   const http = require('http');
   var chunk = Buffer.alloc(conf.size, '8');
 
-  var args = ['-d', '10s', '-t', 8, '-c', conf.c];
-
   var server = http.createServer(function(req, res) {
     function send(left) {
       if (left === 0) return res.end();
@@ -34,7 +32,9 @@ function main(conf) {
   });
 
   server.listen(common.PORT, function() {
-    bench.http('/', args, function() {
+    bench.http({
+      connections: conf.c
+    }, function() {
       server.close();
     });
   });

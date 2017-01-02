@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
@@ -317,6 +319,20 @@ U_CFUNC int32_t
 uprv_compareInvEbcdic(const UDataSwapper *ds,
                       const char *outString, int32_t outLength,
                       const UChar *localString, int32_t localLength);
+
+/**
+ * \def uprv_compareInvWithUChar
+ * Compare an invariant-character strings with a UChar string
+ * @internal
+ */
+#if U_CHARSET_FAMILY==U_ASCII_FAMILY
+#   define uprv_compareInvWithUChar uprv_compareInvAscii
+#elif U_CHARSET_FAMILY==U_EBCDIC_FAMILY
+#   define uprv_compareInvWithUChar uprv_compareInvEbcdic
+#else
+#   error Unknown charset family!
+#endif
+
 
 /* material... -------------------------------------------------------------- */
 

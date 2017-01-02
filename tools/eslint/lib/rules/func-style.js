@@ -32,41 +32,37 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
-        var style = context.options[0],
+        const style = context.options[0],
             allowArrowFunctions = context.options[1] && context.options[1].allowArrowFunctions === true,
             enforceDeclarations = (style === "declaration"),
             stack = [];
 
-        var nodesToCheck = {
-            Program: function() {
-                stack = [];
-            },
-
-            FunctionDeclaration: function(node) {
+        const nodesToCheck = {
+            FunctionDeclaration(node) {
                 stack.push(false);
 
                 if (!enforceDeclarations && node.parent.type !== "ExportDefaultDeclaration") {
                     context.report(node, "Expected a function expression.");
                 }
             },
-            "FunctionDeclaration:exit": function() {
+            "FunctionDeclaration:exit"() {
                 stack.pop();
             },
 
-            FunctionExpression: function(node) {
+            FunctionExpression(node) {
                 stack.push(false);
 
                 if (enforceDeclarations && node.parent.type === "VariableDeclarator") {
                     context.report(node.parent, "Expected a function declaration.");
                 }
             },
-            "FunctionExpression:exit": function() {
+            "FunctionExpression:exit"() {
                 stack.pop();
             },
 
-            ThisExpression: function() {
+            ThisExpression() {
                 if (stack.length > 0) {
                     stack[stack.length - 1] = true;
                 }
@@ -79,7 +75,7 @@ module.exports = {
             };
 
             nodesToCheck["ArrowFunctionExpression:exit"] = function(node) {
-                var hasThisExpr = stack.pop();
+                const hasThisExpr = stack.pop();
 
                 if (enforceDeclarations && !hasThisExpr && node.parent.type === "VariableDeclarator") {
                     context.report(node.parent, "Expected a function declaration.");

@@ -1,5 +1,20 @@
 
 # file-entry-cache - Changelog
+## v2.0.0
+- **Features**
+  - do not persist and prune removed files from cache. Relates to [#2](https://github.com/royriojas/file-entry-cache/issues/2) - [408374d]( https://github.com/royriojas/file-entry-cache/commit/408374d ), [Roy Riojas](https://github.com/Roy Riojas), 16/08/2016 15:47:58
+
+    
+## v1.3.1
+- **Build Scripts Changes**
+  - remove older node version - [0a26ac4]( https://github.com/royriojas/file-entry-cache/commit/0a26ac4 ), [Roy Riojas](https://github.com/Roy Riojas), 01/08/2016 06:09:17
+
+    
+## v1.3.0
+- **Features**
+  - Add an option to not prune non visited keys. Closes [#2](https://github.com/royriojas/file-entry-cache/issues/2) - [b1a64db]( https://github.com/royriojas/file-entry-cache/commit/b1a64db ), [Roy Riojas](https://github.com/Roy Riojas), 01/08/2016 05:52:12
+
+    
 ## v1.2.4
 - **Enhancements**
   - Expose the flat-cache instance - [f34c557]( https://github.com/royriojas/file-entry-cache/commit/f34c557 ), [royriojas](https://github.com/royriojas), 23/09/2015 20:26:33

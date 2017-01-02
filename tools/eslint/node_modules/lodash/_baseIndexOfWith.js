@@ -2,7 +2,7 @@
  * This function is like `baseIndexOf` except that it accepts a comparator.
  *
  * @private
- * @param {Array} array The array to search.
+ * @param {Array} array The array to inspect.
  * @param {*} value The value to search for.
  * @param {number} fromIndex The index to search from.
  * @param {Function} comparator The comparator invoked per element.

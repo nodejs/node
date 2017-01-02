@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 var assert = require('assert');
 
 var net = require('net');
@@ -69,12 +69,12 @@ server.maxConnections = 1;
 
 server.listen(0, function() {
   createConnection(0)
-  .then(createConnection.bind(null, 1))
-  .then(closeConnection.bind(null, 0))
-  .then(createConnection.bind(null, 2))
-  .then(createConnection.bind(null, 3))
-  .then(server.close.bind(server))
-  .then(closeConnection.bind(null, 2));
+    .then(createConnection.bind(null, 1))
+    .then(closeConnection.bind(null, 0))
+    .then(createConnection.bind(null, 2))
+    .then(createConnection.bind(null, 3))
+    .then(server.close.bind(server))
+    .then(closeConnection.bind(null, 2));
 });
 
 process.on('exit', function() {
@@ -86,5 +86,5 @@ process.on('exit', function() {
 
 process.on('unhandledRejection', function() {
   console.error('promise rejected');
-  assert.fail(null, null, 'A promise in the chain rejected');
+  common.fail('A promise in the chain rejected');
 });

@@ -46,17 +46,6 @@ void Embedded::operator delete(void* p) {
   UNREACHABLE();
 }
 
-
-void* AllStatic::operator new(size_t size) {
-  UNREACHABLE();
-  return invalid;
-}
-
-
-void AllStatic::operator delete(void* p) {
-  UNREACHABLE();
-}
-
 #endif
 
 

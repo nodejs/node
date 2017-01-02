@@ -1,9 +1,9 @@
 /**
- * Converts `set` to an array.
+ * Converts `set` to an array of its values.
  *
  * @private
  * @param {Object} set The set to convert.
- * @returns {Array} Returns the converted array.
+ * @returns {Array} Returns the values.
  */
 function setToArray(set) {
   var index = -1,

@@ -20,12 +20,12 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
 
-            MemberExpression: function(node) {
-                var objectName = node.object.name,
+            MemberExpression(node) {
+                const objectName = node.object.name,
                     propertyName = node.property.name;
 
                 if (objectName === "arguments" && !node.computed && propertyName && propertyName.match(/^calle[er]$/)) {

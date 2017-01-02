@@ -51,11 +51,11 @@ module.exports = {
         }
     },
 
-    create: function(context) {
+    create(context) {
 
-        var OPT_OUT_PATTERN = /[\[\(\/\+\-]/; // One of [(/+-
-        var options = context.options[1];
-        var never = context.options[0] === "never",
+        const OPT_OUT_PATTERN = /^[-[(\/+]$/; // One of [(/+-, but not ++ or --
+        const options = context.options[1];
+        const never = context.options[0] === "never",
             exceptOneLine = options && options.omitLastInOneLineBlock === true,
             sourceCode = context.getSourceCode();
 
@@ -70,9 +70,9 @@ module.exports = {
          * @returns {void}
          */
         function report(node, missing) {
-            var message,
+            const lastToken = sourceCode.getLastToken(node);
+            let message,
                 fix,
-                lastToken = sourceCode.getLastToken(node),
                 loc = lastToken.loc;
 
             if (!missing) {
@@ -90,10 +90,10 @@ module.exports = {
             }
 
             context.report({
-                node: node,
-                loc: loc,
-                message: message,
-                fix: fix
+                node,
+                loc,
+                message,
+                fix
             });
 
         }
@@ -115,22 +115,20 @@ module.exports = {
          * @returns {boolean} whether the semicolon is unnecessary.
          */
         function isUnnecessarySemicolon(lastToken) {
-            var isDivider, isOptOutToken, lastTokenLine, nextToken, nextTokenLine;
-
             if (!isSemicolon(lastToken)) {
                 return false;
             }
 
-            nextToken = context.getTokenAfter(lastToken);
+            const nextToken = sourceCode.getTokenAfter(lastToken);
 
             if (!nextToken) {
                 return true;
             }
 
-            lastTokenLine = lastToken.loc.end.line;
-            nextTokenLine = nextToken.loc.start.line;
-            isOptOutToken = OPT_OUT_PATTERN.test(nextToken.value);
-            isDivider = (nextToken.value === "}" || nextToken.value === ";");
+            const lastTokenLine = lastToken.loc.end.line;
+            const nextTokenLine = nextToken.loc.start.line;
+            const isOptOutToken = OPT_OUT_PATTERN.test(nextToken.value);
+            const isDivider = (nextToken.value === "}" || nextToken.value === ";");
 
             return (lastTokenLine !== nextTokenLine && !isOptOutToken) || isDivider;
         }
@@ -141,13 +139,13 @@ module.exports = {
          * @returns {boolean} whether the node is in a one-liner block statement.
          */
         function isOneLinerBlock(node) {
-            var nextToken = context.getTokenAfter(node);
+            const nextToken = sourceCode.getTokenAfter(node);
 
             if (!nextToken || nextToken.value !== "}") {
                 return false;
             }
 
-            var parent = node.parent;
+            const parent = node.parent;
 
             return parent && parent.type === "BlockStatement" &&
               parent.loc.start.line === parent.loc.end.line;
@@ -159,7 +157,7 @@ module.exports = {
          * @returns {void}
          */
         function checkForSemicolon(node) {
-            var lastToken = context.getLastToken(node);
+            const lastToken = sourceCode.getLastToken(node);
 
             if (never) {
                 if (isUnnecessarySemicolon(lastToken)) {
@@ -184,7 +182,7 @@ module.exports = {
          * @returns {void}
          */
         function checkForSemicolonForVariableDeclaration(node) {
-            var ancestors = context.getAncestors(),
+            const ancestors = context.getAncestors(),
                 parentIndex = ancestors.length - 1,
                 parent = ancestors[parentIndex];
 
@@ -210,12 +208,12 @@ module.exports = {
             ContinueStatement: checkForSemicolon,
             ImportDeclaration: checkForSemicolon,
             ExportAllDeclaration: checkForSemicolon,
-            ExportNamedDeclaration: function(node) {
+            ExportNamedDeclaration(node) {
                 if (!node.declaration) {
                     checkForSemicolon(node);
                 }
             },
-            ExportDefaultDeclaration: function(node) {
+            ExportDefaultDeclaration(node) {
                 if (!/(?:Class|Function)Declaration/.test(node.declaration.type)) {
                     checkForSemicolon(node);
                 }

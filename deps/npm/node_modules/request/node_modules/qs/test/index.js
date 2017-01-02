@@ -1,3 +1,5 @@
+'use strict';
+
 require('./parse');
 
 require('./stringify');

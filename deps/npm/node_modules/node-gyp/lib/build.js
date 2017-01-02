@@ -125,19 +125,19 @@ function build (gyp, argv, callback) {
 
   function findMsbuild () {
     log.verbose('could not find "msbuild.exe" in PATH - finding location in registry')
-    var notfoundErr = new Error('Can\'t find "msbuild.exe". Do you have Microsoft Visual Studio C++ 2008+ installed?')
+    var notfoundErr = 'Can\'t find "msbuild.exe". Do you have Microsoft Visual Studio C++ 2008+ installed?'
     var cmd = 'reg query "HKLM\\Software\\Microsoft\\MSBuild\\ToolsVersions" /s'
     if (process.arch !== 'ia32')
       cmd += ' /reg:32'
     exec(cmd, function (err, stdout, stderr) {
+      if (err) {
+        return callback(new Error(err.message + '\n' + notfoundErr))
+      }
       var reVers = /ToolsVersions\\([^\\]+)$/i
         , rePath = /\r\n[ \t]+MSBuildToolsPath[ \t]+REG_SZ[ \t]+([^\r]+)/i
         , msbuilds = []
         , r
         , msbuildPath
-      if (err) {
-        return callback(notfoundErr)
-      }
       stdout.split('\r\n\r\n').forEach(function(l) {
         if (!l) return
         l = l.trim()
@@ -157,7 +157,7 @@ function build (gyp, argv, callback) {
         return (x.version < y.version ? -1 : 1)
       })
       ;(function verifyMsbuild () {
-        if (!msbuilds.length) return callback(notfoundErr)
+        if (!msbuilds.length) return callback(new Error(notfoundErr))
         msbuildPath = path.resolve(msbuilds.pop().path, 'msbuild.exe')
         fs.stat(msbuildPath, function (err, stat) {
           if (err) {
@@ -165,7 +165,7 @@ function build (gyp, argv, callback) {
               if (msbuilds.length) {
                 return verifyMsbuild()
               } else {
-                callback(notfoundErr)
+                callback(new Error(notfoundErr))
               }
             } else {
               callback(err)

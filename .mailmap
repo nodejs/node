@@ -1,5 +1,6 @@
 Aaron Heckmann <aaron.heckmann@gmail.com> <aaron.heckmann+github@gmail.com>
 Abe Fettig <abefettig@gmail.com> <abe@fettig.net>
+Alex Hultman <alexhultman@gmail.com>
 Alex Kocharin <rlidwka@kocharin.ru>
 Alex Kocharin <rlidwka@kocharin.ru> <alex@kocharin.ru>
 Alexey Kupershtokh <alexey.kupershtokh@gmail.com> <wicked@alawar.com>
@@ -7,6 +8,7 @@ Alexis Campailla <alexis@janeasystems.com> <orangemocha@github.com>
 Alexis Sellier <self@cloudhead.net>
 Alexis Sellier <self@cloudhead.net> <alexis@cloudhead.io>
 Andy Bettisworth <andy.bettisworth@accreu.com>
+Anna Henningsen <anna@addaleax.net>
 Aria Stewart <aredridel@dinhe.net> <aredridel@nbtsc.org>
 Arlo Breault <arlolra@gmail.com>
 Artem Zaytsev <a.arepo@gmail.com>
@@ -24,6 +26,7 @@ Caleb Boyd <caleb.boyd@gmail.com>
 Charles <ineedpracticing@gmail.com> <cydjudge@users.noreply.github.com>
 Chew Choon Keat <choonkeat@gmail.com>
 Charles Rudolph <charles.rudolph@originate.com>
+Chris Johnson <chris.s.johnson4@gmail.com>
 Claudio Rodriguez <cjrodr@yahoo.com> <cr@fansworld.tv>
 Colin Ihrig <cjihrig@gmail.com>
 Christopher Lenz <cmlenz@gmail.com> <chris@lamech.local>
@@ -33,6 +36,7 @@ Daniel Chcouri <333222@gmail.com>
 Daniel Gröber <darklord@darkboxed.org>
 Daniel Gröber <darklord@darkboxed.org> <dxld@darkboxed.org>
 Daniel Pihlström <sciolist.se@gmail.com>
+Daniel Wang <wangyang0123@gmail.com>
 Danny Nemer <hi@dannynemer.com> <DannyNemer@users.noreply.github.com>
 Dave Pacheco <dap@joyent.com> <dap@cs.brown.edu>
 David Siegel <david@artcom.de> <david.siegel@artcom.de>
@@ -41,6 +45,7 @@ Domenic Denicola <domenic@domenicdenicola.com> <d@domenic.me>
 Eduard Burtescu <eddy_me08@yahoo.com>
 Einar Otto Stangvik <einaros@gmail.com>
 Elliott Cable <me@ell.io>
+Eric Phetteplace <phette23@gmail.com>
 EungJun Yi <semtlenori@gmail.com>
 Evan Larkin <evan.larkin.il.com> <evan.larkin.iit@gmail.com>
 Evan Lucas <evanlucas@me.com> <evan@btc.com>
@@ -59,10 +64,12 @@ Herbert Vojčík <herby@mailbox.sk>
 Icer Liang <liangshuangde@163.com> <wizicer@users.noreply.github.com>
 Igor Soarez <igorsoarez@gmail.com>
 Igor Zinkovsky <igorzi@microsoft.com>
+Imran Iqbal <imran@imraniqbal.org>
 Isaac Z. Schlueter <i@izs.me>
 Isaac Z. Schlueter <i@izs.me> <i@foohack.com>
 Jake Verbaten <raynos2@gmail.com>
 James Hartig <fastest963@gmail.com> <james.hartig@grooveshark.com>
+James M Snell <jasnell@gmail.com>
 Jan Krems <jan.krems@gmail.com> <jan.krems@groupon.com>
 Jered Schmidt <tr@nslator.jp>
 Jeremiah Senkpiel <fishrock123@rocketmail.com>
@@ -77,6 +84,7 @@ Jonathan Persson <persson.jonathan@gmail.com> <jonathan.persson@creuna.se>
 Jonathan Rentzsch <jwr.git@redshed.net>
 Josh Erickson <josh@snoj.us>
 Joshua S. Weinstein <josher19@users.sf.net>
+Juan Soto <juan@juansoto.me>
 Junliang Yan <john.yan1019@gmail.com>
 Junliang Yan <jyan@ca.ibm.com> <jyan@ca.ibm.ca>
 Jérémy Lal <kapouer@melix.org>
@@ -101,6 +109,7 @@ Mathias Pettersson <mape@mape.me>
 Matthew Lye <muddletoes@hotmail.com>
 Michael Bernstein <michaelrbernstein@gmail.com>
 Michael Wilber <gcr@sneakygcr.net>
+Michaël Zasso <targos@protonmail.com>
 Micheil Smith <micheil@brandedcode.com> <micheil@yettobebranded.net>
 Micleusanu Nicu <micnic90@gmail.com>
 Mikael Bourges-Sevenier <mikeseven@gmail.com> <msevenier@motorola.com>
@@ -113,13 +122,14 @@ Onne Gorter <onne@onnlucky.com>
 Paul Querna <pquerna@apache.org> <paul@querna.org>
 Peter Flannery <pflannery@users.noreply.github.com>
 Phillip Johnsen <johphi@gmail.com> <phillip.johnsen@finn.no>
+Ratikesh Misra <ratikesh92@gmail.com>
 Ray Morgan <rmorgan@zappos.com>
 Ray Solomon <raybsolomon@gmail.com>
 Raymond Feng <enjoyjava@gmail.com> <raymond@strongloop.com>
 Rick Olson <technoweenie@gmail.com>
 Roman Klauke <romaaan.git@gmail.com> <romankl@users.noreply.github.com>
 Roman Reiss <me@silverwind.io>
-Ron Korving <rkorving@wizcorp.jp>
+Ron Korving <ron@ronkorving.nl> <rkorving@wizcorp.jp>
 Ryan Dahl <ry@tinyclouds.org>
 Ryan Emery <seebees@gmail.com>
 Sakthipriyan Vairamani <thechargingvolcano@gmail.com>
@@ -137,7 +147,9 @@ Shigeki Ohtsu <ohtsu@d.jp> <ohtsu@iij.ad.jp>
 Siddharth Mahendraker <siddharth_mahen@hotmail.com> <siddharth_mahen@me.com>
 Simon Willison <simon@simonwillison.net>
 Stanislav Opichal <opichals@gmail.com>
+Stefan Budeanu <stefan@budeanu.com>
 Stefan Bühler <stbuehler@web.de>
+Steve Mao <maochenyan@msn.com>
 Steven R. Loomis <srl@icu-project.org> <srloomis@us.ibm.com>
 Todd Kennedy <todd@selfassembled.org> <toddself@users.noreply.github.com>
 TJ Holowaychuk <tj@vision-media.ca>
@@ -156,6 +168,7 @@ Tom Hughes-Croucher <tom_croucher@yahoo.com>
 Trevor Burnham <trevor@databraid.com> <trevorburnham@gmail.com>
 Tyler Larson <talltyler@gmail.com>
 Vincent Voyer <v@fasterize.com>
+Vladimir de Turckheim <vlad2t@hotmail.com>
 Willi Eggeling <email@wje-online.de>
 Yazhong Liu <yorkiefixer@gmail.com> Yazhong Liu <l900422@vip.qq.com>
 Yazhong Liu <yorkiefixer@gmail.com> Yorkie <l900422@vip.qq.com>

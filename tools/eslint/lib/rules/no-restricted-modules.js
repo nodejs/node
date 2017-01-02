@@ -25,10 +25,10 @@ module.exports = {
         }
     },
 
-    create: function(context) {
+    create(context) {
 
         // trim restricted module names
-        var restrictedModules = context.options;
+        const restrictedModules = context.options;
 
         // if no modules are restricted we don't need to check the CallExpressions
         if (restrictedModules.length === 0) {
@@ -56,14 +56,14 @@ module.exports = {
         /**
          * Function to check if a node has an argument that is an restricted module and return its name.
          * @param {ASTNode} node The node to check
-         * @returns {undefined|String} restricted module name or undefined if node argument isn't restricted.
+         * @returns {undefined|string} restricted module name or undefined if node argument isn't restricted.
          */
         function getRestrictedModuleName(node) {
-            var moduleName;
+            let moduleName;
 
             // node has arguments and first argument is string
             if (node.arguments.length && isString(node.arguments[0])) {
-                var argumentValue = node.arguments[0].value.trim();
+                const argumentValue = node.arguments[0].value.trim();
 
                 // check if argument value is in restricted modules array
                 if (restrictedModules.indexOf(argumentValue) !== -1) {
@@ -75,9 +75,9 @@ module.exports = {
         }
 
         return {
-            CallExpression: function(node) {
+            CallExpression(node) {
                 if (isRequireCall(node)) {
-                    var restrictedModuleName = getRestrictedModuleName(node);
+                    const restrictedModuleName = getRestrictedModuleName(node);
 
                     if (restrictedModuleName) {
                         context.report(node, "'{{moduleName}}' module is restricted from being used.", {

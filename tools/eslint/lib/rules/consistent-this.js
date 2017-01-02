@@ -26,8 +26,8 @@ module.exports = {
         }
     },
 
-    create: function(context) {
-        var aliases = [];
+    create(context) {
+        let aliases = [];
 
         if (context.options.length === 0) {
             aliases.push("that");
@@ -45,7 +45,7 @@ module.exports = {
         function reportBadAssignment(node, alias) {
             context.report(node,
                 "Designated alias '{{alias}}' is not assigned to 'this'.",
-                { alias: alias });
+                { alias });
         }
 
         /**
@@ -57,7 +57,7 @@ module.exports = {
          * @returns {void}
          */
         function checkAssignment(node, name, value) {
-            var isThis = value.type === "ThisExpression";
+            const isThis = value.type === "ThisExpression";
 
             if (aliases.indexOf(name) !== -1) {
                 if (!isThis || node.operator && node.operator !== "=") {
@@ -65,7 +65,7 @@ module.exports = {
                 }
             } else if (isThis) {
                 context.report(node,
-                    "Unexpected alias '{{name}}' for 'this'.", { name: name });
+                    "Unexpected alias '{{name}}' for 'this'.", { name });
             }
         }
 
@@ -73,12 +73,12 @@ module.exports = {
          * Ensures that a variable declaration of the alias in a program or function
          * is assigned to the correct value.
          * @param {string} alias alias the check the assignment of.
-         * @param {object} scope scope of the current code we are checking.
+         * @param {Object} scope scope of the current code we are checking.
          * @private
          * @returns {void}
          */
         function checkWasAssigned(alias, scope) {
-            var variable = scope.set.get(alias);
+            const variable = scope.set.get(alias);
 
             if (!variable) {
                 return;
@@ -94,7 +94,7 @@ module.exports = {
             // The alias has been declared and not assigned: check it was
             // assigned later in the same scope.
             if (!variable.references.some(function(reference) {
-                var write = reference.writeExpr;
+                const write = reference.writeExpr;
 
                 return (
                     reference.from === scope &&
@@ -115,7 +115,7 @@ module.exports = {
          * @returns {void}
          */
         function ensureWasAssigned() {
-            var scope = context.getScope();
+            const scope = context.getScope();
 
             aliases.forEach(function(alias) {
                 checkWasAssigned(alias, scope);
@@ -127,9 +127,9 @@ module.exports = {
             "FunctionExpression:exit": ensureWasAssigned,
             "FunctionDeclaration:exit": ensureWasAssigned,
 
-            VariableDeclarator: function(node) {
-                var id = node.id;
-                var isDestructuring =
+            VariableDeclarator(node) {
+                const id = node.id;
+                const isDestructuring =
                     id.type === "ArrayPattern" || id.type === "ObjectPattern";
 
                 if (node.init !== null && !isDestructuring) {
@@ -137,7 +137,7 @@ module.exports = {
                 }
             },
 
-            AssignmentExpression: function(node) {
+            AssignmentExpression(node) {
                 if (node.left.type === "Identifier") {
                     checkAssignment(node, node.left.name, node.right);
                 }

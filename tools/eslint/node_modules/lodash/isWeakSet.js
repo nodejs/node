@@ -8,7 +8,7 @@ var objectProto = Object.prototype;
 
 /**
  * Used to resolve the
- * [`toStringTag`](http://ecma-international.org/ecma-262/6.0/#sec-object.prototype.tostring)
+ * [`toStringTag`](http://ecma-international.org/ecma-262/7.0/#sec-object.prototype.tostring)
  * of values.
  */
 var objectToString = objectProto.toString;
@@ -21,8 +21,7 @@ var objectToString = objectProto.toString;
  * @since 4.3.0
  * @category Lang
  * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is correctly classified,
- *  else `false`.
+ * @returns {boolean} Returns `true` if `value` is a weak set, else `false`.
  * @example
  *
  * _.isWeakSet(new WeakSet);

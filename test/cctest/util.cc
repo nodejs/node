@@ -89,3 +89,46 @@ TEST(UtilTest, ToLower) {
   EXPECT_EQ('a', ToLower('a'));
   EXPECT_EQ('a', ToLower('A'));
 }
+
+namespace node {
+  void LowMemoryNotification() {}
+}
+
+#define TEST_AND_FREE(expression)                                             \
+  do {                                                                        \
+    auto pointer = expression;                                                \
+    EXPECT_NE(nullptr, pointer);                                              \
+    free(pointer);                                                            \
+  } while (0)
+
+TEST(UtilTest, Malloc) {
+  using node::Malloc;
+  TEST_AND_FREE(Malloc<char>(0));
+  TEST_AND_FREE(Malloc<char>(1));
+  TEST_AND_FREE(Malloc(0));
+  TEST_AND_FREE(Malloc(1));
+}
+
+TEST(UtilTest, Calloc) {
+  using node::Calloc;
+  TEST_AND_FREE(Calloc<char>(0));
+  TEST_AND_FREE(Calloc<char>(1));
+  TEST_AND_FREE(Calloc(0));
+  TEST_AND_FREE(Calloc(1));
+}
+
+TEST(UtilTest, UncheckedMalloc) {
+  using node::UncheckedMalloc;
+  TEST_AND_FREE(UncheckedMalloc<char>(0));
+  TEST_AND_FREE(UncheckedMalloc<char>(1));
+  TEST_AND_FREE(UncheckedMalloc(0));
+  TEST_AND_FREE(UncheckedMalloc(1));
+}
+
+TEST(UtilTest, UncheckedCalloc) {
+  using node::UncheckedCalloc;
+  TEST_AND_FREE(UncheckedCalloc<char>(0));
+  TEST_AND_FREE(UncheckedCalloc<char>(1));
+  TEST_AND_FREE(UncheckedCalloc(0));
+  TEST_AND_FREE(UncheckedCalloc(1));
+}

@@ -50,5 +50,5 @@ assertEquals("string", %ToString(d));
 assertEquals("string", %_ToString(d));
 
 var e = new Date(0);
-assertEquals(e.toString(), %ToName(e));
-assertEquals(e.toString(), %_ToName(e));
+assertEquals(e.toString(), %ToString(e));
+assertEquals(e.toString(), %_ToString(e));

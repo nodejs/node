@@ -8,9 +8,6 @@ module.exports = errorMessage
 function errorMessage (er) {
   var short = []
   var detail = []
-  if (er.optional) {
-    short.push(['optional', 'Skipping failed optional dependency ' + er.optional + ':'])
-  }
   switch (er.code) {
     case 'ECONNREFUSED':
       short.push(['', er])
@@ -150,17 +147,21 @@ function errorMessage (er) {
       break
 
     case 'EBADPLATFORM':
+      var validOs = er.os.join ? er.os.join(',') : er.os
+      var validArch = er.cpu.join ? er.cpu.join(',') : er.cpu
+      var expected = {os: validOs, arch: validArch}
+      var actual = {os: process.platform, arch: process.arch}
       short.push([
         'notsup',
         [
-          'Not compatible with your operating system or architecture: ' + er.pkgid
+          util.format('Unsupported platform for %s: wanted %j (current: %j)', er.pkgid, expected, actual)
         ].join('\n')
       ])
       detail.push([
         'notsup',
         [
-          'Valid OS:    ' + (er.os.join ? er.os.join(',') : util.inspect(er.os)),
-          'Valid Arch:  ' + (er.cpu.join ? er.cpu.join(',') : util.inspect(er.cpu)),
+          'Valid OS:    ' + validOs,
+          'Valid Arch:  ' + validArch,
           'Actual OS:   ' + process.platform,
           'Actual Arch: ' + process.arch
         ].join('\n')
@@ -284,7 +285,7 @@ function errorMessage (er) {
         'typeerror',
         [
           'This is an error with npm itself. Please report this error at:',
-          '    <http://github.com/npm/npm/issues>'
+          '    <https://github.com/npm/npm/issues>'
         ].join('\n')
       ])
       break
@@ -312,6 +313,13 @@ function errorMessage (er) {
         ].join('\n')
       ])
       break
+  }
+  if (er.optional) {
+    short.unshift(['optional', er.optional + ' (' + er.location + '):'])
+    short.concat(detail).forEach(function (msg) {
+      if (!msg[0]) msg[0] = 'optional'
+      if (msg[1]) msg[1] = msg[1].toString().replace(/(^|\n)/g, '$1SKIPPING OPTIONAL DEPENDENCY: ')
+    })
   }
   return {summary: short, detail: detail}
 }

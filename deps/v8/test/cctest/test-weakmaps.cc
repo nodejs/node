@@ -31,7 +31,7 @@
 
 #include "src/global-handles.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/heap/utils-inl.h"
+#include "test/cctest/heap/heap-utils.h"
 
 using namespace v8::internal;
 
@@ -52,8 +52,7 @@ static Handle<JSWeakMap> AllocateJSWeakMap(Isolate* isolate) {
 }
 
 static int NumberOfWeakCalls = 0;
-static void WeakPointerCallback(
-    const v8::WeakCallbackData<v8::Value, void>& data) {
+static void WeakPointerCallback(const v8::WeakCallbackInfo<void>& data) {
   std::pair<v8::Persistent<v8::Value>*, int>* p =
       reinterpret_cast<std::pair<v8::Persistent<v8::Value>*, int>*>(
           data.GetParameter());
@@ -107,20 +106,12 @@ TEST(Weakness) {
   {
     HandleScope scope(isolate);
     std::pair<Handle<Object>*, int> handle_and_id(&key, 1234);
-    GlobalHandles::MakeWeak(key.location(),
-                            reinterpret_cast<void*>(&handle_and_id),
-                            &WeakPointerCallback);
+    GlobalHandles::MakeWeak(
+        key.location(), reinterpret_cast<void*>(&handle_and_id),
+        &WeakPointerCallback, v8::WeakCallbackType::kParameter);
   }
   CHECK(global_handles->IsWeak(key.location()));
 
-  // Force a full GC.
-  // Perform two consecutive GCs because the first one will only clear
-  // weak references whereas the second one will also clear weak maps.
-  heap->CollectAllGarbage(false);
-  CHECK_EQ(1, NumberOfWeakCalls);
-  CHECK_EQ(2, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
-  CHECK_EQ(
-      0, ObjectHashTable::cast(weakmap->table())->NumberOfDeletedElements());
   heap->CollectAllGarbage(false);
   CHECK_EQ(1, NumberOfWeakCalls);
   CHECK_EQ(0, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
@@ -186,7 +177,7 @@ TEST(Regress2060a) {
 
   // Start second old-space page so that values land on evacuation candidate.
   Page* first_page = heap->old_space()->anchor()->next_page();
-  SimulateFullSpace(heap->old_space());
+  heap::SimulateFullSpace(heap->old_space());
 
   // Fill up weak map with values on an evacuation candidate.
   {
@@ -225,7 +216,7 @@ TEST(Regress2060b) {
 
   // Start second old-space page so that keys land on evacuation candidate.
   Page* first_page = heap->old_space()->anchor()->next_page();
-  SimulateFullSpace(heap->old_space());
+  heap::SimulateFullSpace(heap->old_space());
 
   // Fill up weak map with keys on an evacuation candidate.
   Handle<JSObject> keys[32];
@@ -258,7 +249,7 @@ TEST(Regress399527) {
   {
     HandleScope scope(isolate);
     AllocateJSWeakMap(isolate);
-    SimulateIncrementalMarking(heap);
+    heap::SimulateIncrementalMarking(heap);
   }
   // The weak map is marked black here but leaving the handle scope will make
   // the object unreachable. Aborting incremental marking will clear all the

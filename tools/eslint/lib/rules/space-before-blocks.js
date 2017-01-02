@@ -5,7 +5,7 @@
 
 "use strict";
 
-var astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -47,10 +47,10 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
-        var config = context.options[0],
-            sourceCode = context.getSourceCode(),
-            checkFunctions = true,
+    create(context) {
+        const config = context.options[0],
+            sourceCode = context.getSourceCode();
+        let checkFunctions = true,
             checkKeywords = true,
             checkClasses = true;
 
@@ -81,14 +81,13 @@ module.exports = {
          * @returns {void} undefined.
          */
         function checkPrecedingSpace(node) {
-            var precedingToken = context.getTokenBefore(node),
-                hasSpace,
-                parent,
-                requireSpace;
+            const precedingToken = sourceCode.getTokenBefore(node);
+            let requireSpace;
 
             if (precedingToken && !isConflicted(precedingToken) && astUtils.isTokenOnSameLine(precedingToken, node)) {
-                hasSpace = sourceCode.isSpaceBetweenTokens(precedingToken, node);
-                parent = context.getAncestors().pop();
+                const hasSpace = sourceCode.isSpaceBetweenTokens(precedingToken, node);
+                const parent = context.getAncestors().pop();
+
                 if (parent.type === "FunctionExpression" || parent.type === "FunctionDeclaration") {
                     requireSpace = checkFunctions;
                 } else if (node.type === "ClassBody") {
@@ -100,9 +99,9 @@ module.exports = {
                 if (requireSpace) {
                     if (!hasSpace) {
                         context.report({
-                            node: node,
+                            node,
                             message: "Missing space before opening brace.",
-                            fix: function(fixer) {
+                            fix(fixer) {
                                 return fixer.insertTextBefore(node, " ");
                             }
                         });
@@ -110,9 +109,9 @@ module.exports = {
                 } else {
                     if (hasSpace) {
                         context.report({
-                            node: node,
+                            node,
                             message: "Unexpected space before opening brace.",
-                            fix: function(fixer) {
+                            fix(fixer) {
                                 return fixer.removeRange([precedingToken.range[1], node.range[0]]);
                             }
                         });
@@ -127,15 +126,13 @@ module.exports = {
          * @returns {void} undefined.
          */
         function checkSpaceBeforeCaseBlock(node) {
-            var cases = node.cases,
-                firstCase,
-                openingBrace;
+            const cases = node.cases;
+            let openingBrace;
 
             if (cases.length > 0) {
-                firstCase = cases[0];
-                openingBrace = context.getTokenBefore(firstCase);
+                openingBrace = sourceCode.getTokenBefore(cases[0]);
             } else {
-                openingBrace = context.getLastToken(node, 1);
+                openingBrace = sourceCode.getLastToken(node, 1);
             }
 
             checkPrecedingSpace(openingBrace);

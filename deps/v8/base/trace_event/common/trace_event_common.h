@@ -156,7 +156,7 @@
 //   };
 //
 //   TRACE_EVENT1("foo", "bar", "data",
-//                scoped_refptr<ConvertableToTraceFormat>(new MyData()));
+//                std::unique_ptr<ConvertableToTraceFormat>(new MyData()));
 //
 // The trace framework will take ownership if the passed pointer and it will
 // be free'd when the trace buffer is flushed.
@@ -612,6 +612,13 @@
       TRACE_EVENT_PHASE_ASYNC_BEGIN, category_group, name, id,             \
       TRACE_EVENT_API_CURRENT_THREAD_ID, timestamp, TRACE_EVENT_FLAG_NONE, \
       arg1_name, arg1_val)
+#define TRACE_EVENT_ASYNC_BEGIN_WITH_TIMESTAMP2(category_group, name, id,      \
+                                                timestamp, arg1_name,          \
+                                                arg1_val, arg2_name, arg2_val) \
+  INTERNAL_TRACE_EVENT_ADD_WITH_ID_TID_AND_TIMESTAMP(                          \
+      TRACE_EVENT_PHASE_ASYNC_BEGIN, category_group, name, id,                 \
+      TRACE_EVENT_API_CURRENT_THREAD_ID, timestamp, TRACE_EVENT_FLAG_NONE,     \
+      arg1_name, arg1_val, arg2_name, arg2_val)
 #define TRACE_EVENT_COPY_ASYNC_BEGIN_WITH_TIMESTAMP0(category_group, name, id, \
                                                      timestamp)                \
   INTERNAL_TRACE_EVENT_ADD_WITH_ID_TID_AND_TIMESTAMP(                          \
@@ -701,6 +708,13 @@
       TRACE_EVENT_PHASE_ASYNC_END, category_group, name, id,                  \
       TRACE_EVENT_API_CURRENT_THREAD_ID, timestamp, TRACE_EVENT_FLAG_NONE,    \
       arg1_name, arg1_val)
+#define TRACE_EVENT_ASYNC_END_WITH_TIMESTAMP2(category_group, name, id,       \
+                                              timestamp, arg1_name, arg1_val, \
+                                              arg2_name, arg2_val)            \
+  INTERNAL_TRACE_EVENT_ADD_WITH_ID_TID_AND_TIMESTAMP(                         \
+      TRACE_EVENT_PHASE_ASYNC_END, category_group, name, id,                  \
+      TRACE_EVENT_API_CURRENT_THREAD_ID, timestamp, TRACE_EVENT_FLAG_NONE,    \
+      arg1_name, arg1_val, arg2_name, arg2_val)
 
 // NESTABLE_ASYNC_* APIs are used to describe an async operation, which can
 // be nested within a NESTABLE_ASYNC event and/or have inner NESTABLE_ASYNC
@@ -926,6 +940,16 @@
                                    name, id, TRACE_EVENT_FLAG_COPY, arg1_name, \
                                    arg1_val, arg2_name, arg2_val)
 
+// Special trace event macro to trace task execution with the location where it
+// was posted from.
+#define TRACE_TASK_EXECUTION(run_function, task) \
+  INTERNAL_TRACE_TASK_EXECUTION(run_function, task)
+
+// TRACE_EVENT_METADATA* events are information related to other
+// injected events, not events in their own right.
+#define TRACE_EVENT_METADATA1(category_group, name, arg1_name, arg1_val) \
+  INTERNAL_TRACE_EVENT_METADATA_ADD(category_group, name, arg1_name, arg1_val)
+
 // Records a clock sync event.
 #define TRACE_EVENT_CLOCK_SYNC_RECEIVER(sync_id)                               \
   INTERNAL_TRACE_EVENT_ADD(                                                    \
@@ -976,6 +1000,17 @@
 #define TRACE_EVENT_SCOPED_CONTEXT(category_group, name, context) \
   INTERNAL_TRACE_EVENT_SCOPED_CONTEXT(category_group, name,       \
                                       TRACE_ID_DONT_MANGLE(context))
+
+// Macro to specify that two trace IDs are identical. For example,
+// TRACE_BIND_IDS(
+//     "category", "name",
+//     TRACE_ID_WITH_SCOPE("net::URLRequest", 0x1000),
+//     TRACE_ID_WITH_SCOPE("blink::ResourceFetcher::FetchRequest", 0x2000))
+// tells the trace consumer that events with ID ("net::URLRequest", 0x1000) from
+// the current process have the same ID as events with ID
+// ("blink::ResourceFetcher::FetchRequest", 0x2000).
+#define TRACE_BIND_IDS(category_group, name, id, bind_id) \
+  INTERNAL_TRACE_EVENT_ADD_BIND_IDS(category_group, name, id, bind_id);
 
 // Macro to efficiently determine if a given category group is enabled.
 #define TRACE_EVENT_CATEGORY_GROUP_ENABLED(category_group, ret)             \
@@ -1042,6 +1077,7 @@
 #define TRACE_EVENT_PHASE_CLOCK_SYNC ('c')
 #define TRACE_EVENT_PHASE_ENTER_CONTEXT ('(')
 #define TRACE_EVENT_PHASE_LEAVE_CONTEXT (')')
+#define TRACE_EVENT_PHASE_BIND_IDS ('=')
 
 // Flags for changing the behavior of TRACE_EVENT_API_ADD_TRACE_EVENT.
 #define TRACE_EVENT_FLAG_NONE (static_cast<unsigned int>(0))

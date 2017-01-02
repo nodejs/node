@@ -79,44 +79,64 @@ assert(!b.includes(Buffer.from('f'), 6));
 assert(!Buffer.from('ff').includes(Buffer.from('f'), 1, 'ucs2'));
 
 // test hex encoding
-assert(
-    Buffer.from(b.toString('hex'), 'hex')
-    .includes('64', 0, 'hex'));
-assert(
-    Buffer.from(b.toString('hex'), 'hex')
-    .includes(Buffer.from('64', 'hex'), 0, 'hex'));
+assert.strictEqual(
+  Buffer.from(b.toString('hex'), 'hex')
+    .includes('64', 0, 'hex'),
+  true
+);
+assert.strictEqual(
+  Buffer.from(b.toString('hex'), 'hex')
+    .includes(Buffer.from('64', 'hex'), 0, 'hex'),
+  true
+);
 
 // test base64 encoding
-assert(
-    Buffer.from(b.toString('base64'), 'base64')
-    .includes('ZA==', 0, 'base64'));
-assert(
-    Buffer.from(b.toString('base64'), 'base64')
-    .includes(Buffer.from('ZA==', 'base64'), 0, 'base64'));
+assert.strictEqual(
+  Buffer.from(b.toString('base64'), 'base64')
+    .includes('ZA==', 0, 'base64'),
+  true
+);
+assert.strictEqual(
+  Buffer.from(b.toString('base64'), 'base64')
+    .includes(Buffer.from('ZA==', 'base64'), 0, 'base64'),
+  true
+);
 
 // test ascii encoding
-assert(
-    Buffer.from(b.toString('ascii'), 'ascii')
-    .includes('d', 0, 'ascii'));
-assert(
-    Buffer.from(b.toString('ascii'), 'ascii')
-    .includes(Buffer.from('d', 'ascii'), 0, 'ascii'));
+assert.strictEqual(
+  Buffer.from(b.toString('ascii'), 'ascii')
+    .includes('d', 0, 'ascii'),
+  true
+);
+assert.strictEqual(
+  Buffer.from(b.toString('ascii'), 'ascii')
+    .includes(Buffer.from('d', 'ascii'), 0, 'ascii'),
+  true
+);
 
 // test latin1 encoding
-assert(
-    Buffer.from(b.toString('latin1'), 'latin1')
-    .includes('d', 0, 'latin1'));
-assert(
-    Buffer.from(b.toString('latin1'), 'latin1')
-    .includes(Buffer.from('d', 'latin1'), 0, 'latin1'));
+assert.strictEqual(
+  Buffer.from(b.toString('latin1'), 'latin1')
+    .includes('d', 0, 'latin1'),
+  true
+);
+assert.strictEqual(
+  Buffer.from(b.toString('latin1'), 'latin1')
+    .includes(Buffer.from('d', 'latin1'), 0, 'latin1'),
+  true
+);
 
 // test binary encoding
-assert(
-    Buffer.from(b.toString('binary'), 'binary')
-    .includes('d', 0, 'binary'));
-assert(
-    Buffer.from(b.toString('binary'), 'binary')
-    .includes(Buffer.from('d', 'binary'), 0, 'binary'));
+assert.strictEqual(
+  Buffer.from(b.toString('binary'), 'binary')
+    .includes('d', 0, 'binary'),
+  true
+);
+assert.strictEqual(
+  Buffer.from(b.toString('binary'), 'binary')
+    .includes(Buffer.from('d', 'binary'), 0, 'binary'),
+  true
+);
 
 
 // test usc2 encoding
@@ -264,3 +284,19 @@ assert.throws(function() {
 assert.throws(function() {
   b.includes([]);
 });
+
+// test truncation of Number arguments to uint8
+{
+  const buf = Buffer.from('this is a test');
+  assert.ok(buf.includes(0x6973));
+  assert.ok(buf.includes(0x697320));
+  assert.ok(buf.includes(0x69732069));
+  assert.ok(buf.includes(0x697374657374));
+  assert.ok(buf.includes(0x69737374));
+  assert.ok(buf.includes(0x69737465));
+  assert.ok(buf.includes(0x69737465));
+  assert.ok(buf.includes(-140));
+  assert.ok(buf.includes(-152));
+  assert.ok(!buf.includes(0xff));
+  assert.ok(!buf.includes(0xffff));
+}

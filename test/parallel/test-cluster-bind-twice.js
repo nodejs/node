@@ -18,91 +18,74 @@
 //
 // See https://github.com/joyent/node/issues/2721 for more details.
 
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var fork = require('child_process').fork;
-var http = require('http');
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
+const fork = require('child_process').fork;
+const http = require('http');
 
-var id = process.argv[2];
+const id = process.argv[2];
 
 if (!id) {
-  var a = fork(__filename, ['one']);
-  var b = fork(__filename, ['two']);
+  const a = fork(__filename, ['one']);
+  const b = fork(__filename, ['two']);
 
-  a.on('exit', function(c) {
+  a.on('exit', common.mustCall((c) => {
     if (c) {
       b.send('QUIT');
       throw new Error('A exited with ' + c);
     }
-  });
+  }));
 
-  b.on('exit', function(c) {
+  b.on('exit', common.mustCall((c) => {
     if (c) {
       a.send('QUIT');
       throw new Error('B exited with ' + c);
     }
-  });
+  }));
 
 
-  a.on('message', function(m) {
+  a.on('message', common.mustCall((m) => {
     if (typeof m === 'object') return;
-    assert.equal(m, 'READY');
+    assert.strictEqual(m, 'READY');
     b.send('START');
-  });
+  }));
 
-  let ok = false;
-
-  b.on('message', function(m) {
-    if (typeof m === 'object') return; // ignore system messages
-    assert.equal(m, 'EADDRINUSE');
-    ok = true;
+  b.on('message', common.mustCall((m) => {
+    assert.strictEqual(m, 'EADDRINUSE');
     a.send('QUIT');
     b.send('QUIT');
-  });
+  }));
 
-  process.on('exit', function() {
-    assert(ok);
-  });
-}
-else if (id === 'one') {
+} else if (id === 'one') {
   if (cluster.isMaster) return startWorker();
 
-  http.createServer(common.fail).listen(common.PORT, function() {
+  http.createServer(common.fail).listen(common.PORT, common.mustCall(() => {
     process.send('READY');
-  });
+  }));
 
-  process.on('message', function(m) {
+  process.on('message', common.mustCall((m) => {
     if (m === 'QUIT') process.exit();
-  });
-}
-else if (id === 'two') {
+  }));
+} else if (id === 'two') {
   if (cluster.isMaster) return startWorker();
 
-  let ok = false;
-  process.on('exit', function() {
-    assert(ok);
-  });
-
-  var server = http.createServer(common.fail);
-  process.on('message', function(m) {
-    if (typeof m === 'object') return; // ignore system messages
+  const server = http.createServer(common.fail);
+  process.on('message', common.mustCall((m) => {
     if (m === 'QUIT') process.exit();
-    assert.equal(m, 'START');
+    assert.strictEqual(m, 'START');
     server.listen(common.PORT, common.fail);
-    server.on('error', function(e) {
-      assert.equal(e.code, 'EADDRINUSE');
+    server.on('error', common.mustCall((e) => {
+      assert.strictEqual(e.code, 'EADDRINUSE');
       process.send(e.code);
-      ok = true;
-    });
-  });
-}
-else {
+    }));
+  }, 2));
+} else {
   assert(0); // bad command line argument
 }
 
 function startWorker() {
-  var worker = cluster.fork();
+  const worker = cluster.fork();
   worker.on('exit', process.exit);
   worker.on('message', process.send.bind(process));
   process.on('message', worker.send.bind(worker));

@@ -13,6 +13,9 @@
     return
   }
 
+  var unsupported = require('../lib/utils/unsupported.js')
+  unsupported.checkForBrokenNode()
+
   var gfs = require('graceful-fs')
   // Patch the global fs module here at the app level
   var fs = gfs.gracefulify(require('fs'))
@@ -22,6 +25,7 @@
   var npmconf = require('./config/core.js')
   var log = require('npmlog')
 
+  var tty = require('tty')
   var path = require('path')
   var abbrev = require('abbrev')
   var which = require('which')
@@ -30,6 +34,7 @@
   var aliases = require('./config/cmd-list').aliases
   var cmdList = require('./config/cmd-list').cmdList
   var plumbing = require('./config/cmd-list').plumbing
+  var output = require('./utils/output.js')
 
   npm.config = {
     loaded: false,
@@ -140,7 +145,7 @@
   function defaultCb (er, data) {
     log.disableProgress()
     if (er) console.error(er.stack || er.message)
-    else console.log(data)
+    else output(data)
   }
 
   npm.deref = function (c) {
@@ -261,20 +266,11 @@
             npm.color = false
             break
           default:
-            var tty = require('tty')
             if (process.stdout.isTTY) npm.color = true
             else if (!tty.isatty) npm.color = true
             else if (tty.isatty(1)) npm.color = true
             else npm.color = false
             break
-        }
-
-        log.resume()
-
-        if (config.get('progress')) {
-          log.enableProgress()
-        } else {
-          log.disableProgress()
         }
 
         if (config.get('unicode')) {
@@ -283,9 +279,13 @@
           log.disableUnicode()
         }
 
-        // at this point the configs are all set.
-        // go ahead and spin up the registry client.
-        npm.registry = new CachingRegClient(npm.config)
+        if (config.get('progress') && (process.stderr.isTTY || (tty.isatty && tty.isatty(2)))) {
+          log.enableProgress()
+        } else {
+          log.disableProgress()
+        }
+
+        log.resume()
 
         var umask = npm.config.get('umask')
         npm.modes = {
@@ -299,6 +299,14 @@
 
         var lp = Object.getOwnPropertyDescriptor(config, 'localPrefix')
         Object.defineProperty(npm, 'localPrefix', lp)
+
+        config.set('scope', scopeifyScope(config.get('scope')))
+        npm.projectScope = config.get('scope') ||
+         scopeifyScope(getProjectScope(npm.prefix))
+
+        // at this point the configs are all set.
+        // go ahead and spin up the registry client.
+        npm.registry = new CachingRegClient(npm.config)
 
         return cb(null, npm)
       })
@@ -398,5 +406,21 @@
 
   if (require.main === module) {
     require('../bin/npm-cli.js')
+  }
+
+  function scopeifyScope (scope) {
+    return (!scope || scope[0] === '@') ? scope : ('@' + scope)
+  }
+
+  function getProjectScope (prefix) {
+    try {
+      var pkg = JSON.parse(fs.readFileSync(path.join(prefix, 'package.json')))
+      if (typeof pkg.name !== 'string') return ''
+      var sep = pkg.name.indexOf('/')
+      if (sep === -1) return ''
+      return pkg.name.slice(0, sep)
+    } catch (ex) {
+      return ''
+    }
   }
 })()

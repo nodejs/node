@@ -203,7 +203,6 @@ class NetworkedRunner(execution.Runner):
                   [constants.INFORM_DURATION, perf_key, test.duration,
                    self.context.arch, self.context.mode],
                   self.local_socket)
-              self.indicator.AboutToRun(test)
               has_unexpected_output = test.suite.HasUnexpectedOutput(test)
               if has_unexpected_output:
                 self.failed.append(test)

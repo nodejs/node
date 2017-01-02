@@ -14,7 +14,7 @@
 module.exports = {
     meta: {
         docs: {
-            description: "disallow `javascript",
+            description: "disallow `javascript:` urls",
             category: "Best Practices",
             recommended: false
         },
@@ -22,16 +22,13 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
 
-            Literal: function(node) {
-
-                var value;
-
+            Literal(node) {
                 if (node.value && typeof node.value === "string") {
-                    value = node.value.toLowerCase();
+                    const value = node.value.toLowerCase();
 
                     if (value.indexOf("javascript:") === 0) {
                         context.report(node, "Script URL is a form of eval.");

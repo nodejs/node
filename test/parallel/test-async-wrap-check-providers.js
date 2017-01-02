@@ -36,7 +36,7 @@ if (common.isAix) {
 }
 
 function init(id, provider) {
-  keyList = keyList.filter((e) => e != pkeys[provider]);
+  keyList = keyList.filter((e) => e !== pkeys[provider]);
 }
 
 function noop() { }
@@ -46,7 +46,7 @@ async_wrap.setupHooks({ init });
 async_wrap.enable();
 
 
-setTimeout(function() { });
+setTimeout(function() { }, 1);
 
 fs.stat(__filename, noop);
 
@@ -119,6 +119,6 @@ process.on('exit', function() {
   if (keyList.length !== 0) {
     process._rawDebug('Not all keys have been used:');
     process._rawDebug(keyList);
-    assert.equal(keyList.length, 0);
+    assert.strictEqual(keyList.length, 0);
   }
 });

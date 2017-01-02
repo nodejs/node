@@ -20,11 +20,11 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
-            ContinueStatement: function(node) {
-                context.report(node, "Unexpected use of continue statement");
+            ContinueStatement(node) {
+                context.report(node, "Unexpected use of continue statement.");
             }
         };
 

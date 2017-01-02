@@ -27,8 +27,6 @@
 
 
 import os
-import shutil
-import subprocess
 
 from testrunner.local import testsuite
 from testrunner.objects import testcase
@@ -107,25 +105,10 @@ class MozillaTestSuite(testsuite.TestSuite):
   def IsNegativeTest(self, testcase):
     return testcase.path.endswith("-n")
 
-  def IsFailureOutput(self, output, testpath):
-    if output.exit_code != 0:
+  def IsFailureOutput(self, testcase):
+    if testcase.output.exit_code != 0:
       return True
-    return "FAILED!" in output.stdout
-
-  def DownloadData(self):
-    print "Mozilla download is deprecated. It's part of DEPS."
-
-    # Clean up old directories and archive files.
-    directory_old_name = os.path.join(self.root, "data.old")
-    if os.path.exists(directory_old_name):
-      shutil.rmtree(directory_old_name)
-
-    archive_files = [f for f in os.listdir(self.root)
-                     if f.startswith("downloaded_")]
-    if len(archive_files) > 0:
-      print "Clobber outdated test archives ..."
-      for f in archive_files:
-        os.remove(os.path.join(self.root, f))
+    return "FAILED!" in testcase.output.stdout
 
 
 def GetSuite(name, root):

@@ -5,6 +5,7 @@
 #ifndef V8_CCTEST_COMPILER_GRAPH_BUILDER_TESTER_H_
 #define V8_CCTEST_COMPILER_GRAPH_BUILDER_TESTER_H_
 
+#include "src/compiler.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/linkage.h"
@@ -25,7 +26,8 @@ class GraphAndBuilders {
       : main_graph_(new (zone) Graph(zone)),
         main_common_(zone),
         main_machine_(zone, MachineType::PointerRepresentation(),
-                      InstructionSelector::SupportedMachineOperatorFlags()),
+                      InstructionSelector::SupportedMachineOperatorFlags(),
+                      InstructionSelector::AlignmentRequirements()),
         main_simplified_(zone) {}
 
   Graph* graph() const { return main_graph_; }
@@ -168,11 +170,11 @@ class GraphBuilderTester : public HandleAndZoneScope,
   Node* ChangeFloat64ToTagged(Node* a) {
     return NewNode(simplified()->ChangeFloat64ToTagged(), a);
   }
-  Node* ChangeBoolToBit(Node* a) {
-    return NewNode(simplified()->ChangeBoolToBit(), a);
+  Node* ChangeTaggedToBit(Node* a) {
+    return NewNode(simplified()->ChangeTaggedToBit(), a);
   }
-  Node* ChangeBitToBool(Node* a) {
-    return NewNode(simplified()->ChangeBitToBool(), a);
+  Node* ChangeBitToTagged(Node* a) {
+    return NewNode(simplified()->ChangeBitToTagged(), a);
   }
 
   Node* LoadField(const FieldAccess& access, Node* object) {
@@ -238,7 +240,7 @@ class GraphBuilderTester : public HandleAndZoneScope,
     CHECK_EQ(op->ValueInputCount(), value_input_count);
 
     CHECK(!OperatorProperties::HasContextInput(op));
-    CHECK_EQ(0, OperatorProperties::GetFrameStateInputCount(op));
+    CHECK(!OperatorProperties::HasFrameStateInput(op));
     bool has_control = op->ControlInputCount() == 1;
     bool has_effect = op->EffectInputCount() == 1;
 
@@ -277,7 +279,7 @@ class GraphBuilderTester : public HandleAndZoneScope,
       Zone* zone = graph()->zone();
       CallDescriptor* desc =
           Linkage::GetSimplifiedCDescriptor(zone, this->csig_);
-      CompilationInfo info("testing", main_isolate(), main_zone());
+      CompilationInfo info(ArrayVector("testing"), main_isolate(), main_zone());
       code_ = Pipeline::GenerateCodeForTesting(&info, desc, graph());
 #ifdef ENABLE_DISASSEMBLER
       if (!code_.is_null() && FLAG_print_opt_code) {

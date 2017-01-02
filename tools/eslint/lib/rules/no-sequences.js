@@ -20,17 +20,19 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
+        const sourceCode = context.getSourceCode();
 
         /**
          * Parts of the grammar that are required to have parens.
          */
-        var parenthesized = {
+        const parenthesized = {
             DoWhileStatement: "test",
             IfStatement: "test",
             SwitchStatement: "discriminant",
             WhileStatement: "test",
-            WithStatement: "object"
+            WithStatement: "object",
+            ArrowFunctionExpression: "body"
 
             // Omitting CallExpression - commas are parsed as argument separators
             // Omitting NewExpression - commas are parsed as argument separators
@@ -55,8 +57,8 @@ module.exports = {
          * @returns {boolean} True if the node has a paren on each side.
          */
         function isParenthesised(node) {
-            var previousToken = context.getTokenBefore(node),
-                nextToken = context.getTokenAfter(node);
+            const previousToken = sourceCode.getTokenBefore(node),
+                nextToken = sourceCode.getTokenAfter(node);
 
             return previousToken && nextToken &&
                 previousToken.value === "(" && previousToken.range[1] <= node.range[0] &&
@@ -69,8 +71,8 @@ module.exports = {
          * @returns {boolean} True if two parens surround the node on each side.
          */
         function isParenthesisedTwice(node) {
-            var previousToken = context.getTokenBefore(node, 1),
-                nextToken = context.getTokenAfter(node, 1);
+            const previousToken = sourceCode.getTokenBefore(node, 1),
+                nextToken = sourceCode.getTokenAfter(node, 1);
 
             return isParenthesised(node) && previousToken && nextToken &&
                 previousToken.value === "(" && previousToken.range[1] <= node.range[0] &&
@@ -78,7 +80,7 @@ module.exports = {
         }
 
         return {
-            SequenceExpression: function(node) {
+            SequenceExpression(node) {
 
                 // Always allow sequences in for statement update
                 if (node.parent.type === "ForStatement" &&
@@ -97,7 +99,7 @@ module.exports = {
                     }
                 }
 
-                var child = context.getTokenAfter(node.expressions[0]);
+                const child = sourceCode.getTokenAfter(node.expressions[0]);
 
                 context.report(node, child.loc.start, "Unexpected use of comma operator.");
             }

@@ -10,7 +10,7 @@
 
 /**
  * Determines whether an operator is a comparison operator.
- * @param {String} operator The operator to check.
+ * @param {string} operator The operator to check.
  * @returns {boolean} Whether or not it is a comparison operator.
  */
 function isComparisonOperator(operator) {
@@ -19,7 +19,7 @@ function isComparisonOperator(operator) {
 
 /**
  * Determines whether an operator is an equality operator.
- * @param {String} operator The operator to check.
+ * @param {string} operator The operator to check.
  * @returns {boolean} Whether or not it is an equality operator.
  */
 function isEqualityOperator(operator) {
@@ -29,7 +29,7 @@ function isEqualityOperator(operator) {
 /**
  * Determines whether an operator is one used in a range test.
  * Allowed operators are `<` and `<=`.
- * @param {String} operator The operator to check.
+ * @param {string} operator The operator to check.
  * @returns {boolean} Whether the operator is used in range tests.
  */
 function isRangeTestOperator(operator) {
@@ -69,7 +69,7 @@ function getNormalizedLiteral(node) {
         return {
             type: "Literal",
             value: -node.argument.value,
-            raw: "-" + node.argument.value
+            raw: `-${node.argument.value}`
         };
     }
 
@@ -141,15 +141,19 @@ module.exports = {
                 },
                 additionalProperties: false
             }
-        ]
+        ],
+
+        fixable: "code"
     },
 
-    create: function(context) {
+    create(context) {
 
         // Default to "never" (!always) if no option
-        var always = (context.options[0] === "always");
-        var exceptRange = (context.options[1] && context.options[1].exceptRange);
-        var onlyEquality = (context.options[1] && context.options[1].onlyEquality);
+        const always = (context.options[0] === "always");
+        const exceptRange = (context.options[1] && context.options[1].exceptRange);
+        const onlyEquality = (context.options[1] && context.options[1].onlyEquality);
+
+        const sourceCode = context.getSourceCode();
 
         /**
          * Determines whether node represents a range test.
@@ -159,18 +163,18 @@ module.exports = {
          * must be less than or equal to the literal on the right side so that the
          * test makes any sense.
          * @param {ASTNode} node LogicalExpression node to test.
-         * @returns {Boolean} Whether node is a range test.
+         * @returns {boolean} Whether node is a range test.
          */
         function isRangeTest(node) {
-            var left = node.left,
+            const left = node.left,
                 right = node.right;
 
             /**
              * Determines whether node is of the form `0 <= x && x < 1`.
-             * @returns {Boolean} Whether node is a "between" range test.
+             * @returns {boolean} Whether node is a "between" range test.
              */
             function isBetweenTest() {
-                var leftLiteral, rightLiteral;
+                let leftLiteral, rightLiteral;
 
                 return (node.operator === "&&" &&
                     (leftLiteral = getNormalizedLiteral(left.left)) &&
@@ -181,10 +185,10 @@ module.exports = {
 
             /**
              * Determines whether node is of the form `x < 0 || 1 <= x`.
-             * @returns {Boolean} Whether node is an "outside" range test.
+             * @returns {boolean} Whether node is an "outside" range test.
              */
             function isOutsideTest() {
-                var leftLiteral, rightLiteral;
+                let leftLiteral, rightLiteral;
 
                 return (node.operator === "||" &&
                     (leftLiteral = getNormalizedLiteral(left.right)) &&
@@ -195,16 +199,16 @@ module.exports = {
 
             /**
              * Determines whether node is wrapped in parentheses.
-             * @returns {Boolean} Whether node is preceded immediately by an open
+             * @returns {boolean} Whether node is preceded immediately by an open
              *                    paren token and followed immediately by a close
              *                    paren token.
              */
             function isParenWrapped() {
-                var tokenBefore, tokenAfter;
+                let tokenBefore, tokenAfter;
 
-                return ((tokenBefore = context.getTokenBefore(node)) &&
+                return ((tokenBefore = sourceCode.getTokenBefore(node)) &&
                     tokenBefore.value === "(" &&
-                    (tokenAfter = context.getTokenAfter(node)) &&
+                    (tokenAfter = sourceCode.getTokenAfter(node)) &&
                     tokenAfter.value === ")");
             }
 
@@ -217,35 +221,58 @@ module.exports = {
                 isParenWrapped());
         }
 
+        const OPERATOR_FLIP_MAP = {
+            "===": "===",
+            "!==": "!==",
+            "==": "==",
+            "!=": "!=",
+            "<": ">",
+            ">": "<",
+            "<=": ">=",
+            ">=": "<="
+        };
+
+        /**
+        * Returns a string representation of a BinaryExpression node with its sides/operator flipped around.
+        * @param {ASTNode} node The BinaryExpression node
+        * @returns {string} A string representation of the node with the sides and operator flipped
+        */
+        function getFlippedString(node) {
+            const operatorToken = sourceCode.getTokensBetween(node.left, node.right).find(token => token.value === node.operator);
+            const textBeforeOperator = sourceCode.getText().slice(sourceCode.getTokenBefore(operatorToken).range[1], operatorToken.range[0]);
+            const textAfterOperator = sourceCode.getText().slice(operatorToken.range[1], sourceCode.getTokenAfter(operatorToken).range[0]);
+            const leftText = sourceCode.getText().slice(sourceCode.getFirstToken(node).range[0], sourceCode.getTokenBefore(operatorToken).range[1]);
+            const rightText = sourceCode.getText().slice(sourceCode.getTokenAfter(operatorToken).range[0], sourceCode.getLastToken(node).range[1]);
+
+            return rightText + textBeforeOperator + OPERATOR_FLIP_MAP[operatorToken.value] + textAfterOperator + leftText;
+        }
+
         //--------------------------------------------------------------------------
         // Public
         //--------------------------------------------------------------------------
 
         return {
-            BinaryExpression: always ? function(node) {
+            BinaryExpression(node) {
+                const expectedLiteral = always ? node.left : node.right;
+                const expectedNonLiteral = always ? node.right : node.left;
 
-                // Comparisons must always be yoda-style: if ("blue" === color)
+                // If `expectedLiteral` is not a literal, and `expectedNonLiteral` is a literal, raise an error.
                 if (
-                    (node.right.type === "Literal" || looksLikeLiteral(node.right)) &&
-                    !(node.left.type === "Literal" || looksLikeLiteral(node.left)) &&
+                    (expectedNonLiteral.type === "Literal" || looksLikeLiteral(expectedNonLiteral)) &&
+                    !(expectedLiteral.type === "Literal" || looksLikeLiteral(expectedLiteral)) &&
                     !(!isEqualityOperator(node.operator) && onlyEquality) &&
                     isComparisonOperator(node.operator) &&
                     !(exceptRange && isRangeTest(context.getAncestors().pop()))
                 ) {
-                    context.report(node, "Expected literal to be on the left side of " + node.operator + ".");
-                }
-
-            } : function(node) {
-
-                // Comparisons must never be yoda-style (default)
-                if (
-                    (node.left.type === "Literal" || looksLikeLiteral(node.left)) &&
-                    !(node.right.type === "Literal" || looksLikeLiteral(node.right)) &&
-                    !(!isEqualityOperator(node.operator) && onlyEquality) &&
-                    isComparisonOperator(node.operator) &&
-                    !(exceptRange && isRangeTest(context.getAncestors().pop()))
-                ) {
-                    context.report(node, "Expected literal to be on the right side of " + node.operator + ".");
+                    context.report({
+                        node,
+                        message: "Expected literal to be on the {{expectedSide}} side of {{operator}}.",
+                        data: {
+                            operator: node.operator,
+                            expectedSide: always ? "left" : "right"
+                        },
+                        fix: fixer => fixer.replaceText(node, getFlippedString(node))
+                    });
                 }
 
             }

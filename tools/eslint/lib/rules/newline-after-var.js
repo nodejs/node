@@ -12,7 +12,7 @@
 module.exports = {
     meta: {
         docs: {
-            description: "require or disallow an empty line after `var` declarations",
+            description: "require or disallow an empty line after variable declarations",
             category: "Stylistic Issues",
             recommended: false
         },
@@ -24,18 +24,18 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
-        var ALWAYS_MESSAGE = "Expected blank line after variable declarations.",
+        const ALWAYS_MESSAGE = "Expected blank line after variable declarations.",
             NEVER_MESSAGE = "Unexpected blank line after variable declarations.";
 
-        var sourceCode = context.getSourceCode();
+        const sourceCode = context.getSourceCode();
 
         // Default `mode` to "always".
-        var mode = context.options[0] === "never" ? "never" : "always";
+        const mode = context.options[0] === "never" ? "never" : "always";
 
         // Cache starting and ending line numbers of comments for faster lookup
-        var commentEndLine = context.getAllComments().reduce(function(result, token) {
+        const commentEndLine = sourceCode.getAllComments().reduce(function(result, token) {
             result[token.loc.start.line] = token.loc.end.line;
             return result;
         }, {});
@@ -44,6 +44,37 @@ module.exports = {
         //--------------------------------------------------------------------------
         // Helpers
         //--------------------------------------------------------------------------
+
+        /**
+         * Gets a token from the given node to compare line to the next statement.
+         *
+         * In general, the token is the last token of the node. However, the token is the second last token if the following conditions satisfy.
+         *
+         * - The last token is semicolon.
+         * - The semicolon is on a different line from the previous token of the semicolon.
+         *
+         * This behavior would address semicolon-less style code. e.g.:
+         *
+         *     var foo = 1
+         *
+         *     ;(a || b).doSomething()
+         *
+         * @param {ASTNode} node - The node to get.
+         * @returns {Token} The token to compare line to the next statement.
+         */
+        function getLastToken(node) {
+            const lastToken = sourceCode.getLastToken(node);
+
+            if (lastToken.type === "Punctuator" && lastToken.value === ";") {
+                const prevToken = sourceCode.getTokenBefore(lastToken);
+
+                if (prevToken.loc.end.line !== lastToken.loc.start.line) {
+                    return prevToken;
+                }
+            }
+
+            return lastToken;
+        }
 
         /**
          * Determine if provided keyword is a variable declaration
@@ -83,7 +114,7 @@ module.exports = {
          * @returns {boolean} True if `node` is last of their parent block.
          */
         function isLastNode(node) {
-            var token = sourceCode.getTokenAfter(node);
+            const token = sourceCode.getTokenAfter(node);
 
             return !token || (token.type === "Punctuator" && token.value === "}");
         }
@@ -95,7 +126,7 @@ module.exports = {
          * @returns {boolean}                 True if `token` does not start immediately after a comment
          */
         function hasBlankLineAfterComment(token, commentStartLine) {
-            var commentEnd = commentEndLine[commentStartLine];
+            const commentEnd = commentEndLine[commentStartLine];
 
             // If there's another comment, repeat check for blank line
             if (commentEndLine[commentEnd + 1]) {
@@ -114,11 +145,9 @@ module.exports = {
          * @returns {void}
          */
         function checkForBlankLine(node) {
-            var lastToken = sourceCode.getLastToken(node),
+            const lastToken = getLastToken(node),
                 nextToken = sourceCode.getTokenAfter(node),
-                nextLineNum = lastToken.loc.end.line + 1,
-                noNextLineToken,
-                hasNextLineComment;
+                nextLineNum = lastToken.loc.end.line + 1;
 
             // Ignore if there is no following statement
             if (!nextToken) {
@@ -147,8 +176,8 @@ module.exports = {
             }
 
             // Next statement is not a `var`...
-            noNextLineToken = nextToken.loc.start.line > nextLineNum;
-            hasNextLineComment = (typeof commentEndLine[nextLineNum] !== "undefined");
+            const noNextLineToken = nextToken.loc.start.line > nextLineNum;
+            const hasNextLineComment = (typeof commentEndLine[nextLineNum] !== "undefined");
 
             if (mode === "never" && noNextLineToken && !hasNextLineComment) {
                 context.report(node, NEVER_MESSAGE, { identifier: node.name });

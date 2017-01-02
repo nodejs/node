@@ -5,6 +5,15 @@
 
 "use strict";
 
+/**
+ * Checks whether or not a given variable is a function name.
+ * @param {escope.Variable} variable - A variable to check.
+ * @returns {boolean} `true` if the variable is a function name.
+ */
+function isFunctionName(variable) {
+    return variable && variable.defs[0].type === "FunctionName";
+}
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -12,15 +21,20 @@
 module.exports = {
     meta: {
         docs: {
-            description: "enforce named `function` expressions",
+            description: "require or disallow named `function` expressions",
             category: "Stylistic Issues",
             recommended: false
         },
 
-        schema: []
+        schema: [
+            {
+                enum: ["always", "never"]
+            }
+        ]
     },
 
-    create: function(context) {
+    create(context) {
+        const never = context.options[0] === "never";
 
         /**
          * Determines whether the current FunctionExpression node is a get, set, or
@@ -28,7 +42,7 @@ module.exports = {
          * @returns {boolean} True if the node is a get, set, or shorthand method.
          */
         function isObjectOrClassMethod() {
-            var parent = context.getAncestors().pop();
+            const parent = context.getAncestors().pop();
 
             return (parent.type === "MethodDefinition" || (
                 parent.type === "Property" && (
@@ -40,12 +54,25 @@ module.exports = {
         }
 
         return {
-            FunctionExpression: function(node) {
+            "FunctionExpression:exit"(node) {
 
-                var name = node.id && node.id.name;
+                // Skip recursive functions.
+                const nameVar = context.getDeclaredVariables(node)[0];
 
-                if (!name && !isObjectOrClassMethod()) {
-                    context.report(node, "Missing function expression name.");
+                if (isFunctionName(nameVar) && nameVar.references.length > 0) {
+                    return;
+                }
+
+                const name = node.id && node.id.name;
+
+                if (never) {
+                    if (name) {
+                        context.report(node, "Unexpected function expression name.");
+                    }
+                } else {
+                    if (!name && !isObjectOrClassMethod()) {
+                        context.report(node, "Missing function expression name.");
+                    }
                 }
             }
         };

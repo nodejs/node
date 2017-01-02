@@ -1,6 +1,6 @@
 'use strict';
+const common = require('../common');
 var assert = require('assert');
-var common = require('../common');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');

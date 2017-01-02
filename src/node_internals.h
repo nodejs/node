@@ -32,10 +32,17 @@ struct sockaddr;
 
 namespace node {
 
+// Set in node.cc by ParseArgs with the value of --openssl-config.
+// Used in node_crypto.cc when initializing OpenSSL.
+extern const char* openssl_config;
+
 // Set in node.cc by ParseArgs when --preserve-symlinks is used.
 // Used in node_config.cc to set a constant on process.binding('config')
 // that is used by lib/module.js
 extern bool config_preserve_symlinks;
+
+// Tells whether it is safe to call v8::Isolate::GetCurrent().
+extern bool v8_initialized;
 
 // Forward declaration
 class Environment;
@@ -99,49 +106,30 @@ void RegisterSignalHandler(int signal,
                            bool reset_handler = false);
 #endif
 
-#ifdef _WIN32
-// emulate snprintf() on windows, _snprintf() doesn't zero-terminate the buffer
-// on overflow...
-// VS 2015 added a standard conform snprintf
-#if defined( _MSC_VER ) && (_MSC_VER < 1900)
-#include <stdarg.h>
-inline static int snprintf(char *buffer, size_t n, const char *format, ...) {
-  va_list argp;
-  va_start(argp, format);
-  int ret = _vscprintf(format, argp);
-  vsnprintf_s(buffer, n, _TRUNCATE, format, argp);
-  va_end(argp);
-  return ret;
-}
-#endif
-#endif
-
-#if defined(_MSC_VER) && _MSC_VER < 1900
-#define arraysize(a) (sizeof(a) / sizeof(*a))  // Workaround for VS 2013.
-#else
 template <typename T, size_t N>
 constexpr size_t arraysize(const T(&)[N]) { return N; }
-#endif
 
 #ifndef ROUND_UP
 # define ROUND_UP(a, b) ((a) % (b) ? ((a) + (b)) - ((a) % (b)) : (a))
 #endif
 
-#if defined(__GNUC__) && __GNUC__ >= 4
+#ifdef __GNUC__
 # define MUST_USE_RESULT __attribute__((warn_unused_result))
-# define NO_RETURN __attribute__((noreturn))
 #else
 # define MUST_USE_RESULT
-# define NO_RETURN
 #endif
 
 bool IsExceptionDecorated(Environment* env, v8::Local<v8::Value> er);
 
+enum ErrorHandlingMode { FATAL_ERROR, CONTEXTIFY_ERROR };
 void AppendExceptionLine(Environment* env,
                          v8::Local<v8::Value> er,
-                         v8::Local<v8::Message> message);
+                         v8::Local<v8::Message> message,
+                         enum ErrorHandlingMode mode);
 
 NO_RETURN void FatalError(const char* location, const char* message);
+
+void ProcessEmitWarning(Environment* env, const char* fmt, ...);
 
 v8::Local<v8::Value> BuildStatsObject(Environment* env, const uv_stat_t* s);
 
@@ -175,30 +163,13 @@ inline bool IsBigEndian() {
   return GetEndianness() == kBigEndian;
 }
 
-// parse index for external array data
-inline MUST_USE_RESULT bool ParseArrayIndex(v8::Local<v8::Value> arg,
-                                            size_t def,
-                                            size_t* ret) {
-  if (arg->IsUndefined()) {
-    *ret = def;
-    return true;
-  }
-
-  int64_t tmp_i = arg->IntegerValue();
-
-  if (tmp_i < 0)
-    return false;
-
-  *ret = static_cast<size_t>(tmp_i);
-  return true;
-}
-
 class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
   inline uint32_t* zero_fill_field() { return &zero_fill_field_; }
 
   virtual void* Allocate(size_t size);  // Defined in src/node.cc
-  virtual void* AllocateUninitialized(size_t size) { return malloc(size); }
+  virtual void* AllocateUninitialized(size_t size)
+    { return node::UncheckedMalloc(size); }
   virtual void Free(void* data, size_t) { free(data); }
 
  private:
@@ -209,87 +180,6 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 // propagation and shutdown the process. Use this to force the process to exit
 // by clearing all callbacks that could handle the error.
 void ClearFatalExceptionHandlers(Environment* env);
-
-enum NodeInstanceType { MAIN, WORKER, REMOTE_DEBUG_SERVER };
-
-class NodeInstanceData {
-  public:
-    NodeInstanceData(NodeInstanceType node_instance_type,
-                     uv_loop_t* event_loop,
-                     int argc,
-                     const char** argv,
-                     int exec_argc,
-                     const char** exec_argv,
-                     bool use_debug_agent_flag)
-        : node_instance_type_(node_instance_type),
-          exit_code_(1),
-          event_loop_(event_loop),
-          argc_(argc),
-          argv_(argv),
-          exec_argc_(exec_argc),
-          exec_argv_(exec_argv),
-          use_debug_agent_flag_(use_debug_agent_flag) {
-      CHECK_NE(event_loop_, nullptr);
-    }
-
-    uv_loop_t* event_loop() const {
-      return event_loop_;
-    }
-
-    int exit_code() {
-      CHECK(is_main());
-      return exit_code_;
-    }
-
-    void set_exit_code(int exit_code) {
-      CHECK(is_main());
-      exit_code_ = exit_code;
-    }
-
-    bool is_main() {
-      return node_instance_type_ == MAIN;
-    }
-
-    bool is_worker() {
-      return node_instance_type_ == WORKER;
-    }
-
-    bool is_remote_debug_server() {
-      return node_instance_type_ == REMOTE_DEBUG_SERVER;
-    }
-
-    int argc() {
-      return argc_;
-    }
-
-    const char** argv() {
-      return argv_;
-    }
-
-    int exec_argc() {
-      return exec_argc_;
-    }
-
-    const char** exec_argv() {
-      return exec_argv_;
-    }
-
-    bool use_debug_agent() {
-      return is_main() && use_debug_agent_flag_;
-    }
-
-  private:
-    const NodeInstanceType node_instance_type_;
-    int exit_code_;
-    uv_loop_t* const event_loop_;
-    const int argc_;
-    const char** argv_;
-    const int exec_argc_;
-    const char** exec_argv_;
-    const bool use_debug_agent_flag_;
-
-    DISALLOW_COPY_AND_ASSIGN(NodeInstanceData);
-};
 
 namespace Buffer {
 v8::MaybeLocal<v8::Object> Copy(Environment* env, const char* data, size_t len);

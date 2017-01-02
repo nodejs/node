@@ -5,7 +5,7 @@ const vm = require('vm');
 
 const spawn = require('child_process').spawn;
 
-if (process.platform === 'win32') {
+if (common.isWindows) {
   // No way to send CTRL_C_EVENT to processes from JS right now.
   common.skip('platform not supported');
   return;
@@ -25,15 +25,18 @@ if (process.argv[2] === 'child') {
 }
 
 process.env.REPL_TEST_PPID = process.pid;
-const child = spawn(process.execPath, [ __filename, 'child' ], {
-  stdio: [null, 'pipe', 'inherit']
-});
 
+// Set the `SIGUSR2` handler before spawning the child process to make sure
+// the signal is always handled.
 process.on('SIGUSR2', common.mustCall(() => {
   process.kill(child.pid, 'SIGINT');
 }));
 
-child.on('close', function(code, signal) {
+const child = spawn(process.execPath, [__filename, 'child'], {
+  stdio: [null, 'pipe', 'inherit']
+});
+
+child.on('close', common.mustCall((code, signal) => {
   assert.strictEqual(signal, null);
   assert.strictEqual(code, 0);
-});
+}));

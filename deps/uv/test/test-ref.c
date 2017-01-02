@@ -194,6 +194,9 @@ TEST_IMPL(timer_ref2) {
 
 
 TEST_IMPL(fs_event_ref) {
+#if defined(__MVS__)
+  RETURN_SKIP("Filesystem watching not supported on this platform.");
+#endif
   uv_fs_event_t h;
   uv_fs_event_init(uv_default_loop(), &h);
   uv_fs_event_start(&h, (uv_fs_event_cb)fail_cb, ".", 0);

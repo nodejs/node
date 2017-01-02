@@ -1,6 +1,6 @@
 # Readline
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 The `readline` module provides an interface for reading data from a [Readable][]
 stream (such as [`process.stdin`]) one line at a time. It can be accessed using:
@@ -21,7 +21,7 @@ const rl = readline.createInterface({
 
 rl.question('What do you think of Node.js? ', (answer) => {
   // TODO: Log the answer in a database
-  console.log('Thank you for your valuable feedback:', answer);
+  console.log(`Thank you for your valuable feedback: ${answer}`);
 
   rl.close();
 });
@@ -90,7 +90,7 @@ The `'pause'` event is emitted when one of the following occur:
 
 * The `input` stream is paused.
 * The `input` stream is not paused and receives the `SIGCONT` event. (See
-  events `SIGTSTP` and `SIGCONT`)
+  events [`SIGTSTP`][] and [`SIGCONT`][])
 
 The listener function is called without passing any arguments.
 
@@ -124,9 +124,9 @@ added: v0.7.5
 
 The `'SIGCONT'` event is emitted when a Node.js process previously moved into
 the background using `<ctrl>-Z` (i.e. `SIGTSTP`) is then brought back to the
-foreground using `fg(1)`.
+foreground using fg(1).
 
-If the `input` stream was paused *before* the `SIGSTP` request, this event will
+If the `input` stream was paused *before* the `SIGTSTP` request, this event will
 not be emitted.
 
 The listener function is invoked without passing any arguments.
@@ -169,12 +169,12 @@ rl.on('SIGINT', () => {
 added: v0.7.5
 -->
 
-The `'SIGTSPT'` event is emitted when the `input` stream receives a `<ctrl>-Z`
+The `'SIGTSTP'` event is emitted when the `input` stream receives a `<ctrl>-Z`
 input, typically known as `SIGTSTP`. If there are no `SIGTSTP` event listeners
 registered when the `input` stream receives a `SIGTSTP`, the Node.js process
 will be sent to the background.
 
-When the program is resumed using `fg(1)`, the `'pause'` and `SIGCONT` events
+When the program is resumed using fg(1), the `'pause'` and `SIGCONT` events
 will be emitted. These can be used to resume the `input` stream.
 
 The `'pause'` and `'SIGCONT'` events will not be emitted if the `input` was
@@ -202,8 +202,6 @@ added: v0.1.98
 The `rl.close()` method closes the `readline.Interface` instance and
 relinquishes control over the `input` and `output` streams. When called,
 the `'close'` event will be emitted.
-Closes the `Interface` instance, relinquishing control on the `input` and
-`output` streams. The `'close'` event will also be emitted.
 
 ### rl.pause()
 <!-- YAML
@@ -315,6 +313,9 @@ rl.write('Delete this!');
 rl.write(null, {ctrl: true, name: 'u'});
 ```
 
+*Note*: The `rl.write()` method will write the data to the `readline`
+Interface's `input` *as if it were provided by the user*.
+
 ## readline.clearLine(stream, dir)
 <!-- YAML
 added: v0.7.7
@@ -357,6 +358,11 @@ added: v0.1.98
     the history set this value to `0`. Defaults to `30`. This option makes sense
     only if `terminal` is set to `true` by the user or by an internal `output`
     check, otherwise the history caching mechanism is not initialized at all.
+  * `prompt` - the prompt string to use. Default: `'> '`
+  * `crlfDelay` {number} If the delay between `\r` and `\n` exceeds
+    `crlfDelay` milliseconds, both `\r` and `\n` will be treated as separate
+    end-of-line input. Default to `100` milliseconds.
+    `crlfDelay` will be coerced to `[100, 2000]` range.
 
 The `readline.createInterface()` method creates a new `readline.Interface`
 instance.
@@ -397,10 +403,10 @@ For instance: `[[substr1, substr2, ...], originalsubstring]`.
 
 ```js
 function completer(line) {
-  var completions = '.help .error .exit .quit .q'.split(' ')
-  var hits = completions.filter((c) => { return c.indexOf(line) == 0 })
+  const completions = '.help .error .exit .quit .q'.split(' ');
+  const hits = completions.filter((c) => { return c.indexOf(line) === 0 });
   // show all completions if none found
-  return [hits.length ? hits : completions, line]
+  return [hits.length ? hits : completions, line];
 }
 ```
 
@@ -467,9 +473,12 @@ implement a small command-line interface:
 
 ```js
 const readline = require('readline');
-const rl = readline.createInterface(process.stdin, process.stdout);
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout,
+  prompt: 'OHAI> '
+});
 
-rl.setPrompt('OHAI> ');
 rl.prompt();
 
 rl.on('line', (line) => {
@@ -503,7 +512,7 @@ const rl = readline.createInterface({
 });
 
 rl.on('line', (line) => {
-  console.log('Line from file:', line);
+  console.log(`Line from file: ${line}`);
 });
 ```
 
@@ -512,3 +521,5 @@ rl.on('line', (line) => {
 [Writable]: stream.html
 [Readable]: stream.html
 [TTY]: tty.html
+[`SIGTSTP`]: readline.html#readline_event_sigtstp
+[`SIGCONT`]: readline.html#readline_event_sigcont

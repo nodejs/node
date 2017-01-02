@@ -20,8 +20,7 @@ function main(conf) {
   const msg = `"${'.'.repeat(len)}"`;
   msg.match(/./);
   const options = {'stdio': ['ignore', 'pipe', 'ignore']};
-  // NOTE: Command below assumes bash shell.
-  const child = exec(`while\n  echo ${msg}\ndo :; done\n`, options);
+  const child = exec(`yes ${msg}`, options);
 
   var bytes = 0;
   child.stdout.on('data', function(msg) {

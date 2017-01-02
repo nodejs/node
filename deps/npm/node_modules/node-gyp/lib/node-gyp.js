@@ -112,6 +112,7 @@ proto.shorthands = {
   , j: '--jobs'
   , silly: '--loglevel=silly'
   , verbose: '--loglevel=verbose'
+  , silent: '--loglevel=silent'
 }
 
 /**

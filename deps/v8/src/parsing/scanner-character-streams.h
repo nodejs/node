@@ -14,6 +14,7 @@ namespace internal {
 
 // Forward declarations.
 class ExternalTwoByteString;
+class ExternalOneByteString;
 
 // A buffered character stream based on a random access character
 // source (ReadBlock can be called with pos_ pointing to any position,
@@ -60,29 +61,6 @@ class GenericStringUtf16CharacterStream: public BufferedUtf16CharacterStream {
   Handle<String> string_;
   size_t length_;
   size_t bookmark_;
-};
-
-
-// Utf16 stream based on a literal UTF-8 string.
-class Utf8ToUtf16CharacterStream: public BufferedUtf16CharacterStream {
- public:
-  Utf8ToUtf16CharacterStream(const byte* data, size_t length);
-  ~Utf8ToUtf16CharacterStream() override;
-
-  static size_t CopyChars(uint16_t* dest, size_t length, const byte* src,
-                          size_t* src_pos, size_t src_length);
-
- protected:
-  size_t BufferSeekForward(size_t delta) override;
-  size_t FillBuffer(size_t char_position) override;
-  void SetRawPosition(size_t char_position);
-
-  const byte* raw_data_;
-  size_t raw_data_length_;  // Measured in bytes, not characters.
-  size_t raw_data_pos_;
-  // The character position of the character at raw_data[raw_data_pos_].
-  // Not necessarily the same as pos_.
-  size_t raw_character_position_;
 };
 
 
@@ -158,14 +136,16 @@ class ExternalTwoByteStringUtf16CharacterStream: public Utf16CharacterStream {
 
   void PushBack(uc32 character) override {
     DCHECK(buffer_cursor_ > raw_data_);
-    buffer_cursor_--;
     pos_--;
+    if (character != kEndOfInput) {
+      buffer_cursor_--;
+    }
   }
 
   bool SetBookmark() override;
   void ResetToBookmark() override;
 
- protected:
+ private:
   size_t SlowSeekForward(size_t delta) override {
     // Fast case always handles seeking.
     return 0;
@@ -174,12 +154,37 @@ class ExternalTwoByteStringUtf16CharacterStream: public Utf16CharacterStream {
     // Entire string is read at start.
     return false;
   }
-  Handle<ExternalTwoByteString> source_;
   const uc16* raw_data_;  // Pointer to the actual array of characters.
+
+  static const size_t kNoBookmark = -1;
+
+  size_t bookmark_;
+};
+
+// UTF16 buffer to read characters from an external latin1 string.
+class ExternalOneByteStringUtf16CharacterStream
+    : public BufferedUtf16CharacterStream {
+ public:
+  ExternalOneByteStringUtf16CharacterStream(Handle<ExternalOneByteString> data,
+                                            int start_position,
+                                            int end_position);
+  ~ExternalOneByteStringUtf16CharacterStream() override;
+
+  // For testing:
+  explicit ExternalOneByteStringUtf16CharacterStream(const char* data);
+  ExternalOneByteStringUtf16CharacterStream(const char* data, size_t length);
+
+  bool SetBookmark() override;
+  void ResetToBookmark() override;
 
  private:
   static const size_t kNoBookmark = -1;
 
+  size_t BufferSeekForward(size_t delta) override;
+  size_t FillBuffer(size_t position) override;
+
+  const uint8_t* raw_data_;  // Pointer to the actual array of characters.
+  size_t length_;
   size_t bookmark_;
 };
 

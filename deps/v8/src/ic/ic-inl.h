@@ -87,41 +87,11 @@ void IC::SetTargetAtAddress(Address address, Code* target,
 
 void IC::set_target(Code* code) {
   SetTargetAtAddress(address(), code, constant_pool());
-  target_set_ = true;
 }
 
-
-void LoadIC::set_target(Code* code) {
-  // The contextual mode must be preserved across IC patching.
-  DCHECK(LoadICState::GetTypeofMode(code->extra_ic_state()) ==
-         LoadICState::GetTypeofMode(target()->extra_ic_state()));
-
-  IC::set_target(code);
-}
-
-
-void StoreIC::set_target(Code* code) {
-  // Language mode must be preserved across IC patching.
-  DCHECK(StoreICState::GetLanguageMode(code->extra_ic_state()) ==
-         StoreICState::GetLanguageMode(target()->extra_ic_state()));
-  IC::set_target(code);
-}
-
-
-void KeyedStoreIC::set_target(Code* code) {
-  // Language mode must be preserved across IC patching.
-  DCHECK(StoreICState::GetLanguageMode(code->extra_ic_state()) ==
-         language_mode());
-  IC::set_target(code);
-}
-
-
-Code* IC::raw_target() const {
+Code* IC::target() const {
   return GetTargetAtAddress(address(), constant_pool());
 }
-
-void IC::UpdateTarget() { target_ = handle(raw_target(), isolate_); }
-
 
 Handle<Map> IC::GetHandlerCacheHolder(Handle<Map> receiver_map,
                                       bool receiver_is_holder, Isolate* isolate,

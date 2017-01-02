@@ -37,16 +37,19 @@ if (process.argv[2] === 'child') {
     });
 
     child.on('close', function onChildClosed() {
-      assert(stderrOutput.indexOf(domainErrHandlerExMessage) !== -1);
-      assert(stderrOutput.indexOf(internalExMessage) === -1);
+      assert.notStrictEqual(
+        stderrOutput.indexOf(domainErrHandlerExMessage),
+        -1
+      );
+      assert.strictEqual(stderrOutput.indexOf(internalExMessage), -1);
     });
 
     child.on('exit', function onChildExited(exitCode, signal) {
       var expectedExitCode = 7;
       var expectedSignal = null;
 
-      assert.equal(exitCode, expectedExitCode);
-      assert.equal(signal, expectedSignal);
+      assert.strictEqual(exitCode, expectedExitCode);
+      assert.strictEqual(signal, expectedSignal);
     });
   }
 }

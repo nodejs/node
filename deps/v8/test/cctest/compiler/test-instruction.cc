@@ -268,7 +268,8 @@ TEST(InstructionAddGapMove) {
 
 
 TEST(InstructionOperands) {
-  Zone zone;
+  base::AccountingAllocator allocator;
+  Zone zone(&allocator);
 
   {
     TestInstr* i = TestInstr::New(&zone, 101);

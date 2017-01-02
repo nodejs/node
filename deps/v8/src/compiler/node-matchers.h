@@ -128,6 +128,7 @@ struct IntMatcher final : public ValueMatcher<T, kOpcode> {
     return this->HasValue() && this->Value() < 0 &&
            (-this->Value() & (-this->Value() - 1)) == 0;
   }
+  bool IsNegative() const { return this->HasValue() && this->Value() < 0; }
 };
 
 typedef IntMatcher<int32_t, IrOpcode::kInt32Constant> Int32Matcher;
@@ -157,6 +158,7 @@ struct FloatMatcher final : public ValueMatcher<T, kOpcode> {
   bool IsMinusZero() const {
     return this->Is(0.0) && std::signbit(this->Value());
   }
+  bool IsNegative() const { return this->HasValue() && this->Value() < 0.0; }
   bool IsNaN() const { return this->HasValue() && std::isnan(this->Value()); }
   bool IsZero() const { return this->Is(0.0) && !std::signbit(this->Value()); }
 };
@@ -171,6 +173,10 @@ struct HeapObjectMatcher final
     : public ValueMatcher<Handle<HeapObject>, IrOpcode::kHeapConstant> {
   explicit HeapObjectMatcher(Node* node)
       : ValueMatcher<Handle<HeapObject>, IrOpcode::kHeapConstant>(node) {}
+
+  bool Is(Handle<HeapObject> const& value) const {
+    return this->HasValue() && this->Value().address() == value.address();
+  }
 };
 
 
@@ -253,7 +259,8 @@ typedef BinopMatcher<UintPtrMatcher, UintPtrMatcher> UintPtrBinopMatcher;
 typedef BinopMatcher<Float32Matcher, Float32Matcher> Float32BinopMatcher;
 typedef BinopMatcher<Float64Matcher, Float64Matcher> Float64BinopMatcher;
 typedef BinopMatcher<NumberMatcher, NumberMatcher> NumberBinopMatcher;
-
+typedef BinopMatcher<HeapObjectMatcher, HeapObjectMatcher>
+    HeapObjectBinopMatcher;
 
 template <class BinopMatcher, IrOpcode::Value kMulOpcode,
           IrOpcode::Value kShiftOpcode>
@@ -312,11 +319,12 @@ typedef ScaleMatcher<Int32BinopMatcher, IrOpcode::kInt32Mul,
 typedef ScaleMatcher<Int64BinopMatcher, IrOpcode::kInt64Mul,
                      IrOpcode::kWord64Shl> Int64ScaleMatcher;
 
-
-template <class BinopMatcher, IrOpcode::Value kAddOpcode,
-          IrOpcode::Value kMulOpcode, IrOpcode::Value kShiftOpcode>
+template <class BinopMatcher, IrOpcode::Value AddOpcode,
+          IrOpcode::Value SubOpcode, IrOpcode::Value kMulOpcode,
+          IrOpcode::Value kShiftOpcode>
 struct AddMatcher : public BinopMatcher {
-  static const IrOpcode::Value kOpcode = kAddOpcode;
+  static const IrOpcode::Value kAddOpcode = AddOpcode;
+  static const IrOpcode::Value kSubOpcode = SubOpcode;
   typedef ScaleMatcher<BinopMatcher, kMulOpcode, kShiftOpcode> Matcher;
 
   AddMatcher(Node* node, bool allow_input_swap)
@@ -367,6 +375,9 @@ struct AddMatcher : public BinopMatcher {
     if (this->right().opcode() == kAddOpcode &&
         this->left().opcode() != kAddOpcode) {
       this->SwapInputs();
+    } else if (this->right().opcode() == kSubOpcode &&
+               this->left().opcode() != kSubOpcode) {
+      this->SwapInputs();
     }
   }
 
@@ -374,21 +385,35 @@ struct AddMatcher : public BinopMatcher {
   bool power_of_two_plus_one_;
 };
 
-typedef AddMatcher<Int32BinopMatcher, IrOpcode::kInt32Add, IrOpcode::kInt32Mul,
-                   IrOpcode::kWord32Shl> Int32AddMatcher;
-typedef AddMatcher<Int64BinopMatcher, IrOpcode::kInt64Add, IrOpcode::kInt64Mul,
-                   IrOpcode::kWord64Shl> Int64AddMatcher;
+typedef AddMatcher<Int32BinopMatcher, IrOpcode::kInt32Add, IrOpcode::kInt32Sub,
+                   IrOpcode::kInt32Mul, IrOpcode::kWord32Shl>
+    Int32AddMatcher;
+typedef AddMatcher<Int64BinopMatcher, IrOpcode::kInt64Add, IrOpcode::kInt64Sub,
+                   IrOpcode::kInt64Mul, IrOpcode::kWord64Shl>
+    Int64AddMatcher;
 
+enum DisplacementMode { kPositiveDisplacement, kNegativeDisplacement };
+
+enum class AddressOption : uint8_t {
+  kAllowNone = 0u,
+  kAllowInputSwap = 1u << 0,
+  kAllowScale = 1u << 1,
+  kAllowAll = kAllowInputSwap | kAllowScale
+};
+
+typedef base::Flags<AddressOption, uint8_t> AddressOptions;
+DEFINE_OPERATORS_FOR_FLAGS(AddressOptions);
 
 template <class AddMatcher>
 struct BaseWithIndexAndDisplacementMatcher {
-  BaseWithIndexAndDisplacementMatcher(Node* node, bool allow_input_swap)
+  BaseWithIndexAndDisplacementMatcher(Node* node, AddressOptions options)
       : matches_(false),
         index_(nullptr),
         scale_(0),
         base_(nullptr),
-        displacement_(nullptr) {
-    Initialize(node, allow_input_swap);
+        displacement_(nullptr),
+        displacement_mode_(kPositiveDisplacement) {
+    Initialize(node, options);
   }
 
   explicit BaseWithIndexAndDisplacementMatcher(Node* node)
@@ -396,8 +421,12 @@ struct BaseWithIndexAndDisplacementMatcher {
         index_(nullptr),
         scale_(0),
         base_(nullptr),
-        displacement_(nullptr) {
-    Initialize(node, node->op()->HasProperty(Operator::kCommutative));
+        displacement_(nullptr),
+        displacement_mode_(kPositiveDisplacement) {
+    Initialize(node, AddressOption::kAllowScale |
+                         (node->op()->HasProperty(Operator::kCommutative)
+                              ? AddressOption::kAllowInputSwap
+                              : AddressOption::kAllowNone));
   }
 
   bool matches() const { return matches_; }
@@ -405,6 +434,7 @@ struct BaseWithIndexAndDisplacementMatcher {
   int scale() const { return scale_; }
   Node* base() const { return base_; }
   Node* displacement() const { return displacement_; }
+  DisplacementMode displacement_mode() const { return displacement_mode_; }
 
  private:
   bool matches_;
@@ -412,8 +442,9 @@ struct BaseWithIndexAndDisplacementMatcher {
   int scale_;
   Node* base_;
   Node* displacement_;
+  DisplacementMode displacement_mode_;
 
-  void Initialize(Node* node, bool allow_input_swap) {
+  void Initialize(Node* node, AddressOptions options) {
     // The BaseWithIndexAndDisplacementMatcher canonicalizes the order of
     // displacements and scale factors that are used as inputs, so instead of
     // enumerating all possible patterns by brute force, checking for node
@@ -431,7 +462,7 @@ struct BaseWithIndexAndDisplacementMatcher {
     // (B + D)
     // (B + B)
     if (node->InputCount() < 2) return;
-    AddMatcher m(node, allow_input_swap);
+    AddMatcher m(node, options & AddressOption::kAllowInputSwap);
     Node* left = m.left().node();
     Node* right = m.right().node();
     Node* displacement = nullptr;
@@ -439,82 +470,123 @@ struct BaseWithIndexAndDisplacementMatcher {
     Node* index = nullptr;
     Node* scale_expression = nullptr;
     bool power_of_two_plus_one = false;
+    DisplacementMode displacement_mode = kPositiveDisplacement;
     int scale = 0;
     if (m.HasIndexInput() && left->OwnedBy(node)) {
       index = m.IndexInput();
       scale = m.scale();
       scale_expression = left;
       power_of_two_plus_one = m.power_of_two_plus_one();
-      if (right->opcode() == AddMatcher::kOpcode && right->OwnedBy(node)) {
+      bool match_found = false;
+      if (right->opcode() == AddMatcher::kSubOpcode && right->OwnedBy(node)) {
         AddMatcher right_matcher(right);
         if (right_matcher.right().HasValue()) {
-          // (S + (B + D))
+          // (S + (B - D))
           base = right_matcher.left().node();
           displacement = right_matcher.right().node();
+          displacement_mode = kNegativeDisplacement;
+          match_found = true;
+        }
+      }
+      if (!match_found) {
+        if (right->opcode() == AddMatcher::kAddOpcode && right->OwnedBy(node)) {
+          AddMatcher right_matcher(right);
+          if (right_matcher.right().HasValue()) {
+            // (S + (B + D))
+            base = right_matcher.left().node();
+            displacement = right_matcher.right().node();
+          } else {
+            // (S + (B + B))
+            base = right;
+          }
+        } else if (m.right().HasValue()) {
+          // (S + D)
+          displacement = right;
         } else {
-          // (S + (B + B))
+          // (S + B)
           base = right;
         }
-      } else if (m.right().HasValue()) {
-        // (S + D)
-        displacement = right;
-      } else {
-        // (S + B)
-        base = right;
       }
     } else {
-      if (left->opcode() == AddMatcher::kOpcode && left->OwnedBy(node)) {
+      bool match_found = false;
+      if (left->opcode() == AddMatcher::kSubOpcode && left->OwnedBy(node)) {
         AddMatcher left_matcher(left);
         Node* left_left = left_matcher.left().node();
         Node* left_right = left_matcher.right().node();
-        if (left_matcher.HasIndexInput() && left_left->OwnedBy(left)) {
-          if (left_matcher.right().HasValue()) {
-            // ((S + D) + B)
+        if (left_matcher.right().HasValue()) {
+          if (left_matcher.HasIndexInput() && left_left->OwnedBy(left)) {
+            // ((S - D) + B)
             index = left_matcher.IndexInput();
             scale = left_matcher.scale();
             scale_expression = left_left;
             power_of_two_plus_one = left_matcher.power_of_two_plus_one();
             displacement = left_right;
+            displacement_mode = kNegativeDisplacement;
             base = right;
-          } else if (m.right().HasValue()) {
-            // ((S + B) + D)
-            index = left_matcher.IndexInput();
-            scale = left_matcher.scale();
-            scale_expression = left_left;
-            power_of_two_plus_one = left_matcher.power_of_two_plus_one();
-            base = left_right;
-            displacement = right;
           } else {
-            // (B + B)
-            index = left;
-            base = right;
-          }
-        } else {
-          if (left_matcher.right().HasValue()) {
-            // ((B + D) + B)
+            // ((B - D) + B)
             index = left_left;
             displacement = left_right;
-            base = right;
-          } else if (m.right().HasValue()) {
-            // ((B + B) + D)
-            index = left_left;
-            base = left_right;
-            displacement = right;
-          } else {
-            // (B + B)
-            index = left;
+            displacement_mode = kNegativeDisplacement;
             base = right;
           }
+          match_found = true;
         }
-      } else {
-        if (m.right().HasValue()) {
-          // (B + D)
-          base = left;
-          displacement = right;
+      }
+      if (!match_found) {
+        if (left->opcode() == AddMatcher::kAddOpcode && left->OwnedBy(node)) {
+          AddMatcher left_matcher(left);
+          Node* left_left = left_matcher.left().node();
+          Node* left_right = left_matcher.right().node();
+          if (left_matcher.HasIndexInput() && left_left->OwnedBy(left)) {
+            if (left_matcher.right().HasValue()) {
+              // ((S + D) + B)
+              index = left_matcher.IndexInput();
+              scale = left_matcher.scale();
+              scale_expression = left_left;
+              power_of_two_plus_one = left_matcher.power_of_two_plus_one();
+              displacement = left_right;
+              base = right;
+            } else if (m.right().HasValue()) {
+              // ((S + B) + D)
+              index = left_matcher.IndexInput();
+              scale = left_matcher.scale();
+              scale_expression = left_left;
+              power_of_two_plus_one = left_matcher.power_of_two_plus_one();
+              base = left_right;
+              displacement = right;
+            } else {
+              // (B + B)
+              index = left;
+              base = right;
+            }
+          } else {
+            if (left_matcher.right().HasValue()) {
+              // ((B + D) + B)
+              index = left_left;
+              displacement = left_right;
+              base = right;
+            } else if (m.right().HasValue()) {
+              // ((B + B) + D)
+              index = left_left;
+              base = left_right;
+              displacement = right;
+            } else {
+              // (B + B)
+              index = left;
+              base = right;
+            }
+          }
         } else {
-          // (B + B)
-          base = left;
-          index = right;
+          if (m.right().HasValue()) {
+            // (B + D)
+            base = left;
+            displacement = right;
+          } else {
+            // (B + B)
+            base = left;
+            index = right;
+          }
         }
       }
     }
@@ -549,8 +621,13 @@ struct BaseWithIndexAndDisplacementMatcher {
         base = index;
       }
     }
+    if (!(options & AddressOption::kAllowScale) && scale != 0) {
+      index = scale_expression;
+      scale = 0;
+    }
     base_ = base;
     displacement_ = displacement;
+    displacement_mode_ = displacement_mode;
     index_ = index;
     scale_ = scale;
     matches_ = true;

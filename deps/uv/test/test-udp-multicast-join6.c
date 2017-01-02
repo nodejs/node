@@ -119,7 +119,10 @@ TEST_IMPL(udp_multicast_join6) {
   ASSERT(r == 0);
 
   /* join the multicast channel */
-#if defined(__APPLE__) || defined(_AIX)
+#if defined(__APPLE__)          || \
+    defined(_AIX)               || \
+    defined(__MVS__)            || \
+    defined(__FreeBSD_kernel__)
   r = uv_udp_set_membership(&client, "ff02::1", "::1%lo0", UV_JOIN_GROUP);
 #else
   r = uv_udp_set_membership(&client, "ff02::1", NULL, UV_JOIN_GROUP);

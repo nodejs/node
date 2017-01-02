@@ -9,24 +9,24 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Constants
 //------------------------------------------------------------------------------
 
-var QUOTE_SETTINGS = {
+const QUOTE_SETTINGS = {
     "prefer-double": {
         quote: "\"",
         description: "singlequote",
-        convert: function(str) {
+        convert(str) {
             return str.replace(/'/g, "\"");
         }
     },
     "prefer-single": {
         quote: "'",
         description: "doublequote",
-        convert: function(str) {
+        convert(str) {
             return str.replace(/"/g, "'");
         }
     }
@@ -53,8 +53,8 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
-        var quoteOption = context.options[0] || "prefer-double",
+    create(context) {
+        const quoteOption = context.options[0] || "prefer-double",
             setting = QUOTE_SETTINGS[quoteOption];
 
         /**
@@ -68,14 +68,17 @@ module.exports = {
         }
 
         return {
-            JSXAttribute: function(node) {
-                var attributeValue = node.value;
+            JSXAttribute(node) {
+                const attributeValue = node.value;
 
                 if (attributeValue && astUtils.isStringLiteral(attributeValue) && !usesExpectedQuotes(attributeValue)) {
                     context.report({
                         node: attributeValue,
-                        message: "Unexpected usage of " + setting.description + ".",
-                        fix: function(fixer) {
+                        message: "Unexpected usage of {{description}}.",
+                        data: {
+                            description: setting.description
+                        },
+                        fix(fixer) {
                             return fixer.replaceText(attributeValue, setting.convert(attributeValue.raw));
                         }
                     });

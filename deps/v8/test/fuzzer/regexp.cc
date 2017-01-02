@@ -30,7 +30,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   v8::Context::Scope context_scope(support->GetContext());
   v8::TryCatch try_catch(isolate);
 
-  i::FLAG_harmony_unicode_regexps = true;
   i::FLAG_harmony_regexp_lookbehind = true;
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -63,7 +62,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
       v8::TryCatch try_catch(isolate);
       i::MaybeHandle<i::JSRegExp> maybe_regexp =
           i::JSRegExp::New(source, static_cast<i::JSRegExp::Flags>(flags));
-      if (!maybe_regexp.ToHandle(&regexp)) continue;
+      if (!maybe_regexp.ToHandle(&regexp)) {
+        i_isolate->clear_pending_exception();
+        continue;
+      }
     }
     Test(isolate, regexp, one_byte, results_array);
     Test(isolate, regexp, two_byte, results_array);
@@ -71,5 +73,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     Test(isolate, regexp, source, results_array);
   }
 
+  isolate->RequestGarbageCollectionForTesting(
+      v8::Isolate::kFullGarbageCollection);
   return 0;
 }

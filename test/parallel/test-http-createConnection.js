@@ -21,7 +21,7 @@ const server = http.createServer(common.mustCall(function(req, res) {
           res.resume();
           fn = common.mustCall(createConnectionError);
           http.get({ createConnection: fn }, function(res) {
-            assert.fail(null, null, 'Unexpected response callback');
+            common.fail('Unexpected response callback');
           }).on('error', common.mustCall(function(err) {
             assert.equal(err.message, 'Could not create socket');
             server.close();

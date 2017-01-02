@@ -134,7 +134,7 @@ class StringSearch : private StringSearchBase {
   }
 
  private:
-  typedef size_t (*SearchFunction)(  // NOLINT - it's not a cast!
+  typedef size_t (*SearchFunction)(
       StringSearch<Char>*,
       Vector<const Char>,
       size_t);
@@ -623,8 +623,8 @@ size_t SearchString(Vector<const Char> subject,
   StringSearch<Char> search(pattern);
   return search.Search(subject, start_index);
 }
-}
-}  // namespace node::stringsearch
+}  // namespace stringsearch
+}  // namespace node
 
 namespace node {
 using node::stringsearch::Vector;

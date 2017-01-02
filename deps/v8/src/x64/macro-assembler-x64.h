@@ -21,8 +21,8 @@ const Register kReturnRegister1 = {Register::kCode_rdx};
 const Register kReturnRegister2 = {Register::kCode_r8};
 const Register kJSFunctionRegister = {Register::kCode_rdi};
 const Register kContextRegister = {Register::kCode_rsi};
+const Register kAllocateSizeRegister = {Register::kCode_rdx};
 const Register kInterpreterAccumulatorRegister = {Register::kCode_rax};
-const Register kInterpreterRegisterFileRegister = {Register::kCode_r11};
 const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_r12};
 const Register kInterpreterBytecodeArrayRegister = {Register::kCode_r14};
 const Register kInterpreterDispatchTableRegister = {Register::kCode_r15};
@@ -34,8 +34,9 @@ const Register kRuntimeCallArgCountRegister = {Register::kCode_rax};
 // Default scratch register used by MacroAssembler (and other code that needs
 // a spare register). The register isn't callee save, and not used by the
 // function calling convention.
-const Register kScratchRegister = { 10 };      // r10.
-const Register kRootRegister = { 13 };         // r13 (callee save).
+const Register kScratchRegister = {10};      // r10.
+const XMMRegister kScratchDoubleReg = {15};  // xmm15.
+const Register kRootRegister = {13};         // r13 (callee save).
 // Actual value of root register is offset from the root array's start
 // to take advantage of negitive 8-bit displacement values.
 const int kRootRegisterBias = 128;
@@ -55,6 +56,8 @@ enum class SmiOperationConstraint {
   kBailoutOnNoOverflow = 1 << 1,
   kBailoutOnOverflow = 1 << 2
 };
+
+enum class ReturnAddressState { kOnStack, kNotOnStack };
 
 typedef base::Flags<SmiOperationConstraint> SmiOperationConstraints;
 
@@ -326,7 +329,7 @@ class MacroAssembler: public Assembler {
   void DebugBreak();
 
   // Generates function and stub prologue code.
-  void StubPrologue();
+  void StubPrologue(StackFrame::Type type);
   void Prologue(bool code_pre_aging);
 
   // Enter specific kind of exit frame; either in normal or
@@ -336,7 +339,8 @@ class MacroAssembler: public Assembler {
   //
   // Allocates arg_stack_space * kPointerSize memory (not GCed) on the stack
   // accessible via StackSpaceOperand.
-  void EnterExitFrame(int arg_stack_space = 0, bool save_doubles = false);
+  void EnterExitFrame(int arg_stack_space = 0, bool save_doubles = false,
+                      StackFrame::Type frame_type = StackFrame::EXIT);
 
   // Enter specific kind of exit frame. Allocates arg_stack_space * kPointerSize
   // memory (not GCed) on the stack accessible via StackSpaceOperand.
@@ -369,6 +373,16 @@ class MacroAssembler: public Assembler {
 
   // ---------------------------------------------------------------------------
   // JavaScript invokes
+
+  // Removes current frame and its arguments from the stack preserving
+  // the arguments and a return address pushed to the stack for the next call.
+  // |ra_state| defines whether return address is already pushed to stack or
+  // not. Both |callee_args_count| and |caller_args_count_reg| do not include
+  // receiver. |callee_args_count| is not modified, |caller_args_count_reg|
+  // is trashed.
+  void PrepareForTailCall(const ParameterCount& callee_args_count,
+                          Register caller_args_count_reg, Register scratch0,
+                          Register scratch1, ReturnAddressState ra_state);
 
   // Invoke the JavaScript function code by either calling or jumping.
   void InvokeFunctionCode(Register function, Register new_target,
@@ -914,7 +928,6 @@ class MacroAssembler: public Assembler {
     AllowDeferredHandleDereference using_raw_address;
     DCHECK(!RelocInfo::IsNone(rmode));
     DCHECK(value->IsHeapObject());
-    DCHECK(!isolate()->heap()->InNewSpace(*value));
     movp(dst, reinterpret_cast<void*>(value.location()), rmode);
   }
 
@@ -943,10 +956,24 @@ class MacroAssembler: public Assembler {
   AVX_OP2_XO(Addsd, addsd)
   AVX_OP2_XO(Subsd, subsd)
   AVX_OP2_XO(Mulsd, mulsd)
+  AVX_OP2_XO(Divss, divss)
   AVX_OP2_XO(Divsd, divsd)
-  AVX_OP2_X(Andpd, andpd)
-  AVX_OP2_X(Orpd, orpd)
-  AVX_OP2_X(Xorpd, xorpd)
+  AVX_OP2_XO(Andps, andps)
+  AVX_OP2_XO(Andpd, andpd)
+  AVX_OP2_XO(Orpd, orpd)
+  AVX_OP2_XO(Xorpd, xorpd)
+  AVX_OP2_XO(Cmpeqps, cmpeqps)
+  AVX_OP2_XO(Cmpltps, cmpltps)
+  AVX_OP2_XO(Cmpleps, cmpleps)
+  AVX_OP2_XO(Cmpneqps, cmpneqps)
+  AVX_OP2_XO(Cmpnltps, cmpnltps)
+  AVX_OP2_XO(Cmpnleps, cmpnleps)
+  AVX_OP2_XO(Cmpeqpd, cmpeqpd)
+  AVX_OP2_XO(Cmpltpd, cmpltpd)
+  AVX_OP2_XO(Cmplepd, cmplepd)
+  AVX_OP2_XO(Cmpneqpd, cmpneqpd)
+  AVX_OP2_XO(Cmpnltpd, cmpnltpd)
+  AVX_OP2_XO(Cmpnlepd, cmpnlepd)
   AVX_OP2_X(Pcmpeqd, pcmpeqd)
   AVX_OP2_WITH_TYPE(Psllq, psllq, byte)
   AVX_OP2_WITH_TYPE(Psrlq, psrlq, byte)
@@ -970,8 +997,17 @@ class MacroAssembler: public Assembler {
   void Movq(Register dst, XMMRegister src);
 
   void Movaps(XMMRegister dst, XMMRegister src);
+  void Movups(XMMRegister dst, XMMRegister src);
+  void Movups(XMMRegister dst, const Operand& src);
+  void Movups(const Operand& dst, XMMRegister src);
+  void Movmskps(Register dst, XMMRegister src);
   void Movapd(XMMRegister dst, XMMRegister src);
+  void Movupd(XMMRegister dst, const Operand& src);
+  void Movupd(const Operand& dst, XMMRegister src);
   void Movmskpd(Register dst, XMMRegister src);
+
+  void Xorps(XMMRegister dst, XMMRegister src);
+  void Xorps(XMMRegister dst, const Operand& src);
 
   void Roundss(XMMRegister dst, XMMRegister src, RoundingMode mode);
   void Roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode);
@@ -982,6 +1018,13 @@ class MacroAssembler: public Assembler {
   void Ucomiss(XMMRegister src1, const Operand& src2);
   void Ucomisd(XMMRegister src1, XMMRegister src2);
   void Ucomisd(XMMRegister src1, const Operand& src2);
+
+  // ---------------------------------------------------------------------------
+  // SIMD macros.
+  void Absps(XMMRegister dst);
+  void Negps(XMMRegister dst);
+  void Abspd(XMMRegister dst);
+  void Negpd(XMMRegister dst);
 
   // Control Flow
   void Jump(Address destination, RelocInfo::Mode rmode);
@@ -1012,12 +1055,6 @@ class MacroAssembler: public Assembler {
   int CallSize(const Operand& target) {
     // Opcode: REX_opt FF /2 m64
     return (target.requires_rex() ? 2 : 1) + target.operand_size();
-  }
-
-  // Emit call to the code we are currently generating.
-  void CallSelf() {
-    Handle<Code> self(reinterpret_cast<Code**>(CodeObject().location()));
-    Call(self, RelocInfo::CODE_TARGET);
   }
 
   // Non-SSE2 instructions.
@@ -1191,6 +1228,7 @@ class MacroAssembler: public Assembler {
 
   // Abort execution if argument is not a number, enabled via --debug-code.
   void AssertNumber(Register object);
+  void AssertNotNumber(Register object);
 
   // Abort execution if argument is a smi, enabled via --debug-code.
   void AssertNotSmi(Register object);
@@ -1215,6 +1253,10 @@ class MacroAssembler: public Assembler {
   // Abort execution if argument is not a JSBoundFunction,
   // enabled via --debug-code.
   void AssertBoundFunction(Register object);
+
+  // Abort execution if argument is not a JSGeneratorObject,
+  // enabled via --debug-code.
+  void AssertGeneratorObject(Register object);
 
   // Abort execution if argument is not a JSReceiver, enabled via --debug-code.
   void AssertReceiver(Register object);
@@ -1295,6 +1337,15 @@ class MacroAssembler: public Assembler {
                 Register scratch,
                 Label* gc_required,
                 AllocationFlags flags);
+
+  // FastAllocate is right now only used for folded allocations. It just
+  // increments the top pointer without checking against limit. This can only
+  // be done if it was proved earlier that the allocation will succeed.
+  void FastAllocate(int object_size, Register result, Register result_end,
+                    AllocationFlags flags);
+
+  void FastAllocate(Register object_size, Register result, Register result_end,
+                    AllocationFlags flags);
 
   // Allocate a heap number in new space with undefined value. Returns
   // tagged pointer in result register, or jumps to gc_required if new
@@ -1448,7 +1499,8 @@ class MacroAssembler: public Assembler {
   void TailCallRuntime(Runtime::FunctionId fid);
 
   // Jump to a runtime routines
-  void JumpToExternalReference(const ExternalReference& ext);
+  void JumpToExternalReference(const ExternalReference& ext,
+                               bool builtin_exit_frame = false);
 
   // Before calling a C-function from generated code, align arguments on stack.
   // After aligning the frame, arguments must be stored in rsp[0], rsp[8],
@@ -1553,6 +1605,9 @@ class MacroAssembler: public Assembler {
   void EnterFrame(StackFrame::Type type, bool load_constant_pool_pointer_reg);
   void LeaveFrame(StackFrame::Type type);
 
+  void EnterBuiltinFrame(Register context, Register target, Register argc);
+  void LeaveBuiltinFrame(Register context, Register target, Register argc);
+
   // Expects object in rax and returns map with validated enum cache
   // in rax.  Assumes that any other register can be used as a scratch.
   void CheckEnumCache(Label* call_runtime);
@@ -1613,7 +1668,7 @@ class MacroAssembler: public Assembler {
                       Label::Distance near_jump,
                       const CallWrapper& call_wrapper);
 
-  void EnterExitFramePrologue(bool save_rax);
+  void EnterExitFramePrologue(bool save_rax, StackFrame::Type frame_type);
 
   // Allocates arg_stack_space * kPointerSize memory (not GCed) on the stack
   // accessible via StackSpaceOperand.
@@ -1735,26 +1790,7 @@ inline Operand StackOperandForReturnAddress(int32_t disp) {
   return Operand(rsp, disp);
 }
 
-
-#ifdef GENERATED_CODE_COVERAGE
-extern void LogGeneratedCodeCoverage(const char* file_line);
-#define CODE_COVERAGE_STRINGIFY(x) #x
-#define CODE_COVERAGE_TOSTRING(x) CODE_COVERAGE_STRINGIFY(x)
-#define __FILE_LINE__ __FILE__ ":" CODE_COVERAGE_TOSTRING(__LINE__)
-#define ACCESS_MASM(masm) {                                                  \
-    Address x64_coverage_function = FUNCTION_ADDR(LogGeneratedCodeCoverage); \
-    masm->pushfq();                                                          \
-    masm->Pushad();                                                          \
-    masm->Push(Immediate(reinterpret_cast<int>(&__FILE_LINE__)));            \
-    masm->Call(x64_coverage_function, RelocInfo::EXTERNAL_REFERENCE);        \
-    masm->Pop(rax);                                                          \
-    masm->Popad();                                                           \
-    masm->popfq();                                                           \
-  }                                                                          \
-  masm->
-#else
 #define ACCESS_MASM(masm) masm->
-#endif
 
 }  // namespace internal
 }  // namespace v8

@@ -28,10 +28,29 @@ typedef uint32_t Mark;
 // out-of-line data associated with each node.
 typedef uint32_t NodeId;
 
-
-class Graph : public ZoneObject {
+class Graph final : public ZoneObject {
  public:
   explicit Graph(Zone* zone);
+
+  // Scope used when creating a subgraph for inlining. Automatically preserves
+  // the original start and end nodes of the graph, and resets them when you
+  // leave the scope.
+  class SubgraphScope final {
+   public:
+    explicit SubgraphScope(Graph* graph)
+        : graph_(graph), start_(graph->start()), end_(graph->end()) {}
+    ~SubgraphScope() {
+      graph_->SetStart(start_);
+      graph_->SetEnd(end_);
+    }
+
+   private:
+    Graph* const graph_;
+    Node* const start_;
+    Node* const end_;
+
+    DISALLOW_COPY_AND_ASSIGN(SubgraphScope);
+  };
 
   // Base implementation used by all factory methods.
   Node* NewNodeUnchecked(const Operator* op, int input_count,

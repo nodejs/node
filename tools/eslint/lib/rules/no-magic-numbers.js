@@ -41,8 +41,8 @@ module.exports = {
         }]
     },
 
-    create: function(context) {
-        var config = context.options[0] || {},
+    create(context) {
+        const config = context.options[0] || {},
             detectObjects = !!config.detectObjects,
             enforceConst = !!config.enforceConst,
             ignore = config.ignore || [],
@@ -99,11 +99,11 @@ module.exports = {
         }
 
         return {
-            Literal: function(node) {
-                var parent = node.parent,
+            Literal(node) {
+                let parent = node.parent,
                     value = node.value,
-                    raw = node.raw,
-                    okTypes = detectObjects ? [] : ["ObjectExpression", "Property", "AssignmentExpression"];
+                    raw = node.raw;
+                const okTypes = detectObjects ? [] : ["ObjectExpression", "Property", "AssignmentExpression"];
 
                 if (!isNumber(node)) {
                     return;
@@ -114,7 +114,7 @@ module.exports = {
                     node = parent;
                     parent = node.parent;
                     value = -value;
-                    raw = "-" + raw;
+                    raw = `-${raw}`;
                 }
 
                 if (shouldIgnoreNumber(value) ||
@@ -127,15 +127,20 @@ module.exports = {
                 if (parent.type === "VariableDeclarator") {
                     if (enforceConst && parent.parent.kind !== "const") {
                         context.report({
-                            node: node,
-                            message: "Number constants declarations must use 'const'"
+                            node,
+                            message: "Number constants declarations must use 'const'."
                         });
                     }
-                } else if (okTypes.indexOf(parent.type) === -1 ||
-                    (parent.type === "AssignmentExpression" && parent.operator !== "=")) {
+                } else if (
+                    okTypes.indexOf(parent.type) === -1 ||
+                    (parent.type === "AssignmentExpression" && parent.left.type === "Identifier")
+                ) {
                     context.report({
-                        node: node,
-                        message: "No magic number: " + raw
+                        node,
+                        message: "No magic number: {{raw}}.",
+                        data: {
+                            raw
+                        }
                     });
                 }
             }

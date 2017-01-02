@@ -12,7 +12,7 @@
 module.exports = {
     meta: {
         docs: {
-            description: "disallow `require` calls to be mixed with regular `var` declarations",
+            description: "disallow `require` calls to be mixed with regular variable declarations",
             category: "Node.js and CommonJS",
             recommended: false
         },
@@ -40,11 +40,11 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
-        var grouping = false,
-            allowCall = false,
-            options = context.options[0];
+        const options = context.options[0];
+        let grouping = false,
+            allowCall = false;
 
         if (typeof options === "object") {
             grouping = options.grouping;
@@ -74,13 +74,13 @@ module.exports = {
             ];
         }
 
-        var BUILTIN_MODULES = getBuiltinModules();
+        const BUILTIN_MODULES = getBuiltinModules();
 
-        var DECL_REQUIRE = "require",
+        const DECL_REQUIRE = "require",
             DECL_UNINITIALIZED = "uninitialized",
             DECL_OTHER = "other";
 
-        var REQ_CORE = "core",
+        const REQ_CORE = "core",
             REQ_FILE = "file",
             REQ_MODULE = "module",
             REQ_COMPUTED = "computed";
@@ -137,7 +137,7 @@ module.exports = {
                 return REQ_COMPUTED;
             }
 
-            var arg = initExpression.arguments[0];
+            const arg = initExpression.arguments[0];
 
             if (arg.type !== "Literal" || typeof arg.value !== "string") {
 
@@ -167,10 +167,10 @@ module.exports = {
          * @returns {boolean} True if the declarations are mixed, false if not.
          */
         function isMixed(declarations) {
-            var contains = {};
+            const contains = {};
 
             declarations.forEach(function(declaration) {
-                var type = getDeclarationType(declaration.init);
+                const type = getDeclarationType(declaration.init);
 
                 contains[type] = true;
             });
@@ -188,7 +188,7 @@ module.exports = {
          * @returns {boolean} True if the declarations are grouped, false if not.
          */
         function isGrouped(declarations) {
-            var found = {};
+            const found = {};
 
             declarations.forEach(function(declaration) {
                 if (getDeclarationType(declaration.init) === DECL_REQUIRE) {
@@ -202,7 +202,7 @@ module.exports = {
 
         return {
 
-            VariableDeclaration: function(node) {
+            VariableDeclaration(node) {
 
                 if (isMixed(node.declarations)) {
                     context.report(

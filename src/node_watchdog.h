@@ -5,6 +5,7 @@
 
 #include "v8.h"
 #include "uv.h"
+#include "node_mutex.h"
 #include <vector>
 
 #ifdef __POSIX__
@@ -39,53 +40,59 @@ class Watchdog {
 };
 
 class SigintWatchdog {
-  public:
-    explicit SigintWatchdog(v8::Isolate* isolate);
-    ~SigintWatchdog();
+ public:
+  explicit SigintWatchdog(v8::Isolate* isolate);
+  ~SigintWatchdog();
 
-    void Dispose();
+  void Dispose();
 
-    v8::Isolate* isolate() { return isolate_; }
-    void HandleSigint();
-  private:
-    void Destroy();
+  v8::Isolate* isolate() { return isolate_; }
+  bool HasReceivedSignal() { return received_signal_; }
+  void HandleSigint();
 
-    v8::Isolate* isolate_;
-    bool destroyed_;
+ private:
+  void Destroy();
+
+  v8::Isolate* isolate_;
+  bool received_signal_;
+  bool destroyed_;
 };
 
 class SigintWatchdogHelper {
-  public:
-    static SigintWatchdogHelper* GetInstance() { return &instance; }
-    void Register(SigintWatchdog* watchdog);
-    void Unregister(SigintWatchdog* watchdog);
+ public:
+  static SigintWatchdogHelper* GetInstance() { return &instance; }
+  void Register(SigintWatchdog* watchdog);
+  void Unregister(SigintWatchdog* watchdog);
+  bool HasPendingSignal();
 
-    int Start();
-    bool Stop();
-  private:
-    SigintWatchdogHelper();
-    ~SigintWatchdogHelper();
+  int Start();
+  bool Stop();
 
-    static bool InformWatchdogsAboutSignal();
-    static SigintWatchdogHelper instance;
+ private:
+  SigintWatchdogHelper();
+  ~SigintWatchdogHelper();
 
-    int start_stop_count_;
+  static bool InformWatchdogsAboutSignal();
+  static SigintWatchdogHelper instance;
 
-    uv_mutex_t mutex_;
-    uv_mutex_t list_mutex_;
-    std::vector<SigintWatchdog*> watchdogs_;
-    bool has_pending_signal_;
+  int start_stop_count_;
+
+  Mutex mutex_;
+  Mutex list_mutex_;
+  std::vector<SigintWatchdog*> watchdogs_;
+  bool has_pending_signal_;
 
 #ifdef __POSIX__
-    pthread_t thread_;
-    uv_sem_t sem_;
-    bool has_running_thread_;
-    bool stopping_;
+  pthread_t thread_;
+  uv_sem_t sem_;
+  bool has_running_thread_;
+  bool stopping_;
 
-    static void* RunSigintWatchdog(void* arg);
-    static void HandleSignal(int signum);
+  static void* RunSigintWatchdog(void* arg);
+  static void HandleSignal(int signum);
 #else
-    static BOOL WINAPI WinCtrlCHandlerRoutine(DWORD dwCtrlType);
+  bool watchdog_disabled_;
+  static BOOL WINAPI WinCtrlCHandlerRoutine(DWORD dwCtrlType);
 #endif
 };
 

@@ -12,12 +12,14 @@ var bench = common.createBenchmark(main, {
 
 function main(conf) {
   process.env.PORT = PORT;
-  var server = require('../http_simple.js');
+  var server = require('./_http_simple.js');
   setTimeout(function() {
     var path = '/' + conf.type + '/' + conf.length + '/' + conf.chunks;
-    var args = ['-d', '10s', '-t', 8, '-c', conf.c];
 
-    bench.http(path, args, function() {
+    bench.http({
+      path: path,
+      connections: conf.c
+    }, function() {
       server.close();
     });
   }, 2000);

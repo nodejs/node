@@ -20,7 +20,7 @@
  *      `null`.
  */
 function getContainingLoopNode(node) {
-    var parent = node.parent;
+    let parent = node.parent;
 
     while (parent) {
         switch (parent.type) {
@@ -73,8 +73,8 @@ function getContainingLoopNode(node) {
  * @returns {ASTNode} The most outer loop node.
  */
 function getTopLoopNode(node, excludedNode) {
-    var retv = null;
-    var border = excludedNode ? excludedNode.range[1] : 0;
+    let retv = node;
+    const border = excludedNode ? excludedNode.range[1] : 0;
 
     while (node && node.range[0] >= border) {
         retv = node;
@@ -94,10 +94,10 @@ function getTopLoopNode(node, excludedNode) {
  * @returns {boolean} `true` if the reference is safe or not.
  */
 function isSafe(funcNode, loopNode, reference) {
-    var variable = reference.resolved;
-    var definition = variable && variable.defs[0];
-    var declaration = definition && definition.parent;
-    var kind = (declaration && declaration.type === "VariableDeclaration")
+    const variable = reference.resolved;
+    const definition = variable && variable.defs[0];
+    const declaration = definition && definition.parent;
+    const kind = (declaration && declaration.type === "VariableDeclaration")
         ? declaration.kind
         : "";
 
@@ -117,7 +117,7 @@ function isSafe(funcNode, loopNode, reference) {
 
     // WriteReferences which exist after this border are unsafe because those
     // can modify the variable.
-    var border = getTopLoopNode(
+    const border = getTopLoopNode(
         loopNode,
         (kind === "let") ? declaration : null
     ).range[0];
@@ -135,7 +135,7 @@ function isSafe(funcNode, loopNode, reference) {
      * @returns {boolean} `true` if the reference is safe.
      */
     function isSafeReference(upperRef) {
-        var id = upperRef.identifier;
+        const id = upperRef.identifier;
 
         return (
             !upperRef.isWrite() ||
@@ -162,7 +162,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         /**
          * Reports functions which match the following condition:
@@ -174,18 +174,18 @@ module.exports = {
          * @returns {boolean} Whether or not the node is within a loop.
          */
         function checkForLoops(node) {
-            var loopNode = getContainingLoopNode(node);
+            const loopNode = getContainingLoopNode(node);
 
             if (!loopNode) {
                 return;
             }
 
-            var references = context.getScope().through;
+            const references = context.getScope().through;
 
             if (references.length > 0 &&
                 !references.every(isSafe.bind(null, node, loopNode))
             ) {
-                context.report(node, "Don't make functions within a loop");
+                context.report(node, "Don't make functions within a loop.");
             }
         }
 

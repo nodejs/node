@@ -2,19 +2,16 @@
 // Just test that destroying stdin doesn't mess up listening on a server.
 // This is a regression test for GH-746.
 
-require('../common');
-var assert = require('assert');
+const common = require('../common');
 var net = require('net');
 
 process.stdin.destroy();
 
-var accepted = null;
-var server = net.createServer(function(socket) {
+var server = net.createServer(common.mustCall(function(socket) {
   console.log('accepted');
-  accepted = socket;
   socket.end();
   server.close();
-});
+}));
 
 
 server.listen(0, function() {
@@ -22,9 +19,3 @@ server.listen(0, function() {
 
   net.createConnection(this.address().port);
 });
-
-
-process.on('exit', function() {
-  assert.ok(accepted);
-});
-

@@ -55,11 +55,11 @@ setInterval(function() {
 }, SHORT_TIME);
 
 // Should not assert on args.Holder()->InternalFieldCount() > 0. See #4261.
-(function() {
-  var t = setInterval(function() {}, 1);
+{
+  const t = setInterval(function() {}, 1);
   process.nextTick(t.unref.bind({}));
   process.nextTick(t.unref.bind(t));
-})();
+}
 
 process.on('exit', function() {
   assert.strictEqual(interval_fired, false,

@@ -8,16 +8,13 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var debug = require("debug"),
-    envs = require("../../conf/environments");
+const envs = require("../../conf/environments");
 
 //------------------------------------------------------------------------------
 // Private
 //------------------------------------------------------------------------------
 
-debug = debug("eslint:enviroments");
-
-var environments = Object.create(null);
+let environments = new Map();
 
 /**
  * Loads the default environments.
@@ -26,7 +23,7 @@ var environments = Object.create(null);
  */
 function load() {
     Object.keys(envs).forEach(function(envName) {
-        environments[envName] = envs[envName];
+        environments.set(envName, envs[envName]);
     });
 }
 
@@ -39,15 +36,15 @@ load();
 
 module.exports = {
 
-    load: load,
+    load,
 
     /**
      * Gets the environment with the given name.
      * @param {string} name The name of the environment to retrieve.
      * @returns {Object?} The environment object or null if not found.
      */
-    get: function(name) {
-        return environments[name] || null;
+    get(name) {
+        return environments.get(name) || null;
     },
 
     /**
@@ -56,8 +53,8 @@ module.exports = {
      * @param {Object} env The environment settings.
      * @returns {void}
      */
-    define: function(name, env) {
-        environments[name] = env;
+    define(name, env) {
+        environments.set(name, env);
     },
 
     /**
@@ -66,10 +63,10 @@ module.exports = {
      * @param {string} pluginName The name of the plugin.
      * @returns {void}
      */
-    importPlugin: function(plugin, pluginName) {
+    importPlugin(plugin, pluginName) {
         if (plugin.environments) {
             Object.keys(plugin.environments).forEach(function(envName) {
-                this.define(pluginName + "/" + envName, plugin.environments[envName]);
+                this.define(`${pluginName}/${envName}`, plugin.environments[envName]);
             }, this);
         }
     },
@@ -78,8 +75,8 @@ module.exports = {
      * Resets all environments. Only use for tests!
      * @returns {void}
      */
-    testReset: function() {
-        environments = Object.create(null);
+    testReset() {
+        environments = new Map();
         load();
     }
 };

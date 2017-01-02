@@ -20,7 +20,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         //--------------------------------------------------------------------------
         // Helpers
@@ -33,7 +33,7 @@ module.exports = {
          * @returns {void}
          */
         function displayReport(node) {
-            context.report(node, "Unexpected 'else' after 'return'.");
+            context.report(node, "Unnecessary 'else' after 'return'.");
         }
 
         /**
@@ -56,7 +56,7 @@ module.exports = {
          */
         function naiveHasReturn(node) {
             if (node.type === "BlockStatement") {
-                var body = node.body,
+                const body = node.body,
                     lastChildNode = body[body.length - 1];
 
                 return lastChildNode && checkForReturn(lastChildNode);
@@ -112,14 +112,13 @@ module.exports = {
 
                 // If we have a BlockStatement, check each consequent body node.
                 return node.body.some(checkForReturnOrIf);
-            } else {
-
-                /*
-                 * If not a block statement, make sure the consequent isn't a
-                 * ReturnStatement or an IfStatement with returns on both paths.
-                 */
-                return checkForReturnOrIf(node);
             }
+
+            /*
+             * If not a block statement, make sure the consequent isn't a
+             * ReturnStatement or an IfStatement with returns on both paths.
+             */
+            return checkForReturnOrIf(node);
         }
 
         //--------------------------------------------------------------------------
@@ -128,9 +127,9 @@ module.exports = {
 
         return {
 
-            IfStatement: function(node) {
-                var parent = context.getAncestors().pop(),
-                    consequents,
+            IfStatement(node) {
+                const parent = context.getAncestors().pop();
+                let consequents,
                     alternate;
 
                 // Only "top-level" if statements are checked, meaning the first `if`

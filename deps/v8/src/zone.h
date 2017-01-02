@@ -7,10 +7,10 @@
 
 #include <limits>
 
-#include "src/allocation.h"
+#include "src/base/accounting-allocator.h"
+#include "src/base/hashmap.h"
 #include "src/base/logging.h"
 #include "src/globals.h"
-#include "src/hashmap.h"
 #include "src/list.h"
 #include "src/splay-tree.h"
 
@@ -35,7 +35,7 @@ class Segment;
 // from multi-threaded code.
 class Zone final {
  public:
-  Zone();
+  explicit Zone(base::AccountingAllocator* allocator);
   ~Zone();
 
   // Allocate 'size' bytes of memory in the Zone; expands the Zone by
@@ -63,6 +63,8 @@ class Zone final {
   }
 
   size_t allocation_size() const { return allocation_size_; }
+
+  base::AccountingAllocator* allocator() const { return allocator_; }
 
  private:
   // All pointers returned from New() have this alignment.  In addition, if the
@@ -113,6 +115,8 @@ class Zone final {
   // is guaranteed to be aligned as dictated by kAlignment.
   Address position_;
   Address limit_;
+
+  base::AccountingAllocator* allocator_;
 
   Segment* segment_head_;
 };
@@ -240,8 +244,7 @@ class ZoneSplayTree final : public SplayTree<Config, ZoneAllocationPolicy> {
   void operator delete(void* pointer, Zone* zone) { UNREACHABLE(); }
 };
 
-
-typedef TemplateHashMapImpl<ZoneAllocationPolicy> ZoneHashMap;
+typedef base::TemplateHashMapImpl<ZoneAllocationPolicy> ZoneHashMap;
 
 }  // namespace internal
 }  // namespace v8

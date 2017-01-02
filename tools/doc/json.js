@@ -31,7 +31,7 @@ function doJSON(input, filename, cb) {
     // <!-- type = module -->
     // This is for cases where the markdown semantic structure is lacking.
     if (type === 'paragraph' || type === 'html') {
-      var metaExpr = /<!--([^=]+)=([^\-]+)-->\n*/g;
+      var metaExpr = /<!--([^=]+)=([^-]+)-->\n*/g;
       text = text.replace(metaExpr, function(_0, k, v) {
         current[k.trim()] = v.trim();
         return '';
@@ -82,19 +82,19 @@ function doJSON(input, filename, cb) {
 
     // Immediately after a heading, we can expect the following
     //
-    // { type: 'code', text: 'Stability: ...' },
+    // { type: 'blockquote_start' }
+    // { type: 'paragraph', text: 'Stability: ...' },
+    // { type: 'blockquote_end' }
     //
     // a list: starting with list_start, ending with list_end,
     // maybe containing other nested lists in each item.
     //
-    // If one of these isnt' found, then anything that comes between
+    // If one of these isn't found, then anything that comes between
     // here and the next heading should be parsed as the desc.
     var stability;
     if (state === 'AFTERHEADING') {
-      if (type === 'code' &&
-          (stability = text.match(/^Stability: ([0-5])(?:\s*-\s*)?(.*)$/))) {
-        current.stability = parseInt(stability[1], 10);
-        current.stabilityText = stability[2].trim();
+      if (type === 'blockquote_start') {
+        state = 'AFTERHEADING_BLOCKQUOTE';
         return;
       } else if (type === 'list_start' && !tok.ordered) {
         state = 'AFTERHEADING_LIST';
@@ -102,13 +102,14 @@ function doJSON(input, filename, cb) {
         current.list.push(tok);
         current.list.level = 1;
       } else if (type === 'html' && common.isYAMLBlock(tok.text)) {
-        current.meta = parseYAML(tok.text);
+        current.meta = common.extractAndParseYAML(tok.text);
       } else {
         current.desc = current.desc || [];
         if (!Array.isArray(current.desc)) {
           current.shortDesc = current.desc;
           current.desc = [];
         }
+        current.desc.links = lexed.links;
         current.desc.push(tok);
         state = 'DESC';
       }
@@ -129,7 +130,22 @@ function doJSON(input, filename, cb) {
       return;
     }
 
+    if (state === 'AFTERHEADING_BLOCKQUOTE') {
+      if (type === 'blockquote_end') {
+        state = 'AFTERHEADING';
+        return;
+      }
+
+      if (type === 'paragraph' &&
+          (stability = text.match(/^Stability: ([0-5])(?:\s*-\s*)?(.*)$/))) {
+        current.stability = parseInt(stability[1], 10);
+        current.stabilityText = stability[2].trim();
+        return;
+      }
+    }
+
     current.desc = current.desc || [];
+    current.desc.links = lexed.links;
     current.desc.push(tok);
 
   });
@@ -286,10 +302,6 @@ function processList(section) {
   delete section.list;
 }
 
-function parseYAML(text) {
-  return common.extractAndParseYAML(text);
-}
-
 // textRaw = "someobject.someMethod(a[, b=100][, c])"
 function parseSignature(text, sig) {
   var params = text.match(paramExpr);
@@ -298,7 +310,7 @@ function parseSignature(text, sig) {
   params = params.split(/,/);
   var optionalLevel = 0;
   var optionalCharDict = {'[': 1, ' ': 0, ']': -1};
-  params.forEach(function(p, i, _) {
+  params.forEach(function(p, i) {
     p = p.trim();
     if (!p) return;
     var param = sig.params[i];
@@ -355,7 +367,7 @@ function parseListItem(item) {
     item.name = 'return';
     text = text.replace(retExpr, '');
   } else {
-    var nameExpr = /^['`"]?([^'`": \{]+)['`"]?\s*:?\s*/;
+    var nameExpr = /^['`"]?([^'`": {]+)['`"]?\s*:?\s*/;
     var name = text.match(nameExpr);
     if (name) {
       item.name = name[1];
@@ -372,7 +384,7 @@ function parseListItem(item) {
   }
 
   text = text.trim();
-  var typeExpr = /^\{([^\}]+)\}/;
+  var typeExpr = /^\{([^}]+)\}/;
   var type = text.match(typeExpr);
   if (type) {
     item.type = type[1];
@@ -528,14 +540,12 @@ function deepCopy_(src) {
 
 // these parse out the contents of an H# tag
 var eventExpr = /^Event(?::|\s)+['"]?([^"']+).*$/i;
-var classExpr = /^Class:\s*([^ ]+).*?$/i;
-var propExpr = /^(?:property:?\s*)?[^\.]+\.([^ \.\(\)]+)\s*?$/i;
-var braceExpr = /^(?:property:?\s*)?[^\.\[]+(\[[^\]]+\])\s*?$/i;
-var classMethExpr =
-  /^class\s*method\s*:?[^\.]+\.([^ \.\(\)]+)\([^\)]*\)\s*?$/i;
-var methExpr =
-  /^(?:method:?\s*)?(?:[^\.]+\.)?([^ \.\(\)]+)\([^\)]*\)\s*?$/i;
-var newExpr = /^new ([A-Z][a-zA-Z]+)\([^\)]*\)\s*?$/;
+var classExpr = /^Class:\s*([^ ]+).*$/i;
+var propExpr = /^[^.]+\.([^ .()]+)\s*$/;
+var braceExpr = /^[^.[]+(\[[^\]]+\])\s*$/;
+var classMethExpr = /^class\s*method\s*:?[^.]+\.([^ .()]+)\([^)]*\)\s*$/i;
+var methExpr = /^(?:[^.]+\.)?([^ .()]+)\([^)]*\)\s*$/;
+var newExpr = /^new ([A-Z][a-zA-Z]+)\([^)]*\)\s*$/;
 var paramExpr = /\((.*)\);?$/;
 
 function newSection(tok) {

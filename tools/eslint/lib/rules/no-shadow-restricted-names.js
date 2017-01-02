@@ -19,9 +19,9 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
-        var RESTRICTED = ["undefined", "NaN", "Infinity", "arguments", "eval"];
+        const RESTRICTED = ["undefined", "NaN", "Infinity", "arguments", "eval"];
 
         /**
          * Check if the node name is present inside the restricted list
@@ -31,30 +31,36 @@ module.exports = {
          */
         function checkForViolation(id) {
             if (RESTRICTED.indexOf(id.name) > -1) {
-                context.report(id, "Shadowing of global property '" + id.name + "'.");
+                context.report({
+                    node: id,
+                    message: "Shadowing of global property '{{idName}}'.",
+                    data: {
+                        idName: id.name
+                    }
+                });
             }
         }
 
         return {
-            VariableDeclarator: function(node) {
+            VariableDeclarator(node) {
                 checkForViolation(node.id);
             },
-            ArrowFunctionExpression: function(node) {
+            ArrowFunctionExpression(node) {
                 [].map.call(node.params, checkForViolation);
             },
-            FunctionExpression: function(node) {
+            FunctionExpression(node) {
                 if (node.id) {
                     checkForViolation(node.id);
                 }
                 [].map.call(node.params, checkForViolation);
             },
-            FunctionDeclaration: function(node) {
+            FunctionDeclaration(node) {
                 if (node.id) {
                     checkForViolation(node.id);
                     [].map.call(node.params, checkForViolation);
                 }
             },
-            CatchClause: function(node) {
+            CatchClause(node) {
                 checkForViolation(node.param);
             }
         };

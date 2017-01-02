@@ -36,6 +36,7 @@ void LoopBuilder::BeginLoop(BitVector* assigned, bool is_osr) {
   loop_environment_ = environment()->CopyForLoop(assigned, is_osr);
   continue_environment_ = environment()->CopyAsUnreachable();
   break_environment_ = environment()->CopyAsUnreachable();
+  assigned_ = assigned;
 }
 
 
@@ -60,6 +61,7 @@ void LoopBuilder::EndBody() {
 void LoopBuilder::EndLoop() {
   loop_environment_->Merge(environment());
   set_environment(break_environment_);
+  ExitLoop();
 }
 
 
@@ -82,6 +84,16 @@ void LoopBuilder::BreakWhen(Node* condition) {
   control_if.End();
 }
 
+void LoopBuilder::ExitLoop(Node** extra_value_to_rename) {
+  if (extra_value_to_rename) {
+    environment()->Push(*extra_value_to_rename);
+  }
+  environment()->PrepareForLoopExit(loop_environment_->GetControlDependency(),
+                                    assigned_);
+  if (extra_value_to_rename) {
+    *extra_value_to_rename = environment()->Pop();
+  }
+}
 
 void SwitchBuilder::BeginSwitch() {
   body_environment_ = environment()->CopyAsUnreachable();

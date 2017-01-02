@@ -30,7 +30,6 @@ using v8::HandleScope;
 using v8::Integer;
 using v8::Local;
 using v8::Object;
-using v8::True;
 using v8::Value;
 
 
@@ -149,14 +148,8 @@ void StreamWrap::OnAlloc(uv_handle_t* handle,
 
 
 void StreamWrap::OnAllocImpl(size_t size, uv_buf_t* buf, void* ctx) {
-  buf->base = static_cast<char*>(malloc(size));
+  buf->base = node::Malloc(size);
   buf->len = size;
-
-  if (buf->base == nullptr && size > 0) {
-    FatalError(
-        "node::StreamWrap::DoAlloc(size_t, uv_buf_t*, void*)",
-        "Out Of Memory");
-  }
 }
 
 
@@ -205,8 +198,8 @@ void StreamWrap::OnReadImpl(ssize_t nread,
     return;
   }
 
-  char* base = static_cast<char*>(realloc(buf->base, nread));
   CHECK_LE(static_cast<size_t>(nread), buf->len);
+  char* base = node::Realloc(buf->base, nread);
 
   if (pending == UV_TCP) {
     pending_obj = AcceptHandle<TCPWrap, uv_tcp_t>(env, wrap);
@@ -277,14 +270,15 @@ void StreamWrap::SetBlocking(const FunctionCallbackInfo<Value>& args) {
 
 int StreamWrap::DoShutdown(ShutdownWrap* req_wrap) {
   int err;
-  err = uv_shutdown(&req_wrap->req_, stream(), AfterShutdown);
+  err = uv_shutdown(req_wrap->req(), stream(), AfterShutdown);
   req_wrap->Dispatched();
   return err;
 }
 
 
 void StreamWrap::AfterShutdown(uv_shutdown_t* req, int status) {
-  ShutdownWrap* req_wrap = ContainerOf(&ShutdownWrap::req_, req);
+  ShutdownWrap* req_wrap = ShutdownWrap::from_req(req);
+  CHECK_NE(req_wrap, nullptr);
   HandleScope scope(req_wrap->env()->isolate());
   Context::Scope context_scope(req_wrap->env()->context());
   req_wrap->Done(status);
@@ -337,9 +331,9 @@ int StreamWrap::DoWrite(WriteWrap* w,
                         uv_stream_t* send_handle) {
   int r;
   if (send_handle == nullptr) {
-    r = uv_write(&w->req_, stream(), bufs, count, AfterWrite);
+    r = uv_write(w->req(), stream(), bufs, count, AfterWrite);
   } else {
-    r = uv_write2(&w->req_, stream(), bufs, count, send_handle, AfterWrite);
+    r = uv_write2(w->req(), stream(), bufs, count, send_handle, AfterWrite);
   }
 
   if (!r) {
@@ -361,7 +355,8 @@ int StreamWrap::DoWrite(WriteWrap* w,
 
 
 void StreamWrap::AfterWrite(uv_write_t* req, int status) {
-  WriteWrap* req_wrap = ContainerOf(&WriteWrap::req_, req);
+  WriteWrap* req_wrap = WriteWrap::from_req(req);
+  CHECK_NE(req_wrap, nullptr);
   HandleScope scope(req_wrap->env()->isolate());
   Context::Scope context_scope(req_wrap->env()->context());
   req_wrap->Done(status);

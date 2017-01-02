@@ -1,6 +1,6 @@
 # File System
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 <!--name=fs-->
 
@@ -74,7 +74,7 @@ Most fs functions let you omit the callback argument. If you do, a default
 callback is used that rethrows errors. To get a trace to the original call
 site, set the `NODE_DEBUG` environment variable:
 
-```
+```txt
 $ cat script.js
 function bad() {
   require('fs').readFile('/');
@@ -109,14 +109,19 @@ non-UTF-8 encoded Buffers to `fs` functions will not work as expected.
 added: v0.5.8
 -->
 
-Objects returned from `fs.watch()` are of this type.
+Objects returned from [`fs.watch()`][] are of this type.
+
+The `listener` callback provided to `fs.watch()` receives the returned FSWatcher's
+`change` events.
+
+The object itself emits these events:
 
 ### Event: 'change'
 <!-- YAML
 added: v0.5.8
 -->
 
-* `event` {String} The type of fs change
+* `eventType` {String} The type of fs change
 * `filename` {String | Buffer} The filename that changed (if relevant/available)
 
 Emitted when something changes in a watched directory or file.
@@ -124,11 +129,12 @@ See more details in [`fs.watch()`][].
 
 The `filename` argument may not be provided depending on operating system
 support. If `filename` is provided, it will be provided as a `Buffer` if
-`fs.watch()` is called with it's `encoding` option set to `'buffer'`, otherwise
+`fs.watch()` is called with its `encoding` option set to `'buffer'`, otherwise
 `filename` will be a string.
 
 ```js
-fs.watch('./tmp', {encoding: 'buffer'}, (event, filename) => {
+// Example when handled through fs.watch listener
+fs.watch('./tmp', {encoding: 'buffer'}, (eventType, filename) => {
   if (filename)
     console.log(filename);
     // Prints: <Buffer ...>
@@ -174,6 +180,13 @@ added: v0.1.93
 
 Emitted when the `ReadStream`'s underlying file descriptor has been closed
 using the `fs.close()` method.
+
+### readStream.bytesRead
+<!-- YAML
+added: 6.4.0
+-->
+
+The number of bytes read so far.
 
 ### readStream.path
 <!-- YAML
@@ -238,13 +251,13 @@ page.
 The times in the stat object have the following semantics:
 
 * `atime` "Access Time" - Time when file data last accessed.  Changed
-  by the `mknod(2)`, `utimes(2)`, and `read(2)` system calls.
+  by the mknod(2), utimes(2), and read(2) system calls.
 * `mtime` "Modified Time" - Time when file data last modified.
-  Changed by the `mknod(2)`, `utimes(2)`, and `write(2)` system calls.
+  Changed by the mknod(2), utimes(2), and write(2) system calls.
 * `ctime` "Change Time" - Time when file status was last changed
-  (inode data modification).  Changed by the `chmod(2)`, `chown(2)`,
-  `link(2)`, `mknod(2)`, `rename(2)`, `unlink(2)`, `utimes(2)`,
-  `read(2)`, and `write(2)` system calls.
+  (inode data modification).  Changed by the chmod(2), chown(2),
+  link(2), mknod(2), rename(2), unlink(2), utimes(2),
+  read(2), and write(2) system calls.
 * `birthtime` "Birth Time" -  Time of file creation. Set once when the
   file is created.  On filesystems where birthtime is not available,
   this field may instead hold either the `ctime` or
@@ -252,7 +265,7 @@ The times in the stat object have the following semantics:
   value may be greater than `atime` or `mtime` in this case. On Darwin
   and other FreeBSD variants, also set if the `atime` is explicitly
   set to an earlier value than the current `birthtime` using the
-  `utimes(2)` system call.
+  utimes(2) system call.
 
 Prior to Node v0.12, the `ctime` held the `birthtime` on Windows
 systems.  Note that as of v0.12, `ctime` is not "creation time", and
@@ -334,6 +347,93 @@ fs.access('/etc/passwd', fs.constants.R_OK | fs.constants.W_OK, (err) => {
 });
 ```
 
+Using `fs.access()` to check for the accessibility of a file before calling
+`fs.open()`, `fs.readFile()` or `fs.writeFile()` is not recommended. Doing
+so introduces a race condition, since other processes may change the file's
+state between the two calls. Instead, user code should open/read/write the
+file directly and handle the error raised if the file is not accessible.
+
+For example:
+
+
+**write (NOT RECOMMENDED)**
+
+```js
+fs.access('myfile', (err) => {
+  if (!err) {
+    console.error('myfile already exists');
+    return;
+  }
+
+  fs.open('myfile', 'wx', (err, fd) => {
+    if (err) throw err;
+    writeMyData(fd);
+  });
+});
+```
+
+**write (RECOMMENDED)**
+
+```js
+fs.open('myfile', 'wx', (err, fd) => {
+  if (err) {
+    if (err.code === "EEXIST") {
+      console.error('myfile already exists');
+      return;
+    } else {
+      throw err;
+    }
+  }
+
+  writeMyData(fd);
+});
+```
+
+**read (NOT RECOMMENDED)**
+
+```js
+fs.access('myfile', (err) => {
+  if (err) {
+    if (err.code === "ENOENT") {
+      console.error('myfile does not exist');
+      return;
+    } else {
+      throw err;
+    }
+  }
+
+  fs.open('myfile', 'r', (err, fd) => {
+    if (err) throw err;
+    readMyData(fd);
+  });
+});
+```
+
+**read (RECOMMENDED)**
+
+```js
+fs.open('myfile', 'r', (err, fd) => {
+  if (err) {
+    if (err.code === "ENOENT") {
+      console.error('myfile does not exist');
+      return;
+    } else {
+      throw err;
+    }
+  }
+
+  readMyData(fd);
+});
+```
+
+The "not recommended" examples above check for accessibility and then use the
+file; the "recommended" examples are better because they use the file directly
+and handle the error, if any.
+
+In general, check for the accessibility of a file only if the file won’t be
+used directly, for example when its accessibility is a signal from another
+process.
+
 ## fs.accessSync(path[, mode])
 <!-- YAML
 added: v0.11.15
@@ -378,7 +478,8 @@ fs.appendFile('message.txt', 'data to append', 'utf8', callback);
 
 Any specified file descriptor has to have been opened for appending.
 
-_Note: Specified file descriptors will not be closed automatically._
+_Note: If a file descriptor is specified as the `file`, it will not be closed
+automatically._
 
 ## fs.appendFileSync(file, data[, options])
 <!-- YAML
@@ -501,7 +602,9 @@ default value of 64 kb for the same parameter.
 
 `options` can include `start` and `end` values to read a range of bytes from
 the file instead of the entire file.  Both `start` and `end` are inclusive and
-start at 0. The `encoding` can be any one of those accepted by [`Buffer`][].
+start counting at 0. If `fd` is specified and `start` is omitted or `undefined`,
+`fs.createReadStream()` reads sequentially from the current file position.
+The `encoding` can be any one of those accepted by [`Buffer`][].
 
 If `fd` is specified, `ReadStream` will ignore the `path` argument and will use
 the specified file descriptor. This means that no `'open'` event will be
@@ -578,7 +681,7 @@ added: v0.0.2
 deprecated: v1.0.0
 -->
 
-    Stability: 0 - Deprecated: Use [`fs.stat()`][] or [`fs.access()`][] instead.
+> Stability: 0 - Deprecated: Use [`fs.stat()`][] or [`fs.access()`][] instead.
 
 * `path` {String | Buffer}
 * `callback` {Function}
@@ -592,25 +695,104 @@ fs.exists('/etc/passwd', (exists) => {
 });
 ```
 
-`fs.exists()` should not be used to check if a file exists before calling
-`fs.open()`. Doing so introduces a race condition since other processes may
-change the file's state between the two calls. Instead, user code should
-call `fs.open()` directly and handle the error raised if the file is
-non-existent.
+**Note that the parameter to this callback is not consistent with other
+Node.js callbacks.** Normally, the first parameter to a Node.js callback is
+an `err` parameter, optionally followed by other parameters. The
+`fs.exists()` callback has only one boolean parameter. This is one reason
+`fs.access()` is recommended instead of `fs.exists()`.
+
+Using `fs.exists()` to check for the existence of a file before calling
+`fs.open()`, `fs.readFile()` or `fs.writeFile()` is not recommended. Doing
+so introduces a race condition, since other processes may change the file's
+state between the two calls. Instead, user code should open/read/write the
+file directly and handle the error raised if the file does not exist.
+
+For example:
+
+**write (NOT RECOMMENDED)**
+
+```js
+fs.exists('myfile', (exists) => {
+  if (exists) {
+    console.error('myfile already exists');
+  } else {
+    fs.open('myfile', 'wx', (err, fd) => {
+      if (err) throw err;
+      writeMyData(fd);
+    });
+  }
+});
+```
+
+**write (RECOMMENDED)**
+
+```js
+fs.open('myfile', 'wx', (err, fd) => {
+  if (err) {
+    if (err.code === "EEXIST") {
+      console.error('myfile already exists');
+      return;
+    } else {
+      throw err;
+    }
+  }
+  writeMyData(fd);
+});
+```
+
+**read (NOT RECOMMENDED)**
+
+```js
+fs.exists('myfile', (exists) => {
+  if (exists) {
+    fs.open('myfile', 'r', (err, fd) => {
+      readMyData(fd);
+    });
+  } else {
+    console.error('myfile does not exist');
+  }
+});
+```
+
+**read (RECOMMENDED)**
+
+```js
+fs.open('myfile', 'r', (err, fd) => {
+  if (err) {
+    if (err.code === "ENOENT") {
+      console.error('myfile does not exist');
+      return;
+    } else {
+      throw err;
+    }
+  } else {
+    readMyData(fd);
+  }
+});
+```
+
+The "not recommended" examples above check for existence and then use the
+file; the "recommended" examples are better because they use the file directly
+and handle the error, if any.
+
+In general, check for the existence of a file only if the file won’t be
+used directly, for example when its existence is a signal from another
+process.
 
 ## fs.existsSync(path)
 <!-- YAML
 added: v0.1.21
-deprecated: v1.0.0
 -->
-
-    Stability: 0 - Deprecated: Use [`fs.statSync()`][] or [`fs.accessSync()`][]
-    instead.
 
 * `path` {String | Buffer}
 
 Synchronous version of [`fs.exists()`][].
 Returns `true` if the file exists, `false` otherwise.
+
+Note that `fs.exists()` is deprecated, but `fs.existsSync()` is not.
+(The `callback` parameter to `fs.exists()` accepts parameters that are
+inconsistent with other Node.js callbacks. `fs.existsSync()` does not use
+a callback.)
 
 ## fs.fchmod(fd, mode, callback)
 <!-- YAML
@@ -687,7 +869,7 @@ added: v0.1.95
 * `callback` {Function}
 
 Asynchronous fstat(2). The callback gets two arguments `(err, stats)` where
-`stats` is a [`fs.Stats`][] object. `fstat()` is identical to [`stat()`][],
+`stats` is an [`fs.Stats`][] object. `fstat()` is identical to [`stat()`][],
 except that the file to be stat-ed is specified by the file descriptor `fd`.
 
 ## fs.fstatSync(fd)
@@ -697,7 +879,7 @@ added: v0.1.95
 
 * `fd` {Integer}
 
-Synchronous fstat(2). Returns an instance of `fs.Stats`.
+Synchronous fstat(2). Returns an instance of [`fs.Stats`][].
 
 ## fs.fsync(fd, callback)
 <!-- YAML
@@ -725,11 +907,52 @@ added: v0.8.6
 -->
 
 * `fd` {Integer}
-* `len` {Integer}
+* `len` {Integer} default = `0`
 * `callback` {Function}
 
 Asynchronous ftruncate(2). No arguments other than a possible exception are
 given to the completion callback.
+
+If the file referred to by the file descriptor was larger than `len` bytes, only
+the first `len` bytes will be retained in the file.
+
+For example, the following program retains only the first four bytes of the file
+
+```js
+console.log(fs.readFileSync('temp.txt', 'utf8'));
+// Prints: Node.js
+
+// get the file descriptor of the file to be truncated
+const fd = fs.openSync('temp.txt', 'r+');
+
+// truncate the file to first four bytes
+fs.ftruncate(fd, 4, (err) => {
+  assert.ifError(err);
+  console.log(fs.readFileSync('temp.txt', 'utf8'));
+});
+// Prints: Node
+```
+
+If the file previously was shorter than `len` bytes, it is extended, and the
+extended part is filled with null bytes ('\0'). For example,
+
+```js
+console.log(fs.readFileSync('temp.txt', 'utf-8'));
+// Prints: Node.js
+
+// get the file descriptor of the file to be truncated
+const fd = fs.openSync('temp.txt', 'r+');
+
+// truncate the file to 10 bytes, whereas the actual size is 7 bytes
+fs.ftruncate(fd, 10, (err) => {
+  assert.ifError(!err);
+  console.log(fs.readFileSync('temp.txt'));
+});
+// Prints: <Buffer 4e 6f 64 65 2e 6a 73 00 00 00>
+// ('Node.js\0\0\0' in UTF8)
+```
+
+The last three bytes are null bytes ('\0'), to compensate the over-truncation.
 
 ## fs.ftruncateSync(fd, len)
 <!-- YAML
@@ -737,7 +960,7 @@ added: v0.8.6
 -->
 
 * `fd` {Integer}
-* `len` {Integer}
+* `len` {Integer} default = `0`
 
 Synchronous ftruncate(2). Returns `undefined`.
 
@@ -813,25 +1036,25 @@ deprecated: v0.4.7
 
 Synchronous lchown(2). Returns `undefined`.
 
-## fs.link(srcpath, dstpath, callback)
+## fs.link(existingPath, newPath, callback)
 <!-- YAML
 added: v0.1.31
 -->
 
-* `srcpath` {String | Buffer}
-* `dstpath` {String | Buffer}
+* `existingPath` {String | Buffer}
+* `newPath` {String | Buffer}
 * `callback` {Function}
 
 Asynchronous link(2). No arguments other than a possible exception are given to
 the completion callback.
 
-## fs.linkSync(srcpath, dstpath)
+## fs.linkSync(existingPath, newPath)
 <!-- YAML
 added: v0.1.31
 -->
 
-* `srcpath` {String | Buffer}
-* `dstpath` {String | Buffer}
+* `existingPath` {String | Buffer}
+* `newPath` {String | Buffer}
 
 Synchronous link(2). Returns `undefined`.
 
@@ -855,7 +1078,7 @@ added: v0.1.30
 
 * `path` {String | Buffer}
 
-Synchronous lstat(2). Returns an instance of `fs.Stats`.
+Synchronous lstat(2). Returns an instance of [`fs.Stats`][].
 
 ## fs.mkdir(path[, mode], callback)
 <!-- YAML
@@ -879,10 +1102,15 @@ added: v0.1.21
 
 Synchronous mkdir(2). Returns `undefined`.
 
-## fs.mkdtemp(prefix, callback)
+## fs.mkdtemp(prefix[, options], callback)
 <!-- YAML
 added: v5.10.0
 -->
+
+* `prefix` {String}
+* `options` {String | Object}
+  * `encoding` {String} default = `'utf8'`
+* `callback` {Function}
 
 Creates a unique temporary directory.
 
@@ -892,12 +1120,16 @@ Generates six random characters to be appended behind a required
 The created folder path is passed as a string to the callback's second
 parameter.
 
+The optional `options` argument can be a string specifying an encoding, or an
+object with an `encoding` property specifying the character encoding to use.
+
 Example:
 
 ```js
 fs.mkdtemp('/tmp/foo-', (err, folder) => {
+  if (err) throw err;
   console.log(folder);
-    // Prints: /tmp/foo-itXde2
+  // Prints: /tmp/foo-itXde2
 });
 ```
 
@@ -915,10 +1147,10 @@ const tmpDir = '/tmp';
 fs.mkdtemp(tmpDir, (err, folder) => {
   if (err) throw err;
   console.log(folder);
-    // Will print something similar to `/tmpabc123`.
-    // Note that a new temporary directory is created
-    // at the file system root rather than *within*
-    // the /tmp directory.
+  // Will print something similar to `/tmpabc123`.
+  // Note that a new temporary directory is created
+  // at the file system root rather than *within*
+  // the /tmp directory.
 });
 
 // This method is *CORRECT*:
@@ -926,19 +1158,26 @@ const path = require('path');
 fs.mkdtemp(tmpDir + path.sep, (err, folder) => {
   if (err) throw err;
   console.log(folder);
-    // Will print something similar to `/tmp/abc123`.
-    // A new temporary directory is created within
-    // the /tmp directory.
+  // Will print something similar to `/tmp/abc123`.
+  // A new temporary directory is created within
+  // the /tmp directory.
 });
 ```
 
-## fs.mkdtempSync(prefix)
+## fs.mkdtempSync(prefix[, options])
 <!-- YAML
 added: v5.10.0
 -->
 
+* `prefix` {String}
+* `options` {String | Object}
+  * `encoding` {String} default = `'utf8'`
+
 The synchronous version of [`fs.mkdtemp()`][]. Returns the created
 folder path.
+
+The optional `options` argument can be a string specifying an encoding, or an
+object with an `encoding` property specifying the character encoding to use.
 
 ## fs.open(path, flags[, mode], callback)
 <!-- YAML
@@ -1016,12 +1255,12 @@ will be returned._
 // OS X and Linux
 fs.open('<directory>', 'a+', (err, fd) => {
   // => [Error: EISDIR: illegal operation on a directory, open <directory>]
-})
+});
 
 // Windows and FreeBSD
 fs.open('<directory>', 'a+', (err, fd) => {
   // => null, <fd>
-})
+});
 ```
 
 ## fs.openSync(path, flags[, mode])
@@ -1042,7 +1281,7 @@ added: v0.0.2
 -->
 
 * `fd` {Integer}
-* `buffer` {String | Buffer}
+* `buffer` {String | Buffer | Uint8Array}
 * `offset` {Integer}
 * `length` {Integer}
 * `position` {Integer}
@@ -1130,7 +1369,8 @@ fs.readFile('/etc/passwd', 'utf8', callback);
 
 Any specified file descriptor has to support reading.
 
-_Note: Specified file descriptors will not be closed automatically._
+_Note: If a file descriptor is specified as the `file`, it will not be closed
+automatically._
 
 ## fs.readFileSync(file[, options])
 <!-- YAML
@@ -1187,7 +1427,7 @@ added: v0.1.21
 -->
 
 * `fd` {Integer}
-* `buffer` {String | Buffer}
+* `buffer` {String | Buffer | Uint8Array}
 * `offset` {Integer}
 * `length` {Integer}
 * `position` {Integer}
@@ -1207,6 +1447,8 @@ added: v0.1.31
 Asynchronous realpath(3). The `callback` gets two arguments `(err,
 resolvedPath)`. May use `process.cwd` to resolve relative paths.
 
+Only paths that can be converted to UTF8 strings are supported.
+
 The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use for
 the path passed to the callback. If the `encoding` is set to `'buffer'`,
@@ -1223,10 +1465,12 @@ added: v0.1.31
 
 Synchronous realpath(3). Returns the resolved path.
 
+Only paths that can be converted to UTF8 strings are supported.
+
 The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use for
-the path passed to the callback. If the `encoding` is set to `'buffer'`,
-the path returned will be passed as a `Buffer` object.
+the returned value. If the `encoding` is set to `'buffer'`, the path returned
+will be passed as a `Buffer` object.
 
 ## fs.rename(oldPath, newPath, callback)
 <!-- YAML
@@ -1279,8 +1523,17 @@ added: v0.0.2
 * `callback` {Function}
 
 Asynchronous stat(2). The callback gets two arguments `(err, stats)` where
-`stats` is a [`fs.Stats`][] object.  See the [`fs.Stats`][] section for more
-information.
+`stats` is an [`fs.Stats`][] object.
+
+In case of an error, the `err.code` will be one of [Common System Errors][].
+
+Using `fs.stat()` to check for the existence of a file before calling
+`fs.open()`, `fs.readFile()` or `fs.writeFile()` is not recommended.
+Instead, user code should open/read/write the file directly and handle the
+error raised if the file is not available.
+
+To check if a file exists without manipulating it afterwards, [`fs.access()`]
+is recommended.
 
 ## fs.statSync(path)
 <!-- YAML
@@ -1333,7 +1586,7 @@ added: v0.8.6
 -->
 
 * `path` {String | Buffer}
-* `len` {Integer}
+* `len` {Integer} default = `0`
 * `callback` {Function}
 
 Asynchronous truncate(2). No arguments other than a possible exception are
@@ -1346,9 +1599,10 @@ added: v0.8.6
 -->
 
 * `path` {String | Buffer}
-* `len` {Integer}
+* `len` {Integer} default = `0`
 
-Synchronous truncate(2). Returns `undefined`.
+Synchronous truncate(2). Returns `undefined`. A file descriptor can also be
+passed as the first argument. In this case, `fs.ftruncateSync()` is called.
 
 ## fs.unlink(path, callback)
 <!-- YAML
@@ -1401,13 +1655,15 @@ added: v0.4.2
 
 Change file timestamps of the file referenced by the supplied path.
 
-Note: the arguments `atime` and `mtime` of the following related functions does
-follow the below rules:
+Note: the arguments `atime` and `mtime` of the following related functions
+follow these rules:
 
-- If the value is a numberable string like `'123456789'`, the value would get
-  converted to corresponding number.
-- If the value is `NaN` or `Infinity`, the value would get converted to
-  `Date.now()`.
+- The value should be a Unix timestamp in seconds. For example, `Date.now()`
+  returns milliseconds, so it should be divided by 1000 before passing it in.
+- If the value is a numeric string like `'123456789'`, the value will get
+  converted to the corresponding number.
+- If the value is `NaN` or `Infinity`, the value will get converted to
+  `Date.now() / 1000`.
 
 ## fs.utimesSync(path, atime, mtime)
 <!-- YAML
@@ -1443,9 +1699,16 @@ directory.  The returned object is a [`fs.FSWatcher`][].
 The second argument is optional. If `options` is provided as a string, it
 specifies the `encoding`. Otherwise `options` should be passed as an object.
 
-The listener callback gets two arguments `(event, filename)`.  `event` is either
+The listener callback gets two arguments `(eventType, filename)`.  `eventType` is either
 `'rename'` or `'change'`, and `filename` is the name of the file which triggered
 the event.
+
+Note that on most platforms, `'rename'` is emitted whenever a filename appears
+or disappears in the directory.
+
+Also note the listener callback is attached to the `'change'` event fired by
+[`fs.FSWatcher`][], but it is not the same thing as the `'change'` value of
+`eventType`.
 
 ### Caveats
 
@@ -1499,8 +1762,8 @@ be provided. Therefore, don't assume that `filename` argument is always
 provided in the callback, and have some fallback logic if it is null.
 
 ```js
-fs.watch('somedir', (event, filename) => {
-  console.log(`event is: ${event}`);
+fs.watch('somedir', (eventType, filename) => {
+  console.log(`event type is: ${eventType}`);
   if (filename) {
     console.log(`filename provided: ${filename}`);
   } else {
@@ -1555,13 +1818,13 @@ _Note: [`fs.watch()`][] is more efficient than `fs.watchFile` and
 `fs.unwatchFile`. `fs.watch` should be used instead of `fs.watchFile` and
 `fs.unwatchFile` when possible._
 
-## fs.write(fd, buffer, offset, length[, position], callback)
+## fs.write(fd, buffer[, offset[, length[, position]]], callback)
 <!-- YAML
 added: v0.0.2
 -->
 
 * `fd` {Integer}
-* `buffer` {String | Buffer}
+* `buffer` {Buffer | Uint8Array}
 * `offset` {Integer}
 * `length` {Integer}
 * `position` {Integer}
@@ -1586,19 +1849,19 @@ On Linux, positional writes don't work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
 the end of the file.
 
-## fs.write(fd, data[, position[, encoding]], callback)
+## fs.write(fd, string[, position[, encoding]], callback)
 <!-- YAML
 added: v0.11.5
 -->
 
 * `fd` {Integer}
-* `data` {String | Buffer}
+* `string` {String}
 * `position` {Integer}
 * `encoding` {String}
 * `callback` {Function}
 
-Write `data` to the file specified by `fd`.  If `data` is not a Buffer instance
-then the value will be coerced to a string.
+Write `string` to the file specified by `fd`.  If `string` is not a string, then
+the value will be coerced to one.
 
 `position` refers to the offset from the beginning of the file where this data
 should be written. If `typeof position !== 'number'` the data will be written at
@@ -1628,7 +1891,7 @@ added: v0.1.29
 -->
 
 * `file` {String | Buffer | Integer} filename or file descriptor
-* `data` {String | Buffer}
+* `data` {String | Buffer | Uint8Array}
 * `options` {Object | String}
   * `encoding` {String | Null} default = `'utf8'`
   * `mode` {Integer} default = `0o666`
@@ -1662,7 +1925,8 @@ Note that it is unsafe to use `fs.writeFile` multiple times on the same file
 without waiting for the callback. For this scenario,
 `fs.createWriteStream` is strongly recommended.
 
-_Note: Specified file descriptors will not be closed automatically._
+_Note: If a file descriptor is specified as the `file`, it will not be closed
+automatically._
 
 ## fs.writeFileSync(file, data[, options])
 <!-- YAML
@@ -1670,7 +1934,7 @@ added: v0.1.29
 -->
 
 * `file` {String | Buffer | Integer} filename or file descriptor
-* `data` {String | Buffer}
+* `data` {String | Buffer | Uint8Array}
 * `options` {Object | String}
   * `encoding` {String | Null} default = `'utf8'`
   * `mode` {Integer} default = `0o666`
@@ -1678,24 +1942,24 @@ added: v0.1.29
 
 The synchronous version of [`fs.writeFile()`][]. Returns `undefined`.
 
-## fs.writeSync(fd, buffer, offset, length[, position])
+## fs.writeSync(fd, buffer[, offset[, length[, position]]])
 <!-- YAML
 added: v0.1.21
 -->
 
 * `fd` {Integer}
-* `buffer` {String | Buffer}
+* `buffer` {Buffer | Uint8Array}
 * `offset` {Integer}
 * `length` {Integer}
 * `position` {Integer}
 
-## fs.writeSync(fd, data[, position[, encoding]])
+## fs.writeSync(fd, string[, position[, encoding]])
 <!-- YAML
 added: v0.11.5
 -->
 
 * `fd` {Integer}
-* `data` {String | Buffer}
+* `string` {String}
 * `position` {Integer}
 * `encoding` {String}
 
@@ -1925,20 +2189,18 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [`Buffer`]: buffer.html#buffer_buffer
 [Caveats]: #fs_caveats
 [`fs.access()`]: #fs_fs_access_path_mode_callback
-[`fs.accessSync()`]: #fs_fs_accesssync_path_mode
 [`fs.appendFile()`]: fs.html#fs_fs_appendfile_file_data_options_callback
 [`fs.exists()`]: fs.html#fs_fs_exists_path_callback
 [`fs.fstat()`]: #fs_fs_fstat_fd_callback
 [`fs.FSWatcher`]: #fs_class_fs_fswatcher
 [`fs.futimes()`]: #fs_fs_futimes_fd_atime_mtime_callback
 [`fs.lstat()`]: #fs_fs_lstat_path_callback
-[`fs.mkdtemp()`]: #fs_fs_mkdtemp_prefix_callback
+[`fs.mkdtemp()`]: #fs_fs_mkdtemp_prefix_options_callback
 [`fs.open()`]: #fs_fs_open_path_flags_mode_callback
 [`fs.read()`]: #fs_fs_read_fd_buffer_offset_length_position_callback
 [`fs.readFile`]: #fs_fs_readfile_file_options_callback
 [`fs.stat()`]: #fs_fs_stat_path_callback
 [`fs.Stats`]: #fs_class_fs_stats
-[`fs.statSync()`]: #fs_fs_statsync_path
 [`fs.utimes()`]: #fs_fs_futimes_fd_atime_mtime_callback
 [`fs.watch()`]: #fs_fs_watch_filename_options_listener
 [`fs.write()`]: #fs_fs_write_fd_buffer_offset_length_position_callback
@@ -1952,11 +2214,12 @@ The following constants are meant for use with the [`fs.Stats`][] object's
 [MDN-Date]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Date
 [Readable Stream]: stream.html#stream_class_stream_readable
 [Writable Stream]: stream.html#stream_class_stream_writable
-[inode]: http://www.linux.org/threads/intro-to-inodes.4130
-[FS Constants]: #fs_fs_constants
+[inode]: https://en.wikipedia.org/wiki/Inode
+[FS Constants]: #fs_fs_constants_1
 [`inotify`]: http://man7.org/linux/man-pages/man7/inotify.7.html
 [`kqueue`]: https://www.freebsd.org/cgi/man.cgi?kqueue
 [`FSEvents`]: https://developer.apple.com/library/mac/documentation/Darwin/Conceptual/FSEvents_ProgGuide/Introduction/Introduction.html#//apple_ref/doc/uid/TP40005289-CH1-SW1
 [`event ports`]: http://illumos.org/man/port_create
 [`ReadDirectoryChangesW`]: https://msdn.microsoft.com/en-us/library/windows/desktop/aa365465%28v=vs.85%29.aspx
 [`AHAFS`]: https://www.ibm.com/developerworks/aix/library/au-aix_event_infrastructure/
+[Common System Errors]: errors.html#errors_common_system_errors

@@ -46,7 +46,7 @@ populateMaps(exports.extensions, exports.types)
  * @return {boolean|string}
  */
 
-function charset(type) {
+function charset (type) {
   if (!type || typeof type !== 'string') {
     return false
   }
@@ -74,7 +74,7 @@ function charset(type) {
  * @return {boolean|string}
  */
 
-function contentType(str) {
+function contentType (str) {
   // TODO: should this even be in this module?
   if (!str || typeof str !== 'string') {
     return false
@@ -104,7 +104,7 @@ function contentType(str) {
  * @return {boolean|string}
  */
 
-function extension(type) {
+function extension (type) {
   if (!type || typeof type !== 'string') {
     return false
   }
@@ -129,7 +129,7 @@ function extension(type) {
  * @return {boolean|string}
  */
 
-function lookup(path) {
+function lookup (path) {
   if (!path || typeof path !== 'string') {
     return false
   }
@@ -151,11 +151,11 @@ function lookup(path) {
  * @private
  */
 
-function populateMaps(extensions, types) {
+function populateMaps (extensions, types) {
   // source preference (least -> most)
   var preference = ['nginx', 'apache', undefined, 'iana']
 
-  Object.keys(db).forEach(function forEachMimeType(type) {
+  Object.keys(db).forEach(function forEachMimeType (type) {
     var mime = db[type]
     var exts = mime.extensions
 
@@ -174,8 +174,8 @@ function populateMaps(extensions, types) {
         var from = preference.indexOf(db[types[extension]].source)
         var to = preference.indexOf(mime.source)
 
-        if (types[extension] !== 'application/octet-stream'
-          && from > to || (from === to && types[extension].substr(0, 12) === 'application/')) {
+        if (types[extension] !== 'application/octet-stream' &&
+          from > to || (from === to && types[extension].substr(0, 12) === 'application/')) {
           // skip the remapping
           continue
         }

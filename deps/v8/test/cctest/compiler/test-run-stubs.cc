@@ -27,7 +27,7 @@ TEST(RunStringLengthStub) {
   // Create code and an accompanying descriptor.
   StringLengthStub stub(isolate);
   Handle<Code> code = stub.GenerateCode();
-  CompilationInfo info("test", isolate, zone,
+  CompilationInfo info(ArrayVector("test"), isolate, zone,
                        Code::ComputeFlags(Code::HANDLER));
   CallInterfaceDescriptor interface_descriptor =
       stub.GetCallInterfaceDescriptor();

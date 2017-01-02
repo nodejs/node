@@ -36,6 +36,7 @@ $L$SEH_begin_ecp_nistz256_mul_by_2::
 	push	r13
 
 	mov	r8,QWORD PTR[rsi]
+	xor	r13,r13
 	mov	r9,QWORD PTR[8+rsi]
 	add	r8,r8
 	mov	r10,QWORD PTR[16+rsi]
@@ -46,7 +47,7 @@ $L$SEH_begin_ecp_nistz256_mul_by_2::
 	adc	r10,r10
 	adc	r11,r11
 	mov	rdx,r9
-	sbb	r13,r13
+	adc	r13,0
 
 	sub	r8,QWORD PTR[rsi]
 	mov	rcx,r10
@@ -54,14 +55,14 @@ $L$SEH_begin_ecp_nistz256_mul_by_2::
 	sbb	r10,QWORD PTR[16+rsi]
 	mov	r12,r11
 	sbb	r11,QWORD PTR[24+rsi]
-	test	r13,r13
+	sbb	r13,0
 
-	cmovz	r8,rax
-	cmovz	r9,rdx
+	cmovc	r8,rax
+	cmovc	r9,rdx
 	mov	QWORD PTR[rdi],r8
-	cmovz	r10,rcx
+	cmovc	r10,rcx
 	mov	QWORD PTR[8+rdi],r9
-	cmovz	r11,r12
+	cmovc	r11,r12
 	mov	QWORD PTR[16+rdi],r10
 	mov	QWORD PTR[24+rdi],r11
 
@@ -180,12 +181,12 @@ $L$SEH_begin_ecp_nistz256_mul_by_3::
 	sbb	r10,0
 	mov	r12,r11
 	sbb	r11,QWORD PTR[(($L$poly+24))]
-	test	r13,r13
+	sbb	r13,0
 
-	cmovz	r8,rax
-	cmovz	r9,rdx
-	cmovz	r10,rcx
-	cmovz	r11,r12
+	cmovc	r8,rax
+	cmovc	r9,rdx
+	cmovc	r10,rcx
+	cmovc	r11,r12
 
 	xor	r13,r13
 	add	r8,QWORD PTR[rsi]
@@ -202,14 +203,14 @@ $L$SEH_begin_ecp_nistz256_mul_by_3::
 	sbb	r10,0
 	mov	r12,r11
 	sbb	r11,QWORD PTR[(($L$poly+24))]
-	test	r13,r13
+	sbb	r13,0
 
-	cmovz	r8,rax
-	cmovz	r9,rdx
+	cmovc	r8,rax
+	cmovc	r9,rdx
 	mov	QWORD PTR[rdi],r8
-	cmovz	r10,rcx
+	cmovc	r10,rcx
 	mov	QWORD PTR[8+rdi],r9
-	cmovz	r11,r12
+	cmovc	r11,r12
 	mov	QWORD PTR[16+rdi],r10
 	mov	QWORD PTR[24+rdi],r11
 
@@ -260,14 +261,14 @@ $L$SEH_begin_ecp_nistz256_add::
 	sbb	r10,QWORD PTR[16+rsi]
 	mov	r12,r11
 	sbb	r11,QWORD PTR[24+rsi]
-	test	r13,r13
+	sbb	r13,0
 
-	cmovz	r8,rax
-	cmovz	r9,rdx
+	cmovc	r8,rax
+	cmovc	r9,rdx
 	mov	QWORD PTR[rdi],r8
-	cmovz	r10,rcx
+	cmovc	r10,rcx
 	mov	QWORD PTR[8+rdi],r9
-	cmovz	r11,r12
+	cmovc	r11,r12
 	mov	QWORD PTR[16+rdi],r10
 	mov	QWORD PTR[24+rdi],r11
 
@@ -1673,13 +1674,14 @@ ecp_nistz256_avx2_select_w7	ENDP
 
 ALIGN	32
 __ecp_nistz256_add_toq	PROC PRIVATE
+	xor	r11,r11
 	add	r12,QWORD PTR[rbx]
 	adc	r13,QWORD PTR[8+rbx]
 	mov	rax,r12
 	adc	r8,QWORD PTR[16+rbx]
 	adc	r9,QWORD PTR[24+rbx]
 	mov	rbp,r13
-	sbb	r11,r11
+	adc	r11,0
 
 	sub	r12,-1
 	mov	rcx,r8
@@ -1687,14 +1689,14 @@ __ecp_nistz256_add_toq	PROC PRIVATE
 	sbb	r8,0
 	mov	r10,r9
 	sbb	r9,r15
-	test	r11,r11
+	sbb	r11,0
 
-	cmovz	r12,rax
-	cmovz	r13,rbp
+	cmovc	r12,rax
+	cmovc	r13,rbp
 	mov	QWORD PTR[rdi],r12
-	cmovz	r8,rcx
+	cmovc	r8,rcx
 	mov	QWORD PTR[8+rdi],r13
-	cmovz	r9,r10
+	cmovc	r9,r10
 	mov	QWORD PTR[16+rdi],r8
 	mov	QWORD PTR[24+rdi],r9
 
@@ -1762,13 +1764,14 @@ __ecp_nistz256_subq	ENDP
 
 ALIGN	32
 __ecp_nistz256_mul_by_2q	PROC PRIVATE
+	xor	r11,r11
 	add	r12,r12
 	adc	r13,r13
 	mov	rax,r12
 	adc	r8,r8
 	adc	r9,r9
 	mov	rbp,r13
-	sbb	r11,r11
+	adc	r11,0
 
 	sub	r12,-1
 	mov	rcx,r8
@@ -1776,14 +1779,14 @@ __ecp_nistz256_mul_by_2q	PROC PRIVATE
 	sbb	r8,0
 	mov	r10,r9
 	sbb	r9,r15
-	test	r11,r11
+	sbb	r11,0
 
-	cmovz	r12,rax
-	cmovz	r13,rbp
+	cmovc	r12,rax
+	cmovc	r13,rbp
 	mov	QWORD PTR[rdi],r12
-	cmovz	r8,rcx
+	cmovc	r8,rcx
 	mov	QWORD PTR[8+rdi],r13
-	cmovz	r9,r10
+	cmovc	r9,r10
 	mov	QWORD PTR[16+rdi],r8
 	mov	QWORD PTR[24+rdi],r9
 
@@ -2041,16 +2044,14 @@ $L$SEH_begin_ecp_nistz256_point_add::
 	mov	rsi,rdx
 	movdqa	XMMWORD PTR[384+rsp],xmm0
 	movdqa	XMMWORD PTR[(384+16)+rsp],xmm1
-	por	xmm1,xmm0
 	movdqa	XMMWORD PTR[416+rsp],xmm2
 	movdqa	XMMWORD PTR[(416+16)+rsp],xmm3
-	por	xmm3,xmm2
 	movdqa	XMMWORD PTR[448+rsp],xmm4
 	movdqa	XMMWORD PTR[(448+16)+rsp],xmm5
-	por	xmm3,xmm1
+	por	xmm5,xmm4
 
 	movdqu	xmm0,XMMWORD PTR[rsi]
-	pshufd	xmm5,xmm3,1h
+	pshufd	xmm3,xmm5,1h
 	movdqu	xmm1,XMMWORD PTR[16+rsi]
 	movdqu	xmm2,XMMWORD PTR[32+rsi]
 	por	xmm5,xmm3
@@ -2062,14 +2063,14 @@ $L$SEH_begin_ecp_nistz256_point_add::
 	movdqa	XMMWORD PTR[480+rsp],xmm0
 	pshufd	xmm4,xmm5,01eh
 	movdqa	XMMWORD PTR[(480+16)+rsp],xmm1
-	por	xmm1,xmm0
-DB	102,72,15,110,199
+	movdqu	xmm0,XMMWORD PTR[64+rsi]
+	movdqu	xmm1,XMMWORD PTR[80+rsi]
 	movdqa	XMMWORD PTR[512+rsp],xmm2
 	movdqa	XMMWORD PTR[(512+16)+rsp],xmm3
-	por	xmm3,xmm2
 	por	xmm5,xmm4
 	pxor	xmm4,xmm4
-	por	xmm3,xmm1
+	por	xmm1,xmm0
+DB	102,72,15,110,199
 
 	lea	rsi,QWORD PTR[((64-0))+rsi]
 	mov	QWORD PTR[((544+0))+rsp],rax
@@ -2080,8 +2081,8 @@ DB	102,72,15,110,199
 	call	__ecp_nistz256_sqr_montq
 
 	pcmpeqd	xmm5,xmm4
-	pshufd	xmm4,xmm3,1h
-	por	xmm4,xmm3
+	pshufd	xmm4,xmm1,1h
+	por	xmm4,xmm1
 	pshufd	xmm5,xmm5,0
 	pshufd	xmm3,xmm4,01eh
 	por	xmm4,xmm3
@@ -2264,6 +2265,7 @@ $L$add_proceedq::
 
 
 
+	xor	r11,r11
 	add	r12,r12
 	lea	rsi,QWORD PTR[96+rsp]
 	adc	r13,r13
@@ -2271,7 +2273,7 @@ $L$add_proceedq::
 	adc	r8,r8
 	adc	r9,r9
 	mov	rbp,r13
-	sbb	r11,r11
+	adc	r11,0
 
 	sub	r12,-1
 	mov	rcx,r8
@@ -2279,15 +2281,15 @@ $L$add_proceedq::
 	sbb	r8,0
 	mov	r10,r9
 	sbb	r9,r15
-	test	r11,r11
+	sbb	r11,0
 
-	cmovz	r12,rax
+	cmovc	r12,rax
 	mov	rax,QWORD PTR[rsi]
-	cmovz	r13,rbp
+	cmovc	r13,rbp
 	mov	rbp,QWORD PTR[8+rsi]
-	cmovz	r8,rcx
+	cmovc	r8,rcx
 	mov	rcx,QWORD PTR[16+rsi]
-	cmovz	r9,r10
+	cmovc	r9,r10
 	mov	r10,QWORD PTR[24+rsi]
 
 	call	__ecp_nistz256_subq
@@ -2457,16 +2459,14 @@ $L$SEH_begin_ecp_nistz256_point_add_affine::
 	mov	r8,QWORD PTR[((64+24))+rsi]
 	movdqa	XMMWORD PTR[320+rsp],xmm0
 	movdqa	XMMWORD PTR[(320+16)+rsp],xmm1
-	por	xmm1,xmm0
 	movdqa	XMMWORD PTR[352+rsp],xmm2
 	movdqa	XMMWORD PTR[(352+16)+rsp],xmm3
-	por	xmm3,xmm2
 	movdqa	XMMWORD PTR[384+rsp],xmm4
 	movdqa	XMMWORD PTR[(384+16)+rsp],xmm5
-	por	xmm3,xmm1
+	por	xmm5,xmm4
 
 	movdqu	xmm0,XMMWORD PTR[rbx]
-	pshufd	xmm5,xmm3,1h
+	pshufd	xmm3,xmm5,1h
 	movdqu	xmm1,XMMWORD PTR[16+rbx]
 	movdqu	xmm2,XMMWORD PTR[32+rbx]
 	por	xmm5,xmm3
@@ -2584,6 +2584,7 @@ DB	102,72,15,110,199
 
 
 
+	xor	r11,r11
 	add	r12,r12
 	lea	rsi,QWORD PTR[192+rsp]
 	adc	r13,r13
@@ -2591,7 +2592,7 @@ DB	102,72,15,110,199
 	adc	r8,r8
 	adc	r9,r9
 	mov	rbp,r13
-	sbb	r11,r11
+	adc	r11,0
 
 	sub	r12,-1
 	mov	rcx,r8
@@ -2599,15 +2600,15 @@ DB	102,72,15,110,199
 	sbb	r8,0
 	mov	r10,r9
 	sbb	r9,r15
-	test	r11,r11
+	sbb	r11,0
 
-	cmovz	r12,rax
+	cmovc	r12,rax
 	mov	rax,QWORD PTR[rsi]
-	cmovz	r13,rbp
+	cmovc	r13,rbp
 	mov	rbp,QWORD PTR[8+rsi]
-	cmovz	r8,rcx
+	cmovc	r8,rcx
 	mov	rcx,QWORD PTR[16+rsi]
-	cmovz	r9,r10
+	cmovc	r9,r10
 	mov	r10,QWORD PTR[24+rsi]
 
 	call	__ecp_nistz256_subq
@@ -2757,14 +2758,14 @@ __ecp_nistz256_add_tox	PROC PRIVATE
 	sbb	r8,0
 	mov	r10,r9
 	sbb	r9,r15
+	sbb	r11,0
 
-	bt	r11,0
-	cmovnc	r12,rax
-	cmovnc	r13,rbp
+	cmovc	r12,rax
+	cmovc	r13,rbp
 	mov	QWORD PTR[rdi],r12
-	cmovnc	r8,rcx
+	cmovc	r8,rcx
 	mov	QWORD PTR[8+rdi],r13
-	cmovnc	r9,r10
+	cmovc	r9,r10
 	mov	QWORD PTR[16+rdi],r8
 	mov	QWORD PTR[24+rdi],r9
 
@@ -2852,14 +2853,14 @@ __ecp_nistz256_mul_by_2x	PROC PRIVATE
 	sbb	r8,0
 	mov	r10,r9
 	sbb	r9,r15
+	sbb	r11,0
 
-	bt	r11,0
-	cmovnc	r12,rax
-	cmovnc	r13,rbp
+	cmovc	r12,rax
+	cmovc	r13,rbp
 	mov	QWORD PTR[rdi],r12
-	cmovnc	r8,rcx
+	cmovc	r8,rcx
 	mov	QWORD PTR[8+rdi],r13
-	cmovnc	r9,r10
+	cmovc	r9,r10
 	mov	QWORD PTR[16+rdi],r8
 	mov	QWORD PTR[24+rdi],r9
 
@@ -3109,16 +3110,14 @@ $L$point_addx::
 	mov	rsi,rdx
 	movdqa	XMMWORD PTR[384+rsp],xmm0
 	movdqa	XMMWORD PTR[(384+16)+rsp],xmm1
-	por	xmm1,xmm0
 	movdqa	XMMWORD PTR[416+rsp],xmm2
 	movdqa	XMMWORD PTR[(416+16)+rsp],xmm3
-	por	xmm3,xmm2
 	movdqa	XMMWORD PTR[448+rsp],xmm4
 	movdqa	XMMWORD PTR[(448+16)+rsp],xmm5
-	por	xmm3,xmm1
+	por	xmm5,xmm4
 
 	movdqu	xmm0,XMMWORD PTR[rsi]
-	pshufd	xmm5,xmm3,1h
+	pshufd	xmm3,xmm5,1h
 	movdqu	xmm1,XMMWORD PTR[16+rsi]
 	movdqu	xmm2,XMMWORD PTR[32+rsi]
 	por	xmm5,xmm3
@@ -3130,14 +3129,14 @@ $L$point_addx::
 	movdqa	XMMWORD PTR[480+rsp],xmm0
 	pshufd	xmm4,xmm5,01eh
 	movdqa	XMMWORD PTR[(480+16)+rsp],xmm1
-	por	xmm1,xmm0
-DB	102,72,15,110,199
+	movdqu	xmm0,XMMWORD PTR[64+rsi]
+	movdqu	xmm1,XMMWORD PTR[80+rsi]
 	movdqa	XMMWORD PTR[512+rsp],xmm2
 	movdqa	XMMWORD PTR[(512+16)+rsp],xmm3
-	por	xmm3,xmm2
 	por	xmm5,xmm4
 	pxor	xmm4,xmm4
-	por	xmm3,xmm1
+	por	xmm1,xmm0
+DB	102,72,15,110,199
 
 	lea	rsi,QWORD PTR[((64-128))+rsi]
 	mov	QWORD PTR[((544+0))+rsp],rdx
@@ -3148,8 +3147,8 @@ DB	102,72,15,110,199
 	call	__ecp_nistz256_sqr_montx
 
 	pcmpeqd	xmm5,xmm4
-	pshufd	xmm4,xmm3,1h
-	por	xmm4,xmm3
+	pshufd	xmm4,xmm1,1h
+	por	xmm4,xmm1
 	pshufd	xmm5,xmm5,0
 	pshufd	xmm3,xmm4,01eh
 	por	xmm4,xmm3
@@ -3332,6 +3331,7 @@ $L$add_proceedx::
 
 
 
+	xor	r11,r11
 	add	r12,r12
 	lea	rsi,QWORD PTR[96+rsp]
 	adc	r13,r13
@@ -3339,7 +3339,7 @@ $L$add_proceedx::
 	adc	r8,r8
 	adc	r9,r9
 	mov	rbp,r13
-	sbb	r11,r11
+	adc	r11,0
 
 	sub	r12,-1
 	mov	rcx,r8
@@ -3347,15 +3347,15 @@ $L$add_proceedx::
 	sbb	r8,0
 	mov	r10,r9
 	sbb	r9,r15
-	test	r11,r11
+	sbb	r11,0
 
-	cmovz	r12,rax
+	cmovc	r12,rax
 	mov	rax,QWORD PTR[rsi]
-	cmovz	r13,rbp
+	cmovc	r13,rbp
 	mov	rbp,QWORD PTR[8+rsi]
-	cmovz	r8,rcx
+	cmovc	r8,rcx
 	mov	rcx,QWORD PTR[16+rsi]
-	cmovz	r9,r10
+	cmovc	r9,r10
 	mov	r10,QWORD PTR[24+rsi]
 
 	call	__ecp_nistz256_subx
@@ -3521,16 +3521,14 @@ $L$point_add_affinex::
 	mov	r8,QWORD PTR[((64+24))+rsi]
 	movdqa	XMMWORD PTR[320+rsp],xmm0
 	movdqa	XMMWORD PTR[(320+16)+rsp],xmm1
-	por	xmm1,xmm0
 	movdqa	XMMWORD PTR[352+rsp],xmm2
 	movdqa	XMMWORD PTR[(352+16)+rsp],xmm3
-	por	xmm3,xmm2
 	movdqa	XMMWORD PTR[384+rsp],xmm4
 	movdqa	XMMWORD PTR[(384+16)+rsp],xmm5
-	por	xmm3,xmm1
+	por	xmm5,xmm4
 
 	movdqu	xmm0,XMMWORD PTR[rbx]
-	pshufd	xmm5,xmm3,1h
+	pshufd	xmm3,xmm5,1h
 	movdqu	xmm1,XMMWORD PTR[16+rbx]
 	movdqu	xmm2,XMMWORD PTR[32+rbx]
 	por	xmm5,xmm3
@@ -3648,6 +3646,7 @@ DB	102,72,15,110,199
 
 
 
+	xor	r11,r11
 	add	r12,r12
 	lea	rsi,QWORD PTR[192+rsp]
 	adc	r13,r13
@@ -3655,7 +3654,7 @@ DB	102,72,15,110,199
 	adc	r8,r8
 	adc	r9,r9
 	mov	rbp,r13
-	sbb	r11,r11
+	adc	r11,0
 
 	sub	r12,-1
 	mov	rcx,r8
@@ -3663,15 +3662,15 @@ DB	102,72,15,110,199
 	sbb	r8,0
 	mov	r10,r9
 	sbb	r9,r15
-	test	r11,r11
+	sbb	r11,0
 
-	cmovz	r12,rax
+	cmovc	r12,rax
 	mov	rax,QWORD PTR[rsi]
-	cmovz	r13,rbp
+	cmovc	r13,rbp
 	mov	rbp,QWORD PTR[8+rsi]
-	cmovz	r8,rcx
+	cmovc	r8,rcx
 	mov	rcx,QWORD PTR[16+rsi]
-	cmovz	r9,r10
+	cmovc	r9,r10
 	mov	r10,QWORD PTR[24+rsi]
 
 	call	__ecp_nistz256_subx

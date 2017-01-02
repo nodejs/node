@@ -1,34 +1,40 @@
 #include "inspector_socket.h"
-
 #include "gtest/gtest.h"
 
 #define PORT 9444
+
+namespace {
+
+using node::inspector::InspectorSocket;
+using node::inspector::inspector_from_stream;
+using node::inspector::inspector_handshake_event;
+using node::inspector::kInspectorHandshakeFailed;
+using node::inspector::kInspectorHandshakeHttpGet;
+using node::inspector::kInspectorHandshakeUpgraded;
+using node::inspector::kInspectorHandshakeUpgrading;
 
 static const int MAX_LOOP_ITERATIONS = 10000;
 
 #define SPIN_WHILE(condition)                                                  \
   {                                                                            \
-    bool timed_out = false;                                                    \
-    timeout_timer.data = &timed_out;                                           \
-    uv_timer_start(&timeout_timer, set_timeout_flag, 5000, 0);                 \
-    while (((condition)) && !timed_out) {                                      \
+    Timeout timeout(&loop);                                                    \
+    while ((condition) && !timeout.timed_out) {                              \
       uv_run(&loop, UV_RUN_NOWAIT);                                            \
     }                                                                          \
     ASSERT_FALSE((condition));                                                 \
-    uv_timer_stop(&timeout_timer);                                             \
   }
 
-static uv_timer_t timeout_timer;
 static bool connected = false;
 static bool inspector_ready = false;
 static int handshake_events = 0;
 static enum inspector_handshake_event last_event = kInspectorHandshakeHttpGet;
 static uv_loop_t loop;
 static uv_tcp_t server, client_socket;
-static inspector_socket_t inspector;
-static char last_path[100];
+static InspectorSocket inspector;
+static std::string last_path;  // NOLINT(runtime/string)
 static void (*handshake_delegate)(enum inspector_handshake_event state,
-                                  const char* path, bool* should_continue);
+                                  const std::string& path,
+                                  bool* should_continue);
 
 struct read_expects {
   const char* expected;
@@ -45,24 +51,53 @@ static const char HANDSHAKE_REQ[] = "GET /ws/path HTTP/1.1\r\n"
                                     "Sec-WebSocket-Key: aaa==\r\n"
                                     "Sec-WebSocket-Version: 13\r\n\r\n";
 
-static void set_timeout_flag(uv_timer_t* timer) {
-  *(static_cast<bool*>(timer->data)) = true;
-}
+class Timeout {
+ public:
+  explicit Timeout(uv_loop_t* loop) : timed_out(false), done_(false) {
+    uv_timer_init(loop, &timer_);
+    uv_timer_start(&timer_, Timeout::set_flag, 5000, 0);
+  }
+
+  ~Timeout() {
+    uv_timer_stop(&timer_);
+    uv_close(reinterpret_cast<uv_handle_t*>(&timer_), mark_done);
+    while (!done_) {
+      uv_run(&loop, UV_RUN_NOWAIT);
+    }
+  }
+
+  bool timed_out;
+
+ private:
+  static void set_flag(uv_timer_t* timer) {
+    Timeout* t = node::ContainerOf(&Timeout::timer_, timer);
+    t->timed_out = true;
+  }
+
+  static void mark_done(uv_handle_t* timer) {
+    Timeout* t = node::ContainerOf(&Timeout::timer_,
+        reinterpret_cast<uv_timer_t*>(timer));
+    t->done_ = true;
+  }
+
+  bool done_;
+  uv_timer_t timer_;
+};
 
 static void stop_if_stop_path(enum inspector_handshake_event state,
-                              const char* path, bool* cont) {
-  *cont = path == nullptr || strcmp(path, "/close") != 0;
+                              const std::string& path, bool* cont) {
+  *cont = path.empty() || path != "/close";
 }
 
-static bool connected_cb(inspector_socket_t* socket,
+static bool connected_cb(InspectorSocket* socket,
                          enum inspector_handshake_event state,
-                         const char* path) {
+                         const std::string& path) {
   inspector_ready = state == kInspectorHandshakeUpgraded;
   last_event = state;
-  if (!path) {
-    strcpy(last_path, "@@@ Nothing Recieved @@@");
+  if (path.empty()) {
+    last_path = "@@@ Nothing received @@@";
   } else {
-    strncpy(last_path, path, sizeof(last_path) - 1);
+    last_path = path;
   }
   handshake_events++;
   bool should_continue = true;
@@ -73,7 +108,7 @@ static bool connected_cb(inspector_socket_t* socket,
 static void on_new_connection(uv_stream_t* server, int status) {
   GTEST_ASSERT_EQ(0, status);
   connected = true;
-  inspector_accept(server, reinterpret_cast<inspector_socket_t*>(server->data),
+  inspector_accept(server, static_cast<InspectorSocket*>(server->data),
                    connected_cb);
 }
 
@@ -86,13 +121,14 @@ static void do_write(const char* data, int len) {
   uv_buf_t buf[1];
   buf[0].base = const_cast<char*>(data);
   buf[0].len = len;
-  uv_write(&req, reinterpret_cast<uv_stream_t *>(&client_socket), buf, 1,
-           write_done);
+  GTEST_ASSERT_EQ(0,
+                  uv_write(&req, reinterpret_cast<uv_stream_t*>(&client_socket),
+                           buf, 1, write_done));
   SPIN_WHILE(req.data);
 }
 
 static void buffer_alloc_cb(uv_handle_t* stream, size_t len, uv_buf_t* buf) {
-  buf->base = static_cast<char*>(malloc(len));
+  buf->base = new char[len];
   buf->len = len;
 }
 
@@ -102,18 +138,18 @@ static void check_data_cb(read_expects* expectation, ssize_t nread,
   EXPECT_TRUE(nread >= 0 && nread != UV_EOF);
   ssize_t i;
   char c, actual;
-  ASSERT_TRUE(expectation->expected_len > 0);
+  ASSERT_GT(expectation->expected_len, 0);
   for (i = 0; i < nread && expectation->pos <= expectation->expected_len; i++) {
     c = expectation->expected[expectation->pos++];
     actual = buf->base[i];
     if (c != actual) {
-      fprintf(stderr, "Unexpected character at position %ld\n",
+      fprintf(stderr, "Unexpected character at position %zd\n",
               expectation->pos - 1);
       GTEST_ASSERT_EQ(c, actual);
     }
   }
   GTEST_ASSERT_EQ(i, nread);
-  free(buf->base);
+  delete[] buf->base;
   if (expectation->pos == expectation->expected_len) {
     expectation->read_expected = true;
     *retval = true;
@@ -123,7 +159,7 @@ static void check_data_cb(read_expects* expectation, ssize_t nread,
 static void check_data_cb(uv_stream_t* stream, ssize_t nread,
                           const uv_buf_t* buf) {
   bool retval = false;
-  read_expects* expects = static_cast<read_expects *>(stream->data);
+  read_expects* expects = static_cast<read_expects*>(stream->data);
   expects->callback_called = true;
   check_data_cb(expects, nread, buf, &retval);
   if (retval) {
@@ -147,29 +183,30 @@ static void fail_callback(uv_stream_t* stream, ssize_t nread,
   if (nread < 0) {
     fprintf(stderr, "IO error: %s\n", uv_strerror(nread));
   } else {
-    fprintf(stderr, "Read %ld bytes\n", nread);
+    fprintf(stderr, "Read %zd bytes\n", nread);
   }
-  ASSERT_TRUE(false); // Shouldn't have been called
+  ASSERT_TRUE(false);  // Shouldn't have been called
 }
 
 static void expect_nothing_on_client() {
-  int err = uv_read_start(reinterpret_cast<uv_stream_t *>(&client_socket),
-                          buffer_alloc_cb, fail_callback);
+  uv_stream_t* stream = reinterpret_cast<uv_stream_t*>(&client_socket);
+  int err = uv_read_start(stream, buffer_alloc_cb, fail_callback);
   GTEST_ASSERT_EQ(0, err);
   for (int i = 0; i < MAX_LOOP_ITERATIONS; i++)
     uv_run(&loop, UV_RUN_NOWAIT);
+  uv_read_stop(stream);
 }
 
 static void expect_on_client(const char* data, size_t len) {
   read_expects expectation = prepare_expects(data, len);
   client_socket.data = &expectation;
-  uv_read_start(reinterpret_cast<uv_stream_t *>(&client_socket),
+  uv_read_start(reinterpret_cast<uv_stream_t*>(&client_socket),
                 buffer_alloc_cb, check_data_cb);
   SPIN_WHILE(!expectation.read_expected);
 }
 
 struct expectations {
-  char* actual_data;
+  std::string actual_data;
   size_t actual_offset;
   size_t actual_end;
   int err_code;
@@ -177,13 +214,12 @@ struct expectations {
 
 static void grow_expects_buffer(uv_handle_t* stream, size_t size, uv_buf_t* b) {
   expectations* expects = static_cast<expectations*>(
-      (static_cast<inspector_socket_t*>(stream->data))->data);
+      inspector_from_stream(stream)->data);
   size_t end = expects->actual_end;
   // Grow the buffer in chunks of 64k.
   size_t new_length = (end + size + 65535) & ~((size_t) 0xFFFF);
-  expects->actual_data =
-      static_cast<char*>(realloc(expects->actual_data, new_length));
-  *b = uv_buf_init(expects->actual_data + end, new_length - end);
+  expects->actual_data.resize(new_length);
+  *b = uv_buf_init(&expects->actual_data[end], new_length - end);
 }
 
 // static void dump_hex(const char* buf, size_t len) {
@@ -212,8 +248,8 @@ static void grow_expects_buffer(uv_handle_t* stream, size_t size, uv_buf_t* b) {
 
 static void save_read_data(uv_stream_t* stream, ssize_t nread,
                            const uv_buf_t* buf) {
-  expectations* expects =static_cast<expectations*>(
-      (static_cast<inspector_socket_t*>(stream->data))->data);
+  expectations* expects = static_cast<expectations*>(
+      inspector_from_stream(stream)->data);
   expects->err_code = nread < 0 ? nread : 0;
   if (nread > 0) {
     expects->actual_end += nread;
@@ -224,8 +260,7 @@ static void setup_inspector_expecting() {
   if (inspector.data) {
     return;
   }
-  expectations* expects = static_cast<expectations*>(malloc(sizeof(*expects)));
-  memset(expects, 0, sizeof(*expects));
+  expectations* expects = new expectations();
   inspector.data = expects;
   inspector_read_start(&inspector, grow_expects_buffer, save_read_data);
 }
@@ -239,15 +274,15 @@ static void expect_on_server(const char* data, size_t len) {
       char actual = expects->actual_data[expects->actual_offset++];
       char expected = data[i];
       if (expected != actual) {
-        fprintf(stderr, "Character %ld:\n", i);
+        fprintf(stderr, "Character %zu:\n", i);
         GTEST_ASSERT_EQ(expected, actual);
       }
     }
   }
   expects->actual_end -= expects->actual_offset;
   if (!expects->actual_end) {
-    memmove(expects->actual_data,
-            expects->actual_data + expects->actual_offset,
+    memmove(&expects->actual_data[0],
+            &expects->actual_data[expects->actual_offset],
             expects->actual_end);
   }
   expects->actual_offset = 0;
@@ -255,10 +290,9 @@ static void expect_on_server(const char* data, size_t len) {
 
 static void inspector_record_error_code(uv_stream_t* stream, ssize_t nread,
                                         const uv_buf_t* buf) {
-  inspector_socket_t *inspector =
-      reinterpret_cast<inspector_socket_t*>(stream->data);
+  InspectorSocket *inspector = inspector_from_stream(stream);
   // Increment instead of assign is to ensure the function is only called once
-  *(static_cast<int *>(inspector->data)) += nread;
+  *(static_cast<int*>(inspector->data)) += nread;
 }
 
 static void expect_server_read_error() {
@@ -288,10 +322,10 @@ static bool waiting_to_close = true;
 
 void handle_closed(uv_handle_t* handle) { waiting_to_close = false; }
 
-static void really_close(uv_tcp_t* socket) {
+static void really_close(uv_handle_t* handle) {
   waiting_to_close = true;
-  if (!uv_is_closing(reinterpret_cast<uv_handle_t*>(socket))) {
-    uv_close(reinterpret_cast<uv_handle_t*>(socket), handle_closed);
+  if (!uv_is_closing(handle)) {
+    uv_close(handle, handle_closed);
     SPIN_WHILE(waiting_to_close);
   }
 }
@@ -300,10 +334,17 @@ static void really_close(uv_tcp_t* socket) {
 static void manual_inspector_socket_cleanup() {
   EXPECT_EQ(0, uv_is_active(
                    reinterpret_cast<uv_handle_t*>(&inspector.client)));
-  free(inspector.ws_state);
-  free(inspector.http_parsing_state);
-  free(inspector.buffer);
-  inspector.buffer = nullptr;
+  really_close(reinterpret_cast<uv_handle_t*>(&inspector.client));
+  delete inspector.ws_state;
+  inspector.ws_state = nullptr;
+  delete inspector.http_parsing_state;
+  inspector.http_parsing_state = nullptr;
+  inspector.buffer.clear();
+}
+
+static void assert_both_sockets_closed() {
+  SPIN_WHILE(uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)));
+  SPIN_WHILE(uv_is_active(reinterpret_cast<uv_handle_t*>(&inspector.client)));
 }
 
 static void on_connection(uv_connect_t* connect, int status) {
@@ -312,57 +353,49 @@ static void on_connection(uv_connect_t* connect, int status) {
 }
 
 class InspectorSocketTest : public ::testing::Test {
-protected:
+ protected:
   virtual void SetUp() {
+    inspector.reinit();
     handshake_delegate = stop_if_stop_path;
     handshake_events = 0;
     connected = false;
     inspector_ready = false;
     last_event = kInspectorHandshakeHttpGet;
-    uv_loop_init(&loop);
-    memset(&inspector, 0, sizeof(inspector));
-    memset(&server, 0, sizeof(server));
-    memset(&client_socket, 0, sizeof(client_socket));
+    GTEST_ASSERT_EQ(0, uv_loop_init(&loop));
+    server = uv_tcp_t();
+    client_socket = uv_tcp_t();
     server.data = &inspector;
     sockaddr_in addr;
-    uv_timer_init(&loop, &timeout_timer);
     uv_tcp_init(&loop, &server);
     uv_tcp_init(&loop, &client_socket);
-    uv_ip4_addr("localhost", PORT, &addr);
-    uv_tcp_bind(&server, reinterpret_cast<const struct sockaddr *>(&addr), 0);
-    int err = uv_listen(reinterpret_cast<uv_stream_t *>(&server),
-                        0, on_new_connection);
-    GTEST_ASSERT_EQ(0, err);
+    uv_ip4_addr("127.0.0.1", PORT, &addr);
+    uv_tcp_bind(&server, reinterpret_cast<const struct sockaddr*>(&addr), 0);
+    GTEST_ASSERT_EQ(0, uv_listen(reinterpret_cast<uv_stream_t*>(&server),
+                                 1, on_new_connection));
     uv_connect_t connect;
     connect.data = nullptr;
-    uv_tcp_connect(&connect, &client_socket,
-                   reinterpret_cast<const sockaddr *>(&addr), on_connection);
-    uv_tcp_nodelay(&client_socket, 1); // The buffering messes up the test
+    GTEST_ASSERT_EQ(0, uv_tcp_connect(&connect, &client_socket,
+                                      reinterpret_cast<const sockaddr*>(&addr),
+                                      on_connection));
+    uv_tcp_nodelay(&client_socket, 1);  // The buffering messes up the test
     SPIN_WHILE(!connect.data || !connected);
-    really_close(&server);
-    uv_unref(reinterpret_cast<uv_handle_t*>(&server));
+    really_close(reinterpret_cast<uv_handle_t*>(&server));
   }
 
   virtual void TearDown() {
-    really_close(&client_socket);
-    for (int i = 0; i < MAX_LOOP_ITERATIONS; i++)
-      uv_run(&loop, UV_RUN_NOWAIT);
-    EXPECT_EQ(nullptr, inspector.buffer);
-    uv_stop(&loop);
-    int err = uv_run(&loop, UV_RUN_ONCE);
-    if (err != 0) {
-      uv_print_active_handles(&loop, stderr);
-    }
-    EXPECT_EQ(0, err);
+    really_close(reinterpret_cast<uv_handle_t*>(&client_socket));
+    EXPECT_TRUE(inspector.buffer.empty());
     expectations* expects = static_cast<expectations*>(inspector.data);
     if (expects != nullptr) {
       GTEST_ASSERT_EQ(expects->actual_end, expects->actual_offset);
-      free(expects->actual_data);
-      expects->actual_data = nullptr;
-      free(expects);
+      delete expects;
       inspector.data = nullptr;
     }
-    uv_loop_close(&loop);
+    const int err = uv_loop_close(&loop);
+    if (err != 0) {
+      uv_print_all_handles(&loop, stderr);
+    }
+    EXPECT_EQ(0, err);
   }
 };
 
@@ -396,7 +429,6 @@ TEST_F(InspectorSocketTest, ReadsAndWritesInspectorMessage) {
 }
 
 TEST_F(InspectorSocketTest, BufferEdgeCases) {
-
   do_write(const_cast<char*>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
   expect_handshake();
 
@@ -474,7 +506,8 @@ TEST_F(InspectorSocketTest, AcceptsRequestInSeveralWrites) {
   SPIN_WHILE(!inspector_ready);
   expect_handshake();
   inspector_read_stop(&inspector);
-  GTEST_ASSERT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)), 0);
+  GTEST_ASSERT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)),
+                  0);
   manual_inspector_socket_cleanup();
 }
 
@@ -487,8 +520,7 @@ TEST_F(InspectorSocketTest, ExtraTextBeforeRequest) {
   do_write(const_cast<char*>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
   SPIN_WHILE(last_event != kInspectorHandshakeFailed);
   expect_handshake_failure();
-  EXPECT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)), 0);
-  EXPECT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&socket)), 0);
+  assert_both_sockets_closed();
 }
 
 TEST_F(InspectorSocketTest, ExtraLettersBeforeRequest) {
@@ -499,8 +531,7 @@ TEST_F(InspectorSocketTest, ExtraLettersBeforeRequest) {
   do_write(const_cast<char*>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
   SPIN_WHILE(last_event != kInspectorHandshakeFailed);
   expect_handshake_failure();
-  EXPECT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)), 0);
-  EXPECT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&socket)), 0);
+  assert_both_sockets_closed();
 }
 
 TEST_F(InspectorSocketTest, RequestWithoutKey) {
@@ -509,13 +540,11 @@ TEST_F(InspectorSocketTest, RequestWithoutKey) {
                                 "Upgrade: websocket\r\n"
                                 "Connection: Upgrade\r\n"
                                 "Sec-WebSocket-Version: 13\r\n\r\n";
-  ;
 
   do_write(const_cast<char*>(BROKEN_REQUEST), sizeof(BROKEN_REQUEST) - 1);
   SPIN_WHILE(last_event != kInspectorHandshakeFailed);
   expect_handshake_failure();
-  EXPECT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)), 0);
-  EXPECT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&socket)), 0);
+  assert_both_sockets_closed();
 }
 
 TEST_F(InspectorSocketTest, KillsConnectionOnProtocolViolation) {
@@ -528,7 +557,8 @@ TEST_F(InspectorSocketTest, KillsConnectionOnProtocolViolation) {
   const char SERVER_FRAME[] = "I'm not a good WS frame. Nope!";
   do_write(SERVER_FRAME, sizeof(SERVER_FRAME));
   expect_server_read_error();
-  GTEST_ASSERT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)), 0);
+  GTEST_ASSERT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)),
+                  0);
 }
 
 TEST_F(InspectorSocketTest, CanStopReadingFromInspector) {
@@ -554,7 +584,7 @@ TEST_F(InspectorSocketTest, CanStopReadingFromInspector) {
 
 static int inspector_closed = 0;
 
-void inspector_closed_cb(inspector_socket_t *inspector, int code) {
+void inspector_closed_cb(InspectorSocket *inspector, int code) {
   inspector_closed++;
 }
 
@@ -611,10 +641,10 @@ static void send_in_chunks(const char* data, size_t len) {
 static const char TEST_SUCCESS[] = "Test Success\n\n";
 
 static void ReportsHttpGet_handshake(enum inspector_handshake_event state,
-                                     const char* path, bool* cont) {
+                                     const std::string& path, bool* cont) {
   *cont = true;
   enum inspector_handshake_event expected_state = kInspectorHandshakeHttpGet;
-  const char* expected_path;
+  std::string expected_path;
   switch (handshake_events) {
   case 1:
     expected_path = "/some/path";
@@ -628,16 +658,16 @@ static void ReportsHttpGet_handshake(enum inspector_handshake_event state,
     break;
   case 5:
     expected_state = kInspectorHandshakeFailed;
+    break;
   case 4:
     expected_path = "/close";
     *cont = false;
     break;
   default:
-    expected_path = nullptr;
     ASSERT_TRUE(false);
   }
   EXPECT_EQ(expected_state, state);
-  EXPECT_STREQ(expected_path, path);
+  EXPECT_EQ(expected_path, path);
 }
 
 TEST_F(InspectorSocketTest, ReportsHttpGet) {
@@ -673,19 +703,20 @@ TEST_F(InspectorSocketTest, ReportsHttpGet) {
 
 static void
 HandshakeCanBeCanceled_handshake(enum inspector_handshake_event state,
-                                 const char* path, bool* cont) {
+                                 const std::string& path, bool* cont) {
   switch (handshake_events - 1) {
   case 0:
     EXPECT_EQ(kInspectorHandshakeUpgrading, state);
+    EXPECT_EQ("/ws/path", path);
     break;
   case 1:
     EXPECT_EQ(kInspectorHandshakeFailed, state);
+    EXPECT_TRUE(path.empty());
     break;
   default:
     EXPECT_TRUE(false);
     break;
   }
-  EXPECT_STREQ("/ws/path", path);
   *cont = false;
 }
 
@@ -699,9 +730,9 @@ TEST_F(InspectorSocketTest, HandshakeCanBeCanceled) {
 }
 
 static void GetThenHandshake_handshake(enum inspector_handshake_event state,
-                                       const char* path, bool* cont) {
+                                       const std::string& path, bool* cont) {
   *cont = true;
-  const char* expected_path = "/ws/path";
+  std::string expected_path = "/ws/path";
   switch (handshake_events - 1) {
   case 0:
     EXPECT_EQ(kInspectorHandshakeHttpGet, state);
@@ -718,7 +749,7 @@ static void GetThenHandshake_handshake(enum inspector_handshake_event state,
     EXPECT_TRUE(false);
     break;
   }
-  EXPECT_STREQ(expected_path, path);
+  EXPECT_EQ(expected_path, path);
 }
 
 TEST_F(InspectorSocketTest, GetThenHandshake) {
@@ -735,8 +766,11 @@ TEST_F(InspectorSocketTest, GetThenHandshake) {
   manual_inspector_socket_cleanup();
 }
 
-static void WriteBeforeHandshake_close_cb(uv_handle_t* handle) {
-  *(static_cast<bool *>(handle->data)) = true;
+static void WriteBeforeHandshake_inspector_delegate(inspector_handshake_event e,
+                                                    const std::string& path,
+                                                    bool* cont) {
+  if (e == kInspectorHandshakeFailed)
+    inspector_closed = 1;
 }
 
 TEST_F(InspectorSocketTest, WriteBeforeHandshake) {
@@ -747,23 +781,21 @@ TEST_F(InspectorSocketTest, WriteBeforeHandshake) {
   inspector_write(&inspector, MESSAGE1, sizeof(MESSAGE1) - 1);
   inspector_write(&inspector, MESSAGE2, sizeof(MESSAGE2) - 1);
   expect_on_client(EXPECTED, sizeof(EXPECTED) - 1);
-  bool flag = false;
-  client_socket.data = &flag;
-  uv_close(reinterpret_cast<uv_handle_t*>(&client_socket),
-           WriteBeforeHandshake_close_cb);
-  SPIN_WHILE(!flag);
+  inspector_closed = 0;
+  handshake_delegate = WriteBeforeHandshake_inspector_delegate;
+  really_close(reinterpret_cast<uv_handle_t*>(&client_socket));
+  SPIN_WHILE(inspector_closed == 0);
 }
 
-static void CleanupSocketAfterEOF_close_cb(inspector_socket_t* inspector,
+static void CleanupSocketAfterEOF_close_cb(InspectorSocket* inspector,
                                            int status) {
-  *(static_cast<bool *>(inspector->data)) = true;
+  *(static_cast<bool*>(inspector->data)) = true;
 }
 
 static void CleanupSocketAfterEOF_read_cb(uv_stream_t* stream, ssize_t nread,
                                           const uv_buf_t* buf) {
   EXPECT_EQ(UV_EOF, nread);
-  inspector_socket_t* insp =
-      reinterpret_cast<inspector_socket_t*>(stream->data);
+  InspectorSocket* insp = inspector_from_stream(stream);
   inspector_close(insp, CleanupSocketAfterEOF_close_cb);
 }
 
@@ -793,19 +825,17 @@ TEST_F(InspectorSocketTest, EOFBeforeHandshake) {
   SPIN_WHILE(last_event != kInspectorHandshakeFailed);
 }
 
-static void fill_message(char* buffer, size_t len) {
-  buffer[len - 1] = '\0';
-  for (size_t i = 0; i < len - 1; i++) {
-    buffer[i] = 'a' + (i % ('z' - 'a'));
+static void fill_message(std::string* buffer) {
+  for (size_t i = 0; i < buffer->size(); i += 1) {
+    (*buffer)[i] = 'a' + (i % ('z' - 'a'));
   }
 }
 
-static void mask_message(const char* message,
+static void mask_message(const std::string& message,
                          char* buffer, const char mask[]) {
   const size_t mask_len = 4;
-  int i = 0;
-  while (*message != '\0') {
-    *buffer++ = *message++ ^ mask[i++ % mask_len];
+  for (size_t i = 0; i < message.size(); i += 1) {
+    buffer[i] = message[i] ^ mask[i % mask_len];
   }
 }
 
@@ -816,25 +846,20 @@ TEST_F(InspectorSocketTest, Send1Mb) {
   SPIN_WHILE(!inspector_ready);
   expect_handshake();
 
-  const size_t message_len = 1000000;
-
   // 2. Brief exchange
-  char* message = static_cast<char*>(malloc(message_len + 1));
-  fill_message(message, message_len + 1);
+  std::string message(1000000, '\0');
+  fill_message(&message);
 
   // 1000000 is 0xF4240 hex
   const char EXPECTED_FRAME_HEADER[] = {
     '\x81', '\x7f', '\x00', '\x00', '\x00', '\x00', '\x00', '\x0F',
     '\x42', '\x40'
   };
-  char* expected =
-      static_cast<char*>(malloc(sizeof(EXPECTED_FRAME_HEADER) + message_len));
+  std::string expected(EXPECTED_FRAME_HEADER, sizeof(EXPECTED_FRAME_HEADER));
+  expected.append(message);
 
-  memcpy(expected, EXPECTED_FRAME_HEADER, sizeof(EXPECTED_FRAME_HEADER));
-  memcpy(expected + sizeof(EXPECTED_FRAME_HEADER), message, message_len);
-
-  inspector_write(&inspector, message, message_len);
-  expect_on_client(expected, sizeof(EXPECTED_FRAME_HEADER) + message_len);
+  inspector_write(&inspector, &message[0], message.size());
+  expect_on_client(&expected[0], expected.size());
 
   char MASK[4] = {'W', 'h', 'O', 'a'};
 
@@ -843,14 +868,13 @@ TEST_F(InspectorSocketTest, Send1Mb) {
     '\x42', '\x40', MASK[0], MASK[1], MASK[2], MASK[3]
   };
 
-  const size_t outgoing_len = sizeof(FRAME_TO_SERVER_HEADER) + message_len;
-  char* outgoing = static_cast<char*>(malloc(outgoing_len));
-  memcpy(outgoing, FRAME_TO_SERVER_HEADER, sizeof(FRAME_TO_SERVER_HEADER));
-  mask_message(message, outgoing + sizeof(FRAME_TO_SERVER_HEADER), MASK);
+  std::string outgoing(FRAME_TO_SERVER_HEADER, sizeof(FRAME_TO_SERVER_HEADER));
+  outgoing.resize(outgoing.size() + message.size());
+  mask_message(message, &outgoing[sizeof(FRAME_TO_SERVER_HEADER)], MASK);
 
-  setup_inspector_expecting(); // Buffer on the client side.
-  do_write(outgoing, outgoing_len);
-  expect_on_server(message, message_len);
+  setup_inspector_expecting();  // Buffer on the client side.
+  do_write(&outgoing[0], outgoing.size());
+  expect_on_server(&message[0], message.size());
 
   // 3. Close
   const char CLIENT_CLOSE_FRAME[] = {'\x88', '\x80', '\x2D',
@@ -860,9 +884,6 @@ TEST_F(InspectorSocketTest, Send1Mb) {
   expect_on_client(SERVER_CLOSE_FRAME, sizeof(SERVER_CLOSE_FRAME));
   GTEST_ASSERT_EQ(0, uv_is_active(
                          reinterpret_cast<uv_handle_t*>(&client_socket)));
-  free(outgoing);
-  free(expected);
-  free(message);
 }
 
 static ssize_t err;
@@ -884,3 +905,5 @@ TEST_F(InspectorSocketTest, ErrorCleansUpTheSocket) {
   SPIN_WHILE(err > 0);
   EXPECT_EQ(UV_EPROTO, err);
 }
+
+}  // anonymous namespace

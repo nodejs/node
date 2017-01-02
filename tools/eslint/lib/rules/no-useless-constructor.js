@@ -109,7 +109,7 @@ function isPassingThrough(ctorParams, superArgs) {
         return false;
     }
 
-    for (var i = 0; i < ctorParams.length; ++i) {
+    for (let i = 0; i < ctorParams.length; ++i) {
         if (!isValidPair(ctorParams[i], superArgs[i])) {
             return false;
         }
@@ -151,7 +151,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         /**
          * Checks whether a node is a redundant constructor
@@ -163,13 +163,13 @@ module.exports = {
                 return;
             }
 
-            var body = node.value.body.body;
-            var ctorParams = node.value.params;
-            var superClass = node.parent.parent.superClass;
+            const body = node.value.body.body;
+            const ctorParams = node.value.params;
+            const superClass = node.parent.parent.superClass;
 
             if (superClass ? isRedundantSuperCall(body, ctorParams) : (body.length === 0)) {
                 context.report({
-                    node: node,
+                    node,
                     message: "Useless constructor."
                 });
             }

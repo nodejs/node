@@ -1263,9 +1263,9 @@ _shaext_shortcut:
 .align	16
 .Loop_shaext:
 	decq	%rdx
-	leaq	64(%rsi),%rax
+	leaq	64(%rsi),%r8
 	paddd	%xmm4,%xmm1
-	cmovneq	%rax,%rsi
+	cmovneq	%r8,%rsi
 	movdqa	%xmm0,%xmm8
 .byte	15,56,201,229
 	movdqa	%xmm0,%xmm2

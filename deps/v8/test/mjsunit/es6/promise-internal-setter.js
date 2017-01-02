@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --promise-extra
-
 'use strict';
 
 Object.defineProperties(Object.prototype, {
@@ -16,4 +14,3 @@ class P extends Promise {}
 
 P.all([Promise.resolve('ok')]);
 P.race([Promise.resolve('ok')]);
-P.defer();

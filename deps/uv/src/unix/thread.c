@@ -32,44 +32,22 @@
 
 #include <limits.h>
 
+#ifdef __MVS__
+#include <sys/ipc.h>
+#include <sys/sem.h>
+#endif
+
 #undef NANOSEC
 #define NANOSEC ((uint64_t) 1e9)
 
-struct thread_ctx {
-  void (*entry)(void* arg);
-  void* arg;
-};
-
-
-static void* uv__thread_start(void *arg)
-{
-  struct thread_ctx *ctx_p;
-  struct thread_ctx ctx;
-
-  ctx_p = arg;
-  ctx = *ctx_p;
-  uv__free(ctx_p);
-  ctx.entry(ctx.arg);
-
-  return 0;
-}
-
 
 int uv_thread_create(uv_thread_t *tid, void (*entry)(void *arg), void *arg) {
-  struct thread_ctx* ctx;
   int err;
   pthread_attr_t* attr;
 #if defined(__APPLE__)
   pthread_attr_t attr_storage;
   struct rlimit lim;
 #endif
-
-  ctx = uv__malloc(sizeof(*ctx));
-  if (ctx == NULL)
-    return UV_ENOMEM;
-
-  ctx->entry = entry;
-  ctx->arg = arg;
 
   /* On OSX threads other than the main thread are created with a reduced stack
    * size by default, adjust it to RLIMIT_STACK.
@@ -94,13 +72,10 @@ int uv_thread_create(uv_thread_t *tid, void (*entry)(void *arg), void *arg) {
   attr = NULL;
 #endif
 
-  err = pthread_create(tid, attr, uv__thread_start, ctx);
+  err = pthread_create(tid, attr, (void*(*)(void*)) entry, arg);
 
   if (attr != NULL)
     pthread_attr_destroy(attr);
-
-  if (err)
-    uv__free(ctx);
 
   return -err;
 }
@@ -302,6 +277,85 @@ int uv_sem_trywait(uv_sem_t* sem) {
   return -EINVAL;  /* Satisfy the compiler. */
 }
 
+#elif defined(__MVS__)
+
+int uv_sem_init(uv_sem_t* sem, unsigned int value) {
+  uv_sem_t semid;
+  struct sembuf buf;
+  int err;
+
+  buf.sem_num = 0;
+  buf.sem_op = value;
+  buf.sem_flg = 0;
+
+  semid = semget(IPC_PRIVATE, 1, S_IRUSR | S_IWUSR);
+  if (semid == -1)
+    return -errno;
+
+  if (-1 == semop(semid, &buf, 1)) {
+    err = errno;
+    if (-1 == semctl(*sem, 0, IPC_RMID))
+      abort();
+    return -err;
+  }
+
+  *sem = semid;
+  return 0;
+}
+
+void uv_sem_destroy(uv_sem_t* sem) {
+  if (-1 == semctl(*sem, 0, IPC_RMID))
+    abort();
+}
+
+void uv_sem_post(uv_sem_t* sem) {
+  struct sembuf buf;
+
+  buf.sem_num = 0;
+  buf.sem_op = 1;
+  buf.sem_flg = 0;
+
+  if (-1 == semop(*sem, &buf, 1))
+    abort();
+}
+
+void uv_sem_wait(uv_sem_t* sem) {
+  struct sembuf buf;
+  int op_status;
+
+  buf.sem_num = 0;
+  buf.sem_op = -1;
+  buf.sem_flg = 0;
+
+  do
+    op_status = semop(*sem, &buf, 1);
+  while (op_status == -1 && errno == EINTR);
+
+  if (op_status)
+    abort();
+}
+
+int uv_sem_trywait(uv_sem_t* sem) {
+  struct sembuf buf;
+  int op_status;
+
+  buf.sem_num = 0;
+  buf.sem_op = -1;
+  buf.sem_flg = IPC_NOWAIT;
+
+  do
+    op_status = semop(*sem, &buf, 1);
+  while (op_status == -1 && errno == EINTR);
+
+  if (op_status) {
+    if (errno == EAGAIN)
+      return -EAGAIN;
+    abort();
+  }
+
+  return 0;
+}
+
 #else /* !(defined(__APPLE__) && defined(__MACH__)) */
 
 int uv_sem_init(uv_sem_t* sem, unsigned int value) {
@@ -354,7 +408,7 @@ int uv_sem_trywait(uv_sem_t* sem) {
 #endif /* defined(__APPLE__) && defined(__MACH__) */
 
 
-#if defined(__APPLE__) && defined(__MACH__)
+#if defined(__APPLE__) && defined(__MACH__) || defined(__MVS__)
 
 int uv_cond_init(uv_cond_t* cond) {
   return -pthread_cond_init(cond, NULL);

@@ -33,7 +33,7 @@ function run() {
 
 // ensure all tests have run
 process.on('exit', function() {
-  assert.equal(count, 0);
+  assert.strictEqual(count, 0);
 });
 
 process.nextTick(run);
@@ -210,16 +210,16 @@ test('high watermark _read', function(t) {
 
   var v = r.read();
 
-  assert.equal(calls, 0);
-  assert.equal(v, '1');
+  assert.strictEqual(calls, 0);
+  assert.strictEqual(v, '1');
 
   var v2 = r.read();
-  assert.equal(v2, '2');
+  assert.strictEqual(v2, '2');
 
   var v3 = r.read();
-  assert.equal(v3, '3');
+  assert.strictEqual(v3, '3');
 
-  assert.equal(calls, 1);
+  assert.strictEqual(calls, 1);
 
   t.end();
 });
@@ -232,7 +232,7 @@ test('high watermark push', function(t) {
   r._read = function(n) {};
   for (var i = 0; i < 6; i++) {
     var bool = r.push(i);
-    assert.equal(bool, i === 5 ? false : true);
+    assert.strictEqual(bool, i !== 5);
   }
 
   t.end();
@@ -309,7 +309,7 @@ test('buffers finish until cb is called', function(t) {
   var called = false;
 
   w._write = function(chunk, encoding, cb) {
-    assert.equal(chunk, 'foo');
+    assert.strictEqual(chunk, 'foo');
 
     process.nextTick(function() {
       called = true;
@@ -318,7 +318,7 @@ test('buffers finish until cb is called', function(t) {
   };
 
   w.on('finish', function() {
-    assert.equal(called, true);
+    assert.strictEqual(called, true);
 
     t.end();
   });

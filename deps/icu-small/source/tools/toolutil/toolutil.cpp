@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
@@ -312,7 +314,7 @@ utm_hasCapacity(UToolMemory *mem, int32_t capacity) {
         if(mem->array==mem->staticArray) {
             mem->array=uprv_malloc(newCapacity*mem->size);
             if(mem->array!=NULL) {
-                uprv_memcpy(mem->array, mem->staticArray, mem->idx*mem->size);
+                uprv_memcpy(mem->array, mem->staticArray, (size_t)mem->idx*mem->size);
             }
         } else {
             mem->array=uprv_realloc(mem->array, newCapacity*mem->size);

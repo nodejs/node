@@ -83,7 +83,7 @@ test('referer set on client', function (t) {
 })
 
 test('initializing with proxy explicitly disabled', function (t) {
-  var client = new Client({ proxy: { http: false }})
+  var client = new Client({ proxy: { http: false } })
   var options = client.initialize(
     'http://localhost:1337/',
     'GET',
@@ -96,7 +96,7 @@ test('initializing with proxy explicitly disabled', function (t) {
 })
 
 test('initializing with proxy undefined', function (t) {
-  var client = new Client({ proxy: { http: undefined }})
+  var client = new Client({ proxy: { http: undefined } })
   var options = client.initialize(
     'http://localhost:1337/',
     'GET',

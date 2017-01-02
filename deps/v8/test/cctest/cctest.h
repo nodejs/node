@@ -34,37 +34,23 @@
 #include "src/v8.h"
 
 #ifndef TEST
-#define TEST(Name)                                                             \
-  static void Test##Name();                                                    \
-  CcTest register_test_##Name(Test##Name, __FILE__, #Name, NULL, true, true);  \
+#define TEST(Name)                                                      \
+  static void Test##Name();                                             \
+  CcTest register_test_##Name(Test##Name, __FILE__, #Name, true, true); \
   static void Test##Name()
 #endif
 
 #ifndef UNINITIALIZED_TEST
-#define UNINITIALIZED_TEST(Name)                                               \
-  static void Test##Name();                                                    \
-  CcTest register_test_##Name(Test##Name, __FILE__, #Name, NULL, true, false); \
-  static void Test##Name()
-#endif
-
-#ifndef DEPENDENT_TEST
-#define DEPENDENT_TEST(Name, Dep)                                              \
-  static void Test##Name();                                                    \
-  CcTest register_test_##Name(Test##Name, __FILE__, #Name, #Dep, true, true);  \
-  static void Test##Name()
-#endif
-
-#ifndef UNINITIALIZED_DEPENDENT_TEST
-#define UNINITIALIZED_DEPENDENT_TEST(Name, Dep)                                \
-  static void Test##Name();                                                    \
-  CcTest register_test_##Name(Test##Name, __FILE__, #Name, #Dep, true, false); \
+#define UNINITIALIZED_TEST(Name)                                         \
+  static void Test##Name();                                              \
+  CcTest register_test_##Name(Test##Name, __FILE__, #Name, true, false); \
   static void Test##Name()
 #endif
 
 #ifndef DISABLED_TEST
-#define DISABLED_TEST(Name)                                                    \
-  static void Test##Name();                                                    \
-  CcTest register_test_##Name(Test##Name, __FILE__, #Name, NULL, false, true); \
+#define DISABLED_TEST(Name)                                              \
+  static void Test##Name();                                              \
+  CcTest register_test_##Name(Test##Name, __FILE__, #Name, false, true); \
   static void Test##Name()
 #endif
 
@@ -94,14 +80,13 @@ class CcTest {
  public:
   typedef void (TestFunction)();
   CcTest(TestFunction* callback, const char* file, const char* name,
-         const char* dependency, bool enabled, bool initialize);
+         bool enabled, bool initialize);
   ~CcTest() { i::DeleteArray(file_); }
   void Run();
   static CcTest* last() { return last_; }
   CcTest* prev() { return prev_; }
   const char* file() { return file_; }
   const char* name() { return name_; }
-  const char* dependency() { return dependency_; }
   bool enabled() { return enabled_; }
 
   static v8::Isolate* isolate() {
@@ -168,7 +153,6 @@ class CcTest {
   TestFunction* callback_;
   const char* file_;
   const char* name_;
-  const char* dependency_;
   bool enabled_;
   bool initialize_;
   CcTest* prev_;
@@ -601,12 +585,13 @@ class InitializedHandleScope {
 
 class HandleAndZoneScope : public InitializedHandleScope {
  public:
-  HandleAndZoneScope() {}
+  HandleAndZoneScope() : main_zone_(&allocator_) {}
 
   // Prefixing the below with main_ reduces a lot of naming clashes.
   i::Zone* main_zone() { return &main_zone_; }
 
  private:
+  v8::base::AccountingAllocator allocator_;
   i::Zone main_zone_;
 };
 

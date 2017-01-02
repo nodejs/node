@@ -65,5 +65,6 @@ function main(conf) {
 
   function done() {
     bench.end(nreqs);
+    process.exit(0);
   }
 }

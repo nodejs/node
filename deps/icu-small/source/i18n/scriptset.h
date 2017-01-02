@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 **********************************************************************
 *   Copyright (C) 2013, International Business Machines
@@ -38,6 +40,7 @@ class U_I18N_API ScriptSet: public UMemory {
     ~ScriptSet();
 
     UBool operator == (const ScriptSet &other) const;
+    UBool operator != (const ScriptSet &other) const {return !(*this == other);};
     ScriptSet & operator = (const ScriptSet &other);
 
     UBool      test(UScriptCode script, UErrorCode &status) const;
@@ -55,8 +58,13 @@ class U_I18N_API ScriptSet: public UMemory {
     int32_t hashCode() const;
     int32_t nextSetBit(int32_t script) const;
 
+    UBool isEmpty() const;
+
     UnicodeString &displayScripts(UnicodeString &dest) const; // append script names to dest string.
     ScriptSet & parseScripts(const UnicodeString &scriptsString, UErrorCode &status);  // Replaces ScriptSet contents.
+
+    // Wraps around UScript::getScriptExtensions() and adds the corresponding scripts to this instance.
+    void setScriptExtensions(UChar32 codePoint, UErrorCode& status);
 
   private:
     uint32_t  bits[6];

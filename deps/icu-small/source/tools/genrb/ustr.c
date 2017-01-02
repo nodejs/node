@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
@@ -92,7 +94,7 @@ ustr_cpy(struct UString *dst,
     if(src->fChars == NULL || dst->fChars == NULL){
         return;
     }
-    uprv_memcpy(dst->fChars, src->fChars, sizeof(UChar) * src->fLength);
+    u_memcpy(dst->fChars, src->fChars, src->fLength);
     dst->fLength = src->fLength;
     dst->fChars[dst->fLength] = 0x0000;
 }

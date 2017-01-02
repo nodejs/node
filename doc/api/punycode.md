@@ -1,6 +1,11 @@
 # punycode
 
-    Stability: 2 - Stable
+> Stability: 0 - Deprecated
+
+**The version of the punycode module bundled in Node.js is being deprecated**.
+In a future major version of Node.js this module will be removed. Users
+currently depending on the `punycode` module should switch to using the
+userland-provided [Punycode.js][] module instead.
 
 The `punycode` module is a bundled version of the [Punycode.js][] module. It
 can be accessed using:

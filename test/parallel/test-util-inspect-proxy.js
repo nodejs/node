@@ -22,7 +22,7 @@ assert.strictEqual(target, details[0]);
 assert.strictEqual(handler, details[1]);
 
 assert.strictEqual(util.inspect(proxyObj, opts),
-                   'Proxy [ {}, { get: [Function] } ]');
+                   'Proxy [ {}, { get: [Function: get] } ]');
 
 // Using getProxyDetails with non-proxy returns undefined
 assert.strictEqual(processUtil.getProxyDetails({}), undefined);

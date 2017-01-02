@@ -1,4 +1,4 @@
-var arrayReduce = require('./_arrayReduce');
+var basePickBy = require('./_basePickBy');
 
 /**
  * The base implementation of `_.pick` without support for individual
@@ -11,12 +11,9 @@ var arrayReduce = require('./_arrayReduce');
  */
 function basePick(object, props) {
   object = Object(object);
-  return arrayReduce(props, function(result, key) {
-    if (key in object) {
-      result[key] = object[key];
-    }
-    return result;
-  }, {});
+  return basePickBy(object, props, function(value, key) {
+    return key in object;
+  });
 }
 
 module.exports = basePick;

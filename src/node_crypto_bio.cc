@@ -164,9 +164,10 @@ int NodeBIO::Gets(BIO* bio, char* out, int size) {
 }
 
 
-long NodeBIO::Ctrl(BIO* bio, int cmd, long num, void* ptr) {
+long NodeBIO::Ctrl(BIO* bio, int cmd, long num,  // NOLINT(runtime/int)
+                   void* ptr) {
   NodeBIO* nbio;
-  long ret;
+  long ret;  // NOLINT(runtime/int)
 
   nbio = FromBIO(bio);
   ret = 1;
@@ -188,7 +189,6 @@ long NodeBIO::Ctrl(BIO* bio, int cmd, long num, void* ptr) {
       break;
     case BIO_C_SET_BUF_MEM:
       CHECK(0 && "Can't use SET_BUF_MEM_PTR with NodeBIO");
-      ABORT();
       break;
     case BIO_C_GET_BUF_MEM_PTR:
       CHECK(0 && "Can't use GET_BUF_MEM_PTR with NodeBIO");

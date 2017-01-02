@@ -1,4 +1,3 @@
-/* eslint no-deepEqual: 0 */
 'use strict';
 var common = require('../common.js');
 var assert = require('assert');
@@ -35,6 +34,7 @@ function main(conf) {
 
   bench.start();
   for (x = 0; x < n; x++) {
+    // eslint-disable-next-line no-restricted-properties
     assert.deepEqual(primArray, primArrayCompare);
   }
   bench.end(n);

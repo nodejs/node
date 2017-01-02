@@ -5,10 +5,10 @@
 "use strict";
 
 //------------------------------------------------------------------------------
-// Constants
+// Requirements
 //------------------------------------------------------------------------------
 
-var LOOP_TYPES = /^(?:While|DoWhile|For|ForIn|ForOf)Statement$/;
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -38,11 +38,11 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
-        var options = context.options[0];
-        var allowLoop = Boolean(options && options.allowLoop);
-        var allowSwitch = Boolean(options && options.allowSwitch);
-        var scopeInfo = null;
+    create(context) {
+        const options = context.options[0];
+        const allowLoop = Boolean(options && options.allowLoop);
+        const allowSwitch = Boolean(options && options.allowSwitch);
+        let scopeInfo = null;
 
         /**
          * Gets the kind of a given node.
@@ -51,12 +51,10 @@ module.exports = {
          * @returns {string} The kind of the node.
          */
         function getBodyKind(node) {
-            var type = node.type;
-
-            if (LOOP_TYPES.test(type)) {
+            if (astUtils.isLoop(node)) {
                 return "loop";
             }
-            if (type === "SwitchStatement") {
+            if (node.type === "SwitchStatement") {
                 return "switch";
             }
             return "other";
@@ -83,7 +81,7 @@ module.exports = {
          * @returns {boolean} `true` if the name is a label of a loop.
          */
         function getKind(label) {
-            var info = scopeInfo;
+            let info = scopeInfo;
 
             while (info) {
                 if (info.label === label) {
@@ -101,7 +99,7 @@ module.exports = {
         //--------------------------------------------------------------------------
 
         return {
-            LabeledStatement: function(node) {
+            LabeledStatement(node) {
                 scopeInfo = {
                     label: node.label.name,
                     kind: getBodyKind(node.body),
@@ -109,10 +107,10 @@ module.exports = {
                 };
             },
 
-            "LabeledStatement:exit": function(node) {
+            "LabeledStatement:exit"(node) {
                 if (!isAllowed(scopeInfo.kind)) {
                     context.report({
-                        node: node,
+                        node,
                         message: "Unexpected labeled statement."
                     });
                 }
@@ -120,19 +118,19 @@ module.exports = {
                 scopeInfo = scopeInfo.upper;
             },
 
-            BreakStatement: function(node) {
+            BreakStatement(node) {
                 if (node.label && !isAllowed(getKind(node.label.name))) {
                     context.report({
-                        node: node,
+                        node,
                         message: "Unexpected label in break statement."
                     });
                 }
             },
 
-            ContinueStatement: function(node) {
+            ContinueStatement(node) {
                 if (node.label && !isAllowed(getKind(node.label.name))) {
                     context.report({
-                        node: node,
+                        node,
                         message: "Unexpected label in continue statement."
                     });
                 }

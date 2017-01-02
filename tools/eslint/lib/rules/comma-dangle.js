@@ -9,18 +9,64 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var lodash = require("lodash");
+const lodash = require("lodash");
+
+//------------------------------------------------------------------------------
+// Helpers
+//------------------------------------------------------------------------------
+
+const DEFAULT_OPTIONS = Object.freeze({
+    arrays: "never",
+    objects: "never",
+    imports: "never",
+    exports: "never",
+    functions: "ignore",
+});
 
 /**
  * Checks whether or not a trailing comma is allowed in a given node.
- * `ArrayPattern` which has `RestElement` disallows it.
+ * If the `lastItem` is `RestElement` or `RestProperty`, it disallows trailing commas.
  *
- * @param {ASTNode} node - A node to check.
  * @param {ASTNode} lastItem - The node of the last element in the given node.
  * @returns {boolean} `true` if a trailing comma is allowed.
  */
-function isTrailingCommaAllowed(node, lastItem) {
-    return node.type !== "ArrayPattern" || lastItem.type !== "RestElement";
+function isTrailingCommaAllowed(lastItem) {
+    return !(
+        lastItem.type === "RestElement" ||
+        lastItem.type === "RestProperty" ||
+        lastItem.type === "ExperimentalRestProperty"
+    );
+}
+
+/**
+ * Normalize option value.
+ *
+ * @param {string|Object|undefined} optionValue - The 1st option value to normalize.
+ * @returns {Object} The normalized option value.
+ */
+function normalizeOptions(optionValue) {
+    if (typeof optionValue === "string") {
+        return {
+            arrays: optionValue,
+            objects: optionValue,
+            imports: optionValue,
+            exports: optionValue,
+
+            // For backward compatibility, always ignore functions.
+            functions: "ignore",
+        };
+    }
+    if (typeof optionValue === "object" && optionValue !== null) {
+        return {
+            arrays: optionValue.arrays || DEFAULT_OPTIONS.arrays,
+            objects: optionValue.objects || DEFAULT_OPTIONS.objects,
+            imports: optionValue.imports || DEFAULT_OPTIONS.imports,
+            exports: optionValue.exports || DEFAULT_OPTIONS.exports,
+            functions: optionValue.functions || DEFAULT_OPTIONS.functions,
+        };
+    }
+
+    return DEFAULT_OPTIONS;
 }
 
 //------------------------------------------------------------------------------
@@ -31,23 +77,119 @@ module.exports = {
     meta: {
         docs: {
             description: "require or disallow trailing commas",
-            category: "Possible Errors",
-            recommended: true
+            category: "Stylistic Issues",
+            recommended: false
         },
 
         fixable: "code",
 
         schema: [
             {
-                enum: ["always", "always-multiline", "only-multiline", "never"]
-            }
+                defs: {
+                    value: {
+                        enum: [
+                            "always",
+                            "always-multiline",
+                            "only-multiline",
+                            "never"
+                        ]
+                    },
+                    valueWithIgnore: {
+                        anyOf: [
+                            {
+                                $ref: "#/defs/value"
+                            },
+                            {
+                                enum: ["ignore"]
+                            }
+                        ]
+                    }
+                },
+                anyOf: [
+                    {
+                        $ref: "#/defs/value"
+                    },
+                    {
+                        type: "object",
+                        properties: {
+                            arrays: {$refs: "#/defs/valueWithIgnore"},
+                            objects: {$refs: "#/defs/valueWithIgnore"},
+                            imports: {$refs: "#/defs/valueWithIgnore"},
+                            exports: {$refs: "#/defs/valueWithIgnore"},
+                            functions: {$refs: "#/defs/valueWithIgnore"}
+                        },
+                        additionalProperties: false
+                    }
+                ]
+            },
         ]
     },
 
-    create: function(context) {
-        var mode = context.options[0];
-        var UNEXPECTED_MESSAGE = "Unexpected trailing comma.";
-        var MISSING_MESSAGE = "Missing trailing comma.";
+    create(context) {
+        const options = normalizeOptions(context.options[0]);
+        const sourceCode = context.getSourceCode();
+        const UNEXPECTED_MESSAGE = "Unexpected trailing comma.";
+        const MISSING_MESSAGE = "Missing trailing comma.";
+
+        /**
+         * Gets the last item of the given node.
+         * @param {ASTNode} node - The node to get.
+         * @returns {ASTNode|null} The last node or null.
+         */
+        function getLastItem(node) {
+            switch (node.type) {
+                case "ObjectExpression":
+                case "ObjectPattern":
+                    return lodash.last(node.properties);
+                case "ArrayExpression":
+                case "ArrayPattern":
+                    return lodash.last(node.elements);
+                case "ImportDeclaration":
+                case "ExportNamedDeclaration":
+                    return lodash.last(node.specifiers);
+                case "FunctionDeclaration":
+                case "FunctionExpression":
+                case "ArrowFunctionExpression":
+                    return lodash.last(node.params);
+                case "CallExpression":
+                case "NewExpression":
+                    return lodash.last(node.arguments);
+                default:
+                    return null;
+            }
+        }
+
+        /**
+         * Gets the trailing comma token of the given node.
+         * If the trailing comma does not exist, this returns the token which is
+         * the insertion point of the trailing comma token.
+         *
+         * @param {ASTNode} node - The node to get.
+         * @param {ASTNode} lastItem - The last item of the node.
+         * @returns {Token} The trailing comma token or the insertion point.
+         */
+        function getTrailingToken(node, lastItem) {
+            switch (node.type) {
+                case "ObjectExpression":
+                case "ObjectPattern":
+                case "ArrayExpression":
+                case "ArrayPattern":
+                case "CallExpression":
+                case "NewExpression":
+                    return sourceCode.getLastToken(node, 1);
+                case "FunctionDeclaration":
+                case "FunctionExpression":
+                    return sourceCode.getTokenBefore(node.body, 1);
+                default: {
+                    const nextToken = sourceCode.getTokenAfter(lastItem);
+
+                    if (nextToken.value === ",") {
+                        return nextToken;
+                    }
+                    return sourceCode.getLastToken(lastItem);
+                }
+            }
+        }
 
         /**
          * Checks whether or not a given node is multiline.
@@ -58,26 +200,14 @@ module.exports = {
          * @returns {boolean} `true` if the node is multiline.
          */
         function isMultiline(node) {
-            var lastItem = lodash.last(node.properties || node.elements || node.specifiers);
+            const lastItem = getLastItem(node);
 
             if (!lastItem) {
                 return false;
             }
 
-            var sourceCode = context.getSourceCode(),
-                penultimateToken = sourceCode.getLastToken(lastItem),
-                lastToken = sourceCode.getTokenAfter(penultimateToken);
-
-            // parentheses are a pain
-            while (lastToken.value === ")") {
-                penultimateToken = lastToken;
-                lastToken = sourceCode.getTokenAfter(lastToken);
-            }
-
-            if (lastToken.value === ",") {
-                penultimateToken = lastToken;
-                lastToken = sourceCode.getTokenAfter(lastToken);
-            }
+            const penultimateToken = getTrailingToken(node, lastItem);
+            const lastToken = sourceCode.getTokenAfter(penultimateToken);
 
             return lastToken.loc.end.line !== penultimateToken.loc.end.line;
         }
@@ -91,28 +221,20 @@ module.exports = {
          * @returns {void}
          */
         function forbidTrailingComma(node) {
-            var lastItem = lodash.last(node.properties || node.elements || node.specifiers);
+            const lastItem = getLastItem(node);
 
             if (!lastItem || (node.type === "ImportDeclaration" && lastItem.type !== "ImportSpecifier")) {
                 return;
             }
 
-            var sourceCode = context.getSourceCode(),
-                trailingToken;
-
-            // last item can be surrounded by parentheses for object and array literals
-            if (node.type === "ObjectExpression" || node.type === "ArrayExpression") {
-                trailingToken = sourceCode.getTokenBefore(sourceCode.getLastToken(node));
-            } else {
-                trailingToken = sourceCode.getTokenAfter(lastItem);
-            }
+            const trailingToken = getTrailingToken(node, lastItem);
 
             if (trailingToken.value === ",") {
                 context.report({
                     node: lastItem,
                     loc: trailingToken.loc.start,
                     message: UNEXPECTED_MESSAGE,
-                    fix: function(fixer) {
+                    fix(fixer) {
                         return fixer.remove(trailingToken);
                     }
                 });
@@ -132,33 +254,25 @@ module.exports = {
          * @returns {void}
          */
         function forceTrailingComma(node) {
-            var lastItem = lodash.last(node.properties || node.elements || node.specifiers);
+            const lastItem = getLastItem(node);
 
             if (!lastItem || (node.type === "ImportDeclaration" && lastItem.type !== "ImportSpecifier")) {
                 return;
             }
-            if (!isTrailingCommaAllowed(node, lastItem)) {
+            if (!isTrailingCommaAllowed(lastItem)) {
                 forbidTrailingComma(node);
                 return;
             }
 
-            var sourceCode = context.getSourceCode(),
-                trailingToken;
-
-            // last item can be surrounded by parentheses for object and array literals
-            if (node.type === "ObjectExpression" || node.type === "ArrayExpression") {
-                trailingToken = sourceCode.getTokenBefore(sourceCode.getLastToken(node));
-            } else {
-                trailingToken = sourceCode.getTokenAfter(lastItem);
-            }
+            const trailingToken = getTrailingToken(node, lastItem);
 
             if (trailingToken.value !== ",") {
                 context.report({
                     node: lastItem,
-                    loc: lastItem.loc.end,
+                    loc: trailingToken.loc.end,
                     message: MISSING_MESSAGE,
-                    fix: function(fixer) {
-                        return fixer.insertTextAfter(lastItem, ",");
+                    fix(fixer) {
+                        return fixer.insertTextAfter(trailingToken, ",");
                     }
                 });
             }
@@ -198,26 +312,30 @@ module.exports = {
             }
         }
 
-        // Chooses a checking function.
-        var checkForTrailingComma;
-
-        if (mode === "always") {
-            checkForTrailingComma = forceTrailingComma;
-        } else if (mode === "always-multiline") {
-            checkForTrailingComma = forceTrailingCommaIfMultiline;
-        } else if (mode === "only-multiline") {
-            checkForTrailingComma = allowTrailingCommaIfMultiline;
-        } else {
-            checkForTrailingComma = forbidTrailingComma;
-        }
+        const predicate = {
+            always: forceTrailingComma,
+            "always-multiline": forceTrailingCommaIfMultiline,
+            "only-multiline": allowTrailingCommaIfMultiline,
+            never: forbidTrailingComma,
+            ignore: lodash.noop,
+        };
 
         return {
-            ObjectExpression: checkForTrailingComma,
-            ObjectPattern: checkForTrailingComma,
-            ArrayExpression: checkForTrailingComma,
-            ArrayPattern: checkForTrailingComma,
-            ImportDeclaration: checkForTrailingComma,
-            ExportNamedDeclaration: checkForTrailingComma
+            ObjectExpression: predicate[options.objects],
+            ObjectPattern: predicate[options.objects],
+
+            ArrayExpression: predicate[options.arrays],
+            ArrayPattern: predicate[options.arrays],
+
+            ImportDeclaration: predicate[options.imports],
+
+            ExportNamedDeclaration: predicate[options.exports],
+
+            FunctionDeclaration: predicate[options.functions],
+            FunctionExpression: predicate[options.functions],
+            ArrowFunctionExpression: predicate[options.functions],
+            CallExpression: predicate[options.functions],
+            NewExpression: predicate[options.functions],
         };
     }
 };

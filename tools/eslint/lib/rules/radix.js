@@ -9,13 +9,13 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-var MODE_ALWAYS = "always",
+const MODE_ALWAYS = "always",
     MODE_AS_NEEDED = "as-needed";
 
 /**
@@ -91,8 +91,8 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
-        var mode = context.options[0] || MODE_ALWAYS;
+    create(context) {
+        const mode = context.options[0] || MODE_ALWAYS;
 
         /**
          * Checks the arguments of a given CallExpression node and reports it if it
@@ -102,12 +102,12 @@ module.exports = {
          * @returns {void}
          */
         function checkArguments(node) {
-            var args = node.arguments;
+            const args = node.arguments;
 
             switch (args.length) {
                 case 0:
                     context.report({
-                        node: node,
+                        node,
                         message: "Missing parameters."
                     });
                     break;
@@ -115,7 +115,7 @@ module.exports = {
                 case 1:
                     if (mode === MODE_ALWAYS) {
                         context.report({
-                            node: node,
+                            node,
                             message: "Missing radix parameter."
                         });
                     }
@@ -124,12 +124,12 @@ module.exports = {
                 default:
                     if (mode === MODE_AS_NEEDED && isDefaultRadix(args[1])) {
                         context.report({
-                            node: node,
+                            node,
                             message: "Redundant radix parameter."
                         });
                     } else if (!isValidRadix(args[1])) {
                         context.report({
-                            node: node,
+                            node,
                             message: "Invalid radix parameter."
                         });
                     }
@@ -138,15 +138,15 @@ module.exports = {
         }
 
         return {
-            "Program:exit": function() {
-                var scope = context.getScope();
-                var variable;
+            "Program:exit"() {
+                const scope = context.getScope();
+                let variable;
 
                 // Check `parseInt()`
                 variable = astUtils.getVariableByName(scope, "parseInt");
                 if (!isShadowed(variable)) {
                     variable.references.forEach(function(reference) {
-                        var node = reference.identifier;
+                        const node = reference.identifier;
 
                         if (astUtils.isCallee(node)) {
                             checkArguments(node.parent);
@@ -158,7 +158,7 @@ module.exports = {
                 variable = astUtils.getVariableByName(scope, "Number");
                 if (!isShadowed(variable)) {
                     variable.references.forEach(function(reference) {
-                        var node = reference.identifier.parent;
+                        const node = reference.identifier.parent;
 
                         if (isParseIntMethod(node) && astUtils.isCallee(node)) {
                             checkArguments(node.parent);

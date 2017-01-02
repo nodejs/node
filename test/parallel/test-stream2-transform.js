@@ -22,7 +22,7 @@ function run() {
   var fn = next[1];
   console.log('# %s', name);
   fn({
-    same: assert.deepEqual,
+    same: assert.deepStrictEqual,
     equal: assert.equal,
     ok: assert,
     end: function() {
@@ -103,6 +103,14 @@ test('object passthrough', function(t) {
   t.equal(pt.read(), 'foo');
   t.equal(pt.read(), '');
   t.same(pt.read(), { a: 'b'});
+  t.end();
+});
+
+test('passthrough constructor', function(t) {
+  const pt = PassThrough();
+
+  assert(pt instanceof PassThrough);
+
   t.end();
 });
 

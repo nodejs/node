@@ -12,7 +12,7 @@
 module.exports = {
     meta: {
         docs: {
-            description: "enforce a maximum number of parameters in `function` definitions",
+            description: "enforce a maximum number of parameters in function definitions",
             category: "Stylistic Issues",
             recommended: false
         },
@@ -43,10 +43,10 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
-        var option = context.options[0],
-            numParams = 3;
+        const option = context.options[0];
+        let numParams = 3;
 
         if (typeof option === "object" && option.hasOwnProperty("maximum") && typeof option.maximum === "number") {
             numParams = option.maximum;

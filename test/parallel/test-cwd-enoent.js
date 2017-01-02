@@ -5,7 +5,7 @@ var fs = require('fs');
 var spawn = require('child_process').spawn;
 
 // Fails with EINVAL on SmartOS, EBUSY on Windows, EBUSY on AIX.
-if (process.platform === 'sunos' || common.isWindows || common.isAix) {
+if (common.isSunOS || common.isWindows || common.isAix) {
   common.skip('cannot rmdir current working directory');
   return;
 }
@@ -21,6 +21,6 @@ proc.stdout.pipe(process.stdout);
 proc.stderr.pipe(process.stderr);
 
 proc.once('exit', common.mustCall(function(exitCode, signalCode) {
-  assert.equal(exitCode, 0);
-  assert.equal(signalCode, null);
+  assert.strictEqual(exitCode, 0);
+  assert.strictEqual(signalCode, null);
 }));

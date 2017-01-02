@@ -27,7 +27,7 @@
 
 import test
 import os
-from os.path import join, dirname, exists, basename, isdir
+from os.path import join, exists, basename, isdir
 import re
 
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
@@ -127,8 +127,7 @@ class MessageTestConfiguration(test.TestConfiguration):
         file_path = file_prefix + ".js"
         output_path = file_prefix + ".out"
         if not exists(output_path):
-          print "Could not find %s" % output_path
-          continue
+          raise Exception("Could not find %s" % output_path)
         result.append(MessageTestCase(test, file_path, output_path,
                                       arch, mode, self.context, self))
     return result

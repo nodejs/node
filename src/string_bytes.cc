@@ -27,78 +27,77 @@ using v8::Value;
 
 template <typename ResourceType, typename TypeName>
 class ExternString: public ResourceType {
-  public:
-    ~ExternString() override {
-      free(const_cast<TypeName*>(data_));
-      isolate()->AdjustAmountOfExternalAllocatedMemory(-byte_length());
+ public:
+  ~ExternString() override {
+    free(const_cast<TypeName*>(data_));
+    isolate()->AdjustAmountOfExternalAllocatedMemory(-byte_length());
+  }
+
+  const TypeName* data() const override {
+    return data_;
+  }
+
+  size_t length() const override {
+    return length_;
+  }
+
+  int64_t byte_length() const {
+    return length() * sizeof(*data());
+  }
+
+  static Local<String> NewFromCopy(Isolate* isolate,
+                                   const TypeName* data,
+                                   size_t length) {
+    EscapableHandleScope scope(isolate);
+
+    if (length == 0)
+      return scope.Escape(String::Empty(isolate));
+
+    TypeName* new_data = node::UncheckedMalloc<TypeName>(length);
+    if (new_data == nullptr) {
+      return Local<String>();
+    }
+    memcpy(new_data, data, length * sizeof(*new_data));
+
+    return scope.Escape(ExternString<ResourceType, TypeName>::New(isolate,
+                                                                  new_data,
+                                                                  length));
+  }
+
+  // uses "data" for external resource, and will be free'd on gc
+  static Local<String> New(Isolate* isolate,
+                           const TypeName* data,
+                           size_t length) {
+    EscapableHandleScope scope(isolate);
+
+    if (length == 0)
+      return scope.Escape(String::Empty(isolate));
+
+    ExternString* h_str = new ExternString<ResourceType, TypeName>(isolate,
+                                                                   data,
+                                                                   length);
+    MaybeLocal<String> str = NewExternal(isolate, h_str);
+    isolate->AdjustAmountOfExternalAllocatedMemory(h_str->byte_length());
+
+    if (str.IsEmpty()) {
+      delete h_str;
+      return Local<String>();
     }
 
-    const TypeName* data() const override {
-      return data_;
-    }
+    return scope.Escape(str.ToLocalChecked());
+  }
 
-    size_t length() const override {
-      return length_;
-    }
+  inline Isolate* isolate() const { return isolate_; }
 
-    int64_t byte_length() const {
-      return length() * sizeof(*data());
-    }
+ private:
+  ExternString(Isolate* isolate, const TypeName* data, size_t length)
+    : isolate_(isolate), data_(data), length_(length) { }
+  static MaybeLocal<String> NewExternal(Isolate* isolate,
+                                        ExternString* h_str);
 
-    static Local<String> NewFromCopy(Isolate* isolate,
-                                     const TypeName* data,
-                                     size_t length) {
-      EscapableHandleScope scope(isolate);
-
-      if (length == 0)
-        return scope.Escape(String::Empty(isolate));
-
-      TypeName* new_data =
-          static_cast<TypeName*>(malloc(length * sizeof(*new_data)));
-      if (new_data == nullptr) {
-        return Local<String>();
-      }
-      memcpy(new_data, data, length * sizeof(*new_data));
-
-      return scope.Escape(ExternString<ResourceType, TypeName>::New(isolate,
-                                                                    new_data,
-                                                                    length));
-    }
-
-    // uses "data" for external resource, and will be free'd on gc
-    static Local<String> New(Isolate* isolate,
-                             const TypeName* data,
-                             size_t length) {
-      EscapableHandleScope scope(isolate);
-
-      if (length == 0)
-        return scope.Escape(String::Empty(isolate));
-
-      ExternString* h_str = new ExternString<ResourceType, TypeName>(isolate,
-                                                                     data,
-                                                                     length);
-      MaybeLocal<String> str = NewExternal(isolate, h_str);
-      isolate->AdjustAmountOfExternalAllocatedMemory(h_str->byte_length());
-
-      if (str.IsEmpty()) {
-        delete h_str;
-        return Local<String>();
-      }
-
-      return scope.Escape(str.ToLocalChecked());
-    }
-
-    inline Isolate* isolate() const { return isolate_; }
-
-  private:
-    ExternString(Isolate* isolate, const TypeName* data, size_t length)
-      : isolate_(isolate), data_(data), length_(length) { }
-    static MaybeLocal<String> NewExternal(Isolate* isolate,
-                                          ExternString* h_str);
-
-    Isolate* isolate_;
-    const TypeName* data_;
-    size_t length_;
+  Isolate* isolate_;
+  const TypeName* data_;
+  size_t length_;
 };
 
 
@@ -143,16 +142,27 @@ const int8_t unbase64_table[256] =
   };
 
 
-template <typename TypeName>
-unsigned hex2bin(TypeName c) {
-  if (c >= '0' && c <= '9')
-    return c - '0';
-  if (c >= 'A' && c <= 'F')
-    return 10 + (c - 'A');
-  if (c >= 'a' && c <= 'f')
-    return 10 + (c - 'a');
-  return static_cast<unsigned>(-1);
-}
+static const int8_t unhex_table[256] =
+  { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, -1, -1, -1, -1, -1, -1,
+    -1, 10, 11, 12, 13, 14, 15, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, 10, 11, 12, 13, 14, 15, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+  };
+
+#define unhex(x)                                                              \
+  static_cast<unsigned>(unhex_table[static_cast<uint8_t>(x)])
 
 
 template <typename TypeName>
@@ -162,11 +172,11 @@ size_t hex_decode(char* buf,
                   const size_t srcLen) {
   size_t i;
   for (i = 0; i < len && i * 2 + 1 < srcLen; ++i) {
-    unsigned a = hex2bin(src[i * 2 + 0]);
-    unsigned b = hex2bin(src[i * 2 + 1]);
+    unsigned a = unhex(src[i * 2 + 0]);
+    unsigned b = unhex(src[i * 2 + 1]);
     if (!~a || !~b)
       return i;
-    buf[i] = a * 16 + b;
+    buf[i] = (a << 4) | b;
   }
 
   return i;
@@ -299,27 +309,13 @@ size_t StringBytes::Write(Isolate* isolate,
       if (chars_written != nullptr)
         *chars_written = nchars;
 
-      if (!IsBigEndian())
-        break;
-
       // Node's "ucs2" encoding wants LE character data stored in
       // the Buffer, so we need to reorder on BE platforms.  See
       // http://nodejs.org/api/buffer.html regarding Node's "ucs2"
       // encoding specification
+      if (IsBigEndian())
+        SwapBytes16(buf, nbytes);
 
-      const bool is_aligned =
-          reinterpret_cast<uintptr_t>(buf) % sizeof(uint16_t);
-      if (is_aligned) {
-        uint16_t* const dst = reinterpret_cast<uint16_t*>(buf);
-        SwapBytes(dst, dst, nchars);
-      }
-
-      ASSERT_EQ(sizeof(uint16_t), 2);
-      for (size_t i = 0; i < nchars; i++) {
-        char tmp = buf[i * 2];
-        buf[i * 2] = buf[i * 2 + 1];
-        buf[i * 2 + 1] = tmp;
-      }
       break;
     }
 
@@ -613,7 +609,7 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
 
     case ASCII:
       if (contains_non_ascii(buf, buflen)) {
-        char* out = static_cast<char*>(malloc(buflen));
+        char* out = node::UncheckedMalloc(buflen);
         if (out == nullptr) {
           return Local<String>();
         }
@@ -648,7 +644,7 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
 
     case BASE64: {
       size_t dlen = base64_encoded_size(buflen);
-      char* dst = static_cast<char*>(malloc(dlen));
+      char* dst = node::UncheckedMalloc(dlen);
       if (dst == nullptr) {
         return Local<String>();
       }
@@ -667,7 +663,7 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
 
     case HEX: {
       size_t dlen = buflen * 2;
-      char* dst = static_cast<char*>(malloc(dlen));
+      char* dst = node::UncheckedMalloc(dlen);
       if (dst == nullptr) {
         return Local<String>();
       }
@@ -695,17 +691,19 @@ Local<Value> StringBytes::Encode(Isolate* isolate,
 Local<Value> StringBytes::Encode(Isolate* isolate,
                                  const uint16_t* buf,
                                  size_t buflen) {
-  Local<String> val;
+  // Node's "ucs2" encoding expects LE character data inside a
+  // Buffer, so we need to reorder on BE platforms.  See
+  // http://nodejs.org/api/buffer.html regarding Node's "ucs2"
+  // encoding specification
   std::vector<uint16_t> dst;
   if (IsBigEndian()) {
-    // Node's "ucs2" encoding expects LE character data inside a
-    // Buffer, so we need to reorder on BE platforms.  See
-    // http://nodejs.org/api/buffer.html regarding Node's "ucs2"
-    // encoding specification
-    dst.resize(buflen);
-    SwapBytes(&dst[0], buf, buflen);
+    dst.assign(buf, buf + buflen);
+    size_t nbytes = buflen * sizeof(dst[0]);
+    SwapBytes16(reinterpret_cast<char*>(&dst[0]), nbytes);
     buf = &dst[0];
   }
+
+  Local<String> val;
   if (buflen < EXTERN_APEX) {
     val = String::NewFromTwoByte(isolate,
                                  buf,

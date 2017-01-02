@@ -4,12 +4,13 @@
 
 #include <utility>
 
+#include "src/compiler.h"
 #include "src/compiler/pipeline.h"
 #include "src/execution.h"
 #include "src/handles.h"
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/interpreter.h"
-#include "src/parsing/parser.h"
+#include "src/parsing/parse-info.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -79,12 +80,6 @@ class BytecodeGraphTester {
     i::FLAG_always_opt = false;
     i::FLAG_allow_natives_syntax = true;
     i::FLAG_loop_assignment_analysis = false;
-    // Set ignition filter flag via SetFlagsFromString to avoid double-free
-    // (or potential leak with StrDup() based on ownership confusion).
-    ScopedVector<char> ignition_filter(64);
-    SNPrintF(ignition_filter, "--ignition-filter=%s", filter);
-    FlagList::SetFlagsFromString(ignition_filter.start(),
-                                 ignition_filter.length());
     // Ensure handler table is generated.
     isolate->interpreter()->Initialize();
   }
@@ -131,11 +126,11 @@ class BytecodeGraphTester {
     // having to instantiate a ParseInfo first. Fix this!
     ParseInfo parse_info(zone_, function);
 
-    CompilationInfo compilation_info(&parse_info);
+    CompilationInfo compilation_info(&parse_info, function);
     compilation_info.SetOptimizing();
     compilation_info.MarkAsDeoptimizationEnabled();
-    compiler::Pipeline pipeline(&compilation_info);
-    Handle<Code> code = pipeline.GenerateCode();
+    compilation_info.MarkAsOptimizeFromBytecode();
+    Handle<Code> code = Pipeline::GenerateCodeForTesting(&compilation_info);
     function->ReplaceCode(*code);
 
     return function;
@@ -648,6 +643,28 @@ TEST(BytecodeGraphBuilderCallRuntime) {
       {"function f(arg0) { return %spread_arguments(arg0).length }\nf([])",
        {factory->NewNumberFromInt(3),
         BytecodeGraphTester::NewObject("[1, 2, 3]")}},
+  };
+
+  for (size_t i = 0; i < arraysize(snippets); i++) {
+    BytecodeGraphTester tester(isolate, zone, snippets[i].code_snippet);
+    auto callable = tester.GetCallable<Handle<Object>>();
+    Handle<Object> return_value =
+        callable(snippets[i].parameter(0)).ToHandleChecked();
+    CHECK(return_value->SameValue(*snippets[i].return_value()));
+  }
+}
+
+TEST(BytecodeGraphBuilderInvokeIntrinsic) {
+  HandleAndZoneScope scope;
+  Isolate* isolate = scope.main_isolate();
+  Zone* zone = scope.main_zone();
+  Factory* factory = isolate->factory();
+
+  ExpectedSnippet<1> snippets[] = {
+      {"function f(arg0) { return %_IsJSReceiver(arg0); }\nf()",
+       {factory->false_value(), factory->NewNumberFromInt(1)}},
+      {"function f(arg0) { return %_IsArray(arg0) }\nf(undefined)",
+       {factory->true_value(), BytecodeGraphTester::NewObject("[1, 2, 3]")}},
   };
 
   for (size_t i = 0; i < arraysize(snippets); i++) {
@@ -2316,7 +2333,19 @@ TEST(BytecodeGraphBuilderDo) {
        "  if (x == 4) break;\n"
        "} while (x < 7);\n"
        "return y;",
-       {factory->NewNumberFromInt(16)}}};
+       {factory->NewNumberFromInt(16)}},
+      {"var x = 0, sum = 0;\n"
+       "do {\n"
+       "  do {\n"
+       "    ++sum;\n"
+       "    ++x;\n"
+       "  } while (sum < 1 || x < 2)\n"
+       "  do {\n"
+       "    ++x;\n"
+       "  } while (x < 1)\n"
+       "} while (sum < 3)\n"
+       "return sum;",
+       {factory->NewNumber(3)}}};
 
   for (size_t i = 0; i < arraysize(snippets); i++) {
     ScopedVector<char> script(1024);
@@ -2397,6 +2426,19 @@ TEST(BytecodeGraphBuilderFor) {
        "}\n"
        "return sum;",
        {factory->NewNumberFromInt(385)}},
+      {"var sum = 0;\n"
+       "for (var x = 0; x < 5; x++) {\n"
+       "  for (var y = 0; y < 5; y++) {\n"
+       "    ++sum;\n"
+       "  }\n"
+       "}\n"
+       "for (var x = 0; x < 5; x++) {\n"
+       "  for (var y = 0; y < 5; y++) {\n"
+       "    ++sum;\n"
+       "  }\n"
+       "}\n"
+       "return sum;",
+       {factory->NewNumberFromInt(50)}},
   };
 
   for (size_t i = 0; i < arraysize(snippets); i++) {
@@ -2835,29 +2877,6 @@ TEST(BytecodeGraphBuilderConstInLookupContextChain) {
     Handle<Object> return_value = callable().ToHandleChecked();
     CHECK(return_value->SameValue(*const_decl[i].return_value()));
   }
-
-  // Tests for Legacy constant.
-  bool old_flag_legacy_const = FLAG_legacy_const;
-  FLAG_legacy_const = true;
-
-  ExpectedSnippet<0> legacy_const_decl[] = {
-      {"return outerConst = 23;", {handle(Smi::FromInt(23), isolate)}},
-      {"outerConst = 30; return outerConst;",
-       {handle(Smi::FromInt(10), isolate)}},
-  };
-
-  for (size_t i = 0; i < arraysize(legacy_const_decl); i++) {
-    ScopedVector<char> script(1024);
-    SNPrintF(script, "%s %s %s", prologue, legacy_const_decl[i].code_snippet,
-             epilogue);
-
-    BytecodeGraphTester tester(isolate, zone, script.start(), "*");
-    auto callable = tester.GetCallable<>();
-    Handle<Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*legacy_const_decl[i].return_value()));
-  }
-
-  FLAG_legacy_const = old_flag_legacy_const;
 }
 
 TEST(BytecodeGraphBuilderIllegalConstDeclaration) {
@@ -2909,43 +2928,6 @@ TEST(BytecodeGraphBuilderIllegalConstDeclaration) {
         message->Equals(CcTest::isolate()->GetCurrentContext(), expected_string)
             .FromJust());
   }
-}
-
-TEST(BytecodeGraphBuilderLegacyConstDeclaration) {
-  bool old_flag_legacy_const = FLAG_legacy_const;
-  FLAG_legacy_const = true;
-
-  HandleAndZoneScope scope;
-  Isolate* isolate = scope.main_isolate();
-  Zone* zone = scope.main_zone();
-
-  ExpectedSnippet<0> snippets[] = {
-      {"const x = (x = 10) + 3; return x;",
-       {handle(Smi::FromInt(13), isolate)}},
-      {"const x = 10; x = 20; return x;", {handle(Smi::FromInt(10), isolate)}},
-      {"var a = 10;\n"
-       "for (var i = 0; i < 10; ++i) {\n"
-       " const x = i;\n"  // Legacy constants are not block scoped.
-       " a = a + x;\n"
-       "}\n"
-       "return a;\n",
-       {handle(Smi::FromInt(10), isolate)}},
-      {"const x = 20; eval('x = 10;'); return x;",
-       {handle(Smi::FromInt(20), isolate)}},
-  };
-
-  for (size_t i = 0; i < arraysize(snippets); i++) {
-    ScopedVector<char> script(1024);
-    SNPrintF(script, "function %s() { %s }\n%s();", kFunctionName,
-             snippets[i].code_snippet, kFunctionName);
-
-    BytecodeGraphTester tester(isolate, zone, script.start());
-    auto callable = tester.GetCallable<>();
-    Handle<Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*snippets[i].return_value()));
-  }
-
-  FLAG_legacy_const = old_flag_legacy_const;
 }
 
 TEST(BytecodeGraphBuilderDebuggerStatement) {

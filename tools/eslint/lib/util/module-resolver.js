@@ -9,14 +9,13 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var lodash = require("lodash"),
-    Module = require("module");
+const Module = require("module");
 
 //------------------------------------------------------------------------------
 // Private
 //------------------------------------------------------------------------------
 
-var DEFAULT_OPTIONS = {
+const DEFAULT_OPTIONS = {
 
     /*
      * module.paths is an array of paths to search for resolving things relative
@@ -39,7 +38,7 @@ var DEFAULT_OPTIONS = {
 function ModuleResolver(options) {
     options = options || {};
 
-    this.options = lodash.assign({}, DEFAULT_OPTIONS, options);
+    this.options = Object.assign({}, DEFAULT_OPTIONS, options);
 }
 
 ModuleResolver.prototype = {
@@ -53,14 +52,14 @@ ModuleResolver.prototype = {
      * @returns {string} The resolved file path for the module.
      * @throws {Error} If the module cannot be resolved.
      */
-    resolve: function(name, extraLookupPath) {
+    resolve(name, extraLookupPath) {
 
         /*
          * First, clone the lookup paths so we're not messing things up for
          * subsequent calls to this function. Then, move the extraLookupPath to the
          * top of the lookup paths list so it will be searched first.
          */
-        var lookupPaths = this.options.lookupPaths.concat();
+        const lookupPaths = this.options.lookupPaths.concat();
 
         lookupPaths.unshift(extraLookupPath);
 
@@ -69,10 +68,10 @@ ModuleResolver.prototype = {
          * lookup file paths when require() is called. So, we are hooking into the
          * exact same logic that Node.js uses.
          */
-        var result = Module._findPath(name, lookupPaths);   // eslint-disable-line no-underscore-dangle
+        const result = Module._findPath(name, lookupPaths);   // eslint-disable-line no-underscore-dangle
 
         if (!result) {
-            throw new Error("Cannot find module '" + name + "'");
+            throw new Error(`Cannot find module '${name}'`);
         }
 
         return result;

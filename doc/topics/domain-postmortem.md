@@ -298,4 +298,4 @@ proposal for Zones being prepared for the TC39. At such time there is suitable
 functionality to replace domains it will undergo the full deprecation cycle and
 eventually be removed from core.
 
-[domain-resource-cleanup-example.js]: ./domain-resource-cleanup-example.js
+[`domain-resource-cleanup-example.js`]: ./domain-resource-cleanup-example.js

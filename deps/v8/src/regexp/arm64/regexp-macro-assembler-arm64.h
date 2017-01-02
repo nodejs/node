@@ -91,7 +91,6 @@ class RegExpMacroAssemblerARM64: public NativeRegExpMacroAssembler {
   virtual void WriteCurrentPositionToRegister(int reg, int cp_offset);
   virtual void ClearRegisters(int reg_from, int reg_to);
   virtual void WriteStackPointerToRegister(int reg);
-  virtual bool CanReadUnaligned();
 
   // Called from RegExp if the stack-guard is triggered.
   // If the code object is relocated, the return address is fixed before

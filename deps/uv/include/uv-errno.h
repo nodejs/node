@@ -408,6 +408,7 @@
 #elif defined(__APPLE__) || \
       defined(__DragonFly__) || \
       defined(__FreeBSD__) || \
+      defined(__FreeBSD_kernel__) || \
       defined(__NetBSD__) || \
       defined(__OpenBSD__)
 # define UV__EHOSTDOWN (-64)

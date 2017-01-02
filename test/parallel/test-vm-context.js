@@ -32,8 +32,7 @@ console.error('test runInContext signature');
 var gh1140Exception;
 try {
   vm.runInContext('throw new Error()', context, 'expected-filename.js');
-}
-catch (e) {
+} catch (e) {
   gh1140Exception = e;
   assert.ok(/expected-filename/.test(e.stack),
             'expected appearance of filename in Error stack');
@@ -76,3 +75,14 @@ assert.throws(function() {
 // https://github.com/nodejs/node/issues/6158
 ctx = new Proxy({}, {});
 assert.strictEqual(typeof vm.runInNewContext('String', ctx), 'function');
+
+// https://github.com/nodejs/node/issues/10223
+ctx = vm.createContext();
+vm.runInContext('Object.defineProperty(this, "x", { value: 42 })', ctx);
+assert.strictEqual(ctx.x, undefined);  // Not copied out by cloneProperty().
+assert.strictEqual(vm.runInContext('x', ctx), 42);
+vm.runInContext('x = 0', ctx);                      // Does not throw but x...
+assert.strictEqual(vm.runInContext('x', ctx), 42);  // ...should be unaltered.
+assert.throws(() => vm.runInContext('"use strict"; x = 0', ctx),
+              /Cannot assign to read only property 'x'/);
+assert.strictEqual(vm.runInContext('x', ctx), 42);

@@ -20,15 +20,15 @@ if (!common.opensslCli) {
 // renegotiation limits to test
 var LIMITS = [0, 1, 2, 3, 5, 10, 16];
 
-(function() {
-  var n = 0;
+{
+  let n = 0;
   function next() {
     if (n >= LIMITS.length) return;
     tls.CLIENT_RENEG_LIMIT = LIMITS[n++];
     test(next);
   }
   next();
-})();
+}
 
 function test(next) {
   var options = {

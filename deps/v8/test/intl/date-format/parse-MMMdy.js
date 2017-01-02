@@ -28,6 +28,8 @@
 // Testing v8Parse method for date and time pattern.
 // Month is represented as a short name.
 
+// Flags: --intl-extra
+
 var dtf = new Intl.DateTimeFormat(['en'],
                                   {year: 'numeric', month: 'short',
                                    day: 'numeric',
@@ -41,11 +43,17 @@ assertEquals(1974, date.getUTCFullYear());
 assertEquals(1, date.getUTCMonth());
 assertEquals(4, date.getUTCDate());
 
-// Missing , in the pattern.
-assertEquals(undefined, dtf.v8Parse('Feb 4 1974'));
+// Can deal with a missing ','.
+date = dtf.v8Parse('Feb 4 1974');
+assertEquals(1974, date.getUTCFullYear());
+assertEquals(1, date.getUTCMonth());
+assertEquals(4, date.getUTCDate());
 
 // Extra "th" after 4 in the pattern.
 assertEquals(undefined, dtf.v8Parse('Feb 4th, 1974'));
 
-// Wrong pattern.
-assertEquals(undefined, dtf.v8Parse('2/4/1974'));
+// TODO(jshin): Make sure if this is what's supposed to be.
+date = dtf.v8Parse('2/4/1974');
+assertEquals(1974, date.getUTCFullYear());
+assertEquals(1, date.getUTCMonth());
+assertEquals(4, date.getUTCDate());

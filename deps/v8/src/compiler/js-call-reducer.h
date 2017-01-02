@@ -16,11 +16,11 @@ namespace compiler {
 class CommonOperatorBuilder;
 class JSGraph;
 class JSOperatorBuilder;
-
+class SimplifiedOperatorBuilder;
 
 // Performs strength reduction on {JSCallConstruct} and {JSCallFunction} nodes,
 // which might allow inlining or other optimizations to be performed afterwards.
-class JSCallReducer final : public AdvancedReducer {
+class JSCallReducer final : public Reducer {
  public:
   // Flags that control the mode of operation.
   enum Flag {
@@ -29,12 +29,9 @@ class JSCallReducer final : public AdvancedReducer {
   };
   typedef base::Flags<Flag> Flags;
 
-  JSCallReducer(Editor* editor, JSGraph* jsgraph, Flags flags,
+  JSCallReducer(JSGraph* jsgraph, Flags flags,
                 MaybeHandle<Context> native_context)
-      : AdvancedReducer(editor),
-        jsgraph_(jsgraph),
-        flags_(flags),
-        native_context_(native_context) {}
+      : jsgraph_(jsgraph), flags_(flags), native_context_(native_context) {}
 
   Reduction Reduce(Node* node) final;
 
@@ -55,6 +52,7 @@ class JSCallReducer final : public AdvancedReducer {
   MaybeHandle<Context> native_context() const { return native_context_; }
   CommonOperatorBuilder* common() const;
   JSOperatorBuilder* javascript() const;
+  SimplifiedOperatorBuilder* simplified() const;
 
   JSGraph* const jsgraph_;
   Flags const flags_;

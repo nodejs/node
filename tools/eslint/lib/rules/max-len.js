@@ -9,7 +9,7 @@
 // Constants
 //------------------------------------------------------------------------------
 
-var OPTIONS_SCHEMA = {
+const OPTIONS_SCHEMA = {
     type: "object",
     properties: {
         code: {
@@ -30,7 +30,13 @@ var OPTIONS_SCHEMA = {
         ignoreComments: {
             type: "boolean"
         },
+        ignoreStrings: {
+            type: "boolean"
+        },
         ignoreUrls: {
+            type: "boolean"
+        },
+        ignoreTemplateLiterals: {
             type: "boolean"
         },
         ignoreTrailingComments: {
@@ -40,7 +46,7 @@ var OPTIONS_SCHEMA = {
     additionalProperties: false
 };
 
-var OPTIONS_OR_INTEGER_SCHEMA = {
+const OPTIONS_OR_INTEGER_SCHEMA = {
     anyOf: [
         OPTIONS_SCHEMA,
         {
@@ -69,7 +75,7 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
         /*
          * Inspired by http://tools.ietf.org/html/rfc3986#appendix-B, however:
@@ -79,7 +85,9 @@ module.exports = {
          *   too many false positives
          * - We don't care about matching the entire URL, any small segment is fine
          */
-        var URL_REGEXP = /[^:/?#]:\/\/[^?#]/;
+        const URL_REGEXP = /[^:/?#]:\/\/[^?#]/;
+
+        const sourceCode = context.getSourceCode();
 
         /**
          * Computes the length of a line that may contain tabs. The width of each
@@ -90,21 +98,21 @@ module.exports = {
          * @private
          */
         function computeLineLength(line, tabWidth) {
-            var extraCharacterCount = 0;
+            let extraCharacterCount = 0;
 
             line.replace(/\t/g, function(match, offset) {
-                var totalOffset = offset + extraCharacterCount,
+                const totalOffset = offset + extraCharacterCount,
                     previousTabStopOffset = tabWidth ? totalOffset % tabWidth : 0,
                     spaceCount = tabWidth - previousTabStopOffset;
 
                 extraCharacterCount += spaceCount - 1;  // -1 for the replaced tab
             });
-            return line.length + extraCharacterCount;
+            return Array.from(line).length + extraCharacterCount;
         }
 
         // The options object must be the last option specified…
-        var lastOption = context.options[context.options.length - 1];
-        var options = typeof lastOption === "object" ? Object.create(lastOption) : {};
+        const lastOption = context.options[context.options.length - 1];
+        const options = typeof lastOption === "object" ? Object.create(lastOption) : {};
 
         // …but max code length…
         if (typeof context.options[0] === "number") {
@@ -116,13 +124,15 @@ module.exports = {
             options.tabWidth = context.options[1];
         }
 
-        var maxLength = options.code || 80,
+        const maxLength = options.code || 80,
             tabWidth = options.tabWidth || 4,
-            ignorePattern = options.ignorePattern || null,
             ignoreComments = options.ignoreComments || false,
+            ignoreStrings = options.ignoreStrings || false,
+            ignoreTemplateLiterals = options.ignoreTemplateLiterals || false,
             ignoreTrailingComments = options.ignoreTrailingComments || options.ignoreComments || false,
             ignoreUrls = options.ignoreUrls || false,
             maxCommentLength = options.comments;
+        let ignorePattern = options.ignorePattern || null;
 
         if (ignorePattern) {
             ignorePattern = new RegExp(ignorePattern);
@@ -154,12 +164,13 @@ module.exports = {
          * @returns {boolean} If the comment covers the entire line
          */
         function isFullLineComment(line, lineNumber, comment) {
-            var start = comment.loc.start,
-                end = comment.loc.end;
+            const start = comment.loc.start,
+                end = comment.loc.end,
+                isFirstTokenOnLine = !line.slice(0, comment.loc.start.column).trim();
 
             return comment &&
-                (start.line < lineNumber || (start.line === lineNumber && start.column === 0)) &&
-                (end.line > lineNumber || end.column === line.length);
+                (start.line < lineNumber || (start.line === lineNumber && isFirstTokenOnLine)) &&
+                (end.line > lineNumber || (end.line === lineNumber && end.column === line.length));
         }
 
         /**
@@ -177,6 +188,60 @@ module.exports = {
         }
 
         /**
+         * Ensure that an array exists at [key] on `object`, and add `value` to it.
+         *
+         * @param {Object} object the object to mutate
+         * @param {string} key the object's key
+         * @param {*} value the value to add
+         * @returns {void}
+         * @private
+         */
+        function ensureArrayAndPush(object, key, value) {
+            if (!Array.isArray(object[key])) {
+                object[key] = [];
+            }
+            object[key].push(value);
+        }
+
+        /**
+         * Retrieves an array containing all strings (" or ') in the source code.
+         *
+         * @returns {ASTNode[]} An array of string nodes.
+         */
+        function getAllStrings() {
+            return sourceCode.ast.tokens.filter(function(token) {
+                return token.type === "String";
+            });
+        }
+
+        /**
+         * Retrieves an array containing all template literals in the source code.
+         *
+         * @returns {ASTNode[]} An array of template literal nodes.
+         */
+        function getAllTemplateLiterals() {
+            return sourceCode.ast.tokens.filter(function(token) {
+                return token.type === "Template";
+            });
+        }
+
+
+        /**
+         * A reducer to group an AST node by line number, both start and end.
+         *
+         * @param {Object} acc the accumulator
+         * @param {ASTNode} node the AST node in question
+         * @returns {Object} the modified accumulator
+         * @private
+         */
+        function groupByLineNumber(acc, node) {
+            for (let i = node.loc.start.line; i <= node.loc.end.line; ++i) {
+                ensureArrayAndPush(acc, i, node);
+            }
+            return acc;
+        }
+
+        /**
          * Check the program for max length
          * @param {ASTNode} node Node to examine
          * @returns {void}
@@ -185,34 +250,41 @@ module.exports = {
         function checkProgramForMaxLength(node) {
 
             // split (honors line-ending)
-            var lines = context.getSourceLines(),
+            const lines = sourceCode.lines,
 
                 // list of comments to ignore
-                comments = ignoreComments || maxCommentLength || ignoreTrailingComments ? context.getAllComments() : [],
+                comments = ignoreComments || maxCommentLength || ignoreTrailingComments ? sourceCode.getAllComments() : [];
 
                 // we iterate over comments in parallel with the lines
-                commentsIndex = 0;
+            let commentsIndex = 0;
+
+            const strings = getAllStrings(sourceCode);
+            const stringsByLine = strings.reduce(groupByLineNumber, {});
+
+            const templateLiterals = getAllTemplateLiterals(sourceCode);
+            const templateLiteralsByLine = templateLiterals.reduce(groupByLineNumber, {});
 
             lines.forEach(function(line, i) {
 
                 // i is zero-indexed, line numbers are one-indexed
-                var lineNumber = i + 1;
+                const lineNumber = i + 1;
 
                 /*
                  * if we're checking comment length; we need to know whether this
                  * line is a comment
                  */
-                var lineIsComment = false;
+                let lineIsComment = false;
 
                 /*
                  * We can short-circuit the comment checks if we're already out of
                  * comments to check.
                  */
                 if (commentsIndex < comments.length) {
+                    let comment = null;
 
                     // iterate over comments until we find one past the current line
                     do {
-                        var comment = comments[++commentsIndex];
+                        comment = comments[++commentsIndex];
                     } while (comment && comment.loc.start.line <= lineNumber);
 
                     // and step back by one
@@ -225,22 +297,41 @@ module.exports = {
                     }
                 }
                 if (ignorePattern && ignorePattern.test(line) ||
-                    ignoreUrls && URL_REGEXP.test(line)) {
+                    ignoreUrls && URL_REGEXP.test(line) ||
+                    ignoreStrings && stringsByLine[lineNumber] ||
+                    ignoreTemplateLiterals && templateLiteralsByLine[lineNumber]
+                ) {
 
                     // ignore this line
                     return;
                 }
 
-                var lineLength = computeLineLength(line, tabWidth);
+                const lineLength = computeLineLength(line, tabWidth);
 
                 if (lineIsComment && ignoreComments) {
                     return;
                 }
 
                 if (lineIsComment && lineLength > maxCommentLength) {
-                    context.report(node, { line: lineNumber, column: 0 }, "Line " + (i + 1) + " exceeds the maximum comment line length of " + maxCommentLength + ".");
+                    context.report({
+                        node,
+                        loc: { line: lineNumber, column: 0 },
+                        message: "Line {{lineNumber}} exceeds the maximum comment line length of {{maxCommentLength}}.",
+                        data: {
+                            lineNumber: i + 1,
+                            maxCommentLength
+                        }
+                    });
                 } else if (lineLength > maxLength) {
-                    context.report(node, { line: lineNumber, column: 0 }, "Line " + (i + 1) + " exceeds the maximum line length of " + maxLength + ".");
+                    context.report({
+                        node,
+                        loc: { line: lineNumber, column: 0 },
+                        message: "Line {{lineNumber}} exceeds the maximum line length of {{maxLength}}.",
+                        data: {
+                            lineNumber: i + 1,
+                            maxLength
+                        }
+                    });
                 }
             });
         }

@@ -7,6 +7,15 @@
 "use strict";
 
 //------------------------------------------------------------------------------
+// Constants
+//------------------------------------------------------------------------------
+
+const ALL_IRREGULARS = /[\f\v\u0085\u00A0\ufeff\u00a0\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u200b\u202f\u205f\u3000\u2028\u2029]/;
+const IRREGULAR_WHITESPACE = /[\f\v\u0085\u00A0\ufeff\u00a0\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u200b\u202f\u205f\u3000]+/mg;
+const IRREGULAR_LINE_TERMINATORS = /[\u2028\u2029]/mg;
+const LINE_BREAK = /\r\n|\r|\n|\u2028|\u2029/g;
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -24,6 +33,15 @@ module.exports = {
                 properties: {
                     skipComments: {
                         type: "boolean"
+                    },
+                    skipStrings: {
+                        type: "boolean"
+                    },
+                    skipTemplates: {
+                        type: "boolean"
+                    },
+                    skipRegExps: {
+                        type: "boolean"
                     }
                 },
                 additionalProperties: false
@@ -31,20 +49,22 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
-
-        var irregularWhitespace = /[\u0085\u00A0\ufeff\f\v\u00a0\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u200b\u202f\u205f\u3000]+/mg,
-            irregularLineTerminators = /[\u2028\u2029]/mg;
+    create(context) {
 
         // Module store of errors that we have found
-        var errors = [];
+        let errors = [];
 
         // Comment nodes.  We accumulate these as we go, so we can be sure to trigger them after the whole `Program` entity is parsed, even for top-of-file comments.
-        var commentNodes = [];
+        const commentNodes = [];
 
         // Lookup the `skipComments` option, which defaults to `false`.
-        var options = context.options[0] || {};
-        var skipComments = !!options.skipComments;
+        const options = context.options[0] || {};
+        const skipComments = !!options.skipComments;
+        const skipStrings = options.skipStrings !== false;
+        const skipRegExps = !!options.skipRegExps;
+        const skipTemplates = !!options.skipTemplates;
+
+        const sourceCode = context.getSourceCode();
 
         /**
          * Removes errors that occur inside a string node
@@ -53,11 +73,11 @@ module.exports = {
          * @private
          */
         function removeWhitespaceError(node) {
-            var locStart = node.loc.start;
-            var locEnd = node.loc.end;
+            const locStart = node.loc.start;
+            const locEnd = node.loc.end;
 
             errors = errors.filter(function(error) {
-                var errorLoc = error[1];
+                const errorLoc = error[1];
 
                 if (errorLoc.line >= locStart.line && errorLoc.line <= locEnd.line) {
                     if (errorLoc.column >= locStart.column && (errorLoc.column <= locEnd.column || errorLoc.line < locEnd.line)) {
@@ -75,10 +95,27 @@ module.exports = {
          * @private
          */
         function removeInvalidNodeErrorsInIdentifierOrLiteral(node) {
-            if (typeof node.value === "string") {
+            const shouldCheckStrings = skipStrings && (typeof node.value === "string");
+            const shouldCheckRegExps = skipRegExps && (node.value instanceof RegExp);
+
+            if (shouldCheckStrings || shouldCheckRegExps) {
 
                 // If we have irregular characters remove them from the errors list
-                if (node.raw.match(irregularWhitespace) || node.raw.match(irregularLineTerminators)) {
+                if (ALL_IRREGULARS.test(node.raw)) {
+                    removeWhitespaceError(node);
+                }
+            }
+        }
+
+        /**
+         * Checks template string literal nodes for errors that we are choosing to ignore and calls the relevant methods to remove the errors
+         * @param {ASTNode} node to check for matching errors.
+         * @returns {void}
+         * @private
+         */
+        function removeInvalidNodeErrorsInTemplateLiteral(node) {
+            if (typeof node.value.raw === "string") {
+                if (ALL_IRREGULARS.test(node.value.raw)) {
                     removeWhitespaceError(node);
                 }
             }
@@ -91,7 +128,7 @@ module.exports = {
          * @private
          */
         function removeInvalidNodeErrorsInComment(node) {
-            if (node.value.match(irregularWhitespace) || node.value.match(irregularLineTerminators)) {
+            if (ALL_IRREGULARS.test(node.value)) {
                 removeWhitespaceError(node);
             }
         }
@@ -103,20 +140,19 @@ module.exports = {
          * @private
          */
         function checkForIrregularWhitespace(node) {
-            var sourceLines = context.getSourceLines();
+            const sourceLines = sourceCode.lines;
 
             sourceLines.forEach(function(sourceLine, lineIndex) {
-                var lineNumber = lineIndex + 1,
-                    location,
-                    match;
+                const lineNumber = lineIndex + 1;
+                let match;
 
-                while ((match = irregularWhitespace.exec(sourceLine)) !== null) {
-                    location = {
+                while ((match = IRREGULAR_WHITESPACE.exec(sourceLine)) !== null) {
+                    const location = {
                         line: lineNumber,
                         column: match.index
                     };
 
-                    errors.push([node, location, "Irregular whitespace not allowed"]);
+                    errors.push([node, location, "Irregular whitespace not allowed."]);
                 }
             });
         }
@@ -128,23 +164,20 @@ module.exports = {
          * @private
          */
         function checkForIrregularLineTerminators(node) {
-            var source = context.getSource(),
-                sourceLines = context.getSourceLines(),
-                linebreaks = source.match(/\r\n|\r|\n|\u2028|\u2029/g),
-                lastLineIndex = -1,
-                lineIndex,
-                location,
+            const source = sourceCode.getText(),
+                sourceLines = sourceCode.lines,
+                linebreaks = source.match(LINE_BREAK);
+            let lastLineIndex = -1,
                 match;
 
-            while ((match = irregularLineTerminators.exec(source)) !== null) {
-                lineIndex = linebreaks.indexOf(match[0], lastLineIndex + 1) || 0;
-
-                location = {
+            while ((match = IRREGULAR_LINE_TERMINATORS.exec(source)) !== null) {
+                const lineIndex = linebreaks.indexOf(match[0], lastLineIndex + 1) || 0;
+                const location = {
                     line: lineIndex + 1,
                     column: sourceLines[lineIndex].length
                 };
 
-                errors.push([node, location, "Irregular whitespace not allowed"]);
+                errors.push([node, location, "Irregular whitespace not allowed."]);
                 lastLineIndex = lineIndex;
             }
         }
@@ -166,8 +199,10 @@ module.exports = {
          */
         function noop() {}
 
-        return {
-            Program: function(node) {
+        const nodes = {};
+
+        if (ALL_IRREGULARS.test(sourceCode.getText())) {
+            nodes.Program = function(node) {
 
                 /*
                  * As we can easily fire warnings for all white space issues with
@@ -182,13 +217,14 @@ module.exports = {
 
                 checkForIrregularWhitespace(node);
                 checkForIrregularLineTerminators(node);
-            },
+            };
 
-            Identifier: removeInvalidNodeErrorsInIdentifierOrLiteral,
-            Literal: removeInvalidNodeErrorsInIdentifierOrLiteral,
-            LineComment: skipComments ? rememberCommentNode : noop,
-            BlockComment: skipComments ? rememberCommentNode : noop,
-            "Program:exit": function() {
+            nodes.Identifier = removeInvalidNodeErrorsInIdentifierOrLiteral;
+            nodes.Literal = removeInvalidNodeErrorsInIdentifierOrLiteral;
+            nodes.TemplateElement = skipTemplates ? removeInvalidNodeErrorsInTemplateLiteral : noop;
+            nodes.LineComment = skipComments ? rememberCommentNode : noop;
+            nodes.BlockComment = skipComments ? rememberCommentNode : noop;
+            nodes["Program:exit"] = function() {
 
                 if (skipComments) {
 
@@ -200,7 +236,11 @@ module.exports = {
                 errors.forEach(function(error) {
                     context.report.apply(context, error);
                 });
-            }
-        };
+            };
+        } else {
+            nodes.Program = noop;
+        }
+
+        return nodes;
     }
 };

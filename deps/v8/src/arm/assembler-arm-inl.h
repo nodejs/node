@@ -46,9 +46,9 @@
 namespace v8 {
 namespace internal {
 
-
 bool CpuFeatures::SupportsCrankshaft() { return IsSupported(VFP3); }
 
+bool CpuFeatures::SupportsSimd128() { return false; }
 
 int DoubleRegister::NumRegisters() {
   return CpuFeatures::IsSupported(VFP32DREGS) ? 32 : 16;
@@ -70,7 +70,6 @@ Address RelocInfo::target_address() {
   DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
   return Assembler::target_address_at(pc_, host_);
 }
-
 
 Address RelocInfo::target_address_address() {
   DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
@@ -100,21 +99,6 @@ int RelocInfo::target_address_size() {
 }
 
 
-void RelocInfo::set_target_address(Address target,
-                                   WriteBarrierMode write_barrier_mode,
-                                   ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
-  Assembler::set_target_address_at(isolate_, pc_, host_, target,
-                                   icache_flush_mode);
-  if (write_barrier_mode == UPDATE_WRITE_BARRIER &&
-      host() != NULL && IsCodeTarget(rmode_)) {
-    Object* target_code = Code::GetCodeFromTargetAddress(target);
-    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
-        host(), this, HeapObject::cast(target_code));
-  }
-}
-
-
 Object* RelocInfo::target_object() {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   return reinterpret_cast<Object*>(Assembler::target_address_at(pc_, host_));
@@ -140,6 +124,7 @@ void RelocInfo::set_target_object(Object* target,
       target->IsHeapObject()) {
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
         host(), this, HeapObject::cast(target));
+    host()->GetHeap()->RecordWriteIntoCode(host(), this, target);
   }
 }
 
@@ -260,7 +245,7 @@ void RelocInfo::WipeOut() {
   }
 }
 
-
+template <typename ObjectVisitor>
 void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {

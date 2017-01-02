@@ -32,7 +32,7 @@ TEST(SimpleCall2) {
 
 TEST(ConstCall) {
   FunctionTester T("(function(foo,a) { return foo(a,3); })");
-  FunctionTester U("(function(a,b) { return a + b; })");
+  FunctionTester U("(function (a,b) { return a + b; })");
 
   T.CheckCall(T.Val(6), U.function, T.Val(3));
   T.CheckCall(T.Val(6.1), U.function, T.Val(3.1));
@@ -44,7 +44,7 @@ TEST(ConstCall) {
 
 TEST(ConstCall2) {
   FunctionTester T("(function(foo,a) { return foo(a,\"3\"); })");
-  FunctionTester U("(function(a,b) { return a + b; })");
+  FunctionTester U("(function (a,b) { return a + b; })");
 
   T.CheckCall(T.Val("33"), U.function, T.Val(3));
   T.CheckCall(T.Val("3.13"), U.function, T.Val(3.1));
@@ -129,12 +129,18 @@ TEST(ConstructorCall) {
 }
 
 
-TEST(RuntimeCallCPP2) {
+TEST(RuntimeCall) {
   FLAG_allow_natives_syntax = true;
-  FunctionTester T("(function(a,b) { return %NumberImul(a, b); })");
+  FunctionTester T("(function(a) { return %IsJSReceiver(a); })");
 
-  T.CheckCall(T.Val(2730), T.Val(42), T.Val(65));
-  T.CheckCall(T.Val(798), T.Val(42), T.Val(19));
+  T.CheckCall(T.false_value(), T.Val(23), T.undefined());
+  T.CheckCall(T.false_value(), T.Val(4.2), T.undefined());
+  T.CheckCall(T.false_value(), T.Val("str"), T.undefined());
+  T.CheckCall(T.false_value(), T.true_value(), T.undefined());
+  T.CheckCall(T.false_value(), T.false_value(), T.undefined());
+  T.CheckCall(T.false_value(), T.undefined(), T.undefined());
+  T.CheckCall(T.true_value(), T.NewObject("({})"), T.undefined());
+  T.CheckCall(T.true_value(), T.NewObject("([])"), T.undefined());
 }
 
 
@@ -212,6 +218,7 @@ TEST(ContextLoadedFromActivation) {
   i::Handle<i::JSFunction> jsfun = Handle<JSFunction>::cast(ofun);
   jsfun->set_code(T.function->code());
   jsfun->set_shared(T.function->shared());
+  jsfun->set_literals(T.function->literals());
   CHECK(context->Global()
             ->Set(context, v8_str("foo"), v8::Utils::CallableToLocal(jsfun))
             .FromJust());
@@ -236,6 +243,7 @@ TEST(BuiltinLoadedFromActivation) {
   i::Handle<i::JSFunction> jsfun = Handle<JSFunction>::cast(ofun);
   jsfun->set_code(T.function->code());
   jsfun->set_shared(T.function->shared());
+  jsfun->set_literals(T.function->literals());
   CHECK(context->Global()
             ->Set(context, v8_str("foo"), v8::Utils::CallableToLocal(jsfun))
             .FromJust());

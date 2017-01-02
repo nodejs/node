@@ -29,6 +29,9 @@ module.exports = {
                     },
                     allowAfterThis: {
                         type: "boolean"
+                    },
+                    allowAfterSuper: {
+                        type: "boolean"
                     }
                 },
                 additionalProperties: false
@@ -36,11 +39,12 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
-        var options = context.options[0] || {};
-        var ALLOWED_VARIABLES = options.allow ? options.allow : [];
-        var allowAfterThis = typeof options.allowAfterThis !== "undefined" ? options.allowAfterThis : false;
+        const options = context.options[0] || {};
+        const ALLOWED_VARIABLES = options.allow ? options.allow : [];
+        const allowAfterThis = typeof options.allowAfterThis !== "undefined" ? options.allowAfterThis : false;
+        const allowAfterSuper = typeof options.allowAfterSuper !== "undefined" ? options.allowAfterSuper : false;
 
         //-------------------------------------------------------------------------
         // Helpers
@@ -65,7 +69,7 @@ module.exports = {
          * @private
          */
         function hasTrailingUnderscore(identifier) {
-            var len = identifier.length;
+            const len = identifier.length;
 
             return identifier !== "_" && (identifier[0] === "_" || identifier[len - 1] === "_");
         }
@@ -100,10 +104,16 @@ module.exports = {
          */
         function checkForTrailingUnderscoreInFunctionDeclaration(node) {
             if (node.id) {
-                var identifier = node.id.name;
+                const identifier = node.id.name;
 
                 if (typeof identifier !== "undefined" && hasTrailingUnderscore(identifier) && !isAllowed(identifier)) {
-                    context.report(node, "Unexpected dangling '_' in '" + identifier + "'.");
+                    context.report({
+                        node,
+                        message: "Unexpected dangling '_' in '{{identifier}}'.",
+                        data: {
+                            identifier
+                        }
+                    });
                 }
             }
         }
@@ -115,11 +125,17 @@ module.exports = {
          * @private
          */
         function checkForTrailingUnderscoreInVariableExpression(node) {
-            var identifier = node.id.name;
+            const identifier = node.id.name;
 
             if (typeof identifier !== "undefined" && hasTrailingUnderscore(identifier) &&
                 !isSpecialCaseIdentifierInVariableExpression(identifier) && !isAllowed(identifier)) {
-                context.report(node, "Unexpected dangling '_' in '" + identifier + "'.");
+                context.report({
+                    node,
+                    message: "Unexpected dangling '_' in '{{identifier}}'.",
+                    data: {
+                        identifier
+                    }
+                });
             }
         }
 
@@ -130,13 +146,21 @@ module.exports = {
          * @private
          */
         function checkForTrailingUnderscoreInMemberExpression(node) {
-            var identifier = node.property.name,
-                isMemberOfThis = node.object.type === "ThisExpression";
+            const identifier = node.property.name,
+                isMemberOfThis = node.object.type === "ThisExpression",
+                isMemberOfSuper = node.object.type === "Super";
 
             if (typeof identifier !== "undefined" && hasTrailingUnderscore(identifier) &&
                 !(isMemberOfThis && allowAfterThis) &&
+                !(isMemberOfSuper && allowAfterSuper) &&
                 !isSpecialCaseIdentifierForMemberExpression(identifier) && !isAllowed(identifier)) {
-                context.report(node, "Unexpected dangling '_' in '" + identifier + "'.");
+                context.report({
+                    node,
+                    message: "Unexpected dangling '_' in '{{identifier}}'.",
+                    data: {
+                        identifier
+                    }
+                });
             }
         }
 

@@ -147,9 +147,10 @@ $ TEST_FILES = "BNTEST,ECTEST,ECDSATEST,ECDHTEST,IDEATEST,"+ -
 	       "MDC2TEST,RMDTEST,"+ -
 	       "RANDTEST,DHTEST,ENGINETEST,"+ -
 	       "BFTEST,CASTTEST,SSLTEST,EXPTEST,DSATEST,RSA_TEST,"+ -
-	       "EVP_TEST,IGETEST,JPAKETEST,SRPTEST,"+ -
+	       "EVP_TEST,EVP_EXTRA_TEST,IGETEST,JPAKETEST,SRPTEST,"+ -
 	       "ASN1TEST,V3NAMETEST,HEARTBEAT_TEST,"+ -
-	       "CONSTANT_TIME_TEST"
+	       "CONSTANT_TIME_TEST,VERIFY_EXTRA_TEST,"+ -
+               "CLIENTHELLOTEST,SSLV2CONFTEST,DTLSTEST"
 $! Should we add MTTEST,PQ_TEST,LH_TEST,DIVTEST,TABTEST as well?
 $!
 $! Additional directory information.
@@ -183,6 +184,7 @@ $ T_D_EXPTEST    := [-.crypto.bn]
 $ T_D_DSATEST    := [-.crypto.dsa]
 $ T_D_RSA_TEST   := [-.crypto.rsa]
 $ T_D_EVP_TEST   := [-.crypto.evp]
+$ T_D_EVP_EXTRA_TEST := [-.crypto.evp]
 $ T_D_IGETEST    := [-.test]
 $ T_D_JPAKETEST  := [-.crypto.jpake]
 $ T_D_SRPTEST    := [-.crypto.srp]
@@ -190,6 +192,12 @@ $ T_D_V3NAMETEST := [-.crypto.x509v3]
 $ T_D_ASN1TEST   := [-.test]
 $ T_D_HEARTBEAT_TEST := [-.ssl]
 $ T_D_CONSTANT_TIME_TEST := [-.crypto]
+$ T_D_VERIFY_EXTRA_TEST := [-.crypto.x509]
+$ T_D_CLIENTHELLOTEST := [-.ssl]
+$ T_D_SSLV2CONFTEST := [-.ssl]
+$ T_D_DTLSTEST   := [-.ssl]
+$
+$ EXOBJ_DTLSTEST := SSLTESTLIB
 $!
 $ TCPIP_PROGRAMS = ",,"
 $ IF COMPILER .EQS. "VAXC" THEN -
@@ -222,10 +230,21 @@ $!
 $! Create The Object File Name.
 $!
 $ OBJECT_FILE = OBJ_DIR + FILE_NAME + ".OBJ"
+$ OBJECT_FILES = OBJECT_FILE
 $!
 $! Create The Executable File Name.
 $!
 $ EXE_FILE = EXE_DIR + FILE_NAME + ".EXE"
+$!
+$! Do the same for the possible extra unit
+$!
+$ IF F$TYPE(EXOBJ_'FILE_NAME') .NES. ""
+$ THEN
+$   EXOBJ_SOURCE_FILE = "SYS$DISK:" + EXOBJ_'FILE_NAME' + ".C"
+$   EXOBJ_OBJECT_FILE = OBJ_DIR + EXOBJ_'FILE_NAME' + ".OBJ"
+$   OBJECT_FILES = OBJECT_FILES + "," + EXOBJ_OBJECT_FILE
+$ ENDIF
+$!
 $ ON WARNING THEN GOTO NEXT_FILE
 $!
 $! Check To See If The File We Want To Compile Actually Exists.
@@ -252,6 +271,10 @@ $! Compile The File.
 $!
 $ ON ERROR THEN GOTO NEXT_FILE
 $ CC /OBJECT='OBJECT_FILE' 'SOURCE_FILE'
+$ IF F$TYPE(EXOBJ_'FILE_NAME') .NES. ""
+$ THEN
+$   CC /OBJECT='EXOBJ_OBJECT_FILE' 'EXOBJ_SOURCE_FILE'
+$ ENDIF
 $ ON WARNING THEN GOTO NEXT_FILE
 $!
 $! Check If What We Are About To Compile Works Without A TCP/IP Library.
@@ -275,7 +298,7 @@ $!
 $!  Don't Link With The RSAREF Routines And TCP/IP Library.
 $!
 $ LINK /'DEBUGGER' /'LINKMAP' /'TRACEBACK' /EXECTABLE = 'EXE_FILE' -
-   'OBJECT_FILE', -
+   'OBJECT_FILES', -
    'SSL_LIB' /LIBRARY, -
    'CRYPTO_LIB' /LIBRARY -
    'TCPIP_LIB' -
@@ -475,7 +498,7 @@ $ CHECK_OPTIONS:
 $!
 $! Set basic C compiler /INCLUDE directories.
 $!
-$ CC_INCLUDES = "SYS$DISK:[-],SYS$DISK:[-.CRYPTO]"
+$ CC_INCLUDES = "SYS$DISK:[-],SYS$DISK:[-.CRYPTO],SYS$DISK:[-.TEST]"
 $!
 $! Check To See If P1 Is Blank.
 $!

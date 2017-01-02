@@ -1,13 +1,9 @@
 #!/usr/bin/env python
 import optparse
 import os
-import pprint
 import re
-import shlex
-import subprocess
 import sys
 import shutil
-import string
 
 parser = optparse.OptionParser()
 
@@ -37,7 +33,7 @@ if os.path.isdir(options.icusmall):
     shutil.rmtree(options.icusmall)
 
 if not os.path.isdir(options.icusrc):
-    print 'Missing source ICU dir --icusrc=%' % (options.icusrc)
+    print 'Missing source ICU dir --icusrc=%s' % (options.icusrc)
     sys.exit(1)
 
 
@@ -52,18 +48,17 @@ def icu_ignore(dir, files):
         ign = ign + files
         # except...
         ign.remove('source')
-        ign.remove('license.html')
-        ign.remove('LICENSE')
+        if 'LICENSE' in ign:
+            ign.remove('LICENSE')
+            # license.html will be removed (it's obviated by LICENSE)
+        elif 'license.html' in ign:
+            ign.remove('license.html')
     elif subdir == 'source':
-        ign = ign + ['layout','samples','test','extra','config','layoutex','allinone']
+        ign = ign + ['layout','samples','test','extra','config','layoutex','allinone','data']
         ign = ign + ['runConfigureICU','install-sh','mkinstalldirs','configure']
     elif subdir == 'source/tools':
         ign = ign + ['tzcode','ctestfw','gensprep','gennorm2','gendict','icuswap',
         'genbrk','gencfu','gencolusb','genren','memcheck','makeconv','gencnval','icuinfo','gentest']
-    elif subdir == 'source/data':
-        ign = ign + ['unidata','curr','zone','unit','lang','region','misc','sprep']
-    # else:
-        # print '!%s! [%s]' % (subdir, files)
     ign = ign + ['.DS_Store', 'Makefile', 'Makefile.in']
 
     for file in files:
@@ -106,6 +101,10 @@ else:
 print '%s --> %s' % (options.icusrc, options.icusmall)
 shutil.copytree(options.icusrc, options.icusmall, ignore=icu_ignore)
 print '%s --> %s' % (src_datafile, dst_datafile)
+
+# now, make the data dir (since we ignored it)
+os.mkdir(os.path.join(os.path.join(options.icusmall, "source", "data")))
+os.mkdir(os.path.join(os.path.join(options.icusmall, "source", "data", "in")))
 
 # OK, now copy the data file
 shutil.copy(src_datafile, dst_datafile)

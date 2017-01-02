@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -18,7 +18,7 @@ var astUtils = require("../ast-utils");
 module.exports = {
     meta: {
         docs: {
-            description: "disallow `var` declarations from shadowing variables in the outer scope",
+            description: "disallow variable declarations from shadowing variables declared in the outer scope",
             category: "Variables",
             recommended: false
         },
@@ -41,9 +41,9 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
-        var options = {
+        const options = {
             builtinGlobals: Boolean(context.options[0] && context.options[0].builtinGlobals),
             hoist: (context.options[0] && context.options[0].hoist) || "functions",
             allow: (context.options[0] && context.options[0].allow) || []
@@ -69,7 +69,7 @@ module.exports = {
          * @returns {boolean} Whether or not the variable of the class name in the class scope of ClassDeclaration.
          */
         function isDuplicatedClassNameVariable(variable) {
-            var block = variable.scope.block;
+            const block = variable.scope.block;
 
             return block.type === "ClassDeclaration" && block.id === variable.identifiers[0];
         }
@@ -85,12 +85,12 @@ module.exports = {
          * @returns {boolean} Whether or not the variable is inside initializer of scopeVar.
          */
         function isOnInitializer(variable, scopeVar) {
-            var outerScope = scopeVar.scope;
-            var outerDef = scopeVar.defs[0];
-            var outer = outerDef && outerDef.parent && outerDef.parent.range;
-            var innerScope = variable.scope;
-            var innerDef = variable.defs[0];
-            var inner = innerDef && innerDef.name.range;
+            const outerScope = scopeVar.scope;
+            const outerDef = scopeVar.defs[0];
+            const outer = outerDef && outerDef.parent && outerDef.parent.range;
+            const innerScope = variable.scope;
+            const innerDef = variable.defs[0];
+            const inner = innerDef && innerDef.name.range;
 
             return (
                 outer &&
@@ -108,7 +108,7 @@ module.exports = {
          * @returns {Array|undefined} The range of the variable's identifier node.
          */
         function getNameRange(variable) {
-            var def = variable.defs[0];
+            const def = variable.defs[0];
 
             return def && def.name.range;
         }
@@ -120,9 +120,9 @@ module.exports = {
          * @returns {boolean} Whether or not the variable is in TDZ of scopeVar.
          */
         function isInTdz(variable, scopeVar) {
-            var outerDef = scopeVar.defs[0];
-            var inner = getNameRange(variable);
-            var outer = getNameRange(scopeVar);
+            const outerDef = scopeVar.defs[0];
+            const inner = getNameRange(variable);
+            const outer = getNameRange(scopeVar);
 
             return (
                 inner &&
@@ -140,10 +140,10 @@ module.exports = {
          * @returns {void}
          */
         function checkForShadows(scope) {
-            var variables = scope.variables;
+            const variables = scope.variables;
 
-            for (var i = 0; i < variables.length; ++i) {
-                var variable = variables[i];
+            for (let i = 0; i < variables.length; ++i) {
+                const variable = variables[i];
 
                 // Skips "arguments" or variables of a class name in the class scope of ClassDeclaration.
                 if (variable.identifiers.length === 0 ||
@@ -154,7 +154,7 @@ module.exports = {
                 }
 
                 // Gets shadowed variable.
-                var shadowed = astUtils.getVariableByName(scope.upper, variable.name);
+                const shadowed = astUtils.getVariableByName(scope.upper, variable.name);
 
                 if (shadowed &&
                     (shadowed.identifiers.length > 0 || (options.builtinGlobals && "writeable" in shadowed)) &&
@@ -171,13 +171,13 @@ module.exports = {
         }
 
         return {
-            "Program:exit": function() {
-                var globalScope = context.getScope();
-                var stack = globalScope.childScopes.slice();
-                var scope;
+            "Program:exit"() {
+                const globalScope = context.getScope();
+                const stack = globalScope.childScopes.slice();
 
                 while (stack.length) {
-                    scope = stack.pop();
+                    const scope = stack.pop();
+
                     stack.push.apply(stack, scope.childScopes);
                     checkForShadows(scope);
                 }

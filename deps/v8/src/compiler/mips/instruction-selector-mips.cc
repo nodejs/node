@@ -104,7 +104,14 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
     inputs[input_count++] = g.Label(cont->false_block());
   }
 
-  outputs[output_count++] = g.DefineAsRegister(node);
+  if (cont->IsDeoptimize()) {
+    // If we can deoptimize as a result of the binop, we need to make sure that
+    // the deopt inputs are not overwritten by the binop result. One way
+    // to achieve that is to declare the output register as same-as-first.
+    outputs[output_count++] = g.DefineSameAsFirst(node);
+  } else {
+    outputs[output_count++] = g.DefineAsRegister(node);
+  }
   if (cont->IsSet()) {
     outputs[output_count++] = g.DefineAsRegister(cont->result());
   }
@@ -114,8 +121,13 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
   DCHECK_GE(arraysize(inputs), input_count);
   DCHECK_GE(arraysize(outputs), output_count);
 
-  selector->Emit(cont->Encode(opcode), output_count, outputs, input_count,
-                 inputs);
+  opcode = cont->Encode(opcode);
+  if (cont->IsDeoptimize()) {
+    selector->EmitDeoptimize(opcode, output_count, outputs, input_count, inputs,
+                             cont->reason(), cont->frame_state());
+  } else {
+    selector->Emit(opcode, output_count, outputs, input_count, inputs);
+  }
 }
 
 
@@ -147,6 +159,8 @@ void InstructionSelector::VisitLoad(Node* node) {
     case MachineRepresentation::kWord16:
       opcode = load_rep.IsUnsigned() ? kMipsLhu : kMipsLh;
       break;
+    case MachineRepresentation::kTaggedSigned:   // Fall through.
+    case MachineRepresentation::kTaggedPointer:  // Fall through.
     case MachineRepresentation::kTagged:  // Fall through.
     case MachineRepresentation::kWord32:
       opcode = kMipsLw;
@@ -189,9 +203,7 @@ void InstructionSelector::VisitStore(Node* node) {
     size_t input_count = 0;
     inputs[input_count++] = g.UseUniqueRegister(base);
     inputs[input_count++] = g.UseUniqueRegister(index);
-    inputs[input_count++] = (write_barrier_kind == kMapWriteBarrier)
-                                ? g.UseRegister(value)
-                                : g.UseUniqueRegister(value);
+    inputs[input_count++] = g.UseUniqueRegister(value);
     RecordWriteMode record_write_mode = RecordWriteMode::kValueIsAny;
     switch (write_barrier_kind) {
       case kNoWriteBarrier:
@@ -228,6 +240,8 @@ void InstructionSelector::VisitStore(Node* node) {
       case MachineRepresentation::kWord16:
         opcode = kMipsSh;
         break;
+      case MachineRepresentation::kTaggedSigned:   // Fall through.
+      case MachineRepresentation::kTaggedPointer:  // Fall through.
       case MachineRepresentation::kTagged:  // Fall through.
       case MachineRepresentation::kWord32:
         opcode = kMipsSw;
@@ -392,6 +406,71 @@ void InstructionSelector::VisitWord32Sar(Node* node) {
   VisitRRO(this, kMipsSar, node);
 }
 
+static void VisitInt32PairBinop(InstructionSelector* selector,
+                                InstructionCode opcode, Node* node) {
+  MipsOperandGenerator g(selector);
+
+  // We use UseUniqueRegister here to avoid register sharing with the output
+  // register.
+  InstructionOperand inputs[] = {g.UseUniqueRegister(node->InputAt(0)),
+                                 g.UseUniqueRegister(node->InputAt(1)),
+                                 g.UseUniqueRegister(node->InputAt(2)),
+                                 g.UseUniqueRegister(node->InputAt(3))};
+
+  InstructionOperand outputs[] = {
+      g.DefineAsRegister(node),
+      g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
+  selector->Emit(opcode, 2, outputs, 4, inputs);
+}
+
+void InstructionSelector::VisitInt32PairAdd(Node* node) {
+  VisitInt32PairBinop(this, kMipsAddPair, node);
+}
+
+void InstructionSelector::VisitInt32PairSub(Node* node) {
+  VisitInt32PairBinop(this, kMipsSubPair, node);
+}
+
+void InstructionSelector::VisitInt32PairMul(Node* node) {
+  VisitInt32PairBinop(this, kMipsMulPair, node);
+}
+
+// Shared routine for multiple shift operations.
+static void VisitWord32PairShift(InstructionSelector* selector,
+                                 InstructionCode opcode, Node* node) {
+  MipsOperandGenerator g(selector);
+  Int32Matcher m(node->InputAt(2));
+  InstructionOperand shift_operand;
+  if (m.HasValue()) {
+    shift_operand = g.UseImmediate(m.node());
+  } else {
+    shift_operand = g.UseUniqueRegister(m.node());
+  }
+
+  // We use UseUniqueRegister here to avoid register sharing with the output
+  // register.
+  InstructionOperand inputs[] = {g.UseUniqueRegister(node->InputAt(0)),
+                                 g.UseUniqueRegister(node->InputAt(1)),
+                                 shift_operand};
+
+  InstructionOperand outputs[] = {
+      g.DefineAsRegister(node),
+      g.DefineAsRegister(NodeProperties::FindProjection(node, 1))};
+
+  selector->Emit(opcode, 2, outputs, 3, inputs);
+}
+
+void InstructionSelector::VisitWord32PairShl(Node* node) {
+  VisitWord32PairShift(this, kMipsShlPair, node);
+}
+
+void InstructionSelector::VisitWord32PairShr(Node* node) {
+  VisitWord32PairShift(this, kMipsShrPair, node);
+}
+
+void InstructionSelector::VisitWord32PairSar(Node* node) {
+  VisitWord32PairShift(this, kMipsSarPair, node);
+}
 
 void InstructionSelector::VisitWord32Ror(Node* node) {
   VisitRRO(this, kMipsRor, node);
@@ -405,6 +484,13 @@ void InstructionSelector::VisitWord32Clz(Node* node) {
 
 void InstructionSelector::VisitWord32ReverseBits(Node* node) { UNREACHABLE(); }
 
+void InstructionSelector::VisitWord64ReverseBytes(Node* node) { UNREACHABLE(); }
+
+void InstructionSelector::VisitWord32ReverseBytes(Node* node) {
+  MipsOperandGenerator g(this);
+  Emit(kMipsByteSwap32, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
+}
 
 void InstructionSelector::VisitWord32Ctz(Node* node) {
   MipsOperandGenerator g(this);
@@ -420,8 +506,32 @@ void InstructionSelector::VisitWord32Popcnt(Node* node) {
 
 void InstructionSelector::VisitInt32Add(Node* node) {
   MipsOperandGenerator g(this);
+  Int32BinopMatcher m(node);
 
-  // TODO(plind): Consider multiply & add optimization from arm port.
+  // Select Lsa for (left + (left_of_right << imm)).
+  if (m.right().opcode() == IrOpcode::kWord32Shl &&
+      CanCover(node, m.left().node()) && CanCover(node, m.right().node())) {
+    Int32BinopMatcher mright(m.right().node());
+    if (mright.right().HasValue()) {
+      int32_t shift_value = static_cast<int32_t>(mright.right().Value());
+      Emit(kMipsLsa, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
+           g.UseRegister(mright.left().node()), g.TempImmediate(shift_value));
+      return;
+    }
+  }
+
+  // Select Lsa for ((left_of_left << imm) + right).
+  if (m.left().opcode() == IrOpcode::kWord32Shl &&
+      CanCover(node, m.right().node()) && CanCover(node, m.left().node())) {
+    Int32BinopMatcher mleft(m.left().node());
+    if (mleft.right().HasValue()) {
+      int32_t shift_value = static_cast<int32_t>(mleft.right().Value());
+      Emit(kMipsLsa, g.DefineAsRegister(node), g.UseRegister(m.right().node()),
+           g.UseRegister(mleft.left().node()), g.TempImmediate(shift_value));
+      return;
+    }
+  }
+
   VisitBinop(this, node, kMipsAdd);
 }
 
@@ -443,12 +553,9 @@ void InstructionSelector::VisitInt32Mul(Node* node) {
       return;
     }
     if (base::bits::IsPowerOfTwo32(value - 1)) {
-      InstructionOperand temp = g.TempRegister();
-      Emit(kMipsShl | AddressingModeField::encode(kMode_None), temp,
+      Emit(kMipsLsa, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
            g.UseRegister(m.left().node()),
            g.TempImmediate(WhichPowerOf2(value - 1)));
-      Emit(kMipsAdd | AddressingModeField::encode(kMode_None),
-           g.DefineAsRegister(node), g.UseRegister(m.left().node()), temp);
       return;
     }
     if (base::bits::IsPowerOfTwo32(value + 1)) {
@@ -612,6 +719,9 @@ void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
   VisitRR(this, kMipsTruncUwD, node);
 }
 
+void InstructionSelector::VisitTruncateFloat64ToUint32(Node* node) {
+  VisitRR(this, kMipsTruncUwD, node);
+}
 
 void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
   MipsOperandGenerator g(this);
@@ -627,17 +737,13 @@ void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
   VisitRR(this, kMipsCvtSD, node);
 }
 
-
-void InstructionSelector::VisitTruncateFloat64ToInt32(Node* node) {
-  switch (TruncationModeOf(node->op())) {
-    case TruncationMode::kJavaScript:
-      return VisitRR(this, kArchTruncateDoubleToI, node);
-    case TruncationMode::kRoundToZero:
-      return VisitRR(this, kMipsTruncWD, node);
-  }
-  UNREACHABLE();
+void InstructionSelector::VisitTruncateFloat64ToWord32(Node* node) {
+  VisitRR(this, kArchTruncateDoubleToI, node);
 }
 
+void InstructionSelector::VisitRoundFloat64ToInt32(Node* node) {
+  VisitRR(this, kMipsTruncWD, node);
+}
 
 void InstructionSelector::VisitBitcastFloat32ToInt32(Node* node) {
   VisitRR(this, kMipsFloat64ExtractLowWord32, node);
@@ -666,25 +772,9 @@ void InstructionSelector::VisitFloat32Sub(Node* node) {
   VisitRRR(this, kMipsSubS, node);
 }
 
-
 void InstructionSelector::VisitFloat64Sub(Node* node) {
-  MipsOperandGenerator g(this);
-  Float64BinopMatcher m(node);
-  if (m.left().IsMinusZero() && m.right().IsFloat64RoundDown() &&
-      CanCover(m.node(), m.right().node())) {
-    if (m.right().InputAt(0)->opcode() == IrOpcode::kFloat64Sub &&
-        CanCover(m.right().node(), m.right().InputAt(0))) {
-      Float64BinopMatcher mright0(m.right().InputAt(0));
-      if (mright0.left().IsMinusZero()) {
-        Emit(kMipsFloat64RoundUp, g.DefineAsRegister(node),
-             g.UseRegister(mright0.right().node()));
-        return;
-      }
-    }
-  }
   VisitRRR(this, kMipsSubD, node);
 }
-
 
 void InstructionSelector::VisitFloat32Mul(Node* node) {
   VisitRRR(this, kMipsMulS, node);
@@ -712,64 +802,28 @@ void InstructionSelector::VisitFloat64Mod(Node* node) {
        g.UseFixed(node->InputAt(1), f14))->MarkAsCall();
 }
 
-
 void InstructionSelector::VisitFloat32Max(Node* node) {
   MipsOperandGenerator g(this);
-  if (IsMipsArchVariant(kMips32r6)) {
-    Emit(kMipsFloat32Max, g.DefineAsRegister(node),
-         g.UseUniqueRegister(node->InputAt(0)),
-         g.UseUniqueRegister(node->InputAt(1)));
-
-  } else {
-    // Reverse operands, and use same reg. for result and right operand.
-    Emit(kMipsFloat32Max, g.DefineSameAsFirst(node),
-         g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(0)));
-  }
+  Emit(kMipsFloat32Max, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
 }
-
 
 void InstructionSelector::VisitFloat64Max(Node* node) {
   MipsOperandGenerator g(this);
-  if (IsMipsArchVariant(kMips32r6)) {
-    Emit(kMipsFloat64Max, g.DefineAsRegister(node),
-         g.UseUniqueRegister(node->InputAt(0)),
-         g.UseUniqueRegister(node->InputAt(1)));
-
-  } else {
-    // Reverse operands, and use same reg. for result and right operand.
-    Emit(kMipsFloat64Max, g.DefineSameAsFirst(node),
-         g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(0)));
-  }
+  Emit(kMipsFloat64Max, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
 }
-
 
 void InstructionSelector::VisitFloat32Min(Node* node) {
   MipsOperandGenerator g(this);
-  if (IsMipsArchVariant(kMips32r6)) {
-    Emit(kMipsFloat32Min, g.DefineAsRegister(node),
-         g.UseUniqueRegister(node->InputAt(0)),
-         g.UseUniqueRegister(node->InputAt(1)));
-
-  } else {
-    // Reverse operands, and use same reg. for result and right operand.
-    Emit(kMipsFloat32Min, g.DefineSameAsFirst(node),
-         g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(0)));
-  }
+  Emit(kMipsFloat32Min, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
 }
-
 
 void InstructionSelector::VisitFloat64Min(Node* node) {
   MipsOperandGenerator g(this);
-  if (IsMipsArchVariant(kMips32r6)) {
-    Emit(kMipsFloat64Min, g.DefineAsRegister(node),
-         g.UseUniqueRegister(node->InputAt(0)),
-         g.UseUniqueRegister(node->InputAt(1)));
-
-  } else {
-    // Reverse operands, and use same reg. for result and right operand.
-    Emit(kMipsFloat64Min, g.DefineSameAsFirst(node),
-         g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(0)));
-  }
+  Emit(kMipsFloat64Min, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
 }
 
 
@@ -781,7 +835,6 @@ void InstructionSelector::VisitFloat32Abs(Node* node) {
 void InstructionSelector::VisitFloat64Abs(Node* node) {
   VisitRR(this, kMipsAbsD, node);
 }
-
 
 void InstructionSelector::VisitFloat32Sqrt(Node* node) {
   VisitRR(this, kMipsSqrtS, node);
@@ -837,6 +890,28 @@ void InstructionSelector::VisitFloat64RoundTiesEven(Node* node) {
   VisitRR(this, kMipsFloat64RoundTiesEven, node);
 }
 
+void InstructionSelector::VisitFloat32Neg(Node* node) {
+  VisitRR(this, kMipsNegS, node);
+}
+
+void InstructionSelector::VisitFloat64Neg(Node* node) {
+  VisitRR(this, kMipsNegD, node);
+}
+
+void InstructionSelector::VisitFloat64Ieee754Binop(Node* node,
+                                                   InstructionCode opcode) {
+  MipsOperandGenerator g(this);
+  Emit(opcode, g.DefineAsFixed(node, f0), g.UseFixed(node->InputAt(0), f2),
+       g.UseFixed(node->InputAt(1), f4))
+      ->MarkAsCall();
+}
+
+void InstructionSelector::VisitFloat64Ieee754Unop(Node* node,
+                                                  InstructionCode opcode) {
+  MipsOperandGenerator g(this);
+  Emit(opcode, g.DefineAsFixed(node, f0), g.UseFixed(node->InputAt(0), f12))
+      ->MarkAsCall();
+}
 
 void InstructionSelector::EmitPrepareArguments(
     ZoneVector<PushParameter>* arguments, const CallDescriptor* descriptor,
@@ -846,7 +921,7 @@ void InstructionSelector::EmitPrepareArguments(
   // Prepare for C function call.
   if (descriptor->IsCFunctionCall()) {
     Emit(kArchPrepareCallCFunction |
-             MiscField::encode(static_cast<int>(descriptor->CParameterCount())),
+             MiscField::encode(static_cast<int>(descriptor->ParameterCount())),
          0, nullptr, 0, nullptr);
 
     // Poke any stack arguments.
@@ -878,6 +953,105 @@ void InstructionSelector::EmitPrepareArguments(
 
 bool InstructionSelector::IsTailCallAddressImmediate() { return false; }
 
+int InstructionSelector::GetTempsCountForTailCallFromJSFunction() { return 3; }
+
+void InstructionSelector::VisitUnalignedLoad(Node* node) {
+  UnalignedLoadRepresentation load_rep =
+      UnalignedLoadRepresentationOf(node->op());
+  MipsOperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+
+  ArchOpcode opcode = kArchNop;
+  switch (load_rep.representation()) {
+    case MachineRepresentation::kBit:  // Fall through.
+    case MachineRepresentation::kWord8:
+      UNREACHABLE();
+      break;
+    case MachineRepresentation::kWord16:
+      opcode = load_rep.IsUnsigned() ? kMipsUlhu : kMipsUlh;
+      break;
+    case MachineRepresentation::kTaggedSigned:   // Fall through.
+    case MachineRepresentation::kTaggedPointer:  // Fall through.
+    case MachineRepresentation::kTagged:  // Fall through.
+    case MachineRepresentation::kWord32:
+      opcode = kMipsUlw;
+      break;
+    case MachineRepresentation::kFloat32:
+      opcode = kMipsUlwc1;
+      break;
+    case MachineRepresentation::kFloat64:
+      opcode = kMipsUldc1;
+      break;
+    case MachineRepresentation::kWord64:   // Fall through.
+    case MachineRepresentation::kSimd128:  // Fall through.
+    case MachineRepresentation::kNone:
+      UNREACHABLE();
+      return;
+  }
+
+  if (g.CanBeImmediate(index, opcode)) {
+    Emit(opcode | AddressingModeField::encode(kMode_MRI),
+         g.DefineAsRegister(node), g.UseRegister(base), g.UseImmediate(index));
+  } else {
+    InstructionOperand addr_reg = g.TempRegister();
+    Emit(kMipsAdd | AddressingModeField::encode(kMode_None), addr_reg,
+         g.UseRegister(index), g.UseRegister(base));
+    // Emit desired load opcode, using temp addr_reg.
+    Emit(opcode | AddressingModeField::encode(kMode_MRI),
+         g.DefineAsRegister(node), addr_reg, g.TempImmediate(0));
+  }
+}
+
+void InstructionSelector::VisitUnalignedStore(Node* node) {
+  MipsOperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
+
+  UnalignedStoreRepresentation rep = UnalignedStoreRepresentationOf(node->op());
+
+  // TODO(mips): I guess this could be done in a better way.
+  ArchOpcode opcode = kArchNop;
+  switch (rep) {
+    case MachineRepresentation::kFloat32:
+      opcode = kMipsUswc1;
+      break;
+    case MachineRepresentation::kFloat64:
+      opcode = kMipsUsdc1;
+      break;
+    case MachineRepresentation::kBit:  // Fall through.
+    case MachineRepresentation::kWord8:
+      UNREACHABLE();
+      break;
+    case MachineRepresentation::kWord16:
+      opcode = kMipsUsh;
+      break;
+    case MachineRepresentation::kTaggedSigned:   // Fall through.
+    case MachineRepresentation::kTaggedPointer:  // Fall through.
+    case MachineRepresentation::kTagged:  // Fall through.
+    case MachineRepresentation::kWord32:
+      opcode = kMipsUsw;
+      break;
+    case MachineRepresentation::kWord64:   // Fall through.
+    case MachineRepresentation::kSimd128:  // Fall through.
+    case MachineRepresentation::kNone:
+      UNREACHABLE();
+      return;
+  }
+
+  if (g.CanBeImmediate(index, opcode)) {
+    Emit(opcode | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
+         g.UseRegister(base), g.UseImmediate(index), g.UseRegister(value));
+  } else {
+    InstructionOperand addr_reg = g.TempRegister();
+    Emit(kMipsAdd | AddressingModeField::encode(kMode_None), addr_reg,
+         g.UseRegister(index), g.UseRegister(base));
+    // Emit desired store opcode, using temp addr_reg.
+    Emit(opcode | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
+         addr_reg, g.TempImmediate(0), g.UseRegister(value));
+  }
+}
 
 void InstructionSelector::VisitCheckedLoad(Node* node) {
   CheckedLoadRepresentation load_rep = CheckedLoadRepresentationOf(node->op());
@@ -903,6 +1077,8 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
       opcode = kCheckedLoadFloat64;
       break;
     case MachineRepresentation::kBit:      // Fall through.
+    case MachineRepresentation::kTaggedSigned:   // Fall through.
+    case MachineRepresentation::kTaggedPointer:  // Fall through.
     case MachineRepresentation::kTagged:   // Fall through.
     case MachineRepresentation::kWord64:   // Fall through.
     case MachineRepresentation::kSimd128:  // Fall through.
@@ -971,7 +1147,6 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
 
 
 namespace {
-
 // Shared routine for multiple compare operations.
 static void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
                          InstructionOperand left, InstructionOperand right,
@@ -981,6 +1156,9 @@ static void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
   if (cont->IsBranch()) {
     selector->Emit(opcode, g.NoOutput(), left, right,
                    g.Label(cont->true_block()), g.Label(cont->false_block()));
+  } else if (cont->IsDeoptimize()) {
+    selector->EmitDeoptimize(opcode, g.NoOutput(), left, right, cont->reason(),
+                             cont->frame_state());
   } else {
     DCHECK(cont->IsSet());
     selector->Emit(opcode, g.DefineAsRegister(cont->result()), left, right);
@@ -1086,9 +1264,6 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
   VisitWordCompare(selector, node, kMipsCmp, cont, false);
 }
 
-}  // namespace
-
-
 // Shared routine for word comparisons against zero.
 void VisitWordCompareZero(InstructionSelector* selector, Node* user,
                           Node* value, FlagsContinuation* cont) {
@@ -1156,6 +1331,9 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
               case IrOpcode::kInt32SubWithOverflow:
                 cont->OverwriteAndNegateIfEqual(kOverflow);
                 return VisitBinop(selector, node, kMipsSubOvf, cont);
+              case IrOpcode::kInt32MulWithOverflow:
+                cont->OverwriteAndNegateIfEqual(kOverflow);
+                return VisitBinop(selector, node, kMipsMulOvf, cont);
               default:
                 break;
             }
@@ -1177,12 +1355,18 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
   if (cont->IsBranch()) {
     selector->Emit(opcode, g.NoOutput(), value_operand, g.TempImmediate(0),
                    g.Label(cont->true_block()), g.Label(cont->false_block()));
+  } else if (cont->IsDeoptimize()) {
+    selector->EmitDeoptimize(opcode, g.NoOutput(), value_operand,
+                             g.TempImmediate(0), cont->reason(),
+                             cont->frame_state());
   } else {
+    DCHECK(cont->IsSet());
     selector->Emit(opcode, g.DefineAsRegister(cont->result()), value_operand,
                    g.TempImmediate(0));
   }
 }
 
+}  // namespace
 
 void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
                                       BasicBlock* fbranch) {
@@ -1190,6 +1374,17 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
   VisitWordCompareZero(this, branch, branch->InputAt(0), &cont);
 }
 
+void InstructionSelector::VisitDeoptimizeIf(Node* node) {
+  FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
+      kNotEqual, DeoptimizeReasonOf(node->op()), node->InputAt(1));
+  VisitWordCompareZero(this, node, node->InputAt(0), &cont);
+}
+
+void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
+  FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
+      kEqual, DeoptimizeReasonOf(node->op()), node->InputAt(1));
+  VisitWordCompareZero(this, node, node->InputAt(0), &cont);
+}
 
 void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
   MipsOperandGenerator g(this);
@@ -1220,7 +1415,7 @@ void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
 
 
 void InstructionSelector::VisitWord32Equal(Node* const node) {
-  FlagsContinuation cont(kEqual, node);
+  FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
   Int32BinopMatcher m(node);
   if (m.right().Is(0)) {
     return VisitWordCompareZero(this, m.node(), m.left().node(), &cont);
@@ -1230,32 +1425,34 @@ void InstructionSelector::VisitWord32Equal(Node* const node) {
 
 
 void InstructionSelector::VisitInt32LessThan(Node* node) {
-  FlagsContinuation cont(kSignedLessThan, node);
+  FlagsContinuation cont = FlagsContinuation::ForSet(kSignedLessThan, node);
   VisitWordCompare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitInt32LessThanOrEqual(Node* node) {
-  FlagsContinuation cont(kSignedLessThanOrEqual, node);
+  FlagsContinuation cont =
+      FlagsContinuation::ForSet(kSignedLessThanOrEqual, node);
   VisitWordCompare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitUint32LessThan(Node* node) {
-  FlagsContinuation cont(kUnsignedLessThan, node);
+  FlagsContinuation cont = FlagsContinuation::ForSet(kUnsignedLessThan, node);
   VisitWordCompare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitUint32LessThanOrEqual(Node* node) {
-  FlagsContinuation cont(kUnsignedLessThanOrEqual, node);
+  FlagsContinuation cont =
+      FlagsContinuation::ForSet(kUnsignedLessThanOrEqual, node);
   VisitWordCompare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitInt32AddWithOverflow(Node* node) {
   if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-    FlagsContinuation cont(kOverflow, ovf);
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
     return VisitBinop(this, node, kMipsAddOvf, &cont);
   }
   FlagsContinuation cont;
@@ -1265,46 +1462,56 @@ void InstructionSelector::VisitInt32AddWithOverflow(Node* node) {
 
 void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
   if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-    FlagsContinuation cont(kOverflow, ovf);
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
     return VisitBinop(this, node, kMipsSubOvf, &cont);
   }
   FlagsContinuation cont;
   VisitBinop(this, node, kMipsSubOvf, &cont);
 }
 
+void InstructionSelector::VisitInt32MulWithOverflow(Node* node) {
+  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
+    return VisitBinop(this, node, kMipsMulOvf, &cont);
+  }
+  FlagsContinuation cont;
+  VisitBinop(this, node, kMipsMulOvf, &cont);
+}
 
 void InstructionSelector::VisitFloat32Equal(Node* node) {
-  FlagsContinuation cont(kEqual, node);
+  FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
   VisitFloat32Compare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitFloat32LessThan(Node* node) {
-  FlagsContinuation cont(kUnsignedLessThan, node);
+  FlagsContinuation cont = FlagsContinuation::ForSet(kUnsignedLessThan, node);
   VisitFloat32Compare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitFloat32LessThanOrEqual(Node* node) {
-  FlagsContinuation cont(kUnsignedLessThanOrEqual, node);
+  FlagsContinuation cont =
+      FlagsContinuation::ForSet(kUnsignedLessThanOrEqual, node);
   VisitFloat32Compare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitFloat64Equal(Node* node) {
-  FlagsContinuation cont(kEqual, node);
+  FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
   VisitFloat64Compare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitFloat64LessThan(Node* node) {
-  FlagsContinuation cont(kUnsignedLessThan, node);
+  FlagsContinuation cont = FlagsContinuation::ForSet(kUnsignedLessThan, node);
   VisitFloat64Compare(this, node, &cont);
 }
 
 
 void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
-  FlagsContinuation cont(kUnsignedLessThanOrEqual, node);
+  FlagsContinuation cont =
+      FlagsContinuation::ForSet(kUnsignedLessThanOrEqual, node);
   VisitFloat64Compare(this, node, &cont);
 }
 
@@ -1340,6 +1547,81 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
        g.UseRegister(left), g.UseRegister(right));
 }
 
+void InstructionSelector::VisitFloat64SilenceNaN(Node* node) {
+  MipsOperandGenerator g(this);
+  Node* left = node->InputAt(0);
+  InstructionOperand temps[] = {g.TempRegister()};
+  Emit(kMipsFloat64SilenceNaN, g.DefineSameAsFirst(node), g.UseRegister(left),
+       arraysize(temps), temps);
+}
+
+void InstructionSelector::VisitAtomicLoad(Node* node) {
+  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
+  MipsOperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  ArchOpcode opcode = kArchNop;
+  switch (load_rep.representation()) {
+    case MachineRepresentation::kWord8:
+      opcode = load_rep.IsSigned() ? kAtomicLoadInt8 : kAtomicLoadUint8;
+      break;
+    case MachineRepresentation::kWord16:
+      opcode = load_rep.IsSigned() ? kAtomicLoadInt16 : kAtomicLoadUint16;
+      break;
+    case MachineRepresentation::kWord32:
+      opcode = kAtomicLoadWord32;
+      break;
+    default:
+      UNREACHABLE();
+      return;
+  }
+  if (g.CanBeImmediate(index, opcode)) {
+    Emit(opcode | AddressingModeField::encode(kMode_MRI),
+         g.DefineAsRegister(node), g.UseRegister(base), g.UseImmediate(index));
+  } else {
+    InstructionOperand addr_reg = g.TempRegister();
+    Emit(kMipsAdd | AddressingModeField::encode(kMode_None), addr_reg,
+         g.UseRegister(index), g.UseRegister(base));
+    // Emit desired load opcode, using temp addr_reg.
+    Emit(opcode | AddressingModeField::encode(kMode_MRI),
+         g.DefineAsRegister(node), addr_reg, g.TempImmediate(0));
+  }
+}
+
+void InstructionSelector::VisitAtomicStore(Node* node) {
+  MachineRepresentation rep = AtomicStoreRepresentationOf(node->op());
+  MipsOperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
+  ArchOpcode opcode = kArchNop;
+  switch (rep) {
+    case MachineRepresentation::kWord8:
+      opcode = kAtomicStoreWord8;
+      break;
+    case MachineRepresentation::kWord16:
+      opcode = kAtomicStoreWord16;
+      break;
+    case MachineRepresentation::kWord32:
+      opcode = kAtomicStoreWord32;
+      break;
+    default:
+      UNREACHABLE();
+      return;
+  }
+
+  if (g.CanBeImmediate(index, opcode)) {
+    Emit(opcode | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
+         g.UseRegister(base), g.UseImmediate(index), g.UseRegister(value));
+  } else {
+    InstructionOperand addr_reg = g.TempRegister();
+    Emit(kMipsAdd | AddressingModeField::encode(kMode_None), addr_reg,
+         g.UseRegister(index), g.UseRegister(base));
+    // Emit desired store opcode, using temp addr_reg.
+    Emit(opcode | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
+         addr_reg, g.TempImmediate(0), g.UseRegister(value));
+  }
+}
 
 // static
 MachineOperatorBuilder::Flags
@@ -1352,19 +1634,32 @@ InstructionSelector::SupportedMachineOperatorFlags() {
              MachineOperatorBuilder::kFloat64RoundTruncate |
              MachineOperatorBuilder::kFloat64RoundTiesEven;
   }
+
   return flags | MachineOperatorBuilder::kWord32Ctz |
          MachineOperatorBuilder::kWord32Popcnt |
          MachineOperatorBuilder::kInt32DivIsSafe |
          MachineOperatorBuilder::kUint32DivIsSafe |
          MachineOperatorBuilder::kWord32ShiftIsSafe |
-         MachineOperatorBuilder::kFloat64Min |
-         MachineOperatorBuilder::kFloat64Max |
-         MachineOperatorBuilder::kFloat32Min |
-         MachineOperatorBuilder::kFloat32Max |
          MachineOperatorBuilder::kFloat32RoundDown |
          MachineOperatorBuilder::kFloat32RoundUp |
          MachineOperatorBuilder::kFloat32RoundTruncate |
-         MachineOperatorBuilder::kFloat32RoundTiesEven;
+         MachineOperatorBuilder::kFloat32RoundTiesEven |
+         MachineOperatorBuilder::kWord32ReverseBytes |
+         MachineOperatorBuilder::kWord64ReverseBytes;
+}
+
+// static
+MachineOperatorBuilder::AlignmentRequirements
+InstructionSelector::AlignmentRequirements() {
+  if (IsMipsArchVariant(kMips32r6)) {
+    return MachineOperatorBuilder::AlignmentRequirements::
+        FullUnalignedAccessSupport();
+  } else {
+    DCHECK(IsMipsArchVariant(kLoongson) || IsMipsArchVariant(kMips32r1) ||
+           IsMipsArchVariant(kMips32r2));
+    return MachineOperatorBuilder::AlignmentRequirements::
+        NoUnalignedAccessSupport();
+  }
 }
 
 }  // namespace compiler

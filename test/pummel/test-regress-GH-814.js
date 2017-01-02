@@ -1,6 +1,8 @@
 'use strict';
 // Flags: --expose_gc
 
+const common = require('../common');
+
 function newBuffer(size, value) {
   var buffer = Buffer.allocUnsafe(size);
   while (size--) {
@@ -11,8 +13,6 @@ function newBuffer(size, value) {
   return buffer;
 }
 
-
-var common = require('../common');
 var fs = require('fs');
 var testFileName = require('path').join(common.tmpDir, 'GH-814_testFile.txt');
 var testFileFD = fs.openSync(testFileName, 'w');
@@ -44,15 +44,13 @@ var timeToQuit = Date.now() + 8e3; //Test during no more than this seconds.
     if (bufPool.push(nuBuf) > 100) {
       bufPool.length = 0;
     }
-  }
-  else {
+  } else {
     throw new Error("Buffer GC'ed test -> FAIL");
   }
 
   if (Date.now() < timeToQuit) {
     process.nextTick(main);
-  }
-  else {
+  } else {
     tail.kill();
     console.log("Buffer GC'ed test -> PASS (OK)");
   }

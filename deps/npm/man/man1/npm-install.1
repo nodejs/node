@@ -1,4 +1,4 @@
-.TH "NPM\-INSTALL" "1" "June 2016" "" ""
+.TH "NPM\-INSTALL" "1" "December 2016" "" ""
 .SH "NAME"
 \fBnpm-install\fR \- Install a package
 .SH SYNOPSIS
@@ -209,6 +209,8 @@ fetch the package by name if it is not valid\.
 .IP \(bu 2
 \fBGIT_ASKPASS\fP
 .IP \(bu 2
+\fBGIT_EXEC_PATH\fP
+.IP \(bu 2
 \fBGIT_PROXY_COMMAND\fP
 .IP \(bu 2
 \fBGIT_SSH\fP
@@ -320,7 +322,7 @@ global \fBnode_modules\fP folder\. Only your direct dependencies will show in
 \fBnode_modules\fP and everything they depend on will be flattened in their
 \fBnode_modules\fP folders\. This obviously will eliminate some deduping\.
 .P
-The \fB\-\-ignore\-scripts\fP argument will cause npm to not execute any
+The \fB\-\-ignore\-scripts\fP argument will cause npm to not execute any 
 scripts defined in the package\.json\. See npm help 7 \fBnpm\-scripts\fP\|\.
 .P
 The \fB\-\-legacy\-bundling\fP argument will cause npm to install the package such
@@ -401,6 +403,10 @@ See npm help 5 folders for a more detailed description of the specific
 folder structures that npm creates\.
 .SS Limitations of npm's Install Algorithm
 .P
+npm will refuse to install any package with an identical name to the
+current package\. This can be overridden with the \fB\-\-force\fP flag, but in
+most cases can simply be addressed by changing the local package name\.
+.P
 There are some very rare and pathological edge\-cases where a cycle can
 cause npm to try to install a never\-ending tree of packages\.  Here is
 the simplest case:
@@ -446,7 +452,7 @@ npm help 5 npmrc
 .IP \(bu 2
 npm help 7 registry
 .IP \(bu 2
-npm help tag
+npm help dist\-tag
 .IP \(bu 2
 npm help uninstall
 .IP \(bu 2

@@ -15,15 +15,13 @@ namespace internal {
 // variables. Variables themselves are never directly referred to from the AST,
 // they are maintained by scopes, and referred to from VariableProxies and Slots
 // after binding and variable allocation.
-class Variable: public ZoneObject {
+class Variable final : public ZoneObject {
  public:
   enum Kind { NORMAL, FUNCTION, THIS, ARGUMENTS };
 
   Variable(Scope* scope, const AstRawString* name, VariableMode mode, Kind kind,
            InitializationFlag initialization_flag,
            MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
-
-  virtual ~Variable() {}
 
   // Printing support
   static const char* Mode2String(VariableMode mode);
@@ -45,6 +43,7 @@ class Variable: public ZoneObject {
     return force_context_allocation_;
   }
   void ForceContextAllocation() {
+    DCHECK(IsUnallocated() || IsContextSlot());
     force_context_allocation_ = true;
   }
   bool is_used() { return is_used_; }
@@ -54,10 +53,6 @@ class Variable: public ZoneObject {
 
   int initializer_position() { return initializer_position_; }
   void set_initializer_position(int pos) { initializer_position_ = pos; }
-
-  bool IsVariable(Handle<String> n) const {
-    return !is_this() && name().is_identical_to(n);
-  }
 
   bool IsUnallocated() const {
     return location_ == VariableLocation::UNALLOCATED;
@@ -77,27 +72,14 @@ class Variable: public ZoneObject {
   bool is_dynamic() const { return IsDynamicVariableMode(mode_); }
   bool is_const_mode() const { return IsImmutableVariableMode(mode_); }
   bool binding_needs_init() const {
+    DCHECK(initialization_flag_ != kNeedsInitialization ||
+           IsLexicalVariableMode(mode_));
     return initialization_flag_ == kNeedsInitialization;
   }
 
   bool is_function() const { return kind_ == FUNCTION; }
   bool is_this() const { return kind_ == THIS; }
   bool is_arguments() const { return kind_ == ARGUMENTS; }
-
-  // For script scopes, the "this" binding is provided by a ScriptContext added
-  // to the global's ScriptContextTable.  This binding might not statically
-  // resolve to a Variable::THIS binding, instead being DYNAMIC_LOCAL.  However
-  // any variable named "this" does indeed refer to a Variable::THIS binding;
-  // the grammar ensures this to be the case.  So wherever a "this" binding
-  // might be provided by the global, use HasThisName instead of is_this().
-  bool HasThisName(Isolate* isolate) const {
-    return is_this() || *name() == *isolate->factory()->this_string();
-  }
-
-  // True if the variable is named eval and not known to be shadowed.
-  bool is_possibly_eval(Isolate* isolate) const {
-    return IsVariable(isolate->factory()->eval_string());
-  }
 
   Variable* local_if_not_shadowed() const {
     DCHECK(mode_ == DYNAMIC_LOCAL && local_if_not_shadowed_ != NULL);
@@ -115,24 +97,12 @@ class Variable: public ZoneObject {
   }
 
   void AllocateTo(VariableLocation location, int index) {
+    DCHECK(IsUnallocated() || (location_ == location && index_ == index));
     location_ = location;
     index_ = index;
   }
 
-  void SetFromEval() { is_from_eval_ = true; }
-
   static int CompareIndex(Variable* const* v, Variable* const* w);
-
-  PropertyAttributes DeclarationPropertyAttributes() const {
-    int property_attributes = NONE;
-    if (IsImmutableVariableMode(mode_)) {
-      property_attributes |= READ_ONLY;
-    }
-    if (is_from_eval_) {
-      property_attributes |= EVAL_DECLARED;
-    }
-    return static_cast<PropertyAttributes>(property_attributes);
-  }
 
  private:
   Scope* scope_;
@@ -148,9 +118,6 @@ class Variable: public ZoneObject {
   // sloppy 'eval' calls between the reference scope (inclusive) and the
   // binding scope (exclusive).
   Variable* local_if_not_shadowed_;
-
-  // True if this variable is introduced by a sloppy eval
-  bool is_from_eval_;
 
   // Usage info.
   bool force_context_allocation_;  // set by variable resolver

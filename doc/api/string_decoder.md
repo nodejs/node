@@ -1,6 +1,6 @@
 # StringDecoder
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 The `string_decoder` module provides an API for decoding `Buffer` objects into
 strings in a manner that preserves encoded multi-byte UTF-8 and UTF-16

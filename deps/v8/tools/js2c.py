@@ -145,10 +145,12 @@ class TextMacro:
     self.args = args
     self.body = body
   def expand(self, mapping):
-    result = self.body
-    for key, value in mapping.items():
-        result = result.replace(key, value)
-    return result
+    # Keys could be substrings of earlier values. To avoid unintended
+    # clobbering, apply all replacements simultaneously.
+    any_key_pattern = "|".join(re.escape(k) for k in mapping.iterkeys())
+    def replace(match):
+      return mapping[match.group(0)]
+    return re.sub(any_key_pattern, replace, self.body)
 
 class PythonMacro:
   def __init__(self, args, fun):

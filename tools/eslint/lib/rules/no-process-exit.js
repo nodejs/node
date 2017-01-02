@@ -19,7 +19,7 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         //--------------------------------------------------------------------------
         // Public
@@ -27,8 +27,8 @@ module.exports = {
 
         return {
 
-            CallExpression: function(node) {
-                var callee = node.callee;
+            CallExpression(node) {
+                const callee = node.callee;
 
                 if (callee.type === "MemberExpression" && callee.object.name === "process" &&
                     callee.property.name === "exit"

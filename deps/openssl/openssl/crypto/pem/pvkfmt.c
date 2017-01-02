@@ -127,6 +127,9 @@ static int read_lebn(const unsigned char **in, unsigned int nbyte, BIGNUM **r)
 # define MS_KEYTYPE_KEYX         0x1
 # define MS_KEYTYPE_SIGN         0x2
 
+/* Maximum length of a blob after header */
+# define BLOB_MAX_LENGTH          102400
+
 /* The PVK file magic number: seems to spell out "bobsfile", who is Bob? */
 # define MS_PVKMAGIC             0xb0b5f11eL
 /* Salt length for PVK files */
@@ -272,6 +275,10 @@ static EVP_PKEY *do_b2i_bio(BIO *in, int ispub)
         return NULL;
 
     length = blob_length(bitlen, isdss, ispub);
+    if (length > BLOB_MAX_LENGTH) {
+        PEMerr(PEM_F_DO_B2I_BIO, PEM_R_HEADER_TOO_LONG);
+        return NULL;
+    }
     buf = OPENSSL_malloc(length);
     if (!buf) {
         PEMerr(PEM_F_DO_B2I_BIO, ERR_R_MALLOC_FAILURE);

@@ -1,6 +1,6 @@
 # net
 
-    Stability: 2 - Stable
+> Stability: 2 - Stable
 
 The `net` module provides you with an asynchronous network wrapper. It contains
 functions for creating both servers and clients (called streams). You can include
@@ -73,8 +73,7 @@ var server = net.createServer((socket) => {
 
 // grab a random port.
 server.listen(() => {
-  address = server.address();
-  console.log('opened server on %j', address);
+  console.log('opened server on', server.address());
 });
 ```
 
@@ -98,7 +97,7 @@ added: v0.2.0
 deprecated: v0.9.7
 -->
 
-    Stability: 0 - Deprecated: Use [`server.getConnections()`][] instead.
+> Stability: 0 - Deprecated: Use [`server.getConnections()`][] instead.
 
 The number of concurrent connections on the server.
 
@@ -140,7 +139,7 @@ The last parameter `callback` will be added as a listener for the
 [`'listening'`][] event.
 
 The parameter `backlog` behaves the same as in
-[`server.listen(port[, hostname][, backlog][, callback])`][`server.listen(port, host, backlog, callback)`].
+[`server.listen([port][, hostname][, backlog][, callback])`][`server.listen(port, host, backlog, callback)`].
 
 ### server.listen(options[, callback])
 <!-- YAML
@@ -157,7 +156,7 @@ added: v0.11.14
 
 The `port`, `host`, and `backlog` properties of `options`, as well as the
 optional callback function, behave as they do on a call to
-[`server.listen(port[, hostname][, backlog][, callback])`][`server.listen(port, host, backlog, callback)`].
+[`server.listen([port][, hostname][, backlog][, callback])`][`server.listen(port, host, backlog, callback)`].
 Alternatively, the `path` option can be used to specify a UNIX socket.
 
 If `exclusive` is `false` (default), then cluster workers will use the same
@@ -173,6 +172,9 @@ server.listen({
   exclusive: true
 });
 ```
+
+*Note*: The `server.listen()` method may be called multiple times. Each
+subsequent call will *re-open* the server using the provided options.
 
 ### server.listen(path[, backlog][, callback])
 <!-- YAML
@@ -205,21 +207,28 @@ persist*, they are removed when the last reference to them is closed. Do not
 forget JavaScript string escaping requires paths to be specified with
 double-backslashes, such as:
 
-    net.createServer().listen(
-        path.join('\\\\?\\pipe', process.cwd(), 'myctl'))
+```js
+net.createServer().listen(
+    path.join('\\\\?\\pipe', process.cwd(), 'myctl'))
+```
 
 The parameter `backlog` behaves the same as in
-[`server.listen(port[, hostname][, backlog][, callback])`][`server.listen(port, host, backlog, callback)`].
+[`server.listen([port][, hostname][, backlog][, callback])`][`server.listen(port, host, backlog, callback)`].
 
-### server.listen(port[, hostname][, backlog][, callback])
+*Note*: The `server.listen()` method may be called multiple times. Each
+subsequent call will *re-open* the server using the provided options.
+
+### server.listen([port][, hostname][, backlog][, callback])
 <!-- YAML
 added: v0.1.90
 -->
 
 Begin accepting connections on the specified `port` and `hostname`. If the
 `hostname` is omitted, the server will accept connections on any IPv6 address
-(`::`) when IPv6 is available, or any IPv4 address (`0.0.0.0`) otherwise. Use a
-port value of `0` to have the operating system assign an available port.
+(`::`) when IPv6 is available, or any IPv4 address (`0.0.0.0`) otherwise.
+Omit the port argument, or use a port value of `0`, to have the operating system
+assign a random port, which can be retrieved by using `server.address().port`
+after the `'listening'` event has been emitted.
 
 Backlog is the maximum length of the queue of pending connections.
 The actual length will be determined by the OS through sysctl settings such as
@@ -247,6 +256,9 @@ server.on('error', (e) => {
 ```
 
 (Note: All sockets in Node.js are set `SO_REUSEADDR`.)
+
+*Note*: The `server.listen()` method may be called multiple times. Each
+subsequent call will *re-open* the server using the provided options.
 
 ### server.listening
 <!-- YAML
@@ -353,7 +365,7 @@ Emitted when data is received.  The argument `data` will be a `Buffer` or
 `String`.  Encoding of data is set by `socket.setEncoding()`.
 (See the [Readable Stream][] section for more information.)
 
-Note that the __data will be lost__ if there is no listener when a `Socket`
+Note that the **data will be lost** if there is no listener when a `Socket`
 emits a `'data'` event.
 
 ### Event: 'drain'
@@ -501,7 +513,7 @@ added: v0.1.90
 -->
 
 As [`socket.connect(options[, connectListener])`][`socket.connect(options, connectListener)`],
-with options either as either `{port: port, host: host}` or `{path: path}`.
+with options as either `{port: port, host: host}` or `{path: path}`.
 
 ### socket.connecting
 <!-- YAML
@@ -512,13 +524,21 @@ If `true` - [`socket.connect(options[, connectListener])`][`socket.connect(optio
 haven't yet finished. Will be set to `false` before emitting `connect` event
 and/or calling [`socket.connect(options[, connectListener])`][`socket.connect(options, connectListener)`]'s callback.
 
-### socket.destroy()
+### socket.destroy([exception])
 <!-- YAML
 added: v0.1.90
 -->
 
 Ensures that no more I/O activity happens on this socket. Only necessary in
 case of errors (parse error or so).
+
+If `exception` is specified, an [`'error'`][] event will be emitted and any
+listeners for that event will receive `exception` as an argument.
+
+### socket.destroyed
+
+A Boolean value that indicates if the connection is destroyed or not. Once a
+connection is destroyed no further data can be transferred using it.
 
 ### socket.end([data][, encoding])
 <!-- YAML
@@ -747,6 +767,8 @@ connects with the supplied `options`.
 The options are passed to both the [`net.Socket`][] constructor and the
 [`socket.connect`][] method.
 
+Passing `timeout` as an option will call [`socket.setTimeout()`][] after the socket is created, but before it is connecting.
+
 The `connectListener` parameter will be added as a listener for the
 [`'connect'`][] event once.
 
@@ -850,7 +872,7 @@ server.listen(8124, () => {
 
 Test this by using `telnet`:
 
-```
+```sh
 telnet localhost 8124
 ```
 
@@ -904,7 +926,7 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 [`'timeout'`]: #net_event_timeout
 [`child_process.fork()`]: child_process.html#child_process_child_process_fork_modulepath_args_options
 [`connect()`]: #net_socket_connect_options_connectlistener
-[`destroy()`]: #net_socket_destroy
+[`destroy()`]: #net_socket_destroy_exception
 [`dns.lookup()`]: dns.html#dns_dns_lookup_hostname_options_callback
 [`dns.lookup()` hints]: dns.html#dns_supported_getaddrinfo_flags
 [`end()`]: #net_socket_end_data_encoding

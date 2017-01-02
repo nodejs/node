@@ -5,12 +5,13 @@
 #ifndef V8_CRANKSHAFT_HYDROGEN_OSR_H_
 #define V8_CRANKSHAFT_HYDROGEN_OSR_H_
 
-#include "src/ast/ast.h"
 #include "src/crankshaft/hydrogen.h"
 #include "src/zone.h"
 
 namespace v8 {
 namespace internal {
+
+class IterationStatement;
 
 // Responsible for building graph parts related to OSR and otherwise
 // setting up the graph to do an OSR compile.

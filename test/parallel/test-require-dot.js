@@ -1,17 +1,17 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var module = require('module');
+const common = require('../common');
+const assert = require('assert');
+const m = require('module');
 
-var a = require(common.fixturesDir + '/module-require/relative/dot.js');
-var b = require(common.fixturesDir + '/module-require/relative/dot-slash.js');
+const a = require(common.fixturesDir + '/module-require/relative/dot.js');
+const b = require(common.fixturesDir + '/module-require/relative/dot-slash.js');
 
-assert.equal(a.value, 42);
-assert.equal(a, b, 'require(".") should resolve like require("./")');
+assert.strictEqual(a.value, 42);
+assert.strictEqual(a, b, 'require(".") should resolve like require("./")');
 
 process.env.NODE_PATH = common.fixturesDir + '/module-require/relative';
-module._initPaths();
+m._initPaths();
 
-var c = require('.');
+const c = require('.');
 
-assert.equal(c.value, 42, 'require(".") should honor NODE_PATH');
+assert.strictEqual(c.value, 42, 'require(".") should honor NODE_PATH');

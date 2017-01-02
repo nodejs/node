@@ -9,6 +9,38 @@
   "resources": ["base.js"],
   "tests": [
     {
+      "name": "Generators",
+      "path": ["Generators"],
+      "main": "run.js",
+      "resources": ["generators.js"],
+      "flags": ["--harmony-function-sent"],
+      "results_regexp": "^Generators\\-Generators\\(Score\\): (.+)$"
+    },
+    {
+      "name": "GeneratorsIgnition",
+      "path": ["Generators"],
+      "main": "run.js",
+      "resources": ["generators.js"],
+      "flags": [
+        "--harmony-function-sent",
+        "--ignition"
+      ],
+      "results_regexp": "^Generators\\-Generators\\(Score\\): (.+)$"
+    },
+    {
+      "name": "GeneratorsIgnitionTurbofan",
+      "path": ["Generators"],
+      "main": "run.js",
+      "resources": ["generators.js"],
+      "flags": [
+        "--harmony-function-sent",
+        "--ignition",
+        "--turbo",
+        "--turbo-from-bytecode"
+      ],
+      "results_regexp": "^Generators\\-Generators\\(Score\\): (.+)$"
+    },
+    {
       "name": "RestParameters",
       "path": ["RestParameters"],
       "main": "run.js",
@@ -110,10 +142,19 @@
       "name": "Object",
       "path": ["Object"],
       "main": "run.js",
-      "resources": ["assign.js"],
+      "flags": ["--harmony"],
+      "resources": [
+        "assign.js",
+        "values.js",
+        "entries.js"
+      ],
       "results_regexp": "^%s\\-Object\\(Score\\): (.+)$",
       "tests": [
-        {"name": "Assign"}
+        {"name": "Assign"},
+        {"name": "Entries"},
+        {"name": "EntriesMegamorphic"},
+        {"name": "Values"},
+        {"name": "ValuesMegamorphic"}
       ]
     },
     {
@@ -134,6 +175,48 @@
       "results_regexp": "^%s\\-Exceptions\\(Score\\): (.+)$",
       "tests": [
         {"name": "Try-Catch"}
+      ]
+    },
+    {
+      "name": "Keys",
+      "path": ["Keys"],
+      "main": "run.js",
+      "resources": ["keys.js"],
+      "results_regexp": "^%s\\-Keys\\(Score\\): (.+)$",
+      "run_count": 3,
+      "run_count_android_arm": 2,
+      "run_count_android_arm64": 2,
+      "tests": [
+        {"name": "Object.keys()"},
+        {"name": "for-in"},
+        {"name": "for-in hasOwnProperty()"},
+        {"name": "for (i < Object.keys().length)"},
+        {"name": "Object.keys().forEach()"},
+        {"name": "for (i < array.length)"},
+        {"name": "for (i < length)"}
+      ]
+    },
+    {
+      "name": "PropertyQueries",
+      "path": ["PropertyQueries"],
+      "main": "run.js",
+      "resources": ["property-queries.js"],
+      "results_regexp": "^%s\\-PropertyQueries\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "in--INTERN-prop"},
+        {"name": "in--DEINTERN-prop"},
+        {"name": "in--NE-INTERN-prop"},
+        {"name": "in--NE-DEINTERN-prop"},
+        {"name": "in--el"},
+        {"name": "in--el-str"},
+        {"name": "in--NE-el"},
+        {"name": "Object.hasOwnProperty--INTERN-prop"},
+        {"name": "Object.hasOwnProperty--DEINTERN-prop"},
+        {"name": "Object.hasOwnProperty--NE-INTERN-prop"},
+        {"name": "Object.hasOwnProperty--NE-DEINTERN-prop"},
+        {"name": "Object.hasOwnProperty--el"},
+        {"name": "Object.hasOwnProperty--el-str"},
+        {"name": "Object.hasOwnProperty--NE-el"}
       ]
     }
   ]

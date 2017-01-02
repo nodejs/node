@@ -5,17 +5,19 @@
 
 "use strict";
 
+const astUtils = require("../ast-utils");
+
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-var INDEX_OF_PATTERN = /^(?:i|lastI)ndexOf$/;
-var ALLOWABLE_OPERATORS = ["~", "!!", "+", "*"];
+const INDEX_OF_PATTERN = /^(?:i|lastI)ndexOf$/;
+const ALLOWABLE_OPERATORS = ["~", "!!", "+", "*"];
 
 /**
  * Parses and normalizes an option object.
- * @param {object} options - An option object to parse.
- * @returns {object} The parsed and normalized option object.
+ * @param {Object} options - An option object to parse.
+ * @returns {Object} The parsed and normalized option object.
  */
 function parseOptions(options) {
     options = options || {};
@@ -91,7 +93,7 @@ function isNumeric(node) {
  * @returns {ASTNode|null} The first non-numeric item in the BinaryExpression tree or null
  */
 function getNonNumericOperand(node) {
-    var left = node.left,
+    const left = node.left,
         right = node.right;
 
     if (right.type !== "BinaryExpression" && !isNumeric(right)) {
@@ -106,14 +108,24 @@ function getNonNumericOperand(node) {
 }
 
 /**
+ * Checks whether a node is an empty string literal or not.
+ * @param {ASTNode} node The node to check.
+ * @returns {boolean} Whether or not the passed in node is an
+ * empty string literal or not.
+ */
+function isEmptyString(node) {
+    return astUtils.isStringLiteral(node) && (node.value === "" || (node.type === "TemplateLiteral" && node.quasis.length === 1 && node.quasis[0].value.cooked === ""));
+}
+
+/**
  * Checks whether or not a node is a concatenating with an empty string.
  * @param {ASTNode} node - A BinaryExpression node to check.
  * @returns {boolean} Whether or not the node is a concatenating with an empty string.
  */
 function isConcatWithEmptyString(node) {
     return node.operator === "+" && (
-        (node.left.type === "Literal" && node.left.value === "") ||
-        (node.right.type === "Literal" && node.right.value === "")
+        (isEmptyString(node.left) && !astUtils.isStringLiteral(node.right)) ||
+        (isEmptyString(node.right) && !astUtils.isStringLiteral(node.left))
     );
 }
 
@@ -123,20 +135,16 @@ function isConcatWithEmptyString(node) {
  * @returns {boolean} Whether or not the node is appended with an empty string.
  */
 function isAppendEmptyString(node) {
-    return node.operator === "+=" && node.right.type === "Literal" && node.right.value === "";
+    return node.operator === "+=" && isEmptyString(node.right);
 }
 
 /**
- * Gets a node that is the left or right operand of a node, is not the specified literal.
- * @param {ASTNode} node - A BinaryExpression node to get.
- * @param {any} value - A literal value to check.
- * @returns {ASTNode} A node that is the left or right operand of the node, is not the specified literal.
+ * Returns the operand that is not an empty string from a flagged BinaryExpression.
+ * @param {ASTNode} node - The flagged BinaryExpression node to check.
+ * @returns {ASTNode} The operand that is not an empty string from a flagged BinaryExpression.
  */
-function getOtherOperand(node, value) {
-    if (node.left.type === "Literal" && node.left.value === value) {
-        return node.right;
-    }
-    return node.left;
+function getNonEmptyOperand(node) {
+    return isEmptyString(node.left) ? node.right : node.left;
 }
 
 //------------------------------------------------------------------------------
@@ -151,6 +159,7 @@ module.exports = {
             recommended: false
         },
 
+        fixable: "code",
         schema: [{
             type: "object",
             properties: {
@@ -175,80 +184,96 @@ module.exports = {
         }]
     },
 
-    create: function(context) {
-        var options = parseOptions(context.options[0]),
-            operatorAllowed = false;
+    create(context) {
+        const options = parseOptions(context.options[0]);
+        const sourceCode = context.getSourceCode();
+
+        /**
+        * Reports an error and autofixes the node
+        * @param {ASTNode} node - An ast node to report the error on.
+        * @param {string} recommendation - The recommended code for the issue
+        * @param {bool} shouldFix - Whether this report should fix the node
+        * @returns {void}
+        */
+        function report(node, recommendation, shouldFix) {
+            shouldFix = typeof shouldFix === "undefined" ? true : shouldFix;
+            const reportObj = {
+                node,
+                message: "use `{{recommendation}}` instead.",
+                data: {
+                    recommendation
+                }
+            };
+
+            if (shouldFix) {
+                reportObj.fix = fixer => fixer.replaceText(node, recommendation);
+            }
+
+            context.report(reportObj);
+        }
 
         return {
-            UnaryExpression: function(node) {
+            UnaryExpression(node) {
+                let operatorAllowed;
 
                 // !!foo
                 operatorAllowed = options.allow.indexOf("!!") >= 0;
                 if (!operatorAllowed && options.boolean && isDoubleLogicalNegating(node)) {
-                    context.report(
-                        node,
-                        "use `Boolean({{code}})` instead.", {
-                            code: context.getSource(node.argument.argument)
-                        });
+                    const recommendation = `Boolean(${sourceCode.getText(node.argument.argument)})`;
+
+                    report(node, recommendation);
                 }
 
                 // ~foo.indexOf(bar)
                 operatorAllowed = options.allow.indexOf("~") >= 0;
                 if (!operatorAllowed && options.boolean && isBinaryNegatingOfIndexOf(node)) {
-                    context.report(
-                        node,
-                        "use `{{code}} !== -1` instead.", {
-                            code: context.getSource(node.argument)
-                        });
+                    const recommendation = `${sourceCode.getText(node.argument)} !== -1`;
+
+                    report(node, recommendation, false);
                 }
 
                 // +foo
                 operatorAllowed = options.allow.indexOf("+") >= 0;
                 if (!operatorAllowed && options.number && node.operator === "+" && !isNumeric(node.argument)) {
-                    context.report(
-                        node,
-                        "use `Number({{code}})` instead.", {
-                            code: context.getSource(node.argument)
-                        });
+                    const recommendation = `Number(${sourceCode.getText(node.argument)})`;
+
+                    report(node, recommendation);
                 }
             },
 
             // Use `:exit` to prevent double reporting
-            "BinaryExpression:exit": function(node) {
+            "BinaryExpression:exit"(node) {
+                let operatorAllowed;
 
                 // 1 * foo
                 operatorAllowed = options.allow.indexOf("*") >= 0;
-                var nonNumericOperand = !operatorAllowed && options.number && isMultiplyByOne(node) && getNonNumericOperand(node);
+                const nonNumericOperand = !operatorAllowed && options.number && isMultiplyByOne(node) && getNonNumericOperand(node);
 
                 if (nonNumericOperand) {
-                    context.report(
-                        node,
-                        "use `Number({{code}})` instead.", {
-                            code: context.getSource(nonNumericOperand)
-                        });
+                    const recommendation = `Number(${sourceCode.getText(nonNumericOperand)})`;
+
+                    report(node, recommendation);
                 }
 
                 // "" + foo
                 operatorAllowed = options.allow.indexOf("+") >= 0;
                 if (!operatorAllowed && options.string && isConcatWithEmptyString(node)) {
-                    context.report(
-                        node,
-                        "use `String({{code}})` instead.", {
-                            code: context.getSource(getOtherOperand(node, ""))
-                        });
+                    const recommendation = `String(${sourceCode.getText(getNonEmptyOperand(node))})`;
+
+                    report(node, recommendation);
                 }
             },
 
-            AssignmentExpression: function(node) {
+            AssignmentExpression(node) {
 
                 // foo += ""
-                operatorAllowed = options.allow.indexOf("+") >= 0;
-                if (options.string && isAppendEmptyString(node)) {
-                    context.report(
-                        node,
-                        "use `{{code}} = String({{code}})` instead.", {
-                            code: context.getSource(getOtherOperand(node, ""))
-                        });
+                const operatorAllowed = options.allow.indexOf("+") >= 0;
+
+                if (!operatorAllowed && options.string && isAppendEmptyString(node)) {
+                    const code = sourceCode.getText(getNonEmptyOperand(node));
+                    const recommendation = `${code} = String(${code})`;
+
+                    report(node, recommendation);
                 }
             }
         };

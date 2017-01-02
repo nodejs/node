@@ -1,6 +1,6 @@
 # Domain
 
-    Stability: 0 - Deprecated
+> Stability: 0 - Deprecated
 
 **This module is pending deprecation**. Once a replacement API has been
 finalized, this module will be fully deprecated. Most end users should
@@ -257,7 +257,7 @@ serverDomain.run(() => {
 
 ## domain.create()
 
-* return: {Domain}
+* Returns: {Domain}
 
 Returns a new Domain object.
 
@@ -269,9 +269,10 @@ uncaught exceptions to the active Domain object.
 Domain is a child class of [`EventEmitter`][].  To handle the errors that it
 catches, listen to its `'error'` event.
 
-### domain.run(fn[, arg][, ...])
+### domain.run(fn[, ...args])
 
 * `fn` {Function}
+* `...args` {any}
 
 Run the supplied function in the context of the domain, implicitly
 binding all event emitters, timers, and lowlevel requests that are
@@ -337,7 +338,7 @@ specified emitter.
 ### domain.bind(callback)
 
 * `callback` {Function} The callback function
-* return: {Function} The bound function
+* Returns: {Function} The bound function
 
 The returned function will be a wrapper around the supplied callback
 function.  When the returned function is called, any errors that are
@@ -365,7 +366,7 @@ d.on('error', (er) => {
 ### domain.intercept(callback)
 
 * `callback` {Function} The callback function
-* return: {Function} The intercepted function
+* Returns: {Function} The intercepted function
 
 This method is almost identical to [`domain.bind(callback)`][].  However, in
 addition to catching thrown errors, it will also intercept [`Error`][]
@@ -436,8 +437,8 @@ without exiting the domain.
 
 ### domain.dispose()
 
-    Stability: 0 - Deprecated.  Please recover from failed IO actions
-    explicitly via error event handlers set on the domain.
+> Stability: 0 - Deprecated.  Please recover from failed IO actions
+> explicitly via error event handlers set on the domain.
 
 Once `dispose` has been called, the domain will no longer be used by callbacks
 bound into the domain via `run`, `bind`, or `intercept`, and a `'dispose'` event
@@ -449,6 +450,6 @@ is emitted.
 [`domain.exit()`]: #domain_domain_exit
 [`Error`]: errors.html#errors_class_error
 [`EventEmitter`]: events.html#events_class_eventemitter
-[`setInterval()`]: timers.html#timers_setinterval_callback_delay_arg
-[`setTimeout()`]: timers.html#timers_settimeout_callback_delay_arg
+[`setInterval()`]: timers.html#timers_setinterval_callback_delay_args
+[`setTimeout()`]: timers.html#timers_settimeout_callback_delay_args
 [`throw`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/throw

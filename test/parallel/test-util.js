@@ -1,8 +1,8 @@
 'use strict';
-require('../common');
-var assert = require('assert');
-var util = require('util');
-var context = require('vm').runInNewContext;
+const common = require('../common');
+const assert = require('assert');
+const util = require('util');
+const context = require('vm').runInNewContext;
 
 // isArray
 assert.equal(true, util.isArray([]));
@@ -30,6 +30,7 @@ assert.equal(false, util.isRegExp(Object.create(RegExp.prototype)));
 // isDate
 assert.equal(true, util.isDate(new Date()));
 assert.equal(true, util.isDate(new Date(0)));
+// eslint-disable-next-line new-parens
 assert.equal(true, util.isDate(new (context('Date'))));
 assert.equal(false, util.isDate(Date()));
 assert.equal(false, util.isDate({}));
@@ -41,9 +42,11 @@ assert.equal(false, util.isDate(Object.create(Date.prototype)));
 assert.equal(true, util.isError(new Error()));
 assert.equal(true, util.isError(new TypeError()));
 assert.equal(true, util.isError(new SyntaxError()));
+/* eslint-disable new-parens */
 assert.equal(true, util.isError(new (context('Error'))));
 assert.equal(true, util.isError(new (context('TypeError'))));
 assert.equal(true, util.isError(new (context('SyntaxError'))));
+/* eslint-enable */
 assert.equal(false, util.isError({}));
 assert.equal(false, util.isError({ name: 'Error', message: '' }));
 assert.equal(false, util.isError([]));
@@ -83,3 +86,49 @@ assert.deepStrictEqual(util._extend({a: 1}, true), {a: 1});
 assert.deepStrictEqual(util._extend({a: 1}, false), {a: 1});
 assert.deepStrictEqual(util._extend({a: 1}, {b: 2}), {a: 1, b: 2});
 assert.deepStrictEqual(util._extend({a: 1, b: 2}, {b: 3}), {a: 1, b: 3});
+
+// deprecated
+assert.strictEqual(util.isBoolean(true), true);
+assert.strictEqual(util.isBoolean(false), true);
+assert.strictEqual(util.isBoolean('string'), false);
+
+assert.strictEqual(util.isNull(null), true);
+assert.strictEqual(util.isNull(), false);
+assert.strictEqual(util.isNull('string'), false);
+
+assert.strictEqual(util.isUndefined(), true);
+assert.strictEqual(util.isUndefined(null), false);
+assert.strictEqual(util.isUndefined('string'), false);
+
+assert.strictEqual(util.isNullOrUndefined(null), true);
+assert.strictEqual(util.isNullOrUndefined(), true);
+assert.strictEqual(util.isNullOrUndefined('string'), false);
+
+assert.strictEqual(util.isNumber(42), true);
+assert.strictEqual(util.isNumber(), false);
+assert.strictEqual(util.isNumber('string'), false);
+
+assert.strictEqual(util.isString('string'), true);
+assert.strictEqual(util.isString(), false);
+assert.strictEqual(util.isString(42), false);
+
+assert.strictEqual(util.isSymbol(Symbol()), true);
+assert.strictEqual(util.isSymbol(), false);
+assert.strictEqual(util.isSymbol('string'), false);
+
+assert.strictEqual(util.isFunction(() => {}), true);
+assert.strictEqual(util.isFunction(function() {}), true);
+assert.strictEqual(util.isFunction(), false);
+assert.strictEqual(util.isFunction('string'), false);
+
+common.expectWarning('DeprecationWarning', [
+  'util.print is deprecated. Use console.log instead.',
+  'util.puts is deprecated. Use console.log instead.',
+  'util.debug is deprecated. Use console.error instead.',
+  'util.error is deprecated. Use console.error instead.'
+]);
+
+util.print('test');
+util.puts('test');
+util.debug('test');
+util.error('test');

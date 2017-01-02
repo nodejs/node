@@ -136,8 +136,6 @@ class LCodeGen: public LCodeGenBase {
 #undef DECLARE_DO
 
  private:
-  LanguageMode language_mode() const { return info()->language_mode(); }
-
   Scope* scope() const { return scope_; }
 
   Register scratch0() { return kLithiumScratchReg; }
@@ -214,11 +212,14 @@ class LCodeGen: public LCodeGenBase {
                                LInstruction* instr,
                                LOperand* context);
 
+  void PrepareForTailCall(const ParameterCount& actual, Register scratch1,
+                          Register scratch2, Register scratch3);
+
   // Generate a direct call to a known function.  Expects the function
   // to be in a1.
   void CallKnownFunction(Handle<JSFunction> function,
                          int formal_parameter_count, int arity,
-                         LInstruction* instr);
+                         bool is_tail_call, LInstruction* instr);
 
   void RecordSafepointWithLazyDeopt(LInstruction* instr,
                                     SafepointMode safepoint_mode);
@@ -226,14 +227,14 @@ class LCodeGen: public LCodeGenBase {
   void RegisterEnvironmentForDeoptimization(LEnvironment* environment,
                                             Safepoint::DeoptMode mode);
   void DeoptimizeIf(Condition condition, LInstruction* instr,
-                    Deoptimizer::DeoptReason deopt_reason,
+                    DeoptimizeReason deopt_reason,
                     Deoptimizer::BailoutType bailout_type,
                     Register src1 = zero_reg,
                     const Operand& src2 = Operand(zero_reg));
-  void DeoptimizeIf(
-      Condition condition, LInstruction* instr,
-      Deoptimizer::DeoptReason deopt_reason = Deoptimizer::kNoReason,
-      Register src1 = zero_reg, const Operand& src2 = Operand(zero_reg));
+  void DeoptimizeIf(Condition condition, LInstruction* instr,
+                    DeoptimizeReason deopt_reason = DeoptimizeReason::kNoReason,
+                    Register src1 = zero_reg,
+                    const Operand& src2 = Operand(zero_reg));
 
   void AddToTranslation(LEnvironment* environment,
                         Translation* translation,
@@ -253,7 +254,7 @@ class LCodeGen: public LCodeGenBase {
   void EmitIntegerMathAbs(LMathAbs* instr);
   void EmitSmiMathAbs(LMathAbs* instr);
 
-  // Support for recording safepoint and position information.
+  // Support for recording safepoint information.
   void RecordSafepoint(LPointerMap* pointers,
                        Safepoint::Kind kind,
                        int arguments,
@@ -263,8 +264,6 @@ class LCodeGen: public LCodeGenBase {
   void RecordSafepointWithRegisters(LPointerMap* pointers,
                                     int arguments,
                                     Safepoint::DeoptMode mode);
-
-  void RecordAndWritePosition(int position) override;
 
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
   void EmitGoto(int block);

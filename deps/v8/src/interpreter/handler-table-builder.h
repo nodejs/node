@@ -6,6 +6,7 @@
 #define V8_INTERPRETER_HANDLER_TABLE_BUILDER_H_
 
 #include "src/handles.h"
+#include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/zone-containers.h"
 
@@ -20,11 +21,11 @@ namespace interpreter {
 // A helper class for constructing exception handler tables for the interpreter.
 class HandlerTableBuilder final BASE_EMBEDDED {
  public:
-  HandlerTableBuilder(Isolate* isolate, Zone* zone);
+  explicit HandlerTableBuilder(Zone* zone);
 
   // Builds the actual handler table by copying the current values into a heap
   // object. Any further mutations to the builder won't be reflected.
-  Handle<HandlerTable> ToHandlerTable();
+  Handle<HandlerTable> ToHandlerTable(Isolate* isolate);
 
   // Creates a new handler table entry and returns a {hander_id} identifying the
   // entry, so that it can be referenced by below setter functions.
@@ -36,7 +37,7 @@ class HandlerTableBuilder final BASE_EMBEDDED {
   void SetTryRegionStart(int handler_id, size_t offset);
   void SetTryRegionEnd(int handler_id, size_t offset);
   void SetHandlerTarget(int handler_id, size_t offset);
-  void SetPrediction(int handler_id, bool will_catch);
+  void SetPrediction(int handler_id, HandlerTable::CatchPrediction prediction);
   void SetContextRegister(int handler_id, Register reg);
 
  private:
@@ -45,10 +46,10 @@ class HandlerTableBuilder final BASE_EMBEDDED {
     size_t offset_end;     // Bytecode offset ending try-region.
     size_t offset_target;  // Bytecode offset of handler target.
     Register context;      // Register holding context for handler.
-    bool will_catch;       // Optimistic prediction for handler.
+                           // Optimistic prediction for handler.
+    HandlerTable::CatchPrediction catch_prediction_;
   };
 
-  Isolate* isolate_;
   ZoneVector<Entry> entries_;
 
   DISALLOW_COPY_AND_ASSIGN(HandlerTableBuilder);

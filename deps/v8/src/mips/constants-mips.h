@@ -108,6 +108,19 @@ const uint32_t kHoleNanLower32Offset = 4;
   (CpuFeatures::IsSupported(static_cast<CpuFeature>(check)))
 #endif
 
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+const uint32_t kMipsLwrOffset = 0;
+const uint32_t kMipsLwlOffset = 3;
+const uint32_t kMipsSwrOffset = 0;
+const uint32_t kMipsSwlOffset = 3;
+#elif defined(V8_TARGET_BIG_ENDIAN)
+const uint32_t kMipsLwrOffset = 3;
+const uint32_t kMipsLwlOffset = 0;
+const uint32_t kMipsSwrOffset = 3;
+const uint32_t kMipsSwlOffset = 0;
+#else
+#error Unknown endianness
+#endif
 
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
@@ -409,6 +422,7 @@ enum SecondaryField : uint32_t {
   MOVZ = ((1U << 3) + 2),
   MOVN = ((1U << 3) + 3),
   BREAK = ((1U << 3) + 5),
+  SYNC = ((1U << 3) + 7),
 
   MFHI = ((2U << 3) + 0),
   CLZ_R6 = ((2U << 3) + 0),
@@ -619,7 +633,6 @@ enum SecondaryField : uint32_t {
 
   NULLSF = 0U
 };
-
 
 // ----- Emulated conditions.
 // On MIPS we use this enum to abstract from conditional branch instructions.
@@ -928,8 +941,7 @@ class Instruction {
       FunctionFieldToBitNumber(TEQ) | FunctionFieldToBitNumber(TNE) |
       FunctionFieldToBitNumber(MOVZ) | FunctionFieldToBitNumber(MOVN) |
       FunctionFieldToBitNumber(MOVCI) | FunctionFieldToBitNumber(SELEQZ_S) |
-      FunctionFieldToBitNumber(SELNEZ_S);
-
+      FunctionFieldToBitNumber(SELNEZ_S) | FunctionFieldToBitNumber(SYNC);
 
   // Get the encoding type of the instruction.
   inline Type InstructionType(TypeChecks checks = NORMAL) const;
@@ -1174,11 +1186,10 @@ Instruction::Type Instruction::InstructionType(TypeChecks checks) const {
           int sa = SaFieldRaw() >> kSaShift;
           switch (sa) {
             case BITSWAP:
-              return kRegisterType;
             case WSBH:
             case SEB:
             case SEH:
-              return kUnsupported;
+              return kRegisterType;
           }
           sa >>= kBp2Bits;
           switch (sa) {

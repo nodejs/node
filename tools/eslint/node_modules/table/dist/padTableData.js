@@ -1,36 +1,28 @@
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
-    value: true
+  value: true
 });
 
-var _repeat2 = require('lodash/repeat');
+var _lodash = require('lodash');
 
-var _repeat3 = _interopRequireDefault(_repeat2);
-
-var _map2 = require('lodash/map');
-
-var _map3 = _interopRequireDefault(_map2);
+var _lodash2 = _interopRequireDefault(_lodash);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 /**
  * @param {table~row[]} rows
  * @param {Object} config
- * @return {table~row[]}
+ * @returns {table~row[]}
  */
+exports.default = (rows, config) => {
+  return _lodash2.default.map(rows, cells => {
+    return _lodash2.default.map(cells, (value, index1) => {
+      const column = config.columns[index1];
 
-exports.default = function (rows, config) {
-    return (0, _map3.default)(rows, function (cells) {
-        return (0, _map3.default)(cells, function (value, index1) {
-            var column = undefined;
-
-            column = config.columns[index1];
-
-            return (0, _repeat3.default)(' ', column.paddingLeft) + value + (0, _repeat3.default)(' ', column.paddingRight);
-        });
+      return _lodash2.default.repeat(' ', column.paddingLeft) + value + _lodash2.default.repeat(' ', column.paddingRight);
     });
+  });
 };
 
 module.exports = exports['default'];
-//# sourceMappingURL=padTableData.js.map

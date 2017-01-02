@@ -147,27 +147,25 @@ char* DoubleToExponentialCString(double value, int f);
 char* DoubleToPrecisionCString(double value, int f);
 char* DoubleToRadixCString(double value, int radix);
 
-
 static inline bool IsMinusZero(double value) {
-  static const DoubleRepresentation minus_zero(-0.0);
-  return DoubleRepresentation(value) == minus_zero;
+  return bit_cast<int64_t>(value) == bit_cast<int64_t>(-0.0);
 }
 
+// Returns true if value can be converted to a SMI, and returns the resulting
+// integer value of the SMI in |smi_int_value|.
+inline bool DoubleToSmiInteger(double value, int* smi_int_value);
 
 inline bool IsSmiDouble(double value);
-
 
 // Integer32 is an integer that can be represented as a signed 32-bit
 // integer. It has to be in the range [-2^31, 2^31 - 1].
 // We also have to check for negative 0 as it is not an Integer32.
 inline bool IsInt32Double(double value);
 
-
 // UInteger32 is an integer that can be represented as an unsigned 32-bit
 // integer. It has to be in the range [0, 2^32 - 1].
 // We also have to check for negative 0 as it is not a UInteger32.
 inline bool IsUint32Double(double value);
-
 
 // Convert from Number object to C integer.
 inline int32_t NumberToInt32(Object* number);
@@ -177,13 +175,10 @@ inline int64_t NumberToInt64(Object* number);
 double StringToDouble(UnicodeCache* unicode_cache, Handle<String> string,
                       int flags, double empty_string_val = 0.0);
 
-
-inline bool TryNumberToSize(Isolate* isolate, Object* number, size_t* result);
-
+inline bool TryNumberToSize(Object* number, size_t* result);
 
 // Converts a number into size_t.
-inline size_t NumberToSize(Isolate* isolate, Object* number);
-
+inline size_t NumberToSize(Object* number);
 
 // returns DoubleToString(StringToDouble(string)) == string
 bool IsSpecialIndex(UnicodeCache* unicode_cache, String* string);

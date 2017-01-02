@@ -20,16 +20,16 @@ module.exports = {
         schema: []
     },
 
-    create: function(context) {
+    create(context) {
 
         return {
-            "Program:exit": function() {
-                var globalScope = context.getScope();
-                var variable = globalScope.set.get("Symbol");
+            "Program:exit"() {
+                const globalScope = context.getScope();
+                const variable = globalScope.set.get("Symbol");
 
                 if (variable && variable.defs.length === 0) {
                     variable.references.forEach(function(ref) {
-                        var node = ref.identifier;
+                        const node = ref.identifier;
 
                         if (node.parent && node.parent.type === "NewExpression") {
                             context.report(node, "`Symbol` cannot be called as a constructor.");

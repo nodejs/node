@@ -9,9 +9,10 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var fs = require("fs"),
+const fs = require("fs"),
     path = require("path"),
-    shell = require("shelljs");
+    shell = require("shelljs"),
+    log = require("../logging");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -25,12 +26,12 @@ var fs = require("fs"),
  * @returns {string}                          Absolute path to closest package.json file
  */
 function findPackageJson(startDir) {
-    var dir = path.resolve(startDir || process.cwd());
+    let dir = path.resolve(startDir || process.cwd());
 
     do {
-        var pkgfile = path.join(dir, "package.json");
+        const pkgfile = path.join(dir, "package.json");
 
-        if (!fs.existsSync(pkgfile)) {
+        if (!shell.test("-f", pkgfile)) {
             dir = path.join(dir, "..");
             continue;
         }
@@ -52,7 +53,7 @@ function installSyncSaveDev(packages) {
     if (Array.isArray(packages)) {
         packages = packages.join(" ");
     }
-    shell.exec("npm i --save-dev " + packages, {stdio: "inherit"});
+    shell.exec(`npm i --save-dev ${packages}`, {stdio: "inherit"});
 }
 
 /**
@@ -67,13 +68,20 @@ function installSyncSaveDev(packages) {
  *                                        and values are booleans indicating installation.
  */
 function check(packages, opt) {
-    var deps = [];
-    var pkgJson = (opt) ? findPackageJson(opt.startDir) : findPackageJson();
+    let deps = [];
+    const pkgJson = (opt) ? findPackageJson(opt.startDir) : findPackageJson();
+    let fileJson;
 
     if (!pkgJson) {
         throw new Error("Could not find a package.json file. Run 'npm init' to create one.");
     }
-    var fileJson = JSON.parse(fs.readFileSync(pkgJson, "utf8"));
+
+    try {
+        fileJson = JSON.parse(fs.readFileSync(pkgJson, "utf8"));
+    } catch (e) {
+        log.info("Could not read package.json file. Please check that the file contains valid JSON.");
+        throw new Error(e);
+    }
 
     if (opt.devDependencies && typeof fileJson.devDependencies === "object") {
         deps = deps.concat(Object.keys(fileJson.devDependencies));
@@ -116,12 +124,23 @@ function checkDevDeps(packages) {
     return check(packages, {devDependencies: true});
 }
 
+/**
+ * Check whether package.json is found in current path.
+ *
+ * @param   {string=} startDir Starting directory
+ * @returns {boolean} Whether a package.json is found in current path.
+ */
+function checkPackageJson(startDir) {
+    return !!findPackageJson(startDir);
+}
+
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------
 
 module.exports = {
-    installSyncSaveDev: installSyncSaveDev,
-    checkDeps: checkDeps,
-    checkDevDeps: checkDevDeps
+    installSyncSaveDev,
+    checkDeps,
+    checkDevDeps,
+    checkPackageJson
 };

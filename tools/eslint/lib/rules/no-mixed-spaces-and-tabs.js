@@ -23,10 +23,11 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
+        const sourceCode = context.getSourceCode();
 
-        var smartTabs,
-            ignoredLocs = [];
+        let smartTabs;
+        const ignoredLocs = [];
 
         switch (context.options[0]) {
             case true: // Support old syntax, maybe add deprecation warning here
@@ -73,21 +74,20 @@ module.exports = {
 
         return {
 
-            TemplateElement: function(node) {
+            TemplateElement(node) {
                 ignoredLocs.push(node.loc);
             },
 
-            "Program:exit": function(node) {
+            "Program:exit"(node) {
 
                 /*
                  * At least one space followed by a tab
                  * or the reverse before non-tab/-space
                  * characters begin.
                  */
-                var regex = /^(?=[\t ]*(\t | \t))/,
-                    match,
-                    lines = context.getSourceLines(),
-                    comments = context.getAllComments();
+                let regex = /^(?=[\t ]*(\t | \t))/;
+                const lines = sourceCode.lines,
+                    comments = sourceCode.getAllComments();
 
                 comments.forEach(function(comment) {
                     ignoredLocs.push(comment.loc);
@@ -115,13 +115,13 @@ module.exports = {
                 }
 
                 lines.forEach(function(line, i) {
-                    match = regex.exec(line);
+                    const match = regex.exec(line);
 
                     if (match) {
-                        var lineNumber = i + 1,
+                        const lineNumber = i + 1,
                             column = match.index + 1;
 
-                        for (var j = 0; j < ignoredLocs.length; j++) {
+                        for (let j = 0; j < ignoredLocs.length; j++) {
                             if (beforeLoc(ignoredLocs[j], lineNumber, column)) {
                                 continue;
                             }
@@ -132,7 +132,7 @@ module.exports = {
                             return;
                         }
 
-                        context.report(node, { line: lineNumber, column: column }, "Mixed spaces and tabs.");
+                        context.report(node, { line: lineNumber, column }, "Mixed spaces and tabs.");
                     }
                 });
             }

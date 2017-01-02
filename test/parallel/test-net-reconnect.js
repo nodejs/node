@@ -65,4 +65,3 @@ process.on('exit', function() {
   assert.equal(N + 1, client_recv_count);
   assert.equal(N + 1, client_end_count);
 });
-

@@ -4,8 +4,8 @@
 
 #include "src/ast/variables.h"
 
-#include "src/ast/ast.h"
 #include "src/ast/scopes.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -19,7 +19,6 @@ const char* Variable::Mode2String(VariableMode mode) {
     case CONST_LEGACY: return "CONST_LEGACY";
     case LET: return "LET";
     case CONST: return "CONST";
-    case IMPORT: return "IMPORT";
     case DYNAMIC: return "DYNAMIC";
     case DYNAMIC_GLOBAL: return "DYNAMIC_GLOBAL";
     case DYNAMIC_LOCAL: return "DYNAMIC_LOCAL";
@@ -28,7 +27,6 @@ const char* Variable::Mode2String(VariableMode mode) {
   UNREACHABLE();
   return NULL;
 }
-
 
 Variable::Variable(Scope* scope, const AstRawString* name, VariableMode mode,
                    Kind kind, InitializationFlag initialization_flag,
@@ -39,9 +37,8 @@ Variable::Variable(Scope* scope, const AstRawString* name, VariableMode mode,
       kind_(kind),
       location_(VariableLocation::UNALLOCATED),
       index_(-1),
-      initializer_position_(RelocInfo::kNoPosition),
+      initializer_position_(kNoSourcePosition),
       local_if_not_shadowed_(NULL),
-      is_from_eval_(false),
       force_context_allocation_(false),
       is_used_(false),
       initialization_flag_(initialization_flag),
@@ -56,7 +53,7 @@ bool Variable::IsGlobalObjectProperty() const {
   // activation frame.
   return (IsDynamicVariableMode(mode_) ||
           (IsDeclaredVariableMode(mode_) && !IsLexicalVariableMode(mode_))) &&
-         scope_ != NULL && scope_->is_script_scope() && !is_this();
+         scope_ != NULL && scope_->is_script_scope();
 }
 
 
@@ -64,7 +61,7 @@ bool Variable::IsStaticGlobalObjectProperty() const {
   // Temporaries are never global, they must always be allocated in the
   // activation frame.
   return (IsDeclaredVariableMode(mode_) && !IsLexicalVariableMode(mode_)) &&
-         scope_ != NULL && scope_->is_script_scope() && !is_this();
+         scope_ != NULL && scope_->is_script_scope();
 }
 
 

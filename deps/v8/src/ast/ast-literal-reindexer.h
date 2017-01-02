@@ -11,20 +11,20 @@
 namespace v8 {
 namespace internal {
 
-class AstLiteralReindexer final : public AstVisitor {
+class AstLiteralReindexer final : public AstVisitor<AstLiteralReindexer> {
  public:
-  AstLiteralReindexer() : AstVisitor(), next_index_(0) {}
+  AstLiteralReindexer() : next_index_(0) {}
 
   int count() const { return next_index_; }
   void Reindex(Expression* pattern);
 
  private:
-#define DEFINE_VISIT(type) void Visit##type(type* node) override;
+#define DEFINE_VISIT(type) void Visit##type(type* node);
   AST_NODE_LIST(DEFINE_VISIT)
 #undef DEFINE_VISIT
 
-  void VisitStatements(ZoneList<Statement*>* statements) override;
-  void VisitDeclarations(ZoneList<Declaration*>* declarations) override;
+  void VisitStatements(ZoneList<Statement*>* statements);
+  void VisitDeclarations(ZoneList<Declaration*>* declarations);
   void VisitArguments(ZoneList<Expression*>* arguments);
   void VisitObjectLiteralProperty(ObjectLiteralProperty* property);
 
@@ -32,10 +32,9 @@ class AstLiteralReindexer final : public AstVisitor {
     literal->literal_index_ = next_index_++;
   }
 
-  void Visit(AstNode* node) override { node->Accept(this); }
-
   int next_index_;
 
+  DEFINE_AST_VISITOR_MEMBERS_WITHOUT_STACKOVERFLOW()
   DISALLOW_COPY_AND_ASSIGN(AstLiteralReindexer);
 };
 }  // namespace internal

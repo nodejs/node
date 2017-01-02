@@ -28,11 +28,6 @@ enum PropertyAttributes {
   // ABSENT can never be stored in or returned from a descriptor's attributes
   // bitfield.  It is only used as a return value meaning the attributes of
   // a non-existent property.
-
-  // When creating a property, EVAL_DECLARED used to indicate that the property
-  // came from a sloppy-mode direct eval, and certain checks need to be done.
-  // Cannot be stored in or returned from a descriptor's attributes bitfield.
-  EVAL_DECLARED = 128
 };
 
 
@@ -53,7 +48,18 @@ STATIC_ASSERT(ONLY_ENUMERABLE == static_cast<PropertyFilter>(DONT_ENUM));
 STATIC_ASSERT(ONLY_CONFIGURABLE == static_cast<PropertyFilter>(DONT_DELETE));
 STATIC_ASSERT(((SKIP_STRINGS | SKIP_SYMBOLS | ONLY_ALL_CAN_READ) &
                ALL_ATTRIBUTES_MASK) == 0);
-
+STATIC_ASSERT(ALL_PROPERTIES ==
+              static_cast<PropertyFilter>(v8::PropertyFilter::ALL_PROPERTIES));
+STATIC_ASSERT(ONLY_WRITABLE ==
+              static_cast<PropertyFilter>(v8::PropertyFilter::ONLY_WRITABLE));
+STATIC_ASSERT(ONLY_ENUMERABLE ==
+              static_cast<PropertyFilter>(v8::PropertyFilter::ONLY_ENUMERABLE));
+STATIC_ASSERT(ONLY_CONFIGURABLE == static_cast<PropertyFilter>(
+                                       v8::PropertyFilter::ONLY_CONFIGURABLE));
+STATIC_ASSERT(SKIP_STRINGS ==
+              static_cast<PropertyFilter>(v8::PropertyFilter::SKIP_STRINGS));
+STATIC_ASSERT(SKIP_SYMBOLS ==
+              static_cast<PropertyFilter>(v8::PropertyFilter::SKIP_SYMBOLS));
 
 class Smi;
 class Type;
@@ -203,7 +209,6 @@ static const int kMaxNumberOfDescriptors =
 static const int kInvalidEnumCacheSentinel =
     (1 << kDescriptorIndexBitCount) - 1;
 
-
 enum class PropertyCellType {
   // Meaningful when a property cell does not contain the hole.
   kUndefined,     // The PREMONOMORPHIC of property cells.
@@ -213,12 +218,12 @@ enum class PropertyCellType {
 
   // Meaningful when a property cell contains the hole.
   kUninitialized = kUndefined,  // Cell has never been initialized.
-  kInvalidated = kConstant,     // Cell has been deleted or invalidated.
+  kInvalidated = kConstant,     // Cell has been deleted, invalidated or never
+                                // existed.
 
   // For dictionaries not holding cells.
   kNoCell = kMutable,
 };
-
 
 enum class PropertyCellConstantType {
   kSmi,
@@ -259,8 +264,9 @@ class PropertyDetails BASE_EMBEDDED {
              FieldIndexField::encode(field_index);
   }
 
-  static PropertyDetails Empty() {
-    return PropertyDetails(NONE, DATA, 0, PropertyCellType::kNoCell);
+  static PropertyDetails Empty(
+      PropertyCellType cell_type = PropertyCellType::kNoCell) {
+    return PropertyDetails(NONE, DATA, 0, cell_type);
   }
 
   int pointer() const { return DescriptorPointer::decode(value_); }

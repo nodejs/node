@@ -17,13 +17,17 @@ void GetStackPointer(const v8::FunctionCallbackInfo<v8::Value>& args) {
 #elif V8_HOST_ARCH_IA32
   __asm__ __volatile__("mov %%esp, %0" : "=g"(sp_addr));
 #elif V8_HOST_ARCH_ARM
-  __asm__ __volatile__("str %%sp, %0" : "=g"(sp_addr));
+  __asm__ __volatile__("str sp, %0" : "=g"(sp_addr));
 #elif V8_HOST_ARCH_ARM64
   __asm__ __volatile__("mov x16, sp; str x16, %0" : "=g"(sp_addr));
 #elif V8_HOST_ARCH_MIPS
   __asm__ __volatile__("sw $sp, %0" : "=g"(sp_addr));
 #elif V8_HOST_ARCH_MIPS64
   __asm__ __volatile__("sd $sp, %0" : "=g"(sp_addr));
+#elif defined(__s390x__) || defined(_ARCH_S390X)
+  __asm__ __volatile__("stg 15, %0" : "=m"(sp_addr));
+#elif defined(__s390__) || defined(_ARCH_S390)
+  __asm__ __volatile__("st 15, %0" : "=m"(sp_addr));
 #elif defined(__PPC64__) || defined(_ARCH_PPC64)
   __asm__ __volatile__("std 1, %0" : "=g"(sp_addr));
 #elif defined(__PPC__) || defined(_ARCH_PPC)

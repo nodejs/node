@@ -81,9 +81,6 @@ function third(server) {
     assert(!req.socket.isSessionReused());
     server.close();
   });
-  req.on('error', function(err) {
-    // never called
-    assert(false);
-  });
+  req.on('error', common.fail);
   req.end();
 }

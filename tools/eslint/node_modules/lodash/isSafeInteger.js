@@ -15,8 +15,7 @@ var MAX_SAFE_INTEGER = 9007199254740991;
  * @since 4.0.0
  * @category Lang
  * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is a safe integer,
- *  else `false`.
+ * @returns {boolean} Returns `true` if `value` is a safe integer, else `false`.
  * @example
  *
  * _.isSafeInteger(3);

@@ -127,7 +127,7 @@ class LoopFinderTester : HandleAndZoneScope {
         OFStream os(stdout);
         os << AsRPO(graph);
       }
-      Zone zone;
+      Zone zone(main_isolate()->allocator());
       loop_tree = LoopFinder::BuildLoopTree(&graph, &zone);
     }
     return loop_tree;

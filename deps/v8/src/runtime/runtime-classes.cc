@@ -88,25 +88,21 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate,
   Handle<Object> prototype_parent;
   Handle<Object> constructor_parent;
 
-  if (super_class->IsTheHole()) {
+  if (super_class->IsTheHole(isolate)) {
     prototype_parent = isolate->initial_object_prototype();
   } else {
-    if (super_class->IsNull()) {
+    if (super_class->IsNull(isolate)) {
       prototype_parent = isolate->factory()->null_value();
     } else if (super_class->IsConstructor()) {
-      if (super_class->IsJSFunction() &&
-          Handle<JSFunction>::cast(super_class)->shared()->is_generator()) {
-        THROW_NEW_ERROR(
-            isolate,
-            NewTypeError(MessageTemplate::kExtendsValueGenerator, super_class),
-            Object);
-      }
+      DCHECK(!super_class->IsJSFunction() ||
+             !Handle<JSFunction>::cast(super_class)->shared()->is_resumable());
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, prototype_parent,
           Runtime::GetObjectProperty(isolate, super_class,
                                      isolate->factory()->prototype_string()),
           Object);
-      if (!prototype_parent->IsNull() && !prototype_parent->IsJSReceiver()) {
+      if (!prototype_parent->IsNull(isolate) &&
+          !prototype_parent->IsJSReceiver()) {
         THROW_NEW_ERROR(
             isolate, NewTypeError(MessageTemplate::kPrototypeParentNotAnObject,
                                   prototype_parent),
@@ -114,35 +110,27 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate,
       }
       constructor_parent = super_class;
     } else {
-      THROW_NEW_ERROR(
-          isolate,
-          NewTypeError(MessageTemplate::kExtendsValueNotFunction, super_class),
-          Object);
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kExtendsValueNotConstructor,
+                                   super_class),
+                      Object);
     }
   }
 
   Handle<Map> map =
       isolate->factory()->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
   map->set_is_prototype_map(true);
-  if (constructor->map()->is_strong()) {
-    map->set_is_strong();
-    if (super_class->IsNull()) {
-      // Strong class is not permitted to extend null.
-      THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kStrongExtendNull),
-                      Object);
-    }
-  }
   Map::SetPrototype(map, prototype_parent);
   map->SetConstructor(*constructor);
   Handle<JSObject> prototype = isolate->factory()->NewJSObjectFromMap(map);
 
-  if (!super_class->IsTheHole()) {
+  if (!super_class->IsTheHole(isolate)) {
     // Derived classes, just like builtins, don't create implicit receivers in
     // [[construct]]. Instead they just set up new.target and call into the
     // constructor. Hence we can reuse the builtins construct stub for derived
     // classes.
     Handle<Code> stub(isolate->builtins()->JSBuiltinsConstructStubForDerived());
-    constructor->shared()->set_construct_stub(*stub);
+    constructor->shared()->SetConstructStub(*stub);
   }
 
   JSFunction::SetPrototype(constructor, prototype);
@@ -194,33 +182,11 @@ RUNTIME_FUNCTION(Runtime_DefineClass) {
   CONVERT_SMI_ARG_CHECKED(start_position, 2);
   CONVERT_SMI_ARG_CHECKED(end_position, 3);
 
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, DefineClass(isolate, super_class, constructor,
-                                   start_position, end_position));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, DefineClass(isolate, super_class, constructor, start_position,
+                           end_position));
 }
 
-
-RUNTIME_FUNCTION(Runtime_FinalizeClassDefinition) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, constructor, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, prototype, 1);
-
-  JSObject::MigrateSlowToFast(constructor, 0, "RuntimeToFastProperties");
-
-  if (constructor->map()->is_strong()) {
-    DCHECK(prototype->map()->is_strong());
-    MAYBE_RETURN(JSReceiver::SetIntegrityLevel(prototype, FROZEN,
-                                               Object::THROW_ON_ERROR),
-                 isolate->heap()->exception());
-    MAYBE_RETURN(JSReceiver::SetIntegrityLevel(constructor, FROZEN,
-                                               Object::THROW_ON_ERROR),
-                 isolate->heap()->exception());
-  }
-  return *constructor;
-}
 
 static MaybeHandle<Object> LoadFromSuper(Isolate* isolate,
                                          Handle<Object> receiver,
@@ -275,10 +241,8 @@ RUNTIME_FUNCTION(Runtime_LoadFromSuper) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, home_object, 1);
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 2);
 
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, LoadFromSuper(isolate, receiver, home_object, name));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           LoadFromSuper(isolate, receiver, home_object, name));
 }
 
 
@@ -290,13 +254,10 @@ RUNTIME_FUNCTION(Runtime_LoadKeyedFromSuper) {
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 2);
 
   uint32_t index = 0;
-  Handle<Object> result;
 
   if (key->ToArrayIndex(&index)) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result,
-        LoadElementFromSuper(isolate, receiver, home_object, index));
-    return *result;
+    RETURN_RESULT_OR_FAILURE(
+        isolate, LoadElementFromSuper(isolate, receiver, home_object, index));
   }
 
   Handle<Name> name;
@@ -304,14 +265,11 @@ RUNTIME_FUNCTION(Runtime_LoadKeyedFromSuper) {
                                      Object::ToName(isolate, key));
   // TODO(verwaest): Unify using LookupIterator.
   if (name->AsArrayIndex(&index)) {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, result,
-        LoadElementFromSuper(isolate, receiver, home_object, index));
-    return *result;
+    RETURN_RESULT_OR_FAILURE(
+        isolate, LoadElementFromSuper(isolate, receiver, home_object, index));
   }
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, LoadFromSuper(isolate, receiver, home_object, name));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           LoadFromSuper(isolate, receiver, home_object, name));
 }
 
 

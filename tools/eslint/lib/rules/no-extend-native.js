@@ -9,7 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var globals = require("globals");
+const globals = require("globals");
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -40,11 +40,11 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
+    create(context) {
 
-        var config = context.options[0] || {};
-        var exceptions = config.exceptions || [];
-        var modifiedBuiltins = Object.keys(globals.builtin).filter(function(builtin) {
+        const config = context.options[0] || {};
+        const exceptions = config.exceptions || [];
+        let modifiedBuiltins = Object.keys(globals.builtin).filter(function(builtin) {
             return builtin[0].toUpperCase() === builtin[0];
         });
 
@@ -57,15 +57,14 @@ module.exports = {
         return {
 
             // handle the Array.prototype.extra style case
-            AssignmentExpression: function(node) {
-                var lhs = node.left,
-                    affectsProto;
+            AssignmentExpression(node) {
+                const lhs = node.left;
 
                 if (lhs.type !== "MemberExpression" || lhs.object.type !== "MemberExpression") {
                     return;
                 }
 
-                affectsProto = lhs.object.computed ?
+                const affectsProto = lhs.object.computed ?
                     lhs.object.property.type === "Literal" && lhs.object.property.value === "prototype" :
                     lhs.object.property.name === "prototype";
 
@@ -75,17 +74,21 @@ module.exports = {
 
                 modifiedBuiltins.forEach(function(builtin) {
                     if (lhs.object.object.name === builtin) {
-                        context.report(node, builtin + " prototype is read only, properties should not be added.");
+                        context.report({
+                            node,
+                            message: "{{builtin}} prototype is read only, properties should not be added.",
+                            data: {
+                                builtin
+                            }
+                        });
                     }
                 });
             },
 
             // handle the Object.definePropert[y|ies](Array.prototype) case
-            CallExpression: function(node) {
+            CallExpression(node) {
 
-                var callee = node.callee,
-                    subject,
-                    object;
+                const callee = node.callee;
 
                 // only worry about Object.definePropert[y|ies]
                 if (callee.type === "MemberExpression" &&
@@ -93,14 +96,21 @@ module.exports = {
                     (callee.property.name === "defineProperty" || callee.property.name === "defineProperties")) {
 
                     // verify the object being added to is a native prototype
-                    subject = node.arguments[0];
-                    object = subject && subject.object;
+                    const subject = node.arguments[0];
+                    const object = subject && subject.object;
+
                     if (object &&
                         object.type === "Identifier" &&
                         (modifiedBuiltins.indexOf(object.name) > -1) &&
                         subject.property.name === "prototype") {
 
-                        context.report(node, object.name + " prototype is read only, properties should not be added.");
+                        context.report({
+                            node,
+                            message: "{{objectName}} prototype is read only, properties should not be added.",
+                            data: {
+                                objectName: object.name
+                            }
+                        });
                     }
                 }
 

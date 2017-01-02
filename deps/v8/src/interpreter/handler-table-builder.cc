@@ -5,6 +5,7 @@
 #include "src/interpreter/handler-table-builder.h"
 
 #include "src/factory.h"
+#include "src/interpreter/bytecode-register.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 
@@ -12,18 +13,16 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-HandlerTableBuilder::HandlerTableBuilder(Isolate* isolate, Zone* zone)
-    : isolate_(isolate), entries_(zone) {}
+HandlerTableBuilder::HandlerTableBuilder(Zone* zone) : entries_(zone) {}
 
-Handle<HandlerTable> HandlerTableBuilder::ToHandlerTable() {
+Handle<HandlerTable> HandlerTableBuilder::ToHandlerTable(Isolate* isolate) {
   int handler_table_size = static_cast<int>(entries_.size());
   Handle<HandlerTable> table =
-      Handle<HandlerTable>::cast(isolate_->factory()->NewFixedArray(
+      Handle<HandlerTable>::cast(isolate->factory()->NewFixedArray(
           HandlerTable::LengthForRange(handler_table_size), TENURED));
   for (int i = 0; i < handler_table_size; ++i) {
     Entry& entry = entries_[i];
-    HandlerTable::CatchPrediction pred =
-        entry.will_catch ? HandlerTable::CAUGHT : HandlerTable::UNCAUGHT;
+    HandlerTable::CatchPrediction pred = entry.catch_prediction_;
     table->SetRangeStart(i, static_cast<int>(entry.offset_start));
     table->SetRangeEnd(i, static_cast<int>(entry.offset_end));
     table->SetRangeHandler(i, static_cast<int>(entry.offset_target), pred);
@@ -35,7 +34,7 @@ Handle<HandlerTable> HandlerTableBuilder::ToHandlerTable() {
 
 int HandlerTableBuilder::NewHandlerEntry() {
   int handler_id = static_cast<int>(entries_.size());
-  Entry entry = {0, 0, 0, Register(), false};
+  Entry entry = {0, 0, 0, Register(), HandlerTable::UNCAUGHT};
   entries_.push_back(entry);
   return handler_id;
 }
@@ -58,9 +57,9 @@ void HandlerTableBuilder::SetHandlerTarget(int handler_id, size_t offset) {
   entries_[handler_id].offset_target = offset;
 }
 
-
-void HandlerTableBuilder::SetPrediction(int handler_id, bool will_catch) {
-  entries_[handler_id].will_catch = will_catch;
+void HandlerTableBuilder::SetPrediction(
+    int handler_id, HandlerTable::CatchPrediction prediction) {
+  entries_[handler_id].catch_prediction_ = prediction;
 }
 
 

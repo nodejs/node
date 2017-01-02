@@ -4,15 +4,13 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "async-wrap.h"
+#include "connection_wrap.h"
 #include "env.h"
-#include "stream_wrap.h"
 
 namespace node {
 
-class PipeWrap : public StreamWrap {
+class PipeWrap : public ConnectionWrap<PipeWrap, uv_pipe_t> {
  public:
-  uv_pipe_t* UVHandle();
-
   static v8::Local<v8::Object> Instantiate(Environment* env, AsyncWrap* parent);
   static void Initialize(v8::Local<v8::Object> target,
                          v8::Local<v8::Value> unused,
@@ -36,11 +34,6 @@ class PipeWrap : public StreamWrap {
   static void SetPendingInstances(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 #endif
-
-  static void OnConnection(uv_stream_t* handle, int status);
-  static void AfterConnect(uv_connect_t* req, int status);
-
-  uv_pipe_t handle_;
 };
 
 

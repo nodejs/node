@@ -1,6 +1,5 @@
 'use strict';
-require('../common');
-var assert = require('assert');
+const common = require('../common');
 var http = require('http');
 
 var CRLF = '\r\n';
@@ -15,9 +14,7 @@ server.on('upgrade', function(req, socket, head) {
   });
 });
 
-var successCount = 0;
-
-server.listen(0, function() {
+server.listen(0, common.mustCall(function() {
 
   function upgradeRequest(fn) {
     console.log('req');
@@ -52,18 +49,11 @@ server.listen(0, function() {
 
   }
 
-  upgradeRequest(function() {
-    successCount++;
-    upgradeRequest(function() {
-      successCount++;
+  upgradeRequest(common.mustCall(function() {
+    upgradeRequest(common.mustCall(function() {
       // Test pass
       console.log('Pass!');
       server.close();
-    });
-  });
-
-});
-
-process.on('exit', function() {
-  assert.equal(2, successCount);
-});
+    }));
+  }));
+}));

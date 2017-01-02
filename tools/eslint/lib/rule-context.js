@@ -8,25 +8,28 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var RuleFixer = require("./util/rule-fixer");
+const RuleFixer = require("./util/rule-fixer");
 
 //------------------------------------------------------------------------------
 // Constants
 //------------------------------------------------------------------------------
 
-var PASSTHROUGHS = [
-    "getAllComments",
+const PASSTHROUGHS = [
     "getAncestors",
-    "getComments",
     "getDeclaredVariables",
     "getFilename",
+    "getScope",
+    "markVariableAsUsed",
+
+    // DEPRECATED
+    "getAllComments",
+    "getComments",
     "getFirstToken",
     "getFirstTokens",
     "getJSDocComment",
     "getLastToken",
     "getLastTokens",
     "getNodeByRangeIndex",
-    "getScope",
     "getSource",
     "getSourceLines",
     "getTokenAfter",
@@ -35,8 +38,7 @@ var PASSTHROUGHS = [
     "getTokens",
     "getTokensAfter",
     "getTokensBefore",
-    "getTokensBetween",
-    "markVariableAsUsed"
+    "getTokensBetween"
 ];
 
 //------------------------------------------------------------------------------
@@ -94,7 +96,7 @@ RuleContext.prototype = {
      * Passthrough to eslint.getSourceCode().
      * @returns {SourceCode} The SourceCode object for the code.
      */
-    getSourceCode: function() {
+    getSourceCode() {
         return this.eslint.getSourceCode();
     },
 
@@ -108,13 +110,12 @@ RuleContext.prototype = {
      *     with symbols being replaced by this object's values.
      * @returns {void}
      */
-    report: function(nodeOrDescriptor, location, message, opts) {
-        var descriptor,
-            fix = null;
+    report(nodeOrDescriptor, location, message, opts) {
 
         // check to see if it's a new style call
         if (arguments.length === 1) {
-            descriptor = nodeOrDescriptor;
+            const descriptor = nodeOrDescriptor;
+            let fix = null;
 
             // if there's a fix specified, get it
             if (typeof descriptor.fix === "function") {

@@ -30,13 +30,15 @@ class NodeMatcherTest : public GraphTest {
 namespace {
 
 template <class Matcher>
-void CheckBaseWithIndexAndDisplacement(Matcher* matcher, Node* index, int scale,
-                                       Node* base, Node* displacement) {
+void CheckBaseWithIndexAndDisplacement(
+    Matcher* matcher, Node* index, int scale, Node* base, Node* displacement,
+    DisplacementMode displacement_mode = kPositiveDisplacement) {
   EXPECT_TRUE(matcher->matches());
   EXPECT_EQ(index, matcher->index());
   EXPECT_EQ(scale, matcher->scale());
   EXPECT_EQ(base, matcher->base());
   EXPECT_EQ(displacement, matcher->displacement());
+  EXPECT_EQ(displacement_mode, matcher->displacement_mode());
 }
 
 }  // namespace
@@ -89,6 +91,9 @@ TEST_F(NodeMatcherTest, ScaledWithOffset32Matcher) {
 
   const Operator* a_op = machine()->Int32Add();
   USE(a_op);
+
+  const Operator* sub_op = machine()->Int32Sub();
+  USE(sub_op);
 
   const Operator* m_op = machine()->Int32Mul();
   Node* m1 = graph()->NewNode(m_op, p1, d1);
@@ -354,7 +359,25 @@ TEST_F(NodeMatcherTest, ScaledWithOffset32Matcher) {
       graph()->NewNode(a_op, s3, graph()->NewNode(a_op, b0, d15)));
   CheckBaseWithIndexAndDisplacement(&match43, p1, 3, b0, d15);
 
-  // Check that scales that require using the base address work dorrectly.
+  // S3 + (B0 - D15) -> [p1, 2, b0, d15, true]
+  s3 = graph()->NewNode(s_op, p1, d3);
+  BaseWithIndexAndDisplacement32Matcher match44(
+      graph()->NewNode(a_op, s3, graph()->NewNode(sub_op, b0, d15)));
+  CheckBaseWithIndexAndDisplacement(&match44, p1, 3, b0, d15,
+                                    kNegativeDisplacement);
+
+  // B0 + (B1 - D15) -> [p1, 2, b0, d15, true]
+  BaseWithIndexAndDisplacement32Matcher match45(
+      graph()->NewNode(a_op, b0, graph()->NewNode(sub_op, b1, d15)));
+  CheckBaseWithIndexAndDisplacement(&match45, b1, 0, b0, d15,
+                                    kNegativeDisplacement);
+
+  // (B0 - D15) + S3 -> [p1, 2, b0, d15, true]
+  s3 = graph()->NewNode(s_op, p1, d3);
+  BaseWithIndexAndDisplacement32Matcher match46(
+      graph()->NewNode(a_op, graph()->NewNode(sub_op, b0, d15), s3));
+  CheckBaseWithIndexAndDisplacement(&match46, p1, 3, b0, d15,
+                                    kNegativeDisplacement);
 }
 
 
@@ -408,6 +431,9 @@ TEST_F(NodeMatcherTest, ScaledWithOffset64Matcher) {
 
   const Operator* a_op = machine()->Int64Add();
   USE(a_op);
+
+  const Operator* sub_op = machine()->Int64Sub();
+  USE(sub_op);
 
   const Operator* m_op = machine()->Int64Mul();
   Node* m1 = graph()->NewNode(m_op, p1, d1);
@@ -726,8 +752,27 @@ TEST_F(NodeMatcherTest, ScaledWithOffset64Matcher) {
   BaseWithIndexAndDisplacement64Matcher match50(
       graph()->NewNode(a_op, m3, temp));
   CheckBaseWithIndexAndDisplacement(&match50, m3, 0, b0, d15);
-}
 
+  // S3 + (B0 - D15) -> [p1, 2, b0, d15, true]
+  s3 = graph()->NewNode(s_op, p1, d3);
+  BaseWithIndexAndDisplacement64Matcher match51(
+      graph()->NewNode(a_op, s3, graph()->NewNode(sub_op, b0, d15)));
+  CheckBaseWithIndexAndDisplacement(&match51, p1, 3, b0, d15,
+                                    kNegativeDisplacement);
+
+  // B0 + (B1 - D15) -> [p1, 2, b0, d15, true]
+  BaseWithIndexAndDisplacement64Matcher match52(
+      graph()->NewNode(a_op, b0, graph()->NewNode(sub_op, b1, d15)));
+  CheckBaseWithIndexAndDisplacement(&match52, b1, 0, b0, d15,
+                                    kNegativeDisplacement);
+
+  // (B0 - D15) + S3 -> [p1, 2, b0, d15, true]
+  s3 = graph()->NewNode(s_op, p1, d3);
+  BaseWithIndexAndDisplacement64Matcher match53(
+      graph()->NewNode(a_op, graph()->NewNode(sub_op, b0, d15), s3));
+  CheckBaseWithIndexAndDisplacement(&match53, p1, 3, b0, d15,
+                                    kNegativeDisplacement);
+}
 
 TEST_F(NodeMatcherTest, BranchMatcher_match) {
   Node* zero = graph()->NewNode(common()->Int32Constant(0));

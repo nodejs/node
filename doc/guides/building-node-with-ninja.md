@@ -9,14 +9,14 @@ To build Node with ninja, there are 3 steps that must be taken:
 3. Lastly, make symlink to `./node` using `ln -fs out/Release/node node`.
 
 When running `ninja -C out/Release` you will see output similar to the following if the build has succeeded:
-```
+```txt
 ninja: Entering directory `out/Release`
 [4/4] LINK node, POSTBUILDS
 ```
 
 The bottom line will change while building, showing the progress as `[finished/total]` build steps.
 This is useful output that `make` does not produce and is one of the benefits of using Ninja.
-Also, Ninja will likely compile much faster than even `make -j8` (or `-j<number of processor threads on your machine>`).
+Also, Ninja will likely compile much faster than even `make -j4` (or `-j<number of processor threads on your machine>`).
 
 ## Considerations
 
@@ -35,4 +35,4 @@ The above alias can be modified slightly to produce a debug build, rather than a
 `alias nnodedebug='./configure --ninja && ninja -C out/Debug && ln -fs out/Debug/node node_g'`
 
 
-[Ninja]: https://martine.github.io/ninja/
+[Ninja]: https://ninja-build.org/

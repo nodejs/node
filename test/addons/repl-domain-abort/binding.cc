@@ -19,8 +19,8 @@ void Method(const FunctionCallbackInfo<Value>& args) {
                      NULL);
 }
 
-void init(Local<Object> target) {
-  NODE_SET_METHOD(target, "method", Method);
+void init(Local<Object> exports) {
+  NODE_SET_METHOD(exports, "method", Method);
 }
 
 NODE_MODULE(binding, init);

@@ -1,6 +1,7 @@
 /**
- * @fileoverview Rule to flag when re-assigning native objects
+ * @fileoverview Rule to disallow assignments to native objects or read-only global variables
  * @author Ilya Volodin
+ * @deprecated in ESLint v3.3.0
  */
 
 "use strict";
@@ -12,10 +13,13 @@
 module.exports = {
     meta: {
         docs: {
-            description: "disallow reassigning native objects",
+            description: "disallow assignments to native objects or read-only global variables",
             category: "Best Practices",
-            recommended: false
+            recommended: true,
+            replacedBy: ["no-global-assign"]
         },
+
+        deprecated: true,
 
         schema: [
             {
@@ -32,9 +36,9 @@ module.exports = {
         ]
     },
 
-    create: function(context) {
-        var config = context.options[0];
-        var exceptions = (config && config.exceptions) || [];
+    create(context) {
+        const config = context.options[0];
+        const exceptions = (config && config.exceptions) || [];
 
         /**
          * Reports write references.
@@ -44,7 +48,7 @@ module.exports = {
          * @returns {void}
          */
         function checkReference(reference, index, references) {
-            var identifier = reference.identifier;
+            const identifier = reference.identifier;
 
             if (reference.init === false &&
                 reference.isWrite() &&
@@ -55,14 +59,14 @@ module.exports = {
             ) {
                 context.report({
                     node: identifier,
-                    message: "{{name}} is a read-only native object.",
+                    message: "Read-only global '{{name}}' should not be modified.",
                     data: identifier
                 });
             }
         }
 
         /**
-         * Reports write references if a given variable is readonly builtin.
+         * Reports write references if a given variable is read-only builtin.
          * @param {Variable} variable - A variable to check.
          * @returns {void}
          */
@@ -73,8 +77,8 @@ module.exports = {
         }
 
         return {
-            Program: function() {
-                var globalScope = context.getScope();
+            Program() {
+                const globalScope = context.getScope();
 
                 globalScope.variables.forEach(checkVariable);
             }

@@ -1,21 +1,12 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 const spawn = require('child_process').spawn;
 
 if (process.argv[2] === 'child') {
-  var errs = 0;
-
   process.stdin.resume();
   process.stdin._handle.close();
   process.stdin._handle.unref();  // Should not segfault.
-  process.stdin.on('error', function(err) {
-    errs++;
-  });
-
-  process.on('exit', function() {
-    assert.strictEqual(errs, 1);
-  });
+  process.stdin.on('error', common.mustCall(function(err) {}));
   return;
 }
 

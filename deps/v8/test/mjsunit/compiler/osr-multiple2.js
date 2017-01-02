@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Flags: --use-osr
-// TODO(titzer): enable --turbo-osr when nested OSR works.
 
 function f1(a,b,c) {
   var x = 0;

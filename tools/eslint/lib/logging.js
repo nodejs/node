@@ -14,7 +14,7 @@ module.exports = {
      * Cover for console.log
      * @returns {void}
      */
-    info: function() {
+    info() {
         console.log.apply(console, Array.prototype.slice.call(arguments));
     },
 
@@ -22,7 +22,7 @@ module.exports = {
      * Cover for console.error
      * @returns {void}
      */
-    error: function() {
+    error() {
         console.error.apply(console, Array.prototype.slice.call(arguments));
     }
 };

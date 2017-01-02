@@ -64,9 +64,9 @@ function f() {
 // Set a breakpoint on the for statement (line 1).
 bp1 = Debug.setBreakPoint(f, 1);
 
-// Check that performing 1000 steps will make i 499.
+// Check that performing 1000 steps will make i 333.
 var step_count = 1000;
 result = -1;
 f();
-assertEquals(332, result);
+assertEquals(333, result);
 Debug.setListener(null);

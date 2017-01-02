@@ -7,6 +7,7 @@
 
 #include <deque>
 #include <map>
+#include <memory>
 #include <set>
 #include "include/v8-profiler.h"
 #include "src/heap/heap.h"
@@ -41,7 +42,7 @@ class AllocationProfile : public v8::AllocationProfile {
 class SamplingHeapProfiler {
  public:
   SamplingHeapProfiler(Heap* heap, StringsStorage* names, uint64_t rate,
-                       int stack_depth);
+                       int stack_depth, v8::HeapProfiler::SamplingFlags flags);
   ~SamplingHeapProfiler();
 
   v8::AllocationProfile* GetAllocationProfile();
@@ -71,23 +72,47 @@ class SamplingHeapProfiler {
 
   class AllocationNode {
    public:
-    AllocationNode(const char* const name, int script_id,
-                   const int start_position)
-        : script_id_(script_id),
+    AllocationNode(AllocationNode* parent, const char* name, int script_id,
+                   int start_position)
+        : parent_(parent),
+          script_id_(script_id),
           script_position_(start_position),
-          name_(name) {}
+          name_(name),
+          pinned_(false) {}
     ~AllocationNode() {
       for (auto child : children_) {
-        delete child;
+        delete child.second;
       }
     }
 
    private:
+    typedef uint64_t FunctionId;
+    static FunctionId function_id(int script_id, int start_position,
+                                  const char* name) {
+      // script_id == kNoScriptId case:
+      //   Use function name pointer as an id. Names derived from VM state
+      //   must not collide with the builtin names. The least significant bit
+      //   of the id is set to 1.
+      if (script_id == v8::UnboundScript::kNoScriptId) {
+        return reinterpret_cast<intptr_t>(name) | 1;
+      }
+      // script_id != kNoScriptId case:
+      //   Use script_id, start_position pair to uniquelly identify the node.
+      //   The least significant bit of the id is set to 0.
+      DCHECK(static_cast<unsigned>(start_position) < (1u << 31));
+      return (static_cast<uint64_t>(script_id) << 32) + (start_position << 1);
+    }
+    AllocationNode* FindOrAddChildNode(const char* name, int script_id,
+                                       int start_position);
+    // TODO(alph): make use of unordered_map's here. Pay attention to
+    // iterator invalidation during TranslateAllocationNode.
     std::map<size_t, unsigned int> allocations_;
-    std::vector<AllocationNode*> children_;
+    std::map<FunctionId, AllocationNode*> children_;
+    AllocationNode* const parent_;
     const int script_id_;
     const int script_position_;
     const char* const name_;
+    bool pinned_;
 
     friend class SamplingHeapProfiler;
 
@@ -110,24 +135,25 @@ class SamplingHeapProfiler {
   // loaded scripts keyed by their script id.
   v8::AllocationProfile::Node* TranslateAllocationNode(
       AllocationProfile* profile, SamplingHeapProfiler::AllocationNode* node,
-      const std::map<int, Script*>& scripts);
+      const std::map<int, Handle<Script>>& scripts);
   v8::AllocationProfile::Allocation ScaleSample(size_t size,
                                                 unsigned int count);
   AllocationNode* AddStack();
-  AllocationNode* FindOrAddChildNode(AllocationNode* parent, const char* name,
-                                     int script_id, int start_position);
 
   Isolate* const isolate_;
   Heap* const heap_;
-  base::SmartPointer<SamplingAllocationObserver> new_space_observer_;
-  base::SmartPointer<SamplingAllocationObserver> other_spaces_observer_;
+  std::unique_ptr<SamplingAllocationObserver> new_space_observer_;
+  std::unique_ptr<SamplingAllocationObserver> other_spaces_observer_;
   StringsStorage* const names_;
   AllocationNode profile_root_;
   std::set<Sample*> samples_;
   const int stack_depth_;
   const uint64_t rate_;
+  v8::HeapProfiler::SamplingFlags flags_;
 
   friend class SamplingAllocationObserver;
+
+  DISALLOW_COPY_AND_ASSIGN(SamplingHeapProfiler);
 };
 
 class SamplingAllocationObserver : public AllocationObserver {
