@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+require('../common');
 var assert = require('assert');
 var cluster = require('cluster');
 var net = require('net');
@@ -9,12 +9,16 @@ function noop() {}
 if (cluster.isMaster) {
   var worker1 = cluster.fork();
 
-  worker1.on('message', function(msg) {
-    assert.equal(msg, 'success');
-    var worker2 = cluster.fork();
+  worker1.on('message', function(obj) {
+    assert.strictEqual(typeof obj, 'object');
+    assert.strictEqual(obj.msg, 'success');
+    var worker2 = cluster.fork({
+      NODE_TEST_PORT1: obj.port1,
+      NODE_TEST_PORT2: obj.port2
+    });
 
     worker2.on('message', function(msg) {
-      assert.equal(msg, 'server2:EADDRINUSE');
+      assert.strictEqual(msg, 'server2:EADDRINUSE');
       worker1.kill();
       worker2.kill();
     });
@@ -22,6 +26,8 @@ if (cluster.isMaster) {
 } else {
   var server1 = net.createServer(noop);
   var server2 = net.createServer(noop);
+  const port1 = (+process.env.NODE_TEST_PORT1) || 0;
+  const port2 = (+process.env.NODE_TEST_PORT2) || 0;
 
   server1.on('error', function(err) {
     // no errors expected
@@ -35,12 +41,16 @@ if (cluster.isMaster) {
 
   server1.listen({
     host: 'localhost',
-    port: common.PORT,
+    port: port1,
     exclusive: false
   }, function() {
-    server2.listen({port: common.PORT + 1, exclusive: true}, function() {
+    server2.listen({port: port2, exclusive: true}, function() {
       // the first worker should succeed
-      process.send('success');
+      process.send({
+        msg: 'success',
+        port1: server1.address().port,
+        port2: server2.address().port
+      });
     });
   });
 }
