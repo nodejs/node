@@ -6,7 +6,7 @@ const CLI = require('./_cli.js');
 
 const cli = CLI(`usage: ./node run.js [options] [--] <category> ...
   Run each benchmark in the <category> directory a single time, more than one
-  <categoty> directory can be specified.
+  <category> directory can be specified.
 
   --filter pattern          string to filter benchmark scripts
   --set    variable=value   set benchmark variable (can be repeated)
