@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+var common = require('../common');
 var repl = require('./helper-debugger-repl.js');
 
 repl.startDebugger('breakpoints.js');
@@ -57,7 +57,7 @@ addTest('c', [
 
 // Execute
 addTest('exec process.title', [
-  /node/
+  common.isFreeBSD || common.isOSX || common.isLinux ? /node/ : ''
 ]);
 
 // Execute
