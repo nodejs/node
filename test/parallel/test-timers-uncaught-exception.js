@@ -6,17 +6,13 @@ const errorMsg = 'BAM!';
 // the first timer throws...
 setTimeout(common.mustCall(function() {
   throw new Error(errorMsg);
-}), 100);
+}), 1);
 
 // ...but the second one should still run
-setTimeout(common.mustCall(function() {}), 100);
+setTimeout(common.mustCall(function() {}), 1);
 
 function uncaughtException(err) {
   assert.strictEqual(err.message, errorMsg);
 }
 
 process.on('uncaughtException', common.mustCall(uncaughtException));
-
-process.on('exit', function() {
-  process.removeListener('uncaughtException', uncaughtException);
-});
