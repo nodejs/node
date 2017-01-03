@@ -435,6 +435,9 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
     }
   }
 
+  // The execution scope of the id and trigger_id only go this far.
+  exec_scope.Dispose();
+
   if (has_domain) {
     Local<Value> exit_v = domain->Get(env()->exit_string());
     if (exit_v->IsFunction()) {
@@ -444,9 +447,6 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
       }
     }
   }
-
-  // The execution scope of the id and trigger_id only go this far.
-  exec_scope.Dispose();
 
   if (callback_scope.in_makecallback()) {
     return ret_v;
@@ -470,6 +470,11 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
                                             process,
                                             0,
                                             nullptr);
+
+  // Make sure the stack unwound properly.
+  CHECK_EQ(env()->current_async_id(), 0);
+  CHECK_EQ(env()->trigger_id(), 0);
+
   return rcheck.IsEmpty() ? Local<Value>() : ret_v;
 }
 

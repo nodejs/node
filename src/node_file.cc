@@ -417,7 +417,8 @@ static void Close(const FunctionCallbackInfo<Value>& args) {
     return TYPE_ERROR("fd must be a file descriptor");
 
   int fd = args[0]->Int32Value();
-  // TODO(trevnorris): Won't these values be needed for the destroy callbacks?
+  // Can remove the async_id here because it's only used from JS when setting
+  // the init trigger id.
   env->erase_fd_async_id(fd);
 
   if (args[1]->IsObject()) {

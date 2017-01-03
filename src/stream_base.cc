@@ -133,9 +133,10 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
     return UV_ENOBUFS;
 
   AsyncWrap* wrap = GetAsyncWrap();
-  // TODO(trevnorris): Would like to catalog every case when wrap == nullptr.
-  if (wrap != nullptr)
-    env->set_init_trigger_id(wrap->get_id());
+  // NOTE: All tests show that GetAsyncWrap() never returns nullptr here. If it
+  // can then replace the CHECK_NE() with if (wrap != nullptr).
+  CHECK_NE(wrap, nullptr);
+  env->set_init_trigger_id(wrap->get_id());
   WriteWrap* req_wrap = WriteWrap::New(env,
                                        req_wrap_obj,
                                        this,

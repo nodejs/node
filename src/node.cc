@@ -1240,6 +1240,10 @@ Local<Value> MakeCallback(Environment* env,
 
   Local<Object> process = env->process_object();
 
+  // Make sure the stack unwound properly.
+  CHECK_EQ(env->current_async_id(), 0);
+  CHECK_EQ(env->trigger_id(), 0);
+
   if (tick_info->length() == 0) {
     tick_info->set_index(0);
     return ret;
