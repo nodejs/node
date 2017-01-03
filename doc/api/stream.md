@@ -440,7 +440,7 @@ occurs, the `callback` *may or may not* be called with the error as its
 first argument. To reliably detect write errors, add a listener for the
 `'error'` event.
 
-The return value is `true` if the internal buffer does not exceed
+The return value is `true` if the internal buffer is less than the
 `highWaterMark` configured when the stream was created after admitting `chunk`.
 If `false` is returned, further attempts to write data to the stream should
 stop until the [`'drain'`][] event is emitted.
