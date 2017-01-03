@@ -1,3 +1,6 @@
+// Copyright Node.js contributors. All rights reserved.
+// SPDX-License-Identifier: MIT
+
 #ifndef SRC_STRING_BYTES_H_
 #define SRC_STRING_BYTES_H_
 

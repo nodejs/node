@@ -1,3 +1,6 @@
+// Copyright Node.js contributors. All rights reserved.
+// SPDX-License-Identifier: MIT
+
 #include "handle_wrap.h"
 #include "async-wrap.h"
 #include "async-wrap-inl.h"

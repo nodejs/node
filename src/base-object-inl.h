@@ -1,3 +1,6 @@
+// Copyright Node.js contributors. All rights reserved.
+// SPDX-License-Identifier: MITE
+
 #ifndef SRC_BASE_OBJECT_INL_H_
 #define SRC_BASE_OBJECT_INL_H_
 

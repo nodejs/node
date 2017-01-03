@@ -1,3 +1,6 @@
+// Copyright Node.js contributors. All rights reserved.
+// SPDX-License-Identifier: MIT
+
 // Copyright Fedor Indutny and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a

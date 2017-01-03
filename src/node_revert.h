@@ -1,3 +1,6 @@
+// Copyright Node.js contributors. All rights reserved.
+// SPDX-License-Identifier: MIT
+
 #ifndef SRC_NODE_REVERT_H_
 #define SRC_NODE_REVERT_H_
 
@@ -6,10 +9,10 @@
 #include "node.h"
 
 /**
- * Note that it is expected for this list to vary across specific LTS and 
- * Stable versions! Only CVE's whose fixes require *breaking* changes within 
- * a given LTS or Stable may be added to this list, and only with CTC 
- * consensus. 
+ * Note that it is expected for this list to vary across specific LTS and
+ * Stable versions! Only CVE's whose fixes require *breaking* changes within
+ * a given LTS or Stable may be added to this list, and only with CTC
+ * consensus.
  *
  * For *master* this list should always be empty!
  *

@@ -1,3 +1,6 @@
+// Copyright Node.js contributors. All rights reserved.
+// SPDX-License-Identifier: MIT
+
 #include "stream_base.h"
 #include "stream_base-inl.h"
 #include "stream_wrap.h"

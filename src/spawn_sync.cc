@@ -1,3 +1,6 @@
+// Copyright Node.js contributors. All rights reserved.
+// SPDX-License-Identifier: MIT
+
 #include "spawn_sync.h"
 #include "env-inl.h"
 #include "string_bytes.h"

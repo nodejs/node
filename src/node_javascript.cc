@@ -1,3 +1,5 @@
+// Copyright Node.js contributors. All rights reserved.
+// SPDX-License-Identifier: MIT
 #include "node.h"
 #include "node_natives.h"
 #include "v8.h"

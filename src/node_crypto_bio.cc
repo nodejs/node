@@ -1,3 +1,6 @@
+// Copyright Node.js contributors. All rights reserved.
+// SPDX-License-Identifier: MIT
+
 #include "node_crypto_bio.h"
 #include "openssl/bio.h"
 #include "util.h"

@@ -1,3 +1,6 @@
+// Copyright Node.js contributors. All rights reserved.
+// SPDX-License-Identifier: MIT
+
 #define CARES_STATICLIB
 #include "ares.h"
 #include "async-wrap.h"

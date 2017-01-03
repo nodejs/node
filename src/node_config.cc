@@ -1,3 +1,6 @@
+// Copyright Node.js contributors. All rights reserved.
+// SPDX-License-Identifier: MIT
+
 #include "node.h"
 #include "node_i18n.h"
 #include "env.h"

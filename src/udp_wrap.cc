@@ -1,3 +1,6 @@
+// Copyright Node.js contributors. All rights reserved.
+// SPDX-License-Identifier: MIT
+
 #include "udp_wrap.h"
 #include "env.h"
 #include "env-inl.h"

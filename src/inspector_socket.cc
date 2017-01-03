@@ -1,3 +1,6 @@
+// Copyright Node.js contributors. All rights reserved.
+// SPDX-License-Identifier: MIT
+
 #include "inspector_socket.h"
 #include "util.h"
 #include "util-inl.h"

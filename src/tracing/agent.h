@@ -1,3 +1,6 @@
+// Copyright Node.js contributors. All rights reserved.
+// SPDX-License-Identifier: MIT
+
 #ifndef SRC_TRACING_AGENT_H_
 #define SRC_TRACING_AGENT_H_
 

@@ -567,3 +567,19 @@ When the LTS working group determines that a new LTS release is required,
 selected commits will be picked from the staging branch to be included in the
 release. This process of making a release will be a collaboration between the
 LTS working group and the Release team.
+
+## Licensing and Copyright Headers
+
+All `*.js`, `*.cc\, and `*.h` files located in the `/lib' and `/src` folders
+*must* have an appropriate copyright statement and SPDX license identifier
+*only if it does not already have an existing copyright statement and license
+identifier.*
+
+```js
+// Copyright Node.js contributors. All rights reserved.
+// SPDX-License-Identifier: MIT
+```
+
+Existing copyright statements and license identifiers within any source file
+*must not be modified or removed* without review and sign-off by both the
+Node.js Technical Steering Committee (TSC) and Node.js Foundation Board.

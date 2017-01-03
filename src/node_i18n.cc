@@ -1,3 +1,6 @@
+// Copyright Node.js contributors. All rights reserved.
+// SPDX-License-Identifier: MIT
+
 /*
  * notes: by srl295
  *  - When in NODE_HAVE_SMALL_ICU mode, ICU is linked against "stub" (null) data

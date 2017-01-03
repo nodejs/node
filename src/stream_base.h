@@ -1,3 +1,6 @@
+// Copyright Node.js contributors. All rights reserved.
+// SPDX-License-Identifier: MIT
+
 #ifndef SRC_STREAM_BASE_H_
 #define SRC_STREAM_BASE_H_
 
