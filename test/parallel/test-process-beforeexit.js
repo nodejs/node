@@ -21,6 +21,19 @@ function tryListen() {
     .listen(0)
     .on('listening', common.mustCall(function() {
       this.close();
-      process.on('beforeExit', common.mustCall(() => {}));
+      process.once('beforeExit', common.mustCall(tryRepeatedTimer));
     }));
+}
+
+// test that a function invoked from the beforeExit handler can use a timer
+// to keep the event loop open, which can use another timer to keep the event
+// loop open, etc.
+function tryRepeatedTimer() {
+  const N = 5;
+  let n = 0;
+  const repeatedTimer = common.mustCall(function() {
+    if (++n < N)
+      setTimeout(repeatedTimer, 1);
+  }, N);
+  setTimeout(repeatedTimer, 1);
 }
