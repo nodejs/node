@@ -2,13 +2,12 @@
 
 ## What is a test?
 
-A test must be a node script that exercises a specific functionality provided
-by node and checks that it behaves as expected. It should exit with code `0` on success,
-otherwise it will fail. A test will fail if:
+Most tests in Node.js core are JavaScript programs that exercise a functionality
+provided by Node.js and check that it behaves as expected. Tests should exit
+with code `0` on success. A test will fail if:
 
 - It exits by setting `process.exitCode` to a non-zero number.
-  - This is most often done by having an assertion throw an uncaught
-    Error.
+  - This is usually done by having an assertion throw an uncaught Error.
   - Occasionally, using `process.exit(code)` may be appropriate.
 - It never exits. In this case, the test runner will terminate the test because
   it sets a maximum time limit.
@@ -186,3 +185,15 @@ require('../common');
 const assert = require('assert');
 const freelist = require('internal/freelist');
 ```
+
+## Naming Test Files
+
+Test files are named using kebab casing. The first component of the name is
+`test`. The second is the module or subsystem being tested. The third is usually
+the method or event name being tested. Subsequent components of the name add
+more information about what is being tested.
+
+For example, a test for the `beforeExit` event on the `process` object might be
+named `test-process-before-exit.js`. If the test specifically checked that arrow
+functions worked correctly with the `beforeExit` event, then it might be named
+`test-process-before-exit-arrow-functions.js`.
