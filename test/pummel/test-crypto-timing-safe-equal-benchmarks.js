@@ -69,13 +69,15 @@ function getTValue(compareFunc) {
 
 // Returns the mean of an array
 function mean(array) {
-  return array.reduce((sum, val) => sum + val, 0) / array.length;
+  return array.reduce((sum, val) => { return sum + val; }, 0) / array.length;
 }
 
 // Returns the sample standard deviation of an array
 function standardDeviation(array) {
   const arrMean = mean(array);
-  const total = array.reduce((sum, val) => sum + Math.pow(val - arrMean, 2), 0);
+  const total = array.reduce((sum, val) => {
+    return sum + Math.pow(val - arrMean, 2);
+  }, 0);
   return Math.sqrt(total / (array.length - 1));
 }
 
@@ -92,7 +94,7 @@ function combinedStandardDeviation(array1, array2) {
 // a very long time to execute.
 function filterOutliers(array) {
   const arrMean = mean(array);
-  return array.filter((value) => value / arrMean < 50);
+  return array.filter((value) => { return value / arrMean < 50; });
 }
 
 // t_(0.99995, ∞)
@@ -115,7 +117,7 @@ assert(
 // As a sanity check to make sure the statistical tests are working, run the
 // same benchmarks again, this time with an unsafe comparison function. In this
 // case the t-value should be above the threshold.
-const unsafeCompare = (bufA, bufB) => bufA.equals(bufB);
+const unsafeCompare = (bufA, bufB) => { return bufA.equals(bufB); };
 const t2 = getTValue(unsafeCompare);
 assert(
   Math.abs(t2) > T_THRESHOLD,

@@ -22,7 +22,9 @@ function makeAssert(message) {
   assert(cp._handle.hasRef(), false);
   cp.ref();
   assert(cp._handle.hasRef(), true);
-  cp._handle.close(common.mustCall(() => assert(cp._handle.hasRef(), false)));
+  cp._handle.close(common.mustCall(
+    () => { return assert(cp._handle.hasRef(), false); }
+  ));
 }
 
 
@@ -39,7 +41,7 @@ function makeAssert(message) {
   sock4.ref();
   assert(sock4._handle.hasRef(), true);
   sock4._handle.close(
-      common.mustCall(() => assert(sock4._handle.hasRef(), false)));
+      common.mustCall(() => { return assert(sock4._handle.hasRef(), false); }));
 
   const sock6 = dgram.createSocket('udp6');
   assert(Object.getPrototypeOf(sock6._handle).hasOwnProperty('hasRef'), true);
@@ -49,7 +51,7 @@ function makeAssert(message) {
   sock6.ref();
   assert(sock6._handle.hasRef(), true);
   sock6._handle.close(
-      common.mustCall(() => assert(sock6._handle.hasRef(), false)));
+      common.mustCall(() => { return assert(sock6._handle.hasRef(), false); }));
 }
 
 
@@ -64,7 +66,9 @@ function makeAssert(message) {
   assert(handle.hasRef(), false);
   handle.ref();
   assert(handle.hasRef(), true);
-  handle.close(common.mustCall(() => assert(handle.hasRef(), false)));
+  handle.close(
+    common.mustCall(() => { return assert(handle.hasRef(), false); })
+  );
 }
 
 
@@ -83,7 +87,8 @@ function makeAssert(message) {
   assert(server._handle.hasRef(), true);
   assert(server._unref, false);
   server._handle.close(
-      common.mustCall(() => assert(server._handle.hasRef(), false)));
+    common.mustCall(() => { return assert(server._handle.hasRef(), false); })
+  );
 }
 
 
@@ -97,5 +102,5 @@ function makeAssert(message) {
   timer.ref();
   assert(timer._handle.hasRef(), true);
   timer._handle.close(
-      common.mustCall(() => assert(timer._handle.hasRef(), false)));
+      common.mustCall(() => { return assert(timer._handle.hasRef(), false); }));
 }

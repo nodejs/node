@@ -48,8 +48,8 @@ function once(fn) {
 
 function verifyFiles(files, blockName, onprogress, ondone) {
   // must have a .cc and a .js to be a valid test
-  if (!Object.keys(files).some((name) => /\.cc$/.test(name)) ||
-      !Object.keys(files).some((name) => /\.js$/.test(name))) {
+  if (!Object.keys(files).some((name) => { return /\.cc$/.test(name); }) ||
+      !Object.keys(files).some((name) => { return /\.js$/.test(name); })) {
     return;
   }
 

@@ -25,8 +25,10 @@ process._tickDomainCallback = function _tickDomainCallback() {
 
 setImmediate(common.mustCall(() => {
   require('domain');
-  setImmediate(common.mustCall(() => setImmediate(common.mustCall(() => {
-    allsGood = true;
-    process.nextTick(() => {});
-  }))));
+  setImmediate(common.mustCall(() => {
+    return setImmediate(common.mustCall(() => {
+      allsGood = true;
+      process.nextTick(() => {});
+    }));
+  }));
 }));

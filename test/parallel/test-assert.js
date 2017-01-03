@@ -553,8 +553,9 @@ testBlockTypeError(assert.throws, undefined);
 testBlockTypeError(assert.doesNotThrow, undefined);
 
 // https://github.com/nodejs/node/issues/3275
-assert.throws(() => { throw 'error'; }, (err) => err === 'error');
-assert.throws(() => { throw new Error(); }, (err) => err instanceof Error);
+assert.throws(() => { throw 'error'; }, (err) => { return err === 'error'; });
+assert.throws(() => { throw new Error(); },
+              (err) => { return err instanceof Error; });
 
 // Long values should be truncated for display.
 assert.throws(() => {

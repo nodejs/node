@@ -39,17 +39,17 @@ for (const test in tests) {
 }
 
 assert.throws(
-  () => buffer.transcode(null, 'utf8', 'ascii'),
+  () => { return buffer.transcode(null, 'utf8', 'ascii'); },
   /^TypeError: "source" argument must be a Buffer or Uint8Array$/
 );
 
 assert.throws(
-  () => buffer.transcode(Buffer.from('a'), 'b', 'utf8'),
+  () => { return buffer.transcode(Buffer.from('a'), 'b', 'utf8'); },
   /^Error: Unable to transcode Buffer \[U_ILLEGAL_ARGUMENT_ERROR\]/
 );
 
 assert.throws(
-  () => buffer.transcode(Buffer.from('a'), 'uf8', 'b'),
+  () => { return buffer.transcode(Buffer.from('a'), 'uf8', 'b'); },
   /^Error: Unable to transcode Buffer \[U_ILLEGAL_ARGUMENT_ERROR\]$/
 );
 

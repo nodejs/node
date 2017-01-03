@@ -122,7 +122,7 @@ function testFtruncate(cb) {
   const file2 = path.resolve(tmp, 'truncate-file-2.txt');
   fs.writeFileSync(file2, 'Hi');
   const fd = fs.openSync(file2, 'r+');
-  process.on('exit', () => fs.closeSync(fd));
+  process.on('exit', () => { return fs.closeSync(fd); });
   fs.ftruncateSync(fd, 4);
   assert(fs.readFileSync(file2).equals(Buffer.from('Hi\u0000\u0000')));
 }
@@ -140,7 +140,7 @@ function testFtruncate(cb) {
   const file4 = path.resolve(tmp, 'truncate-file-4.txt');
   fs.writeFileSync(file4, 'Hi');
   const fd = fs.openSync(file4, 'r+');
-  process.on('exit', () => fs.closeSync(fd));
+  process.on('exit', () => { return fs.closeSync(fd); });
   fs.ftruncate(fd, 4, common.mustCall(function(err) {
     assert.ifError(err);
     assert(fs.readFileSync(file4).equals(Buffer.from('Hi\u0000\u0000')));

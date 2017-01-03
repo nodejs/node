@@ -40,13 +40,13 @@ if (process.argv[2] !== 'child') {
   server.listen(0, () => {
     const socket = net.connect(server.address().port, common.localhostIPv4);
     socket.setEncoding('utf8');
-    socket.on('data', (data) => result += data);
+    socket.on('data', (data) => { return result += data; });
   });
 } else {
   // The child process receives the socket from the parent, writes data to
   // the socket, then signals the parent process to write
   process.on('message', common.mustCall((msg, socket) => {
     assert.strictEqual(msg, 'socket');
-    socket.write('child', () => process.send('child_done'));
+    socket.write('child', () => { return process.send('child_done'); });
   }));
 }

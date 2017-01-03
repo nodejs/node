@@ -14,9 +14,11 @@ const error = 'Unable to determine the domain name';
 function test(host) {
   ['get', 'request'].forEach((method) => {
     [http, https].forEach((module) => {
-      assert.throws(() => module[method](host, () => {
-        throw new Error(`${module}.${method} should not connect to ${host}`);
-      }), error);
+      assert.throws(() => {
+        return module[method](host, () => {
+          throw new Error(`${module}.${method} should not connect to ${host}`);
+        });
+      }, error);
     });
   });
 }

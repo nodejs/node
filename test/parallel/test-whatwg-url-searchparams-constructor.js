@@ -21,7 +21,7 @@ params = new URLSearchParams(params);
 assert.strictEqual(params + '', 'a=b');
 
 // URLSearchParams constructor, empty.
-assert.throws(() => URLSearchParams(), TypeError,
+assert.throws(() => { return URLSearchParams(); }, TypeError,
               'Calling \'URLSearchParams\' without \'new\' should throw.');
 // assert.throws(() => new URLSearchParams(DOMException.prototype), TypeError);
 assert.throws(() => {

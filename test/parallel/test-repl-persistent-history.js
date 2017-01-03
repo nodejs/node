@@ -180,9 +180,9 @@ const numtests = tests.length;
 
 var testsNotRan = tests.length;
 
-process.on('beforeExit', () =>
-  assert.strictEqual(testsNotRan, 0)
-);
+process.on('beforeExit', () => {
+  return assert.strictEqual(testsNotRan, 0);
+});
 
 function cleanupTmpFile() {
   try {
@@ -197,7 +197,8 @@ function cleanupTmpFile() {
 
 // Copy our fixture to the tmp directory
 fs.createReadStream(historyFixturePath)
-  .pipe(fs.createWriteStream(historyPath)).on('unpipe', () => runTest());
+  .pipe(fs.createWriteStream(historyPath))
+  .on('unpipe', () => { return runTest(); });
 
 function runTest(assertCleaned) {
   const opts = tests.shift();

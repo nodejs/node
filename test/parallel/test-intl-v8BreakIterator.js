@@ -14,5 +14,5 @@ try {
   // May succeed if data is available - OK
 } catch (e) {
   // May throw this error if ICU data is not available - OK
-  assert.throws(() => new Intl.v8BreakIterator(), /ICU data/);
+  assert.throws(() => { return new Intl.v8BreakIterator(); }, /ICU data/);
 }

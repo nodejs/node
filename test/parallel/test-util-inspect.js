@@ -254,7 +254,7 @@ value.aprop = 42;
 assert.strictEqual(util.inspect(value), '{ [Function: value] aprop: 42 }');
 
 // Anonymous function with properties
-value = (() => function() {})();
+value = (() => { return function() {}; })();
 value.aprop = 42;
 assert.strictEqual(util.inspect(value), '{ [Function] aprop: 42 }');
 
@@ -931,4 +931,4 @@ checkAlignment(new Map(big_array.map(function(y) { return [y, null]; })));
   }, /"options" must be an object/);
 }
 
-assert.doesNotThrow(() => util.inspect(process));
+assert.doesNotThrow(() => { return util.inspect(process); });

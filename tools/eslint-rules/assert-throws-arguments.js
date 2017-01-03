@@ -54,7 +54,7 @@ module.exports = {
   },
   create: function(context) {
     return {
-      CallExpression: (node) => checkThrowsArguments(context, node)
+      CallExpression: (node) => { return checkThrowsArguments(context, node); }
     };
   }
 };

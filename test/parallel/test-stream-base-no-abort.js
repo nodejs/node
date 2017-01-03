@@ -17,7 +17,7 @@ const providers = Object.keys(async_wrap.Providers);
 var flags = 0;
 
 // Make sure all asserts have run at least once.
-process.on('exit', () => assert.equal(flags, 0b111));
+process.on('exit', () => { return assert.equal(flags, 0b111); });
 
 function init(id, provider) {
   this._external;  // Test will abort if nullptr isn't properly checked.

@@ -36,7 +36,7 @@ if (common.isAix) {
 }
 
 function init(id, provider) {
-  keyList = keyList.filter((e) => e !== pkeys[provider]);
+  keyList = keyList.filter((e) => { return e !== pkeys[provider]; });
 }
 
 function noop() { }
@@ -91,7 +91,7 @@ dgram.createSocket('udp4').bind(0, function() {
   });
 });
 
-process.on('SIGINT', () => process.exit());
+process.on('SIGINT', () => { return process.exit(); });
 
 // Run from closed net server above.
 function checkTLS() {

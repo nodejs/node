@@ -82,7 +82,10 @@ assert.equal(Buffer.from('ff').indexOf(Buffer.from('f'), 1, 'ucs2'), -1);
 assert.strictEqual(b.indexOf('b', 'utf8'), 1);
 assert.strictEqual(b.indexOf('b', 'UTF8'), 1);
 assert.strictEqual(b.indexOf('62', 'HEX'), 1);
-assert.throws(() => b.indexOf('bad', 'enc'), /Unknown encoding: enc/);
+assert.throws(
+  () => { return b.indexOf('bad', 'enc'); },
+  /Unknown encoding: enc/
+);
 
 // test hex encoding
 assert.strictEqual(

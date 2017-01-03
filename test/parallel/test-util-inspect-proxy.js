@@ -13,7 +13,7 @@ const handler = {
 const proxyObj = new Proxy(target, handler);
 
 // Inspecting the proxy should not actually walk it's properties
-assert.doesNotThrow(() => util.inspect(proxyObj, opts));
+assert.doesNotThrow(() => { return util.inspect(proxyObj, opts); });
 
 // getProxyDetails is an internal method, not intended for public use.
 // This is here to test that the internals are working correctly.
@@ -31,7 +31,7 @@ assert.strictEqual(processUtil.getProxyDetails({}), undefined);
 // and the get function on the handler object defined above
 // is actually invoked.
 assert.throws(
-  () => util.inspect(proxyObj)
+  () => { return util.inspect(proxyObj); }
 );
 
 // Yo dawg, I heard you liked Proxy so I put a Proxy

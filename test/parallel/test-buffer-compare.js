@@ -28,8 +28,8 @@ assert.strictEqual(Buffer.compare(Buffer.alloc(0), Buffer.alloc(0)), 0);
 assert.strictEqual(Buffer.compare(Buffer.alloc(0), Buffer.alloc(1)), -1);
 assert.strictEqual(Buffer.compare(Buffer.alloc(1), Buffer.alloc(0)), 1);
 
-assert.throws(() => Buffer.compare(Buffer.alloc(1), 'abc'));
+assert.throws(() => { return Buffer.compare(Buffer.alloc(1), 'abc'); });
 
-assert.throws(() => Buffer.compare('abc', Buffer.alloc(1)));
+assert.throws(() => { return Buffer.compare('abc', Buffer.alloc(1)); });
 
-assert.throws(() => Buffer.alloc(1).compare('abc'));
+assert.throws(() => { return Buffer.alloc(1).compare('abc'); });

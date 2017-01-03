@@ -53,7 +53,7 @@ function csvEncodeValue(value) {
 
     // print data row
     const confData = Object.keys(data.conf)
-      .map((key) => csvEncodeValue(data.conf[key]))
+      .map((key) => { return csvEncodeValue(data.conf[key]); })
       .join(', ');
 
     console.log(`"${name}", ${confData}, ${data.rate}, ${data.time}`);

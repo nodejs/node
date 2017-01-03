@@ -83,7 +83,7 @@ assert.strictEqual(0, Buffer.compare(buf.slice('0', '-111'),
 
 // try to slice a zero length Buffer
 // see https://github.com/joyent/node/issues/5881
-assert.doesNotThrow(() => Buffer.alloc(0).slice(0, 1));
+assert.doesNotThrow(() => { return Buffer.alloc(0).slice(0, 1); });
 assert.strictEqual(Buffer.alloc(0).slice(0, 1).length, 0);
 
 {

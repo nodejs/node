@@ -68,5 +68,5 @@ const handle1 = setTimeout(common.mustCall(function() {
 
 function getActiveTimers() {
   const activeHandles = process._getActiveHandles();
-  return activeHandles.filter((handle) => handle instanceof Timer);
+  return activeHandles.filter((handle) => { return handle instanceof Timer; });
 }

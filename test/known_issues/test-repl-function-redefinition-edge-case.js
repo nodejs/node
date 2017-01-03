@@ -26,7 +26,7 @@ function initRepl() {
   output.writable = true;
   output.accumulator = [];
 
-  output.write = (data) => output.accumulator.push(data);
+  output.write = (data) => { return output.accumulator.push(data); };
 
   return repl.start({
     input,

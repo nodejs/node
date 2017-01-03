@@ -28,7 +28,9 @@ const expectedHeapSpaces = [
   'large_object_space'
 ];
 const heapSpaceStatistics = v8.getHeapSpaceStatistics();
-const actualHeapSpaceNames = heapSpaceStatistics.map((s) => s.space_name);
+const actualHeapSpaceNames = heapSpaceStatistics.map(
+  (s) => { return s.space_name; }
+);
 assert.deepStrictEqual(actualHeapSpaceNames.sort(), expectedHeapSpaces.sort());
 heapSpaceStatistics.forEach((heapSpace) => {
   assert.strictEqual(typeof heapSpace.space_name, 'string');

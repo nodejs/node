@@ -36,7 +36,7 @@ server.listen(0, '127.0.0.1', function() {
   client.stdout.pipe(process.stdout);
   client.stderr.pipe(process.stderr);
   client.stderr.setEncoding('utf8');
-  client.stderr.on('data', (data) => stderr += data);
+  client.stderr.on('data', (data) => { return stderr += data; });
 
   client.once('exit', common.mustCall(function(exitCode) {
     assert.strictEqual(exitCode, 1);
@@ -44,7 +44,7 @@ server.listen(0, '127.0.0.1', function() {
   }));
 });
 
-server.on('tlsClientError', (err) => errors.push(err));
+server.on('tlsClientError', (err) => { return errors.push(err); });
 
 process.on('exit', function() {
   if (/unknown option -ssl3/.test(stderr)) {

@@ -11,7 +11,9 @@ fs.readdirSync(__dirname)
   })
   .forEach(function(category) {
     benchmarks[category] = fs.readdirSync(path.resolve(__dirname, category))
-      .filter((filename) => filename[0] !== '.' && filename[0] !== '_');
+      .filter((filename) => {
+        return filename[0] !== '.' && filename[0] !== '_';
+      });
   });
 
 function CLI(usage, settings) {

@@ -20,7 +20,10 @@ tls.createServer(assert.fail)
 tls.createServer({})
   .listen(0, common.mustCall(close));
 
-assert.throws(() => tls.createServer('this is not valid'), TypeError);
+assert.throws(
+  () => { return tls.createServer('this is not valid'); },
+  TypeError
+);
 
 tls.createServer()
   .listen(0, common.mustCall(close));

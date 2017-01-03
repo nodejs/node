@@ -15,12 +15,12 @@ assert.strictEqual(sp.toString(), '');
 assert.strictEqual(m.search, '');
 
 assert(!sp.has('a'));
-values.forEach((i) => sp.set('a', i));
+values.forEach((i) => { return sp.set('a', i); });
 assert(sp.has('a'));
 assert.strictEqual(sp.get('a'), '[object Object]');
 sp.delete('a');
 assert(!sp.has('a'));
-values.forEach((i) => sp.append('a', i));
+values.forEach((i) => { return sp.append('a', i); });
 assert(sp.has('a'));
 assert.strictEqual(sp.getAll('a').length, 6);
 assert.strictEqual(sp.get('a'), 'a');

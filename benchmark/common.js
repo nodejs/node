@@ -21,9 +21,9 @@ function Benchmark(fn, options) {
   // this._run will use fork() to create a new process for each configuration
   // combination.
   if (process.env.hasOwnProperty('NODE_RUN_BENCHMARK_FN')) {
-    process.nextTick(() => fn(this.config));
+    process.nextTick(() => { return fn(this.config); });
   } else {
-    process.nextTick(() => this._run());
+    process.nextTick(() => { return this._run(); });
   }
 }
 

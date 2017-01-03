@@ -55,35 +55,37 @@ function addTest(sequences, expectedKeys) {
 
 const addKeyIntervalTest = (sequences, expectedKeys, interval = 550,
                             assertDelay = 550) => {
-  return (next) => () => {
+  return (next) => {
+    return () => {
 
-    if (!Array.isArray(sequences)) {
-      sequences = [ sequences ];
-    }
-
-    if (!Array.isArray(expectedKeys)) {
-      expectedKeys = [ expectedKeys ];
-    }
-
-    expectedKeys = expectedKeys.map(function(k) {
-      return k ? extend({ ctrl: false, meta: false, shift: false }, k) : k;
-    });
-
-    const keys = [];
-    fi.on('keypress', (s, k) => keys.push(k));
-
-    const emitKeys = ([head, ...tail]) => {
-      if (head) {
-        fi.write(head);
-        setTimeout(() => emitKeys(tail), interval);
-      } else {
-        setTimeout(() => {
-          next();
-          assert.deepStrictEqual(keys, expectedKeys);
-        }, assertDelay);
+      if (!Array.isArray(sequences)) {
+        sequences = [ sequences ];
       }
+
+      if (!Array.isArray(expectedKeys)) {
+        expectedKeys = [ expectedKeys ];
+      }
+
+      expectedKeys = expectedKeys.map(function(k) {
+        return k ? extend({ ctrl: false, meta: false, shift: false }, k) : k;
+      });
+
+      const keys = [];
+      fi.on('keypress', (s, k) => { return keys.push(k); });
+
+      const emitKeys = ([head, ...tail]) => {
+        if (head) {
+          fi.write(head);
+          setTimeout(() => { return emitKeys(tail); }, interval);
+        } else {
+          setTimeout(() => {
+            next();
+            assert.deepStrictEqual(keys, expectedKeys);
+          }, assertDelay);
+        }
+      };
+      emitKeys(sequences);
     };
-    emitKeys(sequences);
   };
 };
 
@@ -207,7 +209,7 @@ const runKeyIntervalTests = [
     { name: 'escape', sequence: '\x1b', meta: true },
     { name: 'escape', sequence: '\x1b', meta: true }
   ])
-].reverse().reduce((acc, fn) => fn(acc), () => {});
+].reverse().reduce((acc, fn) => { return fn(acc); }, () => {});
 
 // run key interval tests one after another
 runKeyIntervalTests();

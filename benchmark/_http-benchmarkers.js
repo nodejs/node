@@ -112,7 +112,7 @@ exports.run = function(options, callback) {
   child.stderr.pipe(process.stderr);
 
   let stdout = '';
-  child.stdout.on('data', (chunk) => stdout += chunk.toString());
+  child.stdout.on('data', (chunk) => { return stdout += chunk.toString(); });
 
   child.once('close', function(code) {
     const elapsed = process.hrtime(benchmarker_start);

@@ -28,4 +28,4 @@ assert.deepStrictEqual(arr_buf, ar_buf, 0);
 
 assert.strictEqual(Buffer.byteLength(sab), sab.byteLength, 0);
 
-assert.doesNotThrow(() => Buffer.from({buffer: sab}));
+assert.doesNotThrow(() => { return Buffer.from({buffer: sab}); });

@@ -20,4 +20,4 @@ assert(r.context.console);
 assert.notStrictEqual(r.context.console, console);
 
 // ensure that the repl console instance does not have a setter
-assert.throws(() => r.context.console = 'foo', TypeError);
+assert.throws(() => { return r.context.console = 'foo'; }, TypeError);

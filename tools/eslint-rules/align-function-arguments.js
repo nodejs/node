@@ -71,6 +71,8 @@ function checkArgumentAlignment(context, node) {
 
 module.exports = function(context) {
   return {
-    'CallExpression': (node) => checkArgumentAlignment(context, node)
+    'CallExpression': (node) => {
+      return checkArgumentAlignment(context, node);
+    }
   };
 };

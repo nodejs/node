@@ -62,7 +62,7 @@ function testDeclaration(context, node) {
 
 module.exports = function(context) {
   return {
-    'AssignmentExpression': (node) => testAssignment(context, node),
-    'VariableDeclaration': (node) => testDeclaration(context, node)
+    'AssignmentExpression': (node) => { return testAssignment(context, node); },
+    'VariableDeclaration': (node) => { return testDeclaration(context, node); }
   };
 };

@@ -12,11 +12,17 @@ const path = require('path');
 if (process.argv[2] === 'child') {
   // Note: Calling console.log() is part of this test as it exercises the
   // SyncWriteStream#_write() code path.
-  console.log(JSON.stringify([process.stdout, process.stderr].map((stdio) => ({
-    instance: stdio instanceof stream.Writable,
-    readable: stdio.readable,
-    writable: stdio.writable,
-  }))));
+  console.log(JSON.stringify(
+    [process.stdout, process.stderr].map(
+      (stdio) => {
+        return ({
+          instance: stdio instanceof stream.Writable,
+          readable: stdio.readable,
+          writable: stdio.writable,
+        });
+      }
+    )
+  ));
 
   return;
 }

@@ -40,9 +40,9 @@ const goog = [
   '8.8.8.8',
   '8.8.4.4',
 ];
-assert.doesNotThrow(() => dns.setServers(goog));
+assert.doesNotThrow(() => { return dns.setServers(goog); });
 assert.deepStrictEqual(dns.getServers(), goog);
-assert.throws(() => dns.setServers(['foobar']),
+assert.throws(() => { return dns.setServers(['foobar']); },
               /^Error: IP address is not properly formatted: foobar$/);
 assert.deepStrictEqual(dns.getServers(), goog);
 
@@ -50,7 +50,7 @@ const goog6 = [
   '2001:4860:4860::8888',
   '2001:4860:4860::8844',
 ];
-assert.doesNotThrow(() => dns.setServers(goog6));
+assert.doesNotThrow(() => { return dns.setServers(goog6); });
 assert.deepStrictEqual(dns.getServers(), goog6);
 
 goog6.push('4.4.4.4');
@@ -68,7 +68,7 @@ const portsExpected = [
 dns.setServers(ports);
 assert.deepStrictEqual(dns.getServers(), portsExpected);
 
-assert.doesNotThrow(() => dns.setServers([]));
+assert.doesNotThrow(() => { return dns.setServers([]); });
 assert.deepStrictEqual(dns.getServers(), []);
 
 assert.throws(() => {
@@ -81,25 +81,25 @@ assert.throws(() => {
 const errorReg =
   /^TypeError: Invalid arguments: hostname must be a string or falsey$/;
 
-assert.throws(() => dns.lookup({}, noop), errorReg);
+assert.throws(() => { return dns.lookup({}, noop); }, errorReg);
 
-assert.throws(() => dns.lookup([], noop), errorReg);
+assert.throws(() => { return dns.lookup([], noop); }, errorReg);
 
-assert.throws(() => dns.lookup(true, noop), errorReg);
+assert.throws(() => { return dns.lookup(true, noop); }, errorReg);
 
-assert.throws(() => dns.lookup(1, noop), errorReg);
+assert.throws(() => { return dns.lookup(1, noop); }, errorReg);
 
-assert.throws(() => dns.lookup(noop, noop), errorReg);
+assert.throws(() => { return dns.lookup(noop, noop); }, errorReg);
 
-assert.doesNotThrow(() => dns.lookup('', noop));
+assert.doesNotThrow(() => { return dns.lookup('', noop); });
 
-assert.doesNotThrow(() => dns.lookup(null, noop));
+assert.doesNotThrow(() => { return dns.lookup(null, noop); });
 
-assert.doesNotThrow(() => dns.lookup(undefined, noop));
+assert.doesNotThrow(() => { return dns.lookup(undefined, noop); });
 
-assert.doesNotThrow(() => dns.lookup(0, noop));
+assert.doesNotThrow(() => { return dns.lookup(0, noop); });
 
-assert.doesNotThrow(() => dns.lookup(NaN, noop));
+assert.doesNotThrow(() => { return dns.lookup(NaN, noop); });
 
 /*
  * Make sure that dns.lookup throws if hints does not represent a valid flag.
@@ -115,17 +115,19 @@ assert.throws(() => {
     noop);
 }, /^TypeError: Invalid argument: hints must use valid flags$/);
 
-assert.throws(() => dns.lookup('www.google.com'),
+assert.throws(() => { return dns.lookup('www.google.com'); },
               /^TypeError: Invalid arguments: callback must be passed$/);
 
-assert.throws(() => dns.lookup('www.google.com', 4),
+assert.throws(() => { return dns.lookup('www.google.com', 4); },
               /^TypeError: Invalid arguments: callback must be passed$/);
 
-assert.doesNotThrow(() => dns.lookup('www.google.com', 6, noop));
+assert.doesNotThrow(() => { return dns.lookup('www.google.com', 6, noop); });
 
-assert.doesNotThrow(() => dns.lookup('www.google.com', {}, noop));
+assert.doesNotThrow(() => { return dns.lookup('www.google.com', {}, noop); });
 
-assert.doesNotThrow(() => dns.lookup('', {family: 4, hints: 0}, noop));
+assert.doesNotThrow(() => {
+  return dns.lookup('', {family: 4, hints: 0}, noop);
+});
 
 assert.doesNotThrow(() => {
   dns.lookup('', {
@@ -134,7 +136,9 @@ assert.doesNotThrow(() => {
   }, noop);
 });
 
-assert.doesNotThrow(() => dns.lookup('', {hints: dns.V4MAPPED}, noop));
+assert.doesNotThrow(() => {
+  return dns.lookup('', {hints: dns.V4MAPPED}, noop);
+});
 
 assert.doesNotThrow(() => {
   dns.lookup('', {
@@ -142,29 +146,29 @@ assert.doesNotThrow(() => {
   }, noop);
 });
 
-assert.throws(() => dns.lookupService('0.0.0.0'),
+assert.throws(() => { return dns.lookupService('0.0.0.0'); },
               /^Error: Invalid arguments$/);
 
-assert.throws(() => dns.lookupService('fasdfdsaf', 0, noop),
+assert.throws(() => { return dns.lookupService('fasdfdsaf', 0, noop); },
               /^TypeError: "host" argument needs to be a valid IP address$/);
 
-assert.doesNotThrow(() => dns.lookupService('0.0.0.0', '0', noop));
+assert.doesNotThrow(() => { return dns.lookupService('0.0.0.0', '0', noop); });
 
-assert.doesNotThrow(() => dns.lookupService('0.0.0.0', 0, noop));
+assert.doesNotThrow(() => { return dns.lookupService('0.0.0.0', 0, noop); });
 
-assert.throws(() => dns.lookupService('0.0.0.0', null, noop),
+assert.throws(() => { return dns.lookupService('0.0.0.0', null, noop); },
               /^TypeError: "port" should be >= 0 and < 65536, got "null"$/);
 
 assert.throws(
-  () => dns.lookupService('0.0.0.0', undefined, noop),
+  () => { return dns.lookupService('0.0.0.0', undefined, noop); },
   /^TypeError: "port" should be >= 0 and < 65536, got "undefined"$/
 );
 
-assert.throws(() => dns.lookupService('0.0.0.0', 65538, noop),
+assert.throws(() => { return dns.lookupService('0.0.0.0', 65538, noop); },
               /^TypeError: "port" should be >= 0 and < 65536, got "65538"$/);
 
-assert.throws(() => dns.lookupService('0.0.0.0', 'test', noop),
+assert.throws(() => { return dns.lookupService('0.0.0.0', 'test', noop); },
               /^TypeError: "port" should be >= 0 and < 65536, got "test"$/);
 
-assert.throws(() => dns.lookupService('0.0.0.0', 80, null),
+assert.throws(() => { return dns.lookupService('0.0.0.0', 80, null); },
               /^TypeError: "callback" argument must be a function$/);

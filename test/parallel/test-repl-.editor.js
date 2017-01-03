@@ -14,7 +14,7 @@ function run({input, output, event, checkTerminalCodes = true}) {
   const stream = new common.ArrayStream();
   let found = '';
 
-  stream.write = (msg) => found += msg.replace('\r', '');
+  stream.write = (msg) => { return found += msg.replace('\r', ''); };
 
   let expected = `${terminalCode}.editor\n` +
                  '// Entering editor mode (^D to finish, ^C to cancel)\n' +
@@ -88,7 +88,7 @@ function testCodeAligment({input, cursor = 0, line = ''}) {
   });
 
   stream.emit('data', '.editor\n');
-  input.split('').forEach((ch) => stream.emit('data', ch));
+  input.split('').forEach((ch) => { return stream.emit('data', ch); });
   // Test the content of current line and the cursor position
   assert.strictEqual(line, replServer.line);
   assert.strictEqual(cursor, replServer.cursor);

@@ -43,7 +43,7 @@ proc.stdout.on('data', (data) => {
   }
 });
 
-proc.stderr.on('data', (data) => stderr += data);
+proc.stderr.on('data', (data) => { return stderr += data; });
 
 process.on('exit', (code) => {
   assert.strictEqual(code, 0, 'the program should exit cleanly');

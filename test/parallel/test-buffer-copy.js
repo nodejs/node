@@ -111,7 +111,7 @@ assert.throws(function() {
 }
 
 // throw with negative sourceEnd
-assert.throws(() => b.copy(c, 0, 0, -1), RangeError);
+assert.throws(() => { return b.copy(c, 0, 0, -1); }, RangeError);
 
 // when sourceStart is greater than sourceEnd, zero copied
 assert.strictEqual(b.copy(c, 0, 100, 10), 0);

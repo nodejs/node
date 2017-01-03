@@ -17,7 +17,7 @@ let readBytes = 0;
 
 child.stdin.end(Buffer.alloc(expectedBytes));
 
-child.stdout.on('data', (chunk) => readBytes += chunk.length);
+child.stdout.on('data', (chunk) => { return readBytes += chunk.length; });
 child.stdout.on('end', common.mustCall(() => {
   assert.strictEqual(readBytes, expectedBytes);
 }));

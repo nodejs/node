@@ -129,7 +129,7 @@ function testSetBreakpointAndResume(session) {
     .expectMessages([
       setupExpectConsoleOutput('log', ['A message', 5]),
       setupExpectBreakOnLine(5, session.mainScriptPath,
-                             session, (id) => scopeId = id),
+                             session, (id) => { return scopeId = id; }),
     ]);
 }
 
@@ -165,7 +165,7 @@ function testInspectScope(session) {
         'method': 'Runtime.evaluate', 'params': {
           'expression': '5 * 5'
         }
-      }, (message) => assert.strictEqual(25, message['result']['value'])
+      }, (msg) => { return assert.strictEqual(25, msg['result']['value']); }
     ],
   ]);
 }

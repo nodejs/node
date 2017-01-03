@@ -19,10 +19,10 @@ server.listen(0, options.host, function() {
   req.on('error', function() {
     // this space is intentionally left blank
   });
-  req.on('close', common.mustCall(() => server.close()));
+  req.on('close', common.mustCall(() => { return server.close(); }));
 
   var timeout_events = 0;
-  req.on('timeout', common.mustCall(() => timeout_events += 1));
+  req.on('timeout', common.mustCall(() => { return timeout_events += 1; }));
   setTimeout(function() {
     req.destroy();
     assert.strictEqual(timeout_events, 1);
