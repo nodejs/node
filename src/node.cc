@@ -2417,7 +2417,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
              "\nwas compiled against a different Node.js version using"
              "\nNODE_MODULE_VERSION %d. This version of Node.js requires"
              "\nNODE_MODULE_VERSION %d. Please try re-compiling or "
-             "re-installing\nthe module (for instance, using `npm rebuild` or"
+             "re-installing\nthe module (for instance, using `npm rebuild` or "
              "`npm install`).",
              *filename, mp->nm_version, NODE_MODULE_VERSION);
 
