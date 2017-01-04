@@ -90,6 +90,9 @@ These modules are required for the test to run. Except for special cases, these
 modules should only include core modules.
 The `assert` module is used by most of the tests to check that the assumptions
 for the test are met.
+Note that require statements are sorted, in
+[ASCII](http://man7.org/linux/man-pages/man7/ascii.7.html) order (digits, upper
+case, `_`, lower case).
 
 **Lines 10-21**
 
