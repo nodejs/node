@@ -953,8 +953,8 @@
             "href": "view-source+http://example.net/home?lang=fr#nav",
             "new_value": "\\a\\%2E\\b\\%2e.\\c",
             "expected": {
-                "href": "view-source+http://example.net/\\a\\.\\b\\..\\c?lang=fr#nav",
-                "pathname": "/\\a\\.\\b\\..\\c"
+                "href": "view-source+http://example.net/\\a\\%2E\\b\\%2e.\\c?lang=fr#nav",
+                "pathname": "/\\a\\%2E\\b\\%2e.\\c"
             }
         },
         {
@@ -967,12 +967,12 @@
             }
         },
         {
-            "comment": "Bytes already percent-encoded are left as-is, except %2E.",
+            "comment": "Bytes already percent-encoded are left as-is, including %2E outside dotted segments.",
             "href": "http://example.net",
             "new_value": "%2e%2E%c3%89té",
             "expected": {
-                "href": "http://example.net/..%c3%89t%C3%A9",
-                "pathname": "/..%c3%89t%C3%A9"
+                "href": "http://example.net/%2e%2E%c3%89t%C3%A9",
+                "pathname": "/%2e%2E%c3%89t%C3%A9"
             }
         },
         {
