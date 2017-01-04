@@ -42,7 +42,6 @@ Top Level Working Group](https://github.com/nodejs/TSC/blob/master/WORKING_GROUP
 * [Benchmarking](#benchmarking)
 * [Post-mortem](#post-mortem)
 * [Intl](#intl)
-* [HTTP](#http)
 * [Documentation](#documentation)
 * [Testing](#testing)
 
@@ -188,21 +187,6 @@ Responsibilities include:
 * Handling the promotion of community events.
 * Publishing regular update summaries and other promotional
   content.
-
-### [HTTP](https://github.com/nodejs/http)
-
-The HTTP Working Group is chartered for the support and improvement of the
-HTTP implementation in Node.js.
-
-Responsibilities include:
-* Addressing HTTP issues on the Node.js issue tracker.
-* Authoring and editing HTTP documentation within the Node.js project.
-* Reviewing changes to HTTP functionality within the Node.js project.
-* Working with the ecosystem of HTTP related module developers to evolve the
-  HTTP implementation and APIs in core.
-* Advising the CTC on all HTTP related issues and discussions.
-* Messaging about the future of HTTP to give the community advance notice of
-  changes.
 
 ### [Docker](https://github.com/nodejs/docker-iojs)
 
