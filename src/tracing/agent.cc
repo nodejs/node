@@ -56,7 +56,9 @@ void Agent::Stop() {
   // Perform final Flush on TraceBuffer. We don't want the tracing controller
   // to flush the buffer again on destruction of the V8::Platform.
   tracing_controller_->StopTracing();
-  delete tracing_controller_;
+  tracing_controller_->Initialize(nullptr);
+  tracing_controller_ = nullptr;
+
   // Thread should finish when the tracing loop is stopped.
   uv_thread_join(&thread_);
   v8::platform::SetTracingController(platform_, nullptr);
