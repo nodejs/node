@@ -966,6 +966,17 @@ module.exports =
         //         "port": "12"
         //     }
         // }
+        {
+            "comment": "Port numbers in file URLs are ignored",
+            "href": "file:///example/foo",
+            "new_value": "example.net:81",
+            "expected": {
+                "href": "file://example.net:81/example/foo",
+                "host": "example.net:81",
+                "hostname": "example.net:81",
+                "port": ""
+            }
+        }
     ],
     "hostname": [
         {
@@ -1300,6 +1311,17 @@ module.exports =
         //         "port": "12"
         //     }
         // }
+        {
+            "comment": "Port numbers in file URLs are ignored",
+            "href": "file:///example/foo",
+            "new_value": "example.net:81",
+            "expected": {
+                "href": "file://example.net/example/foo",
+                "host": "example.net",
+                "hostname": "example.net",
+                "port": ""
+            }
+        }
     ],
     "port": [
         {
