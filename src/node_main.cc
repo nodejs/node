@@ -55,6 +55,18 @@ int main(int argc, char *argv[]) {
   // calls elsewhere in the program (e.g., any logging from V8.)
   setvbuf(stdout, nullptr, _IONBF, 0);
   setvbuf(stderr, nullptr, _IONBF, 0);
+#ifdef _AIX
+  // AIX passes the same argv array that ps and other utilities see.
+  // Node removes elements from argv but can't pass back updates to
+  // argc effectively corrupting it for other users.
+  char *local_argv[argc+1];
+  for (int i = 0; i < argc; i++) {
+    local_argv[i] = argv[i];
+  }
+  local_argv[argc] = nullptr;
+  return node::Start(argc, local_argv);
+#else
   return node::Start(argc, argv);
+#endif  // _AIX
 }
 #endif
