@@ -2,6 +2,8 @@
 const common = require('../common');
 const assert = require('assert');
 const http = require('http');
+const url = require('url');
+const URL = url.URL;
 
 var server = http.createServer(common.mustCall(function(req, res) {
   assert.equal('GET', req.method);
@@ -10,8 +12,11 @@ var server = http.createServer(common.mustCall(function(req, res) {
   res.write('hello\n');
   res.end();
   server.close();
-}));
+}, 3));
 
 server.listen(0, function() {
-  http.get(`http://127.0.0.1:${this.address().port}/foo?bar`);
+  const u = `http://127.0.0.1:${this.address().port}/foo?bar`;
+  http.get(u);
+  http.get(url.parse(u));
+  http.get(new URL(u));
 });
