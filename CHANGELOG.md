@@ -1,5 +1,20 @@
 # Node.js ChangeLog
 
+## 2017-01-05, Version 4.7.2 'Argon' (LTS), @MylesBorins
+
+This is a special release that contains 0 commits. While promoting additional
+platforms for v4.7.1 after the release, the tarballs on the release server were
+overwritten and now have different shasums. In order to remove any ambiguity
+around the release we have opted to do a semver patch release with no changes.
+
+### Notable Changes
+
+N/A
+
+### Commits
+
+N/A
+
 ## 2017-01-03, Version 4.7.1 'Argon' (LTS), @MylesBorins
 
 This LTS release comes with 180 commits. This includes 117 which are test related,
