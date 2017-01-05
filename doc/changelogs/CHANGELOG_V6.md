@@ -7,9 +7,10 @@
 </tr>
 <tr>
 <td valign="top">
-<a href="#6.9.3">6.9.3</a><br/>
+  <a href="#6.9.4">6.9.4</a><br/>
 </td>
 <td valign="top">
+<a href="#6.9.3">6.9.3</a><br/>
 <a href="#6.9.2">6.9.2</a><br/>
 <a href="#6.9.1">6.9.1</a><br/>
 <a href="#6.9.0">6.9.0</a><br/>
@@ -42,6 +43,22 @@
 **Note:** Node.js v6 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2018 and maintained until April 2019.
+
+<a id="6.9.4"></a>
+## 2017-01-05, Version 6.9.4 'Boron' (LTS), @MylesBorins
+
+This is a special release that contains 0 commits. While promoting additional
+platforms for v6.9.3 after the release, the tarballs on the release server were
+overwritten and now have different shasums. In order to remove any ambiguity
+around the release we have opted to do a semver patch release with no changes.
+
+### Notable Changes
+
+N/A
+
+### Commits
+
+N/A
 
 <a id="6.9.3"></a>
 ## 2017-01-03, Version 6.9.3 'Boron' (LTS), @MylesBorins

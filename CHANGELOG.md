@@ -27,16 +27,17 @@ release.
   <th title="LTS Until 2016-10-31" colspan="3"><a href="doc/changelogs/CHANGELOG_V010.md">v0.10</a><sup>LTS</sup></th>
 </tr>
 <tr>
-<td valign="top">
+    <td valign="top">
 <b><a href="doc/changelogs/CHANGELOG_V7.md#7.4.0">7.4.0</a></b><br/>
 <a href="doc/changelogs/CHANGELOG_V7.md#7.3.0">7.3.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V7.md#7.2.1">7.2.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V7.md#7.2.0">7.2.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V7.md#7.1.0">7.1.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V7.md#7.0.0">7.0.0</a><br/>
-</td>
-<td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V6.md#6.9.3">6.9.3</a></b><br/>
+    </td>
+    <td valign="top">
+<b><a href="doc/changelogs/CHANGELOG_V6.md#6.9.4">6.9.4</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V6.md#6.9.3">6.9.3</a><br/>
 <a href="doc/changelogs/CHANGELOG_V6.md#6.9.2">6.9.2</a><br/>
 <a href="doc/changelogs/CHANGELOG_V6.md#6.9.1">6.9.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V6.md#6.9.0">6.9.0</a><br/>
