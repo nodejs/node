@@ -598,7 +598,7 @@ endif
 BINARYTAR=$(BINARYNAME).tar
 # OSX doesn't have xz installed by default, http://macpkg.sourceforge.net/
 XZ=$(shell which xz > /dev/null 2>&1; echo $$?)
-XZ_COMPRESSION ?= 9
+XZ_COMPRESSION ?= 9e
 PKG=$(TARNAME).pkg
 PACKAGEMAKER ?= /Developer/Applications/Utilities/PackageMaker.app/Contents/MacOS/PackageMaker
 PKGDIR=out/dist-osx
