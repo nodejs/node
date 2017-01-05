@@ -7,6 +7,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#4.7.2">4.7.2</a><br/>
 <a href="#4.7.1">4.7.1</a><br/>
 <a href="#4.7.0">4.7.0</a><br/>
 <a href="#4.6.2">4.6.2</a><br/>
@@ -54,6 +55,22 @@
 **Note:** Node.js v4 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2017 and maintained until April 2018.
+
+<a id="4.7.2"></a>
+## 2017-01-05, Version 4.7.2 'Argon' (LTS), @MylesBorins
+
+This is a special release that contains 0 commits. While promoting additional
+platforms for v4.7.1 after the release, the tarballs on the release server were
+overwritten and now have different shasums. In order to remove any ambiguity
+around the release we have opted to do a semver patch release with no changes.
+
+### Notable Changes
+
+N/A
+
+### Commits
+
+N/A
 
 <a id="4.7.1"></a>
 ## 2017-01-03, Version 4.7.1 'Argon' (LTS), @MylesBorins
