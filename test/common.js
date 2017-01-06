@@ -87,9 +87,35 @@ function rmdirSync(p, originalEr) {
   }
 }
 
+function mkdirpSync(p, made) {
+  if (!made)
+    made = null;
+
+  try {
+    fs.mkdirSync(p);
+    made = made || p;
+  } catch (err0) {
+    if (err0.code === 'ENOENT') {
+      made = mkdirpSync(path.dirname(p), made);
+      mkdirpSync(p, made);
+      return made;
+    }
+
+    var stat;
+    try {
+      stat = fs.statSync(p);
+    } catch (err1) {
+      throw err0;
+    }
+    if (!stat.isDirectory())
+      throw err0;
+  }
+  return made;
+}
+
 exports.refreshTmpDir = function() {
   rimrafSync(exports.tmpDir);
-  fs.mkdirSync(exports.tmpDir);
+  mkdirpSync(exports.tmpDir);
 };
 
 if (process.env.TEST_THREAD_ID) {
