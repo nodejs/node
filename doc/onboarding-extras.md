@@ -13,6 +13,7 @@
 | `lib/{crypto,tls,https}` | @nodejs/crypto |
 | `lib/domains` | @misterdjules |
 | `lib/fs`, `src/{fs|file}` | @nodejs/fs |
+| `lib/internal/url`, `src/node_url` | @nodejs/url |
 | `lib/{_}http{*}` | @nodejs/http |
 | `lib/net` | @bnoordhuis, @indutny, @nodejs/streams |
 | `lib/{_}stream{s|*}` | @nodejs/streams |
