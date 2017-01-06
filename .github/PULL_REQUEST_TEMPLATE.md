@@ -15,5 +15,10 @@ Contributors guide: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
 - [ ] documentation is changed or added
 - [ ] commit message follows commit guidelines
 
+<!-- If this is your first contribution to Node.js, please also check the
+     following items -->
+- [ ] I have read and agree to the Node.js [Code of Conduct](https://github.com/nodejs/node/blob/master/CODE_OF_CONDUCT.md)
+- [ ] I have read and agree to the Node.js [Developer's Certificate of Origin](https://github.com/nodejs/node/blob/master/CONTRIBUTING.md#developers-certificate-of-origin-11) 
+
 ##### Affected core subsystem(s)
 <!-- Provide affected core subsystem(s) (like doc, cluster, crypto, etc). -->
