@@ -580,8 +580,8 @@ added: v0.11.12
 * `args` {Array} List of string arguments
 * `options` {Object}
   * `cwd` {String} Current working directory of the child process
-  * `input` {String|Buffer} The value which will be passed as stdin to the
-    spawned process
+  * `input` {String|Buffer|Uint8Array} The value which will be passed as stdin
+    to the spawned process
     - supplying this value will override `stdio[0]`
   * `stdio` {String | Array} Child's stdio configuration. (Default: `'pipe'`)
     - `stderr` by default will be output to the parent process' stderr unless
@@ -618,8 +618,8 @@ added: v0.11.12
 * `command` {String} The command to run
 * `options` {Object}
   * `cwd` {String} Current working directory of the child process
-  * `input` {String|Buffer} The value which will be passed as stdin to the
-    spawned process
+  * `input` {String|Buffer|Uint8Array} The value which will be passed as stdin
+    to the spawned process
     - supplying this value will override `stdio[0]`
   * `stdio` {String | Array} Child's stdio configuration. (Default: `'pipe'`)
     - `stderr` by default will be output to the parent process' stderr unless
@@ -666,8 +666,8 @@ added: v0.11.12
 * `args` {Array} List of string arguments
 * `options` {Object}
   * `cwd` {String} Current working directory of the child process
-  * `input` {String|Buffer} The value which will be passed as stdin to the
-    spawned process
+  * `input` {String|Buffer|Uint8Array} The value which will be passed as stdin
+    to the spawned process
     - supplying this value will override `stdio[0]`
   * `stdio` {String | Array} Child's stdio configuration.
   * `env` {Object} Environment key-value pairs
