@@ -57,7 +57,7 @@ var options = {
 
 assert.throws(function() {
   spawnSync('cat', [], options);
-}, /TypeError:.*should be Buffer or string not number/);
+}, /TypeError:.*should be Buffer, Uint8Array or string not number/);
 
 
 options = {
@@ -72,6 +72,16 @@ assert.strictEqual(ret.stderr.toString('utf8'), '');
 
 options = {
   input: Buffer.from('hello world')
+};
+
+ret = spawnSync('cat', [], options);
+
+checkSpawnSyncRet(ret);
+assert.deepStrictEqual(ret.stdout, options.input);
+assert.deepStrictEqual(ret.stderr, Buffer.from(''));
+
+options = {
+  input: Uint8Array.from(Buffer.from('hello world'))
 };
 
 ret = spawnSync('cat', [], options);
