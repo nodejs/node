@@ -136,10 +136,13 @@ Check the output of `git log --oneline files_that_you_changed` to find out
 what subsystem (or subsystems) your changes touch.
 
 If your patch fixes an open issue, you can add a reference to it at the end
-of the log. Use the `Fixes:` prefix and the full issue URL. For example:
+of the log. Use the `Fixes:` prefix and the full issue URL. For other references
+use `Refs:`. For example:
 
 ```txt
 Fixes: https://github.com/nodejs/node/issues/1337
+Refs: http://eslint.org/docs/rules/space-in-parens.html
+Refs: https://github.com/nodejs/node/pull/3615
 ```
 
 ### Step 4: Rebase

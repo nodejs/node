@@ -120,6 +120,7 @@ information regarding the change process:
   for an issue, and/or the hash and commit message if the commit fixes
   a bug in a previous commit. Multiple `Fixes:` lines may be added if
   appropriate.
+- A `Refs:` line referencing a URL for any relevant background.
 - A `Reviewed-By: Name <email>` line for yourself and any
   other Collaborators who have reviewed the change.
   - Useful for @mentions / contact list if something goes wrong in the PR.
