@@ -15,7 +15,7 @@ const dataExpected = fs.readFileSync(__filename, 'utf8');
 
 if (process.argv[2] === 'child') {
   fs.readFile('/dev/stdin', function(er, data) {
-    if (er) throw er;
+    assert.ifError(er);
     process.stdout.write(data);
   });
   return;
