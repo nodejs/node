@@ -52,7 +52,7 @@ assert.strictEqual(key.toString('hex'), expected);
 
 crypto.pbkdf2('password', 'salt', 32, 32, 'sha256', common.mustCall(ondone));
 function ondone(err, key) {
-  if (err) throw err;
+  assert.ifError(err);
   assert.strictEqual(key.toString('hex'), expected);
 }
 

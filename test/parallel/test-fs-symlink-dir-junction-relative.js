@@ -15,7 +15,7 @@ common.refreshTmpDir();
 
 // Test fs.symlink()
 fs.symlink(linkData, linkPath1, 'junction', common.mustCall(function(err) {
-  if (err) throw err;
+  assert.ifError(err);
   verifyLink(linkPath1);
 }));
 
