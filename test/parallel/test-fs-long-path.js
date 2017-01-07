@@ -2,6 +2,7 @@
 const common = require('../common');
 const fs = require('fs');
 const path = require('path');
+const assert = require('assert');
 
 if (!common.isWindows) {
   common.skip('this test is Windows-specific.');
@@ -21,10 +22,10 @@ console.log({
 });
 
 fs.writeFile(fullPath, 'ok', common.mustCall(function(err) {
-  if (err) throw err;
+  assert.ifError(err);
 
   fs.stat(fullPath, common.mustCall(function(err, stats) {
-    if (err) throw err;
+    assert.ifError(err);
   }));
 }));
 

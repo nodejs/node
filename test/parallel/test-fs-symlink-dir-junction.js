@@ -14,18 +14,18 @@ console.log('linkData: ' + linkData);
 console.log('linkPath: ' + linkPath);
 
 fs.symlink(linkData, linkPath, 'junction', common.mustCall(function(err) {
-  if (err) throw err;
+  assert.ifError(err);
 
   fs.lstat(linkPath, common.mustCall(function(err, stats) {
-    if (err) throw err;
+    assert.ifError(err);
     assert.ok(stats.isSymbolicLink());
 
     fs.readlink(linkPath, common.mustCall(function(err, destination) {
-      if (err) throw err;
+      assert.ifError(err);
       assert.strictEqual(destination, linkData);
 
       fs.unlink(linkPath, common.mustCall(function(err) {
-        if (err) throw err;
+        assert.ifError(err);
         assert(!common.fileExists(linkPath));
         assert(common.fileExists(linkData));
       }));

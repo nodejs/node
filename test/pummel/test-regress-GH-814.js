@@ -2,6 +2,7 @@
 // Flags: --expose_gc
 
 const common = require('../common');
+const assert = require('assert');
 
 function newBuffer(size, value) {
   var buffer = Buffer.allocUnsafe(size);
@@ -59,7 +60,5 @@ var timeToQuit = Date.now() + 8e3; //Test during no more than this seconds.
 
 
 function cb(err, written) {
-  if (err) {
-    throw err;
-  }
+  assert.ifError(err);
 }
