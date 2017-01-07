@@ -12,11 +12,15 @@ let data = Buffer.concat([
   Buffer(10).fill(0)
 ]);
 
-assert.equal(zlib.gunzipSync(data).toString(), 'abcdef');
+assert.strictEqual(zlib.gunzipSync(data).toString(), 'abcdef');
 
 zlib.gunzip(data, common.mustCall((err, result) => {
   assert.ifError(err);
-  assert.equal(result, 'abcdef', 'result should match original string');
+  assert.strictEqual(
+    result.toString(),
+    'abcdef',
+    'result should match original string'
+  );
 }));
 
 // if the trailing garbage happens to look like a gzip header, it should
@@ -28,10 +32,16 @@ data = Buffer.concat([
   Buffer(10).fill(0)
 ]);
 
-assert.throws(() => zlib.gunzipSync(data));
+assert.throws(
+  () => zlib.gunzipSync(data),
+  /^Error: unknown compression method$/
+);
 
 zlib.gunzip(data, common.mustCall((err, result) => {
-  assert(err);
+  assert(err instanceof Error);
+  assert.strictEqual(err.code, 'Z_DATA_ERROR');
+  assert.strictEqual(err.message, 'unknown compression method');
+  assert.strictEqual(result, undefined);
 }));
 
 // In this case the trailing junk is too short to be a gzip segment
@@ -42,8 +52,14 @@ data = Buffer.concat([
   Buffer([0x1f, 0x8b, 0xff, 0xff])
 ]);
 
-assert.throws(() => zlib.gunzipSync(data));
+assert.throws(
+  () => zlib.gunzipSync(data),
+  /^Error: unknown compression method$/
+);
 
 zlib.gunzip(data, common.mustCall((err, result) => {
-  assert(err);
+  assert(err instanceof Error);
+  assert.strictEqual(err.code, 'Z_DATA_ERROR');
+  assert.strictEqual(err.message, 'unknown compression method');
+  assert.strictEqual(result, undefined);
 }));
