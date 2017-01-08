@@ -6,7 +6,7 @@ const http = require('http');
 const N = 1024;
 
 const server = http.createServer(common.mustCall(function(req, res) {
-  assert.equal('POST', req.method);
+  assert.strictEqual('POST', req.method);
 
   let bytesReceived = 0;
 

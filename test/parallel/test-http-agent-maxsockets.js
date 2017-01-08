@@ -29,15 +29,15 @@ function done() {
     return;
   }
   const freepool = agent.freeSockets[Object.keys(agent.freeSockets)[0]];
-  assert.equal(freepool.length, 2,
-               'expect keep 2 free sockets, but got ' + freepool.length);
+  assert.strictEqual(freepool.length, 2,
+                     'expect keep 2 free sockets, but got ' + freepool.length);
   agent.destroy();
   server.close();
 }
 
 server.listen(0, function() {
   get('/1', function(res) {
-    assert.equal(res.statusCode, 200);
+    assert.strictEqual(res.statusCode, 200);
     res.resume();
     res.on('end', function() {
       process.nextTick(done);
@@ -45,7 +45,7 @@ server.listen(0, function() {
   });
 
   get('/2', function(res) {
-    assert.equal(res.statusCode, 200);
+    assert.strictEqual(res.statusCode, 200);
     res.resume();
     res.on('end', function() {
       process.nextTick(done);

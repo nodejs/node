@@ -12,7 +12,7 @@ let pauseCalled = false;
 
 stream.setRawMode = function(mode) {
   rawModeCalled = true;
-  assert.equal(mode, expectedRawMode);
+  assert.strictEqual(mode, expectedRawMode);
 };
 stream.resume = function() {
   resumeCalled = true;
@@ -66,4 +66,4 @@ assert(pauseCalled);
 
 assert.deepStrictEqual(stream.listeners('keypress'), []);
 // one data listener for the keypress events.
-assert.equal(stream.listeners('data').length, 1);
+assert.strictEqual(stream.listeners('data').length, 1);

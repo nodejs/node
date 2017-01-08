@@ -50,8 +50,8 @@ test(function(parent, port) {
       // it's really annoying when tests leave orphans!
       parent.kill();
       parent.on('exit', function() {
-        assert.equal(s, 'hello from worker\n');
-        assert.equal(res.statusCode, 200);
+        assert.strictEqual(s, 'hello from worker\n');
+        assert.strictEqual(res.statusCode, 200);
         console.log('ok');
         ok = true;
       });

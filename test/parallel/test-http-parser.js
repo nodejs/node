@@ -51,7 +51,7 @@ function mustCall(f, times) {
 
   process.setMaxListeners(256);
   process.on('exit', function() {
-    assert.equal(actual, times || 1);
+    assert.strictEqual(actual, times || 1);
   });
 
   return function() {
@@ -64,7 +64,7 @@ function mustCall(f, times) {
 function expectBody(expected) {
   return mustCall(function(buf, start, len) {
     const body = '' + buf.slice(start, start + len);
-    assert.equal(body, expected);
+    assert.strictEqual(body, expected);
   });
 }
 
@@ -535,10 +535,10 @@ function expectBody(expected) {
   const onHeadersComplete1 = function(versionMajor, versionMinor, headers,
                                       method, url, statusCode, statusMessage,
                                       upgrade, shouldKeepAlive) {
-    assert.equal(method, methods.indexOf('PUT'));
-    assert.equal(url, '/this');
-    assert.equal(versionMajor, 1);
-    assert.equal(versionMinor, 1);
+    assert.strictEqual(method, methods.indexOf('PUT'));
+    assert.strictEqual(url, '/this');
+    assert.strictEqual(versionMajor, 1);
+    assert.strictEqual(versionMinor, 1);
     assert.deepStrictEqual(
         headers,
         ['Content-Type', 'text/plain', 'Transfer-Encoding', 'chunked']);

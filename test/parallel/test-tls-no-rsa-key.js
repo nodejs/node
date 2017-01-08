@@ -27,7 +27,7 @@ const server = tls.createServer(options, function(conn) {
     }));
 
     c.on('data', function(data) {
-      assert.equal(data, 'ok');
+      assert.strictEqual(data.toString(), 'ok');
     });
 
     const cert = c.getPeerCertificate();

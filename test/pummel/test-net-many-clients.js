@@ -49,8 +49,8 @@ function runClient(callback) {
 
   client.on('close', function(had_error) {
     console.log('.');
-    assert.equal(false, had_error);
-    assert.equal(bytes, client.recved.length);
+    assert.strictEqual(false, had_error);
+    assert.strictEqual(bytes, client.recved.length);
 
     if (client.fd) {
       console.log(client.fd);
@@ -75,6 +75,6 @@ server.listen(common.PORT, function() {
 });
 
 process.on('exit', function() {
-  assert.equal(connections_per_client * concurrency, total_connections);
+  assert.strictEqual(connections_per_client * concurrency, total_connections);
   console.log('\nokay!');
 });

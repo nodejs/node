@@ -39,7 +39,7 @@ server.listen(0, common.mustCall(() => {
       }
     ).on('error', common.mustCall((err) => {
       assert(/^Parse Error/.test(err.message));
-      assert.equal(err.code, 'HPE_UNEXPECTED_CONTENT_LENGTH');
+      assert.strictEqual(err.code, 'HPE_UNEXPECTED_CONTENT_LENGTH');
       count++;
       if (count === MAX_COUNT)
         server.close();
@@ -48,5 +48,5 @@ server.listen(0, common.mustCall(() => {
 }));
 
 process.on('exit', () => {
-  assert.equal(count, MAX_COUNT);
+  assert.strictEqual(count, MAX_COUNT);
 });

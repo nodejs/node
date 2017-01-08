@@ -29,8 +29,8 @@ const proxy = http.createServer(function(req, res) {
 
     console.error('proxy res headers: ' + JSON.stringify(proxy_res.headers));
 
-    assert.equal('world', proxy_res.headers['hello']);
-    assert.equal('text/plain', proxy_res.headers['content-type']);
+    assert.strictEqual('world', proxy_res.headers['hello']);
+    assert.strictEqual('text/plain', proxy_res.headers['content-type']);
     assert.deepStrictEqual(cookies, proxy_res.headers['set-cookie']);
 
     res.writeHead(proxy_res.statusCode, proxy_res.headers);
@@ -58,10 +58,10 @@ function startReq() {
     path: '/test'
   }, function(res) {
     console.error('got res');
-    assert.equal(200, res.statusCode);
+    assert.strictEqual(200, res.statusCode);
 
-    assert.equal('world', res.headers['hello']);
-    assert.equal('text/plain', res.headers['content-type']);
+    assert.strictEqual('world', res.headers['hello']);
+    assert.strictEqual('text/plain', res.headers['content-type']);
     assert.deepStrictEqual(cookies, res.headers['set-cookie']);
 
     res.setEncoding('utf8');
@@ -82,5 +82,5 @@ console.error('listen backend');
 backend.listen(0, startReq);
 
 process.on('exit', function() {
-  assert.equal(body, 'hello world\n');
+  assert.strictEqual(body, 'hello world\n');
 });

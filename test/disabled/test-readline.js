@@ -49,12 +49,12 @@ var rl = readlineFakeStream();
 var written_bytes_length, refreshed;
 
 rl.write('foo');
-assert.equal(3, rl.cursor);
+assert.strictEqual(3, rl.cursor);
 [key.xterm, key.rxvt, key.gnome, key.putty].forEach(function(key) {
   rl.write.apply(rl, key.home);
-  assert.equal(0, rl.cursor);
+  assert.strictEqual(0, rl.cursor);
   rl.write.apply(rl, key.end);
-  assert.equal(3, rl.cursor);
+  assert.strictEqual(3, rl.cursor);
 });
 
 rl = readlineFakeStream();
@@ -76,9 +76,9 @@ rl.write.apply(rl, key.xterm.home);
 ].forEach(function(action) {
   written_bytes_length = rl.written_bytes.length;
   rl.write.apply(rl, action.key);
-  assert.equal(action.cursor, rl.cursor);
+  assert.strictEqual(action.cursor, rl.cursor);
   refreshed = written_bytes_length !== rl.written_bytes.length;
-  assert.equal(true, refreshed);
+  assert.strictEqual(true, refreshed);
 });
 
 rl = readlineFakeStream();
@@ -93,7 +93,7 @@ rl.write.apply(rl, key.xterm.home);
   ''
 ].forEach(function(expectedLine) {
   rl.write.apply(rl, key.xterm.metad);
-  assert.equal(0, rl.cursor);
-  assert.equal(expectedLine, rl.line);
+  assert.strictEqual(0, rl.cursor);
+  assert.strictEqual(expectedLine, rl.line);
 });
 rl.close();

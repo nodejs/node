@@ -7,4 +7,4 @@ const content = require(common.fixturesDir +
   '/json-with-directory-name-module/module-stub/one-trailing-slash/two/three.js');
 
 assert.notStrictEqual(content.rocko, 'artischocko');
-assert.equal(content, 'hello from module-stub!');
+assert.strictEqual(content, 'hello from module-stub!');

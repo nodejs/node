@@ -25,8 +25,8 @@ t.end(Buffer.from('blerg'));
 t.resume();
 
 process.on('exit', function() {
-  assert.equal(t._transform, _transform);
-  assert.equal(t._flush, _flush);
+  assert.strictEqual(t._transform, _transform);
+  assert.strictEqual(t._flush, _flush);
   assert(_transformCalled);
   assert(_flushCalled);
 });

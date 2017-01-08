@@ -44,5 +44,5 @@ const server = net.createServer(function(c) {
 });
 
 process.on('exit', function() {
-  assert.equal(received, sent);
+  assert.strictEqual(received, sent);
 });

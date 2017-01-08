@@ -22,14 +22,14 @@ switch (process.argv[2]) {
 function child1() {
   process.exitCode = 42;
   process.on('exit', function(code) {
-    assert.equal(code, 42);
+    assert.strictEqual(code, 42);
   });
 }
 
 function child2() {
   process.exitCode = 99;
   process.on('exit', function(code) {
-    assert.equal(code, 42);
+    assert.strictEqual(code, 42);
   });
   process.exit(42);
 }
@@ -37,7 +37,7 @@ function child2() {
 function child3() {
   process.exitCode = 99;
   process.on('exit', function(code) {
-    assert.equal(code, 0);
+    assert.strictEqual(code, 0);
   });
   process.exit(0);
 }
@@ -56,7 +56,7 @@ function child4() {
 function child5() {
   process.exitCode = 95;
   process.on('exit', function(code) {
-    assert.equal(code, 95);
+    assert.strictEqual(code, 95);
     process.exitCode = 99;
   });
 }
@@ -75,7 +75,7 @@ function test(arg, exit) {
   const f = __filename;
   const option = { stdio: [ 0, 1, 'ignore' ] };
   spawn(node, [f, arg], option).on('exit', function(code) {
-    assert.equal(code, exit, 'wrong exit for ' +
+    assert.strictEqual(code, exit, 'wrong exit for ' +
                  arg + '\nexpected:' + exit +
                  ' but got:' + code);
     console.log('ok - %s exited with %d', arg, exit);

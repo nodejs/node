@@ -41,6 +41,6 @@ server.on('listening', function() {
 });
 
 process.on('exit', function() {
-  assert.equal(body1_s, body1);
-  assert.equal(body2_s, body2);
+  assert.strictEqual(body1_s, body1);
+  assert.strictEqual(body2_s, body2);
 });

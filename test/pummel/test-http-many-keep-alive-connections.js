@@ -10,7 +10,7 @@ let connection;
 
 const server = http.Server(function(req, res) {
   requests++;
-  assert.equal(req.connection, connection);
+  assert.strictEqual(req.connection, connection);
   res.writeHead(200);
   res.end('hello world\n');
 });
@@ -43,6 +43,6 @@ server.listen(common.PORT, function connect() {
 });
 
 process.on('exit', function() {
-  assert.equal(expected, responses);
-  assert.equal(expected, requests);
+  assert.strictEqual(expected, responses);
+  assert.strictEqual(expected, requests);
 });

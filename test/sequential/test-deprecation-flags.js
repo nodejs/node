@@ -20,24 +20,24 @@ const traceDep = ['--trace-deprecation', depmod];
 
 execFile(node, normal, function(er, stdout, stderr) {
   console.error('normal: show deprecation warning');
-  assert.equal(er, null);
-  assert.equal(stdout, '');
+  assert.strictEqual(er, null);
+  assert.strictEqual(stdout, '');
   assert(/util\.debug is deprecated/.test(stderr));
   console.log('normal ok');
 });
 
 execFile(node, noDep, function(er, stdout, stderr) {
   console.error('--no-deprecation: silence deprecations');
-  assert.equal(er, null);
-  assert.equal(stdout, '');
-  assert.equal(stderr, 'DEBUG: This is deprecated\n');
+  assert.strictEqual(er, null);
+  assert.strictEqual(stdout, '');
+  assert.strictEqual(stderr, 'DEBUG: This is deprecated\n');
   console.log('silent ok');
 });
 
 execFile(node, traceDep, function(er, stdout, stderr) {
   console.error('--trace-deprecation: show stack');
-  assert.equal(er, null);
-  assert.equal(stdout, '');
+  assert.strictEqual(er, null);
+  assert.strictEqual(stdout, '');
   const stack = stderr.trim().split('\n');
   // just check the top and bottom.
   assert(/util.debug is deprecated. Use console.error instead./.test(stack[1]));
@@ -47,8 +47,8 @@ execFile(node, traceDep, function(er, stdout, stderr) {
 
 execFile(node, [depUserlandFunction], function(er, stdout, stderr) {
   console.error('normal: testing deprecated userland function');
-  assert.equal(er, null);
-  assert.equal(stdout, '');
+  assert.strictEqual(er, null);
+  assert.strictEqual(stdout, '');
   assert(/deprecatedFunction is deprecated/.test(stderr));
   console.error('normal: ok');
 });
