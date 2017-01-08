@@ -2,7 +2,7 @@
 require('../common');
 const assert = require('assert');
 
-var origNextTick = process.nextTick;
+const origNextTick = process.nextTick;
 
 require('domain');
 

@@ -7,9 +7,9 @@ const fs = require('fs');
 
 common.refreshTmpDir();
 
-var fn = path.join(common.tmpDir, 'write-string-coerce.txt');
-var data = true;
-var expected = data + '';
+const fn = path.join(common.tmpDir, 'write-string-coerce.txt');
+const data = true;
+const expected = data + '';
 
 fs.open(fn, 'w', 0o644, common.mustCall(function(err, fd) {
   assert.ifError(err);

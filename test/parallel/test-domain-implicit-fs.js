@@ -5,7 +5,7 @@ const common = require('../common');
 const assert = require('assert');
 const domain = require('domain');
 
-var d = new domain.Domain();
+const d = new domain.Domain();
 
 d.on('error', common.mustCall(function(er) {
   console.error('caught', er);

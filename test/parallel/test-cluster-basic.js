@@ -56,7 +56,6 @@ if (cluster.isWorker) {
     }
   };
 
-  var worker;
   const stateNames = Object.keys(checks.worker.states);
 
   //Check events, states, and emit arguments
@@ -72,7 +71,7 @@ if (cluster.isWorker) {
       checks.cluster.equal[name] = worker === arguments[0];
 
       //Check state
-      var state = stateNames[index];
+      const state = stateNames[index];
       checks.worker.states[state] = (state === worker.state);
     }));
   });
@@ -86,7 +85,7 @@ if (cluster.isWorker) {
   cluster.on('exit', common.mustCall(() => {}));
 
   //Create worker
-  worker = cluster.fork();
+  const worker = cluster.fork();
   assert.strictEqual(worker.id, 1);
   assert(worker instanceof cluster.Worker,
          'the worker is not a instance of the Worker constructor');

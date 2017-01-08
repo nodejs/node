@@ -13,11 +13,11 @@ crypto.DEFAULT_ENCODING = 'buffer';
 const fs = require('fs');
 
 // Test Certificates
-var spkacValid = fs.readFileSync(common.fixturesDir + '/spkac.valid');
-var spkacFail = fs.readFileSync(common.fixturesDir + '/spkac.fail');
-var spkacPem = fs.readFileSync(common.fixturesDir + '/spkac.pem');
+const spkacValid = fs.readFileSync(common.fixturesDir + '/spkac.valid');
+const spkacFail = fs.readFileSync(common.fixturesDir + '/spkac.fail');
+const spkacPem = fs.readFileSync(common.fixturesDir + '/spkac.pem');
 
-var certificate = new crypto.Certificate();
+const certificate = new crypto.Certificate();
 
 assert.strictEqual(certificate.verifySpkac(spkacValid), true);
 assert.strictEqual(certificate.verifySpkac(spkacFail), false);

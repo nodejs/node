@@ -4,8 +4,8 @@ const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
 
-var linkTime;
-var fileTime;
+let linkTime;
+let fileTime;
 
 if (!common.canCreateSymLink()) {
   common.skip('insufficient privileges');

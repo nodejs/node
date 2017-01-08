@@ -5,11 +5,11 @@ const assert = require('assert');
 const spawn = require('child_process').spawn;
 
 if (process.argv[2] !== 'child') {
-  var child = spawn(process.execPath, [__filename, 'child'], {
+  const child = spawn(process.execPath, [__filename, 'child'], {
     cwd: path.dirname(process.execPath)
   });
 
-  var childArgv0 = '';
+  let childArgv0 = '';
   child.stdout.on('data', function(chunk) {
     childArgv0 += chunk;
   });

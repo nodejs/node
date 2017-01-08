@@ -14,29 +14,29 @@ const tls = require('tls');
 
 const fs = require('fs');
 
-var options = {
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem')
 };
 
-var big = Buffer.alloc(2 * 1024 * 1024, 'Y');
+const big = Buffer.alloc(2 * 1024 * 1024, 'Y');
 
 // create server
-var server = tls.createServer(options, common.mustCall(function(socket) {
+const server = tls.createServer(options, common.mustCall(function(socket) {
   socket.end(big);
   socket.destroySoon();
 }));
 
 // start listening
 server.listen(0, common.mustCall(function() {
-  var client = tls.connect({
+  const client = tls.connect({
     port: this.address().port,
     rejectUnauthorized: false
   }, common.mustCall(function() {
-    var bytesRead = 0;
+    let bytesRead = 0;
 
     client.on('readable', function() {
-      var d = client.read();
+      const d = client.read();
       if (d)
         bytesRead += d.length;
     });

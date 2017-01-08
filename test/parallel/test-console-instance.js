@@ -3,7 +3,7 @@ require('../common');
 const assert = require('assert');
 const Stream = require('stream');
 const Console = require('console').Console;
-var called = false;
+let called = false;
 
 const out = new Stream();
 const err = new Stream();
@@ -32,7 +32,7 @@ assert.throws(function() {
 
 out.write = err.write = function(d) {};
 
-var c = new Console(out, err);
+const c = new Console(out, err);
 
 out.write = err.write = function(d) {
   assert.strictEqual(d, 'test\n');

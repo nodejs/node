@@ -37,7 +37,7 @@ testHttps();
 
 function testHttps() {
 
-  var counter = 0;
+  let counter = 0;
 
   function cb(res) {
     counter--;

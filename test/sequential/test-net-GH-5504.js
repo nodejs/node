@@ -19,7 +19,7 @@ switch (process.argv[2]) {
 
 function server() {
   const net = require('net');
-  var content = Buffer.alloc(64 * 1024 * 1024, '#');
+  const content = Buffer.alloc(64 * 1024 * 1024, '#');
   net.createServer(function(socket) {
     this.close();
     socket.on('end', function() {
@@ -36,7 +36,7 @@ function server() {
 
 function client() {
   const net = require('net');
-  var client = net.connect({
+  const client = net.connect({
     host: common.localhostIPv4,
     port: common.PORT
   }, function() {
@@ -46,14 +46,14 @@ function client() {
 
 function parent() {
   const spawn = require('child_process').spawn;
-  var node = process.execPath;
+  const node = process.execPath;
 
-  var s = spawn(node, [__filename, 'server'], {
+  const s = spawn(node, [__filename, 'server'], {
     env: Object.assign(process.env, {
       NODE_DEBUG: 'net'
     })
   });
-  var c;
+  let c;
 
   wrap(s.stderr, process.stderr, 'SERVER 2>');
   wrap(s.stdout, process.stdout, 'SERVER 1>');

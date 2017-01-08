@@ -3,7 +3,7 @@ require('../common');
 const assert = require('assert');
 const http = require('http');
 
-var clientAborts = 0;
+let clientAborts = 0;
 
 const server = http.Server(function(req, res) {
   console.log('Got connection');
@@ -23,17 +23,17 @@ const server = http.Server(function(req, res) {
   });
 });
 
-var responses = 0;
+let responses = 0;
 const N = 8;
 const requests = [];
 
 server.listen(0, function() {
   console.log('Server listening.');
 
-  for (var i = 0; i < N; i++) {
+  for (let i = 0; i < N; i++) {
     console.log('Making client ' + i);
-    var options = { port: this.address().port, path: '/?id=' + i };
-    var req = http.get(options, function(res) {
+    const options = { port: this.address().port, path: '/?id=' + i };
+    const req = http.get(options, function(res) {
       console.log('Client response code ' + res.statusCode);
 
       res.resume();

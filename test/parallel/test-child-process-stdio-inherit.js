@@ -9,10 +9,10 @@ else
   grandparent();
 
 function grandparent() {
-  var child = spawn(process.execPath, [__filename, 'parent']);
+  const child = spawn(process.execPath, [__filename, 'parent']);
   child.stderr.pipe(process.stderr);
-  var output = '';
-  var input = 'asdfasdf';
+  let output = '';
+  const input = 'asdfasdf';
 
   child.stdout.on('data', function(chunk) {
     output += chunk;

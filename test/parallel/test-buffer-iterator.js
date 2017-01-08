@@ -3,8 +3,8 @@ require('../common');
 const assert = require('assert');
 
 const buffer = Buffer.from([1, 2, 3, 4, 5]);
-var arr;
-var b;
+let arr;
+let b;
 
 // buffers should be iterable
 

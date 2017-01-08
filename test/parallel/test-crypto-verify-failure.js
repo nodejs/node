@@ -12,14 +12,14 @@ crypto.DEFAULT_ENCODING = 'buffer';
 
 const fs = require('fs');
 
-var certPem = fs.readFileSync(common.fixturesDir + '/test_cert.pem', 'ascii');
+const certPem = fs.readFileSync(common.fixturesDir + '/test_cert.pem', 'ascii');
 
-var options = {
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
-var server = tls.Server(options, function(socket) {
+const server = tls.Server(options, function(socket) {
   setImmediate(function() {
     console.log('sending');
     verify();

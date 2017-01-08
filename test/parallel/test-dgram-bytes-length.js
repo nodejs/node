@@ -3,8 +3,8 @@ require('../common');
 const assert = require('assert');
 const dgram = require('dgram');
 
-var message = Buffer.from('Some bytes');
-var client = dgram.createSocket('udp4');
+const message = Buffer.from('Some bytes');
+const client = dgram.createSocket('udp4');
 client.send(
   message,
   0,

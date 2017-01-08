@@ -4,8 +4,8 @@ const assert = require('assert');
 const path = require('path');
 
 if (common.isWindows) {
-  var file = path.join(common.fixturesDir, 'a.js');
-  var resolvedFile = path.resolve(file);
+  const file = path.join(common.fixturesDir, 'a.js');
+  const resolvedFile = path.resolve(file);
 
   assert.equal('\\\\?\\' + resolvedFile, path._makeLong(file));
   assert.equal('\\\\?\\' + resolvedFile, path._makeLong('\\\\?\\' + file));

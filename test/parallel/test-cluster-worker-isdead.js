@@ -4,7 +4,7 @@ const cluster = require('cluster');
 const assert = require('assert');
 
 if (cluster.isMaster) {
-  var worker = cluster.fork();
+  const worker = cluster.fork();
   assert.ok(!worker.isDead(),
             'isDead() should return false right after the worker has been ' +
             'created.');

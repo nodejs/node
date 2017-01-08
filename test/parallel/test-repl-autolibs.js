@@ -13,7 +13,7 @@ repl.start('', putIn, null, true);
 test1();
 
 function test1() {
-  var gotWrite = false;
+  let gotWrite = false;
   putIn.write = function(data) {
     gotWrite = true;
     if (data.length) {
@@ -31,7 +31,7 @@ function test1() {
 }
 
 function test2() {
-  var gotWrite = false;
+  let gotWrite = false;
   putIn.write = function(data) {
     gotWrite = true;
     if (data.length) {
@@ -41,7 +41,7 @@ function test2() {
       assert.equal(val, global.url);
     }
   };
-  var val = {};
+  const val = {};
   global.url = val;
   assert(!gotWrite);
   putIn.run(['url']);

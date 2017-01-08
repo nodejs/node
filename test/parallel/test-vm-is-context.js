@@ -13,6 +13,6 @@ assert.strictEqual(vm.isContext([]), false);
 assert.strictEqual(vm.isContext(vm.createContext()), true);
 assert.strictEqual(vm.isContext(vm.createContext([])), true);
 
-var sandbox = { foo: 'bar' };
+const sandbox = { foo: 'bar' };
 vm.createContext(sandbox);
 assert.strictEqual(vm.isContext(sandbox), true);

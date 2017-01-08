@@ -18,7 +18,7 @@ server.on('connect', common.mustCall(function(req, socket, firstBodyChunk) {
     'Head'
   );
 
-  var data = firstBodyChunk.toString();
+  let data = firstBodyChunk.toString();
   socket.on('data', function(buf) {
     data += buf.toString();
   });
@@ -49,7 +49,7 @@ server.listen(0, common.mustCall(function() {
     assert.equal(socket.listeners('connect').length, 0);
     assert.equal(socket.listeners('data').length, 0);
 
-    var data = firstBodyChunk.toString();
+    let data = firstBodyChunk.toString();
 
     // test that the firstBodyChunk was not parsed as HTTP
     assert.equal(data, 'Head');

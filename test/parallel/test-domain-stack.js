@@ -4,7 +4,7 @@
 require('../common');
 const domain = require('domain');
 
-var a = domain.create();
+const a = domain.create();
 a.name = 'a';
 
 a.on('error', function() {
@@ -14,11 +14,11 @@ a.on('error', function() {
   }
 });
 
-var foo = a.bind(function() {
+const foo = a.bind(function() {
   throw new Error('error from foo');
 });
 
-for (var i = 0; i < 1000; i++) {
+for (let i = 0; i < 1000; i++) {
   process.nextTick(foo);
 }
 

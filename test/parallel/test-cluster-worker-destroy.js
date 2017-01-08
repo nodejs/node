@@ -10,7 +10,7 @@
 const common = require('../common');
 const assert = require('assert');
 const cluster = require('cluster');
-var worker1, worker2;
+let worker1, worker2;
 
 if (cluster.isMaster) {
   worker1 = cluster.fork();

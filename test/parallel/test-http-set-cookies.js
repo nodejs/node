@@ -3,9 +3,9 @@ require('../common');
 const assert = require('assert');
 const http = require('http');
 
-var nresponses = 0;
+let nresponses = 0;
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   if (req.url === '/one') {
     res.writeHead(200, [['set-cookie', 'A'],
                         ['content-type', 'text/plain']]);
