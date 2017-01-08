@@ -28,7 +28,7 @@ echoServer.on('listening', function() {
   assert.ok(s instanceof net.Socket);
   sock1.connect(this.address().port);
   sock1.on('end', function() {
-    assert.equal(callCount, 1);
+    assert.strictEqual(callCount, 1);
     echoServer.close();
   });
 });

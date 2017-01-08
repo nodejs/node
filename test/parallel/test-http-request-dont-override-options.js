@@ -33,7 +33,7 @@ http.createServer(function(req, res) {
   }).end();
 
   process.on('exit', function() {
-    assert.equal(requests, 1);
+    assert.strictEqual(requests, 1);
 
     assert.strictEqual(options.host, undefined);
     assert.strictEqual(options.hostname, common.localhostIPv4);

@@ -51,5 +51,5 @@ function push() {
 }
 
 process.on('exit', function() {
-  assert.equal(pushes, PUSHCOUNT + 1);
+  assert.strictEqual(pushes, PUSHCOUNT + 1);
 });

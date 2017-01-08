@@ -74,8 +74,8 @@ function checkFiles() {
     const fn = i + '.jpg';
     assert.ok(files.indexOf(fn) >= 0, "couldn't find '" + fn + "'");
     const stat = fs.statSync(common.tmpDir + '/' + fn);
-    assert.equal(image.length, stat.size,
-                 "size doesn't match on '" + fn +
+    assert.strictEqual(image.length, stat.size,
+                       "size doesn't match on '" + fn +
                  "'. Got " + stat.size + ' bytes');
   }
 
@@ -84,7 +84,7 @@ function checkFiles() {
 
 
 process.on('exit', function() {
-  assert.equal(total, requests);
-  assert.equal(total, responses);
+  assert.strictEqual(total, requests);
+  assert.strictEqual(total, responses);
   assert.ok(checkedFiles);
 });

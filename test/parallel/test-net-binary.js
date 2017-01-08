@@ -55,7 +55,7 @@ echoServer.on('listening', function() {
 });
 
 process.on('exit', function() {
-  assert.equal(2 * 256, recv.length);
+  assert.strictEqual(2 * 256, recv.length);
 
   const a = recv.split('');
 

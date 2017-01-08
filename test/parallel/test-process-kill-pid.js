@@ -47,8 +47,8 @@ function kill(tryPid, trySig, expectPid, expectSig) {
 
   process.kill(tryPid, trySig);
 
-  assert.equal(getPid, expectPid);
-  assert.equal(getSig, expectSig);
+  assert.strictEqual(getPid.toString(), expectPid.toString());
+  assert.strictEqual(getSig, expectSig);
 }
 
 // Note that SIGHUP and SIGTERM map to 1 and 15 respectively, even on Windows

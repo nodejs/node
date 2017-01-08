@@ -8,6 +8,6 @@ const c = net.connect(fp);
 c.on('connect', common.fail);
 
 c.on('error', common.mustCall(function(e) {
-  assert.equal(e.code, 'ENOENT');
-  assert.equal(e.message, 'connect ENOENT ' + fp);
+  assert.strictEqual(e.code, 'ENOENT');
+  assert.strictEqual(e.message, 'connect ENOENT ' + fp);
 }));

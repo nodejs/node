@@ -29,5 +29,5 @@ stream.write('foo');
 stream.end();
 
 process.on('exit', function() {
-  assert.equal(fs.open, _fs_open);
+  assert.strictEqual(fs.open, _fs_open);
 });

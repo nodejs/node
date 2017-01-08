@@ -39,7 +39,7 @@ const w = new TestWriter();
 
 w.on('results', function(res) {
   console.error(res, w.length);
-  assert.equal(w.length, size);
+  assert.strictEqual(w.length, size);
   assert.deepStrictEqual(res.map(function(c) {
     return c.length;
   }), expectLengths);

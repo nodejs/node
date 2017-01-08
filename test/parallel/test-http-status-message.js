@@ -23,7 +23,7 @@ function test() {
   });
   client.on('end', function() {
     const head = Buffer.concat(bufs).toString('latin1').split('\r\n')[0];
-    assert.equal('HTTP/1.1 200 Custom Message', head);
+    assert.strictEqual('HTTP/1.1 200 Custom Message', head);
     console.log('ok');
     s.close();
   });

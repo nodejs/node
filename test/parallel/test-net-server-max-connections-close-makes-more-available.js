@@ -29,7 +29,7 @@ const createConnection = function(index) {
     });
 
     connection.on('error', function(err) {
-      assert.equal(err.code, 'ECONNRESET');
+      assert.strictEqual(err.code, 'ECONNRESET');
       resolve();
     });
 

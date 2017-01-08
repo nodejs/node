@@ -9,7 +9,7 @@ const server = net.createServer();
 server.on('close', function() {
   const listeners = server.listeners('listening');
   console.log('Closed, listeners:', listeners.length);
-  assert.equal(0, listeners.length);
+  assert.strictEqual(0, listeners.length);
 });
 
 server.listen(0, function() {

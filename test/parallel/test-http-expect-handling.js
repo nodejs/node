@@ -37,8 +37,8 @@ function nextTest() {
   http.get(options, function(response) {
     console.log('client: expected status: ' + test);
     console.log('client: statusCode: ' + response.statusCode);
-    assert.equal(response.statusCode, test);
-    assert.equal(response.statusMessage, 'Expectation Failed');
+    assert.strictEqual(response.statusCode, test);
+    assert.strictEqual(response.statusMessage, 'Expectation Failed');
 
     response.on('end', function() {
       testsComplete++;
@@ -51,5 +51,5 @@ function nextTest() {
 
 
 process.on('exit', function() {
-  assert.equal(2, testsComplete);
+  assert.strictEqual(2, testsComplete);
 });

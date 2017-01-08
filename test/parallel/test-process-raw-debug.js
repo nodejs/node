@@ -25,7 +25,7 @@ function parent() {
   child.stderr.setEncoding('utf8');
 
   child.stderr.on('end', function() {
-    assert.equal(output, 'I can still debug!' + os.EOL);
+    assert.strictEqual(output, 'I can still debug!' + os.EOL);
     console.log('ok - got expected message');
   });
 

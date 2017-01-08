@@ -76,20 +76,20 @@ function test_upgrade_with_listener() {
   conn.on('data', function(data) {
     state++;
 
-    assert.equal('string', typeof data);
+    assert.strictEqual('string', typeof data);
 
     if (state === 1) {
-      assert.equal('HTTP/1.1 101', data.substr(0, 12));
-      assert.equal('WjN}|M(6', request_upgradeHead.toString('utf8'));
+      assert.strictEqual('HTTP/1.1 101', data.substr(0, 12));
+      assert.strictEqual('WjN}|M(6', request_upgradeHead.toString('utf8'));
       conn.write('test', 'utf8');
     } else if (state === 2) {
-      assert.equal('test', data);
+      assert.strictEqual('test', data);
       conn.write('kill', 'utf8');
     }
   });
 
   conn.on('end', function() {
-    assert.equal(2, state);
+    assert.strictEqual(2, state);
     conn.end();
     server.removeAllListeners('upgrade');
     test_upgrade_no_listener();
@@ -135,8 +135,8 @@ function test_standard_http() {
   });
 
   conn.once('data', function(data) {
-    assert.equal('string', typeof data);
-    assert.equal('HTTP/1.1 200', data.substr(0, 12));
+    assert.strictEqual('string', typeof data);
+    assert.strictEqual('HTTP/1.1 200', data.substr(0, 12));
     conn.end();
   });
 
@@ -158,7 +158,7 @@ server.listen(0, function() {
   Fin.
 -----------------------------------------------*/
 process.on('exit', function() {
-  assert.equal(3, requests_recv);
-  assert.equal(3, requests_sent);
+  assert.strictEqual(3, requests_recv);
+  assert.strictEqual(3, requests_sent);
   assert.ok(test_upgrade_no_listener_ended);
 });

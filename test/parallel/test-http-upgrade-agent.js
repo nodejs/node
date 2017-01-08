@@ -47,7 +47,7 @@ srv.listen(0, '127.0.0.1', common.mustCall(function() {
     });
 
     socket.on('close', common.mustCall(function() {
-      assert.equal(recvData, 'nurtzo');
+      assert.strictEqual(recvData.toString(), 'nurtzo');
     }));
 
     console.log(res.headers);

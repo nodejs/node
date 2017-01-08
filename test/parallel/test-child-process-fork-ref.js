@@ -33,6 +33,6 @@ if (process.argv[2] === 'child') {
 
   child.once('exit', function() {
     assert.deepStrictEqual(ipc, ['1', '2']);
-    assert.equal(stdout, '3');
+    assert.strictEqual(stdout, '3');
   });
 }
