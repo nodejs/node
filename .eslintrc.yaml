@@ -62,17 +62,21 @@ rules:
   no-new-require: 2
   no-path-concat: 2
   no-restricted-modules: [2, sys, _linklist]
-  no-restricted-properties: [2, {
-    object: assert,
-    property: deepEqual,
-    message: Please use assert.deepStrictEqual().
-  }, {
-    property: __defineGetter__,
-    message: __defineGetter__ is deprecated.
-  }, {
-    property: __defineSetter__,
-    message: __defineSetter__ is deprecated.
-  }]
+  no-restricted-properties:
+    - 2
+    - object: assert
+      property: deepEqual
+      message: Use assert.deepStrictEqual().
+    - object: assert
+      property: equal
+      message: Use assert.strictEqual() rather than assert.equal().
+    - object: assert
+      property: notEqual
+      message: Use assert.notStrictEqual() rather than assert.notEqual().
+    - property: __defineGetter__
+      message: __defineGetter__ is deprecated.
+    - property: __defineSetter__,
+      message: __defineSetter__ is deprecated.
 
   # Stylistic Issues
   # http://eslint.org/docs/rules/#stylistic-issues
