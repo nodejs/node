@@ -962,7 +962,7 @@ void Debug::PrepareStepOnThrow() {
     it.Advance();
   }
 
-  if (last_step_action() == StepNext) {
+  if (last_step_action() == StepNext || last_step_action() == StepOut) {
     while (!it.done()) {
       Address current_fp = it.frame()->UnpaddedFP();
       if (current_fp >= thread_local_.target_fp_) break;
