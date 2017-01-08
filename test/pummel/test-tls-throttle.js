@@ -63,5 +63,5 @@ let timeout = setTimeout(displayCounts, 10 * 1000);
 
 process.on('exit', function() {
   displayCounts();
-  assert.equal(body.length, recvCount);
+  assert.strictEqual(body.length, recvCount);
 });

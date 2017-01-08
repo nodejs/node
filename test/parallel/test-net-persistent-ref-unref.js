@@ -16,13 +16,13 @@ let refCount = 0;
 TCPWrap.prototype.ref = function() {
   ref.call(this);
   refCount++;
-  assert.equal(refCount, 0);
+  assert.strictEqual(refCount, 0);
 };
 
 TCPWrap.prototype.unref = function() {
   unref.call(this);
   refCount--;
-  assert.equal(refCount, -1);
+  assert.strictEqual(refCount, -1);
 };
 
 echoServer.listen(0);
@@ -33,7 +33,7 @@ echoServer.on('listening', function() {
   sock.ref();
   sock.connect(this.address().port);
   sock.on('end', function() {
-    assert.equal(refCount, 0);
+    assert.strictEqual(refCount, 0);
     echoServer.close();
   });
 });

@@ -23,13 +23,13 @@ server.listen(0, function() {
   const socketKey = agent.getName(requestParams);
 
   get(function(res) {
-    assert.equal(res.statusCode, 200);
+    assert.strictEqual(res.statusCode, 200);
     res.resume();
     res.on('end', function() {
       process.nextTick(function() {
         const freeSockets = agent.freeSockets[socketKey];
-        assert.equal(freeSockets.length, 1,
-                     'expect a free socket on ' + socketKey);
+        assert.strictEqual(freeSockets.length, 1,
+                           'expect a free socket on ' + socketKey);
 
         //generate a random error on the free socket
         const freeSocket = freeSockets[0];
@@ -45,8 +45,8 @@ server.listen(0, function() {
   }
 
   function done() {
-    assert.equal(Object.keys(agent.freeSockets).length, 0,
-                 'expect the freeSockets pool to be empty');
+    assert.strictEqual(Object.keys(agent.freeSockets).length, 0,
+                       'expect the freeSockets pool to be empty');
 
     agent.destroy();
     server.close();

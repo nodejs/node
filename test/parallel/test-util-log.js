@@ -32,7 +32,7 @@ tests.forEach(function(test) {
   const re = (/[0-9]{1,2} [A-Z][a-z]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} - (.+)$/);
   const match = re.exec(result);
   assert.ok(match);
-  assert.equal(match[1], test.output);
+  assert.strictEqual(match[1], test.output);
 });
 
 global.process.stdout.write = stdout_write;

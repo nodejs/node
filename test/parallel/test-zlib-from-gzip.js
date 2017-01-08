@@ -23,8 +23,8 @@ const out = fs.createWriteStream(outputFile);
 inp.pipe(gunzip).pipe(out);
 out.on('close', function() {
   const actual = fs.readFileSync(outputFile);
-  assert.equal(actual.length, expect.length, 'length should match');
+  assert.strictEqual(actual.length, expect.length, 'length should match');
   for (let i = 0, l = actual.length; i < l; i++) {
-    assert.equal(actual[i], expect[i], 'byte[' + i + ']');
+    assert.strictEqual(actual[i], expect[i], 'byte[' + i + ']');
   }
 });

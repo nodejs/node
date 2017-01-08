@@ -23,6 +23,6 @@ function test1() {
   } catch (e) {
     assert(e instanceof Done);
   }
-  assert.equal(ciphers, tls.DEFAULT_CIPHERS);
+  assert.strictEqual(ciphers, tls.DEFAULT_CIPHERS);
 }
 test1();

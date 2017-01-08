@@ -42,7 +42,7 @@ function makeRequest() {
 
   child.on('exit', function(code) {
     assert.ok(/DONE/.test(stderrBuffer));
-    assert.equal(0, code);
+    assert.strictEqual(0, code);
   });
 
   // The following two lines forward the stdio from the child
@@ -78,7 +78,7 @@ const server = https.Server(serverOptions, function(req, res) {
   });
 
   req.on('end', function() {
-    assert.equal(bytesExpected, uploadCount);
+    assert.strictEqual(bytesExpected, uploadCount);
     res.writeHead(200, {'content-type': 'text/plain'});
     res.end('successful upload\n');
   });
@@ -91,5 +91,5 @@ server.listen(common.PORT, function() {
 
 process.on('exit', function() {
   console.error('got %d bytes', uploadCount);
-  assert.equal(uploadCount, bytesExpected);
+  assert.strictEqual(uploadCount, bytesExpected);
 });

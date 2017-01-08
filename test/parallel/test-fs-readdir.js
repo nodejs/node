@@ -31,5 +31,5 @@ assert.throws(function() {
 }, /Error: ENOTDIR: not a directory/);
 
 fs.readdir(__filename, common.mustCall(function(e) {
-  assert.equal(e.code, 'ENOTDIR');
+  assert.strictEqual(e.code, 'ENOTDIR');
 }));

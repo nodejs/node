@@ -15,7 +15,7 @@ if (typeof process.getgroups === 'function') {
   exec('id -G', function(err, stdout) {
     if (err) throw err;
     const real_groups = stdout.match(/\d+/g).map(Number);
-    assert.equal(groups.length, real_groups.length);
+    assert.strictEqual(groups.length, real_groups.length);
     check(groups, real_groups);
     check(real_groups, groups);
   });

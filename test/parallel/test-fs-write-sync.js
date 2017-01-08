@@ -20,4 +20,4 @@ written = fs.writeSync(fd, Buffer.from(bar), 0, Buffer.byteLength(bar));
 assert.ok(written > 3);
 fs.closeSync(fd);
 
-assert.equal(fs.readFileSync(fn), 'foobár');
+assert.strictEqual(fs.readFileSync(fn, 'utf8'), 'foobár');

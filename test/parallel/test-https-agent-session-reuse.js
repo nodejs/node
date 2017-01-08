@@ -117,14 +117,14 @@ process.on('exit', function() {
   assert.strictEqual(serverRequests, 6);
   assert.strictEqual(clientSessions['first'].toString('hex'),
                      clientSessions['first-reuse'].toString('hex'));
-  assert.notEqual(clientSessions['first'].toString('hex'),
-                  clientSessions['cipher-change'].toString('hex'));
-  assert.notEqual(clientSessions['first'].toString('hex'),
-                  clientSessions['before-drop'].toString('hex'));
-  assert.notEqual(clientSessions['cipher-change'].toString('hex'),
-                  clientSessions['before-drop'].toString('hex'));
-  assert.notEqual(clientSessions['before-drop'].toString('hex'),
-                  clientSessions['after-drop'].toString('hex'));
+  assert.notStrictEqual(clientSessions['first'].toString('hex'),
+                        clientSessions['cipher-change'].toString('hex'));
+  assert.notStrictEqual(clientSessions['first'].toString('hex'),
+                        clientSessions['before-drop'].toString('hex'));
+  assert.notStrictEqual(clientSessions['cipher-change'].toString('hex'),
+                        clientSessions['before-drop'].toString('hex'));
+  assert.notStrictEqual(clientSessions['before-drop'].toString('hex'),
+                        clientSessions['after-drop'].toString('hex'));
   assert.strictEqual(clientSessions['after-drop'].toString('hex'),
                      clientSessions['after-drop-reuse'].toString('hex'));
 });

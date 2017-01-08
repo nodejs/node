@@ -50,8 +50,8 @@ inputs.forEach(function(value, index) {
 setTimeout(common.mustCall(function() {
   // assert that all other timers have run
   inputs.forEach(function(value, index) {
-    assert(timeouts[index]);
-    assert(intervals[index]);
+    assert.strictEqual(true, timeouts[index]);
+    assert.strictEqual(true, intervals[index]);
   });
 }), 2);
 

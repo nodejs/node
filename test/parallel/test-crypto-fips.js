@@ -47,10 +47,10 @@ function testHelper(stream, args, expectedOutput, cmd, env) {
 
   function responseHandler(buffer, expectedOutput) {
     const response = buffer.toString();
-    assert.notEqual(0, response.length);
+    assert.notStrictEqual(0, response.length);
     if (FIPS_ENABLED !== expectedOutput && FIPS_DISABLED !== expectedOutput) {
       // In the case of expected errors just look for a substring.
-      assert.notEqual(-1, response.indexOf(expectedOutput));
+      assert.notStrictEqual(-1, response.indexOf(expectedOutput));
     } else {
       // Normal path where we expect either FIPS enabled or disabled.
       assert.strictEqual(expectedOutput, Number(response));

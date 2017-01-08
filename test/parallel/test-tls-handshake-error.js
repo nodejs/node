@@ -25,7 +25,7 @@ const server = tls.createServer({
   });
 
   c.on('error', common.mustCall(function(err) {
-    assert.notEqual(err.code, 'ECONNRESET');
+    assert.notStrictEqual(err.code, 'ECONNRESET');
   }));
 
   c.on('close', common.mustCall(function(err) {

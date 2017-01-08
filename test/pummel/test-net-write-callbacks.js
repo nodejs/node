@@ -45,5 +45,5 @@ server.listen(common.PORT, function() {
 });
 
 process.on('exit', function() {
-  assert.equal(N, cbcount);
+  assert.strictEqual(N, cbcount);
 });

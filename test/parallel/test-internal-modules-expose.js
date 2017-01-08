@@ -4,4 +4,4 @@
 require('../common');
 const assert = require('assert');
 
-assert.equal(typeof require('internal/freelist').FreeList, 'function');
+assert.strictEqual(typeof require('internal/freelist').FreeList, 'function');

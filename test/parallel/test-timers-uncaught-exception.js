@@ -18,13 +18,13 @@ setTimeout(function() {
 console.error('set second timer');
 setTimeout(function() {
   console.error('second timer');
-  assert.equal(timer1, 1);
+  assert.strictEqual(timer1, 1);
   timer2++;
 }, 100);
 
 function uncaughtException(err) {
   console.error('uncaught handler');
-  assert.equal(err.message, 'BAM!');
+  assert.strictEqual(err.message, 'BAM!');
   exceptions++;
 }
 process.on('uncaughtException', uncaughtException);
@@ -34,7 +34,7 @@ process.on('exit', function() {
   assert(!exited);
   exited = true;
   process.removeListener('uncaughtException', uncaughtException);
-  assert.equal(exceptions, 1);
-  assert.equal(timer1, 1);
-  assert.equal(timer2, 1);
+  assert.strictEqual(exceptions, 1);
+  assert.strictEqual(timer1, 1);
+  assert.strictEqual(timer2, 1);
 });

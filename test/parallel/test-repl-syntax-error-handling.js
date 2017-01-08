@@ -27,7 +27,7 @@ function parent() {
     out += c;
   });
   child.stdout.on('end', function() {
-    assert.equal(out, '10\n');
+    assert.strictEqual(out, '10\n');
     console.log('ok - got expected output');
   });
 

@@ -6,7 +6,7 @@ const cp = require('child_process');
 // Verify that a shell is, in fact, executed
 const doesNotExist = cp.spawnSync('does-not-exist', {shell: true});
 
-assert.notEqual(doesNotExist.file, 'does-not-exist');
+assert.notStrictEqual(doesNotExist.file, 'does-not-exist');
 assert.strictEqual(doesNotExist.error, undefined);
 assert.strictEqual(doesNotExist.signal, null);
 

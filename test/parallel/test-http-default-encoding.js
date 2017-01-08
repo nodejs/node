@@ -33,5 +33,5 @@ server.listen(0, function() {
 });
 
 process.on('exit', function() {
-  assert.equal(expected, result);
+  assert.strictEqual(expected, result);
 });

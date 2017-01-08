@@ -72,7 +72,7 @@ fs.access(__filename, fs.R_OK, common.mustCall((err) => {
 }));
 
 fs.access(doesNotExist, common.mustCall((err) => {
-  assert.notEqual(err, null, 'error should exist');
+  assert.notStrictEqual(err, null, 'error should exist');
   assert.strictEqual(err.code, 'ENOENT');
   assert.strictEqual(err.path, doesNotExist);
 }));
@@ -85,7 +85,7 @@ fs.access(readOnlyFile, fs.W_OK, common.mustCall((err) => {
   if (hasWriteAccessForReadonlyFile) {
     assert.ifError(err);
   } else {
-    assert.notEqual(err, null, 'error should exist');
+    assert.notStrictEqual(err, null, 'error should exist');
     assert.strictEqual(err.path, readOnlyFile);
   }
 }));

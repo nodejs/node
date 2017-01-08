@@ -30,8 +30,8 @@ const server = net.createServer(function(socket) {
 }).listen(0, function() {
   function makeRequest() {
     const req = http.get({port: server.address().port}, function(res) {
-      assert.equal(req.shouldKeepAlive, SHOULD_KEEP_ALIVE[responses],
-                   SERVER_RESPONSES[responses] + ' should ' +
+      assert.strictEqual(req.shouldKeepAlive, SHOULD_KEEP_ALIVE[responses],
+                         SERVER_RESPONSES[responses] + ' should ' +
                    (SHOULD_KEEP_ALIVE[responses] ? '' : 'not ') +
                    'Keep-Alive');
       ++responses;
@@ -48,6 +48,6 @@ const server = net.createServer(function(socket) {
 });
 
 process.on('exit', function() {
-  assert.equal(requests, SERVER_RESPONSES.length);
-  assert.equal(responses, SHOULD_KEEP_ALIVE.length);
+  assert.strictEqual(requests, SERVER_RESPONSES.length);
+  assert.strictEqual(responses, SHOULD_KEEP_ALIVE.length);
 });

@@ -36,7 +36,7 @@ const server = http.Server(function(req, res) {
   });
   req.resume();
 
-  //assert.equal('127.0.0.1', res.connection.remoteAddress);
+  //assert.strictEqual('127.0.0.1', res.connection.remoteAddress);
 });
 server.listen(0);
 

@@ -23,7 +23,7 @@ const web = http.Server(function(req, res) {
     process.stdout.write(',');
     measuredSize += d.length;
     for (let j = 0; j < d.length; j++) {
-      assert.equal(buffer[i], d[j]);
+      assert.strictEqual(buffer[i], d[j]);
       i++;
     }
   });
@@ -54,7 +54,7 @@ web.listen(0, common.mustCall(function() {
     console.log('Got response');
     res.setEncoding('utf8');
     res.on('data', common.mustCall(function(string) {
-      assert.equal('thanks', string);
+      assert.strictEqual('thanks', string);
     }));
   }));
   req.end(buffer);
@@ -62,5 +62,5 @@ web.listen(0, common.mustCall(function() {
 
 
 process.on('exit', function() {
-  assert.equal(bufferSize, measuredSize);
+  assert.strictEqual(bufferSize, measuredSize);
 });

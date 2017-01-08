@@ -118,7 +118,7 @@ test(function serverRequestNotTimeoutAfterEnd(cb) {
 test(function serverResponseTimeoutWithPipeline(cb) {
   let caughtTimeout = '';
   process.on('exit', function() {
-    assert.equal(caughtTimeout, '/2');
+    assert.strictEqual(caughtTimeout, '/2');
   });
   const server = http.createServer(function(req, res) {
     const s = res.setTimeout(50, function() {

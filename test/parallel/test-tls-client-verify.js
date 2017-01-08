@@ -130,5 +130,5 @@ runTest(0);
 
 process.on('exit', function() {
   console.log('successful tests: %d', successfulTests);
-  assert.equal(successfulTests, testCases.length);
+  assert.strictEqual(successfulTests, testCases.length);
 });

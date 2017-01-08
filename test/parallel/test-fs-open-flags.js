@@ -12,21 +12,29 @@ const O_RDWR = fs.constants.O_RDWR || 0;
 const O_TRUNC = fs.constants.O_TRUNC || 0;
 const O_WRONLY = fs.constants.O_WRONLY || 0;
 
-assert.equal(fs._stringToFlags('r'), O_RDONLY);
-assert.equal(fs._stringToFlags('r+'), O_RDWR);
-assert.equal(fs._stringToFlags('w'), O_TRUNC | O_CREAT | O_WRONLY);
-assert.equal(fs._stringToFlags('w+'), O_TRUNC | O_CREAT | O_RDWR);
-assert.equal(fs._stringToFlags('a'), O_APPEND | O_CREAT | O_WRONLY);
-assert.equal(fs._stringToFlags('a+'), O_APPEND | O_CREAT | O_RDWR);
+assert.strictEqual(fs._stringToFlags('r'), O_RDONLY);
+assert.strictEqual(fs._stringToFlags('r+'), O_RDWR);
+assert.strictEqual(fs._stringToFlags('w'), O_TRUNC | O_CREAT | O_WRONLY);
+assert.strictEqual(fs._stringToFlags('w+'), O_TRUNC | O_CREAT | O_RDWR);
+assert.strictEqual(fs._stringToFlags('a'), O_APPEND | O_CREAT | O_WRONLY);
+assert.strictEqual(fs._stringToFlags('a+'), O_APPEND | O_CREAT | O_RDWR);
 
-assert.equal(fs._stringToFlags('wx'), O_TRUNC | O_CREAT | O_WRONLY | O_EXCL);
-assert.equal(fs._stringToFlags('xw'), O_TRUNC | O_CREAT | O_WRONLY | O_EXCL);
-assert.equal(fs._stringToFlags('wx+'), O_TRUNC | O_CREAT | O_RDWR | O_EXCL);
-assert.equal(fs._stringToFlags('xw+'), O_TRUNC | O_CREAT | O_RDWR | O_EXCL);
-assert.equal(fs._stringToFlags('ax'), O_APPEND | O_CREAT | O_WRONLY | O_EXCL);
-assert.equal(fs._stringToFlags('xa'), O_APPEND | O_CREAT | O_WRONLY | O_EXCL);
-assert.equal(fs._stringToFlags('ax+'), O_APPEND | O_CREAT | O_RDWR | O_EXCL);
-assert.equal(fs._stringToFlags('xa+'), O_APPEND | O_CREAT | O_RDWR | O_EXCL);
+assert.strictEqual(fs._stringToFlags('wx'),
+                   O_TRUNC | O_CREAT | O_WRONLY | O_EXCL);
+assert.strictEqual(fs._stringToFlags('xw'),
+                   O_TRUNC | O_CREAT | O_WRONLY | O_EXCL);
+assert.strictEqual(fs._stringToFlags('wx+'),
+                   O_TRUNC | O_CREAT | O_RDWR | O_EXCL);
+assert.strictEqual(fs._stringToFlags('xw+'),
+                   O_TRUNC | O_CREAT | O_RDWR | O_EXCL);
+assert.strictEqual(fs._stringToFlags('ax'),
+                   O_APPEND | O_CREAT | O_WRONLY | O_EXCL);
+assert.strictEqual(fs._stringToFlags('xa'),
+                   O_APPEND | O_CREAT | O_WRONLY | O_EXCL);
+assert.strictEqual(fs._stringToFlags('ax+'),
+                   O_APPEND | O_CREAT | O_RDWR | O_EXCL);
+assert.strictEqual(fs._stringToFlags('xa+'),
+                   O_APPEND | O_CREAT | O_RDWR | O_EXCL);
 
 ('+ +a +r +w rw wa war raw r++ a++ w++ x +x x+ rx rx+ wxx wax xwx xxx')
   .split(' ')

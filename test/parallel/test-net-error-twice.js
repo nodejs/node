@@ -38,5 +38,5 @@ const srv = net.createServer(function onConnection(conn) {
 
 process.on('exit', function() {
   console.log(errs);
-  assert.equal(errs.length, 1);
+  assert.strictEqual(errs.length, 1);
 });

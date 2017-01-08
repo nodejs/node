@@ -137,7 +137,7 @@ function makeReq(path, port, error, host, ca) {
 
   req.on('response', function(res) {
     responseCount++;
-    assert.equal(res.connection.authorizationError, error);
+    assert.strictEqual(res.connection.authorizationError, error);
     responseErrors[path] = res.connection.authorizationError;
     pending--;
     if (pending === 0) {
@@ -197,8 +197,8 @@ function allListening() {
 
 process.on('exit', function() {
   console.error(responseErrors);
-  assert.equal(server1.requests.length, server1.expectCount);
-  assert.equal(server2.requests.length, server2.expectCount);
-  assert.equal(server3.requests.length, server3.expectCount);
-  assert.equal(responseCount, expectResponseCount);
+  assert.strictEqual(server1.requests.length, server1.expectCount);
+  assert.strictEqual(server2.requests.length, server2.expectCount);
+  assert.strictEqual(server3.requests.length, server3.expectCount);
+  assert.strictEqual(responseCount, expectResponseCount);
 });

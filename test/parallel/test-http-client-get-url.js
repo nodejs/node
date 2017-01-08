@@ -4,8 +4,8 @@ const assert = require('assert');
 const http = require('http');
 
 const server = http.createServer(common.mustCall(function(req, res) {
-  assert.equal('GET', req.method);
-  assert.equal('/foo?bar', req.url);
+  assert.strictEqual('GET', req.method);
+  assert.strictEqual('/foo?bar', req.url);
   res.writeHead(200, {'Content-Type': 'text/plain'});
   res.write('hello\n');
   res.end();

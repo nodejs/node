@@ -31,7 +31,7 @@ server.listen(common.PORT, '127.0.0.1', function() {
       res.resume();
     });
 
-    assert.equal(req.agent, agent);
+    assert.strictEqual(req.agent, agent);
 
     console.log('Socket: ' + agent.sockets[addrString].length + '/' +
                 agent.maxSockets + ' queued: ' + (agent.requests[addrString] ?

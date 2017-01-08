@@ -11,7 +11,7 @@ let last_ts = 0;
 const f = function(i) {
   if (i <= N) {
     // check order
-    assert.equal(i, last_i + 1, 'order is broken: ' + i + ' != ' +
+    assert.strictEqual(i, last_i + 1, 'order is broken: ' + i + ' != ' +
                  last_i + ' + 1');
     last_i = i;
 

@@ -45,8 +45,8 @@ function testRegularMode() {
 }
 
 process.on('exit', function() {
-  assert.equal(terminalExit, 1);
-  assert.equal(regularExit, 1);
+  assert.strictEqual(terminalExit, 1);
+  assert.strictEqual(regularExit, 1);
 });
 
 

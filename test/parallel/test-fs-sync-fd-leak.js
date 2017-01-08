@@ -10,7 +10,7 @@ fs.openSync = function() {
 
 let close_called = 0;
 fs.closeSync = function(fd) {
-  assert.equal(fd, 42);
+  assert.strictEqual(fd, 42);
   close_called++;
 };
 fs.readSync = function() {
@@ -41,10 +41,10 @@ function ensureThrows(cb) {
   try {
     cb();
   } catch (e) {
-    assert.equal(e.message, 'BAM');
+    assert.strictEqual(e.message, 'BAM');
     got_exception = true;
   }
 
-  assert.equal(close_called, 1);
-  assert.equal(got_exception, true);
+  assert.strictEqual(close_called, 1);
+  assert.strictEqual(got_exception, true);
 }

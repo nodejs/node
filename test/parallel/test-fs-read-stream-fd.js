@@ -18,5 +18,5 @@ stream.on('data', function(data) {
 
 process.on('exit', function() {
   fs.unlinkSync(file);
-  assert.equal(output, input);
+  assert.strictEqual(output, input);
 });

@@ -10,4 +10,4 @@ while (files.length < 256)
   files.push(fs.openSync(__filename, 'r'));
 
 const r = process.memoryUsage();
-assert.equal(true, r['rss'] > 0);
+assert.strictEqual(true, r['rss'] > 0);

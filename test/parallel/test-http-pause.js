@@ -50,6 +50,6 @@ server.listen(0, function() {
 });
 
 process.on('exit', function() {
-  assert.equal(expectedServer, resultServer);
-  assert.equal(expectedClient, resultClient);
+  assert.strictEqual(expectedServer, resultServer);
+  assert.strictEqual(expectedClient, resultClient);
 });

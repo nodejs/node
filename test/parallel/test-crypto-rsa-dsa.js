@@ -124,7 +124,7 @@ function test_rsa(padding) {
     key: rsaKeyPem,
     padding: padding
   }, encryptedBuffer);
-  assert.equal(input, decryptedBuffer.toString());
+  assert.strictEqual(input.toString(), decryptedBuffer.toString());
 }
 
 test_rsa('RSA_NO_PADDING');
@@ -139,8 +139,8 @@ assert.ok(rsaVerify);
 
 rsaSign.update(rsaPubPem);
 let rsaSignature = rsaSign.sign(rsaKeyPem, 'hex');
-assert.equal(rsaSignature,
-             '5c50e3145c4e2497aadb0eabc83b342d0b0021ece0d4c4a064b7c' +
+assert.strictEqual(rsaSignature,
+                   '5c50e3145c4e2497aadb0eabc83b342d0b0021ece0d4c4a064b7c' +
              '8f020d7e2688b122bfb54c724ac9ee169f83f66d2fe90abeb95e8' +
              'e1290e7e177152a4de3d944cf7d4883114a20ed0f78e70e25ef0f' +
              '60f06b858e6af42a2f276ede95bbc6bc9a9bbdda15bd663186a6f' +
@@ -156,8 +156,8 @@ assert.doesNotThrow(function() {
   const signOptions = { key: rsaKeyPemEncrypted, passphrase: 'password' };
   rsaSignature = rsaSign.sign(signOptions, 'hex');
 });
-assert.equal(rsaSignature,
-             '5c50e3145c4e2497aadb0eabc83b342d0b0021ece0d4c4a064b7c' +
+assert.strictEqual(rsaSignature,
+                   '5c50e3145c4e2497aadb0eabc83b342d0b0021ece0d4c4a064b7c' +
              '8f020d7e2688b122bfb54c724ac9ee169f83f66d2fe90abeb95e8' +
              'e1290e7e177152a4de3d944cf7d4883114a20ed0f78e70e25ef0f' +
              '60f06b858e6af42a2f276ede95bbc6bc9a9bbdda15bd663186a6f' +

@@ -24,7 +24,7 @@ function run() {
   console.log('# %s', name);
   fn({
     same: assert.deepStrictEqual,
-    equal: assert.equal,
+    equal: assert.strictEqual,
     end: function() {
       count--;
       run();
@@ -41,7 +41,7 @@ function bufferListFromArray(arr) {
 
 // ensure all tests have run
 process.on('exit', function() {
-  assert.equal(count, 0);
+  assert.strictEqual(count, 0);
 });
 
 process.nextTick(run);

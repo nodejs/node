@@ -20,13 +20,13 @@ function test8(clazz) {
   data[1] = 23;
   data[2] = 23;
   data[3] = 23;
-  assert.equal(23, data.readUInt8(0));
-  assert.equal(23, data.readUInt8(1));
-  assert.equal(23, data.readUInt8(2));
-  assert.equal(23, data.readUInt8(3));
+  assert.strictEqual(23, data.readUInt8(0));
+  assert.strictEqual(23, data.readUInt8(1));
+  assert.strictEqual(23, data.readUInt8(2));
+  assert.strictEqual(23, data.readUInt8(3));
 
   data[0] = 255; /* If it became a signed int, would be -1 */
-  assert.equal(255, data.readUInt8(0));
+  assert.strictEqual(255, data.readUInt8(0));
 }
 
 
@@ -45,17 +45,17 @@ function test16(clazz) {
   data[1] = 0x23;
   data[2] = 0x42;
   data[3] = 0x3f;
-  assert.equal(0x23, data.readUInt16BE(0));
-  assert.equal(0x2342, data.readUInt16BE(1));
-  assert.equal(0x423f, data.readUInt16BE(2));
-  assert.equal(0x2300, data.readUInt16LE(0));
-  assert.equal(0x4223, data.readUInt16LE(1));
-  assert.equal(0x3f42, data.readUInt16LE(2));
+  assert.strictEqual(0x23, data.readUInt16BE(0));
+  assert.strictEqual(0x2342, data.readUInt16BE(1));
+  assert.strictEqual(0x423f, data.readUInt16BE(2));
+  assert.strictEqual(0x2300, data.readUInt16LE(0));
+  assert.strictEqual(0x4223, data.readUInt16LE(1));
+  assert.strictEqual(0x3f42, data.readUInt16LE(2));
 
   data[0] = 0xfe;
   data[1] = 0xfe;
-  assert.equal(0xfefe, data.readUInt16BE(0));
-  assert.equal(0xfefe, data.readUInt16LE(0));
+  assert.strictEqual(0xfefe, data.readUInt16BE(0));
+  assert.strictEqual(0xfefe, data.readUInt16LE(0));
 }
 
 
@@ -75,12 +75,12 @@ function test32(clazz) {
   data[3] = 0x56;
   data[4] = 0x23;
   data[5] = 0xff;
-  assert.equal(0x32654256, data.readUInt32BE(0));
-  assert.equal(0x65425623, data.readUInt32BE(1));
-  assert.equal(0x425623ff, data.readUInt32BE(2));
-  assert.equal(0x56426532, data.readUInt32LE(0));
-  assert.equal(0x23564265, data.readUInt32LE(1));
-  assert.equal(0xff235642, data.readUInt32LE(2));
+  assert.strictEqual(0x32654256, data.readUInt32BE(0));
+  assert.strictEqual(0x65425623, data.readUInt32BE(1));
+  assert.strictEqual(0x425623ff, data.readUInt32BE(2));
+  assert.strictEqual(0x56426532, data.readUInt32LE(0));
+  assert.strictEqual(0x23564265, data.readUInt32LE(1));
+  assert.strictEqual(0xff235642, data.readUInt32LE(2));
 }
 
 

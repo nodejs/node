@@ -83,7 +83,7 @@ demoBug('POST /1/22 HTTP/1.1\r\n' +
 /* eslint-enable align-function-arguments */
 
 process.on('exit', function() {
-  assert.equal(2, headersComplete);
-  assert.equal(2, messagesComplete);
+  assert.strictEqual(2, headersComplete);
+  assert.strictEqual(2, messagesComplete);
   console.log('done!');
 });

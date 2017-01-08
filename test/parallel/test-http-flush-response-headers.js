@@ -20,7 +20,7 @@ server.listen(0, common.localhostIPv4, function() {
   req.end();
 
   function onResponse(res) {
-    assert.equal(res.headers['foo'], 'bar');
+    assert.strictEqual(res.headers['foo'], 'bar');
     res.destroy();
     server.close();
   }

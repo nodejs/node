@@ -67,8 +67,8 @@ assert.deepStrictEqual(
 // stream interface should produce the same result.
 assert.deepStrictEqual(a5, a3, 'stream interface is consistent');
 assert.deepStrictEqual(a6, a3, 'stream interface is consistent');
-assert.notEqual(a7, undefined, 'no data should return data');
-assert.notEqual(a8, undefined, 'empty string should generate data');
+assert.notStrictEqual(a7, undefined, 'no data should return data');
+assert.notStrictEqual(a8, undefined, 'empty string should generate data');
 
 // Test multiple updates to same hash
 const h1 = crypto.createHash('sha1').update('Test123').digest('hex');
@@ -100,7 +100,7 @@ assert.strictEqual(
     '4b21bbd1a68e690a730ddcb5a8bc94ead9879ffe82580767ad7ec6fa8ba2dea6' +
         '43a821af66afa9a45b6a78c712fecf0e56dc7f43aef4bcfc8eb5b4d8dca6ea5b');
 
-assert.notEqual(
+assert.notStrictEqual(
     hutf8,
     crypto.createHash('sha512').update('УТФ-8 text', 'latin1').digest('hex'));
 

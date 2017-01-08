@@ -16,10 +16,10 @@ fs.read(fd,
         expected.length,
         0,
         common.mustCall(function(err, bytesRead) {
-          assert.equal(bytesRead, expected.length);
+          assert.strictEqual(bytesRead, expected.length);
           assert.deepStrictEqual(bufferAsync, Buffer.from(expected));
         }));
 
 const r = fs.readSync(fd, bufferSync, 0, expected.length, 0);
 assert.deepStrictEqual(bufferSync, Buffer.from(expected));
-assert.equal(r, expected.length);
+assert.strictEqual(r, expected.length);

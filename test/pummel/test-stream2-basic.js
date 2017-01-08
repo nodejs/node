@@ -87,7 +87,7 @@ function run() {
   fn({
     same: assert.deepStrictEqual,
     ok: assert,
-    equal: assert.equal,
+    equal: assert.strictEqual,
     end: function() {
       count--;
       run();
@@ -97,7 +97,7 @@ function run() {
 
 // ensure all tests have run
 process.on('exit', function() {
-  assert.equal(count, 0);
+  assert.strictEqual(count, 0);
 });
 
 process.nextTick(run);
@@ -314,7 +314,7 @@ test('back pressure respected', function(t) {
   const w1 = new R();
   w1.write = function(chunk) {
     console.error('w1.emit("close")');
-    assert.equal(chunk[0], 'one');
+    assert.strictEqual(chunk[0], 'one');
     w1.emit('close');
     process.nextTick(function() {
       r.pipe(w2);
@@ -330,8 +330,8 @@ test('back pressure respected', function(t) {
   let w2 = new R();
   w2.write = function(chunk) {
     console.error('w2 write', chunk, counter);
-    assert.equal(chunk[0], expected.shift());
-    assert.equal(counter, 0);
+    assert.strictEqual(chunk[0], expected.shift());
+    assert.strictEqual(counter, 0);
 
     counter++;
 
@@ -352,8 +352,8 @@ test('back pressure respected', function(t) {
   let w3 = new R();
   w3.write = function(chunk) {
     console.error('w3 write', chunk, counter);
-    assert.equal(chunk[0], expected.shift());
-    assert.equal(counter, 1);
+    assert.strictEqual(chunk[0], expected.shift());
+    assert.strictEqual(counter, 1);
 
     counter++;
 
@@ -370,8 +370,8 @@ test('back pressure respected', function(t) {
     return false;
   };
   w3.end = function() {
-    assert.equal(counter, 2);
-    assert.equal(expected.length, 0);
+    assert.strictEqual(counter, 2);
+    assert.strictEqual(expected.length, 0);
     t.end();
   };
 });
@@ -387,19 +387,19 @@ test('read(0) for ended streams', function(t) {
 
   const v = r.read(0);
 
-  assert.equal(v, null);
+  assert.strictEqual(v, null);
 
   const w = new R();
 
   w.write = function(buffer) {
     written = true;
-    assert.equal(ended, false);
-    assert.equal(buffer.toString(), 'foo');
+    assert.strictEqual(ended, false);
+    assert.strictEqual(buffer.toString(), 'foo');
   };
 
   w.end = function() {
     ended = true;
-    assert.equal(written, true);
+    assert.strictEqual(written, true);
     t.end();
   };
 
@@ -420,7 +420,7 @@ test('sync _read ending', function(t) {
   r.read();
 
   process.nextTick(function() {
-    assert.equal(called, true);
+    assert.strictEqual(called, true);
     t.end();
   });
 });
