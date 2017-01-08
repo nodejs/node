@@ -16,7 +16,7 @@ assert.notStrictEqual(newuid, olduid, 'uids expected to be different');
 try {
   process.setuid('nobody1234');
 } catch (e) {
-  assert.equal(e.message,
+  assert.strictEqual(e.message,
                'failed to resolve group',
                'unexpected error message'
   );

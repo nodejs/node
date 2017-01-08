@@ -13,7 +13,7 @@ const server = http.createServer((req, res) => {
 });
 server.on('clientError', common.mustCall((err, socket) => {
   assert(/^Parse Error/.test(err.message));
-  assert.equal(err.code, 'HPE_UNEXPECTED_CONTENT_LENGTH');
+  assert.strictEqual(err.code, 'HPE_UNEXPECTED_CONTENT_LENGTH');
   socket.destroy();
 }));
 

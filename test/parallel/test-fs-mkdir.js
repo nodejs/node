@@ -33,8 +33,8 @@ common.refreshTmpDir();
   unlink(pathname);
 
   fs.mkdir(pathname, 0o777, common.mustCall(function(err) {
-    assert.equal(err, null);
-    assert.equal(common.fileExists(pathname), true);
+    assert.strictEqual(err, null);
+    assert.strictEqual(common.fileExists(pathname), true);
   }));
 
   process.on('exit', function() {

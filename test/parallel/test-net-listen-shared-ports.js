@@ -10,11 +10,11 @@ if (cluster.isMaster) {
   const worker1 = cluster.fork();
 
   worker1.on('message', function(msg) {
-    assert.equal(msg, 'success');
+    assert.strictEqual(msg, 'success');
     const worker2 = cluster.fork();
 
     worker2.on('message', function(msg) {
-      assert.equal(msg, 'server2:EADDRINUSE');
+      assert.strictEqual(msg, 'server2:EADDRINUSE');
       worker1.kill();
       worker2.kill();
     });

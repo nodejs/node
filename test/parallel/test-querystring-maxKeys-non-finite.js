@@ -47,9 +47,9 @@ const resultInfinityString = parse(params, undefined, undefined, {
 const resultNaNString = parse(params, undefined, undefined, {maxKeys: 'NaN'});
 
 // Non Finite maxKeys should return the length of input
-assert.equal(Object.keys(resultInfinity).length, count);
-assert.equal(Object.keys(resultNaN).length, count);
+assert.strictEqual(Object.keys(resultInfinity).length, count);
+assert.strictEqual(Object.keys(resultNaN).length, count);
 // Strings maxKeys should return the maxLength
 // defined by parses internals
-assert.equal(Object.keys(resultInfinityString).length, originalMaxLength);
-assert.equal(Object.keys(resultNaNString).length, originalMaxLength);
+assert.strictEqual(Object.keys(resultInfinityString).length, originalMaxLength);
+assert.strictEqual(Object.keys(resultNaNString).length, originalMaxLength);

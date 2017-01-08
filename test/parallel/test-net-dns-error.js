@@ -12,11 +12,11 @@ function do_not_call() {
 
 const socket = net.connect(42, host, do_not_call);
 socket.on('error', common.mustCall(function(err) {
-  assert.equal(err.code, 'ENOTFOUND');
+  assert.strictEqual(err.code, 'ENOTFOUND');
 }));
 socket.on('lookup', function(err, ip, type) {
   assert(err instanceof Error);
-  assert.equal(err.code, 'ENOTFOUND');
-  assert.equal(ip, undefined);
-  assert.equal(type, undefined);
+  assert.strictEqual(err.code, 'ENOTFOUND');
+  assert.strictEqual(ip, undefined);
+  assert.strictEqual(type, undefined);
 });

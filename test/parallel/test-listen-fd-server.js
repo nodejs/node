@@ -38,8 +38,8 @@ test(function(child, port) {
     res.on('end', function() {
       child.kill();
       child.on('exit', function() {
-        assert.equal(s, 'hello from child\n');
-        assert.equal(res.statusCode, 200);
+        assert.strictEqual(s, 'hello from child\n');
+        assert.strictEqual(res.statusCode, 200);
         console.log('ok');
         ok = true;
       });

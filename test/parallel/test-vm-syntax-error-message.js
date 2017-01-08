@@ -22,5 +22,5 @@ p.stdout.on('data', function(data) {
 });
 
 process.on('exit', function() {
-  assert.equal(output.replace(/[\r\n]+/g, ''), 'boo');
+  assert.strictEqual(output.replace(/[\r\n]+/g, ''), 'boo');
 });

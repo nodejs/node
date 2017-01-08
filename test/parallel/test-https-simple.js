@@ -52,7 +52,7 @@ server.listen(0, function() {
     });
 
     res.on('end', function() {
-      assert.equal(responseBody, body);
+      assert.strictEqual(responseBody, body);
       testSucceeded();
     });
   });
@@ -82,11 +82,11 @@ server.listen(0, function() {
   checkCertReq.end();
 
   checkCertReq.on('error', function(e) {
-    assert.equal(e.code, 'UNABLE_TO_VERIFY_LEAF_SIGNATURE');
+    assert.strictEqual(e.code, 'UNABLE_TO_VERIFY_LEAF_SIGNATURE');
     testSucceeded();
   });
 });
 
 process.on('exit', function() {
-  assert.equal(successful, tests);
+  assert.strictEqual(successful, tests);
 });

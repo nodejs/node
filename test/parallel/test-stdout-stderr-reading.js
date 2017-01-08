@@ -36,7 +36,7 @@ function parent() {
   c1.on('close', common.mustCall(function(code, signal) {
     assert(!code);
     assert(!signal);
-    assert.equal(c1out, 'ok\n');
+    assert.strictEqual(c1out, 'ok\n');
     console.log('ok');
   }));
 
@@ -53,7 +53,7 @@ function parent() {
   c2.on('close', common.mustCall(function(code, signal) {
     assert(!code);
     assert(!signal);
-    assert.equal(c2out, 'ok\n');
+    assert.strictEqual(c2out, 'ok\n');
     console.log('ok');
   }));
 }

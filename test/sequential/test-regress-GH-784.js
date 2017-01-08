@@ -21,7 +21,7 @@ const server = http.createServer(function(req, res) {
   });
 
   req.on('end', function() {
-    assert.equal('PING', body);
+    assert.strictEqual('PING', body);
     res.writeHead(200);
     res.end('PONG');
   });
@@ -96,7 +96,7 @@ function ping() {
     });
 
     res.on('end', function() {
-      assert.equal('PONG', body);
+      assert.strictEqual('PONG', body);
       assert.ok(!hadError);
       gotEnd = true;
       afterPing('success');
@@ -128,5 +128,5 @@ process.on('exit', function() {
   console.error("process.on('exit')");
   console.error(responses);
 
-  assert.equal(8, responses.length);
+  assert.strictEqual(8, responses.length);
 });

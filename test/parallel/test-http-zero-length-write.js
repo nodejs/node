@@ -47,7 +47,7 @@ const server = http.createServer(function(req, res) {
     actual += c;
   });
   req.on('end', function() {
-    assert.equal(actual, expect);
+    assert.strictEqual(actual, expect);
     getSrc().pipe(res);
   });
   server.close();
@@ -62,7 +62,7 @@ server.listen(0, function() {
       actual += c;
     });
     res.on('end', function() {
-      assert.equal(actual, expect);
+      assert.strictEqual(actual, expect);
     });
   });
   getSrc().pipe(req);

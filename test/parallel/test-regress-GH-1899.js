@@ -14,6 +14,6 @@ child.stdout.on('data', function(data) {
 });
 
 child.on('exit', function(code, signal) {
-  assert.equal(code, 0);
-  assert.equal(output, 'hello, world!\n');
+  assert.strictEqual(code, 0);
+  assert.strictEqual(output, 'hello, world!\n');
 });

@@ -30,7 +30,7 @@ let stderr = '';
 
 fork(__filename, opts)
   .on('exit', common.mustCall(function(status) {
-    assert.equal(status, 0, 'client did not succeed in connecting');
+    assert.strictEqual(status, 0, 'client did not succeed in connecting');
   }))
   .on('close', common.mustCall(function() {
     assert(stderr.match(new RegExp(

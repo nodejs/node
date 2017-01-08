@@ -27,13 +27,13 @@ net.createServer(function(c) {
     }).on('error', function(e) {
       console.log('got error from client');
       assert.ok(e.message.indexOf('Parse Error') >= 0);
-      assert.equal(e.code, 'HPE_INVALID_CONSTANT');
+      assert.strictEqual(e.code, 'HPE_INVALID_CONSTANT');
       parseErrors++;
     }).end();
   }
 });
 
 process.on('exit', function() {
-  assert.equal(connects, 2);
-  assert.equal(parseErrors, 2);
+  assert.strictEqual(connects, 2);
+  assert.strictEqual(parseErrors, 2);
 });

@@ -24,8 +24,9 @@ for (const attr in attrs) {
     const url = new URL(test.href);
     url[attr] = test.new_value;
     for (const test_attr in test.expected) {
-      assert.equal(test.expected[test_attr], url[test_attr],
-                   `${n} ${attr} ${test_attr} ${test.href} ${test.comment}`);
+      assert.strictEqual(test.expected[test_attr], url[test_attr],
+                         `${n} ${attr} ${test_attr} ` +
+                         `${test.href} ${test.comment}`);
     }
   }
 }

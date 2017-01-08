@@ -66,7 +66,7 @@ server.listen(0, function() {
   client.stdout.on('data', function(data) {
     const message = data.toString();
     const contents = message.split(CRLF + CRLF).pop();
-    assert.equal(body, contents);
+    assert.strictEqual(body, contents);
     server.close();
   });
 

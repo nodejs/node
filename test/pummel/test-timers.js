@@ -10,7 +10,7 @@ let interval_count = 0;
 clearTimeout(null);
 clearInterval(null);
 
-assert.equal(true, setTimeout instanceof Function);
+assert.strictEqual(true, setTimeout instanceof Function);
 const starttime = new Date();
 setTimeout(common.mustCall(function() {
   const endtime = new Date();
@@ -19,11 +19,11 @@ setTimeout(common.mustCall(function() {
   assert.ok(diff > 0);
   console.error('diff: ' + diff);
 
-  assert.equal(true, 1000 - WINDOW < diff && diff < 1000 + WINDOW);
+  assert.strictEqual(true, 1000 - WINDOW < diff && diff < 1000 + WINDOW);
 }), 1000);
 
 // this timer shouldn't execute
-const id = setTimeout(function() { assert.equal(true, false); }, 500);
+const id = setTimeout(function() { assert.strictEqual(true, false); }, 500);
 clearTimeout(id);
 
 setInterval(function() {
@@ -36,9 +36,9 @@ setInterval(function() {
 
   const t = interval_count * 1000;
 
-  assert.equal(true, t - WINDOW < diff && diff < t + WINDOW);
+  assert.strictEqual(true, t - WINDOW < diff && diff < t + WINDOW);
 
-  assert.equal(true, interval_count <= 3);
+  assert.strictEqual(true, interval_count <= 3);
   if (interval_count === 3)
     clearInterval(this);
 }, 1000);
@@ -46,13 +46,13 @@ setInterval(function() {
 
 // Single param:
 setTimeout(function(param) {
-  assert.equal('test param', param);
+  assert.strictEqual('test param', param);
 }, 1000, 'test param');
 
 let interval_count2 = 0;
 setInterval(function(param) {
   ++interval_count2;
-  assert.equal('test param', param);
+  assert.strictEqual('test param', param);
 
   if (interval_count2 === 3)
     clearInterval(this);
@@ -61,15 +61,15 @@ setInterval(function(param) {
 
 // Multiple param
 setTimeout(function(param1, param2) {
-  assert.equal('param1', param1);
-  assert.equal('param2', param2);
+  assert.strictEqual('param1', param1);
+  assert.strictEqual('param2', param2);
 }, 1000, 'param1', 'param2');
 
 let interval_count3 = 0;
 setInterval(function(param1, param2) {
   ++interval_count3;
-  assert.equal('param1', param1);
-  assert.equal('param2', param2);
+  assert.strictEqual('param1', param1);
+  assert.strictEqual('param2', param2);
 
   if (interval_count3 === 3)
     clearInterval(this);
@@ -99,7 +99,8 @@ clearTimeout(y);
 
 
 process.on('exit', function() {
-  assert.equal(3, interval_count);
-  assert.equal(11, count4);
-  assert.equal(0, expectedTimeouts, 'clearTimeout cleared too many timeouts');
+  assert.strictEqual(3, interval_count);
+  assert.strictEqual(11, count4);
+  assert.strictEqual(0, expectedTimeouts,
+                     'clearTimeout cleared too many timeouts');
 });

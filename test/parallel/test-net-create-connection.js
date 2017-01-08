@@ -102,5 +102,5 @@ server.on('close', function() {
 });
 
 process.on('exit', function() {
-  assert.equal(clientConnected, expectedConnections);
+  assert.strictEqual(clientConnected, expectedConnections);
 });

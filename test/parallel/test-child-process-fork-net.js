@@ -153,7 +153,7 @@ if (process.argv[2] === 'child') {
       });
       connect.on('close', function() {
         console.log('CLIENT: closed');
-        assert.equal(store, 'echo');
+        assert.strictEqual(store, 'echo');
         server.close();
       });
     });

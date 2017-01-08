@@ -12,22 +12,22 @@ const traceWarn = ['--trace-warnings', warnmod];
 
 execFile(node, normal, function(er, stdout, stderr) {
   // Show Process Warnings
-  assert.equal(er, null);
-  assert.equal(stdout, '');
+  assert.strictEqual(er, null);
+  assert.strictEqual(stdout, '');
   assert(/^\(.+\)\sWarning: a bad practice warning/.test(stderr));
 });
 
 execFile(node, noWarn, function(er, stdout, stderr) {
   // Hide Process Warnings
-  assert.equal(er, null);
-  assert.equal(stdout, '');
+  assert.strictEqual(er, null);
+  assert.strictEqual(stdout, '');
   assert(!/^\(.+\)\sWarning: a bad practice warning/.test(stderr));
 });
 
 execFile(node, traceWarn, function(er, stdout, stderr) {
   // Show Warning Trace
-  assert.equal(er, null);
-  assert.equal(stdout, '');
+  assert.strictEqual(er, null);
+  assert.strictEqual(stdout, '');
   assert(/^\(.+\)\sWarning: a bad practice warning/.test(stderr));
   assert(/at Object\.<anonymous>\s\(.+warnings.js:3:9\)/.test(stderr));
 });

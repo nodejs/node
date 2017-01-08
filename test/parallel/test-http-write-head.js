@@ -25,7 +25,8 @@ const s = http.createServer(function(req, res) {
     res.setHeader('foo', undefined);
   } catch (e) {
     assert.ok(e instanceof Error);
-    assert.equal(e.message, '"value" required in setHeader("foo", value)');
+    assert.strictEqual(e.message,
+                       '"value" required in setHeader("foo", value)');
     threw = true;
   }
   assert.ok(threw, 'Undefined value should throw');
@@ -39,7 +40,7 @@ s.listen(0, runTest);
 function runTest() {
   http.get({ port: this.address().port }, function(response) {
     response.on('end', function() {
-      assert.equal(response.headers['test'], '2');
+      assert.strictEqual(response.headers['test'], '2');
       assert.notStrictEqual(response.rawHeaders.indexOf('Test'), -1);
       s.close();
     });

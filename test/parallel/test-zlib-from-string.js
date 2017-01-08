@@ -34,8 +34,8 @@ const expectedBase64Gzip = 'H4sIAAAAAAAAA11RS05DMQy8yhzg6d2BPSAkJPZu4laWkjiN4' +
                            'sHnHNzRtagj5AQAA';
 
 zlib.deflate(inputString, function(err, buffer) {
-  assert.equal(buffer.toString('base64'), expectedBase64Deflate,
-               'deflate encoded string should match');
+  assert.strictEqual(buffer.toString('base64'), expectedBase64Deflate,
+                     'deflate encoded string should match');
 });
 
 zlib.gzip(inputString, function(err, buffer) {
@@ -46,19 +46,19 @@ zlib.gzip(inputString, function(err, buffer) {
   // result that we're expecting, and this should match what we get
   // from inflating the known valid deflate data.
   zlib.gunzip(buffer, function(err, gunzipped) {
-    assert.equal(gunzipped.toString(), inputString,
-                 'Should get original string after gzip/gunzip');
+    assert.strictEqual(gunzipped.toString(), inputString,
+                       'Should get original string after gzip/gunzip');
   });
 });
 
 let buffer = Buffer.from(expectedBase64Deflate, 'base64');
 zlib.unzip(buffer, function(err, buffer) {
-  assert.equal(buffer.toString(), inputString,
-               'decoded inflated string should match');
+  assert.strictEqual(buffer.toString(), inputString,
+                     'decoded inflated string should match');
 });
 
 buffer = Buffer.from(expectedBase64Gzip, 'base64');
 zlib.unzip(buffer, function(err, buffer) {
-  assert.equal(buffer.toString(), inputString,
-               'decoded gunzipped string should match');
+  assert.strictEqual(buffer.toString(), inputString,
+                     'decoded gunzipped string should match');
 });

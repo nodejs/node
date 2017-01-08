@@ -23,7 +23,7 @@ const server = net.createServer(function(socket) {
 
   socket.on('close', function(had_error) {
     console.log('SERVER had_error: ' + JSON.stringify(had_error));
-    assert.equal(false, had_error);
+    assert.strictEqual(false, had_error);
   });
 });
 
@@ -40,7 +40,7 @@ server.listen(0, function() {
   client.on('data', function(chunk) {
     client_recv_count += 1;
     console.log('client_recv_count ' + client_recv_count);
-    assert.equal('hello\r\n', chunk);
+    assert.strictEqual('hello\r\n', chunk);
     console.error('CLIENT: calling end', client._writableState);
     client.end();
   });
@@ -52,7 +52,7 @@ server.listen(0, function() {
 
   client.on('close', function(had_error) {
     console.log('CLIENT disconnect');
-    assert.equal(false, had_error);
+    assert.strictEqual(false, had_error);
     if (disconnect_count++ < N)
       client.connect(server.address().port); // reconnect
     else
@@ -61,7 +61,7 @@ server.listen(0, function() {
 });
 
 process.on('exit', function() {
-  assert.equal(N + 1, disconnect_count);
-  assert.equal(N + 1, client_recv_count);
-  assert.equal(N + 1, client_end_count);
+  assert.strictEqual(N + 1, disconnect_count);
+  assert.strictEqual(N + 1, client_recv_count);
+  assert.strictEqual(N + 1, client_end_count);
 });

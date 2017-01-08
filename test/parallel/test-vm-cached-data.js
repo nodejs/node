@@ -32,7 +32,7 @@ function produce(source, count) {
     console.log(data);
   `, source]);
 
-  assert.equal(out.status, 0, out.stderr + '');
+  assert.strictEqual(out.status, 0, out.stderr + '');
 
   return Buffer.from(out.stdout.toString(), 'base64');
 }
@@ -47,7 +47,7 @@ function testProduceConsume() {
     cachedData: data
   });
   assert(!script.cachedDataRejected);
-  assert.equal(script.runInThisContext()(), 'original');
+  assert.strictEqual(script.runInThisContext()(), 'original');
 }
 testProduceConsume();
 
@@ -68,7 +68,7 @@ function testRejectInvalid() {
     cachedData: data
   });
   assert(script.cachedDataRejected);
-  assert.equal(script.runInThisContext()(), 'invalid_1');
+  assert.strictEqual(script.runInThisContext()(), 'invalid_1');
 }
 testRejectInvalid();
 

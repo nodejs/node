@@ -154,5 +154,5 @@ out.on('data', function(c) {
 
 out.on('data', common.mustCall(function(c) {
   console.error('hash=%s', c);
-  assert.equal(c, inp._hash, 'hashes should match');
+  assert.strictEqual(c, inp._hash, 'hashes should match');
 }));
