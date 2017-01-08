@@ -14,7 +14,7 @@ const assert = require('assert');
  *  - Correctly interpreting values that are beyond the signed range as unsigned
  */
 function test8(clazz) {
-  var data = new clazz(4);
+  const data = new clazz(4);
 
   data[0] = 23;
   data[1] = 23;
@@ -39,7 +39,7 @@ function test8(clazz) {
  *  - Correctly interpreting values that are beyond the signed range as unsigned
  */
 function test16(clazz) {
-  var data = new clazz(4);
+  const data = new clazz(4);
 
   data[0] = 0;
   data[1] = 0x23;
@@ -67,7 +67,7 @@ function test16(clazz) {
  *  - Correctly interpreting values that are beyond the signed range as unsigned
  */
 function test32(clazz) {
-  var data = new clazz(8);
+  const data = new clazz(8);
 
   data[0] = 0x32;
   data[1] = 0x65;

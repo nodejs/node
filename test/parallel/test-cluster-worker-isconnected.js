@@ -4,7 +4,7 @@ const cluster = require('cluster');
 const assert = require('assert');
 
 if (cluster.isMaster) {
-  var worker = cluster.fork();
+  const worker = cluster.fork();
 
   assert.ok(worker.isConnected(),
             'isConnected() should return true as soon as the worker has ' +

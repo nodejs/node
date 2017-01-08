@@ -17,9 +17,9 @@ const https = require('https');
 
 const fs = require('fs');
 
-var bytesExpected = 1024 * 1024 * 32;
+const bytesExpected = 1024 * 1024 * 32;
 
-var started = false;
+let started = false;
 
 const childScript = require('path').join(common.fixturesDir,
                                          'GH-892-request.js');
@@ -28,17 +28,17 @@ function makeRequest() {
   if (started) return;
   started = true;
 
-  var stderrBuffer = '';
+  let stderrBuffer = '';
 
   // Pass along --trace-deprecation/--throw-deprecation in
   // process.execArgv to track down nextTick recursion errors
   // more easily.  Also, this is handy when using this test to
   // view V8 opt/deopt behavior.
-  var args = process.execArgv.concat([ childScript,
-                                       common.PORT,
-                                       bytesExpected ]);
+  const args = process.execArgv.concat([ childScript,
+                                         common.PORT,
+                                         bytesExpected ]);
 
-  var child = spawn(process.execPath, args);
+  const child = spawn(process.execPath, args);
 
   child.on('exit', function(code) {
     assert.ok(/DONE/.test(stderrBuffer));
@@ -59,14 +59,14 @@ function makeRequest() {
 }
 
 
-var serverOptions = {
+const serverOptions = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
-var uploadCount = 0;
+let uploadCount = 0;
 
-var server = https.Server(serverOptions, function(req, res) {
+const server = https.Server(serverOptions, function(req, res) {
   // Close the server immediately. This test is only doing a single upload.
   // We need to make sure the server isn't keeping the event loop alive
   // while the upload is in progress.

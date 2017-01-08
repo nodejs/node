@@ -3,9 +3,9 @@ require('../common');
 const assert = require('assert');
 const http = require('http');
 
-var test = 1;
+let test = 1;
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   res.writeHead(200, {'Content-Type': 'text/plain'});
   if (test === 1) {
     // write should accept string

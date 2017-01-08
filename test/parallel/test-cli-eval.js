@@ -14,7 +14,7 @@ const nodejs = '"' + process.execPath + '"';
 
 // replace \ by / because windows uses backslashes in paths, but they're still
 // interpreted as the escape character when put between quotes.
-var filename = __filename.replace(/\\/g, '/');
+const filename = __filename.replace(/\\/g, '/');
 
 // assert that nothing is written to stdout
 child.exec(nodejs + ' --eval 42',
@@ -32,7 +32,7 @@ child.exec(nodejs + ' --eval "console.error(42)"',
 
 // assert that the expected output is written to stdout
 ['--print', '-p -e', '-pe', '-p'].forEach(function(s) {
-  var cmd = nodejs + ' ' + s + ' ';
+  const cmd = nodejs + ' ' + s + ' ';
 
   child.exec(cmd + '42',
              function(err, stdout, stderr) {

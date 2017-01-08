@@ -13,7 +13,7 @@ switch (process.argv[2]) {
   case 'child': return child();
 }
 
-var ok;
+let ok;
 
 process.on('exit', function() {
   assert.ok(ok);
@@ -31,7 +31,7 @@ test(function(child, port) {
     port: port,
     path: '/',
   }).on('response', function(res) {
-    var s = '';
+    let s = '';
     res.on('data', function(c) {
       s += c.toString();
     });
@@ -67,7 +67,7 @@ function child() {
 }
 
 function test(cb) {
-  var server = net.createServer(function(conn) {
+  const server = net.createServer(function(conn) {
     console.error('connection on parent');
     conn.end('hello from parent\n');
   }).listen(0, function() {
@@ -75,7 +75,7 @@ function test(cb) {
     console.error('server listening on %d', port);
 
     const spawn = require('child_process').spawn;
-    var child = spawn(process.execPath, [__filename, 'child'], {
+    const child = spawn(process.execPath, [__filename, 'child'], {
       stdio: [ 0, 1, 2, server._handle, 'ipc' ]
     });
 

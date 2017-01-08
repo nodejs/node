@@ -34,13 +34,13 @@ if (cluster.isWorker) {
   const master = fork(process.argv[1], ['cluster']);
 
   // get pid info
-  var pid = null;
+  let pid = null;
   master.once('message', (data) => {
     pid = data.pid;
   });
 
   // When master is dead
-  var alive = true;
+  let alive = true;
   master.on('exit', common.mustCall((code) => {
 
     // make sure that the master died on purpose

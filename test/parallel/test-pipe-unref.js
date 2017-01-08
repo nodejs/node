@@ -4,7 +4,7 @@ const net = require('net');
 
 common.refreshTmpDir();
 
-var s = net.Server();
+const s = net.Server();
 s.listen(common.PIPE);
 s.unref();
 

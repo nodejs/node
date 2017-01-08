@@ -11,7 +11,7 @@ const tls = require('tls');
 function Done() {}
 
 function test1() {
-  var ciphers = '';
+  let ciphers = '';
 
   tls.createSecureContext = function(options) {
     ciphers = options.ciphers;

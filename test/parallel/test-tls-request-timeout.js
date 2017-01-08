@@ -10,13 +10,13 @@ const tls = require('tls');
 
 const fs = require('fs');
 
-var options = {
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
-var server = tls.Server(options, common.mustCall(function(socket) {
-  var s = socket.setTimeout(100);
+const server = tls.Server(options, common.mustCall(function(socket) {
+  const s = socket.setTimeout(100);
   assert.ok(s instanceof tls.TLSSocket);
 
   socket.on('timeout', common.mustCall(function(err) {

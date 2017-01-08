@@ -2,7 +2,7 @@
 require('../common');
 const assert = require('assert');
 
-var order = [];
+const order = [];
 process.nextTick(function() {
   setTimeout(function() {
     order.push('setTimeout');

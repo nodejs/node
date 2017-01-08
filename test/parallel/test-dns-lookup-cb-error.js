@@ -11,7 +11,7 @@ cares.getaddrinfo = function() {
 };
 
 assert.doesNotThrow(() => {
-  var tickValue = 0;
+  let tickValue = 0;
 
   dns.lookup('example.com', common.mustCall((error, result, addressType) => {
     assert(error);

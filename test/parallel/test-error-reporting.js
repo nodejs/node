@@ -5,8 +5,8 @@ const exec = require('child_process').exec;
 const path = require('path');
 
 function errExec(script, callback) {
-  var cmd = '"' + process.argv[0] + '" "' +
-            path.join(common.fixturesDir, script) + '"';
+  const cmd = '"' + process.argv[0] + '" "' +
+              path.join(common.fixturesDir, script) + '"';
   return exec(cmd, function(err, stdout, stderr) {
     // There was some error
     assert.ok(err);

@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
 const net = require('net');
-var server = net.createServer();
+const server = net.createServer();
 
 // unref before listening
 server.unref();

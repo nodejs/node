@@ -3,10 +3,10 @@ const common = require('../common');
 const http = require('http');
 const url = require('url');
 
-var server = http.createServer(common.mustCall(function(req, res) {
+const server = http.createServer(common.mustCall(function(req, res) {
   res.end();
 })).listen(0, '127.0.0.1', common.mustCall(function() {
-  var opts = url.parse(`http://127.0.0.1:${this.address().port}/`);
+  const opts = url.parse(`http://127.0.0.1:${this.address().port}/`);
 
   // remove the `protocol` field… the `http` module should fall back
   // to "http:", as defined by the global, default `http.Agent` instance.

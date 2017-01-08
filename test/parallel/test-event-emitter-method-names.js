@@ -3,7 +3,7 @@ require('../common');
 const assert = require('assert');
 const events = require('events');
 
-var E = events.EventEmitter.prototype;
+const E = events.EventEmitter.prototype;
 assert.strictEqual(E.constructor.name, 'EventEmitter');
 assert.strictEqual(E.on, E.addListener);  // Same method.
 Object.getOwnPropertyNames(E).forEach(function(name) {

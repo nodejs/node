@@ -12,15 +12,15 @@ const https = require('https');
 const tls = require('tls');
 const fs = require('fs');
 
-var options = {
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
-var server = https.createServer(options, common.fail);
+const server = https.createServer(options, common.fail);
 
 server.on('secureConnection', function(cleartext) {
-  var s = cleartext.setTimeout(50, function() {
+  const s = cleartext.setTimeout(50, function() {
     cleartext.destroy();
     server.close();
   });

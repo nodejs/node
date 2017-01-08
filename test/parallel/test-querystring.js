@@ -15,7 +15,7 @@ function createWithNoPrototype(properties) {
 // folding block, commented to pass gjslint
 // {{{
 // [ wonkyQS, canonicalQS, obj ]
-var qsTestCases = [
+const qsTestCases = [
   ['__proto__=1',
    '__proto__=1',
    createWithNoPrototype([{key: '__proto__', value: '1'}])],
@@ -56,7 +56,7 @@ var qsTestCases = [
 ];
 
 // [ wonkyQS, canonicalQS, obj ]
-var qsColonTestCases = [
+const qsColonTestCases = [
   ['foo:bar', 'foo:bar', {'foo': 'bar'}],
   ['foo:bar;foo:quux', 'foo:bar;foo:quux', {'foo': ['bar', 'quux']}],
   ['foo:1&bar:2;baz:quux',
@@ -67,9 +67,9 @@ var qsColonTestCases = [
 ];
 
 // [wonkyObj, qs, canonicalObj]
-var extendedFunction = function() {};
+const extendedFunction = function() {};
 extendedFunction.prototype = {a: 'b'};
-var qsWeirdObjects = [
+const qsWeirdObjects = [
   [{regexp: /./g}, 'regexp=', {'regexp': ''}],
   [{regexp: new RegExp('.', 'g')}, 'regexp=', {'regexp': ''}],
   [{fn: function() {}}, 'fn=', {'fn': ''}],
@@ -88,9 +88,9 @@ var qsWeirdObjects = [
 // }}}
 
 const vm = require('vm');
-var foreignObject = vm.runInNewContext('({"foo": ["bar", "baz"]})');
+const foreignObject = vm.runInNewContext('({"foo": ["bar", "baz"]})');
 
-var qsNoMungeTestCases = [
+const qsNoMungeTestCases = [
   ['', {}],
   ['foo=bar&foo=baz', {'foo': ['bar', 'baz']}],
   ['foo=bar&foo=baz', foreignObject],
@@ -232,7 +232,7 @@ assert.equal(
 function testUnlimitedKeys() {
   const query = {};
 
-  for (var i = 0; i < 2000; i++) query[i] = i;
+  for (let i = 0; i < 2000; i++) query[i] = i;
 
   const url = qs.stringify(query);
 
@@ -243,7 +243,7 @@ function testUnlimitedKeys() {
 testUnlimitedKeys();
 
 
-var b = qs.unescapeBuffer('%d3%f2Ug%1f6v%24%5e%98%cb' +
+const b = qs.unescapeBuffer('%d3%f2Ug%1f6v%24%5e%98%cb' +
                           '%0d%ac%a2%2f%9d%eb%d8%a2%e6');
 // <Buffer d3 f2 55 67 1f 36 76 24 5e 98 cb 0d ac a2 2f 9d eb d8 a2 e6>
 assert.equal(0xd3, b[0]);
@@ -280,13 +280,13 @@ check(qs.parse('a=a&b=b&c=c', null, null, { decodeURIComponent: demoDecode }),
 function demoEncode(str) {
   return str[0];
 }
-var obj = { aa: 'aa', bb: 'bb', cc: 'cc' };
+const obj = { aa: 'aa', bb: 'bb', cc: 'cc' };
 assert.equal(
   qs.stringify(obj, null, null, { encodeURIComponent: demoEncode }),
   'a=a&b=b&c=c');
 
 // test overriding .unescape
-var prevUnescape = qs.unescape;
+const prevUnescape = qs.unescape;
 qs.unescape = function(str) {
   return str.replace(/o/g, '_');
 };

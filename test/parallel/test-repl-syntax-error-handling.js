@@ -13,7 +13,7 @@ switch (process.argv[2]) {
 
 function parent() {
   const spawn = require('child_process').spawn;
-  var child = spawn(process.execPath, [__filename, 'child']);
+  const child = spawn(process.execPath, [__filename, 'child']);
 
   child.stderr.setEncoding('utf8');
   child.stderr.on('data', function(c) {
@@ -22,7 +22,7 @@ function parent() {
   });
 
   child.stdout.setEncoding('utf8');
-  var out = '';
+  let out = '';
   child.stdout.on('data', function(c) {
     out += c;
   });
@@ -39,10 +39,11 @@ function parent() {
 
 function child() {
   const vm = require('vm');
+  let caught;
   try {
     vm.runInThisContext('haf!@##&$!@$*!@', { displayErrors: false });
   } catch (er) {
-    var caught = true;
+    caught = true;
   }
   assert(caught);
   vm.runInThisContext('console.log(10)', { displayErrors: false });
