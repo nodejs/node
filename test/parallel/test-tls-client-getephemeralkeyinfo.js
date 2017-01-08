@@ -93,6 +93,6 @@ function testECDHE512() {
 testNOT_PFS();
 
 process.on('exit', function() {
-  assert.equal(ntests, nsuccess);
-  assert.equal(ntests, 5);
+  assert.strictEqual(ntests, nsuccess);
+  assert.strictEqual(ntests, 5);
 });

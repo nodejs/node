@@ -33,7 +33,7 @@ function test(decode, uncork, multi, next) {
     return function(er) {
       assert.ifError(er);
       counter++;
-      assert.equal(counter, expect);
+      assert.strictEqual(counter, expect);
     };
   }
 

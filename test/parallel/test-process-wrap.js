@@ -15,8 +15,8 @@ p.onexit = function(exitCode, signal) {
   p.close();
   pipe.readStart();
 
-  assert.equal(0, exitCode);
-  assert.equal(0, signal);
+  assert.strictEqual(0, exitCode);
+  assert.strictEqual('', signal);
 
   processExited = true;
 };

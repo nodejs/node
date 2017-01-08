@@ -6,7 +6,7 @@ const assert = require('assert');
 const domain = require('domain');
 
 process.on('exit', function(c) {
-  assert.equal(domain._stack.length, 0);
+  assert.strictEqual(domain._stack.length, 0);
 });
 
 domain.create().run(function() {

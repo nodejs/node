@@ -21,7 +21,7 @@ function doCheck(arg, check) {
     .stdout.on('data', function(chunk) {
       out += chunk;
     }).on('end', function() {
-      assert.equal(out.trim(), check);
+      assert.strictEqual(out.trim(), check);
     }).on('error', common.fail);
 }
 

@@ -45,7 +45,7 @@ function next() {
   // one to get the last byte
   let r = test.read();
   assert(r);
-  assert.equal(r.length, 1);
+  assert.strictEqual(r.length, 1);
   r = test.read();
-  assert.equal(r, null);
+  assert.strictEqual(r, null);
 }

@@ -18,13 +18,13 @@ server.on('listening', function() {
     path: '/hello',
     agent: agent
   }, function(res) {
-    assert.equal(res.statusCode, 200);
-    assert.equal(res.headers['x-date'], 'foo');
-    assert.equal(res.headers['x-connection'], 'bar');
-    assert.equal(res.headers['x-content-length'], 'baz');
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.headers['x-date'], 'foo');
+    assert.strictEqual(res.headers['x-connection'], 'bar');
+    assert.strictEqual(res.headers['x-content-length'], 'baz');
     assert(res.headers['date']);
-    assert.equal(res.headers['connection'], 'keep-alive');
-    assert.equal(res.headers['content-length'], '0');
+    assert.strictEqual(res.headers['connection'], 'keep-alive');
+    assert.strictEqual(res.headers['content-length'], '0');
     server.close();
     agent.destroy();
   });

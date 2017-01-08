@@ -63,7 +63,7 @@ function doTest(testOptions, callback) {
   server.on('resumeSession', function(id, callback) {
     ++resumeCount;
     assert.ok(session);
-    assert.equal(session.id.toString('hex'), id.toString('hex'));
+    assert.strictEqual(session.id.toString('hex'), id.toString('hex'));
 
     // Just to check that async really works there
     setTimeout(function() {
@@ -107,7 +107,7 @@ function doTest(testOptions, callback) {
           }
           common.fail(`code: ${code}, signal: ${signal}, output: ${err}`);
         }
-        assert.equal(code, 0);
+        assert.strictEqual(code, 0);
         server.close(common.mustCall(function() {
           setTimeout(callback, 100);
         }));
@@ -119,13 +119,13 @@ function doTest(testOptions, callback) {
 
   process.on('exit', function() {
     if (testOptions.tickets) {
-      assert.equal(requestCount, 6);
-      assert.equal(resumeCount, 0);
+      assert.strictEqual(requestCount, 6);
+      assert.strictEqual(resumeCount, 0);
     } else {
       // initial request + reconnect requests (5 times)
       assert.ok(session);
-      assert.equal(requestCount, 6);
-      assert.equal(resumeCount, 5);
+      assert.strictEqual(requestCount, 6);
+      assert.strictEqual(resumeCount, 5);
     }
   });
 }

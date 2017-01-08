@@ -135,7 +135,7 @@ if (process.argv[2] === 'child') {
   };
 
   process.on('exit', function() {
-    assert.equal(disconnected, count);
-    assert.equal(connected, count);
+    assert.strictEqual(disconnected, count);
+    assert.strictEqual(connected, count);
   });
 }

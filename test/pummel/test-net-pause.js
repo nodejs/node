@@ -31,11 +31,11 @@ server.on('listening', function() {
   setTimeout(function() {
     chars_recved = recv.length;
     console.log('pause at: ' + chars_recved);
-    assert.equal(true, chars_recved > 1);
+    assert.strictEqual(true, chars_recved > 1);
     client.pause();
     setTimeout(function() {
       console.log('resume at: ' + chars_recved);
-      assert.equal(chars_recved, recv.length);
+      assert.strictEqual(chars_recved, recv.length);
       client.resume();
 
       setTimeout(function() {
@@ -45,7 +45,7 @@ server.on('listening', function() {
 
         setTimeout(function() {
           console.log('resume at: ' + chars_recved);
-          assert.equal(chars_recved, recv.length);
+          assert.strictEqual(chars_recved, recv.length);
           client.resume();
 
         }, 500);
@@ -64,6 +64,6 @@ server.on('listening', function() {
 server.listen(common.PORT);
 
 process.on('exit', function() {
-  assert.equal(N, recv.length);
+  assert.strictEqual(N, recv.length);
   console.error('Exit');
 });

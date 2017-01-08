@@ -6,8 +6,8 @@ const assert = require('assert');
 let nexits = 0;
 
 process.on('exit', function(code) {
-  assert.equal(nexits++, 0);
-  assert.equal(code, 0);
+  assert.strictEqual(nexits++, 0);
+  assert.strictEqual(code, 0);
   process.exit();
 });
 

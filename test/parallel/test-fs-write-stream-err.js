@@ -33,14 +33,14 @@ fs.write = function() {
 
 fs.close = common.mustCall(function(fd_, cb) {
   console.error('fs.close', fd_, stream.fd);
-  assert.equal(fd_, stream.fd);
+  assert.strictEqual(fd_, stream.fd);
   process.nextTick(cb);
 });
 
 stream.on('error', common.mustCall(function(err_) {
   console.error('error handler');
-  assert.equal(stream.fd, null);
-  assert.equal(err_, err);
+  assert.strictEqual(stream.fd, null);
+  assert.strictEqual(err_, err);
 }));
 
 
@@ -48,6 +48,6 @@ stream.write(Buffer.allocUnsafe(256), function() {
   console.error('first cb');
   stream.write(Buffer.allocUnsafe(256), common.mustCall(function(err_) {
     console.error('second cb');
-    assert.equal(err_, err);
+    assert.strictEqual(err_, err);
   }));
 });

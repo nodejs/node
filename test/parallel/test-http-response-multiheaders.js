@@ -60,9 +60,9 @@ server.listen(0, common.mustCall(function() {
       common.mustCall(function(res) {
         if (++count === 2) server.close();
         for (const name of norepeat) {
-          assert.equal(res.headers[name], 'A');
+          assert.strictEqual(res.headers[name], 'A');
         }
-        assert.equal(res.headers['x-a'], 'A, B');
+        assert.strictEqual(res.headers['x-a'], 'A, B');
       })
     );
   }

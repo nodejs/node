@@ -9,7 +9,7 @@ let serverSocket = null;
 const server = http.createServer(function(req, res) {
   // They should all come in on the same server socket.
   if (serverSocket) {
-    assert.equal(req.socket, serverSocket);
+    assert.strictEqual(req.socket, serverSocket);
   } else {
     serverSocket = req.socket;
   }
@@ -45,7 +45,7 @@ function makeRequest(n) {
 
   req.on('socket', function(sock) {
     if (clientSocket) {
-      assert.equal(sock, clientSocket);
+      assert.strictEqual(sock, clientSocket);
     } else {
       clientSocket = sock;
     }
@@ -58,7 +58,7 @@ function makeRequest(n) {
       data += c;
     });
     res.on('end', function() {
-      assert.equal(data, '/' + n);
+      assert.strictEqual(data, '/' + n);
       setTimeout(function() {
         actualRequests++;
         makeRequest(n - 1);
@@ -68,6 +68,6 @@ function makeRequest(n) {
 }
 
 process.on('exit', function() {
-  assert.equal(actualRequests, expectRequests);
+  assert.strictEqual(actualRequests, expectRequests);
   console.log('ok');
 });

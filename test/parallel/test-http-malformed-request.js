@@ -31,5 +31,5 @@ server.on('listening', function() {
 });
 
 process.on('exit', function() {
-  assert.equal(nrequests_expected, nrequests_completed);
+  assert.strictEqual(nrequests_expected, nrequests_completed);
 });
