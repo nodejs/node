@@ -6,14 +6,14 @@ const http = require('http');
 // responds to a HEAD request with data to res.end,
 // it does not send any body.
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   res.writeHead(200);
   res.end('FAIL'); // broken: sends FAIL from hot path.
 });
 server.listen(0);
 
 server.on('listening', common.mustCall(function() {
-  var req = http.request({
+  const req = http.request({
     port: this.address().port,
     method: 'HEAD',
     path: '/'

@@ -7,14 +7,13 @@ const domain = require('domain');
 // cluster.schedulingPolicy = cluster.SCHED_RR;
 
 if (cluster.isWorker) {
-  var d = domain.create();
+  const d = domain.create();
   d.run(function() { });
 
   const http = require('http');
   http.Server(function() { }).listen(common.PORT, '127.0.0.1');
 
 } else if (cluster.isMaster) {
-  var worker;
 
   //Kill worker when listening
   cluster.on('listening', function() {
@@ -27,5 +26,5 @@ if (cluster.isWorker) {
   });
 
   //Create worker
-  worker = cluster.fork();
+  const worker = cluster.fork();
 }

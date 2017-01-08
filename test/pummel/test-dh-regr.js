@@ -8,9 +8,9 @@ if (!common.hasCrypto) {
 }
 const crypto = require('crypto');
 
-var p = crypto.createDiffieHellman(1024).getPrime();
+const p = crypto.createDiffieHellman(1024).getPrime();
 
-for (var i = 0; i < 2000; i++) {
+for (let i = 0; i < 2000; i++) {
   const a = crypto.createDiffieHellman(p);
   const b = crypto.createDiffieHellman(p);
 

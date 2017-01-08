@@ -5,13 +5,13 @@
 const common = require('../common');
 const net = require('net');
 
-var seconds = 5;
-var counter = 0;
+const seconds = 5;
+let counter = 0;
 
-var server = net.createServer(function(socket) {
+const server = net.createServer(function(socket) {
   socket.setTimeout((seconds / 2) * 1000, common.fail);
 
-  var interval = setInterval(function() {
+  const interval = setInterval(function() {
     counter++;
 
     if (counter === seconds) {
@@ -28,6 +28,6 @@ var server = net.createServer(function(socket) {
 
 
 server.listen(common.PORT, function() {
-  var s = net.connect(common.PORT);
+  const s = net.connect(common.PORT);
   s.pipe(process.stdout);
 });

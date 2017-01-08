@@ -10,7 +10,7 @@ if (process.argv[2] === 'child') {
   return;
 }
 
-var proc = spawn(process.execPath, [__filename, 'child'], {
+const proc = spawn(process.execPath, [__filename, 'child'], {
   stdio: ['ipc', 'inherit', 'inherit']
 });
 

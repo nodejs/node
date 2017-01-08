@@ -3,7 +3,7 @@ require('../common');
 const assert = require('assert');
 const cluster = require('cluster');
 
-var disconnected;
+let disconnected;
 
 process.on('exit', function() {
   assert(disconnected);

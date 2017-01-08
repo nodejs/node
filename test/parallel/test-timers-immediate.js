@@ -2,7 +2,6 @@
 const common = require('../common');
 const assert = require('assert');
 
-let immediateB;
 let immediateC;
 let immediateD;
 
@@ -13,7 +12,7 @@ setImmediate(common.mustCall(function() {
   clearImmediate(immediateB);
 }));
 
-immediateB = setImmediate(function() {
+const immediateB = setImmediate(function() {
   common.fail('this immediate should not run');
 });
 

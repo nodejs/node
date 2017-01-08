@@ -12,7 +12,7 @@ const args = [`--debug-port=${port}`, serverPath];
 const options = { stdio: ['inherit', 'inherit', 'pipe', 'ipc'] };
 const child = spawn(process.execPath, args, options);
 
-var expectedContent = [
+let expectedContent = [
   'Starting debugger agent.',
   'Debugger listening on 127.0.0.1:' + (port + 0),
   'Starting debugger agent.',
@@ -22,10 +22,10 @@ var expectedContent = [
 ].join(os.EOL);
 expectedContent += os.EOL; // the last line also contains an EOL character
 
-var debuggerAgentsOutput = '';
-var debuggerAgentsStarted = false;
+let debuggerAgentsOutput = '';
+let debuggerAgentsStarted = false;
 
-var pids;
+let pids;
 
 child.stderr.on('data', function(data) {
   const childStderrOutputString = data.toString();

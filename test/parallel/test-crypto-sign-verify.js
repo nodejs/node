@@ -10,8 +10,8 @@ if (!common.hasCrypto) {
 const crypto = require('crypto');
 
 // Test certificates
-var certPem = fs.readFileSync(common.fixturesDir + '/test_cert.pem', 'ascii');
-var keyPem = fs.readFileSync(common.fixturesDir + '/test_key.pem', 'ascii');
+const certPem = fs.readFileSync(common.fixturesDir + '/test_cert.pem', 'ascii');
+const keyPem = fs.readFileSync(common.fixturesDir + '/test_key.pem', 'ascii');
 
 // Test signing and verifying
 {

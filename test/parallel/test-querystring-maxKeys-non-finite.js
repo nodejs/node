@@ -13,7 +13,7 @@ https://github.com/expressjs/body-parser/
 blob/ed25264fb494cf0c8bc992b8257092cd4f694d5e/test/urlencoded.js#L636-L651
 */
 function createManyParams(count) {
-  var str = '';
+  let str = '';
 
   if (count === 0) {
     return str;
@@ -21,8 +21,8 @@ function createManyParams(count) {
 
   str += '0=0';
 
-  for (var i = 1; i < count; i++) {
-    var n = i.toString(36);
+  for (let i = 1; i < count; i++) {
+    const n = i.toString(36);
     str += '&' + n + '=' + n;
   }
 

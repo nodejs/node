@@ -10,13 +10,13 @@ if (common.isSunOS || common.isWindows || common.isAix) {
   return;
 }
 
-var dirname = common.tmpDir + '/cwd-does-not-exist-' + process.pid;
+const dirname = common.tmpDir + '/cwd-does-not-exist-' + process.pid;
 common.refreshTmpDir();
 fs.mkdirSync(dirname);
 process.chdir(dirname);
 fs.rmdirSync(dirname);
 
-var proc = spawn(process.execPath, ['--interactive']);
+const proc = spawn(process.execPath, ['--interactive']);
 proc.stdout.pipe(process.stdout);
 proc.stderr.pipe(process.stderr);
 proc.stdin.write('require("path");\n');

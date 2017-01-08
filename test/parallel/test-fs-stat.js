@@ -37,7 +37,7 @@ fs.open('.', 'r', undefined, common.mustCall(function(err, fd) {
 
 // fstatSync
 fs.open('.', 'r', undefined, common.mustCall(function(err, fd) {
-  var stats;
+  let stats;
   try {
     stats = fs.fstatSync(fd);
   } catch (err) {

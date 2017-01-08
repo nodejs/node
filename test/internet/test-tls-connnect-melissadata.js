@@ -9,7 +9,7 @@ if (!common.hasCrypto) {
 }
 
 const tls = require('tls');
-var socket = tls.connect(443, 'address.melissadata.net', function() {
+const socket = tls.connect(443, 'address.melissadata.net', function() {
   socket.resume();
   socket.destroy();
 });

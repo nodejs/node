@@ -6,14 +6,14 @@ const assert = require('assert');
 // where the server has ended the socket.
 
 const http = require('http');
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   setImmediate(function() {
     res.destroy();
   });
 });
 
 server.listen(0, function() {
-  var req = http.request({
+  const req = http.request({
     port: this.address().port,
     path: '/',
     method: 'POST'

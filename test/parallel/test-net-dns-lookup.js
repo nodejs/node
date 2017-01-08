@@ -3,7 +3,7 @@ const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
-var server = net.createServer(function(client) {
+const server = net.createServer(function(client) {
   client.end();
   server.close();
 });

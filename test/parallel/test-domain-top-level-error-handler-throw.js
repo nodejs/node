@@ -14,7 +14,7 @@ const internalExMessage = 'You should NOT see me';
 
 if (process.argv[2] === 'child') {
   const domain = require('domain');
-  var d = domain.create();
+  const d = domain.create();
 
   d.on('error', function() {
     throw new Error(domainErrHandlerExMessage);
@@ -29,8 +29,8 @@ if (process.argv[2] === 'child') {
   const fork = require('child_process').fork;
   const assert = require('assert');
 
-  var child = fork(process.argv[1], ['child'], {silent: true});
-  var stderrOutput = '';
+  const child = fork(process.argv[1], ['child'], {silent: true});
+  let stderrOutput = '';
   if (child) {
     child.stderr.on('data', function onStderrData(data) {
       stderrOutput += data.toString();
@@ -45,8 +45,8 @@ if (process.argv[2] === 'child') {
     });
 
     child.on('exit', function onChildExited(exitCode, signal) {
-      var expectedExitCode = 7;
-      var expectedSignal = null;
+      const expectedExitCode = 7;
+      const expectedSignal = null;
 
       assert.strictEqual(exitCode, expectedExitCode);
       assert.strictEqual(signal, expectedSignal);

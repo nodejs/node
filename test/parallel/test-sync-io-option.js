@@ -12,9 +12,9 @@ if (process.argv[2] === 'child') {
 
 } else {
   (function runTest(flags) {
-    var execArgv = [flags.pop()];
-    var args = [__filename, 'child'];
-    var cntr = 0;
+    const execArgv = [flags.pop()];
+    let args = [__filename, 'child'];
+    let cntr = 0;
     args = execArgv.concat(args);
     if (!args[0]) args.shift();
     execFile(process.execPath, args, function(err, stdout, stderr) {

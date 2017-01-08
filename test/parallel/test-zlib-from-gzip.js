@@ -24,7 +24,7 @@ inp.pipe(gunzip).pipe(out);
 out.on('close', function() {
   const actual = fs.readFileSync(outputFile);
   assert.equal(actual.length, expect.length, 'length should match');
-  for (var i = 0, l = actual.length; i < l; i++) {
+  for (let i = 0, l = actual.length; i < l; i++) {
     assert.equal(actual[i], expect[i], 'byte[' + i + ']');
   }
 });

@@ -17,9 +17,9 @@ function getNoResultsFunction() {
   });
 }
 
-var works = [['inner.one'], 'inner.o'];
+const works = [['inner.one'], 'inner.o'];
 const putIn = new common.ArrayStream();
-var testMe = repl.start('', putIn);
+const testMe = repl.start('', putIn);
 
 // Some errors are passed to the domain, but do not callback
 testMe._domain.on('error', function(err) {
@@ -165,7 +165,7 @@ testMe.complete('str.len', common.mustCall(function(error, data) {
 putIn.run(['.clear']);
 
 // tab completion should not break on spaces
-var spaceTimeout = setTimeout(function() {
+const spaceTimeout = setTimeout(function() {
   throw new Error('timeout');
 }, 1000);
 

@@ -32,7 +32,7 @@ const server = net.createServer(function onClient(client) {
 });
 
 server.listen(0, common.localhostIPv4, function() {
-  var nbClientsEnded = 0;
+  let nbClientsEnded = 0;
 
   function addEndedClient(client) {
     ++nbClientsEnded;

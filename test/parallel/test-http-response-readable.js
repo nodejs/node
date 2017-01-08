@@ -3,7 +3,7 @@ require('../common');
 const assert = require('assert');
 const http = require('http');
 
-var testServer = new http.Server(function(req, res) {
+const testServer = new http.Server(function(req, res) {
   res.writeHead(200);
   res.end('Hello world');
 });

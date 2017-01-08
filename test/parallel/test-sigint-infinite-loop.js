@@ -8,9 +8,9 @@ const spawn = require('child_process').spawn;
 
 console.log('start');
 
-var c = spawn(process.execPath, ['-e', 'while(true) { console.log("hi"); }']);
+const c = spawn(process.execPath, ['-e', 'while(true) { console.log("hi"); }']);
 
-var sentKill = false;
+let sentKill = false;
 
 c.stdout.on('data', function(s) {
   // Prevent race condition:

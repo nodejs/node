@@ -71,9 +71,9 @@ function parent() {
 
 function test(arg, exit) {
   const spawn = require('child_process').spawn;
-  var node = process.execPath;
-  var f = __filename;
-  var option = { stdio: [ 0, 1, 'ignore' ] };
+  const node = process.execPath;
+  const f = __filename;
+  const option = { stdio: [ 0, 1, 'ignore' ] };
   spawn(node, [f, arg], option).on('exit', function(code) {
     assert.equal(code, exit, 'wrong exit for ' +
                  arg + '\nexpected:' + exit +
