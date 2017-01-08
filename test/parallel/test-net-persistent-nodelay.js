@@ -2,17 +2,17 @@
 require('../common');
 const assert = require('assert');
 const net = require('net');
-var TCPWrap = process.binding('tcp_wrap').TCP;
+const TCPWrap = process.binding('tcp_wrap').TCP;
 
-var echoServer = net.createServer(function(connection) {
+const echoServer = net.createServer(function(connection) {
   connection.end();
 });
 echoServer.listen(0);
 
-var callCount = 0;
+let callCount = 0;
 
-var Socket = net.Socket;
-var setNoDelay = TCPWrap.prototype.setNoDelay;
+const Socket = net.Socket;
+const setNoDelay = TCPWrap.prototype.setNoDelay;
 
 TCPWrap.prototype.setNoDelay = function(enable) {
   setNoDelay.call(this, enable);
@@ -20,11 +20,11 @@ TCPWrap.prototype.setNoDelay = function(enable) {
 };
 
 echoServer.on('listening', function() {
-  var sock1 = new Socket();
+  const sock1 = new Socket();
   // setNoDelay before the handle is created
   // there is probably a better way to test this
 
-  var s = sock1.setNoDelay();
+  const s = sock1.setNoDelay();
   assert.ok(s instanceof net.Socket);
   sock1.connect(this.address().port);
   sock1.on('end', function() {

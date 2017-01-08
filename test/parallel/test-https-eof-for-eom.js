@@ -19,13 +19,13 @@ const tls = require('tls');
 
 const fs = require('fs');
 
-var options = {
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
 
-var server = tls.Server(options, function(socket) {
+const server = tls.Server(options, function(socket) {
   console.log('2) Server got request');
   socket.write('HTTP/1.1 200 OK\r\n' +
                'Date: Tue, 15 Feb 2011 22:14:54 GMT\r\n' +
@@ -52,7 +52,7 @@ server.listen(0, common.mustCall(function() {
     port: this.address().port,
     rejectUnauthorized: false
   }, common.mustCall(function(res) {
-    var bodyBuffer = '';
+    let bodyBuffer = '';
 
     server.close();
     console.log('3) Client got response headers.');

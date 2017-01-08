@@ -158,7 +158,7 @@ assert.strictEqual(rsaVerify.verify(rsaPubPem, rsaSignature, 'hex'), true);
 rsaSign = crypto.createSign('RSA-SHA1');
 rsaSign.update(rsaPubPem);
 assert.doesNotThrow(() => {
-  var signOptions = { key: rsaKeyPemEncrypted, passphrase: 'password' };
+  const signOptions = { key: rsaKeyPemEncrypted, passphrase: 'password' };
   rsaSignature = rsaSign.sign(signOptions, 'hex');
 });
 assert.strictEqual(rsaSignature, expectedSignature);
@@ -170,7 +170,7 @@ assert.strictEqual(rsaVerify.verify(rsaPubPem, rsaSignature, 'hex'), true);
 rsaSign = crypto.createSign('RSA-SHA1');
 rsaSign.update(rsaPubPem);
 assert.throws(() => {
-  var signOptions = { key: rsaKeyPemEncrypted, passphrase: 'wrong' };
+  const signOptions = { key: rsaKeyPemEncrypted, passphrase: 'wrong' };
   rsaSign.sign(signOptions, 'hex');
 }, decryptError);
 

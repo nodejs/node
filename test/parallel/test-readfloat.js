@@ -9,7 +9,7 @@ const assert = require('assert');
  * Test (32 bit) float
  */
 function test(clazz) {
-  var buffer = new clazz(4);
+  const buffer = new clazz(4);
 
   buffer[0] = 0;
   buffer[1] = 0;

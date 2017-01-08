@@ -3,7 +3,7 @@ require('../common');
 const assert = require('assert');
 const events = require('events');
 
-var e = new events.EventEmitter();
+let e = new events.EventEmitter();
 
 // default
 for (let i = 0; i < 10; i++) {

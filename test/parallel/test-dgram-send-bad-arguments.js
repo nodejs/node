@@ -3,9 +3,9 @@ require('../common');
 const assert = require('assert');
 const dgram = require('dgram');
 
-var buf = Buffer.from('test');
-var host = '127.0.0.1';
-var sock = dgram.createSocket('udp4');
+const buf = Buffer.from('test');
+const host = '127.0.0.1';
+const sock = dgram.createSocket('udp4');
 
 assert.throws(function() {
   sock.send();

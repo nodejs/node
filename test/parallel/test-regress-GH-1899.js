@@ -4,10 +4,10 @@ const path = require('path');
 const assert = require('assert');
 const spawn = require('child_process').spawn;
 
-var child = spawn(process.argv[0], [
+const child = spawn(process.argv[0], [
   path.join(common.fixturesDir, 'GH-1899-output.js')
 ]);
-var output = '';
+let output = '';
 
 child.stdout.on('data', function(data) {
   output += data;

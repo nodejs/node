@@ -2,7 +2,7 @@
 const common = require('../common');
 const net = require('net');
 
-var s = net.createServer();
+const s = net.createServer();
 s.listen(0);
 s.unref();
 

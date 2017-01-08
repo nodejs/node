@@ -24,7 +24,7 @@ function run() {
   setImmediate(run);
 }
 
-for (var i = 0; i < QUEUE; i++)
+for (let i = 0; i < QUEUE; i++)
   setImmediate(run);
 
 process.on('exit', function() {

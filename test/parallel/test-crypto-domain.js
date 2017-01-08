@@ -10,12 +10,12 @@ if (!common.hasCrypto) {
 const crypto = require('crypto');
 
 function test(fn) {
-  var ex = new Error('BAM');
-  var d = domain.create();
+  const ex = new Error('BAM');
+  const d = domain.create();
   d.on('error', common.mustCall(function(err) {
     assert.strictEqual(err, ex);
   }));
-  var cb = common.mustCall(function() {
+  const cb = common.mustCall(function() {
     throw ex;
   });
   d.run(cb);

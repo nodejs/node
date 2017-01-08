@@ -20,7 +20,7 @@ readline.createInterface({
   }
 });
 
-var output = '';
+let output = '';
 
 oStream.on('data', function(data) {
   output += data;

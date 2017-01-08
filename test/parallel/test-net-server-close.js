@@ -3,8 +3,8 @@ require('../common');
 const assert = require('assert');
 const net = require('net');
 
-var events = [];
-var sockets = [];
+const events = [];
+const sockets = [];
 
 process.on('exit', function() {
   assert.equal(server.connections, 0);
@@ -15,7 +15,7 @@ process.on('exit', function() {
   assert.equal(events.join(' ').match(/client/g).length, 2);
 });
 
-var server = net.createServer(function(c) {
+const server = net.createServer(function(c) {
   c.on('close', function() {
     events.push('client');
   });

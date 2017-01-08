@@ -4,22 +4,22 @@ const assert = require('assert');
 
 const Writable = require('stream').Writable;
 
-var _writeCalled = false;
+let _writeCalled = false;
 function _write(d, e, n) {
   _writeCalled = true;
 }
 
-var w = new Writable({ write: _write });
+const w = new Writable({ write: _write });
 w.end(Buffer.from('blerg'));
 
-var _writevCalled = false;
-var dLength = 0;
+let _writevCalled = false;
+let dLength = 0;
 function _writev(d, n) {
   dLength = d.length;
   _writevCalled = true;
 }
 
-var w2 = new Writable({ writev: _writev });
+const w2 = new Writable({ writev: _writev });
 w2.cork();
 
 w2.write(Buffer.from('blerg'));

@@ -3,8 +3,8 @@ require('../common');
 const assert = require('assert');
 const spawn = require('child_process').spawn;
 
-var cat = spawn('cat');
-var called;
+const cat = spawn('cat');
+let called;
 
 assert.ok(process.kill(cat.pid, 0));
 

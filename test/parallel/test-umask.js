@@ -3,14 +3,14 @@ const common = require('../common');
 const assert = require('assert');
 
 // Note in Windows one can only set the "user" bits.
-var mask;
+let mask;
 if (common.isWindows) {
   mask = '0600';
 } else {
   mask = '0664';
 }
 
-var old = process.umask(mask);
+const old = process.umask(mask);
 
 assert.equal(parseInt(mask, 8), process.umask(old));
 

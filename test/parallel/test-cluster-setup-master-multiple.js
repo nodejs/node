@@ -13,7 +13,7 @@ function cheapClone(obj) {
   return JSON.parse(JSON.stringify(obj));
 }
 
-var configs = [];
+const configs = [];
 
 // Capture changes
 cluster.on('setup', function() {
@@ -21,7 +21,7 @@ cluster.on('setup', function() {
   configs.push(cheapClone(cluster.settings));
 });
 
-var execs = [
+const execs = [
   'node-next',
   'node-next-2',
   'node-next-3',

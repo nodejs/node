@@ -9,7 +9,7 @@ function check(request) {
   assert.strictEqual(request.headers.authorization, 'Basic dXNlcjpwYXNzOg==');
 }
 
-var server = http.createServer(function(request, response) {
+const server = http.createServer(function(request, response) {
   // run the check function
   check.call(this, request, response);
   response.writeHead(200, {});
@@ -20,7 +20,7 @@ var server = http.createServer(function(request, response) {
 server.listen(0, function() {
   const port = this.address().port;
   // username = "user", password = "pass:"
-  var testURL = url.parse(`http://user:pass%3A@localhost:${port}`);
+  const testURL = url.parse(`http://user:pass%3A@localhost:${port}`);
 
   // make the request
   http.request(testURL).end();

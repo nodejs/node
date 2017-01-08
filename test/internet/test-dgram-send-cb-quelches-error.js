@@ -1,12 +1,12 @@
 'use strict';
 const common = require('../common');
-var mustCall = common.mustCall;
+const mustCall = common.mustCall;
 const assert = require('assert');
 const dgram = require('dgram');
 const dns = require('dns');
 
-var socket = dgram.createSocket('udp4');
-var buffer = Buffer.from('gary busey');
+const socket = dgram.createSocket('udp4');
+const buffer = Buffer.from('gary busey');
 
 dns.setServers([]);
 

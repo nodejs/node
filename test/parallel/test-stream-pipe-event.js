@@ -16,14 +16,14 @@ function Readable() {
 }
 util.inherits(Readable, stream.Stream);
 
-var passed = false;
+let passed = false;
 
-var w = new Writable();
+const w = new Writable();
 w.on('pipe', function(src) {
   passed = true;
 });
 
-var r = new Readable();
+const r = new Readable();
 r.pipe(w);
 
 assert.ok(passed);

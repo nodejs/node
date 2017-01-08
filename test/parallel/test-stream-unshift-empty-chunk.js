@@ -6,9 +6,9 @@ const assert = require('assert');
 // stream.unshift('') does not set state.reading=false.
 const Readable = require('stream').Readable;
 
-var r = new Readable();
-var nChunks = 10;
-var chunk = Buffer.alloc(10, 'x');
+const r = new Readable();
+let nChunks = 10;
+const chunk = Buffer.alloc(10, 'x');
 
 r._read = function(n) {
   setImmediate(function() {
@@ -16,10 +16,10 @@ r._read = function(n) {
   });
 };
 
-var readAll = false;
-var seen = [];
+let readAll = false;
+const seen = [];
 r.on('readable', function() {
-  var chunk;
+  let chunk;
   while (chunk = r.read()) {
     seen.push(chunk.toString());
     // simulate only reading a certain amount of the data,
@@ -27,13 +27,13 @@ r.on('readable', function() {
     // stream, like a parser might do.  We just fill it with
     // 'y' so that it's easy to see which bits were touched,
     // and which were not.
-    var putBack = Buffer.alloc(readAll ? 0 : 5, 'y');
+    const putBack = Buffer.alloc(readAll ? 0 : 5, 'y');
     readAll = !readAll;
     r.unshift(putBack);
   }
 });
 
-var expect =
+const expect =
   [ 'xxxxxxxxxx',
     'yyyyy',
     'xxxxxxxxxx',

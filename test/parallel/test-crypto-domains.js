@@ -2,8 +2,8 @@
 const common = require('../common');
 const domain = require('domain');
 const assert = require('assert');
-var d = domain.create();
-var expect = ['pbkdf2', 'randomBytes', 'pseudoRandomBytes'];
+const d = domain.create();
+const expect = ['pbkdf2', 'randomBytes', 'pseudoRandomBytes'];
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');

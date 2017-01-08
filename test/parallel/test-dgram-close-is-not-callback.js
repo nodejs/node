@@ -2,9 +2,9 @@
 const common = require('../common');
 const dgram = require('dgram');
 
-var buf = Buffer.alloc(1024, 42);
+const buf = Buffer.alloc(1024, 42);
 
-var socket = dgram.createSocket('udp4');
+const socket = dgram.createSocket('udp4');
 
 socket.send(buf, 0, buf.length, common.PORT, 'localhost');
 

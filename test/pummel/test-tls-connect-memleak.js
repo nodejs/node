@@ -38,10 +38,10 @@ tls.createServer({
 }
 
 function done() {
-  var before = process.memoryUsage().rss;
+  const before = process.memoryUsage().rss;
   global.gc();
-  var after = process.memoryUsage().rss;
-  var reclaimed = (before - after) / 1024;
+  const after = process.memoryUsage().rss;
+  const reclaimed = (before - after) / 1024;
   console.log('%d kB reclaimed', reclaimed);
   assert(reclaimed > 256 * 1024);  // it's more like 512M on x64
   process.exit();

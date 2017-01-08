@@ -9,14 +9,14 @@ if (!common.hasCrypto) {
 }
 const https = require('https');
 
-var options = {
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
-var body = 'hello world\n';
+const body = 'hello world\n';
 
-var httpsServer = https.createServer(options, function(req, res) {
+const httpsServer = https.createServer(options, function(req, res) {
   res.on('finish', function() {
     assert.strictEqual(typeof req.connection.bytesWritten, 'number');
     assert(req.connection.bytesWritten > 0);

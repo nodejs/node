@@ -7,7 +7,7 @@ const http = require('http');
 // It is separate from test-http-malformed-request.js because it is only
 // reproduceable on the first packet on the first connection to a server.
 
-var server = http.createServer(function(req, res) {});
+const server = http.createServer(function(req, res) {});
 server.listen(0);
 
 server.on('listening', function() {

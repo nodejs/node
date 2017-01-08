@@ -2,9 +2,9 @@
 const common = require('../common');
 const http = require('http');
 
-var invalidLocalAddress = '1.2.3.4';
+const invalidLocalAddress = '1.2.3.4';
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   console.log('Connect from: ' + req.connection.remoteAddress);
 
   req.on('end', function() {

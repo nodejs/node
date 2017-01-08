@@ -11,11 +11,11 @@ function names(array) {
   }).join(', ');
 }
 
-var a = domain.create();
+const a = domain.create();
 a.name = 'a';
-var b = domain.create();
+const b = domain.create();
 b.name = 'b';
-var c = domain.create();
+const c = domain.create();
 c.name = 'c';
 
 a.enter(); // push

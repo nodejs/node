@@ -10,7 +10,7 @@ their environment when evaluated. When run in 0.10 `test()` fails with a
 
 function test() {
 
-  var code = [
+  const code = [
     'var foo = {m: 1};',
     '',
     'function bar() {',

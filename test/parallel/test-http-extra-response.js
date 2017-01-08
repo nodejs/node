@@ -8,8 +8,8 @@ const net = require('net');
 // node should ignore it and drop the connection.
 // Demos this bug: https://github.com/joyent/node/issues/680
 
-var body = 'hello world\r\n';
-var fullResponse =
+const body = 'hello world\r\n';
+const fullResponse =
     'HTTP/1.1 500 Internal Server Error\r\n' +
     'Content-Length: ' + body.length + '\r\n' +
     'Content-Type: text/plain\r\n' +
@@ -20,8 +20,8 @@ var fullResponse =
     '\r\n' +
     body;
 
-var server = net.createServer(function(socket) {
-  var postBody = '';
+const server = net.createServer(function(socket) {
+  let postBody = '';
 
   socket.setEncoding('utf8');
 
@@ -43,7 +43,7 @@ var server = net.createServer(function(socket) {
 
 server.listen(0, common.mustCall(function() {
   http.get({ port: this.address().port }, common.mustCall(function(res) {
-    var buffer = '';
+    let buffer = '';
     console.log('Got res code: ' + res.statusCode);
 
     res.setEncoding('utf8');

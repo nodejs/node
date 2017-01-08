@@ -19,7 +19,7 @@ common.refreshTmpDir();
       assert.strictEqual(expected.length, written);
       fs.closeSync(fd);
 
-      var found = fs.readFileSync(filename, 'utf8');
+      const found = fs.readFileSync(filename, 'utf8');
       assert.strictEqual(expected.toString(), found);
     });
 

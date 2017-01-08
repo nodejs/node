@@ -15,14 +15,14 @@ const FIPS_ERROR_STRING = 'Error: Cannot set FIPS mode';
 const OPTION_ERROR_STRING = 'bad option';
 const CNF_FIPS_ON = path.join(common.fixturesDir, 'openssl_fips_enabled.cnf');
 const CNF_FIPS_OFF = path.join(common.fixturesDir, 'openssl_fips_disabled.cnf');
-var num_children_ok = 0;
+let num_children_ok = 0;
 
 function compiledWithFips() {
   return process.config.variables.openssl_fips ? true : false;
 }
 
 function addToEnv(newVar, value) {
-  var envCopy = {};
+  const envCopy = {};
   for (const e in process.env) {
     envCopy[e] = process.env[e];
   }

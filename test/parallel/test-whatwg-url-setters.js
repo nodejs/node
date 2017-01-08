@@ -17,7 +17,7 @@ for (const attr in attrs) {
   if (attr === 'comment')
     continue;
   const tests = attrs[attr];
-  var n = 0;
+  let n = 0;
   for (const test of tests) {
     if (test.skip) continue;
     n++;

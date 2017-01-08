@@ -6,7 +6,7 @@ function enqueueMicrotask(fn) {
   Promise.resolve().then(fn);
 }
 
-var done = 0;
+let done = 0;
 
 process.on('exit', function() {
   assert.equal(done, 2);
@@ -22,7 +22,7 @@ setImmediate(function() {
 
 // no nextTick, microtask with nextTick
 setImmediate(function() {
-  var called = false;
+  let called = false;
 
   enqueueMicrotask(function() {
     process.nextTick(function() {

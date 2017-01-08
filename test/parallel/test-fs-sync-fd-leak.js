@@ -22,6 +22,7 @@ fs.fstatSync = function() {
   throw new Error('BAM');
 };
 
+let close_called = 0;
 ensureThrows(function() {
   fs.readFileSync('dummy');
 });
@@ -32,9 +33,8 @@ ensureThrows(function() {
   fs.appendFileSync('dummy', 'xxx');
 });
 
-var close_called = 0;
 function ensureThrows(cb) {
-  var got_exception = false;
+  let got_exception = false;
 
   close_called = 0;
   try {

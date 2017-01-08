@@ -6,7 +6,7 @@ const fs = require('fs');
 
 common.refreshTmpDir();
 
-var filename = path.join(common.tmpDir, 'watched');
+const filename = path.join(common.tmpDir, 'watched');
 fs.writeFileSync(filename, 'quis custodiet ipsos custodes');
 setTimeout(fs.unlinkSync, 100, filename);
 
