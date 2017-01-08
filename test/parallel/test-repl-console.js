@@ -6,7 +6,7 @@ const repl = require('repl');
 // Create a dummy stream that does nothing
 const stream = new common.ArrayStream();
 
-var r = repl.start({
+const r = repl.start({
   input: stream,
   output: stream,
   useGlobal: false

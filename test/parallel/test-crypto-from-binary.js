@@ -12,10 +12,10 @@ if (!common.hasCrypto) {
 }
 const crypto = require('crypto');
 
-var EXTERN_APEX = 0xFBEE9;
+const EXTERN_APEX = 0xFBEE9;
 
 // manually controlled string for checking binary output
-var ucs2_control = 'a\u0000';
+let ucs2_control = 'a\u0000';
 
 // grow the strings to proper length
 while (ucs2_control.length <= EXTERN_APEX) {
@@ -24,7 +24,7 @@ while (ucs2_control.length <= EXTERN_APEX) {
 
 
 // check resultant buffer and output string
-var b = Buffer.from(ucs2_control + ucs2_control, 'ucs2');
+const b = Buffer.from(ucs2_control + ucs2_control, 'ucs2');
 
 //
 // Test updating from birant data

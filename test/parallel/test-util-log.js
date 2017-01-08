@@ -6,14 +6,14 @@ const util = require('util');
 assert.ok(process.stdout.writable);
 assert.ok(process.stderr.writable);
 
-var stdout_write = global.process.stdout.write;
-var strings = [];
+const stdout_write = global.process.stdout.write;
+const strings = [];
 global.process.stdout.write = function(string) {
   strings.push(string);
 };
 console._stderr = process.stdout;
 
-var tests = [
+const tests = [
   {input: 'foo', output: 'foo'},
   {input: undefined, output: 'undefined'},
   {input: null, output: 'null'},

@@ -101,7 +101,7 @@ assert.ok(my_path.path_func instanceof Function);
 // this one does not exist and should throw
 assert.throws(function() { require('./utils'); });
 
-var errorThrown = false;
+let errorThrown = false;
 try {
   require('../fixtures/throws_error');
 } catch (e) {
@@ -113,7 +113,7 @@ assert.strictEqual(require('path').dirname(__filename), __dirname);
 
 console.error('load custom file types with extensions');
 require.extensions['.test'] = function(module, filename) {
-  var content = fs.readFileSync(filename).toString();
+  let content = fs.readFileSync(filename).toString();
   assert.strictEqual('this is custom source\n', content);
   content = content.replace('this is custom source',
                             'exports.test = \'passed\'');
@@ -193,8 +193,8 @@ assert.deepStrictEqual(json, {
 // modules that we've required, and that all of them contain
 // the appropriate children, and so on.
 
-var children = module.children.reduce(function red(set, child) {
-  var id = path.relative(path.dirname(__dirname), child.id);
+const children = module.children.reduce(function red(set, child) {
+  let id = path.relative(path.dirname(__dirname), child.id);
   id = id.replace(/\\/g, '/');
   set[id] = child.children.reduce(red, {});
   return set;

@@ -15,12 +15,12 @@ const fs = require('fs');
 const url = require('url');
 const URL = url.URL;
 
-var options = {
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
-var server = https.createServer(options, common.mustCall(function(req, res) {
+const server = https.createServer(options, common.mustCall(function(req, res) {
   assert.equal('GET', req.method);
   assert.equal('/foo?bar', req.url);
   res.writeHead(200, {'Content-Type': 'text/plain'});

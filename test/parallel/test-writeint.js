@@ -6,7 +6,7 @@ require('../common');
 const assert = require('assert');
 
 function test8(clazz) {
-  var buffer = new clazz(2);
+  const buffer = new clazz(2);
 
   buffer.writeInt8(0x23, 0);
   buffer.writeInt8(-5, 1);
@@ -38,7 +38,7 @@ function test8(clazz) {
 
 
 function test16(clazz) {
-  var buffer = new clazz(6);
+  const buffer = new clazz(6);
 
   buffer.writeInt16BE(0x0023, 0);
   buffer.writeInt16LE(0x0023, 2);
@@ -91,7 +91,7 @@ function test16(clazz) {
 
 
 function test32(clazz) {
-  var buffer = new clazz(8);
+  const buffer = new clazz(8);
 
   buffer.writeInt32BE(0x23, 0);
   buffer.writeInt32LE(0x23, 4);

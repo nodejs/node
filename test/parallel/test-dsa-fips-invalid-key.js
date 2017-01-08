@@ -10,11 +10,11 @@ if (!common.hasFipsCrypto) {
 const crypto = require('crypto');
 const fs = require('fs');
 
-var input = 'hello';
+const input = 'hello';
 
-var dsapri = fs.readFileSync(common.fixturesDir +
+const dsapri = fs.readFileSync(common.fixturesDir +
                              '/keys/dsa_private_1025.pem');
-var sign = crypto.createSign('DSS1');
+const sign = crypto.createSign('DSS1');
 sign.update(input);
 
 assert.throws(function() {

@@ -3,9 +3,9 @@ require('../common');
 const assert = require('assert');
 const vm = require('vm');
 
-var sandbox = { setTimeout: setTimeout };
+const sandbox = { setTimeout: setTimeout };
 
-var ctx = vm.createContext(sandbox);
+const ctx = vm.createContext(sandbox);
 
 vm.runInContext('setTimeout(function() { x = 3; }, 0);', ctx);
 setTimeout(function() {

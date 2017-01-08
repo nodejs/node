@@ -6,7 +6,7 @@ const assert = require('assert');
 
 const util = require('util');
 
-var ondataCalled = 0;
+let ondataCalled = 0;
 
 function TestReader() {
   R.apply(this);
@@ -24,7 +24,7 @@ TestReader.prototype._read = function(n) {
   this._buffer = Buffer.alloc(0);
 };
 
-var reader = new TestReader();
+const reader = new TestReader();
 setImmediate(function() {
   assert.equal(ondataCalled, 1);
   console.log('ok');
@@ -43,7 +43,7 @@ TestWriter.prototype._write = function(chunk, enc, cb) {
   cb();
 };
 
-var writer = new TestWriter();
+const writer = new TestWriter();
 
 process.on('exit', function() {
   assert.strictEqual(reader.readable, false);

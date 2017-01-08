@@ -14,21 +14,21 @@ const https = require('https');
 const tls = require('tls');
 const fs = require('fs');
 
-var options = {
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem')
 };
 
 // create server
-var server = https.createServer(options, common.mustCall(function(req, res) {
+const server = https.createServer(options, common.mustCall(function(req, res) {
   res.end('Goodbye');
 }, 2));
 
 // start listening
 server.listen(0, function() {
 
-  var session1 = null;
-  var client1 = tls.connect({
+  let session1 = null;
+  const client1 = tls.connect({
     port: this.address().port,
     rejectUnauthorized: false
   }, function() {
@@ -43,13 +43,13 @@ server.listen(0, function() {
   client1.on('close', function() {
     console.log('close1');
 
-    var opts = {
+    const opts = {
       port: server.address().port,
       rejectUnauthorized: false,
       session: session1
     };
 
-    var client2 = tls.connect(opts, function() {
+    const client2 = tls.connect(opts, function() {
       console.log('connect2');
       assert.ok(client2.isSessionReused(), 'Session *should* be reused.');
       client2.write('GET / HTTP/1.0\r\n' +

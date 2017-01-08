@@ -18,7 +18,7 @@ const host = common.localhostIPv4;
 const port = 0;
 const options = { host, port };
 
-var answer = '';
+let answer = '';
 server.listen(options, function() {
   options.port = this.address().port;
   const conn = net.connect(options);

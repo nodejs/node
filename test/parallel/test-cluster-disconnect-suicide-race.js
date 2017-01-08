@@ -14,7 +14,7 @@ if (cluster.isMaster) {
   return cluster.fork();
 }
 
-var eventFired = false;
+let eventFired = false;
 
 cluster.worker.disconnect();
 

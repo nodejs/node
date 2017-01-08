@@ -30,7 +30,7 @@ global.code = 'foo = 1;' +
 global.foo = 2;
 global.obj = { foo: 0, baz: 3 };
 /* eslint-disable no-unused-vars */
-var baz = vm.runInNewContext(global.code, global.obj);
+const baz = vm.runInNewContext(global.code, global.obj);
 /* eslint-enable no-unused-vars */
 assert.equal(1, global.obj.foo);
 assert.equal(2, global.obj.bar);
@@ -42,12 +42,12 @@ vm.runInNewContext('f()', { f: changeFoo });
 assert.equal(global.foo, 100);
 
 console.error('modify an object by reference');
-var f = { a: 1 };
+const f = { a: 1 };
 vm.runInNewContext('f.a = 2', { f: f });
 assert.equal(f.a, 2);
 
 console.error('use function in context without referencing context');
-var fn = vm.runInNewContext('(function() { obj.p = {}; })', { obj: {} });
+const fn = vm.runInNewContext('(function() { obj.p = {}; })', { obj: {} });
 global.gc();
 fn();
 // Should not crash

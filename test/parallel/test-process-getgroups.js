@@ -9,12 +9,12 @@ if (common.isOSX) {
 }
 
 if (typeof process.getgroups === 'function') {
-  var groups = process.getgroups();
+  const groups = process.getgroups();
   assert(Array.isArray(groups));
   assert(groups.length > 0);
   exec('id -G', function(err, stdout) {
     assert.ifError(err);
-    var real_groups = stdout.match(/\d+/g).map(Number);
+    const real_groups = stdout.match(/\d+/g).map(Number);
     assert.equal(groups.length, real_groups.length);
     check(groups, real_groups);
     check(real_groups, groups);
@@ -22,5 +22,5 @@ if (typeof process.getgroups === 'function') {
 }
 
 function check(a, b) {
-  for (var i = 0; i < a.length; ++i) assert.notStrictEqual(b.indexOf(a[i]), -1);
+  for (let i = 0; i < a.length; ++i) assert.notStrictEqual(b.indexOf(a[i]), -1);
 }

@@ -9,9 +9,9 @@ else
 
 function parent() {
   const spawn = require('child_process').spawn;
-  var child = spawn(process.execPath, [__filename, 'child']);
-  var out = '';
-  var err = '';
+  const child = spawn(process.execPath, [__filename, 'child']);
+  let out = '';
+  let err = '';
 
   child.stdout.setEncoding('utf8');
   child.stderr.setEncoding('utf8');

@@ -13,7 +13,7 @@ assert.doesNotThrow(function() {
 });
 
 assert.doesNotThrow(function() {
-  var sandbox = {};
+  const sandbox = {};
   vm.createContext(sandbox);
   vm.createContext(sandbox);
 });

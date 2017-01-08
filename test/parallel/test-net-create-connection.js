@@ -5,8 +5,8 @@ const dns = require('dns');
 const net = require('net');
 
 const expectedConnections = 7;
-var clientConnected = 0;
-var serverConnected = 0;
+let clientConnected = 0;
+let serverConnected = 0;
 
 const server = net.createServer(function(socket) {
   socket.end();

@@ -2,7 +2,7 @@
 const common = require('../common');
 const assert = require('assert');
 
-var MESSAGE = 'catch me if you can';
+const MESSAGE = 'catch me if you can';
 
 process.on('uncaughtException', common.mustCall(function(e) {
   console.log('uncaught exception! 1');

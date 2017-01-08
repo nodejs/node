@@ -9,7 +9,7 @@ const net = require('net');
 // and the last 10 connections are rejected.
 
 const N = 20;
-var closes = 0;
+let closes = 0;
 const waits = [];
 
 const server = net.createServer(common.mustCall(function(connection) {
@@ -26,7 +26,7 @@ server.maxConnections = N / 2;
 
 function makeConnection(index) {
   const c = net.createConnection(server.address().port);
-  var gotData = false;
+  let gotData = false;
 
   c.on('connect', function() {
     if (index + 1 < N) {
@@ -45,7 +45,7 @@ function makeConnection(index) {
       }
 
       if (closes === N / 2) {
-        var cb;
+        let cb;
         console.error('calling wait callback.');
         while (cb = waits.shift()) {
           cb();

@@ -2,7 +2,7 @@
 const common = require('../common');
 const assert = require('assert');
 const net = require('net');
-var server = net.createServer(common.fail);
+const server = net.createServer(common.fail);
 
 common.refreshTmpDir();
 

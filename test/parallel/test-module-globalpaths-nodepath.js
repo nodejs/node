@@ -3,8 +3,8 @@ const common = require('../common');
 const assert = require('assert');
 const mod = require('module');
 
-var partA, partB;
-var partC = '';
+let partA, partB;
+const partC = '';
 
 if (common.isWindows) {
   partA = 'C:\\Users\\Rocko Artischocko\\AppData\\Roaming\\npm';
