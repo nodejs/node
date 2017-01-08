@@ -8,17 +8,17 @@
 // we can still receive packets successfully.
 
 const common = require('../common');
-var ITERATIONS = 1000;
+const ITERATIONS = 1000;
 
 const assert = require('assert'),
     dgram = require('dgram');
 
-var buf = Buffer.alloc(1024, 42);
+const buf = Buffer.alloc(1024, 42);
 
-var packetsReceived = 0,
+let packetsReceived = 0,
     packetsSent = 0;
 
-var socket = dgram.createSocket('udp4');
+const socket = dgram.createSocket('udp4');
 
 socket.on('message', onMessage);
 socket.on('listening', doSend);
@@ -40,18 +40,18 @@ function afterSend(err) {
 
 function doSend() {
   // Generate a random IP.
-  var parts = [];
-  for (var i = 0; i < 4; i++) {
+  const parts = [];
+  for (let i = 0; i < 4; i++) {
     // Generate a random number in the range 1..254.
     parts.push(Math.floor(Math.random() * 254) + 1);
   }
-  var ip = parts.join('.');
+  const ip = parts.join('.');
 
   socket.send(buf, 0, buf.length, 1, ip, afterSend);
   socket.send(buf, 0, buf.length, common.PORT, '127.0.0.1', afterSend);
 }
 
-process.on('exit', function() {
+process.on('exit', () => {
   console.log(packetsSent + ' UDP packets sent, ' +
               packetsReceived + ' received');
 
