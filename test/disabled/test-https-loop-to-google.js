@@ -8,20 +8,20 @@
 const common = require('../common');
 const https = require('https');
 
-for (var i = 0; i < 10; ++i) {
+for (let i = 0; i < 10; ++i) {
   https.get({
     host: 'www.google.com',
     path: '/accounts/o8/id',
     port: 443
-  }, function(res) {
-    var data = '';
-    res.on('data', function(chunk) {
+  }, (res) => {
+    let data = '';
+    res.on('data', (chunk) => {
       data += chunk;
     });
-    res.on('end', function() {
+    res.on('end', () => {
       console.log(res.statusCode);
     });
-  }).on('error', function(error) {
+  }).on('error', (error) => {
     console.log(error);
   });
 }
