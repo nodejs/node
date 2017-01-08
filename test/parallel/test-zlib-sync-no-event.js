@@ -17,5 +17,5 @@ const unzipper = new zlib.Gunzip();
 unzipper.on('close', shouldNotBeCalled);
 
 const unzipped = unzipper._processChunk(zipped, zlib.Z_FINISH);
-assert.notEqual(zipped.toString(), message);
+assert.notStrictEqual(zipped.toString(), message);
 assert.strictEqual(unzipped.toString(), message);

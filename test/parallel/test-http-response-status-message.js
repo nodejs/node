@@ -47,7 +47,7 @@ const runTest = function(testCaseIndex) {
   }, function(response) {
     console.log('client: expected status message: ' + testCase.statusMessage);
     console.log('client: actual status message: ' + response.statusMessage);
-    assert.equal(testCase.statusMessage, response.statusMessage);
+    assert.strictEqual(testCase.statusMessage, response.statusMessage);
 
     response.on('end', function() {
       testsComplete++;
@@ -66,5 +66,5 @@ const runTest = function(testCaseIndex) {
 server.listen(0, function() { runTest(0); });
 
 process.on('exit', function() {
-  assert.equal(testCases.length, testsComplete);
+  assert.strictEqual(testCases.length, testsComplete);
 });

@@ -12,11 +12,11 @@ s.server = new net.Server();
 s.server.connections = 10;
 s._server = s.server;
 
-assert.equal(10, s.server.connections);
+assert.strictEqual(10, s.server.connections);
 s.destroy();
-assert.equal(9, s.server.connections);
+assert.strictEqual(9, s.server.connections);
 s.destroy();
-assert.equal(9, s.server.connections);
+assert.strictEqual(9, s.server.connections);
 
 const SIZE = 2E6;
 const N = 10;
@@ -47,5 +47,5 @@ const server = net.createServer(function(socket) {
 });
 
 process.on('exit', function() {
-  assert.equal(server.connections, 0);
+  assert.strictEqual(server.connections, 0);
 });

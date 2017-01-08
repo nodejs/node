@@ -13,7 +13,7 @@ function runTest(highWaterMark, objectMode, produce) {
   const old = new EE();
   const r = new Readable({ highWaterMark: highWaterMark,
                            objectMode: objectMode });
-  assert.equal(r, r.wrap(old));
+  assert.strictEqual(r, r.wrap(old));
 
   let ended = false;
   r.on('end', function() {
@@ -85,6 +85,6 @@ const objectChunks = [ 5, 'a', false, 0, '', 'xyz', { x: 4 }, 7, [], 555 ];
 runTest(1, true, function() { return objectChunks.shift(); });
 
 process.on('exit', function() {
-  assert.equal(testRuns, completedRuns);
+  assert.strictEqual(testRuns, completedRuns);
   console.log('ok');
 });

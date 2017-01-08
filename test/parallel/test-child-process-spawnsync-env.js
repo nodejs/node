@@ -11,5 +11,5 @@ if (process.argv[2] === 'child') {
     env: Object.assign(process.env, { foo: expected })
   });
 
-  assert.equal(child.stdout.toString().trim(), expected);
+  assert.strictEqual(child.stdout.toString().trim(), expected);
 }

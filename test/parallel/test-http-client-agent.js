@@ -34,7 +34,7 @@ function request(i) {
     socket.on('close', function() {
       ++count;
       if (count < max) {
-        assert.equal(http.globalAgent.sockets[name].indexOf(socket), -1);
+        assert.strictEqual(http.globalAgent.sockets[name].indexOf(socket), -1);
       } else {
         assert(!http.globalAgent.sockets.hasOwnProperty(name));
         assert(!http.globalAgent.requests.hasOwnProperty(name));
@@ -46,5 +46,5 @@ function request(i) {
 }
 
 process.on('exit', function() {
-  assert.equal(count, max);
+  assert.strictEqual(count, max);
 });

@@ -923,8 +923,8 @@ for (const u in parseTests) {
   expected = parseTests[u].href;
   actual = url.format(parseTests[u]);
 
-  assert.equal(actual, expected,
-               'format(' + u + ') == ' + u + '\nactual:' + actual);
+  assert.strictEqual(actual, expected,
+                     'format(' + u + ') == ' + u + '\nactual:' + actual);
 }
 
 function createWithNoPrototype(properties = []) {
@@ -1232,11 +1232,11 @@ for (const u in formatTests) {
   delete formatTests[u].href;
   const actual = url.format(u);
   const actualObj = url.format(formatTests[u]);
-  assert.equal(actual, expect,
-               'wonky format(' + u + ') == ' + expect +
+  assert.strictEqual(actual, expect,
+                     'wonky format(' + u + ') == ' + expect +
                '\nactual:' + actual);
-  assert.equal(actualObj, expect,
-               'wonky format(' + JSON.stringify(formatTests[u]) +
+  assert.strictEqual(actualObj, expect,
+                     'wonky format(' + JSON.stringify(formatTests[u]) +
                ') == ' + expect +
                '\nactual: ' + actualObj);
 }
@@ -1293,8 +1293,8 @@ const relativeTests = [
 relativeTests.forEach(function(relativeTest) {
   const a = url.resolve(relativeTest[0], relativeTest[1]);
   const e = relativeTest[2];
-  assert.equal(a, e,
-               'resolve(' + [relativeTest[0], relativeTest[1]] + ') == ' + e +
+  assert.strictEqual(a, e,
+                     'resolve(' + [relativeTest[0], relativeTest[1]] + ') == ' + e +
                '\n  actual=' + a);
 });
 
@@ -1625,8 +1625,8 @@ const relativeTests2 = [
 relativeTests2.forEach(function(relativeTest) {
   const a = url.resolve(relativeTest[1], relativeTest[0]);
   const e = relativeTest[2];
-  assert.equal(a, e,
-               'resolve(' + [relativeTest[1], relativeTest[0]] + ') == ' + e +
+  assert.strictEqual(a, e,
+                     'resolve(' + [relativeTest[1], relativeTest[0]] + ') == ' + e +
                '\n  actual=' + a);
 });
 
@@ -1644,8 +1644,8 @@ relativeTests.forEach(function(relativeTest) {
   expected = relativeTest[2];
   actual = url.format(actual);
 
-  assert.equal(actual, expected,
-               'format(' + actual + ') == ' + expected + '\nactual:' + actual);
+  assert.strictEqual(actual, expected,
+                     'format(' + actual + ') == ' + expected + '\nactual:' + actual);
 });
 
 //format: [to, from, result]
@@ -1671,8 +1671,8 @@ relativeTests2.forEach(function(relativeTest) {
   expected = relativeTest[2];
   actual = url.format(actual);
 
-  assert.equal(actual, expected,
-               'format(' + relativeTest[1] + ') == ' + expected +
+  assert.strictEqual(actual, expected,
+                     'format(' + relativeTest[1] + ') == ' + expected +
                '\nactual:' + actual);
 });
 

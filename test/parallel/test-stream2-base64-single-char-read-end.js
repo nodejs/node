@@ -26,7 +26,7 @@ dst._write = function(chunk, enc, cb) {
 };
 
 src.on('end', function() {
-  assert.equal(Buffer.concat(accum) + '', 'MQ==');
+  assert.strictEqual(Buffer.concat(accum) + '', 'MQ==');
   clearTimeout(timeout);
 });
 

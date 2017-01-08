@@ -13,7 +13,7 @@ const keys = [
   'used_heap_size'];
 assert.deepStrictEqual(Object.keys(s).sort(), keys);
 keys.forEach(function(key) {
-  assert.equal(typeof s[key], 'number');
+  assert.strictEqual(typeof s[key], 'number');
 });
 
 

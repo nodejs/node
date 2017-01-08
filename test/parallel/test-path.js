@@ -456,7 +456,7 @@ if (common.isWindows) {
   const spawnResult = child.spawnSync(
     process.argv[0], [resolveFixture, currentDriveLetter]);
   const resolvedPath = spawnResult.stdout.toString().trim();
-  assert.equal(resolvedPath.toLowerCase(), process.cwd().toLowerCase());
+  assert.strictEqual(resolvedPath.toLowerCase(), process.cwd().toLowerCase());
 }
 
 

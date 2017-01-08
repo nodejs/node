@@ -5,13 +5,14 @@ const common = require('../common');
 const assert = require('assert');
 const vm = require('vm');
 
-assert.equal(typeof global.gc, 'function', 'Run this test with --expose-gc');
+assert.strictEqual(typeof global.gc, 'function',
+                   'Run this test with --expose-gc');
 
 common.globalCheck = false;
 
 console.error('run a string');
 const result = vm.runInNewContext('\'passed\';');
-assert.equal('passed', result);
+assert.strictEqual('passed', result);
 
 console.error('thrown error');
 assert.throws(function() {
@@ -20,7 +21,7 @@ assert.throws(function() {
 
 global.hello = 5;
 vm.runInNewContext('hello = 2');
-assert.equal(5, global.hello);
+assert.strictEqual(5, global.hello);
 
 
 console.error('pass values in and out');
@@ -32,19 +33,19 @@ global.obj = { foo: 0, baz: 3 };
 /* eslint-disable no-unused-vars */
 const baz = vm.runInNewContext(global.code, global.obj);
 /* eslint-enable no-unused-vars */
-assert.equal(1, global.obj.foo);
-assert.equal(2, global.obj.bar);
-assert.equal(2, global.foo);
+assert.strictEqual(1, global.obj.foo);
+assert.strictEqual(2, global.obj.bar);
+assert.strictEqual(2, global.foo);
 
 console.error('call a function by reference');
 function changeFoo() { global.foo = 100; }
 vm.runInNewContext('f()', { f: changeFoo });
-assert.equal(global.foo, 100);
+assert.strictEqual(global.foo, 100);
 
 console.error('modify an object by reference');
 const f = { a: 1 };
 vm.runInNewContext('f.a = 2', { f: f });
-assert.equal(f.a, 2);
+assert.strictEqual(f.a, 2);
 
 console.error('use function in context without referencing context');
 const fn = vm.runInNewContext('(function() { obj.p = {}; })', { obj: {} });

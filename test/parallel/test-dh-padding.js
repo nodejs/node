@@ -86,7 +86,7 @@ const p = crypto.createDiffieHellman(
 p.setPublicKey(apub, 'hex');
 p.setPrivateKey(apriv, 'hex');
 
-assert.equal(
+assert.strictEqual(
   p.computeSecret(bpub, 'hex', 'hex').toString('hex'),
   secret
 );

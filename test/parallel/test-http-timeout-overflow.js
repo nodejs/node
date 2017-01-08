@@ -37,6 +37,6 @@ server.listen(0, function() {
 });
 
 process.once('exit', function() {
-  assert.equal(clientRequests, 1);
-  assert.equal(serverRequests, 1);
+  assert.strictEqual(clientRequests, 1);
+  assert.strictEqual(serverRequests, 1);
 });

@@ -16,10 +16,10 @@ gunz.on('data', function(c) {
 });
 
 process.on('exit', function() {
-  assert.equal(output, input);
+  assert.strictEqual(output, input);
 
   // Make sure that the flush flag was set back to normal
-  assert.equal(gzip._flushFlag, zlib.Z_NO_FLUSH);
+  assert.strictEqual(gzip._flushFlag, zlib.Z_NO_FLUSH);
 
   console.log('ok');
 });

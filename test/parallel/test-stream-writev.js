@@ -34,7 +34,7 @@ function test(decode, uncork, multi, next) {
       if (er)
         throw er;
       counter++;
-      assert.equal(counter, expect);
+      assert.strictEqual(counter, expect);
     };
   }
 

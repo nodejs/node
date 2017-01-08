@@ -34,20 +34,20 @@ const s = http.createServer(function(req, res) {
 
       const val1 = res.getHeader('x-test-header');
       const val2 = res.getHeader('x-test-header2');
-      assert.equal(val1, 'testing');
-      assert.equal(val2, 'testing');
+      assert.strictEqual(val1, 'testing');
+      assert.strictEqual(val2, 'testing');
 
       res.removeHeader('x-test-header2');
       break;
 
     case 'contentLength':
       res.setHeader('content-length', content.length);
-      assert.equal(content.length, res.getHeader('Content-Length'));
+      assert.strictEqual(content.length, res.getHeader('Content-Length'));
       break;
 
     case 'transferEncoding':
       res.setHeader('transfer-encoding', 'chunked');
-      assert.equal(res.getHeader('Transfer-Encoding'), 'chunked');
+      assert.strictEqual(res.getHeader('Transfer-Encoding'), 'chunked');
       break;
 
     case 'writeHead':
@@ -79,33 +79,35 @@ function nextTest() {
 
     switch (test) {
       case 'headers':
-        assert.equal(response.statusCode, 201);
-        assert.equal(response.headers['x-test-header'],
-                     'testing');
-        assert.equal(response.headers['x-test-array-header'],
-                     [1, 2, 3].join(', '));
+        assert.strictEqual(response.statusCode, 201);
+        assert.strictEqual(response.headers['x-test-header'],
+                           'testing');
+        assert.strictEqual(response.headers['x-test-array-header'],
+                           [1, 2, 3].join(', '));
         assert.deepStrictEqual(cookies,
                                response.headers['set-cookie']);
-        assert.equal(response.headers['x-test-header2'] !== undefined, false);
+        assert.strictEqual(response.headers['x-test-header2'] !== undefined,
+                           false);
         // Make the next request
         test = 'contentLength';
         console.log('foobar');
         break;
 
       case 'contentLength':
-        assert.equal(response.headers['content-length'], content.length);
+        assert.strictEqual(response.headers['content-length'],
+                           content.length.toString());
         test = 'transferEncoding';
         break;
 
       case 'transferEncoding':
-        assert.equal(response.headers['transfer-encoding'], 'chunked');
+        assert.strictEqual(response.headers['transfer-encoding'], 'chunked');
         test = 'writeHead';
         break;
 
       case 'writeHead':
-        assert.equal(response.headers['x-foo'], 'bar');
-        assert.equal(response.headers['x-bar'], 'baz');
-        assert.equal(200, response.statusCode);
+        assert.strictEqual(response.headers['x-foo'], 'bar');
+        assert.strictEqual(response.headers['x-bar'], 'baz');
+        assert.strictEqual(200, response.statusCode);
         test = 'end';
         break;
 
@@ -119,7 +121,7 @@ function nextTest() {
     });
 
     response.on('end', function() {
-      assert.equal(content, bufferedResponse);
+      assert.strictEqual(content, bufferedResponse);
       testsComplete++;
       nextTest();
     });
@@ -128,5 +130,5 @@ function nextTest() {
 
 
 process.on('exit', function() {
-  assert.equal(4, testsComplete);
+  assert.strictEqual(4, testsComplete);
 });

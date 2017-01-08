@@ -12,7 +12,7 @@ const server = http.Server(common.mustCall(function(req, res) {
   res.end();
 
   const r = res.write('This should raise an error.');
-  assert.equal(r, true, 'write after end should return true');
+  assert.strictEqual(r, true, 'write after end should return true');
 }));
 
 server.listen(0, function() {

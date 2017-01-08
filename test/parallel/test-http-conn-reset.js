@@ -23,7 +23,7 @@ function onListen() {
     assert.ok(false, 'this should never run');
   });
   req.on('error', common.mustCall(function(err) {
-    assert.equal(err.code, 'ECONNRESET');
+    assert.strictEqual(err.code, 'ECONNRESET');
   }));
   req.end();
 }

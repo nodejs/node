@@ -49,4 +49,4 @@ for (let i = 0; i < 100; i++) {
 console.log('counterAfter = %d', counter);
 const counterAfter = counter;
 
-assert.equal(counterBefore, counterAfter);
+assert.strictEqual(counterBefore, counterAfter);

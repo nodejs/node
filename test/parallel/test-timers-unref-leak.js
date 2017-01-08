@@ -22,6 +22,6 @@ setTimeout(function() {
 }, 50);
 
 process.on('exit', function() {
-  assert.equal(called, 1);
-  assert.equal(closed, 1);
+  assert.strictEqual(called, 1);
+  assert.strictEqual(closed, 1);
 });

@@ -508,6 +508,6 @@ function runTest() {
 
 
 process.on('exit', function() {
-  assert.equal(numtests, testsRun);
-  assert.equal(async_completed, async_expected);
+  assert.strictEqual(numtests, testsRun);
+  assert.strictEqual(async_completed, async_expected);
 });

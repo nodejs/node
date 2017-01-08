@@ -20,7 +20,7 @@ const o = vm.createContext({ console: console, x: x });
 const res = vm.runInContext(code, o, 'test');
 
 assert(res);
-assert.equal(typeof res, 'object');
-assert.equal(res, x);
-assert.equal(o.f, res);
+assert.strictEqual(typeof res, 'object');
+assert.strictEqual(res, x);
+assert.strictEqual(o.f, res);
 assert.deepStrictEqual(Object.keys(o), ['console', 'x', 'g', 'f']);

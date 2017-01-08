@@ -71,11 +71,12 @@ dtrace.on('exit', function(code) {
     const frame = line.substr(line.indexOf(sentinel) + sentinel.length);
     const top = frames.shift();
 
-    assert.equal(frame.indexOf(top), 0, 'unexpected frame where ' +
+    assert.strictEqual(frame.indexOf(top), 0, 'unexpected frame where ' +
       top + ' was expected');
   }
 
-  assert.equal(frames.length, 0, 'did not find expected frame ' + frames[0]);
+  assert.strictEqual(frames.length, 0,
+                     'did not find expected frame ' + frames[0]);
   process.exit(0);
 });
 

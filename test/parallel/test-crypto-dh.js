@@ -19,9 +19,9 @@ let key2 = dh2.generateKeys('hex');
 let secret1 = dh1.computeSecret(key2, 'hex', 'base64');
 let secret2 = dh2.computeSecret(key1, 'latin1', 'buffer');
 
-assert.equal(secret1, secret2.toString('base64'));
-assert.equal(dh1.verifyError, 0);
-assert.equal(dh2.verifyError, 0);
+assert.strictEqual(secret1, secret2.toString('base64'));
+assert.strictEqual(dh1.verifyError, 0);
+assert.strictEqual(dh2.verifyError, 0);
 
 assert.throws(function() {
   crypto.createDiffieHellman([0x1, 0x2]);
@@ -50,11 +50,11 @@ assert.deepStrictEqual(dh1.getPrime(), dh3.getPrime());
 assert.deepStrictEqual(dh1.getGenerator(), dh3.getGenerator());
 assert.deepStrictEqual(dh1.getPublicKey(), dh3.getPublicKey());
 assert.deepStrictEqual(dh1.getPrivateKey(), dh3.getPrivateKey());
-assert.equal(dh3.verifyError, 0);
+assert.strictEqual(dh3.verifyError, 0);
 
 const secret3 = dh3.computeSecret(key2, 'hex', 'base64');
 
-assert.equal(secret1, secret3);
+assert.strictEqual(secret1, secret3);
 
 // Run this one twice to make sure that the dh3 clears its error properly
 {
@@ -78,9 +78,9 @@ alice.generateKeys();
 bob.generateKeys();
 const aSecret = alice.computeSecret(bob.getPublicKey()).toString('hex');
 const bSecret = bob.computeSecret(alice.getPublicKey()).toString('hex');
-assert.equal(aSecret, bSecret);
-assert.equal(alice.verifyError, DH_NOT_SUITABLE_GENERATOR);
-assert.equal(bob.verifyError, DH_NOT_SUITABLE_GENERATOR);
+assert.strictEqual(aSecret, bSecret);
+assert.strictEqual(alice.verifyError, DH_NOT_SUITABLE_GENERATOR);
+assert.strictEqual(bob.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
 /* Ensure specific generator (buffer) works as expected.
  * The values below (modp2/modp2buf) are for a 1024 bits long prime from
@@ -107,9 +107,9 @@ exmodp2.generateKeys();
 let modp2Secret = modp2.computeSecret(exmodp2.getPublicKey()).toString('hex');
 const exmodp2Secret = exmodp2.computeSecret(modp2.getPublicKey())
                                                  .toString('hex');
-assert.equal(modp2Secret, exmodp2Secret);
-assert.equal(modp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
-assert.equal(exmodp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
+assert.strictEqual(modp2Secret, exmodp2Secret);
+assert.strictEqual(modp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
+assert.strictEqual(exmodp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
 
 // Ensure specific generator (string with encoding) works as expected.
@@ -118,8 +118,8 @@ exmodp2_2.generateKeys();
 modp2Secret = modp2.computeSecret(exmodp2_2.getPublicKey()).toString('hex');
 const exmodp2_2Secret = exmodp2_2.computeSecret(modp2.getPublicKey())
                                .toString('hex');
-assert.equal(modp2Secret, exmodp2_2Secret);
-assert.equal(exmodp2_2.verifyError, DH_NOT_SUITABLE_GENERATOR);
+assert.strictEqual(modp2Secret, exmodp2_2Secret);
+assert.strictEqual(exmodp2_2.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
 
 // Ensure specific generator (string without encoding) works as expected.
@@ -128,8 +128,8 @@ exmodp2_3.generateKeys();
 modp2Secret = modp2.computeSecret(exmodp2_3.getPublicKey()).toString('hex');
 const exmodp2_3Secret = exmodp2_3.computeSecret(modp2.getPublicKey())
                                .toString('hex');
-assert.equal(modp2Secret, exmodp2_3Secret);
-assert.equal(exmodp2_3.verifyError, DH_NOT_SUITABLE_GENERATOR);
+assert.strictEqual(modp2Secret, exmodp2_3Secret);
+assert.strictEqual(exmodp2_3.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
 
 // Ensure specific generator (numeric) works as expected.
@@ -138,8 +138,8 @@ exmodp2_4.generateKeys();
 modp2Secret = modp2.computeSecret(exmodp2_4.getPublicKey()).toString('hex');
 const exmodp2_4Secret = exmodp2_4.computeSecret(modp2.getPublicKey())
                                .toString('hex');
-assert.equal(modp2Secret, exmodp2_4Secret);
-assert.equal(exmodp2_4.verifyError, DH_NOT_SUITABLE_GENERATOR);
+assert.strictEqual(modp2Secret, exmodp2_4Secret);
+assert.strictEqual(exmodp2_4.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
 
 const p = 'FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74' +
@@ -147,7 +147,7 @@ const p = 'FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74' +
           '4FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED' +
           'EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381FFFFFFFFFFFFFFFF';
 const bad_dh = crypto.createDiffieHellman(p, 'hex');
-assert.equal(bad_dh.verifyError, DH_NOT_SUITABLE_GENERATOR);
+assert.strictEqual(bad_dh.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
 
 // Test ECDH
@@ -158,7 +158,7 @@ key2 = ecdh2.generateKeys('hex');
 secret1 = ecdh1.computeSecret(key2, 'hex', 'base64');
 secret2 = ecdh2.computeSecret(key1, 'latin1', 'buffer');
 
-assert.equal(secret1, secret2.toString('base64'));
+assert.strictEqual(secret1, secret2.toString('base64'));
 
 // Oakley curves do not clean up ERR stack, it was causing unexpected failure
 // when accessing other OpenSSL APIs afterwards.
@@ -166,7 +166,7 @@ crypto.createECDH('Oakley-EC2N-3');
 crypto.createHash('sha256');
 
 // Point formats
-assert.equal(ecdh1.getPublicKey('buffer', 'uncompressed')[0], 4);
+assert.strictEqual(ecdh1.getPublicKey('buffer', 'uncompressed')[0], 4);
 let firstByte = ecdh1.getPublicKey('buffer', 'compressed')[0];
 assert(firstByte === 2 || firstByte === 3);
 firstByte = ecdh1.getPublicKey('buffer', 'hybrid')[0];
@@ -214,9 +214,9 @@ const cafebabePubPtUnComp =
 '04672a31bfc59d3f04548ec9b7daeeba2f61814e8ccc40448045007f5479f693a3' +
 '2e02c7f93d13dc2732b760ca377a5897b9dd41a1c1b29dc0442fdce6d0a04d1d';
 ecdh5.setPrivateKey(cafebabeKey, 'hex');
-assert.equal(ecdh5.getPrivateKey('hex'), cafebabeKey);
+assert.strictEqual(ecdh5.getPrivateKey('hex'), cafebabeKey);
 // Show that the public point (key) is generated while setting the private key.
-assert.equal(ecdh5.getPublicKey('hex'), cafebabePubPtUnComp);
+assert.strictEqual(ecdh5.getPublicKey('hex'), cafebabePubPtUnComp);
 
 // Compressed and uncompressed public points/keys for other party's private key
 // 0xDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF
@@ -229,24 +229,26 @@ const peerPubPtUnComp =
 const sharedSecret =
 '1da220b5329bbe8bfd19ceef5a5898593f411a6f12ea40f2a8eead9a5cf59970';
 
-assert.equal(ecdh5.computeSecret(peerPubPtComp, 'hex', 'hex'), sharedSecret);
-assert.equal(ecdh5.computeSecret(peerPubPtUnComp, 'hex', 'hex'), sharedSecret);
+assert.strictEqual(ecdh5.computeSecret(peerPubPtComp, 'hex', 'hex'),
+                   sharedSecret);
+assert.strictEqual(ecdh5.computeSecret(peerPubPtUnComp, 'hex', 'hex'),
+                   sharedSecret);
 
 // Verify that we still have the same key pair as before the computation.
-assert.equal(ecdh5.getPrivateKey('hex'), cafebabeKey);
-assert.equal(ecdh5.getPublicKey('hex'), cafebabePubPtUnComp);
+assert.strictEqual(ecdh5.getPrivateKey('hex'), cafebabeKey);
+assert.strictEqual(ecdh5.getPublicKey('hex'), cafebabePubPtUnComp);
 
 // Verify setting and getting compressed and non-compressed serializations.
 ecdh5.setPublicKey(cafebabePubPtComp, 'hex');
-assert.equal(ecdh5.getPublicKey('hex'), cafebabePubPtUnComp);
-assert.equal(ecdh5.getPublicKey('hex', 'compressed'), cafebabePubPtComp);
+assert.strictEqual(ecdh5.getPublicKey('hex'), cafebabePubPtUnComp);
+assert.strictEqual(ecdh5.getPublicKey('hex', 'compressed'), cafebabePubPtComp);
 ecdh5.setPublicKey(cafebabePubPtUnComp, 'hex');
-assert.equal(ecdh5.getPublicKey('hex'), cafebabePubPtUnComp);
-assert.equal(ecdh5.getPublicKey('hex', 'compressed'), cafebabePubPtComp);
+assert.strictEqual(ecdh5.getPublicKey('hex'), cafebabePubPtUnComp);
+assert.strictEqual(ecdh5.getPublicKey('hex', 'compressed'), cafebabePubPtComp);
 
 // Show why allowing the public key to be set on this type does not make sense.
 ecdh5.setPublicKey(peerPubPtComp, 'hex');
-assert.equal(ecdh5.getPublicKey('hex'), peerPubPtUnComp);
+assert.strictEqual(ecdh5.getPublicKey('hex'), peerPubPtUnComp);
 assert.throws(function() {
   // Error because the public key does not match the private key anymore.
   ecdh5.computeSecret(peerPubPtComp, 'hex', 'hex');
@@ -265,7 +267,7 @@ ecdh5.setPrivateKey(cafebabeKey, 'hex');
     ecdh5.setPrivateKey(element, 'hex');
   }, /Private key is not valid for specified curve/);
   // Verify object state did not change.
-  assert.equal(ecdh5.getPrivateKey('hex'), cafebabeKey);
+  assert.strictEqual(ecdh5.getPrivateKey('hex'), cafebabeKey);
 });
 
 // invalid test: curve argument is undefined

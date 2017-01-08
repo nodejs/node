@@ -47,5 +47,5 @@ someObject._onTimeout = function _onTimeout() {
 timers._unrefActive(someObject);
 
 setTimeout(function() {
-  assert.equal(nbTimeouts, N);
+  assert.strictEqual(nbTimeouts, N);
 }, TEST_DURATION);

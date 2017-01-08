@@ -10,5 +10,5 @@ function f() {
 }
 process.on('beforeExit', f);
 process.on('exit', function() {
-  assert.equal(n, N + 1);  // The sixth time we let it through.
+  assert.strictEqual(n, N + 1);  // The sixth time we let it through.
 });

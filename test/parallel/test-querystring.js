@@ -183,15 +183,15 @@ qsNoMungeTestCases.forEach(function(testCase) {
 
 // basic
 qsTestCases.forEach(function(testCase) {
-  assert.equal(testCase[1], qs.stringify(testCase[2]));
+  assert.strictEqual(testCase[1], qs.stringify(testCase[2]));
 });
 
 qsColonTestCases.forEach(function(testCase) {
-  assert.equal(testCase[1], qs.stringify(testCase[2], ';', ':'));
+  assert.strictEqual(testCase[1], qs.stringify(testCase[2], ';', ':'));
 });
 
 qsWeirdObjects.forEach(function(testCase) {
-  assert.equal(testCase[1], qs.stringify(testCase[0]));
+  assert.strictEqual(testCase[1], qs.stringify(testCase[0]));
 });
 
 // invalid surrogate pair throws URIError
@@ -216,7 +216,7 @@ assert.strictEqual('foo=', qs.stringify({ foo: Infinity }));
       y: 'z'
     })
   });
-  assert.equal(f, 'a=b&q=x%3Dy%26y%3Dz');
+  assert.strictEqual(f, 'a=b&q=x%3Dy%26y%3Dz');
 }
 
 assert.doesNotThrow(function() {
@@ -232,7 +232,7 @@ assert.doesNotThrow(function() {
       y: 'z'
     }, ';', ':')
   }, ';', ':');
-  assert.equal(f, 'a:b;q:x%3Ay%3By%3Az');
+  assert.strictEqual(f, 'a:b;q:x%3Ay%3By%3Az');
 }
 
 // empty string
@@ -251,7 +251,7 @@ check(qs.parse('a', []), { a: '' });
 check(qs.parse('a', null, []), { '': 'a' });
 
 // Test limiting
-assert.equal(
+assert.strictEqual(
     Object.keys(qs.parse('a=1&b=1&c=1', null, null, { maxKeys: 1 })).length,
     1);
 
@@ -263,7 +263,7 @@ function testUnlimitedKeys() {
 
   const url = qs.stringify(query);
 
-  assert.equal(
+  assert.strictEqual(
       Object.keys(qs.parse(url, null, null, { maxKeys: 0 })).length,
       2000);
 }
@@ -273,26 +273,26 @@ testUnlimitedKeys();
 const b = qs.unescapeBuffer('%d3%f2Ug%1f6v%24%5e%98%cb' +
                           '%0d%ac%a2%2f%9d%eb%d8%a2%e6');
 // <Buffer d3 f2 55 67 1f 36 76 24 5e 98 cb 0d ac a2 2f 9d eb d8 a2 e6>
-assert.equal(0xd3, b[0]);
-assert.equal(0xf2, b[1]);
-assert.equal(0x55, b[2]);
-assert.equal(0x67, b[3]);
-assert.equal(0x1f, b[4]);
-assert.equal(0x36, b[5]);
-assert.equal(0x76, b[6]);
-assert.equal(0x24, b[7]);
-assert.equal(0x5e, b[8]);
-assert.equal(0x98, b[9]);
-assert.equal(0xcb, b[10]);
-assert.equal(0x0d, b[11]);
-assert.equal(0xac, b[12]);
-assert.equal(0xa2, b[13]);
-assert.equal(0x2f, b[14]);
-assert.equal(0x9d, b[15]);
-assert.equal(0xeb, b[16]);
-assert.equal(0xd8, b[17]);
-assert.equal(0xa2, b[18]);
-assert.equal(0xe6, b[19]);
+assert.strictEqual(0xd3, b[0]);
+assert.strictEqual(0xf2, b[1]);
+assert.strictEqual(0x55, b[2]);
+assert.strictEqual(0x67, b[3]);
+assert.strictEqual(0x1f, b[4]);
+assert.strictEqual(0x36, b[5]);
+assert.strictEqual(0x76, b[6]);
+assert.strictEqual(0x24, b[7]);
+assert.strictEqual(0x5e, b[8]);
+assert.strictEqual(0x98, b[9]);
+assert.strictEqual(0xcb, b[10]);
+assert.strictEqual(0x0d, b[11]);
+assert.strictEqual(0xac, b[12]);
+assert.strictEqual(0xa2, b[13]);
+assert.strictEqual(0x2f, b[14]);
+assert.strictEqual(0x9d, b[15]);
+assert.strictEqual(0xeb, b[16]);
+assert.strictEqual(0xd8, b[17]);
+assert.strictEqual(0xa2, b[18]);
+assert.strictEqual(0xe6, b[19]);
 
 assert.strictEqual(qs.unescapeBuffer('a+b', true).toString(), 'a b');
 assert.strictEqual(qs.unescapeBuffer('a%').toString(), 'a%');
@@ -321,7 +321,7 @@ function demoEncode(str) {
   return str[0];
 }
 const obj = { aa: 'aa', bb: 'bb', cc: 'cc' };
-assert.equal(
+assert.strictEqual(
   qs.stringify(obj, null, null, { encodeURIComponent: demoEncode }),
   'a=a&b=b&c=c');
 

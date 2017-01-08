@@ -27,10 +27,10 @@ process.on('exit', function() {
   fs.unlinkSync(filepathTwoAbs);
   fs.unlinkSync(filenameThree);
   fs.unlinkSync(filenameFour);
-  assert.equal(1, watchSeenOne);
-  assert.equal(2, watchSeenTwo);
-  assert.equal(1, watchSeenThree);
-  assert.equal(1, watchSeenFour);
+  assert.strictEqual(1, watchSeenOne);
+  assert.strictEqual(2, watchSeenTwo);
+  assert.strictEqual(1, watchSeenThree);
+  assert.strictEqual(1, watchSeenFour);
 });
 
 
@@ -122,7 +122,7 @@ assert.doesNotThrow(
     function() {
       function a() {
         ++watchSeenFour;
-        assert.equal(1, watchSeenFour);
+        assert.strictEqual(1, watchSeenFour);
         fs.unwatchFile('.' + path.sep + filenameFour, a);
       }
       fs.watchFile(filenameFour, a);

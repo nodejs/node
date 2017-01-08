@@ -23,7 +23,7 @@ server.listen(common.PIPE, function() {
 function test() {
 
   d.on('error', common.mustCall(function(err) {
-    assert.equal('should be caught by domain', err.message);
+    assert.strictEqual('should be caught by domain', err.message);
   }));
 
   const req = http.get({

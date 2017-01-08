@@ -17,7 +17,7 @@ if (process.argv[2] !== '--do-test') {
   const child = spawn(process.execPath, [__filename, '--do-test']);
 
   child.once('exit', common.mustCall(function(code, signal) {
-    assert.equal(signal, 'SIGINT');
+    assert.strictEqual(signal, 'SIGINT');
   }));
 
   return;

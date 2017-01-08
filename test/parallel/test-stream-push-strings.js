@@ -40,7 +40,7 @@ ms.on('readable', function() {
 
 const expect = [ 'first chunksecond to last chunk', 'last chunk' ];
 process.on('exit', function() {
-  assert.equal(ms._chunks, -1);
+  assert.strictEqual(ms._chunks, -1);
   assert.deepStrictEqual(results, expect);
   console.log('ok');
 });

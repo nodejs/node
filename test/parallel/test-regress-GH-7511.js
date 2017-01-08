@@ -6,5 +6,5 @@ const vm = require('vm');
 assert.doesNotThrow(function() {
   const context = vm.createContext({ process: process });
   const result = vm.runInContext('process.env["PATH"]', context);
-  assert.notEqual(undefined, result);
+  assert.notStrictEqual(undefined, result);
 });

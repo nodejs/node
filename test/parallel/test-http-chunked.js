@@ -30,9 +30,9 @@ server.listen(0, function() {
       throw e;
     });
     x.on('end', function() {
-      assert.equal('string', typeof data);
+      assert.strictEqual('string', typeof data);
       console.log('here is the response:');
-      assert.equal(UTF8_STRING, data);
+      assert.strictEqual(UTF8_STRING, data);
       console.log(data);
       server.close();
     });

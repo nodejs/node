@@ -355,9 +355,9 @@ try {
   threw = true;
   assert.ok(e instanceof TypeError, 'type');
 }
-assert.equal(true, threw,
-             'a.throws with an explicit error is eating extra errors',
-             a.AssertionError);
+assert.strictEqual(true, threw,
+                   'a.throws with an explicit error is eating extra errors',
+                   a.AssertionError);
 threw = false;
 
 // doesNotThrow should pass through all errors
@@ -367,8 +367,8 @@ try {
   threw = true;
   assert.ok(e instanceof TypeError);
 }
-assert.equal(true, threw,
-             'a.doesNotThrow with an explicit error is eating extra errors');
+assert.strictEqual(true, threw, 'a.doesNotThrow with an explicit error is ' +
+                   'eating extra errors');
 
 // key difference is that throwing our correct error makes an assertion error
 try {
@@ -377,8 +377,8 @@ try {
   threw = true;
   assert.ok(e instanceof a.AssertionError);
 }
-assert.equal(true, threw,
-             'a.doesNotThrow is not catching type matching errors');
+assert.strictEqual(true, threw,
+                   'a.doesNotThrow is not catching type matching errors');
 
 assert.throws(function() { assert.ifError(new Error('test error')); },
               /^Error: test error$/);
@@ -484,10 +484,10 @@ circular.x = circular;
 
 function testAssertionMessage(actual, expected) {
   try {
-    assert.equal(actual, '');
+    assert.strictEqual(actual, '');
   } catch (e) {
-    assert.equal(e.toString(),
-                 ['AssertionError:', expected, '==', '\'\''].join(' '));
+    assert.strictEqual(e.toString(),
+                       ['AssertionError:', expected, '===', '\'\''].join(' '));
     assert.ok(e.generatedMessage, 'Message not marked as generated');
   }
 }
@@ -522,24 +522,24 @@ try {
   });
 } catch (e) {
   threw = true;
-  assert.equal(e.message, 'Missing expected exception..');
+  assert.strictEqual(e.message, 'Missing expected exception..');
 }
 assert.ok(threw);
 
 // #5292
 try {
-  assert.equal(1, 2);
+  assert.strictEqual(1, 2);
 } catch (e) {
-  assert.equal(e.toString().split('\n')[0], 'AssertionError: 1 == 2');
+  assert.strictEqual(e.toString().split('\n')[0], 'AssertionError: 1 === 2');
   assert.ok(e.generatedMessage, 'Message not marked as generated');
 }
 
 try {
-  assert.equal(1, 2, 'oh no');
+  assert.strictEqual(1, 2, 'oh no');
 } catch (e) {
-  assert.equal(e.toString().split('\n')[0], 'AssertionError: oh no');
-  assert.equal(e.generatedMessage, false,
-               'Message incorrectly marked as generated');
+  assert.strictEqual(e.toString().split('\n')[0], 'AssertionError: oh no');
+  assert.strictEqual(e.generatedMessage, false,
+                     'Message incorrectly marked as generated');
 }
 
 // Verify that throws() and doesNotThrow() throw on non-function block
@@ -550,8 +550,8 @@ function testBlockTypeError(method, block) {
     method(block);
     threw = false;
   } catch (e) {
-    assert.equal(e.toString(),
-                 'TypeError: "block" argument must be a function');
+    assert.strictEqual(e.toString(),
+                       'TypeError: "block" argument must be a function');
   }
 
   assert.ok(threw);

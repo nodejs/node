@@ -14,9 +14,9 @@ const clientIncomingExpect = 'asdffoobar';
 
 process.on('exit', function() {
   assert(serverEndCb);
-  assert.equal(serverIncoming, serverIncomingExpect);
+  assert.strictEqual(serverIncoming, serverIncomingExpect);
   assert(clientEndCb);
-  assert.equal(clientIncoming, clientIncomingExpect);
+  assert.strictEqual(clientIncoming, clientIncomingExpect);
   console.log('ok');
 });
 
@@ -28,7 +28,7 @@ const server = http.createServer(function(req, res) {
 
 server.on('checkContinue', function(req, res) {
   server.close();
-  assert.equal(req.method, 'PUT');
+  assert.strictEqual(req.method, 'PUT');
   res.writeContinue(function() {
     // continue has been written
     req.on('end', function() {

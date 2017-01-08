@@ -63,7 +63,7 @@ var logChild = function(d) {
 // validate any data sent back by the child. We send the write end of the
 // pipe to the child and close it off in our process.
 var pipeFDs = netBinding.pipe();
-assert.equal(pipeFDs.length, 2);
+assert.strictEqual(pipeFDs.length, 2);
 
 var seenOrdinals = [];
 
@@ -72,8 +72,8 @@ pipeReadStream.on('data', function(data) {
   data.toString('utf8').trim().split('\n').forEach(function(d) {
     var rd = JSON.parse(d);
 
-    assert.equal(rd.pid, cpp);
-    assert.equal(seenOrdinals.indexOf(rd.ord), -1);
+    assert.strictEqual(rd.pid, cpp);
+    assert.strictEqual(seenOrdinals.indexOf(rd.ord), -1);
 
     seenOrdinals.unshift(rd.ord);
   });
@@ -119,8 +119,8 @@ cp.on('exit', function(code, signal) {
   srv.close();
   // fs.unlinkSync(SOCK_PATH);
 
-  assert.equal(code, 0);
-  assert.equal(seenOrdinals.length, 2);
+  assert.strictEqual(code, 0);
+  assert.strictEqual(seenOrdinals.length, 2);
 });
 
 // vim:ts=2 sw=2 et

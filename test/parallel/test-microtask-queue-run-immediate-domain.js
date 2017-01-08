@@ -16,7 +16,7 @@ function enqueueMicrotask(fn) {
 let done = 0;
 
 process.on('exit', function() {
-  assert.equal(done, 2);
+  assert.strictEqual(done, 2);
 });
 
 // no nextTick, microtask

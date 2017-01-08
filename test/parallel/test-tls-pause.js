@@ -69,5 +69,5 @@ server.listen(0, function() {
 });
 
 process.on('exit', function() {
-  assert.equal(sent, received);
+  assert.strictEqual(sent, received);
 });

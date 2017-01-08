@@ -26,7 +26,7 @@ function test(clazz, cb) {
     });
 
     conn.on('data', function(data) {
-      assert.equal(data.toString(), 'PONG');
+      assert.strictEqual(data.toString(), 'PONG');
       have_pong = true;
       conn.destroy();
     });
@@ -38,7 +38,7 @@ function test(clazz, cb) {
     });
 
     conn.on('data', function(data) {
-      assert.equal(data.toString(), 'PING');
+      assert.strictEqual(data.toString(), 'PING');
       have_ping = true;
       conn.write('PONG', 'utf-8');
     });

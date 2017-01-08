@@ -4,7 +4,7 @@ var assert = require('assert');
 
 var package = require('./package');
 
-assert.equal('world', package.hello);
+assert.strictEqual('world', package.hello);
 
 console.error('load fixtures/b/c.js');
 

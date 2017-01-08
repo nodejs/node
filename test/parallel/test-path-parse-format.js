@@ -158,7 +158,7 @@ trailingTests.forEach(function(test) {
       failures.push('\n' + message);
   });
 });
-assert.equal(failures.length, 0, failures.join(''));
+assert.strictEqual(failures.length, 0, failures.join(''));
 
 function checkErrors(path) {
   errors.forEach(function(errorCase) {

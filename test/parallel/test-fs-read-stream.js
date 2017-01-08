@@ -61,7 +61,7 @@ file.on('close', function() {
   assert.strictEqual(file.bytesRead, fileSize);
   callbacks.close++;
 
-  //assert.equal(fs.readFileSync(fn), fileContent);
+  //assert.strictEqual(fs.readFileSync(fn), fileContent);
 });
 
 const file3 = fs.createReadStream(fn, {encoding: 'utf8'});

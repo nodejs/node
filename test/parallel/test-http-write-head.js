@@ -25,7 +25,8 @@ const s = http.createServer(common.mustCall((req, res) => {
     res.setHeader('foo', undefined);
   } catch (e) {
     assert.ok(e instanceof Error);
-    assert.equal(e.message, '"value" required in setHeader("foo", value)');
+    assert.strictEqual(e.message,
+                       '"value" required in setHeader("foo", value)');
     threw = true;
   }
   assert.ok(threw, 'Undefined value should throw');

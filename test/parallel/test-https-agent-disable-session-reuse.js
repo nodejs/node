@@ -52,8 +52,8 @@ const server = https.createServer(options, function(req, res) {
 });
 
 process.on('exit', function() {
-  assert.equal(serverRequests, TOTAL_REQS);
-  assert.equal(clientSessions.length, TOTAL_REQS);
-  assert.notEqual(clientSessions[0].toString('hex'),
-                  clientSessions[1].toString('hex'));
+  assert.strictEqual(serverRequests, TOTAL_REQS);
+  assert.strictEqual(clientSessions.length, TOTAL_REQS);
+  assert.notStrictEqual(clientSessions[0].toString('hex'),
+                        clientSessions[1].toString('hex'));
 });

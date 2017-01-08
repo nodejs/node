@@ -672,7 +672,7 @@ asyncTest('Throwing an error inside a rejectionHandled handler goes to' +
   const e = new Error();
   const e2 = new Error();
   const tearDownException = setupException(function(err) {
-    assert.equal(e2, err);
+    assert.strictEqual(e2, err);
     tearDownException();
     done();
   });

@@ -5,8 +5,8 @@ const http = require('http');
 const net = require('net');
 
 const server = http.createServer(common.mustCall(function(req, res) {
-  assert.equal('GET', req.method);
-  assert.equal('/blah', req.url);
+  assert.strictEqual('GET', req.method);
+  assert.strictEqual('/blah', req.url);
   assert.deepStrictEqual({
     host: 'mapdevel.trolologames.ru:443',
     origin: 'http://mapdevel.trolologames.ru',

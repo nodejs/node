@@ -36,6 +36,6 @@ s.listen(common.PORT, function() {
 
 process.on('exit', function() {
   assert(aborted);
-  assert.equal(size, maxSize);
+  assert.strictEqual(size, maxSize);
   console.log('ok');
 });

@@ -54,41 +54,41 @@ Buffer(8).fill('');
   const buf = new Buffer(64);
   buf.fill(10);
   for (let i = 0; i < buf.length; i++)
-    assert.equal(buf[i], 10);
+    assert.strictEqual(buf[i], 10);
 
   buf.fill(11, 0, buf.length >> 1);
   for (let i = 0; i < buf.length >> 1; i++)
-    assert.equal(buf[i], 11);
+    assert.strictEqual(buf[i], 11);
   for (let i = (buf.length >> 1) + 1; i < buf.length; i++)
-    assert.equal(buf[i], 10);
+    assert.strictEqual(buf[i], 10);
 
   buf.fill('h');
   for (let i = 0; i < buf.length; i++)
-    assert.equal('h'.charCodeAt(0), buf[i]);
+    assert.strictEqual('h'.charCodeAt(0), buf[i]);
 
   buf.fill(0);
   for (let i = 0; i < buf.length; i++)
-    assert.equal(0, buf[i]);
+    assert.strictEqual(0, buf[i]);
 
   buf.fill(null);
   for (let i = 0; i < buf.length; i++)
-    assert.equal(0, buf[i]);
+    assert.strictEqual(0, buf[i]);
 
   buf.fill(1, 16, 32);
   for (let i = 0; i < 16; i++)
-    assert.equal(0, buf[i]);
+    assert.strictEqual(0, buf[i]);
   for (let i = 16; i < 32; i++)
-    assert.equal(1, buf[i]);
+    assert.strictEqual(1, buf[i]);
   for (let i = 32; i < buf.length; i++)
-    assert.equal(0, buf[i]);
+    assert.strictEqual(0, buf[i]);
 }
 
 {
   const buf = new Buffer(10);
   buf.fill('abc');
-  assert.equal(buf.toString(), 'abcabcabca');
+  assert.strictEqual(buf.toString(), 'abcabcabca');
   buf.fill('է');
-  assert.equal(buf.toString(), 'էէէէէ');
+  assert.strictEqual(buf.toString(), 'էէէէէ');
 }
 
 {
@@ -209,10 +209,10 @@ assert.throws(function() {
 }, RangeError);
 
 // when sourceStart is greater than sourceEnd, zero copied
-assert.equal(b.copy(c, 0, 100, 10), 0);
+assert.strictEqual(b.copy(c, 0, 100, 10), 0);
 
 // when targetStart > targetLength, zero copied
-assert.equal(b.copy(c, 512, 0, 10), 0);
+assert.strictEqual(b.copy(c, 512, 0, 10), 0);
 
 let caught_error;
 
@@ -274,80 +274,80 @@ b.copy(Buffer(1), 0, 2048, 2048);
 const rangeBuffer = new Buffer('abc');
 
 // if start >= buffer's length, empty string will be returned
-assert.equal(rangeBuffer.toString('ascii', 3), '');
-assert.equal(rangeBuffer.toString('ascii', +Infinity), '');
-assert.equal(rangeBuffer.toString('ascii', 3.14, 3), '');
-assert.equal(rangeBuffer.toString('ascii', 'Infinity', 3), '');
+assert.strictEqual(rangeBuffer.toString('ascii', 3), '');
+assert.strictEqual(rangeBuffer.toString('ascii', +Infinity), '');
+assert.strictEqual(rangeBuffer.toString('ascii', 3.14, 3), '');
+assert.strictEqual(rangeBuffer.toString('ascii', 'Infinity', 3), '');
 
 // if end <= 0, empty string will be returned
-assert.equal(rangeBuffer.toString('ascii', 1, 0), '');
-assert.equal(rangeBuffer.toString('ascii', 1, -1.2), '');
-assert.equal(rangeBuffer.toString('ascii', 1, -100), '');
-assert.equal(rangeBuffer.toString('ascii', 1, -Infinity), '');
+assert.strictEqual(rangeBuffer.toString('ascii', 1, 0), '');
+assert.strictEqual(rangeBuffer.toString('ascii', 1, -1.2), '');
+assert.strictEqual(rangeBuffer.toString('ascii', 1, -100), '');
+assert.strictEqual(rangeBuffer.toString('ascii', 1, -Infinity), '');
 
 // if start < 0, start will be taken as zero
-assert.equal(rangeBuffer.toString('ascii', -1, 3), 'abc');
-assert.equal(rangeBuffer.toString('ascii', -1.99, 3), 'abc');
-assert.equal(rangeBuffer.toString('ascii', -Infinity, 3), 'abc');
-assert.equal(rangeBuffer.toString('ascii', '-1', 3), 'abc');
-assert.equal(rangeBuffer.toString('ascii', '-1.99', 3), 'abc');
-assert.equal(rangeBuffer.toString('ascii', '-Infinity', 3), 'abc');
+assert.strictEqual(rangeBuffer.toString('ascii', -1, 3), 'abc');
+assert.strictEqual(rangeBuffer.toString('ascii', -1.99, 3), 'abc');
+assert.strictEqual(rangeBuffer.toString('ascii', -Infinity, 3), 'abc');
+assert.strictEqual(rangeBuffer.toString('ascii', '-1', 3), 'abc');
+assert.strictEqual(rangeBuffer.toString('ascii', '-1.99', 3), 'abc');
+assert.strictEqual(rangeBuffer.toString('ascii', '-Infinity', 3), 'abc');
 
 // if start is an invalid integer, start will be taken as zero
-assert.equal(rangeBuffer.toString('ascii', 'node.js', 3), 'abc');
-assert.equal(rangeBuffer.toString('ascii', {}, 3), 'abc');
-assert.equal(rangeBuffer.toString('ascii', [], 3), 'abc');
-assert.equal(rangeBuffer.toString('ascii', NaN, 3), 'abc');
-assert.equal(rangeBuffer.toString('ascii', null, 3), 'abc');
-assert.equal(rangeBuffer.toString('ascii', undefined, 3), 'abc');
-assert.equal(rangeBuffer.toString('ascii', false, 3), 'abc');
-assert.equal(rangeBuffer.toString('ascii', '', 3), 'abc');
+assert.strictEqual(rangeBuffer.toString('ascii', 'node.js', 3), 'abc');
+assert.strictEqual(rangeBuffer.toString('ascii', {}, 3), 'abc');
+assert.strictEqual(rangeBuffer.toString('ascii', [], 3), 'abc');
+assert.strictEqual(rangeBuffer.toString('ascii', NaN, 3), 'abc');
+assert.strictEqual(rangeBuffer.toString('ascii', null, 3), 'abc');
+assert.strictEqual(rangeBuffer.toString('ascii', undefined, 3), 'abc');
+assert.strictEqual(rangeBuffer.toString('ascii', false, 3), 'abc');
+assert.strictEqual(rangeBuffer.toString('ascii', '', 3), 'abc');
 
 // but, if start is an integer when coerced, then it will be coerced and used.
-assert.equal(rangeBuffer.toString('ascii', '-1', 3), 'abc');
-assert.equal(rangeBuffer.toString('ascii', '1', 3), 'bc');
-assert.equal(rangeBuffer.toString('ascii', '-Infinity', 3), 'abc');
-assert.equal(rangeBuffer.toString('ascii', '3', 3), '');
-assert.equal(rangeBuffer.toString('ascii', Number(3), 3), '');
-assert.equal(rangeBuffer.toString('ascii', '3.14', 3), '');
-assert.equal(rangeBuffer.toString('ascii', '1.99', 3), 'bc');
-assert.equal(rangeBuffer.toString('ascii', '-1.99', 3), 'abc');
-assert.equal(rangeBuffer.toString('ascii', 1.99, 3), 'bc');
-assert.equal(rangeBuffer.toString('ascii', true, 3), 'bc');
+assert.strictEqual(rangeBuffer.toString('ascii', '-1', 3), 'abc');
+assert.strictEqual(rangeBuffer.toString('ascii', '1', 3), 'bc');
+assert.strictEqual(rangeBuffer.toString('ascii', '-Infinity', 3), 'abc');
+assert.strictEqual(rangeBuffer.toString('ascii', '3', 3), '');
+assert.strictEqual(rangeBuffer.toString('ascii', Number(3), 3), '');
+assert.strictEqual(rangeBuffer.toString('ascii', '3.14', 3), '');
+assert.strictEqual(rangeBuffer.toString('ascii', '1.99', 3), 'bc');
+assert.strictEqual(rangeBuffer.toString('ascii', '-1.99', 3), 'abc');
+assert.strictEqual(rangeBuffer.toString('ascii', 1.99, 3), 'bc');
+assert.strictEqual(rangeBuffer.toString('ascii', true, 3), 'bc');
 
 // if end > buffer's length, end will be taken as buffer's length
-assert.equal(rangeBuffer.toString('ascii', 0, 5), 'abc');
-assert.equal(rangeBuffer.toString('ascii', 0, 6.99), 'abc');
-assert.equal(rangeBuffer.toString('ascii', 0, Infinity), 'abc');
-assert.equal(rangeBuffer.toString('ascii', 0, '5'), 'abc');
-assert.equal(rangeBuffer.toString('ascii', 0, '6.99'), 'abc');
-assert.equal(rangeBuffer.toString('ascii', 0, 'Infinity'), 'abc');
+assert.strictEqual(rangeBuffer.toString('ascii', 0, 5), 'abc');
+assert.strictEqual(rangeBuffer.toString('ascii', 0, 6.99), 'abc');
+assert.strictEqual(rangeBuffer.toString('ascii', 0, Infinity), 'abc');
+assert.strictEqual(rangeBuffer.toString('ascii', 0, '5'), 'abc');
+assert.strictEqual(rangeBuffer.toString('ascii', 0, '6.99'), 'abc');
+assert.strictEqual(rangeBuffer.toString('ascii', 0, 'Infinity'), 'abc');
 
 // if end is an invalid integer, end will be taken as buffer's length
-assert.equal(rangeBuffer.toString('ascii', 0, 'node.js'), '');
-assert.equal(rangeBuffer.toString('ascii', 0, {}), '');
-assert.equal(rangeBuffer.toString('ascii', 0, NaN), '');
-assert.equal(rangeBuffer.toString('ascii', 0, undefined), 'abc');
-assert.equal(rangeBuffer.toString('ascii', 0), 'abc');
-assert.equal(rangeBuffer.toString('ascii', 0, null), '');
-assert.equal(rangeBuffer.toString('ascii', 0, []), '');
-assert.equal(rangeBuffer.toString('ascii', 0, false), '');
-assert.equal(rangeBuffer.toString('ascii', 0, ''), '');
+assert.strictEqual(rangeBuffer.toString('ascii', 0, 'node.js'), '');
+assert.strictEqual(rangeBuffer.toString('ascii', 0, {}), '');
+assert.strictEqual(rangeBuffer.toString('ascii', 0, NaN), '');
+assert.strictEqual(rangeBuffer.toString('ascii', 0, undefined), 'abc');
+assert.strictEqual(rangeBuffer.toString('ascii', 0), 'abc');
+assert.strictEqual(rangeBuffer.toString('ascii', 0, null), '');
+assert.strictEqual(rangeBuffer.toString('ascii', 0, []), '');
+assert.strictEqual(rangeBuffer.toString('ascii', 0, false), '');
+assert.strictEqual(rangeBuffer.toString('ascii', 0, ''), '');
 
 // but, if end is an integer when coerced, then it will be coerced and used.
-assert.equal(rangeBuffer.toString('ascii', 0, '-1'), '');
-assert.equal(rangeBuffer.toString('ascii', 0, '1'), 'a');
-assert.equal(rangeBuffer.toString('ascii', 0, '-Infinity'), '');
-assert.equal(rangeBuffer.toString('ascii', 0, '3'), 'abc');
-assert.equal(rangeBuffer.toString('ascii', 0, Number(3)), 'abc');
-assert.equal(rangeBuffer.toString('ascii', 0, '3.14'), 'abc');
-assert.equal(rangeBuffer.toString('ascii', 0, '1.99'), 'a');
-assert.equal(rangeBuffer.toString('ascii', 0, '-1.99'), '');
-assert.equal(rangeBuffer.toString('ascii', 0, 1.99), 'a');
-assert.equal(rangeBuffer.toString('ascii', 0, true), 'a');
+assert.strictEqual(rangeBuffer.toString('ascii', 0, '-1'), '');
+assert.strictEqual(rangeBuffer.toString('ascii', 0, '1'), 'a');
+assert.strictEqual(rangeBuffer.toString('ascii', 0, '-Infinity'), '');
+assert.strictEqual(rangeBuffer.toString('ascii', 0, '3'), 'abc');
+assert.strictEqual(rangeBuffer.toString('ascii', 0, Number(3)), 'abc');
+assert.strictEqual(rangeBuffer.toString('ascii', 0, '3.14'), 'abc');
+assert.strictEqual(rangeBuffer.toString('ascii', 0, '1.99'), 'a');
+assert.strictEqual(rangeBuffer.toString('ascii', 0, '-1.99'), '');
+assert.strictEqual(rangeBuffer.toString('ascii', 0, 1.99), 'a');
+assert.strictEqual(rangeBuffer.toString('ascii', 0, true), 'a');
 
 // try toString() with a object as a encoding
-assert.equal(rangeBuffer.toString({toString: function() {
+assert.strictEqual(rangeBuffer.toString({toString: function() {
   return 'ascii';
 }}), 'abc');
 
@@ -358,7 +358,7 @@ writeTest.write('o', '1', 'ascii');
 writeTest.write('d', '2', 'ascii');
 writeTest.write('e', 3, 'ascii');
 writeTest.write('j', 4, 'ascii');
-assert.equal(writeTest.toString(), 'nodejs');
+assert.strictEqual(writeTest.toString(), 'nodejs');
 
 // ASCII slice test
 {
@@ -368,7 +368,7 @@ assert.equal(writeTest.toString(), 'nodejs');
     b[i] = asciiString.charCodeAt(i);
   }
   const asciiSlice = b.toString('ascii', 0, asciiString.length);
-  assert.equal(asciiString, asciiSlice);
+  assert.strictEqual(asciiString, asciiSlice);
 }
 
 {
@@ -376,9 +376,9 @@ assert.equal(writeTest.toString(), 'nodejs');
   const offset = 100;
 
   const written = b.write(asciiString, offset, 'ascii');
-  assert.equal(asciiString.length, written);
+  assert.strictEqual(asciiString.length, written);
   const asciiSlice = b.toString('ascii', offset, offset + asciiString.length);
-  assert.equal(asciiString, asciiSlice);
+  assert.strictEqual(asciiString, asciiSlice);
 }
 
 {
@@ -388,7 +388,7 @@ assert.equal(writeTest.toString(), 'nodejs');
   const sliceA = b.slice(offset, offset + asciiString.length);
   const sliceB = b.slice(offset, offset + asciiString.length);
   for (let i = 0; i < asciiString.length; i++) {
-    assert.equal(sliceA[i], sliceB[i]);
+    assert.strictEqual(sliceA[i], sliceB[i]);
   }
 }
 
@@ -399,24 +399,24 @@ const offset = 100;
 
 b.write(utf8String, 0, Buffer.byteLength(utf8String), 'utf8');
 let utf8Slice = b.toString('utf8', 0, Buffer.byteLength(utf8String));
-assert.equal(utf8String, utf8Slice);
+assert.strictEqual(utf8String, utf8Slice);
 
 let written = b.write(utf8String, offset, 'utf8');
-assert.equal(Buffer.byteLength(utf8String), written);
+assert.strictEqual(Buffer.byteLength(utf8String), written);
 utf8Slice = b.toString('utf8', offset, offset + Buffer.byteLength(utf8String));
-assert.equal(utf8String, utf8Slice);
+assert.strictEqual(utf8String, utf8Slice);
 
 const sliceA = b.slice(offset, offset + Buffer.byteLength(utf8String));
 const sliceB = b.slice(offset, offset + Buffer.byteLength(utf8String));
 for (let i = 0; i < Buffer.byteLength(utf8String); i++) {
-  assert.equal(sliceA[i], sliceB[i]);
+  assert.strictEqual(sliceA[i], sliceB[i]);
 }
 
 {
   const slice = b.slice(100, 150);
-  assert.equal(50, slice.length);
+  assert.strictEqual(50, slice.length);
   for (let i = 0; i < 50; i++) {
-    assert.equal(b[100 + i], slice[i]);
+    assert.strictEqual(b[100 + i], slice[i]);
   }
 }
 
@@ -425,8 +425,8 @@ for (let i = 0; i < Buffer.byteLength(utf8String); i++) {
   const b = new Buffer(5);
   const c = b.slice(0, 4);
   const d = c.slice(0, 2);
-  assert.equal(b.parent, c.parent);
-  assert.equal(b.parent, d.parent);
+  assert.strictEqual(b.parent, c.parent);
+  assert.strictEqual(b.parent, d.parent);
 }
 
 {
@@ -434,7 +434,7 @@ for (let i = 0; i < Buffer.byteLength(utf8String); i++) {
   const b = new SlowBuffer(5);
   const c = b.slice(0, 4);
   const d = c.slice(0, 2);
-  assert.equal(c.parent, d.parent);
+  assert.strictEqual(c.parent, d.parent);
 }
 
 {
@@ -444,7 +444,7 @@ for (let i = 0; i < Buffer.byteLength(utf8String); i++) {
   const size = buffer.write(testValue, 0, 'utf8');
   console.log('bytes written to buffer: ' + size);
   const slice = buffer.toString('utf8', 0, size);
-  assert.equal(slice, testValue);
+  assert.strictEqual(slice, testValue);
 }
 
 {
@@ -452,21 +452,21 @@ for (let i = 0; i < Buffer.byteLength(utf8String); i++) {
   const a = new Buffer(8);
   for (let i = 0; i < 8; i++) a[i] = i;
   const b = a.slice(4, 8);
-  assert.equal(4, b[0]);
-  assert.equal(5, b[1]);
-  assert.equal(6, b[2]);
-  assert.equal(7, b[3]);
+  assert.strictEqual(4, b[0]);
+  assert.strictEqual(5, b[1]);
+  assert.strictEqual(6, b[2]);
+  assert.strictEqual(7, b[3]);
   const c = b.slice(2, 4);
-  assert.equal(6, c[0]);
-  assert.equal(7, c[1]);
+  assert.strictEqual(6, c[0]);
+  assert.strictEqual(7, c[1]);
 }
 
 {
   const d = new Buffer([23, 42, 255]);
-  assert.equal(d.length, 3);
-  assert.equal(d[0], 23);
-  assert.equal(d[1], 42);
-  assert.equal(d[2], 255);
+  assert.strictEqual(d.length, 3);
+  assert.strictEqual(d[0], 23);
+  assert.strictEqual(d[1], 42);
+  assert.strictEqual(d[2], 255);
   assert.deepStrictEqual(d, new Buffer(d));
 }
 
@@ -494,22 +494,22 @@ for (let i = 0; i < Buffer.byteLength(utf8String); i++) {
     console.error('f.length: %d     (should be 12)', f.length);
     const expected = new Buffer([63, 4, 64, 4, 56, 4, 50, 4, 53, 4, 66, 4]);
     assert.deepStrictEqual(f, expected);
-    assert.equal(f.toString(encoding), 'привет');
+    assert.strictEqual(f.toString(encoding), 'привет');
   }
 
   {
     const f = new Buffer([0, 0, 0, 0, 0]);
-    assert.equal(f.length, 5);
+    assert.strictEqual(f.length, 5);
     const size = f.write('あいうえお', encoding);
     console.error('bytes written to buffer: %d     (should be 4)', size);
-    assert.equal(size, 4);
+    assert.strictEqual(size, 4);
     assert.deepStrictEqual(f, new Buffer([0x42, 0x30, 0x44, 0x30, 0x00]));
   }
 });
 
 {
   const f = new Buffer('\uD83D\uDC4D', 'utf-16le'); // THUMBS UP SIGN (U+1F44D)
-  assert.equal(f.length, 4);
+  assert.strictEqual(f.length, 4);
   assert.deepStrictEqual(f, new Buffer('3DD84DDC', 'hex'));
 }
 
@@ -525,7 +525,7 @@ assert.deepStrictEqual(g, new Buffer([0, 1, 2, 3]));
 //
 // Test toString('base64')
 //
-assert.equal('TWFu', (new Buffer('Man')).toString('base64'));
+assert.strictEqual('TWFu', (new Buffer('Man')).toString('base64'));
 
 {
   // test that regular and URL-safe base64 both work
@@ -548,12 +548,12 @@ assert.equal('TWFu', (new Buffer('Man')).toString('base64'));
                    'dWVkIGFuZCBpbmRlZmF0aWdhYmxlIGdlbmVyYXRpb24gb2Yga25vd2xlZ' +
                    'GdlLCBleGNlZWRzIHRoZSBzaG9ydCB2ZWhlbWVuY2Ugb2YgYW55IGNhcm' +
                    '5hbCBwbGVhc3VyZS4=';
-  assert.equal(expected, (new Buffer(quote)).toString('base64'));
+  assert.strictEqual(expected, (new Buffer(quote)).toString('base64'));
 
   let b = new Buffer(1024);
   let bytesWritten = b.write(expected, 0, 'base64');
-  assert.equal(quote.length, bytesWritten);
-  assert.equal(quote, b.toString('ascii', 0, quote.length));
+  assert.strictEqual(quote.length, bytesWritten);
+  assert.strictEqual(quote, b.toString('ascii', 0, quote.length));
 
   // check that the base64 decoder ignores whitespace
   const expectedWhite = expected.slice(0, 60) + ' \n' +
@@ -564,14 +564,14 @@ assert.equal('TWFu', (new Buffer('Man')).toString('base64'));
                         expected.slice(300, 360) + '\n';
   b = new Buffer(1024);
   bytesWritten = b.write(expectedWhite, 0, 'base64');
-  assert.equal(quote.length, bytesWritten);
-  assert.equal(quote, b.toString('ascii', 0, quote.length));
+  assert.strictEqual(quote.length, bytesWritten);
+  assert.strictEqual(quote, b.toString('ascii', 0, quote.length));
 
   // check that the base64 decoder on the constructor works
   // even in the presence of whitespace.
   b = new Buffer(expectedWhite, 'base64');
-  assert.equal(quote.length, b.length);
-  assert.equal(quote, b.toString('ascii', 0, quote.length));
+  assert.strictEqual(quote.length, b.length);
+  assert.strictEqual(quote, b.toString('ascii', 0, quote.length));
 
   // check that the base64 decoder ignores illegal chars
   const expectedIllegal = expected.slice(0, 60) + ' \x80' +
@@ -581,101 +581,104 @@ assert.equal('TWFu', (new Buffer('Man')).toString('base64'));
                           expected.slice(240, 300) + '\x03' +
                           expected.slice(300, 360);
   b = new Buffer(expectedIllegal, 'base64');
-  assert.equal(quote.length, b.length);
-  assert.equal(quote, b.toString('ascii', 0, quote.length));
+  assert.strictEqual(quote.length, b.length);
+  assert.strictEqual(quote, b.toString('ascii', 0, quote.length));
 }
 
-assert.equal(new Buffer('', 'base64').toString(), '');
-assert.equal(new Buffer('K', 'base64').toString(), '');
+assert.strictEqual(new Buffer('', 'base64').toString(), '');
+assert.strictEqual(new Buffer('K', 'base64').toString(), '');
 
 // multiple-of-4 with padding
-assert.equal(new Buffer('Kg==', 'base64').toString(), '*');
-assert.equal(new Buffer('Kio=', 'base64').toString(), '**');
-assert.equal(new Buffer('Kioq', 'base64').toString(), '***');
-assert.equal(new Buffer('KioqKg==', 'base64').toString(), '****');
-assert.equal(new Buffer('KioqKio=', 'base64').toString(), '*****');
-assert.equal(new Buffer('KioqKioq', 'base64').toString(), '******');
-assert.equal(new Buffer('KioqKioqKg==', 'base64').toString(), '*******');
-assert.equal(new Buffer('KioqKioqKio=', 'base64').toString(), '********');
-assert.equal(new Buffer('KioqKioqKioq', 'base64').toString(), '*********');
-assert.equal(new Buffer('KioqKioqKioqKg==', 'base64').toString(),
-             '**********');
-assert.equal(new Buffer('KioqKioqKioqKio=', 'base64').toString(),
-             '***********');
-assert.equal(new Buffer('KioqKioqKioqKioq', 'base64').toString(),
-             '************');
-assert.equal(new Buffer('KioqKioqKioqKioqKg==', 'base64').toString(),
-             '*************');
-assert.equal(new Buffer('KioqKioqKioqKioqKio=', 'base64').toString(),
-             '**************');
-assert.equal(new Buffer('KioqKioqKioqKioqKioq', 'base64').toString(),
-             '***************');
-assert.equal(new Buffer('KioqKioqKioqKioqKioqKg==', 'base64').toString(),
-             '****************');
-assert.equal(new Buffer('KioqKioqKioqKioqKioqKio=', 'base64').toString(),
-             '*****************');
-assert.equal(new Buffer('KioqKioqKioqKioqKioqKioq', 'base64').toString(),
-             '******************');
-assert.equal(new Buffer('KioqKioqKioqKioqKioqKioqKg==', 'base64').toString(),
-             '*******************');
-assert.equal(new Buffer('KioqKioqKioqKioqKioqKioqKio=', 'base64').toString(),
-             '********************');
+assert.strictEqual(new Buffer('Kg==', 'base64').toString(), '*');
+assert.strictEqual(new Buffer('Kio=', 'base64').toString(), '**');
+assert.strictEqual(new Buffer('Kioq', 'base64').toString(), '***');
+assert.strictEqual(new Buffer('KioqKg==', 'base64').toString(), '****');
+assert.strictEqual(new Buffer('KioqKio=', 'base64').toString(), '*****');
+assert.strictEqual(new Buffer('KioqKioq', 'base64').toString(), '******');
+assert.strictEqual(new Buffer('KioqKioqKg==', 'base64').toString(), '*******');
+assert.strictEqual(new Buffer('KioqKioqKio=', 'base64').toString(), '********');
+assert.strictEqual(new Buffer('KioqKioqKioq', 'base64').toString(),
+                   '*********');
+assert.strictEqual(new Buffer('KioqKioqKioqKg==', 'base64').toString(),
+                   '**********');
+assert.strictEqual(new Buffer('KioqKioqKioqKio=', 'base64').toString(),
+                   '***********');
+assert.strictEqual(new Buffer('KioqKioqKioqKioq', 'base64').toString(),
+                   '************');
+assert.strictEqual(new Buffer('KioqKioqKioqKioqKg==', 'base64').toString(),
+                   '*************');
+assert.strictEqual(new Buffer('KioqKioqKioqKioqKio=', 'base64').toString(),
+                   '**************');
+assert.strictEqual(new Buffer('KioqKioqKioqKioqKioq', 'base64').toString(),
+                   '***************');
+assert.strictEqual(new Buffer('KioqKioqKioqKioqKioqKg==', 'base64').toString(),
+                   '****************');
+assert.strictEqual(new Buffer('KioqKioqKioqKioqKioqKio=', 'base64').toString(),
+                   '*****************');
+assert.strictEqual(new Buffer('KioqKioqKioqKioqKioqKioq', 'base64').toString(),
+                   '******************');
+assert.strictEqual(new Buffer('KioqKioqKioqKioqKioqKioqKg==', 'base64')
+  .toString(), '*******************');
+assert.strictEqual(new Buffer('KioqKioqKioqKioqKioqKioqKio=', 'base64')
+  .toString(), '********************');
 
 // no padding, not a multiple of 4
-assert.equal(new Buffer('Kg', 'base64').toString(), '*');
-assert.equal(new Buffer('Kio', 'base64').toString(), '**');
-assert.equal(new Buffer('KioqKg', 'base64').toString(), '****');
-assert.equal(new Buffer('KioqKio', 'base64').toString(), '*****');
-assert.equal(new Buffer('KioqKioqKg', 'base64').toString(), '*******');
-assert.equal(new Buffer('KioqKioqKio', 'base64').toString(), '********');
-assert.equal(new Buffer('KioqKioqKioqKg', 'base64').toString(), '**********');
-assert.equal(new Buffer('KioqKioqKioqKio', 'base64').toString(), '***********');
-assert.equal(new Buffer('KioqKioqKioqKioqKg', 'base64').toString(),
-             '*************');
-assert.equal(new Buffer('KioqKioqKioqKioqKio', 'base64').toString(),
-             '**************');
-assert.equal(new Buffer('KioqKioqKioqKioqKioqKg', 'base64').toString(),
-             '****************');
-assert.equal(new Buffer('KioqKioqKioqKioqKioqKio', 'base64').toString(),
-             '*****************');
-assert.equal(new Buffer('KioqKioqKioqKioqKioqKioqKg', 'base64').toString(),
-             '*******************');
-assert.equal(new Buffer('KioqKioqKioqKioqKioqKioqKio', 'base64').toString(),
-             '********************');
+assert.strictEqual(new Buffer('Kg', 'base64').toString(), '*');
+assert.strictEqual(new Buffer('Kio', 'base64').toString(), '**');
+assert.strictEqual(new Buffer('KioqKg', 'base64').toString(), '****');
+assert.strictEqual(new Buffer('KioqKio', 'base64').toString(), '*****');
+assert.strictEqual(new Buffer('KioqKioqKg', 'base64').toString(), '*******');
+assert.strictEqual(new Buffer('KioqKioqKio', 'base64').toString(), '********');
+assert.strictEqual(new Buffer('KioqKioqKioqKg', 'base64').toString(),
+                   '**********');
+assert.strictEqual(new Buffer('KioqKioqKioqKio', 'base64').toString(),
+                   '***********');
+assert.strictEqual(new Buffer('KioqKioqKioqKioqKg', 'base64').toString(),
+                   '*************');
+assert.strictEqual(new Buffer('KioqKioqKioqKioqKio', 'base64').toString(),
+                   '**************');
+assert.strictEqual(new Buffer('KioqKioqKioqKioqKioqKg', 'base64').toString(),
+                   '****************');
+assert.strictEqual(new Buffer('KioqKioqKioqKioqKioqKio', 'base64').toString(),
+                   '*****************');
+assert.strictEqual(new Buffer('KioqKioqKioqKioqKioqKioqKg', 'base64')
+  .toString(), '*******************');
+assert.strictEqual(new Buffer('KioqKioqKioqKioqKioqKioqKio', 'base64')
+  .toString(), '********************');
 
 // handle padding graciously, multiple-of-4 or not
-assert.equal(
+assert.strictEqual(
   new Buffer('72INjkR5fchcxk9+VgdGPFJDxUBFR5/rMFsghgxADiw==', 'base64').length,
   32
 );
-assert.equal(
+assert.strictEqual(
   new Buffer('72INjkR5fchcxk9+VgdGPFJDxUBFR5/rMFsghgxADiw=', 'base64').length,
   32
 );
-assert.equal(
+assert.strictEqual(
   new Buffer('72INjkR5fchcxk9+VgdGPFJDxUBFR5/rMFsghgxADiw', 'base64').length,
   32
 );
-assert.equal(
+assert.strictEqual(
   new Buffer('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg==', 'base64').length,
   31
 );
-assert.equal(
+assert.strictEqual(
   new Buffer('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg=', 'base64').length,
   31
 );
-assert.equal(
+assert.strictEqual(
   new Buffer('w69jACy6BgZmaFvv96HG6MYksWytuZu3T1FvGnulPg', 'base64').length,
   31
 );
 
 // This string encodes single '.' character in UTF-16
 const dot = new Buffer('//4uAA==', 'base64');
-assert.equal(dot[0], 0xff);
-assert.equal(dot[1], 0xfe);
-assert.equal(dot[2], 0x2e);
-assert.equal(dot[3], 0x00);
-assert.equal(dot.toString('base64'), '//4uAA==');
+assert.strictEqual(dot[0], 0xff);
+assert.strictEqual(dot[1], 0xfe);
+assert.strictEqual(dot[2], 0x2e);
+assert.strictEqual(dot[3], 0x00);
+assert.strictEqual(dot.toString('base64'), '//4uAA==');
 
 {
   // Writing base64 at a position > 0 should not mangle the result.
@@ -688,12 +691,14 @@ assert.equal(dot.toString('base64'), '//4uAA==');
   for (let i = 0; i < segments.length; ++i) {
     pos += b.write(segments[i], pos, 'base64');
   }
-  assert.equal(b.toString('latin1', 0, pos), 'Madness?! This is node.js!');
-  assert.equal(b.toString('binary', 0, pos), 'Madness?! This is node.js!');
+  assert.strictEqual(b.toString('latin1', 0, pos),
+                     'Madness?! This is node.js!');
+  assert.strictEqual(b.toString('binary', 0, pos),
+                     'Madness?! This is node.js!');
 }
 
 // Regression test for https://github.com/nodejs/node/issues/3496.
-assert.equal(Buffer('=bad'.repeat(1e4), 'base64').length, 0);
+assert.strictEqual(Buffer('=bad'.repeat(1e4), 'base64').length, 0);
 
 {
   // Creating buffers larger than pool size.
@@ -703,22 +708,22 @@ assert.equal(Buffer('=bad'.repeat(1e4), 'base64').length, 0);
   const b = new Buffer(s);
 
   for (let i = 0; i < l; i++) {
-    assert.equal('h'.charCodeAt(0), b[i]);
+    assert.strictEqual('h'.charCodeAt(0), b[i]);
   }
 
   const sb = b.toString();
-  assert.equal(sb.length, s.length);
-  assert.equal(sb, s);
+  assert.strictEqual(sb.length, s.length);
+  assert.strictEqual(sb, s);
 }
 
 {
   // Single argument slice
   const b = new Buffer('abcde');
-  assert.equal('bcde', b.slice(1).toString());
+  assert.strictEqual('bcde', b.slice(1).toString());
 }
 
 // slice(0,0).length === 0
-assert.equal(0, Buffer('hello').slice(0, 0).length);
+assert.strictEqual(0, Buffer('hello').slice(0, 0).length);
 
 // test hex toString
 console.log('Create hex string from buffer');
@@ -727,8 +732,8 @@ for (let i = 0; i < 256; i++) {
   hexb[i] = i;
 }
 const hexStr = hexb.toString('hex');
-assert.equal(hexStr,
-             '000102030405060708090a0b0c0d0e0f' +
+assert.strictEqual(hexStr,
+                   '000102030405060708090a0b0c0d0e0f' +
              '101112131415161718191a1b1c1d1e1f' +
              '202122232425262728292a2b2c2d2e2f' +
              '303132333435363738393a3b3c3d3e3f' +
@@ -748,7 +753,7 @@ assert.equal(hexStr,
 console.log('Create buffer from hex string');
 const hexb2 = new Buffer(hexStr, 'hex');
 for (let i = 0; i < 256; i++) {
-  assert.equal(hexb2[i], hexb[i]);
+  assert.strictEqual(hexb2[i], hexb[i]);
 }
 
 // Test single hex character throws TypeError
@@ -767,8 +772,8 @@ assert.strictEqual(Buffer.from('A', 'base64').length, 0);
   const b2 = b.toString('hex', 1, 10000);
   const b3 = b.toString('hex', 1, 5);
   const b4 = b.toString('hex', 1);
-  assert.equal(b2, b3);
-  assert.equal(b2, b4);
+  assert.strictEqual(b2, b3);
+  assert.strictEqual(b2, b4);
 }
 
 function buildBuffer(data) {
@@ -785,66 +790,66 @@ function buildBuffer(data) {
 const x = buildBuffer([0x81, 0xa3, 0x66, 0x6f, 0x6f, 0xa3, 0x62, 0x61, 0x72]);
 
 console.log(x.inspect());
-assert.equal('<Buffer 81 a3 66 6f 6f a3 62 61 72>', x.inspect());
+assert.strictEqual('<Buffer 81 a3 66 6f 6f a3 62 61 72>', x.inspect());
 
 {
   const z = x.slice(4);
   console.log(z.inspect());
   console.log(z.length);
-  assert.equal(5, z.length);
-  assert.equal(0x6f, z[0]);
-  assert.equal(0xa3, z[1]);
-  assert.equal(0x62, z[2]);
-  assert.equal(0x61, z[3]);
-  assert.equal(0x72, z[4]);
+  assert.strictEqual(5, z.length);
+  assert.strictEqual(0x6f, z[0]);
+  assert.strictEqual(0xa3, z[1]);
+  assert.strictEqual(0x62, z[2]);
+  assert.strictEqual(0x61, z[3]);
+  assert.strictEqual(0x72, z[4]);
 }
 
 {
   const z = x.slice(0);
   console.log(z.inspect());
   console.log(z.length);
-  assert.equal(z.length, x.length);
+  assert.strictEqual(z.length, x.length);
 }
 
 {
   const z = x.slice(0, 4);
   console.log(z.inspect());
   console.log(z.length);
-  assert.equal(4, z.length);
-  assert.equal(0x81, z[0]);
-  assert.equal(0xa3, z[1]);
+  assert.strictEqual(4, z.length);
+  assert.strictEqual(0x81, z[0]);
+  assert.strictEqual(0xa3, z[1]);
 }
 
 {
   const z = x.slice(0, 9);
   console.log(z.inspect());
   console.log(z.length);
-  assert.equal(9, z.length);
+  assert.strictEqual(9, z.length);
 }
 
 {
   const z = x.slice(1, 4);
   console.log(z.inspect());
   console.log(z.length);
-  assert.equal(3, z.length);
-  assert.equal(0xa3, z[0]);
+  assert.strictEqual(3, z.length);
+  assert.strictEqual(0xa3, z[0]);
 }
 
 {
   const z = x.slice(2, 4);
   console.log(z.inspect());
   console.log(z.length);
-  assert.equal(2, z.length);
-  assert.equal(0x66, z[0]);
-  assert.equal(0x6f, z[1]);
+  assert.strictEqual(2, z.length);
+  assert.strictEqual(0x66, z[0]);
+  assert.strictEqual(0x6f, z[1]);
 }
 
-assert.equal(0, Buffer('hello').slice(0, 0).length);
+assert.strictEqual(0, Buffer('hello').slice(0, 0).length);
 
 ['ucs2', 'ucs-2', 'utf16le', 'utf-16le'].forEach(function(encoding) {
   const b = new Buffer(10);
   b.write('あいうえお', encoding);
-  assert.equal(b.toString(encoding), 'あいうえお');
+  assert.strictEqual(b.toString(encoding), 'あいうえお');
 });
 
 {
@@ -852,16 +857,16 @@ assert.equal(0, Buffer('hello').slice(0, 0).length);
   const b = Buffer([0xde, 0xad, 0xbe, 0xef]);
   let s = String.fromCharCode(0xffff);
   b.write(s, 0, 'latin1');
-  assert.equal(0xff, b[0]);
-  assert.equal(0xad, b[1]);
-  assert.equal(0xbe, b[2]);
-  assert.equal(0xef, b[3]);
+  assert.strictEqual(0xff, b[0]);
+  assert.strictEqual(0xad, b[1]);
+  assert.strictEqual(0xbe, b[2]);
+  assert.strictEqual(0xef, b[3]);
   s = String.fromCharCode(0xaaee);
   b.write(s, 0, 'latin1');
-  assert.equal(0xee, b[0]);
-  assert.equal(0xad, b[1]);
-  assert.equal(0xbe, b[2]);
-  assert.equal(0xef, b[3]);
+  assert.strictEqual(0xee, b[0]);
+  assert.strictEqual(0xad, b[1]);
+  assert.strictEqual(0xbe, b[2]);
+  assert.strictEqual(0xef, b[3]);
 }
 
 {
@@ -869,48 +874,48 @@ assert.equal(0, Buffer('hello').slice(0, 0).length);
   const b = Buffer([0xde, 0xad, 0xbe, 0xef]);
   let s = String.fromCharCode(0xffff);
   b.write(s, 0, 'binary');
-  assert.equal(0xff, b[0]);
-  assert.equal(0xad, b[1]);
-  assert.equal(0xbe, b[2]);
-  assert.equal(0xef, b[3]);
+  assert.strictEqual(0xff, b[0]);
+  assert.strictEqual(0xad, b[1]);
+  assert.strictEqual(0xbe, b[2]);
+  assert.strictEqual(0xef, b[3]);
   s = String.fromCharCode(0xaaee);
   b.write(s, 0, 'binary');
-  assert.equal(0xee, b[0]);
-  assert.equal(0xad, b[1]);
-  assert.equal(0xbe, b[2]);
-  assert.equal(0xef, b[3]);
+  assert.strictEqual(0xee, b[0]);
+  assert.strictEqual(0xad, b[1]);
+  assert.strictEqual(0xbe, b[2]);
+  assert.strictEqual(0xef, b[3]);
 }
 
 {
   // #1210 Test UTF-8 string includes null character
   let buf = new Buffer('\0');
-  assert.equal(buf.length, 1);
+  assert.strictEqual(buf.length, 1);
   buf = new Buffer('\0\0');
-  assert.equal(buf.length, 2);
+  assert.strictEqual(buf.length, 2);
 }
 
 {
   const buf = new Buffer(2);
   let written = buf.write(''); // 0byte
-  assert.equal(written, 0);
+  assert.strictEqual(written, 0);
   written = buf.write('\0'); // 1byte (v8 adds null terminator)
-  assert.equal(written, 1);
+  assert.strictEqual(written, 1);
   written = buf.write('a\0'); // 1byte * 2
-  assert.equal(written, 2);
+  assert.strictEqual(written, 2);
   written = buf.write('あ'); // 3bytes
-  assert.equal(written, 0);
+  assert.strictEqual(written, 0);
   written = buf.write('\0あ'); // 1byte + 3bytes
-  assert.equal(written, 1);
+  assert.strictEqual(written, 1);
   written = buf.write('\0\0あ'); // 1byte * 2 + 3bytes
-  assert.equal(written, 2);
+  assert.strictEqual(written, 2);
 }
 
 {
   const buf = new Buffer(10);
   written = buf.write('あいう'); // 3bytes * 3 (v8 adds null terminator)
-  assert.equal(written, 9);
+  assert.strictEqual(written, 9);
   written = buf.write('あいう\0'); // 3bytes * 3 + 1byte
-  assert.equal(written, 10);
+  assert.strictEqual(written, 10);
 }
 
 {
@@ -919,59 +924,59 @@ assert.equal(0, Buffer('hello').slice(0, 0).length);
   buf.fill(0xFF);
   let written = buf.write('abcd', 1, 2, 'utf8');
   console.log(buf);
-  assert.equal(written, 2);
-  assert.equal(buf[0], 0xFF);
-  assert.equal(buf[1], 0x61);
-  assert.equal(buf[2], 0x62);
-  assert.equal(buf[3], 0xFF);
+  assert.strictEqual(written, 2);
+  assert.strictEqual(buf[0], 0xFF);
+  assert.strictEqual(buf[1], 0x61);
+  assert.strictEqual(buf[2], 0x62);
+  assert.strictEqual(buf[3], 0xFF);
 
   buf.fill(0xFF);
   written = buf.write('abcd', 1, 4);
   console.log(buf);
-  assert.equal(written, 3);
-  assert.equal(buf[0], 0xFF);
-  assert.equal(buf[1], 0x61);
-  assert.equal(buf[2], 0x62);
-  assert.equal(buf[3], 0x63);
+  assert.strictEqual(written, 3);
+  assert.strictEqual(buf[0], 0xFF);
+  assert.strictEqual(buf[1], 0x61);
+  assert.strictEqual(buf[2], 0x62);
+  assert.strictEqual(buf[3], 0x63);
 
   buf.fill(0xFF);
   written = buf.write('abcd', 1, 2, 'utf8');
   console.log(buf);
-  assert.equal(written, 2);
-  assert.equal(buf[0], 0xFF);
-  assert.equal(buf[1], 0x61);
-  assert.equal(buf[2], 0x62);
-  assert.equal(buf[3], 0xFF);
+  assert.strictEqual(written, 2);
+  assert.strictEqual(buf[0], 0xFF);
+  assert.strictEqual(buf[1], 0x61);
+  assert.strictEqual(buf[2], 0x62);
+  assert.strictEqual(buf[3], 0xFF);
 
   buf.fill(0xFF);
   written = buf.write('abcdef', 1, 2, 'hex');
   console.log(buf);
-  assert.equal(written, 2);
-  assert.equal(buf[0], 0xFF);
-  assert.equal(buf[1], 0xAB);
-  assert.equal(buf[2], 0xCD);
-  assert.equal(buf[3], 0xFF);
+  assert.strictEqual(written, 2);
+  assert.strictEqual(buf[0], 0xFF);
+  assert.strictEqual(buf[1], 0xAB);
+  assert.strictEqual(buf[2], 0xCD);
+  assert.strictEqual(buf[3], 0xFF);
 
   ['ucs2', 'ucs-2', 'utf16le', 'utf-16le'].forEach(function(encoding) {
     buf.fill(0xFF);
     written = buf.write('abcd', 0, 2, encoding);
     console.log(buf);
-    assert.equal(written, 2);
-    assert.equal(buf[0], 0x61);
-    assert.equal(buf[1], 0x00);
-    assert.equal(buf[2], 0xFF);
-    assert.equal(buf[3], 0xFF);
+    assert.strictEqual(written, 2);
+    assert.strictEqual(buf[0], 0x61);
+    assert.strictEqual(buf[1], 0x00);
+    assert.strictEqual(buf[2], 0xFF);
+    assert.strictEqual(buf[3], 0xFF);
   });
 }
 
 {
   // test offset returns are correct
   const b = new Buffer(16);
-  assert.equal(4, b.writeUInt32LE(0, 0));
-  assert.equal(6, b.writeUInt16LE(0, 4));
-  assert.equal(7, b.writeUInt8(0, 6));
-  assert.equal(8, b.writeInt8(0, 7));
-  assert.equal(16, b.writeDoubleLE(0, 8));
+  assert.strictEqual(4, b.writeUInt32LE(0, 0));
+  assert.strictEqual(6, b.writeUInt16LE(0, 4));
+  assert.strictEqual(7, b.writeUInt8(0, 6));
+  assert.strictEqual(8, b.writeInt8(0, 7));
+  assert.strictEqual(16, b.writeDoubleLE(0, 8));
 }
 
 {
@@ -979,13 +984,13 @@ assert.equal(0, Buffer('hello').slice(0, 0).length);
   // ef bf bd = utf-8 representation of unicode replacement character
   // see https://codereview.chromium.org/121173009/
   const buf = new Buffer('ab\ud800cd', 'utf8');
-  assert.equal(buf[0], 0x61);
-  assert.equal(buf[1], 0x62);
-  assert.equal(buf[2], 0xef);
-  assert.equal(buf[3], 0xbf);
-  assert.equal(buf[4], 0xbd);
-  assert.equal(buf[5], 0x63);
-  assert.equal(buf[6], 0x64);
+  assert.strictEqual(buf[0], 0x61);
+  assert.strictEqual(buf[1], 0x62);
+  assert.strictEqual(buf[2], 0xef);
+  assert.strictEqual(buf[3], 0xbf);
+  assert.strictEqual(buf[4], 0xbd);
+  assert.strictEqual(buf[5], 0x63);
+  assert.strictEqual(buf[6], 0x64);
 }
 
 {
@@ -993,11 +998,11 @@ assert.equal(0, Buffer('hello').slice(0, 0).length);
   const buf = new Buffer([0, 0, 0, 0, 0]); // length: 5
   const sub = buf.slice(0, 4);         // length: 4
   written = sub.write('12345', 'latin1');
-  assert.equal(written, 4);
-  assert.equal(buf[4], 0);
+  assert.strictEqual(written, 4);
+  assert.strictEqual(buf[4], 0);
   written = sub.write('12345', 'binary');
-  assert.equal(written, 4);
-  assert.equal(buf[4], 0);
+  assert.strictEqual(written, 4);
+  assert.strictEqual(buf[4], 0);
 }
 
 // Check for fractional length args, junk length args, etc.
@@ -1005,19 +1010,19 @@ assert.equal(0, Buffer('hello').slice(0, 0).length);
 
 // Call .fill() first, stops valgrind warning about uninitialized memory reads.
 Buffer(3.3).fill().toString(); // throws bad argument error in commit 43cb4ec
-assert.equal(Buffer(-1).length, 0);
-assert.equal(Buffer(NaN).length, 0);
-assert.equal(Buffer(3.3).length, 3);
-assert.equal(Buffer({length: 3.3}).length, 3);
-assert.equal(Buffer({length: 'BAM'}).length, 0);
+assert.strictEqual(Buffer(-1).length, 0);
+assert.strictEqual(Buffer(NaN).length, 0);
+assert.strictEqual(Buffer(3.3).length, 3);
+assert.strictEqual(Buffer({length: 3.3}).length, 3);
+assert.strictEqual(Buffer({length: 'BAM'}).length, 0);
 
 // Make sure that strings are not coerced to numbers.
-assert.equal(Buffer('99').length, 2);
-assert.equal(Buffer('13.37').length, 5);
+assert.strictEqual(Buffer('99').length, 2);
+assert.strictEqual(Buffer('13.37').length, 5);
 
 // Ensure that the length argument is respected.
 'ascii utf8 hex base64 latin1 binary'.split(' ').forEach(function(enc) {
-  assert.equal(Buffer(1).write('aaaaaa', 0, 1, enc), 1);
+  assert.strictEqual(Buffer(1).write('aaaaaa', 0, 1, enc), 1);
 });
 
 {
@@ -1025,7 +1030,7 @@ assert.equal(Buffer('13.37').length, 5);
   const a = Buffer(3);
   const b = Buffer('xxx');
   a.write('aaaaaaaa', 'base64');
-  assert.equal(b.toString(), 'xxx');
+  assert.strictEqual(b.toString(), 'xxx');
 }
 
 // issue GH-3416
@@ -1042,14 +1047,14 @@ Buffer(Buffer(0), 0, 0);
   'ucs-2',
   'utf16le',
   'utf-16le' ].forEach(function(enc) {
-    assert.equal(Buffer.isEncoding(enc), true);
+    assert.strictEqual(Buffer.isEncoding(enc), true);
   });
 
 [ 'utf9',
   'utf-7',
   'Unicode-FTW',
   'new gnu gun' ].forEach(function(enc) {
-    assert.equal(Buffer.isEncoding(enc), false);
+    assert.strictEqual(Buffer.isEncoding(enc), false);
   });
 
 
@@ -1150,8 +1155,8 @@ assert.throws(function() {
 {
   const buf = new Buffer([0xFF]);
 
-  assert.equal(buf.readUInt8(0), 255);
-  assert.equal(buf.readInt8(0), -1);
+  assert.strictEqual(buf.readUInt8(0), 255);
+  assert.strictEqual(buf.readInt8(0), -1);
 }
 
 [16, 32].forEach(function(bits) {
@@ -1177,16 +1182,16 @@ assert.throws(function() {
 [16, 32].forEach(function(bits) {
   const buf = new Buffer([0xFF, 0xFF, 0xFF, 0xFF]);
 
-  assert.equal(buf['readUInt' + bits + 'BE'](0),
+  assert.strictEqual(buf['readUInt' + bits + 'BE'](0),
                 (0xFFFFFFFF >>> (32 - bits)));
 
-  assert.equal(buf['readUInt' + bits + 'LE'](0),
+  assert.strictEqual(buf['readUInt' + bits + 'LE'](0),
                 (0xFFFFFFFF >>> (32 - bits)));
 
-  assert.equal(buf['readInt' + bits + 'BE'](0),
+  assert.strictEqual(buf['readInt' + bits + 'BE'](0),
                 (0xFFFFFFFF >> (32 - bits)));
 
-  assert.equal(buf['readInt' + bits + 'LE'](0),
+  assert.strictEqual(buf['readInt' + bits + 'LE'](0),
                 (0xFFFFFFFF >> (32 - bits)));
 });
 
@@ -1217,139 +1222,139 @@ assert.throws(function() {
   let buf = Buffer(3);
   buf.writeUIntLE(0x123456, 0, 3);
   assert.deepStrictEqual(buf.toJSON().data, [0x56, 0x34, 0x12]);
-  assert.equal(buf.readUIntLE(0, 3), 0x123456);
+  assert.strictEqual(buf.readUIntLE(0, 3), 0x123456);
 
   buf = Buffer(3);
   buf.writeUIntBE(0x123456, 0, 3);
   assert.deepStrictEqual(buf.toJSON().data, [0x12, 0x34, 0x56]);
-  assert.equal(buf.readUIntBE(0, 3), 0x123456);
+  assert.strictEqual(buf.readUIntBE(0, 3), 0x123456);
 
   buf = Buffer(3);
   buf.writeIntLE(0x123456, 0, 3);
   assert.deepStrictEqual(buf.toJSON().data, [0x56, 0x34, 0x12]);
-  assert.equal(buf.readIntLE(0, 3), 0x123456);
+  assert.strictEqual(buf.readIntLE(0, 3), 0x123456);
 
   buf = Buffer(3);
   buf.writeIntBE(0x123456, 0, 3);
   assert.deepStrictEqual(buf.toJSON().data, [0x12, 0x34, 0x56]);
-  assert.equal(buf.readIntBE(0, 3), 0x123456);
+  assert.strictEqual(buf.readIntBE(0, 3), 0x123456);
 
   buf = Buffer(3);
   buf.writeIntLE(-0x123456, 0, 3);
   assert.deepStrictEqual(buf.toJSON().data, [0xaa, 0xcb, 0xed]);
-  assert.equal(buf.readIntLE(0, 3), -0x123456);
+  assert.strictEqual(buf.readIntLE(0, 3), -0x123456);
 
   buf = Buffer(3);
   buf.writeIntBE(-0x123456, 0, 3);
   assert.deepStrictEqual(buf.toJSON().data, [0xed, 0xcb, 0xaa]);
-  assert.equal(buf.readIntBE(0, 3), -0x123456);
+  assert.strictEqual(buf.readIntBE(0, 3), -0x123456);
 
   buf = Buffer(3);
   buf.writeIntLE(-0x123400, 0, 3);
   assert.deepStrictEqual(buf.toJSON().data, [0x00, 0xcc, 0xed]);
-  assert.equal(buf.readIntLE(0, 3), -0x123400);
+  assert.strictEqual(buf.readIntLE(0, 3), -0x123400);
 
   buf = Buffer(3);
   buf.writeIntBE(-0x123400, 0, 3);
   assert.deepStrictEqual(buf.toJSON().data, [0xed, 0xcc, 0x00]);
-  assert.equal(buf.readIntBE(0, 3), -0x123400);
+  assert.strictEqual(buf.readIntBE(0, 3), -0x123400);
 
   buf = Buffer(3);
   buf.writeIntLE(-0x120000, 0, 3);
   assert.deepStrictEqual(buf.toJSON().data, [0x00, 0x00, 0xee]);
-  assert.equal(buf.readIntLE(0, 3), -0x120000);
+  assert.strictEqual(buf.readIntLE(0, 3), -0x120000);
 
   buf = Buffer(3);
   buf.writeIntBE(-0x120000, 0, 3);
   assert.deepStrictEqual(buf.toJSON().data, [0xee, 0x00, 0x00]);
-  assert.equal(buf.readIntBE(0, 3), -0x120000);
+  assert.strictEqual(buf.readIntBE(0, 3), -0x120000);
 
   buf = Buffer(5);
   buf.writeUIntLE(0x1234567890, 0, 5);
   assert.deepStrictEqual(buf.toJSON().data, [0x90, 0x78, 0x56, 0x34, 0x12]);
-  assert.equal(buf.readUIntLE(0, 5), 0x1234567890);
+  assert.strictEqual(buf.readUIntLE(0, 5), 0x1234567890);
 
   buf = Buffer(5);
   buf.writeUIntBE(0x1234567890, 0, 5);
   assert.deepStrictEqual(buf.toJSON().data, [0x12, 0x34, 0x56, 0x78, 0x90]);
-  assert.equal(buf.readUIntBE(0, 5), 0x1234567890);
+  assert.strictEqual(buf.readUIntBE(0, 5), 0x1234567890);
 
   buf = Buffer(5);
   buf.writeIntLE(0x1234567890, 0, 5);
   assert.deepStrictEqual(buf.toJSON().data, [0x90, 0x78, 0x56, 0x34, 0x12]);
-  assert.equal(buf.readIntLE(0, 5), 0x1234567890);
+  assert.strictEqual(buf.readIntLE(0, 5), 0x1234567890);
 
   buf = Buffer(5);
   buf.writeIntBE(0x1234567890, 0, 5);
   assert.deepStrictEqual(buf.toJSON().data, [0x12, 0x34, 0x56, 0x78, 0x90]);
-  assert.equal(buf.readIntBE(0, 5), 0x1234567890);
+  assert.strictEqual(buf.readIntBE(0, 5), 0x1234567890);
 
   buf = Buffer(5);
   buf.writeIntLE(-0x1234567890, 0, 5);
   assert.deepStrictEqual(buf.toJSON().data, [0x70, 0x87, 0xa9, 0xcb, 0xed]);
-  assert.equal(buf.readIntLE(0, 5), -0x1234567890);
+  assert.strictEqual(buf.readIntLE(0, 5), -0x1234567890);
 
   buf = Buffer(5);
   buf.writeIntBE(-0x1234567890, 0, 5);
   assert.deepStrictEqual(buf.toJSON().data, [0xed, 0xcb, 0xa9, 0x87, 0x70]);
-  assert.equal(buf.readIntBE(0, 5), -0x1234567890);
+  assert.strictEqual(buf.readIntBE(0, 5), -0x1234567890);
 
   buf = Buffer(5);
   buf.writeIntLE(-0x0012000000, 0, 5);
   assert.deepStrictEqual(buf.toJSON().data, [0x00, 0x00, 0x00, 0xee, 0xff]);
-  assert.equal(buf.readIntLE(0, 5), -0x0012000000);
+  assert.strictEqual(buf.readIntLE(0, 5), -0x0012000000);
 
   buf = Buffer(5);
   buf.writeIntBE(-0x0012000000, 0, 5);
   assert.deepStrictEqual(buf.toJSON().data, [0xff, 0xee, 0x00, 0x00, 0x00]);
-  assert.equal(buf.readIntBE(0, 5), -0x0012000000);
+  assert.strictEqual(buf.readIntBE(0, 5), -0x0012000000);
 }
 
 // test Buffer slice
 {
   const buf = new Buffer('0123456789');
-  assert.equal(buf.slice(-10, 10), '0123456789');
-  assert.equal(buf.slice(-20, 10), '0123456789');
-  assert.equal(buf.slice(-20, -10), '');
-  assert.equal(buf.slice(), '0123456789');
-  assert.equal(buf.slice(0), '0123456789');
-  assert.equal(buf.slice(0, 0), '');
-  assert.equal(buf.slice(undefined), '0123456789');
-  assert.equal(buf.slice('foobar'), '0123456789');
-  assert.equal(buf.slice(undefined, undefined), '0123456789');
+  assert.strictEqual(buf.slice(-10, 10).toString(), '0123456789');
+  assert.strictEqual(buf.slice(-20, 10).toString(), '0123456789');
+  assert.strictEqual(buf.slice(-20, -10).toString(), '');
+  assert.strictEqual(buf.slice().toString(), '0123456789');
+  assert.strictEqual(buf.slice(0).toString(), '0123456789');
+  assert.strictEqual(buf.slice(0, 0).toString(), '');
+  assert.strictEqual(buf.slice(undefined).toString(), '0123456789');
+  assert.strictEqual(buf.slice('foobar').toString(), '0123456789');
+  assert.strictEqual(buf.slice(undefined, undefined).toString(), '0123456789');
 
-  assert.equal(buf.slice(2), '23456789');
-  assert.equal(buf.slice(5), '56789');
-  assert.equal(buf.slice(10), '');
-  assert.equal(buf.slice(5, 8), '567');
-  assert.equal(buf.slice(8, -1), '8');
-  assert.equal(buf.slice(-10), '0123456789');
-  assert.equal(buf.slice(0, -9), '0');
-  assert.equal(buf.slice(0, -10), '');
-  assert.equal(buf.slice(0, -1), '012345678');
-  assert.equal(buf.slice(2, -2), '234567');
-  assert.equal(buf.slice(0, 65536), '0123456789');
-  assert.equal(buf.slice(65536, 0), '');
-  assert.equal(buf.slice(-5, -8), '');
-  assert.equal(buf.slice(-5, -3), '56');
-  assert.equal(buf.slice(-10, 10), '0123456789');
+  assert.strictEqual(buf.slice(2).toString(), '23456789');
+  assert.strictEqual(buf.slice(5).toString(), '56789');
+  assert.strictEqual(buf.slice(10).toString(), '');
+  assert.strictEqual(buf.slice(5, 8).toString(), '567');
+  assert.strictEqual(buf.slice(8, -1).toString(), '8');
+  assert.strictEqual(buf.slice(-10).toString(), '0123456789');
+  assert.strictEqual(buf.slice(0, -9).toString(), '0');
+  assert.strictEqual(buf.slice(0, -10).toString(), '');
+  assert.strictEqual(buf.slice(0, -1).toString(), '012345678');
+  assert.strictEqual(buf.slice(2, -2).toString(), '234567');
+  assert.strictEqual(buf.slice(0, 65536).toString(), '0123456789');
+  assert.strictEqual(buf.slice(65536, 0).toString(), '');
+  assert.strictEqual(buf.slice(-5, -8).toString(), '');
+  assert.strictEqual(buf.slice(-5, -3).toString(), '56');
+  assert.strictEqual(buf.slice(-10, 10).toString(), '0123456789');
   for (let i = 0, s = buf.toString(); i < buf.length; ++i) {
-    assert.equal(buf.slice(i), s.slice(i));
-    assert.equal(buf.slice(0, i), s.slice(0, i));
-    assert.equal(buf.slice(-i), s.slice(-i));
-    assert.equal(buf.slice(0, -i), s.slice(0, -i));
+    assert.strictEqual(buf.slice(i).toString(), s.slice(i));
+    assert.strictEqual(buf.slice(0, i).toString(), s.slice(0, i));
+    assert.strictEqual(buf.slice(-i).toString(), s.slice(-i));
+    assert.strictEqual(buf.slice(0, -i).toString(), s.slice(0, -i));
   }
 
   const utf16Buf = new Buffer('0123456789', 'utf16le');
   assert.deepStrictEqual(utf16Buf.slice(0, 6), Buffer('012', 'utf16le'));
 
-  assert.equal(buf.slice('0', '1'), '0');
-  assert.equal(buf.slice('-5', '10'), '56789');
-  assert.equal(buf.slice('-10', '10'), '0123456789');
-  assert.equal(buf.slice('-10', '-5'), '01234');
-  assert.equal(buf.slice('-10', '-0'), '');
-  assert.equal(buf.slice('111'), '');
-  assert.equal(buf.slice('0', '-111'), '');
+  assert.strictEqual(buf.slice('0', '1').toString(), '0');
+  assert.strictEqual(buf.slice('-5', '10').toString(), '56789');
+  assert.strictEqual(buf.slice('-10', '10').toString(), '0123456789');
+  assert.strictEqual(buf.slice('-10', '-5').toString(), '01234');
+  assert.strictEqual(buf.slice('-10', '-0').toString(), '');
+  assert.strictEqual(buf.slice('111').toString(), '');
+  assert.strictEqual(buf.slice('0', '-111').toString(), '');
 
   // try to slice a zero length Buffer
   // see https://github.com/joyent/node/issues/5881
@@ -1394,7 +1399,7 @@ if (common.hasCrypto) {
   const b1 = new Buffer('YW55=======', 'base64');
   const b2 = new Buffer('YW55', 'base64');
 
-  assert.equal(
+  assert.strictEqual(
     crypto.createHash('sha1').update(b1).digest('hex'),
     crypto.createHash('sha1').update(b2).digest('hex')
   );
@@ -1408,21 +1413,21 @@ if (common.hasCrypto) {
   const c = new Buffer(1).fill('c');
   const d = new Buffer(2).fill('aa');
 
-  assert.equal(b.compare(c), -1);
-  assert.equal(c.compare(d), 1);
-  assert.equal(d.compare(b), 1);
-  assert.equal(b.compare(d), -1);
-  assert.equal(b.compare(b), 0);
+  assert.strictEqual(b.compare(c), -1);
+  assert.strictEqual(c.compare(d), 1);
+  assert.strictEqual(d.compare(b), 1);
+  assert.strictEqual(b.compare(d), -1);
+  assert.strictEqual(b.compare(b), 0);
 
-  assert.equal(Buffer.compare(b, c), -1);
-  assert.equal(Buffer.compare(c, d), 1);
-  assert.equal(Buffer.compare(d, b), 1);
-  assert.equal(Buffer.compare(b, d), -1);
-  assert.equal(Buffer.compare(c, c), 0);
+  assert.strictEqual(Buffer.compare(b, c), -1);
+  assert.strictEqual(Buffer.compare(c, d), 1);
+  assert.strictEqual(Buffer.compare(d, b), 1);
+  assert.strictEqual(Buffer.compare(b, d), -1);
+  assert.strictEqual(Buffer.compare(c, c), 0);
 
-  assert.equal(Buffer.compare(Buffer(0), Buffer(0)), 0);
-  assert.equal(Buffer.compare(Buffer(0), Buffer(1)), -1);
-  assert.equal(Buffer.compare(Buffer(1), Buffer(0)), 1);
+  assert.strictEqual(Buffer.compare(Buffer(0), Buffer(0)), 0);
+  assert.strictEqual(Buffer.compare(Buffer(0), Buffer(1)), -1);
+  assert.strictEqual(Buffer.compare(Buffer(1), Buffer(0)), 1);
 }
 
 assert.throws(function() {
@@ -1463,7 +1468,7 @@ assert.throws(function() { Buffer(1422561062959).toString('utf8'); });
 
 const ps = Buffer.poolSize;
 Buffer.poolSize = 0;
-assert.equal(Buffer(1).parent, undefined);
+assert.strictEqual(Buffer(1).parent, undefined);
 Buffer.poolSize = ps;
 
 // Test Buffer.copy() segfault
@@ -1484,10 +1489,10 @@ assert.throws(function() {
 
 
 // Test prototype getters don't throw
-assert.equal(Buffer.prototype.parent, undefined);
-assert.equal(Buffer.prototype.offset, undefined);
-assert.equal(SlowBuffer.prototype.parent, undefined);
-assert.equal(SlowBuffer.prototype.offset, undefined);
+assert.strictEqual(Buffer.prototype.parent, undefined);
+assert.strictEqual(Buffer.prototype.offset, undefined);
+assert.strictEqual(SlowBuffer.prototype.parent, undefined);
+assert.strictEqual(SlowBuffer.prototype.offset, undefined);
 
 {
   // Test that large negative Buffer length inputs don't affect the pool offset.

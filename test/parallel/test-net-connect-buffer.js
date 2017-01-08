@@ -18,7 +18,7 @@ const tcp = net.Server(function(s) {
 
   s.on('end', function() {
     console.error('SERVER: end', buf.toString());
-    assert.equal(buf, "L'État, c'est moi");
+    assert.strictEqual(buf, "L'État, c'est moi");
     console.log('tcp socket disconnect');
     s.end();
   });
@@ -41,7 +41,7 @@ tcp.listen(0, function() {
 
   console.log('connecting = ' + socket.connecting);
 
-  assert.equal('opening', socket.readyState);
+  assert.strictEqual('opening', socket.readyState);
 
   // Make sure that anything besides a buffer or a string throws.
   [null,
@@ -76,18 +76,18 @@ tcp.listen(0, function() {
     dataWritten = true;
     assert.ok(connectHappened);
     console.error('socket.bytesWritten', socket.bytesWritten);
-    //assert.equal(socket.bytesWritten, Buffer.from(a + b).length);
+    //assert.strictEqual(socket.bytesWritten, Buffer.from(a + b).length);
     console.error('data written');
   });
   console.error('socket.bytesWritten', socket.bytesWritten);
   console.error('write returned', r);
 
-  assert.equal(socket.bytesWritten, Buffer.from(a).length);
+  assert.strictEqual(socket.bytesWritten, Buffer.from(a).length);
 
-  assert.equal(false, r);
+  assert.strictEqual(false, r);
   socket.end(b);
 
-  assert.equal('opening', socket.readyState);
+  assert.strictEqual('opening', socket.readyState);
 });
 
 process.on('exit', function() {
