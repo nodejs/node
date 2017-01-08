@@ -23,13 +23,13 @@ const server = http.createServer(function(request, response) {
 let response = '';
 
 process.on('exit', function() {
-  assert.equal('beep boop\n', response);
+  assert.strictEqual('beep boop\n', response);
   console.log('ok');
 });
 
 server.listen(0, function() {
   http.get({ port: this.address().port }, function(res) {
-    assert.equal(200, res.statusCode);
+    assert.strictEqual(200, res.statusCode);
     assert.deepStrictEqual(res.headers, { date: 'coffee o clock' });
 
     res.setEncoding('ascii');

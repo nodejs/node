@@ -9,7 +9,7 @@ server1.listen(0, '127.0.0.1', common.mustCall(function() {
   server2.listen(this.address().port, '127.0.0.1', common.fail);
 
   server2.on('error', common.mustCall(function(e) {
-    assert.equal(e.code, 'EADDRINUSE');
+    assert.strictEqual(e.code, 'EADDRINUSE');
     server1.close();
   }));
 }));

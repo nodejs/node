@@ -52,6 +52,6 @@ tcp.listen(0, function doTest() {
 });
 
 process.on('exit', function() {
-  assert.equal(bytesRead, 12);
-  assert.equal(bytesWritten, 12);
+  assert.strictEqual(bytesRead, 12);
+  assert.strictEqual(bytesWritten, 12);
 });

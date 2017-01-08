@@ -9,14 +9,14 @@ const echoServer = net.createServer(function(connection) {
   serverConnection = connection;
   setTimeout(function() {
     // make sure both connections are still open
-    assert.equal(serverConnection.readyState, 'open');
-    assert.equal(clientConnection.readyState, 'open');
+    assert.strictEqual(serverConnection.readyState, 'open');
+    assert.strictEqual(clientConnection.readyState, 'open');
     serverConnection.end();
     clientConnection.end();
     echoServer.close();
   }, 600);
   connection.setTimeout(0);
-  assert.equal(typeof connection.setKeepAlive, 'function');
+  assert.strictEqual(typeof connection.setKeepAlive, 'function');
   connection.on('end', function() {
     connection.end();
   });

@@ -21,7 +21,7 @@ server.listen(0, common.mustCall(function() {
   http.get({ port: this.address().port }, common.mustCall(function(res) {
     let response = '';
 
-    assert.equal(200, res.statusCode);
+    assert.strictEqual(200, res.statusCode);
     res.setEncoding('ascii');
     res.on('data', function(chunk) {
       response += chunk;

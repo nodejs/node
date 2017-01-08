@@ -21,7 +21,7 @@ let max = maxAndExpected[requests][0];
 let expected = maxAndExpected[requests][1];
 
 const server = http.createServer(function(req, res) {
-  assert.equal(Object.keys(req.headers).length, expected);
+  assert.strictEqual(Object.keys(req.headers).length, expected);
   if (++requests < maxAndExpected.length) {
     max = maxAndExpected[requests][0];
     expected = maxAndExpected[requests][1];
@@ -47,7 +47,7 @@ server.listen(0, function() {
       port: server.address().port,
       headers: headers
     }, function(res) {
-      assert.equal(Object.keys(res.headers).length, expected);
+      assert.strictEqual(Object.keys(res.headers).length, expected);
       res.on('end', function() {
         if (++responses < maxAndExpected.length) {
           doRequest();
@@ -63,6 +63,6 @@ server.listen(0, function() {
 });
 
 process.on('exit', function() {
-  assert.equal(requests, maxAndExpected.length);
-  assert.equal(responses, maxAndExpected.length);
+  assert.strictEqual(requests, maxAndExpected.length);
+  assert.strictEqual(responses, maxAndExpected.length);
 });

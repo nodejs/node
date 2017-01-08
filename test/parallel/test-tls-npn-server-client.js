@@ -98,10 +98,10 @@ function startTest() {
 }
 
 process.on('exit', function() {
-  assert.equal(serverResults[0], clientsResults[0]);
-  assert.equal(serverResults[1], clientsResults[1]);
-  assert.equal(serverResults[2], 'http/1.1');
-  assert.equal(clientsResults[2], false);
-  assert.equal(serverResults[3], 'first-priority-unsupported');
-  assert.equal(clientsResults[3], false);
+  assert.strictEqual(serverResults[0], clientsResults[0]);
+  assert.strictEqual(serverResults[1], clientsResults[1]);
+  assert.strictEqual(serverResults[2], 'http/1.1');
+  assert.strictEqual(clientsResults[2], false);
+  assert.strictEqual(serverResults[3], 'first-priority-unsupported');
+  assert.strictEqual(clientsResults[3], false);
 });

@@ -14,7 +14,7 @@ if (process.argv[2] === 'child') {
   });
   child.stdout.on('close', function() {
     const b = Buffer.concat(buffers).toString();
-    assert.equal(b, 'Hello, world\n');
+    assert.strictEqual(b, 'Hello, world\n');
     console.log('ok');
   });
   child.stdin.write('Hel');

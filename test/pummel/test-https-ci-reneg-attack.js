@@ -71,7 +71,7 @@ function test(next) {
     });
 
     child.on('exit', function() {
-      assert.equal(renegs, tls.CLIENT_RENEG_LIMIT + 1);
+      assert.strictEqual(renegs, tls.CLIENT_RENEG_LIMIT + 1);
       server.close();
       process.nextTick(next);
     });
@@ -83,7 +83,7 @@ function test(next) {
         case 'EPIPE':
           break;
         default:
-          assert.equal(err.code, 'ECONNRESET');
+          assert.strictEqual(err.code, 'ECONNRESET');
           break;
       }
       closed = true;

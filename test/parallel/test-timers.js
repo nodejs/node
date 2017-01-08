@@ -46,7 +46,7 @@ inputs.forEach(function(value, index) {
 process.on('exit', function() {
   // assert that all timers have run
   inputs.forEach(function(value, index) {
-    assert.equal(true, timeouts[index]);
-    assert.equal(true, intervals[index]);
+    assert.strictEqual(true, timeouts[index]);
+    assert.strictEqual(true, intervals[index]);
   });
 });

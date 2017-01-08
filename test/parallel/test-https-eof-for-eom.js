@@ -57,7 +57,7 @@ server.listen(0, common.mustCall(function() {
     server.close();
     console.log('3) Client got response headers.');
 
-    assert.equal('gws', res.headers.server);
+    assert.strictEqual('gws', res.headers.server);
 
     res.setEncoding('utf8');
     res.on('data', function(s) {

@@ -14,7 +14,7 @@ if (process.argv[2] !== 'child') {
     childArgv0 += chunk;
   });
   process.on('exit', function() {
-    assert.equal(childArgv0, process.execPath);
+    assert.strictEqual(childArgv0, process.execPath);
   });
 } else {
   process.stdout.write(process.argv[0]);

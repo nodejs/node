@@ -9,4 +9,4 @@ const net = require('net');
 
 const server = new net.Server();
 
-assert.equal(Object.keys(server).indexOf('connections'), -1);
+assert.strictEqual(Object.keys(server).indexOf('connections'), -1);

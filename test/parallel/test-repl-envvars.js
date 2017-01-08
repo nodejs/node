@@ -50,10 +50,10 @@ function run(test) {
     // The REPL registers 'module' and 'require' globals
     common.allowGlobals(repl.context.module, repl.context.require);
 
-    assert.equal(expected.terminal, repl.terminal,
-                 'Expected ' + inspect(expected) + ' with ' + inspect(env));
-    assert.equal(expected.useColors, repl.useColors,
-                 'Expected ' + inspect(expected) + ' with ' + inspect(env));
+    assert.strictEqual(expected.terminal, repl.terminal, 'Expected ' +
+                       inspect(expected) + ' with ' + inspect(env));
+    assert.strictEqual(expected.useColors, repl.useColors, 'Expected ' +
+                       inspect(expected) + ' with ' + inspect(env));
     repl.close();
   });
 }

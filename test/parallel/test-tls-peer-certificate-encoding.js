@@ -29,7 +29,7 @@ server.listen(0, common.mustCall(function() {
     const peerCert = socket.getPeerCertificate();
 
     console.error(util.inspect(peerCert));
-    assert.equal(peerCert.subject.CN, 'Ádám Lippai');
+    assert.strictEqual(peerCert.subject.CN, 'Ádám Lippai');
     server.close();
   }));
   socket.end('Hello');

@@ -31,7 +31,7 @@ server.listen(0, function() {
   function expectResponse(id) {
     return common.mustCall(function(res) {
       res.resume();
-      assert.equal(res.headers['x-sni'], 'sni.' + id);
+      assert.strictEqual(res.headers['x-sni'], 'sni.' + id);
     });
   }
 

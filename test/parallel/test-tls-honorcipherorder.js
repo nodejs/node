@@ -17,7 +17,7 @@ const SSL_Method = 'TLSv1_2_method';
 const localhost = '127.0.0.1';
 
 process.on('exit', function() {
-  assert.equal(nconns, 6);
+  assert.strictEqual(nconns, 6);
 });
 
 function test(honorCipherOrder, clientCipher, expectedCipher, cb) {
@@ -50,7 +50,7 @@ function test(honorCipherOrder, clientCipher, expectedCipher, cb) {
       const cipher = client.getCipher();
       client.end();
       server.close();
-      assert.equal(cipher.name, expectedCipher);
+      assert.strictEqual(cipher.name, expectedCipher);
       if (cb) cb();
     });
   });

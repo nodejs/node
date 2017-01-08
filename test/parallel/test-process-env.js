@@ -63,8 +63,8 @@ process.env.TZ = 'Europe/Amsterdam';
 
 // time difference between Greenwich and Amsterdam is +2 hours in the summer
 date = new Date('Fri, 10 Sep 1982 03:15:00 GMT');
-assert.equal(3, date.getUTCHours());
-assert.equal(5, date.getHours());
+assert.strictEqual(3, date.getUTCHours());
+assert.strictEqual(5, date.getHours());
 */
 /* eslint-enable max-len */
 

@@ -38,8 +38,8 @@ function runAb(opts, callback) {
     m = /HTML transferred:\s*(\d+) bytes/mi.exec(stdout);
     const htmlTransfered = parseInt(m[1]);
 
-    assert.equal(bodyLength, documentLength);
-    assert.equal(completeRequests * documentLength, htmlTransfered);
+    assert.strictEqual(bodyLength, documentLength);
+    assert.strictEqual(completeRequests * documentLength, htmlTransfered);
 
     if (callback) callback();
   });

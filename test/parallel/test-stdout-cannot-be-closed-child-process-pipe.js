@@ -25,7 +25,7 @@ function parent() {
 
   child.on('close', function(code, signal) {
     assert(code);
-    assert.equal(out, 'foo');
+    assert.strictEqual(out, 'foo');
     assert(/process\.stdout cannot be closed/.test(err));
     console.log('ok');
   });

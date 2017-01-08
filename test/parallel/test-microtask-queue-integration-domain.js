@@ -19,7 +19,7 @@ let expected = 0;
 let done = 0;
 
 process.on('exit', function() {
-  assert.equal(done, expected);
+  assert.strictEqual(done, expected);
 });
 
 function test(scheduleMicrotask) {

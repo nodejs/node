@@ -59,5 +59,5 @@ const server = net.createServer(function(c) {
 }).listen(common.PORT, execAndClose);
 
 process.on('exit', function() {
-  assert.equal(gotResponses, COUNT);
+  assert.strictEqual(gotResponses, COUNT);
 });
