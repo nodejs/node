@@ -74,7 +74,7 @@ const testData = [
   },
 ];
 
-testData.forEach(function(item) {
+testData.forEach((item) => {
   // Normalize expected data by stripping whitespace
   const expected = item.html.replace(/\s/g, '');
 
