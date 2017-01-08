@@ -3,7 +3,7 @@ require('../common');
 const assert = require('assert');
 const vm = require('vm');
 
-var sbx = {};
+let sbx = {};
 sbx.window = sbx;
 
 sbx = vm.createContext(sbx);

@@ -11,28 +11,28 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
-var options = {
+const options = {
   key: fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem')),
   cert: fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))
 };
 
-var bufSize = 1024 * 1024;
-var sent = 0;
-var received = 0;
+const bufSize = 1024 * 1024;
+let sent = 0;
+let received = 0;
 
-var server = https.createServer(options, function(req, res) {
+const server = https.createServer(options, function(req, res) {
   res.writeHead(200);
   req.pipe(res);
 });
 
 server.listen(0, function() {
-  var resumed = false;
-  var req = https.request({
+  let resumed = false;
+  const req = https.request({
     method: 'POST',
     port: this.address().port,
     rejectUnauthorized: false
   }, function(res) {
-    var timer;
+    let timer;
     res.pause();
     console.error('paused');
     send();

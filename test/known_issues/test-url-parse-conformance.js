@@ -9,14 +9,14 @@ const path = require('path');
 
 const tests = require(path.join(common.fixturesDir, 'url-tests.json'));
 
-var failed = 0;
-var attempted = 0;
+let failed = 0;
+let attempted = 0;
 
 tests.forEach((test) => {
   attempted++;
   // Skip comments
   if (typeof test === 'string') return;
-  var parsed;
+  let parsed;
 
   try {
     // Attempt to parse
@@ -28,7 +28,7 @@ tests.forEach((test) => {
     } else {
       // Test was not supposed to fail, so we're good so far. Now
       // check the results of the parse.
-      var username, password;
+      let username, password;
       try {
         assert.strictEqual(test.href, parsed.href);
         assert.strictEqual(test.protocol, parsed.protocol);

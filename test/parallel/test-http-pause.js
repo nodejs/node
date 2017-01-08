@@ -3,12 +3,12 @@ require('../common');
 const assert = require('assert');
 const http = require('http');
 
-var expectedServer = 'Request Body from Client';
-var resultServer = '';
-var expectedClient = 'Response Body from Server';
-var resultClient = '';
+const expectedServer = 'Request Body from Client';
+let resultServer = '';
+const expectedClient = 'Response Body from Server';
+let resultClient = '';
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   console.error('pause server request');
   req.pause();
   setTimeout(function() {
@@ -27,7 +27,7 @@ var server = http.createServer(function(req, res) {
 });
 
 server.listen(0, function() {
-  var req = http.request({
+  const req = http.request({
     port: this.address().port,
     path: '/',
     method: 'POST'

@@ -3,10 +3,10 @@ require('../common');
 const assert = require('assert');
 const http = require('http');
 
-var expected = 'Post Body For Test';
+const expected = 'Post Body For Test';
 
-var server = http.Server(function(req, res) {
-  var result = '';
+const server = http.Server(function(req, res) {
+  let result = '';
 
   req.setEncoding('utf8');
   req.on('data', function(chunk) {

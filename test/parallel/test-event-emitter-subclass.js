@@ -13,7 +13,7 @@ function MyEE(cb) {
   EventEmitter.call(this);
 }
 
-var myee = new MyEE(common.mustCall(function() {}));
+const myee = new MyEE(common.mustCall(function() {}));
 
 
 util.inherits(ErrorEE, EventEmitter);
@@ -38,8 +38,8 @@ function MyEE2() {
 
 MyEE2.prototype = new EventEmitter();
 
-var ee1 = new MyEE2();
-var ee2 = new MyEE2();
+const ee1 = new MyEE2();
+const ee2 = new MyEE2();
 
 ee1.on('x', function() {});
 

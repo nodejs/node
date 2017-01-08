@@ -10,9 +10,9 @@ const cluster = require('cluster');
 cluster.schedulingPolicy = cluster.SCHED_NONE;
 
 if (cluster.isMaster) {
-  var conn, worker1, worker2;
+  let conn, worker2;
 
-  worker1 = cluster.fork();
+  const worker1 = cluster.fork();
   worker1.on('message', common.mustCall(function() {
     worker2 = cluster.fork();
     worker2.on('online', function() {

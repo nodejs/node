@@ -6,7 +6,7 @@ const repl = require('./helper-debugger-repl.js');
 
 repl.startDebugger('breakpoints.js');
 
-var addTest = repl.addTest;
+const addTest = repl.addTest;
 
 // next
 addTest('n', [

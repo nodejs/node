@@ -3,8 +3,8 @@ require('../common');
 const assert = require('assert');
 const v8 = require('v8');
 
-var s = v8.getHeapStatistics();
-var keys = [
+const s = v8.getHeapStatistics();
+const keys = [
   'does_zap_garbage',
   'heap_size_limit',
   'malloced_memory',

@@ -4,7 +4,7 @@ const assert = require('assert');
 const http = require('http');
 const net = require('net');
 
-var server = http.createServer(common.mustCall(function(req, res) {
+const server = http.createServer(common.mustCall(function(req, res) {
   assert.equal('GET', req.method);
   assert.equal('/blah', req.url);
   assert.deepStrictEqual({
@@ -16,7 +16,7 @@ var server = http.createServer(common.mustCall(function(req, res) {
 
 
 server.listen(0, function() {
-  var c = net.createConnection(this.address().port);
+  const c = net.createConnection(this.address().port);
 
   c.on('connect', function() {
     c.write('GET /blah HTTP/1.1\r\n' +

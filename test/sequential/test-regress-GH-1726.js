@@ -8,8 +8,8 @@ require('../common');
 const assert = require('assert');
 const ch = require('child_process');
 
-var gen = +(process.argv[2] || 0);
-var maxGen = 5;
+const gen = +(process.argv[2] || 0);
+const maxGen = 5;
 
 
 if (gen === maxGen) {
@@ -17,7 +17,7 @@ if (gen === maxGen) {
   return;
 }
 
-var child = ch.spawn(process.execPath, [__filename, gen + 1], {
+const child = ch.spawn(process.execPath, [__filename, gen + 1], {
   stdio: [ 'ignore', 'pipe', 'ignore' ]
 });
 assert.ok(!child.stdin);

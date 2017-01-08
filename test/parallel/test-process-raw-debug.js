@@ -14,9 +14,9 @@ switch (process.argv[2]) {
 
 function parent() {
   const spawn = require('child_process').spawn;
-  var child = spawn(process.execPath, [__filename, 'child']);
+  const child = spawn(process.execPath, [__filename, 'child']);
 
-  var output = '';
+  let output = '';
 
   child.stderr.on('data', function(c) {
     output += c;
@@ -42,7 +42,7 @@ function child() {
     throw new Error('No ticking!');
   };
 
-  var stderr = process.stderr;
+  const stderr = process.stderr;
   stderr.write = function() {
     throw new Error('No writing to stderr!');
   };

@@ -5,8 +5,8 @@ require('../common');
 const assert = require('assert');
 const domain = require('domain');
 
-var a = domain.create();
-var b = domain.create();
+const a = domain.create();
+const b = domain.create();
 
 a.enter(); // push
 b.enter(); // push

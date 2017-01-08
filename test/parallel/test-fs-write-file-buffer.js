@@ -4,7 +4,7 @@ const join = require('path').join;
 const util = require('util');
 const fs = require('fs');
 
-var data = [
+let data = [
   '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcH',
   'Bw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/',
   '2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4e',
@@ -27,7 +27,7 @@ data = data.join('\n');
 
 common.refreshTmpDir();
 
-var buf = Buffer.from(data, 'base64');
+const buf = Buffer.from(data, 'base64');
 fs.writeFileSync(join(common.tmpDir, 'test.jpg'), buf);
 
 util.log('Done!');

@@ -12,7 +12,7 @@ assert.strictEqual(typeof freelist.FreeList, 'function');
 const flist1 = new freelist.FreeList('flist1', 3, String);
 
 // Allocating when empty, should not change the list size
-var result = flist1.alloc('test');
+const result = flist1.alloc('test');
 assert.strictEqual(typeof result, 'string');
 assert.strictEqual(result, 'test');
 assert.strictEqual(flist1.list.length, 0);

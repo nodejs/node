@@ -7,7 +7,7 @@ const e = new events.EventEmitter();
 const num_args_emited = [];
 
 e.on('numArgs', function() {
-  var numArgs = arguments.length;
+  const numArgs = arguments.length;
   console.log('numArgs: ' + numArgs);
   num_args_emited.push(numArgs);
 });

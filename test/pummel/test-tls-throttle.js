@@ -13,22 +13,22 @@ const tls = require('tls');
 const fs = require('fs');
 
 process.stdout.write('build body...');
-var body = 'hello world\n'.repeat(1024 * 1024);
+const body = 'hello world\n'.repeat(1024 * 1024);
 process.stdout.write('done\n');
 
-var options = {
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem')
 };
 
-var server = tls.Server(options, common.mustCall(function(socket) {
+const server = tls.Server(options, common.mustCall(function(socket) {
   socket.end(body);
 }));
 
-var recvCount = 0;
+let recvCount = 0;
 
 server.listen(common.PORT, function() {
-  var client = tls.connect({
+  const client = tls.connect({
     port: common.PORT,
     rejectUnauthorized: false
   });
@@ -58,7 +58,7 @@ function displayCounts() {
 }
 
 
-var timeout = setTimeout(displayCounts, 10 * 1000);
+const timeout = setTimeout(displayCounts, 10 * 1000);
 
 
 process.on('exit', function() {

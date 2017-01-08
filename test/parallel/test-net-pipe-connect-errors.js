@@ -8,7 +8,7 @@ const assert = require('assert');
 // Test if ENOTSOCK is fired when trying to connect to a file which is not
 // a socket.
 
-var emptyTxt;
+let emptyTxt;
 
 if (common.isWindows) {
   // on Win, common.PIPE will be a named pipe, so we use an existing empty
@@ -34,7 +34,7 @@ if (common.isWindows) {
   fs.writeFileSync(emptyTxt, '');
 }
 
-var notSocketClient = net.createConnection(emptyTxt, function() {
+const notSocketClient = net.createConnection(emptyTxt, function() {
   common.fail('connection callback should not run');
 });
 
@@ -45,7 +45,7 @@ notSocketClient.on('error', common.mustCall(function(err) {
 
 
 // Trying to connect to not-existing socket should result in ENOENT error
-var noEntSocketClient = net.createConnection('no-ent-file', function() {
+const noEntSocketClient = net.createConnection('no-ent-file', function() {
   common.fail('connection to non-existent socket, callback should not run');
 });
 
@@ -63,7 +63,7 @@ if (!common.isWindows && process.getuid() !== 0) {
   accessServer.listen(common.PIPE, common.mustCall(function() {
     fs.chmodSync(common.PIPE, 0);
 
-    var accessClient = net.createConnection(common.PIPE, function() {
+    const accessClient = net.createConnection(common.PIPE, function() {
       common.fail('connection should get EACCES, callback should not run');
     });
 

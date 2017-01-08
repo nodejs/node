@@ -12,7 +12,7 @@ if (process.argv[2] === 'child') {
   }, 400);
 
 } else {
-  var child = fork(__filename, ['child']);
+  const child = fork(__filename, ['child']);
 
   child.on('disconnect', function() {
     console.log('parent -> disconnect');

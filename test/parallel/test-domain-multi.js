@@ -5,12 +5,12 @@ require('../common');
 const assert = require('assert');
 const domain = require('domain');
 
-var caughtA = false;
-var caughtB = false;
-var caughtC = false;
+let caughtA = false;
+let caughtB = false;
+let caughtC = false;
 
 
-var a = domain.create();
+const a = domain.create();
 a.enter(); // this will be our "root" domain
 a.on('error', function(er) {
   caughtA = true;
@@ -20,9 +20,9 @@ a.on('error', function(er) {
 
 
 const http = require('http');
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   // child domain of a.
-  var b = domain.create();
+  const b = domain.create();
   a.add(b);
 
   // treat these EE objects as if they are a part of the b domain
@@ -50,8 +50,8 @@ var server = http.createServer(function(req, res) {
   }));
 
 }).listen(0, function() {
-  var c = domain.create();
-  var req = http.get({ host: 'localhost', port: this.address().port });
+  const c = domain.create();
+  const req = http.get({ host: 'localhost', port: this.address().port });
 
   // add the request to the C domain
   c.add(req);

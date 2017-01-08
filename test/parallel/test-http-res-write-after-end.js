@@ -3,7 +3,7 @@ const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
-var server = http.Server(common.mustCall(function(req, res) {
+const server = http.Server(common.mustCall(function(req, res) {
   res.on('error', common.mustCall(function onResError(err) {
     assert.strictEqual(err.message, 'write after end');
   }));
@@ -11,7 +11,7 @@ var server = http.Server(common.mustCall(function(req, res) {
   res.write('This should write.');
   res.end();
 
-  var r = res.write('This should raise an error.');
+  const r = res.write('This should raise an error.');
   assert.equal(r, true, 'write after end should return true');
 }));
 

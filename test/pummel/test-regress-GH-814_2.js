@@ -6,7 +6,7 @@ const assert = require('assert');
 
 const fs = require('fs');
 const testFileName = require('path').join(common.tmpDir, 'GH-814_test.txt');
-var testFD = fs.openSync(testFileName, 'w');
+const testFD = fs.openSync(testFileName, 'w');
 console.error(testFileName + '\n');
 
 
@@ -27,12 +27,12 @@ function tailCB(data) {
 }
 
 
-var PASS = true;
-var bufPool = [];
-var kBufSize = 16 * 1024 * 1024;
-var neverWrittenBuffer = newBuffer(kBufSize, 0x2e); //0x2e === '.'
+let PASS = true;
+const bufPool = [];
+const kBufSize = 16 * 1024 * 1024;
+const neverWrittenBuffer = newBuffer(kBufSize, 0x2e); //0x2e === '.'
 
-var timeToQuit = Date.now() + 5e3; //Test should last no more than this.
+const timeToQuit = Date.now() + 5e3; //Test should last no more than this.
 writer();
 
 function writer() {
@@ -51,7 +51,7 @@ function writer() {
       global.gc();
       global.gc();
       global.gc();
-      var nuBuf = Buffer.allocUnsafe(kBufSize);
+      const nuBuf = Buffer.allocUnsafe(kBufSize);
       neverWrittenBuffer.copy(nuBuf);
       if (bufPool.push(nuBuf) > 100) {
         bufPool.length = 0;
@@ -73,7 +73,7 @@ function writerCB(err, written) {
 
 
 function newBuffer(size, value) {
-  var buffer = Buffer.allocUnsafe(size);
+  const buffer = Buffer.allocUnsafe(size);
   while (size--) {
     buffer[size] = value;
   }

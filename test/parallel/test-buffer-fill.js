@@ -243,7 +243,7 @@ function writeToFill(string, offset, end, encoding) {
   // Convert "end" to "length" (which write understands).
   const length = end - offset < 0 ? 0 : end - offset;
 
-  var wasZero = false;
+  let wasZero = false;
   do {
     const written = buf2.write(string, offset, length, encoding);
     offset += written;
@@ -324,7 +324,7 @@ Buffer.alloc(8, '');
 {
   let elseWasLast = false;
   assert.throws(() => {
-    var ctr = 0;
+    let ctr = 0;
     const start = {
       [Symbol.toPrimitive]() {
         // We use this condition to get around the check in lib/buffer.js
@@ -357,7 +357,7 @@ assert.throws(() => {
 {
   let elseWasLast = false;
   assert.throws(() => {
-    var ctr = 0;
+    let ctr = 0;
     const end = {
       [Symbol.toPrimitive]() {
         // We use this condition to get around the check in lib/buffer.js

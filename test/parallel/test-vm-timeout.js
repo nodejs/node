@@ -23,7 +23,7 @@ vm.runInThisContext('', { timeout: 1000 });
 
 // Test 5: Nested vm timeouts, inner timeout propagates out
 assert.throws(function() {
-  var context = {
+  const context = {
     log: console.log,
     runInVM: function(timeout) {
       vm.runInNewContext('while(true) {}', context, { timeout: timeout });

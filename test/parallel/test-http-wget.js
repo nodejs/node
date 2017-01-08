@@ -19,7 +19,7 @@ const http = require('http');
 // content-length is not provided, that the connection is in fact
 // closed.
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   res.writeHead(200, {'Content-Type': 'text/plain'});
   res.write('hello ');
   res.write('world\n');
@@ -28,8 +28,8 @@ var server = http.createServer(function(req, res) {
 server.listen(0);
 
 server.on('listening', common.mustCall(function() {
-  var c = net.createConnection(this.address().port);
-  var server_response = '';
+  const c = net.createConnection(this.address().port);
+  let server_response = '';
 
   c.setEncoding('utf8');
 

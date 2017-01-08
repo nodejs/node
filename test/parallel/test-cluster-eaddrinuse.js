@@ -8,12 +8,12 @@ const assert = require('assert');
 const fork = require('child_process').fork;
 const net = require('net');
 
-var id = '' + process.argv[2];
+const id = '' + process.argv[2];
 
 if (id === 'undefined') {
   const server = net.createServer(common.fail);
   server.listen(common.PORT, function() {
-    var worker = fork(__filename, ['worker']);
+    const worker = fork(__filename, ['worker']);
     worker.on('message', function(msg) {
       if (msg !== 'stop-listening') return;
       server.close(function() {

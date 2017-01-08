@@ -5,13 +5,13 @@ const assert = require('assert');
 
 const fs = require('fs');
 
-var O_APPEND = fs.constants.O_APPEND || 0;
-var O_CREAT = fs.constants.O_CREAT || 0;
-var O_EXCL = fs.constants.O_EXCL || 0;
-var O_RDONLY = fs.constants.O_RDONLY || 0;
-var O_RDWR = fs.constants.O_RDWR || 0;
-var O_TRUNC = fs.constants.O_TRUNC || 0;
-var O_WRONLY = fs.constants.O_WRONLY || 0;
+const O_APPEND = fs.constants.O_APPEND || 0;
+const O_CREAT = fs.constants.O_CREAT || 0;
+const O_EXCL = fs.constants.O_EXCL || 0;
+const O_RDONLY = fs.constants.O_RDONLY || 0;
+const O_RDWR = fs.constants.O_RDWR || 0;
+const O_TRUNC = fs.constants.O_TRUNC || 0;
+const O_WRONLY = fs.constants.O_WRONLY || 0;
 
 const { stringToFlags } = require('internal/fs');
 

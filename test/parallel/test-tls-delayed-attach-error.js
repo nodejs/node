@@ -9,16 +9,16 @@ const tls = require('tls');
 const fs = require('fs');
 const net = require('net');
 
-var bonkers = Buffer.alloc(1024, 42);
+const bonkers = Buffer.alloc(1024, 42);
 
-var options = {
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
-var server = net.createServer(common.mustCall(function(c) {
+const server = net.createServer(common.mustCall(function(c) {
   setTimeout(common.mustCall(function() {
-    var s = new tls.TLSSocket(c, {
+    const s = new tls.TLSSocket(c, {
       isServer: true,
       secureContext: tls.createSecureContext(options)
     });
@@ -31,7 +31,7 @@ var server = net.createServer(common.mustCall(function(c) {
     });
   }), 200);
 })).listen(0, function() {
-  var c = net.connect({port: this.address().port}, function() {
+  const c = net.connect({port: this.address().port}, function() {
     c.write(bonkers);
   });
 });

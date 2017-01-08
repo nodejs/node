@@ -7,7 +7,7 @@ const net = require('net');
 
 process.stdin.destroy();
 
-var server = net.createServer(common.mustCall(function(socket) {
+const server = net.createServer(common.mustCall(function(socket) {
   console.log('accepted');
   socket.end();
   server.close();

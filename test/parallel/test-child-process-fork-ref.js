@@ -16,9 +16,10 @@ if (process.argv[2] === 'child') {
   });
 
 } else {
-  var child = fork(__filename, ['child'], {silent: true});
+  const child = fork(__filename, ['child'], {silent: true});
 
-  var ipc = [], stdout = '';
+  const ipc = [];
+  let stdout = '';
 
   child.on('message', function(msg) {
     ipc.push(msg);

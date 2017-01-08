@@ -6,7 +6,7 @@ const cluster = require('cluster');
 if (!cluster.isMaster) {
   process.exit(42);
 } else {
-  var worker = cluster.fork();
+  const worker = cluster.fork();
   worker.on('exit', common.mustCall(function(exitCode, signalCode) {
     assert.strictEqual(exitCode, 42);
     assert.strictEqual(signalCode, null);
