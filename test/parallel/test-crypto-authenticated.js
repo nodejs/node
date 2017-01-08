@@ -312,7 +312,7 @@ const ciphers = crypto.getCiphers();
 for (const i in TEST_CASES) {
   const test = TEST_CASES[i];
 
-  if (ciphers.indexOf(test.algo) === -1) {
+  if (!ciphers.includes(test.algo)) {
     common.skip('unsupported ' + test.algo + ' test');
     continue;
   }
