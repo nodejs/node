@@ -32,7 +32,7 @@ function test(httpVersion, callback) {
       });
 
       res.on('end', common.mustCall(function() {
-        assert.equal(body, expected[httpVersion]);
+        assert.strictEqual(body, expected[httpVersion]);
         server.close();
         if (callback) process.nextTick(callback);
       }));

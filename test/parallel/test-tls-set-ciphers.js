@@ -26,7 +26,7 @@ const reply = 'I AM THE WALRUS'; // something recognizable
 let response = '';
 
 process.on('exit', function() {
-  assert.notEqual(response.indexOf(reply), -1);
+  assert.notStrictEqual(response.indexOf(reply), -1);
 });
 
 const server = tls.createServer(options, common.mustCall(function(conn) {

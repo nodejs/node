@@ -12,5 +12,5 @@ t.close(onclose);
 t.close(onclose);
 
 process.on('exit', function() {
-  assert.equal(1, called);
+  assert.strictEqual(1, called);
 });

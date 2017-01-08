@@ -10,20 +10,20 @@ let body1 = '';
 
 const server = http.createServer(function(req, res) {
   if (responses_sent === 0) {
-    assert.equal('GET', req.method);
-    assert.equal('/hello', url.parse(req.url).pathname);
+    assert.strictEqual('GET', req.method);
+    assert.strictEqual('/hello', url.parse(req.url).pathname);
 
     console.dir(req.headers);
-    assert.equal(true, 'accept' in req.headers);
-    assert.equal('*/*', req.headers['accept']);
+    assert.strictEqual(true, 'accept' in req.headers);
+    assert.strictEqual('*/*', req.headers['accept']);
 
-    assert.equal(true, 'foo' in req.headers);
-    assert.equal('bar', req.headers['foo']);
+    assert.strictEqual(true, 'foo' in req.headers);
+    assert.strictEqual('bar', req.headers['foo']);
   }
 
   if (responses_sent === 1) {
-    assert.equal('POST', req.method);
-    assert.equal('/world', url.parse(req.url).pathname);
+    assert.strictEqual('POST', req.method);
+    assert.strictEqual('/world', url.parse(req.url).pathname);
     this.close();
   }
 
@@ -43,7 +43,7 @@ server.listen(0, common.mustCall(function() {
     req.end();
   }, 100);
   req.on('response', common.mustCall(function(res) {
-    assert.equal(200, res.statusCode);
+    assert.strictEqual(200, res.statusCode);
     res.setEncoding('utf8');
     res.on('data', function(chunk) { body0 += chunk; });
     console.error('Got /hello response');
@@ -53,7 +53,7 @@ server.listen(0, common.mustCall(function() {
     const req = client.request('POST', '/world');
     req.end();
     req.on('response', common.mustCall(function(res) {
-      assert.equal(200, res.statusCode);
+      assert.strictEqual(200, res.statusCode);
       res.setEncoding('utf8');
       res.on('data', function(chunk) { body1 += chunk; });
       console.error('Got /world response');
@@ -63,8 +63,8 @@ server.listen(0, common.mustCall(function() {
 
 process.on('exit', function() {
   console.error('responses_sent: ' + responses_sent);
-  assert.equal(2, responses_sent);
+  assert.strictEqual(2, responses_sent);
 
-  assert.equal('The path was /hello', body0);
-  assert.equal('The path was /world', body1);
+  assert.strictEqual('The path was /hello', body0);
+  assert.strictEqual('The path was /world', body1);
 });

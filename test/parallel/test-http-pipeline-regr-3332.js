@@ -36,5 +36,5 @@ process.on('exit', function() {
   // The server should pause connection on pipeline flood, but it shoul still
   // resume it and finish processing the requests, when its output queue will
   // be empty again.
-  assert.equal(received, COUNT);
+  assert.strictEqual(received, COUNT);
 });

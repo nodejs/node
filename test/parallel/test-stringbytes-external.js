@@ -13,14 +13,14 @@ let write_str = 'a';
 let b = Buffer.from(write_str, 'ucs2');
 // first check latin1
 let c = b.toString('latin1');
-assert.equal(b[0], 0x61);
-assert.equal(b[1], 0);
-assert.equal(ucs2_control, c);
+assert.strictEqual(b[0], 0x61);
+assert.strictEqual(b[1], 0);
+assert.strictEqual(ucs2_control, c);
 // now check binary
 c = b.toString('binary');
-assert.equal(b[0], 0x61);
-assert.equal(b[1], 0);
-assert.equal(ucs2_control, c);
+assert.strictEqual(b[0], 0x61);
+assert.strictEqual(b[1], 0);
+assert.strictEqual(ucs2_control, c);
 
 // now create big strings
 const size = 1 + (1 << 20);
@@ -31,8 +31,8 @@ ucs2_control = Array(size).join(ucs2_control);
 b = Buffer.from(write_str, 'ucs2');
 // check fist Buffer created from write string
 for (let i = 0; i < b.length; i += 2) {
-  assert.equal(b[i], 0x61);
-  assert.equal(b[i + 1], 0);
+  assert.strictEqual(b[i], 0x61);
+  assert.strictEqual(b[i + 1], 0);
 }
 
 // create another string to create an external string
@@ -40,25 +40,25 @@ const b_ucs = b.toString('ucs2');
 
 // check control against external binary string
 const l_bin = b.toString('latin1');
-assert.equal(ucs2_control, l_bin);
+assert.strictEqual(ucs2_control, l_bin);
 
 // check control against external binary string
 const b_bin = b.toString('binary');
-assert.equal(ucs2_control, b_bin);
+assert.strictEqual(ucs2_control, b_bin);
 
 // create buffer copy from external
 const c_bin = Buffer.from(l_bin, 'latin1');
 const c_ucs = Buffer.from(b_ucs, 'ucs2');
 // make sure they're the same length
-assert.equal(c_bin.length, c_ucs.length);
+assert.strictEqual(c_bin.length, c_ucs.length);
 // make sure Buffers from externals are the same
 for (let i = 0; i < c_bin.length; i++) {
-  assert.equal(c_bin[i], c_ucs[i]);
+  assert.strictEqual(c_bin[i], c_ucs[i]);
 }
 // check resultant strings
-assert.equal(c_bin.toString('ucs2'), c_ucs.toString('ucs2'));
-assert.equal(c_bin.toString('latin1'), ucs2_control);
-assert.equal(c_ucs.toString('latin1'), ucs2_control);
+assert.strictEqual(c_bin.toString('ucs2'), c_ucs.toString('ucs2'));
+assert.strictEqual(c_bin.toString('latin1'), ucs2_control);
+assert.strictEqual(c_ucs.toString('latin1'), ucs2_control);
 
 
 // now let's test BASE64 and HEX ecoding/decoding

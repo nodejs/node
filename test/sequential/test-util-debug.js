@@ -45,8 +45,8 @@ function test(environ, shouldWrite) {
 
   child.on('close', common.mustCall(function(c) {
     assert(!c);
-    assert.equal(err, expectErr);
-    assert.equal(out, expectOut);
+    assert.strictEqual(err, expectErr);
+    assert.strictEqual(out, expectOut);
     console.log('ok %j %j', environ, shouldWrite);
   }));
 }

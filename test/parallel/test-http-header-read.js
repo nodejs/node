@@ -18,7 +18,7 @@ const s = http.createServer(function(req, res) {
   // and does not throw an exception (Issue 752)
   assert.doesNotThrow(
       function() {
-        assert.equal(plain, res.getHeader(contentType));
+        assert.strictEqual(plain, res.getHeader(contentType));
       }
   );
 });

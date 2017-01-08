@@ -14,6 +14,6 @@ const r = new Readable({ read: _read });
 r.resume();
 
 process.on('exit', function() {
-  assert.equal(r._read, _read);
+  assert.strictEqual(r._read, _read);
   assert(_readCalled);
 });

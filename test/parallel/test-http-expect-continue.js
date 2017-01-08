@@ -10,7 +10,8 @@ let sent_continue = false;
 let got_continue = false;
 
 function handler(req, res) {
-  assert.equal(sent_continue, true, 'Full response sent before 100 Continue');
+  assert.strictEqual(sent_continue, true, 'Full response sent before ' +
+                     '100 Continue');
   console.error('Server sending full response...');
   res.writeHead(200, {
     'Content-Type': 'text/plain',
@@ -47,15 +48,15 @@ server.on('listening', function() {
     req.end(test_req_body);
   });
   req.on('response', function(res) {
-    assert.equal(got_continue, true,
-                 'Full response received before 100 Continue');
-    assert.equal(200, res.statusCode,
-                 'Final status code was ' + res.statusCode + ', not 200.');
+    assert.strictEqual(got_continue, true,
+                       'Full response received before 100 Continue');
+    assert.strictEqual(200, res.statusCode, 'Final status code was ' +
+                       res.statusCode + ', not 200.');
     res.setEncoding('utf8');
     res.on('data', function(chunk) { body += chunk; });
     res.on('end', function() {
       console.error('Got full response.');
-      assert.equal(body, test_res_body, 'Response body doesn\'t match.');
+      assert.strictEqual(body, test_res_body, 'Response body doesn\'t match.');
       assert.ok('abcd' in res.headers, 'Response headers missing.');
       outstanding_reqs--;
       if (outstanding_reqs === 0) {

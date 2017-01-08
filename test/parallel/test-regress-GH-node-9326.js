@@ -10,5 +10,5 @@ const cp = child_process.spawn(process.execPath, [
 ]);
 
 cp.on('exit', function(code) {
-  assert.notEqual(code, 0);
+  assert.notStrictEqual(code, 0);
 });

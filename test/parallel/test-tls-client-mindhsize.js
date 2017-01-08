@@ -88,6 +88,6 @@ assert.throws(() => test(512, true, common.fail),
 });
 
 process.on('exit', function() {
-  assert.equal(nsuccess, 1);
-  assert.equal(nerror, 1);
+  assert.strictEqual(nsuccess, 1);
+  assert.strictEqual(nerror, 1);
 });

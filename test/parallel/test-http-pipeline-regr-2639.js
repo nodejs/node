@@ -29,5 +29,5 @@ const server = http.createServer(function(req, res) {
 });
 
 process.on('exit', function() {
-  assert.equal(received, COUNT);
+  assert.strictEqual(received, COUNT);
 });

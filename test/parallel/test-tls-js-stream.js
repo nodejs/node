@@ -71,6 +71,6 @@ const server = tls.createServer({
 });
 
 process.once('exit', function() {
-  assert.equal(connected.client, 1);
-  assert.equal(connected.server, 1);
+  assert.strictEqual(connected.client, 1);
+  assert.strictEqual(connected.server, 1);
 });

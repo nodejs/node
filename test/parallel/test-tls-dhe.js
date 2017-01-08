@@ -96,6 +96,6 @@ function testError() {
 test1024();
 
 process.on('exit', function() {
-  assert.equal(ntests, nsuccess);
-  assert.equal(ntests, 3);
+  assert.strictEqual(ntests, nsuccess);
+  assert.strictEqual(ntests, 3);
 });

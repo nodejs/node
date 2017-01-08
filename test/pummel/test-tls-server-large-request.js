@@ -30,7 +30,7 @@ Mediator.prototype._write = function _write(data, enc, cb) {
   setTimeout(cb, 0);
 
   if (this.buf.length >= request.length) {
-    assert.equal(this.buf, request.toString());
+    assert.strictEqual(this.buf, request.toString());
     server.close();
   }
 };

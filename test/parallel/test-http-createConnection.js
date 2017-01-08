@@ -23,7 +23,7 @@ const server = http.createServer(common.mustCall(function(req, res) {
           http.get({ createConnection: fn }, function(res) {
             common.fail('Unexpected response callback');
           }).on('error', common.mustCall(function(err) {
-            assert.equal(err.message, 'Could not create socket');
+            assert.strictEqual(err.message, 'Could not create socket');
             server.close();
           }));
         });

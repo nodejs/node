@@ -22,7 +22,7 @@ server.listen(0, () => {
   });
   req.on('error', common.mustCall((err) => {
     assert(/^Parse Error/.test(err.message));
-    assert.equal(err.code, 'HPE_UNEXPECTED_CONTENT_LENGTH');
+    assert.strictEqual(err.code, 'HPE_UNEXPECTED_CONTENT_LENGTH');
     server.close();
   }));
 });

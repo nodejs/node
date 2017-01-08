@@ -75,7 +75,7 @@ function assertOutputLines() {
   outputLines.sort();
   expectedLines.sort();
 
-  assert.equal(outputLines.length, expectedLines.length);
+  assert.strictEqual(outputLines.length, expectedLines.length);
   for (let i = 0; i < expectedLines.length; i++)
     assert(RegExp(expectedLines[i]).test(outputLines[i]));
 }

@@ -30,7 +30,7 @@ child.stdout.on('data', function(data) {
     child.stdin.write('echo me\r\n');
   } else {
     console.error('testing for echo me');
-    assert.equal('echo me\r\n', data);
+    assert.strictEqual('echo me\r\n', data);
     gotEcho = true;
     child.stdin.end();
   }

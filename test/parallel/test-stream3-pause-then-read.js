@@ -46,7 +46,7 @@ function readn(n, then) {
     if (!c)
       r.once('readable', read);
     else {
-      assert.equal(c.length, n);
+      assert.strictEqual(c.length, n);
       assert(!r._readableState.flowing);
       then();
     }
@@ -85,7 +85,7 @@ function pipeLittle() {
   const w = new Writable();
   let written = 0;
   w.on('finish', function() {
-    assert.equal(written, 200);
+    assert.strictEqual(written, 200);
     setImmediate(read1234);
   });
   w._write = function(chunk, encoding, cb) {
@@ -138,8 +138,8 @@ function pipe() {
   };
   w.on('finish', function() {
     console.error('written', written, totalPushed);
-    assert.equal(written, expectEndingData);
-    assert.equal(totalPushed, expectTotalData);
+    assert.strictEqual(written, expectEndingData);
+    assert.strictEqual(totalPushed, expectTotalData);
     console.log('ok');
   });
   r.pipe(w);

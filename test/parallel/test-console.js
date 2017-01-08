@@ -115,7 +115,7 @@ assert.strictEqual("{ foo: 'bar', inspect: [Function: inspect] }\n",
                    strings.shift());
 assert.strictEqual("{ foo: 'bar', inspect: [Function: inspect] }\n",
                    strings.shift());
-assert.notEqual(-1, strings.shift().indexOf('foo: [Object]'));
+assert.notStrictEqual(-1, strings.shift().indexOf('foo: [Object]'));
 assert.strictEqual(-1, strings.shift().indexOf('baz'));
 assert.ok(/^label: \d+\.\d{3}ms$/.test(strings.shift().trim()));
 assert.ok(/^__proto__: \d+\.\d{3}ms$/.test(strings.shift().trim()));

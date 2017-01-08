@@ -70,7 +70,7 @@ server4.listen(common.PORT + 3, 127, function() {
 
 process.on('exit', function() {
   assert.ok(address0.port > 100);
-  assert.equal(common.PORT, address1.port);
+  assert.strictEqual(common.PORT, address1.port);
 
   let expectedConnectionKey1;
 
@@ -79,8 +79,8 @@ process.on('exit', function() {
   else
     expectedConnectionKey1 = '4:0.0.0.0:' + address1.port;
 
-  assert.equal(connectionKey1, expectedConnectionKey1);
-  assert.equal(common.PORT + 1, address2.port);
-  assert.equal(common.PORT + 2, address3.port);
-  assert.equal(common.PORT + 3, address4.port);
+  assert.strictEqual(connectionKey1, expectedConnectionKey1);
+  assert.strictEqual(common.PORT + 1, address2.port);
+  assert.strictEqual(common.PORT + 2, address3.port);
+  assert.strictEqual(common.PORT + 3, address4.port);
 });

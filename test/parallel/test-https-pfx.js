@@ -22,8 +22,9 @@ const options = {
 };
 
 const server = https.createServer(options, function(req, res) {
-  assert.equal(req.socket.authorized, false); // not a client cert
-  assert.equal(req.socket.authorizationError, 'DEPTH_ZERO_SELF_SIGNED_CERT');
+  assert.strictEqual(req.socket.authorized, false); // not a client cert
+  assert.strictEqual(req.socket.authorizationError,
+                     'DEPTH_ZERO_SELF_SIGNED_CERT');
   res.writeHead(200);
   res.end('OK');
 });

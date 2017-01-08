@@ -14,5 +14,5 @@ const testMe = repl.start('', putIn, function(cmd, context,
 testMe._domain.on('error', common.fail);
 
 testMe.complete('', function(err, results) {
-  assert.equal(err, null);
+  assert.strictEqual(err, null);
 });

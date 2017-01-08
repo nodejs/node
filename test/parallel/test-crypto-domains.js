@@ -12,7 +12,7 @@ if (!common.hasCrypto) {
 const crypto = require('crypto');
 
 d.on('error', common.mustCall(function(e) {
-  assert.equal(e.message, expect.shift());
+  assert.strictEqual(e.message, expect.shift());
 }, 3));
 
 d.run(function() {

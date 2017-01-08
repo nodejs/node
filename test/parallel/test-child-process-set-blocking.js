@@ -10,5 +10,5 @@ const cp = ch.spawn('python', ['-c', 'print ' + SIZE + ' * "C"'], {
 });
 
 cp.on('exit', common.mustCall(function(code) {
-  assert.equal(0, code);
+  assert.strictEqual(0, code);
 }));

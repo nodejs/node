@@ -18,7 +18,7 @@ function pummel() {
   let pending;
   for (pending = 0; pending < ATTEMPTS_PER_ROUND; pending++) {
     net.createConnection(common.PORT).on('error', function(err) {
-      assert.equal(err.code, 'ECONNREFUSED');
+      assert.strictEqual(err.code, 'ECONNREFUSED');
       if (--pending > 0) return;
       if (rounds === ROUNDS) return check();
       rounds++;
@@ -30,15 +30,15 @@ function pummel() {
 
 function check() {
   setTimeout(function() {
-    assert.equal(process._getActiveRequests().length, 0);
-    assert.equal(process._getActiveHandles().length, 1); // the timer
+    assert.strictEqual(process._getActiveRequests().length, 0);
+    assert.strictEqual(process._getActiveHandles().length, 1); // the timer
     check_called = true;
   }, 0);
 }
 let check_called = false;
 
 process.on('exit', function() {
-  assert.equal(rounds, ROUNDS);
-  assert.equal(reqs, ROUNDS * ATTEMPTS_PER_ROUND);
+  assert.strictEqual(rounds, ROUNDS);
+  assert.strictEqual(reqs, ROUNDS * ATTEMPTS_PER_ROUND);
   assert(check_called);
 });

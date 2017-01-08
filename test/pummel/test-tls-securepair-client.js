@@ -31,9 +31,10 @@ function test1() {
 function test2() {
   function check(pair) {
     // "TLS Web Client Authentication"
-    assert.equal(pair.cleartext.getPeerCertificate().ext_key_usage.length, 1);
-    assert.equal(pair.cleartext.getPeerCertificate().ext_key_usage[0],
-                 '1.3.6.1.5.5.7.3.2');
+    assert.strictEqual(pair.cleartext.getPeerCertificate().ext_key_usage.length,
+                       1);
+    assert.strictEqual(pair.cleartext.getPeerCertificate().ext_key_usage[0],
+                       '1.3.6.1.5.5.7.3.2');
   }
   test('keys/agent4-key.pem', 'keys/agent4-cert.pem', check);
 }
@@ -158,8 +159,8 @@ function test(keyfn, certfn, check, next) {
 
 
   process.on('exit', function() {
-    assert.equal(0, serverExitCode);
-    assert.equal('WAIT-SERVER-CLOSE', state);
+    assert.strictEqual(0, serverExitCode);
+    assert.strictEqual('WAIT-SERVER-CLOSE', state);
     assert.ok(gotWriteCallback);
   });
 }

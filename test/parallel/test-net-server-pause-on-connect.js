@@ -13,7 +13,7 @@ const server1ConnHandler = function(socket) {
       common.fail('data event should not have happened yet');
     }
 
-    assert.equal(data.toString(), msg, 'invalid data received');
+    assert.strictEqual(data.toString(), msg, 'invalid data received');
     socket.end();
     server1.close();
   });
@@ -25,11 +25,12 @@ const server1 = net.createServer({pauseOnConnect: true}, server1ConnHandler);
 
 const server2ConnHandler = function(socket) {
   socket.on('data', function(data) {
-    assert.equal(data.toString(), msg, 'invalid data received');
+    assert.strictEqual(data.toString(), msg, 'invalid data received');
     socket.end();
     server2.close();
 
-    assert.equal(server1Sock.bytesRead, 0, 'no data should have been read yet');
+    assert.strictEqual(server1Sock.bytesRead, 0,
+                       'no data should have been read yet');
     server1Sock.resume();
     stopped = false;
   });
@@ -47,5 +48,5 @@ server1.listen(0, function() {
 });
 
 process.on('exit', function() {
-  assert.equal(stopped, false);
+  assert.strictEqual(stopped, false);
 });

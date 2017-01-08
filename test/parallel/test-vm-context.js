@@ -9,18 +9,18 @@ let script = new Script('"passed";');
 console.error('run in a new empty context');
 let context = vm.createContext();
 let result = script.runInContext(context);
-assert.equal('passed', result);
+assert.strictEqual('passed', result);
 
 console.error('create a new pre-populated context');
 context = vm.createContext({'foo': 'bar', 'thing': 'lala'});
-assert.equal('bar', context.foo);
-assert.equal('lala', context.thing);
+assert.strictEqual('bar', context.foo);
+assert.strictEqual('lala', context.thing);
 
 console.error('test updating context');
 script = new Script('foo = 3;');
 result = script.runInContext(context);
-assert.equal(3, context.foo);
-assert.equal('lala', context.thing);
+assert.strictEqual(3, context.foo);
+assert.strictEqual('lala', context.thing);
 
 // Issue GH-227:
 assert.throws(function() {
@@ -58,7 +58,7 @@ script = vm.createScript('delete b');
 let ctx = {};
 Object.defineProperty(ctx, 'b', { configurable: false });
 ctx = vm.createContext(ctx);
-assert.equal(script.runInContext(ctx), false);
+assert.strictEqual(script.runInContext(ctx), false);
 
 // Error on the first line of a module should
 // have the correct line and column number

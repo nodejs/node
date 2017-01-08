@@ -28,7 +28,7 @@ function testSocketOptions(socket, socketOptions) {
     s.on('end', function() {
       server.close();
       s.destroy();
-      assert.equal(received, sent);
+      assert.strictEqual(received, sent);
       setImmediate(runTests);
     });
   }).listen(0, function() {

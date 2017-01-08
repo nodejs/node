@@ -43,13 +43,13 @@ server.listen(0, function() {
   });
 
   process.on('exit', function() {
-    assert.equal(clientData, '');
-    assert.equal(serverData, 'hello1hello2hello3\nTHUNDERMUSCLE!');
+    assert.strictEqual(clientData, '');
+    assert.strictEqual(serverData, 'hello1hello2hello3\nTHUNDERMUSCLE!');
     assert(gotClientEnd);
     assert(gotServerEnd);
     assert(gotServerError);
-    assert.equal(gotServerError.code, 'EPIPE');
-    assert.notEqual(gotServerError.message, 'write after end');
+    assert.strictEqual(gotServerError.code, 'EPIPE');
+    assert.notStrictEqual(gotServerError.message, 'write after end');
     console.log('ok');
   });
 

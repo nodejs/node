@@ -49,6 +49,6 @@ function testBuf(encoding, buf) {
   console.log('expect=%j', res3);
   console.log('res1=%j', res1);
   console.log('res2=%j', res2);
-  assert.equal(res1, res3, 'one byte at a time should match toString');
-  assert.equal(res2, res3, 'all bytes at once should match toString');
+  assert.strictEqual(res1, res3, 'one byte at a time should match toString');
+  assert.strictEqual(res2, res3, 'all bytes at once should match toString');
 }

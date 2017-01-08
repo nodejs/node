@@ -22,17 +22,17 @@ server.listen(0, function() {
   let closed = false;
   makeReqs(10, function(er) {
     assert.ifError(er);
-    assert.equal(count(agent.freeSockets), 2);
-    assert.equal(count(agent.sockets), 0);
-    assert.equal(serverSockets.length, 5);
+    assert.strictEqual(count(agent.freeSockets), 2);
+    assert.strictEqual(count(agent.sockets), 0);
+    assert.strictEqual(serverSockets.length, 5);
 
     // now make 10 more reqs.
     // should use the 2 free reqs from the pool first.
     makeReqs(10, function(er) {
       assert.ifError(er);
-      assert.equal(count(agent.freeSockets), 2);
-      assert.equal(count(agent.sockets), 0);
-      assert.equal(serverSockets.length, 8);
+      assert.strictEqual(count(agent.freeSockets), 2);
+      assert.strictEqual(count(agent.sockets), 0);
+      assert.strictEqual(serverSockets.length, 8);
 
       agent.destroy();
       server.close(function() {
@@ -72,7 +72,7 @@ server.listen(0, function() {
         data += c;
       });
       res.on('end', function() {
-        assert.equal(data, '/' + i);
+        assert.strictEqual(data, '/' + i);
         cb();
       });
     }).end();

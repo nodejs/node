@@ -17,7 +17,7 @@ fs.open(fn, 'w', 0o644, common.mustCall(function(err, fd) {
   fs.write(fd, data, 0, 'utf8', common.mustCall(function(err, written) {
     console.log('write done');
     if (err) throw err;
-    assert.equal(Buffer.byteLength(expected), written);
+    assert.strictEqual(Buffer.byteLength(expected), written);
     fs.closeSync(fd);
     const found = fs.readFileSync(fn, 'utf8');
     console.log('expected: "%s"', expected);

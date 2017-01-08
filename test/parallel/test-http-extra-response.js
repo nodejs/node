@@ -36,7 +36,7 @@ const server = net.createServer(function(socket) {
   });
 
   socket.on('error', function(err) {
-    assert.equal(err.code, 'ECONNRESET');
+    assert.strictEqual(err.code, 'ECONNRESET');
   });
 });
 
@@ -53,7 +53,7 @@ server.listen(0, common.mustCall(function() {
 
     res.on('end', common.mustCall(function() {
       console.log('Response ended, read ' + buffer.length + ' bytes');
-      assert.equal(body, buffer);
+      assert.strictEqual(body, buffer);
       server.close();
     }));
   }));

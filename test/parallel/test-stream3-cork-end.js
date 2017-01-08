@@ -22,7 +22,7 @@ w._write = function(chunk, encoding, cb) {
   // stream end event is not seen before the last write
   assert.ok(!seenEnd);
   // default encoding given none was specified
-  assert.equal(encoding, 'buffer');
+  assert.strictEqual(encoding, 'buffer');
 
   seenChunks.push(chunk);
   cb();
@@ -52,7 +52,7 @@ function writeChunks(remainingChunks, callback) {
 // do an initial write
 w.write('stuff');
 // the write was immediate
-assert.equal(seenChunks.length, 1);
+assert.strictEqual(seenChunks.length, 1);
 // reset the seen chunks
 seenChunks = [];
 
@@ -62,7 +62,7 @@ w.cork();
 // write the bufferedChunks
 writeChunks(inputChunks, () => {
   // should not have seen anything yet
-  assert.equal(seenChunks.length, 0);
+  assert.strictEqual(seenChunks.length, 0);
 
   // trigger flush and ending the stream
   w.end();
@@ -71,7 +71,7 @@ writeChunks(inputChunks, () => {
   assert.ok(!seenEnd);
 
   // buffered bytes should be seen in current tick
-  assert.equal(seenChunks.length, 4);
+  assert.strictEqual(seenChunks.length, 4);
 
   // did the chunks match
   for (let i = 0, l = expectedChunks.length; i < l; i++) {
