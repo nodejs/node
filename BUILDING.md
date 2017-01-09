@@ -121,7 +121,7 @@ Prerequisites:
 To run the tests:
 
 ```console
-> .\vcbuild test
+> .\vcbuild test nosign
 ```
 
 To test if Node.js was built correctly:
