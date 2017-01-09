@@ -1,3 +1,31 @@
+2017.01.10, Version 1.10.2 (Stable), cb9f579a454b8db592030ffa274ae58df78dbe20
+
+Changes since version 1.10.1:
+
+* Now working on version 1.10.2 (cjihrig)
+
+* darwin: fix fsync and fdatasync (Joran Dirk Greef)
+
+* Revert "Revert "win,tty: add support for ANSI codes in win10 v1511""
+  (Santiago Gimeno)
+
+* win,tty: fix MultiByteToWideChar output buffer (Santiago Gimeno)
+
+* win: remove dead code related to BACKUP_SEMANTICS (Sam Roberts)
+
+* win: fix comment in quote_cmd_arg (Eric Sciple)
+
+* darwin: use clock_gettime in macOS 10.12 (Saúl Ibarra Corretgé)
+
+* win, tty: fix crash on restarting with pending data (Nicholas Vavilov)
+
+* fs: fix uv__to_stat on BSD platforms (Santiago Gimeno)
+
+* win: map ERROR_ELEVATION_REQUIRED to UV_EACCES (Richard Lau)
+
+* win: fix free() on bad input in uv_getaddrinfo() (Ben Noordhuis)
+
+
 2016.11.17, Version 1.10.1 (Stable), 2e49e332bdede6db7cf17fa784a902e8386d5d86
 
 Changes since version 1.10.0:
