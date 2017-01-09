@@ -22,7 +22,7 @@ const filepathOne = path.join(testsubdir, filenameOne);
 
 const watcher = fs.watch(testDir, {recursive: true});
 
-var watcherClosed = false;
+let watcherClosed = false;
 watcher.on('change', function(event, filename) {
   assert.ok('change' === event || 'rename' === event);
 
@@ -38,7 +38,7 @@ watcher.on('change', function(event, filename) {
 });
 
 if (common.isOSX) {
-  var interval = setInterval(function() {
+  const interval = setInterval(function() {
     fs.writeFileSync(filepathOne, 'world');
   }, 10);
 } else {
