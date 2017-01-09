@@ -403,7 +403,6 @@ void fs__open(uv_fs_t* req) {
   switch (flags & (_O_RDONLY | _O_WRONLY | _O_RDWR)) {
   case _O_RDONLY:
     access = FILE_GENERIC_READ;
-    attributes |= FILE_FLAG_BACKUP_SEMANTICS;
     break;
   case _O_WRONLY:
     access = FILE_GENERIC_WRITE;
@@ -418,7 +417,6 @@ void fs__open(uv_fs_t* req) {
   if (flags & _O_APPEND) {
     access &= ~FILE_WRITE_DATA;
     access |= FILE_APPEND_DATA;
-    attributes &= ~FILE_FLAG_BACKUP_SEMANTICS;
   }
 
   /*
