@@ -4,8 +4,8 @@ const assert = require('assert');
 const util = require('util');
 const fs = require('fs');
 
-var tests_ok = 0;
-var tests_run = 0;
+let tests_ok = 0;
+let tests_run = 0;
 
 function stat_resource(resource) {
   if (typeof resource == 'string') {
@@ -19,8 +19,8 @@ function stat_resource(resource) {
 
 function check_mtime(resource, mtime) {
   mtime = fs._toUnixTimestamp(mtime);
-  var stats = stat_resource(resource);
-  var real_mtime = fs._toUnixTimestamp(stats.mtime);
+  const stats = stat_resource(resource);
+  const real_mtime = fs._toUnixTimestamp(stats.mtime);
   // check up to single-second precision
   // sub-second precision is OS and fs dependant
   return mtime - real_mtime < 2;
@@ -48,7 +48,7 @@ function expect_ok(syscall, resource, err, atime, mtime) {
 // would be even better though (node doesn't have such functionality yet)
 function runTest(atime, mtime, callback) {
 
-  var fd;
+  let fd;
   //
   // test synchronized code paths, these functions throw on failure
   //
@@ -67,7 +67,7 @@ function runTest(atime, mtime, callback) {
       expect_errno('futimesSync', fd, ex, 'ENOSYS');
     }
 
-    var err;
+    let err;
     err = undefined;
     try {
       fs.utimesSync('foobarbaz', atime, mtime);
@@ -120,7 +120,7 @@ function runTest(atime, mtime, callback) {
   tests_run++;
 }
 
-var stats = fs.statSync(__filename);
+const stats = fs.statSync(__filename);
 
 // run tests
 runTest(new Date('1982-09-10 13:37'), new Date('1982-09-10 13:37'), function() {
@@ -140,5 +140,5 @@ runTest(new Date('1982-09-10 13:37'), new Date('1982-09-10 13:37'), function() {
 
 process.on('exit', function() {
   console.log('Tests run / ok:', tests_run, '/', tests_ok);
-  assert.equal(tests_ok, tests_run);
+  assert.strictEqual(tests_ok, tests_run);
 });

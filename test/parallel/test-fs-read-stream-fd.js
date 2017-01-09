@@ -3,8 +3,8 @@ const common = require('../common');
 const fs = require('fs');
 const assert = require('assert');
 const path = require('path');
-var file = path.join(common.tmpDir, '/read_stream_fd_test.txt');
-var input = 'hello world';
+const file = path.join(common.tmpDir, '/read_stream_fd_test.txt');
+const input = 'hello world';
 var output = '';
 var fd, stream;
 
@@ -19,5 +19,5 @@ stream.on('data', function(data) {
 
 process.on('exit', function() {
   fs.unlinkSync(file);
-  assert.equal(output, input);
+  assert.strictEqual(output, input);
 });

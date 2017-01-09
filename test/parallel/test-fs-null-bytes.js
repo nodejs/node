@@ -8,7 +8,7 @@ function check(async, sync) {
   var argsSync = Array.prototype.slice.call(arguments, 2);
   var argsAsync = argsSync.concat(function(er) {
     assert(er && er.message.match(expected));
-    assert.equal(er.code, 'ENOENT');
+    assert.strictEqual(er.code, 'ENOENT');
   });
 
   if (sync)

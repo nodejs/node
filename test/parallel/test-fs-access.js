@@ -3,11 +3,11 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
-var doesNotExist = path.join(common.tmpDir, '__this_should_not_exist');
-var readOnlyFile = path.join(common.tmpDir, 'read_only_file');
-var readWriteFile = path.join(common.tmpDir, 'read_write_file');
+const doesNotExist = path.join(common.tmpDir, '__this_should_not_exist');
+const readOnlyFile = path.join(common.tmpDir, 'read_only_file');
+const readWriteFile = path.join(common.tmpDir, 'read_write_file');
 
-var removeFile = function(file) {
+const removeFile = function(file) {
   try {
     fs.unlinkSync(file);
   } catch (err) {
@@ -15,7 +15,7 @@ var removeFile = function(file) {
   }
 };
 
-var createFileWithPerms = function(file, mode) {
+const createFileWithPerms = function(file, mode) {
   removeFile(file);
   fs.writeFileSync(file, '');
   fs.chmodSync(file, mode);
@@ -83,7 +83,7 @@ fs.access(readOnlyFile, fs.F_OK | fs.R_OK, function(err) {
 
 fs.access(readOnlyFile, fs.W_OK, function(err) {
   if (hasWriteAccessForReadonlyFile) {
-    assert.equal(err, null, 'error should not exist');
+    assert.strictEqual(err, null, 'error should not exist');
   } else {
     assert.notEqual(err, null, 'error should exist');
     assert.strictEqual(err.path, readOnlyFile);
@@ -107,7 +107,7 @@ assert.doesNotThrow(function() {
 });
 
 assert.doesNotThrow(function() {
-  var mode = fs.F_OK | fs.R_OK | fs.W_OK;
+  const mode = fs.F_OK | fs.R_OK | fs.W_OK;
 
   fs.accessSync(readWriteFile, mode);
 });

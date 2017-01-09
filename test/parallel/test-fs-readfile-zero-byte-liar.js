@@ -3,7 +3,7 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 
-var dataExpected = fs.readFileSync(__filename, 'utf8');
+const dataExpected = fs.readFileSync(__filename, 'utf8');
 
 // sometimes stat returns size=0, but it's a lie.
 fs._fstat = fs.fstat;
@@ -18,14 +18,14 @@ fs.fstat = function(fd, cb) {
 };
 
 fs.fstatSync = function(fd) {
-  var st = fs._fstatSync(fd);
+  const st = fs._fstatSync(fd);
   st.size = 0;
   return st;
 };
 
-var d = fs.readFileSync(__filename, 'utf8');
-assert.equal(d, dataExpected);
+const d = fs.readFileSync(__filename, 'utf8');
+assert.strictEqual(d, dataExpected);
 
 fs.readFile(__filename, 'utf8', common.mustCall(function(er, d) {
-  assert.equal(d, dataExpected);
+  assert.strictEqual(d, dataExpected);
 }));
