@@ -7,12 +7,9 @@ const path = require('path');
 
 const f = path.join(common.fixturesDir, 'x.txt');
 
-console.log('watching for changes of ' + f);
-
 let changes = 0;
 function watchFile() {
   fs.watchFile(f, (curr, prev) => {
-    console.log(f + ' change');
     changes++;
     assert.notDeepStrictEqual(curr.mtime, prev.mtime);
     fs.unwatchFile(f);
