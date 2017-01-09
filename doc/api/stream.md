@@ -47,10 +47,10 @@ There are four fundamental stream types within Node.js:
 ### Object Mode
 
 All streams created by Node.js APIs operate exclusively on strings and `Buffer`
-objects. It is possible, however, for stream implementations to work with other
-types of JavaScript values (with the exception of `null`, which serves a special
-purpose within streams). Such streams are considered to operate in "object
-mode".
+(or `Uint8Array`) objects. It is possible, however, for stream implementations
+to work with other types of JavaScript values (with the exception of `null`,
+which serves a special purpose within streams). Such streams are considered to
+operate in "object mode".
 
 Stream instances are switched into object mode using the `objectMode` option
 when the stream is created. Attempting to switch an existing stream into
@@ -352,12 +352,17 @@ See also: [`writable.uncork()`][].
 ##### writable.end([chunk][, encoding][, callback])
 <!-- YAML
 added: v0.9.4
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/11608
+    description: The `chunk` argument can now be a `Uint8Array` instance.
 -->
 
-* `chunk` {string|Buffer|any} Optional data to write. For streams not operating
-  in object mode, `chunk` must be a string or a `Buffer`. For object mode
-  streams, `chunk` may be any JavaScript value other than `null`.
-* `encoding` {string} The encoding, if `chunk` is a String
+* `chunk` {string|Buffer|Uint8Array|any} Optional data to write. For streams
+  not operating in object mode, `chunk` must be a string, `Buffer` or
+  `Uint8Array`. For object mode streams, `chunk` may be any JavaScript value
+  other than `null`.
+* `encoding` {string} The encoding, if `chunk` is a string
 * `callback` {Function} Optional callback for when the stream is finished
 
 Calling the `writable.end()` method signals that no more data will be written
@@ -434,14 +439,20 @@ See also: [`writable.cork()`][].
 <!-- YAML
 added: v0.9.4
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/11608
+    description: The `chunk` argument can now be a `Uint8Array` instance.
   - version: v6.0.0
     pr-url: https://github.com/nodejs/node/pull/6170
     description: Passing `null` as the `chunk` parameter will always be
                  considered invalid now, even in object mode.
 -->
 
-* `chunk` {string|Buffer} The data to write
-* `encoding` {string} The encoding, if `chunk` is a String
+* `chunk` {string|Buffer|Uint8Array|any} Optional data to write. For streams
+  not operating in object mode, `chunk` must be a string, `Buffer` or
+  `Uint8Array`. For object mode streams, `chunk` may be any JavaScript value
+  other than `null`.
+* `encoding` {string} The encoding, if `chunk` is a string
 * `callback` {Function} Callback for when this chunk of data is flushed
 * Returns: {boolean} `false` if the stream wishes for the calling code to
   wait for the `'drain'` event to be emitted before continuing to write
@@ -985,9 +996,16 @@ setTimeout(() => {
 ##### readable.unshift(chunk)
 <!-- YAML
 added: v0.9.11
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/11608
+    description: The `chunk` argument can now be a `Uint8Array` instance.
 -->
 
-* `chunk` {Buffer|string|any} Chunk of data to unshift onto the read queue
+* `chunk` {Buffer|Uint8Array|string|any} Chunk of data to unshift onto the
+  read queue. For streams not operating in object mode, `chunk` must be a
+  string, `Buffer` or `Uint8Array`. For object mode streams, `chunk` may be
+  any JavaScript value other than `null`.
 
 The `readable.unshift()` method pushes a chunk of data back into the internal
 buffer. This is useful in certain situations where a stream is being consumed by
@@ -1274,8 +1292,9 @@ constructor and implement the `writable._write()` method. The
     Defaults to `true`
   * `objectMode` {boolean} Whether or not the
     [`stream.write(anyObj)`][stream-write] is a valid operation. When set,
-    it becomes possible to write JavaScript values other than string or
-    `Buffer` if supported by the stream implementation. Defaults to `false`
+    it becomes possible to write JavaScript values other than string,
+    `Buffer` or `Uint8Array` if supported by the stream implementation.
+    Defaults to `false`
   * `write` {Function} Implementation for the
     [`stream._write()`][stream-_write] method.
   * `writev` {Function} Implementation for the
@@ -1564,16 +1583,26 @@ internal to the class that defines it, and should never be called directly by
 user programs.
 
 #### readable.push(chunk[, encoding])
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/11608
+    description: The `chunk` argument can now be a `Uint8Array` instance.
+-->
 
-* `chunk` {Buffer|null|string|any} Chunk of data to push into the read queue
-* `encoding` {string} Encoding of String chunks.  Must be a valid
+* `chunk` {Buffer|Uint8Array|string|null|any} Chunk of data to push into the
+  read queue. For streams not operating in object mode, `chunk` must be a
+  string, `Buffer` or `Uint8Array`. For object mode streams, `chunk` may be
+  any JavaScript value.
+* `encoding` {string} Encoding of string chunks.  Must be a valid
   Buffer encoding, such as `'utf8'` or `'ascii'`
 * Returns {boolean} `true` if additional chunks of data may continued to be
   pushed; `false` otherwise.
 
-When `chunk` is not `null`, the `chunk` of data will be added to the
-internal queue for users of the stream to consume. Passing `chunk` as `null`
-signals the end of the stream (EOF), after which no more data can be written.
+When `chunk` is a `Buffer`, `Uint8Array` or `string`, the `chunk` of data will
+be added to the internal queue for users of the stream to consume.
+Passing `chunk` as `null` signals the end of the stream (EOF), after which no
+more data can be written.
 
 When the Readable is operating in paused mode, the data added with
 `readable.push()` can be read out by calling the
@@ -2088,8 +2117,8 @@ Readable stream class internals.
 
 Use of `readable.push('')` is not recommended.
 
-Pushing a zero-byte string or `Buffer` to a stream that is not in object mode
-has an interesting side effect. Because it *is* a call to
+Pushing a zero-byte string, `Buffer` or `Uint8Array` to a stream that is not in
+object mode has an interesting side effect. Because it *is* a call to
 [`readable.push()`][stream-push], the call will end the reading process.
 However, because the argument is an empty string, no data is added to the
 readable buffer so there is nothing for a user to consume.
