@@ -53,6 +53,7 @@ TEST_IMPL(error_message) {
 TEST_IMPL(sys_error) {
 #if defined(_WIN32)
   ASSERT(uv_translate_sys_error(ERROR_NOACCESS) == UV_EACCES);
+  ASSERT(uv_translate_sys_error(ERROR_ELEVATION_REQUIRED) == UV_EACCES);
   ASSERT(uv_translate_sys_error(WSAEADDRINUSE) == UV_EADDRINUSE);
   ASSERT(uv_translate_sys_error(ERROR_BAD_PIPE) == UV_EPIPE);
 #else

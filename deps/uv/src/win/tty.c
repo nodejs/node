@@ -56,7 +56,11 @@
 #define ANSI_BACKSLASH_SEEN   0x80
 
 #define MAX_INPUT_BUFFER_LENGTH 8192
+#define MAX_CONSOLE_CHAR 8192
 
+#ifndef ENABLE_VIRTUAL_TERMINAL_PROCESSING
+#define ENABLE_VIRTUAL_TERMINAL_PROCESSING 0x0004
+#endif
 
 static void uv_tty_capture_initial_style(CONSOLE_SCREEN_BUFFER_INFO* info);
 static void uv_tty_update_virtual_window(CONSOLE_SCREEN_BUFFER_INFO* info);
@@ -125,6 +129,14 @@ static char uv_tty_default_fg_bright = 0;
 static char uv_tty_default_bg_bright = 0;
 static char uv_tty_default_inverse = 0;
 
+typedef enum {
+  UV_SUPPORTED,
+  UV_UNCHECKED,
+  UV_UNSUPPORTED
+} uv_vtermstate_t;
+/* Determine whether or not ANSI support is enabled. */
+static uv_vtermstate_t uv__vterm_state = UV_UNCHECKED;
+static void uv__determine_vterm_state(HANDLE handle);
 
 void uv_console_init() {
   if (uv_sem_init(&uv_tty_output_lock, 1))
@@ -167,6 +179,9 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, uv_file fd, int readable) {
     /* Obtain the the tty_output_lock because the virtual window state is */
     /* shared between all uv_tty_t handles. */
     uv_sem_wait(&uv_tty_output_lock);
+
+    if (uv__vterm_state == UV_UNCHECKED)
+      uv__determine_vterm_state(handle);
 
     /* Store the global tty output handle. This handle is used by TTY read */
     /* streams to update the virtual window when a CONSOLE_BUFFER_SIZE_EVENT */
@@ -989,6 +1004,9 @@ int uv_tty_read_start(uv_tty_t* handle, uv_alloc_cb alloc_cb,
   if (handle->tty.rd.last_key_len > 0) {
     SET_REQ_SUCCESS(&handle->read_req);
     uv_insert_pending_req(handle->loop, (uv_req_t*) &handle->read_req);
+    /* Make sure no attempt is made to insert it again until it's handled. */
+    handle->flags |= UV_HANDLE_READ_PENDING;
+    handle->reqs_pending++;
     return 0;
   }
 
@@ -1602,17 +1620,29 @@ static int uv_tty_write_bufs(uv_tty_t* handle,
                              DWORD* error) {
   /* We can only write 8k characters at a time. Windows can't handle */
   /* much more characters in a single console write anyway. */
-  WCHAR utf16_buf[8192];
+  WCHAR utf16_buf[MAX_CONSOLE_CHAR];
+  WCHAR* utf16_buffer;
   DWORD utf16_buf_used = 0;
-  unsigned int i;
+  unsigned int i, len, max_len, pos;
+  int allocate = 0;
 
-#define FLUSH_TEXT()                                                \
-  do {                                                              \
-    if (utf16_buf_used > 0) {                                       \
-      uv_tty_emit_text(handle, utf16_buf, utf16_buf_used, error);   \
-      utf16_buf_used = 0;                                           \
-    }                                                               \
-  } while (0)
+#define FLUSH_TEXT()                                                 \
+  do {                                                               \
+    pos = 0;                                                         \
+    do {                                                             \
+      len = utf16_buf_used - pos;                                    \
+      if (len > MAX_CONSOLE_CHAR)                                    \
+        len = MAX_CONSOLE_CHAR;                                      \
+      uv_tty_emit_text(handle, &utf16_buffer[pos], len, error);      \
+      pos += len;                                                    \
+    } while (pos < utf16_buf_used);                                  \
+    if (allocate) {                                                  \
+      uv__free(utf16_buffer);                                        \
+      allocate = 0;                                                  \
+      utf16_buffer = utf16_buf;                                      \
+    }                                                                \
+    utf16_buf_used = 0;                                              \
+ } while (0)
 
 #define ENSURE_BUFFER_SPACE(wchars_needed)                          \
   if (wchars_needed > ARRAY_SIZE(utf16_buf) - utf16_buf_used) {     \
@@ -1630,11 +1660,47 @@ static int uv_tty_write_bufs(uv_tty_t* handle,
   /* state. */
   *error = ERROR_SUCCESS;
 
+  utf16_buffer = utf16_buf;
+
   uv_sem_wait(&uv_tty_output_lock);
 
   for (i = 0; i < nbufs; i++) {
     uv_buf_t buf = bufs[i];
     unsigned int j;
+
+    if (uv__vterm_state == UV_SUPPORTED && buf.len > 0) {
+      utf16_buf_used = MultiByteToWideChar(CP_UTF8,
+                                           0,
+                                           buf.base,
+                                           buf.len,
+                                           NULL,
+                                           0);
+
+      if (utf16_buf_used == 0) {
+        *error = GetLastError();
+        break;
+      }
+
+      max_len = (utf16_buf_used + 1) * sizeof(WCHAR);
+      allocate = max_len > MAX_CONSOLE_CHAR;
+      if (allocate)
+        utf16_buffer = uv__malloc(max_len);
+      if (!MultiByteToWideChar(CP_UTF8,
+                               0,
+                               buf.base,
+                               buf.len,
+                               utf16_buffer,
+                               utf16_buf_used)) {
+        if (allocate)
+          uv__free(utf16_buffer);
+        *error = GetLastError();
+        break;
+      }
+
+      FLUSH_TEXT();
+
+      continue;
+    }
 
     for (j = 0; j < buf.len; j++) {
       unsigned char c = buf.base[j];
@@ -2192,4 +2258,25 @@ void uv_process_tty_connect_req(uv_loop_t* loop, uv_tty_t* handle,
 int uv_tty_reset_mode(void) {
   /* Not necessary to do anything. */
   return 0;
+}
+
+/* Determine whether or not this version of windows supports
+ * proper ANSI color codes. Should be supported as of windows
+ * 10 version 1511, build number 10.0.10586.
+ */
+static void uv__determine_vterm_state(HANDLE handle) {
+  DWORD dwMode = 0;
+
+  if (!GetConsoleMode(handle, &dwMode)) {
+    uv__vterm_state = UV_UNSUPPORTED;
+    return;
+  }
+
+  dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+  if (!SetConsoleMode(handle, dwMode)) {
+    uv__vterm_state = UV_UNSUPPORTED;
+    return;
+  }
+
+  uv__vterm_state = UV_SUPPORTED;
 }

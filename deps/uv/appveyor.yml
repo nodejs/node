@@ -1,4 +1,4 @@
-version: v1.10.1.build{build}
+version: v1.10.2.build{build}
 
 install:
   - cinst -y nsis

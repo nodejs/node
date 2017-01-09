@@ -262,8 +262,7 @@ int uv_getaddrinfo(uv_loop_t* loop,
   int err;
 
   if (req == NULL || (node == NULL && service == NULL)) {
-    err = WSAEINVAL;
-    goto error;
+    return UV_EINVAL;
   }
 
   uv_req_init(loop, (uv_req_t*)req);
