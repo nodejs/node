@@ -48,25 +48,25 @@ list like the following:
 added: v0.3.4
 -->
 
-The HTTP Agent is used for pooling sockets used in HTTP client
+The HTTP `Agent` is used for pooling sockets used in HTTP client
 requests.
 
-The HTTP Agent also defaults client requests to using
+The HTTP `Agent` also defaults client requests to using
 `Connection: keep-alive`. If no pending HTTP requests are waiting on a
 socket to become free the socket is closed. This means that Node.js's
-pool has the benefit of keep-alive when under load but still does not
-require developers to manually close the HTTP clients using
-KeepAlive.
+pool has the benefit of HTTP Keep-Alive when under load but still does not
+require developers to manually close HTTP clients when using
+this option.
 
-If you opt into using HTTP KeepAlive, you can create an Agent object
-with that flag set to `true`.  (See the [constructor options][].)
-Then, the Agent will keep unused sockets in a pool for later use.  They
-will be explicitly marked so as to not keep the Node.js process running.
-However, it is still a good idea to explicitly [`destroy()`][] KeepAlive
-agents when they are no longer in use, so that the Sockets will be shut
-down.
+If you opt into using HTTP Keep-Alive, you can create an `Agent` instance,
+providing `{ keepAlive: true }` among the constructor options. (See the
+[constructor options][].) The `Agent` will then keep unused sockets in a
+pool for later use.  They will be explicitly marked so as to not keep the
+Node.js process running. However, it is still a good idea to explicitly
+[`destroy()`][] HTTP Keep-Alive agents when they are no longer in use, so that
+the Sockets will be shut down.
 
-Sockets are removed from the agent's pool when the socket emits either
+Sockets are removed from the `Agent`'s pool when the socket emits either
 a `'close'` event or a special `'agentRemove'` event. This means that if
 you intend to keep one HTTP request open for a long time and don't
 want it to stay in the pool you can do something along the lines of:
@@ -136,7 +136,7 @@ added: v0.11.4
 Produces a socket/stream to be used for HTTP requests.
 
 By default, this function is the same as [`net.createConnection()`][]. However,
-custom Agents may override this method in case greater flexibility is desired.
+custom agents may override this method in case greater flexibility is desired.
 
 A socket/stream can be supplied in one of two ways: by returning the
 socket/stream from this function, or by passing the socket/stream to `callback`.
@@ -151,7 +151,7 @@ added: v0.11.4
 Destroy any sockets that are currently in use by the agent.
 
 It is usually not necessary to do this.  However, if you are using an
-agent with KeepAlive enabled, then it is best to explicitly shut down
+agent with HTTP Keep-Alive enabled, then it is best to explicitly shut down
 the agent when you know that it will no longer be used.  Otherwise,
 sockets may hang open for quite a long time before the server
 terminates them.
@@ -164,7 +164,7 @@ added: v0.11.4
 * {Object}
 
 An object which contains arrays of sockets currently awaiting use by
-the Agent when HTTP KeepAlive is used.  Do not modify.
+the agent when HTTP Keep-Alive is used.  Do not modify.
 
 ### agent.getName(options)
 <!-- YAML
@@ -179,8 +179,8 @@ added: v0.11.4
 * Returns: {String}
 
 Get a unique name for a set of request options, to determine whether a
-connection can be reused.  In the http agent, this returns
-`host:port:localAddress`.  In the https agent, the name includes the
+connection can be reused.  In the HTTP agent, this returns
+`host:port:localAddress`.  In the HTTPS agent, the name includes the
 CA, cert, ciphers, and other HTTPS/TLS-specific options that determine
 socket reusability.
 
@@ -191,7 +191,7 @@ added: v0.11.7
 
 * {Number}
 
-By default set to 256.  For Agents supporting HTTP KeepAlive, this
+By default set to 256.  For agents supporting HTTP Keep-Alive, this
 sets the maximum number of sockets that will be left open in the free
 state.
 
@@ -224,7 +224,7 @@ added: v0.3.6
 * {Object}
 
 An object which contains arrays of sockets currently in use by the
-Agent.  Do not modify.
+agent.  Do not modify.
 
 ## Class: http.ClientRequest
 <!-- YAML
@@ -652,7 +652,7 @@ added: v0.1.0
 * `response` {http.ServerResponse}
 
 Emitted each time there is a request. Note that there may be multiple requests
-per connection (in the case of keep-alive connections).
+per connection (in the case of HTTP Keep-Alive connections).
 
 ### Event: 'upgrade'
 <!-- YAML
@@ -1490,7 +1490,7 @@ added: v0.5.9
 
 * {http.Agent}
 
-Global instance of Agent which is used as the default for all HTTP client
+Global instance of `Agent` which is used as the default for all HTTP client
 requests.
 
 ## http.request(options[, callback])
@@ -1520,15 +1520,15 @@ added: v0.3.6
   * `headers` {Object} An object containing request headers.
   * `auth` {String} Basic authentication i.e. `'user:password'` to compute an
     Authorization header.
-  * `agent` {http.Agent|Boolean} Controls [`Agent`][] behavior. When an Agent
+  * `agent` {http.Agent|Boolean} Controls [`Agent`][] behavior. When an `Agent`
     is used request will default to `Connection: keep-alive`. Possible values:
    * `undefined` (default): use [`http.globalAgent`][] for this host and port.
    * `Agent` object: explicitly use the passed in `Agent`.
-   * `false`: opts out of connection pooling with an Agent, defaults request to
+   * `false`: opts out of connection pooling with an `Agent`, defaults request to
      `Connection: close`.
   * `createConnection` {Function} A function that produces a socket/stream to
-    use for the request when the `agent` option is not used. This can be used to
-    avoid creating a custom Agent class just to override the default
+    use for the request when the `Agent` option is not used. This can be used to
+    avoid creating a custom `Agent` class just to override the default
     `createConnection` function. See [`agent.createConnection()`][] for more
     details.
   * `timeout` {Integer}: A number specifying the socket timeout in milliseconds.
