@@ -59,14 +59,14 @@ require developers to manually close HTTP clients when using
 this option.
 
 If you opt into using HTTP Keep-Alive, you can create an `Agent` instance,
-providing `{ keepAlive: true }` among the constructor options. (See the
-[constructor options][].) The `Agent` will then keep unused sockets in a
-pool for later use.  They will be explicitly marked so as to not keep the
+providing `{ keepAlive: true }` among the [constructor options][].
+The agent will then keep unused sockets in a pool for later use.  The
+unused sockets will be explicitly marked so as to not keep the
 Node.js process running. However, it is still a good idea to explicitly
 [`destroy()`][] HTTP Keep-Alive agents when they are no longer in use, so that
-the Sockets will be shut down.
+the sockets will be shut down.
 
-Sockets are removed from the `Agent`'s pool when the socket emits either
+Sockets are removed from an agent's pool when the socket emits either
 a `'close'` event or a special `'agentRemove'` event. This means that if
 you intend to keep one HTTP request open for a long time and don't
 want it to stay in the pool you can do something along the lines of:
@@ -179,8 +179,8 @@ added: v0.11.4
 * Returns: {String}
 
 Get a unique name for a set of request options, to determine whether a
-connection can be reused.  In the HTTP agent, this returns
-`host:port:localAddress`.  In the HTTPS agent, the name includes the
+connection can be reused.  For an HTTP agent, this returns
+`host:port:localAddress`.  For an HTTPS agent, the name includes the
 CA, cert, ciphers, and other HTTPS/TLS-specific options that determine
 socket reusability.
 
@@ -1527,7 +1527,7 @@ added: v0.3.6
    * `false`: opts out of connection pooling with an `Agent`, defaults request to
      `Connection: close`.
   * `createConnection` {Function} A function that produces a socket/stream to
-    use for the request when the `Agent` option is not used. This can be used to
+    use for the request when the `agent` option is not used. This can be used to
     avoid creating a custom `Agent` class just to override the default
     `createConnection` function. See [`agent.createConnection()`][] for more
     details.
