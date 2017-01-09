@@ -21,12 +21,19 @@ const t = new Transform({
   flush: _flush
 });
 
+const t2 = new Transform({});
+
 t.end(Buffer.from('blerg'));
 t.resume();
 
-process.on('exit', function() {
+assert.throws(() => {
+  t2.end(Buffer.from('blerg'));
+}, /^Error: _transform\(\) is not implemented$/);
+
+
+process.on('exit', () => {
   assert.strictEqual(t._transform, _transform);
   assert.strictEqual(t._flush, _flush);
-  assert(_transformCalled);
-  assert(_flushCalled);
+  assert.strictEqual(_transformCalled, true);
+  assert.strictEqual(_flushCalled, true);
 });
