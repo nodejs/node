@@ -41,8 +41,6 @@ function runAb(opts, callback) {
   args.push(url.format({ hostname: '127.0.0.1',
                          port: common.PORT, protocol: 'http'}));
 
-  //console.log(comm, args.join(' '));
-
   const child = spawn('wrk', args);
   child.stderr.pipe(process.stderr);
   child.stdout.setEncoding('utf8');
@@ -78,11 +76,9 @@ function runAb(opts, callback) {
 server.listen(common.PORT, () => {
   runAb({ keepalive: true }, (reqSec) => {
     keepAliveReqSec = reqSec;
-    console.log('keep-alive:', keepAliveReqSec, 'req/sec');
 
     runAb({ keepalive: false }, function(reqSec) {
       normalReqSec = reqSec;
-      console.log('normal:' + normalReqSec + ' req/sec');
       server.close();
     });
   });
