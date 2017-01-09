@@ -25,14 +25,13 @@ const server = net.createServer(common.mustCall((s) => {
     }),
 
     SNICallback: common.mustCall((hostname, callback) => {
-      assert.equal(hostname, 'test.test');
+      assert.deepEqual(hostname, 'test.test');
 
       callback(null, null);
     })
   });
 
   tlsSocket.on('secure', common.mustCall(() => {
-    console.log('hello');
     tlsSocket.end();
     server.close();
   }));
