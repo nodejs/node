@@ -1,8 +1,13 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const buffer = require('buffer');
 const assert = require('assert');
+
+if (!common.hasIntl) {
+  common.skip('icu punycode tests because ICU is not present.');
+  return;
+}
 
 const orig = Buffer.from('tést €', 'utf8');
 
