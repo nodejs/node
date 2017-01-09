@@ -5,7 +5,7 @@ const assert = require('assert');
 // module search paths initialized from the current working directory
 assert.ok(module.parent);
 const expectedPaths = require('module')._nodeModulePaths(process.cwd());
-assert.deepEqual(module.parent.paths, expectedPaths);
+assert.deepStrictEqual(module.parent.paths, expectedPaths);
 
 const cluster = require('cluster');
 cluster.isMaster || process.exit(42 + cluster.worker.id); // +42 to distinguish
