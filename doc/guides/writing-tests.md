@@ -30,8 +30,8 @@ Let's analyze this very basic test from the Node.js test suite:
 4   // This test ensures that the http-parser can handle UTF-8 characters
 5   // in the http header.
 6
-7   const http = require('http');
-8   const assert = require('assert');
+7   const assert = require('assert');
+8   const http = require('http');
 9
 10  const server = http.createServer(common.mustCall((req, res) => {
 11    res.end('ok');
@@ -47,7 +47,7 @@ Let's analyze this very basic test from the Node.js test suite:
 21 });
 ```
 
-**Lines 1-2**
+### **Lines 1-2**
 
 ```javascript
 'use strict';
@@ -70,7 +70,7 @@ by `common` are used, it can be included without assigning it to an identifier:
 require('../common');
 ```
 
-**Lines 4-5**
+### **Lines 4-5**
 
 ```javascript
 // This test ensures that the http-parser can handle UTF-8 characters
@@ -80,11 +80,11 @@ require('../common');
 A test should start with a comment containing a brief description of what it is
 designed to test.
 
-**Lines 7-8**
+### **Lines 7-8**
 
 ```javascript
-const http = require('http');
 const assert = require('assert');
+const http = require('http');
 ```
 
 These modules are required for the test to run. Except for special cases, these
@@ -92,7 +92,7 @@ modules should only include core modules.
 The `assert` module is used by most of the tests to check that the assumptions
 for the test are met.
 
-**Lines 10-21**
+### **Lines 10-21**
 
 This is the body of the test. This test is quite simple, it just tests that an
 HTTP server accepts `non-ASCII` characters in the headers of an incoming
