@@ -1,13 +1,14 @@
 'use strict';
+
+// Test asynchronous SNI+OCSP on TLSSocket created with `server` set to
+// `net.Server` instead of `tls.Server`
+
 const common = require('../common');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-
-// Test asynchronous SNI+OCSP on TLSSocket created on with `server` set to
-// `net.Server` instead of `tls.Server`
 
 const assert = require('assert');
 const fs = require('fs');
