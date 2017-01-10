@@ -3,19 +3,29 @@
 const child_process = require('child_process');
 const http_benchmarkers = require('./_http-benchmarkers.js');
 
-exports.createBenchmark = function(fn, options) {
-  return new Benchmark(fn, options);
+exports.createBenchmark = function(fn, configs, options) {
+  return new Benchmark(fn, configs, options);
 };
 
-function Benchmark(fn, options) {
+function Benchmark(fn, configs, options) {
+  // Use the file name as the name of the benchmark
   this.name = require.main.filename.slice(__dirname.length + 1);
-  const parsed_args = this._parseArgs(process.argv.slice(2), options);
+  // Parse job-specific configuration from the command line arguments
+  const parsed_args = this._parseArgs(process.argv.slice(2), configs);
   this.options = parsed_args.cli;
   this.extra_options = parsed_args.extra;
+  // The configuration list as a queue of jobs
   this.queue = this._queue(this.options);
+  // The configuration of the current job, head of the queue
   this.config = this.queue[0];
-
-  this._time = [0, 0]; // holds process.hrtime value
+  // Execution arguments i.e. flags used to run the jobs
+  this.flags = [];
+  if (options && options.flags) {
+    this.flags = this.flags.concat(options.flags);
+  }
+  // Holds process.hrtime value
+  this._time = [0, 0];
+  // Used to make sure a benchmark only start a timer once
   this._started = false;
 
   // this._run will use fork() to create a new process for each configuration
@@ -27,8 +37,8 @@ function Benchmark(fn, options) {
   }
 }
 
-Benchmark.prototype._parseArgs = function(argv, options) {
-  const cliOptions = Object.assign({}, options);
+Benchmark.prototype._parseArgs = function(argv, configs) {
+  const cliOptions = Object.assign({}, configs);
   const extraOptions = {};
   // Parse configuration arguments
   for (const arg of argv) {
@@ -38,9 +48,9 @@ Benchmark.prototype._parseArgs = function(argv, options) {
       process.exit(1);
     }
 
-    if (options[match[1]]) {
-      // Infer the type from the options object and parse accordingly
-      const isNumber = typeof options[match[1]][0] === 'number';
+    if (configs[match[1]]) {
+      // Infer the type from the config object and parse accordingly
+      const isNumber = typeof configs[match[1]][0] === 'number';
       const value = isNumber ? +match[2] : match[2];
       cliOptions[match[1]] = [value];
     } else {
@@ -138,7 +148,7 @@ Benchmark.prototype._run = function() {
 
     const child = child_process.fork(require.main.filename, childArgs, {
       env: childEnv,
-      execArgv: ['--expose_internals'].concat(process.execArgv)
+      execArgv: self.flags.concat(process.execArgv)
     });
     child.on('message', sendResult);
     child.on('close', function(code) {
@@ -185,8 +195,9 @@ function formatResult(data) {
     conf += ' ' + key + '=' + JSON.stringify(data.conf[key]);
   }
 
-  const rate = Math.floor(data.rate)
-                   .toString().replace(/(\d)(?=(\d\d\d)+(?!\d))/g, '$1,');
+  var rate = data.rate.toString().split('.');
+  rate[0] = rate[0].replace(/(\d)(?=(\d\d\d)+(?!\d))/g, '$1,');
+  rate = (rate[1] ? rate.join('.') : rate[0]);
   return `${data.name}${conf}: ${rate}`;
 }
 

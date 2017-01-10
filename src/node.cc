@@ -2417,7 +2417,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
              "\nwas compiled against a different Node.js version using"
              "\nNODE_MODULE_VERSION %d. This version of Node.js requires"
              "\nNODE_MODULE_VERSION %d. Please try re-compiling or "
-             "re-installing\nthe module (for instance, using `npm rebuild` or"
+             "re-installing\nthe module (for instance, using `npm rebuild` or "
              "`npm install`).",
              *filename, mp->nm_version, NODE_MODULE_VERSION);
 
@@ -3480,6 +3480,12 @@ static void PrintHelp() {
          "                           does not appear to be a terminal\n"
          "  -r, --require            module to preload (option can be "
          "repeated)\n"
+#if HAVE_INSPECTOR
+         "  --inspect[=host:port] activate inspector on host:port\n"
+         "                        (default: 127.0.0.1:9229)\n"
+         "  --inspect-brk[=host:port]  activate inspector on host:port\n"
+         "                             and break at start of user script\n"
+#endif
          "  --no-deprecation         silence deprecation warnings\n"
          "  --trace-deprecation      show stack traces on deprecations\n"
          "  --throw-deprecation      throw an exception on deprecations\n"

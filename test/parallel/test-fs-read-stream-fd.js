@@ -5,19 +5,18 @@ const assert = require('assert');
 const path = require('path');
 const file = path.join(common.tmpDir, '/read_stream_fd_test.txt');
 const input = 'hello world';
-var output = '';
-var fd, stream;
 
+let output = '';
 common.refreshTmpDir();
 fs.writeFileSync(file, input);
-fd = fs.openSync(file, 'r');
 
-stream = fs.createReadStream(null, { fd: fd, encoding: 'utf8' });
-stream.on('data', function(data) {
+const fd = fs.openSync(file, 'r');
+const stream = fs.createReadStream(null, { fd: fd, encoding: 'utf8' });
+
+stream.on('data', (data) => {
   output += data;
 });
 
 process.on('exit', function() {
-  fs.unlinkSync(file);
   assert.strictEqual(output, input);
 });

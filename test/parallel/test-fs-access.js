@@ -48,7 +48,7 @@ createFileWithPerms(readWriteFile, 0o666);
  * id, but that's fine. In this case, it is the responsability of the
  * continuous integration platform to take care of that.
  */
-var hasWriteAccessForReadonlyFile = false;
+let hasWriteAccessForReadonlyFile = false;
 if (!common.isWindows && process.getuid() === 0) {
   hasWriteAccessForReadonlyFile = true;
   try {
@@ -63,62 +63,63 @@ assert.strictEqual(typeof fs.R_OK, 'number');
 assert.strictEqual(typeof fs.W_OK, 'number');
 assert.strictEqual(typeof fs.X_OK, 'number');
 
-fs.access(__filename, function(err) {
-  assert.strictEqual(err, null, 'error should not exist');
-});
+fs.access(__filename, common.mustCall((err) => {
+  assert.ifError(err);
+}));
 
-fs.access(__filename, fs.R_OK, function(err) {
-  assert.strictEqual(err, null, 'error should not exist');
-});
+fs.access(__filename, fs.R_OK, common.mustCall((err) => {
+  assert.ifError(err);
+}));
 
-fs.access(doesNotExist, function(err) {
-  assert.notEqual(err, null, 'error should exist');
+fs.access(doesNotExist, common.mustCall((err) => {
+  assert.notStrictEqual(err, null, 'error should exist');
   assert.strictEqual(err.code, 'ENOENT');
   assert.strictEqual(err.path, doesNotExist);
-});
+}));
 
-fs.access(readOnlyFile, fs.F_OK | fs.R_OK, function(err) {
-  assert.strictEqual(err, null, 'error should not exist');
-});
+fs.access(readOnlyFile, fs.F_OK | fs.R_OK, common.mustCall((err) => {
+  assert.ifError(err);
+}));
 
-fs.access(readOnlyFile, fs.W_OK, function(err) {
+fs.access(readOnlyFile, fs.W_OK, common.mustCall((err) => {
   if (hasWriteAccessForReadonlyFile) {
-    assert.strictEqual(err, null, 'error should not exist');
+    assert.ifError(err);
   } else {
-    assert.notEqual(err, null, 'error should exist');
+    assert.notStrictEqual(err, null, 'error should exist');
     assert.strictEqual(err.path, readOnlyFile);
   }
-});
+}));
 
-assert.throws(function() {
-  fs.access(100, fs.F_OK, function(err) {});
+assert.throws(() => {
+  fs.access(100, fs.F_OK, (err) => {});
 }, /path must be a string or Buffer/);
 
-assert.throws(function() {
+assert.throws(() => {
   fs.access(__filename, fs.F_OK);
 }, /"callback" argument must be a function/);
 
-assert.throws(function() {
+assert.throws(() => {
   fs.access(__filename, fs.F_OK, {});
 }, /"callback" argument must be a function/);
 
-assert.doesNotThrow(function() {
+assert.doesNotThrow(() => {
   fs.accessSync(__filename);
 });
 
-assert.doesNotThrow(function() {
+
+assert.doesNotThrow(() => {
   const mode = fs.F_OK | fs.R_OK | fs.W_OK;
 
   fs.accessSync(readWriteFile, mode);
 });
 
-assert.throws(function() {
+assert.throws(() => {
   fs.accessSync(doesNotExist);
-}, function(err) {
+}, (err) => {
   return err.code === 'ENOENT' && err.path === doesNotExist;
 });
 
-process.on('exit', function() {
+process.on('exit', () => {
   removeFile(readOnlyFile);
   removeFile(readWriteFile);
 });

@@ -2,6 +2,7 @@
 // Flags: --expose_gc
 
 const common = require('../common');
+const assert = require('assert');
 
 const fs = require('fs');
 const testFileName = require('path').join(common.tmpDir, 'GH-814_test.txt');
@@ -64,9 +65,7 @@ function writer() {
 
 function writerCB(err, written) {
   //console.error('cb.');
-  if (err) {
-    throw err;
-  }
+  assert.ifError(err);
 }
 
 

@@ -9,15 +9,16 @@ const dataExpected = fs.readFileSync(__filename, 'utf8');
 fs._fstat = fs.fstat;
 fs._fstatSync = fs.fstatSync;
 
-fs.fstat = function(fd, cb) {
-  fs._fstat(fd, function(er, st) {
+fs.fstat = (fd, cb) => {
+  fs._fstat(fd, (er, st) => {
     if (er) return cb(er);
     st.size = 0;
     return cb(er, st);
   });
 };
 
-fs.fstatSync = function(fd) {
+
+fs.fstatSync = (fd) => {
   const st = fs._fstatSync(fd);
   st.size = 0;
   return st;
@@ -26,6 +27,6 @@ fs.fstatSync = function(fd) {
 const d = fs.readFileSync(__filename, 'utf8');
 assert.strictEqual(d, dataExpected);
 
-fs.readFile(__filename, 'utf8', common.mustCall(function(er, d) {
+fs.readFile(__filename, 'utf8', common.mustCall((er, d) => {
   assert.strictEqual(d, dataExpected);
 }));

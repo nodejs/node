@@ -71,8 +71,7 @@ function compileStyleMap(schema, map) {
     if (tag.slice(0, 2) === '!!') {
       tag = 'tag:yaml.org,2002:' + tag.slice(2);
     }
-
-    type = schema.compiledTypeMap[tag];
+    type = schema.compiledTypeMap['fallback'][tag];
 
     if (type && _hasOwnProperty.call(type.styleAliases, style)) {
       style = type.styleAliases[style];

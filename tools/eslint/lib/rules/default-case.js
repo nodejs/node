@@ -4,7 +4,7 @@
  */
 "use strict";
 
-const DEFAULT_COMMENT_PATTERN = /^no default$/;
+const DEFAULT_COMMENT_PATTERN = /^no default$/i;
 
 //------------------------------------------------------------------------------
 // Rule Definition
@@ -67,9 +67,7 @@ module.exports = {
                     return;
                 }
 
-                const hasDefault = node.cases.some(function(v) {
-                    return v.test === null;
-                });
+                const hasDefault = node.cases.some(v => v.test === null);
 
                 if (!hasDefault) {
 
@@ -83,7 +81,7 @@ module.exports = {
                     }
 
                     if (!comment || !commentPattern.test(comment.value.trim())) {
-                        context.report(node, "Expected a default case.");
+                        context.report({ node, message: "Expected a default case." });
                     }
                 }
             }

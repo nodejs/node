@@ -8,7 +8,7 @@ let tests_ok = 0;
 let tests_run = 0;
 
 function stat_resource(resource) {
-  if (typeof resource == 'string') {
+  if (typeof resource === 'string') {
     return fs.statSync(resource);
   } else {
     // ensure mtime has been written to disk
@@ -46,7 +46,7 @@ function expect_ok(syscall, resource, err, atime, mtime) {
 // the tests assume that __filename belongs to the user running the tests
 // this should be a fairly safe assumption; testing against a temp file
 // would be even better though (node doesn't have such functionality yet)
-function runTest(atime, mtime, callback) {
+function testIt(atime, mtime, callback) {
 
   let fd;
   //
@@ -67,8 +67,7 @@ function runTest(atime, mtime, callback) {
       expect_errno('futimesSync', fd, ex, 'ENOSYS');
     }
 
-    let err;
-    err = undefined;
+    let err = undefined;
     try {
       fs.utimesSync('foobarbaz', atime, mtime);
     } catch (ex) {
@@ -90,10 +89,10 @@ function runTest(atime, mtime, callback) {
   //
   // test async code paths
   //
-  fs.utimes(__filename, atime, mtime, function(err) {
+  fs.utimes(__filename, atime, mtime, common.mustCall(function(err) {
     expect_ok('utimes', __filename, err, atime, mtime);
 
-    fs.utimes('foobarbaz', atime, mtime, function(err) {
+    fs.utimes('foobarbaz', atime, mtime, common.mustCall(function(err) {
       expect_errno('utimes', 'foobarbaz', err, 'ENOENT');
 
       // don't close this fd
@@ -103,34 +102,36 @@ function runTest(atime, mtime, callback) {
         fd = fs.openSync(__filename, 'r');
       }
 
-      fs.futimes(fd, atime, mtime, function(err) {
+      fs.futimes(fd, atime, mtime, common.mustCall(function(err) {
         expect_ok('futimes', fd, err, atime, mtime);
 
-        fs.futimes(-1, atime, mtime, function(err) {
+        fs.futimes(-1, atime, mtime, common.mustCall(function(err) {
           expect_errno('futimes', -1, err, 'EBADF');
           syncTests();
           callback();
-        });
+        }));
         tests_run++;
-      });
+      }));
       tests_run++;
-    });
+    }));
     tests_run++;
-  });
+  }));
   tests_run++;
 }
 
 const stats = fs.statSync(__filename);
 
 // run tests
+const runTest = common.mustCall(testIt, 6);
+
 runTest(new Date('1982-09-10 13:37'), new Date('1982-09-10 13:37'), function() {
   runTest(new Date(), new Date(), function() {
     runTest(123456.789, 123456.789, function() {
       runTest(stats.mtime, stats.mtime, function() {
         runTest(NaN, Infinity, function() {
-          runTest('123456', -1, function() {
+          runTest('123456', -1, common.mustCall(function() {
             // done
-          });
+          }));
         });
       });
     });

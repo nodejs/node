@@ -202,7 +202,7 @@ module.exports = {
 
             elements.forEach(validateType.bind(null, jsdocNode));
 
-            typesToCheck.forEach(function(typeToCheck) {
+            typesToCheck.forEach(typeToCheck => {
                 if (typeToCheck.expectedType &&
                     typeToCheck.expectedType !== typeToCheck.currentType) {
                     context.report({
@@ -246,15 +246,15 @@ module.exports = {
                 } catch (ex) {
 
                     if (/braces/i.test(ex.message)) {
-                        context.report(jsdocNode, "JSDoc type missing brace.");
+                        context.report({ node: jsdocNode, message: "JSDoc type missing brace." });
                     } else {
-                        context.report(jsdocNode, "JSDoc syntax error.");
+                        context.report({ node: jsdocNode, message: "JSDoc syntax error." });
                     }
 
                     return;
                 }
 
-                jsdoc.tags.forEach(function(tag) {
+                jsdoc.tags.forEach(tag => {
 
                     switch (tag.title.toLowerCase()) {
 
@@ -262,15 +262,15 @@ module.exports = {
                         case "arg":
                         case "argument":
                             if (!tag.type) {
-                                context.report(jsdocNode, "Missing JSDoc parameter type for '{{name}}'.", { name: tag.name });
+                                context.report({ node: jsdocNode, message: "Missing JSDoc parameter type for '{{name}}'.", data: { name: tag.name } });
                             }
 
                             if (!tag.description && requireParamDescription) {
-                                context.report(jsdocNode, "Missing JSDoc parameter description for '{{name}}'.", { name: tag.name });
+                                context.report({ node: jsdocNode, message: "Missing JSDoc parameter description for '{{name}}'.", data: { name: tag.name } });
                             }
 
                             if (params[tag.name]) {
-                                context.report(jsdocNode, "Duplicate JSDoc parameter '{{name}}'.", { name: tag.name });
+                                context.report({ node: jsdocNode, message: "Duplicate JSDoc parameter '{{name}}'.", data: { name: tag.name } });
                             } else if (tag.name.indexOf(".") === -1) {
                                 params[tag.name] = 1;
                             }
@@ -290,11 +290,11 @@ module.exports = {
                                 });
                             } else {
                                 if (requireReturnType && !tag.type) {
-                                    context.report(jsdocNode, "Missing JSDoc return type.");
+                                    context.report({ node: jsdocNode, message: "Missing JSDoc return type." });
                                 }
 
                                 if (!isValidReturnType(tag) && !tag.description && requireReturnDescription) {
-                                    context.report(jsdocNode, "Missing JSDoc return description.");
+                                    context.report({ node: jsdocNode, message: "Missing JSDoc return description." });
                                 }
                             }
 
@@ -324,7 +324,7 @@ module.exports = {
 
                     // check tag preferences
                     if (prefer.hasOwnProperty(tag.title) && tag.title !== prefer[tag.title]) {
-                        context.report(jsdocNode, "Use @{{name}} instead.", { name: prefer[tag.title] });
+                        context.report({ node: jsdocNode, message: "Use @{{name}} instead.", data: { name: prefer[tag.title] } });
                     }
 
                     // validate the types
@@ -352,7 +352,7 @@ module.exports = {
                 const jsdocParams = Object.keys(params);
 
                 if (node.params) {
-                    node.params.forEach(function(param, i) {
+                    node.params.forEach((param, i) => {
                         if (param.type === "AssignmentPattern") {
                             param = param.left;
                         }
@@ -362,14 +362,14 @@ module.exports = {
                         // TODO(nzakas): Figure out logical things to do with destructured, default, rest params
                         if (param.type === "Identifier") {
                             if (jsdocParams[i] && (name !== jsdocParams[i])) {
-                                context.report(jsdocNode, "Expected JSDoc for '{{name}}' but found '{{jsdocName}}'.", {
+                                context.report({ node: jsdocNode, message: "Expected JSDoc for '{{name}}' but found '{{jsdocName}}'.", data: {
                                     name,
                                     jsdocName: jsdocParams[i]
-                                });
+                                } });
                             } else if (!params[name] && !isOverride) {
-                                context.report(jsdocNode, "Missing JSDoc for parameter '{{name}}'.", {
+                                context.report({ node: jsdocNode, message: "Missing JSDoc for parameter '{{name}}'.", data: {
                                     name
-                                });
+                                } });
                             }
                         }
                     });
@@ -379,7 +379,7 @@ module.exports = {
                     const regex = new RegExp(options.matchDescription);
 
                     if (!regex.test(jsdoc.description)) {
-                        context.report(jsdocNode, "JSDoc description does not satisfy the regex pattern.");
+                        context.report({ node: jsdocNode, message: "JSDoc description does not satisfy the regex pattern." });
                     }
                 }
 

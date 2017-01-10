@@ -220,7 +220,7 @@ module.exports = {
                 exceptions = getExceptions();
                 const tokens = sourceCode.tokensAndComments;
 
-                tokens.forEach(function(token, i) {
+                tokens.forEach((token, i) => {
                     const prevToken = tokens[i - 1];
                     const nextToken = tokens[i + 1];
 

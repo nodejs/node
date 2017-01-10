@@ -12,6 +12,8 @@ if (!common.hasCrypto) {
 const https = require('https');
 
 const fs = require('fs');
+const url = require('url');
+const URL = url.URL;
 
 var options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
@@ -25,8 +27,11 @@ var server = https.createServer(options, common.mustCall(function(req, res) {
   res.write('hello\n');
   res.end();
   server.close();
-}));
+}, 3));
 
 server.listen(0, function() {
-  https.get(`https://127.0.0.1:${this.address().port}/foo?bar`);
+  const u = `https://127.0.0.1:${this.address().port}/foo?bar`;
+  https.get(u);
+  https.get(url.parse(u));
+  https.get(new URL(u));
 });

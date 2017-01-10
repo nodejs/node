@@ -7,7 +7,9 @@
 </tr>
 <tr>
 <td valign="top">
-<a href="#4.6.2">4.7.0</a><br/>
+<a href="#4.7.2">4.7.2</a><br/>
+<a href="#4.7.1">4.7.1</a><br/>
+<a href="#4.7.0">4.7.0</a><br/>
 <a href="#4.6.2">4.6.2</a><br/>
 <a href="#4.6.1">4.6.1</a><br/>
 <a href="#4.6.0">4.6.0</a><br/>
@@ -53,6 +55,218 @@
 **Note:** Node.js v4 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2017 and maintained until April 2018.
+
+<a id="4.7.2"></a>
+## 2017-01-05, Version 4.7.2 'Argon' (LTS), @MylesBorins
+
+This is a special release that contains 0 commits. While promoting additional
+platforms for v4.7.1 after the release, the tarballs on the release server were
+overwritten and now have different shasums. In order to remove any ambiguity
+around the release we have opted to do a semver patch release with no changes.
+
+### Notable Changes
+
+N/A
+
+### Commits
+
+N/A
+
+<a id="4.7.1"></a>
+## 2017-01-03, Version 4.7.1 'Argon' (LTS), @MylesBorins
+
+This LTS release comes with 180 commits. This includes 117 which are test related,
+34 which are doc related, 15 which are build / tool related, and 1 commit which is
+an update to dependencies.
+
+### Notable Changes
+
+* **build**: shared library support is now working for AIX builds (Stewart Addison) [#9675](https://github.com/nodejs/node/pull/9675)
+* **repl**: Passing options to the repl will no longer overwrite defaults (cjihrig) [#7826](https://github.com/nodejs/node/pull/7826)
+* **timers**: Re canceling a cancelled timers will no longer throw (Jeremiah Senkpiel) [#9685](https://github.com/nodejs/node/pull/9685)
+
+### Commits
+
+* [[`c5f82b8421`](https://github.com/nodejs/node/commit/c5f82b8421)] - **assert**: fix deepEqual/deepStrictEqual on equivalent typed arrays (Feross Aboukhadijeh) [#8002](https://github.com/nodejs/node/pull/8002)
+* [[`60883de30f`](https://github.com/nodejs/node/commit/60883de30f)] - **async_wrap**: call destroy() callback in uv_idle_t (Trevor Norris)
+* [[`28dbc460c6`](https://github.com/nodejs/node/commit/28dbc460c6)] - **async_wrap**: make Initialize a static class member (Trevor Norris)
+* [[`bb05cd13db`](https://github.com/nodejs/node/commit/bb05cd13db)] - **async_wrap**: mode constructor/destructor to .cc (Trevor Norris)
+* [[`b1075f6193`](https://github.com/nodejs/node/commit/b1075f6193)] - **benchmark**: split timers benchmark and refactor (Rich Trott) [#9497](https://github.com/nodejs/node/pull/9497)
+* [[`7b4268b889`](https://github.com/nodejs/node/commit/7b4268b889)] - **benchmark,lib,test,tools**: remove unneeded . escape (Rich Trott) [#9449](https://github.com/nodejs/node/pull/9449)
+* [[`54f2ce8ea0`](https://github.com/nodejs/node/commit/54f2ce8ea0)] - **build**: prioritise --shared-X-Y over pkg-config (Rod Vagg) [#9368](https://github.com/nodejs/node/pull/9368)
+* [[`61d377ddcd`](https://github.com/nodejs/node/commit/61d377ddcd)] - **build**: Make configure file parseable on python3 (kalrover) [#9657](https://github.com/nodejs/node/pull/9657)
+* [[`38e0f95d24`](https://github.com/nodejs/node/commit/38e0f95d24)] - **build**: add MAKEFLAGS="-j1" to node-gyp (Daniel Bevenius) [#9450](https://github.com/nodejs/node/pull/9450)
+* [[`d1b6407395`](https://github.com/nodejs/node/commit/d1b6407395)] - **build**: make node-gyp output silent (Sakthipriyan Vairamani (thefourtheye)) [#8990](https://github.com/nodejs/node/pull/8990)
+* [[`ae2eff2997`](https://github.com/nodejs/node/commit/ae2eff2997)] - **build**: start comments at beginning of line (Sakthipriyan Vairamani (thefourtheye)) [#9375](https://github.com/nodejs/node/pull/9375)
+* [[`6f1f955b33`](https://github.com/nodejs/node/commit/6f1f955b33)] - **build**: default to ppc64 on AIX (Gibson Fahnestock) [#9645](https://github.com/nodejs/node/pull/9645)
+* [[`f8d4577762`](https://github.com/nodejs/node/commit/f8d4577762)] - **build**: Add option to compile for coverage reports (Wayne Andrews) [#9463](https://github.com/nodejs/node/pull/9463)
+* [[`f2b00985f0`](https://github.com/nodejs/node/commit/f2b00985f0)] - **build**: add shared library support to AIX build (Stewart Addison) [#9675](https://github.com/nodejs/node/pull/9675)
+* [[`e2c5f41ddf`](https://github.com/nodejs/node/commit/e2c5f41ddf)] - **crypto**: use SSL_get_servername. (Adam Langley) [#9347](https://github.com/nodejs/node/pull/9347)
+* [[`724910a991`](https://github.com/nodejs/node/commit/724910a991)] - **debugger**: refactor _debugger.js (Rich Trott) [#9860](https://github.com/nodejs/node/pull/9860)
+* [[`52f14931a2`](https://github.com/nodejs/node/commit/52f14931a2)] - **deps**: backport GYP fix to fix AIX shared suffix (Stewart Addison) [#9675](https://github.com/nodejs/node/pull/9675)
+* [[`c77ba8ce14`](https://github.com/nodejs/node/commit/c77ba8ce14)] - **doc**: consistent 'Returns:' (Roman Reiss) [#9554](https://github.com/nodejs/node/pull/9554)
+* [[`aecb2cac37`](https://github.com/nodejs/node/commit/aecb2cac37)] - **doc**: adding missing - in README (Italo A. Casas) [#10170](https://github.com/nodejs/node/pull/10170)
+* [[`52c022992e`](https://github.com/nodejs/node/commit/52c022992e)] - **doc**: removing extra space in README (Italo A. Casas) [#10168](https://github.com/nodejs/node/pull/10168)
+* [[`e8c57bbe77`](https://github.com/nodejs/node/commit/e8c57bbe77)] - **doc**: add people to cc for async_wrap (Anna Henningsen) [#9471](https://github.com/nodejs/node/pull/9471)
+* [[`b5eae4463c`](https://github.com/nodejs/node/commit/b5eae4463c)] - **doc**: add link to `net.Server` in tls.md (Devon Rifkin) [#10109](https://github.com/nodejs/node/pull/10109)
+* [[`ad841a29d1`](https://github.com/nodejs/node/commit/ad841a29d1)] - **doc**: clarify fs.createReadStream options (Wes Tyler) [#10078](https://github.com/nodejs/node/pull/10078)
+* [[`338014ef24`](https://github.com/nodejs/node/commit/338014ef24)] - **doc**: rename writing_tests.md to writing-tests.md (Safia Abdalla) [#9867](https://github.com/nodejs/node/pull/9867)
+* [[`b06b2343bc`](https://github.com/nodejs/node/commit/b06b2343bc)] - **doc**: it’s -> its in api/child_process.md (Devon Rifkin) [#10090](https://github.com/nodejs/node/pull/10090)
+* [[`4885573080`](https://github.com/nodejs/node/commit/4885573080)] - **doc**: update Collaborators list in README (Rich Trott) [#9846](https://github.com/nodejs/node/pull/9846)
+* [[`3105becb2c`](https://github.com/nodejs/node/commit/3105becb2c)] - **doc**: remove minor contradiction in debugger doc (Rich Trott) [#9832](https://github.com/nodejs/node/pull/9832)
+* [[`a858e98921`](https://github.com/nodejs/node/commit/a858e98921)] - **doc**: clarify introductory module material (Rich Trott) [#9816](https://github.com/nodejs/node/pull/9816)
+* [[`18c38819fe`](https://github.com/nodejs/node/commit/18c38819fe)] - **doc**: improve description of module `exports` (Sam Roberts) [#9622](https://github.com/nodejs/node/pull/9622)
+* [[`9e68b8d329`](https://github.com/nodejs/node/commit/9e68b8d329)] - **doc**: fix crypto Verify cut-n-paste from Sign (子丶言) [#9796](https://github.com/nodejs/node/pull/9796)
+* [[`fd1a48c9c9`](https://github.com/nodejs/node/commit/fd1a48c9c9)] - **doc**: minor fixes event-loop-timers-and-nexttick.md (Dan Koster) [#9126](https://github.com/nodejs/node/pull/9126)
+* [[`107735a6e1`](https://github.com/nodejs/node/commit/107735a6e1)] - **doc**: changed order of invocations in https.request() example. (atrioom) [#9614](https://github.com/nodejs/node/pull/9614)
+* [[`eb5972fe9b`](https://github.com/nodejs/node/commit/eb5972fe9b)] - **doc**: fix crypto "decipher.setAAD()" typo (子丶言) [#9782](https://github.com/nodejs/node/pull/9782)
+* [[`dc4c348ea3`](https://github.com/nodejs/node/commit/dc4c348ea3)] - **doc**: fix typo in assert code example (Vse Mozhet Byt) [#9704](https://github.com/nodejs/node/pull/9704)
+* [[`16e97ab6c6`](https://github.com/nodejs/node/commit/16e97ab6c6)] - **doc**: fix typo in BUILDING.md (monkick) [#9569](https://github.com/nodejs/node/pull/9569)
+* [[`4f2e25441e`](https://github.com/nodejs/node/commit/4f2e25441e)] - **doc**: remove backtick escaping for manpage refs (Anna Henningsen) [#9632](https://github.com/nodejs/node/pull/9632)
+* [[`c0d44dfcc7`](https://github.com/nodejs/node/commit/c0d44dfcc7)] - **doc**: remove invalid padding from privateEncrypt (JungMinu) [#9611](https://github.com/nodejs/node/pull/9611)
+* [[`0f523583c3`](https://github.com/nodejs/node/commit/0f523583c3)] - **doc**: remove Sam Roberts from release team (Sam Roberts) [#9862](https://github.com/nodejs/node/pull/9862)
+* [[`4eeac8eb8c`](https://github.com/nodejs/node/commit/4eeac8eb8c)] - **doc**: add guide for maintaining V8 (Ali Ijaz Sheikh) [#9777](https://github.com/nodejs/node/pull/9777)
+* [[`34405ddb83`](https://github.com/nodejs/node/commit/34405ddb83)] - **doc**: move TSC and CTC meeting minutes out of core repo (James M Snell) [#9503](https://github.com/nodejs/node/pull/9503)
+* [[`198463a0ff`](https://github.com/nodejs/node/commit/198463a0ff)] - **doc**: fix a typo in the assert.md (Vse Mozhet Byt) [#9598](https://github.com/nodejs/node/pull/9598)
+* [[`aca0ede0d3`](https://github.com/nodejs/node/commit/aca0ede0d3)] - **doc**: fix typo e.g., => e.g. (Daijiro Yamada) [#9563](https://github.com/nodejs/node/pull/9563)
+* [[`c7997939f2`](https://github.com/nodejs/node/commit/c7997939f2)] - **doc**: fix typo about cluster doc, (eg. -> e.g.) (YutamaKotaro) [#9568](https://github.com/nodejs/node/pull/9568)
+* [[`229fa6921f`](https://github.com/nodejs/node/commit/229fa6921f)] - **doc**: fix e.g., to e.g. in doc/http.md (ikasumi_wt) [#9564](https://github.com/nodejs/node/pull/9564)
+* [[`3ad7430f12`](https://github.com/nodejs/node/commit/3ad7430f12)] - **doc**: fix the index order in pseudocode of modules (kohta ito) [#9562](https://github.com/nodejs/node/pull/9562)
+* [[`06732babd3`](https://github.com/nodejs/node/commit/06732babd3)] - **doc**: remove Roadmap Working Group (William Kapke) [#9545](https://github.com/nodejs/node/pull/9545)
+* [[`6775163a94`](https://github.com/nodejs/node/commit/6775163a94)] - **doc**: fix minor style issue in code examples (Daniel Bevenius) [#9482](https://github.com/nodejs/node/pull/9482)
+* [[`aa25c74fe6`](https://github.com/nodejs/node/commit/aa25c74fe6)] - **doc**: grammar and structure revisions of wg doc (Ryan Lewis) [#9495](https://github.com/nodejs/node/pull/9495)
+* [[`1e06ed7e9d`](https://github.com/nodejs/node/commit/1e06ed7e9d)] - **doc**: clarify the exit code part of writing_tests (Jeremiah Senkpiel) [#9502](https://github.com/nodejs/node/pull/9502)
+* [[`3f39a39657`](https://github.com/nodejs/node/commit/3f39a39657)] - **doc**: Fix inaccuracy in https.request docs (Andreas Lind) [#9453](https://github.com/nodejs/node/pull/9453)
+* [[`8380154e22`](https://github.com/nodejs/node/commit/8380154e22)] - **doc**: add npm link to README (Oscar Morrison) [#7894](https://github.com/nodejs/node/pull/7894)
+* [[`65e134ff12`](https://github.com/nodejs/node/commit/65e134ff12)] - **meta**: whitelist dotfiles in .gitignore (Claudio Rodriguez) [#8016](https://github.com/nodejs/node/pull/8016)
+* [[`698bf2e829`](https://github.com/nodejs/node/commit/698bf2e829)] - **repl**: don't override all internal repl defaults (cjihrig) [#7826](https://github.com/nodejs/node/pull/7826)
+* [[`3d45b35f73`](https://github.com/nodejs/node/commit/3d45b35f73)] - **repl**: refactor lib/repl.js (Rich Trott) [#9374](https://github.com/nodejs/node/pull/9374)
+* [[`f5b952b221`](https://github.com/nodejs/node/commit/f5b952b221)] - **test**: refactor and fix test-dns (Michaël Zasso) [#9811](https://github.com/nodejs/node/pull/9811)
+* [[`8b733dca05`](https://github.com/nodejs/node/commit/8b733dca05)] - **test**: refactor test-crypto-binary-default (Michaël Zasso) [#9810](https://github.com/nodejs/node/pull/9810)
+* [[`45af7857d7`](https://github.com/nodejs/node/commit/45af7857d7)] - **test**: refactor and fix test-crypto (Michaël Zasso) [#9807](https://github.com/nodejs/node/pull/9807)
+* [[`e0c8aafad8`](https://github.com/nodejs/node/commit/e0c8aafad8)] - **test**: fix test-buffer-slow (Michaël Zasso) [#9809](https://github.com/nodejs/node/pull/9809)
+* [[`e72dfce2c8`](https://github.com/nodejs/node/commit/e72dfce2c8)] - **test**: added validation regex argument to test (Avery, Frank) [#9918](https://github.com/nodejs/node/pull/9918)
+* [[`a779e7ffec`](https://github.com/nodejs/node/commit/a779e7ffec)] - **test**: clean up repl-reset-event file (Kailean Courtney) [#9931](https://github.com/nodejs/node/pull/9931)
+* [[`4022579b6e`](https://github.com/nodejs/node/commit/4022579b6e)] - **test**: improve domain-top-level-error-handler-throw (CodeVana) [#9950](https://github.com/nodejs/node/pull/9950)
+* [[`d3edaa3dc3`](https://github.com/nodejs/node/commit/d3edaa3dc3)] - **test**: replace var with const in test-require-dot (Amar Zavery) [#9916](https://github.com/nodejs/node/pull/9916)
+* [[`8694811ef0`](https://github.com/nodejs/node/commit/8694811ef0)] - **test**: refactor test-net-pingpong (Michaël Zasso) [#9812](https://github.com/nodejs/node/pull/9812)
+* [[`e849dd0ff3`](https://github.com/nodejs/node/commit/e849dd0ff3)] - **test**: Use strictEqual in test-tls-writewrap-leak (Aaron Petcoff) [#9666](https://github.com/nodejs/node/pull/9666)
+* [[`0662429268`](https://github.com/nodejs/node/commit/0662429268)] - **test**: fix test-tls-connect-address-family (mkamakura) [#9573](https://github.com/nodejs/node/pull/9573)
+* [[`420e7f17d9`](https://github.com/nodejs/node/commit/420e7f17d9)] - **test**: fix test-http-status-reason-invalid-chars (Yosuke Saito) [#9572](https://github.com/nodejs/node/pull/9572)
+* [[`13cace140f`](https://github.com/nodejs/node/commit/13cace140f)] - **test**: fix helper-debugger-repl.js (Rich Trott) [#9486](https://github.com/nodejs/node/pull/9486)
+* [[`aebbc965f9`](https://github.com/nodejs/node/commit/aebbc965f9)] - **test**: refactor large event emitter tests (cjihrig) [#6446](https://github.com/nodejs/node/pull/6446)
+* [[`b5012f3de2`](https://github.com/nodejs/node/commit/b5012f3de2)] - **test**: add expectWarning to common (Michaël Zasso) [#8662](https://github.com/nodejs/node/pull/8662)
+* [[`b98813d97c`](https://github.com/nodejs/node/commit/b98813d97c)] - **test**: refactor test-fs-non-number-arguments-throw (Michaël Zasso) [#9844](https://github.com/nodejs/node/pull/9844)
+* [[`80a752708a`](https://github.com/nodejs/node/commit/80a752708a)] - **test**: refactor test-dgram-exclusive-implicit-bind (Cesar Hernandez) [#10066](https://github.com/nodejs/node/pull/10066)
+* [[`9b974b4d54`](https://github.com/nodejs/node/commit/9b974b4d54)] - **test**: use `assert.strictEqual` (anoff) [#9975](https://github.com/nodejs/node/pull/9975)
+* [[`bc125bd729`](https://github.com/nodejs/node/commit/bc125bd729)] - **test**: change assert.equal to assert.strictEqual (Aileen) [#9946](https://github.com/nodejs/node/pull/9946)
+* [[`5049a10278`](https://github.com/nodejs/node/commit/5049a10278)] - **test**: changed assert.equal to assert.strictEqual (vazina robertson) [#10015](https://github.com/nodejs/node/pull/10015)
+* [[`b5c60edeed`](https://github.com/nodejs/node/commit/b5c60edeed)] - **test**: renamed assert.Equal to assert.strictEqual (Jared Young)
+* [[`f44e828a36`](https://github.com/nodejs/node/commit/f44e828a36)] - **test**: improves test-tls-client-verify (Paul Graham) [#10051](https://github.com/nodejs/node/pull/10051)
+* [[`a1e3967f69`](https://github.com/nodejs/node/commit/a1e3967f69)] - **test**: refactor test-https-agent-session-reuse (Diego Paez) [#10105](https://github.com/nodejs/node/pull/10105)
+* [[`9e46af6412`](https://github.com/nodejs/node/commit/9e46af6412)] - **test**: refactor test-beforeexit-event (Rob Adelmann) [#10121](https://github.com/nodejs/node/pull/10121)
+* [[`adcd6ea66f`](https://github.com/nodejs/node/commit/adcd6ea66f)] - **test**: refactor test-domain-from-timer (Daniel Sims) [#9889](https://github.com/nodejs/node/pull/9889)
+* [[`1377ea87eb`](https://github.com/nodejs/node/commit/1377ea87eb)] - **test**: refactor test-domain-exit-dispose-again (Ethan Arrowood) [#10003](https://github.com/nodejs/node/pull/10003)
+* [[`8a9af6843d`](https://github.com/nodejs/node/commit/8a9af6843d)] - **test**: use const and strictEqual in test-os-homedir-no-envvar (CodeVana) [#9899](https://github.com/nodejs/node/pull/9899)
+* [[`ee038c0e71`](https://github.com/nodejs/node/commit/ee038c0e71)] - **test**: refactor test-dgram-bind-default-address (Michael-Bryant Choa) [#9947](https://github.com/nodejs/node/pull/9947)
+* [[`a090899e93`](https://github.com/nodejs/node/commit/a090899e93)] - **test**: assert.throws() should include a RegExp (Chris Bystrek) [#9976](https://github.com/nodejs/node/pull/997://github.com/nodejs/node/pull/9976)
+* [[`542b40f410`](https://github.com/nodejs/node/commit/542b40f410)] - **test**: refactor test-event-emitter-method-names (Rodrigo Palma) [#10027](https://github.com/nodejs/node/pull/10027)
+* [[`a2023a9d97`](https://github.com/nodejs/node/commit/a2023a9d97)] - **test**: refactor tls-ticket-cluster (Yojan Shrestha) [#10023](https://github.com/nodejs/node/pull/10023)
+* [[`a64f40680f`](https://github.com/nodejs/node/commit/a64f40680f)] - **test**: refactor test-domain-exit-dispose (Chris Henney) [#9938](https://github.com/nodejs/node/pull/9938)
+* [[`a896d4ed36`](https://github.com/nodejs/node/commit/a896d4ed36)] - **test**: refactor test-stdin-from-file.js (amrios) [#10012](https://github.com/nodejs/node/pull/10012)
+* [[`ce14c1e51f`](https://github.com/nodejs/node/commit/ce14c1e51f)] - **test**: refactor test-require-extensions-main (Daryl Thayil) [#9912](https://github.com/nodejs/node/pull/9912)
+* [[`b9c45026f7`](https://github.com/nodejs/node/commit/b9c45026f7)] - **test**: clean up tls junk test (Danny Guo) [#9940](https://github.com/nodejs/node/pull/9940)
+* [[`e3712334a3`](https://github.com/nodejs/node/commit/e3712334a3)] - **test**: update test-stdout-to-file (scalkpdev) [#9939](https://github.com/nodejs/node/pull/9939)
+* [[`63f571e69c`](https://github.com/nodejs/node/commit/63f571e69c)] - **test**: changed assert.Equal to asset.strictEqual (Paul Chin) [#9973](https://github.com/nodejs/node/pull/9973)
+* [[`c3a3480606`](https://github.com/nodejs/node/commit/c3a3480606)] - **test**: refactor test-domain-multi (Wes Tyler) [#9963](https://github.com/nodejs/node/pull/9963)
+* [[`ad27555ff8`](https://github.com/nodejs/node/commit/ad27555ff8)] - **test**: use assert.strictEqual in test-cli-eval (Nigel Kibodeaux) [#9919](https://github.com/nodejs/node/pull/9919)
+* [[`cffd51e815`](https://github.com/nodejs/node/commit/cffd51e815)] - **test**: refactor test-tls-connect-simple (Russell Sherman) [#9934](https://github.com/nodejs/node/pull/9934)
+* [[`1424c25f3e`](https://github.com/nodejs/node/commit/1424c25f3e)] - **test**: refactor test-signal-unregister (mark hughes) [#9920](https://github.com/nodejs/node/pull/9920)
+* [[`920737180f`](https://github.com/nodejs/node/commit/920737180f)] - **test**: refactor test-require-resolve (blugavere) [#10120](https://github.com/nodejs/node/pull/10120)
+* [[`71ab88cc80`](https://github.com/nodejs/node/commit/71ab88cc80)] - **test**: refactor test-fs-read-stream-resume (Matt Webb) [#9927](https://github.com/nodejs/node/pull/9927)
+* [[`6a485da87c`](https://github.com/nodejs/node/commit/6a485da87c)] - **test**: replace equal with strictEqual (Tracy Hinds) [#10011](https://github.com/nodejs/node/pull/10011)
+* [[`b5d87569e1`](https://github.com/nodejs/node/commit/b5d87569e1)] - **test**: use strictEqual instead of equal (Uttam Pawar) [#9921](https://github.com/nodejs/node/pull/9921)
+* [[`c94c2fde8a`](https://github.com/nodejs/node/commit/c94c2fde8a)] - **test**: using const and strictEqual (Fabrice Tatieze) [#9926](https://github.com/nodejs/node/pull/9926)
+* [[`16164b5b44`](https://github.com/nodejs/node/commit/16164b5b44)] - **test**: test-file-write-stream3.js refactor (Richard Karmazin) [#10035](https://github.com/nodejs/node/pull/10035)
+* [[`7391983729`](https://github.com/nodejs/node/commit/7391983729)] - **test**: implemented es6 conventions (Erez Weiss) [#9669](https://github.com/nodejs/node/pull/9669)
+* [[`50ce3f91d7`](https://github.com/nodejs/node/commit/50ce3f91d7)] - **test**: update assert.equal() to assert.strictEqual() (Peter Diaz) [#10024](https://github.com/nodejs/node/pull/10024)
+* [[`3f9d75c481`](https://github.com/nodejs/node/commit/3f9d75c481)] - **test**: use const or let and assert.strictEqual (Christopher Rokita) [#10001](https://github.com/nodejs/node/pull/10001)
+* [[`98afba5676`](https://github.com/nodejs/node/commit/98afba5676)] - **test**: use strictEqual() domain-http (cdnadmin) [#9996](https://github.com/nodejs/node/pull/9996)
+* [[`07680b65fe`](https://github.com/nodejs/node/commit/07680b65fe)] - **test**: refactor test-cluster-worker-events (fmizzell) [#9994](https://github.com/nodejs/node/pull/9994)
+* [[`a3db54416f`](https://github.com/nodejs/node/commit/a3db54416f)] - **test**: update repl tests (makenova) [#9991](https://github.com/nodejs/node/pull/9991)
+* [[`db3cdd2449`](https://github.com/nodejs/node/commit/db3cdd2449)] - **test**: adding strictEqual to test-buffer-indexof.js (Eric Gonzalez) [#9955](https://github.com/nodejs/node/pull/9955)
+* [[`f670b05603`](https://github.com/nodejs/node/commit/f670b05603)] - **test**: strictEqual in test-beforeexit-event.js (CodeTheInternet) [#10004](https://github.com/nodejs/node/pull/10004)
+* [[`70b4d7d3a2`](https://github.com/nodejs/node/commit/70b4d7d3a2)] - **test**: refactor test-child-process-double-pipe (Dan Villa) [#9930](https://github.com/nodejs/node/pull/9930)
+* [[`1e53cf4764`](https://github.com/nodejs/node/commit/1e53cf4764)] - **test**: updated test-stream-pipe-unpipe-stream (Raja Panidepu) [#10100](https://github.com/nodejs/node/pull/10100)
+* [[`57d48ac3f4`](https://github.com/nodejs/node/commit/57d48ac3f4)] - **test**: refactor test-crypto-ecb (michael6) [#10029](https://github.com/nodejs/node/pull/10029)
+* [[`89feb8dc4d`](https://github.com/nodejs/node/commit/89feb8dc4d)] - **test**: refactor test-require-exceptions (Oscar Martinez) [#9882](https://github.com/nodejs/node/pull/9882)
+* [[`59f259c487`](https://github.com/nodejs/node/commit/59f259c487)] - **test**: refactor test-crypto-certificate (Josh Mays) [#9911](https://github.com/nodejs/node/pull/9911)
+* [[`815715d850`](https://github.com/nodejs/node/commit/815715d850)] - **test**: refactor test-domain (Johnny Reading) [#9890](https://github.com/nodejs/node/pull/9890)
+* [[`08cc269338`](https://github.com/nodejs/node/commit/08cc269338)] - **test**: refactor test-cli-syntax (Exlipse7) [#10057](https://github.com/nodejs/node/pull/10057)
+* [[`91d27ce4db`](https://github.com/nodejs/node/commit/91d27ce4db)] - **test**: refactor test-child-process-constructor (k3kathy) [#10060](https://github.com/nodejs/node/pull/10060)
+* [[`ae9e2a21c1`](https://github.com/nodejs/node/commit/ae9e2a21c1)] - **test**: var to const, assert.equal to assert.strictEqual in net (Sean Villars) [#9907](https://github.com/nodejs/node/pull/9907)
+* [[`30c9474286`](https://github.com/nodejs/node/commit/30c9474286)] - **test**: changed vars to const in test-net-better-error-messages-listen-path.js (anoff) [#9905](https://github.com/nodejs/node/pull/9905)
+* [[`bcbf50d9ba`](https://github.com/nodejs/node/commit/bcbf50d9ba)] - **test**: refactor test-http-dns-error (Outsider) [#10062](https://github.com/nodejs/node/pull/10062)
+* [[`00f08640ce`](https://github.com/nodejs/node/commit/00f08640ce)] - **test**: assert.equal -> assert.strictEqual (davidmarkclements) [#10065](https://github.com/nodejs/node/pull/10065)
+* [[`d9cca393e9`](https://github.com/nodejs/node/commit/d9cca393e9)] - **test**: assert.equal -> assert.strictEqual (davidmarkclements) [#10067](https://github.com/nodejs/node/pull/10067)
+* [[`6c64f6c445`](https://github.com/nodejs/node/commit/6c64f6c445)] - **test**: improve test for crypto padding (Julian Duque) [#9906](https://github.com/nodejs/node/pull/9906)
+* [[`37d734ae36`](https://github.com/nodejs/node/commit/37d734ae36)] - **test**: polish test-net-better-error-messages-listen (Hitesh Kanwathirtha) [#10087](https://github.com/nodejs/node/pull/10087)
+* [[`f126b44a3a`](https://github.com/nodejs/node/commit/f126b44a3a)] - **test**: change var to const in test-tls-key-mismatch.js (bjdelro) [#9897](https://github.com/nodejs/node/pull/9897)
+* [[`7538dd5c93`](https://github.com/nodejs/node/commit/7538dd5c93)] - **test**: use strictEqual in cwd-enoent (JDHarmon) [#10077](https://github.com/nodejs/node/pull/10077)
+* [[`39816a43af`](https://github.com/nodejs/node/commit/39816a43af)] - **test**: refactor test-fs-read-stream-inherit.js (Jonathan Darling) [#9894](https://github.com/nodejs/node/pull/9894)
+* [[`7615a0f2cd`](https://github.com/nodejs/node/commit/7615a0f2cd)] - **test**: refactor test-child-process-stdio-inherit (Wes Tyler) [#9893](https://github.com/nodejs/node/pull/9893)
+* [[`2a9ab8ea2a`](https://github.com/nodejs/node/commit/2a9ab8ea2a)] - **test**: change var to const for require and strict equality checks (Harish Tejwani) [#9892](https://github.com/nodejs/node/pull/9892)
+* [[`5cd7e7aaf1`](https://github.com/nodejs/node/commit/5cd7e7aaf1)] - **test**: Update to const and use regex for assertions (Daniel Flores) [#9891](https://github.com/nodejs/node/pull/9891)
+* [[`1a73cc5357`](https://github.com/nodejs/node/commit/1a73cc5357)] - **test**: swap var->const/let and equal->strictEqual (Peter Masucci) [#9888](https://github.com/nodejs/node/pull/9888)
+* [[`552169e950`](https://github.com/nodejs/node/commit/552169e950)] - **test**: replace equal with strictEqual in crypto (Julian Duque) [#9886](https://github.com/nodejs/node/pull/9886)
+* [[`49900e78b0`](https://github.com/nodejs/node/commit/49900e78b0)] - **test**: replace equal with strictEqual (Julian Duque) [#9879](https://github.com/nodejs/node/pull/9879)
+* [[`998db3a003`](https://github.com/nodejs/node/commit/998db3a003)] - **test**: refactor test-tls-timeout-server-2 (Devon Rifkin) [#9876](https://github.com/nodejs/node/pull/9876)
+* [[`aaab51047f`](https://github.com/nodejs/node/commit/aaab51047f)] - **test**: Changed assert.equal to assert.strictEqual (Daniel Pittman) [#9902](https://github.com/nodejs/node/pull/9902)
+* [[`a4488c3cbd`](https://github.com/nodejs/node/commit/a4488c3cbd)] - **test**: refactor test-vm-syntax-error-stderr.js (Jay Brownlee) [#9900](https://github.com/nodejs/node/pull/9900)
+* [[`cff80a5c0e`](https://github.com/nodejs/node/commit/cff80a5c0e)] - **test**: refactor test-tls-destroy-whilst-write (Chris Bystrek) [#10064](https://github.com/nodejs/node/pull/10064)
+* [[`8257671bdc`](https://github.com/nodejs/node/commit/8257671bdc)] - **test**: refactor test-https-truncate (davidmarkclements) [#10074](https://github.com/nodejs/node/pull/10074)
+* [[`457af874b5`](https://github.com/nodejs/node/commit/457af874b5)] - **test**: use strictEqual in test-cli-eval-event.js (Richard Karmazin) [#9964](https://github.com/nodejs/node/pull/9964)
+* [[`2890f0d904`](https://github.com/nodejs/node/commit/2890f0d904)] - **test**: refactor test-tls-friendly-error-message.js (Adrian Estrada) [#9967](https://github.com/nodejs/node/pull/9967)
+* [[`c37ae4a1b6`](https://github.com/nodejs/node/commit/c37ae4a1b6)] - **test**: refactor test-vm-static-this.js (David Bradford) [#9887](https://github.com/nodejs/node/pull/9887)
+* [[`9473fc6c2f`](https://github.com/nodejs/node/commit/9473fc6c2f)] - **test**: refactor test-crypto-cipheriv-decipheriv (Aileen) [#10018](https://github.com/nodejs/node/pull/10018)
+* [[`6ecc4ffb1c`](https://github.com/nodejs/node/commit/6ecc4ffb1c)] - **test**: refactor test for crypto cipher/decipher iv (Julian Duque) [#9943](https://github.com/nodejs/node/pull/9943)
+* [[`a486f6bad4`](https://github.com/nodejs/node/commit/a486f6bad4)] - **test**: refactor test-cluster-setup-master-argv (Oscar Martinez) [#9960](https://github.com/nodejs/node/pull/9960)
+* [[`384c954698`](https://github.com/nodejs/node/commit/384c954698)] - **test**: refactor test-cluster-setup-master-argv (Christine Hong) [#9993](https://github.com/nodejs/node/pull/9993)
+* [[`76645e8781`](https://github.com/nodejs/node/commit/76645e8781)] - **test**: use assert.strictEqual in test-crypto-ecb (Daniel Pittman) [#9980](https://github.com/nodejs/node/pull/9980)
+* [[`9103c3d3fe`](https://github.com/nodejs/node/commit/9103c3d3fe)] - **test**: update to const iin cluster test (Greg Valdez) [#10007](https://github.com/nodejs/node/pull/10007)
+* [[`27c9171586`](https://github.com/nodejs/node/commit/27c9171586)] - **test**: use assert.strictEqual() cluster test (Bidur Adhikari) [#10042](https://github.com/nodejs/node/pull/10042)
+* [[`2453d64aa7`](https://github.com/nodejs/node/commit/2453d64aa7)] - **test**: var -> let/const, .equal -> .strictEqual (shiya) [#9913](https://github.com/nodejs/node/pull/9913)
+* [[`1467c964a4`](https://github.com/nodejs/node/commit/1467c964a4)] - **test**: increase coverage for timers (lrlna) [#10068](https://github.com/nodejs/node/pull/10068)
+* [[`e47195cf78`](https://github.com/nodejs/node/commit/e47195cf78)] - **test**: change equal to strictEqual (Kevin Zurawel) [#9872](https://github.com/nodejs/node/pull/9872)
+* [[`33da22aba1`](https://github.com/nodejs/node/commit/33da22aba1)] - **test**: add toASCII and toUnicode punycode tests (Claudio Rodriguez) [#9741](https://github.com/nodejs/node/pull/9741)
+* [[`4c5d24b632`](https://github.com/nodejs/node/commit/4c5d24b632)] - **test**: refine test-http-status-reason-invalid-chars (Rich Trott) [#9802](https://github.com/nodejs/node/pull/9802)
+* [[`81d49aaeb2`](https://github.com/nodejs/node/commit/81d49aaeb2)] - **test**: exclude no_interleaved_stdio test for AIX (Michael Dawson) [#9772](https://github.com/nodejs/node/pull/9772)
+* [[`b59cf582e4`](https://github.com/nodejs/node/commit/b59cf582e4)] - **test**: refactor test-async-wrap-* (Rich Trott) [#9663](https://github.com/nodejs/node/pull/9663)
+* [[`57cc5cb277`](https://github.com/nodejs/node/commit/57cc5cb277)] - **test**: use setImmediate() in test of stream2 (masashi.g) [#9583](https://github.com/nodejs/node/pull/9583)
+* [[`8345ffb0a0`](https://github.com/nodejs/node/commit/8345ffb0a0)] - **test**: add test case of PassThrough (Yoshiya Hinosawa) [#9581](https://github.com/nodejs/node/pull/9581)
+* [[`beb147a08b`](https://github.com/nodejs/node/commit/beb147a08b)] - **test**: check that `process.execPath` is a realpath (Anna Henningsen) [#9229](https://github.com/nodejs/node/pull/9229)
+* [[`cef5b1fa14`](https://github.com/nodejs/node/commit/cef5b1fa14)] - **test**: add test for broken child process stdio (cjihrig) [#9528](https://github.com/nodejs/node/pull/9528)
+* [[`29ab76b791`](https://github.com/nodejs/node/commit/29ab76b791)] - **test**: ensure nextTick is not scheduled in exit (Jeremiah Senkpiel) [#9555](https://github.com/nodejs/node/pull/9555)
+* [[`b87fe250d2`](https://github.com/nodejs/node/commit/b87fe250d2)] - **test**: change from setTimeout to setImmediate (MURAKAMI Masahiko) [#9578](https://github.com/nodejs/node/pull/9578)
+* [[`eca12d4316`](https://github.com/nodejs/node/commit/eca12d4316)] - **test**: improve test-stream2-objects.js (Yoshiya Hinosawa) [#9565](https://github.com/nodejs/node/pull/9565)
+* [[`4e36a14c15`](https://github.com/nodejs/node/commit/4e36a14c15)] - **test**: refactor test-next-tick-error-spin (Rich Trott) [#9537](https://github.com/nodejs/node/pull/9537)
+* [[`b2b2bc2293`](https://github.com/nodejs/node/commit/b2b2bc2293)] - **test**: move timer-dependent test to sequential (Rich Trott) [#9487](https://github.com/nodejs/node/pull/9487)
+* [[`1436fd70f5`](https://github.com/nodejs/node/commit/1436fd70f5)] - **test**: convert assert.equal to assert.strictEqual (Jonathan Darling) [#9925](https://github.com/nodejs/node/pull/9925)
+* [[`c9ed49da6e`](https://github.com/nodejs/node/commit/c9ed49da6e)] - **test**: run cpplint on files in test/cctest (Ben Noordhuis) [#9787](https://github.com/nodejs/node/pull/9787)
+* [[`10d4f470f8`](https://github.com/nodejs/node/commit/10d4f470f8)] - **test**: enable addons test to pass with debug build (Daniel Bevenius) [#8836](https://github.com/nodejs/node/pull/8836)
+* [[`550393dc78`](https://github.com/nodejs/node/commit/550393dc78)] - **test**: add new.target add-on regression test (Ben Noordhuis) [#9689](https://github.com/nodejs/node/pull/9689)
+* [[`76245b2156`](https://github.com/nodejs/node/commit/76245b2156)] - **test**: refactor large event emitter tests (cjihrig) [#6446](https://github.com/nodejs/node/pull/6446)
+* [[`02e8187751`](https://github.com/nodejs/node/commit/02e8187751)] - **test**: allow globals to be whitelisted (cjihrig) [#7826](https://github.com/nodejs/node/pull/7826)
+* [[`c0c5608bfc`](https://github.com/nodejs/node/commit/c0c5608bfc)] - **test,assert**: add deepEqual/deepStrictEqual tests for typed arrays (Feross Aboukhadijeh) [#8002](https://github.com/nodejs/node/pull/8002)
+* [[`759e8fdd18`](https://github.com/nodejs/node/commit/759e8fdd18)] - **timers**: bail from intervals if _repeat is bad (Jeremiah Senkpiel) [#10365](https://github.com/nodejs/node/pull/10365)
+* [[`553d95da15`](https://github.com/nodejs/node/commit/553d95da15)] - **timers**: use consistent checks for canceled timers (Jeremiah Senkpiel) [#9685](https://github.com/nodejs/node/pull/9685)
+* [[`5c6d908dd7`](https://github.com/nodejs/node/commit/5c6d908dd7)] - **tools**: enable final newline in .editorconfig (Roman Reiss) [#9410](https://github.com/nodejs/node/pull/9410)
+* [[`06e8120928`](https://github.com/nodejs/node/commit/06e8120928)] - **tools**: remove unneeded escaping in generate.js (Rich Trott) [#9781](https://github.com/nodejs/node/pull/9781)
+* [[`fd6b305421`](https://github.com/nodejs/node/commit/fd6b305421)] - **tools**: use better regexp for manpage references (Anna Henningsen) [#9632](https://github.com/nodejs/node/pull/9632)
+* [[`9b36469a3c`](https://github.com/nodejs/node/commit/9b36469a3c)] - **tools**: improve docopen target in Makefile (Sakthipriyan Vairamani (thefourtheye)) [#9436](https://github.com/nodejs/node/pull/9436)
+* [[`e3dc05d01b`](https://github.com/nodejs/node/commit/e3dc05d01b)] - **tools**: make run-valgrind.py useful (Ben Noordhuis) [#9520](https://github.com/nodejs/node/pull/9520)
+* [[`7b1b11a11c`](https://github.com/nodejs/node/commit/7b1b11a11c)] - **tools**: fix run-valgrind.py script (Ben Noordhuis) [#9520](https://github.com/nodejs/node/pull/9520)
+* [[`011ee0ba8b`](https://github.com/nodejs/node/commit/011ee0ba8b)] - **tools**: copy run-valgrind.py to tools/ (Ben Noordhuis) [#9520](https://github.com/nodejs/node/pull/9520)
 
 <a id="4.7.0"></a>
 ## 2016-12-06, Version 4.7.0 'Argon' (LTS), @thealphanerd

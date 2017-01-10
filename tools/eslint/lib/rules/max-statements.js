@@ -84,10 +84,20 @@ module.exports = {
          */
         function reportIfTooManyStatements(node, count, max) {
             if (count > max) {
-                context.report(
+                const messageEnd = " has too many statements ({{count}}). Maximum allowed is {{max}}.";
+                let name = "This function";
+
+                if (node.id) {
+                    name = `Function '${node.id.name}'`;
+                } else if (node.parent.type === "MethodDefinition" || node.parent.type === "Property") {
+                    name = `Function '${context.getSource(node.parent.key)}'`;
+                }
+
+                context.report({
                     node,
-                    "This function has too many statements ({{count}}). Maximum allowed is {{max}}.",
-                    { count, max });
+                    message: name + messageEnd,
+                    data: { count, max }
+                });
             }
         }
 
@@ -110,7 +120,7 @@ module.exports = {
             const count = functionStack.pop();
 
             if (ignoreTopLevelFunctions && functionStack.length === 0) {
-                topLevelFunctions.push({ node, count});
+                topLevelFunctions.push({ node, count });
             } else {
                 reportIfTooManyStatements(node, count, maxStatements);
             }
@@ -146,7 +156,7 @@ module.exports = {
                     return;
                 }
 
-                topLevelFunctions.forEach(function(element) {
+                topLevelFunctions.forEach(element => {
                     const count = element.count;
                     const node = element.node;
 

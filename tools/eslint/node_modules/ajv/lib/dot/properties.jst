@@ -11,9 +11,9 @@
     $it.errSchemaPath = it.errSchemaPath + '/additionalProperties';
     $it.errorPath = it.opts._errorDataPathProperty
                     ? it.errorPath
-                    : it.util.getPathExpr(it.errorPath, 'key' + $lvl, it.opts.jsonPointers);
-    var $passData = $data + '[key' + $lvl + ']';
-    $it.dataPathArr[$dataNxt] = 'key' + $lvl;
+                    : it.util.getPathExpr(it.errorPath, $key, it.opts.jsonPointers);
+    var $passData = $data + '[' + $key + ']';
+    $it.dataPathArr[$dataNxt] = $key;
   }}
 
   {{# def.generateSubschemaCode }}
@@ -51,7 +51,7 @@
 
 
 var {{=$errs}} = errors;
-var valid{{=$it.level}} = true;
+var {{=$nextValid}} = true;
 
 {{? $checkAdditional }}
   for (var {{=$key}} in {{=$data}}) {
@@ -86,16 +86,16 @@ var valid{{=$it.level}} = true;
     {{??}}
       {{
         var $currentErrorPath = it.errorPath;
-        var $additionalProperty = '\' + key' + $lvl + ' + \'';
+        var $additionalProperty = '\' + ' + $key + ' + \'';
         if (it.opts._errorDataPathProperty) {
-          it.errorPath = it.util.getPathExpr(it.errorPath, 'key' + $lvl, it.opts.jsonPointers);
+          it.errorPath = it.util.getPathExpr(it.errorPath, $key, it.opts.jsonPointers);
         }
       }}
       {{? $noAdditional }}
         {{? $removeAdditional }}
           delete {{=$data}}[{{=$key}}];
         {{??}}
-          valid{{=$it.level}} = false;
+          {{=$nextValid}} = false;
           {{
             var $currErrSchemaPath = $errSchemaPath;
             $errSchemaPath = it.errSchemaPath + '/additionalProperties';
@@ -111,7 +111,7 @@ var valid{{=$it.level}} = true;
 
           {{# def.validateAdditional }}
 
-          if (!valid{{=$it.level}}) {
+          if (!{{=$nextValid}}) {
             errors = {{=$errs}};
             if (validate.errors !== null) {
               if (errors) validate.errors.length = errors;
@@ -123,7 +123,7 @@ var valid{{=$it.level}} = true;
           {{# def.resetCompositeRule }}
         {{??}}
           {{# def.validateAdditional }}
-          {{? $breakOnError }} if (!valid{{=$it.level}}) break; {{?}}
+          {{? $breakOnError }} if (!{{=$nextValid}}) break; {{?}}
         {{?}}
       {{?}}
       {{ it.errorPath = $currentErrorPath; }}
@@ -171,7 +171,7 @@ var valid{{=$it.level}} = true;
       {{??}}
         {{? $requiredHash && $requiredHash[$propertyKey] }}
           if ({{=$useData}} === undefined) {
-            valid{{=$it.level}} = false;
+            {{=$nextValid}} = false;
             {{
               var $currentErrorPath = it.errorPath
                 , $currErrSchemaPath = $errSchemaPath
@@ -188,7 +188,7 @@ var valid{{=$it.level}} = true;
         {{??}}
           {{? $breakOnError }}
             if ({{=$useData}} === undefined) {
-              valid{{=$it.level}} = true;
+              {{=$nextValid}} = true;
             } else {
           {{??}}
             if ({{=$useData}} !== undefined) {
@@ -219,17 +219,17 @@ var valid{{=$it.level}} = true;
       {{# def.checkOwnProperty }}
       if ({{= it.usePattern($pProperty) }}.test({{=$key}})) {
         {{
-          $it.errorPath = it.util.getPathExpr(it.errorPath, 'key' + $lvl, it.opts.jsonPointers);
-          var $passData = $data + '[key' + $lvl + ']';
-          $it.dataPathArr[$dataNxt] = 'key' + $lvl;
+          $it.errorPath = it.util.getPathExpr(it.errorPath, $key, it.opts.jsonPointers);
+          var $passData = $data + '[' + $key + ']';
+          $it.dataPathArr[$dataNxt] = $key;
         }}
 
         {{# def.generateSubschemaCode }}
         {{# def.optimizeValidate }}
 
-        {{? $breakOnError }} if (!valid{{=$it.level}}) break; {{?}}
+        {{? $breakOnError }} if (!{{=$nextValid}}) break; {{?}}
       }
-      {{? $breakOnError }} else valid{{=$it.level}} = true; {{?}}
+      {{? $breakOnError }} else {{=$nextValid}} = true; {{?}}
     }
 
     {{# def.ifResultValid }}
@@ -261,17 +261,17 @@ var valid{{=$it.level}} = true;
           pgPropCount{{=$lvl}}++;
 
           {{
-            $it.errorPath = it.util.getPathExpr(it.errorPath, 'key' + $lvl, it.opts.jsonPointers);
-            var $passData = $data + '[key' + $lvl + ']';
-            $it.dataPathArr[$dataNxt] = 'key' + $lvl;
+            $it.errorPath = it.util.getPathExpr(it.errorPath, $key, it.opts.jsonPointers);
+            var $passData = $data + '[' + $key + ']';
+            $it.dataPathArr[$dataNxt] = $key;
           }}
 
           {{# def.generateSubschemaCode }}
           {{# def.optimizeValidate }}
 
-          {{? $breakOnError }} if (!valid{{=$it.level}}) break; {{?}}
+          {{? $breakOnError }} if (!{{=$nextValid}}) break; {{?}}
         }
-        {{? $breakOnError }} else valid{{=$it.level}} = true; {{?}}
+        {{? $breakOnError }} else {{=$nextValid}} = true; {{?}}
       }
 
       {{# def.ifResultValid }}
