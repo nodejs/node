@@ -877,6 +877,19 @@ for (let i = 0; i < str.length ; i++) {
 console.log(buf.toString('ascii'));
 ```
 
+### buf.buffer
+
+The `buffer` property references the underlying `ArrayBuffer` object based on
+which this Buffer object is created.
+
+```js
+const arrayBuffer = new ArrayBuffer(16);
+const buffer = Buffer.from(arrayBuffer);
+
+console.log(buffer.buffer === arrayBuffer);
+// Prints: true
+```
+
 ### buf.compare(target[, targetStart[, targetEnd[, sourceStart[, sourceEnd]]]])
 <!-- YAML
 added: v0.11.13
