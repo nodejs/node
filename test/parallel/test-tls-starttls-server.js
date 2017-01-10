@@ -6,10 +6,13 @@ if (!common.hasCrypto) {
   return;
 }
 
+// Test asynchronous SNI+OCSP on TLSSocket created on with `server` set to
+// `net.Server` instead of `tls.Server`
+
 const assert = require('assert');
+const fs = require('fs');
 const net = require('net');
 const tls = require('tls');
-const fs = require('fs');
 
 const key = fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem');
 const cert = fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem');
@@ -43,7 +46,7 @@ const server = net.createServer(common.mustCall((s) => {
     requestOCSP: true
   };
 
-  const client = tls.connect(opts, function() {
-    client.end();
+  tls.connect(opts, function() {
+    this.end();
   });
 });
