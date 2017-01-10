@@ -470,6 +470,12 @@ th > *:last-child, td > *:last-child {
   margin-bottom: 0;
 }
 
+.changelog > summary {
+  margin: .5rem 0;
+  padding: .5rem 0;
+  cursor: pointer;
+}
+
 /* simpler clearfix */
 .clearfix:after {
   content: ".";
