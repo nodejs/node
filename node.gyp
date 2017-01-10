@@ -94,6 +94,7 @@
       'lib/internal/process/warning.js',
       'lib/internal/process.js',
       'lib/internal/querystring.js',
+      'lib/internal/process/write-coverage.js',
       'lib/internal/readline.js',
       'lib/internal/repl.js',
       'lib/internal/socket_list.js',
