@@ -17,6 +17,7 @@ fs.fstat = (fd, cb) => {
   });
 };
 
+
 fs.fstatSync = (fd) => {
   const st = fs._fstatSync(fd);
   st.size = 0;

@@ -99,7 +99,7 @@ fs.open(file2, 'a', common.mustCall((err, fd) => {
 
 // lchmod
 if (fs.lchmod) {
-  var link = path.join(common.tmpDir, 'symbolic-link');
+  const link = path.join(common.tmpDir, 'symbolic-link');
 
   common.refreshTmpDir();
   fs.symlinkSync(file2, link);

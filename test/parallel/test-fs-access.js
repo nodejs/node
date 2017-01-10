@@ -106,8 +106,9 @@ assert.doesNotThrow(() => {
   fs.accessSync(__filename);
 });
 
+
 assert.doesNotThrow(() => {
-  var mode = fs.F_OK | fs.R_OK | fs.W_OK;
+  const mode = fs.F_OK | fs.R_OK | fs.W_OK;
 
   fs.accessSync(readWriteFile, mode);
 });
