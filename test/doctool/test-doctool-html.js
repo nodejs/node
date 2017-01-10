@@ -47,7 +47,15 @@ const testData = [
       '<p>Describe <code>Foobar</code> in more detail here.</p>' +
       '<h2>Foobar II<span><a class="mark" href="#foo_foobar_ii" ' +
       'id="foo_foobar_ii">#</a></span></h2>' +
-      '<div class="api_metadata"><span>Added in: v5.3.0, v4.2.0</span></div> ' +
+      '<div class="api_metadata">' +
+      '<details class="changelog"><summary>History</summary>' +
+      '<table><tr><th>Version</th><th>Changes</th></tr>' +
+      '<tr><td>v5.3.0, v4.2.0</td>' +
+      '<td><p><span>Added in: v5.3.0, v4.2.0</span></p>' +
+      '</td></tr>' +
+      '<tr><td>v4.2.0</td><td><p>The <code>error</code> parameter can now be' +
+      'an arrow function.</p></td></tr></table></details>' +
+      '</div> ' +
       '<p>Describe <code>Foobar II</code> in more detail here.</p>' +
       '<h2>Deprecated thingy<span><a class="mark" ' +
       'href="#foo_deprecated_thingy" id="foo_deprecated_thingy">#</a>' +

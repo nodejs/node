@@ -89,7 +89,8 @@ const testData = [
               textRaw: 'Foobar',
               name: 'foobar',
               meta: {
-                added: ['v1.0.0']
+                added: ['v1.0.0'],
+                changes: []
               },
               desc: '<p>Describe <code>Foobar</code> in more detail ' +
                 'here.</p>\n',
@@ -100,7 +101,14 @@ const testData = [
               textRaw: 'Foobar II',
               name: 'foobar_ii',
               meta: {
-                added: ['v5.3.0', 'v4.2.0']
+                added: ['v5.3.0', 'v4.2.0'],
+                changes: [
+                  { version: 'v4.2.0',
+                    'pr-url': 'https://github.com/nodejs/node/pull/3276',
+                    description: 'The `error` parameter can now be ' +
+                      'an arrow function.'
+                  }
+                ]
               },
               desc: '<p>Describe <code>Foobar II</code> in more detail ' +
                 'here.</p>\n',
@@ -112,7 +120,8 @@ const testData = [
               name: 'deprecated_thingy',
               meta: {
                 added: ['v1.0.0'],
-                deprecated: ['v2.0.0']
+                deprecated: ['v2.0.0'],
+                changes: []
               },
               desc: '<p>Describe <code>Deprecated thingy</code> in more ' +
                 'detail here.</p>\n',

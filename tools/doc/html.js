@@ -269,12 +269,40 @@ function parseYAML(text) {
   const meta = common.extractAndParseYAML(text);
   const html = ['<div class="api_metadata">'];
 
+  const added = { description: '' };
+  const deprecated = { description: '' };
+
   if (meta.added) {
-    html.push(`<span>Added in: ${meta.added.join(', ')}</span>`);
+    added.version = meta.added.join(', ');
+    added.description = `<span>Added in: ${added.version}</span>`;
   }
 
   if (meta.deprecated) {
-    html.push(`<span>Deprecated since: ${meta.deprecated.join(', ')} </span>`);
+    deprecated.version = meta.deprecated.join(', ');
+    deprecated.description =
+        `<span>Deprecated since: ${deprecated.version}</span>`;
+  }
+
+  if (meta.changes.length > 0) {
+    let changes = meta.changes.slice();
+    if (added.description) changes.push(added);
+    if (deprecated.description) changes.push(deprecated);
+
+    changes = changes.sort((a, b) => versionSort(a.version, b.version));
+
+    html.push('<details class="changelog"><summary>History</summary>');
+    html.push('<table>');
+    html.push('<tr><th>Version</th><th>Changes</th></tr>');
+
+    changes.forEach((change) => {
+      html.push(`<tr><td>${change.version}</td>`);
+      html.push(`<td>${marked(change.description)}</td></tr>`);
+    });
+
+    html.push('</table>');
+    html.push('</details>');
+  } else {
+    html.push(`${added.description}${deprecated.description}`);
   }
 
   html.push('</div>');
@@ -389,4 +417,15 @@ function getId(text) {
     idCounters[text] = 0;
   }
   return text;
+}
+
+const numberRe = /^(\d*)/;
+function versionSort(a, b) {
+  a = a.trim();
+  b = b.trim();
+  let i = 0;  // common prefix length
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  a = a.substr(i);
+  b = b.substr(i);
+  return +b.match(numberRe)[1] - +a.match(numberRe)[1];
 }
