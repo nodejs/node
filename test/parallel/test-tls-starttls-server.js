@@ -29,7 +29,7 @@ const server = net.createServer(common.mustCall((s) => {
     }),
 
     SNICallback: common.mustCall((hostname, callback) => {
-      assert.deepEqual(hostname, 'test.test');
+      assert.strictEqual(hostname, 'test.test');
 
       callback(null, null);
     })
