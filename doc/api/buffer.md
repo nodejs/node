@@ -1329,6 +1329,12 @@ buf = buf.slice(0, 5);
 console.log(buf.length);
 ```
 
+### buf.parent
+
+> Stability: 0 - Deprecated: Use [`buf.buffer`] instead.
+
+The `buf.parent` property is a deprecated alias for `buf.buffer`.
+
 ### buf.readDoubleBE(offset[, noAssert])
 ### buf.readDoubleLE(offset[, noAssert])
 <!-- YAML
@@ -2429,6 +2435,7 @@ console.log(buf);
 ```
 
 [`buf.compare()`]: #buffer_buf_compare_target_targetstart_targetend_sourcestart_sourceend
+[`buf.buffer`]: #buffer_buf_buffer
 [`buf.entries()`]: #buffer_buf_entries
 [`buf.indexOf()`]: #buffer_buf_indexof_value_byteoffset_encoding
 [`buf.fill()`]: #buffer_buf_fill_value_offset_end_encoding
