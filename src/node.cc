@@ -3269,7 +3269,7 @@ void SetupProcessObject(Environment* env,
     READONLY_PROPERTY(process, "traceDeprecation", True(env->isolate()));
   }
 
-  // --debug-brk
+  // --debug-brk, --inspect-brk
   if (debug_options.wait_for_connect()) {
     READONLY_PROPERTY(process, "_debugWaitConnect", True(env->isolate()));
   }
