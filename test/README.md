@@ -373,7 +373,7 @@ Synchronous version of `spawnPwd`.
 ### tmpDir
 * return [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
 
-Path to the 'tmp' directory.
+The realpath of the 'tmp' directory.
 
 ### tmpDirName
 * return [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
