@@ -284,6 +284,9 @@ exports.platformTimeout = function(ms) {
   if (process.config.target_defaults.default_configuration === 'Debug')
     ms = 2 * ms;
 
+  if (global.__coverage__)
+    ms = 4 * ms;
+
   if (exports.isAix)
     return 2 * ms; // default localhost speed is slower on AIX
 
@@ -381,7 +384,11 @@ function leakedGlobals() {
     if (!knownGlobals.includes(global[val]))
       leaked.push(val);
 
-  return leaked;
+  if (global.__coverage__) {
+    return leaked.filter((varname) => !/^(cov_|__cov)/.test(varname));
+  } else {
+    return leaked;
+  }
 }
 exports.leakedGlobals = leakedGlobals;
 
