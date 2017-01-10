@@ -106,6 +106,7 @@ assert.doesNotThrow(() => {
   fs.accessSync(__filename);
 });
 
+
 assert.doesNotThrow(() => {
   const mode = fs.F_OK | fs.R_OK | fs.W_OK;
 

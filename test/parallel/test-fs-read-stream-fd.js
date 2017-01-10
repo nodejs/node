@@ -17,6 +17,6 @@ stream.on('data', (data) => {
   output += data;
 });
 
-process.on('exit', () => {
+process.on('exit', function() {
   assert.strictEqual(output, input);
 });

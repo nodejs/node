@@ -33,6 +33,7 @@ const file1 = path.join(common.tmpDir, 'testWriteFileSync.txt');
 fs.writeFileSync(file1, '123', {mode: mode});
 
 content = fs.readFileSync(file1, {encoding: 'utf8'});
+
 assert.strictEqual(content, '123');
 
 assert.strictEqual(fs.statSync(file1).mode & 0o777, mode);
@@ -43,9 +44,11 @@ const file2 = path.join(common.tmpDir, 'testAppendFileSync.txt');
 fs.appendFileSync(file2, 'abc', {mode: mode});
 
 content = fs.readFileSync(file2, {encoding: 'utf8'});
+
 assert.strictEqual(content, 'abc');
 
 assert.strictEqual(fs.statSync(file2).mode & mode, mode);
+
 
 // Test writeFileSync with file descriptor
 const file3 = path.join(common.tmpDir, 'testWriteFileSyncFd.txt');
@@ -55,6 +58,7 @@ fs.writeFileSync(fd, '123');
 fs.closeSync(fd);
 
 content = fs.readFileSync(file3, {encoding: 'utf8'});
+
 assert.strictEqual(content, '123');
 
 assert.strictEqual(fs.statSync(file3).mode & 0o777, mode);
