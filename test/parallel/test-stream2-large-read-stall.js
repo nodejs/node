@@ -32,7 +32,9 @@ r.on('readable', function() {
                 rs.length);
 });
 
-r.on('end', common.mustCall(function() {}));
+r.on('end', common.mustCall(function() {
+  assert.strictEqual(pushes, PUSHCOUNT + 1);
+}));
 
 var pushes = 0;
 function push() {
@@ -48,7 +50,3 @@ function push() {
   if (r.push(new Buffer(PUSHSIZE)))
     setTimeout(push);
 }
-
-process.on('exit', function() {
-  assert.equal(pushes, PUSHCOUNT + 1);
-});
