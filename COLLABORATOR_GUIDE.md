@@ -281,9 +281,8 @@ CTC for further discussion.
 
 #### How are LTS Branches Managed?
 
-There are currently three LTS branches: `v4.x`, `v0.10`, and `v0.12`. Each
-of these is paired with a "staging" branch: `v4.x-staging`, `v0.10-staging`,
-and `v0.12-staging`.
+There are currently two LTS branches: `v6.x` and `v4.x`. Each of these is paired
+with a "staging" branch: `v6.x-staging` and `v4.x-staging`.
 
 As commits land in `master`, they are cherry-picked back to each staging
 branch as appropriate. If the commit applies only to the LTS branch, the
@@ -304,18 +303,14 @@ please feel free to include that information in the PR thread.
 
 Several LTS related issue and PR labels have been provided:
 
+* `lts-watch-v6.x` - tells the LTS WG that the issue/PR needs to be considered
+  for landing in the `v6.x-staging` branch.
 * `lts-watch-v4.x` - tells the LTS WG that the issue/PR needs to be considered
   for landing in the `v4.x-staging` branch.
-* `lts-watch-v0.10` - tells the LTS WG that the issue/PR needs to be considered
-  for landing in the `v0.10-staging` branch.
-* `lts-watch-v0.12` - tells the LTS WG that the issue/PR needs to be considered
-  for landing in the `v0.12-staging` branch.
+* `land-on-v6.x` - tells the release team that the commit should be landed
+  in a future v6.x release
 * `land-on-v4.x` - tells the release team that the commit should be landed
   in a future v4.x release
-* `land-on-v0.10` - tells the release team that the commit should be landed
-  in a future v0.10 release
-* `land-on-v0.12` - tells the release team that the commit should be landed
-  in a future v0.12 release
 
 Any collaborator can attach these labels to any PR/issue. As commits are
 landed into the staging branches, the `lts-watch-` label will be removed.
