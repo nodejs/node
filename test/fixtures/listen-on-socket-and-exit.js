@@ -5,7 +5,7 @@ const net = require('net');
 
 common.refreshTmpDir();
 
-var server = net.createServer().listen(common.PIPE, function() {
+const server = net.createServer().listen(common.PIPE, () => {
   console.log('child listening');
   process.send('listening');
 });

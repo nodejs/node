@@ -2,24 +2,18 @@ const c = require('./b/c');
 
 console.error('load fixtures/a.js');
 
-var string = 'A';
+let string = 'A';
 
 exports.SomeClass = c.SomeClass;
 
-exports.A = function() {
-  return string;
-};
+exports.A = () => string;
 
-exports.C = function() {
-  return c.C();
-};
+exports.C = () => c.C();
 
-exports.D = function() {
-  return c.D();
-};
+exports.D = () => c.D();
 
 exports.number = 42;
 
-process.on('exit', function() {
+process.on('exit', () => {
   string = 'A done';
 });

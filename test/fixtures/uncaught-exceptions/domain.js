@@ -1,12 +1,12 @@
 const domain = require('domain');
 
-var d = domain.create();
-d.on('error', function(err) {
+const d = domain.create();
+d.on('error', (err) => {
   console.log('[ignored]', err.stack);
 });
 
-d.run(function() {
-  setImmediate(function() {
+d.run(() => {
+  setImmediate(() => {
     throw new Error('in domain');
   });
 });

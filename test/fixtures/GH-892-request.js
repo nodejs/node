@@ -4,18 +4,18 @@ const https = require('https');
 const fs = require('fs');
 const assert = require('assert');
 
-var PORT = parseInt(process.argv[2]);
-var bytesExpected = parseInt(process.argv[3]);
+const PORT = parseInt(process.argv[2]);
+const bytesExpected = parseInt(process.argv[3]);
 
-var gotResponse = false;
+let gotResponse = false;
 
-var options = {
+const options = {
   method: 'POST',
   port: PORT,
   rejectUnauthorized: false
 };
 
-var req = https.request(options, function(res) {
+const req = https.request(options, (res) => {
   assert.strictEqual(200, res.statusCode);
   gotResponse = true;
   console.error('DONE');
@@ -24,6 +24,6 @@ var req = https.request(options, function(res) {
 
 req.end(Buffer.allocUnsafe(bytesExpected));
 
-process.on('exit', function() {
+process.on('exit', () => {
   assert.ok(gotResponse);
 });

@@ -1,5 +1,3 @@
 const root = require('./../root');
 
-exports.hello = function() {
-  return root.calledFromFoo();
-};
+exports.hello = () => root.calledFromFoo();

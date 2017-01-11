@@ -8,26 +8,26 @@ function handleRequest(request, response) {
 }
 
 const NUMBER_OF_WORKERS = 2;
-var workersOnline = 0;
+let workersOnline = 0;
 
 if (cluster.isMaster) {
-  cluster.on('online', function() {
+  cluster.on('online', () => {
     if (++workersOnline === NUMBER_OF_WORKERS) {
       console.error('all workers are running');
     }
   });
 
-  process.on('message', function(msg) {
+  process.on('message', (msg) => {
     if (msg.type === 'getpids') {
       const pids = [];
       pids.push(process.pid);
-      for (var key in cluster.workers)
+      for (const key in cluster.workers)
         pids.push(cluster.workers[key].process.pid);
       process.send({ type: 'pids', pids: pids });
     }
   });
 
-  for (var i = 0; i < NUMBER_OF_WORKERS; i++) {
+  for (let i = 0; i < NUMBER_OF_WORKERS; i++) {
     cluster.fork();
   }
 } else {

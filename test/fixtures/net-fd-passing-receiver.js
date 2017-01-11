@@ -1,31 +1,31 @@
 process.mixin(require('../common'));
-net = require('net');
+const net = require('net');
 
-path = process.ARGV[2];
-greeting = process.ARGV[3];
+const path = process.ARGV[2];
+const greeting = process.ARGV[3];
 
-receiver = net.createServer(function(socket) {
-  socket.on('fd', function(fd) {
-    var peerInfo = process.getpeername(fd);
+receiver = net.createServer((socket) => {
+  socket.on('fd', (fd) => {
+    const peerInfo = process.getpeername(fd);
     peerInfo.fd = fd;
-    var passedSocket = new net.Socket(peerInfo);
+    const passedSocket = new net.Socket(peerInfo);
 
-    passedSocket.on('eof', function() {
+    passedSocket.on('eof', () => {
       passedSocket.close();
     });
 
-    passedSocket.on('data', function(data) {
-      passedSocket.send('[echo] ' + data);
+    passedSocket.on('data', (data) => {
+      passedSocket.send(`[echo] ${data}`);
     });
-    passedSocket.on('close', function() {
+    passedSocket.on('close', () => {
       receiver.close();
     });
-    passedSocket.send('[greeting] ' + greeting);
+    passedSocket.send(`[greeting] ${greeting}`);
   });
 });
 
 /* To signal the test runne we're up and listening */
-receiver.on('listening', function() {
+receiver.on('listening', () => {
   console.log('ready');
 });
 

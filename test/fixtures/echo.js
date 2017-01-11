@@ -3,8 +3,8 @@ const assert = require('assert');
 
 process.stdout.write('hello world\r\n');
 
-var stdin = process.openStdin();
+const stdin = process.openStdin();
 
-stdin.on('data', function(data) {
+stdin.on('data', (data) => {
   process.stdout.write(data.toString());
 });
