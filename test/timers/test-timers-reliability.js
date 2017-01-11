@@ -7,7 +7,13 @@ var Timer = process.binding('timer_wrap').Timer;
 const assert = require('assert');
 
 var timerFired = false;
+var zeroTimerFired = false;
+var minusTimerFired = false;
+var undefinedTimerFired = false;
 var intervalFired = false;
+var zeroIntervalFired = false;
+var minusIntervalFired = false;
+var undefinedIntervalFired = false;
 
 /*
  * This test case aims at making sure that timing utilities such
@@ -39,7 +45,13 @@ monoTimer[Timer.kOnTimeout] = function() {
      * time drifting or inconsistent time changes.
      */
   assert(timerFired);
+  assert(zeroTimerFired);
+  assert(minusTimerFired);
+  assert(undefinedTimerFired);
   assert(intervalFired);
+  assert(zeroIntervalFired);
+  assert(minusIntervalFired);
+  assert(undefinedIntervalFired);
 };
 
 monoTimer.start(300);
@@ -48,7 +60,34 @@ setTimeout(function() {
   timerFired = true;
 }, 200);
 
+setTimeout(function() {
+  zeroTimerFired = true;
+}, 0);
+
+setTimeout(function() {
+  minusTimerFired = true;
+}, -1);
+
+setTimeout(function() {
+  undefinedTimerFired = true;
+});
+
 var interval = setInterval(function() {
   intervalFired = true;
   clearInterval(interval);
 }, 200);
+
+var zeroInterval = setInterval(function() {
+  zeroIntervalFired = true;
+  clearInterval(zeroInterval);
+}, 0);
+
+var minusInterval = setInterval(function() {
+  minusIntervalFired = true;
+  clearInterval(minusInterval);
+}, -1);
+
+var undefinedInterval = setInterval(function() {
+  undefinedIntervalFired = true;
+  clearInterval(undefinedInterval);
+});
