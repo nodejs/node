@@ -106,7 +106,7 @@ function listener(event, exec_state, event_data, data) {
         // 2: [anonymous]
         assertEquals("new Point(x=0, y=0)",
                      exec_state.frame(0).invocationText());
-        assertEquals("#<Object>[Symbol(Das Symbol)](x=0, y=0)",
+        assertEquals("#<Object>[Das Symbol](x=0, y=0)",
                      exec_state.frame(1).invocationText());
         assertEquals("[anonymous]()", exec_state.frame(2).invocationText());
         listenerCalled = true;
