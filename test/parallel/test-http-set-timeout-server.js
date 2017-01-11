@@ -87,6 +87,34 @@ test(function serverResponseTimeout(cb) {
   }));
 });
 
+test(function serverZeroTimeout(cb) {
+  var orig = net.Socket.prototype.setTimeout;
+  var socketTimeoutCalled = false;
+  process.on('exit', function () {
+    assert.ok(socketTimeoutCalled);
+    net.Socket.prototype.setTimeout = orig;
+  });
+  net.Socket.prototype.setTimeout = function () {
+    if (!socketTimeoutCalled)
+      socketTimeoutCalled = arguments[0] === 0;
+    orig.apply(this, arguments);
+  };
+  var server = http.createServer(function(req, res) {
+    res.end('ok');
+  });
+  // Set timeout to zero so we dont close sockets
+  server.timeout = 0;
+  server.listen(common.mustCall(function() {
+    http.get({ port: server.address().port }, function (res) {
+      assert.equal(res.statusCode, 200);
+      server.close();
+      cb();
+    }).on('error', function() {});
+  }));
+
+  assert.ok(server instanceof http.Server);
+});
+
 test(function serverRequestNotTimeoutAfterEnd(cb) {
   var caughtTimeoutOnRequest = false;
   var caughtTimeoutOnResponse = false;
