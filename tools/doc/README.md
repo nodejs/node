@@ -98,10 +98,9 @@ Each type of heading has a description block.
     This event is emitted on instances of SomeClass, not on the module itself.
 
 
-* Modules have (description, Properties, Functions, Classes, Examples)
-* Properties have (type, description)
-* Functions have (list of arguments, description)
 * Classes have (description, Properties, Methods, Events)
 * Events have (list of arguments, description)
+* Functions have (list of arguments, description)
 * Methods have (list of arguments, description)
+* Modules have (description, Properties, Functions, Classes, Examples)
 * Properties have (type, description)
