@@ -2,6 +2,7 @@
 const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
+const URL = require('url').URL;
 
 function check(async, sync) {
   const expected = /Path must be a string without null bytes/;
@@ -47,6 +48,65 @@ check(fs.utimes, fs.utimesSync, 'foo\u0000bar', 0, 0);
 check(null, fs.watch, 'foo\u0000bar', common.mustNotCall());
 check(null, fs.watchFile, 'foo\u0000bar', common.mustNotCall());
 check(fs.writeFile, fs.writeFileSync, 'foo\u0000bar');
+
+const fileUrl = new URL('file:///C:/foo\u0000bar');
+const fileUrl2 = new URL('file:///C:/foo%00bar');
+
+check(fs.access, fs.accessSync, fileUrl);
+check(fs.access, fs.accessSync, fileUrl, fs.F_OK);
+check(fs.appendFile, fs.appendFileSync, fileUrl);
+check(fs.chmod, fs.chmodSync, fileUrl, '0644');
+check(fs.chown, fs.chownSync, fileUrl, 12, 34);
+check(fs.link, fs.linkSync, fileUrl, 'foobar');
+check(fs.link, fs.linkSync, 'foobar', fileUrl);
+check(fs.lstat, fs.lstatSync, fileUrl);
+check(fs.mkdir, fs.mkdirSync, fileUrl, '0755');
+check(fs.open, fs.openSync, fileUrl, 'r');
+check(fs.readFile, fs.readFileSync, fileUrl);
+check(fs.readdir, fs.readdirSync, fileUrl);
+check(fs.readlink, fs.readlinkSync, fileUrl);
+check(fs.realpath, fs.realpathSync, fileUrl);
+check(fs.rename, fs.renameSync, fileUrl, 'foobar');
+check(fs.rename, fs.renameSync, 'foobar', fileUrl);
+check(fs.rmdir, fs.rmdirSync, fileUrl);
+check(fs.stat, fs.statSync, fileUrl);
+check(fs.symlink, fs.symlinkSync, fileUrl, 'foobar');
+check(fs.symlink, fs.symlinkSync, 'foobar', fileUrl);
+check(fs.truncate, fs.truncateSync, fileUrl);
+check(fs.unlink, fs.unlinkSync, fileUrl);
+check(null, fs.unwatchFile, fileUrl, common.fail);
+check(fs.utimes, fs.utimesSync, fileUrl, 0, 0);
+check(null, fs.watch, fileUrl, common.fail);
+check(null, fs.watchFile, fileUrl, common.fail);
+check(fs.writeFile, fs.writeFileSync, fileUrl);
+
+check(fs.access, fs.accessSync, fileUrl2);
+check(fs.access, fs.accessSync, fileUrl2, fs.F_OK);
+check(fs.appendFile, fs.appendFileSync, fileUrl2);
+check(fs.chmod, fs.chmodSync, fileUrl2, '0644');
+check(fs.chown, fs.chownSync, fileUrl2, 12, 34);
+check(fs.link, fs.linkSync, fileUrl2, 'foobar');
+check(fs.link, fs.linkSync, 'foobar', fileUrl2);
+check(fs.lstat, fs.lstatSync, fileUrl2);
+check(fs.mkdir, fs.mkdirSync, fileUrl2, '0755');
+check(fs.open, fs.openSync, fileUrl2, 'r');
+check(fs.readFile, fs.readFileSync, fileUrl2);
+check(fs.readdir, fs.readdirSync, fileUrl2);
+check(fs.readlink, fs.readlinkSync, fileUrl2);
+check(fs.realpath, fs.realpathSync, fileUrl2);
+check(fs.rename, fs.renameSync, fileUrl2, 'foobar');
+check(fs.rename, fs.renameSync, 'foobar', fileUrl2);
+check(fs.rmdir, fs.rmdirSync, fileUrl2);
+check(fs.stat, fs.statSync, fileUrl2);
+check(fs.symlink, fs.symlinkSync, fileUrl2, 'foobar');
+check(fs.symlink, fs.symlinkSync, 'foobar', fileUrl2);
+check(fs.truncate, fs.truncateSync, fileUrl2);
+check(fs.unlink, fs.unlinkSync, fileUrl2);
+check(null, fs.unwatchFile, fileUrl2, common.fail);
+check(fs.utimes, fs.utimesSync, fileUrl2, 0, 0);
+check(null, fs.watch, fileUrl2, common.fail);
+check(null, fs.watchFile, fileUrl2, common.fail);
+check(fs.writeFile, fs.writeFileSync, fileUrl2);
 
 // an 'error' for exists means that it doesn't exist.
 // one of many reasons why this file is the absolute worst.
