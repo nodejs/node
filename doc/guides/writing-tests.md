@@ -60,11 +60,11 @@ The second line loads the `common` module. The `common` module is a helper
 module that provides useful tools for the tests.
 
 Even if a test uses no functions or other properties exported by `common`,
-the test should still include the `common` module. This is because the `common`
-module includes code that will cause tests to fail if there are variables leaked
-into the global space. In situations where a test uses no functions or other
-properties exported by `common`, include it without assigning it to an
-identifier:
+the test should still include the `common` module before any other modules. This
+is because the `common` module includes code that will cause a test to fail if
+the test leaks variables into the global space. In situations where a test uses
+no functions or other properties exported by `common`, include it without
+assigning it to an identifier:
 
 ```javascript
 require('../common');
@@ -128,7 +128,7 @@ depending on the platform. For example:
 const timer = setTimeout(fail, common.platformTimeout(4000));
 ```
 
-will create a 4-seconds timeout on most platforms but a longer timeout on slower
+will create a 4-second timeout on most platforms but a longer timeout on slower
 platforms.
 
 ### The *common* API
