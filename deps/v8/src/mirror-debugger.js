@@ -1515,7 +1515,7 @@ PropertyMirror.prototype.name = function() {
 
 
 PropertyMirror.prototype.toText = function() {
-  if (IS_SYMBOL(this.name_)) return %SymbolDescriptiveString(this.name_);
+  if (IS_SYMBOL(this.name_)) return %SymbolDescription(this.name_);
   return this.name_;
 };
 
