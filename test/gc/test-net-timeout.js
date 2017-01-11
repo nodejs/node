@@ -1,4 +1,5 @@
 'use strict';
+const common = require('../common');
 // just like test/gc/http-client-timeout.js,
 // but using a net server/client instead
 
@@ -30,7 +31,7 @@ let countGC = 0;
 console.log('We should do ' + todo + ' requests');
 
 var server = net.createServer(serverHandler);
-server.listen(0, getall);
+server.listen(0, common.localhostIPv4, getall);
 
 function getall() {
   if (count >= todo)
