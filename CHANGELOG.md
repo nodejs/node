@@ -21,10 +21,10 @@ release.
 <tr>
   <th><a href="doc/changelogs/CHANGELOG_V7.md">v7</a><sup>Current</sup></th>
   <th title="LTS Until 2019-04"><a href="doc/changelogs/CHANGELOG_V6.md">v6</a><sup>LTS</sup></th>
-  <th><a href="doc/changelogs/CHANGELOG_V5.md">v5</a></th>
+  <th title="Unsupported Since 2016-07-01"><a href="doc/changelogs/CHANGELOG_V5.md">v5</a><sup>EOL</sup></th>
   <th title="LTS Until 2018-04"><a href="doc/changelogs/CHANGELOG_V4.md">v4</a><sup>LTS</sup></th>
-  <th title="LTS Until 2016-12-31"><a href="doc/changelogs/CHANGELOG_V012.md">v0.12</a><sup>LTS</sup></th>
-  <th title="LTS Until 2016-10-31" colspan="3"><a href="doc/changelogs/CHANGELOG_V010.md">v0.10</a><sup>LTS</sup></th>
+  <th title="Unsupported Since 2017-01-01"><a href="doc/changelogs/CHANGELOG_V012.md">v0.12</a><sup>EOL</sup></th>
+  <th title="Unsupported Since 2016-11-01" colspan="3"><a href="doc/changelogs/CHANGELOG_V010.md">v0.10</a><sup>EOL</sup></th>
 </tr>
 <tr>
     <td valign="top">
