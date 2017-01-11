@@ -161,7 +161,7 @@ For analysing the benchmark results use the `compare.R` tool.
 ```console
 $ cat compare-pr-5134.csv | Rscript benchmark/compare.R
 
-                                                                                      improvement significant      p.value
+                                                                                      improvement confidence      p.value
 string_decoder/string-decoder.js n=250000 chunk=1024 inlen=1024 encoding=ascii           12.46 %         *** 1.165345e-04
 string_decoder/string-decoder.js n=250000 chunk=1024 inlen=1024 encoding=base64-ascii    24.70 %         *** 1.820615e-15
 string_decoder/string-decoder.js n=250000 chunk=1024 inlen=1024 encoding=base64-utf8     23.60 %         *** 2.105625e-12
@@ -171,7 +171,7 @@ string_decoder/string-decoder.js n=250000 chunk=1024 inlen=128  encoding=ascii  
 ```
 
 In the output, _improvement_ is the relative improvement of the new version,
-hopefully this is positive. _significant_ tells if there is enough
+hopefully this is positive. _confidence_ tells if there is enough
 statistical evidence to validate the _improvement_. If there is enough evidence
 then there will be at least one star (`*`), more stars is just better. **However
 if there are no stars, then you shouldn't make any conclusions based on the
@@ -189,7 +189,7 @@ may require more runs to obtain (can be set with `--runs`).
 
 _For the statistically minded, the R script performs an [independent/unpaired
 2-group t-test][t-test], with the null hypothesis that the performance is the
-same for both versions. The significant field will show a star if the p-value
+same for both versions. The confidence field will show a star if the p-value
 is less than `0.05`._
 
 The `compare.R` tool can also produce a box plot by using the `--plot filename`
@@ -202,7 +202,7 @@ keep the first line since that contains the header information.
 ```console
 $ cat compare-pr-5134.csv | sed '1p;/encoding=ascii/!d' | Rscript benchmark/compare.R --plot compare-plot.png
 
-                                                                               improvement significant      p.value
+                                                                               improvement confidence      p.value
 string_decoder/string-decoder.js n=250000 chunk=1024 inlen=1024 encoding=ascii    12.46 %         *** 1.165345e-04
 string_decoder/string-decoder.js n=250000 chunk=1024 inlen=128 encoding=ascii      6.70 %           * 2.928003e-02
 string_decoder/string-decoder.js n=250000 chunk=1024 inlen=32 encoding=ascii       7.47 %         *** 5.780583e-04
