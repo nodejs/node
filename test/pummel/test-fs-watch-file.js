@@ -41,13 +41,13 @@ assert.throws(
       fs.watchFile(filepathOne);
     },
     function(e) {
-      return e.message === 'watchFile requires a listener function';
+      return e.message === '"watchFile()" requires a listener function';
     }
 );
 
 assert.doesNotThrow(
     function() {
-      fs.watchFile(filepathOne, function(curr, prev) {
+      fs.watchFile(filepathOne, function() {
         fs.unwatchFile(filepathOne);
         ++watchSeenOne;
       });
@@ -68,17 +68,17 @@ assert.throws(
       fs.watchFile(filepathTwo);
     },
     function(e) {
-      return e.message === 'watchFile requires a listener function';
+      return e.message === '"watchFile()" requires a listener function';
     }
 );
 
 assert.doesNotThrow(
     function() {
-      function a(curr, prev) {
+      function a() {
         fs.unwatchFile(filepathTwo, a);
         ++watchSeenTwo;
       }
-      function b(curr, prev) {
+      function b() {
         fs.unwatchFile(filepathTwo, b);
         ++watchSeenTwo;
       }
@@ -93,10 +93,10 @@ setTimeout(function() {
 
 assert.doesNotThrow(
     function() {
-      function a(curr, prev) {
+      function a() {
         assert.ok(0); // should not run
       }
-      function b(curr, prev) {
+      function b() {
         fs.unwatchFile(filenameThree, b);
         ++watchSeenThree;
       }
@@ -120,7 +120,7 @@ setTimeout(function() {
 
 assert.doesNotThrow(
     function() {
-      function a(curr, prev) {
+      function a() {
         ++watchSeenFour;
         assert.equal(1, watchSeenFour);
         fs.unwatchFile('.' + path.sep + filenameFour, a);
