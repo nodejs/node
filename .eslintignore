@@ -6,3 +6,4 @@ test/disabled
 test/tmp*/
 tools/eslint
 node_modules
+benchmark/tmp/
