@@ -8,6 +8,7 @@ const stream = require('stream');
 testSloppyMode();
 testStrictMode();
 testResetContext();
+testResetContextGlobal();
 testMagicMode();
 
 function testSloppyMode() {
@@ -131,7 +132,28 @@ function testResetContext() {
   ]);
 }
 
-function initRepl(mode) {
+function testResetContextGlobal() {
+  const r = initRepl(repl.REPL_MODE_STRICT, true);
+
+  r.write(`_ = 10;     // explicitly set to 10
+          _;           // 10 from user input
+          .clear       // No output because useGlobal is true
+          _;           // remains 10
+          `);
+
+  assertOutput(r.output, [
+    'Expression assignment to _ now disabled.',
+    '10',
+    '10',
+    '10',
+  ]);
+
+  // delete globals leaked by REPL when `useGlobal` is `true`
+  delete global.module;
+  delete global.require;
+}
+
+function initRepl(mode, useGlobal) {
   const inputStream = new stream.PassThrough();
   const outputStream = new stream.PassThrough();
   outputStream.accum = '';
@@ -146,7 +168,8 @@ function initRepl(mode) {
     useColors: false,
     terminal: false,
     prompt: '',
-    replMode: mode
+    replMode: mode,
+    useGlobal: useGlobal
   });
 }
 
