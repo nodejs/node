@@ -13,7 +13,9 @@ if (!common.hasCrypto) {
 
 doTest({ tickets: false }, function() {
   doTest({ tickets: true }, function() {
-    console.error('all done');
+    doTest({ tickets: false, invalidSession: true }, function() {
+      console.error('all done');
+    });
   });
 });
 
@@ -23,6 +25,7 @@ function doTest(testOptions, callback) {
   const fs = require('fs');
   const join = require('path').join;
   const spawn = require('child_process').spawn;
+  const Buffer = require('buffer').Buffer;
 
   const keyFile = join(common.fixturesDir, 'agent.key');
   const certFile = join(common.fixturesDir, 'agent.crt');
@@ -36,6 +39,7 @@ function doTest(testOptions, callback) {
   };
   let requestCount = 0;
   let resumeCount = 0;
+  let newSessionCount = 0;
   let session;
 
   const server = tls.createServer(options, function(cleartext) {
@@ -50,6 +54,7 @@ function doTest(testOptions, callback) {
     cleartext.end();
   });
   server.on('newSession', function(id, data, cb) {
+    ++newSessionCount;
     // Emulate asynchronous store
     setTimeout(function() {
       assert.ok(!session);
@@ -65,9 +70,17 @@ function doTest(testOptions, callback) {
     assert.ok(session);
     assert.strictEqual(session.id.toString('hex'), id.toString('hex'));
 
+    let data = session.data;
+
+    // Return an invalid session to test Node does not crash.
+    if (testOptions.invalidSession) {
+      data = Buffer.from('INVALID SESSION');
+      session = null;
+    }
+
     // Just to check that async really works there
     setTimeout(function() {
-      callback(null, session.data);
+      callback(null, data);
     }, 100);
   });
 
@@ -118,14 +131,25 @@ function doTest(testOptions, callback) {
   });
 
   process.on('exit', function() {
+    // Each test run connects 6 times: an initial request and 5 reconnect
+    // requests.
+    assert.strictEqual(requestCount, 6);
+
     if (testOptions.tickets) {
-      assert.strictEqual(requestCount, 6);
+      // No session cache callbacks are called.
       assert.strictEqual(resumeCount, 0);
-    } else {
-      // initial request + reconnect requests (5 times)
-      assert.ok(session);
-      assert.strictEqual(requestCount, 6);
+      assert.strictEqual(newSessionCount, 0);
+    } else if (testOptions.invalidSession) {
+      // The resume callback was called, but each connection established a
+      // fresh session.
       assert.strictEqual(resumeCount, 5);
+      assert.strictEqual(newSessionCount, 6);
+    } else {
+      // The resume callback was called, and only the initial connection
+      // establishes a fresh session.
+      assert.ok(session);
+      assert.strictEqual(resumeCount, 5);
+      assert.strictEqual(newSessionCount, 1);
     }
   });
 }
