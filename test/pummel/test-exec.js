@@ -63,6 +63,8 @@ exec(SLEEP3_COMMAND, { timeout: 50 }, function(err, stdout, stderr) {
   assert.ok(err);
   assert.ok(err.killed);
   assert.strictEqual(err.signal, 'SIGTERM');
+  assert.strictEqual(stdout, '');
+  assert.strictEqual(stderr, '');
 });
 
 
@@ -85,6 +87,8 @@ function killMeTwiceCallback(err, stdout, stderr) {
   assert.ok(err);
   assert.ok(err.killed);
   assert.strictEqual(err.signal, 'SIGTERM');
+  assert.strictEqual(stdout, '');
+  assert.strictEqual(stderr, '');
 
   // the timeout should still be in effect
   console.log('\'sleep 3\' was already killed. Took %d ms', diff);
@@ -96,6 +100,8 @@ exec('python -c "print 200000*\'C\'"', {maxBuffer: 1000},
      function(err, stdout, stderr) {
        assert.ok(err);
        assert.ok(/maxBuffer/.test(err.message));
+       assert.strictEqual(stdout, '');
+       assert.strictEqual(stderr, '');
      });
 
 
