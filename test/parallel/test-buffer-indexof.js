@@ -346,15 +346,20 @@ assert.strictEqual(Buffer.from('aaaaa').indexOf('b', 'ucs2'), -1);
   }
 }
 
-assert.throws(function() {
-  b.indexOf(function() { });
-});
-assert.throws(function() {
+const argumentExpected =
+    /^TypeError: "val" argument must be string, number or Buffer$/;
+
+assert.throws(() => {
+  b.indexOf(() => { });
+}, argumentExpected);
+
+assert.throws(() => {
   b.indexOf({});
-});
-assert.throws(function() {
+}, argumentExpected);
+
+assert.throws(() => {
   b.indexOf([]);
-});
+}, argumentExpected);
 
 // Test weird offset arguments.
 // The following offsets coerce to NaN or 0, searching the whole Buffer
