@@ -19,7 +19,7 @@ const filename = __filename.replace(/\\/g, '/');
 // assert that nothing is written to stdout
 child.exec(nodejs + ' --eval 42',
            function(err, stdout, stderr) {
-             assert.strictEqual(err, null);
+             assert.ifError(err);
              assert.strictEqual(stdout, '');
              assert.strictEqual(stderr, '');
            });
@@ -27,7 +27,7 @@ child.exec(nodejs + ' --eval 42',
 // assert that "42\n" is written to stderr
 child.exec(nodejs + ' --eval "console.error(42)"',
            function(err, stdout, stderr) {
-             assert.strictEqual(err, null);
+             assert.ifError(err);
              assert.strictEqual(stdout, '');
              assert.strictEqual(stderr, '42\n');
            });
@@ -38,14 +38,14 @@ child.exec(nodejs + ' --eval "console.error(42)"',
 
   child.exec(cmd + '42',
              function(err, stdout, stderr) {
-               assert.strictEqual(typeof err, 'object');
+               assert.ifError(err);
                assert.strictEqual(stdout, '42\n');
                assert.strictEqual(stderr, '');
              });
 
   child.exec(cmd + "'[]'", common.mustCall(
       function(err, stdout, stderr) {
-        assert.strictEqual(typeof err, 'object');
+        assert.ifError(err);
         assert.strictEqual(stdout, '[]\n');
         assert.strictEqual(stderr, '');
       }));
@@ -95,7 +95,7 @@ child.exec(nodejs + ' -e ""', function(status, stdout, stderr) {
 // "\\-42" should be interpreted as an escaped expression, not a switch
 child.exec(nodejs + ' -p "\\-42"',
            function(err, stdout, stderr) {
-             assert.strictEqual(err, null);
+             assert.ifError(err);
              assert.strictEqual(stdout, '-42\n');
              assert.strictEqual(stderr, '');
            });
