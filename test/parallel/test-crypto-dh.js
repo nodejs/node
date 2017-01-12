@@ -19,25 +19,28 @@ let key2 = dh2.generateKeys('hex');
 let secret1 = dh1.computeSecret(key2, 'hex', 'base64');
 let secret2 = dh2.computeSecret(key1, 'latin1', 'buffer');
 
-assert.strictEqual(secret1, secret2.toString('base64'));
+assert.strictEqual(secret2.toString('base64'), secret1);
 assert.strictEqual(dh1.verifyError, 0);
 assert.strictEqual(dh2.verifyError, 0);
 
-assert.throws(function() {
+const argumentsError =
+  /^TypeError: First argument should be number, string or Buffer$/;
+
+assert.throws(() => {
   crypto.createDiffieHellman([0x1, 0x2]);
-});
+}, argumentsError);
 
-assert.throws(function() {
-  crypto.createDiffieHellman(function() { });
-});
+assert.throws(() => {
+  crypto.createDiffieHellman(() => { });
+}, argumentsError);
 
-assert.throws(function() {
+assert.throws(() => {
   crypto.createDiffieHellman(/abc/);
-});
+}, argumentsError);
 
-assert.throws(function() {
+assert.throws(() => {
   crypto.createDiffieHellman({});
-});
+}, argumentsError);
 
 // Create "another dh1" using generated keys from dh1,
 // and compute secret again
@@ -56,20 +59,28 @@ const secret3 = dh3.computeSecret(key2, 'hex', 'base64');
 
 assert.strictEqual(secret1, secret3);
 
+const wrongBlockLength =
+    new RegExp('^Error: error:0606506D:digital envelope' +
+    ' routines:EVP_DecryptFinal_ex:wrong final block length$');
+
 // Run this one twice to make sure that the dh3 clears its error properly
 {
   const c = crypto.createDecipheriv('aes-128-ecb', crypto.randomBytes(16), '');
-  assert.throws(function() { c.final('utf8'); }, /wrong final block length/);
+  assert.throws(() => {
+    c.final('utf8');
+  }, wrongBlockLength);
 }
-
-assert.throws(function() {
-  dh3.computeSecret('');
-}, /key is too small/i);
 
 {
   const c = crypto.createDecipheriv('aes-128-ecb', crypto.randomBytes(16), '');
-  assert.throws(function() { c.final('utf8'); }, /wrong final block length/);
+  assert.throws(() => {
+    c.final('utf8');
+  }, wrongBlockLength);
 }
+
+assert.throws(() => {
+  dh3.computeSecret('');
+}, /^Error: Supplied key is too small$/);
 
 // Create a shared using a DH group.
 const alice = crypto.createDiffieHellmanGroup('modp5');
@@ -176,9 +187,9 @@ assert(firstByte === 6 || firstByte === 7);
 const ecdh3 = crypto.createECDH('secp256k1');
 const key3 = ecdh3.generateKeys();
 
-assert.throws(function() {
+assert.throws(() => {
   ecdh2.computeSecret(key3, 'latin1', 'buffer');
-});
+}, /^Error: Failed to translate Buffer to a EC_POINT$/);
 
 // ECDH should allow .setPrivateKey()/.setPublicKey()
 const ecdh4 = crypto.createECDH('prime256v1');
@@ -186,20 +197,21 @@ const ecdh4 = crypto.createECDH('prime256v1');
 ecdh4.setPrivateKey(ecdh1.getPrivateKey());
 ecdh4.setPublicKey(ecdh1.getPublicKey());
 
-assert.throws(function() {
+assert.throws(() => {
   ecdh4.setPublicKey(ecdh3.getPublicKey());
-}, /Failed to convert Buffer to EC_POINT/);
+}, /^Error: Failed to convert Buffer to EC_POINT$/);
 
 // Verify that we can use ECDH without having to use newly generated keys.
 const ecdh5 = crypto.createECDH('secp256k1');
 
 // Verify errors are thrown when retrieving keys from an uninitialized object.
-assert.throws(function() {
+assert.throws(() => {
   ecdh5.getPublicKey();
-}, /Failed to get ECDH public key/);
-assert.throws(function() {
+}, /^Error: Failed to get ECDH public key$/);
+
+assert.throws(() => {
   ecdh5.getPrivateKey();
-}, /Failed to get ECDH private key/);
+}, /^Error: Failed to get ECDH private key$/);
 
 // A valid private key for the secp256k1 curve.
 const cafebabeKey = 'cafebabe'.repeat(8);
@@ -245,10 +257,10 @@ assert.strictEqual(ecdh5.getPublicKey('hex', 'compressed'), cafebabePubPtComp);
 // Show why allowing the public key to be set on this type does not make sense.
 ecdh5.setPublicKey(peerPubPtComp, 'hex');
 assert.strictEqual(ecdh5.getPublicKey('hex'), peerPubPtUnComp);
-assert.throws(function() {
+assert.throws(() => {
   // Error because the public key does not match the private key anymore.
   ecdh5.computeSecret(peerPubPtComp, 'hex', 'hex');
-}, /Invalid key pair/);
+}, /^Error: Invalid key pair$/);
 
 // Set to a valid key to show that later attempts to set an invalid key are
 // rejected.
@@ -258,10 +270,10 @@ ecdh5.setPrivateKey(cafebabeKey, 'hex');
   '0000000000000000000000000000000000000000000000000000000000000000',
   'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141',
   'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF',
-].forEach(function(element, index, object) {
-  assert.throws(function() {
+].forEach((element) => {
+  assert.throws(() => {
     ecdh5.setPrivateKey(element, 'hex');
-  }, /Private key is not valid for specified curve/);
+  }, /^Error: Private key is not valid for specified curve.$/);
   // Verify object state did not change.
   assert.strictEqual(ecdh5.getPrivateKey('hex'), cafebabeKey);
 });
