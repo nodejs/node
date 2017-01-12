@@ -34,26 +34,42 @@ for (let i = 0; i < 10; i++) {
 }
 
 // Ensure that an invalid shape for the previous value argument throws an error.
-assert.throws(function() { process.cpuUsage(1); });
-assert.throws(function() { process.cpuUsage({}); });
-assert.throws(function() { process.cpuUsage({ user: 'a' }); });
-assert.throws(function() { process.cpuUsage({ system: 'b' }); });
-assert.throws(function() { process.cpuUsage({ user: null, system: 'c' }); });
-assert.throws(function() { process.cpuUsage({ user: 'd', system: null }); });
-assert.throws(function() { process.cpuUsage({ user: -1, system: 2 }); });
-assert.throws(function() { process.cpuUsage({ user: 3, system: -2 }); });
+assert.throws(function() {
+  process.cpuUsage(1);
+}, /TypeError: value of user property of argument is invalid/);
+assert.throws(function() {
+  process.cpuUsage({});
+}, /TypeError: value of user property of argument is invalid/);
+assert.throws(function() {
+  process.cpuUsage({ user: 'a' });
+}, /TypeError: value of user property of argument is invalid/);
+assert.throws(function() {
+  process.cpuUsage({ system: 'b' });
+}, /TypeError: value of user property of argument is invalid/);
+assert.throws(function() {
+  process.cpuUsage({ user: null, system: 'c' });
+}, /TypeError: value of user property of argument is invalid/);
+assert.throws(function() {
+  process.cpuUsage({ user: 'd', system: null });
+}, /TypeError: value of user property of argument is invalid/);
+assert.throws(function() {
+  process.cpuUsage({ user: -1, system: 2 });
+}, /TypeError: value of user property of argument is invalid/);
+assert.throws(function() {
+  process.cpuUsage({ user: 3, system: -2 });
+}, /TypeError: value of system property of argument is invalid/);
 assert.throws(function() {
   process.cpuUsage({
     user: Number.POSITIVE_INFINITY,
     system: 4
   });
-});
+}, /TypeError: value of user property of argument is invalid/);
 assert.throws(function() {
   process.cpuUsage({
     user: 5,
     system: Number.NEGATIVE_INFINITY
   });
-});
+}, /TypeError: value of system property of argument is invalid/);
 
 // Ensure that the return value is the expected shape.
 function validateResult(result) {
