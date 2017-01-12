@@ -163,16 +163,17 @@ if (!common.isWindows) {
 
 {
   // Validate the maxBuffer option
-  const err = /^TypeError: "maxBuffer" must be an unsigned integer$/;
+  const err = /^TypeError: "maxBuffer" must be a positive number$/;
 
   pass('maxBuffer', undefined);
   pass('maxBuffer', null);
   pass('maxBuffer', 1);
   pass('maxBuffer', 0);
-  fail('maxBuffer', 3.14, err);
+  pass('maxBuffer', Infinity);
+  pass('maxBuffer', 3.14);
   fail('maxBuffer', -1, err);
   fail('maxBuffer', NaN, err);
-  fail('maxBuffer', Infinity, err);
+  fail('maxBuffer', -Infinity, err);
   fail('maxBuffer', true, err);
   fail('maxBuffer', false, err);
   fail('maxBuffer', __dirname, err);

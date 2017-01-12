@@ -765,8 +765,8 @@ int SyncProcessRunner::ParseOptions(Local<Value> js_value) {
 
   Local<Value> js_max_buffer = js_options->Get(env()->max_buffer_string());
   if (IsSet(js_max_buffer)) {
-    CHECK(js_max_buffer->IsUint32());
-    max_buffer_ = js_max_buffer->Uint32Value();
+    CHECK(js_max_buffer->IsNumber());
+    max_buffer_ = js_max_buffer->NumberValue();
   }
 
   Local<Value> js_kill_signal = js_options->Get(env()->kill_signal_string());
