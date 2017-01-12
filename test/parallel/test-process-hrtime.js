@@ -15,14 +15,21 @@ validateTuple(process.hrtime(tuple));
 assert.throws(() => {
   process.hrtime(1);
 }, /^TypeError: process.hrtime\(\) only accepts an Array tuple$/);
+assert.throws(() => {
+  process.hrtime([]);
+}, /^TypeError: process.hrtime\(\) only accepts an Array tuple$/);
+assert.throws(() => {
+  process.hrtime([1]);
+}, /^TypeError: process.hrtime\(\) only accepts an Array tuple$/);
+assert.throws(() => {
+  process.hrtime([1, 2, 3]);
+}, /^TypeError: process.hrtime\(\) only accepts an Array tuple$/);
 
 function validateTuple(tuple) {
   assert(Array.isArray(tuple));
   assert.strictEqual(tuple.length, 2);
-  tuple.forEach((v) => {
-    assert.strictEqual(typeof v, 'number');
-    assert.strictEqual(isFinite(v), true);
-  });
+  assert(Number.isInteger(tuple[0]));
+  assert(Number.isInteger(tuple[1]));
 }
 
 const diff = process.hrtime([0, 1e9 - 1]);
