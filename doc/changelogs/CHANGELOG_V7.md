@@ -553,7 +553,7 @@ _This is a security release impacting Windows 10 users._
 ### Notable changes
 
 * **crypto**: The `Decipher` methods `setAuthTag()` and `setAAD` now return `this`. (Kirill Fomichev) [#9398](https://github.com/nodejs/node/pull/9398)
-* **dns**: Implemented `{ttl: true}` for `resolve4()` and `resolve6()`. (Ben Noordhuis) [#9296](https://github.com/nodejs/node/pull/9296) & [#9296](https://github.com/nodejs/node/pull/9296)
+* **dns**: Implemented `{ttl: true}` for `resolve4()` and `resolve6()`. (Ben Noordhuis) [#9296](https://github.com/nodejs/node/pull/9296)
 * **libuv**: Upgrade to v1.10.1 (cjihrig) [#9647](https://github.com/nodejs/node/pull/9647)
   - Fixed a potential buffer overflow when writing data to console on Windows 10. (CVE-2016-9551)
 * **process**: Added a new `external` property to the data returned by `memoryUsage()`. (Fedor Indutny) [#9587](https://github.com/nodejs/node/pull/9587)
