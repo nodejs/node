@@ -97,6 +97,20 @@ assert(crypto.getCurves().includes('secp384r1'));
 assert(!crypto.getCurves().includes('SECP384R1'));
 validateList(crypto.getCurves());
 
+// Modifying return value from get* functions should not mutate subsequent
+// return values.
+function testImmutability(fn) {
+  const list = fn();
+  const copy = [...list];
+  list.push('some-arbitrary-value');
+  assert.deepStrictEqual(fn(), copy);
+}
+
+testImmutability(crypto.getCiphers);
+testImmutability(tls.getCiphers);
+testImmutability(crypto.getHashes);
+testImmutability(crypto.getCurves);
+
 // Regression tests for #5725: hex input that's not a power of two should
 // throw, not assert in C++ land.
 assert.throws(function() {
