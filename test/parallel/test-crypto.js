@@ -59,7 +59,7 @@ function validateList(list) {
 
   // The list should be sorted.
   // Array#sort() modifies the list in place so make a copy.
-  const sorted = list.slice().sort();
+  const sorted = [...list].sort();
   assert.deepStrictEqual(list, sorted);
 
   // Each element should be unique.
