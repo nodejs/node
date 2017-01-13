@@ -54,19 +54,18 @@ assert.throws(function() {
 
 
 function assertSorted(list) {
-  // Array#sort() modifies the list in place so make a copy.
-  const sorted = list.slice().sort();
-  assert.deepStrictEqual(list, sorted);
+  // list is sorted and contains no duplicates
+  assert(list.every(
+    (val, index, array) => index === array.length - 1 || val < array[index + 1]
+  ));
 }
 
 // Assume that we have at least AES-128-CBC.
-assert.notStrictEqual(0, crypto.getCiphers().length);
 assert(crypto.getCiphers().includes('aes-128-cbc'));
 assert(!crypto.getCiphers().includes('AES-128-CBC'));
 assertSorted(crypto.getCiphers());
 
 // Assume that we have at least AES256-SHA.
-assert.notStrictEqual(0, tls.getCiphers().length);
 assert(tls.getCiphers().includes('aes256-sha'));
 assert(!tls.getCiphers().includes('AES256-SHA'));
 assertSorted(tls.getCiphers());
