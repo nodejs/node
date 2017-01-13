@@ -25,19 +25,19 @@ assert.strictEqual(dh2.verifyError, 0);
 
 assert.throws(function() {
   crypto.createDiffieHellman([0x1, 0x2]);
-});
+}, /TypeError: First argument should be number, string or Buffer/);
 
 assert.throws(function() {
   crypto.createDiffieHellman(function() { });
-});
+}, /TypeError: First argument should be number, string or Buffer/);
 
 assert.throws(function() {
   crypto.createDiffieHellman(/abc/);
-});
+}, /TypeError: First argument should be number, string or Buffer/);
 
 assert.throws(function() {
   crypto.createDiffieHellman({});
-});
+}, /TypeError: First argument should be number, string or Buffer/);
 
 // Create "another dh1" using generated keys from dh1,
 // and compute secret again
@@ -178,7 +178,7 @@ const key3 = ecdh3.generateKeys();
 
 assert.throws(function() {
   ecdh2.computeSecret(key3, 'latin1', 'buffer');
-});
+}, /Error: Failed to translate Buffer to a EC_POINT/);
 
 // ECDH should allow .setPrivateKey()/.setPublicKey()
 const ecdh4 = crypto.createECDH('prime256v1');
@@ -258,7 +258,7 @@ ecdh5.setPrivateKey(cafebabeKey, 'hex');
   '0000000000000000000000000000000000000000000000000000000000000000',
   'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141',
   'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF',
-].forEach(function(element, index, object) {
+].forEach(function(element) {
   assert.throws(function() {
     ecdh5.setPrivateKey(element, 'hex');
   }, /Private key is not valid for specified curve/);
