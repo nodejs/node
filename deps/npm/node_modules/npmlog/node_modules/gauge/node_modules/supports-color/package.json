@@ -1,0 +1,112 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "supports-color@^0.2.0",
+        "scope": null,
+        "escapedName": "supports-color",
+        "name": "supports-color",
+        "rawSpec": "^0.2.0",
+        "spec": ">=0.2.0 <0.3.0",
+        "type": "range"
+      },
+      "/Users/rebecca/code/npm/node_modules/npmlog/node_modules/gauge"
+    ]
+  ],
+  "_from": "supports-color@>=0.2.0 <0.3.0",
+  "_id": "supports-color@0.2.0",
+  "_inCache": true,
+  "_location": "/npmlog/gauge/supports-color",
+  "_npmUser": {
+    "name": "sindresorhus",
+    "email": "sindresorhus@gmail.com"
+  },
+  "_npmVersion": "1.4.9",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "supports-color@^0.2.0",
+    "scope": null,
+    "escapedName": "supports-color",
+    "name": "supports-color",
+    "rawSpec": "^0.2.0",
+    "spec": ">=0.2.0 <0.3.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/npmlog/gauge"
+  ],
+  "_resolved": "https://registry.npmjs.org/supports-color/-/supports-color-0.2.0.tgz",
+  "_shasum": "d92de2694eb3f67323973d7ae3d8b55b4c22190a",
+  "_shrinkwrap": null,
+  "_spec": "supports-color@^0.2.0",
+  "_where": "/Users/rebecca/code/npm/node_modules/npmlog/node_modules/gauge",
+  "author": {
+    "name": "Sindre Sorhus",
+    "email": "sindresorhus@gmail.com",
+    "url": "http://sindresorhus.com"
+  },
+  "bin": {
+    "supports-color": "cli.js"
+  },
+  "bugs": {
+    "url": "https://github.com/sindresorhus/supports-color/issues"
+  },
+  "dependencies": {},
+  "description": "Detect whether a terminal supports color",
+  "devDependencies": {
+    "mocha": "*"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "d92de2694eb3f67323973d7ae3d8b55b4c22190a",
+    "tarball": "https://registry.npmjs.org/supports-color/-/supports-color-0.2.0.tgz"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "files": [
+    "index.js",
+    "cli.js"
+  ],
+  "homepage": "https://github.com/sindresorhus/supports-color",
+  "keywords": [
+    "cli",
+    "bin",
+    "color",
+    "colour",
+    "colors",
+    "terminal",
+    "console",
+    "cli",
+    "ansi",
+    "styles",
+    "tty",
+    "rgb",
+    "256",
+    "shell",
+    "xterm",
+    "command-line",
+    "support",
+    "supports",
+    "capability",
+    "detect"
+  ],
+  "license": "MIT",
+  "maintainers": [
+    {
+      "name": "sindresorhus",
+      "email": "sindresorhus@gmail.com"
+    }
+  ],
+  "name": "supports-color",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/sindresorhus/supports-color.git"
+  },
+  "scripts": {
+    "test": "mocha"
+  },
+  "version": "0.2.0"
+}
