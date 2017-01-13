@@ -388,6 +388,9 @@ Reset the compressor/decompressor to factory defaults. Only applicable to
 the inflate and deflate algorithms.
 
 ## zlib.constants
+<!-- YAML
+added: v7.0.0
+-->
 
 Provides an object enumerating Zlib-related constants.
 
