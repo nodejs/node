@@ -53,23 +53,33 @@ assert.throws(function() {
 }, /^TypeError: Data must be a string or a buffer$/);
 
 
-function assertSorted(list) {
+function validateList(list) {
+  // The list must not be empty
+  assert(list.length > 0);
+
+  // The list should be sorted.
   // Array#sort() modifies the list in place so make a copy.
-  const sorted = list.slice().sort();
+  const sorted = [...list].sort();
   assert.deepStrictEqual(list, sorted);
+
+  // Each element should be unique.
+  assert.strictEqual([...new Set(list)].length, list.length);
+
+  // Each element should be a string.
+  assert(list.every((value) => typeof value === 'string'));
 }
 
 // Assume that we have at least AES-128-CBC.
-assert.notStrictEqual(0, crypto.getCiphers().length);
+const cryptoCiphers = crypto.getCiphers();
 assert(crypto.getCiphers().includes('aes-128-cbc'));
-assert(!crypto.getCiphers().includes('AES-128-CBC'));
-assertSorted(crypto.getCiphers());
+validateList(cryptoCiphers);
 
 // Assume that we have at least AES256-SHA.
-assert.notStrictEqual(0, tls.getCiphers().length);
+const tlsCiphers = tls.getCiphers();
 assert(tls.getCiphers().includes('aes256-sha'));
-assert(!tls.getCiphers().includes('AES256-SHA'));
-assertSorted(tls.getCiphers());
+// There should be no capital letters in any element.
+assert(tlsCiphers.every((value) => /^[^A-Z]+$/.test(value)));
+validateList(tlsCiphers);
 
 // Assert that we have sha and sha1 but not SHA and SHA1.
 assert.notStrictEqual(0, crypto.getHashes().length);
@@ -79,13 +89,13 @@ assert(!crypto.getHashes().includes('SHA1'));
 assert(!crypto.getHashes().includes('SHA'));
 assert(crypto.getHashes().includes('RSA-SHA1'));
 assert(!crypto.getHashes().includes('rsa-sha1'));
-assertSorted(crypto.getHashes());
+validateList(crypto.getHashes());
 
 // Assume that we have at least secp384r1.
 assert.notStrictEqual(0, crypto.getCurves().length);
 assert(crypto.getCurves().includes('secp384r1'));
 assert(!crypto.getCurves().includes('SECP384R1'));
-assertSorted(crypto.getCurves());
+validateList(crypto.getCurves());
 
 // Regression tests for #5725: hex input that's not a power of two should
 // throw, not assert in C++ land.
