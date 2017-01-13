@@ -19,6 +19,15 @@ if (process.__signal_exit_emitter__) {
   emitter.emitted = {}
 }
 
+// Because this emitter is a global, we have to check to see if a
+// previous version of this library failed to enable infinite listeners.
+// I know what you're about to say.  But literally everything about
+// signal-exit is a compromise with evil.  Get used to it.
+if (!emitter.infinite) {
+  emitter.setMaxListeners(Infinity)
+  emitter.infinite = true
+}
+
 module.exports = function (cb, opts) {
   assert.equal(typeof cb, 'function', 'a callback must be provided for exit handler')
 

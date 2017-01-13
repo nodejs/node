@@ -1,11 +1,16 @@
 # Changes
 
 
+## v1.0.3
+
+* handle the case where callback is not passed by user
+
 ## v1.0.2
 
 * git ignore coverage and node_modules
 * update tap to v7
 * build a changelog
+* package: fix repository link
 * pass tests on 0.8
 * before_script needs to be before_install
 * tap 1.2.0 and travis

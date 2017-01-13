@@ -74,3 +74,6 @@ Uninstaller.prototype.loadAllDepsIntoIdealTree = function (cb) {
     [loadExtraneous, this.idealTree, cg.newGroup('loadExtraneous')])
   chain(steps, cb)
 }
+
+Uninstaller.prototype.runPreinstallTopLevelLifecycles = function (cb) { cb() }
+Uninstaller.prototype.runPostinstallTopLevelLifecycles = function (cb) { cb() }

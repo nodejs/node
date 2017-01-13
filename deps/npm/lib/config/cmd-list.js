@@ -98,7 +98,8 @@ var cmdList = [
   'start',
   'restart',
   'run-script',
-  'completion'
+  'completion',
+  'doctor'
 ]
 
 var plumbing = [
