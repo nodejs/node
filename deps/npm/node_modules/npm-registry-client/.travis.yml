@@ -1,8 +1,8 @@
 language: node_js
 node_js:
-  - "4"
   - "6"
-  - "0.10"
+  - "4"
+  - "7"
   - "0.12"
 script: "npm test"
 sudo: false
