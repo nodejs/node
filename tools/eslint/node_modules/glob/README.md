@@ -1,8 +1,8 @@
-[![Build Status](https://travis-ci.org/isaacs/node-glob.svg?branch=master)](https://travis-ci.org/isaacs/node-glob/) [![Dependency Status](https://david-dm.org/isaacs/node-glob.svg)](https://david-dm.org/isaacs/node-glob) [![devDependency Status](https://david-dm.org/isaacs/node-glob/dev-status.svg)](https://david-dm.org/isaacs/node-glob#info=devDependencies) [![optionalDependency Status](https://david-dm.org/isaacs/node-glob/optional-status.svg)](https://david-dm.org/isaacs/node-glob#info=optionalDependencies)
-
 # Glob
 
 Match files using the patterns the shell uses, like stars and stuff.
+
+[![Build Status](https://travis-ci.org/isaacs/node-glob.svg?branch=master)](https://travis-ci.org/isaacs/node-glob/) [![Build Status](https://ci.appveyor.com/api/projects/status/kd7f3yftf7unxlsx?svg=true)](https://ci.appveyor.com/project/isaacs/node-glob) [![Coverage Status](https://coveralls.io/repos/isaacs/node-glob/badge.svg?branch=master&service=github)](https://coveralls.io/github/isaacs/node-glob?branch=master)
 
 This is a glob implementation in JavaScript.  It uses the `minimatch`
 library to do its matching.
@@ -10,6 +10,12 @@ library to do its matching.
 ![](oh-my-glob.gif)
 
 ## Usage
+
+Install with npm
+
+```
+npm i glob
+```
 
 ```javascript
 var glob = require("glob")
@@ -74,14 +80,6 @@ slashes in it, then it will seek for any file anywhere in the tree
 with a matching basename.  For example, `*.js` would match
 `test/simple/basic.js`.
 
-### Negation
-
-The intent for negation would be for a pattern starting with `!` to
-match everything that *doesn't* match the supplied pattern.  However,
-the implementation is weird, and for the time being, this should be
-avoided.  The behavior is deprecated in version 5, and will be removed
-entirely in version 6.
-
 ### Empty Sets
 
 If no matching files are found, then an empty array is returned.  This
@@ -114,19 +112,19 @@ options.
 
 ## glob(pattern, [options], cb)
 
-* `pattern` {String} Pattern to be matched
-* `options` {Object}
-* `cb` {Function}
-  * `err` {Error | null}
-  * `matches` {Array<String>} filenames found matching the pattern
+* `pattern` `{String}` Pattern to be matched
+* `options` `{Object}`
+* `cb` `{Function}`
+  * `err` `{Error | null}`
+  * `matches` `{Array<String>}` filenames found matching the pattern
 
 Perform an asynchronous glob search.
 
 ## glob.sync(pattern, [options])
 
-* `pattern` {String} Pattern to be matched
-* `options` {Object}
-* return: {Array<String>} filenames found matching the pattern
+* `pattern` `{String}` Pattern to be matched
+* `options` `{Object}`
+* return: `{Array<String>}` filenames found matching the pattern
 
 Perform a synchronous glob search.
 
@@ -144,11 +142,11 @@ immediately.
 
 ### new glob.Glob(pattern, [options], [cb])
 
-* `pattern` {String} pattern to search for
-* `options` {Object}
-* `cb` {Function} Called when an error occurs, or matches are found
-  * `err` {Error | null}
-  * `matches` {Array<String>} filenames found matching the pattern
+* `pattern` `{String}` pattern to search for
+* `options` `{Object}`
+* `cb` `{Function}` Called when an error occurs, or matches are found
+  * `err` `{Error | null}`
+  * `matches` `{Array<String>}` filenames found matching the pattern
 
 Note that if the `sync` flag is set in the options, then matches will
 be immediately available on the `g.found` member.
@@ -164,8 +162,8 @@ be immediately available on the `g.found` member.
   values:
   * `false` - Path does not exist
   * `true` - Path exists
-  * `'DIR'` - Path exists, and is not a directory
-  * `'FILE'` - Path exists, and is a directory
+  * `'FILE'` - Path exists, and is not a directory
+  * `'DIR'` - Path exists, and is a directory
   * `[file, entries, ...]` - Path exists, is a directory, and the
     array value is the results of `fs.readdir`
 * `statCache` Cache of `fs.stat` results, to prevent statting the same
@@ -182,7 +180,8 @@ be immediately available on the `g.found` member.
   matches found.  If the `nonull` option is set, and no match was found,
   then the `matches` list contains the original pattern.  The matches
   are sorted, unless the `nosort` flag is set.
-* `match` Every time a match is found, this is emitted with the matched.
+* `match` Every time a match is found, this is emitted with the specific
+  thing that matched. It is not deduplicated or resolved to a realpath.
 * `error` Emitted when an unexpected error is encountered, or whenever
   any fs error occurs if `options.strict` is set.
 * `abort` When `abort()` is called, this event is raised.
@@ -264,7 +263,9 @@ the filesystem.
   equivalent to `**/*.js`, matching all js files in all directories.
 * `nodir` Do not match directories, only files.  (Note: to match
   *only* directories, simply put a `/` at the end of the pattern.)
-* `ignore` Add a pattern or an array of patterns to exclude matches.
+* `ignore` Add a pattern or an array of glob patterns to exclude matches.
+  Note: `ignore` patterns are *always* in `dot:true` mode, regardless
+  of any other settings.
 * `follow` Follow symlinked directories when expanding `**` patterns.
   Note that this can result in a lot of duplicate references in the
   presence of cyclic links.
@@ -272,10 +273,9 @@ the filesystem.
   In the case of a symlink that cannot be resolved, the full absolute
   path to the matched entry is returned (though it will usually be a
   broken symlink)
-* `nonegate` Suppress deprecated `negate` behavior.  (See below.)
-  Default=true
-* `nocomment` Suppress deprecated `comment` behavior.  (See below.)
-  Default=true
+* `absolute` Set to true to always receive absolute paths for matched
+  files.  Unlike `realpath`, this also affects the values returned in
+  the `match` event.
 
 ## Comparisons to other fnmatch/glob implementations
 
@@ -308,22 +308,13 @@ checked for validity.  Since those two are valid, matching proceeds.
 
 ### Comments and Negation
 
-**Note**: In version 5 of this module, negation and comments are
-**disabled** by default.  You can explicitly set `nonegate:false` or
-`nocomment:false` to re-enable them.  They are going away entirely in
-version 6.
+Previously, this module let you mark a pattern as a "comment" if it
+started with a `#` character, or a "negated" pattern if it started
+with a `!` character.
 
-The intent for negation would be for a pattern starting with `!` to
-match everything that *doesn't* match the supplied pattern.  However,
-the implementation is weird.  It is better to use the `ignore` option
-to set a pattern or set of patterns to exclude from matches.  If you
-want the "everything except *x*" type of behavior, you can use `**` as
-the main pattern, and set an `ignore` for the things to exclude.
+These options were deprecated in version 5, and removed in version 6.
 
-The comments feature is added in minimatch, primarily to more easily
-support use cases like ignore files, where a `#` at the start of a
-line makes the pattern "empty".  However, in the context of a
-straightforward filesystem globber, "comments" don't make much sense.
+To specify things that should not match, use the `ignore` option.
 
 ## Windows
 

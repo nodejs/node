@@ -9,30 +9,44 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "require parenthesis around regex literals",
+            category: "Stylistic Issues",
+            recommended: false
+        },
 
-    return {
+        schema: [],
 
-        "Literal": function(node) {
-            var token = context.getFirstToken(node),
-                nodeType = token.type,
-                source,
-                grandparent,
-                ancestors;
+        fixable: "code"
+    },
 
-            if (nodeType === "RegularExpression") {
-                source = context.getTokenBefore(node);
-                ancestors = context.getAncestors();
-                grandparent = ancestors[ancestors.length - 1];
+    create(context) {
+        const sourceCode = context.getSourceCode();
 
-                if (grandparent.type === "MemberExpression" && grandparent.object === node &&
-                    (!source || source.value !== "(")) {
-                    context.report(node, "Wrap the regexp literal in parens to disambiguate the slash.");
+        return {
+
+            Literal(node) {
+                const token = sourceCode.getFirstToken(node),
+                    nodeType = token.type;
+
+                if (nodeType === "RegularExpression") {
+                    const source = sourceCode.getTokenBefore(node);
+                    const ancestors = context.getAncestors();
+                    const grandparent = ancestors[ancestors.length - 1];
+
+                    if (grandparent.type === "MemberExpression" && grandparent.object === node &&
+                        (!source || source.value !== "(")) {
+                        context.report({
+                            node,
+                            message: "Wrap the regexp literal in parens to disambiguate the slash.",
+                            fix: fixer => fixer.replaceText(node, `(${sourceCode.getText(node)})`)
+                        });
+                    }
                 }
             }
-        }
-    };
+        };
 
+    }
 };
-
-module.exports.schema = [];

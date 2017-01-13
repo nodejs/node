@@ -126,6 +126,18 @@ function InstallGetterSetter(object, name, getter, setter, attributes) {
 }
 
 
+function OverrideFunction(object, name, f, afterInitialBootstrap) {
+  %CheckIsBootstrapping();
+  %object_define_property(object, name, { value: f,
+                                          writeable: true,
+                                          configurable: true,
+                                          enumerable: false });
+  SetFunctionName(f, name);
+  if (!afterInitialBootstrap) %FunctionRemovePrototype(f);
+  %SetNativeFlag(f);
+}
+
+
 // Prevents changes to the prototype of a built-in function.
 // The "prototype" property of the function object is made non-configurable,
 // and the prototype object is made non-extensible. The latter prevents
@@ -169,55 +181,58 @@ function PostNatives(utils) {
 
   // Whitelist of exports from normal natives to experimental natives and debug.
   var expose_list = [
+    "AddBoundMethod",
     "ArrayToString",
-    "ErrorToString",
-    "FunctionSourceString",
+    "AsyncFunctionNext",
+    "AsyncFunctionThrow",
     "GetIterator",
     "GetMethod",
-    "InnerArrayEvery",
-    "InnerArrayFilter",
-    "InnerArrayForEach",
-    "InnerArrayIndexOf",
-    "InnerArrayJoin",
-    "InnerArrayLastIndexOf",
-    "InnerArrayMap",
-    "InnerArrayReduce",
-    "InnerArrayReduceRight",
-    "InnerArrayReverse",
-    "InnerArraySome",
-    "InnerArraySort",
-    "InnerArrayToLocaleString",
+    "GlobalPromise",
+    "IntlParseDate",
+    "IntlParseNumber",
     "IsNaN",
-    "MakeError",
-    "MakeTypeError",
     "MapEntries",
     "MapIterator",
     "MapIteratorNext",
-    "MathMax",
-    "MathMin",
     "MaxSimple",
     "MinSimple",
-    "ObjectIsFrozen",
-    "ObjectDefineProperty",
-    "ObserveArrayMethods",
-    "ObserveObjectMethods",
-    "OwnPropertyKeys",
-    "SameValueZero",
+    "NewPromiseCapability",
+    "NumberIsInteger",
+    "PerformPromiseThen",
+    "PromiseCastResolved",
+    "PromiseThen",
+    "RegExpSubclassExecJS",
+    "RegExpSubclassMatch",
+    "RegExpSubclassReplace",
+    "RegExpSubclassSearch",
+    "RegExpSubclassSplit",
+    "RegExpSubclassTest",
     "SetIterator",
     "SetIteratorNext",
     "SetValues",
-    "SymbolToString",
-    "ToNameArray",
+    "ToLocaleLowerCaseI18N",
+    "ToLocaleUpperCaseI18N",
+    "ToLowerCaseI18N",
     "ToPositiveInteger",
+    "ToUpperCaseI18N",
     // From runtime:
     "is_concat_spreadable_symbol",
     "iterator_symbol",
-    "promise_status_symbol",
-    "promise_value_symbol",
+    "promise_result_symbol",
+    "promise_state_symbol",
+    "object_freeze",
+    "object_is_frozen",
+    "object_is_sealed",
     "reflect_apply",
     "reflect_construct",
     "regexp_flags_symbol",
     "to_string_tag_symbol",
+    "object_to_string",
+    "species_symbol",
+    "match_symbol",
+    "replace_symbol",
+    "search_symbol",
+    "split_symbol",
   ];
 
   var filtered_exports = {};
@@ -245,11 +260,6 @@ function PostExperimentals(utils) {
     imports_from_experimental(exports_container);
   }
 
-  utils.InitializeRNG();
-  utils.InitializeRNG = UNDEFINED;
-  utils.CreateDoubleResultArray();
-  utils.CreateDoubleResultArray = UNDEFINED;
-
   utils.Export = UNDEFINED;
   utils.PostDebug = UNDEFINED;
   utils.PostExperimentals = UNDEFINED;
@@ -261,11 +271,6 @@ function PostDebug(utils) {
   for ( ; !IS_UNDEFINED(imports); imports = imports.next) {
     imports(exports_container);
   }
-
-  utils.InitializeRNG();
-  utils.InitializeRNG = UNDEFINED;
-  utils.CreateDoubleResultArray();
-  utils.CreateDoubleResultArray = UNDEFINED;
 
   exports_container = UNDEFINED;
 
@@ -289,7 +294,7 @@ function InitializeBuiltinTypedArrays(utils, rng_state, rempio2result) {
 
 // -----------------------------------------------------------------------
 
-%OptimizeObjectForAddingMultipleProperties(utils, 15);
+%OptimizeObjectForAddingMultipleProperties(utils, 14);
 
 utils.Import = Import;
 utils.ImportNow = ImportNow;
@@ -300,6 +305,7 @@ utils.InstallConstants = InstallConstants;
 utils.InstallFunctions = InstallFunctions;
 utils.InstallGetter = InstallGetter;
 utils.InstallGetterSetter = InstallGetterSetter;
+utils.OverrideFunction = OverrideFunction;
 utils.SetUpLockedPrototype = SetUpLockedPrototype;
 utils.PostNatives = PostNatives;
 utils.PostExperimentals = PostExperimentals;
@@ -339,14 +345,14 @@ extrasUtils.createPrivateSymbol = function createPrivateSymbol(name) {
 // indirection and slowness given how un-optimized bind is.
 
 extrasUtils.simpleBind = function simpleBind(func, thisArg) {
-  return function() {
-    return %Apply(func, thisArg, arguments, 0, arguments.length);
+  return function(...args) {
+    return %reflect_apply(func, thisArg, args);
   };
 };
 
 extrasUtils.uncurryThis = function uncurryThis(func) {
-  return function(thisArg) {
-    return %Apply(func, thisArg, arguments, 1, arguments.length - 1);
+  return function(thisArg, ...args) {
+    return %reflect_apply(func, thisArg, args);
   };
 };
 

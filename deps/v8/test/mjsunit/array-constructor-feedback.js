@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax --expose-gc
+// Flags: --noalways-opt
 
 // Test element kind of objects.
 
@@ -60,26 +61,6 @@ function isHoley(obj) {
 function assertKind(expected, obj, name_opt) {
   assertEquals(expected, getKind(obj), name_opt);
 }
-
-// Test: If a call site goes megamorphic, it retains the ability to
-// use allocation site feedback (if FLAG_allocation_site_pretenuring
-// is on).
-(function() {
-  function bar(t, len) {
-    return new t(len);
-  }
-
-  a = bar(Array, 10);
-  a[0] = 3.5;
-  b = bar(Array, 1);
-  assertKind(elements_kind.fast_double, b);
-  c = bar(Object, 3);
-  b = bar(Array, 10);
-  // TODO(mvstanton): re-enable when FLAG_allocation_site_pretenuring
-  // is on in the build.
-  // assertKind(elements_kind.fast_double, b);
-})();
-
 
 // Test: ensure that crankshafted array constructor sites are deopted
 // if another function is used.

@@ -46,7 +46,7 @@ static uv_timer_t timer;
 static uv_process_options_t options;
 static char exepath[1024];
 static size_t exepath_size = 1024;
-static char* args[3];
+static char* args[5];
 static int no_term_signal;
 static int timer_counter;
 
@@ -147,6 +147,8 @@ static void init_process_options(char* test, uv_exit_cb exit_cb) {
   args[0] = exepath;
   args[1] = test;
   args[2] = NULL;
+  args[3] = NULL;
+  args[4] = NULL;
   options.file = exepath;
   options.args = args;
   options.exit_cb = exit_cb;
@@ -1226,21 +1228,26 @@ TEST_IMPL(spawn_with_an_odd_path) {
 TEST_IMPL(spawn_setuid_setgid) {
   int r;
   struct passwd* pw;
+  char uidstr[10];
+  char gidstr[10];
 
   /* if not root, then this will fail. */
   uv_uid_t uid = getuid();
   if (uid != 0) {
-    fprintf(stderr, "spawn_setuid_setgid skipped: not root\n");
-    return 0;
+    RETURN_SKIP("It should be run as root user");
   }
 
-  init_process_options("spawn_helper1", exit_cb);
+  init_process_options("spawn_helper_setuid_setgid", exit_cb);
 
   /* become the "nobody" user. */
   pw = getpwnam("nobody");
   ASSERT(pw != NULL);
   options.uid = pw->pw_uid;
   options.gid = pw->pw_gid;
+  snprintf(uidstr, sizeof(uidstr), "%d", pw->pw_uid);
+  snprintf(gidstr, sizeof(gidstr), "%d", pw->pw_gid);
+  options.args[2] = uidstr;
+  options.args[3] = gidstr;
   options.flags = UV_PROCESS_SETUID | UV_PROCESS_SETGID;
 
   r = uv_spawn(uv_default_loop(), &process, &options);
@@ -1431,6 +1438,9 @@ TEST_IMPL(spawn_fs_open) {
 
 #ifndef _WIN32
 TEST_IMPL(closed_fd_events) {
+#if defined(__MVS__)
+  RETURN_SKIP("Filesystem watching not supported on this platform.");
+#endif
   uv_stdio_container_t stdio[3];
   uv_pipe_t pipe_handle;
   int fd[2];
@@ -1500,6 +1510,8 @@ TEST_IMPL(spawn_reads_child_path) {
    */
 #if defined(__APPLE__)
   static const char dyld_path_var[] = "DYLD_LIBRARY_PATH";
+#elif defined __MVS__
+  static const char dyld_path_var[] = "LIBPATH";
 #else
   static const char dyld_path_var[] = "LD_LIBRARY_PATH";
 #endif

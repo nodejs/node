@@ -501,7 +501,12 @@ void SyncProcessRunner::CloseHandlesAndDeleteLoop() {
     // Close the process handle when ExitCallback was not called.
     uv_handle_t* uv_process_handle =
         reinterpret_cast<uv_handle_t*>(&uv_process_);
-    if (!uv_is_closing(uv_process_handle))
+
+    // Close the process handle if it is still open. The handle type also
+    // needs to be checked because TryInitializeAndRunLoop() won't spawn a
+    // process if input validation fails.
+    if (uv_process_handle->type == UV_PROCESS &&
+        !uv_is_closing(uv_process_handle))
       uv_close(uv_process_handle, nullptr);
 
     // Give closing watchers a chance to finish closing and get their close
@@ -729,17 +734,17 @@ int SyncProcessRunner::ParseOptions(Local<Value> js_value) {
   }
   Local<Value> js_uid = js_options->Get(env()->uid_string());
   if (IsSet(js_uid)) {
-    if (!CheckRange<uv_uid_t>(js_uid))
-      return UV_EINVAL;
-    uv_process_options_.uid = static_cast<uv_gid_t>(js_uid->Int32Value());
+    CHECK(js_uid->IsInt32());
+    const int32_t uid = js_uid->Int32Value(env()->context()).FromJust();
+    uv_process_options_.uid = static_cast<uv_uid_t>(uid);
     uv_process_options_.flags |= UV_PROCESS_SETUID;
   }
 
   Local<Value> js_gid = js_options->Get(env()->gid_string());
   if (IsSet(js_gid)) {
-    if (!CheckRange<uv_gid_t>(js_gid))
-      return UV_EINVAL;
-    uv_process_options_.gid = static_cast<uv_gid_t>(js_gid->Int32Value());
+    CHECK(js_gid->IsInt32());
+    const int32_t gid = js_gid->Int32Value(env()->context()).FromJust();
+    uv_process_options_.gid = static_cast<uv_gid_t>(gid);
     uv_process_options_.flags |= UV_PROCESS_SETGID;
   }
 
@@ -753,28 +758,21 @@ int SyncProcessRunner::ParseOptions(Local<Value> js_value) {
 
   Local<Value> js_timeout = js_options->Get(env()->timeout_string());
   if (IsSet(js_timeout)) {
-    if (!js_timeout->IsNumber())
-      return UV_EINVAL;
+    CHECK(js_timeout->IsNumber());
     int64_t timeout = js_timeout->IntegerValue();
-    if (timeout < 0)
-      return UV_EINVAL;
     timeout_ = static_cast<uint64_t>(timeout);
   }
 
   Local<Value> js_max_buffer = js_options->Get(env()->max_buffer_string());
   if (IsSet(js_max_buffer)) {
-    if (!CheckRange<uint32_t>(js_max_buffer))
-      return UV_EINVAL;
+    CHECK(js_max_buffer->IsUint32());
     max_buffer_ = js_max_buffer->Uint32Value();
   }
 
   Local<Value> js_kill_signal = js_options->Get(env()->kill_signal_string());
   if (IsSet(js_kill_signal)) {
-    if (!js_kill_signal->IsInt32())
-      return UV_EINVAL;
+    CHECK(js_kill_signal->IsInt32());
     kill_signal_ = js_kill_signal->Int32Value();
-    if (kill_signal_ == 0)
-      return UV_EINVAL;
   }
 
   Local<Value> js_stdio = js_options->Get(env()->stdio_string());
@@ -915,27 +913,6 @@ bool SyncProcessRunner::IsSet(Local<Value> value) {
 }
 
 
-template <typename t>
-bool SyncProcessRunner::CheckRange(Local<Value> js_value) {
-  if ((t) -1 > 0) {
-    // Unsigned range check.
-    if (!js_value->IsUint32())
-      return false;
-    if (js_value->Uint32Value() & ~((t) ~0))
-      return false;
-
-  } else {
-    // Signed range check.
-    if (!js_value->IsInt32())
-      return false;
-    if (js_value->Int32Value() & ~((t) ~0))
-      return false;
-  }
-
-  return true;
-}
-
-
 int SyncProcessRunner::CopyJsString(Local<Value> js_value,
                                     const char** target) {
   Isolate* isolate = env()->isolate();
@@ -992,7 +969,7 @@ int SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
   data_size = 0;
   for (uint32_t i = 0; i < length; i++) {
     data_size += StringBytes::StorageSize(isolate, js_array->Get(i), UTF8) + 1;
-    data_size = ROUND_UP(data_size, sizeof(void*));  // NOLINT(runtime/sizeof)
+    data_size = ROUND_UP(data_size, sizeof(void*));
   }
 
   buffer = new char[list_size + data_size];
@@ -1008,8 +985,7 @@ int SyncProcessRunner::CopyJsStringArray(Local<Value> js_value,
                                       js_array->Get(i),
                                       UTF8);
     buffer[data_offset++] = '\0';
-    data_offset = ROUND_UP(data_offset,
-                           sizeof(void*));  // NOLINT(runtime/sizeof)
+    data_offset = ROUND_UP(data_offset, sizeof(void*));
   }
 
   list[length] = nullptr;

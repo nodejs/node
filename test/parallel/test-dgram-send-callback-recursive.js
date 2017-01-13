@@ -5,23 +5,27 @@ const assert = require('assert');
 const dgram = require('dgram');
 const client = dgram.createSocket('udp4');
 const chunk = 'abc';
-var recursiveCount = 0;
-var received = 0;
+let received = 0;
+let sent = 0;
 const limit = 10;
-const recursiveLimit = 100;
+let async = false;
+let port;
 
 function onsend() {
-  if (recursiveCount > recursiveLimit) {
-    throw new Error('infinite loop detected');
+  if (sent++ < limit) {
+    client.send(chunk, 0, chunk.length, port, common.localhostIPv4, onsend);
+  } else {
+    assert.strictEqual(async, true, 'Send should be asynchronous.');
   }
-  if (received < limit) {
-    client.send(
-      chunk, 0, chunk.length, common.PORT, common.localhostIPv4, onsend);
-  }
-  recursiveCount++;
 }
 
 client.on('listening', function() {
+  port = this.address().port;
+
+  setImmediate(function() {
+    async = true;
+  });
+
   onsend();
 });
 
@@ -33,7 +37,7 @@ client.on('message', function(buf, info) {
 });
 
 client.on('close', common.mustCall(function() {
-  assert.equal(received, limit);
+  assert.strictEqual(received, limit);
 }));
 
-client.bind(common.PORT);
+client.bind(0);

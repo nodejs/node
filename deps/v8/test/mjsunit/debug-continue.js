@@ -74,13 +74,14 @@ function listener(event, exec_state, event_data, data) {
 
     // Test some illegal continue requests.
     testArguments(exec_state, '{"stepaction":"maybe"}', false);
-    testArguments(exec_state, '{"stepcount":-1}', false);
 
     // Test some legal continue requests.
     testArguments(exec_state, '{"stepaction":"in"}', true);
-    testArguments(exec_state, '{"stepaction":"min"}', true);
     testArguments(exec_state, '{"stepaction":"next"}', true);
     testArguments(exec_state, '{"stepaction":"out"}', true);
+
+    // Step count argument is ignored.
+    testArguments(exec_state, '{"stepcount":-1}', true);
     testArguments(exec_state, '{"stepcount":1}', true);
     testArguments(exec_state, '{"stepcount":10}', true);
     testArguments(exec_state, '{"stepcount":"10"}', true);

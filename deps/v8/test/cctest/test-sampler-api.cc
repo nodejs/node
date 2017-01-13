@@ -4,9 +4,6 @@
 //
 // Tests the sampling API in include/v8.h
 
-// TODO(mythria): Remove this define after this flag is turned on globally
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include <map>
 #include <string>
 #include "include/v8.h"
@@ -74,6 +71,12 @@ class SimulatorHelper {
         simulator_->get_register(v8::internal::Simulator::sp));
     state->fp = reinterpret_cast<void*>(
         simulator_->get_register(v8::internal::Simulator::fp));
+#elif V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
+    state->pc = reinterpret_cast<void*>(simulator_->get_pc());
+    state->sp = reinterpret_cast<void*>(
+        simulator_->get_register(v8::internal::Simulator::sp));
+    state->fp = reinterpret_cast<void*>(
+        simulator_->get_register(v8::internal::Simulator::fp));
 #endif
   }
 
@@ -94,7 +97,7 @@ class SamplingTestHelper {
 
   explicit SamplingTestHelper(const std::string& test_function)
       : sample_is_taken_(false), isolate_(CcTest::isolate()) {
-    DCHECK(!instance_);
+    CHECK(!instance_);
     instance_ = this;
     v8::HandleScope scope(isolate_);
     v8::Local<v8::ObjectTemplate> global = v8::ObjectTemplate::New(isolate_);

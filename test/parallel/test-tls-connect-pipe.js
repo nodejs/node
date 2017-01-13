@@ -1,38 +1,27 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var fs = require('fs');
+const fs = require('fs');
 
-var clientConnected = 0;
-var serverConnected = 0;
-
-var options = {
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
 common.refreshTmpDir();
 
-var server = tls.Server(options, function(socket) {
-  ++serverConnected;
+const server = tls.Server(options, common.mustCall(function(socket) {
   server.close();
-});
-server.listen(common.PIPE, function() {
-  var options = { rejectUnauthorized: false };
-  var client = tls.connect(common.PIPE, options, function() {
-    ++clientConnected;
+}));
+server.listen(common.PIPE, common.mustCall(function() {
+  const options = { rejectUnauthorized: false };
+  const client = tls.connect(common.PIPE, options, common.mustCall(function() {
     client.end();
-  });
-});
-
-process.on('exit', function() {
-  assert.equal(clientConnected, 1);
-  assert.equal(serverConnected, 1);
-});
+  }));
+}));

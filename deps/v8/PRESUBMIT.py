@@ -69,6 +69,7 @@ def _V8PresubmitChecks(input_api, output_api):
   from presubmit import SourceProcessor
   from presubmit import CheckExternalReferenceRegistration
   from presubmit import CheckAuthorizedAuthor
+  from presubmit import CheckStatusFiles
 
   results = []
   if not CppLintProcessor().Run(input_api.PresubmitLocalPath()):
@@ -80,6 +81,8 @@ def _V8PresubmitChecks(input_api, output_api):
   if not CheckExternalReferenceRegistration(input_api.PresubmitLocalPath()):
     results.append(output_api.PresubmitError(
         "External references registration check failed"))
+  if not CheckStatusFiles(input_api.PresubmitLocalPath()):
+    results.append(output_api.PresubmitError("Status file check failed"))
   results.extend(CheckAuthorizedAuthor(input_api, output_api))
   return results
 
@@ -220,6 +223,8 @@ def _CommonChecks(input_api, output_api):
       input_api, output_api, source_file_filter=None))
   results.extend(input_api.canned_checks.CheckPatchFormatted(
       input_api, output_api))
+  results.extend(input_api.canned_checks.CheckGenderNeutral(
+      input_api, output_api))
   results.extend(_V8PresubmitChecks(input_api, output_api))
   results.extend(_CheckUnwantedDependencies(input_api, output_api))
   results.extend(
@@ -239,32 +244,15 @@ def _SkipTreeCheck(input_api, output_api):
   return input_api.environ.get('PRESUBMIT_TREE_CHECK') == 'skip'
 
 
-def _CheckChangeLogFlag(input_api, output_api, warn):
-  """Checks usage of LOG= flag in the commit message."""
-  results = []
-  if (input_api.change.BUG and input_api.change.BUG != 'none' and
-      not 'LOG' in input_api.change.tags):
-    text = ('An issue reference (BUG=) requires a change log flag (LOG=). '
-            'Use LOG=Y for including this commit message in the change log. '
-            'Use LOG=N or leave blank otherwise.')
-    if warn:
-      results.append(output_api.PresubmitPromptWarning(text))
-    else:
-      results.append(output_api.PresubmitError(text))
-  return results
-
-
 def CheckChangeOnUpload(input_api, output_api):
   results = []
   results.extend(_CommonChecks(input_api, output_api))
-  results.extend(_CheckChangeLogFlag(input_api, output_api, True))
   return results
 
 
 def CheckChangeOnCommit(input_api, output_api):
   results = []
   results.extend(_CommonChecks(input_api, output_api))
-  results.extend(_CheckChangeLogFlag(input_api, output_api, False))
   results.extend(input_api.canned_checks.CheckChangeHasDescription(
       input_api, output_api))
   if not _SkipTreeCheck(input_api, output_api):
@@ -272,28 +260,3 @@ def CheckChangeOnCommit(input_api, output_api):
         input_api, output_api,
         json_url='http://v8-status.appspot.com/current?format=json'))
   return results
-
-
-def GetPreferredTryMasters(project, change):
-  return {
-    'tryserver.v8': {
-      'v8_linux_rel': set(['defaulttests']),
-      'v8_linux_dbg': set(['defaulttests']),
-      'v8_linux_nodcheck_rel': set(['defaulttests']),
-      'v8_linux_gcc_compile_rel': set(['defaulttests']),
-      'v8_linux64_rel': set(['defaulttests']),
-      'v8_linux64_asan_rel': set(['defaulttests']),
-      'v8_linux64_avx2_rel': set(['defaulttests']),
-      'v8_win_rel': set(['defaulttests']),
-      'v8_win_compile_dbg': set(['defaulttests']),
-      'v8_win_nosnap_shared_compile_rel': set(['defaulttests']),
-      'v8_win64_rel': set(['defaulttests']),
-      'v8_mac_rel': set(['defaulttests']),
-      'v8_linux_arm_rel': set(['defaulttests']),
-      'v8_linux_arm64_rel': set(['defaulttests']),
-      'v8_linux_mipsel_compile_rel': set(['defaulttests']),
-      'v8_linux_mips64el_compile_rel': set(['defaulttests']),
-      'v8_android_arm_compile_rel': set(['defaulttests']),
-      'v8_linux_chromium_gn_rel': set(['defaulttests']),
-    },
-  }

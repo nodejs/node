@@ -1,19 +1,15 @@
 /**
  * @fileoverview Abstraction of JavaScript source code.
  * @author Nicholas C. Zakas
- * @copyright 2015 Nicholas C. Zakas. All rights reserved.
- * See LICENSE file in root directory for full license.
  */
 "use strict";
-/* eslint no-underscore-dangle: 0*/
 
 //------------------------------------------------------------------------------
 // Requirements
 //------------------------------------------------------------------------------
 
-var createTokenStore = require("../token-store.js"),
-    estraverse = require("./estraverse"),
-    assign = require("object-assign");
+const createTokenStore = require("../token-store.js"),
+    Traverser = require("./traverser");
 
 //------------------------------------------------------------------------------
 // Private
@@ -55,7 +51,7 @@ function validate(ast) {
 function findJSDocComment(comments, line) {
 
     if (comments) {
-        for (var i = comments.length - 1; i >= 0; i--) {
+        for (let i = comments.length - 1; i >= 0; i--) {
             if (comments[i].type === "Block" && comments[i].value.charAt(0) === "*") {
 
                 if (line - comments[i].loc.end.line <= 1) {
@@ -88,19 +84,25 @@ function looksLikeExport(astNode) {
 
 /**
  * Represents parsed source code.
- * @param {string} text The source code text.
- * @param {ASTNode} ast The Program node of the AST representing the code.
+ * @param {string} text - The source code text.
+ * @param {ASTNode} ast - The Program node of the AST representing the code. This AST should be created from the text that BOM was stripped.
  * @constructor
  */
 function SourceCode(text, ast) {
-
     validate(ast);
 
     /**
+     * The flag to indicate that the source code has Unicode BOM.
+     * @type boolean
+     */
+    this.hasBOM = (text.charCodeAt(0) === 0xFEFF);
+
+    /**
      * The original text source code.
+     * BOM was stripped from this text.
      * @type string
      */
-    this.text = text;
+    this.text = (this.hasBOM ? text.slice(1) : text);
 
     /**
      * The parsed AST for the source code.
@@ -113,19 +115,21 @@ function SourceCode(text, ast) {
      * This is done to avoid each rule needing to do so separately.
      * @type string[]
      */
-    this.lines = text.split(/\r\n|\r|\n|\u2028|\u2029/g);
+    this.lines = SourceCode.splitLines(this.text);
 
-    this.tokensAndComments = ast.tokens.concat(ast.comments).sort(function(left, right) {
-        return left.range[0] - right.range[0];
-    });
+    this.tokensAndComments = ast.tokens
+        .concat(ast.comments)
+        .sort((left, right) => left.range[0] - right.range[0]);
 
     // create token store methods
-    var tokenStore = createTokenStore(ast.tokens);
-    Object.keys(tokenStore).forEach(function(methodName) {
-        this[methodName] = tokenStore[methodName];
-    }, this);
+    const tokenStore = createTokenStore(ast.tokens);
 
-    var tokensAndCommentsStore = createTokenStore(this.tokensAndComments);
+    Object.keys(tokenStore).forEach(methodName => {
+        this[methodName] = tokenStore[methodName];
+    });
+
+    const tokensAndCommentsStore = createTokenStore(this.tokensAndComments);
+
     this.getTokenOrCommentBefore = tokensAndCommentsStore.getTokenBefore;
     this.getTokenOrCommentAfter = tokensAndCommentsStore.getTokenAfter;
 
@@ -133,6 +137,16 @@ function SourceCode(text, ast) {
     Object.freeze(this);
     Object.freeze(this.lines);
 }
+
+/**
+ * Split the source code into multiple lines based on the line delimiters
+ * @param {string} text Source code as a string
+ * @returns {string[]} Array of source code lines
+ * @public
+ */
+SourceCode.splitLines = function(text) {
+    return text.split(/\r\n|\r|\n|\u2028|\u2029/g);
+};
 
 SourceCode.prototype = {
     constructor: SourceCode,
@@ -144,10 +158,10 @@ SourceCode.prototype = {
      * @param {int=} afterCount The number of characters after the node to retrieve.
      * @returns {string} The text representing the AST node.
      */
-    getText: function(node, beforeCount, afterCount) {
+    getText(node, beforeCount, afterCount) {
         if (node) {
-            return (this.text !== null) ? this.text.slice(Math.max(node.range[0] - (beforeCount || 0), 0),
-                node.range[1] + (afterCount || 0)) : null;
+            return this.text.slice(Math.max(node.range[0] - (beforeCount || 0), 0),
+                node.range[1] + (afterCount || 0));
         } else {
             return this.text;
         }
@@ -158,7 +172,7 @@ SourceCode.prototype = {
      * Gets the entire source text split into an array of lines.
      * @returns {Array} The source text as an array of lines.
      */
-    getLines: function() {
+    getLines() {
         return this.lines;
     },
 
@@ -166,7 +180,7 @@ SourceCode.prototype = {
      * Retrieves an array containing all comments in the source code.
      * @returns {ASTNode[]} An array of comment nodes.
      */
-    getAllComments: function() {
+    getAllComments() {
         return this.ast.comments;
     },
 
@@ -176,10 +190,10 @@ SourceCode.prototype = {
      * @returns {Object} The list of comments indexed by their position.
      * @public
      */
-    getComments: function(node) {
+    getComments(node) {
 
-        var leadingComments = node.leadingComments || [],
-            trailingComments = node.trailingComments || [];
+        let leadingComments = node.leadingComments || [];
+        const trailingComments = node.trailingComments || [];
 
         /*
          * espree adds a "comments" array on Program nodes rather than
@@ -205,35 +219,32 @@ SourceCode.prototype = {
      *      given node or null if not found.
      * @public
      */
-    getJSDocComment: function(node) {
+    getJSDocComment(node) {
 
-        var parent = node.parent,
-            line = node.loc.start.line;
+        let parent = node.parent;
 
         switch (node.type) {
+            case "ClassDeclaration":
             case "FunctionDeclaration":
                 if (looksLikeExport(parent)) {
-                    return findJSDocComment(parent.leadingComments, line);
-                } else {
-                    return findJSDocComment(node.leadingComments, line);
+                    return findJSDocComment(parent.leadingComments, parent.loc.start.line);
                 }
-                break;
-
-            case "ClassDeclaration":
-                return findJSDocComment(node.leadingComments, line);
+                return findJSDocComment(node.leadingComments, node.loc.start.line);
 
             case "ClassExpression":
-                return findJSDocComment(parent.parent.leadingComments, line);
+                return findJSDocComment(parent.parent.leadingComments, parent.parent.loc.start.line);
 
             case "ArrowFunctionExpression":
             case "FunctionExpression":
 
                 if (parent.type !== "CallExpression" && parent.type !== "NewExpression") {
-                    while (parent && !parent.leadingComments && !/Function/.test(parent.type)) {
+                    while (parent && !parent.leadingComments && !/Function/.test(parent.type) && parent.type !== "MethodDefinition" && parent.type !== "Property") {
                         parent = parent.parent;
                     }
 
-                    return parent && (parent.type !== "FunctionDeclaration") ? findJSDocComment(parent.leadingComments, line) : null;
+                    return parent && (parent.type !== "FunctionDeclaration") ? findJSDocComment(parent.leadingComments, parent.loc.start.line) : null;
+                } else if (node.leadingComments) {
+                    return findJSDocComment(node.leadingComments, node.loc.start.line);
                 }
 
             // falls through
@@ -248,25 +259,28 @@ SourceCode.prototype = {
      * @param {int} index Range index of the desired node.
      * @returns {ASTNode} The node if found or null if not found.
      */
-    getNodeByRangeIndex: function(index) {
-        var result = null;
+    getNodeByRangeIndex(index) {
+        let result = null,
+            resultParent = null;
+        const traverser = new Traverser();
 
-        estraverse.traverse(this.ast, {
-            enter: function(node, parent) {
+        traverser.traverse(this.ast, {
+            enter(node, parent) {
                 if (node.range[0] <= index && index < node.range[1]) {
-                    result = assign({ parent: parent }, node);
+                    result = node;
+                    resultParent = parent;
                 } else {
                     this.skip();
                 }
             },
-            leave: function(node) {
+            leave(node) {
                 if (node === result) {
                     this.break();
                 }
             }
         });
 
-        return result;
+        return result ? Object.assign({ parent: resultParent }, result) : null;
     },
 
     /**
@@ -278,8 +292,9 @@ SourceCode.prototype = {
      * @returns {boolean} True if there is only space between tokens, false
      *  if there is anything other than whitespace between tokens.
      */
-    isSpaceBetweenTokens: function(first, second) {
-        var text = this.text.slice(first.range[1], second.range[0]);
+    isSpaceBetweenTokens(first, second) {
+        const text = this.text.slice(first.range[1], second.range[0]);
+
         return /\s/.test(text.replace(/\/\*.*?\*\//g, ""));
     }
 };

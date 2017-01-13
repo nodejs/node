@@ -12,124 +12,170 @@
 // Imports
 
 var InternalArray = utils.InternalArray;
-var MakeTypeError;
 var promiseCombinedDeferredSymbol =
     utils.ImportNow("promise_combined_deferred_symbol");
 var promiseHasHandlerSymbol =
     utils.ImportNow("promise_has_handler_symbol");
-var promiseOnRejectSymbol = utils.ImportNow("promise_on_reject_symbol");
-var promiseOnResolveSymbol =
-    utils.ImportNow("promise_on_resolve_symbol");
+var promiseRejectReactionsSymbol =
+    utils.ImportNow("promise_reject_reactions_symbol");
+var promiseFulfillReactionsSymbol =
+    utils.ImportNow("promise_fulfill_reactions_symbol");
+var promiseDeferredReactionsSymbol =
+    utils.ImportNow("promise_deferred_reactions_symbol");
 var promiseRawSymbol = utils.ImportNow("promise_raw_symbol");
-var promiseStatusSymbol = utils.ImportNow("promise_status_symbol");
-var promiseValueSymbol = utils.ImportNow("promise_value_symbol");
+var promiseStateSymbol = utils.ImportNow("promise_state_symbol");
+var promiseResultSymbol = utils.ImportNow("promise_result_symbol");
+var SpeciesConstructor;
+var speciesSymbol = utils.ImportNow("species_symbol");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
-  MakeTypeError = from.MakeTypeError;
+  SpeciesConstructor = from.SpeciesConstructor;
 });
 
 // -------------------------------------------------------------------
 
-// Status values: 0 = pending, +1 = resolved, -1 = rejected
+// [[PromiseState]] values:
+const kPending = 0;
+const kFulfilled = +1;
+const kRejected = -1;
+
 var lastMicrotaskId = 0;
 
-var GlobalPromise = function Promise(resolver) {
-  if (resolver === promiseRawSymbol) return;
-  if (!%_IsConstructCall()) throw MakeTypeError(kNotAPromise, this);
-  if (!IS_CALLABLE(resolver))
-    throw MakeTypeError(kResolverNotAFunction, resolver);
-  var promise = PromiseInit(this);
-  try {
-    %DebugPushPromise(promise, Promise, resolver);
-    resolver(function(x) { PromiseResolve(promise, x) },
-             function(r) { PromiseReject(promise, r) });
-  } catch (e) {
-    PromiseReject(promise, e);
-  } finally {
-    %DebugPopPromise();
+// ES#sec-createresolvingfunctions
+// CreateResolvingFunctions ( promise )
+function CreateResolvingFunctions(promise) {
+  var alreadyResolved = false;
+
+  // ES#sec-promise-resolve-functions
+  // Promise Resolve Functions
+  var resolve = value => {
+    if (alreadyResolved === true) return;
+    alreadyResolved = true;
+    ResolvePromise(promise, value);
+  };
+
+  // ES#sec-promise-reject-functions
+  // Promise Reject Functions
+  var reject = reason => {
+    if (alreadyResolved === true) return;
+    alreadyResolved = true;
+    RejectPromise(promise, reason);
+  };
+
+  return {
+    __proto__: null,
+    resolve: resolve,
+    reject: reject
+  };
+}
+
+
+// ES#sec-promise-executor
+// Promise ( executor )
+var GlobalPromise = function Promise(executor) {
+  if (executor === promiseRawSymbol) {
+    return %_NewObject(GlobalPromise, new.target);
   }
+  if (IS_UNDEFINED(new.target)) throw %make_type_error(kNotAPromise, this);
+  if (!IS_CALLABLE(executor)) {
+    throw %make_type_error(kResolverNotAFunction, executor);
+  }
+
+  var promise = PromiseInit(%_NewObject(GlobalPromise, new.target));
+  var callbacks = CreateResolvingFunctions(promise);
+  var debug_is_active = DEBUG_IS_ACTIVE;
+  try {
+    if (debug_is_active) %DebugPushPromise(promise);
+    executor(callbacks.resolve, callbacks.reject);
+  } %catch (e) {  // Natives syntax to mark this catch block.
+    %_Call(callbacks.reject, UNDEFINED, e);
+  } finally {
+    if (debug_is_active) %DebugPopPromise();
+  }
+
+  return promise;
 }
 
 // Core functionality.
 
-function PromiseSet(promise, status, value, onResolve, onReject) {
-  SET_PRIVATE(promise, promiseStatusSymbol, status);
-  SET_PRIVATE(promise, promiseValueSymbol, value);
-  SET_PRIVATE(promise, promiseOnResolveSymbol, onResolve);
-  SET_PRIVATE(promise, promiseOnRejectSymbol, onReject);
-  if (DEBUG_IS_ACTIVE) {
-    %DebugPromiseEvent({ promise: promise, status: status, value: value });
-  }
+function PromiseSet(promise, status, value) {
+  SET_PRIVATE(promise, promiseStateSymbol, status);
+  SET_PRIVATE(promise, promiseResultSymbol, value);
+
+  // There are 3 possible states for the resolve, reject symbols when we add
+  // a new callback --
+  // 1) UNDEFINED -- This is the zero state where there is no callback
+  // registered. When we see this state, we directly attach the callbacks to
+  // the symbol.
+  // 2) !IS_ARRAY -- There is a single callback directly attached to the
+  // symbols. We need to create a new array to store additional callbacks.
+  // 3) IS_ARRAY -- There are multiple callbacks already registered,
+  // therefore we can just push the new callback to the existing array.
+  SET_PRIVATE(promise, promiseFulfillReactionsSymbol, UNDEFINED);
+  SET_PRIVATE(promise, promiseRejectReactionsSymbol, UNDEFINED);
+
+  // There are 2 possible states for this symbol --
+  // 1) UNDEFINED -- This is the zero state, no deferred object is
+  // attached to this symbol. When we want to add a new deferred we
+  // directly attach it to this symbol.
+  // 2) symbol with attached deferred object -- New deferred objects
+  // are not attached to this symbol, but instead they are directly
+  // attached to the resolve, reject callback arrays. At this point,
+  // the deferred symbol's state is stale, and the deferreds should be
+  // read from the reject, resolve callbacks.
+  SET_PRIVATE(promise, promiseDeferredReactionsSymbol, UNDEFINED);
+
   return promise;
 }
 
 function PromiseCreateAndSet(status, value) {
   var promise = new GlobalPromise(promiseRawSymbol);
   // If debug is active, notify about the newly created promise first.
-  if (DEBUG_IS_ACTIVE) PromiseSet(promise, 0, UNDEFINED);
+  if (DEBUG_IS_ACTIVE) PromiseSet(promise, kPending, UNDEFINED);
   return PromiseSet(promise, status, value);
 }
 
 function PromiseInit(promise) {
-  return PromiseSet(
-      promise, 0, UNDEFINED, new InternalArray, new InternalArray)
+  return PromiseSet(promise, kPending, UNDEFINED);
 }
 
-function PromiseDone(promise, status, value, promiseQueue) {
-  if (GET_PRIVATE(promise, promiseStatusSymbol) === 0) {
+function FulfillPromise(promise, status, value, promiseQueue) {
+  if (GET_PRIVATE(promise, promiseStateSymbol) === kPending) {
     var tasks = GET_PRIVATE(promise, promiseQueue);
-    if (tasks.length) PromiseEnqueue(value, tasks, status);
+    if (!IS_UNDEFINED(tasks)) {
+      var deferreds = GET_PRIVATE(promise, promiseDeferredReactionsSymbol);
+      PromiseEnqueue(value, tasks, deferreds, status);
+    }
     PromiseSet(promise, status, value);
   }
 }
 
-function PromiseCoerce(constructor, x) {
-  if (!IsPromise(x) && IS_SPEC_OBJECT(x)) {
-    var then;
-    try {
-      then = x.then;
-    } catch(r) {
-      return %_Call(PromiseRejected, constructor, r);
-    }
-    if (IS_CALLABLE(then)) {
-      var deferred = %_Call(PromiseDeferred, constructor);
-      try {
-        %_Call(then, x, deferred.resolve, deferred.reject);
-      } catch(r) {
-        deferred.reject(r);
-      }
-      return deferred.promise;
-    }
-  }
-  return x;
-}
-
 function PromiseHandle(value, handler, deferred) {
+  var debug_is_active = DEBUG_IS_ACTIVE;
   try {
-    %DebugPushPromise(deferred.promise, PromiseHandle, handler);
+    if (debug_is_active) %DebugPushPromise(deferred.promise);
     var result = handler(value);
-    if (result === deferred.promise)
-      throw MakeTypeError(kPromiseCyclic, result);
-    else if (IsPromise(result))
-      %_Call(PromiseChain, result, deferred.resolve, deferred.reject);
-    else
-      deferred.resolve(result);
-  } catch (exception) {
+    deferred.resolve(result);
+  } %catch (exception) {  // Natives syntax to mark this catch block.
     try { deferred.reject(exception); } catch (e) { }
   } finally {
-    %DebugPopPromise();
+    if (debug_is_active) %DebugPopPromise();
   }
 }
 
-function PromiseEnqueue(value, tasks, status) {
+function PromiseEnqueue(value, tasks, deferreds, status) {
   var id, name, instrumenting = DEBUG_IS_ACTIVE;
   %EnqueueMicrotask(function() {
     if (instrumenting) {
       %DebugAsyncTaskEvent({ type: "willHandle", id: id, name: name });
     }
-    for (var i = 0; i < tasks.length; i += 2) {
-      PromiseHandle(value, tasks[i], tasks[i + 1])
+    if (IS_ARRAY(tasks)) {
+      for (var i = 0; i < tasks.length; i += 2) {
+        PromiseHandle(value, tasks[i], tasks[i + 1]);
+      }
+    } else {
+      PromiseHandle(value, tasks, deferreds);
     }
     if (instrumenting) {
       %DebugAsyncTaskEvent({ type: "didHandle", id: id, name: name });
@@ -137,8 +183,35 @@ function PromiseEnqueue(value, tasks, status) {
   });
   if (instrumenting) {
     id = ++lastMicrotaskId;
-    name = status > 0 ? "Promise.resolve" : "Promise.reject";
+    name = status === kFulfilled ? "Promise.resolve" : "Promise.reject";
     %DebugAsyncTaskEvent({ type: "enqueue", id: id, name: name });
+  }
+}
+
+function PromiseAttachCallbacks(promise, deferred, onResolve, onReject) {
+  var maybeResolveCallbacks =
+      GET_PRIVATE(promise, promiseFulfillReactionsSymbol);
+  if (IS_UNDEFINED(maybeResolveCallbacks)) {
+    SET_PRIVATE(promise, promiseFulfillReactionsSymbol, onResolve);
+    SET_PRIVATE(promise, promiseRejectReactionsSymbol, onReject);
+    SET_PRIVATE(promise, promiseDeferredReactionsSymbol, deferred);
+  } else if (!IS_ARRAY(maybeResolveCallbacks)) {
+    var resolveCallbacks = new InternalArray();
+    var rejectCallbacks = new InternalArray();
+    var existingDeferred = GET_PRIVATE(promise, promiseDeferredReactionsSymbol);
+
+    resolveCallbacks.push(
+        maybeResolveCallbacks, existingDeferred, onResolve, deferred);
+    rejectCallbacks.push(GET_PRIVATE(promise, promiseRejectReactionsSymbol),
+                         existingDeferred,
+                         onReject,
+                         deferred);
+
+    SET_PRIVATE(promise, promiseFulfillReactionsSymbol, resolveCallbacks);
+    SET_PRIVATE(promise, promiseRejectReactionsSymbol, rejectCallbacks);
+  } else {
+    maybeResolveCallbacks.push(onResolve, deferred);
+    GET_PRIVATE(promise, promiseRejectReactionsSymbol).push(onReject, deferred);
   }
 }
 
@@ -152,191 +225,303 @@ function PromiseNopResolver() {}
 
 // For bootstrapper.
 
+// ES#sec-ispromise IsPromise ( x )
 function IsPromise(x) {
-  return IS_SPEC_OBJECT(x) && HAS_DEFINED_PRIVATE(x, promiseStatusSymbol);
+  return IS_RECEIVER(x) && HAS_DEFINED_PRIVATE(x, promiseStateSymbol);
 }
 
 function PromiseCreate() {
   return new GlobalPromise(PromiseNopResolver)
 }
 
-function PromiseResolve(promise, x) {
-  PromiseDone(promise, +1, x, promiseOnResolveSymbol)
+// ES#sec-promise-resolve-functions
+// Promise Resolve Functions, steps 6-13
+function ResolvePromise(promise, resolution) {
+  if (resolution === promise) {
+    return RejectPromise(promise, %make_type_error(kPromiseCyclic, resolution));
+  }
+  if (IS_RECEIVER(resolution)) {
+    // 25.4.1.3.2 steps 8-12
+    try {
+      var then = resolution.then;
+    } catch (e) {
+      return RejectPromise(promise, e);
+    }
+
+    // Resolution is a native promise and if it's already resolved or
+    // rejected, shortcircuit the resolution procedure by directly
+    // reusing the value from the promise.
+    if (IsPromise(resolution) && then === PromiseThen) {
+      var thenableState = GET_PRIVATE(resolution, promiseStateSymbol);
+      if (thenableState === kFulfilled) {
+        // This goes inside the if-else to save one symbol lookup in
+        // the slow path.
+        var thenableValue = GET_PRIVATE(resolution, promiseResultSymbol);
+        FulfillPromise(promise, kFulfilled, thenableValue,
+                       promiseFulfillReactionsSymbol);
+        SET_PRIVATE(promise, promiseHasHandlerSymbol, true);
+        return;
+      } else if (thenableState === kRejected) {
+        var thenableValue = GET_PRIVATE(resolution, promiseResultSymbol);
+        if (!HAS_DEFINED_PRIVATE(resolution, promiseHasHandlerSymbol)) {
+          // Promise has already been rejected, but had no handler.
+          // Revoke previously triggered reject event.
+          %PromiseRevokeReject(resolution);
+        }
+        RejectPromise(promise, thenableValue);
+        SET_PRIVATE(resolution, promiseHasHandlerSymbol, true);
+        return;
+      }
+    }
+
+    if (IS_CALLABLE(then)) {
+      // PromiseResolveThenableJob
+      var id;
+      var name = "PromiseResolveThenableJob";
+      var instrumenting = DEBUG_IS_ACTIVE;
+      %EnqueueMicrotask(function() {
+        if (instrumenting) {
+          %DebugAsyncTaskEvent({ type: "willHandle", id: id, name: name });
+        }
+        var callbacks = CreateResolvingFunctions(promise);
+        try {
+          %_Call(then, resolution, callbacks.resolve, callbacks.reject);
+        } catch (e) {
+          %_Call(callbacks.reject, UNDEFINED, e);
+        }
+        if (instrumenting) {
+          %DebugAsyncTaskEvent({ type: "didHandle", id: id, name: name });
+        }
+      });
+      if (instrumenting) {
+        id = ++lastMicrotaskId;
+        %DebugAsyncTaskEvent({ type: "enqueue", id: id, name: name });
+      }
+      return;
+    }
+  }
+  FulfillPromise(promise, kFulfilled, resolution, promiseFulfillReactionsSymbol);
 }
 
-function PromiseReject(promise, r) {
+// ES#sec-rejectpromise
+// RejectPromise ( promise, reason )
+function RejectPromise(promise, reason) {
   // Check promise status to confirm that this reject has an effect.
   // Call runtime for callbacks to the debugger or for unhandled reject.
-  if (GET_PRIVATE(promise, promiseStatusSymbol) == 0) {
+  if (GET_PRIVATE(promise, promiseStateSymbol) === kPending) {
     var debug_is_active = DEBUG_IS_ACTIVE;
     if (debug_is_active ||
         !HAS_DEFINED_PRIVATE(promise, promiseHasHandlerSymbol)) {
-      %PromiseRejectEvent(promise, r, debug_is_active);
+      %PromiseRejectEvent(promise, reason, debug_is_active);
     }
   }
-  PromiseDone(promise, -1, r, promiseOnRejectSymbol)
+  FulfillPromise(promise, kRejected, reason, promiseRejectReactionsSymbol)
 }
 
-// Convenience.
-
-function PromiseDeferred() {
-  if (this === GlobalPromise) {
+// ES#sec-newpromisecapability
+// NewPromiseCapability ( C )
+function NewPromiseCapability(C) {
+  if (C === GlobalPromise) {
     // Optimized case, avoid extra closure.
     var promise = PromiseInit(new GlobalPromise(promiseRawSymbol));
+    var callbacks = CreateResolvingFunctions(promise);
     return {
       promise: promise,
-      resolve: function(x) { PromiseResolve(promise, x) },
-      reject: function(r) { PromiseReject(promise, r) }
+      resolve: callbacks.resolve,
+      reject: callbacks.reject
     };
-  } else {
-    var result = {promise: UNDEFINED, reject: UNDEFINED, resolve: UNDEFINED};
-    result.promise = new this(function(resolve, reject) {
-      result.resolve = resolve;
-      result.reject = reject;
-    });
-    return result;
   }
+
+  var result = {promise: UNDEFINED, resolve: UNDEFINED, reject: UNDEFINED };
+  result.promise = new C((resolve, reject) => {
+    if (!IS_UNDEFINED(result.resolve) || !IS_UNDEFINED(result.reject))
+        throw %make_type_error(kPromiseExecutorAlreadyInvoked);
+    result.resolve = resolve;
+    result.reject = reject;
+  });
+
+  if (!IS_CALLABLE(result.resolve) || !IS_CALLABLE(result.reject))
+      throw %make_type_error(kPromiseNonCallable);
+
+  return result;
 }
 
-function PromiseResolved(x) {
-  if (this === GlobalPromise) {
-    // Optimized case, avoid extra closure.
-    return PromiseCreateAndSet(+1, x);
-  } else {
-    return new this(function(resolve, reject) { resolve(x) });
+// ES#sec-promise.reject
+// Promise.reject ( x )
+function PromiseReject(r) {
+  if (!IS_RECEIVER(this)) {
+    throw %make_type_error(kCalledOnNonObject, PromiseResolve);
   }
-}
-
-function PromiseRejected(r) {
-  var promise;
   if (this === GlobalPromise) {
     // Optimized case, avoid extra closure.
-    promise = PromiseCreateAndSet(-1, r);
+    var promise = PromiseCreateAndSet(kRejected, r);
     // The debug event for this would always be an uncaught promise reject,
     // which is usually simply noise. Do not trigger that debug event.
     %PromiseRejectEvent(promise, r, false);
+    return promise;
   } else {
-    promise = new this(function(resolve, reject) { reject(r) });
+    var promiseCapability = NewPromiseCapability(this);
+    %_Call(promiseCapability.reject, UNDEFINED, r);
+    return promiseCapability.promise;
   }
+}
+
+// Shortcut Promise.reject and Promise.resolve() implementations, used by
+// Async Functions implementation.
+function PromiseCreateRejected(r) {
+  return %_Call(PromiseReject, GlobalPromise, r);
+}
+
+function PromiseCreateResolved(value) {
+  var promise = PromiseInit(new GlobalPromise(promiseRawSymbol));
+  var resolveResult = ResolvePromise(promise, value);
   return promise;
 }
 
-// Simple chaining.
-
-function PromiseChain(onResolve, onReject) {  // a.k.a. flatMap
-  onResolve = IS_UNDEFINED(onResolve) ? PromiseIdResolveHandler : onResolve;
-  onReject = IS_UNDEFINED(onReject) ? PromiseIdRejectHandler : onReject;
-  var deferred = %_Call(PromiseDeferred, this.constructor);
-  switch (GET_PRIVATE(this, promiseStatusSymbol)) {
-    case UNDEFINED:
-      throw MakeTypeError(kNotAPromise, this);
-    case 0:  // Pending
-      GET_PRIVATE(this, promiseOnResolveSymbol).push(onResolve, deferred);
-      GET_PRIVATE(this, promiseOnRejectSymbol).push(onReject, deferred);
-      break;
-    case +1:  // Resolved
-      PromiseEnqueue(GET_PRIVATE(this, promiseValueSymbol),
-                     [onResolve, deferred],
-                     +1);
-      break;
-    case -1:  // Rejected
-      if (!HAS_DEFINED_PRIVATE(this, promiseHasHandlerSymbol)) {
-        // Promise has already been rejected, but had no handler.
-        // Revoke previously triggered reject event.
-        %PromiseRevokeReject(this);
-      }
-      PromiseEnqueue(GET_PRIVATE(this, promiseValueSymbol),
-                     [onReject, deferred],
-                     -1);
-      break;
+function PromiseCastResolved(value) {
+  if (IsPromise(value)) {
+    return value;
+  } else {
+    var promise = PromiseInit(new GlobalPromise(promiseRawSymbol));
+    var resolveResult = ResolvePromise(promise, value);
+    return promise;
   }
-  // Mark this promise as having handler.
-  SET_PRIVATE(this, promiseHasHandlerSymbol, true);
-  if (DEBUG_IS_ACTIVE) {
-    %DebugPromiseEvent({ promise: deferred.promise, parentPromise: this });
-  }
-  return deferred.promise;
 }
 
+function PerformPromiseThen(promise, onResolve, onReject, resultCapability) {
+  if (!IS_CALLABLE(onResolve)) onResolve = PromiseIdResolveHandler;
+  if (!IS_CALLABLE(onReject)) onReject = PromiseIdRejectHandler;
+
+  var status = GET_PRIVATE(promise, promiseStateSymbol);
+  switch (status) {
+    case kPending:
+      PromiseAttachCallbacks(promise, resultCapability, onResolve, onReject);
+      break;
+    case kFulfilled:
+      PromiseEnqueue(GET_PRIVATE(promise, promiseResultSymbol),
+                     onResolve, resultCapability, kFulfilled);
+      break;
+    case kRejected:
+      if (!HAS_DEFINED_PRIVATE(promise, promiseHasHandlerSymbol)) {
+        // Promise has already been rejected, but had no handler.
+        // Revoke previously triggered reject event.
+        %PromiseRevokeReject(promise);
+      }
+      PromiseEnqueue(GET_PRIVATE(promise, promiseResultSymbol),
+                     onReject, resultCapability, kRejected);
+      break;
+  }
+
+  // Mark this promise as having handler.
+  SET_PRIVATE(promise, promiseHasHandlerSymbol, true);
+  return resultCapability.promise;
+}
+
+// ES#sec-promise.prototype.then
+// Promise.prototype.then ( onFulfilled, onRejected )
+// Multi-unwrapped chaining with thenable coercion.
+function PromiseThen(onResolve, onReject) {
+  var status = GET_PRIVATE(this, promiseStateSymbol);
+  if (IS_UNDEFINED(status)) {
+    throw %make_type_error(kNotAPromise, this);
+  }
+
+  var constructor = SpeciesConstructor(this, GlobalPromise);
+  var resultCapability = NewPromiseCapability(constructor);
+  return PerformPromiseThen(this, onResolve, onReject, resultCapability);
+}
+
+// ES#sec-promise.prototype.catch
+// Promise.prototype.catch ( onRejected )
 function PromiseCatch(onReject) {
   return this.then(UNDEFINED, onReject);
 }
 
-// Multi-unwrapped chaining with thenable coercion.
-
-function PromiseThen(onResolve, onReject) {
-  onResolve = IS_CALLABLE(onResolve) ? onResolve : PromiseIdResolveHandler;
-  onReject = IS_CALLABLE(onReject) ? onReject : PromiseIdRejectHandler;
-  var that = this;
-  var constructor = this.constructor;
-  return %_Call(
-    PromiseChain,
-    this,
-    function(x) {
-      x = PromiseCoerce(constructor, x);
-      if (x === that) {
-        DEBUG_PREPARE_STEP_IN_IF_STEPPING(onReject);
-        return onReject(MakeTypeError(kPromiseCyclic, x));
-      } else if (IsPromise(x)) {
-        return x.then(onResolve, onReject);
-      } else {
-        DEBUG_PREPARE_STEP_IN_IF_STEPPING(onResolve);
-        return onResolve(x);
-      }
-    },
-    onReject
-  );
-}
-
 // Combinators.
 
-function PromiseCast(x) {
-  if (IsPromise(x) && x.constructor === this) {
-    return x;
-  } else {
-    return new this(function(resolve) { resolve(x) });
+// ES#sec-promise.resolve
+// Promise.resolve ( x )
+function PromiseResolve(x) {
+  if (!IS_RECEIVER(this)) {
+    throw %make_type_error(kCalledOnNonObject, PromiseResolve);
   }
+  if (IsPromise(x) && x.constructor === this) return x;
+
+  // Avoid creating resolving functions.
+  if (this === GlobalPromise) {
+    var promise = PromiseInit(new GlobalPromise(promiseRawSymbol));
+    var resolveResult = ResolvePromise(promise, x);
+    return promise;
+  }
+
+  var promiseCapability = NewPromiseCapability(this);
+  var resolveResult = %_Call(promiseCapability.resolve, UNDEFINED, x);
+  return promiseCapability.promise;
 }
 
+// ES#sec-promise.all
+// Promise.all ( iterable )
 function PromiseAll(iterable) {
-  var deferred = %_Call(PromiseDeferred, this);
-  var resolutions = [];
+  if (!IS_RECEIVER(this)) {
+    throw %make_type_error(kCalledOnNonObject, "Promise.all");
+  }
+
+  var deferred = NewPromiseCapability(this);
+  var resolutions = new InternalArray();
+  var count;
+
+  function CreateResolveElementFunction(index, values, promiseCapability) {
+    var alreadyCalled = false;
+    return (x) => {
+      if (alreadyCalled === true) return;
+      alreadyCalled = true;
+      values[index] = x;
+      if (--count === 0) {
+        var valuesArray = [];
+        %MoveArrayContents(values, valuesArray);
+        %_Call(promiseCapability.resolve, UNDEFINED, valuesArray);
+      }
+    };
+  }
+
   try {
-    var count = 0;
     var i = 0;
+    count = 1;
     for (var value of iterable) {
-      var reject = function(r) { deferred.reject(r) };
-      this.resolve(value).then(
-          // Nested scope to get closure over current i.
-          // TODO(arv): Use an inner let binding once available.
-          (function(i) {
-            return function(x) {
-              resolutions[i] = x;
-              if (--count === 0) deferred.resolve(resolutions);
-            }
-          })(i), reject);
-      SET_PRIVATE(reject, promiseCombinedDeferredSymbol, deferred);
-      ++i;
+      var nextPromise = this.resolve(value);
       ++count;
+      nextPromise.then(
+          CreateResolveElementFunction(i, resolutions, deferred),
+          deferred.reject);
+      SET_PRIVATE(deferred.reject, promiseCombinedDeferredSymbol, deferred);
+      ++i;
     }
 
-    if (count === 0) {
-      deferred.resolve(resolutions);
+    // 6.d
+    if (--count === 0) {
+      var valuesArray = [];
+      %MoveArrayContents(resolutions, valuesArray);
+      %_Call(deferred.resolve, UNDEFINED, valuesArray);
     }
 
   } catch (e) {
-    deferred.reject(e)
+    %_Call(deferred.reject, UNDEFINED, e);
   }
   return deferred.promise;
 }
 
+// ES#sec-promise.race
+// Promise.race ( iterable )
 function PromiseRace(iterable) {
-  var deferred = %_Call(PromiseDeferred, this);
+  if (!IS_RECEIVER(this)) {
+    throw %make_type_error(kCalledOnNonObject, PromiseRace);
+  }
+
+  var deferred = NewPromiseCapability(this);
   try {
     for (var value of iterable) {
-      var reject = function(r) { deferred.reject(r) };
-      this.resolve(value).then(function(x) { deferred.resolve(x) }, reject);
-      SET_PRIVATE(reject, promiseCombinedDeferredSymbol, deferred);
+      this.resolve(value).then(deferred.resolve, deferred.reject);
+      SET_PRIVATE(deferred.reject, promiseCombinedDeferredSymbol, deferred);
     }
   } catch (e) {
     deferred.reject(e)
@@ -347,20 +532,30 @@ function PromiseRace(iterable) {
 
 // Utility for debugger
 
+function PromiseHasUserDefinedRejectHandlerCheck(handler, deferred) {
+  if (handler !== PromiseIdRejectHandler) {
+    var combinedDeferred = GET_PRIVATE(handler, promiseCombinedDeferredSymbol);
+    if (IS_UNDEFINED(combinedDeferred)) return true;
+    if (PromiseHasUserDefinedRejectHandlerRecursive(combinedDeferred.promise)) {
+      return true;
+    }
+  } else if (PromiseHasUserDefinedRejectHandlerRecursive(deferred.promise)) {
+    return true;
+  }
+  return false;
+}
+
 function PromiseHasUserDefinedRejectHandlerRecursive(promise) {
-  var queue = GET_PRIVATE(promise, promiseOnRejectSymbol);
+  var queue = GET_PRIVATE(promise, promiseRejectReactionsSymbol);
+  var deferreds = GET_PRIVATE(promise, promiseDeferredReactionsSymbol);
   if (IS_UNDEFINED(queue)) return false;
-  for (var i = 0; i < queue.length; i += 2) {
-    var handler = queue[i];
-    if (handler !== PromiseIdRejectHandler) {
-      var deferred = GET_PRIVATE(handler, promiseCombinedDeferredSymbol);
-      if (IS_UNDEFINED(deferred)) return true;
-      if (PromiseHasUserDefinedRejectHandlerRecursive(deferred.promise)) {
+  if (!IS_ARRAY(queue)) {
+    return PromiseHasUserDefinedRejectHandlerCheck(queue, deferreds);
+  } else {
+    for (var i = 0; i < queue.length; i += 2) {
+      if (PromiseHasUserDefinedRejectHandlerCheck(queue[i], queue[i + 1])) {
         return true;
       }
-    } else if (PromiseHasUserDefinedRejectHandlerRecursive(
-                   queue[i + 1].promise)) {
-      return true;
     }
   }
   return false;
@@ -373,6 +568,11 @@ function PromiseHasUserDefinedRejectHandler() {
   return PromiseHasUserDefinedRejectHandlerRecursive(this);
 };
 
+
+function PromiseSpecies() {
+  return this;
+}
+
 // -------------------------------------------------------------------
 // Install exported functions.
 
@@ -381,28 +581,28 @@ function PromiseHasUserDefinedRejectHandler() {
                   DONT_ENUM | READ_ONLY);
 
 utils.InstallFunctions(GlobalPromise, DONT_ENUM, [
-  "defer", PromiseDeferred,
-  "accept", PromiseResolved,
-  "reject", PromiseRejected,
+  "reject", PromiseReject,
   "all", PromiseAll,
   "race", PromiseRace,
-  "resolve", PromiseCast
+  "resolve", PromiseResolve
 ]);
 
+utils.InstallGetter(GlobalPromise, speciesSymbol, PromiseSpecies);
+
 utils.InstallFunctions(GlobalPromise.prototype, DONT_ENUM, [
-  "chain", PromiseChain,
   "then", PromiseThen,
   "catch", PromiseCatch
 ]);
 
 %InstallToContext([
   "promise_catch", PromiseCatch,
-  "promise_chain", PromiseChain,
   "promise_create", PromiseCreate,
   "promise_has_user_defined_reject_handler", PromiseHasUserDefinedRejectHandler,
-  "promise_reject", PromiseReject,
-  "promise_resolve", PromiseResolve,
+  "promise_reject", RejectPromise,
+  "promise_resolve", ResolvePromise,
   "promise_then", PromiseThen,
+  "promise_create_rejected", PromiseCreateRejected,
+  "promise_create_resolved", PromiseCreateResolved
 ]);
 
 // This allows extras to create promises quickly without building extra
@@ -410,8 +610,17 @@ utils.InstallFunctions(GlobalPromise.prototype, DONT_ENUM, [
 // promise without having to hold on to those closures forever.
 utils.InstallFunctions(extrasUtils, 0, [
   "createPromise", PromiseCreate,
-  "resolvePromise", PromiseResolve,
-  "rejectPromise", PromiseReject
+  "resolvePromise", ResolvePromise,
+  "rejectPromise", RejectPromise
 ]);
+
+utils.Export(function(to) {
+  to.PromiseCastResolved = PromiseCastResolved;
+  to.PromiseThen = PromiseThen;
+
+  to.GlobalPromise = GlobalPromise;
+  to.NewPromiseCapability = NewPromiseCapability;
+  to.PerformPromiseThen = PerformPromiseThen;
+});
 
 })

@@ -33,7 +33,7 @@ var break_count = 0;
 function listener(event, exec_state, event_data, data) {
   if (event != Debug.DebugEvent.Break) return;
   try {
-    exec_state.prepareStep(Debug.StepAction.StepNext, 1);
+    exec_state.prepareStep(Debug.StepAction.StepNext);
     print(exec_state.frame(0).sourceLineText());
     var match = exec_state.frame(0).sourceLineText().match(/Break (\d)/);
     assertNotNull(match);

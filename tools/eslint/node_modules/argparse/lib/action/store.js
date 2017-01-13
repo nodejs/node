@@ -13,7 +13,7 @@ var util = require('util');
 var Action = require('../action');
 
 // Constants
-var $$ = require('../const');
+var c = require('../const');
 
 
 /*:nodoc:*
@@ -29,7 +29,7 @@ var ActionStore = module.exports = function ActionStore(options) {
         'true or store const may be more appropriate');
 
   }
-  if (this.constant !== undefined && this.nargs !== $$.OPTIONAL) {
+  if (typeof this.constant !== 'undefined' && this.nargs !== c.OPTIONAL) {
     throw new Error('nargs must be OPTIONAL to supply const');
   }
   Action.call(this, options);

@@ -15,7 +15,7 @@ namespace compiler {
 
 
 TEST_F(InstructionSelectorTest, ChangeFloat32ToFloat64WithParameter) {
-  StreamBuilder m(this, kMachFloat32, kMachFloat64);
+  StreamBuilder m(this, MachineType::Float32(), MachineType::Float64());
   m.Return(m.ChangeFloat32ToFloat64(m.Parameter(0)));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
@@ -26,16 +26,15 @@ TEST_F(InstructionSelectorTest, ChangeFloat32ToFloat64WithParameter) {
 
 
 TEST_F(InstructionSelectorTest, ChangeInt32ToInt64WithParameter) {
-  StreamBuilder m(this, kMachInt64, kMachInt32);
+  StreamBuilder m(this, MachineType::Int64(), MachineType::Int32());
   m.Return(m.ChangeInt32ToInt64(m.Parameter(0)));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
   EXPECT_EQ(kX64Movsxlq, s[0]->arch_opcode());
 }
 
-
 TEST_F(InstructionSelectorTest, ChangeUint32ToFloat64WithParameter) {
-  StreamBuilder m(this, kMachFloat64, kMachUint32);
+  StreamBuilder m(this, MachineType::Float64(), MachineType::Uint32());
   m.Return(m.ChangeUint32ToFloat64(m.Parameter(0)));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
@@ -44,7 +43,7 @@ TEST_F(InstructionSelectorTest, ChangeUint32ToFloat64WithParameter) {
 
 
 TEST_F(InstructionSelectorTest, ChangeUint32ToUint64WithParameter) {
-  StreamBuilder m(this, kMachUint64, kMachUint32);
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint32());
   m.Return(m.ChangeUint32ToUint64(m.Parameter(0)));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
@@ -53,7 +52,7 @@ TEST_F(InstructionSelectorTest, ChangeUint32ToUint64WithParameter) {
 
 
 TEST_F(InstructionSelectorTest, TruncateFloat64ToFloat32WithParameter) {
-  StreamBuilder m(this, kMachFloat64, kMachFloat32);
+  StreamBuilder m(this, MachineType::Float64(), MachineType::Float32());
   m.Return(m.TruncateFloat64ToFloat32(m.Parameter(0)));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
@@ -64,13 +63,48 @@ TEST_F(InstructionSelectorTest, TruncateFloat64ToFloat32WithParameter) {
 
 
 TEST_F(InstructionSelectorTest, TruncateInt64ToInt32WithParameter) {
-  StreamBuilder m(this, kMachInt32, kMachInt64);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int64());
   m.Return(m.TruncateInt64ToInt32(m.Parameter(0)));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
   EXPECT_EQ(kX64Movl, s[0]->arch_opcode());
 }
 
+namespace {
+struct LoadWithToInt64Extension {
+  MachineType type;
+  ArchOpcode expected_opcode;
+};
+
+std::ostream& operator<<(std::ostream& os,
+                         const LoadWithToInt64Extension& i32toi64) {
+  return os << i32toi64.type;
+}
+
+static const LoadWithToInt64Extension kLoadWithToInt64Extensions[] = {
+    {MachineType::Int8(), kX64Movsxbq},
+    {MachineType::Uint8(), kX64Movzxbq},
+    {MachineType::Int16(), kX64Movsxwq},
+    {MachineType::Uint16(), kX64Movzxwq},
+    {MachineType::Int32(), kX64Movsxlq}};
+
+}  // namespace
+
+typedef InstructionSelectorTestWithParam<LoadWithToInt64Extension>
+    InstructionSelectorChangeInt32ToInt64Test;
+
+TEST_P(InstructionSelectorChangeInt32ToInt64Test, ChangeInt32ToInt64WithLoad) {
+  const LoadWithToInt64Extension extension = GetParam();
+  StreamBuilder m(this, MachineType::Int64(), MachineType::Pointer());
+  m.Return(m.ChangeInt32ToInt64(m.Load(extension.type, m.Parameter(0))));
+  Stream s = m.Build();
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(extension.expected_opcode, s[0]->arch_opcode());
+}
+
+INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
+                        InstructionSelectorChangeInt32ToInt64Test,
+                        ::testing::ValuesIn(kLoadWithToInt64Extensions));
 
 // -----------------------------------------------------------------------------
 // Loads and stores
@@ -91,16 +125,16 @@ std::ostream& operator<<(std::ostream& os, const MemoryAccess& memacc) {
 
 
 static const MemoryAccess kMemoryAccesses[] = {
-    {kMachInt8, kX64Movsxbl, kX64Movb},
-    {kMachUint8, kX64Movzxbl, kX64Movb},
-    {kMachInt16, kX64Movsxwl, kX64Movw},
-    {kMachUint16, kX64Movzxwl, kX64Movw},
-    {kMachInt32, kX64Movl, kX64Movl},
-    {kMachUint32, kX64Movl, kX64Movl},
-    {kMachInt64, kX64Movq, kX64Movq},
-    {kMachUint64, kX64Movq, kX64Movq},
-    {kMachFloat32, kX64Movss, kX64Movss},
-    {kMachFloat64, kX64Movsd, kX64Movsd}};
+    {MachineType::Int8(), kX64Movsxbl, kX64Movb},
+    {MachineType::Uint8(), kX64Movzxbl, kX64Movb},
+    {MachineType::Int16(), kX64Movsxwl, kX64Movw},
+    {MachineType::Uint16(), kX64Movzxwl, kX64Movw},
+    {MachineType::Int32(), kX64Movl, kX64Movl},
+    {MachineType::Uint32(), kX64Movl, kX64Movl},
+    {MachineType::Int64(), kX64Movq, kX64Movq},
+    {MachineType::Uint64(), kX64Movq, kX64Movq},
+    {MachineType::Float32(), kX64Movss, kX64Movss},
+    {MachineType::Float64(), kX64Movsd, kX64Movsd}};
 
 }  // namespace
 
@@ -111,7 +145,8 @@ typedef InstructionSelectorTestWithParam<MemoryAccess>
 
 TEST_P(InstructionSelectorMemoryAccessTest, LoadWithParameters) {
   const MemoryAccess memacc = GetParam();
-  StreamBuilder m(this, memacc.type, kMachPtr, kMachInt32);
+  StreamBuilder m(this, memacc.type, MachineType::Pointer(),
+                  MachineType::Int32());
   m.Return(m.Load(memacc.type, m.Parameter(0), m.Parameter(1)));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
@@ -123,9 +158,10 @@ TEST_P(InstructionSelectorMemoryAccessTest, LoadWithParameters) {
 
 TEST_P(InstructionSelectorMemoryAccessTest, StoreWithParameters) {
   const MemoryAccess memacc = GetParam();
-  StreamBuilder m(this, kMachInt32, kMachPtr, kMachInt32, memacc.type);
-  m.Store(memacc.type, m.Parameter(0), m.Parameter(1), m.Parameter(2),
-          kNoWriteBarrier);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Pointer(),
+                  MachineType::Int32(), memacc.type);
+  m.Store(memacc.type.representation(), m.Parameter(0), m.Parameter(1),
+          m.Parameter(2), kNoWriteBarrier);
   m.Return(m.Int32Constant(0));
   Stream s = m.Build();
   ASSERT_EQ(1U, s.size());
@@ -191,7 +227,8 @@ typedef InstructionSelectorTestWithParam<BinaryOperation>
 
 TEST_P(InstructionSelectorChangeUint32ToUint64Test, ChangeUint32ToUint64) {
   const BinaryOperation& bop = GetParam();
-  StreamBuilder m(this, kMachUint64, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Uint64(), MachineType::Int32(),
+                  MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const p1 = m.Parameter(1);
   m.Return(m.ChangeUint32ToUint64((m.*bop.constructor)(p0, p1)));
@@ -210,7 +247,7 @@ INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
 
 
 TEST_F(InstructionSelectorTest, TruncateInt64ToInt32WithWord64Sar) {
-  StreamBuilder m(this, kMachInt32, kMachInt64);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int64());
   Node* const p = m.Parameter(0);
   Node* const t = m.TruncateInt64ToInt32(m.Word64Sar(p, m.Int64Constant(32)));
   m.Return(t);
@@ -227,7 +264,7 @@ TEST_F(InstructionSelectorTest, TruncateInt64ToInt32WithWord64Sar) {
 
 
 TEST_F(InstructionSelectorTest, TruncateInt64ToInt32WithWord64Shr) {
-  StreamBuilder m(this, kMachInt32, kMachInt64);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int64());
   Node* const p = m.Parameter(0);
   Node* const t = m.TruncateInt64ToInt32(m.Word64Shr(p, m.Int64Constant(32)));
   m.Return(t);
@@ -248,7 +285,8 @@ TEST_F(InstructionSelectorTest, TruncateInt64ToInt32WithWord64Shr) {
 
 
 TEST_F(InstructionSelectorTest, Int32AddWithInt32ParametersLea) {
-  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const p1 = m.Parameter(1);
   Node* const a0 = m.Int32Add(p0, p1);
@@ -265,7 +303,7 @@ TEST_F(InstructionSelectorTest, Int32AddWithInt32ParametersLea) {
 
 
 TEST_F(InstructionSelectorTest, Int32AddConstantAsLeaSingle) {
-  StreamBuilder m(this, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const c0 = m.Int32Constant(15);
   // If one of the add's operands is only used once, use an "leal", even though
@@ -287,7 +325,7 @@ TEST_F(InstructionSelectorTest, Int32AddConstantAsLeaSingle) {
 
 
 TEST_F(InstructionSelectorTest, Int32AddConstantAsAdd) {
-  StreamBuilder m(this, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const c0 = m.Int32Constant(1);
   // If there is only a single use of an add's input and the immediate constant
@@ -305,7 +343,7 @@ TEST_F(InstructionSelectorTest, Int32AddConstantAsAdd) {
 
 
 TEST_F(InstructionSelectorTest, Int32AddConstantAsLeaDouble) {
-  StreamBuilder m(this, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const c0 = m.Int32Constant(15);
   // A second use of an add's input uses lea
@@ -322,7 +360,7 @@ TEST_F(InstructionSelectorTest, Int32AddConstantAsLeaDouble) {
 
 
 TEST_F(InstructionSelectorTest, Int32AddCommutedConstantAsLeaSingle) {
-  StreamBuilder m(this, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const c0 = m.Int32Constant(15);
   // If one of the add's operands is only used once, use an "leal", even though
@@ -343,7 +381,7 @@ TEST_F(InstructionSelectorTest, Int32AddCommutedConstantAsLeaSingle) {
 
 
 TEST_F(InstructionSelectorTest, Int32AddCommutedConstantAsLeaDouble) {
-  StreamBuilder m(this, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const c0 = m.Int32Constant(15);
   // A second use of an add's input uses lea
@@ -361,7 +399,8 @@ TEST_F(InstructionSelectorTest, Int32AddCommutedConstantAsLeaDouble) {
 
 
 TEST_F(InstructionSelectorTest, Int32AddSimpleAsAdd) {
-  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const p1 = m.Parameter(1);
   // If one of the add's operands is only used once, use an "leal", even though
@@ -382,7 +421,8 @@ TEST_F(InstructionSelectorTest, Int32AddSimpleAsAdd) {
 
 
 TEST_F(InstructionSelectorTest, Int32AddSimpleAsLea) {
-  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const p1 = m.Parameter(1);
   // If all of of the add's operands are used multiple times, use an "leal".
@@ -399,7 +439,8 @@ TEST_F(InstructionSelectorTest, Int32AddSimpleAsLea) {
 
 
 TEST_F(InstructionSelectorTest, Int32AddScaled2Mul) {
-  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const p1 = m.Parameter(1);
   Node* const s0 = m.Int32Mul(p1, m.Int32Constant(2));
@@ -415,7 +456,8 @@ TEST_F(InstructionSelectorTest, Int32AddScaled2Mul) {
 
 
 TEST_F(InstructionSelectorTest, Int32AddCommutedScaled2Mul) {
-  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const p1 = m.Parameter(1);
   Node* const s0 = m.Int32Mul(p1, m.Int32Constant(2));
@@ -431,7 +473,8 @@ TEST_F(InstructionSelectorTest, Int32AddCommutedScaled2Mul) {
 
 
 TEST_F(InstructionSelectorTest, Int32AddScaled2Shl) {
-  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const p1 = m.Parameter(1);
   Node* const s0 = m.Word32Shl(p1, m.Int32Constant(1));
@@ -447,7 +490,8 @@ TEST_F(InstructionSelectorTest, Int32AddScaled2Shl) {
 
 
 TEST_F(InstructionSelectorTest, Int32AddCommutedScaled2Shl) {
-  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const p1 = m.Parameter(1);
   Node* const s0 = m.Word32Shl(p1, m.Int32Constant(1));
@@ -463,7 +507,8 @@ TEST_F(InstructionSelectorTest, Int32AddCommutedScaled2Shl) {
 
 
 TEST_F(InstructionSelectorTest, Int32AddScaled4Mul) {
-  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const p1 = m.Parameter(1);
   Node* const s0 = m.Int32Mul(p1, m.Int32Constant(4));
@@ -479,7 +524,8 @@ TEST_F(InstructionSelectorTest, Int32AddScaled4Mul) {
 
 
 TEST_F(InstructionSelectorTest, Int32AddScaled4Shl) {
-  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const p1 = m.Parameter(1);
   Node* const s0 = m.Word32Shl(p1, m.Int32Constant(2));
@@ -495,7 +541,8 @@ TEST_F(InstructionSelectorTest, Int32AddScaled4Shl) {
 
 
 TEST_F(InstructionSelectorTest, Int32AddScaled8Mul) {
-  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const p1 = m.Parameter(1);
   Node* const s0 = m.Int32Mul(p1, m.Int32Constant(8));
@@ -511,7 +558,8 @@ TEST_F(InstructionSelectorTest, Int32AddScaled8Mul) {
 
 
 TEST_F(InstructionSelectorTest, Int32AddScaled8Shl) {
-  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const p1 = m.Parameter(1);
   Node* const s0 = m.Word32Shl(p1, m.Int32Constant(3));
@@ -527,7 +575,8 @@ TEST_F(InstructionSelectorTest, Int32AddScaled8Shl) {
 
 
 TEST_F(InstructionSelectorTest, Int32AddScaled2MulWithConstant) {
-  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const p1 = m.Parameter(1);
   Node* const s0 = m.Int32Mul(p1, m.Int32Constant(2));
@@ -545,7 +594,8 @@ TEST_F(InstructionSelectorTest, Int32AddScaled2MulWithConstant) {
 
 
 TEST_F(InstructionSelectorTest, Int32AddScaled2MulWithConstantShuffle1) {
-  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const p1 = m.Parameter(1);
   Node* const s0 = m.Int32Mul(p1, m.Int32Constant(2));
@@ -563,7 +613,8 @@ TEST_F(InstructionSelectorTest, Int32AddScaled2MulWithConstantShuffle1) {
 
 
 TEST_F(InstructionSelectorTest, Int32AddScaled2MulWithConstantShuffle2) {
-  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const p1 = m.Parameter(1);
   Node* const s0 = m.Int32Mul(p1, m.Int32Constant(2));
@@ -581,7 +632,8 @@ TEST_F(InstructionSelectorTest, Int32AddScaled2MulWithConstantShuffle2) {
 
 
 TEST_F(InstructionSelectorTest, Int32AddScaled2MulWithConstantShuffle3) {
-  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const p1 = m.Parameter(1);
   Node* const s0 = m.Int32Mul(p1, m.Int32Constant(2));
@@ -599,7 +651,8 @@ TEST_F(InstructionSelectorTest, Int32AddScaled2MulWithConstantShuffle3) {
 
 
 TEST_F(InstructionSelectorTest, Int32AddScaled2MulWithConstantShuffle4) {
-  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const p1 = m.Parameter(1);
   Node* const s0 = m.Int32Mul(p1, m.Int32Constant(2));
@@ -617,7 +670,8 @@ TEST_F(InstructionSelectorTest, Int32AddScaled2MulWithConstantShuffle4) {
 
 
 TEST_F(InstructionSelectorTest, Int32AddScaled2MulWithConstantShuffle5) {
-  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const p1 = m.Parameter(1);
   Node* const s0 = m.Int32Mul(p1, m.Int32Constant(2));
@@ -635,7 +689,8 @@ TEST_F(InstructionSelectorTest, Int32AddScaled2MulWithConstantShuffle5) {
 
 
 TEST_F(InstructionSelectorTest, Int32AddScaled2ShlWithConstant) {
-  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const p1 = m.Parameter(1);
   Node* const s0 = m.Word32Shl(p1, m.Int32Constant(1));
@@ -653,7 +708,8 @@ TEST_F(InstructionSelectorTest, Int32AddScaled2ShlWithConstant) {
 
 
 TEST_F(InstructionSelectorTest, Int32AddScaled4MulWithConstant) {
-  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const p1 = m.Parameter(1);
   Node* const s0 = m.Int32Mul(p1, m.Int32Constant(4));
@@ -671,7 +727,8 @@ TEST_F(InstructionSelectorTest, Int32AddScaled4MulWithConstant) {
 
 
 TEST_F(InstructionSelectorTest, Int32AddScaled4ShlWithConstant) {
-  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const p1 = m.Parameter(1);
   Node* const s0 = m.Word32Shl(p1, m.Int32Constant(2));
@@ -689,7 +746,8 @@ TEST_F(InstructionSelectorTest, Int32AddScaled4ShlWithConstant) {
 
 
 TEST_F(InstructionSelectorTest, Int32AddScaled8MulWithConstant) {
-  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const p1 = m.Parameter(1);
   Node* const s0 = m.Int32Mul(p1, m.Int32Constant(8));
@@ -707,7 +765,8 @@ TEST_F(InstructionSelectorTest, Int32AddScaled8MulWithConstant) {
 
 
 TEST_F(InstructionSelectorTest, Int32AddScaled8ShlWithConstant) {
-  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const p1 = m.Parameter(1);
   Node* const s0 = m.Word32Shl(p1, m.Int32Constant(3));
@@ -725,7 +784,7 @@ TEST_F(InstructionSelectorTest, Int32AddScaled8ShlWithConstant) {
 
 
 TEST_F(InstructionSelectorTest, Int32SubConstantAsSub) {
-  StreamBuilder m(this, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const c0 = m.Int32Constant(-1);
   // If there is only a single use of on of the sub's non-constant input, use a
@@ -742,7 +801,7 @@ TEST_F(InstructionSelectorTest, Int32SubConstantAsSub) {
 
 
 TEST_F(InstructionSelectorTest, Int32SubConstantAsLea) {
-  StreamBuilder m(this, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const c0 = m.Int32Constant(-1);
   // If there are multiple uses of on of the sub's non-constant input, use a
@@ -760,7 +819,8 @@ TEST_F(InstructionSelectorTest, Int32SubConstantAsLea) {
 
 
 TEST_F(InstructionSelectorTest, Int32AddScaled2Other) {
-  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32(), MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const p1 = m.Parameter(1);
   Node* const p2 = m.Parameter(2);
@@ -789,7 +849,8 @@ TEST_F(InstructionSelectorTest, Int32AddScaled2Other) {
 
 
 TEST_F(InstructionSelectorTest, Int32MulWithInt32MulWithParameters) {
-  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const p1 = m.Parameter(1);
   Node* const m0 = m.Int32Mul(p0, p1);
@@ -810,7 +871,8 @@ TEST_F(InstructionSelectorTest, Int32MulWithInt32MulWithParameters) {
 
 
 TEST_F(InstructionSelectorTest, Int32MulHigh) {
-  StreamBuilder m(this, kMachInt32, kMachInt32, kMachInt32);
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
   Node* const p0 = m.Parameter(0);
   Node* const p1 = m.Parameter(1);
   Node* const n = m.Int32MulHigh(p0, p1);
@@ -830,7 +892,8 @@ TEST_F(InstructionSelectorTest, Int32MulHigh) {
 
 
 TEST_F(InstructionSelectorTest, Uint32MulHigh) {
-  StreamBuilder m(this, kMachUint32, kMachUint32, kMachUint32);
+  StreamBuilder m(this, MachineType::Uint32(), MachineType::Uint32(),
+                  MachineType::Uint32());
   Node* const p0 = m.Parameter(0);
   Node* const p1 = m.Parameter(1);
   Node* const n = m.Uint32MulHigh(p0, p1);
@@ -850,7 +913,8 @@ TEST_F(InstructionSelectorTest, Uint32MulHigh) {
 
 
 TEST_F(InstructionSelectorTest, Int32Mul2BecomesLea) {
-  StreamBuilder m(this, kMachUint32, kMachUint32, kMachUint32);
+  StreamBuilder m(this, MachineType::Uint32(), MachineType::Uint32(),
+                  MachineType::Uint32());
   Node* const p0 = m.Parameter(0);
   Node* const c1 = m.Int32Constant(2);
   Node* const n = m.Int32Mul(p0, c1);
@@ -866,7 +930,8 @@ TEST_F(InstructionSelectorTest, Int32Mul2BecomesLea) {
 
 
 TEST_F(InstructionSelectorTest, Int32Mul3BecomesLea) {
-  StreamBuilder m(this, kMachUint32, kMachUint32, kMachUint32);
+  StreamBuilder m(this, MachineType::Uint32(), MachineType::Uint32(),
+                  MachineType::Uint32());
   Node* const p0 = m.Parameter(0);
   Node* const c1 = m.Int32Constant(3);
   Node* const n = m.Int32Mul(p0, c1);
@@ -882,7 +947,8 @@ TEST_F(InstructionSelectorTest, Int32Mul3BecomesLea) {
 
 
 TEST_F(InstructionSelectorTest, Int32Mul4BecomesLea) {
-  StreamBuilder m(this, kMachUint32, kMachUint32, kMachUint32);
+  StreamBuilder m(this, MachineType::Uint32(), MachineType::Uint32(),
+                  MachineType::Uint32());
   Node* const p0 = m.Parameter(0);
   Node* const c1 = m.Int32Constant(4);
   Node* const n = m.Int32Mul(p0, c1);
@@ -897,7 +963,8 @@ TEST_F(InstructionSelectorTest, Int32Mul4BecomesLea) {
 
 
 TEST_F(InstructionSelectorTest, Int32Mul5BecomesLea) {
-  StreamBuilder m(this, kMachUint32, kMachUint32, kMachUint32);
+  StreamBuilder m(this, MachineType::Uint32(), MachineType::Uint32(),
+                  MachineType::Uint32());
   Node* const p0 = m.Parameter(0);
   Node* const c1 = m.Int32Constant(5);
   Node* const n = m.Int32Mul(p0, c1);
@@ -913,7 +980,8 @@ TEST_F(InstructionSelectorTest, Int32Mul5BecomesLea) {
 
 
 TEST_F(InstructionSelectorTest, Int32Mul8BecomesLea) {
-  StreamBuilder m(this, kMachUint32, kMachUint32, kMachUint32);
+  StreamBuilder m(this, MachineType::Uint32(), MachineType::Uint32(),
+                  MachineType::Uint32());
   Node* const p0 = m.Parameter(0);
   Node* const c1 = m.Int32Constant(8);
   Node* const n = m.Int32Mul(p0, c1);
@@ -928,7 +996,8 @@ TEST_F(InstructionSelectorTest, Int32Mul8BecomesLea) {
 
 
 TEST_F(InstructionSelectorTest, Int32Mul9BecomesLea) {
-  StreamBuilder m(this, kMachUint32, kMachUint32, kMachUint32);
+  StreamBuilder m(this, MachineType::Uint32(), MachineType::Uint32(),
+                  MachineType::Uint32());
   Node* const p0 = m.Parameter(0);
   Node* const c1 = m.Int32Constant(9);
   Node* const n = m.Int32Mul(p0, c1);
@@ -948,7 +1017,8 @@ TEST_F(InstructionSelectorTest, Int32Mul9BecomesLea) {
 
 
 TEST_F(InstructionSelectorTest, Int32Shl1BecomesLea) {
-  StreamBuilder m(this, kMachUint32, kMachUint32, kMachUint32);
+  StreamBuilder m(this, MachineType::Uint32(), MachineType::Uint32(),
+                  MachineType::Uint32());
   Node* const p0 = m.Parameter(0);
   Node* const c1 = m.Int32Constant(1);
   Node* const n = m.Word32Shl(p0, c1);
@@ -964,7 +1034,8 @@ TEST_F(InstructionSelectorTest, Int32Shl1BecomesLea) {
 
 
 TEST_F(InstructionSelectorTest, Int32Shl2BecomesLea) {
-  StreamBuilder m(this, kMachUint32, kMachUint32, kMachUint32);
+  StreamBuilder m(this, MachineType::Uint32(), MachineType::Uint32(),
+                  MachineType::Uint32());
   Node* const p0 = m.Parameter(0);
   Node* const c1 = m.Int32Constant(2);
   Node* const n = m.Word32Shl(p0, c1);
@@ -979,7 +1050,8 @@ TEST_F(InstructionSelectorTest, Int32Shl2BecomesLea) {
 
 
 TEST_F(InstructionSelectorTest, Int32Shl4BecomesLea) {
-  StreamBuilder m(this, kMachUint32, kMachUint32, kMachUint32);
+  StreamBuilder m(this, MachineType::Uint32(), MachineType::Uint32(),
+                  MachineType::Uint32());
   Node* const p0 = m.Parameter(0);
   Node* const c1 = m.Int32Constant(3);
   Node* const n = m.Word32Shl(p0, c1);
@@ -999,7 +1071,7 @@ TEST_F(InstructionSelectorTest, Int32Shl4BecomesLea) {
 
 TEST_F(InstructionSelectorTest, Float32Abs) {
   {
-    StreamBuilder m(this, kMachFloat32, kMachFloat32);
+    StreamBuilder m(this, MachineType::Float32(), MachineType::Float32());
     Node* const p0 = m.Parameter(0);
     Node* const n = m.Float32Abs(p0);
     m.Return(n);
@@ -1014,7 +1086,7 @@ TEST_F(InstructionSelectorTest, Float32Abs) {
     EXPECT_EQ(kFlags_none, s[0]->flags_mode());
   }
   {
-    StreamBuilder m(this, kMachFloat32, kMachFloat32);
+    StreamBuilder m(this, MachineType::Float32(), MachineType::Float32());
     Node* const p0 = m.Parameter(0);
     Node* const n = m.Float32Abs(p0);
     m.Return(n);
@@ -1032,7 +1104,7 @@ TEST_F(InstructionSelectorTest, Float32Abs) {
 
 TEST_F(InstructionSelectorTest, Float64Abs) {
   {
-    StreamBuilder m(this, kMachFloat64, kMachFloat64);
+    StreamBuilder m(this, MachineType::Float64(), MachineType::Float64());
     Node* const p0 = m.Parameter(0);
     Node* const n = m.Float64Abs(p0);
     m.Return(n);
@@ -1047,7 +1119,7 @@ TEST_F(InstructionSelectorTest, Float64Abs) {
     EXPECT_EQ(kFlags_none, s[0]->flags_mode());
   }
   {
-    StreamBuilder m(this, kMachFloat64, kMachFloat64);
+    StreamBuilder m(this, MachineType::Float64(), MachineType::Float64());
     Node* const p0 = m.Parameter(0);
     Node* const n = m.Float64Abs(p0);
     m.Return(n);
@@ -1065,7 +1137,8 @@ TEST_F(InstructionSelectorTest, Float64Abs) {
 
 TEST_F(InstructionSelectorTest, Float64BinopArithmetic) {
   {
-    StreamBuilder m(this, kMachFloat64, kMachFloat64, kMachFloat64);
+    StreamBuilder m(this, MachineType::Float64(), MachineType::Float64(),
+                    MachineType::Float64());
     Node* add = m.Float64Add(m.Parameter(0), m.Parameter(1));
     Node* mul = m.Float64Mul(add, m.Parameter(1));
     Node* sub = m.Float64Sub(mul, add);
@@ -1079,7 +1152,8 @@ TEST_F(InstructionSelectorTest, Float64BinopArithmetic) {
     EXPECT_EQ(kAVXFloat64Div, s[3]->arch_opcode());
   }
   {
-    StreamBuilder m(this, kMachFloat64, kMachFloat64, kMachFloat64);
+    StreamBuilder m(this, MachineType::Float64(), MachineType::Float64(),
+                    MachineType::Float64());
     Node* add = m.Float64Add(m.Parameter(0), m.Parameter(1));
     Node* mul = m.Float64Mul(add, m.Parameter(1));
     Node* sub = m.Float64Sub(mul, add);
@@ -1094,79 +1168,14 @@ TEST_F(InstructionSelectorTest, Float64BinopArithmetic) {
   }
 }
 
-
-TEST_F(InstructionSelectorTest, Float32SubWithMinusZeroAndParameter) {
-  {
-    StreamBuilder m(this, kMachFloat32, kMachFloat32);
-    Node* const p0 = m.Parameter(0);
-    Node* const n = m.Float32Sub(m.Float32Constant(-0.0f), p0);
-    m.Return(n);
-    Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kSSEFloat32Neg, s[0]->arch_opcode());
-    ASSERT_EQ(1U, s[0]->InputCount());
-    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
-    ASSERT_EQ(1U, s[0]->OutputCount());
-    EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
-    EXPECT_EQ(kFlags_none, s[0]->flags_mode());
-  }
-  {
-    StreamBuilder m(this, kMachFloat32, kMachFloat32);
-    Node* const p0 = m.Parameter(0);
-    Node* const n = m.Float32Sub(m.Float32Constant(-0.0f), p0);
-    m.Return(n);
-    Stream s = m.Build(AVX);
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kAVXFloat32Neg, s[0]->arch_opcode());
-    ASSERT_EQ(1U, s[0]->InputCount());
-    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
-    ASSERT_EQ(1U, s[0]->OutputCount());
-    EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
-    EXPECT_EQ(kFlags_none, s[0]->flags_mode());
-  }
-}
-
-
-TEST_F(InstructionSelectorTest, Float64SubWithMinusZeroAndParameter) {
-  {
-    StreamBuilder m(this, kMachFloat64, kMachFloat64);
-    Node* const p0 = m.Parameter(0);
-    Node* const n = m.Float64Sub(m.Float64Constant(-0.0), p0);
-    m.Return(n);
-    Stream s = m.Build();
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kSSEFloat64Neg, s[0]->arch_opcode());
-    ASSERT_EQ(1U, s[0]->InputCount());
-    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
-    ASSERT_EQ(1U, s[0]->OutputCount());
-    EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
-    EXPECT_EQ(kFlags_none, s[0]->flags_mode());
-  }
-  {
-    StreamBuilder m(this, kMachFloat64, kMachFloat64);
-    Node* const p0 = m.Parameter(0);
-    Node* const n = m.Float64Sub(m.Float64Constant(-0.0), p0);
-    m.Return(n);
-    Stream s = m.Build(AVX);
-    ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kAVXFloat64Neg, s[0]->arch_opcode());
-    ASSERT_EQ(1U, s[0]->InputCount());
-    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
-    ASSERT_EQ(1U, s[0]->OutputCount());
-    EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
-    EXPECT_EQ(kFlags_none, s[0]->flags_mode());
-  }
-}
-
-
 // -----------------------------------------------------------------------------
 // Miscellaneous.
 
 
 TEST_F(InstructionSelectorTest, Uint64LessThanWithLoadAndLoadStackPointer) {
-  StreamBuilder m(this, kMachBool);
+  StreamBuilder m(this, MachineType::Bool());
   Node* const sl = m.Load(
-      kMachPtr,
+      MachineType::Pointer(),
       m.ExternalConstant(ExternalReference::address_of_stack_limit(isolate())));
   Node* const sp = m.LoadStackPointer();
   Node* const n = m.Uint64LessThan(sl, sp);
@@ -1184,7 +1193,7 @@ TEST_F(InstructionSelectorTest, Uint64LessThanWithLoadAndLoadStackPointer) {
 
 TEST_F(InstructionSelectorTest, Word64ShlWithChangeInt32ToInt64) {
   TRACED_FORRANGE(int64_t, x, 32, 63) {
-    StreamBuilder m(this, kMachInt64, kMachInt32);
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int32());
     Node* const p0 = m.Parameter(0);
     Node* const n = m.Word64Shl(m.ChangeInt32ToInt64(p0), m.Int64Constant(x));
     m.Return(n);
@@ -1203,7 +1212,7 @@ TEST_F(InstructionSelectorTest, Word64ShlWithChangeInt32ToInt64) {
 
 TEST_F(InstructionSelectorTest, Word64ShlWithChangeUint32ToUint64) {
   TRACED_FORRANGE(int64_t, x, 32, 63) {
-    StreamBuilder m(this, kMachInt64, kMachUint32);
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Uint32());
     Node* const p0 = m.Parameter(0);
     Node* const n = m.Word64Shl(m.ChangeUint32ToUint64(p0), m.Int64Constant(x));
     m.Return(n);
@@ -1222,7 +1231,7 @@ TEST_F(InstructionSelectorTest, Word64ShlWithChangeUint32ToUint64) {
 
 TEST_F(InstructionSelectorTest, Word32AndWith0xff) {
   {
-    StreamBuilder m(this, kMachInt32, kMachInt32);
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
     Node* const p0 = m.Parameter(0);
     Node* const n = m.Word32And(p0, m.Int32Constant(0xff));
     m.Return(n);
@@ -1235,7 +1244,7 @@ TEST_F(InstructionSelectorTest, Word32AndWith0xff) {
     EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
   }
   {
-    StreamBuilder m(this, kMachInt32, kMachInt32);
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
     Node* const p0 = m.Parameter(0);
     Node* const n = m.Word32And(m.Int32Constant(0xff), p0);
     m.Return(n);
@@ -1252,7 +1261,7 @@ TEST_F(InstructionSelectorTest, Word32AndWith0xff) {
 
 TEST_F(InstructionSelectorTest, Word32AndWith0xffff) {
   {
-    StreamBuilder m(this, kMachInt32, kMachInt32);
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
     Node* const p0 = m.Parameter(0);
     Node* const n = m.Word32And(p0, m.Int32Constant(0xffff));
     m.Return(n);
@@ -1265,7 +1274,7 @@ TEST_F(InstructionSelectorTest, Word32AndWith0xffff) {
     EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
   }
   {
-    StreamBuilder m(this, kMachInt32, kMachInt32);
+    StreamBuilder m(this, MachineType::Int32(), MachineType::Int32());
     Node* const p0 = m.Parameter(0);
     Node* const n = m.Word32And(m.Int32Constant(0xffff), p0);
     m.Return(n);
@@ -1281,7 +1290,7 @@ TEST_F(InstructionSelectorTest, Word32AndWith0xffff) {
 
 
 TEST_F(InstructionSelectorTest, Word32Clz) {
-  StreamBuilder m(this, kMachUint32, kMachUint32);
+  StreamBuilder m(this, MachineType::Uint32(), MachineType::Uint32());
   Node* const p0 = m.Parameter(0);
   Node* const n = m.Word32Clz(p0);
   m.Return(n);
@@ -1292,6 +1301,55 @@ TEST_F(InstructionSelectorTest, Word32Clz) {
   EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
   ASSERT_EQ(1U, s[0]->OutputCount());
   EXPECT_EQ(s.ToVreg(n), s.ToVreg(s[0]->Output()));
+}
+
+TEST_F(InstructionSelectorTest, LoadAndWord64ShiftRight32) {
+  {
+    StreamBuilder m(this, MachineType::Uint64(), MachineType::Uint32());
+    Node* const p0 = m.Parameter(0);
+    Node* const load = m.Load(MachineType::Uint64(), p0);
+    Node* const shift = m.Word64Shr(load, m.Int32Constant(32));
+    m.Return(shift);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kX64Movl, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(4, s.ToInt32(s[0]->InputAt(1)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(shift), s.ToVreg(s[0]->Output()));
+  }
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int32());
+    Node* const p0 = m.Parameter(0);
+    Node* const load = m.Load(MachineType::Int64(), p0);
+    Node* const shift = m.Word64Sar(load, m.Int32Constant(32));
+    m.Return(shift);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kX64Movsxlq, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(4, s.ToInt32(s[0]->InputAt(1)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(shift), s.ToVreg(s[0]->Output()));
+  }
+  {
+    StreamBuilder m(this, MachineType::Int64(), MachineType::Int32());
+    Node* const p0 = m.Parameter(0);
+    Node* const load = m.Load(MachineType::Int64(), p0);
+    Node* const shift = m.Word64Sar(load, m.Int32Constant(32));
+    Node* const truncate = m.TruncateInt64ToInt32(shift);
+    m.Return(truncate);
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kX64Movl, s[0]->arch_opcode());
+    ASSERT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(s.ToVreg(p0), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(4, s.ToInt32(s[0]->InputAt(1)));
+    ASSERT_EQ(1U, s[0]->OutputCount());
+    EXPECT_EQ(s.ToVreg(shift), s.ToVreg(s[0]->Output()));
+  }
 }
 
 }  // namespace compiler

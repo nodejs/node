@@ -5,15 +5,16 @@
 #ifndef V8_COMPILER_AST_LOOP_ASSIGNMENT_ANALYZER_H_
 #define V8_COMPILER_AST_LOOP_ASSIGNMENT_ANALYZER_H_
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
 #include "src/bit-vector.h"
 #include "src/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 
-class Variable;
+class CompilationInfo;
 class Scope;
+class Variable;
 
 namespace compiler {
 
@@ -26,10 +27,10 @@ class LoopAssignmentAnalysis : public ZoneObject {
       if (list_[i].first == loop) return list_[i].second;
     }
     UNREACHABLE();  // should never ask for loops that aren't here!
-    return NULL;
+    return nullptr;
   }
 
-  int GetAssignmentCountForTesting(Scope* scope, Variable* var);
+  int GetAssignmentCountForTesting(DeclarationScope* scope, Variable* var);
 
  private:
   friend class AstLoopAssignmentAnalyzer;
@@ -39,17 +40,18 @@ class LoopAssignmentAnalysis : public ZoneObject {
 
 
 // The class that performs loop assignment analysis by walking the AST.
-class AstLoopAssignmentAnalyzer : public AstVisitor {
+class AstLoopAssignmentAnalyzer final
+    : public AstVisitor<AstLoopAssignmentAnalyzer> {
  public:
   AstLoopAssignmentAnalyzer(Zone* zone, CompilationInfo* info);
 
   LoopAssignmentAnalysis* Analyze();
 
-#define DECLARE_VISIT(type) void Visit##type(type* node) override;
+#define DECLARE_VISIT(type) void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
 
-  static int GetVariableIndex(Scope* scope, Variable* var);
+  static int GetVariableIndex(DeclarationScope* scope, Variable* var);
 
  private:
   CompilationInfo* info_;
@@ -63,7 +65,7 @@ class AstLoopAssignmentAnalyzer : public AstVisitor {
   void Exit(IterationStatement* loop);
 
   void VisitIfNotNull(AstNode* node) {
-    if (node != NULL) Visit(node);
+    if (node != nullptr) Visit(node);
   }
 
   void AnalyzeAssignment(Variable* var);

@@ -118,7 +118,7 @@ ___
 		{
 		local($ex)=($target =~ /O_SSL/)?' $(L_CRYPTO)':'';
 		$ex.=' ws2_32.lib gdi32.lib';
-		$ret.="\t\$(LINK) \$(MLFLAGS) $efile$target /def:ms/${Name}.def @<<\n  \$(SHLIB_EX_OBJ) $objs $ex\n<<\n";
+		$ret.="\t\$(LINK_CMD) \$(MLFLAGS) $efile$target /def:ms/${Name}.def @<<\n  \$(SHLIB_EX_OBJ) $objs $ex\n<<\n";
 		}
 	$ret.="\n";
 	return($ret);
@@ -132,7 +132,7 @@ sub do_link_rule
 	$file =~ s/\//$o/g if $o ne '/';
 	$n=&bname($target);
 	$ret.="$target: $files $dep_libs\n";
-	$ret.="\t\$(LINK) \$(LFLAGS) $files \$(APP_EX_OBJ), $target,, $libs\n\n";
+	$ret.="\t\$(LINK_CMD) \$(LFLAGS) $files \$(APP_EX_OBJ), $target,, $libs\n\n";
 	return($ret);
 	}
 

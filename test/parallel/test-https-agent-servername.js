@@ -1,31 +1,31 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 
-var https = require('https');
-var fs = require('fs');
+const https = require('https');
+const fs = require('fs');
 
-var options = {
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem'),
   ca:  fs.readFileSync(common.fixturesDir + '/keys/ca1-cert.pem')
 };
 
 
-var server = https.Server(options, function(req, res) {
+const server = https.Server(options, function(req, res) {
   res.writeHead(200);
   res.end('hello world\n');
 });
 
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   https.get({
     path: '/',
-    port: common.PORT,
+    port: this.address().port,
     rejectUnauthorized: true,
     servername: 'agent1',
     ca: options.ca

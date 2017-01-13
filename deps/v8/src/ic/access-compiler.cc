@@ -18,7 +18,8 @@ Handle<Code> PropertyAccessCompiler::GetCodeWithFlags(Code::Flags flags,
   if (code->IsCodeStubOrIC()) code->set_stub_key(CodeStub::NoCacheKey());
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_code_stubs) {
-    OFStream os(stdout);
+    CodeTracer::Scope trace_scope(isolate()->GetCodeTracer());
+    OFStream os(trace_scope.file());
     code->Disassemble(name, os);
   }
 #endif
@@ -55,9 +56,8 @@ Register PropertyAccessCompiler::slot() const {
   if (kind() == Code::LOAD_IC || kind() == Code::KEYED_LOAD_IC) {
     return LoadDescriptor::SlotRegister();
   }
-  DCHECK(FLAG_vector_stores &&
-         (kind() == Code::STORE_IC || kind() == Code::KEYED_STORE_IC));
-  return VectorStoreICDescriptor::SlotRegister();
+  DCHECK(kind() == Code::STORE_IC || kind() == Code::KEYED_STORE_IC);
+  return StoreWithVectorDescriptor::SlotRegister();
 }
 
 
@@ -65,9 +65,8 @@ Register PropertyAccessCompiler::vector() const {
   if (kind() == Code::LOAD_IC || kind() == Code::KEYED_LOAD_IC) {
     return LoadWithVectorDescriptor::VectorRegister();
   }
-  DCHECK(FLAG_vector_stores &&
-         (kind() == Code::STORE_IC || kind() == Code::KEYED_STORE_IC));
-  return VectorStoreICDescriptor::VectorRegister();
+  DCHECK(kind() == Code::STORE_IC || kind() == Code::KEYED_STORE_IC);
+  return StoreWithVectorDescriptor::VectorRegister();
 }
 }  // namespace internal
 }  // namespace v8

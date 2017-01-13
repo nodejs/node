@@ -1,26 +1,36 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var spawn = require('child_process').spawn;
+const common = require('../common');
+const assert = require('assert');
+const spawn = require('child_process').spawn;
 
 if (common.isWindows) {
-  console.log('1..0 # Skipped: platform not supported.');
+  common.skip('platform not supported.');
   return;
 }
 
 if (process.argv[2] === 'child') {
-  process.stdout.write('stdout', function() {
-    process.stderr.write('stderr', function() {
-      process.exit(42);
+  try {
+    process.stdout.write('stdout', function() {
+      try {
+        process.stderr.write('stderr', function() {
+          process.exit(42);
+        });
+      } catch (e) {
+        process.exit(84);
+      }
     });
-  });
+  } catch (e) {
+    assert.strictEqual(e.code, 'EBADF');
+    assert.strictEqual(e.message, 'EBADF: bad file descriptor, write');
+    process.exit(126);
+  }
   return;
 }
 
 // Run the script in a shell but close stdout and stderr.
-var cmd = '"' + process.execPath + '" "' + __filename + '" child 1>&- 2>&-';
-var proc = spawn('/bin/sh', ['-c', cmd], { stdio: 'inherit' });
+const cmd = `"${process.execPath}" "${__filename}" child 1>&- 2>&-`;
+const proc = spawn('/bin/sh', ['-c', cmd], { stdio: 'inherit' });
 
 proc.on('exit', common.mustCall(function(exitCode) {
-  assert.equal(exitCode, 42);
+  assert.strictEqual(exitCode, common.isAix ? 126 : 42);
 }));

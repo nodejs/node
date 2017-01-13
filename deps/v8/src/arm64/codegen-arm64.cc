@@ -15,69 +15,8 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-#if defined(USE_SIMULATOR)
-byte* fast_exp_arm64_machine_code = NULL;
-double fast_exp_simulator(double x) {
-  Simulator * simulator = Simulator::current(Isolate::Current());
-  Simulator::CallArgument args[] = {
-      Simulator::CallArgument(x),
-      Simulator::CallArgument::End()
-  };
-  return simulator->CallDouble(fast_exp_arm64_machine_code, args);
-}
-#endif
-
-
-UnaryMathFunction CreateExpFunction() {
-  if (!FLAG_fast_math) return &std::exp;
-
-  // Use the Math.exp implemetation in MathExpGenerator::EmitMathExp() to create
-  // an AAPCS64-compliant exp() function. This will be faster than the C
-  // library's exp() function, but probably less accurate.
-  size_t actual_size;
-  byte* buffer =
-      static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
-  if (buffer == NULL) return &std::exp;
-
-  ExternalReference::InitializeMathExpData();
-  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
-  masm.SetStackPointer(csp);
-
-  // The argument will be in d0 on entry.
-  DoubleRegister input = d0;
-  // Use other caller-saved registers for all other values.
-  DoubleRegister result = d1;
-  DoubleRegister double_temp1 = d2;
-  DoubleRegister double_temp2 = d3;
-  Register temp1 = x10;
-  Register temp2 = x11;
-  Register temp3 = x12;
-
-  MathExpGenerator::EmitMathExp(&masm, input, result,
-                                double_temp1, double_temp2,
-                                temp1, temp2, temp3);
-  // Move the result to the return register.
-  masm.Fmov(d0, result);
-  masm.Ret();
-
-  CodeDesc desc;
-  masm.GetCode(&desc);
-  DCHECK(!RelocInfo::RequiresRelocation(desc));
-
-  Assembler::FlushICacheWithoutIsolate(buffer, actual_size);
-  base::OS::ProtectCode(buffer, actual_size);
-
-#if !defined(USE_SIMULATOR)
-  return FUNCTION_CAST<UnaryMathFunction>(buffer);
-#else
-  fast_exp_arm64_machine_code = buffer;
-  return &fast_exp_simulator;
-#endif
-}
-
-
-UnaryMathFunction CreateSqrtFunction() {
-  return &std::sqrt;
+UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
+  return nullptr;
 }
 
 
@@ -176,8 +115,8 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   Register map_root = array_size;
   __ LoadRoot(map_root, Heap::kFixedDoubleArrayMapRootIndex);
   __ SmiTag(x11, length);
-  __ Str(x11, MemOperand(array, FixedDoubleArray::kLengthOffset));
-  __ Str(map_root, MemOperand(array, HeapObject::kMapOffset));
+  __ Str(x11, FieldMemOperand(array, FixedDoubleArray::kLengthOffset));
+  __ Str(map_root, FieldMemOperand(array, HeapObject::kMapOffset));
 
   __ Str(target_map, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ RecordWriteField(receiver, HeapObject::kMapOffset, target_map, scratch,
@@ -185,18 +124,18 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
                       OMIT_SMI_CHECK);
 
   // Replace receiver's backing store with newly created FixedDoubleArray.
-  __ Add(x10, array, kHeapObjectTag);
-  __ Str(x10, FieldMemOperand(receiver, JSObject::kElementsOffset));
-  __ RecordWriteField(receiver, JSObject::kElementsOffset, x10,
-                      scratch, kLRHasBeenSaved, kDontSaveFPRegs,
-                      EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
+  __ Move(x10, array);
+  __ Str(array, FieldMemOperand(receiver, JSObject::kElementsOffset));
+  __ RecordWriteField(receiver, JSObject::kElementsOffset, x10, scratch,
+                      kLRHasBeenSaved, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
+                      OMIT_SMI_CHECK);
 
   // Prepare for conversion loop.
   Register src_elements = x10;
   Register dst_elements = x11;
   Register dst_end = x12;
   __ Add(src_elements, elements, FixedArray::kHeaderSize - kHeapObjectTag);
-  __ Add(dst_elements, array, FixedDoubleArray::kHeaderSize);
+  __ Add(dst_elements, array, FixedDoubleArray::kHeaderSize - kHeapObjectTag);
   __ Add(dst_end, dst_elements, Operand(length, LSL, kDoubleSizeLog2));
 
   FPRegister nan_d = d1;
@@ -283,8 +222,8 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   Register map_root = array_size;
   __ LoadRoot(map_root, Heap::kFixedArrayMapRootIndex);
   __ SmiTag(x11, length);
-  __ Str(x11, MemOperand(array, FixedDoubleArray::kLengthOffset));
-  __ Str(map_root, MemOperand(array, HeapObject::kMapOffset));
+  __ Str(x11, FieldMemOperand(array, FixedDoubleArray::kLengthOffset));
+  __ Str(map_root, FieldMemOperand(array, HeapObject::kMapOffset));
 
   // Prepare for conversion loop.
   Register src_elements = x10;
@@ -294,7 +233,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ LoadRoot(the_hole, Heap::kTheHoleValueRootIndex);
   __ Add(src_elements, elements,
          FixedDoubleArray::kHeaderSize - kHeapObjectTag);
-  __ Add(dst_elements, array, FixedArray::kHeaderSize);
+  __ Add(dst_elements, array, FixedArray::kHeaderSize - kHeapObjectTag);
   __ Add(dst_end, dst_elements, Operand(length, LSL, kPointerSizeLog2));
 
   // Allocating heap numbers in the loop below can fail and cause a jump to
@@ -308,8 +247,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ Cmp(dst_elements, dst_end);
   __ B(lt, &initialization_loop);
 
-  __ Add(dst_elements, array, FixedArray::kHeaderSize);
-  __ Add(array, array, kHeapObjectTag);
+  __ Add(dst_elements, array, FixedArray::kHeaderSize - kHeapObjectTag);
 
   Register heap_num_map = x15;
   __ LoadRoot(heap_num_map, Heap::kHeapNumberMapRootIndex);
@@ -368,12 +306,13 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
 }
 
 
-CodeAgingHelper::CodeAgingHelper() {
+CodeAgingHelper::CodeAgingHelper(Isolate* isolate) {
+  USE(isolate);
   DCHECK(young_sequence_.length() == kNoCodeAgeSequenceLength);
   // The sequence of instructions that is patched out for aging code is the
   // following boilerplate stack-building prologue that is found both in
   // FUNCTION and OPTIMIZED_FUNCTION code:
-  PatchingAssembler patcher(young_sequence_.start(),
+  PatchingAssembler patcher(isolate, young_sequence_.start(),
                             young_sequence_.length() / kInstructionSize);
   // The young sequence is the frame setup code for FUNCTION code types. It is
   // generated by FullCodeGenerator::Generate.
@@ -382,7 +321,7 @@ CodeAgingHelper::CodeAgingHelper() {
 #ifdef DEBUG
   const int length = kCodeAgeStubEntryOffset / kInstructionSize;
   DCHECK(old_sequence_.length() >= kCodeAgeStubEntryOffset);
-  PatchingAssembler patcher_old(old_sequence_.start(), length);
+  PatchingAssembler patcher_old(isolate, old_sequence_.start(), length);
   MacroAssembler::EmitCodeAgeSequence(&patcher_old, NULL);
 #endif
 }
@@ -417,7 +356,7 @@ void Code::PatchPlatformCodeAge(Isolate* isolate,
                                 byte* sequence,
                                 Code::Age age,
                                 MarkingParity parity) {
-  PatchingAssembler patcher(sequence,
+  PatchingAssembler patcher(isolate, sequence,
                             kNoCodeAgeSequenceLength / kInstructionSize);
   if (age == kNoAgeCodeAge) {
     MacroAssembler::EmitFrameSetupForCodeAgePatching(&patcher);
@@ -508,127 +447,6 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ Bind(&one_byte);
   // One-byte string.
   __ Ldrb(result, MemOperand(string, index, SXTW));
-  __ Bind(&done);
-}
-
-
-static MemOperand ExpConstant(Register base, int index) {
-  return MemOperand(base, index * kDoubleSize);
-}
-
-
-void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
-                                   DoubleRegister input,
-                                   DoubleRegister result,
-                                   DoubleRegister double_temp1,
-                                   DoubleRegister double_temp2,
-                                   Register temp1,
-                                   Register temp2,
-                                   Register temp3) {
-  // TODO(jbramley): There are several instances where fnmsub could be used
-  // instead of fmul and fsub. Doing this changes the result, but since this is
-  // an estimation anyway, does it matter?
-
-  DCHECK(!AreAliased(input, result,
-                     double_temp1, double_temp2,
-                     temp1, temp2, temp3));
-  DCHECK(ExternalReference::math_exp_constants(0).address() != NULL);
-  DCHECK(!masm->serializer_enabled());  // External references not serializable.
-
-  Label done;
-  DoubleRegister double_temp3 = result;
-  Register constants = temp3;
-
-  // The algorithm used relies on some magic constants which are initialized in
-  // ExternalReference::InitializeMathExpData().
-
-  // Load the address of the start of the array.
-  __ Mov(constants, ExternalReference::math_exp_constants(0));
-
-  // We have to do a four-way split here:
-  //  - If input <= about -708.4, the output always rounds to zero.
-  //  - If input >= about 709.8, the output always rounds to +infinity.
-  //  - If the input is NaN, the output is NaN.
-  //  - Otherwise, the result needs to be calculated.
-  Label result_is_finite_non_zero;
-  // Assert that we can load offset 0 (the small input threshold) and offset 1
-  // (the large input threshold) with a single ldp.
-  DCHECK(kDRegSize == (ExpConstant(constants, 1).offset() -
-                              ExpConstant(constants, 0).offset()));
-  __ Ldp(double_temp1, double_temp2, ExpConstant(constants, 0));
-
-  __ Fcmp(input, double_temp1);
-  __ Fccmp(input, double_temp2, NoFlag, hi);
-  // At this point, the condition flags can be in one of five states:
-  //  NZCV
-  //  1000      -708.4 < input < 709.8    result = exp(input)
-  //  0110      input == 709.8            result = +infinity
-  //  0010      input > 709.8             result = +infinity
-  //  0011      input is NaN              result = input
-  //  0000      input <= -708.4           result = +0.0
-
-  // Continue the common case first. 'mi' tests N == 1.
-  __ B(&result_is_finite_non_zero, mi);
-
-  // TODO(jbramley): Consider adding a +infinity register for ARM64.
-  __ Ldr(double_temp2, ExpConstant(constants, 2));    // Synthesize +infinity.
-
-  // Select between +0.0 and +infinity. 'lo' tests C == 0.
-  __ Fcsel(result, fp_zero, double_temp2, lo);
-  // Select between {+0.0 or +infinity} and input. 'vc' tests V == 0.
-  __ Fcsel(result, result, input, vc);
-  __ B(&done);
-
-  // The rest is magic, as described in InitializeMathExpData().
-  __ Bind(&result_is_finite_non_zero);
-
-  // Assert that we can load offset 3 and offset 4 with a single ldp.
-  DCHECK(kDRegSize == (ExpConstant(constants, 4).offset() -
-                              ExpConstant(constants, 3).offset()));
-  __ Ldp(double_temp1, double_temp3, ExpConstant(constants, 3));
-  __ Fmadd(double_temp1, double_temp1, input, double_temp3);
-  __ Fmov(temp2.W(), double_temp1.S());
-  __ Fsub(double_temp1, double_temp1, double_temp3);
-
-  // Assert that we can load offset 5 and offset 6 with a single ldp.
-  DCHECK(kDRegSize == (ExpConstant(constants, 6).offset() -
-                              ExpConstant(constants, 5).offset()));
-  __ Ldp(double_temp2, double_temp3, ExpConstant(constants, 5));
-  // TODO(jbramley): Consider using Fnmsub here.
-  __ Fmul(double_temp1, double_temp1, double_temp2);
-  __ Fsub(double_temp1, double_temp1, input);
-
-  __ Fmul(double_temp2, double_temp1, double_temp1);
-  __ Fsub(double_temp3, double_temp3, double_temp1);
-  __ Fmul(double_temp3, double_temp3, double_temp2);
-
-  __ Mov(temp1.W(), Operand(temp2.W(), LSR, 11));
-
-  __ Ldr(double_temp2, ExpConstant(constants, 7));
-  // TODO(jbramley): Consider using Fnmsub here.
-  __ Fmul(double_temp3, double_temp3, double_temp2);
-  __ Fsub(double_temp3, double_temp3, double_temp1);
-
-  // The 8th constant is 1.0, so use an immediate move rather than a load.
-  // We can't generate a runtime assertion here as we would need to call Abort
-  // in the runtime and we don't have an Isolate when we generate this code.
-  __ Fmov(double_temp2, 1.0);
-  __ Fadd(double_temp3, double_temp3, double_temp2);
-
-  __ And(temp2, temp2, 0x7ff);
-  __ Add(temp1, temp1, 0x3ff);
-
-  // Do the final table lookup.
-  __ Mov(temp3, ExternalReference::math_exp_log_table());
-
-  __ Add(temp3, temp3, Operand(temp2, LSL, kDRegSizeLog2));
-  __ Ldp(temp2.W(), temp3.W(), MemOperand(temp3));
-  __ Orr(temp1.W(), temp3.W(), Operand(temp1.W(), LSL, 20));
-  __ Bfi(temp2, temp1, 32, 32);
-  __ Fmov(double_temp1, temp2);
-
-  __ Fmul(result, double_temp3, double_temp1);
-
   __ Bind(&done);
 }
 

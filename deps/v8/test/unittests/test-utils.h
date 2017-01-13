@@ -27,7 +27,7 @@ class TestWithIsolate : public virtual ::testing::Test {
   static void TearDownTestCase();
 
  private:
-  static ArrayBufferAllocator* array_buffer_allocator_;
+  static v8::ArrayBuffer::Allocator* array_buffer_allocator_;
   static Isolate* isolate_;
   Isolate::Scope isolate_scope_;
   HandleScope handle_scope_;
@@ -42,6 +42,10 @@ class TestWithContext : public virtual TestWithIsolate {
   virtual ~TestWithContext();
 
   const Local<Context>& context() const { return context_; }
+
+  v8::internal::Isolate* i_isolate() const {
+    return reinterpret_cast<v8::internal::Isolate*>(isolate());
+  }
 
  private:
   Local<Context> context_;
@@ -93,12 +97,13 @@ class TestWithIsolate : public virtual ::v8::TestWithIsolate {
 
 class TestWithZone : public virtual ::testing::Test {
  public:
-  TestWithZone() {}
+  TestWithZone() : zone_(&allocator_) {}
   virtual ~TestWithZone();
 
   Zone* zone() { return &zone_; }
 
  private:
+  base::AccountingAllocator allocator_;
   Zone zone_;
 
   DISALLOW_COPY_AND_ASSIGN(TestWithZone);
@@ -107,12 +112,13 @@ class TestWithZone : public virtual ::testing::Test {
 
 class TestWithIsolateAndZone : public virtual TestWithIsolate {
  public:
-  TestWithIsolateAndZone() {}
+  TestWithIsolateAndZone() : zone_(&allocator_) {}
   virtual ~TestWithIsolateAndZone();
 
   Zone* zone() { return &zone_; }
 
  private:
+  base::AccountingAllocator allocator_;
   Zone zone_;
 
   DISALLOW_COPY_AND_ASSIGN(TestWithIsolateAndZone);

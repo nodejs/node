@@ -1,15 +1,15 @@
 /**
  * @fileoverview Options configuration for optionator.
  * @author George Zahariev
- * See LICENSE in root directory for full license.
  */
+
 "use strict";
 
 //------------------------------------------------------------------------------
 // Requirements
 //------------------------------------------------------------------------------
 
-var optionator = require("optionator");
+const optionator = require("optionator");
 
 //------------------------------------------------------------------------------
 // Initialization and Public Interface
@@ -18,8 +18,10 @@ var optionator = require("optionator");
 // exports "parse(args)", "generateHelp()", and "generateHelpForOption(optionName)"
 module.exports = optionator({
     prepend: "eslint [options] file.js [file.js] [dir]",
-    concatRepeatedArrays: true,
-    mergeRepeatedObjects: true,
+    defaults: {
+        concatRepeatedArrays: true,
+        mergeRepeatedObjects: true
+    },
     options: [
         {
             heading: "Basic configuration"
@@ -55,8 +57,12 @@ module.exports = optionator({
         {
             option: "parser",
             type: "String",
-            default: "espree",
             description: "Specify the parser to be used"
+        },
+        {
+            option: "parser-options",
+            type: "Object",
+            description: "Specify parser options"
         },
         {
             heading: "Caching"
@@ -108,12 +114,15 @@ module.exports = optionator({
             option: "ignore",
             type: "Boolean",
             default: "true",
-            description: "Disable use of .eslintignore"
+            description: "Disable use of ignore files and patterns"
         },
         {
             option: "ignore-pattern",
             type: "[String]",
-            description: "Pattern of files to ignore (in addition to those in .eslintignore)"
+            description: "Pattern of files to ignore (in addition to those in .eslintignore)",
+            concatRepeatedArrays: [true, {
+                oneValuePerFlag: true
+            }]
         },
         {
             heading: "Using stdin"
@@ -140,7 +149,7 @@ module.exports = optionator({
         },
         {
             option: "max-warnings",
-            type: "Number",
+            type: "Int",
             default: "-1",
             description: "Number of warnings to trigger nonzero exit code"
         },
@@ -163,8 +172,8 @@ module.exports = optionator({
         {
             option: "color",
             type: "Boolean",
-            default: "true",
-            description: "Disable color in piped output"
+            alias: "no-color",
+            description: "Force enabling/disabling of color"
         },
         {
             heading: "Miscellaneous"
@@ -197,13 +206,18 @@ module.exports = optionator({
             option: "version",
             alias: "v",
             type: "Boolean",
-            description: "Outputs the version number"
+            description: "Output the version number"
         },
         {
             option: "inline-config",
             type: "Boolean",
             default: "true",
-            description: "Allow comments to change eslint config/rules"
+            description: "Prevent comments from changing config or rules"
+        },
+        {
+            option: "print-config",
+            type: "path::String",
+            description: "Print the configuration for the given file"
         }
     ]
 });

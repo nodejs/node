@@ -25,9 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// TODO(mythria): Remove this after this flag is turned on globally
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include <stdlib.h>
 
 #include "src/v8.h"
@@ -146,7 +143,7 @@ TEST(UniqueSet_Add) {
   MAKE_HANDLES_AND_DISALLOW_ALLOCATION;
   MAKE_UNIQUES_A_B_C;
 
-  Zone zone;
+  Zone zone(CcTest::i_isolate()->allocator());
 
   UniqueSet<String>* set = new(&zone) UniqueSet<String>();
 
@@ -173,7 +170,7 @@ TEST(UniqueSet_Remove) {
   MAKE_HANDLES_AND_DISALLOW_ALLOCATION;
   MAKE_UNIQUES_A_B_C;
 
-  Zone zone;
+  Zone zone(CcTest::i_isolate()->allocator());
 
   UniqueSet<String>* set = new(&zone) UniqueSet<String>();
 
@@ -213,7 +210,7 @@ TEST(UniqueSet_Contains) {
   MAKE_HANDLES_AND_DISALLOW_ALLOCATION;
   MAKE_UNIQUES_A_B_C;
 
-  Zone zone;
+  Zone zone(CcTest::i_isolate()->allocator());
 
   UniqueSet<String>* set = new(&zone) UniqueSet<String>();
 
@@ -244,7 +241,7 @@ TEST(UniqueSet_At) {
   MAKE_HANDLES_AND_DISALLOW_ALLOCATION;
   MAKE_UNIQUES_A_B_C;
 
-  Zone zone;
+  Zone zone(CcTest::i_isolate()->allocator());
 
   UniqueSet<String>* set = new(&zone) UniqueSet<String>();
 
@@ -281,7 +278,7 @@ TEST(UniqueSet_Equals) {
   MAKE_HANDLES_AND_DISALLOW_ALLOCATION;
   MAKE_UNIQUES_A_B_C;
 
-  Zone zone;
+  Zone zone(CcTest::i_isolate()->allocator());
 
   UniqueSet<String>* set1 = new(&zone) UniqueSet<String>();
   UniqueSet<String>* set2 = new(&zone) UniqueSet<String>();
@@ -319,7 +316,7 @@ TEST(UniqueSet_IsSubset1) {
   MAKE_HANDLES_AND_DISALLOW_ALLOCATION;
   MAKE_UNIQUES_A_B_C;
 
-  Zone zone;
+  Zone zone(CcTest::i_isolate()->allocator());
 
   UniqueSet<String>* set1 = new(&zone) UniqueSet<String>();
   UniqueSet<String>* set2 = new(&zone) UniqueSet<String>();
@@ -354,7 +351,7 @@ TEST(UniqueSet_IsSubset2) {
   MAKE_HANDLES_AND_DISALLOW_ALLOCATION;
   MAKE_UNIQUES_A_B_C_D_E_F_G;
 
-  Zone zone;
+  Zone zone(CcTest::i_isolate()->allocator());
 
   UniqueSet<String>* set1 = new(&zone) UniqueSet<String>();
   UniqueSet<String>* set2 = new(&zone) UniqueSet<String>();
@@ -397,7 +394,7 @@ TEST(UniqueSet_IsSubsetExhaustive) {
   MAKE_HANDLES_AND_DISALLOW_ALLOCATION;
   MAKE_UNIQUES_A_B_C_D_E_F_G;
 
-  Zone zone;
+  Zone zone(CcTest::i_isolate()->allocator());
 
   Unique<String> elements[] = {
     A, B, C, D, E, F, G
@@ -420,7 +417,7 @@ TEST(UniqueSet_Intersect1) {
   MAKE_HANDLES_AND_DISALLOW_ALLOCATION;
   MAKE_UNIQUES_A_B_C;
 
-  Zone zone;
+  Zone zone(CcTest::i_isolate()->allocator());
 
   UniqueSet<String>* set1 = new(&zone) UniqueSet<String>();
   UniqueSet<String>* set2 = new(&zone) UniqueSet<String>();
@@ -461,7 +458,7 @@ TEST(UniqueSet_IntersectExhaustive) {
   MAKE_HANDLES_AND_DISALLOW_ALLOCATION;
   MAKE_UNIQUES_A_B_C_D_E_F_G;
 
-  Zone zone;
+  Zone zone(CcTest::i_isolate()->allocator());
 
   Unique<String> elements[] = {
     A, B, C, D, E, F, G
@@ -488,7 +485,7 @@ TEST(UniqueSet_Union1) {
   MAKE_HANDLES_AND_DISALLOW_ALLOCATION;
   MAKE_UNIQUES_A_B_C;
 
-  Zone zone;
+  Zone zone(CcTest::i_isolate()->allocator());
 
   UniqueSet<String>* set1 = new(&zone) UniqueSet<String>();
   UniqueSet<String>* set2 = new(&zone) UniqueSet<String>();
@@ -529,7 +526,7 @@ TEST(UniqueSet_UnionExhaustive) {
   MAKE_HANDLES_AND_DISALLOW_ALLOCATION;
   MAKE_UNIQUES_A_B_C_D_E_F_G;
 
-  Zone zone;
+  Zone zone(CcTest::i_isolate()->allocator());
 
   Unique<String> elements[] = {
     A, B, C, D, E, F, G

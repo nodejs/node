@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 
 // this test only fails with CentOS 6.3 using kernel version 2.6.32
 // On other linuxes and darwin, the `read` call gets an ECONNRESET in
@@ -18,9 +18,8 @@ switch (process.argv[2]) {
 }
 
 function server() {
-  var net = require('net');
-  var content = new Buffer(64 * 1024 * 1024);
-  content.fill('#');
+  const net = require('net');
+  const content = Buffer.alloc(64 * 1024 * 1024, '#');
   net.createServer(function(socket) {
     this.close();
     socket.on('end', function() {
@@ -30,15 +29,15 @@ function server() {
       console.error('_socketEnd');
     });
     socket.write(content);
-  }).listen(common.PORT, function() {
+  }).listen(common.PORT, common.localhostIPv4, function() {
     console.log('listening');
   });
 }
 
 function client() {
-  var net = require('net');
-  var client = net.connect({
-    host: 'localhost',
+  const net = require('net');
+  const client = net.connect({
+    host: common.localhostIPv4,
     port: common.PORT
   }, function() {
     client.destroy();
@@ -46,52 +45,26 @@ function client() {
 }
 
 function parent() {
-  var spawn = require('child_process').spawn;
-  var node = process.execPath;
-  var assert = require('assert');
-  var serverExited = false;
-  var clientExited = false;
-  var serverListened = false;
+  const spawn = require('child_process').spawn;
+  const node = process.execPath;
 
-  process.on('exit', function() {
-    assert(serverExited);
-    assert(clientExited);
-    assert(serverListened);
-    console.log('ok');
-  });
-
-  setTimeout(function() {
-    if (s) s.kill();
-    if (c) c.kill();
-    setTimeout(function() {
-      throw new Error('hang');
-    });
-  }, common.platformTimeout(2000)).unref();
-
-  var s = spawn(node, [__filename, 'server'], {
+  const s = spawn(node, [__filename, 'server'], {
     env: Object.assign(process.env, {
       NODE_DEBUG: 'net'
     })
   });
-  var c;
+  let c;
 
   wrap(s.stderr, process.stderr, 'SERVER 2>');
   wrap(s.stdout, process.stdout, 'SERVER 1>');
-  s.on('exit', function(c) {
-    console.error('server exited', c);
-    serverExited = true;
-  });
+  s.on('exit', common.mustCall(function(c) {}));
 
-  s.stdout.once('data', function() {
-    serverListened = true;
+  s.stdout.once('data', common.mustCall(function() {
     c = spawn(node, [__filename, 'client']);
     wrap(c.stderr, process.stderr, 'CLIENT 2>');
     wrap(c.stdout, process.stdout, 'CLIENT 1>');
-    c.on('exit', function(c) {
-      console.error('client exited', c);
-      clientExited = true;
-    });
-  });
+    c.on('exit', common.mustCall(function(c) {}));
+  }));
 
   function wrap(inp, out, w) {
     inp.setEncoding('utf8');
@@ -102,4 +75,3 @@ function parent() {
     });
   }
 }
-

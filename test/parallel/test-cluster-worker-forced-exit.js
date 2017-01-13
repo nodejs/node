@@ -1,12 +1,12 @@
 'use strict';
-require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
 
-var SENTINEL = 42;
+const SENTINEL = 42;
 
 // workers forcibly exit when control channel is disconnected, if
-// their .suicide flag isn't set
+// their .exitedAfterDisconnect flag isn't set
 //
 // test this by:
 //
@@ -24,35 +24,21 @@ if (cluster.isWorker) {
   return;
 }
 
-var unforcedOk;
-var forcedOk;
-
-process.on('exit', function() {
-  assert(forcedOk);
-  assert(unforcedOk);
-});
-
 checkUnforced();
 checkForced();
 
 function checkUnforced() {
   cluster.fork()
-  .on('online', function() {
-    this.disconnect();
-  })
-  .on('exit', function(status) {
-    assert.equal(status, SENTINEL);
-    unforcedOk = true;
-  });
+    .on('online', function() { this.disconnect(); })
+    .on('exit', common.mustCall(function(status) {
+      assert.strictEqual(status, SENTINEL);
+    }));
 }
 
 function checkForced() {
   cluster.fork()
-  .on('online', function() {
-    this.process.disconnect();
-  })
-  .on('exit', function(status) {
-    assert.equal(status, 0);
-    forcedOk = true;
-  });
+    .on('online', function() { this.process.disconnect(); })
+    .on('exit', common.mustCall(function(status) {
+      assert.strictEqual(status, 0);
+    }));
 }

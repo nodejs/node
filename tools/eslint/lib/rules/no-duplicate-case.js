@@ -1,9 +1,7 @@
 /**
  * @fileoverview Rule to disallow a duplicate case label.
-  * @author Dieter Oberkofler
+ * @author Dieter Oberkofler
  * @author Burak Yigit Kaya
- * @copyright 2015 Dieter Oberkofler. All rights reserved.
- * @copyright 2015 Burak Yigit Kaya. All rights reserved.
  */
 
 "use strict";
@@ -12,22 +10,34 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow duplicate case labels",
+            category: "Possible Errors",
+            recommended: true
+        },
 
-    return {
-        "SwitchStatement": function(node) {
-            var mapping = {};
+        schema: []
+    },
 
-            node.cases.forEach(function(switchCase) {
-                var key = context.getSource(switchCase.test);
-                if (mapping[key]) {
-                    context.report(switchCase, "Duplicate case label.");
-                } else {
-                    mapping[key] = switchCase;
-                }
-            });
-        }
-    };
+    create(context) {
+        const sourceCode = context.getSourceCode();
+
+        return {
+            SwitchStatement(node) {
+                const mapping = {};
+
+                node.cases.forEach(switchCase => {
+                    const key = sourceCode.getText(switchCase.test);
+
+                    if (mapping[key]) {
+                        context.report({ node: switchCase, message: "Duplicate case label." });
+                    } else {
+                        mapping[key] = switchCase;
+                    }
+                });
+            }
+        };
+    }
 };
-
-module.exports.schema = [];

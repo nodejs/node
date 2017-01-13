@@ -11,11 +11,14 @@
 // -------------------------------------------------------------------
 // Imports
 
-var ArrayFrom;
-var ArrayToString;
+// array.js has to come before typedarray.js for this to work
+var ArrayToString = utils.ImportNow("ArrayToString");
 var ArrayValues;
+var GetIterator;
+var GetMethod;
 var GlobalArray = global.Array;
 var GlobalArrayBuffer = global.ArrayBuffer;
+var GlobalArrayBufferPrototype = GlobalArrayBuffer.prototype;
 var GlobalDataView = global.DataView;
 var GlobalObject = global.Object;
 var InnerArrayCopyWithin;
@@ -25,10 +28,7 @@ var InnerArrayFilter;
 var InnerArrayFind;
 var InnerArrayFindIndex;
 var InnerArrayForEach;
-var InnerArrayIndexOf;
 var InnerArrayJoin;
-var InnerArrayLastIndexOf;
-var InnerArrayMap;
 var InnerArrayReduce;
 var InnerArrayReduceRight;
 var InnerArraySome;
@@ -36,13 +36,14 @@ var InnerArraySort;
 var InnerArrayToLocaleString;
 var InternalArray = utils.InternalArray;
 var IsNaN;
-var MakeRangeError;
-var MakeTypeError;
 var MaxSimple;
 var MinSimple;
 var PackedArrayReverse;
+var SpeciesConstructor;
 var ToPositiveInteger;
+var ToIndex;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
+var speciesSymbol = utils.ImportNow("species_symbol");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 macro TYPED_ARRAYS(FUNCTION)
@@ -64,10 +65,12 @@ endmacro
 
 TYPED_ARRAYS(DECLARE_GLOBALS)
 
+var GlobalTypedArray = %object_get_prototype_of(GlobalUint8Array);
+
 utils.Import(function(from) {
-  ArrayFrom = from.ArrayFrom;
-  ArrayToString = from.ArrayToString;
   ArrayValues = from.ArrayValues;
+  GetIterator = from.GetIterator;
+  GetMethod = from.GetMethod;
   InnerArrayCopyWithin = from.InnerArrayCopyWithin;
   InnerArrayEvery = from.InnerArrayEvery;
   InnerArrayFill = from.InnerArrayFill;
@@ -75,36 +78,72 @@ utils.Import(function(from) {
   InnerArrayFind = from.InnerArrayFind;
   InnerArrayFindIndex = from.InnerArrayFindIndex;
   InnerArrayForEach = from.InnerArrayForEach;
-  InnerArrayIndexOf = from.InnerArrayIndexOf;
   InnerArrayJoin = from.InnerArrayJoin;
-  InnerArrayLastIndexOf = from.InnerArrayLastIndexOf;
-  InnerArrayMap = from.InnerArrayMap;
   InnerArrayReduce = from.InnerArrayReduce;
   InnerArrayReduceRight = from.InnerArrayReduceRight;
   InnerArraySome = from.InnerArraySome;
   InnerArraySort = from.InnerArraySort;
   InnerArrayToLocaleString = from.InnerArrayToLocaleString;
   IsNaN = from.IsNaN;
-  MakeRangeError = from.MakeRangeError;
-  MakeTypeError = from.MakeTypeError;
-  MakeTypeError = from.MakeTypeError;
   MaxSimple = from.MaxSimple;
-  MaxSimple = from.MaxSimple;
-  MinSimple = from.MinSimple;
   MinSimple = from.MinSimple;
   PackedArrayReverse = from.PackedArrayReverse;
+  SpeciesConstructor = from.SpeciesConstructor;
   ToPositiveInteger = from.ToPositiveInteger;
+  ToIndex = from.ToIndex;
 });
 
 // --------------- Typed Arrays ---------------------
 
+function TypedArrayDefaultConstructor(typedArray) {
+  switch (%_ClassOf(typedArray)) {
+macro TYPED_ARRAY_CONSTRUCTOR_CASE(ARRAY_ID, NAME, ELEMENT_SIZE)
+    case "NAME":
+      return GlobalNAME;
+endmacro
+TYPED_ARRAYS(TYPED_ARRAY_CONSTRUCTOR_CASE)
+  }
+  // The TypeError should not be generated since all callers should
+  // have already called ValidateTypedArray.
+  throw %make_type_error(kIncompatibleMethodReceiver,
+                      "TypedArrayDefaultConstructor", this);
+}
+
+function TypedArrayCreate(constructor, arg0, arg1, arg2) {
+  if (IS_UNDEFINED(arg1)) {
+    var newTypedArray = new constructor(arg0);
+  } else {
+    var newTypedArray = new constructor(arg0, arg1, arg2);
+  }
+  if (!IS_TYPEDARRAY(newTypedArray)) throw %make_type_error(kNotTypedArray);
+  // TODO(littledan): Check for being detached, here and elsewhere
+  // All callers where the first argument is a Number have no additional
+  // arguments.
+  if (IS_NUMBER(arg0) && %_TypedArrayGetLength(newTypedArray) < arg0) {
+    throw %make_type_error(kTypedArrayTooShort);
+  }
+  return newTypedArray;
+}
+
+function TypedArraySpeciesCreate(exemplar, arg0, arg1, arg2, conservative) {
+  var defaultConstructor = TypedArrayDefaultConstructor(exemplar);
+  var constructor = SpeciesConstructor(exemplar, defaultConstructor,
+                                       conservative);
+  return TypedArrayCreate(constructor, arg0, arg1, arg2);
+}
+
 macro TYPED_ARRAY_CONSTRUCTOR(ARRAY_ID, NAME, ELEMENT_SIZE)
 function NAMEConstructByArrayBuffer(obj, buffer, byteOffset, length) {
   if (!IS_UNDEFINED(byteOffset)) {
-    byteOffset = ToPositiveInteger(byteOffset, kInvalidTypedArrayLength);
+    byteOffset = ToIndex(byteOffset, kInvalidTypedArrayLength);
   }
   if (!IS_UNDEFINED(length)) {
-    length = ToPositiveInteger(length, kInvalidTypedArrayLength);
+    length = ToIndex(length, kInvalidTypedArrayLength);
+  }
+  if (length > %_MaxSmi()) {
+    // Note: this is not per spec, but rather a constraint of our current
+    // representation (which uses smi's).
+    throw %make_range_error(kInvalidTypedArrayLength);
   }
 
   var bufferByteLength = %_ArrayBufferGetByteLength(buffer);
@@ -115,39 +154,38 @@ function NAMEConstructByArrayBuffer(obj, buffer, byteOffset, length) {
     offset = byteOffset;
 
     if (offset % ELEMENT_SIZE !== 0) {
-      throw MakeRangeError(kInvalidTypedArrayAlignment,
+      throw %make_range_error(kInvalidTypedArrayAlignment,
                            "start offset", "NAME", ELEMENT_SIZE);
-    }
-    if (offset > bufferByteLength) {
-      throw MakeRangeError(kInvalidTypedArrayOffset);
     }
   }
 
   var newByteLength;
-  var newLength;
   if (IS_UNDEFINED(length)) {
     if (bufferByteLength % ELEMENT_SIZE !== 0) {
-      throw MakeRangeError(kInvalidTypedArrayAlignment,
+      throw %make_range_error(kInvalidTypedArrayAlignment,
                            "byte length", "NAME", ELEMENT_SIZE);
     }
     newByteLength = bufferByteLength - offset;
-    newLength = newByteLength / ELEMENT_SIZE;
+    if (newByteLength < 0) {
+      throw %make_range_error(kInvalidTypedArrayAlignment,
+                           "byte length", "NAME", ELEMENT_SIZE);
+    }
   } else {
-    var newLength = length;
-    newByteLength = newLength * ELEMENT_SIZE;
-  }
-  if ((offset + newByteLength > bufferByteLength)
-      || (newLength > %_MaxSmi())) {
-    throw MakeRangeError(kInvalidTypedArrayLength);
+    newByteLength = length * ELEMENT_SIZE;
+    if (offset + newByteLength > bufferByteLength) {
+      throw %make_range_error(kInvalidTypedArrayLength);
+    }
   }
   %_TypedArrayInitialize(obj, ARRAY_ID, buffer, offset, newByteLength, true);
 }
 
 function NAMEConstructByLength(obj, length) {
   var l = IS_UNDEFINED(length) ?
-    0 : ToPositiveInteger(length, kInvalidTypedArrayLength);
-  if (l > %_MaxSmi()) {
-    throw MakeRangeError(kInvalidTypedArrayLength);
+    0 : ToIndex(length, kInvalidTypedArrayLength);
+  if (length > %_MaxSmi()) {
+    // Note: this is not per spec, but rather a constraint of our current
+    // representation (which uses smi's).
+    throw %make_range_error(kInvalidTypedArrayLength);
   }
   var byteLength = l * ELEMENT_SIZE;
   if (byteLength > %_TypedArrayMaxSizeInHeap()) {
@@ -158,12 +196,11 @@ function NAMEConstructByLength(obj, length) {
   }
 }
 
-function NAMEConstructByArrayLike(obj, arrayLike) {
-  var length = arrayLike.length;
+function NAMEConstructByArrayLike(obj, arrayLike, length) {
   var l = ToPositiveInteger(length, kInvalidTypedArrayLength);
 
   if (l > %_MaxSmi()) {
-    throw MakeRangeError(kInvalidTypedArrayLength);
+    throw %make_range_error(kInvalidTypedArrayLength);
   }
   var initialized = false;
   var byteLength = l * ELEMENT_SIZE;
@@ -199,61 +236,47 @@ function NAMEConstructByIterable(obj, iterable, iteratorFn) {
   for (var value of newIterable) {
     list.push(value);
   }
-  NAMEConstructByArrayLike(obj, list);
+  NAMEConstructByArrayLike(obj, list, list.length);
+}
+
+// ES#sec-typedarray-typedarray TypedArray ( typedArray )
+function NAMEConstructByTypedArray(obj, typedArray) {
+  // TODO(littledan): Throw on detached typedArray
+  var srcData = %TypedArrayGetBuffer(typedArray);
+  var length = %_TypedArrayGetLength(typedArray);
+  var byteLength = %_ArrayBufferViewGetByteLength(typedArray);
+  var newByteLength = length * ELEMENT_SIZE;
+  NAMEConstructByArrayLike(obj, typedArray, length);
+  var bufferConstructor = SpeciesConstructor(srcData, GlobalArrayBuffer);
+  var prototype = bufferConstructor.prototype;
+  // TODO(littledan): Use the right prototype based on bufferConstructor's realm
+  if (IS_RECEIVER(prototype) && prototype !== GlobalArrayBufferPrototype) {
+    %InternalSetPrototype(%TypedArrayGetBuffer(obj), prototype);
+  }
 }
 
 function NAMEConstructor(arg1, arg2, arg3) {
-  if (%_IsConstructCall()) {
+  if (!IS_UNDEFINED(new.target)) {
     if (IS_ARRAYBUFFER(arg1) || IS_SHAREDARRAYBUFFER(arg1)) {
       NAMEConstructByArrayBuffer(this, arg1, arg2, arg3);
-    } else if (IS_NUMBER(arg1) || IS_STRING(arg1) ||
-               IS_BOOLEAN(arg1) || IS_UNDEFINED(arg1)) {
-      NAMEConstructByLength(this, arg1);
-    } else {
+    } else if (IS_TYPEDARRAY(arg1)) {
+      NAMEConstructByTypedArray(this, arg1);
+    } else if (IS_RECEIVER(arg1)) {
       var iteratorFn = arg1[iteratorSymbol];
       if (IS_UNDEFINED(iteratorFn) || iteratorFn === ArrayValues) {
-        NAMEConstructByArrayLike(this, arg1);
+        NAMEConstructByArrayLike(this, arg1, arg1.length);
       } else {
         NAMEConstructByIterable(this, arg1, iteratorFn);
       }
+    } else {
+      NAMEConstructByLength(this, arg1);
     }
   } else {
-    throw MakeTypeError(kConstructorNotFunction, "NAME")
+    throw %make_type_error(kConstructorNotFunction, "NAME")
   }
-}
-
-function NAME_GetBuffer() {
-  if (!(%_ClassOf(this) === 'NAME')) {
-    throw MakeTypeError(kIncompatibleMethodReceiver, "NAME.buffer", this);
-  }
-  return %TypedArrayGetBuffer(this);
-}
-
-function NAME_GetByteLength() {
-  if (!(%_ClassOf(this) === 'NAME')) {
-    throw MakeTypeError(kIncompatibleMethodReceiver, "NAME.byteLength", this);
-  }
-  return %_ArrayBufferViewGetByteLength(this);
-}
-
-function NAME_GetByteOffset() {
-  if (!(%_ClassOf(this) === 'NAME')) {
-    throw MakeTypeError(kIncompatibleMethodReceiver, "NAME.byteOffset", this);
-  }
-  return %_ArrayBufferViewGetByteOffset(this);
-}
-
-function NAME_GetLength() {
-  if (!(%_ClassOf(this) === 'NAME')) {
-    throw MakeTypeError(kIncompatibleMethodReceiver, "NAME.length", this);
-  }
-  return %_TypedArrayGetLength(this);
 }
 
 function NAMESubArray(begin, end) {
-  if (!(%_ClassOf(this) === 'NAME')) {
-    throw MakeTypeError(kIncompatibleMethodReceiver, "NAME.subarray", this);
-  }
   var beginInt = TO_INTEGER(begin);
   if (!IS_UNDEFINED(end)) {
     var endInt = TO_INTEGER(end);
@@ -282,12 +305,28 @@ function NAMESubArray(begin, end) {
   var newLength = endInt - beginInt;
   var beginByteOffset =
       %_ArrayBufferViewGetByteOffset(this) + beginInt * ELEMENT_SIZE;
-  return new GlobalNAME(%TypedArrayGetBuffer(this),
-                        beginByteOffset, newLength);
+  // BUG(v8:4665): For web compatibility, subarray needs to always build an
+  // instance of the default constructor.
+  // TODO(littledan): Switch to the standard or standardize the fix
+  return new GlobalNAME(%TypedArrayGetBuffer(this), beginByteOffset, newLength);
 }
 endmacro
 
 TYPED_ARRAYS(TYPED_ARRAY_CONSTRUCTOR)
+
+function TypedArraySubArray(begin, end) {
+  switch (%_ClassOf(this)) {
+macro TYPED_ARRAY_SUBARRAY_CASE(ARRAY_ID, NAME, ELEMENT_SIZE)
+    case "NAME":
+      return %_Call(NAMESubArray, this, begin, end);
+endmacro
+TYPED_ARRAYS(TYPED_ARRAY_SUBARRAY_CASE)
+  }
+  throw %make_type_error(kIncompatibleMethodReceiver,
+                      "get TypedArray.prototype.subarray", this);
+}
+%SetForceInlineFlag(TypedArraySubArray);
+
 
 
 function TypedArraySetFromArrayLike(target, source, sourceLength, offset) {
@@ -306,7 +345,7 @@ function TypedArraySetFromArrayLike(target, source, sourceLength, offset) {
 function TypedArraySetFromOverlappingTypedArray(target, source, offset) {
   var sourceElementSize = source.BYTES_PER_ELEMENT;
   var targetElementSize = target.BYTES_PER_ELEMENT;
-  var sourceLength = source.length;
+  var sourceLength = %_TypedArrayGetLength(source);
 
   // Copy left part.
   function CopyLeftPart() {
@@ -326,7 +365,7 @@ function TypedArraySetFromOverlappingTypedArray(target, source, offset) {
   }
   var leftIndex = CopyLeftPart();
 
-  // Copy rigth part;
+  // Copy right part;
   function CopyRightPart() {
     // First unmutated byte before the next write
     var targetPtr =
@@ -357,10 +396,10 @@ function TypedArraySetFromOverlappingTypedArray(target, source, offset) {
 
 function TypedArraySet(obj, offset) {
   var intOffset = IS_UNDEFINED(offset) ? 0 : TO_INTEGER(offset);
-  if (intOffset < 0) throw MakeTypeError(kTypedArraySetNegativeOffset);
+  if (intOffset < 0) throw %make_type_error(kTypedArraySetNegativeOffset);
 
   if (intOffset > %_MaxSmi()) {
-    throw MakeRangeError(kTypedArraySetSourceTooLarge);
+    throw %make_range_error(kTypedArraySetSourceTooLarge);
   }
   switch (%TypedArraySetFastCases(this, obj, intOffset)) {
     // These numbers should be synchronized with runtime.cc.
@@ -370,7 +409,8 @@ function TypedArraySet(obj, offset) {
       TypedArraySetFromOverlappingTypedArray(this, obj, intOffset);
       return;
     case 2: // TYPED_ARRAY_SET_TYPED_ARRAY_NONOVERLAPPING
-      TypedArraySetFromArrayLike(this, obj, obj.length, intOffset);
+      TypedArraySetFromArrayLike(this,
+          obj, %_TypedArrayGetLength(obj), intOffset);
       return;
     case 3: // TYPED_ARRAY_SET_NON_TYPED_ARRAY
       var l = obj.length;
@@ -380,55 +420,30 @@ function TypedArraySet(obj, offset) {
             // instead of silently ignoring the call, so that
             // the user knows (s)he did something wrong.
             // (Consistent with Firefox and Blink/WebKit)
-            throw MakeTypeError(kInvalidArgument);
+            throw %make_type_error(kInvalidArgument);
         }
         return;
       }
       l = TO_LENGTH(l);
-      if (intOffset + l > this.length) {
-        throw MakeRangeError(kTypedArraySetSourceTooLarge);
+      if (intOffset + l > %_TypedArrayGetLength(this)) {
+        throw %make_range_error(kTypedArraySetSourceTooLarge);
       }
       TypedArraySetFromArrayLike(this, obj, l, intOffset);
       return;
   }
 }
+%FunctionSetLength(TypedArraySet, 1);
 
 function TypedArrayGetToStringTag() {
-  if (!%_IsTypedArray(this)) return;
+  if (!IS_TYPEDARRAY(this)) return;
   var name = %_ClassOf(this);
   if (IS_UNDEFINED(name)) return;
   return name;
 }
 
 
-function ConstructTypedArray(constructor, arg) {
-  // TODO(littledan): This is an approximation of the spec, which requires
-  // that only real TypedArray classes should be accepted (22.2.2.1.1)
-  if (!%IsConstructor(constructor) || IS_UNDEFINED(constructor.prototype) ||
-      !%HasOwnProperty(constructor.prototype, "BYTES_PER_ELEMENT")) {
-    throw MakeTypeError(kNotTypedArray);
-  }
-
-  // TODO(littledan): The spec requires that, rather than directly calling
-  // the constructor, a TypedArray is created with the proper proto and
-  // underlying size and element size, and elements are put in one by one.
-  // By contrast, this would allow subclasses to make a radically different
-  // constructor with different semantics.
-  return new constructor(arg);
-}
-
-
-function ConstructTypedArrayLike(typedArray, arg) {
-  // TODO(littledan): The spec requires that we actuallly use
-  // typedArray.constructor[Symbol.species] (bug v8:4093)
-  // Also, it should default to the default constructor from
-  // table 49 if typedArray.constructor doesn't exist.
-  return ConstructTypedArray(typedArray.constructor, arg);
-}
-
-
 function TypedArrayCopyWithin(target, start, end) {
-  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
 
@@ -440,7 +455,7 @@ function TypedArrayCopyWithin(target, start, end) {
 
 // ES6 draft 05-05-15, section 22.2.3.7
 function TypedArrayEvery(f, receiver) {
-  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
 
@@ -451,7 +466,7 @@ function TypedArrayEvery(f, receiver) {
 
 // ES6 draft 08-24-14, section 22.2.3.12
 function TypedArrayForEach(f, receiver) {
-  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
 
@@ -462,7 +477,7 @@ function TypedArrayForEach(f, receiver) {
 
 // ES6 draft 04-05-14 section 22.2.3.8
 function TypedArrayFill(value, start, end) {
-  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
 
@@ -472,19 +487,26 @@ function TypedArrayFill(value, start, end) {
 
 
 // ES6 draft 07-15-13, section 22.2.3.9
-function TypedArrayFilter(predicate, thisArg) {
-  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+function TypedArrayFilter(f, thisArg) {
+  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
-  var array = InnerArrayFilter(predicate, thisArg, this, length);
-  return ConstructTypedArrayLike(this, array);
+  if (!IS_CALLABLE(f)) throw %make_type_error(kCalledNonCallable, f);
+  var result = new InternalArray();
+  InnerArrayFilter(f, thisArg, this, length, result);
+  var captured = result.length;
+  var output = TypedArraySpeciesCreate(this, captured);
+  for (var i = 0; i < captured; i++) {
+    output[i] = result[i];
+  }
+  return output;
 }
 %FunctionSetLength(TypedArrayFilter, 1);
 
 
 // ES6 draft 07-15-13, section 22.2.3.10
 function TypedArrayFind(predicate, thisArg) {
-  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
 
@@ -495,7 +517,7 @@ function TypedArrayFind(predicate, thisArg) {
 
 // ES6 draft 07-15-13, section 22.2.3.11
 function TypedArrayFindIndex(predicate, thisArg) {
-  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
 
@@ -506,7 +528,7 @@ function TypedArrayFindIndex(predicate, thisArg) {
 
 // ES6 draft 05-18-15, section 22.2.3.21
 function TypedArrayReverse() {
-  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
 
@@ -515,28 +537,26 @@ function TypedArrayReverse() {
 
 
 function TypedArrayComparefn(x, y) {
-  if (IsNaN(x) && IsNaN(y)) {
-    return IsNaN(y) ? 0 : 1;
+  if (x === 0 && x === y) {
+    x = 1 / x;
+    y = 1 / y;
   }
-  if (IsNaN(x)) {
+  if (x < y) {
+    return -1;
+  } else if (x > y) {
+    return 1;
+  } else if (IsNaN(x) && IsNaN(y)) {
+    return IsNaN(y) ? 0 : 1;
+  } else if (IsNaN(x)) {
     return 1;
   }
-  if (x === 0 && x === y) {
-    if (%_IsMinusZero(x)) {
-      if (!%_IsMinusZero(y)) {
-        return -1;
-      }
-    } else if (%_IsMinusZero(y)) {
-      return 1;
-    }
-  }
-  return x - y;
+  return 0;
 }
 
 
 // ES6 draft 05-18-15, section 22.2.3.25
 function TypedArraySort(comparefn) {
-  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
 
@@ -550,42 +570,97 @@ function TypedArraySort(comparefn) {
 
 // ES6 section 22.2.3.13
 function TypedArrayIndexOf(element, index) {
-  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
-  return InnerArrayIndexOf(this, element, index, length);
+
+  if (length === 0) return -1;
+  if (!IS_NUMBER(element)) return -1;
+  var n = TO_INTEGER(index);
+
+  var k;
+  if (n === 0) {
+    k = 0;
+  } else if (n > 0) {
+    k = n;
+  } else {
+    k = length + n;
+    if (k < 0) {
+      k = 0;
+    }
+  }
+
+  while (k < length) {
+    var elementK = this[k];
+    if (element === elementK) {
+      return k;
+    }
+    ++k;
+  }
+  return -1;
 }
 %FunctionSetLength(TypedArrayIndexOf, 1);
 
 
 // ES6 section 22.2.3.16
 function TypedArrayLastIndexOf(element, index) {
-  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
 
-  return InnerArrayLastIndexOf(this, element, index, length,
-                        %_ArgumentsLength());
+  if (length === 0) return -1;
+  if (!IS_NUMBER(element)) return -1;
+  var n;
+  if (arguments.length < 2) {
+    n = length - 1;
+  } else {
+    n = TO_INTEGER(index);
+  }
+
+  var k;
+  if (n >= 0) {
+    if (length <= n) {
+      k = length - 1;
+    } else if (n === 0) {
+      k = 0;
+    } else {
+      k = n;
+    }
+  } else {
+    k = length + n;
+  }
+
+  while (k >= 0) {
+    var elementK = this[k];
+    if (element === elementK) {
+      return k;
+    }
+    --k;
+  }
+  return -1;
 }
 %FunctionSetLength(TypedArrayLastIndexOf, 1);
 
 
 // ES6 draft 07-15-13, section 22.2.3.18
-function TypedArrayMap(predicate, thisArg) {
-  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+function TypedArrayMap(f, thisArg) {
+  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
 
-  // TODO(littledan): Preallocate rather than making an intermediate
-  // InternalArray, for better performance.
   var length = %_TypedArrayGetLength(this);
-  var array = InnerArrayMap(predicate, thisArg, this, length);
-  return ConstructTypedArrayLike(this, array);
+  var result = TypedArraySpeciesCreate(this, length);
+  if (!IS_CALLABLE(f)) throw %make_type_error(kCalledNonCallable, f);
+  for (var i = 0; i < length; i++) {
+    var element = this[i];
+    result[i] = %_Call(f, thisArg, element, i, this);
+  }
+  return result;
 }
 %FunctionSetLength(TypedArrayMap, 1);
 
 
 // ES6 draft 05-05-15, section 22.2.3.24
 function TypedArraySome(f, receiver) {
-  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
 
@@ -596,7 +671,7 @@ function TypedArraySome(f, receiver) {
 
 // ES6 section 22.2.3.27
 function TypedArrayToLocaleString() {
-  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
 
@@ -604,15 +679,9 @@ function TypedArrayToLocaleString() {
 }
 
 
-// ES6 section 22.2.3.28
-function TypedArrayToString() {
-  return %_Call(ArrayToString, this);
-}
-
-
 // ES6 section 22.2.3.14
 function TypedArrayJoin(separator) {
-  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
 
@@ -622,28 +691,28 @@ function TypedArrayJoin(separator) {
 
 // ES6 draft 07-15-13, section 22.2.3.19
 function TypedArrayReduce(callback, current) {
-  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
   return InnerArrayReduce(callback, current, this, length,
-                          %_ArgumentsLength());
+                          arguments.length);
 }
 %FunctionSetLength(TypedArrayReduce, 1);
 
 
 // ES6 draft 07-15-13, section 22.2.3.19
 function TypedArrayReduceRight(callback, current) {
-  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
 
   var length = %_TypedArrayGetLength(this);
   return InnerArrayReduceRight(callback, current, this, length,
-                               %_ArgumentsLength());
+                               arguments.length);
 }
 %FunctionSetLength(TypedArrayReduceRight, 1);
 
 
 function TypedArraySlice(start, end) {
-  if (!%_IsTypedArray(this)) throw MakeTypeError(kNotTypedArray);
+  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
   var len = %_TypedArrayGetLength(this);
 
   var relativeStart = TO_INTEGER(start);
@@ -670,15 +739,13 @@ function TypedArraySlice(start, end) {
   }
 
   var count = MaxSimple(final - k, 0);
-  var array = ConstructTypedArrayLike(this, count);
+  var array = TypedArraySpeciesCreate(this, count);
   // The code below is the 'then' branch; the 'else' branch species
   // a memcpy. Because V8 doesn't canonicalize NaN, the difference is
   // unobservable.
   var n = 0;
   while (k < final) {
     var kValue = this[k];
-    // TODO(littledan): The spec says to throw on an error in setting;
-    // does this throw?
     array[n] = kValue;
     k++;
     n++;
@@ -687,133 +754,168 @@ function TypedArraySlice(start, end) {
 }
 
 
+// ES2016 draft, section 22.2.3.14
+function TypedArrayIncludes(searchElement, fromIndex) {
+  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
+
+  var length = %_TypedArrayGetLength(this);
+
+  if (length === 0) return false;
+  var n = TO_INTEGER(fromIndex);
+
+  var k;
+  if (n >= 0) {
+    k = n;
+  } else {
+    k = length + n;
+    if (k < 0) {
+      k = 0;
+    }
+  }
+
+  while (k < length) {
+    var elementK = this[k];
+    if (%SameValueZero(searchElement, elementK)) {
+      return true;
+    }
+
+    ++k;
+  }
+
+  return false;
+}
+%FunctionSetLength(TypedArrayIncludes, 1);
+
+
 // ES6 draft 08-24-14, section 22.2.2.2
 function TypedArrayOf() {
-  var length = %_ArgumentsLength();
-  var array = new this(length);
+  var length = arguments.length;
+  var array = TypedArrayCreate(this, length);
   for (var i = 0; i < length; i++) {
-    array[i] = %_Arguments(i);
+    array[i] = arguments[i];
   }
   return array;
 }
 
 
+// ES#sec-iterabletoarraylike Runtime Semantics: IterableToArrayLike( items )
+function IterableToArrayLike(items) {
+  var iterable = GetMethod(items, iteratorSymbol);
+  if (!IS_UNDEFINED(iterable)) {
+    var internal_array = new InternalArray();
+    var i = 0;
+    for (var value of
+         { [iteratorSymbol]() { return GetIterator(items, iterable) } }) {
+      internal_array[i] = value;
+      i++;
+    }
+    var array = [];
+    %MoveArrayContents(internal_array, array);
+    return array;
+  }
+  return TO_OBJECT(items);
+}
+
+
+// ES#sec-%typedarray%.from
+// %TypedArray%.from ( source [ , mapfn [ , thisArg ] ] )
 function TypedArrayFrom(source, mapfn, thisArg) {
-  // TODO(littledan): Investigate if there is a receiver which could be
-  // faster to accumulate on than Array, e.g., a TypedVector.
-  var array = %_Call(ArrayFrom, GlobalArray, source, mapfn, thisArg);
-  return ConstructTypedArray(this, array);
+  if (!%IsConstructor(this)) throw %make_type_error(kNotConstructor, this);
+  var mapping;
+  if (!IS_UNDEFINED(mapfn)) {
+    if (!IS_CALLABLE(mapfn)) throw %make_type_error(kCalledNonCallable, this);
+    mapping = true;
+  } else {
+    mapping = false;
+  }
+  var arrayLike = IterableToArrayLike(source);
+  var length = TO_LENGTH(arrayLike.length);
+  var targetObject = TypedArrayCreate(this, length);
+  var value, mappedValue;
+  for (var i = 0; i < length; i++) {
+    value = arrayLike[i];
+    if (mapping) {
+      mappedValue = %_Call(mapfn, thisArg, value, i);
+    } else {
+      mappedValue = value;
+    }
+    targetObject[i] = mappedValue;
+  }
+  return targetObject;
 }
 %FunctionSetLength(TypedArrayFrom, 1);
 
+// TODO(bmeurer): Migrate this to a proper builtin.
+function TypedArrayConstructor() {
+  if (IS_UNDEFINED(new.target)) {
+    throw %make_type_error(kConstructorNonCallable, "TypedArray");
+  }
+  if (new.target === GlobalTypedArray) {
+    throw %make_type_error(kConstructAbstractClass, "TypedArray");
+  }
+}
+
+function TypedArraySpecies() {
+  return this;
+}
+
 // -------------------------------------------------------------------
 
-// TODO(littledan): Fix the TypedArray proto chain (bug v8:4085).
+%SetCode(GlobalTypedArray, TypedArrayConstructor);
+utils.InstallFunctions(GlobalTypedArray, DONT_ENUM, [
+  "from", TypedArrayFrom,
+  "of", TypedArrayOf
+]);
+utils.InstallGetter(GlobalTypedArray, speciesSymbol, TypedArraySpecies);
+utils.InstallGetter(GlobalTypedArray.prototype, toStringTagSymbol,
+                    TypedArrayGetToStringTag);
+utils.InstallFunctions(GlobalTypedArray.prototype, DONT_ENUM, [
+  "subarray", TypedArraySubArray,
+  "set", TypedArraySet,
+  "copyWithin", TypedArrayCopyWithin,
+  "every", TypedArrayEvery,
+  "fill", TypedArrayFill,
+  "filter", TypedArrayFilter,
+  "find", TypedArrayFind,
+  "findIndex", TypedArrayFindIndex,
+  "includes", TypedArrayIncludes,
+  "indexOf", TypedArrayIndexOf,
+  "join", TypedArrayJoin,
+  "lastIndexOf", TypedArrayLastIndexOf,
+  "forEach", TypedArrayForEach,
+  "map", TypedArrayMap,
+  "reduce", TypedArrayReduce,
+  "reduceRight", TypedArrayReduceRight,
+  "reverse", TypedArrayReverse,
+  "slice", TypedArraySlice,
+  "some", TypedArraySome,
+  "sort", TypedArraySort,
+  "toLocaleString", TypedArrayToLocaleString
+]);
+
+%AddNamedProperty(GlobalTypedArray.prototype, "toString", ArrayToString,
+                  DONT_ENUM);
+
+
 macro SETUP_TYPED_ARRAY(ARRAY_ID, NAME, ELEMENT_SIZE)
   %SetCode(GlobalNAME, NAMEConstructor);
   %FunctionSetPrototype(GlobalNAME, new GlobalObject());
+  %InternalSetPrototype(GlobalNAME, GlobalTypedArray);
+  %InternalSetPrototype(GlobalNAME.prototype, GlobalTypedArray.prototype);
 
   %AddNamedProperty(GlobalNAME, "BYTES_PER_ELEMENT", ELEMENT_SIZE,
                     READ_ONLY | DONT_ENUM | DONT_DELETE);
-
-  utils.InstallFunctions(GlobalNAME, DONT_ENUM | DONT_DELETE | READ_ONLY, [
-    "from", TypedArrayFrom,
-    "of", TypedArrayOf
-  ]);
 
   %AddNamedProperty(GlobalNAME.prototype,
                     "constructor", global.NAME, DONT_ENUM);
   %AddNamedProperty(GlobalNAME.prototype,
                     "BYTES_PER_ELEMENT", ELEMENT_SIZE,
                     READ_ONLY | DONT_ENUM | DONT_DELETE);
-  utils.InstallGetter(GlobalNAME.prototype, "buffer", NAME_GetBuffer);
-  utils.InstallGetter(GlobalNAME.prototype, "byteOffset", NAME_GetByteOffset,
-                      DONT_ENUM | DONT_DELETE);
-  utils.InstallGetter(GlobalNAME.prototype, "byteLength", NAME_GetByteLength,
-                      DONT_ENUM | DONT_DELETE);
-  utils.InstallGetter(GlobalNAME.prototype, "length", NAME_GetLength,
-                      DONT_ENUM | DONT_DELETE);
-  utils.InstallGetter(GlobalNAME.prototype, toStringTagSymbol,
-                      TypedArrayGetToStringTag);
-  utils.InstallFunctions(GlobalNAME.prototype, DONT_ENUM, [
-    "subarray", NAMESubArray,
-    "set", TypedArraySet,
-    "copyWithin", TypedArrayCopyWithin,
-    "every", TypedArrayEvery,
-    "fill", TypedArrayFill,
-    "filter", TypedArrayFilter,
-    "find", TypedArrayFind,
-    "findIndex", TypedArrayFindIndex,
-    "indexOf", TypedArrayIndexOf,
-    "join", TypedArrayJoin,
-    "lastIndexOf", TypedArrayLastIndexOf,
-    "forEach", TypedArrayForEach,
-    "map", TypedArrayMap,
-    "reduce", TypedArrayReduce,
-    "reduceRight", TypedArrayReduceRight,
-    "reverse", TypedArrayReverse,
-    "slice", TypedArraySlice,
-    "some", TypedArraySome,
-    "sort", TypedArraySort,
-    "toString", TypedArrayToString,
-    "toLocaleString", TypedArrayToLocaleString
-  ]);
 endmacro
 
 TYPED_ARRAYS(SETUP_TYPED_ARRAY)
 
 // --------------------------- DataView -----------------------------
-
-function DataViewConstructor(buffer, byteOffset, byteLength) { // length = 3
-  if (%_IsConstructCall()) {
-    // TODO(binji): support SharedArrayBuffers?
-    if (!IS_ARRAYBUFFER(buffer)) throw MakeTypeError(kDataViewNotArrayBuffer);
-    if (!IS_UNDEFINED(byteOffset)) {
-      byteOffset = ToPositiveInteger(byteOffset, kInvalidDataViewOffset);
-    }
-    if (!IS_UNDEFINED(byteLength)) {
-      byteLength = TO_INTEGER(byteLength);
-    }
-
-    var bufferByteLength = %_ArrayBufferGetByteLength(buffer);
-
-    var offset = IS_UNDEFINED(byteOffset) ?  0 : byteOffset;
-    if (offset > bufferByteLength) throw MakeRangeError(kInvalidDataViewOffset);
-
-    var length = IS_UNDEFINED(byteLength)
-        ? bufferByteLength - offset
-        : byteLength;
-    if (length < 0 || offset + length > bufferByteLength) {
-      throw new MakeRangeError(kInvalidDataViewLength);
-    }
-    %_DataViewInitialize(this, buffer, offset, length);
-  } else {
-    throw MakeTypeError(kConstructorNotFunction, "DataView");
-  }
-}
-
-function DataViewGetBufferJS() {
-  if (!IS_DATAVIEW(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver, 'DataView.buffer', this);
-  }
-  return %DataViewGetBuffer(this);
-}
-
-function DataViewGetByteOffset() {
-  if (!IS_DATAVIEW(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
-                        'DataView.byteOffset', this);
-  }
-  return %_ArrayBufferViewGetByteOffset(this);
-}
-
-function DataViewGetByteLength() {
-  if (!IS_DATAVIEW(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
-                        'DataView.byteLength', this);
-  }
-  return %_ArrayBufferViewGetByteLength(this);
-}
 
 macro DATA_VIEW_TYPES(FUNCTION)
   FUNCTION(Int8)
@@ -830,42 +932,26 @@ endmacro
 macro DATA_VIEW_GETTER_SETTER(TYPENAME)
 function DataViewGetTYPENAMEJS(offset, little_endian) {
   if (!IS_DATAVIEW(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'DataView.getTYPENAME', this);
   }
-  if (%_ArgumentsLength() < 1) throw MakeTypeError(kInvalidArgument);
-  offset = ToPositiveInteger(offset, kInvalidDataViewAccessorOffset);
+  offset = IS_UNDEFINED(offset) ? 0 : ToIndex(offset, kInvalidDataViewAccessorOffset);
   return %DataViewGetTYPENAME(this, offset, !!little_endian);
 }
+%FunctionSetLength(DataViewGetTYPENAMEJS, 1);
 
 function DataViewSetTYPENAMEJS(offset, value, little_endian) {
   if (!IS_DATAVIEW(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'DataView.setTYPENAME', this);
   }
-  if (%_ArgumentsLength() < 2) throw MakeTypeError(kInvalidArgument);
-  offset = ToPositiveInteger(offset, kInvalidDataViewAccessorOffset);
+  offset = IS_UNDEFINED(offset) ? 0 : ToIndex(offset, kInvalidDataViewAccessorOffset);
   %DataViewSetTYPENAME(this, offset, TO_NUMBER(value), !!little_endian);
 }
+%FunctionSetLength(DataViewSetTYPENAMEJS, 2);
 endmacro
 
 DATA_VIEW_TYPES(DATA_VIEW_GETTER_SETTER)
-
-// Setup the DataView constructor.
-%SetCode(GlobalDataView, DataViewConstructor);
-%FunctionSetPrototype(GlobalDataView, new GlobalObject);
-
-// Set up constructor property on the DataView prototype.
-%AddNamedProperty(GlobalDataView.prototype, "constructor", GlobalDataView,
-                  DONT_ENUM);
-%AddNamedProperty(GlobalDataView.prototype, toStringTagSymbol, "DataView",
-                  READ_ONLY|DONT_ENUM);
-
-utils.InstallGetter(GlobalDataView.prototype, "buffer", DataViewGetBufferJS);
-utils.InstallGetter(GlobalDataView.prototype, "byteOffset",
-                    DataViewGetByteOffset);
-utils.InstallGetter(GlobalDataView.prototype, "byteLength",
-                    DataViewGetByteLength);
 
 utils.InstallFunctions(GlobalDataView.prototype, DONT_ENUM, [
   "getInt8", DataViewGetInt8JS,

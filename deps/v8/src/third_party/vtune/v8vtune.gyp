@@ -29,17 +29,13 @@
   'variables': {
     'v8_code': 1,
   },
-  'includes': ['../../../build/toolchain.gypi', '../../../build/features.gypi'],
+  'includes': ['../../../gypfiles/toolchain.gypi', '../../../gypfiles/features.gypi'],
   'targets': [
     {
       'target_name': 'v8_vtune',
       'type': 'static_library',
       'dependencies': [
-        '../../../tools/gyp/v8.gyp:v8',
-      ],
-      'defines': [
-        # TODO(jochen): Remove again after this is globally turned on.
-        'V8_IMMINENT_DEPRECATION_WARNINGS',
+        '../../v8.gyp:v8',
       ],
       'sources': [
         'ittnotify_config.h',

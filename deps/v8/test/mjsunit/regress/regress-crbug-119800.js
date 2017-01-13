@@ -5,9 +5,9 @@
 // Flags: --expose-debug-as debug
 
 function f() {
-  1;
-  2;
-  3;
+  print(1);
+  print(2);
+  print(3);
 }
 
 var Debug = debug.Debug;
@@ -19,7 +19,7 @@ function listener(event, exec_state, event_data, data) {
   try {
     Debug.debuggerFlags().breakPointsActive.setValue(false);
     breaks.push(exec_state.frame().sourceLineText().trimLeft());
-    exec_state.prepareStep(Debug.StepAction.StepIn, 1);
+    exec_state.prepareStep(Debug.StepAction.StepIn);
   } catch (e) {
     exception = e;
   }
@@ -34,4 +34,5 @@ Debug.setListener(null);
 Debug.debuggerFlags().breakPointsActive.setValue(true);
 
 assertNull(exception);
-assertEquals(breaks, ["1;", "2;", "3;", "}", "Debug.setListener(null);"]);
+assertEquals(breaks, ["print(1);", "print(2);", "print(3);", "}",
+                      "Debug.setListener(null);"]);

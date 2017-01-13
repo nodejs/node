@@ -100,6 +100,7 @@ class Node final {
 
   void AppendInput(Zone* zone, Node* new_to);
   void InsertInput(Zone* zone, int index, Node* new_to);
+  void InsertInputs(Zone* zone, int index, int count);
   void RemoveInput(int index);
   void NullAllInputs();
   void TrimInputCount(int new_input_count);
@@ -186,6 +187,7 @@ class Node final {
 
   // Returns true if {owner1} and {owner2} are the only users of {this} node.
   bool OwnedBy(Node const* owner1, Node const* owner2) const;
+  void Print() const;
 
  private:
   struct Use;

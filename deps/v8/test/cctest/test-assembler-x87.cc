@@ -185,7 +185,8 @@ TEST(AssemblerIa329) {
   Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
   HandleScope scope(isolate);
   v8::internal::byte buffer[256];
-  MacroAssembler assm(isolate, buffer, sizeof buffer);
+  MacroAssembler assm(isolate, buffer, sizeof(buffer),
+                      v8::internal::CodeObjectRequired::kYes);
   enum { kEqual = 0, kGreater = 1, kLess = 2, kNaN = 3, kUndefined = 4 };
   Label equal_l, less_l, greater_l, nan_l;
   __ fld_d(Operand(esp, 3 * kPointerSize));
@@ -404,6 +405,47 @@ TEST(AssemblerIa32JumpTables2) {
     ::printf("f(%d) = %d\n", i, res);
     CHECK_EQ(values[i], res);
   }
+}
+
+TEST(Regress621926) {
+  // Bug description:
+  // The opcodes for cmpw r/m16, r16 and cmpw r16, r/m16 were swapped.
+  // This was causing non-commutative comparisons to produce the wrong result.
+  CcTest::InitializeVM();
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  Assembler assm(isolate, nullptr, 0);
+
+  uint16_t a = 42;
+
+  Label fail;
+  __ push(ebx);
+  __ mov(ebx, Immediate(reinterpret_cast<intptr_t>(&a)));
+  __ mov(eax, Immediate(41));
+  __ cmpw(eax, Operand(ebx, 0));
+  __ j(above_equal, &fail);
+  __ cmpw(Operand(ebx, 0), eax);
+  __ j(below_equal, &fail);
+  __ mov(eax, 1);
+  __ pop(ebx);
+  __ ret(0);
+  __ bind(&fail);
+  __ mov(eax, 0);
+  __ pop(ebx);
+  __ ret(0);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+
+  F0 f = FUNCTION_CAST<F0>(code->entry());
+  CHECK_EQ(f(), 1);
 }
 
 #undef __

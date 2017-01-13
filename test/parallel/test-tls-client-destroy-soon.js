@@ -3,54 +3,47 @@
 // Cache session and close connection.  Use session on second connection.
 // ASSERT resumption.
 
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var fs = require('fs');
+const fs = require('fs');
 
-var options = {
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem')
 };
 
-var big = new Buffer(2 * 1024 * 1024);
-var connections = 0;
-var bytesRead = 0;
-
-big.fill('Y');
+const big = Buffer.alloc(2 * 1024 * 1024, 'Y');
 
 // create server
-var server = tls.createServer(options, function(socket) {
+const server = tls.createServer(options, common.mustCall(function(socket) {
   socket.end(big);
   socket.destroySoon();
-  connections++;
-});
+}));
 
 // start listening
-server.listen(common.PORT, function() {
-  var client = tls.connect({
-    port: common.PORT,
+server.listen(0, common.mustCall(function() {
+  const client = tls.connect({
+    port: this.address().port,
     rejectUnauthorized: false
-  }, function() {
+  }, common.mustCall(function() {
+    let bytesRead = 0;
+
     client.on('readable', function() {
-      var d = client.read();
+      const d = client.read();
       if (d)
         bytesRead += d.length;
     });
 
-    client.on('end', function() {
+    client.on('end', common.mustCall(function() {
       server.close();
-    });
-  });
-});
-
-process.on('exit', function() {
-  assert.equal(1, connections);
-  assert.equal(big.length, bytesRead);
-});
+      assert.strictEqual(big.length, bytesRead);
+    }));
+  }));
+}));

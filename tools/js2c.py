@@ -32,51 +32,16 @@
 # library.
 
 import os
-from os.path import dirname
 import re
 import sys
 import string
 
-sys.path.append(dirname(__file__) + "/../deps/v8/tools");
-import jsmin
 
-
-def ToCArray(filename, lines):
-  result = []
-  row = 1
-  col = 0
-  for chr in lines:
-    col += 1
-    if chr == "\n" or chr == "\r":
-      row += 1
-      col = 0
-
-    value = ord(chr)
-
-    if value >= 128:
-      print 'non-ascii value ' + filename + ':' + str(row) + ':' + str(col)
-      sys.exit(1);
-
-    result.append(str(value))
-  result.append("0")
-  return ", ".join(result)
-
-
-def CompressScript(lines, do_jsmin):
-  # If we're not expecting this code to be user visible, we can run it through
-  # a more aggressive minifier.
-  if do_jsmin:
-    minifier = JavaScriptMinifier()
-    return minifier.JSMinify(lines)
-
-  # Remove stuff from the source that we don't want to appear when
-  # people print the source code using Function.prototype.toString().
-  # Note that we could easily compress the scripts mode but don't
-  # since we want it to remain readable.
-  #lines = re.sub('//.*\n', '\n', lines) # end-of-line comments
-  #lines = re.sub(re.compile(r'/\*.*?\*/', re.DOTALL), '', lines) # comments.
-  #lines = re.sub('\s+\n+', '\n', lines) # trailing whitespace
-  return lines
+def ToCString(contents):
+  step = 20
+  slices = (contents[i:i+step] for i in xrange(0, len(contents), step))
+  slices = map(lambda s: ','.join(str(ord(c)) for c in s), slices)
+  return ',\n'.join(slices)
 
 
 def ReadFile(filename):
@@ -97,21 +62,6 @@ def ReadLines(filename):
     if len(line) > 0:
       result.append(line)
   return result
-
-
-def LoadConfigFrom(name):
-  import ConfigParser
-  config = ConfigParser.ConfigParser()
-  config.read(name)
-  return config
-
-
-def ParseValue(string):
-  string = string.strip()
-  if string.startswith('[') and string.endswith(']'):
-    return string.lstrip('[').rstrip(']').split()
-  else:
-    return string
 
 
 def ExpandConstants(lines, constants):
@@ -212,59 +162,37 @@ def ReadMacros(lines):
 
 
 HEADER_TEMPLATE = """\
-#ifndef node_natives_h
-#define node_natives_h
-namespace node {
+#ifndef NODE_NATIVES_H_
+#define NODE_NATIVES_H_
 
-%(source_lines)s\
+#include <stdint.h>
 
-struct _native {
-  const char* name;
-  const char* source;
-  size_t source_len;
-};
+#define NODE_NATIVES_MAP(V) \\
+{node_natives_map}
 
-static const struct _native natives[] = {
+namespace node {{
+{sources}
+}}  // namespace node
 
-%(native_lines)s\
-
-  { NULL, NULL, 0 } /* sentinel */
-
-};
-
-}
-#endif
+#endif  // NODE_NATIVES_H_
 """
 
 
-NATIVE_DECLARATION = """\
-  { "%(id)s", %(escaped_id)s_native, sizeof(%(escaped_id)s_native)-1 },
-"""
-
-SOURCE_DECLARATION = """\
-  const char %(escaped_id)s_native[] = { %(data)s };
+NODE_NATIVES_MAP = """\
+  V({escaped_id}) \\
 """
 
 
-GET_DELAY_INDEX_CASE = """\
-    if (strcmp(name, "%(id)s") == 0) return %(i)i;
+SOURCES = """\
+static const uint8_t {escaped_id}_name[] = {{
+{name}}};
+static const uint8_t {escaped_id}_data[] = {{
+{data}}};
 """
 
-
-GET_DELAY_SCRIPT_SOURCE_CASE = """\
-    if (index == %(i)i) return Vector<const char>(%(id)s, %(length)i);
-"""
-
-
-GET_DELAY_SCRIPT_NAME_CASE = """\
-    if (index == %(i)i) return Vector<const char>("%(name)s", %(length)i);
-"""
 
 def JS2C(source, target):
-  ids = []
-  delay_ids = []
   modules = []
-  # Locate the macros file name.
   consts = {}
   macros = {}
   macro_lines = []
@@ -279,20 +207,14 @@ def JS2C(source, target):
   (consts, macros) = ReadMacros(macro_lines)
 
   # Build source code lines
-  source_lines = [ ]
-  source_lines_empty = []
-
-  native_lines = []
+  node_natives_map = []
+  sources = []
 
   for s in modules:
-    delay = str(s).endswith('-delay.js')
     lines = ReadFile(str(s))
-    do_jsmin = lines.find('// jsminify this file, js2c: jsmin') != -1
-
     lines = ExpandConstants(lines, consts)
     lines = ExpandMacros(lines, macros)
-    lines = CompressScript(lines, do_jsmin)
-    data = ToCArray(s, lines)
+    data = ToCString(lines)
 
     # On Windows, "./foo.bar" in the .gyp file is passed as "foo.bar"
     # so don't assume there is always a slash in the file path.
@@ -304,88 +226,18 @@ def JS2C(source, target):
     if '.' in id:
       id = id.split('.', 1)[0]
 
-    if delay: id = id[:-6]
-    if delay:
-      delay_ids.append((id, len(lines)))
-    else:
-      ids.append((id, len(lines)))
-
+    name = ToCString(id)
     escaped_id = id.replace('-', '_').replace('/', '_')
-    source_lines.append(SOURCE_DECLARATION % {
-      'id': id,
-      'escaped_id': escaped_id,
-      'data': data
-    })
-    source_lines_empty.append(SOURCE_DECLARATION % {
-      'id': id,
-      'escaped_id': escaped_id,
-      'data': 0
-    })
-    native_lines.append(NATIVE_DECLARATION % {
-      'id': id,
-      'escaped_id': escaped_id
-    })
+    node_natives_map.append(NODE_NATIVES_MAP.format(**locals()))
+    sources.append(SOURCES.format(**locals()))
 
-  # Build delay support functions
-  get_index_cases = [ ]
-  get_script_source_cases = [ ]
-  get_script_name_cases = [ ]
-
-  i = 0
-  for (id, length) in delay_ids:
-    native_name = "native %s.js" % id
-    get_index_cases.append(GET_DELAY_INDEX_CASE % { 'id': id, 'i': i })
-    get_script_source_cases.append(GET_DELAY_SCRIPT_SOURCE_CASE % {
-      'id': id,
-      'length': length,
-      'i': i
-    })
-    get_script_name_cases.append(GET_DELAY_SCRIPT_NAME_CASE % {
-      'name': native_name,
-      'length': len(native_name),
-      'i': i
-    });
-    i = i + 1
-
-  for (id, length) in ids:
-    native_name = "native %s.js" % id
-    get_index_cases.append(GET_DELAY_INDEX_CASE % { 'id': id, 'i': i })
-    get_script_source_cases.append(GET_DELAY_SCRIPT_SOURCE_CASE % {
-      'id': id,
-      'length': length,
-      'i': i
-    })
-    get_script_name_cases.append(GET_DELAY_SCRIPT_NAME_CASE % {
-      'name': native_name,
-      'length': len(native_name),
-      'i': i
-    });
-    i = i + 1
+  node_natives_map = ''.join(node_natives_map)
+  sources = ''.join(sources)
 
   # Emit result
   output = open(str(target[0]), "w")
-  output.write(HEADER_TEMPLATE % {
-    'builtin_count': len(ids) + len(delay_ids),
-    'delay_count': len(delay_ids),
-    'source_lines': "\n".join(source_lines),
-    'native_lines': "\n".join(native_lines),
-    'get_index_cases': "".join(get_index_cases),
-    'get_script_source_cases': "".join(get_script_source_cases),
-    'get_script_name_cases': "".join(get_script_name_cases)
-  })
+  output.write(HEADER_TEMPLATE.format(**locals()))
   output.close()
-
-  if len(target) > 1:
-    output = open(str(target[1]), "w")
-    output.write(HEADER_TEMPLATE % {
-      'builtin_count': len(ids) + len(delay_ids),
-      'delay_count': len(delay_ids),
-      'source_lines': "\n".join(source_lines_empty),
-      'get_index_cases': "".join(get_index_cases),
-      'get_script_source_cases': "".join(get_script_source_cases),
-      'get_script_name_cases': "".join(get_script_name_cases)
-    })
-    output.close()
 
 def main():
   natives = sys.argv[1]

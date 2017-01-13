@@ -3,49 +3,50 @@
 const common = require('../common');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 
 const assert = require('assert');
 const https = require('https');
 const fs = require('fs');
-const constants = require('constants');
+const SSL_OP_NO_TICKET = require('crypto').constants.SSL_OP_NO_TICKET;
 
 const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem'),
-  secureOptions: constants.SSL_OP_NO_TICKET
+  secureOptions: SSL_OP_NO_TICKET
 };
 
 // Create TLS1.2 server
 https.createServer(options, function(req, res) {
   res.end('ohai');
-}).listen(common.PORT, function() {
+}).listen(0, function() {
   first(this);
 });
 
 // Do request and let agent cache the session
-function first(server)  {
+function first(server) {
+  const port = server.address().port;
   const req = https.request({
-    port: common.PORT,
+    port: port,
     rejectUnauthorized: false
   }, function(res) {
     res.resume();
 
     server.close(function() {
-      faultyServer();
+      faultyServer(port);
     });
   });
   req.end();
 }
 
 // Create TLS1 server
-function faultyServer() {
+function faultyServer(port) {
   options.secureProtocol = 'TLSv1_method';
   https.createServer(options, function(req, res) {
     res.end('hello faulty');
-  }).listen(common.PORT, function() {
+  }).listen(port, function() {
     second(this);
   });
 }
@@ -53,7 +54,7 @@ function faultyServer() {
 // Attempt to request using cached session
 function second(server, session) {
   const req = https.request({
-    port: common.PORT,
+    port: server.address().port,
     rejectUnauthorized: false
   }, function(res) {
     res.resume();
@@ -70,19 +71,16 @@ function second(server, session) {
   req.end();
 }
 
-// Try on more time - session should be evicted!
+// Try one more time - session should be evicted!
 function third(server) {
   const req = https.request({
-    port: common.PORT,
+    port: server.address().port,
     rejectUnauthorized: false
   }, function(res) {
     res.resume();
     assert(!req.socket.isSessionReused());
     server.close();
   });
-  req.on('error', function(err) {
-    // never called
-    assert(false);
-  });
+  req.on('error', common.fail);
   req.end();
 }

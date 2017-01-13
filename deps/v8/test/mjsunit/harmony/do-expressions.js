@@ -2,9 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-do-expressions --harmony-sloppy-let --allow-natives-syntax
-// Flags: --harmony-default-parameters --harmony-destructuring
-// Flags: --harmony-completion
+// Flags: --harmony-do-expressions --allow-natives-syntax
 
 function returnValue(v) { return v; }
 function MyError() {}
@@ -261,6 +259,36 @@ function TestHoisting() {
   //assertThrows(function() { return innerFunc(); }, ReferenceError);
 }
 TestHoisting();
+
+
+// v8:4661
+
+function tryFinallySimple() { (do { try {} finally {} }); }
+tryFinallySimple();
+tryFinallySimple();
+tryFinallySimple();
+tryFinallySimple();
+
+var finallyRanCount = 0;
+function tryFinallyDoExpr() {
+  return (do {
+    try {
+      throw "BOO";
+    } catch (e) {
+      "Caught: " + e + " (" + finallyRanCount + ")"
+    } finally {
+      ++finallyRanCount;
+    }
+  });
+}
+assertEquals("Caught: BOO (0)", tryFinallyDoExpr());
+assertEquals(1, finallyRanCount);
+assertEquals("Caught: BOO (1)", tryFinallyDoExpr());
+assertEquals(2, finallyRanCount);
+assertEquals("Caught: BOO (2)", tryFinallyDoExpr());
+assertEquals(3, finallyRanCount);
+assertEquals("Caught: BOO (3)", tryFinallyDoExpr());
+assertEquals(4, finallyRanCount);
 
 
 function TestOSR() {

@@ -25,18 +25,25 @@ class ScopeIterator {
     ScopeTypeCatch,
     ScopeTypeBlock,
     ScopeTypeScript,
+    ScopeTypeEval,
     ScopeTypeModule
   };
 
   static const int kScopeDetailsTypeIndex = 0;
   static const int kScopeDetailsObjectIndex = 1;
   static const int kScopeDetailsNameIndex = 2;
-  static const int kScopeDetailsSize = 3;
+  static const int kScopeDetailsStartPositionIndex = 3;
+  static const int kScopeDetailsEndPositionIndex = 4;
+  static const int kScopeDetailsFunctionIndex = 5;
+  static const int kScopeDetailsSize = 6;
+
+  enum Option { DEFAULT, IGNORE_NESTED_SCOPES, COLLECT_NON_LOCALS };
 
   ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
-                bool ignore_nested_scopes = false);
+                Option options = DEFAULT);
 
   ScopeIterator(Isolate* isolate, Handle<JSFunction> function);
+  ScopeIterator(Isolate* isolate, Handle<JSGeneratorObject> generator);
 
   MUST_USE_RESULT MaybeHandle<JSObject> MaterializeScopeDetails();
 
@@ -68,16 +75,31 @@ class ScopeIterator {
   // be an actual context.
   Handle<Context> CurrentContext();
 
+  // Populate the set with collected non-local variable names.
+  Handle<StringSet> GetNonLocals();
+
 #ifdef DEBUG
   // Debug print of the content of the current scope.
   void DebugPrint();
 #endif
 
  private:
+  struct ExtendedScopeInfo {
+    ExtendedScopeInfo(Handle<ScopeInfo> info, int start, int end)
+        : scope_info(info), start_position(start), end_position(end) {}
+    explicit ExtendedScopeInfo(Handle<ScopeInfo> info)
+        : scope_info(info), start_position(-1), end_position(-1) {}
+    Handle<ScopeInfo> scope_info;
+    int start_position;
+    int end_position;
+    bool is_hidden() { return start_position == -1 && end_position == -1; }
+  };
+
   Isolate* isolate_;
   FrameInspector* const frame_inspector_;
   Handle<Context> context_;
-  List<Handle<ScopeInfo> > nested_scope_chain_;
+  List<ExtendedScopeInfo> nested_scope_chain_;
+  Handle<StringSet> non_locals_;
   bool seen_script_scope_;
   bool failed_;
 
@@ -86,40 +108,59 @@ class ScopeIterator {
   }
 
   inline Handle<JSFunction> GetFunction() {
-    return Handle<JSFunction>(
-        JSFunction::cast(frame_inspector_->GetFunction()));
+    return frame_inspector_->GetFunction();
   }
 
-  void RetrieveScopeChain(Scope* scope, Handle<SharedFunctionInfo> shared_info);
+  void RetrieveScopeChain(DeclarationScope* scope);
+
+  void CollectNonLocals(ParseInfo* info, DeclarationScope* scope);
+
+  void UnwrapEvaluationContext();
 
   MUST_USE_RESULT MaybeHandle<JSObject> MaterializeScriptScope();
   MUST_USE_RESULT MaybeHandle<JSObject> MaterializeLocalScope();
   MUST_USE_RESULT MaybeHandle<JSObject> MaterializeModuleScope();
   Handle<JSObject> MaterializeClosure();
   Handle<JSObject> MaterializeCatchScope();
-  Handle<JSObject> MaterializeBlockScope();
+  Handle<JSObject> MaterializeInnerScope();
+  Handle<JSObject> WithContextExtension();
 
   bool SetLocalVariableValue(Handle<String> variable_name,
                              Handle<Object> new_value);
-  bool SetBlockVariableValue(Handle<String> variable_name,
-                             Handle<Object> new_value);
+  bool SetInnerScopeVariableValue(Handle<String> variable_name,
+                                  Handle<Object> new_value);
   bool SetClosureVariableValue(Handle<String> variable_name,
                                Handle<Object> new_value);
   bool SetScriptVariableValue(Handle<String> variable_name,
                               Handle<Object> new_value);
   bool SetCatchVariableValue(Handle<String> variable_name,
                              Handle<Object> new_value);
-  bool SetContextLocalValue(Handle<ScopeInfo> scope_info,
-                            Handle<Context> context,
-                            Handle<String> variable_name,
-                            Handle<Object> new_value);
+
+  // Helper functions.
+  bool SetParameterValue(Handle<ScopeInfo> scope_info, JavaScriptFrame* frame,
+                         Handle<String> parameter_name,
+                         Handle<Object> new_value);
+  bool SetStackVariableValue(Handle<ScopeInfo> scope_info,
+                             Handle<String> variable_name,
+                             Handle<Object> new_value);
+  bool SetContextVariableValue(Handle<ScopeInfo> scope_info,
+                               Handle<Context> context,
+                               Handle<String> variable_name,
+                               Handle<Object> new_value);
 
   void CopyContextLocalsToScopeObject(Handle<ScopeInfo> scope_info,
                                       Handle<Context> context,
                                       Handle<JSObject> scope_object);
-  bool CopyContextExtensionToScopeObject(Handle<JSObject> extension,
+  void CopyContextExtensionToScopeObject(Handle<Context> context,
                                          Handle<JSObject> scope_object,
-                                         JSReceiver::KeyCollectionType type);
+                                         KeyCollectionMode mode);
+
+  // Get the chain of nested scopes within this scope for the source statement
+  // position. The scopes will be added to the list from the outermost scope to
+  // the innermost scope. Only nested block, catch or with scopes are tracked
+  // and will be returned, but no inner function scopes.
+  void GetNestedScopeChain(Isolate* isolate, Scope* scope,
+                           int statement_position);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(ScopeIterator);
 };

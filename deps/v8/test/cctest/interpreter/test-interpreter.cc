@@ -2,16 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(rmcilroy): Remove this define after this flag is turned on globally
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include "src/v8.h"
 
 #include "src/execution.h"
 #include "src/handles.h"
 #include "src/interpreter/bytecode-array-builder.h"
+#include "src/interpreter/bytecode-array-iterator.h"
+#include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/interpreter.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/interpreter/interpreter-tester.h"
 #include "test/cctest/test-feedback-vector.h"
 
 namespace v8 {
@@ -19,163 +19,16 @@ namespace internal {
 namespace interpreter {
 
 
-static MaybeHandle<Object> CallInterpreter(Isolate* isolate,
-                                           Handle<JSFunction> function) {
-  return Execution::Call(isolate, function,
-                         isolate->factory()->undefined_value(), 0, nullptr);
-}
-
-
-template <class... A>
-static MaybeHandle<Object> CallInterpreter(Isolate* isolate,
-                                           Handle<JSFunction> function,
-                                           A... args) {
-  Handle<Object> argv[] = { args... };
-  return Execution::Call(isolate, function,
-                         isolate->factory()->undefined_value(), sizeof...(args),
-                         argv);
-}
-
-
-template <class... A>
-class InterpreterCallable {
- public:
-  InterpreterCallable(Isolate* isolate, Handle<JSFunction> function)
-      : isolate_(isolate), function_(function) {}
-  virtual ~InterpreterCallable() {}
-
-  MaybeHandle<Object> operator()(A... args) {
-    return CallInterpreter(isolate_, function_, args...);
-  }
-
- private:
-  Isolate* isolate_;
-  Handle<JSFunction> function_;
-};
-
-
-static const char* kFunctionName = "f";
-
-
-class InterpreterTester {
- public:
-  InterpreterTester(Isolate* isolate, const char* source,
-                    MaybeHandle<BytecodeArray> bytecode,
-                    MaybeHandle<TypeFeedbackVector> feedback_vector,
-                    const char* filter)
-      : isolate_(isolate),
-        source_(source),
-        bytecode_(bytecode),
-        feedback_vector_(feedback_vector) {
-    i::FLAG_vector_stores = true;
-    i::FLAG_ignition = true;
-    i::FLAG_ignition_fake_try_catch = true;
-    i::FLAG_always_opt = false;
-    // Set ignition filter flag via SetFlagsFromString to avoid double-free
-    // (or potential leak with StrDup() based on ownership confusion).
-    ScopedVector<char> ignition_filter(64);
-    SNPrintF(ignition_filter, "--ignition-filter=%s", filter);
-    FlagList::SetFlagsFromString(ignition_filter.start(),
-                                 ignition_filter.length());
-    // Ensure handler table is generated.
-    isolate->interpreter()->Initialize();
-  }
-
-  InterpreterTester(Isolate* isolate, Handle<BytecodeArray> bytecode,
-                    MaybeHandle<TypeFeedbackVector> feedback_vector =
-                        MaybeHandle<TypeFeedbackVector>(),
-                    const char* filter = kFunctionName)
-      : InterpreterTester(isolate, nullptr, bytecode, feedback_vector, filter) {
-  }
-
-
-  InterpreterTester(Isolate* isolate, const char* source,
-                    const char* filter = kFunctionName)
-      : InterpreterTester(isolate, source, MaybeHandle<BytecodeArray>(),
-                          MaybeHandle<TypeFeedbackVector>(), filter) {}
-
-  virtual ~InterpreterTester() {}
-
-  template <class... A>
-  InterpreterCallable<A...> GetCallable() {
-    return InterpreterCallable<A...>(isolate_, GetBytecodeFunction<A...>());
-  }
-
-  static Handle<Object> NewObject(const char* script) {
-    return v8::Utils::OpenHandle(*CompileRun(script));
-  }
-
-  static Handle<String> GetName(Isolate* isolate, const char* name) {
-    Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(name);
-    return isolate->factory()->string_table()->LookupString(isolate, result);
-  }
-
-  static std::string SourceForBody(const char* body) {
-    return "function " + function_name() + "() {\n" + std::string(body) + "\n}";
-  }
-
-  static std::string function_name() {
-    return std::string(kFunctionName);
-  }
-
- private:
-  Isolate* isolate_;
-  const char* source_;
-  MaybeHandle<BytecodeArray> bytecode_;
-  MaybeHandle<TypeFeedbackVector> feedback_vector_;
-
-  template <class... A>
-  Handle<JSFunction> GetBytecodeFunction() {
-    Handle<JSFunction> function;
-    if (source_) {
-      CompileRun(source_);
-      v8::Local<v8::Context> context =
-          v8::Isolate::GetCurrent()->GetCurrentContext();
-      Local<Function> api_function =
-          Local<Function>::Cast(CcTest::global()
-                                    ->Get(context, v8_str(kFunctionName))
-                                    .ToLocalChecked());
-      function = Handle<JSFunction>::cast(v8::Utils::OpenHandle(*api_function));
-    } else {
-      int arg_count = sizeof...(A);
-      std::string source("(function " + function_name() + "(");
-      for (int i = 0; i < arg_count; i++) {
-        source += i == 0 ? "a" : ", a";
-      }
-      source += "){})";
-      function = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
-          *v8::Local<v8::Function>::Cast(CompileRun(source.c_str()))));
-      function->ReplaceCode(
-          *isolate_->builtins()->InterpreterEntryTrampoline());
-    }
-
-    if (!bytecode_.is_null()) {
-      function->shared()->set_function_data(*bytecode_.ToHandleChecked());
-    }
-    if (!feedback_vector_.is_null()) {
-      function->shared()->set_feedback_vector(
-          *feedback_vector_.ToHandleChecked());
-    }
-    return function;
-  }
-
-  DISALLOW_COPY_AND_ASSIGN(InterpreterTester);
-};
-
-
 TEST(InterpreterReturn) {
   HandleAndZoneScope handles;
-  Handle<Object> undefined_value =
-      handles.main_isolate()->factory()->undefined_value();
+  Isolate* isolate = handles.main_isolate();
+  Handle<Object> undefined_value = isolate->factory()->undefined_value();
 
-  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-  builder.set_locals_count(0);
-  builder.set_context_count(0);
-  builder.set_parameter_count(1);
+  BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 0);
   builder.Return();
-  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
-  InterpreterTester tester(handles.main_isolate(), bytecode_array);
+  InterpreterTester tester(isolate, bytecode_array);
   auto callable = tester.GetCallable<>();
   Handle<Object> return_val = callable().ToHandleChecked();
   CHECK(return_val.is_identical_to(undefined_value));
@@ -184,17 +37,14 @@ TEST(InterpreterReturn) {
 
 TEST(InterpreterLoadUndefined) {
   HandleAndZoneScope handles;
-  Handle<Object> undefined_value =
-      handles.main_isolate()->factory()->undefined_value();
+  Isolate* isolate = handles.main_isolate();
+  Handle<Object> undefined_value = isolate->factory()->undefined_value();
 
-  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-  builder.set_locals_count(0);
-  builder.set_context_count(0);
-  builder.set_parameter_count(1);
+  BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 0);
   builder.LoadUndefined().Return();
-  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
-  InterpreterTester tester(handles.main_isolate(), bytecode_array);
+  InterpreterTester tester(isolate, bytecode_array);
   auto callable = tester.GetCallable<>();
   Handle<Object> return_val = callable().ToHandleChecked();
   CHECK(return_val.is_identical_to(undefined_value));
@@ -203,16 +53,14 @@ TEST(InterpreterLoadUndefined) {
 
 TEST(InterpreterLoadNull) {
   HandleAndZoneScope handles;
-  Handle<Object> null_value = handles.main_isolate()->factory()->null_value();
+  Isolate* isolate = handles.main_isolate();
+  Handle<Object> null_value = isolate->factory()->null_value();
 
-  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-  builder.set_locals_count(0);
-  builder.set_context_count(0);
-  builder.set_parameter_count(1);
+  BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 0);
   builder.LoadNull().Return();
-  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
-  InterpreterTester tester(handles.main_isolate(), bytecode_array);
+  InterpreterTester tester(isolate, bytecode_array);
   auto callable = tester.GetCallable<>();
   Handle<Object> return_val = callable().ToHandleChecked();
   CHECK(return_val.is_identical_to(null_value));
@@ -221,17 +69,14 @@ TEST(InterpreterLoadNull) {
 
 TEST(InterpreterLoadTheHole) {
   HandleAndZoneScope handles;
-  Handle<Object> the_hole_value =
-      handles.main_isolate()->factory()->the_hole_value();
+  Isolate* isolate = handles.main_isolate();
+  Handle<Object> the_hole_value = isolate->factory()->the_hole_value();
 
-  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-  builder.set_locals_count(0);
-  builder.set_context_count(0);
-  builder.set_parameter_count(1);
+  BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 0);
   builder.LoadTheHole().Return();
-  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
-  InterpreterTester tester(handles.main_isolate(), bytecode_array);
+  InterpreterTester tester(isolate, bytecode_array);
   auto callable = tester.GetCallable<>();
   Handle<Object> return_val = callable().ToHandleChecked();
   CHECK(return_val.is_identical_to(the_hole_value));
@@ -240,16 +85,14 @@ TEST(InterpreterLoadTheHole) {
 
 TEST(InterpreterLoadTrue) {
   HandleAndZoneScope handles;
-  Handle<Object> true_value = handles.main_isolate()->factory()->true_value();
+  Isolate* isolate = handles.main_isolate();
+  Handle<Object> true_value = isolate->factory()->true_value();
 
-  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-  builder.set_locals_count(0);
-  builder.set_context_count(0);
-  builder.set_parameter_count(1);
+  BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 0);
   builder.LoadTrue().Return();
-  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
-  InterpreterTester tester(handles.main_isolate(), bytecode_array);
+  InterpreterTester tester(isolate, bytecode_array);
   auto callable = tester.GetCallable<>();
   Handle<Object> return_val = callable().ToHandleChecked();
   CHECK(return_val.is_identical_to(true_value));
@@ -258,16 +101,14 @@ TEST(InterpreterLoadTrue) {
 
 TEST(InterpreterLoadFalse) {
   HandleAndZoneScope handles;
-  Handle<Object> false_value = handles.main_isolate()->factory()->false_value();
+  Isolate* isolate = handles.main_isolate();
+  Handle<Object> false_value = isolate->factory()->false_value();
 
-  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-  builder.set_locals_count(0);
-  builder.set_context_count(0);
-  builder.set_parameter_count(1);
+  BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 0);
   builder.LoadFalse().Return();
-  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
-  InterpreterTester tester(handles.main_isolate(), bytecode_array);
+  InterpreterTester tester(isolate, bytecode_array);
   auto callable = tester.GetCallable<>();
   Handle<Object> return_val = callable().ToHandleChecked();
   CHECK(return_val.is_identical_to(false_value));
@@ -276,18 +117,16 @@ TEST(InterpreterLoadFalse) {
 
 TEST(InterpreterLoadLiteral) {
   HandleAndZoneScope handles;
-  i::Factory* factory = handles.main_isolate()->factory();
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
 
   // Small Smis.
   for (int i = -128; i < 128; i++) {
-    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-    builder.set_locals_count(0);
-    builder.set_context_count(0);
-    builder.set_parameter_count(1);
+    BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 0);
     builder.LoadLiteral(Smi::FromInt(i)).Return();
-    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
-    InterpreterTester tester(handles.main_isolate(), bytecode_array);
+    InterpreterTester tester(isolate, bytecode_array);
     auto callable = tester.GetCallable<>();
     Handle<Object> return_val = callable().ToHandleChecked();
     CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(i));
@@ -295,14 +134,12 @@ TEST(InterpreterLoadLiteral) {
 
   // Large Smis.
   {
-    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-    builder.set_locals_count(0);
-    builder.set_context_count(0);
-    builder.set_parameter_count(1);
-    builder.LoadLiteral(Smi::FromInt(0x12345678)).Return();
-    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+    BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 0);
 
-    InterpreterTester tester(handles.main_isolate(), bytecode_array);
+    builder.LoadLiteral(Smi::FromInt(0x12345678)).Return();
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+
+    InterpreterTester tester(isolate, bytecode_array);
     auto callable = tester.GetCallable<>();
     Handle<Object> return_val = callable().ToHandleChecked();
     CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(0x12345678));
@@ -310,14 +147,12 @@ TEST(InterpreterLoadLiteral) {
 
   // Heap numbers.
   {
-    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-    builder.set_locals_count(0);
-    builder.set_context_count(0);
-    builder.set_parameter_count(1);
-    builder.LoadLiteral(factory->NewHeapNumber(-2.1e19)).Return();
-    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+    BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 0);
 
-    InterpreterTester tester(handles.main_isolate(), bytecode_array);
+    builder.LoadLiteral(factory->NewHeapNumber(-2.1e19)).Return();
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+
+    InterpreterTester tester(isolate, bytecode_array);
     auto callable = tester.GetCallable<>();
     Handle<Object> return_val = callable().ToHandleChecked();
     CHECK_EQ(i::HeapNumber::cast(*return_val)->value(), -2.1e19);
@@ -325,15 +160,13 @@ TEST(InterpreterLoadLiteral) {
 
   // Strings.
   {
-    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-    builder.set_locals_count(0);
-    builder.set_context_count(0);
-    builder.set_parameter_count(1);
+    BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 0);
+
     Handle<i::String> string = factory->NewStringFromAsciiChecked("String");
     builder.LoadLiteral(string).Return();
-    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
-    InterpreterTester tester(handles.main_isolate(), bytecode_array);
+    InterpreterTester tester(isolate, bytecode_array);
     auto callable = tester.GetCallable<>();
     Handle<Object> return_val = callable().ToHandleChecked();
     CHECK(i::String::cast(*return_val)->Equals(*string));
@@ -343,21 +176,20 @@ TEST(InterpreterLoadLiteral) {
 
 TEST(InterpreterLoadStoreRegisters) {
   HandleAndZoneScope handles;
-  Handle<Object> true_value = handles.main_isolate()->factory()->true_value();
-  for (int i = 0; i <= Register::kMaxRegisterIndex; i++) {
-    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-    builder.set_locals_count(i + 1);
-    builder.set_context_count(0);
-    builder.set_parameter_count(1);
+  Isolate* isolate = handles.main_isolate();
+  Handle<Object> true_value = isolate->factory()->true_value();
+  for (int i = 0; i <= kMaxInt8; i++) {
+    BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, i + 1);
+
     Register reg(i);
     builder.LoadTrue()
         .StoreAccumulatorInRegister(reg)
         .LoadFalse()
         .LoadAccumulatorWithRegister(reg)
         .Return();
-    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
-    InterpreterTester tester(handles.main_isolate(), bytecode_array);
+    InterpreterTester tester(isolate, bytecode_array);
     auto callable = tester.GetCallable<>();
     Handle<Object> return_val = callable().ToHandleChecked();
     CHECK(return_val.is_identical_to(true_value));
@@ -429,23 +261,27 @@ TEST(InterpreterShiftOpsSmi) {
     for (size_t r = 0; r < arraysize(rhs_inputs); r++) {
       for (size_t o = 0; o < arraysize(kShiftOperators); o++) {
         HandleAndZoneScope handles;
-        i::Factory* factory = handles.main_isolate()->factory();
-        BytecodeArrayBuilder builder(handles.main_isolate(),
-                                     handles.main_zone());
-        builder.set_locals_count(1);
-        builder.set_context_count(0);
-        builder.set_parameter_count(1);
+        Isolate* isolate = handles.main_isolate();
+        Factory* factory = isolate->factory();
+        Zone zone(isolate->allocator());
+        BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
+
+        FeedbackVectorSpec feedback_spec(&zone);
+        FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+        Handle<i::TypeFeedbackVector> vector =
+            NewTypeFeedbackVector(isolate, &feedback_spec);
+
         Register reg(0);
         int lhs = lhs_inputs[l];
         int rhs = rhs_inputs[r];
         builder.LoadLiteral(Smi::FromInt(lhs))
             .StoreAccumulatorInRegister(reg)
             .LoadLiteral(Smi::FromInt(rhs))
-            .BinaryOperation(kShiftOperators[o], reg, Strength::WEAK)
+            .BinaryOperation(kShiftOperators[o], reg, vector->GetIndex(slot))
             .Return();
-        Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+        Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
-        InterpreterTester tester(handles.main_isolate(), bytecode_array);
+        InterpreterTester tester(isolate, bytecode_array, vector);
         auto callable = tester.GetCallable<>();
         Handle<Object> return_value = callable().ToHandleChecked();
         Handle<Object> expected_value =
@@ -464,23 +300,28 @@ TEST(InterpreterBinaryOpsSmi) {
     for (size_t r = 0; r < arraysize(rhs_inputs); r++) {
       for (size_t o = 0; o < arraysize(kArithmeticOperators); o++) {
         HandleAndZoneScope handles;
-        i::Factory* factory = handles.main_isolate()->factory();
-        BytecodeArrayBuilder builder(handles.main_isolate(),
-                                     handles.main_zone());
-        builder.set_locals_count(1);
-        builder.set_context_count(0);
-        builder.set_parameter_count(1);
+        Isolate* isolate = handles.main_isolate();
+        Factory* factory = isolate->factory();
+        Zone zone(isolate->allocator());
+        BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
+
+        FeedbackVectorSpec feedback_spec(&zone);
+        FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+        Handle<i::TypeFeedbackVector> vector =
+            NewTypeFeedbackVector(isolate, &feedback_spec);
+
         Register reg(0);
         int lhs = lhs_inputs[l];
         int rhs = rhs_inputs[r];
         builder.LoadLiteral(Smi::FromInt(lhs))
             .StoreAccumulatorInRegister(reg)
             .LoadLiteral(Smi::FromInt(rhs))
-            .BinaryOperation(kArithmeticOperators[o], reg, Strength::WEAK)
+            .BinaryOperation(kArithmeticOperators[o], reg,
+                             vector->GetIndex(slot))
             .Return();
-        Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+        Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
-        InterpreterTester tester(handles.main_isolate(), bytecode_array);
+        InterpreterTester tester(isolate, bytecode_array, vector);
         auto callable = tester.GetCallable<>();
         Handle<Object> return_value = callable().ToHandleChecked();
         Handle<Object> expected_value =
@@ -500,23 +341,28 @@ TEST(InterpreterBinaryOpsHeapNumber) {
     for (size_t r = 0; r < arraysize(rhs_inputs); r++) {
       for (size_t o = 0; o < arraysize(kArithmeticOperators); o++) {
         HandleAndZoneScope handles;
-        i::Factory* factory = handles.main_isolate()->factory();
-        BytecodeArrayBuilder builder(handles.main_isolate(),
-                                     handles.main_zone());
-        builder.set_locals_count(1);
-        builder.set_context_count(0);
-        builder.set_parameter_count(1);
+        Isolate* isolate = handles.main_isolate();
+        Factory* factory = isolate->factory();
+        Zone zone(isolate->allocator());
+        BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
+
+        FeedbackVectorSpec feedback_spec(&zone);
+        FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+        Handle<i::TypeFeedbackVector> vector =
+            NewTypeFeedbackVector(isolate, &feedback_spec);
+
         Register reg(0);
         double lhs = lhs_inputs[l];
         double rhs = rhs_inputs[r];
         builder.LoadLiteral(factory->NewNumber(lhs))
             .StoreAccumulatorInRegister(reg)
             .LoadLiteral(factory->NewNumber(rhs))
-            .BinaryOperation(kArithmeticOperators[o], reg, Strength::WEAK)
+            .BinaryOperation(kArithmeticOperators[o], reg,
+                             vector->GetIndex(slot))
             .Return();
-        Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+        Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
-        InterpreterTester tester(handles.main_isolate(), bytecode_array);
+        InterpreterTester tester(isolate, bytecode_array, vector);
         auto callable = tester.GetCallable<>();
         Handle<Object> return_value = callable().ToHandleChecked();
         Handle<Object> expected_value =
@@ -530,7 +376,9 @@ TEST(InterpreterBinaryOpsHeapNumber) {
 
 TEST(InterpreterStringAdd) {
   HandleAndZoneScope handles;
-  i::Factory* factory = handles.main_isolate()->factory();
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
+  Zone zone(isolate->allocator());
 
   struct TestCase {
     Handle<Object> lhs;
@@ -561,19 +409,21 @@ TEST(InterpreterStringAdd) {
   };
 
   for (size_t i = 0; i < arraysize(test_cases); i++) {
-    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-    builder.set_locals_count(1);
-    builder.set_context_count(0);
-    builder.set_parameter_count(1);
+    BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
+    FeedbackVectorSpec feedback_spec(&zone);
+    FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+    Handle<i::TypeFeedbackVector> vector =
+        NewTypeFeedbackVector(isolate, &feedback_spec);
+
     Register reg(0);
     builder.LoadLiteral(test_cases[i].lhs)
         .StoreAccumulatorInRegister(reg)
         .LoadLiteral(test_cases[i].rhs)
-        .BinaryOperation(Token::Value::ADD, reg, Strength::WEAK)
+        .BinaryOperation(Token::Value::ADD, reg, vector->GetIndex(slot))
         .Return();
-    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
-    InterpreterTester tester(handles.main_isolate(), bytecode_array);
+    InterpreterTester tester(isolate, bytecode_array);
     auto callable = tester.GetCallable<>();
     Handle<Object> return_value = callable().ToHandleChecked();
     CHECK(return_value->SameValue(*test_cases[i].expected_value));
@@ -583,18 +433,17 @@ TEST(InterpreterStringAdd) {
 
 TEST(InterpreterParameter1) {
   HandleAndZoneScope handles;
-  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-  builder.set_locals_count(0);
-  builder.set_context_count(0);
-  builder.set_parameter_count(1);
-  builder.LoadAccumulatorWithRegister(builder.Parameter(0)).Return();
-  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+  Isolate* isolate = handles.main_isolate();
+  BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 0);
 
-  InterpreterTester tester(handles.main_isolate(), bytecode_array);
+  builder.LoadAccumulatorWithRegister(builder.Parameter(0)).Return();
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+
+  InterpreterTester tester(isolate, bytecode_array);
   auto callable = tester.GetCallable<Handle<Object>>();
 
   // Check for heap objects.
-  Handle<Object> true_value = handles.main_isolate()->factory()->true_value();
+  Handle<Object> true_value = isolate->factory()->true_value();
   Handle<Object> return_val = callable(true_value).ToHandleChecked();
   CHECK(return_val.is_identical_to(true_value));
 
@@ -607,22 +456,41 @@ TEST(InterpreterParameter1) {
 
 TEST(InterpreterParameter8) {
   HandleAndZoneScope handles;
-  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-  builder.set_locals_count(0);
-  builder.set_context_count(0);
-  builder.set_parameter_count(8);
-  builder.LoadAccumulatorWithRegister(builder.Parameter(0))
-      .BinaryOperation(Token::Value::ADD, builder.Parameter(1), Strength::WEAK)
-      .BinaryOperation(Token::Value::ADD, builder.Parameter(2), Strength::WEAK)
-      .BinaryOperation(Token::Value::ADD, builder.Parameter(3), Strength::WEAK)
-      .BinaryOperation(Token::Value::ADD, builder.Parameter(4), Strength::WEAK)
-      .BinaryOperation(Token::Value::ADD, builder.Parameter(5), Strength::WEAK)
-      .BinaryOperation(Token::Value::ADD, builder.Parameter(6), Strength::WEAK)
-      .BinaryOperation(Token::Value::ADD, builder.Parameter(7), Strength::WEAK)
-      .Return();
-  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+  Isolate* isolate = handles.main_isolate();
+  Zone zone(isolate->allocator());
+  BytecodeArrayBuilder builder(isolate, handles.main_zone(), 8, 0, 0);
 
-  InterpreterTester tester(handles.main_isolate(), bytecode_array);
+  FeedbackVectorSpec feedback_spec(&zone);
+  FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+  FeedbackVectorSlot slot1 = feedback_spec.AddGeneralSlot();
+  FeedbackVectorSlot slot2 = feedback_spec.AddGeneralSlot();
+  FeedbackVectorSlot slot3 = feedback_spec.AddGeneralSlot();
+  FeedbackVectorSlot slot4 = feedback_spec.AddGeneralSlot();
+  FeedbackVectorSlot slot5 = feedback_spec.AddGeneralSlot();
+  FeedbackVectorSlot slot6 = feedback_spec.AddGeneralSlot();
+
+  Handle<i::TypeFeedbackVector> vector =
+      NewTypeFeedbackVector(isolate, &feedback_spec);
+
+  builder.LoadAccumulatorWithRegister(builder.Parameter(0))
+      .BinaryOperation(Token::Value::ADD, builder.Parameter(1),
+                       vector->GetIndex(slot))
+      .BinaryOperation(Token::Value::ADD, builder.Parameter(2),
+                       vector->GetIndex(slot1))
+      .BinaryOperation(Token::Value::ADD, builder.Parameter(3),
+                       vector->GetIndex(slot2))
+      .BinaryOperation(Token::Value::ADD, builder.Parameter(4),
+                       vector->GetIndex(slot3))
+      .BinaryOperation(Token::Value::ADD, builder.Parameter(5),
+                       vector->GetIndex(slot4))
+      .BinaryOperation(Token::Value::ADD, builder.Parameter(6),
+                       vector->GetIndex(slot5))
+      .BinaryOperation(Token::Value::ADD, builder.Parameter(7),
+                       vector->GetIndex(slot6))
+      .Return();
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+
+  InterpreterTester tester(isolate, bytecode_array, vector);
   typedef Handle<Object> H;
   auto callable = tester.GetCallable<H, H, H, H, H, H, H, H>();
 
@@ -641,20 +509,401 @@ TEST(InterpreterParameter8) {
   CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(36));
 }
 
+TEST(InterpreterBinaryOpTypeFeedback) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Zone zone(isolate->allocator());
+
+  struct BinaryOpExpectation {
+    Token::Value op;
+    Handle<Object> arg1;
+    Handle<Object> arg2;
+    Handle<Object> result;
+    int32_t feedback;
+  };
+
+  BinaryOpExpectation const kTestCases[] = {
+      // ADD
+      {Token::Value::ADD, Handle<Smi>(Smi::FromInt(2), isolate),
+       Handle<Smi>(Smi::FromInt(3), isolate),
+       Handle<Smi>(Smi::FromInt(5), isolate),
+       BinaryOperationFeedback::kSignedSmall},
+      {Token::Value::ADD, Handle<Smi>(Smi::FromInt(Smi::kMaxValue), isolate),
+       Handle<Smi>(Smi::FromInt(1), isolate),
+       isolate->factory()->NewHeapNumber(Smi::kMaxValue + 1.0),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::ADD, isolate->factory()->NewHeapNumber(3.1415),
+       Handle<Smi>(Smi::FromInt(3), isolate),
+       isolate->factory()->NewHeapNumber(3.1415 + 3),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::ADD, isolate->factory()->NewHeapNumber(3.1415),
+       isolate->factory()->NewHeapNumber(1.4142),
+       isolate->factory()->NewHeapNumber(3.1415 + 1.4142),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::ADD, Handle<Smi>(Smi::FromInt(2), isolate),
+       isolate->factory()->NewStringFromAsciiChecked("2"),
+       isolate->factory()->NewStringFromAsciiChecked("22"),
+       BinaryOperationFeedback::kAny},
+      // SUB
+      {Token::Value::SUB, Handle<Smi>(Smi::FromInt(2), isolate),
+       Handle<Smi>(Smi::FromInt(3), isolate),
+       Handle<Smi>(Smi::FromInt(-1), isolate),
+       BinaryOperationFeedback::kSignedSmall},
+      {Token::Value::SUB, Handle<Smi>(Smi::FromInt(Smi::kMinValue), isolate),
+       Handle<Smi>(Smi::FromInt(1), isolate),
+       isolate->factory()->NewHeapNumber(Smi::kMinValue - 1.0),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::SUB, isolate->factory()->NewHeapNumber(3.1415),
+       Handle<Smi>(Smi::FromInt(3), isolate),
+       isolate->factory()->NewHeapNumber(3.1415 - 3),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::SUB, isolate->factory()->NewHeapNumber(3.1415),
+       isolate->factory()->NewHeapNumber(1.4142),
+       isolate->factory()->NewHeapNumber(3.1415 - 1.4142),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::SUB, Handle<Smi>(Smi::FromInt(2), isolate),
+       isolate->factory()->NewStringFromAsciiChecked("1"),
+       Handle<Smi>(Smi::FromInt(1), isolate), BinaryOperationFeedback::kAny},
+      // MUL
+      {Token::Value::MUL, Handle<Smi>(Smi::FromInt(2), isolate),
+       Handle<Smi>(Smi::FromInt(3), isolate),
+       Handle<Smi>(Smi::FromInt(6), isolate),
+       BinaryOperationFeedback::kSignedSmall},
+      {Token::Value::MUL, Handle<Smi>(Smi::FromInt(Smi::kMinValue), isolate),
+       Handle<Smi>(Smi::FromInt(2), isolate),
+       isolate->factory()->NewHeapNumber(Smi::kMinValue * 2.0),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::MUL, isolate->factory()->NewHeapNumber(3.1415),
+       Handle<Smi>(Smi::FromInt(3), isolate),
+       isolate->factory()->NewHeapNumber(3 * 3.1415),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::MUL, isolate->factory()->NewHeapNumber(3.1415),
+       isolate->factory()->NewHeapNumber(1.4142),
+       isolate->factory()->NewHeapNumber(3.1415 * 1.4142),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::MUL, Handle<Smi>(Smi::FromInt(2), isolate),
+       isolate->factory()->NewStringFromAsciiChecked("1"),
+       Handle<Smi>(Smi::FromInt(2), isolate), BinaryOperationFeedback::kAny},
+      // DIV
+      {Token::Value::DIV, Handle<Smi>(Smi::FromInt(6), isolate),
+       Handle<Smi>(Smi::FromInt(3), isolate),
+       Handle<Smi>(Smi::FromInt(2), isolate),
+       BinaryOperationFeedback::kSignedSmall},
+      {Token::Value::DIV, Handle<Smi>(Smi::FromInt(3), isolate),
+       Handle<Smi>(Smi::FromInt(2), isolate),
+       isolate->factory()->NewHeapNumber(3.0 / 2.0),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::DIV, isolate->factory()->NewHeapNumber(3.1415),
+       Handle<Smi>(Smi::FromInt(3), isolate),
+       isolate->factory()->NewHeapNumber(3.1415 / 3),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::DIV, isolate->factory()->NewHeapNumber(3.1415),
+       isolate->factory()->NewHeapNumber(
+           -std::numeric_limits<double>::infinity()),
+       isolate->factory()->NewHeapNumber(-0.0),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::DIV, Handle<Smi>(Smi::FromInt(2), isolate),
+       isolate->factory()->NewStringFromAsciiChecked("1"),
+       Handle<Smi>(Smi::FromInt(2), isolate), BinaryOperationFeedback::kAny},
+      // MOD
+      {Token::Value::MOD, Handle<Smi>(Smi::FromInt(5), isolate),
+       Handle<Smi>(Smi::FromInt(3), isolate),
+       Handle<Smi>(Smi::FromInt(2), isolate),
+       BinaryOperationFeedback::kSignedSmall},
+      {Token::Value::MOD, Handle<Smi>(Smi::FromInt(-4), isolate),
+       Handle<Smi>(Smi::FromInt(2), isolate),
+       isolate->factory()->NewHeapNumber(-0.0),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::MOD, isolate->factory()->NewHeapNumber(3.1415),
+       Handle<Smi>(Smi::FromInt(3), isolate),
+       isolate->factory()->NewHeapNumber(fmod(3.1415, 3.0)),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::MOD, isolate->factory()->NewHeapNumber(-3.1415),
+       isolate->factory()->NewHeapNumber(-1.4142),
+       isolate->factory()->NewHeapNumber(fmod(-3.1415, -1.4142)),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::MOD, Handle<Smi>(Smi::FromInt(3), isolate),
+       isolate->factory()->NewStringFromAsciiChecked("-2"),
+       Handle<Smi>(Smi::FromInt(1), isolate), BinaryOperationFeedback::kAny}};
+
+  for (const BinaryOpExpectation& test_case : kTestCases) {
+    BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
+
+    i::FeedbackVectorSpec feedback_spec(&zone);
+    i::FeedbackVectorSlot slot0 = feedback_spec.AddGeneralSlot();
+
+    Handle<i::TypeFeedbackVector> vector =
+        i::NewTypeFeedbackVector(isolate, &feedback_spec);
+
+    Register reg(0);
+    builder.LoadLiteral(test_case.arg1)
+        .StoreAccumulatorInRegister(reg)
+        .LoadLiteral(test_case.arg2)
+        .BinaryOperation(test_case.op, reg, vector->GetIndex(slot0))
+        .Return();
+
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+
+    InterpreterTester tester(isolate, bytecode_array, vector);
+    auto callable = tester.GetCallable<>();
+
+    Handle<Object> return_val = callable().ToHandleChecked();
+    Object* feedback0 = vector->Get(slot0);
+    CHECK(feedback0->IsSmi());
+    CHECK_EQ(test_case.feedback, static_cast<Smi*>(feedback0)->value());
+    CHECK(Object::Equals(test_case.result, return_val).ToChecked());
+  }
+}
+
+TEST(InterpreterBinaryOpSmiTypeFeedback) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Zone zone(isolate->allocator());
+
+  struct BinaryOpExpectation {
+    Token::Value op;
+    Handle<Object> arg1;
+    int32_t arg2;
+    Handle<Object> result;
+    int32_t feedback;
+  };
+
+  BinaryOpExpectation const kTestCases[] = {
+      // ADD
+      {Token::Value::ADD, Handle<Smi>(Smi::FromInt(2), isolate), 42,
+       Handle<Smi>(Smi::FromInt(44), isolate),
+       BinaryOperationFeedback::kSignedSmall},
+      {Token::Value::ADD, Handle<Smi>(Smi::FromInt(2), isolate), Smi::kMaxValue,
+       isolate->factory()->NewHeapNumber(Smi::kMaxValue + 2.0),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::ADD, isolate->factory()->NewHeapNumber(3.1415), 2,
+       isolate->factory()->NewHeapNumber(3.1415 + 2.0),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::ADD, isolate->factory()->NewStringFromAsciiChecked("2"), 2,
+       isolate->factory()->NewStringFromAsciiChecked("22"),
+       BinaryOperationFeedback::kAny},
+      // SUB
+      {Token::Value::SUB, Handle<Smi>(Smi::FromInt(2), isolate), 42,
+       Handle<Smi>(Smi::FromInt(-40), isolate),
+       BinaryOperationFeedback::kSignedSmall},
+      {Token::Value::SUB, Handle<Smi>(Smi::FromInt(Smi::kMinValue), isolate), 1,
+       isolate->factory()->NewHeapNumber(Smi::kMinValue - 1.0),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::SUB, isolate->factory()->NewHeapNumber(3.1415), 2,
+       isolate->factory()->NewHeapNumber(3.1415 - 2.0),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::SUB, isolate->factory()->NewStringFromAsciiChecked("2"), 2,
+       Handle<Smi>(Smi::FromInt(0), isolate), BinaryOperationFeedback::kAny},
+      // BIT_OR
+      {Token::Value::BIT_OR, Handle<Smi>(Smi::FromInt(4), isolate), 1,
+       Handle<Smi>(Smi::FromInt(5), isolate),
+       BinaryOperationFeedback::kSignedSmall},
+      {Token::Value::BIT_OR, isolate->factory()->NewHeapNumber(3.1415), 8,
+       Handle<Smi>(Smi::FromInt(11), isolate),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::BIT_OR, isolate->factory()->NewStringFromAsciiChecked("2"),
+       1, Handle<Smi>(Smi::FromInt(3), isolate), BinaryOperationFeedback::kAny},
+      // BIT_AND
+      {Token::Value::BIT_AND, Handle<Smi>(Smi::FromInt(3), isolate), 1,
+       Handle<Smi>(Smi::FromInt(1), isolate),
+       BinaryOperationFeedback::kSignedSmall},
+      {Token::Value::BIT_AND, isolate->factory()->NewHeapNumber(3.1415), 2,
+       Handle<Smi>(Smi::FromInt(2), isolate), BinaryOperationFeedback::kNumber},
+      {Token::Value::BIT_AND,
+       isolate->factory()->NewStringFromAsciiChecked("2"), 1,
+       Handle<Smi>(Smi::FromInt(0), isolate), BinaryOperationFeedback::kAny},
+      // SHL
+      {Token::Value::SHL, Handle<Smi>(Smi::FromInt(3), isolate), 1,
+       Handle<Smi>(Smi::FromInt(6), isolate),
+       BinaryOperationFeedback::kSignedSmall},
+      {Token::Value::SHL, isolate->factory()->NewHeapNumber(3.1415), 2,
+       Handle<Smi>(Smi::FromInt(12), isolate),
+       BinaryOperationFeedback::kNumber},
+      {Token::Value::SHL, isolate->factory()->NewStringFromAsciiChecked("2"), 1,
+       Handle<Smi>(Smi::FromInt(4), isolate), BinaryOperationFeedback::kAny},
+      // SAR
+      {Token::Value::SAR, Handle<Smi>(Smi::FromInt(3), isolate), 1,
+       Handle<Smi>(Smi::FromInt(1), isolate),
+       BinaryOperationFeedback::kSignedSmall},
+      {Token::Value::SAR, isolate->factory()->NewHeapNumber(3.1415), 2,
+       Handle<Smi>(Smi::FromInt(0), isolate), BinaryOperationFeedback::kNumber},
+      {Token::Value::SAR, isolate->factory()->NewStringFromAsciiChecked("2"), 1,
+       Handle<Smi>(Smi::FromInt(1), isolate), BinaryOperationFeedback::kAny}};
+
+  for (const BinaryOpExpectation& test_case : kTestCases) {
+    BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
+
+    i::FeedbackVectorSpec feedback_spec(&zone);
+    i::FeedbackVectorSlot slot0 = feedback_spec.AddGeneralSlot();
+
+    Handle<i::TypeFeedbackVector> vector =
+        i::NewTypeFeedbackVector(isolate, &feedback_spec);
+
+    Register reg(0);
+    builder.LoadLiteral(test_case.arg1)
+        .StoreAccumulatorInRegister(reg)
+        .LoadLiteral(Smi::FromInt(test_case.arg2))
+        .BinaryOperation(test_case.op, reg, vector->GetIndex(slot0))
+        .Return();
+
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+
+    InterpreterTester tester(isolate, bytecode_array, vector);
+    auto callable = tester.GetCallable<>();
+
+    Handle<Object> return_val = callable().ToHandleChecked();
+    Object* feedback0 = vector->Get(slot0);
+    CHECK(feedback0->IsSmi());
+    CHECK_EQ(test_case.feedback, static_cast<Smi*>(feedback0)->value());
+    CHECK(Object::Equals(test_case.result, return_val).ToChecked());
+  }
+}
+
+TEST(InterpreterUnaryOpFeedback) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Zone zone(isolate->allocator());
+
+  Handle<Smi> smi_one = Handle<Smi>(Smi::FromInt(1), isolate);
+  Handle<Smi> smi_max = Handle<Smi>(Smi::FromInt(Smi::kMaxValue), isolate);
+  Handle<Smi> smi_min = Handle<Smi>(Smi::FromInt(Smi::kMinValue), isolate);
+  Handle<HeapNumber> number = isolate->factory()->NewHeapNumber(2.1);
+  Handle<String> str = isolate->factory()->NewStringFromAsciiChecked("42");
+
+  struct TestCase {
+    Token::Value op;
+    Handle<Smi> smi_feedback_value;
+    Handle<Smi> smi_to_number_feedback_value;
+    Handle<HeapNumber> number_feedback_value;
+    Handle<Object> any_feedback_value;
+  };
+  TestCase const kTestCases[] = {
+      {Token::Value::ADD, smi_one, smi_max, number, str},
+      {Token::Value::SUB, smi_one, smi_min, number, str}};
+  for (TestCase const& test_case : kTestCases) {
+    BytecodeArrayBuilder builder(isolate, handles.main_zone(), 4, 0, 0);
+
+    i::FeedbackVectorSpec feedback_spec(&zone);
+    i::FeedbackVectorSlot slot0 = feedback_spec.AddGeneralSlot();
+    i::FeedbackVectorSlot slot1 = feedback_spec.AddGeneralSlot();
+    i::FeedbackVectorSlot slot2 = feedback_spec.AddGeneralSlot();
+    i::FeedbackVectorSlot slot3 = feedback_spec.AddGeneralSlot();
+
+    Handle<i::TypeFeedbackVector> vector =
+        i::NewTypeFeedbackVector(isolate, &feedback_spec);
+
+    builder.LoadAccumulatorWithRegister(builder.Parameter(0))
+        .CountOperation(test_case.op, vector->GetIndex(slot0))
+        .LoadAccumulatorWithRegister(builder.Parameter(1))
+        .CountOperation(test_case.op, vector->GetIndex(slot1))
+        .LoadAccumulatorWithRegister(builder.Parameter(2))
+        .CountOperation(test_case.op, vector->GetIndex(slot2))
+        .LoadAccumulatorWithRegister(builder.Parameter(3))
+        .CountOperation(test_case.op, vector->GetIndex(slot3))
+        .Return();
+
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+
+    InterpreterTester tester(isolate, bytecode_array, vector);
+    typedef Handle<Object> H;
+    auto callable = tester.GetCallable<H, H, H, H>();
+
+    Handle<Object> return_val =
+        callable(test_case.smi_feedback_value,
+                 test_case.smi_to_number_feedback_value,
+                 test_case.number_feedback_value, test_case.any_feedback_value)
+            .ToHandleChecked();
+    USE(return_val);
+    Object* feedback0 = vector->Get(slot0);
+    CHECK(feedback0->IsSmi());
+    CHECK_EQ(BinaryOperationFeedback::kSignedSmall,
+             static_cast<Smi*>(feedback0)->value());
+
+    Object* feedback1 = vector->Get(slot1);
+    CHECK(feedback1->IsSmi());
+    CHECK_EQ(BinaryOperationFeedback::kNumber,
+             static_cast<Smi*>(feedback1)->value());
+
+    Object* feedback2 = vector->Get(slot2);
+    CHECK(feedback2->IsSmi());
+    CHECK_EQ(BinaryOperationFeedback::kNumber,
+             static_cast<Smi*>(feedback2)->value());
+
+    Object* feedback3 = vector->Get(slot3);
+    CHECK(feedback3->IsSmi());
+    CHECK_EQ(BinaryOperationFeedback::kAny,
+             static_cast<Smi*>(feedback3)->value());
+  }
+}
+
+TEST(InterpreterBitwiseTypeFeedback) {
+  HandleAndZoneScope handles;
+  i::Isolate* isolate = handles.main_isolate();
+  i::Zone zone(isolate->allocator());
+  const Token::Value kBitwiseBinaryOperators[] = {
+      Token::Value::BIT_OR, Token::Value::BIT_XOR, Token::Value::BIT_AND,
+      Token::Value::SHL,    Token::Value::SHR,     Token::Value::SAR};
+
+  for (Token::Value op : kBitwiseBinaryOperators) {
+    BytecodeArrayBuilder builder(isolate, handles.main_zone(), 4, 0, 0);
+
+    i::FeedbackVectorSpec feedback_spec(&zone);
+    i::FeedbackVectorSlot slot0 = feedback_spec.AddGeneralSlot();
+    i::FeedbackVectorSlot slot1 = feedback_spec.AddGeneralSlot();
+    i::FeedbackVectorSlot slot2 = feedback_spec.AddGeneralSlot();
+
+    Handle<i::TypeFeedbackVector> vector =
+        i::NewTypeFeedbackVector(isolate, &feedback_spec);
+
+    builder.LoadAccumulatorWithRegister(builder.Parameter(0))
+        .BinaryOperation(op, builder.Parameter(1), vector->GetIndex(slot0))
+        .BinaryOperation(op, builder.Parameter(2), vector->GetIndex(slot1))
+        .BinaryOperation(op, builder.Parameter(3), vector->GetIndex(slot2))
+        .Return();
+
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+
+    InterpreterTester tester(isolate, bytecode_array, vector);
+    typedef Handle<Object> H;
+    auto callable = tester.GetCallable<H, H, H, H>();
+
+    Handle<Smi> arg1 = Handle<Smi>(Smi::FromInt(2), isolate);
+    Handle<Smi> arg2 = Handle<Smi>(Smi::FromInt(2), isolate);
+    Handle<HeapNumber> arg3 = isolate->factory()->NewHeapNumber(2.2);
+    Handle<String> arg4 = isolate->factory()->NewStringFromAsciiChecked("2");
+
+    Handle<Object> return_val =
+        callable(arg1, arg2, arg3, arg4).ToHandleChecked();
+    USE(return_val);
+    Object* feedback0 = vector->Get(slot0);
+    CHECK(feedback0->IsSmi());
+    CHECK_EQ(BinaryOperationFeedback::kSignedSmall,
+             static_cast<Smi*>(feedback0)->value());
+
+    Object* feedback1 = vector->Get(slot1);
+    CHECK(feedback1->IsSmi());
+    CHECK_EQ(BinaryOperationFeedback::kNumber,
+             static_cast<Smi*>(feedback1)->value());
+
+    Object* feedback2 = vector->Get(slot2);
+    CHECK(feedback2->IsSmi());
+    CHECK_EQ(BinaryOperationFeedback::kAny,
+             static_cast<Smi*>(feedback2)->value());
+  }
+}
 
 TEST(InterpreterParameter1Assign) {
   HandleAndZoneScope handles;
-  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-  builder.set_locals_count(0);
-  builder.set_context_count(0);
-  builder.set_parameter_count(1);
+  Isolate* isolate = handles.main_isolate();
+  BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 0);
+
   builder.LoadLiteral(Smi::FromInt(5))
       .StoreAccumulatorInRegister(builder.Parameter(0))
       .LoadAccumulatorWithRegister(builder.Parameter(0))
       .Return();
-  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
-  InterpreterTester tester(handles.main_isolate(), bytecode_array);
+  InterpreterTester tester(isolate, bytecode_array);
   auto callable = tester.GetCallable<Handle<Object>>();
 
   Handle<Object> return_val =
@@ -666,6 +915,7 @@ TEST(InterpreterParameter1Assign) {
 
 TEST(InterpreterLoadGlobal) {
   HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
 
   // Test loading a global.
   std::string source(
@@ -673,7 +923,7 @@ TEST(InterpreterLoadGlobal) {
       "function " + InterpreterTester::function_name() + "() {\n"
       "  return global;\n"
       "}");
-  InterpreterTester tester(handles.main_isolate(), source.c_str());
+  InterpreterTester tester(isolate, source.c_str());
   auto callable = tester.GetCallable<>();
 
   Handle<Object> return_val = callable().ToHandleChecked();
@@ -683,8 +933,8 @@ TEST(InterpreterLoadGlobal) {
 
 TEST(InterpreterStoreGlobal) {
   HandleAndZoneScope handles;
-  i::Isolate* isolate = handles.main_isolate();
-  i::Factory* factory = isolate->factory();
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
 
   // Test storing to a global.
   std::string source(
@@ -692,7 +942,7 @@ TEST(InterpreterStoreGlobal) {
       "function " + InterpreterTester::function_name() + "() {\n"
       "  global = 999;\n"
       "}");
-  InterpreterTester tester(handles.main_isolate(), source.c_str());
+  InterpreterTester tester(isolate, source.c_str());
   auto callable = tester.GetCallable<>();
 
   callable().ToHandleChecked();
@@ -705,6 +955,7 @@ TEST(InterpreterStoreGlobal) {
 
 TEST(InterpreterCallGlobal) {
   HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
 
   // Test calling a global function.
   std::string source(
@@ -712,7 +963,7 @@ TEST(InterpreterCallGlobal) {
       "function " + InterpreterTester::function_name() + "() {\n"
       "  return g_add(5, 10);\n"
       "}");
-  InterpreterTester tester(handles.main_isolate(), source.c_str());
+  InterpreterTester tester(isolate, source.c_str());
   auto callable = tester.GetCallable<>();
 
   Handle<Object> return_val = callable().ToHandleChecked();
@@ -722,6 +973,7 @@ TEST(InterpreterCallGlobal) {
 
 TEST(InterpreterLoadUnallocated) {
   HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
 
   // Test loading an unallocated global.
   std::string source(
@@ -729,7 +981,7 @@ TEST(InterpreterLoadUnallocated) {
       "function " + InterpreterTester::function_name() + "() {\n"
       "  return unallocated;\n"
       "}");
-  InterpreterTester tester(handles.main_isolate(), source.c_str());
+  InterpreterTester tester(isolate, source.c_str());
   auto callable = tester.GetCallable<>();
 
   Handle<Object> return_val = callable().ToHandleChecked();
@@ -739,8 +991,8 @@ TEST(InterpreterLoadUnallocated) {
 
 TEST(InterpreterStoreUnallocated) {
   HandleAndZoneScope handles;
-  i::Isolate* isolate = handles.main_isolate();
-  i::Factory* factory = isolate->factory();
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
 
   // Test storing to an unallocated global.
   std::string source(
@@ -748,7 +1000,7 @@ TEST(InterpreterStoreUnallocated) {
       "function " + InterpreterTester::function_name() + "() {\n"
       "  unallocated = 999;\n"
       "}");
-  InterpreterTester tester(handles.main_isolate(), source.c_str());
+  InterpreterTester tester(isolate, source.c_str());
   auto callable = tester.GetCallable<>();
 
   callable().ToHandleChecked();
@@ -761,30 +1013,26 @@ TEST(InterpreterStoreUnallocated) {
 
 TEST(InterpreterLoadNamedProperty) {
   HandleAndZoneScope handles;
-  i::Isolate* isolate = handles.main_isolate();
-  i::Factory* factory = isolate->factory();
-  i::Zone zone;
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
+  Zone zone(isolate->allocator());
 
-  i::FeedbackVectorSpec feedback_spec(&zone);
-  i::FeedbackVectorSlot slot = feedback_spec.AddLoadICSlot();
+  FeedbackVectorSpec feedback_spec(&zone);
+  FeedbackVectorSlot slot = feedback_spec.AddLoadICSlot();
 
   Handle<i::TypeFeedbackVector> vector =
-      i::NewTypeFeedbackVector(isolate, &feedback_spec);
+      NewTypeFeedbackVector(isolate, &feedback_spec);
 
   Handle<i::String> name = factory->NewStringFromAsciiChecked("val");
   name = factory->string_table()->LookupString(isolate, name);
 
-  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-  builder.set_locals_count(0);
-  builder.set_context_count(0);
-  builder.set_parameter_count(1);
-  size_t name_index = builder.GetConstantPoolEntry(name);
-  builder.LoadNamedProperty(builder.Parameter(0), name_index,
-                            vector->GetIndex(slot), i::SLOPPY)
-      .Return();
-  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+  BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 0);
 
-  InterpreterTester tester(handles.main_isolate(), bytecode_array, vector);
+  builder.LoadNamedProperty(builder.Parameter(0), name, vector->GetIndex(slot))
+      .Return();
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+
+  InterpreterTester tester(isolate, bytecode_array, vector);
   auto callable = tester.GetCallable<Handle<Object>>();
 
   Handle<Object> object = InterpreterTester::NewObject("({ val : 123 })");
@@ -818,30 +1066,27 @@ TEST(InterpreterLoadNamedProperty) {
 
 TEST(InterpreterLoadKeyedProperty) {
   HandleAndZoneScope handles;
-  i::Isolate* isolate = handles.main_isolate();
-  i::Factory* factory = isolate->factory();
-  i::Zone zone;
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
+  Zone zone(isolate->allocator());
 
-  i::FeedbackVectorSpec feedback_spec(&zone);
-  i::FeedbackVectorSlot slot = feedback_spec.AddKeyedLoadICSlot();
+  FeedbackVectorSpec feedback_spec(&zone);
+  FeedbackVectorSlot slot = feedback_spec.AddKeyedLoadICSlot();
 
   Handle<i::TypeFeedbackVector> vector =
-      i::NewTypeFeedbackVector(isolate, &feedback_spec);
+      NewTypeFeedbackVector(isolate, &feedback_spec);
 
   Handle<i::String> key = factory->NewStringFromAsciiChecked("key");
   key = factory->string_table()->LookupString(isolate, key);
 
-  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-  builder.set_locals_count(1);
-  builder.set_context_count(0);
-  builder.set_parameter_count(1);
-  builder.LoadLiteral(key)
-      .LoadKeyedProperty(builder.Parameter(0), vector->GetIndex(slot),
-                         i::STRICT)
-      .Return();
-  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+  BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
 
-  InterpreterTester tester(handles.main_isolate(), bytecode_array, vector);
+  builder.LoadLiteral(key)
+      .LoadKeyedProperty(builder.Parameter(0), vector->GetIndex(slot))
+      .Return();
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+
+  InterpreterTester tester(isolate, bytecode_array, vector);
   auto callable = tester.GetCallable<Handle<Object>>();
 
   Handle<Object> object = InterpreterTester::NewObject("({ key : 123 })");
@@ -863,29 +1108,26 @@ TEST(InterpreterLoadKeyedProperty) {
 
 TEST(InterpreterStoreNamedProperty) {
   HandleAndZoneScope handles;
-  i::Isolate* isolate = handles.main_isolate();
-  i::Factory* factory = isolate->factory();
-  i::Zone zone;
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
+  Zone zone(isolate->allocator());
 
-  i::FeedbackVectorSpec feedback_spec(&zone);
-  i::FeedbackVectorSlot slot = feedback_spec.AddStoreICSlot();
+  FeedbackVectorSpec feedback_spec(&zone);
+  FeedbackVectorSlot slot = feedback_spec.AddStoreICSlot();
 
   Handle<i::TypeFeedbackVector> vector =
-      i::NewTypeFeedbackVector(isolate, &feedback_spec);
+      NewTypeFeedbackVector(isolate, &feedback_spec);
 
   Handle<i::String> name = factory->NewStringFromAsciiChecked("val");
   name = factory->string_table()->LookupString(isolate, name);
 
-  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-  builder.set_locals_count(0);
-  builder.set_context_count(0);
-  builder.set_parameter_count(1);
-  size_t name_index = builder.GetConstantPoolEntry(name);
+  BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 0);
+
   builder.LoadLiteral(Smi::FromInt(999))
-      .StoreNamedProperty(builder.Parameter(0), name_index,
-                          vector->GetIndex(slot), i::STRICT)
+      .StoreNamedProperty(builder.Parameter(0), name, vector->GetIndex(slot),
+                          STRICT)
       .Return();
-  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
   InterpreterTester tester(isolate, bytecode_array, vector);
   auto callable = tester.GetCallable<Handle<Object>>();
@@ -925,30 +1167,28 @@ TEST(InterpreterStoreNamedProperty) {
 
 TEST(InterpreterStoreKeyedProperty) {
   HandleAndZoneScope handles;
-  i::Isolate* isolate = handles.main_isolate();
-  i::Factory* factory = isolate->factory();
-  i::Zone zone;
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
+  Zone zone(isolate->allocator());
 
-  i::FeedbackVectorSpec feedback_spec(&zone);
-  i::FeedbackVectorSlot slot = feedback_spec.AddKeyedStoreICSlot();
+  FeedbackVectorSpec feedback_spec(&zone);
+  FeedbackVectorSlot slot = feedback_spec.AddKeyedStoreICSlot();
 
   Handle<i::TypeFeedbackVector> vector =
-      i::NewTypeFeedbackVector(isolate, &feedback_spec);
+      NewTypeFeedbackVector(isolate, &feedback_spec);
 
   Handle<i::String> name = factory->NewStringFromAsciiChecked("val");
   name = factory->string_table()->LookupString(isolate, name);
 
-  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-  builder.set_locals_count(1);
-  builder.set_context_count(0);
-  builder.set_parameter_count(1);
+  BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
+
   builder.LoadLiteral(name)
       .StoreAccumulatorInRegister(Register(0))
       .LoadLiteral(Smi::FromInt(999))
       .StoreKeyedProperty(builder.Parameter(0), Register(0),
                           vector->GetIndex(slot), i::SLOPPY)
       .Return();
-  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
   InterpreterTester tester(isolate, bytecode_array, vector);
   auto callable = tester.GetCallable<Handle<Object>>();
@@ -972,38 +1212,39 @@ TEST(InterpreterStoreKeyedProperty) {
   CHECK_EQ(Smi::cast(*result), Smi::FromInt(999));
 }
 
-
-TEST(InterpreterCall) {
+static void TestInterpreterCall(TailCallMode tail_call_mode) {
   HandleAndZoneScope handles;
-  i::Isolate* isolate = handles.main_isolate();
-  i::Factory* factory = isolate->factory();
-  i::Zone zone;
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
+  Zone zone(isolate->allocator());
 
-  i::FeedbackVectorSpec feedback_spec(&zone);
-  i::FeedbackVectorSlot slot = feedback_spec.AddLoadICSlot();
+  FeedbackVectorSpec feedback_spec(&zone);
+  FeedbackVectorSlot slot = feedback_spec.AddLoadICSlot();
+  FeedbackVectorSlot call_slot = feedback_spec.AddCallICSlot();
 
   Handle<i::TypeFeedbackVector> vector =
-      i::NewTypeFeedbackVector(isolate, &feedback_spec);
+      NewTypeFeedbackVector(isolate, &feedback_spec);
   int slot_index = vector->GetIndex(slot);
+  int call_slot_index = -1;
+  call_slot_index = vector->GetIndex(call_slot);
 
   Handle<i::String> name = factory->NewStringFromAsciiChecked("func");
   name = factory->string_table()->LookupString(isolate, name);
 
   // Check with no args.
   {
-    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-    builder.set_locals_count(1);
-    builder.set_context_count(0);
-    builder.set_parameter_count(1);
-    size_t name_index = builder.GetConstantPoolEntry(name);
-    builder.LoadNamedProperty(builder.Parameter(0), name_index, slot_index,
-                              i::SLOPPY)
-        .StoreAccumulatorInRegister(Register(0))
-        .Call(Register(0), builder.Parameter(0), 0)
-        .Return();
-    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+    BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
 
-    InterpreterTester tester(handles.main_isolate(), bytecode_array, vector);
+    builder.LoadNamedProperty(builder.Parameter(0), name, slot_index)
+        .StoreAccumulatorInRegister(Register(0));
+
+    builder.Call(Register(0), builder.Parameter(0), 1, call_slot_index,
+                 tail_call_mode);
+
+    builder.Return();
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+
+    InterpreterTester tester(isolate, bytecode_array, vector);
     auto callable = tester.GetCallable<Handle<Object>>();
 
     Handle<Object> object = InterpreterTester::NewObject(
@@ -1014,19 +1255,16 @@ TEST(InterpreterCall) {
 
   // Check that receiver is passed properly.
   {
-    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-    builder.set_locals_count(1);
-    builder.set_context_count(0);
-    builder.set_parameter_count(1);
-    size_t name_index = builder.GetConstantPoolEntry(name);
-    builder.LoadNamedProperty(builder.Parameter(0), name_index, slot_index,
-                              i::SLOPPY)
-        .StoreAccumulatorInRegister(Register(0))
-        .Call(Register(0), builder.Parameter(0), 0)
-        .Return();
-    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+    BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
 
-    InterpreterTester tester(handles.main_isolate(), bytecode_array, vector);
+    builder.LoadNamedProperty(builder.Parameter(0), name, slot_index)
+        .StoreAccumulatorInRegister(Register(0));
+    builder.Call(Register(0), builder.Parameter(0), 1, call_slot_index,
+                 tail_call_mode);
+    builder.Return();
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+
+    InterpreterTester tester(isolate, bytecode_array, vector);
     auto callable = tester.GetCallable<Handle<Object>>();
 
     Handle<Object> object = InterpreterTester::NewObject(
@@ -1040,25 +1278,24 @@ TEST(InterpreterCall) {
 
   // Check with two parameters (+ receiver).
   {
-    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-    builder.set_locals_count(4);
-    builder.set_context_count(0);
-    builder.set_parameter_count(1);
-    size_t name_index = builder.GetConstantPoolEntry(name);
-    builder.LoadNamedProperty(builder.Parameter(0), name_index, slot_index,
-                              i::SLOPPY)
+    BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 4);
+
+    builder.LoadNamedProperty(builder.Parameter(0), name, slot_index)
         .StoreAccumulatorInRegister(Register(0))
         .LoadAccumulatorWithRegister(builder.Parameter(0))
         .StoreAccumulatorInRegister(Register(1))
         .LoadLiteral(Smi::FromInt(51))
         .StoreAccumulatorInRegister(Register(2))
         .LoadLiteral(Smi::FromInt(11))
-        .StoreAccumulatorInRegister(Register(3))
-        .Call(Register(0), Register(1), 2)
-        .Return();
-    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+        .StoreAccumulatorInRegister(Register(3));
 
-    InterpreterTester tester(handles.main_isolate(), bytecode_array, vector);
+    builder.Call(Register(0), Register(1), 3, call_slot_index, tail_call_mode);
+
+    builder.Return();
+
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+
+    InterpreterTester tester(isolate, bytecode_array, vector);
     auto callable = tester.GetCallable<Handle<Object>>();
 
     Handle<Object> object = InterpreterTester::NewObject(
@@ -1071,13 +1308,9 @@ TEST(InterpreterCall) {
 
   // Check with 10 parameters (+ receiver).
   {
-    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-    builder.set_locals_count(12);
-    builder.set_context_count(0);
-    builder.set_parameter_count(1);
-    size_t name_index = builder.GetConstantPoolEntry(name);
-    builder.LoadNamedProperty(builder.Parameter(0), name_index, slot_index,
-                              i::SLOPPY)
+    BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 12);
+
+    builder.LoadNamedProperty(builder.Parameter(0), name, slot_index)
         .StoreAccumulatorInRegister(Register(0))
         .LoadAccumulatorWithRegister(builder.Parameter(0))
         .StoreAccumulatorInRegister(Register(1))
@@ -1100,12 +1333,15 @@ TEST(InterpreterCall) {
         .LoadLiteral(factory->NewStringFromAsciiChecked("i"))
         .StoreAccumulatorInRegister(Register(10))
         .LoadLiteral(factory->NewStringFromAsciiChecked("j"))
-        .StoreAccumulatorInRegister(Register(11))
-        .Call(Register(0), Register(1), 10)
-        .Return();
-    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+        .StoreAccumulatorInRegister(Register(11));
 
-    InterpreterTester tester(handles.main_isolate(), bytecode_array, vector);
+    builder.Call(Register(0), Register(1), 11, call_slot_index, tail_call_mode);
+
+    builder.Return();
+
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+
+    InterpreterTester tester(isolate, bytecode_array, vector);
     auto callable = tester.GetCallable<Handle<Object>>();
 
     Handle<Object> object = InterpreterTester::NewObject(
@@ -1122,6 +1358,9 @@ TEST(InterpreterCall) {
   }
 }
 
+TEST(InterpreterCall) { TestInterpreterCall(TailCallMode::kDisallow); }
+
+TEST(InterpreterTailCall) { TestInterpreterCall(TailCallMode::kAllow); }
 
 static BytecodeArrayBuilder& SetRegister(BytecodeArrayBuilder& builder,
                                          Register reg, int value,
@@ -1132,13 +1371,13 @@ static BytecodeArrayBuilder& SetRegister(BytecodeArrayBuilder& builder,
       .LoadAccumulatorWithRegister(scratch);
 }
 
-
 static BytecodeArrayBuilder& IncrementRegister(BytecodeArrayBuilder& builder,
                                                Register reg, int value,
-                                               Register scratch) {
+                                               Register scratch,
+                                               int slot_index) {
   return builder.StoreAccumulatorInRegister(scratch)
       .LoadLiteral(Smi::FromInt(value))
-      .BinaryOperation(Token::Value::ADD, reg, Strength::WEAK)
+      .BinaryOperation(Token::Value::ADD, reg, slot_index)
       .StoreAccumulatorInRegister(reg)
       .LoadAccumulatorWithRegister(scratch);
 }
@@ -1146,10 +1385,18 @@ static BytecodeArrayBuilder& IncrementRegister(BytecodeArrayBuilder& builder,
 
 TEST(InterpreterJumps) {
   HandleAndZoneScope handles;
-  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-  builder.set_locals_count(2);
-  builder.set_context_count(0);
-  builder.set_parameter_count(0);
+  Isolate* isolate = handles.main_isolate();
+  Zone zone(isolate->allocator());
+  BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 2);
+
+  FeedbackVectorSpec feedback_spec(&zone);
+  FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+  FeedbackVectorSlot slot1 = feedback_spec.AddGeneralSlot();
+  FeedbackVectorSlot slot2 = feedback_spec.AddGeneralSlot();
+
+  Handle<i::TypeFeedbackVector> vector =
+      NewTypeFeedbackVector(isolate, &feedback_spec);
+
   Register reg(0), scratch(1);
   BytecodeLabel label[3];
 
@@ -1157,16 +1404,18 @@ TEST(InterpreterJumps) {
       .StoreAccumulatorInRegister(reg)
       .Jump(&label[1]);
   SetRegister(builder, reg, 1024, scratch).Bind(&label[0]);
-  IncrementRegister(builder, reg, 1, scratch).Jump(&label[2]);
+  IncrementRegister(builder, reg, 1, scratch, vector->GetIndex(slot))
+      .Jump(&label[2]);
   SetRegister(builder, reg, 2048, scratch).Bind(&label[1]);
-  IncrementRegister(builder, reg, 2, scratch).Jump(&label[0]);
+  IncrementRegister(builder, reg, 2, scratch, vector->GetIndex(slot1))
+      .Jump(&label[0]);
   SetRegister(builder, reg, 4096, scratch).Bind(&label[2]);
-  IncrementRegister(builder, reg, 4, scratch)
+  IncrementRegister(builder, reg, 4, scratch, vector->GetIndex(slot2))
       .LoadAccumulatorWithRegister(reg)
       .Return();
 
-  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
-  InterpreterTester tester(handles.main_isolate(), bytecode_array);
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+  InterpreterTester tester(isolate, bytecode_array, vector);
   auto callable = tester.GetCallable<>();
   Handle<Object> return_value = callable().ToHandleChecked();
   CHECK_EQ(Smi::cast(*return_value)->value(), 7);
@@ -1175,10 +1424,20 @@ TEST(InterpreterJumps) {
 
 TEST(InterpreterConditionalJumps) {
   HandleAndZoneScope handles;
-  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-  builder.set_locals_count(2);
-  builder.set_context_count(0);
-  builder.set_parameter_count(0);
+  Isolate* isolate = handles.main_isolate();
+  Zone zone(isolate->allocator());
+  BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 2);
+
+  FeedbackVectorSpec feedback_spec(&zone);
+  FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+  FeedbackVectorSlot slot1 = feedback_spec.AddGeneralSlot();
+  FeedbackVectorSlot slot2 = feedback_spec.AddGeneralSlot();
+  FeedbackVectorSlot slot3 = feedback_spec.AddGeneralSlot();
+  FeedbackVectorSlot slot4 = feedback_spec.AddGeneralSlot();
+
+  Handle<i::TypeFeedbackVector> vector =
+      NewTypeFeedbackVector(isolate, &feedback_spec);
+
   Register reg(0), scratch(1);
   BytecodeLabel label[2];
   BytecodeLabel done, done1;
@@ -1187,34 +1446,48 @@ TEST(InterpreterConditionalJumps) {
       .StoreAccumulatorInRegister(reg)
       .LoadFalse()
       .JumpIfFalse(&label[0]);
-  IncrementRegister(builder, reg, 1024, scratch)
+  IncrementRegister(builder, reg, 1024, scratch, vector->GetIndex(slot))
       .Bind(&label[0])
       .LoadTrue()
       .JumpIfFalse(&done);
-  IncrementRegister(builder, reg, 1, scratch).LoadTrue().JumpIfTrue(&label[1]);
-  IncrementRegister(builder, reg, 2048, scratch).Bind(&label[1]);
-  IncrementRegister(builder, reg, 2, scratch).LoadFalse().JumpIfTrue(&done1);
-  IncrementRegister(builder, reg, 4, scratch)
+  IncrementRegister(builder, reg, 1, scratch, vector->GetIndex(slot1))
+      .LoadTrue()
+      .JumpIfTrue(&label[1]);
+  IncrementRegister(builder, reg, 2048, scratch, vector->GetIndex(slot2))
+      .Bind(&label[1]);
+  IncrementRegister(builder, reg, 2, scratch, vector->GetIndex(slot3))
+      .LoadFalse()
+      .JumpIfTrue(&done1);
+  IncrementRegister(builder, reg, 4, scratch, vector->GetIndex(slot4))
       .LoadAccumulatorWithRegister(reg)
       .Bind(&done)
       .Bind(&done1)
       .Return();
 
-  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
-  InterpreterTester tester(handles.main_isolate(), bytecode_array);
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+  InterpreterTester tester(isolate, bytecode_array, vector);
   auto callable = tester.GetCallable<>();
   Handle<Object> return_value = callable().ToHandleChecked();
   CHECK_EQ(Smi::cast(*return_value)->value(), 7);
 }
-
 
 TEST(InterpreterConditionalJumps2) {
   // TODO(oth): Add tests for all conditional jumps near and far.
   HandleAndZoneScope handles;
-  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-  builder.set_locals_count(2);
-  builder.set_context_count(0);
-  builder.set_parameter_count(0);
+  Isolate* isolate = handles.main_isolate();
+  Zone zone(isolate->allocator());
+  BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 2);
+
+  FeedbackVectorSpec feedback_spec(&zone);
+  FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+  FeedbackVectorSlot slot1 = feedback_spec.AddGeneralSlot();
+  FeedbackVectorSlot slot2 = feedback_spec.AddGeneralSlot();
+  FeedbackVectorSlot slot3 = feedback_spec.AddGeneralSlot();
+  FeedbackVectorSlot slot4 = feedback_spec.AddGeneralSlot();
+
+  Handle<i::TypeFeedbackVector> vector =
+      NewTypeFeedbackVector(isolate, &feedback_spec);
+
   Register reg(0), scratch(1);
   BytecodeLabel label[2];
   BytecodeLabel done, done1;
@@ -1223,32 +1496,131 @@ TEST(InterpreterConditionalJumps2) {
       .StoreAccumulatorInRegister(reg)
       .LoadFalse()
       .JumpIfFalse(&label[0]);
-  IncrementRegister(builder, reg, 1024, scratch)
+  IncrementRegister(builder, reg, 1024, scratch, vector->GetIndex(slot))
       .Bind(&label[0])
       .LoadTrue()
       .JumpIfFalse(&done);
-  IncrementRegister(builder, reg, 1, scratch).LoadTrue().JumpIfTrue(&label[1]);
-  IncrementRegister(builder, reg, 2048, scratch).Bind(&label[1]);
-  IncrementRegister(builder, reg, 2, scratch).LoadFalse().JumpIfTrue(&done1);
-  IncrementRegister(builder, reg, 4, scratch)
+  IncrementRegister(builder, reg, 1, scratch, vector->GetIndex(slot1))
+      .LoadTrue()
+      .JumpIfTrue(&label[1]);
+  IncrementRegister(builder, reg, 2048, scratch, vector->GetIndex(slot2))
+      .Bind(&label[1]);
+  IncrementRegister(builder, reg, 2, scratch, vector->GetIndex(slot3))
+      .LoadFalse()
+      .JumpIfTrue(&done1);
+  IncrementRegister(builder, reg, 4, scratch, vector->GetIndex(slot4))
       .LoadAccumulatorWithRegister(reg)
       .Bind(&done)
       .Bind(&done1)
       .Return();
 
-  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
-  InterpreterTester tester(handles.main_isolate(), bytecode_array);
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+  InterpreterTester tester(isolate, bytecode_array, vector);
   auto callable = tester.GetCallable<>();
   Handle<Object> return_value = callable().ToHandleChecked();
   CHECK_EQ(Smi::cast(*return_value)->value(), 7);
 }
 
+TEST(InterpreterJumpConstantWith16BitOperand) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+  BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 257);
+
+  Zone zone(isolate->allocator());
+
+  FeedbackVectorSpec feedback_spec(&zone);
+  FeedbackVectorSlot slot = feedback_spec.AddGeneralSlot();
+  Handle<i::TypeFeedbackVector> vector =
+      NewTypeFeedbackVector(isolate, &feedback_spec);
+
+  Register reg(0), scratch(256);
+  BytecodeLabel done, fake;
+
+  builder.LoadLiteral(Smi::FromInt(0));
+  builder.StoreAccumulatorInRegister(reg);
+  // Consume all 8-bit operands
+  for (int i = 1; i <= 256; i++) {
+    builder.LoadLiteral(isolate->factory()->NewNumber(i));
+    builder.BinaryOperation(Token::Value::ADD, reg, vector->GetIndex(slot));
+    builder.StoreAccumulatorInRegister(reg);
+  }
+  builder.Jump(&done);
+
+  // Emit more than 16-bit immediate operands worth of code to jump over.
+  builder.Bind(&fake);
+  for (int i = 0; i < 6600; i++) {
+    builder.LoadLiteral(Smi::FromInt(0));                 // 1-byte
+    builder.BinaryOperation(Token::Value::ADD, scratch,
+                            vector->GetIndex(slot));      // 6-bytes
+    builder.StoreAccumulatorInRegister(scratch);          // 4-bytes
+    builder.MoveRegister(scratch, reg);                   // 6-bytes
+  }
+  builder.Bind(&done);
+  builder.LoadAccumulatorWithRegister(reg);
+  builder.Return();
+
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+  BytecodeArrayIterator iterator(bytecode_array);
+
+  bool found_16bit_constant_jump = false;
+  while (!iterator.done()) {
+    if (iterator.current_bytecode() == Bytecode::kJumpConstant &&
+        iterator.current_operand_scale() == OperandScale::kDouble) {
+      found_16bit_constant_jump = true;
+      break;
+    }
+    iterator.Advance();
+  }
+  CHECK(found_16bit_constant_jump);
+
+  InterpreterTester tester(isolate, bytecode_array, vector);
+  auto callable = tester.GetCallable<>();
+  Handle<Object> return_value = callable().ToHandleChecked();
+  CHECK_EQ(Smi::cast(*return_value)->value(), 256.0 / 2 * (1 + 256));
+}
+
+TEST(InterpreterJumpWith32BitOperand) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+  BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 1);
+  Register reg(0);
+  BytecodeLabel done;
+
+  builder.LoadLiteral(Smi::FromInt(0));
+  builder.StoreAccumulatorInRegister(reg);
+  // Consume all 16-bit constant pool entries
+  for (int i = 1; i <= 65536; i++) {
+    builder.LoadLiteral(isolate->factory()->NewNumber(i));
+  }
+  builder.Jump(&done);
+  builder.LoadLiteral(Smi::FromInt(0));
+  builder.Bind(&done);
+  builder.Return();
+
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+  BytecodeArrayIterator iterator(bytecode_array);
+
+  bool found_32bit_jump = false;
+  while (!iterator.done()) {
+    if (iterator.current_bytecode() == Bytecode::kJump &&
+        iterator.current_operand_scale() == OperandScale::kQuadruple) {
+      found_32bit_jump = true;
+      break;
+    }
+    iterator.Advance();
+  }
+  CHECK(found_32bit_jump);
+
+  InterpreterTester tester(isolate, bytecode_array);
+  auto callable = tester.GetCallable<>();
+  Handle<Object> return_value = callable().ToHandleChecked();
+  CHECK_EQ(Smi::cast(*return_value)->value(), 65536.0);
+}
 
 static const Token::Value kComparisonTypes[] = {
-    Token::Value::EQ,        Token::Value::NE,  Token::Value::EQ_STRICT,
-    Token::Value::NE_STRICT, Token::Value::LTE, Token::Value::LTE,
-    Token::Value::GT,        Token::Value::GTE};
-
+    Token::Value::EQ, Token::Value::NE,  Token::Value::EQ_STRICT,
+    Token::Value::LT, Token::Value::LTE, Token::Value::GT,
+    Token::Value::GTE};
 
 template <typename T>
 bool CompareC(Token::Value op, T lhs, T rhs, bool types_differed = false) {
@@ -1298,20 +1670,18 @@ TEST(InterpreterSmiComparisons) {
     for (size_t i = 0; i < arraysize(inputs); i++) {
       for (size_t j = 0; j < arraysize(inputs); j++) {
         HandleAndZoneScope handles;
-        BytecodeArrayBuilder builder(handles.main_isolate(),
-                                     handles.main_zone());
+        Isolate* isolate = handles.main_isolate();
+        BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 1);
+
         Register r0(0);
-        builder.set_locals_count(1);
-        builder.set_context_count(0);
-        builder.set_parameter_count(0);
         builder.LoadLiteral(Smi::FromInt(inputs[i]))
             .StoreAccumulatorInRegister(r0)
             .LoadLiteral(Smi::FromInt(inputs[j]))
-            .CompareOperation(comparison, r0, Strength::WEAK)
+            .CompareOperation(comparison, r0)
             .Return();
 
-        Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
-        InterpreterTester tester(handles.main_isolate(), bytecode_array);
+        Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+        InterpreterTester tester(isolate, bytecode_array);
         auto callable = tester.GetCallable<>();
         Handle<Object> return_value = callable().ToHandleChecked();
         CHECK(return_value->IsBoolean());
@@ -1336,21 +1706,19 @@ TEST(InterpreterHeapNumberComparisons) {
     for (size_t i = 0; i < arraysize(inputs); i++) {
       for (size_t j = 0; j < arraysize(inputs); j++) {
         HandleAndZoneScope handles;
-        i::Factory* factory = handles.main_isolate()->factory();
-        BytecodeArrayBuilder builder(handles.main_isolate(),
-                                     handles.main_zone());
+        Isolate* isolate = handles.main_isolate();
+        Factory* factory = isolate->factory();
+        BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 1);
+
         Register r0(0);
-        builder.set_locals_count(1);
-        builder.set_context_count(0);
-        builder.set_parameter_count(0);
         builder.LoadLiteral(factory->NewHeapNumber(inputs[i]))
             .StoreAccumulatorInRegister(r0)
             .LoadLiteral(factory->NewHeapNumber(inputs[j]))
-            .CompareOperation(comparison, r0, Strength::WEAK)
+            .CompareOperation(comparison, r0)
             .Return();
 
-        Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
-        InterpreterTester tester(handles.main_isolate(), bytecode_array);
+        Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+        InterpreterTester tester(isolate, bytecode_array);
         auto callable = tester.GetCallable<>();
         Handle<Object> return_value = callable().ToHandleChecked();
         CHECK(return_value->IsBoolean());
@@ -1363,30 +1731,29 @@ TEST(InterpreterHeapNumberComparisons) {
 
 
 TEST(InterpreterStringComparisons) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
+
   std::string inputs[] = {"A", "abc", "z", "", "Foo!", "Foo"};
 
   for (size_t c = 0; c < arraysize(kComparisonTypes); c++) {
     Token::Value comparison = kComparisonTypes[c];
     for (size_t i = 0; i < arraysize(inputs); i++) {
       for (size_t j = 0; j < arraysize(inputs); j++) {
+        CanonicalHandleScope canonical(isolate);
         const char* lhs = inputs[i].c_str();
         const char* rhs = inputs[j].c_str();
-        HandleAndZoneScope handles;
-        i::Factory* factory = handles.main_isolate()->factory();
-        BytecodeArrayBuilder builder(handles.main_isolate(),
-                                     handles.main_zone());
+        BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 1);
         Register r0(0);
-        builder.set_locals_count(1);
-        builder.set_context_count(0);
-        builder.set_parameter_count(0);
         builder.LoadLiteral(factory->NewStringFromAsciiChecked(lhs))
             .StoreAccumulatorInRegister(r0)
             .LoadLiteral(factory->NewStringFromAsciiChecked(rhs))
-            .CompareOperation(comparison, r0, Strength::WEAK)
+            .CompareOperation(comparison, r0)
             .Return();
 
-        Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
-        InterpreterTester tester(handles.main_isolate(), bytecode_array);
+        Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+        InterpreterTester tester(isolate, bytecode_array);
         auto callable = tester.GetCallable<>();
         Handle<Object> return_value = callable().ToHandleChecked();
         CHECK(return_value->IsBoolean());
@@ -1405,7 +1772,7 @@ TEST(InterpreterMixedComparisons) {
   // performed.
   const char* inputs[] = {"-1.77", "-40.333", "0.01", "55.77e5", "2.01"};
 
-  i::UnicodeCache unicode_cache;
+  UnicodeCache unicode_cache;
 
   for (size_t c = 0; c < arraysize(kComparisonTypes); c++) {
     Token::Value comparison = kComparisonTypes[c];
@@ -1415,35 +1782,34 @@ TEST(InterpreterMixedComparisons) {
           const char* lhs_cstr = inputs[i];
           const char* rhs_cstr = inputs[j];
           double lhs = StringToDouble(&unicode_cache, lhs_cstr,
-                                      i::ConversionFlags::NO_FLAGS);
+                                      ConversionFlags::NO_FLAGS);
           double rhs = StringToDouble(&unicode_cache, rhs_cstr,
-                                      i::ConversionFlags::NO_FLAGS);
+                                      ConversionFlags::NO_FLAGS);
           HandleAndZoneScope handles;
-          i::Factory* factory = handles.main_isolate()->factory();
-          BytecodeArrayBuilder builder(handles.main_isolate(),
-                                       handles.main_zone());
+          Isolate* isolate = handles.main_isolate();
+          Factory* factory = isolate->factory();
+          BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 1);
+
           Register r0(0);
-          builder.set_locals_count(1);
-          builder.set_context_count(0);
-          builder.set_parameter_count(0);
           if (pass == 0) {
             // Comparison with HeapNumber on the lhs and String on the rhs
             builder.LoadLiteral(factory->NewNumber(lhs))
                 .StoreAccumulatorInRegister(r0)
                 .LoadLiteral(factory->NewStringFromAsciiChecked(rhs_cstr))
-                .CompareOperation(comparison, r0, Strength::WEAK)
+                .CompareOperation(comparison, r0)
                 .Return();
           } else {
             // Comparison with HeapNumber on the rhs and String on the lhs
             builder.LoadLiteral(factory->NewStringFromAsciiChecked(lhs_cstr))
                 .StoreAccumulatorInRegister(r0)
                 .LoadLiteral(factory->NewNumber(rhs))
-                .CompareOperation(comparison, r0, Strength::WEAK)
+                .CompareOperation(comparison, r0)
                 .Return();
           }
 
-          Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
-          InterpreterTester tester(handles.main_isolate(), bytecode_array);
+          Handle<BytecodeArray> bytecode_array =
+              builder.ToBytecodeArray(isolate);
+          InterpreterTester tester(isolate, bytecode_array);
           auto callable = tester.GetCallable<>();
           Handle<Object> return_value = callable().ToHandleChecked();
           CHECK(return_value->IsBoolean());
@@ -1455,10 +1821,82 @@ TEST(InterpreterMixedComparisons) {
   }
 }
 
+TEST(InterpreterStrictNotEqual) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
+  const char* code_snippet =
+      "function f(lhs, rhs) {\n"
+      "  return lhs !== rhs;\n"
+      "}\n"
+      "f(0, 0);\n";
+  InterpreterTester tester(isolate, code_snippet);
+  auto callable = tester.GetCallable<Handle<Object>, Handle<Object>>();
+
+  // Test passing different types.
+  const char* inputs[] = {"-1.77", "-40.333", "0.01", "55.77e5", "2.01"};
+  UnicodeCache unicode_cache;
+  for (size_t i = 0; i < arraysize(inputs); i++) {
+    for (size_t j = 0; j < arraysize(inputs); j++) {
+      double lhs =
+          StringToDouble(&unicode_cache, inputs[i], ConversionFlags::NO_FLAGS);
+      double rhs =
+          StringToDouble(&unicode_cache, inputs[j], ConversionFlags::NO_FLAGS);
+      Handle<Object> lhs_obj = factory->NewNumber(lhs);
+      Handle<Object> rhs_obj = factory->NewStringFromAsciiChecked(inputs[j]);
+
+      Handle<Object> return_value =
+          callable(lhs_obj, rhs_obj).ToHandleChecked();
+      CHECK(return_value->IsBoolean());
+      CHECK_EQ(return_value->BooleanValue(),
+               CompareC(Token::Value::NE_STRICT, lhs, rhs, true));
+    }
+  }
+
+  // Test passing string types.
+  const char* inputs_str[] = {"A", "abc", "z", "", "Foo!", "Foo"};
+  for (size_t i = 0; i < arraysize(inputs_str); i++) {
+    for (size_t j = 0; j < arraysize(inputs_str); j++) {
+      Handle<Object> lhs_obj =
+          factory->NewStringFromAsciiChecked(inputs_str[i]);
+      Handle<Object> rhs_obj =
+          factory->NewStringFromAsciiChecked(inputs_str[j]);
+
+      Handle<Object> return_value =
+          callable(lhs_obj, rhs_obj).ToHandleChecked();
+      CHECK(return_value->IsBoolean());
+      CHECK_EQ(return_value->BooleanValue(),
+               CompareC(Token::Value::NE_STRICT, inputs_str[i], inputs_str[j]));
+    }
+  }
+
+  // Test passing doubles.
+  double inputs_number[] = {std::numeric_limits<double>::min(),
+                            std::numeric_limits<double>::max(),
+                            -0.001,
+                            0.01,
+                            0.1000001,
+                            1e99,
+                            -1e-99};
+  for (size_t i = 0; i < arraysize(inputs_number); i++) {
+    for (size_t j = 0; j < arraysize(inputs_number); j++) {
+      Handle<Object> lhs_obj = factory->NewNumber(inputs_number[i]);
+      Handle<Object> rhs_obj = factory->NewNumber(inputs_number[j]);
+
+      Handle<Object> return_value =
+          callable(lhs_obj, rhs_obj).ToHandleChecked();
+      CHECK(return_value->IsBoolean());
+      CHECK_EQ(return_value->BooleanValue(),
+               CompareC(Token::Value::NE_STRICT, inputs_number[i],
+                        inputs_number[j]));
+    }
+  }
+}
 
 TEST(InterpreterInstanceOf) {
   HandleAndZoneScope handles;
-  i::Factory* factory = handles.main_isolate()->factory();
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
   Handle<i::String> name = factory->NewStringFromAsciiChecked("cons");
   Handle<i::JSFunction> func = factory->NewFunction(name);
   Handle<i::JSObject> instance = factory->NewJSObject(func);
@@ -1466,19 +1904,17 @@ TEST(InterpreterInstanceOf) {
   Handle<i::Object> cases[] = {Handle<i::Object>::cast(instance), other};
   for (size_t i = 0; i < arraysize(cases); i++) {
     bool expected_value = (i == 0);
-    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
+    BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 1);
+
     Register r0(0);
-    builder.set_locals_count(1);
-    builder.set_context_count(0);
-    builder.set_parameter_count(0);
     builder.LoadLiteral(cases[i]);
     builder.StoreAccumulatorInRegister(r0)
         .LoadLiteral(func)
-        .CompareOperation(Token::Value::INSTANCEOF, r0, Strength::WEAK)
+        .CompareOperation(Token::Value::INSTANCEOF, r0)
         .Return();
 
-    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
-    InterpreterTester tester(handles.main_isolate(), bytecode_array);
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+    InterpreterTester tester(isolate, bytecode_array);
     auto callable = tester.GetCallable<>();
     Handle<Object> return_value = callable().ToHandleChecked();
     CHECK(return_value->IsBoolean());
@@ -1489,27 +1925,26 @@ TEST(InterpreterInstanceOf) {
 
 TEST(InterpreterTestIn) {
   HandleAndZoneScope handles;
-  i::Factory* factory = handles.main_isolate()->factory();
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
   // Allocate an array
   Handle<i::JSArray> array =
-      factory->NewJSArray(i::ElementsKind::FAST_SMI_ELEMENTS);
+      factory->NewJSArray(0, i::ElementsKind::FAST_SMI_ELEMENTS);
   // Check for these properties on the array object
   const char* properties[] = {"length", "fuzzle", "x", "0"};
   for (size_t i = 0; i < arraysize(properties); i++) {
     bool expected_value = (i == 0);
-    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
+    BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 1);
+
     Register r0(0);
-    builder.set_locals_count(1);
-    builder.set_context_count(0);
-    builder.set_parameter_count(0);
     builder.LoadLiteral(factory->NewStringFromAsciiChecked(properties[i]))
         .StoreAccumulatorInRegister(r0)
         .LoadLiteral(Handle<Object>::cast(array))
-        .CompareOperation(Token::Value::IN, r0, Strength::WEAK)
+        .CompareOperation(Token::Value::IN, r0)
         .Return();
 
-    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
-    InterpreterTester tester(handles.main_isolate(), bytecode_array);
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+    InterpreterTester tester(isolate, bytecode_array);
     auto callable = tester.GetCallable<>();
     Handle<Object> return_value = callable().ToHandleChecked();
     CHECK(return_value->IsBoolean());
@@ -1520,20 +1955,19 @@ TEST(InterpreterTestIn) {
 
 TEST(InterpreterUnaryNot) {
   HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
   for (size_t i = 1; i < 10; i++) {
     bool expected_value = ((i & 1) == 1);
-    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
+    BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 0);
+
     Register r0(0);
-    builder.set_locals_count(0);
-    builder.set_context_count(0);
-    builder.set_parameter_count(0);
     builder.LoadFalse();
     for (size_t j = 0; j < i; j++) {
       builder.LogicalNot();
     }
     builder.Return();
-    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
-    InterpreterTester tester(handles.main_isolate(), bytecode_array);
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+    InterpreterTester tester(isolate, bytecode_array);
     auto callable = tester.GetCallable<>();
     Handle<Object> return_value = callable().ToHandleChecked();
     CHECK(return_value->IsBoolean());
@@ -1566,46 +2000,10 @@ static void LoadAny(BytecodeArrayBuilder* builder,
 }
 
 
-TEST(InterpreterToBoolean) {
-  HandleAndZoneScope handles;
-  i::Factory* factory = handles.main_isolate()->factory();
-
-  std::pair<Handle<Object>, bool> object_type_tuples[] = {
-      std::make_pair(factory->undefined_value(), false),
-      std::make_pair(factory->null_value(), false),
-      std::make_pair(factory->false_value(), false),
-      std::make_pair(factory->true_value(), true),
-      std::make_pair(factory->NewNumber(9.1), true),
-      std::make_pair(factory->NewNumberFromInt(0), false),
-      std::make_pair(
-          Handle<Object>::cast(factory->NewStringFromStaticChars("hello")),
-          true),
-      std::make_pair(
-          Handle<Object>::cast(factory->NewStringFromStaticChars("")), false),
-  };
-
-  for (size_t i = 0; i < arraysize(object_type_tuples); i++) {
-    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-    Register r0(0);
-    builder.set_locals_count(0);
-    builder.set_context_count(0);
-    builder.set_parameter_count(0);
-    LoadAny(&builder, factory, object_type_tuples[i].first);
-    builder.CastAccumulatorToBoolean();
-    builder.Return();
-    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
-    InterpreterTester tester(handles.main_isolate(), bytecode_array);
-    auto callable = tester.GetCallable<>();
-    Handle<Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->IsBoolean());
-    CHECK_EQ(return_value->BooleanValue(), object_type_tuples[i].second);
-  }
-}
-
-
 TEST(InterpreterUnaryNotNonBoolean) {
   HandleAndZoneScope handles;
-  i::Factory* factory = handles.main_isolate()->factory();
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
 
   std::pair<Handle<Object>, bool> object_type_tuples[] = {
       std::make_pair(factory->undefined_value(), true),
@@ -1622,16 +2020,14 @@ TEST(InterpreterUnaryNotNonBoolean) {
   };
 
   for (size_t i = 0; i < arraysize(object_type_tuples); i++) {
-    BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
+    BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 0);
+
     Register r0(0);
-    builder.set_locals_count(0);
-    builder.set_context_count(0);
-    builder.set_parameter_count(0);
     LoadAny(&builder, factory, object_type_tuples[i].first);
     builder.LogicalNot();
     builder.Return();
-    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
-    InterpreterTester tester(handles.main_isolate(), bytecode_array);
+    Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+    InterpreterTester tester(isolate, bytecode_array);
     auto callable = tester.GetCallable<>();
     Handle<Object> return_value = callable().ToHandleChecked();
     CHECK(return_value->IsBoolean());
@@ -1642,6 +2038,7 @@ TEST(InterpreterUnaryNotNonBoolean) {
 
 TEST(InterpreterTypeof) {
   HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
 
   std::pair<const char*, const char*> typeof_vals[] = {
       std::make_pair("return typeof undefined;", "undefined"),
@@ -1656,7 +2053,7 @@ TEST(InterpreterTypeof) {
 
   for (size_t i = 0; i < arraysize(typeof_vals); i++) {
     std::string source(InterpreterTester::SourceForBody(typeof_vals[i].first));
-    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    InterpreterTester tester(isolate, source.c_str());
 
     auto callable = tester.GetCallable<>();
     Handle<v8::internal::String> return_value =
@@ -1669,36 +2066,55 @@ TEST(InterpreterTypeof) {
 
 TEST(InterpreterCallRuntime) {
   HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
 
-  BytecodeArrayBuilder builder(handles.main_isolate(), handles.main_zone());
-  builder.set_locals_count(2);
-  builder.set_context_count(0);
-  builder.set_parameter_count(1);
+  BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 2);
+
   builder.LoadLiteral(Smi::FromInt(15))
       .StoreAccumulatorInRegister(Register(0))
       .LoadLiteral(Smi::FromInt(40))
       .StoreAccumulatorInRegister(Register(1))
       .CallRuntime(Runtime::kAdd, Register(0), 2)
       .Return();
-  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray();
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
-  InterpreterTester tester(handles.main_isolate(), bytecode_array);
+  InterpreterTester tester(isolate, bytecode_array);
   auto callable = tester.GetCallable<>();
 
   Handle<Object> return_val = callable().ToHandleChecked();
   CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(55));
 }
 
+TEST(InterpreterInvokeIntrinsic) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+
+  BytecodeArrayBuilder builder(isolate, handles.main_zone(), 1, 0, 2);
+
+  builder.LoadLiteral(Smi::FromInt(15))
+      .StoreAccumulatorInRegister(Register(0))
+      .CallRuntime(Runtime::kInlineIsArray, Register(0), 1)
+      .Return();
+  Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+
+  InterpreterTester tester(isolate, bytecode_array);
+  auto callable = tester.GetCallable<>();
+
+  Handle<Object> return_val = callable().ToHandleChecked();
+  CHECK(return_val->IsBoolean());
+  CHECK_EQ(return_val->BooleanValue(), false);
+}
 
 TEST(InterpreterFunctionLiteral) {
   HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
 
   // Test calling a function literal.
   std::string source(
       "function " + InterpreterTester::function_name() + "(a) {\n"
       "  return (function(x){ return x + 2; })(a);\n"
       "}");
-  InterpreterTester tester(handles.main_isolate(), source.c_str());
+  InterpreterTester tester(isolate, source.c_str());
   auto callable = tester.GetCallable<Handle<Object>>();
 
   Handle<i::Object> return_val = callable(
@@ -1709,8 +2125,8 @@ TEST(InterpreterFunctionLiteral) {
 
 TEST(InterpreterRegExpLiterals) {
   HandleAndZoneScope handles;
-  i::Isolate* isolate = handles.main_isolate();
-  i::Factory* factory = isolate->factory();
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
 
   std::pair<const char*, Handle<Object>> literals[] = {
       std::make_pair("return /abd/.exec('cccabbdd');\n",
@@ -1727,7 +2143,7 @@ TEST(InterpreterRegExpLiterals) {
 
   for (size_t i = 0; i < arraysize(literals); i++) {
     std::string source(InterpreterTester::SourceForBody(literals[i].first));
-    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    InterpreterTester tester(isolate, source.c_str());
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
@@ -1738,8 +2154,8 @@ TEST(InterpreterRegExpLiterals) {
 
 TEST(InterpreterArrayLiterals) {
   HandleAndZoneScope handles;
-  i::Isolate* isolate = handles.main_isolate();
-  i::Factory* factory = isolate->factory();
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
 
   std::pair<const char*, Handle<Object>> literals[] = {
       std::make_pair("return [][0];\n",
@@ -1758,7 +2174,7 @@ TEST(InterpreterArrayLiterals) {
 
   for (size_t i = 0; i < arraysize(literals); i++) {
     std::string source(InterpreterTester::SourceForBody(literals[i].first));
-    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    InterpreterTester tester(isolate, source.c_str());
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
@@ -1769,8 +2185,8 @@ TEST(InterpreterArrayLiterals) {
 
 TEST(InterpreterObjectLiterals) {
   HandleAndZoneScope handles;
-  i::Isolate* isolate = handles.main_isolate();
-  i::Factory* factory = isolate->factory();
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
 
   std::pair<const char*, Handle<Object>> literals[] = {
       std::make_pair("return { }.name;",
@@ -1811,7 +2227,7 @@ TEST(InterpreterObjectLiterals) {
 
   for (size_t i = 0; i < arraysize(literals); i++) {
     std::string source(InterpreterTester::SourceForBody(literals[i].first));
-    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    InterpreterTester tester(isolate, source.c_str());
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
@@ -1822,6 +2238,7 @@ TEST(InterpreterObjectLiterals) {
 
 TEST(InterpreterConstruct) {
   HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
 
   std::string source(
       "function counter() { this.count = 0; }\n"
@@ -1831,7 +2248,7 @@ TEST(InterpreterConstruct) {
       "  var c = new counter();\n"
       "  return c.count;\n"
       "}");
-  InterpreterTester tester(handles.main_isolate(), source.c_str());
+  InterpreterTester tester(isolate, source.c_str());
   auto callable = tester.GetCallable<>();
 
   Handle<Object> return_val = callable().ToHandleChecked();
@@ -1841,6 +2258,7 @@ TEST(InterpreterConstruct) {
 
 TEST(InterpreterConstructWithArgument) {
   HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
 
   std::string source(
       "function counter(arg0) { this.count = 17; this.x = arg0; }\n"
@@ -1850,7 +2268,7 @@ TEST(InterpreterConstructWithArgument) {
       "  var c = new counter(3);\n"
       "  return c.x;\n"
       "}");
-  InterpreterTester tester(handles.main_isolate(), source.c_str());
+  InterpreterTester tester(isolate, source.c_str());
   auto callable = tester.GetCallable<>();
 
   Handle<Object> return_val = callable().ToHandleChecked();
@@ -1860,6 +2278,7 @@ TEST(InterpreterConstructWithArgument) {
 
 TEST(InterpreterConstructWithArguments) {
   HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
 
   std::string source(
       "function counter(arg0, arg1) {\n"
@@ -1871,7 +2290,7 @@ TEST(InterpreterConstructWithArguments) {
       "  var c = new counter(3, 5);\n"
       "  return c.count + c.x + c.y;\n"
       "}");
-  InterpreterTester tester(handles.main_isolate(), source.c_str());
+  InterpreterTester tester(isolate, source.c_str());
   auto callable = tester.GetCallable<>();
 
   Handle<Object> return_val = callable().ToHandleChecked();
@@ -1881,9 +2300,13 @@ TEST(InterpreterConstructWithArguments) {
 
 TEST(InterpreterContextVariables) {
   HandleAndZoneScope handles;
-  i::Isolate* isolate = handles.main_isolate();
+  Isolate* isolate = handles.main_isolate();
 
-  std::pair<const char*, Handle<Object>> context_vars[] = {
+  std::ostringstream unique_vars;
+  for (int i = 0; i < 250; i++) {
+    unique_vars << "var a" << i << " = 0;";
+  }
+  std::pair<std::string, Handle<Object>> context_vars[] = {
       std::make_pair("var a; (function() { a = 1; })(); return a;",
                      handle(Smi::FromInt(1), isolate)),
       std::make_pair("var a = 10; (function() { a; })(); return a;",
@@ -1898,11 +2321,15 @@ TEST(InterpreterContextVariables) {
                      "{ let b = 20; var c = function() { [a, b] };\n"
                      "  return a + b; }",
                      handle(Smi::FromInt(30), isolate)),
+      std::make_pair("'use strict';" + unique_vars.str() +
+                     "eval(); var b = 100; return b;",
+                     handle(Smi::FromInt(100), isolate)),
   };
 
   for (size_t i = 0; i < arraysize(context_vars); i++) {
-    std::string source(InterpreterTester::SourceForBody(context_vars[i].first));
-    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    std::string source(
+        InterpreterTester::SourceForBody(context_vars[i].first.c_str()));
+    InterpreterTester tester(isolate, source.c_str());
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
@@ -1913,7 +2340,7 @@ TEST(InterpreterContextVariables) {
 
 TEST(InterpreterContextParameters) {
   HandleAndZoneScope handles;
-  i::Isolate* isolate = handles.main_isolate();
+  Isolate* isolate = handles.main_isolate();
 
   std::pair<const char*, Handle<Object>> context_params[] = {
       std::make_pair("return (function() { return arg1; })();",
@@ -1927,7 +2354,7 @@ TEST(InterpreterContextParameters) {
   for (size_t i = 0; i < arraysize(context_params); i++) {
     std::string source = "function " + InterpreterTester::function_name() +
                          "(arg1, arg2, arg3) {" + context_params[i].first + "}";
-    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    InterpreterTester tester(isolate, source.c_str());
     auto callable =
         tester.GetCallable<Handle<Object>, Handle<Object>, Handle<Object>>();
 
@@ -1942,7 +2369,7 @@ TEST(InterpreterContextParameters) {
 
 TEST(InterpreterOuterContextVariables) {
   HandleAndZoneScope handles;
-  i::Isolate* isolate = handles.main_isolate();
+  Isolate* isolate = handles.main_isolate();
 
   std::pair<const char*, Handle<Object>> context_vars[] = {
       std::make_pair("return outerVar * innerArg;",
@@ -1964,7 +2391,7 @@ TEST(InterpreterOuterContextVariables) {
 
   for (size_t i = 0; i < arraysize(context_vars); i++) {
     std::string source = header + context_vars[i].first + footer;
-    InterpreterTester tester(handles.main_isolate(), source.c_str(), "*");
+    InterpreterTester tester(isolate, source.c_str(), "*");
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
@@ -1975,8 +2402,8 @@ TEST(InterpreterOuterContextVariables) {
 
 TEST(InterpreterComma) {
   HandleAndZoneScope handles;
-  i::Isolate* isolate = handles.main_isolate();
-  i::Factory* factory = isolate->factory();
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
 
   std::pair<const char*, Handle<Object>> literals[] = {
       std::make_pair("var a; return 0, a;\n", factory->undefined_value()),
@@ -1992,7 +2419,7 @@ TEST(InterpreterComma) {
 
   for (size_t i = 0; i < arraysize(literals); i++) {
     std::string source(InterpreterTester::SourceForBody(literals[i].first));
-    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    InterpreterTester tester(isolate, source.c_str());
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
@@ -2003,8 +2430,8 @@ TEST(InterpreterComma) {
 
 TEST(InterpreterLogicalOr) {
   HandleAndZoneScope handles;
-  i::Isolate* isolate = handles.main_isolate();
-  i::Factory* factory = isolate->factory();
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
 
   std::pair<const char*, Handle<Object>> literals[] = {
       std::make_pair("var a, b; return a || b;\n", factory->undefined_value()),
@@ -2020,7 +2447,7 @@ TEST(InterpreterLogicalOr) {
 
   for (size_t i = 0; i < arraysize(literals); i++) {
     std::string source(InterpreterTester::SourceForBody(literals[i].first));
-    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    InterpreterTester tester(isolate, source.c_str());
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
@@ -2031,8 +2458,8 @@ TEST(InterpreterLogicalOr) {
 
 TEST(InterpreterLogicalAnd) {
   HandleAndZoneScope handles;
-  i::Isolate* isolate = handles.main_isolate();
-  i::Factory* factory = isolate->factory();
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
 
   std::pair<const char*, Handle<Object>> literals[] = {
       std::make_pair("var a, b = 10; return a && b;\n",
@@ -2053,7 +2480,7 @@ TEST(InterpreterLogicalAnd) {
 
   for (size_t i = 0; i < arraysize(literals); i++) {
     std::string source(InterpreterTester::SourceForBody(literals[i].first));
-    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    InterpreterTester tester(isolate, source.c_str());
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
@@ -2064,38 +2491,93 @@ TEST(InterpreterLogicalAnd) {
 
 TEST(InterpreterTryCatch) {
   HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
 
-  // TODO(rmcilroy): modify tests when we have real try catch support.
-  std::string source(InterpreterTester::SourceForBody(
-      "var a = 1; try { a = a + 1; } catch(e) { a = a + 2; }; return a;"));
-  InterpreterTester tester(handles.main_isolate(), source.c_str());
-  auto callable = tester.GetCallable<>();
+  std::pair<const char*, Handle<Object>> catches[] = {
+      std::make_pair("var a = 1; try { a = 2 } catch(e) { a = 3 }; return a;",
+                     handle(Smi::FromInt(2), isolate)),
+      std::make_pair("var a; try { undef.x } catch(e) { a = 2 }; return a;",
+                     handle(Smi::FromInt(2), isolate)),
+      std::make_pair("var a; try { throw 1 } catch(e) { a = e + 2 }; return a;",
+                     handle(Smi::FromInt(3), isolate)),
+      std::make_pair("var a; try { throw 1 } catch(e) { a = e + 2 };"
+                     "       try { throw a } catch(e) { a = e + 3 }; return a;",
+                     handle(Smi::FromInt(6), isolate)),
+  };
 
-  Handle<Object> return_val = callable().ToHandleChecked();
-  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(2));
+  for (size_t i = 0; i < arraysize(catches); i++) {
+    std::string source(InterpreterTester::SourceForBody(catches[i].first));
+    InterpreterTester tester(isolate, source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*catches[i].second));
+  }
 }
 
 
 TEST(InterpreterTryFinally) {
   HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
 
-  // TODO(rmcilroy): modify tests when we have real try finally support.
-  std::string source(InterpreterTester::SourceForBody(
-      "var a = 1; try { a = a + 1; } finally { a = a + 2; }; return a;"));
-  InterpreterTester tester(handles.main_isolate(), source.c_str());
-  auto callable = tester.GetCallable<>();
+  std::pair<const char*, Handle<Object>> finallies[] = {
+      std::make_pair(
+          "var a = 1; try { a = a + 1; } finally { a = a + 2; }; return a;",
+          factory->NewStringFromStaticChars("R4")),
+      std::make_pair(
+          "var a = 1; try { a = 2; return 23; } finally { a = 3 }; return a;",
+          factory->NewStringFromStaticChars("R23")),
+      std::make_pair(
+          "var a = 1; try { a = 2; throw 23; } finally { a = 3 }; return a;",
+          factory->NewStringFromStaticChars("E23")),
+      std::make_pair(
+          "var a = 1; try { a = 2; throw 23; } finally { return a; };",
+          factory->NewStringFromStaticChars("R2")),
+      std::make_pair(
+          "var a = 1; try { a = 2; throw 23; } finally { throw 42; };",
+          factory->NewStringFromStaticChars("E42")),
+      std::make_pair("var a = 1; for (var i = 10; i < 20; i += 5) {"
+                     "  try { a = 2; break; } finally { a = 3; }"
+                     "} return a + i;",
+                     factory->NewStringFromStaticChars("R13")),
+      std::make_pair("var a = 1; for (var i = 10; i < 20; i += 5) {"
+                     "  try { a = 2; continue; } finally { a = 3; }"
+                     "} return a + i;",
+                     factory->NewStringFromStaticChars("R23")),
+      std::make_pair("var a = 1; try { a = 2;"
+                     "  try { a = 3; throw 23; } finally { a = 4; }"
+                     "} catch(e) { a = a + e; } return a;",
+                     factory->NewStringFromStaticChars("R27")),
+      std::make_pair("var func_name;"
+                     "function tcf2(a) {"
+                     "  try { throw new Error('boom');} "
+                     "  catch(e) {return 153; } "
+                     "  finally {func_name = tcf2.name;}"
+                     "}"
+                     "tcf2();"
+                     "return func_name;",
+                     factory->NewStringFromStaticChars("Rtcf2")),
+  };
 
-  Handle<Object> return_val = callable().ToHandleChecked();
-  CHECK_EQ(Smi::cast(*return_val), Smi::FromInt(4));
+  const char* try_wrapper =
+      "(function() { try { return 'R' + f() } catch(e) { return 'E' + e }})()";
+
+  for (size_t i = 0; i < arraysize(finallies); i++) {
+    std::string source(InterpreterTester::SourceForBody(finallies[i].first));
+    InterpreterTester tester(isolate, source.c_str());
+    tester.GetCallable<>();
+    Handle<Object> wrapped = v8::Utils::OpenHandle(*CompileRun(try_wrapper));
+    CHECK(wrapped->SameValue(*finallies[i].second));
+  }
 }
 
 
 TEST(InterpreterThrow) {
   HandleAndZoneScope handles;
-  i::Isolate* isolate = handles.main_isolate();
-  i::Factory* factory = isolate->factory();
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
 
-  // TODO(rmcilroy): modify tests when we have real try catch support.
   std::pair<const char*, Handle<Object>> throws[] = {
       std::make_pair("throw undefined;\n",
                      factory->undefined_value()),
@@ -2116,7 +2598,7 @@ TEST(InterpreterThrow) {
 
   for (size_t i = 0; i < arraysize(throws); i++) {
     std::string source(InterpreterTester::SourceForBody(throws[i].first));
-    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    InterpreterTester tester(isolate, source.c_str());
     tester.GetCallable<>();
     Handle<Object> thrown_obj = v8::Utils::OpenHandle(*CompileRun(try_wrapper));
     CHECK(thrown_obj->SameValue(*throws[i].second));
@@ -2126,8 +2608,8 @@ TEST(InterpreterThrow) {
 
 TEST(InterpreterCountOperators) {
   HandleAndZoneScope handles;
-  i::Isolate* isolate = handles.main_isolate();
-  i::Factory* factory = isolate->factory();
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
 
   std::pair<const char*, Handle<Object>> count_ops[] = {
       std::make_pair("var a = 1; return ++a;",
@@ -2162,11 +2644,24 @@ TEST(InterpreterCountOperators) {
                      handle(Smi::FromInt(3), isolate)),
       std::make_pair("var a = 1; (function() { a = 2 })(); return a--;",
                      handle(Smi::FromInt(2), isolate)),
+      std::make_pair("var i = 5; while(i--) {}; return i;",
+                     handle(Smi::FromInt(-1), isolate)),
+      std::make_pair("var i = 1; if(i--) { return 1; } else { return 2; };",
+                     handle(Smi::FromInt(1), isolate)),
+      std::make_pair("var i = -2; do {} while(i++) {}; return i;",
+                      handle(Smi::FromInt(1), isolate)),
+      std::make_pair("var i = -1; for(; i++; ) {}; return i",
+                      handle(Smi::FromInt(1), isolate)),
+      std::make_pair("var i = 20; switch(i++) {\n"
+                     "  case 20: return 1;\n"
+                     "  default: return 2;\n"
+                     "}",
+                     handle(Smi::FromInt(1), isolate)),
   };
 
   for (size_t i = 0; i < arraysize(count_ops); i++) {
     std::string source(InterpreterTester::SourceForBody(count_ops[i].first));
-    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    InterpreterTester tester(isolate, source.c_str());
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
@@ -2177,7 +2672,7 @@ TEST(InterpreterCountOperators) {
 
 TEST(InterpreterGlobalCountOperators) {
   HandleAndZoneScope handles;
-  i::Isolate* isolate = handles.main_isolate();
+  Isolate* isolate = handles.main_isolate();
 
   std::pair<const char*, Handle<Object>> count_ops[] = {
       std::make_pair("var global = 100;function f(){ return ++global; }",
@@ -2195,7 +2690,7 @@ TEST(InterpreterGlobalCountOperators) {
   };
 
   for (size_t i = 0; i < arraysize(count_ops); i++) {
-    InterpreterTester tester(handles.main_isolate(), count_ops[i].first);
+    InterpreterTester tester(isolate, count_ops[i].first);
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
@@ -2206,8 +2701,8 @@ TEST(InterpreterGlobalCountOperators) {
 
 TEST(InterpreterCompoundExpressions) {
   HandleAndZoneScope handles;
-  i::Isolate* isolate = handles.main_isolate();
-  i::Factory* factory = isolate->factory();
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
 
   std::pair<const char*, Handle<Object>> compound_expr[] = {
       std::make_pair("var a = 1; a += 2; return a;",
@@ -2226,7 +2721,7 @@ TEST(InterpreterCompoundExpressions) {
   for (size_t i = 0; i < arraysize(compound_expr); i++) {
     std::string source(
         InterpreterTester::SourceForBody(compound_expr[i].first));
-    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    InterpreterTester tester(isolate, source.c_str());
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
@@ -2237,7 +2732,7 @@ TEST(InterpreterCompoundExpressions) {
 
 TEST(InterpreterGlobalCompoundExpressions) {
   HandleAndZoneScope handles;
-  i::Isolate* isolate = handles.main_isolate();
+  Isolate* isolate = handles.main_isolate();
 
   std::pair<const char*, Handle<Object>> compound_expr[2] = {
       std::make_pair("var global = 100;"
@@ -2249,7 +2744,7 @@ TEST(InterpreterGlobalCompoundExpressions) {
   };
 
   for (size_t i = 0; i < arraysize(compound_expr); i++) {
-    InterpreterTester tester(handles.main_isolate(), compound_expr[i].first);
+    InterpreterTester tester(isolate, compound_expr[i].first);
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
@@ -2260,8 +2755,8 @@ TEST(InterpreterGlobalCompoundExpressions) {
 
 TEST(InterpreterCreateArguments) {
   HandleAndZoneScope handles;
-  i::Isolate* isolate = handles.main_isolate();
-  i::Factory* factory = isolate->factory();
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
 
   std::pair<const char*, int> create_args[] = {
       std::make_pair("function f() { return arguments[0]; }", 0),
@@ -2282,11 +2777,22 @@ TEST(InterpreterCreateArguments) {
       std::make_pair("function f(a, b, c, d) {"
                      "  'use strict'; c = b; return arguments[2]; }",
                      2),
+      // Check arguments for duplicate parameters in sloppy mode.
+      std::make_pair("function f(a, a, b) { return arguments[1]; }", 1),
+      // check rest parameters
+      std::make_pair("function f(...restArray) { return restArray[0]; }", 0),
+      std::make_pair("function f(a, ...restArray) { return restArray[0]; }", 1),
+      std::make_pair("function f(a, ...restArray) { return arguments[0]; }", 0),
+      std::make_pair("function f(a, ...restArray) { return arguments[1]; }", 1),
+      std::make_pair("function f(a, ...restArray) { return restArray[1]; }", 2),
+      std::make_pair("function f(a, ...arguments) { return arguments[0]; }", 1),
+      std::make_pair("function f(a, b, ...restArray) { return restArray[0]; }",
+                     2),
   };
 
   // Test passing no arguments.
   for (size_t i = 0; i < arraysize(create_args); i++) {
-    InterpreterTester tester(handles.main_isolate(), create_args[i].first);
+    InterpreterTester tester(isolate, create_args[i].first);
     auto callable = tester.GetCallable<>();
     Handle<Object> return_val = callable().ToHandleChecked();
     CHECK(return_val.is_identical_to(factory->undefined_value()));
@@ -2294,7 +2800,7 @@ TEST(InterpreterCreateArguments) {
 
   // Test passing one argument.
   for (size_t i = 0; i < arraysize(create_args); i++) {
-    InterpreterTester tester(handles.main_isolate(), create_args[i].first);
+    InterpreterTester tester(isolate, create_args[i].first);
     auto callable = tester.GetCallable<Handle<Object>>();
     Handle<Object> return_val =
         callable(handle(Smi::FromInt(40), isolate)).ToHandleChecked();
@@ -2313,7 +2819,7 @@ TEST(InterpreterCreateArguments) {
         handle(Smi::FromInt(80), isolate),
     };
 
-    InterpreterTester tester(handles.main_isolate(), create_args[i].first);
+    InterpreterTester tester(isolate, create_args[i].first);
     auto callable =
         tester.GetCallable<Handle<Object>, Handle<Object>, Handle<Object>>();
     Handle<Object> return_val =
@@ -2325,7 +2831,7 @@ TEST(InterpreterCreateArguments) {
 
 TEST(InterpreterConditional) {
   HandleAndZoneScope handles;
-  i::Isolate* isolate = handles.main_isolate();
+  Isolate* isolate = handles.main_isolate();
 
   std::pair<const char*, Handle<Object>> conditional[] = {
       std::make_pair("return true ? 2 : 3;",
@@ -2348,7 +2854,7 @@ TEST(InterpreterConditional) {
 
   for (size_t i = 0; i < arraysize(conditional); i++) {
     std::string source(InterpreterTester::SourceForBody(conditional[i].first));
-    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    InterpreterTester tester(isolate, source.c_str());
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
@@ -2359,8 +2865,8 @@ TEST(InterpreterConditional) {
 
 TEST(InterpreterDelete) {
   HandleAndZoneScope handles;
-  i::Isolate* isolate = handles.main_isolate();
-  i::Factory* factory = isolate->factory();
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
 
   // Tests for delete for local variables that work both in strict
   // and sloppy modes
@@ -2392,7 +2898,7 @@ TEST(InterpreterDelete) {
   // Test delete in sloppy mode
   for (size_t i = 0; i < arraysize(test_delete); i++) {
     std::string source(InterpreterTester::SourceForBody(test_delete[i].first));
-    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    InterpreterTester tester(isolate, source.c_str());
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
@@ -2404,7 +2910,7 @@ TEST(InterpreterDelete) {
     std::string strict_test =
         "'use strict'; " + std::string(test_delete[i].first);
     std::string source(InterpreterTester::SourceForBody(strict_test.c_str()));
-    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    InterpreterTester tester(isolate, source.c_str());
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
@@ -2415,8 +2921,8 @@ TEST(InterpreterDelete) {
 
 TEST(InterpreterDeleteSloppyUnqualifiedIdentifier) {
   HandleAndZoneScope handles;
-  i::Isolate* isolate = handles.main_isolate();
-  i::Factory* factory = isolate->factory();
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
 
   // These tests generate a syntax error for strict mode. We don't
   // test for it here.
@@ -2443,7 +2949,7 @@ TEST(InterpreterDeleteSloppyUnqualifiedIdentifier) {
 
   for (size_t i = 0; i < arraysize(test_delete); i++) {
     std::string source(InterpreterTester::SourceForBody(test_delete[i].first));
-    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    InterpreterTester tester(isolate, source.c_str());
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
@@ -2454,8 +2960,8 @@ TEST(InterpreterDeleteSloppyUnqualifiedIdentifier) {
 
 TEST(InterpreterGlobalDelete) {
   HandleAndZoneScope handles;
-  i::Isolate* isolate = handles.main_isolate();
-  i::Factory* factory = isolate->factory();
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
 
   std::pair<const char*, Handle<Object>> test_global_delete[] = {
       std::make_pair("var a = { x:10, y:'abc', z:30.2 };\n"
@@ -2509,8 +3015,7 @@ TEST(InterpreterGlobalDelete) {
                      factory->ToBoolean(true))};
 
   for (size_t i = 0; i < arraysize(test_global_delete); i++) {
-    InterpreterTester tester(handles.main_isolate(),
-                             test_global_delete[i].first);
+    InterpreterTester tester(isolate, test_global_delete[i].first);
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
@@ -2521,8 +3026,8 @@ TEST(InterpreterGlobalDelete) {
 
 TEST(InterpreterBasicLoops) {
   HandleAndZoneScope handles;
-  i::Isolate* isolate = handles.main_isolate();
-  i::Factory* factory = isolate->factory();
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
 
   std::pair<const char*, Handle<Object>> loops[] = {
       std::make_pair("var a = 10; var b = 1;\n"
@@ -2606,7 +3111,7 @@ TEST(InterpreterBasicLoops) {
 
   for (size_t i = 0; i < arraysize(loops); i++) {
     std::string source(InterpreterTester::SourceForBody(loops[i].first));
-    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    InterpreterTester tester(isolate, source.c_str());
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
@@ -2616,200 +3121,310 @@ TEST(InterpreterBasicLoops) {
 
 
 TEST(InterpreterForIn) {
-  HandleAndZoneScope handles;
-
-  // TODO(oth): Add a test here for delete mid-loop when delete is ready.
   std::pair<const char*, int> for_in_samples[] = {
-      {"function f() {\n"
-       "  var r = -1;\n"
-       "  for (var a in null) { r = a; }\n"
-       "  return r;\n"
-       "}",
+      {"var r = -1;\n"
+       "for (var a in null) { r = a; }\n"
+       "return r;\n",
        -1},
-      {"function f() {\n"
-       "  var r = -1;\n"
-       "  for (var a in undefined) { r = a; }\n"
-       "  return r;\n"
-       "}",
+      {"var r = -1;\n"
+       "for (var a in undefined) { r = a; }\n"
+       "return r;\n",
        -1},
-      {"function f() {\n"
-       "  var r = 0;\n"
-       "  for (var a in [0,6,7,9]) { r = r + (1 << a); }\n"
-       "  return r;\n"
-       "}",
+      {"var r = 0;\n"
+       "for (var a in [0,6,7,9]) { r = r + (1 << a); }\n"
+       "return r;\n",
        0xf},
-      {"function f() {\n"
-       "  var r = 0;\n"
-       "  for (var a in [0,6,7,9]) { r = r + (1 << a); }\n"
-       "  var r = 0;\n"
-       "  for (var a in [0,6,7,9]) { r = r + (1 << a); }\n"
-       "  return r;\n"
-       "}",
-       0xf},
-      {"function f() {\n"
-       "  var r = 0;\n"
-       "  for (var a in 'foobar') { r = r + (1 << a); }\n"
-       "  return r;\n"
-       "}",
-       0x3f},
-      {"function f() {\n"
-       "  var r = 0;\n"
-       "  for (var a in {1:0, 10:1, 100:2, 1000:3}) {\n"
-       "    r = r + Number(a);\n"
-       "   }\n"
-       "   return r;\n"
-       "}",
-       1111},
-      {"function f() {\n"
-       "  var r = 0;\n"
-       "  var data = {1:0, 10:1, 100:2, 1000:3};\n"
-       "  for (var a in data) {\n"
-       "    if (a == 1) delete data[1];\n"
-       "    r = r + Number(a);\n"
-       "   }\n"
-       "   return r;\n"
-       "}",
-       1111},
-      {"function f() {\n"
-       "  var r = 0;\n"
-       "  var data = {1:0, 10:1, 100:2, 1000:3};\n"
-       "  for (var a in data) {\n"
-       "    if (a == 10) delete data[100];\n"
-       "    r = r + Number(a);\n"
-       "   }\n"
-       "   return r;\n"
-       "}",
-       1011},
-      {"function f() {\n"
-       "  var r = 0;\n"
-       "  var data = {1:0, 10:1, 100:2, 1000:3};\n"
-       "  for (var a in data) {\n"
-       "    if (a == 10) data[10000] = 4;\n"
-       "    r = r + Number(a);\n"
-       "   }\n"
-       "   return r;\n"
-       "}",
-       1111},
-      {"function f() {\n"
-       "  var r = 0;\n"
-       "  var input = 'foobar';\n"
-       "  for (var a in input) {\n"
-       "    if (input[a] == 'b') break;\n"
-       "    r = r + (1 << a);\n"
-       "  }\n"
-       "  return r;\n"
-       "}",
-       0x7},
-      {"function f() {\n"
+      {"var r = 0;\n"
+       "for (var a in [0,6,7,9]) { r = r + (1 << a); }\n"
        "var r = 0;\n"
+       "for (var a in [0,6,7,9]) { r = r + (1 << a); }\n"
+       "return r;\n",
+       0xf},
+      {"var r = 0;\n"
+       "for (var a in 'foobar') { r = r + (1 << a); }\n"
+       "return r;\n",
+       0x3f},
+      {"var r = 0;\n"
+       "for (var a in {1:0, 10:1, 100:2, 1000:3}) {\n"
+       "  r = r + Number(a);\n"
+       " }\n"
+       " return r;\n",
+       1111},
+      {"var r = 0;\n"
+       "var data = {1:0, 10:1, 100:2, 1000:3};\n"
+       "for (var a in data) {\n"
+       "  if (a == 1) delete data[1];\n"
+       "  r = r + Number(a);\n"
+       " }\n"
+       " return r;\n",
+       1111},
+      {"var r = 0;\n"
+       "var data = {1:0, 10:1, 100:2, 1000:3};\n"
+       "for (var a in data) {\n"
+       "  if (a == 10) delete data[100];\n"
+       "  r = r + Number(a);\n"
+       " }\n"
+       " return r;\n",
+       1011},
+      {"var r = 0;\n"
+       "var data = {1:0, 10:1, 100:2, 1000:3};\n"
+       "for (var a in data) {\n"
+       "  if (a == 10) data[10000] = 4;\n"
+       "  r = r + Number(a);\n"
+       " }\n"
+       " return r;\n",
+       1111},
+      {"var r = 0;\n"
        "var input = 'foobar';\n"
        "for (var a in input) {\n"
-       "   if (input[a] == 'b') continue;\n"
-       "   r = r + (1 << a);\n"
+       "  if (input[a] == 'b') break;\n"
+       "  r = r + (1 << a);\n"
        "}\n"
-       "return r;\n"
-       "}",
+       "return r;\n",
+       0x7},
+      {"var r = 0;\n"
+       "var input = 'foobar';\n"
+       "for (var a in input) {\n"
+       " if (input[a] == 'b') continue;\n"
+       " r = r + (1 << a);\n"
+       "}\n"
+       "return r;\n",
        0x37},
+      {"var r = 0;\n"
+       "var data = {1:0, 10:1, 100:2, 1000:3};\n"
+       "for (var a in data) {\n"
+       "  if (a == 10) {\n"
+       "     data[10000] = 4;\n"
+       "  }\n"
+       "  r = r + Number(a);\n"
+       "}\n"
+       "return r;\n",
+       1111},
+      {"var r = [ 3 ];\n"
+       "var data = {1:0, 10:1, 100:2, 1000:3};\n"
+       "for (r[10] in data) {\n"
+       "}\n"
+       "return Number(r[10]);\n",
+       1000},
+      {"var r = [ 3 ];\n"
+       "var data = {1:0, 10:1, 100:2, 1000:3};\n"
+       "for (r['100'] in data) {\n"
+       "}\n"
+       "return Number(r['100']);\n",
+       1000},
+      {"var obj = {}\n"
+       "var descObj = new Boolean(false);\n"
+       "var accessed = 0;\n"
+       "descObj.enumerable = true;\n"
+       "Object.defineProperties(obj, { prop:descObj });\n"
+       "for (var p in obj) {\n"
+       "  if (p === 'prop') { accessed = 1; }\n"
+       "}\n"
+       "return accessed;",
+       1},
+      {"var appointment = {};\n"
+       "Object.defineProperty(appointment, 'startTime', {\n"
+       "    value: 1001,\n"
+       "    writable: false,\n"
+       "    enumerable: false,\n"
+       "    configurable: true\n"
+       "});\n"
+       "Object.defineProperty(appointment, 'name', {\n"
+       "    value: 'NAME',\n"
+       "    writable: false,\n"
+       "    enumerable: false,\n"
+       "    configurable: true\n"
+       "});\n"
+       "var meeting = Object.create(appointment);\n"
+       "Object.defineProperty(meeting, 'conferenceCall', {\n"
+       "    value: 'In-person meeting',\n"
+       "    writable: false,\n"
+       "    enumerable: false,\n"
+       "    configurable: true\n"
+       "});\n"
+       "\n"
+       "var teamMeeting = Object.create(meeting);\n"
+       "\n"
+       "var flags = 0;\n"
+       "for (var p in teamMeeting) {\n"
+       "    if (p === 'startTime') {\n"
+       "        flags |= 1;\n"
+       "    }\n"
+       "    if (p === 'name') {\n"
+       "        flags |= 2;\n"
+       "    }\n"
+       "    if (p === 'conferenceCall') {\n"
+       "        flags |= 4;\n"
+       "    }\n"
+       "}\n"
+       "\n"
+       "var hasOwnProperty = !teamMeeting.hasOwnProperty('name') &&\n"
+       "    !teamMeeting.hasOwnProperty('startTime') &&\n"
+       "    !teamMeeting.hasOwnProperty('conferenceCall');\n"
+       "if (!hasOwnProperty) {\n"
+       "    flags |= 8;\n"
+       "}\n"
+       "return flags;\n",
+       0},
+      {"var data = {x:23, y:34};\n"
+       " var result = 0;\n"
+       "var o = {};\n"
+       "var arr = [o];\n"
+       "for (arr[0].p in data)\n"       // This is to test if value is loaded
+       "  result += data[arr[0].p];\n"  // back from accumulator before storing
+       "return result;\n",              // named properties.
+       57},
+      {"var data = {x:23, y:34};\n"
+       "var result = 0;\n"
+       "var o = {};\n"
+       "var i = 0;\n"
+       "for (o[i++] in data)\n"       // This is to test if value is loaded
+       "  result += data[o[i-1]];\n"  // back from accumulator before
+       "return result;\n",            // storing keyed properties.
+       57}};
+
+  // Two passes are made for this test. On the first, 8-bit register
+  // operands are employed, and on the 16-bit register operands are
+  // used.
+  for (int pass = 0; pass < 2; pass++) {
+    HandleAndZoneScope handles;
+    Isolate* isolate = handles.main_isolate();
+    std::ostringstream wide_os;
+    if (pass == 1) {
+      for (int i = 0; i < 200; i++) {
+        wide_os << "var local" << i << " = 0;\n";
+      }
+    }
+
+    for (size_t i = 0; i < arraysize(for_in_samples); i++) {
+      std::ostringstream body_os;
+      body_os << wide_os.str() << for_in_samples[i].first;
+      std::string body(body_os.str());
+      std::string function = InterpreterTester::SourceForBody(body.c_str());
+      InterpreterTester tester(isolate, function.c_str());
+      auto callable = tester.GetCallable<>();
+      Handle<Object> return_val = callable().ToHandleChecked();
+      CHECK_EQ(Handle<Smi>::cast(return_val)->value(),
+               for_in_samples[i].second);
+    }
+  }
+}
+
+
+TEST(InterpreterForOf) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
+
+  std::pair<const char*, Handle<Object>> for_of[] = {
       {"function f() {\n"
        "  var r = 0;\n"
-       "  var data = {1:0, 10:1, 100:2, 1000:3};\n"
-       "  for (var a in data) {\n"
-       "    if (a == 10) {\n"
-       "       data[10000] = 4;\n"
-       "    }\n"
-       "    r = r + Number(a);\n"
+       "  for (var a of [0,6,7,9]) { r += a; }\n"
+       "  return r;\n"
+       "}",
+       handle(Smi::FromInt(22), isolate)},
+      {"function f() {\n"
+       "  var r = '';\n"
+       "  for (var a of 'foobar') { r = a + r; }\n"
+       "  return r;\n"
+       "}",
+       factory->NewStringFromStaticChars("raboof")},
+      {"function f() {\n"
+       "  var a = [1, 2, 3];\n"
+       "  a.name = 4;\n"
+       "  var r = 0;\n"
+       "  for (var x of a) { r += x; }\n"
+       "  return r;\n"
+       "}",
+       handle(Smi::FromInt(6), isolate)},
+      {"function f() {\n"
+       "  var r = '';\n"
+       "  var data = [1, 2, 3]; \n"
+       "  for (a of data) { delete data[0]; r += a; } return r; }",
+       factory->NewStringFromStaticChars("123")},
+      {"function f() {\n"
+       "  var r = '';\n"
+       "  var data = [1, 2, 3]; \n"
+       "  for (a of data) { delete data[2]; r += a; } return r; }",
+       factory->NewStringFromStaticChars("12undefined")},
+      {"function f() {\n"
+       "  var r = '';\n"
+       "  var data = [1, 2, 3]; \n"
+       "  for (a of data) { delete data; r += a; } return r; }",
+       factory->NewStringFromStaticChars("123")},
+      {"function f() {\n"
+       "  var r = '';\n"
+       "  var input = 'foobar';\n"
+       "  for (var a of input) {\n"
+       "    if (a == 'b') break;\n"
+       "    r += a;\n"
        "  }\n"
        "  return r;\n"
        "}",
-       1111},
+       factory->NewStringFromStaticChars("foo")},
       {"function f() {\n"
-       "  var r = [ 3 ];\n"
-       "  var data = {1:0, 10:1, 100:2, 1000:3};\n"
-       "  for (r[10] in data) {\n"
+       "  var r = '';\n"
+       "  var input = 'foobar';\n"
+       "  for (var a of input) {\n"
+       "    if (a == 'b') continue;\n"
+       "    r += a;\n"
        "  }\n"
-       "  return Number(r[10]);\n"
+       "  return r;\n"
        "}",
-       1000},
+       factory->NewStringFromStaticChars("fooar")},
       {"function f() {\n"
-       "  var r = [ 3 ];\n"
-       "  var data = {1:0, 10:1, 100:2, 1000:3};\n"
-       "  for (r['100'] in data) {\n"
-       "  }\n"
-       "  return Number(r['100']);\n"
+       "  var r = '';\n"
+       "  var data = [1, 2, 3, 4]; \n"
+       "  for (a of data) { data[2] = 567; r += a; }\n"
+       "  return r;\n"
        "}",
-       1000},
+       factory->NewStringFromStaticChars("125674")},
       {"function f() {\n"
-       "  var obj = {}\n"
-       "  var descObj = new Boolean(false);\n"
-       "  var accessed = 0;\n"
-       "  descObj.enumerable = true;\n"
-       "  Object.defineProperties(obj, { prop:descObj });\n"
-       "  for (var p in obj) {\n"
-       "    if (p === 'prop') { accessed = 1; }\n"
-       "  }\n"
-       "  return accessed;"
+       "  var r = '';\n"
+       "  var data = [1, 2, 3, 4]; \n"
+       "  for (a of data) { data[4] = 567; r += a; }\n"
+       "  return r;\n"
        "}",
-       1},
+       factory->NewStringFromStaticChars("1234567")},
       {"function f() {\n"
-       "  var appointment = {};\n"
-       "  Object.defineProperty(appointment, 'startTime', {\n"
-       "      value: 1001,\n"
-       "      writable: false,\n"
-       "      enumerable: false,\n"
-       "      configurable: true\n"
-       "  });\n"
-       "  Object.defineProperty(appointment, 'name', {\n"
-       "      value: 'NAME',\n"
-       "      writable: false,\n"
-       "      enumerable: false,\n"
-       "      configurable: true\n"
-       "  });\n"
-       "  var meeting = Object.create(appointment);\n"
-       "  Object.defineProperty(meeting, 'conferenceCall', {\n"
-       "      value: 'In-person meeting',\n"
-       "      writable: false,\n"
-       "      enumerable: false,\n"
-       "      configurable: true\n"
-       "  });\n"
-       "\n"
-       "  var teamMeeting = Object.create(meeting);\n"
-       "\n"
-       "  var flags = 0;\n"
-       "  for (var p in teamMeeting) {\n"
-       "      if (p === 'startTime') {\n"
-       "          flags |= 1;\n"
+       "  var r = '';\n"
+       "  var data = [1, 2, 3, 4]; \n"
+       "  for (a of data) { data[5] = 567; r += a; }\n"
+       "  return r;\n"
+       "}",
+       factory->NewStringFromStaticChars("1234undefined567")},
+      {"function f() {\n"
+       "  var r = '';\n"
+       "  var obj = new Object();\n"
+       "  obj[Symbol.iterator] = function() { return {\n"
+       "    index: 3,\n"
+       "    data: ['a', 'b', 'c', 'd'],"
+       "    next: function() {"
+       "      return {"
+       "        done: this.index == -1,\n"
+       "        value: this.index < 0 ? undefined : this.data[this.index--]\n"
        "      }\n"
-       "      if (p === 'name') {\n"
-       "          flags |= 2;\n"
-       "      }\n"
-       "      if (p === 'conferenceCall') {\n"
-       "          flags |= 4;\n"
-       "      }\n"
-       "  }\n"
-       "\n"
-       "  var hasOwnProperty = !teamMeeting.hasOwnProperty('name') &&\n"
-       "      !teamMeeting.hasOwnProperty('startTime') &&\n"
-       "      !teamMeeting.hasOwnProperty('conferenceCall');\n"
-       "  if (!hasOwnProperty) {\n"
-       "      flags |= 8;\n"
-       "  }\n"
-       "  return flags;\n"
-       "  }",
-       0}};
+       "    }\n"
+       "    }}\n"
+       "  for (a of obj) { r += a }\n"
+       "  return r;\n"
+       "}",
+       factory->NewStringFromStaticChars("dcba")},
+  };
 
-  for (size_t i = 0; i < arraysize(for_in_samples); i++) {
-    InterpreterTester tester(handles.main_isolate(), for_in_samples[i].first);
+  for (size_t i = 0; i < arraysize(for_of); i++) {
+    InterpreterTester tester(isolate, for_of[i].first);
     auto callable = tester.GetCallable<>();
     Handle<Object> return_val = callable().ToHandleChecked();
-    CHECK_EQ(Handle<Smi>::cast(return_val)->value(), for_in_samples[i].second);
+    CHECK(return_val->SameValue(*for_of[i].second));
   }
 }
 
 
 TEST(InterpreterSwitch) {
   HandleAndZoneScope handles;
-  i::Isolate* isolate = handles.main_isolate();
-  i::Factory* factory = isolate->factory();
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
 
   std::pair<const char*, Handle<Object>> switch_ops[] = {
       std::make_pair("var a = 1;\n"
@@ -2877,7 +3492,7 @@ TEST(InterpreterSwitch) {
 
   for (size_t i = 0; i < arraysize(switch_ops); i++) {
     std::string source(InterpreterTester::SourceForBody(switch_ops[i].first));
-    InterpreterTester tester(handles.main_isolate(), source.c_str());
+    InterpreterTester tester(isolate, source.c_str());
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
@@ -2888,8 +3503,8 @@ TEST(InterpreterSwitch) {
 
 TEST(InterpreterSloppyThis) {
   HandleAndZoneScope handles;
-  i::Isolate* isolate = handles.main_isolate();
-  i::Factory* factory = isolate->factory();
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
 
   std::pair<const char*, Handle<Object>> sloppy_this[] = {
       std::make_pair("var global_val = 100;\n"
@@ -2911,7 +3526,7 @@ TEST(InterpreterSloppyThis) {
   };
 
   for (size_t i = 0; i < arraysize(sloppy_this); i++) {
-    InterpreterTester tester(handles.main_isolate(), sloppy_this[i].first);
+    InterpreterTester tester(isolate, sloppy_this[i].first);
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
@@ -2922,10 +3537,10 @@ TEST(InterpreterSloppyThis) {
 
 TEST(InterpreterThisFunction) {
   HandleAndZoneScope handles;
-  i::Isolate* isolate = handles.main_isolate();
-  i::Factory* factory = isolate->factory();
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
 
-  InterpreterTester tester(handles.main_isolate(),
+  InterpreterTester tester(isolate,
                            "var f;\n f = function f() { return f.name; }");
   auto callable = tester.GetCallable<>();
 
@@ -2936,19 +3551,1137 @@ TEST(InterpreterThisFunction) {
 
 TEST(InterpreterNewTarget) {
   HandleAndZoneScope handles;
-  i::Isolate* isolate = handles.main_isolate();
-  i::Factory* factory = isolate->factory();
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
 
   // TODO(rmcilroy): Add tests that we get the original constructor for
   // superclass constructors once we have class support.
-  InterpreterTester tester(handles.main_isolate(),
-                           "function f() { this.a = new.target; }");
+  InterpreterTester tester(isolate, "function f() { this.a = new.target; }");
   auto callable = tester.GetCallable<>();
   callable().ToHandleChecked();
 
   Handle<Object> new_target_name = v8::Utils::OpenHandle(
       *CompileRun("(function() { return (new f()).a.name; })();"));
   CHECK(new_target_name->SameValue(*factory->NewStringFromStaticChars("f")));
+}
+
+
+TEST(InterpreterAssignmentInExpressions) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+
+  std::pair<const char*, int> samples[] = {
+      {"function f() {\n"
+       "  var x = 7;\n"
+       "  var y = x + (x = 1) + (x = 2);\n"
+       "  return y;\n"
+       "}",
+       10},
+      {"function f() {\n"
+       "  var x = 7;\n"
+       "  var y = x + (x = 1) + (x = 2);\n"
+       "  return x;\n"
+       "}",
+       2},
+      {"function f() {\n"
+       "  var x = 55;\n"
+       "  x = x + (x = 100) + (x = 101);\n"
+       "  return x;\n"
+       "}",
+       256},
+      {"function f() {\n"
+       "  var x = 7;\n"
+       "  return ++x + x + x++;\n"
+       "}",
+       24},
+      {"function f() {\n"
+       "  var x = 7;\n"
+       "  var y = 1 + ++x + x + x++;\n"
+       "  return x;\n"
+       "}",
+       9},
+      {"function f() {\n"
+       "  var x = 7;\n"
+       "  var y = ++x + x + x++;\n"
+       "  return x;\n"
+       "}",
+       9},
+      {"function f() {\n"
+       "  var x = 7, y = 100, z = 1000;\n"
+       "  return x + (x += 3) + y + (y *= 10) + (z *= 7) + z;\n"
+       "}",
+       15117},
+      {"function f() {\n"
+       "  var inner = function (x) { return x + (x = 2) + (x = 4) + x; };\n"
+       "  return inner(1);\n"
+       "}",
+       11},
+      {"function f() {\n"
+       "  var x = 1, y = 2;\n"
+       "  x = x + (x = 3) + y + (y = 4), y = y + (y = 5) + y + x;\n"
+       "  return x + y;\n"
+       "}",
+       10 + 24},
+      {"function f() {\n"
+       "  var x = 0;\n"
+       "  var y = x | (x = 1) | (x = 2);\n"
+       "  return x;\n"
+       "}",
+       2},
+      {"function f() {\n"
+       "  var x = 0;\n"
+       "  var y = x || (x = 1);\n"
+       "  return x;\n"
+       "}",
+       1},
+      {"function f() {\n"
+       "  var x = 1;\n"
+       "  var y = x && (x = 2) && (x = 3);\n"
+       "  return x;\n"
+       "}",
+       3},
+      {"function f() {\n"
+       "  var x = 1;\n"
+       "  var y = x || (x = 2);\n"
+       "  return x;\n"
+       "}",
+       1},
+      {"function f() {\n"
+       "  var x = 1;\n"
+       "  x = (x << (x = 3)) | (x = 16);\n"
+       "  return x;\n"
+       "}",
+       24},
+      {"function f() {\n"
+       "  var r = 7;\n"
+       "  var s = 11;\n"
+       "  var t = 13;\n"
+       "  var u = r + s + t + (r = 10) + (s = 20) +"
+       "          (t = (r + s)) + r + s + t;\n"
+       "  return r + s + t + u;\n"
+       "}",
+       211},
+      {"function f() {\n"
+       "  var r = 7;\n"
+       "  var s = 11;\n"
+       "  var t = 13;\n"
+       "  return r > (3 * s * (s = 1)) ? (t + (t += 1)) : (r + (r = 4));\n"
+       "}",
+       11},
+      {"function f() {\n"
+       "  var r = 7;\n"
+       "  var s = 11;\n"
+       "  var t = 13;\n"
+       "  return r > (3 * s * (s = 0)) ? (t + (t += 1)) : (r + (r = 4));\n"
+       "}",
+       27},
+      {"function f() {\n"
+       "  var r = 7;\n"
+       "  var s = 11;\n"
+       "  var t = 13;\n"
+       "  return (r + (r = 5)) > s ? r : t;\n"
+       "}",
+       5},
+      {"function f(a) {\n"
+       "  return a + (arguments[0] = 10);\n"
+       "}",
+       50},
+      {"function f(a) {\n"
+       "  return a + (arguments[0] = 10) + a;\n"
+       "}",
+       60},
+      {"function f(a) {\n"
+       "  return a + (arguments[0] = 10) + arguments[0];\n"
+       "}",
+       60},
+  };
+
+  const int arg_value = 40;
+  for (size_t i = 0; i < arraysize(samples); i++) {
+    InterpreterTester tester(isolate, samples[i].first);
+    auto callable = tester.GetCallable<Handle<Object>>();
+    Handle<Object> return_val =
+        callable(handle(Smi::FromInt(arg_value), handles.main_isolate()))
+            .ToHandleChecked();
+    CHECK_EQ(Handle<Smi>::cast(return_val)->value(), samples[i].second);
+  }
+}
+
+
+TEST(InterpreterToName) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
+
+  std::pair<const char*, Handle<Object>> to_name_tests[] = {
+      {"var a = 'val'; var obj = {[a] : 10}; return obj.val;",
+       factory->NewNumberFromInt(10)},
+      {"var a = 20; var obj = {[a] : 10}; return obj['20'];",
+       factory->NewNumberFromInt(10)},
+      {"var a = 20; var obj = {[a] : 10}; return obj[20];",
+       factory->NewNumberFromInt(10)},
+      {"var a = {val:23}; var obj = {[a] : 10}; return obj[a];",
+       factory->NewNumberFromInt(10)},
+      {"var a = {val:23}; var obj = {[a] : 10};\n"
+       "return obj['[object Object]'];",
+       factory->NewNumberFromInt(10)},
+      {"var a = {toString : function() { return 'x'}};\n"
+       "var obj = {[a] : 10};\n"
+       "return obj.x;",
+       factory->NewNumberFromInt(10)},
+      {"var a = {valueOf : function() { return 'x'}};\n"
+       "var obj = {[a] : 10};\n"
+       "return obj.x;",
+       factory->undefined_value()},
+      {"var a = {[Symbol.toPrimitive] : function() { return 'x'}};\n"
+       "var obj = {[a] : 10};\n"
+       "return obj.x;",
+       factory->NewNumberFromInt(10)},
+  };
+
+  for (size_t i = 0; i < arraysize(to_name_tests); i++) {
+    std::string source(
+        InterpreterTester::SourceForBody(to_name_tests[i].first));
+    InterpreterTester tester(isolate, source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*to_name_tests[i].second));
+  }
+}
+
+
+TEST(TemporaryRegisterAllocation) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
+
+  std::pair<const char*, Handle<Object>> reg_tests[] = {
+      {"function add(a, b, c) {"
+       "   return a + b + c;"
+       "}"
+       "function f() {"
+       "  var a = 10, b = 10;"
+       "   return add(a, b++, b);"
+       "}",
+       factory->NewNumberFromInt(31)},
+      {"function add(a, b, c, d) {"
+       "  return a + b + c + d;"
+       "}"
+       "function f() {"
+       "  var x = 10, y = 20, z = 30;"
+       "  return x + add(x, (y= x++), x, z);"
+       "}",
+       factory->NewNumberFromInt(71)},
+  };
+
+  for (size_t i = 0; i < arraysize(reg_tests); i++) {
+    InterpreterTester tester(isolate, reg_tests[i].first);
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*reg_tests[i].second));
+  }
+}
+
+
+TEST(InterpreterLookupSlot) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
+
+  // TODO(mythria): Add more tests when we have support for eval/with.
+  const char* function_prologue = "var f;"
+                                  "var x = 1;"
+                                  "function f1() {"
+                                  "  eval(\"function t() {";
+  const char* function_epilogue = "        }; f = t;\");"
+                                  "}"
+                                  "f1();";
+
+
+  std::pair<const char*, Handle<Object>> lookup_slot[] = {
+      {"return x;", handle(Smi::FromInt(1), isolate)},
+      {"return typeof x;", factory->NewStringFromStaticChars("number")},
+      {"return typeof dummy;", factory->NewStringFromStaticChars("undefined")},
+      {"x = 10; return x;", handle(Smi::FromInt(10), isolate)},
+      {"'use strict'; x = 20; return x;", handle(Smi::FromInt(20), isolate)},
+  };
+
+  for (size_t i = 0; i < arraysize(lookup_slot); i++) {
+    std::string script = std::string(function_prologue) +
+                         std::string(lookup_slot[i].first) +
+                         std::string(function_epilogue);
+
+    InterpreterTester tester(isolate, script.c_str(), "t");
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*lookup_slot[i].second));
+  }
+}
+
+
+TEST(InterpreterCallLookupSlot) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+
+  std::pair<const char*, Handle<Object>> call_lookup[] = {
+      {"g = function(){ return 2 }; eval(''); return g();",
+       handle(Smi::FromInt(2), isolate)},
+      {"g = function(){ return 2 }; eval('g = function() {return 3}');\n"
+       "return g();",
+       handle(Smi::FromInt(3), isolate)},
+      {"g = { x: function(){ return this.y }, y: 20 };\n"
+       "eval('g = { x: g.x, y: 30 }');\n"
+       "return g.x();",
+       handle(Smi::FromInt(30), isolate)},
+  };
+
+  for (size_t i = 0; i < arraysize(call_lookup); i++) {
+    std::string source(InterpreterTester::SourceForBody(call_lookup[i].first));
+    InterpreterTester tester(isolate, source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*call_lookup[i].second));
+  }
+}
+
+
+TEST(InterpreterLookupSlotWide) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
+
+  const char* function_prologue =
+      "var f;"
+      "var x = 1;"
+      "function f1() {"
+      "  eval(\"function t() {";
+  const char* function_epilogue =
+      "        }; f = t;\");"
+      "}"
+      "f1();";
+  std::ostringstream str;
+  str << "var y = 2.3;";
+  for (int i = 1; i < 256; i++) {
+    str << "y = " << 2.3 + i << ";";
+  }
+  std::string init_function_body = str.str();
+
+  std::pair<std::string, Handle<Object>> lookup_slot[] = {
+      {init_function_body + "return x;", handle(Smi::FromInt(1), isolate)},
+      {init_function_body + "return typeof x;",
+       factory->NewStringFromStaticChars("number")},
+      {init_function_body + "return x = 10;",
+       handle(Smi::FromInt(10), isolate)},
+      {"'use strict';" + init_function_body + "x = 20; return x;",
+       handle(Smi::FromInt(20), isolate)},
+  };
+
+  for (size_t i = 0; i < arraysize(lookup_slot); i++) {
+    std::string script = std::string(function_prologue) + lookup_slot[i].first +
+                         std::string(function_epilogue);
+
+    InterpreterTester tester(isolate, script.c_str(), "t");
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*lookup_slot[i].second));
+  }
+}
+
+
+TEST(InterpreterDeleteLookupSlot) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
+
+  // TODO(mythria): Add more tests when we have support for eval/with.
+  const char* function_prologue = "var f;"
+                                  "var x = 1;"
+                                  "y = 10;"
+                                  "var obj = {val:10};"
+                                  "var z = 30;"
+                                  "function f1() {"
+                                  "  var z = 20;"
+                                  "  eval(\"function t() {";
+  const char* function_epilogue = "        }; f = t;\");"
+                                  "}"
+                                  "f1();";
+
+
+  std::pair<const char*, Handle<Object>> delete_lookup_slot[] = {
+      {"return delete x;", factory->false_value()},
+      {"return delete y;", factory->true_value()},
+      {"return delete z;", factory->false_value()},
+      {"return delete obj.val;", factory->true_value()},
+      {"'use strict'; return delete obj.val;", factory->true_value()},
+  };
+
+  for (size_t i = 0; i < arraysize(delete_lookup_slot); i++) {
+    std::string script = std::string(function_prologue) +
+                         std::string(delete_lookup_slot[i].first) +
+                         std::string(function_epilogue);
+
+    InterpreterTester tester(isolate, script.c_str(), "t");
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*delete_lookup_slot[i].second));
+  }
+}
+
+
+TEST(JumpWithConstantsAndWideConstants) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
+  const int kStep = 13;
+  for (int constants = 11; constants < 256 + 3 * kStep; constants += kStep) {
+    std::ostringstream filler_os;
+    // Generate a string that consumes constant pool entries and
+    // spread out branch distances in script below.
+    for (int i = 0; i < constants; i++) {
+      filler_os << "var x_ = 'x_" << i << "';\n";
+    }
+    std::string filler(filler_os.str());
+    std::ostringstream script_os;
+    script_os << "function " << InterpreterTester::function_name() << "(a) {\n";
+    script_os << "  " << filler;
+    script_os << "  for (var i = a; i < 2; i++) {\n";
+    script_os << "  " << filler;
+    script_os << "    if (i == 0) { " << filler << "i = 10; continue; }\n";
+    script_os << "    else if (i == a) { " << filler << "i = 12; break; }\n";
+    script_os << "    else { " << filler << " }\n";
+    script_os << "  }\n";
+    script_os << "  return i;\n";
+    script_os << "}\n";
+    std::string script(script_os.str());
+    for (int a = 0; a < 3; a++) {
+      InterpreterTester tester(isolate, script.c_str());
+      auto callable = tester.GetCallable<Handle<Object>>();
+      Handle<Object> argument = factory->NewNumberFromInt(a);
+      Handle<Object> return_val = callable(argument).ToHandleChecked();
+      static const int results[] = {11, 12, 2};
+      CHECK_EQ(Handle<Smi>::cast(return_val)->value(), results[a]);
+    }
+  }
+}
+
+
+TEST(InterpreterEval) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
+
+  std::pair<const char*, Handle<Object>> eval[] = {
+      {"return eval('1;');", handle(Smi::FromInt(1), isolate)},
+      {"return eval('100 * 20;');", handle(Smi::FromInt(2000), isolate)},
+      {"var x = 10; return eval('x + 20;');",
+       handle(Smi::FromInt(30), isolate)},
+      {"var x = 10; eval('x = 33;'); return x;",
+       handle(Smi::FromInt(33), isolate)},
+      {"'use strict'; var x = 20; var z = 0;\n"
+       "eval('var x = 33; z = x;'); return x + z;",
+       handle(Smi::FromInt(53), isolate)},
+      {"eval('var x = 33;'); eval('var y = x + 20'); return x + y;",
+       handle(Smi::FromInt(86), isolate)},
+      {"var x = 1; eval('for(i = 0; i < 10; i++) x = x + 1;'); return x",
+       handle(Smi::FromInt(11), isolate)},
+      {"var x = 10; eval('var x = 20;'); return x;",
+       handle(Smi::FromInt(20), isolate)},
+      {"var x = 1; eval('\"use strict\"; var x = 2;'); return x;",
+       handle(Smi::FromInt(1), isolate)},
+      {"'use strict'; var x = 1; eval('var x = 2;'); return x;",
+       handle(Smi::FromInt(1), isolate)},
+      {"var x = 10; eval('x + 20;'); return typeof x;",
+       factory->NewStringFromStaticChars("number")},
+      {"eval('var y = 10;'); return typeof unallocated;",
+       factory->NewStringFromStaticChars("undefined")},
+      {"'use strict'; eval('var y = 10;'); return typeof unallocated;",
+       factory->NewStringFromStaticChars("undefined")},
+      {"eval('var x = 10;'); return typeof x;",
+       factory->NewStringFromStaticChars("number")},
+      {"var x = {}; eval('var x = 10;'); return typeof x;",
+       factory->NewStringFromStaticChars("number")},
+      {"'use strict'; var x = {}; eval('var x = 10;'); return typeof x;",
+       factory->NewStringFromStaticChars("object")},
+  };
+
+  for (size_t i = 0; i < arraysize(eval); i++) {
+    std::string source(InterpreterTester::SourceForBody(eval[i].first));
+    InterpreterTester tester(isolate, source.c_str());
+    auto callable = tester.GetCallable<>();
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*eval[i].second));
+  }
+}
+
+
+TEST(InterpreterEvalParams) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+
+  std::pair<const char*, Handle<Object>> eval_params[] = {
+      {"var x = 10; return eval('x + p1;');",
+       handle(Smi::FromInt(30), isolate)},
+      {"var x = 10; eval('p1 = x;'); return p1;",
+       handle(Smi::FromInt(10), isolate)},
+      {"var a = 10;"
+       "function inner() { return eval('a + p1;');}"
+       "return inner();",
+       handle(Smi::FromInt(30), isolate)},
+  };
+
+  for (size_t i = 0; i < arraysize(eval_params); i++) {
+    std::string source = "function " + InterpreterTester::function_name() +
+                         "(p1) {" + eval_params[i].first + "}";
+    InterpreterTester tester(isolate, source.c_str());
+    auto callable = tester.GetCallable<Handle<Object>>();
+
+    Handle<i::Object> return_value =
+        callable(handle(Smi::FromInt(20), isolate)).ToHandleChecked();
+    CHECK(return_value->SameValue(*eval_params[i].second));
+  }
+}
+
+
+TEST(InterpreterEvalGlobal) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
+
+  std::pair<const char*, Handle<Object>> eval_global[] = {
+      {"function add_global() { eval('function test() { z = 33; }; test()'); };"
+       "function f() { add_global(); return z; }; f();",
+       handle(Smi::FromInt(33), isolate)},
+      {"function add_global() {\n"
+       " eval('\"use strict\"; function test() { y = 33; };"
+       "      try { test() } catch(e) {}');\n"
+       "}\n"
+       "function f() { add_global(); return typeof y; } f();",
+       factory->NewStringFromStaticChars("undefined")},
+  };
+
+  for (size_t i = 0; i < arraysize(eval_global); i++) {
+    InterpreterTester tester(isolate, eval_global[i].first, "test");
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*eval_global[i].second));
+  }
+}
+
+
+TEST(InterpreterEvalVariableDecl) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
+
+  std::pair<const char*, Handle<Object>> eval_global[] = {
+      {"function f() { eval('var x = 10; x++;'); return x; }",
+       handle(Smi::FromInt(11), isolate)},
+      {"function f() { var x = 20; eval('var x = 10; x++;'); return x; }",
+       handle(Smi::FromInt(11), isolate)},
+      {"function f() {"
+       " var x = 20;"
+       " eval('\"use strict\"; var x = 10; x++;');"
+       " return x; }",
+       handle(Smi::FromInt(20), isolate)},
+      {"function f() {"
+       " var y = 30;"
+       " eval('var x = {1:20}; x[2]=y;');"
+       " return x[2]; }",
+       handle(Smi::FromInt(30), isolate)},
+      {"function f() {"
+       " eval('var x = {name:\"test\"};');"
+       " return x.name; }",
+       factory->NewStringFromStaticChars("test")},
+      {"function f() {"
+       "  eval('var x = [{name:\"test\"}, {type:\"cc\"}];');"
+       "  return x[1].type+x[0].name; }",
+       factory->NewStringFromStaticChars("cctest")},
+      {"function f() {\n"
+       " var x = 3;\n"
+       " var get_eval_x;\n"
+       " eval('\"use strict\"; "
+       "      var x = 20; "
+       "      get_eval_x = function func() {return x;};');\n"
+       " return get_eval_x() + x;\n"
+       "}",
+       handle(Smi::FromInt(23), isolate)},
+      // TODO(mythria): Add tests with const declarations.
+  };
+
+  for (size_t i = 0; i < arraysize(eval_global); i++) {
+    InterpreterTester tester(isolate, eval_global[i].first, "*");
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*eval_global[i].second));
+  }
+}
+
+
+TEST(InterpreterEvalFunctionDecl) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+
+  std::pair<const char*, Handle<Object>> eval_func_decl[] = {
+      {"function f() {\n"
+       " var x = 3;\n"
+       " eval('var x = 20;"
+       "       function get_x() {return x;};');\n"
+       " return get_x() + x;\n"
+       "}",
+       handle(Smi::FromInt(40), isolate)},
+  };
+
+  for (size_t i = 0; i < arraysize(eval_func_decl); i++) {
+    InterpreterTester tester(isolate, eval_func_decl[i].first, "*");
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*eval_func_decl[i].second));
+  }
+}
+
+TEST(InterpreterWideRegisterArithmetic) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+
+  static const size_t kMaxRegisterForTest = 150;
+  std::ostringstream os;
+  os << "function " << InterpreterTester::function_name() << "(arg) {\n";
+  os << "  var retval = -77;\n";
+  for (size_t i = 0; i < kMaxRegisterForTest; i++) {
+    os << "  var x" << i << " = " << i << ";\n";
+  }
+  for (size_t i = 0; i < kMaxRegisterForTest / 2; i++) {
+    size_t j = kMaxRegisterForTest - i - 1;
+    os << "  var tmp = x" << j << ";\n";
+    os << "  var x" << j << " = x" << i << ";\n";
+    os << "  var x" << i << " = tmp;\n";
+  }
+  for (size_t i = 0; i < kMaxRegisterForTest / 2; i++) {
+    size_t j = kMaxRegisterForTest - i - 1;
+    os << "  var tmp = x" << j << ";\n";
+    os << "  var x" << j << " = x" << i << ";\n";
+    os << "  var x" << i << " = tmp;\n";
+  }
+  for (size_t i = 0; i < kMaxRegisterForTest; i++) {
+    os << "  if (arg == " << i << ") {\n"  //
+       << "    retval = x" << i << ";\n"   //
+       << "  }\n";                         //
+  }
+  os << "  return retval;\n";
+  os << "}\n";
+
+  std::string source = os.str();
+  InterpreterTester tester(isolate, source.c_str());
+  auto callable = tester.GetCallable<Handle<Object>>();
+  for (size_t i = 0; i < kMaxRegisterForTest; i++) {
+    Handle<Object> arg = handle(Smi::FromInt(static_cast<int>(i)), isolate);
+    Handle<Object> return_value = callable(arg).ToHandleChecked();
+    CHECK(return_value->SameValue(*arg));
+  }
+}
+
+TEST(InterpreterCallWideRegisters) {
+  static const int kPeriod = 25;
+  static const int kLength = 512;
+  static const int kStartChar = 65;
+
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+
+  for (int pass = 0; pass < 3; pass += 1) {
+    std::ostringstream os;
+    for (int i = 0; i < pass * 97; i += 1) {
+      os << "var x" << i << " = " << i << "\n";
+    }
+    os << "return String.fromCharCode(";
+    os << kStartChar;
+    for (int i = 1; i < kLength; i += 1) {
+      os << "," << kStartChar + (i % kPeriod);
+    }
+    os << ");";
+    std::string source = InterpreterTester::SourceForBody(os.str().c_str());
+    InterpreterTester tester(isolate, source.c_str());
+    auto callable = tester.GetCallable();
+    Handle<Object> return_val = callable().ToHandleChecked();
+    Handle<String> return_string = Handle<String>::cast(return_val);
+    CHECK_EQ(return_string->length(), kLength);
+    for (int i = 0; i < kLength; i += 1) {
+      CHECK_EQ(return_string->Get(i), 65 + (i % kPeriod));
+    }
+  }
+}
+
+TEST(InterpreterWideParametersPickOne) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+  static const int kParameterCount = 130;
+  for (int parameter = 0; parameter < 10; parameter++) {
+    std::ostringstream os;
+    os << "function " << InterpreterTester::function_name() << "(arg) {\n";
+    os << "  function selector(i";
+    for (int i = 0; i < kParameterCount; i++) {
+      os << ","
+         << "a" << i;
+    }
+    os << ") {\n";
+    os << "  return a" << parameter << ";\n";
+    os << "  };\n";
+    os << "  return selector(arg";
+    for (int i = 0; i < kParameterCount; i++) {
+      os << "," << i;
+    }
+    os << ");";
+    os << "}\n";
+
+    std::string source = os.str();
+    InterpreterTester tester(isolate, source.c_str(), "*");
+    auto callable = tester.GetCallable<Handle<Object>>();
+    Handle<Object> arg = handle(Smi::FromInt(0xaa55), isolate);
+    Handle<Object> return_value = callable(arg).ToHandleChecked();
+    Handle<Smi> actual = Handle<Smi>::cast(return_value);
+    CHECK_EQ(actual->value(), parameter);
+  }
+}
+
+TEST(InterpreterWideParametersSummation) {
+  static int kParameterCount = 200;
+  static int kBaseValue = 17000;
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+  std::ostringstream os;
+  os << "function " << InterpreterTester::function_name() << "(arg) {\n";
+  os << "  function summation(i";
+  for (int i = 0; i < kParameterCount; i++) {
+    os << ","
+       << "a" << i;
+  }
+  os << ") {\n";
+  os << "    var sum = " << kBaseValue << ";\n";
+  os << "    switch(i) {\n";
+  for (int i = 0; i < kParameterCount; i++) {
+    int j = kParameterCount - i - 1;
+    os << "      case " << j << ": sum += a" << j << ";\n";
+  }
+  os << "  }\n";
+  os << "    return sum;\n";
+  os << "  };\n";
+  os << "  return summation(arg";
+  for (int i = 0; i < kParameterCount; i++) {
+    os << "," << i;
+  }
+  os << ");";
+  os << "}\n";
+
+  std::string source = os.str();
+  InterpreterTester tester(isolate, source.c_str(), "*");
+  auto callable = tester.GetCallable<Handle<Object>>();
+  for (int i = 0; i < kParameterCount; i++) {
+    Handle<Object> arg = handle(Smi::FromInt(i), isolate);
+    Handle<Object> return_value = callable(arg).ToHandleChecked();
+    int expected = kBaseValue + i * (i + 1) / 2;
+    Handle<Smi> actual = Handle<Smi>::cast(return_value);
+    CHECK_EQ(actual->value(), expected);
+  }
+}
+
+TEST(InterpreterDoExpression) {
+  bool old_flag = FLAG_harmony_do_expressions;
+  FLAG_harmony_do_expressions = true;
+
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
+
+  std::pair<const char*, Handle<Object>> do_expr[] = {
+      {"var a = do {}; return a;", factory->undefined_value()},
+      {"var a = do { var x = 100; }; return a;", factory->undefined_value()},
+      {"var a = do { var x = 100; }; return a;", factory->undefined_value()},
+      {"var a = do { var x = 100; x++; }; return a;",
+       handle(Smi::FromInt(100), isolate)},
+      {"var i = 0; for (; i < 5;) { i = do { if (i == 3) { break; }; i + 1; }};"
+       "return i;",
+       handle(Smi::FromInt(3), isolate)},
+  };
+
+  for (size_t i = 0; i < arraysize(do_expr); i++) {
+    std::string source(InterpreterTester::SourceForBody(do_expr[i].first));
+    InterpreterTester tester(isolate, source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*do_expr[i].second));
+  }
+
+  FLAG_harmony_do_expressions = old_flag;
+}
+
+TEST(InterpreterWithStatement) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+
+  std::pair<const char*, Handle<Object>> with_stmt[] = {
+      {"with({x:42}) return x;", handle(Smi::FromInt(42), isolate)},
+      {"with({}) { var y = 10; return y;}", handle(Smi::FromInt(10), isolate)},
+      {"var y = {x:42};"
+       " function inner() {"
+       "   var x = 20;"
+       "   with(y) return x;"
+       "}"
+       "return inner();",
+       handle(Smi::FromInt(42), isolate)},
+      {"var y = {x:42};"
+       " function inner(o) {"
+       "   var x = 20;"
+       "   with(o) return x;"
+       "}"
+       "return inner(y);",
+       handle(Smi::FromInt(42), isolate)},
+  };
+
+  for (size_t i = 0; i < arraysize(with_stmt); i++) {
+    std::string source(InterpreterTester::SourceForBody(with_stmt[i].first));
+    InterpreterTester tester(isolate, source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*with_stmt[i].second));
+  }
+}
+
+TEST(InterpreterClassLiterals) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+  std::pair<const char*, Handle<Object>> examples[] = {
+      {"class C {\n"
+       "  constructor(x) { this.x_ = x; }\n"
+       "  method() { return this.x_; }\n"
+       "}\n"
+       "return new C(99).method();",
+       handle(Smi::FromInt(99), isolate)},
+      {"class C {\n"
+       "  constructor(x) { this.x_ = x; }\n"
+       "  static static_method(x) { return x; }\n"
+       "}\n"
+       "return C.static_method(101);",
+       handle(Smi::FromInt(101), isolate)},
+      {"class C {\n"
+       "  get x() { return 102; }\n"
+       "}\n"
+       "return new C().x",
+       handle(Smi::FromInt(102), isolate)},
+      {"class C {\n"
+       "  static get x() { return 103; }\n"
+       "}\n"
+       "return C.x",
+       handle(Smi::FromInt(103), isolate)},
+      {"class C {\n"
+       "  constructor() { this.x_ = 0; }"
+       "  set x(value) { this.x_ = value; }\n"
+       "  get x() { return this.x_; }\n"
+       "}\n"
+       "var c = new C();"
+       "c.x = 104;"
+       "return c.x;",
+       handle(Smi::FromInt(104), isolate)},
+      {"var x = 0;"
+       "class C {\n"
+       "  static set x(value) { x = value; }\n"
+       "  static get x() { return x; }\n"
+       "}\n"
+       "C.x = 105;"
+       "return C.x;",
+       handle(Smi::FromInt(105), isolate)},
+      {"var method = 'f';"
+       "class C {\n"
+       "  [method]() { return 106; }\n"
+       "}\n"
+       "return new C().f();",
+       handle(Smi::FromInt(106), isolate)},
+  };
+
+  for (size_t i = 0; i < arraysize(examples); ++i) {
+    std::string source(InterpreterTester::SourceForBody(examples[i].first));
+    InterpreterTester tester(isolate, source.c_str(), "*");
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*examples[i].second));
+  }
+}
+
+TEST(InterpreterClassAndSuperClass) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+  std::pair<const char*, Handle<Object>> examples[] = {
+      {"class A {\n"
+       "  constructor(x) { this.x_ = x; }\n"
+       "  method() { return this.x_; }\n"
+       "}\n"
+       "class B extends A {\n"
+       "   constructor(x, y) { super(x); this.y_ = y; }\n"
+       "   method() { return super.method() + 1; }\n"
+       "}\n"
+       "return new B(998, 0).method();\n",
+       handle(Smi::FromInt(999), isolate)},
+      {"class A {\n"
+       "  constructor() { this.x_ = 2; this.y_ = 3; }\n"
+       "}\n"
+       "class B extends A {\n"
+       "  constructor() { super(); }"
+       "  method() { this.x_++; this.y_++; return this.x_ + this.y_; }\n"
+       "}\n"
+       "return new B().method();\n",
+       handle(Smi::FromInt(7), isolate)},
+      {"var calls = 0;\n"
+       "class B {}\n"
+       "B.prototype.x = 42;\n"
+       "class C extends B {\n"
+       "  constructor() {\n"
+       "    super();\n"
+       "    calls++;\n"
+       "  }\n"
+       "}\n"
+       "new C;\n"
+       "return calls;\n",
+       handle(Smi::FromInt(1), isolate)},
+      {"class A {\n"
+       "  method() { return 1; }\n"
+       "  get x() { return 2; }\n"
+       "}\n"
+       "class B extends A {\n"
+       "  method() { return super.x === 2 ? super.method() : -1; }\n"
+       "}\n"
+       "return new B().method();\n",
+       handle(Smi::FromInt(1), isolate)},
+      {"var object = { setY(v) { super.y = v; }};\n"
+       "object.setY(10);\n"
+       "return object.y;\n",
+       handle(Smi::FromInt(10), isolate)},
+  };
+
+  for (size_t i = 0; i < arraysize(examples); ++i) {
+    std::string source(InterpreterTester::SourceForBody(examples[i].first));
+    InterpreterTester tester(isolate, source.c_str(), "*");
+    auto callable = tester.GetCallable<>();
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*examples[i].second));
+  }
+}
+
+TEST(InterpreterConstDeclaration) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
+
+  std::pair<const char*, Handle<Object>> const_decl[] = {
+      {"const x = 3; return x;", handle(Smi::FromInt(3), isolate)},
+      {"let x = 10; x = x + 20; return x;", handle(Smi::FromInt(30), isolate)},
+      {"let x = 10; x = 20; return x;", handle(Smi::FromInt(20), isolate)},
+      {"let x; x = 20; return x;", handle(Smi::FromInt(20), isolate)},
+      {"let x; return x;", factory->undefined_value()},
+      {"var x = 10; { let x = 30; } return x;",
+       handle(Smi::FromInt(10), isolate)},
+      {"let x = 10; { let x = 20; } return x;",
+       handle(Smi::FromInt(10), isolate)},
+      {"var x = 10; eval('let x = 20;'); return x;",
+       handle(Smi::FromInt(10), isolate)},
+      {"var x = 10; eval('const x = 20;'); return x;",
+       handle(Smi::FromInt(10), isolate)},
+      {"var x = 10; { const x = 20; } return x;",
+       handle(Smi::FromInt(10), isolate)},
+      {"var x = 10; { const x = 20; return x;} return -1;",
+       handle(Smi::FromInt(20), isolate)},
+      {"var a = 10;\n"
+       "for (var i = 0; i < 10; ++i) {\n"
+       " const x = i;\n"  // const declarations are block scoped.
+       " a = a + x;\n"
+       "}\n"
+       "return a;\n",
+       handle(Smi::FromInt(55), isolate)},
+  };
+
+  // Tests for sloppy mode.
+  for (size_t i = 0; i < arraysize(const_decl); i++) {
+    std::string source(InterpreterTester::SourceForBody(const_decl[i].first));
+    InterpreterTester tester(isolate, source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*const_decl[i].second));
+  }
+
+  // Tests for strict mode.
+  for (size_t i = 0; i < arraysize(const_decl); i++) {
+    std::string strict_body =
+        "'use strict'; " + std::string(const_decl[i].first);
+    std::string source(InterpreterTester::SourceForBody(strict_body.c_str()));
+    InterpreterTester tester(isolate, source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*const_decl[i].second));
+  }
+}
+
+TEST(InterpreterConstDeclarationLookupSlots) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
+
+  std::pair<const char*, Handle<Object>> const_decl[] = {
+      {"const x = 3; function f1() {return x;}; return x;",
+       handle(Smi::FromInt(3), isolate)},
+      {"let x = 10; x = x + 20; function f1() {return x;}; return x;",
+       handle(Smi::FromInt(30), isolate)},
+      {"let x; x = 20; function f1() {return x;}; return x;",
+       handle(Smi::FromInt(20), isolate)},
+      {"let x; function f1() {return x;}; return x;",
+       factory->undefined_value()},
+  };
+
+  // Tests for sloppy mode.
+  for (size_t i = 0; i < arraysize(const_decl); i++) {
+    std::string source(InterpreterTester::SourceForBody(const_decl[i].first));
+    InterpreterTester tester(isolate, source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*const_decl[i].second));
+  }
+
+  // Tests for strict mode.
+  for (size_t i = 0; i < arraysize(const_decl); i++) {
+    std::string strict_body =
+        "'use strict'; " + std::string(const_decl[i].first);
+    std::string source(InterpreterTester::SourceForBody(strict_body.c_str()));
+    InterpreterTester tester(isolate, source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*const_decl[i].second));
+  }
+}
+
+TEST(InterpreterConstInLookupContextChain) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+
+  const char* prologue =
+      "function OuterMost() {\n"
+      "  const outerConst = 10;\n"
+      "  let outerLet = 20;\n"
+      "  function Outer() {\n"
+      "    function Inner() {\n"
+      "      this.innerFunc = function() { ";
+  const char* epilogue =
+      "      }\n"
+      "    }\n"
+      "    this.getInnerFunc ="
+      "         function() {return new Inner().innerFunc;}\n"
+      "  }\n"
+      "  this.getOuterFunc ="
+      "     function() {return new Outer().getInnerFunc();}"
+      "}\n"
+      "var f = new OuterMost().getOuterFunc();\n"
+      "f();\n";
+  std::pair<const char*, Handle<Object>> const_decl[] = {
+      {"return outerConst;", handle(Smi::FromInt(10), isolate)},
+      {"return outerLet;", handle(Smi::FromInt(20), isolate)},
+      {"outerLet = 30; return outerLet;", handle(Smi::FromInt(30), isolate)},
+      {"var outerLet = 40; return outerLet;",
+       handle(Smi::FromInt(40), isolate)},
+      {"var outerConst = 50; return outerConst;",
+       handle(Smi::FromInt(50), isolate)},
+      {"try { outerConst = 30 } catch(e) { return -1; }",
+       handle(Smi::FromInt(-1), isolate)}};
+
+  for (size_t i = 0; i < arraysize(const_decl); i++) {
+    std::string script = std::string(prologue) +
+                         std::string(const_decl[i].first) +
+                         std::string(epilogue);
+    InterpreterTester tester(isolate, script.c_str(), "*");
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*const_decl[i].second));
+  }
+}
+
+TEST(InterpreterIllegalConstDeclaration) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+
+  std::pair<const char*, const char*> const_decl[] = {
+      {"const x = x = 10 + 3; return x;",
+       "Uncaught ReferenceError: x is not defined"},
+      {"const x = 10; x = 20; return x;",
+       "Uncaught TypeError: Assignment to constant variable."},
+      {"const x = 10; { x = 20; } return x;",
+       "Uncaught TypeError: Assignment to constant variable."},
+      {"const x = 10; eval('x = 20;'); return x;",
+       "Uncaught TypeError: Assignment to constant variable."},
+      {"let x = x + 10; return x;",
+       "Uncaught ReferenceError: x is not defined"},
+      {"'use strict'; (function f1() { f1 = 123; })() ",
+       "Uncaught TypeError: Assignment to constant variable."},
+  };
+
+  // Tests for sloppy mode.
+  for (size_t i = 0; i < arraysize(const_decl); i++) {
+    std::string source(InterpreterTester::SourceForBody(const_decl[i].first));
+    InterpreterTester tester(isolate, source.c_str());
+    v8::Local<v8::String> message = tester.CheckThrowsReturnMessage()->Get();
+    v8::Local<v8::String> expected_string = v8_str(const_decl[i].second);
+    CHECK(
+        message->Equals(CcTest::isolate()->GetCurrentContext(), expected_string)
+            .FromJust());
+  }
+
+  // Tests for strict mode.
+  for (size_t i = 0; i < arraysize(const_decl); i++) {
+    std::string strict_body =
+        "'use strict'; " + std::string(const_decl[i].first);
+    std::string source(InterpreterTester::SourceForBody(strict_body.c_str()));
+    InterpreterTester tester(isolate, source.c_str());
+    v8::Local<v8::String> message = tester.CheckThrowsReturnMessage()->Get();
+    v8::Local<v8::String> expected_string = v8_str(const_decl[i].second);
+    CHECK(
+        message->Equals(CcTest::isolate()->GetCurrentContext(), expected_string)
+            .FromJust());
+  }
+}
+
+TEST(InterpreterGenerators) {
+  HandleAndZoneScope handles;
+  Isolate* isolate = handles.main_isolate();
+  Factory* factory = isolate->factory();
+
+  std::pair<const char*, Handle<Object>> tests[] = {
+      {"function* f() { }; return f().next().value",
+       factory->undefined_value()},
+      {"function* f() { yield 42 }; return f().next().value",
+       factory->NewNumberFromInt(42)},
+      {"function* f() { for (let x of [42]) yield x}; return f().next().value",
+       factory->NewNumberFromInt(42)},
+  };
+
+  for (size_t i = 0; i < arraysize(tests); i++) {
+    std::string source(InterpreterTester::SourceForBody(tests[i].first));
+    InterpreterTester tester(isolate, source.c_str());
+    auto callable = tester.GetCallable<>();
+
+    Handle<i::Object> return_value = callable().ToHandleChecked();
+    CHECK(return_value->SameValue(*tests[i].second));
+  }
 }
 
 }  // namespace interpreter

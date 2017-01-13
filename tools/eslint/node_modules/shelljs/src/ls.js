@@ -1,16 +1,32 @@
 var path = require('path');
 var fs = require('fs');
 var common = require('./common');
-var _cd = require('./cd');
-var _pwd = require('./pwd');
+var glob = require('glob');
+
+var globPatternRecursive = path.sep + '**' + path.sep + '*';
+
+common.register('ls', _ls, {
+  cmdOptions: {
+    'R': 'recursive',
+    'A': 'all',
+    'a': 'all_deprecated',
+    'd': 'directory',
+    'l': 'long',
+  },
+});
 
 //@
-//@ ### ls([options ,] path [,path ...])
-//@ ### ls([options ,] path_array)
+//@ ### ls([options,] [path, ...])
+//@ ### ls([options,] path_array)
 //@ Available options:
 //@
 //@ + `-R`: recursive
 //@ + `-A`: all files (include files beginning with `.`, except for `.` and `..`)
+//@ + `-d`: list directories themselves, not their contents
+//@ + `-l`: list objects representing each file, each with fields containing `ls
+//@         -l` output fields. See
+//@         [fs.Stats](https://nodejs.org/api/fs.html#fs_class_fs_stats)
+//@         for more info
 //@
 //@ Examples:
 //@
@@ -18,16 +34,11 @@ var _pwd = require('./pwd');
 //@ ls('projs/*.js');
 //@ ls('-R', '/users/me', '/tmp');
 //@ ls('-R', ['/users/me', '/tmp']); // same as above
+//@ ls('-l', 'file.txt'); // { name: 'file.txt', mode: 33188, nlink: 1, ...}
 //@ ```
 //@
 //@ Returns array of files in the given path, or in current directory if no path provided.
 function _ls(options, paths) {
-  options = common.parseOptions(options, {
-    'R': 'recursive',
-    'A': 'all',
-    'a': 'all_deprecated'
-  });
-
   if (options.all_deprecated) {
     // We won't support the -a option as it's hard to image why it's useful
     // (it includes '.' and '..' in addition to '.*' files)
@@ -36,91 +47,75 @@ function _ls(options, paths) {
     options.all = true;
   }
 
-  if (!paths)
+  if (!paths) {
     paths = ['.'];
-  else if (typeof paths === 'object')
-    paths = paths; // assume array
-  else if (typeof paths === 'string')
+  } else {
     paths = [].slice.call(arguments, 1);
+  }
 
   var list = [];
 
-  // Conditionally pushes file to list - returns true if pushed, false otherwise
-  // (e.g. prevents hidden files to be included unless explicitly told so)
-  function pushFile(file, query) {
-    // hidden file?
-    if (path.basename(file)[0] === '.') {
-      // not explicitly asking for hidden files?
-      if (!options.all && !(path.basename(query)[0] === '.' && path.basename(query).length > 1))
-        return false;
+  function pushFile(abs, relName, stat) {
+    if (process.platform === 'win32') {
+      relName = relName.replace(/\\/g, '/');
     }
-
-    if (common.platform === 'win')
-      file = file.replace(/\\/g, '/');
-
-    list.push(file);
-    return true;
+    if (options.long) {
+      stat = stat || fs.lstatSync(abs);
+      list.push(addLsAttributes(relName, stat));
+    } else {
+      // list.push(path.relative(rel || '.', file));
+      list.push(relName);
+    }
   }
 
-  paths.forEach(function(p) {
-    if (fs.existsSync(p)) {
-      var stats = fs.statSync(p);
-      // Simple file?
-      if (stats.isFile()) {
-        pushFile(p, p);
-        return; // continue
-      }
+  paths.forEach(function (p) {
+    var stat;
 
-      // Simple dir?
-      if (stats.isDirectory()) {
-        // Iterate over p contents
-        fs.readdirSync(p).forEach(function(file) {
-          if (!pushFile(file, p))
-            return;
-
-          // Recursive?
-          if (options.recursive) {
-            var oldDir = _pwd();
-            _cd('', p);
-            if (fs.statSync(file).isDirectory())
-              list = list.concat(_ls('-R'+(options.all?'A':''), file+'/*'));
-            _cd('', oldDir);
-          }
-        });
-        return; // continue
-      }
-    }
-
-    // p does not exist - possible wildcard present
-
-    var basename = path.basename(p);
-    var dirname = path.dirname(p);
-    // Wildcard present on an existing dir? (e.g. '/tmp/*.js')
-    if (basename.search(/\*/) > -1 && fs.existsSync(dirname) && fs.statSync(dirname).isDirectory) {
-      // Escape special regular expression chars
-      var regexp = basename.replace(/(\^|\$|\(|\)|<|>|\[|\]|\{|\}|\.|\+|\?)/g, '\\$1');
-      // Translates wildcard into regex
-      regexp = '^' + regexp.replace(/\*/g, '.*') + '$';
-      // Iterate over directory contents
-      fs.readdirSync(dirname).forEach(function(file) {
-        if (file.match(new RegExp(regexp))) {
-          if (!pushFile(path.normalize(dirname+'/'+file), basename))
-            return;
-
-          // Recursive?
-          if (options.recursive) {
-            var pp = dirname + '/' + file;
-            if (fs.lstatSync(pp).isDirectory())
-              list = list.concat(_ls('-R'+(options.all?'A':''), pp+'/*'));
-          } // recursive
-        } // if file matches
-      }); // forEach
+    try {
+      stat = fs.lstatSync(p);
+    } catch (e) {
+      common.error('no such file or directory: ' + p, 2, { continue: true });
       return;
     }
 
-    common.error('no such file or directory: ' + p, true);
+    // If the stat succeeded
+    if (stat.isDirectory() && !options.directory) {
+      if (options.recursive) {
+        // use glob, because it's simple
+        glob.sync(p + globPatternRecursive, { dot: options.all })
+          .forEach(function (item) {
+            pushFile(item, path.relative(p, item));
+          });
+      } else if (options.all) {
+        // use fs.readdirSync, because it's fast
+        fs.readdirSync(p).forEach(function (item) {
+          pushFile(path.join(p, item), item);
+        });
+      } else {
+        // use fs.readdirSync and then filter out secret files
+        fs.readdirSync(p).forEach(function (item) {
+          if (item[0] !== '.') {
+            pushFile(path.join(p, item), item);
+          }
+        });
+      }
+    } else {
+      pushFile(p, p, stat);
+    }
   });
 
+  // Add methods, to make this more compatible with ShellStrings
   return list;
 }
+
+function addLsAttributes(pathName, stats) {
+  // Note: this object will contain more information than .toString() returns
+  stats.name = pathName;
+  stats.toString = function () {
+    // Return a string resembling unix's `ls -l` format
+    return [this.mode, this.nlink, this.uid, this.gid, this.size, this.mtime, this.name].join(' ');
+  };
+  return stats;
+}
+
 module.exports = _ls;

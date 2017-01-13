@@ -1,7 +1,7 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
+const assert = require('assert');
+const cluster = require('cluster');
 
 if (cluster.isWorker) {
 
@@ -10,13 +10,14 @@ if (cluster.isWorker) {
 
 } else if (cluster.isMaster) {
 
-  var checks = {
+  const checks = {
     args: false,
     setupEvent: false,
     settingsObject: false
   };
 
-  var totalWorkers = 2;
+  const totalWorkers = 2;
+  let onlineWorkers = 0;
 
   // Setup master
   cluster.setupMaster({
@@ -27,7 +28,7 @@ if (cluster.isWorker) {
   cluster.once('setup', function() {
     checks.setupEvent = true;
 
-    var settings = cluster.settings;
+    const settings = cluster.settings;
     if (settings &&
         settings.args && settings.args[0] === 'custom argument' &&
         settings.silent === true &&
@@ -36,9 +37,11 @@ if (cluster.isWorker) {
     }
   });
 
-  var correctIn = 0;
+  let correctIn = 0;
 
   cluster.on('online', function lisenter(worker) {
+
+    onlineWorkers++;
 
     worker.once('message', function(data) {
       correctIn += (data === 'custom argument' ? 1 : 0);
@@ -49,7 +52,7 @@ if (cluster.isWorker) {
     });
 
     // All workers are online
-    if (cluster.onlineWorkers === totalWorkers) {
+    if (onlineWorkers === totalWorkers) {
       checks.workers = true;
     }
   });
@@ -60,9 +63,10 @@ if (cluster.isWorker) {
 
   // Check all values
   process.once('exit', function() {
+    assert.ok(checks.workers, 'Not all workers went online');
     assert.ok(checks.args, 'The arguments was noy send to the worker');
     assert.ok(checks.setupEvent, 'The setup event was never emitted');
-    var m = 'The settingsObject do not have correct properties';
+    const m = 'The settingsObject do not have correct properties';
     assert.ok(checks.settingsObject, m);
   });
 

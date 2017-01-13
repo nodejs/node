@@ -1,15 +1,13 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const net = require('net');
 
-const buf = new Buffer(10 * 1024 * 1024);
-
-buf.fill(0x62);
+const buf = Buffer.alloc(10 * 1024 * 1024, 0x62);
 
 const errs = [];
-var clientSocket;
-var serverSocket;
+let clientSocket;
+let serverSocket;
 
 function ready() {
   if (clientSocket && serverSocket) {
@@ -18,7 +16,7 @@ function ready() {
   }
 }
 
-var srv = net.createServer(function onConnection(conn) {
+const srv = net.createServer(function onConnection(conn) {
   conn.on('error', function(err) {
     errs.push(err);
     if (errs.length > 1 && errs[0] === errs[1])
@@ -29,8 +27,8 @@ var srv = net.createServer(function onConnection(conn) {
   });
   serverSocket = conn;
   ready();
-}).listen(common.PORT, function() {
-  var client = net.connect({ port: common.PORT });
+}).listen(0, function() {
+  const client = net.connect({ port: this.address().port });
 
   client.on('connect', function() {
     clientSocket = client;
@@ -40,5 +38,5 @@ var srv = net.createServer(function onConnection(conn) {
 
 process.on('exit', function() {
   console.log(errs);
-  assert.equal(errs.length, 1);
+  assert.strictEqual(errs.length, 1);
 });

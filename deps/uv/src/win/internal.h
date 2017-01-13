@@ -83,6 +83,7 @@ extern UV_THREAD_LOCAL int uv__crt_assert_enabled;
 #define UV_HANDLE_ZERO_READ                     0x00080000
 #define UV_HANDLE_EMULATE_IOCP                  0x00100000
 #define UV_HANDLE_BLOCKING_WRITES               0x00200000
+#define UV_HANDLE_CANCELLATION_PENDING          0x00400000
 
 /* Used by uv_tcp_t and uv_udp_t handles */
 #define UV_HANDLE_IPV6                          0x01000000
@@ -246,7 +247,6 @@ void uv_poll_endgame(uv_loop_t* loop, uv_poll_t* handle);
 void uv_timer_endgame(uv_loop_t* loop, uv_timer_t* handle);
 
 DWORD uv__next_timeout(const uv_loop_t* loop);
-void uv__time_forward(uv_loop_t* loop, uint64_t msecs);
 void uv_process_timers(uv_loop_t* loop);
 
 
@@ -329,6 +329,8 @@ uint64_t uv__hrtime(double scale);
 int uv_parent_pid();
 int uv_current_pid();
 __declspec(noreturn) void uv_fatal_error(const int errorno, const char* syscall);
+int uv__getpwuid_r(uv_passwd_t* pwd);
+int uv__convert_utf16_to_utf8(const WCHAR* utf16, int utf16len, char** utf8);
 
 
 /*
@@ -378,5 +380,15 @@ extern int uv_tcp_non_ifs_lsp_ipv6;
 /* Ip address used to bind to any port at any interface */
 extern struct sockaddr_in uv_addr_ip4_any_;
 extern struct sockaddr_in6 uv_addr_ip6_any_;
+
+/*
+ * Wake all loops with fake message
+ */
+void uv__wake_all_loops();
+
+/*
+ * Init system wake-up detection
+ */
+void uv__init_detect_system_wakeup();
 
 #endif /* UV_WIN_INTERNAL_H_ */

@@ -25,7 +25,7 @@ function main(conf) {
   }
   header += CRLF;
 
-  processHeader(new Buffer(header), n);
+  processHeader(Buffer.from(header), n);
 }
 
 

@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 ;(function () { // wrapper in case we're in module_context mode
-
   // windows: running "npm blah" in this folder will invoke WSH, not node.
   /*global WScript*/
   if (typeof WScript !== 'undefined') {
@@ -17,10 +16,14 @@
 
   process.title = 'npm'
 
+  var unsupported = require('../lib/utils/unsupported.js')
+  unsupported.checkForBrokenNode()
+
   var log = require('npmlog')
   log.pause() // will be unpaused when config is loaded.
-
   log.info('it worked if it ends with', 'ok')
+
+  unsupported.checkForUnsupportedNode()
 
   var path = require('path')
   var npm = require('../lib/npm.js')

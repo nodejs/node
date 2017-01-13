@@ -14,9 +14,11 @@ namespace compiler {
 
 namespace {
 
-MachineType kMachineTypes[] = {kMachAnyTagged, kMachAnyTagged, kMachAnyTagged,
-                               kMachAnyTagged, kMachAnyTagged, kMachAnyTagged,
-                               kMachAnyTagged, kMachAnyTagged};
+MachineType kMachineTypes[] = {
+    MachineType::AnyTagged(), MachineType::AnyTagged(),
+    MachineType::AnyTagged(), MachineType::AnyTagged(),
+    MachineType::AnyTagged(), MachineType::AnyTagged(),
+    MachineType::AnyTagged(), MachineType::AnyTagged()};
 }
 
 class LinkageTailCall : public TestWithZone {
@@ -24,27 +26,25 @@ class LinkageTailCall : public TestWithZone {
   CallDescriptor* NewStandardCallDescriptor(LocationSignature* locations) {
     DCHECK(arraysize(kMachineTypes) >=
            locations->return_count() + locations->parameter_count());
-    MachineSignature* types = new (zone()) MachineSignature(
-        locations->return_count(), locations->parameter_count(), kMachineTypes);
-    return new (zone())
-        CallDescriptor(CallDescriptor::kCallCodeObject, kMachAnyTagged,
-                       LinkageLocation::ForAnyRegister(),
-                       types,                     // machine_sig
-                       locations,                 // location_sig
-                       0,                         // js_parameter_count
-                       Operator::kNoProperties,   // properties
-                       0,                         // callee-saved
-                       0,                         // callee-saved fp
-                       CallDescriptor::kNoFlags,  // flags,
-                       "");
+    USE(kMachineTypes);
+    return new (zone()) CallDescriptor(
+        CallDescriptor::kCallCodeObject, MachineType::AnyTagged(),
+        LinkageLocation::ForAnyRegister(MachineType::Pointer()),
+        locations,                 // location_sig
+        0,                         // js_parameter_count
+        Operator::kNoProperties,   // properties
+        0,                         // callee-saved
+        0,                         // callee-saved fp
+        CallDescriptor::kNoFlags,  // flags,
+        "");
   }
 
   LinkageLocation StackLocation(int loc) {
-    return LinkageLocation::ForCallerFrameSlot(-loc);
+    return LinkageLocation::ForCallerFrameSlot(-loc, MachineType::Pointer());
   }
 
   LinkageLocation RegisterLocation(int loc) {
-    return LinkageLocation::ForRegister(loc);
+    return LinkageLocation::ForRegister(loc, MachineType::Pointer());
   }
 };
 
@@ -56,6 +56,9 @@ TEST_F(LinkageTailCall, EmptyToEmpty) {
   const Operator* op = common.Call(desc);
   Node* const node = Node::New(zone(), 1, op, 0, nullptr, false);
   EXPECT_TRUE(desc->CanTailCall(node));
+  const CallDescriptor* callee = CallDescriptorOf(node->op());
+  int stack_param_delta = callee->GetStackParameterDelta(desc);
+  EXPECT_EQ(0, stack_param_delta);
 }
 
 
@@ -72,6 +75,8 @@ TEST_F(LinkageTailCall, SameReturn) {
   const Operator* op = common.Call(desc2);
   Node* const node = Node::New(zone(), 1, op, 0, nullptr, false);
   EXPECT_TRUE(desc1->CanTailCall(node));
+  int stack_param_delta = desc2->GetStackParameterDelta(desc1);
+  EXPECT_EQ(0, stack_param_delta);
 }
 
 
@@ -89,7 +94,7 @@ TEST_F(LinkageTailCall, DifferingReturn) {
   CommonOperatorBuilder common(zone());
   const Operator* op = common.Call(desc2);
   Node* const node = Node::New(zone(), 1, op, 0, nullptr, false);
-  EXPECT_FALSE(desc1->CanTailCall(node));
+  EXPECT_TRUE(!desc1->CanTailCall(node));
 }
 
 
@@ -109,6 +114,8 @@ TEST_F(LinkageTailCall, MoreRegisterParametersCallee) {
   const Operator* op = common.Call(desc2);
   Node* const node = Node::New(zone(), 1, op, 0, nullptr, false);
   EXPECT_TRUE(desc1->CanTailCall(node));
+  int stack_param_delta = desc2->GetStackParameterDelta(desc1);
+  EXPECT_EQ(0, stack_param_delta);
 }
 
 
@@ -128,6 +135,8 @@ TEST_F(LinkageTailCall, MoreRegisterParametersCaller) {
   const Operator* op = common.Call(desc2);
   Node* const node = Node::New(zone(), 1, op, 0, nullptr, false);
   EXPECT_TRUE(desc1->CanTailCall(node));
+  int stack_param_delta = desc2->GetStackParameterDelta(desc1);
+  EXPECT_EQ(0, stack_param_delta);
 }
 
 
@@ -146,7 +155,9 @@ TEST_F(LinkageTailCall, MoreRegisterAndStackParametersCallee) {
   CommonOperatorBuilder common(zone());
   const Operator* op = common.Call(desc2);
   Node* const node = Node::New(zone(), 1, op, 0, nullptr, false);
-  EXPECT_FALSE(desc1->CanTailCall(node));
+  EXPECT_TRUE(desc1->CanTailCall(node));
+  int stack_param_delta = desc2->GetStackParameterDelta(desc1);
+  EXPECT_EQ(1, stack_param_delta);
 }
 
 
@@ -165,7 +176,9 @@ TEST_F(LinkageTailCall, MoreRegisterAndStackParametersCaller) {
   CommonOperatorBuilder common(zone());
   const Operator* op = common.Call(desc2);
   Node* const node = Node::New(zone(), 1, op, 0, nullptr, false);
-  EXPECT_FALSE(desc1->CanTailCall(node));
+  EXPECT_TRUE(desc1->CanTailCall(node));
+  int stack_param_delta = desc2->GetStackParameterDelta(desc1);
+  EXPECT_EQ(-1, stack_param_delta);
 }
 
 
@@ -190,6 +203,8 @@ TEST_F(LinkageTailCall, MatchingStackParameters) {
   Node* const node =
       Node::New(zone(), 1, op, arraysize(parameters), parameters, false);
   EXPECT_TRUE(desc1->CanTailCall(node));
+  int stack_param_delta = desc2->GetStackParameterDelta(desc1);
+  EXPECT_EQ(0, stack_param_delta);
 }
 
 
@@ -213,7 +228,9 @@ TEST_F(LinkageTailCall, NonMatchingStackParameters) {
   const Operator* op = common.Call(desc2);
   Node* const node =
       Node::New(zone(), 1, op, arraysize(parameters), parameters, false);
-  EXPECT_FALSE(desc1->CanTailCall(node));
+  EXPECT_TRUE(desc1->CanTailCall(node));
+  int stack_param_delta = desc2->GetStackParameterDelta(desc1);
+  EXPECT_EQ(0, stack_param_delta);
 }
 
 
@@ -239,6 +256,8 @@ TEST_F(LinkageTailCall, MatchingStackParametersExtraCallerRegisters) {
   Node* const node =
       Node::New(zone(), 1, op, arraysize(parameters), parameters, false);
   EXPECT_TRUE(desc1->CanTailCall(node));
+  int stack_param_delta = desc2->GetStackParameterDelta(desc1);
+  EXPECT_EQ(0, stack_param_delta);
 }
 
 
@@ -265,6 +284,8 @@ TEST_F(LinkageTailCall, MatchingStackParametersExtraCalleeRegisters) {
   Node* const node =
       Node::New(zone(), 1, op, arraysize(parameters), parameters, false);
   EXPECT_TRUE(desc1->CanTailCall(node));
+  int stack_param_delta = desc2->GetStackParameterDelta(desc1);
+  EXPECT_EQ(0, stack_param_delta);
 }
 
 
@@ -290,7 +311,9 @@ TEST_F(LinkageTailCall, MatchingStackParametersExtraCallerRegistersAndStack) {
   const Operator* op = common.Call(desc2);
   Node* const node =
       Node::New(zone(), 1, op, arraysize(parameters), parameters, false);
-  EXPECT_FALSE(desc1->CanTailCall(node));
+  EXPECT_TRUE(desc1->CanTailCall(node));
+  int stack_param_delta = desc2->GetStackParameterDelta(desc1);
+  EXPECT_EQ(-1, stack_param_delta);
 }
 
 
@@ -316,7 +339,9 @@ TEST_F(LinkageTailCall, MatchingStackParametersExtraCalleeRegistersAndStack) {
   const Operator* op = common.Call(desc2);
   Node* const node =
       Node::New(zone(), 1, op, arraysize(parameters), parameters, false);
-  EXPECT_FALSE(desc1->CanTailCall(node));
+  EXPECT_TRUE(desc1->CanTailCall(node));
+  int stack_param_delta = desc2->GetStackParameterDelta(desc1);
+  EXPECT_EQ(1, stack_param_delta);
 }
 
 }  // namespace compiler

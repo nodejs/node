@@ -1,26 +1,16 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+const common = require('../common');
+const http = require('http');
 
-var request = 0;
-var response = 0;
-process.on('exit', function() {
-  assert.equal(request, 1, 'http server "request" callback was not called');
-  assert.equal(response, 1, 'http request "response" callback was not called');
-});
-
-var server = http.createServer(function(req, res) {
-  request++;
+const server = http.createServer(common.mustCall(function(req, res) {
   res.end();
-}).listen(common.PORT, function() {
-  var options = {
+})).listen(0, common.mustCall(function() {
+  const options = {
     agent: null,
     port: this.address().port
   };
-  http.get(options, function(res) {
-    response++;
+  http.get(options, common.mustCall(function(res) {
     res.resume();
     server.close();
-  });
-});
+  }));
+}));

@@ -1,3 +1,4 @@
+'use strict';
 // throughput benchmark in signing and verifying
 var common = require('../common.js');
 var crypto = require('crypto');
@@ -23,9 +24,7 @@ var bench = common.createBenchmark(main, {
 });
 
 function main(conf) {
-  var crypto = require('crypto');
-  var message = (new Buffer(conf.len)).fill('b');
-
+  var message = Buffer.alloc(conf.len, 'b');
   bench.start();
   StreamWrite(conf.algo, conf.keylen, message, conf.writes, conf.len);
 }
@@ -36,7 +35,6 @@ function StreamWrite(algo, keylen, message, writes, len) {
   var kbits = bits / (1024);
 
   var privateKey = RSA_PrivatePem[keylen];
-  var publicKey = RSA_PublicPem[keylen];
   var s = crypto.createSign(algo);
   var v = crypto.createVerify(algo);
 
@@ -45,7 +43,7 @@ function StreamWrite(algo, keylen, message, writes, len) {
     v.update(message);
   }
 
-  var sign = s.sign(privateKey, 'binary');
+  s.sign(privateKey, 'binary');
   s.end();
   v.end();
 

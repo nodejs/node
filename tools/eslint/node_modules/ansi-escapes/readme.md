@@ -13,7 +13,7 @@ $ npm install --save ansi-escapes
 ## Usage
 
 ```js
-var ansiEscapes = require('ansi-escapes');
+const ansiEscapes = require('ansi-escapes');
 
 // moves the cursor two rows up and to the left
 process.stdout.write(ansiEscapes.cursorUp(2) + ansiEscapes.cursorLeft);
@@ -117,9 +117,53 @@ Scroll display up one line.
 
 Scroll display down one line.
 
+### clearScreen
+
+Clear the terminal screen.
+
 ### beep
 
 Output a beeping sound.
+
+### image(input, [options])
+
+Display an image.
+
+*Currently only supported on iTerm >=2.9.*
+
+See [term-img](https://github.com/sindresorhus/term-img) for a higher-level module.
+
+#### input
+
+Type: `buffer`
+
+Buffer of an image. Usually read in with `fs.readFile()`.
+
+#### options
+
+##### width
+##### height
+
+Type: `string` `number`
+
+The width and height are given as a number followed by a unit, or the word "auto".
+
+- `N`: N character cells.
+- `Npx`: N pixels.
+- `N%`: N percent of the session's width or height.
+- `auto`: The image's inherent size will be used to determine an appropriate dimension.
+
+##### preserveAspectRatio
+
+Type: `boolean`<br>
+Default: `true`
+
+### iTerm.setCwd([path])
+
+Type: `string`<br>
+Default: `process.cwd()`
+
+[Inform iTerm](https://www.iterm2.com/documentation-escape-codes.html) of the current directory to help semantic history and enable [Cmd-clicking relative paths](https://coderwall.com/p/b7e82q/quickly-open-files-in-iterm-with-cmd-click).
 
 
 ## Related
@@ -129,4 +173,4 @@ Output a beeping sound.
 
 ## License
 
-MIT © [Sindre Sorhus](http://sindresorhus.com)
+MIT © [Sindre Sorhus](https://sindresorhus.com)

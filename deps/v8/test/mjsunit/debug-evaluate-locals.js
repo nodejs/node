@@ -89,18 +89,17 @@ function f() {
 }
 
 function checkFrame2(frame) {
-  // Frame 2 (f) has normal variables a and b (and arguments).
+  // Frame 2 (f) has normal variables a and b.
   var count = frame.localCount();
-  assertEquals(3, count);
+  assertEquals(2, count);
   for (var i = 0; i < count; ++i) {
     var name = frame.localName(i);
     var value = frame.localValue(i).value();
     if (name == 'a') {
       assertEquals(5, value);
-    } else if (name == 'b') {
-      assertEquals(0, value);
     } else {
-      assertEquals('arguments', name);
+      assertEquals('b', name);
+      assertEquals(0, value);
     }
   }
 }
@@ -114,7 +113,6 @@ function listener(event, exec_state, event_data, data) {
       checkFrame1(exec_state.frame(1));
       checkFrame2(exec_state.frame(2));
 
-      // Evaluating a and b on frames 0, 1 and 2 produces 1, 2, 3, 4, 5 and 6.
       assertEquals(1, exec_state.frame(0).evaluate('a').value());
       assertEquals(2, exec_state.frame(0).evaluate('b').value());
       assertEquals(5, exec_state.frame(0).evaluate('eval').value());
@@ -144,7 +142,7 @@ Debug.setListener(listener);
 
 var f_result = f();
 
-assertEquals('foobar', f_result);
+assertEquals("foobar", f_result);
 
 // Make sure that the debug event listener was invoked.
 assertFalse(exception, "exception in listener")

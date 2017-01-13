@@ -12,7 +12,7 @@ const existingDir2 = path.join(common.fixturesDir, 'keys');
 // ASYNC_CALL
 
 fs.stat(fn, function(err) {
-  assert.equal(fn, err.path);
+  assert.strictEqual(fn, err.path);
   assert.ok(0 <= err.message.indexOf(fn));
 });
 
@@ -204,7 +204,7 @@ try {
 }
 
 process.on('exit', function() {
-  assert.equal(expected, errors.length,
-               'Test fs sync exceptions raised, got ' + errors.length +
+  assert.strictEqual(expected, errors.length,
+                     'Test fs sync exceptions raised, got ' + errors.length +
                ' expected ' + expected);
 });

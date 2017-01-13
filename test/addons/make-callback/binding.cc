@@ -1,15 +1,14 @@
 #include "node.h"
 #include "v8.h"
 
-#include "../../../src/util.h"
-
+#include <assert.h>
 #include <vector>
 
 namespace {
 
 void MakeCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  CHECK(args[0]->IsObject());
-  CHECK(args[1]->IsFunction() || args[1]->IsString());
+  assert(args[0]->IsObject());
+  assert(args[1]->IsFunction() || args[1]->IsString());
   auto isolate = args.GetIsolate();
   auto recv = args[0].As<v8::Object>();
   std::vector<v8::Local<v8::Value>> argv;
@@ -26,15 +25,15 @@ void MakeCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
     result =
         node::MakeCallback(isolate, recv, method, argv.size(), argv.data());
   } else {
-    UNREACHABLE();
+    assert(0 && "unreachable");
   }
   args.GetReturnValue().Set(result);
 }
 
-void Initialize(v8::Local<v8::Object> target) {
-  NODE_SET_METHOD(target, "makeCallback", MakeCallback);
+void Initialize(v8::Local<v8::Object> exports) {
+  NODE_SET_METHOD(exports, "makeCallback", MakeCallback);
 }
 
-}  // namespace anonymous
+}  // namespace
 
 NODE_MODULE(binding, Initialize)

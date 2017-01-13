@@ -2,7 +2,7 @@
 const common = require('../common');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 
@@ -18,8 +18,8 @@ const server = net.createServer(function(s) {
   });
 });
 
-server.listen(common.PORT, function() {
-  const req = https.request({ port: common.PORT });
+server.listen(0, function() {
+  const req = https.request({ port: this.address().port });
   req.end();
 
   req.once('error', common.mustCall(function(err) {

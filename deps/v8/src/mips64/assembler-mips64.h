@@ -63,6 +63,9 @@ namespace internal {
   V(f16) V(f17) V(f18) V(f19) V(f20) V(f21) V(f22) V(f23) \
   V(f24) V(f25) V(f26) V(f27) V(f28) V(f29) V(f30) V(f31)
 
+#define FLOAT_REGISTERS DOUBLE_REGISTERS
+#define SIMD128_REGISTERS DOUBLE_REGISTERS
+
 #define ALLOCATABLE_DOUBLE_REGISTERS(V)                   \
   V(f0)  V(f2)  V(f4)  V(f6)  V(f8)  V(f10) V(f12) V(f14) \
   V(f16) V(f18) V(f20) V(f22) V(f24) V(f26)
@@ -123,8 +126,6 @@ struct Register {
     return r;
   }
 
-  const char* ToString();
-  bool IsAllocatable() const;
   bool is_valid() const { return 0 <= reg_code && reg_code < kNumRegisters; }
   bool is(Register reg) const { return reg_code == reg.reg_code; }
   int code() const {
@@ -153,8 +154,10 @@ int ToNumber(Register reg);
 
 Register ToRegister(int num);
 
+static const bool kSimpleFPAliasing = true;
+
 // Coprocessor register.
-struct DoubleRegister {
+struct FPURegister {
   enum Code {
 #define REGISTER_CODE(R) kCode_##R,
     DOUBLE_REGISTERS(REGISTER_CODE)
@@ -171,24 +174,22 @@ struct DoubleRegister {
   // to number of 32-bit FPU regs, but kNumAllocatableRegisters refers to
   // number of Double regs (64-bit regs, or FPU-reg-pairs).
 
-  const char* ToString();
-  bool IsAllocatable() const;
   bool is_valid() const { return 0 <= reg_code && reg_code < kMaxNumRegisters; }
-  bool is(DoubleRegister reg) const { return reg_code == reg.reg_code; }
-  DoubleRegister low() const {
+  bool is(FPURegister reg) const { return reg_code == reg.reg_code; }
+  FPURegister low() const {
     // TODO(plind): Create DCHECK for FR=0 mode. This usage suspect for FR=1.
     // Find low reg of a Double-reg pair, which is the reg itself.
     DCHECK(reg_code % 2 == 0);  // Specified Double reg must be even.
-    DoubleRegister reg;
+    FPURegister reg;
     reg.reg_code = reg_code;
     DCHECK(reg.is_valid());
     return reg;
   }
-  DoubleRegister high() const {
+  FPURegister high() const {
     // TODO(plind): Create DCHECK for FR=0 mode. This usage illegal in FR=1.
     // Find high reg of a Doubel-reg pair, which is reg + 1.
     DCHECK(reg_code % 2 == 0);  // Specified Double reg must be even.
-    DoubleRegister reg;
+    FPURegister reg;
     reg.reg_code = reg_code + 1;
     DCHECK(reg.is_valid());
     return reg;
@@ -203,8 +204,8 @@ struct DoubleRegister {
     return 1 << reg_code;
   }
 
-  static DoubleRegister from_code(int code) {
-    DoubleRegister r = {code};
+  static FPURegister from_code(int code) {
+    FPURegister r = {code};
     return r;
   }
   void setcode(int f) {
@@ -229,8 +230,12 @@ struct DoubleRegister {
 // but it is not in common use. Someday we will want to support this in v8.)
 
 // For O32 ABI, Floats and Doubles refer to same set of 32 32-bit registers.
-typedef DoubleRegister FPURegister;
-typedef DoubleRegister FloatRegister;
+typedef FPURegister FloatRegister;
+
+typedef FPURegister DoubleRegister;
+
+// TODO(mips64) Define SIMD registers.
+typedef FPURegister Simd128Register;
 
 const DoubleRegister no_freg = {-1};
 
@@ -305,7 +310,6 @@ struct FPUControlRegister {
 
 const FPUControlRegister no_fpucreg = { kInvalidFPUControlRegister };
 const FPUControlRegister FCSR = { kFCSRRegister };
-
 
 // -----------------------------------------------------------------------------
 // Machine instruction Operands.
@@ -411,27 +415,46 @@ class Assembler : public AssemblerBase {
   // Note: The same Label can be used for forward and backward branches
   // but it may be bound only once.
   void bind(Label* L);  // Binds an unbound label L to current code position.
+
+  enum OffsetSize : int { kOffset26 = 26, kOffset21 = 21, kOffset16 = 16 };
+
   // Determines if Label is bound and near enough so that branch instruction
   // can be used to reach it, instead of jump instruction.
   bool is_near(Label* L);
+  bool is_near(Label* L, OffsetSize bits);
+  bool is_near_branch(Label* L);
+  inline bool is_near_pre_r6(Label* L) {
+    DCHECK(!(kArchVariant == kMips64r6));
+    return pc_offset() - L->pos() < kMaxBranchOffset - 4 * kInstrSize;
+  }
+  inline bool is_near_r6(Label* L) {
+    DCHECK(kArchVariant == kMips64r6);
+    return pc_offset() - L->pos() < kMaxCompactBranchOffset - 4 * kInstrSize;
+  }
+
+  int BranchOffset(Instr instr);
 
   // Returns the branch offset to the given label from the current code
   // position. Links the label to the current position if it is still unbound.
   // Manages the jump elimination optimization if the second parameter is true.
-  int32_t branch_offset(Label* L, bool jump_elimination_allowed);
-  int32_t branch_offset_compact(Label* L, bool jump_elimination_allowed);
-  int32_t branch_offset21(Label* L, bool jump_elimination_allowed);
-  int32_t branch_offset21_compact(Label* L, bool jump_elimination_allowed);
-  int32_t shifted_branch_offset(Label* L, bool jump_elimination_allowed) {
-    int32_t o = branch_offset(L, jump_elimination_allowed);
-    DCHECK((o & 3) == 0);   // Assert the offset is aligned.
-    return o >> 2;
+  int32_t branch_offset_helper(Label* L, OffsetSize bits);
+  inline int32_t branch_offset(Label* L) {
+    return branch_offset_helper(L, OffsetSize::kOffset16);
   }
-  int32_t shifted_branch_offset_compact(Label* L,
-      bool jump_elimination_allowed) {
-    int32_t o = branch_offset_compact(L, jump_elimination_allowed);
-    DCHECK((o & 3) == 0);   // Assert the offset is aligned.
-    return o >> 2;
+  inline int32_t branch_offset21(Label* L) {
+    return branch_offset_helper(L, OffsetSize::kOffset21);
+  }
+  inline int32_t branch_offset26(Label* L) {
+    return branch_offset_helper(L, OffsetSize::kOffset26);
+  }
+  inline int32_t shifted_branch_offset(Label* L) {
+    return branch_offset(L) >> 2;
+  }
+  inline int32_t shifted_branch_offset21(Label* L) {
+    return branch_offset21(L) >> 2;
+  }
+  inline int32_t shifted_branch_offset26(Label* L) {
+    return branch_offset26(L) >> 2;
   }
   uint64_t jump_address(Label* L);
   uint64_t jump_offset(Label* L);
@@ -442,30 +465,28 @@ class Assembler : public AssemblerBase {
 
   // Read/Modify the code target address in the branch/call instruction at pc.
   static Address target_address_at(Address pc);
-  static void set_target_address_at(Address pc,
-                                    Address target,
-                                    ICacheFlushMode icache_flush_mode =
-                                        FLUSH_ICACHE_IF_NEEDED);
+  static void set_target_address_at(
+      Isolate* isolate, Address pc, Address target,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   // On MIPS there is no Constant Pool so we skip that parameter.
   INLINE(static Address target_address_at(Address pc, Address constant_pool)) {
     return target_address_at(pc);
   }
   INLINE(static void set_target_address_at(
-      Address pc, Address constant_pool, Address target,
+      Isolate* isolate, Address pc, Address constant_pool, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED)) {
-    set_target_address_at(pc, target, icache_flush_mode);
+    set_target_address_at(isolate, pc, target, icache_flush_mode);
   }
   INLINE(static Address target_address_at(Address pc, Code* code)) {
     Address constant_pool = code ? code->constant_pool() : NULL;
     return target_address_at(pc, constant_pool);
   }
-  INLINE(static void set_target_address_at(Address pc,
-                                           Code* code,
-                                           Address target,
-                                           ICacheFlushMode icache_flush_mode =
-                                               FLUSH_ICACHE_IF_NEEDED)) {
+  INLINE(static void set_target_address_at(
+      Isolate* isolate, Address pc, Code* code, Address target,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED)) {
     Address constant_pool = code ? code->constant_pool() : NULL;
-    set_target_address_at(pc, constant_pool, target, icache_flush_mode);
+    set_target_address_at(isolate, pc, constant_pool, target,
+                          icache_flush_mode);
   }
 
   // Return the code target address at a call site from the return address
@@ -480,16 +501,17 @@ class Assembler : public AssemblerBase {
   // This is for calls and branches within generated code.  The serializer
   // has already deserialized the lui/ori instructions etc.
   inline static void deserialization_set_special_target_at(
-      Address instruction_payload, Code* code, Address target) {
+      Isolate* isolate, Address instruction_payload, Code* code,
+      Address target) {
     set_target_address_at(
-        instruction_payload - kInstructionsFor64BitConstant * kInstrSize,
-        code,
+        isolate,
+        instruction_payload - kInstructionsFor64BitConstant * kInstrSize, code,
         target);
   }
 
   // This sets the internal reference at the pc.
   inline static void deserialization_set_target_internal_reference_at(
-      Address pc, Address target,
+      Isolate* isolate, Address pc, Address target,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
   // Size of an instruction.
@@ -515,7 +537,11 @@ class Assembler : public AssemblerBase {
 
   // Distance between the instruction referring to the address of the call
   // target and the return address.
+#ifdef _MIPS_ARCH_MIPS64R6
+  static const int kCallTargetAddressOffset = 5 * kInstrSize;
+#else
   static const int kCallTargetAddressOffset = 6 * kInstrSize;
+#endif
 
   // Distance between start of patched debug break slot and the emitted address
   // to jump to.
@@ -525,7 +551,11 @@ class Assembler : public AssemblerBase {
   // register.
   static const int kPcLoadDelta = 4;
 
+#ifdef _MIPS_ARCH_MIPS64R6
+  static const int kDebugBreakSlotInstructions = 5;
+#else
   static const int kDebugBreakSlotInstructions = 6;
+#endif
   static const int kDebugBreakSlotLength =
       kDebugBreakSlotInstructions * kInstrSize;
 
@@ -573,112 +603,111 @@ class Assembler : public AssemblerBase {
   // --------Branch-and-jump-instructions----------
   // We don't use likely variant of instructions.
   void b(int16_t offset);
-  void b(Label* L) { b(branch_offset(L, false)>>2); }
+  inline void b(Label* L) { b(shifted_branch_offset(L)); }
   void bal(int16_t offset);
-  void bal(Label* L) { bal(branch_offset(L, false)>>2); }
+  inline void bal(Label* L) { bal(shifted_branch_offset(L)); }
   void bc(int32_t offset);
-  void bc(Label* L) { bc(branch_offset(L, false) >> 2); }
+  inline void bc(Label* L) { bc(shifted_branch_offset26(L)); }
   void balc(int32_t offset);
-  void balc(Label* L) { balc(branch_offset(L, false) >> 2); }
+  inline void balc(Label* L) { balc(shifted_branch_offset26(L)); }
 
   void beq(Register rs, Register rt, int16_t offset);
-  void beq(Register rs, Register rt, Label* L) {
-    beq(rs, rt, branch_offset(L, false) >> 2);
+  inline void beq(Register rs, Register rt, Label* L) {
+    beq(rs, rt, shifted_branch_offset(L));
   }
   void bgez(Register rs, int16_t offset);
   void bgezc(Register rt, int16_t offset);
-  void bgezc(Register rt, Label* L) {
-    bgezc(rt, branch_offset_compact(L, false)>>2);
+  inline void bgezc(Register rt, Label* L) {
+    bgezc(rt, shifted_branch_offset(L));
   }
   void bgeuc(Register rs, Register rt, int16_t offset);
-  void bgeuc(Register rs, Register rt, Label* L) {
-    bgeuc(rs, rt, branch_offset_compact(L, false)>>2);
+  inline void bgeuc(Register rs, Register rt, Label* L) {
+    bgeuc(rs, rt, shifted_branch_offset(L));
   }
   void bgec(Register rs, Register rt, int16_t offset);
-  void bgec(Register rs, Register rt, Label* L) {
-    bgec(rs, rt, branch_offset_compact(L, false)>>2);
+  inline void bgec(Register rs, Register rt, Label* L) {
+    bgec(rs, rt, shifted_branch_offset(L));
   }
   void bgezal(Register rs, int16_t offset);
   void bgezalc(Register rt, int16_t offset);
-  void bgezalc(Register rt, Label* L) {
-    bgezalc(rt, branch_offset_compact(L, false)>>2);
+  inline void bgezalc(Register rt, Label* L) {
+    bgezalc(rt, shifted_branch_offset(L));
   }
   void bgezall(Register rs, int16_t offset);
-  void bgezall(Register rs, Label* L) {
-    bgezall(rs, branch_offset(L, false)>>2);
+  inline void bgezall(Register rs, Label* L) {
+    bgezall(rs, branch_offset(L) >> 2);
   }
   void bgtz(Register rs, int16_t offset);
   void bgtzc(Register rt, int16_t offset);
-  void bgtzc(Register rt, Label* L) {
-    bgtzc(rt, branch_offset_compact(L, false)>>2);
+  inline void bgtzc(Register rt, Label* L) {
+    bgtzc(rt, shifted_branch_offset(L));
   }
   void blez(Register rs, int16_t offset);
   void blezc(Register rt, int16_t offset);
-  void blezc(Register rt, Label* L) {
-    blezc(rt, branch_offset_compact(L, false)>>2);
+  inline void blezc(Register rt, Label* L) {
+    blezc(rt, shifted_branch_offset(L));
   }
   void bltz(Register rs, int16_t offset);
   void bltzc(Register rt, int16_t offset);
-  void bltzc(Register rt, Label* L) {
-    bltzc(rt, branch_offset_compact(L, false)>>2);
+  inline void bltzc(Register rt, Label* L) {
+    bltzc(rt, shifted_branch_offset(L));
   }
   void bltuc(Register rs, Register rt, int16_t offset);
-  void bltuc(Register rs, Register rt, Label* L) {
-    bltuc(rs, rt, branch_offset_compact(L, false)>>2);
+  inline void bltuc(Register rs, Register rt, Label* L) {
+    bltuc(rs, rt, shifted_branch_offset(L));
   }
   void bltc(Register rs, Register rt, int16_t offset);
-  void bltc(Register rs, Register rt, Label* L) {
-    bltc(rs, rt, branch_offset_compact(L, false)>>2);
+  inline void bltc(Register rs, Register rt, Label* L) {
+    bltc(rs, rt, shifted_branch_offset(L));
   }
-
   void bltzal(Register rs, int16_t offset);
   void blezalc(Register rt, int16_t offset);
-  void blezalc(Register rt, Label* L) {
-    blezalc(rt, branch_offset_compact(L, false)>>2);
+  inline void blezalc(Register rt, Label* L) {
+    blezalc(rt, shifted_branch_offset(L));
   }
   void bltzalc(Register rt, int16_t offset);
-  void bltzalc(Register rt, Label* L) {
-    bltzalc(rt, branch_offset_compact(L, false)>>2);
+  inline void bltzalc(Register rt, Label* L) {
+    bltzalc(rt, shifted_branch_offset(L));
   }
   void bgtzalc(Register rt, int16_t offset);
-  void bgtzalc(Register rt, Label* L) {
-    bgtzalc(rt, branch_offset_compact(L, false)>>2);
+  inline void bgtzalc(Register rt, Label* L) {
+    bgtzalc(rt, shifted_branch_offset(L));
   }
   void beqzalc(Register rt, int16_t offset);
-  void beqzalc(Register rt, Label* L) {
-    beqzalc(rt, branch_offset_compact(L, false)>>2);
+  inline void beqzalc(Register rt, Label* L) {
+    beqzalc(rt, shifted_branch_offset(L));
   }
   void beqc(Register rs, Register rt, int16_t offset);
-  void beqc(Register rs, Register rt, Label* L) {
-    beqc(rs, rt, branch_offset_compact(L, false)>>2);
+  inline void beqc(Register rs, Register rt, Label* L) {
+    beqc(rs, rt, shifted_branch_offset(L));
   }
   void beqzc(Register rs, int32_t offset);
-  void beqzc(Register rs, Label* L) {
-    beqzc(rs, branch_offset21_compact(L, false)>>2);
+  inline void beqzc(Register rs, Label* L) {
+    beqzc(rs, shifted_branch_offset21(L));
   }
   void bnezalc(Register rt, int16_t offset);
-  void bnezalc(Register rt, Label* L) {
-    bnezalc(rt, branch_offset_compact(L, false)>>2);
+  inline void bnezalc(Register rt, Label* L) {
+    bnezalc(rt, shifted_branch_offset(L));
   }
   void bnec(Register rs, Register rt, int16_t offset);
-  void bnec(Register rs, Register rt, Label* L) {
-    bnec(rs, rt, branch_offset_compact(L, false)>>2);
+  inline void bnec(Register rs, Register rt, Label* L) {
+    bnec(rs, rt, shifted_branch_offset(L));
   }
   void bnezc(Register rt, int32_t offset);
-  void bnezc(Register rt, Label* L) {
-    bnezc(rt, branch_offset21_compact(L, false)>>2);
+  inline void bnezc(Register rt, Label* L) {
+    bnezc(rt, shifted_branch_offset21(L));
   }
   void bne(Register rs, Register rt, int16_t offset);
-  void bne(Register rs, Register rt, Label* L) {
-    bne(rs, rt, branch_offset(L, false)>>2);
+  inline void bne(Register rs, Register rt, Label* L) {
+    bne(rs, rt, shifted_branch_offset(L));
   }
   void bovc(Register rs, Register rt, int16_t offset);
-  void bovc(Register rs, Register rt, Label* L) {
-    bovc(rs, rt, branch_offset_compact(L, false)>>2);
+  inline void bovc(Register rs, Register rt, Label* L) {
+    bovc(rs, rt, shifted_branch_offset(L));
   }
   void bnvc(Register rs, Register rt, int16_t offset);
-  void bnvc(Register rs, Register rt, Label* L) {
-    bnvc(rs, rt, branch_offset_compact(L, false)>>2);
+  inline void bnvc(Register rs, Register rt, Label* L) {
+    bnvc(rs, rt, shifted_branch_offset(L));
   }
 
   // Never use the int16_t b(l)cond version with a branch offset
@@ -742,8 +771,8 @@ class Assembler : public AssemblerBase {
   void ori(Register rd, Register rs, int32_t j);
   void xori(Register rd, Register rs, int32_t j);
   void lui(Register rd, int32_t j);
-  void aui(Register rs, Register rt, int32_t j);
-  void daui(Register rs, Register rt, int32_t j);
+  void aui(Register rt, Register rs, int32_t j);
+  void daui(Register rt, Register rs, int32_t j);
   void dahi(Register rs, int32_t j);
   void dati(Register rs, int32_t j);
 
@@ -764,13 +793,13 @@ class Assembler : public AssemblerBase {
   void dsrl(Register rd, Register rt, uint16_t sa);
   void dsrlv(Register rd, Register rt, Register rs);
   void drotr(Register rd, Register rt, uint16_t sa);
+  void drotr32(Register rd, Register rt, uint16_t sa);
   void drotrv(Register rd, Register rt, Register rs);
   void dsra(Register rt, Register rd, uint16_t sa);
   void dsrav(Register rd, Register rt, Register rs);
   void dsll32(Register rt, Register rd, uint16_t sa);
   void dsrl32(Register rt, Register rd, uint16_t sa);
   void dsra32(Register rt, Register rd, uint16_t sa);
-
 
   // ------------Memory-instructions-------------
 
@@ -822,6 +851,9 @@ class Assembler : public AssemblerBase {
   void teq(Register rs, Register rt, uint16_t code);
   void tne(Register rs, Register rt, uint16_t code);
 
+  // Memory barrier instruction.
+  void sync();
+
   // Move from HI/LO register.
   void mfhi(Register rd);
   void mflo(Register rd);
@@ -866,10 +898,19 @@ class Assembler : public AssemblerBase {
   void ins_(Register rt, Register rs, uint16_t pos, uint16_t size);
   void ext_(Register rt, Register rs, uint16_t pos, uint16_t size);
   void dext_(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void dextm(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void dextu(Register rt, Register rs, uint16_t pos, uint16_t size);
+  void dins_(Register rt, Register rs, uint16_t pos, uint16_t size);
   void bitswap(Register rd, Register rt);
   void dbitswap(Register rd, Register rt);
   void align(Register rd, Register rs, Register rt, uint8_t bp);
   void dalign(Register rd, Register rs, Register rt, uint8_t bp);
+
+  void wsbh(Register rd, Register rt);
+  void dsbh(Register rd, Register rt);
+  void dshd(Register rd, Register rt);
+  void seh(Register rd, Register rt);
+  void seb(Register rd, Register rt);
 
   // --------Coprocessor-instructions----------------
 
@@ -972,12 +1013,12 @@ class Assembler : public AssemblerBase {
   void cmp_d(FPUCondition cond, FPURegister fd, FPURegister fs, FPURegister ft);
 
   void bc1eqz(int16_t offset, FPURegister ft);
-  void bc1eqz(Label* L, FPURegister ft) {
-    bc1eqz(branch_offset(L, false)>>2, ft);
+  inline void bc1eqz(Label* L, FPURegister ft) {
+    bc1eqz(shifted_branch_offset(L), ft);
   }
   void bc1nez(int16_t offset, FPURegister ft);
-  void bc1nez(Label* L, FPURegister ft) {
-    bc1nez(branch_offset(L, false)>>2, ft);
+  inline void bc1nez(Label* L, FPURegister ft) {
+    bc1nez(shifted_branch_offset(L), ft);
   }
 
   // Conditions and branches for non MIPSr6.
@@ -987,12 +1028,12 @@ class Assembler : public AssemblerBase {
   void c_d(FPUCondition cond, FPURegister ft, FPURegister fs, uint16_t cc = 0);
 
   void bc1f(int16_t offset, uint16_t cc = 0);
-  void bc1f(Label* L, uint16_t cc = 0) {
-    bc1f(branch_offset(L, false)>>2, cc);
+  inline void bc1f(Label* L, uint16_t cc = 0) {
+    bc1f(shifted_branch_offset(L), cc);
   }
   void bc1t(int16_t offset, uint16_t cc = 0);
-  void bc1t(Label* L, uint16_t cc = 0) {
-    bc1t(branch_offset(L, false)>>2, cc);
+  inline void bc1t(Label* L, uint16_t cc = 0) {
+    bc1t(shifted_branch_offset(L), cc);
   }
   void fcmp(FPURegister src1, const double src2, FPUCondition cond);
 
@@ -1047,7 +1088,7 @@ class Assembler : public AssemblerBase {
   void RecordGeneratorContinuation();
 
   // Mark address of a debug break slot.
-  void RecordDebugBreakSlot(RelocInfo::Mode mode, int argc = 0);
+  void RecordDebugBreakSlot(RelocInfo::Mode mode);
 
   // Record the AST id of the CallIC being compiled, so that it can be placed
   // in the relocation information.
@@ -1069,7 +1110,7 @@ class Assembler : public AssemblerBase {
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
-  void RecordDeoptReason(const int reason, const SourcePosition position);
+  void RecordDeoptReason(DeoptimizeReason reason, int raw_position, int id);
 
   static int RelocateInternalReference(RelocInfo::Mode rmode, byte* pc,
                                        intptr_t pc_delta);
@@ -1081,11 +1122,6 @@ class Assembler : public AssemblerBase {
   void dq(uint64_t data);
   void dp(uintptr_t data) { dq(data); }
   void dd(Label* label);
-
-  // Emits the address of the code stub's first instruction.
-  void emit_code_stub_address(Code* stub);
-
-  PositionsRecorder* positions_recorder() { return &positions_recorder_; }
 
   // Postpone the generation of the trampoline pool for the specified number of
   // instructions.
@@ -1113,8 +1149,16 @@ class Assembler : public AssemblerBase {
 
   // Check if an instruction is a branch of some kind.
   static bool IsBranch(Instr instr);
+  static bool IsBc(Instr instr);
+  static bool IsBzc(Instr instr);
+
   static bool IsBeq(Instr instr);
   static bool IsBne(Instr instr);
+  static bool IsBeqzc(Instr instr);
+  static bool IsBnezc(Instr instr);
+  static bool IsBeqc(Instr instr);
+  static bool IsBnec(Instr instr);
+
 
   static bool IsJump(Instr instr);
   static bool IsJ(Instr instr);
@@ -1173,7 +1217,18 @@ class Assembler : public AssemblerBase {
     UNREACHABLE();
   }
 
+  bool IsPrevInstrCompactBranch() { return prev_instr_compact_branch_; }
+
+  inline int UnboundLabelsCount() { return unbound_labels_count_; }
+
  protected:
+  // Load Scaled Address instructions.
+  void lsa(Register rd, Register rt, Register rs, uint8_t sa);
+  void dlsa(Register rd, Register rt, Register rs, uint8_t sa);
+
+  // Helpers.
+  void LoadRegPlusOffsetToAt(const MemOperand& src);
+
   // Relocation for a type-recording IC has the AST id added to it.  This
   // member variable is a way to pass the information from the call site to
   // the relocation info.
@@ -1239,6 +1294,14 @@ class Assembler : public AssemblerBase {
     return block_buffer_growth_;
   }
 
+  void EmitForbiddenSlotInstruction() {
+    if (IsPrevInstrCompactBranch()) {
+      nop();
+    }
+  }
+
+  inline void CheckTrampolinePoolQuick(int extra_instructions = 0);
+
  private:
   // Buffer size and constant pool distance are checked together at regular
   // intervals of kBufferCheckInterval emitted bytes.
@@ -1278,12 +1341,19 @@ class Assembler : public AssemblerBase {
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;
 
+  // Readable constants for compact branch handling in emit()
+  enum class CompactBranchType : bool { NO = false, COMPACT_BRANCH = true };
+
   // Code emission.
   inline void CheckBuffer();
   void GrowBuffer();
-  inline void emit(Instr x);
+  inline void emit(Instr x,
+                   CompactBranchType is_compact_branch = CompactBranchType::NO);
   inline void emit(uint64_t x);
-  inline void CheckTrampolinePoolQuick(int extra_instructions = 0);
+  inline void CheckForEmitInForbiddenSlot();
+  template <typename T>
+  inline void EmitHelper(T x);
+  inline void EmitHelper(Instr x, CompactBranchType is_compact_branch);
 
   // Instruction generation.
   // We have 3 different kind of encoding layout on MIPS.
@@ -1335,27 +1405,25 @@ class Assembler : public AssemblerBase {
                         SecondaryField func = NULLSF);
 
 
-  void GenInstrImmediate(Opcode opcode,
-                         Register rs,
-                         Register rt,
-                         int32_t  j);
-  void GenInstrImmediate(Opcode opcode,
-                         Register rs,
-                         SecondaryField SF,
-                         int32_t  j);
-  void GenInstrImmediate(Opcode opcode,
-                         Register r1,
-                         FPURegister r2,
-                         int32_t  j);
-  void GenInstrImmediate(Opcode opcode, Register rs, int32_t j);
-  void GenInstrImmediate(Opcode opcode, int32_t offset26);
-
+  void GenInstrImmediate(
+      Opcode opcode, Register rs, Register rt, int32_t j,
+      CompactBranchType is_compact_branch = CompactBranchType::NO);
+  void GenInstrImmediate(
+      Opcode opcode, Register rs, SecondaryField SF, int32_t j,
+      CompactBranchType is_compact_branch = CompactBranchType::NO);
+  void GenInstrImmediate(
+      Opcode opcode, Register r1, FPURegister r2, int32_t j,
+      CompactBranchType is_compact_branch = CompactBranchType::NO);
+  void GenInstrImmediate(
+      Opcode opcode, Register rs, int32_t offset21,
+      CompactBranchType is_compact_branch = CompactBranchType::NO);
+  void GenInstrImmediate(Opcode opcode, Register rs, uint32_t offset21);
+  void GenInstrImmediate(
+      Opcode opcode, int32_t offset26,
+      CompactBranchType is_compact_branch = CompactBranchType::NO);
 
   void GenInstrJump(Opcode opcode,
                      uint32_t address);
-
-  // Helpers.
-  void LoadRegPlusOffsetToAt(const MemOperand& src);
 
   // Labels.
   void print(Label* L);
@@ -1423,11 +1491,16 @@ class Assembler : public AssemblerBase {
   bool trampoline_emitted_;
   static const int kTrampolineSlotsSize = 2 * kInstrSize;
   static const int kMaxBranchOffset = (1 << (18 - 1)) - 1;
+  static const int kMaxCompactBranchOffset = (1 << (28 - 1)) - 1;
   static const int kInvalidSlotPos = -1;
 
   // Internal reference positions, required for unbounded internal reference
   // labels.
   std::set<int64_t> internal_reference_positions_;
+
+  void EmittedCompactBranchInstruction() { prev_instr_compact_branch_ = true; }
+  void ClearCompactBranchState() { prev_instr_compact_branch_ = false; }
+  bool prev_instr_compact_branch_ = false;
 
   Trampoline trampoline_;
   bool internal_trampoline_exception_;
@@ -1436,9 +1509,6 @@ class Assembler : public AssemblerBase {
   friend class RelocInfo;
   friend class CodePatcher;
   friend class BlockTrampolinePoolScope;
-
-  PositionsRecorder positions_recorder_;
-  friend class PositionsRecorder;
   friend class EnsureSpace;
 };
 

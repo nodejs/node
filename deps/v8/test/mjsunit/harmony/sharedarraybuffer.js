@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-sharedarraybuffer --harmony-tostring
+// Flags: --harmony-sharedarraybuffer
 
 
 // SharedArrayBuffer
@@ -204,7 +204,7 @@ function TestTypedArray(constr, elementSize, typicalElement) {
   assertEquals("[object " + constr.name + "]",
       Object.prototype.toString.call(a));
   var desc = Object.getOwnPropertyDescriptor(
-      constr.prototype, Symbol.toStringTag);
+      constr.prototype.__proto__, Symbol.toStringTag);
   assertTrue(desc.configurable);
   assertFalse(desc.enumerable);
   assertFalse(!!desc.writable);
@@ -310,17 +310,14 @@ var typedArrayConstructors = [
 
 function TestPropertyTypeChecks(constructor) {
   function CheckProperty(name) {
-    var d = Object.getOwnPropertyDescriptor(constructor.prototype, name);
+    var d = Object.getOwnPropertyDescriptor(constructor.prototype.__proto__,
+                                            name);
     var o = {};
     assertThrows(function() {d.get.call(o);}, TypeError);
     for (var i = 0; i < typedArrayConstructors.length; i++) {
       var ctor = typedArrayConstructors[i];
       var a = MakeSharedTypedArray(ctor, 10);
-      if (ctor === constructor) {
-        d.get.call(a); // shouldn't throw
-      } else {
-        assertThrows(function() {d.get.call(a);}, TypeError);
-      }
+      d.get.call(a); // shouldn't throw
     }
   }
 
@@ -575,3 +572,21 @@ for(i = 0; i < typedArrayConstructors.length; i++) {
   assertThrows(function(i) { typedArrayConstructors[i](); }.bind(this, i),
                TypeError);
 }
+
+// byteLength from prototype can be overwritten
+var s = new SharedArrayBuffer(10);
+assertEquals(10, s.byteLength);
+Object.defineProperty(s, 'byteLength', {value: 42});
+assertEquals(42, s.byteLength);
+
+// byteLength on incompatible type (shared vs. regular ArrayBuffer)
+var desc = Object.getOwnPropertyDescriptor(ArrayBuffer.prototype, 'byteLength');
+s = new SharedArrayBuffer(10);
+Object.defineProperty(s, 'byteLength', desc);
+assertThrows(function() {s.byteLength}, TypeError);
+
+desc = Object.getOwnPropertyDescriptor(SharedArrayBuffer.prototype,
+  'byteLength');
+var a = new ArrayBuffer(10);
+Object.defineProperty(a, 'byteLength', desc);
+assertThrows(function() {a.byteLength}, TypeError);

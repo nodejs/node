@@ -1,22 +1,25 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const net = require('net');
 const NUM = 8;
 const connections = [];
 const clients = [];
-var clients_counter = 0;
+let clients_counter = 0;
 
 const server = net.createServer(function listener(c) {
   connections.push(c);
-}).listen(common.PORT, function makeConnections() {
-  for (var i = 0; i < NUM; i++) {
-    net.connect(common.PORT, function connected() {
-      clientConnected(this);
-    });
-  }
-});
+}).listen(0, makeConnection);
+
+
+function makeConnection() {
+  if (clients_counter >= NUM) return;
+  net.connect(server.address().port, function connected() {
+    clientConnected(this);
+    makeConnection();
+  });
+}
 
 
 function clientConnected(client) {

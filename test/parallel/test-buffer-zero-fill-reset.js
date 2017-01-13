@@ -13,7 +13,7 @@ function testUint8Array(ui) {
 
 
 for (let i = 0; i < 100; i++) {
-  new Buffer(0);
+  Buffer.alloc(0);
   const ui = new Uint8Array(65);
   assert.ok(testUint8Array(ui), 'Uint8Array is not zero-filled');
 }

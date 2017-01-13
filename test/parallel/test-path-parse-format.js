@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const path = require('path');
 
@@ -18,6 +18,10 @@ const winPaths = [
   '\\\\server two\\shared folder\\file path.zip',
   '\\\\teela\\admin$\\system32',
   '\\\\?\\UNC\\server\\share'
+];
+
+const winSpecialCaseParseTests = [
+  ['/foo/bar', {root: '/'}]
 ];
 
 const winSpecialCaseFormatTests = [
@@ -86,6 +90,7 @@ const errors = [
 
 checkParseFormat(path.win32, winPaths);
 checkParseFormat(path.posix, unixPaths);
+checkSpecialCaseParseFormat(path.win32, winSpecialCaseParseTests);
 checkErrors(path.win32);
 checkErrors(path.posix);
 checkFormat(path.win32, winSpecialCaseFormatTests);
@@ -123,12 +128,11 @@ const trailingTests = [
 const failures = [];
 trailingTests.forEach(function(test) {
   const parse = test[0];
+  const os = parse === path.win32.parse ? 'win32' : 'posix';
   test[1].forEach(function(test) {
     const actual = parse(test[0]);
     const expected = test[1];
-    const fn = 'path.' +
-               (parse === path.win32.parse ? 'win32' : 'posix') +
-               '.parse(';
+    const fn = `path.${os}.parse(`;
     const message = fn +
                     JSON.stringify(test[0]) +
                     ')' +
@@ -150,7 +154,7 @@ trailingTests.forEach(function(test) {
       failures.push('\n' + message);
   });
 });
-assert.equal(failures.length, 0, failures.join(''));
+assert.strictEqual(failures.length, 0, failures.join(''));
 
 function checkErrors(path) {
   errors.forEach(function(errorCase) {
@@ -165,13 +169,13 @@ function checkErrors(path) {
       return;
     }
 
-    assert.fail(null, null, 'should have thrown');
+    common.fail('should have thrown');
   });
 }
 
 function checkParseFormat(path, paths) {
   paths.forEach(function(element) {
-    var output = path.parse(element);
+    const output = path.parse(element);
     assert.strictEqual(typeof output.root, 'string');
     assert.strictEqual(typeof output.dir, 'string');
     assert.strictEqual(typeof output.base, 'string');
@@ -181,6 +185,17 @@ function checkParseFormat(path, paths) {
     assert.strictEqual(output.dir, output.dir ? path.dirname(element) : '');
     assert.strictEqual(output.base, path.basename(element));
     assert.strictEqual(output.ext, path.extname(element));
+  });
+}
+
+function checkSpecialCaseParseFormat(path, testCases) {
+  testCases.forEach(function(testCase) {
+    const element = testCase[0];
+    const expect = testCase[1];
+    const output = path.parse(element);
+    Object.keys(expect).forEach(function(key) {
+      assert.strictEqual(output[key], expect[key]);
+    });
   });
 }
 

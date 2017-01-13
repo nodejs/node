@@ -219,6 +219,22 @@ enum {
 };
 
 
+enum BarrierOption {
+  OSHLD = 0x1,
+  OSHST = 0x2,
+  OSH = 0x3,
+  NSHLD = 0x5,
+  NSHST = 0x6,
+  NSH = 0x7,
+  ISHLD = 0x9,
+  ISHST = 0xa,
+  ISH = 0xb,
+  LD = 0xd,
+  ST = 0xe,
+  SY = 0xf,
+};
+
+
 // -----------------------------------------------------------------------------
 // Addressing modes and instruction variants.
 
@@ -638,7 +654,7 @@ class Instruction {
   inline bool HasH()    const { return HValue() == 1; }
   inline bool HasLink() const { return LinkValue() == 1; }
 
-  // Decoding the double immediate in the vmov instruction.
+  // Decode the double immediate from a vmov instruction.
   double DoubleImmedVmov() const;
 
   // Instructions are read of out a code stream. The only way to get a

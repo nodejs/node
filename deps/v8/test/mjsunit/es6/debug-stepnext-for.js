@@ -11,6 +11,8 @@ var log = []
 
 var s = 0;
 var a = [1, 2, 3];
+var b = [1, 2, 3, 4];
+var null_value = null;
 var i = 0;
 
 function f() {
@@ -18,11 +20,11 @@ function f() {
   debugger;                      // Break a
   var j;                         // Break b
 
-  for (var i in null) {          // Break c
+  for (var i in null_value) {    // Break c
     s += a[i];
   }
 
-  for (j in null) {              // Break d
+  for (j in null_value) {        // Break d
     s += a[j];
   }
 
@@ -46,7 +48,7 @@ function f() {
     s += j;                      // Break I
   }
 
-  for (let i of a) {             // Break j
+  for (let i  of  a) {           // Break j
     s += i;                      // Break J
   }
 
@@ -61,6 +63,11 @@ function f() {
   for (let i = 0; i < 3; i++) {  // Break m
     s += a[i];                   // Break M
   }
+
+  for (let i of a) {}            // Break n
+
+  [1, ...a]                      // Break o
+
 }                                // Break y
 
 function listener(event, exec_state, event_data, data) {
@@ -72,7 +79,7 @@ function listener(event, exec_state, event_data, data) {
     var match = line.match(/\/\/ Break (\w)$/);
     assertEquals(2, match.length);
     log.push(match[1] + col);
-    exec_state.prepareStep(Debug.StepAction.StepNext, 1);
+    exec_state.prepareStep(Debug.StepAction.StepNext);
     break_count++;
   } catch (e) {
     exception = e;
@@ -86,9 +93,12 @@ Debug.setListener(null);         // Break z
 print("log:\n"+ JSON.stringify(log));
 // The let declaration differs from var in that the loop variable
 // is declared in every iteration.
+// TODO(verwaest): For-of has hacky position numbers for Symbol.iterator and
+// .next. Restore to proper positions once the CallPrinter can disambiguate
+// based on other values.
 var expected = [
   // Entry
-  "a2","b2",
+  "a2",
   // Empty for-in-var: get enumerable
   "c16",
   // Empty for-in: get enumerable
@@ -99,18 +109,22 @@ var expected = [
   "f12","f7","F4","f7","F4","f7","F4","f7",
   // For-in-let: get enumerable, next, body, next,  ...
   "g16","g11","G4","g11","G4","g11","G4","g11",
-  // For-of-var: next(), body, next(), body, ...
-  "h16","H4","h16","H4","h16","H4","h16",
-  // For-of: next(), body, next(), body, ...
-  "i12","I4","i12","I4","i12","I4","i12",
-  // For-of-let: next(), body, next(), ...
-  "j16","J4","j16","J4","j16","J4","j16",
-  // For-var: var decl, condition, body, next, condition, body, ...
-  "k7","k20","K4","k26","k20","K4","k26","k20","K4","k26","k20",
+  // For-of-var: [Symbol.iterator](), next(), body, next(), body, ...
+  "h16","h13","H4","h13","H4","h13","H4","h13",
+  // For-of: [Symbol.iterator](), next(), body, next(), body, ...
+  "i12","i9","I4","i9","I4","i9","I4","i9",
+  // For-of-let: [Symbol.iterator](), next(), body, next(), ...
+  "j18","j14","J4","j14","J4","j14","J4","j14",
+  // For-var: init, condition, body, next, condition, body, ...
+  "k15","k20","K4","k26","k20","K4","k26","k20","K4","k26","k20",
   // For: init, condition, body, next, condition, body, ...
   "l7","l16","L4","l22","l16","L4","l22","l16","L4","l22","l16",
   // For-let: init, condition, body, next, condition, body, ...
-  "m7","m20","M4","m26","m20","M4","m26","m20","M4","m26","m20",
+  "m15","m20","M4","m26","m20","M4","m26","m20","M4","m26","m20",
+  // For-of, empty: [Symbol.iterator](), next() once
+  "n16", "n13",
+  // Spread: expression statement, spread
+  "o2", "o9",
   // Exit.
   "y0","z0",
 ]

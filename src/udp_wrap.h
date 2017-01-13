@@ -1,6 +1,8 @@
 #ifndef SRC_UDP_WRAP_H_
 #define SRC_UDP_WRAP_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "async-wrap.h"
 #include "env.h"
 #include "handle_wrap.h"
@@ -25,7 +27,6 @@ class UDPWrap: public HandleWrap {
   static void Send6(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RecvStart(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RecvStop(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetSockName(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AddMembership(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void DropMembership(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetMulticastTTL(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -69,5 +70,7 @@ class UDPWrap: public HandleWrap {
 };
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_UDP_WRAP_H_

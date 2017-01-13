@@ -11,7 +11,7 @@ buffer.kMaxLength = 128;
 const zlib = require('zlib');
 buffer.kMaxLength = oldkMaxLength;
 
-const encoded = new Buffer('H4sIAAAAAAAAA0tMHFgAAIw2K/GAAAAA', 'base64');
+const encoded = Buffer.from('H4sIAAAAAAAAA0tMHFgAAIw2K/GAAAAA', 'base64');
 
 // Async
 zlib.gunzip(encoded, function(err) {

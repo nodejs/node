@@ -22,18 +22,19 @@ namespace internal {
 // If there is a miss the code fall trough.
 //
 // 'receiver', 'name' and 'offset' registers are preserved on miss.
-static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
-                       Code::Kind ic_kind, Code::Flags flags,
+static void ProbeTable(StubCache* stub_cache, MacroAssembler* masm,
                        StubCache::Table table, Register receiver, Register name,
+                       // The offset is scaled by 4, based on
+                       // kCacheIndexShift, which is two bits
                        Register offset, Register scratch, Register scratch2,
                        Register scratch3) {
   // Some code below relies on the fact that the Entry struct contains
   // 3 pointers (name, code, map).
   STATIC_ASSERT(sizeof(StubCache::Entry) == (3 * kPointerSize));
 
-  ExternalReference key_offset(isolate->stub_cache()->key_reference(table));
-  ExternalReference value_offset(isolate->stub_cache()->value_reference(table));
-  ExternalReference map_offset(isolate->stub_cache()->map_reference(table));
+  ExternalReference key_offset(stub_cache->key_reference(table));
+  ExternalReference value_offset(stub_cache->value_reference(table));
+  ExternalReference map_offset(stub_cache->map_reference(table));
 
   uintptr_t key_off_addr = reinterpret_cast<uintptr_t>(key_offset.address());
   uintptr_t value_off_addr =
@@ -49,7 +50,9 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
 
   // Calculate the base address of the entry.
   __ Mov(scratch, key_offset);
-  __ Add(scratch, scratch, Operand(scratch3, LSL, kPointerSizeLog2));
+  __ Add(
+      scratch, scratch,
+      Operand(scratch3, LSL, kPointerSizeLog2 - StubCache::kCacheIndexShift));
 
   // Check that the key in the entry matches the name.
   __ Ldr(scratch2, MemOperand(scratch));
@@ -64,12 +67,6 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
 
   // Get the code entry from the cache.
   __ Ldr(scratch, MemOperand(scratch, value_off_addr - key_off_addr));
-
-  // Check that the flags match what we're looking for.
-  __ Ldr(scratch2.W(), FieldMemOperand(scratch, Code::kFlagsOffset));
-  __ Bic(scratch2.W(), scratch2.W(), Code::kFlagsNotUsedInLookup);
-  __ Cmp(scratch2.W(), flags);
-  __ B(ne, &miss);
 
 #ifdef DEBUG
   if (FLAG_test_secondary_stub_cache && table == StubCache::kPrimary) {
@@ -87,16 +84,10 @@ static void ProbeTable(Isolate* isolate, MacroAssembler* masm,
   __ Bind(&miss);
 }
 
-
-void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
-                              Code::Flags flags, Register receiver,
+void StubCache::GenerateProbe(MacroAssembler* masm, Register receiver,
                               Register name, Register scratch, Register extra,
                               Register extra2, Register extra3) {
-  Isolate* isolate = masm->isolate();
   Label miss;
-
-  // Make sure the flags does not name a specific type.
-  DCHECK(Code::ExtractTypeFromFlags(flags) == 0);
 
   // Make sure that there are no register conflicts.
   DCHECK(!AreAliased(receiver, name, scratch, extra, extra2, extra3));
@@ -110,12 +101,13 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
   // If vector-based ics are in use, ensure that scratch, extra, extra2 and
   // extra3 don't conflict with the vector and slot registers, which need
   // to be preserved for a handler call or miss.
-  if (IC::ICUseVector(ic_kind)) {
+  if (IC::ICUseVector(ic_kind_)) {
     Register vector, slot;
-    if (ic_kind == Code::STORE_IC || ic_kind == Code::KEYED_STORE_IC) {
-      vector = VectorStoreICDescriptor::VectorRegister();
-      slot = VectorStoreICDescriptor::SlotRegister();
+    if (ic_kind_ == Code::STORE_IC || ic_kind_ == Code::KEYED_STORE_IC) {
+      vector = StoreWithVectorDescriptor::VectorRegister();
+      slot = StoreWithVectorDescriptor::SlotRegister();
     } else {
+      DCHECK(ic_kind_ == Code::LOAD_IC || ic_kind_ == Code::KEYED_LOAD_IC);
       vector = LoadWithVectorDescriptor::VectorRegister();
       slot = LoadWithVectorDescriptor::SlotRegister();
     }
@@ -131,26 +123,26 @@ void StubCache::GenerateProbe(MacroAssembler* masm, Code::Kind ic_kind,
   __ JumpIfSmi(receiver, &miss);
 
   // Compute the hash for primary table.
-  __ Ldr(scratch, FieldMemOperand(name, Name::kHashFieldOffset));
+  __ Ldr(scratch.W(), FieldMemOperand(name, Name::kHashFieldOffset));
   __ Ldr(extra, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ Add(scratch, scratch, extra);
-  __ Eor(scratch, scratch, flags);
-  // We shift out the last two bits because they are not part of the hash.
-  __ Ubfx(scratch, scratch, kCacheIndexShift,
-          CountTrailingZeros(kPrimaryTableSize, 64));
+  __ Eor(scratch, scratch, kPrimaryMagic);
+  __ And(scratch, scratch,
+         Operand((kPrimaryTableSize - 1) << kCacheIndexShift));
 
   // Probe the primary table.
-  ProbeTable(isolate, masm, ic_kind, flags, kPrimary, receiver, name, scratch,
-             extra, extra2, extra3);
+  ProbeTable(this, masm, kPrimary, receiver, name, scratch, extra, extra2,
+             extra3);
 
   // Primary miss: Compute hash for secondary table.
-  __ Sub(scratch, scratch, Operand(name, LSR, kCacheIndexShift));
-  __ Add(scratch, scratch, flags >> kCacheIndexShift);
-  __ And(scratch, scratch, kSecondaryTableSize - 1);
+  __ Sub(scratch, scratch, Operand(name));
+  __ Add(scratch, scratch, Operand(kSecondaryMagic));
+  __ And(scratch, scratch,
+         Operand((kSecondaryTableSize - 1) << kCacheIndexShift));
 
   // Probe the secondary table.
-  ProbeTable(isolate, masm, ic_kind, flags, kSecondary, receiver, name, scratch,
-             extra, extra2, extra3);
+  ProbeTable(this, masm, kSecondary, receiver, name, scratch, extra, extra2,
+             extra3);
 
   // Cache miss: Fall-through and let caller handle the miss by
   // entering the runtime system.

@@ -33,8 +33,8 @@ class LiveRangeUnitTest : public TestWithZone {
   TopLevelLiveRange* Splinter(TopLevelLiveRange* top, int start, int end,
                               int new_id = 0) {
     if (top->splinter() == nullptr) {
-      TopLevelLiveRange* ret =
-          new (zone()) TopLevelLiveRange(new_id, MachineType::kRepTagged);
+      TopLevelLiveRange* ret = new (zone())
+          TopLevelLiveRange(new_id, MachineRepresentation::kTagged);
       top->SetSplinter(ret);
     }
     top->Splinter(LifetimePosition::FromInt(start),
@@ -74,7 +74,7 @@ class LiveRangeUnitTest : public TestWithZone {
 TEST_F(LiveRangeUnitTest, InvalidConstruction) {
   // Build a range manually, because the builder guards against empty cases.
   TopLevelLiveRange* range =
-      new (zone()) TopLevelLiveRange(1, MachineType::kRepTagged);
+      new (zone()) TopLevelLiveRange(1, MachineRepresentation::kTagged);
   V8_ASSERT_DEBUG_DEATH(
       range->AddUseInterval(LifetimePosition::FromInt(0),
                             LifetimePosition::FromInt(0), zone()),
@@ -437,7 +437,7 @@ TEST_F(LiveRangeUnitTest, IDGeneration) {
   EXPECT_EQ(0, vreg->relative_id());
 
   TopLevelLiveRange* splinter =
-      new (zone()) TopLevelLiveRange(101, MachineType::kRepTagged);
+      new (zone()) TopLevelLiveRange(101, MachineRepresentation::kTagged);
   vreg->SetSplinter(splinter);
   vreg->Splinter(LifetimePosition::FromInt(4), LifetimePosition::FromInt(12),
                  zone());

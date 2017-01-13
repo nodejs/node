@@ -30,7 +30,7 @@ function processIncludes(inputFile, input, cb) {
   if (incCount === 0) cb(null, input);
   includes.forEach(function(include) {
     var fname = include.replace(/^@include\s+/, '');
-    if (!fname.match(/\.markdown$/)) fname += '.markdown';
+    if (!fname.match(/\.md$/)) fname += '.md';
 
     if (includeData.hasOwnProperty(fname)) {
       input = input.split(include).join(includeData[fname]);
@@ -48,7 +48,11 @@ function processIncludes(inputFile, input, cb) {
         if (errState) return;
         if (er) return cb(errState = er);
         incCount--;
-        includeData[fname] = inc;
+
+        // Add comments to let the HTML generator know how the anchors for
+        // headings should look like.
+        includeData[fname] = `<!-- [start-include:${fname}] -->\n` +
+                             inc + `\n<!-- [end-include:${fname}] -->\n`;
         input = input.split(include + '\n').join(includeData[fname] + '\n');
         if (incCount === 0) {
           return cb(null, input);

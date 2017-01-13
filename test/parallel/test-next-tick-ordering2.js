@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var order = [];
+const order = [];
 process.nextTick(function() {
   setTimeout(function() {
     order.push('setTimeout');
@@ -14,5 +14,5 @@ process.nextTick(function() {
 });
 
 process.on('exit', function() {
-  assert.deepEqual(order, ['nextTick', 'setTimeout']);
+  assert.deepStrictEqual(order, ['nextTick', 'setTimeout']);
 });

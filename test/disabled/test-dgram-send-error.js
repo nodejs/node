@@ -7,14 +7,13 @@
 // we also send packets to ourselves to verify that after receiving an error
 // we can still receive packets successfully.
 
+const common = require('../common');
 var ITERATIONS = 1000;
 
-var assert = require('assert'),
-    common = require('../common'),
+const assert = require('assert'),
     dgram = require('dgram');
 
-var buf = new Buffer(1024);
-buf.fill(42);
+var buf = Buffer.alloc(1024, 42);
 
 var packetsReceived = 0,
     packetsSent = 0;
@@ -35,7 +34,7 @@ function onMessage(message, info) {
 }
 
 function afterSend(err) {
-  if (err) throw err;
+  assert.ifError(err);
   packetsSent++;
 }
 

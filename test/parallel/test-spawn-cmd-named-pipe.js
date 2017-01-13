@@ -4,7 +4,7 @@ const assert = require('assert');
 
 // This test is intended for Windows only
 if (!common.isWindows) {
-  console.log('1..0 # Skipped: this test is Windows-specific.');
+  common.skip('this test is Windows-specific.');
   return;
 }
 
@@ -39,11 +39,11 @@ if (!process.argv[2]) {
 
   const comspec = process.env['comspec'];
   if (!comspec || comspec.length === 0) {
-    assert.fail(null, null, 'Failed to get COMSPEC');
+    common.fail('Failed to get COMSPEC');
   }
 
   const args = ['/c', process.execPath, __filename, 'child',
-              '<', stdinPipeName, '>', stdoutPipeName];
+                '<', stdinPipeName, '>', stdoutPipeName];
 
   const child = spawn(comspec, args);
 

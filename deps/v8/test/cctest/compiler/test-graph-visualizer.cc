@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(jochen): Remove this after the setting is turned on globally.
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/graph-visualizer.h"
@@ -36,12 +33,12 @@ TEST(NodeWithNullInputReachableFromEnd) {
   Node* start = graph.NewNode(common.Start(0));
   graph.SetStart(start);
   Node* k = graph.NewNode(common.Int32Constant(0));
-  Node* phi = graph.NewNode(common.Phi(kMachAnyTagged, 1), k, start);
+  Node* phi =
+      graph.NewNode(common.Phi(MachineRepresentation::kTagged, 1), k, start);
   phi->ReplaceInput(0, NULL);
   graph.SetEnd(phi);
 
   OFStream os(stdout);
-  os << AsDOT(graph);
   SourcePositionTable table(&graph);
   os << AsJSON(graph, &table);
 }
@@ -55,12 +52,12 @@ TEST(NodeWithNullControlReachableFromEnd) {
   Node* start = graph.NewNode(common.Start(0));
   graph.SetStart(start);
   Node* k = graph.NewNode(common.Int32Constant(0));
-  Node* phi = graph.NewNode(common.Phi(kMachAnyTagged, 1), k, start);
+  Node* phi =
+      graph.NewNode(common.Phi(MachineRepresentation::kTagged, 1), k, start);
   phi->ReplaceInput(1, NULL);
   graph.SetEnd(phi);
 
   OFStream os(stdout);
-  os << AsDOT(graph);
   SourcePositionTable table(&graph);
   os << AsJSON(graph, &table);
 }
@@ -74,12 +71,12 @@ TEST(NodeWithNullInputReachableFromStart) {
   Node* start = graph.NewNode(common.Start(0));
   graph.SetStart(start);
   Node* k = graph.NewNode(common.Int32Constant(0));
-  Node* phi = graph.NewNode(common.Phi(kMachAnyTagged, 1), k, start);
+  Node* phi =
+      graph.NewNode(common.Phi(MachineRepresentation::kTagged, 1), k, start);
   phi->ReplaceInput(0, NULL);
   graph.SetEnd(start);
 
   OFStream os(stdout);
-  os << AsDOT(graph);
   SourcePositionTable table(&graph);
   os << AsJSON(graph, &table);
 }
@@ -97,7 +94,6 @@ TEST(NodeWithNullControlReachableFromStart) {
   graph.SetEnd(merge);
 
   OFStream os(stdout);
-  os << AsDOT(graph);
   SourcePositionTable table(&graph);
   os << AsJSON(graph, &table);
 }
@@ -125,7 +121,6 @@ TEST(NodeNetworkOfDummiesReachableFromEnd) {
   graph.SetEnd(end);
 
   OFStream os(stdout);
-  os << AsDOT(graph);
   SourcePositionTable table(&graph);
   os << AsJSON(graph, &table);
 }

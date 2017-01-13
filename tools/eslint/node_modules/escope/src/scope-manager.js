@@ -73,6 +73,14 @@ export default class ScopeManager {
         return this.__options.sourceType === 'module';
     }
 
+    isImpliedStrict() {
+        return this.__options.impliedStrict;
+    }
+
+    isStrictModeSupported() {
+        return this.__options.ecmaVersion >= 5;
+    }
+
     // Returns appropriate scope for this node.
     __get(node) {
         return this.__nodeToScope.get(node);

@@ -1,53 +1,54 @@
-/* eslint-disable strict */
+'use strict';
 // Flags: --expose-gc
 
-var common = require('../common');
-var assert = require('assert');
-var vm = require('vm');
+const common = require('../common');
+const assert = require('assert');
+const vm = require('vm');
 
-assert.equal(typeof gc, 'function', 'Run this test with --expose-gc');
+assert.strictEqual(typeof global.gc, 'function',
+                   'Run this test with --expose-gc');
 
 common.globalCheck = false;
 
 console.error('run a string');
-var result = vm.runInNewContext('\'passed\';');
-assert.equal('passed', result);
+const result = vm.runInNewContext('\'passed\';');
+assert.strictEqual('passed', result);
 
 console.error('thrown error');
 assert.throws(function() {
   vm.runInNewContext('throw new Error(\'test\');');
 });
 
-hello = 5;
+global.hello = 5;
 vm.runInNewContext('hello = 2');
-assert.equal(5, hello);
+assert.strictEqual(5, global.hello);
 
 
 console.error('pass values in and out');
-code = 'foo = 1;' +
-       'bar = 2;' +
-       'if (baz !== 3) throw new Error(\'test fail\');';
-foo = 2;
-obj = { foo: 0, baz: 3 };
+global.code = 'foo = 1;' +
+              'bar = 2;' +
+              'if (baz !== 3) throw new Error(\'test fail\');';
+global.foo = 2;
+global.obj = { foo: 0, baz: 3 };
 /* eslint-disable no-unused-vars */
-var baz = vm.runInNewContext(code, obj);
+const baz = vm.runInNewContext(global.code, global.obj);
 /* eslint-enable no-unused-vars */
-assert.equal(1, obj.foo);
-assert.equal(2, obj.bar);
-assert.equal(2, foo);
+assert.strictEqual(1, global.obj.foo);
+assert.strictEqual(2, global.obj.bar);
+assert.strictEqual(2, global.foo);
 
 console.error('call a function by reference');
-function changeFoo() { foo = 100; }
+function changeFoo() { global.foo = 100; }
 vm.runInNewContext('f()', { f: changeFoo });
-assert.equal(foo, 100);
+assert.strictEqual(global.foo, 100);
 
 console.error('modify an object by reference');
-var f = { a: 1 };
+const f = { a: 1 };
 vm.runInNewContext('f.a = 2', { f: f });
-assert.equal(f.a, 2);
+assert.strictEqual(f.a, 2);
 
 console.error('use function in context without referencing context');
-var fn = vm.runInNewContext('(function() { obj.p = {}; })', { obj: {} });
-gc();
+const fn = vm.runInNewContext('(function() { obj.p = {}; })', { obj: {} });
+global.gc();
 fn();
 // Should not crash

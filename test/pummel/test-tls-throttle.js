@@ -2,43 +2,33 @@
 // Server sends a large string. Client counts bytes and pauses every few
 // seconds. Makes sure that pause and resume work properly.
 
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
-var fs = require('fs');
-
-
-var body = '';
+const tls = require('tls');
+const fs = require('fs');
 
 process.stdout.write('build body...');
-for (var i = 0; i < 1024 * 1024; i++) {
-  body += 'hello world\n';
-}
+const body = 'hello world\n'.repeat(1024 * 1024);
 process.stdout.write('done\n');
 
-
-var options = {
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem')
 };
 
-var connections = 0;
-
-
-var server = tls.Server(options, function(socket) {
+const server = tls.Server(options, common.mustCall(function(socket) {
   socket.end(body);
-  connections++;
-});
+}));
 
-var recvCount = 0;
+let recvCount = 0;
 
 server.listen(common.PORT, function() {
-  var client = tls.connect({
+  const client = tls.connect({
     port: common.PORT,
     rejectUnauthorized: false
   });
@@ -68,11 +58,10 @@ function displayCounts() {
 }
 
 
-var timeout = setTimeout(displayCounts, 10 * 1000);
+const timeout = setTimeout(displayCounts, 10 * 1000);
 
 
 process.on('exit', function() {
   displayCounts();
-  assert.equal(1, connections);
-  assert.equal(body.length, recvCount);
+  assert.strictEqual(body.length, recvCount);
 });

@@ -49,7 +49,8 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     Address call_address = code_start_address + deopt_data->Pc(i)->value();
     Address deopt_entry = GetDeoptimizationEntry(isolate, i, LAZY);
 
-    PatchingAssembler patcher(call_address, patch_size() / kInstructionSize);
+    PatchingAssembler patcher(isolate, call_address,
+                              patch_size() / kInstructionSize);
     patcher.ldr_pcrel(ip0, (2 * kInstructionSize) >> kLoadLiteralScaleLog2);
     patcher.blr(ip0);
     patcher.dc64(reinterpret_cast<intptr_t>(deopt_entry));
@@ -61,35 +62,6 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     prev_call_address = call_address;
 #endif
   }
-}
-
-
-void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
-  // Set the register values. The values are not important as there are no
-  // callee saved registers in JavaScript frames, so all registers are
-  // spilled. Registers fp and sp are set to the correct values though.
-  for (int i = 0; i < Register::NumRegisters(); i++) {
-    input_->SetRegister(i, 0);
-  }
-
-  // TODO(all): Do we also need to set a value to csp?
-  input_->SetRegister(jssp.code(), reinterpret_cast<intptr_t>(frame->sp()));
-  input_->SetRegister(fp.code(), reinterpret_cast<intptr_t>(frame->fp()));
-
-  for (int i = 0; i < DoubleRegister::kMaxNumRegisters; i++) {
-    input_->SetDoubleRegister(i, 0.0);
-  }
-
-  // Fill the frame content from the actual data on the frame.
-  for (unsigned i = 0; i < input_->GetFrameSize(); i += kPointerSize) {
-    input_->SetFrameSlot(i, Memory::uint64_at(tos + i));
-  }
-}
-
-
-bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
-  // There is no dynamic alignment padding on ARM64 in the input frame.
-  return false;
 }
 
 
@@ -125,8 +97,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Save all allocatable floating point registers.
   CPURegList saved_fp_registers(
       CPURegister::kFPRegister, kDRegSizeInBits,
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT)
-          ->allocatable_double_codes_mask());
+      RegisterConfiguration::Crankshaft()->allocatable_double_codes_mask());
   __ PushCPURegList(saved_fp_registers);
 
   // We save all the registers expcept jssp, sp and lr.
@@ -154,12 +125,17 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // address for lazy deoptimization.
   __ Mov(code_object, lr);
   // Compute the fp-to-sp delta, and correct one word for bailout id.
-  __ Add(fp_to_sp, masm()->StackPointer(),
+  __ Add(fp_to_sp, __ StackPointer(),
          kSavedRegistersAreaSize + (1 * kPointerSize));
   __ Sub(fp_to_sp, fp, fp_to_sp);
 
   // Allocate a new deoptimizer object.
+  __ Mov(x0, 0);
+  Label context_check;
+  __ Ldr(x1, MemOperand(fp, CommonFrameConstants::kContextOrFrameTypeOffset));
+  __ JumpIfSmi(x1, &context_check);
   __ Ldr(x0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  __ bind(&context_check);
   __ Mov(x1, type());
   // Following arguments are already loaded:
   //  - x2: bailout id
@@ -190,11 +166,13 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   }
 
   // Copy FP registers to the input frame.
+  CPURegList copy_fp_to_input = saved_fp_registers;
   for (int i = 0; i < saved_fp_registers.Count(); i++) {
-    int dst_offset = FrameDescription::double_registers_offset() +
-        (i * kDoubleSize);
     int src_offset = kFPRegistersOffset + (i * kDoubleSize);
     __ Peek(x2, src_offset);
+    CPURegister reg = copy_fp_to_input.PopLowestIndex();
+    int dst_offset = FrameDescription::double_registers_offset() +
+                     (reg.code() * kDoubleSize);
     __ Str(x2, MemOperand(x1, dst_offset));
   }
 
@@ -232,6 +210,9 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   }
   __ Pop(x4);  // Restore deoptimizer object (class Deoptimizer).
 
+  __ Ldr(__ StackPointer(),
+         MemOperand(x4, Deoptimizer::caller_frame_top_offset()));
+
   // Replace the current (input) frame with the output frames.
   Label outer_push_loop, inner_push_loop,
       outer_loop_header, inner_loop_header;
@@ -263,11 +244,11 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   DCHECK(!saved_fp_registers.IncludesAliasOf(crankshaft_fp_scratch) &&
          !saved_fp_registers.IncludesAliasOf(fp_zero) &&
          !saved_fp_registers.IncludesAliasOf(fp_scratch));
-  int src_offset = FrameDescription::double_registers_offset();
   while (!saved_fp_registers.IsEmpty()) {
     const CPURegister reg = saved_fp_registers.PopLowestIndex();
+    int src_offset = FrameDescription::double_registers_offset() +
+                     (reg.code() * kDoubleSize);
     __ Ldr(reg, MemOperand(x1, src_offset));
-    src_offset += kDoubleSize;
   }
 
   // Push state from the last output frame.

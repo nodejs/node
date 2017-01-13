@@ -31,7 +31,7 @@ function listener(event, exec_state, event_data, data) {
   try {
     var source_line = exec_state.frame(0).sourceLineText();
     assertTrue(source_line.indexOf("// Break") > 0);
-    exec_state.prepareStep(Debug.StepAction.StepIn, 1);
+    exec_state.prepareStep(Debug.StepAction.StepIn);
     break_count++;
   } catch (e) {
     exception = e;

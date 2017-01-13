@@ -1,13 +1,14 @@
 /* eslint-disable max-len */
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
+const inspect = require('util').inspect;
 
-var url = require('url');
+const url = require('url');
 
 // URLs to parse, and expected data
 // { url : parsed }
-var parseTests = {
+const parseTests = {
   '//some_path': {
     href: '//some_path',
     pathname: '//some_path',
@@ -157,6 +158,17 @@ var parseTests = {
     path: '/Y'
   },
 
+  // whitespace in the front
+  ' http://www.example.com/': {
+    href: 'http://www.example.com/',
+    protocol: 'http:',
+    slashes: true,
+    host: 'www.example.com',
+    hostname: 'www.example.com',
+    pathname: '/',
+    path: '/'
+  },
+
   // + not an invalid host character
   // per https://url.spec.whatwg.org/#host-parsing
   'http://x.y.com+a/b/c': {
@@ -259,20 +271,19 @@ var parseTests = {
     path: '/vt/lyrs=m@114???&hl=en&src=api&x=2&y=2&z=3&s='
   },
 
-  'http://user:pass@mt0.google.com/vt/lyrs=m@114???&hl=en&src=api&x=2&y=2&z=3&s=':
-    {
-      href: 'http://user:pass@mt0.google.com/vt/lyrs=m@114???' +
-            '&hl=en&src=api&x=2&y=2&z=3&s=',
-      protocol: 'http:',
-      slashes: true,
-      host: 'mt0.google.com',
-      auth: 'user:pass',
-      hostname: 'mt0.google.com',
-      search: '???&hl=en&src=api&x=2&y=2&z=3&s=',
-      query: '??&hl=en&src=api&x=2&y=2&z=3&s=',
-      pathname: '/vt/lyrs=m@114',
-      path: '/vt/lyrs=m@114???&hl=en&src=api&x=2&y=2&z=3&s='
-    },
+  'http://user:pass@mt0.google.com/vt/lyrs=m@114???&hl=en&src=api&x=2&y=2&z=3&s=': {
+    href: 'http://user:pass@mt0.google.com/vt/lyrs=m@114???' +
+          '&hl=en&src=api&x=2&y=2&z=3&s=',
+    protocol: 'http:',
+    slashes: true,
+    host: 'mt0.google.com',
+    auth: 'user:pass',
+    hostname: 'mt0.google.com',
+    search: '???&hl=en&src=api&x=2&y=2&z=3&s=',
+    query: '??&hl=en&src=api&x=2&y=2&z=3&s=',
+    pathname: '/vt/lyrs=m@114',
+    path: '/vt/lyrs=m@114???&hl=en&src=api&x=2&y=2&z=3&s='
+  },
 
   'file:///etc/passwd': {
     href: 'file:///etc/passwd',
@@ -823,7 +834,21 @@ var parseTests = {
     query: '@c'
   },
 
-  'http://a\r" \t\n<\'b:b@c\r\nd/e?f':{
+  'http://a.b/\tbc\ndr\ref g"hq\'j<kl>?mn\\op^q=r`99{st|uv}wz': {
+    protocol: 'http:',
+    slashes: true,
+    host: 'a.b',
+    port: null,
+    hostname: 'a.b',
+    hash: null,
+    pathname: '/%09bc%0Adr%0Def%20g%22hq%27j%3Ckl%3E',
+    path: '/%09bc%0Adr%0Def%20g%22hq%27j%3Ckl%3E?mn%5Cop%5Eq=r%6099%7Bst%7Cuv%7Dwz',
+    search: '?mn%5Cop%5Eq=r%6099%7Bst%7Cuv%7Dwz',
+    query: 'mn%5Cop%5Eq=r%6099%7Bst%7Cuv%7Dwz',
+    href: 'http://a.b/%09bc%0Adr%0Def%20g%22hq%27j%3Ckl%3E?mn%5Cop%5Eq=r%6099%7Bst%7Cuv%7Dwz'
+  },
+
+  'http://a\r" \t\n<\'b:b@c\r\nd/e?f': {
     protocol: 'http:',
     slashes: true,
     auth: 'a\r" \t\n<\'b:b',
@@ -852,6 +877,21 @@ var parseTests = {
     pathname: '/:npm/npm',
     path: '/:npm/npm',
     href: 'git+ssh://git@github.com/:npm/npm'
+  },
+
+  'https://*': {
+    protocol: 'https:',
+    slashes: true,
+    auth: null,
+    host: '',
+    port: null,
+    hostname: '',
+    hash: null,
+    search: null,
+    query: null,
+    pathname: '/*',
+    path: '/*',
+    href: 'https:///*'
   }
 
 };
@@ -859,7 +899,7 @@ var parseTests = {
 for (const u in parseTests) {
   let actual = url.parse(u);
   const spaced = url.parse(`     \t  ${u}\n\t`);
-  let expected = parseTests[u];
+  let expected = Object.assign(new url.Url(), parseTests[u]);
 
   Object.keys(actual).forEach(function(i) {
     if (expected[i] === undefined && actual[i] === null) {
@@ -867,24 +907,47 @@ for (const u in parseTests) {
     }
   });
 
-  assert.deepEqual(actual, expected);
-  assert.deepEqual(spaced, expected);
+  assert.deepStrictEqual(
+    actual,
+    expected,
+    `expected ${inspect(expected)}, got ${inspect(actual)}`
+  );
+  assert.deepStrictEqual(
+    spaced,
+    expected,
+    `expected ${inspect(expected)}, got ${inspect(spaced)}`
+  );
 
   expected = parseTests[u].href;
   actual = url.format(parseTests[u]);
 
-  assert.equal(actual, expected,
-               'format(' + u + ') == ' + u + '\nactual:' + actual);
+  assert.strictEqual(actual, expected,
+                     'format(' + u + ') == ' + u + '\nactual:' + actual);
 }
 
-var parseTestsWithQueryString = {
+function createWithNoPrototype(properties = []) {
+  const noProto = Object.create(null);
+  properties.forEach((property) => {
+    noProto[property.key] = property.value;
+  });
+  return noProto;
+}
+
+function check(actual, expected) {
+  assert.notStrictEqual(Object.getPrototypeOf(actual), Object.prototype);
+  assert.deepStrictEqual(Object.keys(actual).sort(),
+                         Object.keys(expected).sort());
+  Object.keys(expected).forEach(function(key) {
+    assert.deepStrictEqual(actual[key], expected[key]);
+  });
+}
+
+const parseTestsWithQueryString = {
   '/foo/bar?baz=quux#frag': {
     href: '/foo/bar?baz=quux#frag',
     hash: '#frag',
     search: '?baz=quux',
-    query: {
-      baz: 'quux'
-    },
+    query: createWithNoPrototype([{key: 'baz', value: 'quux'}]),
     pathname: '/foo/bar',
     path: '/foo/bar?baz=quux'
   },
@@ -894,7 +957,7 @@ var parseTestsWithQueryString = {
     slashes: true,
     host: 'example.com',
     hostname: 'example.com',
-    query: {},
+    query: createWithNoPrototype(),
     search: '',
     pathname: '/',
     path: '/'
@@ -902,27 +965,27 @@ var parseTestsWithQueryString = {
   '/example': {
     protocol: null,
     slashes: null,
-    auth: null,
+    auth: undefined,
     host: null,
     port: null,
     hostname: null,
     hash: null,
     search: '',
-    query: {},
+    query: createWithNoPrototype(),
     pathname: '/example',
     path: '/example',
     href: '/example'
   },
-  '/example?query=value':{
+  '/example?query=value': {
     protocol: null,
     slashes: null,
-    auth: null,
+    auth: undefined,
     host: null,
     port: null,
     hostname: null,
     hash: null,
     search: '?query=value',
-    query: { query: 'value' },
+    query: createWithNoPrototype([{ key: 'query', value: 'value' }]),
     pathname: '/example',
     path: '/example?query=value',
     href: '/example?query=value'
@@ -930,19 +993,27 @@ var parseTestsWithQueryString = {
 };
 for (const u in parseTestsWithQueryString) {
   const actual = url.parse(u, true);
-  const expected = parseTestsWithQueryString[u];
+  const expected = Object.assign(new url.Url(), parseTestsWithQueryString[u]);
   for (const i in actual) {
     if (actual[i] === null && expected[i] === undefined) {
       expected[i] = null;
     }
   }
 
-  assert.deepEqual(actual, expected);
+  const properties = Object.keys(actual).sort();
+  assert.deepStrictEqual(properties, Object.keys(expected).sort());
+  properties.forEach((property) => {
+    if (property === 'query') {
+      check(actual[property], expected[property]);
+    } else {
+      assert.deepStrictEqual(actual[property], expected[property]);
+    }
+  });
 }
 
 // some extra formatting tests, just to verify
 // that it'll format slightly wonky content to a valid url.
-var formatTests = {
+const formatTests = {
   'http://example.com?': {
     href: 'http://example.com/?',
     protocol: 'http:',
@@ -1092,7 +1163,7 @@ var formatTests = {
 
   // `#`,`?` in path
   '/path/to/%%23%3F+=&.txt?foo=theA1#bar': {
-    href : '/path/to/%%23%3F+=&.txt?foo=theA1#bar',
+    href: '/path/to/%%23%3F+=&.txt?foo=theA1#bar',
     pathname: '/path/to/%#?+=&.txt',
     query: {
       foo: 'theA1'
@@ -1102,7 +1173,7 @@ var formatTests = {
 
   // `#`,`?` in path + `#` in query
   '/path/to/%%23%3F+=&.txt?foo=the%231#bar': {
-    href : '/path/to/%%23%3F+=&.txt?foo=the%231#bar',
+    href: '/path/to/%%23%3F+=&.txt?foo=the%231#bar',
     pathname: '/path/to/%#?+=&.txt',
     query: {
       foo: 'the#1'
@@ -1128,6 +1199,49 @@ var formatTests = {
     hash: '#frag',
     search: '?abc=the#1?&foo=bar',
     pathname: '/fooA100%mBr',
+  },
+
+  // multiple `#` in search
+  'http://example.com/?foo=bar%231%232%233&abc=%234%23%235#frag': {
+    href: 'http://example.com/?foo=bar%231%232%233&abc=%234%23%235#frag',
+    protocol: 'http:',
+    slashes: true,
+    host: 'example.com',
+    hostname: 'example.com',
+    hash: '#frag',
+    search: '?foo=bar#1#2#3&abc=#4##5',
+    query: {},
+    pathname: '/'
+  },
+
+  // more than 255 characters in hostname which exceeds the limit
+  [`http://${'a'.repeat(255)}.com/node`]: {
+    href: 'http:///node',
+    protocol: 'http:',
+    slashes: true,
+    host: '',
+    hostname: '',
+    pathname: '/node',
+    path: '/node'
+  },
+
+   // greater than or equal to 63 characters after `.` in hostname
+  [`http://www.${'z'.repeat(63)}example.com/node`]: {
+    href: `http://www.${'z'.repeat(63)}example.com/node`,
+    protocol: 'http:',
+    slashes: true,
+    host: `www.${'z'.repeat(63)}example.com`,
+    hostname: `www.${'z'.repeat(63)}example.com`,
+    pathname: '/node',
+    path: '/node'
+  },
+
+  // https://github.com/nodejs/node/issues/3361
+  'file:///home/user': {
+    href: 'file:///home/user',
+    protocol: 'file',
+    pathname: '/home/user',
+    path: '/home/user'
   }
 };
 for (const u in formatTests) {
@@ -1135,19 +1249,19 @@ for (const u in formatTests) {
   delete formatTests[u].href;
   const actual = url.format(u);
   const actualObj = url.format(formatTests[u]);
-  assert.equal(actual, expect,
-               'wonky format(' + u + ') == ' + expect +
-               '\nactual:' + actual);
-  assert.equal(actualObj, expect,
-               'wonky format(' + JSON.stringify(formatTests[u]) +
-               ') == ' + expect +
-               '\nactual: ' + actualObj);
+  assert.strictEqual(actual, expect,
+                     'wonky format(' + u + ') == ' + expect +
+                     '\nactual:' + actual);
+  assert.strictEqual(actualObj, expect,
+                     'wonky format(' + JSON.stringify(formatTests[u]) +
+                     ') == ' + expect +
+                     '\nactual: ' + actualObj);
 }
 
 /*
  [from, path, expected]
 */
-var relativeTests = [
+const relativeTests = [
   ['/foo/bar/baz', 'quux', '/foo/bar/quux'],
   ['/foo/bar/baz', 'quux/asdf', '/foo/bar/quux/asdf'],
   ['/foo/bar/baz', 'quux/baz', '/foo/bar/quux/baz'],
@@ -1196,8 +1310,8 @@ var relativeTests = [
 relativeTests.forEach(function(relativeTest) {
   const a = url.resolve(relativeTest[0], relativeTest[1]);
   const e = relativeTest[2];
-  assert.equal(a, e,
-               'resolve(' + [relativeTest[0], relativeTest[1]] + ') == ' + e +
+  assert.strictEqual(a, e,
+                     'resolve(' + [relativeTest[0], relativeTest[1]] + ') == ' + e +
                '\n  actual=' + a);
 });
 
@@ -1226,7 +1340,7 @@ relativeTests.forEach(function(relativeTest) {
 //
 // Changes marked with @isaacs
 
-var bases = [
+const bases = [
   'http://a/b/c/d;p?q',
   'http://a/b/c/d;p?q=1/2',
   'http://a/b/c/d;p=1/2?q',
@@ -1235,7 +1349,7 @@ var bases = [
 ];
 
 //[to, from, result]
-var relativeTests2 = [
+const relativeTests2 = [
   // http://lists.w3.org/Archives/Public/uri/2004Feb/0114.html
   ['../c', 'foo:a/b', 'foo:c'],
   ['foo:.', 'foo:a', 'foo:'],
@@ -1501,13 +1615,35 @@ var relativeTests2 = [
   //changeing auth
   ['http://diff:auth@www.example.com',
    'http://asdf:qwer@www.example.com',
-   'http://diff:auth@www.example.com/']
+   'http://diff:auth@www.example.com/'],
+
+  // changing port
+  ['https://example.com:81/',
+   'https://example.com:82/',
+   'https://example.com:81/'],
+
+  // https://github.com/nodejs/node/issues/1435
+  ['https://another.host.com/',
+   'https://user:password@example.org/',
+   'https://another.host.com/'],
+  ['//another.host.com/',
+   'https://user:password@example.org/',
+   'https://another.host.com/'],
+  ['http://another.host.com/',
+   'https://user:password@example.org/',
+   'http://another.host.com/'],
+  ['mailto:another.host.com',
+   'mailto:user@example.org',
+   'mailto:another.host.com'],
+  ['https://example.com/foo',
+   'https://user:password@example.com',
+   'https://user:password@example.com/foo'],
 ];
 relativeTests2.forEach(function(relativeTest) {
   const a = url.resolve(relativeTest[1], relativeTest[0]);
-  const e = relativeTest[2];
-  assert.equal(a, e,
-               'resolve(' + [relativeTest[1], relativeTest[0]] + ') == ' + e +
+  const e = url.format(relativeTest[2]);
+  assert.strictEqual(a, e,
+                     'resolve(' + [relativeTest[1], relativeTest[0]] + ') == ' + e +
                '\n  actual=' + a);
 });
 
@@ -1516,17 +1652,17 @@ relativeTests2.forEach(function(relativeTest) {
 
 //format: [from, path, expected]
 relativeTests.forEach(function(relativeTest) {
-  var actual = url.resolveObject(url.parse(relativeTest[0]), relativeTest[1]);
-  var expected = url.parse(relativeTest[2]);
+  let actual = url.resolveObject(url.parse(relativeTest[0]), relativeTest[1]);
+  let expected = url.parse(relativeTest[2]);
 
 
-  assert.deepEqual(actual, expected);
+  assert.deepStrictEqual(actual, expected);
 
   expected = relativeTest[2];
   actual = url.format(actual);
 
-  assert.equal(actual, expected,
-               'format(' + actual + ') == ' + expected + '\nactual:' + actual);
+  assert.strictEqual(actual, expected,
+                     'format(' + actual + ') == ' + expected + '\nactual:' + actual);
 });
 
 //format: [to, from, result]
@@ -1544,22 +1680,26 @@ if (relativeTests2[181][0] === './/g' &&
   relativeTests2.splice(181, 1);
 }
 relativeTests2.forEach(function(relativeTest) {
-  var actual = url.resolveObject(url.parse(relativeTest[1]), relativeTest[0]);
-  var expected = url.parse(relativeTest[2]);
+  let actual = url.resolveObject(url.parse(relativeTest[1]), relativeTest[0]);
+  let expected = url.parse(relativeTest[2]);
 
-  assert.deepEqual(actual, expected);
+  assert.deepStrictEqual(
+    actual,
+    expected,
+    `expected ${inspect(expected)} but got ${inspect(actual)}`
+  );
 
-  expected = relativeTest[2];
+  expected = url.format(relativeTest[2]);
   actual = url.format(actual);
 
-  assert.equal(actual, expected,
-               'format(' + relativeTest[1] + ') == ' + expected +
+  assert.strictEqual(actual, expected,
+                     'format(' + relativeTest[1] + ') == ' + expected +
                '\nactual:' + actual);
 });
 
 
 // https://github.com/nodejs/node/pull/1036
-var throws = [
+const throws = [
   undefined,
   null,
   true,
@@ -1570,5 +1710,5 @@ var throws = [
 for (let i = 0; i < throws.length; i++) {
   assert.throws(function() { url.format(throws[i]); }, TypeError);
 }
-assert(url.format('') === '');
-assert(url.format({}) === '');
+assert.strictEqual(url.format(''), '');
+assert.strictEqual(url.format({}), '');

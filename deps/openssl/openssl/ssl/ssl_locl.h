@@ -436,8 +436,9 @@
 # define SSL_MEDIUM              0x00000040L
 # define SSL_HIGH                0x00000080L
 # define SSL_FIPS                0x00000100L
+# define SSL_NOT_DEFAULT         0x00000200L
 
-/* we have used 000001ff - 23 bits left to go */
+/* we have used 000003ff - 22 bits left to go */
 
 /*-
  * Macros to check the export status and cipher strength for export ciphers.
@@ -490,6 +491,12 @@
 # define SSL_CLIENT_USE_TLS1_2_CIPHERS(s)        \
                 ((SSL_IS_DTLS(s) && s->client_version <= DTLS1_2_VERSION) || \
                 (!SSL_IS_DTLS(s) && s->client_version >= TLS1_2_VERSION))
+/*
+ * Determine if a client should send signature algorithms extension:
+ * as with TLS1.2 cipher we can't rely on method flags.
+ */
+# define SSL_CLIENT_USE_SIGALGS(s)        \
+    SSL_CLIENT_USE_TLS1_2_CIPHERS(s)
 
 /* Mostly for SSLv3 */
 # define SSL_PKEY_RSA_ENC        0
@@ -583,6 +590,8 @@ typedef struct {
  * corresponding ServerHello extension.
  */
 # define SSL_EXT_FLAG_SENT       0x2
+
+# define MAX_WARN_ALERT_COUNT    5
 
 typedef struct {
     custom_ext_method *meths;
@@ -687,6 +696,12 @@ typedef struct cert_st {
     custom_ext_methods cli_ext;
     custom_ext_methods srv_ext;
     int references;             /* >1 only if SSL_copy_session_id is used */
+    /* non-optimal, but here due to compatibility */
+    unsigned char *alpn_proposed;   /* server */
+    unsigned int alpn_proposed_len;
+    int alpn_sent;                  /* client */
+    /* Count of the number of consecutive warning alerts received */
+    unsigned int alert_count;
 } CERT;
 
 typedef struct sess_cert_st {
@@ -1237,7 +1252,8 @@ int dtls1_retransmit_message(SSL *s, unsigned short seq,
                              unsigned long frag_off, int *found);
 int dtls1_get_queue_priority(unsigned short seq, int is_ccs);
 int dtls1_retransmit_buffered_messages(SSL *s);
-void dtls1_clear_record_buffer(SSL *s);
+void dtls1_clear_received_buffer(SSL *s);
+void dtls1_clear_sent_buffer(SSL *s);
 void dtls1_get_message_header(unsigned char *data,
                               struct hm_header_st *msg_hdr);
 void dtls1_get_ccs_header(unsigned char *data, struct ccs_header_st *ccs_hdr);

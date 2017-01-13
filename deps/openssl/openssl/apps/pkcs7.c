@@ -235,12 +235,16 @@ int MAIN(int argc, char **argv)
         i = OBJ_obj2nid(p7->type);
         switch (i) {
         case NID_pkcs7_signed:
-            certs = p7->d.sign->cert;
-            crls = p7->d.sign->crl;
+            if (p7->d.sign != NULL) {
+                certs = p7->d.sign->cert;
+                crls = p7->d.sign->crl;
+            }
             break;
         case NID_pkcs7_signedAndEnveloped:
-            certs = p7->d.signed_and_enveloped->cert;
-            crls = p7->d.signed_and_enveloped->crl;
+            if (p7->d.signed_and_enveloped != NULL) {
+                certs = p7->d.signed_and_enveloped->cert;
+                crls = p7->d.signed_and_enveloped->crl;
+            }
             break;
         default:
             break;

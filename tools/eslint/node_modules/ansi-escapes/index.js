@@ -76,4 +76,31 @@ x.eraseScreen = ESC + '2J';
 x.scrollUp = ESC + 'S';
 x.scrollDown = ESC + 'T';
 
+x.clearScreen = '\u001bc';
 x.beep = '\u0007';
+
+x.image = function (buf, opts) {
+	opts = opts || {};
+
+	var ret = '\u001b]1337;File=inline=1';
+
+	if (opts.width) {
+		ret += ';width=' + opts.width;
+	}
+
+	if (opts.height) {
+		ret += ';height=' + opts.height;
+	}
+
+	if (opts.preserveAspectRatio === false) {
+		ret += ';preserveAspectRatio=0';
+	}
+
+	return ret + ':' + buf.toString('base64') + '\u0007';
+};
+
+x.iTerm = {};
+
+x.iTerm.setCwd = function (cwd) {
+	return '\u001b]50;CurrentDir=' + (cwd || process.cwd()) + '\u0007';
+};

@@ -1,0 +1,7 @@
+{
+    "errors": [
+        "Domain.event: event has been removed",
+        "Domain.command: command has been removed",
+        "Domain.command.param parameter->Domain.TypeName.property: required property has been removed"
+    ]
+}

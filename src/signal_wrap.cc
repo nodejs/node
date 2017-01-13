@@ -10,7 +10,6 @@
 namespace node {
 
 using v8::Context;
-using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
@@ -32,6 +31,7 @@ class SignalWrap : public HandleWrap {
     env->SetProtoMethod(constructor, "close", HandleWrap::Close);
     env->SetProtoMethod(constructor, "ref", HandleWrap::Ref);
     env->SetProtoMethod(constructor, "unref", HandleWrap::Unref);
+    env->SetProtoMethod(constructor, "hasRef", HandleWrap::HasRef);
     env->SetProtoMethod(constructor, "start", Start);
     env->SetProtoMethod(constructor, "stop", Stop);
 
@@ -61,14 +61,25 @@ class SignalWrap : public HandleWrap {
   }
 
   static void Start(const FunctionCallbackInfo<Value>& args) {
-    SignalWrap* wrap = Unwrap<SignalWrap>(args.Holder());
+    SignalWrap* wrap;
+    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
     int signum = args[0]->Int32Value();
+#if defined(__POSIX__) && HAVE_INSPECTOR
+    if (signum == SIGPROF) {
+      Environment* env = Environment::GetCurrent(args);
+      if (env->inspector_agent()->IsStarted()) {
+        fprintf(stderr, "process.on(SIGPROF) is reserved while debugging\n");
+        return;
+      }
+    }
+#endif
     int err = uv_signal_start(&wrap->handle_, OnSignal, signum);
     args.GetReturnValue().Set(err);
   }
 
   static void Stop(const FunctionCallbackInfo<Value>& args) {
-    SignalWrap* wrap = Unwrap<SignalWrap>(args.Holder());
+    SignalWrap* wrap;
+    ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
     int err = uv_signal_stop(&wrap->handle_);
     args.GetReturnValue().Set(err);
   }

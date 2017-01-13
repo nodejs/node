@@ -1,9 +1,9 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var events = require('events');
+const assert = require('assert');
+const events = require('events');
 
-var e = new events.EventEmitter();
+let e = new events.EventEmitter();
 
 // default
 for (let i = 0; i < 10; i++) {
@@ -12,6 +12,14 @@ for (let i = 0; i < 10; i++) {
 assert.ok(!e._events['default'].hasOwnProperty('warned'));
 e.on('default', function() {});
 assert.ok(e._events['default'].warned);
+
+// symbol
+const symbol = Symbol('symbol');
+e.setMaxListeners(1);
+e.on(symbol, function() {});
+assert.ok(!e._events[symbol].hasOwnProperty('warned'));
+e.on(symbol, function() {});
+assert.ok(e._events[symbol].hasOwnProperty('warned'));
 
 // specific
 e.setMaxListeners(5);

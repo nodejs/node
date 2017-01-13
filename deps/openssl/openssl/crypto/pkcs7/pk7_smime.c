@@ -274,12 +274,29 @@ int PKCS7_verify(PKCS7 *p7, STACK_OF(X509) *certs, X509_STORE *store,
         PKCS7err(PKCS7_F_PKCS7_VERIFY, PKCS7_R_NO_CONTENT);
         return 0;
     }
+#if 0
+    /*
+     * NB: this test commented out because some versions of Netscape
+     * illegally include zero length content when signing data. Also
+     * Microsoft Authenticode includes a SpcIndirectDataContent data
+     * structure which describes the content to be protected by the
+     * signature, rather than directly embedding that content. So
+     * Authenticode implementations are also expected to use
+     * PKCS7_verify() with explicit external data, on non-detached
+     * PKCS#7 signatures.
+     *
+     * In OpenSSL 1.1 a new flag PKCS7_NO_DUAL_CONTENT has been
+     * introduced to disable this sanity check. For the 1.0.2 branch
+     * this change is not acceptable, so the check remains completely
+     * commented out (as it has been for a long time).
+     */
 
     /* Check for data and content: two sets of data */
     if (!PKCS7_get_detached(p7) && indata) {
         PKCS7err(PKCS7_F_PKCS7_VERIFY, PKCS7_R_CONTENT_AND_DATA_PRESENT);
         return 0;
     }
+#endif
 
     sinfos = PKCS7_get_signer_info(p7);
 

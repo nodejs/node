@@ -13,11 +13,19 @@
             '../../src/d8.gyp:d8_run',
           ],
           'includes': [
-            '../../build/features.gypi',
-            '../../build/isolate.gypi',
+            '../../gypfiles/features.gypi',
+            '../../gypfiles/isolate.gypi',
           ],
           'sources': [
             'test262.isolate',
+          ],
+          'actions': [
+            {
+              'action_name': 'archive_test262',
+              'inputs': ['archive.py', '<!@(python list.py)'],
+              'outputs': ['data.tar'],
+              'action': ['python', 'archive.py'],
+            },
           ],
         },
       ],

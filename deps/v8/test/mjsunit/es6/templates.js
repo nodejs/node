@@ -697,3 +697,22 @@ var global = this;
   assertArrayEquals(["get0"], log);
   assertArrayEquals([1], tagged);
 })();
+
+
+// Since the first argument to the tag function is always an array,
+// eval calls will always just return that array.
+(function testEvalTagStrict() {
+  "use strict";
+  var f = (x) => eval`a${x}b`;
+  var result = f();
+  assertEquals(["a", "b"], result);
+  assertSame(result, f());
+})();
+
+
+(function testEvalTagSloppy() {
+  var f = (x) => eval`a${x}b`;
+  var result = f();
+  assertEquals(["a", "b"], result);
+  assertSame(result, f());
+})();

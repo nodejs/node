@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-proxies
-
 // Test for-of semantics.
 
 "use strict";
@@ -307,35 +305,36 @@ assertEquals(5,
              try_control(integers_until(10),
                          function(x) { return (x == 5) ? x : "continue" }));
 
+// TODO(neis,cbruni): Enable once the corresponding traps work again.
 // Proxy results, with getters.
-function transparent_proxy(x) {
-  return Proxy.create({
-    get: function(receiver, name) { return x[name]; }
-  });
-}
-assertEquals([1, 2],
-             fold(append, [],
-                  results([one_time_getter({ value: 1 }, 'done', false),
-                           one_time_getter({ done: false }, 'value', 2),
-                           { value: 37, done: true },
-                           never_getter(never_getter({}, 'done'), 'value')]
-                          .map(transparent_proxy))));
+// function transparent_proxy(x) {
+//   return new Proxy({}, {
+//     get: function(receiver, name) { return x[name]; }
+//   });
+// }
+// assertEquals([1, 2],
+//              fold(append, [],
+//                   results([one_time_getter({ value: 1 }, 'done', false),
+//                            one_time_getter({ done: false }, 'value', 2),
+//                            { value: 37, done: true },
+//                            never_getter(never_getter({}, 'done'), 'value')]
+//                           .map(transparent_proxy))));
 
 // Proxy iterators.
-function poison_proxy_after(iterable, n) {
-  var iterator = iterable[Symbol.iterator]();
-  return wrap_iterator(Proxy.create({
-    get: function(receiver, name) {
-      if (name == 'next' && n-- < 0) throw "unreachable";
-      return iterator[name];
-    },
-    // Needed for integers_until(10)'s this.n++.
-    set: function(receiver, name, val) {
-      return iterator[name] = val;
-    }
-  }));
-}
-assertEquals(45, fold(sum, 0, poison_proxy_after(integers_until(10), 10)));
+// function poison_proxy_after(iterable, n) {
+//   var iterator = iterable[Symbol.iterator]();
+//   return wrap_iterator(new Proxy({}, {
+//     get: function(receiver, name) {
+//       if (name == 'next' && n-- < 0) throw "unreachable";
+//       return iterator[name];
+//     },
+//     // Needed for integers_until(10)'s this.n++.
+//     set: function(receiver, name, val) {
+//       return iterator[name] = val;
+//     }
+//   }));
+// }
+// assertEquals(45, fold(sum, 0, poison_proxy_after(integers_until(10), 10)));
 
 
 function test_iterator_result_object_non_object(value, descr) {

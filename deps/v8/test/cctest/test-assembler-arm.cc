@@ -46,7 +46,7 @@ typedef Object* (*F1)(int x, int p1, int p2, int p3, int p4);
 typedef Object* (*F2)(int x, int y, int p2, int p3, int p4);
 typedef Object* (*F3)(void* p0, int p1, int p2, int p3, int p4);
 typedef Object* (*F4)(void* p0, void* p1, int p2, int p3, int p4);
-
+typedef Object* (*F5)(uint32_t p0, void* p1, void* p2, int p3, int p4);
 
 #define __ assm.
 
@@ -69,7 +69,8 @@ TEST(0) {
   code->Print(os);
 #endif
   F2 f = FUNCTION_CAST<F2>(code->entry());
-  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 3, 4, 0, 0, 0));
+  int res =
+      reinterpret_cast<int>(CALL_GENERATED_CODE(isolate, f, 3, 4, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(7, res);
 }
@@ -105,7 +106,8 @@ TEST(1) {
   code->Print(os);
 #endif
   F1 f = FUNCTION_CAST<F1>(code->entry());
-  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 100, 0, 0, 0, 0));
+  int res =
+      reinterpret_cast<int>(CALL_GENERATED_CODE(isolate, f, 100, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(5050, res);
 }
@@ -150,7 +152,8 @@ TEST(2) {
   code->Print(os);
 #endif
   F1 f = FUNCTION_CAST<F1>(code->entry());
-  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 10, 0, 0, 0, 0));
+  int res =
+      reinterpret_cast<int>(CALL_GENERATED_CODE(isolate, f, 10, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(3628800, res);
 }
@@ -200,7 +203,8 @@ TEST(3) {
   t.i = 100000;
   t.c = 10;
   t.s = 1000;
-  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0));
+  int res =
+      reinterpret_cast<int>(CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(101010, res);
   CHECK_EQ(100000/2, t.i);
@@ -228,6 +232,8 @@ TEST(4) {
     double j;
     double m;
     double n;
+    float o;
+    float p;
     float x;
     float y;
   } T;
@@ -310,6 +316,12 @@ TEST(4) {
     __ vneg(d0, d1);
     __ vstr(d0, r4, offsetof(T, n));
 
+    // Test vmov for single-precision immediates.
+    __ vmov(s0, 0.25f);
+    __ vstr(s0, r4, offsetof(T, o));
+    __ vmov(s0, -16.0f);
+    __ vstr(s0, r4, offsetof(T, p));
+
     __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
 
     CodeDesc desc;
@@ -335,8 +347,10 @@ TEST(4) {
     t.n = 123.456;
     t.x = 4.5;
     t.y = 9.0;
-    Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+    Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
     USE(dummy);
+    CHECK_EQ(-16.0f, t.p);
+    CHECK_EQ(0.25f, t.o);
     CHECK_EQ(-123.456, t.n);
     CHECK_EQ(2718.2818, t.m);
     CHECK_EQ(2, t.i);
@@ -383,7 +397,7 @@ TEST(5) {
 #endif
     F1 f = FUNCTION_CAST<F1>(code->entry());
     int res = reinterpret_cast<int>(
-                CALL_GENERATED_CODE(f, 0xAAAAAAAA, 0, 0, 0, 0));
+        CALL_GENERATED_CODE(isolate, f, 0xAAAAAAAA, 0, 0, 0, 0));
     ::printf("f() = %d\n", res);
     CHECK_EQ(-7, res);
   }
@@ -398,29 +412,26 @@ TEST(6) {
 
   Assembler assm(isolate, NULL, 0);
 
-  if (CpuFeatures::IsSupported(ARMv7)) {
-    CpuFeatureScope scope(&assm, ARMv7);
-    __ usat(r1, 8, Operand(r0));           // Sat 0xFFFF to 0-255 = 0xFF.
-    __ usat(r2, 12, Operand(r0, ASR, 9));  // Sat (0xFFFF>>9) to 0-4095 = 0x7F.
-    __ usat(r3, 1, Operand(r0, LSL, 16));  // Sat (0xFFFF<<16) to 0-1 = 0x0.
-    __ add(r0, r1, Operand(r2));
-    __ add(r0, r0, Operand(r3));
-    __ mov(pc, Operand(lr));
+  __ usat(r1, 8, Operand(r0));           // Sat 0xFFFF to 0-255 = 0xFF.
+  __ usat(r2, 12, Operand(r0, ASR, 9));  // Sat (0xFFFF>>9) to 0-4095 = 0x7F.
+  __ usat(r3, 1, Operand(r0, LSL, 16));  // Sat (0xFFFF<<16) to 0-1 = 0x0.
+  __ add(r0, r1, Operand(r2));
+  __ add(r0, r0, Operand(r3));
+  __ mov(pc, Operand(lr));
 
-    CodeDesc desc;
-    assm.GetCode(&desc);
-    Handle<Code> code = isolate->factory()->NewCode(
-        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 #ifdef DEBUG
-    OFStream os(stdout);
-    code->Print(os);
+  OFStream os(stdout);
+  code->Print(os);
 #endif
-    F1 f = FUNCTION_CAST<F1>(code->entry());
-    int res = reinterpret_cast<int>(
-                CALL_GENERATED_CODE(f, 0xFFFF, 0, 0, 0, 0));
-    ::printf("f() = %d\n", res);
-    CHECK_EQ(382, res);
-  }
+  F1 f = FUNCTION_CAST<F1>(code->entry());
+  int res = reinterpret_cast<int>(
+      CALL_GENERATED_CODE(isolate, f, 0xFFFF, 0, 0, 0, 0));
+  ::printf("f() = %d\n", res);
+  CHECK_EQ(382, res);
 }
 
 
@@ -490,8 +501,8 @@ static void TestRoundingMode(VCVTTypes types,
     code->Print(os);
 #endif
     F1 f = FUNCTION_CAST<F1>(code->entry());
-    int res = reinterpret_cast<int>(
-                CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+    int res =
+        reinterpret_cast<int>(CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
     ::printf("res = %d\n", res);
     CHECK_EQ(expected, res);
   }
@@ -692,7 +703,7 @@ TEST(8) {
   f.g = 7.0;
   f.h = 8.0;
 
-  Object* dummy = CALL_GENERATED_CODE(fn, &d, &f, 0, 0, 0);
+  Object* dummy = CALL_GENERATED_CODE(isolate, fn, &d, &f, 0, 0, 0);
   USE(dummy);
 
   CHECK_EQ(7.7, d.a);
@@ -802,7 +813,7 @@ TEST(9) {
   f.g = 7.0;
   f.h = 8.0;
 
-  Object* dummy = CALL_GENERATED_CODE(fn, &d, &f, 0, 0, 0);
+  Object* dummy = CALL_GENERATED_CODE(isolate, fn, &d, &f, 0, 0, 0);
   USE(dummy);
 
   CHECK_EQ(7.7, d.a);
@@ -908,7 +919,7 @@ TEST(10) {
   f.g = 7.0;
   f.h = 8.0;
 
-  Object* dummy = CALL_GENERATED_CODE(fn, &d, &f, 0, 0, 0);
+  Object* dummy = CALL_GENERATED_CODE(isolate, fn, &d, &f, 0, 0, 0);
   USE(dummy);
 
   CHECK_EQ(7.7, d.a);
@@ -985,7 +996,7 @@ TEST(11) {
   code->Print(os);
 #endif
   F3 f = FUNCTION_CAST<F3>(code->entry());
-  Object* dummy = CALL_GENERATED_CODE(f, &i, 0, 0, 0, 0);
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &i, 0, 0, 0, 0);
   USE(dummy);
 
   CHECK_EQ(static_cast<int32_t>(0xabcd0001), i.a);
@@ -1119,7 +1130,7 @@ TEST(13) {
     t.x = 1.5;
     t.y = 2.75;
     t.z = 17.17;
-    Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+    Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
     USE(dummy);
     CHECK_EQ(14.7610017472335499, t.a);
     CHECK_EQ(3.84200491244266251, t.b);
@@ -1192,14 +1203,14 @@ TEST(14) {
   t.sub_result = 0;
   t.mul_result = 0;
   t.div_result = 0;
-  Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
   USE(dummy);
   const uint32_t kArmNanUpper32 = 0x7ff80000;
   const uint32_t kArmNanLower32 = 0x00000000;
 #ifdef DEBUG
   const uint64_t kArmNanInt64 =
       (static_cast<uint64_t>(kArmNanUpper32) << 32) | kArmNanLower32;
-  DCHECK(kArmNanInt64 != kHoleNanInt64);
+  CHECK(kArmNanInt64 != kHoleNanInt64);
 #endif
   // With VFP2 the sign of the canonicalized Nan is undefined. So
   // we remove the sign bit for the upper tests.
@@ -1320,7 +1331,7 @@ TEST(15) {
     t.dstA5 = 0;
     t.dstA6 = 0;
     t.dstA7 = 0;
-    Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+    Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
     USE(dummy);
     CHECK_EQ(0x01020304u, t.dst0);
     CHECK_EQ(0x11121314u, t.dst1);
@@ -1405,7 +1416,7 @@ TEST(16) {
   t.dst2 = 0;
   t.dst3 = 0;
   t.dst4 = 0;
-  Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
   USE(dummy);
   CHECK_EQ(0x12130304u, t.dst0);
   CHECK_EQ(0x01021213u, t.dst1);
@@ -1435,12 +1446,12 @@ TEST(17) {
 }
 
 
-#define TEST_SDIV(expected_, dividend_, divisor_) \
-    t.dividend = dividend_; \
-    t.divisor = divisor_; \
-    t.result = 0; \
-    dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0); \
-    CHECK_EQ(expected_, t.result);
+#define TEST_SDIV(expected_, dividend_, divisor_)          \
+  t.dividend = dividend_;                                  \
+  t.divisor = divisor_;                                    \
+  t.result = 0;                                            \
+  dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0); \
+  CHECK_EQ(expected_, t.result);
 
 
 TEST(sdiv) {
@@ -1499,11 +1510,11 @@ TEST(sdiv) {
 #undef TEST_SDIV
 
 
-#define TEST_UDIV(expected_, dividend_, divisor_) \
-  t.dividend = dividend_;                         \
-  t.divisor = divisor_;                           \
-  t.result = 0;                                   \
-  dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0); \
+#define TEST_UDIV(expected_, dividend_, divisor_)          \
+  t.dividend = dividend_;                                  \
+  t.divisor = divisor_;                                    \
+  t.result = 0;                                            \
+  dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0); \
   CHECK_EQ(expected_, t.result);
 
 
@@ -1574,7 +1585,7 @@ TEST(smmla) {
   F3 f = FUNCTION_CAST<F3>(code->entry());
   for (size_t i = 0; i < 128; ++i) {
     int32_t r, x = rng->NextInt(), y = rng->NextInt(), z = rng->NextInt();
-    Object* dummy = CALL_GENERATED_CODE(f, &r, x, y, z, 0);
+    Object* dummy = CALL_GENERATED_CODE(isolate, f, &r, x, y, z, 0);
     CHECK_EQ(bits::SignedMulHighAndAdd32(x, y, z), r);
     USE(dummy);
   }
@@ -1600,7 +1611,7 @@ TEST(smmul) {
   F3 f = FUNCTION_CAST<F3>(code->entry());
   for (size_t i = 0; i < 128; ++i) {
     int32_t r, x = rng->NextInt(), y = rng->NextInt();
-    Object* dummy = CALL_GENERATED_CODE(f, &r, x, y, 0, 0);
+    Object* dummy = CALL_GENERATED_CODE(isolate, f, &r, x, y, 0, 0);
     CHECK_EQ(bits::SignedMulHigh32(x, y), r);
     USE(dummy);
   }
@@ -1626,7 +1637,7 @@ TEST(sxtb) {
   F3 f = FUNCTION_CAST<F3>(code->entry());
   for (size_t i = 0; i < 128; ++i) {
     int32_t r, x = rng->NextInt();
-    Object* dummy = CALL_GENERATED_CODE(f, &r, x, 0, 0, 0);
+    Object* dummy = CALL_GENERATED_CODE(isolate, f, &r, x, 0, 0, 0);
     CHECK_EQ(static_cast<int32_t>(static_cast<int8_t>(x)), r);
     USE(dummy);
   }
@@ -1652,7 +1663,7 @@ TEST(sxtab) {
   F3 f = FUNCTION_CAST<F3>(code->entry());
   for (size_t i = 0; i < 128; ++i) {
     int32_t r, x = rng->NextInt(), y = rng->NextInt();
-    Object* dummy = CALL_GENERATED_CODE(f, &r, x, y, 0, 0);
+    Object* dummy = CALL_GENERATED_CODE(isolate, f, &r, x, y, 0, 0);
     CHECK_EQ(static_cast<int32_t>(static_cast<int8_t>(x)) + y, r);
     USE(dummy);
   }
@@ -1678,7 +1689,7 @@ TEST(sxth) {
   F3 f = FUNCTION_CAST<F3>(code->entry());
   for (size_t i = 0; i < 128; ++i) {
     int32_t r, x = rng->NextInt();
-    Object* dummy = CALL_GENERATED_CODE(f, &r, x, 0, 0, 0);
+    Object* dummy = CALL_GENERATED_CODE(isolate, f, &r, x, 0, 0, 0);
     CHECK_EQ(static_cast<int32_t>(static_cast<int16_t>(x)), r);
     USE(dummy);
   }
@@ -1704,7 +1715,7 @@ TEST(sxtah) {
   F3 f = FUNCTION_CAST<F3>(code->entry());
   for (size_t i = 0; i < 128; ++i) {
     int32_t r, x = rng->NextInt(), y = rng->NextInt();
-    Object* dummy = CALL_GENERATED_CODE(f, &r, x, y, 0, 0);
+    Object* dummy = CALL_GENERATED_CODE(isolate, f, &r, x, y, 0, 0);
     CHECK_EQ(static_cast<int32_t>(static_cast<int16_t>(x)) + y, r);
     USE(dummy);
   }
@@ -1730,7 +1741,7 @@ TEST(uxtb) {
   F3 f = FUNCTION_CAST<F3>(code->entry());
   for (size_t i = 0; i < 128; ++i) {
     int32_t r, x = rng->NextInt();
-    Object* dummy = CALL_GENERATED_CODE(f, &r, x, 0, 0, 0);
+    Object* dummy = CALL_GENERATED_CODE(isolate, f, &r, x, 0, 0, 0);
     CHECK_EQ(static_cast<int32_t>(static_cast<uint8_t>(x)), r);
     USE(dummy);
   }
@@ -1756,7 +1767,7 @@ TEST(uxtab) {
   F3 f = FUNCTION_CAST<F3>(code->entry());
   for (size_t i = 0; i < 128; ++i) {
     int32_t r, x = rng->NextInt(), y = rng->NextInt();
-    Object* dummy = CALL_GENERATED_CODE(f, &r, x, y, 0, 0);
+    Object* dummy = CALL_GENERATED_CODE(isolate, f, &r, x, y, 0, 0);
     CHECK_EQ(static_cast<int32_t>(static_cast<uint8_t>(x)) + y, r);
     USE(dummy);
   }
@@ -1782,7 +1793,7 @@ TEST(uxth) {
   F3 f = FUNCTION_CAST<F3>(code->entry());
   for (size_t i = 0; i < 128; ++i) {
     int32_t r, x = rng->NextInt();
-    Object* dummy = CALL_GENERATED_CODE(f, &r, x, 0, 0, 0);
+    Object* dummy = CALL_GENERATED_CODE(isolate, f, &r, x, 0, 0, 0);
     CHECK_EQ(static_cast<int32_t>(static_cast<uint16_t>(x)), r);
     USE(dummy);
   }
@@ -1808,8 +1819,57 @@ TEST(uxtah) {
   F3 f = FUNCTION_CAST<F3>(code->entry());
   for (size_t i = 0; i < 128; ++i) {
     int32_t r, x = rng->NextInt(), y = rng->NextInt();
-    Object* dummy = CALL_GENERATED_CODE(f, &r, x, y, 0, 0);
+    Object* dummy = CALL_GENERATED_CODE(isolate, f, &r, x, y, 0, 0);
     CHECK_EQ(static_cast<int32_t>(static_cast<uint16_t>(x)) + y, r);
+    USE(dummy);
+  }
+}
+
+
+#define TEST_RBIT(expected_, input_)                       \
+  t.input = input_;                                        \
+  t.result = 0;                                            \
+  dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0); \
+  CHECK_EQ(expected_, t.result);
+
+
+TEST(rbit) {
+  CcTest::InitializeVM();
+  Isolate* const isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  Assembler assm(isolate, nullptr, 0);
+
+  if (CpuFeatures::IsSupported(ARMv7)) {
+    CpuFeatureScope scope(&assm, ARMv7);
+
+    typedef struct {
+      uint32_t input;
+      uint32_t result;
+    } T;
+    T t;
+
+    __ ldr(r1, MemOperand(r0, offsetof(T, input)));
+    __ rbit(r1, r1);
+    __ str(r1, MemOperand(r0, offsetof(T, result)));
+    __ bx(lr);
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
+#ifdef OBJECT_PRINT
+    code->Print(std::cout);
+#endif
+
+    F3 f = FUNCTION_CAST<F3>(code->entry());
+    Object* dummy = NULL;
+    TEST_RBIT(0xffffffff, 0xffffffff);
+    TEST_RBIT(0x00000000, 0x00000000);
+    TEST_RBIT(0xffff0000, 0x0000ffff);
+    TEST_RBIT(0xff00ff00, 0x00ff00ff);
+    TEST_RBIT(0xf0f0f0f0, 0x0f0f0f0f);
+    TEST_RBIT(0x1e6a2c48, 0x12345678);
     USE(dummy);
   }
 }
@@ -1880,9 +1940,187 @@ TEST(code_relative_offset) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), code_object);
   F1 f = FUNCTION_CAST<F1>(code->entry());
-  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 21, 0, 0, 0, 0));
+  int res =
+      reinterpret_cast<int>(CALL_GENERATED_CODE(isolate, f, 21, 0, 0, 0, 0));
   ::printf("f() = %d\n", res);
   CHECK_EQ(42, res);
+}
+
+TEST(msr_mrs) {
+  // Test msr and mrs.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(isolate, NULL, 0);
+
+  // Create a helper function:
+  //  void TestMsrMrs(uint32_t nzcv,
+  //                  uint32_t * result_conditionals,
+  //                  uint32_t * result_mrs);
+  __ msr(CPSR_f, Operand(r0));
+
+  // Test that the condition flags have taken effect.
+  __ mov(r3, Operand(0));
+  __ orr(r3, r3, Operand(1 << 31), LeaveCC, mi);  // N
+  __ orr(r3, r3, Operand(1 << 30), LeaveCC, eq);  // Z
+  __ orr(r3, r3, Operand(1 << 29), LeaveCC, cs);  // C
+  __ orr(r3, r3, Operand(1 << 28), LeaveCC, vs);  // V
+  __ str(r3, MemOperand(r1));
+
+  // Also check mrs, ignoring everything other than the flags.
+  __ mrs(r3, CPSR);
+  __ and_(r3, r3, Operand(kSpecialCondition));
+  __ str(r3, MemOperand(r2));
+
+  __ bx(lr);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef DEBUG
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+  F5 f = FUNCTION_CAST<F5>(code->entry());
+  Object* dummy = nullptr;
+  USE(dummy);
+
+#define CHECK_MSR_MRS(n, z, c, v)                                       \
+  do {                                                                  \
+    uint32_t nzcv = (n << 31) | (z << 30) | (c << 29) | (v << 28);      \
+    uint32_t result_conditionals = -1;                                  \
+    uint32_t result_mrs = -1;                                           \
+    dummy = CALL_GENERATED_CODE(isolate, f, nzcv, &result_conditionals, \
+                                &result_mrs, 0, 0);                     \
+    CHECK_EQ(nzcv, result_conditionals);                                \
+    CHECK_EQ(nzcv, result_mrs);                                         \
+  } while (0);
+
+  //            N  Z  C  V
+  CHECK_MSR_MRS(0, 0, 0, 0);
+  CHECK_MSR_MRS(0, 0, 0, 1);
+  CHECK_MSR_MRS(0, 0, 1, 0);
+  CHECK_MSR_MRS(0, 0, 1, 1);
+  CHECK_MSR_MRS(0, 1, 0, 0);
+  CHECK_MSR_MRS(0, 1, 0, 1);
+  CHECK_MSR_MRS(0, 1, 1, 0);
+  CHECK_MSR_MRS(0, 1, 1, 1);
+  CHECK_MSR_MRS(1, 0, 0, 0);
+  CHECK_MSR_MRS(1, 0, 0, 1);
+  CHECK_MSR_MRS(1, 0, 1, 0);
+  CHECK_MSR_MRS(1, 0, 1, 1);
+  CHECK_MSR_MRS(1, 1, 0, 0);
+  CHECK_MSR_MRS(1, 1, 0, 1);
+  CHECK_MSR_MRS(1, 1, 1, 0);
+  CHECK_MSR_MRS(1, 1, 1, 1);
+
+#undef CHECK_MSR_MRS
+}
+
+TEST(ARMv8_float32_vrintX) {
+  // Test the vrintX floating point instructions.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  typedef struct {
+    float input;
+    float ar;
+    float nr;
+    float mr;
+    float pr;
+    float zr;
+  } T;
+  T t;
+
+  // Create a function that accepts &t, and loads, manipulates, and stores
+  // the floats.
+  Assembler assm(isolate, NULL, 0);
+  Label L, C;
+
+
+  if (CpuFeatures::IsSupported(ARMv8)) {
+    CpuFeatureScope scope(&assm, ARMv8);
+
+    __ mov(ip, Operand(sp));
+    __ stm(db_w, sp, r4.bit() | fp.bit() | lr.bit());
+
+    __ mov(r4, Operand(r0));
+
+    // Test vrinta
+    __ vldr(s6, r4, offsetof(T, input));
+    __ vrinta(s5, s6);
+    __ vstr(s5, r4, offsetof(T, ar));
+
+    // Test vrintn
+    __ vldr(s6, r4, offsetof(T, input));
+    __ vrintn(s5, s6);
+    __ vstr(s5, r4, offsetof(T, nr));
+
+    // Test vrintp
+    __ vldr(s6, r4, offsetof(T, input));
+    __ vrintp(s5, s6);
+    __ vstr(s5, r4, offsetof(T, pr));
+
+    // Test vrintm
+    __ vldr(s6, r4, offsetof(T, input));
+    __ vrintm(s5, s6);
+    __ vstr(s5, r4, offsetof(T, mr));
+
+    // Test vrintz
+    __ vldr(s6, r4, offsetof(T, input));
+    __ vrintz(s5, s6);
+    __ vstr(s5, r4, offsetof(T, zr));
+
+    __ ldm(ia_w, sp, r4.bit() | fp.bit() | pc.bit());
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef DEBUG
+    OFStream os(stdout);
+    code->Print(os);
+#endif
+    F3 f = FUNCTION_CAST<F3>(code->entry());
+
+    Object* dummy = nullptr;
+    USE(dummy);
+
+#define CHECK_VRINT(input_val, ares, nres, mres, pres, zres) \
+  t.input = input_val;                                       \
+  dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);   \
+  CHECK_EQ(ares, t.ar);                                      \
+  CHECK_EQ(nres, t.nr);                                      \
+  CHECK_EQ(mres, t.mr);                                      \
+  CHECK_EQ(pres, t.pr);                                      \
+  CHECK_EQ(zres, t.zr);
+
+    CHECK_VRINT(-0.5, -1.0, -0.0, -1.0, -0.0, -0.0)
+    CHECK_VRINT(-0.6, -1.0, -1.0, -1.0, -0.0, -0.0)
+    CHECK_VRINT(-1.1, -1.0, -1.0, -2.0, -1.0, -1.0)
+    CHECK_VRINT(0.5, 1.0, 0.0, 0.0, 1.0, 0.0)
+    CHECK_VRINT(0.6, 1.0, 1.0, 0.0, 1.0, 0.0)
+    CHECK_VRINT(1.1, 1.0, 1.0, 1.0, 2.0, 1.0)
+    float inf = std::numeric_limits<float>::infinity();
+    CHECK_VRINT(inf, inf, inf, inf, inf, inf)
+    CHECK_VRINT(-inf, -inf, -inf, -inf, -inf, -inf)
+    CHECK_VRINT(-0.0, -0.0, -0.0, -0.0, -0.0, -0.0)
+
+    // Check NaN propagation.
+    float nan = std::numeric_limits<float>::quiet_NaN();
+    t.input = nan;
+    dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
+    CHECK_EQ(bit_cast<int32_t>(nan), bit_cast<int32_t>(t.ar));
+    CHECK_EQ(bit_cast<int32_t>(nan), bit_cast<int32_t>(t.nr));
+    CHECK_EQ(bit_cast<int32_t>(nan), bit_cast<int32_t>(t.mr));
+    CHECK_EQ(bit_cast<int32_t>(nan), bit_cast<int32_t>(t.pr));
+    CHECK_EQ(bit_cast<int32_t>(nan), bit_cast<int32_t>(t.zr));
+
+#undef CHECK_VRINT
+  }
 }
 
 
@@ -1958,7 +2196,7 @@ TEST(ARMv8_vrintX) {
 
 #define CHECK_VRINT(input_val, ares, nres, mres, pres, zres) \
   t.input = input_val;                                       \
-  dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);            \
+  dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);   \
   CHECK_EQ(ares, t.ar);                                      \
   CHECK_EQ(nres, t.nr);                                      \
   CHECK_EQ(mres, t.mr);                                      \
@@ -1979,7 +2217,7 @@ TEST(ARMv8_vrintX) {
     // Check NaN propagation.
     double nan = std::numeric_limits<double>::quiet_NaN();
     t.input = nan;
-    dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+    dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
     CHECK_EQ(bit_cast<int64_t>(nan), bit_cast<int64_t>(t.ar));
     CHECK_EQ(bit_cast<int64_t>(nan), bit_cast<int64_t>(t.nr));
     CHECK_EQ(bit_cast<int64_t>(nan), bit_cast<int64_t>(t.mr));
@@ -1990,6 +2228,272 @@ TEST(ARMv8_vrintX) {
   }
 }
 
+TEST(ARMv8_vsel) {
+  // Test the vsel floating point instructions.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(isolate, NULL, 0);
+
+  // Used to indicate whether a condition passed or failed.
+  static constexpr float kResultPass = 1.0f;
+  static constexpr float kResultFail = -kResultPass;
+
+  struct ResultsF32 {
+    float vseleq_;
+    float vselge_;
+    float vselgt_;
+    float vselvs_;
+
+    // The following conditions aren't architecturally supported, but the
+    // assembler implements them by swapping the inputs.
+    float vselne_;
+    float vsellt_;
+    float vselle_;
+    float vselvc_;
+  };
+
+  struct ResultsF64 {
+    double vseleq_;
+    double vselge_;
+    double vselgt_;
+    double vselvs_;
+
+    // The following conditions aren't architecturally supported, but the
+    // assembler implements them by swapping the inputs.
+    double vselne_;
+    double vsellt_;
+    double vselle_;
+    double vselvc_;
+  };
+
+  if (CpuFeatures::IsSupported(ARMv8)) {
+    CpuFeatureScope scope(&assm, ARMv8);
+
+    // Create a helper function:
+    //  void TestVsel(uint32_t nzcv,
+    //                ResultsF32* results_f32,
+    //                ResultsF64* results_f64);
+    __ msr(CPSR_f, Operand(r0));
+
+    __ vmov(s1, kResultPass);
+    __ vmov(s2, kResultFail);
+
+    __ vsel(eq, s0, s1, s2);
+    __ vstr(s0, r1, offsetof(ResultsF32, vseleq_));
+    __ vsel(ge, s0, s1, s2);
+    __ vstr(s0, r1, offsetof(ResultsF32, vselge_));
+    __ vsel(gt, s0, s1, s2);
+    __ vstr(s0, r1, offsetof(ResultsF32, vselgt_));
+    __ vsel(vs, s0, s1, s2);
+    __ vstr(s0, r1, offsetof(ResultsF32, vselvs_));
+
+    __ vsel(ne, s0, s1, s2);
+    __ vstr(s0, r1, offsetof(ResultsF32, vselne_));
+    __ vsel(lt, s0, s1, s2);
+    __ vstr(s0, r1, offsetof(ResultsF32, vsellt_));
+    __ vsel(le, s0, s1, s2);
+    __ vstr(s0, r1, offsetof(ResultsF32, vselle_));
+    __ vsel(vc, s0, s1, s2);
+    __ vstr(s0, r1, offsetof(ResultsF32, vselvc_));
+
+    __ vmov(d1, kResultPass);
+    __ vmov(d2, kResultFail);
+
+    __ vsel(eq, d0, d1, d2);
+    __ vstr(d0, r2, offsetof(ResultsF64, vseleq_));
+    __ vsel(ge, d0, d1, d2);
+    __ vstr(d0, r2, offsetof(ResultsF64, vselge_));
+    __ vsel(gt, d0, d1, d2);
+    __ vstr(d0, r2, offsetof(ResultsF64, vselgt_));
+    __ vsel(vs, d0, d1, d2);
+    __ vstr(d0, r2, offsetof(ResultsF64, vselvs_));
+
+    __ vsel(ne, d0, d1, d2);
+    __ vstr(d0, r2, offsetof(ResultsF64, vselne_));
+    __ vsel(lt, d0, d1, d2);
+    __ vstr(d0, r2, offsetof(ResultsF64, vsellt_));
+    __ vsel(le, d0, d1, d2);
+    __ vstr(d0, r2, offsetof(ResultsF64, vselle_));
+    __ vsel(vc, d0, d1, d2);
+    __ vstr(d0, r2, offsetof(ResultsF64, vselvc_));
+
+    __ bx(lr);
+
+    CodeDesc desc;
+    assm.GetCode(&desc);
+    Handle<Code> code = isolate->factory()->NewCode(
+        desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef DEBUG
+    OFStream os(stdout);
+    code->Print(os);
+#endif
+    F5 f = FUNCTION_CAST<F5>(code->entry());
+    Object* dummy = nullptr;
+    USE(dummy);
+
+    STATIC_ASSERT(kResultPass == -kResultFail);
+#define CHECK_VSEL(n, z, c, v, vseleq, vselge, vselgt, vselvs)                \
+  do {                                                                        \
+    ResultsF32 results_f32;                                                   \
+    ResultsF64 results_f64;                                                   \
+    uint32_t nzcv = (n << 31) | (z << 30) | (c << 29) | (v << 28);            \
+    dummy = CALL_GENERATED_CODE(isolate, f, nzcv, &results_f32, &results_f64, \
+                                0, 0);                                        \
+    CHECK_EQ(vseleq, results_f32.vseleq_);                                    \
+    CHECK_EQ(vselge, results_f32.vselge_);                                    \
+    CHECK_EQ(vselgt, results_f32.vselgt_);                                    \
+    CHECK_EQ(vselvs, results_f32.vselvs_);                                    \
+    CHECK_EQ(-vseleq, results_f32.vselne_);                                   \
+    CHECK_EQ(-vselge, results_f32.vsellt_);                                   \
+    CHECK_EQ(-vselgt, results_f32.vselle_);                                   \
+    CHECK_EQ(-vselvs, results_f32.vselvc_);                                   \
+    CHECK_EQ(vseleq, results_f64.vseleq_);                                    \
+    CHECK_EQ(vselge, results_f64.vselge_);                                    \
+    CHECK_EQ(vselgt, results_f64.vselgt_);                                    \
+    CHECK_EQ(vselvs, results_f64.vselvs_);                                    \
+    CHECK_EQ(-vseleq, results_f64.vselne_);                                   \
+    CHECK_EQ(-vselge, results_f64.vsellt_);                                   \
+    CHECK_EQ(-vselgt, results_f64.vselle_);                                   \
+    CHECK_EQ(-vselvs, results_f64.vselvc_);                                   \
+  } while (0);
+
+    //         N  Z  C  V  vseleq       vselge       vselgt       vselvs
+    CHECK_VSEL(0, 0, 0, 0, kResultFail, kResultPass, kResultPass, kResultFail);
+    CHECK_VSEL(0, 0, 0, 1, kResultFail, kResultFail, kResultFail, kResultPass);
+    CHECK_VSEL(0, 0, 1, 0, kResultFail, kResultPass, kResultPass, kResultFail);
+    CHECK_VSEL(0, 0, 1, 1, kResultFail, kResultFail, kResultFail, kResultPass);
+    CHECK_VSEL(0, 1, 0, 0, kResultPass, kResultPass, kResultFail, kResultFail);
+    CHECK_VSEL(0, 1, 0, 1, kResultPass, kResultFail, kResultFail, kResultPass);
+    CHECK_VSEL(0, 1, 1, 0, kResultPass, kResultPass, kResultFail, kResultFail);
+    CHECK_VSEL(0, 1, 1, 1, kResultPass, kResultFail, kResultFail, kResultPass);
+    CHECK_VSEL(1, 0, 0, 0, kResultFail, kResultFail, kResultFail, kResultFail);
+    CHECK_VSEL(1, 0, 0, 1, kResultFail, kResultPass, kResultPass, kResultPass);
+    CHECK_VSEL(1, 0, 1, 0, kResultFail, kResultFail, kResultFail, kResultFail);
+    CHECK_VSEL(1, 0, 1, 1, kResultFail, kResultPass, kResultPass, kResultPass);
+    CHECK_VSEL(1, 1, 0, 0, kResultPass, kResultFail, kResultFail, kResultFail);
+    CHECK_VSEL(1, 1, 0, 1, kResultPass, kResultPass, kResultFail, kResultPass);
+    CHECK_VSEL(1, 1, 1, 0, kResultPass, kResultFail, kResultFail, kResultFail);
+    CHECK_VSEL(1, 1, 1, 1, kResultPass, kResultPass, kResultFail, kResultPass);
+
+#undef CHECK_VSEL
+  }
+}
+
+TEST(unaligned_loads) {
+  // All supported ARM targets allow unaligned accesses.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  typedef struct {
+    uint32_t ldrh;
+    uint32_t ldrsh;
+    uint32_t ldr;
+  } T;
+  T t;
+
+  Assembler assm(isolate, NULL, 0);
+  __ ldrh(ip, MemOperand(r1, r2));
+  __ str(ip, MemOperand(r0, offsetof(T, ldrh)));
+  __ ldrsh(ip, MemOperand(r1, r2));
+  __ str(ip, MemOperand(r0, offsetof(T, ldrsh)));
+  __ ldr(ip, MemOperand(r1, r2));
+  __ str(ip, MemOperand(r0, offsetof(T, ldr)));
+  __ bx(lr);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef DEBUG
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+  F4 f = FUNCTION_CAST<F4>(code->entry());
+
+  Object* dummy = nullptr;
+  USE(dummy);
+
+#ifndef V8_TARGET_LITTLE_ENDIAN
+#error This test assumes a little-endian layout.
+#endif
+  uint64_t data = UINT64_C(0x84838281807f7e7d);
+  dummy = CALL_GENERATED_CODE(isolate, f, &t, &data, 0, 0, 0);
+  CHECK_EQ(0x00007e7d, t.ldrh);
+  CHECK_EQ(0x00007e7d, t.ldrsh);
+  CHECK_EQ(0x807f7e7d, t.ldr);
+  dummy = CALL_GENERATED_CODE(isolate, f, &t, &data, 1, 0, 0);
+  CHECK_EQ(0x00007f7e, t.ldrh);
+  CHECK_EQ(0x00007f7e, t.ldrsh);
+  CHECK_EQ(0x81807f7e, t.ldr);
+  dummy = CALL_GENERATED_CODE(isolate, f, &t, &data, 2, 0, 0);
+  CHECK_EQ(0x0000807f, t.ldrh);
+  CHECK_EQ(0xffff807f, t.ldrsh);
+  CHECK_EQ(0x8281807f, t.ldr);
+  dummy = CALL_GENERATED_CODE(isolate, f, &t, &data, 3, 0, 0);
+  CHECK_EQ(0x00008180, t.ldrh);
+  CHECK_EQ(0xffff8180, t.ldrsh);
+  CHECK_EQ(0x83828180, t.ldr);
+}
+
+TEST(unaligned_stores) {
+  // All supported ARM targets allow unaligned accesses.
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  Assembler assm(isolate, NULL, 0);
+  __ strh(r3, MemOperand(r0, r2));
+  __ str(r3, MemOperand(r1, r2));
+  __ bx(lr);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef DEBUG
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+  F4 f = FUNCTION_CAST<F4>(code->entry());
+
+  Object* dummy = nullptr;
+  USE(dummy);
+
+#ifndef V8_TARGET_LITTLE_ENDIAN
+#error This test assumes a little-endian layout.
+#endif
+  {
+    uint64_t strh = 0;
+    uint64_t str = 0;
+    dummy = CALL_GENERATED_CODE(isolate, f, &strh, &str, 0, 0xfedcba98, 0);
+    CHECK_EQ(UINT64_C(0x000000000000ba98), strh);
+    CHECK_EQ(UINT64_C(0x00000000fedcba98), str);
+  }
+  {
+    uint64_t strh = 0;
+    uint64_t str = 0;
+    dummy = CALL_GENERATED_CODE(isolate, f, &strh, &str, 1, 0xfedcba98, 0);
+    CHECK_EQ(UINT64_C(0x0000000000ba9800), strh);
+    CHECK_EQ(UINT64_C(0x000000fedcba9800), str);
+  }
+  {
+    uint64_t strh = 0;
+    uint64_t str = 0;
+    dummy = CALL_GENERATED_CODE(isolate, f, &strh, &str, 2, 0xfedcba98, 0);
+    CHECK_EQ(UINT64_C(0x00000000ba980000), strh);
+    CHECK_EQ(UINT64_C(0x0000fedcba980000), str);
+  }
+  {
+    uint64_t strh = 0;
+    uint64_t str = 0;
+    dummy = CALL_GENERATED_CODE(isolate, f, &strh, &str, 3, 0xfedcba98, 0);
+    CHECK_EQ(UINT64_C(0x000000ba98000000), strh);
+    CHECK_EQ(UINT64_C(0x00fedcba98000000), str);
+  }
+}
 
 TEST(regress4292_b) {
   CcTest::InitializeVM();

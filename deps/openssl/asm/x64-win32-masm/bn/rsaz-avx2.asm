@@ -1628,8 +1628,9 @@ PUBLIC	rsaz_1024_gather5_avx2
 
 ALIGN	32
 rsaz_1024_gather5_avx2	PROC PUBLIC
-	lea	rax,QWORD PTR[((-136))+rsp]
 	vzeroupper
+	mov	r11,rsp
+	lea	rax,QWORD PTR[((-136))+rsp]
 $L$SEH_begin_rsaz_1024_gather5::
 
 DB	048h,08dh,060h,0e0h
@@ -1643,66 +1644,125 @@ DB	0c5h,078h,029h,060h,040h
 DB	0c5h,078h,029h,068h,050h
 DB	0c5h,078h,029h,070h,060h
 DB	0c5h,078h,029h,078h,070h
-	lea	r11,QWORD PTR[$L$gather_table]
-	mov	eax,r8d
-	and	r8d,3
-	shr	eax,2
-	shl	r8d,4
+	lea	rsp,QWORD PTR[((-256))+rsp]
+	and	rsp,-32
+	lea	r10,QWORD PTR[$L$inc]
+	lea	rax,QWORD PTR[((-128))+rsp]
 
-	vmovdqu	ymm7,YMMWORD PTR[((-32))+r11]
-	vpbroadcastb	xmm8,BYTE PTR[8+rax*1+r11]
-	vpbroadcastb	xmm9,BYTE PTR[7+rax*1+r11]
-	vpbroadcastb	xmm10,BYTE PTR[6+rax*1+r11]
-	vpbroadcastb	xmm11,BYTE PTR[5+rax*1+r11]
-	vpbroadcastb	xmm12,BYTE PTR[4+rax*1+r11]
-	vpbroadcastb	xmm13,BYTE PTR[3+rax*1+r11]
-	vpbroadcastb	xmm14,BYTE PTR[2+rax*1+r11]
-	vpbroadcastb	xmm15,BYTE PTR[1+rax*1+r11]
+	vmovd	xmm4,r8d
+	vmovdqa	ymm0,YMMWORD PTR[r10]
+	vmovdqa	ymm1,YMMWORD PTR[32+r10]
+	vmovdqa	ymm5,YMMWORD PTR[64+r10]
+	vpbroadcastd	ymm4,xmm4
 
-	lea	rdx,QWORD PTR[64+r8*1+rdx]
-	mov	r11,64
-	mov	eax,9
-	jmp	$L$oop_gather_1024
+	vpaddd	ymm2,ymm0,ymm5
+	vpcmpeqd	ymm0,ymm0,ymm4
+	vpaddd	ymm3,ymm1,ymm5
+	vpcmpeqd	ymm1,ymm1,ymm4
+	vmovdqa	YMMWORD PTR[(0+128)+rax],ymm0
+	vpaddd	ymm0,ymm2,ymm5
+	vpcmpeqd	ymm2,ymm2,ymm4
+	vmovdqa	YMMWORD PTR[(32+128)+rax],ymm1
+	vpaddd	ymm1,ymm3,ymm5
+	vpcmpeqd	ymm3,ymm3,ymm4
+	vmovdqa	YMMWORD PTR[(64+128)+rax],ymm2
+	vpaddd	ymm2,ymm0,ymm5
+	vpcmpeqd	ymm0,ymm0,ymm4
+	vmovdqa	YMMWORD PTR[(96+128)+rax],ymm3
+	vpaddd	ymm3,ymm1,ymm5
+	vpcmpeqd	ymm1,ymm1,ymm4
+	vmovdqa	YMMWORD PTR[(128+128)+rax],ymm0
+	vpaddd	ymm8,ymm2,ymm5
+	vpcmpeqd	ymm2,ymm2,ymm4
+	vmovdqa	YMMWORD PTR[(160+128)+rax],ymm1
+	vpaddd	ymm9,ymm3,ymm5
+	vpcmpeqd	ymm3,ymm3,ymm4
+	vmovdqa	YMMWORD PTR[(192+128)+rax],ymm2
+	vpaddd	ymm10,ymm8,ymm5
+	vpcmpeqd	ymm8,ymm8,ymm4
+	vmovdqa	YMMWORD PTR[(224+128)+rax],ymm3
+	vpaddd	ymm11,ymm9,ymm5
+	vpcmpeqd	ymm9,ymm9,ymm4
+	vpaddd	ymm12,ymm10,ymm5
+	vpcmpeqd	ymm10,ymm10,ymm4
+	vpaddd	ymm13,ymm11,ymm5
+	vpcmpeqd	ymm11,ymm11,ymm4
+	vpaddd	ymm14,ymm12,ymm5
+	vpcmpeqd	ymm12,ymm12,ymm4
+	vpaddd	ymm15,ymm13,ymm5
+	vpcmpeqd	ymm13,ymm13,ymm4
+	vpcmpeqd	ymm14,ymm14,ymm4
+	vpcmpeqd	ymm15,ymm15,ymm4
 
-ALIGN	32
+	vmovdqa	ymm7,YMMWORD PTR[((-32))+r10]
+	lea	rdx,QWORD PTR[128+rdx]
+	mov	r8d,9
+
 $L$oop_gather_1024::
-	vpand	xmm0,xmm8,XMMWORD PTR[((-64))+rdx]
-	vpand	xmm1,xmm9,XMMWORD PTR[rdx]
-	vpand	xmm2,xmm10,XMMWORD PTR[64+rdx]
-	vpand	xmm3,xmm11,XMMWORD PTR[r11*2+rdx]
-	vpor	xmm1,xmm1,xmm0
-	vpand	xmm4,xmm12,XMMWORD PTR[64+r11*2+rdx]
-	vpor	xmm3,xmm3,xmm2
-	vpand	xmm5,xmm13,XMMWORD PTR[r11*4+rdx]
-	vpor	xmm3,xmm3,xmm1
-	vpand	xmm6,xmm14,XMMWORD PTR[64+r11*4+rdx]
+	vmovdqa	ymm0,YMMWORD PTR[((0-128))+rdx]
+	vmovdqa	ymm1,YMMWORD PTR[((32-128))+rdx]
+	vmovdqa	ymm2,YMMWORD PTR[((64-128))+rdx]
+	vmovdqa	ymm3,YMMWORD PTR[((96-128))+rdx]
+	vpand	ymm0,ymm0,YMMWORD PTR[((0+128))+rax]
+	vpand	ymm1,ymm1,YMMWORD PTR[((32+128))+rax]
+	vpand	ymm2,ymm2,YMMWORD PTR[((64+128))+rax]
+	vpor	ymm4,ymm1,ymm0
+	vpand	ymm3,ymm3,YMMWORD PTR[((96+128))+rax]
+	vmovdqa	ymm0,YMMWORD PTR[((128-128))+rdx]
+	vmovdqa	ymm1,YMMWORD PTR[((160-128))+rdx]
+	vpor	ymm5,ymm3,ymm2
+	vmovdqa	ymm2,YMMWORD PTR[((192-128))+rdx]
+	vmovdqa	ymm3,YMMWORD PTR[((224-128))+rdx]
+	vpand	ymm0,ymm0,YMMWORD PTR[((128+128))+rax]
+	vpand	ymm1,ymm1,YMMWORD PTR[((160+128))+rax]
+	vpand	ymm2,ymm2,YMMWORD PTR[((192+128))+rax]
+	vpor	ymm4,ymm4,ymm0
+	vpand	ymm3,ymm3,YMMWORD PTR[((224+128))+rax]
+	vpand	ymm0,ymm8,YMMWORD PTR[((256-128))+rdx]
+	vpor	ymm5,ymm5,ymm1
+	vpand	ymm1,ymm9,YMMWORD PTR[((288-128))+rdx]
+	vpor	ymm4,ymm4,ymm2
+	vpand	ymm2,ymm10,YMMWORD PTR[((320-128))+rdx]
+	vpor	ymm5,ymm5,ymm3
+	vpand	ymm3,ymm11,YMMWORD PTR[((352-128))+rdx]
+	vpor	ymm4,ymm4,ymm0
+	vpand	ymm0,ymm12,YMMWORD PTR[((384-128))+rdx]
+	vpor	ymm5,ymm5,ymm1
+	vpand	ymm1,ymm13,YMMWORD PTR[((416-128))+rdx]
+	vpor	ymm4,ymm4,ymm2
+	vpand	ymm2,ymm14,YMMWORD PTR[((448-128))+rdx]
+	vpor	ymm5,ymm5,ymm3
+	vpand	ymm3,ymm15,YMMWORD PTR[((480-128))+rdx]
+	lea	rdx,QWORD PTR[512+rdx]
+	vpor	ymm4,ymm4,ymm0
+	vpor	ymm5,ymm5,ymm1
+	vpor	ymm4,ymm4,ymm2
+	vpor	ymm5,ymm5,ymm3
+
+	vpor	ymm4,ymm4,ymm5
+	vextracti128	xmm5,ymm4,1
 	vpor	xmm5,xmm5,xmm4
-	vpand	xmm2,xmm15,XMMWORD PTR[((-128))+r11*8+rdx]
-	lea	rdx,QWORD PTR[r11*8+rdx]
-	vpor	xmm5,xmm5,xmm3
-	vpor	xmm6,xmm6,xmm2
-	vpor	xmm6,xmm6,xmm5
-	vpermd	ymm6,ymm7,ymm6
-	vmovdqu	YMMWORD PTR[rcx],ymm6
+	vpermd	ymm5,ymm7,ymm5
+	vmovdqu	YMMWORD PTR[rcx],ymm5
 	lea	rcx,QWORD PTR[32+rcx]
-	dec	eax
+	dec	r8d
 	jnz	$L$oop_gather_1024
 
 	vpxor	ymm0,ymm0,ymm0
 	vmovdqu	YMMWORD PTR[rcx],ymm0
 	vzeroupper
-	movaps	xmm6,XMMWORD PTR[rsp]
-	movaps	xmm7,XMMWORD PTR[16+rsp]
-	movaps	xmm8,XMMWORD PTR[32+rsp]
-	movaps	xmm9,XMMWORD PTR[48+rsp]
-	movaps	xmm10,XMMWORD PTR[64+rsp]
-	movaps	xmm11,XMMWORD PTR[80+rsp]
-	movaps	xmm12,XMMWORD PTR[96+rsp]
-	movaps	xmm13,XMMWORD PTR[112+rsp]
-	movaps	xmm14,XMMWORD PTR[128+rsp]
-	movaps	xmm15,XMMWORD PTR[144+rsp]
-	lea	rsp,QWORD PTR[168+rsp]
+	movaps	xmm6,XMMWORD PTR[((-168))+r11]
+	movaps	xmm7,XMMWORD PTR[((-152))+r11]
+	movaps	xmm8,XMMWORD PTR[((-136))+r11]
+	movaps	xmm9,XMMWORD PTR[((-120))+r11]
+	movaps	xmm10,XMMWORD PTR[((-104))+r11]
+	movaps	xmm11,XMMWORD PTR[((-88))+r11]
+	movaps	xmm12,XMMWORD PTR[((-72))+r11]
+	movaps	xmm13,XMMWORD PTR[((-56))+r11]
+	movaps	xmm14,XMMWORD PTR[((-40))+r11]
+	movaps	xmm15,XMMWORD PTR[((-24))+r11]
 $L$SEH_end_rsaz_1024_gather5::
+	lea	rsp,QWORD PTR[r11]
 	DB	0F3h,0C3h		;repret
 rsaz_1024_gather5_avx2	ENDP
 EXTERN	OPENSSL_ia32cap_P:NEAR
@@ -1728,8 +1788,10 @@ $L$scatter_permd::
 	DD	0,2,4,6,7,7,7,7
 $L$gather_permd::
 	DD	0,7,1,7,2,7,3,7
-$L$gather_table::
-DB	0,0,0,0,0,0,0,0,0ffh,0,0,0,0,0,0,0
+$L$inc::
+	DD	0,0,0,0,1,1,1,1
+	DD	2,2,2,2,3,3,3,3
+	DD	4,4,4,4,4,4,4,4
 ALIGN	64
 EXTERN	__imp_RtlVirtualUnwind:NEAR
 
@@ -1850,7 +1912,7 @@ DB	9,0,0,0
 	DD	imagerel rsaz_se_handler
 	DD	imagerel $L$mul_1024_body,imagerel $L$mul_1024_epilogue
 $L$SEH_info_rsaz_1024_gather5::
-DB	001h,033h,016h,000h
+DB	001h,036h,017h,00bh
 DB	036h,0f8h,009h,000h
 DB	031h,0e8h,008h,000h
 DB	02ch,0d8h,007h,000h
@@ -1862,6 +1924,7 @@ DB	013h,088h,002h,000h
 DB	00eh,078h,001h,000h
 DB	009h,068h,000h,000h
 DB	004h,001h,015h,000h
+DB	000h,0b3h,000h,000h
 
 .xdata	ENDS
 END

@@ -35,7 +35,7 @@ test('run up the mock registry', function (t) {
 
 test('npm install-test', function (t) {
   setup()
-  common.npm('install-test', { cwd: pkg }, function (err, code, stdout, stderr) {
+  common.npm(['install-test', '--registry=' + common.registry], { cwd: pkg }, function (err, code, stdout, stderr) {
     if (err) throw err
     t.equal(code, 0, 'command ran without error')
     t.ok(statSync(installed), 'package was installed')
@@ -48,7 +48,7 @@ test('npm install-test', function (t) {
 
 test('npm it (the form most people will use)', function (t) {
   setup()
-  common.npm('it', { cwd: pkg }, function (err, code, stdout, stderr) {
+  common.npm(['it', '--registry=' + common.registry], { cwd: pkg }, function (err, code, stdout, stderr) {
     if (err) throw err
     t.equal(code, 0, 'command ran without error')
     t.ok(statSync(installed), 'package was installed')

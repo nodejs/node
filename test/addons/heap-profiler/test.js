@@ -1,8 +1,8 @@
 'use strict';
 
-require('../../common');
+const common = require('../../common');
 
-const binding = require('./build/Release/binding');
+const binding = require(`./build/${common.buildType}/binding`);
 
 // Create an AsyncWrap object.
 const timer = setTimeout(function() {}, 1);

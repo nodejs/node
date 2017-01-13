@@ -168,6 +168,10 @@ void GraphReducer::Replace(Node* node, Node* replacement) {
 
 
 void GraphReducer::Replace(Node* node, Node* replacement, NodeId max_id) {
+  if (FLAG_trace_turbo_reduction) {
+    OFStream os(stdout);
+    os << "- Replacing " << *node << " with " << *replacement << std::endl;
+  }
   if (node == graph()->start()) graph()->SetStart(replacement);
   if (node == graph()->end()) graph()->SetEnd(replacement);
   if (replacement->id() <= max_id) {
@@ -222,7 +226,11 @@ void GraphReducer::ReplaceWithValue(Node* node, Node* value, Node* effect,
         edge.UpdateTo(dead_);
         Revisit(user);
       } else {
-        UNREACHABLE();
+        DCHECK_NOT_NULL(control);
+        edge.UpdateTo(control);
+        Revisit(user);
+        // TODO(jarin) Check that the node cannot throw (otherwise, it
+        // would have to be connected via IfSuccess/IfException).
       }
     } else if (NodeProperties::IsEffectEdge(edge)) {
       DCHECK_NOT_NULL(effect);

@@ -1,6 +1,6 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 const order = [];
 let exceptionHandled = false;
@@ -10,7 +10,7 @@ let exceptionHandled = false;
 process.nextTick(function() {
   order.push('A');
   // cause an error
-  what();
+  what(); // eslint-disable-line no-undef
 });
 
 // This nextTick function should remain in the queue when the first one
@@ -40,14 +40,12 @@ process.on('uncaughtException', function() {
   if (!exceptionHandled) {
     exceptionHandled = true;
     order.push('B');
-  }
-  else {
+  } else {
     // If we get here then the first process.nextTick got called twice
     order.push('OOPS!');
   }
 });
 
 process.on('exit', function() {
-  assert.deepEqual(['A', 'B', 'C'], order);
+  assert.deepStrictEqual(['A', 'B', 'C'], order);
 });
-

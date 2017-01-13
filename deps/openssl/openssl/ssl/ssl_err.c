@@ -1,6 +1,6 @@
 /* ssl/ssl_err.c */
 /* ====================================================================
- * Copyright (c) 1999-2015 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2016 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -93,6 +93,8 @@ static ERR_STRING_DATA SSL_str_functs[] = {
     {ERR_FUNC(SSL_F_DTLS1_HEARTBEAT), "dtls1_heartbeat"},
     {ERR_FUNC(SSL_F_DTLS1_OUTPUT_CERT_CHAIN), "dtls1_output_cert_chain"},
     {ERR_FUNC(SSL_F_DTLS1_PREPROCESS_FRAGMENT), "DTLS1_PREPROCESS_FRAGMENT"},
+    {ERR_FUNC(SSL_F_DTLS1_PROCESS_BUFFERED_RECORDS),
+     "DTLS1_PROCESS_BUFFERED_RECORDS"},
     {ERR_FUNC(SSL_F_DTLS1_PROCESS_OUT_OF_SEQ_MESSAGE),
      "DTLS1_PROCESS_OUT_OF_SEQ_MESSAGE"},
     {ERR_FUNC(SSL_F_DTLS1_PROCESS_RECORD), "DTLS1_PROCESS_RECORD"},
@@ -206,7 +208,6 @@ static ERR_STRING_DATA SSL_str_functs[] = {
     {ERR_FUNC(SSL_F_SSL3_SETUP_KEY_BLOCK), "ssl3_setup_key_block"},
     {ERR_FUNC(SSL_F_SSL3_SETUP_READ_BUFFER), "ssl3_setup_read_buffer"},
     {ERR_FUNC(SSL_F_SSL3_SETUP_WRITE_BUFFER), "ssl3_setup_write_buffer"},
-    {ERR_FUNC(SSL_F_SSL3_SHUTDOWN), "ssl3_shutdown"},
     {ERR_FUNC(SSL_F_SSL3_WRITE_BYTES), "ssl3_write_bytes"},
     {ERR_FUNC(SSL_F_SSL3_WRITE_PENDING), "ssl3_write_pending"},
     {ERR_FUNC(SSL_F_SSL_ADD_CERT_CHAIN), "ssl_add_cert_chain"},

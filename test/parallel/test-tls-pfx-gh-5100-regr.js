@@ -3,7 +3,7 @@
 const common = require('../common');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: node compiled without crypto.');
+  common.skip('node compiled without crypto.');
   return;
 }
 
@@ -21,11 +21,15 @@ const server = tls.createServer({
   requestCert: true,
   rejectUnauthorized: false
 }, common.mustCall(function(c) {
-  assert(c.authorizationError === null, 'authorizationError must be null');
+  assert.strictEqual(
+    c.authorizationError,
+    null,
+    'authorizationError must be null'
+  );
   c.end();
-})).listen(common.PORT, function() {
-  var client = tls.connect({
-    port: common.PORT,
+})).listen(0, function() {
+  const client = tls.connect({
+    port: this.address().port,
     pfx: pfx,
     passphrase: 'sample',
     rejectUnauthorized: false

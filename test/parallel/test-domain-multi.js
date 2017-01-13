@@ -1,16 +1,16 @@
 'use strict';
 // Tests of multiple domains happening at once.
 
-var common = require('../common');
-var assert = require('assert');
-var domain = require('domain');
+require('../common');
+const assert = require('assert');
+const domain = require('domain');
 
-var caughtA = false;
-var caughtB = false;
-var caughtC = false;
+let caughtA = false;
+let caughtB = false;
+let caughtC = false;
 
 
-var a = domain.create();
+const a = domain.create();
 a.enter(); // this will be our "root" domain
 a.on('error', function(er) {
   caughtA = true;
@@ -19,10 +19,10 @@ a.on('error', function(er) {
 });
 
 
-var http = require('http');
-var server = http.createServer(function(req, res) {
+const http = require('http');
+const server = http.createServer(function(req, res) {
   // child domain of a.
-  var b = domain.create();
+  const b = domain.create();
   a.add(b);
 
   // treat these EE objects as if they are a part of the b domain
@@ -49,29 +49,29 @@ var server = http.createServer(function(req, res) {
     throw new Error('this kills domain B, not A');
   }));
 
-}).listen(common.PORT);
+}).listen(0, function() {
+  const c = domain.create();
+  const req = http.get({ host: 'localhost', port: this.address().port });
 
-var c = domain.create();
-var req = http.get({ host: 'localhost', port: common.PORT });
+  // add the request to the C domain
+  c.add(req);
 
-// add the request to the C domain
-c.add(req);
+  req.on('response', function(res) {
+    console.error('got response');
+    // add the response object to the C domain
+    c.add(res);
+    res.pipe(process.stdout);
+  });
 
-req.on('response', function(res) {
-  console.error('got response');
-  // add the response object to the C domain
-  c.add(res);
-  res.pipe(process.stdout);
-});
-
-c.on('error', function(er) {
-  caughtC = true;
-  console.error('Error on c', er.message);
+  c.on('error', function(er) {
+    caughtC = true;
+    console.error('Error on c', er.message);
+  });
 });
 
 process.on('exit', function() {
-  assert.equal(caughtA, false);
-  assert.equal(caughtB, true);
-  assert.equal(caughtC, true);
+  assert.strictEqual(caughtA, false);
+  assert.strictEqual(caughtB, true);
+  assert.strictEqual(caughtC, true);
   console.log('ok - Errors went where they were supposed to go');
 });

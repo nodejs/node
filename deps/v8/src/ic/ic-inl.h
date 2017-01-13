@@ -60,9 +60,8 @@ void IC::SetTargetAtAddress(Address address, Code* target,
   DCHECK(!target->is_inline_cache_stub() ||
          (target->kind() != Code::LOAD_IC &&
           target->kind() != Code::KEYED_LOAD_IC &&
-          target->kind() != Code::CALL_IC &&
-          (!FLAG_vector_stores || (target->kind() != Code::STORE_IC &&
-                                   target->kind() != Code::KEYED_STORE_IC))));
+          target->kind() != Code::CALL_IC && target->kind() != Code::STORE_IC &&
+          target->kind() != Code::KEYED_STORE_IC));
 
   Heap* heap = target->GetHeap();
   Code* old_target = GetTargetAtAddress(address, constant_pool);
@@ -75,7 +74,7 @@ void IC::SetTargetAtAddress(Address address, Code* target,
            StoreICState::GetLanguageMode(target->extra_ic_state()));
   }
 #endif
-  Assembler::set_target_address_at(address, constant_pool,
+  Assembler::set_target_address_at(heap->isolate(), address, constant_pool,
                                    target->instruction_start());
   if (heap->gc_state() == Heap::MARK_COMPACT) {
     heap->mark_compact_collector()->RecordCodeTargetPatch(address, target);
@@ -88,44 +87,11 @@ void IC::SetTargetAtAddress(Address address, Code* target,
 
 void IC::set_target(Code* code) {
   SetTargetAtAddress(address(), code, constant_pool());
-  target_set_ = true;
 }
 
-
-void LoadIC::set_target(Code* code) {
-  // The contextual mode must be preserved across IC patching.
-  DCHECK(LoadICState::GetTypeofMode(code->extra_ic_state()) ==
-         LoadICState::GetTypeofMode(target()->extra_ic_state()));
-  // Strongness must be preserved across IC patching.
-  DCHECK(LoadICState::GetLanguageMode(code->extra_ic_state()) ==
-         LoadICState::GetLanguageMode(target()->extra_ic_state()));
-
-  IC::set_target(code);
-}
-
-
-void StoreIC::set_target(Code* code) {
-  // Language mode must be preserved across IC patching.
-  DCHECK(StoreICState::GetLanguageMode(code->extra_ic_state()) ==
-         StoreICState::GetLanguageMode(target()->extra_ic_state()));
-  IC::set_target(code);
-}
-
-
-void KeyedStoreIC::set_target(Code* code) {
-  // Language mode must be preserved across IC patching.
-  DCHECK(StoreICState::GetLanguageMode(code->extra_ic_state()) ==
-         language_mode());
-  IC::set_target(code);
-}
-
-
-Code* IC::raw_target() const {
+Code* IC::target() const {
   return GetTargetAtAddress(address(), constant_pool());
 }
-
-void IC::UpdateTarget() { target_ = handle(raw_target(), isolate_); }
-
 
 Handle<Map> IC::GetHandlerCacheHolder(Handle<Map> receiver_map,
                                       bool receiver_is_holder, Isolate* isolate,

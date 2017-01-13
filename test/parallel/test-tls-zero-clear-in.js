@@ -1,22 +1,19 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var fs = require('fs');
-var path = require('path');
+const fs = require('fs');
+const path = require('path');
 
-var cert = fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'));
-var key = fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem'));
+const cert = fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'));
+const key = fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem'));
 
-var errorEmitted = false;
-
-var server = tls.createServer({
+const server = tls.createServer({
   cert: cert,
   key: key
 }, function(c) {
@@ -25,12 +22,12 @@ var server = tls.createServer({
     c.end();
     server.close();
   }, 20);
-}).listen(common.PORT, function() {
-  var conn = tls.connect({
+}).listen(0, common.mustCall(function() {
+  const conn = tls.connect({
     cert: cert,
     key: key,
     rejectUnauthorized: false,
-    port: common.PORT
+    port: this.address().port
   }, function() {
     setTimeout(function() {
       conn.destroy();
@@ -41,12 +38,5 @@ var server = tls.createServer({
   // treated as error.
   conn.end('');
 
-  conn.on('error', function(err) {
-    console.log(err);
-    errorEmitted = true;
-  });
-});
-
-process.on('exit', function() {
-  assert.ok(!errorEmitted);
-});
+  conn.on('error', common.fail);
+}));

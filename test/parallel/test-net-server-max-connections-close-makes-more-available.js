@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var net = require('net');
+const net = require('net');
 
 // Sets the server's maxConnections property to 1.
 // Open 2 connections (connection 0 and connection 1).
@@ -13,23 +13,23 @@ var net = require('net');
 // Connection 2 should be accepted.
 // Connection 3 should be rejected.
 
-var connections = [];
-var received = [];
-var sent = [];
+const connections = [];
+const received = [];
+const sent = [];
 
-var createConnection = function(index) {
+const createConnection = function(index) {
   console.error('creating connection ' + index);
 
   return new Promise(function(resolve, reject) {
-    var connection = net.createConnection(common.PORT, function() {
-      var msg = '' + index;
+    const connection = net.createConnection(server.address().port, function() {
+      const msg = '' + index;
       console.error('sending message: ' + msg);
       this.write(msg);
       sent.push(msg);
     });
 
     connection.on('error', function(err) {
-      assert.equal(err.code, 'ECONNRESET');
+      assert.strictEqual(err.code, 'ECONNRESET');
       resolve();
     });
 
@@ -47,7 +47,7 @@ var createConnection = function(index) {
   });
 };
 
-var closeConnection = function(index) {
+const closeConnection = function(index) {
   console.error('closing connection ' + index);
   return new Promise(function(resolve, reject) {
     connections[index].on('end', function() {
@@ -57,7 +57,7 @@ var closeConnection = function(index) {
   });
 };
 
-var server = net.createServer(function(socket) {
+const server = net.createServer(function(socket) {
   socket.on('data', function(data) {
     console.error('received message: ' + data);
     received.push('' + data);
@@ -67,24 +67,24 @@ var server = net.createServer(function(socket) {
 
 server.maxConnections = 1;
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   createConnection(0)
-  .then(createConnection.bind(null, 1))
-  .then(closeConnection.bind(null, 0))
-  .then(createConnection.bind(null, 2))
-  .then(createConnection.bind(null, 3))
-  .then(server.close.bind(server))
-  .then(closeConnection.bind(null, 2));
+    .then(createConnection.bind(null, 1))
+    .then(closeConnection.bind(null, 0))
+    .then(createConnection.bind(null, 2))
+    .then(createConnection.bind(null, 3))
+    .then(server.close.bind(server))
+    .then(closeConnection.bind(null, 2));
 });
 
 process.on('exit', function() {
   // Confirm that all connections tried to send data...
-  assert.deepEqual(sent, [0, 1, 2, 3]);
+  assert.deepStrictEqual(sent, ['0', '1', '2', '3']);
   // ...but that only connections 0 and 2 were successful.
-  assert.deepEqual(received, [0, 2]);
+  assert.deepStrictEqual(received, ['0', '2']);
 });
 
 process.on('unhandledRejection', function() {
   console.error('promise rejected');
-  assert.fail(null, null, 'A promise in the chain rejected');
+  common.fail('A promise in the chain rejected');
 });

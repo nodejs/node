@@ -83,7 +83,7 @@ PASS tests[i](nativeJSON) is tests[i](JSON)
 function (jsonObject){
         return jsonObject.stringify({toJSON: Date.prototype.toJSON});
     }
-PASS tests[i](nativeJSON) threw exception TypeError: jsonObject.stringify is not a function.
+PASS tests[i](nativeJSON) threw exception TypeError: toISOString is not a function.
 function (jsonObject){
         return jsonObject.stringify({toJSON: Date.prototype.toJSON, toISOString: function(){ return "custom toISOString"; }});
     }
@@ -101,7 +101,7 @@ function (jsonObject){
         d.toISOString = null;
         return jsonObject.stringify(d);
     }
-PASS tests[i](nativeJSON) threw exception TypeError: jsonObject.stringify is not a function.
+PASS tests[i](nativeJSON) threw exception TypeError: toISOString is not a function.
 function (jsonObject){
         var d = new Date(0);
         d.toJSON = undefined;

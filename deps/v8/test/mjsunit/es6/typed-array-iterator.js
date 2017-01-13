@@ -9,23 +9,22 @@ var constructors = [Uint8Array, Int8Array,
                     Float32Array, Float64Array,
                     Uint8ClampedArray];
 
-function TestTypedArrayPrototype(constructor) {
-  assertTrue(constructor.prototype.hasOwnProperty('entries'));
-  assertTrue(constructor.prototype.hasOwnProperty('values'));
-  assertTrue(constructor.prototype.hasOwnProperty('keys'));
-  assertTrue(constructor.prototype.hasOwnProperty(Symbol.iterator));
+var TypedArrayPrototype = Uint8Array.prototype.__proto__;
 
-  assertFalse(constructor.prototype.propertyIsEnumerable('entries'));
-  assertFalse(constructor.prototype.propertyIsEnumerable('values'));
-  assertFalse(constructor.prototype.propertyIsEnumerable('keys'));
-  assertFalse(constructor.prototype.propertyIsEnumerable(Symbol.iterator));
+assertTrue(TypedArrayPrototype.hasOwnProperty('entries'));
+assertTrue(TypedArrayPrototype.hasOwnProperty('values'));
+assertTrue(TypedArrayPrototype.hasOwnProperty('keys'));
+assertTrue(TypedArrayPrototype.hasOwnProperty(Symbol.iterator));
 
-  assertEquals(Array.prototype.entries, constructor.prototype.entries);
-  assertEquals(Array.prototype[Symbol.iterator], constructor.prototype.values);
-  assertEquals(Array.prototype.keys, constructor.prototype.keys);
-  assertEquals(Array.prototype[Symbol.iterator], constructor.prototype[Symbol.iterator]);
-}
-constructors.forEach(TestTypedArrayPrototype);
+assertFalse(TypedArrayPrototype.propertyIsEnumerable('entries'));
+assertFalse(TypedArrayPrototype.propertyIsEnumerable('values'));
+assertFalse(TypedArrayPrototype.propertyIsEnumerable('keys'));
+assertFalse(TypedArrayPrototype.propertyIsEnumerable(Symbol.iterator));
+
+assertFalse(Array.prototype.entries === TypedArrayPrototype.entries);
+assertFalse(Array.prototype[Symbol.iterator] === TypedArrayPrototype.values);
+assertFalse(Array.prototype.keys === TypedArrayPrototype.keys);
+assertFalse(Array.prototype[Symbol.iterator] === TypedArrayPrototype[Symbol.iterator]);
 
 
 function TestTypedArrayValues(constructor) {

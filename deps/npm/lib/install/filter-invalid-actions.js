@@ -21,10 +21,10 @@ module.exports = function (top, differences, next) {
   while (action = differences.shift()) {
     var cmd = action[0]
     var pkg = action[1]
-    if (pkg.isInLink || pkg.parent.target || pkg.parent.isLink) {
+    if (pkg.isInLink || (pkg.parent && (pkg.parent.target || pkg.parent.isLink))) {
       // we want to skip warning if this is a child of another module that we're removing
       if (!pkg.parent.removing) {
-        log.warn('skippingAction', 'Module is inside a symlinked module: not running ' +
+        log.verbose('skippingAction', 'Module is inside a symlinked module: not running ' +
           cmd + ' ' + packageId(pkg) + ' ' + path.relative(top, pkg.path))
       }
     } else {

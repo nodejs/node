@@ -30,9 +30,8 @@
 namespace v8 {
 namespace internal {
 
-v8::Handle<v8::FunctionTemplate> PrintExtension::GetNativeFunctionTemplate(
-    v8::Isolate* isolate,
-    v8::Handle<v8::String> str) {
+v8::Local<v8::FunctionTemplate> PrintExtension::GetNativeFunctionTemplate(
+    v8::Isolate* isolate, v8::Local<v8::String> str) {
   return v8::FunctionTemplate::New(isolate, PrintExtension::Print);
 }
 

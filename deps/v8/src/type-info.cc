@@ -4,7 +4,7 @@
 
 #include "src/type-info.h"
 
-#include "src/ast.h"
+#include "src/ast/ast.h"
 #include "src/code-stubs.h"
 #include "src/compiler.h"
 #include "src/ic/ic.h"
@@ -20,7 +20,7 @@ TypeFeedbackOracle::TypeFeedbackOracle(
     Handle<TypeFeedbackVector> feedback_vector, Handle<Context> native_context)
     : native_context_(native_context), isolate_(isolate), zone_(zone) {
   BuildDictionary(code);
-  DCHECK(dictionary_->IsDictionary());
+  DCHECK(dictionary_->IsUnseededNumberDictionary());
   // We make a copy of the feedback vector because a GC could clear
   // the type feedback info contained therein.
   // TODO(mvstanton): revisit the decision to copy when we weakly
@@ -72,19 +72,6 @@ Handle<Object> TypeFeedbackOracle::GetInfo(FeedbackVectorSlot slot) {
 }
 
 
-InlineCacheState TypeFeedbackOracle::LoadInlineCacheState(TypeFeedbackId id) {
-  Handle<Object> maybe_code = GetInfo(id);
-  if (maybe_code->IsCode()) {
-    Handle<Code> code = Handle<Code>::cast(maybe_code);
-    if (code->is_inline_cache_stub()) return code->ic_state();
-  }
-
-  // If we can't find an IC, assume we've seen *something*, but we don't know
-  // what. PREMONOMORPHIC roughly encodes this meaning.
-  return PREMONOMORPHIC;
-}
-
-
 InlineCacheState TypeFeedbackOracle::LoadInlineCacheState(
     FeedbackVectorSlot slot) {
   if (!slot.IsInvalid()) {
@@ -101,14 +88,6 @@ InlineCacheState TypeFeedbackOracle::LoadInlineCacheState(
   // If we can't find an IC, assume we've seen *something*, but we don't know
   // what. PREMONOMORPHIC roughly encodes this meaning.
   return PREMONOMORPHIC;
-}
-
-
-bool TypeFeedbackOracle::StoreIsUninitialized(TypeFeedbackId ast_id) {
-  Handle<Object> maybe_code = GetInfo(ast_id);
-  if (!maybe_code->IsCode()) return false;
-  Handle<Code> code = Handle<Code>::cast(maybe_code);
-  return code->ic_state() == UNINITIALIZED;
 }
 
 
@@ -129,7 +108,7 @@ bool TypeFeedbackOracle::StoreIsUninitialized(FeedbackVectorSlot slot) {
 
 bool TypeFeedbackOracle::CallIsUninitialized(FeedbackVectorSlot slot) {
   Handle<Object> value = GetInfo(slot);
-  return value->IsUndefined() ||
+  return value->IsUndefined(isolate()) ||
          value.is_identical_to(
              TypeFeedbackVector::UninitializedSentinel(isolate()));
 }
@@ -153,24 +132,6 @@ byte TypeFeedbackOracle::ForInType(FeedbackVectorSlot feedback_vector_slot) {
              TypeFeedbackVector::UninitializedSentinel(isolate()))
              ? ForInStatement::FAST_FOR_IN
              : ForInStatement::SLOW_FOR_IN;
-}
-
-
-void TypeFeedbackOracle::GetStoreModeAndKeyType(
-    TypeFeedbackId ast_id, KeyedAccessStoreMode* store_mode,
-    IcCheckType* key_type) {
-  Handle<Object> maybe_code = GetInfo(ast_id);
-  if (maybe_code->IsCode()) {
-    Handle<Code> code = Handle<Code>::cast(maybe_code);
-    if (code->kind() == Code::KEYED_STORE_IC) {
-      ExtraICState extra_ic_state = code->extra_ic_state();
-      *store_mode = KeyedStoreIC::GetKeyedAccessStoreMode(extra_ic_state);
-      *key_type = KeyedStoreIC::GetKeyType(extra_ic_state);
-      return;
-    }
-  }
-  *store_mode = STANDARD_STORE;
-  *key_type = ELEMENT;
 }
 
 
@@ -232,12 +193,6 @@ Handle<AllocationSite> TypeFeedbackOracle::GetCallNewAllocationSite(
 }
 
 
-bool TypeFeedbackOracle::LoadIsBuiltin(
-    TypeFeedbackId id, Builtins::Name builtin) {
-  return *GetInfo(id) == isolate()->builtins()->builtin(builtin);
-}
-
-
 void TypeFeedbackOracle::CompareType(TypeFeedbackId id,
                                      Type** left_type,
                                      Type** right_type,
@@ -245,7 +200,7 @@ void TypeFeedbackOracle::CompareType(TypeFeedbackId id,
   Handle<Object> info = GetInfo(id);
   if (!info->IsCode()) {
     // For some comparisons we don't have ICs, e.g. LiteralCompareTypeof.
-    *left_type = *right_type = *combined_type = Type::None(zone());
+    *left_type = *right_type = *combined_type = Type::None();
     return;
   }
   Handle<Code> code = Handle<Code>::cast(info);
@@ -259,10 +214,6 @@ void TypeFeedbackOracle::CompareType(TypeFeedbackId id,
     *left_type = CompareICState::StateToType(zone(), stub.left());
     *right_type = CompareICState::StateToType(zone(), stub.right());
     *combined_type = CompareICState::StateToType(zone(), stub.state(), map);
-  } else if (code->is_compare_nil_ic_stub()) {
-    CompareNilICStub stub(isolate(), code->extra_ic_state());
-    *combined_type = stub.GetType(zone(), map);
-    *left_type = *right_type = stub.GetInputType(zone(), map);
   }
 }
 
@@ -280,7 +231,7 @@ void TypeFeedbackOracle::BinaryType(TypeFeedbackId id,
     // operations covered by the BinaryOpIC we should always have them.
     DCHECK(op < BinaryOpICState::FIRST_TOKEN ||
            op > BinaryOpICState::LAST_TOKEN);
-    *left = *right = *result = Type::None(zone());
+    *left = *right = *result = Type::None();
     *fixed_right_arg = Nothing<int>();
     *allocation_site = Handle<AllocationSite>::null();
     return;
@@ -290,9 +241,9 @@ void TypeFeedbackOracle::BinaryType(TypeFeedbackId id,
   BinaryOpICState state(isolate(), code->extra_ic_state());
   DCHECK_EQ(op, state.op());
 
-  *left = state.GetLeftType(zone());
-  *right = state.GetRightType(zone());
-  *result = state.GetResultType(zone());
+  *left = state.GetLeftType();
+  *right = state.GetRightType();
+  *result = state.GetResultType();
   *fixed_right_arg = state.fixed_right_arg();
 
   AllocationSite* first_allocation_site = code->FindFirstAllocationSite();
@@ -306,11 +257,11 @@ void TypeFeedbackOracle::BinaryType(TypeFeedbackId id,
 
 Type* TypeFeedbackOracle::CountType(TypeFeedbackId id) {
   Handle<Object> object = GetInfo(id);
-  if (!object->IsCode()) return Type::None(zone());
+  if (!object->IsCode()) return Type::None();
   Handle<Code> code = Handle<Code>::cast(object);
   DCHECK_EQ(Code::BINARY_OP_IC, code->kind());
   BinaryOpICState state(isolate(), code->extra_ic_state());
-  return state.GetLeftType(zone());
+  return state.GetLeftType();
 }
 
 
@@ -329,8 +280,8 @@ void TypeFeedbackOracle::PropertyReceiverTypes(FeedbackVectorSlot slot,
   receiver_types->Clear();
   if (!slot.IsInvalid()) {
     LoadICNexus nexus(feedback_vector_, slot);
-    Code::Flags flags = Code::ComputeHandlerFlags(Code::LOAD_IC);
-    CollectReceiverTypes(&nexus, name, flags, receiver_types);
+    CollectReceiverTypes(isolate()->load_stub_cache(), &nexus, name,
+                         receiver_types);
   }
 }
 
@@ -344,19 +295,10 @@ void TypeFeedbackOracle::KeyedPropertyReceiverTypes(
     *key_type = ELEMENT;
   } else {
     KeyedLoadICNexus nexus(feedback_vector_, slot);
-    CollectReceiverTypes<FeedbackNexus>(&nexus, receiver_types);
+    CollectReceiverTypes(&nexus, receiver_types);
     *is_string = HasOnlyStringMaps(receiver_types);
-    *key_type = nexus.FindFirstName() != NULL ? PROPERTY : ELEMENT;
+    *key_type = nexus.GetKeyType();
   }
-}
-
-
-void TypeFeedbackOracle::AssignmentReceiverTypes(TypeFeedbackId id,
-                                                 Handle<Name> name,
-                                                 SmallMapList* receiver_types) {
-  receiver_types->Clear();
-  Code::Flags flags = Code::ComputeHandlerFlags(Code::STORE_IC);
-  CollectReceiverTypes(id, name, flags, receiver_types);
 }
 
 
@@ -364,17 +306,8 @@ void TypeFeedbackOracle::AssignmentReceiverTypes(FeedbackVectorSlot slot,
                                                  Handle<Name> name,
                                                  SmallMapList* receiver_types) {
   receiver_types->Clear();
-  Code::Flags flags = Code::ComputeHandlerFlags(Code::STORE_IC);
-  CollectReceiverTypes(slot, name, flags, receiver_types);
-}
-
-
-void TypeFeedbackOracle::KeyedAssignmentReceiverTypes(
-    TypeFeedbackId id, SmallMapList* receiver_types,
-    KeyedAccessStoreMode* store_mode, IcCheckType* key_type) {
-  receiver_types->Clear();
-  CollectReceiverTypes(id, receiver_types);
-  GetStoreModeAndKeyType(id, store_mode, key_type);
+  CollectReceiverTypes(isolate()->store_stub_cache(), slot, name,
+                       receiver_types);
 }
 
 
@@ -387,63 +320,31 @@ void TypeFeedbackOracle::KeyedAssignmentReceiverTypes(
 }
 
 
-void TypeFeedbackOracle::CountReceiverTypes(TypeFeedbackId id,
-                                            SmallMapList* receiver_types) {
-  receiver_types->Clear();
-  CollectReceiverTypes(id, receiver_types);
-}
-
-
 void TypeFeedbackOracle::CountReceiverTypes(FeedbackVectorSlot slot,
                                             SmallMapList* receiver_types) {
   receiver_types->Clear();
   if (!slot.IsInvalid()) CollectReceiverTypes(slot, receiver_types);
 }
 
-
-void TypeFeedbackOracle::CollectReceiverTypes(FeedbackVectorSlot slot,
+void TypeFeedbackOracle::CollectReceiverTypes(StubCache* stub_cache,
+                                              FeedbackVectorSlot slot,
                                               Handle<Name> name,
-                                              Code::Flags flags,
                                               SmallMapList* types) {
   StoreICNexus nexus(feedback_vector_, slot);
-  CollectReceiverTypes<FeedbackNexus>(&nexus, name, flags, types);
+  CollectReceiverTypes(stub_cache, &nexus, name, types);
 }
 
-
-void TypeFeedbackOracle::CollectReceiverTypes(TypeFeedbackId ast_id,
+void TypeFeedbackOracle::CollectReceiverTypes(StubCache* stub_cache,
+                                              FeedbackNexus* nexus,
                                               Handle<Name> name,
-                                              Code::Flags flags,
-                                              SmallMapList* types) {
-  Handle<Object> object = GetInfo(ast_id);
-  if (object->IsUndefined() || object->IsSmi()) return;
-
-  DCHECK(object->IsCode());
-  Handle<Code> code(Handle<Code>::cast(object));
-  CollectReceiverTypes<Code>(*code, name, flags, types);
-}
-
-
-template <class T>
-void TypeFeedbackOracle::CollectReceiverTypes(T* obj, Handle<Name> name,
-                                              Code::Flags flags,
                                               SmallMapList* types) {
   if (FLAG_collect_megamorphic_maps_from_stub_cache &&
-      obj->ic_state() == MEGAMORPHIC) {
+      nexus->ic_state() == MEGAMORPHIC) {
     types->Reserve(4, zone());
-    isolate()->stub_cache()->CollectMatchingMaps(
-        types, name, flags, native_context_, zone());
+    stub_cache->CollectMatchingMaps(types, name, native_context_, zone());
   } else {
-    CollectReceiverTypes<T>(obj, types);
+    CollectReceiverTypes(nexus, types);
   }
-}
-
-
-void TypeFeedbackOracle::CollectReceiverTypes(TypeFeedbackId ast_id,
-                                              SmallMapList* types) {
-  Handle<Object> object = GetInfo(ast_id);
-  if (!object->IsCode()) return;
-  Handle<Code> code = Handle<Code>::cast(object);
-  CollectReceiverTypes<Code>(*code, types);
 }
 
 
@@ -452,23 +353,22 @@ void TypeFeedbackOracle::CollectReceiverTypes(FeedbackVectorSlot slot,
   FeedbackVectorSlotKind kind = feedback_vector_->GetKind(slot);
   if (kind == FeedbackVectorSlotKind::STORE_IC) {
     StoreICNexus nexus(feedback_vector_, slot);
-    CollectReceiverTypes<FeedbackNexus>(&nexus, types);
+    CollectReceiverTypes(&nexus, types);
   } else {
     DCHECK_EQ(FeedbackVectorSlotKind::KEYED_STORE_IC, kind);
     KeyedStoreICNexus nexus(feedback_vector_, slot);
-    CollectReceiverTypes<FeedbackNexus>(&nexus, types);
+    CollectReceiverTypes(&nexus, types);
   }
 }
 
-
-template <class T>
-void TypeFeedbackOracle::CollectReceiverTypes(T* obj, SmallMapList* types) {
+void TypeFeedbackOracle::CollectReceiverTypes(FeedbackNexus* nexus,
+                                              SmallMapList* types) {
   MapHandleList maps;
-  if (obj->ic_state() == MONOMORPHIC) {
-    Map* map = obj->FindFirstMap();
+  if (nexus->ic_state() == MONOMORPHIC) {
+    Map* map = nexus->FindFirstMap();
     if (map != NULL) maps.Add(handle(map));
-  } else if (obj->ic_state() == POLYMORPHIC) {
-    obj->FindAllMaps(&maps);
+  } else if (nexus->ic_state() == POLYMORPHIC) {
+    nexus->FindAllMaps(&maps);
   } else {
     return;
   }
@@ -549,7 +449,6 @@ void TypeFeedbackOracle::ProcessRelocInfos(ZoneList<RelocInfo>* infos) {
       case Code::BINARY_OP_IC:
       case Code::COMPARE_IC:
       case Code::TO_BOOLEAN_IC:
-      case Code::COMPARE_NIL_IC:
         SetInfo(ast_id, target);
         break;
 

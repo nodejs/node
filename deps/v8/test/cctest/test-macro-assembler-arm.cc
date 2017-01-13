@@ -61,7 +61,7 @@ static bool all_zeroes(const byte* beg, const byte* end) {
 
 TEST(CopyBytes) {
   CcTest::InitializeVM();
-  Isolate* isolate = Isolate::Current();
+  Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
 
   const int data_size = 1 * KB;
@@ -81,7 +81,8 @@ TEST(CopyBytes) {
   byte* r0_;
   byte* r1_;
 
-  MacroAssembler assembler(isolate, NULL, 0);
+  MacroAssembler assembler(isolate, NULL, 0,
+                           v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;
 
   // Code to be generated: The stuff in CopyBytes followed by a store of R0 and
@@ -112,8 +113,8 @@ TEST(CopyBytes) {
       for (byte* dest = dest_buffer; dest < dest_buffer + fuzz; dest++) {
         memset(dest_buffer, 0, data_size);
         CHECK(dest + size < dest_buffer + data_size);
-        (void) CALL_GENERATED_CODE(f, reinterpret_cast<int>(src),
-                                      reinterpret_cast<int>(dest), size, 0, 0);
+        (void)CALL_GENERATED_CODE(isolate, f, reinterpret_cast<int>(src),
+                                  reinterpret_cast<int>(dest), size, 0, 0);
         // R0 and R1 should point at the first byte after the copied data.
         CHECK_EQ(src + size, r0_);
         CHECK_EQ(dest + size, r1_);
@@ -144,7 +145,8 @@ TEST(LoadAndStoreWithRepresentation) {
   CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+                           v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
   __ sub(sp, sp, Operand(1 * kPointerSize));
   Label exit;
@@ -221,7 +223,7 @@ TEST(LoadAndStoreWithRepresentation) {
 
   // Call the function from C++.
   F5 f = FUNCTION_CAST<F5>(code->entry());
-  CHECK(!CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  CHECK(!CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
 }
 
 #undef __

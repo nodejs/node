@@ -20,11 +20,11 @@ namespace compiler {
 void GraphReplayPrinter::PrintReplay(Graph* graph) {
   GraphReplayPrinter replay;
   PrintF("  Node* nil = graph()->NewNode(common()->Dead());\n");
-  Zone zone;
+  Zone zone(graph->zone()->allocator());
   AllNodes nodes(&zone, graph);
 
   // Allocate the nodes first.
-  for (Node* node : nodes.live) {
+  for (Node* node : nodes.reachable) {
     PrintReplayOpCreator(node->op());
     PrintF("  Node* n%d = graph()->NewNode(op", node->id());
     for (int i = 0; i < node->InputCount(); ++i) {
@@ -34,7 +34,7 @@ void GraphReplayPrinter::PrintReplay(Graph* graph) {
   }
 
   // Connect the nodes to their inputs.
-  for (Node* node : nodes.live) {
+  for (Node* node : nodes.reachable) {
     for (int i = 0; i < node->InputCount(); i++) {
       PrintF("  n%d->ReplaceInput(%d, n%d);\n", node->id(), i,
              node->InputAt(i)->id());

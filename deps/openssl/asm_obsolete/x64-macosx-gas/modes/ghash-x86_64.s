@@ -20,14 +20,14 @@ L$gmult_prologue:
 	movq	$14,%rcx
 	movq	8(%rsi,%rax,1),%r8
 	movq	(%rsi,%rax,1),%r9
-	andb	$240,%bl
+	andb	$0xf0,%bl
 	movq	%r8,%rdx
 	jmp	L$oop1
 
 .p2align	4
 L$oop1:
 	shrq	$4,%r8
-	andq	$15,%rdx
+	andq	$0xf,%rdx
 	movq	%r9,%r10
 	movb	(%rdi,%rcx,1),%al
 	shrq	$4,%r9
@@ -43,13 +43,13 @@ L$oop1:
 	js	L$break1
 
 	shrq	$4,%r8
-	andq	$15,%rdx
+	andq	$0xf,%rdx
 	movq	%r9,%r10
 	shrq	$4,%r9
 	xorq	8(%rsi,%rax,1),%r8
 	shlq	$60,%r10
 	xorq	(%rsi,%rax,1),%r9
-	andb	$240,%bl
+	andb	$0xf0,%bl
 	xorq	(%r11,%rdx,8),%r9
 	movq	%r8,%rdx
 	xorq	%r10,%r8
@@ -58,19 +58,19 @@ L$oop1:
 .p2align	4
 L$break1:
 	shrq	$4,%r8
-	andq	$15,%rdx
+	andq	$0xf,%rdx
 	movq	%r9,%r10
 	shrq	$4,%r9
 	xorq	8(%rsi,%rax,1),%r8
 	shlq	$60,%r10
 	xorq	(%rsi,%rax,1),%r9
-	andb	$240,%bl
+	andb	$0xf0,%bl
 	xorq	(%r11,%rdx,8),%r9
 	movq	%r8,%rdx
 	xorq	%r10,%r8
 
 	shrq	$4,%r8
-	andq	$15,%rdx
+	andq	$0xf,%rdx
 	movq	%r9,%r10
 	shrq	$4,%r9
 	xorq	8(%rsi,%rbx,1),%r8
@@ -874,20 +874,20 @@ L$_ghash_clmul:
 	movdqu	32(%rsi),%xmm7
 .byte	102,65,15,56,0,194
 
-	subq	$16,%rcx
+	subq	$0x10,%rcx
 	jz	L$odd_tail
 
 	movdqu	16(%rsi),%xmm6
 	movl	_OPENSSL_ia32cap_P+4(%rip),%eax
-	cmpq	$48,%rcx
+	cmpq	$0x30,%rcx
 	jb	L$skip4x
 
 	andl	$71303168,%eax
 	cmpl	$4194304,%eax
 	je	L$skip4x
 
-	subq	$48,%rcx
-	movq	$11547335547999543296,%rax
+	subq	$0x30,%rcx
+	movq	$0xA040608020C0E000,%rax
 	movdqu	48(%rsi),%xmm14
 	movdqu	64(%rsi),%xmm15
 
@@ -934,7 +934,7 @@ L$_ghash_clmul:
 	xorps	%xmm13,%xmm5
 
 	leaq	64(%rdx),%rdx
-	subq	$64,%rcx
+	subq	$0x40,%rcx
 	jc	L$tail4x
 
 	jmp	L$mod4_loop
@@ -1017,7 +1017,7 @@ L$mod4_loop:
 	xorps	%xmm13,%xmm5
 
 	leaq	64(%rdx),%rdx
-	subq	$64,%rcx
+	subq	$0x40,%rcx
 	jnc	L$mod4_loop
 
 L$tail4x:
@@ -1061,10 +1061,10 @@ L$tail4x:
 	pxor	%xmm4,%xmm0
 	psrlq	$1,%xmm0
 	pxor	%xmm1,%xmm0
-	addq	$64,%rcx
+	addq	$0x40,%rcx
 	jz	L$done
 	movdqu	32(%rsi),%xmm7
-	subq	$16,%rcx
+	subq	$0x10,%rcx
 	jz	L$odd_tail
 L$skip4x:
 
@@ -1087,7 +1087,7 @@ L$skip4x:
 
 	leaq	32(%rdx),%rdx
 	nop
-	subq	$32,%rcx
+	subq	$0x20,%rcx
 	jbe	L$even_tail
 	nop
 	jmp	L$mod_loop
@@ -1150,7 +1150,7 @@ L$mod_loop:
 .byte	102,15,58,68,231,0
 	pxor	%xmm1,%xmm0
 
-	subq	$32,%rcx
+	subq	$0x20,%rcx
 	ja	L$mod_loop
 
 L$even_tail:

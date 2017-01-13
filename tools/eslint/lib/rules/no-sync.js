@@ -11,20 +11,36 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow synchronous methods",
+            category: "Node.js and CommonJS",
+            recommended: false
+        },
 
-    return {
+        schema: []
+    },
 
-        "MemberExpression": function(node) {
-            var propertyName = node.property.name,
-                syncRegex = /.*Sync$/;
+    create(context) {
 
-            if (syncRegex.exec(propertyName) !== null) {
-                context.report(node, "Unexpected sync method: '" + propertyName + "'.");
+        return {
+
+            MemberExpression(node) {
+                const propertyName = node.property.name,
+                    syncRegex = /.*Sync$/;
+
+                if (syncRegex.exec(propertyName) !== null) {
+                    context.report({
+                        node,
+                        message: "Unexpected sync method: '{{propertyName}}'.",
+                        data: {
+                            propertyName
+                        }
+                    });
+                }
             }
-        }
-    };
+        };
 
+    }
 };
-
-module.exports.schema = [];

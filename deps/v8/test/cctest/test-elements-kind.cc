@@ -311,7 +311,7 @@ TEST(JSArrayAddingElementsGeneralizingiFastSmiElements) {
 
   // `delete array[0]` does not alter length, but changes the elments_kind
   name = MakeString("0");
-  JSReceiver::DeletePropertyOrElement(array, name).Check();
+  CHECK(JSReceiver::DeletePropertyOrElement(array, name).FromMaybe(false));
   CHECK_NE(array->map(), *previous_map);
   CHECK_EQ(array->map()->elements_kind(), FAST_HOLEY_SMI_ELEMENTS);
   CHECK_EQ(1, Smi::cast(array->length())->value());
@@ -384,7 +384,7 @@ TEST(JSArrayAddingElementsGeneralizingFastElements) {
 
   // `delete array[0]` does not alter length, but changes the elments_kind
   name = MakeString("0");
-  JSReceiver::DeletePropertyOrElement(array, name).Check();
+  CHECK(JSReceiver::DeletePropertyOrElement(array, name).FromMaybe(false));
   CHECK_NE(array->map(), *previous_map);
   CHECK_EQ(array->map()->elements_kind(), FAST_HOLEY_ELEMENTS);
   CHECK_EQ(1, Smi::cast(array->length())->value());
@@ -441,7 +441,7 @@ TEST(JSArrayAddingElementsGeneralizingiFastDoubleElements) {
 
   // `delete array[0]` does not alter length, but changes the elments_kind
   name = MakeString("0");
-  JSReceiver::DeletePropertyOrElement(array, name).Check();
+  CHECK(JSReceiver::DeletePropertyOrElement(array, name).FromMaybe(false));
   CHECK_NE(array->map(), *previous_map);
   CHECK_EQ(array->map()->elements_kind(), FAST_HOLEY_DOUBLE_ELEMENTS);
   CHECK_EQ(2, Smi::cast(array->length())->value());

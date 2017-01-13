@@ -2,10 +2,6 @@
 //
 'use strict';
 
-
-var inherits = require('util').inherits;
-
-
 function YAMLException(reason, mark) {
   // Super constructor
   Error.call(this);
@@ -27,7 +23,8 @@ function YAMLException(reason, mark) {
 
 
 // Inherit from Error
-inherits(YAMLException, Error);
+YAMLException.prototype = Object.create(Error.prototype);
+YAMLException.prototype.constructor = YAMLException;
 
 
 YAMLException.prototype.toString = function toString(compact) {

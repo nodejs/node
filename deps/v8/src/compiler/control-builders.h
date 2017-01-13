@@ -41,8 +41,8 @@ class IfBuilder final : public ControlBuilder {
  public:
   explicit IfBuilder(AstGraphBuilder* builder)
       : ControlBuilder(builder),
-        then_environment_(NULL),
-        else_environment_(NULL) {}
+        then_environment_(nullptr),
+        else_environment_(nullptr) {}
 
   // Primitive control commands.
   void If(Node* condition, BranchHint hint = BranchHint::kNone);
@@ -61,9 +61,10 @@ class LoopBuilder final : public ControlBuilder {
  public:
   explicit LoopBuilder(AstGraphBuilder* builder)
       : ControlBuilder(builder),
-        loop_environment_(NULL),
-        continue_environment_(NULL),
-        break_environment_(NULL) {}
+        loop_environment_(nullptr),
+        continue_environment_(nullptr),
+        break_environment_(nullptr),
+        assigned_(nullptr) {}
 
   // Primitive control commands.
   void BeginLoop(BitVector* assigned, bool is_osr = false);
@@ -74,6 +75,10 @@ class LoopBuilder final : public ControlBuilder {
   // Primitive support for break.
   void Break() final;
 
+  // Loop exit support. Used to introduce explicit loop exit control
+  // node and variable markers.
+  void ExitLoop(Node** extra_value_to_rename = nullptr);
+
   // Compound control commands for conditional break.
   void BreakUnless(Node* condition);
   void BreakWhen(Node* condition);
@@ -82,6 +87,7 @@ class LoopBuilder final : public ControlBuilder {
   Environment* loop_environment_;      // Environment of the loop header.
   Environment* continue_environment_;  // Environment after the loop body.
   Environment* break_environment_;     // Environment after the loop exits.
+  BitVector* assigned_;                // Assigned values in the environment.
 };
 
 
@@ -90,9 +96,9 @@ class SwitchBuilder final : public ControlBuilder {
  public:
   explicit SwitchBuilder(AstGraphBuilder* builder, int case_count)
       : ControlBuilder(builder),
-        body_environment_(NULL),
-        label_environment_(NULL),
-        break_environment_(NULL),
+        body_environment_(nullptr),
+        label_environment_(nullptr),
+        break_environment_(nullptr),
         body_environments_(case_count, zone()) {}
 
   // Primitive control commands.
@@ -122,7 +128,7 @@ class SwitchBuilder final : public ControlBuilder {
 class BlockBuilder final : public ControlBuilder {
  public:
   explicit BlockBuilder(AstGraphBuilder* builder)
-      : ControlBuilder(builder), break_environment_(NULL) {}
+      : ControlBuilder(builder), break_environment_(nullptr) {}
 
   // Primitive control commands.
   void BeginBlock();
@@ -145,9 +151,9 @@ class TryCatchBuilder final : public ControlBuilder {
  public:
   explicit TryCatchBuilder(AstGraphBuilder* builder)
       : ControlBuilder(builder),
-        catch_environment_(NULL),
-        exit_environment_(NULL),
-        exception_node_(NULL) {}
+        catch_environment_(nullptr),
+        exit_environment_(nullptr),
+        exception_node_(nullptr) {}
 
   // Primitive control commands.
   void BeginTry();
@@ -170,9 +176,9 @@ class TryFinallyBuilder final : public ControlBuilder {
  public:
   explicit TryFinallyBuilder(AstGraphBuilder* builder)
       : ControlBuilder(builder),
-        finally_environment_(NULL),
-        token_node_(NULL),
-        value_node_(NULL) {}
+        finally_environment_(nullptr),
+        token_node_(nullptr),
+        value_node_(nullptr) {}
 
   // Primitive control commands.
   void BeginTry();

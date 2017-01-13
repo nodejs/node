@@ -1,10 +1,14 @@
 /**
  * @fileoverview Rule to flag use of alert, confirm, prompt
  * @author Nicholas C. Zakas
- * @copyright 2015 Mathias Schreck
- * @copyright 2013 Nicholas C. Zakas
  */
 "use strict";
+
+//------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const getPropertyName = require("../ast-utils").getStaticPropertyName;
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -31,46 +35,19 @@ function report(context, node, identifierName) {
 }
 
 /**
- * Returns the property name of a MemberExpression.
- * @param {ASTNode} memberExpressionNode The MemberExpression node.
- * @returns {string|undefined} Returns the property name if available, undefined else.
- */
-function getPropertyName(memberExpressionNode) {
-    if (memberExpressionNode.computed) {
-        if (memberExpressionNode.property.type === "Literal") {
-            return memberExpressionNode.property.value;
-        }
-    } else {
-        return memberExpressionNode.property.name;
-    }
-}
-
-/**
  * Finds the escope reference in the given scope.
  * @param {Object} scope The scope to search.
  * @param {ASTNode} node The identifier node.
- * @returns {Reference|undefined} Returns the found reference or undefined if none were found.
+ * @returns {Reference|null} Returns the found reference or null if none were found.
  */
 function findReference(scope, node) {
-    var references = scope.references.filter(function(reference) {
-        return reference.identifier.range[0] === node.range[0] &&
-            reference.identifier.range[1] === node.range[1];
-    });
+    const references = scope.references.filter(reference => reference.identifier.range[0] === node.range[0] &&
+            reference.identifier.range[1] === node.range[1]);
 
     if (references.length === 1) {
         return references[0];
     }
-}
-
-/**
- * Checks if the given identifier name is shadowed in the given global scope.
- * @param {Object} globalScope The global scope.
- * @param {string} identifierName The identifier name to check
- * @returns {boolean} Whether or not the name is shadowed globally.
- */
-function isGloballyShadowed(globalScope, identifierName) {
-    var variable = globalScope.set.get(identifierName);
-    return Boolean(variable && variable.defs.length > 0);
+    return null;
 }
 
 /**
@@ -81,16 +58,9 @@ function isGloballyShadowed(globalScope, identifierName) {
  * @returns {boolean} Whether or not the name is shadowed.
  */
 function isShadowed(scope, globalScope, node) {
-    var reference = findReference(scope, node),
-        identifierName = node.name;
+    const reference = findReference(scope, node);
 
-    if (reference) {
-        if (reference.resolved || isGloballyShadowed(globalScope, identifierName)) {
-            return true;
-        }
-    }
-
-    return false;
+    return reference && reference.resolved && reference.resolved.defs.length > 0;
 }
 
 /**
@@ -114,39 +84,48 @@ function isGlobalThisReferenceOrGlobalWindow(scope, globalScope, node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
-    var globalScope;
-
-    return {
-
-        "Program": function() {
-            globalScope = context.getScope();
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow the use of `alert`, `confirm`, and `prompt`",
+            category: "Best Practices",
+            recommended: false
         },
 
-        "CallExpression": function(node) {
-            var callee = node.callee,
-                identifierName,
-                currentScope = context.getScope();
+        schema: []
+    },
 
-            // without window.
-            if (callee.type === "Identifier") {
-                identifierName = callee.name;
+    create(context) {
+        let globalScope;
 
-                if (!isShadowed(currentScope, globalScope, callee) && isProhibitedIdentifier(callee.name)) {
-                    report(context, node, identifierName);
+        return {
+
+            Program() {
+                globalScope = context.getScope();
+            },
+
+            CallExpression(node) {
+                const callee = node.callee,
+                    currentScope = context.getScope();
+
+                // without window.
+                if (callee.type === "Identifier") {
+                    const identifierName = callee.name;
+
+                    if (!isShadowed(currentScope, globalScope, callee) && isProhibitedIdentifier(callee.name)) {
+                        report(context, node, identifierName);
+                    }
+
+                } else if (callee.type === "MemberExpression" && isGlobalThisReferenceOrGlobalWindow(currentScope, globalScope, callee.object)) {
+                    const identifierName = getPropertyName(callee);
+
+                    if (isProhibitedIdentifier(identifierName)) {
+                        report(context, node, identifierName);
+                    }
                 }
 
-            } else if (callee.type === "MemberExpression" && isGlobalThisReferenceOrGlobalWindow(currentScope, globalScope, callee.object)) {
-                identifierName = getPropertyName(callee);
-
-                if (isProhibitedIdentifier(identifierName)) {
-                    report(context, node, identifierName);
-                }
             }
+        };
 
-        }
-    };
-
+    }
 };
-
-module.exports.schema = [];

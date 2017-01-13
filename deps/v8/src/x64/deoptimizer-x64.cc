@@ -41,14 +41,15 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     } else {
       pointer = code->instruction_start();
     }
-    CodePatcher patcher(pointer, 1);
+    CodePatcher patcher(isolate, pointer, 1);
     patcher.masm()->int3();
 
     DeoptimizationInputData* data =
         DeoptimizationInputData::cast(code->deoptimization_data());
     int osr_offset = data->OsrPcOffset()->value();
     if (osr_offset > 0) {
-      CodePatcher osr_patcher(code->instruction_start() + osr_offset, 1);
+      CodePatcher osr_patcher(isolate, code->instruction_start() + osr_offset,
+                              1);
       osr_patcher.masm()->int3();
     }
   }
@@ -74,7 +75,7 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     Address call_address = instruction_start + deopt_data->Pc(i)->value();
     // There is room enough to write a long call instruction because we pad
     // LLazyBailout instructions with nops if necessary.
-    CodePatcher patcher(call_address, Assembler::kCallSequenceLength);
+    CodePatcher patcher(isolate, call_address, Assembler::kCallSequenceLength);
     patcher.masm()->Call(GetDeoptimizationEntry(isolate, i, LAZY),
                          Assembler::RelocInfoNone());
     DCHECK(prev_call_address == NULL ||
@@ -83,26 +84,6 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
 #ifdef DEBUG
     prev_call_address = call_address;
 #endif
-  }
-}
-
-
-void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
-  // Set the register values. The values are not important as there are no
-  // callee saved registers in JavaScript frames, so all registers are
-  // spilled. Registers rbp and rsp are set to the correct values though.
-  for (int i = 0; i < Register::kNumRegisters; i++) {
-    input_->SetRegister(i, i * 4);
-  }
-  input_->SetRegister(rsp.code(), reinterpret_cast<intptr_t>(frame->sp()));
-  input_->SetRegister(rbp.code(), reinterpret_cast<intptr_t>(frame->fp()));
-  for (int i = 0; i < DoubleRegister::kMaxNumRegisters; i++) {
-    input_->SetDoubleRegister(i, 0.0);
-  }
-
-  // Fill the frame content from the actual data on the frame.
-  for (unsigned i = 0; i < input_->GetFrameSize(); i += kPointerSize) {
-    input_->SetFrameSlot(i, Memory::uintptr_at(tos + i));
   }
 }
 
@@ -124,13 +105,6 @@ void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
   }
 }
 
-
-bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
-  // There is no dynamic alignment padding on x64 in the input frame.
-  return false;
-}
-
-
 #define __ masm()->
 
 void Deoptimizer::TableEntryGenerator::Generate() {
@@ -142,8 +116,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   const int kDoubleRegsSize = kDoubleSize * XMMRegister::kMaxNumRegisters;
   __ subp(rsp, Immediate(kDoubleRegsSize));
 
-  const RegisterConfiguration* config =
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
+  const RegisterConfiguration* config = RegisterConfiguration::Crankshaft();
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     XMMRegister xmm_reg = XMMRegister::from_code(code);
@@ -182,7 +155,12 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   // Allocate a new deoptimizer object.
   __ PrepareCallCFunction(6);
+  __ movp(rax, Immediate(0));
+  Label context_check;
+  __ movp(rdi, Operand(rbp, CommonFrameConstants::kContextOrFrameTypeOffset));
+  __ JumpIfSmi(rdi, &context_check);
   __ movp(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+  __ bind(&context_check);
   __ movp(arg_reg_1, rax);
   __ Set(arg_reg_2, type());
   // Args 3 and 4 are already in the right registers.
@@ -252,7 +230,9 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   }
   __ popq(rax);
 
-  // Replace the current frame with the output frames.
+  __ movp(rsp, Operand(rax, Deoptimizer::caller_frame_top_offset()));
+
+  // Replace the current (input) frame with the output frames.
   Label outer_push_loop, inner_push_loop,
       outer_loop_header, inner_loop_header;
   // Outer loop state: rax = current FrameDescription**, rdx = one past the

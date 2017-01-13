@@ -5,30 +5,22 @@ const path = require('path');
 const marked = require('marked');
 
 const rootDir = path.resolve(__dirname, '..', '..');
-const doc = path.resolve(rootDir, 'doc', 'api', 'addons.markdown');
+const doc = path.resolve(rootDir, 'doc', 'api', 'addons.md');
 const verifyDir = path.resolve(rootDir, 'test', 'addons');
 
 const contents = fs.readFileSync(doc).toString();
 
-const tokens = marked.lexer(contents, {});
+const tokens = marked.lexer(contents);
 let files = null;
-let blockName;
 let id = 0;
 
 // Just to make sure that all examples will be processed
 tokens.push({ type: 'heading' });
 
-var oldDirs = fs.readdirSync(verifyDir);
-oldDirs = oldDirs.filter(function(dir) {
-  return /^\d{2}_/.test(dir);
-}).map(function(dir) {
-  return path.resolve(verifyDir, dir);
-});
-
 for (var i = 0; i < tokens.length; i++) {
   var token = tokens[i];
   if (token.type === 'heading' && token.text) {
-    blockName = token.text;
+    const blockName = token.text;
     if (files && Object.keys(files).length !== 0) {
       verifyFiles(files,
                   blockName,
@@ -71,6 +63,12 @@ function verifyFiles(files, blockName, onprogress, ondone) {
   );
 
   files = Object.keys(files).map(function(name) {
+    if (name === 'test.js') {
+      files[name] = `'use strict';
+const common = require('../../common');
+${files[name].replace('Release', "' + common.buildType + '")}
+`;
+    }
     return {
       path: path.resolve(dir, name),
       name: name,
@@ -84,6 +82,7 @@ function verifyFiles(files, blockName, onprogress, ondone) {
       targets: [
         {
           target_name: 'addon',
+          defines: [ 'V8_DEPRECATION_WARNINGS=1' ],
           sources: files.map(function(file) {
             return file.name;
           })

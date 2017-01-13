@@ -16,7 +16,7 @@ server.on('request', function(req, res) {
     connections--;
     res.writeHead(200);
     res.end('done\n');
-    if (connections == 0) {
+    if (connections === 0) {
       server.close();
     }
   });
@@ -24,18 +24,18 @@ server.on('request', function(req, res) {
 });
 
 server.listen(common.PORT, '127.0.0.1', function() {
-  for (var i = 0; i < 10; i++) {
+  for (let i = 0; i < 10; i++) {
     connections++;
 
     setTimeout(function() {
-      var request = http.request({
+      const request = http.request({
         port: common.PORT,
         method: 'POST',
         path: '/'
       });
 
       function ping() {
-        var nextPing = (Math.random() * 900).toFixed();
+        const nextPing = (Math.random() * 900).toFixed();
         if (nextPing > 600) {
           request.end();
           return;

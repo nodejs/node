@@ -2,17 +2,35 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+(function() {
 "use strict";
 
 // A more universal stringify that supports more types than JSON.
 // Used by the d8 shell to output results.
 var stringifyDepthLimit = 4;  // To avoid crashing on cyclic objects
 
+// Hacky solution to circumvent forcing --allow-natives-syntax for d8
+function isProxy(o) { return false };
+function JSProxyGetTarget(proxy) { };
+function JSProxyGetHandler(proxy) { };
+
+try {
+  isProxy = Function(['object'], 'return %_IsJSProxy(object)');
+  JSProxyGetTarget = Function(['proxy'],
+    'return %JSProxyGetTarget(proxy)');
+  JSProxyGetHandler = Function(['proxy'],
+    'return %JSProxyGetHandler(proxy)');
+} catch(e) {};
+
+
 function Stringify(x, depth) {
   if (depth === undefined)
     depth = stringifyDepthLimit;
   else if (depth === 0)
-    return "*";
+    return "...";
+  if (isProxy(x)) {
+    return StringifyProxy(x, depth);
+  }
   switch (typeof x) {
     case "undefined":
       return "undefined";
@@ -63,3 +81,15 @@ function Stringify(x, depth) {
       return "[crazy non-standard value]";
   }
 }
+
+function StringifyProxy(proxy, depth) {
+  var proxy_type = typeof proxy;
+  var info_object = {
+    target: JSProxyGetTarget(proxy),
+    handler: JSProxyGetHandler(proxy)
+  }
+  return '[' + proxy_type + ' Proxy ' + Stringify(info_object, depth-1) + ']';
+}
+
+return Stringify;
+})();

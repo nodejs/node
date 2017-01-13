@@ -47,8 +47,6 @@ typedef Object* (*F1)(int x, int p1, int p2, int p3, int p4);
 typedef Object* (*F2)(int x, int y, int p2, int p3, int p4);
 typedef Object* (*F3)(void* p, int p1, int p2, int p3, int p4);
 
-// clang-format off
-
 
 #define __ assm.
 
@@ -57,7 +55,7 @@ TEST(MIPS0) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   // Addition.
   __ addu(v0, a0, a1);
@@ -69,7 +67,8 @@ TEST(MIPS0) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F2 f = FUNCTION_CAST<F2>(code->entry());
-  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0xab0, 0xc, 0, 0, 0));
+  int res = reinterpret_cast<int>(
+      CALL_GENERATED_CODE(isolate, f, 0xab0, 0xc, 0, 0, 0));
   CHECK_EQ(static_cast<int32_t>(0xabc), res);
 }
 
@@ -79,7 +78,7 @@ TEST(MIPS1) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
   Label L, C;
 
   __ mov(a1, a0);
@@ -104,7 +103,8 @@ TEST(MIPS1) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F1 f = FUNCTION_CAST<F1>(code->entry());
-  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 50, 0, 0, 0, 0));
+  int res = reinterpret_cast<int>(
+      CALL_GENERATED_CODE(isolate, f, 50, 0, 0, 0, 0));
   CHECK_EQ(1275, res);
 }
 
@@ -114,7 +114,7 @@ TEST(MIPS2) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   Label exit, error;
 
@@ -241,7 +241,8 @@ TEST(MIPS2) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F2 f = FUNCTION_CAST<F2>(code->entry());
-  int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, 0xab0, 0xc, 0, 0, 0));
+  int res = reinterpret_cast<int>(
+      CALL_GENERATED_CODE(isolate, f, 0xab0, 0xc, 0, 0, 0));
   CHECK_EQ(static_cast<int32_t>(0x31415926), res);
 }
 
@@ -274,7 +275,7 @@ TEST(MIPS3) {
 
   // Create a function that accepts &t, and loads, manipulates, and stores
   // the doubles t.a ... t.f.
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
   Label L, C;
 
   // Double precision floating point instructions.
@@ -358,7 +359,7 @@ TEST(MIPS3) {
   t.fd = 0.0;
   t.fe = 0.0;
   t.ff = 0.0;
-  Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
   USE(dummy);
   // Expected double results.
   CHECK_EQ(1.5e14, t.a);
@@ -383,6 +384,14 @@ TEST(MIPS3) {
 
 
 TEST(MIPS4) {
+  // Exchange between GP anf FP registers is done through memory
+  // on FPXX compiled binaries and architectures that do not support
+  // MTHC1 and MTFC1. If this is the case, skipping this test.
+  if (IsFpxxMode() &&
+      (IsMipsArchVariant(kMips32r1) || IsMipsArchVariant(kLoongson))) {
+    return;
+  }
+
   // Test moves between floating point and integer registers.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -402,7 +411,7 @@ TEST(MIPS4) {
   __ ldc1(f6, MemOperand(a0, offsetof(T, b)) );
 
   // Swap f4 and f6, by using four integer registers, t0-t3.
-  if (!IsFp64Mode()) {
+  if (IsFp32Mode()) {
     __ mfc1(t0, f4);
     __ mfc1(t1, f5);
     __ mfc1(t2, f6);
@@ -413,7 +422,8 @@ TEST(MIPS4) {
     __ mtc1(t2, f4);
     __ mtc1(t3, f5);
   } else {
-    DCHECK(!IsMipsArchVariant(kMips32r1) && !IsMipsArchVariant(kLoongson));
+    CHECK(!IsMipsArchVariant(kMips32r1) && !IsMipsArchVariant(kLoongson));
+    DCHECK(IsFp64Mode() || IsFpxxMode());
     __ mfc1(t0, f4);
     __ mfhc1(t1, f4);
     __ mfc1(t2, f6);
@@ -424,6 +434,7 @@ TEST(MIPS4) {
     __ mtc1(t2, f4);
     __ mthc1(t3, f4);
   }
+
   // Store the swapped f4 and f5 back to memory.
   __ sdc1(f4, MemOperand(a0, offsetof(T, a)) );
   __ sdc1(f6, MemOperand(a0, offsetof(T, c)) );
@@ -439,7 +450,7 @@ TEST(MIPS4) {
   t.a = 1.5e22;
   t.b = 2.75e11;
   t.c = 17.17;
-  Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
   USE(dummy);
 
   CHECK_EQ(2.75e11, t.a);
@@ -503,7 +514,7 @@ TEST(MIPS5) {
   t.b = 2.75e8;
   t.i = 12345678;
   t.j = -100000;
-  Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
   USE(dummy);
 
   CHECK_EQ(12345678.0, t.a);
@@ -571,7 +582,7 @@ TEST(MIPS6) {
   F3 f = FUNCTION_CAST<F3>(code->entry());
   t.ui = 0x11223344;
   t.si = 0x99aabbcc;
-  Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
   USE(dummy);
 
   CHECK_EQ(static_cast<int32_t>(0x11223344), t.r1);
@@ -612,7 +623,7 @@ TEST(MIPS7) {
 
   // Create a function that accepts &t, and loads, manipulates, and stores
   // the doubles t.a ... t.f.
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
   Label neither_is_nan, less_than, outa_here;
 
   __ ldc1(f4, MemOperand(a0, offsetof(T, a)) );
@@ -669,7 +680,7 @@ TEST(MIPS7) {
   t.e = 0.0;
   t.f = 0.0;
   t.result = 0;
-  Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
   USE(dummy);
   CHECK_EQ(1.5e14, t.a);
   CHECK_EQ(2.75e11, t.b);
@@ -703,7 +714,8 @@ TEST(MIPS8) {
     } T;
     T t;
 
-    MacroAssembler assm(isolate, NULL, 0);
+    MacroAssembler assm(isolate, NULL, 0,
+                        v8::internal::CodeObjectRequired::kYes);
 
     // Basic word load.
     __ lw(t0, MemOperand(a0, offsetof(T, input)) );
@@ -760,7 +772,7 @@ TEST(MIPS8) {
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
     t.input = 0x12345678;
-    Object* dummy = CALL_GENERATED_CODE(f, &t, 0x0, 0, 0, 0);
+    Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0x0, 0, 0, 0);
     USE(dummy);
     CHECK_EQ(static_cast<int32_t>(0x81234567), t.result_rotr_4);
     CHECK_EQ(static_cast<int32_t>(0x78123456), t.result_rotr_8);
@@ -787,7 +799,7 @@ TEST(MIPS9) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
   Label exit, exit2, exit3;
 
   __ Branch(&exit, ge, a0, Operand(zero_reg));
@@ -809,8 +821,6 @@ TEST(MIPS9) {
 
 TEST(MIPS10) {
   // Test conversions between doubles and words.
-  // Test maps double to FP reg pairs in fp32 mode
-  // and into FP reg in fp64 mode.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -828,24 +838,16 @@ TEST(MIPS10) {
   Assembler assm(isolate, NULL, 0);
   Label L, C;
 
-  if (!IsMipsArchVariant(kMips32r2)) return;
+  if (IsMipsArchVariant(kMips32r1) || IsMipsArchVariant(kLoongson)) return;
 
   // Load all structure elements to registers.
   // (f0, f1) = a (fp32), f0 = a (fp64)
   __ ldc1(f0, MemOperand(a0, offsetof(T, a)));
 
-  if (IsFp64Mode()) {
-    __ mfc1(t0, f0);  // t0 = f0(31..0)
-    __ mfhc1(t1, f0);  // t1 = sign_extend(f0(63..32))
-    __ sw(t0, MemOperand(a0, offsetof(T, dbl_mant)));  // dbl_mant = t0
-    __ sw(t1, MemOperand(a0, offsetof(T, dbl_exp)));  // dbl_exp = t1
-  } else {
-    // Save the raw bits of the double.
-    __ mfc1(t0, f0);  // t0 = a1
-    __ mfc1(t1, f1);  // t1 = a2
-    __ sw(t0, MemOperand(a0, offsetof(T, dbl_mant)));  // dbl_mant = t0
-    __ sw(t1, MemOperand(a0, offsetof(T, dbl_exp)));  // dbl_exp = t1
-  }
+  __ mfc1(t0, f0);   // t0 = f0(31..0)
+  __ mfhc1(t1, f0);  // t1 = sign_extend(f0(63..32))
+  __ sw(t0, MemOperand(a0, offsetof(T, dbl_mant)));  // dbl_mant = t0
+  __ sw(t1, MemOperand(a0, offsetof(T, dbl_exp)));   // dbl_exp = t1
 
   // Convert double in f0 to word, save hi/lo parts.
   __ cvt_w_d(f0, f0);  // a_word = (word)a
@@ -868,7 +870,7 @@ TEST(MIPS10) {
   F3 f = FUNCTION_CAST<F3>(code->entry());
   t.a = 2.147483646e+09;       // 0x7FFFFFFE -> 0xFF80000041DFFFFF as double.
   t.b_word = 0x0ff00ff0;       // 0x0FF00FF0 -> 0x as double.
-  Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
   USE(dummy);
   CHECK_EQ(static_cast<int32_t>(0x41DFFFFF), t.dbl_exp);
   CHECK_EQ(static_cast<int32_t>(0xFF800000), t.dbl_mant);
@@ -997,7 +999,7 @@ TEST(MIPS11) {
   t.reg_init = 0xaabbccdd;
   t.mem_init = 0x11223344;
 
-  Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
   USE(dummy);
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
@@ -1061,7 +1063,7 @@ TEST(MIPS12) {
   } T;
   T t;
 
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   __ mov(t6, fp);  // Save frame pointer.
   __ mov(fp, a0);  // Access struct T by fp.
@@ -1127,7 +1129,7 @@ TEST(MIPS12) {
   t.y3 = 0XBABA;
   t.y4 = 0xDEDA;
 
-  Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
   USE(dummy);
 
   CHECK_EQ(3, t.y1);
@@ -1150,7 +1152,7 @@ TEST(MIPS13) {
   } T;
   T t;
 
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   __ sw(t0, MemOperand(a0, offsetof(T, cvt_small_in)));
   __ Cvt_d_uw(f10, t0, f4);
@@ -1178,7 +1180,7 @@ TEST(MIPS13) {
   t.cvt_big_in = 0xFFFFFFFF;
   t.cvt_small_in  = 333;
 
-  Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
   USE(dummy);
 
   CHECK_EQ(t.cvt_big_out, static_cast<double>(t.cvt_big_in));
@@ -1197,6 +1199,7 @@ TEST(MIPS14) {
   HandleScope scope(isolate);
 
 #define ROUND_STRUCT_ELEMENT(x) \
+  uint32_t x##_isNaN2008; \
   int32_t x##_up_out; \
   int32_t x##_down_out; \
   int32_t neg_##x##_up_out; \
@@ -1227,13 +1230,15 @@ TEST(MIPS14) {
 
 #undef ROUND_STRUCT_ELEMENT
 
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   // Save FCSR.
   __ cfc1(a1, FCSR);
   // Disable FPU exceptions.
   __ ctc1(zero_reg, FCSR);
 #define RUN_ROUND_TEST(x) \
+  __ cfc1(t0, FCSR);\
+  __ sw(t0, MemOperand(a0, offsetof(T, x##_isNaN2008))); \
   __ ldc1(f0, MemOperand(a0, offsetof(T, round_up_in))); \
   __ x##_w_d(f0, f0); \
   __ swc1(f0, MemOperand(a0, offsetof(T, x##_up_out))); \
@@ -1302,16 +1307,22 @@ TEST(MIPS14) {
   t.err3_in = static_cast<double>(1) + 0xFFFFFFFF;
   t.err4_in = NAN;
 
-  Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+  Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
   USE(dummy);
 
 #define GET_FPU_ERR(x) (static_cast<int>(x & kFCSRFlagMask))
+#define CHECK_NAN2008(x) (x & kFCSRNaN2008FlagMask)
 #define CHECK_ROUND_RESULT(type)                                  \
   CHECK(GET_FPU_ERR(t.type##_err1_out) & kFCSRInexactFlagMask);   \
   CHECK_EQ(0, GET_FPU_ERR(t.type##_err2_out));                    \
   CHECK(GET_FPU_ERR(t.type##_err3_out) & kFCSRInvalidOpFlagMask); \
   CHECK(GET_FPU_ERR(t.type##_err4_out) & kFCSRInvalidOpFlagMask); \
-  CHECK_EQ(kFPUInvalidResult, static_cast<uint>(t.type##_invalid_result));
+  if (CHECK_NAN2008(t.type##_isNaN2008) && kArchVariant == kMips32r6) {\
+    CHECK_EQ(static_cast<int32_t>(0), t.type##_invalid_result);\
+  } else {\
+    CHECK_EQ(static_cast<int32_t>(kFPUInvalidResult), t.type##_invalid_result);\
+  }
+
 
   CHECK_ROUND_RESULT(round);
   CHECK_ROUND_RESULT(floor);
@@ -1343,7 +1354,8 @@ TEST(seleqz_selnez) {
     CcTest::InitializeVM();
     Isolate* isolate = CcTest::i_isolate();
     HandleScope scope(isolate);
-    MacroAssembler assm(isolate, NULL, 0);
+    MacroAssembler assm(isolate, NULL, 0,
+                        v8::internal::CodeObjectRequired::kYes);
 
     typedef struct test {
       int a;
@@ -1392,7 +1404,7 @@ TEST(seleqz_selnez) {
         desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
     F3 f = FUNCTION_CAST<F3>(code->entry());
 
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
 
     CHECK_EQ(test.a, 1);
     CHECK_EQ(test.b, 0);
@@ -1420,7 +1432,7 @@ TEST(seleqz_selnez) {
         test.f = tests_D[j];
         test.i = inputs_S[i];
         test.j = tests_S[j];
-        (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+        (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
         CHECK_EQ(test.g, outputs_D[i]);
         CHECK_EQ(test.h, 0);
         CHECK_EQ(test.k, outputs_S[i]);
@@ -1428,7 +1440,7 @@ TEST(seleqz_selnez) {
 
         test.f = tests_D[j+1];
         test.j = tests_S[j+1];
-        (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+        (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
         CHECK_EQ(test.g, 0);
         CHECK_EQ(test.h, outputs_D[i]);
         CHECK_EQ(test.k, 0);
@@ -1444,9 +1456,10 @@ TEST(min_max) {
     CcTest::InitializeVM();
     Isolate* isolate = CcTest::i_isolate();
     HandleScope scope(isolate);
-    MacroAssembler assm(isolate, NULL, 0);
+    MacroAssembler assm(isolate, nullptr, 0,
+                        v8::internal::CodeObjectRequired::kYes);
 
-    typedef struct test_float {
+    struct TestFloat {
       double a;
       double b;
       double c;
@@ -1455,21 +1468,35 @@ TEST(min_max) {
       float f;
       float g;
       float h;
-    } TestFloat;
+    };
 
     TestFloat test;
-    const double double_nan = std::numeric_limits<double>::quiet_NaN();
-    const float  float_nan = std::numeric_limits<float>::quiet_NaN();
-    const int kTableLength = 5;
-    double inputsa[kTableLength] = {2.0, 3.0, double_nan, 3.0, double_nan};
-    double inputsb[kTableLength] = {3.0, 2.0, 3.0, double_nan, double_nan};
-    double outputsdmin[kTableLength] = {2.0, 2.0, 3.0, 3.0, double_nan};
-    double outputsdmax[kTableLength] = {3.0, 3.0, 3.0, 3.0, double_nan};
+    const double dnan = std::numeric_limits<double>::quiet_NaN();
+    const double dinf = std::numeric_limits<double>::infinity();
+    const double dminf = -std::numeric_limits<double>::infinity();
+    const float fnan = std::numeric_limits<float>::quiet_NaN();
+    const float finf = std::numeric_limits<float>::infinity();
+    const float fminf = std::numeric_limits<float>::infinity();
+    const int kTableLength = 13;
+    double inputsa[kTableLength] = {2.0,  3.0,  dnan, 3.0,   -0.0, 0.0, dinf,
+                                    dnan, 42.0, dinf, dminf, dinf, dnan};
+    double inputsb[kTableLength] = {3.0,  2.0,  3.0,  dnan, 0.0,   -0.0, dnan,
+                                    dinf, dinf, 42.0, dinf, dminf, dnan};
+    double outputsdmin[kTableLength] = {2.0,   2.0,   3.0,  3.0,  -0.0,
+                                        -0.0,  dinf,  dinf, 42.0, 42.0,
+                                        dminf, dminf, dnan};
+    double outputsdmax[kTableLength] = {3.0,  3.0,  3.0,  3.0,  0.0,  0.0, dinf,
+                                        dinf, dinf, dinf, dinf, dinf, dnan};
 
-    float inputse[kTableLength] = {2.0, 3.0, float_nan, 3.0, float_nan};
-    float inputsf[kTableLength] = {3.0, 2.0, 3.0, float_nan, float_nan};
-    float outputsfmin[kTableLength] = {2.0, 2.0, 3.0, 3.0, float_nan};
-    float outputsfmax[kTableLength] = {3.0, 3.0, 3.0, 3.0, float_nan};
+    float inputse[kTableLength] = {2.0,  3.0,  fnan, 3.0,   -0.0, 0.0, finf,
+                                   fnan, 42.0, finf, fminf, finf, fnan};
+    float inputsf[kTableLength] = {3.0,  2.0,  3.0,  fnan, 0.0,   -0.0, fnan,
+                                   finf, finf, 42.0, finf, fminf, fnan};
+    float outputsfmin[kTableLength] = {2.0,   2.0,   3.0,  3.0,  -0.0,
+                                       -0.0,  finf,  finf, 42.0, 42.0,
+                                       fminf, fminf, fnan};
+    float outputsfmax[kTableLength] = {3.0,  3.0,  3.0,  3.0,  0.0,  0.0, finf,
+                                       finf, finf, finf, finf, finf, fnan};
 
     __ ldc1(f4, MemOperand(a0, offsetof(TestFloat, a)));
     __ ldc1(f8, MemOperand(a0, offsetof(TestFloat, b)));
@@ -1497,19 +1524,12 @@ TEST(min_max) {
       test.e = inputse[i];
       test.f = inputsf[i];
 
-      (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+      CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0);
 
-      if (i < kTableLength - 1) {
-        CHECK_EQ(test.c, outputsdmin[i]);
-        CHECK_EQ(test.d, outputsdmax[i]);
-        CHECK_EQ(test.g, outputsfmin[i]);
-        CHECK_EQ(test.h, outputsfmax[i]);
-      } else {
-        DCHECK(std::isnan(test.c));
-        DCHECK(std::isnan(test.d));
-        DCHECK(std::isnan(test.g));
-        DCHECK(std::isnan(test.h));
-      }
+      CHECK_EQ(0, memcmp(&test.c, &outputsdmin[i], sizeof(test.c)));
+      CHECK_EQ(0, memcmp(&test.d, &outputsdmax[i], sizeof(test.d)));
+      CHECK_EQ(0, memcmp(&test.g, &outputsfmin[i], sizeof(test.g)));
+      CHECK_EQ(0, memcmp(&test.h, &outputsfmax[i], sizeof(test.h)));
     }
   }
 }
@@ -1521,7 +1541,8 @@ TEST(rint_d)  {
     CcTest::InitializeVM();
     Isolate* isolate = CcTest::i_isolate();
     HandleScope scope(isolate);
-    MacroAssembler assm(isolate, NULL, 0);
+    MacroAssembler assm(isolate, NULL, 0,
+                        v8::internal::CodeObjectRequired::kYes);
 
     typedef struct test_float {
       double a;
@@ -1613,7 +1634,7 @@ TEST(rint_d)  {
       test.fcsr = fcsr_inputs[j];
       for (int i = 0; i < kTableLength; i++) {
         test.a = inputs[i];
-        (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+        (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
         CHECK_EQ(test.b, outputs[j][i]);
       }
     }
@@ -1626,7 +1647,8 @@ TEST(sel) {
     CcTest::InitializeVM();
     Isolate* isolate = CcTest::i_isolate();
     HandleScope scope(isolate);
-    MacroAssembler assm(isolate, NULL, 0);
+    MacroAssembler assm(isolate, NULL, 0,
+                        v8::internal::CodeObjectRequired::kYes);
 
     typedef struct test {
       double dd;
@@ -1679,13 +1701,13 @@ TEST(sel) {
         test.ft = inputs_ft[i];
         test.fd = tests_S[j];
         test.fs = inputs_fs[i];
-        (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+        (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
         CHECK_EQ(test.dd, inputs_ds[i]);
         CHECK_EQ(test.fd, inputs_fs[i]);
 
         test.dd = tests_D[j+1];
         test.fd = tests_S[j+1];
-        (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+        (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
         CHECK_EQ(test.dd, inputs_dt[i]);
         CHECK_EQ(test.fd, inputs_ft[i]);
       }
@@ -1700,7 +1722,8 @@ TEST(rint_s)  {
     CcTest::InitializeVM();
     Isolate* isolate = CcTest::i_isolate();
     HandleScope scope(isolate);
-    MacroAssembler assm(isolate, NULL, 0);
+    MacroAssembler assm(isolate, NULL, 0,
+                        v8::internal::CodeObjectRequired::kYes);
 
     typedef struct test_float {
       float a;
@@ -1792,7 +1815,7 @@ TEST(rint_s)  {
       test.fcsr = fcsr_inputs[j];
       for (int i = 0; i < kTableLength; i++) {
         test.a = inputs[i];
-        (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+        (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
         CHECK_EQ(test.b, outputs[j][i]);
       }
     }
@@ -1800,17 +1823,67 @@ TEST(rint_s)  {
 }
 
 
+TEST(Cvt_d_uw) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler assm(isolate, NULL, 0,
+                      v8::internal::CodeObjectRequired::kYes);
+
+  typedef struct test_struct {
+    unsigned input;
+    uint64_t output;
+  } TestStruct;
+
+  unsigned inputs[] = {
+    0x0, 0xffffffff, 0x80000000, 0x7fffffff
+  };
+
+  uint64_t outputs[] = {
+    0x0, 0x41efffffffe00000,
+    0x41e0000000000000, 0x41dfffffffc00000
+  };
+
+  int kTableLength = sizeof(inputs)/sizeof(inputs[0]);
+
+  TestStruct test;
+
+  __ lw(t1, MemOperand(a0, offsetof(TestStruct, input)));
+  __ Cvt_d_uw(f4, t1, f6);
+  __ sdc1(f4, MemOperand(a0, offsetof(TestStruct, output)));
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+  for (int i = 0; i < kTableLength; i++) {
+    test.input = inputs[i];
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
+    // Check outputs
+    CHECK_EQ(test.output, outputs[i]);
+  }
+}
+
+
 TEST(mina_maxa) {
   if (IsMipsArchVariant(kMips32r6)) {
-    const int kTableLength = 15;
+    const int kTableLength = 23;
     CcTest::InitializeVM();
     Isolate* isolate = CcTest::i_isolate();
     HandleScope scope(isolate);
-    MacroAssembler assm(isolate, NULL, 0);
-    const double double_nan = std::numeric_limits<double>::quiet_NaN();
-    const float  float_nan = std::numeric_limits<float>::quiet_NaN();
+    MacroAssembler assm(isolate, nullptr, 0,
+                        v8::internal::CodeObjectRequired::kYes);
+    const double dnan = std::numeric_limits<double>::quiet_NaN();
+    const double dinf = std::numeric_limits<double>::infinity();
+    const double dminf = -std::numeric_limits<double>::infinity();
+    const float fnan = std::numeric_limits<float>::quiet_NaN();
+    const float finf = std::numeric_limits<float>::infinity();
+    const float fminf = std::numeric_limits<float>::infinity();
 
-    typedef struct test_float {
+    struct TestFloat {
       double a;
       double b;
       double resd;
@@ -1819,41 +1892,34 @@ TEST(mina_maxa) {
       float d;
       float resf;
       float resf1;
-    }TestFloat;
+    };
 
     TestFloat test;
     double inputsa[kTableLength] = {
-      5.3, 4.8, 6.1, 9.8, 9.8, 9.8, -10.0, -8.9,
-      -9.8, -10.0, -8.9, -9.8, double_nan, 3.0, double_nan
-    };
+        5.3,  4.8, 6.1,  9.8, 9.8,  9.8,  -10.0, -8.9, -9.8,  -10.0, -8.9, -9.8,
+        dnan, 3.0, -0.0, 0.0, dinf, dnan, 42.0,  dinf, dminf, dinf,  dnan};
     double inputsb[kTableLength] = {
-      4.8, 5.3, 6.1, -10.0, -8.9, -9.8, 9.8, 9.8,
-      9.8, -9.8, -11.2, -9.8, 3.0, double_nan, double_nan
-    };
+        4.8, 5.3,  6.1, -10.0, -8.9, -9.8, 9.8,  9.8,  9.8,  -9.8,  -11.2, -9.8,
+        3.0, dnan, 0.0, -0.0,  dnan, dinf, dinf, 42.0, dinf, dminf, dnan};
     double resd[kTableLength] = {
-      4.8, 4.8, 6.1, 9.8, -8.9, -9.8, 9.8, -8.9,
-      -9.8, -9.8, -8.9, -9.8, 3.0, 3.0, double_nan
-    };
+        4.8, 4.8, 6.1,  9.8,  -8.9, -9.8, 9.8,  -8.9, -9.8,  -9.8,  -8.9, -9.8,
+        3.0, 3.0, -0.0, -0.0, dinf, dinf, 42.0, 42.0, dminf, dminf, dnan};
     double resd1[kTableLength] = {
-      5.3, 5.3, 6.1, -10.0, 9.8, 9.8, -10.0, 9.8,
-      9.8, -10.0, -11.2, -9.8, 3.0, 3.0, double_nan
-    };
+        5.3, 5.3, 6.1, -10.0, 9.8,  9.8,  -10.0, 9.8,  9.8,  -10.0, -11.2, -9.8,
+        3.0, 3.0, 0.0, 0.0,   dinf, dinf, dinf,  dinf, dinf, dinf,  dnan};
     float inputsc[kTableLength] = {
-      5.3, 4.8, 6.1, 9.8, 9.8, 9.8, -10.0, -8.9,
-      -9.8, -10.0, -8.9, -9.8, float_nan, 3.0, float_nan
-    };
-    float inputsd[kTableLength] = {
-      4.8, 5.3, 6.1, -10.0, -8.9, -9.8, 9.8, 9.8,
-      9.8, -9.8, -11.2, -9.8, 3.0, float_nan, float_nan
-    };
+        5.3,  4.8, 6.1,  9.8, 9.8,  9.8,  -10.0, -8.9, -9.8,  -10.0, -8.9, -9.8,
+        fnan, 3.0, -0.0, 0.0, finf, fnan, 42.0,  finf, fminf, finf,  fnan};
+    float inputsd[kTableLength] = {4.8,  5.3,  6.1,  -10.0, -8.9,  -9.8,
+                                   9.8,  9.8,  9.8,  -9.8,  -11.2, -9.8,
+                                   3.0,  fnan, -0.0, 0.0,   fnan,  finf,
+                                   finf, 42.0, finf, fminf, fnan};
     float resf[kTableLength] = {
-      4.8, 4.8, 6.1, 9.8, -8.9, -9.8, 9.8, -8.9,
-      -9.8, -9.8, -8.9, -9.8, 3.0, 3.0, float_nan
-    };
+        4.8, 4.8, 6.1,  9.8,  -8.9, -9.8, 9.8,  -8.9, -9.8,  -9.8,  -8.9, -9.8,
+        3.0, 3.0, -0.0, -0.0, finf, finf, 42.0, 42.0, fminf, fminf, fnan};
     float resf1[kTableLength] = {
-      5.3, 5.3, 6.1, -10.0, 9.8, 9.8, -10.0, 9.8,
-      9.8, -10.0, -11.2, -9.8, 3.0, 3.0, float_nan
-    };
+        5.3, 5.3, 6.1, -10.0, 9.8,  9.8,  -10.0, 9.8,  9.8,  -10.0, -11.2, -9.8,
+        3.0, 3.0, 0.0, 0.0,   finf, finf, finf,  finf, finf, finf,  fnan};
 
     __ ldc1(f2, MemOperand(a0, offsetof(TestFloat, a)) );
     __ ldc1(f4, MemOperand(a0, offsetof(TestFloat, b)) );
@@ -1880,17 +1946,17 @@ TEST(mina_maxa) {
       test.b = inputsb[i];
       test.c = inputsc[i];
       test.d = inputsd[i];
-      (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+      (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
       if (i < kTableLength - 1) {
         CHECK_EQ(test.resd, resd[i]);
         CHECK_EQ(test.resf, resf[i]);
         CHECK_EQ(test.resd1, resd1[i]);
         CHECK_EQ(test.resf1, resf1[i]);
       } else {
-        DCHECK(std::isnan(test.resd));
-        DCHECK(std::isnan(test.resf));
-        DCHECK(std::isnan(test.resd1));
-        DCHECK(std::isnan(test.resf1));
+        CHECK(std::isnan(test.resd));
+        CHECK(std::isnan(test.resf));
+        CHECK(std::isnan(test.resd1));
+        CHECK(std::isnan(test.resf1));
       }
     }
   }
@@ -1903,9 +1969,11 @@ TEST(trunc_l) {
     CcTest::InitializeVM();
     Isolate* isolate = CcTest::i_isolate();
     HandleScope scope(isolate);
-    MacroAssembler assm(isolate, NULL, 0);
+    MacroAssembler assm(isolate, NULL, 0,
+                        v8::internal::CodeObjectRequired::kYes);
     const double dFPU64InvalidResult = static_cast<double>(kFPU64InvalidResult);
     typedef struct test_float {
+      uint32_t isNaN2008;
       double a;
       float b;
       int64_t c;  // a trunc result
@@ -1931,7 +1999,15 @@ TEST(trunc_l) {
         -2.0, -2.0, -2.0, -3.0, -3.0, -3.0,
         2147483648.0, dFPU64InvalidResult,
         dFPU64InvalidResult};
+    double outputsNaN2008[kTableLength] = {
+        2.0, 2.0, 2.0, 3.0, 3.0, 3.0,
+        -2.0, -2.0, -2.0, -3.0, -3.0, -3.0,
+        2147483648.0,
+        0,
+        dFPU64InvalidResult};
 
+    __ cfc1(t1, FCSR);
+    __ sw(t1, MemOperand(a0, offsetof(Test, isNaN2008)));
     __ ldc1(f4, MemOperand(a0, offsetof(Test, a)) );
     __ lwc1(f6, MemOperand(a0, offsetof(Test, b)) );
     __ trunc_l_d(f8, f4);
@@ -1949,8 +2025,13 @@ TEST(trunc_l) {
     for (int i = 0; i < kTableLength; i++) {
       test.a = inputs_D[i];
       test.b = inputs_S[i];
-      (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
-      CHECK_EQ(test.c, outputs[i]);
+      (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
+      if ((test.isNaN2008 & kFCSRNaN2008FlagMask) &&
+              kArchVariant == kMips32r6) {
+        CHECK_EQ(test.c, outputsNaN2008[i]);
+      } else {
+        CHECK_EQ(test.c, outputs[i]);
+      }
       CHECK_EQ(test.d, test.c);
     }
   }
@@ -1963,10 +2044,11 @@ TEST(movz_movn) {
     CcTest::InitializeVM();
     Isolate* isolate = CcTest::i_isolate();
     HandleScope scope(isolate);
-    MacroAssembler assm(isolate, NULL, 0);
+    MacroAssembler assm(isolate, NULL, 0,
+                        v8::internal::CodeObjectRequired::kYes);
 
     typedef struct test_float {
-      int64_t rt;
+      int32_t rt;
       double a;
       double b;
       double bold;
@@ -2026,14 +2108,14 @@ TEST(movz_movn) {
       test.c = inputs_S[i];
 
       test.rt = 1;
-      (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+      (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
       CHECK_EQ(test.b, test.bold);
       CHECK_EQ(test.d, test.dold);
       CHECK_EQ(test.b1, outputs_D[i]);
       CHECK_EQ(test.d1, outputs_S[i]);
 
       test.rt = 0;
-      (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+      (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
       CHECK_EQ(test.b, outputs_D[i]);
       CHECK_EQ(test.d, outputs_S[i]);
       CHECK_EQ(test.b1, test.bold1);
@@ -2092,7 +2174,8 @@ TEST(movt_movd) {
           test.fcsr = 1 << (24+condition_flags[j]);
         }
         HandleScope scope(isolate);
-        MacroAssembler assm(isolate, NULL, 0);
+        MacroAssembler assm(isolate, NULL, 0,
+                            v8::internal::CodeObjectRequired::kYes);
         __ ldc1(f2, MemOperand(a0, offsetof(TestFloat, srcd)) );
         __ lwc1(f4, MemOperand(a0, offsetof(TestFloat, srcf)) );
         __ lw(t1, MemOperand(a0, offsetof(TestFloat, fcsr)) );
@@ -2123,13 +2206,13 @@ TEST(movt_movd) {
             desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
         F3 f = FUNCTION_CAST<F3>(code->entry());
 
-        (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+        (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
         CHECK_EQ(test.dstf, outputs_S[i]);
         CHECK_EQ(test.dstd, outputs_D[i]);
         CHECK_EQ(test.dstf1, test.dstfold1);
         CHECK_EQ(test.dstd1, test.dstdold1);
         test.fcsr = 0;
-        (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+        (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
         CHECK_EQ(test.dstf, test.dstfold);
         CHECK_EQ(test.dstd, test.dstdold);
         CHECK_EQ(test.dstf1, outputs_S[i]);
@@ -2145,7 +2228,7 @@ TEST(cvt_w_d) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   typedef struct test_float {
     double a;
@@ -2211,7 +2294,7 @@ TEST(cvt_w_d) {
     test.fcsr = fcsr_inputs[j];
     for (int i = 0; i < kTableLength; i++) {
       test.a = inputs[i];
-      (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+      (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
       CHECK_EQ(test.b, outputs[j][i]);
     }
   }
@@ -2222,9 +2305,10 @@ TEST(trunc_w) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   typedef struct test_float {
+    uint32_t isNaN2008;
     double a;
     float b;
     int32_t c;  // a trunc result
@@ -2250,7 +2334,15 @@ TEST(trunc_w) {
       -2.0, -2.0, -2.0, -3.0, -3.0, -3.0,
       kFPUInvalidResult, kFPUInvalidResult,
       kFPUInvalidResult};
+  double outputsNaN2008[kTableLength] = {
+      2.0, 2.0, 2.0, 3.0, 3.0, 3.0,
+      -2.0, -2.0, -2.0, -3.0, -3.0, -3.0,
+      kFPUInvalidResult,
+      0,
+      kFPUInvalidResult};
 
+  __ cfc1(t1, FCSR);
+  __ sw(t1, MemOperand(a0, offsetof(Test, isNaN2008)));
   __ ldc1(f4, MemOperand(a0, offsetof(Test, a)) );
   __ lwc1(f6, MemOperand(a0, offsetof(Test, b)) );
   __ trunc_w_d(f8, f4);
@@ -2268,8 +2360,12 @@ TEST(trunc_w) {
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_D[i];
     test.b = inputs_S[i];
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
-    CHECK_EQ(test.c, outputs[i]);
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
+    if ((test.isNaN2008 & kFCSRNaN2008FlagMask) && kArchVariant == kMips32r6) {
+      CHECK_EQ(test.c, outputsNaN2008[i]);
+    } else {
+      CHECK_EQ(test.c, outputs[i]);
+    }
     CHECK_EQ(test.d, test.c);
   }
 }
@@ -2279,9 +2375,10 @@ TEST(round_w) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   typedef struct test_float {
+    uint32_t isNaN2008;
     double a;
     float b;
     int32_t c;  // a trunc result
@@ -2307,7 +2404,14 @@ TEST(round_w) {
       -2.0, -3.0, -2.0, -3.0, -4.0, -4.0,
       kFPUInvalidResult, kFPUInvalidResult,
       kFPUInvalidResult};
+  double outputsNaN2008[kTableLength] = {
+      2.0, 3.0, 2.0, 3.0, 4.0, 4.0,
+      -2.0, -3.0, -2.0, -3.0, -4.0, -4.0,
+      kFPUInvalidResult, 0,
+      kFPUInvalidResult};
 
+  __ cfc1(t1, FCSR);
+  __ sw(t1, MemOperand(a0, offsetof(Test, isNaN2008)));
   __ ldc1(f4, MemOperand(a0, offsetof(Test, a)) );
   __ lwc1(f6, MemOperand(a0, offsetof(Test, b)) );
   __ round_w_d(f8, f4);
@@ -2325,8 +2429,12 @@ TEST(round_w) {
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_D[i];
     test.b = inputs_S[i];
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
-    CHECK_EQ(test.c, outputs[i]);
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
+    if ((test.isNaN2008 & kFCSRNaN2008FlagMask) && kArchVariant == kMips32r6) {
+      CHECK_EQ(test.c, outputsNaN2008[i]);
+    } else {
+      CHECK_EQ(test.c, outputs[i]);
+    }
     CHECK_EQ(test.d, test.c);
   }
 }
@@ -2337,9 +2445,11 @@ TEST(round_l) {
     CcTest::InitializeVM();
     Isolate* isolate = CcTest::i_isolate();
     HandleScope scope(isolate);
-    MacroAssembler assm(isolate, NULL, 0);
+    MacroAssembler assm(isolate, NULL, 0,
+                        v8::internal::CodeObjectRequired::kYes);
     const double dFPU64InvalidResult = static_cast<double>(kFPU64InvalidResult);
     typedef struct test_float {
+      uint32_t isNaN2008;
       double a;
       float b;
       int64_t c;
@@ -2365,7 +2475,15 @@ TEST(round_l) {
         -2.0, -3.0, -2.0, -3.0, -4.0, -4.0,
         2147483648.0, dFPU64InvalidResult,
         dFPU64InvalidResult};
+    double outputsNaN2008[kTableLength] = {
+        2.0, 3.0, 2.0, 3.0, 4.0, 4.0,
+        -2.0, -3.0, -2.0, -3.0, -4.0, -4.0,
+        2147483648.0,
+        0,
+        dFPU64InvalidResult};
 
+    __ cfc1(t1, FCSR);
+    __ sw(t1, MemOperand(a0, offsetof(Test, isNaN2008)));
     __ ldc1(f4, MemOperand(a0, offsetof(Test, a)) );
     __ lwc1(f6, MemOperand(a0, offsetof(Test, b)) );
     __ round_l_d(f8, f4);
@@ -2383,8 +2501,13 @@ TEST(round_l) {
     for (int i = 0; i < kTableLength; i++) {
       test.a = inputs_D[i];
       test.b = inputs_S[i];
-      (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
-      CHECK_EQ(test.c, outputs[i]);
+      (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
+      if ((test.isNaN2008 & kFCSRNaN2008FlagMask) &&
+              kArchVariant == kMips32r6) {
+        CHECK_EQ(test.c, outputsNaN2008[i]);
+      } else {
+        CHECK_EQ(test.c, outputs[i]);
+      }
       CHECK_EQ(test.d, test.c);
     }
   }
@@ -2396,7 +2519,7 @@ TEST(sub) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   typedef struct test_float {
     float a;
@@ -2453,7 +2576,7 @@ TEST(sub) {
     test.b = inputft_S[i];
     test.c = inputfs_D[i];
     test.d = inputft_D[i];
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
     CHECK_EQ(test.resultS, outputs_S[i]);
     CHECK_EQ(test.resultD, outputs_D[i]);
   }
@@ -2469,7 +2592,7 @@ TEST(sqrt_rsqrt_recip) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   typedef struct test_float {
     float a;
@@ -2534,7 +2657,7 @@ TEST(sqrt_rsqrt_recip) {
     test.a = inputs_S[i];
     test.c = inputs_D[i];
 
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
 
     CHECK_EQ(test.resultS, outputs_S[i]);
     CHECK_EQ(test.resultD, outputs_D[i]);
@@ -2569,7 +2692,7 @@ TEST(neg) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   typedef struct test_float {
     float a;
@@ -2610,7 +2733,7 @@ TEST(neg) {
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_S[i];
     test.c = inputs_D[i];
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
     CHECK_EQ(test.resultS, outputs_S[i]);
     CHECK_EQ(test.resultD, outputs_D[i]);
   }
@@ -2622,7 +2745,7 @@ TEST(mul) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   typedef struct test_float {
     float a;
@@ -2669,7 +2792,7 @@ TEST(mul) {
     test.b = inputft_S[i];
     test.c = inputfs_D[i];
     test.d = inputft_D[i];
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
     CHECK_EQ(test.resultS, inputfs_S[i]*inputft_S[i]);
     CHECK_EQ(test.resultD, inputfs_D[i]*inputft_D[i]);
   }
@@ -2681,7 +2804,7 @@ TEST(mov) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   typedef struct test_float {
     double a;
@@ -2724,7 +2847,7 @@ TEST(mov) {
     test.a = inputs_D[i];
     test.c = inputs_S[i];
 
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
     CHECK_EQ(test.b, outputs_D[i]);
     CHECK_EQ(test.d, outputs_S[i]);
   }
@@ -2735,9 +2858,10 @@ TEST(floor_w) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   typedef struct test_float {
+    uint32_t isNaN2008;
     double a;
     float b;
     int32_t c;  // a floor result
@@ -2763,7 +2887,15 @@ TEST(floor_w) {
       -3.0, -3.0, -3.0, -4.0, -4.0, -4.0,
       kFPUInvalidResult, kFPUInvalidResult,
       kFPUInvalidResult};
+  double outputsNaN2008[kTableLength] = {
+      2.0, 2.0, 2.0, 3.0, 3.0, 3.0,
+      -3.0, -3.0, -3.0, -4.0, -4.0, -4.0,
+      kFPUInvalidResult,
+      0,
+      kFPUInvalidResult};
 
+  __ cfc1(t1, FCSR);
+  __ sw(t1, MemOperand(a0, offsetof(Test, isNaN2008)));
   __ ldc1(f4, MemOperand(a0, offsetof(Test, a)) );
   __ lwc1(f6, MemOperand(a0, offsetof(Test, b)) );
   __ floor_w_d(f8, f4);
@@ -2781,8 +2913,12 @@ TEST(floor_w) {
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_D[i];
     test.b = inputs_S[i];
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
-    CHECK_EQ(test.c, outputs[i]);
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
+    if ((test.isNaN2008 & kFCSRNaN2008FlagMask) && kArchVariant == kMips32r6) {
+      CHECK_EQ(test.c, outputsNaN2008[i]);
+    } else {
+      CHECK_EQ(test.c, outputs[i]);
+    }
     CHECK_EQ(test.d, test.c);
   }
 }
@@ -2793,9 +2929,11 @@ TEST(floor_l) {
     CcTest::InitializeVM();
     Isolate* isolate = CcTest::i_isolate();
     HandleScope scope(isolate);
-    MacroAssembler assm(isolate, NULL, 0);
+    MacroAssembler assm(isolate, NULL, 0,
+                        v8::internal::CodeObjectRequired::kYes);
     const double dFPU64InvalidResult = static_cast<double>(kFPU64InvalidResult);
     typedef struct test_float {
+      uint32_t isNaN2008;
       double a;
       float b;
       int64_t c;
@@ -2821,7 +2959,15 @@ TEST(floor_l) {
         -3.0, -3.0, -3.0, -4.0, -4.0, -4.0,
         2147483648.0, dFPU64InvalidResult,
         dFPU64InvalidResult};
+    double outputsNaN2008[kTableLength] = {
+        2.0, 2.0, 2.0, 3.0, 3.0, 3.0,
+        -3.0, -3.0, -3.0, -4.0, -4.0, -4.0,
+        2147483648.0,
+        0,
+        dFPU64InvalidResult};
 
+    __ cfc1(t1, FCSR);
+    __ sw(t1, MemOperand(a0, offsetof(Test, isNaN2008)));
     __ ldc1(f4, MemOperand(a0, offsetof(Test, a)) );
     __ lwc1(f6, MemOperand(a0, offsetof(Test, b)) );
     __ floor_l_d(f8, f4);
@@ -2839,8 +2985,13 @@ TEST(floor_l) {
     for (int i = 0; i < kTableLength; i++) {
       test.a = inputs_D[i];
       test.b = inputs_S[i];
-      (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
-      CHECK_EQ(test.c, outputs[i]);
+      (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
+      if ((test.isNaN2008 & kFCSRNaN2008FlagMask) &&
+              kArchVariant == kMips32r6) {
+        CHECK_EQ(test.c, outputsNaN2008[i]);
+      } else {
+        CHECK_EQ(test.c, outputs[i]);
+      }
       CHECK_EQ(test.d, test.c);
     }
   }
@@ -2851,9 +3002,10 @@ TEST(ceil_w) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   typedef struct test_float {
+    uint32_t isNaN2008;
     double a;
     float b;
     int32_t c;  // a floor result
@@ -2879,7 +3031,15 @@ TEST(ceil_w) {
       -2.0, -2.0, -2.0, -3.0, -3.0, -3.0,
       kFPUInvalidResult, kFPUInvalidResult,
       kFPUInvalidResult};
+  double outputsNaN2008[kTableLength] = {
+      3.0, 3.0, 3.0, 4.0, 4.0, 4.0,
+      -2.0, -2.0, -2.0, -3.0, -3.0, -3.0,
+      kFPUInvalidResult,
+      0,
+      kFPUInvalidResult};
 
+  __ cfc1(t1, FCSR);
+  __ sw(t1, MemOperand(a0, offsetof(Test, isNaN2008)));
   __ ldc1(f4, MemOperand(a0, offsetof(Test, a)) );
   __ lwc1(f6, MemOperand(a0, offsetof(Test, b)) );
   __ ceil_w_d(f8, f4);
@@ -2897,8 +3057,12 @@ TEST(ceil_w) {
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputs_D[i];
     test.b = inputs_S[i];
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
-    CHECK_EQ(test.c, outputs[i]);
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
+    if ((test.isNaN2008 & kFCSRNaN2008FlagMask) && kArchVariant == kMips32r6) {
+      CHECK_EQ(test.c, outputsNaN2008[i]);
+    } else {
+      CHECK_EQ(test.c, outputs[i]);
+    }
     CHECK_EQ(test.d, test.c);
   }
 }
@@ -2909,9 +3073,11 @@ TEST(ceil_l) {
     CcTest::InitializeVM();
     Isolate* isolate = CcTest::i_isolate();
     HandleScope scope(isolate);
-    MacroAssembler assm(isolate, NULL, 0);
+    MacroAssembler assm(isolate, NULL, 0,
+                        v8::internal::CodeObjectRequired::kYes);
     const double dFPU64InvalidResult = static_cast<double>(kFPU64InvalidResult);
     typedef struct test_float {
+      uint32_t isNaN2008;
       double a;
       float b;
       int64_t c;
@@ -2937,7 +3103,15 @@ TEST(ceil_l) {
         -2.0, -2.0, -2.0, -3.0, -3.0, -3.0,
         2147483648.0, dFPU64InvalidResult,
         dFPU64InvalidResult};
+    double outputsNaN2008[kTableLength] = {
+        3.0, 3.0, 3.0, 4.0, 4.0, 4.0,
+        -2.0, -2.0, -2.0, -3.0, -3.0, -3.0,
+        2147483648.0,
+        0,
+        dFPU64InvalidResult};
 
+    __ cfc1(t1, FCSR);
+    __ sw(t1, MemOperand(a0, offsetof(Test, isNaN2008)));
     __ ldc1(f4, MemOperand(a0, offsetof(Test, a)) );
     __ lwc1(f6, MemOperand(a0, offsetof(Test, b)) );
     __ ceil_l_d(f8, f4);
@@ -2955,8 +3129,13 @@ TEST(ceil_l) {
     for (int i = 0; i < kTableLength; i++) {
       test.a = inputs_D[i];
       test.b = inputs_S[i];
-      (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
-      CHECK_EQ(test.c, outputs[i]);
+      (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
+      if ((test.isNaN2008 & kFCSRNaN2008FlagMask) &&
+              kArchVariant == kMips32r6) {
+        CHECK_EQ(test.c, outputsNaN2008[i]);
+      } else {
+        CHECK_EQ(test.c, outputs[i]);
+      }
       CHECK_EQ(test.d, test.c);
     }
   }
@@ -3012,6 +3191,8 @@ TEST(jump_tables1) {
   __ jr(ra);
   __ nop();
 
+  CHECK_EQ(assm.UnboundLabelsCount(), 0);
+
   CodeDesc desc;
   assm.GetCode(&desc);
   Handle<Code> code = isolate->factory()->NewCode(
@@ -3021,7 +3202,8 @@ TEST(jump_tables1) {
 #endif
   F1 f = FUNCTION_CAST<F1>(code->entry());
   for (int i = 0; i < kNumCases; ++i) {
-    int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, i, 0, 0, 0, 0));
+    int res = reinterpret_cast<int>(
+        CALL_GENERATED_CODE(isolate, f, i, 0, 0, 0, 0));
     ::printf("f(%d) = %d\n", i, res);
     CHECK_EQ(values[i], res);
   }
@@ -3090,7 +3272,8 @@ TEST(jump_tables2) {
 #endif
   F1 f = FUNCTION_CAST<F1>(code->entry());
   for (int i = 0; i < kNumCases; ++i) {
-    int res = reinterpret_cast<int>(CALL_GENERATED_CODE(f, i, 0, 0, 0, 0));
+    int res = reinterpret_cast<int>(
+        CALL_GENERATED_CODE(isolate, f, i, 0, 0, 0, 0));
     ::printf("f(%d) = %d\n", i, res);
     CHECK_EQ(values[i], res);
   }
@@ -3166,7 +3349,8 @@ TEST(jump_tables3) {
 #endif
   F1 f = FUNCTION_CAST<F1>(code->entry());
   for (int i = 0; i < kNumCases; ++i) {
-    Handle<Object> result(CALL_GENERATED_CODE(f, i, 0, 0, 0, 0), isolate);
+    Handle<Object> result(
+        CALL_GENERATED_CODE(isolate, f, i, 0, 0, 0, 0), isolate);
 #ifdef OBJECT_PRINT
     ::printf("f(%d) = ", i);
     result->Print(std::cout);
@@ -3214,7 +3398,7 @@ TEST(BITSWAP) {
     F3 f = FUNCTION_CAST<F3>(code->entry());
     t.r1 = 0x781A15C3;
     t.r2 = 0x8B71FCDE;
-    Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+    Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
     USE(dummy);
 
     CHECK_EQ(static_cast<int32_t>(0x1E58A8C3), t.r1);
@@ -3255,7 +3439,8 @@ TEST(class_fmt) {
 
     // Create a function that accepts &t, and loads, manipulates, and stores
     // the doubles t.a ... t.f.
-    MacroAssembler assm(isolate, NULL, 0);
+    MacroAssembler assm(isolate, NULL, 0,
+                        v8::internal::CodeObjectRequired::kYes);
 
     __ ldc1(f4, MemOperand(a0, offsetof(T, dSignalingNan)));
     __ class_d(f6, f4);
@@ -3370,7 +3555,7 @@ TEST(class_fmt) {
     t.fPosSubnorm   = FLT_MIN / 20.0;
     t.fPosZero      = +0.0;
 
-    Object* dummy = CALL_GENERATED_CODE(f, &t, 0, 0, 0, 0);
+    Object* dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0);
     USE(dummy);
     // Expected double results.
     CHECK_EQ(bit_cast<int64_t>(t.dSignalingNan), 0x001);
@@ -3403,7 +3588,7 @@ TEST(ABS) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   typedef struct test_float {
     int64_t fir;
@@ -3440,34 +3625,34 @@ TEST(ABS) {
   F3 f = FUNCTION_CAST<F3>(code->entry());
   test.a = -2.0;
   test.b = -2.0;
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.a, 2.0);
   CHECK_EQ(test.b, 2.0);
 
   test.a = 2.0;
   test.b = 2.0;
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.a, 2.0);
   CHECK_EQ(test.b, 2.0);
 
   // Testing biggest positive number
   test.a = std::numeric_limits<double>::max();
   test.b = std::numeric_limits<float>::max();
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.a, std::numeric_limits<double>::max());
   CHECK_EQ(test.b, std::numeric_limits<float>::max());
 
   // Testing smallest negative number
   test.a = -std::numeric_limits<double>::max();  // lowest()
   test.b = -std::numeric_limits<float>::max();   // lowest()
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.a, std::numeric_limits<double>::max());
   CHECK_EQ(test.b, std::numeric_limits<float>::max());
 
   // Testing smallest positive number
   test.a = -std::numeric_limits<double>::min();
   test.b = -std::numeric_limits<float>::min();
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.a, std::numeric_limits<double>::min());
   CHECK_EQ(test.b, std::numeric_limits<float>::min());
 
@@ -3476,7 +3661,7 @@ TEST(ABS) {
           / std::numeric_limits<double>::min();
   test.b = -std::numeric_limits<float>::max()
           / std::numeric_limits<float>::min();
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.a, std::numeric_limits<double>::max()
                  / std::numeric_limits<double>::min());
   CHECK_EQ(test.b, std::numeric_limits<float>::max()
@@ -3484,13 +3669,13 @@ TEST(ABS) {
 
   test.a = std::numeric_limits<double>::quiet_NaN();
   test.b = std::numeric_limits<float>::quiet_NaN();
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(std::isnan(test.a), true);
   CHECK_EQ(std::isnan(test.b), true);
 
   test.a = std::numeric_limits<double>::signaling_NaN();
   test.b = std::numeric_limits<float>::signaling_NaN();
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(std::isnan(test.a), true);
   CHECK_EQ(std::isnan(test.b), true);
 }
@@ -3500,7 +3685,7 @@ TEST(ADD_FMT) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   typedef struct test_float {
     double a;
@@ -3535,7 +3720,7 @@ TEST(ADD_FMT) {
   test.b = 3.0;
   test.fa = 2.0;
   test.fb = 3.0;
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.c, 5.0);
   CHECK_EQ(test.fc, 5.0);
 
@@ -3543,7 +3728,7 @@ TEST(ADD_FMT) {
   test.b = -std::numeric_limits<double>::max();  // lowest()
   test.fa = std::numeric_limits<float>::max();
   test.fb = -std::numeric_limits<float>::max();  // lowest()
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.c, 0.0);
   CHECK_EQ(test.fc, 0.0);
 
@@ -3551,7 +3736,7 @@ TEST(ADD_FMT) {
   test.b = std::numeric_limits<double>::max();
   test.fa = std::numeric_limits<float>::max();
   test.fb = std::numeric_limits<float>::max();
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(std::isfinite(test.c), false);
   CHECK_EQ(std::isfinite(test.fc), false);
 
@@ -3559,7 +3744,7 @@ TEST(ADD_FMT) {
   test.b = std::numeric_limits<double>::signaling_NaN();
   test.fa = 5.0;
   test.fb = std::numeric_limits<float>::signaling_NaN();
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(std::isnan(test.c), true);
   CHECK_EQ(std::isnan(test.fc), true);
 }
@@ -3570,7 +3755,8 @@ TEST(C_COND_FMT) {
     CcTest::InitializeVM();
     Isolate* isolate = CcTest::i_isolate();
     HandleScope scope(isolate);
-    MacroAssembler assm(isolate, NULL, 0);
+    MacroAssembler assm(isolate, NULL, 0,
+                        v8::internal::CodeObjectRequired::kYes);
 
     typedef struct test_float {
       double dOp1;
@@ -3689,7 +3875,7 @@ TEST(C_COND_FMT) {
     test.dOp2 = 3.0;
     test.fOp1 = 2.0;
     test.fOp2 = 3.0;
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
     CHECK_EQ(test.dF, 0U);
     CHECK_EQ(test.dUn, 0U);
     CHECK_EQ(test.dEq, 0U);
@@ -3711,7 +3897,7 @@ TEST(C_COND_FMT) {
     test.dOp2 = std::numeric_limits<double>::min();
     test.fOp1 = std::numeric_limits<float>::min();
     test.fOp2 = -std::numeric_limits<float>::max();  // lowest()
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
     CHECK_EQ(test.dF, 0U);
     CHECK_EQ(test.dUn, 0U);
     CHECK_EQ(test.dEq, 0U);
@@ -3733,7 +3919,7 @@ TEST(C_COND_FMT) {
     test.dOp2 = -std::numeric_limits<double>::max();  // lowest()
     test.fOp1 = std::numeric_limits<float>::max();
     test.fOp2 = std::numeric_limits<float>::max();
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
     CHECK_EQ(test.dF, 0U);
     CHECK_EQ(test.dUn, 0U);
     CHECK_EQ(test.dEq, 1U);
@@ -3755,7 +3941,7 @@ TEST(C_COND_FMT) {
     test.dOp2 = 0.0;
     test.fOp1 = std::numeric_limits<float>::quiet_NaN();
     test.fOp2 = 0.0;
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
     CHECK_EQ(test.dF, 0U);
     CHECK_EQ(test.dUn, 1U);
     CHECK_EQ(test.dEq, 0U);
@@ -3781,7 +3967,8 @@ TEST(CMP_COND_FMT) {
     CcTest::InitializeVM();
     Isolate* isolate = CcTest::i_isolate();
     HandleScope scope(isolate);
-    MacroAssembler assm(isolate, NULL, 0);
+    MacroAssembler assm(isolate, NULL, 0,
+                        v8::internal::CodeObjectRequired::kYes);
 
     typedef struct test_float {
       double dOp1;
@@ -3894,7 +4081,7 @@ TEST(CMP_COND_FMT) {
     test.dOp2 = 3.0;
     test.fOp1 = 2.0;
     test.fOp2 = 3.0;
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
     CHECK_EQ(bit_cast<uint64_t>(test.dF), dFalse);
     CHECK_EQ(bit_cast<uint64_t>(test.dUn), dFalse);
     CHECK_EQ(bit_cast<uint64_t>(test.dEq), dFalse);
@@ -3919,7 +4106,7 @@ TEST(CMP_COND_FMT) {
     test.dOp2 = std::numeric_limits<double>::min();
     test.fOp1 = std::numeric_limits<float>::min();
     test.fOp2 = -std::numeric_limits<float>::max();  // lowest()
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
     CHECK_EQ(bit_cast<uint64_t>(test.dF), dFalse);
     CHECK_EQ(bit_cast<uint64_t>(test.dUn), dFalse);
     CHECK_EQ(bit_cast<uint64_t>(test.dEq), dFalse);
@@ -3944,7 +4131,7 @@ TEST(CMP_COND_FMT) {
     test.dOp2 = -std::numeric_limits<double>::max();  // lowest()
     test.fOp1 = std::numeric_limits<float>::max();
     test.fOp2 = std::numeric_limits<float>::max();
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
     CHECK_EQ(bit_cast<uint64_t>(test.dF), dFalse);
     CHECK_EQ(bit_cast<uint64_t>(test.dUn), dFalse);
     CHECK_EQ(bit_cast<uint64_t>(test.dEq), dTrue);
@@ -3969,7 +4156,7 @@ TEST(CMP_COND_FMT) {
     test.dOp2 = 0.0;
     test.fOp1 = std::numeric_limits<float>::quiet_NaN();
     test.fOp2 = 0.0;
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
     CHECK_EQ(bit_cast<uint64_t>(test.dF), dFalse);
     CHECK_EQ(bit_cast<uint64_t>(test.dUn), dTrue);
     CHECK_EQ(bit_cast<uint64_t>(test.dEq), dFalse);
@@ -3997,7 +4184,7 @@ TEST(CVT) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   typedef struct test_float {
     float    cvt_d_s_in;
@@ -4040,7 +4227,8 @@ TEST(CVT) {
 
   GENERATE_CVT_TEST(cvt_d_s, lw, sd)
   GENERATE_CVT_TEST(cvt_d_w, lw, sd)
-  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+  if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+         IsFp64Mode()) {
     GENERATE_CVT_TEST(cvt_d_l, ld, sd)
   }
 
@@ -4051,7 +4239,8 @@ TEST(CVT) {
 
   GENERATE_CVT_TEST(cvt_s_d, ld, sw)
   GENERATE_CVT_TEST(cvt_s_w, lw, sw)
-  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+  if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+         IsFp64Mode()) {
     GENERATE_CVT_TEST(cvt_s_l, ld, sw)
   }
 
@@ -4081,10 +4270,11 @@ TEST(CVT) {
   test.cvt_w_s_in = -0.51;
   test.cvt_w_d_in = -0.51;
 
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.cvt_d_s_out, static_cast<double>(test.cvt_d_s_in));
   CHECK_EQ(test.cvt_d_w_out, static_cast<double>(test.cvt_d_w_in));
-  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+  if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+         IsFp64Mode()) {
     CHECK_EQ(test.cvt_d_l_out, static_cast<double>(test.cvt_d_l_in));
   }
   if (IsFp64Mode()) {
@@ -4093,7 +4283,8 @@ TEST(CVT) {
   }
   CHECK_EQ(test.cvt_s_d_out, static_cast<float>(test.cvt_s_d_in));
   CHECK_EQ(test.cvt_s_w_out, static_cast<float>(test.cvt_s_w_in));
-  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+  if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+         IsFp64Mode()) {
     CHECK_EQ(test.cvt_s_l_out, static_cast<float>(test.cvt_s_l_in));
   }
   CHECK_EQ(test.cvt_w_s_out, -1);
@@ -4111,10 +4302,11 @@ TEST(CVT) {
   test.cvt_w_s_in = 0.49;
   test.cvt_w_d_in = 0.49;
 
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.cvt_d_s_out, static_cast<double>(test.cvt_d_s_in));
   CHECK_EQ(test.cvt_d_w_out, static_cast<double>(test.cvt_d_w_in));
-  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+  if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+         IsFp64Mode()) {
     CHECK_EQ(test.cvt_d_l_out, static_cast<double>(test.cvt_d_l_in));
   }
   if (IsFp64Mode()) {
@@ -4123,7 +4315,8 @@ TEST(CVT) {
   }
   CHECK_EQ(test.cvt_s_d_out, static_cast<float>(test.cvt_s_d_in));
   CHECK_EQ(test.cvt_s_w_out, static_cast<float>(test.cvt_s_w_in));
-  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+  if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+         IsFp64Mode()) {
     CHECK_EQ(test.cvt_s_l_out, static_cast<float>(test.cvt_s_l_in));
   }
   CHECK_EQ(test.cvt_w_s_out, 0);
@@ -4140,10 +4333,11 @@ TEST(CVT) {
   test.cvt_w_s_in = std::numeric_limits<float>::max();
   test.cvt_w_d_in = std::numeric_limits<double>::max();
 
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.cvt_d_s_out, static_cast<double>(test.cvt_d_s_in));
   CHECK_EQ(test.cvt_d_w_out, static_cast<double>(test.cvt_d_w_in));
-  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+  if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+         IsFp64Mode()) {
     CHECK_EQ(test.cvt_d_l_out, static_cast<double>(test.cvt_d_l_in));
   }
   if (IsFp64Mode()) {
@@ -4152,7 +4346,8 @@ TEST(CVT) {
   }
   CHECK_EQ(test.cvt_s_d_out, static_cast<float>(test.cvt_s_d_in));
   CHECK_EQ(test.cvt_s_w_out, static_cast<float>(test.cvt_s_w_in));
-  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+  if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+         IsFp64Mode()) {
     CHECK_EQ(test.cvt_s_l_out, static_cast<float>(test.cvt_s_l_in));
   }
   CHECK_EQ(test.cvt_w_s_out, std::numeric_limits<int32_t>::max());
@@ -4170,10 +4365,11 @@ TEST(CVT) {
   test.cvt_w_s_in = -std::numeric_limits<float>::max();   // lowest()
   test.cvt_w_d_in = -std::numeric_limits<double>::max();  // lowest()
 
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.cvt_d_s_out, static_cast<double>(test.cvt_d_s_in));
   CHECK_EQ(test.cvt_d_w_out, static_cast<double>(test.cvt_d_w_in));
-  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+  if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+         IsFp64Mode()) {
     CHECK_EQ(test.cvt_d_l_out, static_cast<double>(test.cvt_d_l_in));
   }
   // The returned value when converting from fixed-point to float-point
@@ -4187,7 +4383,8 @@ TEST(CVT) {
   }
   CHECK_EQ(test.cvt_s_d_out, static_cast<float>(test.cvt_s_d_in));
   CHECK_EQ(test.cvt_s_w_out, static_cast<float>(test.cvt_s_w_in));
-  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+  if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+         IsFp64Mode()) {
     CHECK_EQ(test.cvt_s_l_out, static_cast<float>(test.cvt_s_l_in));
   }
   CHECK(test.cvt_w_s_out == std::numeric_limits<int32_t>::min() ||
@@ -4207,10 +4404,11 @@ TEST(CVT) {
   test.cvt_w_s_in = std::numeric_limits<float>::min();
   test.cvt_w_d_in = std::numeric_limits<double>::min();
 
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(test.cvt_d_s_out, static_cast<double>(test.cvt_d_s_in));
   CHECK_EQ(test.cvt_d_w_out, static_cast<double>(test.cvt_d_w_in));
-  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+  if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+         IsFp64Mode()) {
     CHECK_EQ(test.cvt_d_l_out, static_cast<double>(test.cvt_d_l_in));
   }
   if (IsFp64Mode()) {
@@ -4219,7 +4417,8 @@ TEST(CVT) {
   }
   CHECK_EQ(test.cvt_s_d_out, static_cast<float>(test.cvt_s_d_in));
   CHECK_EQ(test.cvt_s_w_out, static_cast<float>(test.cvt_s_w_in));
-  if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+  if ((IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) &&
+         IsFp64Mode()) {
     CHECK_EQ(test.cvt_s_l_out, static_cast<float>(test.cvt_s_l_in));
   }
   CHECK_EQ(test.cvt_w_s_out, 0);
@@ -4231,7 +4430,7 @@ TEST(DIV_FMT) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   typedef struct test {
     double dOp1;
@@ -4274,7 +4473,7 @@ TEST(DIV_FMT) {
 
   F3 f = FUNCTION_CAST<F3>(code->entry());
 
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
 
   const int test_size = 3;
 
@@ -4315,7 +4514,7 @@ TEST(DIV_FMT) {
     test.fOp1 = fOp1[i];
     test.fOp2 = fOp2[i];
 
-    (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+    (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
     CHECK_EQ(test.dRes, dRes[i]);
     CHECK_EQ(test.fRes, fRes[i]);
   }
@@ -4325,7 +4524,7 @@ TEST(DIV_FMT) {
   test.fOp1 = FLT_MAX;
   test.fOp2 = -0.0;
 
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(false, std::isfinite(test.dRes));
   CHECK_EQ(false, std::isfinite(test.fRes));
 
@@ -4334,7 +4533,7 @@ TEST(DIV_FMT) {
   test.fOp1 = 0.0;
   test.fOp2 = -0.0;
 
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(true, std::isnan(test.dRes));
   CHECK_EQ(true, std::isnan(test.fRes));
 
@@ -4343,7 +4542,7 @@ TEST(DIV_FMT) {
   test.fOp1 = std::numeric_limits<float>::quiet_NaN();
   test.fOp2 = -5.0;
 
-  (CALL_GENERATED_CODE(f, &test, 0, 0, 0, 0));
+  (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
   CHECK_EQ(true, std::isnan(test.dRes));
   CHECK_EQ(true, std::isnan(test.fRes));
 }
@@ -4353,7 +4552,7 @@ uint32_t run_align(uint32_t rs_value, uint32_t rt_value, uint8_t bp) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   __ align(v0, a0, a1, bp);
   __ jr(ra);
@@ -4366,10 +4565,8 @@ uint32_t run_align(uint32_t rs_value, uint32_t rt_value, uint8_t bp) {
 
   F2 f = FUNCTION_CAST<F2>(code->entry());
 
-  uint32_t res =
-      reinterpret_cast<uint32_t>(CALL_GENERATED_CODE(f, rs_value,
-                                                        rt_value,
-                                                        0, 0, 0));
+  uint32_t res = reinterpret_cast<uint32_t>(CALL_GENERATED_CODE(
+      isolate, f, rs_value, rt_value, 0, 0, 0));
 
   return res;
 }
@@ -4408,7 +4605,7 @@ uint32_t run_aluipc(int16_t offset) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   __ aluipc(v0, offset);
   __ jr(ra);
@@ -4422,8 +4619,8 @@ uint32_t run_aluipc(int16_t offset) {
   F2 f = FUNCTION_CAST<F2>(code->entry());
   PC = (uint32_t) f;  // Set the program counter.
 
-  uint32_t res =
-      reinterpret_cast<uint32_t>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  uint32_t res = reinterpret_cast<uint32_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
 
   return res;
 }
@@ -4462,7 +4659,7 @@ uint32_t run_auipc(int16_t offset) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   __ auipc(v0, offset);
   __ jr(ra);
@@ -4476,8 +4673,8 @@ uint32_t run_auipc(int16_t offset) {
   F2 f = FUNCTION_CAST<F2>(code->entry());
   PC = (uint32_t) f;  // Set the program counter.
 
-  uint32_t res =
-      reinterpret_cast<uint32_t>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  uint32_t res = reinterpret_cast<uint32_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
 
   return res;
 }
@@ -4516,7 +4713,7 @@ uint32_t run_lwpc(int offset) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   // 256k instructions; 2^8k
   // addiu t7, t0, 0xffff;  (0x250fffff)
@@ -4551,8 +4748,8 @@ uint32_t run_lwpc(int offset) {
 
   F2 f = FUNCTION_CAST<F2>(code->entry());
 
-  uint32_t res =
-      reinterpret_cast<uint32_t>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  uint32_t res = reinterpret_cast<uint32_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
 
   return res;
 }
@@ -4592,7 +4789,7 @@ uint32_t run_jic(int16_t offset) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   Label get_program_counter, stop_execution;
   __ push(ra);
@@ -4635,8 +4832,8 @@ uint32_t run_jic(int16_t offset) {
 
   F2 f = FUNCTION_CAST<F2>(code->entry());
 
-  uint32_t res =
-      reinterpret_cast<uint32_t>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  uint32_t res = reinterpret_cast<uint32_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
 
   return res;
 }
@@ -4673,7 +4870,7 @@ uint64_t run_beqzc(int32_t value, int32_t offset) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   Label stop_execution;
   __ li(v0, 0);
@@ -4707,8 +4904,8 @@ uint64_t run_beqzc(int32_t value, int32_t offset) {
 
   F2 f = FUNCTION_CAST<F2>(code->entry());
 
-  uint32_t res =
-      reinterpret_cast<uint32_t>(CALL_GENERATED_CODE(f, value, 0, 0, 0, 0));
+  uint32_t res = reinterpret_cast<uint32_t>(
+      CALL_GENERATED_CODE(isolate, f, value, 0, 0, 0, 0));
 
   return res;
 }
@@ -4746,7 +4943,7 @@ uint32_t run_jialc(int16_t offset) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   Label main_block, get_program_counter;
   __ push(ra);
@@ -4801,8 +4998,8 @@ uint32_t run_jialc(int16_t offset) {
 
   F2 f = FUNCTION_CAST<F2>(code->entry());
 
-  uint32_t res =
-      reinterpret_cast<uint32_t>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  uint32_t res = reinterpret_cast<uint32_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
 
   return res;
 }
@@ -4833,12 +5030,11 @@ TEST(r6_jialc) {
   }
 }
 
-
-uint64_t run_addiupc(int32_t imm19) {
+static uint32_t run_addiupc(int32_t imm19) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   __ addiupc(v0, imm19);
   __ jr(ra);
@@ -4852,8 +5048,8 @@ uint64_t run_addiupc(int32_t imm19) {
   F2 f = FUNCTION_CAST<F2>(code->entry());
   PC = (uint32_t) f;  // Set the program counter.
 
-  uint32_t rs =
-      reinterpret_cast<uint32_t>(CALL_GENERATED_CODE(f, imm19, 0, 0, 0, 0));
+  uint32_t rs = reinterpret_cast<uint32_t>(
+      CALL_GENERATED_CODE(isolate, f, imm19, 0, 0, 0, 0));
 
   return rs;
 }
@@ -4867,13 +5063,13 @@ TEST(r6_addiupc) {
       int32_t   imm19;
     };
 
-    struct TestCaseAddiupc tc[] = {
-      //  imm19
-      { -262144 },   // 0x40000
-      {      -1 },   // 0x7FFFF
-      {       0 },
-      {       1 },   // 0x00001
-      {  262143 }    // 0x3FFFF
+    TestCaseAddiupc tc[] = {
+        //  imm19
+        {-262144},  // 0x40000
+        {-1},       // 0x7FFFF
+        {0},
+        {1},      // 0x00001
+        {262143}  // 0x3FFFF
     };
 
     size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseAddiupc);
@@ -4892,7 +5088,7 @@ int32_t run_bc(int32_t offset) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   Label continue_1, stop_execution;
   __ push(ra);
@@ -4900,9 +5096,8 @@ int32_t run_bc(int32_t offset) {
   __ li(t8, 0);
   __ li(t9, 2);   // A condition for stopping execution.
 
-  uint32_t instruction_addiu = 0x24420001;  // addiu v0, v0, 1
   for (int32_t i = -100; i <= -11; ++i) {
-    __ dd(instruction_addiu);
+    __ addiu(v0, v0, 1);
   }
 
   __ addiu(t8, t8, 1);              // -10
@@ -4921,7 +5116,7 @@ int32_t run_bc(int32_t offset) {
   __ bc(offset);                    // -1
 
   for (int32_t i = 0; i <= 99; ++i) {
-    __ dd(instruction_addiu);
+    __ addiu(v0, v0, 1);
   }
 
   __ pop(ra);
@@ -4935,8 +5130,8 @@ int32_t run_bc(int32_t offset) {
 
   F2 f = FUNCTION_CAST<F2>(code->entry());
 
-  int32_t res =
-      reinterpret_cast<int32_t>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  int32_t res = reinterpret_cast<int32_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
 
   return res;
 }
@@ -4973,7 +5168,7 @@ int32_t run_balc(int32_t offset) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   Label continue_1, stop_execution;
   __ push(ra);
@@ -5017,10 +5212,68 @@ int32_t run_balc(int32_t offset) {
 
   F2 f = FUNCTION_CAST<F2>(code->entry());
 
-  int32_t res =
-      reinterpret_cast<int32_t>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  int32_t res = reinterpret_cast<int32_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
 
   return res;
+}
+
+
+uint32_t run_aui(uint32_t rs, uint16_t offset) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+
+  __ li(t0, rs);
+  __ aui(v0, t0, offset);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
+  F2 f = FUNCTION_CAST<F2>(code->entry());
+
+  uint32_t res =
+    reinterpret_cast<uint32_t>
+        (CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
+
+  return res;
+}
+
+
+TEST(r6_aui) {
+  if (IsMipsArchVariant(kMips32r6)) {
+    CcTest::InitializeVM();
+
+    struct TestCaseAui {
+      uint32_t   rs;
+      uint16_t   offset;
+      uint32_t   ref_res;
+    };
+
+    struct TestCaseAui tc[] = {
+      // input, offset, result
+      {0xfffeffff, 1, 0xffffffff},
+      {0xffffffff, 0, 0xffffffff},
+      {0, 0xffff, 0xffff0000},
+      {0x0008ffff, 0xfff7, 0xffffffff},
+      {32767, 32767, 0x7fff7fff},
+      // overflow cases
+      {0xffffffff, 0x1, 0x0000ffff},
+      {0xffffffff, 0xffff, 0xfffeffff},
+    };
+
+    size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseAui);
+    for (size_t i = 0; i < nr_test_cases; ++i) {
+      PC = 0;
+      uint32_t res = run_aui(tc[i].rs, tc[i].offset);
+      CHECK_EQ(tc[i].ref_res, res);
+    }
+  }
 }
 
 
@@ -5054,7 +5307,7 @@ uint32_t run_bal(int16_t offset) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, NULL, 0);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
   __ mov(t0, ra);
   __ bal(offset);       // Equivalent for "BGEZAL zero_reg, offset".
@@ -5075,8 +5328,8 @@ uint32_t run_bal(int16_t offset) {
 
   F2 f = FUNCTION_CAST<F2>(code->entry());
 
-  uint32_t res =
-    reinterpret_cast<uint32_t>(CALL_GENERATED_CODE(f, 0, 0, 0, 0, 0));
+  uint32_t res = reinterpret_cast<uint32_t>(
+      CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
 
   return res;
 }
@@ -5110,7 +5363,8 @@ TEST(Trampoline) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  MacroAssembler assm(isolate, nullptr, 0);
+  MacroAssembler assm(isolate, nullptr, 0,
+                      v8::internal::CodeObjectRequired::kYes);
   Label done;
   size_t nr_calls = kMaxBranchOffset / (2 * Instruction::kInstrSize) + 2;
 
@@ -5127,10 +5381,9 @@ TEST(Trampoline) {
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   F2 f = FUNCTION_CAST<F2>(code->entry());
 
-  int32_t res =
-      reinterpret_cast<int32_t>(CALL_GENERATED_CODE(f, 42, 42, 0, 0, 0));
+  int32_t res = reinterpret_cast<int32_t>(
+      CALL_GENERATED_CODE(isolate, f, 42, 42, 0, 0, 0));
   CHECK_EQ(res, 0);
 }
-
 
 #undef __

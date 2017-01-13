@@ -1,17 +1,16 @@
 'use strict';
-var common = require('../common');
-var http = require('http');
+require('../common');
+const http = require('http');
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   res.end('Hello');
 });
 
-server.listen(common.PORT, function() {
-  var req = http.get({port: common.PORT}, function(res) {
+server.listen(0, function() {
+  const req = http.get({port: this.address().port}, function(res) {
     res.on('data', function(data) {
       req.abort();
       server.close();
     });
   });
 });
-

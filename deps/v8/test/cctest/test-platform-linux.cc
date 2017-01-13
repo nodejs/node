@@ -27,9 +27,6 @@
 //
 // Tests of the TokenLock class from lock.h
 
-// TODO(mythria): Remove this define after this flag is turned on globally
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include <pthread.h>
 #include <stdlib.h>
 #include <unistd.h>  // for usleep()

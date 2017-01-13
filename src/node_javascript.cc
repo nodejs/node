@@ -4,35 +4,48 @@
 #include "env.h"
 #include "env-inl.h"
 
-#include <string.h>
-#if !defined(_MSC_VER)
-#include <strings.h>
-#endif
-
 namespace node {
 
-using v8::HandleScope;
 using v8::Local;
+using v8::NewStringType;
 using v8::Object;
 using v8::String;
 
+// id##_data is defined in node_natives.h.
+#define V(id)                                                                 \
+  static struct : public String::ExternalOneByteStringResource {              \
+    const char* data() const override {                                       \
+      return reinterpret_cast<const char*>(id##_data);                        \
+    }                                                                         \
+    size_t length() const override { return sizeof(id##_data); }              \
+    void Dispose() override { /* Default calls `delete this`. */ }            \
+  } id##_external_data;
+NODE_NATIVES_MAP(V)
+#undef V
+
 Local<String> MainSource(Environment* env) {
-  return OneByteString(env->isolate(), node_native, sizeof(node_native) - 1);
+  auto maybe_string =
+      String::NewExternalOneByte(
+          env->isolate(),
+          &internal_bootstrap_node_external_data);
+  return maybe_string.ToLocalChecked();
 }
 
 void DefineJavaScript(Environment* env, Local<Object> target) {
-  HandleScope scope(env->isolate());
-
-  for (int i = 0; natives[i].name; i++) {
-    if (natives[i].source != node_native) {
-      Local<String> name = String::NewFromUtf8(env->isolate(), natives[i].name);
-      Local<String> source = String::NewFromUtf8(env->isolate(),
-                                                  natives[i].source,
-                                                  String::kNormalString,
-                                                  natives[i].source_len);
-      target->Set(name, source);
-    }
-  }
+  auto context = env->context();
+#define V(id)                                                                 \
+  do {                                                                        \
+    auto key =                                                                \
+        String::NewFromOneByte(                                               \
+            env->isolate(), id##_name, NewStringType::kNormal,                \
+            sizeof(id##_name)).ToLocalChecked();                              \
+    auto value =                                                              \
+        String::NewExternalOneByte(                                           \
+            env->isolate(), &id##_external_data).ToLocalChecked();            \
+    CHECK(target->Set(context, key, value).FromJust());                       \
+  } while (0);
+  NODE_NATIVES_MAP(V)
+#undef V
 }
 
 }  // namespace node

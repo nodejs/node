@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common.js');
 var crypto = require('crypto');
 var keylen = {'aes-128-gcm': 16, 'aes-192-gcm': 24, 'aes-256-gcm': 32};
@@ -8,10 +9,10 @@ var bench = common.createBenchmark(main, {
 });
 
 function main(conf) {
-  var message = (new Buffer(conf.len)).fill('b');
+  var message = Buffer.alloc(conf.len, 'b');
   var key = crypto.randomBytes(keylen[conf.cipher]);
   var iv = crypto.randomBytes(12);
-  var associate_data = (new Buffer(16)).fill('z');
+  var associate_data = Buffer.alloc(16, 'z');
   bench.start();
   AEAD_Bench(conf.cipher, message, associate_data, key, iv, conf.n, conf.len);
 }
@@ -30,7 +31,7 @@ function AEAD_Bench(cipher, message, associate_data, key, iv, n, len) {
     var bob = crypto.createDecipheriv(cipher, key, iv);
     bob.setAuthTag(tag);
     bob.setAAD(associate_data);
-    var clear = bob.update(enc);
+    bob.update(enc);
     bob.final();
   }
 

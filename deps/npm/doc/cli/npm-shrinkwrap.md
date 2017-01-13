@@ -82,16 +82,16 @@ This generates `npm-shrinkwrap.json`, which will look something like this:
 
     {
       "name": "A",
-      "version": "1.1.0",
+      "version": "0.1.0",
       "dependencies": {
         "B": {
-          "version": "1.0.1",
-          "from": "B@^1.0.0",
-          "resolved": "https://registry.npmjs.org/B/-/B-1.0.1.tgz",
+          "version": "0.0.1",
+          "from": "B@^0.0.1",
+          "resolved": "https://registry.npmjs.org/B/-/B-0.0.1.tgz",
           "dependencies": {
             "C": {
-              "version": "1.0.1",
-              "from": "org/C#v1.0.1",
+              "version": "0.0.1",
+              "from": "org/C#v0.0.1",
               "resolved": "git://github.com/org/C.git#5c380ae319fc4efe9e7f2d9c78b0faa588fd99b4"
             }
           }
@@ -108,6 +108,14 @@ referenced in "resolved" if available, falling back to normal package
 resolution using "version" if one isn't.
 
 2. The tree is walked and any missing dependencies are installed in the usual fashion.
+
+If `preshrinkwrap`, `shrinkwrap` or `postshrinkwrap` are in the `scripts` property of the
+`package.json`, they will be executed by running `npm shrinkwrap`.
+`preshrinkwrap` and `shrinkwrap` are executed before the shrinkwrap, `postshrinkwrap` is
+executed afterwards. For example to run some postprocessing on the generated file:
+
+    "scripts": { "postshrinkwrap": "node fix-shrinkwrap.js" }
+
 
 ### Using shrinkwrapped packages
 
@@ -129,11 +137,11 @@ To add or update a dependency in a shrinkwrapped package:
 
 1. Run `npm install` in the package root to install the current
    versions of all dependencies.
-2. Add or update dependencies. `npm install --save` each new or updated
-   package individually to update the `package.json` and the shrinkwrap.
-   Note that they must be explicitly named in order to be installed: running
-   `npm install` with no arguments will merely reproduce the existing
-   shrinkwrap.
+2. Add or update dependencies. `npm install --save` or `npm install --save-dev`
+   each new or updated package individually to update the `package.json` and
+   the shrinkwrap. Note that they must be explicitly named in order to be
+   installed: running `npm install` with no arguments will merely reproduce
+   the existing shrinkwrap.
 3. Validate that the package works as expected with the new
    dependencies.
 4. Commit the new `npm-shrinkwrap.json`, and publish your package.
@@ -150,12 +158,16 @@ wouldn't actually work. Similarly, the command will fail if there are
 extraneous packages (not referenced by `package.json`), since that would
 indicate that `package.json` is not correct.
 
-Since `npm shrinkwrap` is intended to lock down your dependencies for
-production use, `devDependencies` will not be included unless you
-explicitly set the `--dev` flag when you run `npm shrinkwrap`.  If
-installed `devDependencies` are excluded, then npm will print a
-warning.  If you want them to be installed with your module by
-default, please consider adding them to `dependencies` instead.
+Starting with npm v4.0.1, `devDependencies` are included when you run
+`npm shrinkwrap` and follow the usual rules as to when they're installed.
+As of npm v3.10.8, if you run `npm install --only=production` or
+`npm install --production` with a shrinkwrap including your development
+dependencies they won't be installed. Similarly, if the environment
+variable `NODE_ENV` is `production` then they won't be installed. If you
+need compatibility with versions of npm prior to v3.10.8 or otherwise
+don't want them in your shrinkwrap you can exclude development
+dependencies with:
+`npm shrinkwrap --only=prod` or `npm shrinkwrap --production`.
 
 If shrinkwrapped package A depends on shrinkwrapped package B, B's
 shrinkwrap will not be used as part of the installation of A. However,
@@ -174,5 +186,7 @@ contents rather than versions.
 ## SEE ALSO
 
 * npm-install(1)
+* npm-run-script(1)
+* npm-scripts(7)
 * package.json(5)
 * npm-ls(1)

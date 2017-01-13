@@ -53,6 +53,7 @@ B<openssl> B<s_client>
 [B<-rand file(s)>]
 [B<-serverinfo types>]
 [B<-status>]
+[B<-alpn protocols>]
 [B<-nextprotoneg protocols>]
 
 =head1 DESCRIPTION
@@ -201,15 +202,11 @@ Use the PSK key B<key> when using a PSK cipher suite. The key is
 given as a hexadecimal number without leading 0x, for example -psk
 1a2b3c4d.
 
-=item B<-ssl2>, B<-ssl3>, B<-tls1>, B<-no_ssl2>, B<-no_ssl3>, B<-no_tls1>, B<-no_tls1_1>, B<-no_tls1_2>
+=item B<-ssl2>, B<-ssl3>, B<-tls1>, B<-tls1_1>, B<-tls1_2>, B<-no_ssl2>, B<-no_ssl3>, B<-no_tls1>, B<-no_tls1_1>, B<-no_tls1_2>
 
-these options disable the use of certain SSL or TLS protocols. By default
-the initial handshake uses a method which should be compatible with all
-servers and permit them to use SSL v3, SSL v2 or TLS as appropriate.
-
-Unfortunately there are still ancient and broken servers in use which
-cannot handle this technique and will fail to connect. Some servers only
-work if TLS is turned off.
+These options require or disable the use of the specified SSL or TLS protocols.
+By default the initial handshake uses a I<version-flexible> method which will
+negotiate the highest mutually supported protocol version.
 
 =item B<-fallback_scsv>
 
@@ -281,9 +278,13 @@ file.
 sends a certificate status request to the server (OCSP stapling). The server
 response (if any) is printed out.
 
-=item B<-nextprotoneg protocols>
+=item B<-alpn protocols>, B<-nextprotoneg protocols>
 
-enable Next Protocol Negotiation TLS extension and provide a list of
+these flags enable the 
+Enable the Application-Layer Protocol Negotiation or Next Protocol
+Negotiation extension, respectively. ALPN is the IETF standard and
+replaces NPN.
+The B<protocols> list is a
 comma-separated protocol names that the client should advertise
 support for. The list should contain most wanted protocols first.
 Protocol names are printable ASCII strings, for example "http/1.1" or

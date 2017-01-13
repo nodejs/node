@@ -1,24 +1,22 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
-var SIZE = 2E5;
-var N = 10;
-var flushed = 0;
-var received = 0;
-var buf = new Buffer(SIZE);
-buf.fill(0x61); // 'a'
+const SIZE = 2E5;
+const N = 10;
+let flushed = 0;
+let received = 0;
+const buf = Buffer.alloc(SIZE, 'a');
 
-var server = net.createServer(function(socket) {
+const server = net.createServer(function(socket) {
   socket.setNoDelay();
-  socket.setTimeout(1000);
+  socket.setTimeout(9999);
   socket.on('timeout', function() {
-    assert.fail(null, null, 'flushed: ' + flushed +
-                ', received: ' + received + '/' + SIZE * N);
+    common.fail(`flushed: ${flushed}, received: ${received}/${SIZE * N}`);
   });
 
-  for (var i = 0; i < N; ++i) {
+  for (let i = 0; i < N; ++i) {
     socket.write(buf, function() {
       ++flushed;
       if (flushed === N) {
@@ -28,8 +26,8 @@ var server = net.createServer(function(socket) {
   }
   socket.end();
 
-}).listen(common.PORT, function() {
-  var conn = net.connect(common.PORT);
+}).listen(0, common.mustCall(function() {
+  const conn = net.connect(this.address().port);
   conn.on('data', function(buf) {
     received += buf.length;
     conn.pause();
@@ -37,11 +35,8 @@ var server = net.createServer(function(socket) {
       conn.resume();
     }, 20);
   });
-  conn.on('end', function() {
+  conn.on('end', common.mustCall(function() {
     server.close();
-  });
-});
-
-process.on('exit', function() {
-  assert.equal(received, SIZE * N);
-});
+    assert.strictEqual(received, SIZE * N);
+  }));
+}));

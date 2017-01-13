@@ -832,6 +832,7 @@ int dump_certs_pkeys_bag(BIO *out, PKCS12_SAFEBAG *bag, char *pass,
     EVP_PKEY *pkey;
     PKCS8_PRIV_KEY_INFO *p8;
     X509 *x509;
+    int ret = 0;
 
     switch (M_PKCS12_bag_type(bag)) {
     case NID_keyBag:
@@ -844,7 +845,7 @@ int dump_certs_pkeys_bag(BIO *out, PKCS12_SAFEBAG *bag, char *pass,
         if (!(pkey = EVP_PKCS82PKEY(p8)))
             return 0;
         print_attribs(out, p8->attributes, "Key Attributes");
-        PEM_write_bio_PrivateKey(out, pkey, enc, NULL, 0, NULL, pempass);
+        ret = PEM_write_bio_PrivateKey(out, pkey, enc, NULL, 0, NULL, pempass);
         EVP_PKEY_free(pkey);
         break;
 
@@ -864,7 +865,7 @@ int dump_certs_pkeys_bag(BIO *out, PKCS12_SAFEBAG *bag, char *pass,
         }
         print_attribs(out, p8->attributes, "Key Attributes");
         PKCS8_PRIV_KEY_INFO_free(p8);
-        PEM_write_bio_PrivateKey(out, pkey, enc, NULL, 0, NULL, pempass);
+        ret = PEM_write_bio_PrivateKey(out, pkey, enc, NULL, 0, NULL, pempass);
         EVP_PKEY_free(pkey);
         break;
 
@@ -884,7 +885,7 @@ int dump_certs_pkeys_bag(BIO *out, PKCS12_SAFEBAG *bag, char *pass,
         if (!(x509 = PKCS12_certbag2x509(bag)))
             return 0;
         dump_cert_text(out, x509);
-        PEM_write_bio_X509(out, x509);
+        ret = PEM_write_bio_X509(out, x509);
         X509_free(x509);
         break;
 
@@ -902,7 +903,7 @@ int dump_certs_pkeys_bag(BIO *out, PKCS12_SAFEBAG *bag, char *pass,
         return 1;
         break;
     }
-    return 1;
+    return ret;
 }
 
 /* Given a single certificate return a verified chain or NULL if error */
@@ -931,16 +932,70 @@ static int get_cert_chain(X509 *cert, X509_STORE *store,
 
 int alg_print(BIO *x, X509_ALGOR *alg)
 {
-    PBEPARAM *pbe;
-    const unsigned char *p;
-    p = alg->parameter->value.sequence->data;
-    pbe = d2i_PBEPARAM(NULL, &p, alg->parameter->value.sequence->length);
-    if (!pbe)
-        return 1;
-    BIO_printf(bio_err, "%s, Iteration %ld\n",
-               OBJ_nid2ln(OBJ_obj2nid(alg->algorithm)),
-               ASN1_INTEGER_get(pbe->iter));
-    PBEPARAM_free(pbe);
+    int pbenid, aparamtype;
+    ASN1_OBJECT *aoid;
+    void *aparam;
+    PBEPARAM *pbe = NULL;
+
+    X509_ALGOR_get0(&aoid, &aparamtype, &aparam, alg);
+
+    pbenid = OBJ_obj2nid(aoid);
+
+    BIO_printf(x, "%s", OBJ_nid2ln(pbenid));
+
+    /*
+     * If PBE algorithm is PBES2 decode algorithm parameters
+     * for additional details.
+     */
+    if (pbenid == NID_pbes2) {
+        PBE2PARAM *pbe2 = NULL;
+        int encnid;
+        if (aparamtype == V_ASN1_SEQUENCE)
+            pbe2 = ASN1_item_unpack(aparam, ASN1_ITEM_rptr(PBE2PARAM));
+        if (pbe2 == NULL) {
+            BIO_puts(x, "<unsupported parameters>");
+            goto done;
+        }
+        X509_ALGOR_get0(&aoid, &aparamtype, &aparam, pbe2->keyfunc);
+        pbenid = OBJ_obj2nid(aoid);
+        X509_ALGOR_get0(&aoid, NULL, NULL, pbe2->encryption);
+        encnid = OBJ_obj2nid(aoid);
+        BIO_printf(x, ", %s, %s", OBJ_nid2ln(pbenid),
+                   OBJ_nid2sn(encnid));
+        /* If KDF is PBKDF2 decode parameters */
+        if (pbenid == NID_id_pbkdf2) {
+            PBKDF2PARAM *kdf = NULL;
+            int prfnid;
+            if (aparamtype == V_ASN1_SEQUENCE)
+                kdf = ASN1_item_unpack(aparam, ASN1_ITEM_rptr(PBKDF2PARAM));
+            if (kdf == NULL) {
+                BIO_puts(x, "<unsupported parameters>");
+                goto done;
+            }
+
+            if (kdf->prf == NULL) {
+                prfnid = NID_hmacWithSHA1;
+            } else {
+                X509_ALGOR_get0(&aoid, NULL, NULL, kdf->prf);
+                prfnid = OBJ_obj2nid(aoid);
+            }
+            BIO_printf(x, ", Iteration %ld, PRF %s",
+                       ASN1_INTEGER_get(kdf->iter), OBJ_nid2sn(prfnid));
+            PBKDF2PARAM_free(kdf);
+        }
+        PBE2PARAM_free(pbe2);
+    } else {
+        if (aparamtype == V_ASN1_SEQUENCE)
+            pbe = ASN1_item_unpack(aparam, ASN1_ITEM_rptr(PBEPARAM));
+        if (pbe == NULL) {
+            BIO_puts(x, "<unsupported parameters>");
+            goto done;
+        }
+        BIO_printf(x, ", Iteration %ld", ASN1_INTEGER_get(pbe->iter));
+        PBEPARAM_free(pbe);
+    }
+ done:
+    BIO_puts(x, "\n");
     return 1;
 }
 

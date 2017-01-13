@@ -1,19 +1,19 @@
 'use strict';
+const common = require('../common');
 if (!process.features.tls_sni) {
-  console.log('1..0 # Skipped: node compiled without OpenSSL or ' +
+  common.skip('node compiled without OpenSSL or ' +
               'with old OpenSSL version.');
   return;
 }
 
-const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
 function filenamePEM(n) {
   return require('path').join(common.fixturesDir, 'keys', n + '.pem');
@@ -23,12 +23,12 @@ function loadPEM(n) {
   return fs.readFileSync(filenamePEM(n));
 }
 
-var serverOptions = {
+const serverOptions = {
   key: loadPEM('agent2-key'),
   cert: loadPEM('agent2-cert')
 };
 
-var SNIContexts = {
+const SNIContexts = {
   'a.example.com': {
     key: loadPEM('agent1-key'),
     cert: loadPEM('agent1-cert')
@@ -44,30 +44,28 @@ var SNIContexts = {
   }
 };
 
-var serverPort = common.PORT;
-
-var clientsOptions = [{
-  port: serverPort,
+const clientsOptions = [{
+  port: undefined,
   ca: [loadPEM('ca1-cert')],
   servername: 'a.example.com',
   rejectUnauthorized: false
 }, {
-  port: serverPort,
+  port: undefined,
   ca: [loadPEM('ca2-cert')],
   servername: 'b.test.com',
   rejectUnauthorized: false
 }, {
-  port: serverPort,
+  port: undefined,
   ca: [loadPEM('ca2-cert')],
   servername: 'a.b.test.com',
   rejectUnauthorized: false
 }, {
-  port: serverPort,
+  port: undefined,
   ca: [loadPEM('ca1-cert')],
   servername: 'c.wrong.com',
   rejectUnauthorized: false
 }, {
-  port: serverPort,
+  port: undefined,
   ca: [loadPEM('ca1-cert')],
   servername: 'chain.example.com',
   rejectUnauthorized: false
@@ -76,7 +74,7 @@ var clientsOptions = [{
 const serverResults = [];
 const clientResults = [];
 
-var server = tls.createServer(serverOptions, function(c) {
+const server = tls.createServer(serverOptions, function(c) {
   serverResults.push(c.servername);
 });
 
@@ -84,17 +82,18 @@ server.addContext('a.example.com', SNIContexts['a.example.com']);
 server.addContext('*.test.com', SNIContexts['asterisk.test.com']);
 server.addContext('chain.example.com', SNIContexts['chain.example.com']);
 
-server.listen(serverPort, startTest);
+server.listen(0, startTest);
 
 function startTest() {
-  var i = 0;
+  let i = 0;
   function start() {
     // No options left
     if (i === clientsOptions.length)
       return server.close();
 
-    var options = clientsOptions[i++];
-    var client = tls.connect(options, function() {
+    const options = clientsOptions[i++];
+    options.port = server.address().port;
+    const client = tls.connect(options, function() {
       clientResults.push(
         client.authorizationError &&
         /Hostname\/IP doesn't/.test(client.authorizationError));
@@ -109,9 +108,9 @@ function startTest() {
 }
 
 process.on('exit', function() {
-  assert.deepEqual(serverResults, [
+  assert.deepStrictEqual(serverResults, [
     'a.example.com', 'b.test.com', 'a.b.test.com', 'c.wrong.com',
     'chain.example.com'
   ]);
-  assert.deepEqual(clientResults, [true, true, false, false, true]);
+  assert.deepStrictEqual(clientResults, [true, true, false, false, true]);
 });

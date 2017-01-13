@@ -37,6 +37,7 @@
 #include "src/arm64/disasm-arm64.h"
 #include "src/arm64/simulator-arm64.h"
 #include "src/arm64/utils-arm64.h"
+#include "src/base/platform/platform.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/macro-assembler.h"
 #include "test/cctest/cctest.h"
@@ -114,16 +115,17 @@ static void InitializeVM() {
 #ifdef USE_SIMULATOR
 
 // Run tests with the simulator.
-#define SETUP_SIZE(buf_size)                    \
-  Isolate* isolate = Isolate::Current();        \
-  HandleScope scope(isolate);                   \
-  DCHECK(isolate != NULL);                      \
-  byte* buf = new byte[buf_size];               \
-  MacroAssembler masm(isolate, buf, buf_size);  \
-  Decoder<DispatchingDecoderVisitor>* decoder = \
-      new Decoder<DispatchingDecoderVisitor>(); \
-  Simulator simulator(decoder);                 \
-  PrintDisassembler* pdis = NULL;               \
+#define SETUP_SIZE(buf_size)                                   \
+  Isolate* isolate = CcTest::i_isolate();                      \
+  HandleScope scope(isolate);                                  \
+  CHECK(isolate != NULL);                                      \
+  byte* buf = new byte[buf_size];                              \
+  MacroAssembler masm(isolate, buf, buf_size,                  \
+                      v8::internal::CodeObjectRequired::kYes); \
+  Decoder<DispatchingDecoderVisitor>* decoder =                \
+      new Decoder<DispatchingDecoderVisitor>();                \
+  Simulator simulator(decoder);                                \
+  PrintDisassembler* pdis = NULL;                              \
   RegisterDump core;
 
 /*  if (Cctest::trace_sim()) {                                                 \
@@ -168,12 +170,15 @@ static void InitializeVM() {
 
 #else  // ifdef USE_SIMULATOR.
 // Run the test on real hardware or models.
-#define SETUP_SIZE(buf_size)                                                   \
-  Isolate* isolate = Isolate::Current();                                       \
-  HandleScope scope(isolate);                                                  \
-  DCHECK(isolate != NULL);                                                     \
-  byte* buf = new byte[buf_size];                                              \
-  MacroAssembler masm(isolate, buf, buf_size);                                 \
+#define SETUP_SIZE(buf_size)                                   \
+  Isolate* isolate = CcTest::i_isolate();                      \
+  HandleScope scope(isolate);                                  \
+  CHECK(isolate != NULL);                                      \
+  size_t actual_size;                                          \
+  byte* buf = static_cast<byte*>(                              \
+      v8::base::OS::Allocate(buf_size, &actual_size, true));   \
+  MacroAssembler masm(isolate, buf, actual_size,               \
+                      v8::internal::CodeObjectRequired::kYes); \
   RegisterDump core;
 
 #define RESET()                                                                \
@@ -206,7 +211,7 @@ static void InitializeVM() {
   __ GetCode(NULL);
 
 #define TEARDOWN()                                                             \
-  delete[] buf;
+  v8::base::OS::Free(buf, actual_size);
 
 #endif  // ifdef USE_SIMULATOR.
 
@@ -229,11 +234,10 @@ static void InitializeVM() {
   CHECK(EqualFP64(expected, &core, result))
 
 #ifdef DEBUG
-#define DCHECK_LITERAL_POOL_SIZE(expected)                                     \
+#define CHECK_LITERAL_POOL_SIZE(expected) \
   CHECK((expected) == (__ LiteralPoolSize()))
 #else
-#define DCHECK_LITERAL_POOL_SIZE(expected)                                     \
-  ((void) 0)
+#define CHECK_LITERAL_POOL_SIZE(expected) ((void)0)
 #endif
 
 
@@ -3299,7 +3303,7 @@ TEST(ldr_literal) {
 static void LdrLiteralRangeHelper(ptrdiff_t range_,
                                   LiteralPoolEmitOption option,
                                   bool expect_dump) {
-  DCHECK(range_ > 0);
+  CHECK(range_ > 0);
   SETUP_SIZE(range_ + 1024);
 
   Label label_1, label_2;
@@ -3318,19 +3322,19 @@ static void LdrLiteralRangeHelper(ptrdiff_t range_,
   START();
   // Force a pool dump so the pool starts off empty.
   __ EmitLiteralPool(JumpRequired);
-  DCHECK_LITERAL_POOL_SIZE(0);
+  CHECK_LITERAL_POOL_SIZE(0);
 
   __ Ldr(x0, 0x1234567890abcdefUL);
   __ Ldr(w1, 0xfedcba09);
   __ Ldr(d0, 1.234);
   __ Ldr(s1, 2.5);
-  DCHECK_LITERAL_POOL_SIZE(4);
+  CHECK_LITERAL_POOL_SIZE(4);
 
   code_size += 4 * sizeof(Instr);
 
   // Check that the requested range (allowing space for a branch over the pool)
   // can be handled by this test.
-  DCHECK((code_size + pool_guard_size) <= range);
+  CHECK((code_size + pool_guard_size) <= range);
 
   // Emit NOPs up to 'range', leaving space for the pool guard.
   while ((code_size + pool_guard_size) < range) {
@@ -3344,28 +3348,28 @@ static void LdrLiteralRangeHelper(ptrdiff_t range_,
     code_size += sizeof(Instr);
   }
 
-  DCHECK(code_size == range);
-  DCHECK_LITERAL_POOL_SIZE(4);
+  CHECK(code_size == range);
+  CHECK_LITERAL_POOL_SIZE(4);
 
   // Possibly generate a literal pool.
   __ CheckLiteralPool(option);
   __ Bind(&label_1);
   if (expect_dump) {
-    DCHECK_LITERAL_POOL_SIZE(0);
+    CHECK_LITERAL_POOL_SIZE(0);
   } else {
-    DCHECK_LITERAL_POOL_SIZE(4);
+    CHECK_LITERAL_POOL_SIZE(4);
   }
 
   // Force a pool flush to check that a second pool functions correctly.
   __ EmitLiteralPool(JumpRequired);
-  DCHECK_LITERAL_POOL_SIZE(0);
+  CHECK_LITERAL_POOL_SIZE(0);
 
   // These loads should be after the pool (and will require a new one).
   __ Ldr(x4, 0x34567890abcdef12UL);
   __ Ldr(w5, 0xdcba09fe);
   __ Ldr(d4, 123.4);
   __ Ldr(s5, 250.0);
-  DCHECK_LITERAL_POOL_SIZE(4);
+  CHECK_LITERAL_POOL_SIZE(4);
   END();
 
   RUN();
@@ -3815,6 +3819,375 @@ TEST(neg) {
 }
 
 
+template <typename T, typename Op>
+static void AdcsSbcsHelper(Op op, T left, T right, int carry, T expected,
+                           StatusFlags expected_flags) {
+  int reg_size = sizeof(T) * 8;
+  auto left_reg = Register::Create(0, reg_size);
+  auto right_reg = Register::Create(1, reg_size);
+  auto result_reg = Register::Create(2, reg_size);
+
+  SETUP();
+  START();
+
+  __ Mov(left_reg, left);
+  __ Mov(right_reg, right);
+  __ Mov(x10, (carry ? CFlag : NoFlag));
+
+  __ Msr(NZCV, x10);
+  (masm.*op)(result_reg, left_reg, right_reg);
+
+  END();
+  RUN();
+
+  CHECK_EQUAL_64(left, left_reg.X());
+  CHECK_EQUAL_64(right, right_reg.X());
+  CHECK_EQUAL_64(expected, result_reg.X());
+  CHECK_EQUAL_NZCV(expected_flags);
+
+  TEARDOWN();
+}
+
+
+TEST(adcs_sbcs_x) {
+  INIT_V8();
+  uint64_t inputs[] = {
+      0x0000000000000000, 0x0000000000000001, 0x7ffffffffffffffe,
+      0x7fffffffffffffff, 0x8000000000000000, 0x8000000000000001,
+      0xfffffffffffffffe, 0xffffffffffffffff,
+  };
+  static const size_t input_count = sizeof(inputs) / sizeof(inputs[0]);
+
+  struct Expected {
+    uint64_t carry0_result;
+    StatusFlags carry0_flags;
+    uint64_t carry1_result;
+    StatusFlags carry1_flags;
+  };
+
+  static const Expected expected_adcs_x[input_count][input_count] = {
+      {{0x0000000000000000, ZFlag, 0x0000000000000001, NoFlag},
+       {0x0000000000000001, NoFlag, 0x0000000000000002, NoFlag},
+       {0x7ffffffffffffffe, NoFlag, 0x7fffffffffffffff, NoFlag},
+       {0x7fffffffffffffff, NoFlag, 0x8000000000000000, NVFlag},
+       {0x8000000000000000, NFlag, 0x8000000000000001, NFlag},
+       {0x8000000000000001, NFlag, 0x8000000000000002, NFlag},
+       {0xfffffffffffffffe, NFlag, 0xffffffffffffffff, NFlag},
+       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag}},
+      {{0x0000000000000001, NoFlag, 0x0000000000000002, NoFlag},
+       {0x0000000000000002, NoFlag, 0x0000000000000003, NoFlag},
+       {0x7fffffffffffffff, NoFlag, 0x8000000000000000, NVFlag},
+       {0x8000000000000000, NVFlag, 0x8000000000000001, NVFlag},
+       {0x8000000000000001, NFlag, 0x8000000000000002, NFlag},
+       {0x8000000000000002, NFlag, 0x8000000000000003, NFlag},
+       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
+       {0x0000000000000000, ZCFlag, 0x0000000000000001, CFlag}},
+      {{0x7ffffffffffffffe, NoFlag, 0x7fffffffffffffff, NoFlag},
+       {0x7fffffffffffffff, NoFlag, 0x8000000000000000, NVFlag},
+       {0xfffffffffffffffc, NVFlag, 0xfffffffffffffffd, NVFlag},
+       {0xfffffffffffffffd, NVFlag, 0xfffffffffffffffe, NVFlag},
+       {0xfffffffffffffffe, NFlag, 0xffffffffffffffff, NFlag},
+       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
+       {0x7ffffffffffffffc, CFlag, 0x7ffffffffffffffd, CFlag},
+       {0x7ffffffffffffffd, CFlag, 0x7ffffffffffffffe, CFlag}},
+      {{0x7fffffffffffffff, NoFlag, 0x8000000000000000, NVFlag},
+       {0x8000000000000000, NVFlag, 0x8000000000000001, NVFlag},
+       {0xfffffffffffffffd, NVFlag, 0xfffffffffffffffe, NVFlag},
+       {0xfffffffffffffffe, NVFlag, 0xffffffffffffffff, NVFlag},
+       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
+       {0x0000000000000000, ZCFlag, 0x0000000000000001, CFlag},
+       {0x7ffffffffffffffd, CFlag, 0x7ffffffffffffffe, CFlag},
+       {0x7ffffffffffffffe, CFlag, 0x7fffffffffffffff, CFlag}},
+      {{0x8000000000000000, NFlag, 0x8000000000000001, NFlag},
+       {0x8000000000000001, NFlag, 0x8000000000000002, NFlag},
+       {0xfffffffffffffffe, NFlag, 0xffffffffffffffff, NFlag},
+       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
+       {0x0000000000000000, ZCVFlag, 0x0000000000000001, CVFlag},
+       {0x0000000000000001, CVFlag, 0x0000000000000002, CVFlag},
+       {0x7ffffffffffffffe, CVFlag, 0x7fffffffffffffff, CVFlag},
+       {0x7fffffffffffffff, CVFlag, 0x8000000000000000, NCFlag}},
+      {{0x8000000000000001, NFlag, 0x8000000000000002, NFlag},
+       {0x8000000000000002, NFlag, 0x8000000000000003, NFlag},
+       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
+       {0x0000000000000000, ZCFlag, 0x0000000000000001, CFlag},
+       {0x0000000000000001, CVFlag, 0x0000000000000002, CVFlag},
+       {0x0000000000000002, CVFlag, 0x0000000000000003, CVFlag},
+       {0x7fffffffffffffff, CVFlag, 0x8000000000000000, NCFlag},
+       {0x8000000000000000, NCFlag, 0x8000000000000001, NCFlag}},
+      {{0xfffffffffffffffe, NFlag, 0xffffffffffffffff, NFlag},
+       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
+       {0x7ffffffffffffffc, CFlag, 0x7ffffffffffffffd, CFlag},
+       {0x7ffffffffffffffd, CFlag, 0x7ffffffffffffffe, CFlag},
+       {0x7ffffffffffffffe, CVFlag, 0x7fffffffffffffff, CVFlag},
+       {0x7fffffffffffffff, CVFlag, 0x8000000000000000, NCFlag},
+       {0xfffffffffffffffc, NCFlag, 0xfffffffffffffffd, NCFlag},
+       {0xfffffffffffffffd, NCFlag, 0xfffffffffffffffe, NCFlag}},
+      {{0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
+       {0x0000000000000000, ZCFlag, 0x0000000000000001, CFlag},
+       {0x7ffffffffffffffd, CFlag, 0x7ffffffffffffffe, CFlag},
+       {0x7ffffffffffffffe, CFlag, 0x7fffffffffffffff, CFlag},
+       {0x7fffffffffffffff, CVFlag, 0x8000000000000000, NCFlag},
+       {0x8000000000000000, NCFlag, 0x8000000000000001, NCFlag},
+       {0xfffffffffffffffd, NCFlag, 0xfffffffffffffffe, NCFlag},
+       {0xfffffffffffffffe, NCFlag, 0xffffffffffffffff, NCFlag}}};
+
+  static const Expected expected_sbcs_x[input_count][input_count] = {
+      {{0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
+       {0xfffffffffffffffe, NFlag, 0xffffffffffffffff, NFlag},
+       {0x8000000000000001, NFlag, 0x8000000000000002, NFlag},
+       {0x8000000000000000, NFlag, 0x8000000000000001, NFlag},
+       {0x7fffffffffffffff, NoFlag, 0x8000000000000000, NVFlag},
+       {0x7ffffffffffffffe, NoFlag, 0x7fffffffffffffff, NoFlag},
+       {0x0000000000000001, NoFlag, 0x0000000000000002, NoFlag},
+       {0x0000000000000000, ZFlag, 0x0000000000000001, NoFlag}},
+      {{0x0000000000000000, ZCFlag, 0x0000000000000001, CFlag},
+       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
+       {0x8000000000000002, NFlag, 0x8000000000000003, NFlag},
+       {0x8000000000000001, NFlag, 0x8000000000000002, NFlag},
+       {0x8000000000000000, NVFlag, 0x8000000000000001, NVFlag},
+       {0x7fffffffffffffff, NoFlag, 0x8000000000000000, NVFlag},
+       {0x0000000000000002, NoFlag, 0x0000000000000003, NoFlag},
+       {0x0000000000000001, NoFlag, 0x0000000000000002, NoFlag}},
+      {{0x7ffffffffffffffd, CFlag, 0x7ffffffffffffffe, CFlag},
+       {0x7ffffffffffffffc, CFlag, 0x7ffffffffffffffd, CFlag},
+       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
+       {0xfffffffffffffffe, NFlag, 0xffffffffffffffff, NFlag},
+       {0xfffffffffffffffd, NVFlag, 0xfffffffffffffffe, NVFlag},
+       {0xfffffffffffffffc, NVFlag, 0xfffffffffffffffd, NVFlag},
+       {0x7fffffffffffffff, NoFlag, 0x8000000000000000, NVFlag},
+       {0x7ffffffffffffffe, NoFlag, 0x7fffffffffffffff, NoFlag}},
+      {{0x7ffffffffffffffe, CFlag, 0x7fffffffffffffff, CFlag},
+       {0x7ffffffffffffffd, CFlag, 0x7ffffffffffffffe, CFlag},
+       {0x0000000000000000, ZCFlag, 0x0000000000000001, CFlag},
+       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
+       {0xfffffffffffffffe, NVFlag, 0xffffffffffffffff, NVFlag},
+       {0xfffffffffffffffd, NVFlag, 0xfffffffffffffffe, NVFlag},
+       {0x8000000000000000, NVFlag, 0x8000000000000001, NVFlag},
+       {0x7fffffffffffffff, NoFlag, 0x8000000000000000, NVFlag}},
+      {{0x7fffffffffffffff, CVFlag, 0x8000000000000000, NCFlag},
+       {0x7ffffffffffffffe, CVFlag, 0x7fffffffffffffff, CVFlag},
+       {0x0000000000000001, CVFlag, 0x0000000000000002, CVFlag},
+       {0x0000000000000000, ZCVFlag, 0x0000000000000001, CVFlag},
+       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
+       {0xfffffffffffffffe, NFlag, 0xffffffffffffffff, NFlag},
+       {0x8000000000000001, NFlag, 0x8000000000000002, NFlag},
+       {0x8000000000000000, NFlag, 0x8000000000000001, NFlag}},
+      {{0x8000000000000000, NCFlag, 0x8000000000000001, NCFlag},
+       {0x7fffffffffffffff, CVFlag, 0x8000000000000000, NCFlag},
+       {0x0000000000000002, CVFlag, 0x0000000000000003, CVFlag},
+       {0x0000000000000001, CVFlag, 0x0000000000000002, CVFlag},
+       {0x0000000000000000, ZCFlag, 0x0000000000000001, CFlag},
+       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
+       {0x8000000000000002, NFlag, 0x8000000000000003, NFlag},
+       {0x8000000000000001, NFlag, 0x8000000000000002, NFlag}},
+      {{0xfffffffffffffffd, NCFlag, 0xfffffffffffffffe, NCFlag},
+       {0xfffffffffffffffc, NCFlag, 0xfffffffffffffffd, NCFlag},
+       {0x7fffffffffffffff, CVFlag, 0x8000000000000000, NCFlag},
+       {0x7ffffffffffffffe, CVFlag, 0x7fffffffffffffff, CVFlag},
+       {0x7ffffffffffffffd, CFlag, 0x7ffffffffffffffe, CFlag},
+       {0x7ffffffffffffffc, CFlag, 0x7ffffffffffffffd, CFlag},
+       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag},
+       {0xfffffffffffffffe, NFlag, 0xffffffffffffffff, NFlag}},
+      {{0xfffffffffffffffe, NCFlag, 0xffffffffffffffff, NCFlag},
+       {0xfffffffffffffffd, NCFlag, 0xfffffffffffffffe, NCFlag},
+       {0x8000000000000000, NCFlag, 0x8000000000000001, NCFlag},
+       {0x7fffffffffffffff, CVFlag, 0x8000000000000000, NCFlag},
+       {0x7ffffffffffffffe, CFlag, 0x7fffffffffffffff, CFlag},
+       {0x7ffffffffffffffd, CFlag, 0x7ffffffffffffffe, CFlag},
+       {0x0000000000000000, ZCFlag, 0x0000000000000001, CFlag},
+       {0xffffffffffffffff, NFlag, 0x0000000000000000, ZCFlag}}};
+
+  for (size_t left = 0; left < input_count; left++) {
+    for (size_t right = 0; right < input_count; right++) {
+      const Expected& expected = expected_adcs_x[left][right];
+      AdcsSbcsHelper(&MacroAssembler::Adcs, inputs[left], inputs[right], 0,
+                     expected.carry0_result, expected.carry0_flags);
+      AdcsSbcsHelper(&MacroAssembler::Adcs, inputs[left], inputs[right], 1,
+                     expected.carry1_result, expected.carry1_flags);
+    }
+  }
+
+  for (size_t left = 0; left < input_count; left++) {
+    for (size_t right = 0; right < input_count; right++) {
+      const Expected& expected = expected_sbcs_x[left][right];
+      AdcsSbcsHelper(&MacroAssembler::Sbcs, inputs[left], inputs[right], 0,
+                     expected.carry0_result, expected.carry0_flags);
+      AdcsSbcsHelper(&MacroAssembler::Sbcs, inputs[left], inputs[right], 1,
+                     expected.carry1_result, expected.carry1_flags);
+    }
+  }
+}
+
+
+TEST(adcs_sbcs_w) {
+  INIT_V8();
+  uint32_t inputs[] = {
+      0x00000000, 0x00000001, 0x7ffffffe, 0x7fffffff,
+      0x80000000, 0x80000001, 0xfffffffe, 0xffffffff,
+  };
+  static const size_t input_count = sizeof(inputs) / sizeof(inputs[0]);
+
+  struct Expected {
+    uint32_t carry0_result;
+    StatusFlags carry0_flags;
+    uint32_t carry1_result;
+    StatusFlags carry1_flags;
+  };
+
+  static const Expected expected_adcs_w[input_count][input_count] = {
+      {{0x00000000, ZFlag, 0x00000001, NoFlag},
+       {0x00000001, NoFlag, 0x00000002, NoFlag},
+       {0x7ffffffe, NoFlag, 0x7fffffff, NoFlag},
+       {0x7fffffff, NoFlag, 0x80000000, NVFlag},
+       {0x80000000, NFlag, 0x80000001, NFlag},
+       {0x80000001, NFlag, 0x80000002, NFlag},
+       {0xfffffffe, NFlag, 0xffffffff, NFlag},
+       {0xffffffff, NFlag, 0x00000000, ZCFlag}},
+      {{0x00000001, NoFlag, 0x00000002, NoFlag},
+       {0x00000002, NoFlag, 0x00000003, NoFlag},
+       {0x7fffffff, NoFlag, 0x80000000, NVFlag},
+       {0x80000000, NVFlag, 0x80000001, NVFlag},
+       {0x80000001, NFlag, 0x80000002, NFlag},
+       {0x80000002, NFlag, 0x80000003, NFlag},
+       {0xffffffff, NFlag, 0x00000000, ZCFlag},
+       {0x00000000, ZCFlag, 0x00000001, CFlag}},
+      {{0x7ffffffe, NoFlag, 0x7fffffff, NoFlag},
+       {0x7fffffff, NoFlag, 0x80000000, NVFlag},
+       {0xfffffffc, NVFlag, 0xfffffffd, NVFlag},
+       {0xfffffffd, NVFlag, 0xfffffffe, NVFlag},
+       {0xfffffffe, NFlag, 0xffffffff, NFlag},
+       {0xffffffff, NFlag, 0x00000000, ZCFlag},
+       {0x7ffffffc, CFlag, 0x7ffffffd, CFlag},
+       {0x7ffffffd, CFlag, 0x7ffffffe, CFlag}},
+      {{0x7fffffff, NoFlag, 0x80000000, NVFlag},
+       {0x80000000, NVFlag, 0x80000001, NVFlag},
+       {0xfffffffd, NVFlag, 0xfffffffe, NVFlag},
+       {0xfffffffe, NVFlag, 0xffffffff, NVFlag},
+       {0xffffffff, NFlag, 0x00000000, ZCFlag},
+       {0x00000000, ZCFlag, 0x00000001, CFlag},
+       {0x7ffffffd, CFlag, 0x7ffffffe, CFlag},
+       {0x7ffffffe, CFlag, 0x7fffffff, CFlag}},
+      {{0x80000000, NFlag, 0x80000001, NFlag},
+       {0x80000001, NFlag, 0x80000002, NFlag},
+       {0xfffffffe, NFlag, 0xffffffff, NFlag},
+       {0xffffffff, NFlag, 0x00000000, ZCFlag},
+       {0x00000000, ZCVFlag, 0x00000001, CVFlag},
+       {0x00000001, CVFlag, 0x00000002, CVFlag},
+       {0x7ffffffe, CVFlag, 0x7fffffff, CVFlag},
+       {0x7fffffff, CVFlag, 0x80000000, NCFlag}},
+      {{0x80000001, NFlag, 0x80000002, NFlag},
+       {0x80000002, NFlag, 0x80000003, NFlag},
+       {0xffffffff, NFlag, 0x00000000, ZCFlag},
+       {0x00000000, ZCFlag, 0x00000001, CFlag},
+       {0x00000001, CVFlag, 0x00000002, CVFlag},
+       {0x00000002, CVFlag, 0x00000003, CVFlag},
+       {0x7fffffff, CVFlag, 0x80000000, NCFlag},
+       {0x80000000, NCFlag, 0x80000001, NCFlag}},
+      {{0xfffffffe, NFlag, 0xffffffff, NFlag},
+       {0xffffffff, NFlag, 0x00000000, ZCFlag},
+       {0x7ffffffc, CFlag, 0x7ffffffd, CFlag},
+       {0x7ffffffd, CFlag, 0x7ffffffe, CFlag},
+       {0x7ffffffe, CVFlag, 0x7fffffff, CVFlag},
+       {0x7fffffff, CVFlag, 0x80000000, NCFlag},
+       {0xfffffffc, NCFlag, 0xfffffffd, NCFlag},
+       {0xfffffffd, NCFlag, 0xfffffffe, NCFlag}},
+      {{0xffffffff, NFlag, 0x00000000, ZCFlag},
+       {0x00000000, ZCFlag, 0x00000001, CFlag},
+       {0x7ffffffd, CFlag, 0x7ffffffe, CFlag},
+       {0x7ffffffe, CFlag, 0x7fffffff, CFlag},
+       {0x7fffffff, CVFlag, 0x80000000, NCFlag},
+       {0x80000000, NCFlag, 0x80000001, NCFlag},
+       {0xfffffffd, NCFlag, 0xfffffffe, NCFlag},
+       {0xfffffffe, NCFlag, 0xffffffff, NCFlag}}};
+
+  static const Expected expected_sbcs_w[input_count][input_count] = {
+      {{0xffffffff, NFlag, 0x00000000, ZCFlag},
+       {0xfffffffe, NFlag, 0xffffffff, NFlag},
+       {0x80000001, NFlag, 0x80000002, NFlag},
+       {0x80000000, NFlag, 0x80000001, NFlag},
+       {0x7fffffff, NoFlag, 0x80000000, NVFlag},
+       {0x7ffffffe, NoFlag, 0x7fffffff, NoFlag},
+       {0x00000001, NoFlag, 0x00000002, NoFlag},
+       {0x00000000, ZFlag, 0x00000001, NoFlag}},
+      {{0x00000000, ZCFlag, 0x00000001, CFlag},
+       {0xffffffff, NFlag, 0x00000000, ZCFlag},
+       {0x80000002, NFlag, 0x80000003, NFlag},
+       {0x80000001, NFlag, 0x80000002, NFlag},
+       {0x80000000, NVFlag, 0x80000001, NVFlag},
+       {0x7fffffff, NoFlag, 0x80000000, NVFlag},
+       {0x00000002, NoFlag, 0x00000003, NoFlag},
+       {0x00000001, NoFlag, 0x00000002, NoFlag}},
+      {{0x7ffffffd, CFlag, 0x7ffffffe, CFlag},
+       {0x7ffffffc, CFlag, 0x7ffffffd, CFlag},
+       {0xffffffff, NFlag, 0x00000000, ZCFlag},
+       {0xfffffffe, NFlag, 0xffffffff, NFlag},
+       {0xfffffffd, NVFlag, 0xfffffffe, NVFlag},
+       {0xfffffffc, NVFlag, 0xfffffffd, NVFlag},
+       {0x7fffffff, NoFlag, 0x80000000, NVFlag},
+       {0x7ffffffe, NoFlag, 0x7fffffff, NoFlag}},
+      {{0x7ffffffe, CFlag, 0x7fffffff, CFlag},
+       {0x7ffffffd, CFlag, 0x7ffffffe, CFlag},
+       {0x00000000, ZCFlag, 0x00000001, CFlag},
+       {0xffffffff, NFlag, 0x00000000, ZCFlag},
+       {0xfffffffe, NVFlag, 0xffffffff, NVFlag},
+       {0xfffffffd, NVFlag, 0xfffffffe, NVFlag},
+       {0x80000000, NVFlag, 0x80000001, NVFlag},
+       {0x7fffffff, NoFlag, 0x80000000, NVFlag}},
+      {{0x7fffffff, CVFlag, 0x80000000, NCFlag},
+       {0x7ffffffe, CVFlag, 0x7fffffff, CVFlag},
+       {0x00000001, CVFlag, 0x00000002, CVFlag},
+       {0x00000000, ZCVFlag, 0x00000001, CVFlag},
+       {0xffffffff, NFlag, 0x00000000, ZCFlag},
+       {0xfffffffe, NFlag, 0xffffffff, NFlag},
+       {0x80000001, NFlag, 0x80000002, NFlag},
+       {0x80000000, NFlag, 0x80000001, NFlag}},
+      {{0x80000000, NCFlag, 0x80000001, NCFlag},
+       {0x7fffffff, CVFlag, 0x80000000, NCFlag},
+       {0x00000002, CVFlag, 0x00000003, CVFlag},
+       {0x00000001, CVFlag, 0x00000002, CVFlag},
+       {0x00000000, ZCFlag, 0x00000001, CFlag},
+       {0xffffffff, NFlag, 0x00000000, ZCFlag},
+       {0x80000002, NFlag, 0x80000003, NFlag},
+       {0x80000001, NFlag, 0x80000002, NFlag}},
+      {{0xfffffffd, NCFlag, 0xfffffffe, NCFlag},
+       {0xfffffffc, NCFlag, 0xfffffffd, NCFlag},
+       {0x7fffffff, CVFlag, 0x80000000, NCFlag},
+       {0x7ffffffe, CVFlag, 0x7fffffff, CVFlag},
+       {0x7ffffffd, CFlag, 0x7ffffffe, CFlag},
+       {0x7ffffffc, CFlag, 0x7ffffffd, CFlag},
+       {0xffffffff, NFlag, 0x00000000, ZCFlag},
+       {0xfffffffe, NFlag, 0xffffffff, NFlag}},
+      {{0xfffffffe, NCFlag, 0xffffffff, NCFlag},
+       {0xfffffffd, NCFlag, 0xfffffffe, NCFlag},
+       {0x80000000, NCFlag, 0x80000001, NCFlag},
+       {0x7fffffff, CVFlag, 0x80000000, NCFlag},
+       {0x7ffffffe, CFlag, 0x7fffffff, CFlag},
+       {0x7ffffffd, CFlag, 0x7ffffffe, CFlag},
+       {0x00000000, ZCFlag, 0x00000001, CFlag},
+       {0xffffffff, NFlag, 0x00000000, ZCFlag}}};
+
+  for (size_t left = 0; left < input_count; left++) {
+    for (size_t right = 0; right < input_count; right++) {
+      const Expected& expected = expected_adcs_w[left][right];
+      AdcsSbcsHelper(&MacroAssembler::Adcs, inputs[left], inputs[right], 0,
+                     expected.carry0_result, expected.carry0_flags);
+      AdcsSbcsHelper(&MacroAssembler::Adcs, inputs[left], inputs[right], 1,
+                     expected.carry1_result, expected.carry1_flags);
+    }
+  }
+
+  for (size_t left = 0; left < input_count; left++) {
+    for (size_t right = 0; right < input_count; right++) {
+      const Expected& expected = expected_sbcs_w[left][right];
+      AdcsSbcsHelper(&MacroAssembler::Sbcs, inputs[left], inputs[right], 0,
+                     expected.carry0_result, expected.carry0_flags);
+      AdcsSbcsHelper(&MacroAssembler::Sbcs, inputs[left], inputs[right], 1,
+                     expected.carry1_result, expected.carry1_flags);
+    }
+  }
+}
+
+
 TEST(adc_sbc_shift) {
   INIT_V8();
   SETUP();
@@ -3882,132 +4255,6 @@ TEST(adc_sbc_shift) {
   CHECK_EQUAL_32(0xf89abcdd + 1, w25);
   CHECK_EQUAL_32(0x91111110 + 1, w26);
   CHECK_EQUAL_32(0x9a222221 + 1, w27);
-
-  // Check that adc correctly sets the condition flags.
-  START();
-  __ Mov(x0, 1);
-  __ Mov(x1, 0xffffffffffffffffL);
-  // Clear the C flag.
-  __ Adds(x0, x0, Operand(0));
-  __ Adcs(x10, x0, Operand(x1));
-  END();
-
-  RUN();
-
-  CHECK_EQUAL_NZCV(ZCFlag);
-  CHECK_EQUAL_64(0, x10);
-
-  START();
-  __ Mov(x0, 1);
-  __ Mov(x1, 0x8000000000000000L);
-  // Clear the C flag.
-  __ Adds(x0, x0, Operand(0));
-  __ Adcs(x10, x0, Operand(x1, ASR, 63));
-  END();
-
-  RUN();
-
-  CHECK_EQUAL_NZCV(ZCFlag);
-  CHECK_EQUAL_64(0, x10);
-
-  START();
-  __ Mov(x0, 0x10);
-  __ Mov(x1, 0x07ffffffffffffffL);
-  // Clear the C flag.
-  __ Adds(x0, x0, Operand(0));
-  __ Adcs(x10, x0, Operand(x1, LSL, 4));
-  END();
-
-  RUN();
-
-  CHECK_EQUAL_NZCV(NVFlag);
-  CHECK_EQUAL_64(0x8000000000000000L, x10);
-
-  // Check that sbc correctly sets the condition flags.
-  START();
-  __ Mov(x0, 0);
-  __ Mov(x1, 0xffffffffffffffffL);
-  // Clear the C flag.
-  __ Adds(x0, x0, Operand(0));
-  __ Sbcs(x10, x0, Operand(x1));
-  END();
-
-  RUN();
-
-  CHECK_EQUAL_NZCV(ZFlag);
-  CHECK_EQUAL_64(0, x10);
-
-  START();
-  __ Mov(x0, 1);
-  __ Mov(x1, 0xffffffffffffffffL);
-  // Clear the C flag.
-  __ Adds(x0, x0, Operand(0));
-  __ Sbcs(x10, x0, Operand(x1, LSR, 1));
-  END();
-
-  RUN();
-
-  CHECK_EQUAL_NZCV(NFlag);
-  CHECK_EQUAL_64(0x8000000000000001L, x10);
-
-  START();
-  __ Mov(x0, 0);
-  // Clear the C flag.
-  __ Adds(x0, x0, Operand(0));
-  __ Sbcs(x10, x0, Operand(0xffffffffffffffffL));
-  END();
-
-  RUN();
-
-  CHECK_EQUAL_NZCV(ZFlag);
-  CHECK_EQUAL_64(0, x10);
-
-  START()
-  __ Mov(w0, 0x7fffffff);
-  // Clear the C flag.
-  __ Adds(x0, x0, Operand(0));
-  __ Ngcs(w10, w0);
-  END();
-
-  RUN();
-
-  CHECK_EQUAL_NZCV(NFlag);
-  CHECK_EQUAL_64(0x80000000, x10);
-
-  START();
-  // Clear the C flag.
-  __ Adds(x0, x0, Operand(0));
-  __ Ngcs(x10, 0x7fffffffffffffffL);
-  END();
-
-  RUN();
-
-  CHECK_EQUAL_NZCV(NFlag);
-  CHECK_EQUAL_64(0x8000000000000000L, x10);
-
-  START()
-  __ Mov(x0, 0);
-  // Set the C flag.
-  __ Cmp(x0, Operand(x0));
-  __ Sbcs(x10, x0, Operand(1));
-  END();
-
-  RUN();
-
-  CHECK_EQUAL_NZCV(NFlag);
-  CHECK_EQUAL_64(0xffffffffffffffffL, x10);
-
-  START()
-  __ Mov(x0, 0);
-  // Set the C flag.
-  __ Cmp(x0, Operand(x0));
-  __ Ngcs(x10, 0x7fffffffffffffffL);
-  END();
-
-  RUN();
-
-  CHECK_EQUAL_NZCV(NFlag);
-  CHECK_EQUAL_64(0x8000000000000001L, x10);
 
   TEARDOWN();
 }
@@ -5443,12 +5690,12 @@ TEST(fmadd_fmsub_double_nans) {
   double q1 = rawbits_to_double(0x7ffaaaaa11111111);
   double q2 = rawbits_to_double(0x7ffaaaaa22222222);
   double qa = rawbits_to_double(0x7ffaaaaaaaaaaaaa);
-  DCHECK(IsSignallingNaN(s1));
-  DCHECK(IsSignallingNaN(s2));
-  DCHECK(IsSignallingNaN(sa));
-  DCHECK(IsQuietNaN(q1));
-  DCHECK(IsQuietNaN(q2));
-  DCHECK(IsQuietNaN(qa));
+  CHECK(IsSignallingNaN(s1));
+  CHECK(IsSignallingNaN(s2));
+  CHECK(IsSignallingNaN(sa));
+  CHECK(IsQuietNaN(q1));
+  CHECK(IsQuietNaN(q2));
+  CHECK(IsQuietNaN(qa));
 
   // The input NaNs after passing through ProcessNaN.
   double s1_proc = rawbits_to_double(0x7ffd555511111111);
@@ -5457,22 +5704,22 @@ TEST(fmadd_fmsub_double_nans) {
   double q1_proc = q1;
   double q2_proc = q2;
   double qa_proc = qa;
-  DCHECK(IsQuietNaN(s1_proc));
-  DCHECK(IsQuietNaN(s2_proc));
-  DCHECK(IsQuietNaN(sa_proc));
-  DCHECK(IsQuietNaN(q1_proc));
-  DCHECK(IsQuietNaN(q2_proc));
-  DCHECK(IsQuietNaN(qa_proc));
+  CHECK(IsQuietNaN(s1_proc));
+  CHECK(IsQuietNaN(s2_proc));
+  CHECK(IsQuietNaN(sa_proc));
+  CHECK(IsQuietNaN(q1_proc));
+  CHECK(IsQuietNaN(q2_proc));
+  CHECK(IsQuietNaN(qa_proc));
 
   // Negated NaNs as it would be done on ARMv8 hardware.
   double s1_proc_neg = rawbits_to_double(0xfffd555511111111);
   double sa_proc_neg = rawbits_to_double(0xfffd5555aaaaaaaa);
   double q1_proc_neg = rawbits_to_double(0xfffaaaaa11111111);
   double qa_proc_neg = rawbits_to_double(0xfffaaaaaaaaaaaaa);
-  DCHECK(IsQuietNaN(s1_proc_neg));
-  DCHECK(IsQuietNaN(sa_proc_neg));
-  DCHECK(IsQuietNaN(q1_proc_neg));
-  DCHECK(IsQuietNaN(qa_proc_neg));
+  CHECK(IsQuietNaN(s1_proc_neg));
+  CHECK(IsQuietNaN(sa_proc_neg));
+  CHECK(IsQuietNaN(q1_proc_neg));
+  CHECK(IsQuietNaN(qa_proc_neg));
 
   // Quiet NaNs are propagated.
   FmaddFmsubHelper(q1, 0, 0, q1_proc, q1_proc_neg, q1_proc_neg, q1_proc);
@@ -5526,12 +5773,12 @@ TEST(fmadd_fmsub_float_nans) {
   float q1 = rawbits_to_float(0x7fea1111);
   float q2 = rawbits_to_float(0x7fea2222);
   float qa = rawbits_to_float(0x7feaaaaa);
-  DCHECK(IsSignallingNaN(s1));
-  DCHECK(IsSignallingNaN(s2));
-  DCHECK(IsSignallingNaN(sa));
-  DCHECK(IsQuietNaN(q1));
-  DCHECK(IsQuietNaN(q2));
-  DCHECK(IsQuietNaN(qa));
+  CHECK(IsSignallingNaN(s1));
+  CHECK(IsSignallingNaN(s2));
+  CHECK(IsSignallingNaN(sa));
+  CHECK(IsQuietNaN(q1));
+  CHECK(IsQuietNaN(q2));
+  CHECK(IsQuietNaN(qa));
 
   // The input NaNs after passing through ProcessNaN.
   float s1_proc = rawbits_to_float(0x7fd51111);
@@ -5540,22 +5787,22 @@ TEST(fmadd_fmsub_float_nans) {
   float q1_proc = q1;
   float q2_proc = q2;
   float qa_proc = qa;
-  DCHECK(IsQuietNaN(s1_proc));
-  DCHECK(IsQuietNaN(s2_proc));
-  DCHECK(IsQuietNaN(sa_proc));
-  DCHECK(IsQuietNaN(q1_proc));
-  DCHECK(IsQuietNaN(q2_proc));
-  DCHECK(IsQuietNaN(qa_proc));
+  CHECK(IsQuietNaN(s1_proc));
+  CHECK(IsQuietNaN(s2_proc));
+  CHECK(IsQuietNaN(sa_proc));
+  CHECK(IsQuietNaN(q1_proc));
+  CHECK(IsQuietNaN(q2_proc));
+  CHECK(IsQuietNaN(qa_proc));
 
   // Negated NaNs as it would be done on ARMv8 hardware.
   float s1_proc_neg = rawbits_to_float(0xffd51111);
   float sa_proc_neg = rawbits_to_float(0xffd5aaaa);
   float q1_proc_neg = rawbits_to_float(0xffea1111);
   float qa_proc_neg = rawbits_to_float(0xffeaaaaa);
-  DCHECK(IsQuietNaN(s1_proc_neg));
-  DCHECK(IsQuietNaN(sa_proc_neg));
-  DCHECK(IsQuietNaN(q1_proc_neg));
-  DCHECK(IsQuietNaN(qa_proc_neg));
+  CHECK(IsQuietNaN(s1_proc_neg));
+  CHECK(IsQuietNaN(sa_proc_neg));
+  CHECK(IsQuietNaN(q1_proc_neg));
+  CHECK(IsQuietNaN(qa_proc_neg));
 
   // Quiet NaNs are propagated.
   FmaddFmsubHelper(q1, 0, 0, q1_proc, q1_proc_neg, q1_proc_neg, q1_proc);
@@ -5773,10 +6020,10 @@ TEST(fmax_fmin_d) {
   double snan_processed = rawbits_to_double(0x7ffd555512345678);
   double qnan_processed = qnan;
 
-  DCHECK(IsSignallingNaN(snan));
-  DCHECK(IsQuietNaN(qnan));
-  DCHECK(IsQuietNaN(snan_processed));
-  DCHECK(IsQuietNaN(qnan_processed));
+  CHECK(IsSignallingNaN(snan));
+  CHECK(IsQuietNaN(qnan));
+  CHECK(IsQuietNaN(snan_processed));
+  CHECK(IsQuietNaN(qnan_processed));
 
   // Bootstrap tests.
   FminFmaxDoubleHelper(0, 0, 0, 0, 0, 0);
@@ -5858,10 +6105,10 @@ TEST(fmax_fmin_s) {
   float snan_processed = rawbits_to_float(0x7fd51234);
   float qnan_processed = qnan;
 
-  DCHECK(IsSignallingNaN(snan));
-  DCHECK(IsQuietNaN(qnan));
-  DCHECK(IsQuietNaN(snan_processed));
-  DCHECK(IsQuietNaN(qnan_processed));
+  CHECK(IsSignallingNaN(snan));
+  CHECK(IsQuietNaN(qnan));
+  CHECK(IsQuietNaN(snan_processed));
+  CHECK(IsQuietNaN(qnan_processed));
 
   // Bootstrap tests.
   FminFmaxFloatHelper(0, 0, 0, 0, 0, 0);
@@ -6833,8 +7080,8 @@ TEST(fcvt_sd) {
     float expected = test[i].expected;
 
     // We only expect positive input.
-    DCHECK(std::signbit(in) == 0);
-    DCHECK(std::signbit(expected) == 0);
+    CHECK(std::signbit(in) == 0);
+    CHECK(std::signbit(expected) == 0);
 
     SETUP();
     START();
@@ -8545,7 +8792,7 @@ TEST(peek_poke_mixed) {
   __ Poke(x1, 8);
   __ Poke(x0, 0);
   {
-    DCHECK(__ StackPointer().Is(csp));
+    CHECK(__ StackPointer().Is(csp));
     __ Mov(x4, __ StackPointer());
     __ SetStackPointer(x4);
 
@@ -8642,7 +8889,7 @@ static void PushPopJsspSimpleHelper(int reg_count,
   uint64_t literal_base = 0x0100001000100101UL;
 
   {
-    DCHECK(__ StackPointer().Is(csp));
+    CHECK(__ StackPointer().Is(csp));
     __ Mov(jssp, __ StackPointer());
     __ SetStackPointer(jssp);
 
@@ -8671,7 +8918,9 @@ static void PushPopJsspSimpleHelper(int reg_count,
           case 3:  __ Push(r[2], r[1], r[0]); break;
           case 2:  __ Push(r[1], r[0]);       break;
           case 1:  __ Push(r[0]);             break;
-          default: DCHECK(i == 0);            break;
+          default:
+            CHECK(i == 0);
+            break;
         }
         break;
       case PushPopRegList:
@@ -8693,7 +8942,9 @@ static void PushPopJsspSimpleHelper(int reg_count,
           case 3:  __ Pop(r[i], r[i+1], r[i+2]); break;
           case 2:  __ Pop(r[i], r[i+1]);         break;
           case 1:  __ Pop(r[i]);                 break;
-          default: DCHECK(i == reg_count);       break;
+          default:
+            CHECK(i == reg_count);
+            break;
         }
         break;
       case PushPopRegList:
@@ -8824,7 +9075,7 @@ static void PushPopFPJsspSimpleHelper(int reg_count,
   uint64_t literal_base = 0x0100001000100101UL;
 
   {
-    DCHECK(__ StackPointer().Is(csp));
+    CHECK(__ StackPointer().Is(csp));
     __ Mov(jssp, __ StackPointer());
     __ SetStackPointer(jssp);
 
@@ -8855,7 +9106,9 @@ static void PushPopFPJsspSimpleHelper(int reg_count,
           case 3:  __ Push(v[2], v[1], v[0]); break;
           case 2:  __ Push(v[1], v[0]);       break;
           case 1:  __ Push(v[0]);             break;
-          default: DCHECK(i == 0);            break;
+          default:
+            CHECK(i == 0);
+            break;
         }
         break;
       case PushPopRegList:
@@ -8877,7 +9130,9 @@ static void PushPopFPJsspSimpleHelper(int reg_count,
           case 3:  __ Pop(v[i], v[i+1], v[i+2]); break;
           case 2:  __ Pop(v[i], v[i+1]);         break;
           case 1:  __ Pop(v[i]);                 break;
-          default: DCHECK(i == reg_count);       break;
+          default:
+            CHECK(i == reg_count);
+            break;
         }
         break;
       case PushPopRegList:
@@ -9001,7 +9256,7 @@ static void PushPopJsspMixedMethodsHelper(int claim, int reg_size) {
 
   START();
   {
-    DCHECK(__ StackPointer().Is(csp));
+    CHECK(__ StackPointer().Is(csp));
     __ Mov(jssp, __ StackPointer());
     __ SetStackPointer(jssp);
 
@@ -9106,7 +9361,7 @@ static void PushPopJsspWXOverlapHelper(int reg_count, int claim) {
 
   START();
   {
-    DCHECK(__ StackPointer().Is(csp));
+    CHECK(__ StackPointer().Is(csp));
     __ Mov(jssp, __ StackPointer());
     __ SetStackPointer(jssp);
 
@@ -9154,7 +9409,7 @@ static void PushPopJsspWXOverlapHelper(int reg_count, int claim) {
 
     int active_w_slots = 0;
     for (int i = 0; active_w_slots < requested_w_slots; i++) {
-      DCHECK(i < reg_count);
+      CHECK(i < reg_count);
       // In order to test various arguments to PushMultipleTimes, and to try to
       // exercise different alignment and overlap effects, we push each
       // register a different number of times.
@@ -9227,7 +9482,7 @@ static void PushPopJsspWXOverlapHelper(int reg_count, int claim) {
       }
       next_is_64 = !next_is_64;
     }
-    DCHECK(active_w_slots == 0);
+    CHECK(active_w_slots == 0);
 
     // Drop memory to restore jssp.
     __ Drop(claim, kByteSizeInBytes);
@@ -9263,7 +9518,7 @@ static void PushPopJsspWXOverlapHelper(int reg_count, int claim) {
       CHECK_EQUAL_64(expected, x[i]);
     }
   }
-  DCHECK(slot == requested_w_slots);
+  CHECK(slot == requested_w_slots);
 
   TEARDOWN();
 }
@@ -9293,7 +9548,7 @@ TEST(push_pop_csp) {
 
   START();
 
-  DCHECK(csp.Is(__ StackPointer()));
+  CHECK(csp.Is(__ StackPointer()));
 
   __ Mov(x3, 0x3333333333333333UL);
   __ Mov(x2, 0x2222222222222222UL);
@@ -9382,7 +9637,7 @@ TEST(push_queued) {
 
   START();
 
-  DCHECK(__ StackPointer().Is(csp));
+  CHECK(__ StackPointer().Is(csp));
   __ Mov(jssp, __ StackPointer());
   __ SetStackPointer(jssp);
 
@@ -9457,7 +9712,7 @@ TEST(pop_queued) {
 
   START();
 
-  DCHECK(__ StackPointer().Is(csp));
+  CHECK(__ StackPointer().Is(csp));
   __ Mov(jssp, __ StackPointer());
   __ SetStackPointer(jssp);
 
@@ -10078,7 +10333,7 @@ TEST(printf) {
   __ Printf("%%%%%s%%%c%%\n", x2, w13);
 
   // Print the stack pointer (csp).
-  DCHECK(csp.Is(__ StackPointer()));
+  CHECK(csp.Is(__ StackPointer()));
   __ Printf("StackPointer(csp): 0x%016" PRIx64 ", 0x%08" PRIx32 "\n",
             __ StackPointer(), __ StackPointer().W());
 
@@ -10236,75 +10491,6 @@ TEST(printf_no_preserve) {
 }
 
 
-// This is a V8-specific test.
-static void CopyFieldsHelper(CPURegList temps) {
-  static const uint64_t kLiteralBase = 0x0100001000100101UL;
-  static const uint64_t src[] = {kLiteralBase * 1,
-                                 kLiteralBase * 2,
-                                 kLiteralBase * 3,
-                                 kLiteralBase * 4,
-                                 kLiteralBase * 5,
-                                 kLiteralBase * 6,
-                                 kLiteralBase * 7,
-                                 kLiteralBase * 8,
-                                 kLiteralBase * 9,
-                                 kLiteralBase * 10,
-                                 kLiteralBase * 11};
-  static const uint64_t src_tagged =
-      reinterpret_cast<uint64_t>(src) + kHeapObjectTag;
-
-  static const unsigned kTestCount = sizeof(src) / sizeof(src[0]) + 1;
-  uint64_t* dst[kTestCount];
-  uint64_t dst_tagged[kTestCount];
-
-  // The first test will be to copy 0 fields. The destination (and source)
-  // should not be accessed in any way.
-  dst[0] = NULL;
-  dst_tagged[0] = kHeapObjectTag;
-
-  // Allocate memory for each other test. Each test <n> will have <n> fields.
-  // This is intended to exercise as many paths in CopyFields as possible.
-  for (unsigned i = 1; i < kTestCount; i++) {
-    dst[i] = new uint64_t[i];
-    memset(dst[i], 0, i * sizeof(kLiteralBase));
-    dst_tagged[i] = reinterpret_cast<uint64_t>(dst[i]) + kHeapObjectTag;
-  }
-
-  SETUP();
-  START();
-
-  __ Mov(x0, dst_tagged[0]);
-  __ Mov(x1, 0);
-  __ CopyFields(x0, x1, temps, 0);
-  for (unsigned i = 1; i < kTestCount; i++) {
-    __ Mov(x0, dst_tagged[i]);
-    __ Mov(x1, src_tagged);
-    __ CopyFields(x0, x1, temps, i);
-  }
-
-  END();
-  RUN();
-  TEARDOWN();
-
-  for (unsigned i = 1; i < kTestCount; i++) {
-    for (unsigned j = 0; j < i; j++) {
-      CHECK(src[j] == dst[i][j]);
-    }
-    delete [] dst[i];
-  }
-}
-
-
-// This is a V8-specific test.
-TEST(copyfields) {
-  INIT_V8();
-  CopyFieldsHelper(CPURegList(x10));
-  CopyFieldsHelper(CPURegList(x10, x11));
-  CopyFieldsHelper(CPURegList(x10, x11, x12));
-  CopyFieldsHelper(CPURegList(x10, x11, x12, x13));
-}
-
-
 TEST(blr_lr) {
   // A simple test to check that the simulator correcty handle "blr lr".
   INIT_V8();
@@ -10400,14 +10586,14 @@ TEST(process_nan_double) {
   // Make sure that NaN propagation works correctly.
   double sn = rawbits_to_double(0x7ff5555511111111);
   double qn = rawbits_to_double(0x7ffaaaaa11111111);
-  DCHECK(IsSignallingNaN(sn));
-  DCHECK(IsQuietNaN(qn));
+  CHECK(IsSignallingNaN(sn));
+  CHECK(IsQuietNaN(qn));
 
   // The input NaNs after passing through ProcessNaN.
   double sn_proc = rawbits_to_double(0x7ffd555511111111);
   double qn_proc = qn;
-  DCHECK(IsQuietNaN(sn_proc));
-  DCHECK(IsQuietNaN(qn_proc));
+  CHECK(IsQuietNaN(sn_proc));
+  CHECK(IsQuietNaN(qn_proc));
 
   SETUP();
   START();
@@ -10476,14 +10662,14 @@ TEST(process_nan_float) {
   // Make sure that NaN propagation works correctly.
   float sn = rawbits_to_float(0x7f951111);
   float qn = rawbits_to_float(0x7fea1111);
-  DCHECK(IsSignallingNaN(sn));
-  DCHECK(IsQuietNaN(qn));
+  CHECK(IsSignallingNaN(sn));
+  CHECK(IsQuietNaN(qn));
 
   // The input NaNs after passing through ProcessNaN.
   float sn_proc = rawbits_to_float(0x7fd51111);
   float qn_proc = qn;
-  DCHECK(IsQuietNaN(sn_proc));
-  DCHECK(IsQuietNaN(qn_proc));
+  CHECK(IsQuietNaN(sn_proc));
+  CHECK(IsQuietNaN(qn_proc));
 
   SETUP();
   START();
@@ -10548,8 +10734,8 @@ TEST(process_nan_float) {
 
 
 static void ProcessNaNsHelper(double n, double m, double expected) {
-  DCHECK(std::isnan(n) || std::isnan(m));
-  DCHECK(std::isnan(expected));
+  CHECK(std::isnan(n) || std::isnan(m));
+  CHECK(std::isnan(expected));
 
   SETUP();
   START();
@@ -10587,20 +10773,20 @@ TEST(process_nans_double) {
   double sm = rawbits_to_double(0x7ff5555522222222);
   double qn = rawbits_to_double(0x7ffaaaaa11111111);
   double qm = rawbits_to_double(0x7ffaaaaa22222222);
-  DCHECK(IsSignallingNaN(sn));
-  DCHECK(IsSignallingNaN(sm));
-  DCHECK(IsQuietNaN(qn));
-  DCHECK(IsQuietNaN(qm));
+  CHECK(IsSignallingNaN(sn));
+  CHECK(IsSignallingNaN(sm));
+  CHECK(IsQuietNaN(qn));
+  CHECK(IsQuietNaN(qm));
 
   // The input NaNs after passing through ProcessNaN.
   double sn_proc = rawbits_to_double(0x7ffd555511111111);
   double sm_proc = rawbits_to_double(0x7ffd555522222222);
   double qn_proc = qn;
   double qm_proc = qm;
-  DCHECK(IsQuietNaN(sn_proc));
-  DCHECK(IsQuietNaN(sm_proc));
-  DCHECK(IsQuietNaN(qn_proc));
-  DCHECK(IsQuietNaN(qm_proc));
+  CHECK(IsQuietNaN(sn_proc));
+  CHECK(IsQuietNaN(sm_proc));
+  CHECK(IsQuietNaN(qn_proc));
+  CHECK(IsQuietNaN(qm_proc));
 
   // Quiet NaNs are propagated.
   ProcessNaNsHelper(qn, 0, qn_proc);
@@ -10620,8 +10806,8 @@ TEST(process_nans_double) {
 
 
 static void ProcessNaNsHelper(float n, float m, float expected) {
-  DCHECK(std::isnan(n) || std::isnan(m));
-  DCHECK(std::isnan(expected));
+  CHECK(std::isnan(n) || std::isnan(m));
+  CHECK(std::isnan(expected));
 
   SETUP();
   START();
@@ -10659,20 +10845,20 @@ TEST(process_nans_float) {
   float sm = rawbits_to_float(0x7f952222);
   float qn = rawbits_to_float(0x7fea1111);
   float qm = rawbits_to_float(0x7fea2222);
-  DCHECK(IsSignallingNaN(sn));
-  DCHECK(IsSignallingNaN(sm));
-  DCHECK(IsQuietNaN(qn));
-  DCHECK(IsQuietNaN(qm));
+  CHECK(IsSignallingNaN(sn));
+  CHECK(IsSignallingNaN(sm));
+  CHECK(IsQuietNaN(qn));
+  CHECK(IsQuietNaN(qm));
 
   // The input NaNs after passing through ProcessNaN.
   float sn_proc = rawbits_to_float(0x7fd51111);
   float sm_proc = rawbits_to_float(0x7fd52222);
   float qn_proc = qn;
   float qm_proc = qm;
-  DCHECK(IsQuietNaN(sn_proc));
-  DCHECK(IsQuietNaN(sm_proc));
-  DCHECK(IsQuietNaN(qn_proc));
-  DCHECK(IsQuietNaN(qm_proc));
+  CHECK(IsQuietNaN(sn_proc));
+  CHECK(IsQuietNaN(sm_proc));
+  CHECK(IsQuietNaN(qn_proc));
+  CHECK(IsQuietNaN(qm_proc));
 
   // Quiet NaNs are propagated.
   ProcessNaNsHelper(qn, 0, qn_proc);
@@ -10692,7 +10878,7 @@ TEST(process_nans_float) {
 
 
 static void DefaultNaNHelper(float n, float m, float a) {
-  DCHECK(std::isnan(n) || std::isnan(m) || std::isnan(a));
+  CHECK(std::isnan(n) || std::isnan(m) || std::isnan(a));
 
   bool test_1op = std::isnan(n);
   bool test_2op = std::isnan(n) || std::isnan(m);
@@ -10785,12 +10971,12 @@ TEST(default_nan_float) {
   float qn = rawbits_to_float(0x7fea1111);
   float qm = rawbits_to_float(0x7fea2222);
   float qa = rawbits_to_float(0x7feaaaaa);
-  DCHECK(IsSignallingNaN(sn));
-  DCHECK(IsSignallingNaN(sm));
-  DCHECK(IsSignallingNaN(sa));
-  DCHECK(IsQuietNaN(qn));
-  DCHECK(IsQuietNaN(qm));
-  DCHECK(IsQuietNaN(qa));
+  CHECK(IsSignallingNaN(sn));
+  CHECK(IsSignallingNaN(sm));
+  CHECK(IsSignallingNaN(sa));
+  CHECK(IsQuietNaN(qn));
+  CHECK(IsQuietNaN(qm));
+  CHECK(IsQuietNaN(qa));
 
   //   - Signalling NaNs
   DefaultNaNHelper(sn, 0.0f, 0.0f);
@@ -10820,7 +11006,7 @@ TEST(default_nan_float) {
 
 
 static void DefaultNaNHelper(double n, double m, double a) {
-  DCHECK(std::isnan(n) || std::isnan(m) || std::isnan(a));
+  CHECK(std::isnan(n) || std::isnan(m) || std::isnan(a));
 
   bool test_1op = std::isnan(n);
   bool test_2op = std::isnan(n) || std::isnan(m);
@@ -10913,12 +11099,12 @@ TEST(default_nan_double) {
   double qn = rawbits_to_double(0x7ffaaaaa11111111);
   double qm = rawbits_to_double(0x7ffaaaaa22222222);
   double qa = rawbits_to_double(0x7ffaaaaaaaaaaaaa);
-  DCHECK(IsSignallingNaN(sn));
-  DCHECK(IsSignallingNaN(sm));
-  DCHECK(IsSignallingNaN(sa));
-  DCHECK(IsQuietNaN(qn));
-  DCHECK(IsQuietNaN(qm));
-  DCHECK(IsQuietNaN(qa));
+  CHECK(IsSignallingNaN(sn));
+  CHECK(IsSignallingNaN(sm));
+  CHECK(IsSignallingNaN(sa));
+  CHECK(IsQuietNaN(qn));
+  CHECK(IsQuietNaN(qm));
+  CHECK(IsQuietNaN(qa));
 
   //   - Signalling NaNs
   DefaultNaNHelper(sn, 0.0, 0.0);
@@ -11156,16 +11342,16 @@ TEST(pool_size) {
   for (RelocIterator it(*code, pool_mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     if (RelocInfo::IsConstPool(info->rmode())) {
-      DCHECK(info->data() == constant_pool_size);
+      CHECK(info->data() == constant_pool_size);
       ++pool_count;
     }
     if (RelocInfo::IsVeneerPool(info->rmode())) {
-      DCHECK(info->data() == veneer_pool_size);
+      CHECK(info->data() == veneer_pool_size);
       ++pool_count;
     }
   }
 
-  DCHECK(pool_count == 2);
+  CHECK(pool_count == 2);
 
   TEARDOWN();
 }

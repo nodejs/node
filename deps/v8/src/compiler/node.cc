@@ -56,6 +56,16 @@ Node* Node::New(Zone* zone, NodeId id, const Operator* op, int input_count,
   Node* node;
   bool is_inline;
 
+#if DEBUG
+  // Verify that none of the inputs are {nullptr}.
+  for (int i = 0; i < input_count; i++) {
+    if (inputs[i] == nullptr) {
+      V8_Fatal(__FILE__, __LINE__, "Node::New() Error: #%d:%s[%d] is nullptr",
+               static_cast<int>(id), op->mnemonic(), i);
+    }
+  }
+#endif
+
   if (input_count > kMaxInlineCapacity) {
     // Allocate out-of-line inputs.
     int capacity =
@@ -183,6 +193,22 @@ void Node::InsertInput(Zone* zone, int index, Node* new_to) {
   Verify();
 }
 
+void Node::InsertInputs(Zone* zone, int index, int count) {
+  DCHECK_NOT_NULL(zone);
+  DCHECK_LE(0, index);
+  DCHECK_LT(0, count);
+  DCHECK_LT(index, InputCount());
+  for (int i = 0; i < count; i++) {
+    AppendInput(zone, InputAt(Max(InputCount() - count, 0)));
+  }
+  for (int i = InputCount() - count - 1; i >= Max(index, count); --i) {
+    ReplaceInput(i, InputAt(i - count));
+  }
+  for (int i = 0; i < count; i++) {
+    ReplaceInput(index + i, nullptr);
+  }
+  Verify();
+}
 
 void Node::RemoveInput(int index) {
   DCHECK_LE(0, index);
@@ -271,6 +297,12 @@ bool Node::OwnedBy(Node const* owner1, Node const* owner2) const {
 }
 
 
+void Node::Print() const {
+  OFStream os(stdout);
+  os << *this << std::endl;
+}
+
+
 Node::Node(NodeId id, const Operator* op, int inline_count, int inline_capacity)
     : op_(op),
       type_(nullptr),
@@ -353,7 +385,11 @@ std::ostream& operator<<(std::ostream& os, const Node& n) {
     os << "(";
     for (int i = 0; i < n.InputCount(); ++i) {
       if (i != 0) os << ", ";
-      os << n.InputAt(i)->id();
+      if (n.InputAt(i)) {
+        os << n.InputAt(i)->id();
+      } else {
+        os << "null";
+      }
     }
     os << ")";
   }

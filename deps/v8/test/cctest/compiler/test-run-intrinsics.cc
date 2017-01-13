@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(jochen): Remove this after the setting is turned on globally.
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include "test/cctest/compiler/function-tester.h"
 
 namespace v8 {
@@ -35,42 +32,6 @@ TEST(ClassOf) {
   T.CheckCall(T.null(), T.Val("x"));
   T.CheckCall(T.null(), T.Val(1));
 }
-
-
-TEST(HeapObjectGetMap) {
-  FunctionTester T("(function(a) { return %_HeapObjectGetMap(a); })", flags);
-
-  Factory* factory = T.main_isolate()->factory();
-  T.CheckCall(factory->null_map(), T.null());
-  T.CheckCall(factory->undefined_map(), T.undefined());
-  T.CheckCall(factory->heap_number_map(), T.Val(3.1415));
-  T.CheckCall(factory->symbol_map(), factory->NewSymbol());
-}
-
-
-#define COUNTER_NAME "hurz"
-
-static int* LookupCounter(const char* name) {
-  static int counter = 1234;
-  return strcmp(name, COUNTER_NAME) == 0 ? &counter : nullptr;
-}
-
-
-TEST(IncrementStatsCounter) {
-  FLAG_native_code_counters = true;
-  reinterpret_cast<v8::Isolate*>(CcTest::InitIsolateOnce())
-      ->SetCounterFunction(LookupCounter);
-  FunctionTester T(
-      "(function() { %_IncrementStatsCounter('" COUNTER_NAME "'); })", flags);
-  StatsCounter counter(T.main_isolate(), COUNTER_NAME);
-  if (!counter.Enabled()) return;
-
-  int old_value = *counter.GetInternalPointer();
-  T.CheckCall(T.undefined());
-  CHECK_EQ(old_value + 1, *counter.GetInternalPointer());
-}
-
-#undef COUNTER_NAME
 
 
 TEST(IsArray) {
@@ -118,18 +79,6 @@ TEST(IsFunction) {
 }
 
 
-TEST(IsMinusZero) {
-  FunctionTester T("(function(a) { return %_IsMinusZero(a); })", flags);
-
-  T.CheckFalse(T.Val(1));
-  T.CheckFalse(T.Val(1.1));
-  T.CheckTrue(T.Val(-0.0));
-  T.CheckFalse(T.Val(-2));
-  T.CheckFalse(T.Val(-2.3));
-  T.CheckFalse(T.undefined());
-}
-
-
 TEST(IsRegExp) {
   FunctionTester T("(function(a) { return %_IsRegExp(a); })", flags);
 
@@ -162,87 +111,12 @@ TEST(IsSmi) {
 }
 
 
-TEST(MapGetInstanceType) {
-  FunctionTester T(
-      "(function(a) { return %_MapGetInstanceType(%_HeapObjectGetMap(a)); })",
-      flags);
-
-  Factory* factory = T.main_isolate()->factory();
-  T.CheckCall(T.Val(ODDBALL_TYPE), T.null());
-  T.CheckCall(T.Val(ODDBALL_TYPE), T.undefined());
-  T.CheckCall(T.Val(HEAP_NUMBER_TYPE), T.Val(3.1415));
-  T.CheckCall(T.Val(SYMBOL_TYPE), factory->NewSymbol());
-}
-
-
-TEST(ObjectEquals) {
-  FunctionTester T("(function(a,b) { return %_ObjectEquals(a,b); })", flags);
-  CompileRun("var o = {}");
-
-  T.CheckTrue(T.NewObject("(o)"), T.NewObject("(o)"));
-  T.CheckTrue(T.Val("internal"), T.Val("internal"));
-  T.CheckTrue(T.true_value(), T.true_value());
-  T.CheckFalse(T.true_value(), T.false_value());
-  T.CheckFalse(T.NewObject("({})"), T.NewObject("({})"));
-  T.CheckFalse(T.Val("a"), T.Val("b"));
-}
-
-
-TEST(OneByteSeqStringGetChar) {
-  FunctionTester T("(function(a,b) { return %_OneByteSeqStringGetChar(a,b); })",
-                   flags);
-
-  Handle<SeqOneByteString> string =
-      T.main_isolate()->factory()->NewRawOneByteString(3).ToHandleChecked();
-  string->SeqOneByteStringSet(0, 'b');
-  string->SeqOneByteStringSet(1, 'a');
-  string->SeqOneByteStringSet(2, 'r');
-  T.CheckCall(T.Val('b'), string, T.Val(0.0));
-  T.CheckCall(T.Val('a'), string, T.Val(1));
-  T.CheckCall(T.Val('r'), string, T.Val(2));
-}
-
-
-TEST(OneByteSeqStringSetChar) {
-  FunctionTester T("(function(a,b) { %_OneByteSeqStringSetChar(a,88,b); })",
-                   flags);
-
-  Handle<SeqOneByteString> string =
-      T.main_isolate()->factory()->NewRawOneByteString(3).ToHandleChecked();
-  string->SeqOneByteStringSet(0, 'b');
-  string->SeqOneByteStringSet(1, 'a');
-  string->SeqOneByteStringSet(2, 'r');
-  T.Call(T.Val(1), string);
-  CHECK_EQ('b', string->SeqOneByteStringGet(0));
-  CHECK_EQ('X', string->SeqOneByteStringGet(1));
-  CHECK_EQ('r', string->SeqOneByteStringGet(2));
-}
-
-
-TEST(SetValueOf) {
-  FunctionTester T("(function(a,b) { return %_SetValueOf(a,b); })", flags);
-
-  T.CheckCall(T.Val("a"), T.NewObject("(new String)"), T.Val("a"));
-  T.CheckCall(T.Val(123), T.NewObject("(new Number)"), T.Val(123));
-  T.CheckCall(T.Val("x"), T.undefined(), T.Val("x"));
-}
-
-
 TEST(StringAdd) {
   FunctionTester T("(function(a,b) { return %_StringAdd(a,b); })", flags);
 
   T.CheckCall(T.Val("aaabbb"), T.Val("aaa"), T.Val("bbb"));
   T.CheckCall(T.Val("aaa"), T.Val("aaa"), T.Val(""));
   T.CheckCall(T.Val("bbb"), T.Val(""), T.Val("bbb"));
-}
-
-
-TEST(StringCharAt) {
-  FunctionTester T("(function(a,b) { return %_StringCharAt(a,b); })", flags);
-
-  T.CheckCall(T.Val("e"), T.Val("huge fan!"), T.Val(3));
-  T.CheckCall(T.Val("f"), T.Val("\xE2\x9D\x8A fan!"), T.Val(2));
-  T.CheckCall(T.Val(""), T.Val("not a fan!"), T.Val(23));
 }
 
 
@@ -280,47 +154,6 @@ TEST(SubString) {
   T.CheckCall(T.Val("aaa"), T.Val("aaabbb"), T.Val(0.0));
   T.CheckCall(T.Val("abb"), T.Val("aaabbb"), T.Val(2));
   T.CheckCall(T.Val("aaa"), T.Val("aaa"), T.Val(0.0));
-}
-
-
-TEST(TwoByteSeqStringGetChar) {
-  FunctionTester T("(function(a,b) { return %_TwoByteSeqStringGetChar(a,b); })",
-                   flags);
-
-  Handle<SeqTwoByteString> string =
-      T.main_isolate()->factory()->NewRawTwoByteString(3).ToHandleChecked();
-  string->SeqTwoByteStringSet(0, 'b');
-  string->SeqTwoByteStringSet(1, 'a');
-  string->SeqTwoByteStringSet(2, 'r');
-  T.CheckCall(T.Val('b'), string, T.Val(0.0));
-  T.CheckCall(T.Val('a'), string, T.Val(1));
-  T.CheckCall(T.Val('r'), string, T.Val(2));
-}
-
-
-TEST(TwoByteSeqStringSetChar) {
-  FunctionTester T("(function(a,b) { %_TwoByteSeqStringSetChar(a,88,b); })",
-                   flags);
-
-  Handle<SeqTwoByteString> string =
-      T.main_isolate()->factory()->NewRawTwoByteString(3).ToHandleChecked();
-  string->SeqTwoByteStringSet(0, 'b');
-  string->SeqTwoByteStringSet(1, 'a');
-  string->SeqTwoByteStringSet(2, 'r');
-  T.Call(T.Val(1), string);
-  CHECK_EQ('b', string->SeqTwoByteStringGet(0));
-  CHECK_EQ('X', string->SeqTwoByteStringGet(1));
-  CHECK_EQ('r', string->SeqTwoByteStringGet(2));
-}
-
-
-TEST(ValueOf) {
-  FunctionTester T("(function(a) { return %_ValueOf(a); })", flags);
-
-  T.CheckCall(T.Val("a"), T.Val("a"));
-  T.CheckCall(T.Val("b"), T.NewObject("(new String('b'))"));
-  T.CheckCall(T.Val(123), T.Val(123));
-  T.CheckCall(T.Val(456), T.NewObject("(new Number(456))"));
 }
 
 }  // namespace compiler

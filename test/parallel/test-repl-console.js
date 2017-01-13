@@ -6,7 +6,7 @@ const repl = require('repl');
 // Create a dummy stream that does nothing
 const stream = new common.ArrayStream();
 
-var r = repl.start({
+const r = repl.start({
   input: stream,
   output: stream,
   useGlobal: false
@@ -18,3 +18,6 @@ assert(r.context.console);
 
 // ensure that the repl console instance is not the global one
 assert.notStrictEqual(r.context.console, console);
+
+// ensure that the repl console instance does not have a setter
+assert.throws(() => r.context.console = 'foo', TypeError);

@@ -53,7 +53,7 @@ API
 
 .. c:function:: int uv_tcp_nodelay(uv_tcp_t* handle, int enable)
 
-    Enable / disable Nagle's algorithm.
+    Enable `TCP_NODELAY`, which disables Nagle's algorithm.
 
 .. c:function:: int uv_tcp_keepalive(uv_tcp_t* handle, int enable, unsigned int delay)
 

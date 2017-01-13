@@ -23,24 +23,24 @@ void EmitDebugBreakSlot(MacroAssembler* masm) {
 }
 
 
-void DebugCodegen::GenerateSlot(MacroAssembler* masm, RelocInfo::Mode mode,
-                                int call_argc) {
+void DebugCodegen::GenerateSlot(MacroAssembler* masm, RelocInfo::Mode mode) {
   // Generate enough nop's to make space for a call instruction.
-  masm->RecordDebugBreakSlot(mode, call_argc);
+  masm->RecordDebugBreakSlot(mode);
   EmitDebugBreakSlot(masm);
 }
 
 
-void DebugCodegen::ClearDebugBreakSlot(Address pc) {
-  CodePatcher patcher(pc, Assembler::kDebugBreakSlotLength);
+void DebugCodegen::ClearDebugBreakSlot(Isolate* isolate, Address pc) {
+  CodePatcher patcher(isolate, pc, Assembler::kDebugBreakSlotLength);
   EmitDebugBreakSlot(patcher.masm());
 }
 
 
-void DebugCodegen::PatchDebugBreakSlot(Address pc, Handle<Code> code) {
-  DCHECK_EQ(Code::BUILTIN, code->kind());
+void DebugCodegen::PatchDebugBreakSlot(Isolate* isolate, Address pc,
+                                       Handle<Code> code) {
+  DCHECK(code->is_debug_stub());
   static const int kSize = Assembler::kDebugBreakSlotLength;
-  CodePatcher patcher(pc, kSize);
+  CodePatcher patcher(isolate, pc, kSize);
 
   // Add a label for checking the size of the code used for returning.
   Label check_codesize;
@@ -50,6 +50,9 @@ void DebugCodegen::PatchDebugBreakSlot(Address pc, Handle<Code> code) {
   DCHECK_EQ(kSize, patcher.masm()->SizeOfCodeGeneratedSince(&check_codesize));
 }
 
+bool DebugCodegen::DebugBreakSlotIsPatched(Address pc) {
+  return !Assembler::IsNop(pc);
+}
 
 void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
                                           DebugBreakCallHelperMode mode) {
@@ -65,9 +68,15 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
     }
     __ push(Immediate(Smi::FromInt(LiveEdit::kFramePaddingInitialSize)));
 
-    if (mode == SAVE_RESULT_REGISTER) __ push(eax);
-
-    __ Move(eax, Immediate(0));  // No arguments.
+    // Push arguments for DebugBreak call.
+    if (mode == SAVE_RESULT_REGISTER) {
+      // Break on return.
+      __ push(eax);
+    } else {
+      // Non-return breaks.
+      __ Push(masm->isolate()->factory()->the_hole_value());
+    }
+    __ Move(eax, Immediate(1));
     __ mov(ebx,
            Immediate(ExternalReference(
                Runtime::FunctionForId(Runtime::kDebugBreak), masm->isolate())));
@@ -78,11 +87,13 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
     if (FLAG_debug_code) {
       for (int i = 0; i < kNumJSCallerSaved; ++i) {
         Register reg = {JSCallerSavedCode(i)};
-        __ Move(reg, Immediate(kDebugZapValue));
+        // Do not clobber eax if mode is SAVE_RESULT_REGISTER. It will
+        // contain return value of the function.
+        if (!(reg.is(eax) && (mode == SAVE_RESULT_REGISTER))) {
+          __ Move(reg, Immediate(kDebugZapValue));
+        }
       }
     }
-
-    if (mode == SAVE_RESULT_REGISTER) __ pop(eax);
 
     __ pop(ebx);
     // We divide stored value by 2 (untagging) and multiply it by word's size.
@@ -105,33 +116,32 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
 }
 
 
-void DebugCodegen::GeneratePlainReturnLiveEdit(MacroAssembler* masm) {
-  masm->ret(0);
-}
-
-
 void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
-  ExternalReference restarter_frame_function_slot =
-      ExternalReference::debug_restarter_frame_function_pointer_address(
-          masm->isolate());
-  __ mov(Operand::StaticVariable(restarter_frame_function_slot), Immediate(0));
-
   // We do not know our frame height, but set esp based on ebp.
-  __ lea(esp, Operand(ebp, -1 * kPointerSize));
-
+  __ lea(esp, Operand(ebp, FrameDropperFrameConstants::kFunctionOffset));
   __ pop(edi);  // Function.
+  __ add(esp, Immediate(-FrameDropperFrameConstants::kCodeOffset));  // INTERNAL
+                                                                     // frame
+                                                                     // marker
+                                                                     // and code
   __ pop(ebp);
+
+  ParameterCount dummy(0);
+  __ FloodFunctionIfStepping(edi, no_reg, dummy, dummy);
 
   // Load context from the function.
   __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
+  // Clear new.target register as a safety measure.
+  __ mov(edx, masm->isolate()->factory()->undefined_value());
+
   // Get function code.
-  __ mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-  __ mov(edx, FieldOperand(edx, SharedFunctionInfo::kCodeOffset));
-  __ lea(edx, FieldOperand(edx, Code::kHeaderSize));
+  __ mov(ebx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(ebx, FieldOperand(ebx, SharedFunctionInfo::kCodeOffset));
+  __ lea(ebx, FieldOperand(ebx, Code::kHeaderSize));
 
   // Re-run JSFunction, edi is function, esi is context.
-  __ jmp(edx);
+  __ jmp(ebx);
 }
 
 

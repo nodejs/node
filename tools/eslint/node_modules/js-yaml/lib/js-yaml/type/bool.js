@@ -3,9 +3,7 @@
 var Type = require('../type');
 
 function resolveYamlBoolean(data) {
-  if (null === data) {
-    return false;
-  }
+  if (data === null) return false;
 
   var max = data.length;
 
@@ -20,7 +18,7 @@ function constructYamlBoolean(data) {
 }
 
 function isBoolean(object) {
-  return '[object Boolean]' === Object.prototype.toString.call(object);
+  return Object.prototype.toString.call(object) === '[object Boolean]';
 }
 
 module.exports = new Type('tag:yaml.org,2002:bool', {

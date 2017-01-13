@@ -1,0 +1,4 @@
+*%(basename)s:5: SyntaxError: Unexpected strict mode reserved word
+(function yield() { "use strict"; })
+          ^^^^^
+SyntaxError: Unexpected strict mode reserved word

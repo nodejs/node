@@ -1,18 +1,17 @@
 'use strict';
-var assert = require('assert');
-var common = require('../common');
-var fork = require('child_process').fork;
-var args = ['foo', 'bar'];
+const common = require('../common');
+const assert = require('assert');
+const fork = require('child_process').fork;
+const args = ['foo', 'bar'];
 
-var n = fork(common.fixturesDir + '/child-process-spawn-node.js', args);
-assert.deepEqual(args, ['foo', 'bar']);
+const n = fork(common.fixturesDir + '/child-process-spawn-node.js', args);
 
-var messageCount = 0;
+assert.strictEqual(n.channel, n._channel);
+assert.deepStrictEqual(args, ['foo', 'bar']);
 
 n.on('message', function(m) {
   console.log('PARENT got message:', m);
   assert.ok(m.foo);
-  messageCount++;
 });
 
 // https://github.com/joyent/node/issues/2355 - JSON.stringify(undefined)
@@ -22,11 +21,6 @@ assert.throws(function() { n.send(); }, TypeError);
 
 n.send({ hello: 'world' });
 
-var childExitCode = -1;
-n.on('exit', function(c) {
-  childExitCode = c;
-});
-
-process.on('exit', function() {
-  assert.ok(childExitCode == 0);
-});
+n.on('exit', common.mustCall(function(c) {
+  assert.strictEqual(c, 0);
+}));

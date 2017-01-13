@@ -15,7 +15,6 @@ var bench = common.createBenchmark(main, {
 function main(conf) {
   var len = +conf.len;
   var num = +conf.num;
-  var type = conf.type;
   var todo = [];
   var headers = [];
   // Chose 7 because 9 showed "Connection error" / "Connection closed"
@@ -24,7 +23,7 @@ function main(conf) {
     headers.push(Array(i + 1).join('o'));
 
   function WriteHTTPHeaders(channel, has_keep_alive, extra_header_count) {
-    todo = []
+    todo = [];
     todo.push('GET / HTTP/1.1');
     todo.push('Host: localhost');
     todo.push('Connection: keep-alive');
@@ -51,8 +50,6 @@ function main(conf) {
     }
   }
 
-  var success = 0;
-  var failure = 0;
   var min = 10;
   var size = 0;
   var mod = 317;
@@ -63,21 +60,19 @@ function main(conf) {
   var socket = net.connect(PIPE, function() {
     bench.start();
     WriteHTTPHeaders(socket, 1, len);
-    socket.setEncoding('utf8')
+    socket.setEncoding('utf8');
     socket.on('data', function(d) {
       var did = false;
       var pattern = 'HTTP/1.1 200 OK\r\n';
       if ((d.length === pattern.length && d === pattern) ||
           (d.length > pattern.length &&
            d.slice(0, pattern.length) === pattern)) {
-        success += 1;
         did = true;
       } else {
-        pattern = 'HTTP/1.1 '
+        pattern = 'HTTP/1.1 ';
         if ((d.length === pattern.length && d === pattern) ||
             (d.length > pattern.length &&
              d.slice(0, pattern.length) === pattern)) {
-          failure += 1;
           did = true;
         }
       }
@@ -86,6 +81,7 @@ function main(conf) {
         count += 1;
         if (count === num) {
           bench.end(count);
+          process.exit(0);
         } else {
           WriteHTTPHeaders(socket, 1, min + size);
         }

@@ -236,6 +236,17 @@ $ssltest -bio_pair -tls1 -serverinfo_file $serverinfo -serverinfo_tack || exit 1
 $ssltest -bio_pair -tls1 -serverinfo_file $serverinfo -serverinfo_sct -serverinfo_tack || exit 1
 $ssltest -bio_pair -tls1 -custom_ext -serverinfo_file $serverinfo -serverinfo_sct -serverinfo_tack || exit 1
 
+#############################################################################
+# SNI tests
+
+$ssltest -bio_pair -sn_client foo || exit 1
+$ssltest -bio_pair -sn_server1 foo || exit 1
+$ssltest -bio_pair -sn_client foo -sn_server1 foo -sn_expect1 || exit 1
+$ssltest -bio_pair -sn_client foo -sn_server1 bar -sn_expect1 || exit 1
+$ssltest -bio_pair -sn_client foo -sn_server1 foo -sn_server2 bar -sn_expect1 || exit 1
+$ssltest -bio_pair -sn_client bar -sn_server1 foo -sn_server2 bar -sn_expect2 || exit 1
+# Negative test - make sure it doesn't crash, and doesn't switch contexts
+$ssltest -bio_pair -sn_client foobar -sn_server1 foo -sn_server2 bar -sn_expect1 || exit 1
 
 #############################################################################
 # ALPN tests
@@ -248,6 +259,14 @@ $ssltest -bio_pair -tls1 -alpn_client bar,foo -alpn_server foo,bar -alpn_expecte
 $ssltest -bio_pair -tls1 -alpn_client bar,foo -alpn_server bar,foo -alpn_expected bar || exit 1
 $ssltest -bio_pair -tls1 -alpn_client foo,bar -alpn_server bar,foo -alpn_expected bar || exit 1
 $ssltest -bio_pair -tls1 -alpn_client baz -alpn_server bar,foo || exit 1
+
+
+#############################################################################
+# ALPN + SNI
+
+$ssltest -bio_pair -alpn_client foo,bar -sn_client alice -alpn_server1 foo,123 -sn_server1 alice -alpn_server2 bar,456 -sn_server2 bob -alpn_expected foo || exit 1
+$ssltest -bio_pair -alpn_client foo,bar -sn_client bob -alpn_server1 foo,123 -sn_server1 alice -alpn_server2 bar,456 -sn_server2 bob -alpn_expected bar || exit 1
+$ssltest -bio_pair -alpn_client foo,bar -sn_client bob -sn_server1 alice -alpn_server2 bar,456 -sn_server2 bob -alpn_expected bar || exit 1
 
 if ../util/shlib_wrap.sh ../apps/openssl no-srp; then
   echo skipping SRP tests

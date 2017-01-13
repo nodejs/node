@@ -4,13 +4,19 @@ var log = require('npmlog')
 var npm = require('./npm.js')
 var read = require('read')
 var userValidate = require('npm-user-validate')
+var output = require('./utils/output')
+var usage = require('./utils/usage')
+var chain = require('slide').chain
 var crypto
 
 try {
   crypto = require('crypto')
 } catch (ex) {}
 
-adduser.usage = 'npm adduser [--registry=url] [--scope=@orgname] [--always-auth]'
+adduser.usage = usage(
+  'adduser',
+  'npm adduser [--registry=url] [--scope=@orgname] [--always-auth]'
+)
 
 function adduser (args, cb) {
   if (!crypto) {
@@ -26,15 +32,14 @@ function adduser (args, cb) {
     e: creds.email || ''
   }
   var u = {}
-  var fns = [readUsername, readPassword, readEmail, save]
 
-  loop()
-  function loop (er) {
-    if (er) return cb(er)
-    var fn = fns.shift()
-    if (fn) return fn(c, u, loop)
-    cb()
-  }
+  log.disableProgress()
+  chain([
+    [readUsername, c, u],
+    [readPassword, c, u],
+    [readEmail, c, u],
+    [save, c, u]
+  ], cb)
 }
 
 function readUsername (c, u, cb) {
@@ -132,8 +137,6 @@ function save (c, u, cb) {
 
   // there may be a saved scope and no --registry (for login)
   if (scope) {
-    if (scope.charAt(0) !== '@') scope = '@' + scope
-
     var scopedRegistry = npm.config.get(scope + ':registry')
     var cliRegistry = npm.config.get('registry', 'cli')
     if (scopedRegistry && !cliRegistry) uri = scopedRegistry
@@ -169,7 +172,7 @@ function save (c, u, cb) {
 
     log.info('adduser', 'Authorized user %s', u.u)
     var scopeMessage = scope ? ' to scope ' + scope : ''
-    console.log('Logged in as %s%s on %s.', u.u, scopeMessage, uri)
+    output('Logged in as %s%s on %s.', u.u, scopeMessage, uri)
     npm.config.save('user', cb)
   })
 }

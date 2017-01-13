@@ -8,26 +8,36 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow the use of `process.exit()`",
+            category: "Node.js and CommonJS",
+            recommended: false
+        },
 
-    //--------------------------------------------------------------------------
-    // Public
-    //--------------------------------------------------------------------------
+        schema: []
+    },
 
-    return {
+    create(context) {
 
-        "CallExpression": function(node) {
-            var callee = node.callee;
+        //--------------------------------------------------------------------------
+        // Public
+        //--------------------------------------------------------------------------
 
-            if (callee.type === "MemberExpression" && callee.object.name === "process" &&
-                callee.property.name === "exit"
-            ) {
-                context.report(node, "Don't use process.exit(); throw an error instead.");
+        return {
+
+            CallExpression(node) {
+                const callee = node.callee;
+
+                if (callee.type === "MemberExpression" && callee.object.name === "process" &&
+                    callee.property.name === "exit"
+                ) {
+                    context.report({ node, message: "Don't use process.exit(); throw an error instead." });
+                }
             }
-        }
 
-    };
+        };
 
+    }
 };
-
-module.exports.schema = [];

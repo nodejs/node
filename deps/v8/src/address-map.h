@@ -6,7 +6,7 @@
 #define V8_ADDRESS_MAP_H_
 
 #include "src/assert-scope.h"
-#include "src/hashmap.h"
+#include "src/base/hashmap.h"
 #include "src/objects.h"
 
 namespace v8 {
@@ -14,16 +14,17 @@ namespace internal {
 
 class AddressMapBase {
  protected:
-  static void SetValue(HashMap::Entry* entry, uint32_t v) {
+  static void SetValue(base::HashMap::Entry* entry, uint32_t v) {
     entry->value = reinterpret_cast<void*>(v);
   }
 
-  static uint32_t GetValue(HashMap::Entry* entry) {
+  static uint32_t GetValue(base::HashMap::Entry* entry) {
     return static_cast<uint32_t>(reinterpret_cast<intptr_t>(entry->value));
   }
 
-  inline static HashMap::Entry* LookupEntry(HashMap* map, HeapObject* obj,
-                                            bool insert) {
+  inline static base::HashMap::Entry* LookupEntry(base::HashMap* map,
+                                                  HeapObject* obj,
+                                                  bool insert) {
     if (insert) {
       map->LookupOrInsert(Key(obj), Hash(obj));
     }
@@ -40,7 +41,6 @@ class AddressMapBase {
   }
 };
 
-
 class RootIndexMap : public AddressMapBase {
  public:
   explicit RootIndexMap(Isolate* isolate);
@@ -48,134 +48,175 @@ class RootIndexMap : public AddressMapBase {
   static const int kInvalidRootIndex = -1;
 
   int Lookup(HeapObject* obj) {
-    HashMap::Entry* entry = LookupEntry(map_, obj, false);
+    base::HashMap::Entry* entry = LookupEntry(map_, obj, false);
     if (entry) return GetValue(entry);
     return kInvalidRootIndex;
   }
 
  private:
-  HashMap* map_;
+  base::HashMap* map_;
 
   DISALLOW_COPY_AND_ASSIGN(RootIndexMap);
 };
 
-
-class BackReference {
+class SerializerReference {
  public:
-  explicit BackReference(uint32_t bitfield) : bitfield_(bitfield) {}
+  SerializerReference() : bitfield_(Special(kInvalidValue)) {}
 
-  BackReference() : bitfield_(kInvalidValue) {}
-
-  static BackReference SourceReference() { return BackReference(kSourceValue); }
-
-  static BackReference GlobalProxyReference() {
-    return BackReference(kGlobalProxyValue);
+  static SerializerReference FromBitfield(uint32_t bitfield) {
+    return SerializerReference(bitfield);
   }
 
-  static BackReference LargeObjectReference(uint32_t index) {
-    return BackReference(SpaceBits::encode(LO_SPACE) |
-                         ChunkOffsetBits::encode(index));
-  }
-
-  static BackReference DummyReference() { return BackReference(kDummyValue); }
-
-  static BackReference Reference(AllocationSpace space, uint32_t chunk_index,
-                                 uint32_t chunk_offset) {
+  static SerializerReference BackReference(AllocationSpace space,
+                                           uint32_t chunk_index,
+                                           uint32_t chunk_offset) {
     DCHECK(IsAligned(chunk_offset, kObjectAlignment));
     DCHECK_NE(LO_SPACE, space);
-    return BackReference(
+    return SerializerReference(
         SpaceBits::encode(space) | ChunkIndexBits::encode(chunk_index) |
         ChunkOffsetBits::encode(chunk_offset >> kObjectAlignmentBits));
   }
 
-  bool is_valid() const { return bitfield_ != kInvalidValue; }
-  bool is_source() const { return bitfield_ == kSourceValue; }
-  bool is_global_proxy() const { return bitfield_ == kGlobalProxyValue; }
+  static SerializerReference MapReference(uint32_t index) {
+    return SerializerReference(SpaceBits::encode(MAP_SPACE) |
+                               ValueIndexBits::encode(index));
+  }
+
+  static SerializerReference LargeObjectReference(uint32_t index) {
+    return SerializerReference(SpaceBits::encode(LO_SPACE) |
+                               ValueIndexBits::encode(index));
+  }
+
+  static SerializerReference AttachedReference(uint32_t index) {
+    return SerializerReference(SpaceBits::encode(kAttachedReferenceSpace) |
+                               ValueIndexBits::encode(index));
+  }
+
+  static SerializerReference DummyReference() {
+    return SerializerReference(Special(kDummyValue));
+  }
+
+  bool is_valid() const { return bitfield_ != Special(kInvalidValue); }
+
+  bool is_back_reference() const {
+    return SpaceBits::decode(bitfield_) <= LAST_SPACE;
+  }
 
   AllocationSpace space() const {
-    DCHECK(is_valid());
-    return SpaceBits::decode(bitfield_);
+    DCHECK(is_back_reference());
+    return static_cast<AllocationSpace>(SpaceBits::decode(bitfield_));
   }
 
   uint32_t chunk_offset() const {
-    DCHECK(is_valid());
+    DCHECK(is_back_reference());
     return ChunkOffsetBits::decode(bitfield_) << kObjectAlignmentBits;
   }
 
+  uint32_t map_index() const {
+    DCHECK(is_back_reference());
+    return ValueIndexBits::decode(bitfield_);
+  }
+
   uint32_t large_object_index() const {
-    DCHECK(is_valid());
-    DCHECK(chunk_index() == 0);
-    return ChunkOffsetBits::decode(bitfield_);
+    DCHECK(is_back_reference());
+    return ValueIndexBits::decode(bitfield_);
   }
 
   uint32_t chunk_index() const {
-    DCHECK(is_valid());
+    DCHECK(is_back_reference());
     return ChunkIndexBits::decode(bitfield_);
   }
 
-  uint32_t reference() const {
-    DCHECK(is_valid());
+  uint32_t back_reference() const {
+    DCHECK(is_back_reference());
     return bitfield_ & (ChunkOffsetBits::kMask | ChunkIndexBits::kMask);
   }
 
-  uint32_t bitfield() const { return bitfield_; }
+  bool is_attached_reference() const {
+    return SpaceBits::decode(bitfield_) == kAttachedReferenceSpace;
+  }
+
+  int attached_reference_index() const {
+    DCHECK(is_attached_reference());
+    return ValueIndexBits::decode(bitfield_);
+  }
 
  private:
-  static const uint32_t kInvalidValue = 0xFFFFFFFF;
-  static const uint32_t kSourceValue = 0xFFFFFFFE;
-  static const uint32_t kGlobalProxyValue = 0xFFFFFFFD;
-  static const uint32_t kDummyValue = 0xFFFFFFFC;
+  explicit SerializerReference(uint32_t bitfield) : bitfield_(bitfield) {}
+
+  inline static uint32_t Special(int value) {
+    return SpaceBits::encode(kSpecialValueSpace) |
+           ValueIndexBits::encode(value);
+  }
+
+  // We use the 32-bit bitfield to encode either a back reference, a special
+  // value, or an attached reference index.
+  // Back reference:
+  //   [ Space index             ] [ Chunk index ] [ Chunk offset ]
+  //   [ LO_SPACE                ] [ large object index           ]
+  // Special value
+  //   [ kSpecialValueSpace      ] [ Special value index          ]
+  // Attached reference
+  //   [ kAttachedReferenceSpace ] [ Attached reference index     ]
+
   static const int kChunkOffsetSize = kPageSizeBits - kObjectAlignmentBits;
   static const int kChunkIndexSize = 32 - kChunkOffsetSize - kSpaceTagSize;
+  static const int kValueIndexSize = kChunkOffsetSize + kChunkIndexSize;
 
- public:
-  static const int kMaxChunkIndex = (1 << kChunkIndexSize) - 1;
+  static const int kSpecialValueSpace = LAST_SPACE + 1;
+  static const int kAttachedReferenceSpace = kSpecialValueSpace + 1;
+  STATIC_ASSERT(kAttachedReferenceSpace < (1 << kSpaceTagSize));
 
- private:
+  static const int kInvalidValue = 0;
+  static const int kDummyValue = 1;
+
+  // The chunk offset can also be used to encode the index of special values.
   class ChunkOffsetBits : public BitField<uint32_t, 0, kChunkOffsetSize> {};
   class ChunkIndexBits
       : public BitField<uint32_t, ChunkOffsetBits::kNext, kChunkIndexSize> {};
-  class SpaceBits
-      : public BitField<AllocationSpace, ChunkIndexBits::kNext, kSpaceTagSize> {
-  };
+  class ValueIndexBits : public BitField<uint32_t, 0, kValueIndexSize> {};
+  STATIC_ASSERT(ChunkIndexBits::kNext == ValueIndexBits::kNext);
+  class SpaceBits : public BitField<int, kValueIndexSize, kSpaceTagSize> {};
+  STATIC_ASSERT(SpaceBits::kNext == 32);
 
   uint32_t bitfield_;
-};
 
+  friend class SerializerReferenceMap;
+};
 
 // Mapping objects to their location after deserialization.
 // This is used during building, but not at runtime by V8.
-class BackReferenceMap : public AddressMapBase {
+class SerializerReferenceMap : public AddressMapBase {
  public:
-  BackReferenceMap()
-      : no_allocation_(), map_(new HashMap(HashMap::PointersMatch)) {}
+  SerializerReferenceMap()
+      : no_allocation_(),
+        map_(base::HashMap::PointersMatch),
+        attached_reference_index_(0) {}
 
-  ~BackReferenceMap() { delete map_; }
-
-  BackReference Lookup(HeapObject* obj) {
-    HashMap::Entry* entry = LookupEntry(map_, obj, false);
-    return entry ? BackReference(GetValue(entry)) : BackReference();
+  SerializerReference Lookup(HeapObject* obj) {
+    base::HashMap::Entry* entry = LookupEntry(&map_, obj, false);
+    return entry ? SerializerReference(GetValue(entry)) : SerializerReference();
   }
 
-  void Add(HeapObject* obj, BackReference b) {
+  void Add(HeapObject* obj, SerializerReference b) {
     DCHECK(b.is_valid());
-    DCHECK_NULL(LookupEntry(map_, obj, false));
-    HashMap::Entry* entry = LookupEntry(map_, obj, true);
-    SetValue(entry, b.bitfield());
+    DCHECK_NULL(LookupEntry(&map_, obj, false));
+    base::HashMap::Entry* entry = LookupEntry(&map_, obj, true);
+    SetValue(entry, b.bitfield_);
   }
 
-  void AddSourceString(String* string) {
-    Add(string, BackReference::SourceReference());
-  }
-
-  void AddGlobalProxy(HeapObject* global_proxy) {
-    Add(global_proxy, BackReference::GlobalProxyReference());
+  SerializerReference AddAttachedReference(HeapObject* attached_reference) {
+    SerializerReference reference =
+        SerializerReference::AttachedReference(attached_reference_index_++);
+    Add(attached_reference, reference);
+    return reference;
   }
 
  private:
   DisallowHeapAllocation no_allocation_;
-  HashMap* map_;
-  DISALLOW_COPY_AND_ASSIGN(BackReferenceMap);
+  base::HashMap map_;
+  int attached_reference_index_;
+  DISALLOW_COPY_AND_ASSIGN(SerializerReferenceMap);
 };
 
 }  // namespace internal

@@ -34,6 +34,7 @@
 
 using namespace v8;
 
+namespace {
 
 enum Expectations {
   EXPECT_RESULT,
@@ -60,25 +61,24 @@ class DeclarationContext {
     }
   }
 
-  void Check(const char* source,
-             int get, int set, int has,
+  void Check(const char* source, int get, int set, int has,
              Expectations expectations,
-             v8::Handle<Value> value = Local<Value>());
+             v8::Local<Value> value = Local<Value>());
 
   int get_count() const { return get_count_; }
   int set_count() const { return set_count_; }
   int query_count() const { return query_count_; }
 
  protected:
-  virtual v8::Handle<Value> Get(Local<Name> key);
-  virtual v8::Handle<Value> Set(Local<Name> key, Local<Value> value);
-  virtual v8::Handle<Integer> Query(Local<Name> key);
+  virtual v8::Local<Value> Get(Local<Name> key);
+  virtual v8::Local<Value> Set(Local<Name> key, Local<Value> value);
+  virtual v8::Local<Integer> Query(Local<Name> key);
 
   void InitializeIfNeeded();
 
   // Perform optional initialization steps on the context after it has
   // been created. Defaults to none but may be overwritten.
-  virtual void PostInitializeContext(Handle<Context> context) {}
+  virtual void PostInitializeContext(Local<Context> context) {}
 
   // Get the holder for the interceptor. Default to the instance template
   // but may be overwritten.
@@ -138,10 +138,9 @@ void DeclarationContext::InitializeIfNeeded() {
 }
 
 
-void DeclarationContext::Check(const char* source,
-                               int get, int set, int query,
+void DeclarationContext::Check(const char* source, int get, int set, int query,
                                Expectations expectations,
-                               v8::Handle<Value> value) {
+                               v8::Local<Value> value) {
   InitializeIfNeeded();
   // A retry after a GC may pollute the counts, so perform gc now
   // to avoid that.
@@ -149,27 +148,30 @@ void DeclarationContext::Check(const char* source,
   HandleScope scope(CcTest::isolate());
   TryCatch catcher(CcTest::isolate());
   catcher.SetVerbose(true);
-  Local<Script> script =
-      Script::Compile(String::NewFromUtf8(CcTest::isolate(), source));
+  Local<Context> context = CcTest::isolate()->GetCurrentContext();
+  MaybeLocal<Script> script = Script::Compile(
+      context,
+      String::NewFromUtf8(CcTest::isolate(), source, v8::NewStringType::kNormal)
+          .ToLocalChecked());
   if (expectations == EXPECT_ERROR) {
     CHECK(script.IsEmpty());
     return;
   }
   CHECK(!script.IsEmpty());
-  Local<Value> result = script->Run();
+  MaybeLocal<Value> result = script.ToLocalChecked()->Run(context);
   CHECK_EQ(get, get_count());
   CHECK_EQ(set, set_count());
   CHECK_EQ(query, query_count());
   if (expectations == EXPECT_RESULT) {
     CHECK(!catcher.HasCaught());
     if (!value.IsEmpty()) {
-      CHECK(value->Equals(result));
+      CHECK(value->Equals(context, result.ToLocalChecked()).FromJust());
     }
   } else {
     CHECK(expectations == EXPECT_EXCEPTION);
     CHECK(catcher.HasCaught());
     if (!value.IsEmpty()) {
-      CHECK(value->Equals(catcher.Exception()));
+      CHECK(value->Equals(context, catcher.Exception()).FromJust());
     }
   }
   // Clean slate for the next test.
@@ -208,20 +210,21 @@ DeclarationContext* DeclarationContext::GetInstance(Local<Value> data) {
 }
 
 
-v8::Handle<Value> DeclarationContext::Get(Local<Name> key) {
-  return v8::Handle<Value>();
+v8::Local<Value> DeclarationContext::Get(Local<Name> key) {
+  return v8::Local<Value>();
 }
 
 
-v8::Handle<Value> DeclarationContext::Set(Local<Name> key, Local<Value> value) {
-  return v8::Handle<Value>();
+v8::Local<Value> DeclarationContext::Set(Local<Name> key, Local<Value> value) {
+  return v8::Local<Value>();
 }
 
 
-v8::Handle<Integer> DeclarationContext::Query(Local<Name> key) {
-  return v8::Handle<Integer>();
+v8::Local<Integer> DeclarationContext::Query(Local<Name> key) {
+  return v8::Local<Integer>();
 }
 
+}  // namespace
 
 // Test global declaration of a property the interceptor doesn't know
 // about and doesn't handle.
@@ -249,27 +252,13 @@ TEST(Unknown) {
                   0,
                   EXPECT_RESULT);
   }
-
-  { DeclarationContext context;
-    context.Check("const x; x",
-                  1,  // access
-                  0, 0, EXPECT_RESULT, Undefined(CcTest::isolate()));
-  }
-
-  { DeclarationContext context;
-    context.Check("const x = 0; x",
-                  1,  // access
-                  0,
-                  0,
-                  EXPECT_RESULT, Number::New(CcTest::isolate(), 0));
-  }
 }
 
 
 class AbsentPropertyContext: public DeclarationContext {
  protected:
-  virtual v8::Handle<Integer> Query(Local<Name> key) {
-    return v8::Handle<Integer>();
+  virtual v8::Local<Integer> Query(Local<Name> key) {
+    return v8::Local<Integer>();
   }
 };
 
@@ -301,18 +290,6 @@ TEST(Absent) {
   }
 
   { AbsentPropertyContext context;
-    context.Check("const x; x",
-                  1,  // access
-                  0, 0, EXPECT_RESULT, Undefined(isolate));
-  }
-
-  { AbsentPropertyContext context;
-    context.Check("const x = 0; x",
-                  1,  // access
-                  0, 0, EXPECT_RESULT, Number::New(isolate, 0));
-  }
-
-  { AbsentPropertyContext context;
     context.Check("if (false) { var x = 0 }; x",
                   1,  // access
                   0, 0, EXPECT_RESULT, Undefined(isolate));
@@ -332,13 +309,13 @@ class AppearingPropertyContext: public DeclarationContext {
   AppearingPropertyContext() : state_(DECLARE) { }
 
  protected:
-  virtual v8::Handle<Integer> Query(Local<Name> key) {
+  virtual v8::Local<Integer> Query(Local<Name> key) {
     switch (state_) {
       case DECLARE:
         // Force declaration by returning that the
         // property is absent.
         state_ = INITIALIZE_IF_ASSIGN;
-        return Handle<Integer>();
+        return Local<Integer>();
       case INITIALIZE_IF_ASSIGN:
         // Return that the property is present so we only get the
         // setter called when initializing with a value.
@@ -349,7 +326,7 @@ class AppearingPropertyContext: public DeclarationContext {
         break;
     }
     // Do the lookup in the object.
-    return v8::Handle<Integer>();
+    return v8::Local<Integer>();
   }
 
  private:
@@ -381,18 +358,6 @@ TEST(Appearing) {
                   0,
                   EXPECT_RESULT);
   }
-
-  { AppearingPropertyContext context;
-    context.Check("const x; x",
-                  1,  // access
-                  0, 0, EXPECT_RESULT, Undefined(CcTest::isolate()));
-  }
-
-  { AppearingPropertyContext context;
-    context.Check("const x = 0; x",
-                  1,  // access
-                  0, 0, EXPECT_RESULT, Number::New(CcTest::isolate(), 0));
-  }
 }
 
 
@@ -401,7 +366,7 @@ class ExistsInPrototypeContext: public DeclarationContext {
  public:
   ExistsInPrototypeContext() { InitializeIfNeeded(); }
  protected:
-  virtual v8::Handle<Integer> Query(Local<Name> key) {
+  virtual v8::Local<Integer> Query(Local<Name> key) {
     // Let it seem that the property exists in the prototype object.
     return Integer::New(isolate(), v8::None);
   }
@@ -438,31 +403,15 @@ TEST(ExistsInPrototype) {
                   0,
                   EXPECT_RESULT, Number::New(CcTest::isolate(), 0));
   }
-
-  { ExistsInPrototypeContext context;
-    context.Check("const x; x",
-                  0,
-                  0,
-                  0,
-                  EXPECT_RESULT, Undefined(CcTest::isolate()));
-  }
-
-  { ExistsInPrototypeContext context;
-    context.Check("const x = 0; x",
-                  0,
-                  0,
-                  0,
-                  EXPECT_RESULT, Number::New(CcTest::isolate(), 0));
-  }
 }
 
 
 
 class AbsentInPrototypeContext: public DeclarationContext {
  protected:
-  virtual v8::Handle<Integer> Query(Local<Name> key) {
+  virtual v8::Local<Integer> Query(Local<Name> key) {
     // Let it seem that the property is absent in the prototype object.
-    return Handle<Integer>();
+    return Local<Integer>();
   }
 
   // Use the prototype as the holder for the interceptors.
@@ -495,18 +444,21 @@ class ExistsInHiddenPrototypeContext: public DeclarationContext {
   }
 
  protected:
-  virtual v8::Handle<Integer> Query(Local<Name> key) {
+  virtual v8::Local<Integer> Query(Local<Name> key) {
     // Let it seem that the property exists in the hidden prototype object.
     return Integer::New(isolate(), v8::None);
   }
 
   // Install the hidden prototype after the global object has been created.
-  virtual void PostInitializeContext(Handle<Context> context) {
+  virtual void PostInitializeContext(Local<Context> context) {
     Local<Object> global_object = context->Global();
-    Local<Object> hidden_proto = hidden_proto_->GetFunction()->NewInstance();
+    Local<Object> hidden_proto = hidden_proto_->GetFunction(context)
+                                     .ToLocalChecked()
+                                     ->NewInstance(context)
+                                     .ToLocalChecked();
     Local<Object> inner_global =
         Local<Object>::Cast(global_object->GetPrototype());
-    inner_global->SetPrototype(hidden_proto);
+    inner_global->SetPrototype(context, hidden_proto).FromJust();
   }
 
   // Use the hidden prototype as the holder for the interceptors.
@@ -539,18 +491,6 @@ TEST(ExistsInHiddenPrototype) {
                   0,
                   EXPECT_RESULT);
   }
-
-  // TODO(mstarzinger): The semantics of global const is vague.
-  { ExistsInHiddenPrototypeContext context;
-    context.Check("const x; x", 0, 0, 0, EXPECT_RESULT,
-                  Undefined(CcTest::isolate()));
-  }
-
-  // TODO(mstarzinger): The semantics of global const is vague.
-  { ExistsInHiddenPrototypeContext context;
-    context.Check("const x = 0; x", 0, 0, 0, EXPECT_RESULT,
-                  Number::New(CcTest::isolate(), 0));
-  }
 }
 
 
@@ -567,30 +507,31 @@ class SimpleContext {
     context_->Exit();
   }
 
-  void Check(const char* source,
-             Expectations expectations,
-             v8::Handle<Value> value = Local<Value>()) {
+  void Check(const char* source, Expectations expectations,
+             v8::Local<Value> value = Local<Value>()) {
     HandleScope scope(context_->GetIsolate());
     TryCatch catcher(context_->GetIsolate());
     catcher.SetVerbose(true);
-    Local<Script> script =
-        Script::Compile(String::NewFromUtf8(context_->GetIsolate(), source));
+    MaybeLocal<Script> script = Script::Compile(
+        context_, String::NewFromUtf8(context_->GetIsolate(), source,
+                                      v8::NewStringType::kNormal)
+                      .ToLocalChecked());
     if (expectations == EXPECT_ERROR) {
       CHECK(script.IsEmpty());
       return;
     }
     CHECK(!script.IsEmpty());
-    Local<Value> result = script->Run();
+    MaybeLocal<Value> result = script.ToLocalChecked()->Run(context_);
     if (expectations == EXPECT_RESULT) {
       CHECK(!catcher.HasCaught());
       if (!value.IsEmpty()) {
-        CHECK(value->Equals(result));
+        CHECK(value->Equals(context_, result.ToLocalChecked()).FromJust());
       }
     } else {
       CHECK(expectations == EXPECT_EXCEPTION);
       CHECK(catcher.HasCaught());
       if (!value.IsEmpty()) {
-        CHECK(value->Equals(catcher.Exception()));
+        CHECK(value->Equals(context_, catcher.Exception()).FromJust());
       }
     }
   }
@@ -610,8 +551,6 @@ TEST(CrossScriptReferences) {
                   EXPECT_RESULT, Number::New(isolate, 1));
     context.Check("var x = 2; x",
                   EXPECT_RESULT, Number::New(isolate, 2));
-    context.Check("const x = 3; x", EXPECT_EXCEPTION);
-    context.Check("const x = 4; x", EXPECT_EXCEPTION);
     context.Check("x = 5; x",
                   EXPECT_RESULT, Number::New(isolate, 5));
     context.Check("var x = 6; x",
@@ -620,22 +559,6 @@ TEST(CrossScriptReferences) {
                   EXPECT_RESULT, Number::New(isolate, 6));
     context.Check("function x() { return 7 }; x()",
                   EXPECT_RESULT, Number::New(isolate, 7));
-  }
-
-  { SimpleContext context;
-    context.Check("const x = 1; x",
-                  EXPECT_RESULT, Number::New(isolate, 1));
-    context.Check("var x = 2; x",  // assignment ignored
-                  EXPECT_RESULT, Number::New(isolate, 1));
-    context.Check("const x = 3; x", EXPECT_EXCEPTION);
-    context.Check("x = 4; x",  // assignment ignored
-                  EXPECT_RESULT, Number::New(isolate, 1));
-    context.Check("var x = 5; x",  // assignment ignored
-                  EXPECT_RESULT, Number::New(isolate, 1));
-    context.Check("this.x",
-                  EXPECT_RESULT, Number::New(isolate, 1));
-    context.Check("function x() { return 7 }; x",
-                  EXPECT_EXCEPTION);
   }
 }
 
@@ -901,10 +824,14 @@ TEST(CrossScriptDynamicLookup) {
 
   {
     SimpleContext context;
-    Local<String> undefined_string = String::NewFromUtf8(
-        CcTest::isolate(), "undefined", String::kInternalizedString);
-    Local<String> number_string = String::NewFromUtf8(
-        CcTest::isolate(), "number", String::kInternalizedString);
+    Local<String> undefined_string =
+        String::NewFromUtf8(CcTest::isolate(), "undefined",
+                            v8::NewStringType::kInternalized)
+            .ToLocalChecked();
+    Local<String> number_string =
+        String::NewFromUtf8(CcTest::isolate(), "number",
+                            v8::NewStringType::kInternalized)
+            .ToLocalChecked();
 
     context.Check(
         "function f(o) { with(o) { return x; } }"
@@ -974,10 +901,14 @@ TEST(CrossScriptStaticLookupUndeclared) {
 
   {
     SimpleContext context;
-    Local<String> undefined_string = String::NewFromUtf8(
-        CcTest::isolate(), "undefined", String::kInternalizedString);
-    Local<String> number_string = String::NewFromUtf8(
-        CcTest::isolate(), "number", String::kInternalizedString);
+    Local<String> undefined_string =
+        String::NewFromUtf8(CcTest::isolate(), "undefined",
+                            v8::NewStringType::kInternalized)
+            .ToLocalChecked();
+    Local<String> number_string =
+        String::NewFromUtf8(CcTest::isolate(), "number",
+                            v8::NewStringType::kInternalized)
+            .ToLocalChecked();
 
     context.Check(
         "function f(o) { return x; }"

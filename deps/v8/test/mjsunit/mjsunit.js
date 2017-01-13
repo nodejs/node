@@ -93,6 +93,10 @@ var assertNotNull;
 // to the type property on the thrown exception.
 var assertThrows;
 
+// Assert that the passed function throws an exception.
+// The exception is checked against the second argument using assertEquals.
+var assertThrowsEquals;
+
 // Assert that the passed function or eval code does not throw an exception.
 var assertDoesNotThrow;
 
@@ -110,14 +114,42 @@ var assertUnreachable;
 var assertOptimized;
 var assertUnoptimized;
 
+// Assert that a string contains another expected substring.
+var assertContains;
+
 
 (function () {  // Scope for utility functions.
 
+  var ObjectPrototypeToString = Object.prototype.toString;
+  var NumberPrototypeValueOf = Number.prototype.valueOf;
+  var BooleanPrototypeValueOf = Boolean.prototype.valueOf;
+  var StringPrototypeValueOf = String.prototype.valueOf;
+  var DatePrototypeValueOf = Date.prototype.valueOf;
+  var RegExpPrototypeToString = RegExp.prototype.toString;
+  var ArrayPrototypeMap = Array.prototype.map;
+  var ArrayPrototypeJoin = Array.prototype.join;
+
   function classOf(object) {
     // Argument must not be null or undefined.
-    var string = Object.prototype.toString.call(object);
+    var string = ObjectPrototypeToString.call(object);
     // String has format [object <ClassName>].
     return string.substring(8, string.length - 1);
+  }
+
+
+  function ValueOf(value) {
+    switch (classOf(value)) {
+      case "Number":
+        return NumberPrototypeValueOf.call(value);
+      case "String":
+        return StringPrototypeValueOf.call(value);
+      case "Boolean":
+        return BooleanPrototypeValueOf.call(value);
+      case "Date":
+        return DatePrototypeValueOf.call(value);
+      default:
+        return value;
+    }
   }
 
 
@@ -137,19 +169,21 @@ var assertUnoptimized;
         if (value === null) return "null";
         var objectClass = classOf(value);
         switch (objectClass) {
-        case "Number":
-        case "String":
-        case "Boolean":
-        case "Date":
-          return objectClass + "(" + PrettyPrint(value.valueOf()) + ")";
-        case "RegExp":
-          return value.toString();
-        case "Array":
-          return "[" + value.map(PrettyPrintArrayElement).join(",") + "]";
-        case "Object":
-          break;
-        default:
-          return objectClass + "()";
+          case "Number":
+          case "String":
+          case "Boolean":
+          case "Date":
+            return objectClass + "(" + PrettyPrint(ValueOf(value)) + ")";
+          case "RegExp":
+            return RegExpPrototypeToString.call(value);
+          case "Array":
+            var mapped = ArrayPrototypeMap.call(value, PrettyPrintArrayElement);
+            var joined = ArrayPrototypeJoin.call(mapped, ",");
+            return "[" + joined + "]";
+          case "Object":
+            break;
+          default:
+            return objectClass + "()";
         }
         // [[Class]] is "Object".
         var name = value.constructor.name;
@@ -211,7 +245,8 @@ var assertUnoptimized;
     if (objectClass !== classOf(b)) return false;
     if (objectClass === "RegExp") {
       // For RegExp, just compare pattern and flags using its toString.
-      return (a.toString() === b.toString());
+      return RegExpPrototypeToString.call(a) ===
+             RegExpPrototypeToString.call(b);
     }
     // Functions are only identical to themselves.
     if (objectClass === "Function") return false;
@@ -227,7 +262,7 @@ var assertUnoptimized;
     }
     if (objectClass === "String" || objectClass === "Number" ||
       objectClass === "Boolean" || objectClass === "Date") {
-      if (a.valueOf() !== b.valueOf()) return false;
+      if (ValueOf(a) !== ValueOf(b)) return false;
     }
     return deepObjectEquals(a, b);
   }
@@ -325,11 +360,24 @@ var assertUnoptimized;
     } catch (e) {
       if (typeof type_opt === 'function') {
         assertInstanceof(e, type_opt);
+      } else if (type_opt !== void 0) {
+        fail("invalid use of assertThrows, maybe you want assertThrowsEquals");
       }
       if (arguments.length >= 3) {
         assertEquals(e.type, cause_opt);
       }
       // Success.
+      return;
+    }
+    throw new MjsUnitAssertionError("Did not throw exception");
+  };
+
+
+  assertThrowsEquals = function assertThrowsEquals(fun, val) {
+    try {
+      fun();
+    } catch(e) {
+      assertEquals(val, e);
       return;
     }
     throw new MjsUnitAssertionError("Did not throw exception");
@@ -369,6 +417,12 @@ var assertUnoptimized;
       message += " - " + name_opt;
     }
     throw new MjsUnitAssertionError(message);
+  };
+
+  assertContains = function(sub, value, name_opt) {
+    if (value == null ? (sub != null) : value.indexOf(sub) == -1) {
+      fail("contains '" + String(sub) + "'", value, name_opt);
+    }
   };
 
   var OptimizationStatusImpl = undefined;

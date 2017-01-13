@@ -168,8 +168,7 @@ int LGapResolver::CountSourceUses(LOperand* operand) {
 
 Register LGapResolver::GetFreeRegisterNot(Register reg) {
   int skip_index = reg.is(no_reg) ? -1 : reg.code();
-  const RegisterConfiguration* config =
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
+  const RegisterConfiguration* config = RegisterConfiguration::Crankshaft();
   for (int i = 0; i < config->num_allocatable_general_registers(); ++i) {
     int code = config->GetAllocatableGeneralCode(i);
     if (source_uses_[code] == 0 && destination_uses_[code] > 0 &&
@@ -184,8 +183,7 @@ Register LGapResolver::GetFreeRegisterNot(Register reg) {
 bool LGapResolver::HasBeenReset() {
   if (!moves_.is_empty()) return false;
   if (spilled_register_ >= 0) return false;
-  const RegisterConfiguration* config =
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
+  const RegisterConfiguration* config = RegisterConfiguration::Crankshaft();
   for (int i = 0; i < config->num_allocatable_general_registers(); ++i) {
     int code = config->GetAllocatableGeneralCode(i);
     if (source_uses_[code] != 0) return false;
@@ -239,8 +237,7 @@ Register LGapResolver::EnsureTempRegister() {
 
   // 3. Prefer to spill a register that is not used in any remaining move
   // because it will not need to be restored until the end.
-  const RegisterConfiguration* config =
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
+  const RegisterConfiguration* config = RegisterConfiguration::Crankshaft();
   for (int i = 0; i < config->num_allocatable_general_registers(); ++i) {
     int code = config->GetAllocatableGeneralCode(i);
     if (source_uses_[code] == 0 && destination_uses_[code] == 0) {

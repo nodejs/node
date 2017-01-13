@@ -24,7 +24,8 @@ void GraphTrimmer::TrimGraph() {
   MarkAsLive(graph()->end());
   // Compute transitive closure of live nodes.
   for (size_t i = 0; i < live_.size(); ++i) {
-    for (Node* const input : live_[i]->inputs()) MarkAsLive(input);
+    Node* const live = live_[i];
+    for (Node* const input : live->inputs()) MarkAsLive(input);
   }
   // Remove dead->live edges.
   for (Node* const live : live_) {
@@ -32,7 +33,7 @@ void GraphTrimmer::TrimGraph() {
     for (Edge edge : live->use_edges()) {
       Node* const user = edge.from();
       if (!IsLive(user)) {
-        if (FLAG_trace_turbo_reduction) {
+        if (FLAG_trace_turbo_trimming) {
           OFStream os(stdout);
           os << "DeadLink: " << *user << "(" << edge.index() << ") -> " << *live
              << std::endl;

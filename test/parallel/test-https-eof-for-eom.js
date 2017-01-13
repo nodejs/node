@@ -7,25 +7,25 @@
 // This test is to be sure that the https client is handling this case
 // correctly.
 
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
-var https = require('https');
-var tls = require('tls');
+const https = require('https');
+const tls = require('tls');
 
-var fs = require('fs');
+const fs = require('fs');
 
-var options = {
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
 
-var server = tls.Server(options, function(socket) {
+const server = tls.Server(options, function(socket) {
   console.log('2) Server got request');
   socket.write('HTTP/1.1 200 OK\r\n' +
                'Date: Tue, 15 Feb 2011 22:14:54 GMT\r\n' +
@@ -46,37 +46,27 @@ var server = tls.Server(options, function(socket) {
   }, 100);
 });
 
-
-var gotHeaders = false;
-var gotEnd = false;
-var bodyBuffer = '';
-
-server.listen(common.PORT, function() {
+server.listen(0, common.mustCall(function() {
   console.log('1) Making Request');
   https.get({
-    port: common.PORT,
+    port: this.address().port,
     rejectUnauthorized: false
-  }, function(res) {
+  }, common.mustCall(function(res) {
+    let bodyBuffer = '';
+
     server.close();
     console.log('3) Client got response headers.');
 
-    assert.equal('gws', res.headers.server);
-    gotHeaders = true;
+    assert.strictEqual('gws', res.headers.server);
 
     res.setEncoding('utf8');
     res.on('data', function(s) {
       bodyBuffer += s;
     });
 
-    res.on('end', function() {
+    res.on('end', common.mustCall(function() {
       console.log('5) Client got "end" event.');
-      gotEnd = true;
-    });
-  });
-});
-
-process.on('exit', function() {
-  assert.ok(gotHeaders);
-  assert.ok(gotEnd);
-  assert.equal('hello world\nhello world\n', bodyBuffer);
-});
+      assert.strictEqual('hello world\nhello world\n', bodyBuffer);
+    }));
+  }));
+}));

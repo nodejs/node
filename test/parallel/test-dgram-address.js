@@ -1,16 +1,18 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var dgram = require('dgram');
+const common = require('../common');
+const assert = require('assert');
+const dgram = require('dgram');
 
 // IPv4 Test
-var socket_ipv4 = dgram.createSocket('udp4');
-var family_ipv4 = 'IPv4';
+const socket_ipv4 = dgram.createSocket('udp4');
+const family_ipv4 = 'IPv4';
 
 socket_ipv4.on('listening', function() {
-  var address_ipv4 = socket_ipv4.address();
+  const address_ipv4 = socket_ipv4.address();
   assert.strictEqual(address_ipv4.address, common.localhostIPv4);
-  assert.strictEqual(address_ipv4.port, common.PORT);
+  assert.strictEqual(typeof address_ipv4.port, 'number');
+  assert.ok(isFinite(address_ipv4.port));
+  assert.ok(address_ipv4.port > 0);
   assert.strictEqual(address_ipv4.family, family_ipv4);
   socket_ipv4.close();
 });
@@ -20,17 +22,19 @@ socket_ipv4.on('error', function(e) {
   socket_ipv4.close();
 });
 
-socket_ipv4.bind(common.PORT, common.localhostIPv4);
+socket_ipv4.bind(0, common.localhostIPv4);
 
 // IPv6 Test
-var localhost_ipv6 = '::1';
-var socket_ipv6 = dgram.createSocket('udp6');
-var family_ipv6 = 'IPv6';
+const localhost_ipv6 = '::1';
+const socket_ipv6 = dgram.createSocket('udp6');
+const family_ipv6 = 'IPv6';
 
 socket_ipv6.on('listening', function() {
-  var address_ipv6 = socket_ipv6.address();
+  const address_ipv6 = socket_ipv6.address();
   assert.strictEqual(address_ipv6.address, localhost_ipv6);
-  assert.strictEqual(address_ipv6.port, common.PORT);
+  assert.strictEqual(typeof address_ipv6.port, 'number');
+  assert.ok(isFinite(address_ipv6.port));
+  assert.ok(address_ipv6.port > 0);
   assert.strictEqual(address_ipv6.family, family_ipv6);
   socket_ipv6.close();
 });
@@ -40,4 +44,4 @@ socket_ipv6.on('error', function(e) {
   socket_ipv6.close();
 });
 
-socket_ipv6.bind(common.PORT, localhost_ipv6);
+socket_ipv6.bind(0, localhost_ipv6);

@@ -13,10 +13,23 @@ empty list will be returned. A validation error will have two properties:
 "property" which indicates which property had the error
 "message" which indicates what the error was
  */
-({define:typeof define!="undefined"?define:function(deps, factory){module.exports = factory();}}).
-define([], function(){
-var exports = validate;
-// setup primitive classes to be JSON Schema types
+(function (root, factory) {
+    if (typeof define === 'function' && define.amd) {
+        // AMD. Register as an anonymous module.
+        define([], function () {
+            return factory();
+        });
+    } else if (typeof module === 'object' && module.exports) {
+        // Node. Does not work with strict CommonJS, but
+        // only CommonJS-like environments that support module.exports,
+        // like Node.
+        module.exports = factory();
+    } else {
+        // Browser globals
+        root.jsonSchema = factory();
+    }
+}(this, function () {// setup primitive classes to be JSON Schema types
+var exports = validate
 exports.Integer = {type:"integer"};
 var primitiveConstructors = {
 	String: String,
@@ -257,4 +270,4 @@ exports.mustBeValid = function(result){
 }
 
 return exports;
-});
+}));

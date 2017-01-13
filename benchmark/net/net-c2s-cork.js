@@ -1,4 +1,5 @@
 // test the speed of .pipe() with sockets
+'use strict';
 
 var common = require('../common.js');
 var PORT = common.PORT;
@@ -22,8 +23,7 @@ function main(conf) {
 
   switch (type) {
     case 'buf':
-      chunk = new Buffer(len);
-      chunk.fill('x');
+      chunk = Buffer.alloc(len, 'x');
       break;
     case 'utf':
       encoding = 'utf8';
@@ -35,7 +35,6 @@ function main(conf) {
       break;
     default:
       throw new Error('invalid type: ' + type);
-      break;
   }
 
   server();
@@ -63,6 +62,7 @@ Writer.prototype.write = function(chunk, encoding, cb) {
 Writer.prototype.on = function() {};
 Writer.prototype.once = function() {};
 Writer.prototype.emit = function() {};
+Writer.prototype.prependListener = function() {};
 
 function server() {
   var writer = new Writer();
@@ -77,18 +77,19 @@ function server() {
     socket.on('connect', function() {
       bench.start();
 
-      socket.on('drain', send)
-      send()
+      socket.on('drain', send);
+      send();
 
       setTimeout(function() {
         var bytes = writer.received;
         var gbits = (bytes * 8) / (1024 * 1024 * 1024);
         bench.end(gbits);
+        process.exit(0);
       }, dur * 1000);
 
       function send() {
         socket.cork();
-        while(socket.write(chunk, encoding)) {}
+        while (socket.write(chunk, encoding)) {}
         socket.uncork();
       }
     });

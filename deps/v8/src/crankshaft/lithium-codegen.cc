@@ -30,9 +30,14 @@
 #elif V8_TARGET_ARCH_PPC
 #include "src/crankshaft/ppc/lithium-ppc.h"          // NOLINT
 #include "src/crankshaft/ppc/lithium-codegen-ppc.h"  // NOLINT
+#elif V8_TARGET_ARCH_S390
+#include "src/crankshaft/s390/lithium-s390.h"          // NOLINT
+#include "src/crankshaft/s390/lithium-codegen-s390.h"  // NOLINT
 #else
 #error Unsupported target architecture.
 #endif
+
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -41,7 +46,6 @@ namespace internal {
 HGraph* LCodeGenBase::graph() const {
   return chunk()->graph();
 }
-
 
 LCodeGenBase::LCodeGenBase(LChunk* chunk, MacroAssembler* assembler,
                            CompilationInfo* info)
@@ -53,9 +57,14 @@ LCodeGenBase::LCodeGenBase(LChunk* chunk, MacroAssembler* assembler,
       current_block_(-1),
       current_instruction_(-1),
       instructions_(chunk->instructions()),
+      deoptimizations_(4, info->zone()),
       deoptimization_literals_(8, info->zone()),
-      last_lazy_deopt_pc_(0) {}
-
+      translations_(info->zone()),
+      inlined_function_count_(0),
+      last_lazy_deopt_pc_(0),
+      osr_pc_offset_(-1),
+      source_position_table_builder_(info->zone(),
+                                     info->SourcePositionRecordingMode()) {}
 
 bool LCodeGenBase::GenerateBody() {
   DCHECK(is_generating());
@@ -130,6 +139,10 @@ void LCodeGenBase::CheckEnvironmentUsage() {
 #endif
 }
 
+void LCodeGenBase::RecordAndWritePosition(int pos) {
+  if (pos == kNoSourcePosition) return;
+  source_position_table_builder_.AddPosition(masm_->pc_offset(), pos, false);
+}
 
 void LCodeGenBase::Comment(const char* format, ...) {
   if (!FLAG_code_comments) return;
@@ -150,7 +163,10 @@ void LCodeGenBase::Comment(const char* format, ...) {
 
 
 void LCodeGenBase::DeoptComment(const Deoptimizer::DeoptInfo& deopt_info) {
-  masm()->RecordDeoptReason(deopt_info.deopt_reason, deopt_info.position);
+  SourcePosition position = deopt_info.position;
+  int deopt_id = deopt_info.deopt_id;
+  int raw_position = position.IsUnknown() ? 0 : position.raw();
+  masm()->RecordDeoptReason(deopt_info.deopt_reason, raw_position, deopt_id);
 }
 
 
@@ -231,8 +247,8 @@ void LCodeGenBase::WriteTranslationFrame(LEnvironment* environment,
       break;
     }
     case JS_GETTER: {
-      DCHECK(translation_size == 1);
-      DCHECK(height == 0);
+      DCHECK_EQ(1, translation_size);
+      DCHECK_EQ(0, height);
       int shared_id = DefineDeoptimizationLiteral(
           environment->entry() ? environment->entry()->shared()
                                : info()->shared_info());
@@ -246,12 +262,26 @@ void LCodeGenBase::WriteTranslationFrame(LEnvironment* environment,
       break;
     }
     case JS_SETTER: {
-      DCHECK(translation_size == 2);
-      DCHECK(height == 0);
+      DCHECK_EQ(2, translation_size);
+      DCHECK_EQ(0, height);
       int shared_id = DefineDeoptimizationLiteral(
           environment->entry() ? environment->entry()->shared()
                                : info()->shared_info());
       translation->BeginSetterStubFrame(shared_id);
+      if (info()->closure().is_identical_to(environment->closure())) {
+        translation->StoreJSFrameFunction();
+      } else {
+        int closure_id = DefineDeoptimizationLiteral(environment->closure());
+        translation->StoreLiteral(closure_id);
+      }
+      break;
+    }
+    case TAIL_CALLER_FUNCTION: {
+      DCHECK_EQ(0, translation_size);
+      int shared_id = DefineDeoptimizationLiteral(
+          environment->entry() ? environment->entry()->shared()
+                               : info()->shared_info());
+      translation->BeginTailCallerFrame(shared_id);
       if (info()->closure().is_identical_to(environment->closure())) {
         translation->StoreJSFrameFunction();
       } else {
@@ -280,13 +310,73 @@ void LCodeGenBase::WriteTranslationFrame(LEnvironment* environment,
 }
 
 
+void LCodeGenBase::PopulateDeoptimizationData(Handle<Code> code) {
+  int length = deoptimizations_.length();
+  if (length == 0) return;
+  Handle<DeoptimizationInputData> data =
+      DeoptimizationInputData::New(isolate(), length, TENURED);
+
+  Handle<ByteArray> translations =
+      translations_.CreateByteArray(isolate()->factory());
+  data->SetTranslationByteArray(*translations);
+  data->SetInlinedFunctionCount(Smi::FromInt(inlined_function_count_));
+  data->SetOptimizationId(Smi::FromInt(info_->optimization_id()));
+  if (info_->IsOptimizing()) {
+    // Reference to shared function info does not change between phases.
+    AllowDeferredHandleDereference allow_handle_dereference;
+    data->SetSharedFunctionInfo(*info_->shared_info());
+  } else {
+    data->SetSharedFunctionInfo(Smi::FromInt(0));
+  }
+  data->SetWeakCellCache(Smi::FromInt(0));
+
+  Handle<FixedArray> literals =
+      factory()->NewFixedArray(deoptimization_literals_.length(), TENURED);
+  {
+    AllowDeferredHandleDereference copy_handles;
+    for (int i = 0; i < deoptimization_literals_.length(); i++) {
+      literals->set(i, *deoptimization_literals_[i]);
+    }
+    data->SetLiteralArray(*literals);
+  }
+
+  data->SetOsrAstId(Smi::FromInt(info_->osr_ast_id().ToInt()));
+  data->SetOsrPcOffset(Smi::FromInt(osr_pc_offset_));
+
+  // Populate the deoptimization entries.
+  for (int i = 0; i < length; i++) {
+    LEnvironment* env = deoptimizations_[i];
+    data->SetAstId(i, env->ast_id());
+    data->SetTranslationIndex(i, Smi::FromInt(env->translation_index()));
+    data->SetArgumentsStackHeight(i,
+                                  Smi::FromInt(env->arguments_stack_height()));
+    data->SetPc(i, Smi::FromInt(env->pc_offset()));
+  }
+  code->set_deoptimization_data(*data);
+}
+
+
+void LCodeGenBase::PopulateDeoptimizationLiteralsWithInlinedFunctions() {
+  DCHECK_EQ(0, deoptimization_literals_.length());
+  for (Handle<SharedFunctionInfo> function : chunk()->inlined_functions()) {
+    DefineDeoptimizationLiteral(function);
+  }
+  inlined_function_count_ = deoptimization_literals_.length();
+
+  // Define deoptimization literals for all unoptimized code objects of inlined
+  // functions. This ensures unoptimized code is kept alive by optimized code.
+  AllowDeferredHandleDereference allow_shared_function_info_dereference;
+  for (Handle<SharedFunctionInfo> function : chunk()->inlined_functions()) {
+    DefineDeoptimizationLiteral(handle(function->code()));
+  }
+}
+
 Deoptimizer::DeoptInfo LCodeGenBase::MakeDeoptInfo(
-    LInstruction* instr, Deoptimizer::DeoptReason deopt_reason) {
+    LInstruction* instr, DeoptimizeReason deopt_reason, int deopt_id) {
   Deoptimizer::DeoptInfo deopt_info(instr->hydrogen_value()->position(),
-                                    instr->Mnemonic(), deopt_reason);
-  HEnterInlined* enter_inlined = instr->environment()->entry();
-  deopt_info.inlining_id = enter_inlined ? enter_inlined->inlining_id() : 0;
+                                    deopt_reason, deopt_id);
   return deopt_info;
 }
+
 }  // namespace internal
 }  // namespace v8

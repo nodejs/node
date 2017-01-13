@@ -47,10 +47,8 @@ class Preparation(Step):
     open(self.Config("ALREADY_MERGING_SENTINEL_FILE"), "a").close()
 
     self.InitialEnvironmentChecks(self.default_cwd)
-    if self._options.branch:
-      self["merge_to_branch"] = self._options.branch
-    else:  # pragma: no cover
-      self.Die("Please specify a branch to merge to")
+
+    self["merge_to_branch"] = self._options.branch
 
     self.CommonPrepare()
     self.PrepareBranch()
@@ -74,7 +72,7 @@ class SearchArchitecturePorts(Step):
     for revision in self["full_revision_list"]:
       # Search for commits which matches the "Port XXX" pattern.
       git_hashes = self.GitLog(reverse=True, format="%H",
-                               grep="Port %s" % revision,
+                               grep="^[Pp]ort %s" % revision,
                                branch=self.vc.RemoteMasterBranch())
       for git_hash in git_hashes.splitlines():
         revision_title = self.GitLog(n=1, format="%s", git_hash=git_hash)
@@ -99,6 +97,12 @@ class SearchArchitecturePorts(Step):
 class CreateCommitMessage(Step):
   MESSAGE = "Create commit message."
 
+  def _create_commit_description(self, commit_hash):
+    patch_merge_desc = self.GitLog(n=1, format="%s", git_hash=commit_hash)
+    description = "Merged: " + patch_merge_desc + "\n"
+    description += "Revision: " + commit_hash + "\n\n"
+    return description
+
   def RunStep(self):
 
     # Stringify: ["abcde", "12345"] -> "abcde, 12345"
@@ -107,17 +111,23 @@ class CreateCommitMessage(Step):
     if not self["revision_list"]:  # pragma: no cover
       self.Die("Revision list is empty.")
 
-    action_text = "Merged %s"
+    msg_pieces = []
 
-    # The commit message title is added below after the version is specified.
-    msg_pieces = [
-      "\n".join(action_text % s for s in self["full_revision_list"]),
-    ]
-    msg_pieces.append("\n\n")
+    if len(self["full_revision_list"]) > 1:
+      self["commit_title"] = "Merged: Squashed multiple commits."
+      for commit_hash in self["full_revision_list"]:
+        msg_pieces.append(self._create_commit_description(commit_hash))
+    else:
+      commit_hash = self["full_revision_list"][0]
+      full_description = self._create_commit_description(commit_hash).split("\n")
 
-    for commit_hash in self["full_revision_list"]:
-      patch_merge_desc = self.GitLog(n=1, format="%s", git_hash=commit_hash)
-      msg_pieces.append("%s\n\n" % patch_merge_desc)
+      #Truncate title because of code review tool
+      title = full_description[0]
+      if len(title) > 100:
+        title = title[:96] + " ..."
+
+      self["commit_title"] = title
+      msg_pieces.append(full_description[1] + "\n\n")
 
     bugs = []
     for commit_hash in self["full_revision_list"]:
@@ -127,6 +137,8 @@ class CreateCommitMessage(Step):
     bug_aggregate = ",".join(sorted(filter(lambda s: s and s != "none", bugs)))
     if bug_aggregate:
       msg_pieces.append("BUG=%s\nLOG=N\n" % bug_aggregate)
+
+    msg_pieces.append("NOTRY=true\nNOPRESUBMIT=true\nNOTREECHECKS=true\n")
 
     self["new_commit_msg"] = "".join(msg_pieces)
 
@@ -144,49 +156,26 @@ class ApplyPatches(Step):
     if self._options.patch:
       self.ApplyPatch(self._options.patch)
 
-
-class PrepareVersion(Step):
-  MESSAGE = "Prepare version file."
-
-  def RunStep(self):
-    # This is used to calculate the patch level increment.
-    self.ReadAndPersistVersion()
-
-
-class IncrementVersion(Step):
-  MESSAGE = "Increment version number."
-
-  def RunStep(self):
-    new_patch = str(int(self["patch"]) + 1)
-    if self.Confirm("Automatically increment V8_PATCH_LEVEL? (Saying 'n' will "
-                    "fire up your EDITOR on %s so you can make arbitrary "
-                    "changes. When you're done, save the file and exit your "
-                    "EDITOR.)" % VERSION_FILE):
-      text = FileToText(os.path.join(self.default_cwd, VERSION_FILE))
-      text = MSub(r"(?<=#define V8_PATCH_LEVEL)(?P<space>\s+)\d*$",
-                  r"\g<space>%s" % new_patch,
-                  text)
-      TextToFile(text, os.path.join(self.default_cwd, VERSION_FILE))
-    else:
-      self.Editor(os.path.join(self.default_cwd, VERSION_FILE))
-    self.ReadAndPersistVersion("new_")
-    self["version"] = "%s.%s.%s.%s" % (self["new_major"],
-                                       self["new_minor"],
-                                       self["new_build"],
-                                       self["new_patch"])
-
-
 class CommitLocal(Step):
   MESSAGE = "Commit to local branch."
 
   def RunStep(self):
     # Add a commit message title.
-    self["commit_title"] = "Version %s (cherry-pick)" % self["version"]
     self["new_commit_msg"] = "%s\n\n%s" % (self["commit_title"],
                                            self["new_commit_msg"])
     TextToFile(self["new_commit_msg"], self.Config("COMMITMSG_FILE"))
     self.GitCommit(file_name=self.Config("COMMITMSG_FILE"))
 
+class AddInformationalComment(Step):
+  MESSAGE = 'Show additional information.'
+
+  def RunStep(self):
+    message = ("NOTE: This script will no longer automatically "
+     "update include/v8-version.h "
+     "and create a tag. This is done automatically by the autotag bot. "
+     "Please call the merge_to_branch.py with --help for more information.")
+
+    self.GitCLAddComment(message)
 
 class CommitRepository(Step):
   MESSAGE = "Commit to the repository."
@@ -197,24 +186,12 @@ class CommitRepository(Step):
     self.GitPresubmit()
     self.vc.CLLand()
 
-
-class TagRevision(Step):
-  MESSAGE = "Create the tag."
-
-  def RunStep(self):
-    print "Creating tag %s" % self["version"]
-    self.vc.Tag(self["version"],
-                self.vc.RemoteBranch(self["merge_to_branch"]),
-                self["commit_title"])
-
-
 class CleanUp(Step):
   MESSAGE = "Cleanup."
 
   def RunStep(self):
     self.CommonCleanup()
     print "*** SUMMARY ***"
-    print "version: %s" % self["version"]
     print "branch: %s" % self["merge_to_branch"]
     if self["revision_list"]:
       print "patches: %s" % self["revision_list"]
@@ -223,7 +200,9 @@ class CleanUp(Step):
 class MergeToBranch(ScriptsBase):
   def _Description(self):
     return ("Performs the necessary steps to merge revisions from "
-            "master to other branches, including candidates.")
+            "master to release branches like 4.5. This script does not "
+            "version the commit. See http://goo.gl/9ke2Vw for more "
+            "information.")
 
   def _PrepareOptions(self, parser):
     group = parser.add_mutually_exclusive_group(required=True)
@@ -249,6 +228,11 @@ class MergeToBranch(ScriptsBase):
     options.bypass_upload_hooks = True
     # CC ulan to make sure that fixes are merged to Google3.
     options.cc = "ulan@chromium.org"
+
+    if len(options.branch.split('.')) > 2:
+      print ("This script does not support merging to roll branches. "
+             "Please use tools/release/roll_merge.py for this use case.")
+      return False
 
     # Make sure to use git hashes in the new workflows.
     for revision in options.revisions:
@@ -276,12 +260,10 @@ class MergeToBranch(ScriptsBase):
       SearchArchitecturePorts,
       CreateCommitMessage,
       ApplyPatches,
-      PrepareVersion,
-      IncrementVersion,
       CommitLocal,
       UploadStep,
+      AddInformationalComment,
       CommitRepository,
-      TagRevision,
       CleanUp,
     ]
 

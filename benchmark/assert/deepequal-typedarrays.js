@@ -16,6 +16,7 @@ function main(conf) {
   var actual = new clazz(n * 1e6);
   var expected = new clazz(n * 1e6);
 
+  // eslint-disable-next-line no-restricted-properties
   assert.deepEqual(actual, expected);
 
   bench.end(n);

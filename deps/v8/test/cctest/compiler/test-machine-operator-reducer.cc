@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(jochen): Remove this after the setting is turned on globally.
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen.h"
 #include "src/compiler/js-graph.h"
@@ -29,11 +26,22 @@ const Operator* NewConstantOperator<int32_t>(CommonOperatorBuilder* common,
 }
 
 template <>
+const Operator* NewConstantOperator<int64_t>(CommonOperatorBuilder* common,
+                                             volatile int64_t value) {
+  return common->Int64Constant(value);
+}
+
+template <>
 const Operator* NewConstantOperator<double>(CommonOperatorBuilder* common,
                                             volatile double value) {
   return common->Float64Constant(value);
 }
 
+template <>
+const Operator* NewConstantOperator<float>(CommonOperatorBuilder* common,
+                                           volatile float value) {
+  return common->Float32Constant(value);
+}
 
 template <typename T>
 T ValueOfOperator(const Operator* op);
@@ -45,6 +53,18 @@ int32_t ValueOfOperator<int32_t>(const Operator* op) {
 }
 
 template <>
+int64_t ValueOfOperator<int64_t>(const Operator* op) {
+  CHECK_EQ(IrOpcode::kInt64Constant, op->opcode());
+  return OpParameter<int64_t>(op);
+}
+
+template <>
+float ValueOfOperator<float>(const Operator* op) {
+  CHECK_EQ(IrOpcode::kFloat32Constant, op->opcode());
+  return OpParameter<float>(op);
+}
+
+template <>
 double ValueOfOperator<double>(const Operator* op) {
   CHECK_EQ(IrOpcode::kFloat64Constant, op->opcode());
   return OpParameter<double>(op);
@@ -53,13 +73,13 @@ double ValueOfOperator<double>(const Operator* op) {
 
 class ReducerTester : public HandleAndZoneScope {
  public:
-  explicit ReducerTester(
-      int num_parameters = 0,
-      MachineOperatorBuilder::Flags flags = MachineOperatorBuilder::kNoFlags)
+  explicit ReducerTester(int num_parameters = 0,
+                         MachineOperatorBuilder::Flags flags =
+                             MachineOperatorBuilder::kAllOptionalOps)
       : isolate(main_isolate()),
         binop(NULL),
         unop(NULL),
-        machine(main_zone(), kMachPtr, flags),
+        machine(main_zone(), MachineType::PointerRepresentation(), flags),
         common(main_zone()),
         graph(main_zone()),
         javascript(main_zone()),
@@ -108,7 +128,15 @@ class ReducerTester : public HandleAndZoneScope {
     Reduction reduction = reducer.Reduce(n);
     CHECK(reduction.Changed());
     CHECK_NE(n, reduction.replacement());
-    CHECK_EQ(expect, ValueOf<T>(reduction.replacement()->op()));
+    // Deal with NaNs.
+    if (expect == expect) {
+      // We do not expect a NaN, check for equality.
+      CHECK_EQ(expect, ValueOf<T>(reduction.replacement()->op()));
+    } else {
+      // Check for NaN.
+      T result = ValueOf<T>(reduction.replacement()->op());
+      CHECK_NE(result, result);
+    }
   }
 
   // Check that the reduction of this binop applied to {a} and {b} yields
@@ -318,6 +346,24 @@ TEST(ReduceWord32Shl) {
   R.CheckBinop(x, x, zero);  // x << 0  => x
 }
 
+TEST(ReduceWord64Shl) {
+  ReducerTester R;
+  R.binop = R.machine.Word64Shl();
+
+  FOR_INT64_INPUTS(i) {
+    for (int64_t y = 0; y < 64; y++) {
+      int64_t x = *i;
+      R.CheckFoldBinop<int64_t>(x << y, x, y);
+    }
+  }
+
+  R.CheckDontPutConstantOnRight(44);
+
+  Node* x = R.Parameter();
+  Node* zero = R.Constant<int64_t>(0);
+
+  R.CheckBinop(x, x, zero);  // x << 0  => x
+}
 
 TEST(ReduceWord32Shr) {
   ReducerTester R;
@@ -339,6 +385,24 @@ TEST(ReduceWord32Shr) {
   R.CheckBinop(x, x, zero);  // x >>> 0  => x
 }
 
+TEST(ReduceWord64Shr) {
+  ReducerTester R;
+  R.binop = R.machine.Word64Shr();
+
+  FOR_UINT64_INPUTS(i) {
+    for (uint64_t y = 0; y < 64; y++) {
+      uint64_t x = *i;
+      R.CheckFoldBinop<int64_t>(x >> y, x, y);
+    }
+  }
+
+  R.CheckDontPutConstantOnRight(44);
+
+  Node* x = R.Parameter();
+  Node* zero = R.Constant<int64_t>(0);
+
+  R.CheckBinop(x, x, zero);  // x >>> 0  => x
+}
 
 TEST(ReduceWord32Sar) {
   ReducerTester R;
@@ -360,9 +424,27 @@ TEST(ReduceWord32Sar) {
   R.CheckBinop(x, x, zero);  // x >> 0  => x
 }
 
+TEST(ReduceWord64Sar) {
+  ReducerTester R;
+  R.binop = R.machine.Word64Sar();
+
+  FOR_INT64_INPUTS(i) {
+    for (int64_t y = 0; y < 64; y++) {
+      int64_t x = *i;
+      R.CheckFoldBinop<int64_t>(x >> y, x, y);
+    }
+  }
+
+  R.CheckDontPutConstantOnRight(44);
+
+  Node* x = R.Parameter();
+  Node* zero = R.Constant<int64_t>(0);
+
+  R.CheckBinop(x, x, zero);  // x >> 0  => x
+}
 
 static void CheckJsShift(ReducerTester* R) {
-  DCHECK(R->machine.Word32ShiftIsSafe());
+  CHECK(R->machine.Word32ShiftIsSafe());
 
   Node* x = R->Parameter(0);
   Node* y = R->Parameter(1);
@@ -436,6 +518,24 @@ TEST(ReduceInt32Add) {
   R.CheckBinop(x, zero, x);  // 0 + x  => x
 }
 
+TEST(ReduceInt64Add) {
+  ReducerTester R;
+  R.binop = R.machine.Int64Add();
+
+  FOR_INT64_INPUTS(pl) {
+    FOR_INT64_INPUTS(pr) {
+      int64_t x = *pl, y = *pr;
+      R.CheckFoldBinop<int64_t>(x + y, x, y);
+    }
+  }
+
+  R.CheckPutConstantOnRight(41);
+
+  Node* x = R.Parameter();
+  Node* zero = R.Constant<int64_t>(0);
+  R.CheckBinop(x, x, zero);  // x + 0 => x
+  R.CheckBinop(x, zero, x);  // 0 + x => x
+}
 
 TEST(ReduceInt32Sub) {
   ReducerTester R;
@@ -456,6 +556,30 @@ TEST(ReduceInt32Sub) {
   R.CheckBinop(x, x, zero);  // x - 0  => x
 }
 
+TEST(ReduceInt64Sub) {
+  ReducerTester R;
+  R.binop = R.machine.Int64Sub();
+
+  FOR_INT64_INPUTS(pl) {
+    FOR_INT64_INPUTS(pr) {
+      int64_t x = *pl, y = *pr;
+      R.CheckFoldBinop<int64_t>(x - y, x, y);
+    }
+  }
+
+  R.CheckDontPutConstantOnRight(42);
+
+  Node* x = R.Parameter();
+  Node* zero = R.Constant<int64_t>(0);
+
+  R.CheckBinop(x, x, zero);            // x - 0 => x
+  R.CheckFoldBinop<int64_t>(0, x, x);  // x - x => 0
+
+  Node* k = R.Constant<int64_t>(6);
+
+  R.CheckFoldBinop<int64_t>(x, R.machine.Int64Add(), -6, x,
+                            k);  // x - K => x + -K
+}
 
 TEST(ReduceInt32Mul) {
   ReducerTester R;
@@ -619,13 +743,8 @@ TEST(ReduceInt32LessThan) {
   R.CheckDontPutConstantOnRight(-440197);
 
   Node* x = R.Parameter(0);
-  Node* y = R.Parameter(1);
-  Node* zero = R.Constant<int32_t>(0);
-  Node* sub = R.graph.NewNode(R.machine.Int32Sub(), x, y);
 
   R.CheckFoldBinop<int32_t>(0, x, x);  // x < x  => 0
-  R.CheckFoldBinop(x, y, sub, zero);   // x - y < 0 => x < y
-  R.CheckFoldBinop(y, x, zero, sub);   // 0 < x - y => y < x
 }
 
 
@@ -643,13 +762,8 @@ TEST(ReduceInt32LessThanOrEqual) {
   FOR_INT32_INPUTS(i) { R.CheckDontPutConstantOnRight<int32_t>(*i); }
 
   Node* x = R.Parameter(0);
-  Node* y = R.Parameter(1);
-  Node* zero = R.Constant<int32_t>(0);
-  Node* sub = R.graph.NewNode(R.machine.Int32Sub(), x, y);
 
   R.CheckFoldBinop<int32_t>(1, x, x);  // x <= x => 1
-  R.CheckFoldBinop(x, y, sub, zero);   // x - y <= 0 => x <= y
-  R.CheckFoldBinop(y, x, zero, sub);   // 0 <= x - y => y <= x
 }
 
 
@@ -706,8 +820,8 @@ TEST(ReduceLoadStore) {
 
   Node* base = R.Constant<int32_t>(11);
   Node* index = R.Constant<int32_t>(4);
-  Node* load = R.graph.NewNode(R.machine.Load(kMachInt32), base, index,
-                               R.graph.start(), R.graph.start());
+  Node* load = R.graph.NewNode(R.machine.Load(MachineType::Int32()), base,
+                               index, R.graph.start(), R.graph.start());
 
   {
     MachineOperatorReducer reducer(&R.jsgraph);
@@ -716,26 +830,61 @@ TEST(ReduceLoadStore) {
   }
 
   {
-    Node* store = R.graph.NewNode(
-        R.machine.Store(StoreRepresentation(kMachInt32, kNoWriteBarrier)), base,
-        index, load, load, R.graph.start());
+    Node* store =
+        R.graph.NewNode(R.machine.Store(StoreRepresentation(
+                            MachineRepresentation::kWord32, kNoWriteBarrier)),
+                        base, index, load, load, R.graph.start());
     MachineOperatorReducer reducer(&R.jsgraph);
     Reduction reduction = reducer.Reduce(store);
     CHECK(!reduction.Changed());  // stores should not be reduced.
   }
 }
 
+TEST(ReduceFloat32Sub) {
+  ReducerTester R;
+  R.binop = R.machine.Float32Sub();
+
+  FOR_FLOAT32_INPUTS(pl) {
+    FOR_FLOAT32_INPUTS(pr) {
+      float x = *pl, y = *pr;
+      R.CheckFoldBinop<float>(x - y, x, y);
+    }
+  }
+
+  Node* x = R.Parameter();
+  Node* zero = R.Constant<float>(0.0);
+  Node* nan = R.Constant<float>(std::numeric_limits<float>::quiet_NaN());
+
+  R.CheckBinop(x, x, zero);   // x - 0 => x
+  R.CheckBinop(nan, nan, x);  // nan - x  => nan
+  R.CheckBinop(nan, x, nan);  // x - nan => nan
+}
+
+TEST(ReduceFloat64Sub) {
+  ReducerTester R;
+  R.binop = R.machine.Float64Sub();
+
+  FOR_FLOAT64_INPUTS(pl) {
+    FOR_FLOAT64_INPUTS(pr) {
+      double x = *pl, y = *pr;
+      R.CheckFoldBinop<double>(x - y, x, y);
+    }
+  }
+
+  Node* x = R.Parameter();
+  Node* zero = R.Constant<double>(0.0);
+  Node* nan = R.Constant<double>(std::numeric_limits<double>::quiet_NaN());
+
+  R.CheckBinop(x, x, zero);   // x - 0 => x
+  R.CheckBinop(nan, nan, x);  // nan - x  => nan
+  R.CheckBinop(nan, x, nan);  // x - nan => nan
+}
 
 // TODO(titzer): test MachineOperatorReducer for Word64And
 // TODO(titzer): test MachineOperatorReducer for Word64Or
 // TODO(titzer): test MachineOperatorReducer for Word64Xor
-// TODO(titzer): test MachineOperatorReducer for Word64Shl
-// TODO(titzer): test MachineOperatorReducer for Word64Shr
-// TODO(titzer): test MachineOperatorReducer for Word64Sar
 // TODO(titzer): test MachineOperatorReducer for Word64Equal
 // TODO(titzer): test MachineOperatorReducer for Word64Not
-// TODO(titzer): test MachineOperatorReducer for Int64Add
-// TODO(titzer): test MachineOperatorReducer for Int64Sub
 // TODO(titzer): test MachineOperatorReducer for Int64Mul
 // TODO(titzer): test MachineOperatorReducer for Int64UMul
 // TODO(titzer): test MachineOperatorReducer for Int64Div

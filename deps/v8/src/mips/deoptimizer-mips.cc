@@ -38,14 +38,15 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     } else {
       pointer = code->instruction_start();
     }
-    CodePatcher patcher(pointer, 1);
+    CodePatcher patcher(isolate, pointer, 1);
     patcher.masm()->break_(0xCC);
 
     DeoptimizationInputData* data =
         DeoptimizationInputData::cast(code->deoptimization_data());
     int osr_offset = data->OsrPcOffset()->value();
     if (osr_offset > 0) {
-      CodePatcher osr_patcher(code->instruction_start() + osr_offset, 1);
+      CodePatcher osr_patcher(isolate, code->instruction_start() + osr_offset,
+                              1);
       osr_patcher.masm()->break_(0xCC);
     }
   }
@@ -66,7 +67,7 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     int call_size_in_words = call_size_in_bytes / Assembler::kInstrSize;
     DCHECK(call_size_in_bytes % Assembler::kInstrSize == 0);
     DCHECK(call_size_in_bytes <= patch_size());
-    CodePatcher patcher(call_address, call_size_in_words);
+    CodePatcher patcher(isolate, call_address, call_size_in_words);
     patcher.masm()->Call(deopt_entry, RelocInfo::NONE32);
     DCHECK(prev_call_address == NULL ||
            call_address >= prev_call_address + patch_size());
@@ -75,27 +76,6 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
 #ifdef DEBUG
     prev_call_address = call_address;
 #endif
-  }
-}
-
-
-void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
-  // Set the register values. The values are not important as there are no
-  // callee saved registers in JavaScript frames, so all registers are
-  // spilled. Registers fp and sp are set to the correct values though.
-
-  for (int i = 0; i < Register::kNumRegisters; i++) {
-    input_->SetRegister(i, i * 4);
-  }
-  input_->SetRegister(sp.code(), reinterpret_cast<intptr_t>(frame->sp()));
-  input_->SetRegister(fp.code(), reinterpret_cast<intptr_t>(frame->fp()));
-  for (int i = 0; i < DoubleRegister::kMaxNumRegisters; i++) {
-    input_->SetDoubleRegister(i, 0.0);
-  }
-
-  // Fill the frame content from the actual data on the frame.
-  for (unsigned i = 0; i < input_->GetFrameSize(); i += kPointerSize) {
-    input_->SetFrameSlot(i, Memory::uint32_at(tos + i));
   }
 }
 
@@ -118,13 +98,6 @@ void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
   }
 }
 
-
-bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
-  // There is no dynamic alignment padding on MIPS in the input frame.
-  return false;
-}
-
-
 #define __ masm()->
 
 
@@ -144,8 +117,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   // Save all FPU registers before messing with them.
   __ Subu(sp, sp, Operand(kDoubleRegsSize));
-  const RegisterConfiguration* config =
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
+  const RegisterConfiguration* config = RegisterConfiguration::Crankshaft();
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     const DoubleRegister fpu_reg = DoubleRegister::from_code(code);
@@ -181,10 +153,15 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ Subu(t0, fp, t0);
 
   // Allocate a new deoptimizer object.
-  // Pass four arguments in a0 to a3 and fifth & sixth arguments on stack.
   __ PrepareCallCFunction(6, t1);
+  // Pass four arguments in a0 to a3 and fifth & sixth arguments on stack.
+  __ mov(a0, zero_reg);
+  Label context_check;
+  __ lw(a1, MemOperand(fp, CommonFrameConstants::kContextOrFrameTypeOffset));
+  __ JumpIfSmi(a1, &context_check);
   __ lw(a0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-  __ li(a1, Operand(type()));  // bailout type,
+  __ bind(&context_check);
+  __ li(a1, Operand(type()));  // Bailout type.
   // a2: bailout id already loaded.
   // a3: code address or 0 already loaded.
   __ sw(t0, CFunctionArgumentOperand(5));  // Fp-to-sp delta.
@@ -260,6 +237,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   }
   __ pop(a0);  // Restore deoptimizer object (class Deoptimizer).
 
+  __ lw(sp, MemOperand(a0, Deoptimizer::caller_frame_top_offset()));
+
   // Replace the current (input) frame with the output frames.
   Label outer_push_loop, inner_push_loop,
       outer_loop_header, inner_loop_header;
@@ -267,8 +246,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // a1 = one past the last FrameDescription**.
   __ lw(a1, MemOperand(a0, Deoptimizer::output_count_offset()));
   __ lw(t0, MemOperand(a0, Deoptimizer::output_offset()));  // t0 is output_.
-  __ sll(a1, a1, kPointerSizeLog2);  // Count to offset.
-  __ addu(a1, t0, a1);  // a1 = one past the last FrameDescription**.
+  __ Lsa(a1, t0, a1, kPointerSizeLog2);
   __ BranchShort(&outer_loop_header);
   __ bind(&outer_push_loop);
   // Inner loop state: a2 = current FrameDescription*, a3 = loop index.

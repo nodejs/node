@@ -166,8 +166,6 @@ int a2i_ASN1_STRING(BIO *bp, ASN1_STRING *bs, char *buf, int size)
                                                       i * 2);
             if (sp == NULL) {
                 ASN1err(ASN1_F_A2I_ASN1_STRING, ERR_R_MALLOC_FAILURE);
-                if (s != NULL)
-                    OPENSSL_free(s);
                 goto err;
             }
             s = sp;
@@ -205,5 +203,7 @@ int a2i_ASN1_STRING(BIO *bp, ASN1_STRING *bs, char *buf, int size)
  err_sl:
         ASN1err(ASN1_F_A2I_ASN1_STRING, ASN1_R_SHORT_LINE);
     }
+    if (ret != 1)
+        OPENSSL_free(s);
     return (ret);
 }

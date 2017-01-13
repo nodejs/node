@@ -115,6 +115,10 @@ int uv__tcp_bind(uv_tcp_t* tcp,
                    IPV6_V6ONLY,
                    &on,
                    sizeof on) == -1) {
+#if defined(__MVS__)
+      if (errno == EOPNOTSUPP)
+        return -EINVAL;
+#endif
       return -errno;
     }
   }
@@ -130,6 +134,7 @@ int uv__tcp_bind(uv_tcp_t* tcp,
   }
   tcp->delayed_error = -errno;
 
+  tcp->flags |= UV_HANDLE_BOUND;
   if (addr->sa_family == AF_INET6)
     tcp->flags |= UV_HANDLE_IPV6;
 
@@ -158,11 +163,17 @@ int uv__tcp_connect(uv_connect_t* req,
 
   handle->delayed_error = 0;
 
-  do
+  do {
+    errno = 0;
     r = connect(uv__stream_fd(handle), addr, addrlen);
-  while (r == -1 && errno == EINTR);
+  } while (r == -1 && errno == EINTR);
 
-  if (r == -1) {
+  /* We not only check the return value, but also check the errno != 0.
+   * Because in rare cases connect() will return -1 but the errno
+   * is 0 (for example, on Android 4.3, OnePlus phone A0001_12_150227)
+   * and actually the tcp three-way handshake is completed.
+   */
+  if (r == -1 && errno != 0) {
     if (errno == EINPROGRESS)
       ; /* not an error */
     else if (errno == ECONNREFUSED)
@@ -181,7 +192,7 @@ int uv__tcp_connect(uv_connect_t* req,
   QUEUE_INIT(&req->queue);
   handle->connect_req = req;
 
-  uv__io_start(handle->loop, &handle->io_watcher, UV__POLLOUT);
+  uv__io_start(handle->loop, &handle->io_watcher, POLLOUT);
 
   if (handle->delayed_error)
     uv__io_feed(handle->loop, &handle->io_watcher);
@@ -266,14 +277,36 @@ int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
   if (err)
     return err;
 
+#ifdef __MVS__
+  /* on zOS the listen call does not bind automatically
+     if the socket is unbound. Hence the manual binding to
+     an arbitrary port is required to be done manually
+  */
+
+  if (!(tcp->flags & UV_HANDLE_BOUND)) {
+    struct sockaddr_storage saddr;
+    socklen_t slen  = sizeof(saddr);
+    memset(&saddr, 0, sizeof(saddr));
+
+    if (getsockname(tcp->io_watcher.fd, (struct sockaddr*) &saddr, &slen))
+      return -errno;
+
+    if (bind(tcp->io_watcher.fd, (struct sockaddr*) &saddr, slen))
+      return -errno;
+
+    tcp->flags |= UV_HANDLE_BOUND;
+  }
+#endif
+
   if (listen(tcp->io_watcher.fd, backlog))
     return -errno;
 
   tcp->connection_cb = cb;
+  tcp->flags |= UV_HANDLE_BOUND;
 
   /* Start listening for connections. */
   tcp->io_watcher.cb = uv__server_io;
-  uv__io_start(tcp->loop, &tcp->io_watcher, UV__POLLIN);
+  uv__io_start(tcp->loop, &tcp->io_watcher, POLLIN);
 
   return 0;
 }

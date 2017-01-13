@@ -1,14 +1,14 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 console.error(process.uptime());
 assert.ok(process.uptime() <= 2);
 
-var original = process.uptime();
+const original = process.uptime();
 
 setTimeout(function() {
-  var uptime = process.uptime();
+  const uptime = process.uptime();
   // some wiggle room to account for timer
   // granularity, processor speed, and scheduling
   assert.ok(uptime >= original + 2);

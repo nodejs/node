@@ -1,12 +1,12 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+require('../common');
+const assert = require('assert');
+const http = require('http');
 
-var expected = 'This is a unicode text: سلام';
-var result = '';
+const expected = 'This is a unicode text: سلام';
+let result = '';
 
-var server = http.Server(function(req, res) {
+const server = http.Server(function(req, res) {
   req.setEncoding('utf8');
   req.on('data', function(chunk) {
     result += chunk;
@@ -18,9 +18,9 @@ var server = http.Server(function(req, res) {
 
 });
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   http.request({
-    port: common.PORT,
+    port: this.address().port,
     path: '/',
     method: 'POST'
   }, function(res) {
@@ -33,5 +33,5 @@ server.listen(common.PORT, function() {
 });
 
 process.on('exit', function() {
-  assert.equal(expected, result);
+  assert.strictEqual(expected, result);
 });

@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(jochen): Remove this after the setting is turned on globally.
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include "test/cctest/compiler/function-tester.h"
 
 namespace v8 {
@@ -64,7 +61,6 @@ TEST(ThrowMessageDirectly) {
 
 
 TEST(ThrowMessageIndirectly) {
-  i::FLAG_turbo_try_finally = true;
   static const char* src =
       "(function(a, b) {"
       "  try {"
@@ -173,7 +169,6 @@ TEST(CatchCall) {
 
 
 TEST(Finally) {
-  i::FLAG_turbo_try_finally = true;
   const char* src =
       "(function(a,b) {"
       "  var r = '-';"
@@ -191,7 +186,6 @@ TEST(Finally) {
 
 
 TEST(FinallyBreak) {
-  i::FLAG_turbo_try_finally = true;
   const char* src =
       "(function(a,b) {"
       "  var r = '-';"
@@ -247,7 +241,6 @@ TEST(DeoptCatch) {
 
 
 TEST(DeoptFinallyReturn) {
-  i::FLAG_turbo_try_finally = true;
   const char* src =
       "(function f(a) {"
       "  try {"
@@ -264,7 +257,6 @@ TEST(DeoptFinallyReturn) {
 
 
 TEST(DeoptFinallyReThrow) {
-  i::FLAG_turbo_try_finally = true;
   const char* src =
       "(function f(a) {"
       "  try {"
@@ -275,9 +267,7 @@ TEST(DeoptFinallyReThrow) {
       "})";
   FunctionTester T(src);
 
-#if 0  // TODO(mstarzinger): Enable once we can.
   T.CheckThrows(T.NewObject("new Error"), T.Val(1));
-#endif
 }
 
 }  // namespace compiler

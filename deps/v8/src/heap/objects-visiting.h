@@ -9,6 +9,7 @@
 #include "src/heap/heap.h"
 #include "src/heap/spaces.h"
 #include "src/layout-descriptor.h"
+#include "src/objects-body-descriptors.h"
 
 // This file provides base classes and auxiliary methods for defining
 // static object visitors used during GC.
@@ -57,6 +58,15 @@ class StaticVisitorBase : public AllStatic {
   V(JSObject8)             \
   V(JSObject9)             \
   V(JSObjectGeneric)       \
+  V(JSApiObject2)          \
+  V(JSApiObject3)          \
+  V(JSApiObject4)          \
+  V(JSApiObject5)          \
+  V(JSApiObject6)          \
+  V(JSApiObject7)          \
+  V(JSApiObject8)          \
+  V(JSApiObject9)          \
+  V(JSApiObjectGeneric)    \
   V(Struct2)               \
   V(Struct3)               \
   V(Struct4)               \
@@ -75,12 +85,11 @@ class StaticVisitorBase : public AllStatic {
   V(Cell)                  \
   V(PropertyCell)          \
   V(WeakCell)              \
+  V(TransitionArray)       \
   V(SharedFunctionInfo)    \
   V(JSFunction)            \
   V(JSWeakCollection)      \
   V(JSArrayBuffer)         \
-  V(JSTypedArray)          \
-  V(JSDataView)            \
   V(JSRegExp)
 
   // For data objects, JS objects and structs along with generic visitor which
@@ -96,9 +105,10 @@ class StaticVisitorBase : public AllStatic {
 #define VISITOR_ID_ENUM_DECL(id) kVisit##id,
     VISITOR_ID_LIST(VISITOR_ID_ENUM_DECL)
 #undef VISITOR_ID_ENUM_DECL
-    kVisitorIdCount,
+        kVisitorIdCount,
     kVisitDataObject = kVisitDataObject2,
     kVisitJSObject = kVisitJSObject2,
+    kVisitJSApiObject = kVisitJSApiObject2,
     kVisitStruct = kVisitStruct2,
   };
 
@@ -119,11 +129,12 @@ class StaticVisitorBase : public AllStatic {
                                        int object_size,
                                        bool has_unboxed_fields) {
     DCHECK((base == kVisitDataObject) || (base == kVisitStruct) ||
-           (base == kVisitJSObject));
+           (base == kVisitJSObject) || (base == kVisitJSApiObject));
     DCHECK(IsAligned(object_size, kPointerSize));
     DCHECK(Heap::kMinObjectSizeInWords * kPointerSize <= object_size);
     DCHECK(object_size <= Page::kMaxRegularHeapObjectSize);
-    DCHECK(!has_unboxed_fields || (base == kVisitJSObject));
+    DCHECK(!has_unboxed_fields || (base == kVisitJSObject) ||
+           (base == kVisitJSApiObject));
 
     if (has_unboxed_fields) return generic;
 
@@ -248,7 +259,9 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
 
   INLINE(static void VisitPointers(Heap* heap, HeapObject* object,
                                    Object** start, Object** end)) {
-    for (Object** p = start; p < end; p++) StaticVisitor::VisitPointer(heap, p);
+    for (Object** p = start; p < end; p++) {
+      StaticVisitor::VisitPointer(heap, object, p);
+    }
   }
 
   // Although we are using the JSFunction body descriptor which does not
@@ -269,10 +282,6 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
     return FixedDoubleArray::SizeFor(length);
   }
 
-  INLINE(static int VisitFixedTypedArray(Map* map, HeapObject* object)) {
-    return reinterpret_cast<FixedTypedArrayBase*>(object)->size();
-  }
-
   INLINE(static int VisitJSObject(Map* map, HeapObject* object)) {
     return JSObjectVisitor::Visit(map, object);
   }
@@ -291,9 +300,6 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
     return FreeSpace::cast(object)->size();
   }
 
-  INLINE(static int VisitJSArrayBuffer(Map* map, HeapObject* object));
-  INLINE(static int VisitJSTypedArray(Map* map, HeapObject* object));
-  INLINE(static int VisitJSDataView(Map* map, HeapObject* object));
   INLINE(static int VisitBytecodeArray(Map* map, HeapObject* object));
 
   class DataObjectVisitor {
@@ -350,6 +356,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
   INLINE(static void VisitPropertyCell(Map* map, HeapObject* object));
   INLINE(static void VisitWeakCell(Map* map, HeapObject* object));
+  INLINE(static void VisitTransitionArray(Map* map, HeapObject* object));
   INLINE(static void VisitCodeEntry(Heap* heap, HeapObject* object,
                                     Address entry_address));
   INLINE(static void VisitEmbeddedPointer(Heap* heap, RelocInfo* rinfo));
@@ -371,24 +378,11 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   INLINE(static void VisitWeakCollection(Map* map, HeapObject* object));
   INLINE(static void VisitJSFunction(Map* map, HeapObject* object));
   INLINE(static void VisitJSRegExp(Map* map, HeapObject* object));
-  INLINE(static void VisitJSArrayBuffer(Map* map, HeapObject* object));
-  INLINE(static void VisitJSTypedArray(Map* map, HeapObject* object));
-  INLINE(static void VisitJSDataView(Map* map, HeapObject* object));
   INLINE(static void VisitNativeContext(Map* map, HeapObject* object));
   INLINE(static void VisitBytecodeArray(Map* map, HeapObject* object));
 
-  // Mark pointers in a Map and its TransitionArray together, possibly
-  // treating transitions or back pointers weak.
+  // Mark pointers in a Map treating some elements of the descriptor array weak.
   static void MarkMapContents(Heap* heap, Map* map);
-  static void MarkTransitionArray(Heap* heap, TransitionArray* transitions);
-
-  // Mark pointers in the optimized code map that should act as strong
-  // references, possibly treating some entries weak.
-  static void MarkOptimizedCodeMap(Heap* heap, FixedArray* code_map);
-
-  // Mark non-optimized code for functions inlined into the given optimized
-  // code. This will prevent it from being flushed.
-  static void MarkInlinedFunctionsCode(Heap* heap, Code* code);
 
   // Code flushing support.
   INLINE(static bool IsFlushable(Heap* heap, JSFunction* function));
@@ -414,6 +408,28 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
   typedef FlexibleBodyVisitor<StaticVisitor, JSObject::BodyDescriptor, void>
       JSObjectVisitor;
+
+  class JSApiObjectVisitor : AllStatic {
+   public:
+    template <int size>
+    static inline void VisitSpecialized(Map* map, HeapObject* object) {
+      TracePossibleWrapper(object);
+      JSObjectVisitor::template VisitSpecialized<size>(map, object);
+    }
+
+    INLINE(static void Visit(Map* map, HeapObject* object)) {
+      TracePossibleWrapper(object);
+      JSObjectVisitor::Visit(map, object);
+    }
+
+   private:
+    INLINE(static void TracePossibleWrapper(HeapObject* object)) {
+      if (object->GetHeap()->UsingEmbedderHeapTracer()) {
+        DCHECK(object->IsJSObject());
+        object->GetHeap()->TracePossibleWrapper(JSObject::cast(object));
+      }
+    }
+  };
 
   typedef FlexibleBodyVisitor<StaticVisitor, StructBodyDescriptor, void>
       StructObjectVisitor;

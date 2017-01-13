@@ -1,6 +1,8 @@
 #ifndef SRC_NODE_CRYPTO_CLIENTHELLO_H_
 #define SRC_NODE_CRYPTO_CLIENTHELLO_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "node.h"
 
 #include <stddef.h>  // size_t
@@ -89,7 +91,7 @@ class ClientHelloParser {
 
   bool ParseRecordHeader(const uint8_t* data, size_t avail);
   void ParseHeader(const uint8_t* data, size_t avail);
-  void ParseExtension(ExtensionType type,
+  void ParseExtension(const uint16_t type,
                       const uint8_t* data,
                       size_t len);
   bool ParseTLSClientHello(const uint8_t* data, size_t avail);
@@ -111,5 +113,7 @@ class ClientHelloParser {
 };
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_CRYPTO_CLIENTHELLO_H_

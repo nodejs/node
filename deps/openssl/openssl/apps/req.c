@@ -101,8 +101,8 @@
 #define STRING_MASK     "string_mask"
 #define UTF8_IN         "utf8"
 
-#define DEFAULT_KEY_LENGTH      512
-#define MIN_KEY_LENGTH          384
+#define DEFAULT_KEY_LENGTH      2048
+#define MIN_KEY_LENGTH          512
 
 #undef PROG
 #define PROG    req_main
@@ -332,9 +332,10 @@ int MAIN(int argc, char **argv)
             subject = 1;
         else if (strcmp(*argv, "-text") == 0)
             text = 1;
-        else if (strcmp(*argv, "-x509") == 0)
+        else if (strcmp(*argv, "-x509") == 0) {
+            newreq = 1;
             x509 = 1;
-        else if (strcmp(*argv, "-asn1-kludge") == 0)
+        } else if (strcmp(*argv, "-asn1-kludge") == 0)
             kludge = 1;
         else if (strcmp(*argv, "-no-asn1-kludge") == 0)
             kludge = 0;
@@ -756,7 +757,7 @@ int MAIN(int argc, char **argv)
         }
     }
 
-    if (newreq || x509) {
+    if (newreq) {
         if (pkey == NULL) {
             BIO_printf(bio_err, "you need to specify a private key\n");
             goto end;
@@ -1331,12 +1332,11 @@ static int auto_info(X509_REQ *req, STACK_OF(CONF_VALUE) *dn_sk,
                 break;
             }
 #ifndef CHARSET_EBCDIC
-        if (*p == '+')
+        if (*type == '+') {
 #else
-        if (*p == os_toascii['+'])
+        if (*type == os_toascii['+']) {
 #endif
-        {
-            p++;
+            type++;
             mval = -1;
         } else
             mval = 0;

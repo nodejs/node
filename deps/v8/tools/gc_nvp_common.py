@@ -12,7 +12,7 @@ import re
 
 def split_nvp(s):
   t = {}
-  for (name, value) in re.findall(r"(\w+)=([-\w]+(?:\.[0-9]+)?)", s):
+  for (name, value) in re.findall(r"([._\w]+)=([-\w]+(?:\.[0-9]+)?)", s):
     try:
       t[name] = float(value)
     except ValueError:

@@ -2,14 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+'use strict';
+
 var typedArray = new Int8Array(1);
 var saved;
 var called;
-typedArray.constructor = function(x) { called = true; saved = x };
-typedArray.constructor.prototype = Int8Array.prototype;
+class TypedArraySubclass extends Int8Array {
+  constructor(x) {
+    super(x);
+    called = true;
+    saved = x;
+  }
+}
+typedArray.constructor = TypedArraySubclass
 typedArray.map(function(){});
 
-// To meet the spec, constructor shouldn't be called directly, but
-// if it is called for now, the argument should be an Array
-assertTrue(called); // Will fail later; when so, delete this test
-assertEquals("Array", saved.constructor.name);
+assertTrue(called);
+assertEquals(saved, 1);

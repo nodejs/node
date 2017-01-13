@@ -70,12 +70,6 @@ discover your package as it's listed in `npm search`.
 
 The url to the project homepage.
 
-**NOTE**: This is *not* the same as "url".  If you put a "url" field,
-then the registry will think it's a redirection to your package that has
-been published somewhere else, and spit at you.
-
-Literally.  Spit.  I'm so not kidding.
-
 ## bugs
 
 The url to your project's issue tracker and / or the email address to which
@@ -113,7 +107,7 @@ expression syntax version 2.0 string](https://npmjs.com/package/spdx), like this
     { "license" : "(ISC OR GPL-3.0)" }
 
 If you are using a license that hasn't been assigned an SPDX identifier, or if
-you are using a custom license, use the following valid SPDX expression:
+you are using a custom license, use a string value like this one:
 
     { "license" : "SEE LICENSE IN <filename>" }
 
@@ -186,9 +180,13 @@ works just like a `.gitignore`.
 Certain files are always included, regardless of settings:
 
 * `package.json`
-* `README` (and its variants)
-* `CHANGELOG` (and its variants)
+* `README`
+* `CHANGES` / `CHANGELOG` / `HISTORY`
 * `LICENSE` / `LICENCE`
+* `NOTICE`
+* The file in the "main" field
+
+`README`, `CHANGES`, `LICENSE` & `NOTICE` can have any case and extension.
 
 Conversely, some files are always ignored:
 
@@ -198,10 +196,14 @@ Conversely, some files are always ignored:
 * `.hg`
 * `.lock-wscript`
 * `.wafpickle-N`
-* `*.swp`
+* `.*.swp`
 * `.DS_Store`
 * `._*`
 * `npm-debug.log`
+* `.npmrc`
+* `node_modules`
+* `config.gypi`
+* `*.orig`
 
 ## main
 
@@ -245,6 +247,10 @@ would be the same as this:
     { "name": "my-program"
     , "version": "1.2.5"
     , "bin" : { "my-program" : "./path/to/program" } }
+
+Please make sure that your file(s) referenced in `bin` starts with
+`#!/usr/bin/env node`, otherwise the scripts are started without the node
+executable!
 
 ## man
 
@@ -324,6 +330,11 @@ maybe, someday.
 ### directories.example
 
 Put example scripts in here.  Someday, it might be exposed in some clever way.
+
+### directories.test
+
+Put your tests in here. It is currently not exposed, but it might be in the
+future.
 
 ## repository
 
@@ -409,7 +420,7 @@ See semver(7) for more details about specifying version ranges.
 * `range1 || range2` Passes if either range1 or range2 are satisfied.
 * `git...` See 'Git URLs as Dependencies' below
 * `user/repo` See 'GitHub URLs' below
-* `tag` A specific version tagged and published as `tag`  See `npm-tag(1)`
+* `tag` A specific version tagged and published as `tag`  See `npm-dist-tag(1)`
 * `path/path/path` See [Local Paths](#local-paths) below
 
 For example, these are all valid:
@@ -460,8 +471,9 @@ included.  For example:
       "name": "foo",
       "version": "0.0.0",
       "dependencies": {
-        "express": "visionmedia/express",
-        "mocha": "visionmedia/mocha#4727d357ea"
+        "express": "expressjs/express",
+        "mocha": "mochajs/mocha#4727d357ea",
+        "module": "user/repo#feature\/branch"
       }
     }
 
@@ -505,7 +517,7 @@ from the root of a package, and can be managed like any other npm
 configuration param.  See `npm-config(7)` for more on the topic.
 
 For build steps that are not platform-specific, such as compiling
-CoffeeScript or other languages to JavaScript, use the `prepublish`
+CoffeeScript or other languages to JavaScript, use the `prepare`
 script to do this, and make the required package a devDependency.
 
 For example:
@@ -517,12 +529,12 @@ For example:
         "coffee-script": "~1.6.3"
       },
       "scripts": {
-        "prepublish": "coffee -o lib/ -c src/waza.coffee"
+        "prepare": "coffee -o lib/ -c src/waza.coffee"
       },
       "main": "lib/waza.js"
     }
 
-The `prepublish` script will be run before publishing, so that users
+The `prepare` script will be run before publishing, so that users
 can consume the functionality without requiring them to compile it
 themselves.  In dev mode (ie, locally running `npm install`), it'll
 run this script as well, so that you can test it easily.
@@ -569,7 +581,31 @@ this. If you depend on features introduced in 1.5.2, use `">= 1.5.2 < 2"`.
 
 ## bundledDependencies
 
-Array of package names that will be bundled when publishing the package.
+This defines an array of package names that will be bundled when publishing
+the package.
+
+In cases where you need to preserve npm packages locally or have them
+available through a single file download, you can bundle the packages in a
+tarball file by specifying the package names in the `bundledDependencies`
+array and executing `npm pack`.
+
+For example:
+
+If we define a package.json like this:
+
+```
+{
+  "name": "awesome-web-framework",
+  "version": "1.0.0",
+  "bundledDependencies": [
+    'renderized', 'super-streams'
+  ]
+}
+```
+we can obtain `awesome-web-framework-1.0.0.tgz` file by running `npm pack`.
+This file contains the dependencies `renderized` and `super-streams` which
+can be installed in a new project by executing `npm install
+awesome-web-framework-1.0.0.tgz`.
 
 If this is spelled `"bundleDependencies"`, then that is also honored.
 
@@ -621,15 +657,15 @@ are capable of properly installing your program.  For example:
 
     { "engines" : { "npm" : "~1.0.20" } }
 
-Note that, unless the user has set the `engine-strict` config flag, this
-field is advisory only.
+Unless the user has set the `engine-strict` config flag, this
+field is advisory only will produce warnings when your package is installed as a dependency.
 
 ## engineStrict
 
-**This feature was deprecated with npm 3.0.0**
+**This feature was removed in npm 3.0.0**
 
 Prior to npm 3.0.0, this feature was used to treat this package as if the
-user had set `engine-strict`.
+user had set `engine-strict`. It is no longer used.
 
 ## os
 
@@ -703,10 +739,10 @@ npm will default some values based on package contents.
   If there is a `server.js` file in the root of your package, then npm
   will default the `start` command to `node server.js`.
 
-* `"scripts":{"preinstall": "node-gyp rebuild"}`
+* `"scripts":{"install": "node-gyp rebuild"}`
 
-  If there is a `binding.gyp` file in the root of your package, npm will
-  default the `preinstall` command to compile using node-gyp.
+  If there is a `binding.gyp` file in the root of your package and you have not defined an `install` or `preinstall` script, npm will
+  default the `install` command to compile using node-gyp.
 
 * `"contributors": [...]`
 
@@ -723,7 +759,6 @@ npm will default some values based on package contents.
 * npm-config(1)
 * npm-config(7)
 * npm-help(1)
-* npm-faq(7)
 * npm-install(1)
 * npm-publish(1)
 * npm-uninstall(1)

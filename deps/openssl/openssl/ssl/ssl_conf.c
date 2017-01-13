@@ -330,11 +330,19 @@ static int cmd_Protocol(SSL_CONF_CTX *cctx, const char *value)
         SSL_FLAG_TBL_INV("TLSv1.1", SSL_OP_NO_TLSv1_1),
         SSL_FLAG_TBL_INV("TLSv1.2", SSL_OP_NO_TLSv1_2)
     };
+    int ret;
+    int sslv2off;
+
     if (!(cctx->flags & SSL_CONF_FLAG_FILE))
         return -2;
     cctx->tbl = ssl_protocol_list;
     cctx->ntbl = sizeof(ssl_protocol_list) / sizeof(ssl_flag_tbl);
-    return CONF_parse_list(value, ',', 1, ssl_set_option_list, cctx);
+
+    sslv2off = *cctx->poptions & SSL_OP_NO_SSLv2;
+    ret = CONF_parse_list(value, ',', 1, ssl_set_option_list, cctx);
+    /* Never turn on SSLv2 through configuration */
+    *cctx->poptions |= sslv2off;
+    return ret;
 }
 
 static int cmd_Options(SSL_CONF_CTX *cctx, const char *value)

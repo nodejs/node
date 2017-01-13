@@ -40,7 +40,10 @@ var json = {
     postrestart: 'exit 123',
     preversion: 'exit 123',
     version: 'exit 123',
-    postversion: 'exit 123'
+    postversion: 'exit 123',
+    preshrinkwrap: 'exit 123',
+    shrinkwrap: 'exit 123',
+    postshrinkwrap: 'exit 123'
   }
 }
 
@@ -73,7 +76,8 @@ var scripts = [
   'prestop', 'stop', 'poststop',
   'prestart', 'start', 'poststart',
   'prerestart', 'restart', 'postrestart',
-  'preversion', 'version', 'postversion'
+  'preversion', 'version', 'postversion',
+  'preshrinkwrap', 'shrinkwrap', 'postshrinkwrap'
 ]
 
 scripts.forEach(function (script) {

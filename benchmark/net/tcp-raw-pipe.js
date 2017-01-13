@@ -1,5 +1,6 @@
 // In this benchmark, we connect a client to the server, and write
 // as many bytes as we can in the specified time (default = 10s)
+'use strict';
 
 var common = require('../common.js');
 var util = require('util');
@@ -76,8 +77,7 @@ function client() {
   var chunk;
   switch (type) {
     case 'buf':
-      chunk = new Buffer(len);
-      chunk.fill('x');
+      chunk = Buffer.alloc(len, 'x');
       break;
     case 'utf':
       chunk = new Array(len / 2 + 1).join('ü');
@@ -87,7 +87,6 @@ function client() {
       break;
     default:
       throw new Error('invalid type: ' + type);
-      break;
   }
 
   var clientHandle = new TCP();
@@ -117,6 +116,7 @@ function client() {
       // multiply by 2 since we're sending it first one way
       // then then back again.
       bench.end(2 * (bytes * 8) / (1024 * 1024 * 1024));
+      process.exit(0);
     }, dur * 1000);
 
     while (clientHandle.writeQueueSize === 0)

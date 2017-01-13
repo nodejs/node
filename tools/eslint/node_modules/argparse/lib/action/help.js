@@ -11,7 +11,7 @@ var util = require('util');
 var Action = require('../action');
 
 // Constants
-var $$  = require('../const');
+var c  = require('../const');
 
 /*:nodoc:*
  * new ActionHelp(options)
@@ -22,11 +22,10 @@ var ActionHelp = module.exports = function ActionHelp(options) {
   options = options || {};
   if (options.defaultValue !== null) {
     options.defaultValue = options.defaultValue;
+  } else {
+    options.defaultValue = c.SUPPRESS;
   }
-  else {
-    options.defaultValue = $$.SUPPRESS;
-  }
-  options.dest = (options.dest !== null ? options.dest: $$.SUPPRESS);
+  options.dest = (options.dest !== null ? options.dest : c.SUPPRESS);
   options.nargs = 0;
   Action.call(this, options);
 

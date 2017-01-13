@@ -51,7 +51,8 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
       Assembler::kMinimalBufferSize, &actual_size, true));
   CHECK(buffer);
   HandleScope handles(isolate);
-  MacroAssembler assm(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler assm(isolate, buffer, static_cast<int>(actual_size),
+                      v8::internal::CodeObjectRequired::kYes);
   int offset =
     source_reg.is(rsp) ? 0 : (HeapNumber::kValueOffset - kSmiTagSize);
   DoubleToIStub stub(isolate, source_reg, destination_reg, offset, true);
@@ -63,9 +64,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   __ pushq(rsi);
   __ pushq(rdi);
 
-
-  const RegisterConfiguration* config =
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
+  const RegisterConfiguration* config = RegisterConfiguration::Crankshaft();
   if (!source_reg.is(rsp)) {
     // The argument we pass to the stub is not a heap number, but instead
     // stack-allocated and offset-wise made to look like a heap number for

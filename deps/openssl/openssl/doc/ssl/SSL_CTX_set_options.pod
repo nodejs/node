@@ -189,14 +189,24 @@ browser has a cert, it will crash/hang.  Works for 3.x and 4.xbeta
 =item SSL_OP_NO_SSLv2
 
 Do not use the SSLv2 protocol.
+As of OpenSSL 1.0.2g the B<SSL_OP_NO_SSLv2> option is set by default.
 
 =item SSL_OP_NO_SSLv3
 
 Do not use the SSLv3 protocol.
+It is recommended that applications should set this option.
 
 =item SSL_OP_NO_TLSv1
 
 Do not use the TLSv1 protocol.
+
+=item SSL_OP_NO_TLSv1_1
+
+Do not use the TLSv1.1 protocol.
+
+=item SSL_OP_NO_TLSv1_2
+
+Do not use the TLSv1.2 protocol.
 
 =item SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION
 

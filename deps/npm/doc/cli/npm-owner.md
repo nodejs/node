@@ -7,6 +7,8 @@ npm-owner(1) -- Manage package owners
     npm owner rm <user> [<@scope>/]<pkg>
     npm owner ls [<@scope>/]<pkg>
 
+    aliases: author
+
 ## DESCRIPTION
 
 Manage ownership of published packages.

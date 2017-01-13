@@ -72,10 +72,32 @@ BN_ULONG BN_mod_word(const BIGNUM *a, BN_ULONG w)
     if (w == 0)
         return (BN_ULONG)-1;
 
+#ifndef BN_LLONG
+    /*
+     * If |w| is too long and we don't have BN_ULLONG then we need to fall
+     * back to using BN_div_word
+     */
+    if (w > ((BN_ULONG)1 << BN_BITS4)) {
+        BIGNUM *tmp = BN_dup(a);
+        if (tmp == NULL)
+            return (BN_ULONG)-1;
+
+        ret = BN_div_word(tmp, w);
+        BN_free(tmp);
+
+        return ret;
+    }
+#endif
+
     bn_check_top(a);
     w &= BN_MASK2;
     for (i = a->top - 1; i >= 0; i--) {
 #ifndef BN_LLONG
+        /*
+         * We can assume here that | w <= ((BN_ULONG)1 << BN_BITS4) | and so
+         * | ret < ((BN_ULONG)1 << BN_BITS4) | and therefore the shifts here are
+         * safe and will not overflow
+         */
         ret = ((ret << BN_BITS4) | ((a->d[i] >> BN_BITS4) & BN_MASK2l)) % w;
         ret = ((ret << BN_BITS4) | (a->d[i] & BN_MASK2l)) % w;
 #else

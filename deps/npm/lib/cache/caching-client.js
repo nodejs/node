@@ -75,6 +75,10 @@ function get (uri, params, cb) {
     return get_.call(this, uri, cachePath, params, cb)
   }
 
+  if (params.skipCache) {
+    return get_.call(this, uri, cachePath, params, cb)
+  }
+
   var client = this
   fs.stat(cachePath, function (er, stat) {
     if (!er) {
@@ -111,6 +115,8 @@ function get_ (uri, cachePath, params, cb) {
   if (data) {
     if (data._etag) etag = data._etag
     if (data._lastModified) lastModified = data._lastModified
+
+    data._cached = true
 
     if (stat && timeout && timeout > 0) {
       if ((Date.now() - stat.mtime.getTime()) / 1000 < timeout) {
@@ -207,6 +213,8 @@ function adaptConfig (config) {
     userAgent: config.get('user-agent'),
     log: log,
     defaultTag: config.get('tag'),
-    couchToken: config.get('_token')
+    couchToken: config.get('_token'),
+    maxSockets: config.get('maxsockets'),
+    scope: npm.projectScope
   }
 }

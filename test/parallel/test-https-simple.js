@@ -2,7 +2,7 @@
 const common = require('../common');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 
@@ -34,11 +34,11 @@ const serverCallback = common.mustCall(function(req, res) {
 
 const server = https.createServer(options, serverCallback);
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   // Do a request ignoring the unauthorized server certs
   const noCertCheckOptions = {
     hostname: '127.0.0.1',
-    port: common.PORT,
+    port: this.address().port,
     path: '/',
     method: 'GET',
     rejectUnauthorized: false
@@ -52,7 +52,7 @@ server.listen(common.PORT, function() {
     });
 
     res.on('end', function() {
-      assert.equal(responseBody, body);
+      assert.strictEqual(responseBody, body);
       testSucceeded();
     });
   });
@@ -65,7 +65,7 @@ server.listen(common.PORT, function() {
   // Do a request that throws error due to the invalid server certs
   const checkCertOptions = {
     hostname: '127.0.0.1',
-    port: common.PORT,
+    port: this.address().port,
     path: '/',
     method: 'GET'
   };
@@ -82,11 +82,11 @@ server.listen(common.PORT, function() {
   checkCertReq.end();
 
   checkCertReq.on('error', function(e) {
-    assert.equal(e.code, 'UNABLE_TO_VERIFY_LEAF_SIGNATURE');
+    assert.strictEqual(e.code, 'UNABLE_TO_VERIFY_LEAF_SIGNATURE');
     testSucceeded();
   });
 });
 
 process.on('exit', function() {
-  assert.equal(successful, tests);
+  assert.strictEqual(successful, tests);
 });

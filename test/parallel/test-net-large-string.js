@@ -1,35 +1,30 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
-var kPoolSize = 40 * 1024;
-var data = '';
-for (var i = 0; i < kPoolSize; ++i) {
-  data += 'あ'; // 3bytes
-}
-var receivedSize = 0;
-var encoding = 'UTF-8';
+const kPoolSize = 40 * 1024;
+const data = 'あ'.repeat(kPoolSize);
+const encoding = 'UTF-8';
 
-var server = net.createServer(function(socket) {
+const server = net.createServer(common.mustCall(function(socket) {
+  let receivedSize = 0;
+
   socket.setEncoding(encoding);
   socket.on('data', function(data) {
     receivedSize += data.length;
   });
-  socket.on('end', function() {
+  socket.on('end', common.mustCall(function() {
+    assert.strictEqual(receivedSize, kPoolSize);
     socket.end();
-  });
-});
+  }));
+}));
 
-server.listen(common.PORT, function() {
-  var client = net.createConnection(common.PORT);
+server.listen(0, function() {
+  const client = net.createConnection(this.address().port);
   client.on('end', function() {
     server.close();
   });
   client.write(data, encoding);
   client.end();
-});
-
-process.on('exit', function() {
-  assert.equal(receivedSize, kPoolSize);
 });

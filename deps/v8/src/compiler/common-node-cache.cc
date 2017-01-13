@@ -16,6 +16,11 @@ Node** CommonNodeCache::FindExternalConstant(ExternalReference value) {
 }
 
 
+Node** CommonNodeCache::FindHeapConstant(Handle<HeapObject> value) {
+  return heap_constants_.Find(zone(), bit_cast<intptr_t>(value.address()));
+}
+
+
 void CommonNodeCache::GetCachedNodes(ZoneVector<Node*>* nodes) {
   int32_constants_.GetCachedNodes(nodes);
   int64_constants_.GetCachedNodes(nodes);
@@ -23,6 +28,9 @@ void CommonNodeCache::GetCachedNodes(ZoneVector<Node*>* nodes) {
   float64_constants_.GetCachedNodes(nodes);
   external_constants_.GetCachedNodes(nodes);
   number_constants_.GetCachedNodes(nodes);
+  heap_constants_.GetCachedNodes(nodes);
+  relocatable_int32_constants_.GetCachedNodes(nodes);
+  relocatable_int64_constants_.GetCachedNodes(nodes);
 }
 
 }  // namespace compiler

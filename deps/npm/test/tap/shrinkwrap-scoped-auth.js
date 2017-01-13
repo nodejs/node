@@ -19,8 +19,6 @@ var tarball = resolve(__dirname, '../fixtures/scoped-underscore-1.3.1.tgz')
 
 var server
 
-var EXEC_OPTS = { cwd: pkg }
-
 function mocks (server) {
   var auth = 'Bearer 0xabad1dea'
   server.get(tarballPath, { authorization: auth }).replyWithFile(200, tarball)
@@ -43,17 +41,16 @@ test('authed npm install with shrinkwrapped scoped package', function (t) {
   common.npm(
     [
       'install',
-      '--loglevel', 'silent',
+      '--loglevel', 'warn',
       '--json',
       '--fetch-retries', 0,
       '--userconfig', outfile
     ],
-    EXEC_OPTS,
+    {cwd: pkg},
     function (err, code, stdout, stderr) {
-      console.error(stderr)
-      t.ifError(err, 'test runner executed without error')
+      if (err) throw err
+      if (stderr) t.comment(stderr)
       t.equal(code, 0, 'npm install exited OK')
-      t.notOk(stderr, 'no output on stderr')
       try {
         var results = JSON.parse(stdout)
       } catch (ex) {

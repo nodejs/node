@@ -40,7 +40,7 @@ function listener(event, exec_state, event_data, data) {
   if (event != Debug.DebugEvent.Break) return;
   try {
     assertEquals(expected, exec_state.frame(0).evaluate('arg').value());
-    exec_state.frame(0).evaluate('arg = "evaluated";');
+    exec_state.frame(0).evaluate('arg = "evaluated";');  // no effect
   } catch (e) {
     exception = e;
   }

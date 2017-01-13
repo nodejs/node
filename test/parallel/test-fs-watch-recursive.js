@@ -2,8 +2,8 @@
 
 const common = require('../common');
 
-if (!(process.platform === 'darwin' || common.isWindows)) {
-  console.log('1..0 # Skipped: recursive option is darwin/windows specific');
+if (!(common.isOSX || common.isWindows)) {
+  common.skip('recursive option is darwin/windows specific');
   return;
 }
 
@@ -13,18 +13,16 @@ const fs = require('fs');
 
 const testDir = common.tmpDir;
 const filenameOne = 'watch.txt';
-const testsubdirName = 'testsubdir';
-const testsubdir = path.join(testDir, testsubdirName);
-const relativePathOne = path.join('testsubdir', filenameOne);
-const filepathOne = path.join(testsubdir, filenameOne);
 
 common.refreshTmpDir();
 
-fs.mkdirSync(testsubdir, 0o700);
+const testsubdir = fs.mkdtempSync(testDir + path.sep);
+const relativePathOne = path.join(path.basename(testsubdir), filenameOne);
+const filepathOne = path.join(testsubdir, filenameOne);
 
 const watcher = fs.watch(testDir, {recursive: true});
 
-var watcherClosed = false;
+let watcherClosed = false;
 watcher.on('change', function(event, filename) {
   assert.ok('change' === event || 'rename' === event);
 
@@ -32,11 +30,21 @@ watcher.on('change', function(event, filename) {
   if (filename !== relativePathOne)
     return;
 
+  if (common.isOSX) {
+    clearInterval(interval);
+  }
   watcher.close();
   watcherClosed = true;
 });
 
-fs.writeFileSync(filepathOne, 'world');
+let interval;
+if (common.isOSX) {
+  interval = setInterval(function() {
+    fs.writeFileSync(filepathOne, 'world');
+  }, 10);
+} else {
+  fs.writeFileSync(filepathOne, 'world');
+}
 
 process.on('exit', function() {
   assert(watcherClosed, 'watcher Object was not closed');

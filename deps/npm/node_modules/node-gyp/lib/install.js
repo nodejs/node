@@ -1,6 +1,8 @@
 
 module.exports = exports = install
 
+module.exports.test = { download: download, readCAFile: readCAFile }
+
 exports.usage = 'Install node development files for the specified node version.'
 
 /**
@@ -110,45 +112,6 @@ function install (gyp, argv, callback) {
     go()
   }
 
-  function download (url) {
-    log.http('GET', url)
-
-    var req = null
-    var requestOpts = {
-        uri: url
-      , headers: {
-          'User-Agent': 'node-gyp v' + gyp.version + ' (node ' + process.version + ')'
-        }
-    }
-
-    // basic support for a proxy server
-    var proxyUrl = gyp.opts.proxy
-                || process.env.http_proxy
-                || process.env.HTTP_PROXY
-                || process.env.npm_config_proxy
-    if (proxyUrl) {
-      if (/^https?:\/\//i.test(proxyUrl)) {
-        log.verbose('download', 'using proxy url: "%s"', proxyUrl)
-        requestOpts.proxy = proxyUrl
-      } else {
-        log.warn('download', 'ignoring invalid "proxy" config setting: "%s"', proxyUrl)
-      }
-    }
-    try {
-      // The "request" constructor can throw sometimes apparently :(
-      // See: https://github.com/nodejs/node-gyp/issues/114
-      req = request(requestOpts)
-    } catch (e) {
-      cb(e)
-    }
-    if (req) {
-      req.on('response', function (res) {
-        log.http(res.statusCode, url)
-      })
-    }
-    return req
-  }
-
   function getContentSha(res, callback) {
     var shasum = crypto.createHash('sha256')
     res.on('data', function (chunk) {
@@ -218,8 +181,11 @@ function install (gyp, argv, callback) {
         return
       }
 
-      var req = download(release.tarballUrl)
-      if (!req) return
+      try {
+        var req = download(gyp, process.env, release.tarballUrl)
+      } catch (e) {
+        return cb(e)
+      }
 
       // something went wrong downloading the tarball?
       req.on('error', function (err) {
@@ -311,8 +277,12 @@ function install (gyp, argv, callback) {
         var shasumsPath = path.resolve(devDir, 'SHASUMS256.txt')
 
         log.verbose('checksum url', release.shasumsUrl)
-        var req = download(release.shasumsUrl)
-        if (!req) return
+        try {
+          var req = download(gyp, process.env, release.shasumsUrl)
+        } catch (e) {
+          return cb(e)
+        }
+
         req.on('error', done)
         req.on('response', function (res) {
           if (res.statusCode !== 200) {
@@ -358,8 +328,12 @@ function install (gyp, argv, callback) {
           if (err) return done(err)
           log.verbose('streaming 32-bit ' + release.name + '.lib to:', libPath32)
 
-          var req = download(release.libUrl32)
-          if (!req) return
+          try {
+            var req = download(gyp, process.env, release.libUrl32, cb)
+          } catch (e) {
+            return cb(e)
+          }
+
           req.on('error', done)
           req.on('response', function (res) {
             if (res.statusCode !== 200) {
@@ -384,8 +358,12 @@ function install (gyp, argv, callback) {
           if (err) return done(err)
           log.verbose('streaming 64-bit ' + release.name + '.lib to:', libPath64)
 
-          var req = download(release.libUrl64)
-          if (!req) return
+          try {
+            var req = download(gyp, process.env, release.libUrl64, cb)
+          } catch (e) {
+            return cb(e)
+          }
+
           req.on('error', done)
           req.on('response', function (res) {
             if (res.statusCode !== 200) {
@@ -443,4 +421,49 @@ function install (gyp, argv, callback) {
     gyp.commands.install(argv, cb)
   }
 
+}
+
+function download (gyp, env, url) {
+  log.http('GET', url)
+
+  var requestOpts = {
+      uri: url
+    , headers: {
+        'User-Agent': 'node-gyp v' + gyp.version + ' (node ' + process.version + ')'
+      }
+  }
+
+  var cafile = gyp.opts.cafile
+  if (cafile) {
+    requestOpts.ca = readCAFile(cafile)
+  }
+
+  // basic support for a proxy server
+  var proxyUrl = gyp.opts.proxy
+              || env.http_proxy
+              || env.HTTP_PROXY
+              || env.npm_config_proxy
+  if (proxyUrl) {
+    if (/^https?:\/\//i.test(proxyUrl)) {
+      log.verbose('download', 'using proxy url: "%s"', proxyUrl)
+      requestOpts.proxy = proxyUrl
+    } else {
+      log.warn('download', 'ignoring invalid "proxy" config setting: "%s"', proxyUrl)
+    }
+  }
+
+  var req = request(requestOpts)
+  req.on('response', function (res) {
+    log.http(res.statusCode, url)
+  })
+
+  return req
+}
+
+function readCAFile (filename) {
+  // The CA file can contain multiple certificates so split on certificate
+  // boundaries.  [\S\s]*? is used to match everything including newlines.
+  var ca = fs.readFileSync(filename, 'utf8')
+  var re = /(-----BEGIN CERTIFICATE-----[\S\s]*?-----END CERTIFICATE-----)/g
+  return ca.match(re)
 }

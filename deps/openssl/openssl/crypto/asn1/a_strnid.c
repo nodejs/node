@@ -250,6 +250,7 @@ int ASN1_STRING_TABLE_add(int nid,
         }
         tmp->flags = flags | STABLE_FLAGS_MALLOC;
         tmp->nid = nid;
+        tmp->minsize = tmp->maxsize = -1;
         new_nid = 1;
     } else
         tmp->flags = (tmp->flags & STABLE_FLAGS_MALLOC) | flags;

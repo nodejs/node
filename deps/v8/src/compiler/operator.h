@@ -30,26 +30,33 @@ namespace compiler {
 // meaningful to the operator itself.
 class Operator : public ZoneObject {
  public:
-  typedef uint8_t Opcode;
+  typedef uint16_t Opcode;
 
   // Properties inform the operator-independent optimizer about legal
   // transformations for nodes that have this operator.
   enum Property {
     kNoProperties = 0,
-    kReducible = 1 << 0,    // Participates in strength reduction.
-    kCommutative = 1 << 1,  // OP(a, b) == OP(b, a) for all inputs.
-    kAssociative = 1 << 2,  // OP(a, OP(b,c)) == OP(OP(a,b), c) for all inputs.
-    kIdempotent = 1 << 3,   // OP(a); OP(a) == OP(a).
-    kNoRead = 1 << 4,       // Has no scheduling dependency on Effects
-    kNoWrite = 1 << 5,      // Does not modify any Effects and thereby
+    kCommutative = 1 << 0,  // OP(a, b) == OP(b, a) for all inputs.
+    kAssociative = 1 << 1,  // OP(a, OP(b,c)) == OP(OP(a,b), c) for all inputs.
+    kIdempotent = 1 << 2,   // OP(a); OP(a) == OP(a).
+    kNoRead = 1 << 3,       // Has no scheduling dependency on Effects
+    kNoWrite = 1 << 4,      // Does not modify any Effects and thereby
                             // create new scheduling dependencies.
-    kNoThrow = 1 << 6,      // Can never generate an exception.
+    kNoThrow = 1 << 5,      // Can never generate an exception.
+    kNoDeopt = 1 << 6,      // Can never generate an eager deoptimization exit.
     kFoldable = kNoRead | kNoWrite,
-    kKontrol = kFoldable | kNoThrow,
-    kEliminatable = kNoWrite | kNoThrow,
-    kPure = kNoRead | kNoWrite | kNoThrow | kIdempotent
+    kKontrol = kNoDeopt | kFoldable | kNoThrow,
+    kEliminatable = kNoDeopt | kNoWrite | kNoThrow,
+    kPure = kNoDeopt | kNoRead | kNoWrite | kNoThrow | kIdempotent
   };
+
+// List of all bits, for the visualizer.
+#define OPERATOR_PROPERTY_LIST(V) \
+  V(Commutative)                  \
+  V(Associative) V(Idempotent) V(NoRead) V(NoWrite) V(NoThrow) V(NoDeopt)
+
   typedef base::Flags<Property, uint8_t> Properties;
+  enum class PrintVerbosity { kVerbose, kSilent };
 
   // Constructor.
   Operator(Opcode opcode, Properties properties, const char* mnemonic,
@@ -111,11 +118,20 @@ class Operator : public ZoneObject {
   }
 
   // TODO(titzer): API for input and output types, for typechecking graph.
- protected:
+
   // Print the full operator into the given stream, including any
   // static parameters. Useful for debugging and visualizing the IR.
-  virtual void PrintTo(std::ostream& os) const;
-  friend std::ostream& operator<<(std::ostream& os, const Operator& op);
+  void PrintTo(std::ostream& os,
+               PrintVerbosity verbose = PrintVerbosity::kVerbose) const {
+    // We cannot make PrintTo virtual, because default arguments to virtual
+    // methods are banned in the style guide.
+    return PrintToImpl(os, verbose);
+  }
+
+  void PrintPropsTo(std::ostream& os) const;
+
+ protected:
+  virtual void PrintToImpl(std::ostream& os, PrintVerbosity verbose) const;
 
  private:
   Opcode opcode_;
@@ -136,10 +152,19 @@ DEFINE_OPERATORS_FOR_FLAGS(Operator::Properties)
 std::ostream& operator<<(std::ostream& os, const Operator& op);
 
 
+// Default equality function for below Operator1<*> class.
+template <typename T>
+struct OpEqualTo : public std::equal_to<T> {};
+
+
+// Default hashing function for below Operator1<*> class.
+template <typename T>
+struct OpHash : public base::hash<T> {};
+
+
 // A templatized implementation of Operator that has one static parameter of
-// type {T}.
-template <typename T, typename Pred = std::equal_to<T>,
-          typename Hash = base::hash<T>>
+// type {T} with the proper default equality and hashing functions.
+template <typename T, typename Pred = OpEqualTo<T>, typename Hash = OpHash<T>>
 class Operator1 : public Operator {
  public:
   Operator1(Opcode opcode, Properties properties, const char* mnemonic,
@@ -163,14 +188,19 @@ class Operator1 : public Operator {
   size_t HashCode() const final {
     return base::hash_combine(this->opcode(), this->hash_(this->parameter()));
   }
-  virtual void PrintParameter(std::ostream& os) const {
-    os << "[" << this->parameter() << "]";
+  // For most parameter types, we have only a verbose way to print them, namely
+  // ostream << parameter. But for some types it is particularly useful to have
+  // a shorter way to print them for the node labels in Turbolizer. The
+  // following method can be overridden to provide a concise and a verbose
+  // printing of a parameter.
+
+  virtual void PrintParameter(std::ostream& os, PrintVerbosity verbose) const {
+    os << "[" << parameter() << "]";
   }
 
- protected:
-  void PrintTo(std::ostream& os) const final {
+  virtual void PrintToImpl(std::ostream& os, PrintVerbosity verbose) const {
     os << mnemonic();
-    PrintParameter(os);
+    PrintParameter(os, verbose);
   }
 
  private:
@@ -183,46 +213,38 @@ class Operator1 : public Operator {
 // Helper to extract parameters from Operator1<*> operator.
 template <typename T>
 inline T const& OpParameter(const Operator* op) {
-  return reinterpret_cast<const Operator1<T>*>(op)->parameter();
+  return reinterpret_cast<const Operator1<T, OpEqualTo<T>, OpHash<T>>*>(op)
+      ->parameter();
 }
+
 
 // NOTE: We have to be careful to use the right equal/hash functions below, for
 // float/double we always use the ones operating on the bit level, for Handle<>
 // we always use the ones operating on the location level.
 template <>
-inline float const& OpParameter(const Operator* op) {
-  return reinterpret_cast<const Operator1<float, base::bit_equal_to<float>,
-                                          base::bit_hash<float>>*>(op)
-      ->parameter();
-}
+struct OpEqualTo<float> : public base::bit_equal_to<float> {};
+template <>
+struct OpHash<float> : public base::bit_hash<float> {};
 
 template <>
-inline double const& OpParameter(const Operator* op) {
-  return reinterpret_cast<const Operator1<double, base::bit_equal_to<double>,
-                                          base::bit_hash<double>>*>(op)
-      ->parameter();
-}
+struct OpEqualTo<double> : public base::bit_equal_to<double> {};
+template <>
+struct OpHash<double> : public base::bit_hash<double> {};
 
 template <>
-inline Handle<HeapObject> const& OpParameter(const Operator* op) {
-  return reinterpret_cast<
-             const Operator1<Handle<HeapObject>, Handle<HeapObject>::equal_to,
-                             Handle<HeapObject>::hash>*>(op)->parameter();
-}
+struct OpEqualTo<Handle<HeapObject>> : public Handle<HeapObject>::equal_to {};
+template <>
+struct OpHash<Handle<HeapObject>> : public Handle<HeapObject>::hash {};
 
 template <>
-inline Handle<String> const& OpParameter(const Operator* op) {
-  return reinterpret_cast<const Operator1<
-      Handle<String>, Handle<String>::equal_to, Handle<String>::hash>*>(op)
-      ->parameter();
-}
+struct OpEqualTo<Handle<String>> : public Handle<String>::equal_to {};
+template <>
+struct OpHash<Handle<String>> : public Handle<String>::hash {};
 
 template <>
-inline Handle<ScopeInfo> const& OpParameter(const Operator* op) {
-  return reinterpret_cast<
-             const Operator1<Handle<ScopeInfo>, Handle<ScopeInfo>::equal_to,
-                             Handle<ScopeInfo>::hash>*>(op)->parameter();
-}
+struct OpEqualTo<Handle<ScopeInfo>> : public Handle<ScopeInfo>::equal_to {};
+template <>
+struct OpHash<Handle<ScopeInfo>> : public Handle<ScopeInfo>::hash {};
 
 }  // namespace compiler
 }  // namespace internal

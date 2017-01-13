@@ -46,7 +46,8 @@ static inline void* mmapHelper(size_t len, int prot, int flags, int fildes,
 const char* OS::LocalTimezone(double time, TimezoneCache* cache) {
   if (std::isnan(time)) return "";
   time_t tv = static_cast<time_t>(floor(time / msPerSecond));
-  struct tm* t = localtime(&tv);  // NOLINT(runtime/threadsafe_fn)
+  struct tm tm;
+  struct tm* t = localtime_r(&tv, &tm);
   if (NULL == t) return "";
   return tzname[0];  // The location of the timezone string on AIX.
 }
@@ -56,7 +57,8 @@ double OS::LocalTimeOffset(TimezoneCache* cache) {
   // On AIX, struct tm does not contain a tm_gmtoff field.
   time_t utc = time(NULL);
   DCHECK(utc != -1);
-  struct tm* loc = localtime(&utc);  // NOLINT(runtime/threadsafe_fn)
+  struct tm tm;
+  struct tm* loc = localtime_r(&utc, &tm);
   DCHECK(loc != NULL);
   return static_cast<double>((mktime(loc) - utc) * msPerSecond);
 }
@@ -215,13 +217,8 @@ void* VirtualMemory::ReserveRegion(size_t size) {
 
 
 bool VirtualMemory::CommitRegion(void* base, size_t size, bool is_executable) {
-#if defined(__native_client__)
-  // The Native Client port of V8 uses an interpreter,
-  // so code pages don't need PROT_EXEC.
-  int prot = PROT_READ | PROT_WRITE;
-#else
   int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
-#endif
+
   if (mprotect(base, size, prot) == -1) return false;
 
   return true;
@@ -230,6 +227,11 @@ bool VirtualMemory::CommitRegion(void* base, size_t size, bool is_executable) {
 
 bool VirtualMemory::UncommitRegion(void* base, size_t size) {
   return mprotect(base, size, PROT_NONE) != -1;
+}
+
+bool VirtualMemory::ReleasePartialRegion(void* base, size_t size,
+                                         void* free_start, size_t free_size) {
+  return munmap(free_start, free_size) == 0;
 }
 
 

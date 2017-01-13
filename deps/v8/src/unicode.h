@@ -155,6 +155,11 @@ class Utf8 {
   // UTF-8.
   static const unsigned kMax16BitCodeUnitSize  = 3;
   static inline uchar ValueOf(const byte* str, size_t length, size_t* cursor);
+
+  // Excludes non-characters from the set of valid code points.
+  static inline bool IsValidCharacter(uchar c);
+
+  static bool Validate(const byte* str, size_t length);
 };
 
 struct Uppercase {

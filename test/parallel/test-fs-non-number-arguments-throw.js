@@ -15,17 +15,20 @@ const saneEmitter = fs.createReadStream(tempFile, { start: 4, end: 6 });
 
 assert.throws(function() {
   fs.createReadStream(tempFile, { start: '4', end: 6 });
-}, "start as string didn't throw an error for createReadStream");
+}, /^TypeError: "start" option must be a Number$/,
+              "start as string didn't throw an error for createReadStream");
 
 assert.throws(function() {
   fs.createReadStream(tempFile, { start: 4, end: '6' });
-}, "end as string didn't throw an error");
+}, /^TypeError: "end" option must be a Number$/,
+              "end as string didn't throw an error for createReadStream");
 
 assert.throws(function() {
   fs.createWriteStream(tempFile, { start: '4' });
-}, "start as string didn't throw an error for createWriteStream");
+}, /^TypeError: "start" option must be a Number$/,
+              "start as string didn't throw an error for createWriteStream");
 
-saneEmitter.on('data', function(data) {
+saneEmitter.on('data', common.mustCall(function(data) {
   assert.strictEqual(sanity, data.toString('utf8'), 'read ' +
                      data.toString('utf8') + ' instead of ' + sanity);
-});
+}));

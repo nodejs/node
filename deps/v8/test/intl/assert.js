@@ -87,14 +87,13 @@ function deepEquals(a, b) {
   return deepObjectEquals(a, b);
 }
 
-
 /**
- * Throws an exception, and prints the values in case of error.
+ * Throws an exception containing the user_message (if any) and the values.
  */
-function fail(expected, found) {
+function fail(expected, found, user_message = '') {
   // TODO(cira): Replace String with PrettyPrint for objects and arrays.
-  var message = 'Failure: expected <' + String(expected) + '>, found <' +
-      String(found) + '>.';
+  var message = 'Failure' + (user_message ? ' (' + user_message + ')' : '') +
+      ': expected <' + String(expected) + '>, found <' + String(found) + '>.';
   throw new Error(message);
 }
 
@@ -102,9 +101,9 @@ function fail(expected, found) {
 /**
  * Throws if two variables have different types or values.
  */
-function assertEquals(expected, found) {
+function assertEquals(expected, found, user_message = '') {
   if (!deepEquals(expected, found)) {
-    fail(expected, found);
+    fail(expected, found, user_message);
   }
 }
 
@@ -112,49 +111,49 @@ function assertEquals(expected, found) {
 /**
  * Throws if value is false.
  */
-function assertTrue(value) {
-  assertEquals(true, value)
+function assertTrue(value, user_message = '') {
+  assertEquals(true, value, user_message);
 }
 
 
 /**
  * Throws if value is true.
  */
-function assertFalse(value) {
-  assertEquals(false, value);
+function assertFalse(value, user_message = '') {
+  assertEquals(false, value, user_message);
 }
 
 
 /**
- * Returns true if code throws specified exception.
+ * Runs code() and asserts that it throws the specified exception.
  */
 function assertThrows(code, type_opt, cause_opt) {
-  var threwException = true;
   try {
     if (typeof code == 'function') {
       code();
     } else {
       eval(code);
     }
-    threwException = false;
   } catch (e) {
     if (typeof type_opt == 'function') {
       assertInstanceof(e, type_opt);
     }
     if (arguments.length >= 3) {
-      assertEquals(e.type, cause_opt);
+      assertEquals(cause_opt, e.type, 'thrown exception type mismatch');
     }
     // Success.
     return;
   }
-  throw new Error("Did not throw exception");
+  var expected = arguments.length >= 3 ? cause_opt :
+      typeof type_opt == 'function' ? type_opt : 'any exception';
+  fail(expected, 'no exception', 'expected thrown exception');
 }
 
 
 /**
- * Throws an exception if code throws.
+ * Runs code() and asserts that it does now throw any exception.
  */
-function assertDoesNotThrow(code, name_opt) {
+function assertDoesNotThrow(code, user_message = '') {
   try {
     if (typeof code == 'function') {
       code();
@@ -162,7 +161,7 @@ function assertDoesNotThrow(code, name_opt) {
       eval(code);
     }
   } catch (e) {
-    fail("threw an exception: ", e.message || e, name_opt);
+    fail("no expection", "exception: " + String(e), user_message);
   }
 }
 

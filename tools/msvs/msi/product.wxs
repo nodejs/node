@@ -23,6 +23,10 @@
              Compressed="yes"
              InstallScope="perMachine"/>
 
+    <Condition Message="This application is only supported on Windows 7, Windows Server 2008 R2, or higher.">
+      <![CDATA[Installed OR (VersionNT >= 601)]]>
+    </Condition>
+
     <Media Id="1" Cabinet="media1.cab" EmbedCab="yes"/>
 
     <MajorUpgrade AllowSameVersionUpgrades="yes"
@@ -42,7 +46,7 @@
     <Property Id="ApplicationFolderName" Value="nodejs"/>
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR"/>
 
-    <Property Id="INSTALLDIR">
+    <Property Id="INSTALLDIR" Secure="yes">
       <RegistrySearch Id="InstallPathRegistry"
                       Type="raw"
                       Root="HKLM"
@@ -353,6 +357,7 @@
     </UI>
 
     <UIRef Id="WixUI_Common"/>
+    <UIRef Id="WixUI_ErrorProgressText"/>
     <WixVariable Id="WixUIBannerBmp" Value="..\..\..\doc\thin-white-stripe.jpg"/>
     <WixVariable Id="WixUIDialogBmp" Value="..\..\..\doc\full-white-stripe.jpg"/>
     <WixVariable Id="WixUILicenseRtf" Value="$(var.SourceDir)\LICENSE.rtf"/>

@@ -445,6 +445,8 @@ gcm_gmult_vis3:
 .align	32
 gcm_ghash_vis3:
 	save	%sp,-$frame,%sp
+	nop
+	srln	$len,0,$len		! needed on v8+, "nop" on v9
 
 	ldx	[$Xip+8],$C2		! load Xi
 	ldx	[$Xip+0],$C3

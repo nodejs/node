@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(jochen): Remove this after the setting is turned on globally.
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include "test/cctest/compiler/function-tester.h"
 
 namespace v8 {
@@ -18,7 +15,6 @@ static const char* load_tests[] = {
     "var x = (r = x)",                        "undefined", "undefined",
     "var x = (a?1:2); r = x",                 "1",         "2",
     "const x = a; r = x",                     "123",       "0",
-    "const x = (r = x)",                      "undefined", "undefined",
     "const x = (a?3:4); r = x",               "3",         "4",
     "'use strict'; const x = a; r = x",       "123",       "0",
     "'use strict'; const x = (r = x)",        throws,      throws,
@@ -32,21 +28,11 @@ static const char* store_tests[] = {
     "var x = 1; x = a; r = x",                     "123",  "0",
     "var x = (a?(x=4,2):3); r = x",                "2",    "3",
     "var x = (a?4:5); x = a; r = x",               "123",  "0",
-    "const x = 1; x = a; r = x",                   "1",    "1",
-    "const x = (a?(x=4,2):3); r = x",              "2",    "3",
-    "const x = (a?4:5); x = a; r = x",             "4",    "5",
     // Assignments to 'const' are SyntaxErrors, handled by the parser,
     // hence we cannot test them here because they are early errors.
     "'use strict'; let x = 1; x = a; r = x",       "123",  "0",
     "'use strict'; let x = (a?(x=4,2):3); r = x",  throws, "3",
     "'use strict'; let x = (a?4:5); x = a; r = x", "123",  "0",
-    NULL};
-
-static const char* bind_tests[] = {
-    "if (a) { const x = a }; r = x;",            "123", "undefined",
-    "for (; a > 0; a--) { const x = a }; r = x", "123", "undefined",
-    // Re-initialization of variables other than legacy 'const' is not
-    // possible due to sane variable scoping, hence no tests here.
     NULL};
 
 
@@ -98,18 +84,6 @@ TEST(StackStoreVariables) {
 TEST(ContextStoreVariables) {
   const char* source = "(function(a,r) { %s; function f() {x} return r; })";
   RunVariableTests(source, store_tests);
-}
-
-
-TEST(StackInitializeVariables) {
-  const char* source = "(function(a,r) { %s; return r; })";
-  RunVariableTests(source, bind_tests);
-}
-
-
-TEST(ContextInitializeVariables) {
-  const char* source = "(function(a,r) { %s; function f() {x} return r; })";
-  RunVariableTests(source, bind_tests);
 }
 
 

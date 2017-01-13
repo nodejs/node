@@ -1,5 +1,6 @@
 // throughput benchmark
 // creates a single hasher, then pushes a bunch of data through it
+'use strict';
 var common = require('../common.js');
 var crypto = require('crypto');
 
@@ -20,9 +21,6 @@ function main(conf) {
     api = 'legacy';
   }
 
-  var crypto = require('crypto');
-  var assert = require('assert');
-
   var message;
   var encoding;
   switch (conf.type) {
@@ -35,8 +33,7 @@ function main(conf) {
       encoding = 'utf8';
       break;
     case 'buf':
-      message = new Buffer(conf.len);
-      message.fill('b');
+      message = Buffer.alloc(conf.len, 'b');
       break;
     default:
       throw new Error('unknown message type: ' + conf.type);
@@ -60,7 +57,7 @@ function legacyWrite(algo, message, encoding, writes, len, outEnc) {
 
     // include buffer creation costs for older versions
     if (outEnc === 'buffer' && typeof res === 'string')
-      res = new Buffer(res, 'binary');
+      res = Buffer.from(res, 'binary');
   }
 
   bench.end(gbits);

@@ -7,8 +7,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "src/base/file-utils.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
+#include "src/utils.h"
 
 
 namespace v8 {
@@ -44,10 +46,13 @@ void Load(const char* blob_file, v8::StartupData* startup_data,
           void (*setter_fn)(v8::StartupData*)) {
   ClearStartupData(startup_data);
 
-  if (!blob_file) return;
+  CHECK(blob_file);
 
   FILE* file = fopen(blob_file, "rb");
-  if (!file) return;
+  if (!file) {
+    PrintF(stderr, "Failed to open startup resource '%s'.\n", blob_file);
+    return;
+  }
 
   fseek(file, 0, SEEK_END);
   startup_data->raw_size = static_cast<int>(ftell(file));
@@ -58,7 +63,11 @@ void Load(const char* blob_file, v8::StartupData* startup_data,
                                          1, startup_data->raw_size, file));
   fclose(file);
 
-  if (startup_data->raw_size == read_size) (*setter_fn)(startup_data);
+  if (startup_data->raw_size == read_size) {
+    (*setter_fn)(startup_data);
+  } else {
+    PrintF(stderr, "Corrupted startup resource '%s'.\n", blob_file);
+  }
 }
 
 
@@ -67,27 +76,6 @@ void LoadFromFiles(const char* natives_blob, const char* snapshot_blob) {
   Load(snapshot_blob, &g_snapshot, v8::V8::SetSnapshotDataBlob);
 
   atexit(&FreeStartupData);
-}
-
-
-char* RelativePath(char** buffer, const char* exec_path, const char* name) {
-  DCHECK(exec_path);
-  int path_separator = static_cast<int>(strlen(exec_path)) - 1;
-  while (path_separator >= 0 &&
-         !base::OS::isDirectorySeparator(exec_path[path_separator])) {
-    path_separator--;
-  }
-  if (path_separator >= 0) {
-    int name_length = static_cast<int>(strlen(name));
-    *buffer =
-        reinterpret_cast<char*>(calloc(path_separator + name_length + 2, 1));
-    *buffer[0] = '\0';
-    strncat(*buffer, exec_path, path_separator + 1);
-    strncat(*buffer, name, name_length);
-  } else {
-    *buffer = strdup(name);
-  }
-  return *buffer;
 }
 
 }  // namespace

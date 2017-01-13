@@ -57,9 +57,8 @@ class SnapshotByteSource final {
     return answer;
   }
 
-  bool GetBlob(const byte** data, int* number_of_bytes);
-
-  bool AtEOF();
+  // Returns length.
+  int GetBlob(const byte** data);
 
   int position() { return position_; }
 
@@ -95,7 +94,7 @@ class SnapshotByteSink {
   void PutRaw(const byte* data, int number_of_bytes, const char* description);
   int Position() { return data_.length(); }
 
-  const List<byte>& data() const { return data_; }
+  const List<byte>* data() const { return &data_; }
 
  private:
   List<byte> data_;

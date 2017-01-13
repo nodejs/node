@@ -1120,7 +1120,7 @@ L$dec8x_loop_grande:
 	vpxor	%xmm15,%xmm8,%xmm8
 	vmovdqu	%xmm9,112(%rbp)
 	vpxor	%xmm15,%xmm9,%xmm9
-	xorq	$128,%rbp
+	xorq	$0x80,%rbp
 	movl	$1,%ecx
 	jmp	L$oop_dec8x
 

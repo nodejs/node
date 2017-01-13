@@ -1,41 +1,41 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+require('../common');
+const assert = require('assert');
+const http = require('http');
 
-var expectedHeadersMultipleWrites = {
+const expectedHeadersMultipleWrites = {
   'connection': 'close',
   'transfer-encoding': 'chunked',
 };
 
-var expectedHeadersEndWithData = {
+const expectedHeadersEndWithData = {
   'connection': 'close',
-  'content-length': 'hello world'.length,
+  'content-length': String('hello world'.length)
 };
 
-var expectedHeadersEndNoData = {
+const expectedHeadersEndNoData = {
   'connection': 'close',
   'content-length': '0',
 };
 
-var receivedRequests = 0;
-var totalRequests = 3;
+let receivedRequests = 0;
+const totalRequests = 3;
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   res.removeHeader('Date');
 
   switch (req.url.substr(1)) {
     case 'multiple-writes':
-      assert.deepEqual(req.headers, expectedHeadersMultipleWrites);
+      assert.deepStrictEqual(req.headers, expectedHeadersMultipleWrites);
       res.write('hello');
       res.end('world');
       break;
     case 'end-with-data':
-      assert.deepEqual(req.headers, expectedHeadersEndWithData);
+      assert.deepStrictEqual(req.headers, expectedHeadersEndWithData);
       res.end('hello world');
       break;
     case 'empty':
-      assert.deepEqual(req.headers, expectedHeadersEndNoData);
+      assert.deepStrictEqual(req.headers, expectedHeadersEndNoData);
       res.end();
       break;
     default:
@@ -46,11 +46,11 @@ var server = http.createServer(function(req, res) {
   if (totalRequests === receivedRequests) server.close();
 });
 
-server.listen(common.PORT, function() {
-  var req;
+server.listen(0, function() {
+  let req;
 
   req = http.request({
-    port: common.PORT,
+    port: this.address().port,
     method: 'POST',
     path: '/multiple-writes'
   });
@@ -59,11 +59,11 @@ server.listen(common.PORT, function() {
   req.write('hello ');
   req.end('world');
   req.on('response', function(res) {
-    assert.deepEqual(res.headers, expectedHeadersMultipleWrites);
+    assert.deepStrictEqual(res.headers, expectedHeadersMultipleWrites);
   });
 
   req = http.request({
-    port: common.PORT,
+    port: this.address().port,
     method: 'POST',
     path: '/end-with-data'
   });
@@ -71,11 +71,11 @@ server.listen(common.PORT, function() {
   req.removeHeader('Host');
   req.end('hello world');
   req.on('response', function(res) {
-    assert.deepEqual(res.headers, expectedHeadersEndWithData);
+    assert.deepStrictEqual(res.headers, expectedHeadersEndWithData);
   });
 
   req = http.request({
-    port: common.PORT,
+    port: this.address().port,
     method: 'POST',
     path: '/empty'
   });
@@ -83,7 +83,7 @@ server.listen(common.PORT, function() {
   req.removeHeader('Host');
   req.end();
   req.on('response', function(res) {
-    assert.deepEqual(res.headers, expectedHeadersEndNoData);
+    assert.deepStrictEqual(res.headers, expectedHeadersEndNoData);
   });
 
 });

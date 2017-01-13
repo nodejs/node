@@ -51,7 +51,8 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
       Assembler::kMinimalBufferSize, &actual_size, true));
   CHECK(buffer);
   HandleScope handles(isolate);
-  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size));
+  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
+                      v8::internal::CodeObjectRequired::kYes);
   DoubleToIStub stub(isolate, source_reg, destination_reg, 0, true,
                      inline_fastpath);
 
@@ -77,8 +78,9 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   int source_reg_offset = kDoubleSize;
   int reg_num = 0;
   for (; reg_num < Register::kNumRegisters; ++reg_num) {
-    Register reg = Register::from_code(reg_num);
-    if (reg.IsAllocatable()) {
+    if (RegisterConfiguration::Crankshaft()->IsAllocatableGeneralCode(
+            reg_num)) {
+      Register reg = Register::from_code(reg_num);
       if (!reg.is(destination_reg)) {
         __ push(reg);
         source_reg_offset += kPointerSize;
@@ -106,8 +108,9 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
 
   // Make sure no registers have been unexpectedly clobbered
   for (--reg_num; reg_num >= 0; --reg_num) {
-    Register reg = Register::from_code(reg_num);
-    if (reg.IsAllocatable()) {
+    if (RegisterConfiguration::Crankshaft()->IsAllocatableGeneralCode(
+            reg_num)) {
+      Register reg = Register::from_code(reg_num);
       if (!reg.is(destination_reg)) {
         __ ldr(ip, MemOperand(sp, 0));
         __ cmp(reg, ip);
@@ -146,7 +149,7 @@ static Isolate* GetIsolateFrom(LocalContext* context) {
 int32_t RunGeneratedCodeCallWrapper(ConvertDToIFunc func,
                                     double from) {
 #ifdef USE_SIMULATOR
-  return CALL_GENERATED_FP_INT(func, from, 0);
+  return CALL_GENERATED_FP_INT(CcTest::i_isolate(), func, from, 0);
 #else
   return (*func)(from);
 #endif

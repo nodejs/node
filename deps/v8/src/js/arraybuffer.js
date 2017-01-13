@@ -12,43 +12,23 @@
 // Imports
 
 var GlobalArrayBuffer = global.ArrayBuffer;
-var GlobalObject = global.Object;
-var MakeTypeError;
 var MaxSimple;
 var MinSimple;
-var ToPositiveInteger;
-var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
+var SpeciesConstructor;
+var speciesSymbol = utils.ImportNow("species_symbol");
 
 utils.Import(function(from) {
-  MakeTypeError = from.MakeTypeError;
   MaxSimple = from.MaxSimple;
   MinSimple = from.MinSimple;
-  ToPositiveInteger = from.ToPositiveInteger;
+  SpeciesConstructor = from.SpeciesConstructor;
 });
 
 // -------------------------------------------------------------------
 
-function ArrayBufferConstructor(length) { // length = 1
-  if (%_IsConstructCall()) {
-    var byteLength = ToPositiveInteger(length, kInvalidArrayBufferLength);
-    %ArrayBufferInitialize(this, byteLength, kNotShared);
-  } else {
-    throw MakeTypeError(kConstructorNotFunction, "ArrayBuffer");
-  }
-}
-
-function ArrayBufferGetByteLen() {
-  if (!IS_ARRAYBUFFER(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
-                        'ArrayBuffer.prototype.byteLength', this);
-  }
-  return %_ArrayBufferGetByteLength(this);
-}
-
 // ES6 Draft 15.13.5.5.3
 function ArrayBufferSlice(start, end) {
   if (!IS_ARRAYBUFFER(this)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'ArrayBuffer.prototype.slice', this);
   }
 
@@ -75,35 +55,32 @@ function ArrayBufferSlice(start, end) {
     fin = first;
   }
   var newLen = fin - first;
-  // TODO(dslomov): implement inheritance
-  var result = new GlobalArrayBuffer(newLen);
+  var constructor = SpeciesConstructor(this, GlobalArrayBuffer, true);
+  var result = new constructor(newLen);
+  if (!IS_ARRAYBUFFER(result)) {
+    throw %make_type_error(kIncompatibleMethodReceiver,
+                        'ArrayBuffer.prototype.slice', result);
+  }
+  // Checks for detached source/target ArrayBuffers are done inside of
+  // %ArrayBufferSliceImpl; the reordering of checks does not violate
+  // the spec because all exceptions thrown are TypeErrors.
+  if (result === this) {
+    throw %make_type_error(kArrayBufferSpeciesThis);
+  }
+  if (%_ArrayBufferGetByteLength(result) < newLen) {
+    throw %make_type_error(kArrayBufferTooShort);
+  }
 
-  %ArrayBufferSliceImpl(this, result, first);
+  %ArrayBufferSliceImpl(this, result, first, newLen);
   return result;
 }
 
-function ArrayBufferIsViewJS(obj) {
-  return %ArrayBufferIsView(obj);
+
+function ArrayBufferSpecies() {
+  return this;
 }
 
-
-// Set up the ArrayBuffer constructor function.
-%SetCode(GlobalArrayBuffer, ArrayBufferConstructor);
-%FunctionSetPrototype(GlobalArrayBuffer, new GlobalObject());
-
-// Set up the constructor property on the ArrayBuffer prototype object.
-%AddNamedProperty(
-    GlobalArrayBuffer.prototype, "constructor", GlobalArrayBuffer, DONT_ENUM);
-
-%AddNamedProperty(GlobalArrayBuffer.prototype,
-    toStringTagSymbol, "ArrayBuffer", DONT_ENUM | READ_ONLY);
-
-utils.InstallGetter(GlobalArrayBuffer.prototype, "byteLength",
-                    ArrayBufferGetByteLen);
-
-utils.InstallFunctions(GlobalArrayBuffer, DONT_ENUM, [
-  "isView", ArrayBufferIsViewJS
-]);
+utils.InstallGetter(GlobalArrayBuffer, speciesSymbol, ArrayBufferSpecies);
 
 utils.InstallFunctions(GlobalArrayBuffer.prototype, DONT_ENUM, [
   "slice", ArrayBufferSlice

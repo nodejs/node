@@ -64,9 +64,13 @@ enum FpuMode {
 #elif defined(FPU_MODE_FP64)
   static const FpuMode kFpuMode = kFP64;
 #elif defined(FPU_MODE_FPXX)
-  static const FpuMode kFpuMode = kFPXX;
+#if defined(_MIPS_ARCH_MIPS32R2) || defined(_MIPS_ARCH_MIPS32R6)
+static const FpuMode kFpuMode = kFPXX;
 #else
-  static const FpuMode kFpuMode = kFP32;
+#error "FPXX is supported only on Mips32R2 and Mips32R6"
+#endif
+#else
+static const FpuMode kFpuMode = kFP32;
 #endif
 
 #if(defined(__mips_hard_float) && __mips_hard_float != 0)
@@ -92,13 +96,9 @@ const uint32_t kHoleNanLower32Offset = 4;
 #error Unknown endianness
 #endif
 
-#ifndef FPU_MODE_FPXX
-#define IsFp64Mode() \
-  (kFpuMode == kFP64)
-#else
-#define IsFp64Mode() \
-  (CpuFeatures::IsSupported(FP64FPU))
-#endif
+#define IsFp64Mode() (kFpuMode == kFP64)
+#define IsFp32Mode() (kFpuMode == kFP32)
+#define IsFpxxMode() (kFpuMode == kFPXX)
 
 #ifndef _MIPS_ARCH_MIPS32RX
 #define IsMipsArchVariant(check) \
@@ -108,6 +108,19 @@ const uint32_t kHoleNanLower32Offset = 4;
   (CpuFeatures::IsSupported(static_cast<CpuFeature>(check)))
 #endif
 
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+const uint32_t kMipsLwrOffset = 0;
+const uint32_t kMipsLwlOffset = 3;
+const uint32_t kMipsSwrOffset = 0;
+const uint32_t kMipsSwlOffset = 3;
+#elif defined(V8_TARGET_BIG_ENDIAN)
+const uint32_t kMipsLwrOffset = 3;
+const uint32_t kMipsLwlOffset = 0;
+const uint32_t kMipsSwrOffset = 3;
+const uint32_t kMipsSwlOffset = 0;
+#else
+#error Unknown endianness
+#endif
 
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
@@ -143,8 +156,11 @@ const int kInvalidFPURegister = -1;
 const int kFCSRRegister = 31;
 const int kInvalidFPUControlRegister = -1;
 const uint32_t kFPUInvalidResult = static_cast<uint32_t>(1 << 31) - 1;
+const int32_t kFPUInvalidResultNegative = static_cast<int32_t>(1 << 31);
 const uint64_t kFPU64InvalidResult =
     static_cast<uint64_t>(static_cast<uint64_t>(1) << 63) - 1;
+const int64_t kFPU64InvalidResultNegative =
+    static_cast<int64_t>(static_cast<uint64_t>(1) << 63);
 
 // FCSR constants.
 const uint32_t kFCSRInexactFlagBit = 2;
@@ -152,12 +168,14 @@ const uint32_t kFCSRUnderflowFlagBit = 3;
 const uint32_t kFCSROverflowFlagBit = 4;
 const uint32_t kFCSRDivideByZeroFlagBit = 5;
 const uint32_t kFCSRInvalidOpFlagBit = 6;
+const uint32_t kFCSRNaN2008FlagBit = 18;
 
 const uint32_t kFCSRInexactFlagMask = 1 << kFCSRInexactFlagBit;
 const uint32_t kFCSRUnderflowFlagMask = 1 << kFCSRUnderflowFlagBit;
 const uint32_t kFCSROverflowFlagMask = 1 << kFCSROverflowFlagBit;
 const uint32_t kFCSRDivideByZeroFlagMask = 1 << kFCSRDivideByZeroFlagBit;
 const uint32_t kFCSRInvalidOpFlagMask = 1 << kFCSRInvalidOpFlagBit;
+const uint32_t kFCSRNaN2008FlagMask = 1 << kFCSRNaN2008FlagBit;
 
 const uint32_t kFCSRFlagMask =
     kFCSRInexactFlagMask |
@@ -256,6 +274,7 @@ const int kRdShift       = 11;
 const int kRdBits        = 5;
 const int kSaShift       = 6;
 const int kSaBits        = 5;
+const int kLsaSaBits = 2;
 const int kFunctionShift = 0;
 const int kFunctionBits  = 6;
 const int kLuiShift      = 16;
@@ -384,7 +403,7 @@ enum Opcode : uint32_t {
   POP10 = ADDI,   // beqzalc, bovc, beqc
   POP26 = BLEZL,  // bgezc, blezc, bgec/blec
   POP27 = BGTZL,  // bgtzc, bltzc, bltc/bgtc
-  POP30 = DADDI,  // bnezalc, bvnc, bnec
+  POP30 = DADDI,  // bnezalc, bnvc, bnec
 };
 
 enum SecondaryField : uint32_t {
@@ -394,6 +413,7 @@ enum SecondaryField : uint32_t {
   SRL = ((0U << 3) + 2),
   SRA = ((0U << 3) + 3),
   SLLV = ((0U << 3) + 4),
+  LSA = ((0U << 3) + 5),
   SRLV = ((0U << 3) + 6),
   SRAV = ((0U << 3) + 7),
 
@@ -402,6 +422,7 @@ enum SecondaryField : uint32_t {
   MOVZ = ((1U << 3) + 2),
   MOVN = ((1U << 3) + 3),
   BREAK = ((1U << 3) + 5),
+  SYNC = ((1U << 3) + 7),
 
   MFHI = ((2U << 3) + 0),
   CLZ_R6 = ((2U << 3) + 0),
@@ -613,7 +634,6 @@ enum SecondaryField : uint32_t {
   NULLSF = 0U
 };
 
-
 // ----- Emulated conditions.
 // On MIPS we use this enum to abstract from conditional branch instructions.
 // The 'U' prefix is used to specify unsigned comparisons.
@@ -772,7 +792,12 @@ enum FPURoundingMode {
   kRoundToNearest = RN,
   kRoundToZero = RZ,
   kRoundToPlusInf = RP,
-  kRoundToMinusInf = RM
+  kRoundToMinusInf = RM,
+
+  mode_round = RN,
+  mode_ceil = RP,
+  mode_floor = RM,
+  mode_trunc = RZ
 };
 
 const uint32_t kFPURoundingModeMask = 3 << 0;
@@ -782,6 +807,7 @@ enum CheckForInexactConversion {
   kDontCheckForInexactConversion
 };
 
+enum class MaxMinKind : int { kMin = 0, kMax = 1 };
 
 // -----------------------------------------------------------------------------
 // Hints.
@@ -901,21 +927,21 @@ class Instruction {
       FunctionFieldToBitNumber(BREAK) | FunctionFieldToBitNumber(SLL) |
       FunctionFieldToBitNumber(SRL) | FunctionFieldToBitNumber(SRA) |
       FunctionFieldToBitNumber(SLLV) | FunctionFieldToBitNumber(SRLV) |
-      FunctionFieldToBitNumber(SRAV) | FunctionFieldToBitNumber(MFHI) |
-      FunctionFieldToBitNumber(MFLO) | FunctionFieldToBitNumber(MULT) |
-      FunctionFieldToBitNumber(MULTU) | FunctionFieldToBitNumber(DIV) |
-      FunctionFieldToBitNumber(DIVU) | FunctionFieldToBitNumber(ADD) |
-      FunctionFieldToBitNumber(ADDU) | FunctionFieldToBitNumber(SUB) |
-      FunctionFieldToBitNumber(SUBU) | FunctionFieldToBitNumber(AND) |
-      FunctionFieldToBitNumber(OR) | FunctionFieldToBitNumber(XOR) |
-      FunctionFieldToBitNumber(NOR) | FunctionFieldToBitNumber(SLT) |
-      FunctionFieldToBitNumber(SLTU) | FunctionFieldToBitNumber(TGE) |
-      FunctionFieldToBitNumber(TGEU) | FunctionFieldToBitNumber(TLT) |
-      FunctionFieldToBitNumber(TLTU) | FunctionFieldToBitNumber(TEQ) |
-      FunctionFieldToBitNumber(TNE) | FunctionFieldToBitNumber(MOVZ) |
-      FunctionFieldToBitNumber(MOVN) | FunctionFieldToBitNumber(MOVCI) |
-      FunctionFieldToBitNumber(SELEQZ_S) | FunctionFieldToBitNumber(SELNEZ_S);
-
+      FunctionFieldToBitNumber(SRAV) | FunctionFieldToBitNumber(LSA) |
+      FunctionFieldToBitNumber(MFHI) | FunctionFieldToBitNumber(MFLO) |
+      FunctionFieldToBitNumber(MULT) | FunctionFieldToBitNumber(MULTU) |
+      FunctionFieldToBitNumber(DIV) | FunctionFieldToBitNumber(DIVU) |
+      FunctionFieldToBitNumber(ADD) | FunctionFieldToBitNumber(ADDU) |
+      FunctionFieldToBitNumber(SUB) | FunctionFieldToBitNumber(SUBU) |
+      FunctionFieldToBitNumber(AND) | FunctionFieldToBitNumber(OR) |
+      FunctionFieldToBitNumber(XOR) | FunctionFieldToBitNumber(NOR) |
+      FunctionFieldToBitNumber(SLT) | FunctionFieldToBitNumber(SLTU) |
+      FunctionFieldToBitNumber(TGE) | FunctionFieldToBitNumber(TGEU) |
+      FunctionFieldToBitNumber(TLT) | FunctionFieldToBitNumber(TLTU) |
+      FunctionFieldToBitNumber(TEQ) | FunctionFieldToBitNumber(TNE) |
+      FunctionFieldToBitNumber(MOVZ) | FunctionFieldToBitNumber(MOVN) |
+      FunctionFieldToBitNumber(MOVCI) | FunctionFieldToBitNumber(SELEQZ_S) |
+      FunctionFieldToBitNumber(SELNEZ_S) | FunctionFieldToBitNumber(SYNC);
 
   // Get the encoding type of the instruction.
   inline Type InstructionType(TypeChecks checks = NORMAL) const;
@@ -946,6 +972,11 @@ class Instruction {
   inline int SaValue() const {
     DCHECK(InstructionType() == kRegisterType);
     return Bits(kSaShift + kSaBits - 1, kSaShift);
+  }
+
+  inline int LsaSaValue() const {
+    DCHECK(InstructionType() == kRegisterType);
+    return Bits(kSaShift + kLsaSaBits - 1, kSaShift);
   }
 
   inline int FunctionValue() const {
@@ -1155,11 +1186,10 @@ Instruction::Type Instruction::InstructionType(TypeChecks checks) const {
           int sa = SaFieldRaw() >> kSaShift;
           switch (sa) {
             case BITSWAP:
-              return kRegisterType;
             case WSBH:
             case SEB:
             case SEH:
-              return kUnsupported;
+              return kRegisterType;
           }
           sa >>= kBp2Bits;
           switch (sa) {

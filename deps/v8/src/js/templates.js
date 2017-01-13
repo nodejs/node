@@ -70,10 +70,10 @@ function GetTemplateCallSite(siteObj, rawStrings, hash) {
 
   if (!IS_UNDEFINED(cached)) return cached;
 
-  %AddNamedProperty(siteObj, "raw", %ObjectFreeze(rawStrings),
+  %AddNamedProperty(siteObj, "raw", %object_freeze(rawStrings),
       READ_ONLY | DONT_ENUM | DONT_DELETE);
 
-  return SetCachedCallSite(%ObjectFreeze(siteObj), hash);
+  return SetCachedCallSite(%object_freeze(siteObj), hash);
 }
 
 // ----------------------------------------------------------------------------

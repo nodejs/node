@@ -12,7 +12,7 @@ function listener(event, exec_state, event_data, data) {
   if (event != Debug.DebugEvent.Break) return;
   try {
     breaks.push(exec_state.frame(0).sourceLineText().trimLeft());
-    exec_state.prepareStep(Debug.StepAction.StepIn, 1);
+    exec_state.prepareStep(Debug.StepAction.StepIn);
   } catch (e) {
     exception = e;
   }
@@ -21,9 +21,9 @@ function listener(event, exec_state, event_data, data) {
 Debug.setListener(listener);
 
 function resolver(resolve, reject) {
-  1;
-  2;
-  3;
+  print(1);
+  print(2);
+  print(3);
   resolve();
 }
 
@@ -35,9 +35,9 @@ Debug.setListener(null);
 var expected_breaks = [
   "debugger;",
   "var p = new Promise(resolver);",
-  "1;",
-  "2;",
-  "3;",
+  "print(1);",
+  "print(2);",
+  "print(3);",
   "resolve();",
   "}",
   "Debug.setListener(null);"

@@ -27,11 +27,7 @@
 
 import test
 import os
-import shutil
-from shutil import rmtree
-from os import mkdir
-from glob import glob
-from os.path import join, dirname, exists
+from os.path import join, exists
 import re
 import shlex
 

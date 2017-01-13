@@ -8,6 +8,7 @@ var log = require('npmlog')
 var npm = require('../npm.js')
 var tar = require('../utils/tar.js')
 var deprCheck = require('../utils/depr-check.js')
+var prepublishWarning = require('../utils/warn-deprecated.js')('prepublish-on-install')
 var getCacheStat = require('./get-stat.js')
 var cachedPackageRoot = require('./cached-package-root.js')
 var addLocalTarball = require('./add-local-tarball.js')
@@ -15,12 +16,13 @@ var sha = require('sha')
 var inflight = require('inflight')
 var lifecycle = require('../utils/lifecycle.js')
 var iferr = require('iferr')
+var chain = require('slide').chain
 
 module.exports = addLocal
 
 function addLocal (p, pkgData, cb_) {
   assert(typeof p === 'object', 'must have spec info')
-  assert(typeof cb === 'function', 'must have callback')
+  assert(typeof cb_ === 'function', 'must have callback')
 
   pkgData = pkgData || {}
 
@@ -91,10 +93,26 @@ function addLocalDirectory (p, pkgData, shasum, cb) {
 
     getCacheStat(function (er, cs) {
       mkdir(path.dirname(pj), function (er, made) {
-        if (er) return cb(er)
+        if (er) return wrapped(er)
         var doPrePublish = !pathIsInside(p, npm.tmp)
         if (doPrePublish) {
-          lifecycle(data, 'prepublish', p, iferr(cb, thenPack))
+          // TODO: for `npm@5`, change the behavior and remove this warning.
+          // see https://github.com/npm/npm/issues/10074 for details
+          if (data && data.scripts && data.scripts.prepublish) {
+            prepublishWarning([
+              'As of npm@5, `prepublish` scripts will run only for `npm publish`.',
+              '(In npm@4 and previous versions, it also runs for `npm install`.)',
+              'See the deprecation note in `npm help scripts` for more information.'
+            ])
+          }
+
+          chain(
+            [
+              [lifecycle, data, 'prepublish', p],
+              [lifecycle, data, 'prepare', p]
+            ],
+            iferr(wrapped, thenPack)
+          )
         } else {
           thenPack()
         }
@@ -102,12 +120,15 @@ function addLocalDirectory (p, pkgData, shasum, cb) {
           tar.pack(tgz, p, data, function (er) {
             if (er) {
               log.error('addLocalDirectory', 'Could not pack', p, 'to', tgz)
-              return cb(er)
+              return wrapped(er)
             }
 
-            if (!cs || isNaN(cs.uid) || isNaN(cs.gid)) wrapped()
+            if (!cs || isNaN(cs.uid) || isNaN(cs.gid)) return wrapped()
 
-            chownr(made || tgz, cs.uid, cs.gid, wrapped)
+            chownr(made || tgz, cs.uid, cs.gid, function (er) {
+              if (er && er.code === 'ENOENT') return wrapped()
+              wrapped(er)
+            })
           })
         }
       })

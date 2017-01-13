@@ -17,7 +17,7 @@ var p = new Promise(function(resolve, reject) {
   resolve(reject);
 });
 
-var q = p.chain(
+var q = p.then(
   function(value) {
     assertEquals(["resolve", "end main"], log);
     value(new Error("reject"));

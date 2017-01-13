@@ -27,6 +27,31 @@ DEFAULT_BOTS = [
   'v8_nexus10_perf_try',
 ]
 
+PUBLIC_BENCHMARKS = [
+  'arewefastyet',
+  'embenchen',
+  'emscripten',
+  'compile',
+  'jetstream',
+  'jetstream-ignition',
+  'jsbench',
+  'jstests',
+  'kraken_orig',
+  'kraken_orig-ignition',
+  'massive',
+  'memory',
+  'octane',
+  'octane-noopt',
+  'octane-ignition',
+  'octane-pr',
+  'octane-tf',
+  'octane-tf-pr',
+  'simdjs',
+  'sunspider',
+  'sunspider-ignition',
+  'wasm',
+]
+
 V8_BASE = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 
 def main():
@@ -34,6 +59,10 @@ def main():
   parser.add_argument('benchmarks', nargs='+', help='The benchmarks to run.')
   parser.add_argument('--extra-flags', default='',
                       help='Extra flags to be passed to the executable.')
+  parser.add_argument('-r', '--revision', type=str, default=None,
+                      help='Revision (use full hash!) to use for the try job; '
+                           'default: the revision will be determined by the '
+                           'try server; see its waterfall for more info')
   for option in sorted(BOTS):
     parser.add_argument(
         option, dest='bots', action='append_const', const=BOTS[option],
@@ -47,6 +76,16 @@ def main():
     print 'Please specify the benchmarks to run as arguments.'
     return 1
 
+  for benchmark in options.benchmarks:
+    if benchmark not in PUBLIC_BENCHMARKS:
+      print ('%s not found in our benchmark list. The respective trybot might '
+            'fail, unless you run something this script isn\'t aware of. '
+            'Available public benchmarks: %s' % (benchmark, PUBLIC_BENCHMARKS))
+      print 'Proceed anyways? [Y/n] ',
+      answer = sys.stdin.readline().strip()
+      if answer != "" and answer != "Y" and answer != "y":
+        return 1
+
   assert '"' not in options.extra_flags and '\'' not in options.extra_flags, (
       'Invalid flag specification.')
 
@@ -56,6 +95,7 @@ def main():
 
   cmd = ['git cl try -m internal.client.v8']
   cmd += ['-b %s' % bot for bot in options.bots]
+  if options.revision: cmd += ['-r %s' % options.revision]
   benchmarks = ['"%s"' % benchmark for benchmark in options.benchmarks]
   cmd += ['-p \'testfilter=[%s]\'' % ','.join(benchmarks)]
   if options.extra_flags:

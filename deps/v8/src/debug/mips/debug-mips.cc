@@ -24,25 +24,25 @@ void EmitDebugBreakSlot(MacroAssembler* masm) {
 }
 
 
-void DebugCodegen::GenerateSlot(MacroAssembler* masm, RelocInfo::Mode mode,
-                                int call_argc) {
+void DebugCodegen::GenerateSlot(MacroAssembler* masm, RelocInfo::Mode mode) {
   // Generate enough nop's to make space for a call instruction. Avoid emitting
   // the trampoline pool in the debug break slot code.
   Assembler::BlockTrampolinePoolScope block_pool(masm);
-  masm->RecordDebugBreakSlot(mode, call_argc);
+  masm->RecordDebugBreakSlot(mode);
   EmitDebugBreakSlot(masm);
 }
 
 
-void DebugCodegen::ClearDebugBreakSlot(Address pc) {
-  CodePatcher patcher(pc, Assembler::kDebugBreakSlotInstructions);
+void DebugCodegen::ClearDebugBreakSlot(Isolate* isolate, Address pc) {
+  CodePatcher patcher(isolate, pc, Assembler::kDebugBreakSlotInstructions);
   EmitDebugBreakSlot(patcher.masm());
 }
 
 
-void DebugCodegen::PatchDebugBreakSlot(Address pc, Handle<Code> code) {
-  DCHECK_EQ(Code::BUILTIN, code->kind());
-  CodePatcher patcher(pc, Assembler::kDebugBreakSlotInstructions);
+void DebugCodegen::PatchDebugBreakSlot(Isolate* isolate, Address pc,
+                                       Handle<Code> code) {
+  DCHECK(code->is_debug_stub());
+  CodePatcher patcher(isolate, pc, Assembler::kDebugBreakSlotInstructions);
   // Patch the code changing the debug break slot code from:
   //   nop(DEBUG_BREAK_NOP) - nop(1) is sll(zero_reg, zero_reg, 1)
   //   nop(DEBUG_BREAK_NOP)
@@ -56,6 +56,10 @@ void DebugCodegen::PatchDebugBreakSlot(Address pc, Handle<Code> code) {
   patcher.masm()->Call(v8::internal::t9);
 }
 
+bool DebugCodegen::DebugBreakSlotIsPatched(Address pc) {
+  Instr current_instr = Assembler::instr_at(pc);
+  return !Assembler::IsNop(current_instr, Assembler::DEBUG_BREAK_NOP);
+}
 
 void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
                                           DebugBreakCallHelperMode mode) {
@@ -73,9 +77,15 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
     __ li(at, Operand(Smi::FromInt(LiveEdit::kFramePaddingInitialSize)));
     __ push(at);
 
-    if (mode == SAVE_RESULT_REGISTER) __ push(v0);
-
-    __ PrepareCEntryArgs(0);  // No arguments.
+    // Push arguments for DebugBreak call.
+    if (mode == SAVE_RESULT_REGISTER) {
+      // Break on return.
+      __ push(v0);
+    } else {
+      // Non-return breaks.
+      __ Push(masm->isolate()->factory()->the_hole_value());
+    }
+    __ PrepareCEntryArgs(1);
     __ PrepareCEntryFunction(ExternalReference(
         Runtime::FunctionForId(Runtime::kDebugBreak), masm->isolate()));
 
@@ -85,11 +95,13 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
     if (FLAG_debug_code) {
       for (int i = 0; i < kNumJSCallerSaved; i++) {
         Register reg = {JSCallerSavedCode(i)};
-        __ li(reg, kDebugZapValue);
+        // Do not clobber v0 if mode is SAVE_RESULT_REGISTER. It will
+        // contain return value of the function returned by DebugBreak.
+        if (!(reg.is(v0) && (mode == SAVE_RESULT_REGISTER))) {
+          __ li(reg, kDebugZapValue);
+        }
       }
     }
-
-    if (mode == SAVE_RESULT_REGISTER) __ pop(v0);
 
     // Don't bother removing padding bytes pushed on the stack
     // as the frame is going to be restored right away.
@@ -108,25 +120,21 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
 }
 
 
-void DebugCodegen::GeneratePlainReturnLiveEdit(MacroAssembler* masm) {
-  __ Ret();
-}
-
-
 void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
-  ExternalReference restarter_frame_function_slot =
-      ExternalReference::debug_restarter_frame_function_pointer_address(
-          masm->isolate());
-  __ li(at, Operand(restarter_frame_function_slot));
-  __ sw(zero_reg, MemOperand(at, 0));
-
   // We do not know our frame height, but set sp based on fp.
-  __ Subu(sp, fp, Operand(kPointerSize));
+  __ lw(a1, MemOperand(fp, FrameDropperFrameConstants::kFunctionOffset));
 
-  __ Pop(ra, fp, a1);  // Return address, Frame, Function.
+  // Pop return address and frame.
+  __ LeaveFrame(StackFrame::INTERNAL);
+
+  ParameterCount dummy(0);
+  __ FloodFunctionIfStepping(a1, no_reg, dummy, dummy);
 
   // Load context from the function.
   __ lw(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
+
+  // Clear new.target as a safety measure.
+  __ LoadRoot(a3, Heap::kUndefinedValueRootIndex);
 
   // Get function code.
   __ lw(at, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));

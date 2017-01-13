@@ -16,20 +16,26 @@ assert.strictEqual(ret_err.code, 'ENOENT');
 assert.strictEqual(ret_err.errno, 'ENOENT');
 assert.strictEqual(ret_err.syscall, 'spawnSync command_does_not_exist');
 assert.strictEqual(ret_err.path, 'command_does_not_exist');
-assert.deepEqual(ret_err.spawnargs, ['bar']);
+assert.deepStrictEqual(ret_err.spawnargs, ['bar']);
 
-// Verify that the cwd option works - GH #7824
-(function() {
-  var response;
-  var cwd;
-
-  if (common.isWindows) {
-    cwd = 'c:\\';
-    response = spawnSync('cmd.exe', ['/c', 'cd'], {cwd: cwd});
-  } else {
-    cwd = '/';
-    response = spawnSync('pwd', [], {cwd: cwd});
-  }
+{
+  // Test the cwd option
+  const cwd = common.rootDir;
+  const response = common.spawnSyncPwd({cwd});
 
   assert.strictEqual(response.stdout.toString().trim(), cwd);
-})();
+}
+
+{
+  // Test the encoding option
+  const noEncoding = common.spawnSyncPwd();
+  const bufferEncoding = common.spawnSyncPwd({encoding: 'buffer'});
+  const utf8Encoding = common.spawnSyncPwd({encoding: 'utf8'});
+
+  assert.deepStrictEqual(noEncoding.output, bufferEncoding.output);
+  assert.deepStrictEqual([
+    null,
+    noEncoding.stdout.toString(),
+    noEncoding.stderr.toString()
+  ], utf8Encoding.output);
+}

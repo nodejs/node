@@ -2,11 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(mythria): Remove this define after this flag is turned on globally
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include "src/heap/slots-buffer.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/heap/heap-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -103,7 +101,7 @@ TEST(FilterInvalidSlotsBufferEntries) {
 
   // Write an old space reference into field 4 which points to an object on an
   // evacuation candidate.
-  SimulateFullSpace(heap->old_space());
+  heap::SimulateFullSpace(heap->old_space());
   Handle<FixedArray> valid_object =
       isolate->factory()->NewFixedArray(23, TENURED);
   Page* page = Page::FromAddress(valid_object->address());

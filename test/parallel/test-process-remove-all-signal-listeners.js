@@ -1,31 +1,24 @@
 'use strict';
 
+const common = require('../common');
 const assert = require('assert');
 const spawn = require('child_process').spawn;
-const common = require('../common');
 
 if (common.isWindows) {
-  console.log('1..0 # Skipped: Win32 doesn\'t have signals, just a kind of ' +
+  common.skip('Win32 doesn\'t have signals, just a kind of ' +
               'emulation, insufficient for this test to apply.');
   return;
 }
-
-var ok;
 
 if (process.argv[2] !== '--do-test') {
   // We are the master, fork a child so we can verify it exits with correct
   // status.
   process.env.DOTEST = 'y';
-  var child = spawn(process.execPath, [__filename, '--do-test']);
+  const child = spawn(process.execPath, [__filename, '--do-test']);
 
-  child.once('exit', function(code, signal) {
-    assert.equal(signal, 'SIGINT');
-    ok = true;
-  });
-
-  process.on('exit', function() {
-    assert(ok);
-  });
+  child.once('exit', common.mustCall(function(code, signal) {
+    assert.strictEqual(signal, 'SIGINT');
+  }));
 
   return;
 }

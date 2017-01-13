@@ -7,6 +7,7 @@ var objectAssign = require('object-assign');
 var Promise = require('pinkie-promise');
 var pify = require('pify');
 var rimraf = require('rimraf');
+
 var rimrafP = pify(rimraf, Promise);
 
 function safeCheck(file) {

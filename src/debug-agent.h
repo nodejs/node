@@ -22,6 +22,10 @@
 #ifndef SRC_DEBUG_AGENT_H_
 #define SRC_DEBUG_AGENT_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
+#include "node_mutex.h"
+#include "node_debug_options.h"
 #include "util.h"
 #include "util-inl.h"
 #include "uv.h"
@@ -29,6 +33,7 @@
 #include "v8-debug.h"
 
 #include <string.h>
+#include <string>
 
 // Forward declaration to break recursive dependency chain with src/env.h.
 namespace node {
@@ -72,7 +77,7 @@ class Agent {
   typedef void (*DispatchHandler)(node::Environment* env);
 
   // Start the debugger agent thread
-  bool Start(int port, bool wait);
+  bool Start(const DebugOptions& options);
   // Listen for debug events
   void Enable();
   // Stop the debugger agent
@@ -110,12 +115,12 @@ class Agent {
   };
 
   State state_;
+  DebugOptions options_;
 
-  int port_;
   bool wait_;
 
   uv_sem_t start_sem_;
-  uv_mutex_t message_mutex_;
+  node::Mutex message_mutex_;
   uv_async_t child_signal_;
 
   uv_thread_t thread_;
@@ -131,5 +136,7 @@ class Agent {
 
 }  // namespace debugger
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_DEBUG_AGENT_H_

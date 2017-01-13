@@ -214,10 +214,6 @@
       'openssl/crypto/cms/cms_pwri.c',
       'openssl/crypto/cms/cms_sd.c',
       'openssl/crypto/cms/cms_smime.c',
-      'openssl/crypto/comp/c_rle.c',
-      'openssl/crypto/comp/c_zlib.c',
-      'openssl/crypto/comp/comp_err.c',
-      'openssl/crypto/comp/comp_lib.c',
       'openssl/crypto/conf/conf_api.c',
       'openssl/crypto/conf/conf_def.c',
       'openssl/crypto/conf/conf_err.c',
@@ -1040,7 +1036,7 @@
     #
     'conditions': [
       ['(OS=="win" and MSVS_VERSION>="2012") or '
-       'llvm_version>="3.3" or gas_version>="2.23"', {
+       'llvm_version>="3.3" or xcode_version>="5.0" or gas_version>="2.23"', {
         'openssl_sources_x64_win_masm': [
           '<@(openssl_sources_asm_latest_x64_win_masm)',
           '<@(openssl_sources_common_x64_win_masm)',
@@ -1248,13 +1244,16 @@
       'openssl/include',
     ],
     'openssl_default_defines_all': [
-      # No clue what these are for.
-      'PURIFY',
       '_REENTRANT',
 
-      # SSLv2 is known broken and has been superseded by SSLv3 for almost
-      # twenty years now.
-      'OPENSSL_NO_SSL2',
+      # PURIFY makes OpenSSL zero out some buffers.  It also stops RAND_bytes()
+      # from using the existing contents of the destination buffer as a source
+      # of entropy, which according to some papers, is a possible attack vector
+      # for reducing the overall entropy.
+      'PURIFY',
+
+      # Compression is not used and considered insecure (CRIME.)
+      'OPENSSL_NO_COMP',
 
       # SSLv3 is susceptible to downgrade attacks (POODLE.)
       'OPENSSL_NO_SSL3',
@@ -1264,6 +1263,11 @@
       # Microsoft's IIS, which seems to be ignoring whole ClientHello after
       # seeing this extension.
       'OPENSSL_NO_HEARTBEATS',
+
+      # Compile out hardware engines.  Most are stubs that dynamically load
+      # the real driver but that poses a security liability when an attacker
+      # is able to create a malicious DLL in one of the default search paths.
+      'OPENSSL_NO_HW',
     ],
     'openssl_default_defines_win': [
       'MK1MF_BUILD',

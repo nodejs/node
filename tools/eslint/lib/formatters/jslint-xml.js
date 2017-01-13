@@ -4,7 +4,7 @@
  */
 "use strict";
 
-var xmlescape = require("xml-escape");
+const xmlEscape = require("../util/xml-escape");
 
 //------------------------------------------------------------------------------
 // Public Interface
@@ -12,22 +12,23 @@ var xmlescape = require("xml-escape");
 
 module.exports = function(results) {
 
-    var output = "";
+    let output = "";
 
     output += "<?xml version=\"1.0\" encoding=\"utf-8\"?>";
     output += "<jslint>";
 
-    results.forEach(function(result) {
-        var messages = result.messages;
+    results.forEach(result => {
+        const messages = result.messages;
 
-        output += "<file name=\"" + result.filePath + "\">";
+        output += `<file name="${result.filePath}">`;
 
-        messages.forEach(function(message) {
-            output += "<issue line=\"" + message.line + "\" " +
-                "char=\"" + message.column + "\" " +
-                "evidence=\"" + xmlescape(message.source || "") + "\" " +
-                "reason=\"" + xmlescape(message.message || "") +
-                (message.ruleId ? " (" + message.ruleId + ")" : "") + "\" />";
+        messages.forEach(message => {
+            output += [
+                `<issue line="${message.line}"`,
+                `char="${message.column}"`,
+                `evidence="${xmlEscape(message.source || "")}"`,
+                `reason="${xmlEscape(message.message || "")}${message.ruleId ? ` (${message.ruleId})` : ""}" />`
+            ].join(" ");
         });
 
         output += "</file>";

@@ -24,21 +24,33 @@ class MoveOptimizer final {
   InstructionSequence* code() const { return code_; }
   Zone* local_zone() const { return local_zone_; }
   Zone* code_zone() const { return code()->zone(); }
-  MoveOpVector& temp_vector_0() { return temp_vector_0_; }
-  MoveOpVector& temp_vector_1() { return temp_vector_1_; }
+  MoveOpVector& local_vector() { return local_vector_; }
 
-  void CompressBlock(InstructionBlock* blocke);
-  void CompressMoves(MoveOpVector* eliminated, ParallelMove* left,
-                     ParallelMove* right);
-  Instruction* LastInstruction(InstructionBlock* block);
+  // Consolidate moves into the first gap.
+  void CompressGaps(Instruction* instr);
+
+  // Attempt to push down to the last instruction those moves that can.
+  void CompressBlock(InstructionBlock* block);
+
+  // Consolidate moves into the first gap.
+  void CompressMoves(ParallelMove* left, MoveOpVector* right);
+
+  // Push down those moves in the gap of from that do not change the
+  // semantics of the from instruction, nor the semantics of the moves
+  // that remain behind.
+  void MigrateMoves(Instruction* to, Instruction* from);
+
+  void RemoveClobberedDestinations(Instruction* instruction);
+
+  const Instruction* LastInstruction(const InstructionBlock* block) const;
+
+  // Consolidate common moves appearing accross all predecessors of a block.
   void OptimizeMerge(InstructionBlock* block);
   void FinalizeMoves(Instruction* instr);
 
   Zone* const local_zone_;
   InstructionSequence* const code_;
-  Instructions to_finalize_;
-  MoveOpVector temp_vector_0_;
-  MoveOpVector temp_vector_1_;
+  MoveOpVector local_vector_;
 
   DISALLOW_COPY_AND_ASSIGN(MoveOptimizer);
 };

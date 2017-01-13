@@ -1,47 +1,43 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+
+const common = require('../common');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
 
-var net = require('net');
-var fs = require('fs');
+const assert = require('assert');
+const tls = require('tls');
 
-var options = {
+const net = require('net');
+const fs = require('fs');
+
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/test_key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/test_cert.pem')
 };
 
-var bonkers = new Buffer(1024 * 1024);
-bonkers.fill(42);
+const bonkers = Buffer.alloc(1024 * 1024, 42);
 
-var server = tls.createServer(options, function(c) {
+const server = tls.createServer(options, function(c) {
 
-}).listen(common.PORT, function() {
-  var client = net.connect(common.PORT, function() {
+}).listen(0, common.mustCall(function() {
+  const client = net.connect(this.address().port, common.mustCall(function() {
+    client.write(bonkers);
+  }));
+
+  const writeAgain = setImmediate(function() {
     client.write(bonkers);
   });
 
-  var once = false;
+  client.once('error', common.mustCall(function(err) {
+    clearImmediate(writeAgain);
+    client.destroy();
+    server.close();
+  }));
 
-  var writeAgain = setTimeout(function() {
-    client.write(bonkers);
-  });
-
-  client.on('error', function(err) {
-    if (!once) {
-      clearTimeout(writeAgain);
-      once = true;
-      client.destroy();
-      server.close();
-    }
-  });
-
-  client.on('close', function(hadError) {
+  client.on('close', common.mustCall(function(hadError) {
     assert.strictEqual(hadError, true, 'Client never errored');
-  });
-});
+  }));
+}));

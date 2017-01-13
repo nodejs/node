@@ -1,0 +1,396 @@
+/*
+ * jinja.css_t
+ * ~~~~~~~~~~~
+ *
+ * :copyright: Copyright 2011 by Armin Ronacher.
+ * :license: Flask Design License, see LICENSE for details.
+ */
+
+@import url(http://fonts.googleapis.com/css?family=Crimson+Text);
+
+{% set page_width = '940px' %}
+{% set sidebar_width = '220px' %}
+{% set font_family = 'Georgia, serif' %}
+{% set header_font_family = 'Crimson Text, ' ~ font_family %}
+ 
+@import url("basic.css");
+ 
+/* -- page layout ----------------------------------------------------------- */
+ 
+body {
+    font-family: {{ font_family }};
+    font-size: 17px;
+    background-color: white;
+    color: #000;
+    margin: 0;
+    padding: 0;
+}
+
+div.document {
+    width: {{ page_width }};
+    margin: 30px auto 0 auto;
+}
+
+div.documentwrapper {
+    float: left;
+    width: 100%;
+}
+
+div.bodywrapper {
+    margin: 0 0 0 {{ sidebar_width }};
+}
+
+div.sphinxsidebar {
+    width: {{ sidebar_width }};
+}
+
+hr {
+    border: 1px solid #B1B4B6;
+}
+ 
+div.body {
+    background-color: #ffffff;
+    color: #3E4349;
+    padding: 0 30px 0 30px;
+}
+
+img.floatingflask {
+    padding: 0 0 10px 10px;
+    float: right;
+}
+ 
+div.footer {
+    width: {{ page_width }};
+    margin: 20px auto 30px auto;
+    font-size: 14px;
+    color: #888;
+    text-align: right;
+}
+
+div.footer a {
+    color: #888;
+}
+
+div.related {
+    display: none;
+}
+ 
+div.sphinxsidebar a {
+    color: #444;
+    text-decoration: none;
+    border-bottom: 1px dotted #999;
+}
+
+div.sphinxsidebar a:hover {
+    border-bottom: 1px solid #999;
+}
+ 
+div.sphinxsidebar {
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+div.sphinxsidebarwrapper {
+    padding: 18px 10px;
+}
+
+div.sphinxsidebarwrapper p.logo {
+    padding: 0 0 20px 0;
+    margin: 0;
+    text-align: center;
+}
+ 
+div.sphinxsidebar h3,
+div.sphinxsidebar h4 {
+    font-family: {{ font_family }};
+    color: #444;
+    font-size: 24px;
+    font-weight: normal;
+    margin: 0 0 5px 0;
+    padding: 0;
+}
+
+div.sphinxsidebar h4 {
+    font-size: 20px;
+}
+ 
+div.sphinxsidebar h3 a {
+    color: #444;
+}
+
+div.sphinxsidebar p.logo a,
+div.sphinxsidebar h3 a,
+div.sphinxsidebar p.logo a:hover,
+div.sphinxsidebar h3 a:hover {
+    border: none;
+}
+ 
+div.sphinxsidebar p {
+    color: #555;
+    margin: 10px 0;
+}
+
+div.sphinxsidebar ul {
+    margin: 10px 0;
+    padding: 0;
+    color: #000;
+}
+ 
+div.sphinxsidebar input {
+    border: 1px solid #ccc;
+    font-family: {{ font_family }};
+    font-size: 14px;
+}
+
+div.sphinxsidebar form.search input[name="q"] {
+    width: 130px;
+}
+ 
+/* -- body styles ----------------------------------------------------------- */
+ 
+a {
+    color: #aa0000;
+    text-decoration: underline;
+}
+ 
+a:hover {
+    color: #dd0000;
+    text-decoration: underline;
+}
+ 
+div.body h1,
+div.body h2,
+div.body h3,
+div.body h4,
+div.body h5,
+div.body h6 {
+    font-family: {{ header_font_family }};
+    font-weight: normal;
+    margin: 30px 0px 10px 0px;
+    padding: 0;
+    color: black;
+}
+ 
+div.body h1 { margin-top: 0; padding-top: 0; font-size: 240%; }
+div.body h2 { font-size: 180%; }
+div.body h3 { font-size: 150%; }
+div.body h4 { font-size: 130%; }
+div.body h5 { font-size: 100%; }
+div.body h6 { font-size: 100%; }
+ 
+a.headerlink {
+    color: #ddd;
+    padding: 0 4px;
+    text-decoration: none;
+}
+ 
+a.headerlink:hover {
+    color: #444;
+    background: #eaeaea;
+}
+ 
+div.body p, div.body dd, div.body li {
+    line-height: 1.4em;
+}
+
+div.admonition {
+    background: #fafafa;
+    margin: 20px -30px;
+    padding: 10px 30px;
+    border-top: 1px solid #ccc;
+    border-bottom: 1px solid #ccc;
+}
+
+div.admonition tt.xref, div.admonition a tt {
+    border-bottom: 1px solid #fafafa;
+}
+
+dd div.admonition {
+    margin-left: -60px;
+    padding-left: 60px;
+}
+
+div.admonition p.admonition-title {
+    font-family: {{ font_family }};
+    font-weight: normal;
+    font-size: 24px;
+    margin: 0 0 10px 0;
+    padding: 0;
+    line-height: 1;
+}
+
+div.admonition p.last {
+    margin-bottom: 0;
+}
+
+div.highlight {
+    background-color: white;
+}
+
+dt:target, .highlight {
+    background: #FAF3E8;
+}
+
+div.note {
+    background-color: #eee;
+    border: 1px solid #ccc;
+}
+ 
+div.seealso {
+    background-color: #ffc;
+    border: 1px solid #ff6;
+}
+ 
+div.topic {
+    background-color: #eee;
+}
+ 
+p.admonition-title {
+    display: inline;
+}
+ 
+p.admonition-title:after {
+    content: ":";
+}
+
+pre, tt {
+    font-family: 'Consolas', 'Menlo', 'Deja Vu Sans Mono', 'Bitstream Vera Sans Mono', monospace;
+    font-size: 0.85em;
+}
+
+img.screenshot {
+}
+
+tt.descname, tt.descclassname {
+    font-size: 0.95em;
+}
+
+tt.descname {
+    padding-right: 0.08em;
+}
+
+img.screenshot {
+    -moz-box-shadow: 2px 2px 4px #eee;
+    -webkit-box-shadow: 2px 2px 4px #eee;
+    box-shadow: 2px 2px 4px #eee;
+}
+
+table.docutils {
+    border: 1px solid #888;
+    -moz-box-shadow: 2px 2px 4px #eee;
+    -webkit-box-shadow: 2px 2px 4px #eee;
+    box-shadow: 2px 2px 4px #eee;
+}
+
+table.docutils td, table.docutils th {
+    border: 1px solid #888;
+    padding: 0.25em 0.7em;
+}
+
+table.field-list, table.footnote {
+    border: none;
+    -moz-box-shadow: none;
+    -webkit-box-shadow: none;
+    box-shadow: none;
+}
+
+table.footnote {
+    margin: 15px 0;
+    width: 100%;
+    border: 1px solid #eee;
+    background: #fdfdfd;
+    font-size: 0.9em;
+}
+
+table.footnote + table.footnote {
+    margin-top: -15px;
+    border-top: none;
+}
+
+table.field-list th {
+    padding: 0 0.8em 0 0;
+}
+
+table.field-list td {
+    padding: 0;
+}
+
+table.footnote td.label {
+    width: 0px;
+    padding: 0.3em 0 0.3em 0.5em;
+}
+
+table.footnote td {
+    padding: 0.3em 0.5em;
+}
+
+dl {
+    margin: 0;
+    padding: 0;
+}
+
+dl dd {
+    margin-left: 30px;
+}
+
+blockquote {
+    margin: 0 0 0 30px;
+    padding: 0;
+}
+
+ul, ol {
+    margin: 10px 0 10px 30px;
+    padding: 0;
+}
+ 
+pre {
+    background: #eee;
+    padding: 7px 30px;
+    margin: 15px -30px;
+    line-height: 1.3em;
+}
+
+dl pre, blockquote pre, li pre {
+    margin-left: -60px;
+    padding-left: 60px;
+}
+
+dl dl pre {
+    margin-left: -90px;
+    padding-left: 90px;
+}
+ 
+tt {
+    background-color: #E8EFF0;
+    color: #222;
+    /* padding: 1px 2px; */
+}
+
+tt.xref, a tt {
+    background-color: #E8EFF0;
+    border-bottom: 1px solid white;
+}
+
+a.reference {
+    text-decoration: none;
+    border-bottom: 1px dotted #bb0000;
+}
+
+a.reference:hover {
+    border-bottom: 1px solid #dd0000;
+}
+
+a.footnote-reference {
+    text-decoration: none;
+    font-size: 0.7em;
+    vertical-align: top;
+    border-bottom: 1px dotted #bb0000;
+}
+
+a.footnote-reference:hover {
+    border-bottom: 1px solid #dd0000;
+}
+
+a:hover tt {
+    background: #EEE;
+}

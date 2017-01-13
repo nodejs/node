@@ -1,17 +1,17 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
-var crypto = require('crypto');
+const crypto = require('crypto');
 
 // Test certificates
-var certPem = fs.readFileSync(common.fixturesDir + '/test_cert.pem', 'ascii');
-var keyPem = fs.readFileSync(common.fixturesDir + '/test_key.pem', 'ascii');
+const certPem = fs.readFileSync(common.fixturesDir + '/test_cert.pem', 'ascii');
+const keyPem = fs.readFileSync(common.fixturesDir + '/test_key.pem', 'ascii');
 
 // Test signing and verifying
 {
@@ -21,7 +21,7 @@ var keyPem = fs.readFileSync(common.fixturesDir + '/test_key.pem', 'ascii');
   let s1stream = crypto.createSign('RSA-SHA1');
   s1stream.end('Test123');
   s1stream = s1stream.sign(keyPem, 'base64');
-  assert.equal(s1, s1stream, 'Stream produces same output');
+  assert.strictEqual(s1, s1stream, 'Stream produces same output');
 
   const verified = crypto.createVerify('RSA-SHA1')
                          .update('Test')
@@ -33,23 +33,23 @@ var keyPem = fs.readFileSync(common.fixturesDir + '/test_key.pem', 'ascii');
 {
   const s2 = crypto.createSign('RSA-SHA256')
                    .update('Test123')
-                   .sign(keyPem, 'binary');
+                   .sign(keyPem, 'latin1');
   let s2stream = crypto.createSign('RSA-SHA256');
   s2stream.end('Test123');
-  s2stream = s2stream.sign(keyPem, 'binary');
-  assert.equal(s2, s2stream, 'Stream produces same output');
+  s2stream = s2stream.sign(keyPem, 'latin1');
+  assert.strictEqual(s2, s2stream, 'Stream produces same output');
 
   let verified = crypto.createVerify('RSA-SHA256')
                        .update('Test')
                        .update('123')
-                       .verify(certPem, s2, 'binary');
-  assert.strictEqual(verified, true, 'sign and verify (binary)');
+                       .verify(certPem, s2, 'latin1');
+  assert.strictEqual(verified, true, 'sign and verify (latin1)');
 
   const verStream = crypto.createVerify('RSA-SHA256');
   verStream.write('Tes');
   verStream.write('t12');
   verStream.end('3');
-  verified = verStream.verify(certPem, s2, 'binary');
+  verified = verStream.verify(certPem, s2, 'latin1');
   assert.strictEqual(verified, true, 'sign and verify (stream)');
 }
 

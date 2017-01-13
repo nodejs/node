@@ -38,6 +38,7 @@ function listener(event, exec_state, event_data, data) {
     assertEquals("bar return", exec_state.frame(0).evaluate("bar()").value());
     assertEquals("inner bar", exec_state.frame(0).evaluate("inner").value());
     assertEquals("outer bar", exec_state.frame(0).evaluate("outer").value());
+
     assertEquals("baz inner", exec_state.frame(0).evaluate("baz").value());
     assertEquals("baz outer", exec_state.frame(1).evaluate("baz").value());
     exec_state.frame(0).evaluate("w = 'w foo'");

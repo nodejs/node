@@ -18,8 +18,7 @@ var extend                = require('extend')
   , cookies               = require('./lib/cookies')
   , helpers               = require('./lib/helpers')
 
-var isFunction            = helpers.isFunction
-  , paramsHaveRequestBody = helpers.paramsHaveRequestBody
+var paramsHaveRequestBody = helpers.paramsHaveRequestBody
 
 
 // organize params for patch, post, put, head, del
@@ -37,7 +36,7 @@ function initParams(uri, options, callback) {
     extend(params, uri)
   }
 
-  params.callback = callback
+  params.callback = callback || params.callback
   return params
 }
 
@@ -56,7 +55,7 @@ function request (uri, options, callback) {
 }
 
 function verbFunc (verb) {
-  var method = verb === 'del' ? 'DELETE' : verb.toUpperCase()
+  var method = verb.toUpperCase()
   return function (uri, options, callback) {
     var params = initParams(uri, options, callback)
     params.method = method
@@ -70,7 +69,8 @@ request.head = verbFunc('head')
 request.post = verbFunc('post')
 request.put = verbFunc('put')
 request.patch = verbFunc('patch')
-request.del = verbFunc('del')
+request.del = verbFunc('delete')
+request['delete'] = verbFunc('delete')
 
 request.jar = function (store) {
   return cookies.jar(store)
@@ -91,10 +91,10 @@ function wrapRequestMethod (method, options, requester, verb) {
     target.pool = params.pool || options.pool
 
     if (verb) {
-      target.method = (verb === 'del' ? 'DELETE' : verb.toUpperCase())
+      target.method = verb.toUpperCase()
     }
 
-    if (isFunction(requester)) {
+    if (typeof requester === 'function') {
       method = requester
     }
 
@@ -114,7 +114,7 @@ request.defaults = function (options, requester) {
 
   var defaults      = wrapRequestMethod(self, options, requester)
 
-  var verbs = ['get', 'head', 'post', 'put', 'patch', 'del']
+  var verbs = ['get', 'head', 'post', 'put', 'patch', 'del', 'delete']
   verbs.forEach(function(verb) {
     defaults[verb]  = wrapRequestMethod(self[verb], options, requester, verb)
   })

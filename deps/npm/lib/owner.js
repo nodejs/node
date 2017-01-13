@@ -1,14 +1,18 @@
 module.exports = owner
 
-owner.usage = 'npm owner add <user> [<@scope>/]<pkg>' +
-              '\nnpm owner rm <user> [<@scope>/]<pkg>' +
-              '\nnpm owner ls [<@scope>/]<pkg>'
-
 var npm = require('./npm.js')
 var log = require('npmlog')
 var mapToRegistry = require('./utils/map-to-registry.js')
 var readLocalPkg = require('./utils/read-local-package.js')
+var usage = require('./utils/usage')
+var output = require('./utils/output.js')
 
+owner.usage = usage(
+  'owner',
+  'npm owner add <user> [<@scope>/]<pkg>' +
+  '\nnpm owner rm <user> [<@scope>/]<pkg>' +
+  '\nnpm owner ls [<@scope>/]<pkg>'
+)
 owner.completion = function (opts, cb) {
   var argv = opts.conf.argv.remain
   if (argv.length > 4) return cb()
@@ -124,7 +128,7 @@ function ls (pkg, cb) {
           return o.name + ' <' + o.email + '>'
         }).join('\n')
       }
-      console.log(msg)
+      output(msg)
       cb(er, owners)
     })
   })
@@ -255,9 +259,9 @@ function mutate (pkg, user, mutation, cb) {
             if (er) {
               log.error('owner mutate', 'Failed to update package metadata')
             } else if (m.length > beforeMutation) {
-              console.log('+ %s (%s)', user, pkg)
+              output('+ %s (%s)', user, pkg)
             } else if (m.length < beforeMutation) {
-              console.log('- %s (%s)', user, pkg)
+              output('- %s (%s)', user, pkg)
             }
 
             cb(er, data)

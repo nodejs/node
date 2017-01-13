@@ -1,46 +1,46 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
-var https = require('https');
+const https = require('https');
 
-var fs = require('fs');
+const fs = require('fs');
 
-var options = {
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
 
-var server = https.Server(options, function(req, res) {
+const server = https.Server(options, function(req, res) {
   res.writeHead(200);
   res.end('hello world\n');
 });
 
 
-var responses = 0;
-var N = 10;
-var M = 10;
+let responses = 0;
+const N = 4;
+const M = 4;
 
-server.listen(common.PORT, function() {
-  for (var i = 0; i < N; i++) {
+
+server.listen(0, function() {
+  for (let i = 0; i < N; i++) {
     setTimeout(function() {
-      for (var j = 0; j < M; j++) {
+      for (let j = 0; j < M; j++) {
         https.get({
           path: '/',
-          port: common.PORT,
+          port: server.address().port,
           rejectUnauthorized: false
         }, function(res) {
           res.resume();
-          console.log(res.statusCode);
-          if (++responses == N * M) server.close();
+          assert.strictEqual(res.statusCode, 200);
+          if (++responses === N * M) server.close();
         }).on('error', function(e) {
-          console.log(e.message);
-          process.exit(1);
+          throw e;
         });
       }
     }, i);
@@ -49,5 +49,5 @@ server.listen(common.PORT, function() {
 
 
 process.on('exit', function() {
-  assert.equal(N * M, responses);
+  assert.strictEqual(N * M, responses);
 });

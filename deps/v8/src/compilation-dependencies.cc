@@ -124,6 +124,20 @@ void CompilationDependencies::AssumeMapStable(Handle<Map> map) {
 }
 
 
+void CompilationDependencies::AssumePrototypeMapsStable(
+    Handle<Map> map, MaybeHandle<JSReceiver> prototype) {
+  for (PrototypeIterator i(map); !i.IsAtEnd(); i.Advance()) {
+    Handle<JSReceiver> const current =
+        PrototypeIterator::GetCurrent<JSReceiver>(i);
+    AssumeMapStable(handle(current->map()));
+    Handle<JSReceiver> last;
+    if (prototype.ToHandle(&last) && last.is_identical_to(current)) {
+      break;
+    }
+  }
+}
+
+
 void CompilationDependencies::AssumeTransitionStable(
     Handle<AllocationSite> site) {
   // Do nothing if the object doesn't have any useful element transitions left.
@@ -135,5 +149,6 @@ void CompilationDependencies::AssumeTransitionStable(
     Insert(DependentCode::kAllocationSiteTransitionChangedGroup, site);
   }
 }
+
 }  // namespace internal
 }  // namespace v8

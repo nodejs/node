@@ -4,17 +4,12 @@ const assert = require('assert');
 const http = require('http');
 const domain = require('domain');
 
-var gotDomainError = false;
-var d;
-
-process.on('exit', function() {
-  assert(gotDomainError);
-});
+let d;
 
 common.refreshTmpDir();
 
 // first fire up a simple HTTP server
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   res.writeHead(200);
   res.end();
   server.close();
@@ -22,19 +17,18 @@ var server = http.createServer(function(req, res) {
 server.listen(common.PIPE, function() {
   // create a domain
   d = domain.create();
-  d.run(test);
+  d.run(common.mustCall(test));
 });
 
 function test() {
 
-  d.on('error', function(err) {
-    gotDomainError = true;
-    assert.equal('should be caught by domain', err.message);
-  });
+  d.on('error', common.mustCall(function(err) {
+    assert.strictEqual('should be caught by domain', err.message);
+  }));
 
-  var req = http.get({
+  const req = http.get({
     socketPath: common.PIPE,
-    headers: {'Content-Length':'1'},
+    headers: {'Content-Length': '1'},
     method: 'POST',
     path: '/'
   });

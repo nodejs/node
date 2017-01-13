@@ -1,54 +1,64 @@
 /**
  * @fileoverview Enforces or disallows inline comments.
  * @author Greg Cochard
- * @copyright 2014 Greg Cochard. All rights reserved.
  */
 "use strict";
 
-var astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow inline comments after code",
+            category: "Stylistic Issues",
+            recommended: false
+        },
 
-    /**
-     * Will check that comments are not on lines starting with or ending with code
-     * @param {ASTNode} node The comment node to check
-     * @private
-     * @returns {void}
-     */
-    function testCodeAroundComment(node) {
+        schema: []
+    },
 
-        // Get the whole line and cut it off at the start of the comment
-        var startLine = String(context.getSourceLines()[node.loc.start.line - 1]);
-        var endLine = String(context.getSourceLines()[node.loc.end.line - 1]);
+    create(context) {
+        const sourceCode = context.getSourceCode();
 
-        var preamble = startLine.slice(0, node.loc.start.column).trim();
+        /**
+         * Will check that comments are not on lines starting with or ending with code
+         * @param {ASTNode} node The comment node to check
+         * @private
+         * @returns {void}
+         */
+        function testCodeAroundComment(node) {
 
-        // Also check after the comment
-        var postamble = endLine.slice(node.loc.end.column).trim();
+            // Get the whole line and cut it off at the start of the comment
+            const startLine = String(sourceCode.lines[node.loc.start.line - 1]);
+            const endLine = String(sourceCode.lines[node.loc.end.line - 1]);
 
-        // Check that this comment isn't an ESLint directive
-        var isDirective = astUtils.isDirectiveComment(node);
+            const preamble = startLine.slice(0, node.loc.start.column).trim();
 
-        // Should be empty if there was only whitespace around the comment
-        if (!isDirective && (preamble || postamble)) {
-            context.report(node, "Unexpected comment inline with code.");
+            // Also check after the comment
+            const postamble = endLine.slice(node.loc.end.column).trim();
+
+            // Check that this comment isn't an ESLint directive
+            const isDirective = astUtils.isDirectiveComment(node);
+
+            // Should be empty if there was only whitespace around the comment
+            if (!isDirective && (preamble || postamble)) {
+                context.report({ node, message: "Unexpected comment inline with code." });
+            }
         }
+
+        //--------------------------------------------------------------------------
+        // Public
+        //--------------------------------------------------------------------------
+
+        return {
+
+            LineComment: testCodeAroundComment,
+            BlockComment: testCodeAroundComment
+
+        };
     }
-
-    //--------------------------------------------------------------------------
-    // Public
-    //--------------------------------------------------------------------------
-
-    return {
-
-        "LineComment": testCodeAroundComment,
-        "BlockComment": testCodeAroundComment
-
-    };
 };
-
-module.exports.schema = [];

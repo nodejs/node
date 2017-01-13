@@ -135,11 +135,13 @@ static X509_EXTENSION *do_ext_nconf(CONF *conf, X509V3_CTX *ctx, int ext_nid,
             nval = NCONF_get_section(conf, value + 1);
         else
             nval = X509V3_parse_list(value);
-        if (sk_CONF_VALUE_num(nval) <= 0) {
+        if (nval == NULL || sk_CONF_VALUE_num(nval) <= 0) {
             X509V3err(X509V3_F_DO_EXT_NCONF,
                       X509V3_R_INVALID_EXTENSION_STRING);
             ERR_add_error_data(4, "name=", OBJ_nid2sn(ext_nid), ",section=",
                                value);
+            if (*value != '@')
+                sk_CONF_VALUE_free(nval);
             return NULL;
         }
         ext_struc = method->v2i(method, ctx, nval);

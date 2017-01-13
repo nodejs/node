@@ -11,24 +11,31 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow `javascript:` urls",
+            category: "Best Practices",
+            recommended: false
+        },
 
-    return {
+        schema: []
+    },
 
-        "Literal": function(node) {
+    create(context) {
 
-            var value;
+        return {
 
-            if (node.value && typeof node.value === "string") {
-                value = node.value.toLowerCase();
+            Literal(node) {
+                if (node.value && typeof node.value === "string") {
+                    const value = node.value.toLowerCase();
 
-                if (value.indexOf("javascript:") === 0) {
-                    context.report(node, "Script URL is a form of eval.");
+                    if (value.indexOf("javascript:") === 0) {
+                        context.report({ node, message: "Script URL is a form of eval." });
+                    }
                 }
             }
-        }
-    };
+        };
 
+    }
 };
-
-module.exports.schema = [];

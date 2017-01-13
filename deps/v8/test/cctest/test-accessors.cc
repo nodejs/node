@@ -25,9 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// TODO(jochen): Remove this after the setting is turned on globally.
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include <stdlib.h>
 
 #include "src/v8.h"
@@ -689,9 +686,9 @@ THREADED_TEST(Regress433458) {
 
 static bool security_check_value = false;
 
-
 static bool SecurityTestCallback(Local<v8::Context> accessing_context,
-                                 Local<v8::Object> accessed_object) {
+                                 Local<v8::Object> accessed_object,
+                                 Local<v8::Value> data) {
   return security_check_value;
 }
 
@@ -776,4 +773,29 @@ TEST(PrototypeGetterAccessCheck) {
     CompileRun("f();");
     CHECK(try_catch.HasCaught());
   }
+}
+
+static void CheckReceiver(Local<String> name,
+                          const v8::PropertyCallbackInfo<v8::Value>& info) {
+  CHECK(info.This()->IsObject());
+}
+
+TEST(Regress609134) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  auto fun_templ = v8::FunctionTemplate::New(isolate);
+  fun_templ->InstanceTemplate()->SetNativeDataProperty(v8_str("foo"),
+                                                       CheckReceiver);
+
+  CHECK(env->Global()
+            ->Set(env.local(), v8_str("Fun"),
+                  fun_templ->GetFunction(env.local()).ToLocalChecked())
+            .FromJust());
+
+  CompileRun(
+      "var f = new Fun();"
+      "Number.prototype.__proto__ = f;"
+      "var a = 42;"
+      "for (var i = 0; i<3; i++) { a.foo; }");
 }

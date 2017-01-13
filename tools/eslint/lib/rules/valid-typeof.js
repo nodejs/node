@@ -8,35 +8,70 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "enforce comparing `typeof` expressions against valid strings",
+            category: "Possible Errors",
+            recommended: true
+        },
 
-    var VALID_TYPES = ["symbol", "undefined", "object", "boolean", "number", "string", "function"],
-        OPERATORS = ["==", "===", "!=", "!=="];
+        schema: [
+            {
+                type: "object",
+                properties: {
+                    requireStringLiterals: {
+                        type: "boolean"
+                    }
+                },
+                additionalProperties: false
+            }
+        ]
+    },
 
-    //--------------------------------------------------------------------------
-    // Public
-    //--------------------------------------------------------------------------
+    create(context) {
 
-    return {
+        const VALID_TYPES = ["symbol", "undefined", "object", "boolean", "number", "string", "function"],
+            OPERATORS = ["==", "===", "!=", "!=="];
 
-        "UnaryExpression": function(node) {
-            var parent, sibling;
+        const requireStringLiterals = context.options[0] && context.options[0].requireStringLiterals;
 
-            if (node.operator === "typeof") {
-                parent = context.getAncestors().pop();
+        /**
+        * Determines whether a node is a typeof expression.
+        * @param {ASTNode} node The node
+        * @returns {boolean} `true` if the node is a typeof expression
+        */
+        function isTypeofExpression(node) {
+            return node.type === "UnaryExpression" && node.operator === "typeof";
+        }
 
-                if (parent.type === "BinaryExpression" && OPERATORS.indexOf(parent.operator) !== -1) {
-                    sibling = parent.left === node ? parent.right : parent.left;
+        //--------------------------------------------------------------------------
+        // Public
+        //--------------------------------------------------------------------------
 
-                    if (sibling.type === "Literal" && VALID_TYPES.indexOf(sibling.value) === -1) {
-                        context.report(sibling, "Invalid typeof comparison value");
+        return {
+
+            UnaryExpression(node) {
+                if (isTypeofExpression(node)) {
+                    const parent = context.getAncestors().pop();
+
+                    if (parent.type === "BinaryExpression" && OPERATORS.indexOf(parent.operator) !== -1) {
+                        const sibling = parent.left === node ? parent.right : parent.left;
+
+                        if (sibling.type === "Literal" || sibling.type === "TemplateLiteral" && !sibling.expressions.length) {
+                            const value = sibling.type === "Literal" ? sibling.value : sibling.quasis[0].value.cooked;
+
+                            if (VALID_TYPES.indexOf(value) === -1) {
+                                context.report({ node: sibling, message: "Invalid typeof comparison value." });
+                            }
+                        } else if (requireStringLiterals && !isTypeofExpression(sibling)) {
+                            context.report({ node: sibling, message: "Typeof comparisons should be to string literals." });
+                        }
                     }
                 }
             }
-        }
 
-    };
+        };
 
+    }
 };
-
-module.exports.schema = [];

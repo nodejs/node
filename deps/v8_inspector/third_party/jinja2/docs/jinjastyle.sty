@@ -1,0 +1,119 @@
+\definecolor{TitleColor}{rgb}{0,0,0}
+\definecolor{InnerLinkColor}{rgb}{0,0,0}
+\definecolor{OuterLinkColor}{rgb}{0.8,0,0}
+
+\renewcommand{\maketitle}{%
+  \begin{titlepage}%
+    \let\footnotesize\small
+    \let\footnoterule\relax
+    \ifsphinxpdfoutput
+      \begingroup
+      % This \def is required to deal with multi-line authors; it
+      % changes \\ to ', ' (comma-space), making it pass muster for
+      % generating document info in the PDF file.
+      \def\\{, }
+      \pdfinfo{
+        /Author (\@author)
+        /Title (\@title)
+      }
+      \endgroup
+    \fi
+    \begin{flushright}%
+      %\sphinxlogo%
+      {\center
+        \vspace*{3cm}
+      	\includegraphics{logo.pdf}
+        \vspace{3cm}
+	\par
+        {\rm\Huge \@title \par}%
+        {\em\LARGE \py@release\releaseinfo \par}
+        {\large
+         \@date \par
+         \py@authoraddress \par
+        }}%
+    \end{flushright}%\par
+    \@thanks
+  \end{titlepage}%
+  \cleardoublepage%
+  \setcounter{footnote}{0}%
+  \let\thanks\relax\let\maketitle\relax
+  %\gdef\@thanks{}\gdef\@author{}\gdef\@title{}
+}
+
+\fancypagestyle{normal}{
+  \fancyhf{}
+  \fancyfoot[LE,RO]{{\thepage}}
+  \fancyfoot[LO]{{\nouppercase{\rightmark}}}
+  \fancyfoot[RE]{{\nouppercase{\leftmark}}}
+  \fancyhead[LE,RO]{{ \@title, \py@release}}
+  \renewcommand{\headrulewidth}{0.4pt}
+  \renewcommand{\footrulewidth}{0.4pt}
+}
+
+\fancypagestyle{plain}{
+  \fancyhf{}
+  \fancyfoot[LE,RO]{{\thepage}}
+  \renewcommand{\headrulewidth}{0pt}
+  \renewcommand{\footrulewidth}{0.4pt}
+}
+
+\titleformat{\section}{\Large}%
+            {\py@TitleColor\thesection}{0.5em}{\py@TitleColor}{\py@NormalColor}
+\titleformat{\subsection}{\large}%
+            {\py@TitleColor\thesubsection}{0.5em}{\py@TitleColor}{\py@NormalColor}
+\titleformat{\subsubsection}{}%
+            {\py@TitleColor\thesubsubsection}{0.5em}{\py@TitleColor}{\py@NormalColor}
+\titleformat{\paragraph}{\large}%
+            {\py@TitleColor}{0em}{\py@TitleColor}{\py@NormalColor}
+
+\ChNameVar{\raggedleft\normalsize}
+\ChNumVar{\raggedleft \bfseries\Large}
+\ChTitleVar{\raggedleft \rm\Huge}
+
+\renewcommand\thepart{\@Roman\c@part}
+\renewcommand\part{%
+   \pagestyle{plain}
+   \if@noskipsec \leavevmode \fi
+   \cleardoublepage
+   \vspace*{6cm}%
+   \@afterindentfalse
+   \secdef\@part\@spart}
+
+\def\@part[#1]#2{%
+    \ifnum \c@secnumdepth >\m@ne
+      \refstepcounter{part}%
+      \addcontentsline{toc}{part}{\thepart\hspace{1em}#1}%
+    \else
+      \addcontentsline{toc}{part}{#1}%
+    \fi
+    {\parindent \z@ %\center
+     \interlinepenalty \@M
+     \normalfont
+     \ifnum \c@secnumdepth >\m@ne
+       \rm\Large \partname~\thepart
+       \par\nobreak
+     \fi
+     \MakeUppercase{\rm\Huge #2}%
+     \markboth{}{}\par}%
+    \nobreak
+    \vskip 8ex
+    \@afterheading}
+\def\@spart#1{%
+    {\parindent \z@ %\center
+     \interlinepenalty \@M
+     \normalfont
+     \huge \bfseries #1\par}%
+     \nobreak
+     \vskip 3ex
+     \@afterheading}
+
+% use inconsolata font
+\usepackage{inconsolata}
+
+% fix single quotes, for inconsolata. (does not work)
+%%\usepackage{textcomp}
+%%\begingroup
+%%  \catcode`'=\active
+%%  \g@addto@macro\@noligs{\let'\textsinglequote}
+%%  \endgroup
+%%\endinput

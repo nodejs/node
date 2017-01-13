@@ -3,17 +3,17 @@
 // leave the master process in a confused state. Releasing the port and
 // trying again should Just Work[TM].
 
-var common = require('../common');
-var assert = require('assert');
-var fork = require('child_process').fork;
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const fork = require('child_process').fork;
+const net = require('net');
 
-var id = '' + process.argv[2];
+const id = '' + process.argv[2];
 
 if (id === 'undefined') {
   const server = net.createServer(common.fail);
   server.listen(common.PORT, function() {
-    var worker = fork(__filename, ['worker']);
+    const worker = fork(__filename, ['worker']);
     worker.on('message', function(msg) {
       if (msg !== 'stop-listening') return;
       server.close(function() {
@@ -21,8 +21,7 @@ if (id === 'undefined') {
       });
     });
   });
-}
-else if (id === 'worker') {
+} else if (id === 'worker') {
   let server = net.createServer(common.fail);
   server.listen(common.PORT, common.fail);
   server.on('error', common.mustCall(function(e) {
@@ -36,7 +35,6 @@ else if (id === 'worker') {
       }));
     });
   }));
-}
-else {
+} else {
   assert(0);  // Bad argument.
 }

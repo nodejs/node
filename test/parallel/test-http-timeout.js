@@ -1,37 +1,35 @@
 'use strict';
-var common = require('../common');
+require('../common');
 
-var http = require('http');
+const http = require('http');
 
-var port = common.PORT;
-
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   res.writeHead(200, {'Content-Type': 'text/plain'});
   res.end('OK');
 });
 
-var agent = new http.Agent({maxSockets: 1});
+const agent = new http.Agent({maxSockets: 1});
 
-server.listen(port, function() {
+server.listen(0, function() {
 
-  for (var i = 0; i < 11; ++i) {
+  for (let i = 0; i < 11; ++i) {
     createRequest().end();
   }
 
   function callback() {}
 
-  var count = 0;
+  let count = 0;
 
   function createRequest() {
     const req = http.request(
-      {port: port, path: '/', agent: agent},
+      {port: server.address().port, path: '/', agent: agent},
       function(res) {
         req.clearTimeout(callback);
 
         res.on('end', function() {
           count++;
 
-          if (count == 11) {
+          if (count === 11) {
             server.close();
           }
         });

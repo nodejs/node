@@ -1,24 +1,23 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+require('../common');
+const assert = require('assert');
 
-var http = require('http');
+const http = require('http');
 
-var port = common.PORT;
-var serverRequests = 0;
-var clientRequests = 0;
+let serverRequests = 0;
+let clientRequests = 0;
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   serverRequests++;
   res.writeHead(200, {'Content-Type': 'text/plain'});
   res.end('OK');
 });
 
-server.listen(port, function() {
+server.listen(0, function() {
   function callback() {}
 
-  var req = http.request({
-    port: port,
+  const req = http.request({
+    port: this.address().port,
     path: '/',
     agent: false
   }, function(res) {
@@ -38,6 +37,6 @@ server.listen(port, function() {
 });
 
 process.once('exit', function() {
-  assert.equal(clientRequests, 1);
-  assert.equal(serverRequests, 1);
+  assert.strictEqual(clientRequests, 1);
+  assert.strictEqual(serverRequests, 1);
 });

@@ -2,13 +2,13 @@
 // test convenience methods with and without options supplied
 
 require('../common');
-var assert = require('assert');
-var zlib = require('zlib');
+const assert = require('assert');
+const zlib = require('zlib');
 
-var hadRun = 0;
+let hadRun = 0;
 
-var expect = 'blahblahblahblahblahblah';
-var opts = {
+const expect = 'blahblahblahblahblahblah';
+const opts = {
   level: 9,
   chunkSize: 1024,
 };
@@ -22,38 +22,38 @@ var opts = {
 
   zlib[method[0]](expect, opts, function(err, result) {
     zlib[method[1]](result, opts, function(err, result) {
-      assert.equal(result, expect,
-        'Should get original string after ' +
-        method[0] + '/' + method[1] + ' with options.');
+      assert.strictEqual(result.toString(), expect,
+                         'Should get original string after ' +
+                   method[0] + '/' + method[1] + ' with options.');
       hadRun++;
     });
   });
 
   zlib[method[0]](expect, function(err, result) {
     zlib[method[1]](result, function(err, result) {
-      assert.equal(result, expect,
-        'Should get original string after ' +
-        method[0] + '/' + method[1] + ' without options.');
+      assert.strictEqual(result.toString(), expect,
+                         'Should get original string after ' +
+                   method[0] + '/' + method[1] + ' without options.');
       hadRun++;
     });
   });
 
-  var result = zlib[method[0] + 'Sync'](expect, opts);
+  let result = zlib[method[0] + 'Sync'](expect, opts);
   result = zlib[method[1] + 'Sync'](result, opts);
-  assert.equal(result, expect,
-    'Should get original string after ' +
-    method[0] + '/' + method[1] + ' with options.');
+  assert.strictEqual(result.toString(), expect,
+                     'Should get original string after ' +
+               method[0] + '/' + method[1] + ' with options.');
   hadRun++;
 
   result = zlib[method[0] + 'Sync'](expect);
   result = zlib[method[1] + 'Sync'](result);
-  assert.equal(result, expect,
-    'Should get original string after ' +
-    method[0] + '/' + method[1] + ' without options.');
+  assert.strictEqual(result.toString(), expect,
+                     'Should get original string after ' +
+               method[0] + '/' + method[1] + ' without options.');
   hadRun++;
 
 });
 
 process.on('exit', function() {
-  assert.equal(hadRun, 16, 'expect 16 compressions');
+  assert.strictEqual(hadRun, 16, 'expect 16 compressions');
 });

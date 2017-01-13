@@ -17,6 +17,14 @@ TransitionArray* TransitionArray::cast(Object* object) {
 }
 
 
+Object* TransitionArray::next_link() { return get(kNextLinkIndex); }
+
+
+void TransitionArray::set_next_link(Object* next, WriteBarrierMode mode) {
+  return set(kNextLinkIndex, next, mode);
+}
+
+
 bool TransitionArray::HasPrototypeTransitions() {
   return get(kPrototypeTransitionsIndex) != Smi::FromInt(0);
 }
@@ -29,10 +37,9 @@ FixedArray* TransitionArray::GetPrototypeTransitions() {
 }
 
 
-void TransitionArray::SetPrototypeTransitions(FixedArray* transitions,
-                                              WriteBarrierMode mode) {
+void TransitionArray::SetPrototypeTransitions(FixedArray* transitions) {
   DCHECK(transitions->IsFixedArray());
-  set(kPrototypeTransitionsIndex, transitions, mode);
+  set(kPrototypeTransitionsIndex, transitions);
 }
 
 
@@ -93,7 +100,9 @@ void TransitionArray::SetTarget(int transition_number, Map* value) {
 
 
 int TransitionArray::SearchName(Name* name, int* out_insertion_index) {
-  return internal::Search<ALL_ENTRIES>(this, name, 0, out_insertion_index);
+  DCHECK(name->IsUniqueName());
+  return internal::Search<ALL_ENTRIES>(this, name, number_of_entries(),
+                                       out_insertion_index);
 }
 
 
@@ -104,7 +113,7 @@ bool TransitionArray::IsSpecialTransition(Name* name) {
   return name == heap->nonextensible_symbol() ||
          name == heap->sealed_symbol() || name == heap->frozen_symbol() ||
          name == heap->elements_transition_symbol() ||
-         name == heap->observed_symbol();
+         name == heap->strict_function_transition_symbol();
 }
 #endif
 
@@ -158,13 +167,9 @@ PropertyDetails TransitionArray::GetTargetDetails(Name* name, Map* target) {
 }
 
 
-void TransitionArray::NoIncrementalWriteBarrierSet(int transition_number,
-                                                   Name* key,
-                                                   Map* target) {
-  FixedArray::NoIncrementalWriteBarrierSet(
-      this, ToKeyIndex(transition_number), key);
-  FixedArray::NoIncrementalWriteBarrierSet(
-      this, ToTargetIndex(transition_number), target);
+void TransitionArray::Set(int transition_number, Name* key, Map* target) {
+  set(ToKeyIndex(transition_number), key);
+  set(ToTargetIndex(transition_number), target);
 }
 
 

@@ -19,20 +19,21 @@ enum InvokeFlag {
 enum AllocationFlags {
   // No special flags.
   NO_ALLOCATION_FLAGS = 0,
-  // Return the pointer to the allocated already tagged as a heap object.
-  TAG_OBJECT = 1 << 0,
   // The content of the result register already contains the allocation top in
   // new space.
-  RESULT_CONTAINS_TOP = 1 << 1,
+  RESULT_CONTAINS_TOP = 1 << 0,
   // Specify that the requested size of the space to allocate is specified in
   // words instead of bytes.
-  SIZE_IN_WORDS = 1 << 2,
+  SIZE_IN_WORDS = 1 << 1,
   // Align the allocation to a multiple of kDoubleSize
-  DOUBLE_ALIGNMENT = 1 << 3,
+  DOUBLE_ALIGNMENT = 1 << 2,
   // Directly allocate in old space
-  PRETENURE = 1 << 4,
+  PRETENURE = 1 << 3,
+  // Allocation folding dominator
+  ALLOCATION_FOLDING_DOMINATOR = 1 << 4,
+  // Folded allocation
+  ALLOCATION_FOLDED = 1 << 5
 };
-
 
 #if V8_TARGET_ARCH_IA32
 #include "src/ia32/assembler-ia32.h"
@@ -68,6 +69,11 @@ enum AllocationFlags {
 #include "src/mips64/assembler-mips64-inl.h"
 #include "src/mips64/constants-mips64.h"
 #include "src/mips64/macro-assembler-mips64.h"
+#elif V8_TARGET_ARCH_S390
+#include "src/s390/assembler-s390.h"
+#include "src/s390/assembler-s390-inl.h"
+#include "src/s390/constants-s390.h"
+#include "src/s390/macro-assembler-s390.h"
 #elif V8_TARGET_ARCH_X87
 #include "src/x87/assembler-x87.h"
 #include "src/x87/assembler-x87-inl.h"

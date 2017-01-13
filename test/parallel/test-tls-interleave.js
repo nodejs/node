@@ -1,37 +1,38 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const assert = require('assert');
 
-var fs = require('fs');
+const tls = require('tls');
 
-var PORT = common.PORT;
-var dir = common.fixturesDir;
-var options = { key: fs.readFileSync(dir + '/test_key.pem'),
-                cert: fs.readFileSync(dir + '/test_cert.pem'),
-                ca: [ fs.readFileSync(dir + '/test_ca.pem') ] };
+const fs = require('fs');
 
-var writes = [
+const dir = common.fixturesDir;
+const options = { key: fs.readFileSync(dir + '/test_key.pem'),
+                  cert: fs.readFileSync(dir + '/test_cert.pem'),
+                  ca: [ fs.readFileSync(dir + '/test_ca.pem') ] };
+
+const writes = [
   'some server data',
   'and a separate packet',
   'and one more',
 ];
-var receivedWrites = 0;
+let receivedWrites = 0;
 
-var server = tls.createServer(options, function(c) {
+const server = tls.createServer(options, function(c) {
   writes.forEach(function(str) {
     c.write(str);
   });
-}).listen(PORT, function() {
-  var c = tls.connect(PORT, { rejectUnauthorized: false }, function() {
+}).listen(0, common.mustCall(function() {
+  const connectOpts = { rejectUnauthorized: false };
+  const c = tls.connect(this.address().port, connectOpts, function() {
     c.write('some client data');
     c.on('readable', function() {
-      var data = c.read();
+      let data = c.read();
       if (data === null)
         return;
 
@@ -47,8 +48,9 @@ var server = tls.createServer(options, function(c) {
       }
     });
   });
-});
+}));
+
 
 process.on('exit', function() {
-  assert.equal(receivedWrites, writes.length);
+  assert.strictEqual(receivedWrites, writes.length);
 });

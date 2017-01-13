@@ -35,7 +35,8 @@ class NodeCache final {
 
   // Search for node associated with {key} and return a pointer to a memory
   // location in this cache that stores an entry for the key. If the location
-  // returned by this method contains a non-NULL node, the caller can use that
+  // returned by this method contains a non-nullptr node, the caller can use
+  // that
   // node. Otherwise it is the responsibility of the caller to fill the entry
   // with a new node.
   // Note that a previous cache entry may be overwritten if the cache becomes
@@ -62,6 +63,14 @@ class NodeCache final {
 // Various default cache types.
 typedef NodeCache<int32_t> Int32NodeCache;
 typedef NodeCache<int64_t> Int64NodeCache;
+
+// All we want is the numeric value of the RelocInfo::Mode enum. We typedef
+// below to avoid pulling in assembler.h
+typedef char RelocInfoMode;
+typedef std::pair<int32_t, RelocInfoMode> RelocInt32Key;
+typedef std::pair<int64_t, RelocInfoMode> RelocInt64Key;
+typedef NodeCache<RelocInt32Key> RelocInt32NodeCache;
+typedef NodeCache<RelocInt64Key> RelocInt64NodeCache;
 #if V8_HOST_ARCH_32_BIT
 typedef Int32NodeCache IntPtrNodeCache;
 #else

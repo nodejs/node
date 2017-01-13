@@ -443,7 +443,7 @@ $TEMP2 = $B2;
 $TEMP3 = $Y1;
 $TEMP4 = $Y2;
 $code.=<<___;
-	#we need to fix indexes 32-39 to avoid overflow
+	# we need to fix indices 32-39 to avoid overflow
 	vmovdqu		32*8(%rsp), $ACC8		# 32*8-192($tp0),
 	vmovdqu		32*9(%rsp), $ACC1		# 32*9-192($tp0)
 	vmovdqu		32*10(%rsp), $ACC2		# 32*10-192($tp0)
@@ -1592,68 +1592,128 @@ rsaz_1024_scatter5_avx2:
 .type	rsaz_1024_gather5_avx2,\@abi-omnipotent
 .align	32
 rsaz_1024_gather5_avx2:
+	vzeroupper
+	mov	%rsp,%r11
 ___
 $code.=<<___ if ($win64);
 	lea	-0x88(%rsp),%rax
-	vzeroupper
 .LSEH_begin_rsaz_1024_gather5:
 	# I can't trust assembler to use specific encoding:-(
-	.byte	0x48,0x8d,0x60,0xe0		#lea	-0x20(%rax),%rsp
-	.byte	0xc5,0xf8,0x29,0x70,0xe0	#vmovaps %xmm6,-0x20(%rax)
-	.byte	0xc5,0xf8,0x29,0x78,0xf0	#vmovaps %xmm7,-0x10(%rax)
-	.byte	0xc5,0x78,0x29,0x40,0x00	#vmovaps %xmm8,0(%rax)
-	.byte	0xc5,0x78,0x29,0x48,0x10	#vmovaps %xmm9,0x10(%rax)
-	.byte	0xc5,0x78,0x29,0x50,0x20	#vmovaps %xmm10,0x20(%rax)
-	.byte	0xc5,0x78,0x29,0x58,0x30	#vmovaps %xmm11,0x30(%rax)
-	.byte	0xc5,0x78,0x29,0x60,0x40	#vmovaps %xmm12,0x40(%rax)
-	.byte	0xc5,0x78,0x29,0x68,0x50	#vmovaps %xmm13,0x50(%rax)
-	.byte	0xc5,0x78,0x29,0x70,0x60	#vmovaps %xmm14,0x60(%rax)
-	.byte	0xc5,0x78,0x29,0x78,0x70	#vmovaps %xmm15,0x70(%rax)
+	.byte	0x48,0x8d,0x60,0xe0		# lea	-0x20(%rax),%rsp
+	.byte	0xc5,0xf8,0x29,0x70,0xe0	# vmovaps %xmm6,-0x20(%rax)
+	.byte	0xc5,0xf8,0x29,0x78,0xf0	# vmovaps %xmm7,-0x10(%rax)
+	.byte	0xc5,0x78,0x29,0x40,0x00	# vmovaps %xmm8,0(%rax)
+	.byte	0xc5,0x78,0x29,0x48,0x10	# vmovaps %xmm9,0x10(%rax)
+	.byte	0xc5,0x78,0x29,0x50,0x20	# vmovaps %xmm10,0x20(%rax)
+	.byte	0xc5,0x78,0x29,0x58,0x30	# vmovaps %xmm11,0x30(%rax)
+	.byte	0xc5,0x78,0x29,0x60,0x40	# vmovaps %xmm12,0x40(%rax)
+	.byte	0xc5,0x78,0x29,0x68,0x50	# vmovaps %xmm13,0x50(%rax)
+	.byte	0xc5,0x78,0x29,0x70,0x60	# vmovaps %xmm14,0x60(%rax)
+	.byte	0xc5,0x78,0x29,0x78,0x70	# vmovaps %xmm15,0x70(%rax)
 ___
 $code.=<<___;
-	lea	.Lgather_table(%rip),%r11
-	mov	$power,%eax
-	and	\$3,$power
-	shr	\$2,%eax			# cache line number
-	shl	\$4,$power			# offset within cache line
+	lea	-0x100(%rsp),%rsp
+	and	\$-32, %rsp
+	lea	.Linc(%rip), %r10
+	lea	-128(%rsp),%rax			# control u-op density
 
-	vmovdqu		-32(%r11),%ymm7		# .Lgather_permd
-	vpbroadcastb	8(%r11,%rax), %xmm8
-	vpbroadcastb	7(%r11,%rax), %xmm9
-	vpbroadcastb	6(%r11,%rax), %xmm10
-	vpbroadcastb	5(%r11,%rax), %xmm11
-	vpbroadcastb	4(%r11,%rax), %xmm12
-	vpbroadcastb	3(%r11,%rax), %xmm13
-	vpbroadcastb	2(%r11,%rax), %xmm14
-	vpbroadcastb	1(%r11,%rax), %xmm15
+	vmovd		$power, %xmm4
+	vmovdqa		(%r10),%ymm0
+	vmovdqa		32(%r10),%ymm1
+	vmovdqa		64(%r10),%ymm5
+	vpbroadcastd	%xmm4,%ymm4
 
-	lea	64($inp,$power),$inp
-	mov	\$64,%r11			# size optimization
-	mov	\$9,%eax
-	jmp	.Loop_gather_1024
+	vpaddd		%ymm5, %ymm0, %ymm2
+	vpcmpeqd	%ymm4, %ymm0, %ymm0
+	vpaddd		%ymm5, %ymm1, %ymm3
+	vpcmpeqd	%ymm4, %ymm1, %ymm1
+	vmovdqa		%ymm0, 32*0+128(%rax)
+	vpaddd		%ymm5, %ymm2, %ymm0
+	vpcmpeqd	%ymm4, %ymm2, %ymm2
+	vmovdqa		%ymm1, 32*1+128(%rax)
+	vpaddd		%ymm5, %ymm3, %ymm1
+	vpcmpeqd	%ymm4, %ymm3, %ymm3
+	vmovdqa		%ymm2, 32*2+128(%rax)
+	vpaddd		%ymm5, %ymm0, %ymm2
+	vpcmpeqd	%ymm4, %ymm0, %ymm0
+	vmovdqa		%ymm3, 32*3+128(%rax)
+	vpaddd		%ymm5, %ymm1, %ymm3
+	vpcmpeqd	%ymm4, %ymm1, %ymm1
+	vmovdqa		%ymm0, 32*4+128(%rax)
+	vpaddd		%ymm5, %ymm2, %ymm8
+	vpcmpeqd	%ymm4, %ymm2, %ymm2
+	vmovdqa		%ymm1, 32*5+128(%rax)
+	vpaddd		%ymm5, %ymm3, %ymm9
+	vpcmpeqd	%ymm4, %ymm3, %ymm3
+	vmovdqa		%ymm2, 32*6+128(%rax)
+	vpaddd		%ymm5, %ymm8, %ymm10
+	vpcmpeqd	%ymm4, %ymm8, %ymm8
+	vmovdqa		%ymm3, 32*7+128(%rax)
+	vpaddd		%ymm5, %ymm9, %ymm11
+	vpcmpeqd	%ymm4, %ymm9, %ymm9
+	vpaddd		%ymm5, %ymm10, %ymm12
+	vpcmpeqd	%ymm4, %ymm10, %ymm10
+	vpaddd		%ymm5, %ymm11, %ymm13
+	vpcmpeqd	%ymm4, %ymm11, %ymm11
+	vpaddd		%ymm5, %ymm12, %ymm14
+	vpcmpeqd	%ymm4, %ymm12, %ymm12
+	vpaddd		%ymm5, %ymm13, %ymm15
+	vpcmpeqd	%ymm4, %ymm13, %ymm13
+	vpcmpeqd	%ymm4, %ymm14, %ymm14
+	vpcmpeqd	%ymm4, %ymm15, %ymm15
 
-.align	32
+	vmovdqa	-32(%r10),%ymm7			# .Lgather_permd
+	lea	128($inp), $inp
+	mov	\$9,$power
+
 .Loop_gather_1024:
-	vpand		-64($inp),		%xmm8,%xmm0
-	vpand		($inp),			%xmm9,%xmm1
-	vpand		64($inp),		%xmm10,%xmm2
-	vpand		($inp,%r11,2),		%xmm11,%xmm3
-	 vpor					%xmm0,%xmm1,%xmm1
-	vpand		64($inp,%r11,2),	%xmm12,%xmm4
-	 vpor					%xmm2,%xmm3,%xmm3
-	vpand		($inp,%r11,4),		%xmm13,%xmm5
-	 vpor					%xmm1,%xmm3,%xmm3
-	vpand		64($inp,%r11,4),	%xmm14,%xmm6
-	 vpor					%xmm4,%xmm5,%xmm5
-	vpand		-128($inp,%r11,8),	%xmm15,%xmm2
-	lea		($inp,%r11,8),$inp
-	 vpor					%xmm3,%xmm5,%xmm5
-	 vpor					%xmm2,%xmm6,%xmm6
-	 vpor					%xmm5,%xmm6,%xmm6
-	vpermd		%ymm6,%ymm7,%ymm6
-	vmovdqu		%ymm6,($out)
+	vmovdqa		32*0-128($inp),	%ymm0
+	vmovdqa		32*1-128($inp),	%ymm1
+	vmovdqa		32*2-128($inp),	%ymm2
+	vmovdqa		32*3-128($inp),	%ymm3
+	vpand		32*0+128(%rax),	%ymm0,	%ymm0
+	vpand		32*1+128(%rax),	%ymm1,	%ymm1
+	vpand		32*2+128(%rax),	%ymm2,	%ymm2
+	vpor		%ymm0, %ymm1, %ymm4
+	vpand		32*3+128(%rax),	%ymm3,	%ymm3
+	vmovdqa		32*4-128($inp),	%ymm0
+	vmovdqa		32*5-128($inp),	%ymm1
+	vpor		%ymm2, %ymm3, %ymm5
+	vmovdqa		32*6-128($inp),	%ymm2
+	vmovdqa		32*7-128($inp),	%ymm3
+	vpand		32*4+128(%rax),	%ymm0,	%ymm0
+	vpand		32*5+128(%rax),	%ymm1,	%ymm1
+	vpand		32*6+128(%rax),	%ymm2,	%ymm2
+	vpor		%ymm0, %ymm4, %ymm4
+	vpand		32*7+128(%rax),	%ymm3,	%ymm3
+	vpand		32*8-128($inp),	%ymm8,	%ymm0
+	vpor		%ymm1, %ymm5, %ymm5
+	vpand		32*9-128($inp),	%ymm9,	%ymm1
+	vpor		%ymm2, %ymm4, %ymm4
+	vpand		32*10-128($inp),%ymm10,	%ymm2
+	vpor		%ymm3, %ymm5, %ymm5
+	vpand		32*11-128($inp),%ymm11,	%ymm3
+	vpor		%ymm0, %ymm4, %ymm4
+	vpand		32*12-128($inp),%ymm12,	%ymm0
+	vpor		%ymm1, %ymm5, %ymm5
+	vpand		32*13-128($inp),%ymm13,	%ymm1
+	vpor		%ymm2, %ymm4, %ymm4
+	vpand		32*14-128($inp),%ymm14,	%ymm2
+	vpor		%ymm3, %ymm5, %ymm5
+	vpand		32*15-128($inp),%ymm15,	%ymm3
+	lea		32*16($inp), $inp
+	vpor		%ymm0, %ymm4, %ymm4
+	vpor		%ymm1, %ymm5, %ymm5
+	vpor		%ymm2, %ymm4, %ymm4
+	vpor		%ymm3, %ymm5, %ymm5
+
+	vpor		%ymm5, %ymm4, %ymm4
+	vextracti128	\$1, %ymm4, %xmm5	# upper half is cleared
+	vpor		%xmm4, %xmm5, %xmm5
+	vpermd		%ymm5,%ymm7,%ymm5
+	vmovdqu		%ymm5,($out)
 	lea		32($out),$out
-	dec	%eax
+	dec	$power
 	jnz	.Loop_gather_1024
 
 	vpxor	%ymm0,%ymm0,%ymm0
@@ -1661,20 +1721,20 @@ $code.=<<___;
 	vzeroupper
 ___
 $code.=<<___ if ($win64);
-	movaps	(%rsp),%xmm6
-	movaps	0x10(%rsp),%xmm7
-	movaps	0x20(%rsp),%xmm8
-	movaps	0x30(%rsp),%xmm9
-	movaps	0x40(%rsp),%xmm10
-	movaps	0x50(%rsp),%xmm11
-	movaps	0x60(%rsp),%xmm12
-	movaps	0x70(%rsp),%xmm13
-	movaps	0x80(%rsp),%xmm14
-	movaps	0x90(%rsp),%xmm15
-	lea	0xa8(%rsp),%rsp
+	movaps	-0xa8(%r11),%xmm6
+	movaps	-0x98(%r11),%xmm7
+	movaps	-0x88(%r11),%xmm8
+	movaps	-0x78(%r11),%xmm9
+	movaps	-0x68(%r11),%xmm10
+	movaps	-0x58(%r11),%xmm11
+	movaps	-0x48(%r11),%xmm12
+	movaps	-0x38(%r11),%xmm13
+	movaps	-0x28(%r11),%xmm14
+	movaps	-0x18(%r11),%xmm15
 .LSEH_end_rsaz_1024_gather5:
 ___
 $code.=<<___;
+	lea	(%r11),%rsp
 	ret
 .size	rsaz_1024_gather5_avx2,.-rsaz_1024_gather5_avx2
 ___
@@ -1708,8 +1768,10 @@ $code.=<<___;
 	.long	0,2,4,6,7,7,7,7
 .Lgather_permd:
 	.long	0,7,1,7,2,7,3,7
-.Lgather_table:
-	.byte	0,0,0,0,0,0,0,0, 0xff,0,0,0,0,0,0,0
+.Linc:
+	.long	0,0,0,0, 1,1,1,1
+	.long	2,2,2,2, 3,3,3,3
+	.long	4,4,4,4, 4,4,4,4
 .align	64
 ___
 
@@ -1837,18 +1899,19 @@ rsaz_se_handler:
 	.rva	rsaz_se_handler
 	.rva	.Lmul_1024_body,.Lmul_1024_epilogue
 .LSEH_info_rsaz_1024_gather5:
-	.byte	0x01,0x33,0x16,0x00
-	.byte	0x36,0xf8,0x09,0x00	#vmovaps 0x90(rsp),xmm15
-	.byte	0x31,0xe8,0x08,0x00	#vmovaps 0x80(rsp),xmm14
-	.byte	0x2c,0xd8,0x07,0x00	#vmovaps 0x70(rsp),xmm13
-	.byte	0x27,0xc8,0x06,0x00	#vmovaps 0x60(rsp),xmm12
-	.byte	0x22,0xb8,0x05,0x00	#vmovaps 0x50(rsp),xmm11
-	.byte	0x1d,0xa8,0x04,0x00	#vmovaps 0x40(rsp),xmm10
-	.byte	0x18,0x98,0x03,0x00	#vmovaps 0x30(rsp),xmm9
-	.byte	0x13,0x88,0x02,0x00	#vmovaps 0x20(rsp),xmm8
-	.byte	0x0e,0x78,0x01,0x00	#vmovaps 0x10(rsp),xmm7
-	.byte	0x09,0x68,0x00,0x00	#vmovaps 0x00(rsp),xmm6
-	.byte	0x04,0x01,0x15,0x00	#sub	rsp,0xa8
+	.byte	0x01,0x36,0x17,0x0b
+	.byte	0x36,0xf8,0x09,0x00	# vmovaps 0x90(rsp),xmm15
+	.byte	0x31,0xe8,0x08,0x00	# vmovaps 0x80(rsp),xmm14
+	.byte	0x2c,0xd8,0x07,0x00	# vmovaps 0x70(rsp),xmm13
+	.byte	0x27,0xc8,0x06,0x00	# vmovaps 0x60(rsp),xmm12
+	.byte	0x22,0xb8,0x05,0x00	# vmovaps 0x50(rsp),xmm11
+	.byte	0x1d,0xa8,0x04,0x00	# vmovaps 0x40(rsp),xmm10
+	.byte	0x18,0x98,0x03,0x00	# vmovaps 0x30(rsp),xmm9
+	.byte	0x13,0x88,0x02,0x00	# vmovaps 0x20(rsp),xmm8
+	.byte	0x0e,0x78,0x01,0x00	# vmovaps 0x10(rsp),xmm7
+	.byte	0x09,0x68,0x00,0x00	# vmovaps 0x00(rsp),xmm6
+	.byte	0x04,0x01,0x15,0x00	# sub	  rsp,0xa8
+	.byte	0x00,0xb3,0x00,0x00	# set_frame r11
 ___
 }
 

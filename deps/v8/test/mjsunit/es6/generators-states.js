@@ -25,6 +25,7 @@ function* throwGenerator() { yield iter.throw(new Bar); }
 // Throw on a suspendedStart iterator.
 iter = nextGenerator();
 assertThrows(function() { iter.throw(new Foo) }, Foo)
+assertIteratorIsClosed(iter);
 assertThrows(function() { iter.throw(new Foo) }, Foo)
 assertIteratorIsClosed(iter);
 
@@ -65,3 +66,29 @@ iter = (function* () {
 assertIteratorResult(3, false, iter.next());
 assertIteratorResult(4, false, iter.next());
 assertIteratorIsClosed(iter);
+
+
+// A return that doesn't close.
+{
+  let g = function*() { try {return 42} finally {yield 43} };
+
+  let x = g();
+  assertEquals({value: 43, done: false}, x.next());
+  assertEquals({value: 42, done: true}, x.next());
+}
+{
+  let x;
+  let g = function*() { try {return 42} finally {x.throw(666)} };
+
+  x = g();
+  assertThrows(() => x.next(), TypeError);  // Still executing.
+}
+{
+  let x;
+  let g = function*() {
+    try {return 42} finally {try {x.throw(666)} catch(e) {}}
+  };
+
+  x = g();
+  assertEquals({value: 42, done: true}, x.next());
+}

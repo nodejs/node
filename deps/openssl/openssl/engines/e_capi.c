@@ -114,6 +114,26 @@
 #  define CERT_SYSTEM_STORE_CURRENT_USER                  0x00010000
 # endif
 
+# ifndef ALG_SID_SHA_256
+#  define ALG_SID_SHA_256                 12
+# endif
+# ifndef ALG_SID_SHA_384
+#  define ALG_SID_SHA_384                 13
+# endif
+# ifndef ALG_SID_SHA_512
+#  define ALG_SID_SHA_512                 14
+# endif
+
+# ifndef CALG_SHA_256
+#  define CALG_SHA_256            (ALG_CLASS_HASH | ALG_TYPE_ANY | ALG_SID_SHA_256)
+# endif
+# ifndef CALG_SHA_384
+#  define CALG_SHA_384            (ALG_CLASS_HASH | ALG_TYPE_ANY | ALG_SID_SHA_384)
+# endif
+# ifndef CALG_SHA_512
+#  define CALG_SHA_512            (ALG_CLASS_HASH | ALG_TYPE_ANY | ALG_SID_SHA_512)
+# endif
+
 # include <openssl/engine.h>
 # include <openssl/pem.h>
 # include <openssl/x509v3.h>
@@ -800,6 +820,18 @@ int capi_rsa_sign(int dtype, const unsigned char *m, unsigned int m_len,
     }
 /* Convert the signature type to a CryptoAPI algorithm ID */
     switch (dtype) {
+    case NID_sha256:
+        alg = CALG_SHA_256;
+        break;
+
+    case NID_sha384:
+        alg = CALG_SHA_384;
+        break;
+
+    case NID_sha512:
+        alg = CALG_SHA_512;
+        break;
+
     case NID_sha1:
         alg = CALG_SHA1;
         break;
@@ -1074,6 +1106,10 @@ static int capi_get_provname(CAPI_CTX * ctx, LPSTR * pname, DWORD * ptype,
         name = alloca(len);
     else
         name = OPENSSL_malloc(len);
+    if (name == NULL) {
+        CAPIerr(CAPI_F_CAPI_GET_PROVNAME, ERR_R_MALLOC_FAILURE);
+        return 0;
+    }
     if (!CryptEnumProviders(idx, NULL, 0, ptype, name, &len)) {
         err = GetLastError();
         if (err == ERROR_NO_MORE_ITEMS)
@@ -1254,6 +1290,10 @@ char *capi_cert_get_fname(CAPI_CTX * ctx, PCCERT_CONTEXT cert)
         (cert, CERT_FRIENDLY_NAME_PROP_ID, NULL, &dlen))
         return NULL;
     wfname = OPENSSL_malloc(dlen);
+    if (wfname == NULL) {
+        CAPIerr(CAPI_F_CAPI_CERT_GET_FNAME, ERR_R_MALLOC_FAILURE);
+        return NULL;
+    }
     if (CertGetCertificateContextProperty
         (cert, CERT_FRIENDLY_NAME_PROP_ID, wfname, &dlen)) {
         char *fname = wide_to_asc(wfname);
@@ -1404,6 +1444,11 @@ static CAPI_KEY *capi_get_key(CAPI_CTX * ctx, const TCHAR *contname,
     CAPI_KEY *key;
     DWORD dwFlags = 0;
     key = OPENSSL_malloc(sizeof(CAPI_KEY));
+    if (key == NULL) {
+        CAPIerr(CAPI_F_CAPI_GET_KEY, ERR_R_MALLOC_FAILURE);
+        capi_addlasterror();
+        goto err;
+    }
     if (sizeof(TCHAR) == sizeof(char))
         CAPI_trace(ctx, "capi_get_key, contname=%s, provname=%s, type=%d\n",
                    contname, provname, ptype);

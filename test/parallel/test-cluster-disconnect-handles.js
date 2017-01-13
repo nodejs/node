@@ -10,7 +10,7 @@ const net = require('net');
 const Protocol = require('_debugger').Protocol;
 
 if (common.isWindows) {
-  console.log('1..0 # Skipped: SCHED_RR not reliable on Windows');
+  common.skip('SCHED_RR not reliable on Windows');
   return;
 }
 
@@ -25,12 +25,13 @@ cluster.schedulingPolicy = cluster.SCHED_RR;
 if (cluster.isMaster) {
   let isKilling = false;
   const handles = require('internal/cluster').handles;
-  // FIXME(bnoordhuis) lib/cluster.js scans the execArgv arguments for
-  // debugger flags and renumbers any port numbers it sees starting
-  // from the default port 5858.  Add a '.' that circumvents the
-  // scanner but is ignored by atoi(3).  Heinous hack.
-  cluster.setupMaster({ execArgv: [`--debug=${common.PORT}.`] });
+  const address = common.hasIPv6 ? '[::1]' : common.localhostIPv4;
+  cluster.setupMaster({ execArgv: [`--debug=${address}:${common.PORT}`] });
   const worker = cluster.fork();
+  worker.once('exit', common.mustCall((code, signal) => {
+    assert.strictEqual(code, 0, 'worker did not exit normally');
+    assert.strictEqual(signal, null, 'worker did not exit normally');
+  }));
   worker.on('message', common.mustCall((message) => {
     assert.strictEqual(Array.isArray(message), true);
     assert.strictEqual(message[0], 'listening');
@@ -91,7 +92,7 @@ if (cluster.isMaster) {
     debugger;
   };
   if (common.hasIPv6)
-    server.listen(cb);
+    server.listen(0, '::1', cb);
   else
     server.listen(0, common.localhostIPv4, cb);
   process.on('disconnect', process.exit);

@@ -108,13 +108,13 @@ assertEquals(undefined, get(a));
   assertEquals("blah", get(a));
 })();
 
-// Ensure we cannot delete length, byteOffset, byteLength.
-assertTrue(Int32Array.prototype.hasOwnProperty("length"));
-assertTrue(Int32Array.prototype.hasOwnProperty("byteOffset"));
-assertTrue(Int32Array.prototype.hasOwnProperty("byteLength"));
-assertFalse(delete Int32Array.prototype.length);
-assertFalse(delete Int32Array.prototype.byteOffset);
-assertFalse(delete Int32Array.prototype.byteLength);
+// Ensure we can delete length, byteOffset, byteLength.
+assertTrue(Int32Array.prototype.__proto__.hasOwnProperty("length"));
+assertTrue(Int32Array.prototype.__proto__.hasOwnProperty("byteOffset"));
+assertTrue(Int32Array.prototype.__proto__.hasOwnProperty("byteLength"));
+assertTrue(delete Int32Array.prototype.__proto__.length);
+assertTrue(delete Int32Array.prototype.__proto__.byteOffset);
+assertTrue(delete Int32Array.prototype.__proto__.byteLength);
 
 a = new Int32Array(100);
 
@@ -122,28 +122,28 @@ get = function(a) {
   return a.length;
 }
 
-assertEquals(100, get(a));
-assertEquals(100, get(a));
-assertEquals(100, get(a));
+assertEquals(undefined, get(a));
+assertEquals(undefined, get(a));
+assertEquals(undefined, get(a));
 %OptimizeFunctionOnNextCall(get);
-assertEquals(100, get(a));
+assertEquals(undefined, get(a));
 
 get = function(a) {
   return a.byteLength;
 }
 
-assertEquals(400, get(a));
-assertEquals(400, get(a));
-assertEquals(400, get(a));
+assertEquals(undefined, get(a));
+assertEquals(undefined, get(a));
+assertEquals(undefined, get(a));
 %OptimizeFunctionOnNextCall(get);
-assertEquals(400, get(a));
+assertEquals(undefined, get(a));
 
 get = function(a) {
   return a.byteOffset;
 }
 
-assertEquals(0, get(a));
-assertEquals(0, get(a));
-assertEquals(0, get(a));
+assertEquals(undefined, get(a));
+assertEquals(undefined, get(a));
+assertEquals(undefined, get(a));
 %OptimizeFunctionOnNextCall(get);
-assertEquals(0, get(a));
+assertEquals(undefined, get(a));

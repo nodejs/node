@@ -16,12 +16,12 @@ files.forEach(function(currentFile) {
 });
 
 // Check the readdir Sync version
-assert.deepEqual(files, fs.readdirSync(readdirDir).sort());
+assert.deepStrictEqual(files, fs.readdirSync(readdirDir).sort());
 
 // Check the readdir async version
 fs.readdir(readdirDir, common.mustCall(function(err, f) {
   assert.ifError(err);
-  assert.deepEqual(files, f.sort());
+  assert.deepStrictEqual(files, f.sort());
 }));
 
 // readdir() on file should throw ENOTDIR
@@ -31,5 +31,5 @@ assert.throws(function() {
 }, /Error: ENOTDIR: not a directory/);
 
 fs.readdir(__filename, common.mustCall(function(e) {
-  assert.equal(e.code, 'ENOTDIR');
+  assert.strictEqual(e.code, 'ENOTDIR');
 }));

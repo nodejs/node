@@ -14,6 +14,7 @@
 #include "src/arm64/disasm-arm64.h"
 #include "src/arm64/instrument-arm64.h"
 #include "src/assembler.h"
+#include "src/base/compiler-specific.h"
 #include "src/globals.h"
 #include "src/utils.h"
 
@@ -24,7 +25,7 @@ namespace internal {
 
 // Running without a simulator on a native ARM64 platform.
 // When running without a simulator we call the entry directly.
-#define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4) \
+#define CALL_GENERATED_CODE(isolate, entry, p0, p1, p2, p3, p4) \
   (entry(p0, p1, p2, p3, p4))
 
 typedef int (*arm64_regexp_matcher)(String* input,
@@ -42,24 +43,29 @@ typedef int (*arm64_regexp_matcher)(String* input,
 // should act as a function matching the type arm64_regexp_matcher.
 // The ninth argument is a dummy that reserves the space used for
 // the return address added by the ExitFrame in native calls.
-#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7, p8) \
-  (FUNCTION_CAST<arm64_regexp_matcher>(entry)(                                \
-      p0, p1, p2, p3, p4, p5, p6, p7, NULL, p8))
+#define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
+                                   p7, p8)                                     \
+  (FUNCTION_CAST<arm64_regexp_matcher>(entry)(p0, p1, p2, p3, p4, p5, p6, p7,  \
+                                              NULL, p8))
 
 // Running without a simulator there is nothing to do.
 class SimulatorStack : public v8::internal::AllStatic {
  public:
   static uintptr_t JsLimitFromCLimit(v8::internal::Isolate* isolate,
-                                            uintptr_t c_limit) {
+                                     uintptr_t c_limit) {
     USE(isolate);
     return c_limit;
   }
 
-  static uintptr_t RegisterCTryCatch(uintptr_t try_catch_address) {
+  static uintptr_t RegisterCTryCatch(v8::internal::Isolate* isolate,
+                                     uintptr_t try_catch_address) {
+    USE(isolate);
     return try_catch_address;
   }
 
-  static void UnregisterCTryCatch() { }
+  static void UnregisterCTryCatch(v8::internal::Isolate* isolate) {
+    USE(isolate);
+  }
 };
 
 #else  // !defined(USE_SIMULATOR)
@@ -145,8 +151,7 @@ typedef SimRegisterBase SimFPRegister;    // v0-v31
 
 class Simulator : public DecoderVisitor {
  public:
-  static void FlushICache(v8::internal::HashMap* i_cache, void* start,
-                          size_t size) {
+  static void FlushICache(base::HashMap* i_cache, void* start, size_t size) {
     USE(i_cache);
     USE(start);
     USE(size);
@@ -162,7 +167,7 @@ class Simulator : public DecoderVisitor {
 
   static void Initialize(Isolate* isolate);
 
-  static void TearDown(HashMap* i_cache, Redirection* first);
+  static void TearDown(base::HashMap* i_cache, Redirection* first);
 
   static Simulator* current(v8::internal::Isolate* isolate);
 
@@ -272,7 +277,8 @@ class Simulator : public DecoderVisitor {
   void ResetState();
 
   // Runtime call support.
-  static void* RedirectExternalReference(void* external_function,
+  static void* RedirectExternalReference(Isolate* isolate,
+                                         void* external_function,
                                          ExternalReference::Type type);
   void DoRuntimeCall(Instruction* instr);
 
@@ -646,11 +652,8 @@ class Simulator : public DecoderVisitor {
 
   template<typename T>
   void AddSubHelper(Instruction* instr, T op2);
-  template<typename T>
-  T AddWithCarry(bool set_flags,
-                 T src1,
-                 T src2,
-                 T carry_in = 0);
+  template <typename T>
+  T AddWithCarry(bool set_flags, T left, T right, int carry_in = 0);
   template<typename T>
   void AddSubWithCarry(Instruction* instr);
   template<typename T>
@@ -788,7 +791,7 @@ class Simulator : public DecoderVisitor {
   // Output stream.
   FILE* stream_;
   PrintDisassembler* print_disasm_;
-  void PRINTF_METHOD_CHECKING TraceSim(const char* format, ...);
+  void PRINTF_FORMAT(2, 3) TraceSim(const char* format, ...);
 
   // Instrumentation.
   Instrument* instrument_;
@@ -871,15 +874,14 @@ class Simulator : public DecoderVisitor {
 
 // When running with the simulator transition into simulated execution at this
 // point.
-#define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4) \
-  reinterpret_cast<Object*>(Simulator::current(Isolate::Current())->CallJS(    \
-      FUNCTION_ADDR(entry),                                                    \
-      p0, p1, p2, p3, p4))
+#define CALL_GENERATED_CODE(isolate, entry, p0, p1, p2, p3, p4)  \
+  reinterpret_cast<Object*>(Simulator::current(isolate)->CallJS( \
+      FUNCTION_ADDR(entry), p0, p1, p2, p3, p4))
 
-#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7, p8) \
-  static_cast<int>(                                                           \
-      Simulator::current(Isolate::Current())                                  \
-          ->CallRegExp(entry, p0, p1, p2, p3, p4, p5, p6, p7, NULL, p8))
+#define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
+                                   p7, p8)                                     \
+  static_cast<int>(Simulator::current(isolate)->CallRegExp(                    \
+      entry, p0, p1, p2, p3, p4, p5, p6, p7, NULL, p8))
 
 
 // The simulator has its own stack. Thus it has a different stack limit from
@@ -893,13 +895,14 @@ class SimulatorStack : public v8::internal::AllStatic {
     return Simulator::current(isolate)->StackLimit(c_limit);
   }
 
-  static uintptr_t RegisterCTryCatch(uintptr_t try_catch_address) {
-    Simulator* sim = Simulator::current(Isolate::Current());
+  static uintptr_t RegisterCTryCatch(v8::internal::Isolate* isolate,
+                                     uintptr_t try_catch_address) {
+    Simulator* sim = Simulator::current(isolate);
     return sim->PushAddress(try_catch_address);
   }
 
-  static void UnregisterCTryCatch() {
-    Simulator::current(Isolate::Current())->PopAddress();
+  static void UnregisterCTryCatch(v8::internal::Isolate* isolate) {
+    Simulator::current(isolate)->PopAddress();
   }
 };
 

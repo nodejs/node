@@ -3,15 +3,15 @@
 const common = require('../common');
 
 if (common.isWindows) {
-  console.log('1..0 # Skipped: on windows, because clustered dgram is ENOTSUP');
+  common.skip('on windows, because clustered dgram is ENOTSUP');
   return;
 }
 
-var cluster = require('cluster');
-var dgram = require('dgram');
+const cluster = require('cluster');
+const dgram = require('dgram');
 
 if (cluster.isMaster) {
-  var unbound = cluster.fork().on('online', bind);
+  const unbound = cluster.fork().on('online', bind);
 
   function bind() {
     cluster.fork({BOUND: 'y'}).on('listening', disconnect);
@@ -23,7 +23,7 @@ if (cluster.isMaster) {
   }
 } else {
   if (process.env.BOUND === 'y') {
-    var source = dgram.createSocket('udp4');
+    const source = dgram.createSocket('udp4');
 
     source.bind(0);
   }

@@ -32,22 +32,12 @@ import os
 import sys
 import time
 
+from . import execution
 from . import junit_output
+from . import statusfile
 
 
 ABS_PATH_PREFIX = os.getcwd() + os.sep
-
-
-def EscapeCommand(command):
-  parts = []
-  for part in command:
-    if ' ' in part:
-      # Escape spaces.  We may need to escape more characters for this
-      # to work properly.
-      parts.append('"%s"' % part)
-    else:
-      parts.append(part)
-  return " ".join(parts)
 
 
 class ProgressIndicator(object):
@@ -62,9 +52,6 @@ class ProgressIndicator(object):
     pass
 
   def Done(self):
-    pass
-
-  def AboutToRun(self, test):
     pass
 
   def HasRun(self, test, has_unexpected_output):
@@ -82,6 +69,18 @@ class ProgressIndicator(object):
       'label': test.GetLabel(),
       'negative': negative_marker
     }
+
+  def _EscapeCommand(self, test):
+    command = execution.GetCommand(test, self.runner.context)
+    parts = []
+    for part in command:
+      if ' ' in part:
+        # Escape spaces.  We may need to escape more characters for this
+        # to work properly.
+        parts.append('"%s"' % part)
+      else:
+        parts.append(part)
+    return " ".join(parts)
 
 
 class IndicatorNotifier(object):
@@ -124,7 +123,7 @@ class SimpleProgressIndicator(ProgressIndicator):
       if failed.output.stdout:
         print "--- stdout ---"
         print failed.output.stdout.strip()
-      print "Command: %s" % EscapeCommand(self.runner.GetCommand(failed))
+      print "Command: %s" % self._EscapeCommand(failed)
       if failed.output.HasCrashed():
         print "exit code: %d" % failed.output.exit_code
         print "--- CRASHED ---"
@@ -144,10 +143,6 @@ class SimpleProgressIndicator(ProgressIndicator):
 
 
 class VerboseProgressIndicator(SimpleProgressIndicator):
-
-  def AboutToRun(self, test):
-    print 'Starting %s...' % test.GetLabel()
-    sys.stdout.flush()
 
   def HasRun(self, test, has_unexpected_output):
     if has_unexpected_output:
@@ -199,10 +194,8 @@ class CompactProgressIndicator(ProgressIndicator):
     self.PrintProgress('Done')
     print ""  # Line break.
 
-  def AboutToRun(self, test):
-    self.PrintProgress(test.GetLabel())
-
   def HasRun(self, test, has_unexpected_output):
+    self.PrintProgress(test.GetLabel())
     if has_unexpected_output:
       self.ClearLine(self.last_status_length)
       self.PrintFailureHeader(test)
@@ -212,7 +205,7 @@ class CompactProgressIndicator(ProgressIndicator):
       stderr = test.output.stderr.strip()
       if len(stderr):
         print self.templates['stderr'] % stderr
-      print "Command: %s" % EscapeCommand(self.runner.GetCommand(test))
+      print "Command: %s" % self._EscapeCommand(test)
       if test.output.HasCrashed():
         print "exit code: %d" % test.output.exit_code
         print "--- CRASHED ---"
@@ -300,7 +293,7 @@ class JUnitTestProgressIndicator(ProgressIndicator):
       stderr = test.output.stderr.strip()
       if len(stderr):
         fail_text += "stderr:\n%s\n" % stderr
-      fail_text += "Command: %s" % EscapeCommand(self.runner.GetCommand(test))
+      fail_text += "Command: %s" % self._EscapeCommand(test)
       if test.output.HasCrashed():
         fail_text += "exit code: %d\n--- CRASHED ---" % test.output.exit_code
       if test.output.HasTimedOut():
@@ -328,6 +321,12 @@ class JsonTestProgressIndicator(ProgressIndicator):
         # Buildbot might start out with an empty file.
         complete_results = json.loads(f.read() or "[]")
 
+    duration_mean = None
+    if self.tests:
+      # Get duration mean.
+      duration_mean = (
+          sum(t.duration for t in self.tests) / float(len(self.tests)))
+
     # Sort tests by duration.
     timed_tests = [t for t in self.tests if t.duration is not None]
     timed_tests.sort(lambda a, b: cmp(b.duration, a.duration))
@@ -335,9 +334,9 @@ class JsonTestProgressIndicator(ProgressIndicator):
       {
         "name": test.GetLabel(),
         "flags": test.flags,
-        "command": EscapeCommand(self.runner.GetCommand(test)).replace(
-            ABS_PATH_PREFIX, ""),
+        "command": self._EscapeCommand(test).replace(ABS_PATH_PREFIX, ""),
         "duration": test.duration,
+        "marked_slow": statusfile.IsSlow(test.outcomes),
       } for test in timed_tests[:20]
     ]
 
@@ -346,6 +345,8 @@ class JsonTestProgressIndicator(ProgressIndicator):
       "mode": self.mode,
       "results": self.results,
       "slowest_tests": slowest_tests,
+      "duration_mean": duration_mean,
+      "test_total": len(self.tests),
     })
 
     with open(self.json_test_results, "w") as f:
@@ -362,8 +363,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
     self.results.append({
       "name": test.GetLabel(),
       "flags": test.flags,
-      "command": EscapeCommand(self.runner.GetCommand(test)).replace(
-          ABS_PATH_PREFIX, ""),
+      "command": self._EscapeCommand(test).replace(ABS_PATH_PREFIX, ""),
       "run": test.run,
       "stdout": test.output.stdout,
       "stderr": test.output.stderr,

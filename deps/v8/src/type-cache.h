@@ -13,12 +13,13 @@ namespace internal {
 class TypeCache final {
  private:
   // This has to be first for the initialization magic to work.
+  base::AccountingAllocator allocator;
   Zone zone_;
 
  public:
   static TypeCache const& Get();
 
-  TypeCache() = default;
+  TypeCache() : zone_(&allocator) {}
 
   Type* const kInt8 =
       CreateNative(CreateRange<int8_t>(), Type::UntaggedIntegral8());
@@ -37,24 +38,80 @@ class TypeCache final {
   Type* const kFloat64 = CreateNative(Type::Number(), Type::UntaggedFloat64());
 
   Type* const kSmi = CreateNative(Type::SignedSmall(), Type::TaggedSigned());
+  Type* const kHoleySmi = Type::Union(kSmi, Type::Hole(), zone());
   Type* const kHeapNumber = CreateNative(Type::Number(), Type::TaggedPointer());
 
   Type* const kSingletonZero = CreateRange(0.0, 0.0);
   Type* const kSingletonOne = CreateRange(1.0, 1.0);
+  Type* const kSingletonTen = CreateRange(10.0, 10.0);
+  Type* const kSingletonMinusOne = CreateRange(-1.0, -1.0);
+  Type* const kZeroOrUndefined =
+      Type::Union(kSingletonZero, Type::Undefined(), zone());
+  Type* const kTenOrUndefined =
+      Type::Union(kSingletonTen, Type::Undefined(), zone());
+  Type* const kMinusOneOrZero = CreateRange(-1.0, 0.0);
+  Type* const kMinusOneToOneOrMinusZeroOrNaN = Type::Union(
+      Type::Union(CreateRange(-1.0, 1.0), Type::MinusZero(), zone()),
+      Type::NaN(), zone());
   Type* const kZeroOrOne = CreateRange(0.0, 1.0);
+  Type* const kZeroOrOneOrNaN = Type::Union(kZeroOrOne, Type::NaN(), zone());
+  Type* const kZeroToThirtyOne = CreateRange(0.0, 31.0);
   Type* const kZeroToThirtyTwo = CreateRange(0.0, 32.0);
   Type* const kZeroish =
       Type::Union(kSingletonZero, Type::MinusZeroOrNaN(), zone());
   Type* const kInteger = CreateRange(-V8_INFINITY, V8_INFINITY);
-  Type* const kPositiveInteger = CreateRange(0.0, V8_INFINITY);
   Type* const kIntegerOrMinusZero =
       Type::Union(kInteger, Type::MinusZero(), zone());
   Type* const kIntegerOrMinusZeroOrNaN =
       Type::Union(kIntegerOrMinusZero, Type::NaN(), zone());
+  Type* const kPositiveInteger = CreateRange(0.0, V8_INFINITY);
+  Type* const kPositiveIntegerOrMinusZero =
+      Type::Union(kPositiveInteger, Type::MinusZero(), zone());
+  Type* const kPositiveIntegerOrMinusZeroOrNaN =
+      Type::Union(kPositiveIntegerOrMinusZero, Type::NaN(), zone());
 
+  Type* const kAdditiveSafeInteger =
+      CreateRange(-4503599627370496.0, 4503599627370496.0);
+  Type* const kSafeInteger = CreateRange(-kMaxSafeInteger, kMaxSafeInteger);
+  Type* const kAdditiveSafeIntegerOrMinusZero =
+      Type::Union(kAdditiveSafeInteger, Type::MinusZero(), zone());
+  Type* const kSafeIntegerOrMinusZero =
+      Type::Union(kSafeInteger, Type::MinusZero(), zone());
   Type* const kPositiveSafeInteger = CreateRange(0.0, kMaxSafeInteger);
 
-  Type* const kIntegral32 = Type::Union(kInt32, kUint32, zone());
+  Type* const kUntaggedUndefined =
+      Type::Intersect(Type::Undefined(), Type::Untagged(), zone());
+
+  // Asm.js related types.
+  Type* const kAsmSigned = kInt32;
+  Type* const kAsmUnsigned = kUint32;
+  Type* const kAsmInt = Type::Union(kAsmSigned, kAsmUnsigned, zone());
+  Type* const kAsmFixnum = Type::Intersect(kAsmSigned, kAsmUnsigned, zone());
+  Type* const kAsmFloat = kFloat32;
+  Type* const kAsmDouble = kFloat64;
+  Type* const kAsmFloatQ = Type::Union(kAsmFloat, kUntaggedUndefined, zone());
+  Type* const kAsmDoubleQ = Type::Union(kAsmDouble, kUntaggedUndefined, zone());
+  // Not part of the Asm.js type hierarchy, but represents a part of what
+  // intish encompasses.
+  Type* const kAsmIntQ = Type::Union(kAsmInt, kUntaggedUndefined, zone());
+  Type* const kAsmFloatDoubleQ = Type::Union(kAsmFloatQ, kAsmDoubleQ, zone());
+  // Asm.js size unions.
+  Type* const kAsmSize8 = Type::Union(kInt8, kUint8, zone());
+  Type* const kAsmSize16 = Type::Union(kInt16, kUint16, zone());
+  Type* const kAsmSize32 =
+      Type::Union(Type::Union(kInt32, kUint32, zone()), kAsmFloat, zone());
+  Type* const kAsmSize64 = kFloat64;
+  // Asm.js other types.
+  Type* const kAsmComparable = Type::Union(
+      kAsmSigned,
+      Type::Union(kAsmUnsigned, Type::Union(kAsmDouble, kAsmFloat, zone()),
+                  zone()),
+      zone());
+  Type* const kAsmIntArrayElement =
+      Type::Union(Type::Union(kInt8, kUint8, zone()),
+                  Type::Union(Type::Union(kInt16, kUint16, zone()),
+                              Type::Union(kInt32, kUint32, zone()), zone()),
+                  zone());
 
   // The FixedArray::length property always containts a smi in the range
   // [0, FixedArray::kMaxLength].
@@ -70,6 +127,11 @@ class TypeCache final {
   // [0, kMaxUInt32].
   Type* const kJSArrayLengthType =
       CreateNative(Type::Unsigned32(), Type::Tagged());
+
+  // The JSTyped::length property always contains a tagged number in the range
+  // [0, kMaxSmiValue].
+  Type* const kJSTypedArrayLengthType =
+      CreateNative(Type::UnsignedSmall(), Type::TaggedSigned());
 
   // The String::length property always contains a smi in the range
   // [0, String::kMaxLength].

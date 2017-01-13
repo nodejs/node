@@ -21,7 +21,7 @@
 // variables for consistency.
 //
 // This is used by the Futex API defined in the SharedArrayBuffer draft spec,
-// found here: https://github.com/lars-t-hansen/ecmascript_sharedmem
+// found here: https://github.com/tc39/ecmascript_sharedmem
 
 namespace v8 {
 
@@ -81,18 +81,11 @@ class FutexWaitList {
 
 class FutexEmulation : public AllStatic {
  public:
-  // These must match the values in src/harmony-atomics.js
-  enum Result {
-    kOk = 0,
-    kNotEqual = -1,
-    kTimedOut = -2,
-  };
-
-  // Check that array_buffer[addr] == value, and return kNotEqual if not. If
+  // Check that array_buffer[addr] == value, and return "not-equal" if not. If
   // they are equal, block execution on |isolate|'s thread until woken via
   // |Wake|, or when the time given in |rel_timeout_ms| elapses. Note that
   // |rel_timeout_ms| can be Infinity.
-  // If woken, return kOk, otherwise return kTimedOut. The initial check and
+  // If woken, return "ok", otherwise return "timed-out". The initial check and
   // the decision to wait happen atomically.
   static Object* Wait(Isolate* isolate, Handle<JSArrayBuffer> array_buffer,
                       size_t addr, int32_t value, double rel_timeout_ms);
@@ -102,16 +95,6 @@ class FutexEmulation : public AllStatic {
   // number of woken waiters.
   static Object* Wake(Isolate* isolate, Handle<JSArrayBuffer> array_buffer,
                       size_t addr, int num_waiters_to_wake);
-
-  // Check that array_buffer[addr] == value, and return kNotEqual if not. If
-  // they are equal, wake |num_waiters_to_wake| threads that are waiting on the
-  // given |addr|. The rest of the waiters will continue to wait, but will now
-  // be waiting on |addr2| instead of |addr|. The return value is the number of
-  // woken waiters or kNotEqual as described above.
-  static Object* WakeOrRequeue(Isolate* isolate,
-                               Handle<JSArrayBuffer> array_buffer, size_t addr,
-                               int num_waiters_to_wake, int32_t value,
-                               size_t addr2);
 
   // Return the number of threads waiting on |addr|. Should only be used for
   // testing.

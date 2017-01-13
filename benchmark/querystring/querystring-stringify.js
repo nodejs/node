@@ -1,3 +1,4 @@
+'use strict';
 var common = require('../common.js');
 var querystring = require('querystring');
 var v8 = require('v8');

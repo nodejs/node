@@ -1,8 +1,6 @@
 /**
  * @fileoverview disallow unncessary concatenation of template strings
  * @author Henry Zhu
- * @copyright 2015 Henry Zhu. All rights reserved.
- * See LICENSE file in root directory for full license.
  */
 "use strict";
 
@@ -10,7 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -31,7 +29,8 @@ function isConcatenation(node) {
  * @returns {ASTNode} node
  */
 function getLeft(node) {
-    var left = node.left;
+    let left = node.left;
+
     while (isConcatenation(left)) {
         left = left.right;
     }
@@ -44,7 +43,8 @@ function getLeft(node) {
  * @returns {ASTNode} node
  */
 function getRight(node) {
-    var right = node.right;
+    let right = node.right;
+
     while (isConcatenation(right)) {
         right = right.left;
     }
@@ -55,35 +55,51 @@ function getRight(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
-    return {
-        BinaryExpression: function(node) {
-            // check if not concatenation
-            if (node.operator !== "+") {
-                return;
-            }
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow unnecessary concatenation of literals or template literals",
+            category: "Best Practices",
+            recommended: false
+        },
 
-            // account for the `foo + "a" + "b"` case
-            var left = getLeft(node);
-            var right = getRight(node);
+        schema: []
+    },
 
-            if (astUtils.isStringLiteral(left) &&
-                astUtils.isStringLiteral(right) &&
-                astUtils.isTokenOnSameLine(left, right)
-            ) {
-                // move warning location to operator
-                var operatorToken = context.getTokenAfter(left);
-                while (operatorToken.value !== "+") {
-                    operatorToken = context.getTokenAfter(operatorToken);
+    create(context) {
+        const sourceCode = context.getSourceCode();
+
+        return {
+            BinaryExpression(node) {
+
+                // check if not concatenation
+                if (node.operator !== "+") {
+                    return;
                 }
 
-                context.report(
-                    node,
-                    operatorToken.loc.start,
-                    "Unexpected string concatenation of literals.");
-            }
-        }
-    };
-};
+                // account for the `foo + "a" + "b"` case
+                const left = getLeft(node);
+                const right = getRight(node);
 
-module.exports.schema = [];
+                if (astUtils.isStringLiteral(left) &&
+                    astUtils.isStringLiteral(right) &&
+                    astUtils.isTokenOnSameLine(left, right)
+                ) {
+
+                    // move warning location to operator
+                    let operatorToken = sourceCode.getTokenAfter(left);
+
+                    while (operatorToken.value !== "+") {
+                        operatorToken = sourceCode.getTokenAfter(operatorToken);
+                    }
+
+                    context.report({
+                        node,
+                        loc: operatorToken.loc.start,
+                        message: "Unexpected string concatenation of literals."
+                    });
+                }
+            }
+        };
+    }
+};

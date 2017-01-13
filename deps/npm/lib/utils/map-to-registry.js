@@ -49,8 +49,52 @@ function mapToRegistry (name, config, cb) {
 
   // normalize registry URL so resolution doesn't drop a piece of registry URL
   var normalized = registry.slice(-1) !== '/' ? registry + '/' : registry
-  var uri = url.resolve(normalized, name)
+  var uri
+  log.silly('mapToRegistry', 'data', data)
+  if (data.type === 'remote') {
+    uri = data.spec
+  } else {
+    uri = url.resolve(normalized, name)
+  }
+
   log.silly('mapToRegistry', 'uri', uri)
 
-  cb(null, uri, auth, normalized)
+  cb(null, uri, scopeAuth(uri, registry, auth), normalized)
+}
+
+function scopeAuth (uri, registry, auth) {
+  var cleaned = {
+    scope: auth.scope,
+    email: auth.email,
+    alwaysAuth: auth.alwaysAuth,
+    token: undefined,
+    username: undefined,
+    password: undefined,
+    auth: undefined
+  }
+
+  var requestHost
+  var registryHost
+
+  if (auth.token || auth.auth || (auth.username && auth.password)) {
+    requestHost = url.parse(uri).hostname
+    registryHost = url.parse(registry).hostname
+
+    if (requestHost === registryHost) {
+      cleaned.token = auth.token
+      cleaned.auth = auth.auth
+      cleaned.username = auth.username
+      cleaned.password = auth.password
+    } else if (auth.alwaysAuth) {
+      log.verbose('scopeAuth', 'alwaysAuth set for', registry)
+      cleaned.token = auth.token
+      cleaned.auth = auth.auth
+      cleaned.username = auth.username
+      cleaned.password = auth.password
+    } else {
+      log.silly('scopeAuth', uri, "doesn't share host with registry", registry)
+    }
+  }
+
+  return cleaned
 }

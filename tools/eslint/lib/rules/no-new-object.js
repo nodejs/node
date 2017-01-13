@@ -9,17 +9,27 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow `Object` constructors",
+            category: "Stylistic Issues",
+            recommended: false
+        },
 
-    return {
+        schema: []
+    },
 
-        "NewExpression": function(node) {
-            if (node.callee.name === "Object") {
-                context.report(node, "The object literal notation {} is preferrable.");
+    create(context) {
+
+        return {
+
+            NewExpression(node) {
+                if (node.callee.name === "Object") {
+                    context.report({ node, message: "The object literal notation {} is preferrable." });
+                }
             }
-        }
-    };
+        };
 
+    }
 };
-
-module.exports.schema = [];

@@ -1,42 +1,36 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var fs = require('fs');
+const fs = require('fs');
 
-var options = {
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/ec-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/ec-cert.pem')
 };
 
-var cert = null;
-
-var server = tls.createServer(options, function(conn) {
+const server = tls.createServer(options, function(conn) {
   conn.end('ok');
-}).listen(common.PORT, function() {
-  var c = tls.connect(common.PORT, {
+}).listen(0, common.mustCall(function() {
+  const c = tls.connect(this.address().port, {
     rejectUnauthorized: false
-  }, function() {
+  }, common.mustCall(function() {
     c.on('end', common.mustCall(function() {
       c.end();
       server.close();
     }));
 
     c.on('data', function(data) {
-      assert.equal(data, 'ok');
+      assert.strictEqual(data.toString(), 'ok');
     });
 
-    cert = c.getPeerCertificate();
-  });
-});
-
-process.on('exit', function() {
-  assert(cert);
-  assert.equal(cert.subject.C, 'US');
-});
+    const cert = c.getPeerCertificate();
+    assert.strictEqual(cert.subject.C, 'US');
+  }));
+}));

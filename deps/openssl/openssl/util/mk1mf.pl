@@ -277,6 +277,7 @@ $cflags.=" -DOPENSSL_NO_SOCK" if $no_sock;
 $cflags.=" -DOPENSSL_NO_SSL2" if $no_ssl2;
 $cflags.=" -DOPENSSL_NO_SSL3" if $no_ssl3;
 $cflags.=" -DOPENSSL_NO_TLSEXT" if $no_tlsext;
+$cflags.=" -DOPENSSL_NO_TLS1" if $no_tls1;
 $cflags.=" -DOPENSSL_NO_SRP" if $no_srp;
 $cflags.=" -DOPENSSL_NO_CMS" if $no_cms;
 $cflags.=" -DOPENSSL_NO_ERR"  if $no_err;
@@ -290,8 +291,10 @@ $cflags.=" -DOPENSSL_NO_HW"   if $no_hw;
 $cflags.=" -DOPENSSL_FIPS"    if $fips;
 $cflags.=" -DOPENSSL_NO_JPAKE"    if $no_jpake;
 $cflags.=" -DOPENSSL_NO_EC2M"    if $no_ec2m;
-$cflags.= " -DZLIB" if $zlib_opt;
-$cflags.= " -DZLIB_SHARED" if $zlib_opt == 2;
+$cflags.=" -DOPENSSL_NO_WEAK_SSL_CIPHERS"   if $no_weak_ssl;
+$cflags.=" -DZLIB" if $zlib_opt;
+$cflags.=" -DZLIB_SHARED" if $zlib_opt == 2;
+$cflags.=" -DOPENSSL_NO_COMP" if $no_comp;
 
 if ($no_static_engine)
 	{
@@ -482,7 +485,7 @@ EX_LIBS=$ex_libs
 # The OpenSSL directory
 SRC_D=$src_dir
 
-LINK=$link
+LINK_CMD=$link
 LFLAGS=$lflags
 RSC=$rsc
 
@@ -690,8 +693,8 @@ $rules.=&do_copy_rule("\$(INCL_D)",$header,"");
 $defs.=&do_defs("EXHEADER",$exheader,"\$(INCO_D)","");
 $rules.=&do_copy_rule("\$(INCO_D)",$exheader,"");
 
-$defs.=&do_defs("T_OBJ",$test,"\$(OBJ_D)",$obj);
-$rules.=&do_compile_rule("\$(OBJ_D)",$test,"\$(APP_CFLAGS)");
+$defs.=&do_defs("T_OBJ","$test test${o}ssltestlib","\$(OBJ_D)",$obj);
+$rules.=&do_compile_rule("\$(OBJ_D)","$test test${o}ssltestlib","\$(APP_CFLAGS)");
 
 $defs.=&do_defs("E_OBJ",$e_exe,"\$(OBJ_D)",$obj);
 $rules.=&do_compile_rule("\$(OBJ_D)",$e_exe,'-DMONOLITH $(APP_CFLAGS)');
@@ -762,6 +765,7 @@ foreach (split(/\s+/,$test))
 	{
 	$t=&bname($_);
 	$tt="\$(OBJ_D)${o}$t${obj}";
+	$tt.=" \$(OBJ_D)${o}ssltestlib${obj}" if $t eq "dtlstest";
 	$rules.=&do_link_rule("\$(TEST_D)$o$t$exep",$tt,"\$(LIBS_DEP)","\$(L_LIBS) \$(EX_LIBS)");
 	}
 
@@ -849,6 +853,7 @@ sub var_add
 	return("") if $no_gost   && $dir =~ /\/ccgost/;
 	return("") if $no_cms  && $dir =~ /\/cms/;
 	return("") if $no_jpake  && $dir =~ /\/jpake/;
+	return("") if $no_comp && $dir =~ /\/comp/;
 	if ($no_des && $dir =~ /\/des/)
 		{
 		if ($val =~ /read_pwd/)
@@ -1197,14 +1202,17 @@ sub read_options
 		"nw-mwasm" => \$nw_mwasm,
 		"gaswin" => \$gaswin,
 		"no-ssl2" => \$no_ssl2,
+		"no-ssl2-method" => 0,
 		"no-ssl3" => \$no_ssl3,
 		"no-ssl3-method" => 0,
 		"no-tlsext" => \$no_tlsext,
+		"no-tls1" => \$no_tls1,
 		"no-srp" => \$no_srp,
 		"no-cms" => \$no_cms,
 		"no-jpake" => \$no_jpake,
 		"no-ec2m" => \$no_ec2m,
 		"no-ec_nistp_64_gcc_128" => 0,
+		"no-weak-ssl-ciphers" => \$no_weak_ssl,
 		"no-err" => \$no_err,
 		"no-sock" => \$no_sock,
 		"no-krb5" => \$no_krb5,
@@ -1240,6 +1248,7 @@ sub read_options
 		"no-unit-test" => 0,
 		"no-libunbound" => 0,
 		"no-multiblock" => 0,
+		"no-comp" => \$no_comp,
 		"fips" => \$fips
 		);
 
@@ -1257,7 +1266,6 @@ sub read_options
 				}
 			}
 		}
-	elsif (/^no-comp$/) { $xcflags = "-DOPENSSL_NO_COMP $xcflags"; }
 	elsif (/^enable-zlib$/) { $zlib_opt = 1 if $zlib_opt == 0 }
 	elsif (/^enable-zlib-dynamic$/)
 		{

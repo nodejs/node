@@ -34,50 +34,14 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
 #define __ masm.
 
 
-UnaryMathFunction CreateExpFunction() {
-  if (!FLAG_fast_math) return &std::exp;
-  size_t actual_size;
-  byte* buffer =
-      static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
-  if (buffer == NULL) return &std::exp;
-  ExternalReference::InitializeMathExpData();
-
-  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
-  // esp[1 * kPointerSize]: raw double input
-  // esp[0 * kPointerSize]: return address
-  {
-    XMMRegister input = xmm1;
-    XMMRegister result = xmm2;
-    __ movsd(input, Operand(esp, 1 * kPointerSize));
-    __ push(eax);
-    __ push(ebx);
-
-    MathExpGenerator::EmitMathExp(&masm, input, result, xmm0, eax, ebx);
-
-    __ pop(ebx);
-    __ pop(eax);
-    __ movsd(Operand(esp, 1 * kPointerSize), result);
-    __ fld_d(Operand(esp, 1 * kPointerSize));
-    __ Ret();
-  }
-
-  CodeDesc desc;
-  masm.GetCode(&desc);
-  DCHECK(!RelocInfo::RequiresRelocation(desc));
-
-  Assembler::FlushICacheWithoutIsolate(buffer, actual_size);
-  base::OS::ProtectCode(buffer, actual_size);
-  return FUNCTION_CAST<UnaryMathFunction>(buffer);
-}
-
-
-UnaryMathFunction CreateSqrtFunction() {
+UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
   size_t actual_size;
   // Allocate buffer in executable space.
   byte* buffer =
       static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
-  if (buffer == NULL) return &std::sqrt;
-  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
+  if (buffer == nullptr) return nullptr;
+  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
+                      CodeObjectRequired::kNo);
   // esp[1 * kPointerSize]: raw double input
   // esp[0 * kPointerSize]: return address
   // Move double input into registers.
@@ -94,9 +58,9 @@ UnaryMathFunction CreateSqrtFunction() {
   masm.GetCode(&desc);
   DCHECK(!RelocInfo::RequiresRelocation(desc));
 
-  Assembler::FlushICacheWithoutIsolate(buffer, actual_size);
+  Assembler::FlushICache(isolate, buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
-  return FUNCTION_CAST<UnaryMathFunction>(buffer);
+  return FUNCTION_CAST<UnaryMathFunctionWithIsolate>(buffer);
 }
 
 
@@ -186,13 +150,14 @@ class LabelConverter {
 };
 
 
-MemMoveFunction CreateMemMoveFunction() {
+MemMoveFunction CreateMemMoveFunction(Isolate* isolate) {
   size_t actual_size;
   // Allocate buffer in executable space.
   byte* buffer =
       static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
-  if (buffer == NULL) return NULL;
-  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
+  if (buffer == nullptr) return nullptr;
+  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
+                      CodeObjectRequired::kNo);
   LabelConverter conv(buffer);
 
   // Generated code is put into a fixed, unmovable buffer, and not into
@@ -505,7 +470,7 @@ MemMoveFunction CreateMemMoveFunction() {
   CodeDesc desc;
   masm.GetCode(&desc);
   DCHECK(!RelocInfo::RequiresRelocation(desc));
-  Assembler::FlushICacheWithoutIsolate(buffer, actual_size);
+  Assembler::FlushICache(isolate, buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
   // TODO(jkummerow): It would be nice to register this code creation event
   // with the PROFILE / GDBJIT system.
@@ -578,14 +543,14 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   __ push(eax);
   __ push(ebx);
+  __ push(esi);
 
   __ mov(edi, FieldOperand(edi, FixedArray::kLengthOffset));
 
   // Allocate new FixedDoubleArray.
   // edx: receiver
   // edi: length of source FixedArray (smi-tagged)
-  AllocationFlags flags =
-      static_cast<AllocationFlags>(TAG_OBJECT | DOUBLE_ALIGNMENT);
+  AllocationFlags flags = static_cast<AllocationFlags>(DOUBLE_ALIGNMENT);
   __ Allocate(FixedDoubleArray::kHeaderSize, times_8, edi,
               REGISTER_VALUE_IS_SMI, eax, ebx, no_reg, &gc_required, flags);
 
@@ -619,8 +584,9 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
 
   // Call into runtime if GC is required.
   __ bind(&gc_required);
+
   // Restore registers before jumping into runtime.
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+  __ pop(esi);
   __ pop(ebx);
   __ pop(eax);
   __ jmp(fail);
@@ -655,11 +621,10 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ sub(edi, Immediate(Smi::FromInt(1)));
   __ j(not_sign, &loop);
 
+  // Restore registers.
+  __ pop(esi);
   __ pop(ebx);
   __ pop(eax);
-
-  // Restore esi.
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
 
   __ bind(&only_change_map);
   // eax: value
@@ -702,6 +667,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ cmp(edi, Immediate(masm->isolate()->factory()->empty_fixed_array()));
   __ j(equal, &only_change_map);
 
+  __ push(esi);
   __ push(eax);
   __ push(edx);
   __ push(ebx);
@@ -711,7 +677,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   // Allocate new FixedArray.
   // ebx: length of source FixedDoubleArray (smi-tagged)
   __ lea(edi, Operand(ebx, times_2, FixedArray::kHeaderSize));
-  __ Allocate(edi, eax, esi, no_reg, &gc_required, TAG_OBJECT);
+  __ Allocate(edi, eax, esi, no_reg, &gc_required, NO_ALLOCATION_FLAGS);
 
   // eax: destination FixedArray
   // ebx: number of elements
@@ -751,10 +717,10 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
 
   // Call into runtime if GC is required.
   __ bind(&gc_required);
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
   __ pop(ebx);
   __ pop(edx);
   __ pop(eax);
+  __ pop(esi);
   __ jmp(fail);
 
   // Box doubles into heap numbers.
@@ -816,7 +782,7 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
 
   // Restore registers.
   __ pop(eax);
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+  __ pop(esi);
 
   __ bind(&success);
 }
@@ -884,11 +850,11 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   }
   // Rule out short external strings.
   STATIC_ASSERT(kShortExternalStringTag != 0);
-  __ test_b(result, kShortExternalStringMask);
+  __ test_b(result, Immediate(kShortExternalStringMask));
   __ j(not_zero, call_runtime);
   // Check encoding.
   STATIC_ASSERT(kTwoByteStringTag == 0);
-  __ test_b(result, kStringEncodingMask);
+  __ test_b(result, Immediate(kStringEncodingMask));
   __ mov(result, FieldOperand(string, ExternalString::kResourceDataOffset));
   __ j(not_equal, &one_byte_external, Label::kNear);
   // Two-byte string.
@@ -925,70 +891,14 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ bind(&done);
 }
 
-
-static Operand ExpConstant(int index) {
-  return Operand::StaticVariable(ExternalReference::math_exp_constants(index));
-}
-
-
-void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
-                                   XMMRegister input,
-                                   XMMRegister result,
-                                   XMMRegister double_scratch,
-                                   Register temp1,
-                                   Register temp2) {
-  DCHECK(!input.is(double_scratch));
-  DCHECK(!input.is(result));
-  DCHECK(!result.is(double_scratch));
-  DCHECK(!temp1.is(temp2));
-  DCHECK(ExternalReference::math_exp_constants(0).address() != NULL);
-  DCHECK(!masm->serializer_enabled());  // External references not serializable.
-
-  Label done;
-
-  __ movsd(double_scratch, ExpConstant(0));
-  __ xorpd(result, result);
-  __ ucomisd(double_scratch, input);
-  __ j(above_equal, &done);
-  __ ucomisd(input, ExpConstant(1));
-  __ movsd(result, ExpConstant(2));
-  __ j(above_equal, &done);
-  __ movsd(double_scratch, ExpConstant(3));
-  __ movsd(result, ExpConstant(4));
-  __ mulsd(double_scratch, input);
-  __ addsd(double_scratch, result);
-  __ movd(temp2, double_scratch);
-  __ subsd(double_scratch, result);
-  __ movsd(result, ExpConstant(6));
-  __ mulsd(double_scratch, ExpConstant(5));
-  __ subsd(double_scratch, input);
-  __ subsd(result, double_scratch);
-  __ movsd(input, double_scratch);
-  __ mulsd(input, double_scratch);
-  __ mulsd(result, input);
-  __ mov(temp1, temp2);
-  __ mulsd(result, ExpConstant(7));
-  __ subsd(result, double_scratch);
-  __ add(temp1, Immediate(0x1ff800));
-  __ addsd(result, ExpConstant(8));
-  __ and_(temp2, Immediate(0x7ff));
-  __ shr(temp1, 11);
-  __ shl(temp1, 20);
-  __ movd(input, temp1);
-  __ pshufd(input, input, static_cast<uint8_t>(0xe1));  // Order: 11 10 00 01
-  __ movsd(double_scratch, Operand::StaticArray(
-      temp2, times_8, ExternalReference::math_exp_log_table()));
-  __ orps(input, double_scratch);
-  __ mulsd(result, input);
-  __ bind(&done);
-}
-
 #undef __
 
 
-CodeAgingHelper::CodeAgingHelper() {
+CodeAgingHelper::CodeAgingHelper(Isolate* isolate) {
+  USE(isolate);
   DCHECK(young_sequence_.length() == kNoCodeAgeSequenceLength);
-  CodePatcher patcher(young_sequence_.start(), young_sequence_.length());
+  CodePatcher patcher(isolate, young_sequence_.start(),
+                      young_sequence_.length());
   patcher.masm()->push(ebp);
   patcher.masm()->mov(ebp, esp);
   patcher.masm()->push(esi);
@@ -1035,7 +945,7 @@ void Code::PatchPlatformCodeAge(Isolate* isolate,
     Assembler::FlushICache(isolate, sequence, young_length);
   } else {
     Code* stub = GetCodeAgeStub(isolate, age, parity);
-    CodePatcher patcher(sequence, young_length);
+    CodePatcher patcher(isolate, sequence, young_length);
     patcher.masm()->call(stub->instruction_start(), RelocInfo::NONE32);
   }
 }

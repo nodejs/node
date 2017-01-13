@@ -62,6 +62,7 @@ B<openssl> B<s_server>
 [B<-status_verbose>]
 [B<-status_timeout nsec>]
 [B<-status_url url>]
+[B<-alpn protocols>]
 [B<-nextprotoneg protocols>]
 
 =head1 DESCRIPTION
@@ -217,11 +218,11 @@ Use the PSK key B<key> when using a PSK cipher suite. The key is
 given as a hexadecimal number without leading 0x, for example -psk
 1a2b3c4d.
 
-=item B<-ssl2>, B<-ssl3>, B<-tls1>, B<-no_ssl2>, B<-no_ssl3>, B<-no_tls1>
+=item B<-ssl2>, B<-ssl3>, B<-tls1>, B<-tls1_1>, B<-tls1_2>, B<-no_ssl2>, B<-no_ssl3>, B<-no_tls1>, B<-no_tls1_1>, B<-no_tls1_2>
 
-these options disable the use of certain SSL or TLS protocols. By default
-the initial handshake uses a method which should be compatible with all
-servers and permit them to use SSL v3, SSL v2 or TLS as appropriate.
+These options require or disable the use of the specified SSL or TLS protocols.
+By default the initial handshake uses a I<version-flexible> method which will
+negotiate the highest mutually supported protocol version.
 
 =item B<-bugs>
 
@@ -327,9 +328,13 @@ sets a fallback responder URL to use if no responder URL is present in the
 server certificate. Without this option an error is returned if the server
 certificate does not contain a responder address.
 
-=item B<-nextprotoneg protocols>
+=item B<-alpn protocols>, B<-nextprotoneg protocols>
 
-enable Next Protocol Negotiation TLS extension and provide a
+these flags enable the 
+Enable the Application-Layer Protocol Negotiation or Next Protocol
+Negotiation extension, respectively. ALPN is the IETF standard and
+replaces NPN.
+The B<protocols> list is a
 comma-separated list of supported protocol names.
 The list should contain most wanted protocols first.
 Protocol names are printable ASCII strings, for example "http/1.1" or

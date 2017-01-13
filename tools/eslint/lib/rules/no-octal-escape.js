@@ -9,31 +9,39 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow octal escape sequences in string literals",
+            category: "Best Practices",
+            recommended: false
+        },
 
-    return {
+        schema: []
+    },
 
-        "Literal": function(node) {
-            if (typeof node.value !== "string") {
-                return;
-            }
+    create(context) {
 
-            var match = node.raw.match(/^([^\\]|\\[^0-7])*\\([0-3][0-7]{1,2}|[4-7][0-7]|[0-7])/),
-                octalDigit;
+        return {
 
-            if (match) {
-                octalDigit = match[2];
+            Literal(node) {
+                if (typeof node.value !== "string") {
+                    return;
+                }
 
-                // \0 is actually not considered an octal
-                if (match[2] !== "0" || typeof match[3] !== "undefined") {
-                    context.report(node, "Don't use octal: '\\{{octalDigit}}'. Use '\\u....' instead.",
-                            { octalDigit: octalDigit });
+                const match = node.raw.match(/^([^\\]|\\[^0-7])*\\([0-3][0-7]{1,2}|[4-7][0-7]|[0-7])/);
+
+                if (match) {
+                    const octalDigit = match[2];
+
+                    // \0 is actually not considered an octal
+                    if (match[2] !== "0" || typeof match[3] !== "undefined") {
+                        context.report({ node, message: "Don't use octal: '\\{{octalDigit}}'. Use '\\u....' instead.", data: { octalDigit } });
+                    }
                 }
             }
-        }
 
-    };
+        };
 
+    }
 };
-
-module.exports.schema = [];

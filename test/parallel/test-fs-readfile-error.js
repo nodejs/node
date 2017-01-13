@@ -1,42 +1,34 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var exec = require('child_process').exec;
-var path = require('path');
+const common = require('../common');
+const assert = require('assert');
+const exec = require('child_process').exec;
+const path = require('path');
 
 // `fs.readFile('/')` does not fail on FreeBSD, because you can open and read
 // the directory there.
 if (process.platform === 'freebsd') {
-  console.log('1..0 # Skipped: platform not supported.');
+  common.skip('platform not supported.');
   return;
 }
 
-var callbacks = 0;
-
 function test(env, cb) {
-  var filename = path.join(common.fixturesDir, 'test-fs-readfile-error.js');
-  var execPath = '"' + process.execPath + '" "' + filename + '"';
-  var options = { env: Object.assign(process.env, env) };
-  exec(execPath, options, function(err, stdout, stderr) {
+  const filename = path.join(common.fixturesDir, 'test-fs-readfile-error.js');
+  const execPath = '"' + process.execPath + '" "' + filename + '"';
+  const options = { env: Object.assign(process.env, env) };
+  exec(execPath, options, common.mustCall((err, stdout, stderr) => {
     assert(err);
-    assert.equal(stdout, '');
-    assert.notEqual(stderr, '');
+    assert.strictEqual(stdout, '');
+    assert.notStrictEqual(stderr, '');
     cb('' + stderr);
-  });
+  }));
 }
 
-test({ NODE_DEBUG: '' }, function(data) {
+test({ NODE_DEBUG: '' }, common.mustCall((data) => {
   assert(/EISDIR/.test(data));
   assert(!/test-fs-readfile-error/.test(data));
-  callbacks++;
-});
+}));
 
-test({ NODE_DEBUG: 'fs' }, function(data) {
+test({ NODE_DEBUG: 'fs' }, common.mustCall((data) => {
   assert(/EISDIR/.test(data));
   assert(/test-fs-readfile-error/.test(data));
-  callbacks++;
-});
-
-process.on('exit', function() {
-  assert.equal(callbacks, 2);
-});
+}));

@@ -9,16 +9,26 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow ternary operators",
+            category: "Stylistic Issues",
+            recommended: false
+        },
 
-    return {
+        schema: []
+    },
 
-        "ConditionalExpression": function(node) {
-            context.report(node, "Ternary operator used.");
-        }
+    create(context) {
 
-    };
+        return {
 
+            ConditionalExpression(node) {
+                context.report({ node, message: "Ternary operator used." });
+            }
+
+        };
+
+    }
 };
-
-module.exports.schema = [];

@@ -51,23 +51,13 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   // Only use statically determined features for cross compile (snapshot).
   if (cross_compile) return;
 
-  // Probe for runtime features
-  base::CPU cpu;
-  if (cpu.implementer() == base::CPU::NVIDIA &&
-      cpu.variant() == base::CPU::NVIDIA_DENVER &&
-      cpu.part() <= base::CPU::NVIDIA_DENVER_V10) {
-    supported_ |= 1u << COHERENT_CACHE;
-  }
+  // We used to probe for coherent cache support, but on older CPUs it
+  // causes crashes (crbug.com/524337), and newer CPUs don't even have
+  // the feature any more.
 }
-
 
 void CpuFeatures::PrintTarget() { }
-
-
-void CpuFeatures::PrintFeatures() {
-  printf("COHERENT_CACHE=%d\n", CpuFeatures::IsSupported(COHERENT_CACHE));
-}
-
+void CpuFeatures::PrintFeatures() {}
 
 // -----------------------------------------------------------------------------
 // CPURegList utilities.
@@ -189,12 +179,35 @@ bool RelocInfo::IsInConstantPool() {
   return instr->IsLdrLiteralX();
 }
 
+Address RelocInfo::wasm_memory_reference() {
+  DCHECK(IsWasmMemoryReference(rmode_));
+  return Memory::Address_at(Assembler::target_pointer_address_at(pc_));
+}
+
+uint32_t RelocInfo::wasm_memory_size_reference() {
+  DCHECK(IsWasmMemorySizeReference(rmode_));
+  return Memory::uint32_at(Assembler::target_pointer_address_at(pc_));
+}
+
+Address RelocInfo::wasm_global_reference() {
+  DCHECK(IsWasmGlobalReference(rmode_));
+  return Memory::Address_at(Assembler::target_pointer_address_at(pc_));
+}
+
+void RelocInfo::unchecked_update_wasm_memory_reference(
+    Address address, ICacheFlushMode flush_mode) {
+  Assembler::set_target_address_at(isolate_, pc_, host_, address, flush_mode);
+}
+
+void RelocInfo::unchecked_update_wasm_memory_size(uint32_t size,
+                                                  ICacheFlushMode flush_mode) {
+  Memory::uint32_at(Assembler::target_pointer_address_at(pc_)) = size;
+}
 
 Register GetAllocatableRegisterThatIsNotOneOf(Register reg1, Register reg2,
                                               Register reg3, Register reg4) {
   CPURegList regs(reg1, reg2, reg3, reg4);
-  const RegisterConfiguration* config =
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
+  const RegisterConfiguration* config = RegisterConfiguration::Crankshaft();
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     Register candidate = Register::from_code(code);
@@ -266,7 +279,6 @@ void Immediate::InitializeHandle(Handle<Object> handle) {
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
   if (obj->IsHeapObject()) {
-    DCHECK(!HeapObject::cast(obj)->GetHeap()->InNewSpace(obj));
     value_ = reinterpret_cast<intptr_t>(handle.location());
     rmode_ = RelocInfo::EMBEDDED_OBJECT;
   } else {
@@ -291,13 +303,11 @@ bool Operand::NeedsRelocation(const Assembler* assembler) const {
 // Constant Pool.
 void ConstPool::RecordEntry(intptr_t data,
                             RelocInfo::Mode mode) {
-  DCHECK(mode != RelocInfo::COMMENT &&
-         mode != RelocInfo::POSITION &&
-         mode != RelocInfo::STATEMENT_POSITION &&
-         mode != RelocInfo::CONST_POOL &&
+  DCHECK(mode != RelocInfo::COMMENT && mode != RelocInfo::CONST_POOL &&
          mode != RelocInfo::VENEER_POOL &&
          mode != RelocInfo::CODE_AGE_SEQUENCE &&
-         mode != RelocInfo::DEOPT_REASON);
+         mode != RelocInfo::DEOPT_POSITION && mode != RelocInfo::DEOPT_REASON &&
+         mode != RelocInfo::DEOPT_ID);
   uint64_t raw_data = static_cast<uint64_t>(data);
   int offset = assm_->pc_offset();
   if (IsEmpty()) {
@@ -437,7 +447,8 @@ bool ConstPool::CanBeShared(RelocInfo::Mode mode) {
   DCHECK(mode != RelocInfo::NONE32);
 
   return RelocInfo::IsNone(mode) ||
-         (!assm_->serializer_enabled() && (mode >= RelocInfo::CELL));
+         (!assm_->serializer_enabled() &&
+          (mode >= RelocInfo::FIRST_SHAREABLE_RELOC_MODE));
 }
 
 
@@ -511,7 +522,7 @@ void ConstPool::EmitEntries() {
 
       // Instruction to patch must be 'ldr rd, [pc, #offset]' with offset == 0.
       DCHECK(instr->IsLdrLiteral() && instr->ImmLLiteral() == 0);
-      instr->SetImmPCOffsetTarget(assm_->pc());
+      instr->SetImmPCOffsetTarget(assm_->isolate(), assm_->pc());
     }
     assm_->dc64(data);
   }
@@ -527,7 +538,7 @@ void ConstPool::EmitEntries() {
 
     // Instruction to patch must be 'ldr rd, [pc, #offset]' with offset == 0.
     DCHECK(instr->IsLdrLiteral() && instr->ImmLLiteral() == 0);
-    instr->SetImmPCOffsetTarget(assm_->pc());
+    instr->SetImmPCOffsetTarget(assm_->isolate(), assm_->pc());
     assm_->dc64(unique_it->first);
   }
   unique_entries_.clear();
@@ -540,8 +551,7 @@ Assembler::Assembler(Isolate* isolate, void* buffer, int buffer_size)
     : AssemblerBase(isolate, buffer, buffer_size),
       constpool_(this),
       recorded_ast_id_(TypeFeedbackId::None()),
-      unresolved_branches_(),
-      positions_recorder_(this) {
+      unresolved_branches_() {
   const_pool_blocked_nesting_ = 0;
   veneer_pool_blocked_nesting_ = 0;
   Reset();
@@ -575,7 +585,6 @@ void Assembler::Reset() {
 
 
 void Assembler::GetCode(CodeDesc* desc) {
-  reloc_info_writer.Finish();
   // Emit constant pool if necessary.
   CheckConstPool(true, false);
   DCHECK(constpool_.IsEmpty());
@@ -589,6 +598,9 @@ void Assembler::GetCode(CodeDesc* desc) {
         static_cast<int>((reinterpret_cast<byte*>(buffer_) + buffer_size_) -
                          reloc_info_writer.pos());
     desc->origin = this;
+    desc->constant_pool_size = 0;
+    desc->unwinding_info_size = 0;
+    desc->unwinding_info = nullptr;
   }
 }
 
@@ -657,22 +669,22 @@ void Assembler::RemoveBranchFromLabelLinkChain(Instruction* branch,
 
   } else if (branch == next_link) {
     // The branch is the last (but not also the first) instruction in the chain.
-    prev_link->SetImmPCOffsetTarget(prev_link);
+    prev_link->SetImmPCOffsetTarget(isolate(), prev_link);
 
   } else {
     // The branch is in the middle of the chain.
     if (prev_link->IsTargetInImmPCOffsetRange(next_link)) {
-      prev_link->SetImmPCOffsetTarget(next_link);
+      prev_link->SetImmPCOffsetTarget(isolate(), next_link);
     } else if (label_veneer != NULL) {
       // Use the veneer for all previous links in the chain.
-      prev_link->SetImmPCOffsetTarget(prev_link);
+      prev_link->SetImmPCOffsetTarget(isolate(), prev_link);
 
       end_of_chain = false;
       link = next_link;
       while (!end_of_chain) {
         next_link = link->ImmPCOffsetTarget();
         end_of_chain = (link == next_link);
-        link->SetImmPCOffsetTarget(label_veneer);
+        link->SetImmPCOffsetTarget(isolate(), label_veneer);
         link = next_link;
       }
     } else {
@@ -743,10 +755,11 @@ void Assembler::bind(Label* label) {
       // Internal references do not get patched to an instruction but directly
       // to an address.
       internal_reference_positions_.push_back(linkoffset);
-      PatchingAssembler patcher(link, 2);
+      PatchingAssembler patcher(isolate(), link, 2);
       patcher.dc64(reinterpret_cast<uintptr_t>(pc_));
     } else {
-      link->SetImmPCOffsetTarget(reinterpret_cast<Instruction*>(pc_));
+      link->SetImmPCOffsetTarget(isolate(),
+                                 reinterpret_cast<Instruction*>(pc_));
     }
 
     // Link the label to the previous link in the chain.
@@ -956,14 +969,12 @@ void Assembler::EndBlockVeneerPool() {
 
 
 void Assembler::br(const Register& xn) {
-  positions_recorder()->WriteRecordedPositions();
   DCHECK(xn.Is64Bits());
   Emit(BR | Rn(xn));
 }
 
 
 void Assembler::blr(const Register& xn) {
-  positions_recorder()->WriteRecordedPositions();
   DCHECK(xn.Is64Bits());
   // The pattern 'blr xzr' is used as a guard to detect when execution falls
   // through the constant pool. It should not be emitted.
@@ -973,7 +984,6 @@ void Assembler::blr(const Register& xn) {
 
 
 void Assembler::ret(const Register& xn) {
-  positions_recorder()->WriteRecordedPositions();
   DCHECK(xn.Is64Bits());
   Emit(RET | Rn(xn));
 }
@@ -985,7 +995,6 @@ void Assembler::b(int imm26) {
 
 
 void Assembler::b(Label* label) {
-  positions_recorder()->WriteRecordedPositions();
   b(LinkAndGetInstructionOffsetTo(label));
 }
 
@@ -996,47 +1005,40 @@ void Assembler::b(int imm19, Condition cond) {
 
 
 void Assembler::b(Label* label, Condition cond) {
-  positions_recorder()->WriteRecordedPositions();
   b(LinkAndGetInstructionOffsetTo(label), cond);
 }
 
 
 void Assembler::bl(int imm26) {
-  positions_recorder()->WriteRecordedPositions();
   Emit(BL | ImmUncondBranch(imm26));
 }
 
 
 void Assembler::bl(Label* label) {
-  positions_recorder()->WriteRecordedPositions();
   bl(LinkAndGetInstructionOffsetTo(label));
 }
 
 
 void Assembler::cbz(const Register& rt,
                     int imm19) {
-  positions_recorder()->WriteRecordedPositions();
   Emit(SF(rt) | CBZ | ImmCmpBranch(imm19) | Rt(rt));
 }
 
 
 void Assembler::cbz(const Register& rt,
                     Label* label) {
-  positions_recorder()->WriteRecordedPositions();
   cbz(rt, LinkAndGetInstructionOffsetTo(label));
 }
 
 
 void Assembler::cbnz(const Register& rt,
                      int imm19) {
-  positions_recorder()->WriteRecordedPositions();
   Emit(SF(rt) | CBNZ | ImmCmpBranch(imm19) | Rt(rt));
 }
 
 
 void Assembler::cbnz(const Register& rt,
                      Label* label) {
-  positions_recorder()->WriteRecordedPositions();
   cbnz(rt, LinkAndGetInstructionOffsetTo(label));
 }
 
@@ -1044,7 +1046,6 @@ void Assembler::cbnz(const Register& rt,
 void Assembler::tbz(const Register& rt,
                     unsigned bit_pos,
                     int imm14) {
-  positions_recorder()->WriteRecordedPositions();
   DCHECK(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSizeInBits)));
   Emit(TBZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
 }
@@ -1053,7 +1054,6 @@ void Assembler::tbz(const Register& rt,
 void Assembler::tbz(const Register& rt,
                     unsigned bit_pos,
                     Label* label) {
-  positions_recorder()->WriteRecordedPositions();
   tbz(rt, bit_pos, LinkAndGetInstructionOffsetTo(label));
 }
 
@@ -1061,7 +1061,6 @@ void Assembler::tbz(const Register& rt,
 void Assembler::tbnz(const Register& rt,
                      unsigned bit_pos,
                      int imm14) {
-  positions_recorder()->WriteRecordedPositions();
   DCHECK(rt.Is64Bits() || (rt.Is32Bits() && (bit_pos < kWRegSizeInBits)));
   Emit(TBNZ | ImmTestBranchBit(bit_pos) | ImmTestBranch(imm14) | Rt(rt));
 }
@@ -1070,7 +1069,6 @@ void Assembler::tbnz(const Register& rt,
 void Assembler::tbnz(const Register& rt,
                      unsigned bit_pos,
                      Label* label) {
-  positions_recorder()->WriteRecordedPositions();
   tbnz(rt, bit_pos, LinkAndGetInstructionOffsetTo(label));
 }
 
@@ -1690,6 +1688,83 @@ void Assembler::ldr(const CPURegister& rt, const Immediate& imm) {
   ldr_pcrel(rt, 0);
 }
 
+void Assembler::ldar(const Register& rt, const Register& rn) {
+  DCHECK(rn.Is64Bits());
+  LoadStoreAcquireReleaseOp op = rt.Is32Bits() ? LDAR_w : LDAR_x;
+  Emit(op | Rs(x31) | Rt2(x31) | Rn(rn) | Rt(rt));
+}
+
+void Assembler::ldaxr(const Register& rt, const Register& rn) {
+  DCHECK(rn.Is64Bits());
+  LoadStoreAcquireReleaseOp op = rt.Is32Bits() ? LDAXR_w : LDAXR_x;
+  Emit(op | Rs(x31) | Rt2(x31) | Rn(rn) | Rt(rt));
+}
+
+void Assembler::stlr(const Register& rt, const Register& rn) {
+  DCHECK(rn.Is64Bits());
+  LoadStoreAcquireReleaseOp op = rt.Is32Bits() ? STLR_w : STLR_x;
+  Emit(op | Rs(x31) | Rt2(x31) | Rn(rn) | Rt(rt));
+}
+
+void Assembler::stlxr(const Register& rs, const Register& rt,
+                      const Register& rn) {
+  DCHECK(rs.Is32Bits());
+  DCHECK(rn.Is64Bits());
+  LoadStoreAcquireReleaseOp op = rt.Is32Bits() ? STLXR_w : STLXR_x;
+  Emit(op | Rs(rs) | Rt2(x31) | Rn(rn) | Rt(rt));
+}
+
+void Assembler::ldarb(const Register& rt, const Register& rn) {
+  DCHECK(rt.Is32Bits());
+  DCHECK(rn.Is64Bits());
+  Emit(LDAR_b | Rs(x31) | Rt2(x31) | Rn(rn) | Rt(rt));
+}
+
+void Assembler::ldaxrb(const Register& rt, const Register& rn) {
+  DCHECK(rt.Is32Bits());
+  DCHECK(rn.Is64Bits());
+  Emit(LDAXR_b | Rs(x31) | Rt2(x31) | Rn(rn) | Rt(rt));
+}
+
+void Assembler::stlrb(const Register& rt, const Register& rn) {
+  DCHECK(rt.Is32Bits());
+  DCHECK(rn.Is64Bits());
+  Emit(STLR_b | Rs(x31) | Rt2(x31) | Rn(rn) | Rt(rt));
+}
+
+void Assembler::stlxrb(const Register& rs, const Register& rt,
+                       const Register& rn) {
+  DCHECK(rs.Is32Bits());
+  DCHECK(rt.Is32Bits());
+  DCHECK(rn.Is64Bits());
+  Emit(STLXR_b | Rs(rs) | Rt2(x31) | Rn(rn) | Rt(rt));
+}
+
+void Assembler::ldarh(const Register& rt, const Register& rn) {
+  DCHECK(rt.Is32Bits());
+  DCHECK(rn.Is64Bits());
+  Emit(LDAR_h | Rs(x31) | Rt2(x31) | Rn(rn) | Rt(rt));
+}
+
+void Assembler::ldaxrh(const Register& rt, const Register& rn) {
+  DCHECK(rt.Is32Bits());
+  DCHECK(rn.Is64Bits());
+  Emit(LDAXR_h | Rs(x31) | Rt2(x31) | Rn(rn) | Rt(rt));
+}
+
+void Assembler::stlrh(const Register& rt, const Register& rn) {
+  DCHECK(rt.Is32Bits());
+  DCHECK(rn.Is64Bits());
+  Emit(STLR_h | Rs(x31) | Rt2(x31) | Rn(rn) | Rt(rt));
+}
+
+void Assembler::stlxrh(const Register& rs, const Register& rt,
+                       const Register& rn) {
+  DCHECK(rs.Is32Bits());
+  DCHECK(rt.Is32Bits());
+  DCHECK(rn.Is64Bits());
+  Emit(STLXR_h | Rs(rs) | Rt2(x31) | Rn(rn) | Rt(rt));
+}
 
 void Assembler::mov(const Register& rd, const Register& rm) {
   // Moves involving the stack pointer are encoded as add immediate with
@@ -2829,6 +2904,7 @@ void Assembler::GrowBuffer() {
 
   // Set up new buffer.
   desc.buffer = NewArray<byte>(desc.buffer_size);
+  desc.origin = this;
 
   desc.instr_size = pc_offset();
   desc.reloc_size =
@@ -2866,16 +2942,18 @@ void Assembler::GrowBuffer() {
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   // We do not try to reuse pool constants.
-  RelocInfo rinfo(reinterpret_cast<byte*>(pc_), rmode, data, NULL);
+  RelocInfo rinfo(isolate(), reinterpret_cast<byte*>(pc_), rmode, data, NULL);
   if (((rmode >= RelocInfo::COMMENT) &&
-       (rmode <= RelocInfo::DEBUG_BREAK_SLOT_AT_CONSTRUCT_CALL)) ||
+       (rmode <= RelocInfo::DEBUG_BREAK_SLOT_AT_TAIL_CALL)) ||
       (rmode == RelocInfo::INTERNAL_REFERENCE) ||
       (rmode == RelocInfo::CONST_POOL) || (rmode == RelocInfo::VENEER_POOL) ||
-      (rmode == RelocInfo::DEOPT_REASON) ||
+      (rmode == RelocInfo::DEOPT_POSITION) ||
+      (rmode == RelocInfo::DEOPT_REASON) || (rmode == RelocInfo::DEOPT_ID) ||
       (rmode == RelocInfo::GENERATOR_CONTINUATION)) {
     // Adjust code for new modes.
     DCHECK(RelocInfo::IsDebugBreakSlot(rmode) || RelocInfo::IsComment(rmode) ||
-           RelocInfo::IsDeoptReason(rmode) || RelocInfo::IsPosition(rmode) ||
+           RelocInfo::IsDeoptReason(rmode) || RelocInfo::IsDeoptId(rmode) ||
+           RelocInfo::IsDeoptPosition(rmode) ||
            RelocInfo::IsInternalReference(rmode) ||
            RelocInfo::IsConstPool(rmode) || RelocInfo::IsVeneerPool(rmode) ||
            RelocInfo::IsGeneratorContinuation(rmode));
@@ -2895,8 +2973,8 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
     }
     DCHECK(buffer_space() >= kMaxRelocSize);  // too late to grow buffer here
     if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
-      RelocInfo reloc_info_with_ast_id(
-          reinterpret_cast<byte*>(pc_), rmode, RecordedAstId().ToInt(), NULL);
+      RelocInfo reloc_info_with_ast_id(isolate(), reinterpret_cast<byte*>(pc_),
+                                       rmode, RecordedAstId().ToInt(), NULL);
       ClearRecordedAstId();
       reloc_info_writer.Write(&reloc_info_with_ast_id);
     } else {
@@ -2985,9 +3063,8 @@ bool Assembler::ShouldEmitVeneer(int max_reachable_pc, int margin) {
 
 
 void Assembler::RecordVeneerPool(int location_offset, int size) {
-  RelocInfo rinfo(buffer_ + location_offset,
-                  RelocInfo::VENEER_POOL, static_cast<intptr_t>(size),
-                  NULL);
+  RelocInfo rinfo(isolate(), buffer_ + location_offset, RelocInfo::VENEER_POOL,
+                  static_cast<intptr_t>(size), NULL);
   reloc_info_writer.Write(&rinfo);
 }
 
@@ -3029,7 +3106,7 @@ void Assembler::EmitVeneers(bool force_emit, bool need_protection, int margin) {
       // to the label.
       Instruction* veneer = reinterpret_cast<Instruction*>(pc_);
       RemoveBranchFromLabelLinkChain(branch, label, veneer);
-      branch->SetImmPCOffsetTarget(veneer);
+      branch->SetImmPCOffsetTarget(isolate(), veneer);
       b(label);
 #ifdef DEBUG
       DCHECK(SizeOfCodeGeneratedSince(&veneer_size_check) <=

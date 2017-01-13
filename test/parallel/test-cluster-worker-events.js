@@ -1,20 +1,21 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
+const assert = require('assert');
+const cluster = require('cluster');
 
-var OK = 2;
+const OK = 2;
 
 if (cluster.isMaster) {
 
-  var worker = cluster.fork();
+  const worker = cluster.fork();
 
   worker.on('exit', function(code) {
-    assert.equal(code, OK);
+    assert.strictEqual(code, OK);
     process.exit(0);
   });
 
-  worker.send('SOME MESSAGE');
+  const result = worker.send('SOME MESSAGE');
+  assert.strictEqual(result, true);
 
   return;
 }
@@ -24,8 +25,8 @@ if (cluster.isMaster) {
 
 assert(cluster.isWorker);
 
-var sawProcess;
-var sawWorker;
+let sawProcess;
+let sawWorker;
 
 process.on('message', function(m) {
   assert(!sawProcess);
@@ -39,17 +40,17 @@ cluster.worker.on('message', function(m) {
   check(m);
 });
 
-var messages = [];
+const messages = [];
 
 function check(m) {
   messages.push(m);
 
   if (messages.length < 2) return;
 
-  assert.deepEqual(messages[0], messages[1]);
+  assert.deepStrictEqual(messages[0], messages[1]);
 
   cluster.worker.once('error', function(e) {
-    assert.equal(e, 'HI');
+    assert.strictEqual(e, 'HI');
     process.exit(OK);
   });
 

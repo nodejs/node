@@ -6,6 +6,8 @@
 
 #if V8_TARGET_ARCH_ARM
 
+#include <memory>
+
 #include "src/arm/simulator-arm.h"
 #include "src/codegen.h"
 #include "src/macro-assembler.h"
@@ -16,80 +18,19 @@ namespace internal {
 
 #define __ masm.
 
-
-#if defined(USE_SIMULATOR)
-byte* fast_exp_arm_machine_code = NULL;
-double fast_exp_simulator(double x) {
-  return Simulator::current(Isolate::Current())->CallFPReturnsDouble(
-      fast_exp_arm_machine_code, x, 0);
-}
-#endif
-
-
-UnaryMathFunction CreateExpFunction() {
-  if (!FLAG_fast_math) return &std::exp;
-  size_t actual_size;
-  byte* buffer =
-      static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
-  if (buffer == NULL) return &std::exp;
-  ExternalReference::InitializeMathExpData();
-
-  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
-
-  {
-    DwVfpRegister input = d0;
-    DwVfpRegister result = d1;
-    DwVfpRegister double_scratch1 = d2;
-    DwVfpRegister double_scratch2 = d3;
-    Register temp1 = r4;
-    Register temp2 = r5;
-    Register temp3 = r6;
-
-    if (masm.use_eabi_hardfloat()) {
-      // Input value is in d0 anyway, nothing to do.
-    } else {
-      __ vmov(input, r0, r1);
-    }
-    __ Push(temp3, temp2, temp1);
-    MathExpGenerator::EmitMathExp(
-        &masm, input, result, double_scratch1, double_scratch2,
-        temp1, temp2, temp3);
-    __ Pop(temp3, temp2, temp1);
-    if (masm.use_eabi_hardfloat()) {
-      __ vmov(d0, result);
-    } else {
-      __ vmov(r0, r1, result);
-    }
-    __ Ret();
-  }
-
-  CodeDesc desc;
-  masm.GetCode(&desc);
-  DCHECK(!RelocInfo::RequiresRelocation(desc));
-
-  Assembler::FlushICacheWithoutIsolate(buffer, actual_size);
-  base::OS::ProtectCode(buffer, actual_size);
-
-#if !defined(USE_SIMULATOR)
-  return FUNCTION_CAST<UnaryMathFunction>(buffer);
-#else
-  fast_exp_arm_machine_code = buffer;
-  return &fast_exp_simulator;
-#endif
-}
-
 #if defined(V8_HOST_ARCH_ARM)
-MemCopyUint8Function CreateMemCopyUint8Function(MemCopyUint8Function stub) {
+MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
+                                                MemCopyUint8Function stub) {
 #if defined(USE_SIMULATOR)
   return stub;
 #else
-  if (!CpuFeatures::IsSupported(UNALIGNED_ACCESSES)) return stub;
   size_t actual_size;
   byte* buffer =
       static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
-  if (buffer == NULL) return stub;
+  if (buffer == nullptr) return stub;
 
-  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
+  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
+                      CodeObjectRequired::kNo);
 
   Register dest = r0;
   Register src = r1;
@@ -106,23 +47,23 @@ MemCopyUint8Function CreateMemCopyUint8Function(MemCopyUint8Function stub) {
     __ b(lt, &size_less_than_8);
     __ cmp(chars, Operand(32));
     __ b(lt, &less_32);
-    if (CpuFeatures::cache_line_size() == 32) {
+    if (CpuFeatures::dcache_line_size() == 32) {
       __ pld(MemOperand(src, 32));
     }
     __ cmp(chars, Operand(64));
     __ b(lt, &less_64);
     __ pld(MemOperand(src, 64));
-    if (CpuFeatures::cache_line_size() == 32) {
+    if (CpuFeatures::dcache_line_size() == 32) {
       __ pld(MemOperand(src, 96));
     }
     __ cmp(chars, Operand(128));
     __ b(lt, &less_128);
     __ pld(MemOperand(src, 128));
-    if (CpuFeatures::cache_line_size() == 32) {
+    if (CpuFeatures::dcache_line_size() == 32) {
       __ pld(MemOperand(src, 160));
     }
     __ pld(MemOperand(src, 192));
-    if (CpuFeatures::cache_line_size() == 32) {
+    if (CpuFeatures::dcache_line_size() == 32) {
       __ pld(MemOperand(src, 224));
     }
     __ cmp(chars, Operand(256));
@@ -132,7 +73,7 @@ MemCopyUint8Function CreateMemCopyUint8Function(MemCopyUint8Function stub) {
     __ bind(&loop);
     __ pld(MemOperand(src, 256));
     __ vld1(Neon8, NeonListOperand(d0, 4), NeonMemOperand(src, PostIndex));
-    if (CpuFeatures::cache_line_size() == 32) {
+    if (CpuFeatures::dcache_line_size() == 32) {
       __ pld(MemOperand(src, 256));
     }
     __ vld1(Neon8, NeonListOperand(d4, 4), NeonMemOperand(src, PostIndex));
@@ -227,7 +168,7 @@ MemCopyUint8Function CreateMemCopyUint8Function(MemCopyUint8Function stub) {
   masm.GetCode(&desc);
   DCHECK(!RelocInfo::RequiresRelocation(desc));
 
-  Assembler::FlushICacheWithoutIsolate(buffer, actual_size);
+  Assembler::FlushICache(isolate, buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
   return FUNCTION_CAST<MemCopyUint8Function>(buffer);
 #endif
@@ -236,17 +177,17 @@ MemCopyUint8Function CreateMemCopyUint8Function(MemCopyUint8Function stub) {
 
 // Convert 8 to 16. The number of character to copy must be at least 8.
 MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
-    MemCopyUint16Uint8Function stub) {
+    Isolate* isolate, MemCopyUint16Uint8Function stub) {
 #if defined(USE_SIMULATOR)
   return stub;
 #else
-  if (!CpuFeatures::IsSupported(UNALIGNED_ACCESSES)) return stub;
   size_t actual_size;
   byte* buffer =
       static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
-  if (buffer == NULL) return stub;
+  if (buffer == nullptr) return stub;
 
-  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
+  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
+                      CodeObjectRequired::kNo);
 
   Register dest = r0;
   Register src = r1;
@@ -314,7 +255,7 @@ MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
   CodeDesc desc;
   masm.GetCode(&desc);
 
-  Assembler::FlushICacheWithoutIsolate(buffer, actual_size);
+  Assembler::FlushICache(isolate, buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
 
   return FUNCTION_CAST<MemCopyUint16Uint8Function>(buffer);
@@ -322,16 +263,17 @@ MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
 }
 #endif
 
-UnaryMathFunction CreateSqrtFunction() {
+UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
 #if defined(USE_SIMULATOR)
-  return &std::sqrt;
+  return nullptr;
 #else
   size_t actual_size;
   byte* buffer =
       static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
-  if (buffer == NULL) return &std::sqrt;
+  if (buffer == nullptr) return nullptr;
 
-  MacroAssembler masm(NULL, buffer, static_cast<int>(actual_size));
+  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
+                      CodeObjectRequired::kNo);
 
   __ MovFromFloatParameter(d0);
   __ vsqrt(d0, d0);
@@ -342,9 +284,9 @@ UnaryMathFunction CreateSqrtFunction() {
   masm.GetCode(&desc);
   DCHECK(!RelocInfo::RequiresRelocation(desc));
 
-  Assembler::FlushICacheWithoutIsolate(buffer, actual_size);
+  Assembler::FlushICache(isolate, buffer, actual_size);
   base::OS::ProtectCode(buffer, actual_size);
-  return FUNCTION_CAST<UnaryMathFunction>(buffer);
+  return FUNCTION_CAST<UnaryMathFunctionWithIsolate>(buffer);
 #endif
 }
 
@@ -446,6 +388,7 @@ void ElementsTransitionGenerator::GenerateSmiToDouble(
   __ mov(lr, Operand(length, LSL, 2));
   __ add(lr, lr, Operand(FixedDoubleArray::kHeaderSize));
   __ Allocate(lr, array, elements, scratch2, &gc_required, DOUBLE_ALIGNMENT);
+  __ sub(array, array, Operand(kHeapObjectTag));
   // array: destination FixedDoubleArray, not tagged as heap object.
   __ ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
   // r4: source FixedArray.
@@ -590,11 +533,13 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ add(array_size, array_size, Operand(length, LSL, 1));
   __ Allocate(array_size, array, allocate_scratch, scratch, &gc_required,
               NO_ALLOCATION_FLAGS);
-  // array: destination FixedArray, not tagged as heap object
+  // array: destination FixedArray, tagged as heap object
   // Set destination FixedDoubleArray's length and map.
   __ LoadRoot(scratch, Heap::kFixedArrayMapRootIndex);
-  __ str(length, MemOperand(array, FixedDoubleArray::kLengthOffset));
-  __ str(scratch, MemOperand(array, HeapObject::kMapOffset));
+  __ str(length, FieldMemOperand(array, FixedDoubleArray::kLengthOffset));
+  __ str(scratch, FieldMemOperand(array, HeapObject::kMapOffset));
+
+  __ sub(array, array, Operand(kHeapObjectTag));
 
   // Prepare for conversion loop.
   Register src_elements = elements;
@@ -787,94 +732,6 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ bind(&done);
 }
 
-
-static MemOperand ExpConstant(int index, Register base) {
-  return MemOperand(base, index * kDoubleSize);
-}
-
-
-void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
-                                   DwVfpRegister input,
-                                   DwVfpRegister result,
-                                   DwVfpRegister double_scratch1,
-                                   DwVfpRegister double_scratch2,
-                                   Register temp1,
-                                   Register temp2,
-                                   Register temp3) {
-  DCHECK(!input.is(result));
-  DCHECK(!input.is(double_scratch1));
-  DCHECK(!input.is(double_scratch2));
-  DCHECK(!result.is(double_scratch1));
-  DCHECK(!result.is(double_scratch2));
-  DCHECK(!double_scratch1.is(double_scratch2));
-  DCHECK(!temp1.is(temp2));
-  DCHECK(!temp1.is(temp3));
-  DCHECK(!temp2.is(temp3));
-  DCHECK(ExternalReference::math_exp_constants(0).address() != NULL);
-  DCHECK(!masm->serializer_enabled());  // External references not serializable.
-
-  Label zero, infinity, done;
-
-  __ mov(temp3, Operand(ExternalReference::math_exp_constants(0)));
-
-  __ vldr(double_scratch1, ExpConstant(0, temp3));
-  __ VFPCompareAndSetFlags(double_scratch1, input);
-  __ b(ge, &zero);
-
-  __ vldr(double_scratch2, ExpConstant(1, temp3));
-  __ VFPCompareAndSetFlags(input, double_scratch2);
-  __ b(ge, &infinity);
-
-  __ vldr(double_scratch1, ExpConstant(3, temp3));
-  __ vldr(result, ExpConstant(4, temp3));
-  __ vmul(double_scratch1, double_scratch1, input);
-  __ vadd(double_scratch1, double_scratch1, result);
-  __ VmovLow(temp2, double_scratch1);
-  __ vsub(double_scratch1, double_scratch1, result);
-  __ vldr(result, ExpConstant(6, temp3));
-  __ vldr(double_scratch2, ExpConstant(5, temp3));
-  __ vmul(double_scratch1, double_scratch1, double_scratch2);
-  __ vsub(double_scratch1, double_scratch1, input);
-  __ vsub(result, result, double_scratch1);
-  __ vmul(double_scratch2, double_scratch1, double_scratch1);
-  __ vmul(result, result, double_scratch2);
-  __ vldr(double_scratch2, ExpConstant(7, temp3));
-  __ vmul(result, result, double_scratch2);
-  __ vsub(result, result, double_scratch1);
-  // Mov 1 in double_scratch2 as math_exp_constants_array[8] == 1.
-  DCHECK(*reinterpret_cast<double*>
-         (ExternalReference::math_exp_constants(8).address()) == 1);
-  __ vmov(double_scratch2, 1);
-  __ vadd(result, result, double_scratch2);
-  __ mov(temp1, Operand(temp2, LSR, 11));
-  __ Ubfx(temp2, temp2, 0, 11);
-  __ add(temp1, temp1, Operand(0x3ff));
-
-  // Must not call ExpConstant() after overwriting temp3!
-  __ mov(temp3, Operand(ExternalReference::math_exp_log_table()));
-  __ add(temp3, temp3, Operand(temp2, LSL, 3));
-  __ ldm(ia, temp3, temp2.bit() | temp3.bit());
-  // The first word is loaded is the lower number register.
-  if (temp2.code() < temp3.code()) {
-    __ orr(temp1, temp3, Operand(temp1, LSL, 20));
-    __ vmov(double_scratch1, temp2, temp1);
-  } else {
-    __ orr(temp1, temp2, Operand(temp1, LSL, 20));
-    __ vmov(double_scratch1, temp3, temp1);
-  }
-  __ vmul(result, result, double_scratch1);
-  __ b(&done);
-
-  __ bind(&zero);
-  __ vmov(result, kDoubleRegZero);
-  __ b(&done);
-
-  __ bind(&infinity);
-  __ vldr(result, ExpConstant(2, temp3));
-
-  __ bind(&done);
-}
-
 #undef __
 
 #ifdef DEBUG
@@ -882,20 +739,20 @@ void MathExpGenerator::EmitMathExp(MacroAssembler* masm,
 static const uint32_t kCodeAgePatchFirstInstruction = 0xe24f0008;
 #endif
 
-CodeAgingHelper::CodeAgingHelper() {
+CodeAgingHelper::CodeAgingHelper(Isolate* isolate) {
+  USE(isolate);
   DCHECK(young_sequence_.length() == kNoCodeAgeSequenceLength);
   // Since patcher is a large object, allocate it dynamically when needed,
   // to avoid overloading the stack in stress conditions.
   // DONT_FLUSH is used because the CodeAgingHelper is initialized early in
   // the process, before ARM simulator ICache is setup.
-  base::SmartPointer<CodePatcher> patcher(new CodePatcher(
-      young_sequence_.start(), young_sequence_.length() / Assembler::kInstrSize,
-      CodePatcher::DONT_FLUSH));
+  std::unique_ptr<CodePatcher> patcher(
+      new CodePatcher(isolate, young_sequence_.start(),
+                      young_sequence_.length() / Assembler::kInstrSize,
+                      CodePatcher::DONT_FLUSH));
   PredictableCodeSizeScope scope(patcher->masm(), young_sequence_.length());
-  patcher->masm()->PushFixedFrame(r1);
+  patcher->masm()->PushStandardFrame(r1);
   patcher->masm()->nop(ip.code());
-  patcher->masm()->add(
-      fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp));
 }
 
 
@@ -937,7 +794,8 @@ void Code::PatchPlatformCodeAge(Isolate* isolate,
     Assembler::FlushICache(isolate, sequence, young_length);
   } else {
     Code* stub = GetCodeAgeStub(isolate, age, parity);
-    CodePatcher patcher(sequence, young_length / Assembler::kInstrSize);
+    CodePatcher patcher(isolate, sequence,
+                        young_length / Assembler::kInstrSize);
     patcher.masm()->add(r0, pc, Operand(-8));
     patcher.masm()->ldr(pc, MemOperand(pc, -4));
     patcher.masm()->emit_code_stub_address(stub);

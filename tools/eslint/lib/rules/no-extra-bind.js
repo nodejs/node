@@ -1,84 +1,146 @@
 /**
  * @fileoverview Rule to flag unnecessary bind calls
  * @author Bence Dányi <bence@danyi.me>
- * @copyright 2014 Bence Dányi. All rights reserved.
- * See LICENSE in root directory for full license.
  */
 "use strict";
+
+//------------------------------------------------------------------------------
+// Requirements
+//------------------------------------------------------------------------------
+
+const getPropertyName = require("../ast-utils").getStaticPropertyName;
 
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
-
-    var scope = [{
-        depth: -1,
-        found: 0
-    }];
-
-    /**
-     * Get the topmost scope
-     * @returns {Object} The topmost scope
-     */
-    function getTopScope() {
-        return scope[scope.length - 1];
-    }
-
-    /**
-     * Increment the depth of the top scope
-     * @returns {void}
-     */
-    function incrementScopeDepth() {
-        var top = getTopScope();
-        top.depth++;
-    }
-
-    /**
-     * Decrement the depth of the top scope
-     * @returns {void}
-     */
-    function decrementScopeDepth() {
-        var top = getTopScope();
-        top.depth--;
-    }
-
-    return {
-        "CallExpression": function(node) {
-            if (node.arguments.length === 1 &&
-                node.callee.type === "MemberExpression" &&
-                node.callee.property.name === "bind" &&
-                /FunctionExpression$/.test(node.callee.object.type)) {
-                scope.push({
-                    call: node,
-                    depth: -1,
-                    found: 0
-                });
-            }
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow unnecessary calls to `.bind()`",
+            category: "Best Practices",
+            recommended: false
         },
-        "CallExpression:exit": function(node) {
-            var top = getTopScope(),
-                isArrowFunction = node.callee.type === "MemberExpression" && node.callee.object.type === "ArrowFunctionExpression";
 
-            if (top.call === node && (top.found === 0 || isArrowFunction)) {
-                context.report(node, "The function binding is unnecessary.");
-                scope.pop();
+        schema: [],
+
+        fixable: "code"
+    },
+
+    create(context) {
+        let scopeInfo = null;
+
+        /**
+         * Reports a given function node.
+         *
+         * @param {ASTNode} node - A node to report. This is a FunctionExpression or
+         *      an ArrowFunctionExpression.
+         * @returns {void}
+         */
+        function report(node) {
+            context.report({
+                node: node.parent.parent,
+                message: "The function binding is unnecessary.",
+                loc: node.parent.property.loc.start,
+                fix(fixer) {
+                    const firstTokenToRemove = context.getSourceCode()
+                        .getTokensBetween(node.parent.object, node.parent.property)
+                        .find(token => token.value !== ")");
+
+                    return fixer.removeRange([firstTokenToRemove.range[0], node.parent.parent.range[1]]);
+                }
+            });
+        }
+
+        /**
+         * Checks whether or not a given function node is the callee of `.bind()`
+         * method.
+         *
+         * e.g. `(function() {}.bind(foo))`
+         *
+         * @param {ASTNode} node - A node to report. This is a FunctionExpression or
+         *      an ArrowFunctionExpression.
+         * @returns {boolean} `true` if the node is the callee of `.bind()` method.
+         */
+        function isCalleeOfBindMethod(node) {
+            const parent = node.parent;
+            const grandparent = parent.parent;
+
+            return (
+                grandparent &&
+                grandparent.type === "CallExpression" &&
+                grandparent.callee === parent &&
+                grandparent.arguments.length === 1 &&
+                parent.type === "MemberExpression" &&
+                parent.object === node &&
+                getPropertyName(parent) === "bind"
+            );
+        }
+
+        /**
+         * Adds a scope information object to the stack.
+         *
+         * @param {ASTNode} node - A node to add. This node is a FunctionExpression
+         *      or a FunctionDeclaration node.
+         * @returns {void}
+         */
+        function enterFunction(node) {
+            scopeInfo = {
+                isBound: isCalleeOfBindMethod(node),
+                thisFound: false,
+                upper: scopeInfo
+            };
+        }
+
+        /**
+         * Removes the scope information object from the top of the stack.
+         * At the same time, this reports the function node if the function has
+         * `.bind()` and the `this` keywords found.
+         *
+         * @param {ASTNode} node - A node to remove. This node is a
+         *      FunctionExpression or a FunctionDeclaration node.
+         * @returns {void}
+         */
+        function exitFunction(node) {
+            if (scopeInfo.isBound && !scopeInfo.thisFound) {
+                report(node);
             }
-        },
-        "ArrowFunctionExpression": incrementScopeDepth,
-        "ArrowFunctionExpression:exit": decrementScopeDepth,
-        "FunctionExpression": incrementScopeDepth,
-        "FunctionExpression:exit": decrementScopeDepth,
-        "FunctionDeclaration": incrementScopeDepth,
-        "FunctionDeclaration:exit": decrementScopeDepth,
-        "ThisExpression": function() {
-            var top = getTopScope();
-            if (top.depth === 0) {
-                top.found++;
+
+            scopeInfo = scopeInfo.upper;
+        }
+
+        /**
+         * Reports a given arrow function if the function is callee of `.bind()`
+         * method.
+         *
+         * @param {ASTNode} node - A node to report. This node is an
+         *      ArrowFunctionExpression.
+         * @returns {void}
+         */
+        function exitArrowFunction(node) {
+            if (isCalleeOfBindMethod(node)) {
+                report(node);
             }
         }
-    };
 
+        /**
+         * Set the mark as the `this` keyword was found in this scope.
+         *
+         * @returns {void}
+         */
+        function markAsThisFound() {
+            if (scopeInfo) {
+                scopeInfo.thisFound = true;
+            }
+        }
+
+        return {
+            "ArrowFunctionExpression:exit": exitArrowFunction,
+            FunctionDeclaration: enterFunction,
+            "FunctionDeclaration:exit": exitFunction,
+            FunctionExpression: enterFunction,
+            "FunctionExpression:exit": exitFunction,
+            ThisExpression: markAsThisFound
+        };
+    }
 };
-
-module.exports.schema = [];

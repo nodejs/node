@@ -34,37 +34,23 @@
 #include "src/v8.h"
 
 #ifndef TEST
-#define TEST(Name)                                                             \
-  static void Test##Name();                                                    \
-  CcTest register_test_##Name(Test##Name, __FILE__, #Name, NULL, true, true);  \
+#define TEST(Name)                                                      \
+  static void Test##Name();                                             \
+  CcTest register_test_##Name(Test##Name, __FILE__, #Name, true, true); \
   static void Test##Name()
 #endif
 
 #ifndef UNINITIALIZED_TEST
-#define UNINITIALIZED_TEST(Name)                                               \
-  static void Test##Name();                                                    \
-  CcTest register_test_##Name(Test##Name, __FILE__, #Name, NULL, true, false); \
-  static void Test##Name()
-#endif
-
-#ifndef DEPENDENT_TEST
-#define DEPENDENT_TEST(Name, Dep)                                              \
-  static void Test##Name();                                                    \
-  CcTest register_test_##Name(Test##Name, __FILE__, #Name, #Dep, true, true);  \
-  static void Test##Name()
-#endif
-
-#ifndef UNINITIALIZED_DEPENDENT_TEST
-#define UNINITIALIZED_DEPENDENT_TEST(Name, Dep)                                \
-  static void Test##Name();                                                    \
-  CcTest register_test_##Name(Test##Name, __FILE__, #Name, #Dep, true, false); \
+#define UNINITIALIZED_TEST(Name)                                         \
+  static void Test##Name();                                              \
+  CcTest register_test_##Name(Test##Name, __FILE__, #Name, true, false); \
   static void Test##Name()
 #endif
 
 #ifndef DISABLED_TEST
-#define DISABLED_TEST(Name)                                                    \
-  static void Test##Name();                                                    \
-  CcTest register_test_##Name(Test##Name, __FILE__, #Name, NULL, false, true); \
+#define DISABLED_TEST(Name)                                              \
+  static void Test##Name();                                              \
+  CcTest register_test_##Name(Test##Name, __FILE__, #Name, false, true); \
   static void Test##Name()
 #endif
 
@@ -94,14 +80,13 @@ class CcTest {
  public:
   typedef void (TestFunction)();
   CcTest(TestFunction* callback, const char* file, const char* name,
-         const char* dependency, bool enabled, bool initialize);
+         bool enabled, bool initialize);
   ~CcTest() { i::DeleteArray(file_); }
   void Run();
   static CcTest* last() { return last_; }
   CcTest* prev() { return prev_; }
   const char* file() { return file_; }
   const char* name() { return name_; }
-  const char* dependency() { return dependency_; }
   bool enabled() { return enabled_; }
 
   static v8::Isolate* isolate() {
@@ -168,7 +153,6 @@ class CcTest {
   TestFunction* callback_;
   const char* file_;
   const char* name_;
-  const char* dependency_;
   bool enabled_;
   bool initialize_;
   CcTest* prev_;
@@ -341,6 +325,13 @@ static inline v8::Local<v8::String> v8_str(const char* x) {
 }
 
 
+static inline v8::Local<v8::String> v8_str(v8::Isolate* isolate,
+                                           const char* x) {
+  return v8::String::NewFromUtf8(isolate, x, v8::NewStringType::kNormal)
+      .ToLocalChecked();
+}
+
+
 static inline v8::Local<v8::Symbol> v8_symbol(const char* name) {
   return v8::Symbol::New(v8::Isolate::GetCurrent(), v8_str(name));
 }
@@ -358,6 +349,12 @@ static inline v8::Local<v8::Script> v8_compile(v8::Local<v8::String> x) {
 
 static inline v8::Local<v8::Script> v8_compile(const char* x) {
   return v8_compile(v8_str(x));
+}
+
+
+static inline int32_t v8_run_int32value(v8::Local<v8::Script> script) {
+  v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
+  return script->Run(context).ToLocalChecked()->Int32Value(context).FromJust();
 }
 
 
@@ -389,6 +386,18 @@ static inline v8::MaybeLocal<v8::Value> CompileRun(
   return v8::Script::Compile(context, v8_str(source))
       .ToLocalChecked()
       ->Run(context);
+}
+
+
+static inline v8::Local<v8::Value> CompileRunChecked(v8::Isolate* isolate,
+                                                     const char* source) {
+  v8::Local<v8::String> source_string =
+      v8::String::NewFromUtf8(isolate, source, v8::NewStringType::kNormal)
+          .ToLocalChecked();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Script> script =
+      v8::Script::Compile(context, source_string).ToLocalChecked();
+  return script->Run(context).ToLocalChecked();
 }
 
 
@@ -525,6 +534,12 @@ static inline void ExpectUndefined(const char* code) {
 }
 
 
+static inline void ExpectNull(const char* code) {
+  v8::Local<v8::Value> result = CompileRun(code);
+  CHECK(result->IsNull());
+}
+
+
 static inline void CheckDoubleEquals(double expected, double actual) {
   const double kEpsilon = 1e-10;
   CHECK_LE(expected, actual + kEpsilon);
@@ -532,134 +547,18 @@ static inline void CheckDoubleEquals(double expected, double actual) {
 }
 
 
-static int LenFromSize(int size) {
-  return (size - i::FixedArray::kHeaderSize) / i::kPointerSize;
-}
-
-
-static inline void CreatePadding(i::Heap* heap, int padding_size,
-                                 i::PretenureFlag tenure) {
-  const int max_number_of_objects = 20;
-  v8::internal::Handle<v8::internal::FixedArray>
-      big_objects[max_number_of_objects];
-  i::Isolate* isolate = heap->isolate();
-  int allocate_memory;
-  int length;
-  int free_memory = padding_size;
-  if (tenure == i::TENURED) {
-    int current_free_memory =
-        static_cast<int>(*heap->old_space()->allocation_limit_address() -
-                         *heap->old_space()->allocation_top_address());
-    CHECK(padding_size <= current_free_memory || current_free_memory == 0);
-  } else {
-    heap->new_space()->DisableInlineAllocationSteps();
-    int current_free_memory =
-        static_cast<int>(*heap->new_space()->allocation_limit_address() -
-                         *heap->new_space()->allocation_top_address());
-    CHECK(padding_size <= current_free_memory || current_free_memory == 0);
-  }
-  for (int i = 0; i < max_number_of_objects && free_memory > 0; i++) {
-    if (free_memory > i::Page::kMaxRegularHeapObjectSize) {
-      allocate_memory = i::Page::kMaxRegularHeapObjectSize;
-      length = LenFromSize(allocate_memory);
-    } else {
-      allocate_memory = free_memory;
-      length = LenFromSize(allocate_memory);
-      if (length <= 0) {
-        // Not enough room to create another fixed array. Let's create a filler.
-        heap->CreateFillerObjectAt(*heap->old_space()->allocation_top_address(),
-                                   free_memory);
-        break;
-      }
-    }
-    big_objects[i] = isolate->factory()->NewFixedArray(length, tenure);
-    CHECK((tenure == i::NOT_TENURED && heap->InNewSpace(*big_objects[i])) ||
-          (tenure == i::TENURED && heap->InOldSpace(*big_objects[i])));
-    free_memory -= allocate_memory;
-  }
-}
-
-
-// Helper function that simulates a full new-space in the heap.
-static inline bool FillUpOnePage(v8::internal::NewSpace* space) {
-  space->DisableInlineAllocationSteps();
-  int space_remaining = static_cast<int>(*space->allocation_limit_address() -
-                                         *space->allocation_top_address());
-  if (space_remaining == 0) return false;
-  CreatePadding(space->heap(), space_remaining, i::NOT_TENURED);
-  return true;
-}
-
-
-// Helper function that simulates a fill new-space in the heap.
-static inline void AllocateAllButNBytes(v8::internal::NewSpace* space,
-                                        int extra_bytes) {
-  space->DisableInlineAllocationSteps();
-  int space_remaining = static_cast<int>(*space->allocation_limit_address() -
-                                         *space->allocation_top_address());
-  CHECK(space_remaining >= extra_bytes);
-  int new_linear_size = space_remaining - extra_bytes;
-  if (new_linear_size == 0) return;
-  CreatePadding(space->heap(), new_linear_size, i::NOT_TENURED);
-}
-
-
-static inline void FillCurrentPage(v8::internal::NewSpace* space) {
-  AllocateAllButNBytes(space, 0);
-}
-
-
-static inline void SimulateFullSpace(v8::internal::NewSpace* space) {
-  FillCurrentPage(space);
-  while (FillUpOnePage(space)) {
-  }
-}
-
-
-// Helper function that simulates a full old-space in the heap.
-static inline void SimulateFullSpace(v8::internal::PagedSpace* space) {
-  space->EmptyAllocationInfo();
-  space->ResetFreeList();
-  space->ClearStats();
-}
-
-
-// Helper function that simulates many incremental marking steps until
-// marking is completed.
-static inline void SimulateIncrementalMarking(i::Heap* heap,
-                                              bool force_completion = true) {
-  i::MarkCompactCollector* collector = heap->mark_compact_collector();
-  i::IncrementalMarking* marking = heap->incremental_marking();
-  if (collector->sweeping_in_progress()) {
-    collector->EnsureSweepingCompleted();
-  }
-  CHECK(marking->IsMarking() || marking->IsStopped());
-  if (marking->IsStopped()) {
-    heap->StartIncrementalMarking();
-  }
-  CHECK(marking->IsMarking());
-  if (!force_completion) return;
-
-  while (!marking->IsComplete()) {
-    marking->Step(i::MB, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD);
-    if (marking->IsReadyToOverApproximateWeakClosure()) {
-      marking->FinalizeIncrementally();
-    }
-  }
-  CHECK(marking->IsComplete());
-}
-
-
 static void DummyDebugEventListener(
     const v8::Debug::EventDetails& event_details) {}
 
 
-static inline void EnableDebugger() {
-  v8::Debug::SetDebugEventListener(&DummyDebugEventListener);
+static inline void EnableDebugger(v8::Isolate* isolate) {
+  v8::Debug::SetDebugEventListener(isolate, &DummyDebugEventListener);
 }
 
 
-static inline void DisableDebugger() { v8::Debug::SetDebugEventListener(NULL); }
+static inline void DisableDebugger(v8::Isolate* isolate) {
+  v8::Debug::SetDebugEventListener(isolate, nullptr);
+}
 
 
 static inline void EmptyMessageQueues(v8::Isolate* isolate) {
@@ -686,12 +585,13 @@ class InitializedHandleScope {
 
 class HandleAndZoneScope : public InitializedHandleScope {
  public:
-  HandleAndZoneScope() {}
+  HandleAndZoneScope() : main_zone_(&allocator_) {}
 
   // Prefixing the below with main_ reduces a lot of naming clashes.
   i::Zone* main_zone() { return &main_zone_; }
 
  private:
+  v8::base::AccountingAllocator allocator_;
   i::Zone main_zone_;
 };
 

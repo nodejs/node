@@ -4,7 +4,7 @@
 
 #include "src/compiler/ast-loop-assignment-analyzer.h"
 #include "src/compiler.h"
-#include "src/parser.h"
+#include "src/parsing/parser.h"
 
 namespace v8 {
 namespace internal {
@@ -22,7 +22,7 @@ LoopAssignmentAnalysis* ALAA::Analyze() {
   LoopAssignmentAnalysis* a = new (zone_) LoopAssignmentAnalysis(zone_);
   result_ = a;
   VisitStatements(info()->literal()->body());
-  result_ = NULL;
+  result_ = nullptr;
   return a;
 }
 
@@ -55,8 +55,6 @@ void ALAA::Exit(IterationStatement* loop) {
 
 void ALAA::VisitVariableDeclaration(VariableDeclaration* leaf) {}
 void ALAA::VisitFunctionDeclaration(FunctionDeclaration* leaf) {}
-void ALAA::VisitImportDeclaration(ImportDeclaration* leaf) {}
-void ALAA::VisitExportDeclaration(ExportDeclaration* leaf) {}
 void ALAA::VisitEmptyStatement(EmptyStatement* leaf) {}
 void ALAA::VisitContinueStatement(ContinueStatement* leaf) {}
 void ALAA::VisitBreakStatement(BreakStatement* leaf) {}
@@ -126,6 +124,7 @@ void ALAA::VisitClassLiteral(ClassLiteral* e) {
   VisitIfNotNull(e->constructor());
   ZoneList<ObjectLiteralProperty*>* properties = e->properties();
   for (int i = 0; i < properties->length(); i++) {
+    Visit(properties->at(i)->key());
     Visit(properties->at(i)->value());
   }
 }
@@ -141,6 +140,7 @@ void ALAA::VisitConditional(Conditional* e) {
 void ALAA::VisitObjectLiteral(ObjectLiteral* e) {
   ZoneList<ObjectLiteralProperty*>* properties = e->properties();
   for (int i = 0; i < properties->length(); i++) {
+    Visit(properties->at(i)->key());
     Visit(properties->at(i)->value());
   }
 }
@@ -196,7 +196,7 @@ void ALAA::VisitCompareOperation(CompareOperation* e) {
 }
 
 
-void ALAA::VisitSpread(Spread* e) { Visit(e->expression()); }
+void ALAA::VisitSpread(Spread* e) { UNREACHABLE(); }
 
 
 void ALAA::VisitEmptyParentheses(EmptyParentheses* e) { UNREACHABLE(); }
@@ -252,10 +252,12 @@ void ALAA::VisitForStatement(ForStatement* loop) {
 
 
 void ALAA::VisitForInStatement(ForInStatement* loop) {
+  Expression* l = loop->each();
   Enter(loop);
-  Visit(loop->each());
+  Visit(l);
   Visit(loop->subject());
   Visit(loop->body());
+  if (l->IsVariableProxy()) AnalyzeAssignment(l->AsVariableProxy()->var());
   Exit(loop);
 }
 
@@ -263,9 +265,9 @@ void ALAA::VisitForInStatement(ForInStatement* loop) {
 void ALAA::VisitForOfStatement(ForOfStatement* loop) {
   Visit(loop->assign_iterator());
   Enter(loop);
+  Visit(loop->next_result());
+  Visit(loop->result_done());
   Visit(loop->assign_each());
-  Visit(loop->each());
-  Visit(loop->subject());
   Visit(loop->body());
   Exit(loop);
 }
@@ -286,23 +288,26 @@ void ALAA::VisitCountOperation(CountOperation* e) {
 }
 
 
+void ALAA::VisitRewritableExpression(RewritableExpression* expr) {
+  Visit(expr->expression());
+}
+
+
 void ALAA::AnalyzeAssignment(Variable* var) {
   if (!loop_stack_.empty() && var->IsStackAllocated()) {
     loop_stack_.back()->Add(GetVariableIndex(info()->scope(), var));
   }
 }
 
-
-int ALAA::GetVariableIndex(Scope* scope, Variable* var) {
+int ALAA::GetVariableIndex(DeclarationScope* scope, Variable* var) {
   CHECK(var->IsStackAllocated());
   if (var->is_this()) return 0;
   if (var->IsParameter()) return 1 + var->index();
   return 1 + scope->num_parameters() + var->index();
 }
 
-
-int LoopAssignmentAnalysis::GetAssignmentCountForTesting(Scope* scope,
-                                                         Variable* var) {
+int LoopAssignmentAnalysis::GetAssignmentCountForTesting(
+    DeclarationScope* scope, Variable* var) {
   int count = 0;
   int var_index = AstLoopAssignmentAnalyzer::GetVariableIndex(scope, var);
   for (size_t i = 0; i < list_.size(); i++) {

@@ -52,6 +52,7 @@ function listener(event, exec_state, event_data, data) {
       listener_delegate(exec_state);
     }
   } catch (e) {
+    print(e, e.stack);
     exception = e;
   }
 }
@@ -147,10 +148,8 @@ function CheckScopeContent(content, number, exec_state) {
   if (!scope.scopeObject().property('arguments').isUndefined()) {
     scope_size--;
   }
-  // Skip property with empty name.
-  if (!scope.scopeObject().property('').isUndefined()) {
-    scope_size--;
-  }
+  // Temporary variables introduced by the parser have not been materialized.
+  assertTrue(scope.scopeObject().property('').isUndefined());
 
   if (count != scope_size) {
     print('Names found in scope:');
@@ -380,16 +379,12 @@ function for_loop_1() {
 
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Block,
-                   debug.ScopeType.Block,
                    debug.ScopeType.Local,
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({x:'y'}, 0, exec_state);
   // The function scope contains a temporary iteration variable, but it is
   // hidden to the debugger.
-  // TODO(adamk): This variable is only used to provide a TDZ for the enumerable
-  // expression and should not be visible to the debugger.
-  CheckScopeContent({x:undefined}, 1, exec_state);
 };
 for_loop_1();
 EndTest();
@@ -409,7 +404,6 @@ function for_loop_2() {
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Block,
                    debug.ScopeType.Block,
-                   debug.ScopeType.Block,
                    debug.ScopeType.Local,
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
@@ -417,9 +411,6 @@ listener_delegate = function(exec_state) {
   CheckScopeContent({x:'y'}, 1, exec_state);
   // The function scope contains a temporary iteration variable, hidden to the
   // debugger.
-  // TODO(adamk): This variable is only used to provide a TDZ for the enumerable
-  // expression and should not be visible to the debugger.
-  CheckScopeContent({x:undefined}, 2, exec_state);
 };
 for_loop_2();
 EndTest();
@@ -436,13 +427,11 @@ function for_loop_3() {
 
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Block,
-                   debug.ScopeType.Block,
                    debug.ScopeType.Local,
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({x:3}, 0, exec_state);
-  CheckScopeContent({x:3}, 1, exec_state);
-  CheckScopeContent({}, 2, exec_state);
+  CheckScopeContent({}, 1, exec_state);
 };
 for_loop_3();
 EndTest();
@@ -461,14 +450,12 @@ function for_loop_4() {
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Block,
                    debug.ScopeType.Block,
-                   debug.ScopeType.Block,
                    debug.ScopeType.Local,
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({x:5}, 0, exec_state);
   CheckScopeContent({x:3}, 1, exec_state);
-  CheckScopeContent({x:3}, 2, exec_state);
-  CheckScopeContent({}, 3, exec_state);
+  CheckScopeContent({}, 2, exec_state);
 };
 for_loop_4();
 EndTest();
@@ -485,13 +472,11 @@ function for_loop_5() {
 
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Block,
-                   debug.ScopeType.Block,
                    debug.ScopeType.Local,
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({x:3,y:5}, 0, exec_state);
-  CheckScopeContent({x:3,y:5}, 1, exec_state);
-  CheckScopeContent({}, 2, exec_state);
+  CheckScopeContent({}, 1, exec_state);
 };
 for_loop_5();
 EndTest();
@@ -525,15 +510,12 @@ function shadowing_1() {
   {
     let i = 5;
     debugger;
-    assertEqualsUnlessOptimized(27, i, shadowing_1);
   }
   assertEquals(0, i);
-  debugger;
-  assertEqualsUnlessOptimized(27, i, shadowing_1);
 }
 
 listener_delegate = function (exec_state) {
-  exec_state.frame(0).evaluate("i = 27");
+  assertEqualsUnlessOptimized(5, exec_state.frame(0).evaluate("i").value());
 }
 shadowing_1();
 EndTest();
@@ -546,13 +528,12 @@ function shadowing_2() {
   {
     let j = 5;
     debugger;
-    assertEqualsUnlessOptimized(27, j, shadowing_2);
   }
-  assertEqualsUnlessOptimized(0, i, shadowing_2);
 }
 
 listener_delegate = function (exec_state) {
-  exec_state.frame(0).evaluate("j = 27");
+  assertEqualsUnlessOptimized(0, exec_state.frame(0).evaluate("i").value());
+  assertEqualsUnlessOptimized(5, exec_state.frame(0).evaluate("j").value());
 }
 shadowing_2();
 EndTest();

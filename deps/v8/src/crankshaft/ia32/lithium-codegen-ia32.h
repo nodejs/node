@@ -5,13 +5,13 @@
 #ifndef V8_CRANKSHAFT_IA32_LITHIUM_CODEGEN_IA32_H_
 #define V8_CRANKSHAFT_IA32_LITHIUM_CODEGEN_IA32_H_
 
+#include "src/ast/scopes.h"
 #include "src/base/logging.h"
 #include "src/crankshaft/ia32/lithium-gap-resolver-ia32.h"
 #include "src/crankshaft/ia32/lithium-ia32.h"
 #include "src/crankshaft/lithium-codegen.h"
 #include "src/deoptimizer.h"
 #include "src/safepoint-table.h"
-#include "src/scopes.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -26,15 +26,9 @@ class LCodeGen: public LCodeGenBase {
  public:
   LCodeGen(LChunk* chunk, MacroAssembler* assembler, CompilationInfo* info)
       : LCodeGenBase(chunk, assembler, info),
-        deoptimizations_(4, info->zone()),
         jump_table_(4, info->zone()),
-        inlined_function_count_(0),
         scope_(info->scope()),
-        translations_(info->zone()),
         deferred_(8, info->zone()),
-        dynamic_frame_alignment_(false),
-        support_aligned_spilled_doubles_(false),
-        osr_pc_offset_(-1),
         frame_is_built_(false),
         safepoints_(info->zone()),
         resolver_(this),
@@ -51,10 +45,8 @@ class LCodeGen: public LCodeGenBase {
   }
 
   bool NeedsEagerFrame() const {
-    return GetStackSlotCount() > 0 ||
-        info()->is_non_deferred_calling() ||
-        !info()->IsStub() ||
-        info()->requires_frame();
+    return HasAllocatedStackSlots() || info()->is_non_deferred_calling() ||
+           !info()->IsStub() || info()->requires_frame();
   }
   bool NeedsDeferredFrame() const {
     return !NeedsEagerFrame() && info()->is_deferred_calling();
@@ -123,8 +115,6 @@ class LCodeGen: public LCodeGenBase {
 #undef DECLARE_DO
 
  private:
-  LanguageMode language_mode() const { return info()->language_mode(); }
-
   Scope* scope() const { return scope_; }
 
   XMMRegister double_scratch0() const { return xmm0; }
@@ -136,7 +126,13 @@ class LCodeGen: public LCodeGenBase {
                        Register temporary,
                        Register temporary2);
 
-  int GetStackSlotCount() const { return chunk()->spill_slot_count(); }
+  bool HasAllocatedStackSlots() const {
+    return chunk()->HasAllocatedStackSlots();
+  }
+  int GetStackSlotCount() const { return chunk()->GetSpillSlotCount(); }
+  int GetTotalFrameSlotCount() const {
+    return chunk()->GetTotalFrameSlotCount();
+  }
 
   void AddDeferredCode(LDeferredCode* code) { deferred_.Add(code, zone()); }
 
@@ -181,6 +177,11 @@ class LCodeGen: public LCodeGenBase {
     CallRuntime(function, argc, instr);
   }
 
+  void CallRuntime(Runtime::FunctionId id, LInstruction* instr) {
+    const Runtime::Function* function = Runtime::FunctionForId(id);
+    CallRuntime(function, function->nargs, instr);
+  }
+
   void CallRuntimeFromDeferred(Runtime::FunctionId id,
                                int argc,
                                LInstruction* instr,
@@ -188,11 +189,14 @@ class LCodeGen: public LCodeGenBase {
 
   void LoadContextFromDeferred(LOperand* context);
 
+  void PrepareForTailCall(const ParameterCount& actual, Register scratch1,
+                          Register scratch2, Register scratch3);
+
   // Generate a direct call to a known function. Expects the function
   // to be in edi.
   void CallKnownFunction(Handle<JSFunction> function,
                          int formal_parameter_count, int arity,
-                         LInstruction* instr);
+                         bool is_tail_call, LInstruction* instr);
 
   void RecordSafepointWithLazyDeopt(LInstruction* instr,
                                     SafepointMode safepoint_mode);
@@ -200,10 +204,10 @@ class LCodeGen: public LCodeGenBase {
   void RegisterEnvironmentForDeoptimization(LEnvironment* environment,
                                             Safepoint::DeoptMode mode);
   void DeoptimizeIf(Condition cc, LInstruction* instr,
-                    Deoptimizer::DeoptReason deopt_reason,
+                    DeoptimizeReason deopt_reason,
                     Deoptimizer::BailoutType bailout_type);
   void DeoptimizeIf(Condition cc, LInstruction* instr,
-                    Deoptimizer::DeoptReason deopt_reason);
+                    DeoptimizeReason deopt_reason);
 
   bool DeoptEveryNTimes() {
     return FLAG_deopt_every_n_times != 0 && !info()->IsStub();
@@ -216,9 +220,6 @@ class LCodeGen: public LCodeGenBase {
                         bool is_uint32,
                         int* object_index_pointer,
                         int* dematerialized_index_pointer);
-  void PopulateDeoptimizationData(Handle<Code> code);
-
-  void PopulateDeoptimizationLiteralsWithInlinedFunctions();
 
   Register ToRegister(int index) const;
   XMMRegister ToDoubleRegister(int index) const;
@@ -238,7 +239,7 @@ class LCodeGen: public LCodeGenBase {
 
   void EmitIntegerMathAbs(LMathAbs* instr);
 
-  // Support for recording safepoint and position information.
+  // Support for recording safepoint information.
   void RecordSafepoint(LPointerMap* pointers,
                        Safepoint::Kind kind,
                        int arguments,
@@ -248,8 +249,6 @@ class LCodeGen: public LCodeGenBase {
   void RecordSafepointWithRegisters(LPointerMap* pointers,
                                     int arguments,
                                     Safepoint::DeoptMode mode);
-
-  void RecordAndWritePosition(int position) override;
 
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
   void EmitGoto(int block);
@@ -277,10 +276,6 @@ class LCodeGen: public LCodeGenBase {
                          Label* is_not_string,
                          SmiCheck check_needed);
 
-  // Emits optimized code for %_IsConstructCall().
-  // Caller should branch on equal condition.
-  void EmitIsConstructCall(Register temp);
-
   // Emits optimized code to deep-copy the contents of statically known
   // object graphs (e.g. object literal boilerplate).
   void EmitDeepCopy(Handle<JSObject> object,
@@ -302,7 +297,7 @@ class LCodeGen: public LCodeGenBase {
   template <class T>
   void EmitVectorStoreICRegisters(T* instr);
 
-  void EmitReturn(LReturn* instr, bool dynamic_frame_alignment);
+  void EmitReturn(LReturn* instr);
 
   // Emits code for pushing either a tagged constant, a (non-double)
   // register, or a stack slot operand.
@@ -318,15 +313,9 @@ class LCodeGen: public LCodeGenBase {
   void MakeSureStackPagesMapped(int offset);
 #endif
 
-  ZoneList<LEnvironment*> deoptimizations_;
   ZoneList<Deoptimizer::JumpTableEntry> jump_table_;
-  int inlined_function_count_;
   Scope* const scope_;
-  TranslationBuffer translations_;
   ZoneList<LDeferredCode*> deferred_;
-  bool dynamic_frame_alignment_;
-  bool support_aligned_spilled_doubles_;
-  int osr_pc_offset_;
   bool frame_is_built_;
 
   // Builder that keeps track of safepoints in the code. The table

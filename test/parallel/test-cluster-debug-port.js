@@ -4,7 +4,6 @@ const assert = require('assert');
 const cluster = require('cluster');
 
 if (cluster.isMaster) {
-  assert.strictEqual(process.execArgv.length, 0, 'run test with no args');
 
   function checkExitCode(code, signal) {
     assert.strictEqual(code, 0);
@@ -22,6 +21,11 @@ if (cluster.isMaster) {
   cluster.fork({
     portSet: process.debugPort + 1
   }).on('exit', checkExitCode);
+
+  cluster.setupMaster({
+    execArgv: [`--debug-port=${process.debugPort}`,
+               `--debug=${process.debugPort}`]
+  });
 
   console.log('forked worker should have --debug-port, with offset = 2');
   cluster.fork({

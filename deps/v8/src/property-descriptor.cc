@@ -13,21 +13,23 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+
 // Helper function for ToPropertyDescriptor. Comments describe steps for
 // "enumerable", other properties are handled the same way.
 // Returns false if an exception was thrown.
-bool GetPropertyIfPresent(Handle<Object> obj, Handle<String> name,
+bool GetPropertyIfPresent(Handle<JSReceiver> receiver, Handle<String> name,
                           Handle<Object>* value) {
-  LookupIterator it(obj, name);
+  LookupIterator it(receiver, name, receiver);
   // 4. Let hasEnumerable be HasProperty(Obj, "enumerable").
-  Maybe<PropertyAttributes> maybe_attr = JSReceiver::GetPropertyAttributes(&it);
+  Maybe<bool> has_property = JSReceiver::HasProperty(&it);
   // 5. ReturnIfAbrupt(hasEnumerable).
-  if (!maybe_attr.IsJust()) return false;
+  if (has_property.IsNothing()) return false;
   // 6. If hasEnumerable is true, then
-  if (maybe_attr.FromJust() != ABSENT) {
+  if (has_property.FromJust() == true) {
     // 6a. Let enum be ToBoolean(Get(Obj, "enumerable")).
     // 6b. ReturnIfAbrupt(enum).
-    if (!JSObject::GetProperty(&it).ToHandle(value)) return false;
+    if (!Object::GetProperty(&it).ToHandle(value)) return false;
   }
   return true;
 }
@@ -37,7 +39,7 @@ bool GetPropertyIfPresent(Handle<Object> obj, Handle<String> name,
 // objects: nothing on the prototype chain, just own fast data properties.
 // Must not have observable side effects, because the slow path will restart
 // the entire conversion!
-bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<Object> obj,
+bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
                                   PropertyDescriptor* desc) {
   if (!obj->IsJSObject()) return false;
   Map* map = Handle<JSObject>::cast(obj)->map();
@@ -101,12 +103,14 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<Object> obj,
 }
 
 
-static void CreateDataProperty(Isolate* isolate, Handle<JSObject> object,
-                               Handle<String> name, Handle<Object> value) {
-  LookupIterator it(object, name);
+void CreateDataProperty(Isolate* isolate, Handle<JSObject> object,
+                        Handle<String> name, Handle<Object> value) {
+  LookupIterator it(object, name, object, LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<bool> result = JSObject::CreateDataProperty(&it, value);
   CHECK(result.IsJust() && result.FromJust());
 }
+
+}  // namespace
 
 
 // ES6 6.2.4.4 "FromPropertyDescriptor"
@@ -114,6 +118,36 @@ Handle<Object> PropertyDescriptor::ToObject(Isolate* isolate) {
   DCHECK(!(PropertyDescriptor::IsAccessorDescriptor(this) &&
            PropertyDescriptor::IsDataDescriptor(this)));
   Factory* factory = isolate->factory();
+  if (IsRegularAccessorProperty()) {
+    // Fast case for regular accessor properties.
+    Handle<JSObject> result = factory->NewJSObjectFromMap(
+        isolate->accessor_property_descriptor_map());
+    result->InObjectPropertyAtPut(JSAccessorPropertyDescriptor::kGetIndex,
+                                  *get());
+    result->InObjectPropertyAtPut(JSAccessorPropertyDescriptor::kSetIndex,
+                                  *set());
+    result->InObjectPropertyAtPut(
+        JSAccessorPropertyDescriptor::kEnumerableIndex,
+        isolate->heap()->ToBoolean(enumerable()));
+    result->InObjectPropertyAtPut(
+        JSAccessorPropertyDescriptor::kConfigurableIndex,
+        isolate->heap()->ToBoolean(configurable()));
+    return result;
+  }
+  if (IsRegularDataProperty()) {
+    // Fast case for regular data properties.
+    Handle<JSObject> result =
+        factory->NewJSObjectFromMap(isolate->data_property_descriptor_map());
+    result->InObjectPropertyAtPut(JSDataPropertyDescriptor::kValueIndex,
+                                  *value());
+    result->InObjectPropertyAtPut(JSDataPropertyDescriptor::kWritableIndex,
+                                  isolate->heap()->ToBoolean(writable()));
+    result->InObjectPropertyAtPut(JSDataPropertyDescriptor::kEnumerableIndex,
+                                  isolate->heap()->ToBoolean(enumerable()));
+    result->InObjectPropertyAtPut(JSDataPropertyDescriptor::kConfigurableIndex,
+                                  isolate->heap()->ToBoolean(configurable()));
+    return result;
+  }
   Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
   if (has_value()) {
     CreateDataProperty(isolate, result, factory->value_string(), value());
@@ -148,7 +182,7 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
                                               PropertyDescriptor* desc) {
   // 1. ReturnIfAbrupt(Obj).
   // 2. If Type(Obj) is not Object, throw a TypeError exception.
-  if (!obj->IsSpecObject()) {
+  if (!obj->IsJSReceiver()) {
     isolate->Throw(*isolate->factory()->NewTypeError(
         MessageTemplate::kPropertyDescObject, obj));
     return false;
@@ -156,113 +190,149 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   // 3. Let desc be a new Property Descriptor that initially has no fields.
   DCHECK(desc->is_empty());
 
-  if (ToPropertyDescriptorFastPath(isolate, obj, desc)) {
+  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(obj);
+  if (ToPropertyDescriptorFastPath(isolate, receiver, desc)) {
     return true;
   }
 
-  // TODO(jkummerow): Implement JSProxy support.
-  // Specifically, instead of taking the attributes != ABSENT shortcut, we
-  // have to implement proper HasProperty for proxies.
-  if (!obj->IsJSProxy()) {
-    {  // enumerable?
-      Handle<Object> enumerable;
-      // 4 through 6b.
-      if (!GetPropertyIfPresent(obj, isolate->factory()->enumerable_string(),
-                                &enumerable)) {
-        return false;
-      }
-      // 6c. Set the [[Enumerable]] field of desc to enum.
-      if (!enumerable.is_null()) {
-        desc->set_enumerable(enumerable->BooleanValue());
-      }
-    }
-    {  // configurable?
-      Handle<Object> configurable;
-      // 7 through 9b.
-      if (!GetPropertyIfPresent(obj, isolate->factory()->configurable_string(),
-                                &configurable)) {
-        return false;
-      }
-      // 9c. Set the [[Configurable]] field of desc to conf.
-      if (!configurable.is_null()) {
-        desc->set_configurable(configurable->BooleanValue());
-      }
-    }
-    {  // value?
-      Handle<Object> value;
-      // 10 through 12b.
-      if (!GetPropertyIfPresent(obj, isolate->factory()->value_string(),
-                                &value))
-        return false;
-      // 12c. Set the [[Value]] field of desc to value.
-      if (!value.is_null()) desc->set_value(value);
-    }
-    {  // writable?
-      Handle<Object> writable;
-      // 13 through 15b.
-      if (!GetPropertyIfPresent(obj, isolate->factory()->writable_string(),
-                                &writable)) {
-        return false;
-      }
-      // 15c. Set the [[Writable]] field of desc to writable.
-      if (!writable.is_null()) desc->set_writable(writable->BooleanValue());
-    }
-    {  // getter?
-      Handle<Object> getter;
-      // 16 through 18b.
-      if (!GetPropertyIfPresent(obj, isolate->factory()->get_string(), &getter))
-        return false;
-      if (!getter.is_null()) {
-        // 18c. If IsCallable(getter) is false and getter is not undefined,
-        // throw a TypeError exception.
-        if (!getter->IsCallable() && !getter->IsUndefined()) {
-          isolate->Throw(*isolate->factory()->NewTypeError(
-              MessageTemplate::kObjectGetterCallable, getter));
-          return false;
-        }
-        // 18d. Set the [[Get]] field of desc to getter.
-        desc->set_get(getter);
-      }
-      {  // setter?
-        Handle<Object> setter;
-        // 19 through 21b.
-        if (!GetPropertyIfPresent(obj, isolate->factory()->set_string(),
-                                  &setter))
-          return false;
-        if (!setter.is_null()) {
-          // 21c. If IsCallable(setter) is false and setter is not undefined,
-          // throw a TypeError exception.
-          if (!setter->IsCallable() && !setter->IsUndefined()) {
-            isolate->Throw(*isolate->factory()->NewTypeError(
-                MessageTemplate::kObjectSetterCallable, setter));
-            return false;
-          }
-          // 21d. Set the [[Set]] field of desc to setter.
-          desc->set_set(setter);
-        }
-      }
-      // 22. If either desc.[[Get]] or desc.[[Set]] is present, then
-      // 22a. If either desc.[[Value]] or desc.[[Writable]] is present,
-      // throw a TypeError exception.
-      if ((desc->has_get() || desc->has_set()) &&
-          (desc->has_value() || desc->has_writable())) {
-        isolate->Throw(*isolate->factory()->NewTypeError(
-            MessageTemplate::kValueAndAccessor, obj));
-        return false;
-      }
-    }
-  } else {
-    DCHECK(obj->IsJSProxy());
-    // Having an UNIMPLEMENTED() here would upset ClusterFuzz, because
-    // --harmony-proxies makes it possible to reach this branch.
-    isolate->Throw(
-        *isolate->factory()->NewTypeError(MessageTemplate::kUnsupported));
+  // enumerable?
+  Handle<Object> enumerable;
+  // 4 through 6b.
+  if (!GetPropertyIfPresent(receiver, isolate->factory()->enumerable_string(),
+                            &enumerable)) {
     return false;
   }
+  // 6c. Set the [[Enumerable]] field of desc to enum.
+  if (!enumerable.is_null()) {
+    desc->set_enumerable(enumerable->BooleanValue());
+  }
+
+  // configurable?
+  Handle<Object> configurable;
+  // 7 through 9b.
+  if (!GetPropertyIfPresent(receiver, isolate->factory()->configurable_string(),
+                            &configurable)) {
+    return false;
+  }
+  // 9c. Set the [[Configurable]] field of desc to conf.
+  if (!configurable.is_null()) {
+    desc->set_configurable(configurable->BooleanValue());
+  }
+
+  // value?
+  Handle<Object> value;
+  // 10 through 12b.
+  if (!GetPropertyIfPresent(receiver, isolate->factory()->value_string(),
+                            &value)) {
+    return false;
+  }
+  // 12c. Set the [[Value]] field of desc to value.
+  if (!value.is_null()) desc->set_value(value);
+
+  // writable?
+  Handle<Object> writable;
+  // 13 through 15b.
+  if (!GetPropertyIfPresent(receiver, isolate->factory()->writable_string(),
+                            &writable)) {
+    return false;
+  }
+  // 15c. Set the [[Writable]] field of desc to writable.
+  if (!writable.is_null()) desc->set_writable(writable->BooleanValue());
+
+  // getter?
+  Handle<Object> getter;
+  // 16 through 18b.
+  if (!GetPropertyIfPresent(receiver, isolate->factory()->get_string(),
+                            &getter)) {
+    return false;
+  }
+  if (!getter.is_null()) {
+    // 18c. If IsCallable(getter) is false and getter is not undefined,
+    // throw a TypeError exception.
+    if (!getter->IsCallable() && !getter->IsUndefined(isolate)) {
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kObjectGetterCallable, getter));
+      return false;
+    }
+    // 18d. Set the [[Get]] field of desc to getter.
+    desc->set_get(getter);
+  }
+  // setter?
+  Handle<Object> setter;
+  // 19 through 21b.
+  if (!GetPropertyIfPresent(receiver, isolate->factory()->set_string(),
+                            &setter)) {
+    return false;
+  }
+  if (!setter.is_null()) {
+    // 21c. If IsCallable(setter) is false and setter is not undefined,
+    // throw a TypeError exception.
+    if (!setter->IsCallable() && !setter->IsUndefined(isolate)) {
+      isolate->Throw(*isolate->factory()->NewTypeError(
+          MessageTemplate::kObjectSetterCallable, setter));
+      return false;
+    }
+    // 21d. Set the [[Set]] field of desc to setter.
+    desc->set_set(setter);
+  }
+
+  // 22. If either desc.[[Get]] or desc.[[Set]] is present, then
+  // 22a. If either desc.[[Value]] or desc.[[Writable]] is present,
+  // throw a TypeError exception.
+  if ((desc->has_get() || desc->has_set()) &&
+      (desc->has_value() || desc->has_writable())) {
+    isolate->Throw(*isolate->factory()->NewTypeError(
+        MessageTemplate::kValueAndAccessor, obj));
+    return false;
+  }
+
   // 23. Return desc.
   return true;
 }
 
+
+// ES6 6.2.4.6
+// static
+void PropertyDescriptor::CompletePropertyDescriptor(Isolate* isolate,
+                                                    PropertyDescriptor* desc) {
+  // 1. ReturnIfAbrupt(Desc).
+  // 2. Assert: Desc is a Property Descriptor.
+  // 3. Let like be Record{
+  //        [[Value]]: undefined, [[Writable]]: false,
+  //        [[Get]]: undefined, [[Set]]: undefined,
+  //        [[Enumerable]]: false, [[Configurable]]: false}.
+  // 4. If either IsGenericDescriptor(Desc) or IsDataDescriptor(Desc) is true,
+  // then:
+  if (!IsAccessorDescriptor(desc)) {
+    // 4a. If Desc does not have a [[Value]] field, set Desc.[[Value]] to
+    //     like.[[Value]].
+    if (!desc->has_value()) {
+      desc->set_value(isolate->factory()->undefined_value());
+    }
+    // 4b. If Desc does not have a [[Writable]] field, set Desc.[[Writable]]
+    //     to like.[[Writable]].
+    if (!desc->has_writable()) desc->set_writable(false);
+  } else {
+    // 5. Else,
+    // 5a. If Desc does not have a [[Get]] field, set Desc.[[Get]] to
+    //     like.[[Get]].
+    if (!desc->has_get()) {
+      desc->set_get(isolate->factory()->undefined_value());
+    }
+    // 5b. If Desc does not have a [[Set]] field, set Desc.[[Set]] to
+    //     like.[[Set]].
+    if (!desc->has_set()) {
+      desc->set_set(isolate->factory()->undefined_value());
+    }
+  }
+  // 6. If Desc does not have an [[Enumerable]] field, set
+  //    Desc.[[Enumerable]] to like.[[Enumerable]].
+  if (!desc->has_enumerable()) desc->set_enumerable(false);
+  // 7. If Desc does not have a [[Configurable]] field, set
+  //    Desc.[[Configurable]] to like.[[Configurable]].
+  if (!desc->has_configurable()) desc->set_configurable(false);
+  // 8. Return Desc.
+}
 
 }  // namespace internal
 }  // namespace v8

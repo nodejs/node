@@ -1,8 +1,6 @@
 /**
  * @fileoverview Rule to restrict what can be thrown as an exception.
  * @author Dieter Oberkofler
- * @copyright 2015 Ian VanSchooten. All rights reserved.
- * @copyright 2015 Dieter Oberkofler. All rights reserved.
  */
 
 "use strict";
@@ -29,9 +27,11 @@ function couldBeError(node) {
         case "AssignmentExpression":
             return couldBeError(node.right);
 
-        case "SequenceExpression":
-            var exprs = node.expressions;
+        case "SequenceExpression": {
+            const exprs = node.expressions;
+
             return exprs.length !== 0 && couldBeError(exprs[exprs.length - 1]);
+        }
 
         case "LogicalExpression":
             return couldBeError(node.left) || couldBeError(node.right);
@@ -48,23 +48,33 @@ function couldBeError(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow throwing literals as exceptions",
+            category: "Best Practices",
+            recommended: false
+        },
 
-    return {
+        schema: []
+    },
 
-        "ThrowStatement": function(node) {
-            if (!couldBeError(node.argument)) {
-                context.report(node, "Expected an object to be thrown.");
-            } else if (node.argument.type === "Identifier") {
-                if (node.argument.name === "undefined") {
-                    context.report(node, "Do not throw undefined.");
+    create(context) {
+
+        return {
+
+            ThrowStatement(node) {
+                if (!couldBeError(node.argument)) {
+                    context.report({ node, message: "Expected an object to be thrown." });
+                } else if (node.argument.type === "Identifier") {
+                    if (node.argument.name === "undefined") {
+                        context.report({ node, message: "Do not throw undefined." });
+                    }
                 }
+
             }
 
-        }
+        };
 
-    };
-
+    }
 };
-
-module.exports.schema = [];

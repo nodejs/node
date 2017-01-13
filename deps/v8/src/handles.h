@@ -43,6 +43,10 @@ class HandleBase {
 
   V8_INLINE bool is_null() const { return location_ == nullptr; }
 
+  // Returns the raw address where this handle is stored. This should only be
+  // used for hashing handles; do not ever try to dereference it.
+  V8_INLINE Address address() const { return bit_cast<Address>(location_); }
+
  protected:
   // Provides the C++ dereference operator.
   V8_INLINE Object* operator*() const {
@@ -132,14 +136,14 @@ class Handle final : public HandleBase {
   // Provide function object for location equality comparison.
   struct equal_to : public std::binary_function<Handle<T>, Handle<T>, bool> {
     V8_INLINE bool operator()(Handle<T> lhs, Handle<T> rhs) const {
-      return lhs.location() == rhs.location();
+      return lhs.address() == rhs.address();
     }
   };
 
   // Provide function object for location hashing.
   struct hash : public std::unary_function<Handle<T>, size_t> {
     V8_INLINE size_t operator()(Handle<T> const& handle) const {
-      return base::hash<void*>()(handle.location());
+      return base::hash<void*>()(handle.address());
     }
   };
 
@@ -170,8 +174,6 @@ V8_INLINE Handle<T> handle(T* object) {
 // A Handle can be converted into a MaybeHandle. Converting a MaybeHandle
 // into a Handle requires checking that it does not point to NULL.  This
 // ensures NULL checks before use.
-//
-// Do not use MaybeHandle as argument type.
 //
 // Also note that Handles do not provide default equality comparison or hashing
 // operators on purpose. Such operators would be misleading, because intended
@@ -223,6 +225,10 @@ class MaybeHandle final {
       return true;
     }
   }
+
+  // Returns the raw address where this handle is stored. This should only be
+  // used for hashing handles; do not ever try to dereference it.
+  V8_INLINE Address address() const { return bit_cast<Address>(location_); }
 
   bool is_null() const { return location_ == nullptr; }
 

@@ -27,41 +27,44 @@ Reduction JSFrameSpecialization::Reduce(Node* node) {
 
 Reduction JSFrameSpecialization::ReduceOsrValue(Node* node) {
   DCHECK_EQ(IrOpcode::kOsrValue, node->opcode());
-  DisallowHeapAllocation no_gc;
-  Object* object;
+  Handle<Object> value;
   int const index = OpParameter<int>(node);
   int const parameters_count = frame()->ComputeParametersCount() + 1;
   if (index == Linkage::kOsrContextSpillSlotIndex) {
-    object = frame()->context();
+    value = handle(frame()->context(), isolate());
   } else if (index >= parameters_count) {
-    object = frame()->GetExpression(index - parameters_count);
+    value = handle(frame()->GetExpression(index - parameters_count), isolate());
   } else {
     // The OsrValue index 0 is the receiver.
-    object = index ? frame()->GetParameter(index - 1) : frame()->receiver();
+    value =
+        handle(index ? frame()->GetParameter(index - 1) : frame()->receiver(),
+               isolate());
   }
-  return Replace(jsgraph()->Constant(handle(object, isolate())));
+  return Replace(jsgraph()->Constant(value));
 }
 
 
 Reduction JSFrameSpecialization::ReduceParameter(Node* node) {
   DCHECK_EQ(IrOpcode::kParameter, node->opcode());
-  DisallowHeapAllocation no_gc;
-  Object* object;
+  Handle<Object> value;
   int const index = ParameterIndexOf(node->op());
   int const parameters_count = frame()->ComputeParametersCount() + 1;
-  if (index == Linkage::kJSFunctionCallClosureParamIndex) {
-    object = frame()->function();
-  } else if (index == parameters_count) {
-    // The Parameter index (arity + 1) is the parameter count.
-    object = Smi::FromInt(parameters_count - 1);
-  } else if (index == parameters_count + 1) {
-    // The Parameter index (arity + 2) is the context.
-    object = frame()->context();
+  if (index == Linkage::kJSCallClosureParamIndex) {
+    // The Parameter index references the closure.
+    value = handle(frame()->function(), isolate());
+  } else if (index == Linkage::GetJSCallArgCountParamIndex(parameters_count)) {
+    // The Parameter index references the parameter count.
+    value = handle(Smi::FromInt(parameters_count - 1), isolate());
+  } else if (index == Linkage::GetJSCallContextParamIndex(parameters_count)) {
+    // The Parameter index references the context.
+    value = handle(frame()->context(), isolate());
   } else {
     // The Parameter index 0 is the receiver.
-    object = index ? frame()->GetParameter(index - 1) : frame()->receiver();
+    value =
+        handle(index ? frame()->GetParameter(index - 1) : frame()->receiver(),
+               isolate());
   }
-  return Replace(jsgraph()->Constant(handle(object, isolate())));
+  return Replace(jsgraph()->Constant(value));
 }
 
 

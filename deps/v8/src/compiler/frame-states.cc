@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/base/functional.h"
 #include "src/compiler/frame-states.h"
+
+#include "src/base/functional.h"
 #include "src/handles-inl.h"
 
 namespace v8 {
@@ -51,8 +52,23 @@ std::ostream& operator<<(std::ostream& os, FrameStateType type) {
     case FrameStateType::kJavaScriptFunction:
       os << "JS_FRAME";
       break;
+    case FrameStateType::kInterpretedFunction:
+      os << "INTERPRETED_FRAME";
+      break;
     case FrameStateType::kArgumentsAdaptor:
       os << "ARGUMENTS_ADAPTOR";
+      break;
+    case FrameStateType::kTailCallerFunction:
+      os << "TAIL_CALLER_FRAME";
+      break;
+    case FrameStateType::kConstructStub:
+      os << "CONSTRUCT_STUB";
+      break;
+    case FrameStateType::kGetterStub:
+      os << "GETTER_STUB";
+      break;
+    case FrameStateType::kSetterStub:
+      os << "SETTER_STUB";
       break;
   }
   return os;

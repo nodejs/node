@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(jochen): Remove this after the setting is turned on globally.
-#define V8_IMMINENT_DEPRECATION_WARNINGS
-
 #include "test/cctest/compiler/function-tester.h"
 
 namespace v8 {
@@ -397,16 +394,6 @@ TEST(GlobalLoad) {
 }
 
 
-TEST(GlobalStoreSloppy) {
-  FunctionTester T("(function(a,b) { g = a + b; return g; })");
-
-  T.CheckCall(T.Val(33), T.Val(22), T.Val(11));
-  CompileRun("delete g");
-  CompileRun("const g = 23");
-  T.CheckCall(T.Val(23), T.Val(55), T.Val(44));
-}
-
-
 TEST(GlobalStoreStrict) {
   FunctionTester T("(function(a,b) { 'use strict'; g = a + b; return g; })");
 
@@ -525,7 +512,6 @@ TEST(RegExpLiteral) {
 
 
 TEST(ClassLiteral) {
-  FLAG_harmony_sloppy = true;
   const char* src =
       "(function(a,b) {"
       "  class C {"

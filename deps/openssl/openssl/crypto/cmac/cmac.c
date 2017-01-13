@@ -160,6 +160,14 @@ int CMAC_Init(CMAC_CTX *ctx, const void *key, size_t keylen,
             EVPerr(EVP_F_CMAC_INIT, EVP_R_DISABLED_FOR_FIPS);
             return 0;
         }
+
+        /* Switch to FIPS cipher implementation if possible */
+        if (cipher != NULL) {
+            const EVP_CIPHER *fcipher;
+            fcipher = FIPS_get_cipherbynid(EVP_CIPHER_nid(cipher));
+            if (fcipher != NULL)
+                cipher = fcipher;
+        }
         /*
          * Other algorithm blocking will be done in FIPS_cmac_init, via
          * FIPS_cipherinit().

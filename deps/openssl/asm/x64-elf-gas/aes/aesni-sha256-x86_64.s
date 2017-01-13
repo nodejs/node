@@ -4015,9 +4015,9 @@ aesni_cbc_sha256_enc_shaext:
 	movups	16(%rcx),%xmm4
 	leaq	112(%rcx),%rcx
 
-	pshufd	$27,%xmm1,%xmm0
-	pshufd	$177,%xmm1,%xmm1
-	pshufd	$27,%xmm2,%xmm2
+	pshufd	$0x1b,%xmm1,%xmm0
+	pshufd	$0xb1,%xmm1,%xmm1
+	pshufd	$0x1b,%xmm2,%xmm2
 	movdqa	%xmm3,%xmm7
 .byte	102,15,58,15,202,8
 	punpcklqdq	%xmm0,%xmm2
@@ -4043,7 +4043,7 @@ aesni_cbc_sha256_enc_shaext:
 	movups	-80(%rcx),%xmm5
 	aesenc	%xmm4,%xmm6
 .byte	15,56,203,209
-	pshufd	$14,%xmm0,%xmm0
+	pshufd	$0x0e,%xmm0,%xmm0
 	movups	-64(%rcx),%xmm4
 	aesenc	%xmm5,%xmm6
 .byte	15,56,203,202
@@ -4055,7 +4055,7 @@ aesni_cbc_sha256_enc_shaext:
 	movups	-48(%rcx),%xmm5
 	aesenc	%xmm4,%xmm6
 .byte	15,56,203,209
-	pshufd	$14,%xmm0,%xmm0
+	pshufd	$0x0e,%xmm0,%xmm0
 	movups	-32(%rcx),%xmm4
 	aesenc	%xmm5,%xmm6
 .byte	15,56,203,202
@@ -4067,7 +4067,7 @@ aesni_cbc_sha256_enc_shaext:
 	movups	-16(%rcx),%xmm5
 	aesenc	%xmm4,%xmm6
 .byte	15,56,203,209
-	pshufd	$14,%xmm0,%xmm0
+	pshufd	$0x0e,%xmm0,%xmm0
 	movdqa	%xmm13,%xmm3
 .byte	102,65,15,58,15,220,4
 	paddd	%xmm3,%xmm10
@@ -4082,7 +4082,7 @@ aesni_cbc_sha256_enc_shaext:
 	movups	16(%rcx),%xmm5
 	aesenc	%xmm4,%xmm6
 .byte	15,56,203,209
-	pshufd	$14,%xmm0,%xmm0
+	pshufd	$0x0e,%xmm0,%xmm0
 	movups	32(%rcx),%xmm4
 	aesenc	%xmm5,%xmm6
 	movdqa	%xmm10,%xmm3
@@ -4096,7 +4096,7 @@ aesni_cbc_sha256_enc_shaext:
 	movups	48(%rcx),%xmm5
 	aesenc	%xmm4,%xmm6
 .byte	15,56,203,209
-	pshufd	$14,%xmm0,%xmm0
+	pshufd	$0x0e,%xmm0,%xmm0
 	movdqa	%xmm11,%xmm3
 .byte	102,65,15,58,15,218,4
 	paddd	%xmm3,%xmm12
@@ -4129,7 +4129,7 @@ aesni_cbc_sha256_enc_shaext:
 	movups	-64(%rcx),%xmm4
 	aesenc	%xmm5,%xmm6
 .byte	15,56,203,209
-	pshufd	$14,%xmm0,%xmm0
+	pshufd	$0x0e,%xmm0,%xmm0
 	movdqa	%xmm12,%xmm3
 .byte	102,65,15,58,15,219,4
 	paddd	%xmm3,%xmm13
@@ -4143,7 +4143,7 @@ aesni_cbc_sha256_enc_shaext:
 	movups	-32(%rcx),%xmm4
 	aesenc	%xmm5,%xmm6
 .byte	15,56,203,209
-	pshufd	$14,%xmm0,%xmm0
+	pshufd	$0x0e,%xmm0,%xmm0
 	movdqa	%xmm13,%xmm3
 .byte	102,65,15,58,15,220,4
 	paddd	%xmm3,%xmm10
@@ -4157,7 +4157,7 @@ aesni_cbc_sha256_enc_shaext:
 	movups	0(%rcx),%xmm4
 	aesenc	%xmm5,%xmm6
 .byte	15,56,203,209
-	pshufd	$14,%xmm0,%xmm0
+	pshufd	$0x0e,%xmm0,%xmm0
 	movdqa	%xmm10,%xmm3
 .byte	102,65,15,58,15,221,4
 	paddd	%xmm3,%xmm11
@@ -4171,7 +4171,7 @@ aesni_cbc_sha256_enc_shaext:
 	movups	32(%rcx),%xmm4
 	aesenc	%xmm5,%xmm6
 .byte	15,56,203,209
-	pshufd	$14,%xmm0,%xmm0
+	pshufd	$0x0e,%xmm0,%xmm0
 	movdqa	%xmm11,%xmm3
 .byte	102,65,15,58,15,218,4
 	paddd	%xmm3,%xmm12
@@ -4206,7 +4206,7 @@ aesni_cbc_sha256_enc_shaext:
 	movups	-64(%rcx),%xmm4
 	aesenc	%xmm5,%xmm6
 .byte	15,56,203,209
-	pshufd	$14,%xmm0,%xmm0
+	pshufd	$0x0e,%xmm0,%xmm0
 	movdqa	%xmm12,%xmm3
 .byte	102,65,15,58,15,219,4
 	paddd	%xmm3,%xmm13
@@ -4220,7 +4220,7 @@ aesni_cbc_sha256_enc_shaext:
 	movups	-32(%rcx),%xmm4
 	aesenc	%xmm5,%xmm6
 .byte	15,56,203,209
-	pshufd	$14,%xmm0,%xmm0
+	pshufd	$0x0e,%xmm0,%xmm0
 	movdqa	%xmm13,%xmm3
 .byte	102,65,15,58,15,220,4
 	paddd	%xmm3,%xmm10
@@ -4234,7 +4234,7 @@ aesni_cbc_sha256_enc_shaext:
 	movups	0(%rcx),%xmm4
 	aesenc	%xmm5,%xmm6
 .byte	15,56,203,209
-	pshufd	$14,%xmm0,%xmm0
+	pshufd	$0x0e,%xmm0,%xmm0
 	movdqa	%xmm10,%xmm3
 .byte	102,65,15,58,15,221,4
 	paddd	%xmm3,%xmm11
@@ -4248,7 +4248,7 @@ aesni_cbc_sha256_enc_shaext:
 	movups	32(%rcx),%xmm4
 	aesenc	%xmm5,%xmm6
 .byte	15,56,203,209
-	pshufd	$14,%xmm0,%xmm0
+	pshufd	$0x0e,%xmm0,%xmm0
 	movdqa	%xmm11,%xmm3
 .byte	102,65,15,58,15,218,4
 	paddd	%xmm3,%xmm12
@@ -4275,7 +4275,7 @@ aesni_cbc_sha256_enc_shaext:
 	movups	16-112(%rcx),%xmm4
 	nop
 .byte	15,56,203,209
-	pshufd	$14,%xmm0,%xmm0
+	pshufd	$0x0e,%xmm0,%xmm0
 	movdqa	%xmm12,%xmm3
 .byte	102,65,15,58,15,219,4
 	paddd	%xmm3,%xmm13
@@ -4296,7 +4296,7 @@ aesni_cbc_sha256_enc_shaext:
 	movups	-48(%rcx),%xmm5
 	aesenc	%xmm4,%xmm6
 .byte	15,56,203,209
-	pshufd	$14,%xmm0,%xmm0
+	pshufd	$0x0e,%xmm0,%xmm0
 	movups	-32(%rcx),%xmm4
 	aesenc	%xmm5,%xmm6
 .byte	15,56,203,202
@@ -4308,7 +4308,7 @@ aesni_cbc_sha256_enc_shaext:
 	movups	0(%rcx),%xmm4
 	aesenc	%xmm5,%xmm6
 .byte	15,56,203,209
-	pshufd	$14,%xmm0,%xmm0
+	pshufd	$0x0e,%xmm0,%xmm0
 	movups	16(%rcx),%xmm5
 	aesenc	%xmm4,%xmm6
 .byte	15,56,203,202
@@ -4341,9 +4341,9 @@ aesni_cbc_sha256_enc_shaext:
 	leaq	64(%rdi),%rdi
 	jnz	.Loop_shaext
 
-	pshufd	$177,%xmm2,%xmm2
-	pshufd	$27,%xmm1,%xmm3
-	pshufd	$177,%xmm1,%xmm1
+	pshufd	$0xb1,%xmm2,%xmm2
+	pshufd	$0x1b,%xmm1,%xmm3
+	pshufd	$0xb1,%xmm1,%xmm1
 	punpckhqdq	%xmm2,%xmm1
 .byte	102,15,58,15,211,8
 

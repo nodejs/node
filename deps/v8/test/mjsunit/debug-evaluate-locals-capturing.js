@@ -15,8 +15,8 @@ function listener(event, exec_state, event_data, data) {
     if (event == Debug.DebugEvent.Break) {
       var frameMirror = exec_state.frame(0);
 
-      f = frameMirror.evaluate('f = function() { i = 5; }, f(), f').value();
-      print(f);
+      var i = frameMirror.evaluate('f = function() { i = 5; }, f(), i').value();
+      assertEquals(5, i);
     }
   } catch(e) {
     exception = e;

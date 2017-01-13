@@ -17,11 +17,11 @@ module.exports = function (rl) {
     keypress: keypress,
 
     normalizedUpKey: keypress.filter(function (e) {
-      return e.key.name === 'up' || e.key.name === 'k';
+      return e.key.name === 'up' || e.key.name === 'k' || (e.key.name === 'p' && e.key.ctrl);
     }).share(),
 
     normalizedDownKey: keypress.filter(function (e) {
-      return e.key.name === 'down' || e.key.name === 'j';
+      return e.key.name === 'down' || e.key.name === 'j' || (e.key.name === 'n' && e.key.ctrl);
     }).share(),
 
     numberKey: keypress.filter(function (e) {

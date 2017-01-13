@@ -42,11 +42,6 @@ class CcTestSuite(testsuite.TestSuite):
       build_dir = "build"
     else:
       build_dir = "out"
-    self.serdes_dir = os.path.normpath(
-        os.path.join(root, "..", "..", build_dir, ".serdes"))
-    if os.path.exists(self.serdes_dir):
-      shutil.rmtree(self.serdes_dir, True)
-    os.makedirs(self.serdes_dir)
 
   def ListTests(self, context):
     shell = os.path.abspath(os.path.join(context.shell_dir, self.shell()))
@@ -61,26 +56,14 @@ class CcTestSuite(testsuite.TestSuite):
       return []
     tests = []
     for test_desc in output.stdout.strip().split():
-      if test_desc.find('<') < 0:
-        # Native Client output can contain a few non-test arguments
-        # before the tests. Skip these.
-        continue
-      raw_test, dependency = test_desc.split('<')
-      if dependency != '':
-        dependency = raw_test.split('/')[0] + '/' + dependency
-      else:
-        dependency = None
-      test = testcase.TestCase(self, raw_test, dependency=dependency)
+      test = testcase.TestCase(self, test_desc)
       tests.append(test)
-    tests.sort()
+    tests.sort(key=lambda t: t.path)
     return tests
 
   def GetFlagsForTestCase(self, testcase, context):
     testname = testcase.path.split(os.path.sep)[-1]
-    serialization_file = os.path.join(self.serdes_dir, "serdes_" + testname)
-    serialization_file += ''.join(testcase.flags).replace('-', '_')
-    return (testcase.flags + [testcase.path] + context.mode_flags +
-            ["--testing_serialization_file=" + serialization_file])
+    return (testcase.flags + [testcase.path] + context.mode_flags)
 
   def shell(self):
     return "cctest"

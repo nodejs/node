@@ -1758,8 +1758,17 @@ static void nistp_single_test(const struct nistp_test_params *test)
     if (0 != EC_POINT_cmp(NISTP, Q, Q_CHECK, ctx))
         ABORT;
 
+    /*
+     * We have not performed precomputation so have_precompute mult should be
+     * false
+     */
+    if (EC_GROUP_have_precompute_mult(NISTP))
+        ABORT;
+
     /* now repeat all tests with precomputation */
     if (!EC_GROUP_precompute_mult(NISTP, ctx))
+        ABORT;
+    if (!EC_GROUP_have_precompute_mult(NISTP))
         ABORT;
 
     /* fixed point multiplication */
