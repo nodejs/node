@@ -1,23 +1,23 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const dgram = require('dgram');
 const socket = dgram.createSocket('udp4');
-let thrown = false;
 
 socket.bind(0);
-socket.on('listening', function() {
-  socket.setMulticastTTL(16);
+socket.on('listening', common.mustCall(() => {
+  const result = socket.setMulticastTTL(16);
+  assert.strictEqual(result, 16);
 
   //Try to set an invalid TTL (valid ttl is > 0 and < 256)
-  try {
+  assert.throws(() => {
     socket.setMulticastTTL(1000);
-  } catch (e) {
-    thrown = true;
-  }
+  }, /^Error: setMulticastTTL EINVAL$/);
 
-  assert(thrown, 'Setting an invalid multicast TTL should throw some error');
+  assert.throws(() => {
+    socket.setMulticastTTL('foo');
+  }, /^TypeError: Argument must be a number$/);
 
   //close the socket
   socket.close();
-});
+}));
