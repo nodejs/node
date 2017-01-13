@@ -10,9 +10,15 @@ to outputs other than streams, then you can change the `log.stream`
 member, or you can just listen to the events that it emits, and do
 whatever you want with them.
 
+# Installation
+
+```console
+npm install npmlog --save
+```
+
 # Basic Usage
 
-```
+```javascript
 var log = require('npmlog')
 
 // additional stuff ---------------------------+

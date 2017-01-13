@@ -167,11 +167,7 @@ function computeVersionSpec (child) {
         pathname: requested.spec
       })
     } else {
-      return url.format({
-        protocol: 'file',
-        slashes: false,
-        pathname: relativePath
-      })
+      return 'file:' + relativePath
     }
   } else if (requested.type === 'hosted') {
     return requested.spec

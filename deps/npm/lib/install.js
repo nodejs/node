@@ -114,6 +114,7 @@ var unlock = locker.unlock
 var ls = require('./ls.js')
 var parseJSON = require('./utils/parse-json.js')
 var output = require('./utils/output.js')
+var saveMetrics = require('./utils/metrics.js').save
 
 // install specific libraries
 var copyTree = require('./install/copy-tree.js')
@@ -216,8 +217,13 @@ function Installer (where, dryrun, args) {
 }
 Installer.prototype = {}
 
-Installer.prototype.run = function (cb) {
+Installer.prototype.run = function (_cb) {
   validate('F', arguments)
+
+  var cb = function (err) {
+    saveMetrics(!err)
+    return _cb.apply(this, arguments)
+  }
 
   // FIXME: This is bad and I should feel bad.
   // lib/install needs to have some way of sharing _limited_
