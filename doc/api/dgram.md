@@ -225,7 +225,7 @@ never have reason to call this.
 If `multicastInterface` is not specified, the operating system will attempt to
 drop membership on all valid interfaces.
 
-### socket.send(msg, [offset, length,] port, address[, callback])
+### socket.send(msg, [offset, length,] port [, address] [, callback])
 <!-- YAML
 added: v0.1.99
 -->
@@ -234,7 +234,7 @@ added: v0.1.99
 * `offset` {Number} Integer. Optional. Offset in the buffer where the message starts.
 * `length` {Number} Integer. Optional. Number of bytes in the message.
 * `port` {Number} Integer. Destination port.
-* `address` {String} Destination hostname or IP address.
+* `address` {String} Destination hostname or IP address. Optional.
 * `callback` {Function} Called when the message has been sent. Optional.
 
 Broadcasts a datagram on the socket. The destination `port` and `address` must
@@ -251,8 +251,9 @@ respect to [byte length][] and not the character position.
 If `msg` is an array, `offset` and `length` must not be specified.
 
 The `address` argument is a string. If the value of `address` is a host name,
-DNS will be used to resolve the address of the host. If the `address` is not
-specified or is an empty string, `'127.0.0.1'` or `'::1'` will be used instead.
+DNS will be used to resolve the address of the host.  If `address` is not
+provided or otherwise falsy, `'127.0.0.1'` (for `udp4` sockets) or `'::1'`
+(for `udp6` sockets) will be used by default.
 
 If the socket has not been previously bound with a call to `bind`, the socket
 is assigned a random port number and is bound to the "all interfaces" address
@@ -283,14 +284,15 @@ client.send(message, 41234, 'localhost', (err) => {
 });
 ```
 
-Example of sending a UDP packet composed of multiple buffers to a random port on `localhost`;
+Example of sending a UDP packet composed of multiple buffers to a random port
+on `127.0.0.1`;
 
 ```js
 const dgram = require('dgram');
 const buf1 = Buffer.from('Some ');
 const buf2 = Buffer.from('bytes');
 const client = dgram.createSocket('udp4');
-client.send([buf1, buf2], 41234, 'localhost', (err) => {
+client.send([buf1, buf2], 41234, (err) => {
   client.close();
 });
 ```
