@@ -12,7 +12,6 @@ server._expect = {}
 
 function handler (req, res) {
   req.connection.setTimeout(1000)
-
   // If we got authorization, make sure it's the right password.
   if (req.headers.authorization && req.headers.authorization.match(/^Basic/)) {
     var auth = req.headers.authorization.replace(/^Basic /, '')

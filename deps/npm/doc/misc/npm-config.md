@@ -600,6 +600,13 @@ Commit message which is used by `npm version` when creating version commit.
 
 Any "%s" in the message will be replaced with the version number.
 
+### metrics-registry
+
+* Default: "https://registry.npmjs.org/"
+* Type: String
+
+The registry you want to send cli metrics to if `send-metrics` is true.
+
 ### node-version
 
 * Default: process.version
@@ -843,6 +850,16 @@ Space-separated options that are always passed to search.
 * Type: Number
 
 The age of the cache, in seconds, before another registry request is made.
+
+### send-metrics
+
+* Default: false
+* Type: Boolean
+
+If true, success/failure metrics will be reported to the registry stored in
+`metrics-registry`.  These requests contain the number of successful and
+failing runs of the npm CLI and the time period overwhich those counts were
+gathered. No identifying information is included in these requests.
 
 ### shell
 
