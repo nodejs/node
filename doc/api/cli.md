@@ -321,7 +321,7 @@ to an empty string (`""` or `" "`) disables persistent REPL history.
 
 ### `NODE_TTY_UNSAFE_ASYNC=1`
 <!-- YAML
-added: 6.4.0
+added: v6.4.0
 -->
 
 When set to `1`, writes to `stdout` and `stderr` will be non-blocking and
@@ -330,6 +330,9 @@ Setting this will void any guarantee that stdio will not be interleaved or
 dropped at program exit. **Use of this mode is not recommended.**
 
 ### `NODE_EXTRA_CA_CERTS=file`
+<!-- YAML
+added: v7.3.0
+-->
 
 When set, the well known "root" CAs (like VeriSign) will be extended with the
 extra certificates in `file`. The file should consist of one or more trusted
