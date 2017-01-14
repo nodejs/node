@@ -948,6 +948,66 @@ Example:
 var contentType = response.getHeader('content-type');
 ```
 
+### response.getHeaderNames()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Array}
+
+Returns an array containing the unique names of the current outgoing headers.
+All header names are lowercase.
+
+Example:
+
+```js
+response.setHeader('Foo', 'bar');
+response.setHeader('Set-Cookie', ['foo=bar', 'bar=baz']);
+
+var headerNames = response.getHeaderNames();
+// headerNames === ['foo', 'set-cookie']
+```
+
+### response.getHeaders()
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Object}
+
+Returns a shallow copy of the current outgoing headers. Since a shallow copy
+is used, array values may be mutated without additional calls to various
+header-related http module methods. The keys of the returned object are the
+header names and the values are the respective header values. All header names
+are lowercase.
+
+Example:
+
+```js
+response.setHeader('Foo', 'bar');
+response.setHeader('Set-Cookie', ['foo=bar', 'bar=baz']);
+
+var headers = response.getHeaders();
+// headers === { foo: 'bar', 'set-cookie': ['foo=bar', 'bar=baz'] }
+```
+
+### response.hasHeader(name)
+<!-- YAML
+added: REPLACEME
+-->
+
+* `name` {String}
+* Returns: {Boolean}
+
+Returns `true` if the header identified by `name` is currently set in the
+outgoing headers. Note that the header name matching is case-insensitive.
+
+Example:
+
+```js
+var hasContentType = response.hasHeader('content-type');
+```
+
 ### response.headersSent
 <!-- YAML
 added: v0.9.3
