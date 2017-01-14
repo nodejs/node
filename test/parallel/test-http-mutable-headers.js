@@ -21,6 +21,13 @@ const cookies = [
 const s = http.createServer(common.mustCall((req, res) => {
   switch (test) {
     case 'headers':
+      // Check that header-related functions work before setting any headers
+      // eslint-disable-next-line no-restricted-properties
+      assert.deepEqual(res.getHeaders(), {});
+      assert.deepStrictEqual(res.getHeaderNames(), []);
+      assert.deepStrictEqual(res.hasHeader('Connection'), false);
+      assert.deepStrictEqual(res.getHeader('Connection'), undefined);
+
       assert.throws(() => {
         res.setHeader();
       }, /^TypeError: Header name must be a valid HTTP Token \["undefined"\]$/);
@@ -34,15 +41,52 @@ const s = http.createServer(common.mustCall((req, res) => {
         res.removeHeader();
       }, /^Error: "name" argument is required for removeHeader\(name\)$/);
 
+      const arrayValues = [1, 2, 3];
       res.setHeader('x-test-header', 'testing');
       res.setHeader('X-TEST-HEADER2', 'testing');
       res.setHeader('set-cookie', cookies);
-      res.setHeader('x-test-array-header', [1, 2, 3]);
+      res.setHeader('x-test-array-header', arrayValues);
 
       assert.strictEqual(res.getHeader('x-test-header'), 'testing');
       assert.strictEqual(res.getHeader('x-test-header2'), 'testing');
 
+      const headersCopy = res.getHeaders();
+      // eslint-disable-next-line no-restricted-properties
+      assert.deepEqual(headersCopy, {
+        'x-test-header': 'testing',
+        'x-test-header2': 'testing',
+        'set-cookie': cookies,
+        'x-test-array-header': arrayValues
+      });
+      // eslint-disable-next-line no-restricted-properties
+      assert.deepEqual(headersCopy['set-cookie'], cookies);
+      assert.strictEqual(headersCopy['x-test-array-header'], arrayValues);
+
+      assert.deepStrictEqual(res.getHeaderNames(),
+                             ['x-test-header', 'x-test-header2',
+                              'set-cookie', 'x-test-array-header']);
+
+      assert.strictEqual(res.hasHeader('x-test-header2'), true);
+      assert.strictEqual(res.hasHeader('X-TEST-HEADER2'), true);
+      assert.strictEqual(res.hasHeader('X-Test-Header2'), true);
+      assert.throws(() => {
+        res.hasHeader();
+      }, /^TypeError: "name" argument must be a string$/);
+      assert.throws(() => {
+        res.hasHeader(null);
+      }, /^TypeError: "name" argument must be a string$/);
+      assert.throws(() => {
+        res.hasHeader(true);
+      }, /^TypeError: "name" argument must be a string$/);
+      assert.throws(() => {
+        res.hasHeader({ toString: () => 'X-TEST-HEADER2' });
+      }, /^TypeError: "name" argument must be a string$/);
+
       res.removeHeader('x-test-header2');
+
+      assert.strictEqual(res.hasHeader('x-test-header2'), false);
+      assert.strictEqual(res.hasHeader('X-TEST-HEADER2'), false);
+      assert.strictEqual(res.hasHeader('X-Test-Header2'), false);
       break;
 
     case 'contentLength':
