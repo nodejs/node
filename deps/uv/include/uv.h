@@ -1392,7 +1392,7 @@ UV_EXTERN uint64_t uv_hrtime(void);
 
 UV_EXTERN void uv_disable_stdio_inheritance(void);
 
-UV_EXTERN int uv_dlopen(const char* filename, uv_lib_t* lib);
+UV_EXTERN int uv_dlopen(const char* filename, uv_lib_t* lib, int glob);
 UV_EXTERN void uv_dlclose(uv_lib_t* lib);
 UV_EXTERN int uv_dlsym(uv_lib_t* lib, const char* name, void** ptr);
 UV_EXTERN const char* uv_dlerror(const uv_lib_t* lib);

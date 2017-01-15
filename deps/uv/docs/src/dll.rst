@@ -25,7 +25,7 @@ N/A
 API
 ---
 
-.. c:function:: int uv_dlopen(const char* filename, uv_lib_t* lib)
+.. c:function:: int uv_dlopen(const char* filename, uv_lib_t* lib, int glob)
 
     Opens a shared library. The filename is in utf-8. Returns 0 on success and
     -1 on error. Call :c:func:`uv_dlerror` to get the error message.
