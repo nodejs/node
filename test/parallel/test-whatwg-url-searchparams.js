@@ -54,6 +54,8 @@ sp.forEach(function(val, key, obj) {
 sp.forEach(function() {
   assert.strictEqual(this, m);
 }, m);
+assert.throws(() => sp.forEach(), TypeError);
+assert.throws(() => sp.forEach(1), TypeError);
 
 m.search = '?a=a&b=b';
 assert.strictEqual(sp.toString(), 'a=a&b=b');
