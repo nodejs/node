@@ -186,6 +186,8 @@ void* ArrayBufferAllocator::Allocate(size_t length) {
 
 
 void* ArrayBufferAllocator::AllocateUninitialized(size_t length) {
+  if (zero_fill_all_buffers)
+    return ArrayBufferAllocator::Allocate(length);
   if (length > kMaxLength)
     return NULL;
   return new char[length];
@@ -3006,6 +3008,8 @@ static void PrintHelp() {
          "function is used\n"
          "  --trace-deprecation  show stack traces on deprecations\n"
          "  --v8-options         print v8 command line options\n"
+         "  --zero-fill-buffers   automatically zero-fill all newly allocated\n"
+         "                        Buffer and SlowBuffer instances\n"
          "  --max-stack-size=val set max v8 stack size (bytes)\n"
 #if defined(NODE_HAVE_I18N_SUPPORT)
          "  --icu-data-dir=dir   set ICU data load path to dir\n"
@@ -3140,6 +3144,8 @@ static void ParseArgs(int* argc,
     } else if (strcmp(arg, "--v8-options") == 0) {
       new_v8_argv[new_v8_argc] = "--help";
       new_v8_argc += 1;
+    } else if (strcmp(arg, "--zero-fill-buffers") == 0) {
+      zero_fill_all_buffers = true;
 #if defined(NODE_HAVE_I18N_SUPPORT)
     } else if (strncmp(arg, "--icu-data-dir=", 15) == 0) {
       icu_data_dir = arg + 15;

@@ -27,6 +27,10 @@
 
 namespace node {
 
+#define BUFFER_MALLOC(length)                                               \
+  zero_fill_all_buffers ? calloc(length, 1) : malloc(length)
+extern bool zero_fill_all_buffers;
+
 // Forward declaration
 class Environment;
 
