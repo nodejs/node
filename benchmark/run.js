@@ -44,6 +44,9 @@ if (format === 'csv') {
   }
 
   child.on('message', function(data) {
+    if (data.type !== 'report') {
+      return;
+    }
     // Construct configuration string, " A=a, B=b, ..."
     let conf = '';
     for (const key of Object.keys(data.conf)) {
