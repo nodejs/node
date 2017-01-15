@@ -44,6 +44,20 @@ n = 0;
 for (val of sp.values()) {
   assert.strictEqual(val, String(values[n++]));
 }
+n = 0;
+sp.forEach(function(val, key, obj) {
+  assert.strictEqual(this, undefined);
+  assert.strictEqual(key, 'a');
+  assert.strictEqual(val, String(values[n++]));
+  assert.strictEqual(obj, sp);
+});
+sp.forEach(function() {
+  assert.strictEqual(this, m);
+}, m);
+assert.throws(() => sp.forEach(),
+              /^TypeError: "callback" argument must be a function$/);
+assert.throws(() => sp.forEach(1),
+              /^TypeError: "callback" argument must be a function$/);
 
 m.search = '?a=a&b=b';
 assert.strictEqual(sp.toString(), 'a=a&b=b');
