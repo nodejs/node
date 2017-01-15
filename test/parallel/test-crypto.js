@@ -52,7 +52,6 @@ assert.throws(function() {
   crypto.createHash('sha1').update({foo: 'bar'});
 }, /^TypeError: Data must be a string or a buffer$/);
 
-
 function assertSorted(list) {
   // Array#sort() modifies the list in place so make a copy.
   const sorted = list.slice().sort();
