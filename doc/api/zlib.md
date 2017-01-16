@@ -428,7 +428,7 @@ added: v0.6.0
 added: v0.11.12
 -->
 
-Compress a Buffer or string with Deflate.
+Compress a [Buffer][] or string with [Deflate][].
 
 ### zlib.deflateRaw(buf[, options], callback)
 <!-- YAML
@@ -439,7 +439,7 @@ added: v0.6.0
 added: v0.11.12
 -->
 
-Compress a Buffer or string with DeflateRaw.
+Compress a [Buffer][] or string with [DeflateRaw][].
 
 ### zlib.gunzip(buf[, options], callback)
 <!-- YAML
@@ -450,7 +450,7 @@ added: v0.6.0
 added: v0.11.12
 -->
 
-Decompress a Buffer or string with Gunzip.
+Decompress a [Buffer][] or string with [Gunzip][].
 
 ### zlib.gzip(buf[, options], callback)
 <!-- YAML
@@ -461,7 +461,7 @@ added: v0.6.0
 added: v0.11.12
 -->
 
-Compress a Buffer or string with Gzip.
+Compress a [Buffer][] or string with [Gzip][].
 
 ### zlib.inflate(buf[, options], callback)
 <!-- YAML
@@ -472,7 +472,7 @@ added: v0.6.0
 added: v0.11.12
 -->
 
-Decompress a Buffer or string with Inflate.
+Decompress a [Buffer][] or string with [Inflate][].
 
 ### zlib.inflateRaw(buf[, options], callback)
 <!-- YAML
@@ -483,7 +483,7 @@ added: v0.6.0
 added: v0.11.12
 -->
 
-Decompress a Buffer or string with InflateRaw.
+Decompress a [Buffer][] or string with [InflateRaw][].
 
 ### zlib.unzip(buf[, options], callback)
 <!-- YAML
@@ -494,7 +494,7 @@ added: v0.6.0
 added: v0.11.12
 -->
 
-Decompress a Buffer or string with Unzip.
+Decompress a [Buffer][] or string with [Unzip][].
 
 [accept-encoding]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
 [content-encoding]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.11
