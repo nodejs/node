@@ -294,6 +294,13 @@ assert.equal(0xd8, b[17]);
 assert.equal(0xa2, b[18]);
 assert.equal(0xe6, b[19]);
 
+assert.strictEqual(qs.unescapeBuffer('a+b', true).toString(), 'a b');
+assert.strictEqual(qs.unescapeBuffer('a%').toString(), 'a%');
+assert.strictEqual(qs.unescapeBuffer('a%2').toString(), 'a%2');
+assert.strictEqual(qs.unescapeBuffer('a%20').toString(), 'a ');
+assert.strictEqual(qs.unescapeBuffer('a%2g').toString(), 'a%2g');
+assert.strictEqual(qs.unescapeBuffer('a%%').toString(), 'a%%');
+
 
 // Test custom decode
 function demoDecode(str) {
