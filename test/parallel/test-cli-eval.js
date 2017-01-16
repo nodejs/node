@@ -81,7 +81,8 @@ child.exec(nodejs + ' --eval "require(\'./test/parallel/test-cli-eval.js\')"',
 child.exec(nodejs + ' -e', common.mustCall(function(err, stdout, stderr) {
   assert.strictEqual(err.code, 9);
   assert.strictEqual(stdout, '');
-  assert(stderr.match(/node: -e requires an argument\n/));
+  assert.strictEqual(stderr.trim(),
+                     `${process.execPath}: -e requires an argument`);
 }));
 
 // empty program should do nothing
