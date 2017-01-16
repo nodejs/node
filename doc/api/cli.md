@@ -203,7 +203,7 @@ Track heap object allocations for heap snapshots.
 
 ### `--prof-process`
 <!-- YAML
-added: v6.0.0
+added: v5.2.0
 -->
 
 Process v8 profiler output generated using the v8 option `--prof`.
