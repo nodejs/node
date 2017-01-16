@@ -1,11 +1,11 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 
 if (!common.hasIntl || Intl.v8BreakIterator === undefined) {
-  return common.skip('no Intl');
+  return common.skip('missing Intl');
 }
 
+const assert = require('assert');
 const warning = 'Intl.v8BreakIterator is deprecated and will be removed soon.';
 common.expectWarning('DeprecationWarning', warning);
 
