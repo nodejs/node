@@ -2073,8 +2073,8 @@ void SSLWrap<Base>::SetNPNProtocols(const FunctionCallbackInfo<Value>& args) {
   if (args.Length() < 1 || !Buffer::HasInstance(args[0]))
     return env->ThrowTypeError("Must give a Buffer as first argument");
 
-  Local<Value> npn_buffer =  Local<Value>::New(env->isolate(), args[0]);
-  bool r = w->object()->SetHiddenValue(env->npn_buffer_string(), npn_buffer);
+  bool r = w->object()->SetHiddenValue(env->npn_buffer_string(), args[0]);
+
   CHECK(r);
 }
 #endif  // OPENSSL_NPN_NEGOTIATED
@@ -2156,9 +2156,8 @@ void SSLWrap<Base>::SetALPNProtocols(
     int r = SSL_set_alpn_protos(w->ssl_, alpn_protos, alpn_protos_len);
     CHECK_EQ(r, 0);
   } else {
-    Local<Value> alpn_buffer =  Local<Value>::New(env->isolate(), args[0]);
-    bool ret = w->object()->SetHiddenValue(env->alpn_buffer_string(),
-                                           alpn_buffer);
+    bool ret = w->object()->SetHiddenValue(env->alpn_buffer_string(), args[0]);
+
     CHECK(ret);
     // Server should select ALPN protocol from list of advertised by client
     SSL_CTX_set_alpn_select_cb(w->ssl_->ctx, SelectALPNCallback, nullptr);
