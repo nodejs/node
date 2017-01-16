@@ -1754,5 +1754,5 @@ cases:
 [Readable]: stream.html
 [Child Process]: child_process.html
 [Cluster]: cluster.html
-[`process.exitCode`]: #processexitcode-1
+[`process.exitCode`]: #process_process_exitcode
 [LTS]: https://github.com/nodejs/LTS/
