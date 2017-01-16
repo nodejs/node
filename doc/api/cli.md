@@ -314,6 +314,12 @@ added: v0.11.15
 Data path for ICU (Intl object) data. Will extend linked-in data when compiled
 with small-icu support.
 
+### `NODE_NO_WARNINGS=1`
+<!-- YAML
+added: REPLACEME
+-->
+
+When set to `1`, process warnings are silenced.
 
 ### `NODE_REPL_HISTORY=file`
 <!-- YAML
