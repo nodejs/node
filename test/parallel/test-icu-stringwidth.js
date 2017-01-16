@@ -1,14 +1,14 @@
 // Flags: --expose_internals
 'use strict';
-
 const common = require('../common');
-const assert = require('assert');
-const readline = require('internal/readline');
 
-if (!process.binding('config').hasIntl) {
-  common.skip('missing intl... skipping test');
+if (!common.hasIntl) {
+  common.skip('missing Intl');
   return;
 }
+
+const assert = require('assert');
+const readline = require('internal/readline');
 
 // Test column width
 assert.strictEqual(readline.getStringWidth('a'), 1);

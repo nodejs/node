@@ -1,6 +1,11 @@
 'use strict';
-
 const common = require('../common');
+
+if (!common.hasIntl) {
+  common.skip('missing Intl');
+  return;
+}
+
 const icu = getPunycode();
 const assert = require('assert');
 
@@ -10,11 +15,6 @@ function getPunycode() {
   } catch (err) {
     return undefined;
   }
-}
-
-if (!icu) {
-  common.skip('icu punycode tests because ICU is not present.');
-  return;
 }
 
 // Credit for list: http://www.i18nguy.com/markup/idna-examples.html
