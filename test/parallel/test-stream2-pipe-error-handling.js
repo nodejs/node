@@ -1,7 +1,7 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var stream = require('stream');
+const assert = require('assert');
+const stream = require('stream');
 
 {
   let count = 1000;

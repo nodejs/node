@@ -21,8 +21,11 @@ try {
 } catch (e) { /* ignore */ }
 
 server = http.createServer(function(req, res) {
-  res.writeHead(200, { 'content-type': 'text/plain',
-                       'content-length': '2' });
+  var headers = {
+    'content-type': 'text/plain',
+    'content-length': '2'
+  };
+  res.writeHead(200, headers);
   res.end('ok');
 });
 

@@ -178,14 +178,16 @@ more information about the governance of the Node.js project, see
 **Julien Gilli** &lt;jgilli@nodejs.org&gt;
 * [mscdex](https://github.com/mscdex) -
 **Brian White** &lt;mscdex@mscdex.net&gt;
+* [MylesBorins](https://github.com/MylesBorins) -
+**Myles Borins** &lt;myles.borins@gmail.com&gt;
 * [ofrobots](https://github.com/ofrobots) -
 **Ali Ijaz Sheikh** &lt;ofrobots@google.com&gt;
 * [rvagg](https://github.com/rvagg) -
 **Rod Vagg** &lt;rod@vagg.org&gt;
 * [shigeki](https://github.com/shigeki) -
 **Shigeki Ohtsu** &lt;ohtsu@iij.ad.jp&gt;
-* [TheAlphaNerd](https://github.com/TheAlphaNerd) -
-**Myles Borins** &lt;myles.borins@gmail.com&gt;
+* [targos](https://github.com/targos) -
+**Michaël Zasso** &lt;targos@protonmail.com&gt;
 * [thefourtheye](https://github.com/thefourtheye) -
 **Sakthipriyan Vairamani** &lt;thechargingvolcano@gmail.com&gt;
 * [trevnorris](https://github.com/trevnorris) -
@@ -217,8 +219,6 @@ more information about the governance of the Node.js project, see
 **Claudio Rodriguez** &lt;cjrodr@yahoo.com&gt;
 * [danbev](https://github.com/danbev) -
 **Daniel Bevenius** &lt;daniel.bevenius@gmail.com&gt;
-* [domenic](https://github.com/domenic) -
-**Domenic Denicola** &lt;d@domenic.me&gt;
 * [eljefedelrodeodeljefe](https://github.com/eljefedelrodeodeljefe) -
 **Robert Jefe Lindstaedt** &lt;robert.lindstaedt@gmail.com&gt;
 * [estliberitas](https://github.com/estliberitas) -
@@ -239,8 +239,8 @@ more information about the governance of the Node.js project, see
 **Ilkka Myller** &lt;ilkka.myller@nodefield.com&gt;
 * [isaacs](https://github.com/isaacs) -
 **Isaac Z. Schlueter** &lt;i@izs.me&gt;
-* [italoacasas](https://github.com/italoacasas)
-**Italo A. Casas**  &lt;me@italoacasas.com&gt;
+* [italoacasas](https://github.com/italoacasas) -
+**Italo A. Casas** &lt;me@italoacasas.com&gt;
 * [iWuzHere](https://github.com/iWuzHere) -
 **Imran Iqbal** &lt;imran@imraniqbal.org&gt;
 * [JacksonTian](https://github.com/JacksonTian) -
@@ -253,6 +253,8 @@ more information about the governance of the Node.js project, see
 **João Reis** &lt;reis@janeasystems.com&gt;
 * [joshgav](https://github.com/joshgav) -
 **Josh Gavant** &lt;josh.gavant@outlook.com&gt;
+* [joyeecheung](https://github.com/joyeecheung) -
+**Joyee Cheung** &lt;joyeec9h3@gmail.com&gt;
 * [julianduque](https://github.com/julianduque) -
 **Julian Duque** &lt;julianduquej@gmail.com&gt;
 * [JungMinu](https://github.com/JungMinu) -
@@ -319,8 +321,6 @@ more information about the governance of the Node.js project, see
 **Steven R Loomis** &lt;srloomis@us.ibm.com&gt;
 * [stefanmb](https://github.com/stefanmb) -
 **Stefan Budeanu** &lt;stefan@budeanu.com&gt;
-* [targos](https://github.com/targos) -
-**Michaël Zasso** &lt;targos@protonmail.com&gt;
 * [tellnes](https://github.com/tellnes) -
 **Christian Tellnes** &lt;christian@tellnes.no&gt;
 * [thekemkid](https://github.com/thekemkid) -
@@ -337,8 +337,6 @@ more information about the governance of the Node.js project, see
 **Yorkie Liu** &lt;yorkiefixer@gmail.com&gt;
 * [yosuke-furukawa](https://github.com/yosuke-furukawa) -
 **Yosuke Furukawa** &lt;yosuke.furukawa@gmail.com&gt;
-* [zkat](https://github.com/zkat) -
-**Kat Marchán** &lt;kzm@sykosomatic.org&gt;
 
 Collaborators (which includes CTC members) follow the
 [COLLABORATOR_GUIDE.md](./COLLABORATOR_GUIDE.md) in maintaining the Node.js
@@ -362,15 +360,12 @@ Releases of Node.js and io.js will be signed with one of the following GPG keys:
 `C4F0DFFF4E8C1A8236409D08E73BC641CC11F4C8`
 * **Rod Vagg** &lt;rod@vagg.org&gt;
 `DD8F2338BAE7501E3DD5AC78C273792F7D83545D`
-* **Sam Roberts** &lt;octetcloud@keybase.io&gt;
-`0034A06D9D9B0064CE8ADF6BF1747F4AD2306D93`
 
 The full set of trusted release keys can be imported by running:
 
 ```shell
 gpg --keyserver pool.sks-keyservers.net --recv-keys 9554F04D7259F04124DE6B476D5A82AC7E37093B
 gpg --keyserver pool.sks-keyservers.net --recv-keys 94AE36675C464D64BAFA68DD7434390BDBE9B9C5
-gpg --keyserver pool.sks-keyservers.net --recv-keys 0034A06D9D9B0064CE8ADF6BF1747F4AD2306D93
 gpg --keyserver pool.sks-keyservers.net --recv-keys FD3A5288F042B6850C66B31F09FE44734EB7990E
 gpg --keyserver pool.sks-keyservers.net --recv-keys 71DCFD284A79C3B38668286BC97EC7A07EDE3FC1
 gpg --keyserver pool.sks-keyservers.net --recv-keys DD8F2338BAE7501E3DD5AC78C273792F7D83545D

@@ -4,7 +4,7 @@ module.exports = function generate__limitProperties(it, $keyword) {
   var $lvl = it.level;
   var $dataLvl = it.dataLevel;
   var $schema = it.schema[$keyword];
-  var $schemaPath = it.schemaPath + '.' + $keyword;
+  var $schemaPath = it.schemaPath + it.util.getProperty($keyword);
   var $errSchemaPath = it.errSchemaPath + '/' + $keyword;
   var $breakOnError = !it.opts.allErrors;
   var $errorKeyword;

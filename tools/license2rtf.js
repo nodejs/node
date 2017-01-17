@@ -122,7 +122,7 @@ function ParagraphParser() {
 
     // Detect separator "lines" within a block. These mark a paragraph break
     // and are stripped from the output.
-    if (/^\s*[=*\-]{5,}\s*$/.test(line)) {
+    if (/^\s*[=*-]{5,}\s*$/.test(line)) {
       flushParagraph();
       return;
     }
@@ -286,7 +286,7 @@ function RtfGenerator() {
 
   function rtfEscape(string) {
     return string
-      .replace(/[\\\{\}]/g, function(m) {
+      .replace(/[\\{}]/g, function(m) {
         return '\\' + m;
       })
       .replace(/\t/g, function() {

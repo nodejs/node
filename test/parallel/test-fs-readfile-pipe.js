@@ -15,7 +15,7 @@ const dataExpected = fs.readFileSync(__filename, 'utf8');
 
 if (process.argv[2] === 'child') {
   fs.readFile('/dev/stdin', function(er, data) {
-    if (er) throw er;
+    assert.ifError(er);
     process.stdout.write(data);
   });
   return;
@@ -26,8 +26,7 @@ const f = JSON.stringify(__filename);
 const node = JSON.stringify(process.execPath);
 const cmd = `cat ${f} | ${node} ${f} child`;
 exec(cmd, function(err, stdout, stderr) {
-  if (err) console.error(err);
-  assert(!err, 'it exits normally');
+  assert.ifError(err);
   assert.strictEqual(stdout, dataExpected, 'it reads the file and outputs it');
   assert.strictEqual(stderr, '', 'it does not write to stderr');
   console.log('ok');

@@ -11,7 +11,7 @@ const spawn = require('child_process').spawn;
 const defaultCoreList = require('crypto').constants.defaultCoreCipherList;
 
 function doCheck(arg, check) {
-  var out = '';
+  let out = '';
   arg = arg.concat([
     '-pe',
     'require("crypto").constants.defaultCipherList'
@@ -21,7 +21,7 @@ function doCheck(arg, check) {
     .stdout.on('data', function(chunk) {
       out += chunk;
     }).on('end', function() {
-      assert.equal(out.trim(), check);
+      assert.strictEqual(out.trim(), check);
     }).on('error', common.fail);
 }
 

@@ -1,11 +1,11 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var vm = require('vm');
+const assert = require('assert');
+const vm = require('vm');
 
-var ctx = vm.createContext();
+const ctx = vm.createContext();
 ctx.window = ctx;
 
-var thisVal = vm.runInContext('this;', ctx);
-var windowVal = vm.runInContext('window;', ctx);
+const thisVal = vm.runInContext('this;', ctx);
+const windowVal = vm.runInContext('window;', ctx);
 assert.strictEqual(thisVal, windowVal);

@@ -16,7 +16,7 @@ const options = {
 };
 
 const TOTAL = 4;
-var waiting = TOTAL;
+let waiting = TOTAL;
 
 const server = https.Server(options, function(req, res) {
   if (--waiting === 0) server.close();
@@ -31,14 +31,14 @@ server.listen(0, function() {
   function expectResponse(id) {
     return common.mustCall(function(res) {
       res.resume();
-      assert.equal(res.headers['x-sni'], 'sni.' + id);
+      assert.strictEqual(res.headers['x-sni'], 'sni.' + id);
     });
   }
 
-  var agent = new https.Agent({
+  const agent = new https.Agent({
     maxSockets: 1
   });
-  for (var j = 0; j < TOTAL; j++) {
+  for (let j = 0; j < TOTAL; j++) {
     https.get({
       agent: agent,
 

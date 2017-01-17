@@ -1,9 +1,9 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var dns = require('dns');
+const assert = require('assert');
+const dns = require('dns');
 
 dns.resolveTxt('www.microsoft.com', function(err, records) {
-  assert.equal(err, null);
-  assert.equal(records.length, 0);
+  assert.strictEqual(err, null);
+  assert.strictEqual(records.length, 0);
 });

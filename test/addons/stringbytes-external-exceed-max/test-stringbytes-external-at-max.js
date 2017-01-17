@@ -14,8 +14,9 @@ if (!common.enoughTestMem) {
   return;
 }
 
+let buf;
 try {
-  var buf = Buffer.allocUnsafe(kStringMaxLength);
+  buf = Buffer.allocUnsafe(kStringMaxLength);
 } catch (e) {
   // If the exception is not due to memory confinement then rethrow it.
   if (e.message !== 'Array buffer allocation failed') throw (e);
@@ -30,4 +31,4 @@ if (!binding.ensureAllocation(2 * kStringMaxLength)) {
 }
 
 const maxString = buf.toString('latin1');
-assert.equal(maxString.length, kStringMaxLength);
+assert.strictEqual(maxString.length, kStringMaxLength);

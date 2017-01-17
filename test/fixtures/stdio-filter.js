@@ -1,4 +1,4 @@
-var util = require('util');
+const util = require('util');
 
 var regexIn = process.argv[2];
 var replacement = process.argv[3];

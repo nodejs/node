@@ -90,7 +90,7 @@ function loadGtoc(cb) {
 function toID(filename) {
   return filename
     .replace('.html', '')
-    .replace(/[^\w\-]/g, '-')
+    .replace(/[^\w-]/g, '-')
     .replace(/-+/g, '-');
 }
 
@@ -284,7 +284,7 @@ function linkJsTypeDocs(text) {
   // Handle types, for example the source Markdown might say
   // "This argument should be a {Number} or {String}"
   for (i = 0; i < parts.length; i += 2) {
-    typeMatches = parts[i].match(/\{([^\}]+)\}/g);
+    typeMatches = parts[i].match(/\{([^}]+)\}/g);
     if (typeMatches) {
       typeMatches.forEach(function(typeMatch) {
         parts[i] = parts[i].replace(typeMatch, typeParser.toLink(typeMatch));

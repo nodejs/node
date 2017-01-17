@@ -88,7 +88,7 @@ const errorOutput = fs.createWriteStream('./stderr.log');
 // custom simple logger
 const logger = new Console(output, errorOutput);
 // use it like console
-var count = 5;
+const count = 5;
 logger.log('count: %d', count);
 // in stdout.log: count 5
 ```
@@ -135,15 +135,20 @@ the default behavior of `console` in Node.js.
 
 // Creates a simple extension of console with a
 // new impl for assert without monkey-patching.
-const myConsole = Object.setPrototypeOf({
-  assert(assertion, message, ...args) {
-    try {
-      console.assert(assertion, message, ...args);
-    } catch (err) {
-      console.error(err.stack);
-    }
-  }
-}, console);
+const myConsole = Object.create(console, {
+  assert: {
+    value: function assert(assertion, message, ...args) {
+      try {
+        console.assert(assertion, message, ...args);
+      } catch (err) {
+        console.error(err.stack);
+      }
+    },
+    configurable: true,
+    enumerable: true,
+    writable: true,
+  },
+});
 
 module.exports = myConsole;
 ```
@@ -217,7 +222,7 @@ values similar to printf(3) (the arguments are all passed to
 [`util.format()`][]).
 
 ```js
-var count = 5;
+const count = 5;
 console.log('count: %d', count);
 // Prints: count: 5, to stdout
 console.log('count:', count);
@@ -248,7 +253,7 @@ prints the result to `stdout`:
 
 ```js
 console.time('100-elements');
-for (var i = 0; i < 100; i++) {
+for (let i = 0; i < 100; i++) {
   ;
 }
 console.timeEnd('100-elements');

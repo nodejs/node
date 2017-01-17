@@ -2,7 +2,7 @@
 var lifecycle = require('../../utils/lifecycle.js')
 var packageId = require('../../utils/package-id.js')
 
-module.exports = function (top, buildpath, pkg, log, next) {
-  log.silly('test', packageId(pkg), buildpath)
-  lifecycle(pkg.package, 'test', buildpath, false, false, next)
+module.exports = function (staging, pkg, log, next) {
+  log.silly('test', packageId(pkg))
+  lifecycle(pkg.package, 'test', pkg.path, false, false, next)
 }

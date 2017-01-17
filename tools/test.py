@@ -298,7 +298,7 @@ class TapProgressIndicator(SimpleProgressIndicator):
 
       if output.HasCrashed():
         self.severity = 'crashed'
-        exit_code = output.output.exit_code 
+        exit_code = output.output.exit_code
         self.traceback = "oh no!\nexit code: " + PrintCrashed(exit_code)
 
       if output.HasTimedOut():
@@ -683,11 +683,12 @@ def Execute(args, context, timeout=None, env={}, faketty=False):
   if faketty:
     import pty
     (out_master, fd_out) = pty.openpty()
-    fd_err = fd_out
+    fd_in = fd_err = fd_out
     pty_out = out_master
   else:
     (fd_out, outname) = tempfile.mkstemp()
     (fd_err, errname) = tempfile.mkstemp()
+    fd_in = 0
     pty_out = None
 
   # Extend environment
@@ -699,6 +700,7 @@ def Execute(args, context, timeout=None, env={}, faketty=False):
     context,
     timeout,
     args = args,
+    stdin = fd_in,
     stdout = fd_out,
     stderr = fd_err,
     env = env_copy,
@@ -1461,6 +1463,13 @@ def SplitPath(s):
   stripped = [ c.strip() for c in s.split('/') ]
   return [ Pattern(s) for s in stripped if len(s) > 0 ]
 
+def NormalizePath(path):
+  # strip the extra path information of the specified test
+  if path.startswith('test/'):
+    path = path[5:]
+  if path.endswith('.js'):
+    path = path[:-3]
+  return path
 
 def GetSpecialCommandProcessor(value):
   if (not value) or (value.find('@') == -1):
@@ -1534,7 +1543,7 @@ def Main():
   else:
     paths = [ ]
     for arg in args:
-      path = SplitPath(arg)
+      path = SplitPath(NormalizePath(arg))
       paths.append(path)
 
   # Check for --valgrind option. If enabled, we overwrite the special
@@ -1619,9 +1628,9 @@ def Main():
 
   tempdir = os.environ.get('NODE_TEST_DIR') or options.temp_dir
   if tempdir:
+    os.environ['NODE_TEST_DIR'] = tempdir
     try:
       os.makedirs(tempdir)
-      os.environ['NODE_TEST_DIR'] = tempdir
     except OSError as exception:
       if exception.errno != errno.EEXIST:
         print "Could not create the temporary directory", options.temp_dir

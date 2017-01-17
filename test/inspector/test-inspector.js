@@ -17,6 +17,12 @@ function checkListResponse(err, response) {
 function checkVersion(err, response) {
   assert.ifError(err);
   assert.ok(response);
+  const expected = {
+    'Browser': 'node.js/' + process.version,
+    'Protocol-Version': '1.1',
+  };
+  assert.strictEqual(JSON.stringify(response),
+                     JSON.stringify(expected));
 }
 
 function checkBadPath(err, response) {
@@ -108,10 +114,10 @@ function testSetBreakpointAndResume(session) {
   const commands = [
       { 'method': 'Debugger.setBreakpointByUrl',
         'params': { 'lineNumber': 5,
-                     'url': session.mainScriptPath,
-                     'columnNumber': 0,
-                     'condition': ''
-                   }
+                    'url': session.mainScriptPath,
+                    'columnNumber': 0,
+                    'condition': ''
+        }
       },
       { 'method': 'Debugger.resume'},
       [ { 'method': 'Debugger.getScriptSource',

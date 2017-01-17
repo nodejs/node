@@ -1,11 +1,11 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var http = require('http');
+const assert = require('assert');
+const http = require('http');
 
-var body = 'hello world\n';
+const body = 'hello world\n';
 
-var httpServer = http.createServer(common.mustCall(function(req, res) {
+const httpServer = http.createServer(common.mustCall(function(req, res) {
   httpServer.close();
 
   res.on('finish', common.mustCall(function() {
@@ -16,9 +16,9 @@ var httpServer = http.createServer(common.mustCall(function(req, res) {
 
   // Write 1.5mb to cause some requests to buffer
   // Also, mix up the encodings a bit.
-  var chunk = new Array(1024 + 1).join('7');
-  var bchunk = Buffer.from(chunk);
-  for (var i = 0; i < 1024; i++) {
+  const chunk = new Array(1024 + 1).join('7');
+  const bchunk = Buffer.from(chunk);
+  for (let i = 0; i < 1024; i++) {
     res.write(chunk);
     res.write(bchunk);
     res.write(chunk, 'hex');

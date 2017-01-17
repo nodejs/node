@@ -28,7 +28,7 @@ keyList.splice(0, 1);
 // want to improve under https://github.com/nodejs/node/issues/5085.
 // strip out fs watch related parts for now
 if (common.isAix) {
-  for (var i = 0; i < keyList.length; i++) {
+  for (let i = 0; i < keyList.length; i++) {
     if ((keyList[i] === 'FSEVENTWRAP') || (keyList[i] === 'STATWATCHER')) {
       keyList.splice(i, 1);
     }
@@ -46,7 +46,7 @@ async_wrap.setupHooks({ init });
 async_wrap.enable();
 
 
-setTimeout(function() { });
+setTimeout(function() { }, 1);
 
 fs.stat(__filename, noop);
 

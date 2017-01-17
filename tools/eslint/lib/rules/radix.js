@@ -145,7 +145,7 @@ module.exports = {
                 // Check `parseInt()`
                 variable = astUtils.getVariableByName(scope, "parseInt");
                 if (!isShadowed(variable)) {
-                    variable.references.forEach(function(reference) {
+                    variable.references.forEach(reference => {
                         const node = reference.identifier;
 
                         if (astUtils.isCallee(node)) {
@@ -157,7 +157,7 @@ module.exports = {
                 // Check `Number.parseInt()`
                 variable = astUtils.getVariableByName(scope, "Number");
                 if (!isShadowed(variable)) {
-                    variable.references.forEach(function(reference) {
+                    variable.references.forEach(reference => {
                         const node = reference.identifier.parent;
 
                         if (isParseIntMethod(node) && astUtils.isCallee(node)) {

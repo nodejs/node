@@ -4,10 +4,10 @@ const assert = require('assert');
 const http = require('http');
 const url = require('url');
 
-var responses_sent = 0;
-var responses_recvd = 0;
-var body0 = '';
-var body1 = '';
+let responses_sent = 0;
+let responses_recvd = 0;
+let body0 = '';
+let body1 = '';
 
 const server = http.Server(function(req, res) {
   if (responses_sent === 0) {
@@ -36,7 +36,7 @@ const server = http.Server(function(req, res) {
   });
   req.resume();
 
-  //assert.equal('127.0.0.1', res.connection.remoteAddress);
+  //assert.strictEqual('127.0.0.1', res.connection.remoteAddress);
 });
 server.listen(0);
 

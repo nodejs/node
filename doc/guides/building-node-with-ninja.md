@@ -16,7 +16,7 @@ ninja: Entering directory `out/Release`
 
 The bottom line will change while building, showing the progress as `[finished/total]` build steps.
 This is useful output that `make` does not produce and is one of the benefits of using Ninja.
-Also, Ninja will likely compile much faster than even `make -j8` (or `-j<number of processor threads on your machine>`).
+Also, Ninja will likely compile much faster than even `make -j4` (or `-j<number of processor threads on your machine>`).
 
 ## Considerations
 

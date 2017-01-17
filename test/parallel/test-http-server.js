@@ -1,38 +1,38 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var net = require('net');
-var http = require('http');
-var url = require('url');
-var qs = require('querystring');
+const assert = require('assert');
+const net = require('net');
+const http = require('http');
+const url = require('url');
+const qs = require('querystring');
 
-var request_number = 0;
-var requests_sent = 0;
-var server_response = '';
-var client_got_eof = false;
+let request_number = 0;
+let requests_sent = 0;
+let server_response = '';
+let client_got_eof = false;
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   res.id = request_number;
   req.id = request_number++;
 
   if (req.id === 0) {
-    assert.equal('GET', req.method);
-    assert.equal('/hello', url.parse(req.url).pathname);
-    assert.equal('world', qs.parse(url.parse(req.url).query).hello);
-    assert.equal('b==ar', qs.parse(url.parse(req.url).query).foo);
+    assert.strictEqual('GET', req.method);
+    assert.strictEqual('/hello', url.parse(req.url).pathname);
+    assert.strictEqual('world', qs.parse(url.parse(req.url).query).hello);
+    assert.strictEqual('b==ar', qs.parse(url.parse(req.url).query).foo);
   }
 
   if (req.id === 1) {
-    assert.equal('POST', req.method);
-    assert.equal('/quit', url.parse(req.url).pathname);
+    assert.strictEqual('POST', req.method);
+    assert.strictEqual('/quit', url.parse(req.url).pathname);
   }
 
   if (req.id === 2) {
-    assert.equal('foo', req.headers['x-x']);
+    assert.strictEqual('foo', req.headers['x-x']);
   }
 
   if (req.id === 3) {
-    assert.equal('bar', req.headers['x-x']);
+    assert.strictEqual('bar', req.headers['x-x']);
     this.close();
   }
 
@@ -48,7 +48,7 @@ server.listen(0);
 server.httpAllowHalfOpen = true;
 
 server.on('listening', function() {
-  var c = net.createConnection(this.address().port);
+  const c = net.createConnection(this.address().port);
 
   c.setEncoding('utf8');
 
@@ -75,7 +75,7 @@ server.on('listening', function() {
       // you set server.httpAllowHalfOpen=true, which we've done
       // above.
       c.end();
-      assert.equal(c.readyState, 'readOnly');
+      assert.strictEqual(c.readyState, 'readOnly');
       requests_sent += 2;
     }
 
@@ -86,19 +86,19 @@ server.on('listening', function() {
   });
 
   c.on('close', function() {
-    assert.equal(c.readyState, 'closed');
+    assert.strictEqual(c.readyState, 'closed');
   });
 });
 
 process.on('exit', function() {
-  assert.equal(4, request_number);
-  assert.equal(4, requests_sent);
+  assert.strictEqual(4, request_number);
+  assert.strictEqual(4, requests_sent);
 
-  var hello = new RegExp('/hello');
-  assert.equal(true, hello.exec(server_response) != null);
+  const hello = new RegExp('/hello');
+  assert.notStrictEqual(null, hello.exec(server_response));
 
-  var quit = new RegExp('/quit');
-  assert.equal(true, quit.exec(server_response) != null);
+  const quit = new RegExp('/quit');
+  assert.notStrictEqual(null, quit.exec(server_response));
 
-  assert.equal(true, client_got_eof);
+  assert.strictEqual(true, client_got_eof);
 });

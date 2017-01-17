@@ -122,7 +122,7 @@ module.exports = {
          */
         function checkConstantCondition(node) {
             if (node.test && isConstant(node.test, true)) {
-                context.report(node, "Unexpected constant condition.");
+                context.report({ node, message: "Unexpected constant condition." });
             }
         }
 

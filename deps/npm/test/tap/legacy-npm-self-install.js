@@ -45,7 +45,6 @@ test('npm-self-install', function (t) {
   var pathsep = isWin32 ? ';' : ':'
   env.npm_config_prefix = globalpath
   env.npm_config_global = 'true'
-  env.npm_config_npat = 'false'
   env.NODE_PATH = null
   env.npm_config_user_agent = null
   env.npm_config_color = 'always'

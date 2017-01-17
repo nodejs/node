@@ -5,6 +5,8 @@
  */
 "use strict";
 
+const astUtils = require("../ast-utils");
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -56,8 +58,6 @@ module.exports = {
         }
 
         const sourceCode = context.getSourceCode();
-        const fullLines = sourceCode.text.match(/.*(\r\n|\r|\n|\u2028|\u2029)/g) || [];
-        const lineStartLocations = fullLines.reduce((startIndices, nextLine) => startIndices.concat(startIndices[startIndices.length - 1] + nextLine.length), [0]);
 
         // Swallow the final newline, as some editors add it automatically and we don't want it to cause an issue
         const allLines = sourceCode.lines[sourceCode.lines.length - 1] === "" ? sourceCode.lines.slice(0, -1) : sourceCode.lines;
@@ -81,7 +81,12 @@ module.exports = {
                 return allLines
 
                     // Given a list of lines, first get a list of line numbers that are non-empty.
-                    .reduce((nonEmptyLineNumbers, line, index) => nonEmptyLineNumbers.concat(line.trim() || templateLiteralLines.has(index + 1) ? [index + 1] : []), [])
+                    .reduce((nonEmptyLineNumbers, line, index) => {
+                        if (line.trim() || templateLiteralLines.has(index + 1)) {
+                            nonEmptyLineNumbers.push(index + 1);
+                        }
+                        return nonEmptyLineNumbers;
+                    }, [])
 
                     // Add a value at the end to allow trailing empty lines to be checked.
                     .concat(allLines.length + 1)
@@ -104,10 +109,15 @@ module.exports = {
                         if (lineNumber - lastLineNumber - 1 > maxAllowed) {
                             context.report({
                                 node,
-                                loc: {start: {line: lastLineNumber + 1, column: 0}, end: {line: lineNumber, column: 0}},
+                                loc: { start: { line: lastLineNumber + 1, column: 0 }, end: { line: lineNumber, column: 0 } },
                                 message,
-                                data: {max: maxAllowed, pluralizedLines: maxAllowed === 1 ? "line" : "lines"},
-                                fix: fixer => fixer.removeRange([lineStartLocations[lastLineNumber], lineStartLocations[lineNumber - maxAllowed - 1]])
+                                data: { max: maxAllowed, pluralizedLines: maxAllowed === 1 ? "line" : "lines" },
+                                fix(fixer) {
+                                    return fixer.removeRange([
+                                        astUtils.getRangeIndexFromLocation(sourceCode, { line: lastLineNumber + 1, column: 0 }),
+                                        astUtils.getRangeIndexFromLocation(sourceCode, { line: lineNumber - maxAllowed, column: 0 })
+                                    ]);
+                                }
                             });
                         }
 

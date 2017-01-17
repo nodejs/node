@@ -252,7 +252,25 @@ RuleTester.prototype = {
     run(ruleName, rule, test) {
 
         const testerConfig = this.testerConfig,
+            requiredScenarios = ["valid", "invalid"],
+            scenarioErrors = [],
             result = {};
+
+        if (lodash.isNil(test) || typeof test !== "object") {
+            throw new Error(`Test Scenarios for rule ${ruleName} : Could not find test scenario object`);
+        }
+
+        requiredScenarios.forEach(scenarioType => {
+            if (lodash.isNil(test[scenarioType])) {
+                scenarioErrors.push(`Could not find any ${scenarioType} test scenarios`);
+            }
+        });
+
+        if (scenarioErrors.length > 0) {
+            throw new Error([
+                `Test Scenarios for rule ${ruleName} is invalid:`
+            ].concat(scenarioErrors).join("\n"));
+        }
 
         /* eslint-disable no-shadow */
 
@@ -307,9 +325,7 @@ RuleTester.prototype = {
                 if (validateSchema.errors) {
                     throw new Error([
                         `Schema for rule ${ruleName} is invalid:`
-                    ].concat(validateSchema.errors.map(function(error) {
-                        return `\t${error.field}: ${error.message}`;
-                    })).join("\n"));
+                    ].concat(validateSchema.errors.map(error => `\t${error.field}: ${error.message}`)).join("\n"));
                 }
             }
 
@@ -321,10 +337,10 @@ RuleTester.prototype = {
              * running the rule under test.
              */
             eslint.reset();
-            eslint.on("Program", function(node) {
+            eslint.on("Program", node => {
                 beforeAST = cloneDeeplyExcludesParent(node);
 
-                eslint.on("Program:exit", function(node) {
+                eslint.on("Program:exit", node => {
                     afterAST = cloneDeeplyExcludesParent(node);
                 });
             });
@@ -448,7 +464,7 @@ RuleTester.prototype = {
                         }
 
                         if (item.errors[i].type) {
-                            assert.equal(messages[i].nodeType, item.errors[i].type, `Error type should be ${item.errors[i].type}`);
+                            assert.equal(messages[i].nodeType, item.errors[i].type, `Error type should be ${item.errors[i].type}, found ${messages[i].nodeType}`);
                         }
 
                         if (item.errors[i].hasOwnProperty("line")) {
@@ -488,18 +504,18 @@ RuleTester.prototype = {
          * This creates a mocha test suite and pipes all supplied info through
          * one of the templates above.
          */
-        RuleTester.describe(ruleName, function() {
-            RuleTester.describe("valid", function() {
-                test.valid.forEach(function(valid) {
-                    RuleTester.it(valid.code || valid, function() {
+        RuleTester.describe(ruleName, () => {
+            RuleTester.describe("valid", () => {
+                test.valid.forEach(valid => {
+                    RuleTester.it(valid.code || valid, () => {
                         testValidTemplate(ruleName, valid);
                     });
                 });
             });
 
-            RuleTester.describe("invalid", function() {
-                test.invalid.forEach(function(invalid) {
-                    RuleTester.it(invalid.code, function() {
+            RuleTester.describe("invalid", () => {
+                test.invalid.forEach(invalid => {
+                    RuleTester.it(invalid.code, () => {
                         testInvalidTemplate(ruleName, invalid);
                     });
                 });

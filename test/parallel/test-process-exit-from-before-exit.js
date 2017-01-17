@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 
 process.on('beforeExit', common.mustCall(function() {
   setTimeout(common.fail, 5);

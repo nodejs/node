@@ -54,6 +54,44 @@ function getRuleOptionsSchema(id) {
 }
 
 /**
+* Validates a rule's severity and returns the severity value. Throws an error if the severity is invalid.
+* @param {options} options The given options for the rule.
+* @returns {number|string} The rule's severity value
+*/
+function validateRuleSeverity(options) {
+    const severity = Array.isArray(options) ? options[0] : options;
+
+    if (severity !== 0 && severity !== 1 && severity !== 2 && !(typeof severity === "string" && /^(?:off|warn|error)$/i.test(severity))) {
+        throw new Error(`\tSeverity should be one of the following: 0 = off, 1 = warn, 2 = error (you passed '${util.inspect(severity).replace(/'/g, "\"").replace(/\n/g, "")}').\n`);
+    }
+
+    return severity;
+}
+
+/**
+* Validates the non-severity options passed to a rule, based on its schema.
+* @param {string} id The rule's unique name
+* @param {array} localOptions The options for the rule, excluding severity
+* @returns {void}
+*/
+function validateRuleSchema(id, localOptions) {
+    const schema = getRuleOptionsSchema(id);
+
+    if (!validators.rules[id] && schema) {
+        validators.rules[id] = schemaValidator(schema, { verbose: true });
+    }
+
+    const validateRule = validators.rules[id];
+
+    if (validateRule) {
+        validateRule(localOptions);
+        if (validateRule.errors) {
+            throw new Error(validateRule.errors.map(error => `\tValue "${error.value}" ${error.message}.\n`).join(""));
+        }
+    }
+}
+
+/**
  * Validates a rule's options against its schema.
  * @param {string} id The rule's unique name.
  * @param {array|number} options The given options for the rule.
@@ -61,58 +99,14 @@ function getRuleOptionsSchema(id) {
  * @returns {void}
  */
 function validateRuleOptions(id, options, source) {
-    const schema = getRuleOptionsSchema(id);
-    let validateRule = validators.rules[id],
-        severity,
-        localOptions,
-        validSeverity = true;
+    try {
+        const severity = validateRuleSeverity(options);
 
-    if (!validateRule && schema) {
-        validateRule = schemaValidator(schema, { verbose: true });
-        validators.rules[id] = validateRule;
-    }
-
-    // if it's not an array, it should be just a severity
-    if (Array.isArray(options)) {
-        localOptions = options.concat();    // clone
-        severity = localOptions.shift();
-    } else {
-        severity = options;
-        localOptions = [];
-    }
-
-    validSeverity = (
-        severity === 0 || severity === 1 || severity === 2 ||
-        (typeof severity === "string" && /^(?:off|warn|error)$/i.test(severity))
-    );
-
-    if (validateRule) {
-        validateRule(localOptions);
-    }
-
-    if ((validateRule && validateRule.errors) || !validSeverity) {
-        const message = [
-            source, ":\n",
-            "\tConfiguration for rule \"", id, "\" is invalid:\n"
-        ];
-
-        if (!validSeverity) {
-            message.push(
-                "\tSeverity should be one of the following: 0 = off, 1 = warn, 2 = error (you passed '",
-                util.inspect(severity).replace(/'/g, "\"").replace(/\n/g, ""),
-                "').\n"
-            );
+        if (severity !== 0 && !(typeof severity === "string" && severity.toLowerCase() === "off")) {
+            validateRuleSchema(id, Array.isArray(options) ? options.slice(1) : []);
         }
-
-        if (validateRule && validateRule.errors) {
-            validateRule.errors.forEach(function(error) {
-                message.push(
-                    "\tValue \"", error.value, "\" ", error.message, ".\n"
-                );
-            });
-        }
-
-        throw new Error(message.join(""));
+    } catch (err) {
+        throw new Error(`${source}:\n\tConfiguration for rule "${id}" is invalid:\n${err.message}`);
     }
 }
 
@@ -134,7 +128,7 @@ function validateEnvironment(environment, source) {
     }
 
     if (typeof environment === "object") {
-        Object.keys(environment).forEach(function(env) {
+        Object.keys(environment).forEach(env => {
             if (!Environments.get(env)) {
                 const message = [
                     source, ":\n",
@@ -158,7 +152,7 @@ function validateEnvironment(environment, source) {
 function validate(config, source) {
 
     if (typeof config.rules === "object") {
-        Object.keys(config.rules).forEach(function(id) {
+        Object.keys(config.rules).forEach(id => {
             validateRuleOptions(id, config.rules[id], source);
         });
     }

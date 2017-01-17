@@ -21,13 +21,13 @@ server.listen(0, function() {
       res = conn.write(buf);
       conn.uncork();
     }
-    assert.equal(i, N);
+    assert.strictEqual(i, N);
     conn.end();
   });
 });
 
 process.on('exit', function() {
-  assert.equal(server.connections, 0);
+  assert.strictEqual(server.connections, 0);
 });
 
 function handle(socket) {

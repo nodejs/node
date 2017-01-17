@@ -325,7 +325,7 @@ FormData.prototype.getLengthSync = function() {
   }
 
   // https://github.com/form-data/form-data/issues/40
-  if (this._valuesToMeasure.length) {
+  if (!this.hasKnownLength()) {
     // Some async length retrievers are present
     // therefore synchronous length calculation is false.
     // Please use getLength(callback) to get proper length
@@ -333,6 +333,19 @@ FormData.prototype.getLengthSync = function() {
   }
 
   return knownLength;
+};
+
+// Public API to check if length of added values is known
+// https://github.com/form-data/form-data/issues/196
+// https://github.com/form-data/form-data/issues/262
+FormData.prototype.hasKnownLength = function() {
+  var hasKnownLength = true;
+
+  if (this._valuesToMeasure.length) {
+    hasKnownLength = false;
+  }
+
+  return hasKnownLength;
 };
 
 FormData.prototype.getLength = function(cb) {

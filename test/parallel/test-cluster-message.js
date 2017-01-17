@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
+const net = require('net');
 
 function forEach(obj, fn) {
   Object.keys(obj).forEach(function(name, index) {
@@ -13,8 +13,8 @@ function forEach(obj, fn) {
 if (cluster.isWorker) {
   // Create a tcp server. This will be used as cluster-shared-server and as an
   // alternative IPC channel.
-  var server = net.Server();
-  var socket, message;
+  const server = net.Server();
+  let socket, message;
 
   function maybeReply() {
     if (!socket || !message) return;
@@ -42,7 +42,7 @@ if (cluster.isWorker) {
   server.listen(common.PORT, '127.0.0.1');
 } else if (cluster.isMaster) {
 
-  var checks = {
+  const checks = {
     global: {
       'receive': false,
       'correct': false
@@ -58,13 +58,13 @@ if (cluster.isWorker) {
   };
 
 
-  var client;
-  var check = function(type, result) {
+  let client;
+  const check = function(type, result) {
     checks[type].receive = true;
     checks[type].correct = result;
     console.error('check', checks);
 
-    var missing = false;
+    let missing = false;
     forEach(checks, function(type) {
       if (type.receive === false) missing = true;
     });
@@ -76,7 +76,7 @@ if (cluster.isWorker) {
   };
 
   // Spawn worker
-  var worker = cluster.fork();
+  const worker = cluster.fork();
 
   // When a IPC message is received from the worker
   worker.on('message', function(message) {

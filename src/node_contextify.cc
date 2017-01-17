@@ -383,19 +383,22 @@ class ContextifyContext {
     if (ctx->context_.IsEmpty())
       return;
 
+    auto attributes = PropertyAttribute::None;
     bool is_declared =
-        ctx->global_proxy()->HasRealNamedProperty(ctx->context(),
-                                                  property).FromJust();
-    bool is_contextual_store = ctx->global_proxy() != args.This();
+        ctx->global_proxy()->GetRealNamedPropertyAttributes(ctx->context(),
+                                                            property)
+        .To(&attributes);
+    bool read_only =
+        static_cast<int>(attributes) &
+        static_cast<int>(PropertyAttribute::ReadOnly);
 
-    bool set_property_will_throw =
-        args.ShouldThrowOnError() &&
-        !is_declared &&
-        is_contextual_store;
+    if (is_declared && read_only)
+      return;
 
-    if (!set_property_will_throw) {
-      ctx->sandbox()->Set(property, value);
-    }
+    if (!is_declared && args.ShouldThrowOnError())
+      return;
+
+    ctx->sandbox()->Set(property, value);
   }
 
 

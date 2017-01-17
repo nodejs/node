@@ -77,6 +77,9 @@ const release = os.release();
 console.log('release = ', release);
 is.string(release);
 assert.ok(release.length > 0);
+//TODO: Check format on more than just AIX
+if (common.isAix)
+  assert.ok(/^\d+\.\d+$/.test(release));
 
 const platform = os.platform();
 console.log('platform = ', platform);
@@ -104,8 +107,8 @@ switch (platform) {
       const filter = function(e) { return e.address === '127.0.0.1'; };
       const actual = interfaces.lo.filter(filter);
       const expected = [{ address: '127.0.0.1', netmask: '255.0.0.0',
-                        mac: '00:00:00:00:00:00', family: 'IPv4',
-                        internal: true }];
+                          mac: '00:00:00:00:00:00', family: 'IPv4',
+                          internal: true }];
       assert.deepStrictEqual(actual, expected);
       break;
     }
@@ -114,8 +117,8 @@ switch (platform) {
       const filter = function(e) { return e.address === '127.0.0.1'; };
       const actual = interfaces['Loopback Pseudo-Interface 1'].filter(filter);
       const expected = [{ address: '127.0.0.1', netmask: '255.0.0.0',
-                        mac: '00:00:00:00:00:00', family: 'IPv4',
-                        internal: true }];
+                          mac: '00:00:00:00:00:00', family: 'IPv4',
+                          internal: true }];
       assert.deepStrictEqual(actual, expected);
       break;
     }

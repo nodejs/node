@@ -1,9 +1,9 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const assert = require('assert');
+const net = require('net');
 
-var server = net.createServer({
+const server = net.createServer({
   allowHalfOpen: true
 }, common.mustCall(function(socket) {
   socket.resume();
@@ -12,7 +12,7 @@ var server = net.createServer({
 }));
 
 server.listen(0, function() {
-  var client = net.connect({
+  const client = net.connect({
     host: '127.0.0.1',
     port: this.address().port,
     allowHalfOpen: true

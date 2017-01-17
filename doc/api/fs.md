@@ -602,7 +602,9 @@ default value of 64 kb for the same parameter.
 
 `options` can include `start` and `end` values to read a range of bytes from
 the file instead of the entire file.  Both `start` and `end` are inclusive and
-start at 0. The `encoding` can be any one of those accepted by [`Buffer`][].
+start counting at 0. If `fd` is specified and `start` is omitted or `undefined`,
+`fs.createReadStream()` reads sequentially from the current file position.
+The `encoding` can be any one of those accepted by [`Buffer`][].
 
 If `fd` is specified, `ReadStream` will ignore the `path` argument and will use
 the specified file descriptor. This means that no `'open'` event will be
@@ -1279,7 +1281,7 @@ added: v0.0.2
 -->
 
 * `fd` {Integer}
-* `buffer` {String | Buffer}
+* `buffer` {String | Buffer | Uint8Array}
 * `offset` {Integer}
 * `length` {Integer}
 * `position` {Integer}
@@ -1425,7 +1427,7 @@ added: v0.1.21
 -->
 
 * `fd` {Integer}
-* `buffer` {String | Buffer}
+* `buffer` {String | Buffer | Uint8Array}
 * `offset` {Integer}
 * `length` {Integer}
 * `position` {Integer}
@@ -1822,7 +1824,7 @@ added: v0.0.2
 -->
 
 * `fd` {Integer}
-* `buffer` {Buffer}
+* `buffer` {Buffer | Uint8Array}
 * `offset` {Integer}
 * `length` {Integer}
 * `position` {Integer}
@@ -1889,7 +1891,7 @@ added: v0.1.29
 -->
 
 * `file` {String | Buffer | Integer} filename or file descriptor
-* `data` {String | Buffer}
+* `data` {String | Buffer | Uint8Array}
 * `options` {Object | String}
   * `encoding` {String | Null} default = `'utf8'`
   * `mode` {Integer} default = `0o666`
@@ -1932,7 +1934,7 @@ added: v0.1.29
 -->
 
 * `file` {String | Buffer | Integer} filename or file descriptor
-* `data` {String | Buffer}
+* `data` {String | Buffer | Uint8Array}
 * `options` {Object | String}
   * `encoding` {String | Null} default = `'utf8'`
   * `mode` {Integer} default = `0o666`
@@ -1946,7 +1948,7 @@ added: v0.1.21
 -->
 
 * `fd` {Integer}
-* `buffer` {Buffer}
+* `buffer` {Buffer | Uint8Array}
 * `offset` {Integer}
 * `length` {Integer}
 * `position` {Integer}

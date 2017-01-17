@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const stream = require('stream');
 const str = 'asdfasdfasdfasdfasdf';
@@ -10,36 +10,32 @@ const r = new stream.Readable({
 });
 
 let reads = 0;
-let eofed = false;
-let ended = false;
 
-r._read = function(n) {
+function _read() {
   if (reads === 0) {
     setTimeout(function() {
       r.push(str);
-    });
+    }, 1);
     reads++;
   } else if (reads === 1) {
-    var ret = r.push(str);
+    const ret = r.push(str);
     assert.strictEqual(ret, false);
     reads++;
   } else {
-    assert(!eofed);
-    eofed = true;
     r.push(null);
   }
-};
+}
 
-r.on('end', function() {
-  ended = true;
-});
+r._read = common.mustCall(_read, 3);
+
+r.on('end', common.mustCall(function() {}));
 
 // push some data in to start.
 // we've never gotten any read event at this point.
-var ret = r.push(str);
+const ret = r.push(str);
 // should be false.  > hwm
 assert(!ret);
-var chunk = r.read();
+let chunk = r.read();
 assert.strictEqual(chunk, str);
 chunk = r.read();
 assert.strictEqual(chunk, null);
@@ -54,11 +50,4 @@ r.once('readable', function() {
 
   chunk = r.read();
   assert.strictEqual(chunk, null);
-});
-
-process.on('exit', function() {
-  assert(eofed);
-  assert(ended);
-  assert.strictEqual(reads, 2);
-  console.log('ok');
 });

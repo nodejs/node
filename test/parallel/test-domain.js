@@ -2,28 +2,28 @@
 // Simple tests of most basic domain functionality.
 
 require('../common');
-var assert = require('assert');
-var domain = require('domain');
-var events = require('events');
-var fs = require('fs');
-var caught = 0;
-var expectCaught = 0;
+const assert = require('assert');
+const domain = require('domain');
+const events = require('events');
+const fs = require('fs');
+let caught = 0;
+let expectCaught = 0;
 
-var d = new domain.Domain();
-var e = new events.EventEmitter();
+const d = new domain.Domain();
+const e = new events.EventEmitter();
 
 d.on('error', function(er) {
   console.error('caught', er && (er.message || er));
 
-  var er_message = er.message;
-  var er_path = er.path;
+  let er_message = er.message;
+  let er_path = er.path;
 
   // On windows, error messages can contain full path names. If this is the
   // case, remove the directory part.
   if (typeof er_path === 'string') {
-    var slash = er_path.lastIndexOf('\\');
+    const slash = er_path.lastIndexOf('\\');
     if (slash !== -1) {
-      var dir = er_path.slice(0, slash + 1);
+      const dir = er_path.slice(0, slash + 1);
       er_path = er_path.replace(dir, '');
       er_message = er_message.replace(dir, '');
     }
@@ -31,67 +31,67 @@ d.on('error', function(er) {
 
   switch (er_message) {
     case 'emitted':
-      assert.equal(er.domain, d);
-      assert.equal(er.domainEmitter, e);
-      assert.equal(er.domainThrown, false);
+      assert.strictEqual(er.domain, d);
+      assert.strictEqual(er.domainEmitter, e);
+      assert.strictEqual(er.domainThrown, false);
       break;
 
     case 'bound':
       assert.ok(!er.domainEmitter);
-      assert.equal(er.domain, d);
-      assert.equal(er.domainBound, fn);
-      assert.equal(er.domainThrown, false);
+      assert.strictEqual(er.domain, d);
+      assert.strictEqual(er.domainBound, fn);
+      assert.strictEqual(er.domainThrown, false);
       break;
 
     case 'thrown':
       assert.ok(!er.domainEmitter);
-      assert.equal(er.domain, d);
-      assert.equal(er.domainThrown, true);
+      assert.strictEqual(er.domain, d);
+      assert.strictEqual(er.domainThrown, true);
       break;
 
     case "ENOENT: no such file or directory, open 'this file does not exist'":
-      assert.equal(er.domain, d);
-      assert.equal(er.domainThrown, false);
-      assert.equal(typeof er.domainBound, 'function');
+      assert.strictEqual(er.domain, d);
+      assert.strictEqual(er.domainThrown, false);
+      assert.strictEqual(typeof er.domainBound, 'function');
       assert.ok(!er.domainEmitter);
-      assert.equal(er.code, 'ENOENT');
-      assert.equal(er_path, 'this file does not exist');
-      assert.equal(typeof er.errno, 'number');
+      assert.strictEqual(er.code, 'ENOENT');
+      assert.strictEqual(er_path, 'this file does not exist');
+      assert.strictEqual(typeof er.errno, 'number');
       break;
 
     case
     "ENOENT: no such file or directory, open 'stream for nonexistent file'":
-      assert.equal(typeof er.errno, 'number');
-      assert.equal(er.code, 'ENOENT');
-      assert.equal(er_path, 'stream for nonexistent file');
-      assert.equal(er.domain, d);
-      assert.equal(er.domainEmitter, fst);
+      assert.strictEqual(typeof er.errno, 'number');
+      assert.strictEqual(er.code, 'ENOENT');
+      assert.strictEqual(er_path, 'stream for nonexistent file');
+      assert.strictEqual(er.domain, d);
+      assert.strictEqual(er.domainEmitter, fst);
       assert.ok(!er.domainBound);
-      assert.equal(er.domainThrown, false);
+      assert.strictEqual(er.domainThrown, false);
       break;
 
     case 'implicit':
-      assert.equal(er.domainEmitter, implicit);
-      assert.equal(er.domain, d);
-      assert.equal(er.domainThrown, false);
+      assert.strictEqual(er.domainEmitter, implicit);
+      assert.strictEqual(er.domain, d);
+      assert.strictEqual(er.domainThrown, false);
       assert.ok(!er.domainBound);
       break;
 
     case 'implicit timer':
-      assert.equal(er.domain, d);
-      assert.equal(er.domainThrown, true);
+      assert.strictEqual(er.domain, d);
+      assert.strictEqual(er.domainThrown, true);
       assert.ok(!er.domainEmitter);
       assert.ok(!er.domainBound);
       break;
 
     case 'Cannot read property \'isDirectory\' of undefined':
-      assert.equal(er.domain, d);
+      assert.strictEqual(er.domain, d);
       assert.ok(!er.domainEmitter);
       assert.ok(!er.domainBound);
       break;
 
     case 'nextTick execution loop':
-      assert.equal(er.domain, d);
+      assert.strictEqual(er.domain, d);
       assert.ok(!er.domainEmitter);
       assert.ok(!er.domainBound);
       break;
@@ -107,7 +107,8 @@ d.on('error', function(er) {
 
 process.on('exit', function() {
   console.error('exit', caught, expectCaught);
-  assert.equal(caught, expectCaught, 'caught the expected number of errors');
+  assert.strictEqual(caught, expectCaught,
+                     'caught the expected number of errors');
   console.log('ok');
 });
 
@@ -128,7 +129,7 @@ expectCaught++;
 // set up while in the scope of the d domain.
 d.run(function() {
   process.nextTick(function() {
-    var i = setInterval(function() {
+    const i = setInterval(function() {
       clearInterval(i);
       setTimeout(function() {
         fs.stat('this file does not exist', function(er, stat) {
@@ -136,8 +137,8 @@ d.run(function() {
           // pretty common error.
           console.log(stat.isDirectory());
         });
-      });
-    });
+      }, 1);
+    }, 1);
   });
 });
 expectCaught++;
@@ -147,7 +148,7 @@ expectCaught++;
 d.run(function() {
   setTimeout(function() {
     throw new Error('implicit timer');
-  });
+  }, 1);
 });
 expectCaught++;
 
@@ -161,18 +162,18 @@ expectCaught++;
 // get rid of the `if (er) return cb(er)` malarky, by intercepting
 // the cb functions to the domain, and using the intercepted function
 // as a callback instead.
-function fn(er) {
+function fn() {
   throw new Error('This function should never be called!');
 }
 
-var bound = d.intercept(fn);
+let bound = d.intercept(fn);
 bound(new Error('bound'));
 expectCaught++;
 
 
 // intercepted should never pass first argument to callback
 function fn2(data) {
-  assert.equal(data, 'data', 'should not be null err argument');
+  assert.strictEqual(data, 'data', 'should not be null err argument');
 }
 
 bound = d.intercept(fn2);
@@ -181,8 +182,8 @@ bound(null, 'data');
 // intercepted should never pass first argument to callback
 // even if arguments length is more than 2.
 function fn3(data, data2) {
-  assert.equal(data, 'data', 'should not be null err argument');
-  assert.equal(data2, 'data2', 'should not be data argument');
+  assert.strictEqual(data, 'data', 'should not be null err argument');
+  assert.strictEqual(data2, 'data2', 'should not be data argument');
 }
 
 bound = d.intercept(fn3);
@@ -209,7 +210,7 @@ expectCaught++;
 
 
 // implicit addition by being created within a domain-bound context.
-var implicit;
+let implicit;
 
 d.run(function() {
   implicit = new events.EventEmitter();
@@ -222,25 +223,25 @@ setTimeout(function() {
 expectCaught++;
 
 
-var result = d.run(function() {
+let result = d.run(function() {
   return 'return value';
 });
-assert.equal(result, 'return value');
+assert.strictEqual(result, 'return value');
 
 
 // check if the executed function take in count the applied parameters
 result = d.run(function(a, b) {
   return a + ' ' + b;
 }, 'return', 'value');
-assert.equal(result, 'return value');
+assert.strictEqual(result, 'return value');
 
 
-var fst = fs.createReadStream('stream for nonexistent file');
+const fst = fs.createReadStream('stream for nonexistent file');
 d.add(fst);
 expectCaught++;
 
 [42, null, , false, function() {}, 'string'].forEach(function(something) {
-  var d = new domain.Domain();
+  const d = new domain.Domain();
   d.run(function() {
     process.nextTick(function() {
       throw something;

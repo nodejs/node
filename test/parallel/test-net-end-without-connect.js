@@ -1,6 +1,6 @@
 'use strict';
 require('../common');
-var net = require('net');
+const net = require('net');
 
-var sock = new net.Socket();
+const sock = new net.Socket();
 sock.end();  // Should not throw.

@@ -29,8 +29,21 @@ assert.strictEqual(sp.toString(), serialized);
 
 assert.strictEqual(m.search, `?${serialized}`);
 
-var key, val, n = 0;
+assert.strictEqual(sp[Symbol.iterator], sp.entries);
+
+let key, val, n = 0;
 for ([key, val] of sp) {
   assert.strictEqual(key, 'a');
   assert.strictEqual(val, String(values[n++]));
 }
+n = 0;
+for (key of sp.keys()) {
+  assert.strictEqual(key, 'a');
+}
+n = 0;
+for (val of sp.values()) {
+  assert.strictEqual(val, String(values[n++]));
+}
+
+m.search = '?a=a&b=b';
+assert.strictEqual(sp.toString(), 'a=a&b=b');

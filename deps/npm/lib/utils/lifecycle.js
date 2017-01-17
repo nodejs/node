@@ -142,13 +142,37 @@ function lifecycle_ (pkg, stage, wd, env, unsafe, failOk, cb) {
 }
 
 function shouldPrependCurrentNodeDirToPATH () {
+  var cfgsetting = npm.config.get('scripts-prepend-node-path')
+  if (cfgsetting === false) return false
+  if (cfgsetting === true) return true
+
+  var isDifferentNodeInPath
+
   var isWindows = process.platform === 'win32'
+  var foundExecPath
   try {
-    var foundExecPath = which.sync(path.basename(process.execPath), {pathExt: isWindows ? ';' : ':'})
-    return process.execPath.toUpperCase() !== foundExecPath.toUpperCase()
+    foundExecPath = which.sync(path.basename(process.execPath), {pathExt: isWindows ? ';' : ':'})
+    // Apply `fs.realpath()` here to avoid false positives when `node` is a symlinked executable.
+    isDifferentNodeInPath = fs.realpathSync(process.execPath).toUpperCase() !==
+        fs.realpathSync(foundExecPath).toUpperCase()
   } catch (e) {
-    return true
+    isDifferentNodeInPath = true
   }
+
+  if (cfgsetting === 'warn-only') {
+    if (isDifferentNodeInPath && !shouldPrependCurrentNodeDirToPATH.hasWarned) {
+      if (foundExecPath) {
+        log.warn('lifecycle', 'The node binary used for scripts is', foundExecPath, 'but npm is using', process.execPath, 'itself. Use the `--scripts-prepend-node-path` option to include the path for the node binary npm was executed with.')
+      } else {
+        log.warn('lifecycle', 'npm is using', process.execPath, 'but there is no node binary in the current PATH. Use the `--scripts-prepend-node-path` option to include the path for the node binary npm was executed with.')
+      }
+      shouldPrependCurrentNodeDirToPATH.hasWarned = true
+    }
+
+    return false
+  }
+
+  return isDifferentNodeInPath
 }
 
 function validWd (d, cb) {
@@ -307,9 +331,6 @@ function makeEnv (data, prefix, env) {
         env[i] = process.env[i]
       }
     }
-
-    // npat asks for tap output
-    if (npm.config.get('npat')) env.TAP = 1
 
     // express and others respect the NODE_ENV value.
     if (npm.config.get('production')) env.NODE_ENV = 'production'

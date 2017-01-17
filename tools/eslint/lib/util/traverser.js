@@ -46,9 +46,7 @@ function Traverser() {
  * @private
  */
 Traverser.getKeys = function(node) {
-    return Object.keys(node).filter(function(key) {
-        return KEY_BLACKLIST.indexOf(key) === -1;
-    });
+    return Object.keys(node).filter(key => KEY_BLACKLIST.indexOf(key) === -1);
 };
 
 module.exports = Traverser;

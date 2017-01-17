@@ -3,11 +3,11 @@
 
 require('../common');
 
-var Timer = process.binding('timer_wrap').Timer;
-var assert = require('assert');
+const Timer = process.binding('timer_wrap').Timer;
+const assert = require('assert');
 
-var timerFired = false;
-var intervalFired = false;
+let timerFired = false;
+let intervalFired = false;
 
 /*
  * This test case aims at making sure that timing utilities such
@@ -31,7 +31,7 @@ var intervalFired = false;
  * is vulnerable to time drift or inconsistent time changes.
  */
 
-var monoTimer = new Timer();
+const monoTimer = new Timer();
 monoTimer[Timer.kOnTimeout] = function() {
     /*
      * Make sure that setTimeout's and setInterval's callbacks have
@@ -48,7 +48,7 @@ setTimeout(function() {
   timerFired = true;
 }, 200);
 
-var interval = setInterval(function() {
+const interval = setInterval(function() {
   intervalFired = true;
   clearInterval(interval);
 }, 200);

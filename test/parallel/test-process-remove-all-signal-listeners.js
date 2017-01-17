@@ -14,10 +14,10 @@ if (process.argv[2] !== '--do-test') {
   // We are the master, fork a child so we can verify it exits with correct
   // status.
   process.env.DOTEST = 'y';
-  var child = spawn(process.execPath, [__filename, '--do-test']);
+  const child = spawn(process.execPath, [__filename, '--do-test']);
 
   child.once('exit', common.mustCall(function(code, signal) {
-    assert.equal(signal, 'SIGINT');
+    assert.strictEqual(signal, 'SIGINT');
   }));
 
   return;

@@ -1,4 +1,4 @@
-var foo = exports.foo = require('./folder/foo');
+const foo = exports.foo = require('./folder/foo');
 
 exports.hello = 'hello';
 exports.sayHello = function() {

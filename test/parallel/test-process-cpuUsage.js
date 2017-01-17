@@ -33,31 +33,61 @@ for (let i = 0; i < 10; i++) {
   assert(diffUsage.system >= 0);
 }
 
+const invalidUserArgument =
+    /^TypeError: value of user property of argument is invalid$/;
+const invalidSystemArgument =
+    /^TypeError: value of system property of argument is invalid$/;
+
 // Ensure that an invalid shape for the previous value argument throws an error.
-assert.throws(function() { process.cpuUsage(1); });
-assert.throws(function() { process.cpuUsage({}); });
-assert.throws(function() { process.cpuUsage({ user: 'a' }); });
-assert.throws(function() { process.cpuUsage({ system: 'b' }); });
-assert.throws(function() { process.cpuUsage({ user: null, system: 'c' }); });
-assert.throws(function() { process.cpuUsage({ user: 'd', system: null }); });
-assert.throws(function() { process.cpuUsage({ user: -1, system: 2 }); });
-assert.throws(function() { process.cpuUsage({ user: 3, system: -2 }); });
-assert.throws(function() {
+assert.throws(() => {
+  process.cpuUsage(1);
+}, invalidUserArgument);
+
+assert.throws(() => {
+  process.cpuUsage({});
+}, invalidUserArgument);
+
+assert.throws(() => {
+  process.cpuUsage({ user: 'a' });
+}, invalidUserArgument);
+
+assert.throws(() => {
+  process.cpuUsage({ system: 'b' });
+}, invalidUserArgument);
+
+assert.throws(() => {
+  process.cpuUsage({ user: null, system: 'c' });
+}, invalidUserArgument);
+
+assert.throws(() => {
+  process.cpuUsage({ user: 'd', system: null });
+}, invalidUserArgument);
+
+assert.throws(() => {
+  process.cpuUsage({ user: -1, system: 2 });
+}, invalidUserArgument);
+
+assert.throws(() => {
+  process.cpuUsage({ user: 3, system: -2 });
+}, invalidSystemArgument);
+
+assert.throws(() => {
   process.cpuUsage({
     user: Number.POSITIVE_INFINITY,
     system: 4
   });
-});
-assert.throws(function() {
+}, invalidUserArgument);
+
+assert.throws(() => {
   process.cpuUsage({
     user: 5,
     system: Number.NEGATIVE_INFINITY
   });
-});
+}, invalidSystemArgument);
 
 // Ensure that the return value is the expected shape.
 function validateResult(result) {
-  assert.notEqual(result, null);
+  assert.notStrictEqual(result, null);
 
   assert(Number.isFinite(result.user));
   assert(Number.isFinite(result.system));

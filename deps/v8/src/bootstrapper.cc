@@ -1206,6 +1206,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         JSObject::kHeaderSize, MaybeHandle<JSObject>(),
         Builtins::kFunctionPrototypeHasInstance,
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY));
+    native_context()->set_function_has_instance(*has_instance);
 
     // Set the expected parameters for @@hasInstance to 1; required by builtin.
     has_instance->shared()->set_internal_formal_parameter_count(1);

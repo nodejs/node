@@ -59,5 +59,5 @@ packs them into a tarball to be uploaded to the registry.
 * npm-adduser(1)
 * npm-owner(1)
 * npm-deprecate(1)
-* npm-tag(1)
+* npm-dist-tag(1)
 * npm-pack(1)

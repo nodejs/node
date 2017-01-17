@@ -23,13 +23,14 @@ function parent() {
     n += c;
   });
   child.stdout.on('end', function() {
-    assert.equal(+n, sent);
+    assert.strictEqual(+n, sent);
     console.log('ok');
   });
 
   // Write until the buffer fills up.
+  let buf;
   do {
-    var buf = Buffer.alloc(BUFSIZE, '.');
+    buf = Buffer.alloc(BUFSIZE, '.');
     sent += BUFSIZE;
   } while (child.stdin.write(buf));
 

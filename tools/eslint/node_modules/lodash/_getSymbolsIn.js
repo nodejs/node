@@ -7,8 +7,7 @@ var arrayPush = require('./_arrayPush'),
 var nativeGetSymbols = Object.getOwnPropertySymbols;
 
 /**
- * Creates an array of the own and inherited enumerable symbol properties
- * of `object`.
+ * Creates an array of the own and inherited enumerable symbols of `object`.
  *
  * @private
  * @param {Object} object The object to query.

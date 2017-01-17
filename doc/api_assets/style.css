@@ -362,6 +362,11 @@ tt, code {
   padding: .1em .3em;
 }
 
+.api_stability code {
+  background: rgba(0, 0, 0, .1);
+  padding: .1em .3em;
+}
+
 a code {
   color: inherit;
   background: inherit;

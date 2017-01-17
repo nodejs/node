@@ -258,7 +258,7 @@ void ScriptSet::setScriptExtensions(UChar32 codePoint, UErrorCode& status) {
 
     while (TRUE) {
         script_count = uscript_getScriptExtensions(
-            codePoint, scripts.getAlias(), FIRST_GUESS_SCRIPT_CAPACITY, &internalStatus);
+            codePoint, scripts.getAlias(), scripts.getCapacity(), &internalStatus);
         if (internalStatus == U_BUFFER_OVERFLOW_ERROR) {
             // Need to allocate more space
             if (scripts.resize(script_count) == NULL) {

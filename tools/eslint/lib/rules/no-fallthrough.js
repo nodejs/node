@@ -109,7 +109,7 @@ module.exports = {
                 if (fallthroughCase && !hasFallthroughComment(node, context, fallthroughCommentPattern)) {
                     context.report({
                         message: "Expected a 'break' statement before '{{type}}'.",
-                        data: {type: node.test ? "case" : "default"},
+                        data: { type: node.test ? "case" : "default" },
                         node
                     });
                 }

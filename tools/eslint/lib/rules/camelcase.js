@@ -38,6 +38,7 @@ module.exports = {
 
         // contains reported nodes to avoid reporting twice on destructuring with shorthand notation
         const reported = [];
+        const ALLOWED_PARENT_TYPES = new Set(["CallExpression", "NewExpression"]);
 
         /**
          * Checks if a string contains an underscore and isn't all upper-case
@@ -60,7 +61,7 @@ module.exports = {
         function report(node) {
             if (reported.indexOf(node) < 0) {
                 reported.push(node);
-                context.report(node, "Identifier '{{name}}' is not in camel case.", { name: node.name });
+                context.report({ node, message: "Identifier '{{name}}' is not in camel case.", data: { name: node.name } });
             }
         }
 
@@ -118,7 +119,7 @@ module.exports = {
                         return;
                     }
 
-                    if (isUnderscored(name) && effectiveParent.type !== "CallExpression") {
+                    if (isUnderscored(name) && !ALLOWED_PARENT_TYPES.has(effectiveParent.type)) {
                         report(node);
                     }
 
@@ -131,7 +132,7 @@ module.exports = {
                     }
 
                 // Report anything that is underscored that isn't a CallExpression
-                } else if (isUnderscored(name) && effectiveParent.type !== "CallExpression") {
+                } else if (isUnderscored(name) && !ALLOWED_PARENT_TYPES.has(effectiveParent.type)) {
                     report(node);
                 }
             }

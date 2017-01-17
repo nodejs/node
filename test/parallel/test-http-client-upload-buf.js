@@ -1,14 +1,14 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var http = require('http');
+const assert = require('assert');
+const http = require('http');
 
-var N = 1024;
+const N = 1024;
 
-var server = http.createServer(common.mustCall(function(req, res) {
-  assert.equal('POST', req.method);
+const server = http.createServer(common.mustCall(function(req, res) {
+  assert.strictEqual('POST', req.method);
 
-  var bytesReceived = 0;
+  let bytesReceived = 0;
 
   req.on('data', function(chunk) {
     bytesReceived += chunk.length;
@@ -25,7 +25,7 @@ var server = http.createServer(common.mustCall(function(req, res) {
 server.listen(0);
 
 server.on('listening', common.mustCall(function() {
-  var req = http.request({
+  const req = http.request({
     port: this.address().port,
     method: 'POST',
     path: '/'

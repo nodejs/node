@@ -1,19 +1,19 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 const binding = process.binding('http_parser');
 const methods = binding.methods;
 const HTTPParser = binding.HTTPParser;
 
-var CRLF = '\r\n';
-var REQUEST = HTTPParser.REQUEST;
-var RESPONSE = HTTPParser.RESPONSE;
+const CRLF = '\r\n';
+const REQUEST = HTTPParser.REQUEST;
+const RESPONSE = HTTPParser.RESPONSE;
 
-var kOnHeaders = HTTPParser.kOnHeaders | 0;
-var kOnHeadersComplete = HTTPParser.kOnHeadersComplete | 0;
-var kOnBody = HTTPParser.kOnBody | 0;
-var kOnMessageComplete = HTTPParser.kOnMessageComplete | 0;
+const kOnHeaders = HTTPParser.kOnHeaders | 0;
+const kOnHeadersComplete = HTTPParser.kOnHeadersComplete | 0;
+const kOnBody = HTTPParser.kOnBody | 0;
+const kOnMessageComplete = HTTPParser.kOnMessageComplete | 0;
 
 // The purpose of this test is not to check HTTP compliance but to test the
 // binding. Tests for pathological http messages should be submitted
@@ -22,7 +22,7 @@ var kOnMessageComplete = HTTPParser.kOnMessageComplete | 0;
 
 
 function newParser(type) {
-  var parser = new HTTPParser(type);
+  const parser = new HTTPParser(type);
 
   parser.headers = [];
   parser.url = '';
@@ -47,11 +47,11 @@ function newParser(type) {
 
 
 function mustCall(f, times) {
-  var actual = 0;
+  let actual = 0;
 
   process.setMaxListeners(256);
   process.on('exit', function() {
-    assert.equal(actual, times || 1);
+    assert.strictEqual(actual, times || 1);
   });
 
   return function() {
@@ -63,8 +63,8 @@ function mustCall(f, times) {
 
 function expectBody(expected) {
   return mustCall(function(buf, start, len) {
-    var body = '' + buf.slice(start, start + len);
-    assert.equal(body, expected);
+    const body = '' + buf.slice(start, start + len);
+    assert.strictEqual(body, expected);
   });
 }
 
@@ -447,11 +447,11 @@ function expectBody(expected) {
     assert.strictEqual(expected_body, '');
   }
 
-  for (var i = 1; i < request.length - 1; ++i) {
-    var a = request.slice(0, i);
+  for (let i = 1; i < request.length - 1; ++i) {
+    const a = request.slice(0, i);
     console.error('request.slice(0, ' + i + ') = ',
                   JSON.stringify(a.toString()));
-    var b = request.slice(i);
+    const b = request.slice(i);
     console.error('request.slice(' + i + ') = ',
                   JSON.stringify(b.toString()));
     test(a, b);
@@ -535,10 +535,10 @@ function expectBody(expected) {
   const onHeadersComplete1 = function(versionMajor, versionMinor, headers,
                                       method, url, statusCode, statusMessage,
                                       upgrade, shouldKeepAlive) {
-    assert.equal(method, methods.indexOf('PUT'));
-    assert.equal(url, '/this');
-    assert.equal(versionMajor, 1);
-    assert.equal(versionMinor, 1);
+    assert.strictEqual(method, methods.indexOf('PUT'));
+    assert.strictEqual(url, '/this');
+    assert.strictEqual(versionMajor, 1);
+    assert.strictEqual(versionMinor, 1);
     assert.deepStrictEqual(
         headers,
         ['Content-Type', 'text/plain', 'Transfer-Encoding', 'chunked']);
@@ -571,11 +571,11 @@ function expectBody(expected) {
 // Test parser 'this' safety
 // https://github.com/joyent/node/issues/6690
 assert.throws(function() {
-  var request = Buffer.from(
+  const request = Buffer.from(
       'GET /hello HTTP/1.1' + CRLF +
       CRLF);
 
-  var parser = newParser(REQUEST);
-  var notparser = { execute: parser.execute };
+  const parser = newParser(REQUEST);
+  const notparser = { execute: parser.execute };
   notparser.execute(request, 0, request.length);
 }, TypeError);
