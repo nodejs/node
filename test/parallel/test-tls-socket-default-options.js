@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
 
-// Test a directly created TLS socket supports no options, and empty options.
+// Test directly created TLS sockets and options.
 
 const assert = require('assert');
 const join = require('path').join;
@@ -24,6 +24,16 @@ test({}, (err) => {
 
 test({secureContext: tls.createSecureContext({ca: keys.agent1.ca})}, (err) => {
   assert.ifError(err);
+});
+
+test({ca: keys.agent1.ca}, (err) => {
+  assert.ifError(err);
+});
+
+// Secure context options, like ca, are ignored if a sec ctx is explicitly
+// provided.
+test({secureContext: tls.createSecureContext(), ca: keys.agent1.ca}, (err) => {
+  assert.strictEqual(err.message, 'unable to verify the first certificate');
 });
 
 function test(client, callback) {
