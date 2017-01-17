@@ -16,11 +16,44 @@ const testRoot = process.env.NODE_TEST_DIR ?
 
 // If env var is set then enable noop async_hook hooks for testing.
 if (process.env.NODE_TEST_WITH_ASYNC_HOOKS) {
+  const destroydIdsList = {};
+  const destroyListList = {};
+  const initHandles = {};
+  const async_wrap = process.binding('async_wrap');
+
+  if (process.env.NODE_TEST_HANDLE_ACCESS) {
+    process.on('exit', () => {
+      // itterate through handles to make sure nothing crashes
+      for (const k in initHandles)
+        util.inspect(initHandles[k]);
+    });
+  }
+
+  const _addIdToDestroyList = async_wrap.addIdToDestroyList;
+  async_wrap.addIdToDestroyList = function addIdToDestroyList(id) {
+    if (!process.env.NODE_CHECK_ASYNC_DESTROY)
+      return _addIdToDestroyList.call(this, id);
+    if (destroyListList[id] !== undefined) {
+      process._rawDebug(destroyListList[id]);
+      process._rawDebug();
+      throw new Error(`same id added twice (${id})`);
+    }
+    destroyListList[id] = new Error().stack;
+  };
+
   require('async_hooks').createHook({
-    init() { },
+    init(id, ty, tr, h) { initHandles[id] = h; },
     before() { },
     after() { },
-    destroy() { },
+    destroy(id) {
+      if (!process.env.NODE_CHECK_ASYNC_DESTROY) return;
+      if (destroydIdsList[id] !== undefined) {
+        process._rawDebug(destroydIdsList[id]);
+        process._rawDebug();
+        throw new Error(`destroy called for same id(${id})`);
+      }
+      destroydIdsList[id] = new Error().stack;
+    },
   }).enable();
 }
 
