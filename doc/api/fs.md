@@ -1347,7 +1347,8 @@ added: v0.1.29
   * `flag` {String} default = `'r'`
 * `callback` {Function}
 
-Asynchronously reads the entire contents of a file. Example:
+Asynchronously reads the entire contents of a file. If a file descriptor is
+specified as the `file`, it will read from the current file position. Example:
 
 ```js
 fs.readFile('/etc/passwd', (err, data) => {
