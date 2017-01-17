@@ -483,7 +483,12 @@ added: v0.11.4
     will be emitted on the socket before establishing a secure communication
   * `secureContext`: Optional TLS context object created with
     [`tls.createSecureContext()`][]. If a `secureContext` is _not_ provided, one
-    will be created by calling [`tls.createSecureContext()`][] with no options.
+    will be created by passing the entire `options` object to
+    `tls.createSecureContext()`. *Note*: In effect, all
+    [`tls.createSecureContext()`][] options can be provided, but they will be
+    _completely ignored_ unless the `secureContext` option is missing.
+  * ...: Optional [`tls.createSecureContext()`][] options can be provided, see
+    the `secureContext` option for more information.
 
 Construct a new `tls.TLSSocket` object from an existing TCP socket.
 
