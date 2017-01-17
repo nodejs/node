@@ -80,15 +80,6 @@ addlicense "cpplint.py" "tools/cpplint.py" \
 addlicense "ESLint" "tools/eslint" "$(cat ${rootdir}/tools/eslint/LICENSE)"
 addlicense "gtest" "deps/gtest" "$(cat ${rootdir}/deps/gtest/LICENSE)"
 
-# v8_inspector
-addlicense "v8_inspector" "deps/v8_inspector/third_party/v8_inspector" \
-           "$(cat ${rootdir}/deps/v8_inspector/third_party/v8_inspector/LICENSE)"
-# Build tooling for v8_inspector
-addlicense "jinja2" "deps/v8_inspector/third_party/jinja2" \
-           "$(cat ${rootdir}/deps/v8_inspector/third_party/jinja2/LICENSE)"
-addlicense "markupsafe" "deps/v8_inspector/third_party/markupsafe" \
-           "$(cat ${rootdir}/deps/v8_inspector/third_party/markupsafe/LICENSE)"
-
 
 
 mv $tmplicense $licensefile
