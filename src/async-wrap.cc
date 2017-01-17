@@ -158,6 +158,7 @@ void AsyncWrap::Initialize(Local<Object> target,
   HandleScope scope(isolate);
 
   env->SetMethod(target, "setupHooks", SetupHooks);
+  env->SetMethod(target, "addIdToDestroyList", AddIdToDestroyList);
 
   // Attach the uint32_t[] where each slot contains the count of the number of
   // callbacks waiting to be called on a particular event. It can then be
@@ -291,6 +292,24 @@ void AsyncWrap::AsyncReset(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+void AsyncWrap::AddIdToDestroyList(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  // This technically shouldn't be needed, since kDestroy should have been
+  // checked before calling this function. So make this a CHECK instead?
+  if (env->async_hooks()->fields()[AsyncHooks::kDestroy] == 0) {
+    return;
+  }
+
+  CHECK(args[0]->IsNumber());
+
+  if (env->destroy_ids_list()->empty())
+    uv_idle_start(env->destroy_ids_idle_handle(), DestroyIdsCb);
+
+  env->destroy_ids_list()->push_back(args[0]->NumberValue());
+}
+
+
 void LoadAsyncWrapperInfo(Environment* env) {
   HeapProfiler* heap_profiler = env->isolate()->GetHeapProfiler();
 #define V(PROVIDER)                                                           \
@@ -327,6 +346,7 @@ AsyncWrap::~AsyncWrap() {
 
   env()->destroy_ids_list()->push_back(get_id());
 }
+
 
 // Generalized call for both the constructor and for handles that are pooled
 // and reused over their lifetime. This way a new uid can be assigned when
