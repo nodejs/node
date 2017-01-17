@@ -36,7 +36,7 @@ function getall() {
   if (count >= todo)
     return;
 
-  const req = net.connect(server.address().port, server.address().address);
+  const req = net.connect(server.address().port);
   req.resume();
   req.setTimeout(10, function() {
     req.destroy();
