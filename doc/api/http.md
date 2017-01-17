@@ -48,26 +48,38 @@ list like the following:
 added: v0.3.4
 -->
 
-The HTTP `Agent` is used for pooling sockets used in HTTP client
-requests.
+An `Agent` is responsible for managing connection persistence
+and reuse for HTTP clients. It maintains a queue of pending requests
+for a given host and port, reusing a single socket connection for each
+until the queue is empty, at which time the socket is destroyed.
+When a socket connection is no longer writable, for example, if a server
+closes the connection, the socket is destroyed.
 
-The HTTP `Agent` also defaults client requests to using
-`Connection: keep-alive`. If no pending HTTP requests are waiting on a
-socket to become free the socket is closed. This means that Node.js's
-pool has the benefit of HTTP Keep-Alive when under load but still does not
-require developers to manually close HTTP clients when using
-this option.
+Unless an `Agent` is expressly provided in the [`http.request()`]
+options, all HTTP client requests will use the default
+[`http.globalAgent`].
 
-If you opt into using HTTP Keep-Alive, you can create an `Agent` instance,
-providing `{ keepAlive: true }` among the [constructor options][].
-The agent will then keep unused sockets in a pool for later use.  The
-unused sockets will be explicitly marked so as to not keep the
-Node.js process running. However, it is still a good idea to explicitly
-[`destroy()`][] HTTP Keep-Alive agents when they are no longer in use, so that
-the sockets will be shut down.
+In addition to managing connection persistence for queued HTTP
+requests, an `Agent` can be used for pooling sockets across connections.
+When providing `{ keepAlive: true }` among the [constructor options],
+the `Agent` will not destroy sockets when the request queue has been
+emptied. Rather, it will pool these sockets for later requests on the
+same host and port.
+
+By providing `{ keepAlive: true }` as a constructor option to the the
+HTTP `Agent`, sockets will not only be pooled, but the HTTP header
+`Connection: keep-alive` will be sent by default for all client
+requests. This also results in periodic TCP `SO_KEEPALIVE` requests
+from the client to the server.
+
+When a socket is closed, whether by the user, or alternatively
+by the server, it is removed from the pool. Any unused sockets in the pool
+will be marked so as not to keep the Node.js process running.
+It is good practice, however, to [`destroy()`][] HTTP Keep-Alive
+agents when they are no longer in use, so that the sockets will be shut down.
 
 Sockets are removed from an agent's pool when the socket emits either
-a `'close'` event or a special `'agentRemove'` event. This means that if
+a `'close'` event or an `'agentRemove'` event. This means that if
 you intend to keep one HTTP request open for a long time and don't
 want it to stay in the pool you can do something along the lines of:
 
@@ -79,7 +91,11 @@ http.get(options, (res) => {
 });
 ```
 
-Alternatively, you could just opt out of pooling entirely using
+You may also use an agent for an individual request. By providing
+`{agent: false}` as an option to the `http.get()` or `http.request()`
+functions, a one-time use `Agent` with default options and no connection
+pooling will be used for the client connection.
+
 `agent:false`:
 
 ```js
@@ -102,9 +118,9 @@ added: v0.3.4
   Can have the following fields:
   * `keepAlive` {Boolean} Keep sockets around in a pool to be used by
     other requests in the future. Default = `false`
-  * `keepAliveMsecs` {Integer} When using HTTP KeepAlive, how often
-    to send TCP KeepAlive packets over sockets being kept alive.
-    Default = `1000`.  Only relevant if `keepAlive` is set to `true`.
+  * `keepAliveMsecs` {Integer} When using the `keepAlive` option, how
+    often to send TCP `SO_KEEPALIVE` `ACK` packets. Ignored when the
+    `keepAlive` option is false or undefined. Default = `1000`.
   * `maxSockets` {Number} Maximum number of sockets to allow per
     host.  Default = `Infinity`.
   * `maxFreeSockets` {Number} Maximum number of sockets to leave open
@@ -114,7 +130,7 @@ added: v0.3.4
 The default [`http.globalAgent`][] that is used by [`http.request()`][] has all
 of these values set to their respective defaults.
 
-To configure any of them, you must create your own [`http.Agent`][] object.
+To configure any of them, you must create your own [`http.Agent`][] instance.
 
 ```js
 const http = require('http');
