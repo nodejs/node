@@ -744,6 +744,7 @@ class ECDH : public BaseObject {
 bool EntropySource(unsigned char* buffer, size_t length);
 #ifndef OPENSSL_NO_ENGINE
 void SetEngine(const v8::FunctionCallbackInfo<v8::Value>& args);
+void GetEngines(const v8::FunctionCallbackInfo<v8::Value>& args);
 #endif  // !OPENSSL_NO_ENGINE
 void InitCrypto(v8::Local<v8::Object> target);
 

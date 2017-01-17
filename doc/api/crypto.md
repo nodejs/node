@@ -1698,6 +1698,25 @@ is a bit field taking one of or a mix of the following flags (defined in
 * `crypto.constants.ENGINE_METHOD_ALL`
 * `crypto.constants.ENGINE_METHOD_NONE`
 
+### crypto.getEngines()
+<!-- YAML
+added: REPLACEME
+-->
+
+Returns an array of objects with id, name and flags of loaded engines.
+The flags value represents an integer of one of or a mix of the crypto
+constants described above.
+
+```js
+const crypto = require('crypto');
+console.log(crypto.getEngines());
+// Prints:
+//   [ { id: 'rdrand', name: 'Intel RDRAND engine', flags: 8 },
+//     { id: 'dynamic',
+//       name: 'Dynamic engine loading support',
+//       flags: 4 } ]
+```
+
 ### crypto.timingSafeEqual(a, b)
 <!-- YAML
 added: v6.6.0

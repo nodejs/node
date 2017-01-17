@@ -691,6 +691,18 @@
           'ldflags': [ '-I<(SHARED_INTERMEDIATE_DIR)' ]
         }],
       ]
+    },
+    {
+      # node test engine used in test/parallel/test-crypto-engine.js
+      'target_name': 'node_test_engine',
+      'type': 'loadable_module',
+      'conditions': [
+        ['node_use_openssl=="true" and '
+         'node_shared_openssl=="false" and '
+         'openssl_fips==""', { # fipsld fails to link libcrypto.a
+           'includes': ['test/fixtures/openssl_test_engine/node_test_engine.gypi'],
+         }],
+      ],
     }
   ], # end targets
 
