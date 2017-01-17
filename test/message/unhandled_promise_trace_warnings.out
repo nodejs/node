@@ -23,8 +23,8 @@
     at getAsynchronousRejectionWarningObject (internal/process/promises.js:*)
     at rejectionHandled (internal/process/promises.js:*)
     at *
-    at Promise.then (native)
-    at Promise.catch (native)
+    at Promise.then *
+    at Promise.catch *
     at Immediate.setImmediate (*test*message*unhandled_promise_trace_warnings.js:*)
     at *
     at *
