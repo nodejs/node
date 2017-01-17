@@ -234,6 +234,9 @@
         'src/stream_base.h',
         'src/stream_base-inl.h',
         'src/stream_wrap.h',
+        'src/tracing/agent.h',
+        'src/tracing/node_trace_buffer.h',
+        'src/tracing/node_trace_writer.h',
         'src/tracing/trace_event.h'
         'src/tree.h',
         'src/util.h',
