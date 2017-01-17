@@ -1148,10 +1148,14 @@ void SecureContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
 
 
 void SecureContext::SetFreeListLength(const FunctionCallbackInfo<Value>& args) {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L && !defined(OPENSSL_IS_BORINGSSL)
+  // |freelist_max_len| was removed in OpenSSL 1.1.0. In that version OpenSSL
+  // mallocs and frees buffers directly, without the use of a freelist.
   SecureContext* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
   wrap->ctx_->freelist_max_len = args[0]->Int32Value();
+#endif
 }
 
 
