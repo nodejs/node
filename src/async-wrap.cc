@@ -302,11 +302,13 @@ void AsyncWrap::AddIdToDestroyList(const FunctionCallbackInfo<Value>& args) {
   }
 
   CHECK(args[0]->IsNumber());
+  double async_id = args[0]->NumberValue();
+  CHECK_GT(async_id, 0);
 
   if (env->destroy_ids_list()->empty())
     uv_idle_start(env->destroy_ids_idle_handle(), DestroyIdsCb);
 
-  env->destroy_ids_list()->push_back(args[0]->NumberValue());
+  env->destroy_ids_list()->push_back(async_id);
 }
 
 
