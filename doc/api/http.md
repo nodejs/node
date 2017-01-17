@@ -60,11 +60,11 @@ options, all HTTP client requests will use the default
 [`http.globalAgent`].
 
 In addition to managing connection persistence for queued HTTP
-requests, an `Agent` can be used for pooling sockets across connections.
-When providing `{ keepAlive: true }` among the [constructor options],
-the `Agent` will not destroy sockets when the request queue has been
-emptied. Rather, it will pool these sockets for later requests on the
-same host and port.
+requests, an `Agent` can be used for pooling sockets across multiple
+client requests. When providing `{ keepAlive: true }` among the
+[constructor options], the `Agent` will not destroy sockets when
+the request queue has been emptied. Rather, it will pool these
+sockets for later requests on the same host and port.
 
 By providing `{ keepAlive: true }` as a constructor option to the the
 HTTP `Agent`, sockets will not only be pooled, but the HTTP header
@@ -76,7 +76,7 @@ When a socket is closed, whether by the user, or alternatively
 by the server, it is removed from the pool. Any unused sockets in the pool
 will be marked so as not to keep the Node.js process running.
 It is good practice, however, to [`destroy()`][] HTTP Keep-Alive
-agents when they are no longer in use, so that the sockets will be shut down.
+agents when they are no longer iqn use, so that the sockets will be shut down.
 
 Sockets are removed from an agent's pool when the socket emits either
 a `'close'` event or an `'agentRemove'` event. This means that if
