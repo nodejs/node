@@ -940,9 +940,7 @@ assert.throws(() => Buffer.from('', 'buffer'), TypeError);
 // Regression test for #6111. Constructing a buffer from another buffer
 // should a) work, and b) not corrupt the source buffer.
 {
-  let a = [0];
-  for (let i = 0; i < 7; ++i) a = a.concat(a);
-  a = a.map((_, i) => { return i; });
+  const a = [...Array(128).keys()]; // [0, 1, 2, 3, ... 126, 127]
   const b = Buffer.from(a);
   const c = Buffer.from(b);
   assert.strictEqual(b.length, a.length);
