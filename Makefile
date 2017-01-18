@@ -504,7 +504,7 @@ PKGDIR=out/dist-osx
 release-only:
 	@if [ "$(DISTTYPE)" != "nightly" ] && [ "$(DISTTYPE)" != "next-nightly" ] && \
 		`grep -q REPLACEME doc/api/*.md`; then \
-		echo 'Please update Added: tags in the documentation first.' ; \
+		echo 'Please update REPLACEME in Added: tags in doc/api/*.md (See doc/releases.md)' ; \
 		exit 1 ; \
 	fi
 	@if [ "$(shell git status --porcelain | egrep -v '^\?\? ')" = "" ]; then \
