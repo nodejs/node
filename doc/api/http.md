@@ -64,7 +64,7 @@ requests, an `Agent` can be used for pooling sockets across multiple
 client requests. When providing `{ keepAlive: true }` among the
 [constructor options], the `Agent` will not destroy sockets when
 the request queue has been emptied. Rather, it will pool these
-sockets for later requests on the same host and port.
+sockets for later requests to the same host.
 
 By providing `{ keepAlive: true }` as a constructor option to the the
 HTTP `Agent`, sockets will not only be pooled, but the HTTP header
@@ -72,12 +72,12 @@ HTTP `Agent`, sockets will not only be pooled, but the HTTP header
 requests. This also results in periodic TCP `SO_KEEPALIVE` requests
 from the client to the server.
 
-When a socket is closed, whether by the user, or alternatively
-by the server, it is removed from the pool. Any unused sockets in the pool
-will be marked so as not to keep the Node.js process running
+When a connection is closedby the client or the server, it is removed
+from the pool. Any unused sockets in the pool
+will be unrefed so as not to keep the Node.js process running
 (see [socket.unref()]). It is good practice, however, to [`destroy()`][]
-a client `Agent` when it is no longer in use, so that the sockets
-will be shut down.
+a client `Agent` when it is no longer in use, because unused sockets
+consume OS resources.
 
 Sockets are removed from an agent's pool when the socket emits either
 a `'close'` event or an `'agentRemove'` event. This means that if
@@ -117,8 +117,9 @@ added: v0.3.4
 
 * `options` {Object} Set of configurable options to set on the agent.
   Can have the following fields:
-  * `keepAlive` {Boolean} Keep sockets around in a pool to be used by
-    other requests in the future. Default = `false`
+  * `keepAlive` {Boolean} Keep sockets around even when there are no
+    outstanding requests, so it can be used for future requests without
+    having to reestablish an HTTP connection. Default = `false`
   * `keepAliveMsecs` {Integer} When using the `keepAlive` option, how
     often to send TCP `SO_KEEPALIVE` `ACK` packets. Ignored when the
     `keepAlive` option is false or undefined. Default = `1000`.
@@ -168,7 +169,7 @@ added: v0.11.4
 Destroy any sockets that are currently in use by the agent.
 
 It is usually not necessary to do this.  However, if you are using an
-agent with HTTP Keep-Alive enabled, then it is best to explicitly shut down
+agent with `keepAlive` enabled, then it is best to explicitly shut down
 the agent when you know that it will no longer be used.  Otherwise,
 sockets may hang open for quite a long time before the server
 terminates them.
@@ -181,7 +182,7 @@ added: v0.11.4
 * {Object}
 
 An object which contains arrays of sockets currently awaiting use by
-the agent when HTTP Keep-Alive is used.  Do not modify.
+the agent when `keepAlive` is enabled.  Do not modify.
 
 ### agent.getName(options)
 <!-- YAML
@@ -208,7 +209,7 @@ added: v0.11.7
 
 * {Number}
 
-By default set to 256.  For agents supporting HTTP Keep-Alive, this
+By default set to 256.  For agents with `keepAlive` enabled, this
 sets the maximum number of sockets that will be left open in the free
 state.
 
