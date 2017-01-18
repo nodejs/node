@@ -71,7 +71,8 @@ onboarding session.
   * [**See "Who to CC in issues"**](./onboarding-extras.md#who-to-cc-in-issues)
     * will also come more naturally over time
 
-  * When a discussion gets heated, you can request that other collaborators keep an eye on it by opening an issue at the [nodejs/moderation](https://github.com/nodejs/moderation) repository.
+  * When a discussion gets heated, you can request that other collaborators keep an eye on it by opening an issue at the private [nodejs/moderation](https://github.com/nodejs/moderation) repository.
+    * This is a repository to which only GitHub organization members have access and its contents are considered confidential.
     * You can find the full moderation policy [here](https://github.com/nodejs/TSC/blob/master/Moderation-Policy.md).
 
 ## Reviewing PRs
