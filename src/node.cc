@@ -4331,7 +4331,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   if (debug_enabled) {
     const char* path = argc > 1 ? argv[1] : nullptr;
     StartDebug(&env, path, debug_options);
-    if (debug_options.debugger_enabled() && !debugger_running)
+    if (!debugger_running)
       return 12;  // Signal internal error.
   }
 
