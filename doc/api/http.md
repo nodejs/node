@@ -1664,4 +1664,4 @@ There are a few special headers that should be noted.
 [constructor options]: #http_new_agent_options
 [Readable Stream]: stream.html#stream_class_stream_readable
 [Writable Stream]: stream.html#stream_class_stream_writable
-[socket.unref()]: net.html#socket_unref
+[socket.unref()]: net.html#net_socket_unref
