@@ -670,7 +670,8 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     // Use the value from the stack.
     if (scope_info->LocalIsSynthetic(i)) continue;
     locals->set(local * 2, scope_info->LocalName(i));
-    locals->set(local * 2 + 1, frame_inspector.GetExpression(i));
+    locals->set(local * 2 + 1,
+            frame_inspector.GetExpression(scope_info->StackLocalIndex(i)));
     local++;
   }
   if (local < local_count) {
