@@ -72,7 +72,7 @@ onboarding session.
     * will also come more naturally over time
 
   * When a discussion gets heated, you can request that other collaborators keep an eye on it by opening an issue at the private [nodejs/moderation](https://github.com/nodejs/moderation) repository.
-    * This is a repository to which only GitHub organization members have access and its contents are considered confidential.
+    * This is a repository to which all GitHub organization members (not just collaborators on Node core) have access. Its contents should not be shared externally.
     * You can find the full moderation policy [here](https://github.com/nodejs/TSC/blob/master/Moderation-Policy.md).
 
 ## Reviewing PRs
