@@ -8,6 +8,8 @@
 
 static uv_loop_t loop;
 
+static const char HOST[] = "127.0.0.1";
+
 static const char CLIENT_CLOSE_FRAME[] = "\x88\x80\x2D\x0E\x1E\xFA";
 static const char SERVER_CLOSE_FRAME[] = "\x88\x00";
 
@@ -249,7 +251,7 @@ class SocketWrapper {
   }
 
   static void Connected_(uv_connect_t* connect, int status) {
-    EXPECT_EQ(0, status);
+    EXPECT_EQ(0, status) << "Unable to connect: " << uv_strerror(status);
     SocketWrapper* wrapper =
         node::ContainerOf(&SocketWrapper::connect_, connect);
     wrapper->connected_ = true;
@@ -301,7 +303,7 @@ class ServerHolder {
   template <typename Delegate>
   ServerHolder(Delegate* delegate, int port, FILE* out = NULL)
                : closed(false), paused(false), sessions_terminated(false),
-                 server_(delegate, port, out) {
+                 server_(delegate, HOST, port, out) {
     delegate->Connect(&server_);
   }
 
@@ -362,7 +364,7 @@ class ServerDelegateNoTargets : public SocketServerDelegate {
 static void TestHttpRequest(int port, const std::string& path,
                             const std::string& expected_body) {
   SocketWrapper socket(&loop);
-  socket.Connect("0.0.0.0", port);
+  socket.Connect(HOST, port);
   socket.TestHttpRequest(path, expected_body);
   socket.Close();
 }
@@ -385,7 +387,7 @@ TEST_F(InspectorSocketServerTest, InspectorSessions) {
 
   SocketWrapper well_behaved_socket(&loop);
   // Regular connection
-  well_behaved_socket.Connect("0.0.0.0", server.port());
+  well_behaved_socket.Connect(HOST, server.port());
   well_behaved_socket.Write(WsHandshakeRequest(MAIN_TARGET_ID));
   well_behaved_socket.Expect(WS_HANDSHAKE_RESPONSE);
 
@@ -408,7 +410,7 @@ TEST_F(InspectorSocketServerTest, InspectorSessions) {
 
   // Declined connection
   SocketWrapper declined_target_socket(&loop);
-  declined_target_socket.Connect("127.0.0.1", server.port());
+  declined_target_socket.Connect(HOST, server.port());
   declined_target_socket.Write(WsHandshakeRequest(UNCONNECTABLE_TARGET_ID));
   declined_target_socket.Expect("HTTP/1.0 400 Bad Request");
   declined_target_socket.ExpectEOF();
@@ -417,7 +419,7 @@ TEST_F(InspectorSocketServerTest, InspectorSessions) {
 
   // Bogus target - start session callback should not even be invoked
   SocketWrapper bogus_target_socket(&loop);
-  bogus_target_socket.Connect("127.0.0.1", server.port());
+  bogus_target_socket.Connect(HOST, server.port());
   bogus_target_socket.Write(WsHandshakeRequest("bogus_target"));
   bogus_target_socket.Expect("HTTP/1.0 400 Bad Request");
   bogus_target_socket.ExpectEOF();
@@ -426,7 +428,7 @@ TEST_F(InspectorSocketServerTest, InspectorSessions) {
 
   // Drop connection (no proper close frames)
   SocketWrapper dropped_connection_socket(&loop);
-  dropped_connection_socket.Connect("127.0.0.1", server.port());
+  dropped_connection_socket.Connect(HOST, server.port());
   dropped_connection_socket.Write(WsHandshakeRequest(MAIN_TARGET_ID));
   dropped_connection_socket.Expect(WS_HANDSHAKE_RESPONSE);
 
@@ -440,7 +442,7 @@ TEST_F(InspectorSocketServerTest, InspectorSessions) {
 
   // Reconnect regular connection
   SocketWrapper stays_till_termination_socket(&loop);
-  stays_till_termination_socket.Connect("127.0.0.1", server.port());
+  stays_till_termination_socket.Connect(HOST, server.port());
   stays_till_termination_socket.Write(WsHandshakeRequest(MAIN_TARGET_ID));
   stays_till_termination_socket.Expect(WS_HANDSHAKE_RESPONSE);
 
@@ -484,7 +486,7 @@ TEST_F(InspectorSocketServerTest, ServerWithoutTargets) {
 
   // Declined connection
   SocketWrapper socket(&loop);
-  socket.Connect("0.0.0.0", server.port());
+  socket.Connect(HOST, server.port());
   socket.Write(WsHandshakeRequest(UNCONNECTABLE_TARGET_ID));
   socket.Expect("HTTP/1.0 400 Bad Request");
   socket.ExpectEOF();
@@ -512,7 +514,7 @@ TEST_F(InspectorSocketServerTest, StoppingServerDoesNotKillConnections) {
   ServerHolder server(&delegate, 0);
   ASSERT_TRUE(server->Start(&loop));
   SocketWrapper socket1(&loop);
-  socket1.Connect("0.0.0.0", server.port());
+  socket1.Connect(HOST, server.port());
   socket1.TestHttpRequest("/json/list", "[ ]");
   server->Stop(ServerHolder::CloseCallback);
   SPIN_WHILE(!server.closed);
