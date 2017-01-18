@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var http = require('http');
+const http = require('http');
 
 var maxSize = 1024;
 var size = 0;
@@ -36,6 +36,6 @@ s.listen(common.PORT, function() {
 
 process.on('exit', function() {
   assert(aborted);
-  assert.equal(size, maxSize);
+  assert.strictEqual(size, maxSize);
   console.log('ok');
 });

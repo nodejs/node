@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var net = require('net');
-var spawn = require('child_process').spawn;
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const net = require('net');
+const spawn = require('child_process').spawn;
 
 if (common.isWindows) {
   common.skip('This test is disabled on windows.');
@@ -23,24 +23,24 @@ switch (process.argv[2]) {
 // concurrency in HTTP servers!  Use the cluster module, or if you want
 // a more low-level approach, use child process IPC manually.
 function test() {
-  var parent = spawn(process.execPath, [__filename, 'parent'], {
+  const parent = spawn(process.execPath, [__filename, 'parent'], {
     stdio: [ 0, 'pipe', 2 ]
   });
-  var json = '';
+  let json = '';
   parent.stdout.on('data', function(c) {
     json += c.toString();
     if (json.indexOf('\n') !== -1) next();
   });
   function next() {
     console.error('output from parent = %s', json);
-    var child = JSON.parse(json);
+    const child = JSON.parse(json);
     // now make sure that we can request to the child, then kill it.
     http.get({
       server: 'localhost',
       port: child.port,
       path: '/',
     }).on('response', function(res) {
-      var s = '';
+      let s = '';
       res.on('data', function(c) {
         s += c.toString();
       });
@@ -52,8 +52,8 @@ function test() {
           parent.kill();
         } catch (e) {}
 
-        assert.equal(s, 'hello from child\n');
-        assert.equal(res.statusCode, 200);
+        assert.strictEqual(s, 'hello from child\n');
+        assert.strictEqual(res.statusCode, 200);
       });
     });
   }
@@ -62,13 +62,13 @@ function test() {
 // Listen on port, and then pass the handle to the detached child.
 // Then output the child's pid, and immediately exit.
 function parent() {
-  var server = net.createServer(function(conn) {
+  const server = net.createServer(function(conn) {
     conn.end('HTTP/1.1 403 Forbidden\r\n\r\nI got problems.\r\n');
     throw new Error('Should not see connections on parent');
   }).listen(0, function() {
     console.error('server listening on %d', this.address().port);
 
-    var child = spawn(process.execPath, [__filename, 'child'], {
+    const child = spawn(process.execPath, [__filename, 'child'], {
       stdio: [ 0, 1, 2, server._handle ],
       detached: true
     });

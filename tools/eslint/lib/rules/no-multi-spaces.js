@@ -47,7 +47,7 @@ module.exports = {
             lastCommentIndex = 0;
 
         if (options && options.exceptions) {
-            Object.keys(options.exceptions).forEach(function(key) {
+            Object.keys(options.exceptions).forEach(key => {
                 if (options.exceptions[key]) {
                     exceptions[key] = true;
                 } else {

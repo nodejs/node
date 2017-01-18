@@ -28,8 +28,8 @@ module.exports = {
                 if (node.callee.type === "Identifier") {
                     const name = node.callee.name;
 
-                    if (name === "Math" || name === "JSON") {
-                        context.report(node, "'{{name}}' is not a function.", { name });
+                    if (name === "Math" || name === "JSON" || name === "Reflect") {
+                        context.report({ node, message: "'{{name}}' is not a function.", data: { name } });
                     }
                 }
             }

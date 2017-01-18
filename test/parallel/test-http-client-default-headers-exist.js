@@ -1,9 +1,9 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var http = require('http');
+const assert = require('assert');
+const http = require('http');
 
-var expectedHeaders = {
+const expectedHeaders = {
   'DELETE': ['host', 'connection'],
   'GET': ['host', 'connection'],
   'HEAD': ['host', 'connection'],
@@ -12,18 +12,18 @@ var expectedHeaders = {
   'PUT': ['host', 'connection', 'content-length']
 };
 
-var expectedMethods = Object.keys(expectedHeaders);
+const expectedMethods = Object.keys(expectedHeaders);
 
-var requestCount = 0;
+let requestCount = 0;
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   requestCount++;
   res.end();
 
   assert(expectedHeaders.hasOwnProperty(req.method),
          req.method + ' was an unexpected method');
 
-  var requestHeaders = Object.keys(req.headers);
+  const requestHeaders = Object.keys(req.headers);
   requestHeaders.forEach(function(header) {
     assert.notStrictEqual(
       expectedHeaders[req.method].indexOf(header.toLowerCase()),

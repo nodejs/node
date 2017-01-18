@@ -19,9 +19,7 @@ var baseUniq = require('./_baseUniq');
  * // => [2, 1]
  */
 function uniq(array) {
-  return (array && array.length)
-    ? baseUniq(array)
-    : [];
+  return (array && array.length) ? baseUniq(array) : [];
 }
 
 module.exports = uniq;

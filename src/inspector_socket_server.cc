@@ -74,22 +74,27 @@ void OnBufferAlloc(uv_handle_t* handle, size_t len, uv_buf_t* buf) {
   buf->len = len;
 }
 
-void PrintDebuggerReadyMessage(int port, const std::vector<std::string>& ids) {
-  fprintf(stderr,
+void PrintDebuggerReadyMessage(int port,
+                               const std::vector<std::string>& ids,
+                               FILE* out) {
+  if (out == NULL) {
+    return;
+  }
+  fprintf(out,
           "Debugger listening on port %d.\n"
           "Warning: This is an experimental feature "
           "and could change at any time.\n",
           port);
   if (ids.size() == 1)
-    fprintf(stderr, "To start debugging, open the following URL in Chrome:\n");
+    fprintf(out, "To start debugging, open the following URL in Chrome:\n");
   if (ids.size() > 1)
-    fprintf(stderr, "To start debugging, open the following URLs in Chrome:\n");
+    fprintf(out, "To start debugging, open the following URLs in Chrome:\n");
   for (const std::string& id : ids) {
-    fprintf(stderr,
+    fprintf(out,
             "    chrome-devtools://devtools/bundled/inspector.html?"
             "experiments=true&v8only=true&ws=%s\n", GetWsUrl(port, id).c_str());
   }
-  fflush(stderr);
+  fflush(out);
 }
 
 void SendHttpResponse(InspectorSocket* socket, const std::string& response) {
@@ -207,12 +212,14 @@ class SocketSession {
 };
 
 InspectorSocketServer::InspectorSocketServer(SocketServerDelegate* delegate,
-                                             int port) : loop_(nullptr),
-                                                         delegate_(delegate),
-                                                         port_(port),
-                                                         server_(uv_tcp_t()),
-                                                         closer_(nullptr),
-                                                         next_session_id_(0) { }
+                                             int port,
+                                             FILE* out) : loop_(nullptr),
+                                                          delegate_(delegate),
+                                                          port_(port),
+                                                          server_(uv_tcp_t()),
+                                                          closer_(nullptr),
+                                                          next_session_id_(0),
+                                                          out_(out) { }
 
 
 // static
@@ -260,7 +267,7 @@ void InspectorSocketServer::SessionTerminated(int session_id) {
   delegate_->EndSession(session_id);
   if (connected_sessions_.empty() &&
       uv_is_active(reinterpret_cast<uv_handle_t*>(&server_))) {
-    PrintDebuggerReadyMessage(port_, delegate_->GetTargetIds());
+    PrintDebuggerReadyMessage(port_, delegate_->GetTargetIds(), out_);
   }
 }
 
@@ -337,10 +344,12 @@ bool InspectorSocketServer::Start(uv_loop_t* loop) {
                     SocketConnectedCallback);
   }
   if (err == 0 && connected_sessions_.empty()) {
-    PrintDebuggerReadyMessage(port_, delegate_->GetTargetIds());
+    PrintDebuggerReadyMessage(port_, delegate_->GetTargetIds(), out_);
   }
   if (err != 0 && connected_sessions_.empty()) {
-    fprintf(stderr, "Unable to open devtools socket: %s\n", uv_strerror(err));
+    if (out_ != NULL) {
+      fprintf(out_, "Unable to open devtools socket: %s\n", uv_strerror(err));
+    }
     uv_close(reinterpret_cast<uv_handle_t*>(&server_), nullptr);
     return false;
   }

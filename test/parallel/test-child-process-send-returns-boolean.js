@@ -15,7 +15,7 @@ assert.strictEqual(rv, true);
 
 const spawnOptions = { stdio: ['pipe', 'pipe', 'pipe', 'ipc'] };
 const s = spawn(process.execPath, [emptyFile], spawnOptions);
-var handle = null;
+let handle = null;
 s.on('exit', function() {
   handle.close();
 });

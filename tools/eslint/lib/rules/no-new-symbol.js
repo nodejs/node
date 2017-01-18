@@ -28,11 +28,11 @@ module.exports = {
                 const variable = globalScope.set.get("Symbol");
 
                 if (variable && variable.defs.length === 0) {
-                    variable.references.forEach(function(ref) {
+                    variable.references.forEach(ref => {
                         const node = ref.identifier;
 
                         if (node.parent && node.parent.type === "NewExpression") {
-                            context.report(node, "`Symbol` cannot be called as a constructor.");
+                            context.report({ node, message: "`Symbol` cannot be called as a constructor." });
                         }
                     });
                 }

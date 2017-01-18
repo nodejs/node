@@ -10,7 +10,7 @@
 const common = require('../common');
 var ITERATIONS = 1000;
 
-var assert = require('assert'),
+const assert = require('assert'),
     dgram = require('dgram');
 
 var buf = Buffer.alloc(1024, 42);
@@ -34,7 +34,7 @@ function onMessage(message, info) {
 }
 
 function afterSend(err) {
-  if (err) throw err;
+  assert.ifError(err);
   packetsSent++;
 }
 

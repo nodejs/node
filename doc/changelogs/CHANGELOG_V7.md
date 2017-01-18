@@ -553,7 +553,7 @@ _This is a security release impacting Windows 10 users._
 ### Notable changes
 
 * **crypto**: The `Decipher` methods `setAuthTag()` and `setAAD` now return `this`. (Kirill Fomichev) [#9398](https://github.com/nodejs/node/pull/9398)
-* **dns**: Implemented `{ttl: true}` for `resolve4()` and `resolve6()`. (Ben Noordhuis) [#9296](https://github.com/nodejs/node/pull/9296) & [#9296](https://github.com/nodejs/node/pull/9296)
+* **dns**: Implemented `{ttl: true}` for `resolve4()` and `resolve6()`. (Ben Noordhuis) [#9296](https://github.com/nodejs/node/pull/9296)
 * **libuv**: Upgrade to v1.10.1 (cjihrig) [#9647](https://github.com/nodejs/node/pull/9647)
   - Fixed a potential buffer overflow when writing data to console on Windows 10. (CVE-2016-9551)
 * **process**: Added a new `external` property to the data returned by `memoryUsage()`. (Fedor Indutny) [#9587](https://github.com/nodejs/node/pull/9587)
@@ -986,8 +986,8 @@ _This is a security release impacting Windows 10 users._
 * [[`0301ce9f55`](https://github.com/nodejs/node/commit/0301ce9f55)] - **src**: move IsolateData out of Environment (Ben Noordhuis) [#7082](https://github.com/nodejs/node/pull/7082)
 * [[`a3c5567eb4`](https://github.com/nodejs/node/commit/a3c5567eb4)] - **(SEMVER-MAJOR)** **src,win**: use correct exit code in old versions (yorkie) [#8204](https://github.com/nodejs/node/pull/8204)
 * [[`2f05af4c06`](https://github.com/nodejs/node/commit/2f05af4c06)] - **(SEMVER-MAJOR)** **stream**: improve stream error messages (Italo A. Casas) [#8801](https://github.com/nodejs/node/pull/8801)
-* [[`9983af0347`](https://github.com/nodejs/node/commit/9983af0347)] - **(SEMVER-MAJOR)** **stream**: improve unimplemented _write() error (ratikesh9) [#7671](https://github.com/nodejs/node/pull/7671)
-* [[`0cd0118334`](https://github.com/nodejs/node/commit/0cd0118334)] - **(SEMVER-MAJOR)** **stream**: 'data' argument on callback of Transform._flush() (Jesús Leganés Combarro "piranna) [#3708](https://github.com/nodejs/node/pull/3708)
+* [[`9983af0347`](https://github.com/nodejs/node/commit/9983af0347)] - **(SEMVER-MAJOR)** **stream**: improve unimplemented \_write() error (ratikesh9) [#7671](https://github.com/nodejs/node/pull/7671)
+* [[`0cd0118334`](https://github.com/nodejs/node/commit/0cd0118334)] - **(SEMVER-MAJOR)** **stream**: 'data' argument on callback of Transform.\_flush() (Jesús Leganés Combarro "piranna) [#3708](https://github.com/nodejs/node/pull/3708)
 * [[`a717be87a3`](https://github.com/nodejs/node/commit/a717be87a3)] - **test**: fix flaky test-timers-blocking-callback (Rich Trott) [#9198](https://github.com/nodejs/node/pull/9198)
 * [[`5ba02bf5db`](https://github.com/nodejs/node/commit/5ba02bf5db)] - **test**: remove arbitrary timer (Rich Trott) [#9197](https://github.com/nodejs/node/pull/9197)
 * [[`1518cc1e70`](https://github.com/nodejs/node/commit/1518cc1e70)] - **test**: remove duplicate required module (Rich Trott) [#9169](https://github.com/nodejs/node/pull/9169)

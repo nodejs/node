@@ -3,30 +3,35 @@ const common = require('../common');
 // disable strict server certificate validation by the client
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
-var assert = require('assert');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var https = require('https');
+const https = require('https');
 
-var fs = require('fs');
+const fs = require('fs');
+const url = require('url');
+const URL = url.URL;
 
-var options = {
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
-var server = https.createServer(options, common.mustCall(function(req, res) {
-  assert.equal('GET', req.method);
-  assert.equal('/foo?bar', req.url);
+const server = https.createServer(options, common.mustCall(function(req, res) {
+  assert.strictEqual('GET', req.method);
+  assert.strictEqual('/foo?bar', req.url);
   res.writeHead(200, {'Content-Type': 'text/plain'});
   res.write('hello\n');
   res.end();
   server.close();
-}));
+}, 3));
 
 server.listen(0, function() {
-  https.get(`https://127.0.0.1:${this.address().port}/foo?bar`);
+  const u = `https://127.0.0.1:${this.address().port}/foo?bar`;
+  https.get(u);
+  https.get(url.parse(u));
+  https.get(new URL(u));
 });

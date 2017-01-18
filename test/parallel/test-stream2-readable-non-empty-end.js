@@ -1,22 +1,22 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var Readable = require('_stream_readable');
+const assert = require('assert');
+const Readable = require('_stream_readable');
 
-var len = 0;
-var chunks = new Array(10);
-for (var i = 1; i <= 10; i++) {
+let len = 0;
+const chunks = new Array(10);
+for (let i = 1; i <= 10; i++) {
   chunks[i - 1] = Buffer.allocUnsafe(i);
   len += i;
 }
 
-var test = new Readable();
-var n = 0;
+const test = new Readable();
+let n = 0;
 test._read = function(size) {
-  var chunk = chunks[n++];
+  const chunk = chunks[n++];
   setTimeout(function() {
     test.push(chunk === undefined ? null : chunk);
-  });
+  }, 1);
 };
 
 test.on('end', thrower);
@@ -24,14 +24,14 @@ function thrower() {
   throw new Error('this should not happen!');
 }
 
-var bytesread = 0;
+let bytesread = 0;
 test.on('readable', function() {
-  var b = len - bytesread - 1;
-  var res = test.read(b);
+  const b = len - bytesread - 1;
+  const res = test.read(b);
   if (res) {
     bytesread += res.length;
     console.error('br=%d len=%d', bytesread, len);
-    setTimeout(next);
+    setTimeout(next, 1);
   }
   test.read(0);
 });
@@ -43,9 +43,9 @@ function next() {
   test.on('end', common.mustCall(function() {}));
 
   // one to get the last byte
-  var r = test.read();
+  let r = test.read();
   assert(r);
-  assert.equal(r.length, 1);
+  assert.strictEqual(r.length, 1);
   r = test.read();
-  assert.equal(r, null);
+  assert.strictEqual(r, null);
 }

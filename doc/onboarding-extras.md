@@ -13,6 +13,7 @@
 | `lib/{crypto,tls,https}` | @nodejs/crypto |
 | `lib/domains` | @misterdjules |
 | `lib/fs`, `src/{fs|file}` | @nodejs/fs |
+| `lib/internal/url`, `src/node_url` | @nodejs/url |
 | `lib/{_}http{*}` | @nodejs/http |
 | `lib/net` | @bnoordhuis, @indutny, @nodejs/streams |
 | `lib/{_}stream{s|*}` | @nodejs/streams |
@@ -26,10 +27,11 @@
 | `tools/eslint`, `.eslintrc` | @silverwind, @trott |
 | async_hooks | @nodejs/diagnostics |
 | upgrading V8 | @nodejs/v8, @nodejs/post-mortem |
-| upgrading npm | @fishrock123, @thealphanerd |
+| upgrading npm | @fishrock123, @MylesBorins |
 | upgrading c-ares | @jbergstroem |
 | upgrading http-parser | @jbergstroem, @nodejs/http |
 | upgrading libuv | @saghul |
+| python code | @nodejs/python |
 | platform specific | @nodejs/platform-{aix,arm,freebsd,macos,ppc,smartos,s390,windows} |
 
 

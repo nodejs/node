@@ -1,11 +1,11 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var inspect = require('util').inspect;
-var StringDecoder = require('string_decoder').StringDecoder;
+const assert = require('assert');
+const inspect = require('util').inspect;
+const StringDecoder = require('string_decoder').StringDecoder;
 
 // Test default encoding
-var decoder = new StringDecoder();
+let decoder = new StringDecoder();
 assert.strictEqual(decoder.encoding, 'utf8');
 
 process.stdout.write('scanning ');
@@ -110,22 +110,22 @@ assert.strictEqual(decoder.end(), '\ud83d');
 // singleSequence allows for easy debugging of a specific sequence which is
 // useful in case of test failures.
 function test(encoding, input, expected, singleSequence) {
-  var sequences;
+  let sequences;
   if (!singleSequence) {
     sequences = writeSequences(input.length);
   } else {
     sequences = [singleSequence];
   }
   sequences.forEach(function(sequence) {
-    var decoder = new StringDecoder(encoding);
-    var output = '';
+    const decoder = new StringDecoder(encoding);
+    let output = '';
     sequence.forEach(function(write) {
       output += decoder.write(input.slice(write[0], write[1]));
     });
     output += decoder.end();
     process.stdout.write('.');
     if (output !== expected) {
-      var message =
+      const message =
         'Expected "' + unicodeEscape(expected) + '", ' +
         'but got "' + unicodeEscape(output) + '"\n' +
         'input: ' + input.toString('hex').match(/.{2}/g) + '\n' +
@@ -138,8 +138,8 @@ function test(encoding, input, expected, singleSequence) {
 
 // unicodeEscape prints the str contents as unicode escape codes.
 function unicodeEscape(str) {
-  var r = '';
-  for (var i = 0; i < str.length; i++) {
+  let r = '';
+  for (let i = 0; i < str.length; i++) {
     r += '\\u' + str.charCodeAt(i).toString(16);
   }
   return r;
@@ -162,10 +162,10 @@ function writeSequences(length, start, sequence) {
   } else if (start === length) {
     return [sequence];
   }
-  var sequences = [];
-  for (var end = length; end > start; end--) {
-    var subSequence = sequence.concat([[start, end]]);
-    var subSequences = writeSequences(length, end, subSequence, sequences);
+  let sequences = [];
+  for (let end = length; end > start; end--) {
+    const subSequence = sequence.concat([[start, end]]);
+    const subSequences = writeSequences(length, end, subSequence, sequences);
     sequences = sequences.concat(subSequences);
   }
   return sequences;

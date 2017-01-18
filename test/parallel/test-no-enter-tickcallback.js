@@ -2,8 +2,8 @@
 
 const common = require('../common');
 const assert = require('assert');
-var allsGood = false;
-var cntr = 0;
+let allsGood = false;
+let cntr = 0;
 
 process.on('exit', () => {
   assert.ok(cntr > 0, '_tickDomainCallback was never called');

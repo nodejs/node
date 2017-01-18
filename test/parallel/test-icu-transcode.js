@@ -1,8 +1,13 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const buffer = require('buffer');
 const assert = require('assert');
+
+if (!common.hasIntl) {
+  common.skip('icu punycode tests because ICU is not present.');
+  return;
+}
 
 const orig = Buffer.from('tést €', 'utf8');
 
@@ -18,7 +23,7 @@ const tests = {
 for (const test in tests) {
   const dest = buffer.transcode(orig, 'utf8', test);
   assert.strictEqual(dest.length, tests[test].length);
-  for (var n = 0; n < tests[test].length; n++)
+  for (let n = 0; n < tests[test].length; n++)
     assert.strictEqual(dest[n], tests[test][n]);
 }
 
@@ -40,7 +45,7 @@ for (const test in tests) {
 
 assert.throws(
   () => buffer.transcode(null, 'utf8', 'ascii'),
-  /^TypeError: "source" argument must be a Buffer$/
+  /^TypeError: "source" argument must be a Buffer or Uint8Array$/
 );
 
 assert.throws(
@@ -62,3 +67,16 @@ assert.deepStrictEqual(
 assert.deepStrictEqual(
     buffer.transcode(Buffer.from('hä', 'latin1'), 'latin1', 'utf16le'),
     Buffer.from('hä', 'utf16le'));
+
+// Test that Uint8Array arguments are okay.
+{
+  const uint8array = new Uint8Array([...Buffer.from('hä', 'latin1')]);
+  assert.deepStrictEqual(
+      buffer.transcode(uint8array, 'latin1', 'utf16le'),
+      Buffer.from('hä', 'utf16le'));
+}
+
+{
+  const dest = buffer.transcode(new Uint8Array(), 'utf8', 'latin1');
+  assert.strictEqual(dest.length, 0);
+}

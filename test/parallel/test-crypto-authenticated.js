@@ -312,7 +312,7 @@ const ciphers = crypto.getCiphers();
 for (const i in TEST_CASES) {
   const test = TEST_CASES[i];
 
-  if (ciphers.indexOf(test.algo) === -1) {
+  if (!ciphers.includes(test.algo)) {
     common.skip('unsupported ' + test.algo + ' test');
     continue;
   }
@@ -324,7 +324,8 @@ for (const i in TEST_CASES) {
 
   {
     const encrypt = crypto.createCipheriv(test.algo,
-      Buffer.from(test.key, 'hex'), Buffer.from(test.iv, 'hex'));
+                                          Buffer.from(test.key, 'hex'),
+                                          Buffer.from(test.iv, 'hex'));
     if (test.aad)
       encrypt.setAAD(Buffer.from(test.aad, 'hex'));
 
@@ -342,7 +343,8 @@ for (const i in TEST_CASES) {
 
   {
     const decrypt = crypto.createDecipheriv(test.algo,
-      Buffer.from(test.key, 'hex'), Buffer.from(test.iv, 'hex'));
+                                            Buffer.from(test.key, 'hex'),
+                                            Buffer.from(test.iv, 'hex'));
     decrypt.setAuthTag(Buffer.from(test.tag, 'hex'));
     if (test.aad)
       decrypt.setAAD(Buffer.from(test.aad, 'hex'));
@@ -401,7 +403,8 @@ for (const i in TEST_CASES) {
   {
     // trying to get tag before inputting all data:
     const encrypt = crypto.createCipheriv(test.algo,
-      Buffer.from(test.key, 'hex'), Buffer.from(test.iv, 'hex'));
+                                          Buffer.from(test.key, 'hex'),
+                                          Buffer.from(test.iv, 'hex'));
     encrypt.update('blah', 'ascii');
     assert.throws(function() { encrypt.getAuthTag(); }, / state/);
   }
@@ -409,7 +412,8 @@ for (const i in TEST_CASES) {
   {
     // trying to set tag on encryption object:
     const encrypt = crypto.createCipheriv(test.algo,
-      Buffer.from(test.key, 'hex'), Buffer.from(test.iv, 'hex'));
+                                          Buffer.from(test.key, 'hex'),
+                                          Buffer.from(test.iv, 'hex'));
     assert.throws(() => { encrypt.setAuthTag(Buffer.from(test.tag, 'hex')); },
                   / state/);
   }
@@ -417,7 +421,8 @@ for (const i in TEST_CASES) {
   {
     // trying to read tag from decryption object:
     const decrypt = crypto.createDecipheriv(test.algo,
-      Buffer.from(test.key, 'hex'), Buffer.from(test.iv, 'hex'));
+                                            Buffer.from(test.key, 'hex'),
+                                            Buffer.from(test.iv, 'hex'));
     assert.throws(function() { decrypt.getAuthTag(); }, / state/);
   }
 

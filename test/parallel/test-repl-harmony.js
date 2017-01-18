@@ -1,13 +1,13 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var spawn = require('child_process').spawn;
-var args = ['-i'];
-var child = spawn(process.execPath, args);
+const spawn = require('child_process').spawn;
+const args = ['-i'];
+const child = spawn(process.execPath, args);
 
-var input = '(function(){"use strict"; const y=1;y=2})()\n';
-var expectOut = /^> TypeError: Assignment to constant variable.\n/;
+const input = '(function(){"use strict"; const y=1;y=2})()\n';
+const expectOut = /^> TypeError: Assignment to constant variable.\n/;
 
 child.stderr.setEncoding('utf8');
 child.stderr.on('data', function(c) {
@@ -15,7 +15,7 @@ child.stderr.on('data', function(c) {
 });
 
 child.stdout.setEncoding('utf8');
-var out = '';
+let out = '';
 child.stdout.on('data', function(c) {
   out += c;
 });

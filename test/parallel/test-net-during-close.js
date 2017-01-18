@@ -1,14 +1,14 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const assert = require('assert');
+const net = require('net');
 
-var server = net.createServer(function(socket) {
+const server = net.createServer(function(socket) {
   socket.end();
 });
 
 server.listen(0, common.mustCall(function() {
-  var client = net.createConnection(this.address().port);
+  const client = net.createConnection(this.address().port);
   server.close();
   // server connection event has not yet fired
   // client is still attempting to connect

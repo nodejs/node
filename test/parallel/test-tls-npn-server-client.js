@@ -13,7 +13,7 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
 
 function filenamePEM(n) {
@@ -24,7 +24,7 @@ function loadPEM(n) {
   return fs.readFileSync(filenamePEM(n));
 }
 
-var serverOptions = {
+const serverOptions = {
   key: loadPEM('agent2-key'),
   cert: loadPEM('agent2-cert'),
   crl: loadPEM('ca2-crl'),
@@ -38,7 +38,7 @@ var serverOptions = {
   NPNProtocols: ['a', 'b', 'c']
 };
 
-var clientsOptions = [{
+const clientsOptions = [{
   port: undefined,
   key: serverOptions.key,
   cert: serverOptions.cert,
@@ -70,7 +70,7 @@ var clientsOptions = [{
 const serverResults = [];
 const clientsResults = [];
 
-var server = tls.createServer(serverOptions, function(c) {
+const server = tls.createServer(serverOptions, function(c) {
   serverResults.push(c.npnProtocol);
 });
 server.listen(0, startTest);
@@ -78,7 +78,7 @@ server.listen(0, startTest);
 function startTest() {
   function connectClient(options, callback) {
     options.port = server.address().port;
-    var client = tls.connect(options, function() {
+    const client = tls.connect(options, function() {
       clientsResults.push(client.npnProtocol);
       client.destroy();
 
@@ -98,10 +98,10 @@ function startTest() {
 }
 
 process.on('exit', function() {
-  assert.equal(serverResults[0], clientsResults[0]);
-  assert.equal(serverResults[1], clientsResults[1]);
-  assert.equal(serverResults[2], 'http/1.1');
-  assert.equal(clientsResults[2], false);
-  assert.equal(serverResults[3], 'first-priority-unsupported');
-  assert.equal(clientsResults[3], false);
+  assert.strictEqual(serverResults[0], clientsResults[0]);
+  assert.strictEqual(serverResults[1], clientsResults[1]);
+  assert.strictEqual(serverResults[2], 'http/1.1');
+  assert.strictEqual(clientsResults[2], false);
+  assert.strictEqual(serverResults[3], 'first-priority-unsupported');
+  assert.strictEqual(clientsResults[3], false);
 });

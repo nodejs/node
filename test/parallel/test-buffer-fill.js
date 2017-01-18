@@ -184,20 +184,20 @@ deepStrictEqualValues(genBuffer(4, [hexBufFill, 1, -1]), [0, 0, 0, 0]);
 assert.throws(() => buf1.fill(0, -1), /^RangeError: Out of range index$/);
 assert.throws(() =>
              buf1.fill(0, 0, buf1.length + 1),
-             /^RangeError: Out of range index$/);
+              /^RangeError: Out of range index$/);
 assert.throws(() => buf1.fill('', -1), /^RangeError: Out of range index$/);
 assert.throws(() =>
              buf1.fill('', 0, buf1.length + 1),
-             /^RangeError: Out of range index$/);
+              /^RangeError: Out of range index$/);
 assert.throws(() =>
              buf1.fill('a', 0, buf1.length, 'node rocks!'),
-             /^TypeError: Unknown encoding: node rocks!$/);
+              /^TypeError: Unknown encoding: node rocks!$/);
 assert.throws(() =>
              buf1.fill('a', 0, 0, NaN),
-             /^TypeError: encoding must be a string$/);
+              /^TypeError: encoding must be a string$/);
 assert.throws(() =>
              buf1.fill('a', 0, 0, null),
-             /^TypeError: encoding must be a string$/);
+              /^TypeError: encoding must be a string$/);
 assert.throws(() =>
              buf1.fill('a', 0, 0, 'foo'), /^TypeError: Unknown encoding: foo$/);
 
@@ -243,7 +243,7 @@ function writeToFill(string, offset, end, encoding) {
   // Convert "end" to "length" (which write understands).
   const length = end - offset < 0 ? 0 : end - offset;
 
-  var wasZero = false;
+  let wasZero = false;
   do {
     const written = buf2.write(string, offset, length, encoding);
     offset += written;
@@ -271,10 +271,10 @@ function testBufs(string, offset, length, encoding) {
 // Make sure these throw.
 assert.throws(() =>
              Buffer.allocUnsafe(8).fill('a', -1),
-             /^RangeError: Out of range index$/);
+              /^RangeError: Out of range index$/);
 assert.throws(() =>
              Buffer.allocUnsafe(8).fill('a', 0, 9),
-             /^RangeError: Out of range index$/);
+              /^RangeError: Out of range index$/);
 
 // Make sure this doesn't hang indefinitely.
 Buffer.allocUnsafe(8).fill('');
@@ -324,7 +324,7 @@ Buffer.alloc(8, '');
 {
   let elseWasLast = false;
   assert.throws(() => {
-    var ctr = 0;
+    let ctr = 0;
     const start = {
       [Symbol.toPrimitive]() {
         // We use this condition to get around the check in lib/buffer.js
@@ -357,7 +357,7 @@ assert.throws(() => {
 {
   let elseWasLast = false;
   assert.throws(() => {
-    var ctr = 0;
+    let ctr = 0;
     const end = {
       [Symbol.toPrimitive]() {
         // We use this condition to get around the check in lib/buffer.js

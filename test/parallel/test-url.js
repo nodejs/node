@@ -8,7 +8,7 @@ const url = require('url');
 
 // URLs to parse, and expected data
 // { url : parsed }
-var parseTests = {
+const parseTests = {
   '//some_path': {
     href: '//some_path',
     pathname: '//some_path',
@@ -921,8 +921,8 @@ for (const u in parseTests) {
   expected = parseTests[u].href;
   actual = url.format(parseTests[u]);
 
-  assert.equal(actual, expected,
-               'format(' + u + ') == ' + u + '\nactual:' + actual);
+  assert.strictEqual(actual, expected,
+                     'format(' + u + ') == ' + u + '\nactual:' + actual);
 }
 
 function createWithNoPrototype(properties = []) {
@@ -942,7 +942,7 @@ function check(actual, expected) {
   });
 }
 
-var parseTestsWithQueryString = {
+const parseTestsWithQueryString = {
   '/foo/bar?baz=quux#frag': {
     href: '/foo/bar?baz=quux#frag',
     hash: '#frag',
@@ -1013,7 +1013,7 @@ for (const u in parseTestsWithQueryString) {
 
 // some extra formatting tests, just to verify
 // that it'll format slightly wonky content to a valid url.
-var formatTests = {
+const formatTests = {
   'http://example.com?': {
     href: 'http://example.com/?',
     protocol: 'http:',
@@ -1225,6 +1225,17 @@ var formatTests = {
     path: '/node'
   },
 
+   // greater than or equal to 63 characters after `.` in hostname
+  [`http://www.${'z'.repeat(63)}example.com/node`]: {
+    href: `http://www.${'z'.repeat(63)}example.com/node`,
+    protocol: 'http:',
+    slashes: true,
+    host: `www.${'z'.repeat(63)}example.com`,
+    hostname: `www.${'z'.repeat(63)}example.com`,
+    pathname: '/node',
+    path: '/node'
+  },
+
   // https://github.com/nodejs/node/issues/3361
   'file:///home/user': {
     href: 'file:///home/user',
@@ -1250,7 +1261,7 @@ for (const u in formatTests) {
 /*
  [from, path, expected]
 */
-var relativeTests = [
+const relativeTests = [
   ['/foo/bar/baz', 'quux', '/foo/bar/quux'],
   ['/foo/bar/baz', 'quux/asdf', '/foo/bar/quux/asdf'],
   ['/foo/bar/baz', 'quux/baz', '/foo/bar/quux/baz'],
@@ -1299,8 +1310,8 @@ var relativeTests = [
 relativeTests.forEach(function(relativeTest) {
   const a = url.resolve(relativeTest[0], relativeTest[1]);
   const e = relativeTest[2];
-  assert.equal(a, e,
-               'resolve(' + [relativeTest[0], relativeTest[1]] + ') == ' + e +
+  assert.strictEqual(a, e,
+                     'resolve(' + [relativeTest[0], relativeTest[1]] + ') == ' + e +
                '\n  actual=' + a);
 });
 
@@ -1329,7 +1340,7 @@ relativeTests.forEach(function(relativeTest) {
 //
 // Changes marked with @isaacs
 
-var bases = [
+const bases = [
   'http://a/b/c/d;p?q',
   'http://a/b/c/d;p?q=1/2',
   'http://a/b/c/d;p=1/2?q',
@@ -1338,7 +1349,7 @@ var bases = [
 ];
 
 //[to, from, result]
-var relativeTests2 = [
+const relativeTests2 = [
   // http://lists.w3.org/Archives/Public/uri/2004Feb/0114.html
   ['../c', 'foo:a/b', 'foo:c'],
   ['foo:.', 'foo:a', 'foo:'],
@@ -1631,8 +1642,8 @@ var relativeTests2 = [
 relativeTests2.forEach(function(relativeTest) {
   const a = url.resolve(relativeTest[1], relativeTest[0]);
   const e = url.format(relativeTest[2]);
-  assert.equal(a, e,
-               'resolve(' + [relativeTest[1], relativeTest[0]] + ') == ' + e +
+  assert.strictEqual(a, e,
+                     'resolve(' + [relativeTest[1], relativeTest[0]] + ') == ' + e +
                '\n  actual=' + a);
 });
 
@@ -1641,8 +1652,8 @@ relativeTests2.forEach(function(relativeTest) {
 
 //format: [from, path, expected]
 relativeTests.forEach(function(relativeTest) {
-  var actual = url.resolveObject(url.parse(relativeTest[0]), relativeTest[1]);
-  var expected = url.parse(relativeTest[2]);
+  let actual = url.resolveObject(url.parse(relativeTest[0]), relativeTest[1]);
+  let expected = url.parse(relativeTest[2]);
 
 
   assert.deepStrictEqual(actual, expected);
@@ -1650,8 +1661,8 @@ relativeTests.forEach(function(relativeTest) {
   expected = relativeTest[2];
   actual = url.format(actual);
 
-  assert.equal(actual, expected,
-               'format(' + actual + ') == ' + expected + '\nactual:' + actual);
+  assert.strictEqual(actual, expected,
+                     'format(' + actual + ') == ' + expected + '\nactual:' + actual);
 });
 
 //format: [to, from, result]
@@ -1669,8 +1680,8 @@ if (relativeTests2[181][0] === './/g' &&
   relativeTests2.splice(181, 1);
 }
 relativeTests2.forEach(function(relativeTest) {
-  var actual = url.resolveObject(url.parse(relativeTest[1]), relativeTest[0]);
-  var expected = url.parse(relativeTest[2]);
+  let actual = url.resolveObject(url.parse(relativeTest[1]), relativeTest[0]);
+  let expected = url.parse(relativeTest[2]);
 
   assert.deepStrictEqual(
     actual,
@@ -1681,14 +1692,14 @@ relativeTests2.forEach(function(relativeTest) {
   expected = url.format(relativeTest[2]);
   actual = url.format(actual);
 
-  assert.equal(actual, expected,
-               'format(' + relativeTest[1] + ') == ' + expected +
+  assert.strictEqual(actual, expected,
+                     'format(' + relativeTest[1] + ') == ' + expected +
                '\nactual:' + actual);
 });
 
 
 // https://github.com/nodejs/node/pull/1036
-var throws = [
+const throws = [
   undefined,
   null,
   true,

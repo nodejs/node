@@ -1,26 +1,26 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var vm = require('vm');
-var Script = vm.Script;
-var script = new Script('"passed";');
+const vm = require('vm');
+const Script = vm.Script;
+let script = new Script('"passed";');
 
 console.error('run in a new empty context');
-var context = vm.createContext();
-var result = script.runInContext(context);
-assert.equal('passed', result);
+let context = vm.createContext();
+let result = script.runInContext(context);
+assert.strictEqual('passed', result);
 
 console.error('create a new pre-populated context');
 context = vm.createContext({'foo': 'bar', 'thing': 'lala'});
-assert.equal('bar', context.foo);
-assert.equal('lala', context.thing);
+assert.strictEqual('bar', context.foo);
+assert.strictEqual('lala', context.thing);
 
 console.error('test updating context');
 script = new Script('foo = 3;');
 result = script.runInContext(context);
-assert.equal(3, context.foo);
-assert.equal('lala', context.thing);
+assert.strictEqual(3, context.foo);
+assert.strictEqual('lala', context.thing);
 
 // Issue GH-227:
 assert.throws(function() {
@@ -29,7 +29,7 @@ assert.throws(function() {
 
 // Issue GH-1140:
 console.error('test runInContext signature');
-var gh1140Exception;
+let gh1140Exception;
 try {
   vm.runInContext('throw new Error()', context, 'expected-filename.js');
 } catch (e) {
@@ -48,17 +48,17 @@ assert.ok(gh1140Exception,
 
 // Issue GH-693:
 console.error('test RegExp as argument to assert.throws');
-script = vm.createScript('var assert = require(\'assert\'); assert.throws(' +
+script = vm.createScript('const assert = require(\'assert\'); assert.throws(' +
                          'function() { throw "hello world"; }, /hello/);',
                          'some.js');
 script.runInNewContext({ require: require });
 
 // Issue GH-7529
 script = vm.createScript('delete b');
-var ctx = {};
+let ctx = {};
 Object.defineProperty(ctx, 'b', { configurable: false });
 ctx = vm.createContext(ctx);
-assert.equal(script.runInContext(ctx), false);
+assert.strictEqual(script.runInContext(ctx), false);
 
 // Error on the first line of a module should
 // have the correct line and column number

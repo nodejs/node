@@ -1,11 +1,11 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var http = require('http');
+const assert = require('assert');
+const http = require('http');
 
-var requests_sent = 0;
-var requests_done = 0;
-var options = {
+let requests_sent = 0;
+let requests_done = 0;
+const options = {
   method: 'GET',
   port: undefined,
   host: '127.0.0.1',
@@ -13,7 +13,7 @@ var options = {
 
 //http.globalAgent.maxSockets = 15;
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   const m = /\/(.*)/.exec(req.url);
   const reqid = parseInt(m[1], 10);
   if (reqid % 2) {
@@ -27,7 +27,7 @@ var server = http.createServer(function(req, res) {
 
 server.listen(0, options.host, function() {
   options.port = this.address().port;
-  var req;
+  let req;
 
   for (requests_sent = 0; requests_sent < 30; requests_sent += 1) {
     options.path = '/' + requests_sent;

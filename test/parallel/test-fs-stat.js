@@ -1,7 +1,7 @@
 /* eslint-disable strict */
 const common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
+const assert = require('assert');
+const fs = require('fs');
 
 fs.stat('.', common.mustCall(function(err, stats) {
   assert.ifError(err);
@@ -37,7 +37,7 @@ fs.open('.', 'r', undefined, common.mustCall(function(err, fd) {
 
 // fstatSync
 fs.open('.', 'r', undefined, common.mustCall(function(err, fd) {
-  var stats;
+  let stats;
   try {
     stats = fs.fstatSync(fd);
   } catch (err) {
@@ -57,25 +57,25 @@ fs.stat(__filename, common.mustCall(function(err, s) {
   console.dir(s);
 
   console.log('isDirectory: ' + JSON.stringify(s.isDirectory()));
-  assert.equal(false, s.isDirectory());
+  assert.strictEqual(false, s.isDirectory());
 
   console.log('isFile: ' + JSON.stringify(s.isFile()));
-  assert.equal(true, s.isFile());
+  assert.strictEqual(true, s.isFile());
 
   console.log('isSocket: ' + JSON.stringify(s.isSocket()));
-  assert.equal(false, s.isSocket());
+  assert.strictEqual(false, s.isSocket());
 
   console.log('isBlockDevice: ' + JSON.stringify(s.isBlockDevice()));
-  assert.equal(false, s.isBlockDevice());
+  assert.strictEqual(false, s.isBlockDevice());
 
   console.log('isCharacterDevice: ' + JSON.stringify(s.isCharacterDevice()));
-  assert.equal(false, s.isCharacterDevice());
+  assert.strictEqual(false, s.isCharacterDevice());
 
   console.log('isFIFO: ' + JSON.stringify(s.isFIFO()));
-  assert.equal(false, s.isFIFO());
+  assert.strictEqual(false, s.isFIFO());
 
   console.log('isSymbolicLink: ' + JSON.stringify(s.isSymbolicLink()));
-  assert.equal(false, s.isSymbolicLink());
+  assert.strictEqual(false, s.isSymbolicLink());
 
   assert.ok(s.mtime instanceof Date);
 }));

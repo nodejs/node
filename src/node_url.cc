@@ -1214,12 +1214,7 @@ namespace url {
               state = kFragment;
             }
           } else {
-            if (ch == '%' && p[1] == '2' && TO_LOWER(p[2]) == 'e') {
-              buffer += '.';
-              p += 2;
-            } else {
-              AppendOrEscape(&buffer, ch, DefaultEncodeSet);
-            }
+            AppendOrEscape(&buffer, ch, DefaultEncodeSet);
           }
           break;
         case kCannotBeBase:

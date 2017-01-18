@@ -15,16 +15,18 @@ const data = Buffer.concat([
   defEncoded
 ]);
 
-assert.equal(zlib.gunzipSync(data).toString(), 'abcdef');
+assert.strictEqual(zlib.gunzipSync(data).toString(), 'abcdef');
 
 zlib.gunzip(data, common.mustCall((err, result) => {
   assert.ifError(err);
-  assert.equal(result, 'abcdef', 'result should match original string');
+  assert.strictEqual(result.toString(), 'abcdef',
+                     'result should match original string');
 }));
 
 zlib.unzip(data, common.mustCall((err, result) => {
   assert.ifError(err);
-  assert.equal(result, 'abcdef', 'result should match original string');
+  assert.strictEqual(result.toString(), 'abcdef',
+                     'result should match original string');
 }));
 
 // Multi-member support does not apply to zlib inflate/deflate.
@@ -33,7 +35,8 @@ zlib.unzip(Buffer.concat([
   zlib.deflateSync('def')
 ]), common.mustCall((err, result) => {
   assert.ifError(err);
-  assert.equal(result, 'abc', 'result should match contents of first "member"');
+  assert.strictEqual(result.toString(), 'abc',
+                     'result should match contents of first "member"');
 }));
 
 // files that have the "right" magic bytes for starting a new gzip member

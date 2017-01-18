@@ -1,5 +1,26 @@
 
 # flat-cache - Changelog
+## v1.2.2
+- **Bug Fixes**
+  - Do not crash if cache file is invalid JSON. ([#13](https://github.com/royriojas/flat-cache/issues/13)) - [87beaa6]( https://github.com/royriojas/flat-cache/commit/87beaa6 ), [Roy Riojas](https://github.com/Roy Riojas), 19/12/2016 21:03:35
+
+    Fixes <a target="_blank" class="info-link" href="https://github.com/royriojas/flat-cache/issues/12"><span>#12</span></a>
+    
+    Not sure under which situations a cache file might exist that does
+    not contain a valid JSON structure, but just in case to cover
+    the possibility of this happening a try catch block has been added
+    
+    If the cache is somehow not valid the cache will be discarded an a
+    a new cache will be stored instead
+- **Other changes**
+  - Added travis ci support for modern node versions ([#11](https://github.com/royriojas/flat-cache/issues/11)) - [1c2b1f7]( https://github.com/royriojas/flat-cache/commit/1c2b1f7 ), [Amila Welihinda](https://github.com/Amila Welihinda), 11/11/2016 02:47:52
+
+    
+  - Bumping `circular-son` version ([#10](https://github.com/royriojas/flat-cache/issues/10)) - [4d5e861]( https://github.com/royriojas/flat-cache/commit/4d5e861 ), [Andrea Giammarchi](https://github.com/Andrea Giammarchi), 02/08/2016 09:13:52
+
+    As mentioned in https://github.com/WebReflection/circular-json/issues/25 `circular-json` wan't rightly implementing the license field.
+    
+    Latest version bump changed only that bit so that ESLint should now be happy.
 ## v1.2.1
 - **Bug Fixes**
   - Add missing utils.js file to the package. closes [#8](https://github.com/royriojas/flat-cache/issues/8) - [ec10cf2]( https://github.com/royriojas/flat-cache/commit/ec10cf2 ), [Roy Riojas](https://github.com/Roy Riojas), 01/08/2016 04:18:57

@@ -29,8 +29,8 @@ const fs = require('fs');
 const domainErrHandlerExMessage = 'exception from domain error handler';
 
 if (process.argv[2] === 'child') {
-  var domain = require('domain');
-  var d = domain.create();
+  const domain = require('domain');
+  const d = domain.create();
 
   process.on('uncaughtException', function onUncaughtException() {
     // The process' uncaughtException event must not be emitted when
@@ -80,7 +80,7 @@ if (process.argv[2] === 'child') {
     throw new Error('Error from domain.run callback');
   });
 } else {
-  var exec = require('child_process').exec;
+  const exec = require('child_process').exec;
 
   function testDomainExceptionHandling(cmdLineOption, options) {
     if (typeof cmdLineOption === 'object') {
@@ -88,18 +88,18 @@ if (process.argv[2] === 'child') {
       cmdLineOption = undefined;
     }
 
-    var throwInDomainErrHandlerOpt;
+    let throwInDomainErrHandlerOpt;
     if (options.throwInDomainErrHandler)
       throwInDomainErrHandlerOpt = 'throwInDomainErrHandler';
 
-    var cmdToExec = '';
+    let cmdToExec = '';
     if (!common.isWindows) {
       // Do not create core files, as it can take a lot of disk space on
       // continuous testing and developers' machines
       cmdToExec += 'ulimit -c 0 && ';
     }
 
-    var useTryCatchOpt;
+    let useTryCatchOpt;
     if (options.useTryCatch)
       useTryCatchOpt = 'useTryCatch';
 
@@ -112,7 +112,7 @@ if (process.argv[2] === 'child') {
       useTryCatchOpt
     ].join(' ');
 
-    var child = exec(cmdToExec);
+    const child = exec(cmdToExec);
 
     if (child) {
       child.on('exit', function onChildExited(exitCode, signal) {

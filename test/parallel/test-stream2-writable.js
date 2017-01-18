@@ -1,10 +1,10 @@
 'use strict';
 require('../common');
-var W = require('_stream_writable');
-var D = require('_stream_duplex');
-var assert = require('assert');
+const W = require('_stream_writable');
+const D = require('_stream_duplex');
+const assert = require('assert');
 
-var util = require('util');
+const util = require('util');
 util.inherits(TestWriter, W);
 
 function TestWriter() {
@@ -22,14 +22,14 @@ TestWriter.prototype._write = function(chunk, encoding, cb) {
   }.bind(this), Math.floor(Math.random() * 10));
 };
 
-var chunks = new Array(50);
-for (var i = 0; i < chunks.length; i++) {
+const chunks = new Array(50);
+for (let i = 0; i < chunks.length; i++) {
   chunks[i] = new Array(i + 1).join('x');
 }
 
 // tiny node-tap lookalike.
-var tests = [];
-var count = 0;
+const tests = [];
+let count = 0;
 
 function test(name, fn) {
   count++;
@@ -37,12 +37,12 @@ function test(name, fn) {
 }
 
 function run() {
-  var next = tests.shift();
+  const next = tests.shift();
   if (!next)
     return console.error('ok');
 
-  var name = next[0];
-  var fn = next[1];
+  const name = next[0];
+  const fn = next[1];
   console.log('# %s', name);
   fn({
     same: assert.deepStrictEqual,
@@ -62,7 +62,7 @@ process.on('exit', function() {
 process.nextTick(run);
 
 test('write fast', function(t) {
-  var tw = new TestWriter({
+  const tw = new TestWriter({
     highWaterMark: 100
   });
 
@@ -79,7 +79,7 @@ test('write fast', function(t) {
 });
 
 test('write slow', function(t) {
-  var tw = new TestWriter({
+  const tw = new TestWriter({
     highWaterMark: 100
   });
 
@@ -88,7 +88,7 @@ test('write slow', function(t) {
     t.end();
   });
 
-  var i = 0;
+  let i = 0;
   (function W() {
     tw.write(chunks[i++]);
     if (i < chunks.length)
@@ -99,11 +99,11 @@ test('write slow', function(t) {
 });
 
 test('write backpressure', function(t) {
-  var tw = new TestWriter({
+  const tw = new TestWriter({
     highWaterMark: 50
   });
 
-  var drains = 0;
+  let drains = 0;
 
   tw.on('finish', function() {
     t.same(tw.buffer, chunks, 'got chunks in the right order');
@@ -115,10 +115,11 @@ test('write backpressure', function(t) {
     drains++;
   });
 
-  var i = 0;
+  let i = 0;
   (function W() {
+    let ret;
     do {
-      var ret = tw.write(chunks[i++]);
+      ret = tw.write(chunks[i++]);
     } while (ret !== false && i < chunks.length);
 
     if (i < chunks.length) {
@@ -131,11 +132,11 @@ test('write backpressure', function(t) {
 });
 
 test('write bufferize', function(t) {
-  var tw = new TestWriter({
+  const tw = new TestWriter({
     highWaterMark: 100
   });
 
-  var encodings =
+  const encodings =
     [ 'hex',
       'utf8',
       'utf-8',
@@ -154,7 +155,7 @@ test('write bufferize', function(t) {
   });
 
   chunks.forEach(function(chunk, i) {
-    var enc = encodings[i % encodings.length];
+    const enc = encodings[i % encodings.length];
     chunk = Buffer.from(chunk);
     tw.write(chunk.toString(enc), enc);
   });
@@ -162,7 +163,7 @@ test('write bufferize', function(t) {
 });
 
 test('write no bufferize', function(t) {
-  var tw = new TestWriter({
+  const tw = new TestWriter({
     highWaterMark: 100,
     decodeStrings: false
   });
@@ -173,7 +174,7 @@ test('write no bufferize', function(t) {
     return TestWriter.prototype._write.call(this, chunk, encoding, cb);
   };
 
-  var encodings =
+  const encodings =
     [ 'hex',
       'utf8',
       'utf-8',
@@ -192,7 +193,7 @@ test('write no bufferize', function(t) {
   });
 
   chunks.forEach(function(chunk, i) {
-    var enc = encodings[i % encodings.length];
+    const enc = encodings[i % encodings.length];
     chunk = Buffer.from(chunk);
     tw.write(chunk.toString(enc), enc);
   });
@@ -200,7 +201,7 @@ test('write no bufferize', function(t) {
 });
 
 test('write callbacks', function(t) {
-  var callbacks = chunks.map(function(chunk, i) {
+  const callbacks = chunks.map(function(chunk, i) {
     return [i, function() {
       callbacks._called[i] = chunk;
     }];
@@ -210,7 +211,7 @@ test('write callbacks', function(t) {
   }, {});
   callbacks._called = [];
 
-  var tw = new TestWriter({
+  const tw = new TestWriter({
     highWaterMark: 100
   });
 
@@ -229,28 +230,28 @@ test('write callbacks', function(t) {
 });
 
 test('end callback', function(t) {
-  var tw = new TestWriter();
+  const tw = new TestWriter();
   tw.end(function() {
     t.end();
   });
 });
 
 test('end callback with chunk', function(t) {
-  var tw = new TestWriter();
+  const tw = new TestWriter();
   tw.end(Buffer.from('hello world'), function() {
     t.end();
   });
 });
 
 test('end callback with chunk and encoding', function(t) {
-  var tw = new TestWriter();
+  const tw = new TestWriter();
   tw.end('hello world', 'ascii', function() {
     t.end();
   });
 });
 
 test('end callback after .write() call', function(t) {
-  var tw = new TestWriter();
+  const tw = new TestWriter();
   tw.write(Buffer.from('hello world'));
   tw.end(function() {
     t.end();
@@ -258,8 +259,8 @@ test('end callback after .write() call', function(t) {
 });
 
 test('end callback called after write callback', function(t) {
-  var tw = new TestWriter();
-  var writeCalledback = false;
+  const tw = new TestWriter();
+  let writeCalledback = false;
   tw.write(Buffer.from('hello world'), function() {
     writeCalledback = true;
   });
@@ -270,20 +271,20 @@ test('end callback called after write callback', function(t) {
 });
 
 test('encoding should be ignored for buffers', function(t) {
-  var tw = new W();
-  var hex = '018b5e9a8f6236ffe30e31baf80d2cf6eb';
+  const tw = new W();
+  const hex = '018b5e9a8f6236ffe30e31baf80d2cf6eb';
   tw._write = function(chunk) {
     t.equal(chunk.toString('hex'), hex);
     t.end();
   };
-  var buf = Buffer.from(hex, 'hex');
+  const buf = Buffer.from(hex, 'hex');
   tw.write(buf, 'latin1');
 });
 
 test('writables are not pipable', function(t) {
-  var w = new W();
+  const w = new W();
   w._write = function() {};
-  var gotError = false;
+  let gotError = false;
   w.on('error', function() {
     gotError = true;
   });
@@ -293,10 +294,10 @@ test('writables are not pipable', function(t) {
 });
 
 test('duplexes are pipable', function(t) {
-  var d = new D();
+  const d = new D();
   d._read = function() {};
   d._write = function() {};
-  var gotError = false;
+  let gotError = false;
   d.on('error', function() {
     gotError = true;
   });
@@ -306,9 +307,9 @@ test('duplexes are pipable', function(t) {
 });
 
 test('end(chunk) two times is an error', function(t) {
-  var w = new W();
+  const w = new W();
   w._write = function() {};
-  var gotError = false;
+  let gotError = false;
   w.on('error', function(er) {
     gotError = true;
     t.equal(er.message, 'write after end');
@@ -322,8 +323,8 @@ test('end(chunk) two times is an error', function(t) {
 });
 
 test('dont end while writing', function(t) {
-  var w = new W();
-  var wrote = false;
+  const w = new W();
+  let wrote = false;
   w._write = function(chunk, e, cb) {
     assert(!this.writing);
     wrote = true;
@@ -342,8 +343,8 @@ test('dont end while writing', function(t) {
 });
 
 test('finish does not come before write cb', function(t) {
-  var w = new W();
-  var writeCb = false;
+  const w = new W();
+  let writeCb = false;
   w._write = function(chunk, e, cb) {
     setTimeout(function() {
       writeCb = true;
@@ -359,8 +360,8 @@ test('finish does not come before write cb', function(t) {
 });
 
 test('finish does not come before sync _write cb', function(t) {
-  var w = new W();
-  var writeCb = false;
+  const w = new W();
+  let writeCb = false;
   w._write = function(chunk, e, cb) {
     cb();
   };
@@ -375,7 +376,7 @@ test('finish does not come before sync _write cb', function(t) {
 });
 
 test('finish is emitted if last chunk is empty', function(t) {
-  var w = new W();
+  const w = new W();
   w._write = function(chunk, e, cb) {
     process.nextTick(cb);
   };

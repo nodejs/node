@@ -1,7 +1,7 @@
 'use strict';
 //
 
-var common = require('../common');
+const common = require('../common');
 
 if (!common.opensslCli) {
   common.skip('node compiled without OpenSSL CLI.');
@@ -13,12 +13,12 @@ if (!common.hasCrypto) {
   return;
 }
 
-var join = require('path').join;
-var net = require('net');
-var assert = require('assert');
-var fs = require('fs');
-var tls = require('tls');
-var spawn = require('child_process').spawn;
+const join = require('path').join;
+const net = require('net');
+const assert = require('assert');
+const fs = require('fs');
+const tls = require('tls');
+const spawn = require('child_process').spawn;
 
 test1();
 
@@ -31,31 +31,32 @@ function test1() {
 function test2() {
   function check(pair) {
     // "TLS Web Client Authentication"
-    assert.equal(pair.cleartext.getPeerCertificate().ext_key_usage.length, 1);
-    assert.equal(pair.cleartext.getPeerCertificate().ext_key_usage[0],
-                 '1.3.6.1.5.5.7.3.2');
+    assert.strictEqual(pair.cleartext.getPeerCertificate().ext_key_usage.length,
+                       1);
+    assert.strictEqual(pair.cleartext.getPeerCertificate().ext_key_usage[0],
+                       '1.3.6.1.5.5.7.3.2');
   }
   test('keys/agent4-key.pem', 'keys/agent4-cert.pem', check);
 }
 
 function test(keyfn, certfn, check, next) {
   keyfn = join(common.fixturesDir, keyfn);
-  var key = fs.readFileSync(keyfn).toString();
+  const key = fs.readFileSync(keyfn).toString();
 
   certfn = join(common.fixturesDir, certfn);
-  var cert = fs.readFileSync(certfn).toString();
+  const cert = fs.readFileSync(certfn).toString();
 
-  var server = spawn(common.opensslCli, ['s_server',
-                                         '-accept', common.PORT,
-                                         '-cert', certfn,
-                                         '-key', keyfn]);
+  const server = spawn(common.opensslCli, ['s_server',
+                                           '-accept', common.PORT,
+                                           '-cert', certfn,
+                                           '-key', keyfn]);
   server.stdout.pipe(process.stdout);
   server.stderr.pipe(process.stdout);
 
 
-  var state = 'WAIT-ACCEPT';
+  let state = 'WAIT-ACCEPT';
 
-  var serverStdoutBuffer = '';
+  let serverStdoutBuffer = '';
   server.stdout.setEncoding('utf8');
   server.stdout.on('data', function(s) {
     serverStdoutBuffer += s;
@@ -86,13 +87,13 @@ function test(keyfn, certfn, check, next) {
   });
 
 
-  var timeout = setTimeout(function() {
+  const timeout = setTimeout(function() {
     server.kill();
     process.exit(1);
   }, 5000);
 
-  var gotWriteCallback = false;
-  var serverExitCode = -1;
+  let gotWriteCallback = false;
+  let serverExitCode = -1;
 
   server.on('exit', function(code) {
     serverExitCode = code;
@@ -102,12 +103,12 @@ function test(keyfn, certfn, check, next) {
 
 
   function startClient() {
-    var s = new net.Stream();
+    const s = new net.Stream();
 
-    var sslcontext = tls.createSecureContext({key: key, cert: cert});
+    const sslcontext = tls.createSecureContext({key: key, cert: cert});
     sslcontext.context.setCiphers('RC4-SHA:AES128-SHA:AES256-SHA');
 
-    var pair = tls.createSecurePair(sslcontext, false);
+    const pair = tls.createSecurePair(sslcontext, false);
 
     assert.ok(pair.encrypted.writable);
     assert.ok(pair.cleartext.writable);
@@ -158,8 +159,8 @@ function test(keyfn, certfn, check, next) {
 
 
   process.on('exit', function() {
-    assert.equal(0, serverExitCode);
-    assert.equal('WAIT-SERVER-CLOSE', state);
+    assert.strictEqual(0, serverExitCode);
+    assert.strictEqual('WAIT-SERVER-CLOSE', state);
     assert.ok(gotWriteCallback);
   });
 }

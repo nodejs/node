@@ -169,7 +169,7 @@ module.exports = {
         function isMixed(declarations) {
             const contains = {};
 
-            declarations.forEach(function(declaration) {
+            declarations.forEach(declaration => {
                 const type = getDeclarationType(declaration.init);
 
                 contains[type] = true;
@@ -190,7 +190,7 @@ module.exports = {
         function isGrouped(declarations) {
             const found = {};
 
-            declarations.forEach(function(declaration) {
+            declarations.forEach(declaration => {
                 if (getDeclarationType(declaration.init) === DECL_REQUIRE) {
                     found[inferModuleType(declaration.init)] = true;
                 }
@@ -205,15 +205,9 @@ module.exports = {
             VariableDeclaration(node) {
 
                 if (isMixed(node.declarations)) {
-                    context.report(
-                        node,
-                        "Do not mix 'require' and other declarations."
-                    );
+                    context.report({ node, message: "Do not mix 'require' and other declarations." });
                 } else if (grouping && !isGrouped(node.declarations)) {
-                    context.report(
-                        node,
-                        "Do not mix core, module, file and computed requires."
-                    );
+                    context.report({ node, message: "Do not mix core, module, file and computed requires." });
                 }
             }
         };

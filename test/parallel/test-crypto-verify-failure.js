@@ -1,25 +1,25 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var crypto = require('crypto');
-var tls = require('tls');
+const crypto = require('crypto');
+const tls = require('tls');
 
 crypto.DEFAULT_ENCODING = 'buffer';
 
-var fs = require('fs');
+const fs = require('fs');
 
-var certPem = fs.readFileSync(common.fixturesDir + '/test_cert.pem', 'ascii');
+const certPem = fs.readFileSync(common.fixturesDir + '/test_cert.pem', 'ascii');
 
-var options = {
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
-var server = tls.Server(options, function(socket) {
+const server = tls.Server(options, function(socket) {
   setImmediate(function() {
     console.log('sending');
     verify();

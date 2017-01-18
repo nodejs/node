@@ -13,13 +13,13 @@ const tmpFile = path.join(common.tmpDir, 'stdout.txt');
 common.refreshTmpDir();
 
 function test(size, useBuffer, cb) {
-  var cmd = '"' + process.argv[0] + '"' +
-            ' ' +
-            '"' + (useBuffer ? scriptBuffer : scriptString) + '"' +
-            ' ' +
-            size +
-            ' > ' +
-            '"' + tmpFile + '"';
+  const cmd = '"' + process.argv[0] + '"' +
+              ' ' +
+              '"' + (useBuffer ? scriptBuffer : scriptString) + '"' +
+              ' ' +
+              size +
+              ' > ' +
+              '"' + tmpFile + '"';
 
   try {
     fs.unlinkSync(tmpFile);
@@ -28,11 +28,10 @@ function test(size, useBuffer, cb) {
   console.log(`${size} chars to ${tmpFile}...`);
 
   childProcess.exec(cmd, common.mustCall(function(err) {
-    if (err) throw err;
-
+    assert.ifError(err);
     console.log('done!');
 
-    var stat = fs.statSync(tmpFile);
+    const stat = fs.statSync(tmpFile);
 
     console.log(`${tmpFile} has ${stat.size} bytes`);
 

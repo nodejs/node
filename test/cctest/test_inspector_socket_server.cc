@@ -70,7 +70,7 @@ class Timeout {
 class InspectorSocketServerTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    uv_loop_init(&loop);
+    EXPECT_EQ(0, uv_loop_init(&loop));
   }
 
   void TearDown() override {
@@ -300,9 +300,9 @@ class SocketWrapper {
 class ServerHolder {
  public:
   template <typename Delegate>
-  ServerHolder(Delegate* delegate, int port)
+  ServerHolder(Delegate* delegate, int port, FILE* out = NULL)
                : closed(false), paused(false), sessions_terminated(false),
-                 server_(delegate, port) {
+                 server_(delegate, port, out) {
     delegate->Connect(&server_);
   }
 

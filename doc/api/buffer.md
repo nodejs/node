@@ -348,15 +348,16 @@ deprecated: v6.0.0
 > [`Buffer.from(arrayBuffer[, byteOffset [, length]])`][`Buffer.from(arrayBuffer)`]
 > instead.
 
-* `arrayBuffer` {ArrayBuffer} The `.buffer` property of a [`TypedArray`] or
-  [`ArrayBuffer`]
-* `byteOffset` {Integer} Where to start copying from `arrayBuffer`. **Default:** `0`
-* `length` {Integer} How many bytes to copy from `arrayBuffer`.
+* `arrayBuffer` {ArrayBuffer} An [`ArrayBuffer`] or the `.buffer` property of a
+  [`TypedArray`].
+* `byteOffset` {Integer} Index of first byte to expose. **Default:** `0`
+* `length` {Integer} Number of bytes to expose.
   **Default:** `arrayBuffer.length - byteOffset`
 
-When passed a reference to the `.buffer` property of a [`TypedArray`] instance,
-the newly created `Buffer` will share the same allocated memory as the
-[`TypedArray`].
+This creates a view of the [`ArrayBuffer`] without copying the underlying
+memory. For example, when passed a reference to the `.buffer` property of a
+[`TypedArray`] instance, the newly created `Buffer` will share the same
+allocated memory as the [`TypedArray`].
 
 The optional `byteOffset` and `length` arguments specify a memory range within
 the `arrayBuffer` that will be shared by the `Buffer`.
@@ -635,8 +636,8 @@ actual byte length is returned.
 added: v0.11.13
 -->
 
-* `buf1` {Buffer}
-* `buf2` {Buffer}
+* `buf1` {Buffer|Uint8Array}
+* `buf2` {Buffer|Uint8Array}
 * Returns: {Integer}
 
 Compares `buf1` to `buf2` typically for the purpose of sorting arrays of
@@ -660,7 +661,7 @@ console.log(arr.sort(Buffer.compare));
 added: v0.7.11
 -->
 
-* `list` {Array} List of `Buffer` instances to concat
+* `list` {Array} List of `Buffer` or [`Uint8Array`] instances to concat
 * `totalLength` {Integer} Total length of the `Buffer` instances in `list`
   when concatenated
 * Returns: {Buffer}
@@ -719,15 +720,16 @@ A `TypeError` will be thrown if `array` is not an `Array`.
 added: v5.10.0
 -->
 
-* `arrayBuffer` {ArrayBuffer} The `.buffer` property of a [`TypedArray`] or
-  [`ArrayBuffer`]
-* `byteOffset` {Integer} Where to start copying from `arrayBuffer`. **Default:** `0`
-* `length` {Integer} How many bytes to copy from `arrayBuffer`.
+* `arrayBuffer` {ArrayBuffer} An [`ArrayBuffer`] or the `.buffer` property of a
+  [`TypedArray`].
+* `byteOffset` {Integer} Index of first byte to expose. **Default:** `0`
+* `length` {Integer} Number of bytes to expose.
   **Default:** `arrayBuffer.length - byteOffset`
 
-When passed a reference to the `.buffer` property of a [`TypedArray`] instance,
-the newly created `Buffer` will share the same allocated memory as the
-[`TypedArray`].
+This creates a view of the [`ArrayBuffer`] without copying the underlying
+memory. For example, when passed a reference to the `.buffer` property of a
+[`TypedArray`] instance, the newly created `Buffer` will share the same
+allocated memory as the [`TypedArray`].
 
 Example:
 
@@ -877,12 +879,25 @@ for (let i = 0; i < str.length ; i++) {
 console.log(buf.toString('ascii'));
 ```
 
+### buf.buffer
+
+The `buffer` property references the underlying `ArrayBuffer` object based on
+which this Buffer object is created.
+
+```js
+const arrayBuffer = new ArrayBuffer(16);
+const buffer = Buffer.from(arrayBuffer);
+
+console.log(buffer.buffer === arrayBuffer);
+// Prints: true
+```
+
 ### buf.compare(target[, targetStart[, targetEnd[, sourceStart[, sourceEnd]]]])
 <!-- YAML
 added: v0.11.13
 -->
 
-* `target` {Buffer} A `Buffer` to compare to
+* `target` {Buffer|Uint8Array} A `Buffer` or [`Uint8Array`] to compare to
 * `targetStart` {Integer} The offset within `target` at which to begin
   comparison. **Default:** `0`
 * `targetEnd` {Integer} The offset with `target` at which to end comparison
@@ -1037,7 +1052,7 @@ for (const pair of buf.entries()) {
 added: v0.11.13
 -->
 
-* `otherBuffer` {Buffer} A `Buffer` to compare to
+* `otherBuffer` {Buffer} A `Buffer` or [`Uint8Array`] to compare to
 * Returns: {Boolean}
 
 Returns `true` if both `buf` and `otherBuffer` have exactly the same bytes,
@@ -1099,7 +1114,7 @@ console.log(Buffer.allocUnsafe(3).fill('\u0222'));
 added: v1.5.0
 -->
 
-* `value` {String | Buffer | Integer} What to search for
+* `value` {String | Buffer | Uint8Array | Integer} What to search for
 * `byteOffset` {Integer} Where to begin searching in `buf`. **Default:** `0`
 * `encoding` {String} If `value` is a string, this is its encoding.
   **Default:** `'utf8'`
@@ -1110,8 +1125,8 @@ If `value` is:
 
   * a string, `value` is interpreted according to the character encoding in
     `encoding`.
-  * a `Buffer`, `value` will be used in its entirety. To compare a partial
-  `Buffer` use [`buf.slice()`].
+  * a `Buffer` or [`Uint8Array`], `value` will be used in its entirety.
+    To compare a partial `Buffer`, use [`buf.slice()`].
   * a number, `value` will be interpreted as an unsigned 8-bit integer
   value between `0` and `255`.
 
@@ -1221,7 +1236,7 @@ for (const key of buf.keys()) {
 added: v6.0.0
 -->
 
-* `value` {String | Buffer | Integer} What to search for
+* `value` {String | Buffer | Uint8Array | Integer} What to search for
 * `byteOffset` {Integer} Where to begin searching in `buf`.
   **Default:** [`buf.length`]` - 1`
 * `encoding` {String} If `value` is a string, this is its encoding.
@@ -1313,6 +1328,12 @@ buf = buf.slice(0, 5);
 // Prints: 5
 console.log(buf.length);
 ```
+
+### buf.parent
+
+> Stability: 0 - Deprecated: Use [`buf.buffer`] instead.
+
+The `buf.parent` property is a deprecated alias for `buf.buffer`.
 
 ### buf.readDoubleBE(offset[, noAssert])
 ### buf.readDoubleLE(offset[, noAssert])
@@ -2313,12 +2334,12 @@ Note that this is a property on the `buffer` module returned by
 added: v7.1.0
 -->
 
-* `source` {Buffer} A `Buffer` instance
+* `source` {Buffer|Uint8Array} A `Buffer` or `Uint8Array` instance
 * `fromEnc` {String} The current encoding
 * `toEnc` {String} To target encoding
 
-Re-encodes the given `Buffer` instance from one character encoding to another.
-Returns a new `Buffer` instance.
+Re-encodes the given `Buffer` or `Uint8Array` instance from one character
+encoding to another. Returns a new `Buffer` instance.
 
 Throws if the `fromEnc` or `toEnc` specify invalid character encodings or if
 conversion from `fromEnc` to `toEnc` is not permitted.
@@ -2414,6 +2435,7 @@ console.log(buf);
 ```
 
 [`buf.compare()`]: #buffer_buf_compare_target_targetstart_targetend_sourcestart_sourceend
+[`buf.buffer`]: #buffer_buf_buffer
 [`buf.entries()`]: #buffer_buf_entries
 [`buf.indexOf()`]: #buffer_buf_indexof_value_byteoffset_encoding
 [`buf.fill()`]: #buffer_buf_fill_value_offset_end_encoding

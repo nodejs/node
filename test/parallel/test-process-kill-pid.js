@@ -1,6 +1,6 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 // test variants of pid
 //
@@ -34,9 +34,9 @@ assert.throws(function() { process.kill(1, 'test'); }, Error);
 // that we don't kill our process group, or try to actually send ANY signals on
 // windows, which doesn't support them.
 function kill(tryPid, trySig, expectPid, expectSig) {
-  var getPid;
-  var getSig;
-  var origKill = process._kill;
+  let getPid;
+  let getSig;
+  const origKill = process._kill;
   process._kill = function(pid, sig) {
     getPid = pid;
     getSig = sig;
@@ -47,8 +47,8 @@ function kill(tryPid, trySig, expectPid, expectSig) {
 
   process.kill(tryPid, trySig);
 
-  assert.equal(getPid, expectPid);
-  assert.equal(getSig, expectSig);
+  assert.strictEqual(getPid.toString(), expectPid.toString());
+  assert.strictEqual(getSig, expectSig);
 }
 
 // Note that SIGHUP and SIGTERM map to 1 and 15 respectively, even on Windows

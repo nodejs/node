@@ -1,14 +1,14 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const assert = require('assert');
+const net = require('net');
 
-var kPoolSize = 40 * 1024;
-var data = 'あ'.repeat(kPoolSize);
-var encoding = 'UTF-8';
+const kPoolSize = 40 * 1024;
+const data = 'あ'.repeat(kPoolSize);
+const encoding = 'UTF-8';
 
-var server = net.createServer(common.mustCall(function(socket) {
-  var receivedSize = 0;
+const server = net.createServer(common.mustCall(function(socket) {
+  let receivedSize = 0;
 
   socket.setEncoding(encoding);
   socket.on('data', function(data) {
@@ -21,7 +21,7 @@ var server = net.createServer(common.mustCall(function(socket) {
 }));
 
 server.listen(0, function() {
-  var client = net.createConnection(this.address().port);
+  const client = net.createConnection(this.address().port);
   client.on('end', function() {
     server.close();
   });

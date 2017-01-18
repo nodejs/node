@@ -440,12 +440,49 @@ occurs, the `callback` *may or may not* be called with the error as its
 first argument. To reliably detect write errors, add a listener for the
 `'error'` event.
 
-The return value is `true` if the internal buffer does not exceed
+The return value is `true` if the internal buffer is less than the
 `highWaterMark` configured when the stream was created after admitting `chunk`.
 If `false` is returned, further attempts to write data to the stream should
-stop until the [`'drain'`][] event is emitted. However, the `false` return
-value is only advisory and the writable stream will unconditionally accept and
-buffer `chunk` even if it has not not been allowed to drain.
+stop until the [`'drain'`][] event is emitted.
+
+While a stream is not draining, calls to `write()` will buffer `chunk`, and
+return false. Once all currently buffered chunks are drained (accepted for
+delivery by the operating system), the `'drain'` event will be emitted.
+It is recommended that once write() returns false, no more chunks be written
+until the `'drain'` event is emitted. While calling `write()` on a stream that
+is not draining is allowed, Node.js will buffer all written chunks until
+maximum memory usage occurs, at which point it will abort unconditionally.
+Even before it aborts, high memory usage will cause poor garbage collector
+performance and high RSS (which is not typically released back to the system,
+even after the memory is no longer required). Since TCP sockets may never
+drain if the remote peer does not read the data, writing a socket that is
+not draining may lead to a remotely exploitable vulnerability.
+
+Writing data while the stream is not draining is particularly
+problematic for a [Transform][], because the `Transform` streams are paused
+by default until they are piped or an `'data'` or `'readable'` event handler
+is added.
+
+If the data to be written can be generated or fetched on demand, it is
+recommended to encapsulate the logic into a [Readable][] and use
+[`stream.pipe()`][]. However, if calling `write()` is preferred, it is
+possible to respect backpressure and avoid memory issues using the
+the [`'drain'`][] event:
+
+```js
+function write (data, cb) {
+  if (!stream.write(data)) {
+    stream.once('drain', cb)
+  } else {
+    process.nextTick(cb)
+  }
+}
+
+// Wait for cb to be called before doing any other write.
+write('hello', () => {
+  console.log('write completed, do more writes now')
+})
+```
 
 A Writable stream in object mode will always ignore the `encoding` argument.
 
@@ -1306,7 +1343,7 @@ It is recommended that errors occurring during the processing of the
 `writable._write()` and `writable._writev()` methods are reported by invoking
 the callback and passing the error as the first argument. This will cause an
 `'error'` event to be emitted by the Writable. Throwing an Error from within
-`writable._write()` can result in expected and inconsistent behavior depending
+`writable._write()` can result in unexpected and inconsistent behavior depending
 on how the stream is being used.  Using the callback ensures consistent and
 predictable handling of errors.
 

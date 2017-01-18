@@ -136,10 +136,13 @@ Check the output of `git log --oneline files_that_you_changed` to find out
 what subsystem (or subsystems) your changes touch.
 
 If your patch fixes an open issue, you can add a reference to it at the end
-of the log. Use the `Fixes:` prefix and the full issue URL. For example:
+of the log. Use the `Fixes:` prefix and the full issue URL. For other references
+use `Refs:`. For example:
 
 ```txt
 Fixes: https://github.com/nodejs/node/issues/1337
+Refs: http://eslint.org/docs/rules/space-in-parens.html
+Refs: https://github.com/nodejs/node/pull/3615
 ```
 
 ### Step 4: Rebase
@@ -167,7 +170,7 @@ $ ./configure && make -j4 test
 Windows:
 
 ```text
-> vcbuild test
+ .\vcbuild nosign test
 ```
 
 (See the [BUILDING.md](./BUILDING.md) for more details.)
@@ -175,11 +178,11 @@ Windows:
 Make sure the linter is happy and that all tests pass. Please, do not submit
 patches that fail either check.
 
-Running `make test`/`vcbuild test` will run the linter as well unless one or
+Running `make test`/`.\vcbuild nosign test` will run the linter as well unless one or
 more tests fail.
 
 If you want to run the linter without running tests, use
-`make lint`/`vcbuild jslint`.
+`make lint`/`.\vcbuild nosign jslint`.
 
 If you are updating tests and just want to run a single test to check it, you
 can use this syntax to run it exactly as the test harness would:

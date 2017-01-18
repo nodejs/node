@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var spawn = require('child_process').spawn;
+const common = require('../common');
+const assert = require('assert');
+const spawn = require('child_process').spawn;
 
 if (process.argv[2] === 'parent')
   parent();
@@ -9,10 +9,10 @@ else
   grandparent();
 
 function grandparent() {
-  var child = spawn(process.execPath, [__filename, 'parent']);
+  const child = spawn(process.execPath, [__filename, 'parent']);
   child.stderr.pipe(process.stderr);
-  var output = '';
-  var input = 'asdfasdf';
+  let output = '';
+  const input = 'asdfasdf';
 
   child.stdout.on('data', function(chunk) {
     output += chunk;

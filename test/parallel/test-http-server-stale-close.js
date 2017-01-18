@@ -1,11 +1,11 @@
 'use strict';
 require('../common');
-var http = require('http');
-var util = require('util');
-var fork = require('child_process').fork;
+const http = require('http');
+const util = require('util');
+const fork = require('child_process').fork;
 
 if (process.env.NODE_TEST_FORK_PORT) {
-  var req = http.request({
+  const req = http.request({
     headers: {'Content-Length': '42'},
     method: 'POST',
     host: '127.0.0.1',
@@ -14,7 +14,7 @@ if (process.env.NODE_TEST_FORK_PORT) {
   req.write('BAM');
   req.end();
 } else {
-  var server = http.createServer(function(req, res) {
+  const server = http.createServer(function(req, res) {
     res.writeHead(200, {'Content-Length': '42'});
     req.pipe(res);
     req.on('close', function() {

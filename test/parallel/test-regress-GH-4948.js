@@ -2,10 +2,10 @@
 // https://github.com/joyent/node/issues/4948
 
 require('../common');
-var http = require('http');
+const http = require('http');
 
-var reqCount = 0;
-var server = http.createServer(function(serverReq, serverRes) {
+let reqCount = 0;
+const server = http.createServer(function(serverReq, serverRes) {
   if (reqCount) {
     serverRes.end();
     server.close();
@@ -16,8 +16,8 @@ var server = http.createServer(function(serverReq, serverRes) {
 
   // normally the use case would be to call an external site
   // does not require connecting locally or to itself to fail
-  var r = http.request({hostname: 'localhost',
-                        port: this.address().port}, function(res) {
+  const r = http.request({hostname: 'localhost',
+                          port: this.address().port}, function(res) {
     // required, just needs to be in the client response somewhere
     serverRes.end();
 
@@ -31,9 +31,9 @@ var server = http.createServer(function(serverReq, serverRes) {
   serverRes.write('some data');
 }).listen(0, function() {
   // simulate a client request that closes early
-  var net = require('net');
+  const net = require('net');
 
-  var sock = new net.Socket();
+  const sock = new net.Socket();
   sock.connect(this.address().port, 'localhost');
 
   sock.on('connect', function() {

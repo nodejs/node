@@ -1,26 +1,26 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
-var tests_run = 0;
+let tests_run = 0;
 
 function pingPongTest(port, host, on_complete) {
-  var N = 1000;
-  var count = 0;
-  var sent_final_ping = false;
+  const N = 1000;
+  let count = 0;
+  let sent_final_ping = false;
 
-  var server = net.createServer({ allowHalfOpen: true }, function(socket) {
-    assert.equal(true, socket.remoteAddress !== null);
-    assert.equal(true, socket.remoteAddress !== undefined);
-    var address = socket.remoteAddress;
+  const server = net.createServer({ allowHalfOpen: true }, function(socket) {
+    assert.strictEqual(true, socket.remoteAddress !== null);
+    assert.strictEqual(true, socket.remoteAddress !== undefined);
+    const address = socket.remoteAddress;
     if (host === '127.0.0.1') {
-      assert.equal(address, '127.0.0.1');
+      assert.strictEqual(address, '127.0.0.1');
     } else if (host == null || host === 'localhost') {
       assert(address === '127.0.0.1' || address === '::ffff:127.0.0.1');
     } else {
       console.log('host = ' + host + ', remoteAddress = ' + address);
-      assert.equal(address, '::1');
+      assert.strictEqual(address, '::1');
     }
 
     socket.setEncoding('utf8');
@@ -29,46 +29,46 @@ function pingPongTest(port, host, on_complete) {
 
     socket.on('data', function(data) {
       console.log('server got: ' + JSON.stringify(data));
-      assert.equal('open', socket.readyState);
-      assert.equal(true, count <= N);
+      assert.strictEqual('open', socket.readyState);
+      assert.strictEqual(true, count <= N);
       if (/PING/.exec(data)) {
         socket.write('PONG');
       }
     });
 
     socket.on('end', function() {
-      assert.equal('writeOnly', socket.readyState);
+      assert.strictEqual('writeOnly', socket.readyState);
       socket.end();
     });
 
     socket.on('close', function(had_error) {
-      assert.equal(false, had_error);
-      assert.equal('closed', socket.readyState);
+      assert.strictEqual(false, had_error);
+      assert.strictEqual('closed', socket.readyState);
       socket.server.close();
     });
   });
 
   server.listen(port, host, function() {
-    var client = net.createConnection(port, host);
+    const client = net.createConnection(port, host);
 
     client.setEncoding('utf8');
 
     client.on('connect', function() {
-      assert.equal('open', client.readyState);
+      assert.strictEqual('open', client.readyState);
       client.write('PING');
     });
 
     client.on('data', function(data) {
       console.log('client got: ' + data);
 
-      assert.equal('PONG', data);
+      assert.strictEqual('PONG', data);
       count += 1;
 
       if (sent_final_ping) {
-        assert.equal('readOnly', client.readyState);
+        assert.strictEqual('readOnly', client.readyState);
         return;
       } else {
-        assert.equal('open', client.readyState);
+        assert.strictEqual('open', client.readyState);
       }
 
       if (count < N) {
@@ -81,8 +81,8 @@ function pingPongTest(port, host, on_complete) {
     });
 
     client.on('close', function() {
-      assert.equal(N + 1, count);
-      assert.equal(true, sent_final_ping);
+      assert.strictEqual(N + 1, count);
+      assert.strictEqual(true, sent_final_ping);
       if (on_complete) on_complete();
       tests_run += 1;
     });
@@ -97,5 +97,5 @@ pingPongTest(common.PORT + 1, null);
 if (!common.isSunOS) pingPongTest(common.PORT + 2, '::1');
 
 process.on('exit', function() {
-  assert.equal(common.isSunOS ? 2 : 3, tests_run);
+  assert.strictEqual(common.isSunOS ? 2 : 3, tests_run);
 });

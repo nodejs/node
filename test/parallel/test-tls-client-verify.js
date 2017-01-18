@@ -12,36 +12,36 @@ const fs = require('fs');
 
 const hosterr = /Hostname\/IP doesn't match certificate's altnames/g;
 const testCases =
-    [{ ca: ['ca1-cert'],
-       key: 'agent2-key',
-       cert: 'agent2-cert',
-       servers: [
+  [{ ca: ['ca1-cert'],
+     key: 'agent2-key',
+     cert: 'agent2-cert',
+     servers: [
          { ok: true, key: 'agent1-key', cert: 'agent1-cert' },
          { ok: false, key: 'agent2-key', cert: 'agent2-cert' },
          { ok: false, key: 'agent3-key', cert: 'agent3-cert' }
-       ]
-     },
+     ]
+  },
 
-     { ca: [],
-       key: 'agent2-key',
-       cert: 'agent2-cert',
-       servers: [
+  { ca: [],
+    key: 'agent2-key',
+    cert: 'agent2-cert',
+    servers: [
          { ok: false, key: 'agent1-key', cert: 'agent1-cert' },
          { ok: false, key: 'agent2-key', cert: 'agent2-cert' },
          { ok: false, key: 'agent3-key', cert: 'agent3-cert' }
-       ]
-     },
+    ]
+  },
 
-     { ca: ['ca1-cert', 'ca2-cert'],
-       key: 'agent2-key',
-       cert: 'agent2-cert',
-       servers: [
+  { ca: ['ca1-cert', 'ca2-cert'],
+    key: 'agent2-key',
+    cert: 'agent2-cert',
+    servers: [
          { ok: true, key: 'agent1-key', cert: 'agent1-cert' },
          { ok: false, key: 'agent2-key', cert: 'agent2-cert' },
          { ok: true, key: 'agent3-key', cert: 'agent3-cert' }
-       ]
-     }
-    ];
+    ]
+  }
+  ];
 
 function filenamePEM(n) {
   return require('path').join(common.fixturesDir, 'keys', n + '.pem');
@@ -106,7 +106,7 @@ function testServers(index, servers, clientOptions, cb) {
 
 
 function runTest(testIndex) {
-  var tcase = testCases[testIndex];
+  const tcase = testCases[testIndex];
   if (!tcase) return;
 
   const clientOptions = {
@@ -130,5 +130,5 @@ runTest(0);
 
 process.on('exit', function() {
   console.log('successful tests: %d', successfulTests);
-  assert.equal(successfulTests, testCases.length);
+  assert.strictEqual(successfulTests, testCases.length);
 });
