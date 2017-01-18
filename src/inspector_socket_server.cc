@@ -24,9 +24,9 @@ void Escape(std::string* string) {
   }
 }
 
-std::string GetWsUrl(int port, const std::string& id) {
+std::string GetWsUrl(const std::string& host, int port, const std::string& id) {
   char buf[1024];
-  snprintf(buf, sizeof(buf), "127.0.0.1:%d/%s", port, id.c_str());
+  snprintf(buf, sizeof(buf), "%s:%d/%s", host.c_str(), port, id.c_str());
   return buf;
 }
 
@@ -74,7 +74,8 @@ void OnBufferAlloc(uv_handle_t* handle, size_t len, uv_buf_t* buf) {
   buf->len = len;
 }
 
-void PrintDebuggerReadyMessage(int port,
+void PrintDebuggerReadyMessage(const std::string& host,
+                               int port,
                                const std::vector<std::string>& ids,
                                FILE* out) {
   if (out == NULL) {
@@ -92,7 +93,8 @@ void PrintDebuggerReadyMessage(int port,
   for (const std::string& id : ids) {
     fprintf(out,
             "    chrome-devtools://devtools/bundled/inspector.html?"
-            "experiments=true&v8only=true&ws=%s\n", GetWsUrl(port, id).c_str());
+            "experiments=true&v8only=true&ws=%s\n",
+            GetWsUrl(host, port, id).c_str());
   }
   fflush(out);
 }
@@ -229,9 +231,11 @@ class SocketSession {
 };
 
 InspectorSocketServer::InspectorSocketServer(SocketServerDelegate* delegate,
+                                             const std::string& host,
                                              int port,
                                              FILE* out) : loop_(nullptr),
                                                           delegate_(delegate),
+                                                          host_(host),
                                                           port_(port),
                                                           server_(uv_tcp_t()),
                                                           closer_(nullptr),
@@ -284,7 +288,7 @@ void InspectorSocketServer::SessionTerminated(int session_id) {
   delegate_->EndSession(session_id);
   if (connected_sessions_.empty() &&
       uv_is_active(reinterpret_cast<uv_handle_t*>(&server_))) {
-    PrintDebuggerReadyMessage(port_, delegate_->GetTargetIds(), out_);
+    PrintDebuggerReadyMessage(host_, port_, delegate_->GetTargetIds(), out_);
   }
 }
 
@@ -337,7 +341,7 @@ void InspectorSocketServer::SendListResponse(InspectorSocket* socket) {
       }
     }
     if (!connected) {
-      std::string address = GetWsUrl(port_, id);
+      std::string address = GetWsUrl(host_, port_, id);
       std::ostringstream frontend_url;
       frontend_url << "chrome-devtools://devtools/bundled";
       frontend_url << "/inspector.html?experiments=true&v8only=true&ws=";
@@ -353,7 +357,7 @@ bool InspectorSocketServer::Start(uv_loop_t* loop) {
   loop_ = loop;
   sockaddr_in addr;
   uv_tcp_init(loop_, &server_);
-  uv_ip4_addr("0.0.0.0", port_, &addr);
+  uv_ip4_addr(host_.c_str(), port_, &addr);
   int err = uv_tcp_bind(&server_,
                         reinterpret_cast<const struct sockaddr*>(&addr), 0);
   if (err == 0)
@@ -363,11 +367,13 @@ bool InspectorSocketServer::Start(uv_loop_t* loop) {
                     SocketConnectedCallback);
   }
   if (err == 0 && connected_sessions_.empty()) {
-    PrintDebuggerReadyMessage(port_, delegate_->GetTargetIds(), out_);
+    PrintDebuggerReadyMessage(host_, port_, delegate_->GetTargetIds(), out_);
   }
   if (err != 0 && connected_sessions_.empty()) {
     if (out_ != NULL) {
-      fprintf(out_, "Unable to open devtools socket: %s\n", uv_strerror(err));
+      fprintf(out_, "Starting inspector on %s:%d failed: %s\n",
+              host_.c_str(), port_, uv_strerror(err));
+      fflush(out_);
     }
     uv_close(reinterpret_cast<uv_handle_t*>(&server_), nullptr);
     return false;
