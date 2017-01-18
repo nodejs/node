@@ -9,9 +9,14 @@ The module exports two specific components:
 
 * A `Console` class with methods such as `console.log()`, `console.error()` and
   `console.warn()` that can be used to write to any Node.js stream.
-* A global `console` instance configured to write to `stdout` and `stderr`.
-  Because this object is global, it can be used without calling
+* A global `console` instance configured to write to [`process.stdout`][] and
+  [`process.stderr`][].  The global `console` can be used without calling
   `require('console')`.
+
+***Warning***: The global console object's methods are neither consistently
+synchronous like the browser APIs they resemble, nor are they consistently
+asynchronous like all other Node.js streams. See the [note on process I/O][] for
+more information.
 
 Example using the global `console`:
 
@@ -46,21 +51,6 @@ const name = 'Will Robinson';
 myConsole.warn(`Danger ${name}! Danger!`);
 // Prints: Danger Will Robinson! Danger!, to err
 ```
-
-While the API for the `Console` class is designed fundamentally around the
-browser `console` object, the `Console` in Node.js is *not* intended to
-duplicate the browser's functionality exactly.
-
-## Asynchronous vs Synchronous Consoles
-
-The console functions are usually asynchronous unless the destination is a file.
-Disks are fast and operating systems normally employ write-back caching;
-it should be a very rare occurrence indeed that a write blocks, but it
-is possible.
-
-Additionally, console functions are blocking when outputting to TTYs
-(terminals) on OS X as a workaround for the OS's very small, 1kb buffer size.
-This is to prevent interleaving between `stdout` and `stderr`.
 
 ## Class: Console
 
@@ -305,4 +295,5 @@ The `console.warn()` function is an alias for [`console.error()`][].
 [`util.format()`]: util.html#util_util_format_format_args
 [`util.inspect()`]: util.html#util_util_inspect_object_options
 [customizing `util.inspect()` colors]: util.html#util_customizing_util_inspect_colors
+[note on process I/O]: process.html#process_a_note_on_process_i_o
 [web-api-assert]: https://developer.mozilla.org/en-US/docs/Web/API/console/assert
