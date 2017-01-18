@@ -74,9 +74,10 @@ from the client to the server.
 
 When a socket is closed, whether by the user, or alternatively
 by the server, it is removed from the pool. Any unused sockets in the pool
-will be marked so as not to keep the Node.js process running.
-It is good practice, however, to [`destroy()`][] HTTP Keep-Alive
-agents when they are no longer iqn use, so that the sockets will be shut down.
+will be marked so as not to keep the Node.js process running
+(see [socket.unref()]). It is good practice, however, to [`destroy()`][]
+a client `Agent` when it is no longer in use, so that the sockets
+will be shut down.
 
 Sockets are removed from an agent's pool when the socket emits either
 a `'close'` event or an `'agentRemove'` event. This means that if
@@ -1665,3 +1666,4 @@ There are a few special headers that should be noted.
 [constructor options]: #http_new_agent_options
 [Readable Stream]: stream.html#stream_class_stream_readable
 [Writable Stream]: stream.html#stream_class_stream_writable
+[socket.unref()]: net.html#socket_unref
