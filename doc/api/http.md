@@ -1537,12 +1537,10 @@ added: v0.3.6
   * `headers` {Object} An object containing request headers.
   * `auth` {String} Basic authentication i.e. `'user:password'` to compute an
     Authorization header.
-  * `agent` {http.Agent|Boolean} Controls [`Agent`][] behavior. When an `Agent`
-    is used request will default to `Connection: keep-alive`. Possible values:
+  * `agent` {http.Agent|Boolean} Controls [`Agent`][] behavior. Possible values:
    * `undefined` (default): use [`http.globalAgent`][] for this host and port.
    * `Agent` object: explicitly use the passed in `Agent`.
-   * `false`: opts out of connection pooling with an `Agent`, defaults request to
-     `Connection: close`.
+   * `false`: causes a new `Agent` with default values to be used.
   * `createConnection` {Function} A function that produces a socket/stream to
     use for the request when the `agent` option is not used. This can be used to
     avoid creating a custom `Agent` class just to override the default
