@@ -850,10 +850,11 @@ added: v0.1.13
 
 * `code` {Integer} The exit code. Defaults to `0`.
 
-The `process.exit()` method instructs Node.js to terminate the process as
-quickly as possible with the specified exit `code`. If the `code` is omitted,
-exit uses either the 'success' code `0` or the value of `process.exitCode` if
-specified.
+The `process.exit()` method instructs Node.js to terminate the process
+synchronously with an exit status of `code`. If `code` is omitted, exit uses
+either the 'success' code `0` or the value of `process.exitCode` if it has been
+set.  Node.js will not terminate until all the [`'exit'`] event listeners are
+called.
 
 To exit with a 'failure' code:
 
@@ -886,7 +887,7 @@ if (someConditionNotMet()) {
 ```
 
 The reason this is problematic is because writes to `process.stdout` in Node.js
-are sometimes *non-blocking* and may occur over multiple ticks of the Node.js
+are sometimes *asynchronous* and may occur over multiple ticks of the Node.js
 event loop. Calling `process.exit()`, however, forces the process to exit
 *before* those additional writes to `stdout` can be performed.
 
@@ -1475,23 +1476,11 @@ Android)
 
 * {Stream}
 
-The `process.stderr` property returns a [Writable][] stream equivalent to or
-associated with `stderr` (fd `2`).
+The `process.stderr` property returns a [Writable][] stream connected to
+`stderr` (fd `2`).
 
-Note: `process.stderr` and `process.stdout` differ from other Node.js streams
-in several ways:
-1. They cannot be closed ([`end()`][] will throw).
-2. They never emit the [`'finish'`][] event.
-3. Writes _can_ block when output is redirected to a file.
-  - Note that disks are fast and operating systems normally employ write-back
-    caching so this is very uncommon.
-4. Writes on UNIX **will** block by default if output is going to a TTY
-   (a terminal).
-5. Windows functionality differs. Writes block except when output is going to a
-   TTY.
-
-To check if Node.js is being run in a TTY context, read the `isTTY` property
-on `process.stderr`, `process.stdout`, or `process.stdin`:
+Note: `process.stderr` differs from other Node.js streams in important ways,
+see [note on process I/O][] for more information.
 
 ## process.stdin
 
@@ -1529,40 +1518,52 @@ must call `process.stdin.resume()` to read from it. Note also that calling
 
 * {Stream}
 
-The `process.stdout` property returns a [Writable][] stream equivalent to or
-associated with `stdout` (fd `1`).
+The `process.stdout` property returns a [Writable][] stream connected to
+`stdout` (fd `2`).
 
-For example:
+For example, to copy process.stdin to process.stdout:
 
 ```js
-console.log = (msg) => {
-  process.stdout.write(`${msg}\n`);
-};
+process.stdin.pipe(process.stdout);
 ```
 
-Note: `process.stderr` and `process.stdout` differ from other Node.js streams
-in several ways:
-1. They cannot be closed ([`end()`][] will throw).
-2. They never emit the [`'finish'`][] event.
-3. Writes _can_ block when output is redirected to a file.
-  - Note that disks are fast and operating systems normally employ write-back
-    caching so this is very uncommon.
-4. Writes on UNIX **will** block by default if output is going to a TTY
-   (a terminal).
-5. Windows functionality differs. Writes block except when output is going to a
-   TTY.
+Note: `process.stdout` differs from other Node.js streams in important ways,
+see [note on process I/O][] for more information.
 
-To check if Node.js is being run in a TTY context, read the `isTTY` property
-on `process.stderr`, `process.stdout`, or `process.stdin`:
+### A note on process I/O
 
-### TTY Terminals and `process.stdout`
+`process.stdout` and `process.stderr` differ from other Node.js streams in
+important ways:
 
-The `process.stderr` and `process.stdout` streams are blocking when outputting
-to TTYs (terminals) on OS X as a workaround for the operating system's small,
-1kb buffer size. This is to prevent interleaving between `stdout` and `stderr`.
+1. They are used internally by [`console.log()`][] and [`console.error()`][],
+   respectively.
+2. They cannot be closed ([`end()`][] will throw).
+3. They will never emit the [`'finish'`][] event.
+4. Writes may be synchronous depending on the what the stream is connected to
+   and whether the system is Windows or Unix:
+   - Files: *synchronous* on Windows and Linux
+   - TTYs (Terminals): *asynchronous* on Windows, *synchronous* on Unix
+   - Pipes (and sockets): *synchronous* on Windows, *asynchronous* on Unix
 
-To check if Node.js is being run in a [TTY][] context, check the `isTTY`
-property on `process.stderr`, `process.stdout`, or `process.stdin`.
+These behaviours are partly for historical reasons, as changing them would
+create backwards incompatibility, but they are also expected by some users.
+
+Synchronous writes avoid problems such as output written with `console.log()` or
+`console.write()` being unexpectedly interleaved, or not written at all if
+`process.exit()` is called before an asynchronous write completes. See
+[`process.exit()`][] for more information.
+
+***Warning***: Synchronous writes block the event loop until the write has
+completed. This can be near instantaneous in the case of output to a file, but
+under high system load, pipes that are not being read at the receiving end, or
+with slow terminals or file systems, its possible for the event loop to be
+blocked often enough and long enough to have severe negative performance
+impacts. This may not be a problem when writing to an interactive terminal
+session, but consider this particularly careful when doing production logging to
+the process output streams.
+
+To check if a stream is connected to a [TTY][] context, check the `isTTY`
+property.
 
 For instance:
 ```console
@@ -1570,7 +1571,6 @@ $ node -p "Boolean(process.stdin.isTTY)"
 true
 $ echo "foo" | node -p "Boolean(process.stdin.isTTY)"
 false
-
 $ node -p "Boolean(process.stdout.isTTY)"
 true
 $ node -p "Boolean(process.stdout.isTTY)" | cat
@@ -1724,6 +1724,7 @@ cases:
   the high-order bit, and then contain the value of the signal code.
 
 
+[`'exit'`]: #process_event_exit
 [`'finish'`]: stream.html#stream_event_finish
 [`'message'`]: child_process.html#child_process_event_message
 [`'rejectionHandled'`]: #process_event_rejectionhandled
@@ -1745,6 +1746,7 @@ cases:
 [`promise.catch()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/catch
 [`require.main`]: modules.html#modules_accessing_the_main_module
 [`setTimeout(fn, 0)`]: timers.html#timers_settimeout_callback_delay_args
+[note on process I/O]: process.html#process_a_note_on_process_i_o
 [process_emit_warning]: #process_process_emitwarning_warning_name_ctor
 [process_warning]: #process_event_warning
 [Signal Events]: #process_signal_events
