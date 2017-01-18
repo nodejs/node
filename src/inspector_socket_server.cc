@@ -137,6 +137,23 @@ void SendProtocolJson(InspectorSocket* socket) {
   SendHttpResponse(socket, data);
 }
 
+int GetPort(uv_tcp_t* socket, int* out_port) {
+  sockaddr_storage addr;
+  int len = sizeof(addr);
+  int err = uv_tcp_getsockname(socket,
+                               reinterpret_cast<struct sockaddr*>(&addr),
+                               &len);
+  if (err != 0)
+    return err;
+  int port;
+  if (addr.ss_family == AF_INET6)
+    port = reinterpret_cast<const sockaddr_in6*>(&addr)->sin6_port;
+  else
+    port = reinterpret_cast<const sockaddr_in*>(&addr)->sin_port;
+  *out_port = ntohs(port);
+  return err;
+}
+
 }  // namespace
 
 
@@ -339,6 +356,8 @@ bool InspectorSocketServer::Start(uv_loop_t* loop) {
   uv_ip4_addr("0.0.0.0", port_, &addr);
   int err = uv_tcp_bind(&server_,
                         reinterpret_cast<const struct sockaddr*>(&addr), 0);
+  if (err == 0)
+    err = GetPort(&server_, &port_);
   if (err == 0) {
     err = uv_listen(reinterpret_cast<uv_stream_t*>(&server_), 1,
                     SocketConnectedCallback);

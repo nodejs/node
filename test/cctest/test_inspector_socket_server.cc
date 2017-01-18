@@ -6,7 +6,6 @@
 #include <algorithm>
 #include <sstream>
 
-static const int PORT = 9229;
 static uv_loop_t loop;
 
 static const char CLIENT_CLOSE_FRAME[] = "\x88\x80\x2D\x0E\x1E\xFA";
@@ -165,7 +164,7 @@ class SocketWrapper {
     contents_.clear();
     uv_tcp_init(loop_, &socket_);
     sockaddr_in addr;
-    uv_ip4_addr(host.c_str(), PORT, &addr);
+    uv_ip4_addr(host.c_str(), port, &addr);
     int err = uv_tcp_connect(&connect_, &socket_,
                              reinterpret_cast<const sockaddr*>(&addr),
                              Connected_);
@@ -183,7 +182,7 @@ class SocketWrapper {
     contents_.clear();
     uv_tcp_init(loop_, &socket_);
     sockaddr_in addr;
-    uv_ip4_addr(host.c_str(), PORT, &addr);
+    uv_ip4_addr(host.c_str(), port, &addr);
     int err = uv_tcp_connect(&connect_, &socket_,
                              reinterpret_cast<const sockaddr*>(&addr),
                              ConnectionMustFail_);
@@ -310,6 +309,10 @@ class ServerHolder {
     return &server_;
   }
 
+  int port() {
+    return server_.port();
+  }
+
   static void CloseCallback(InspectorSocketServer* server) {
     ServerHolder* holder = node::ContainerOf(&ServerHolder::server_, server);
     holder->closed = true;
@@ -377,12 +380,12 @@ static const std::string WsHandshakeRequest(const std::string& target_id) {
 
 TEST_F(InspectorSocketServerTest, InspectorSessions) {
   TestInspectorServerDelegate delegate;
-  ServerHolder server(&delegate, PORT);
+  ServerHolder server(&delegate, 0);
   ASSERT_TRUE(server->Start(&loop));
 
   SocketWrapper well_behaved_socket(&loop);
   // Regular connection
-  well_behaved_socket.Connect("0.0.0.0", PORT);
+  well_behaved_socket.Connect("0.0.0.0", server.port());
   well_behaved_socket.Write(WsHandshakeRequest(MAIN_TARGET_ID));
   well_behaved_socket.Expect(WS_HANDSHAKE_RESPONSE);
 
@@ -405,7 +408,7 @@ TEST_F(InspectorSocketServerTest, InspectorSessions) {
 
   // Declined connection
   SocketWrapper declined_target_socket(&loop);
-  declined_target_socket.Connect("127.0.0.1", PORT);
+  declined_target_socket.Connect("127.0.0.1", server.port());
   declined_target_socket.Write(WsHandshakeRequest(UNCONNECTABLE_TARGET_ID));
   declined_target_socket.Expect("HTTP/1.0 400 Bad Request");
   declined_target_socket.ExpectEOF();
@@ -414,7 +417,7 @@ TEST_F(InspectorSocketServerTest, InspectorSessions) {
 
   // Bogus target - start session callback should not even be invoked
   SocketWrapper bogus_target_socket(&loop);
-  bogus_target_socket.Connect("127.0.0.1", PORT);
+  bogus_target_socket.Connect("127.0.0.1", server.port());
   bogus_target_socket.Write(WsHandshakeRequest("bogus_target"));
   bogus_target_socket.Expect("HTTP/1.0 400 Bad Request");
   bogus_target_socket.ExpectEOF();
@@ -423,7 +426,7 @@ TEST_F(InspectorSocketServerTest, InspectorSessions) {
 
   // Drop connection (no proper close frames)
   SocketWrapper dropped_connection_socket(&loop);
-  dropped_connection_socket.Connect("127.0.0.1", PORT);
+  dropped_connection_socket.Connect("127.0.0.1", server.port());
   dropped_connection_socket.Write(WsHandshakeRequest(MAIN_TARGET_ID));
   dropped_connection_socket.Expect(WS_HANDSHAKE_RESPONSE);
 
@@ -437,7 +440,7 @@ TEST_F(InspectorSocketServerTest, InspectorSessions) {
 
   // Reconnect regular connection
   SocketWrapper stays_till_termination_socket(&loop);
-  stays_till_termination_socket.Connect("127.0.0.1", PORT);
+  stays_till_termination_socket.Connect("127.0.0.1", server.port());
   stays_till_termination_socket.Write(WsHandshakeRequest(MAIN_TARGET_ID));
   stays_till_termination_socket.Expect(WS_HANDSHAKE_RESPONSE);
 
@@ -464,7 +467,7 @@ TEST_F(InspectorSocketServerTest, InspectorSessions) {
 
 TEST_F(InspectorSocketServerTest, ServerDoesNothing) {
   TestInspectorServerDelegate delegate;
-  ServerHolder server(&delegate, PORT);
+  ServerHolder server(&delegate, 0);
   ASSERT_TRUE(server->Start(&loop));
 
   server->Stop(ServerHolder::CloseCallback);
@@ -474,14 +477,14 @@ TEST_F(InspectorSocketServerTest, ServerDoesNothing) {
 
 TEST_F(InspectorSocketServerTest, ServerWithoutTargets) {
   ServerDelegateNoTargets delegate;
-  ServerHolder server(&delegate, PORT);
+  ServerHolder server(&delegate, 0);
   ASSERT_TRUE(server->Start(&loop));
-  TestHttpRequest(PORT, "/json/list", "[ ]");
-  TestHttpRequest(PORT, "/json", "[ ]");
+  TestHttpRequest(server.port(), "/json/list", "[ ]");
+  TestHttpRequest(server.port(), "/json", "[ ]");
 
   // Declined connection
   SocketWrapper socket(&loop);
-  socket.Connect("0.0.0.0", PORT);
+  socket.Connect("0.0.0.0", server.port());
   socket.Write(WsHandshakeRequest(UNCONNECTABLE_TARGET_ID));
   socket.Expect("HTTP/1.0 400 Bad Request");
   socket.ExpectEOF();
@@ -492,9 +495,9 @@ TEST_F(InspectorSocketServerTest, ServerWithoutTargets) {
 
 TEST_F(InspectorSocketServerTest, ServerCannotStart) {
   ServerDelegateNoTargets delegate1, delegate2;
-  ServerHolder server1(&delegate1, PORT);
+  ServerHolder server1(&delegate1, 0);
   ASSERT_TRUE(server1->Start(&loop));
-  ServerHolder server2(&delegate2, PORT);
+  ServerHolder server2(&delegate2, server1.port());
   ASSERT_FALSE(server2->Start(&loop));
   server1->Stop(ServerHolder::CloseCallback);
   server1->TerminateConnections(ServerHolder::ConnectionsTerminated);
@@ -506,10 +509,10 @@ TEST_F(InspectorSocketServerTest, ServerCannotStart) {
 
 TEST_F(InspectorSocketServerTest, StoppingServerDoesNotKillConnections) {
   ServerDelegateNoTargets delegate;
-  ServerHolder server(&delegate, PORT);
+  ServerHolder server(&delegate, 0);
   ASSERT_TRUE(server->Start(&loop));
   SocketWrapper socket1(&loop);
-  socket1.Connect("0.0.0.0", PORT);
+  socket1.Connect("0.0.0.0", server.port());
   socket1.TestHttpRequest("/json/list", "[ ]");
   server->Stop(ServerHolder::CloseCallback);
   SPIN_WHILE(!server.closed);
