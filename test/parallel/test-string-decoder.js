@@ -107,6 +107,14 @@ assert.strictEqual(decoder.write(Buffer.from('3DD8', 'hex')), '');
 assert.strictEqual(decoder.write(Buffer.from('4D', 'hex')), '');
 assert.strictEqual(decoder.end(), '\ud83d');
 
+assert.throws(() => {
+  new StringDecoder(1);
+}, /^Error: Unknown encoding: 1$/);
+
+assert.throws(() => {
+  new StringDecoder('test');
+}, /^Error: Unknown encoding: test$/);
+
 // test verifies that StringDecoder will correctly decode the given input
 // buffer with the given encoding to the expected output. It will attempt all
 // possible ways to write() the input buffer, see writeSequences(). The
@@ -119,10 +127,10 @@ function test(encoding, input, expected, singleSequence) {
   } else {
     sequences = [singleSequence];
   }
-  sequences.forEach(function(sequence) {
-    var decoder = new StringDecoder(encoding);
-    var output = '';
-    sequence.forEach(function(write) {
+  sequences.forEach((sequence) => {
+    const decoder = new StringDecoder(encoding);
+    let output = '';
+    sequence.forEach((write) => {
       output += decoder.write(input.slice(write[0], write[1]));
     });
     output += decoder.end();

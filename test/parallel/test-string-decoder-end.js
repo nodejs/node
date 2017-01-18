@@ -8,15 +8,11 @@ var assert = require('assert');
 var SD = require('string_decoder').StringDecoder;
 var encodings = ['base64', 'hex', 'utf8', 'utf16le', 'ucs2'];
 
-var bufs = [ '☃💩', 'asdf' ].map(function(b) {
-  return Buffer.from(b);
-});
+const bufs = [ '☃💩', 'asdf' ].map((b) => Buffer.from(b));
 
 // also test just arbitrary bytes from 0-15.
-for (var i = 1; i <= 16; i++) {
-  var bytes = new Array(i).join('.').split('.').map(function(_, j) {
-    return j + 0x78;
-  });
+for (let i = 1; i <= 16; i++) {
+  const bytes = new Array(i).join('.').split('.').map((_, j) => j + 0x78);
   bufs.push(Buffer.from(bytes));
 }
 
@@ -25,7 +21,7 @@ encodings.forEach(testEncoding);
 console.log('ok');
 
 function testEncoding(encoding) {
-  bufs.forEach(function(buf) {
+  bufs.forEach((buf) => {
     testBuf(encoding, buf);
   });
 }
