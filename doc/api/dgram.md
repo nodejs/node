@@ -419,9 +419,7 @@ s.bind(1234, () => {
 });
 ```
 
-## `dgram` module functions
-
-### dgram.createSocket(options[, callback])
+## dgram.createSocket(options[, callback])
 <!-- YAML
 added: v0.11.13
 -->
@@ -446,7 +444,7 @@ interfaces" address on a random port (it does the right thing for both `udp4`
 and `udp6` sockets). The bound address and port can be retrieved using
 [`socket.address().address`][] and [`socket.address().port`][].
 
-### dgram.createSocket(type[, callback])
+## dgram.createSocket(type[, callback])
 <!-- YAML
 added: v0.1.99
 -->

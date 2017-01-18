@@ -339,11 +339,11 @@ significant elements of the `path`.
 
 The returned object will have the following properties:
 
-* `root` {String}
 * `dir` {String}
+* `root` {String}
 * `base` {String}
-* `ext` {String}
 * `name` {String}
+* `ext` {String}
 
 For example on POSIX:
 
@@ -351,11 +351,11 @@ For example on POSIX:
 path.parse('/home/user/dir/file.txt')
 // Returns:
 // {
-//    root : "/",
 //    dir : "/home/user/dir",
+//    root : "/",
 //    base : "file.txt",
-//    ext : ".txt",
-//    name : "file"
+//    name : "file",
+//    ext : ".txt"
 // }
 ```
 
@@ -375,11 +375,11 @@ On Windows:
 path.parse('C:\\path\\dir\\file.txt')
 // Returns:
 // {
-//    root : "C:\\",
 //    dir : "C:\\path\\dir",
+//    root : "C:\\",
 //    base : "file.txt",
-//    ext : ".txt",
-//    name : "file"
+//    name : "file",
+//    ext : ".txt"
 // }
 ```
 
@@ -442,7 +442,7 @@ A [`TypeError`][] is thrown if neither `from` nor `to` is a string.
 added: v0.3.4
 -->
 
-* `...paths` {String} A sequence of paths or path segments
+* `...paths` {String} An optional sequence of paths or path segments
 * Returns: {String}
 
 The `path.resolve()` method resolves a sequence of paths or path segments into
