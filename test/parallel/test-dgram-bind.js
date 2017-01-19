@@ -1,13 +1,17 @@
 'use strict';
-require('../common');
-var assert = require('assert');
-var dgram = require('dgram');
+const common = require('../common');
+const assert = require('assert');
+const dgram = require('dgram');
 
 var socket = dgram.createSocket('udp4');
 
-socket.on('listening', function() {
+socket.on('listening', common.mustCall(() => {
+  assert.throws(() => {
+    socket.bind();
+  }, /^Error: Socket is already bound$/);
+
   socket.close();
-});
+}));
 
 var result = socket.bind(); // should not throw
 
