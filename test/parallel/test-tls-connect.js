@@ -1,6 +1,5 @@
 'use strict';
 const common = require('../common');
-const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
@@ -33,9 +32,7 @@ const path = require('path');
     key: key,
     port: common.PORT,
     ciphers: 'rick-128-roll'
-  }, function() {
-    assert.ok(false); // callback should never be executed
-  });
+  }, common.fail);
 
   conn.on('error', common.mustCall(function() {}));
 }

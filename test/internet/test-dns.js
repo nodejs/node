@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const dns = require('dns');
 const net = require('net');
@@ -44,19 +44,9 @@ function checkWrap(req) {
 
 
 TEST(function test_reverse_bogus(done) {
-  let error;
-
-  try {
-    dns.reverse('bogus ip', function() {
-      assert.ok(false);
-    });
-  } catch (e) {
-    error = e;
-  }
-
-  assert.ok(error instanceof Error);
-  assert.strictEqual(error.errno, 'EINVAL');
-
+  assert.throws(() => {
+    dns.reverse('bogus ip', common.fail);
+  }, /^Error: getHostByAddr EINVAL$/);
   done();
 });
 
@@ -442,7 +432,7 @@ TEST(function test_lookup_all_mixed(done) {
       else if (isIPv6(ip.address))
         assert.strictEqual(ip.family, 6);
       else
-        assert(false);
+        common.fail('unexpected IP address');
     });
 
     done();
