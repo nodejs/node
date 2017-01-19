@@ -1,6 +1,7 @@
 'use strict';
 if (module.parent) {
-  // signal we've been loaded as a module
+  // Signal we've been loaded as a module.
+  // The following console.log() is part of the test.
   console.log('Loaded as a module, exiting with status code 42.');
   process.exit(42);
 }
@@ -9,114 +10,114 @@ const common = require('../common');
 const assert = require('assert');
 const child = require('child_process');
 const path = require('path');
-const nodejs = '"' + process.execPath + '"';
+const nodejs = `"${process.execPath}"`;
 
+// Assert that nothing is written to stdout.
+child.exec(`${nodejs} --eval 42`, common.mustCall((err, stdout, stderr) => {
+  assert.ifError(err);
+  assert.strictEqual(stdout, '');
+  assert.strictEqual(stderr, '');
+}));
 
-// replace \ by / because windows uses backslashes in paths, but they're still
-// interpreted as the escape character when put between quotes.
-const filename = __filename.replace(/\\/g, '/');
-
-// assert that nothing is written to stdout
-child.exec(nodejs + ' --eval 42',
-           function(err, stdout, stderr) {
-             assert.ifError(err);
-             assert.strictEqual(stdout, '');
-             assert.strictEqual(stderr, '');
-           });
-
-// assert that "42\n" is written to stderr
-child.exec(nodejs + ' --eval "console.error(42)"',
-           function(err, stdout, stderr) {
+// Assert that "42\n" is written to stderr.
+child.exec(`${nodejs} --eval "console.error(42)"`,
+           common.mustCall((err, stdout, stderr) => {
              assert.ifError(err);
              assert.strictEqual(stdout, '');
              assert.strictEqual(stderr, '42\n');
-           });
+           }));
 
-// assert that the expected output is written to stdout
-['--print', '-p -e', '-pe', '-p'].forEach(function(s) {
-  const cmd = nodejs + ' ' + s + ' ';
+// Assert that the expected output is written to stdout.
+['--print', '-p -e', '-pe', '-p'].forEach((s) => {
+  const cmd = `${nodejs} ${s} `;
 
-  child.exec(cmd + '42',
-             function(err, stdout, stderr) {
-               assert.ifError(err);
-               assert.strictEqual(stdout, '42\n');
-               assert.strictEqual(stderr, '');
-             });
+  child.exec(`${cmd}42`, common.mustCall((err, stdout, stderr) => {
+    assert.ifError(err);
+    assert.strictEqual(stdout, '42\n');
+    assert.strictEqual(stderr, '');
+  }));
 
-  child.exec(cmd + "'[]'", common.mustCall(
-      function(err, stdout, stderr) {
-        assert.ifError(err);
-        assert.strictEqual(stdout, '[]\n');
-        assert.strictEqual(stderr, '');
-      }));
+  child.exec(`${cmd} '[]'`, common.mustCall((err, stdout, stderr) => {
+    assert.ifError(err);
+    assert.strictEqual(stdout, '[]\n');
+    assert.strictEqual(stderr, '');
+  }));
 });
 
-// assert that module loading works
-child.exec(nodejs + ' --eval "require(\'' + filename + '\')"',
-           function(err, stdout, stderr) {
-             assert.strictEqual(err.code, 42);
-             assert.strictEqual(
-               stdout, 'Loaded as a module, exiting with status code 42.\n');
-             assert.strictEqual(stderr, '');
-           });
+// Assert that module loading works.
+{
+  // Replace \ by / because Windows uses backslashes in paths, but they're still
+  // interpreted as the escape character when put between quotes.
+  const filename = __filename.replace(/\\/g, '/');
+
+  child.exec(`${nodejs} --eval "require('${filename}')"`,
+             common.mustCall((err, stdout, stderr) => {
+               assert.strictEqual(err.code, 42);
+               assert.strictEqual(
+                 stdout, 'Loaded as a module, exiting with status code 42.\n');
+               assert.strictEqual(stderr, '');
+             }));
+}
 
 // Check that builtin modules are pre-defined.
-child.exec(nodejs + ' --print "os.platform()"',
-           function(err, stdout, stderr) {
+child.exec(`${nodejs} --print "os.platform()"`,
+           common.mustCall((err, stdout, stderr) => {
              assert.ifError(err);
              assert.strictEqual(stderr, '');
              assert.strictEqual(stdout.trim(), require('os').platform());
-           });
+           }));
 
-// module path resolve bug, regression test
-child.exec(nodejs + ' --eval "require(\'./test/parallel/test-cli-eval.js\')"',
-           function(err, stdout, stderr) {
+// Module path resolve bug regression test.
+child.exec(`${nodejs} --eval "require('./test/parallel/test-cli-eval.js')"`,
+           common.mustCall((err, stdout, stderr) => {
              assert.strictEqual(err.code, 42);
              assert.strictEqual(
                stdout, 'Loaded as a module, exiting with status code 42.\n');
              assert.strictEqual(stderr, '');
-           });
+           }));
 
-// Missing argument should not crash
-child.exec(nodejs + ' -e', common.mustCall(function(err, stdout, stderr) {
+// Missing argument should not crash.
+child.exec(`${nodejs} -e`, common.mustCall((err, stdout, stderr) => {
   assert.strictEqual(err.code, 9);
   assert.strictEqual(stdout, '');
   assert.strictEqual(stderr.trim(),
                      `${process.execPath}: -e requires an argument`);
 }));
 
-// empty program should do nothing
-child.exec(nodejs + ' -e ""', function(err, stdout, stderr) {
+// Empty program should do nothing.
+child.exec(`${nodejs} -e ""`, common.mustCall((err, stdout, stderr) => {
   assert.ifError(err);
   assert.strictEqual(stdout, '');
   assert.strictEqual(stderr, '');
-});
+}));
 
-// "\\-42" should be interpreted as an escaped expression, not a switch
-child.exec(nodejs + ' -p "\\-42"',
-           function(err, stdout, stderr) {
-             assert.ifError(err);
-             assert.strictEqual(stdout, '-42\n');
-             assert.strictEqual(stderr, '');
-           });
+// "\\-42" should be interpreted as an escaped expression, not a switch.
+child.exec(`${nodejs} -p "\\-42"`, common.mustCall((err, stdout, stderr) => {
+  assert.ifError(err);
+  assert.strictEqual(stdout, '-42\n');
+  assert.strictEqual(stderr, '');
+}));
 
-child.exec(nodejs + ' --use-strict -p process.execArgv',
-           function(err, stdout, stderr) {
+child.exec(`${nodejs} --use-strict -p process.execArgv`,
+           common.mustCall((err, stdout, stderr) => {
              assert.ifError(err);
              assert.strictEqual(
                stdout, "[ '--use-strict', '-p', 'process.execArgv' ]\n"
              );
              assert.strictEqual(stderr, '');
-           });
+           }));
 
-// Regression test for https://github.com/nodejs/node/issues/3574
-const emptyFile = path.join(common.fixturesDir, 'empty.js');
-child.exec(nodejs + ` -e 'require("child_process").fork("${emptyFile}")'`,
-           function(err, stdout, stderr) {
-             assert.ifError(err);
-             assert.strictEqual(stdout, '');
-             assert.strictEqual(stderr, '');
-           });
+// Regression test for https://github.com/nodejs/node/issues/3574.
+{
+  const emptyFile = path.join(common.fixturesDir, 'empty.js');
+
+  child.exec(`${nodejs} -e 'require("child_process").fork("${emptyFile}")'`,
+             common.mustCall((err, stdout, stderr) => {
+               assert.ifError(err);
+               assert.strictEqual(stdout, '');
+               assert.strictEqual(stderr, '');
+             }));
+}
 
 // Regression test for https://github.com/nodejs/node/issues/8534.
 {
