@@ -431,8 +431,8 @@ added: v0.11.13
 * Returns: {dgram.Socket}
 
 Creates a `dgram.Socket` object. The `options` argument is an object that
-should contain a `type` field of either `udp4` or `udp6` and an optional
-boolean `reuseAddr` field.
+should contain a `type` field of either `udp4` or `udp6`. `options` may also
+contain optional `reuseAddr` and `maxSendQueueSize` fields.
 
 When `reuseAddr` is `true` [`socket.bind()`][] will reuse the address, even if
 another process has already bound a socket on it. `reuseAddr` defaults to
@@ -445,6 +445,13 @@ not passed to  [`socket.bind()`][] the method will bind the socket to the "all
 interfaces" address on a random port (it does the right thing for both `udp4`
 and `udp6` sockets). The bound address and port can be retrieved using
 [`socket.address().address`][] and [`socket.address().port`][].
+
+It is possible to begin sending data from a socket that has not been bound. In
+this situation, the socket will be bound automatically before sending the data.
+Send operations are stored in a queue until the socket binds. `maxSendQueueSize`
+is a number that places an upper bound on the number of send operations that can
+be queued. If the queue size is exceeded, an error is emitted.
+`maxSendQueueSize` defaults to `Infinity`.
 
 ### dgram.createSocket(type[, callback])
 <!-- YAML
