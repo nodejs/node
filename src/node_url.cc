@@ -131,11 +131,13 @@ namespace url {
   static int ToUnicode(std::string* input, std::string* output) {
     output->reserve(input->length());
     *output = input->c_str();
+    return 0;
   }
 
   static int ToASCII(std::string* input, std::string* output) {
     output->reserve(input->length());
     *output = input->c_str();
+    return 0;
   }
 
   static int IsValidUTF8(std::string* input) {
