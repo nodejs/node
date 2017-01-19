@@ -7,10 +7,7 @@ const assert = require('assert');
 // The callback should never be invoked because the server
 // should respond with a 400 Client Error when a double
 // Content-Length header is received.
-const server = http.createServer((req, res) => {
-  assert(false, 'callback should not have been invoked');
-  res.end();
-});
+const server = http.createServer(common.fail);
 server.on('clientError', common.mustCall((err, socket) => {
   assert(/^Parse Error/.test(err.message));
   assert.strictEqual(err.code, 'HPE_UNEXPECTED_CONTENT_LENGTH');

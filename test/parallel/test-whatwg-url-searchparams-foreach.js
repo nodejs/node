@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const url = require('url');
 const URL = url.URL;
@@ -35,5 +35,5 @@ assert.deepStrictEqual(c[2], ['z', '3']);
 a = new URL('http://a.b/c');
 b = a.searchParams;
 for (i of b) {
-  assert(false, 'should not be reached');
+  common.fail('should not be reached');
 }
