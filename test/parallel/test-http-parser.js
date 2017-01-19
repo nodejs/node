@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const binding = process.binding('http_parser');
@@ -35,9 +35,7 @@ function newParser(type) {
   parser[kOnHeadersComplete] = function(info) {
   };
 
-  parser[kOnBody] = function(b, start, len) {
-    assert.ok(false, 'Function should not be called.');
-  };
+  parser[kOnBody] = common.fail;
 
   parser[kOnMessageComplete] = function() {
   };
