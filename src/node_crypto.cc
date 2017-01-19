@@ -3728,8 +3728,8 @@ void Hmac::HmacInit(const FunctionCallbackInfo<Value>& args) {
 bool Hmac::HmacUpdate(const char* data, int len) {
   if (!initialised_)
     return false;
-  HMAC_Update(&ctx_, reinterpret_cast<const unsigned char*>(data), len);
-  return true;
+  int r = HMAC_Update(&ctx_, reinterpret_cast<const unsigned char*>(data), len);
+  return r == 1;
 }
 
 
