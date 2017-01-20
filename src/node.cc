@@ -3536,6 +3536,7 @@ static void PrintHelp() {
          "                           (will extend linked-in data)\n"
 #endif
 #endif
+         "NODE_NO_WARNINGS           set to 1 to silence process warnings\n"
 #ifdef _WIN32
          "NODE_PATH                  ';'-separated list of directories\n"
 #else
