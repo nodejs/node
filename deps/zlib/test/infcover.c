@@ -1,5 +1,5 @@
 /* infcover.c -- test zlib's inflate routines with full code coverage
- * Copyright (C) 2011 Mark Adler
+ * Copyright (C) 2011, 2016 Mark Adler
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -237,14 +237,14 @@ local void mem_done(z_stream *strm, char *prefix)
 
 /* Decode a hexadecimal string, set *len to length, in[] to the bytes.  This
    decodes liberally, in that hex digits can be adjacent, in which case two in
-   a row writes a byte.  Or they can delimited by any non-hex character, where
-   the delimiters are ignored except when a single hex digit is followed by a
-   delimiter in which case that single digit writes a byte.  The returned
-   data is allocated and must eventually be freed.  NULL is returned if out of
-   memory.  If the length is not needed, then len can be NULL. */
+   a row writes a byte.  Or they can be delimited by any non-hex character,
+   where the delimiters are ignored except when a single hex digit is followed
+   by a delimiter, where that single digit writes a byte.  The returned data is
+   allocated and must eventually be freed.  NULL is returned if out of memory.
+   If the length is not needed, then len can be NULL. */
 local unsigned char *h2b(const char *hex, unsigned *len)
 {
-    unsigned char *in;
+    unsigned char *in, *re;
     unsigned next, val;
 
     in = malloc((strlen(hex) + 1) >> 1);
@@ -268,8 +268,8 @@ local unsigned char *h2b(const char *hex, unsigned *len)
     } while (*hex++);       /* go through the loop with the terminating null */
     if (len != NULL)
         *len = next;
-    in = reallocf(in, next);
-    return in;
+    re = realloc(in, next);
+    return re == NULL ? in : re;
 }
 
 /* generic inflate() run, where hex is the hexadecimal input data, what is the
