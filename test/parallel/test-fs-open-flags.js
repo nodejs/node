@@ -39,20 +39,27 @@ assert.strictEqual(fs._stringToFlags('xa+'),
 ('+ +a +r +w rw wa war raw r++ a++ w++ x +x x+ rx rx+ wxx wax xwx xxx')
   .split(' ')
   .forEach(function(flags) {
-    assert.throws(function() { fs._stringToFlags(flags); });
+    assert.throws(
+      () => fs._stringToFlags(flags),
+      new RegExp(`^Error: Unknown file open flag: ${escapeRegExp(flags)}`)
+    );
   });
 
 assert.throws(
   () => fs._stringToFlags({}),
-  /Unknown file open flag: \[object Object\]/
+  /^Error: Unknown file open flag: \[object Object\]$/
 );
 
 assert.throws(
   () => fs._stringToFlags(true),
-  /Unknown file open flag: true/
+  /^Error: Unknown file open flag: true$/
 );
 
 assert.throws(
   () => fs._stringToFlags(null),
-  /Unknown file open flag: null/
+  /Error: Unknown file open flag: null$/
 );
+
+function escapeRegExp(string) {
+  return string.replace(/[\\^$*+?.()|[\]{}]/g, '\\$&');
+}
