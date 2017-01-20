@@ -1525,9 +1525,11 @@ void InitFs(Local<Object> target,
   Local<ArrayBuffer> ab =
     ArrayBuffer::New(env->isolate(),
                      reinterpret_cast<double*>(fd_ids_inst),
-                     2);
+                     sizeof(*fd_ids_inst));
+  static_assert(sizeof(*fd_ids_inst) == 16, "size is incorrect");
   Local<String> name = FIXED_ONE_BYTE_STRING(env->isolate(), "fd_async_ids");
-  Local<Float64Array> value = Float64Array::New(ab, 0, 2);
+  Local<Float64Array> value =
+    Float64Array::New(ab, 0, sizeof(*fd_ids_inst) / sizeof(double));
   target->Set(env->context(), name, value).ToChecked();
 
   StatWatcher::Initialize(env, target);
