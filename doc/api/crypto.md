@@ -26,7 +26,7 @@ It is possible for Node.js to be built without including support for the
 error being thrown.
 
 ```js
-var crypto;
+let crypto;
 try {
   crypto = require('crypto');
 } catch (err) {
@@ -132,9 +132,9 @@ Example: Using `Cipher` objects as streams:
 const crypto = require('crypto');
 const cipher = crypto.createCipher('aes192', 'a password');
 
-var encrypted = '';
+let encrypted = '';
 cipher.on('readable', () => {
-  var data = cipher.read();
+  const data = cipher.read();
   if (data)
     encrypted += data.toString('hex');
 });
@@ -166,7 +166,7 @@ Example: Using the [`cipher.update()`][] and [`cipher.final()`][] methods:
 const crypto = require('crypto');
 const cipher = crypto.createCipher('aes192', 'a password');
 
-var encrypted = cipher.update('some clear text data', 'utf8', 'hex');
+let encrypted = cipher.update('some clear text data', 'utf8', 'hex');
 encrypted += cipher.final('hex');
 console.log(encrypted);
 // Prints: ca981be48e90867604588e75d04feabb63cc007a8f8ad89b10616ed84d815504
@@ -269,9 +269,9 @@ Example: Using `Decipher` objects as streams:
 const crypto = require('crypto');
 const decipher = crypto.createDecipher('aes192', 'a password');
 
-var decrypted = '';
+let decrypted = '';
 decipher.on('readable', () => {
-  var data = decipher.read();
+  const data = decipher.read();
   if (data)
     decrypted += data.toString('utf8');
 });
@@ -280,7 +280,7 @@ decipher.on('end', () => {
   // Prints: some clear text data
 });
 
-var encrypted = 'ca981be48e90867604588e75d04feabb63cc007a8f8ad89b10616ed84d815504';
+const encrypted = 'ca981be48e90867604588e75d04feabb63cc007a8f8ad89b10616ed84d815504';
 decipher.write(encrypted, 'hex');
 decipher.end();
 ```
@@ -304,8 +304,8 @@ Example: Using the [`decipher.update()`][] and [`decipher.final()`][] methods:
 const crypto = require('crypto');
 const decipher = crypto.createDecipher('aes192', 'a password');
 
-var encrypted = 'ca981be48e90867604588e75d04feabb63cc007a8f8ad89b10616ed84d815504';
-var decrypted = decipher.update(encrypted, 'hex', 'utf8');
+const encrypted = 'ca981be48e90867604588e75d04feabb63cc007a8f8ad89b10616ed84d815504';
+let decrypted = decipher.update(encrypted, 'hex', 'utf8');
 decrypted += decipher.final('utf8');
 console.log(decrypted);
 // Prints: some clear text data
@@ -680,7 +680,7 @@ const crypto = require('crypto');
 const hash = crypto.createHash('sha256');
 
 hash.on('readable', () => {
-  var data = hash.read();
+  const data = hash.read();
   if (data)
     console.log(data.toString('hex'));
     // Prints:
@@ -763,7 +763,7 @@ const crypto = require('crypto');
 const hmac = crypto.createHmac('sha256', 'a secret');
 
 hmac.on('readable', () => {
-  var data = hmac.read();
+  const data = hmac.read();
   if (data)
     console.log(data.toString('hex'));
     // Prints:
@@ -1192,7 +1192,7 @@ const hash = crypto.createHash('sha256');
 
 const input = fs.createReadStream(filename);
 input.on('readable', () => {
-  var data = input.read();
+  const data = input.read();
   if (data)
     hash.update(data);
   else {
@@ -1226,7 +1226,7 @@ const hmac = crypto.createHmac('sha256', 'a secret');
 
 const input = fs.createReadStream(filename);
 input.on('readable', () => {
-  var data = input.read();
+  const data = input.read();
   if (data)
     hmac.update(data);
   else {
