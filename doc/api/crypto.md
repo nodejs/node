@@ -402,18 +402,18 @@ const assert = require('assert');
 
 // Generate Alice's keys...
 const alice = crypto.createDiffieHellman(2048);
-const alice_key = alice.generateKeys();
+const aliceKey = alice.generateKeys();
 
 // Generate Bob's keys...
 const bob = crypto.createDiffieHellman(alice.getPrime(), alice.getGenerator());
-const bob_key = bob.generateKeys();
+const bobKey = bob.generateKeys();
 
 // Exchange and generate the secret...
-const alice_secret = alice.computeSecret(bob_key);
-const bob_secret = bob.computeSecret(alice_key);
+const aliceSecret = alice.computeSecret(bobKey);
+const bobSecret = bob.computeSecret(aliceKey);
 
 // OK
-assert.strictEqual(alice_secret.toString('hex'), bob_secret.toString('hex'));
+assert.strictEqual(aliceSecret.toString('hex'), bobSecret.toString('hex'));
 ```
 
 ### diffieHellman.computeSecret(other_public_key[, input_encoding][, output_encoding])
@@ -531,17 +531,17 @@ const assert = require('assert');
 
 // Generate Alice's keys...
 const alice = crypto.createECDH('secp521r1');
-const alice_key = alice.generateKeys();
+const aliceKey = alice.generateKeys();
 
 // Generate Bob's keys...
 const bob = crypto.createECDH('secp521r1');
-const bob_key = bob.generateKeys();
+const bobKey = bob.generateKeys();
 
 // Exchange and generate the secret...
-const alice_secret = alice.computeSecret(bob_key);
-const bob_secret = bob.computeSecret(alice_key);
+const aliceSecret = alice.computeSecret(bobKey);
+const bobSecret = bob.computeSecret(aliceKey);
 
-assert.strictEqual(alice_secret.toString('hex'), bob_secret.toString('hex'));
+assert.strictEqual(aliceSecret.toString('hex'), bobSecret.toString('hex'));
   // OK
 ```
 
@@ -650,11 +650,11 @@ alice.setPrivateKey(
 // Bob uses a newly generated cryptographically strong
 // pseudorandom key pair bob.generateKeys();
 
-const alice_secret = alice.computeSecret(bob.getPublicKey(), null, 'hex');
-const bob_secret = bob.computeSecret(alice.getPublicKey(), null, 'hex');
+const aliceSecret = alice.computeSecret(bob.getPublicKey(), null, 'hex');
+const bobSecret = bob.computeSecret(alice.getPublicKey(), null, 'hex');
 
-// alice_secret and bob_secret should be the same shared secret value
-console.log(alice_secret === bob_secret);
+// aliceSecret and bobSecret should be the same shared secret value
+console.log(aliceSecret === bobSecret);
 ```
 
 ## Class: Hash
@@ -847,8 +847,8 @@ const sign = crypto.createSign('RSA-SHA256');
 sign.write('some data to sign');
 sign.end();
 
-const private_key = getPrivateKeySomehow();
-console.log(sign.sign(private_key, 'hex'));
+const privateKey = getPrivateKeySomehow();
+console.log(sign.sign(privateKey, 'hex'));
 // Prints: the calculated signature
 ```
 
@@ -860,8 +860,8 @@ const sign = crypto.createSign('RSA-SHA256');
 
 sign.update('some data to sign');
 
-const private_key = getPrivateKeySomehow();
-console.log(sign.sign(private_key, 'hex'));
+const privateKey = getPrivateKeySomehow();
+console.log(sign.sign(privateKey, 'hex'));
 // Prints: the calculated signature
 ```
 
@@ -878,13 +878,13 @@ const sign = crypto.createSign('sha256');
 
 sign.update('some data to sign');
 
-const private_key = '-----BEGIN EC PRIVATE KEY-----\n' +
+const privateKey = '-----BEGIN EC PRIVATE KEY-----\n' +
         'MHcCAQEEIF+jnWY1D5kbVYDNvxxo/Y+ku2uJPDwS0r/VuPZQrjjVoAoGCCqGSM49\n' +
         'AwEHoUQDQgAEurOxfSxmqIRYzJVagdZfMMSjRNNhB8i3mXyIMq704m2m52FdfKZ2\n' +
         'pQhByd5eyj3lgZ7m7jbchtdgyOF8Io/1ng==\n' +
         '-----END EC PRIVATE KEY-----\n';
 
-console.log(sign.sign(private_key).toString('hex'));
+console.log(sign.sign(privateKey).toString('hex'));
 ```
 
 ### sign.sign(private_key[, output_format])
@@ -947,9 +947,9 @@ const verify = crypto.createVerify('RSA-SHA256');
 verify.write('some data to sign');
 verify.end();
 
-const public_key = getPublicKeySomehow();
+const publicKey = getPublicKeySomehow();
 const signature = getSignatureToVerify();
-console.log(verify.verify(public_key, signature));
+console.log(verify.verify(publicKey, signature));
 // Prints: true or false
 ```
 
@@ -961,9 +961,9 @@ const verify = crypto.createVerify('RSA-SHA256');
 
 verify.update('some data to sign');
 
-const public_key = getPublicKeySomehow();
+const publicKey = getPublicKeySomehow();
 const signature = getSignatureToVerify();
-console.log(verify.verify(public_key, signature));
+console.log(verify.verify(publicKey, signature));
 // Prints: true or false
 ```
 
@@ -1307,11 +1307,11 @@ const bob = crypto.getDiffieHellman('modp14');
 alice.generateKeys();
 bob.generateKeys();
 
-const alice_secret = alice.computeSecret(bob.getPublicKey(), null, 'hex');
-const bob_secret = bob.computeSecret(alice.getPublicKey(), null, 'hex');
+const aliceSecret = alice.computeSecret(bob.getPublicKey(), null, 'hex');
+const bobSecret = bob.computeSecret(alice.getPublicKey(), null, 'hex');
 
-/* alice_secret and bob_secret should be the same */
-console.log(alice_secret === bob_secret);
+/* aliceSecret and bobSecret should be the same */
+console.log(aliceSecret === bobSecret);
 ```
 
 ### crypto.getHashes()
