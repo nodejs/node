@@ -648,7 +648,8 @@ alice.setPrivateKey(
 );
 
 // Bob uses a newly generated cryptographically strong
-// pseudorandom key pair bob.generateKeys();
+// pseudorandom key pair
+bob.generateKeys();
 
 const aliceSecret = alice.computeSecret(bob.getPublicKey(), null, 'hex');
 const bobSecret = bob.computeSecret(alice.getPublicKey(), null, 'hex');
