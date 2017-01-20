@@ -8,6 +8,14 @@ if (!common.hasCrypto) {
 }
 var crypto = require('crypto');
 
+// Test for binding layer robustness
+{
+  const binding = process.binding('crypto');
+  const h = new binding.Hmac();
+  // Fail to init the Hmac with an algorithm.
+  assert.throws(() => h.update('hello'), /^TypeError: HmacUpdate fail$/);
+}
+
 // Test HMAC
 var h1 = crypto.createHmac('sha1', 'Node')
                .update('some data')
