@@ -413,7 +413,7 @@ const alice_secret = alice.computeSecret(bob_key);
 const bob_secret = bob.computeSecret(alice_key);
 
 // OK
-assert.equal(alice_secret.toString('hex'), bob_secret.toString('hex'));
+assert.strictEqual(alice_secret.toString('hex'), bob_secret.toString('hex'));
 ```
 
 ### diffieHellman.computeSecret(other_public_key[, input_encoding][, output_encoding])
@@ -541,7 +541,7 @@ const bob_key = bob.generateKeys();
 const alice_secret = alice.computeSecret(bob_key);
 const bob_secret = bob.computeSecret(alice_key);
 
-assert.equal(alice_secret.toString('hex'), bob_secret.toString('hex'));
+assert.strictEqual(alice_secret.toString('hex'), bob_secret.toString('hex'));
   // OK
 ```
 
@@ -1311,7 +1311,7 @@ const alice_secret = alice.computeSecret(bob.getPublicKey(), null, 'hex');
 const bob_secret = bob.computeSecret(alice.getPublicKey(), null, 'hex');
 
 /* alice_secret and bob_secret should be the same */
-console.log(alice_secret == bob_secret);
+console.log(alice_secret === bob_secret);
 ```
 
 ### crypto.getHashes()
