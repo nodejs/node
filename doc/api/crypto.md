@@ -1278,7 +1278,7 @@ Example:
 
 ```js
 const curves = crypto.getCurves();
-console.log(curves); // ['secp256k1', 'secp384r1', ...]
+console.log(curves); // ['Oakley-EC2N-3', 'Oakley-EC2N-4', ...]
 ```
 
 ### crypto.getDiffieHellman(group_name)
@@ -1326,7 +1326,7 @@ Example:
 
 ```js
 const hashes = crypto.getHashes();
-console.log(hashes); // ['sha', 'sha1', 'sha1WithRSAEncryption', ...]
+console.log(hashes); // ['DSA', 'DSA-SHA', 'DSA-SHA1', ...]
 ```
 
 ### crypto.pbkdf2(password, salt, iterations, keylen, digest, callback)
@@ -1357,7 +1357,7 @@ Example:
 const crypto = require('crypto');
 crypto.pbkdf2('secret', 'salt', 100000, 512, 'sha512', (err, key) => {
   if (err) throw err;
-  console.log(key.toString('hex'));  // 'c5e478d...1469e50'
+  console.log(key.toString('hex'));  // '3745e48...aa39b34'
 });
 ```
 
@@ -1390,7 +1390,7 @@ Example:
 ```js
 const crypto = require('crypto');
 const key = crypto.pbkdf2Sync('secret', 'salt', 100000, 512, 'sha512');
-console.log(key.toString('hex'));  // 'c5e478d...1469e50'
+console.log(key.toString('hex'));  // '3745e48...aa39b34'
 ```
 
 An array of supported digest functions can be retrieved using
