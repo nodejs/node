@@ -72,6 +72,15 @@ class AsyncWrap : public BaseObject {
   static void AddIdToDestroyList(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 
+  // Counterpart to Environment::AsyncHooks::gen_id_array().
+  static void GenIdArray(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  // Counterpart to Environment::AsyncHooks::trim_id_array().
+  static void TrimIdArray(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  // Counterpart to Environment::AsyncHooks::reset_id_array().
+  static void ResetIdArray(const v8::FunctionCallbackInfo<v8::Value>& args);
+
   inline ProviderType provider_type() const;
 
   inline double get_id() const;

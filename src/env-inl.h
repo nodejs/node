@@ -60,20 +60,33 @@ inline uint32_t* IsolateData::zero_fill_field() const {
 }
 
 inline Environment::AsyncHooks::AsyncHooks(v8::Isolate* isolate)
-    : fields_(),
-      uid_fields_() {
+    : isolate_(isolate),
+      fields_(),
+      uid_fields_(),
+      id_stack_(new double[AsyncHooks::kIdStackLimit]()) {
+  v8::HandleScope handle_scope(isolate_);
   // kAsyncUidCntr should start at 1 because that'll be the id for bootstrap.
   uid_fields_[AsyncHooks::kAsyncUidCntr] = 1;
 #define V(Provider)                                                           \
   providers_[AsyncWrap::PROVIDER_ ## Provider].Set(                           \
-      isolate,                                                                \
+      isolate_,                                                               \
       v8::String::NewFromOneByte(                                             \
-        isolate,                                                              \
+        isolate_,                                                             \
         reinterpret_cast<const uint8_t*>(#Provider),                          \
         v8::NewStringType::kInternalized,                                     \
         sizeof(#Provider) - 1).ToLocalChecked());
   NODE_ASYNC_PROVIDER_TYPES(V)
 #undef V
+
+  v8::Local<v8::ArrayBuffer> id_stack_ab = v8::ArrayBuffer::New(
+      isolate_,
+      id_stack_,
+      AsyncHooks::kIdStackLimit * sizeof(double));
+  v8::Local<v8::Float64Array> id_stack_array =
+    v8::Float64Array::New(id_stack_ab, 0, AsyncHooks::kIdStackLimit);
+  v8::Persistent<v8::Float64Array>* p_float_array =
+    new v8::Persistent<v8::Float64Array>(isolate_, id_stack_array);
+  stack_of_id_stacks_.push(p_float_array);
 }
 
 inline uint32_t* Environment::AsyncHooks::fields() {
@@ -88,14 +101,196 @@ inline double* Environment::AsyncHooks::uid_fields() {
   return uid_fields_;
 }
 
-inline v8::Local<v8::String> Environment::AsyncHooks::provider_string(
-    v8::Isolate* isolate,
-    int idx) {
-  return providers_[idx].Get(isolate);
-}
-
 inline int Environment::AsyncHooks::uid_fields_count() const {
   return kUidFieldsCount;
+}
+
+inline v8::Local<v8::String> Environment::AsyncHooks::provider_string(int idx) {
+  return providers_[idx].Get(isolate_);
+}
+
+inline double* Environment::AsyncHooks::get_id_stack() {
+  return id_stack_;
+}
+
+inline void Environment::AsyncHooks::push_to_id_stack(double id,
+                                                      double trigger_id) {
+  CHECK_GE(id, 0);
+  CHECK_GE(trigger_id, 0);
+  // First make sure that JS hasn't totally screwed up the stack.
+  CHECK_LE(fields_[AsyncHooks::kIdStackIndex], AsyncHooks::kIdStackLimit - 2);
+  // Also verify that Size and Index are in sync.
+  CHECK_EQ(fields_[AsyncHooks::kIdStackSize] % AsyncHooks::kIdStackLimit,
+           fields_[AsyncHooks::kIdStackIndex]);
+
+  fields_[AsyncHooks::kIdStackIndex] += 2;
+  fields_[AsyncHooks::kIdStackSize] += 2;
+
+  if (fields_[AsyncHooks::kIdStackIndex] == AsyncHooks::kIdStackLimit) {
+    gen_id_array();
+
+    // Final check to make sure we're writing to the right spot in memory.
+    CHECK_LE(fields_[AsyncHooks::kIdStackIndex], AsyncHooks::kIdStackLimit - 2);
+  }
+
+  id_stack_[fields_[AsyncHooks::kIdStackIndex]] = id;
+  id_stack_[fields_[AsyncHooks::kIdStackIndex] + 1] = trigger_id;
+}
+
+inline void Environment::AsyncHooks::pop_from_id_stack(double id) {
+  // In case of a fatal exception then this may have already been reset,
+  // if the stack was multiple MakeCallback()'s deep.
+  if (fields_[AsyncHooks::kIdStackSize] == 0) {
+    // Sanity check to make sure the id stack hasn't become corrupted.
+    CHECK_EQ(fields_[AsyncHooks::kIdStackIndex], 0);
+    return;
+  }
+
+  // Make sure the stack hasn't become corrupted.
+  CHECK_EQ(id_stack_[fields_[AsyncHooks::kIdStackIndex]], id);
+
+  // Fast path where there's probably no extra stack.
+  if (fields_[AsyncHooks::kIdStackSize] < AsyncHooks::kIdStackLimit) {
+    CHECK_GE(fields_[AsyncHooks::kIdStackIndex], 2);
+    CHECK_EQ(fields_[AsyncHooks::kIdStackIndex],
+             fields_[AsyncHooks::kIdStackSize]);
+    fields_[AsyncHooks::kIdStackIndex] -= 2;
+    fields_[AsyncHooks::kIdStackSize] -= 2;
+    return;
+  }
+
+  if (fields_[AsyncHooks::kIdStackIndex] == 0) {
+    trim_id_array();
+  }
+
+  CHECK_EQ(fields_[AsyncHooks::kIdStackSize] % AsyncHooks::kIdStackLimit,
+           fields_[AsyncHooks::kIdStackIndex]);
+
+  fields_[AsyncHooks::kIdStackIndex] -= 2;
+  fields_[AsyncHooks::kIdStackSize] -= 2;
+}
+
+inline void Environment::AsyncHooks::gen_id_array() {
+  // This should only be called when there are enough ids to merit creating
+  // another id array.
+  CHECK_EQ(fields_[AsyncHooks::kIdStackIndex], AsyncHooks::kIdStackLimit);
+
+  v8::HandleScope handle_scope(isolate_);
+  id_stack_ = new double[AsyncHooks::kIdStackLimit]();
+  v8::Local<v8::ArrayBuffer> id_stack_ab = v8::ArrayBuffer::New(
+      isolate_,
+      id_stack_,
+      AsyncHooks::kIdStackLimit * sizeof(double));
+  v8::Local<v8::Float64Array> id_stack_array =
+    v8::Float64Array::New(id_stack_ab, 0, AsyncHooks::kIdStackLimit);
+  v8::Persistent<v8::Float64Array>* p_array =
+    new v8::Persistent<v8::Float64Array>(isolate_, id_stack_array);
+  stack_of_id_stacks_.push(p_array);
+
+  fields_[AsyncHooks::kIdStackIndex] = 0;
+
+  // If we happen to need a new stack before the async_wrap object has been set
+  // then return early.
+  if (async_wrap_object_.IsEmpty())
+    return;
+
+  async_wrap_object_.Get(isolate_)->Set(
+      isolate_->GetCurrentContext(),
+      FIXED_ONE_BYTE_STRING(isolate_, "async_id_stack"),
+      StrongPersistentToLocal(*(stack_of_id_stacks_.top()))).FromJust();
+}
+
+inline void Environment::AsyncHooks::trim_id_array() {
+  // This shouldn't be called if there's only one id stack left.
+  CHECK_GT(stack_of_id_stacks_.size(), 1);
+  CHECK_EQ(fields_[AsyncHooks::kIdStackIndex], 0);
+  CHECK_GE(fields_[AsyncHooks::kIdStackSize], AsyncHooks::kIdStackLimit - 2);
+
+  // Proper cleanup of the previous Persistent<Float64Array>
+  v8::HandleScope handle_scope(isolate_);
+  v8::Persistent<v8::Float64Array>* p_array = stack_of_id_stacks_.top();
+  v8::Local<v8::ArrayBuffer> ab = StrongPersistentToLocal(*p_array)->Buffer();
+  double* data = reinterpret_cast<double*>(ab->GetContents().Data());
+  stack_of_id_stacks_.pop();
+  p_array->Reset();
+  ab->Neuter();
+  delete[] data;
+  delete p_array;
+
+  // Reset id_stack_ to old Float64Array.
+  p_array = stack_of_id_stacks_.top();
+  ab = StrongPersistentToLocal(*p_array)->Buffer();
+  id_stack_ = reinterpret_cast<double*>(ab->GetContents().Data());
+
+  fields_[AsyncHooks::kIdStackIndex] = AsyncHooks::kIdStackLimit - 2;
+
+  CHECK_EQ(fields_[AsyncHooks::kIdStackSize] % AsyncHooks::kIdStackLimit,
+           fields_[AsyncHooks::kIdStackIndex]);
+
+  // If we happen to need a new stack before the async_wrap object has been set
+  // then return early.
+  if (async_wrap_object_.IsEmpty())
+    return;
+
+  async_wrap_object_.Get(isolate_)->Set(
+      isolate_->GetCurrentContext(),
+      FIXED_ONE_BYTE_STRING(isolate_, "async_id_stack"),
+      StrongPersistentToLocal(*p_array)).FromJust();
+}
+
+inline void Environment::AsyncHooks::reset_id_array() {
+  v8::HandleScope handle_scope(isolate_);
+
+  while (stack_of_id_stacks_.size() > 1) {
+    v8::Persistent<v8::Float64Array>* p_array = stack_of_id_stacks_.top();
+    v8::Local<v8::ArrayBuffer> ab = StrongPersistentToLocal(*p_array)->Buffer();
+    double* data = reinterpret_cast<double*>(ab->GetContents().Data());
+    stack_of_id_stacks_.pop();
+    p_array->Reset();
+    ab->Neuter();
+    delete[] data;
+    delete p_array;
+  }
+
+  v8::Persistent<v8::Float64Array>* p_array = stack_of_id_stacks_.top();
+  v8::Local<v8::ArrayBuffer> ab = StrongPersistentToLocal(*p_array)->Buffer();
+  id_stack_ = reinterpret_cast<double*>(ab->GetContents().Data());
+
+  fields_[AsyncHooks::kIdStackIndex] = 0;
+  fields_[AsyncHooks::kIdStackSize] = 0;
+}
+
+inline void Environment::AsyncHooks::set_async_wrap_object(
+    v8::Local<v8::Object> object) {
+  // This should only be set once.
+  CHECK(async_wrap_object_.IsEmpty());
+
+  v8::HandleScope handle_scope(isolate_);
+  async_wrap_object_.Set(isolate_, object);
+  object->Set(isolate_->GetCurrentContext(),
+              FIXED_ONE_BYTE_STRING(isolate_, "async_id_stack"),
+              StrongPersistentToLocal(*(stack_of_id_stacks_.top()))).FromJust();
+}
+
+inline Environment::AsyncHooks::ExecScope::ExecScope(
+    Environment* env, double id, double trigger_id)
+        : env_(env),
+          id_(id),
+          disposed_(false) {
+  env->async_hooks()->push_to_id_stack(id, trigger_id);
+
+  auto fields = env->async_hooks()->fields();
+  CHECK_EQ(fields[AsyncHooks::kIdStackSize] % AsyncHooks::kIdStackLimit,
+           fields[AsyncHooks::kIdStackIndex]);
+}
+
+inline void Environment::AsyncHooks::ExecScope::Dispose() {
+  disposed_ = true;
+  env_->async_hooks()->pop_from_id_stack(id_);
+
+  auto fields = env_->async_hooks()->fields();
+  CHECK_EQ(fields[AsyncHooks::kIdStackSize] % AsyncHooks::kIdStackLimit,
+           fields[AsyncHooks::kIdStackIndex]);
 }
 
 inline Environment::AsyncCallbackScope::AsyncCallbackScope(Environment* env)
@@ -339,28 +534,18 @@ inline std::vector<double>* Environment::destroy_ids_list() {
   return &destroy_ids_list_;
 }
 
-inline double Environment::new_async_uid() {
+inline double Environment::new_async_id() {
   return ++async_hooks()->uid_fields()[AsyncHooks::kAsyncUidCntr];
 }
 
 inline double Environment::current_async_id() {
-  return async_hooks()->uid_fields()[AsyncHooks::kCurrentId];
-}
-
-inline double Environment::exchange_current_async_id(const double id) {
-  const double oid = async_hooks()->uid_fields()[AsyncHooks::kCurrentId];
-  async_hooks()->uid_fields()[AsyncHooks::kCurrentId] = id;
-  return oid;
+  return async_hooks()->get_id_stack()[
+    async_hooks()->fields()[AsyncHooks::kIdStackIndex]];
 }
 
 inline double Environment::trigger_id() {
-  return async_hooks()->uid_fields()[AsyncHooks::kTriggerId];
-}
-
-inline double Environment::exchange_trigger_id(const double id) {
-  const double oid = async_hooks()->uid_fields()[AsyncHooks::kTriggerId];
-  async_hooks()->uid_fields()[AsyncHooks::kTriggerId] = id;
-  return oid;
+  return async_hooks()->get_id_stack()[
+    async_hooks()->fields()[AsyncHooks::kIdStackIndex] + 1];
 }
 
 inline double Environment::exchange_init_trigger_id(const double id) {
@@ -368,7 +553,7 @@ inline double Environment::exchange_init_trigger_id(const double id) {
   double tid = uid_fields[AsyncHooks::kInitTriggerId];
   uid_fields[AsyncHooks::kInitTriggerId] = id;
   if (tid <= 0) tid = uid_fields[AsyncHooks::kScopedTriggerId];
-  if (tid <= 0) tid = uid_fields[AsyncHooks::kCurrentId];
+  if (tid <= 0) tid = current_async_id();
   return tid;
 }
 

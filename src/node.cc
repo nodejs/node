@@ -132,6 +132,8 @@ using v8::Uint32Array;
 using v8::V8;
 using v8::Value;
 
+using AsyncHooks = node::Environment::AsyncHooks;
+
 static bool print_eval = false;
 static bool force_repl = false;
 static bool syntax_check_only = false;
@@ -1209,6 +1211,10 @@ Local<Value> MakeCallback(Environment* env,
     }
   }
 
+  // TODO(trevnorris): Correct this once node::MakeCallback() support id and
+  // triggerId.
+  AsyncHooks::ExecScope exec_scope(env, 0, 0);
+
   Local<Value> ret = callback->Call(recv, argc, argv);
 
   if (ret.IsEmpty()) {
@@ -1217,6 +1223,8 @@ Local<Value> MakeCallback(Environment* env,
     return callback_scope.in_makecallback() ?
         ret : Undefined(env->isolate()).As<Value>();
   }
+
+  exec_scope.Dispose();
 
   if (has_domain) {
     Local<Value> exit_v = domain->Get(env->exit_string());
@@ -1238,11 +1246,12 @@ Local<Value> MakeCallback(Environment* env,
     env->isolate()->RunMicrotasks();
   }
 
-  Local<Object> process = env->process_object();
-
-  // Make sure the stack unwound properly.
+  // Make sure the stack unwound properly. If there are nested MakeCallback's
+  // then it should return early and not reach this code.
   CHECK_EQ(env->current_async_id(), 0);
   CHECK_EQ(env->trigger_id(), 0);
+
+  Local<Object> process = env->process_object();
 
   if (tick_info->length() == 0) {
     tick_info->set_index(0);
@@ -4369,10 +4378,6 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   }
 
   env.set_trace_sync_io(trace_sync_io);
-  // A current_async_id() of 1 means bootstrap phase. Now that the bootstrap
-  // phase is complete set the global id to 0 to let the internals know that
-  // everything points to the void.
-  env.exchange_current_async_id(0);
 
   // Enable debugger
   if (debug_enabled)

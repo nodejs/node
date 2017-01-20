@@ -20,21 +20,29 @@ async_hooks.createHook({
   },
 }).enable();
 
-const simId = setImmediate(() => {
+const si = setImmediate(() => {
   throw new Error('setImmediate');
-})._asyncId;
-thrown_ids[simId] = 'setImmediate';
+});
+let async_id_symbol = null;
+for (const i of Object.getOwnPropertySymbols(si)) {
+  if (i.toString() === 'Symbol(asyncId)') {
+    async_id_symbol = i;
+    break;
+  }
+}
+assert.ok(async_id_symbol !== null);
+thrown_ids[si[async_id_symbol]] = 'setImmediate';
 
-const stId = setTimeout(() => {
+const st = setTimeout(() => {
   throw new Error('setTimeout');
-}, 10)._asyncId;
-thrown_ids[stId] = 'setTimeout';
+}, 10);
+thrown_ids[st[async_id_symbol]] = 'setTimeout';
 
-const sinId = setInterval(function() {
+const sin = setInterval(function() {
   clearInterval(this);
   throw new Error('setInterval');
-}, 10)._asyncId;
-thrown_ids[sinId] = 'setInterval';
+}, 10);
+thrown_ids[sin[async_id_symbol]] = 'setInterval';
 
 const rbId = require('crypto').randomBytes(1, () => {
   throw new Error('RANDOMBYTESREQUEST');

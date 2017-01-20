@@ -9,6 +9,7 @@
 #include "v8.h"
 #include "v8-profiler.h"
 
+using v8::Array;
 using v8::ArrayBuffer;
 using v8::Context;
 using v8::Float64Array;
@@ -159,9 +160,21 @@ void AsyncWrap::Initialize(Local<Object> target,
 
   env->SetMethod(target, "setupHooks", SetupHooks);
   env->SetMethod(target, "addIdToDestroyList", AddIdToDestroyList);
+  env->SetMethod(target, "genIdArray", GenIdArray);
+  env->SetMethod(target, "trimIdArray", TrimIdArray);
+  env->SetMethod(target, "resetIdArray", ResetIdArray);
 
   v8::PropertyAttribute ReadOnlyDontDelete =
     static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
+
+  // The stack of async and trigger ids will be kept in a Float64Array. With a
+  // size of 1024 (allowing for 512 recursive calls) it is very unlikely that
+  // a new array will ever need to be created, but just in case that occation
+  // comes we can handle it. This array will hold allocations that have filled.
+  target->ForceSet(context,
+                   FIXED_ONE_BYTE_STRING(isolate, "async_id_stack_list"),
+                   Array::New(isolate),
+                   ReadOnlyDontDelete).FromJust();
 
   // Attach the uint32_t[] where each slot contains the count of the number of
   // callbacks waiting to be called on a particular event. It can then be
@@ -183,16 +196,6 @@ void AsyncWrap::Initialize(Local<Object> target,
   // possible. The fields are represented as follows:
   //
   // kAsyncUid: Maintains the state of the next unique id to be assigned.
-  //
-  // kCurrentId: Is the id of the resource responsible for the current
-  //   execution context. A currentId == 0 means the "void", or that there is
-  //   no JS stack above the init() call (happens when a new handle is created
-  //   for an incoming TCP socket). A currentId == 1 means "root". Or the
-  //   execution context of node::StartNodeInstance.
-  //
-  // kTriggerId: Is the id of the resource responsible for init() being called.
-  //   For example, the trigger id of a new connection's TCP handle would be
-  //   the server handle. Whereas the current id at that time would be 0.
   //
   // kInitTriggerId: Write the id of the resource resource responsible for a
   //   handle's creation just before calling the new handle's constructor.
@@ -225,11 +228,12 @@ void AsyncWrap::Initialize(Local<Object> target,
   SET_HOOKS_CONSTANT(kAfter);
   SET_HOOKS_CONSTANT(kDestroy);
   SET_HOOKS_CONSTANT(kActiveHooks);
+  SET_HOOKS_CONSTANT(kIdStackIndex);
+  SET_HOOKS_CONSTANT(kIdStackSize);
   SET_HOOKS_CONSTANT(kAsyncUidCntr);
-  SET_HOOKS_CONSTANT(kCurrentId);
-  SET_HOOKS_CONSTANT(kTriggerId);
   SET_HOOKS_CONSTANT(kInitTriggerId);
   SET_HOOKS_CONSTANT(kScopedTriggerId);
+  SET_HOOKS_CONSTANT(kIdStackLimit);
 #undef SET_HOOKS_CONSTANT
   target->ForceSet(context,
                    FIXED_ONE_BYTE_STRING(isolate, "constants"),
@@ -249,6 +253,10 @@ void AsyncWrap::Initialize(Local<Object> target,
                    FIXED_ONE_BYTE_STRING(isolate, "Providers"),
                    async_providers,
                    ReadOnlyDontDelete).FromJust();
+
+  // Pass the async_wrap object to Environment::AsyncHooks so the
+  // async_id_stack property can be set automatically.
+  env->async_hooks()->set_async_wrap_object(target);
 
   env->set_async_hooks_init_function(Local<Function>());
   env->set_async_hooks_before_function(Local<Function>());
@@ -323,6 +331,24 @@ void AsyncWrap::AddIdToDestroyList(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+void AsyncWrap::GenIdArray(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  env->async_hooks()->gen_id_array();
+}
+
+
+void AsyncWrap::TrimIdArray(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  env->async_hooks()->trim_id_array();
+}
+
+
+void AsyncWrap::ResetIdArray(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  env->async_hooks()->reset_id_array();
+}
+
+
 void LoadAsyncWrapperInfo(Environment* env) {
   HeapProfiler* heap_profiler = env->isolate()->GetHeapProfiler();
 #define V(PROVIDER)                                                           \
@@ -366,7 +392,7 @@ AsyncWrap::~AsyncWrap() {
 // the resource is pulled out of the pool and put back into use.
 void AsyncWrap::Reset() {
   AsyncHooks* async_hooks = env()->async_hooks();
-  id_ = env()->new_async_uid();
+  id_ = env()->new_async_id();
   trigger_id_ = env()->exchange_init_trigger_id(0);
 
   // Nothing to execute, so can continue normally.
@@ -379,7 +405,7 @@ void AsyncWrap::Reset() {
 
   Local<Value> argv[] = {
     Number::New(env()->isolate(), get_id()),
-    env()->async_hooks()->provider_string(env()->isolate(), provider_type()),
+    env()->async_hooks()->provider_string(provider_type()),
     object(),
     Number::New(env()->isolate(), get_trigger_id()),
   };
@@ -490,6 +516,11 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
   if (tick_info->length() == 0) {
     env()->isolate()->RunMicrotasks();
   }
+
+  // Make sure the stack unwound properly. If there are nested MakeCallback's
+  // then it should return early and not reach this code.
+  CHECK_EQ(env()->current_async_id(), 0);
+  CHECK_EQ(env()->trigger_id(), 0);
 
   Local<Object> process = env()->process_object();
 

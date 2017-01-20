@@ -18,6 +18,7 @@
 #include <stdint.h>
 #include <vector>
 #include <unordered_map>
+#include <stack>
 
 // Caveat emptor: we're going slightly crazy with macros here but the end
 // hopefully justifies the means. We have a lot of per-context properties
@@ -317,8 +318,6 @@ class Environment {
     // and the other as a uint32_t*.
     enum UidFields {
       kAsyncUidCntr,
-      kCurrentId,
-      kTriggerId,
       kInitTriggerId,
       kScopedTriggerId,
       kUidFieldsCount,
@@ -330,14 +329,26 @@ class Environment {
       kAfter,
       kDestroy,
       kActiveHooks,
+      kIdStackIndex,
+      kIdStackSize,
       kFieldsCount,
     };
+
+    static const size_t kIdStackLimit = 1024;
 
     inline uint32_t* fields();
     inline int fields_count() const;
     inline double* uid_fields();
     inline int uid_fields_count() const;
-    inline v8::Local<v8::String> provider_string(v8::Isolate* isolate, int idx);
+    inline v8::Local<v8::String> provider_string(int idx);
+
+    inline double* get_id_stack();
+    inline void push_to_id_stack(double id, double trigger_id);
+    inline void pop_from_id_stack(double id);
+    inline void gen_id_array();
+    inline void trim_id_array();
+    inline void reset_id_array();  // Used in fatal exceptions.
+    inline void set_async_wrap_object(v8::Local<v8::Object> object);
 
     class InitScope {
      public:
@@ -356,35 +367,22 @@ class Environment {
       DISALLOW_COPY_AND_ASSIGN(InitScope);
     };
 
-    // ExecScope is meant for use in MakeCallback, to maintained stacked
-    // state.
-    // TODO(trevnorris): This conflicts with how emitBefore/emitAfter work
-    // (manually tracking the stacks in a JS array). Technically they should
-    // play nicely together, but write tests to prove this.
+    // ExecScope is meant for use in MakeCallback, to manage the id stack.
     class ExecScope {
      public:
-      explicit ExecScope(Environment* env, double id, double trigger_id)
-          : uid_fields_(env->async_hooks()->uid_fields()),
-            id_(uid_fields_[AsyncHooks::kCurrentId]),
-            trigger_id_(uid_fields_[AsyncHooks::kTriggerId]),
-            disposed_(false) {
-        uid_fields_[AsyncHooks::kCurrentId] = id;
-        uid_fields_[AsyncHooks::kTriggerId] = trigger_id;
-      }
+      explicit ExecScope(Environment* env, double id, double trigger_id);
       ~ExecScope() {
         if (disposed_) return;
         Dispose();
       }
-      void Dispose() {
-        disposed_ = true;
-        uid_fields_[AsyncHooks::kCurrentId] = id_;
-        uid_fields_[AsyncHooks::kTriggerId] = trigger_id_;
-      }
+      void Dispose();
 
      private:
-      double* uid_fields_;
-      const double id_;
-      const double trigger_id_;
+      ExecScope() { }
+      Environment* env_;
+      double id_;
+      // Manually track if disposed so if the user calls Dispose() and it's
+      // RAII it won't alter the id stack twice.
       bool disposed_;
 
       DISALLOW_COPY_AND_ASSIGN(ExecScope);
@@ -397,11 +395,21 @@ class Environment {
 
     // Keep a list of all Persistent strings used for Provider types.
     v8::Eternal<v8::String> providers_[AsyncWrap::PROVIDERS_LENGTH];
+    // Store a reference to the async_wrap object so we can override the
+    // async_id_stack property if the stack grows too large.
+    v8::Eternal<v8::Object> async_wrap_object_;
+
+    std::stack<v8::Persistent<v8::Float64Array>*> stack_of_id_stacks_;
+
+    v8::Isolate* isolate_;
 
     uint32_t fields_[kFieldsCount];
     // Gives us 2^53-1 unique ids. Good enough for now and makes the operation
     // cheaper in JS.
     double uid_fields_[kUidFieldsCount];
+    // Pointer to the data in the Float64Array that holds the current stack of
+    // ids.
+    double* id_stack_;
 
     DISALLOW_COPY_AND_ASSIGN(AsyncHooks);
   };
@@ -543,11 +551,9 @@ class Environment {
   inline void set_trace_sync_io(bool value);
 
   // The necessary API for async_hooks.
-  inline double new_async_uid();
+  inline double new_async_id();
   inline double current_async_id();
-  inline double exchange_current_async_id(const double id);
   inline double trigger_id();
-  inline double exchange_trigger_id(const double id);
   inline double exchange_init_trigger_id(const double id);
   inline void set_init_trigger_id(const double id);
 
