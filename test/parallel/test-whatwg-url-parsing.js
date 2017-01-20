@@ -1,6 +1,7 @@
 'use strict';
 
 const common = require('../common');
+const util = require('util');
 
 if (!common.hasIntl) {
   // A handful of the tests fail when ICU is not included.
@@ -144,8 +145,8 @@ for (const test of allTests) {
   const url = test.url ? new URL(test.url) : new URL(test.input, test.base);
 
   for (const showHidden of [true, false]) {
-    const res = url.inspect(null, {
-      showHidden: showHidden
+    const res = util.inspect(url, {
+      showHidden
     });
 
     const lines = res.split('\n');
