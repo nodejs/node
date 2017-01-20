@@ -3707,7 +3707,14 @@ static void PrintHelp() {
          "                         (will extend linked-in data)\n"
 #endif
 #endif
-         "NODE_REPL_HISTORY        path to the persistent REPL history file\n"
+         "NODE_NO_WARNINGS           set to 1 to silence process warnings\n"
+#ifdef _WIN32
+         "NODE_PATH               ';'-separated list of directories\n"
+#else
+         "NODE_PATH               ':'-separated list of directories\n"
+#endif
+         "                        prefixed to the module search path\n"
+         "NODE_REPL_HISTORY       path to the persistent REPL history file\n"
          "\n"
          "Documentation can be found at https://nodejs.org/\n");
 }
