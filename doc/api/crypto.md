@@ -541,7 +541,7 @@ const bob_key = bob.generateKeys();
 const alice_secret = alice.computeSecret(bob_key);
 const bob_secret = bob.computeSecret(alice_key);
 
-assert(alice_secret, bob_secret);
+assert.equal(alice_secret.toString('hex'), bob_secret.toString('hex'));
   // OK
 ```
 
