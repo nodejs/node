@@ -19,36 +19,32 @@ var options = {
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
-var server = tls.Server(options, function(socket) {
-  setImmediate(function() {
-    console.log('sending');
+const server = tls.Server(options, (socket) => {
+  setImmediate(() => {
     verify();
-    setImmediate(function() {
+    setImmediate(() => {
       socket.destroy();
     });
   });
 });
 
 function verify() {
-  console.log('verify');
   crypto.createVerify('RSA-SHA1')
     .update('Test')
     .verify(certPem, 'asdfasdfas', 'base64');
 }
 
-server.listen(0, function() {
+server.listen(0, common.mustCall(() => {
   tls.connect({
-    port: this.address().port,
+    port: server.address().port,
     rejectUnauthorized: false
-  }, function() {
+  }, common.mustCall(() => {
     verify();
-  }).on('data', function(data) {
-    console.log(data);
-  }).on('error', function(err) {
-    throw err;
-  }).on('close', function() {
-    server.close();
-  }).resume();
-});
+  }))
+    .on('error', common.fail)
+    .on('close', common.mustCall(() => {
+      server.close();
+    })).resume();
+}));
 
 server.unref();
