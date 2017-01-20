@@ -25,10 +25,10 @@
       <QPG:Files>
          <QPG:Add file="../zconf.h" install="/opt/include/" user="root:sys" permission="644"/>
          <QPG:Add file="../zlib.h" install="/opt/include/" user="root:sys" permission="644"/>
-         <QPG:Add file="../libz.so.1.2.8" install="/opt/lib/" user="root:bin" permission="644"/>
-         <QPG:Add file="libz.so" install="/opt/lib/" component="dev" filetype="symlink" linkto="libz.so.1.2.8"/>
-         <QPG:Add file="libz.so.1" install="/opt/lib/" filetype="symlink" linkto="libz.so.1.2.8"/>
-         <QPG:Add file="../libz.so.1.2.8" install="/opt/lib/" component="slib"/>
+         <QPG:Add file="../libz.so.1.2.11" install="/opt/lib/" user="root:bin" permission="644"/>
+         <QPG:Add file="libz.so" install="/opt/lib/" component="dev" filetype="symlink" linkto="libz.so.1.2.11"/>
+         <QPG:Add file="libz.so.1" install="/opt/lib/" filetype="symlink" linkto="libz.so.1.2.11"/>
+         <QPG:Add file="../libz.so.1.2.11" install="/opt/lib/" component="slib"/>
       </QPG:Files>
 
       <QPG:PackageFilter>
@@ -63,7 +63,7 @@
             </QPM:ProductDescription>
 
             <QPM:ReleaseDescription>
-               <QPM:ReleaseVersion>1.2.8</QPM:ReleaseVersion>
+               <QPM:ReleaseVersion>1.2.11</QPM:ReleaseVersion>
                <QPM:ReleaseUrgency>Medium</QPM:ReleaseUrgency>
                <QPM:ReleaseStability>Stable</QPM:ReleaseStability>
                <QPM:ReleaseNoteMinor></QPM:ReleaseNoteMinor>

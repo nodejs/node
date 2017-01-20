@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
-<package name="zlib" version="1.2.8">
-    <library name="zlib" dlversion="1.2.8" dlname="z">
+<package name="zlib" version="1.2.11">
+    <library name="zlib" dlversion="1.2.11" dlname="z">
 	<property name="description"> zip compression library </property>
 	<property name="include-target-dir" value="$(@PACKAGE/install-includedir)" />
 
@@ -101,7 +101,7 @@
 <!--
 CFLAGS=-O
 #CFLAGS=-O -DMAX_WBITS=14 -DMAX_MEM_LEVEL=7
-#CFLAGS=-g -DDEBUG
+#CFLAGS=-g -DZLIB_DEBUG
 #CFLAGS=-O3 -Wall -Wwrite-strings -Wpointer-arith -Wconversion \
 #           -Wstrict-prototypes -Wmissing-prototypes
 

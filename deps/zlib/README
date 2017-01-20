@@ -1,6 +1,6 @@
 ZLIB DATA COMPRESSION LIBRARY
 
-zlib 1.2.8 is a general purpose data compression library.  All the code is
+zlib 1.2.11 is a general purpose data compression library.  All the code is
 thread safe.  The data format used by the zlib library is described by RFCs
 (Request for Comments) 1950 to 1952 in the files
 http://tools.ietf.org/html/rfc1950 (zlib format), rfc1951 (deflate format) and
@@ -31,7 +31,7 @@ Mark Nelson <markn@ieee.org> wrote an article about zlib for the Jan.  1997
 issue of Dr.  Dobb's Journal; a copy of the article is available at
 http://marknelson.us/1997/01/01/zlib-engine/ .
 
-The changes made in version 1.2.8 are documented in the file ChangeLog.
+The changes made in version 1.2.11 are documented in the file ChangeLog.
 
 Unsupported third party contributions are provided in directory contrib/ .
 
@@ -84,7 +84,7 @@ Acknowledgments:
 
 Copyright notice:
 
- (C) 1995-2013 Jean-loup Gailly and Mark Adler
+ (C) 1995-2017 Jean-loup Gailly and Mark Adler
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages

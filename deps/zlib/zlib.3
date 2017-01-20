@@ -1,4 +1,4 @@
-.TH ZLIB 3 "28 Apr 2013"
+.TH ZLIB 3 "15 Jan 2017"
 .SH NAME
 zlib \- compression/decompression library
 .SH SYNOPSIS
@@ -48,32 +48,10 @@ Changes to this version are documented in the file
 that accompanies the source.
 .LP
 .I zlib
-is available in Java using the java.util.zip package:
-.IP
-http://java.sun.com/developer/technicalArticles/Programming/compression/
+is built in to many languages and operating systems, including but not limited to
+Java, Python, .NET, PHP, Perl, Ruby, Swift, and Go.
 .LP
-A Perl interface to
-.IR zlib ,
-written by Paul Marquess (pmqs@cpan.org),
-is available at CPAN (Comprehensive Perl Archive Network) sites,
-including:
-.IP
-http://search.cpan.org/~pmqs/IO-Compress-Zlib/
-.LP
-A Python interface to
-.IR zlib ,
-written by A.M. Kuchling (amk@magnet.com),
-is available in Python 1.5 and later versions:
-.IP
-http://docs.python.org/library/zlib.html
-.LP
-.I zlib
-is built into
-.IR tcl:
-.IP
-http://wiki.tcl.tk/4610
-.LP
-An experimental package to read and write files in .zip format,
+An experimental package to read and write files in the .zip format,
 written on top of
 .I zlib
 by Gilles Vollant (info@winimage.com),
@@ -92,7 +70,9 @@ web site can be found at:
 .IP
 http://zlib.net/
 .LP
-The data format used by the zlib library is described by RFC
+The data format used by the
+.I zlib
+library is described by RFC
 (Request for Comments) 1950 to 1952 in the files:
 .IP
 http://tools.ietf.org/html/rfc1950 (for the zlib header and trailer format)
@@ -124,17 +104,35 @@ http://zlib.net/zlib_faq.html
 before asking for help.
 Send questions and/or comments to zlib@gzip.org,
 or (for the Windows DLL version) to Gilles Vollant (info@winimage.com).
-.SH AUTHORS
-Version 1.2.8
-Copyright (C) 1995-2013 Jean-loup Gailly (jloup@gzip.org)
-and Mark Adler (madler@alumni.caltech.edu).
+.SH AUTHORS AND LICENSE
+Version 1.2.11
 .LP
-This software is provided "as-is,"
-without any express or implied warranty.
-In no event will the authors be held liable for any damages
+Copyright (C) 1995-2017 Jean-loup Gailly and Mark Adler
+.LP
+This software is provided 'as-is', without any express or implied
+warranty.  In no event will the authors be held liable for any damages
 arising from the use of this software.
-See the distribution directory with respect to requirements
-governing redistribution.
+.LP
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+.LP
+.nr step 1 1
+.IP \n[step]. 3
+The origin of this software must not be misrepresented; you must not
+claim that you wrote the original software. If you use this software
+in a product, an acknowledgment in the product documentation would be
+appreciated but is not required.
+.IP \n+[step].
+Altered source versions must be plainly marked as such, and must not be
+misrepresented as being the original software.
+.IP \n+[step].
+This notice may not be removed or altered from any source distribution.
+.LP
+Jean-loup Gailly        Mark Adler
+.br
+jloup@gzip.org          madler@alumni.caltech.edu
+.LP
 The deflate format used by
 .I zlib
 was defined by Phil Katz.
