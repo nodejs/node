@@ -65,6 +65,8 @@ extern int VerifyCallback(int preverify_ok, X509_STORE_CTX* ctx);
 
 extern X509_STORE* root_cert_store;
 
+extern void UseExtraCaCerts(const std::string& file);
+
 // Forward declaration
 class Connection;
 
