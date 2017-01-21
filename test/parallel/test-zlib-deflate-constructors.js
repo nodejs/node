@@ -83,7 +83,12 @@ assert.doesNotThrow(
 );
 
 assert.doesNotThrow(
-  () => { new zlib.Deflate({ strategy: zlib.constants.Z_DEFAULT_STRATEGY}); }
+  () => { new zlib.Deflate({strategy: zlib.constants.Z_DEFAULT_STRATEGY}); }
+);
+
+// Valid strategies are integer values. Accepts equivalent string value too.
+assert.doesNotThrow(
+  () => { new zlib.Deflate({strategy: '' + zlib.constants.Z_RLE}); }
 );
 
 // Throws if opts.strategy is invalid
