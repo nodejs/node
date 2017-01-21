@@ -152,6 +152,7 @@ def headers(action):
     'src/node_object_wrap.h',
     'src/node_version.h',
   ], 'include/node/')
+  action(['src/tracing/trace_event.h'], 'include/node/tracing/')
 
   # Add the expfile that is created on AIX
   if sys.platform.startswith('aix'):
