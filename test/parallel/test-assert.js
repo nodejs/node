@@ -90,11 +90,12 @@ assert.doesNotThrow(makeBlock(a.deepEqual, /a/g, /a/g));
 assert.doesNotThrow(makeBlock(a.deepEqual, /a/i, /a/i));
 assert.doesNotThrow(makeBlock(a.deepEqual, /a/m, /a/m));
 assert.doesNotThrow(makeBlock(a.deepEqual, /a/igm, /a/igm));
-assert.throws(makeBlock(a.deepEqual, /ab/, /a/));
-assert.throws(makeBlock(a.deepEqual, /a/g, /a/));
-assert.throws(makeBlock(a.deepEqual, /a/i, /a/));
-assert.throws(makeBlock(a.deepEqual, /a/m, /a/));
-assert.throws(makeBlock(a.deepEqual, /a/igm, /a/im));
+assert.throws(makeBlock(a.deepEqual, /ab/, /a/), /\/ab\/ deepEqual \/a\//);
+assert.throws(makeBlock(a.deepEqual, /a/g, /a/), /\/a\/g deepEqual \/a\//);
+assert.throws(makeBlock(a.deepEqual, /a/i, /a/), /\/a\/i deepEqual \/a\//);
+assert.throws(makeBlock(a.deepEqual, /a/m, /a/), /\/a\/m deepEqual \/a\//);
+assert.throws(makeBlock(a.deepEqual, /a/igm, /a/im),
+              /\/a\/gim deepEqual \/a\/im/);
 
 {
   const re1 = /a/;
