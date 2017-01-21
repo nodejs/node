@@ -99,11 +99,10 @@ void ConnectionWrap<WrapType, UVType>::AfterConnect(uv_connect_t* req,
     writable = uv_is_writable(req->handle) != 0;
   }
 
-  Local<Object> req_wrap_obj = req_wrap->object();
   Local<Value> argv[5] = {
     Integer::New(env->isolate(), status),
     wrap->object(),
-    req_wrap_obj,
+    req_wrap->object(),
     Boolean::New(env->isolate(), readable),
     Boolean::New(env->isolate(), writable)
   };
