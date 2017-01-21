@@ -55,9 +55,9 @@ sp.forEach(function() {
   assert.strictEqual(this, m);
 }, m);
 assert.throws(() => sp.forEach(),
-              /^TypeError: The `callback` argument needs to be specified$/);
+              /^TypeError: "callback" argument must be a function$/);
 assert.throws(() => sp.forEach(1),
-              /^TypeError: The `callback` argument must be a function$/);
+              /^TypeError: "callback" argument must be a function$/);
 
 m.search = '?a=a&b=b';
 assert.strictEqual(sp.toString(), 'a=a&b=b');
