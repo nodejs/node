@@ -67,7 +67,7 @@ static void GetOSType(const FunctionCallbackInfo<Value>& args) {
   }
   rval = info.sysname;
 #else  // __MINGW32__
-  rval ="Windows_NT";
+  rval = "Windows_NT";
 #endif  // __POSIX__
 
   args.GetReturnValue().Set(OneByteString(env->isolate(), rval));
