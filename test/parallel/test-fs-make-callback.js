@@ -4,7 +4,6 @@ const assert = require('assert');
 const fs = require('fs');
 const cbTypeError = /^TypeError: "callback" argument must be a function$/;
 
-
 function test(cb) {
   return function() {
     // fs.stat() calls makeCallback() on its second argument
