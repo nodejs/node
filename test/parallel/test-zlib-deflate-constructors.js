@@ -86,6 +86,12 @@ assert.doesNotThrow(
   () => { new zlib.Deflate({ strategy: zlib.constants.Z_DEFAULT_STRATEGY}); }
 );
 
+// Throws if opt.strategy is the wrong type.
+assert.throws(
+  () => { new zlib.Deflate({strategy: '' + zlib.constants.Z_RLE }); },
+  /^Error: Invalid strategy: 3$/
+);
+
 // Throws if opts.strategy is invalid
 assert.throws(
   () => { new zlib.Deflate({strategy: 'this is a bogus strategy'}); },
