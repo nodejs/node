@@ -110,3 +110,6 @@ assert.strictEqual(params + '', 'a%F0%9F%92%A9b=c');
 // The lone '=' _does_ survive the roundtrip.
 params = new URLSearchParams('a=&a=b');
 assert.strictEqual(params.toString(), 'a=&a=b');
+assert.throws(() => {
+  params.toString.call(undefined);
+}, /^TypeError: Value of `this` is not a URLSearchParams$/);

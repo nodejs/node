@@ -32,3 +32,10 @@ assert.strictEqual(true, params.has('a'),
                    'Search params object has name "a"');
 assert.strictEqual(params.get('a'), '4',
                    'Search params object has name "a" with value "4"');
+
+assert.throws(() => {
+  params.set.call(undefined);
+}, /^TypeError: Value of `this` is not a URLSearchParams$/);
+assert.throws(() => {
+  params.set('a');
+}, /^TypeError: "name" and "value" arguments must be specified$/);
