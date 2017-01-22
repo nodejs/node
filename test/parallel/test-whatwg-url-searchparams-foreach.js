@@ -12,7 +12,7 @@ let a, b, i;
 const params = new URLSearchParams('a=1&b=2&c=3');
 const keys = [];
 const values = [];
-params.forEach(function(value, key) {
+params.forEach((value, key) => {
   keys.push(key);
   values.push(value);
 });
@@ -37,3 +37,10 @@ b = a.searchParams;
 for (i of b) {
   common.fail('should not be reached');
 }
+
+assert.throws(() => {
+  params.forEach.call(undefined);
+}, /^TypeError: Value of `this` is not a URLSearchParams$/);
+assert.throws(() => {
+  params.forEach();
+}, /^TypeError: The `callback` argument needs to be specified$/);
