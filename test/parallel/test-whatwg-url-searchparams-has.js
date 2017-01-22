@@ -33,3 +33,10 @@ assert.strictEqual(false, params.has('d'),
 params.delete('first');
 assert.strictEqual(false, params.has('first'),
                    'Search params object has no name "first"');
+
+assert.throws(() => {
+  params.has.call(undefined);
+}, /^TypeError: Value of `this` is not a URLSearchParams$/);
+assert.throws(() => {
+  params.has();
+}, /^TypeError: "name" argument must be specified$/);

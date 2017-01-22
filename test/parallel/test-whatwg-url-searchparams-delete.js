@@ -41,6 +41,13 @@ params.delete('first');
 assert.strictEqual(false, params.has('first'),
                    'Search params object has no "first" name');
 
+assert.throws(() => {
+  params.delete.call(undefined);
+}, /^TypeError: Value of `this` is not a URLSearchParams$/);
+assert.throws(() => {
+  params.delete();
+}, /^TypeError: "name" argument must be specified$/);
+
 // https://github.com/nodejs/node/issues/10480
 // Emptying searchParams should correctly update url's query
 {
