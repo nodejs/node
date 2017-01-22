@@ -41,6 +41,3 @@ for (i of b) {
 assert.throws(() => {
   params.forEach.call(undefined);
 }, /^TypeError: Value of `this` is not a URLSearchParams$/);
-assert.throws(() => {
-  params.forEach();
-}, /^TypeError: The `callback` argument needs to be specified$/);
