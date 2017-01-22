@@ -36,3 +36,10 @@ assert(matches && matches.length == 1,
        'Search params object has values for name "a"');
 assert.deepStrictEqual(matches, ['one'],
                        'Search params object has expected name "a" values');
+
+assert.throws(() => {
+  params.getAll.call(undefined);
+}, /^TypeError: Value of `this` is not a URLSearchParams$/);
+assert.throws(() => {
+  params.getAll();
+}, /^TypeError: "name" argument must be specified$/);

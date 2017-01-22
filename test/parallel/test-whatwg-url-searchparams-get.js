@@ -29,3 +29,10 @@ assert.strictEqual(params.get('third'), '',
                    'Search params object has name "third" with empty value.');
 assert.strictEqual(params.get('fourth'), null,
                    'Search params object has no "fourth" name and value.');
+
+assert.throws(() => {
+  params.get.call(undefined);
+}, /^TypeError: Value of `this` is not a URLSearchParams$/);
+assert.throws(() => {
+  params.get();
+}, /^TypeError: "name" argument must be specified$/);
