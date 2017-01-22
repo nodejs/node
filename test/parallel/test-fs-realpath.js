@@ -200,7 +200,9 @@ function test_cyclic_link_protection(callback) {
     fs.symlinkSync(t[1], t[0], 'dir');
     unlink.push(t[0]);
   });
-  assert.throws(function() { fs.realpathSync(entry); });
+
+  const errorTooManySymLinks = /^ELOOP: too many symbolic links encountered$/
+  assert.throws(function() { fs.realpathSync(entry); }, errorTooManySymLinks);
   asynctest(fs.realpath, [entry], callback, function(err, result) {
     assert.ok(err && true);
     return true;
