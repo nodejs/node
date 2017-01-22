@@ -179,7 +179,7 @@ bool trace_warnings = false;
 // Used in node_config.cc to set a constant on process.binding('config')
 // that is used by lib/module.js
 bool config_preserve_symlinks = false;
-
+bool config_adjacent_node_modules = false;
 bool v8_initialized = false;
 
 // process-relative uptime base, initialized at start-up
@@ -3667,6 +3667,8 @@ static void ParseArgs(int* argc,
       Revert(cve);
     } else if (strcmp(arg, "--preserve-symlinks") == 0) {
       config_preserve_symlinks = true;
+    } else if (strcmp(arg, "--adjacent-node-modules") == 0) {
+      config_adjacent_node_modules = true;
     } else if (strcmp(arg, "--prof-process") == 0) {
       prof_process = true;
       short_circuit = true;
@@ -4177,6 +4179,12 @@ void Init(int* argc,
   // Allow for environment set preserving symlinks.
   if (auto preserve_symlinks = secure_getenv("NODE_PRESERVE_SYMLINKS")) {
     config_preserve_symlinks = (*preserve_symlinks == '1');
+  }
+
+  if (auto adjacent_node_modules
+    = secure_getenv("NODE_ADJACENT_NODE_MODULES")) {
+
+    config_adjacent_node_modules = (*adjacent_node_modules == '1');
   }
 
   // Parse a few arguments which are specific to Node.
