@@ -31,6 +31,7 @@ const typeParser = require('./type-parser.js');
 module.exports = toHTML;
 
 const STABILITY_TEXT_REG_EXP = /(.*:)\s*(\d)([\s\S]*)/;
+const DOC_CREATED_REG_EXP = /<!--doc_created=v([0-9]+).([0-9]+).([0-9]+)-->/;
 
 // customized heading without id attribute
 const renderer = new marked.Renderer();
@@ -52,6 +53,7 @@ const gtocPath = path.resolve(path.join(
 ));
 var gtocLoading = null;
 var gtocData = null;
+var docCreated = null;
 
 /**
  * opts: input, filename, template, nodeVersion.
@@ -59,6 +61,8 @@ var gtocData = null;
 function toHTML(opts, cb) {
   const template = opts.template;
   const nodeVersion = opts.nodeVersion || process.version;
+
+  docCreated = opts.input.match(DOC_CREATED_REG_EXP);
 
   if (gtocData) {
     return onGtocLoaded();
@@ -157,6 +161,8 @@ function render(opts, cb) {
       );
     }
 
+    template = template.replace(/__ALTDOCS__/, altDocs(filename));
+
     // content has to be the last thing we do with
     // the lexed tokens, because it's destructive.
     const content = marked.parser(lexed);
@@ -186,6 +192,41 @@ function analyticsScript(analytics) {
 // replace placeholders in text tokens
 function replaceInText(text) {
   return linkJsTypeDocs(linkManPages(text));
+}
+
+function altDocs(filename) {
+  let html = '';
+
+  if (!docCreated) {
+    console.error('Failed to add alternative version links');
+    return html;
+  }
+
+  function lte(v) {
+    if (docCreated[1] > v[0])
+      return false;
+    if (docCreated[1] < v[0])
+      return true;
+    return docCreated[2] <= v.substr(2, 2);
+  }
+
+  const host = 'https://nodejs.org';
+  const href = (v) => `${host}/docs/latest-v${v}/api/${filename}.html`;
+  const a = (v) => `<a href="${href(v)}">v${v}</a>`;
+  const as = (vs) => vs.filter(lte).map(a).join(' / ');
+
+  const lts = as(['0.12.x', '4.x', '6.x']);
+  if (lts.length)
+    html += '<b>LTS:</b> ' + lts;
+
+  const unsupported = as(['0.10.x', '5.x', '7.x']);
+  if (unsupported.length)
+    html += '<b>Unsupported:</b> ' + unsupported;
+
+  if (html.length)
+    html = 'View another version of this page ' + html;
+
+  return html;
 }
 
 // handle general body-text replacements

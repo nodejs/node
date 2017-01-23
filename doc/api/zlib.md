@@ -1,5 +1,7 @@
 # Zlib
 
+<!--doc_created=v0.10.0-->
+
 > Stability: 2 - Stable
 
 The `zlib` module provides compression functionality implemented using Gzip and

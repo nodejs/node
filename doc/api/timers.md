@@ -1,5 +1,7 @@
 # Timers
 
+<!--doc_created=v0.10.0-->
+
 > Stability: 2 - Stable
 
 The `timer` module exposes a global API for scheduling functions to

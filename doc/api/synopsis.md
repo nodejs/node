@@ -1,5 +1,6 @@
 # Usage
 
+<!--doc_created=v0.10.0-->
 <!--type=misc-->
 
 `node [options] [v8 options] [script.js | -e "script" | - ] [arguments]`

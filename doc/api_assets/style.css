@@ -83,6 +83,28 @@ em code {
   font-size: .8em;
 }
 
+#alt-docs {
+  color: #666;
+  font-size: .75em;
+}
+
+#alt-docs a {
+  color: #666;
+}
+
+#alt-docs a:hover {
+  background: none;
+  text-decoration: underline;
+}
+
+#alt-docs a:active {
+  background: none;
+}
+
+#alt-docs b {
+  margin-left: .5em;
+}
+
 .line {
   width: calc(100% - 1em);
   display: block;

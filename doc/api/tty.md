@@ -1,5 +1,7 @@
 # TTY
 
+<!--doc_created=v0.10.0-->
+
 > Stability: 2 - Stable
 
 The `tty` module provides the `tty.ReadStream` and `tty.WriteStream` classes.
