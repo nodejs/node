@@ -116,6 +116,12 @@ function listener2() {}
   ee.emit('hello');
 }
 
+{
+  const ee = new EventEmitter();
+
+  assert.deepStrictEqual(ee, ee.removeListener('foo', () => {}));
+}
+
 // Verify that the removed listener must be a function
 assert.throws(() => {
   const ee = new EventEmitter();
