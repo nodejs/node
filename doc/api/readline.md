@@ -1,5 +1,7 @@
 # Readline
 
+<!--introduced_in=v0.10.0-->
+
 > Stability: 2 - Stable
 
 The `readline` module provides an interface for reading data from a [Readable][]

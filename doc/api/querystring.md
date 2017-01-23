@@ -1,5 +1,7 @@
 # Query String
 
+<!--introduced_in=v0.10.0-->
+
 > Stability: 2 - Stable
 
 <!--name=querystring-->

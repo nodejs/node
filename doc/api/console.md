@@ -1,5 +1,7 @@
 # Console
 
+<!--introduced_in=v0.10.13-->
+
 > Stability: 2 - Stable
 
 The `console` module provides a simple debugging console that is similar to the
