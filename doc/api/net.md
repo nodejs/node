@@ -1,5 +1,7 @@
 # Net
 
+<!--introduced_in=v0.10.0-->
+
 > Stability: 2 - Stable
 
 The `net` module provides an asynchronous network API for creating stream-based
