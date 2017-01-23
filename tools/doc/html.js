@@ -10,6 +10,7 @@ const typeParser = require('./type-parser.js');
 module.exports = toHTML;
 
 const STABILITY_TEXT_REG_EXP = /(.*:)\s*(\d)([\s\S]*)/;
+const DOC_CREATED_REG_EXP = /<!--\s*introduced_in\s*=\s*v([0-9]+)\.([0-9]+)\.([0-9]+)\s*-->/;
 
 // customized heading without id attribute
 var renderer = new marked.Renderer();
@@ -31,6 +32,8 @@ var gtocPath = path.resolve(path.join(
 ));
 var gtocLoading = null;
 var gtocData = null;
+var docCreated = null;
+var nodeVersion = null;
 
 /**
  * opts: input, filename, template, nodeVersion.
@@ -38,6 +41,8 @@ var gtocData = null;
 function toHTML(opts, cb) {
   var template = opts.template;
   var nodeVersion = opts.nodeVersion || process.version;
+
+  docCreated = opts.input.match(DOC_CREATED_REG_EXP);
 
   if (gtocData) {
     return onGtocLoaded();
@@ -136,6 +141,8 @@ function render(opts, cb) {
       );
     }
 
+    template = template.replace(/__ALTDOCS__/, altDocs(filename));
+
     // content has to be the last thing we do with
     // the lexed tokens, because it's destructive.
     const content = marked.parser(lexed);
@@ -165,6 +172,50 @@ function analyticsScript(analytics) {
 // replace placeholders in text tokens
 function replaceInText(text) {
   return linkJsTypeDocs(linkManPages(text));
+}
+
+function altDocs(filename) {
+  let html = '';
+
+  if (!docCreated) {
+    console.error(`Failed to add alternative version links to ${filename}`);
+    return html;
+  }
+
+  function lte(v) {
+    const ns = v.num.split('.');
+    if (docCreated[1] > +ns[0])
+      return false;
+    if (docCreated[1] < +ns[0])
+      return true;
+    return docCreated[2] <= +ns[1];
+  }
+
+  const versions = [
+    { num: '8.x' },
+    { num: '7.x' },
+    { num: '6.x', lts: true },
+    { num: '5.x' },
+    { num: '4.x', lts: true },
+    { num: '0.12.x' },
+    { num: '0.10.x' }
+  ];
+
+  const host = 'https://nodejs.org';
+  const href = (v) => `${host}/docs/latest-v${v.num}/api/${filename}.html`;
+
+  function li(v, i) {
+    let html = `<li><a href="${href(v)}">${v.num}`;
+
+    if (v.lts)
+      html += ' <b>LTS</b>';
+
+    return html + '</a></li>';
+  }
+
+  const lis = (vs) => vs.filter(lte).map(li).join('\n');
+
+  return `<ol class="version-picker">${lis(versions)}</ol>`;
 }
 
 // handle general body-text replacements

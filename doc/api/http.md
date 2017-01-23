@@ -1,5 +1,7 @@
 # HTTP
 
+<!--introduced_in=v0.10.0-->
+
 > Stability: 2 - Stable
 
 To use the HTTP server and client one must `require('http')`.
