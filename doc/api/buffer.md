@@ -1,5 +1,7 @@
 # Buffer
 
+<!--introduced_in=v0.10.0-->
+
 > Stability: 2 - Stable
 
 Prior to the introduction of [`TypedArray`] in ECMAScript 2015 (ES6), the

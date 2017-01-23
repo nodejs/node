@@ -1,5 +1,7 @@
 # Debugger
 
+<!--introduced_in=v0.9.12-->
+
 > Stability: 2 - Stable
 
 <!-- type=misc -->
