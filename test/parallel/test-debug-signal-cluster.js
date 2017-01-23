@@ -8,7 +8,8 @@ const path = require('path');
 
 const port = common.PORT;
 const serverPath = path.join(common.fixturesDir, 'clustered-server', 'app.js');
-const args = [`--debug-port=${port}`, serverPath];
+// cannot use 'Flags: --no-deprecation' since it doesn't effect child
+const args = [`--debug-port=${port}`, '--no-deprecation', serverPath];
 const options = { stdio: ['inherit', 'inherit', 'pipe', 'ipc'] };
 const child = spawn(process.execPath, args, options);
 
