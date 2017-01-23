@@ -1,5 +1,7 @@
 # Cluster
 
+<!--introduced_in=v0.10.0-->
+
 > Stability: 2 - Stable
 
 A single instance of Node.js runs in a single thread. To take advantage of

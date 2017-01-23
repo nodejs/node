@@ -1,5 +1,6 @@
 # Global Objects
 
+<!--introduced_in=v0.10.0-->
 <!-- type=misc -->
 
 These objects are available in all modules. The following variables may appear
