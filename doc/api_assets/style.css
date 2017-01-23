@@ -81,6 +81,61 @@ em code {
 
 #gtoc {
   font-size: .8em;
+  margin-bottom: 1em;
+}
+
+#gtoc ul {
+  list-style: none;
+  margin-left: 0;
+}
+
+#gtoc li {
+  display: inline;
+}
+
+li.version-picker {
+  position: relative;
+}
+
+li.version-picker:hover > ol {
+  display: block;
+}
+
+li.version-picker a span {
+  font-size: .7em;
+}
+
+ol.version-picker {
+  background: #fff;
+  border: 1px #43853d solid;
+  border-radius: 2px;
+  display: none;
+  list-style: none;
+  position: absolute;
+  right: -2px;
+  width: 101%;
+}
+
+#gtoc ol.version-picker li {
+  display: block;
+}
+
+ol.version-picker li a {
+  border-radius: 0;
+  display: block;
+  margin: 0;
+  padding: .1em;
+  padding-left: 1em;
+}
+
+ol.version-picker li:first-child a {
+  border-top-right-radius: 1px;
+  border-top-left-radius: 1px;
+}
+
+ol.version-picker li:last-child a {
+  border-bottom-right-radius: 1px;
+  border-bottom-left-radius: 1px;
 }
 
 .line {
@@ -506,6 +561,9 @@ th > *:last-child, td > *:last-child {
 @media only screen and (max-width: 1024px) and (orientation: portrait) {
   #content {
     font-size: 3.5em;
+  }
+  #gtoc {
+    font-size: 0.6em;
   }
 }
 

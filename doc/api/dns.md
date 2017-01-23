@@ -1,5 +1,7 @@
 # DNS
 
+<!--introduced_in=v0.10.0-->
+
 > Stability: 2 - Stable
 
 The `dns` module contains functions belonging to two different categories:
