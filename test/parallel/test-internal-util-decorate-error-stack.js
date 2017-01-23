@@ -3,8 +3,12 @@
 const common = require('../common');
 const assert = require('assert');
 const internalUtil = require('internal/util');
+const binding = process.binding('util');
 const spawnSync = require('child_process').spawnSync;
 const path = require('path');
+
+const kArrowMessagePrivateSymbolIndex = binding['arrow_message_private_symbol'];
+const kDecoratedPrivateSymbolIndex = binding['decorated_private_symbol'];
 
 assert.doesNotThrow(function() {
   internalUtil.decorateErrorStack();
@@ -53,6 +57,19 @@ checkStack(result.stderr);
 
 // Verify that the stack is unchanged when there is no arrow message
 err = new Error('foo');
-const originalStack = err.stack;
+let originalStack = err.stack;
 internalUtil.decorateErrorStack(err);
 assert.strictEqual(originalStack, err.stack);
+
+// Verify that the arrow message is added to the start of the stack when it
+// exists
+const arrowMessage = 'arrow_message';
+err = new Error('foo');
+originalStack = err.stack;
+
+internalUtil.setHiddenValue(err, kArrowMessagePrivateSymbolIndex, arrowMessage);
+internalUtil.decorateErrorStack(err);
+
+assert.strictEqual(err.stack, `${arrowMessage}${originalStack}`);
+assert.strictEqual(internalUtil
+  .getHiddenValue(err, kDecoratedPrivateSymbolIndex), true);
