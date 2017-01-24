@@ -56,13 +56,13 @@ The HTTP Agent also defaults client requests to using
 socket to become free the socket is closed. This means that Node.js's
 pool has the benefit of keep-alive when under load but still does not
 require developers to manually close the HTTP clients using
-KeepAlive.
+keepAlive.
 
-If you opt into using HTTP KeepAlive, you can create an Agent object
+If you opt into using HTTP keepAlive, you can create an Agent object
 with that flag set to `true`.  (See the [constructor options][].)
 Then, the Agent will keep unused sockets in a pool for later use.  They
 will be explicitly marked so as to not keep the Node.js process running.
-However, it is still a good idea to explicitly [`destroy()`][] KeepAlive
+However, it is still a good idea to explicitly [`destroy()`][] keepAlive
 agents when they are no longer in use, so that the Sockets will be shut
 down.
 
@@ -102,8 +102,8 @@ added: v0.3.4
   Can have the following fields:
   * `keepAlive` {Boolean} Keep sockets around in a pool to be used by
     other requests in the future. Default = `false`
-  * `keepAliveMsecs` {Integer} When using HTTP KeepAlive, how often
-    to send TCP KeepAlive packets over sockets being kept alive.
+  * `keepAliveMsecs` {Integer} When using HTTP keepAlive, how often
+    to send TCP keepAlive packets over sockets being kept alive.
     Default = `1000`.  Only relevant if `keepAlive` is set to `true`.
   * `maxSockets` {Number} Maximum number of sockets to allow per
     host.  Default = `Infinity`.
@@ -151,7 +151,7 @@ added: v0.11.4
 Destroy any sockets that are currently in use by the agent.
 
 It is usually not necessary to do this.  However, if you are using an
-agent with KeepAlive enabled, then it is best to explicitly shut down
+agent with keepAlive enabled, then it is best to explicitly shut down
 the agent when you know that it will no longer be used.  Otherwise,
 sockets may hang open for quite a long time before the server
 terminates them.
@@ -164,7 +164,7 @@ added: v0.11.4
 * {Object}
 
 An object which contains arrays of sockets currently awaiting use by
-the Agent when HTTP KeepAlive is used.  Do not modify.
+the Agent when HTTP keepAlive is used.  Do not modify.
 
 ### agent.getName(options)
 <!-- YAML
@@ -191,7 +191,7 @@ added: v0.11.7
 
 * {Number}
 
-By default set to 256.  For Agents supporting HTTP KeepAlive, this
+By default set to 256.  For Agents supporting HTTP keepAlive, this
 sets the maximum number of sockets that will be left open in the free
 state.
 
