@@ -97,7 +97,7 @@ em code {
   text-decoration: underline;
 }
 
-#alt-docs a:active {
+#alt-docs a:active, #alt-docs a:link {
   background: none;
 }
 
