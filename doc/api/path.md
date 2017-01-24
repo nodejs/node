@@ -24,7 +24,7 @@ On POSIX:
 
 ```js
 path.basename('C:\\temp\\myfile.html');
-// Returns: 'C:\temp\myfile.html'
+// Returns: 'C:\\temp\\myfile.html'
 ```
 
 On Windows:
@@ -182,26 +182,20 @@ added: v0.11.15
 The `path.format()` method returns a path string from an object. This is the
 opposite of [`path.parse()`][].
 
-The following process is used when constructing the path string:
+When providing properties to the `pathObject` remember that there are
+combinations where one property has priority over another:
 
-* `output` is set to an empty string.
-* If `pathObject.dir` is specified, `pathObject.dir` is appended to `output`
-  followed by the value of `path.sep`;
-* Otherwise, if `pathObject.root` is specified, `pathObject.root` is appended
-  to `output`.
-* If `pathObject.base` is specified, `pathObject.base` is appended to `output`;
-* Otherwise:
-  * If `pathObject.name` is specified, `pathObject.name` is appended to `output`
-  * If `pathObject.ext` is specified, `pathObject.ext` is appended to `output`.
-* Return `output`
+* `pathObject.root` is ignored if `pathObject.dir` is provided
+* `pathObject.ext` and `pathObject.name` are ignored if `pathObject.base` exists
 
 For example, on POSIX:
 
 ```js
-// If `dir` and `base` are provided,
+// If `dir`, `root` and `base` are provided,
 // `${dir}${path.sep}${base}`
-// will be returned.
+// will be returned. `root` is ignored.
 path.format({
+  root: '/ignored',
   dir: '/home/user/dir',
   base: 'file.txt'
 });
@@ -209,10 +203,11 @@ path.format({
 
 // `root` will be used if `dir` is not specified.
 // If only `root` is provided or `dir` is equal to `root` then the
-// platform separator will not be included.
+// platform separator will not be included. `ext` will be ignored.
 path.format({
   root: '/',
-  base: 'file.txt'
+  base: 'file.txt',
+  ext: 'ignored'
 });
 // Returns: '/file.txt'
 
@@ -223,23 +218,14 @@ path.format({
   ext: '.txt'
 });
 // Returns: '/file.txt'
-
-// `base` will be returned if `dir` or `root` are not provided.
-path.format({
-  base: 'file.txt'
-});
-// Returns: 'file.txt'
 ```
 
 On Windows:
 
 ```js
 path.format({
-    root : "C:\\",
-    dir : "C:\\path\\dir",
-    base : "file.txt",
-    ext : ".txt",
-    name : "file"
+  dir : "C:\\path\\dir",
+  base : "file.txt"
 });
 // Returns: 'C:\\path\\dir\\file.txt'
 ```

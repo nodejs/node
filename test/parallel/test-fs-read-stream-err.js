@@ -1,43 +1,42 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
 
-var stream = fs.createReadStream(__filename, {
+const stream = fs.createReadStream(__filename, {
   bufferSize: 64
 });
-var err = new Error('BAM');
+const err = new Error('BAM');
 
-stream.on('error', common.mustCall(function errorHandler(err_) {
-  console.error('error event');
-  process.nextTick(function() {
-    assert.equal(stream.fd, null);
-    assert.equal(err_, err);
-  });
+stream.on('error', common.mustCall((err_) => {
+  process.nextTick(common.mustCall(() => {
+    assert.strictEqual(stream.fd, null);
+    assert.strictEqual(err_, err);
+  }));
 }));
 
-fs.close = common.mustCall(function(fd_, cb) {
-  assert.equal(fd_, stream.fd);
+fs.close = common.mustCall((fd_, cb) => {
+  assert.strictEqual(fd_, stream.fd);
   process.nextTick(cb);
 });
 
-var read = fs.read;
+const read = fs.read;
 fs.read = function() {
   // first time is ok.
   read.apply(fs, arguments);
   // then it breaks
-  fs.read = function() {
-    var cb = arguments[arguments.length - 1];
-    process.nextTick(function() {
+  fs.read = common.mustCall(function() {
+    const cb = arguments[arguments.length - 1];
+    process.nextTick(() => {
       cb(err);
     });
     // and should not be called again!
-    fs.read = function() {
+    fs.read = () => {
       throw new Error('BOOM!');
     };
-  };
+  });
 };
 
-stream.on('data', function(buf) {
-  stream.on('data', common.fail);  // no more 'data' events should follow
+stream.on('data', (buf) => {
+  stream.on('data', () => common.fail("no more 'data' events should follow"));
 });

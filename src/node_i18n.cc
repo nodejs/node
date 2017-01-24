@@ -179,7 +179,7 @@ MaybeLocal<Object> TranscodeToUcs2(Isolate* isolate,
   MaybeLocal<Object> ret;
   MaybeStackBuffer<UChar> destbuf(source_length);
   Converter from(fromEncoding);
-  const size_t length_in_chars = source_length * sizeof(*destbuf);
+  const size_t length_in_chars = source_length * sizeof(UChar);
   ucnv_toUChars(from.conv, *destbuf, length_in_chars,
                 source, source_length, status);
   if (U_SUCCESS(*status))

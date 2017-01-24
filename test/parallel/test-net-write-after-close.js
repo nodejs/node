@@ -1,8 +1,8 @@
 'use strict';
 const common = require('../common');
-var net = require('net');
+const net = require('net');
 
-var server = net.createServer(common.mustCall(function(socket) {
+const server = net.createServer(common.mustCall(function(socket) {
   socket.resume();
 
   socket.on('error', common.mustCall(function(error) {
@@ -17,7 +17,7 @@ var server = net.createServer(common.mustCall(function(socket) {
 }));
 
 server.listen(0, function() {
-  var client = net.connect(this.address().port, function() {
+  const client = net.connect(this.address().port, function() {
     client.end();
   });
 });

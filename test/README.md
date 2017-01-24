@@ -163,6 +163,13 @@ A stream to push an array into a REPL
 
 Blocks for `time` amount of time.
 
+### canCreateSymLink
+API to indicate whether the current running process can create
+symlinks. On Windows, this returns false if the process running
+doesn't have privileges to create symlinks (specifically
+[SeCreateSymbolicLinkPrivilege](https://msdn.microsoft.com/en-us/library/windows/desktop/bb530716(v=vs.85).aspx)).
+On non-Windows platforms, this currently returns true.
+
 ### ddCommand(filename, kilobytes)
 * return [&lt;Object>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
 
@@ -290,8 +297,11 @@ Array of IPV6 hosts.
 ### mustCall(fn[, expected])
 * fn [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function)
 * expected [&lt;Number>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type) default = 1
+* return [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function)
 
-Number of times `fn` should be called.
+Returns a function that calls `fn`. If the returned function has not been called
+exactly `expected` number of times when the test is complete, then the test will
+fail.
 
 ### nodeProcessAborted(exitCode, signal)
 * `exitCode` [&lt;Number>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#Number_type)
@@ -363,7 +373,7 @@ Synchronous version of `spawnPwd`.
 ### tmpDir
 * return [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
 
-Path to the 'tmp' directory.
+The realpath of the 'tmp' directory.
 
 ### tmpDirName
 * return [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)

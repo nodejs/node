@@ -121,8 +121,9 @@ static void do_write(const char* data, int len) {
   uv_buf_t buf[1];
   buf[0].base = const_cast<char*>(data);
   buf[0].len = len;
-  uv_write(&req, reinterpret_cast<uv_stream_t*>(&client_socket), buf, 1,
-           write_done);
+  GTEST_ASSERT_EQ(0,
+                  uv_write(&req, reinterpret_cast<uv_stream_t*>(&client_socket),
+                           buf, 1, write_done));
   SPIN_WHILE(req.data);
 }
 
@@ -360,7 +361,7 @@ class InspectorSocketTest : public ::testing::Test {
     connected = false;
     inspector_ready = false;
     last_event = kInspectorHandshakeHttpGet;
-    uv_loop_init(&loop);
+    GTEST_ASSERT_EQ(0, uv_loop_init(&loop));
     server = uv_tcp_t();
     client_socket = uv_tcp_t();
     server.data = &inspector;
@@ -369,13 +370,13 @@ class InspectorSocketTest : public ::testing::Test {
     uv_tcp_init(&loop, &client_socket);
     uv_ip4_addr("127.0.0.1", PORT, &addr);
     uv_tcp_bind(&server, reinterpret_cast<const struct sockaddr*>(&addr), 0);
-    int err = uv_listen(reinterpret_cast<uv_stream_t*>(&server),
-                        1, on_new_connection);
-    GTEST_ASSERT_EQ(0, err);
+    GTEST_ASSERT_EQ(0, uv_listen(reinterpret_cast<uv_stream_t*>(&server),
+                                 1, on_new_connection));
     uv_connect_t connect;
     connect.data = nullptr;
-    uv_tcp_connect(&connect, &client_socket,
-                   reinterpret_cast<const sockaddr*>(&addr), on_connection);
+    GTEST_ASSERT_EQ(0, uv_tcp_connect(&connect, &client_socket,
+                                      reinterpret_cast<const sockaddr*>(&addr),
+                                      on_connection));
     uv_tcp_nodelay(&client_socket, 1);  // The buffering messes up the test
     SPIN_WHILE(!connect.data || !connected);
     really_close(reinterpret_cast<uv_handle_t*>(&server));

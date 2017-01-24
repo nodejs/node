@@ -9,7 +9,7 @@ const assert = require('assert');
 const EventEmitter = require('events');
 const leak_warning = /EventEmitter memory leak detected\. 2 hello listeners/;
 
-var write_calls = 0;
+let write_calls = 0;
 
 process.on('warning', (warning) => {
   // This will be called after the default internal

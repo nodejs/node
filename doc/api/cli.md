@@ -129,6 +129,20 @@ added: v2.1.0
 Prints a stack trace whenever synchronous I/O is detected after the first turn
 of the event loop.
 
+### `--trace-events-enabled`
+<!-- YAML
+added: REPLACEME
+-->
+
+Enables the collection of trace event tracing information.
+
+### `--trace-event-categories`
+<!-- YAML
+added: REPLACEME
+-->
+
+A comma separated list of categories that should be traced when trace event
+tracing is enabled using `--trace-events-enabled`.
 
 ### `--zero-fill-buffers`
 <!-- YAML
@@ -189,7 +203,7 @@ Track heap object allocations for heap snapshots.
 
 ### `--prof-process`
 <!-- YAML
-added: v6.0.0
+added: v5.2.0
 -->
 
 Process v8 profiler output generated using the v8 option `--prof`.
@@ -287,6 +301,13 @@ added: v0.11.15
 Data path for ICU (Intl object) data. Will extend linked-in data when compiled
 with small-icu support.
 
+### `NODE_NO_WARNINGS=1`
+<!-- YAML
+added: REPLACEME
+-->
+
+When set to `1`, process warnings are silenced.
+
 ### `NODE_PRESERVE_SYMLINKS=1`
 <!-- YAML
 added: v7.1.0
@@ -307,7 +328,7 @@ to an empty string (`""` or `" "`) disables persistent REPL history.
 
 ### `NODE_TTY_UNSAFE_ASYNC=1`
 <!-- YAML
-added: 6.4.0
+added: v6.4.0
 -->
 
 When set to `1`, writes to `stdout` and `stderr` will be non-blocking and
@@ -316,6 +337,9 @@ Setting this will void any guarantee that stdio will not be interleaved or
 dropped at program exit. **Use of this mode is not recommended.**
 
 ### `NODE_EXTRA_CA_CERTS=file`
+<!-- YAML
+added: v7.3.0
+-->
 
 When set, the well known "root" CAs (like VeriSign) will be extended with the
 extra certificates in `file`. The file should consist of one or more trusted

@@ -1,9 +1,9 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var vm = require('vm');
+const assert = require('assert');
+const vm = require('vm');
 
-var ctx = {};
+let ctx = {};
 
 Object.defineProperty(ctx, 'getter', {
   get: function() {
@@ -11,7 +11,7 @@ Object.defineProperty(ctx, 'getter', {
   }
 });
 
-var val;
+let val;
 Object.defineProperty(ctx, 'setter', {
   set: function(_val) {
     val = _val;
@@ -23,6 +23,6 @@ Object.defineProperty(ctx, 'setter', {
 
 ctx = vm.createContext(ctx);
 
-var result = vm.runInContext('setter = "test";[getter,setter]', ctx);
+const result = vm.runInContext('setter = "test";[getter,setter]', ctx);
 assert.strictEqual(result[0], 'ok');
 assert.strictEqual(result[1], 'ok=test');

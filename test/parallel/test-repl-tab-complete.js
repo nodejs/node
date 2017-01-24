@@ -1,8 +1,14 @@
 'use strict';
 
-var common = require('../common');
-var assert = require('assert');
-var repl = require('repl');
+const common = require('../common');
+const assert = require('assert');
+
+// We have to change the directory to ../fixtures before requiring repl
+// in order to make the tests for completion of node_modules work properly
+// since repl modifies module.paths.
+process.chdir(common.fixturesDir);
+
+const repl = require('repl');
 
 function getNoResultsFunction() {
   return common.mustCall((err, data) => {
@@ -11,9 +17,9 @@ function getNoResultsFunction() {
   });
 }
 
-var works = [['inner.one'], 'inner.o'];
+const works = [['inner.one'], 'inner.o'];
 const putIn = new common.ArrayStream();
-var testMe = repl.start('', putIn);
+const testMe = repl.start('', putIn);
 
 // Some errors are passed to the domain, but do not callback
 testMe._domain.on('error', function(err) {
@@ -159,7 +165,7 @@ testMe.complete('str.len', common.mustCall(function(error, data) {
 putIn.run(['.clear']);
 
 // tab completion should not break on spaces
-var spaceTimeout = setTimeout(function() {
+const spaceTimeout = setTimeout(function() {
   throw new Error('timeout');
 }, 1000);
 
@@ -196,6 +202,15 @@ testMe.complete('require(\'n', common.mustCall(function(error, data) {
   });
 }));
 
+{
+  const expected = ['@nodejsscope', '@nodejsscope/'];
+  putIn.run(['.clear']);
+  testMe.complete('require(\'@nodejs', common.mustCall((err, data) => {
+    assert.strictEqual(err, null);
+    assert.deepStrictEqual(data, [expected, '@nodejs']);
+  }));
+}
+
 // Make sure tab completion works on context properties
 putIn.run(['.clear']);
 
@@ -216,6 +231,7 @@ putIn.run([
 
 testMe.complete('proxy.', common.mustCall(function(error, data) {
   assert.strictEqual(error, null);
+  assert(Array.isArray(data));
 }));
 
 // Make sure tab completion does not include integer members of an Array
@@ -275,7 +291,7 @@ const testNonGlobal = repl.start({
 });
 
 const builtins = [['Infinity', '', 'Int16Array', 'Int32Array',
-                                 'Int8Array'], 'I'];
+                   'Int8Array'], 'I'];
 
 if (common.hasIntl) {
   builtins[0].push('Intl');
@@ -292,9 +308,7 @@ const testCustomCompleterSyncMode = repl.start({
   input: putIn,
   output: putIn,
   completer: function completer(line) {
-    const hits = customCompletions.filter((c) => {
-      return c.indexOf(line) === 0;
-    });
+    const hits = customCompletions.filter((c) => c.startsWith(line));
     // Show all completions if none found.
     return [hits.length ? hits : customCompletions, line];
   }
@@ -324,9 +338,7 @@ const testCustomCompleterAsyncMode = repl.start({
   input: putIn,
   output: putIn,
   completer: function completer(line, callback) {
-    const hits = customCompletions.filter((c) => {
-      return c.indexOf(line) === 0;
-    });
+    const hits = customCompletions.filter((c) => c.startsWith(line));
     // Show all completions if none found.
     callback(null, [hits.length ? hits : customCompletions, line]);
   }

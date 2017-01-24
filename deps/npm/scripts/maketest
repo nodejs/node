@@ -40,13 +40,13 @@ var tmpdir = path.join(basedir, 'tmp')
 
 var conf = {
   cwd: testdir,
-  env: extend({
+  env: extend(extend({}, process.env), {
     npm_config_cache: cachedir,
     npm_config_tmp: tmpdir,
     npm_config_prefix: globaldir,
     npm_config_registry: common.registry,
     npm_config_loglevel: 'warn'
-  }, process.env)
+  })
 }
 
 var server

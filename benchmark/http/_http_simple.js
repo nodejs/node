@@ -4,10 +4,10 @@ var http = require('http');
 
 var port = parseInt(process.env.PORT || 8000);
 
-var fixed = 'C'.repeat(20 * 1024),
-  storedBytes = {},
-  storedBuffer = {},
-  storedUnicode = {};
+var fixed = 'C'.repeat(20 * 1024);
+var storedBytes = Object.create(null);
+var storedBuffer = Object.create(null);
+var storedUnicode = Object.create(null);
 
 var useDomains = process.env.NODE_USE_DOMAINS;
 
@@ -29,11 +29,13 @@ var server = module.exports = http.createServer(function(req, res) {
     dom.add(res);
   }
 
-  var commands = req.url.split('/');
-  var command = commands[1];
+  // URL format: /<type>/<length>/<chunks>/<responseBehavior>
+  var params = req.url.split('/');
+  var command = params[1];
   var body = '';
-  var arg = commands[2];
-  var n_chunks = parseInt(commands[3], 10);
+  var arg = params[2];
+  var n_chunks = parseInt(params[3], 10);
+  var resHow = (params.length >= 5 ? params[4] : 'normal');
   var status = 200;
 
   var n, i;
@@ -45,7 +47,6 @@ var server = module.exports = http.createServer(function(req, res) {
       storedBytes[n] = 'C'.repeat(n);
     }
     body = storedBytes[n];
-
   } else if (command === 'buffer') {
     n = ~~arg;
     if (n <= 0)
@@ -57,7 +58,6 @@ var server = module.exports = http.createServer(function(req, res) {
       }
     }
     body = storedBuffer[n];
-
   } else if (command === 'unicode') {
     n = ~~arg;
     if (n <= 0)
@@ -66,23 +66,30 @@ var server = module.exports = http.createServer(function(req, res) {
       storedUnicode[n] = '\u263A'.repeat(n);
     }
     body = storedUnicode[n];
-
   } else if (command === 'quit') {
     res.connection.server.close();
     body = 'quitting';
-
   } else if (command === 'fixed') {
     body = fixed;
-
   } else if (command === 'echo') {
-    const headers = {
-      'Content-Type': 'text/plain',
-      'Transfer-Encoding': 'chunked'
-    };
-    res.writeHead(200, headers);
+    switch (resHow) {
+      case 'setHeader':
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'text/plain');
+        res.setHeader('Transfer-Encoding', 'chunked');
+        break;
+      case 'setHeaderWH':
+        res.setHeader('Content-Type', 'text/plain');
+        res.writeHead(200, { 'Transfer-Encoding': 'chunked' });
+        break;
+      default:
+        res.writeHead(200, {
+          'Content-Type': 'text/plain',
+          'Transfer-Encoding': 'chunked'
+        });
+    }
     req.pipe(res);
     return;
-
   } else {
     status = 404;
     body = 'not found\n';
@@ -91,11 +98,22 @@ var server = module.exports = http.createServer(function(req, res) {
   // example: http://localhost:port/bytes/512/4
   // sends a 512 byte body in 4 chunks of 128 bytes
   if (n_chunks > 0) {
-    const headers = {
-      'Content-Type': 'text/plain',
-      'Transfer-Encoding': 'chunked'
-    };
-    res.writeHead(status, headers);
+    switch (resHow) {
+      case 'setHeader':
+        res.statusCode = status;
+        res.setHeader('Content-Type', 'text/plain');
+        res.setHeader('Transfer-Encoding', 'chunked');
+        break;
+      case 'setHeaderWH':
+        res.setHeader('Content-Type', 'text/plain');
+        res.writeHead(status, { 'Transfer-Encoding': 'chunked' });
+        break;
+      default:
+        res.writeHead(status, {
+          'Content-Type': 'text/plain',
+          'Transfer-Encoding': 'chunked'
+        });
+    }
     // send body in chunks
     var len = body.length;
     var step = Math.floor(len / n_chunks) || 1;
@@ -105,12 +123,22 @@ var server = module.exports = http.createServer(function(req, res) {
     }
     res.end(body.slice((n_chunks - 1) * step));
   } else {
-    const headers = {
-      'Content-Type': 'text/plain',
-      'Content-Length': body.length.toString()
-    };
-
-    res.writeHead(status, headers);
+    switch (resHow) {
+      case 'setHeader':
+        res.statusCode = status;
+        res.setHeader('Content-Type', 'text/plain');
+        res.setHeader('Content-Length', body.length.toString());
+        break;
+      case 'setHeaderWH':
+        res.setHeader('Content-Type', 'text/plain');
+        res.writeHead(status, { 'Content-Length': body.length.toString() });
+        break;
+      default:
+        res.writeHead(status, {
+          'Content-Type': 'text/plain',
+          'Content-Length': body.length.toString()
+        });
+    }
     res.end(body);
   }
 });

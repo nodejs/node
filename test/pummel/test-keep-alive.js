@@ -1,19 +1,19 @@
 'use strict';
 
 // This test requires the program 'wrk'
-var common = require('../common');
-var assert = require('assert');
-var spawn = require('child_process').spawn;
-var http = require('http');
-var url = require('url');
+const common = require('../common');
+const assert = require('assert');
+const spawn = require('child_process').spawn;
+const http = require('http');
+const url = require('url');
 
 if (common.isWindows) {
   common.skip('no `wrk` on windows');
   return;
 }
 
-var body = 'hello world\n';
-var server = http.createServer(function(req, res) {
+const body = 'hello world\n';
+const server = http.createServer(function(req, res) {
   res.writeHead(200, {
     'Content-Length': body.length,
     'Content-Type': 'text/plain'
@@ -22,12 +22,12 @@ var server = http.createServer(function(req, res) {
   res.end();
 });
 
-var keepAliveReqSec = 0;
-var normalReqSec = 0;
+let keepAliveReqSec = 0;
+let normalReqSec = 0;
 
 
 function runAb(opts, callback) {
-  var args = [
+  const args = [
     '-c', opts.concurrent || 100,
     '-t', opts.threads || 2,
     '-d', opts.duration || '10s',
@@ -41,13 +41,11 @@ function runAb(opts, callback) {
   args.push(url.format({ hostname: '127.0.0.1',
                          port: common.PORT, protocol: 'http'}));
 
-  //console.log(comm, args.join(' '));
-
-  var child = spawn('wrk', args);
+  const child = spawn('wrk', args);
   child.stderr.pipe(process.stderr);
   child.stdout.setEncoding('utf8');
 
-  var stdout;
+  let stdout;
 
   child.stdout.on('data', function(data) {
     stdout += data;
@@ -60,11 +58,11 @@ function runAb(opts, callback) {
       return;
     }
 
-    var matches = /Requests\/sec:\s*(\d+)\./mi.exec(stdout);
-    var reqSec = parseInt(matches[1]);
+    let matches = /Requests\/sec:\s*(\d+)\./mi.exec(stdout);
+    const reqSec = parseInt(matches[1]);
 
     matches = /Keep-Alive requests:\s*(\d+)/mi.exec(stdout);
-    var keepAliveRequests;
+    let keepAliveRequests;
     if (matches) {
       keepAliveRequests = parseInt(matches[1]);
     } else {
@@ -75,21 +73,19 @@ function runAb(opts, callback) {
   });
 }
 
-server.listen(common.PORT, function() {
-  runAb({ keepalive: true }, function(reqSec) {
+server.listen(common.PORT, () => {
+  runAb({ keepalive: true }, (reqSec) => {
     keepAliveReqSec = reqSec;
-    console.log('keep-alive:', keepAliveReqSec, 'req/sec');
 
     runAb({ keepalive: false }, function(reqSec) {
       normalReqSec = reqSec;
-      console.log('normal:' + normalReqSec + ' req/sec');
       server.close();
     });
   });
 });
 
 process.on('exit', function() {
-  assert.equal(true, normalReqSec > 50);
-  assert.equal(true, keepAliveReqSec > 50);
-  assert.equal(true, normalReqSec < keepAliveReqSec);
+  assert.strictEqual(true, normalReqSec > 50);
+  assert.strictEqual(true, keepAliveReqSec > 50);
+  assert.strictEqual(true, normalReqSec < keepAliveReqSec);
 });

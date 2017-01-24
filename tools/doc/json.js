@@ -102,7 +102,7 @@ function doJSON(input, filename, cb) {
         current.list.push(tok);
         current.list.level = 1;
       } else if (type === 'html' && common.isYAMLBlock(tok.text)) {
-        current.meta = parseYAML(tok.text);
+        current.meta = common.extractAndParseYAML(tok.text);
       } else {
         current.desc = current.desc || [];
         if (!Array.isArray(current.desc)) {
@@ -302,10 +302,6 @@ function processList(section) {
   delete section.list;
 }
 
-function parseYAML(text) {
-  return common.extractAndParseYAML(text);
-}
-
 // textRaw = "someobject.someMethod(a[, b=100][, c])"
 function parseSignature(text, sig) {
   var params = text.match(paramExpr);
@@ -314,7 +310,7 @@ function parseSignature(text, sig) {
   params = params.split(/,/);
   var optionalLevel = 0;
   var optionalCharDict = {'[': 1, ' ': 0, ']': -1};
-  params.forEach(function(p, i, _) {
+  params.forEach(function(p, i) {
     p = p.trim();
     if (!p) return;
     var param = sig.params[i];
@@ -544,14 +540,12 @@ function deepCopy_(src) {
 
 // these parse out the contents of an H# tag
 var eventExpr = /^Event(?::|\s)+['"]?([^"']+).*$/i;
-var classExpr = /^Class:\s*([^ ]+).*?$/i;
-var propExpr = /^(?:property:?\s*)?[^.]+\.([^ .()]+)\s*?$/i;
-var braceExpr = /^(?:property:?\s*)?[^.\[]+(\[[^\]]+\])\s*?$/i;
-var classMethExpr =
-  /^class\s*method\s*:?[^.]+\.([^ .()]+)\([^)]*\)\s*?$/i;
-var methExpr =
-  /^(?:method:?\s*)?(?:[^.]+\.)?([^ .()]+)\([^)]*\)\s*?$/i;
-var newExpr = /^new ([A-Z][a-zA-Z]+)\([^)]*\)\s*?$/;
+var classExpr = /^Class:\s*([^ ]+).*$/i;
+var propExpr = /^[^.]+\.([^ .()]+)\s*$/;
+var braceExpr = /^[^.[]+(\[[^\]]+\])\s*$/;
+var classMethExpr = /^class\s*method\s*:?[^.]+\.([^ .()]+)\([^)]*\)\s*$/i;
+var methExpr = /^(?:[^.]+\.)?([^ .()]+)\([^)]*\)\s*$/;
+var newExpr = /^new ([A-Z][a-zA-Z]+)\([^)]*\)\s*$/;
 var paramExpr = /\((.*)\);?$/;
 
 function newSection(tok) {

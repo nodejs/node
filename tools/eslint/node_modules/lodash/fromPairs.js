@@ -15,7 +15,7 @@
  */
 function fromPairs(pairs) {
   var index = -1,
-      length = pairs ? pairs.length : 0,
+      length = pairs == null ? 0 : pairs.length,
       result = {};
 
   while (++index < length) {

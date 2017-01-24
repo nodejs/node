@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 if (process.argv[2] === 'child')
   child();
@@ -17,44 +17,43 @@ function parent() {
 }
 
 function test(environ, shouldWrite) {
-  var expectErr = '';
+  let expectErr = '';
   if (shouldWrite) {
     expectErr = 'TUD %PID%: this { is: \'a\' } /debugging/\n' +
                 'TUD %PID%: number=1234 string=asdf obj={"foo":"bar"}\n';
   }
-  var expectOut = 'ok\n';
+  const expectOut = 'ok\n';
 
-  var spawn = require('child_process').spawn;
-  var child = spawn(process.execPath, [__filename, 'child'], {
+  const spawn = require('child_process').spawn;
+  const child = spawn(process.execPath, [__filename, 'child'], {
     env: Object.assign(process.env, { NODE_DEBUG: environ })
   });
 
   expectErr = expectErr.split('%PID%').join(child.pid);
 
-  var err = '';
+  let err = '';
   child.stderr.setEncoding('utf8');
-  child.stderr.on('data', function(c) {
+  child.stderr.on('data', (c) => {
     err += c;
   });
 
-  var out = '';
+  let out = '';
   child.stdout.setEncoding('utf8');
-  child.stdout.on('data', function(c) {
+  child.stdout.on('data', (c) => {
     out += c;
   });
 
-  child.on('close', common.mustCall(function(c) {
+  child.on('close', common.mustCall((c) => {
     assert(!c);
-    assert.equal(err, expectErr);
-    assert.equal(out, expectOut);
-    console.log('ok %j %j', environ, shouldWrite);
+    assert.strictEqual(err, expectErr);
+    assert.strictEqual(out, expectOut);
   }));
 }
 
 
 function child() {
-  var util = require('util');
-  var debug = util.debuglog('tud');
+  const util = require('util');
+  const debug = util.debuglog('tud');
   debug('this', { is: 'a' }, /debugging/);
   debug('number=%d string=%s obj=%j', 1234, 'asdf', { foo: 'bar' });
   console.log('ok');

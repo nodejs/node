@@ -1,9 +1,9 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var stream = require('stream');
-var util = require('util');
+const stream = require('stream');
+const util = require('util');
 
 function MyWritable(fn, options) {
   stream.Writable.call(this, options);
@@ -18,16 +18,16 @@ MyWritable.prototype._write = function(chunk, encoding, callback) {
 };
 
 (function defaultCondingIsUtf8() {
-  var m = new MyWritable(function(isBuffer, type, enc) {
-    assert.equal(enc, 'utf8');
+  const m = new MyWritable(function(isBuffer, type, enc) {
+    assert.strictEqual(enc, 'utf8');
   }, { decodeStrings: false });
   m.write('foo');
   m.end();
 }());
 
 (function changeDefaultEncodingToAscii() {
-  var m = new MyWritable(function(isBuffer, type, enc) {
-    assert.equal(enc, 'ascii');
+  const m = new MyWritable(function(isBuffer, type, enc) {
+    assert.strictEqual(enc, 'ascii');
   }, { decodeStrings: false });
   m.setDefaultEncoding('ascii');
   m.write('bar');
@@ -35,7 +35,7 @@ MyWritable.prototype._write = function(chunk, encoding, callback) {
 }());
 
 assert.throws(function changeDefaultEncodingToInvalidValue() {
-  var m = new MyWritable(function(isBuffer, type, enc) {
+  const m = new MyWritable(function(isBuffer, type, enc) {
   }, { decodeStrings: false });
   m.setDefaultEncoding({});
   m.write('bar');
@@ -43,8 +43,8 @@ assert.throws(function changeDefaultEncodingToInvalidValue() {
 }, TypeError);
 
 (function checkVairableCaseEncoding() {
-  var m = new MyWritable(function(isBuffer, type, enc) {
-    assert.equal(enc, 'ascii');
+  const m = new MyWritable(function(isBuffer, type, enc) {
+    assert.strictEqual(enc, 'ascii');
   }, { decodeStrings: false });
   m.setDefaultEncoding('AsCii');
   m.write('bar');

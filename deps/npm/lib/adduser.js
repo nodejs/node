@@ -137,8 +137,6 @@ function save (c, u, cb) {
 
   // there may be a saved scope and no --registry (for login)
   if (scope) {
-    if (scope.charAt(0) !== '@') scope = '@' + scope
-
     var scopedRegistry = npm.config.get(scope + ':registry')
     var cliRegistry = npm.config.get('registry', 'cli')
     if (scopedRegistry && !cliRegistry) uri = scopedRegistry

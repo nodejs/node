@@ -18,7 +18,7 @@ set target_arch=x86
 set target_env=
 set noprojgen=
 set nobuild=
-set nosign=
+set sign=
 set nosnapshot=
 set cctest_args=
 set test_args=
@@ -51,7 +51,8 @@ if /i "%1"=="x64"           set target_arch=x64&goto arg-ok
 if /i "%1"=="vc2015"        set target_env=vc2015&goto arg-ok
 if /i "%1"=="noprojgen"     set noprojgen=1&goto arg-ok
 if /i "%1"=="nobuild"       set nobuild=1&goto arg-ok
-if /i "%1"=="nosign"        set nosign=1&goto arg-ok
+if /i "%1"=="nosign"        set "sign="&goto arg-ok
+if /i "%1"=="sign"          set sign=1&goto arg-ok
 if /i "%1"=="nosnapshot"    set nosnapshot=1&goto arg-ok
 if /i "%1"=="noetw"         set noetw=1&goto arg-ok
 if /i "%1"=="noperfctr"     set noperfctr=1&goto arg-ok
@@ -72,7 +73,7 @@ if /i "%1"=="jslint"        set jslint=1&goto arg-ok
 if /i "%1"=="jslint-ci"     set jslint_ci=1&goto arg-ok
 if /i "%1"=="package"       set package=1&goto arg-ok
 if /i "%1"=="msi"           set msi=1&set licensertf=1&set download_arg="--download=all"&set i18n_arg=small-icu&goto arg-ok
-if /i "%1"=="build-release" set build_release=1&goto arg-ok
+if /i "%1"=="build-release" set build_release=1&set sign=1&goto arg-ok
 if /i "%1"=="upload"        set upload=1&goto arg-ok
 if /i "%1"=="small-icu"     set i18n_arg=%1&goto arg-ok
 if /i "%1"=="full-icu"      set i18n_arg=%1&goto arg-ok
@@ -130,7 +131,7 @@ call :getnodeversion || exit /b 1
 
 if "%target%"=="Clean" rmdir /Q /S "%~dp0%config%\node-v%FULLVERSION%-win-%target_arch%" > nul 2> nul
 
-if defined noprojgen if defined nobuild if defined nosign if not defined msi goto licensertf
+if defined noprojgen if defined nobuild if not defined sign if not defined msi goto licensertf
 
 @rem Set environment for msbuild
 
@@ -189,8 +190,8 @@ if errorlevel 1 goto exit
 if "%target%" == "Clean" goto exit
 
 :sign
-@rem Skip signing if the `nosign` option was specified.
-if defined nosign goto licensertf
+@rem Skip signing unless the `sign` option was specified.
+if not defined sign goto licensertf
 
 call tools\sign.bat Release\node.exe
 if errorlevel 1 echo Failed to sign exe&goto exit
@@ -269,7 +270,7 @@ echo Building node-v%FULLVERSION%-%target_arch%.msi
 msbuild "%~dp0tools\msvs\msi\nodemsi.sln" /m /t:Clean,Build /p:PlatformToolset=%PLATFORM_TOOLSET% /p:GypMsvsVersion=%GYP_MSVS_VERSION% /p:Configuration=%config% /p:Platform=%target_arch% /p:NodeVersion=%NODE_VERSION% /p:FullVersion=%FULLVERSION% /p:DistTypeDir=%DISTTYPEDIR% %noetw_msi_arg% %noperfctr_msi_arg% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
 if errorlevel 1 goto exit
 
-if defined nosign goto upload
+if not defined sign goto upload
 call tools\sign.bat node-v%FULLVERSION%-%target_arch%.msi
 if errorlevel 1 echo Failed to sign msi&goto exit
 
@@ -364,7 +365,7 @@ echo Failed to create vc project files.
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [test-all/test-uv/test-inspector/test-internet/test-pummel/test-simple/test-message] [clean] [noprojgen] [small-icu/full-icu/without-intl] [nobuild] [nosign] [x86/x64] [vc2015] [download-all] [enable-vtune]
+echo vcbuild.bat [debug/release] [msi] [test-all/test-uv/test-inspector/test-internet/test-pummel/test-simple/test-message] [clean] [noprojgen] [small-icu/full-icu/without-intl] [nobuild] [sign] [x86/x64] [vc2015] [download-all] [enable-vtune]
 echo Examples:
 echo   vcbuild.bat                : builds release build
 echo   vcbuild.bat debug          : builds debug build

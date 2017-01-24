@@ -11,7 +11,7 @@ if (!common.isWindows) {
 }
 
 function test(p) {
-  var result = fs.realpathSync(p);
+  const result = fs.realpathSync(p);
   assert.strictEqual(result.toLowerCase(), path.resolve(p).toLowerCase());
 
   fs.realpath(p, common.mustCall(function(err, result) {

@@ -44,6 +44,9 @@
       (minor) == NODE_MINOR_VERSION && (patch) <= NODE_PATCH_VERSION))
 
 /**
+ * Node.js will refuse to load modules that weren't compiled against its own
+ * module ABI number, exposed as the process.versions.modules property.
+ *
  * When this version number is changed, node.js will refuse
  * to load older modules.  This should be done whenever
  * an API is broken in the C++ side, including in v8 or

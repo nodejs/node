@@ -326,14 +326,16 @@ function andForEachChild (load, next) {
   }
 }
 
-function isDepOptional (tree, name) {
+function isDepOptional (tree, name, pkg) {
+  if (pkg.package && pkg.package._optional) return true
   if (!tree.package.optionalDependencies) return false
   if (tree.package.optionalDependencies[name] != null) return true
   return false
 }
 
 var failedDependency = exports.failedDependency = function (tree, name_pkg) {
-  var name, pkg
+  var name
+  var pkg = {}
   if (typeof name_pkg === 'string') {
     name = name_pkg
   } else {
@@ -342,7 +344,7 @@ var failedDependency = exports.failedDependency = function (tree, name_pkg) {
   }
   tree.children = tree.children.filter(noModuleNameMatches(name))
 
-  if (isDepOptional(tree, name)) {
+  if (isDepOptional(tree, name, pkg)) {
     return false
   }
 
@@ -404,6 +406,11 @@ function loadDeps (tree, log, next) {
 exports.loadDevDeps = function (tree, log, next) {
   validate('OOF', arguments)
   if (!tree.package.devDependencies) return andFinishTracker.now(log, next)
+  // if any of our prexisting children are from a shrinkwrap then we skip
+  // loading dev deps as the shrinkwrap will already have provided them for us.
+  if (tree.children.some(function (child) { return child.shrinkwrapDev })) {
+    return andFinishTracker.now(log, next)
+  }
   asyncMap(Object.keys(tree.package.devDependencies), function (dep, done) {
     // things defined as both dev dependencies and regular dependencies are treated
     // as the former
@@ -414,7 +421,7 @@ exports.loadDevDeps = function (tree, log, next) {
   }, andForEachChild(loadDeps, andFinishTracker(log, next)))
 }
 
-exports.loadExtraneous = function loadExtraneous (tree, log, next) {
+var loadExtraneous = exports.loadExtraneous = function (tree, log, next) {
   var seen = {}
   function loadExtraneous (tree, log, next) {
     validate('OOF', arguments)
@@ -429,6 +436,9 @@ exports.loadExtraneous = function loadExtraneous (tree, log, next) {
 
 exports.loadExtraneous.andResolveDeps = function (tree, log, next) {
   validate('OOF', arguments)
+  // For canonicalized trees (eg from shrinkwrap) we don't want to bother
+  // resolving the dependencies of extraneous deps.
+  if (tree.loaded) return loadExtraneous(tree, log, next)
   asyncMap(tree.children.filter(function (child) { return !child.loaded }), function (child, done) {
     resolveWithExistingModule(child, tree, log, done)
   }, andForEachChild(loadDeps, andFinishTracker(log, next)))
@@ -627,6 +637,14 @@ var earliestInstallable = exports.earliestInstallable = function (requiredBy, tr
   var deps = tree.package.dependencies || {}
   if (!tree.removed && requiredBy !== tree && deps[pkg.name]) {
     return null
+  }
+
+  var devDeps = tree.package.devDependencies || {}
+  if (tree.isTop && devDeps[pkg.name]) {
+    var requested = npa(pkg.name + '@' + devDeps[pkg.name])
+    if (!doesChildVersionMatch({package: pkg}, requested, tree)) {
+      return null
+    }
   }
 
   if (tree.phantomChildren && tree.phantomChildren[pkg.name]) return null

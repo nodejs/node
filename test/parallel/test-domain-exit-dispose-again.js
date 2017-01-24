@@ -6,22 +6,22 @@
 // the same invocation of listOnTimeout, _are_ called.
 
 require('../common');
-var assert = require('assert');
-var domain = require('domain');
-var disposalFailed = false;
+const assert = require('assert');
+const domain = require('domain');
+let disposalFailed = false;
 
 // Repeatedly schedule a timer with a delay different than the timers attached
 // to a domain that will eventually be disposed to make sure that they are
 // called, regardless of what happens with those timers attached to domains
 // that will eventually be disposed.
-var a = 0;
+let a = 0;
 log();
 function log() {
   console.log(a++, process.domain);
   if (a < 10) setTimeout(log, 20);
 }
 
-var secondTimerRan = false;
+let secondTimerRan = false;
 
 // Use the same timeout duration for both "firstTimer" and "secondTimer"
 // callbacks so that they are called during the same invocation of the
@@ -51,7 +51,7 @@ setTimeout(function firstTimer() {
           'a domain that should be disposed.');
       disposalFailed = true;
       process.exit(1);
-    });
+    }, 1);
 
     // Make V8 throw an unreferenced error. As a result, the domain's error
     // handler is called, which disposes the domain "d" and should prevent the
@@ -69,8 +69,8 @@ setTimeout(function secondTimer() {
 }, TIMEOUT_DURATION);
 
 process.on('exit', function() {
-  assert.equal(a, 10);
-  assert.equal(disposalFailed, false);
+  assert.strictEqual(a, 10);
+  assert.strictEqual(disposalFailed, false);
   assert(secondTimerRan);
   console.log('ok');
 });

@@ -16,6 +16,16 @@ function haveLocale(loc) {
   return locs.indexOf(loc) !== -1;
 }
 
+// Always run these. They should always pass, even if the locale
+// param is ignored.
+assert.strictEqual('Ç'.toLocaleLowerCase('el'), 'ç');
+assert.strictEqual('Ç'.toLocaleLowerCase('tr'), 'ç');
+assert.strictEqual('Ç'.toLowerCase(), 'ç');
+
+assert.strictEqual('ç'.toLocaleUpperCase('el'), 'Ç');
+assert.strictEqual('ç'.toLocaleUpperCase('tr'), 'Ç');
+assert.strictEqual('ç'.toUpperCase(), 'Ç');
+
 if (!common.hasIntl) {
   const erMsg =
       '"Intl" object is NOT present but v8_enable_i18n_support is ' +

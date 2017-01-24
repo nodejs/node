@@ -6,12 +6,6 @@
 "use strict";
 
 //------------------------------------------------------------------------------
-// Requirements
-//------------------------------------------------------------------------------
-
-const lodash = require("lodash");
-
-//------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
@@ -88,6 +82,17 @@ function canBecomeVariableDeclaration(identifier) {
  */
 function getIdentifierIfShouldBeConst(variable, ignoreReadBeforeAssign) {
     if (variable.eslintUsed && variable.scope.type === "global") {
+        return null;
+    }
+
+    /*
+     * Due to a bug in acorn, code such as `let foo = 1; let foo = 2;` will not throw a syntax error. As a sanity
+     * check, make sure that the variable only has one declaration. After the parsing bug is fixed, this check
+     * will no longer be necessary, because variables declared with `let` or `const` should always have exactly one
+     * declaration.
+     * https://github.com/ternjs/acorn/issues/487
+     */
+    if (variable.defs.length > 1) {
         return null;
     }
 
@@ -244,8 +249,8 @@ module.exports = {
             {
                 type: "object",
                 properties: {
-                    destructuring: {enum: ["any", "all"]},
-                    ignoreReadBeforeAssign: {type: "boolean"}
+                    destructuring: { enum: ["any", "all"] },
+                    ignoreReadBeforeAssign: { type: "boolean" }
                 },
                 additionalProperties: false
             }
@@ -254,80 +259,10 @@ module.exports = {
 
     create(context) {
         const options = context.options[0] || {};
+        const sourceCode = context.getSourceCode();
         const checkingMixedDestructuring = options.destructuring !== "all";
         const ignoreReadBeforeAssign = options.ignoreReadBeforeAssign === true;
-        let variables = null;
-
-        /**
-         * Reports a given Identifier node.
-         *
-         * @param {ASTNode} node - An Identifier node to report.
-         * @returns {void}
-         */
-        function report(node) {
-            const reportArgs = {
-                    node,
-                    message: "'{{name}}' is never reassigned. Use 'const' instead.",
-                    data: node
-                },
-                varDeclParent = findUp(node, "VariableDeclaration", function(parentNode) {
-                    return lodash.endsWith(parentNode.type, "Statement");
-                }),
-                isNormalVarDecl = (node.parent.parent.parent.type === "ForInStatement" ||
-                        node.parent.parent.parent.type === "ForOfStatement" ||
-                        node.parent.init),
-
-                isDestructuringVarDecl =
-
-                    // {let {a} = obj} should be written as {const {a} = obj}
-                    (node.parent.parent.type === "ObjectPattern" &&
-
-                        // If options.destucturing is "all", then this warning will not occur unless
-                        // every assignment in the destructuring should be const. In that case, it's safe
-                        // to apply the fix. Otherwise, it's safe to apply the fix if there's only one
-                        // assignment occurring. If there is more than one assignment and options.destructuring
-                        // is not "all", then it's not clear how the developer would want to resolve the issue,
-                        // so we should not attempt to do it programmatically.
-                        (options.destructuring === "all" || node.parent.parent.properties.length === 1)) ||
-
-                    // {let [a] = [1]} should be written as {const [a] = [1]}
-                    (node.parent.type === "ArrayPattern" &&
-
-                        // See note above about fixing multiple warnings at once.
-                        (options.destructuring === "all" || node.parent.elements.length === 1));
-
-            if (varDeclParent &&
-                    (isNormalVarDecl || isDestructuringVarDecl) &&
-
-                    // If there are multiple variable declarations, like {let a = 1, b = 2}, then
-                    // do not attempt to fix if one of the declarations should be `const`. It's
-                    // too hard to know how the developer would want to automatically resolve the issue.
-                    varDeclParent.declarations.length === 1) {
-
-                reportArgs.fix = function(fixer) {
-                    return fixer.replaceTextRange(
-                        [varDeclParent.start, varDeclParent.start + "let".length],
-                        "const"
-                    );
-                };
-            }
-
-            context.report(reportArgs);
-        }
-
-        /**
-         * Reports a given variable if the variable should be declared as const.
-         *
-         * @param {escope.Variable} variable - A variable to report.
-         * @returns {void}
-         */
-        function checkVariable(variable) {
-            const node = getIdentifierIfShouldBeConst(variable, ignoreReadBeforeAssign);
-
-            if (node) {
-                report(node);
-            }
-        }
+        const variables = [];
 
         /**
          * Reports given identifier nodes if all of the nodes should be declared
@@ -344,25 +279,39 @@ module.exports = {
          * @returns {void}
          */
         function checkGroup(nodes) {
-            if (nodes.every(Boolean)) {
-                nodes.forEach(report);
+            const nodesToReport = nodes.filter(Boolean);
+
+            if (nodes.length && (checkingMixedDestructuring || nodesToReport.length === nodes.length)) {
+                const varDeclParent = findUp(nodes[0], "VariableDeclaration", parentNode => parentNode.type.endsWith("Statement"));
+                const shouldFix = varDeclParent &&
+
+                    // If there are multiple variable declarations, like {let a = 1, b = 2}, then
+                    // do not attempt to fix if one of the declarations should be `const`. It's
+                    // too hard to know how the developer would want to automatically resolve the issue.
+                    varDeclParent.declarations.length === 1 &&
+
+                    // Don't do a fix unless the variable is initialized (or it's in a for-in or for-of loop)
+                    (varDeclParent.parent.type === "ForInStatement" || varDeclParent.parent.type === "ForOfStatement" || varDeclParent.declarations[0].init) &&
+
+                    // If options.destucturing is "all", then this warning will not occur unless
+                    // every assignment in the destructuring should be const. In that case, it's safe
+                    // to apply the fix.
+                    nodesToReport.length === nodes.length;
+
+                nodesToReport.forEach(node => {
+                    context.report({
+                        node,
+                        message: "'{{name}}' is never reassigned. Use 'const' instead.",
+                        data: node,
+                        fix: shouldFix ? fixer => fixer.replaceText(sourceCode.getFirstToken(varDeclParent), "const") : null
+                    });
+                });
             }
         }
 
         return {
-            Program() {
-                variables = [];
-            },
-
             "Program:exit"() {
-                if (checkingMixedDestructuring) {
-                    variables.forEach(checkVariable);
-                } else {
-                    groupByDestructuring(variables, ignoreReadBeforeAssign)
-                        .forEach(checkGroup);
-                }
-
-                variables = null;
+                groupByDestructuring(variables, ignoreReadBeforeAssign).forEach(checkGroup);
             },
 
             VariableDeclaration(node) {

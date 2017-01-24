@@ -76,7 +76,12 @@
       'lib/zlib.js',
       'lib/internal/buffer.js',
       'lib/internal/child_process.js',
-      'lib/internal/cluster.js',
+      'lib/internal/cluster/child.js',
+      'lib/internal/cluster/master.js',
+      'lib/internal/cluster/round_robin_handle.js',
+      'lib/internal/cluster/shared_handle.js',
+      'lib/internal/cluster/utils.js',
+      'lib/internal/cluster/worker.js',
       'lib/internal/freelist.js',
       'lib/internal/fs.js',
       'lib/internal/linkedlist.js',
@@ -140,13 +145,13 @@
       ],
 
       'sources': [
-        'src/debug-agent.cc',
         'src/async-wrap.cc',
-        'src/env.cc',
-        'src/fs_event_wrap.cc',
         'src/cares_wrap.cc',
         'src/connection_wrap.cc',
         'src/connect_wrap.cc',
+        'src/debug-agent.cc',
+        'src/env.cc',
+        'src/fs_event_wrap.cc',
         'src/handle_wrap.cc',
         'src/js_stream.cc',
         'src/node.cc',
@@ -154,6 +159,7 @@
         'src/node_config.cc',
         'src/node_constants.cc',
         'src/node_contextify.cc',
+        'src/node_debug_options.cc',
         'src/node_file.cc',
         'src/node_http_parser.cc',
         'src/node_javascript.cc',
@@ -168,16 +174,22 @@
         'src/node_zlib.cc',
         'src/node_i18n.cc',
         'src/pipe_wrap.cc',
+        'src/process_wrap.cc',
         'src/signal_wrap.cc',
         'src/spawn_sync.cc',
         'src/string_bytes.cc',
+        'src/string_search.cc',
         'src/stream_base.cc',
         'src/stream_wrap.cc',
         'src/tcp_wrap.cc',
         'src/timer_wrap.cc',
+        'src/tracing/agent.cc',
+        'src/tracing/node_trace_buffer.cc',
+        'src/tracing/node_trace_writer.cc',
+        'src/tracing/trace_event.cc',
         'src/tty_wrap.cc',
-        'src/process_wrap.cc',
         'src/udp_wrap.cc',
+        'src/util.cc',
         'src/uv.cc',
         # headers to make for a more pleasant IDE experience
         'src/async-wrap.h',
@@ -194,6 +206,7 @@
         'src/node.h',
         'src/node_buffer.h',
         'src/node_constants.h',
+        'src/node_debug_options.h',
         'src/node_file.h',
         'src/node_http_parser.h',
         'src/node_internals.h',
@@ -215,11 +228,13 @@
         'src/stream_base.h',
         'src/stream_base-inl.h',
         'src/stream_wrap.h',
+        'src/tracing/agent.h',
+        'src/tracing/node_trace_buffer.h',
+        'src/tracing/node_trace_writer.h',
+        'src/tracing/trace_event.h'
         'src/tree.h',
         'src/util.h',
         'src/util-inl.h',
-        'src/util.cc',
-        'src/string_search.cc',
         'deps/http_parser/http_parser.h',
         'deps/v8/include/v8.h',
         'deps/v8/include/v8-debug.h',
@@ -318,8 +333,10 @@
           'sources': [
             'src/inspector_agent.cc',
             'src/inspector_socket.cc',
-            'src/inspector_socket.h',
+            'src/inspector_socket_server.cc',
             'src/inspector_agent.h',
+            'src/inspector_socket.h',
+            'src/inspector_socket_server.h',
           ],
           'dependencies': [
             'deps/v8_inspector/src/inspector/inspector.gyp:standalone_inspector',
@@ -868,7 +885,8 @@
       'dependencies': [ 'deps/gtest/gtest.gyp:gtest' ],
       'include_dirs': [
         'src',
-        'deps/v8/include'
+        'deps/v8/include',
+        '<(SHARED_INTERMEDIATE_DIR)'
       ],
       'defines': [
         # gtest's ASSERT macros conflict with our own.
@@ -886,9 +904,21 @@
 
       'conditions': [
         ['v8_inspector=="true"', {
+          'defines': [
+            'HAVE_INSPECTOR=1',
+          ],
+          'dependencies': [
+            'deps/zlib/zlib.gyp:zlib',
+            'v8_inspector_compress_protocol_json#host'
+          ],
+          'include_dirs': [
+            '<(SHARED_INTERMEDIATE_DIR)'
+          ],
           'sources': [
             'src/inspector_socket.cc',
-            'test/cctest/test_inspector_socket.cc'
+            'src/inspector_socket_server.cc',
+            'test/cctest/test_inspector_socket.cc',
+            'test/cctest/test_inspector_socket_server.cc'
           ],
           'conditions': [
             [ 'node_shared_openssl=="false"', {
@@ -936,6 +966,16 @@
             }, {
               'type': 'executable',
             }],
+            ['target_arch=="ppc64"', {
+              'ldflags': [
+                '-Wl,-blibpath:/usr/lib:/lib:/opt/freeware/lib/pthread/ppc64'
+              ],
+            }],
+            ['target_arch=="ppc"', {
+              'ldflags': [
+                '-Wl,-blibpath:/usr/lib:/lib:/opt/freeware/lib/pthread'
+              ],
+            }]
           ],
           'dependencies': ['<(node_core_target_name)', 'node_exp'],
 

@@ -28,9 +28,9 @@ const Timer = process.binding('timer_wrap').Timer;
 
 const TIMEOUT = 100;
 
-var nbBlockingCallbackCalls = 0;
-var latestDelay = 0;
-var timeCallbackScheduled = 0;
+let nbBlockingCallbackCalls = 0;
+let latestDelay = 0;
+let timeCallbackScheduled = 0;
 
 function initTest() {
   nbBlockingCallbackCalls = 0;

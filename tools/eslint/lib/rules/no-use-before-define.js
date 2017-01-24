@@ -29,7 +29,7 @@ function parseOptions(options) {
         classes = options.classes !== false;
     }
 
-    return {functions, classes};
+    return { functions, classes };
 }
 
 /**
@@ -154,8 +154,8 @@ module.exports = {
                     {
                         type: "object",
                         properties: {
-                            functions: {type: "boolean"},
-                            classes: {type: "boolean"}
+                            functions: { type: "boolean" },
+                            classes: { type: "boolean" }
                         },
                         additionalProperties: false
                     }
@@ -187,7 +187,7 @@ module.exports = {
          * @private
          */
         function findVariablesInScope(scope) {
-            scope.references.forEach(function(reference) {
+            scope.references.forEach(reference => {
                 const variable = reference.resolved;
 
                 // Skips when the reference is:

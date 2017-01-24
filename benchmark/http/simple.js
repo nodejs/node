@@ -7,14 +7,16 @@ var bench = common.createBenchmark(main, {
   type: ['bytes', 'buffer'],
   length: [4, 1024, 102400],
   chunks: [0, 1, 4],  // chunks=0 means 'no chunked encoding'.
-  c: [50, 500]
+  c: [50, 500],
+  res: ['normal', 'setHeader', 'setHeaderWH']
 });
 
 function main(conf) {
   process.env.PORT = PORT;
   var server = require('./_http_simple.js');
   setTimeout(function() {
-    var path = '/' + conf.type + '/' + conf.length + '/' + conf.chunks;
+    var path = '/' + conf.type + '/' + conf.length + '/' + conf.chunks + '/' +
+               conf.res;
 
     bench.http({
       path: path,

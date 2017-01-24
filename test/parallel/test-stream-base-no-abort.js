@@ -14,24 +14,24 @@ const fs = require('fs');
 const net = require('net');
 const tls = require('tls');
 const providers = Object.keys(async_wrap.Providers);
-var flags = 0;
+let flags = 0;
 
 // Make sure all asserts have run at least once.
-process.on('exit', () => assert.equal(flags, 0b111));
+process.on('exit', () => assert.strictEqual(flags, 0b111));
 
 function init(id, provider) {
   this._external;  // Test will abort if nullptr isn't properly checked.
   switch (providers[provider]) {
     case 'TCPWRAP':
-      assert.equal(this.fd, uv.UV_EINVAL);
+      assert.strictEqual(this.fd, uv.UV_EINVAL);
       flags |= 0b1;
       break;
     case 'TLSWRAP':
-      assert.equal(this.fd, uv.UV_EINVAL);
+      assert.strictEqual(this.fd, uv.UV_EINVAL);
       flags |= 0b10;
       break;
     case 'UDPWRAP':
-      assert.equal(this.fd, uv.UV_EBADF);
+      assert.strictEqual(this.fd, uv.UV_EBADF);
       flags |= 0b100;
       break;
   }

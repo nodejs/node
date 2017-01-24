@@ -2,19 +2,19 @@
 
 require('../common');
 
-var spawn = require('child_process').spawn;
+const spawn = require('child_process').spawn;
 
 function run(cmd, strict, cb) {
-  var args = [];
+  const args = [];
   if (strict) args.push('--use_strict');
   args.push('-pe', cmd);
-  var child = spawn(process.execPath, args);
+  const child = spawn(process.execPath, args);
   child.stdout.pipe(process.stdout);
   child.stderr.pipe(process.stdout);
   child.on('close', cb);
 }
 
-var queue =
+const queue =
   [ 'with(this){__filename}',
     '42',
     'throw new Error("hello")',
@@ -22,7 +22,7 @@ var queue =
     'var ______________________________________________; throw 10' ];
 
 function go() {
-  var c = queue.shift();
+  const c = queue.shift();
   if (!c) return console.log('done');
   run(c, false, function() {
     run(c, true, go);

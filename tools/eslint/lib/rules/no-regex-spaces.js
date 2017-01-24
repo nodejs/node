@@ -46,7 +46,7 @@ module.exports = {
                 context.report({
                     node,
                     message: "Spaces are hard to count. Use {{{count}}}.",
-                    data: {count},
+                    data: { count },
                     fix(fixer) {
                         return fixer.replaceTextRange(
                             [valueStart + regexResults.index, valueStart + regexResults.index + count],

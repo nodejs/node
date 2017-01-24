@@ -1,12 +1,12 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var http = require('http');
-var net = require('net');
+const assert = require('assert');
+const http = require('http');
+const net = require('net');
 
-var testsComplete = 0;
+let testsComplete = 0;
 
-var testCases = [
+const testCases = [
   { path: '/200', statusMessage: 'OK',
     response: 'HTTP/1.1 200 OK\r\n\r\n' },
   { path: '/500', statusMessage: 'Internal Server Error',
@@ -19,7 +19,7 @@ var testCases = [
     response: 'HTTP/1.1 200\r\n\r\n' }
 ];
 testCases.findByPath = function(path) {
-  var matching = this.filter(function(testCase) {
+  const matching = this.filter(function(testCase) {
     return testCase.path === path;
   });
   if (matching.length === 0) {
@@ -28,18 +28,18 @@ testCases.findByPath = function(path) {
   return matching[0];
 };
 
-var server = net.createServer(function(connection) {
+const server = net.createServer(function(connection) {
   connection.on('data', function(data) {
-    var path = data.toString().match(/GET (.*) HTTP.1.1/)[1];
-    var testCase = testCases.findByPath(path);
+    const path = data.toString().match(/GET (.*) HTTP.1.1/)[1];
+    const testCase = testCases.findByPath(path);
 
     connection.write(testCase.response);
     connection.end();
   });
 });
 
-var runTest = function(testCaseIndex) {
-  var testCase = testCases[testCaseIndex];
+const runTest = function(testCaseIndex) {
+  const testCase = testCases[testCaseIndex];
 
   http.get({
     port: server.address().port,
@@ -47,7 +47,7 @@ var runTest = function(testCaseIndex) {
   }, function(response) {
     console.log('client: expected status message: ' + testCase.statusMessage);
     console.log('client: actual status message: ' + response.statusMessage);
-    assert.equal(testCase.statusMessage, response.statusMessage);
+    assert.strictEqual(testCase.statusMessage, response.statusMessage);
 
     response.on('end', function() {
       testsComplete++;
@@ -66,5 +66,5 @@ var runTest = function(testCaseIndex) {
 server.listen(0, function() { runTest(0); });
 
 process.on('exit', function() {
-  assert.equal(testCases.length, testsComplete);
+  assert.strictEqual(testCases.length, testsComplete);
 });

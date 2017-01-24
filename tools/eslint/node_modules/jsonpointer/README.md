@@ -12,7 +12,7 @@ jsonpointer.get(obj, '/bar/baz'); // returns 2
 jsonpointer.get(obj, '/qux/0');   // returns 3
 jsonpointer.get(obj, '/qux/1');   // returns 4
 jsonpointer.get(obj, '/qux/2');   // returns 5
-jsonpointer.get(obj, '/quo');     // returns null
+jsonpointer.get(obj, '/quo');     // returns undefined
 
 jsonpointer.set(obj, '/foo', 6);  // sets obj.foo = 6;
 jsonpointer.set(obj, '/qux/-', 6) // sets obj.qux = [3, 4, 5, 6]

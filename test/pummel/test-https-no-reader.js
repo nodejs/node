@@ -1,34 +1,34 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var https = require('https');
+const https = require('https');
 
-var Buffer = require('buffer').Buffer;
-var fs = require('fs');
-var path = require('path');
+const Buffer = require('buffer').Buffer;
+const fs = require('fs');
+const path = require('path');
 
-var options = {
+const options = {
   key: fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem')),
   cert: fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))
 };
 
-var buf = Buffer.allocUnsafe(1024 * 1024);
+const buf = Buffer.allocUnsafe(1024 * 1024);
 
-var server = https.createServer(options, function(req, res) {
+const server = https.createServer(options, function(req, res) {
   res.writeHead(200);
-  for (var i = 0; i < 50; i++) {
+  for (let i = 0; i < 50; i++) {
     res.write(buf);
   }
   res.end();
 });
 
 server.listen(common.PORT, function() {
-  var req = https.request({
+  const req = https.request({
     method: 'POST',
     port: common.PORT,
     rejectUnauthorized: false

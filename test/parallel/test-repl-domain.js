@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 
-var repl = require('repl');
+const repl = require('repl');
 
 const putIn = new common.ArrayStream();
 repl.start('', putIn);
@@ -18,6 +18,6 @@ putIn.write = function(data) {
 };
 
 putIn.run([
-  'require("domain").create().on("error", function() { console.log("OK") })'
-  + '.run(function() { throw new Error("threw") })'
+  'require("domain").create().on("error", function() { console.log("OK") })' +
+  '.run(function() { throw new Error("threw") })'
 ]);

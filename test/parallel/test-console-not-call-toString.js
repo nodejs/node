@@ -1,9 +1,9 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var func = function() {};
-var toStringCalled = false;
+const func = function() {};
+let toStringCalled = false;
 func.toString = function() {
   toStringCalled = true;
 };

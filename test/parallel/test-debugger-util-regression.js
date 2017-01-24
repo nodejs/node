@@ -46,8 +46,8 @@ proc.stdout.on('data', (data) => {
 proc.stderr.on('data', (data) => stderr += data);
 
 process.on('exit', (code) => {
-  assert.equal(code, 0, 'the program should exit cleanly');
-  assert.equal(stdout.includes('{ a: \'b\' }'), true,
-               'the debugger should print the result of util.inspect');
-  assert.equal(stderr, '', 'stderr should be empty');
+  assert.strictEqual(code, 0, 'the program should exit cleanly');
+  assert.strictEqual(stdout.includes('{ a: \'b\' }'), true,
+                     'the debugger should print the result of util.inspect');
+  assert.strictEqual(stderr, '', 'stderr should be empty');
 });

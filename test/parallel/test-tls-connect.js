@@ -1,15 +1,14 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var fs = require('fs');
-var path = require('path');
+const fs = require('fs');
+const path = require('path');
 
 // https://github.com/joyent/node/issues/1218
 // uncatchable exception on TLS connection error
@@ -33,9 +32,7 @@ var path = require('path');
     key: key,
     port: common.PORT,
     ciphers: 'rick-128-roll'
-  }, function() {
-    assert.ok(false); // callback should never be executed
-  });
+  }, common.fail);
 
   conn.on('error', common.mustCall(function() {}));
 }

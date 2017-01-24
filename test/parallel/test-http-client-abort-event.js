@@ -1,12 +1,12 @@
 'use strict';
 const common = require('../common');
-var http = require('http');
-var server = http.createServer(function(req, res) {
+const http = require('http');
+const server = http.createServer(function(req, res) {
   res.end();
 });
 
 server.listen(0, common.mustCall(function() {
-  var req = http.request({
+  const req = http.request({
     port: this.address().port
   }, common.fail);
 

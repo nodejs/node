@@ -10,7 +10,7 @@ net.Server().listen(common.PORT, function() {
   const address = this.address();
   const key = `${address.family.slice(-1)}:${address.address}:${common.PORT}`;
 
-  assert.equal(this._connectionKey, key);
+  assert.strictEqual(this._connectionKey, key);
   this.close();
 });
 

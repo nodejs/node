@@ -931,7 +931,7 @@ inline uint16_t ToASCIIUpper(uint16_t ch) {
 inline uint16_t ToLatin1Upper(uint16_t ch) {
   DCHECK(ch != 0xDF && ch != 0xB5 && ch != 0xFF);
   return ch &
-         ~(((ch >= 'a' && ch <= 'z') || (((ch & 0xE0) == 0xE0) && ch != 0xE7))
+         ~(((ch >= 'a' && ch <= 'z') || (((ch & 0xE0) == 0xE0) && ch != 0xF7))
            << 5);
 }
 

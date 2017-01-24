@@ -4,6 +4,16 @@ var circularJson = require( 'circular-json' );
 
 module.exports = {
 
+  tryParse: function ( filePath, defaultValue) {
+    var result;
+    try {
+      result = this.readJSON( filePath );
+    } catch (ex) {
+      result = defaultValue;
+    }
+    return result;
+  },
+
   /**
    * Read json file synchronously using circular-json
    *

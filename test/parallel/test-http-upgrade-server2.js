@@ -1,10 +1,10 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var net = require('net');
+const assert = require('assert');
+const http = require('http');
+const net = require('net');
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   throw new Error('This shouldn\'t happen.');
 });
 
@@ -15,13 +15,13 @@ server.on('upgrade', function(req, socket, upgradeHead) {
 });
 
 process.on('uncaughtException', common.mustCall(function(e) {
-  assert.equal('upgrade error', e.message);
+  assert.strictEqual('upgrade error', e.message);
   process.exit(0);
 }));
 
 
 server.listen(0, function() {
-  var c = net.createConnection(this.address().port);
+  const c = net.createConnection(this.address().port);
 
   c.on('connect', function() {
     c.write('GET /blah HTTP/1.1\r\n' +

@@ -7,6 +7,7 @@
 #include "node_version.h"
 #include "node_internals.h"
 #include "node_revert.h"
+#include "node_debug_options.h"
 
 #if defined HAVE_PERFCTR
 #include "node_counters.h"
@@ -37,6 +38,7 @@
 #include "req-wrap.h"
 #include "req-wrap-inl.h"
 #include "string_bytes.h"
+#include "tracing/agent.h"
 #include "util.h"
 #include "uv.h"
 #if NODE_USE_V8_PLATFORM
@@ -140,17 +142,6 @@ static bool track_heap_objects = false;
 static const char* eval_string = nullptr;
 static unsigned int preload_module_count = 0;
 static const char** preload_modules = nullptr;
-#if HAVE_INSPECTOR
-static bool use_inspector = false;
-#else
-static const bool use_inspector = false;
-#endif
-static bool use_debug_agent = false;
-static bool debug_wait_connect = false;
-static std::string* debug_host;  // coverity[leaked_storage]
-static const int default_debugger_port = 5858;
-static const int default_inspector_port = 9229;
-static int debug_port = -1;
 static const int v8_default_thread_pool_size = 4;
 static int v8_thread_pool_size = v8_default_thread_pool_size;
 static bool prof_process = false;
@@ -160,6 +151,8 @@ static node_module* modpending;
 static node_module* modlist_builtin;
 static node_module* modlist_linked;
 static node_module* modlist_addon;
+static bool trace_enabled = false;
+static const char* trace_enabled_categories = nullptr;
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
 // Path to ICU data (for i18n / Intl)
@@ -196,12 +189,16 @@ static uv_async_t dispatch_debug_messages_async;
 
 static Mutex node_isolate_mutex;
 static v8::Isolate* node_isolate;
+static tracing::Agent* tracing_agent;
+
+static node::DebugOptions debug_options;
 
 static struct {
 #if NODE_USE_V8_PLATFORM
   void Initialize(int thread_pool_size) {
     platform_ = v8::platform::CreateDefaultPlatform(thread_pool_size);
     V8::InitializePlatform(platform_);
+    tracing::TraceEventHelper::SetCurrentPlatform(platform_);
   }
 
   void PumpMessageLoop(Isolate* isolate) {
@@ -213,14 +210,12 @@ static struct {
     platform_ = nullptr;
   }
 
-  bool StartInspector(Environment *env, const char* script_path,
-                      int port, bool wait) {
 #if HAVE_INSPECTOR
-    return env->inspector_agent()->Start(platform_, script_path, port, wait);
-#else
-    return true;
-#endif  // HAVE_INSPECTOR
+  bool StartInspector(Environment *env, const char* script_path,
+                      const node::DebugOptions& options) {
+    return env->inspector_agent()->Start(platform_, script_path, options);
   }
+#endif  // HAVE_INSPECTOR
 
   v8::Platform* platform_;
 #else  // !NODE_USE_V8_PLATFORM
@@ -1273,6 +1268,7 @@ Local<Value> MakeCallback(Environment* env,
 
   if (tick_info->length() == 0) {
     tick_info->set_index(0);
+    return ret;
   }
 
   if (env->tick_callback_function()->Call(process, 0, nullptr).IsEmpty()) {
@@ -2196,7 +2192,7 @@ static void WaitForInspectorDisconnect(Environment* env) {
   if (env->inspector_agent()->IsConnected()) {
     // Restore signal dispositions, the app is done and is no longer
     // capable of handling signals.
-#ifdef __POSIX__
+#if defined(__POSIX__) && !defined(NODE_SHARED_MODE)
     struct sigaction act;
     memset(&act, 0, sizeof(act));
     for (unsigned nr = 1; nr < kMaxSignal; nr += 1) {
@@ -2278,18 +2274,18 @@ void Kill(const FunctionCallbackInfo<Value>& args) {
 
 // Hrtime exposes libuv's uv_hrtime() high-resolution timer.
 // The value returned by uv_hrtime() is a 64-bit int representing nanoseconds,
-// so this function instead returns an Array with 2 entries representing seconds
-// and nanoseconds, to avoid any integer overflow possibility.
-// Pass in an Array from a previous hrtime() call to instead get a time diff.
+// so this function instead fills in an Uint32Array with 3 entries,
+// to avoid any integer overflow possibility.
+// The first two entries contain the second part of the value
+// broken into the upper/lower 32 bits to be converted back in JS,
+// because there is no Uint64Array in JS.
+// The third entry contains the remaining nanosecond part of the value.
 void Hrtime(const FunctionCallbackInfo<Value>& args) {
   uint64_t t = uv_hrtime();
 
   Local<ArrayBuffer> ab = args[0].As<Uint32Array>()->Buffer();
   uint32_t* fields = static_cast<uint32_t*>(ab->GetContents().Data());
 
-  // These three indices will contain the values for the hrtime tuple. The
-  // seconds value is broken into the upper/lower 32 bits and stored in two
-  // uint32 fields to be converted back in JS.
   fields[0] = (t / NANOS_PER_SEC) >> 32;
   fields[1] = (t / NANOS_PER_SEC) & 0xffffffff;
   fields[2] = t % NANOS_PER_SEC;
@@ -2421,7 +2417,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
              "\nwas compiled against a different Node.js version using"
              "\nNODE_MODULE_VERSION %d. This version of Node.js requires"
              "\nNODE_MODULE_VERSION %d. Please try re-compiling or "
-             "re-installing\nthe module (for instance, using `npm rebuild` or"
+             "re-installing\nthe module (for instance, using `npm rebuild` or "
              "`npm install`).",
              *filename, mp->nm_version, NODE_MODULE_VERSION);
 
@@ -2520,7 +2516,7 @@ void FatalException(Isolate* isolate,
 
   if (exit_code) {
 #if HAVE_INSPECTOR
-    if (use_inspector) {
+    if (debug_options.inspector_enabled()) {
       env->inspector_agent()->FatalException(error, message);
     }
 #endif
@@ -2924,17 +2920,14 @@ static Local<Object> GetFeatures(Environment* env) {
 
 static void DebugPortGetter(Local<Name> property,
                             const PropertyCallbackInfo<Value>& info) {
-  int port = debug_port;
-  if (port < 0)
-    port = use_inspector ? default_inspector_port : default_debugger_port;
-  info.GetReturnValue().Set(port);
+  info.GetReturnValue().Set(debug_options.port());
 }
 
 
 static void DebugPortSetter(Local<Name> property,
                             Local<Value> value,
                             const PropertyCallbackInfo<void>& info) {
-  debug_port = value->Int32Value();
+  debug_options.set_port(value->Int32Value());
 }
 
 
@@ -3277,7 +3270,7 @@ void SetupProcessObject(Environment* env,
   }
 
   // --debug-brk
-  if (debug_wait_connect) {
+  if (debug_options.wait_for_connect()) {
     READONLY_PROPERTY(process, "_debugWaitConnect", True(env->isolate()));
   }
 
@@ -3381,6 +3374,9 @@ void SetupProcessObject(Environment* env,
 
 void SignalExit(int signo) {
   uv_tty_reset_mode();
+  if (trace_enabled) {
+    tracing_agent->Stop();
+  }
 #ifdef __FreeBSD__
   // FreeBSD has a nasty bug, see RegisterSignalHandler for details
   struct sigaction sa;
@@ -3469,90 +3465,6 @@ void LoadEnvironment(Environment* env) {
   f->Call(Null(env->isolate()), 1, &arg);
 }
 
-
-static void PrintHelp();
-
-static bool ParseDebugOpt(const char* arg) {
-  const char* port = nullptr;
-
-  if (!strcmp(arg, "--debug")) {
-    use_debug_agent = true;
-  } else if (!strncmp(arg, "--debug=", sizeof("--debug=") - 1)) {
-    use_debug_agent = true;
-    port = arg + sizeof("--debug=") - 1;
-  } else if (!strcmp(arg, "--debug-brk")) {
-    use_debug_agent = true;
-    debug_wait_connect = true;
-  } else if (!strncmp(arg, "--debug-brk=", sizeof("--debug-brk=") - 1)) {
-    use_debug_agent = true;
-    debug_wait_connect = true;
-    port = arg + sizeof("--debug-brk=") - 1;
-  } else if (!strncmp(arg, "--debug-port=", sizeof("--debug-port=") - 1)) {
-    // XXX(bnoordhuis) Misnomer, configures port and listen address.
-    port = arg + sizeof("--debug-port=") - 1;
-#if HAVE_INSPECTOR
-  // Specifying both --inspect and --debug means debugging is on, using Chromium
-  // inspector.
-  } else if (!strcmp(arg, "--inspect")) {
-    use_debug_agent = true;
-    use_inspector = true;
-  } else if (!strncmp(arg, "--inspect=", sizeof("--inspect=") - 1)) {
-    use_debug_agent = true;
-    use_inspector = true;
-    port = arg + sizeof("--inspect=") - 1;
-#else
-  } else if (!strncmp(arg, "--inspect", sizeof("--inspect") - 1)) {
-    fprintf(stderr,
-            "Inspector support is not available with this Node.js build\n");
-    return false;
-#endif
-  } else {
-    return false;
-  }
-
-  if (port == nullptr) {
-    return true;
-  }
-
-  // FIXME(bnoordhuis) Move IPv6 address parsing logic to lib/net.js.
-  // It seems reasonable to support [address]:port notation
-  // in net.Server#listen() and net.Socket#connect().
-  const size_t port_len = strlen(port);
-  if (port[0] == '[' && port[port_len - 1] == ']') {
-    debug_host = new std::string(port + 1, port_len - 2);
-    return true;
-  }
-
-  const char* const colon = strrchr(port, ':');
-  if (colon == nullptr) {
-    // Either a port number or a host name.  Assume that
-    // if it's not all decimal digits, it's a host name.
-    for (size_t n = 0; port[n] != '\0'; n += 1) {
-      if (port[n] < '0' || port[n] > '9') {
-        debug_host = new std::string(port);
-        return true;
-      }
-    }
-  } else {
-    const bool skip = (colon > port && port[0] == '[' && colon[-1] == ']');
-    debug_host = new std::string(port + skip, colon - skip);
-  }
-
-  char* endptr;
-  errno = 0;
-  const char* const digits = colon != nullptr ? colon + 1 : port;
-  const long result = strtol(digits, &endptr, 10);  // NOLINT(runtime/int)
-  if (errno != 0 || *endptr != '\0' || result < 1024 || result > 65535) {
-    fprintf(stderr, "Debug port must be in range 1024 to 65535.\n");
-    PrintHelp();
-    exit(12);
-  }
-
-  debug_port = static_cast<int>(result);
-
-  return true;
-}
-
 static void PrintHelp() {
   // XXX: If you add an option here, please also add it to doc/node.1 and
   // doc/api/cli.md
@@ -3560,64 +3472,78 @@ static void PrintHelp() {
          "       node debug script.js [arguments] \n"
          "\n"
          "Options:\n"
-         "  -v, --version         print Node.js version\n"
-         "  -e, --eval script     evaluate script\n"
-         "  -p, --print           evaluate script and print result\n"
-         "  -c, --check           syntax check script without executing\n"
-         "  -i, --interactive     always enter the REPL even if stdin\n"
-         "                        does not appear to be a terminal\n"
-         "  -r, --require         module to preload (option can be repeated)\n"
-         "  --no-deprecation      silence deprecation warnings\n"
-         "  --trace-deprecation   show stack traces on deprecations\n"
-         "  --throw-deprecation   throw an exception anytime a deprecated "
-         "function is used\n"
-         "  --no-warnings         silence all process warnings\n"
-         "  --trace-warnings      show stack traces on process warnings\n"
-         "  --trace-sync-io       show stack trace when use of sync IO\n"
-         "                        is detected after the first tick\n"
-         "  --track-heap-objects  track heap object allocations for heap "
+         "  -v, --version            print Node.js version\n"
+         "  -e, --eval script        evaluate script\n"
+         "  -p, --print              evaluate script and print result\n"
+         "  -c, --check              syntax check script without executing\n"
+         "  -i, --interactive        always enter the REPL even if stdin\n"
+         "                           does not appear to be a terminal\n"
+         "  -r, --require            module to preload (option can be "
+         "repeated)\n"
+#if HAVE_INSPECTOR
+         "  --inspect[=host:port] activate inspector on host:port\n"
+         "                        (default: 127.0.0.1:9229)\n"
+         "  --inspect-brk[=host:port]  activate inspector on host:port\n"
+         "                             and break at start of user script\n"
+#endif
+         "  --no-deprecation         silence deprecation warnings\n"
+         "  --trace-deprecation      show stack traces on deprecations\n"
+         "  --throw-deprecation      throw an exception on deprecations\n"
+         "  --no-warnings            silence all process warnings\n"
+         "  --trace-warnings         show stack traces on process warnings\n"
+         "  --trace-sync-io          show stack trace when use of sync IO\n"
+         "                           is detected after the first tick\n"
+         "  --trace-events-enabled   track trace events\n"
+         "  --trace-event-categories comma separated list of trace event\n"
+         "                           categories to record\n"
+         "  --track-heap-objects     track heap object allocations for heap "
          "snapshots\n"
-         "  --prof-process        process v8 profiler output generated\n"
-         "                        using --prof\n"
-         "  --zero-fill-buffers   automatically zero-fill all newly allocated\n"
-         "                        Buffer and SlowBuffer instances\n"
-         "  --v8-options          print v8 command line options\n"
-         "  --v8-pool-size=num    set v8's thread pool size\n"
+         "  --prof-process           process v8 profiler output generated\n"
+         "                           using --prof\n"
+         "  --zero-fill-buffers      automatically zero-fill all newly "
+         "allocated\n"
+         "                           Buffer and SlowBuffer instances\n"
+         "  --v8-options             print v8 command line options\n"
+         "  --v8-pool-size=num       set v8's thread pool size\n"
 #if HAVE_OPENSSL
-         "  --tls-cipher-list=val use an alternative default TLS cipher list\n"
+         "  --tls-cipher-list=val    use an alternative default TLS cipher "
+         "list\n"
 #if NODE_FIPS_MODE
-         "  --enable-fips         enable FIPS crypto at startup\n"
-         "  --force-fips          force FIPS crypto (cannot be disabled)\n"
+         "  --enable-fips            enable FIPS crypto at startup\n"
+         "  --force-fips             force FIPS crypto (cannot be disabled)\n"
 #endif  /* NODE_FIPS_MODE */
-         "  --openssl-config=path load OpenSSL configuration file from the\n"
-         "                        specified path\n"
+         "  --openssl-config=path    load OpenSSL configuration file from the\n"
+         "                           specified path\n"
 #endif /* HAVE_OPENSSL */
 #if defined(NODE_HAVE_I18N_SUPPORT)
-         "  --icu-data-dir=dir    set ICU data load path to dir\n"
-         "                        (overrides NODE_ICU_DATA)\n"
+         "  --icu-data-dir=dir       set ICU data load path to dir\n"
+         "                           (overrides NODE_ICU_DATA)\n"
 #if !defined(NODE_HAVE_SMALL_ICU)
-         "                        note: linked-in ICU data is\n"
-         "                        present.\n"
+         "                           note: linked-in ICU data is present\n"
 #endif
-         "  --preserve-symlinks   preserve symbolic links when resolving\n"
-         "                        and caching modules.\n"
+         "  --preserve-symlinks      preserve symbolic links when resolving\n"
+         "                           and caching modules\n"
 #endif
          "\n"
          "Environment variables:\n"
-#ifdef _WIN32
-         "NODE_PATH                ';'-separated list of directories\n"
-#else
-         "NODE_PATH                ':'-separated list of directories\n"
-#endif
-         "                         prefixed to the module search path.\n"
-         "NODE_DISABLE_COLORS      set to 1 to disable colors in the REPL\n"
+         "NODE_DEBUG                 ','-separated list of core modules that\n"
+         "                           should print debug information\n"
+         "NODE_DISABLE_COLORS        set to 1 to disable colors in the REPL\n"
+         "NODE_EXTRA_CA_CERTS        path to additional CA certificates file\n"
 #if defined(NODE_HAVE_I18N_SUPPORT)
-         "NODE_ICU_DATA            data path for ICU (Intl object) data\n"
+         "NODE_ICU_DATA              data path for ICU (Intl object) data\n"
 #if !defined(NODE_HAVE_SMALL_ICU)
-         "                         (will extend linked-in data)\n"
+         "                           (will extend linked-in data)\n"
 #endif
 #endif
-         "NODE_REPL_HISTORY        path to the persistent REPL history file\n"
+         "NODE_NO_WARNINGS           set to 1 to silence process warnings\n"
+#ifdef _WIN32
+         "NODE_PATH                  ';'-separated list of directories\n"
+#else
+         "NODE_PATH                  ':'-separated list of directories\n"
+#endif
+         "                           prefixed to the module search path\n"
+         "NODE_REPL_HISTORY          path to the persistent REPL history file\n"
          "\n"
          "Documentation can be found at https://nodejs.org/\n");
 }
@@ -3666,8 +3592,8 @@ static void ParseArgs(int* argc,
     const char* const arg = argv[index];
     unsigned int args_consumed = 1;
 
-    if (ParseDebugOpt(arg)) {
-      // Done, consumed by ParseDebugOpt().
+    if (debug_options.ParseOption(arg)) {
+      // Done, consumed by DebugOptions::ParseOption().
     } else if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) {
       printf("%s\n", NODE_VERSION);
       exit(0);
@@ -3723,6 +3649,16 @@ static void ParseArgs(int* argc,
       trace_deprecation = true;
     } else if (strcmp(arg, "--trace-sync-io") == 0) {
       trace_sync_io = true;
+    } else if (strcmp(arg, "--trace-events-enabled") == 0) {
+      trace_enabled = true;
+    } else if (strcmp(arg, "--trace-event-categories") == 0) {
+      const char* categories = argv[index + 1];
+      if (categories == nullptr) {
+        fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
+        exit(9);
+      }
+      args_consumed += 1;
+      trace_enabled_categories = categories;
     } else if (strcmp(arg, "--track-heap-objects") == 0) {
       track_heap_objects = true;
     } else if (strcmp(arg, "--throw-deprecation") == 0) {
@@ -3809,22 +3745,21 @@ static void DispatchMessagesDebugAgentCallback(Environment* env) {
 }
 
 
-static void StartDebug(Environment* env, const char* path, bool wait) {
+static void StartDebug(Environment* env, const char* path,
+                       DebugOptions debug_options) {
   CHECK(!debugger_running);
-  if (use_inspector) {
-    debugger_running = v8_platform.StartInspector(env, path,
-        debug_port >= 0 ? debug_port : default_inspector_port, wait);
-  } else {
+#if HAVE_INSPECTOR
+  if (debug_options.inspector_enabled())
+    debugger_running = v8_platform.StartInspector(env, path, debug_options);
+#endif  // HAVE_INSPECTOR
+  if (debug_options.debugger_enabled()) {
     env->debugger_agent()->set_dispatch_handler(
           DispatchMessagesDebugAgentCallback);
-    const char* host = debug_host ? debug_host->c_str() : "127.0.0.1";
-    int port = debug_port >= 0 ? debug_port : default_debugger_port;
-    debugger_running =
-        env->debugger_agent()->Start(host, port, wait);
+    debugger_running = env->debugger_agent()->Start(debug_options);
     if (debugger_running == false) {
-      fprintf(stderr, "Starting debugger on %s:%d failed\n", host, port);
+      fprintf(stderr, "Starting debugger on %s:%d failed\n",
+              debug_options.host_name().c_str(), debug_options.port());
       fflush(stderr);
-      return;
     }
   }
 }
@@ -3834,7 +3769,7 @@ static void StartDebug(Environment* env, const char* path, bool wait) {
 static void EnableDebug(Environment* env) {
   CHECK(debugger_running);
 
-  if (use_inspector) {
+  if (!debug_options.debugger_enabled()) {
     return;
   }
 
@@ -3875,8 +3810,8 @@ static void DispatchDebugMessagesAsyncCallback(uv_async_t* handle) {
       HandleScope scope(isolate);
       Environment* env = Environment::GetCurrent(isolate);
       Context::Scope context_scope(env->context());
-
-      StartDebug(env, nullptr, false);
+      debug_options.EnableDebugAgent(DebugAgentType::kDebugger);
+      StartDebug(env, nullptr, debug_options);
       EnableDebug(env);
     }
 
@@ -4130,7 +4065,7 @@ static void DebugEnd(const FunctionCallbackInfo<Value>& args) {
   if (debugger_running) {
     Environment* env = Environment::GetCurrent(args);
 #if HAVE_INSPECTOR
-    if (use_inspector) {
+    if (debug_options.inspector_enabled()) {
       env->inspector_agent()->Stop();
     } else {
 #endif
@@ -4165,6 +4100,7 @@ inline void PlatformInit() {
 
   CHECK_EQ(err, 0);
 
+#ifndef NODE_SHARED_MODE
   // Restore signal dispositions, the parent process may have changed them.
   struct sigaction act;
   memset(&act, 0, sizeof(act));
@@ -4178,6 +4114,7 @@ inline void PlatformInit() {
     act.sa_handler = (nr == SIGPIPE) ? SIG_IGN : SIG_DFL;
     CHECK_EQ(0, sigaction(nr, &act, nullptr));
   }
+#endif  // !NODE_SHARED_MODE
 
   RegisterSignalHandler(SIGINT, SignalExit, true);
   RegisterSignalHandler(SIGTERM, SignalExit, true);
@@ -4302,7 +4239,7 @@ void Init(int* argc,
   const char no_typed_array_heap[] = "--typed_array_max_size_in_heap=0";
   V8::SetFlagsFromString(no_typed_array_heap, sizeof(no_typed_array_heap) - 1);
 
-  if (!use_debug_agent) {
+  if (!debug_options.debugger_enabled() && !debug_options.inspector_enabled()) {
     RegisterDebugSignalHandler();
   }
 
@@ -4419,11 +4356,14 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   Environment env(isolate_data, context);
   env.Start(argc, argv, exec_argc, exec_argv, v8_is_profiling);
 
+  bool debug_enabled =
+      debug_options.debugger_enabled() || debug_options.inspector_enabled();
+
   // Start debug agent when argv has --debug
-  if (use_debug_agent) {
+  if (debug_enabled) {
     const char* path = argc > 1 ? argv[1] : nullptr;
-    StartDebug(&env, path, debug_wait_connect);
-    if (use_inspector && !debugger_running)
+    StartDebug(&env, path, debug_options);
+    if (!debugger_running)
       return 12;  // Signal internal error.
   }
 
@@ -4435,7 +4375,7 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
   env.set_trace_sync_io(trace_sync_io);
 
   // Enable debugger
-  if (use_debug_agent)
+  if (debug_enabled)
     EnableDebug(&env);
 
   {
@@ -4549,10 +4489,20 @@ int Start(int argc, char** argv) {
 #endif
 
   v8_platform.Initialize(v8_thread_pool_size);
+  // Enable tracing when argv has --trace-events-enabled.
+  if (trace_enabled) {
+    fprintf(stderr, "Warning: Trace event is an experimental feature "
+            "and could change at any time.\n");
+    tracing_agent = new tracing::Agent();
+    tracing_agent->Start(v8_platform.platform_, trace_enabled_categories);
+  }
   V8::Initialize();
   v8_initialized = true;
   const int exit_code =
       Start(uv_default_loop(), argc, argv, exec_argc, exec_argv);
+  if (trace_enabled) {
+    tracing_agent->Stop();
+  }
   v8_initialized = false;
   V8::Dispose();
 

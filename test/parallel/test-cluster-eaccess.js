@@ -37,7 +37,7 @@ if (cluster.isMaster) {
 
 } else {
   common.refreshTmpDir();
-  var cp = fork(common.fixturesDir + '/listen-on-socket-and-exit.js',
+  const cp = fork(common.fixturesDir + '/listen-on-socket-and-exit.js',
                 { stdio: 'inherit' });
 
   // message from the child indicates it's ready and listening

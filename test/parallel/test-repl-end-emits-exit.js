@@ -9,7 +9,7 @@ let regularExit = 0;
 const stream = new common.ArrayStream();
 
 function testTerminalMode() {
-  var r1 = repl.start({
+  const r1 = repl.start({
     input: stream,
     output: stream,
     terminal: true
@@ -28,7 +28,7 @@ function testTerminalMode() {
 }
 
 function testRegularMode() {
-  var r2 = repl.start({
+  const r2 = repl.start({
     input: stream,
     output: stream,
     terminal: false
@@ -45,8 +45,8 @@ function testRegularMode() {
 }
 
 process.on('exit', function() {
-  assert.equal(terminalExit, 1);
-  assert.equal(regularExit, 1);
+  assert.strictEqual(terminalExit, 1);
+  assert.strictEqual(regularExit, 1);
 });
 
 

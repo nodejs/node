@@ -1,20 +1,20 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
-var http = require('http');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
+const http = require('http');
 
-var body = 'hello world\n';
+const body = 'hello world\n';
 
 function test(handler, request_generator, response_validator) {
-  var server = http.createServer(handler);
+  const server = http.createServer(handler);
 
-  var client_got_eof = false;
-  var server_response = '';
+  let client_got_eof = false;
+  let server_response = '';
 
   server.listen(0);
   server.on('listening', function() {
-    var c = net.createConnection(this.address().port);
+    const c = net.createConnection(this.address().port);
 
     c.setEncoding('utf8');
 

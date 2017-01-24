@@ -19,7 +19,7 @@ const options = {
 };
 
 const clientSessions = [];
-var serverRequests = 0;
+let serverRequests = 0;
 
 const agent = new https.Agent({
   maxCachedSessions: 0
@@ -29,7 +29,7 @@ const server = https.createServer(options, function(req, res) {
   serverRequests++;
   res.end('ok');
 }).listen(0, function() {
-  var waiting = TOTAL_REQS;
+  let waiting = TOTAL_REQS;
   function request() {
     const options = {
       agent: agent,
@@ -52,8 +52,8 @@ const server = https.createServer(options, function(req, res) {
 });
 
 process.on('exit', function() {
-  assert.equal(serverRequests, TOTAL_REQS);
-  assert.equal(clientSessions.length, TOTAL_REQS);
-  assert.notEqual(clientSessions[0].toString('hex'),
-                  clientSessions[1].toString('hex'));
+  assert.strictEqual(serverRequests, TOTAL_REQS);
+  assert.strictEqual(clientSessions.length, TOTAL_REQS);
+  assert.notStrictEqual(clientSessions[0].toString('hex'),
+                        clientSessions[1].toString('hex'));
 });

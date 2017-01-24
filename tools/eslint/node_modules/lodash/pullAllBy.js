@@ -14,8 +14,7 @@ var baseIteratee = require('./_baseIteratee'),
  * @category Array
  * @param {Array} array The array to modify.
  * @param {Array} values The values to remove.
- * @param {Function} [iteratee=_.identity]
- *  The iteratee invoked per element.
+ * @param {Function} [iteratee=_.identity] The iteratee invoked per element.
  * @returns {Array} Returns `array`.
  * @example
  *

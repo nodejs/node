@@ -62,7 +62,7 @@ using v8::Value;
     url.flags |= URL_FLAGS_TERMINATED;                                        \
     goto done;                                                                \
   }
-#define FAILED()                                                              \
+#define URL_FAILED()                                                          \
   {                                                                           \
     url.flags |= URL_FLAGS_FAILED;                                            \
     goto done;                                                                \
@@ -96,50 +96,50 @@ using v8::Value;
 namespace url {
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
-  static int ToUnicode(std::string* input, std::string* output) {
+  static bool ToUnicode(std::string* input, std::string* output) {
     MaybeStackBuffer<char> buf;
     if (i18n::ToUnicode(&buf, input->c_str(), input->length()) < 0)
-      return -1;
+      return false;
     output->assign(*buf, buf.length());
-    return 0;
+    return true;
   }
 
-  static int ToASCII(std::string* input, std::string* output) {
+  static bool ToASCII(std::string* input, std::string* output) {
     MaybeStackBuffer<char> buf;
     if (i18n::ToASCII(&buf, input->c_str(), input->length()) < 0)
-      return -1;
+      return false;
     output->assign(*buf, buf.length());
-    return 0;
+    return true;
   }
 
   // Unfortunately there's not really a better way to do this.
   // Iterate through each encoded codepoint and verify that
   // it is a valid unicode codepoint.
-  static int IsValidUTF8(std::string* input) {
+  static bool IsValidUTF8(std::string* input) {
     const char* p = input->c_str();
     int32_t len = input->length();
     for (int32_t i = 0; i < len;) {
       UChar32 c;
       U8_NEXT_UNSAFE(p, i, c);
       if (!U_IS_UNICODE_CHAR(c))
-        return -1;
+        return false;
     }
-    return 0;
+    return true;
   }
 #else
   // Intentional non-ops if ICU is not present.
-  static int ToUnicode(std::string* input, std::string* output) {
-    output->reserve(input->length());
-    *output = input->c_str();
+  static bool ToUnicode(std::string* input, std::string* output) {
+    *output = *input;
+    return true;
   }
 
-  static int ToASCII(std::string* input, std::string* output) {
-    output->reserve(input->length());
-    *output = input->c_str();
+  static bool ToASCII(std::string* input, std::string* output) {
+    *output = *input;
+    return true;
   }
 
-  static int IsValidUTF8(std::string* input) {
-    return 0;
+  static bool IsValidUTF8(std::string* input) {
+    return true;
   }
 #endif
 
@@ -261,7 +261,7 @@ namespace url {
     return type;
   }
 
-  static inline int ParseNumber(const char* start, const char* end) {
+  static inline int64_t ParseNumber(const char* start, const char* end) {
     unsigned R = 10;
     if (end - start >= 2 && start[0] == '0' && (start[1] | 0x20) == 'x') {
       start += 2;
@@ -293,7 +293,7 @@ namespace url {
       }
       p++;
     }
-    return strtol(start, NULL, R);
+    return strtoll(start, NULL, R);
   }
 
   static url_host_type ParseIPv4Host(url_host* host,
@@ -305,7 +305,8 @@ namespace url {
     const char* end = pointer + length;
     int parts = 0;
     uint32_t val = 0;
-    unsigned numbers[4];
+    uint64_t numbers[4];
+    int tooBigNumbers = 0;
     if (length == 0)
       goto end;
 
@@ -313,20 +314,16 @@ namespace url {
       const char ch = pointer < end ? pointer[0] : kEOL;
       const int remaining = end - pointer - 1;
       if (ch == '.' || ch == kEOL) {
-        if (++parts > 4 || pointer - mark == 0)
-          break;
-        int n = ParseNumber(mark, pointer);
-        if (n < 0) {
-          type = HOST_TYPE_DOMAIN;
+        if (++parts > 4)
           goto end;
-        }
-        if (pointer - mark == 10) {
-          numbers[parts - 1] = n;
+        if (pointer - mark == 0)
           break;
-        }
+        int64_t n = ParseNumber(mark, pointer);
+        if (n < 0)
+          goto end;
+
         if (n > 255) {
-          type = HOST_TYPE_FAILED;
-          goto end;
+          tooBigNumbers++;
         }
         numbers[parts - 1] = n;
         mark = pointer + 1;
@@ -335,14 +332,23 @@ namespace url {
       }
       pointer++;
     }
+    CHECK_GT(parts, 0);
+
+    // If any but the last item in numbers is greater than 255, return failure.
+    // If the last item in numbers is greater than or equal to
+    // 256^(5 - the number of items in numbers), return failure.
+    if (tooBigNumbers > 1 ||
+        (tooBigNumbers == 1 && numbers[parts - 1] <= 255) ||
+        numbers[parts - 1] >= pow(256, static_cast<double>(5 - parts))) {
+      type = HOST_TYPE_FAILED;
+      goto end;
+    }
 
     type = HOST_TYPE_IPV4;
-    if (parts > 0) {
-      val = numbers[parts - 1];
-      for (int n = 0; n < parts - 1; n++) {
-        double b = 3-n;
-        val += numbers[n] * pow(256, b);
-      }
+    val = numbers[parts - 1];
+    for (int n = 0; n < parts - 1; n++) {
+      double b = 3 - n;
+      val += numbers[n] * pow(256, b);
     }
 
     host->value.ipv4 = val;
@@ -375,11 +381,11 @@ namespace url {
     // If there are any invalid UTF8 byte sequences, we have to fail.
     // Unfortunately this means iterating through the string and checking
     // each decoded codepoint.
-    if (IsValidUTF8(&decoded) < 0)
+    if (!IsValidUTF8(&decoded))
       goto end;
 
     // Then we have to punycode toASCII
-    if (ToASCII(&decoded, &decoded) < 0)
+    if (!ToASCII(&decoded, &decoded))
       goto end;
 
     // If any of the following characters are still present, we have to fail
@@ -399,7 +405,7 @@ namespace url {
       goto end;
 
     // If the unicode flag is set, run the result through punycode ToUnicode
-    if (unicode && ToUnicode(&decoded, &decoded) < 0)
+    if (unicode && !ToUnicode(&decoded, &decoded))
       goto end;
 
     // It's not an IPv4 or IPv6 address, it must be a domain
@@ -493,17 +499,17 @@ namespace url {
     return host->type;
   }
 
-  static int ParseHost(std::string* input,
-                       std::string* output,
-                       bool unicode = false) {
+  static bool ParseHost(std::string* input,
+                        std::string* output,
+                        bool unicode = false) {
     if (input->length() == 0)
-      return 0;
+      return true;
     url_host host{{""}, HOST_TYPE_DOMAIN};
     ParseHost(&host, input->c_str(), input->length(), unicode);
     if (host.type == HOST_TYPE_FAILED)
-      return -1;
+      return false;
     WriteHost(&host, output);
-    return 0;
+    return true;
   }
 
   static inline void Copy(Isolate* isolate,
@@ -616,6 +622,13 @@ namespace url {
       default:
         return false;
     }
+  }
+
+  static inline void ShortenUrlPath(struct url_data* url) {
+    if (url->path.empty()) return;
+    if (url->path.size() == 1 && url->scheme == "file:" &&
+        NORMALIZED_WINDOWS_DRIVE_LETTER(url->path[0])) return;
+    url->path.pop_back();
   }
 
   static void Parse(Environment* env,
@@ -744,7 +757,7 @@ namespace url {
           break;
         case kNoScheme:
           if (!has_base || (IS_CANNOT_BE_BASE(base.flags) && ch != '#')) {
-            FAILED()
+            URL_FAILED()
           } else if (IS_CANNOT_BE_BASE(base.flags) && ch == '#') {
             SET_HAVE_SCHEME()
             url.scheme = base.scheme;
@@ -895,8 +908,7 @@ namespace url {
                 if (DOES_HAVE_PATH(base)) {
                   SET_HAVE_PATH()
                   url.path = base.path;
-                  if (!url.path.empty())
-                    url.path.pop_back();
+                  ShortenUrlPath(&url);
                 }
                 url.port = base.port;
                 state = kPath;
@@ -982,10 +994,10 @@ namespace url {
         case kHostname:
           if (ch == ':' && !sbflag) {
             if (special && buffer.size() == 0)
-              FAILED()
+              URL_FAILED()
             SET_HAVE_HOST()
-            if (ParseHost(&buffer, &url.host) < 0)
-              FAILED()
+            if (!ParseHost(&buffer, &url.host))
+              URL_FAILED()
             buffer.clear();
             state = kPort;
             if (override == kHostname)
@@ -997,10 +1009,10 @@ namespace url {
                      special_back_slash) {
             p--;
             if (special && buffer.size() == 0)
-              FAILED()
+              URL_FAILED()
             SET_HAVE_HOST()
-            if (ParseHost(&buffer, &url.host) < 0)
-              FAILED()
+            if (!ParseHost(&buffer, &url.host))
+              URL_FAILED()
             buffer.clear();
             state = kPathStart;
             if (state_override)
@@ -1029,14 +1041,14 @@ namespace url {
               if (port >= 0 && port <= 0xffff) {
                 url.port = NormalizePort(url.scheme, port);
               } else if (!state_override) {
-                FAILED()
+                URL_FAILED()
               }
               buffer.clear();
             }
             state = kPathStart;
             continue;
           } else {
-            FAILED();
+            URL_FAILED();
           }
           break;
         case kFile:
@@ -1112,8 +1124,7 @@ namespace url {
                   SET_HAVE_PATH()
                   url.path = base.path;
                 }
-                if (!url.path.empty())
-                  url.path.pop_back();
+                ShortenUrlPath(&url);
               }
               state = kPath;
               continue;
@@ -1150,8 +1161,8 @@ namespace url {
             } else {
               if (buffer != "localhost") {
                 SET_HAVE_HOST()
-                if (ParseHost(&buffer, &url.host) < 0)
-                  FAILED()
+                if (!ParseHost(&buffer, &url.host))
+                  URL_FAILED()
               }
               buffer.clear();
               state = kPathStart;
@@ -1172,8 +1183,7 @@ namespace url {
               special_back_slash ||
               (!state_override && (ch == '?' || ch == '#'))) {
             if (IsDoubleDotSegment(buffer)) {
-              if (!url.path.empty())
-                url.path.pop_back();
+              ShortenUrlPath(&url);
               if (ch != '/' && !special_back_slash) {
                 SET_HAVE_PATH()
                 url.path.push_back("");
@@ -1204,12 +1214,7 @@ namespace url {
               state = kFragment;
             }
           } else {
-            if (ch == '%' && p[1] == '2' && TO_LOWER(p[2]) == 'e') {
-              buffer += '.';
-              p += 2;
-            } else {
-              AppendOrEscape(&buffer, ch, DefaultEncodeSet);
-            }
+            AppendOrEscape(&buffer, ch, DefaultEncodeSet);
           }
           break;
         case kCannotBeBase:
@@ -1247,7 +1252,7 @@ namespace url {
             case 0:
               break;
             default:
-              buffer += ch;
+              AppendOrEscape(&buffer, ch, SimpleEncodeSet);
           }
           break;
         default:
@@ -1294,7 +1299,7 @@ namespace url {
         argv[ARG_PATH] = Copy(isolate, url.path);
     }
 
-    cb->Call(context, recv, 9, argv);
+    (void)cb->Call(context, recv, 9, argv);
   }
 
   static void Parse(const FunctionCallbackInfo<Value>& args) {

@@ -1,16 +1,16 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var http = require('http');
+const assert = require('assert');
+const http = require('http');
 
 // Verify that ServerResponse.writeHead() works as setHeader.
 // Issue 5036 on github.
 
-var s = http.createServer(function(req, res) {
+const s = http.createServer(function(req, res) {
   res.setHeader('test', '1');
 
   // toLowerCase() is used on the name argument, so it must be a string.
-  var threw = false;
+  let threw = false;
   try {
     res.setHeader(0xf00, 'bar');
   } catch (e) {
@@ -25,7 +25,8 @@ var s = http.createServer(function(req, res) {
     res.setHeader('foo', undefined);
   } catch (e) {
     assert.ok(e instanceof Error);
-    assert.equal(e.message, '"value" required in setHeader("foo", value)');
+    assert.strictEqual(e.message,
+                       '"value" required in setHeader("foo", value)');
     threw = true;
   }
   assert.ok(threw, 'Undefined value should throw');
@@ -39,7 +40,7 @@ s.listen(0, runTest);
 function runTest() {
   http.get({ port: this.address().port }, function(response) {
     response.on('end', function() {
-      assert.equal(response.headers['test'], '2');
+      assert.strictEqual(response.headers['test'], '2');
       assert.notStrictEqual(response.rawHeaders.indexOf('Test'), -1);
       s.close();
     });

@@ -5,9 +5,13 @@ var fs = require('graceful-fs')
 var mkdirp = require('mkdirp')
 var asyncMap = require('slide').asyncMap
 var rename = require('../../utils/rename.js')
+var gentlyRm = require('../../utils/gently-rm')
+var moduleStagingPath = require('../module-staging-path.js')
 
-module.exports = function (top, buildpath, pkg, log, next) {
+module.exports = function (staging, pkg, log, next) {
   log.silly('finalize', pkg.path)
+
+  var extractedTo = moduleStagingPath(staging, pkg)
 
   var delpath = path.join(path.dirname(pkg.path), '.' + path.basename(pkg.path) + '.DELETE')
 
@@ -22,7 +26,7 @@ module.exports = function (top, buildpath, pkg, log, next) {
 
   function destStatted (doesNotExist) {
     if (doesNotExist) {
-      rename(buildpath, pkg.path, whenMoved)
+      rename(extractedTo, pkg.path, whenMoved)
     } else {
       moveAway()
     }
@@ -40,7 +44,7 @@ module.exports = function (top, buildpath, pkg, log, next) {
 
   function whenOldMovedAway (renameEr) {
     if (renameEr) return next(renameEr)
-    rename(buildpath, pkg.path, whenConflictMoved)
+    rename(extractedTo, pkg.path, whenConflictMoved)
   }
 
   function whenConflictMoved (renameEr) {
@@ -76,17 +80,6 @@ module.exports = function (top, buildpath, pkg, log, next) {
   }
 }
 
-module.exports.rollback = function (buildpath, pkg, next) {
-  var top = path.resolve(buildpath, '..')
-  rimraf(pkg.path, function () {
-    removeEmptyParents(pkg.path)
-  })
-  function removeEmptyParents (pkgdir) {
-    if (path.relative(top, pkgdir)[0] === '.') return next()
-    fs.rmdir(pkgdir, function (er) {
-      // FIXME: Make sure windows does what we want here
-      if (er && er.code !== 'ENOENT') return next()
-      removeEmptyParents(path.resolve(pkgdir, '..'))
-    })
-  }
+module.exports.rollback = function (top, staging, pkg, next) {
+  gentlyRm(pkg.path, false, top, next)
 }

@@ -39,8 +39,8 @@ function listener() {}
   assert.deepStrictEqual(bazListeners, [listener, listener]);
   // After calling removeAllListeners(),
   // new listeners arrays is different from the old.
-  assert.notEqual(ee.listeners('bar'), barListeners);
-  assert.notEqual(ee.listeners('baz'), bazListeners);
+  assert.notStrictEqual(ee.listeners('bar'), barListeners);
+  assert.notStrictEqual(ee.listeners('baz'), bazListeners);
 }
 
 {
@@ -66,7 +66,7 @@ function listener() {}
 
 {
   const ee = new events.EventEmitter();
-  var expectLength = 2;
+  let expectLength = 2;
   ee.on('removeListener', function(name, listener) {
     assert.strictEqual(expectLength--, this.listeners('baz').length);
   });

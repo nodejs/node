@@ -1,15 +1,15 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const assert = require('assert');
+const net = require('net');
 
-var server = net.createServer(function(s) {
+const server = net.createServer(function(s) {
   console.error('SERVER: got connection');
   s.end();
 });
 
 server.listen(0, common.mustCall(function() {
-  var c = net.createConnection(this.address().port);
+  const c = net.createConnection(this.address().port);
   c.on('close', common.mustCall(function() {
     console.error('connection closed');
     assert.strictEqual(c._handle, null);

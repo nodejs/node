@@ -1,14 +1,14 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var stream = require('stream');
-var util = require('util');
+const common = require('../common');
+const assert = require('assert');
+const stream = require('stream');
+const util = require('util');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var crypto = require('crypto');
+const crypto = require('crypto');
 
 // Small stream to buffer converter
 function Stream2buffer(callback) {
@@ -28,10 +28,12 @@ Stream2buffer.prototype._write = function(data, encodeing, done) {
 
 if (!common.hasFipsCrypto) {
   // Create an md5 hash of "Hallo world"
-  var hasher1 = crypto.createHash('md5');
+  const hasher1 = crypto.createHash('md5');
   hasher1.pipe(new Stream2buffer(common.mustCall(function end(err, hash) {
-    assert.equal(err, null);
-    assert.equal(hash.toString('hex'), '06460dadb35d3d503047ce750ceb2d07');
+    assert.strictEqual(err, null);
+    assert.strictEqual(
+      hash.toString('hex'), '06460dadb35d3d503047ce750ceb2d07'
+    );
   })));
   hasher1.end('Hallo world');
 

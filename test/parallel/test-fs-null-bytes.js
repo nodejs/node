@@ -1,19 +1,18 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
 
 function check(async, sync) {
-  var expected = /Path must be a string without null bytes/;
-  var argsSync = Array.prototype.slice.call(arguments, 2);
-  var argsAsync = argsSync.concat(function(er) {
+  const expected = /Path must be a string without null bytes/;
+  const argsSync = Array.prototype.slice.call(arguments, 2);
+  const argsAsync = argsSync.concat((er) => {
     assert(er && er.message.match(expected));
-    assert.equal(er.code, 'ENOENT');
+    assert.strictEqual(er.code, 'ENOENT');
   });
 
   if (sync)
-    assert.throws(function() {
-      console.error(sync.name, argsSync);
+    assert.throws(() => {
       sync.apply(null, argsSync);
     }, expected);
 
@@ -51,7 +50,7 @@ check(fs.writeFile, fs.writeFileSync, 'foo\u0000bar');
 
 // an 'error' for exists means that it doesn't exist.
 // one of many reasons why this file is the absolute worst.
-fs.exists('foo\u0000bar', function(exists) {
+fs.exists('foo\u0000bar', common.mustCall((exists) => {
   assert(!exists);
-});
+}));
 assert(!fs.existsSync('foo\u0000bar'));

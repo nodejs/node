@@ -1,6 +1,13 @@
 'use strict';
 const common = require('../common');
+
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
+}
+
 const http = require('http');
+const https = require('https');
 const assert = require('assert');
 const hostExpect = 'localhost';
 const fs = require('fs');
@@ -13,12 +20,6 @@ const options = {
 let gotHttpsResp = false;
 let gotHttpResp = false;
 
-if (common.hasCrypto) {
-  var https = require('https');
-} else {
-  common.skip('missing crypto');
-}
-
 process.on('exit', function() {
   if (common.hasCrypto) {
     assert(gotHttpsResp);
@@ -28,8 +29,8 @@ process.on('exit', function() {
 });
 
 http.createServer(function(req, res) {
-  assert.equal(req.headers.host, hostExpect);
-  assert.equal(req.headers['x-port'], this.address().port);
+  assert.strictEqual(req.headers.host, hostExpect);
+  assert.strictEqual(req.headers['x-port'], this.address().port.toString());
   res.writeHead(200);
   res.end('ok');
   this.close();
@@ -48,8 +49,8 @@ http.createServer(function(req, res) {
 
 if (common.hasCrypto) {
   https.createServer(options, function(req, res) {
-    assert.equal(req.headers.host, hostExpect);
-    assert.equal(req.headers['x-port'], this.address().port);
+    assert.strictEqual(req.headers.host, hostExpect);
+    assert.strictEqual(req.headers['x-port'], this.address().port.toString());
     res.writeHead(200);
     res.end('ok');
     this.close();

@@ -1,9 +1,9 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 // the default behavior, return an Array "tuple" of numbers
-var tuple = process.hrtime();
+const tuple = process.hrtime();
 
 // validate the default behavior
 validateTuple(tuple);
@@ -12,17 +12,24 @@ validateTuple(tuple);
 validateTuple(process.hrtime(tuple));
 
 // test that only an Array may be passed to process.hrtime()
-assert.throws(function() {
+assert.throws(() => {
   process.hrtime(1);
-});
+}, /^TypeError: process.hrtime\(\) only accepts an Array tuple$/);
+assert.throws(() => {
+  process.hrtime([]);
+}, /^TypeError: process.hrtime\(\) only accepts an Array tuple$/);
+assert.throws(() => {
+  process.hrtime([1]);
+}, /^TypeError: process.hrtime\(\) only accepts an Array tuple$/);
+assert.throws(() => {
+  process.hrtime([1, 2, 3]);
+}, /^TypeError: process.hrtime\(\) only accepts an Array tuple$/);
 
 function validateTuple(tuple) {
   assert(Array.isArray(tuple));
-  assert.equal(2, tuple.length);
-  tuple.forEach(function(v) {
-    assert.equal('number', typeof v);
-    assert(isFinite(v));
-  });
+  assert.strictEqual(tuple.length, 2);
+  assert(Number.isInteger(tuple[0]));
+  assert(Number.isInteger(tuple[1]));
 }
 
 const diff = process.hrtime([0, 1e9 - 1]);
