@@ -37,7 +37,8 @@ const typeMap = {
   'http.Server': 'http.html#http_class_http_server',
   'http.ServerResponse': 'http.html#http_class_http_serverresponse',
   'Iterator': jsDocPrefix +
-              'Reference/Iteration_protocols#The_iterator_protocol'
+              'Reference/Iteration_protocols#The_iterator_protocol',
+  'URL': 'url.html#url_the_whatwg_url_api'
 };
 
 module.exports = {
