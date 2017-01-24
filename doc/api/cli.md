@@ -257,6 +257,24 @@ Load an OpenSSL configuration file on startup. Among other uses, this can be
 used to enable FIPS-compliant crypto if Node.js is built with
 `./configure --openssl-fips`.
 
+### `--use-openssl-ca`, `--use-bundled-ca`
+<!-- YAML
+added: REPLACEME
+-->
+
+Use OpenSSL's default CA store or use bundled Mozilla CA store as supplied by
+current NodeJS version. The default store is selectable at build-time.
+
+Using OpenSSL store allows for external modifications of the store. For most
+Linux and BSD distributions, this store is maintained by the distribution
+maintainers and system administrators. OpenSSL CA store location is dependent on
+configuration of the OpenSSL library but this can be altered at runtime using
+environmental variables.
+
+The bundled CA store, as supplied by NodeJS, is a snapshot of Mozilla CA store
+that is fixed at release time. It is identical on all supported platforms.
+
+See `SSL_CERT_DIR` and `SSL_CERT_FILE`.
 
 ### `--icu-data-dir=file`
 <!-- YAML
@@ -349,6 +367,16 @@ misformatted, but any errors are otherwise ignored.
 
 Note that neither the well known nor extra certificates are used when the `ca`
 options property is explicitly specified for a TLS or HTTPS client or server.
+
+### `SSL_CERT_DIR=dir`
+
+If `--use-openssl-ca` is enabled, this overrides and sets OpenSSL's directory
+containing trusted certificates.
+
+### `SSL_CERT_FILE=file`
+
+If `--use-openssl-ca` is enabled, this overrides and sets OpenSSL's file
+containing trusted certificates.
 
 [emit_warning]: process.html#process_process_emitwarning_warning_name_ctor
 [Buffer]: buffer.html#buffer_buffer
