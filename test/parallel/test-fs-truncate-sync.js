@@ -15,3 +15,6 @@ const fd = fs.openSync(filename, 'r+');
 
 fs.truncateSync(fd, 5);
 assert(fs.readFileSync(fd).equals(Buffer.from('hello')));
+
+fs.closeSync(fd);
+fs.unlinkSync(filename);
