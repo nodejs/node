@@ -822,10 +822,10 @@ void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
                                            root_cert_store,
                                            extra_root_certs_file.c_str());
       if (err) {
-        ProcessEmitWarning(sc->env(),
-                           "Ignoring extra certs from `%s`, load failed: %s\n",
-                           extra_root_certs_file.c_str(),
-                           ERR_error_string(err, nullptr));
+        fprintf(stderr,
+                "Warning: Ignoring extra certs from `%s`, load failed: %s\n",
+                extra_root_certs_file.c_str(),
+                ERR_error_string(err, nullptr));
       }
     }
   }

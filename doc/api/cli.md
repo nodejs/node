@@ -232,8 +232,8 @@ added: XXX
 
 When set, the well known "root" CAs (like VeriSign) will be extended with the
 extra certificates in `file`. The file should consist of one or more trusted
-certificates in PEM format. A message will be emitted (once) with
-[`process.emitWarning()`][emit_warning] if the file is missing or
+certificates in PEM format. A message will be printed to stderr (once)
+if the file is missing or
 misformatted, but any errors are otherwise ignored.
 
 Note that neither the well known nor extra certificates are used when the `ca`
