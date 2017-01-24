@@ -198,6 +198,47 @@ The formatting process operates as follows:
   string, an [`Error`][] is thrown.
 * `result` is returned.
 
+## url.format(URL[, options])
+
+> Stability: 1 - Experimental
+
+* `URL` {URL} A [WHATWG URL][] object
+* `options` {Object}
+  * `auth` {Boolean} `true` if the serialized URL string should include the
+    username and password, `false` otherwise. Defaults to `true`.
+  * `fragment` {Boolean} `true` if the serialized URL string should include the
+    fragment, `false` otherwise. Defaults to `true`.
+  * `search` {Boolean} `true` if the serialized URL string should include the
+    search query, `false` otherwise. Defaults to `true`.
+  * `unicode` (Boolean) `true` if Unicode characters appearing in the host
+    component of the URL string should be encoded directly as opposed to being
+    Punycode encoded. Defaults to `false`.
+
+Returns a customizable serialization of a URL String representation of a
+[WHATWG URL][] object.
+
+The URL object has both a `toString()` method and `href` property that return
+string serializations of the URL. These are not, however, customizable in
+any way. The `url.format(URL[, options])` method allows for basic customization
+of the output.
+
+For example:
+
+```js
+const myURL = new URL('https://a:b@你好你好?abc#foo');
+
+console.log(myURL.href);
+  // Prints https://a:b@xn--6qqa088eba/?abc#foo
+
+console.log(myURL.toString());
+  // Prints https://a:b@xn--6qqa088eba/?abc#foo
+
+console.log(url.format(myURL, {fragment: false, unicode: true, auth: false}));
+  // Prints 'https://你好你好?abc'
+```
+
+*Note*: This variation of the `url.format()` method is currently considered to
+be experimental.
 
 ## url.parse(urlString[, parseQueryString[, slashesDenoteHost]])
 <!-- YAML
@@ -830,3 +871,4 @@ console.log(myURL.origin);
 [Punycode]: https://tools.ietf.org/html/rfc5891#section-4.4
 [`Map`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
 [`array.toString()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/toString
+[WHATWG URL]: #url_the_whatwg_url_api
