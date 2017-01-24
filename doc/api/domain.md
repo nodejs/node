@@ -153,7 +153,7 @@ if (cluster.isMaster) {
   server.listen(PORT);
 }
 
-// This part isn't important.  Just an example routing thing.
+// This part is not important.  Just an example routing thing.
 // You'd put your fancy application logic here.
 function handleRequest(req, res) {
   switch (req.url) {

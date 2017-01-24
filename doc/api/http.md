@@ -298,7 +298,7 @@ added: v0.7.0
 * `head` {Buffer}
 
 Emitted each time a server responds to a request with a `CONNECT` method. If this
-event isn't being listened for, clients receiving a `CONNECT` method will have
+event is not being listened for, clients receiving a `CONNECT` method will have
 their connections closed.
 
 A client and server pair that shows you how to listen for the `'connect'` event:
@@ -396,7 +396,7 @@ added: v0.1.94
 * `head` {Buffer}
 
 Emitted each time a server responds to a request with an upgrade. If this
-event isn't being listened for, clients receiving an upgrade header will have
+event is not being listened for, clients receiving an upgrade header will have
 their connections closed.
 
 A client server pair that show you how to listen for the `'upgrade'` event.
@@ -489,7 +489,7 @@ call `request.end()` or write the first chunk of request data.  It then tries
 hard to pack the request headers and data into a single TCP packet.
 
 That's usually what you want (it saves a TCP round-trip) but not when the first
-data isn't sent until possibly much later.  `request.flushHeaders()` lets you bypass
+data is not sent until possibly much later.  `request.flushHeaders()` lets you bypass
 the optimization and kickstart the request.
 
 ### request.setNoDelay([noDelay])
@@ -565,7 +565,7 @@ added: v0.3.0
 * `response` {http.ServerResponse}
 
 Emitted each time a request with an HTTP `Expect: 100-continue` is received.
-If this event isn't listened for, the server will automatically respond
+If this event is not listened for, the server will automatically respond
 with a `100 Continue` as appropriate.
 
 Handling this event involves calling [`response.writeContinue()`][] if the client
@@ -585,7 +585,7 @@ added: v5.5.0
 * `response` {http.ServerResponse}
 
 Emitted each time a request with an HTTP `Expect` header is received, where the
-value is not `100-continue`. If this event isn't listened for, the server will
+value is not `100-continue`. If this event is not listened for, the server will
 automatically respond with a `417 Expectation Failed` as appropriate.
 
 Note that when this event is emitted and handled, the [`'request'`][] event will
@@ -642,8 +642,8 @@ added: v0.7.0
 * `socket` {net.Socket} Network socket between the server and client
 * `head` {Buffer} The first packet of the tunneling stream (may be empty)
 
-Emitted each time a client requests an HTTP `CONNECT` method. If this event isn't
-listened for, then clients requesting a `CONNECT` method will have their
+Emitted each time a client requests an HTTP `CONNECT` method. If this event is
+not listened for, then clients requesting a `CONNECT` method will have their
 connections closed.
 
 After this event is emitted, the request's socket will not have a `'data'`
@@ -684,7 +684,7 @@ added: v0.1.94
 * `socket` {net.Socket} Network socket between the server and client
 * `head` {Buffer} The first packet of the upgraded stream (may be empty)
 
-Emitted each time a client requests an HTTP upgrade. If this event isn't
+Emitted each time a client requests an HTTP upgrade. If this event is not
 listened for, then clients requesting an upgrade will have their connections
 closed.
 
