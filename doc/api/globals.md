@@ -32,7 +32,7 @@ added: v0.1.27
 The directory name of the current module. This the same as the
 [`path.dirname()`][] of the [`__filename`][].
 
-`__dirname` isn't actually a global but rather local to each module.
+`__dirname` is not actually a global but rather local to each module.
 
 Example: running `node example.js` from `/Users/mjr`
 
@@ -60,7 +60,7 @@ command line.
 
 See [`__dirname`][] for the directory name of the current module.
 
-`__filename` isn't actually a global but rather local to each module.
+`__filename` is not actually a global but rather local to each module.
 
 Examples:
 
@@ -132,7 +132,7 @@ A reference to the `module.exports` that is shorter to type.
 See [module system documentation][] for details on when to use `exports` and
 when to use `module.exports`.
 
-`exports` isn't actually a global but rather local to each module.
+`exports` is not actually a global but rather local to each module.
 
 See the [module system documentation][] for more information.
 
@@ -163,7 +163,7 @@ A reference to the current module. In particular
 `module.exports` is used for defining what a module exports and makes
 available through `require()`.
 
-`module` isn't actually a global but rather local to each module.
+`module` is not actually a global but rather local to each module.
 
 See the [module system documentation][] for more information.
 
@@ -187,7 +187,7 @@ added: v0.1.13
 
 * {Function}
 
-To require modules. See the [Modules][] section.  `require` isn't actually a
+To require modules. See the [Modules][] section.  `require` is not actually a
 global but rather local to each module.
 
 ### require.cache
