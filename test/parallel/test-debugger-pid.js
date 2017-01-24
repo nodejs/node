@@ -19,7 +19,6 @@ const onData = function(data) {
   });
 };
 interfacer.stdout.on('data', onData);
-interfacer.stderr.on('data', onData);
 
 let lineCount = 0;
 interfacer.on('line', function(line) {
