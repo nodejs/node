@@ -51,33 +51,26 @@ added: v0.3.4
 An `Agent` is responsible for managing connection persistence
 and reuse for HTTP clients. It maintains a queue of pending requests
 for a given host and port, reusing a single socket connection for each
-until the queue is empty, at which time the socket is destroyed.
-When a socket connection is no longer writable, for example, if a server
-closes the connection, the socket is destroyed.
+until the queue is empty, at which time the socket is either destroyed
+or put into a pool where it is kept to be used again for requests to the
+same host and port. Whether it is destroyed or pooled depends on the
+`keepAlive` [option](#http_new_agent_options).
 
-Unless an `Agent` is expressly provided in the [`http.request()`]
-options, all HTTP client requests will use the default
-[`http.globalAgent`].
+Pooled connections have TCP Keep-Alive enabled for them, but servers may
+still close idle connections, in which case they will be removed from the
+pool and a new connection will be made when a new HTTP request is made for
+that host and port. Servers may also refuse to allow multiple requests
+over the same connection, in which case the connection will have to be
+remade for every request and cannot be pooled. The `Agent` will still make
+the requests to that server, but each one will occur over a new connection.
 
-In addition to managing connection persistence for queued HTTP
-requests, an `Agent` can be used for pooling sockets across multiple
-client requests. When providing `{ keepAlive: true }` among the
-[constructor options], the `Agent` will not destroy sockets when
-the request queue has been emptied. Rather, it will pool these
-sockets for later requests to the same host.
+When a connection is closed by the client or the server, it is removed
+from the pool. Any unused sockets in the pool will be unrefed so as not
+to keep the Node.js process running when there are no outstanding requests.
+(see [socket.unref()]).
 
-By providing `{ keepAlive: true }` as a constructor option to the the
-HTTP `Agent`, sockets will not only be pooled, but the HTTP header
-`Connection: keep-alive` will be sent by default for all client
-requests. This also results in periodic TCP `SO_KEEPALIVE` requests
-from the client to the server.
-
-When a connection is closedby the client or the server, it is removed
-from the pool. Any unused sockets in the pool
-will be unrefed so as not to keep the Node.js process running
-(see [socket.unref()]). It is good practice, however, to [`destroy()`][]
-a client `Agent` when it is no longer in use, because unused sockets
-consume OS resources.
+It is good practice, to [`destroy()`][] an `Agent` instance when it is no
+longer in use, because unused sockets consume OS resources.
 
 Sockets are removed from an agent's pool when the socket emits either
 a `'close'` event or an `'agentRemove'` event. This means that if
@@ -94,8 +87,8 @@ http.get(options, (res) => {
 
 You may also use an agent for an individual request. By providing
 `{agent: false}` as an option to the `http.get()` or `http.request()`
-functions, a one-time use `Agent` with default options and no connection
-pooling will be used for the client connection.
+functions, a one-time use `Agent` with default options will be used
+for the client connection.
 
 `agent:false`:
 
@@ -118,11 +111,12 @@ added: v0.3.4
 * `options` {Object} Set of configurable options to set on the agent.
   Can have the following fields:
   * `keepAlive` {Boolean} Keep sockets around even when there are no
-    outstanding requests, so it can be used for future requests without
-    having to reestablish an HTTP connection. Default = `false`
-  * `keepAliveMsecs` {Integer} When using the `keepAlive` option, how
-    often to send TCP `SO_KEEPALIVE` `ACK` packets. Ignored when the
-    `keepAlive` option is false or undefined. Default = `1000`.
+    outstanding requests, so they can be used for future requests without
+    having to reestablish a TCP connection. Default = `false`
+  * `keepAliveMsecs` {Integer} When using the `keepAlive` option, specifies
+    the [initial delay](#net_socket_setkeepalive_enable_initialdelay)
+    for TCP Keep-Alive packets. Ignored when the
+    `keepAlive` option is `false` or `undefined`. Default = `1000`.
   * `maxSockets` {Number} Maximum number of sockets to allow per
     host.  Default = `Infinity`.
   * `maxFreeSockets` {Number} Maximum number of sockets to leave open
