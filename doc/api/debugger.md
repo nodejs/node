@@ -117,7 +117,7 @@ script.js
 on line 1
 
 It is also possible to set a breakpoint in a file (module) that
-isn't loaded yet:
+is not loaded yet:
 
 ```txt
 $ node debug test/fixtures/break-in-module/main.js
