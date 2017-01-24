@@ -69,7 +69,7 @@ const Console = console.Console;
 
 Creates a new `Console` by passing one or two writable stream instances.
 `stdout` is a writable stream to print log or info output. `stderr`
-is used for warning or error output. If `stderr` isn't passed, warning and error
+is used for warning or error output. If `stderr` is not passed, warning and error
 output will be sent to `stdout`.
 
 ```js
