@@ -1623,7 +1623,7 @@ There are a few special headers that should be noted.
 * Sending a 'Connection: keep-alive' will notify Node.js that the connection to
   the server should be persisted until the next request.
 
-* Sending a 'Content-length' header will disable the default chunked encoding.
+* Sending a 'Content-Length' header will disable the default chunked encoding.
 
 * Sending an 'Expect' header will immediately send the request headers.
   Usually, when sending 'Expect: 100-continue', you should both set a timeout
