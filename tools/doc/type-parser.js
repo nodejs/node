@@ -39,7 +39,8 @@ const typeMap = {
   'Iterable': jsDocPrefix +
               'Reference/Iteration_protocols#The_iterable_protocol',
   'Iterator': jsDocPrefix +
-              'Reference/Iteration_protocols#The_iterator_protocol'
+              'Reference/Iteration_protocols#The_iterator_protocol',
+  'URL': 'url.html#url_the_whatwg_url_api'
 };
 
 module.exports = {
