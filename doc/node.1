@@ -257,6 +257,16 @@ Setting this will void any guarantee that stdio will not be interleaved or
 dropped at program exit. \fBAvoid use.\fR
 
 .TP
+.BR OPENSSL_CONF = \fIfile\fR
+Load an OpenSSL configuration file on startup. Among other uses, this can be
+used to enable FIPS-compliant crypto if Node.js is built with
+\fB./configure \-\-openssl\-fips\fR.
+
+If the
+\fB\-\-openssl\-config\fR
+command line option is used, the environment variable is ignored.
+
+.TP
 .BR SSL_CERT_DIR = \fIdir\fR
 If \fB\-\-use\-openssl\-ca\fR is enabled, this overrides and sets OpenSSL's directory
 containing trusted certificates.

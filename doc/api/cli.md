@@ -387,6 +387,18 @@ misformatted, but any errors are otherwise ignored.
 Note that neither the well known nor extra certificates are used when the `ca`
 options property is explicitly specified for a TLS or HTTPS client or server.
 
+### `OPENSSL_CONF=file`
+<!-- YAML
+added: REPLACEME
+-->
+
+Load an OpenSSL configuration file on startup. Among other uses, this can be
+used to enable FIPS-compliant crypto if Node.js is built with `./configure
+\-\-openssl\-fips`.
+
+If the [`--openssl-config`][] command line option is used, the environment
+variable is ignored.
+
 ### `SSL_CERT_DIR=dir`
 
 If `--use-openssl-ca` is enabled, this overrides and sets OpenSSL's directory
@@ -421,3 +433,4 @@ equivalent to using the `--redirect-warnings=file` command-line flag.
 [debugger]: debugger.html
 [REPL]: repl.html
 [SlowBuffer]: buffer.html#buffer_class_slowbuffer
+[`--openssl-config`]: #cli_openssl_config_file
