@@ -11,7 +11,7 @@
  * @returns {*} Returns the accumulated value.
  */
 function arrayReduceRight(array, iteratee, accumulator, initAccum) {
-  var length = array ? array.length : 0;
+  var length = array == null ? 0 : array.length;
   if (initAccum && length) {
     accumulator = array[--length];
   }

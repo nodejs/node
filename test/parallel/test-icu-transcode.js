@@ -1,8 +1,13 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const buffer = require('buffer');
 const assert = require('assert');
+
+if (!common.hasIntl) {
+  common.skip('icu punycode tests because ICU is not present.');
+  return;
+}
 
 const orig = Buffer.from('tést €', 'utf8');
 
@@ -18,7 +23,7 @@ const tests = {
 for (const test in tests) {
   const dest = buffer.transcode(orig, 'utf8', test);
   assert.strictEqual(dest.length, tests[test].length);
-  for (var n = 0; n < tests[test].length; n++)
+  for (let n = 0; n < tests[test].length; n++)
     assert.strictEqual(dest[n], tests[test][n]);
 }
 

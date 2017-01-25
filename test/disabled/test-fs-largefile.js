@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path'),
+const common = require('../common');
+const assert = require('assert');
+const path = require('path'),
     fs = require('fs'),
     filepath = path.join(common.tmpDir, 'large.txt'),
     fd = fs.openSync(filepath, 'w+'),

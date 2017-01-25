@@ -1,22 +1,22 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var http = require('http');
+const assert = require('assert');
+const http = require('http');
 
-var server = http.Server(function(req, res) {
+const server = http.Server(function(req, res) {
   res.writeHead(200);
   res.end('hello world\n');
 });
 
-var responses = 0;
-var N = 4;
-var M = 4;
+let responses = 0;
+const N = 4;
+const M = 4;
 
 server.listen(0, function() {
   const port = this.address().port;
-  for (var i = 0; i < N; i++) {
+  for (let i = 0; i < N; i++) {
     setTimeout(function() {
-      for (var j = 0; j < M; j++) {
+      for (let j = 0; j < M; j++) {
         http.get({ port: port, path: '/' }, function(res) {
           console.log('%d %d', responses, res.statusCode);
           if (++responses === N * M) {

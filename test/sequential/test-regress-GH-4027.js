@@ -1,12 +1,12 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
-var fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const fs = require('fs');
 
 common.refreshTmpDir();
 
-var filename = path.join(common.tmpDir, 'watched');
+const filename = path.join(common.tmpDir, 'watched');
 fs.writeFileSync(filename, 'quis custodiet ipsos custodes');
 setTimeout(fs.unlinkSync, 100, filename);
 

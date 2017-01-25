@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
-var spawn = require('child_process').spawn;
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
+const spawn = require('child_process').spawn;
 
 // Fails with EINVAL on SmartOS, EBUSY on Windows, EBUSY on AIX.
 if (common.isSunOS || common.isWindows || common.isAix) {
@@ -10,13 +10,13 @@ if (common.isSunOS || common.isWindows || common.isAix) {
   return;
 }
 
-var dirname = common.tmpDir + '/cwd-does-not-exist-' + process.pid;
+const dirname = common.tmpDir + '/cwd-does-not-exist-' + process.pid;
 common.refreshTmpDir();
 fs.mkdirSync(dirname);
 process.chdir(dirname);
 fs.rmdirSync(dirname);
 
-var proc = spawn(process.execPath, ['-e', '0']);
+const proc = spawn(process.execPath, ['-e', '0']);
 proc.stdout.pipe(process.stdout);
 proc.stderr.pipe(process.stderr);
 

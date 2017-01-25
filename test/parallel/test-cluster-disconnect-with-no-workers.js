@@ -1,9 +1,9 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
+const assert = require('assert');
+const cluster = require('cluster');
 
-var disconnected;
+let disconnected;
 
 process.on('exit', function() {
   assert(disconnected);

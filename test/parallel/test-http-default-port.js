@@ -1,6 +1,13 @@
 'use strict';
 const common = require('../common');
+
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
+}
+
 const http = require('http');
+const https = require('https');
 const assert = require('assert');
 const hostExpect = 'localhost';
 const fs = require('fs');
@@ -12,12 +19,6 @@ const options = {
 };
 let gotHttpsResp = false;
 let gotHttpResp = false;
-
-if (common.hasCrypto) {
-  var https = require('https');
-} else {
-  common.skip('missing crypto');
-}
 
 process.on('exit', function() {
   if (common.hasCrypto) {

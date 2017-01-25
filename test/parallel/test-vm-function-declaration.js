@@ -1,12 +1,12 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var vm = require('vm');
-var o = vm.createContext({ console: console });
+const vm = require('vm');
+const o = vm.createContext({ console: console });
 
 // This triggers the setter callback in node_contextify.cc
-var code = 'var a = function() {};\n';
+let code = 'var a = function() {};\n';
 
 // but this does not, since function decls are defineProperties,
 // not simple sets.
@@ -16,7 +16,7 @@ code += 'function b(){}\n';
 // we are getting the global function, and not some other thing
 code += '(function(){return this})().b;\n';
 
-var res = vm.runInContext(code, o, 'test');
+const res = vm.runInContext(code, o, 'test');
 
 assert.equal(typeof res, 'function', 'result should be function');
 assert.equal(res.name, 'b', 'res should be named b');

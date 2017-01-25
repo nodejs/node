@@ -1,10 +1,10 @@
 'use strict';
 const common = require('../common');
-var dgram = require('dgram');
+const dgram = require('dgram');
 
-var source = dgram.createSocket('udp4');
-var target = dgram.createSocket('udp4');
-var messages = 0;
+const source = dgram.createSocket('udp4');
+const target = dgram.createSocket('udp4');
+let messages = 0;
 
 target.on('message', common.mustCall(function(buf) {
   if (buf.toString() === 'abc') ++messages;

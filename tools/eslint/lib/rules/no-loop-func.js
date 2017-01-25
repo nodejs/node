@@ -185,7 +185,7 @@ module.exports = {
             if (references.length > 0 &&
                 !references.every(isSafe.bind(null, node, loopNode))
             ) {
-                context.report(node, "Don't make functions within a loop.");
+                context.report({ node, message: "Don't make functions within a loop." });
             }
         }
 

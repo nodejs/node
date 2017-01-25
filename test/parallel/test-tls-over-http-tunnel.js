@@ -1,28 +1,28 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var https = require('https');
+const https = require('https');
 
-var fs = require('fs');
-var net = require('net');
-var http = require('http');
+const fs = require('fs');
+const net = require('net');
+const http = require('http');
 
-var gotRequest = false;
+let gotRequest = false;
 
-var key = fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem');
-var cert = fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem');
+const key = fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem');
+const cert = fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem');
 
-var options = {
+const options = {
   key: key,
   cert: cert
 };
 
-var server = https.createServer(options, function(req, res) {
+const server = https.createServer(options, function(req, res) {
   console.log('SERVER: got request');
   res.writeHead(200, {
     'content-type': 'text/plain'
@@ -31,10 +31,10 @@ var server = https.createServer(options, function(req, res) {
   res.end('hello world\n');
 });
 
-var proxy = net.createServer(function(clientSocket) {
+const proxy = net.createServer(function(clientSocket) {
   console.log('PROXY: got a client connection');
 
-  var serverSocket = null;
+  let serverSocket = null;
 
   clientSocket.on('data', function(chunk) {
     if (!serverSocket) {
@@ -80,7 +80,7 @@ server.listen(0);
 proxy.listen(0, function() {
   console.log('CLIENT: Making CONNECT request');
 
-  var req = http.request({
+  const req = http.request({
     port: this.address().port,
     method: 'CONNECT',
     path: `localhost:${server.address().port}`,

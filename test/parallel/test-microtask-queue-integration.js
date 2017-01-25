@@ -1,22 +1,22 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var implementations = [
+const implementations = [
   function(fn) {
     Promise.resolve().then(fn);
   }
 ];
 
-var expected = 0;
-var done = 0;
+let expected = 0;
+let done = 0;
 
 process.on('exit', function() {
   assert.equal(done, expected);
 });
 
 function test(scheduleMicrotask) {
-  var nextTickCalled = false;
+  let nextTickCalled = false;
   expected++;
 
   scheduleMicrotask(function() {

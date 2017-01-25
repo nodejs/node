@@ -483,12 +483,8 @@ added: v0.11.4
     will be emitted on the socket before establishing a secure communication
   * `secureContext`: Optional TLS context object created with
     [`tls.createSecureContext()`][]. If a `secureContext` is _not_ provided, one
-    will be created by passing the entire `options` object to
-    `tls.createSecureContext()`. *Note*: In effect, all
-    [`tls.createSecureContext()`][] options can be provided, but they will be
-    _completely ignored_ unless the `secureContext` option is missing.
-  * ...: Optional [`tls.createSecureContext()`][] options can be provided, see
-    the `secureContext` option for more information.
+    will be created by calling [`tls.createSecureContext()`][] with no options.
+
 Construct a new `tls.TLSSocket` object from an existing TCP socket.
 
 ### Event: 'OCSPResponse'
@@ -587,12 +583,15 @@ For Example: `{ type: 'ECDH', name: 'prime256v1', size: 256 }`
 added: v0.11.4
 -->
 
-* `detailed` {boolean} Specify `true` to request that the full certificate
-  chain with the `issuer` property be returned; `false` to return only the
-  top certificate without the `issuer` property.
+* `detailed` {boolean} Include the full certificate chain if `true`, otherwise
+  include just the peer's certificate.
 
 Returns an object representing the peer's certificate. The returned object has
 some properties corresponding to the fields of the certificate.
+
+If the full certificate chain was requested, each certificate will include a
+`issuerCertificate` property containing an object representing its issuer's
+certificate.
 
 For example:
 
@@ -604,15 +603,15 @@ For example:
      O: 'node.js',
      OU: 'Test TLS Certificate',
      CN: 'localhost' },
-  issuerInfo:
+  issuer:
    { C: 'UK',
      ST: 'Acknack Ltd',
      L: 'Rhys Jones',
      O: 'node.js',
      OU: 'Test TLS Certificate',
      CN: 'localhost' },
-  issuer:
-   { ... another certificate ... },
+  issuerCertificate:
+   { ... another certificate, possibly with a .issuerCertificate ... },
   raw: < RAW DER buffer >,
   valid_from: 'Nov 11 09:52:22 2009 GMT',
   valid_to: 'Nov  6 09:52:22 2029 GMT',
@@ -620,8 +619,7 @@ For example:
   serialNumber: 'B9B0D332A1AA5635' }
 ```
 
-If the peer does not provide a certificate, `null` or an empty object will be
-returned.
+If the peer does not provide a certificate, an empty object will be returned.
 
 ### tlsSocket.getProtocol()
 <!-- YAML
@@ -911,10 +909,21 @@ added: v0.11.13
     the same order as their private keys in `key`. If the intermediate
     certificates are not provided, the peer will not be able to validate the
     certificate, and the handshake will fail.
-  * `ca`{string|string[]|Buffer|Buffer[]} Optional CA certificates to trust.
-    Default is the well-known CAs from Mozilla. When connecting to peers that
-    use certificates issued privately, or self-signed, the private root CA or
-    self-signed certificate must be provided to verify the peer.
+  * `ca` {string|string[]|Buffer|Buffer[]} Optionally override the trusted CA
+    certificates. Default is to trust the well-known CAs curated by Mozilla.
+    Mozilla's CAs are completely replaced when CAs are explicitly specified
+    using this option. The value can be a string or Buffer, or an Array of
+    strings and/or Buffers. Any string or Buffer can contain multiple PEM CAs
+    concatenated together. The peer's certificate must be chainable to a CA
+    trusted by the server for the connection to be authenticated.  When using
+    certificates that are not chainable to a well-known CA, the certificate's CA
+    must be explicitly specified as a trusted or the connection will fail to
+    authenticate.
+    If the peer uses a certificate that doesn't match or chain to one of the
+    default CAs, use the `ca` option to provide a CA certificate that the peer's
+    certificate can match or chain to.
+    For self-signed certificates, the certificate is its own CA, and must be
+    provided.
   * `crl` {string|string[]|Buffer|Buffer[]} Optional PEM formatted
     CRLs (Certificate Revocation Lists).
   * `ciphers` {string} Optional cipher suite specification, replacing the

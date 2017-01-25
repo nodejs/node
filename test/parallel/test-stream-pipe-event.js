@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var stream = require('stream');
-var assert = require('assert');
-var util = require('util');
+const stream = require('stream');
+const assert = require('assert');
+const util = require('util');
 
 function Writable() {
   this.writable = true;
@@ -16,14 +16,14 @@ function Readable() {
 }
 util.inherits(Readable, stream.Stream);
 
-var passed = false;
+let passed = false;
 
-var w = new Writable();
+const w = new Writable();
 w.on('pipe', function(src) {
   passed = true;
 });
 
-var r = new Readable();
+const r = new Readable();
 r.pipe(w);
 
 assert.ok(passed);

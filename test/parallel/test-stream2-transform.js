@@ -1,12 +1,12 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var PassThrough = require('_stream_passthrough');
-var Transform = require('_stream_transform');
+const assert = require('assert');
+const PassThrough = require('_stream_passthrough');
+const Transform = require('_stream_transform');
 
 // tiny node-tap lookalike.
-var tests = [];
-var count = 0;
+const tests = [];
+let count = 0;
 
 function test(name, fn) {
   count++;
@@ -14,12 +14,12 @@ function test(name, fn) {
 }
 
 function run() {
-  var next = tests.shift();
+  const next = tests.shift();
   if (!next)
     return console.error('ok');
 
-  var name = next[0];
-  var fn = next[1];
+  const name = next[0];
+  const fn = next[1];
   console.log('# %s', name);
   fn({
     same: assert.deepStrictEqual,
@@ -42,18 +42,18 @@ process.nextTick(run);
 /////
 
 test('writable side consumption', function(t) {
-  var tx = new Transform({
+  const tx = new Transform({
     highWaterMark: 10
   });
 
-  var transformed = 0;
+  let transformed = 0;
   tx._transform = function(chunk, encoding, cb) {
     transformed += chunk.length;
     tx.push(chunk);
     cb();
   };
 
-  for (var i = 1; i <= 10; i++) {
+  for (let i = 1; i <= 10; i++) {
     tx.write(Buffer.allocUnsafe(i));
   }
   tx.end();
@@ -69,7 +69,7 @@ test('writable side consumption', function(t) {
 });
 
 test('passthrough', function(t) {
-  var pt = new PassThrough();
+  const pt = new PassThrough();
 
   pt.write(Buffer.from('foog'));
   pt.write(Buffer.from('bark'));
@@ -85,7 +85,7 @@ test('passthrough', function(t) {
 });
 
 test('object passthrough', function(t) {
-  var pt = new PassThrough({ objectMode: true });
+  const pt = new PassThrough({ objectMode: true });
 
   pt.write(1);
   pt.write(true);
@@ -115,9 +115,9 @@ test('passthrough constructor', function(t) {
 });
 
 test('simple transform', function(t) {
-  var pt = new Transform();
+  const pt = new Transform();
   pt._transform = function(c, e, cb) {
-    var ret = Buffer.alloc(c.length, 'x');
+    const ret = Buffer.alloc(c.length, 'x');
     pt.push(ret);
     cb();
   };
@@ -136,7 +136,7 @@ test('simple transform', function(t) {
 });
 
 test('simple object transform', function(t) {
-  var pt = new Transform({ objectMode: true });
+  const pt = new Transform({ objectMode: true });
   pt._transform = function(c, e, cb) {
     pt.push(JSON.stringify(c));
     cb();
@@ -162,7 +162,7 @@ test('simple object transform', function(t) {
 });
 
 test('async passthrough', function(t) {
-  var pt = new Transform();
+  const pt = new Transform();
   pt._transform = function(chunk, encoding, cb) {
     setTimeout(function() {
       pt.push(chunk);
@@ -186,7 +186,7 @@ test('async passthrough', function(t) {
 });
 
 test('assymetric transform (expand)', function(t) {
-  var pt = new Transform();
+  const pt = new Transform();
 
   // emit each chunk 2 times.
   pt._transform = function(chunk, encoding, cb) {
@@ -218,7 +218,7 @@ test('assymetric transform (expand)', function(t) {
 });
 
 test('assymetric transform (compress)', function(t) {
-  var pt = new Transform();
+  const pt = new Transform();
 
   // each output is the first char of 3 consecutive chunks,
   // or whatever's left.
@@ -227,7 +227,7 @@ test('assymetric transform (compress)', function(t) {
   pt._transform = function(chunk, encoding, cb) {
     if (!chunk)
       chunk = '';
-    var s = chunk.toString();
+    const s = chunk.toString();
     setTimeout(function() {
       this.state += s.charAt(0);
       if (this.state.length === 3) {
@@ -273,9 +273,9 @@ test('assymetric transform (compress)', function(t) {
 // this tests for a stall when data is written to a full stream
 // that has empty transforms.
 test('complex transform', function(t) {
-  var count = 0;
-  var saved = null;
-  var pt = new Transform({highWaterMark: 3});
+  let count = 0;
+  let saved = null;
+  const pt = new Transform({highWaterMark: 3});
   pt._transform = function(c, e, cb) {
     if (count++ === 1)
       saved = c;
@@ -307,8 +307,8 @@ test('complex transform', function(t) {
 
 
 test('passthrough event emission', function(t) {
-  var pt = new PassThrough();
-  var emits = 0;
+  const pt = new PassThrough();
+  let emits = 0;
   pt.on('readable', function() {
     console.error('>>> emit readable %d', emits);
     emits++;
@@ -353,8 +353,8 @@ test('passthrough event emission', function(t) {
 });
 
 test('passthrough event emission reordered', function(t) {
-  var pt = new PassThrough();
-  var emits = 0;
+  const pt = new PassThrough();
+  let emits = 0;
   pt.on('readable', function() {
     console.error('emit readable', emits);
     emits++;
@@ -395,8 +395,8 @@ test('passthrough event emission reordered', function(t) {
 
 test('passthrough facaded', function(t) {
   console.error('passthrough facaded');
-  var pt = new PassThrough();
-  var datas = [];
+  const pt = new PassThrough();
+  const datas = [];
   pt.on('data', function(chunk) {
     datas.push(chunk.toString());
   });
@@ -423,7 +423,7 @@ test('passthrough facaded', function(t) {
 
 test('object transform (json parse)', function(t) {
   console.error('json parse stream');
-  var jp = new Transform({ objectMode: true });
+  const jp = new Transform({ objectMode: true });
   jp._transform = function(data, encoding, cb) {
     try {
       jp.push(JSON.parse(data));
@@ -435,21 +435,21 @@ test('object transform (json parse)', function(t) {
 
   // anything except null/undefined is fine.
   // those are "magic" in the stream API, because they signal EOF.
-  var objects = [
+  const objects = [
     { foo: 'bar' },
     100,
     'string',
     { nested: { things: [ { foo: 'bar' }, 100, 'string' ] } }
   ];
 
-  var ended = false;
+  let ended = false;
   jp.on('end', function() {
     ended = true;
   });
 
   objects.forEach(function(obj) {
     jp.write(JSON.stringify(obj));
-    var res = jp.read();
+    const res = jp.read();
     t.same(res, obj);
   });
 
@@ -465,7 +465,7 @@ test('object transform (json parse)', function(t) {
 
 test('object transform (json stringify)', function(t) {
   console.error('json parse stream');
-  var js = new Transform({ objectMode: true });
+  const js = new Transform({ objectMode: true });
   js._transform = function(data, encoding, cb) {
     try {
       js.push(JSON.stringify(data));
@@ -477,21 +477,21 @@ test('object transform (json stringify)', function(t) {
 
   // anything except null/undefined is fine.
   // those are "magic" in the stream API, because they signal EOF.
-  var objects = [
+  const objects = [
     { foo: 'bar' },
     100,
     'string',
     { nested: { things: [ { foo: 'bar' }, 100, 'string' ] } }
   ];
 
-  var ended = false;
+  let ended = false;
   js.on('end', function() {
     ended = true;
   });
 
   objects.forEach(function(obj) {
     js.write(obj);
-    var res = js.read();
+    const res = js.read();
     t.equal(res, JSON.stringify(obj));
   });
 

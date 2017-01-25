@@ -1,15 +1,15 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var net = require('net');
+const net = require('net');
 
-var N = 50;
-var client_recv_count = 0;
-var client_end_count = 0;
-var disconnect_count = 0;
+const N = 50;
+let client_recv_count = 0;
+let client_end_count = 0;
+let disconnect_count = 0;
 
-var server = net.createServer(function(socket) {
+const server = net.createServer(function(socket) {
   console.error('SERVER: got socket connection');
   socket.resume();
 
@@ -29,7 +29,7 @@ var server = net.createServer(function(socket) {
 
 server.listen(0, function() {
   console.log('SERVER listening');
-  var client = net.createConnection(this.address().port);
+  const client = net.createConnection(this.address().port);
 
   client.setEncoding('UTF8');
 

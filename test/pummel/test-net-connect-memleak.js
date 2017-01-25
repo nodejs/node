@@ -1,9 +1,9 @@
 'use strict';
 // Flags: --expose-gc
 
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
 assert.strictEqual(
   typeof global.gc,
@@ -12,7 +12,7 @@ assert.strictEqual(
 );
 net.createServer(function() {}).listen(common.PORT);
 
-var before = 0;
+let before = 0;
 {
   // 2**26 == 64M entries
   global.gc();
@@ -29,8 +29,8 @@ var before = 0;
 
 function done() {
   global.gc();
-  var after = process.memoryUsage().rss;
-  var reclaimed = (before - after) / 1024;
+  const after = process.memoryUsage().rss;
+  const reclaimed = (before - after) / 1024;
   console.log('%d kB reclaimed', reclaimed);
   assert(reclaimed > 128 * 1024);  // It's around 256 MB on x64.
   process.exit();

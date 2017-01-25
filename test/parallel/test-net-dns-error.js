@@ -1,16 +1,16 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var net = require('net');
+const net = require('net');
 
-var host = '*'.repeat(256);
+const host = '*'.repeat(256);
 
 function do_not_call() {
   throw new Error('This function should not have been called.');
 }
 
-var socket = net.connect(42, host, do_not_call);
+const socket = net.connect(42, host, do_not_call);
 socket.on('error', common.mustCall(function(err) {
   assert.equal(err.code, 'ENOTFOUND');
 }));

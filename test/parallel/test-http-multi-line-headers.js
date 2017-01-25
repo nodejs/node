@@ -1,14 +1,14 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var http = require('http');
-var net = require('net');
+const http = require('http');
+const net = require('net');
 
-var server = net.createServer(function(conn) {
-  var body = 'Yet another node.js server.';
+const server = net.createServer(function(conn) {
+  const body = 'Yet another node.js server.';
 
-  var response =
+  const response =
       'HTTP/1.1 200 OK\r\n' +
       'Connection: close\r\n' +
       'Content-Length: ' + body.length + '\r\n' +

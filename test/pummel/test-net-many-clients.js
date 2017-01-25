@@ -1,19 +1,19 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
 // settings
-var bytes = 1024 * 40;
-var concurrency = 100;
-var connections_per_client = 5;
+const bytes = 1024 * 40;
+const concurrency = 100;
+const connections_per_client = 5;
 
 // measured
-var total_connections = 0;
+let total_connections = 0;
 
-var body = 'C'.repeat(bytes);
+const body = 'C'.repeat(bytes);
 
-var server = net.createServer(function(c) {
+const server = net.createServer(function(c) {
   console.log('connected');
   total_connections++;
   console.log('#');
@@ -22,7 +22,7 @@ var server = net.createServer(function(c) {
 });
 
 function runClient(callback) {
-  var client = net.createConnection(common.PORT);
+  const client = net.createConnection(common.PORT);
 
   client.connections = 0;
 
@@ -66,8 +66,8 @@ function runClient(callback) {
 }
 
 server.listen(common.PORT, function() {
-  var finished_clients = 0;
-  for (var i = 0; i < concurrency; i++) {
+  let finished_clients = 0;
+  for (let i = 0; i < concurrency; i++) {
     runClient(function() {
       if (++finished_clients === concurrency) server.close();
     });

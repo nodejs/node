@@ -22,7 +22,7 @@ module.exports = {
         fixable: "whitespace",
 
         schema: [
-            {enum: ["always", "never"]}
+            { enum: ["always", "never"] }
         ]
     },
 

@@ -1,24 +1,24 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var join = require('path').join;
-var fs = require('fs');
+const assert = require('assert');
+const join = require('path').join;
+const fs = require('fs');
 
 common.refreshTmpDir();
 
-var repl = require('repl');
+const repl = require('repl');
 
-var works = [['inner.one'], 'inner.o'];
+const works = [['inner.one'], 'inner.o'];
 
 const putIn = new common.ArrayStream();
-var testMe = repl.start('', putIn);
+const testMe = repl.start('', putIn);
 
 
-var testFile = [
+const testFile = [
   'var top = function() {',
   'var inner = {one:1};'
 ];
-var saveFileName = join(common.tmpDir, 'test.save.js');
+const saveFileName = join(common.tmpDir, 'test.save.js');
 
 // input some data
 putIn.run(testFile);
@@ -69,7 +69,7 @@ testMe.complete('inner.o', function(error, data) {
 // clear the REPL
 putIn.run(['.clear']);
 
-var loadFile = join(common.tmpDir, 'file.does.not.exist');
+let loadFile = join(common.tmpDir, 'file.does.not.exist');
 
 // should not break
 putIn.write = function(data) {

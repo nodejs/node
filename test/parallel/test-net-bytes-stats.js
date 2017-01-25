@@ -1,13 +1,13 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var net = require('net');
+const assert = require('assert');
+const net = require('net');
 
-var bytesRead = 0;
-var bytesWritten = 0;
-var count = 0;
+let bytesRead = 0;
+let bytesWritten = 0;
+let count = 0;
 
-var tcp = net.Server(function(s) {
+const tcp = net.Server(function(s) {
   console.log('tcp server connection');
 
   // trigger old mode.
@@ -21,7 +21,7 @@ var tcp = net.Server(function(s) {
 
 tcp.listen(0, function doTest() {
   console.error('listening');
-  var socket = net.createConnection(this.address().port);
+  const socket = net.createConnection(this.address().port);
 
   socket.on('connect', function() {
     count++;

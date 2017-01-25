@@ -1,12 +1,12 @@
 'use strict';
 const common = require('../common');
-var N = 2;
+const N = 2;
 
 function cb() {
   throw new Error();
 }
 
-for (var i = 0; i < N; ++i) {
+for (let i = 0; i < N; ++i) {
   process.nextTick(common.mustCall(cb));
 }
 

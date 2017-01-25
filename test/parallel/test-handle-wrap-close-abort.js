@@ -13,4 +13,4 @@ setTimeout(function() {
   setTimeout(function() {
     throw new Error('setTimeout');
   }, 1);
-});
+}, 1);

@@ -4,9 +4,10 @@
  */
 require('../common');
 const assert = require('assert');
+const errorOutOfBounds = /^TypeError: "value" argument is out of bounds$/;
 
 function test8(clazz) {
-  var buffer = new clazz(2);
+  const buffer = new clazz(2);
 
   buffer.writeInt8(0x23, 0);
   buffer.writeInt8(-5, 1);
@@ -17,10 +18,10 @@ function test8(clazz) {
   /* Make sure we handle truncation correctly */
   assert.throws(function() {
     buffer.writeInt8(0xabc, 0);
-  });
+  }, errorOutOfBounds);
   assert.throws(function() {
     buffer.writeInt8(0xabc, 0);
-  });
+  }, errorOutOfBounds);
 
   /* Make sure we handle min/max correctly */
   buffer.writeInt8(0x7f, 0);
@@ -30,15 +31,15 @@ function test8(clazz) {
   assert.equal(0x80, buffer[1]);
   assert.throws(function() {
     buffer.writeInt8(0x7f + 1, 0);
-  });
+  }, errorOutOfBounds);
   assert.throws(function() {
     buffer.writeInt8(-0x80 - 1, 0);
-  });
+  }, errorOutOfBounds);
 }
 
 
 function test16(clazz) {
-  var buffer = new clazz(6);
+  const buffer = new clazz(6);
 
   buffer.writeInt16BE(0x0023, 0);
   buffer.writeInt16LE(0x0023, 2);
@@ -70,10 +71,10 @@ function test16(clazz) {
   assert.equal(0x00, buffer[3]);
   assert.throws(function() {
     buffer.writeInt16BE(0x7fff + 1, 0);
-  });
+  }, errorOutOfBounds);
   assert.throws(function() {
     buffer.writeInt16BE(-0x8000 - 1, 0);
-  });
+  }, errorOutOfBounds);
 
   buffer.writeInt16LE(0x7fff, 0);
   buffer.writeInt16LE(-0x8000, 2);
@@ -83,15 +84,15 @@ function test16(clazz) {
   assert.equal(0x80, buffer[3]);
   assert.throws(function() {
     buffer.writeInt16LE(0x7fff + 1, 0);
-  });
+  }, errorOutOfBounds);
   assert.throws(function() {
     buffer.writeInt16LE(-0x8000 - 1, 0);
-  });
+  }, errorOutOfBounds);
 }
 
 
 function test32(clazz) {
-  var buffer = new clazz(8);
+  const buffer = new clazz(8);
 
   buffer.writeInt32BE(0x23, 0);
   buffer.writeInt32LE(0x23, 4);
@@ -139,10 +140,10 @@ function test32(clazz) {
   assert.equal(0x00, buffer[7]);
   assert.throws(function() {
     buffer.writeInt32BE(0x7fffffff + 1, 0);
-  });
+  }, errorOutOfBounds);
   assert.throws(function() {
     buffer.writeInt32BE(-0x80000000 - 1, 0);
-  });
+  }, errorOutOfBounds);
 
   buffer.writeInt32LE(0x7fffffff, 0);
   buffer.writeInt32LE(-0x80000000, 4);
@@ -156,10 +157,10 @@ function test32(clazz) {
   assert.equal(0x80, buffer[7]);
   assert.throws(function() {
     buffer.writeInt32LE(0x7fffffff + 1, 0);
-  });
+  }, errorOutOfBounds);
   assert.throws(function() {
     buffer.writeInt32LE(-0x80000000 - 1, 0);
-  });
+  }, errorOutOfBounds);
 }
 
 

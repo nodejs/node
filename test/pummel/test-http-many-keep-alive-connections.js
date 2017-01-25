@@ -1,14 +1,14 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
 
-var expected = 10000;
-var responses = 0;
-var requests = 0;
-var connection;
+const expected = 10000;
+let responses = 0;
+let requests = 0;
+let connection;
 
-var server = http.Server(function(req, res) {
+const server = http.Server(function(req, res) {
   requests++;
   assert.equal(req.connection, connection);
   res.writeHead(200);
@@ -20,7 +20,7 @@ server.once('connection', function(c) {
 });
 
 server.listen(common.PORT, function connect() {
-  var request = http.get({
+  const request = http.get({
     port: common.PORT,
     path: '/',
     headers: {

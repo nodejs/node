@@ -1,22 +1,22 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var Transform = require('stream').Transform;
+const Transform = require('stream').Transform;
 
-var _transformCalled = false;
+let _transformCalled = false;
 function _transform(d, e, n) {
   _transformCalled = true;
   n();
 }
 
-var _flushCalled = false;
+let _flushCalled = false;
 function _flush(n) {
   _flushCalled = true;
   n();
 }
 
-var t = new Transform({
+const t = new Transform({
   transform: _transform,
   flush: _flush
 });

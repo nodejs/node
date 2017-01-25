@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 process.nextTick(common.mustCall(function() {
   process.nextTick(common.mustCall(function() {
@@ -14,7 +14,7 @@ setTimeout(common.mustCall(function() {
 
 process.nextTick(common.mustCall(function() {}));
 
-var obj = {};
+const obj = {};
 
 process.nextTick(function(a, b) {
   assert.equal(a, 42);

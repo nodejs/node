@@ -37,8 +37,8 @@ if (process.argv[2] === 'child') {
 
   const msg = Buffer.from('Some bytes');
 
-  var childGotMessage = false;
-  var parentGotMessage = false;
+  let childGotMessage = false;
+  let parentGotMessage = false;
 
   parentServer.once('message', function(msg, rinfo) {
     parentGotMessage = true;
@@ -76,7 +76,7 @@ if (process.argv[2] === 'child') {
           serverPort,
           '127.0.0.1',
           function(err) {
-            if (err) throw err;
+            assert.ifError(err);
           }
         );
       }

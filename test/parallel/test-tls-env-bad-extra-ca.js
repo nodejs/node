@@ -22,11 +22,11 @@ const env = {
   NODE_EXTRA_CA_CERTS: common.fixturesDir + '/no-such-file-exists',
 };
 
-var opts = {
+const opts = {
   env: env,
   silent: true,
 };
-var stderr = '';
+let stderr = '';
 
 fork(__filename, opts)
   .on('exit', common.mustCall(function(status) {

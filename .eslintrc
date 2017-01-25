@@ -62,17 +62,21 @@ rules:
   no-new-require: 2
   no-path-concat: 2
   no-restricted-modules: [2, sys, _linklist]
-  no-restricted-properties: [2, {
-    object: assert,
-    property: deepEqual,
-    message: Please use assert.deepStrictEqual().
-  }, {
-    property: __defineGetter__,
-    message: __defineGetter__ is deprecated.
-  }, {
-    property: __defineSetter__,
-    message: __defineSetter__ is deprecated.
-  }]
+  no-restricted-properties:
+    - 2
+    - object: assert
+      property: deepEqual
+      message: Use assert.deepStrictEqual().
+    - object: assert
+      property: equal
+      message: Use assert.strictEqual() rather than assert.equal().
+    - object: assert
+      property: notEqual
+      message: Use assert.notStrictEqual() rather than assert.notEqual().
+    - property: __defineGetter__
+      message: __defineGetter__ is deprecated.
+    - property: __defineSetter__,
+      message: __defineSetter__ is deprecated.
 
   # Stylistic Issues
   # http://eslint.org/docs/rules/#stylistic-issues
@@ -84,7 +88,11 @@ rules:
   eol-last: 2
   func-call-spacing: 2
   func-name-matching: 2
-  indent: [2, 2, {SwitchCase: 1, MemberExpression: 1}]
+  indent: [2, 2, {ArrayExpression: first,
+                  CallExpression: {arguments: first},
+                  MemberExpression: 1,
+                  ObjectExpression: first,
+                  SwitchCase: 1}]
   key-spacing: [2, {mode: minimum}]
   keyword-spacing: 2
   linebreak-style: [2, unix]
@@ -120,12 +128,11 @@ rules:
   template-curly-spacing: 2
 
   # Custom rules in tools/eslint-rules
-  align-function-arguments: 2
   align-multiline-assignment: 2
   assert-fail-single-argument: 2
   assert-throws-arguments: [2, { requireTwo: false }]
   new-with-error: [2, Error, RangeError, TypeError, SyntaxError, ReferenceError]
-  no-useless-regex-char-class-escape: [2, { override: ['[', ']'] }]
+  timer-arguments: 2
 
 # Global scoped method and vars
 globals:

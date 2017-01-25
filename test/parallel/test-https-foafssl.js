@@ -1,24 +1,24 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 
 if (!common.opensslCli) {
   common.skip('node compiled without OpenSSL CLI.');
   return;
 }
 
-var assert = require('assert');
-var join = require('path').join;
+const assert = require('assert');
+const join = require('path').join;
 
-var fs = require('fs');
-var spawn = require('child_process').spawn;
+const fs = require('fs');
+const spawn = require('child_process').spawn;
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var https = require('https');
+const https = require('https');
 
-var options = {
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/agent.key'),
   cert: fs.readFileSync(common.fixturesDir + '/agent.crt'),
   requestCert: true
@@ -34,11 +34,11 @@ const modulus = 'A6F44A9C25791431214F5C87AF9E040177A8BB89AC803F7E09BBC3A5519F' +
                 'EBDAF1191F4A4E26D71879C4C7867B62FCD508E8CE66E82D128A71E91580' +
                 '9FCF44E8DE774067F1DE5D70B9C03687';
 
-var CRLF = '\r\n';
-var body = 'hello world\n';
-var cert;
+const CRLF = '\r\n';
+const body = 'hello world\n';
+let cert;
 
-var server = https.createServer(options, common.mustCall(function(req, res) {
+const server = https.createServer(options, common.mustCall(function(req, res) {
   console.log('got request');
 
   cert = req.connection.getPeerCertificate();
@@ -51,21 +51,21 @@ var server = https.createServer(options, common.mustCall(function(req, res) {
 }));
 
 server.listen(0, function() {
-  var args = ['s_client',
-              '-quiet',
-              '-connect', `127.0.0.1:${this.address().port}`,
-              '-cert', join(common.fixturesDir, 'foafssl.crt'),
-              '-key', join(common.fixturesDir, 'foafssl.key')];
+  const args = ['s_client',
+                '-quiet',
+                '-connect', `127.0.0.1:${this.address().port}`,
+                '-cert', join(common.fixturesDir, 'foafssl.crt'),
+                '-key', join(common.fixturesDir, 'foafssl.key')];
 
   // for the performance and stability issue in s_client on Windows
   if (common.isWindows)
     args.push('-no_rand_screen');
 
-  var client = spawn(common.opensslCli, args);
+  const client = spawn(common.opensslCli, args);
 
   client.stdout.on('data', function(data) {
-    var message = data.toString();
-    var contents = message.split(CRLF + CRLF).pop();
+    const message = data.toString();
+    const contents = message.split(CRLF + CRLF).pop();
     assert.equal(body, contents);
     server.close();
   });

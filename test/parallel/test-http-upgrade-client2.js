@@ -1,10 +1,10 @@
 'use strict';
 const common = require('../common');
-var http = require('http');
+const http = require('http');
 
-var CRLF = '\r\n';
+const CRLF = '\r\n';
 
-var server = http.createServer();
+const server = http.createServer();
 server.on('upgrade', function(req, socket, head) {
   socket.write('HTTP/1.1 101 Ok' + CRLF +
                'Connection: Upgrade' + CRLF +
@@ -18,12 +18,12 @@ server.listen(0, common.mustCall(function() {
 
   function upgradeRequest(fn) {
     console.log('req');
-    var header = { 'Connection': 'Upgrade', 'Upgrade': 'Test' };
-    var request = http.request({
+    const header = { 'Connection': 'Upgrade', 'Upgrade': 'Test' };
+    const request = http.request({
       port: server.address().port,
       headers: header
     });
-    var wasUpgrade = false;
+    let wasUpgrade = false;
 
     function onUpgrade(res, socket, head) {
       console.log('client upgraded');

@@ -16,6 +16,7 @@ function test(bufferAsync, bufferSync, expected) {
           expected.length,
           0,
           common.mustCall((err, bytesRead) => {
+            assert.ifError(err);
             assert.strictEqual(bytesRead, expected.length);
             assert.deepStrictEqual(bufferAsync, Buffer.from(expected));
           }));

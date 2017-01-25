@@ -210,6 +210,19 @@ inline Environment::~Environment() {
   while (handle_cleanup_waiting_ != 0)
     uv_run(event_loop(), UV_RUN_ONCE);
 
+  // Closing the destroy_ids_idle_handle_ within the handle cleanup queue
+  // prevents the async wrap destroy hook from being called.
+  uv_handle_t* handle =
+    reinterpret_cast<uv_handle_t*>(&destroy_ids_idle_handle_);
+  handle->data = this;
+  handle_cleanup_waiting_ = 1;
+  uv_close(handle, [](uv_handle_t* handle) {
+    static_cast<Environment*>(handle->data)->FinishHandleCleanup(handle);
+  });
+
+  while (handle_cleanup_waiting_ != 0)
+    uv_run(event_loop(), UV_RUN_ONCE);
+
   context()->SetAlignedPointerInEmbedderData(kContextEmbedderDataIndex,
                                              nullptr);
 #define V(PropertyName, TypeName) PropertyName ## _.Reset();
@@ -316,22 +329,22 @@ inline std::vector<int64_t>* Environment::destroy_ids_list() {
   return &destroy_ids_list_;
 }
 
-inline uint32_t* Environment::heap_statistics_buffer() const {
+inline double* Environment::heap_statistics_buffer() const {
   CHECK_NE(heap_statistics_buffer_, nullptr);
   return heap_statistics_buffer_;
 }
 
-inline void Environment::set_heap_statistics_buffer(uint32_t* pointer) {
+inline void Environment::set_heap_statistics_buffer(double* pointer) {
   CHECK_EQ(heap_statistics_buffer_, nullptr);  // Should be set only once.
   heap_statistics_buffer_ = pointer;
 }
 
-inline uint32_t* Environment::heap_space_statistics_buffer() const {
+inline double* Environment::heap_space_statistics_buffer() const {
   CHECK_NE(heap_space_statistics_buffer_, nullptr);
   return heap_space_statistics_buffer_;
 }
 
-inline void Environment::set_heap_space_statistics_buffer(uint32_t* pointer) {
+inline void Environment::set_heap_space_statistics_buffer(double* pointer) {
   CHECK_EQ(heap_space_statistics_buffer_, nullptr);  // Should be set only once.
   heap_space_statistics_buffer_ = pointer;
 }

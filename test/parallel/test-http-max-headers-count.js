@@ -1,26 +1,26 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var http = require('http');
+const assert = require('assert');
+const http = require('http');
 
-var requests = 0;
-var responses = 0;
+let requests = 0;
+let responses = 0;
 
-var headers = {};
-var N = 2000;
-for (var i = 0; i < N; ++i) {
+const headers = {};
+const N = 2000;
+for (let i = 0; i < N; ++i) {
   headers['key' + i] = i;
 }
 
-var maxAndExpected = [ // for server
+const maxAndExpected = [ // for server
   [50, 50],
   [1500, 1500],
   [0, N + 2] // Host and Connection
 ];
-var max = maxAndExpected[requests][0];
-var expected = maxAndExpected[requests][1];
+let max = maxAndExpected[requests][0];
+let expected = maxAndExpected[requests][1];
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   assert.equal(Object.keys(req.headers).length, expected);
   if (++requests < maxAndExpected.length) {
     max = maxAndExpected[requests][0];
@@ -33,7 +33,7 @@ var server = http.createServer(function(req, res) {
 server.maxHeadersCount = max;
 
 server.listen(0, function() {
-  var maxAndExpected = [ // for client
+  const maxAndExpected = [ // for client
     [20, 20],
     [1200, 1200],
     [0, N + 3] // Connection, Date and Transfer-Encoding
@@ -41,9 +41,9 @@ server.listen(0, function() {
   doRequest();
 
   function doRequest() {
-    var max = maxAndExpected[responses][0];
-    var expected = maxAndExpected[responses][1];
-    var req = http.request({
+    const max = maxAndExpected[responses][0];
+    const expected = maxAndExpected[responses][1];
+    const req = http.request({
       port: server.address().port,
       headers: headers
     }, function(res) {

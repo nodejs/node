@@ -1,9 +1,11 @@
+// Flags: --expose-internals
 'use strict';
 
 require('../common');
 
 const URL = require('url').URL;
 const assert = require('assert');
+const urlToOptions = require('internal/url').urlToOptions;
 
 const url = new URL('http://user:pass@foo.bar.com:21/aaa/zzz?l=24#test');
 const oldParams = url.searchParams;  // for test of [SameObject]
@@ -19,9 +21,9 @@ for (const prop in url) {
 // https://heycam.github.io/webidl/#es-attributes
 // https://heycam.github.io/webidl/#es-stringifier
 const expected = ['toString',
-  'href', 'origin', 'protocol',
-  'username', 'password', 'host', 'hostname', 'port',
-  'pathname', 'search', 'searchParams', 'hash'];
+                  'href', 'origin', 'protocol',
+                  'username', 'password', 'host', 'hostname', 'port',
+                  'pathname', 'search', 'searchParams', 'hash'];
 
 assert.deepStrictEqual(props, expected);
 
@@ -125,3 +127,18 @@ assert.strictEqual(url.toString(),
                    'https://user2:pass2@foo.bar.org:23/aaa/bbb?k=99#abcd');
 assert.strictEqual((delete url.searchParams), true);
 assert.strictEqual(url.searchParams, oldParams);
+
+// Test urlToOptions
+{
+  const opts =
+    urlToOptions(new URL('http://user:pass@foo.bar.com:21/aaa/zzz?l=24#test'));
+  assert.strictEqual(opts instanceof URL, false);
+  assert.strictEqual(opts.protocol, 'http:');
+  assert.strictEqual(opts.auth, 'user:pass');
+  assert.strictEqual(opts.hostname, 'foo.bar.com');
+  assert.strictEqual(opts.port, 21);
+  assert.strictEqual(opts.path, '/aaa/zzz?l=24');
+  assert.strictEqual(opts.pathname, '/aaa/zzz');
+  assert.strictEqual(opts.search, '?l=24');
+  assert.strictEqual(opts.hash, '#test');
+}

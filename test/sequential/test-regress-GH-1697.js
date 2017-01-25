@@ -6,7 +6,7 @@ const cp = require('child_process');
 if (process.argv[2] === 'server') {
   // Server
 
-  var server = net.createServer(function(conn) {
+  const server = net.createServer(function(conn) {
     conn.on('data', function(data) {
       console.log('server received ' + data.length + ' bytes');
     });
@@ -23,22 +23,22 @@ if (process.argv[2] === 'server') {
 } else {
   // Client
 
-  var serverProcess = cp.spawn(process.execPath, [process.argv[1], 'server']);
+  const serverProcess = cp.spawn(process.execPath, [process.argv[1], 'server']);
   serverProcess.stdout.pipe(process.stdout);
   serverProcess.stderr.pipe(process.stdout);
 
   serverProcess.stdout.once('data', function() {
-    var client = net.createConnection(common.PORT, '127.0.0.1');
+    const client = net.createConnection(common.PORT, '127.0.0.1');
     client.on('connect', function() {
       const alot = Buffer.allocUnsafe(1024);
       const alittle = Buffer.allocUnsafe(1);
 
-      for (var i = 0; i < 100; i++) {
+      for (let i = 0; i < 100; i++) {
         client.write(alot);
       }
 
       // Block the event loop for 1 second
-      var start = (new Date()).getTime();
+      const start = (new Date()).getTime();
       while ((new Date()).getTime() < start + 1000) {}
 
       client.write(alittle);

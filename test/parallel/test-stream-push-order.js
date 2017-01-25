@@ -1,21 +1,21 @@
 'use strict';
 require('../common');
-var Readable = require('stream').Readable;
-var assert = require('assert');
+const Readable = require('stream').Readable;
+const assert = require('assert');
 
-var s = new Readable({
+const s = new Readable({
   highWaterMark: 20,
   encoding: 'ascii'
 });
 
-var list = ['1', '2', '3', '4', '5', '6'];
+const list = ['1', '2', '3', '4', '5', '6'];
 
 s._read = function(n) {
-  var one = list.shift();
+  const one = list.shift();
   if (!one) {
     s.push(null);
   } else {
-    var two = list.shift();
+    const two = list.shift();
     s.push(one);
     s.push(two);
   }

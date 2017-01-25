@@ -1,19 +1,19 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var fs = require('fs');
-var FSReadable = fs.ReadStream;
+const fs = require('fs');
+const FSReadable = fs.ReadStream;
 
-var path = require('path');
-var file = path.resolve(common.fixturesDir, 'x1024.txt');
+const path = require('path');
+const file = path.resolve(common.fixturesDir, 'x1024.txt');
 
-var size = fs.statSync(file).size;
+const size = fs.statSync(file).size;
 
-var expectLengths = [1024];
+const expectLengths = [1024];
 
-var util = require('util');
-var Stream = require('stream');
+const util = require('util');
+const Stream = require('stream');
 
 util.inherits(TestWriter, Stream);
 
@@ -34,8 +34,8 @@ TestWriter.prototype.end = function(c) {
   this.emit('results', this.buffer);
 };
 
-var r = new FSReadable(file);
-var w = new TestWriter();
+const r = new FSReadable(file);
+const w = new TestWriter();
 
 w.on('results', function(res) {
   console.error(res, w.length);

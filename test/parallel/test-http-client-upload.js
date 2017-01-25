@@ -1,13 +1,13 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var http = require('http');
+const assert = require('assert');
+const http = require('http');
 
-var server = http.createServer(common.mustCall(function(req, res) {
+const server = http.createServer(common.mustCall(function(req, res) {
   assert.equal('POST', req.method);
   req.setEncoding('utf8');
 
-  var sent_body = '';
+  let sent_body = '';
 
   req.on('data', function(chunk) {
     console.log('server got: ' + JSON.stringify(chunk));
@@ -25,7 +25,7 @@ var server = http.createServer(common.mustCall(function(req, res) {
 server.listen(0);
 
 server.on('listening', common.mustCall(function() {
-  var req = http.request({
+  const req = http.request({
     port: this.address().port,
     method: 'POST',
     path: '/'

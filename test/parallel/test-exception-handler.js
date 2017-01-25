@@ -1,8 +1,8 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var MESSAGE = 'catch me if you can';
+const MESSAGE = 'catch me if you can';
 
 process.on('uncaughtException', common.mustCall(function(e) {
   console.log('uncaught exception! 1');
