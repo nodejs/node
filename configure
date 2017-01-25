@@ -726,6 +726,9 @@ def host_arch_cc():
       if rtn != 's390':
         break
 
+  if rtn == 'mipsel' and '_LP64' in k:
+    rtn = 'mips64el'
+
   return rtn
 
 
@@ -805,7 +808,7 @@ def configure_node(o):
 
   if target_arch == 'arm':
     configure_arm(o)
-  elif target_arch in ('mips', 'mipsel'):
+  elif target_arch in ('mips', 'mipsel', 'mips64el'):
     configure_mips(o)
 
   if flavor == 'aix':
