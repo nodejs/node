@@ -400,6 +400,9 @@ If the [`--openssl-config`][] command line option is used, the environment
 variable is ignored.
 
 ### `SSL_CERT_DIR=dir`
+<!-- YAML
+added: REPLACEME
+-->
 
 If `--use-openssl-ca` is enabled, this overrides and sets OpenSSL's directory
 containing trusted certificates.
@@ -409,6 +412,9 @@ evironment variable will be inherited by any child processes, and if they use
 OpenSSL, it may cause them to trust the same CAs as node.
 
 ### `SSL_CERT_FILE=file`
+<!-- YAML
+added: REPLACEME
+-->
 
 If `--use-openssl-ca` is enabled, this overrides and sets OpenSSL's file
 containing trusted certificates.
