@@ -280,6 +280,11 @@ test-v8-benchmarks: v8
 test-v8-all: test-v8 test-v8-intl test-v8-benchmarks
 # runs all v8 tests
 
+# Google Analytics ID used for tracking API docs page views, empty
+# DOCS_ANALYTICS means no tracking scripts will be included in the
+# generated .html files
+DOCS_ANALYTICS ?=
+
 apidoc_sources = $(wildcard doc/api/*.md)
 apidocs_html = $(apidoc_dirs) $(apiassets) $(addprefix out/,$(apidoc_sources:.md=.html))
 apidocs_json = $(apidoc_dirs) $(apiassets) $(addprefix out/,$(apidoc_sources:.md=.json))
@@ -313,7 +318,8 @@ out/doc/api/%.json: doc/api/%.md
 	[ -x $(NODE) ] && $(NODE) $(gen-json) || node $(gen-json)
 
 # check if ./node is actually set, else use user pre-installed binary
-gen-html = tools/doc/generate.js --node-version=$(FULLVERSION) --format=html --template=doc/template.html $< > $@
+gen-html = tools/doc/generate.js --node-version=$(FULLVERSION) --format=html \
+			--template=doc/template.html --analytics=$(DOCS_ANALYTICS) $< > $@
 out/doc/api/%.html: doc/api/%.md
 	@[ -e tools/doc/node_modules/js-yaml/package.json ] || \
 		[ -e tools/eslint/node_modules/js-yaml/package.json ] || \
@@ -558,7 +564,7 @@ ifeq ($(XZ), 0)
 	ssh $(STAGINGSERVER) "touch nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/node-$(FULLVERSION).tar.xz.done"
 endif
 
-doc-upload: tar
+doc-upload: doc
 	ssh $(STAGINGSERVER) "mkdir -p nodejs/$(DISTTYPEDIR)/$(FULLVERSION)"
 	chmod -R ug=rw-x+X,o=r+X out/doc/
 	scp -pr out/doc/ $(STAGINGSERVER):nodejs/$(DISTTYPEDIR)/$(FULLVERSION)/docs/
