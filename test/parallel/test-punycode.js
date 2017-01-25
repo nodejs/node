@@ -13,6 +13,12 @@ assert.strictEqual(
   'Willst du die Blthe des frhen, die Frchte des spteren Jahres-x9e96lkal'
 );
 assert.strictEqual(punycode.encode('日本語'), 'wgv71a119e');
+assert.throws(() => {
+  punycode.encode();
+}, /^TypeError: Argument must not be "undefined" and "null"$/);
+assert.throws(() => {
+  punycode.encode(null);
+}, /^TypeError: Argument must not be "undefined" and "null"$/);
 
 assert.strictEqual(punycode.decode('tda'), 'ü');
 assert.strictEqual(punycode.decode('Goethe-'), 'Goethe');
@@ -25,14 +31,20 @@ assert.strictEqual(
 );
 assert.strictEqual(punycode.decode('wgv71a119e'), '日本語');
 assert.throws(() => {
-  punycode.decode(' ');
-}, /^RangeError: Invalid input$/);
+  punycode.decode();
+}, /^TypeError: Argument must be a string$/);
+assert.throws(() => {
+  punycode.decode([]);
+}, /^TypeError: Argument must be a string$/);
 assert.throws(() => {
   punycode.decode('α-');
 }, /^RangeError: Illegal input >= 0x80 \(not a basic code point\)$/);
 assert.throws(() => {
   punycode.decode('あ');
 }, /^RangeError: Overflow: input needs wider integers to process$/);
+assert.throws(() => {
+  punycode.decode(' ');
+}, /^RangeError: Invalid input$/);
 
 // http://tools.ietf.org/html/rfc3492#section-7.1
 const tests = [
