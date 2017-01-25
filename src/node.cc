@@ -179,7 +179,7 @@ bool no_deprecation = false;
 bool enable_fips_crypto = false;
 bool force_fips_crypto = false;
 # endif  // NODE_FIPS_MODE
-const char* openssl_config = nullptr;
+std::string openssl_config;  // NOLINT(runtime/string)
 #endif  // HAVE_OPENSSL
 
 // true if process warnings should be suppressed
@@ -3691,7 +3691,7 @@ static void PrintHelp() {
          "  --force-fips          force FIPS crypto (cannot be disabled)\n"
 #endif  /* NODE_FIPS_MODE */
          "  --openssl-config=path load OpenSSL configuration file from the\n"
-         "                        specified path\n"
+         "                        specified file (overrides OPENSSL_CONF)\n"
 #endif /* HAVE_OPENSSL */
 #if defined(NODE_HAVE_I18N_SUPPORT)
          "  --icu-data-dir=dir    set ICU data load path to dir\n"
@@ -3726,6 +3726,7 @@ static void PrintHelp() {
 #endif
          "                        prefixed to the module search path\n"
          "NODE_REPL_HISTORY       path to the persistent REPL history file\n"
+         "OPENSSL_CONF            load OpenSSL configuration from file\n"
          "\n"
          "Documentation can be found at https://nodejs.org/\n");
 }
@@ -3860,7 +3861,7 @@ static void ParseArgs(int* argc,
       force_fips_crypto = true;
 #endif /* NODE_FIPS_MODE */
     } else if (strncmp(arg, "--openssl-config=", 17) == 0) {
-      openssl_config = arg + 17;
+      openssl_config.assign(arg + 17);
 #endif /* HAVE_OPENSSL */
 #if defined(NODE_HAVE_I18N_SUPPORT)
     } else if (strncmp(arg, "--icu-data-dir=", 15) == 0) {
@@ -4354,6 +4355,9 @@ void Init(int* argc,
   // --no_foo from the command line.
   V8::SetFlagsFromString(NODE_V8_OPTIONS, sizeof(NODE_V8_OPTIONS) - 1);
 #endif
+
+  if (openssl_config.empty())
+    SafeGetenv("OPENSSL_CONF", &openssl_config);
 
   // Parse a few arguments which are specific to Node.
   int v8_argc;

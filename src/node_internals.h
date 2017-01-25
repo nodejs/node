@@ -36,7 +36,7 @@ namespace node {
 
 // Set in node.cc by ParseArgs with the value of --openssl-config.
 // Used in node_crypto.cc when initializing OpenSSL.
-extern const char* openssl_config;
+extern std::string openssl_config;
 
 // Set in node.cc by ParseArgs when --preserve-symlinks is used.
 // Used in node_config.cc to set a constant on process.binding('config')
