@@ -41,7 +41,9 @@ h5 {font-size: 1em;}
 h6 {font-size: .8em;}
 
 pre, tt, code, .pre, span.type, a.type {
-  font-family: Monaco, Consolas, "Lucida Console", monospace;
+  font-size: 1.2em;
+  line-height: 1.3em;
+  font-family: "Fira Mono", "Lucida Console", Monaco, Consolas, monospace;
 }
 
 #content {
@@ -255,19 +257,20 @@ h1 span a, h2 span a, h3 span a, h4 span a {
 }
 
 pre, tt, code {
-  line-height: 1.5em;
+  line-height: 1.3em;
   margin: 0; padding: 0;
 }
 
 .pre {
-  line-height: 1.5em;
-  font-size: 1.2em;
+  line-height: 1.3em;
+  font-size: 1em;
 }
 
 pre {
   padding: 1em;
   vertical-align: top;
-  background: #f2f2f2;
+  background: #2c322f;
+  color: #F3F3F3;
   margin: 1em;
   overflow-x: auto;
 }
