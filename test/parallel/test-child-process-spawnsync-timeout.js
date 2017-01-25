@@ -1,11 +1,11 @@
 'use strict';
-require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 var spawnSync = require('child_process').spawnSync;
 
-var TIMER = 200;
-var SLEEP = 5000;
+const TIMER = 200;
+const SLEEP = common.platformTimeout(5000);
 
 switch (process.argv[2]) {
   case 'child':
@@ -19,8 +19,7 @@ switch (process.argv[2]) {
     var ret = spawnSync(process.execPath, [__filename, 'child'],
                         {timeout: TIMER});
     assert.strictEqual(ret.error.errno, 'ETIMEDOUT');
-    console.log(ret);
-    var end = Date.now() - start;
+    const end = Date.now() - start;
     assert(end < SLEEP);
     assert(ret.status > 128 || ret.signal);
     break;
