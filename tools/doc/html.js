@@ -67,6 +67,7 @@ function toHTML(opts, cb) {
         filename: opts.filename,
         template: template,
         nodeVersion: nodeVersion,
+        analytics: opts.analytics,
       }, cb);
     });
   }
@@ -128,6 +129,13 @@ function render(opts, cb) {
       gtocData.replace('class="nav-' + id, 'class="nav-' + id + ' active')
     );
 
+    if (opts.analytics) {
+      template = template.replace(
+        '<!-- __TRACKING__ -->',
+        analyticsScript(opts.analytics)
+      );
+    }
+
     // content has to be the last thing we do with
     // the lexed tokens, because it's destructive.
     const content = marked.parser(lexed);
@@ -135,6 +143,23 @@ function render(opts, cb) {
 
     cb(null, template);
   });
+}
+
+function analyticsScript(analytics) {
+  return `
+    <script src="assets/dnt_helper.js"></script>
+    <script>
+      if (!_dntEnabled()) {
+        (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;
+        i[r]=i[r]||function(){(i[r].q=i[r].q||[]).push(arguments)},
+        i[r].l=1*new Date();a=s.createElement(o),m=s.getElementsByTagName(o)[0];
+        a.async=1;a.src=g;m.parentNode.insertBefore(a,m)})(window,document,
+        'script','//www.google-analytics.com/analytics.js','ga');
+        ga('create', '${analytics}', 'auto');
+        ga('send', 'pageview');
+      }
+    </script>
+  `;
 }
 
 // handle general body-text replacements
