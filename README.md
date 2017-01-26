@@ -352,8 +352,6 @@ project.
 
 Node.js releases are signed with one of the following GPG keys:
 
-* **Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt;
-`9554F04D7259F04124DE6B476D5A82AC7E37093B`
 * **Colin Ihrig** &lt;cjihrig@gmail.com&gt;
 `94AE36675C464D64BAFA68DD7434390BDBE9B9C5`
 * **Evan Lucas** &lt;evanlucas@me.com&gt;
@@ -372,7 +370,6 @@ Node.js releases are signed with one of the following GPG keys:
 The full set of trusted release keys can be imported by running:
 
 ```shell
-gpg --keyserver pool.sks-keyservers.net --recv-keys 9554F04D7259F04124DE6B476D5A82AC7E37093B
 gpg --keyserver pool.sks-keyservers.net --recv-keys 94AE36675C464D64BAFA68DD7434390BDBE9B9C5
 gpg --keyserver pool.sks-keyservers.net --recv-keys FD3A5288F042B6850C66B31F09FE44734EB7990E
 gpg --keyserver pool.sks-keyservers.net --recv-keys 71DCFD284A79C3B38668286BC97EC7A07EDE3FC1
@@ -387,6 +384,8 @@ on what to do with these keys to verify that a downloaded file is official.
 
 Previous releases may also have been signed with one of the following GPG keys:
 
+* **Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt;
+`9554F04D7259F04124DE6B476D5A82AC7E37093B`
 * **Isaac Z. Schlueter** &lt;i@izs.me&gt;
 `93C7E9E91B49E432C2F75674B0A78B0A6C481CF6`
 * **Julien Gilli** &lt;jgilli@fastmail.fm&gt;
