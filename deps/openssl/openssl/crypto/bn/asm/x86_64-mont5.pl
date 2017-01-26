@@ -1925,6 +1925,7 @@ __bn_sqr8x_reduction:
 
 .align	32
 .L8x_tail_done:
+	xor	%rax,%rax
 	add	(%rdx),%r8		# can this overflow?
 	adc	\$0,%r9
 	adc	\$0,%r10
@@ -1932,10 +1933,8 @@ __bn_sqr8x_reduction:
 	adc	\$0,%r12
 	adc	\$0,%r13
 	adc	\$0,%r14
-	adc	\$0,%r15		# can't overflow, because we
-					# started with "overhung" part
-					# of multiplication
-	xor	%rax,%rax
+	adc	\$0,%r15
+	adc	\$0,%rax
 
 	neg	$carry
 .L8x_no_tail:
@@ -3375,6 +3374,7 @@ __bn_sqrx8x_reduction:
 
 .align	32
 .Lsqrx8x_tail_done:
+	xor	%rax,%rax
 	add	24+8(%rsp),%r8		# can this overflow?
 	adc	\$0,%r9
 	adc	\$0,%r10
@@ -3382,10 +3382,8 @@ __bn_sqrx8x_reduction:
 	adc	\$0,%r12
 	adc	\$0,%r13
 	adc	\$0,%r14
-	adc	\$0,%r15		# can't overflow, because we
-					# started with "overhung" part
-					# of multiplication
-	mov	$carry,%rax		# xor	%rax,%rax
+	adc	\$0,%r15
+	adc	\$0,%rax
 
 	sub	16+8(%rsp),$carry	# mov 16(%rsp),%cf
 .Lsqrx8x_no_tail:			# %cf is 0 if jumped here
@@ -3400,7 +3398,7 @@ __bn_sqrx8x_reduction:
 	adc	8*5($tptr),%r13
 	adc	8*6($tptr),%r14
 	adc	8*7($tptr),%r15
-	adc	%rax,%rax		# top-most carry
+	adc	\$0,%rax		# top-most carry
 
 	mov	32+8(%rsp),%rbx		# n0
 	mov	8*8($tptr,%rcx),%rdx	# modulo-scheduled "%r8"
