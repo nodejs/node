@@ -53,8 +53,8 @@ const proc = spawn(process.execPath, args, {
 });
 
 function handleExit(code, signalCode) {
-  assert.strictEqual(code, 0, 'npm install should run without an error');
-  assert.ok(signalCode === null, 'signalCode should be null');
+  assert.strictEqual(code, 0, `npm install got error code ${code}`);
+  assert.strictEqual(signalCode, null, `unexpected signal: ${signalCode}`);
   assert.doesNotThrow(function() {
     fs.accessSync(installDir + '/node_modules/package-name');
   });
