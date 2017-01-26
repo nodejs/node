@@ -769,6 +769,15 @@ int SSL_CTX_add_session(SSL_CTX *ctx, SSL_SESSION *c)
          * obtain the same session from an external cache)
          */
         s = NULL;
+    } else if (s == NULL &&
+               lh_SSL_SESSION_retrieve(ctx->sessions, c) == NULL) {
+        /* s == NULL can also mean OOM error in lh_SSL_SESSION_insert ... */
+
+        /*
+         * ... so take back the extra reference and also don't add
+         * the session to the SSL_SESSION_list at this time
+         */
+        s = c;
     }
 
     /* Put at the head of the queue unless it is already in the cache */

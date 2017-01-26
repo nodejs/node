@@ -114,9 +114,7 @@ int MAIN(int argc, char **argv)
     const EVP_MD *sign_md = NULL;
     int informat = FORMAT_SMIME, outformat = FORMAT_SMIME;
     int keyform = FORMAT_PEM;
-#ifndef OPENSSL_NO_ENGINE
     char *engine = NULL;
-#endif
 
     X509_VERIFY_PARAM *vpm = NULL;
 
@@ -461,9 +459,7 @@ int MAIN(int argc, char **argv)
                    "cert.pem       recipient certificate(s) for encryption\n");
         goto end;
     }
-#ifndef OPENSSL_NO_ENGINE
     e = setup_engine(bio_err, engine, 0);
-#endif
 
     if (!app_passwd(bio_err, passargin, NULL, &passin, NULL)) {
         BIO_printf(bio_err, "Error getting password\n");
@@ -736,6 +732,7 @@ int MAIN(int argc, char **argv)
     X509_free(signer);
     EVP_PKEY_free(key);
     PKCS7_free(p7);
+    release_engine(e);
     BIO_free(in);
     BIO_free(indata);
     BIO_free_all(out);
