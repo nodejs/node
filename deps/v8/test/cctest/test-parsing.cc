@@ -684,26 +684,74 @@ TEST(RegExpScanning) {
   TestScanRegExp("/=?/", "=?");
 }
 
-static int Ucs2CharLength(unibrow::uchar c) {
-  if (c == unibrow::Utf8::kIncomplete || c == unibrow::Utf8::kBufferEmpty) {
-    return 0;
-  } else if (c < 0xffff) {
-    return 1;
-  } else {
-    return 2;
-  }
-}
 
 static int Utf8LengthHelper(const char* s) {
-  unibrow::Utf8::Utf8IncrementalBuffer buffer(unibrow::Utf8::kBufferEmpty);
-  int length = 0;
-  for (; *s != '\0'; s++) {
-    unibrow::uchar tmp = unibrow::Utf8::ValueOfIncremental(*s, &buffer);
-    length += Ucs2CharLength(tmp);
+  int len = i::StrLength(s);
+  int character_length = len;
+  for (int i = 0; i < len; i++) {
+    unsigned char c = s[i];
+    int input_offset = 0;
+    int output_adjust = 0;
+    if (c > 0x7f) {
+      if (c < 0xc0) continue;
+      if (c >= 0xf0) {
+        if (c >= 0xf8) {
+          // 5 and 6 byte UTF-8 sequences turn into a kBadChar for each UTF-8
+          // byte.
+          continue;  // Handle first UTF-8 byte.
+        }
+        if ((c & 7) == 0 && ((s[i + 1] & 0x30) == 0)) {
+          // This 4 byte sequence could have been coded as a 3 byte sequence.
+          // Record a single kBadChar for the first byte and continue.
+          continue;
+        }
+        input_offset = 3;
+        // 4 bytes of UTF-8 turn into 2 UTF-16 code units.
+        character_length -= 2;
+      } else if (c >= 0xe0) {
+        if ((c & 0xf) == 0 && ((s[i + 1] & 0x20) == 0)) {
+          // This 3 byte sequence could have been coded as a 2 byte sequence.
+          // Record a single kBadChar for the first byte and continue.
+          continue;
+        }
+        if (c == 0xed) {
+          unsigned char d = s[i + 1];
+          if ((d < 0x80) || (d > 0x9f)) {
+            // This 3 byte sequence is part of a surrogate pair which is not
+            // supported by UTF-8. Record a single kBadChar for the first byte
+            // and continue.
+            continue;
+          }
+        }
+        input_offset = 2;
+        // 3 bytes of UTF-8 turn into 1 UTF-16 code unit.
+        output_adjust = 2;
+      } else {
+        if ((c & 0x1e) == 0) {
+          // This 2 byte sequence could have been coded as a 1 byte sequence.
+          // Record a single kBadChar for the first byte and continue.
+          continue;
+        }
+        input_offset = 1;
+        // 2 bytes of UTF-8 turn into 1 UTF-16 code unit.
+        output_adjust = 1;
+      }
+      bool bad = false;
+      for (int j = 1; j <= input_offset; j++) {
+        if ((s[i + j] & 0xc0) != 0x80) {
+          // Bad UTF-8 sequence turns the first in the sequence into kBadChar,
+          // which is a single UTF-16 code unit.
+          bad = true;
+          break;
+        }
+      }
+      if (!bad) {
+        i += input_offset;
+        character_length -= output_adjust;
+      }
+    }
   }
-  unibrow::uchar tmp = unibrow::Utf8::ValueOfIncrementalFinish(&buffer);
-  length += Ucs2CharLength(tmp);
-  return length;
+  return character_length;
 }
 
 
@@ -933,206 +981,169 @@ TEST(ScopePositions) {
   };
 
   const SourceData source_data[] = {
-      {"  with ({}) ", "{ block; }", " more;", i::WITH_SCOPE, i::SLOPPY},
-      {"  with ({}) ", "{ block; }", "; more;", i::WITH_SCOPE, i::SLOPPY},
-      {"  with ({}) ",
-       "{\n"
-       "    block;\n"
-       "  }",
-       "\n"
-       "  more;",
-       i::WITH_SCOPE, i::SLOPPY},
-      {"  with ({}) ", "statement;", " more;", i::WITH_SCOPE, i::SLOPPY},
-      {"  with ({}) ", "statement",
-       "\n"
-       "  more;",
-       i::WITH_SCOPE, i::SLOPPY},
-      {"  with ({})\n"
-       "    ",
-       "statement;",
-       "\n"
-       "  more;",
-       i::WITH_SCOPE, i::SLOPPY},
-      {"  try {} catch ", "(e) { block; }", " more;", i::CATCH_SCOPE,
-       i::SLOPPY},
-      {"  try {} catch ", "(e) { block; }", "; more;", i::CATCH_SCOPE,
-       i::SLOPPY},
-      {"  try {} catch ",
-       "(e) {\n"
-       "    block;\n"
-       "  }",
-       "\n"
-       "  more;",
-       i::CATCH_SCOPE, i::SLOPPY},
-      {"  try {} catch ", "(e) { block; }", " finally { block; } more;",
-       i::CATCH_SCOPE, i::SLOPPY},
-      {"  start;\n"
-       "  ",
-       "{ let block; }", " more;", i::BLOCK_SCOPE, i::STRICT},
-      {"  start;\n"
-       "  ",
-       "{ let block; }", "; more;", i::BLOCK_SCOPE, i::STRICT},
-      {"  start;\n"
-       "  ",
-       "{\n"
-       "    let block;\n"
-       "  }",
-       "\n"
-       "  more;",
-       i::BLOCK_SCOPE, i::STRICT},
-      {"  start;\n"
-       "  function fun",
-       "(a,b) { infunction; }", " more;", i::FUNCTION_SCOPE, i::SLOPPY},
-      {"  start;\n"
-       "  function fun",
-       "(a,b) {\n"
-       "    infunction;\n"
-       "  }",
-       "\n"
-       "  more;",
-       i::FUNCTION_SCOPE, i::SLOPPY},
-      {"  start;\n", "(a,b) => a + b", "; more;", i::FUNCTION_SCOPE, i::SLOPPY},
-      {"  start;\n", "(a,b) => { return a+b; }", "\nmore;", i::FUNCTION_SCOPE,
-       i::SLOPPY},
-      {"  start;\n"
-       "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
-      {"  for ", "(let x = 1 ; x < 10; ++ x) { block; }", " more;",
-       i::BLOCK_SCOPE, i::STRICT},
-      {"  for ", "(let x = 1 ; x < 10; ++ x) { block; }", "; more;",
-       i::BLOCK_SCOPE, i::STRICT},
-      {"  for ",
-       "(let x = 1 ; x < 10; ++ x) {\n"
-       "    block;\n"
-       "  }",
-       "\n"
-       "  more;",
-       i::BLOCK_SCOPE, i::STRICT},
-      {"  for ", "(let x = 1 ; x < 10; ++ x) statement;", " more;",
-       i::BLOCK_SCOPE, i::STRICT},
-      {"  for ", "(let x = 1 ; x < 10; ++ x) statement",
-       "\n"
-       "  more;",
-       i::BLOCK_SCOPE, i::STRICT},
-      {"  for ",
-       "(let x = 1 ; x < 10; ++ x)\n"
-       "    statement;",
-       "\n"
-       "  more;",
-       i::BLOCK_SCOPE, i::STRICT},
-      {"  for ", "(let x in {}) { block; }", " more;", i::BLOCK_SCOPE,
-       i::STRICT},
-      {"  for ", "(let x in {}) { block; }", "; more;", i::BLOCK_SCOPE,
-       i::STRICT},
-      {"  for ",
-       "(let x in {}) {\n"
-       "    block;\n"
-       "  }",
-       "\n"
-       "  more;",
-       i::BLOCK_SCOPE, i::STRICT},
-      {"  for ", "(let x in {}) statement;", " more;", i::BLOCK_SCOPE,
-       i::STRICT},
-      {"  for ", "(let x in {}) statement",
-       "\n"
-       "  more;",
-       i::BLOCK_SCOPE, i::STRICT},
-      {"  for ",
-       "(let x in {})\n"
-       "    statement;",
-       "\n"
-       "  more;",
-       i::BLOCK_SCOPE, i::STRICT},
-      // Check that 6-byte and 4-byte encodings of UTF-8 strings do not throw
-      // the preparser off in terms of byte offsets.
-      // 2 surrogates, encode a character that doesn't need a surrogate.
-      {"  'foo\355\240\201\355\260\211';\n"
-       "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
-      // 4 byte encoding.
-      {"  'foo\360\220\220\212';\n"
-       "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
-      // 3 byte encoding of \u0fff.
-      {"  'foo\340\277\277';\n"
-       "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
-      // 3 byte surrogate, followed by broken 2-byte surrogate w/ impossible 2nd
-      // byte and last byte missing.
-      {"  'foo\355\240\201\355\211';\n"
-       "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
-      // Broken 3 byte encoding of \u0fff with missing last byte.
-      {"  'foo\340\277';\n"
-       "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
-      // Broken 3 byte encoding of \u0fff with missing 2 last bytes.
-      {"  'foo\340';\n"
-       "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
-      // Broken 3 byte encoding of \u00ff should be a 2 byte encoding.
-      {"  'foo\340\203\277';\n"
-       "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
-      // Broken 3 byte encoding of \u007f should be a 2 byte encoding.
-      {"  'foo\340\201\277';\n"
-       "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
-      // Unpaired lead surrogate.
-      {"  'foo\355\240\201';\n"
-       "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
-      // Unpaired lead surrogate where following code point is a 3 byte
-      // sequence.
-      {"  'foo\355\240\201\340\277\277';\n"
-       "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
-      // Unpaired lead surrogate where following code point is a 4 byte encoding
-      // of a trail surrogate.
-      {"  'foo\355\240\201\360\215\260\211';\n"
-       "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
-      // Unpaired trail surrogate.
-      {"  'foo\355\260\211';\n"
-       "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
-      // 2 byte encoding of \u00ff.
-      {"  'foo\303\277';\n"
-       "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
-      // Broken 2 byte encoding of \u00ff with missing last byte.
-      {"  'foo\303';\n"
-       "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
-      // Broken 2 byte encoding of \u007f should be a 1 byte encoding.
-      {"  'foo\301\277';\n"
-       "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
-      // Illegal 5 byte encoding.
-      {"  'foo\370\277\277\277\277';\n"
-       "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
-      // Illegal 6 byte encoding.
-      {"  'foo\374\277\277\277\277\277';\n"
-       "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
-      // Illegal 0xfe byte
-      {"  'foo\376\277\277\277\277\277\277';\n"
-       "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
-      // Illegal 0xff byte
-      {"  'foo\377\277\277\277\277\277\277\277';\n"
-       "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
-      {"  'foo';\n"
-       "  (function fun",
-       "(a,b) { 'bar\355\240\201\355\260\213'; }", ")();", i::FUNCTION_SCOPE,
-       i::SLOPPY},
-      {"  'foo';\n"
-       "  (function fun",
-       "(a,b) { 'bar\360\220\220\214'; }", ")();", i::FUNCTION_SCOPE,
-       i::SLOPPY},
-      {NULL, NULL, NULL, i::EVAL_SCOPE, i::SLOPPY}};
+    { "  with ({}) ", "{ block; }", " more;", i::WITH_SCOPE, i::SLOPPY },
+    { "  with ({}) ", "{ block; }", "; more;", i::WITH_SCOPE, i::SLOPPY },
+    { "  with ({}) ", "{\n"
+      "    block;\n"
+      "  }", "\n"
+      "  more;", i::WITH_SCOPE, i::SLOPPY },
+    { "  with ({}) ", "statement;", " more;", i::WITH_SCOPE, i::SLOPPY },
+    { "  with ({}) ", "statement", "\n"
+      "  more;", i::WITH_SCOPE, i::SLOPPY },
+    { "  with ({})\n"
+      "    ", "statement;", "\n"
+      "  more;", i::WITH_SCOPE, i::SLOPPY },
+    { "  try {} catch ", "(e) { block; }", " more;",
+      i::CATCH_SCOPE, i::SLOPPY },
+    { "  try {} catch ", "(e) { block; }", "; more;",
+      i::CATCH_SCOPE, i::SLOPPY },
+    { "  try {} catch ", "(e) {\n"
+      "    block;\n"
+      "  }", "\n"
+      "  more;", i::CATCH_SCOPE, i::SLOPPY },
+    { "  try {} catch ", "(e) { block; }", " finally { block; } more;",
+      i::CATCH_SCOPE, i::SLOPPY },
+    { "  start;\n"
+      "  ", "{ let block; }", " more;", i::BLOCK_SCOPE, i::STRICT },
+    { "  start;\n"
+      "  ", "{ let block; }", "; more;", i::BLOCK_SCOPE, i::STRICT },
+    { "  start;\n"
+      "  ", "{\n"
+      "    let block;\n"
+      "  }", "\n"
+      "  more;", i::BLOCK_SCOPE, i::STRICT },
+    { "  start;\n"
+      "  function fun", "(a,b) { infunction; }", " more;",
+      i::FUNCTION_SCOPE, i::SLOPPY },
+    { "  start;\n"
+      "  function fun", "(a,b) {\n"
+      "    infunction;\n"
+      "  }", "\n"
+      "  more;", i::FUNCTION_SCOPE, i::SLOPPY },
+    { "  start;\n", "(a,b) => a + b", "; more;",
+      i::FUNCTION_SCOPE, i::SLOPPY },
+    { "  start;\n", "(a,b) => { return a+b; }", "\nmore;",
+      i::FUNCTION_SCOPE, i::SLOPPY },
+    { "  start;\n"
+      "  (function fun", "(a,b) { infunction; }", ")();",
+      i::FUNCTION_SCOPE, i::SLOPPY },
+    { "  for ", "(let x = 1 ; x < 10; ++ x) { block; }", " more;",
+      i::BLOCK_SCOPE, i::STRICT },
+    { "  for ", "(let x = 1 ; x < 10; ++ x) { block; }", "; more;",
+      i::BLOCK_SCOPE, i::STRICT },
+    { "  for ", "(let x = 1 ; x < 10; ++ x) {\n"
+      "    block;\n"
+      "  }", "\n"
+      "  more;", i::BLOCK_SCOPE, i::STRICT },
+    { "  for ", "(let x = 1 ; x < 10; ++ x) statement;", " more;",
+      i::BLOCK_SCOPE, i::STRICT },
+    { "  for ", "(let x = 1 ; x < 10; ++ x) statement", "\n"
+      "  more;", i::BLOCK_SCOPE, i::STRICT },
+    { "  for ", "(let x = 1 ; x < 10; ++ x)\n"
+      "    statement;", "\n"
+      "  more;", i::BLOCK_SCOPE, i::STRICT },
+    { "  for ", "(let x in {}) { block; }", " more;",
+      i::BLOCK_SCOPE, i::STRICT },
+    { "  for ", "(let x in {}) { block; }", "; more;",
+      i::BLOCK_SCOPE, i::STRICT },
+    { "  for ", "(let x in {}) {\n"
+      "    block;\n"
+      "  }", "\n"
+      "  more;", i::BLOCK_SCOPE, i::STRICT },
+    { "  for ", "(let x in {}) statement;", " more;",
+      i::BLOCK_SCOPE, i::STRICT },
+    { "  for ", "(let x in {}) statement", "\n"
+      "  more;", i::BLOCK_SCOPE, i::STRICT },
+    { "  for ", "(let x in {})\n"
+      "    statement;", "\n"
+      "  more;", i::BLOCK_SCOPE, i::STRICT },
+    // Check that 6-byte and 4-byte encodings of UTF-8 strings do not throw
+    // the preparser off in terms of byte offsets.
+    // 6 byte encoding.
+    { "  'foo\355\240\201\355\260\211';\n"
+      "  (function fun", "(a,b) { infunction; }", ")();",
+      i::FUNCTION_SCOPE, i::SLOPPY },
+    // 4 byte encoding.
+    { "  'foo\360\220\220\212';\n"
+      "  (function fun", "(a,b) { infunction; }", ")();",
+      i::FUNCTION_SCOPE, i::SLOPPY },
+    // 3 byte encoding of \u0fff.
+    { "  'foo\340\277\277';\n"
+      "  (function fun", "(a,b) { infunction; }", ")();",
+      i::FUNCTION_SCOPE, i::SLOPPY },
+    // Broken 6 byte encoding with missing last byte.
+    { "  'foo\355\240\201\355\211';\n"
+      "  (function fun", "(a,b) { infunction; }", ")();",
+      i::FUNCTION_SCOPE, i::SLOPPY },
+    // Broken 3 byte encoding of \u0fff with missing last byte.
+    { "  'foo\340\277';\n"
+      "  (function fun", "(a,b) { infunction; }", ")();",
+      i::FUNCTION_SCOPE, i::SLOPPY },
+    // Broken 3 byte encoding of \u0fff with missing 2 last bytes.
+    { "  'foo\340';\n"
+      "  (function fun", "(a,b) { infunction; }", ")();",
+      i::FUNCTION_SCOPE, i::SLOPPY },
+    // Broken 3 byte encoding of \u00ff should be a 2 byte encoding.
+    { "  'foo\340\203\277';\n"
+      "  (function fun", "(a,b) { infunction; }", ")();",
+      i::FUNCTION_SCOPE, i::SLOPPY },
+    // Broken 3 byte encoding of \u007f should be a 2 byte encoding.
+    { "  'foo\340\201\277';\n"
+      "  (function fun", "(a,b) { infunction; }", ")();",
+      i::FUNCTION_SCOPE, i::SLOPPY },
+    // Unpaired lead surrogate.
+    { "  'foo\355\240\201';\n"
+      "  (function fun", "(a,b) { infunction; }", ")();",
+      i::FUNCTION_SCOPE, i::SLOPPY },
+    // Unpaired lead surrogate where following code point is a 3 byte sequence.
+    { "  'foo\355\240\201\340\277\277';\n"
+      "  (function fun", "(a,b) { infunction; }", ")();",
+      i::FUNCTION_SCOPE, i::SLOPPY },
+    // Unpaired lead surrogate where following code point is a 4 byte encoding
+    // of a trail surrogate.
+    { "  'foo\355\240\201\360\215\260\211';\n"
+      "  (function fun", "(a,b) { infunction; }", ")();",
+      i::FUNCTION_SCOPE, i::SLOPPY },
+    // Unpaired trail surrogate.
+    { "  'foo\355\260\211';\n"
+      "  (function fun", "(a,b) { infunction; }", ")();",
+      i::FUNCTION_SCOPE, i::SLOPPY },
+    // 2 byte encoding of \u00ff.
+    { "  'foo\303\277';\n"
+      "  (function fun", "(a,b) { infunction; }", ")();",
+      i::FUNCTION_SCOPE, i::SLOPPY },
+    // Broken 2 byte encoding of \u00ff with missing last byte.
+    { "  'foo\303';\n"
+      "  (function fun", "(a,b) { infunction; }", ")();",
+      i::FUNCTION_SCOPE, i::SLOPPY },
+    // Broken 2 byte encoding of \u007f should be a 1 byte encoding.
+    { "  'foo\301\277';\n"
+      "  (function fun", "(a,b) { infunction; }", ")();",
+      i::FUNCTION_SCOPE, i::SLOPPY },
+    // Illegal 5 byte encoding.
+    { "  'foo\370\277\277\277\277';\n"
+      "  (function fun", "(a,b) { infunction; }", ")();",
+      i::FUNCTION_SCOPE, i::SLOPPY },
+    // Illegal 6 byte encoding.
+    { "  'foo\374\277\277\277\277\277';\n"
+      "  (function fun", "(a,b) { infunction; }", ")();",
+      i::FUNCTION_SCOPE, i::SLOPPY },
+    // Illegal 0xfe byte
+    { "  'foo\376\277\277\277\277\277\277';\n"
+      "  (function fun", "(a,b) { infunction; }", ")();",
+      i::FUNCTION_SCOPE, i::SLOPPY },
+    // Illegal 0xff byte
+    { "  'foo\377\277\277\277\277\277\277\277';\n"
+      "  (function fun", "(a,b) { infunction; }", ")();",
+      i::FUNCTION_SCOPE, i::SLOPPY },
+    { "  'foo';\n"
+      "  (function fun", "(a,b) { 'bar\355\240\201\355\260\213'; }", ")();",
+      i::FUNCTION_SCOPE, i::SLOPPY },
+    { "  'foo';\n"
+      "  (function fun", "(a,b) { 'bar\360\220\220\214'; }", ")();",
+      i::FUNCTION_SCOPE, i::SLOPPY },
+    { NULL, NULL, NULL, i::EVAL_SCOPE, i::SLOPPY }
+  };
 
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
