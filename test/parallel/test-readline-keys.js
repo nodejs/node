@@ -1,10 +1,10 @@
 'use strict';
-require('../common');
-var PassThrough = require('stream').PassThrough;
-var assert = require('assert');
-var inherits = require('util').inherits;
-var extend = require('util')._extend;
-var Interface = require('readline').Interface;
+const common = require('../common');
+const PassThrough = require('stream').PassThrough;
+const assert = require('assert');
+const inherits = require('util').inherits;
+const extend = require('util')._extend;
+const Interface = require('readline').Interface;
 
 
 function FakeInput() {
@@ -55,7 +55,7 @@ function addTest(sequences, expectedKeys) {
 
 const addKeyIntervalTest = (sequences, expectedKeys, interval = 550,
                             assertDelay = 550) => {
-  return (next) => () => {
+  const fn = common.mustCall((next) => () => {
 
     if (!Array.isArray(sequences)) {
       sequences = [ sequences ];
@@ -84,7 +84,8 @@ const addKeyIntervalTest = (sequences, expectedKeys, interval = 550,
       }
     };
     emitKeys(sequences);
-  };
+  });
+  return fn;
 };
 
 // regular alphanumerics
