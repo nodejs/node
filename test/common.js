@@ -14,7 +14,7 @@ const execSync = require('child_process').execSync;
 const testRoot = process.env.NODE_TEST_DIR ?
                    fs.realpathSync(process.env.NODE_TEST_DIR) : __dirname;
 
-// If env var is set then enable noop async_hook hooks for testing.
+// If env var is set then enable async_hook hooks for all tests.
 if (process.env.NODE_TEST_WITH_ASYNC_HOOKS) {
   const destroydIdsList = {};
   const destroyListList = {};
@@ -31,7 +31,7 @@ if (process.env.NODE_TEST_WITH_ASYNC_HOOKS) {
 
   const _addIdToDestroyList = async_wrap.addIdToDestroyList;
   async_wrap.addIdToDestroyList = function addIdToDestroyList(id) {
-    if (!process.env.NODE_CHECK_ASYNC_DESTROY)
+    if (!process.env.NODE_TEST_ASYNC_DESTROY)
       return _addIdToDestroyList.call(this, id);
     if (destroyListList[id] !== undefined) {
       process._rawDebug(destroyListList[id]);
@@ -42,15 +42,20 @@ if (process.env.NODE_TEST_WITH_ASYNC_HOOKS) {
   };
 
   require('async_hooks').createHook({
-    init(id, ty, tr, h) { initHandles[id] = h; },
+    init(id, ty, tr, h) {
+      if (initHandles[id]) {
+        throw new Error(`init called twice for same id (${id})`);
+      }
+      initHandles[id] = h;
+    },
     before() { },
-    after() { },
+    after: process.env.NODE_TEST_ONLY_BEFORE_HOOK ? undefined : () => {},
     destroy(id) {
-      if (!process.env.NODE_CHECK_ASYNC_DESTROY) return;
+      if (!process.env.NODE_TEST_ASYNC_DESTROY) return;
       if (destroydIdsList[id] !== undefined) {
         process._rawDebug(destroydIdsList[id]);
         process._rawDebug();
-        throw new Error(`destroy called for same id(${id})`);
+        throw new Error(`destroy called for same id (${id})`);
       }
       destroydIdsList[id] = new Error().stack;
     },
