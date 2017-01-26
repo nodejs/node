@@ -3349,11 +3349,17 @@ Expression* Parser::InstallHomeObject(Expression* function_literal,
   return do_expr;
 }
 
+inline const std::string IntToString(int n) {
+  std::ostringstream oss;
+  oss << n;
+  return oss.str();
+}
+
 const AstRawString* ClassFieldVariableName(bool is_name,
                                            AstValueFactory* ast_value_factory,
                                            int index) {
   std::string name =
-      ".class-field-" + std::to_string(index) + (is_name ? "-name" : "-func");
+      ".class-field-" + IntToString(index) + (is_name ? "-name" : "-func");
   return ast_value_factory->GetOneByteString(name.c_str());
 }
 
