@@ -58,6 +58,7 @@ exports.parse = function (path, map) {
     var i = 0 // iterates on path
     var j  = 0 // iterates on stack
     var emitKey = false;
+    var emitPath = false;
     while (i < path.length) {
       var key = path[i]
       var c
@@ -71,6 +72,7 @@ exports.parse = function (path, map) {
           return
         }
         emitKey = !!key.emitKey;
+        emitPath = !!key.emitPath;
         i++
       } else {
         i++
@@ -99,7 +101,14 @@ exports.parse = function (path, map) {
     var data = this.value[this.key]
     if(null != data)
       if(null != (data = map ? map(data, actualPath) : data)) {
-        data = emitKey ? { value: data, key: this.key } : data;
+        if (emitKey || emitPath) {
+          data = { value: data };
+          if (emitKey)
+            data["key"] = this.key;
+          if (emitPath)
+            data["path"] = actualPath;
+        }
+
         stream.queue(data)
       }
     delete this.value[this.key]

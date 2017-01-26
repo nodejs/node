@@ -1,6 +1,6 @@
 'use strict'
 var semver = require('semver')
-var supportedNode = '0.12 || >= 4'
+var supportedNode = '>= 4'
 var knownBroken = '>=0.1 <=0.7'
 
 var checkVersion = exports.checkVersion = function (version) {
