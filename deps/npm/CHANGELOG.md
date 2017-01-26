@@ -1,3 +1,86 @@
+### v4.1.2 (2017-01-12)
+
+We have a twee little release this week as we come back from the holidays.
+
+#### 0.12 IS UNSUPPORTED NOW (really)
+
+After [jumping the gun a
+little](https://github.com/npm/npm/releases/tag/v4.0.2), we can now
+officially remove 0.12 from our supported versions list.  The Node.js
+project has now officially ended even maintenance support for 0.12 and thus,
+so will we.  To reiterate from the last time we did this:
+
+What this means:
+
+* Your contributions will no longer block on the tests passing on 0.12.
+* We will no longer block dependency upgrades on working with 0.12.
+* Bugs filed on the npm CLI that are due to incompatibilities with 0.12
+  (and older versions) will be closed with a strong urging to upgrade to a
+  supported version of Node.
+* On the flip side, we'll continue to (happily!) accept patches that
+  address regressions seen when running the CLI with Node.js 0.12.
+
+What this doesn't mean:
+
+* The CLI is going to start depending on ES2015+ features. npm continues
+  to work, in almost all cases, all the way back to Node.js 0.8, and our
+  long history of backwards compatibility is a source of pride for the
+  team.
+* We aren't concerned about the problems of users who, for whatever
+  reason, can't update to newer versions of npm. As mentioned above, we're
+  happy to take community patches intended to address regressions.
+
+We're not super interested in taking sides on what version of Node.js
+you "should" be running. We're a workflow tool, and we understand that
+you all have a diverse set of operational environments you need to be
+able to support. At the same time, we _are_ a small team, and we need
+to put some limits on what we support. Tracking what's supported by our
+runtime's own team seems most practical, so that's what we're doing.
+
+* [`c7bbba8`](https://github.com/npm/npm/commit/c7bbba8744b62448103a1510c65d9751288abb5d)
+  Remove 0.12 from our supported versions list.
+  ([@iarna](https://github.com/iarna))
+
+#### WRITING TO SYMLINKED `package.json` (AND OTHER FILES)
+
+If your `package.json`, `npm-shrinkwrap.json` or `.npmrc` were a symlink and
+you used an `npm` command that modified one of these (eg `npm config set` or
+`npm install --save`) then previously we would have removed your symlink and
+replaced it with an ordinary file. While making these files symlinks is pretty
+uncommon, this was still surprising behavior. With this fix we now overwrite
+the _destination_ of the symlink and preserve the symlink itself.
+
+* [`a583983`](https://github.com/npm/npm/commit/a5839833d3de7072be06884b91902c093aff1aed)
+  [write-file-atomic/#5](https://github.com/npm/write-file-atomic/issues/5)
+  [#10223](https://github.com/npm/npm/10223)
+  `write-file-atomic@1.3.1`:
+  When the target is a symlink, write-file-atomic now overwrites the
+  _destination_ of the symlink, instead of replacing the symlink itself.  This
+  makes it's behavior match `fs.writeFile`.
+
+  Fixed a bug where it would ALWAYS fs.stat to look up default mode and chown
+  values even if you'd passed them in.  (It still used the values you passed
+  in, but did a needless stat.)
+  ([@iarna](https://github.com/iarna))
+
+#### DEPENDENCY UPDATES
+
+* [`521f230`](https://github.com/npm/npm/commit/521f230dd57261e64ac9613b3db62f5312971dca)
+  `node-gyp@3.5.0`:
+  Improvements to how Python is located. New `--devdir` flag.
+  ([@bnoordhuis](https://github.com/bnoordhuis))
+  ([@mhart](https://github.com/mhart))
+* [`ccd83e8`](https://github.com/npm/npm/commit/ccd83e8a70d35fb0904f8a9adb2ff7ac8a6b2706)
+  `JSONStream@1.3.0`:
+  Add new emitPath option.
+  ([@nathanwills](https://github.com/nathanwills))
+
+#### TEST IMPROVEMENTS
+
+* [`d76e084`](https://github.com/npm/npm/commit/d76e08463fd65705217624b861a1443811692f34)
+  Disable metric reporting for test suite even if the user has it enabled.
+  ([@iarna](https://github.com/iarna))
+
 ### v4.1.1 (2016-12-16)
 
 This fixes a bug in the metrics reporting where, if you had enabled it then
@@ -10,7 +93,7 @@ Anyway, this is a quick release to fix that bug:
 
 * [`51c393f`](https://github.com/npm/npm/commit/51c393feff5f4908c8a9fb02baef505b1f2259be)
   [#15237](https://github.com/npm/npm/pull/15237)
-  Don't launch a metrics sender process if we're runnning from a metrics
+  Don't launch a metrics sender process if we're running from a metrics
   sender process.
   ([@iarna](https://github.com/iarna))
 
