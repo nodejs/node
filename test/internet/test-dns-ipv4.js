@@ -36,61 +36,61 @@ function checkWrap(req) {
 
 TEST(function test_resolve4(done) {
   const req = dns.resolve4('www.google.com',
-    common.mustCall((err, ips) => {
-      assert.ifError(err);
+                           common.mustCall((err, ips) => {
+                             assert.ifError(err);
 
-      assert.ok(ips.length > 0);
+                             assert.ok(ips.length > 0);
 
-      for (let i = 0; i < ips.length; i++) {
-        assert.ok(isIPv4(ips[i]));
-      }
+                             for (let i = 0; i < ips.length; i++) {
+                               assert.ok(isIPv4(ips[i]));
+                             }
 
-      done();
-    }));
+                             done();
+                           }));
 
   checkWrap(req);
 });
 
 TEST(function test_reverse_ipv4(done) {
   const req = dns.reverse('8.8.8.8',
-    common.mustCall((err, domains) => {
-      assert.ifError(err);
+                          common.mustCall((err, domains) => {
+                            assert.ifError(err);
 
-      assert.ok(domains.length > 0);
+                            assert.ok(domains.length > 0);
 
-      for (let i = 0; i < domains.length; i++) {
-        assert.ok(domains[i]);
-        assert.ok(typeof domains[i] === 'string');
-      }
+                            for (let i = 0; i < domains.length; i++) {
+                              assert.ok(domains[i]);
+                              assert.ok(typeof domains[i] === 'string');
+                            }
 
-      done();
-    }));
+                            done();
+                          }));
 
   checkWrap(req);
 });
 
 TEST(function test_lookup_ipv4_explicit(done) {
   const req = dns.lookup('www.google.com', 4,
-    common.mustCall((err, ip, family) => {
-      assert.ifError(err);
-      assert.ok(net.isIPv4(ip));
-      assert.strictEqual(family, 4);
+                         common.mustCall((err, ip, family) => {
+                           assert.ifError(err);
+                           assert.ok(net.isIPv4(ip));
+                           assert.strictEqual(family, 4);
 
-      done();
-    }));
+                           done();
+                         }));
 
   checkWrap(req);
 });
 
 TEST(function test_lookup_ipv4_implicit(done) {
   const req = dns.lookup('www.google.com',
-    common.mustCall((err, ip, family) => {
-      assert.ifError(err);
-      assert.ok(net.isIPv4(ip));
-      assert.strictEqual(family, 4);
+                         common.mustCall((err, ip, family) => {
+                           assert.ifError(err);
+                           assert.ok(net.isIPv4(ip));
+                           assert.strictEqual(family, 4);
 
-      done();
-    }));
+                           done();
+                         }));
 
   checkWrap(req);
 });
@@ -125,26 +125,26 @@ TEST(function test_lookup_ipv4_hint_addrconfig(done) {
 
 TEST(function test_lookup_ip_ipv4(done) {
   const req = dns.lookup('127.0.0.1',
-    common.mustCall((err, ip, family) => {
-      assert.ifError(err);
-      assert.strictEqual(ip, '127.0.0.1');
-      assert.strictEqual(family, 4);
+                         common.mustCall((err, ip, family) => {
+                           assert.ifError(err);
+                           assert.strictEqual(ip, '127.0.0.1');
+                           assert.strictEqual(family, 4);
 
-      done();
-    }));
+                           done();
+                         }));
 
   checkWrap(req);
 });
 
 TEST(function test_lookup_localhost_ipv4(done) {
   const req = dns.lookup('localhost', 4,
-    common.mustCall((err, ip, family) => {
-      assert.ifError(err);
-      assert.strictEqual(ip, '127.0.0.1');
-      assert.strictEqual(family, 4);
+                         common.mustCall((err, ip, family) => {
+                           assert.ifError(err);
+                           assert.strictEqual(ip, '127.0.0.1');
+                           assert.strictEqual(family, 4);
 
-      done();
-    }));
+                           done();
+                         }));
 
   checkWrap(req);
 });
@@ -164,21 +164,23 @@ TEST(function test_lookup_all_ipv4(done) {
       });
 
       done();
-    }
-  ));
+    })
+  );
 
   checkWrap(req);
 });
 
 TEST(function test_lookupservice_ip_ipv4(done) {
-  const req = dns.lookupService('127.0.0.1', 80,
+  const req = dns.lookupService(
+    '127.0.0.1', 80,
     common.mustCall((err, host, service) => {
       assert.ifError(err);
       assert.strictEqual(typeof host, 'string');
       assert(host);
       assert(['http', 'www', '80'].includes(service));
       done();
-    }));
+    })
+  );
 
   checkWrap(req);
 });

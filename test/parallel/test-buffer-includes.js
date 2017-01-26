@@ -159,10 +159,10 @@ assert(
     6, mixedByteStringUcs2.includes(Buffer.from('bc', 'ucs2'), 0, 'ucs2'));
 assert(
     10, mixedByteStringUcs2.includes(Buffer.from('\u03a3', 'ucs2'),
-    0, 'ucs2'));
+                                     0, 'ucs2'));
 assert(
     -1, mixedByteStringUcs2.includes(Buffer.from('\u0396', 'ucs2'),
-    0, 'ucs2'));
+                                     0, 'ucs2'));
 
 twoByteString = Buffer.from('\u039a\u0391\u03a3\u03a3\u0395', 'ucs2');
 

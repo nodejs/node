@@ -29,7 +29,7 @@ var nativeMax = Math.max,
  * // => 1
  */
 function lastIndexOf(array, value, fromIndex) {
-  var length = array ? array.length : 0;
+  var length = array == null ? 0 : array.length;
   if (!length) {
     return -1;
   }

@@ -11,8 +11,8 @@ var bench = common.createBenchmark(main, {
     'http://user:pass@foo.bar.com:21/aaa/zzz?l=24#test'
   ],
   prop: ['toString', 'href', 'origin', 'protocol',
-    'username', 'password', 'host', 'hostname', 'port',
-    'pathname', 'search', 'searchParams', 'hash'],
+         'username', 'password', 'host', 'hostname', 'port',
+         'pathname', 'search', 'searchParams', 'hash'],
   n: [1e4]
 });
 

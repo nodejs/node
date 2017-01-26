@@ -6,17 +6,23 @@ const assert = require('assert');
 assert.strictEqual(punycode.encode('ü'), 'tda');
 assert.strictEqual(punycode.encode('Goethe'), 'Goethe-');
 assert.strictEqual(punycode.encode('Bücher'), 'Bcher-kva');
-assert.strictEqual(punycode.encode(
-    'Willst du die Blüthe des frühen, die Früchte des späteren Jahres'),
-    'Willst du die Blthe des frhen, die Frchte des spteren Jahres-x9e96lkal');
+assert.strictEqual(
+  punycode.encode(
+    'Willst du die Blüthe des frühen, die Früchte des späteren Jahres'
+  ),
+  'Willst du die Blthe des frhen, die Frchte des spteren Jahres-x9e96lkal'
+);
 assert.strictEqual(punycode.encode('日本語'), 'wgv71a119e');
 
 assert.strictEqual(punycode.decode('tda'), 'ü');
 assert.strictEqual(punycode.decode('Goethe-'), 'Goethe');
 assert.strictEqual(punycode.decode('Bcher-kva'), 'Bücher');
-assert.strictEqual(punycode.decode(
-    'Willst du die Blthe des frhen, die Frchte des spteren Jahres-x9e96lkal'),
-    'Willst du die Blüthe des frühen, die Früchte des späteren Jahres');
+assert.strictEqual(
+  punycode.decode(
+    'Willst du die Blthe des frhen, die Frchte des spteren Jahres-x9e96lkal'
+  ),
+  'Willst du die Blüthe des frühen, die Früchte des späteren Jahres'
+);
 assert.strictEqual(punycode.decode('wgv71a119e'), '日本語');
 
 // http://tools.ietf.org/html/rfc3492#section-7.1

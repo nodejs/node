@@ -36,7 +36,7 @@ module.exports = {
         schema: [{
             type: "object",
             properties: {
-                allowParens: {type: "boolean"}
+                allowParens: { type: "boolean" }
             },
             additionalProperties: false
         }]
@@ -55,7 +55,7 @@ module.exports = {
             const body = node.body;
 
             if (isConditional(body) && !(config.allowParens && astUtils.isParenthesised(sourceCode, body))) {
-                context.report(node, "Arrow function used ambiguously with a conditional expression.");
+                context.report({ node, message: "Arrow function used ambiguously with a conditional expression." });
             }
         }
 

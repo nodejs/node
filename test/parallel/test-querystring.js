@@ -44,11 +44,11 @@ var qsTestCases = [
   ['foo=%EF%BF%BD', 'foo=%EF%BF%BD', {'foo': '\ufffd' }],
   // See: https://github.com/joyent/node/issues/1707
   ['hasOwnProperty=x&toString=foo&valueOf=bar&__defineGetter__=baz',
-    'hasOwnProperty=x&toString=foo&valueOf=bar&__defineGetter__=baz',
-    { hasOwnProperty: 'x',
-      toString: 'foo',
-      valueOf: 'bar',
-      __defineGetter__: 'baz' }],
+   'hasOwnProperty=x&toString=foo&valueOf=bar&__defineGetter__=baz',
+   { hasOwnProperty: 'x',
+     toString: 'foo',
+     valueOf: 'bar',
+     __defineGetter__: 'baz' }],
   // See: https://github.com/joyent/node/issues/3058
   ['foo&bar=baz', 'foo=&bar=baz', { foo: '', bar: 'baz' }],
   [null, '', {}],

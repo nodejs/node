@@ -17,7 +17,7 @@ const regex = /\t/;
 module.exports = {
     meta: {
         docs: {
-            description: "disallow tabs in file",
+            description: "disallow all tabs",
             category: "Stylistic Issues",
             recommended: false
         },
@@ -31,14 +31,10 @@ module.exports = {
                     const match = regex.exec(line);
 
                     if (match) {
-                        context.report(
-                            node,
-                            {
-                                line: index + 1,
-                                column: match.index + 1
-                            },
-                            "Unexpected tab character."
-                        );
+                        context.report({ node, loc: {
+                            line: index + 1,
+                            column: match.index + 1
+                        }, message: "Unexpected tab character." });
                     }
                 });
             }

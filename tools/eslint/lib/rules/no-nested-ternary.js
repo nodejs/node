@@ -26,7 +26,7 @@ module.exports = {
             ConditionalExpression(node) {
                 if (node.alternate.type === "ConditionalExpression" ||
                         node.consequent.type === "ConditionalExpression") {
-                    context.report(node, "Do not nest ternary expressions.");
+                    context.report({ node, message: "Do not nest ternary expressions." });
                 }
             }
         };

@@ -51,7 +51,7 @@
     {{ var $code = it.validate($it).replace(/validate\.schema/g, $refVal.code); }}
     {{= $code }}
     {{? $breakOnError}}
-      if (valid{{=$it.level}}) {
+      if ({{=$nextValid}}) {
     {{?}}
   {{??}}
     {{
