@@ -155,10 +155,10 @@ void AES_ctr32_encrypt(const unsigned char *in, unsigned char *out,
                        const unsigned char ivec[AES_BLOCK_SIZE]);
 # endif
 # ifdef AES_XTS_ASM
-void AES_xts_encrypt(const char *inp, char *out, size_t len,
+void AES_xts_encrypt(const unsigned char *inp, unsigned char *out, size_t len,
                      const AES_KEY *key1, const AES_KEY *key2,
                      const unsigned char iv[16]);
-void AES_xts_decrypt(const char *inp, char *out, size_t len,
+void AES_xts_decrypt(const unsigned char *inp, unsigned char *out, size_t len,
                      const AES_KEY *key1, const AES_KEY *key2,
                      const unsigned char iv[16]);
 # endif
