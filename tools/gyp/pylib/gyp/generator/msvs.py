@@ -2622,7 +2622,7 @@ def _GetMSBuildProjectConfigurations(configurations):
   return [group]
 
 
-def _GetMSBuildGlobalProperties(spec, guid, gyp_file_name):
+def _GetMSBuildGlobalProperties(spec, version, guid, gyp_file_name):
   namespace = os.path.splitext(gyp_file_name)[0]
   properties = [
       ['PropertyGroup', {'Label': 'Globals'},
@@ -2662,6 +2662,15 @@ def _GetMSBuildGlobalProperties(spec, guid, gyp_file_name):
     else:
       properties[0].append(['ApplicationType', 'Windows Store'])
 
+  msvs_windows_sdk_version = None
+  if msvs_windows_sdk_version == None and version.ShortName() == '2017':
+    vs2017_sdk = '10.0.14393.0'
+    vs2017_sdk = os.environ.get('vs2017_sdk', vs2017_sdk)
+    if vs2017_sdk:
+      msvs_windows_sdk_version = vs2017_sdk
+  if msvs_windows_sdk_version:
+    properties[0].append(['WindowsTargetPlatformVersion',
+                          str(msvs_windows_sdk_version)])
   return properties
 
 def _GetMSBuildConfigurationDetails(spec, build_file):
@@ -3295,7 +3304,8 @@ def _GenerateMSBuildProject(project, options, version, generator_flags):
       }]
 
   content += _GetMSBuildProjectConfigurations(configurations)
-  content += _GetMSBuildGlobalProperties(spec, project.guid, project_file_name)
+  content += _GetMSBuildGlobalProperties(spec, version, project.guid,
+                                         project_file_name)
   content += import_default_section
   content += _GetMSBuildConfigurationDetails(spec, project.build_file)
   if spec.get('msvs_enable_winphone'):
