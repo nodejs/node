@@ -228,52 +228,80 @@ static inline bool IsContinuationCharacter(byte chr) {
 // This method decodes an UTF-8 value according to RFC 3629.
 uchar Utf8::CalculateValue(const byte* str, size_t max_length, size_t* cursor) {
   size_t length = NonASCIISequenceLength(str[0]);
-
-  // Check continuation characters.
-  size_t max_count = std::min(length, max_length);
-  size_t count = 1;
-  while (count < max_count && IsContinuationCharacter(str[count])) {
-    count++;
+  if (length == 0 || max_length < length) {
+    *cursor += 1;
+    return kBadChar;
   }
-  *cursor += count;
-
-  // There must be enough continuation characters.
-  if (count != length) return kBadChar;
-
-  // Check overly long sequences & other conditions.
+  if (length == 2) {
+    if (!IsContinuationCharacter(str[1])) {
+      *cursor += 1;
+      return kBadChar;
+    }
+    *cursor += 2;
+    return ((str[0] << 6) + str[1]) - 0x00003080;
+  }
   if (length == 3) {
-    if (str[0] == 0xE0 && (str[1] < 0xA0 || str[1] > 0xBF)) {
-      // Overlong three-byte sequence?
-      return kBadChar;
-    } else if (str[0] == 0xED && (str[1] < 0x80 || str[1] > 0x9F)) {
-      // High and low surrogate halves?
+    switch (str[0]) {
+      case 0xE0:
+        // Overlong three-byte sequence.
+        if (str[1] < 0xA0 || str[1] > 0xBF) {
+          *cursor += 1;
+          return kBadChar;
+        }
+        break;
+      case 0xED:
+        // High and low surrogate halves.
+        if (str[1] < 0x80 || str[1] > 0x9F) {
+          *cursor += 1;
+          return kBadChar;
+        }
+        break;
+      default:
+        if (!IsContinuationCharacter(str[1])) {
+          *cursor += 1;
+          return kBadChar;
+        }
+    }
+    if (!IsContinuationCharacter(str[2])) {
+      *cursor += 1;
       return kBadChar;
     }
-  } else if (length == 4) {
-    if (str[0] == 0xF0 && (str[1] < 0x90 || str[1] > 0xBF)) {
+    *cursor += 3;
+    return ((str[0] << 12) + (str[1] << 6) + str[2]) - 0x000E2080;
+  }
+  DCHECK(length == 4);
+  switch (str[0]) {
+    case 0xF0:
       // Overlong four-byte sequence.
-      return kBadChar;
-    } else if (str[0] == 0xF4 && (str[1] < 0x80 || str[1] > 0x8F)) {
+      if (str[1] < 0x90 || str[1] > 0xBF) {
+        *cursor += 1;
+        return kBadChar;
+      }
+      break;
+    case 0xF4:
       // Code points outside of the unicode range.
-      return kBadChar;
-    }
+      if (str[1] < 0x80 || str[1] > 0x8F) {
+        *cursor += 1;
+        return kBadChar;
+      }
+      break;
+    default:
+      if (!IsContinuationCharacter(str[1])) {
+        *cursor += 1;
+        return kBadChar;
+      }
   }
-
-  // All errors have been handled, so we only have to assemble the result.
-  switch (length) {
-    case 1:
-      return str[0];
-    case 2:
-      return ((str[0] << 6) + str[1]) - 0x00003080;
-    case 3:
-      return ((str[0] << 12) + (str[1] << 6) + str[2]) - 0x000E2080;
-    case 4:
-      return ((str[0] << 18) + (str[1] << 12) + (str[2] << 6) + str[3]) -
-             0x03C82080;
+  if (!IsContinuationCharacter(str[2])) {
+    *cursor += 1;
+    return kBadChar;
   }
-
-  UNREACHABLE();
-  return kBadChar;
+  if (!IsContinuationCharacter(str[3])) {
+    *cursor += 1;
+    return kBadChar;
+  }
+  *cursor += 4;
+  return ((str[0] << 18) + (str[1] << 12) + (str[2] << 6) + str[3]) -
+         0x03C82080;
 }
 
 uchar Utf8::ValueOfIncremental(byte next, Utf8IncrementalBuffer* buffer) {
@@ -295,10 +323,9 @@ uchar Utf8::ValueOfIncremental(byte next, Utf8IncrementalBuffer* buffer) {
       // with one shift.
       uint8_t mask = 0x7f >> kind;
 
-      // Store the kind in the top nibble, and kind - 1 (i.e., remaining bytes)
-      // in 2nd nibble, and the value  in the bottom three. The 2nd nibble is
-      // intended as a counter about how many bytes are still needed.
-      *buffer = kind << 28 | (kind - 1) << 24 | (next & mask);
+      // Store the kind - 1 (i.e., remaining bytes) in the top byte, value
+      // in the bottom three.
+      *buffer = (kind - 1) << 24 | (next & mask);
       return kIncomplete;
     } else {
       // No buffer, and not the start of a 1-byte char (handled at the
@@ -327,19 +354,15 @@ uchar Utf8::ValueOfIncremental(byte next, Utf8IncrementalBuffer* buffer) {
     // We're inside of a character, as described by buffer.
 
     // How many bytes (excluding this one) do we still expect?
-    uint8_t bytes_expected = *buffer >> 28;
-    uint8_t bytes_left = (*buffer >> 24) & 0x0f;
-    bytes_left--;
+    uint8_t count = (*buffer >> 24) - 1;
     // Update the value.
     uint32_t value = ((*buffer & 0xffffff) << 6) | (next & 0x3F);
-    if (bytes_left) {
-      *buffer = (bytes_expected << 28 | bytes_left << 24 | value);
+    if (count) {
+      *buffer = count << 24 | value;
       return kIncomplete;
     } else {
       *buffer = 0;
-      bool sequence_was_too_long = (bytes_expected == 2 && value < 0x80) ||
-                                   (bytes_expected == 3 && value < 0x800);
-      return sequence_was_too_long ? kBadChar : value;
+      return value;
     }
   } else {
     // Within a character, but not a continuation character? Then the
