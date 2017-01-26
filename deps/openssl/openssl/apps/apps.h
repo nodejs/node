@@ -259,9 +259,9 @@ STACK_OF(X509_CRL) *load_crls(BIO *err, const char *file, int format,
                               const char *pass, ENGINE *e,
                               const char *cert_descrip);
 X509_STORE *setup_verify(BIO *bp, char *CAfile, char *CApath);
-# ifndef OPENSSL_NO_ENGINE
+
 ENGINE *setup_engine(BIO *err, const char *engine, int debug);
-# endif
+void release_engine(ENGINE *e);
 
 # ifndef OPENSSL_NO_OCSP
 OCSP_RESPONSE *process_responder(BIO *err, OCSP_REQUEST *req,
