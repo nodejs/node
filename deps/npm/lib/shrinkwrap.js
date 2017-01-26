@@ -165,7 +165,7 @@ function isOnlyDev (node, seen) {
 
 // There is a known limitation with this implementation: If a dependency is
 // ONLY required by cycles that are detached from the top level then it will
-// ultimately return ture.
+// ultimately return true.
 //
 // This is ok though: We don't allow shrinkwraps with extraneous deps and
 // these situation is caught by the extraneous checker before we get here.
