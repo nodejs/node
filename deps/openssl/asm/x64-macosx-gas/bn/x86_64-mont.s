@@ -995,18 +995,17 @@ L$mulx4x_outer:
 	mulxq	16(%rsi),%r15,%r13
 	adoxq	-24(%rbx),%r11
 	adcxq	%r15,%r12
-	adoxq	%rbp,%r12
+	adoxq	-16(%rbx),%r12
 	adcxq	%rbp,%r13
+	adoxq	%rbp,%r13
 
 	movq	%rdi,8(%rsp)
-.byte	0x67
 	movq	%r8,%r15
 	imulq	24(%rsp),%r8
 	xorl	%ebp,%ebp
 
 	mulxq	24(%rsi),%rax,%r14
 	movq	%r8,%rdx
-	adoxq	-16(%rbx),%r12
 	adcxq	%rax,%r13
 	adoxq	-8(%rbx),%r13
 	adcxq	%rbp,%r14

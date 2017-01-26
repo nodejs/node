@@ -1881,6 +1881,7 @@ L$8x_tail:
 
 .p2align	5
 L$8x_tail_done:
+	xorq	%rax,%rax
 	addq	(%rdx),%r8
 	adcq	$0,%r9
 	adcq	$0,%r10
@@ -1889,9 +1890,7 @@ L$8x_tail_done:
 	adcq	$0,%r13
 	adcq	$0,%r14
 	adcq	$0,%r15
-
-
-	xorq	%rax,%rax
+	adcq	$0,%rax
 
 	negq	%rsi
 L$8x_no_tail:
