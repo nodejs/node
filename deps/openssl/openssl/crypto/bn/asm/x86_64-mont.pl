@@ -1148,18 +1148,17 @@ $code.=<<___;
 	mulx	2*8($aptr),%r15,%r13	# ...
 	adox	-3*8($tptr),%r11
 	adcx	%r15,%r12
-	adox	$zero,%r12
+	adox	-2*8($tptr),%r12
 	adcx	$zero,%r13
+	adox	$zero,%r13
 
 	mov	$bptr,8(%rsp)		# off-load &b[i]
-	.byte	0x67
 	mov	$mi,%r15
 	imulq	24(%rsp),$mi		# "t[0]"*n0
 	xor	%ebp,%ebp		# xor	$zero,$zero	# cf=0, of=0
 
 	mulx	3*8($aptr),%rax,%r14
 	 mov	$mi,%rdx
-	adox	-2*8($tptr),%r12
 	adcx	%rax,%r13
 	adox	-1*8($tptr),%r13
 	adcx	$zero,%r14

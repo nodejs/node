@@ -179,9 +179,7 @@ int MAIN(int argc, char **argv)
     int nodes = 0, kludge = 0, newhdr = 0, subject = 0, pubkey = 0;
     char *infile, *outfile, *prog, *keyfile = NULL, *template =
         NULL, *keyout = NULL;
-#ifndef OPENSSL_NO_ENGINE
     char *engine = NULL;
-#endif
     char *extensions = NULL;
     char *req_exts = NULL;
     const EVP_CIPHER *cipher = NULL;
@@ -595,9 +593,7 @@ int MAIN(int argc, char **argv)
     if ((in == NULL) || (out == NULL))
         goto end;
 
-#ifndef OPENSSL_NO_ENGINE
     e = setup_engine(bio_err, engine, 0);
-#endif
 
     if (keyfile != NULL) {
         pkey = load_key(bio_err, keyfile, keyform, 0, passin, e,
@@ -1040,6 +1036,7 @@ int MAIN(int argc, char **argv)
     X509_REQ_free(req);
     X509_free(x509ss);
     ASN1_INTEGER_free(serial);
+    release_engine(e);
     if (passargin && passin)
         OPENSSL_free(passin);
     if (passargout && passout)

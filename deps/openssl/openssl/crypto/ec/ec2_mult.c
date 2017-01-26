@@ -267,7 +267,7 @@ static int ec_GF2m_montgomery_point_multiply(const EC_GROUP *group,
                                              BN_CTX *ctx)
 {
     BIGNUM *x1, *x2, *z1, *z2;
-    int ret = 0, i;
+    int ret = 0, i, group_top;
     BN_ULONG mask, word;
 
     if (r == point) {
@@ -297,10 +297,12 @@ static int ec_GF2m_montgomery_point_multiply(const EC_GROUP *group,
     x2 = &r->X;
     z2 = &r->Y;
 
-    bn_wexpand(x1, group->field.top);
-    bn_wexpand(z1, group->field.top);
-    bn_wexpand(x2, group->field.top);
-    bn_wexpand(z2, group->field.top);
+    group_top = group->field.top;
+    if (bn_wexpand(x1, group_top) == NULL
+        || bn_wexpand(z1, group_top) == NULL
+        || bn_wexpand(x2, group_top) == NULL
+        || bn_wexpand(z2, group_top) == NULL)
+        goto err;
 
     if (!BN_GF2m_mod_arr(x1, &point->X, group->poly))
         goto err;               /* x1 = x */
@@ -329,14 +331,14 @@ static int ec_GF2m_montgomery_point_multiply(const EC_GROUP *group,
     for (; i >= 0; i--) {
         word = scalar->d[i];
         while (mask) {
-            BN_consttime_swap(word & mask, x1, x2, group->field.top);
-            BN_consttime_swap(word & mask, z1, z2, group->field.top);
+            BN_consttime_swap(word & mask, x1, x2, group_top);
+            BN_consttime_swap(word & mask, z1, z2, group_top);
             if (!gf2m_Madd(group, &point->X, x2, z2, x1, z1, ctx))
                 goto err;
             if (!gf2m_Mdouble(group, x1, z1, ctx))
                 goto err;
-            BN_consttime_swap(word & mask, x1, x2, group->field.top);
-            BN_consttime_swap(word & mask, z1, z2, group->field.top);
+            BN_consttime_swap(word & mask, x1, x2, group_top);
+            BN_consttime_swap(word & mask, z1, z2, group_top);
             mask >>= 1;
         }
         mask = BN_TBIT;

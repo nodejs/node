@@ -1384,7 +1384,7 @@ unsigned char *ssl_add_serverhello_tlsext(SSL *s, unsigned char *buf,
 int ssl_parse_clienthello_tlsext(SSL *s, unsigned char **data,
                                  unsigned char *limit);
 int tls1_set_server_sigalgs(SSL *s);
-int ssl_check_clienthello_tlsext_late(SSL *s);
+int ssl_check_clienthello_tlsext_late(SSL *s, int *al);
 int ssl_parse_serverhello_tlsext(SSL *s, unsigned char **data,
                                  unsigned char *d, int n);
 int ssl_prepare_clienthello_tlsext(SSL *s);
