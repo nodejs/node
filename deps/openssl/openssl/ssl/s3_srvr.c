@@ -506,7 +506,7 @@ int ssl3_accept(SSL *s)
                     * if SSL_VERIFY_CLIENT_ONCE is set, don't request cert
                     * during re-negotiation:
                     */
-                   ((s->session->peer != NULL) &&
+                   (s->s3->tmp.finish_md_len != 0 &&
                     (s->verify_mode & SSL_VERIFY_CLIENT_ONCE)) ||
                    /*
                     * never request cert in anonymous ciphersuites (see
@@ -1465,9 +1465,9 @@ int ssl3_get_client_hello(SSL *s)
 
     /* Handles TLS extensions that we couldn't check earlier */
     if (s->version >= SSL3_VERSION) {
-        if (ssl_check_clienthello_tlsext_late(s) <= 0) {
+        if (!ssl_check_clienthello_tlsext_late(s, &al)) {
             SSLerr(SSL_F_SSL3_GET_CLIENT_HELLO, SSL_R_CLIENTHELLO_TLSEXT);
-            goto err;
+            goto f_err;
         }
     }
 
@@ -1601,6 +1601,9 @@ int ssl3_send_server_key_exchange(SSL *s)
     unsigned int u;
 #endif
 #ifndef OPENSSL_NO_DH
+# ifdef OPENSSL_NO_RSA
+    int j;
+# endif
     DH *dh = NULL, *dhp;
 #endif
 #ifndef OPENSSL_NO_ECDH
@@ -1862,6 +1865,16 @@ int ssl3_send_server_key_exchange(SSL *s)
                 n += 1 + nr[i];
             else
 #endif
+#ifndef OPENSSL_NO_DH
+            /*
+             * for interoperability with some versions of the Microsoft TLS
+             * stack, we need to zero pad the DHE pub key to the same length
+             * as the prime, so use the length of the prime here
+             */
+            if ((i == 2) && (type & (SSL_kEDH)))
+                n += 2 + nr[0];
+            else
+#endif
                 n += 2 + nr[i];
         }
 
@@ -1894,6 +1907,20 @@ int ssl3_send_server_key_exchange(SSL *s)
             if ((i == 2) && (type & SSL_kSRP)) {
                 *p = nr[i];
                 p++;
+            } else
+#endif
+#ifndef OPENSSL_NO_DH
+            /*
+             * for interoperability with some versions of the Microsoft TLS
+             * stack, we need to zero pad the DHE pub key to the same length
+             * as the prime
+             */
+            if ((i == 2) && (type & (SSL_kEDH))) {
+                s2n(nr[0], p);
+                for (j = 0; j < (nr[0] - nr[2]); ++j) {
+                    *p = 0;
+                    ++p;
+                }
             } else
 #endif
                 s2n(nr[i], p);

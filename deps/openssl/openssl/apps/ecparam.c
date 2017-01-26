@@ -131,6 +131,7 @@ int MAIN(int argc, char **argv)
     BIO *in = NULL, *out = NULL;
     int informat, outformat, noout = 0, C = 0, ret = 1;
     char *engine = NULL;
+    ENGINE *e = NULL;
 
     BIGNUM *ec_p = NULL, *ec_a = NULL, *ec_b = NULL,
         *ec_gen = NULL, *ec_order = NULL, *ec_cofactor = NULL;
@@ -311,9 +312,7 @@ int MAIN(int argc, char **argv)
         }
     }
 
-# ifndef OPENSSL_NO_ENGINE
-    setup_engine(bio_err, engine, 0);
-# endif
+    e = setup_engine(bio_err, engine, 0);
 
     if (list_curves) {
         EC_builtin_curve *curves = NULL;
@@ -620,12 +619,13 @@ int MAIN(int argc, char **argv)
         BN_free(ec_cofactor);
     if (buffer)
         OPENSSL_free(buffer);
+    if (group != NULL)
+        EC_GROUP_free(group);
+    release_engine(e);
     if (in != NULL)
         BIO_free(in);
     if (out != NULL)
         BIO_free_all(out);
-    if (group != NULL)
-        EC_GROUP_free(group);
     apps_shutdown();
     OPENSSL_EXIT(ret);
 }

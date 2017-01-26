@@ -223,6 +223,8 @@ static int compute_key(unsigned char *key, const BIGNUM *pub_key, DH *dh)
         goto err;
     BN_CTX_start(ctx);
     tmp = BN_CTX_get(ctx);
+    if (tmp == NULL)
+        goto err;
 
     if (dh->priv_key == NULL) {
         DHerr(DH_F_COMPUTE_KEY, DH_R_NO_PRIVATE_VALUE);
