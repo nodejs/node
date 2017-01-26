@@ -94,9 +94,7 @@ int MAIN(int argc, char **argv)
     CONF *conf = NULL;
     NETSCAPE_SPKI *spki = NULL;
     EVP_PKEY *pkey = NULL;
-#ifndef OPENSSL_NO_ENGINE
     char *engine = NULL;
-#endif
 
     apps_startup();
 
@@ -185,9 +183,7 @@ int MAIN(int argc, char **argv)
         BIO_printf(bio_err, "Error getting password\n");
         goto end;
     }
-#ifndef OPENSSL_NO_ENGINE
     e = setup_engine(bio_err, engine, 0);
-#endif
 
     if (keyfile) {
         pkey = load_key(bio_err,
@@ -305,6 +301,7 @@ int MAIN(int argc, char **argv)
     BIO_free(in);
     BIO_free_all(out);
     EVP_PKEY_free(pkey);
+    release_engine(e);
     if (passin)
         OPENSSL_free(passin);
     apps_shutdown();

@@ -111,9 +111,7 @@ int MAIN(int argc, char **argv)
     char *infile, *outfile, *prog;
     char *passargin = NULL, *passargout = NULL;
     char *passin = NULL, *passout = NULL;
-# ifndef OPENSSL_NO_ENGINE
     char *engine = NULL;
-# endif
     int modulus = 0;
 
     int pvk_encr = 2;
@@ -254,9 +252,7 @@ int MAIN(int argc, char **argv)
 
     ERR_load_crypto_strings();
 
-# ifndef OPENSSL_NO_ENGINE
     e = setup_engine(bio_err, engine, 0);
-# endif
 
     if (!app_passwd(bio_err, passargin, passargout, &passin, &passout)) {
         BIO_printf(bio_err, "Error getting passwords\n");
@@ -419,6 +415,7 @@ int MAIN(int argc, char **argv)
     } else
         ret = 0;
  end:
+    release_engine(e);
     if (out != NULL)
         BIO_free_all(out);
     if (rsa != NULL)

@@ -328,9 +328,7 @@ static char *keymatexportlabel = NULL;
 static int keymatexportlen = 20;
 
 static int hack = 0;
-#ifndef OPENSSL_NO_ENGINE
 static char *engine_id = NULL;
-#endif
 static const char *session_id_prefix = NULL;
 
 static int enable_timeouts = 0;
@@ -484,9 +482,7 @@ static void s_server_init(void)
     s_quiet = 0;
     s_brief = 0;
     hack = 0;
-# ifndef OPENSSL_NO_ENGINE
     engine_id = NULL;
-# endif
 }
 #endif
 
@@ -1603,9 +1599,7 @@ int MAIN(int argc, char *argv[])
     SSL_load_error_strings();
     OpenSSL_add_ssl_algorithms();
 
-#ifndef OPENSSL_NO_ENGINE
     e = setup_engine(bio_err, engine_id, 1);
-#endif
 
     if (!app_passwd(bio_err, passarg, dpassarg, &pass, &dpass)) {
         BIO_printf(bio_err, "Error getting password\n");
@@ -2129,6 +2123,7 @@ int MAIN(int argc, char *argv[])
     if (jpake_secret && psk_key)
         OPENSSL_free(psk_key);
 #endif
+    release_engine(e);
     if (bio_s_out != NULL) {
         BIO_free(bio_s_out);
         bio_s_out = NULL;
