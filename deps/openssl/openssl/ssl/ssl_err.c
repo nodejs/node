@@ -753,6 +753,7 @@ static ERR_STRING_DATA SSL_str_reasons[] = {
      "tls illegal exporter label"},
     {ERR_REASON(SSL_R_TLS_INVALID_ECPOINTFORMAT_LIST),
      "tls invalid ecpointformat list"},
+    {ERR_REASON(SSL_R_TOO_MANY_WARN_ALERTS), "too many warn alerts"},
     {ERR_REASON(SSL_R_TLS_PEER_DID_NOT_RESPOND_WITH_CERTIFICATE_LIST),
      "tls peer did not respond with certificate list"},
     {ERR_REASON(SSL_R_TLS_RSA_ENCRYPTED_VALUE_LENGTH_IS_WRONG),

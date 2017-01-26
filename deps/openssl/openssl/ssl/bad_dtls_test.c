@@ -756,6 +756,7 @@ int main(int argc, char *argv[])
     BIO *rbio;
     BIO *wbio;
     BIO *err;
+    time_t now = 0;
     int testresult = 0;
     int ret;
     int i;
@@ -773,7 +774,9 @@ int main(int argc, char *argv[])
     RAND_bytes(master_secret, sizeof(master_secret));
     RAND_bytes(cookie, sizeof(cookie));
     RAND_bytes(server_random + 4, sizeof(server_random) - 4);
-    time((void *)server_random);
+
+    now = time(NULL);
+    memcpy(server_random, &now, sizeof(now));
 
     sess = client_session();
     if (sess == NULL) {

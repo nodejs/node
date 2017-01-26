@@ -100,7 +100,7 @@ static void ctr128_inc_aligned(unsigned char *counter)
         --n;
         d = data[n] += c;
         /* did addition carry? */
-        c = ((d - c) ^ d) >> (sizeof(size_t) * 8 - 1);
+        c = ((d - c) & ~d) >> (sizeof(size_t) * 8 - 1);
     } while (n);
 }
 #endif
