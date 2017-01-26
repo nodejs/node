@@ -136,6 +136,9 @@ static int do_ssl3_write(SSL *s, int type, const unsigned char *buf,
                          unsigned int len, int create_empty_fragment);
 static int ssl3_get_record(SSL *s);
 
+/*
+ * Return values are as per SSL_read()
+ */
 int ssl3_read_n(SSL *s, int n, int max, int extend)
 {
     /*
@@ -1082,7 +1085,10 @@ static int do_ssl3_write(SSL *s, int type, const unsigned char *buf,
     return -1;
 }
 
-/* if s->s3->wbuf.left != 0, we need to call this */
+/* if s->s3->wbuf.left != 0, we need to call this
+ *
+ * Return values are as per SSL_write(), i.e.
+ */
 int ssl3_write_pending(SSL *s, int type, const unsigned char *buf,
                        unsigned int len)
 {
@@ -1122,7 +1128,7 @@ int ssl3_write_pending(SSL *s, int type, const unsigned char *buf,
                  */
                 wb->left = 0;
             }
-            return (i);
+            return i;
         }
         wb->offset += i;
         wb->left -= i;
@@ -1593,16 +1599,13 @@ int ssl3_read_bytes(SSL *s, int type, unsigned char *buf, int len, int peek)
 
     switch (rr->type) {
     default:
-#ifndef OPENSSL_NO_TLS
         /*
-         * TLS up to v1.1 just ignores unknown message types: TLS v1.2 give
-         * an unexpected message alert.
+         * TLS 1.0 and 1.1 say you SHOULD ignore unrecognised record types, but
+         * TLS 1.2 says you MUST send an unexpected message alert. We use the
+         * TLS 1.2 behaviour for all protocol versions to prevent issues where
+         * no progress is being made and the peer continually sends unrecognised
+         * record types, using up resources processing them.
          */
-        if (s->version >= TLS1_VERSION && s->version <= TLS1_1_VERSION) {
-            rr->length = 0;
-            goto start;
-        }
-#endif
         al = SSL_AD_UNEXPECTED_MESSAGE;
         SSLerr(SSL_F_SSL3_READ_BYTES, SSL_R_UNEXPECTED_RECORD);
         goto f_err;
