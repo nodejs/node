@@ -112,6 +112,8 @@ void RegisterSignalHandler(int signal,
                            bool reset_handler = false);
 #endif
 
+bool SafeGetenv(const char* key, std::string* text);
+
 template <typename T, size_t N>
 constexpr size_t arraysize(const T(&)[N]) { return N; }
 
