@@ -77,7 +77,7 @@ Alternatively, `options` can be an object containing these properties:
   `4` or `6`. If not provided, both IP v4 and v6 addresses are accepted.
 * `hints`: {Number} - If present, it should be one or more of the supported
   `getaddrinfo` flags. If `hints` is not provided, then no flags are passed to
-  `getaddrinfo`. Multiple flags can be passed through `hints` by logically
+  `getaddrinfo`. Multiple flags can be passed through `hints` by bitwise
   `OR`ing their values.
   See [supported `getaddrinfo` flags][] for more information on supported
   flags.
