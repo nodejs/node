@@ -1,12 +1,12 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
 // Verify that ServerResponse.writeHead() works as setHeader.
 // Issue 5036 on github.
 
-const s = http.createServer(function(req, res) {
+const s = http.createServer(common.mustCall((req, res) => {
   res.setHeader('test', '1');
 
   // toLowerCase() is used on the name argument, so it must be a string.
@@ -32,18 +32,23 @@ const s = http.createServer(function(req, res) {
   assert.ok(threw, 'Undefined value should throw');
 
   res.writeHead(200, { Test: '2' });
-  res.end();
-});
 
-s.listen(0, runTest);
+  assert.throws(() => {
+    res.writeHead(100, {});
+  }, /^Error: Can't render headers after they are sent to the client$/);
+
+  res.end();
+}));
+
+s.listen(0, common.mustCall(runTest));
 
 function runTest() {
-  http.get({ port: this.address().port }, function(response) {
-    response.on('end', function() {
+  http.get({ port: this.address().port }, common.mustCall((response) => {
+    response.on('end', common.mustCall(() => {
       assert.strictEqual(response.headers['test'], '2');
       assert.notStrictEqual(response.rawHeaders.indexOf('Test'), -1);
       s.close();
-    });
+    }));
     response.resume();
-  });
+  }));
 }
