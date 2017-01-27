@@ -175,6 +175,14 @@ addTest('\x1b[D\x1b[C\x1b[D\x1b[C'.split(''), [
   { name: 'right', sequence: '\x1b[C', code: '[C' },
 ]);
 
+// end clear end clear
+addTest('\x1b[F\x1b[E\x1b[F\x1b[E', [
+  { name: 'end', sequence: '\x1b[F', code: '[F' },
+  { name: 'clear', sequence: '\x1b[E', code: '[E' },
+  { name: 'end', sequence: '\x1b[F', code: '[F' },
+  { name: 'clear', sequence: '\x1b[E', code: '[E' },
+]);
+
 // escape sequences mixed with regular ones
 addTest('\x1b[DD\x1b[2DD\x1b[2^D', [
   { name: 'left', sequence: '\x1b[D', code: '[D' },
