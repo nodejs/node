@@ -16,7 +16,7 @@ For general help using Node.js, please file an issue at the
 [Node.js help repository](https://github.com/nodejs/help/issues).
 
 Discussion of non-technical topics including subjects like intellectual
-property, trademark and high level project questions should move to the
+property, trademark, and high level project questions should move to the
 [Technical Steering Committee (TSC)](https://github.com/nodejs/TSC/issues)
 instead.
 
@@ -109,8 +109,8 @@ changed and why. Follow these guidelines when writing one:
    lowercase with the exception of proper nouns, acronyms, and the ones that
    refer to code, like function/variable names. The description should
    be prefixed with the name of the changed subsystem and start with an
-   imperative verb, for example, "net: add localAddress and localPort
-   to Socket".
+   imperative verb. Example: "net: add localAddress and localPort
+   to Socket"
 2. Keep the second line blank.
 3. Wrap all other lines at 72 columns.
 
@@ -121,11 +121,11 @@ subsystem: explain the commit in one line
 
 Body of commit message is a few lines of text, explaining things
 in more detail, possibly giving some background about the issue
-being fixed, etc. etc.
+being fixed, etc.
 
 The body of the commit message can be several paragraphs, and
 please do proper word-wrap and keep columns shorter than about
-72 characters or so. That way `git log` will show things
+72 characters or so. That way, `git log` will show things
 nicely even when it is indented.
 ```
 
@@ -170,19 +170,19 @@ $ ./configure && make -j4 test
 Windows:
 
 ```text
- .\vcbuild nosign test
+> vcbuild test
 ```
 
 (See the [BUILDING.md](./BUILDING.md) for more details.)
 
-Make sure the linter is happy and that all tests pass. Please, do not submit
-patches that fail either check.
+Make sure the linter does not report any issues and that all tests pass. Please
+do not submit patches that fail either check.
 
-Running `make test`/`.\vcbuild nosign test` will run the linter as well unless one or
+Running `make test`/`vcbuild test` will run the linter as well unless one or
 more tests fail.
 
 If you want to run the linter without running tests, use
-`make lint`/`.\vcbuild nosign jslint`.
+`make lint`/`vcbuild lint`.
 
 If you are updating tests and just want to run a single test to check it, you
 can use this syntax to run it exactly as the test harness would:
@@ -214,7 +214,7 @@ Pull requests are usually reviewed within a few days.
 ### Step 7: Discuss and update
 
 You will probably get feedback or requests for changes to your Pull Request.
-This is a big part of the submission process, so don't be disheartened!
+This is a big part of the submission process so don't be disheartened!
 
 To make changes to an existing Pull Request, make the changes to your branch.
 When you push that branch to your fork, GitHub will automatically update the
@@ -252,7 +252,7 @@ If in doubt, you can always ask for guidance in the Pull Request or on
 
 Feel free to post a comment in the Pull Request to ping reviewers if you are
 awaiting an answer on something. If you encounter words or acronyms that
-seem unfamiliar, check out this
+seem unfamiliar, refer to this
 [glossary](https://sites.google.com/a/chromium.org/dev/glossary).
 
 Note that multiple commits often get squashed when they are landed (see the
@@ -260,7 +260,7 @@ notes about [commit squashing](#commit-squashing)).
 
 ### Step 8: Landing
 
-In order to get landed, a Pull Request needs to be reviewed and
+In order to land, a Pull Request needs to be reviewed and
 [approved](#getting-approvals-for-your-pull-request) by
 at least one Node.js Collaborator and pass a
 [CI (Continuous Integration) test run](#ci-testing).
@@ -280,8 +280,8 @@ your name on it. Congratulations and thanks for your contribution!
 
 ### Commit Squashing
 
-When the commits in your Pull Request get landed, they will be squashed
-into one commit per logical change, with metadata added to the commit
+When the commits in your Pull Request land, they will be squashed
+into one commit per logical change. Metadata will be added to the commit
 message (including links to the Pull Request, links to relevant issues,
 and the names of the reviewers). The commit history of your Pull Request,
 however, will stay intact on the Pull Request page.
@@ -311,9 +311,9 @@ Every Pull Request needs to be tested
 to make sure that it works on the platforms that Node.js
 supports. This is done by running the code through the CI system.
 
-Only a Collaborator can request a CI run. Usually one of them will do it
+Only a Collaborator can start a CI run. Usually one of them will do it
 for you as approvals for the Pull Request come in.
-If not, you can ask a Collaborator to request a CI run.
+If not, you can ask a Collaborator to start a CI run.
 
 ### Waiting Until the Pull Request Gets Landed
 
