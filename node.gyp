@@ -177,6 +177,7 @@
         'src/node_main.cc',
         'src/node_os.cc',
         'src/node_revert.cc',
+        'src/node_serdes.cc',
         'src/node_url.cc',
         'src/node_util.cc',
         'src/node_v8.cc',
