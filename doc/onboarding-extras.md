@@ -11,6 +11,7 @@
 | `lib/child_process` | @bnoordhuis, @cjihrig |
 | `lib/cluster` | @bnoordhuis, @cjihrig, @mcollina |
 | `lib/{crypto,tls,https}` | @nodejs/crypto |
+| `lib/dgram` | @cjihrig, @mcollina |
 | `lib/domains` | @misterdjules |
 | `lib/fs`, `src/{fs|file}` | @nodejs/fs |
 | `lib/internal/url`, `src/node_url` | @nodejs/url |
