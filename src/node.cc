@@ -945,7 +945,7 @@ Local<Value> UVException(Isolate* isolate,
 
 
 // Look up environment variable unless running as setuid root.
-inline bool SafeGetenv(const char* key, std::string* text) {
+bool SafeGetenv(const char* key, std::string* text) {
 #ifndef _WIN32
   // TODO(bnoordhuis) Should perhaps also check whether getauxval(AT_SECURE)
   // is non-zero on Linux.
