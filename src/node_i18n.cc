@@ -62,10 +62,10 @@ bool flag_icu_data_dir = false;
 
 namespace i18n {
 
-bool InitializeICUDirectory(const char* icu_data_path) {
-  if (icu_data_path != nullptr) {
+bool InitializeICUDirectory(const std::string& path) {
+  if (!path.empty()) {
     flag_icu_data_dir = true;
-    u_setDataDirectory(icu_data_path);
+    u_setDataDirectory(path.c_str());
     return true;  // no error
   } else {
     UErrorCode status = U_ZERO_ERROR;

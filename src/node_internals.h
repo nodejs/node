@@ -12,6 +12,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include <string>
+
 struct sockaddr;
 
 // Variation on NODE_DEFINE_CONSTANT that sets a String value.

@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "node.h"
+#include <string>
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
 
@@ -13,7 +14,7 @@ extern bool flag_icu_data_dir;
 
 namespace i18n {
 
-bool InitializeICUDirectory(const char* icu_data_path);
+bool InitializeICUDirectory(const std::string& path);
 
 }  // namespace i18n
 }  // namespace node
