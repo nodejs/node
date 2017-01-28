@@ -525,10 +525,12 @@ value returned is equivalent to that of `url.href`.
 ### Class: URLSearchParams
 
 The `URLSearchParams` object provides read and write access to the query of a
-`URL`.
+`URL`. The `URLSearchParams` class can also be used standalone with one of the
+four following constructors.
 
 ```js
-const URL = require('url').URL;
+const { URL, URLSearchParams } = require('url');
+
 const myURL = new URL('https://example.org/?abc=123');
 console.log(myURL.searchParams.get('abc'));
   // Prints 123
@@ -541,11 +543,125 @@ myURL.searchParams.delete('abc');
 myURL.searchParams.set('a', 'b');
 console.log(myURL.href);
   // Prints https://example.org/?a=b
+
+const newSearchParams = new URLSearchParams(myURL.searchParams);
+// The above is equivalent to
+// const newSearchParams = new URLSearchParams(myURL.search);
+
+newSearchParams.append('a', 'c');
+console.log(myURL.href);
+  // Prints https://example.org/?a=b
+console.log(newSearchParams.toString());
+  // Prints a=b&a=c
+
+// newSearchParams.toString() is implicitly called
+myURL.search = newSearchParams;
+console.log(myURL.href);
+  // Prints https://example.org/?a=b&a=c
+newSearchParams.delete('a');
+console.log(myURL.href);
+  // Prints https://example.org/?a=b&a=c
 ```
 
-#### Constructor: new URLSearchParams([init])
+#### Constructor: new URLSearchParams()
 
-* `init` {String} The URL query
+Instantiate a new empty `URLSearchParams` object.
+
+#### Constructor: new URLSearchParams(string)
+
+* `string` {String} A query string
+
+Parse the `string` as a query string, and use it to instantiate a new
+`URLSearchParams` object. A leading `'?'`, if present, is ignored.
+
+```js
+const { URLSearchParams } = require('url');
+let params;
+
+params = new URLSearchParams('user=abc&query=xyz');
+console.log(params.get('user'));
+  // Prints 'abc'
+console.log(params.toString());
+  // Prints 'user=abc&query=xyz'
+
+params = new URLSearchParams('?user=abc&query=xyz');
+console.log(params.toString());
+  // Prints 'user=abc&query=xyz'
+```
+
+#### Constructor: new URLSearchParams(obj)
+
+* `obj` {Object} An object representing a collection of key-value pairs
+
+Instantiate a new `URLSearchParams` object with a query hash map. The key and
+value of each property of `obj` are always coerced to strings.
+
+*Note*: Unlike [`querystring`][] module, duplicate keys in the form of array
+values are not allowed. Arrays are stringified using [`array.toString()`][],
+which simply joins all array elements with commas.
+
+```js
+const { URLSearchParams } = require('url');
+const params = new URLSearchParams({
+  user: 'abc',
+  query: ['first', 'second']
+});
+console.log(params.getAll('query'));
+  // Prints ['first,second']
+console.log(params.toString());
+  // Prints 'user=abc&query=first%2Csecond'
+```
+
+#### Constructor: new URLSearchParams(iterable)
+
+* `iterable` {Iterable} An iterable object whose elements are key-value pairs
+
+Instantiate a new `URLSearchParams` object with an iterable map in a way that
+is similar to [`Map`][]'s constructor. `iterable` can be an Array or any
+iterable object. That means `iterable` can be another `URLSearchParams`, in
+which case the constructor will simply create a clone of the provided
+`URLSearchParams`.  Elements of `iterable` are key-value pairs, and can
+themselves be any iterable object.
+
+Duplicate keys are allowed.
+
+```js
+const { URLSearchParams } = require('url');
+let params;
+
+// Using an array
+params = new URLSearchParams([
+  ['user', 'abc'],
+  ['query', 'first'],
+  ['query', 'second']
+]);
+console.log(params.toString());
+  // Prints 'user=abc&query=first&query=second'
+
+// Using a Map object
+const map = new Map();
+map.set('user', 'abc');
+map.set('query', 'xyz');
+params = new URLSearchParams(map);
+console.log(params.toString());
+  // Prints 'user=abc&query=xyz'
+
+// Using a generator function
+function* getQueryPairs() {
+  yield ['user', 'abc'];
+  yield ['query', 'first'];
+  yield ['query', 'second'];
+}
+params = new URLSearchParams(getQueryPairs());
+console.log(params.toString());
+  // Prints 'user=abc&query=first&query=second'
+
+// Each key-value pair must have exactly two elements
+new URLSearchParams([
+  ['user', 'abc', 'error']
+]);
+  // Throws TypeError: Each query pair must be a name/value tuple
+```
 
 #### urlSearchParams.append(name, value)
 
@@ -712,3 +828,5 @@ console.log(myURL.origin);
 [`url.parse()`]: #url_url_parse_urlstring_parsequerystring_slashesdenotehost
 [`url.format()`]: #url_url_format_urlobject
 [Punycode]: https://tools.ietf.org/html/rfc5891#section-4.4
+[`Map`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
+[`array.toString()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/toString
