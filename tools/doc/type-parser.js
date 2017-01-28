@@ -36,6 +36,8 @@ const typeMap = {
   'http.IncomingMessage': 'http.html#http_class_http_incomingmessage',
   'http.Server': 'http.html#http_class_http_server',
   'http.ServerResponse': 'http.html#http_class_http_serverresponse',
+  'Iterable': jsDocPrefix +
+              'Reference/Iteration_protocols#The_iterable_protocol',
   'Iterator': jsDocPrefix +
               'Reference/Iteration_protocols#The_iterator_protocol'
 };
