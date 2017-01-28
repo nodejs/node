@@ -16,23 +16,30 @@ assert.strictEqual(params + '', 'a=b');
 params = new URLSearchParams(params);
 assert.strictEqual(params + '', 'a=b');
 
-// URLSearchParams constructor, empty.
+// URLSearchParams constructor, no arguments
+params = new URLSearchParams();
+assert.strictEqual(params.toString(), '');
+
 assert.throws(() => URLSearchParams(), TypeError,
               'Calling \'URLSearchParams\' without \'new\' should throw.');
-// assert.throws(() => new URLSearchParams(DOMException.prototype), TypeError);
-assert.throws(() => {
-  new URLSearchParams({
-    toString() { throw new TypeError('Illegal invocation'); }
-  });
-}, TypeError);
+
+// URLSearchParams constructor, undefined and null as argument
+params = new URLSearchParams(undefined);
+assert.strictEqual(params.toString(), '');
+params = new URLSearchParams(null);
+assert.strictEqual(params.toString(), '');
+
+// URLSearchParams constructor, empty string as argument
 params = new URLSearchParams('');
-assert.notStrictEqual(params, null, 'constructor returned non-null value.');
+// eslint-disable-next-line no-restricted-properties
+assert.notEqual(params, null, 'constructor returned non-null value.');
 // eslint-disable-next-line no-proto
 assert.strictEqual(params.__proto__, URLSearchParams.prototype,
                    'expected URLSearchParams.prototype as prototype.');
+
+// URLSearchParams constructor, {} as argument
 params = new URLSearchParams({});
-// assert.strictEqual(params + '', '%5Bobject+Object%5D=');
-assert.strictEqual(params + '', '%5Bobject%20Object%5D=');
+assert.strictEqual(params + '', '');
 
 // URLSearchParams constructor, string.
 params = new URLSearchParams('a=b');
@@ -128,3 +135,56 @@ params = new URLSearchParams('a=b%f0%9f%92%a9c');
 assert.strictEqual(params.get('a'), 'b\uD83D\uDCA9c');
 params = new URLSearchParams('a%f0%9f%92%a9b=c');
 assert.strictEqual(params.get('a\uD83D\uDCA9b'), 'c');
+
+// Constructor with sequence of sequences of strings
+params = new URLSearchParams([]);
+// eslint-disable-next-line no-restricted-properties
+assert.notEqual(params, null, 'constructor returned non-null value.');
+params = new URLSearchParams([['a', 'b'], ['c', 'd']]);
+assert.strictEqual(params.get('a'), 'b');
+assert.strictEqual(params.get('c'), 'd');
+assert.throws(() => new URLSearchParams([[1]]),
+              /^TypeError: Each query pair must be a name\/value tuple$/);
+assert.throws(() => new URLSearchParams([[1, 2, 3]]),
+              /^TypeError: Each query pair must be a name\/value tuple$/);
+
+[
+  // Further confirmation needed
+  // https://github.com/w3c/web-platform-tests/pull/4523#discussion_r98337513
+  // {
+  //   input: {'+': '%C2'},
+  //   output: [[' ', '\uFFFD']],
+  //   name: 'object with +'
+  // },
+  {
+    input: {c: 'x', a: '?'},
+    output: [['c', 'x'], ['a', '?']],
+    name: 'object with two keys'
+  },
+  {
+    input: [['c', 'x'], ['a', '?']],
+    output: [['c', 'x'], ['a', '?']],
+    name: 'array with two keys'
+  }
+].forEach((val) => {
+  const params = new URLSearchParams(val.input);
+  assert.deepStrictEqual(Array.from(params), val.output,
+                         `Construct with ${val.name}`);
+});
+
+// Custom [Symbol.iterator]
+params = new URLSearchParams();
+params[Symbol.iterator] = function *() {
+  yield ['a', 'b'];
+};
+const params2 = new URLSearchParams(params);
+assert.strictEqual(params2.get('a'), 'b');
+
+assert.throws(() => new URLSearchParams({ [Symbol.iterator]: 42 }),
+              /^TypeError: Query pairs must be iterable$/);
+assert.throws(() => new URLSearchParams([{}]),
+              /^TypeError: Each query pair must be iterable$/);
+assert.throws(() => new URLSearchParams(['a']),
+              /^TypeError: Each query pair must be iterable$/);
+assert.throws(() => new URLSearchParams([{ [Symbol.iterator]: 42 }]),
+              /^TypeError: Each query pair must be iterable$/);
