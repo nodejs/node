@@ -45,6 +45,7 @@ import errno
 import copy
 
 from os.path import join, dirname, abspath, basename, isdir, exists
+from distutils.spawn import find_executable
 from datetime import datetime
 from Queue import Queue, Empty
 
@@ -865,6 +866,14 @@ class Context(object):
     self.repeat = repeat
 
   def GetVm(self, arch, mode):
+    parser = BuildOptions()
+    (options, args) = parser.parse_args()
+    if not ProcessOptions(options):
+      parser.print_help()
+      return 1
+    if options.path:
+      name = find_executable("node")
+      return name
     if arch == 'none':
       name = 'out/Debug/node' if mode == 'debug' else 'out/Release/node'
     else:
@@ -1385,6 +1394,8 @@ def BuildOptions():
   result.add_option('--repeat',
       help='Number of times to repeat given tests',
       default=1, type="int")
+  result.add_option('--path',
+      help='Use node in the path rather than out/Release', default=False, action="store_true")
   return result
 
 
