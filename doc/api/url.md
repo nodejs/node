@@ -777,6 +777,21 @@ Returns an ES6 Iterator over the names of each name-value pair.
 Remove any existing name-value pairs whose name is `name` and append a new
 name-value pair.
 
+#### urlSearchParams.sort()
+
+Sort all existing name-value pairs in-place by their names. Sorting is done
+with a [stable sorting algorithm][], so relative order between name-value pairs
+with the same name is preserved.
+
+This method can be used, in particular, to increase cache hits.
+
+```js
+const params = new URLSearchParams('query[]=abc&type=search&query[]=123');
+params.sort();
+console.log(params.toString());
+  // Prints query%5B%5D=abc&query%5B%5D=123&type=search
+```
+
 #### urlSearchParams.toString()
 
 * Returns: {String}
@@ -872,3 +887,4 @@ console.log(myURL.origin);
 [`Map`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
 [`array.toString()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/toString
 [WHATWG URL]: #url_the_whatwg_url_api
+[stable sorting algorithm]: https://en.wikipedia.org/wiki/Sorting_algorithm#Stability
