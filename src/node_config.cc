@@ -44,6 +44,9 @@ void InitConfig(Local<Object> target,
 
   if (config_preserve_symlinks)
     READONLY_BOOLEAN_PROPERTY("preserveSymlinks");
+
+  if (config_adjacent_node_modules)
+    READONLY_BOOLEAN_PROPERTY("adjacentNodeModules");
 }  // InitConfig
 
 }  // namespace node
