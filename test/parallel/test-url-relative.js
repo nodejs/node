@@ -1,4 +1,3 @@
-/* eslint-disable max-len */
 'use strict';
 require('../common');
 const assert = require('assert');
@@ -58,8 +57,8 @@ relativeTests.forEach(function(relativeTest) {
   const a = url.resolve(relativeTest[0], relativeTest[1]);
   const e = relativeTest[2];
   assert.strictEqual(a, e,
-                     'resolve(' + [relativeTest[0], relativeTest[1]] + ') == ' + e +
-               '\n  actual=' + a);
+                     `resolve(${relativeTest[0]}, ${relativeTest[1]})` +
+                     ` == ${e}\n  actual=${a}`);
 });
 
 //
@@ -374,8 +373,8 @@ relativeTests2.forEach(function(relativeTest) {
   const a = url.resolve(relativeTest[1], relativeTest[0]);
   const e = url.format(relativeTest[2]);
   assert.strictEqual(a, e,
-                     'resolve(' + [relativeTest[1], relativeTest[0]] + ') == ' + e +
-               '\n  actual=' + a);
+                     `resolve(${relativeTest[0]}, ${relativeTest[1]})` +
+                     ` == ${e}\n  actual=${a}`);
 });
 
 //if format and parse are inverse operations then
@@ -393,7 +392,8 @@ relativeTests.forEach(function(relativeTest) {
   actual = url.format(actual);
 
   assert.strictEqual(actual, expected,
-                     'format(' + actual + ') == ' + expected + '\nactual:' + actual);
+                     `format(${actual}) == ${expected}\n` +
+                     `actual: ${actual}`);
 });
 
 //format: [to, from, result]
@@ -424,6 +424,6 @@ relativeTests2.forEach(function(relativeTest) {
   actual = url.format(actual);
 
   assert.strictEqual(actual, expected,
-                     'format(' + relativeTest[1] + ') == ' + expected +
-                     '\nactual:' + actual);
+                     `format(${relativeTest[1]}) == ${expected}\n` +
+                     `actual: ${actual}`);
 });

@@ -1,4 +1,3 @@
-/* eslint-disable max-len */
 'use strict';
 require('../common');
 const assert = require('assert');
