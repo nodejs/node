@@ -7,7 +7,7 @@ const toString = Object.prototype.toString;
 
 const url = new URL('http://example.org');
 const sp = url.searchParams;
-const spIterator  = sp.entries();
+const spIterator = sp.entries();
 
 const test = [
   [url, 'URL'],
