@@ -46,11 +46,12 @@ void InitConfig(Local<Object> target,
   if (config_preserve_symlinks)
     READONLY_BOOLEAN_PROPERTY("preserveSymlinks");
 
-  if (config_warning_file != nullptr) {
+  if (!config_warning_file.empty()) {
     Local<String> name = OneByteString(env->isolate(), "warningFile");
     Local<String> value = String::NewFromUtf8(env->isolate(),
-                                              config_warning_file,
-                                              v8::NewStringType::kNormal)
+                                              config_warning_file.data(),
+                                              v8::NewStringType::kNormal,
+                                              config_warning_file.size())
                                                 .ToLocalChecked();
     target->DefineOwnProperty(env->context(), name, value).FromJust();
   }
