@@ -215,7 +215,7 @@ function altDocs(filename) {
   const a = (v) => `<a href="${href(v)}">v${v}</a>`;
   const as = (vs) => vs.filter(lte).map(a).join(' / ');
 
-  html += '<b>Current:</b> ' + a('7.x');
+  html += 'View another version of this page <b>Current:</b> ' + a('7.x');
 
   const lts = as(['4.x', '6.x']);
   if (lts.length)
@@ -224,9 +224,6 @@ function altDocs(filename) {
   const unsupported = as(['0.10.x', '0.12.x', '5.x']);
   if (unsupported.length)
     html += ' <b>Unsupported:</b> ' + unsupported;
-
-  if (html.length)
-    html = 'View another version of this page ' + html;
 
   return html;
 }
