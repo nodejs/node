@@ -350,7 +350,7 @@ project.
 
 ### Release Team
 
-Releases of Node.js and io.js will be signed with one of the following GPG keys:
+Node.js releases are signed with one of the following GPG keys:
 
 * **Colin Ihrig** &lt;cjihrig@gmail.com&gt;
 `94AE36675C464D64BAFA68DD7434390BDBE9B9C5`
@@ -379,8 +379,7 @@ gpg --keyserver pool.sks-keyservers.net --recv-keys B9AE9905FFD7803F25714661B63B
 See the section above on [Verifying Binaries](#verifying-binaries) for details
 on what to do with these keys to verify that a downloaded file is official.
 
-Previous releases of Node.js have been signed with one of the following GPG
-keys:
+Previous releases may also have been signed with one of the following GPG keys:
 
 * **Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt;
 `9554F04D7259F04124DE6B476D5A82AC7E37093B`
