@@ -636,8 +636,8 @@ namespace url {
                     const char* input,
                     const size_t len,
                     enum url_parse_state override,
-                    Local<Object> base_obj,
-                    Local<Object> context_obj,
+                    Local<Value> base_obj,
+                    Local<Value> context_obj,
                     Local<Function> cb) {
     Isolate* isolate = env->isolate();
     Local<Context> context = env->context();
@@ -654,9 +654,9 @@ namespace url {
     struct url_data base;
     struct url_data url;
     if (context_obj->IsObject())
-      HarvestContext(env, &url, context_obj);
+      HarvestContext(env, &url, context_obj.As<Object>());
     if (has_base)
-      HarvestBase(env, &base, base_obj);
+      HarvestBase(env, &base, base_obj.As<Object>());
 
     std::string buffer;
     url.scheme.reserve(len);
@@ -1321,8 +1321,8 @@ namespace url {
     Parse(env, args.This(),
           *input, input.length(),
           override,
-          args[2].As<Object>(),
-          args[3].As<Object>(),
+          args[2],
+          args[3],
           args[4].As<Function>());
   }
 
