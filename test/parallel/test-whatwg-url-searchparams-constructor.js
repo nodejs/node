@@ -168,12 +168,8 @@ assert.throws(() => new URLSearchParams([[1, 2, 3]]),
   }
 ].forEach((val) => {
   const params = new URLSearchParams(val.input);
-  let i = 0;
-  for (const param of params) {
-    assert.deepStrictEqual(param, val.output[i],
-                           `Construct with ${val.name}`);
-    i++;
-  }
+  assert.deepStrictEqual(Array.from(params), val.output,
+                         `Construct with ${val.name}`);
 });
 
 // Custom [Symbol.iterator]
