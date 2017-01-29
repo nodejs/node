@@ -21,15 +21,19 @@ proc_no_categories.once('exit', common.mustCall(() => {
 
   proc.once('exit', common.mustCall(() => {
     assert(common.fileExists(FILE_NAME));
-    fs.readFile(FILE_NAME, (err, data) => {
+    fs.readFile(FILE_NAME, common.mustCall((err, data) => {
       const traces = JSON.parse(data.toString()).traceEvents;
       assert(traces.length > 0);
       // Values that should be present on all runs to approximate correctness.
-      assert(traces.some((trace) => { return trace.pid === proc.pid; }));
-      assert(traces.some((trace) => { return trace.cat === 'v8'; }));
       assert(traces.some((trace) => {
-        return trace.name === 'V8.ScriptCompiler';
+        if (trace.pid !== proc.pid)
+          return false;
+        if (trace.cat !== 'v8')
+          return false;
+        if (trace.name !== 'V8.ScriptCompiler')
+          return false;
+        return true;
       }));
-    });
+    }));
   }));
 }));
