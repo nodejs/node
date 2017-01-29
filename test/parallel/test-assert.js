@@ -97,9 +97,11 @@ assert.throws(makeBlock(a.deepEqual, /a/m, /a/));
 assert.throws(makeBlock(a.deepEqual, /a/igm, /a/im));
 
 {
-  const re1 = /a/;
+  const re1 = /a/g;
   re1.lastIndex = 3;
-  assert.throws(makeBlock(a.deepEqual, re1, /a/));
+
+  assert.throws(makeBlock(a.deepEqual, re1, /a/g),
+                /^AssertionError: \/a\/g deepEqual \/a\/g$/);
 }
 
 
