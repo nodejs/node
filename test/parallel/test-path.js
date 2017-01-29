@@ -59,8 +59,8 @@ assert.strictEqual(path.posix.basename('foo'), 'foo');
 
 // POSIX filenames may include control characters
 // c.f. http://www.dwheeler.com/essays/fixing-unix-linux-filenames.html
-const controlCharFilename = 'Icon' + String.fromCharCode(13);
-assert.strictEqual(path.posix.basename('/a/b/' + controlCharFilename),
+const controlCharFilename = `Icon${String.fromCharCode(13)}`;
+assert.strictEqual(path.posix.basename(`/a/b/${controlCharFilename}`),
                    controlCharFilename);
 
 
@@ -160,8 +160,8 @@ assert.strictEqual(path.win32.dirname('foo'), '.');
   ['file//', ''],
   ['file./', '.'],
   ['file.//', '.'],
-].forEach(function(test) {
-  [path.posix.extname, path.win32.extname].forEach(function(extname) {
+].forEach((test) => {
+  [path.posix.extname, path.win32.extname].forEach((extname) => {
     let input = test[0];
     let os;
     if (extname === path.win32.extname) {
@@ -208,6 +208,7 @@ const joinTests = [
   [ [path.posix.join, path.win32.join],
     // arguments                     result
     [[['.', 'x/b', '..', '/b/c.js'], 'x/b/c.js'],
+     [[], '.'],
      [['/.', 'x/b', '..', '/b/c.js'], '/x/b/c.js'],
      [['/foo', '../../../bar'], '/bar'],
      [['foo', '../../../bar'], '../../bar'],
@@ -310,11 +311,11 @@ joinTests.push([
     ]
   )
 ]);
-joinTests.forEach(function(test) {
+joinTests.forEach((test) => {
   if (!Array.isArray(test[0]))
     test[0] = [test[0]];
-  test[0].forEach(function(join) {
-    test[1].forEach(function(test) {
+  test[0].forEach((join) => {
+    test[1].forEach((test) => {
       const actual = join.apply(null, test[0]);
       const expected = test[1];
       // For non-Windows specific tests with the Windows join(), we need to try
@@ -333,7 +334,7 @@ joinTests.forEach(function(test) {
                       '\n  expect=' + JSON.stringify(expected) +
                       '\n  actual=' + JSON.stringify(actual);
       if (actual !== expected && actualAlt !== expected)
-        failures.push('\n' + message);
+        failures.push(`\n${message}`);
     });
   });
 });
@@ -344,15 +345,15 @@ assert.strictEqual(failures.length, 0, failures.join(''));
 const typeErrorTests = [true, false, 7, null, {}, undefined, [], NaN];
 
 function fail(fn) {
-  const args = Array.prototype.slice.call(arguments, 1);
+  const args = Array.from(arguments).slice(1);
 
-  assert.throws(function() {
+  assert.throws(() => {
     fn.apply(null, args);
   }, TypeError);
 }
 
-typeErrorTests.forEach(function(test) {
-  [path.posix, path.win32].forEach(function(namespace) {
+typeErrorTests.forEach((test) => {
+  [path.posix, path.win32].forEach((namespace) => {
     fail(namespace.join, test);
     fail(namespace.resolve, test);
     fail(namespace.normalize, test);
@@ -396,7 +397,7 @@ assert.strictEqual(path.posix.normalize('///..//./foo/.//bar'), '/foo/bar');
 // path.resolve tests
 const resolveTests = [
   [ path.win32.resolve,
-    // arguments                                    result
+    // arguments                               result
     [[['c:/blah\\blah', 'd:/games', 'c:../a'], 'c:\\blah\\a'],
      [['c:/ignore', 'd:\\a/b\\c/d', '\\e.exe'], 'd:\\e.exe'],
      [['c:/ignore', 'c:/some/file'], 'c:\\some\\file'],
@@ -413,7 +414,7 @@ const resolveTests = [
     ]
   ],
   [ path.posix.resolve,
-    // arguments                                    result
+    // arguments                    result
     [[['/var/lib', '../', 'file/'], '/var/file'],
      [['/var/lib', '/../', 'file/'], '/file'],
      [['a/b/c/', '../../..'], process.cwd()],
@@ -423,9 +424,9 @@ const resolveTests = [
     ]
   ]
 ];
-resolveTests.forEach(function(test) {
+resolveTests.forEach((test) => {
   const resolve = test[0];
-  test[1].forEach(function(test) {
+  test[1].forEach((test) => {
     const actual = resolve.apply(null, test[0]);
     let actualAlt;
     const os = resolve === path.win32.resolve ? 'win32' : 'posix';
@@ -514,7 +515,7 @@ const relativeTests = [
     ]
   ],
   [ path.posix.relative,
-    // arguments                    result
+    // arguments          result
     [['/var/lib', '/var', '..'],
      ['/var/lib', '/bin', '../../bin'],
      ['/var/lib', '/var/lib', ''],
@@ -530,9 +531,9 @@ const relativeTests = [
     ]
   ]
 ];
-relativeTests.forEach(function(test) {
+relativeTests.forEach((test) => {
   const relative = test[0];
-  test[1].forEach(function(test) {
+  test[1].forEach((test) => {
     const actual = relative(test[0], test[1]);
     const expected = test[2];
     const os = relative === path.win32.relative ? 'win32' : 'posix';
@@ -543,7 +544,7 @@ relativeTests.forEach(function(test) {
                     '\n  expect=' + JSON.stringify(expected) +
                     '\n  actual=' + JSON.stringify(actual);
     if (actual !== expected)
-      failures.push('\n' + message);
+      failures.push(`\n${message}`);
   });
 });
 assert.strictEqual(failures.length, 0, failures.join(''));
@@ -575,14 +576,14 @@ if (common.isWindows) {
   // These tests cause resolve() to insert the cwd, so we cannot test them from
   // non-Windows platforms (easily)
   assert.strictEqual(path.win32._makeLong('foo\\bar').toLowerCase(),
-                     '\\\\?\\' + process.cwd().toLowerCase() + '\\foo\\bar');
+                     `\\\\?\\${process.cwd().toLowerCase()}\\foo\\bar`);
   assert.strictEqual(path.win32._makeLong('foo/bar').toLowerCase(),
-                     '\\\\?\\' + process.cwd().toLowerCase() + '\\foo\\bar');
+                     `\\\\?\\${process.cwd().toLowerCase()}\\foo\\bar`);
   const currentDeviceLetter = path.parse(process.cwd()).root.substring(0, 2);
   assert.strictEqual(path.win32._makeLong(currentDeviceLetter).toLowerCase(),
-                     '\\\\?\\' + process.cwd().toLowerCase());
+                     `\\\\?\\${process.cwd().toLowerCase()}`);
   assert.strictEqual(path.win32._makeLong('C').toLowerCase(),
-                     '\\\\?\\' + process.cwd().toLowerCase() + '\\c');
+                     `\\\\?\\${process.cwd().toLowerCase()}\\c`);
 }
 assert.strictEqual(path.win32._makeLong('C:\\foo'), '\\\\?\\C:\\foo');
 assert.strictEqual(path.win32._makeLong('C:/foo'), '\\\\?\\C:\\foo');
