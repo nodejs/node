@@ -23,6 +23,12 @@ assert.strictEqual(params.toString(), '');
 assert.throws(() => URLSearchParams(), TypeError,
               'Calling \'URLSearchParams\' without \'new\' should throw.');
 
+// URLSearchParams constructor, undefined and null as argument
+params = new URLSearchParams(undefined);
+assert.strictEqual(params.toString(), '');
+params = new URLSearchParams(null);
+assert.strictEqual(params.toString(), '');
+
 // URLSearchParams constructor, empty string as argument
 params = new URLSearchParams('');
 // eslint-disable-next-line no-restricted-properties

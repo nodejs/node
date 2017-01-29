@@ -599,8 +599,10 @@ console.log(params.toString());
 
 Instantiate a new `URLSearchParams` object with an iterable map in a way that
 is similar to [`Map`][]'s constructor. `iterable` can be an Array or any
-iterable object. Elements of `iterable` are key-value pairs, and can themselves
-be any iterable object.
+iterable object. That means `iterable` can be another `URLSearchParams`, in
+which case the constructor will simply create a clone of the provided
+`URLSearchParams`.  Elements of `iterable` are key-value pairs, and can
+themselves be any iterable object.
 
 Duplicate keys are allowed.
 
@@ -632,24 +634,6 @@ function* getQueryPairs() {
   yield ['query', 'second'];
 }
 params = new URLSearchParams(getQueryPairs());
-console.log(params.toString());
-  // Prints 'user=abc&query=first&query=second'
-
-// Using a generator function for key-value pairs
-function* getSingleQueryPair(idx) {
-  if (idx === 0) {
-    yield 'user';  yield 'abc';
-  } else if (idx === 1) {
-    yield 'query'; yield 'first';
-  } else {
-    yield 'query'; yield 'second';
-  }
-}
-params = new URLSearchParams([
-  getSingleQueryPair(0),
-  getSingleQueryPair(1),
-  getSingleQueryPair(2)
-]);
 console.log(params.toString());
   // Prints 'user=abc&query=first&query=second'
 
