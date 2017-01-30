@@ -525,8 +525,8 @@ value returned is equivalent to that of `url.href`.
 ### Class: URLSearchParams
 
 The `URLSearchParams` object provides read and write access to the query of a
-`URL`. It can also be used standalone with one of the four following
-constructors.
+`URL`. The `URLSearchParams` class can also be used standalone with one of the
+four following constructors.
 
 ```js
 const URL = require('url').URL;
@@ -577,7 +577,7 @@ console.log(params.toString());
 Instantiate a new `URLSearchParams` object with a query hash map. The key and
 value of each property of `obj` are always coerced to strings.
 
-Warning: Unlike [`querystring`][] module, duplicate keys in the form of array
+*Note*: Unlike [`querystring`][] module, duplicate keys in the form of array
 values are not allowed. Arrays are stringified using [`array.toString()`][],
 which simply joins all array elements with commas.
 
