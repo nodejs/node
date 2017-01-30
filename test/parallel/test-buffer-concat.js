@@ -15,7 +15,7 @@ const flatLongLen = Buffer.concat(long, 40);
 assert.strictEqual(flatZero.length, 0);
 assert.strictEqual(flatOne.toString(), 'asdf');
 
-const check = new Array(10 + 1).join('asdf');
+const check = 'asdf'.repeat(10);
 
 // A special case where concat used to return the first item,
 // if the length is one. This check is to make sure that we don't do that.
