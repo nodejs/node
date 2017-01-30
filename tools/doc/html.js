@@ -208,7 +208,7 @@ function parseLists(input) {
           headingIndex = -1;
           heading = null;
         }
-        tok.text = parseAPIHeader(tok.text);
+        tok.text = parseAPIHeader(tok.text).replace(/\n/g, ' ');
         output.push({ type: 'html', text: tok.text });
         return;
       } else if (state === 'MAYBE_STABILITY_BQ') {
