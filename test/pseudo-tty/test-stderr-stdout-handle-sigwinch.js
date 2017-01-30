@@ -5,7 +5,7 @@ const originalRefreshSizeStderr = process.stderr._refreshSize;
 const originalRefreshSizeStdout = process.stdout._refreshSize;
 
 const wrap = (fn, ioStream, string) => {
-  return () => {
+  const wrapped = common.mustCall(() => {
     // The console.log() call prints a string that is in the .out file. In other
     // words, the console.log() is part of the test, not extraneous debugging.
     console.log(string);
@@ -16,7 +16,8 @@ const wrap = (fn, ioStream, string) => {
       if (!common.isSunOS || e.code !== 'EINVAL')
         throw e;
     }
-  };
+  });
+  return wrapped;
 };
 
 process.stderr._refreshSize = wrap(originalRefreshSizeStderr,
