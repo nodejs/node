@@ -39,7 +39,7 @@ set enable_vtune_arg=
 set configure_flags=
 set build_addons=
 set dll=
-set ci_test_targets="addons doctool inspector known_issues message parallel sequential"
+set ci_test_targets="addons debugger doctool inspector known_issues message parallel sequential"
 
 :next-arg
 if "%1"=="" goto args-done
