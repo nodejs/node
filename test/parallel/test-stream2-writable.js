@@ -24,7 +24,7 @@ TestWriter.prototype._write = function(chunk, encoding, cb) {
 
 const chunks = new Array(50);
 for (let i = 0; i < chunks.length; i++) {
-  chunks[i] = new Array(i + 1).join('x');
+  chunks[i] = 'x'.repeat(i);
 }
 
 // tiny node-tap lookalike.

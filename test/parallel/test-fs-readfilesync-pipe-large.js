@@ -18,7 +18,7 @@ if (process.argv[2] === 'child') {
 }
 
 const filename = path.join(common.tmpDir, '/readfilesync_pipe_large_test.txt');
-const dataExpected = new Array(1000000).join('a');
+const dataExpected = 'a'.repeat(999999);
 common.refreshTmpDir();
 fs.writeFileSync(filename, dataExpected);
 

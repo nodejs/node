@@ -19,7 +19,7 @@ const server = http.createServer(function(req, res) {
     }
   });
 }).listen(0, function() {
-  const req = new Array(COUNT + 1).join('GET / HTTP/1.1\r\n\r\n');
+  const req = 'GET / HTTP/1.1\r\n\r\n'.repeat(COUNT);
   client = net.connect(this.address().port, function() {
     client.write(req);
   });

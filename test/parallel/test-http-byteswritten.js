@@ -16,7 +16,7 @@ const httpServer = http.createServer(common.mustCall(function(req, res) {
 
   // Write 1.5mb to cause some requests to buffer
   // Also, mix up the encodings a bit.
-  const chunk = new Array(1024 + 1).join('7');
+  const chunk = '7'.repeat(1024);
   const bchunk = Buffer.from(chunk);
   for (let i = 0; i < 1024; i++) {
     res.write(chunk);

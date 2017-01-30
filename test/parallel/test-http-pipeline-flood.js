@@ -70,7 +70,7 @@ function child() {
 
   let req = `GET / HTTP/1.1\r\nHost: localhost:${port}\r\nAccept: */*\r\n\r\n`;
 
-  req = new Array(10241).join(req);
+  req = req.repeat(10240);
 
   conn.on('connect', write);
 
