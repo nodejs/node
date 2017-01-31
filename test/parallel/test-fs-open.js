@@ -2,18 +2,19 @@
 const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
+const path = require('path');
 
-let caughtException = false;
+const file = path.join(common.fixturesDir, 'file', 'does', 'not', 'exist');
+const errorMessage = `ENOENT: no such file or directory, open '${file}'`;
 
-try {
-  // should throw ENOENT, not EBADF
-  // see https://github.com/joyent/node/pull/1228
-  fs.openSync('/path/to/file/that/does/not/exist', 'r');
-} catch (e) {
-  assert.strictEqual(e.code, 'ENOENT');
-  caughtException = true;
-}
-assert.strictEqual(caughtException, true);
+assert.throws(() => {
+  fs.openSync(file, 'r');
+}, (err) => {
+  assert(err instanceof Error);
+  assert.strictEqual(err.code, 'ENOENT');
+  assert.strictEqual(err.message, errorMessage);
+  return true;
+});
 
 fs.open(__filename, 'r', common.mustCall((err) => {
   assert.ifError(err);
