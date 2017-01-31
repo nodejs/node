@@ -197,6 +197,8 @@ more information about the governance of the Node.js project, see
 
 ### Collaborators
 
+* [abouthiroppy](https://github.com/abouthiroppy) -
+**Yuta Hiroto** &lt;hello@about-hiroppy.com&gt;
 * [ak239](https://github.com/ak239) -
 **Aleksei Koziatinskii** &lt;ak239spb@gmail.com&gt;
 * [andrasq](https://github.com/andrasq) -
