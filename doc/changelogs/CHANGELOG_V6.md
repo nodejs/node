@@ -7,14 +7,14 @@
 </tr>
 <tr>
 <td valign="top">
-  <a href="#6.9.5">6.9.5</a><br/>
-</td>
-<td valign="top">
+<a href="#6.9.5">6.9.5</a><br/>
 <a href="#6.9.4">6.9.4</a><br/>
 <a href="#6.9.3">6.9.3</a><br/>
 <a href="#6.9.2">6.9.2</a><br/>
 <a href="#6.9.1">6.9.1</a><br/>
 <a href="#6.9.0">6.9.0</a><br/>
+</td>
+<td valign="top">
 <a href="#6.8.1">6.8.1</a><br/>
 <a href="#6.8.0">6.8.0</a><br/>
 <a href="#6.7.0">6.7.0</a><br/>
