@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const cluster = require('cluster');
 
@@ -14,37 +14,35 @@ function cheapClone(obj) {
 }
 
 const configs = [];
-
-// Capture changes
-cluster.on('setup', function() {
-  console.log('"setup" emitted', cluster.settings);
-  configs.push(cheapClone(cluster.settings));
-});
-
 const execs = [
   'node-next',
   'node-next-2',
   'node-next-3',
 ];
+const calls = execs.length;
+
+// Capture changes
+cluster.on('setup', common.mustCall(() => {
+  configs.push(cheapClone(cluster.settings));
+}, calls));
+
 
 process.on('exit', function assertTests() {
   // Tests that "setup" is emitted for every call to setupMaster
   assert.strictEqual(configs.length, execs.length);
 
-  assert.strictEqual(configs[0].exec, execs[0]);
-  assert.strictEqual(configs[1].exec, execs[1]);
-  assert.strictEqual(configs[2].exec, execs[2]);
+  for (let i = 0; i < calls; i++) {
+    assert.strictEqual(configs[i].exec, execs[i]);
+  }
 });
 
 // Make changes to cluster settings
-execs.forEach(function(v, i) {
-  setTimeout(function() {
+execs.forEach((v, i) => {
+  setTimeout(() => {
     cluster.setupMaster({ exec: v });
   }, i * 100);
 });
 
 // cluster emits 'setup' asynchronously, so we must stay alive long
 // enough for that to happen
-setTimeout(function() {
-  console.log('cluster setup complete');
-}, (execs.length + 1) * 100);
+setTimeout(() => {}, (execs.length + 1) * 100);
