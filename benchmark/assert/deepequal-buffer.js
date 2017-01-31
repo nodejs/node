@@ -2,22 +2,21 @@
 const common = require('../common.js');
 const assert = require('assert');
 const bench = common.createBenchmark(main, {
-  type: ('Int8Array Uint8Array Int16Array Uint16Array Int32Array Uint32Array ' +
-    'Float32Array Float64Array Uint8ClampedArray').split(' '),
-  n: [1],
-  method: ['strict', 'nonstrict'],
-  len: [1e6]
+  n: [1e3],
+  len: [1e2],
+  method: ['strict', 'nonstrict']
 });
 
 function main(conf) {
-  const type = conf.type;
-  const clazz = global[type];
   const n = +conf.n;
   const len = +conf.len;
-
-  const actual = new clazz(len);
-  const expected = new clazz(len);
   var i;
+
+  const data = Buffer.allocUnsafe(len);
+  const actual = Buffer.alloc(len);
+  const expected = Buffer.alloc(len);
+  data.copy(actual);
+  data.copy(expected);
 
   switch (conf.method) {
     case 'strict':
