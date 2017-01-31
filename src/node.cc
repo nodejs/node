@@ -227,7 +227,7 @@ static struct {
   void PumpMessageLoop(Isolate* isolate) {}
   void Dispose() {}
   bool StartInspector(Environment *env, const char* script_path,
-                      int port, bool wait) {
+                      const node::DebugOptions& options) {
     env->ThrowError("Node compiled with NODE_USE_V8_PLATFORM=0");
     return false;  // make compiler happy
   }
