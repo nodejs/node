@@ -7,6 +7,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#4.7.3">4.7.3</a><br/>
 <a href="#4.7.2">4.7.2</a><br/>
 <a href="#4.7.1">4.7.1</a><br/>
 <a href="#4.7.0">4.7.0</a><br/>
@@ -55,6 +56,30 @@
 **Note:** Node.js v4 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2017 and maintained until April 2018.
+
+<a id="4.7.3"></a>
+## 2017-01-31, Version 4.7.3 'Argon' (LTS), @MylesBorins
+
+This is a security release of the 'Argon' release line to upgrade OpenSSL to version 1.0.2k
+
+Although the OpenSSL team have determined a maximum severity rating of "moderate", the Node.js
+crypto team (Ben Noordhuis, Shigeki Ohtsu and Fedor Indutny) have determined the impact to Node
+users is "low". Details on this determination can be found
+[on the Nodejs.org website](https://nodejs.org/en/blog/vulnerability/openssl-january-2017/).
+
+### Notable Changes
+
+* **deps**: upgrade openssl sources to 1.0.2k (Shigeki Ohtsu) [#11021](https://github.com/nodejs/node/pull/11021)
+
+### Commits
+
+* [[`8029f64135`](https://github.com/nodejs/node/commit/8029f64135)] - **deps**: update openssl asm and asm_obsolete files (Shigeki Ohtsu) [#11021](https://github.com/nodejs/node/pull/11021)
+* [[`0081659a41`](https://github.com/nodejs/node/commit/0081659a41)] - **deps**: add -no_rand_screen to openssl s_client (Shigeki Ohtsu) [nodejs/io.js#1836](https://github.com/nodejs/io.js/pull/1836)
+* [[`e55c3f4e21`](https://github.com/nodejs/node/commit/e55c3f4e21)] - **deps**: fix asm build error of openssl in x86_win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`24640f9278`](https://github.com/nodejs/node/commit/24640f9278)] - **deps**: fix openssl assembly error on ia32 win32 (Fedor Indutny) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`6c7bdf58e0`](https://github.com/nodejs/node/commit/6c7bdf58e0)] - **deps**: copy all openssl header files to include dir (Shigeki Ohtsu) [#11021](https://github.com/nodejs/node/pull/11021)
+* [[`c80844769c`](https://github.com/nodejs/node/commit/c80844769c)] - **deps**: upgrade openssl sources to 1.0.2k (Shigeki Ohtsu) [#11021](https://github.com/nodejs/node/pull/11021)
+* [[`e3915a415b`](https://github.com/nodejs/node/commit/e3915a415b)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
 
 <a id="4.7.2"></a>
 ## 2017-01-05, Version 4.7.2 'Argon' (LTS), @MylesBorins
