@@ -7,6 +7,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#6.9.5">6.9.5</a><br/>
 <a href="#6.9.4">6.9.4</a><br/>
 <a href="#6.9.3">6.9.3</a><br/>
 <a href="#6.9.2">6.9.2</a><br/>
@@ -43,6 +44,30 @@
 **Note:** Node.js v6 is covered by the
 [Node.js Long Term Support Plan](https://github.com/nodejs/LTS) and
 will be supported actively until April 2018 and maintained until April 2019.
+
+<a id="6.9.5"></a>
+## 2017-01-31, Version 6.9.5 'Boron' (LTS), @MylesBorins
+
+This is a security release of the 'Boron' release line to upgrade OpenSSL to version 1.0.2k
+
+Although the OpenSSL team have determined a maximum severity rating of "moderate", the Node.js
+crypto team (Ben Noordhuis, Shigeki Ohtsu and Fedor Indutny) have determined the impact to Node
+users is "low". Details on this determination can be found
+[on the Nodejs.org website](https://nodejs.org/en/blog/vulnerability/openssl-january-2017/).
+
+### Notable Changes
+
+* **deps**: upgrade openssl sources to 1.0.2k (Shigeki Ohtsu) [#11021](https://github.com/nodejs/node/pull/11021)
+
+### Commits
+
+* [[`87ac44974a`](https://github.com/nodejs/node/commit/87ac44974a)] - **deps**: update openssl asm and asm_obsolete files (Shigeki Ohtsu) [#11021](https://github.com/nodejs/node/pull/11021)
+* [[`a4b43a7ef9`](https://github.com/nodejs/node/commit/a4b43a7ef9)] - **deps**: add -no_rand_screen to openssl s_client (Shigeki Ohtsu) [nodejs/io.js#1836](https://github.com/nodejs/io.js/pull/1836)
+* [[`f5b77fdf8d`](https://github.com/nodejs/node/commit/f5b77fdf8d)] - **deps**: fix asm build error of openssl in x86_win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`58fae148fa`](https://github.com/nodejs/node/commit/58fae148fa)] - **deps**: fix openssl assembly error on ia32 win32 (Fedor Indutny) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
+* [[`d623e8c5b9`](https://github.com/nodejs/node/commit/d623e8c5b9)] - **deps**: copy all openssl header files to include dir (Shigeki Ohtsu) [#11021](https://github.com/nodejs/node/pull/11021)
+* [[`3f2bef60b8`](https://github.com/nodejs/node/commit/3f2bef60b8)] - **deps**: upgrade openssl sources to 1.0.2k (Shigeki Ohtsu) [#11021](https://github.com/nodejs/node/pull/11021)
+* [[`c4678d2f9a`](https://github.com/nodejs/node/commit/c4678d2f9a)] - **openssl**: fix keypress requirement in apps on win32 (Shigeki Ohtsu) [iojs/io.js#1389](https://github.com/iojs/io.js/pull/1389)
 
 <a id="6.9.4"></a>
 ## 2017-01-05, Version 6.9.4 'Boron' (LTS), @MylesBorins
