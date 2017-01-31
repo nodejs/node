@@ -125,12 +125,13 @@ changes:
 * `expected` {any}
 * `message` {any}
 
-Generally identical to `assert.deepEqual()` with two exceptions:
+Generally identical to `assert.deepEqual()` with three exceptions:
 
 1. Primitive values are compared using the [Strict Equality Comparison][]
   ( `===` ).
 2. [`[[Prototype]]`][prototype-spec] of objects are compared using
   the [Strict Equality Comparison][] too.
+3. [Type tags][Object.prototype.toString()] of objects should be the same.
 
 ```js
 const assert = require('assert');
@@ -141,6 +142,25 @@ assert.deepEqual({a: 1}, {a: '1'});
 assert.deepStrictEqual({a: 1}, {a: '1'});
 // AssertionError: { a: 1 } deepStrictEqual { a: '1' }
 // because 1 !== '1' using strict equality
+
+// The following objects don't have owned properties
+const date = new Date();
+const object = {};
+const fakeDate = {};
+
+Object.setPrototypeOf(fakeDate, Date.prototype);
+
+assert.deepEqual(object, fakeDate);
+// OK, doesn't check [[Prototype]]
+assert.deepStrictEqual(object, fakeDate);
+// AssertionError: {} deepStrictEqual Date {}
+// Different [[Prototype]]
+
+assert.deepEqual(date, fakeDate);
+// OK, doesn't check type tags
+assert.deepStrictEqual(date, fakeDate);
+// AssertionError: 2017-03-11T14:25:31.849Z deepStrictEqual Date {}
+// Different type tags
 ```
 
 If the values are not equal, an `AssertionError` is thrown with a `message`
