@@ -14,6 +14,17 @@ const path = require('path');
 const assert = require('assert');
 const tests = require(path.join(common.fixturesDir, 'url-tests.json'));
 
+// Tests below are not from WPT.
+for (const test of tests) {
+  if (typeof test === 'string')
+    continue;
+
+  if (test.failure) {
+    assert.throws(() => new URL(test.input, test.base),
+                  /^TypeError: Invalid URL$/);
+  }
+}
+
 function verifyURL(url, test) {
   if (test.href) assert.strictEqual(url.href, test.href);
   if (test.origin) assert.strictEqual(url.origin, test.origin);
@@ -26,19 +37,6 @@ function verifyURL(url, test) {
   if (test.pathname) assert.strictEqual(url.pathname, test.pathname);
   if (test.search) assert.strictEqual(url.search, test.search);
   if (test.hash) assert.strictEqual(url.hash, test.hash);
-}
-
-for (const test of tests) {
-  if (typeof test === 'string')
-    continue;
-
-  if (test.failure) {
-    assert.throws(() => new URL(test.input, test.base),
-                  /^TypeError: Invalid URL$/);
-  } else {
-    const url = new URL(test.input, test.base);
-    verifyURL(url, test);
-  }
 }
 
 const additional_tests = [
