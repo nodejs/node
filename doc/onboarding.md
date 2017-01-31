@@ -139,6 +139,7 @@ onboarding session.
   * Example: [https://github.com/nodejs/node/commit/7b09aade8468e1c930f36b9c81e6ac2ed5bc8732](https://github.com/nodejs/node/commit/7b09aade8468e1c930f36b9c81e6ac2ed5bc8732)
     * For raw commit message: `git log 7b09aade8468e1c930f36b9c81e6ac2ed5bc8732 -1`
   * Collaborators are in alphabetical order by GitHub username.
+  * Optionally, include your personal pronouns.
   * Label your pull request with the `doc` subsystem label.
   * Run CI on your PR.
   * After a `LGTM` or two, land the PR.
