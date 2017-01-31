@@ -48,6 +48,9 @@
               '.',
             ],
           },
+          'defines': [
+            'HAVE_HIDDEN',
+          ],
           'conditions': [
             ['OS!="win"', {
               'cflags!': [ '-ansi' ],
