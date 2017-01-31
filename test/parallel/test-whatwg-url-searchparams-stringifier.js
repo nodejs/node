@@ -1,115 +1,131 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const URLSearchParams = require('url').URLSearchParams;
+const { test, assert_equals } = common.WPT;
 
-let params;
+/* eslint-disable */
+/* WPT Refs:
+   https://github.com/w3c/web-platform-tests/blob/8791bed/url/urlsearchparams-stringifier.html
+   License: http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html
+*/
+// test(function() {
+//     var params = new URLSearchParams();
+//     params.append('a', 'b c');
+//     assert_equals(params + '', 'a=b+c');
+//     params.delete('a');
+//     params.append('a b', 'c');
+//     assert_equals(params + '', 'a+b=c');
+// }, 'Serialize space');
 
-// Serialize space
-// querystring does not currently handle spaces intelligently
-// params = new URLSearchParams();
-// params.append('a', 'b c');
-// assert.strictEqual(params + '', 'a=b+c');
-// params.delete('a');
-// params.append('a b', 'c');
-// assert.strictEqual(params + '', 'a+b=c');
+test(function() {
+    var params = new URLSearchParams();
+    params.append('a', '');
+    assert_equals(params + '', 'a=');
+    params.append('a', '');
+    assert_equals(params + '', 'a=&a=');
+    params.append('', 'b');
+    assert_equals(params + '', 'a=&a=&=b');
+    params.append('', '');
+    assert_equals(params + '', 'a=&a=&=b&=');
+    params.append('', '');
+    assert_equals(params + '', 'a=&a=&=b&=&=');
+}, 'Serialize empty value');
 
-// Serialize empty value
-params = new URLSearchParams();
-params.append('a', '');
-assert.strictEqual(params + '', 'a=');
-params.append('a', '');
-assert.strictEqual(params + '', 'a=&a=');
-params.append('', 'b');
-assert.strictEqual(params + '', 'a=&a=&=b');
-params.append('', '');
-assert.strictEqual(params + '', 'a=&a=&=b&=');
-params.append('', '');
-assert.strictEqual(params + '', 'a=&a=&=b&=&=');
+test(function() {
+    var params = new URLSearchParams();
+    params.append('', 'b');
+    assert_equals(params + '', '=b');
+    params.append('', 'b');
+    assert_equals(params + '', '=b&=b');
+}, 'Serialize empty name');
 
-// Serialize empty name
-params = new URLSearchParams();
-params.append('', 'b');
-assert.strictEqual(params + '', '=b');
-params.append('', 'b');
-assert.strictEqual(params + '', '=b&=b');
+test(function() {
+    var params = new URLSearchParams();
+    params.append('', '');
+    assert_equals(params + '', '=');
+    params.append('', '');
+    assert_equals(params + '', '=&=');
+}, 'Serialize empty name and value');
 
-// Serialize empty name and value
-params = new URLSearchParams();
-params.append('', '');
-assert.strictEqual(params + '', '=');
-params.append('', '');
-assert.strictEqual(params + '', '=&=');
+test(function() {
+    var params = new URLSearchParams();
+    params.append('a', 'b+c');
+    assert_equals(params + '', 'a=b%2Bc');
+    params.delete('a');
+    params.append('a+b', 'c');
+    assert_equals(params + '', 'a%2Bb=c');
+}, 'Serialize +');
 
-// Serialize +
-params = new URLSearchParams();
-params.append('a', 'b+c');
-assert.strictEqual(params + '', 'a=b%2Bc');
-params.delete('a');
-params.append('a+b', 'c');
-assert.strictEqual(params + '', 'a%2Bb=c');
+test(function() {
+    var params = new URLSearchParams();
+    params.append('=', 'a');
+    assert_equals(params + '', '%3D=a');
+    params.append('b', '=');
+    assert_equals(params + '', '%3D=a&b=%3D');
+}, 'Serialize =');
 
-// Serialize =
-params = new URLSearchParams();
-params.append('=', 'a');
-assert.strictEqual(params + '', '%3D=a');
-params.append('b', '=');
-assert.strictEqual(params + '', '%3D=a&b=%3D');
+test(function() {
+    var params = new URLSearchParams();
+    params.append('&', 'a');
+    assert_equals(params + '', '%26=a');
+    params.append('b', '&');
+    assert_equals(params + '', '%26=a&b=%26');
+}, 'Serialize &');
 
-// Serialize &
-params = new URLSearchParams();
-params.append('&', 'a');
-assert.strictEqual(params + '', '%26=a');
-params.append('b', '&');
-assert.strictEqual(params + '', '%26=a&b=%26');
+test(function() {
+    var params = new URLSearchParams();
+    params.append('a', '*-._');
+    assert_equals(params + '', 'a=*-._');
+    params.delete('a');
+    params.append('*-._', 'c');
+    assert_equals(params + '', '*-._=c');
+}, 'Serialize *-._');
 
-// Serialize *-._
-params = new URLSearchParams();
-params.append('a', '*-._');
-assert.strictEqual(params + '', 'a=*-._');
-params.delete('a');
-params.append('*-._', 'c');
-assert.strictEqual(params + '', '*-._=c');
+test(function() {
+    var params = new URLSearchParams();
+    params.append('a', 'b%c');
+    assert_equals(params + '', 'a=b%25c');
+    params.delete('a');
+    params.append('a%b', 'c');
+    assert_equals(params + '', 'a%25b=c');
+}, 'Serialize %');
 
-// Serialize %
-params = new URLSearchParams();
-params.append('a', 'b%c');
-assert.strictEqual(params + '', 'a=b%25c');
-params.delete('a');
-params.append('a%b', 'c');
-assert.strictEqual(params + '', 'a%25b=c');
+test(function() {
+    var params = new URLSearchParams();
+    params.append('a', 'b\0c');
+    assert_equals(params + '', 'a=b%00c');
+    params.delete('a');
+    params.append('a\0b', 'c');
+    assert_equals(params + '', 'a%00b=c');
+}, 'Serialize \\0');
 
-// Serialize \\0
-params = new URLSearchParams();
-params.append('a', 'b\0c');
-assert.strictEqual(params + '', 'a=b%00c');
-params.delete('a');
-params.append('a\0b', 'c');
-assert.strictEqual(params + '', 'a%00b=c');
+test(function() {
+    var params = new URLSearchParams();
+    params.append('a', 'b\uD83D\uDCA9c');
+    assert_equals(params + '', 'a=b%F0%9F%92%A9c');
+    params.delete('a');
+    params.append('a\uD83D\uDCA9b', 'c');
+    assert_equals(params + '', 'a%F0%9F%92%A9b=c');
+}, 'Serialize \uD83D\uDCA9');  // Unicode Character 'PILE OF POO' (U+1F4A9)
 
-// Serialize \uD83D\uDCA9
-// Unicode Character 'PILE OF POO' (U+1F4A9)
-params = new URLSearchParams();
-params.append('a', 'b\uD83D\uDCA9c');
-assert.strictEqual(params + '', 'a=b%F0%9F%92%A9c');
-params.delete('a');
-params.append('a\uD83D\uDCA9b', 'c');
-assert.strictEqual(params + '', 'a%F0%9F%92%A9b=c');
+test(function() {
+    var params;
+    // params = new URLSearchParams('a=b&c=d&&e&&');
+    // assert_equals(params.toString(), 'a=b&c=d&e=');
+    // params = new URLSearchParams('a = b &a=b&c=d%20');
+    // assert_equals(params.toString(), 'a+=+b+&a=b&c=d+');
+    // The lone '=' _does_ survive the roundtrip.
+    params = new URLSearchParams('a=&a=b');
+    assert_equals(params.toString(), 'a=&a=b');
+}, 'URLSearchParams.toString');
+/* eslint-enable */
 
-// URLSearchParams.toString
-
-// querystring parses `&&` as {'': ''}
-// params = new URLSearchParams('a=b&c=d&&e&&');
-// assert.strictEqual(params.toString(), 'a=b&c=d&e=');
-
-// querystring does not currently handle spaces intelligently
-// params = new URLSearchParams('a = b &a=b&c=d%20');
-// assert.strictEqual(params.toString(), 'a+=+b+&a=b&c=d+');
-
-// The lone '=' _does_ survive the roundtrip.
-params = new URLSearchParams('a=&a=b');
-assert.strictEqual(params.toString(), 'a=&a=b');
-assert.throws(() => {
-  params.toString.call(undefined);
-}, /^TypeError: Value of `this` is not a URLSearchParams$/);
+// Tests below are not from WPT.
+{
+  const params = new URLSearchParams();
+  assert.throws(() => {
+    params.toString.call(undefined);
+  }, /^TypeError: Value of `this` is not a URLSearchParams$/);
+}
