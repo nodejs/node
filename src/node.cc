@@ -228,7 +228,6 @@ static struct {
   }
 #endif  // HAVE_INSPECTOR
 
-  v8::Platform* platform_;
 #else  // !NODE_USE_V8_PLATFORM
   void Initialize(int thread_pool_size) {}
   void PumpMessageLoop(Isolate* isolate) {}
@@ -239,6 +238,8 @@ static struct {
     return false;  // make compiler happy
   }
 #endif  // !NODE_USE_V8_PLATFORM
+
+  v8::Platform* platform_;
 } v8_platform;
 
 #ifdef __POSIX__
