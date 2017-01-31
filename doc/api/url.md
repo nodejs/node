@@ -529,7 +529,8 @@ The `URLSearchParams` object provides read and write access to the query of a
 four following constructors.
 
 ```js
-const URL = require('url').URL;
+const { URL, URLSearchParams } = require('url');
+
 const myURL = new URL('https://example.org/?abc=123');
 console.log(myURL.searchParams.get('abc'));
   // Prints 123
@@ -542,6 +543,24 @@ myURL.searchParams.delete('abc');
 myURL.searchParams.set('a', 'b');
 console.log(myURL.href);
   // Prints https://example.org/?a=b
+
+const newSearchParams = new URLSearchParams(myURL.searchParams);
+// The above is equivalent to
+// const newSearchParams = new URLSearchParams(myURL.search);
+
+newSearchParams.append('a', 'c');
+console.log(myURL.href);
+  // Prints https://example.org/?a=b
+console.log(newSearchParams.toString());
+  // Prints a=b&a=c
+
+// newSearchParams.toString() is implicitly called
+myURL.search = newSearchParams;
+console.log(myURL.href);
+  // Prints https://example.org/?a=b&a=c
+newSearchParams.delete('a');
+console.log(myURL.href);
+  // Prints https://example.org/?a=b&a=c
 ```
 
 #### Constructor: new URLSearchParams()
