@@ -18,7 +18,9 @@ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #define _UV_PTHREAD_BARRIER_
 #include <errno.h>
 #include <pthread.h>
+#if !defined(__MVS__)
 #include <semaphore.h> /* sem_t */
+#endif
 
 #define PTHREAD_BARRIER_SERIAL_THREAD  0x12345
 
