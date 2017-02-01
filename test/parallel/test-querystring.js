@@ -51,6 +51,14 @@ const qsTestCases = [
      __defineGetter__: 'baz' }],
   // See: https://github.com/joyent/node/issues/3058
   ['foo&bar=baz', 'foo=&bar=baz', { foo: '', bar: 'baz' }],
+  ['a=b&c&d=e', 'a=b&c=&d=e', { a: 'b', c: '', d: 'e' }],
+  ['a=b&c=&d=e', 'a=b&c=&d=e', { a: 'b', c: '', d: 'e' }],
+  ['a=b&=c&d=e', 'a=b&=c&d=e', { a: 'b', '': 'c', d: 'e' }],
+  ['a=b&=&c=d', 'a=b&=&c=d', { a: 'b', '': '', c: 'd' }],
+  ['&&foo=bar&&', 'foo=bar', { foo: 'bar' }],
+  ['&&&&', '', {}],
+  ['&=&', '=', { '': '' }],
+  ['&=&=', '=&=', { '': [ '', '' ]}],
   [null, '', {}],
   [undefined, '', {}]
 ];
