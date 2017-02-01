@@ -387,7 +387,8 @@ assert.throws(makeBlock(thrower, TypeError));
                      'a.doesNotThrow is not catching type matching errors');
 }
 
-assert.throws(function() { assert.ifError(new Error('test error')); });
+assert.throws(function() { assert.ifError(new Error('test error')); },
+              /^Error: test error$/);
 assert.doesNotThrow(function() { assert.ifError(null); });
 assert.doesNotThrow(function() { assert.ifError(); });
 
