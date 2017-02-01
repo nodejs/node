@@ -53,7 +53,7 @@ d.on('error', (er) => {
   // Though we've prevented abrupt process restarting, we are leaking
   // resources like crazy if this ever happens.
   // This is no better than process.on('uncaughtException')!
-  console.log('error, but oh well', er.message);
+  console.log(`error, but oh well ${er.message}`);
 });
 d.run(() => {
   require('http').createServer((req, res) => {
@@ -106,7 +106,7 @@ if (cluster.isMaster) {
   const server = require('http').createServer((req, res) => {
     const d = domain.create();
     d.on('error', (er) => {
-      console.error('error', er.stack);
+      console.error(`error ${er.stack}`);
 
       // Note: we're in dangerous territory!
       // By definition, something unexpected occurred,
@@ -135,7 +135,7 @@ if (cluster.isMaster) {
         res.end('Oops, there was a problem!\n');
       } catch (er2) {
         // oh well, not much we can do at this point.
-        console.error('Error sending 500!', er2.stack);
+        console.error(`Error sending 500! ${er2.stack}`);
       }
     });
 
