@@ -233,6 +233,7 @@ namespace node {
   V(async_hooks_destroy_function, v8::Function)                               \
   V(async_hooks_init_function, v8::Function)                                  \
   V(async_hooks_before_function, v8::Function)                                \
+  V(async_hooks_fatal_error_function, v8::Function)                           \
   V(async_hooks_after_function, v8::Function)                                 \
   V(binding_cache_object, v8::Object)                                         \
   V(buffer_constructor_function, v8::Function)                                \
@@ -550,6 +551,9 @@ class Environment {
   void PrintSyncTrace() const;
   inline void set_trace_sync_io(bool value);
 
+  inline bool abort_on_uncaught_exception() const;
+  inline void set_abort_on_uncaught_exception(bool value);
+
   // The necessary API for async_hooks.
   inline double new_async_id();
   inline double current_async_id();
@@ -662,6 +666,7 @@ class Environment {
   bool using_domains_;
   bool printed_error_;
   bool trace_sync_io_;
+  bool abort_on_uncaught_exception_;
   size_t makecallback_cntr_;
   double async_wrap_id_;
   std::vector<double> destroy_ids_list_;

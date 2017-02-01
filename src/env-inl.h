@@ -147,7 +147,21 @@ inline void Environment::AsyncHooks::pop_from_id_stack(double id) {
   }
 
   // Make sure the stack hasn't become corrupted.
-  CHECK_EQ(id_stack_[fields_[AsyncHooks::kIdStackIndex]], id);
+  if (id_stack_[fields_[AsyncHooks::kIdStackIndex]] != id) {
+    fprintf(stderr,
+             "Error: async hook stack has become corrupted ("
+             "actual: %'.f, expected: %'.f)\n",
+             id_stack_[fields_[AsyncHooks::kIdStackIndex]],
+             id);
+    Environment* env = Environment::GetCurrent(isolate_);
+    DumpBacktrace(stderr);
+    fflush(stderr);
+    if (!env->abort_on_uncaught_exception())
+      exit(1);
+    fprintf(stderr, "\n");
+    fflush(stderr);
+    ABORT_NO_BACKTRACE();
+  }
 
   // Fast path where there's probably no extra stack.
   if (fields_[AsyncHooks::kIdStackSize] < AsyncHooks::kIdStackLimit) {
@@ -385,6 +399,7 @@ inline Environment::Environment(IsolateData* isolate_data,
       using_domains_(false),
       printed_error_(false),
       trace_sync_io_(false),
+      abort_on_uncaught_exception_(false),
       makecallback_cntr_(0),
       fd_async_ids_inst_(),
       debugger_agent_(this),
@@ -528,6 +543,14 @@ inline void Environment::set_printed_error(bool value) {
 
 inline void Environment::set_trace_sync_io(bool value) {
   trace_sync_io_ = value;
+}
+
+inline bool Environment::abort_on_uncaught_exception() const {
+  return abort_on_uncaught_exception_;
+}
+
+inline void Environment::set_abort_on_uncaught_exception(bool value) {
+  abort_on_uncaught_exception_ = value;
 }
 
 inline std::vector<double>* Environment::destroy_ids_list() {

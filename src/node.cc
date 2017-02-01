@@ -155,6 +155,7 @@ static node_module* modlist_linked;
 static node_module* modlist_addon;
 static bool trace_enabled = false;
 static const char* trace_enabled_categories = nullptr;
+static bool abort_on_uncaught_exception = false;
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
 // Path to ICU data (for i18n / Intl)
@@ -3698,6 +3699,9 @@ static void ParseArgs(int* argc,
     } else if (strcmp(arg, "--expose-internals") == 0 ||
                strcmp(arg, "--expose_internals") == 0) {
       // consumed in js
+    } else if (strcmp(arg, "--abort-on-uncaught-exception") ||
+               strcmp(arg, "--abort_on_uncaught_exception")) {
+      abort_on_uncaught_exception = true;
     } else if (strcmp(arg, "--") == 0) {
       index += 1;
       break;
@@ -4370,6 +4374,8 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
     if (!debugger_running)
       return 12;  // Signal internal error.
   }
+
+  env.set_abort_on_uncaught_exception(abort_on_uncaught_exception);
 
   {
     Environment::AsyncCallbackScope callback_scope(&env);
