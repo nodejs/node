@@ -510,6 +510,18 @@ static void empty_scandir_cb(uv_fs_t* req) {
   scandir_cb_count++;
 }
 
+static void non_existent_scandir_cb(uv_fs_t* req) {
+  uv_dirent_t dent;
+
+  ASSERT(req == &scandir_req);
+  ASSERT(req->fs_type == UV_FS_SCANDIR);
+  ASSERT(req->result == UV_ENOENT);
+  ASSERT(req->ptr == NULL);
+  ASSERT(UV_ENOENT == uv_fs_scandir_next(req, &dent));
+  uv_fs_req_cleanup(req);
+  scandir_cb_count++;
+}
+
 
 static void file_scandir_cb(uv_fs_t* req) {
   ASSERT(req == &scandir_req);
@@ -2174,6 +2186,39 @@ TEST_IMPL(fs_scandir_empty_dir) {
   return 0;
 }
 
+
+TEST_IMPL(fs_scandir_non_existent_dir) {
+  const char* path;
+  uv_fs_t req;
+  uv_dirent_t dent;
+  int r;
+
+  path = "./non_existent_dir/";
+  loop = uv_default_loop();
+
+  uv_fs_rmdir(NULL, &req, path, NULL);
+  uv_fs_req_cleanup(&req);
+
+  /* Fill the req to ensure that required fields are cleaned up */
+  memset(&req, 0xdb, sizeof(req));
+
+  r = uv_fs_scandir(NULL, &req, path, 0, NULL);
+  ASSERT(r == UV_ENOENT);
+  ASSERT(req.result == UV_ENOENT);
+  ASSERT(req.ptr == NULL);
+  ASSERT(UV_ENOENT == uv_fs_scandir_next(&req, &dent));
+  uv_fs_req_cleanup(&req);
+
+  r = uv_fs_scandir(loop, &scandir_req, path, 0, non_existent_scandir_cb);
+  ASSERT(r == 0);
+
+  ASSERT(scandir_cb_count == 0);
+  uv_run(loop, UV_RUN_DEFAULT);
+  ASSERT(scandir_cb_count == 1);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
 
 TEST_IMPL(fs_scandir_file) {
   const char* path;
