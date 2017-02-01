@@ -114,7 +114,7 @@ added: v0.3.4
     outstanding requests, so they can be used for future requests without
     having to reestablish a TCP connection. Default = `false`
   * `keepAliveMsecs` {Integer} When using the `keepAlive` option, specifies
-    the [initial delay](#net_socket_setkeepalive_enable_initialdelay)
+    the [initial delay](net.html#net_socket_setkeepalive_enable_initialdelay)
     for TCP Keep-Alive packets. Ignored when the
     `keepAlive` option is `false` or `undefined`. Default = `1000`.
   * `maxSockets` {Number} Maximum number of sockets to allow per
