@@ -20,7 +20,7 @@
 #include "src/machine-type.h"
 #include "src/macro-assembler.h"
 #include "src/utils.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -84,6 +84,10 @@ bool CodeAssembler::IsFloat64RoundUpSupported() const {
 
 bool CodeAssembler::IsFloat64RoundDownSupported() const {
   return raw_assembler_->machine()->Float64RoundDown().IsSupported();
+}
+
+bool CodeAssembler::IsFloat64RoundTiesEvenSupported() const {
+  return raw_assembler_->machine()->Float64RoundTiesEven().IsSupported();
 }
 
 bool CodeAssembler::IsFloat64RoundTruncateSupported() const {
@@ -234,6 +238,13 @@ Node* CodeAssembler::ChangeInt32ToIntPtr(Node* value) {
   return value;
 }
 
+Node* CodeAssembler::RoundIntPtrToFloat64(Node* value) {
+  if (raw_assembler_->machine()->Is64()) {
+    return raw_assembler_->RoundInt64ToFloat64(value);
+  }
+  return raw_assembler_->ChangeInt32ToFloat64(value);
+}
+
 #define DEFINE_CODE_ASSEMBLER_UNARY_OP(name) \
   Node* CodeAssembler::name(Node* a) { return raw_assembler_->name(a); }
 CODE_ASSEMBLER_UNARY_OP_LIST(DEFINE_CODE_ASSEMBLER_UNARY_OP)
@@ -297,6 +308,10 @@ Node* CodeAssembler::StoreRoot(Heap::RootListIndex root_index, Node* value) {
       ExternalConstant(ExternalReference::roots_array_start(isolate()));
   return StoreNoWriteBarrier(MachineRepresentation::kTagged, roots_array_start,
                              IntPtrConstant(root_index * kPointerSize), value);
+}
+
+Node* CodeAssembler::Retain(Node* value) {
+  return raw_assembler_->Retain(value);
 }
 
 Node* CodeAssembler::Projection(int index, Node* value) {
@@ -425,6 +440,14 @@ Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function_id,
                                           arg5, context);
 }
 
+Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function_id,
+                                     Node* context, Node* arg1, Node* arg2,
+                                     Node* arg3, Node* arg4, Node* arg5,
+                                     Node* arg6) {
+  return raw_assembler_->TailCallRuntime6(function_id, arg1, arg2, arg3, arg4,
+                                          arg5, arg6, context);
+}
+
 Node* CodeAssembler::CallStub(Callable const& callable, Node* context,
                               Node* arg1, size_t result_size) {
   Node* target = HeapConstant(callable.code());
@@ -444,6 +467,14 @@ Node* CodeAssembler::CallStub(Callable const& callable, Node* context,
   Node* target = HeapConstant(callable.code());
   return CallStub(callable.descriptor(), target, context, arg1, arg2, arg3,
                   result_size);
+}
+
+Node* CodeAssembler::CallStub(Callable const& callable, Node* context,
+                              Node* arg1, Node* arg2, Node* arg3, Node* arg4,
+                              size_t result_size) {
+  Node* target = HeapConstant(callable.code());
+  return CallStub(callable.descriptor(), target, context, arg1, arg2, arg3,
+                  arg4, result_size);
 }
 
 Node* CodeAssembler::CallStubN(Callable const& callable, Node** args,
@@ -638,9 +669,11 @@ Node* CodeAssembler::CallStub(const CallInterfaceDescriptor& descriptor,
 }
 
 Node* CodeAssembler::CallStubN(const CallInterfaceDescriptor& descriptor,
-                               Node* target, Node** args, size_t result_size) {
+                               int js_parameter_count, Node* target,
+                               Node** args, size_t result_size) {
   CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
+      isolate(), zone(), descriptor,
+      descriptor.GetStackParameterCount() + js_parameter_count,
       CallDescriptor::kNoFlags, Operator::kNoProperties,
       MachineType::AnyTagged(), result_size);
 
@@ -745,6 +778,26 @@ Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
 }
 
 Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
+                                  Node* target, Node* context, Node* arg1,
+                                  Node* arg2, Node* arg3, Node* arg4,
+                                  Node* arg5, size_t result_size) {
+  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
+      CallDescriptor::kSupportsTailCalls, Operator::kNoProperties,
+      MachineType::AnyTagged(), result_size);
+
+  Node** args = zone()->NewArray<Node*>(6);
+  args[0] = arg1;
+  args[1] = arg2;
+  args[2] = arg3;
+  args[3] = arg4;
+  args[4] = arg5;
+  args[5] = context;
+
+  return raw_assembler_->TailCallN(call_descriptor, target, args);
+}
+
+Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
                                   Node* target, Node* context, const Arg& arg1,
                                   const Arg& arg2, const Arg& arg3,
                                   const Arg& arg4, size_t result_size) {
@@ -803,10 +856,6 @@ Node* CodeAssembler::CallJS(Callable const& callable, Node* context,
                             Node* function, Node* receiver,
                             size_t result_size) {
   const int argc = 0;
-  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), callable.descriptor(), argc + 1,
-      CallDescriptor::kNoFlags, Operator::kNoProperties,
-      MachineType::AnyTagged(), result_size);
   Node* target = HeapConstant(callable.code());
 
   Node** args = zone()->NewArray<Node*>(argc + 4);
@@ -815,17 +864,13 @@ Node* CodeAssembler::CallJS(Callable const& callable, Node* context,
   args[2] = receiver;
   args[3] = context;
 
-  return CallN(call_descriptor, target, args);
+  return CallStubN(callable.descriptor(), argc + 1, target, args, result_size);
 }
 
 Node* CodeAssembler::CallJS(Callable const& callable, Node* context,
                             Node* function, Node* receiver, Node* arg1,
                             size_t result_size) {
   const int argc = 1;
-  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), callable.descriptor(), argc + 1,
-      CallDescriptor::kNoFlags, Operator::kNoProperties,
-      MachineType::AnyTagged(), result_size);
   Node* target = HeapConstant(callable.code());
 
   Node** args = zone()->NewArray<Node*>(argc + 4);
@@ -835,17 +880,13 @@ Node* CodeAssembler::CallJS(Callable const& callable, Node* context,
   args[3] = arg1;
   args[4] = context;
 
-  return CallN(call_descriptor, target, args);
+  return CallStubN(callable.descriptor(), argc + 1, target, args, result_size);
 }
 
 Node* CodeAssembler::CallJS(Callable const& callable, Node* context,
                             Node* function, Node* receiver, Node* arg1,
                             Node* arg2, size_t result_size) {
   const int argc = 2;
-  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), callable.descriptor(), argc + 1,
-      CallDescriptor::kNoFlags, Operator::kNoProperties,
-      MachineType::AnyTagged(), result_size);
   Node* target = HeapConstant(callable.code());
 
   Node** args = zone()->NewArray<Node*>(argc + 4);
@@ -856,7 +897,15 @@ Node* CodeAssembler::CallJS(Callable const& callable, Node* context,
   args[4] = arg2;
   args[5] = context;
 
-  return CallN(call_descriptor, target, args);
+  return CallStubN(callable.descriptor(), argc + 1, target, args, result_size);
+}
+
+Node* CodeAssembler::CallCFunction2(MachineType return_type,
+                                    MachineType arg0_type,
+                                    MachineType arg1_type, Node* function,
+                                    Node* arg0, Node* arg1) {
+  return raw_assembler_->CallCFunction2(return_type, arg0_type, arg1_type,
+                                        function, arg0, arg1);
 }
 
 void CodeAssembler::Goto(CodeAssembler::Label* label) {

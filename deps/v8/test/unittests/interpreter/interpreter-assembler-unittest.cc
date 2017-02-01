@@ -421,12 +421,16 @@ TARGET_TEST_F(InterpreterAssemblerTest, BytecodeOperand) {
             EXPECT_THAT(m.BytecodeOperandIdx(i),
                         m.IsUnsignedOperand(offset, operand_size));
             break;
+          case interpreter::OperandType::kUImm:
+            EXPECT_THAT(m.BytecodeOperandUImm(i),
+                        m.IsUnsignedOperand(offset, operand_size));
+            break;
           case interpreter::OperandType::kImm: {
             EXPECT_THAT(m.BytecodeOperandImm(i),
                         m.IsSignedOperand(offset, operand_size));
             break;
           }
-          case interpreter::OperandType::kMaybeReg:
+          case interpreter::OperandType::kRegList:
           case interpreter::OperandType::kReg:
           case interpreter::OperandType::kRegOut:
           case interpreter::OperandType::kRegOutPair:
@@ -537,9 +541,9 @@ TARGET_TEST_F(InterpreterAssemblerTest, SmiTag) {
     EXPECT_THAT(m.SmiTag(value),
                 IsIntPtrConstant(static_cast<intptr_t>(44)
                                  << (kSmiShiftSize + kSmiTagSize)));
-    EXPECT_THAT(
-        m.SmiUntag(value),
-        IsWordSar(value, IsIntPtrConstant(kSmiShiftSize + kSmiTagSize)));
+    EXPECT_THAT(m.SmiUntag(value),
+                IsWordSar(IsBitcastTaggedToWord(value),
+                          IsIntPtrConstant(kSmiShiftSize + kSmiTagSize)));
   }
 }
 

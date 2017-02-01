@@ -32,8 +32,7 @@ class StartupSerializer : public Serializer {
  private:
   class PartialCacheIndexMap : public AddressMapBase {
    public:
-    PartialCacheIndexMap()
-        : map_(base::HashMap::PointersMatch), next_index_(0) {}
+    PartialCacheIndexMap() : map_(), next_index_(0) {}
 
     // Lookup object in the map. Return its index if found, or create
     // a new entry with new_index as value, and return kInvalidIndex.

@@ -21,10 +21,10 @@ namespace compiler {
 
 using testing::Capture;
 
-class EffectControlLinearizerTest : public TypedGraphTest {
+class EffectControlLinearizerTest : public GraphTest {
  public:
   EffectControlLinearizerTest()
-      : TypedGraphTest(3),
+      : GraphTest(3),
         machine_(zone()),
         javascript_(zone()),
         simplified_(zone()),

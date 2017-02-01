@@ -87,7 +87,9 @@ class MachineOperatorReducer final : public Reducer {
   Reduction ReduceWord32Sar(Node* node);
   Reduction ReduceWord64Sar(Node* node);
   Reduction ReduceWord32And(Node* node);
+  Reduction TryMatchWord32Ror(Node* node);
   Reduction ReduceWord32Or(Node* node);
+  Reduction ReduceWord32Xor(Node* node);
   Reduction ReduceFloat64InsertLowWord32(Node* node);
   Reduction ReduceFloat64InsertHighWord32(Node* node);
   Reduction ReduceFloat64Compare(Node* node);

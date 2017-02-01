@@ -11,6 +11,14 @@ namespace internal {
 namespace interpreter {
 
 // static
+uint8_t CreateArrayLiteralFlags::Encode(bool use_fast_shallow_clone,
+                                        int runtime_flags) {
+  uint8_t result = FlagsBits::encode(runtime_flags);
+  result |= FastShallowCloneBit::encode(use_fast_shallow_clone);
+  return result;
+}
+
+// static
 uint8_t CreateObjectLiteralFlags::Encode(bool fast_clone_supported,
                                          int properties_count,
                                          int runtime_flags) {

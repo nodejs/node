@@ -22,10 +22,10 @@ class BytecodeRegisterOptimizerTest : public BytecodePipelineStage,
   ~BytecodeRegisterOptimizerTest() override { delete register_allocator_; }
 
   void Initialize(int number_of_parameters, int number_of_locals) {
-    register_allocator_ =
-        new TemporaryRegisterAllocator(zone(), number_of_locals);
-    register_optimizer_ = new (zone()) BytecodeRegisterOptimizer(
-        zone(), register_allocator_, number_of_parameters, this);
+    register_allocator_ = new BytecodeRegisterAllocator(number_of_locals);
+    register_optimizer_ = new (zone())
+        BytecodeRegisterOptimizer(zone(), register_allocator_, number_of_locals,
+                                  number_of_parameters, this);
   }
 
   void Write(BytecodeNode* node) override { output_.push_back(*node); }
@@ -40,15 +40,13 @@ class BytecodeRegisterOptimizerTest : public BytecodePipelineStage,
     return Handle<BytecodeArray>();
   }
 
-  TemporaryRegisterAllocator* allocator() { return register_allocator_; }
+  BytecodeRegisterAllocator* allocator() { return register_allocator_; }
   BytecodeRegisterOptimizer* optimizer() { return register_optimizer_; }
 
-  Register NewTemporary() {
-    return Register(allocator()->BorrowTemporaryRegister());
-  }
+  Register NewTemporary() { return allocator()->NewRegister(); }
 
-  void KillTemporary(Register reg) {
-    allocator()->ReturnTemporaryRegister(reg.index());
+  void ReleaseTemporaries(Register reg) {
+    allocator()->ReleaseRegisters(reg.index());
   }
 
   size_t write_count() const { return output_.size(); }
@@ -56,7 +54,7 @@ class BytecodeRegisterOptimizerTest : public BytecodePipelineStage,
   const std::vector<BytecodeNode>* output() { return &output_; }
 
  private:
-  TemporaryRegisterAllocator* register_allocator_;
+  BytecodeRegisterAllocator* register_allocator_;
   BytecodeRegisterOptimizer* register_optimizer_;
 
   std::vector<BytecodeNode> output_;
@@ -74,8 +72,8 @@ TEST_F(BytecodeRegisterOptimizerTest, WriteNop) {
 
 TEST_F(BytecodeRegisterOptimizerTest, WriteNopExpression) {
   Initialize(1, 1);
-  BytecodeNode node(Bytecode::kNop);
-  node.source_info().MakeExpressionPosition(3);
+  BytecodeSourceInfo source_info(3, false);
+  BytecodeNode node(Bytecode::kNop, &source_info);
   optimizer()->Write(&node);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(node, last_written());
@@ -83,8 +81,8 @@ TEST_F(BytecodeRegisterOptimizerTest, WriteNopExpression) {
 
 TEST_F(BytecodeRegisterOptimizerTest, WriteNopStatement) {
   Initialize(1, 1);
+  BytecodeSourceInfo source_info(3, true);
   BytecodeNode node(Bytecode::kNop);
-  node.source_info().MakeStatementPosition(3);
   optimizer()->Write(&node);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(node, last_written());
@@ -97,7 +95,7 @@ TEST_F(BytecodeRegisterOptimizerTest, TemporaryMaterializedForJump) {
   optimizer()->Write(&node);
   CHECK_EQ(write_count(), 0);
   BytecodeLabel label;
-  BytecodeNode jump(Bytecode::kJump, 0);
+  BytecodeNode jump(Bytecode::kJump, 0, nullptr);
   optimizer()->WriteJump(&jump, &label);
   CHECK_EQ(write_count(), 2);
   CHECK_EQ(output()->at(0).bytecode(), Bytecode::kStar);
@@ -130,7 +128,7 @@ TEST_F(BytecodeRegisterOptimizerTest, TemporaryNotEmitted) {
   BytecodeNode node1(Bytecode::kStar, NewTemporary().ToOperand());
   optimizer()->Write(&node1);
   CHECK_EQ(write_count(), 0);
-  KillTemporary(temp);
+  ReleaseTemporaries(temp);
   CHECK_EQ(write_count(), 0);
   BytecodeNode node2(Bytecode::kReturn);
   optimizer()->Write(&node2);
@@ -138,6 +136,61 @@ TEST_F(BytecodeRegisterOptimizerTest, TemporaryNotEmitted) {
   CHECK_EQ(output()->at(0).bytecode(), Bytecode::kLdar);
   CHECK_EQ(output()->at(0).operand(0), parameter.ToOperand());
   CHECK_EQ(output()->at(1).bytecode(), Bytecode::kReturn);
+}
+
+TEST_F(BytecodeRegisterOptimizerTest, ReleasedRegisterUsed) {
+  Initialize(3, 1);
+  BytecodeNode node0(Bytecode::kLdaSmi, 3);
+  optimizer()->Write(&node0);
+  CHECK_EQ(write_count(), 1);
+  Register temp0 = NewTemporary();
+  Register temp1 = NewTemporary();
+  BytecodeNode node1(Bytecode::kStar, temp1.ToOperand());
+  optimizer()->Write(&node1);
+  CHECK_EQ(write_count(), 1);
+  BytecodeNode node2(Bytecode::kLdaSmi, 1);
+  optimizer()->Write(&node2);
+  CHECK_EQ(write_count(), 3);
+  BytecodeNode node3(Bytecode::kMov, temp1.ToOperand(), temp0.ToOperand());
+  optimizer()->Write(&node3);
+  CHECK_EQ(write_count(), 3);
+  ReleaseTemporaries(temp1);
+  CHECK_EQ(write_count(), 3);
+  BytecodeNode node4(Bytecode::kLdar, temp0.ToOperand());
+  optimizer()->Write(&node4);
+  CHECK_EQ(write_count(), 3);
+  BytecodeNode node5(Bytecode::kReturn);
+  optimizer()->Write(&node5);
+  CHECK_EQ(write_count(), 5);
+  CHECK_EQ(output()->at(3).bytecode(), Bytecode::kLdar);
+  CHECK_EQ(output()->at(3).operand(0), temp1.ToOperand());
+  CHECK_EQ(output()->at(4).bytecode(), Bytecode::kReturn);
+}
+
+TEST_F(BytecodeRegisterOptimizerTest, ReleasedRegisterNotFlushed) {
+  Initialize(3, 1);
+  BytecodeNode node0(Bytecode::kLdaSmi, 3);
+  optimizer()->Write(&node0);
+  CHECK_EQ(write_count(), 1);
+  Register temp0 = NewTemporary();
+  Register temp1 = NewTemporary();
+  BytecodeNode node1(Bytecode::kStar, temp0.ToOperand());
+  optimizer()->Write(&node1);
+  CHECK_EQ(write_count(), 1);
+  BytecodeNode node2(Bytecode::kStar, temp1.ToOperand());
+  optimizer()->Write(&node2);
+  CHECK_EQ(write_count(), 1);
+  ReleaseTemporaries(temp1);
+  BytecodeLabel label;
+  BytecodeNode jump(Bytecode::kJump, 0, nullptr);
+  optimizer()->WriteJump(&jump, &label);
+  BytecodeNode node3(Bytecode::kReturn);
+  optimizer()->Write(&node3);
+  CHECK_EQ(write_count(), 4);
+  CHECK_EQ(output()->at(1).bytecode(), Bytecode::kStar);
+  CHECK_EQ(output()->at(1).operand(0), temp0.ToOperand());
+  CHECK_EQ(output()->at(2).bytecode(), Bytecode::kJump);
+  CHECK_EQ(output()->at(3).bytecode(), Bytecode::kReturn);
 }
 
 TEST_F(BytecodeRegisterOptimizerTest, StoresToLocalsImmediate) {

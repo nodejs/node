@@ -11,6 +11,17 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
+class CreateArrayLiteralFlags {
+ public:
+  class FlagsBits : public BitField8<int, 0, 3> {};
+  class FastShallowCloneBit : public BitField8<bool, FlagsBits::kNext, 1> {};
+
+  static uint8_t Encode(bool use_fast_shallow_clone, int runtime_flags);
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(CreateArrayLiteralFlags);
+};
+
 class CreateObjectLiteralFlags {
  public:
   class FlagsBits : public BitField8<int, 0, 3> {};

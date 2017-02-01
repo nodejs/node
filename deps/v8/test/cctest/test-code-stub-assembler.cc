@@ -3,6 +3,9 @@
 // found in the LICENSE file.
 
 #include "src/base/utils/random-number-generator.h"
+#include "src/code-factory.h"
+#include "src/code-stub-assembler.h"
+#include "src/compiler/node.h"
 #include "src/ic/stub-cache.h"
 #include "src/isolate.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
@@ -132,7 +135,7 @@ TEST(TryToName) {
 
     Label passed(&m), failed(&m);
     Label if_keyisindex(&m), if_keyisunique(&m), if_bailout(&m);
-    Variable var_index(&m, MachineRepresentation::kWord32);
+    Variable var_index(&m, MachineType::PointerRepresentation());
 
     m.TryToName(key, &if_keyisindex, &var_index, &if_keyisunique, &if_bailout);
 
@@ -140,8 +143,8 @@ TEST(TryToName) {
     m.GotoUnless(
         m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kKeyIsIndex))),
         &failed);
-    m.Branch(m.Word32Equal(m.SmiToWord32(expected_arg), var_index.value()),
-             &passed, &failed);
+    m.Branch(m.WordEqual(m.SmiUntag(expected_arg), var_index.value()), &passed,
+             &failed);
 
     m.Bind(&if_keyisunique);
     m.GotoUnless(
@@ -181,9 +184,17 @@ TEST(TryToName) {
   }
 
   {
-    // TryToName(<negative smi>) => bailout.
+    // TryToName(<negative smi>) => if_keyisindex: smi value.
+    // A subsequent bounds check needs to take care of this case.
     Handle<Object> key(Smi::FromInt(-1), isolate);
-    ft.CheckTrue(key, expect_bailout);
+    ft.CheckTrue(key, expect_index, key);
+  }
+
+  {
+    // TryToName(<heap number with int value>) => if_keyisindex: number.
+    Handle<Object> key(isolate->factory()->NewHeapNumber(153));
+    Handle<Object> index(Smi::FromInt(153), isolate);
+    ft.CheckTrue(key, expect_index, index);
   }
 
   {
@@ -203,6 +214,31 @@ TEST(TryToName) {
     Handle<Object> key = isolate->factory()->InternalizeUtf8String("153");
     Handle<Object> index(Smi::FromInt(153), isolate);
     ft.CheckTrue(key, expect_index, index);
+  }
+
+  {
+    // TryToName(<internalized uncacheable number string>) => bailout
+    Handle<Object> key =
+        isolate->factory()->InternalizeUtf8String("4294967294");
+    ft.CheckTrue(key, expect_bailout);
+  }
+
+  {
+    // TryToName(<non-internalized number string>) => if_keyisindex: number.
+    Handle<String> key = isolate->factory()->NewStringFromAsciiChecked("153");
+    uint32_t dummy;
+    CHECK(key->AsArrayIndex(&dummy));
+    CHECK(key->HasHashCode());
+    CHECK(!key->IsInternalizedString());
+    Handle<Object> index(Smi::FromInt(153), isolate);
+    ft.CheckTrue(key, expect_index, index);
+  }
+
+  {
+    // TryToName(<number string without cached index>) => bailout.
+    Handle<String> key = isolate->factory()->NewStringFromAsciiChecked("153");
+    CHECK(!key->HasHashCode());
+    ft.CheckTrue(key, expect_bailout);
   }
 
   {
@@ -232,7 +268,7 @@ void TestNameDictionaryLookup() {
 
     Label passed(&m), failed(&m);
     Label if_found(&m), if_not_found(&m);
-    Variable var_name_index(&m, MachineRepresentation::kWord32);
+    Variable var_name_index(&m, MachineType::PointerRepresentation());
 
     m.NameDictionaryLookup<Dictionary>(dictionary, unique_name, &if_found,
                                        &var_name_index, &if_not_found);
@@ -338,7 +374,7 @@ void TestNumberDictionaryLookup() {
 
     Label passed(&m), failed(&m);
     Label if_found(&m), if_not_found(&m);
-    Variable var_entry(&m, MachineRepresentation::kWord32);
+    Variable var_entry(&m, MachineType::PointerRepresentation());
 
     m.NumberDictionaryLookup<Dictionary>(dictionary, key, &if_found, &var_entry,
                                          &if_not_found);

@@ -13,7 +13,7 @@ namespace internal {
 RootIndexMap::RootIndexMap(Isolate* isolate) {
   map_ = isolate->root_index_map();
   if (map_ != NULL) return;
-  map_ = new base::HashMap(base::HashMap::PointersMatch);
+  map_ = new base::HashMap();
   for (uint32_t i = 0; i < Heap::kStrongRootListLength; i++) {
     Heap::RootListIndex root_index = static_cast<Heap::RootListIndex>(i);
     Object* root = isolate->heap()->root(root_index);

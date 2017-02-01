@@ -15,7 +15,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     .addBody([
       kExprI8Const,
       kReturnValue,
-      kExprReturn, kArity1
+      kExprReturn
     ])
     .exportFunc();
 
@@ -36,7 +36,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     .addBody([
       kExprI8Const,
       kReturnValue,
-      kExprReturn, kArity1
+      kExprReturn
     ])
     .exportAs("blah")
     .exportAs("foo");
@@ -61,7 +61,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     .addBody([
       kExprI8Const,
       kReturnValue,
-      kExprReturn, kArity1
+      kExprReturn
     ])
     .exportAs("0");
 

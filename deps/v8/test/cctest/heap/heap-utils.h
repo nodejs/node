@@ -15,9 +15,15 @@ void SealCurrentObjects(Heap* heap);
 
 int FixedArrayLenFromSize(int size);
 
+// Fill a page with fixed arrays leaving remainder behind. The function does
+// not create additional fillers and assumes that the space has just been
+// sealed.
+std::vector<Handle<FixedArray>> FillOldSpacePageWithFixedArrays(Heap* heap,
+                                                                int remainder);
+
 std::vector<Handle<FixedArray>> CreatePadding(
     Heap* heap, int padding_size, PretenureFlag tenure,
-    int object_size = Page::kMaxRegularHeapObjectSize);
+    int object_size = kMaxRegularHeapObjectSize);
 
 void AllocateAllButNBytes(
     v8::internal::NewSpace* space, int extra_bytes,

@@ -276,8 +276,6 @@ class LCodeGen : public LCodeGenBase {
 
   template <class T>
   void EmitVectorLoadICRegisters(T* instr);
-  template <class T>
-  void EmitVectorStoreICRegisters(T* instr);
 
   ZoneList<Deoptimizer::JumpTableEntry> jump_table_;
   Scope* const scope_;

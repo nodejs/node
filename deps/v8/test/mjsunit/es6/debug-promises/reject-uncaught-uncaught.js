@@ -33,8 +33,8 @@ function listener(event, exec_state, event_data, data) {
       assertTrue(event_data.promise() instanceof Promise);
       assertSame(q, event_data.promise());
       assertTrue(event_data.uncaught());
-      // All of the frames on the stack are from native Javascript.
-      assertEquals(0, exec_state.frameCount());
+      // The JavaScript frame is from the Promise rejection
+      assertTrue(/Promise\.reject/.test(event_data.sourceLineText()));
     }
   } catch (e) {
     %AbortJS(e + "\n" + e.stack);

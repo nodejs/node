@@ -66,6 +66,8 @@ LCodeGenBase::LCodeGenBase(LChunk* chunk, MacroAssembler* assembler,
       source_position_table_builder_(info->zone(),
                                      info->SourcePositionRecordingMode()) {}
 
+Isolate* LCodeGenBase::isolate() const { return info_->isolate(); }
+
 bool LCodeGenBase::GenerateBody() {
   DCHECK(is_generating());
   bool emit_instructions = true;

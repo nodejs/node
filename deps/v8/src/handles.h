@@ -10,7 +10,7 @@
 #include "src/base/macros.h"
 #include "src/checks.h"
 #include "src/globals.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -63,10 +63,12 @@ class HandleBase {
 
   enum DereferenceCheckMode { INCLUDE_DEFERRED_CHECK, NO_DEFERRED_CHECK };
 #ifdef DEBUG
-  bool IsDereferenceAllowed(DereferenceCheckMode mode) const;
+  bool V8_EXPORT_PRIVATE IsDereferenceAllowed(DereferenceCheckMode mode) const;
 #else
   V8_INLINE
-  bool IsDereferenceAllowed(DereferenceCheckMode mode) const { return true; }
+  bool V8_EXPORT_PRIVATE IsDereferenceAllowed(DereferenceCheckMode mode) const {
+    return true;
+  }
 #endif  // DEBUG
 
   Object** location_;
@@ -206,6 +208,10 @@ class MaybeHandle final {
     USE(a);
   }
 
+  template <typename S>
+  V8_INLINE MaybeHandle(S* object, Isolate* isolate)
+      : MaybeHandle(handle(object, isolate)) {}
+
   V8_INLINE void Assert() const { DCHECK_NOT_NULL(location_); }
   V8_INLINE void Check() const { CHECK_NOT_NULL(location_); }
 
@@ -262,7 +268,7 @@ class HandleScope {
   inline ~HandleScope();
 
   // Counts the number of allocated handles.
-  static int NumberOfHandles(Isolate* isolate);
+  V8_EXPORT_PRIVATE static int NumberOfHandles(Isolate* isolate);
 
   // Create a new handle or lookup a canonical handle.
   V8_INLINE static Object** GetHandle(Isolate* isolate, Object* value);
@@ -271,7 +277,7 @@ class HandleScope {
   V8_INLINE static Object** CreateHandle(Isolate* isolate, Object* value);
 
   // Deallocates any extensions used by the current scope.
-  static void DeleteExtensions(Isolate* isolate);
+  V8_EXPORT_PRIVATE static void DeleteExtensions(Isolate* isolate);
 
   static Address current_next_address(Isolate* isolate);
   static Address current_limit_address(Isolate* isolate);
@@ -293,8 +299,6 @@ class HandleScope {
 
  private:
   // Prevent heap allocation or illegal handle scopes.
-  HandleScope(const HandleScope&);
-  void operator=(const HandleScope&);
   void* operator new(size_t size);
   void operator delete(void* size_t);
 
@@ -308,11 +312,11 @@ class HandleScope {
                                 Object** prev_limit);
 
   // Extend the handle scope making room for more handles.
-  static Object** Extend(Isolate* isolate);
+  V8_EXPORT_PRIVATE static Object** Extend(Isolate* isolate);
 
 #ifdef ENABLE_HANDLE_ZAPPING
   // Zaps the handles in the half-open interval [start, end).
-  static void ZapRange(Object** start, Object** end);
+  V8_EXPORT_PRIVATE static void ZapRange(Object** start, Object** end);
 #endif
 
   friend class v8::HandleScope;
@@ -320,6 +324,8 @@ class HandleScope {
   friend class DeferredHandleScope;
   friend class HandleScopeImplementer;
   friend class Isolate;
+
+  DISALLOW_COPY_AND_ASSIGN(HandleScope);
 };
 
 
@@ -340,7 +346,7 @@ class CanonicalHandleScope final {
   ~CanonicalHandleScope();
 
  private:
-  Object** Lookup(Object* object);
+  V8_EXPORT_PRIVATE Object** Lookup(Object* object);
 
   Isolate* isolate_;
   Zone zone_;

@@ -4,10 +4,11 @@
 
 #if V8_TARGET_ARCH_X64
 
-#include "src/assembler.h"
-#include "src/codegen.h"
 #include "src/debug/debug.h"
 
+#include "src/assembler.h"
+#include "src/codegen.h"
+#include "src/debug/liveedit.h"
 
 namespace v8 {
 namespace internal {

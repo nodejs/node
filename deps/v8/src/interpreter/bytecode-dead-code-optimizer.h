@@ -24,7 +24,7 @@ class BytecodeDeadCodeOptimizer final : public BytecodePipelineStage,
   void BindLabel(BytecodeLabel* label) override;
   void BindLabel(const BytecodeLabel& target, BytecodeLabel* label) override;
   Handle<BytecodeArray> ToBytecodeArray(
-      Isolate* isolate, int fixed_register_count, int parameter_count,
+      Isolate* isolate, int register_count, int parameter_count,
       Handle<FixedArray> handler_table) override;
 
  private:

@@ -51,12 +51,6 @@ TEST(BytecodeSourceInfo, Operations) {
   CHECK_EQ(y.is_statement(), true);
 }
 
-TEST_F(BytecodeNodeTest, Constructor0) {
-  BytecodeNode node;
-  CHECK_EQ(node.bytecode(), Bytecode::kIllegal);
-  CHECK(!node.source_info().is_valid());
-}
-
 TEST_F(BytecodeNodeTest, Constructor1) {
   BytecodeNode node(Bytecode::kLdaZero);
   CHECK_EQ(node.bytecode(), Bytecode::kLdaZero);
@@ -119,21 +113,21 @@ TEST_F(BytecodeNodeTest, Equality) {
 
 TEST_F(BytecodeNodeTest, EqualityWithSourceInfo) {
   uint32_t operands[] = {0x71, 0xa5, 0x5a, 0xfc};
+  BytecodeSourceInfo first_source_info(3, true);
   BytecodeNode node(Bytecode::kForInNext, operands[0], operands[1], operands[2],
-                    operands[3]);
-  node.source_info().MakeStatementPosition(3);
+                    operands[3], &first_source_info);
   CHECK_EQ(node, node);
+  BytecodeSourceInfo second_source_info(3, true);
   BytecodeNode other(Bytecode::kForInNext, operands[0], operands[1],
-                     operands[2], operands[3]);
-  other.source_info().MakeStatementPosition(3);
+                     operands[2], operands[3], &second_source_info);
   CHECK_EQ(node, other);
 }
 
 TEST_F(BytecodeNodeTest, NoEqualityWithDifferentSourceInfo) {
   uint32_t operands[] = {0x71, 0xa5, 0x5a, 0xfc};
+  BytecodeSourceInfo source_info(77, true);
   BytecodeNode node(Bytecode::kForInNext, operands[0], operands[1], operands[2],
-                    operands[3]);
-  node.source_info().MakeStatementPosition(3);
+                    operands[3], &source_info);
   BytecodeNode other(Bytecode::kForInNext, operands[0], operands[1],
                      operands[2], operands[3]);
   CHECK_NE(node, other);
@@ -143,41 +137,39 @@ TEST_F(BytecodeNodeTest, Clone) {
   uint32_t operands[] = {0x71, 0xa5, 0x5a, 0xfc};
   BytecodeNode node(Bytecode::kForInNext, operands[0], operands[1], operands[2],
                     operands[3]);
-  BytecodeNode clone;
+  BytecodeNode clone(Bytecode::kIllegal);
   clone.Clone(&node);
   CHECK_EQ(clone, node);
 }
 
 TEST_F(BytecodeNodeTest, SetBytecode0) {
   uint32_t operands[] = {0x71, 0xa5, 0x5a, 0xfc};
-  BytecodeNode node(Bytecode::kForInNext, operands[0], operands[1], operands[2],
-                    operands[3]);
   BytecodeSourceInfo source_info(77, false);
-  node.source_info().Clone(source_info);
-  CHECK_EQ(node.source_info(), source_info);
+  BytecodeNode node(Bytecode::kForInNext, operands[0], operands[1], operands[2],
+                    operands[3], &source_info);
+  CHECK_EQ(node.source_info(), BytecodeSourceInfo(77, false));
 
-  BytecodeNode clone;
+  BytecodeNode clone(Bytecode::kIllegal);
   clone.Clone(&node);
   clone.set_bytecode(Bytecode::kNop);
   CHECK_EQ(clone.bytecode(), Bytecode::kNop);
   CHECK_EQ(clone.operand_count(), 0);
-  CHECK_EQ(clone.source_info(), source_info);
+  CHECK_EQ(clone.source_info(), BytecodeSourceInfo(77, false));
 }
 
 TEST_F(BytecodeNodeTest, SetBytecode1) {
   uint32_t operands[] = {0x71, 0xa5, 0x5a, 0xfc};
-  BytecodeNode node(Bytecode::kForInNext, operands[0], operands[1], operands[2],
-                    operands[3]);
   BytecodeSourceInfo source_info(77, false);
-  node.source_info().Clone(source_info);
+  BytecodeNode node(Bytecode::kForInNext, operands[0], operands[1], operands[2],
+                    operands[3], &source_info);
 
-  BytecodeNode clone;
+  BytecodeNode clone(Bytecode::kIllegal);
   clone.Clone(&node);
   clone.set_bytecode(Bytecode::kJump, 0x01aabbcc);
   CHECK_EQ(clone.bytecode(), Bytecode::kJump);
   CHECK_EQ(clone.operand_count(), 1);
   CHECK_EQ(clone.operand(0), 0x01aabbcc);
-  CHECK_EQ(clone.source_info(), source_info);
+  CHECK_EQ(clone.source_info(), BytecodeSourceInfo(77, false));
 }
 
 }  // namespace interpreter

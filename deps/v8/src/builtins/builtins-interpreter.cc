@@ -50,5 +50,27 @@ void Builtins::Generate_InterpreterPushArgsAndTailCallFunction(
                                                  CallableType::kJSFunction);
 }
 
+Handle<Code> Builtins::InterpreterPushArgsAndConstruct(
+    CallableType function_type) {
+  switch (function_type) {
+    case CallableType::kJSFunction:
+      return InterpreterPushArgsAndConstructFunction();
+    case CallableType::kAny:
+      return InterpreterPushArgsAndConstruct();
+  }
+  UNREACHABLE();
+  return Handle<Code>::null();
+}
+
+void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
+  return Generate_InterpreterPushArgsAndConstructImpl(masm, CallableType::kAny);
+}
+
+void Builtins::Generate_InterpreterPushArgsAndConstructFunction(
+    MacroAssembler* masm) {
+  return Generate_InterpreterPushArgsAndConstructImpl(
+      masm, CallableType::kJSFunction);
+}
+
 }  // namespace internal
 }  // namespace v8

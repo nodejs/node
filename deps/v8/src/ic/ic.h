@@ -75,6 +75,10 @@ class IC {
            kind == Code::STORE_IC || kind == Code::KEYED_STORE_IC;
   }
 
+  // The ICs that don't pass slot and vector through the stack have to
+  // save/restore them in the dispatcher.
+  static bool ShouldPushPopSlotAndVector(Code::Kind kind);
+
   static InlineCacheState StateFromCode(Code* code);
 
  protected:
@@ -87,7 +91,6 @@ class IC {
   // Get the code object of the caller.
   Code* GetCode() const;
 
-  bool AddressIsOptimizedCode() const;
   inline bool AddressIsDeoptimizedCode() const;
   inline static bool AddressIsDeoptimizedCode(Isolate* isolate,
                                               Address address);
@@ -168,7 +171,7 @@ class IC {
            kind_ == Code::KEYED_STORE_IC);
     return kind_;
   }
-  bool ShouldRecomputeHandler(Handle<Object> receiver, Handle<String> name);
+  bool ShouldRecomputeHandler(Handle<String> name);
 
   ExtraICState extra_ic_state() const { return extra_ic_state_; }
 
