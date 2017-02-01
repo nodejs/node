@@ -33,6 +33,7 @@ using v8::ObjectTemplate;
 using v8::Persistent;
 using v8::PropertyAttribute;
 using v8::PropertyCallbackInfo;
+using v8::PropertyDescriptor;
 using v8::Script;
 using v8::ScriptCompiler;
 using v8::ScriptOrigin;
@@ -132,41 +133,49 @@ class ContextifyContext {
         return;
 
       if (!has.FromJust()) {
-        // Could also do this like so:
-        //
-        // PropertyAttribute att = global->GetPropertyAttributes(key_v);
-        // Local<Value> val = global->Get(key_v);
-        // sandbox->ForceSet(key_v, val, att);
-        //
-        // However, this doesn't handle ES6-style properties configured with
-        // Object.defineProperty, and that's exactly what we're up against at
-        // this point.  ForceSet(key,val,att) only supports value properties
-        // with the ES3-style attribute flags (DontDelete/DontEnum/ReadOnly),
-        // which doesn't faithfully capture the full range of configurations
-        // that can be done using Object.defineProperty.
-        if (clone_property_method.IsEmpty()) {
-          Local<String> code = FIXED_ONE_BYTE_STRING(env()->isolate(),
-              "(function cloneProperty(source, key, target) {\n"
-              "  if (key === 'Proxy') return;\n"
-              "  try {\n"
-              "    var desc = Object.getOwnPropertyDescriptor(source, key);\n"
-              "    if (desc.value === source) desc.value = target;\n"
-              "    Object.defineProperty(target, key, desc);\n"
-              "  } catch (e) {\n"
-              "   // Catch sealed properties errors\n"
-              "  }\n"
-              "})");
+        Local<Object> desc_vm_context =
+            global->GetOwnPropertyDescriptor(context, key)
+            .ToLocalChecked().As<Object>();
 
-          Local<Script> script =
-              Script::Compile(context, code).ToLocalChecked();
-          clone_property_method = Local<Function>::Cast(script->Run());
-          CHECK(clone_property_method->IsFunction());
+        bool is_accessor =
+            desc_vm_context->Has(context, env()->get_string()).FromJust() ||
+            desc_vm_context->Has(context, env()->set_string()).FromJust();
+
+        auto define_property_on_sandbox = [&] (PropertyDescriptor* desc) {
+            desc->set_configurable(desc_vm_context
+                ->Get(context, env()->configurable_string()).ToLocalChecked()
+                ->BooleanValue(context).FromJust());
+            desc->set_enumerable(desc_vm_context
+                ->Get(context, env()->enumerable_string()).ToLocalChecked()
+                ->BooleanValue(context).FromJust());
+            sandbox_obj->DefineProperty(context, key, *desc);
+        };
+
+        if (is_accessor) {
+          Local<Function> get =
+              desc_vm_context->Get(context, env()->get_string())
+              .ToLocalChecked().As<Function>();
+          Local<Function> set =
+              desc_vm_context->Get(context, env()->set_string())
+              .ToLocalChecked().As<Function>();
+
+          PropertyDescriptor desc(get, set);
+          define_property_on_sandbox(&desc);
+        } else {
+          Local<Value> value =
+              desc_vm_context->Get(context, env()->value_string())
+              .ToLocalChecked();
+
+          bool writable =
+              desc_vm_context->Get(context, env()->writable_string())
+              .ToLocalChecked()->BooleanValue(context).FromJust();
+
+          PropertyDescriptor desc(value, writable);
+          define_property_on_sandbox(&desc);
         }
-        Local<Value> args[] = { global, key, sandbox_obj };
-        clone_property_method->Call(global, arraysize(args), args);
-      }
     }
   }
+}
 
 
   // This is an object that just keeps an internal pointer to this
