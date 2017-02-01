@@ -156,7 +156,7 @@ if (cluster.isMaster) {
 // This part is not important.  Just an example routing thing.
 // You'd put your fancy application logic here.
 function handleRequest(req, res) {
-  switch(req.url) {
+  switch (req.url) {
     case '/error':
       // We do some async stuff, and then...
       setTimeout(() => {
