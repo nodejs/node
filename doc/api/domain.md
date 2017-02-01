@@ -247,8 +247,8 @@ serverDomain.run(() => {
       try {
         res.writeHead(500);
         res.end('Error occurred, sorry.');
-      } catch (er) {
-        console.error('Error sending 500', er, req.url);
+      } catch (er2) {
+        console.error('Error sending 500', er2, req.url);
       }
     });
   }).listen(1337);
