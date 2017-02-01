@@ -35,7 +35,7 @@
           'OTHER_CFLAGS': [ '-Wno-strict-aliasing' ],
         },
         'conditions': [
-          ['OS != "zos"', {
+          ['OS != "os390"', {
             'cflags': [ '-O0', '-fwrapv' ]
           }],
           ['OS == "android"', {
@@ -154,7 +154,7 @@
             'cflags': [ '-pthreads' ],
             'ldflags': [ '-pthreads' ],
           }],
-          [ 'OS not in "solaris android zos"', {
+          [ 'OS not in "solaris android os390"', {
             'cflags': [ '-pthread' ],
             'ldflags': [ '-pthread' ],
           }],
