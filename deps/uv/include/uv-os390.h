@@ -24,4 +24,7 @@
 
 #define UV_PLATFORM_SEM_T int
 
+#define UV_PLATFORM_LOOP_FIELDS                                               \
+  void* ep;                                                                   \
+
 #endif /* UV_MVS_H */
