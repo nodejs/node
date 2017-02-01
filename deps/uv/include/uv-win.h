@@ -49,6 +49,7 @@ typedef struct pollfd {
 
 #include <process.h>
 #include <signal.h>
+#include <fcntl.h>
 #include <sys/stat.h>
 
 #if defined(_MSC_VER) && _MSC_VER < 1600

@@ -34,11 +34,7 @@
 #include <mach-o/dyld.h> /* _NSGetExecutablePath */
 #include <sys/resource.h>
 #include <sys/sysctl.h>
-#include <time.h>
 #include <unistd.h>  /* sysconf */
-
-#undef NANOSEC
-#define NANOSEC ((uint64_t) 1e9)
 
 
 int uv__platform_loop_init(uv_loop_t* loop) {
@@ -57,11 +53,6 @@ void uv__platform_loop_delete(uv_loop_t* loop) {
 
 
 uint64_t uv__hrtime(uv_clocktype_t type) {
-#ifdef MAC_OS_X_VERSION_10_12
-  struct timespec ts;
-  clock_gettime(CLOCK_MONOTONIC, &ts);
-  return (((uint64_t) ts.tv_sec) * NANOSEC + ts.tv_nsec);
-#else
   static mach_timebase_info_data_t info;
 
   if ((ACCESS_ONCE(uint32_t, info.numer) == 0 ||
@@ -70,7 +61,6 @@ uint64_t uv__hrtime(uv_clocktype_t type) {
     abort();
 
   return mach_absolute_time() * info.numer / info.denom;
-#endif
 }
 
 

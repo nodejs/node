@@ -192,7 +192,11 @@ API
 
 .. c:function:: int uv_set_process_title(const char* title)
 
-    Sets the current process title.
+    Sets the current process title. On platforms with a fixed size buffer for the
+    process title the contents of `title` will be copied to the buffer and
+    truncated if larger than the available space. Other platforms will return
+    `UV_ENOMEM` if they cannot allocate enough space to duplicate the contents of
+    `title`.
 
 .. c:function:: int uv_resident_set_memory(size_t* rss)
 

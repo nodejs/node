@@ -287,6 +287,9 @@ TEST_IMPL(tty_large_write) {
   r = uv_tty_init(uv_default_loop(), &tty_out, ttyout_fd, 0);  /* Writable. */
   ASSERT(r == 0);
 
+  memset(dummy, '.', sizeof(dummy) - 1);
+  dummy[sizeof(dummy) - 1] = '\n';
+
   bufs[0] = uv_buf_init(dummy, sizeof(dummy));
 
   r = uv_try_write((uv_stream_t*) &tty_out, bufs, 1);

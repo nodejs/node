@@ -1,3 +1,42 @@
+2017.02.02, Version 1.11.0 (Stable), 7452ef4e06a4f99ee26b694c65476401534f2725
+
+Changes since version 1.10.2:
+
+* Now working on version 1.10.3 (cjihrig)
+
+* win: added fcntl.h to uv-win.h (Michele Caini)
+
+* unix: move function call out of assert (jBarz)
+
+* fs: cleanup uv__fs_scandir (Santiago Gimeno)
+
+* fs: fix crash in uv_fs_scandir_next (muflub)
+
+* win,signal: fix potential deadlock (Bartosz Sosnowski)
+
+* unix: use async-signal safe functions between fork and exec (jBarz)
+
+* sunos: fix SUNOS_NO_IFADDRS build (Ben Noordhuis)
+
+* zos: make platform functional (John Barboza)
+
+* doc: add repitition qualifier to version regexs (Daniel Bevenius)
+
+* zos: use gyp OS label "os390" on z/OS (John Barboza)
+
+* aix: enable uv_get/set_process_title (Howard Hellyer)
+
+* zos: use built-in proctitle implementation (John Barboza)
+
+* Revert "darwin: use clock_gettime in macOS 10.12" (Chris Araman)
+
+* win,test: don't write uninitialized buffer to tty (Bert Belder)
+
+* win: define ERROR_ELEVATION_REQUIRED for MinGW (Richard Lau)
+
+* aix: re-enable fs watch facility (Gireesh Punathil)
+
+
 2017.01.10, Version 1.10.2 (Stable), cb9f579a454b8db592030ffa274ae58df78dbe20
 
 Changes since version 1.10.1:
