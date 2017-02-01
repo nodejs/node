@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common.js');
-const URLSearchParams = new (require('url').URL)('a:').searchParams.constructor;
+const { URLSearchParams } = require('url');
 
 const bench = common.createBenchmark(main, {
   method: ['get', 'getAll', 'has'],

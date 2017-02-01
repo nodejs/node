@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common.js');
 const Buffer = require('buffer').Buffer;
-const URLSearchParams = new (require('url').URL)('a:').searchParams.constructor;
+const { URLSearchParams } = require('url');
 
 const inputs = {
   noencode: 'foo=bar&baz=quux&xyzzy=thud',
