@@ -540,7 +540,8 @@ LTS release.
 
 When you send your pull request, consider including information about
 whether your change is breaking. If you think your patch can be backported,
-please feel free to include that information in the PR thread.
+please feel free to include that information in the PR thread. For more
+information on backporting, please see the [backporting guide][].
 
 Several LTS related issue and PR labels have been provided:
 
@@ -567,3 +568,5 @@ When the LTS working group determines that a new LTS release is required,
 selected commits will be picked from the staging branch to be included in the
 release. This process of making a release will be a collaboration between the
 LTS working group and the Release team.
+
+[backporting guide]: doc/guides/backporting-to-release-lines.md
