@@ -47,13 +47,13 @@ For example, this is not a good idea:
 ```js
 // XXX WARNING!  BAD IDEA!
 
-var d = require('domain').create();
+const d = require('domain').create();
 d.on('error', (er) => {
   // The error won't crash the process, but what it does is worse!
   // Though we've prevented abrupt process restarting, we are leaking
   // resources like crazy if this ever happens.
   // This is no better than process.on('uncaughtException')!
-  console.log('error, but oh well', er.message);
+  console.log(`error, but oh well ${er.message}`);
 });
 d.run(() => {
   require('http').createServer((req, res) => {
@@ -104,9 +104,9 @@ if (cluster.isMaster) {
   // worker processes to serve requests.  How it works, caveats, etc.
 
   const server = require('http').createServer((req, res) => {
-    var d = domain.create();
+    const d = domain.create();
     d.on('error', (er) => {
-      console.error('error', er.stack);
+      console.error(`error ${er.stack}`);
 
       // Note: we're in dangerous territory!
       // By definition, something unexpected occurred,
@@ -115,7 +115,7 @@ if (cluster.isMaster) {
 
       try {
         // make sure we close down within 30 seconds
-        var killtimer = setTimeout(() => {
+        const killtimer = setTimeout(() => {
           process.exit(1);
         }, 30000);
         // But don't keep the process open just for that!
@@ -135,7 +135,7 @@ if (cluster.isMaster) {
         res.end('Oops, there was a problem!\n');
       } catch (er2) {
         // oh well, not much we can do at this point.
-        console.error('Error sending 500!', er2.stack);
+        console.error(`Error sending 500! ${er2.stack}`);
       }
     });
 
@@ -156,7 +156,7 @@ if (cluster.isMaster) {
 // This part is not important.  Just an example routing thing.
 // You'd put your fancy application logic here.
 function handleRequest(req, res) {
-  switch(req.url) {
+  switch (req.url) {
     case '/error':
       // We do some async stuff, and then...
       setTimeout(() => {
@@ -239,7 +239,7 @@ serverDomain.run(() => {
     // req and res are also created in the scope of serverDomain
     // however, we'd prefer to have a separate domain for each request.
     // create it first thing, and add req and res to it.
-    var reqd = domain.create();
+    const reqd = domain.create();
     reqd.add(req);
     reqd.add(res);
     reqd.on('error', (er) => {
@@ -247,8 +247,8 @@ serverDomain.run(() => {
       try {
         res.writeHead(500);
         res.end('Error occurred, sorry.');
-      } catch (er) {
-        console.error('Error sending 500', er, req.url);
+      } catch (er2) {
+        console.error('Error sending 500', er2, req.url);
       }
     });
   }).listen(1337);
