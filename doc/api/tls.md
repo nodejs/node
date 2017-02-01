@@ -909,7 +909,7 @@ automatically set as a listener for the [`'secureConnection'`][] event.  The
   - `ecdhCurve`: A string describing a named curve to use for ECDH key agreement
     or false to disable ECDH.
 
-    Defaults to `prime256v1` (NIST P-256). Use [`crypto.getCurves()`][] to obtain
+    Defaults to [`tls.DEFAULT_ECDH_CURVE`][]. Use [`crypto.getCurves()`][] to obtain
     a list of available curve names. On recent releases,
     `openssl ecparam -list_curves` will also display the name and description of
     each available elliptic curve.
@@ -1049,6 +1049,15 @@ var ciphers = tls.getCiphers();
 console.log(ciphers); // ['AES128-SHA', 'AES256-SHA', ...]
 ```
 
+## tls.DEFAULT_ECDH_CURVE
+<!-- YAML
+added: v0.11.13
+-->
+
+The default curve name to use for ECDH key agreement in a tls server. The
+default value is `'prime256v1'` (NIST P-256). Consult [RFC 4492] and
+[FIPS.186-4] for more details.
+
 [OpenSSL cipher list format documentation]: https://www.openssl.org/docs/apps/ciphers.html#CIPHER-LIST-FORMAT
 [Chrome's 'modern cryptography' setting]: https://www.chromium.org/Home/chromium-security/education/tls#TOC-Deprecation-of-TLS-Features-Algorithms-in-Chrome
 [specific attacks affecting larger AES key sizes]: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html
@@ -1074,6 +1083,7 @@ console.log(ciphers); // ['AES128-SHA', 'AES256-SHA', ...]
 [OCSP request]: https://en.wikipedia.org/wiki/OCSP_stapling
 [TLS recommendations]: https://wiki.mozilla.org/Security/Server_Side_TLS
 [TLS Session Tickets]: https://www.ietf.org/rfc/rfc5077.txt
+[`tls.DEFAULT_ECDH_CURVE`]: #tls_tls_default_ecdh_curve
 [`tls.TLSSocket.getPeerCertificate()`]: #tls_tlssocket_getpeercertificate_detailed
 [`tls.createSecureContext()`]: #tls_tls_createsecurecontext_details
 [`tls.connect()`]: #tls_tls_connect_options_callback
