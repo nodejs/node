@@ -1,4 +1,0 @@
-*%(basename)s:6: SyntaxError: Unexpected eval or arguments in strict mode
-eval => 42
-^^^^
-SyntaxError: Unexpected eval or arguments in strict mode

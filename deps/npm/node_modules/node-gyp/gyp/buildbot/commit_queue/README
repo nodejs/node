@@ -1,3 +1,0 @@
-cq_config.json describes the trybots that must pass in order
-to land a change through the commit queue.
-Comments are here as the file is strictly JSON.

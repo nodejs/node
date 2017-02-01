@@ -1,9 +1,0 @@
-package.json
-node_modules
-test
-benchmark
-docs
-examples
-/.editorconfig
-/.eslint*
-/.travis.yml

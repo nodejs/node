@@ -1,4 +1,0 @@
-*test*message*throw_non_error.js:5
-throw ({ foo: 'bar' });
-^
-[object Object]

@@ -1,4 +1,0 @@
-*%(basename)s:32: SyntaxError: Strict mode code may not include a with statement
-  with ({}) {}
-  ^^^^
-SyntaxError: Strict mode code may not include a with statement

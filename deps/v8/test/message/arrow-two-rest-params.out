@@ -1,4 +1,0 @@
-*%(basename)s:7: SyntaxError: Rest parameter must be last formal parameter
-(w, ...x, ...y) => 10
-        ^
-SyntaxError: Rest parameter must be last formal parameter
