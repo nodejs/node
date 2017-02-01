@@ -20,6 +20,10 @@ assert(sp.has('a'));
 assert.strictEqual(sp.get('a'), '[object Object]');
 sp.delete('a');
 assert(!sp.has('a'));
+
+m.search = '';
+assert.strictEqual(sp.toString(), '');
+
 values.forEach((i) => sp.append('a', i));
 assert(sp.has('a'));
 assert.strictEqual(sp.getAll('a').length, 6);
