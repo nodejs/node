@@ -47,7 +47,7 @@ For example, this is not a good idea:
 ```js
 // XXX WARNING!  BAD IDEA!
 
-var d = require('domain').create();
+const d = require('domain').create();
 d.on('error', (er) => {
   // The error won't crash the process, but what it does is worse!
   // Though we've prevented abrupt process restarting, we are leaking
@@ -104,7 +104,7 @@ if (cluster.isMaster) {
   // worker processes to serve requests.  How it works, caveats, etc.
 
   const server = require('http').createServer((req, res) => {
-    var d = domain.create();
+    const d = domain.create();
     d.on('error', (er) => {
       console.error('error', er.stack);
 
@@ -115,7 +115,7 @@ if (cluster.isMaster) {
 
       try {
         // make sure we close down within 30 seconds
-        var killtimer = setTimeout(() => {
+        const killtimer = setTimeout(() => {
           process.exit(1);
         }, 30000);
         // But don't keep the process open just for that!
@@ -239,7 +239,7 @@ serverDomain.run(() => {
     // req and res are also created in the scope of serverDomain
     // however, we'd prefer to have a separate domain for each request.
     // create it first thing, and add req and res to it.
-    var reqd = domain.create();
+    const reqd = domain.create();
     reqd.add(req);
     reqd.add(res);
     reqd.on('error', (er) => {
