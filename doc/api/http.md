@@ -100,11 +100,13 @@ added: v0.3.4
 
 * `options` {Object} Set of configurable options to set on the agent.
   Can have the following fields:
-  * `keepAlive` {Boolean} Keep sockets around in a pool to be used by
-    other requests in the future. Default = `false`
-  * `keepAliveMsecs` {Integer} When using HTTP KeepAlive, how often
-    to send TCP KeepAlive packets over sockets being kept alive.
-    Default = `1000`.  Only relevant if `keepAlive` is set to `true`.
+  * `keepAlive` {Boolean} Keep sockets around even when there are no
+    outstanding requests, so they can be used for future requests without
+    having to reestablish a TCP connection. Default = `false`
+  * `keepAliveMsecs` {Integer} When using the `keepAlive` option, specifies
+    the [initial delay](net.html#net_socket_setkeepalive_enable_initialdelay)
+    for TCP Keep-Alive packets. Ignored when the
+    `keepAlive` option is `false` or `undefined`. Default = `1000`.
   * `maxSockets` {Number} Maximum number of sockets to allow per
     host.  Default = `Infinity`.
   * `maxFreeSockets` {Number} Maximum number of sockets to leave open
