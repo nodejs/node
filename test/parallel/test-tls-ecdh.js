@@ -5,6 +5,12 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
+
+if (!common.opensslCli) {
+  common.skip('missing openssl-cli');
+  return;
+}
+
 const assert = require('assert');
 const tls = require('tls');
 
