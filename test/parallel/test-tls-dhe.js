@@ -6,7 +6,13 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+
+if (!common.opensslCli) {
+  common.skip('missing openssl-cli');
+  return;
+}
+
+const tls = require('tls');
 
 var spawn = require('child_process').spawn;
 var fs = require('fs');
