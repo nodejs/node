@@ -383,8 +383,7 @@ class Deoptimizer : public Malloced {
     bool needs_frame;
   };
 
-  static bool TraceEnabledFor(BailoutType deopt_type,
-                              StackFrame::Type frame_type);
+  static bool TraceEnabledFor(StackFrame::Type frame_type);
   static const char* MessageFor(BailoutType type);
 
   int output_count() const { return output_count_; }
@@ -500,8 +499,6 @@ class Deoptimizer : public Malloced {
     int count_;
   };
 
-  int ConvertJSFrameIndexToFrameIndex(int jsframe_index);
-
   static size_t GetMaxDeoptTableSize();
 
   static void EnsureCodeForDeoptimizationEntry(Isolate* isolate,
@@ -514,14 +511,9 @@ class Deoptimizer : public Malloced {
   static const int kMinNumberOfEntries = 64;
   static const int kMaxNumberOfEntries = 16384;
 
-  Deoptimizer(Isolate* isolate,
-              JSFunction* function,
-              BailoutType type,
-              unsigned bailout_id,
-              Address from,
-              int fp_to_sp_delta,
-              Code* optimized_code);
-  Code* FindOptimizedCode(JSFunction* function, Code* optimized_code);
+  Deoptimizer(Isolate* isolate, JSFunction* function, BailoutType type,
+              unsigned bailout_id, Address from, int fp_to_sp_delta);
+  Code* FindOptimizedCode(JSFunction* function);
   void PrintFunctionName();
   void DeleteFrameDescriptions();
 
@@ -559,8 +551,6 @@ class Deoptimizer : public Malloced {
 
   static unsigned ComputeIncomingArgumentSize(SharedFunctionInfo* shared);
   static unsigned ComputeOutgoingArgumentSize(Code* code, unsigned bailout_id);
-
-  Object* ComputeLiteral(int index) const;
 
   static void GenerateDeoptimizationEntries(
       MacroAssembler* masm, int count, BailoutType type);
@@ -711,8 +701,6 @@ class FrameDescription {
     return static_cast<uint32_t>(frame_size_);
   }
 
-  unsigned GetOffsetFromSlotIndex(int slot_index);
-
   intptr_t GetFrameSlot(unsigned offset) {
     return *GetFrameSlotPointer(offset);
   }
@@ -833,8 +821,6 @@ class FrameDescription {
     return reinterpret_cast<intptr_t*>(
         reinterpret_cast<Address>(this) + frame_content_offset() + offset);
   }
-
-  int ComputeFixedSize();
 };
 
 

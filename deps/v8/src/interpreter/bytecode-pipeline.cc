@@ -11,45 +11,6 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-BytecodeNode::BytecodeNode(Bytecode bytecode) {
-  DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 0);
-  bytecode_ = bytecode;
-}
-
-BytecodeNode::BytecodeNode(Bytecode bytecode, uint32_t operand0) {
-  DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 1);
-  bytecode_ = bytecode;
-  operands_[0] = operand0;
-}
-
-BytecodeNode::BytecodeNode(Bytecode bytecode, uint32_t operand0,
-                           uint32_t operand1) {
-  DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 2);
-  bytecode_ = bytecode;
-  operands_[0] = operand0;
-  operands_[1] = operand1;
-}
-
-BytecodeNode::BytecodeNode(Bytecode bytecode, uint32_t operand0,
-                           uint32_t operand1, uint32_t operand2) {
-  DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 3);
-  bytecode_ = bytecode;
-  operands_[0] = operand0;
-  operands_[1] = operand1;
-  operands_[2] = operand2;
-}
-
-BytecodeNode::BytecodeNode(Bytecode bytecode, uint32_t operand0,
-                           uint32_t operand1, uint32_t operand2,
-                           uint32_t operand3) {
-  DCHECK_EQ(Bytecodes::NumberOfOperands(bytecode), 4);
-  bytecode_ = bytecode;
-  operands_[0] = operand0;
-  operands_[1] = operand1;
-  operands_[2] = operand2;
-  operands_[3] = operand3;
-}
-
 BytecodeNode::BytecodeNode(const BytecodeNode& other) {
   memcpy(this, &other, sizeof(other));
 }
@@ -81,23 +42,6 @@ void BytecodeNode::Print(std::ostream& os) const {
 #else
   os << static_cast<const void*>(this);
 #endif  // DEBUG
-}
-
-void BytecodeNode::Transform(Bytecode new_bytecode, uint32_t extra_operand) {
-  DCHECK_EQ(Bytecodes::NumberOfOperands(new_bytecode),
-            Bytecodes::NumberOfOperands(bytecode()) + 1);
-  DCHECK(Bytecodes::NumberOfOperands(bytecode()) < 1 ||
-         Bytecodes::GetOperandType(new_bytecode, 0) ==
-             Bytecodes::GetOperandType(bytecode(), 0));
-  DCHECK(Bytecodes::NumberOfOperands(bytecode()) < 2 ||
-         Bytecodes::GetOperandType(new_bytecode, 1) ==
-             Bytecodes::GetOperandType(bytecode(), 1));
-  DCHECK(Bytecodes::NumberOfOperands(bytecode()) < 3 ||
-         Bytecodes::GetOperandType(new_bytecode, 2) ==
-             Bytecodes::GetOperandType(bytecode(), 2));
-  DCHECK(Bytecodes::NumberOfOperands(bytecode()) < 4);
-  operands_[operand_count()] = extra_operand;
-  bytecode_ = new_bytecode;
 }
 
 bool BytecodeNode::operator==(const BytecodeNode& other) const {

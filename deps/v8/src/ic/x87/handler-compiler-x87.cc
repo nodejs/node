@@ -59,15 +59,21 @@ void NamedLoadHandlerCompiler::GenerateLoadViaGetter(
 void PropertyHandlerCompiler::PushVectorAndSlot(Register vector,
                                                 Register slot) {
   MacroAssembler* masm = this->masm();
-  __ push(vector);
+  STATIC_ASSERT(LoadWithVectorDescriptor::kSlot <
+                LoadWithVectorDescriptor::kVector);
+  STATIC_ASSERT(StoreWithVectorDescriptor::kSlot <
+                StoreWithVectorDescriptor::kVector);
+  STATIC_ASSERT(StoreTransitionDescriptor::kSlot <
+                StoreTransitionDescriptor::kVector);
   __ push(slot);
+  __ push(vector);
 }
 
 
 void PropertyHandlerCompiler::PopVectorAndSlot(Register vector, Register slot) {
   MacroAssembler* masm = this->masm();
-  __ pop(slot);
   __ pop(vector);
+  __ pop(slot);
 }
 
 
@@ -77,6 +83,15 @@ void PropertyHandlerCompiler::DiscardVectorAndSlot() {
   __ add(esp, Immediate(2 * kPointerSize));
 }
 
+void PropertyHandlerCompiler::PushReturnAddress(Register tmp) {
+  MacroAssembler* masm = this->masm();
+  __ push(tmp);
+}
+
+void PropertyHandlerCompiler::PopReturnAddress(Register tmp) {
+  MacroAssembler* masm = this->masm();
+  __ pop(tmp);
+}
 
 void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
     MacroAssembler* masm, Label* miss_label, Register receiver,
@@ -150,12 +165,16 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   DCHECK(!accessor_holder.is(scratch));
   // Copy return value.
   __ pop(scratch);
-  // receiver
-  __ push(receiver);
-  // Write the arguments to stack frame.
+
   if (is_store) {
-    DCHECK(!receiver.is(store_parameter));
-    DCHECK(!scratch.is(store_parameter));
+    // Discard stack arguments.
+    __ add(esp, Immediate(StoreWithVectorDescriptor::kStackArgumentsCount *
+                          kPointerSize));
+  }
+  // Write the receiver and arguments to stack frame.
+  __ push(receiver);
+  if (is_store) {
+    DCHECK(!AreAliased(receiver, scratch, store_parameter));
     __ push(store_parameter);
   }
   __ push(scratch);
@@ -252,8 +271,13 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
     MacroAssembler* masm, Handle<Map> map, Register receiver, Register holder,
     int accessor_index, int expected_arguments, Register scratch) {
   // ----------- S t a t e -------------
-  //  -- esp[0] : return address
+  //  -- esp[12] : value
+  //  -- esp[8]  : slot
+  //  -- esp[4]  : vector
+  //  -- esp[0]  : return address
   // -----------------------------------
+  __ LoadParameterFromStack<Descriptor>(value(), Descriptor::kValue);
+
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
@@ -290,7 +314,14 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
     // Restore context register.
     __ pop(esi);
   }
-  __ ret(0);
+  if (accessor_index >= 0) {
+    __ ret(StoreWithVectorDescriptor::kStackArgumentsCount * kPointerSize);
+  } else {
+    // If we generate a global code snippet for deoptimization only, don't try
+    // to drop stack arguments for the StoreIC because they are not a part of
+    // expression stack and deoptimizer does not reconstruct them.
+    __ ret(0);
+  }
 }
 
 
@@ -316,32 +347,6 @@ static void CompileCallLoadPropertyWithInterceptor(
   __ CallRuntime(id);
 }
 
-
-static void StoreIC_PushArgs(MacroAssembler* masm) {
-  Register receiver = StoreDescriptor::ReceiverRegister();
-  Register name = StoreDescriptor::NameRegister();
-  Register value = StoreDescriptor::ValueRegister();
-  Register slot = StoreWithVectorDescriptor::SlotRegister();
-  Register vector = StoreWithVectorDescriptor::VectorRegister();
-
-  __ xchg(receiver, Operand(esp, 0));
-  __ push(name);
-  __ push(value);
-  __ push(slot);
-  __ push(vector);
-  __ push(receiver);  // which contains the return address.
-}
-
-
-void ElementHandlerCompiler::GenerateStoreSlow(MacroAssembler* masm) {
-  // Return address is on the stack.
-  StoreIC_PushArgs(masm);
-
-  // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kKeyedStoreIC_Slow);
-}
-
-
 #undef __
 #define __ ACCESS_MASM(masm())
 
@@ -357,19 +362,6 @@ void NamedStoreHandlerCompiler::GenerateRestoreName(Label* label,
 
 void NamedStoreHandlerCompiler::GenerateRestoreName(Handle<Name> name) {
   __ mov(this->name(), Immediate(name));
-}
-
-
-void NamedStoreHandlerCompiler::RearrangeVectorAndSlot(
-    Register current_map, Register destination_map) {
-  DCHECK(destination_map.is(StoreTransitionHelper::MapRegister()));
-  DCHECK(current_map.is(StoreTransitionHelper::VectorRegister()));
-  ExternalReference virtual_slot =
-      ExternalReference::virtual_slot_register(isolate());
-  __ mov(destination_map, current_map);
-  __ pop(current_map);
-  __ mov(Operand::StaticVariable(virtual_slot), current_map);
-  __ pop(current_map);  // put vector in place.
 }
 
 
@@ -532,7 +524,7 @@ void NamedLoadHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
     Label success;
     __ jmp(&success);
     __ bind(miss);
-    if (IC::ICUseVector(kind())) {
+    if (IC::ShouldPushPopSlotAndVector(kind())) {
       DCHECK(kind() == Code::LOAD_IC);
       PopVectorAndSlot();
     }
@@ -547,7 +539,7 @@ void NamedStoreHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
     Label success;
     __ jmp(&success);
     GenerateRestoreName(miss, name);
-    if (IC::ICUseVector(kind())) PopVectorAndSlot();
+    DCHECK(!IC::ShouldPushPopSlotAndVector(kind()));
     TailCallBuiltin(masm(), MissBuiltin(kind()));
     __ bind(&success);
   }
@@ -641,13 +633,26 @@ void NamedLoadHandlerCompiler::GenerateLoadInterceptor(Register holder_reg) {
   __ TailCallRuntime(Runtime::kLoadPropertyWithInterceptor);
 }
 
+void NamedStoreHandlerCompiler::ZapStackArgumentsRegisterAliases() {
+  // Zap register aliases of the arguments passed on the stack to ensure they
+  // are properly loaded by the handler (debug-only).
+  STATIC_ASSERT(Descriptor::kPassLastArgsOnStack);
+  STATIC_ASSERT(Descriptor::kStackArgumentsCount == 3);
+  __ mov(Descriptor::ValueRegister(), Immediate(kDebugZapValue));
+  __ mov(Descriptor::SlotRegister(), Immediate(kDebugZapValue));
+  __ mov(Descriptor::VectorRegister(), Immediate(kDebugZapValue));
+}
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
     Handle<JSObject> object, Handle<Name> name, Handle<AccessorInfo> callback,
     LanguageMode language_mode) {
   Register holder_reg = Frontend(name);
+  __ LoadParameterFromStack<Descriptor>(value(), Descriptor::kValue);
 
   __ pop(scratch1());  // remove the return address
+  // Discard stack arguments.
+  __ add(esp, Immediate(StoreWithVectorDescriptor::kStackArgumentsCount *
+                        kPointerSize));
   __ push(receiver());
   __ push(holder_reg);
   // If the callback cannot leak, then push the callback directly,
@@ -679,7 +684,7 @@ Register NamedStoreHandlerCompiler::value() {
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
     Handle<PropertyCell> cell, Handle<Name> name, bool is_configurable) {
   Label miss;
-  if (IC::ICUseVector(kind())) {
+  if (IC::ShouldPushPopSlotAndVector(kind())) {
     PushVectorAndSlot();
   }
   FrontendHeader(receiver(), name, &miss, DONT_RETURN_ANYTHING);
@@ -701,7 +706,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadGlobal(
   Counters* counters = isolate()->counters();
   __ IncrementCounter(counters->ic_named_load_global_stub(), 1);
   // The code above already loads the result into the return register.
-  if (IC::ICUseVector(kind())) {
+  if (IC::ShouldPushPopSlotAndVector(kind())) {
     DiscardVectorAndSlot();
   }
   __ ret(0);

@@ -21,6 +21,12 @@ class BytecodeDecoder final {
                                         OperandType operand_type,
                                         OperandScale operand_scale);
 
+  // Decodes a register list operand in a byte array.
+  static RegisterList DecodeRegisterListOperand(const uint8_t* operand_start,
+                                                uint32_t count,
+                                                OperandType operand_type,
+                                                OperandScale operand_scale);
+
   // Decodes a signed operand in a byte array.
   static int32_t DecodeSignedOperand(const uint8_t* operand_start,
                                      OperandType operand_type,

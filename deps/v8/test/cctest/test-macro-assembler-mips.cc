@@ -1306,4 +1306,57 @@ TEST(Uldc1) {
   }
 }
 
+static const std::vector<uint32_t> sltu_test_values() {
+  static const uint32_t kValues[] = {
+      0,          1,          0x7ffe,     0x7fff,     0x8000,
+      0x8001,     0xfffe,     0xffff,     0xffff7ffe, 0xffff7fff,
+      0xffff8000, 0xffff8001, 0xfffffffe, 0xffffffff,
+  };
+  return std::vector<uint32_t>(&kValues[0], &kValues[arraysize(kValues)]);
+}
+
+template <typename Func>
+bool run_Sltu(uint32_t rs, uint32_t rd, Func GenerateSltuInstructionFunc) {
+  typedef int32_t (*F_CVT)(uint32_t x0, uint32_t x1, int x2, int x3, int x4);
+
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler assm(isolate, nullptr, 0,
+                      v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler* masm = &assm;
+
+  GenerateSltuInstructionFunc(masm, rd);
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+
+  F_CVT f = FUNCTION_CAST<F_CVT>(code->entry());
+  int32_t res = reinterpret_cast<int32_t>(
+      CALL_GENERATED_CODE(isolate, f, rs, rd, 0, 0, 0));
+  return res == 1;
+}
+
+TEST(Sltu) {
+  CcTest::InitializeVM();
+
+  FOR_UINT32_INPUTS(i, sltu_test_values) {
+    FOR_UINT32_INPUTS(j, sltu_test_values) {
+      uint32_t rs = *i;
+      uint32_t rd = *j;
+
+      CHECK_EQ(rs < rd, run_Sltu(rs, rd,
+                                 [](MacroAssembler* masm, uint32_t imm) {
+                                   __ Sltu(v0, a0, Operand(imm));
+                                 }));
+      CHECK_EQ(rs < rd,
+               run_Sltu(rs, rd, [](MacroAssembler* masm,
+                                   uint32_t imm) { __ Sltu(v0, a0, a1); }));
+    }
+  }
+}
+
 #undef __

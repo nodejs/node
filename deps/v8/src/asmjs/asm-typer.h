@@ -12,12 +12,12 @@
 #include "src/allocation.h"
 #include "src/asmjs/asm-types.h"
 #include "src/ast/ast-type-bounds.h"
+#include "src/ast/ast-types.h"
 #include "src/ast/ast.h"
 #include "src/effects.h"
 #include "src/type-info.h"
-#include "src/types.h"
-#include "src/zone-containers.h"
-#include "src/zone.h"
+#include "src/zone/zone-containers.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -73,11 +73,25 @@ class AsmTyper final {
   const char* error_message() const { return error_message_; }
 
   AsmType* TypeOf(AstNode* node) const;
+  AsmType* TypeOf(Variable* v) const;
   StandardMember VariableAsStandardMember(Variable* var);
 
   typedef std::unordered_set<StandardMember, std::hash<int> > StdlibSet;
 
   StdlibSet StdlibUses() const { return stdlib_uses_; }
+
+  // Each FFI import has a usage-site signature associated with it.
+  struct FFIUseSignature {
+    Variable* var;
+    ZoneVector<AsmType*> arg_types_;
+    AsmType* return_type_;
+    FFIUseSignature(Variable* v, Zone* zone)
+        : var(v), arg_types_(zone), return_type_(nullptr) {}
+  };
+
+  const ZoneVector<FFIUseSignature>& FFIUseSignatures() {
+    return ffi_use_signatures_;
+  }
 
  private:
   friend class v8::internal::wasm::AsmTyperHarnessBuilder;
@@ -192,7 +206,7 @@ class AsmTyper final {
   //   Lookup(Delta, Gamma, x)
   //
   // Delta is the global_scope_ member, and Gamma, local_scope_.
-  VariableInfo* Lookup(Variable* variable);
+  VariableInfo* Lookup(Variable* variable) const;
 
   // All of the ValidateXXX methods below return AsmType::None() in case of
   // validation failure.
@@ -292,8 +306,9 @@ class AsmTyper final {
   // 5.2 ReturnTypeAnnotations
   AsmType* ReturnTypeAnnotations(ReturnStatement* statement);
   // 5.4 VariableTypeAnnotations
-  AsmType* VariableTypeAnnotations(Expression* initializer);
   // 5.5 GlobalVariableTypeAnnotations
+  AsmType* VariableTypeAnnotations(Expression* initializer,
+                                   bool global = false);
   AsmType* ImportExpression(Property* import);
   AsmType* NewHeapView(CallNew* new_heap_view);
 
@@ -306,6 +321,7 @@ class AsmTyper final {
   AsmType* return_type_ = nullptr;
 
   ZoneVector<VariableInfo*> forward_definitions_;
+  ZoneVector<FFIUseSignature> ffi_use_signatures_;
   ObjectTypeMap stdlib_types_;
   ObjectTypeMap stdlib_math_types_;
 

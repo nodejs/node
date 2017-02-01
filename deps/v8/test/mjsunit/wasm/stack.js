@@ -45,7 +45,7 @@ var builder = new WasmModuleBuilder();
 builder.addImport("func", kSig_v_v);
 
 builder.addFunction("main", kSig_v_v)
-  .addBody([kExprCallImport, kArity0, 0])
+  .addBody([kExprCallFunction, 0])
   .exportAs("main");
 
 builder.addFunction("exec_unreachable", kSig_v_v)
@@ -53,14 +53,14 @@ builder.addFunction("exec_unreachable", kSig_v_v)
   .exportAs("exec_unreachable");
 
 // Make this function unnamed, just to test also this case.
-var mem_oob_func = builder.addFunction(undefined, kSig_v_v)
+var mem_oob_func = builder.addFunction(undefined, kSig_i_v)
   // Access the memory at offset -1, to provoke a trap.
   .addBody([kExprI32Const, 0x7f, kExprI32LoadMem8S, 0, 0])
   .exportAs("mem_out_of_bounds");
 
 // Call the mem_out_of_bounds function, in order to have two WASM stack frames.
-builder.addFunction("call_mem_out_of_bounds", kSig_v_v)
-  .addBody([kExprCallFunction, kArity0, mem_oob_func.index])
+builder.addFunction("call_mem_out_of_bounds", kSig_i_v)
+  .addBody([kExprCallFunction, mem_oob_func.index])
   .exportAs("call_mem_out_of_bounds");
 
 var module = builder.instantiate({func: STACK});
@@ -69,7 +69,7 @@ var module = builder.instantiate({func: STACK});
   var expected_string = "Error\n" +
     // The line numbers below will change as this test gains / loses lines..
     "    at STACK (stack.js:39:11)\n" +           // --
-    "    at main (<WASM>[0]+1)\n" +               // --
+    "    at main (<WASM>[1]+1)\n" +               // --
     "    at testSimpleStack (stack.js:76:18)\n" + // --
     "    at stack.js:78:3";                       // --
 
@@ -89,7 +89,7 @@ Error.prepareStackTrace = function(error, frames) {
   verifyStack(stack, [
       // isWasm           function   line  pos        file
       [   false,           "STACK",    39,   0, "stack.js"],
-      [    true,            "main",     0,   1,       null],
+      [    true,            "main",     1,   1,       null],
       [   false, "testStackFrames",    87,   0, "stack.js"],
       [   false,              null,    96,   0, "stack.js"]
   ]);
@@ -103,7 +103,7 @@ Error.prepareStackTrace = function(error, frames) {
     assertContains("unreachable", e.message);
     verifyStack(e.stack, [
         // isWasm               function   line  pos        file
-        [    true,    "exec_unreachable",    1,    1,       null],
+        [    true,    "exec_unreachable",    2,    1,       null],
         [   false, "testWasmUnreachable",  100,    0, "stack.js"],
         [   false,                  null,  111,    0, "stack.js"]
     ]);
@@ -118,8 +118,8 @@ Error.prepareStackTrace = function(error, frames) {
     assertContains("out of bounds", e.message);
     verifyStack(e.stack, [
         // isWasm                  function   line  pos        file
-        [    true,                       "",     2,   3,       null],
-        [    true, "call_mem_out_of_bounds",     3,   1,       null],
+        [    true,                       "",     3,   3,       null],
+        [    true, "call_mem_out_of_bounds",     4,   1,       null],
         [   false, "testWasmMemOutOfBounds",   115,   0, "stack.js"],
         [   false,                     null,   127,   0, "stack.js"]
     ]);
@@ -135,7 +135,7 @@ Error.prepareStackTrace = function(error, frames) {
   builder.addFunction("recursion", sig_index)
     .addBody([
       kExprI32Const, 0,
-      kExprCallIndirect, kArity0, sig_index
+      kExprCallIndirect, sig_index
     ])
     .exportFunc()
   builder.appendToTable([0]);

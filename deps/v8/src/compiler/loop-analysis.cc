@@ -5,10 +5,10 @@
 #include "src/compiler/loop-analysis.h"
 
 #include "src/compiler/graph.h"
-#include "src/compiler/node.h"
 #include "src/compiler/node-marker.h"
 #include "src/compiler/node-properties.h"
-#include "src/zone.h"
+#include "src/compiler/node.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {

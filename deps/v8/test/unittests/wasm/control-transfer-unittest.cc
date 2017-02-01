@@ -24,30 +24,28 @@ namespace wasm {
 #define B2(a, b) kExprBlock, a, b, kExprEnd
 #define B3(a, b, c) kExprBlock, a, b, c, kExprEnd
 
-struct ExpectedTarget {
+#define TRANSFER_VOID 0
+#define TRANSFER_ONE 1
+
+struct ExpectedPcDelta {
   pc_t pc;
-  ControlTransfer expected;
+  pcdiff_t expected;
 };
 
 // For nicer error messages.
-class ControlTransferMatcher : public MatcherInterface<const ControlTransfer&> {
+class ControlTransferMatcher : public MatcherInterface<const pcdiff_t&> {
  public:
-  explicit ControlTransferMatcher(pc_t pc, const ControlTransfer& expected)
+  explicit ControlTransferMatcher(pc_t pc, const pcdiff_t& expected)
       : pc_(pc), expected_(expected) {}
 
   void DescribeTo(std::ostream* os) const override {
-    *os << "@" << pc_ << " {pcdiff = " << expected_.pcdiff
-        << ", spdiff = " << expected_.spdiff
-        << ", action = " << expected_.action << "}";
+    *os << "@" << pc_ << " pcdiff = " << expected_;
   }
 
-  bool MatchAndExplain(const ControlTransfer& input,
+  bool MatchAndExplain(const pcdiff_t& input,
                        MatchResultListener* listener) const override {
-    if (input.pcdiff != expected_.pcdiff || input.spdiff != expected_.spdiff ||
-        input.action != expected_.action) {
-      *listener << "@" << pc_ << " {pcdiff = " << input.pcdiff
-                << ", spdiff = " << input.spdiff
-                << ", action = " << input.action << "}";
+    if (input != expected_) {
+      *listener << "@" << pc_ << " pcdiff = " << input;
       return false;
     }
     return true;
@@ -55,36 +53,43 @@ class ControlTransferMatcher : public MatcherInterface<const ControlTransfer&> {
 
  private:
   pc_t pc_;
-  const ControlTransfer& expected_;
+  const pcdiff_t& expected_;
 };
 
 class ControlTransferTest : public TestWithZone {
  public:
-  void CheckControlTransfers(const byte* start, const byte* end,
-                             ExpectedTarget* expected_targets,
-                             size_t num_targets) {
+  void CheckPcDeltas(const byte* start, const byte* end,
+                     ExpectedPcDelta* expected_deltas, size_t num_targets) {
     ControlTransferMap map =
         WasmInterpreter::ComputeControlTransfersForTesting(zone(), start, end);
     // Check all control targets in the map.
     for (size_t i = 0; i < num_targets; i++) {
-      pc_t pc = expected_targets[i].pc;
+      pc_t pc = expected_deltas[i].pc;
       auto it = map.find(pc);
       if (it == map.end()) {
-        printf("expected control target @ +%zu\n", pc);
-        EXPECT_TRUE(false);
+        EXPECT_TRUE(false) << "expected control target @ " << pc;
       } else {
-        ControlTransfer& expected = expected_targets[i].expected;
-        ControlTransfer& target = it->second;
+        pcdiff_t expected = expected_deltas[i].expected;
+        pcdiff_t& target = it->second;
         EXPECT_THAT(target,
                     MakeMatcher(new ControlTransferMatcher(pc, expected)));
       }
     }
 
     // Check there are no other control targets.
+    CheckNoOtherTargets<ExpectedPcDelta>(start, end, map, expected_deltas,
+                                         num_targets);
+  }
+
+  template <typename T>
+  void CheckNoOtherTargets(const byte* start, const byte* end,
+                           ControlTransferMap& map, T* targets,
+                           size_t num_targets) {
+    // Check there are no other control targets.
     for (pc_t pc = 0; start + pc < end; pc++) {
       bool found = false;
       for (size_t i = 0; i < num_targets; i++) {
-        if (expected_targets[i].pc == pc) {
+        if (targets[i].pc == pc) {
           found = true;
           break;
         }
@@ -98,125 +103,128 @@ class ControlTransferTest : public TestWithZone {
   }
 };
 
-// Macro for simplifying tests below.
-#define EXPECT_TARGETS(...)                                                    \
-  do {                                                                         \
-    ExpectedTarget pairs[] = {__VA_ARGS__};                                    \
-    CheckControlTransfers(code, code + sizeof(code), pairs, arraysize(pairs)); \
+#define EXPECT_PC_DELTAS(...)                                          \
+  do {                                                                 \
+    ExpectedPcDelta pairs[] = {__VA_ARGS__};                           \
+    CheckPcDeltas(code, code + sizeof(code), pairs, arraysize(pairs)); \
   } while (false)
 
 TEST_F(ControlTransferTest, SimpleIf) {
   byte code[] = {
       kExprI32Const,  // @0
-      0,              //   +1
+      0,              // @1
       kExprIf,        // @2
-      kExprEnd        // @3
+      kLocalVoid,     // @3
+      kExprEnd        // @4
   };
-  EXPECT_TARGETS({2, {2, 0, ControlTransfer::kPushVoid}},  // --
-                 {3, {1, 0, ControlTransfer::kPushVoid}});
+  EXPECT_PC_DELTAS({2, 2});
 }
 
 TEST_F(ControlTransferTest, SimpleIf1) {
   byte code[] = {
       kExprI32Const,  // @0
-      0,              //   +1
+      0,              // @1
       kExprIf,        // @2
-      kExprNop,       // @3
-      kExprEnd        // @4
+      kLocalVoid,     // @3
+      kExprNop,       // @4
+      kExprEnd        // @5
   };
-  EXPECT_TARGETS({2, {3, 0, ControlTransfer::kPushVoid}},  // --
-                 {4, {1, 1, ControlTransfer::kPopAndRepush}});
+  EXPECT_PC_DELTAS({2, 3});
 }
 
 TEST_F(ControlTransferTest, SimpleIf2) {
   byte code[] = {
       kExprI32Const,  // @0
-      0,              //   +1
+      0,              // @1
       kExprIf,        // @2
-      kExprNop,       // @3
+      kLocalVoid,     // @3
       kExprNop,       // @4
-      kExprEnd        // @5
+      kExprNop,       // @5
+      kExprEnd        // @6
   };
-  EXPECT_TARGETS({2, {4, 0, ControlTransfer::kPushVoid}},  // --
-                 {5, {1, 2, ControlTransfer::kPopAndRepush}});
+  EXPECT_PC_DELTAS({2, 4});
 }
 
 TEST_F(ControlTransferTest, SimpleIfElse) {
   byte code[] = {
       kExprI32Const,  // @0
-      0,              //   +1
+      0,              // @1
       kExprIf,        // @2
-      kExprElse,      // @3
-      kExprEnd        // @4
+      kLocalVoid,     // @3
+      kExprElse,      // @4
+      kExprEnd        // @5
   };
-  EXPECT_TARGETS({2, {2, 0, ControlTransfer::kNoAction}},  // --
-                 {3, {2, 0, ControlTransfer::kPushVoid}},  // --
-                 {4, {1, 0, ControlTransfer::kPushVoid}});
+  EXPECT_PC_DELTAS({2, 3}, {4, 2});
+}
+
+TEST_F(ControlTransferTest, SimpleIfElse_v1) {
+  byte code[] = {
+      kExprI32Const,  // @0
+      0,              // @1
+      kExprIf,        // @2
+      kLocalVoid,     // @3
+      kExprI8Const,   // @4
+      0,              // @5
+      kExprElse,      // @6
+      kExprI8Const,   // @7
+      0,              // @8
+      kExprEnd        // @9
+  };
+  EXPECT_PC_DELTAS({2, 5}, {6, 4});
 }
 
 TEST_F(ControlTransferTest, SimpleIfElse1) {
   byte code[] = {
       kExprI32Const,  // @0
-      0,              //   +1
+      0,              // @1
       kExprIf,        // @2
-      kExprNop,       // @3
+      kLocalVoid,     // @3
       kExprElse,      // @4
       kExprNop,       // @5
       kExprEnd        // @6
   };
-  EXPECT_TARGETS({2, {3, 0, ControlTransfer::kNoAction}},      // --
-                 {4, {3, 1, ControlTransfer::kPopAndRepush}},  // --
-                 {6, {1, 1, ControlTransfer::kPopAndRepush}});
+  EXPECT_PC_DELTAS({2, 3}, {4, 3});
 }
 
 TEST_F(ControlTransferTest, IfBr) {
   byte code[] = {
       kExprI32Const,  // @0
-      0,              //   +1
+      0,              // @1
       kExprIf,        // @2
-      kExprBr,        // @3
-      ARITY_0,        //   +1
-      0,              //   +1
+      kLocalVoid,     // @3
+      kExprBr,        // @4
+      0,              // @5
       kExprEnd        // @6
   };
-  EXPECT_TARGETS({2, {5, 0, ControlTransfer::kPushVoid}},  // --
-                 {3, {4, 0, ControlTransfer::kPushVoid}},  // --
-                 {6, {1, 1, ControlTransfer::kPopAndRepush}});
+  EXPECT_PC_DELTAS({2, 4}, {4, 3});
 }
 
 TEST_F(ControlTransferTest, IfBrElse) {
   byte code[] = {
       kExprI32Const,  // @0
-      0,              //   +1
+      0,              // @1
       kExprIf,        // @2
-      kExprBr,        // @3
-      ARITY_0,        //   +1
-      0,              //   +1
+      kLocalVoid,     // @3
+      kExprBr,        // @4
+      0,              // @5
       kExprElse,      // @6
       kExprEnd        // @7
   };
-  EXPECT_TARGETS({2, {5, 0, ControlTransfer::kNoAction}},      // --
-                 {3, {5, 0, ControlTransfer::kPushVoid}},      // --
-                 {6, {2, 1, ControlTransfer::kPopAndRepush}},  // --
-                 {7, {1, 0, ControlTransfer::kPushVoid}});
+  EXPECT_PC_DELTAS({2, 5}, {4, 4}, {6, 2});
 }
 
 TEST_F(ControlTransferTest, IfElseBr) {
   byte code[] = {
       kExprI32Const,  // @0
-      0,              //   +1
+      0,              // @1
       kExprIf,        // @2
-      kExprNop,       // @3
+      kLocalVoid,     // @3
       kExprElse,      // @4
       kExprBr,        // @5
-      ARITY_0,        //   +1
-      0,              //   +1
-      kExprEnd        // @8
+      0,              // @6
+      kExprEnd        // @7
   };
-  EXPECT_TARGETS({2, {3, 0, ControlTransfer::kNoAction}},      // --
-                 {4, {5, 1, ControlTransfer::kPopAndRepush}},  // --
-                 {5, {4, 0, ControlTransfer::kPushVoid}},      // --
-                 {8, {1, 1, ControlTransfer::kPopAndRepush}});
+  EXPECT_PC_DELTAS({2, 3}, {4, 4}, {5, 3});
 }
 
 TEST_F(ControlTransferTest, BlockEmpty) {
@@ -224,177 +232,233 @@ TEST_F(ControlTransferTest, BlockEmpty) {
       kExprBlock,  // @0
       kExprEnd     // @1
   };
-  EXPECT_TARGETS({1, {1, 0, ControlTransfer::kPushVoid}});
+  CheckPcDeltas(code, code + sizeof(code), nullptr, 0);
 }
 
 TEST_F(ControlTransferTest, Br0) {
   byte code[] = {
       kExprBlock,  // @0
-      kExprBr,     // @1
-      ARITY_0,     //   +1
-      0,           //   +1
+      kLocalVoid,  // @1
+      kExprBr,     // @2
+      0,           // @3
       kExprEnd     // @4
   };
-  EXPECT_TARGETS({1, {4, 0, ControlTransfer::kPushVoid}},
-                 {4, {1, 1, ControlTransfer::kPopAndRepush}});
+  EXPECT_PC_DELTAS({2, 3});
 }
 
 TEST_F(ControlTransferTest, Br1) {
   byte code[] = {
       kExprBlock,  // @0
-      kExprNop,    // @1
-      kExprBr,     // @2
-      ARITY_0,     //   +1
-      0,           //   +1
+      kLocalVoid,  // @1
+      kExprNop,    // @2
+      kExprBr,     // @3
+      0,           // @4
       kExprEnd     // @5
   };
-  EXPECT_TARGETS({2, {4, 1, ControlTransfer::kPopAndRepush}},  // --
-                 {5, {1, 2, ControlTransfer::kPopAndRepush}});
+  EXPECT_PC_DELTAS({3, 3});
+}
+
+TEST_F(ControlTransferTest, Br_v1a) {
+  byte code[] = {
+      kExprBlock,    // @0
+      kLocalVoid,    // @1
+      kExprI8Const,  // @2
+      0,             // @3
+      kExprBr,       // @4
+      0,             // @5
+      kExprEnd       // @6
+  };
+  EXPECT_PC_DELTAS({4, 3});
+}
+
+TEST_F(ControlTransferTest, Br_v1b) {
+  byte code[] = {
+      kExprBlock,    // @0
+      kLocalVoid,    // @1
+      kExprI8Const,  // @2
+      0,             // @3
+      kExprBr,       // @4
+      0,             // @5
+      kExprEnd       // @6
+  };
+  EXPECT_PC_DELTAS({4, 3});
+}
+
+TEST_F(ControlTransferTest, Br_v1c) {
+  byte code[] = {
+      kExprI8Const,  // @0
+      0,             // @1
+      kExprBlock,    // @2
+      kLocalVoid,    // @3
+      kExprBr,       // @4
+      0,             // @5
+      kExprEnd       // @6
+  };
+  EXPECT_PC_DELTAS({4, 3});
 }
 
 TEST_F(ControlTransferTest, Br2) {
   byte code[] = {
       kExprBlock,  // @0
-      kExprNop,    // @1
+      kLocalVoid,  // @1
       kExprNop,    // @2
-      kExprBr,     // @3
-      ARITY_0,     //   +1
-      0,           //   +1
+      kExprNop,    // @3
+      kExprBr,     // @4
+      0,           // @5
       kExprEnd     // @6
   };
-  EXPECT_TARGETS({3, {4, 2, ControlTransfer::kPopAndRepush}},  // --
-                 {6, {1, 3, ControlTransfer::kPopAndRepush}});
+  EXPECT_PC_DELTAS({4, 3});
 }
 
 TEST_F(ControlTransferTest, Br0b) {
   byte code[] = {
       kExprBlock,  // @0
-      kExprBr,     // @1
-      ARITY_0,     //   +1
-      0,           //   +1
+      kLocalVoid,  // @1
+      kExprBr,     // @2
+      0,           // @3
       kExprNop,    // @4
       kExprEnd     // @5
   };
-  EXPECT_TARGETS({1, {5, 0, ControlTransfer::kPushVoid}},  // --
-                 {5, {1, 2, ControlTransfer::kPopAndRepush}});
+  EXPECT_PC_DELTAS({2, 4});
 }
 
 TEST_F(ControlTransferTest, Br0c) {
   byte code[] = {
       kExprBlock,  // @0
-      kExprBr,     // @1
-      ARITY_0,     //   +1
-      0,           //   +1
+      kLocalVoid,  // @1
+      kExprBr,     // @2
+      0,           // @3
       kExprNop,    // @4
       kExprNop,    // @5
       kExprEnd     // @6
   };
-  EXPECT_TARGETS({1, {6, 0, ControlTransfer::kPushVoid}},  // --
-                 {6, {1, 3, ControlTransfer::kPopAndRepush}});
+  EXPECT_PC_DELTAS({2, 5});
 }
 
 TEST_F(ControlTransferTest, SimpleLoop1) {
   byte code[] = {
-      kExprLoop,  // @0
-      kExprBr,    // @1
-      ARITY_0,    //   +1
-      0,          //   +1
-      kExprEnd    // @4
+      kExprLoop,   // @0
+      kLocalVoid,  // @1
+      kExprBr,     // @2
+      0,           // @3
+      kExprEnd     // @4
   };
-  EXPECT_TARGETS({1, {-1, 0, ControlTransfer::kNoAction}},  // --
-                 {4, {1, 1, ControlTransfer::kPopAndRepush}});
+  EXPECT_PC_DELTAS({2, -2});
 }
 
 TEST_F(ControlTransferTest, SimpleLoop2) {
   byte code[] = {
-      kExprLoop,  // @0
-      kExprNop,   // @1
-      kExprBr,    // @2
-      ARITY_0,    //   +1
-      0,          //   +1
-      kExprEnd    // @5
+      kExprLoop,   // @0
+      kLocalVoid,  // @1
+      kExprNop,    // @2
+      kExprBr,     // @3
+      0,           // @4
+      kExprEnd     // @5
   };
-  EXPECT_TARGETS({2, {-2, 1, ControlTransfer::kNoAction}},  // --
-                 {5, {1, 2, ControlTransfer::kPopAndRepush}});
+  EXPECT_PC_DELTAS({3, -3});
 }
 
 TEST_F(ControlTransferTest, SimpleLoopExit1) {
   byte code[] = {
-      kExprLoop,  // @0
-      kExprBr,    // @1
-      ARITY_0,    //   +1
-      1,          //   +1
-      kExprEnd    // @4
+      kExprLoop,   // @0
+      kLocalVoid,  // @1
+      kExprBr,     // @2
+      1,           // @3
+      kExprEnd     // @4
   };
-  EXPECT_TARGETS({1, {4, 0, ControlTransfer::kPushVoid}},  // --
-                 {4, {1, 1, ControlTransfer::kPopAndRepush}});
+  EXPECT_PC_DELTAS({2, 3});
 }
 
 TEST_F(ControlTransferTest, SimpleLoopExit2) {
   byte code[] = {
-      kExprLoop,  // @0
-      kExprNop,   // @1
-      kExprBr,    // @2
-      ARITY_0,    //   +1
-      1,          //   +1
-      kExprEnd    // @5
+      kExprLoop,   // @0
+      kLocalVoid,  // @1
+      kExprNop,    // @2
+      kExprBr,     // @3
+      1,           // @4
+      kExprEnd     // @5
   };
-  EXPECT_TARGETS({2, {4, 1, ControlTransfer::kPopAndRepush}},  // --
-                 {5, {1, 2, ControlTransfer::kPopAndRepush}});
+  EXPECT_PC_DELTAS({3, 3});
 }
 
 TEST_F(ControlTransferTest, BrTable0) {
   byte code[] = {
       kExprBlock,    // @0
-      kExprI8Const,  // @1
-      0,             //   +1
-      kExprBrTable,  // @3
-      ARITY_0,       //   +1
-      0,             //   +1
-      U32_LE(0),     //   +4
-      kExprEnd       // @10
+      kLocalVoid,    // @1
+      kExprI8Const,  // @2
+      0,             // @3
+      kExprBrTable,  // @4
+      0,             // @5
+      U32V_1(0),     // @6
+      kExprEnd       // @7
   };
-  EXPECT_TARGETS({3, {8, 0, ControlTransfer::kPushVoid}},  // --
-                 {10, {1, 1, ControlTransfer::kPopAndRepush}});
+  EXPECT_PC_DELTAS({4, 4});
+}
+
+TEST_F(ControlTransferTest, BrTable0_v1a) {
+  byte code[] = {
+      kExprBlock,    // @0
+      kLocalVoid,    // @1
+      kExprI8Const,  // @2
+      0,             // @3
+      kExprI8Const,  // @4
+      0,             // @5
+      kExprBrTable,  // @6
+      0,             // @7
+      U32V_1(0),     // @8
+      kExprEnd       // @9
+  };
+  EXPECT_PC_DELTAS({6, 4});
+}
+
+TEST_F(ControlTransferTest, BrTable0_v1b) {
+  byte code[] = {
+      kExprBlock,    // @0
+      kLocalVoid,    // @1
+      kExprI8Const,  // @2
+      0,             // @3
+      kExprI8Const,  // @4
+      0,             // @5
+      kExprBrTable,  // @6
+      0,             // @7
+      U32V_1(0),     // @8
+      kExprEnd       // @9
+  };
+  EXPECT_PC_DELTAS({6, 4});
 }
 
 TEST_F(ControlTransferTest, BrTable1) {
   byte code[] = {
       kExprBlock,    // @0
-      kExprI8Const,  // @1
-      0,             //   +1
-      kExprBrTable,  // @3
-      ARITY_0,       //   +1
-      1,             //   +1
-      U32_LE(0),     //   +4
-      U32_LE(0),     //   +4
-      kExprEnd       // @14
+      kLocalVoid,    // @1
+      kExprI8Const,  // @2
+      0,             // @3
+      kExprBrTable,  // @4
+      1,             // @5
+      U32V_1(0),     // @6
+      U32V_1(0),     // @7
+      kExprEnd       // @8
   };
-  EXPECT_TARGETS({3, {12, 0, ControlTransfer::kPushVoid}},  // --
-                 {4, {11, 0, ControlTransfer::kPushVoid}},  // --
-                 {14, {1, 1, ControlTransfer::kPopAndRepush}});
+  EXPECT_PC_DELTAS({4, 5}, {5, 4});
 }
 
 TEST_F(ControlTransferTest, BrTable2) {
   byte code[] = {
       kExprBlock,    // @0
-      kExprBlock,    // @1
-      kExprI8Const,  // @2
-      0,             //   +1
-      kExprBrTable,  // @4
-      ARITY_0,       //   +1
-      2,             //   +1
-      U32_LE(0),     //   +4
-      U32_LE(0),     //   +4
-      U32_LE(1),     //   +4
-      kExprEnd,      // @19
-      kExprEnd       // @19
+      kLocalVoid,    // @1
+      kExprBlock,    // @2
+      kLocalVoid,    // @3
+      kExprI8Const,  // @4
+      0,             // @5
+      kExprBrTable,  // @6
+      2,             // @7
+      U32V_1(0),     // @8
+      U32V_1(0),     // @9
+      U32V_1(1),     // @10
+      kExprEnd,      // @11
+      kExprEnd       // @12
   };
-  EXPECT_TARGETS({4, {16, 0, ControlTransfer::kPushVoid}},      // --
-                 {5, {15, 0, ControlTransfer::kPushVoid}},      // --
-                 {6, {15, 0, ControlTransfer::kPushVoid}},      // --
-                 {19, {1, 1, ControlTransfer::kPopAndRepush}},  // --
-                 {20, {1, 1, ControlTransfer::kPopAndRepush}});
+  EXPECT_PC_DELTAS({6, 6}, {7, 5}, {8, 5});
 }
 
 }  // namespace wasm

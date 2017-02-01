@@ -38,21 +38,28 @@ const int g_num_builtin_categories = 4;
 // Skip default categories.
 v8::base::AtomicWord g_category_index = g_num_builtin_categories;
 
+TracingController::TracingController() {}
+
+TracingController::~TracingController() {}
+
 void TracingController::Initialize(TraceBuffer* trace_buffer) {
   trace_buffer_.reset(trace_buffer);
+  mutex_.reset(new base::Mutex());
 }
 
 uint64_t TracingController::AddTraceEvent(
     char phase, const uint8_t* category_enabled_flag, const char* name,
     const char* scope, uint64_t id, uint64_t bind_id, int num_args,
     const char** arg_names, const uint8_t* arg_types,
-    const uint64_t* arg_values, unsigned int flags) {
+    const uint64_t* arg_values,
+    std::unique_ptr<v8::ConvertableToTraceFormat>* arg_convertables,
+    unsigned int flags) {
   uint64_t handle;
   TraceObject* trace_object = trace_buffer_->AddTraceEvent(&handle);
   if (trace_object) {
     trace_object->Initialize(phase, category_enabled_flag, name, scope, id,
                              bind_id, num_args, arg_names, arg_types,
-                             arg_values, flags);
+                             arg_values, arg_convertables, flags);
   }
   return handle;
 }
@@ -91,13 +98,29 @@ const char* TracingController::GetCategoryGroupName(
 
 void TracingController::StartTracing(TraceConfig* trace_config) {
   trace_config_.reset(trace_config);
-  mode_ = RECORDING_MODE;
-  UpdateCategoryGroupEnabledFlags();
+  std::unordered_set<Platform::TraceStateObserver*> observers_copy;
+  {
+    base::LockGuard<base::Mutex> lock(mutex_.get());
+    mode_ = RECORDING_MODE;
+    UpdateCategoryGroupEnabledFlags();
+    observers_copy = observers_;
+  }
+  for (auto o : observers_copy) {
+    o->OnTraceEnabled();
+  }
 }
 
 void TracingController::StopTracing() {
   mode_ = DISABLED;
   UpdateCategoryGroupEnabledFlags();
+  std::unordered_set<Platform::TraceStateObserver*> observers_copy;
+  {
+    base::LockGuard<base::Mutex> lock(mutex_.get());
+    observers_copy = observers_;
+  }
+  for (auto o : observers_copy) {
+    o->OnTraceDisabled();
+  }
   trace_buffer_->Flush();
 }
 
@@ -170,6 +193,24 @@ const uint8_t* TracingController::GetCategoryGroupEnabledInternal(
         &g_category_group_enabled[g_category_categories_exhausted];
   }
   return category_group_enabled;
+}
+
+void TracingController::AddTraceStateObserver(
+    Platform::TraceStateObserver* observer) {
+  {
+    base::LockGuard<base::Mutex> lock(mutex_.get());
+    observers_.insert(observer);
+    if (mode_ != RECORDING_MODE) return;
+  }
+  // Fire the observer if recording is already in progress.
+  observer->OnTraceEnabled();
+}
+
+void TracingController::RemoveTraceStateObserver(
+    Platform::TraceStateObserver* observer) {
+  base::LockGuard<base::Mutex> lock(mutex_.get());
+  DCHECK(observers_.find(observer) != observers_.end());
+  observers_.erase(observer);
 }
 
 }  // namespace tracing

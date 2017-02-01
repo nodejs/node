@@ -3,8 +3,6 @@
 #
 
 ---
-pool type: mixed
-execute: yes
 wrap: yes
 
 ---
@@ -65,34 +63,34 @@ snippet: "
 "
 frame size: 8
 parameter count: 1
-bytecode array length: 44
+bytecode array length: 45
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
-                B(Star), R(1),
-  /*   68 S> */ B(JumpIfUndefined), U8(37),
-                B(JumpIfNull), U8(35),
+                B(Star), R(0),
+  /*   68 S> */ B(JumpIfUndefined), U8(38),
+                B(JumpIfNull), U8(36),
                 B(ToObject), R(3),
                 B(ForInPrepare), R(3), R(4),
                 B(LdaZero),
                 B(Star), R(7),
-  /*   63 S> */ B(ForInDone), R(7), R(6),
-                B(JumpIfTrue), U8(22),
-                B(ForInNext), R(3), R(7), R(4), U8(1),
+  /*   63 S> */ B(ForInContinue), R(7), R(6),
+                B(JumpIfFalse), U8(23),
+                B(ForInNext), R(3), R(7), R(4), U8(2),
                 B(JumpIfUndefined), U8(9),
-                B(Star), R(0),
+                B(Star), R(1),
   /*   54 E> */ B(StackCheck),
                 B(Star), R(2),
   /*   73 S> */ B(Nop),
   /*   85 S> */ B(Return),
                 B(ForInStep), R(7),
                 B(Star), R(7),
-                B(Jump), U8(-23),
+                B(JumpLoop), U8(-23), U8(0),
                 B(LdaUndefined),
   /*   85 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["potatoes"],
 ]
 handlers: [
 ]
@@ -104,37 +102,37 @@ snippet: "
 "
 frame size: 9
 parameter count: 1
-bytecode array length: 55
+bytecode array length: 56
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaZero),
-                B(Star), R(1),
-  /*   59 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(3),
-                B(JumpIfUndefined), U8(45),
-                B(JumpIfNull), U8(43),
+                B(Star), R(0),
+  /*   59 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(9),
+                B(JumpIfUndefined), U8(46),
+                B(JumpIfNull), U8(44),
                 B(ToObject), R(3),
                 B(ForInPrepare), R(3), R(4),
                 B(LdaZero),
                 B(Star), R(7),
-  /*   54 S> */ B(ForInDone), R(7), R(6),
-                B(JumpIfTrue), U8(30),
-                B(ForInNext), R(3), R(7), R(4), U8(2),
+  /*   54 S> */ B(ForInContinue), R(7), R(6),
+                B(JumpIfFalse), U8(31),
+                B(ForInNext), R(3), R(7), R(4), U8(3),
                 B(JumpIfUndefined), U8(17),
-                B(Star), R(0),
+                B(Star), R(1),
   /*   45 E> */ B(StackCheck),
                 B(Star), R(2),
-  /*   70 S> */ B(Ldar), R(0),
-  /*   75 E> */ B(Add), R(1), U8(1),
-                B(Mov), R(1), R(8),
-                B(Star), R(1),
+  /*   70 S> */ B(Ldar), R(1),
+  /*   75 E> */ B(Add), R(0), U8(2),
+                B(Mov), R(0), R(8),
+                B(Star), R(0),
   /*   72 E> */ B(ForInStep), R(7),
                 B(Star), R(7),
-                B(Jump), U8(-31),
+                B(JumpLoop), U8(-31), U8(0),
                 B(LdaUndefined),
   /*   80 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::FIXED_ARRAY_TYPE,
+  FIXED_ARRAY_TYPE,
 ]
 handlers: [
 ]
@@ -147,49 +145,49 @@ snippet: "
     if (x['a'] == 20) break;
   }
 "
-frame size: 8
+frame size: 7
 parameter count: 1
-bytecode array length: 80
+bytecode array length: 83
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1), R(1),
                 B(Mov), R(1), R(0),
-  /*   77 S> */ B(CreateArrayLiteral), U8(1), U8(1), U8(3),
-                B(JumpIfUndefined), U8(65),
-                B(JumpIfNull), U8(63),
+  /*   77 S> */ B(CreateArrayLiteral), U8(1), U8(1), U8(9),
+                B(JumpIfUndefined), U8(68),
+                B(JumpIfNull), U8(66),
                 B(ToObject), R(1),
                 B(ForInPrepare), R(1), R(2),
                 B(LdaZero),
                 B(Star), R(5),
-  /*   68 S> */ B(ForInDone), R(5), R(4),
-                B(JumpIfTrue), U8(50),
-                B(ForInNext), R(1), R(5), R(2), U8(9),
-                B(JumpIfUndefined), U8(37),
+  /*   68 S> */ B(ForInContinue), R(5), R(4),
+                B(JumpIfFalse), U8(53),
+                B(ForInNext), R(1), R(5), R(2), U8(12),
+                B(JumpIfUndefined), U8(39),
                 B(Star), R(6),
-  /*   67 E> */ B(StaNamedPropertySloppy), R(0), U8(2), U8(7),
+  /*   67 E> */ B(StaNamedPropertySloppy), R(0), U8(2), U8(10),
   /*   62 E> */ B(StackCheck),
   /*   95 S> */ B(Nop),
-  /*  100 E> */ B(LdrNamedProperty), R(0), U8(2), U8(3), R(7),
+  /*  100 E> */ B(LdrNamedProperty), R(0), U8(2), U8(4), R(6),
                 B(LdaSmi), U8(10),
-  /*  106 E> */ B(TestEqual), R(7),
+  /*  106 E> */ B(TestEqual), R(6), U8(6),
                 B(JumpIfFalse), U8(4),
-  /*  113 S> */ B(Jump), U8(16),
+  /*  113 S> */ B(Jump), U8(17),
   /*  125 S> */ B(Nop),
-  /*  130 E> */ B(LdrNamedProperty), R(0), U8(2), U8(5), R(7),
+  /*  130 E> */ B(LdrNamedProperty), R(0), U8(2), U8(7), R(6),
                 B(LdaSmi), U8(20),
-  /*  136 E> */ B(TestEqual), R(7),
+  /*  136 E> */ B(TestEqual), R(6), U8(9),
                 B(JumpIfFalse), U8(4),
-  /*  143 S> */ B(Jump), U8(8),
+  /*  143 S> */ B(Jump), U8(9),
                 B(ForInStep), R(5),
                 B(Star), R(5),
-                B(Jump), U8(-51),
+                B(JumpLoop), U8(-53), U8(0),
                 B(LdaUndefined),
   /*  152 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::FIXED_ARRAY_TYPE,
-  InstanceType::FIXED_ARRAY_TYPE,
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+  FIXED_ARRAY_TYPE,
+  FIXED_ARRAY_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
 ]
 handlers: [
 ]
@@ -201,40 +199,40 @@ snippet: "
 "
 frame size: 9
 parameter count: 1
-bytecode array length: 61
+bytecode array length: 62
 bytecodes: [
   /*   30 E> */ B(StackCheck),
-  /*   42 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(3),
+  /*   42 S> */ B(CreateArrayLiteral), U8(0), U8(0), U8(9),
                 B(Star), R(0),
-  /*   72 S> */ B(CreateArrayLiteral), U8(1), U8(1), U8(3),
-                B(JumpIfUndefined), U8(48),
-                B(JumpIfNull), U8(46),
+  /*   72 S> */ B(CreateArrayLiteral), U8(1), U8(1), U8(9),
+                B(JumpIfUndefined), U8(49),
+                B(JumpIfNull), U8(47),
                 B(ToObject), R(1),
                 B(ForInPrepare), R(1), R(2),
                 B(LdaZero),
                 B(Star), R(5),
-  /*   65 S> */ B(ForInDone), R(5), R(4),
-                B(JumpIfTrue), U8(33),
-                B(ForInNext), R(1), R(5), R(2), U8(7),
+  /*   65 S> */ B(ForInContinue), R(5), R(4),
+                B(JumpIfFalse), U8(34),
+                B(ForInNext), R(1), R(5), R(2), U8(8),
                 B(JumpIfUndefined), U8(20),
                 B(Star), R(6),
                 B(LdaZero),
                 B(Star), R(8),
                 B(Ldar), R(6),
-  /*   64 E> */ B(StaKeyedPropertySloppy), R(0), R(8), U8(5),
+  /*   64 E> */ B(StaKeyedPropertySloppy), R(0), R(8), U8(6),
   /*   59 E> */ B(StackCheck),
   /*   83 S> */ B(LdaSmi), U8(3),
-  /*   91 E> */ B(LdaKeyedProperty), R(0), U8(3),
+  /*   91 E> */ B(LdaKeyedProperty), R(0), U8(4),
   /*   98 S> */ B(Return),
                 B(ForInStep), R(5),
                 B(Star), R(5),
-                B(Jump), U8(-34),
+                B(JumpLoop), U8(-34), U8(0),
                 B(LdaUndefined),
   /*   98 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::FIXED_ARRAY_TYPE,
-  InstanceType::FIXED_ARRAY_TYPE,
+  FIXED_ARRAY_TYPE,
+  FIXED_ARRAY_TYPE,
 ]
 handlers: [
 ]

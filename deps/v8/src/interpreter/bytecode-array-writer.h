@@ -33,7 +33,7 @@ class BytecodeArrayWriter final : public BytecodePipelineStage {
   void BindLabel(BytecodeLabel* label) override;
   void BindLabel(const BytecodeLabel& target, BytecodeLabel* label) override;
   Handle<BytecodeArray> ToBytecodeArray(
-      Isolate* isolate, int fixed_register_count, int parameter_count,
+      Isolate* isolate, int register_count, int parameter_count,
       Handle<FixedArray> handler_table) override;
 
  private:
@@ -69,10 +69,8 @@ class BytecodeArrayWriter final : public BytecodePipelineStage {
   ConstantArrayBuilder* constant_array_builder() {
     return constant_array_builder_;
   }
-  int max_register_count() { return max_register_count_; }
 
   ZoneVector<uint8_t> bytecodes_;
-  int max_register_count_;
   int unbound_jumps_;
   SourcePositionTableBuilder source_position_table_builder_;
   ConstantArrayBuilder* constant_array_builder_;

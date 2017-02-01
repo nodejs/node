@@ -2,11 +2,19 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/v8.h"
-
+#include "src/factory.h"
 #include "src/identity-map.h"
-#include "src/zone.h"
-
+#include "src/isolate.h"
+#include "src/objects.h"
+#include "src/zone/zone.h"
+// FIXME(mstarzinger, marja): This is weird, but required because of the missing
+// (disallowed) include: src/factory.h -> src/objects-inl.h
+#include "src/objects-inl.h"
+// FIXME(mstarzinger, marja): This is weird, but required because of the missing
+// (disallowed) include: src/type-feedback-vector.h ->
+// src/type-feedback-vector-inl.h
+#include "src/type-feedback-vector-inl.h"
+#include "src/v8.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -327,7 +335,7 @@ TEST(ExplicitGC) {
   }
 
   // Do an explicit, real GC.
-  t.heap()->CollectGarbage(i::NEW_SPACE);
+  t.heap()->CollectGarbage(i::NEW_SPACE, i::GarbageCollectionReason::kTesting);
 
   // Check that searching for the numbers finds the same values.
   for (size_t i = 0; i < arraysize(num_keys); i++) {
@@ -379,7 +387,7 @@ TEST(CanonicalHandleScope) {
   Handle<String> string2(*string1);
   CHECK_EQ(number1.location(), number2.location());
   CHECK_EQ(string1.location(), string2.location());
-  heap->CollectAllGarbage();
+  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
   Handle<HeapNumber> number3(*number2);
   Handle<String> string3(*string2);
   CHECK_EQ(number1.location(), number3.location());

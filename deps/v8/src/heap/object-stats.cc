@@ -42,6 +42,16 @@ V8_NOINLINE static void PrintJSONArray(size_t* array, const int len) {
   PrintF(" ]");
 }
 
+V8_NOINLINE static void DumpJSONArray(std::stringstream& stream, size_t* array,
+                                      const int len) {
+  stream << "[";
+  for (int i = 0; i < len; i++) {
+    stream << array[i];
+    if (i != (len - 1)) stream << ",";
+  }
+  stream << "]";
+}
+
 void ObjectStats::PrintJSON(const char* key) {
   double time = isolate()->time_millis_since_init();
   int gc_count = heap()->gc_count();
@@ -96,6 +106,60 @@ void ObjectStats::PrintJSON(const char* key) {
   CODE_KIND_LIST(CODE_KIND_WRAPPER)
   FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(FIXED_ARRAY_SUB_INSTANCE_TYPE_WRAPPER)
   CODE_AGE_LIST_COMPLETE(CODE_AGE_WRAPPER)
+
+#undef INSTANCE_TYPE_WRAPPER
+#undef CODE_KIND_WRAPPER
+#undef FIXED_ARRAY_SUB_INSTANCE_TYPE_WRAPPER
+#undef CODE_AGE_WRAPPER
+#undef PRINT_INSTANCE_TYPE_DATA
+#undef PRINT_KEY_AND_ID
+}
+
+void ObjectStats::Dump(std::stringstream& stream) {
+  double time = isolate()->time_millis_since_init();
+  int gc_count = heap()->gc_count();
+
+  stream << "{";
+  stream << "\"isolate\":\"" << reinterpret_cast<void*>(isolate()) << "\",";
+  stream << "\"id\":" << gc_count << ",";
+  stream << "\"time\":" << time << ",";
+  stream << "\"bucket_sizes\":[";
+  for (int i = 0; i < kNumberOfBuckets; i++) {
+    stream << (1 << (kFirstBucketShift + i));
+    if (i != (kNumberOfBuckets - 1)) stream << ",";
+  }
+  stream << "],";
+  stream << "\"type_data\":{";
+
+#define PRINT_INSTANCE_TYPE_DATA(name, index)                                \
+  stream << "\"" << name << "\":{";                                          \
+  stream << "\"type\":" << static_cast<int>(index) << ",";                   \
+  stream << "\"overall\":" << object_sizes_[index] << ",";                   \
+  stream << "\"count\":" << object_counts_[index] << ",";                    \
+  stream << "\"over_allocated\":" << over_allocated_[index] << ",";          \
+  stream << "\"histogram\":";                                                \
+  DumpJSONArray(stream, size_histogram_[index], kNumberOfBuckets);           \
+  stream << ",\"over_allocated_histogram\":";                                \
+  DumpJSONArray(stream, over_allocated_histogram_[index], kNumberOfBuckets); \
+  stream << "},";
+
+#define INSTANCE_TYPE_WRAPPER(name) PRINT_INSTANCE_TYPE_DATA(#name, name)
+#define CODE_KIND_WRAPPER(name)            \
+  PRINT_INSTANCE_TYPE_DATA("*CODE_" #name, \
+                           FIRST_CODE_KIND_SUB_TYPE + Code::name)
+#define FIXED_ARRAY_SUB_INSTANCE_TYPE_WRAPPER(name) \
+  PRINT_INSTANCE_TYPE_DATA("*FIXED_ARRAY_" #name,   \
+                           FIRST_FIXED_ARRAY_SUB_TYPE + name)
+#define CODE_AGE_WRAPPER(name) \
+  PRINT_INSTANCE_TYPE_DATA(    \
+      "*CODE_AGE_" #name,      \
+      FIRST_CODE_AGE_SUB_TYPE + Code::k##name##CodeAge - Code::kFirstCodeAge)
+
+  INSTANCE_TYPE_LIST(INSTANCE_TYPE_WRAPPER);
+  CODE_KIND_LIST(CODE_KIND_WRAPPER);
+  FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(FIXED_ARRAY_SUB_INSTANCE_TYPE_WRAPPER);
+  CODE_AGE_LIST_COMPLETE(CODE_AGE_WRAPPER);
+  stream << "\"END\":{}}}";
 
 #undef INSTANCE_TYPE_WRAPPER
 #undef CODE_KIND_WRAPPER
@@ -246,8 +310,6 @@ void ObjectStatsCollector::CollectGlobalStatistics() {
                         OBJECT_TO_CODE_SUB_TYPE);
   RecordHashTableHelper(nullptr, heap_->code_stubs(),
                         CODE_STUBS_TABLE_SUB_TYPE);
-  RecordHashTableHelper(nullptr, heap_->intrinsic_function_names(),
-                        INTRINSIC_FUNCTION_NAMES_SUB_TYPE);
   RecordHashTableHelper(nullptr, heap_->empty_properties_dictionary(),
                         EMPTY_PROPERTIES_DICTIONARY_SUB_TYPE);
   CompilationCache* compilation_cache = heap_->isolate()->compilation_cache();
@@ -447,9 +509,11 @@ void ObjectStatsCollector::RecordCodeDetails(Code* code) {
   if (code->kind() == Code::Kind::OPTIMIZED_FUNCTION) {
     DeoptimizationInputData* input_data =
         DeoptimizationInputData::cast(code->deoptimization_data());
-    RecordFixedArrayHelper(code->deoptimization_data(),
-                           input_data->LiteralArray(),
-                           OPTIMIZED_CODE_LITERALS_SUB_TYPE, 0);
+    if (input_data->length() > 0) {
+      RecordFixedArrayHelper(code->deoptimization_data(),
+                             input_data->LiteralArray(),
+                             OPTIMIZED_CODE_LITERALS_SUB_TYPE, 0);
+    }
   }
   RecordFixedArrayHelper(code, code->handler_table(), HANDLER_TABLE_SUB_TYPE,
                          0);

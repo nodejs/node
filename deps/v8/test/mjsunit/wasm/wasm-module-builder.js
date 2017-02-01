@@ -61,7 +61,7 @@ class Binary extends Array {
 
   emit_section(section_code, content_generator) {
     // Emit section name.
-    this.emit_string(section_names[section_code]);
+    this.emit_u8(section_code);
     // Emit the section to a temporary buffer: its full length isn't know yet.
     let section = new Binary;
     content_generator(section);
@@ -104,6 +104,7 @@ class WasmModuleBuilder {
   constructor() {
     this.types = [];
     this.imports = [];
+    this.globals = [];
     this.functions = [];
     this.exports = [];
     this.table = [];
@@ -138,10 +139,15 @@ class WasmModuleBuilder {
     return this.types.length - 1;
   }
 
+  addGlobal(local_type) {
+    this.globals.push(local_type);
+    return this.globals.length - 1;
+  }
+
   addFunction(name, type) {
     let type_index = (typeof type) == "number" ? type : this.addType(type);
     let func = new WasmFunctionBuilder(name, type_index);
-    func.index = this.functions.length;
+    func.index = this.functions.length + this.imports.length;
     this.functions.push(func);
     return func;
   }
@@ -176,7 +182,7 @@ class WasmModuleBuilder {
     // Add type section
     if (wasm.types.length > 0) {
       if (debug) print("emitting types @ " + binary.length);
-      binary.emit_section(kDeclTypes, section => {
+      binary.emit_section(kTypeSectionCode, section => {
         section.emit_varint(wasm.types.length);
         for (let type of wasm.types) {
           section.emit_u8(kWasmFunctionTypeForm);
@@ -195,12 +201,13 @@ class WasmModuleBuilder {
     // Add imports section
     if (wasm.imports.length > 0) {
       if (debug) print("emitting imports @ " + binary.length);
-      binary.emit_section(kDeclImports, section => {
+      binary.emit_section(kImportSectionCode, section => {
         section.emit_varint(wasm.imports.length);
         for (let imp of wasm.imports) {
-          section.emit_varint(imp.type);
           section.emit_string(imp.module);
           section.emit_string(imp.name || '');
+          section.emit_u8(kExternalFunction);
+          section.emit_varint(imp.type);
         }
       });
     }
@@ -211,7 +218,7 @@ class WasmModuleBuilder {
     let exports = 0;
     if (wasm.functions.length > 0) {
       if (debug) print("emitting function decls @ " + binary.length);
-      binary.emit_section(kDeclFunctions, section => {
+      binary.emit_section(kFunctionSectionCode, section => {
         section.emit_varint(wasm.functions.length);
         for (let func of wasm.functions) {
           has_names = has_names || (func.name != undefined &&
@@ -225,39 +232,75 @@ class WasmModuleBuilder {
     // Add table.
     if (wasm.table.length > 0) {
       if (debug) print("emitting table @ " + binary.length);
-      binary.emit_section(kDeclTable, section => {
+      binary.emit_section(kTableSectionCode, section => {
+        section.emit_u8(1);  // one table entry
+        section.emit_u8(kWasmAnyFunctionTypeForm);
+        section.emit_u8(1);
         section.emit_varint(wasm.table.length);
-        if (wasm.pad !== null) {
-          if (debug) print("emitting table padding @ " + binary.length);
-          section.emit_varint(wasm.pad);
-        }
-        for (let index of wasm.table) {
-          section.emit_varint(index);
-        }
+        section.emit_varint(wasm.table.length);
       });
     }
 
     // Add memory section
     if (wasm.memory != undefined) {
       if (debug) print("emitting memory @ " + binary.length);
-      binary.emit_section(kDeclMemory, section => {
+      binary.emit_section(kMemorySectionCode, section => {
+        section.emit_u8(1);  // one memory entry
+        section.emit_varint(kResizableMaximumFlag);
         section.emit_varint(wasm.memory.min);
         section.emit_varint(wasm.memory.max);
-        section.emit_u8(wasm.memory.exp ? 1 : 0);
       });
     }
 
+    // Add global section.
+    if (wasm.globals.length > 0) {
+      if (debug) print ("emitting globals @ " + binary.length);
+      binary.emit_section(kGlobalSectionCode, section => {
+        section.emit_varint(wasm.globals.length);
+        for (let global_type of wasm.globals) {
+          section.emit_u8(global_type);
+          section.emit_u8(true);  // mutable
+          switch (global_type) {
+            case kAstI32:
+              section.emit_u8(kExprI32Const);
+              section.emit_u8(0);
+              break;
+            case kAstI64:
+              section.emit_u8(kExprI64Const);
+              section.emit_u8(0);
+              break;
+            case kAstF32:
+              section.emit_u8(kExprF32Const);
+              section.emit_u32(0);
+              break;
+            case kAstF64:
+              section.emit_u8(kExprI32Const);
+              section.emit_u32(0);
+              section.emit_u32(0);
+              break;
+          }
+          section.emit_u8(kExprEnd);  // end of init expression
+        }
+      });
+    }
 
     // Add export table.
-    if (exports > 0) {
+    var mem_export = (wasm.memory != undefined && wasm.memory.exp);
+    if (exports > 0 || mem_export) {
       if (debug) print("emitting exports @ " + binary.length);
-      binary.emit_section(kDeclExports, section => {
-        section.emit_varint(exports);
+      binary.emit_section(kExportSectionCode, section => {
+        section.emit_varint(exports + (mem_export ? 1 : 0));
         for (let func of wasm.functions) {
           for (let exp of func.exports) {
-            section.emit_varint(func.index);
             section.emit_string(exp);
+            section.emit_u8(kExternalFunction);
+            section.emit_varint(func.index);
           }
+        }
+        if (mem_export) {
+          section.emit_string("memory");
+          section.emit_u8(kExternalMemory);
+          section.emit_u8(0);
         }
       });
     }
@@ -265,8 +308,24 @@ class WasmModuleBuilder {
     // Add start function section.
     if (wasm.start_index != undefined) {
       if (debug) print("emitting start function @ " + binary.length);
-      binary.emit_section(kDeclStart, section => {
+      binary.emit_section(kStartSectionCode, section => {
         section.emit_varint(wasm.start_index);
+      });
+    }
+
+    // Add table elements.
+    if (wasm.table.length > 0) {
+      if (debug) print("emitting table @ " + binary.length);
+      binary.emit_section(kElementSectionCode, section => {
+        section.emit_u8(1);
+        section.emit_u8(0); // table index
+        section.emit_u8(kExprI32Const);
+        section.emit_u8(0);
+        section.emit_u8(kExprEnd);
+        section.emit_varint(wasm.table.length);
+        for (let index of wasm.table) {
+          section.emit_varint(index);
+        }
       });
     }
 
@@ -274,7 +333,7 @@ class WasmModuleBuilder {
     if (wasm.functions.length > 0) {
       // emit function bodies
       if (debug) print("emitting code @ " + binary.length);
-      binary.emit_section(kDeclCode, section => {
+      binary.emit_section(kCodeSectionCode, section => {
         section.emit_varint(wasm.functions.length);
         for (let func of wasm.functions) {
           // Function body length will be patched later.
@@ -313,10 +372,13 @@ class WasmModuleBuilder {
     // Add data segments.
     if (wasm.segments.length > 0) {
       if (debug) print("emitting data segments @ " + binary.length);
-      binary.emit_section(kDeclData, section => {
+      binary.emit_section(kDataSectionCode, section => {
         section.emit_varint(wasm.segments.length);
         for (let seg of wasm.segments) {
+          section.emit_u8(0);  // linear memory index 0
+          section.emit_u8(kExprI32Const);
           section.emit_varint(seg.addr);
+          section.emit_u8(kExprEnd);
           section.emit_varint(seg.data.length);
           section.emit_bytes(seg.data);
         }
@@ -332,7 +394,8 @@ class WasmModuleBuilder {
     // Add function names.
     if (has_names) {
       if (debug) print("emitting names @ " + binary.length);
-      binary.emit_section(kDeclNames, section => {
+      binary.emit_section(kUnknownSectionCode, section => {
+        section.emit_string("name");
         section.emit_varint(wasm.functions.length);
         for (let func of wasm.functions) {
           var name = func.name == undefined ? "" : func.name;

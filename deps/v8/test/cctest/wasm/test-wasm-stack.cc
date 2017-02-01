@@ -6,8 +6,8 @@
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
-#include "test/cctest/wasm/test-signatures.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
+#include "test/common/wasm/test-signatures.h"
 
 using namespace v8::base;
 using namespace v8::internal;

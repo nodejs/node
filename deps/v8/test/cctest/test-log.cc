@@ -34,13 +34,13 @@
 #include <cmath>
 #endif  // __linux__
 
-#include "src/v8.h"
-
-#include "src/log.h"
+#include "src/api.h"
 #include "src/log-utils.h"
+#include "src/log.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/snapshot/natives.h"
 #include "src/utils.h"
+#include "src/v8.h"
 #include "src/v8threads.h"
 #include "src/version.h"
 #include "src/vm-state-inl.h"
@@ -486,7 +486,7 @@ TEST(EquivalenceOfLoggingAndTraversal) {
         "})(this);");
     logger->StopProfiler();
     reinterpret_cast<i::Isolate*>(isolate)->heap()->CollectAllGarbage(
-        i::Heap::kMakeHeapIterableMask);
+        i::Heap::kMakeHeapIterableMask, i::GarbageCollectionReason::kTesting);
     logger->StringEvent("test-logging-done", "");
 
     // Iterate heap to find compiled functions, will write to log.

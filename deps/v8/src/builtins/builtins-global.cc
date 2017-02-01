@@ -5,6 +5,7 @@
 #include "src/builtins/builtins.h"
 #include "src/builtins/builtins-utils.h"
 
+#include "src/code-factory.h"
 #include "src/compiler.h"
 #include "src/uri.h"
 
@@ -97,6 +98,114 @@ BUILTIN(GlobalEval) {
   RETURN_RESULT_OR_FAILURE(
       isolate,
       Execution::Call(isolate, function, target_global_proxy, 0, nullptr));
+}
+
+// ES6 section 18.2.2 isFinite ( number )
+void Builtins::Generate_GlobalIsFinite(CodeStubAssembler* assembler) {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Variable Variable;
+
+  Node* context = assembler->Parameter(4);
+
+  Label return_true(assembler), return_false(assembler);
+
+  // We might need to loop once for ToNumber conversion.
+  Variable var_num(assembler, MachineRepresentation::kTagged);
+  Label loop(assembler, &var_num);
+  var_num.Bind(assembler->Parameter(1));
+  assembler->Goto(&loop);
+  assembler->Bind(&loop);
+  {
+    // Load the current {num} value.
+    Node* num = var_num.value();
+
+    // Check if {num} is a Smi or a HeapObject.
+    assembler->GotoIf(assembler->WordIsSmi(num), &return_true);
+
+    // Check if {num} is a HeapNumber.
+    Label if_numisheapnumber(assembler),
+        if_numisnotheapnumber(assembler, Label::kDeferred);
+    assembler->Branch(assembler->WordEqual(assembler->LoadMap(num),
+                                           assembler->HeapNumberMapConstant()),
+                      &if_numisheapnumber, &if_numisnotheapnumber);
+
+    assembler->Bind(&if_numisheapnumber);
+    {
+      // Check if {num} contains a finite, non-NaN value.
+      Node* num_value = assembler->LoadHeapNumberValue(num);
+      assembler->BranchIfFloat64IsNaN(
+          assembler->Float64Sub(num_value, num_value), &return_false,
+          &return_true);
+    }
+
+    assembler->Bind(&if_numisnotheapnumber);
+    {
+      // Need to convert {num} to a Number first.
+      Callable callable = CodeFactory::NonNumberToNumber(assembler->isolate());
+      var_num.Bind(assembler->CallStub(callable, context, num));
+      assembler->Goto(&loop);
+    }
+  }
+
+  assembler->Bind(&return_true);
+  assembler->Return(assembler->BooleanConstant(true));
+
+  assembler->Bind(&return_false);
+  assembler->Return(assembler->BooleanConstant(false));
+}
+
+// ES6 section 18.2.3 isNaN ( number )
+void Builtins::Generate_GlobalIsNaN(CodeStubAssembler* assembler) {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Variable Variable;
+
+  Node* context = assembler->Parameter(4);
+
+  Label return_true(assembler), return_false(assembler);
+
+  // We might need to loop once for ToNumber conversion.
+  Variable var_num(assembler, MachineRepresentation::kTagged);
+  Label loop(assembler, &var_num);
+  var_num.Bind(assembler->Parameter(1));
+  assembler->Goto(&loop);
+  assembler->Bind(&loop);
+  {
+    // Load the current {num} value.
+    Node* num = var_num.value();
+
+    // Check if {num} is a Smi or a HeapObject.
+    assembler->GotoIf(assembler->WordIsSmi(num), &return_false);
+
+    // Check if {num} is a HeapNumber.
+    Label if_numisheapnumber(assembler),
+        if_numisnotheapnumber(assembler, Label::kDeferred);
+    assembler->Branch(assembler->WordEqual(assembler->LoadMap(num),
+                                           assembler->HeapNumberMapConstant()),
+                      &if_numisheapnumber, &if_numisnotheapnumber);
+
+    assembler->Bind(&if_numisheapnumber);
+    {
+      // Check if {num} contains a NaN.
+      Node* num_value = assembler->LoadHeapNumberValue(num);
+      assembler->BranchIfFloat64IsNaN(num_value, &return_true, &return_false);
+    }
+
+    assembler->Bind(&if_numisnotheapnumber);
+    {
+      // Need to convert {num} to a Number first.
+      Callable callable = CodeFactory::NonNumberToNumber(assembler->isolate());
+      var_num.Bind(assembler->CallStub(callable, context, num));
+      assembler->Goto(&loop);
+    }
+  }
+
+  assembler->Bind(&return_true);
+  assembler->Return(assembler->BooleanConstant(true));
+
+  assembler->Bind(&return_false);
+  assembler->Return(assembler->BooleanConstant(false));
 }
 
 }  // namespace internal

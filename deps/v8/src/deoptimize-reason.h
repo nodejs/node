@@ -23,6 +23,7 @@ namespace internal {
   V(ForcedDeoptToRuntime, "Forced deopt to runtime")                          \
   V(Hole, "hole")                                                             \
   V(InstanceMigrationFailed, "instance migration failed")                     \
+  V(InsufficientTypeFeedbackForCall, "Insufficient type feedback for call")   \
   V(InsufficientTypeFeedbackForCallWithArguments,                             \
     "Insufficient type feedback for call with arguments")                     \
   V(FastPathFailed, "Falling off the fast path")                              \
@@ -68,7 +69,6 @@ namespace internal {
     "Unexpected cell contents in global store")                               \
   V(UnexpectedObject, "unexpected object")                                    \
   V(UnexpectedRHSOfBinaryOperation, "Unexpected RHS of binary operation")     \
-  V(UninitializedBoilerplateLiterals, "Uninitialized boilerplate literals")   \
   V(UnknownMapInPolymorphicAccess, "Unknown map in polymorphic access")       \
   V(UnknownMapInPolymorphicCall, "Unknown map in polymorphic call")           \
   V(UnknownMapInPolymorphicElementAccess,                                     \
@@ -90,7 +90,7 @@ std::ostream& operator<<(std::ostream&, DeoptimizeReason);
 
 size_t hash_value(DeoptimizeReason reason);
 
-char const* const DeoptimizeReasonToString(DeoptimizeReason reason);
+char const* DeoptimizeReasonToString(DeoptimizeReason reason);
 
 }  // namespace internal
 }  // namespace v8

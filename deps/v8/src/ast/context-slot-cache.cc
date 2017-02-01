@@ -8,6 +8,13 @@
 
 #include "src/ast/scopes.h"
 #include "src/bootstrapper.h"
+// FIXME(mstarzinger, marja): This is weird, but required because of the missing
+// (disallowed) include: src/factory.h -> src/objects-inl.h
+#include "src/objects-inl.h"
+// FIXME(mstarzinger, marja): This is weird, but required because of the missing
+// (disallowed) include: src/type-feedback-vector.h ->
+// src/type-feedback-vector-inl.h
+#include "src/type-feedback-vector-inl.h"
 
 namespace v8 {
 namespace internal {

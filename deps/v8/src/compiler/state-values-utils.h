@@ -55,7 +55,7 @@ class StateValuesCache {
   Zone* zone() { return graph()->zone(); }
 
   JSGraph* js_graph_;
-  ZoneHashMap hash_map_;
+  CustomMatcherZoneHashMap hash_map_;
   ZoneVector<NodeVector*> working_space_;  // One working space per level.
   Node* empty_state_values_;
 };

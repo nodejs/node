@@ -7,6 +7,7 @@
 
 #include <unordered_set>
 
+#include "src/base/platform/mutex.h"
 #include "src/globals.h"
 
 namespace v8 {
@@ -114,13 +115,16 @@ class CodeEventDispatcher {
   CodeEventDispatcher() {}
 
   bool AddListener(CodeEventListener* listener) {
+    base::LockGuard<base::Mutex> guard(&mutex_);
     return listeners_.insert(listener).second;
   }
   void RemoveListener(CodeEventListener* listener) {
+    base::LockGuard<base::Mutex> guard(&mutex_);
     listeners_.erase(listener);
   }
 
-#define CODE_EVENT_DISPATCH(code) \
+#define CODE_EVENT_DISPATCH(code)              \
+  base::LockGuard<base::Mutex> guard(&mutex_); \
   for (auto it = listeners_.begin(); it != listeners_.end(); ++it) (*it)->code
 
   void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
@@ -173,6 +177,7 @@ class CodeEventDispatcher {
 
  private:
   std::unordered_set<CodeEventListener*> listeners_;
+  base::Mutex mutex_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeEventDispatcher);
 };

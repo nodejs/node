@@ -30,6 +30,7 @@
 #include "src/v8.h"
 
 #include "src/ast/ast.h"
+#include "src/zone/accounting-allocator.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
@@ -38,7 +39,7 @@ TEST(List) {
   List<AstNode*>* list = new List<AstNode*>(0);
   CHECK_EQ(0, list->length());
 
-  v8::base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator);
   AstValueFactory value_factory(&zone, 0);
   AstNodeFactory factory(&value_factory);
@@ -57,4 +58,44 @@ TEST(List) {
   list->Clear();
   CHECK_EQ(0, list->length());
   delete list;
+}
+
+TEST(ConcatStrings) {
+  v8::internal::AccountingAllocator allocator;
+  Zone zone(&allocator);
+  AstValueFactory value_factory(&zone, 0);
+
+  const AstRawString* one_byte = value_factory.GetOneByteString("a");
+
+  uint16_t two_byte_buffer[] = {
+      0x3b1,
+  };
+  const AstRawString* two_byte = value_factory.GetTwoByteString(
+      Vector<const uint16_t>(two_byte_buffer, 1));
+
+  const AstRawString* expectation = value_factory.GetOneByteString("aa");
+  const AstRawString* result = value_factory.ConcatStrings(one_byte, one_byte);
+  CHECK(result->is_one_byte());
+  CHECK_EQ(expectation, result);
+
+  uint16_t expectation_buffer_one_two[] = {'a', 0x3b1};
+  expectation = value_factory.GetTwoByteString(
+      Vector<const uint16_t>(expectation_buffer_one_two, 2));
+  result = value_factory.ConcatStrings(one_byte, two_byte);
+  CHECK(!result->is_one_byte());
+  CHECK_EQ(expectation, result);
+
+  uint16_t expectation_buffer_two_one[] = {0x3b1, 'a'};
+  expectation = value_factory.GetTwoByteString(
+      Vector<const uint16_t>(expectation_buffer_two_one, 2));
+  result = value_factory.ConcatStrings(two_byte, one_byte);
+  CHECK(!result->is_one_byte());
+  CHECK_EQ(expectation, result);
+
+  uint16_t expectation_buffer_two_two[] = {0x3b1, 0x3b1};
+  expectation = value_factory.GetTwoByteString(
+      Vector<const uint16_t>(expectation_buffer_two_two, 2));
+  result = value_factory.ConcatStrings(two_byte, two_byte);
+  CHECK(!result->is_one_byte());
+  CHECK_EQ(expectation, result);
 }

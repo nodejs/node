@@ -14,30 +14,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-namespace {
-
-VectorSlotPair CallCountFeedback(VectorSlotPair p) {
-  // Extract call count from {p}.
-  if (!p.IsValid()) return VectorSlotPair();
-  CallICNexus n(p.vector(), p.slot());
-  int const call_count = n.ExtractCallCount();
-  if (call_count <= 0) return VectorSlotPair();
-
-  // Create megamorphic CallIC feedback with the given {call_count}.
-  StaticFeedbackVectorSpec spec;
-  FeedbackVectorSlot slot = spec.AddCallICSlot();
-  Handle<TypeFeedbackMetadata> metadata =
-      TypeFeedbackMetadata::New(n.GetIsolate(), &spec);
-  Handle<TypeFeedbackVector> vector =
-      TypeFeedbackVector::New(n.GetIsolate(), metadata);
-  CallICNexus nexus(vector, slot);
-  nexus.ConfigureMegamorphic(call_count);
-  return VectorSlotPair(vector, slot);
-}
-
-}  // namespace
-
-
 Reduction JSCallReducer::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kJSCallConstruct:
@@ -166,7 +142,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
   }
   // Change {node} to the new {JSCallFunction} operator.
   NodeProperties::ChangeOp(
-      node, javascript()->CallFunction(arity, CallCountFeedback(p.feedback()),
+      node, javascript()->CallFunction(arity, p.frequency(), VectorSlotPair(),
                                        convert_mode, p.tail_call_mode()));
   // Change context of {node} to the Function.prototype.apply context,
   // to ensure any exception is thrown in the correct context.
@@ -206,7 +182,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeCall(Node* node) {
     --arity;
   }
   NodeProperties::ChangeOp(
-      node, javascript()->CallFunction(arity, CallCountFeedback(p.feedback()),
+      node, javascript()->CallFunction(arity, p.frequency(), VectorSlotPair(),
                                        convert_mode, p.tail_call_mode()));
   // Try to further reduce the JSCallFunction {node}.
   Reduction const reduction = ReduceJSCallFunction(node);
@@ -287,7 +263,7 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
         arity++;
       }
       NodeProperties::ChangeOp(node, javascript()->CallFunction(
-                                         arity, CallCountFeedback(p.feedback()),
+                                         arity, p.frequency(), VectorSlotPair(),
                                          convert_mode, p.tail_call_mode()));
       // Try to further reduce the JSCallFunction {node}.
       Reduction const reduction = ReduceJSCallFunction(node);
@@ -305,6 +281,20 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
   // Extract feedback from the {node} using the CallICNexus.
   if (!p.feedback().IsValid()) return NoChange();
   CallICNexus nexus(p.feedback().vector(), p.feedback().slot());
+  if (nexus.IsUninitialized() && (flags() & kBailoutOnUninitialized)) {
+    Node* frame_state = NodeProperties::FindFrameStateBefore(node);
+    Node* deoptimize = graph()->NewNode(
+        common()->Deoptimize(
+            DeoptimizeKind::kSoft,
+            DeoptimizeReason::kInsufficientTypeFeedbackForCall),
+        frame_state, effect, control);
+    // TODO(bmeurer): This should be on the AdvancedReducer somehow.
+    NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
+    Revisit(graph()->end());
+    node->TrimInputCount(0);
+    NodeProperties::ChangeOp(node, common()->Dead());
+    return Changed(node);
+  }
   Handle<Object> feedback(nexus.GetFeedback(), isolate());
   if (feedback->IsAllocationSite()) {
     // Retrieve the Array function from the {node}.
@@ -386,8 +376,8 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
         // Check if we have an allocation site.
         Handle<AllocationSite> site;
         if (p.feedback().IsValid()) {
-          Handle<Object> feedback(
-              p.feedback().vector()->Get(p.feedback().slot()), isolate());
+          CallICNexus nexus(p.feedback().vector(), p.feedback().slot());
+          Handle<Object> feedback(nexus.GetFeedback(), isolate());
           if (feedback->IsAllocationSite()) {
             site = Handle<AllocationSite>::cast(feedback);
           }
@@ -412,10 +402,9 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
   // Not much we can do if deoptimization support is disabled.
   if (!(flags() & kDeoptimizationEnabled)) return NoChange();
 
-  // TODO(mvstanton): Use ConstructICNexus here, once available.
-  Handle<Object> feedback;
   if (!p.feedback().IsValid()) return NoChange();
-  feedback = handle(p.feedback().vector()->Get(p.feedback().slot()), isolate());
+  CallICNexus nexus(p.feedback().vector(), p.feedback().slot());
+  Handle<Object> feedback(nexus.GetFeedback(), isolate());
   if (feedback->IsAllocationSite()) {
     // The feedback is an AllocationSite, which means we have called the
     // Array function and collected transition (and pretenuring) feedback

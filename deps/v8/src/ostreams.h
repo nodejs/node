@@ -13,6 +13,7 @@
 
 #include "include/v8config.h"
 #include "src/base/macros.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -33,7 +34,7 @@ class OFStreamBase : public std::streambuf {
 
 
 // An output stream writing to a file.
-class OFStream : public std::ostream {
+class V8_EXPORT_PRIVATE OFStream : public std::ostream {
  public:
   explicit OFStream(FILE* f);
   virtual ~OFStream();

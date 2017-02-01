@@ -39,9 +39,14 @@ void SetTracingController(
 const int DefaultPlatform::kMaxThreadPoolSize = 8;
 
 DefaultPlatform::DefaultPlatform()
-    : initialized_(false), thread_pool_size_(0), tracing_controller_(NULL) {}
+    : initialized_(false), thread_pool_size_(0) {}
 
 DefaultPlatform::~DefaultPlatform() {
+  if (tracing_controller_) {
+    tracing_controller_->StopTracing();
+    tracing_controller_.reset();
+  }
+
   base::LockGuard<base::Mutex> guard(&lock_);
   queue_.Terminate();
   if (initialized_) {
@@ -62,11 +67,6 @@ DefaultPlatform::~DefaultPlatform() {
       delete i->second.top().second;
       i->second.pop();
     }
-  }
-
-  if (tracing_controller_) {
-    tracing_controller_->StopTracing();
-    delete tracing_controller_;
   }
 }
 
@@ -178,16 +178,17 @@ double DefaultPlatform::MonotonicallyIncreasingTime() {
          static_cast<double>(base::Time::kMicrosecondsPerSecond);
 }
 
-
 uint64_t DefaultPlatform::AddTraceEvent(
     char phase, const uint8_t* category_enabled_flag, const char* name,
     const char* scope, uint64_t id, uint64_t bind_id, int num_args,
     const char** arg_names, const uint8_t* arg_types,
-    const uint64_t* arg_values, unsigned int flags) {
+    const uint64_t* arg_values,
+    std::unique_ptr<v8::ConvertableToTraceFormat>* arg_convertables,
+    unsigned int flags) {
   if (tracing_controller_) {
     return tracing_controller_->AddTraceEvent(
         phase, category_enabled_flag, name, scope, id, bind_id, num_args,
-        arg_names, arg_types, arg_values, flags);
+        arg_names, arg_types, arg_values, arg_convertables, flags);
   }
 
   return 0;
@@ -218,11 +219,21 @@ const char* DefaultPlatform::GetCategoryGroupName(
 
 void DefaultPlatform::SetTracingController(
     tracing::TracingController* tracing_controller) {
-  tracing_controller_ = tracing_controller;
+  tracing_controller_.reset(tracing_controller);
 }
 
 size_t DefaultPlatform::NumberOfAvailableBackgroundThreads() {
   return static_cast<size_t>(thread_pool_size_);
+}
+
+void DefaultPlatform::AddTraceStateObserver(TraceStateObserver* observer) {
+  if (!tracing_controller_) return;
+  tracing_controller_->AddTraceStateObserver(observer);
+}
+
+void DefaultPlatform::RemoveTraceStateObserver(TraceStateObserver* observer) {
+  if (!tracing_controller_) return;
+  tracing_controller_->RemoveTraceStateObserver(observer);
 }
 
 }  // namespace platform

@@ -3,8 +3,6 @@
 #
 
 ---
-pool type: string
-execute: yes
 wrap: no
 test function name: f
 
@@ -19,13 +17,13 @@ parameter count: 1
 bytecode array length: 9
 bytecodes: [
   /*   26 E> */ B(StackCheck),
-  /*   31 S> */ B(LdaGlobal), U8(1),
-                B(Inc), U8(5),
-  /*   40 E> */ B(StaGlobalSloppy), U8(0), U8(3),
+  /*   31 S> */ B(LdaGlobal), U8(2),
+                B(Inc), U8(6),
+  /*   40 E> */ B(StaGlobalSloppy), U8(0), U8(4),
   /*   48 S> */ B(Return),
 ]
 constant pool: [
-  "global",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["global"],
 ]
 handlers: [
 ]
@@ -41,15 +39,15 @@ parameter count: 1
 bytecode array length: 13
 bytecodes: [
   /*   26 E> */ B(StackCheck),
-  /*   31 S> */ B(LdaGlobal), U8(1),
+  /*   31 S> */ B(LdaGlobal), U8(2),
                 B(ToNumber), R(0),
-                B(Dec), U8(5),
-  /*   44 E> */ B(StaGlobalSloppy), U8(0), U8(3),
+                B(Dec), U8(6),
+  /*   44 E> */ B(StaGlobalSloppy), U8(0), U8(4),
                 B(Ldar), R(0),
   /*   48 S> */ B(Return),
 ]
 constant pool: [
-  "global",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["global"],
 ]
 handlers: [
 ]
@@ -65,13 +63,13 @@ parameter count: 1
 bytecode array length: 9
 bytecodes: [
   /*   27 E> */ B(StackCheck),
-  /*   46 S> */ B(LdaGlobal), U8(1),
-                B(Dec), U8(5),
-  /*   55 E> */ B(StaGlobalStrict), U8(0), U8(3),
+  /*   46 S> */ B(LdaGlobal), U8(2),
+                B(Dec), U8(6),
+  /*   55 E> */ B(StaGlobalStrict), U8(0), U8(4),
   /*   68 S> */ B(Return),
 ]
 constant pool: [
-  "unallocated",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["unallocated"],
 ]
 handlers: [
 ]
@@ -87,15 +85,15 @@ parameter count: 1
 bytecode array length: 13
 bytecodes: [
   /*   27 E> */ B(StackCheck),
-  /*   32 S> */ B(LdaGlobal), U8(1),
+  /*   32 S> */ B(LdaGlobal), U8(2),
                 B(ToNumber), R(0),
-                B(Inc), U8(5),
-  /*   50 E> */ B(StaGlobalSloppy), U8(0), U8(3),
+                B(Inc), U8(6),
+  /*   50 E> */ B(StaGlobalSloppy), U8(0), U8(4),
                 B(Ldar), R(0),
   /*   54 S> */ B(Return),
 ]
 constant pool: [
-  "unallocated",
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["unallocated"],
 ]
 handlers: [
 ]

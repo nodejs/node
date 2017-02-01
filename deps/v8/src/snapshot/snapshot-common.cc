@@ -31,19 +31,6 @@ bool Snapshot::HasContextSnapshot(Isolate* isolate, size_t index) {
   return index < num_contexts;
 }
 
-
-uint32_t Snapshot::SizeOfFirstPage(Isolate* isolate, AllocationSpace space) {
-  DCHECK(space >= FIRST_PAGED_SPACE && space <= LAST_PAGED_SPACE);
-  if (!isolate->snapshot_available()) {
-    return static_cast<uint32_t>(MemoryAllocator::PageAreaSize(space));
-  }
-  uint32_t size;
-  int offset = kFirstPageSizesOffset + (space - FIRST_PAGED_SPACE) * kInt32Size;
-  memcpy(&size, isolate->snapshot_blob()->data + offset, kInt32Size);
-  return size;
-}
-
-
 bool Snapshot::Initialize(Isolate* isolate) {
   if (!isolate->snapshot_available()) return false;
   base::ElapsedTimer timer;
@@ -89,25 +76,8 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
   return Handle<Context>::cast(result);
 }
 
-void UpdateMaxRequirementPerPage(
-    uint32_t* requirements,
-    Vector<const SerializedData::Reservation> reservations) {
-  int space = 0;
-  uint32_t current_requirement = 0;
-  for (const auto& reservation : reservations) {
-    current_requirement += reservation.chunk_size();
-    if (reservation.is_last()) {
-      requirements[space] = std::max(requirements[space], current_requirement);
-      current_requirement = 0;
-      space++;
-    }
-  }
-  DCHECK_EQ(i::Serializer::kNumberOfSpaces, space);
-}
-
-void CalculateFirstPageSizes(const SnapshotData* startup_snapshot,
-                             const List<SnapshotData*>* context_snapshots,
-                             uint32_t* sizes_out) {
+void ProfileDeserialization(const SnapshotData* startup_snapshot,
+                            const List<SnapshotData*>* context_snapshots) {
   if (FLAG_profile_deserialization) {
     int startup_total = 0;
     PrintF("Deserialization will reserve:\n");
@@ -123,36 +93,6 @@ void CalculateFirstPageSizes(const SnapshotData* startup_snapshot,
       PrintF("%10d bytes per context #%d\n", context_total, i);
     }
   }
-
-  uint32_t startup_requirements[i::Serializer::kNumberOfSpaces];
-  uint32_t context_requirements[i::Serializer::kNumberOfSpaces];
-  for (int space = 0; space < i::Serializer::kNumberOfSpaces; space++) {
-    startup_requirements[space] = 0;
-    context_requirements[space] = 0;
-  }
-
-  UpdateMaxRequirementPerPage(startup_requirements,
-                              startup_snapshot->Reservations());
-  for (const auto& context_snapshot : *context_snapshots) {
-    UpdateMaxRequirementPerPage(context_requirements,
-                                context_snapshot->Reservations());
-  }
-
-  for (int space = 0; space < i::Serializer::kNumberOfSpaces; space++) {
-    // If the space requirement for a page is less than a page size, we consider
-    // limiting the size of the first page in order to save memory on startup.
-    uint32_t required = startup_requirements[space] +
-                        2 * context_requirements[space] +
-                        Page::kObjectStartOffset;
-    // Add a small allowance to the code space for small scripts.
-    if (space == CODE_SPACE) required += 32 * KB;
-
-    if (space >= FIRST_PAGED_SPACE && space <= LAST_PAGED_SPACE) {
-      uint32_t max_size =
-          MemoryAllocator::PageAreaSize(static_cast<AllocationSpace>(space));
-      sizes_out[space - FIRST_PAGED_SPACE] = std::min(required, max_size);
-    }
-  }
 }
 
 v8::StartupData Snapshot::CreateSnapshotBlob(
@@ -166,13 +106,9 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
     total_length += context_snapshot->RawData().length();
   }
 
-  uint32_t first_page_sizes[kNumPagedSpaces];
-  CalculateFirstPageSizes(startup_snapshot, context_snapshots,
-                          first_page_sizes);
+  ProfileDeserialization(startup_snapshot, context_snapshots);
 
   char* data = new char[total_length];
-  memcpy(data + kFirstPageSizesOffset, first_page_sizes,
-         kNumPagedSpaces * kInt32Size);
   memcpy(data + kNumberOfContextsOffset, &num_contexts, kInt32Size);
   int payload_offset = StartupSnapshotOffset(num_contexts);
   int payload_length = startup_snapshot->RawData().length();

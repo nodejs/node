@@ -27,6 +27,7 @@
 
 #include <stdlib.h>
 
+#include "src/flags.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 

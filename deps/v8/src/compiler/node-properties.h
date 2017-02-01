@@ -6,7 +6,7 @@
 #define V8_COMPILER_NODE_PROPERTIES_H_
 
 #include "src/compiler/node.h"
-#include "src/types.h"
+#include "src/compiler/types.h"
 
 namespace v8 {
 namespace internal {

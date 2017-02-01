@@ -12,9 +12,11 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 // Decodes the bytes of a WASM module between {module_start} and {module_end}.
-ModuleResult DecodeWasmModule(Isolate* isolate, Zone* zone,
-                              const byte* module_start, const byte* module_end,
-                              bool verify_functions, ModuleOrigin origin);
+V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(Isolate* isolate, Zone* zone,
+                                                const byte* module_start,
+                                                const byte* module_end,
+                                                bool verify_functions,
+                                                ModuleOrigin origin);
 
 // Exposed for testing. Decodes a single function signature, allocating it
 // in the given zone. Returns {nullptr} upon failure.
@@ -30,8 +32,11 @@ FunctionResult DecodeWasmFunction(Isolate* isolate, Zone* zone, ModuleEnv* env,
 // Extracts the function offset table from the wasm module bytes.
 // Returns a vector with <offset, length> entries, or failure if the wasm bytes
 // are detected as invalid. Note that this validation is not complete.
-FunctionOffsetsResult DecodeWasmFunctionOffsets(const byte* module_start,
-                                                const byte* module_end);
+FunctionOffsetsResult DecodeWasmFunctionOffsets(
+    const byte* module_start, const byte* module_end,
+    uint32_t num_imported_functions);
+
+WasmInitExpr DecodeWasmInitExprForTesting(const byte* start, const byte* end);
 
 }  // namespace wasm
 }  // namespace internal

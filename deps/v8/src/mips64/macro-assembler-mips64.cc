@@ -200,9 +200,7 @@ void MacroAssembler::InNewSpace(Register object,
                                 Condition cc,
                                 Label* branch) {
   DCHECK(cc == eq || cc == ne);
-  const int mask =
-      1 << MemoryChunk::IN_FROM_SPACE | 1 << MemoryChunk::IN_TO_SPACE;
-  CheckPageFlag(object, scratch, mask, cc, branch);
+  CheckPageFlag(object, scratch, MemoryChunk::kIsInNewSpaceMask, cc, branch);
 }
 
 
@@ -1260,8 +1258,13 @@ void MacroAssembler::Sltu(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     sltu(rd, rs, rt.rm());
   } else {
-    if (is_int16(rt.imm64_) && !MustUseReg(rt.rmode_)) {
+    const uint64_t int16_min = std::numeric_limits<int16_t>::min();
+    if (is_uint15(rt.imm64_) && !MustUseReg(rt.rmode_)) {
+      // Imm range is: [0, 32767].
       sltiu(rd, rs, static_cast<int32_t>(rt.imm64_));
+    } else if (is_uint15(rt.imm64_ - int16_min) && !MustUseReg(rt.rmode_)) {
+      // Imm range is: [max_unsigned-32767,max_unsigned].
+      sltiu(rd, rs, static_cast<uint16_t>(rt.imm64_));
     } else {
       // li handles the relocation.
       DCHECK(!rs.is(at));
@@ -1960,10 +1963,14 @@ void MacroAssembler::Ins(Register rt,
 }
 
 void MacroAssembler::Neg_s(FPURegister fd, FPURegister fs) {
-  Register scratch1 = t8;
-  Register scratch2 = t9;
-  if (kArchVariant == kMips64r2) {
+  if (kArchVariant == kMips64r6) {
+    // r6 neg_s changes the sign for NaN-like operands as well.
+    neg_s(fd, fs);
+  } else {
+    DCHECK(kArchVariant == kMips64r2);
     Label is_nan, done;
+    Register scratch1 = t8;
+    Register scratch2 = t9;
     BranchF32(nullptr, &is_nan, eq, fs, fs);
     Branch(USE_DELAY_SLOT, &done);
     // For NaN input, neg_s will return the same NaN value,
@@ -1977,21 +1984,18 @@ void MacroAssembler::Neg_s(FPURegister fd, FPURegister fs) {
     Or(scratch2, scratch2, scratch1);
     mtc1(scratch2, fd);
     bind(&done);
-  } else {
-    mfc1(scratch1, fs);
-    And(scratch2, scratch1, Operand(~kBinary32SignMask));
-    And(scratch1, scratch1, Operand(kBinary32SignMask));
-    Xor(scratch1, scratch1, Operand(kBinary32SignMask));
-    Or(scratch2, scratch2, scratch1);
-    mtc1(scratch2, fd);
   }
 }
 
 void MacroAssembler::Neg_d(FPURegister fd, FPURegister fs) {
-  Register scratch1 = t8;
-  Register scratch2 = t9;
-  if (kArchVariant == kMips64r2) {
+  if (kArchVariant == kMips64r6) {
+    // r6 neg_d changes the sign for NaN-like operands as well.
+    neg_d(fd, fs);
+  } else {
+    DCHECK(kArchVariant == kMips64r2);
     Label is_nan, done;
+    Register scratch1 = t8;
+    Register scratch2 = t9;
     BranchF64(nullptr, &is_nan, eq, fs, fs);
     Branch(USE_DELAY_SLOT, &done);
     // For NaN input, neg_d will return the same NaN value,
@@ -2005,13 +2009,6 @@ void MacroAssembler::Neg_d(FPURegister fd, FPURegister fs) {
     Or(scratch2, scratch2, scratch1);
     dmtc1(scratch2, fd);
     bind(&done);
-  } else {
-    dmfc1(scratch1, fs);
-    And(scratch2, scratch1, Operand(~Double::kSignMask));
-    And(scratch1, scratch1, Operand(Double::kSignMask));
-    Xor(scratch1, scratch1, Operand(Double::kSignMask));
-    Or(scratch2, scratch2, scratch1);
-    dmtc1(scratch2, fd);
   }
 }
 
@@ -2387,7 +2384,8 @@ void MacroAssembler::BranchFCommon(SecondaryField sizeField, Label* target,
   DCHECK(nan || target);
   // Check for unordered (NaN) cases.
   if (nan) {
-    bool long_branch = nan->is_bound() ? is_near(nan) : is_trampoline_emitted();
+    bool long_branch =
+        nan->is_bound() ? !is_near(nan) : is_trampoline_emitted();
     if (kArchVariant != kMips64r6) {
       if (long_branch) {
         Label skip;
@@ -2427,7 +2425,7 @@ void MacroAssembler::BranchFCommon(SecondaryField sizeField, Label* target,
 
   if (target) {
     bool long_branch =
-        target->is_bound() ? is_near(target) : is_trampoline_emitted();
+        target->is_bound() ? !is_near(target) : is_trampoline_emitted();
     if (long_branch) {
       Label skip;
       Condition neg_cond = NegateFpuCondition(cond);
@@ -4379,7 +4377,7 @@ void MacroAssembler::Allocate(int object_size,
                               Register scratch2,
                               Label* gc_required,
                               AllocationFlags flags) {
-  DCHECK(object_size <= Page::kMaxRegularHeapObjectSize);
+  DCHECK(object_size <= kMaxRegularHeapObjectSize);
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
       // Trash the registers to simulate an allocation failure.
@@ -4543,7 +4541,7 @@ void MacroAssembler::Allocate(Register object_size, Register result,
 void MacroAssembler::FastAllocate(int object_size, Register result,
                                   Register scratch1, Register scratch2,
                                   AllocationFlags flags) {
-  DCHECK(object_size <= Page::kMaxRegularHeapObjectSize);
+  DCHECK(object_size <= kMaxRegularHeapObjectSize);
   DCHECK(!AreAliased(result, scratch1, scratch2, at));
 
   // Make object size into bytes.

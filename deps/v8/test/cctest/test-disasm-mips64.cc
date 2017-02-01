@@ -699,6 +699,10 @@ TEST(Type0) {
   COMPARE(dsbh(s6, s7), "7c17b0a4       dsbh    s6, s7");
   COMPARE(dsbh(v0, v1), "7c0310a4       dsbh    v0, v1");
 
+  COMPARE(dins_(a0, a1, 31, 1), "7ca4ffc7       dins    a0, a1, 31, 1");
+  COMPARE(dins_(s6, s7, 30, 2), "7ef6ff87       dins    s6, s7, 30, 2");
+  COMPARE(dins_(v0, v1, 0, 32), "7c62f807       dins    v0, v1, 0, 32");
+
   COMPARE(dshd(a0, a1), "7c052164       dshd    a0, a1");
   COMPARE(dshd(s6, s7), "7c17b164       dshd    s6, s7");
   COMPARE(dshd(v0, v1), "7c031164       dshd    v0, v1");
@@ -1270,5 +1274,22 @@ TEST(ctc1_cfc1_disasm) {
   COMPARE(ceil_w_s(f8, f31), "4600fa0e       ceil.w.s f8, f31");
   COMPARE(ctc1(a0, FCSR), "44c4f800       ctc1    a0, FCSR");
   COMPARE(cfc1(a0, FCSR), "4444f800       cfc1    a0, FCSR");
+  VERIFY_RUN();
+}
+
+TEST(madd_msub_maddf_msubf) {
+  SET_UP();
+  if (kArchVariant == kMips64r2) {
+    COMPARE(madd_s(f4, f6, f8, f10), "4cca4120       madd.s  f4, f6, f8, f10");
+    COMPARE(madd_d(f4, f6, f8, f10), "4cca4121       madd.d  f4, f6, f8, f10");
+    COMPARE(msub_s(f4, f6, f8, f10), "4cca4128       msub.s  f4, f6, f8, f10");
+    COMPARE(msub_d(f4, f6, f8, f10), "4cca4129       msub.d  f4, f6, f8, f10");
+  }
+  if (kArchVariant == kMips64r6) {
+    COMPARE(maddf_s(f4, f8, f10), "460a4118       maddf.s  f4, f8, f10");
+    COMPARE(maddf_d(f4, f8, f10), "462a4118       maddf.d  f4, f8, f10");
+    COMPARE(msubf_s(f4, f8, f10), "460a4119       msubf.s  f4, f8, f10");
+    COMPARE(msubf_d(f4, f8, f10), "462a4119       msubf.d  f4, f8, f10");
+  }
   VERIFY_RUN();
 }

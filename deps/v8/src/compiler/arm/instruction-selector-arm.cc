@@ -252,14 +252,7 @@ void VisitBinop(InstructionSelector* selector, Node* node,
     inputs[input_count++] = g.Label(cont->false_block());
   }
 
-  if (cont->IsDeoptimize()) {
-    // If we can deoptimize as a result of the binop, we need to make sure that
-    // the deopt inputs are not overwritten by the binop result. One way
-    // to achieve that is to declare the output register as same-as-first.
-    outputs[output_count++] = g.DefineSameAsFirst(node);
-  } else {
-    outputs[output_count++] = g.DefineAsRegister(node);
-  }
+  outputs[output_count++] = g.DefineAsRegister(node);
   if (cont->IsSet()) {
     outputs[output_count++] = g.DefineAsRegister(cont->result());
   }
@@ -419,6 +412,10 @@ void InstructionSelector::VisitLoad(Node* node) {
   EmitLoad(this, opcode, &output, base, index);
 }
 
+void InstructionSelector::VisitProtectedLoad(Node* node) {
+  // TODO(eholk)
+  UNIMPLEMENTED();
+}
 
 void InstructionSelector::VisitStore(Node* node) {
   ArmOperandGenerator g(this);
@@ -431,7 +428,7 @@ void InstructionSelector::VisitStore(Node* node) {
   MachineRepresentation rep = store_rep.representation();
 
   if (write_barrier_kind != kNoWriteBarrier) {
-    DCHECK_EQ(MachineRepresentation::kTagged, rep);
+    DCHECK(CanBeTaggedPointer(rep));
     AddressingMode addressing_mode;
     InstructionOperand inputs[3];
     size_t input_count = 0;
@@ -1516,46 +1513,55 @@ void InstructionSelector::VisitFloat64Sqrt(Node* node) {
 
 
 void InstructionSelector::VisitFloat32RoundDown(Node* node) {
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
   VisitRR(this, kArmVrintmF32, node);
 }
 
 
 void InstructionSelector::VisitFloat64RoundDown(Node* node) {
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
   VisitRR(this, kArmVrintmF64, node);
 }
 
 
 void InstructionSelector::VisitFloat32RoundUp(Node* node) {
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
   VisitRR(this, kArmVrintpF32, node);
 }
 
 
 void InstructionSelector::VisitFloat64RoundUp(Node* node) {
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
   VisitRR(this, kArmVrintpF64, node);
 }
 
 
 void InstructionSelector::VisitFloat32RoundTruncate(Node* node) {
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
   VisitRR(this, kArmVrintzF32, node);
 }
 
 
 void InstructionSelector::VisitFloat64RoundTruncate(Node* node) {
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
   VisitRR(this, kArmVrintzF64, node);
 }
 
 
 void InstructionSelector::VisitFloat64RoundTiesAway(Node* node) {
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
   VisitRR(this, kArmVrintaF64, node);
 }
 
 
 void InstructionSelector::VisitFloat32RoundTiesEven(Node* node) {
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
   VisitRR(this, kArmVrintnF32, node);
 }
 
 
 void InstructionSelector::VisitFloat64RoundTiesEven(Node* node) {
+  DCHECK(CpuFeatures::IsSupported(ARMv8));
   VisitRR(this, kArmVrintnF64, node);
 }
 
@@ -1963,6 +1969,10 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
         break;
     }
     break;
+  }
+
+  if (user->opcode() == IrOpcode::kWord32Equal) {
+    return VisitWordCompare(selector, user, cont);
   }
 
   // Continuation could not be combined with a compare, emit compare against 0.

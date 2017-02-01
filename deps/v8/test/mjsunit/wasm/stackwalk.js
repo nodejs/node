@@ -16,7 +16,7 @@ function makeFFI(func) {
     .addBody([
       kExprGetLocal, 0,            // --
       kExprGetLocal, 1,            // --
-      kExprCallImport, kArity2, 0, // --
+      kExprCallFunction, 0,        // --
     ])
     .exportFunc()
 

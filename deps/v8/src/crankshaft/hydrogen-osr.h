@@ -6,7 +6,7 @@
 #define V8_CRANKSHAFT_HYDROGEN_OSR_H_
 
 #include "src/crankshaft/hydrogen.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {

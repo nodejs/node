@@ -2079,10 +2079,6 @@ TEST_P(InstructionSelectorFlagSettingTest, CmpZeroOnlyUserInBasicBlock) {
   const FlagSettingInst inst = GetParam();
   // Binop with additional users, but in a different basic block.
   TRACED_FOREACH(Comparison, cmp, kBinopCmpZeroRightInstructions) {
-    // We don't optimise this case at the moment.
-    if (cmp.flags_condition == kEqual || cmp.flags_condition == kNotEqual) {
-      continue;
-    }
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
                     MachineType::Int32());
     RawMachineLabel a, b;
@@ -2108,10 +2104,6 @@ TEST_P(InstructionSelectorFlagSettingTest, ShiftedOperand) {
   const FlagSettingInst inst = GetParam();
   // Like the test above, but with a shifted input to the binary operator.
   TRACED_FOREACH(Comparison, cmp, kBinopCmpZeroRightInstructions) {
-    // We don't optimise this case at the moment.
-    if (cmp.flags_condition == kEqual || cmp.flags_condition == kNotEqual) {
-      continue;
-    }
     StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
                     MachineType::Int32());
     RawMachineLabel a, b;
@@ -2158,8 +2150,7 @@ TEST_P(InstructionSelectorFlagSettingTest, UsersInSameBasicBlock) {
     EXPECT_EQ(inst.arch_opcode, s[0]->arch_opcode());
     EXPECT_NE(kFlags_branch, s[0]->flags_mode());
     EXPECT_EQ(kArmMul, s[1]->arch_opcode());
-    EXPECT_EQ(cmp.flags_condition == kEqual ? kArmTst : kArmCmp,
-              s[2]->arch_opcode());
+    EXPECT_EQ(kArmCmp, s[2]->arch_opcode());
     EXPECT_EQ(kFlags_branch, s[2]->flags_mode());
     EXPECT_EQ(cmp.flags_condition, s[2]->flags_condition());
   }
@@ -3059,10 +3050,11 @@ TEST_F(InstructionSelectorTest, Word32EqualWithZero) {
     m.Return(m.Word32Equal(m.Parameter(0), m.Int32Constant(0)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArmTst, s[0]->arch_opcode());
-    EXPECT_EQ(kMode_Operand2_R, s[0]->addressing_mode());
+    EXPECT_EQ(kArmCmp, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_I, s[0]->addressing_mode());
     ASSERT_EQ(2U, s[0]->InputCount());
-    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(0, s.ToInt32(s[0]->InputAt(1)));
     EXPECT_EQ(1U, s[0]->OutputCount());
     EXPECT_EQ(kFlags_set, s[0]->flags_mode());
     EXPECT_EQ(kEqual, s[0]->flags_condition());
@@ -3072,10 +3064,11 @@ TEST_F(InstructionSelectorTest, Word32EqualWithZero) {
     m.Return(m.Word32Equal(m.Int32Constant(0), m.Parameter(0)));
     Stream s = m.Build();
     ASSERT_EQ(1U, s.size());
-    EXPECT_EQ(kArmTst, s[0]->arch_opcode());
-    EXPECT_EQ(kMode_Operand2_R, s[0]->addressing_mode());
+    EXPECT_EQ(kArmCmp, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_Operand2_I, s[0]->addressing_mode());
     ASSERT_EQ(2U, s[0]->InputCount());
-    EXPECT_EQ(s.ToVreg(s[0]->InputAt(0)), s.ToVreg(s[0]->InputAt(1)));
+    EXPECT_EQ(s.ToVreg(m.Parameter(0)), s.ToVreg(s[0]->InputAt(0)));
+    EXPECT_EQ(0, s.ToInt32(s[0]->InputAt(1)));
     EXPECT_EQ(1U, s[0]->OutputCount());
     EXPECT_EQ(kFlags_set, s[0]->flags_mode());
     EXPECT_EQ(kEqual, s[0]->flags_condition());

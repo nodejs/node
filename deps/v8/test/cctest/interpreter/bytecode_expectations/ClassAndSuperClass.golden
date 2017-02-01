@@ -3,8 +3,6 @@
 #
 
 ---
-pool type: mixed
-execute: yes
 wrap: no
 test function name: test
 
@@ -29,20 +27,20 @@ bytecodes: [
                 B(Mov), R(closure), R(0),
   /*   99 E> */ B(StackCheck),
   /*  104 S> */ B(LdaConstant), U8(0),
-  /*  111 E> */ B(LdrKeyedProperty), R(closure), U8(3), R(4),
+  /*  111 E> */ B(LdrKeyedProperty), R(closure), U8(4), R(4),
                 B(LdaConstant), U8(1),
                 B(Star), R(5),
                 B(Mov), R(this), R(3),
                 B(CallRuntime), U16(Runtime::kLoadFromSuper), R(3), U8(3),
                 B(Star), R(1),
-  /*  117 E> */ B(Call), R(1), R(this), U8(1), U8(1),
-                B(Star), R(3),
-                B(AddSmi), U8(1), R(3), U8(7),
+  /*  117 E> */ B(Call), R(1), R(this), U8(1), U8(2),
+                B(Star), R(1),
+                B(AddSmi), U8(1), R(1), U8(8),
   /*  131 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::SYMBOL_TYPE,
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+  SYMBOL_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["method"],
 ]
 handlers: [
 ]
@@ -69,7 +67,7 @@ bytecodes: [
                 B(Mov), R(closure), R(0),
   /*  125 E> */ B(StackCheck),
   /*  130 S> */ B(LdaConstant), U8(0),
-  /*  130 E> */ B(LdrKeyedProperty), R(closure), U8(1), R(2),
+  /*  130 E> */ B(LdrKeyedProperty), R(closure), U8(2), R(2),
                 B(LdaConstant), U8(1),
                 B(Star), R(3),
                 B(LdaSmi), U8(2),
@@ -77,7 +75,7 @@ bytecodes: [
                 B(Mov), R(this), R(1),
   /*  138 E> */ B(CallRuntime), U16(Runtime::kStoreToSuper_Strict), R(1), U8(4),
   /*  143 S> */ B(LdaConstant), U8(0),
-  /*  150 E> */ B(LdrKeyedProperty), R(closure), U8(3), R(2),
+  /*  150 E> */ B(LdrKeyedProperty), R(closure), U8(4), R(2),
                 B(LdaConstant), U8(1),
                 B(Star), R(3),
                 B(Mov), R(this), R(1),
@@ -85,8 +83,8 @@ bytecodes: [
   /*  159 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::SYMBOL_TYPE,
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+  SYMBOL_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
 ]
 handlers: [
 ]
@@ -106,17 +104,18 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 79
+bytecode array length: 82
 bytecodes: [
                 B(Mov), R(closure), R(1),
                 B(Mov), R(new_target), R(0),
+                B(Ldar), R(new_target),
   /*  113 E> */ B(StackCheck),
-  /*  118 S> */ B(CallRuntime), U16(Runtime::k_GetSuperConstructor), R(closure), U8(1),
+  /*  118 S> */ B(CallRuntime), U16(Runtime::k_GetSuperConstructor), R(1), U8(1),
                 B(Star), R(2),
                 B(LdaSmi), U8(1),
                 B(Star), R(3),
-                B(Ldar), R(new_target),
-  /*  118 E> */ B(New), R(2), R(3), U8(1),
+                B(Ldar), R(0),
+  /*  118 E> */ B(New), R(2), R(3), U8(1), U8(0),
                 B(Star), R(2),
                 B(Ldar), R(this),
                 B(JumpIfNotHole), U8(4),
@@ -132,7 +131,7 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kThrowReferenceError), R(2), U8(1),
                 B(Star), R(2),
                 B(LdaSmi), U8(2),
-  /*  136 E> */ B(StaNamedPropertyStrict), R(2), U8(1), U8(4),
+  /*  136 E> */ B(StaNamedPropertyStrict), R(2), U8(1), U8(5),
                 B(Ldar), R(this),
                 B(JumpIfNotHole), U8(11),
                 B(LdaConstant), U8(0),
@@ -141,8 +140,8 @@ bytecodes: [
   /*  141 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["this"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["y_"],
 ]
 handlers: [
 ]
@@ -162,15 +161,16 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 75
+bytecode array length: 78
 bytecodes: [
                 B(Mov), R(closure), R(1),
                 B(Mov), R(new_target), R(0),
-  /*  112 E> */ B(StackCheck),
-  /*  117 S> */ B(CallRuntime), U16(Runtime::k_GetSuperConstructor), R(closure), U8(1),
-                B(Star), R(2),
                 B(Ldar), R(new_target),
-  /*  117 E> */ B(New), R(2), R(0), U8(0),
+  /*  112 E> */ B(StackCheck),
+  /*  117 S> */ B(CallRuntime), U16(Runtime::k_GetSuperConstructor), R(1), U8(1),
+                B(Star), R(2),
+                B(Ldar), R(0),
+  /*  117 E> */ B(New), R(2), R(0), U8(0), U8(0),
                 B(Star), R(2),
                 B(Ldar), R(this),
                 B(JumpIfNotHole), U8(4),
@@ -186,7 +186,7 @@ bytecodes: [
                 B(CallRuntime), U16(Runtime::kThrowReferenceError), R(2), U8(1),
                 B(Star), R(2),
                 B(LdaSmi), U8(2),
-  /*  134 E> */ B(StaNamedPropertyStrict), R(2), U8(1), U8(4),
+  /*  134 E> */ B(StaNamedPropertyStrict), R(2), U8(1), U8(5),
                 B(Ldar), R(this),
                 B(JumpIfNotHole), U8(11),
                 B(LdaConstant), U8(0),
@@ -195,8 +195,8 @@ bytecodes: [
   /*  139 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["this"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["y_"],
 ]
 handlers: [
 ]

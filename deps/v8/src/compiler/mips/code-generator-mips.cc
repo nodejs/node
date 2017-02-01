@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/ast/scopes.h"
 #include "src/compiler/code-generator.h"
+#include "src/compilation-info.h"
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
@@ -693,9 +693,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchDebugBreak:
       __ stop("kArchDebugBreak");
       break;
-    case kArchImpossible:
-      __ Abort(kConversionFromImpossibleValue);
-      break;
     case kArchComment: {
       Address comment_string = i.InputExternalReference(0).address();
       __ RecordComment(reinterpret_cast<const char*>(comment_string));
@@ -710,8 +707,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           BuildTranslation(instr, -1, 0, OutputFrameStateCombine::Ignore());
       Deoptimizer::BailoutType bailout_type =
           Deoptimizer::BailoutType(MiscField::decode(instr->opcode()));
-      CodeGenResult result =
-          AssembleDeoptimizerCall(deopt_state_id, bailout_type);
+      CodeGenResult result = AssembleDeoptimizerCall(
+          deopt_state_id, bailout_type, current_source_position_);
       if (result != kSuccess) return result;
       break;
     }
@@ -1121,6 +1118,38 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ sub_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
                i.InputDoubleRegister(1));
       break;
+    case kMipsMaddS:
+      __ madd_s(i.OutputFloatRegister(), i.InputFloatRegister(0),
+                i.InputFloatRegister(1), i.InputFloatRegister(2));
+      break;
+    case kMipsMaddD:
+      __ madd_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                i.InputDoubleRegister(1), i.InputDoubleRegister(2));
+      break;
+    case kMipsMaddfS:
+      __ maddf_s(i.OutputFloatRegister(), i.InputFloatRegister(1),
+                 i.InputFloatRegister(2));
+      break;
+    case kMipsMaddfD:
+      __ maddf_d(i.OutputDoubleRegister(), i.InputDoubleRegister(1),
+                 i.InputDoubleRegister(2));
+      break;
+    case kMipsMsubS:
+      __ msub_s(i.OutputFloatRegister(), i.InputFloatRegister(0),
+                i.InputFloatRegister(1), i.InputFloatRegister(2));
+      break;
+    case kMipsMsubD:
+      __ msub_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                i.InputDoubleRegister(1), i.InputDoubleRegister(2));
+      break;
+    case kMipsMsubfS:
+      __ msubf_s(i.OutputFloatRegister(), i.InputFloatRegister(1),
+                 i.InputFloatRegister(2));
+      break;
+    case kMipsMsubfD:
+      __ msubf_d(i.OutputDoubleRegister(), i.InputDoubleRegister(1),
+                 i.InputDoubleRegister(2));
+      break;
     case kMipsMulD:
       // TODO(plind): add special case: right op is -1.0, see arm port.
       __ mul_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
@@ -1358,7 +1387,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
 
     // ... more basic instructions ...
-
+    case kMipsSeb:
+      __ seb(i.OutputRegister(), i.InputRegister(0));
+      break;
+    case kMipsSeh:
+      __ seh(i.OutputRegister(), i.InputRegister(0));
+      break;
     case kMipsLbu:
       __ lbu(i.OutputRegister(), i.MemoryOperand());
       break;
@@ -1843,13 +1877,14 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
 }
 
 CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
-    int deoptimization_id, Deoptimizer::BailoutType bailout_type) {
+    int deoptimization_id, Deoptimizer::BailoutType bailout_type,
+    SourcePosition pos) {
   Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
       isolate(), deoptimization_id, bailout_type);
   if (deopt_entry == nullptr) return kTooManyDeoptimizationBailouts;
   DeoptimizeReason deoptimization_reason =
       GetDeoptimizationReason(deoptimization_id);
-  __ RecordDeoptReason(deoptimization_reason, 0, deoptimization_id);
+  __ RecordDeoptReason(deoptimization_reason, pos.raw(), deoptimization_id);
   __ Call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
   return kSuccess;
 }
@@ -2028,9 +2063,14 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
     } else if (src.type() == Constant::kFloat32) {
       if (destination->IsFPStackSlot()) {
         MemOperand dst = g.ToMemOperand(destination);
-        __ li(at, Operand(bit_cast<int32_t>(src.ToFloat32())));
-        __ sw(at, dst);
+        if (bit_cast<int32_t>(src.ToFloat32()) == 0) {
+          __ sw(zero_reg, dst);
+        } else {
+          __ li(at, Operand(bit_cast<int32_t>(src.ToFloat32())));
+          __ sw(at, dst);
+        }
       } else {
+        DCHECK(destination->IsFPRegister());
         FloatRegister dst = g.ToSingleRegister(destination);
         __ Move(dst, src.ToFloat32());
       }

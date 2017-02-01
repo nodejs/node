@@ -33,7 +33,9 @@ ParseInfo::ParseInfo(Zone* zone)
 
 ParseInfo::ParseInfo(Zone* zone, Handle<JSFunction> function)
     : ParseInfo(zone, Handle<SharedFunctionInfo>(function->shared())) {
-  set_context(Handle<Context>(function->context()));
+  if (!function->context()->IsNativeContext()) {
+    set_outer_scope_info(handle(function->context()->scope_info()));
+  }
 }
 
 ParseInfo::ParseInfo(Zone* zone, Handle<SharedFunctionInfo> shared)
@@ -86,17 +88,13 @@ bool ParseInfo::is_declaration() const {
   return (compiler_hints_ & (1 << SharedFunctionInfo::kIsDeclaration)) != 0;
 }
 
-bool ParseInfo::is_arrow() const {
-  return (compiler_hints_ & (1 << SharedFunctionInfo::kIsArrow)) != 0;
+bool ParseInfo::requires_class_field_init() const {
+  return (compiler_hints_ &
+          (1 << SharedFunctionInfo::kRequiresClassFieldInit)) != 0;
 }
-
-bool ParseInfo::is_async() const {
-  return (compiler_hints_ & (1 << SharedFunctionInfo::kIsAsyncFunction)) != 0;
-}
-
-bool ParseInfo::is_default_constructor() const {
-  return (compiler_hints_ & (1 << SharedFunctionInfo::kIsDefaultConstructor)) !=
-         0;
+bool ParseInfo::is_class_field_initializer() const {
+  return (compiler_hints_ &
+          (1 << SharedFunctionInfo::kIsClassFieldInitializer)) != 0;
 }
 
 FunctionKind ParseInfo::function_kind() const {

@@ -4,8 +4,10 @@
 
 #if V8_TARGET_ARCH_IA32
 
-#include "src/codegen.h"
 #include "src/debug/debug.h"
+
+#include "src/codegen.h"
+#include "src/debug/liveedit.h"
 #include "src/ia32/frames-ia32.h"
 
 namespace v8 {
