@@ -228,6 +228,16 @@ static struct {
   }
 #endif  // HAVE_INSPECTOR
 
+  void StartTracingAgent() {
+    tracing_agent = new tracing::Agent();
+    tracing_agent->Start(platform_, trace_enabled_categories);
+  }
+
+  void StopTracingAgent() {
+    tracing_agent->Stop();
+  }
+
+  v8::Platform* platform_;
 #else  // !NODE_USE_V8_PLATFORM
   void Initialize(int thread_pool_size) {}
   void PumpMessageLoop(Isolate* isolate) {}
@@ -237,9 +247,13 @@ static struct {
     env->ThrowError("Node compiled with NODE_USE_V8_PLATFORM=0");
     return false;  // make compiler happy
   }
-#endif  // !NODE_USE_V8_PLATFORM
 
-  v8::Platform* platform_;
+  void StartTracingAgent() {
+    fprintf(stderr, "Node compiled with NODE_USE_V8_PLATFORM=0, "
+                    "so event tracing is not available.\n");
+  }
+  void StopTracingAgent() {}
+#endif  // !NODE_USE_V8_PLATFORM
 } v8_platform;
 
 #ifdef __POSIX__
@@ -4534,15 +4548,14 @@ int Start(int argc, char** argv) {
   if (trace_enabled) {
     fprintf(stderr, "Warning: Trace event is an experimental feature "
             "and could change at any time.\n");
-    tracing_agent = new tracing::Agent();
-    tracing_agent->Start(v8_platform.platform_, trace_enabled_categories);
+    v8_platform.StartTracingAgent();
   }
   V8::Initialize();
   v8_initialized = true;
   const int exit_code =
       Start(uv_default_loop(), argc, argv, exec_argc, exec_argv);
   if (trace_enabled) {
-    tracing_agent->Stop();
+    v8_platform.StopTracingAgent();
   }
   v8_initialized = false;
   V8::Dispose();
