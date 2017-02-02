@@ -18,11 +18,11 @@ function test(bufferAsync, bufferSync, expected) {
           common.mustCall((err, bytesRead) => {
             assert.ifError(err);
             assert.strictEqual(bytesRead, expected.length);
-            assert.deepStrictEqual(bufferAsync, Buffer.from(expected));
+            assert.deepStrictEqual(bufferAsync, expected);
           }));
 
   const r = fs.readSync(fd, bufferSync, 0, expected.length, 0);
-  assert.deepStrictEqual(bufferSync, Buffer.from(expected));
+  assert.deepStrictEqual(bufferSync, expected);
   assert.strictEqual(r, expected.length);
 }
 
