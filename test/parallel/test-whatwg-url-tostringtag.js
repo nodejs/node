@@ -3,6 +3,8 @@
 require('../common');
 const assert = require('assert');
 const URL = require('url').URL;
+
+// Tests below are not from WPT.
 const toString = Object.prototype.toString;
 
 const url = new URL('http://example.org');

@@ -4,6 +4,7 @@ require('../common');
 const assert = require('assert');
 const URLSearchParams = require('url').URLSearchParams;
 
+// Tests below are not from WPT.
 const params = new URLSearchParams('a=b&c=d');
 const entries = params.entries();
 assert.strictEqual(typeof entries[Symbol.iterator], 'function');
