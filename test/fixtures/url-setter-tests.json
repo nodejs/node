@@ -1,5 +1,6 @@
 {
     "comment": [
+        "License: http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html",
         "## Tests for setters of https://url.spec.whatwg.org/#urlutils-members",
         "",
         "This file contains a JSON object.",
@@ -19,8 +20,7 @@
         "  get the attribute `key` (invoke its getter).",
         "  The returned string must be equal to `value`.",
         "",
-        "Note: the 'href' setter is already covered by urltestdata.json.",
-        "Source: https://github.com/w3c/web-platform-tests/tree/master/url"
+        "Note: the 'href' setter is already covered by urltestdata.json."
     ],
     "protocol": [
         {
@@ -103,12 +103,28 @@
             }
         },
         {
-            "comment": "Can’t switch from special scheme to non-special. Note: this may change, see https://github.com/whatwg/url/issues/104",
+            "comment": "Can’t switch from special scheme to non-special",
             "href": "http://example.net",
             "new_value": "b",
             "expected": {
                 "href": "http://example.net/",
                 "protocol": "http:"
+            }
+        },
+        {
+            "href": "https://example.net",
+            "new_value": "s",
+            "expected": {
+                "href": "https://example.net/",
+                "protocol": "https:"
+            }
+        },
+        {
+            "href": "ftp://example.net",
+            "new_value": "test",
+            "expected": {
+                "href": "ftp://example.net/",
+                "protocol": "ftp:"
             }
         },
         {
@@ -121,12 +137,36 @@
             }
         },
         {
-            "comment": "Can’t switch from non-special scheme to special. Note: this may change, see https://github.com/whatwg/url/issues/104",
+            "comment": "Can’t switch from non-special scheme to special",
             "href": "ssh://me@example.net",
             "new_value": "http",
             "expected": {
                 "href": "ssh://me@example.net/",
                 "protocol": "ssh:"
+            }
+        },
+        {
+            "href": "ssh://me@example.net",
+            "new_value": "gopher",
+            "expected": {
+                "href": "ssh://me@example.net/",
+                "protocol": "ssh:"
+            }
+        },
+        {
+            "href": "ssh://me@example.net",
+            "new_value": "file",
+            "expected": {
+                "href": "ssh://me@example.net/",
+                "protocol": "ssh:"
+            }
+        },
+        {
+            "href": "nonsense:///test",
+            "new_value": "https",
+            "expected": {
+                "href": "nonsense:///test",
+                "protocol": "nonsense:"
             }
         },
         {

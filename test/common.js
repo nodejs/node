@@ -582,3 +582,28 @@ Object.defineProperty(exports, 'hasIntl', {
     return process.binding('config').hasIntl;
   }
 });
+
+// https://github.com/w3c/testharness.js/blob/master/testharness.js
+exports.WPT = {
+  test: (fn, desc) => {
+    try {
+      fn();
+    } catch (err) {
+      if (err instanceof Error)
+        err.message = `In ${desc}:\n  ${err.message}`;
+      throw err;
+    }
+  },
+  assert_equals: assert.strictEqual,
+  assert_true: (value, message) => assert.strictEqual(value, true, message),
+  assert_false: (value, message) => assert.strictEqual(value, false, message),
+  assert_throws: (code, func, desc) => {
+    assert.throws(func, (err) => {
+      return typeof err === 'object' && 'name' in err && err.name === code.name;
+    }, desc);
+  },
+  assert_array_equals: assert.deepStrictEqual,
+  assert_unreached(desc) {
+    assert.fail(undefined, undefined, `Reached unreachable code: ${desc}`);
+  }
+};
