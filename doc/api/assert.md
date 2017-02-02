@@ -3,10 +3,7 @@
 > Stability: 2 - Stable
 
 The `assert` module provides a simple set of assertion tests that can be used to
-test invariants. The module is intended for internal use by Node.js, but can be
-used in application code via `require('assert')`. However, `assert` is not a
-testing framework, and is not intended to be used as a general purpose assertion
-library.
+test invariants.
 
 ## assert(value[, message])
 <!-- YAML
