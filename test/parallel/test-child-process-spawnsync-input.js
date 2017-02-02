@@ -87,7 +87,8 @@ options = {
 ret = spawnSync('cat', [], options);
 
 checkSpawnSyncRet(ret);
-assert.deepStrictEqual(ret.stdout, options.input);
+// Wrap options.input because Uint8Array and Buffer have different prototypes.
+assert.deepStrictEqual(ret.stdout, Buffer.from(options.input));
 assert.deepStrictEqual(ret.stderr, Buffer.from(''));
 
 verifyBufOutput(spawnSync(process.execPath, args));
