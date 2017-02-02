@@ -82,3 +82,6 @@ assert.strictEqual(rangeBuffer.toString('ascii', 0, true), 'a');
 assert.strictEqual(rangeBuffer.toString({toString: function() {
   return 'ascii';
 }}), 'abc');
+
+// try toString() with 0 as the encoding
+assert.throws(() => rangeBuffer.toString(0, 1, 2), /Unknown encoding/);
