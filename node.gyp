@@ -133,7 +133,7 @@
         'src',
         'tools/msvs/genfiles',
         'deps/uv/src/ares',
-        '<(SHARED_INTERMEDIATE_DIR)', # for node_natives.h
+        '<(SHARED_INTERMEDIATE_DIR)',
       ],
 
       'sources': [
@@ -153,7 +153,6 @@
         'src/node_contextify.cc',
         'src/node_file.cc',
         'src/node_http_parser.cc',
-        'src/node_javascript.cc',
         'src/node_main.cc',
         'src/node_os.cc',
         'src/node_revert.cc',
@@ -219,11 +218,11 @@
         'deps/http_parser/http_parser.h',
         'deps/v8/include/v8.h',
         'deps/v8/include/v8-debug.h',
-        '<(SHARED_INTERMEDIATE_DIR)/node_natives.h',
         # javascript files to make for an even more pleasant IDE experience
         '<@(library_files)',
         # node.gyp is added to the project by default.
         'common.gypi',
+        '<(SHARED_INTERMEDIATE_DIR)/node_javascript.cc',
       ],
 
       'defines': [
@@ -697,12 +696,13 @@
       'actions': [
         {
           'action_name': 'node_js2c',
+          'process_outputs_as_sources': 1,
           'inputs': [
             '<@(library_files)',
             './config.gypi',
           ],
           'outputs': [
-            '<(SHARED_INTERMEDIATE_DIR)/node_natives.h',
+            '<(SHARED_INTERMEDIATE_DIR)/node_javascript.cc',
           ],
           'conditions': [
             [ 'node_use_dtrace=="false" and node_use_etw=="false"', {
