@@ -600,10 +600,8 @@ exports.WPT = {
   assert_equals: assert.strictEqual,
   assert_true: (value, message) => assert.strictEqual(value, true, message),
   assert_false: (value, message) => assert.strictEqual(value, false, message),
-  assert_throws: (code, func, desc) => {
-    assert.throws(func, (err) => {
-      return typeof err === 'object' && 'name' in err && err.name === code.name;
-    }, desc);
+  assert_throws: (errType, func, desc) => {
+    assert.throws(func, (err) => err instanceof errType, desc);
   },
   assert_array_equals: assert.deepStrictEqual,
   assert_unreached(desc) {

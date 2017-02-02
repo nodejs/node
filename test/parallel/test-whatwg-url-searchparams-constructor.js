@@ -149,8 +149,8 @@ test(function() {
     params = new URLSearchParams([['a', 'b'], ['c', 'd']]);
     assert_equals(params.get("a"), "b");
     assert_equals(params.get("c"), "d");
-    assert_throws(new TypeError(), function() { new URLSearchParams([[1]]); });
-    assert_throws(new TypeError(), function() { new URLSearchParams([[1,2,3]]); });
+    assert_throws(TypeError, function() { new URLSearchParams([[1]]); });
+    assert_throws(TypeError, function() { new URLSearchParams([[1,2,3]]); });
 }, "Constructor with sequence of sequences of strings");
 
 [
