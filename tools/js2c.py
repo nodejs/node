@@ -37,11 +37,14 @@ import sys
 import string
 
 
-def ToCString(contents):
-  step = 20
-  slices = (contents[i:i+step] for i in xrange(0, len(contents), step))
-  slices = map(lambda s: ','.join(str(ord(c)) for c in s), slices)
+def ToCArray(elements, step=10):
+  slices = (elements[i:i+step] for i in xrange(0, len(elements), step))
+  slices = map(lambda s: ','.join(str(x) for x in s), slices)
   return ',\n'.join(slices)
+
+
+def ToCString(contents):
+  return ToCArray(map(ord, contents), step=20)
 
 
 def ReadFile(filename):
@@ -161,34 +164,72 @@ def ReadMacros(lines):
   return (constants, macros)
 
 
-HEADER_TEMPLATE = """\
-#ifndef NODE_NATIVES_H_
-#define NODE_NATIVES_H_
-
-#include <stdint.h>
-
-#define NODE_NATIVES_MAP(V) \\
-{node_natives_map}
+TEMPLATE = """
+#include "node.h"
+#include "node_javascript.h"
+#include "v8.h"
+#include "env.h"
+#include "env-inl.h"
 
 namespace node {{
-{sources}
+
+{definitions}
+
+v8::Local<v8::String> MainSource(Environment* env) {{
+  return internal_bootstrap_node_value.ToStringChecked(env->isolate());
+}}
+
+void DefineJavaScript(Environment* env, v8::Local<v8::Object> target) {{
+  {initializers}
+}}
+
 }}  // namespace node
+"""
 
-#endif  // NODE_NATIVES_H_
+ONE_BYTE_STRING = """
+static const uint8_t raw_{var}[] = {{ {data} }};
+static struct : public v8::String::ExternalOneByteStringResource {{
+  const char* data() const override {{
+    return reinterpret_cast<const char*>(raw_{var});
+  }}
+  size_t length() const override {{ return arraysize(raw_{var}); }}
+  void Dispose() override {{ /* Default calls `delete this`. */ }}
+  v8::Local<v8::String> ToStringChecked(v8::Isolate* isolate) {{
+    return v8::String::NewExternalOneByte(isolate, this).ToLocalChecked();
+  }}
+}} {var};
+"""
+
+TWO_BYTE_STRING = """
+static const uint16_t raw_{var}[] = {{ {data} }};
+static struct : public v8::String::ExternalStringResource {{
+  const uint16_t* data() const override {{ return raw_{var}; }}
+  size_t length() const override {{ return arraysize(raw_{var}); }}
+  void Dispose() override {{ /* Default calls `delete this`. */ }}
+  v8::Local<v8::String> ToStringChecked(v8::Isolate* isolate) {{
+    return v8::String::NewExternalTwoByte(isolate, this).ToLocalChecked();
+  }}
+}} {var};
+"""
+
+INITIALIZER = """\
+CHECK(target->Set(env->context(),
+                  {key}.ToStringChecked(env->isolate()),
+                  {value}.ToStringChecked(env->isolate())).FromJust());
 """
 
 
-NODE_NATIVES_MAP = """\
-  V({escaped_id}) \\
-"""
-
-
-SOURCES = """\
-static const uint8_t {escaped_id}_name[] = {{
-{name}}};
-static const uint8_t {escaped_id}_data[] = {{
-{data}}};
-"""
+def Render(var, data):
+  # Treat non-ASCII as UTF-8 and convert it to UTF-16.
+  if any(ord(c) > 127 for c in data):
+    template = TWO_BYTE_STRING
+    data = map(ord, data.decode('utf-8').encode('utf-16be'))
+    data = [data[i] * 256 + data[i+1] for i in xrange(0, len(data), 2)]
+    data = ToCArray(data)
+  else:
+    template = ONE_BYTE_STRING
+    data = ToCString(data)
+  return template.format(var=var, data=data)
 
 
 def JS2C(source, target):
@@ -207,36 +248,32 @@ def JS2C(source, target):
   (consts, macros) = ReadMacros(macro_lines)
 
   # Build source code lines
-  node_natives_map = []
-  sources = []
+  definitions = []
+  initializers = []
 
-  for s in modules:
-    lines = ReadFile(str(s))
+  for name in modules:
+    lines = ReadFile(str(name))
     lines = ExpandConstants(lines, consts)
     lines = ExpandMacros(lines, macros)
-    data = ToCString(lines)
 
     # On Windows, "./foo.bar" in the .gyp file is passed as "foo.bar"
     # so don't assume there is always a slash in the file path.
-    if '/' in s or '\\' in s:
-      id = '/'.join(re.split('/|\\\\', s)[1:])
-    else:
-      id = s
+    if '/' in name or '\\' in name:
+      name = '/'.join(re.split('/|\\\\', name)[1:])
 
-    if '.' in id:
-      id = id.split('.', 1)[0]
+    name = name.split('.', 1)[0]
+    var = name.replace('-', '_').replace('/', '_')
+    key = '%s_key' % var
+    value = '%s_value' % var
 
-    name = ToCString(id)
-    escaped_id = id.replace('-', '_').replace('/', '_')
-    node_natives_map.append(NODE_NATIVES_MAP.format(**locals()))
-    sources.append(SOURCES.format(**locals()))
-
-  node_natives_map = ''.join(node_natives_map)
-  sources = ''.join(sources)
+    definitions.append(Render(key, name))
+    definitions.append(Render(value, lines))
+    initializers.append(INITIALIZER.format(key=key, value=value))
 
   # Emit result
   output = open(str(target[0]), "w")
-  output.write(HEADER_TEMPLATE.format(**locals()))
+  output.write(TEMPLATE.format(definitions=''.join(definitions),
+                               initializers=''.join(initializers)))
   output.close()
 
 def main():
