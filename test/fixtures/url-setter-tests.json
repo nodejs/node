@@ -1,5 +1,6 @@
 {
     "comment": [
+        "License: http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html",
         "## Tests for setters of https://url.spec.whatwg.org/#urlutils-members",
         "",
         "This file contains a JSON object.",
