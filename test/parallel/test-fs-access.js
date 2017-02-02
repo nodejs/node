@@ -91,16 +91,16 @@ fs.access(readOnlyFile, fs.W_OK, common.mustCall((err) => {
 }));
 
 assert.throws(() => {
-  fs.access(100, fs.F_OK, (err) => {});
-}, /path must be a string or Buffer/);
+  fs.access(100, fs.F_OK, () => {});
+}, /^TypeError: path must be a string or Buffer$/);
 
 assert.throws(() => {
   fs.access(__filename, fs.F_OK);
-}, /"callback" argument must be a function/);
+}, /^TypeError: "callback" argument must be a function$/);
 
 assert.throws(() => {
   fs.access(__filename, fs.F_OK, {});
-}, /"callback" argument must be a function/);
+}, /^TypeError: "callback" argument must be a function$/);
 
 assert.doesNotThrow(() => {
   fs.accessSync(__filename);
@@ -114,9 +114,7 @@ assert.doesNotThrow(() => {
 
 assert.throws(() => {
   fs.accessSync(doesNotExist);
-}, (err) => {
-  return err.code === 'ENOENT' && err.path === doesNotExist;
-});
+}, (err) => (err.code === 'ENOENT' && err.path === doesNotExist));
 
 process.on('exit', () => {
   removeFile(readOnlyFile);
