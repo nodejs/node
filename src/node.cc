@@ -200,7 +200,6 @@ static uv_async_t dispatch_debug_messages_async;
 
 static Mutex node_isolate_mutex;
 static v8::Isolate* node_isolate;
-static tracing::Agent* tracing_agent;
 
 static node::DebugOptions debug_options;
 
@@ -229,15 +228,17 @@ static struct {
 #endif  // HAVE_INSPECTOR
 
   void StartTracingAgent() {
-    tracing_agent = new tracing::Agent();
-    tracing_agent->Start(platform_, trace_enabled_categories);
+    CHECK(tracing_agent_ == nullptr);
+    tracing_agent_ = new tracing::Agent();
+    tracing_agent_->Start(platform_, trace_enabled_categories);
   }
 
   void StopTracingAgent() {
-    tracing_agent->Stop();
+    tracing_agent_->Stop();
   }
 
   v8::Platform* platform_;
+  tracing::Agent* tracing_agent_;
 #else  // !NODE_USE_V8_PLATFORM
   void Initialize(int thread_pool_size) {}
   void PumpMessageLoop(Isolate* isolate) {}
@@ -3401,7 +3402,7 @@ void SetupProcessObject(Environment* env,
 void SignalExit(int signo) {
   uv_tty_reset_mode();
   if (trace_enabled) {
-    tracing_agent->Stop();
+    v8_platform.StopTracingAgent();
   }
 #ifdef __FreeBSD__
   // FreeBSD has a nasty bug, see RegisterSignalHandler for details
