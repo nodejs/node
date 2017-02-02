@@ -254,7 +254,8 @@ class ContextifyContext {
     Environment* env = Environment::GetCurrent(args);
     if (debug_context.IsEmpty()) {
       // Force-load the debug context.
-      Debug::GetMirror(args.GetIsolate()->GetCurrentContext(), args[0]);
+      auto dummy_event_listener = [] (const Debug::EventDetails&) {};
+      Debug::SetDebugEventListener(args.GetIsolate(), dummy_event_listener);
       debug_context = Debug::GetDebugContext(args.GetIsolate());
       CHECK(!debug_context.IsEmpty());
       // Ensure that the debug context has an Environment assigned in case
