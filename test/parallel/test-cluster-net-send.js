@@ -8,26 +8,22 @@ if (process.argv[2] !== 'child') {
   console.error('[%d] master', process.pid);
 
   const worker = fork(__filename, ['child']);
-  let called = false;
+  let result = '';
 
-  worker.once('message', common.mustCall(function(msg, handle) {
+  worker.once('message', common.mustCall((msg, handle) => {
     assert.strictEqual(msg, 'handle');
     assert.ok(handle);
     worker.send('got');
 
-    handle.on('data', function(data) {
-      called = true;
-      assert.strictEqual(data.toString(), 'hello');
+    handle.on('data', (data) => {
+      result += data.toString();
     });
 
-    handle.on('end', function() {
+    handle.on('end', () => {
+      assert.strictEqual(result, 'hello');
       worker.kill();
     });
   }));
-
-  process.once('exit', function() {
-    assert.ok(called);
-  });
 } else {
   console.error('[%d] worker', process.pid);
 
@@ -38,20 +34,20 @@ if (process.argv[2] !== 'child') {
       process.send('handle', socket);
   }
 
-  const server = net.createServer(function(c) {
-    process.once('message', common.mustCall(function(msg) {
+  const server = net.createServer((c) => {
+    process.once('message', common.mustCall((msg) => {
       assert.strictEqual(msg, 'got');
       c.end('hello');
     }));
     socketConnected();
   });
 
-  server.listen(common.PORT, function() {
-    socket = net.connect(common.PORT, '127.0.0.1', socketConnected);
+  server.listen(common.PORT, () => {
+    socket = net.connect(server.address().port, server.address().address,
+                         socketConnected);
   });
 
-  process.on('disconnect', function() {
-    process.exit();
+  process.on('disconnect', () => {
     server.close();
   });
 }
