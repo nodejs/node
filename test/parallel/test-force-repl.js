@@ -5,9 +5,9 @@ const spawn = require('child_process').spawn;
 
 // spawn a node child process in "interactive" mode (force the repl)
 const cp = spawn(process.execPath, ['-i']);
-const timeoutId = setTimeout(function() {
-  common.fail('timeout!');
-}, common.platformTimeout(5000)); // give node + the repl 5 seconds to start
+// give node + the repl 5 seconds to start
+const timeoutId = setTimeout(common.mustNotCall(),
+                             common.platformTimeout(5000));
 
 cp.stdout.setEncoding('utf8');
 

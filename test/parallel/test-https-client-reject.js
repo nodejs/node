@@ -44,7 +44,7 @@ function rejectUnauthorized() {
     port: server.address().port
   };
   options.agent = new https.Agent(options);
-  const req = https.request(options, common.fail);
+  const req = https.request(options, common.mustNotCall());
   req.on('error', function(err) {
     authorized();
   });
@@ -62,6 +62,6 @@ function authorized() {
     assert(req.socket.authorized);
     server.close();
   });
-  req.on('error', common.fail);
+  req.on('error', common.mustNotCall());
   req.end();
 }

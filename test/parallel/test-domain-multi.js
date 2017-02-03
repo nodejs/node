@@ -8,7 +8,7 @@ const http = require('http');
 const a = domain.create();
 a.enter(); // this will be our "root" domain
 
-a.on('error', common.fail);
+a.on('error', common.mustNotCall());
 
 const server = http.createServer((req, res) => {
   // child domain of a.

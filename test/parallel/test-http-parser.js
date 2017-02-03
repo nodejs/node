@@ -35,7 +35,7 @@ function newParser(type) {
   parser[kOnHeadersComplete] = function(info) {
   };
 
-  parser[kOnBody] = common.fail;
+  parser[kOnBody] = common.mustNotCall('kOnBody should not be called');
 
   parser[kOnMessageComplete] = function() {
   };

@@ -34,7 +34,7 @@ server.listen(0, function() {
   // Client 3
   conn = require('net').createConnection(this.address().port, 'localhost');
   conn.pause();
-  conn.on('data', common.fail);
+  conn.on('data', common.mustNotCall());
   scheduleTearDown(conn);
 
 
@@ -51,7 +51,7 @@ server.listen(0, function() {
   conn.resume();
   conn.resume();
   conn.pause();
-  conn.on('data', common.fail);
+  conn.on('data', common.mustNotCall());
   scheduleTearDown(conn);
 
   function onDataOk() {

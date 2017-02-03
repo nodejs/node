@@ -15,5 +15,5 @@ if (cluster.isMaster) {
     worker.kill();
   }));
 } else {
-  net.createServer(common.fail).listen(0);
+  net.createServer(common.mustNotCall()).listen(0);
 }

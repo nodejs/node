@@ -9,9 +9,7 @@ let disconnect_count = 0;
 // Hopefully nothing is running on common.PORT
 const c = net.createConnection(common.PORT);
 
-c.on('connect', function() {
-  common.fail('client should not have connected');
-});
+c.on('connect', common.mustNotCall('client should not have connected'));
 
 c.on('error', function(e) {
   console.error('CLIENT error: ' + e.code);

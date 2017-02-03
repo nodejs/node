@@ -97,7 +97,7 @@ test(function serverResponseTimeout(cb) {
 test(function serverRequestNotTimeoutAfterEnd(cb) {
   function handler(req, res) {
     // just do nothing, we should get a timeout event.
-    req.setTimeout(50, common.fail);
+    req.setTimeout(50, common.mustNotCall());
     res.on('timeout', common.mustCall(function(socket) {}));
   }
   const server = https.createServer(serverOptions, common.mustCall(handler));
@@ -147,8 +147,8 @@ test(function serverResponseTimeoutWithPipeline(cb) {
 test(function idleTimeout(cb) {
   const server = https.createServer(serverOptions,
                                     common.mustCall(function(req, res) {
-                                      req.on('timeout', common.fail);
-                                      res.on('timeout', common.fail);
+                                      req.on('timeout', common.mustNotCall());
+                                      res.on('timeout', common.mustNotCall());
                                       res.end();
                                     }));
   server.setTimeout(50, common.mustCall(function(socket) {
