@@ -123,6 +123,7 @@
       'lib/internal/repl/await.js',
       'lib/internal/socket_list.js',
       'lib/internal/test/unicode.js',
+      'lib/internal/timers.js',
       'lib/internal/tls.js',
       'lib/internal/trace_events_async_hooks.js',
       'lib/internal/url.js',

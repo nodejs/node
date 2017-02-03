@@ -36,13 +36,13 @@ const validDelays = [0, 0.001, 1, 1e6];
 for (let i = 0; i < nonNumericDelays.length; i++) {
   assert.throws(function() {
     s.setTimeout(nonNumericDelays[i], () => {});
-  }, TypeError);
+  }, TypeError, nonNumericDelays[i]);
 }
 
 for (let i = 0; i < badRangeDelays.length; i++) {
   assert.throws(function() {
     s.setTimeout(badRangeDelays[i], () => {});
-  }, RangeError);
+  }, RangeError, badRangeDelays[i]);
 }
 
 for (let i = 0; i < validDelays.length; i++) {
