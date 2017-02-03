@@ -209,6 +209,36 @@ const assert = require('assert');
 const freelist = require('internal/freelist');
 ```
 
+### Assertions
+
+When writing assertions for object comparison, prefer the strict versions,
+namely:
+
+* `assert.strictEqual()` over `assert.equal()`
+* `assert.deepStrictEqual()` over `assert.deepEqual()`
+
+When using `assert.throws()`, if possible, provide the full error message:
+
+```js
+assert.throws(
+  () => {
+    throw new Error('Wrong value');
+  },
+  /^Error: Wrong value$/ // Instead of something like /Wrong value/
+);
+```
+
+### ES.Next features
+
+At the moment we only use a selected subset of ES.Next features in
+JavaScript code under the `lib` directory for performance considerations,
+but when writing tests, it is encouraged to use ES.Next features that have
+already landed in the ECMAScript specification. For example:
+
+* `let` and `const` over `var`
+* Template literals over string concatenation
+* Arrow functions over normal functions, if appropriate
+
 ## Naming Test Files
 
 Test files are named using kebab casing. The first component of the name is
