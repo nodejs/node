@@ -222,3 +222,9 @@ assert.strictEqual(punycode.ucs2.encode([0xDC00]), '\uDC00');
 assert.strictEqual(punycode.ucs2.encode([0xDC00, 0x61, 0x62]), '\uDC00ab');
 
 assert.strictEqual(errors, 0);
+
+// test map domain
+assert.strictEqual(punycode.toASCII('Bücher@日本語.com'),
+                   'Bücher@xn--wgv71a119e.com');
+assert.strictEqual(punycode.toUnicode('Bücher@xn--wgv71a119e.com'),
+                   'Bücher@日本語.com');
