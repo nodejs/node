@@ -21,6 +21,17 @@ function write(funx, args, result, res) {
   }
 
   {
+    const error = /Int/.test(funx) ?
+      /^TypeError: "buffer" argument must be a Buffer or Uint8Array$/ :
+      /^TypeError: argument should be a Buffer$/;
+
+    assert.throws(
+      () => Buffer.alloc(9)[funx].apply(new Uint32Array(1), args),
+      error
+    );
+  }
+
+  {
     const buf2 = Buffer.alloc(9);
     assert.strictEqual(buf2[funx](...args, true), result);
     assert.deepStrictEqual(buf2, res);
