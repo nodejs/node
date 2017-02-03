@@ -100,6 +100,21 @@ To install this version of Node.js into a system directory:
 $ [sudo] make install
 ```
 
+#### Using [nvm](https://github.com/creationix/nvm)
+You can use a Node.js version built from source by installing into the location
+that nvm expects:
+
+```console
+$ make install DESTDIR='$(HOME)/.nvm/versions/node/' PREFIX='$(FULLVERSION)-pre'
+```
+
+After this you can use `nvm` to switch between released versions and versions
+built from source.
+For example, if the version of Node.js is 8.0.0-pre:
+
+```console
+$ nvm use 8
+```
 
 ### Windows
 
