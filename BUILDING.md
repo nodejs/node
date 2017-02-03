@@ -110,7 +110,7 @@ $ make install DESTDIR='$(HOME)/.nvm/versions/node/' PREFIX='$(FULLVERSION)-pre'
 
 After this you can use `nvm` to switch between released versions and versions
 built from source.
-For example, if the version of Node.js is 8.0.0-pre:
+For example, if the version of Node.js is v8.0.0-pre:
 
 ```console
 $ nvm use 8
