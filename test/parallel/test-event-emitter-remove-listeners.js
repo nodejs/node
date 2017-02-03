@@ -115,3 +115,24 @@ function listener2() {}
   }));
   ee.emit('hello');
 }
+
+{
+  const ee = new events.EventEmitter();
+
+  assert.deepStrictEqual(ee, ee.removeListener('foo', () => {}));
+}
+
+// Verify that the removed listener must be a function
+assert.throws(() => {
+  const ee = new events.EventEmitter();
+
+  ee.removeListener('foo', null);
+}, /^TypeError: listener must be a function$/);
+
+{
+  const ee = new events.EventEmitter();
+  const listener = () => {};
+  ee._events = undefined;
+  const e = ee.removeListener('foo', listener);
+  assert.strictEqual(e, ee);
+}

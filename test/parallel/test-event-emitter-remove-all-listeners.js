@@ -77,3 +77,15 @@ function listener() {}
   ee.removeAllListeners('baz');
   assert.strictEqual(ee.listeners('baz').length, 0);
 }
+
+{
+  const ee = new events.EventEmitter();
+  assert.deepStrictEqual(ee, ee.removeAllListeners());
+}
+
+{
+  const ee = new events.EventEmitter();
+  ee._events = undefined;
+  assert.strictEqual(ee, ee.removeAllListeners());
+}
+
