@@ -250,3 +250,29 @@ For example, a test for the `beforeExit` event on the `process` object might be
 named `test-process-before-exit.js`. If the test specifically checked that arrow
 functions worked correctly with the `beforeExit` event, then it might be named
 `test-process-before-exit-arrow-functions.js`.
+
+## Imported Tests
+
+### Web Platform Tests
+
+Some of the tests for the WHATWG URL implementation (named
+`test-whatwg-url-*.js`) are imported from the
+[Web Platform Tests Project](https://github.com/w3c/web-platform-tests/tree/master/url).
+If you see a test wrapped in code like this
+
+```js
+/* eslint-disable */
+/* WPT Refs:
+   https://github.com/w3c/web-platform-tests/blob/8791bed/url/urlsearchparams-stringifier.html
+   License: http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html
+*/
+
+// Test code
+
+/* eslint-enable */
+```
+
+and want to improve it, please send a PR to the upstream project
+first, and when it's merged, send another PR to this project
+to update the code accordingly (be sure to update the hash in the
+URL following `WPT Refs:`).
