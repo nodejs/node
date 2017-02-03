@@ -5,7 +5,7 @@ const spawn = require('child_process').spawn;
 const cat = spawn(common.isWindows ? 'cmd' : 'cat');
 
 cat.stdout.on('end', common.mustCall(function() {}));
-cat.stderr.on('data', common.fail);
+cat.stderr.on('data', common.mustNotCall());
 cat.stderr.on('end', common.mustCall(function() {}));
 
 cat.on('exit', common.mustCall(function(code, signal) {

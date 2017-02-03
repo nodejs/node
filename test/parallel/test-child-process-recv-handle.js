@@ -24,7 +24,7 @@ function master() {
   });
   proc.stdout.on('data', common.mustCall((data) => {
     assert.strictEqual(data.toString(), 'ok\r\n');
-    net.createServer(common.fail).listen(0, function() {
+    net.createServer(common.mustNotCall()).listen(0, function() {
       handle = this._handle;
       proc.send('one');
       proc.send('two', handle);

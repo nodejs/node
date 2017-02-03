@@ -12,9 +12,7 @@ setImmediate(common.mustCall(function() {
   clearImmediate(immediateB);
 }));
 
-const immediateB = setImmediate(function() {
-  common.fail('this immediate should not run');
-});
+const immediateB = setImmediate(common.mustNotCall());
 
 setImmediate(function(x, y, z) {
   immediateC = [x, y, z];

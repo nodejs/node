@@ -97,9 +97,9 @@ assert.doesNotThrow(
         fs.unwatchFile(filenameThree, b);
         ++watchSeenThree;
       }
-      fs.watchFile(filenameThree, common.fail);
+      fs.watchFile(filenameThree, common.mustNotCall());
       fs.watchFile(filenameThree, b);
-      fs.unwatchFile(filenameThree, common.fail);
+      fs.unwatchFile(filenameThree, common.mustNotCall());
     }
 );
 

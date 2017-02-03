@@ -45,7 +45,7 @@ function checkWrap(req) {
 
 TEST(function test_reverse_bogus(done) {
   assert.throws(() => {
-    dns.reverse('bogus ip', common.fail);
+    dns.reverse('bogus ip', common.mustNotCall());
   }, /^Error: getHostByAddr EINVAL$/);
   done();
 });

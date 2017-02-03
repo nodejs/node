@@ -22,9 +22,7 @@ const handle1 = setTimeout(common.mustCall(function() {
   clearTimeout(handle1);
 
   // Cause a new list with the same key (TIMEOUT) to be created for this timer
-  const handle2 = setTimeout(function() {
-    common.fail('Inner callback is not called');
-  }, TIMEOUT);
+  const handle2 = setTimeout(common.mustNotCall(), TIMEOUT);
 
   setTimeout(common.mustCall(function() {
     // Attempt to cancel the second timer. Fix for this bug will keep the

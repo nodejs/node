@@ -7,7 +7,7 @@ const cp = require('child_process');
 const doesNotExist = cp.spawn('does-not-exist', {shell: true});
 
 assert.notStrictEqual(doesNotExist.spawnfile, 'does-not-exist');
-doesNotExist.on('error', common.fail);
+doesNotExist.on('error', common.mustNotCall());
 doesNotExist.on('exit', common.mustCall((code, signal) => {
   assert.strictEqual(signal, null);
 

@@ -35,14 +35,14 @@ function unauthorized() {
     socket.end();
     rejectUnauthorized();
   }));
-  socket.on('error', common.fail);
+  socket.on('error', common.mustNotCall());
   socket.write('ok');
 }
 
 function rejectUnauthorized() {
   const socket = tls.connect(server.address().port, {
     servername: 'localhost'
-  }, common.fail);
+  }, common.mustNotCall());
   socket.on('error', common.mustCall(function(err) {
     console.error(err);
     authorized();
@@ -59,6 +59,6 @@ function authorized() {
     socket.end();
     server.close();
   }));
-  socket.on('error', common.fail);
+  socket.on('error', common.mustNotCall());
   socket.write('ok');
 }

@@ -38,5 +38,5 @@ const server = tls.createServer({
   // treated as error.
   conn.end('');
 
-  conn.on('error', common.fail);
+  conn.on('error', common.mustNotCall());
 }));

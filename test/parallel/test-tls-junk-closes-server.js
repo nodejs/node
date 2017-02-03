@@ -15,7 +15,7 @@ const options = {
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem')
 };
 
-const server = tls.createServer(options, common.fail);
+const server = tls.createServer(options, common.mustNotCall());
 
 server.listen(0, common.mustCall(function() {
   const c = net.createConnection(this.address().port);

@@ -29,7 +29,7 @@ setInterval(function() {
 
 // Test on condition where a watcher for SIGNAL
 // has been previously registered, and `process.listeners(SIGNAL).length === 1`
-process.on('SIGHUP', function() { common.fail('should not run'); });
+process.on('SIGHUP', common.mustNotCall());
 process.removeAllListeners('SIGHUP');
 process.on('SIGHUP', common.mustCall(function() {}));
 process.kill(process.pid, 'SIGHUP');

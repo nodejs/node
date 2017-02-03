@@ -3,7 +3,7 @@ const common = require('../common');
 const http = require('http');
 const assert = require('assert');
 
-const server = http.createServer(common.fail);
+const server = http.createServer(common.mustNotCall());
 
 server.listen(0, function() {
   const req = http.request({

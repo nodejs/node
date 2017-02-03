@@ -29,7 +29,7 @@ function authorized() {
     port: server.address().port,
     rejectUnauthorized: true,
     ca: [fs.readFileSync(path.join(common.fixturesDir, 'keys/ca2-cert.pem'))]
-  }, common.fail);
+  }, common.mustNotCall());
   req.on('error', function(err) {
     override();
   });
