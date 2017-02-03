@@ -25,17 +25,22 @@ test(function() {
 
 test(function() {
     var params = new URLSearchParams('a=1&a=2&a=3&a');
-    assert_true(params.has('a'), `Search params object doesn't have name "a"`);
+    assert_true(params.has('a'), 'Search params object doesn\'t have name "a"');
     var matches = params.getAll('a');
     assert(matches);
-    assert_equals(matches.length, 4, `Unexpected length of name "a" values in search params object: ${matches.length}`);
-    assert_array_equals(matches, ['1', '2', '3', ''], `Unexpected name "a" values: ${matches}`);
+    assert_equals(matches.length, 4, `Unexpected length of name "a" values in 
+      search params object: ${matches.length}`);
+    assert_array_equals(matches, ['1', '2', '3', ''], `Unexpected name "a" 
+      values: ${matches}`);
     params.set('a', 'one');
-    assert_equals(params.get('a'), 'one', `Search params object doesn't have name "a" with value "one"`);
+    assert_equals(params.get('a'), 'one', 'Search params object doesn\'t ' +
+      'have name "a" with value "one"');
     matches = params.getAll('a');
     assert(matches);
-    assert_equals(matches.length, 1, `Unexpected length of name "a" values in search params object: ${matches.length}`);
-    assert_array_equals(matches, ['one'], `Unexpected name "a" values: ${matches}`);
+    assert_equals(matches.length, 1, `Unexpected length of name "a" values in 
+      search params object: ${matches.length}`);
+    assert_array_equals(matches, ['one'], `Unexpected name "a" values: 
+      ${matches}`);
 }, 'getAll() multiples');
 /* eslint-enable */
 
