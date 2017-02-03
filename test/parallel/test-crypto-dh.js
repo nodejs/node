@@ -285,4 +285,4 @@ ecdh5.setPrivateKey(cafebabeKey, 'hex');
 // invalid test: curve argument is undefined
 assert.throws(() => {
   crypto.createECDH();
-}, /^TypeError: "curve" argument should be a string$/);
+}, /^TypeError: ECDH curve name must be a string$/);
