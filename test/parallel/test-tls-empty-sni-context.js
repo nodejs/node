@@ -33,9 +33,7 @@ const server = tls.createServer(options, (c) => {
     port: server.address().port,
     rejectUnauthorized: false,
     servername: 'any.name'
-  }, () => {
-    common.fail('Should not be called');
-  });
+  }, common.mustNotCall());
 
   c.on('error', common.mustCall((err) => {
     assert(/socket hang up/.test(err.message));

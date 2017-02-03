@@ -11,5 +11,5 @@ if (cluster.isMaster) {
   }));
 } else {
   // listen() without port should not trigger a libuv assert
-  net.createServer(common.fail).listen(process.exit);
+  net.createServer(common.mustNotCall()).listen(process.exit);
 }

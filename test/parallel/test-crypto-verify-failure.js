@@ -41,7 +41,7 @@ server.listen(0, common.mustCall(() => {
   }, common.mustCall(() => {
     verify();
   }))
-    .on('error', common.fail)
+    .on('error', common.mustNotCall())
     .on('close', common.mustCall(() => {
       server.close();
     })).resume();

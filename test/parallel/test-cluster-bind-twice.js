@@ -60,9 +60,10 @@ if (!id) {
 } else if (id === 'one') {
   if (cluster.isMaster) return startWorker();
 
-  http.createServer(common.fail).listen(common.PORT, common.mustCall(() => {
-    process.send('READY');
-  }));
+  http.createServer(common.mustNotCall())
+    .listen(common.PORT, common.mustCall(() => {
+      process.send('READY');
+    }));
 
   process.on('message', common.mustCall((m) => {
     if (m === 'QUIT') process.exit();
@@ -70,11 +71,11 @@ if (!id) {
 } else if (id === 'two') {
   if (cluster.isMaster) return startWorker();
 
-  const server = http.createServer(common.fail);
+  const server = http.createServer(common.mustNotCall());
   process.on('message', common.mustCall((m) => {
     if (m === 'QUIT') process.exit();
     assert.strictEqual(m, 'START');
-    server.listen(common.PORT, common.fail);
+    server.listen(common.PORT, common.mustNotCall());
     server.on('error', common.mustCall((e) => {
       assert.strictEqual(e.code, 'EADDRINUSE');
       process.send(e.code);

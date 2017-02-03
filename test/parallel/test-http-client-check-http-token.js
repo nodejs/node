@@ -18,7 +18,7 @@ const server = http.createServer((req, res) => {
 function test() {
   function fail(input) {
     assert.throws(() => {
-      http.request({ method: input, path: '/' }, common.fail);
+      http.request({ method: input, path: '/' }, common.mustNotCall());
     }, /^TypeError: Method must be a string$/);
   }
 

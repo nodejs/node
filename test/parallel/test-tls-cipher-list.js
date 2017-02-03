@@ -17,12 +17,12 @@ function doCheck(arg, check) {
     'require("crypto").constants.defaultCipherList'
   ]);
   spawn(process.execPath, arg, {})
-    .on('error', common.fail)
+    .on('error', common.mustNotCall())
     .stdout.on('data', function(chunk) {
       out += chunk;
     }).on('end', function() {
       assert.strictEqual(out.trim(), check);
-    }).on('error', common.fail);
+    }).on('error', common.mustNotCall());
 }
 
 // test the default unmodified version

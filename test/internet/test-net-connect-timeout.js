@@ -26,4 +26,4 @@ socket.on('timeout', common.mustCall(function() {
   socket.destroy();
 }));
 
-socket.on('connect', common.fail);
+socket.on('connect', common.mustNotCall());

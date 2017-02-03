@@ -35,11 +35,11 @@ listenVariants.forEach((listenVariant, i) => {
       // skip this, because listen(port) can also be listen(path)
       return;
     }
-    assert.throws(() => listenVariant(port, common.fail),
+    assert.throws(() => listenVariant(port, common.mustNotCall()),
                   /"port" argument must be >= 0 and < 65536/i);
   });
 
   [null, true, false].forEach((port) =>
-    assert.throws(() => listenVariant(port, common.fail),
+    assert.throws(() => listenVariant(port, common.mustNotCall()),
                   /invalid listen argument/i));
 });

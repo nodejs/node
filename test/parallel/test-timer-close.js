@@ -8,4 +8,4 @@ const Timer = process.binding('timer_wrap').Timer;
 const t = new Timer();
 
 t.close(common.mustCall(function() {}));
-t.close(() => common.fail('This should never be called'));
+t.close(common.mustNotCall());

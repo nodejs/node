@@ -18,7 +18,7 @@ const options = {
   ecdhCurve: false
 };
 
-const server = tls.createServer(options, common.fail);
+const server = tls.createServer(options, common.mustNotCall());
 
 server.listen(0, '127.0.0.1', common.mustCall(function() {
   let cmd = '"' + common.opensslCli + '" s_client -cipher ' + options.ciphers +

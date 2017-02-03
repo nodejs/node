@@ -63,27 +63,30 @@ assert.throws(function() {
 
 // Should not work with Infinity key length
 assert.throws(function() {
-  crypto.pbkdf2('password', 'salt', 1, Infinity, 'sha256', common.fail);
+  crypto.pbkdf2('password', 'salt', 1, Infinity, 'sha256',
+                common.mustNotCall());
 }, /^TypeError: Bad key length$/);
 
 // Should not work with negative Infinity key length
 assert.throws(function() {
-  crypto.pbkdf2('password', 'salt', 1, -Infinity, 'sha256', common.fail);
+  crypto.pbkdf2('password', 'salt', 1, -Infinity, 'sha256',
+                common.mustNotCall());
 }, /^TypeError: Bad key length$/);
 
 // Should not work with NaN key length
 assert.throws(function() {
-  crypto.pbkdf2('password', 'salt', 1, NaN, 'sha256', common.fail);
+  crypto.pbkdf2('password', 'salt', 1, NaN, 'sha256', common.mustNotCall());
 }, /^TypeError: Bad key length$/);
 
 // Should not work with negative key length
 assert.throws(function() {
-  crypto.pbkdf2('password', 'salt', 1, -1, 'sha256', common.fail);
+  crypto.pbkdf2('password', 'salt', 1, -1, 'sha256', common.mustNotCall());
 }, /^TypeError: Bad key length$/);
 
 // Should not work with key length that does not fit into 32 signed bits
 assert.throws(function() {
-  crypto.pbkdf2('password', 'salt', 1, 4073741824, 'sha256', common.fail);
+  crypto.pbkdf2('password', 'salt', 1, 4073741824, 'sha256',
+                common.mustNotCall());
 }, /^TypeError: Bad key length$/);
 
 // Should not get FATAL ERROR with empty password and salt

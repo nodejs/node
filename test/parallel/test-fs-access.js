@@ -82,7 +82,7 @@ fs.access(readOnlyFile, fs.W_OK, common.mustCall((err) => {
 }));
 
 assert.throws(() => {
-  fs.access(100, fs.F_OK, () => { common.fail('callback should not run'); });
+  fs.access(100, fs.F_OK, common.mustNotCall());
 }, /^TypeError: path must be a string or Buffer$/);
 
 assert.throws(() => {
