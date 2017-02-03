@@ -9,156 +9,202 @@ const existingFile2 = path.join(common.fixturesDir, 'create-file.js');
 const existingDir = path.join(common.fixturesDir, 'empty');
 const existingDir2 = path.join(common.fixturesDir, 'keys');
 
-// Test all operations failing with ENOENT errors
-function testEnoentError(file, endMessage, syscal, err) {
-  const sufix = (endMessage) ? endMessage : '';
+// ASYNC_CALL
 
-  assert(err instanceof Error);
+fs.stat(fn, function(err) {
   assert.strictEqual(fn, err.path);
-  assert.strictEqual(
-    err.message,
-    `ENOENT: no such file or directory, ${syscal} '${file}'${sufix}`
-  );
-
-  return true;
-}
-
-// Test all operations failing with EEXIST errors
-function testEexistError(source, dest, syscal, err) {
-  const sufix = (dest) ? ` -> '${dest}'` : '';
-
-  assert(err instanceof Error);
-  assert.strictEqual(source, err.path);
-  assert.strictEqual(
-    err.message,
-    `EEXIST: file already exists, ${syscal} '${source}'${sufix}`
-  );
-
-  return true;
-}
-
-// Test all operations failing with ENOTEMPTY errors
-function testEnoemptyError(source, dest, err) {
-  assert(err instanceof Error);
-  assert.strictEqual(source, err.path);
-  assert.strictEqual(
-    err.message,
-    `ENOTEMPTY: directory not empty, rename '${source}' ` +
-    `-> '${dest}'`
-  );
-
-  return true;
-}
-
-// Test all operations failing with ENOTDIR errors
-function testEnotdirError(dir, err) {
-  assert(err instanceof Error);
-  assert.strictEqual(dir, err.path);
-  assert.strictEqual(
-    err.message,
-    `ENOTDIR: not a directory, rmdir '${dir}'`
-  );
-
-  return true;
-}
-
-// Generating ENOENTS errors
-fs.stat(fn, (err) => testEnoentError(fn, '', 'stat', err));
-fs.lstat(fn, (err) => testEnoentError(fn, '', 'lstat', err));
-fs.readlink(fn, (err) => testEnoentError(fn, '', 'readlink', err));
-fs.link(fn, 'foo', (err) => testEnoentError(fn, ' -> \'foo\'', 'link', err));
-fs.unlink(fn, (err) => testEnoentError(fn, '', 'unlink', err));
-fs.rmdir(fn, (err) => testEnoentError(fn, '', 'rmdir', err));
-fs.chmod(fn, 0o666, (err) => testEnoentError(fn, '', 'chmod', err));
-fs.open(fn, 'r', 0o666, (err) => testEnoentError(fn, '', 'open', err));
-fs.readFile(fn, (err) => testEnoentError(fn, '', 'open', err));
-fs.readdir(fn, (err) => testEnoentError(fn, '', 'scandir', err));
-
-fs.rename(fn, 'foo', (err) => {
-  testEnoentError(fn, ' -> \'foo\'', 'rename', err);
+  assert.ok(0 <= err.message.indexOf(fn));
 });
 
-assert.throws(() => {
+fs.lstat(fn, function(err) {
+  assert.ok(0 <= err.message.indexOf(fn));
+});
+
+fs.readlink(fn, function(err) {
+  assert.ok(0 <= err.message.indexOf(fn));
+});
+
+fs.link(fn, 'foo', function(err) {
+  assert.ok(0 <= err.message.indexOf(fn));
+});
+
+fs.link(existingFile, existingFile2, function(err) {
+  assert.ok(0 <= err.message.indexOf(existingFile));
+  assert.ok(0 <= err.message.indexOf(existingFile2));
+});
+
+fs.symlink(existingFile, existingFile2, function(err) {
+  assert.ok(0 <= err.message.indexOf(existingFile));
+  assert.ok(0 <= err.message.indexOf(existingFile2));
+});
+
+fs.unlink(fn, function(err) {
+  assert.ok(0 <= err.message.indexOf(fn));
+});
+
+fs.rename(fn, 'foo', function(err) {
+  assert.ok(0 <= err.message.indexOf(fn));
+});
+
+fs.rename(existingDir, existingDir2, function(err) {
+  assert.ok(0 <= err.message.indexOf(existingDir));
+  assert.ok(0 <= err.message.indexOf(existingDir2));
+});
+
+fs.rmdir(fn, function(err) {
+  assert.ok(0 <= err.message.indexOf(fn));
+});
+
+fs.mkdir(existingFile, 0o666, function(err) {
+  assert.ok(0 <= err.message.indexOf(existingFile));
+});
+
+fs.rmdir(existingFile, function(err) {
+  assert.ok(0 <= err.message.indexOf(existingFile));
+});
+
+fs.chmod(fn, 0o666, function(err) {
+  assert.ok(0 <= err.message.indexOf(fn));
+});
+
+fs.open(fn, 'r', 0o666, function(err) {
+  assert.ok(0 <= err.message.indexOf(fn));
+});
+
+fs.readFile(fn, function(err) {
+  assert.ok(0 <= err.message.indexOf(fn));
+});
+
+// Sync
+
+const errors = [];
+let expected = 0;
+
+try {
+  ++expected;
   fs.statSync(fn);
-}, (err) => testEnoentError(fn, '', 'stat', err));
+} catch (err) {
+  errors.push('stat');
+  assert.ok(0 <= err.message.indexOf(fn));
+}
 
-assert.throws(() => {
-  fs.lstatSync(fn);
-}, (err) => testEnoentError(fn, '', 'lstat', err));
-
-assert.throws(() => {
-  fs.readlinkSync(fn);
-}, (err) => testEnoentError(fn, '', 'readlink', err));
-
-assert.throws(() => {
-  fs.linkSync(fn, 'foo');
-}, (err) => testEnoentError(fn, ' -> \'foo\'', 'link', err));
-
-assert.throws(() => {
-  fs.unlinkSync(fn);
-}, (err) => testEnoentError(fn, '', 'unlink', err));
-
-assert.throws(() => {
-  fs.rmdirSync(fn);
-}, (err) => testEnoentError(fn, '', 'rmdir', err));
-
-assert.throws(() => {
-  fs.chmodSync(fn, 0o666);
-}, (err) => testEnoentError(fn, '', 'chmod', err));
-
-assert.throws(() => {
-  fs.openSync(fn, 'r');
-}, (err) => testEnoentError(fn, '', 'open', err));
-
-assert.throws(() => {
-  fs.readFileSync(fn);
-}, (err) => testEnoentError(fn, '', 'open', err));
-
-assert.throws(() => {
-  fs.readdirSync(fn);
-}, (err) => testEnoentError(fn, '', 'scandir', err));
-
-assert.throws(() => {
-  fs.renameSync(fn, 'foo');
-}, (err) => testEnoentError(fn, ' -> \'foo\'', 'rename', err));
-
-// Generating EEXIST errors
-fs.link(existingFile, existingFile2, (err) => {
-  testEexistError(existingFile, existingFile2, 'link', err);
-});
-
-fs.symlink(existingFile, existingFile2, (err) => {
-  testEexistError(existingFile, existingFile2, 'symlink', err);
-});
-
-fs.mkdir(existingFile, 0o666, (err) => {
-  testEexistError(existingFile, null, 'mkdir', err);
-});
-
-assert.throws(() => {
-  fs.linkSync(existingFile, existingFile2);
-}, (err) => testEexistError(existingFile, existingFile2, 'link', err));
-
-assert.throws(() => {
-  fs.symlinkSync(existingFile, existingFile2);
-}, (err) => testEexistError(existingFile, existingFile2, 'symlink', err));
-
-assert.throws(() => {
+try {
+  ++expected;
   fs.mkdirSync(existingFile, 0o666);
-}, (err) => testEexistError(existingFile, null, 'mkdir', err));
+} catch (err) {
+  errors.push('mkdir');
+  assert.ok(0 <= err.message.indexOf(existingFile));
+}
 
-// Generating ENOTEMPTY errors
-fs.rename(existingDir, existingDir2, (err) => {
-  testEnoemptyError(existingDir, existingDir2, err);
-});
+try {
+  ++expected;
+  fs.chmodSync(fn, 0o666);
+} catch (err) {
+  errors.push('chmod');
+  assert.ok(0 <= err.message.indexOf(fn));
+}
 
-assert.throws(() => {
-  fs.renameSync(existingDir, existingDir2);
-}, (err) => testEnoemptyError(existingDir, existingDir2, err));
+try {
+  ++expected;
+  fs.lstatSync(fn);
+} catch (err) {
+  errors.push('lstat');
+  assert.ok(0 <= err.message.indexOf(fn));
+}
 
-// Generating ENOTDIR errors
-fs.rmdir(existingFile, (err) => testEnotdirError(existingFile, err));
+try {
+  ++expected;
+  fs.readlinkSync(fn);
+} catch (err) {
+  errors.push('readlink');
+  assert.ok(0 <= err.message.indexOf(fn));
+}
 
-assert.throws(() => {
+try {
+  ++expected;
+  fs.linkSync(fn, 'foo');
+} catch (err) {
+  errors.push('link');
+  assert.ok(0 <= err.message.indexOf(fn));
+}
+
+try {
+  ++expected;
+  fs.linkSync(existingFile, existingFile2);
+} catch (err) {
+  errors.push('link');
+  assert.ok(0 <= err.message.indexOf(existingFile));
+  assert.ok(0 <= err.message.indexOf(existingFile2));
+}
+
+try {
+  ++expected;
+  fs.symlinkSync(existingFile, existingFile2);
+} catch (err) {
+  errors.push('symlink');
+  assert.ok(0 <= err.message.indexOf(existingFile));
+  assert.ok(0 <= err.message.indexOf(existingFile2));
+}
+
+try {
+  ++expected;
+  fs.unlinkSync(fn);
+} catch (err) {
+  errors.push('unlink');
+  assert.ok(0 <= err.message.indexOf(fn));
+}
+
+try {
+  ++expected;
+  fs.rmdirSync(fn);
+} catch (err) {
+  errors.push('rmdir');
+  assert.ok(0 <= err.message.indexOf(fn));
+}
+
+try {
+  ++expected;
   fs.rmdirSync(existingFile);
-}, (err) => testEnotdirError(existingFile, err));
+} catch (err) {
+  errors.push('rmdir');
+  assert.ok(0 <= err.message.indexOf(existingFile));
+}
+
+try {
+  ++expected;
+  fs.openSync(fn, 'r');
+} catch (err) {
+  errors.push('opens');
+  assert.ok(0 <= err.message.indexOf(fn));
+}
+
+try {
+  ++expected;
+  fs.renameSync(fn, 'foo');
+} catch (err) {
+  errors.push('rename');
+  assert.ok(0 <= err.message.indexOf(fn));
+}
+
+try {
+  ++expected;
+  fs.renameSync(existingDir, existingDir2);
+} catch (err) {
+  errors.push('rename');
+  assert.ok(0 <= err.message.indexOf(existingDir));
+  assert.ok(0 <= err.message.indexOf(existingDir2));
+}
+
+try {
+  ++expected;
+  fs.readdirSync(fn);
+} catch (err) {
+  errors.push('readdir');
+  assert.ok(0 <= err.message.indexOf(fn));
+}
+
+process.on('exit', function() {
+  assert.strictEqual(expected, errors.length,
+                     'Test fs sync exceptions raised, got ' + errors.length +
+               ' expected ' + expected);
+});
