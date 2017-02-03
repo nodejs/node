@@ -128,3 +128,11 @@ assert.throws(() => {
 
   ee.removeListener('foo', null);
 }, /^TypeError: "listener" argument must be a function$/);
+
+{
+  const ee = new EventEmitter();
+  const listener = () => {};
+  ee._events = undefined;
+  const e = ee.removeListener('foo', listener);
+  assert.strictEqual(e, ee);
+}
