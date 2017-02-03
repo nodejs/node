@@ -82,3 +82,9 @@ function listener() {}
   const ee = new events.EventEmitter();
   assert.deepStrictEqual(ee, ee.removeAllListeners());
 }
+
+{
+  const ee = new events.EventEmitter();
+  ee._events = undefined;
+  assert.strictEqual(ee, ee.removeAllListeners());
+}
