@@ -9,7 +9,7 @@ function read(buff, funx, args, expected) {
 
   assert.strictEqual(buff[funx](...args), expected);
   common.expectsError(
-    () => buff[funx](-1),
+    () => buff[funx](-1, args[1]),
     {
       code: 'ERR_INDEX_OUT_OF_RANGE'
     }
@@ -142,3 +142,19 @@ assert.throws(() => Buffer.allocUnsafe(8).readFloatLE(-1), RangeError);
   assert.strictEqual(buf.readIntLE(0, 6), 0x060504030201);
   assert.strictEqual(buf.readIntBE(0, 6), 0x010203040506);
 }
+
+// test for byteLength parameter not between 1 and 6 (inclusive)
+common.expectsError(() => { buf.readIntLE(1); }, { code: 'ERR_OUT_OF_RANGE' });
+common.expectsError(() => { buf.readIntLE(1, 'string'); },
+                    { code: 'ERR_OUT_OF_RANGE' });
+common.expectsError(() => { buf.readIntLE(1, 0); },
+                    { code: 'ERR_OUT_OF_RANGE' });
+common.expectsError(() => { buf.readIntLE(1, 7); },
+                    { code: 'ERR_OUT_OF_RANGE' });
+common.expectsError(() => { buf.readIntBE(1); }, { code: 'ERR_OUT_OF_RANGE' });
+common.expectsError(() => { buf.readIntBE(1, 'string'); },
+                    { code: 'ERR_OUT_OF_RANGE' });
+common.expectsError(() => { buf.readIntBE(1, 0); },
+                    { code: 'ERR_OUT_OF_RANGE' });
+common.expectsError(() => { buf.readIntBE(1, 7); },
+                    { code: 'ERR_OUT_OF_RANGE' });

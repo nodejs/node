@@ -1776,8 +1776,11 @@ console.log(buf.readIntLE(0, 6).toString(16));
 // Prints: 1234567890ab
 console.log(buf.readIntBE(0, 6).toString(16));
 
-// Throws an exception: RangeError: Index out of range
+// Throws ERR_INDEX_OUT_OF_RANGE:
 console.log(buf.readIntBE(1, 6).toString(16));
+
+// Throws ERR_OUT_OF_RANGE:
+console.log(buf.readIntBE(1, 0).toString(16));
 ```
 
 ### buf.readUInt8(offset[, noAssert])
