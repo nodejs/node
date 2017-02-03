@@ -8,7 +8,5 @@ net.createServer(function(conn) {
 }).listen(0, function() {
   net.connect(this.address().port, 'localhost').pause();
 
-  setTimeout(function() {
-    common.fail('expected to exit');
-  }, 1000).unref();
+  setTimeout(common.mustNotCall('expected to exit'), 1000).unref();
 }).unref();

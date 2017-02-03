@@ -75,7 +75,7 @@ function testDHE2048() {
 
 testDHE1024();
 
-assert.throws(() => test(512, true, common.fail),
+assert.throws(() => test(512, true, common.mustNotCall()),
               /DH parameter is less than 1024 bits/);
 
 [0, -1, -Infinity, NaN].forEach((minDHSize) => {

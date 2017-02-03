@@ -12,7 +12,7 @@ const child = spawn(process.argv[0], [sub, n]);
 let count = 0;
 
 child.stderr.setEncoding('utf8');
-child.stderr.on('data', common.fail);
+child.stderr.on('data', common.mustNotCall());
 
 child.stdout.setEncoding('utf8');
 child.stdout.on('data', (data) => {

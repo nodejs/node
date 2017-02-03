@@ -20,7 +20,7 @@ s.on('exit', function() {
   handle.close();
 });
 
-net.createServer(common.fail).listen(0, function() {
+net.createServer(common.mustNotCall()).listen(0, function() {
   handle = this._handle;
   assert.strictEqual(s.send('one', handle), true);
   assert.strictEqual(s.send('two', handle), true);

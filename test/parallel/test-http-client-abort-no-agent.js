@@ -3,7 +3,7 @@ const common = require('../common');
 const http = require('http');
 const net = require('net');
 
-const server = http.createServer(common.fail);
+const server = http.createServer(common.mustNotCall());
 
 server.listen(0, common.mustCall(() => {
   const req = http.get({

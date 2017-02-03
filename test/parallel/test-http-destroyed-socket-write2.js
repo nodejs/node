@@ -53,12 +53,8 @@ server.listen(0, function() {
   }));
 
   req.on('response', function(res) {
-    res.on('data', function(chunk) {
-      common.fail('Should not receive response data');
-    });
-    res.on('end', function() {
-      common.fail('Should not receive response end');
-    });
+    res.on('data', common.mustNotCall('Should not receive response data'));
+    res.on('end', common.mustNotCall('Should not receive response end'));
   });
 
   write();

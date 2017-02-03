@@ -38,7 +38,7 @@ function testHttp() {
       host: 'localhost',
       port: httpServer.address().port,
       rejectUnauthorized: false
-    }, cb).on('error', common.fail);
+    }, cb).on('error', common.mustNotCall());
 
     http.request({
       method: 'GET',
@@ -46,7 +46,7 @@ function testHttp() {
       host: 'localhost',
       port: httpServer.address().port,
       rejectUnauthorized: false
-    }, cb).on('error', common.fail).end();
+    }, cb).on('error', common.mustNotCall()).end();
 
     http.request({
       method: 'POST',
@@ -54,7 +54,7 @@ function testHttp() {
       host: 'localhost',
       port: httpServer.address().port,
       rejectUnauthorized: false
-    }, cb).on('error', common.fail).end();
+    }, cb).on('error', common.mustNotCall()).end();
 
     http.request({
       method: 'PUT',
@@ -62,7 +62,7 @@ function testHttp() {
       host: 'localhost',
       port: httpServer.address().port,
       rejectUnauthorized: false
-    }, cb).on('error', common.fail).end();
+    }, cb).on('error', common.mustNotCall()).end();
 
     http.request({
       method: 'DELETE',
@@ -70,6 +70,6 @@ function testHttp() {
       host: 'localhost',
       port: httpServer.address().port,
       rejectUnauthorized: false
-    }, cb).on('error', common.fail).end();
+    }, cb).on('error', common.mustNotCall()).end();
   });
 }

@@ -464,6 +464,12 @@ function fail(msg) {
 }
 exports.fail = fail;
 
+exports.mustNotCall = function(msg) {
+  return function mustNotCall() {
+    fail(msg || 'function should not have been called');
+  };
+};
+
 exports.skip = function(msg) {
   console.log(`1..0 # Skipped: ${msg}`);
 };

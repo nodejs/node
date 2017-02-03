@@ -24,7 +24,7 @@ server.listen(0, common.mustCall(() => {
 
   http.get({agent, port}, (res) => res.resume());
 
-  const req = http.get({agent, port}, common.fail);
+  const req = http.get({agent, port}, common.mustNotCall());
   req.abort();
 
   http.get({agent, port}, common.mustCall((res) => {

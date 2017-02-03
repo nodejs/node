@@ -7,9 +7,7 @@ const assert = require('assert');
 // Hopefully nothing is running on common.PORT
 const c = net.createConnection(common.PORT);
 
-c.on('connect', function() {
-  common.fail('connected?!');
-});
+c.on('connect', common.mustNotCall());
 
 c.on('error', common.mustCall(function(e) {
   console.error('couldn\'t connect.');

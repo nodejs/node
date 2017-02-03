@@ -9,9 +9,8 @@ const server = http.createServer((req, res) => {
   res.writeHead(200);
   res.flushHeaders();
 
-  req.setTimeout(common.platformTimeout(200), () => {
-    common.fail('Request timeout should not fire');
-  });
+  req.setTimeout(common.platformTimeout(200),
+                 common.mustNotCall('Request timeout should not fire'));
   req.resume();
   req.once('end', common.mustCall(() => {
     res.end();

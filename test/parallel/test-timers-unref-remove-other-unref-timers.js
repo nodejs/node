@@ -10,7 +10,7 @@ const common = require('../common');
 const timers = require('timers');
 
 const foo = {
-  _onTimeout: common.fail
+  _onTimeout: common.mustNotCall('_onTimeout should not be called')
 };
 
 const bar = {

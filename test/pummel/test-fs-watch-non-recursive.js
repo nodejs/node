@@ -18,7 +18,7 @@ try { fs.mkdirSync(testsubdir, 0o700); } catch (e) {}
 
 // Need a grace period, else the mkdirSync() above fires off an event.
 setTimeout(function() {
-  const watcher = fs.watch(testDir, { persistent: true }, common.fail);
+  const watcher = fs.watch(testDir, { persistent: true }, common.mustNotCall());
   setTimeout(function() {
     fs.writeFileSync(filepath, 'test');
   }, 100);

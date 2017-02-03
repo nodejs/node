@@ -6,4 +6,4 @@ const s = net.createServer();
 s.listen(0);
 s.unref();
 
-setTimeout(common.fail, 1000).unref();
+setTimeout(common.mustNotCall(), 1000).unref();

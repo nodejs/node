@@ -8,4 +8,4 @@ const s = net.Server();
 s.listen(common.PIPE);
 s.unref();
 
-setTimeout(common.fail, 1000).unref();
+setTimeout(common.mustNotCall(), 1000).unref();

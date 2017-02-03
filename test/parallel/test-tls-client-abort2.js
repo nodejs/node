@@ -8,7 +8,7 @@ if (!common.hasCrypto) {
 }
 const tls = require('tls');
 
-const conn = tls.connect(common.PORT, common.fail);
+const conn = tls.connect(common.PORT, common.mustNotCall());
 conn.on('error', common.mustCall(function() {
   assert.doesNotThrow(function() {
     conn.destroy();

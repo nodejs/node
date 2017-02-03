@@ -15,7 +15,7 @@ const server = http.createServer(function(req, res) {
 server.listen(0, common.mustCall(function() {
   http.get({ port: this.address().port }, common.mustCall(function(res) {
 
-    res.on('data', common.fail);
+    res.on('data', common.mustNotCall());
 
     res.on('end', function(d) {
       server.close();

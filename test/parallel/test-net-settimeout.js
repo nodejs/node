@@ -15,9 +15,7 @@ const server = net.createServer(common.mustCall((c) => {
 server.listen(0, function() {
   const socket = net.createConnection(this.address().port, 'localhost');
 
-  const s = socket.setTimeout(T, () => {
-    common.fail('Socket timeout event is not expected to fire');
-  });
+  const s = socket.setTimeout(T, common.mustNotCall());
   assert.ok(s instanceof net.Socket);
 
   socket.on('data', common.mustCall(() => {

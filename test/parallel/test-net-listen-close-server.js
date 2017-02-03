@@ -4,6 +4,6 @@ const net = require('net');
 
 const server = net.createServer(function(socket) {
 });
-server.listen(0, common.fail);
-server.on('error', common.fail);
+server.listen(0, common.mustNotCall());
+server.on('error', common.mustNotCall());
 server.close();

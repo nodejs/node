@@ -17,7 +17,7 @@ const options = {
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
 
-const server = https.createServer(options, common.fail);
+const server = https.createServer(options, common.mustNotCall());
 
 server.on('secureConnection', function(cleartext) {
   const s = cleartext.setTimeout(50, function() {

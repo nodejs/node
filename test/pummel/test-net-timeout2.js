@@ -9,7 +9,7 @@ const seconds = 5;
 let counter = 0;
 
 const server = net.createServer(function(socket) {
-  socket.setTimeout((seconds / 2) * 1000, common.fail);
+  socket.setTimeout((seconds / 2) * 1000, common.mustNotCall());
 
   const interval = setInterval(function() {
     counter++;

@@ -116,7 +116,8 @@ function makeBufferingDataCallback(dataCallback) {
 }
 
 function timeout(message, multiplicator) {
-  return setTimeout(() => common.fail(message), TIMEOUT * (multiplicator || 1));
+  return setTimeout(common.mustNotCall(message),
+                    TIMEOUT * (multiplicator || 1));
 }
 
 const TestSession = function(socket, harness) {
@@ -398,7 +399,7 @@ Harness.prototype.wsHandshake = function(devtoolsUrl, tests, readyCallback) {
       });
     }
     enqueue(tests);
-  }).on('response', () => common.fail('Upgrade was not received'));
+  }).on('response', common.mustNotCall('Upgrade was not received'));
 };
 
 Harness.prototype.runFrontendSession = function(tests) {

@@ -7,7 +7,7 @@ const net = require('net');
 const family_ipv4 = 'IPv4';
 const server_ipv4 = net.createServer();
 
-server_ipv4.on('error', common.fail);
+server_ipv4.on('error', common.mustNotCall());
 
 server_ipv4
   .listen(common.PORT + 1, common.localhostIPv4, common.mustCall(() => {
@@ -28,7 +28,7 @@ const localhost_ipv6 = '::1';
 const family_ipv6 = 'IPv6';
 const server_ipv6 = net.createServer();
 
-server_ipv6.on('error', common.fail);
+server_ipv6.on('error', common.mustNotCall());
 
 server_ipv6.listen(common.PORT + 2, localhost_ipv6, common.mustCall(() => {
   const address_ipv6 = server_ipv6.address();
@@ -42,7 +42,7 @@ server_ipv6.listen(common.PORT + 2, localhost_ipv6, common.mustCall(() => {
 const anycast_ipv6 = '::';
 const server1 = net.createServer();
 
-server1.on('error', common.fail);
+server1.on('error', common.mustNotCall());
 
 // Specify the port number
 server1.listen(common.PORT + 3, common.mustCall(() => {
@@ -56,7 +56,7 @@ server1.listen(common.PORT + 3, common.mustCall(() => {
 // Test without hostname or port
 const server2 = net.createServer();
 
-server2.on('error', common.fail);
+server2.on('error', common.mustNotCall());
 
 // Don't specify the port number
 server2.listen(common.mustCall(() => {
@@ -69,7 +69,7 @@ server2.listen(common.mustCall(() => {
 // Test without hostname, but with a false-y port
 const server3 = net.createServer();
 
-server3.on('error', common.fail);
+server3.on('error', common.mustNotCall());
 
 // Specify a false-y port number
 server3.listen(0, common.mustCall(() => {

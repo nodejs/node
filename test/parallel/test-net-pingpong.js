@@ -48,7 +48,7 @@ function pingPongTest(port, host) {
       socket.end();
     }));
 
-    socket.on('error', common.fail);
+    socket.on('error', common.mustNotCall());
 
     socket.on('close', common.mustCall(function() {
       assert.strictEqual(socket.writable, false);
@@ -99,7 +99,7 @@ function pingPongTest(port, host) {
       assert.strictEqual(sent_final_ping, true);
     }));
 
-    client.on('error', common.fail);
+    client.on('error', common.mustNotCall());
   }));
 }
 

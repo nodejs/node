@@ -2,7 +2,7 @@
 const common = require('../common');
 const http = require('http');
 
-const server = http.createServer(common.fail);
+const server = http.createServer(common.mustNotCall());
 
 class Agent extends http.Agent {
   createConnection(options, oncreate) {

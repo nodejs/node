@@ -16,4 +16,4 @@ const dgram = require('dgram');
   s.close(common.mustCall(() => s.unref()));
 }
 
-setTimeout(common.fail, 1000).unref();
+setTimeout(common.mustNotCall(), 1000).unref();

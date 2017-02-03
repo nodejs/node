@@ -76,7 +76,7 @@ assert.strictEqual(vm.runInDebugContext(undefined), undefined);
 const script = common.fixturesDir + '/vm-run-in-debug-context.js';
 let proc = spawn(process.execPath, [script]);
 const data = [];
-proc.stdout.on('data', common.fail);
+proc.stdout.on('data', common.mustNotCall());
 proc.stderr.on('data', data.push.bind(data));
 proc.stderr.once('end', common.mustCall(function() {
   const haystack = Buffer.concat(data).toString('utf8');
@@ -88,8 +88,8 @@ proc.once('exit', common.mustCall(function(exitCode, signalCode) {
 }));
 
 proc = spawn(process.execPath, [script, 'handle-fatal-exception']);
-proc.stdout.on('data', common.fail);
-proc.stderr.on('data', common.fail);
+proc.stdout.on('data', common.mustNotCall());
+proc.stderr.on('data', common.mustNotCall());
 proc.once('exit', common.mustCall(function(exitCode, signalCode) {
   assert.strictEqual(exitCode, 42);
   assert.strictEqual(signalCode, null);

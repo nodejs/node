@@ -17,7 +17,7 @@ const options = {
   handshakeTimeout: 50
 };
 
-const server = https.createServer(options, common.fail);
+const server = https.createServer(options, common.mustNotCall());
 
 server.on('clientError', common.mustCall(function(err, conn) {
   // Don't hesitate to update the asserts if the internal structure of

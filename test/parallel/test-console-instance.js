@@ -9,7 +9,7 @@ const err = new Stream();
 
 // ensure the Console instance doesn't write to the
 // process' "stdout" or "stderr" streams
-process.stdout.write = process.stderr.write = common.fail;
+process.stdout.write = process.stderr.write = common.mustNotCall();
 
 // make sure that the "Console" function exists
 assert.strictEqual('function', typeof Console);

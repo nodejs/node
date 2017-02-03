@@ -22,5 +22,5 @@ process.nextTick(function(a, b) {
 }, 42, obj);
 
 process.on('exit', function() {
-  process.nextTick(common.fail);
+  process.nextTick(common.mustNotCall());
 });

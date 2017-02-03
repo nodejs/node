@@ -16,15 +16,15 @@ net.Server().listen(common.PORT, function() {
 
 // The first argument is a configuration object
 assert.throws(() => {
-  net.Server().listen({ port: invalidPort }, common.fail);
+  net.Server().listen({ port: invalidPort }, common.mustNotCall());
 }, errorMessage);
 
 // The first argument is the port, no IP given.
 assert.throws(() => {
-  net.Server().listen(invalidPort, common.fail);
+  net.Server().listen(invalidPort, common.mustNotCall());
 }, errorMessage);
 
 // The first argument is the port, the second an IP.
 assert.throws(() => {
-  net.Server().listen(invalidPort, '0.0.0.0', common.fail);
+  net.Server().listen(invalidPort, '0.0.0.0', common.mustNotCall());
 }, errorMessage);

@@ -9,7 +9,7 @@ if (cluster.isMaster) {
     if (msg === 'done') this.kill();
   });
 } else {
-  const server = net.createServer(common.fail);
+  const server = net.createServer(common.mustNotCall());
   server.listen(common.PORT, function() {
     server.unref();
     server.ref();

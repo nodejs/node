@@ -38,5 +38,5 @@ fs.read = function() {
 };
 
 stream.on('data', (buf) => {
-  stream.on('data', () => common.fail("no more 'data' events should follow"));
+  stream.on('data', common.mustNotCall("no more 'data' events should follow"));
 });
