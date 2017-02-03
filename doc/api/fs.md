@@ -686,8 +686,9 @@ deprecated: v1.0.0
 * `path` {String | Buffer}
 * `callback` {Function}
 
-Test whether or not the given path exists by checking with the file system.
-Then call the `callback` argument with either true or false.  Example:
+Test whether or not the given path exists and is accessible by checking
+with the file system. Then call the `callback` argument with either
+true or false.  Example:
 
 ```js
 fs.exists('/etc/passwd', (exists) => {
@@ -787,7 +788,7 @@ added: v0.1.21
 * `path` {String | Buffer}
 
 Synchronous version of [`fs.exists()`][].
-Returns `true` if the file exists, `false` otherwise.
+Returns `true` if the file exists and is accessible, `false` otherwise.
 
 Note that `fs.exists()` is deprecated, but `fs.existsSync()` is not.
 (The `callback` parameter to `fs.exists()` accepts parameters that are
