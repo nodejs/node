@@ -9,12 +9,18 @@
   # Bots are ordered by appearance on waterfall.
   'masters': {
     'developer_default': {
+      'arm.debug': 'default_debug_arm',
+      'arm.optdebug': 'default_optdebug_arm',
+      'arm.release': 'default_release_arm',
+      'arm64.debug': 'default_debug_arm64',
+      'arm64.optdebug': 'default_optdebug_arm64',
+      'arm64.release': 'default_release_arm64',
+      'ia32.debug': 'default_debug_x86',
+      'ia32.optdebug': 'default_optdebug_x86',
+      'ia32.release': 'default_release_x86',
       'x64.debug': 'default_debug_x64',
       'x64.optdebug': 'default_optdebug_x64',
       'x64.release': 'default_release_x64',
-      'x86.debug': 'default_debug_x86',
-      'x86.optdebug': 'default_optdebug_x86',
-      'x86.release': 'default_release_x86',
     },
 
     'client.dart.fyi': {
@@ -32,7 +38,7 @@
       'V8 Linux - nosnap builder': 'gn_release_x86_no_snap',
       'V8 Linux - nosnap debug builder': 'gn_debug_x86_no_snap',
       'V8 Linux - shared': 'gn_release_x86_shared_verify_heap',
-      'V8 Linux - noi18n - debug': 'gyp_debug_x86_no_i18n',
+      'V8 Linux - noi18n - debug': 'gn_debug_x86_no_i18n',
       # Linux64.
       'V8 Linux64 - builder': 'gn_release_x64',
       'V8 Linux64 - debug builder': 'gn_debug_x64_valgrind',
@@ -40,34 +46,35 @@
       'V8 Linux64 - internal snapshot': 'gn_release_x64_internal',
       'V8 Linux64 - gyp': 'gyp_release_x64',
       # Windows.
-      'V8 Win32 - builder': 'gyp_release_x86_minimal_symbols',
-      'V8 Win32 - debug builder': 'gyp_debug_x86_minimal_symbols',
+      'V8 Win32 - builder': 'gn_release_x86_minimal_symbols',
+      'V8 Win32 - debug builder': 'gn_debug_x86_minimal_symbols',
       'V8 Win32 - nosnap - shared':
-        'gyp_release_x86_no_snap_shared_minimal_symbols',
-      'V8 Win64': 'gyp_release_x64_minimal_symbols',
-      'V8 Win64 - debug': 'gyp_debug_x64_minimal_symbols',
-      'V8 Win64 - clang': 'gyp_release_x64_clang',
+        'gn_release_x86_no_snap_shared_minimal_symbols',
+      'V8 Win64': 'gn_release_x64_minimal_symbols',
+      'V8 Win64 - debug': 'gn_debug_x64_minimal_symbols',
+      # TODO(machenbach): Switch plugins on when errors are fixed.
+      'V8 Win64 - clang': 'gn_release_x64_clang',
       # Mac.
       'V8 Mac': 'gn_release_x86',
       'V8 Mac - debug': 'gn_debug_x86',
       'V8 Mac64': 'gn_release_x64',
       'V8 Mac64 - debug': 'gn_debug_x64',
       'V8 Mac GC Stress': 'gn_debug_x86',
-      'V8 Mac64 ASAN': 'gyp_release_x64_asan',
+      'V8 Mac64 ASAN': 'gn_release_x64_asan_no_lsan',
       # Sanitizers.
-      'V8 Linux64 ASAN': 'gyp_release_x64_asan',
+      'V8 Linux64 ASAN': 'gn_release_x64_asan',
       'V8 Linux64 TSAN': 'gn_release_x64_tsan',
       'V8 Linux - arm64 - sim - MSAN': 'gn_release_simulate_arm64_msan',
       # Clusterfuzz.
       'V8 Linux64 ASAN no inline - release builder':
-          'gyp_release_x64_asan_symbolized_edge_verify_heap',
-      'V8 Linux64 ASAN - debug builder': 'gyp_debug_x64_asan_edge',
+          'gn_release_x64_asan_symbolized_edge_verify_heap',
+      'V8 Linux64 ASAN - debug builder': 'gn_debug_x64_asan_edge',
       'V8 Linux64 ASAN arm64 - debug builder':
-          'gyp_debug_simulate_arm64_asan_edge',
+          'gn_debug_simulate_arm64_asan_edge',
       'V8 Linux ASAN arm - debug builder':
-          'gyp_debug_simulate_arm_asan_edge',
+          'gn_debug_simulate_arm_asan_edge',
       'V8 Linux ASAN mipsel - debug builder':
-          'gyp_debug_simulate_mipsel_asan_edge',
+          'gn_debug_simulate_mipsel_asan_edge',
       # Misc.
       'V8 Linux gcc 4.8': 'gn_release_x86_gcc',
       # FYI.
@@ -86,13 +93,13 @@
 
     'client.v8.ports': {
       # Arm.
-      'V8 Arm - builder': 'gyp_release_arm',
-      'V8 Arm - debug builder': 'gyp_debug_arm',
-      'V8 Android Arm - builder': 'gyp_release_android_arm',
-      'V8 Linux - arm - sim': 'gyp_release_simulate_arm',
-      'V8 Linux - arm - sim - debug': 'gyp_debug_simulate_arm',
+      'V8 Arm - builder': 'gn_release_arm',
+      'V8 Arm - debug builder': 'gn_debug_arm',
+      'V8 Android Arm - builder': 'gn_release_android_arm',
+      'V8 Linux - arm - sim': 'gn_release_simulate_arm',
+      'V8 Linux - arm - sim - debug': 'gn_debug_simulate_arm',
       # Arm64.
-      'V8 Android Arm64 - builder': 'gyp_release_android_arm64',
+      'V8 Android Arm64 - builder': 'gn_release_android_arm64',
       'V8 Linux - arm64 - sim': 'gn_release_simulate_arm64',
       'V8 Linux - arm64 - sim - debug': 'gn_debug_simulate_arm64',
       'V8 Linux - arm64 - sim - nosnap - debug':
@@ -100,8 +107,8 @@
       'V8 Linux - arm64 - sim - gc stress': 'gn_debug_simulate_arm64',
       # Mips.
       'V8 Mips - builder': 'gyp_release_mips_no_snap_no_i18n',
-      'V8 Linux - mipsel - sim - builder': 'gyp_release_simulate_mipsel',
-      'V8 Linux - mips64el - sim - builder': 'gyp_release_simulate_mips64el',
+      'V8 Linux - mipsel - sim - builder': 'gn_release_simulate_mipsel',
+      'V8 Linux - mips64el - sim - builder': 'gn_release_simulate_mips64el',
       # PPC.
       'V8 Linux - ppc - sim': 'gyp_release_simulate_ppc',
       'V8 Linux - ppc64 - sim': 'gyp_release_simulate_ppc64',
@@ -117,18 +124,18 @@
       'V8 Linux - beta branch - debug': 'gn_debug_x86',
       'V8 Linux - stable branch': 'gn_release_x86',
       'V8 Linux - stable branch - debug': 'gn_debug_x86',
-      'V8 Linux64 - beta branch': 'gyp_release_x64',
+      'V8 Linux64 - beta branch': 'gn_release_x64',
       'V8 Linux64 - beta branch - debug': 'gn_debug_x64',
       'V8 Linux64 - stable branch': 'gn_release_x64',
       'V8 Linux64 - stable branch - debug': 'gn_debug_x64',
-      'V8 arm - sim - beta branch': 'gyp_release_simulate_arm',
-      'V8 arm - sim - beta branch - debug': 'gyp_debug_simulate_arm',
-      'V8 arm - sim - stable branch': 'gyp_release_simulate_arm',
-      'V8 arm - sim - stable branch - debug': 'gyp_debug_simulate_arm',
-      'V8 mips64el - sim - beta branch': 'gyp_release_simulate_mips64el',
-      'V8 mips64el - sim - stable branch': 'gyp_release_simulate_mips64el',
-      'V8 mipsel - sim - beta branch': 'gyp_release_simulate_mipsel',
-      'V8 mipsel - sim - stable branch': 'gyp_release_simulate_mipsel',
+      'V8 arm - sim - beta branch': 'gn_release_simulate_arm',
+      'V8 arm - sim - beta branch - debug': 'gn_debug_simulate_arm',
+      'V8 arm - sim - stable branch': 'gn_release_simulate_arm',
+      'V8 arm - sim - stable branch - debug': 'gn_debug_simulate_arm',
+      'V8 mips64el - sim - beta branch': 'gn_release_simulate_mips64el',
+      'V8 mips64el - sim - stable branch': 'gn_release_simulate_mips64el',
+      'V8 mipsel - sim - beta branch': 'gn_release_simulate_mipsel',
+      'V8 mipsel - sim - stable branch': 'gn_release_simulate_mipsel',
       'V8 ppc - sim - beta branch': 'gyp_release_simulate_ppc',
       'V8 ppc - sim - stable branch': 'gyp_release_simulate_ppc',
       'V8 ppc64 - sim - beta branch': 'gyp_release_simulate_ppc64',
@@ -143,8 +150,8 @@
       'v8_linux_avx2_dbg': 'gn_debug_x86_trybot',
       'v8_linux_nodcheck_rel_ng': 'gn_release_x86_minimal_symbols',
       'v8_linux_dbg_ng': 'gn_debug_x86_trybot',
-      'v8_linux_noi18n_rel_ng': 'gyp_release_x86_no_i18n_trybot',
-      'v8_linux_gc_stress_dbg': 'gyp_debug_x86_trybot',
+      'v8_linux_noi18n_rel_ng': 'gn_release_x86_no_i18n_trybot',
+      'v8_linux_gc_stress_dbg': 'gn_debug_x86_trybot',
       'v8_linux_nosnap_rel': 'gn_release_x86_no_snap_trybot',
       'v8_linux_nosnap_dbg': 'gn_debug_x86_no_snap_trybot',
       'v8_linux_gcc_compile_rel': 'gn_release_x86_gcc_minimal_symbols',
@@ -153,34 +160,34 @@
       'v8_linux64_gyp_rel_ng': 'gyp_release_x64',
       'v8_linux64_avx2_rel_ng': 'gn_release_x64_trybot',
       'v8_linux64_avx2_dbg': 'gn_debug_x64_trybot',
-      'v8_linux64_asan_rel_ng': 'gyp_release_x64_asan_minimal_symbols',
+      'v8_linux64_asan_rel_ng': 'gn_release_x64_asan_minimal_symbols',
       'v8_linux64_msan_rel': 'gn_release_simulate_arm64_msan_minimal_symbols',
       'v8_linux64_sanitizer_coverage_rel':
           'gyp_release_x64_asan_minimal_symbols_coverage',
       'v8_linux64_tsan_rel': 'gn_release_x64_tsan_minimal_symbols',
-      'v8_win_dbg': 'gyp_debug_x86_trybot',
-      'v8_win_compile_dbg': 'gyp_debug_x86_trybot',
-      'v8_win_rel_ng': 'gyp_release_x86_trybot',
+      'v8_win_dbg': 'gn_debug_x86_trybot',
+      'v8_win_compile_dbg': 'gn_debug_x86_trybot',
+      'v8_win_rel_ng': 'gn_release_x86_trybot',
       'v8_win_nosnap_shared_rel_ng':
-        'gyp_release_x86_no_snap_shared_minimal_symbols',
-      'v8_win64_dbg': 'gyp_debug_x64_minimal_symbols',
-      'v8_win64_rel_ng': 'gyp_release_x64_trybot',
+        'gn_release_x86_no_snap_shared_minimal_symbols',
+      'v8_win64_dbg': 'gn_debug_x64_minimal_symbols',
+      'v8_win64_rel_ng': 'gn_release_x64_trybot',
       'v8_mac_rel_ng': 'gn_release_x86_trybot',
       'v8_mac_dbg': 'gn_debug_x86_trybot',
       'v8_mac_gc_stress_dbg': 'gn_debug_x86_trybot',
       'v8_mac64_rel': 'gn_release_x64_trybot',
       'v8_mac64_dbg': 'gn_debug_x64_minimal_symbols',
-      'v8_mac64_asan_rel': 'gyp_release_x64_asan',
-      'v8_linux_arm_rel_ng': 'gyp_release_simulate_arm_trybot',
-      'v8_linux_arm_dbg': 'gyp_debug_simulate_arm',
-      'v8_linux_arm_armv8a_rel': 'gyp_release_simulate_arm_trybot',
-      'v8_linux_arm_armv8a_dbg': 'gyp_debug_simulate_arm',
+      'v8_mac64_asan_rel': 'gn_release_x64_asan_no_lsan',
+      'v8_linux_arm_rel_ng': 'gn_release_simulate_arm_trybot',
+      'v8_linux_arm_dbg': 'gn_debug_simulate_arm',
+      'v8_linux_arm_armv8a_rel': 'gn_release_simulate_arm_trybot',
+      'v8_linux_arm_armv8a_dbg': 'gn_debug_simulate_arm',
       'v8_linux_arm64_rel_ng': 'gn_release_simulate_arm64_trybot',
       'v8_linux_arm64_dbg': 'gn_debug_simulate_arm64',
       'v8_linux_arm64_gc_stress_dbg': 'gn_debug_simulate_arm64',
-      'v8_linux_mipsel_compile_rel': 'gyp_release_simulate_mipsel',
-      'v8_linux_mips64el_compile_rel': 'gyp_release_simulate_mips64el',
-      'v8_android_arm_compile_rel': 'gyp_release_android_arm',
+      'v8_linux_mipsel_compile_rel': 'gn_release_simulate_mipsel',
+      'v8_linux_mips64el_compile_rel': 'gn_release_simulate_mips64el',
+      'v8_android_arm_compile_rel': 'gn_release_android_arm',
     },
   },
 
@@ -189,6 +196,20 @@
   # gyp/gn, release/debug, arch type, other values alphabetically.
   'configs': {
     # Developer default configs.
+    'default_debug_arm': [
+      'gn', 'debug', 'simulate_arm', 'v8_enable_slow_dchecks',
+      'v8_full_debug'],
+    'default_optdebug_arm': [
+      'gn', 'debug', 'simulate_arm', 'v8_enable_slow_dchecks'],
+    'default_release_arm': [
+      'gn', 'release', 'simulate_arm'],
+    'default_debug_arm64': [
+      'gn', 'debug', 'simulate_arm64', 'v8_enable_slow_dchecks',
+      'v8_full_debug'],
+    'default_optdebug_arm64': [
+      'gn', 'debug', 'simulate_arm64', 'v8_enable_slow_dchecks'],
+    'default_release_arm64': [
+      'gn', 'release', 'simulate_arm64'],
     'default_debug_x64': [
       'gn', 'debug', 'x64', 'v8_enable_slow_dchecks', 'v8_full_debug'],
     'default_optdebug_x64': [
@@ -204,12 +225,24 @@
 
 
     # GN debug configs for simulators.
+    'gn_debug_simulate_arm': [
+      'gn', 'debug_bot', 'simulate_arm', 'swarming'],
+    'gn_debug_simulate_arm_asan_edge': [
+      'gn', 'debug_bot', 'simulate_arm', 'asan', 'edge'],
     'gn_debug_simulate_arm64': [
       'gn', 'debug_bot', 'simulate_arm64', 'swarming'],
+    'gn_debug_simulate_arm64_asan_edge': [
+      'gn', 'debug_bot', 'simulate_arm64', 'asan', 'lsan', 'edge'],
     'gn_debug_simulate_arm64_no_snap': [
       'gn', 'debug_bot', 'simulate_arm64', 'swarming', 'v8_snapshot_none'],
+    'gn_debug_simulate_mipsel_asan_edge': [
+      'gn', 'debug_bot', 'simulate_mipsel', 'asan', 'edge'],
 
     # GN release configs for simulators.
+    'gn_release_simulate_arm': [
+      'gn', 'release_bot', 'simulate_arm', 'swarming'],
+    'gn_release_simulate_arm_trybot': [
+      'gn', 'release_trybot', 'simulate_arm', 'swarming'],
     'gn_release_simulate_arm64': [
       'gn', 'release_bot', 'simulate_arm64', 'swarming'],
     'gn_release_simulate_arm64_msan': [
@@ -219,12 +252,44 @@
       'swarming'],
     'gn_release_simulate_arm64_trybot': [
       'gn', 'release_trybot', 'simulate_arm64', 'swarming'],
+    'gn_release_simulate_mipsel': [
+      'gn', 'release_bot', 'simulate_mipsel', 'swarming'],
+    'gn_release_simulate_mips64el': [
+      'gn', 'release_bot', 'simulate_mips64el', 'swarming'],
+
+    # GN debug configs for arm.
+    'gn_debug_arm': [
+      'gn', 'debug_bot', 'arm', 'crosscompile', 'hard_float', 'swarming'],
+
+    # GN release configs for arm.
+    'gn_release_arm': [
+      'gn', 'release_bot', 'arm', 'crosscompile', 'hard_float', 'swarming'],
+    'gn_release_android_arm': [
+      'gn', 'release_bot', 'arm', 'android', 'crosscompile',
+      'minimal_symbols', 'swarming'],
+    'gn_release_android_arm64': [
+      'gn', 'release_bot', 'arm64', 'android', 'crosscompile',
+      'minimal_symbols', 'swarming'],
 
     # GN release configs for x64.
     'gn_release_x64': [
       'gn', 'release_bot', 'x64', 'swarming'],
+    'gn_release_x64_asan': [
+      'gn', 'release_bot', 'x64', 'asan', 'lsan', 'swarming'],
+    'gn_release_x64_asan_minimal_symbols': [
+      'gn', 'release_bot', 'x64', 'asan', 'lsan', 'minimal_symbols',
+      'swarming'],
+    'gn_release_x64_asan_no_lsan': [
+      'gn', 'release_bot', 'x64', 'asan', 'swarming'],
+    'gn_release_x64_asan_symbolized_edge_verify_heap': [
+      'gn', 'release_bot', 'x64', 'asan', 'edge', 'lsan', 'symbolized',
+      'v8_verify_heap'],
+    'gn_release_x64_clang': [
+      'gn', 'release_bot', 'x64', 'clang', 'swarming'],
     'gn_release_x64_internal': [
       'gn', 'release_bot', 'x64', 'swarming', 'v8_snapshot_internal'],
+    'gn_release_x64_minimal_symbols': [
+      'gn', 'release_bot', 'x64', 'minimal_symbols', 'swarming'],
     'gn_release_x64_trybot': [
       'gn', 'release_trybot', 'x64', 'swarming'],
     'gn_release_x64_tsan': [
@@ -235,6 +300,8 @@
     # GN debug configs for x64.
     'gn_debug_x64': [
       'gn', 'debug_bot', 'x64', 'swarming'],
+    'gn_debug_x64_asan_edge': [
+      'gn', 'debug_bot', 'x64', 'asan', 'lsan', 'edge'],
     'gn_debug_x64_custom': [
       'gn', 'debug_bot', 'x64', 'swarming', 'v8_snapshot_custom'],
     'gn_debug_x64_minimal_symbols': [
@@ -247,6 +314,10 @@
     # GN debug configs for x86.
     'gn_debug_x86': [
       'gn', 'debug_bot', 'x86', 'swarming'],
+    'gn_debug_x86_minimal_symbols': [
+      'gn', 'debug_bot', 'x86', 'minimal_symbols', 'swarming'],
+    'gn_debug_x86_no_i18n': [
+      'gn', 'debug_bot', 'x86', 'v8_no_i18n'],
     'gn_debug_x86_no_snap': [
       'gn', 'debug_bot', 'x86', 'swarming', 'v8_snapshot_none'],
     'gn_debug_x86_no_snap_trybot': [
@@ -267,8 +338,13 @@
       'gn', 'release_trybot', 'x86', 'gcmole', 'swarming'],
     'gn_release_x86_minimal_symbols': [
       'gn', 'release_bot', 'x86', 'minimal_symbols', 'swarming'],
+    'gn_release_x86_no_i18n_trybot': [
+      'gn', 'release_trybot', 'x86', 'swarming', 'v8_no_i18n'],
     'gn_release_x86_no_snap': [
       'gn', 'release_bot', 'x86', 'swarming', 'v8_snapshot_none'],
+    'gn_release_x86_no_snap_shared_minimal_symbols': [
+      'gn', 'release', 'x86', 'goma', 'minimal_symbols', 'shared', 'swarming',
+      'v8_snapshot_none'],
     'gn_release_x86_no_snap_trybot': [
       'gn', 'release_trybot', 'x86', 'swarming', 'v8_snapshot_none'],
     'gn_release_x86_shared_verify_heap': [
@@ -276,50 +352,18 @@
     'gn_release_x86_trybot': [
       'gn', 'release_trybot', 'x86', 'swarming'],
 
-    # Gyp debug configs for arm.
-    'gyp_debug_arm': [
-      'gyp', 'debug_bot', 'arm', 'crosscompile', 'hard_float', 'swarming'],
-
     # Gyp debug configs for simulators.
-    'gyp_debug_simulate_arm': [
-      'gyp', 'debug_bot', 'simulate_arm', 'swarming'],
-    'gyp_debug_simulate_arm_asan_edge': [
-      'gyp', 'debug_bot', 'simulate_arm', 'asan', 'edge'],
-    'gyp_debug_simulate_arm64_asan_edge': [
-      'gyp', 'debug_bot', 'simulate_arm64', 'asan', 'lsan', 'edge'],
-    'gyp_debug_simulate_mipsel_asan_edge': [
-      'gyp', 'debug_bot', 'simulate_mipsel', 'asan', 'edge'],
     'gyp_debug_simulate_x87_no_snap': [
       'gyp', 'debug_bot', 'simulate_x87', 'swarming', 'v8_snapshot_none'],
-
-    # Gyp debug configs for x64.
-    'gyp_debug_x64_asan_edge': [
-      'gyp', 'debug_bot', 'x64', 'asan', 'lsan', 'edge'],
-    'gyp_debug_x64_minimal_symbols': [
-      'gyp', 'debug_bot', 'x64', 'minimal_symbols', 'swarming'],
 
     # Gyp debug configs for x86.
     'gyp_debug_x86': [
       'gyp', 'debug_bot', 'x86', 'swarming'],
-    'gyp_debug_x86_minimal_symbols': [
-      'gyp', 'debug_bot', 'x86', 'minimal_symbols', 'swarming'],
-    'gyp_debug_x86_trybot': [
-      'gyp', 'debug_trybot', 'x86', 'swarming'],
-    'gyp_debug_x86_no_i18n': [
-      'gyp', 'debug_bot', 'x86', 'v8_no_i18n'],
     'gyp_debug_x86_vtunejit': [
       'gyp', 'debug_bot', 'x86', 'v8_enable_vtunejit'],
     'gyp_full_debug_x86': [
       'gyp', 'debug', 'x86', 'goma', 'static', 'v8_enable_slow_dchecks',
       'v8_full_debug'],
-
-    # Gyp release configs for arm.
-    'gyp_release_arm': [
-      'gyp', 'release_bot', 'arm', 'crosscompile', 'hard_float', 'swarming'],
-    'gyp_release_android_arm': [
-      'gyp', 'release_bot', 'arm', 'android', 'crosscompile', 'swarming'],
-    'gyp_release_android_arm64': [
-      'gyp', 'release_bot', 'arm64', 'android', 'crosscompile', 'swarming'],
 
     # Gyp release configs for mips.
     'gyp_release_mips_no_snap_no_i18n': [
@@ -327,14 +371,6 @@
       'v8_snapshot_none'],
 
     # Gyp release configs for simulators.
-    'gyp_release_simulate_arm': [
-      'gyp', 'release_bot', 'simulate_arm', 'swarming'],
-    'gyp_release_simulate_arm_trybot': [
-      'gyp', 'release_trybot', 'simulate_arm', 'swarming'],
-    'gyp_release_simulate_mipsel': [
-      'gyp', 'release_bot', 'simulate_mipsel', 'swarming'],
-    'gyp_release_simulate_mips64el': [
-      'gyp', 'release_bot', 'simulate_mips64el', 'swarming'],
     'gyp_release_simulate_ppc': [
       'gyp', 'release_bot', 'simulate_ppc', 'swarming'],
     'gyp_release_simulate_ppc64': [
@@ -347,44 +383,21 @@
     # Gyp release configs for x64.
     'gyp_release_x64': [
       'gyp', 'release_bot', 'x64', 'swarming'],
-    'gyp_release_x64_asan': [
-      'gyp', 'release_bot', 'x64', 'asan', 'lsan', 'swarming'],
-    'gyp_release_x64_asan_minimal_symbols': [
-      'gyp', 'release_bot', 'x64', 'asan', 'lsan', 'minimal_symbols',
-      'swarming'],
     'gyp_release_x64_asan_minimal_symbols_coverage': [
       'gyp', 'release_bot', 'x64', 'asan', 'bb', 'coverage', 'lsan',
       'minimal_symbols', 'swarming'],
-    'gyp_release_x64_asan_symbolized_edge_verify_heap': [
-      'gyp', 'release_bot', 'x64', 'asan', 'edge', 'lsan', 'symbolized',
-      'v8_verify_heap'],
     'gyp_release_x64_cfi_symbolized': [
       'gyp', 'release_bot', 'x64', 'cfi', 'swarming', 'symbolized'],
-    'gyp_release_x64_clang': [
-      'gyp', 'release_bot', 'x64', 'clang', 'swarming'],
     'gyp_release_x64_gcc_coverage': [
       'gyp', 'release_bot', 'x64', 'coverage', 'gcc'],
-    'gyp_release_x64_minimal_symbols': [
-      'gyp', 'release_bot', 'x64', 'minimal_symbols', 'swarming'],
-    'gyp_release_x64_trybot': [
-      'gyp', 'release_trybot', 'x64', 'swarming'],
 
     # Gyp release configs for x86.
     'gyp_release_x86_disassembler': [
       'gyp', 'release_bot', 'x86', 'v8_enable_disassembler'],
     'gyp_release_x86_interpreted_regexp': [
       'gyp', 'release_bot', 'x86', 'v8_interpreted_regexp'],
-    'gyp_release_x86_minimal_symbols': [
-      'gyp', 'release_bot', 'x86', 'minimal_symbols', 'swarming'],
-    'gyp_release_x86_no_i18n_trybot': [
-      'gyp', 'release_trybot', 'x86', 'swarming', 'v8_no_i18n'],
-    'gyp_release_x86_no_snap_shared_minimal_symbols': [
-      'gyp', 'release', 'x86', 'goma', 'minimal_symbols', 'shared', 'swarming',
-      'v8_snapshot_none'],
     'gyp_release_x86_predictable': [
       'gyp', 'release_bot', 'x86', 'v8_enable_verify_predictable'],
-    'gyp_release_x86_trybot': [
-      'gyp', 'release_trybot', 'x86', 'swarming'],
   },
 
   'mixins': {
@@ -444,7 +457,7 @@
 
     'debug_bot': {
       'mixins': [
-        'debug', 'static', 'goma', 'v8_enable_slow_dchecks',
+        'debug', 'shared', 'goma', 'v8_enable_slow_dchecks',
         'v8_optimized_debug'],
     },
 
@@ -533,7 +546,8 @@
     },
 
     'simulate_mipsel': {
-      'gn_args': 'target_cpu="x86" v8_target_cpu="mipsel"',
+      'gn_args':
+          'target_cpu="x86" v8_target_cpu="mipsel" mips_arch_variant="r2"',
       'gyp_defines': 'target_arch=ia32 v8_target_arch=mipsel',
     },
 
@@ -577,9 +591,9 @@
       'gyp_defines': 'test_isolation_mode=prepare',
     },
 
-    # TODO(machenbach): Remove the symbolized config after the bots are  gone.
+    # TODO(machenbach): Remove the symbolized config after the bots are gone.
     'symbolized': {
-      'gn_args': 'symbolized=true',
+      'gn_args': 'v8_no_inline=true',
       'gyp_defines':
         'release_extra_cflags="-fno-inline-functions -fno-inline"',
     },
@@ -595,8 +609,8 @@
     },
 
     'v8_no_i18n': {
-      'gn_args': 'v8_enable_i18n_support=false',
-      'gyp_defines': 'v8_enable_i18n_support=0',
+      'gn_args': 'v8_enable_i18n_support=false icu_use_data_file=false',
+      'gyp_defines': 'v8_enable_i18n_support=0 icu_use_data_file_flag=0',
     },
 
     'v8_enable_disassembler': {

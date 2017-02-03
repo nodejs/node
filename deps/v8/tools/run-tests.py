@@ -34,7 +34,7 @@ import json
 import multiprocessing
 import optparse
 import os
-from os.path import join
+from os.path import getmtime, isdir, join
 import platform
 import random
 import shlex
@@ -54,6 +54,8 @@ from testrunner.objects import context
 
 # Base dir of the v8 checkout to be used as cwd.
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+DEFAULT_OUT_GN = "out.gn"
 
 ARCH_GUESS = utils.DefaultArch()
 
@@ -102,6 +104,7 @@ MORE_VARIANTS = [
   "ignition",
   "stress",
   "turbofan_opt",
+  "asm_wasm",
 ]
 
 EXHAUSTIVE_VARIANTS = VARIANTS + MORE_VARIANTS
@@ -294,6 +297,8 @@ def BuildOptions():
                     " \"%s\"" % ",".join(EXHAUSTIVE_VARIANTS))
   result.add_option("--outdir", help="Base directory with compile output",
                     default="out")
+  result.add_option("--gn", help="Scan out.gn for the last built configuration",
+                    default=False, action="store_true")
   result.add_option("--predictable",
                     help="Compare output of several reruns of each test",
                     default=False, action="store_true")
@@ -427,6 +432,21 @@ def ProcessOptions(options):
   # First try to auto-detect configurations based on the build if GN was
   # used. This can't be overridden by cmd-line arguments.
   options.auto_detect = False
+  if options.gn:
+    gn_out_dir = os.path.join(BASE_DIR, DEFAULT_OUT_GN)
+    latest_timestamp = -1
+    latest_config = None
+    for gn_config in os.listdir(gn_out_dir):
+      gn_config_dir = os.path.join(gn_out_dir, gn_config)
+      if not isdir(gn_config_dir):
+        continue
+      if os.path.getmtime(gn_config_dir) > latest_timestamp:
+        latest_timestamp = os.path.getmtime(gn_config_dir)
+        latest_config = gn_config
+    if latest_config:
+      print(">>> Latest GN build found is %s" % latest_config)
+      options.outdir = os.path.join(DEFAULT_OUT_GN, latest_config)
+
   build_config_path = os.path.join(
       BASE_DIR, options.outdir, "v8_build_config.json")
   if os.path.exists(build_config_path):

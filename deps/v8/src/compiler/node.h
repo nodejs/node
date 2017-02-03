@@ -7,8 +7,8 @@
 
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
-#include "src/types.h"
-#include "src/zone-containers.h"
+#include "src/compiler/types.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {

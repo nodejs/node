@@ -23,7 +23,7 @@ size_t hash_value(DeoptimizeReason reason) {
   return static_cast<uint8_t>(reason);
 }
 
-char const* const DeoptimizeReasonToString(DeoptimizeReason reason) {
+char const* DeoptimizeReasonToString(DeoptimizeReason reason) {
   static char const* kDeoptimizeReasonStrings[] = {
 #define DEOPTIMIZE_REASON(Name, message) message,
       DEOPTIMIZE_REASON_LIST(DEOPTIMIZE_REASON)

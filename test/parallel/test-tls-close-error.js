@@ -16,9 +16,7 @@ const server = tls.createServer({
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 }, function(c) {
 }).listen(0, common.mustCall(function() {
-  const c = tls.connect(this.address().port, function() {
-    assert(false, 'should not be called');
-  });
+  const c = tls.connect(this.address().port, common.fail);
 
   c.on('error', common.mustCall(function(err) {}));
 

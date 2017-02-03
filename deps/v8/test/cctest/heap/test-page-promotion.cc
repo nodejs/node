@@ -2,7 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/factory.h"
 #include "src/heap/array-buffer-tracker.h"
+#include "src/heap/spaces-inl.h"
+#include "src/isolate.h"
+// FIXME(mstarzinger, marja): This is weird, but required because of the missing
+// (disallowed) include: src/factory.h -> src/objects-inl.h
+#include "src/objects-inl.h"
+// FIXME(mstarzinger, marja): This is weird, but required because of the missing
+// (disallowed) include: src/type-feedback-vector.h ->
+// src/type-feedback-vector-inl.h
+#include "src/type-feedback-vector-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"
 
@@ -11,7 +21,7 @@ namespace {
 v8::Isolate* NewIsolateForPagePromotion() {
   i::FLAG_page_promotion = true;
   i::FLAG_page_promotion_threshold = 0;  // %
-  i::FLAG_min_semi_space_size = 8 * (i::Page::kPageSize / i::MB);
+  i::FLAG_min_semi_space_size = 8;
   // We cannot optimize for size as we require a new space with more than one
   // page.
   i::FLAG_optimize_for_size = false;
@@ -40,7 +50,7 @@ UNINITIALIZED_TEST(PagePromotion_NewToOld) {
 
     std::vector<Handle<FixedArray>> handles;
     heap::SimulateFullSpace(heap->new_space(), &handles);
-    heap->CollectGarbage(NEW_SPACE);
+    heap->CollectGarbage(NEW_SPACE, i::GarbageCollectionReason::kTesting);
     CHECK_GT(handles.size(), 0u);
     // First object in handle should be on the first page.
     Handle<FixedArray> first_object = handles.front();
@@ -99,7 +109,6 @@ UNINITIALIZED_TEST(PagePromotion_NewToNewJSArrayBuffer) {
 
     // Fill the current page which potentially contains the age mark.
     heap::FillCurrentPage(heap->new_space());
-
     // Allocate a buffer we would like to check against.
     Handle<JSArrayBuffer> buffer =
         i_isolate->factory()->NewJSArrayBuffer(SharedFlag::kNotShared);

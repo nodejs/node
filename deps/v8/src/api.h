@@ -69,7 +69,6 @@ class RegisteredExtension {
   static RegisteredExtension* first_extension_;
 };
 
-
 #define OPEN_HANDLE_LIST(V)                  \
   V(Template, TemplateInfo)                  \
   V(FunctionTemplate, FunctionTemplateInfo)  \
@@ -101,6 +100,7 @@ class RegisteredExtension {
   V(Symbol, Symbol)                          \
   V(Script, JSFunction)                      \
   V(UnboundScript, SharedFunctionInfo)       \
+  V(Module, Module)                          \
   V(Function, JSReceiver)                    \
   V(Message, JSMessageObject)                \
   V(Context, Context)                        \
@@ -124,6 +124,8 @@ class Utils {
       v8::internal::Handle<v8::internal::Context> obj);
   static inline Local<Value> ToLocal(
       v8::internal::Handle<v8::internal::Object> obj);
+  static inline Local<Module> ToLocal(
+      v8::internal::Handle<v8::internal::Module> obj);
   static inline Local<Name> ToLocal(
       v8::internal::Handle<v8::internal::Name> obj);
   static inline Local<String> ToLocal(
@@ -136,6 +138,8 @@ class Utils {
       v8::internal::Handle<v8::internal::JSReceiver> obj);
   static inline Local<Object> ToLocal(
       v8::internal::Handle<v8::internal::JSObject> obj);
+  static inline Local<Function> ToLocal(
+      v8::internal::Handle<v8::internal::JSFunction> obj);
   static inline Local<Array> ToLocal(
       v8::internal::Handle<v8::internal::JSArray> obj);
   static inline Local<Map> ToLocal(
@@ -284,12 +288,14 @@ inline bool ToLocal(v8::internal::MaybeHandle<v8::internal::Object> maybe,
 
 MAKE_TO_LOCAL(ToLocal, Context, Context)
 MAKE_TO_LOCAL(ToLocal, Object, Value)
+MAKE_TO_LOCAL(ToLocal, Module, Module)
 MAKE_TO_LOCAL(ToLocal, Name, Name)
 MAKE_TO_LOCAL(ToLocal, String, String)
 MAKE_TO_LOCAL(ToLocal, Symbol, Symbol)
 MAKE_TO_LOCAL(ToLocal, JSRegExp, RegExp)
 MAKE_TO_LOCAL(ToLocal, JSReceiver, Object)
 MAKE_TO_LOCAL(ToLocal, JSObject, Object)
+MAKE_TO_LOCAL(ToLocal, JSFunction, Function)
 MAKE_TO_LOCAL(ToLocal, JSArray, Array)
 MAKE_TO_LOCAL(ToLocal, JSMap, Map)
 MAKE_TO_LOCAL(ToLocal, JSSet, Set)

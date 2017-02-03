@@ -15,8 +15,10 @@ namespace internal {
 namespace heap {
 
 void SealCurrentObjects(Heap* heap) {
-  heap->CollectAllGarbage();
-  heap->CollectAllGarbage();
+  heap->CollectAllGarbage(Heap::kFinalizeIncrementalMarkingMask,
+                          GarbageCollectionReason::kTesting);
+  heap->CollectAllGarbage(Heap::kFinalizeIncrementalMarkingMask,
+                          GarbageCollectionReason::kTesting);
   heap->mark_compact_collector()->EnsureSweepingCompleted();
   heap->old_space()->EmptyAllocationInfo();
   for (Page* page : *heap->old_space()) {
@@ -26,6 +28,35 @@ void SealCurrentObjects(Heap* heap) {
 
 int FixedArrayLenFromSize(int size) {
   return (size - FixedArray::kHeaderSize) / kPointerSize;
+}
+
+std::vector<Handle<FixedArray>> FillOldSpacePageWithFixedArrays(Heap* heap,
+                                                                int remainder) {
+  std::vector<Handle<FixedArray>> handles;
+  Isolate* isolate = heap->isolate();
+  const int kArraySize = 128;
+  const int kArrayLen = heap::FixedArrayLenFromSize(kArraySize);
+  CHECK_EQ(Page::kAllocatableMemory % kArraySize, 0);
+  Handle<FixedArray> array;
+  for (size_t allocated = 0;
+       allocated != (Page::kAllocatableMemory - remainder);
+       allocated += array->Size()) {
+    if (allocated == (Page::kAllocatableMemory - kArraySize)) {
+      array = isolate->factory()->NewFixedArray(
+          heap::FixedArrayLenFromSize(kArraySize - remainder), TENURED);
+      CHECK_EQ(kArraySize - remainder, array->Size());
+    } else {
+      array = isolate->factory()->NewFixedArray(kArrayLen, TENURED);
+      CHECK_EQ(kArraySize, array->Size());
+    }
+    if (handles.empty()) {
+      // Check that allocations started on a new page.
+      CHECK_EQ(array->address(),
+               Page::FromAddress(array->address())->area_start());
+    }
+    handles.push_back(array);
+  }
+  return handles;
 }
 
 std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
@@ -112,20 +143,25 @@ void SimulateFullSpace(v8::internal::NewSpace* space,
 }
 
 void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
-  i::MarkCompactCollector* collector = heap->mark_compact_collector();
   i::IncrementalMarking* marking = heap->incremental_marking();
+  i::MarkCompactCollector* collector = heap->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
     collector->EnsureSweepingCompleted();
   }
-  CHECK(marking->IsMarking() || marking->IsStopped());
-  if (marking->IsStopped()) {
-    heap->StartIncrementalMarking();
+  if (marking->IsSweeping()) {
+    marking->FinalizeSweeping();
   }
-  CHECK(marking->IsMarking());
+  CHECK(marking->IsMarking() || marking->IsStopped() || marking->IsComplete());
+  if (marking->IsStopped()) {
+    heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
+                                  i::GarbageCollectionReason::kTesting);
+  }
+  CHECK(marking->IsMarking() || marking->IsComplete());
   if (!force_completion) return;
 
   while (!marking->IsComplete()) {
-    marking->Step(i::MB, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD);
+    marking->Step(i::MB, i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
+                  i::IncrementalMarking::FORCE_COMPLETION, i::StepOrigin::kV8);
     if (marking->IsReadyToOverApproximateWeakClosure()) {
       marking->FinalizeIncrementally();
     }
@@ -147,7 +183,7 @@ void AbandonCurrentlyFreeMemory(PagedSpace* space) {
 }
 
 void GcAndSweep(Heap* heap, AllocationSpace space) {
-  heap->CollectGarbage(space);
+  heap->CollectGarbage(space, GarbageCollectionReason::kTesting);
   if (heap->mark_compact_collector()->sweeping_in_progress()) {
     heap->mark_compact_collector()->EnsureSweepingCompleted();
   }

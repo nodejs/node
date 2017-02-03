@@ -93,16 +93,13 @@ setTimeout(function() {
 
 assert.doesNotThrow(
     function() {
-      function a() {
-        assert.ok(0); // should not run
-      }
       function b() {
         fs.unwatchFile(filenameThree, b);
         ++watchSeenThree;
       }
-      fs.watchFile(filenameThree, a);
+      fs.watchFile(filenameThree, common.fail);
       fs.watchFile(filenameThree, b);
-      fs.unwatchFile(filenameThree, a);
+      fs.unwatchFile(filenameThree, common.fail);
     }
 );
 

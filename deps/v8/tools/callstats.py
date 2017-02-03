@@ -46,7 +46,7 @@ def print_command(cmd_args):
   print " ".join(map(fix_for_printing, cmd_args))
 
 
-def start_replay_server(args, sites):
+def start_replay_server(args, sites, discard_output=True):
   with tempfile.NamedTemporaryFile(prefix='callstats-inject-', suffix='.js',
                                    mode='wt', delete=False) as f:
     injection = f.name
@@ -65,8 +65,11 @@ def start_replay_server(args, sites):
   ]
   print "=" * 80
   print_command(cmd_args)
-  with open(os.devnull, 'w') as null:
-    server = subprocess.Popen(cmd_args, stdout=null, stderr=null)
+  if discard_output:
+    with open(os.devnull, 'w') as null:
+      server = subprocess.Popen(cmd_args, stdout=null, stderr=null)
+  else:
+      server = subprocess.Popen(cmd_args)
   print "RUNNING REPLAY SERVER: %s with PID=%s" % (args.replay_bin, server.pid)
   print "=" * 80
   return {'process': server, 'injection': injection}
@@ -123,6 +126,31 @@ def generate_injection(f, sites, refreshes=0):
   onLoad(window.location.href);
 })();"""
 
+def get_chrome_flags(js_flags, user_data_dir):
+  return [
+      "--no-default-browser-check",
+      "--no-sandbox",
+      "--disable-translate",
+      "--enable-benchmarking",
+      "--js-flags={}".format(js_flags),
+      "--no-first-run",
+      "--user-data-dir={}".format(user_data_dir),
+    ]
+
+def get_chrome_replay_flags(args):
+  http_port = 4080 + args.port_offset
+  https_port = 4443 + args.port_offset
+  return [
+      "--host-resolver-rules=MAP *:80 localhost:%s, "  \
+                            "MAP *:443 localhost:%s, " \
+                            "EXCLUDE localhost" % (
+                                http_port, https_port),
+      "--ignore-certificate-errors",
+      "--disable-seccomp-sandbox",
+      "--disable-web-security",
+      "--reduce-security-for-testing",
+      "--allow-insecure-localhost",
+    ]
 
 def run_site(site, domain, args, timeout=None):
   print "="*80
@@ -149,32 +177,11 @@ def run_site(site, domain, args, timeout=None):
         js_flags = "--runtime-call-stats"
         if args.replay_wpr: js_flags += " --allow-natives-syntax"
         if args.js_flags: js_flags += " " + args.js_flags
-        chrome_flags = [
-            "--no-default-browser-check",
-            "--no-sandbox",
-            "--disable-translate",
-            "--js-flags={}".format(js_flags),
-            "--no-first-run",
-            "--user-data-dir={}".format(user_data_dir),
-        ]
+        chrome_flags = get_chrome_flags(js_flags, user_data_dir)
         if args.replay_wpr:
-          http_port = 4080 + args.port_offset
-          https_port = 4443 + args.port_offset
-          chrome_flags += [
-              "--host-resolver-rules=MAP *:80 localhost:%s, "  \
-                                    "MAP *:443 localhost:%s, " \
-                                    "EXCLUDE localhost" % (
-                                        http_port, https_port),
-              "--ignore-certificate-errors",
-              "--disable-seccomp-sandbox",
-              "--disable-web-security",
-              "--reduce-security-for-testing",
-              "--allow-insecure-localhost",
-          ]
+          chrome_flags += get_chrome_replay_flags(args)
         else:
-          chrome_flags += [
-              "--single-process",
-          ]
+          chrome_flags += [ "--single-process", ]
         if args.chrome_flags:
           chrome_flags += args.chrome_flags.split()
         cmd_args = [
@@ -234,12 +241,15 @@ def read_sites_file(args):
     sys.exit(1)
 
 
-def do_run(args):
+def read_sites(args):
   # Determine the websites to benchmark.
   if args.sites_file:
-    sites = read_sites_file(args)
-  else:
-    sites = [{'url': site, 'timeout': args.timeout} for site in args.sites]
+    return read_sites_file(args)
+  return [{'url': site, 'timeout': args.timeout} for site in args.sites]
+
+def do_run(args):
+  sites = read_sites(args)
+  replay_server = start_replay_server(args, sites) if args.replay_wpr else None
   # Disambiguate domains, if needed.
   L = []
   domains = {}
@@ -266,16 +276,35 @@ def do_run(args):
       domains[domain] += 1
       entry[2] = domains[domain]
     L.append(entry)
-  replay_server = start_replay_server(args, sites) if args.replay_wpr else None
   try:
     # Run them.
     for site, domain, count, timeout in L:
       if count is not None: domain = "{}%{}".format(domain, count)
-      print site, domain, timeout
+      print(site, domain, timeout)
       run_site(site, domain, args, timeout)
   finally:
     if replay_server:
       stop_replay_server(replay_server)
+
+
+def do_run_replay_server(args):
+  sites = read_sites(args)
+  print("- " * 40)
+  print("Available URLs:")
+  for site in sites:
+    print("    "+site['url'])
+  print("- " * 40)
+  print("Launch chromium with the following commands for debugging:")
+  flags = get_chrome_flags("'--runtime-call-stats --allow-natives-syntax'",
+                           "/var/tmp/`date +%s`")
+  flags += get_chrome_replay_flags(args)
+  print("    $CHROMIUM_DIR/out/Release/chomium " + (" ".join(flags)) + " <URL>")
+  print("- " * 40)
+  replay_server = start_replay_server(args, sites, discard_output=False)
+  try:
+    replay_server['process'].wait()
+  finally:
+   stop_replay_server(replay_server)
 
 
 # Calculate statistics.
@@ -355,8 +384,15 @@ def read_stats(path, domain, args):
           entries[group_name]['time'] += time
           entries[group_name]['count'] += count
           break
+    # Calculate the V8-Total (all groups except Callback)
+    total_v8 = { 'time': 0, 'count': 0 }
+    for group_name, regexp in groups:
+      if group_name == 'Group-Callback': continue
+      total_v8['time'] += entries[group_name]['time']
+      total_v8['count'] += entries[group_name]['count']
+    entries['Group-Total-V8'] = total_v8
     # Append the sums as single entries to domain.
-    for key in entries :
+    for key in entries:
       if key not in domain: domain[key] = { 'time_list': [], 'count_list': [] }
       domain[key]['time_list'].append(entries[key]['time'])
       domain[key]['count_list'].append(entries[key]['count'])
@@ -527,7 +563,7 @@ def main():
   subparsers = {}
   # Command: run.
   subparsers["run"] = subparser_adder.add_parser(
-      "run", help="run --help")
+      "run", help="Replay websites and collect runtime stats data.")
   subparsers["run"].set_defaults(
       func=do_run, error=subparsers["run"].error)
   subparsers["run"].add_argument(
@@ -537,37 +573,6 @@ def main():
       "--js-flags", type=str, default="",
       help="specify additional V8 flags")
   subparsers["run"].add_argument(
-      "--domain", type=str, default="",
-      help="specify the output file domain name")
-  subparsers["run"].add_argument(
-      "--no-url", dest="print_url", action="store_false", default=True,
-      help="do not include url in statistics file")
-  subparsers["run"].add_argument(
-      "-n", "--repeat", type=int, metavar="<num>",
-      help="specify iterations for each website (default: once)")
-  subparsers["run"].add_argument(
-      "-k", "--refresh", type=int, metavar="<num>", default=0,
-      help="specify refreshes for each iteration (default: 0)")
-  subparsers["run"].add_argument(
-      "--replay-wpr", type=str, metavar="<path>",
-      help="use the specified web page replay (.wpr) archive")
-  subparsers["run"].add_argument(
-      "--replay-bin", type=str, metavar="<path>",
-      help="specify the replay.py script typically located in " \
-           "$CHROMIUM/src/third_party/webpagereplay/replay.py")
-  subparsers["run"].add_argument(
-      "-r", "--retries", type=int, metavar="<num>",
-      help="specify retries if website is down (default: forever)")
-  subparsers["run"].add_argument(
-      "-f", "--sites-file", type=str, metavar="<path>",
-      help="specify file containing benchmark websites")
-  subparsers["run"].add_argument(
-      "-t", "--timeout", type=int, metavar="<seconds>", default=60,
-      help="specify seconds before chrome is killed")
-  subparsers["run"].add_argument(
-      "-p", "--port-offset", type=int, metavar="<offset>", default=0,
-      help="specify the offset for the replay server's default ports")
-  subparsers["run"].add_argument(
       "-u", "--user-data-dir", type=str, metavar="<path>",
       help="specify user data dir (default is temporary)")
   subparsers["run"].add_argument(
@@ -575,14 +580,56 @@ def main():
       default="/usr/bin/google-chrome",
       help="specify chrome executable to use")
   subparsers["run"].add_argument(
-      "-l", "--log-stderr", type=str, metavar="<path>",
-      help="specify where chrome's stderr should go (default: /dev/null)")
+      "-r", "--retries", type=int, metavar="<num>",
+      help="specify retries if website is down (default: forever)")
   subparsers["run"].add_argument(
-      "sites", type=str, metavar="<URL>", nargs="*",
-      help="specify benchmark website")
+      "--no-url", dest="print_url", action="store_false", default=True,
+      help="do not include url in statistics file")
+  subparsers["run"].add_argument(
+      "--domain", type=str, default="",
+      help="specify the output file domain name")
+  subparsers["run"].add_argument(
+      "-n", "--repeat", type=int, metavar="<num>",
+      help="specify iterations for each website (default: once)")
+
+  def add_replay_args(subparser):
+    subparser.add_argument(
+        "-k", "--refresh", type=int, metavar="<num>", default=0,
+        help="specify refreshes for each iteration (default: 0)")
+    subparser.add_argument(
+        "--replay-wpr", type=str, metavar="<path>",
+        help="use the specified web page replay (.wpr) archive")
+    subparser.add_argument(
+        "--replay-bin", type=str, metavar="<path>",
+        help="specify the replay.py script typically located in " \
+             "$CHROMIUM/src/third_party/webpagereplay/replay.py")
+    subparser.add_argument(
+        "-f", "--sites-file", type=str, metavar="<path>",
+        help="specify file containing benchmark websites")
+    subparser.add_argument(
+        "-t", "--timeout", type=int, metavar="<seconds>", default=60,
+        help="specify seconds before chrome is killed")
+    subparser.add_argument(
+        "-p", "--port-offset", type=int, metavar="<offset>", default=0,
+        help="specify the offset for the replay server's default ports")
+    subparser.add_argument(
+        "-l", "--log-stderr", type=str, metavar="<path>",
+        help="specify where chrome's stderr should go (default: /dev/null)")
+    subparser.add_argument(
+        "sites", type=str, metavar="<URL>", nargs="*",
+        help="specify benchmark website")
+  add_replay_args(subparsers["run"])
+
+  # Command: replay-server
+  subparsers["replay"] = subparser_adder.add_parser(
+      "replay", help="Run the replay server for debugging purposes")
+  subparsers["replay"].set_defaults(
+      func=do_run_replay_server, error=subparsers["replay"].error)
+  add_replay_args(subparsers["replay"])
+
   # Command: stats.
   subparsers["stats"] = subparser_adder.add_parser(
-      "stats", help="stats --help")
+      "stats", help="Analize the results file create by the 'run' command.")
   subparsers["stats"].set_defaults(
       func=do_stats, error=subparsers["stats"].error)
   subparsers["stats"].add_argument(
@@ -599,11 +646,13 @@ def main():
       help="specify log files to parse")
   subparsers["stats"].add_argument(
       "--aggregate", dest="aggregate", action="store_true", default=False,
-      help="Create aggregated entries. Adds Group-* entries at the toplevel. " +
+      help="Create aggregated entries. Adds Group-* entries at the toplevel. " \
       "Additionally creates a Total page with all entries.")
+
   # Command: json.
   subparsers["json"] = subparser_adder.add_parser(
-      "json", help="json --help")
+      "json", help="Collect results file created by the 'run' command into" \
+          "a single json file.")
   subparsers["json"].set_defaults(
       func=do_json, error=subparsers["json"].error)
   subparsers["json"].add_argument(
@@ -611,8 +660,9 @@ def main():
       help="specify directories with log files to parse")
   subparsers["json"].add_argument(
       "--aggregate", dest="aggregate", action="store_true", default=False,
-      help="Create aggregated entries. Adds Group-* entries at the toplevel. " +
+      help="Create aggregated entries. Adds Group-* entries at the toplevel. " \
       "Additionally creates a Total page with all entries.")
+
   # Command: help.
   subparsers["help"] = subparser_adder.add_parser(
       "help", help="help information")
@@ -622,6 +672,7 @@ def main():
   subparsers["help"].add_argument(
       "help_cmd", type=str, metavar="<command>", nargs="?",
       help="command for which to display help")
+
   # Execute the command.
   args = parser.parse_args()
   setattr(args, 'script_path', os.path.dirname(sys.argv[0]))

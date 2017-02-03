@@ -123,6 +123,18 @@ class MacroAssembler: public Assembler {
   void CallDeoptimizer(Address target);
   static int CallDeoptimizerSize();
 
+  // Emit code that loads |parameter_index|'th parameter from the stack to
+  // the register according to the CallInterfaceDescriptor definition.
+  // |sp_to_caller_sp_offset_in_words| specifies the number of words pushed
+  // below the caller's sp.
+  template <class Descriptor>
+  void LoadParameterFromStack(
+      Register reg, typename Descriptor::ParameterIndices parameter_index,
+      int sp_to_ra_offset_in_words = 0) {
+    DCHECK(Descriptor::kPassLastArgsOnStack);
+    UNIMPLEMENTED();
+  }
+
   // Emit code to discard a non-negative number of pointer-sized elements
   // from the stack, clobbering only the sp register.
   void Drop(int count, Condition cond = al);
@@ -170,8 +182,8 @@ class MacroAssembler: public Assembler {
       mov(dst, src, sbit, cond);
     }
   }
-  void Move(SwVfpRegister dst, SwVfpRegister src);
-  void Move(DwVfpRegister dst, DwVfpRegister src);
+  void Move(SwVfpRegister dst, SwVfpRegister src, Condition cond = al);
+  void Move(DwVfpRegister dst, DwVfpRegister src, Condition cond = al);
 
   void Load(Register dst, const MemOperand& src, Representation r);
   void Store(Register src, const MemOperand& dst, Representation r);
@@ -1082,6 +1094,32 @@ class MacroAssembler: public Assembler {
   // values to location, restoring [d0..(d15|d31)].
   void RestoreFPRegs(Register location, Register scratch);
 
+  // Perform a floating-point min or max operation with the
+  // (IEEE-754-compatible) semantics of ARM64's fmin/fmax. Some cases, typically
+  // NaNs or +/-0.0, are expected to be rare and are handled in out-of-line
+  // code. The specific behaviour depends on supported instructions.
+  //
+  // These functions assume (and assert) that !left.is(right). It is permitted
+  // for the result to alias either input register.
+  void FloatMax(SwVfpRegister result, SwVfpRegister left, SwVfpRegister right,
+                Label* out_of_line);
+  void FloatMin(SwVfpRegister result, SwVfpRegister left, SwVfpRegister right,
+                Label* out_of_line);
+  void FloatMax(DwVfpRegister result, DwVfpRegister left, DwVfpRegister right,
+                Label* out_of_line);
+  void FloatMin(DwVfpRegister result, DwVfpRegister left, DwVfpRegister right,
+                Label* out_of_line);
+
+  // Generate out-of-line cases for the macros above.
+  void FloatMaxOutOfLine(SwVfpRegister result, SwVfpRegister left,
+                         SwVfpRegister right);
+  void FloatMinOutOfLine(SwVfpRegister result, SwVfpRegister left,
+                         SwVfpRegister right);
+  void FloatMaxOutOfLine(DwVfpRegister result, DwVfpRegister left,
+                         DwVfpRegister right);
+  void FloatMinOutOfLine(DwVfpRegister result, DwVfpRegister left,
+                         DwVfpRegister right);
+
   // ---------------------------------------------------------------------------
   // Runtime calls
 
@@ -1512,6 +1550,16 @@ class MacroAssembler: public Assembler {
   static int SafepointRegisterStackIndex(int reg_code);
   MemOperand SafepointRegisterSlot(Register reg);
   MemOperand SafepointRegistersAndDoublesSlot(Register reg);
+
+  // Implementation helpers for FloatMin and FloatMax.
+  template <typename T>
+  void FloatMaxHelper(T result, T left, T right, Label* out_of_line);
+  template <typename T>
+  void FloatMinHelper(T result, T left, T right, Label* out_of_line);
+  template <typename T>
+  void FloatMaxOutOfLineHelper(T result, T left, T right);
+  template <typename T>
+  void FloatMinOutOfLineHelper(T result, T left, T right);
 
   bool generating_stub_;
   bool has_frame_;

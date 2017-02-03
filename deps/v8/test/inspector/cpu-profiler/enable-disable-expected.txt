@@ -1,0 +1,8 @@
+Test that profiling can only be started when Profiler was enabled and that Profiler.disable command will stop recording all profiles.
+PASS: didFailToStartWhenDisabled
+PASS: didStartFrontendProfile
+PASS: console initiated profile started
+PASS: didStartConsoleProfile
+PASS: didDisableProfiler
+PASS: no front-end initiated profiles found
+PASS: didStopConsoleProfile

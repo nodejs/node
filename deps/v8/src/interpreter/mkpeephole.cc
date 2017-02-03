@@ -146,6 +146,9 @@ PeepholeActionAndData PeepholeActionTableWriter::LookupActionAndData(
             Bytecode::kIllegal};
   }
 
+  // TODO(rmcilroy): Add elide for consecutive mov to and from the same
+  // register.
+
   // Remove ToBoolean coercion from conditional jumps where possible.
   if (Bytecodes::WritesBooleanToAccumulator(last)) {
     if (Bytecodes::IsJumpIfToBoolean(current)) {

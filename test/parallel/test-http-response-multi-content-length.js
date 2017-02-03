@@ -35,7 +35,7 @@ server.listen(0, common.mustCall(() => {
     http.get(
       {port: server.address().port, headers: {'x-num': n}},
       (res) => {
-        assert(false, 'client allowed multiple content-length headers.');
+        common.fail('client allowed multiple content-length headers.');
       }
     ).on('error', common.mustCall((err) => {
       assert(/^Parse Error/.test(err.message));

@@ -794,7 +794,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSource) {
   return regexp->source();
 }
 
-
+// TODO(jgruber): Remove this once all uses in regexp.js have been removed.
 RUNTIME_FUNCTION(Runtime_RegExpConstructResult) {
   HandleScope handle_scope(isolate);
   DCHECK(args.length() == 3);

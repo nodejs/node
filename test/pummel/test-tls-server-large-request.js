@@ -12,7 +12,7 @@ const fs = require('fs');
 const stream = require('stream');
 const util = require('util');
 
-const request = Buffer.from(new Array(1024 * 256).join('ABCD')); // 1mb
+const request = Buffer.from('ABCD'.repeat(1024 * 256 - 1)); // 1mb
 
 const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),

@@ -105,6 +105,39 @@ void CcTest::Run() {
   }
 }
 
+i::Heap* CcTest::heap() { return i_isolate()->heap(); }
+
+void CcTest::CollectGarbage(i::AllocationSpace space) {
+  heap()->CollectGarbage(space, i::GarbageCollectionReason::kTesting);
+}
+
+void CcTest::CollectAllGarbage(int flags) {
+  heap()->CollectAllGarbage(flags, i::GarbageCollectionReason::kTesting);
+}
+
+void CcTest::CollectAllAvailableGarbage() {
+  heap()->CollectAllAvailableGarbage(i::GarbageCollectionReason::kTesting);
+}
+
+v8::base::RandomNumberGenerator* CcTest::random_number_generator() {
+  return InitIsolateOnce()->random_number_generator();
+}
+
+v8::Local<v8::Object> CcTest::global() {
+  return isolate()->GetCurrentContext()->Global();
+}
+
+void CcTest::InitializeVM() {
+  CHECK(!v8::base::NoBarrier_Load(&isolate_used_));
+  CHECK(!initialize_called_);
+  initialize_called_ = true;
+  v8::HandleScope handle_scope(CcTest::isolate());
+  v8::Context::New(CcTest::isolate())->Enter();
+}
+
+void CcTest::TearDown() {
+  if (isolate_ != NULL) isolate_->Dispose();
+}
 
 v8::Local<v8::Context> CcTest::NewContext(CcTestExtensionFlags extensions,
                                           v8::Isolate* isolate) {
@@ -126,6 +159,47 @@ void CcTest::DisableAutomaticDispose() {
   disable_automatic_dispose_ = true;
 }
 
+LocalContext::~LocalContext() {
+  v8::HandleScope scope(isolate_);
+  v8::Local<v8::Context>::New(isolate_, context_)->Exit();
+  context_.Reset();
+}
+
+void LocalContext::Initialize(v8::Isolate* isolate,
+                              v8::ExtensionConfiguration* extensions,
+                              v8::Local<v8::ObjectTemplate> global_template,
+                              v8::Local<v8::Value> global_object) {
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context =
+      v8::Context::New(isolate, extensions, global_template, global_object);
+  context_.Reset(isolate, context);
+  context->Enter();
+  // We can't do this later perhaps because of a fatal error.
+  isolate_ = isolate;
+}
+
+// This indirection is needed because HandleScopes cannot be heap-allocated, and
+// we don't want any unnecessary #includes in cctest.h.
+class InitializedHandleScopeImpl {
+ public:
+  explicit InitializedHandleScopeImpl(i::Isolate* isolate)
+      : handle_scope_(isolate) {}
+
+ private:
+  i::HandleScope handle_scope_;
+};
+
+InitializedHandleScope::InitializedHandleScope()
+    : main_isolate_(CcTest::InitIsolateOnce()),
+      initialized_handle_scope_impl_(
+          new InitializedHandleScopeImpl(main_isolate_)) {}
+
+InitializedHandleScope::~InitializedHandleScope() {}
+
+HandleAndZoneScope::HandleAndZoneScope()
+    : main_zone_(new i::Zone(&allocator_)) {}
+
+HandleAndZoneScope::~HandleAndZoneScope() {}
 
 static void PrintTestList(CcTest* current) {
   if (current == NULL) return;

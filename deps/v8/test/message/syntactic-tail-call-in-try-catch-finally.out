@@ -1,4 +1,0 @@
-*%(basename)s:16: SyntaxError: Tail call expression in catch block when finally block is also present
-    return continue f()  ;
-           ^^^^^^^^^^^^
-SyntaxError: Tail call expression in catch block when finally block is also present

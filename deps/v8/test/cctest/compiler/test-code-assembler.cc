@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/code-factory.h"
 #include "src/compiler/code-assembler.h"
 #include "src/isolate.h"
 #include "test/cctest/compiler/code-assembler-tester.h"

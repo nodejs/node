@@ -16,7 +16,6 @@ var GlobalSet = global.Set;
 var hashCodeSymbol = utils.ImportNow("hash_code_symbol");
 var MathRandom;
 var MapIterator;
-var NumberIsNaN;
 var SetIterator;
 var speciesSymbol = utils.ImportNow("species_symbol");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
@@ -24,7 +23,6 @@ var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 utils.Import(function(from) {
   MathRandom = from.MathRandom;
   MapIterator = from.MapIterator;
-  NumberIsNaN = from.NumberIsNaN;
   SetIterator = from.SetIterator;
 });
 
@@ -42,9 +40,9 @@ function SetFindEntry(table, numBuckets, key, hash) {
   if (entry === NOT_FOUND) return entry;
   var candidate = ORDERED_HASH_SET_KEY_AT(table, entry, numBuckets);
   if (key === candidate) return entry;
-  var keyIsNaN = NumberIsNaN(key);
+  var keyIsNaN = NUMBER_IS_NAN(key);
   while (true) {
-    if (keyIsNaN && NumberIsNaN(candidate)) {
+    if (keyIsNaN && NUMBER_IS_NAN(candidate)) {
       return entry;
     }
     entry = ORDERED_HASH_SET_CHAIN_AT(table, entry, numBuckets);
@@ -62,9 +60,9 @@ function MapFindEntry(table, numBuckets, key, hash) {
   if (entry === NOT_FOUND) return entry;
   var candidate = ORDERED_HASH_MAP_KEY_AT(table, entry, numBuckets);
   if (key === candidate) return entry;
-  var keyIsNaN = NumberIsNaN(key);
+  var keyIsNaN = NUMBER_IS_NAN(key);
   while (true) {
-    if (keyIsNaN && NumberIsNaN(candidate)) {
+    if (keyIsNaN && NUMBER_IS_NAN(candidate)) {
       return entry;
     }
     entry = ORDERED_HASH_MAP_CHAIN_AT(table, entry, numBuckets);

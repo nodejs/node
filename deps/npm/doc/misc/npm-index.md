@@ -65,6 +65,10 @@ Modify package distribution tags
 
 Docs for a package in a web browser maybe
 
+### npm-doctor(1)
+
+Check your environments
+
 ### npm-edit(1)
 
 Edit an installed package

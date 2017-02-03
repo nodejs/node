@@ -15,7 +15,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class BranchEliminationTest : public TypedGraphTest {
+class BranchEliminationTest : public GraphTest {
  public:
   BranchEliminationTest()
       : machine_(zone(), MachineType::PointerRepresentation(),

@@ -414,7 +414,7 @@ Address Deserializer::Allocate(int space_index, int size) {
     LargeObjectSpace* lo_space = isolate_->heap()->lo_space();
     Executability exec = static_cast<Executability>(source_.Get());
     AllocationResult result = lo_space->AllocateRaw(size, exec);
-    HeapObject* obj = HeapObject::cast(result.ToObjectChecked());
+    HeapObject* obj = result.ToObjectChecked();
     deserialized_large_objects_.Add(obj);
     return obj->address();
   } else if (space_index == MAP_SPACE) {

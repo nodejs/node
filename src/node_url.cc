@@ -96,50 +96,50 @@ using v8::Value;
 namespace url {
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
-  static int ToUnicode(std::string* input, std::string* output) {
+  static bool ToUnicode(std::string* input, std::string* output) {
     MaybeStackBuffer<char> buf;
     if (i18n::ToUnicode(&buf, input->c_str(), input->length()) < 0)
-      return -1;
+      return false;
     output->assign(*buf, buf.length());
-    return 0;
+    return true;
   }
 
-  static int ToASCII(std::string* input, std::string* output) {
+  static bool ToASCII(std::string* input, std::string* output) {
     MaybeStackBuffer<char> buf;
     if (i18n::ToASCII(&buf, input->c_str(), input->length()) < 0)
-      return -1;
+      return false;
     output->assign(*buf, buf.length());
-    return 0;
+    return true;
   }
 
   // Unfortunately there's not really a better way to do this.
   // Iterate through each encoded codepoint and verify that
   // it is a valid unicode codepoint.
-  static int IsValidUTF8(std::string* input) {
+  static bool IsValidUTF8(std::string* input) {
     const char* p = input->c_str();
     int32_t len = input->length();
     for (int32_t i = 0; i < len;) {
       UChar32 c;
       U8_NEXT_UNSAFE(p, i, c);
       if (!U_IS_UNICODE_CHAR(c))
-        return -1;
+        return false;
     }
-    return 0;
+    return true;
   }
 #else
   // Intentional non-ops if ICU is not present.
-  static int ToUnicode(std::string* input, std::string* output) {
-    output->reserve(input->length());
-    *output = input->c_str();
+  static bool ToUnicode(std::string* input, std::string* output) {
+    *output = *input;
+    return true;
   }
 
-  static int ToASCII(std::string* input, std::string* output) {
-    output->reserve(input->length());
-    *output = input->c_str();
+  static bool ToASCII(std::string* input, std::string* output) {
+    *output = *input;
+    return true;
   }
 
-  static int IsValidUTF8(std::string* input) {
-    return 0;
+  static bool IsValidUTF8(std::string* input) {
+    return true;
   }
 #endif
 
@@ -381,11 +381,11 @@ namespace url {
     // If there are any invalid UTF8 byte sequences, we have to fail.
     // Unfortunately this means iterating through the string and checking
     // each decoded codepoint.
-    if (IsValidUTF8(&decoded) < 0)
+    if (!IsValidUTF8(&decoded))
       goto end;
 
     // Then we have to punycode toASCII
-    if (ToASCII(&decoded, &decoded) < 0)
+    if (!ToASCII(&decoded, &decoded))
       goto end;
 
     // If any of the following characters are still present, we have to fail
@@ -405,7 +405,7 @@ namespace url {
       goto end;
 
     // If the unicode flag is set, run the result through punycode ToUnicode
-    if (unicode && ToUnicode(&decoded, &decoded) < 0)
+    if (unicode && !ToUnicode(&decoded, &decoded))
       goto end;
 
     // It's not an IPv4 or IPv6 address, it must be a domain
@@ -499,20 +499,20 @@ namespace url {
     return host->type;
   }
 
-  static int ParseHost(std::string* input,
-                       std::string* output,
-                       bool unicode = false) {
+  static bool ParseHost(std::string* input,
+                        std::string* output,
+                        bool unicode = false) {
     if (input->length() == 0)
-      return 0;
+      return true;
     url_host host{{""}, HOST_TYPE_DOMAIN};
     ParseHost(&host, input->c_str(), input->length(), unicode);
     if (host.type == HOST_TYPE_FAILED)
-      return -1;
+      return false;
     WriteHost(&host, output);
-    return 0;
+    return true;
   }
 
-  static inline void Copy(Isolate* isolate,
+  static inline void Copy(Environment* env,
                           Local<Array> ary,
                           std::vector<std::string>* vec) {
     const int32_t len = ary->Length();
@@ -520,28 +520,30 @@ namespace url {
       return;  // nothing to copy
     vec->reserve(len);
     for (int32_t n = 0; n < len; n++) {
-      Local<Value> val = ary->Get(n);
+      Local<Value> val = ary->Get(env->context(), n).ToLocalChecked();
       if (val->IsString()) {
-        Utf8Value value(isolate, val.As<String>());
+        Utf8Value value(env->isolate(), val.As<String>());
         vec->push_back(std::string(*value, value.length()));
       }
     }
   }
 
-  static inline Local<Array> Copy(Isolate* isolate,
+  static inline Local<Array> Copy(Environment* env,
                                   std::vector<std::string> vec) {
+    Isolate* isolate = env->isolate();
     Local<Array> ary = Array::New(isolate, vec.size());
     for (size_t n = 0; n < vec.size(); n++)
-      ary->Set(n, UTF8STRING(isolate, vec[n]));
+      ary->Set(env->context(), n, UTF8STRING(isolate, vec[n])).FromJust();
     return ary;
   }
 
   static inline void HarvestBase(Environment* env,
                                  struct url_data* base,
                                  Local<Object> base_obj) {
+    Local<Context> context = env->context();
     Local<Value> flags = GET(env, base_obj, "flags");
     if (flags->IsInt32())
-      base->flags = flags->Int32Value();
+      base->flags = flags->Int32Value(context).FromJust();
 
     GET_AND_SET(env, base_obj, scheme, base, URL_FLAGS_HAS_SCHEME);
     GET_AND_SET(env, base_obj, username, base, URL_FLAGS_HAS_USERNAME);
@@ -551,11 +553,11 @@ namespace url {
     GET_AND_SET(env, base_obj, fragment, base, URL_FLAGS_HAS_FRAGMENT);
     Local<Value> port = GET(env, base_obj, "port");
     if (port->IsInt32())
-      base->port = port->Int32Value();
+      base->port = port->Int32Value(context).FromJust();
     Local<Value> path = GET(env, base_obj, "path");
     if (path->IsArray()) {
       base->flags |= URL_FLAGS_HAS_PATH;
-      Copy(env->isolate(), path.As<Array>(), &(base->path));
+      Copy(env, path.As<Array>(), &(base->path));
     }
   }
 
@@ -564,7 +566,7 @@ namespace url {
                                     Local<Object> context_obj) {
     Local<Value> flags = GET(env, context_obj, "flags");
     if (flags->IsInt32()) {
-      int32_t _flags = flags->Int32Value();
+      int32_t _flags = flags->Int32Value(env->context()).FromJust();
       if (_flags & URL_FLAGS_SPECIAL)
         context->flags |= URL_FLAGS_SPECIAL;
       if (_flags & URL_FLAGS_CANNOT_BE_BASE)
@@ -577,7 +579,7 @@ namespace url {
     }
     Local<Value> port = GET(env, context_obj, "port");
     if (port->IsInt32())
-      context->port = port->Int32Value();
+      context->port = port->Int32Value(env->context()).FromJust();
   }
 
   // Single dot segment can be ".", "%2e", or "%2E"
@@ -635,9 +637,9 @@ namespace url {
                     Local<Value> recv,
                     const char* input,
                     const size_t len,
-                    enum url_parse_state override,
-                    Local<Object> base_obj,
-                    Local<Object> context_obj,
+                    enum url_parse_state state_override,
+                    Local<Value> base_obj,
+                    Local<Value> context_obj,
                     Local<Function> cb) {
     Isolate* isolate = env->isolate();
     Local<Context> context = env->context();
@@ -654,9 +656,9 @@ namespace url {
     struct url_data base;
     struct url_data url;
     if (context_obj->IsObject())
-      HarvestContext(env, &url, context_obj);
+      HarvestContext(env, &url, context_obj.As<Object>());
     if (has_base)
-      HarvestBase(env, &base, base_obj);
+      HarvestBase(env, &base, base_obj.As<Object>());
 
     std::string buffer;
     url.scheme.reserve(len);
@@ -669,8 +671,9 @@ namespace url {
     buffer.reserve(len);
 
     // Set the initial parse state.
-    const bool state_override = override != kUnknownState;
-    enum url_parse_state state = state_override ? override : kSchemeStart;
+    const bool has_state_override = state_override != kUnknownState;
+    enum url_parse_state state = has_state_override ? state_override :
+                                                      kSchemeStart;
 
     const char* p = input;
     const char* end = input + len;
@@ -702,7 +705,7 @@ namespace url {
           if (ASCII_ALPHA(ch)) {
             buffer += TO_LOWER(ch);
             state = kScheme;
-          } else if (!state_override) {
+          } else if (!has_state_override) {
             state = kNoScheme;
             continue;
           } else {
@@ -714,7 +717,7 @@ namespace url {
             buffer += TO_LOWER(ch);
             p++;
             continue;
-          } else if (ch == ':' || (state_override && ch == kEOL)) {
+          } else if (ch == ':' || (has_state_override && ch == kEOL)) {
             buffer += ':';
             if (buffer.size() > 0) {
               SET_HAVE_SCHEME()
@@ -725,7 +728,7 @@ namespace url {
             } else {
               url.flags &= ~URL_FLAGS_SPECIAL;
             }
-            if (state_override)
+            if (has_state_override)
               goto done;
             buffer.clear();
             if (url.scheme == "file:") {
@@ -746,7 +749,7 @@ namespace url {
               url.path.push_back("");
               state = kCannotBeBase;
             }
-          } else if (!state_override) {
+          } else if (!has_state_override) {
             buffer.clear();
             state = kNoScheme;
             p = input;
@@ -996,11 +999,11 @@ namespace url {
             if (special && buffer.size() == 0)
               URL_FAILED()
             SET_HAVE_HOST()
-            if (ParseHost(&buffer, &url.host) < 0)
+            if (!ParseHost(&buffer, &url.host))
               URL_FAILED()
             buffer.clear();
             state = kPort;
-            if (override == kHostname)
+            if (state_override == kHostname)
               TERMINATE()
           } else if (ch == kEOL ||
                      ch == '/' ||
@@ -1011,11 +1014,11 @@ namespace url {
             if (special && buffer.size() == 0)
               URL_FAILED()
             SET_HAVE_HOST()
-            if (ParseHost(&buffer, &url.host) < 0)
+            if (!ParseHost(&buffer, &url.host))
               URL_FAILED()
             buffer.clear();
             state = kPathStart;
-            if (state_override)
+            if (has_state_override)
               TERMINATE()
           } else {
             if (ch == '[')
@@ -1028,7 +1031,7 @@ namespace url {
         case kPort:
           if (ASCII_DIGIT(ch)) {
             buffer += ch;
-          } else if (state_override ||
+          } else if (has_state_override ||
                      ch == kEOL ||
                      ch == '/' ||
                      ch == '?' ||
@@ -1040,7 +1043,7 @@ namespace url {
                 port = port * 10 + buffer[i] - '0';
               if (port >= 0 && port <= 0xffff) {
                 url.port = NormalizePort(url.scheme, port);
-              } else if (!state_override) {
+              } else if (!has_state_override) {
                 URL_FAILED()
               }
               buffer.clear();
@@ -1161,7 +1164,7 @@ namespace url {
             } else {
               if (buffer != "localhost") {
                 SET_HAVE_HOST()
-                if (ParseHost(&buffer, &url.host) < 0)
+                if (!ParseHost(&buffer, &url.host))
                   URL_FAILED()
               }
               buffer.clear();
@@ -1181,7 +1184,7 @@ namespace url {
           if (ch == kEOL ||
               ch == '/' ||
               special_back_slash ||
-              (!state_override && (ch == '?' || ch == '#'))) {
+              (!has_state_override && (ch == '?' || ch == '#'))) {
             if (IsDoubleDotSegment(buffer)) {
               ShortenUrlPath(&url);
               if (ch != '/' && !special_back_slash) {
@@ -1233,7 +1236,7 @@ namespace url {
           }
           break;
         case kQuery:
-          if (ch == kEOL || (!state_override && ch == '#')) {
+          if (ch == kEOL || (!has_state_override && ch == '#')) {
             SET_HAVE_QUERY()
             url.query = buffer;
             buffer.clear();
@@ -1296,7 +1299,7 @@ namespace url {
       if (url.port > -1)
         argv[ARG_PORT] = Integer::New(isolate, url.port);
       if (DOES_HAVE_PATH(url))
-        argv[ARG_PATH] = Copy(isolate, url.path);
+        argv[ARG_PATH] = Copy(env, url.path);
     }
 
     (void)cb->Call(context, recv, 9, argv);
@@ -1314,15 +1317,17 @@ namespace url {
           args[3]->IsObject());
     CHECK(args[4]->IsFunction());
     Utf8Value input(env->isolate(), args[0]);
-    enum url_parse_state override = kUnknownState;
-    if (args[1]->IsNumber())
-      override = (enum url_parse_state)(args[1]->Uint32Value());
+    enum url_parse_state state_override = kUnknownState;
+    if (args[1]->IsNumber()) {
+      state_override = static_cast<enum url_parse_state>(
+          args[1]->Uint32Value(env->context()).FromJust());
+    }
 
     Parse(env, args.This(),
           *input, input.length(),
-          override,
-          args[2].As<Object>(),
-          args[3].As<Object>(),
+          state_override,
+          args[2],
+          args[3],
           args[4].As<Function>());
   }
 

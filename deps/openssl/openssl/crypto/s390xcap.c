@@ -3,6 +3,7 @@
 #include <string.h>
 #include <setjmp.h>
 #include <signal.h>
+#include "cryptlib.h"
 
 extern unsigned long OPENSSL_s390xcap_P[];
 

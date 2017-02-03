@@ -90,16 +90,23 @@ assert.doesNotThrow(makeBlock(a.deepEqual, /a/g, /a/g));
 assert.doesNotThrow(makeBlock(a.deepEqual, /a/i, /a/i));
 assert.doesNotThrow(makeBlock(a.deepEqual, /a/m, /a/m));
 assert.doesNotThrow(makeBlock(a.deepEqual, /a/igm, /a/igm));
-assert.throws(makeBlock(a.deepEqual, /ab/, /a/));
-assert.throws(makeBlock(a.deepEqual, /a/g, /a/));
-assert.throws(makeBlock(a.deepEqual, /a/i, /a/));
-assert.throws(makeBlock(a.deepEqual, /a/m, /a/));
-assert.throws(makeBlock(a.deepEqual, /a/igm, /a/im));
+assert.throws(makeBlock(a.deepEqual, /ab/, /a/),
+              /^AssertionError: \/ab\/ deepEqual \/a\/$/);
+assert.throws(makeBlock(a.deepEqual, /a/g, /a/),
+              /^AssertionError: \/a\/g deepEqual \/a\/$/);
+assert.throws(makeBlock(a.deepEqual, /a/i, /a/),
+              /^AssertionError: \/a\/i deepEqual \/a\/$/);
+assert.throws(makeBlock(a.deepEqual, /a/m, /a/),
+              /^AssertionError: \/a\/m deepEqual \/a\/$/);
+assert.throws(makeBlock(a.deepEqual, /a/igm, /a/im),
+              /^AssertionError: \/a\/gim deepEqual \/a\/im$/);
 
 {
-  const re1 = /a/;
+  const re1 = /a/g;
   re1.lastIndex = 3;
-  assert.throws(makeBlock(a.deepEqual, re1, /a/));
+
+  assert.throws(makeBlock(a.deepEqual, re1, /a/g),
+                /^AssertionError: \/a\/g deepEqual \/a\/g$/);
 }
 
 
@@ -209,11 +216,26 @@ assert.doesNotThrow(makeBlock(a.deepStrictEqual, /a/g, /a/g));
 assert.doesNotThrow(makeBlock(a.deepStrictEqual, /a/i, /a/i));
 assert.doesNotThrow(makeBlock(a.deepStrictEqual, /a/m, /a/m));
 assert.doesNotThrow(makeBlock(a.deepStrictEqual, /a/igm, /a/igm));
-assert.throws(makeBlock(a.deepStrictEqual, /ab/, /a/));
-assert.throws(makeBlock(a.deepStrictEqual, /a/g, /a/));
-assert.throws(makeBlock(a.deepStrictEqual, /a/i, /a/));
-assert.throws(makeBlock(a.deepStrictEqual, /a/m, /a/));
-assert.throws(makeBlock(a.deepStrictEqual, /a/igm, /a/im));
+assert.throws(
+  makeBlock(a.deepStrictEqual, /ab/, /a/),
+  /^AssertionError: \/ab\/ deepStrictEqual \/a\/$/
+);
+assert.throws(
+  makeBlock(a.deepStrictEqual, /a/g, /a/),
+  /^AssertionError: \/a\/g deepStrictEqual \/a\/$/
+);
+assert.throws(
+  makeBlock(a.deepStrictEqual, /a/i, /a/),
+  /^AssertionError: \/a\/i deepStrictEqual \/a\/$/
+);
+assert.throws(
+  makeBlock(a.deepStrictEqual, /a/m, /a/),
+  /^AssertionError: \/a\/m deepStrictEqual \/a\/$/
+);
+assert.throws(
+  makeBlock(a.deepStrictEqual, /a/igm, /a/im),
+  /^AssertionError: \/a\/gim deepStrictEqual \/a\/im$/
+);
 
 {
   const re1 = /a/;

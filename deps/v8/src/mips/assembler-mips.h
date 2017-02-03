@@ -878,7 +878,14 @@ class Assembler : public AssemblerBase {
   void sub_d(FPURegister fd, FPURegister fs, FPURegister ft);
   void mul_s(FPURegister fd, FPURegister fs, FPURegister ft);
   void mul_d(FPURegister fd, FPURegister fs, FPURegister ft);
+  void madd_s(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
   void madd_d(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
+  void msub_s(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
+  void msub_d(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
+  void maddf_s(FPURegister fd, FPURegister fs, FPURegister ft);
+  void maddf_d(FPURegister fd, FPURegister fs, FPURegister ft);
+  void msubf_s(FPURegister fd, FPURegister fs, FPURegister ft);
+  void msubf_d(FPURegister fd, FPURegister fs, FPURegister ft);
   void div_s(FPURegister fd, FPURegister fs, FPURegister ft);
   void div_d(FPURegister fd, FPURegister fs, FPURegister ft);
   void abs_s(FPURegister fd, FPURegister fs);

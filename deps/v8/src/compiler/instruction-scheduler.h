@@ -6,7 +6,7 @@
 #define V8_COMPILER_INSTRUCTION_SCHEDULER_H_
 
 #include "src/compiler/instruction.h"
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -21,8 +21,11 @@ enum ArchOpcodeFlags {
   kHasSideEffect = 2,      // The instruction has some side effects (memory
                            // store, function call...)
   kIsLoadOperation = 4,    // The instruction is a memory load.
+  kMayNeedDeoptCheck = 8,  // The instruction might be associated with a deopt
+                           // check. This is the case of instruction which can
+                           // blow up with particular inputs (e.g.: division by
+                           // zero on Intel platforms).
 };
-
 
 class InstructionScheduler final : public ZoneObject {
  public:
@@ -101,9 +104,7 @@ class InstructionScheduler final : public ZoneObject {
         nodes_(scheduler->zone()) {
     }
 
-    void AddNode(ScheduleGraphNode* node) {
-      nodes_.push_back(node);
-    }
+    void AddNode(ScheduleGraphNode* node);
 
     bool IsEmpty() const {
       return nodes_.empty();
@@ -125,11 +126,6 @@ class InstructionScheduler final : public ZoneObject {
     // Look for the best candidate to schedule, remove it from the queue and
     // return it.
     ScheduleGraphNode* PopBestCandidate(int cycle);
-
-   private:
-    // Compare the two nodes and return true if node1 is a better candidate than
-    // node2 (i.e. node1 should be scheduled before node2).
-    bool CompareNodes(ScheduleGraphNode *node1, ScheduleGraphNode *node2) const;
   };
 
   // A queue which pop a random node from the queue to perform stress tests on
@@ -162,12 +158,25 @@ class InstructionScheduler final : public ZoneObject {
   // Check whether the given instruction has side effects (e.g. function call,
   // memory store).
   bool HasSideEffect(const Instruction* instr) const {
-    return GetInstructionFlags(instr) & kHasSideEffect;
+    return (GetInstructionFlags(instr) & kHasSideEffect) != 0;
   }
 
   // Return true if the instruction is a memory load.
   bool IsLoadOperation(const Instruction* instr) const {
-    return GetInstructionFlags(instr) & kIsLoadOperation;
+    return (GetInstructionFlags(instr) & kIsLoadOperation) != 0;
+  }
+
+  // Return true if this instruction is usually associated with a deopt check
+  // to validate its input.
+  bool MayNeedDeoptCheck(const Instruction* instr) const {
+    return (GetInstructionFlags(instr) & kMayNeedDeoptCheck) != 0;
+  }
+
+  // Return true if the instruction cannot be moved before the last deopt
+  // point we encountered.
+  bool DependsOnDeoptimization(const Instruction* instr) const {
+    return MayNeedDeoptCheck(instr) || instr->IsDeoptimizeCall() ||
+           HasSideEffect(instr) || IsLoadOperation(instr);
   }
 
   // Identify nops used as a definition point for live-in registers at

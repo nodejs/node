@@ -6,6 +6,7 @@
 #define V8_IC_STATE_H_
 
 #include "src/macro-assembler.h"
+#include "src/parsing/token.h"
 
 namespace v8 {
 namespace internal {
@@ -120,9 +121,9 @@ class BinaryOpICState final BASE_EMBEDDED {
   Token::Value op() const { return op_; }
   Maybe<int> fixed_right_arg() const { return fixed_right_arg_; }
 
-  Type* GetLeftType() const { return KindToType(left_kind_); }
-  Type* GetRightType() const { return KindToType(right_kind_); }
-  Type* GetResultType() const;
+  AstType* GetLeftType() const { return KindToType(left_kind_); }
+  AstType* GetRightType() const { return KindToType(right_kind_); }
+  AstType* GetResultType() const;
 
   void Update(Handle<Object> left, Handle<Object> right, Handle<Object> result);
 
@@ -140,7 +141,7 @@ class BinaryOpICState final BASE_EMBEDDED {
   Kind UpdateKind(Handle<Object> object, Kind kind) const;
 
   static const char* KindToString(Kind kind);
-  static Type* KindToType(Kind kind);
+  static AstType* KindToType(Kind kind);
   static bool KindMaybeSmi(Kind kind) {
     return (kind >= SMI && kind <= NUMBER) || kind == GENERIC;
   }
@@ -202,8 +203,8 @@ class CompareICState {
     GENERIC
   };
 
-  static Type* StateToType(Zone* zone, State state,
-                           Handle<Map> map = Handle<Map>());
+  static AstType* StateToType(Zone* zone, State state,
+                              Handle<Map> map = Handle<Map>());
 
   static State NewInputState(State old_state, Handle<Object> value);
 

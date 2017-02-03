@@ -769,30 +769,6 @@ assert.strictEqual(Buffer.from('13.37').length, 5);
 // issue GH-3416
 Buffer.from(Buffer.allocUnsafe(0), 0, 0);
 
-// GH-5110
-{
-  const buffer = Buffer.from('test');
-  const string = JSON.stringify(buffer);
-
-  assert.strictEqual(string, '{"type":"Buffer","data":[116,101,115,116]}');
-
-  assert.deepStrictEqual(buffer, JSON.parse(string, (key, value) => {
-    return value && value.type === 'Buffer' ?
-      Buffer.from(value.data) :
-      value;
-  }));
-}
-
-// issue GH-7849
-{
-  const buf = Buffer.from('test');
-  const json = JSON.stringify(buf);
-  const obj = JSON.parse(json);
-  const copy = Buffer.from(obj);
-
-  assert(buf.equals(copy));
-}
-
 // issue GH-5587
 assert.throws(() => Buffer.alloc(8).writeFloatLE(0, 5), RangeError);
 assert.throws(() => Buffer.alloc(16).writeDoubleLE(0, 9), RangeError);

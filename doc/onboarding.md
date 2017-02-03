@@ -71,6 +71,10 @@ onboarding session.
   * [**See "Who to CC in issues"**](./onboarding-extras.md#who-to-cc-in-issues)
     * will also come more naturally over time
 
+  * When a discussion gets heated, you can request that other collaborators keep an eye on it by opening an issue at the private [nodejs/moderation](https://github.com/nodejs/moderation) repository.
+    * This is a repository to which all members of the `nodejs` GitHub organization (not just Collaborators on Node.js core) have access. Its contents should not be shared externally.
+    * You can find the full moderation policy [here](https://github.com/nodejs/TSC/blob/master/Moderation-Policy.md).
+
 ## Reviewing PRs
   * The primary goal is for the codebase to improve.
   * Secondary (but not far off) is for the person submitting code to succeed.
@@ -135,6 +139,7 @@ onboarding session.
   * Example: [https://github.com/nodejs/node/commit/7b09aade8468e1c930f36b9c81e6ac2ed5bc8732](https://github.com/nodejs/node/commit/7b09aade8468e1c930f36b9c81e6ac2ed5bc8732)
     * For raw commit message: `git log 7b09aade8468e1c930f36b9c81e6ac2ed5bc8732 -1`
   * Collaborators are in alphabetical order by GitHub username.
+  * Optionally, include your personal pronouns.
   * Label your pull request with the `doc` subsystem label.
   * Run CI on your PR.
   * After a `LGTM` or two, land the PR.

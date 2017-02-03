@@ -787,6 +787,24 @@ class MacroAssembler: public Assembler {
   // may be bigger than 2^16 - 1.  Requires a scratch register.
   void Ret(int bytes_dropped, Register scratch);
 
+  // Emit code that loads |parameter_index|'th parameter from the stack to
+  // the register according to the CallInterfaceDescriptor definition.
+  // |sp_to_caller_sp_offset_in_words| specifies the number of words pushed
+  // below the caller's sp (on x87 it's at least return address).
+  template <class Descriptor>
+  void LoadParameterFromStack(
+      Register reg, typename Descriptor::ParameterIndices parameter_index,
+      int sp_to_ra_offset_in_words = 1) {
+    DCHECK(Descriptor::kPassLastArgsOnStack);
+    DCHECK_LT(parameter_index, Descriptor::kParameterCount);
+    DCHECK_LE(Descriptor::kParameterCount - Descriptor::kStackArgumentsCount,
+              parameter_index);
+    int offset = (Descriptor::kParameterCount - parameter_index - 1 +
+                  sp_to_ra_offset_in_words) *
+                 kPointerSize;
+    mov(reg, Operand(esp, offset));
+  }
+
   // Emit code to discard a non-negative number of pointer-sized elements
   // from the stack, clobbering only the esp register.
   void Drop(int element_count);

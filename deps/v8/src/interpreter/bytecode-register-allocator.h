@@ -5,106 +5,76 @@
 #ifndef V8_INTERPRETER_BYTECODE_REGISTER_ALLOCATOR_H_
 #define V8_INTERPRETER_BYTECODE_REGISTER_ALLOCATOR_H_
 
+#include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecodes.h"
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 namespace interpreter {
 
-class BytecodeArrayBuilder;
-class Register;
-class TemporaryRegisterObserver;
-
-class TemporaryRegisterAllocator final {
- public:
-  TemporaryRegisterAllocator(Zone* zone, int start_index);
-
-  // Borrow a temporary register.
-  int BorrowTemporaryRegister();
-
-  // Borrow a temporary register from the register range outside of
-  // |start_index| to |end_index|.
-  int BorrowTemporaryRegisterNotInRange(int start_index, int end_index);
-
-  // Return a temporary register when no longer used.
-  void ReturnTemporaryRegister(int reg_index);
-
-  // Ensure a run of consecutive registers is available. Each register in
-  // the range should be borrowed with BorrowConsecutiveTemporaryRegister().
-  // Returns the start index of the run.
-  int PrepareForConsecutiveTemporaryRegisters(size_t count);
-
-  // Borrow a register from a range prepared with
-  // PrepareForConsecutiveTemporaryRegisters().
-  void BorrowConsecutiveTemporaryRegister(int reg_index);
-
-  // Returns true if |reg| is a temporary register and is currently
-  // borrowed.
-  bool RegisterIsLive(Register reg) const;
-
-  // Returns the first register in the range of temporary registers.
-  Register first_temporary_register() const;
-
-  // Returns the last register in the range of temporary registers.
-  Register last_temporary_register() const;
-
-  // Returns the start index of temporary register allocations.
-  int allocation_base() const { return allocation_base_; }
-
-  // Returns the number of temporary register allocations made.
-  int allocation_count() const { return allocation_count_; }
-
-  // Sets an observer for temporary register events.
-  void set_observer(TemporaryRegisterObserver* observer);
-
- private:
-  // Allocate a temporary register.
-  int AllocateTemporaryRegister();
-
-  ZoneSet<int> free_temporaries_;
-  int allocation_base_;
-  int allocation_count_;
-  TemporaryRegisterObserver* observer_;
-
-  DISALLOW_COPY_AND_ASSIGN(TemporaryRegisterAllocator);
-};
-
-class TemporaryRegisterObserver {
- public:
-  virtual ~TemporaryRegisterObserver() {}
-  virtual void TemporaryRegisterFreeEvent(Register reg) = 0;
-};
-
-// A class that allows the instantiator to allocate temporary registers that are
-// cleaned up when scope is closed.
+// A class that allows the allocation of contiguous temporary registers.
 class BytecodeRegisterAllocator final {
  public:
-  explicit BytecodeRegisterAllocator(Zone* zone,
-                                     TemporaryRegisterAllocator* allocator);
-  ~BytecodeRegisterAllocator();
-  Register NewRegister();
+  // Enables observation of register allocation and free events.
+  class Observer {
+   public:
+    virtual ~Observer() {}
+    virtual void RegisterAllocateEvent(Register reg) = 0;
+    virtual void RegisterListAllocateEvent(RegisterList reg_list) = 0;
+    virtual void RegisterListFreeEvent(RegisterList reg_list) = 0;
+  };
 
-  // Ensure |count| consecutive allocations are available.
-  void PrepareForConsecutiveAllocations(size_t count);
+  explicit BytecodeRegisterAllocator(int start_index)
+      : next_register_index_(start_index),
+        max_register_count_(start_index),
+        observer_(nullptr) {}
+  ~BytecodeRegisterAllocator() {}
 
-  // Get the next consecutive allocation after calling
-  // PrepareForConsecutiveAllocations.
-  Register NextConsecutiveRegister();
+  // Returns a new register.
+  Register NewRegister() {
+    Register reg(next_register_index_++);
+    max_register_count_ = std::max(next_register_index_, max_register_count_);
+    if (observer_) {
+      observer_->RegisterAllocateEvent(reg);
+    }
+    return reg;
+  }
 
-  // Returns true if |reg| is allocated in this allocator.
-  bool RegisterIsAllocatedInThisScope(Register reg) const;
+  // Returns a consecutive list of |count| new registers.
+  RegisterList NewRegisterList(int count) {
+    RegisterList reg_list(next_register_index_, count);
+    next_register_index_ += count;
+    max_register_count_ = std::max(next_register_index_, max_register_count_);
+    if (observer_) {
+      observer_->RegisterListAllocateEvent(reg_list);
+    }
+    return reg_list;
+  }
 
-  // Returns true if unused consecutive allocations remain.
-  bool HasConsecutiveAllocations() const { return next_consecutive_count_ > 0; }
+  // Release all registers above |register_index|.
+  void ReleaseRegisters(int register_index) {
+    if (observer_) {
+      observer_->RegisterListFreeEvent(
+          RegisterList(register_index, next_register_index_ - register_index));
+    }
+    next_register_index_ = register_index;
+  }
+
+  // Returns true if the register |reg| is a live register.
+  bool RegisterIsLive(Register reg) const {
+    return reg.index() < next_register_index_;
+  }
+
+  void set_observer(Observer* observer) { observer_ = observer; }
+
+  int next_register_index() const { return next_register_index_; }
+  int maximum_register_count() const { return max_register_count_; }
 
  private:
-  TemporaryRegisterAllocator* base_allocator() const { return base_allocator_; }
-
-  TemporaryRegisterAllocator* base_allocator_;
-  ZoneVector<int> allocated_;
-  int next_consecutive_register_;
-  int next_consecutive_count_;
+  int next_register_index_;
+  int max_register_count_;
+  Observer* observer_;
 
   DISALLOW_COPY_AND_ASSIGN(BytecodeRegisterAllocator);
 };

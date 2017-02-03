@@ -7,7 +7,7 @@
 #include "src/ast/scopes.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/code-stubs.h"
-#include "src/compiler.h"
+#include "src/compilation-info.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/frame.h"
 #include "src/compiler/node.h"
@@ -22,34 +22,6 @@ namespace {
 
 LinkageLocation regloc(Register reg, MachineType type) {
   return LinkageLocation::ForRegister(reg.code(), type);
-}
-
-MachineType reptyp(Representation representation) {
-  switch (representation.kind()) {
-    case Representation::kInteger8:
-      return MachineType::Int8();
-    case Representation::kUInteger8:
-      return MachineType::Uint8();
-    case Representation::kInteger16:
-      return MachineType::Int16();
-    case Representation::kUInteger16:
-      return MachineType::Uint16();
-    case Representation::kInteger32:
-      return MachineType::Int32();
-    case Representation::kSmi:
-    case Representation::kTagged:
-    case Representation::kHeapObject:
-      return MachineType::AnyTagged();
-    case Representation::kDouble:
-      return MachineType::Float64();
-    case Representation::kExternal:
-      return MachineType::Pointer();
-    case Representation::kNone:
-    case Representation::kNumRepresentations:
-      break;
-  }
-  UNREACHABLE();
-  return MachineType::None();
 }
 
 }  // namespace
@@ -152,17 +124,16 @@ CallDescriptor* Linkage::ComputeIncoming(Zone* zone, CompilationInfo* info) {
 
 // static
 bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
-  // Most runtime functions need a FrameState. A few chosen ones that we know
-  // not to call into arbitrary JavaScript, not to throw, and not to deoptimize
-  // are blacklisted here and can be called without a FrameState.
   switch (function) {
+    // Most runtime functions need a FrameState. A few chosen ones that we know
+    // not to call into arbitrary JavaScript, not to throw, and not to
+    // deoptimize
+    // are whitelisted here and can be called without a FrameState.
     case Runtime::kAbort:
     case Runtime::kAllocateInTargetSpace:
     case Runtime::kCreateIterResultObject:
     case Runtime::kDefineGetterPropertyUnchecked:  // TODO(jarin): Is it safe?
     case Runtime::kDefineSetterPropertyUnchecked:  // TODO(jarin): Is it safe?
-    case Runtime::kForInDone:
-    case Runtime::kForInStep:
     case Runtime::kGeneratorGetContinuation:
     case Runtime::kGetSuperConstructor:
     case Runtime::kIsFunction:
@@ -183,29 +154,29 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     case Runtime::kTraceEnter:
     case Runtime::kTraceExit:
       return false;
-    case Runtime::kInlineCall:
-    case Runtime::kInlineDeoptimizeNow:
-    case Runtime::kInlineGetPrototype:
-    case Runtime::kInlineNewObject:
-    case Runtime::kInlineRegExpConstructResult:
-    case Runtime::kInlineRegExpExec:
-    case Runtime::kInlineSubString:
-    case Runtime::kInlineThrowNotDateError:
-    case Runtime::kInlineToInteger:
-    case Runtime::kInlineToLength:
-    case Runtime::kInlineToNumber:
-    case Runtime::kInlineToObject:
-    case Runtime::kInlineToString:
-      return true;
+
+    // Some inline intrinsics are also safe to call without a FrameState.
+    case Runtime::kInlineCreateIterResultObject:
+    case Runtime::kInlineFixedArrayGet:
+    case Runtime::kInlineFixedArraySet:
+    case Runtime::kInlineGeneratorClose:
+    case Runtime::kInlineGeneratorGetInputOrDebugPos:
+    case Runtime::kInlineGeneratorGetResumeMode:
+    case Runtime::kInlineGetSuperConstructor:
+    case Runtime::kInlineIsArray:
+    case Runtime::kInlineIsJSReceiver:
+    case Runtime::kInlineIsRegExp:
+    case Runtime::kInlineIsSmi:
+    case Runtime::kInlineIsTypedArray:
+    case Runtime::kInlineRegExpFlags:
+    case Runtime::kInlineRegExpSource:
+      return false;
+
     default:
       break;
   }
 
-  // Most inlined runtime functions (except the ones listed above) can be called
-  // without a FrameState or will be lowered by JSIntrinsicLowering internally.
-  const Runtime::Function* const f = Runtime::FunctionForId(function);
-  if (f->intrinsic_type == Runtime::IntrinsicType::INLINE) return false;
-
+  // For safety, default to needing a FrameState unless whitelisted.
   return true;
 }
 
@@ -382,8 +353,7 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
     if (i < register_parameter_count) {
       // The first parameters go in registers.
       Register reg = descriptor.GetRegisterParameter(i);
-      MachineType type =
-          reptyp(RepresentationFromType(descriptor.GetParameterType(i)));
+      MachineType type = descriptor.GetParameterType(i);
       locations.AddParam(regloc(reg, type));
     } else {
       // The rest of the parameters go on the stack.
@@ -452,8 +422,7 @@ CallDescriptor* Linkage::GetBytecodeDispatchCallDescriptor(
     if (i < register_parameter_count) {
       // The first parameters go in registers.
       Register reg = descriptor.GetRegisterParameter(i);
-      MachineType type =
-          reptyp(RepresentationFromType(descriptor.GetParameterType(i)));
+      MachineType type = descriptor.GetParameterType(i);
       locations.AddParam(regloc(reg, type));
     } else {
       // The rest of the parameters go on the stack.

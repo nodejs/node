@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const PassThrough = require('stream').PassThrough;
 const assert = require('assert');
 const inherits = require('util').inherits;
@@ -55,7 +55,7 @@ function addTest(sequences, expectedKeys) {
 
 const addKeyIntervalTest = (sequences, expectedKeys, interval = 550,
                             assertDelay = 550) => {
-  return (next) => () => {
+  const fn = common.mustCall((next) => () => {
 
     if (!Array.isArray(sequences)) {
       sequences = [ sequences ];
@@ -84,7 +84,8 @@ const addKeyIntervalTest = (sequences, expectedKeys, interval = 550,
       }
     };
     emitKeys(sequences);
-  };
+  });
+  return fn;
 };
 
 // regular alphanumerics

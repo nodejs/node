@@ -66,7 +66,7 @@ class Register final {
                             Register reg4 = Register(),
                             Register reg5 = Register());
 
-  std::string ToString(int parameter_count);
+  std::string ToString(int parameter_count) const;
 
   bool operator==(const Register& other) const {
     return index() == other.index();
@@ -96,6 +96,40 @@ class Register final {
   void operator delete(void* p) = delete;
 
   int index_;
+};
+
+class RegisterList {
+ public:
+  RegisterList() : first_reg_index_(Register().index()), register_count_(0) {}
+  RegisterList(int first_reg_index, int register_count)
+      : first_reg_index_(first_reg_index), register_count_(register_count) {}
+
+  // Returns a new RegisterList which is a truncated version of this list, with
+  // |count| registers.
+  const RegisterList Truncate(int new_count) {
+    DCHECK_GE(new_count, 0);
+    DCHECK_LT(new_count, register_count_);
+    return RegisterList(first_reg_index_, new_count);
+  }
+
+  const Register operator[](size_t i) const {
+    DCHECK_LT(static_cast<int>(i), register_count_);
+    return Register(first_reg_index_ + static_cast<int>(i));
+  }
+
+  const Register first_register() const {
+    return (register_count() == 0) ? Register(0) : (*this)[0];
+  }
+
+  const Register last_register() const {
+    return (register_count() == 0) ? Register(0) : (*this)[register_count_ - 1];
+  }
+
+  int register_count() const { return register_count_; }
+
+ private:
+  int first_reg_index_;
+  int register_count_;
 };
 
 }  // namespace interpreter

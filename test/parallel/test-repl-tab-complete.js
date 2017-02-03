@@ -231,6 +231,7 @@ putIn.run([
 
 testMe.complete('proxy.', common.mustCall(function(error, data) {
   assert.strictEqual(error, null);
+  assert(Array.isArray(data));
 }));
 
 // Make sure tab completion does not include integer members of an Array
@@ -307,9 +308,7 @@ const testCustomCompleterSyncMode = repl.start({
   input: putIn,
   output: putIn,
   completer: function completer(line) {
-    const hits = customCompletions.filter((c) => {
-      return c.indexOf(line) === 0;
-    });
+    const hits = customCompletions.filter((c) => c.startsWith(line));
     // Show all completions if none found.
     return [hits.length ? hits : customCompletions, line];
   }
@@ -339,9 +338,7 @@ const testCustomCompleterAsyncMode = repl.start({
   input: putIn,
   output: putIn,
   completer: function completer(line, callback) {
-    const hits = customCompletions.filter((c) => {
-      return c.indexOf(line) === 0;
-    });
+    const hits = customCompletions.filter((c) => c.startsWith(line));
     // Show all completions if none found.
     callback(null, [hits.length ? hits : customCompletions, line]);
   }

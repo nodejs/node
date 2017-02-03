@@ -91,7 +91,7 @@ Handle<Object> v8::internal::HeapTester::TestAllocateAfterFailures() {
   // Similar to what the CALL_AND_RETRY macro does in the last-resort case, we
   // are wrapping the allocator function in an AlwaysAllocateScope.  Test that
   // all allocations succeed immediately without any retry.
-  CcTest::heap()->CollectAllAvailableGarbage("panic");
+  CcTest::CollectAllAvailableGarbage();
   AlwaysAllocateScope scope(CcTest::i_isolate());
   return handle(AllocateAfterFailures().ToObjectChecked(), CcTest::i_isolate());
 }
@@ -220,12 +220,11 @@ TEST(CodeRange) {
     if (current_allocated < code_range_size / 10) {
       // Allocate a block.
       // Geometrically distributed sizes, greater than
-      // Page::kMaxRegularHeapObjectSize (which is greater than code page area).
+      // kMaxRegularHeapObjectSize (which is greater than code page area).
       // TODO(gc): instead of using 3 use some contant based on code_range_size
       // kMaxRegularHeapObjectSize.
-      size_t requested =
-          (Page::kMaxRegularHeapObjectSize << (Pseudorandom() % 3)) +
-          Pseudorandom() % 5000 + 1;
+      size_t requested = (kMaxRegularHeapObjectSize << (Pseudorandom() % 3)) +
+                         Pseudorandom() % 5000 + 1;
       size_t allocated = 0;
 
       // The request size has to be at least 2 code guard pages larger than the

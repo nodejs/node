@@ -250,15 +250,17 @@ void MacroAssembler::Move(Register dst, Register src, Condition cond) {
   }
 }
 
-void MacroAssembler::Move(SwVfpRegister dst, SwVfpRegister src) {
+void MacroAssembler::Move(SwVfpRegister dst, SwVfpRegister src,
+                          Condition cond) {
   if (!dst.is(src)) {
-    vmov(dst, src);
+    vmov(dst, src, cond);
   }
 }
 
-void MacroAssembler::Move(DwVfpRegister dst, DwVfpRegister src) {
+void MacroAssembler::Move(DwVfpRegister dst, DwVfpRegister src,
+                          Condition cond) {
   if (!dst.is(src)) {
-    vmov(dst, src);
+    vmov(dst, src, cond);
   }
 }
 
@@ -285,6 +287,7 @@ void MacroAssembler::And(Register dst, Register src1, const Operand& src2,
              !src2.must_output_reloc_info(this) &&
              CpuFeatures::IsSupported(ARMv7) &&
              base::bits::IsPowerOfTwo32(src2.immediate() + 1)) {
+    CpuFeatureScope scope(this, ARMv7);
     ubfx(dst, src1, 0,
         WhichPowerOf2(static_cast<uint32_t>(src2.immediate()) + 1), cond);
   } else {
@@ -303,6 +306,7 @@ void MacroAssembler::Ubfx(Register dst, Register src1, int lsb, int width,
       mov(dst, Operand(dst, LSR, lsb), LeaveCC, cond);
     }
   } else {
+    CpuFeatureScope scope(this, ARMv7);
     ubfx(dst, src1, lsb, width, cond);
   }
 }
@@ -323,6 +327,7 @@ void MacroAssembler::Sbfx(Register dst, Register src1, int lsb, int width,
       mov(dst, Operand(dst, ASR, shift_down), LeaveCC, cond);
     }
   } else {
+    CpuFeatureScope scope(this, ARMv7);
     sbfx(dst, src1, lsb, width, cond);
   }
 }
@@ -346,6 +351,7 @@ void MacroAssembler::Bfi(Register dst,
     mov(scratch, Operand(scratch, LSL, lsb));
     orr(dst, dst, scratch);
   } else {
+    CpuFeatureScope scope(this, ARMv7);
     bfi(dst, src, lsb, width, cond);
   }
 }
@@ -358,6 +364,7 @@ void MacroAssembler::Bfc(Register dst, Register src, int lsb, int width,
     int mask = (1 << (width + lsb)) - 1 - ((1 << lsb) - 1);
     bic(dst, src, Operand(mask));
   } else {
+    CpuFeatureScope scope(this, ARMv7);
     Move(dst, src, cond);
     bfc(dst, lsb, width, cond);
   }
@@ -404,15 +411,6 @@ void MacroAssembler::Store(Register src,
 void MacroAssembler::LoadRoot(Register destination,
                               Heap::RootListIndex index,
                               Condition cond) {
-  if (CpuFeatures::IsSupported(MOVW_MOVT_IMMEDIATE_LOADS) &&
-      isolate()->heap()->RootCanBeTreatedAsConstant(index) &&
-      !predictable_code_size()) {
-    // The CPU supports fast immediate values, and this root will never
-    // change. We will load it as a relocatable immediate value.
-    Handle<Object> root = isolate()->heap()->root_handle(index);
-    mov(destination, Operand(root), LeaveCC, cond);
-    return;
-  }
   ldr(destination, MemOperand(kRootRegister, index << kPointerSizeLog2), cond);
 }
 
@@ -430,9 +428,7 @@ void MacroAssembler::InNewSpace(Register object,
                                 Condition cond,
                                 Label* branch) {
   DCHECK(cond == eq || cond == ne);
-  const int mask =
-      (1 << MemoryChunk::IN_FROM_SPACE) | (1 << MemoryChunk::IN_TO_SPACE);
-  CheckPageFlag(object, scratch, mask, cond, branch);
+  CheckPageFlag(object, scratch, MemoryChunk::kIsInNewSpaceMask, cond, branch);
 }
 
 
@@ -1054,6 +1050,7 @@ void MacroAssembler::VmovLow(DwVfpRegister dst, Register src) {
     vmov(dst, VmovIndexLo, src);
   }
 }
+
 void MacroAssembler::LslPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high,
                              Register scratch, Register shift) {
@@ -1971,7 +1968,7 @@ void MacroAssembler::Allocate(int object_size,
                               Register scratch2,
                               Label* gc_required,
                               AllocationFlags flags) {
-  DCHECK(object_size <= Page::kMaxRegularHeapObjectSize);
+  DCHECK(object_size <= kMaxRegularHeapObjectSize);
   DCHECK((flags & ALLOCATION_FOLDED) == 0);
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {
@@ -2049,7 +2046,6 @@ void MacroAssembler::Allocate(int object_size,
   // point, so we cannot just use add().
   DCHECK(object_size > 0);
   Register source = result;
-  Condition cond = al;
   int shift = 0;
   while (object_size != 0) {
     if (((object_size >> shift) & 0x03) == 0) {
@@ -2060,9 +2056,8 @@ void MacroAssembler::Allocate(int object_size,
       shift += 8;
       Operand bits_operand(bits);
       DCHECK(bits_operand.instructions_required(this) == 1);
-      add(result_end, source, bits_operand, LeaveCC, cond);
+      add(result_end, source, bits_operand);
       source = result_end;
-      cond = cc;
     }
   }
 
@@ -2226,7 +2221,7 @@ void MacroAssembler::FastAllocate(Register object_size, Register result,
 void MacroAssembler::FastAllocate(int object_size, Register result,
                                   Register scratch1, Register scratch2,
                                   AllocationFlags flags) {
-  DCHECK(object_size <= Page::kMaxRegularHeapObjectSize);
+  DCHECK(object_size <= kMaxRegularHeapObjectSize);
   DCHECK(!AreAliased(result, scratch1, scratch2, ip));
 
   // Make object size into bytes.
@@ -2261,7 +2256,6 @@ void MacroAssembler::FastAllocate(int object_size, Register result,
   // this point, so we cannot just use add().
   DCHECK(object_size > 0);
   Register source = result;
-  Condition cond = al;
   int shift = 0;
   while (object_size != 0) {
     if (((object_size >> shift) & 0x03) == 0) {
@@ -2272,9 +2266,8 @@ void MacroAssembler::FastAllocate(int object_size, Register result,
       shift += 8;
       Operand bits_operand(bits);
       DCHECK(bits_operand.instructions_required(this) == 1);
-      add(result_end, source, bits_operand, LeaveCC, cond);
+      add(result_end, source, bits_operand);
       source = result_end;
-      cond = cc;
     }
   }
 
@@ -2650,7 +2643,8 @@ void MacroAssembler::IndexFromHash(Register hash, Register index) {
 
 
 void MacroAssembler::SmiToDouble(LowDwVfpRegister value, Register smi) {
-  if (CpuFeatures::IsSupported(VFP3)) {
+  if (CpuFeatures::IsSupported(VFPv3)) {
+    CpuFeatureScope scope(this, VFPv3);
     vmov(value.low(), smi);
     vcvt_f64_s32(value, 1);
   } else {
@@ -2807,6 +2801,7 @@ void MacroAssembler::GetLeastBitsFromSmi(Register dst,
                                          Register src,
                                          int num_least_bits) {
   if (CpuFeatures::IsSupported(ARMv7) && !predictable_code_size()) {
+    CpuFeatureScope scope(this, ARMv7);
     ubfx(dst, src, kSmiTagSize, num_least_bits);
   } else {
     SmiUntag(dst, src);
@@ -3416,6 +3411,7 @@ void MacroAssembler::CheckFor32DRegs(Register scratch) {
 
 
 void MacroAssembler::SaveFPRegs(Register location, Register scratch) {
+  CpuFeatureScope scope(this, VFP32DREGS, CpuFeatureScope::kDontCheckSupported);
   CheckFor32DRegs(scratch);
   vstm(db_w, location, d16, d31, ne);
   sub(location, location, Operand(16 * kDoubleSize), LeaveCC, eq);
@@ -3424,12 +3420,151 @@ void MacroAssembler::SaveFPRegs(Register location, Register scratch) {
 
 
 void MacroAssembler::RestoreFPRegs(Register location, Register scratch) {
+  CpuFeatureScope scope(this, VFP32DREGS, CpuFeatureScope::kDontCheckSupported);
   CheckFor32DRegs(scratch);
   vldm(ia_w, location, d0, d15);
   vldm(ia_w, location, d16, d31, ne);
   add(location, location, Operand(16 * kDoubleSize), LeaveCC, eq);
 }
 
+template <typename T>
+void MacroAssembler::FloatMaxHelper(T result, T left, T right,
+                                    Label* out_of_line) {
+  // This trivial case is caught sooner, so that the out-of-line code can be
+  // completely avoided.
+  DCHECK(!left.is(right));
+
+  if (CpuFeatures::IsSupported(ARMv8)) {
+    CpuFeatureScope scope(this, ARMv8);
+    VFPCompareAndSetFlags(left, right);
+    b(vs, out_of_line);
+    vmaxnm(result, left, right);
+  } else {
+    Label done;
+    VFPCompareAndSetFlags(left, right);
+    b(vs, out_of_line);
+    // Avoid a conditional instruction if the result register is unique.
+    bool aliased_result_reg = result.is(left) || result.is(right);
+    Move(result, right, aliased_result_reg ? mi : al);
+    Move(result, left, gt);
+    b(ne, &done);
+    // Left and right are equal, but check for +/-0.
+    VFPCompareAndSetFlags(left, 0.0);
+    b(eq, out_of_line);
+    // The arguments are equal and not zero, so it doesn't matter which input we
+    // pick. We have already moved one input into the result (if it didn't
+    // already alias) so there's nothing more to do.
+    bind(&done);
+  }
+}
+
+template <typename T>
+void MacroAssembler::FloatMaxOutOfLineHelper(T result, T left, T right) {
+  DCHECK(!left.is(right));
+
+  // ARMv8: At least one of left and right is a NaN.
+  // Anything else: At least one of left and right is a NaN, or both left and
+  // right are zeroes with unknown sign.
+
+  // If left and right are +/-0, select the one with the most positive sign.
+  // If left or right are NaN, vadd propagates the appropriate one.
+  vadd(result, left, right);
+}
+
+template <typename T>
+void MacroAssembler::FloatMinHelper(T result, T left, T right,
+                                    Label* out_of_line) {
+  // This trivial case is caught sooner, so that the out-of-line code can be
+  // completely avoided.
+  DCHECK(!left.is(right));
+
+  if (CpuFeatures::IsSupported(ARMv8)) {
+    CpuFeatureScope scope(this, ARMv8);
+    VFPCompareAndSetFlags(left, right);
+    b(vs, out_of_line);
+    vminnm(result, left, right);
+  } else {
+    Label done;
+    VFPCompareAndSetFlags(left, right);
+    b(vs, out_of_line);
+    // Avoid a conditional instruction if the result register is unique.
+    bool aliased_result_reg = result.is(left) || result.is(right);
+    Move(result, left, aliased_result_reg ? mi : al);
+    Move(result, right, gt);
+    b(ne, &done);
+    // Left and right are equal, but check for +/-0.
+    VFPCompareAndSetFlags(left, 0.0);
+    // If the arguments are equal and not zero, it doesn't matter which input we
+    // pick. We have already moved one input into the result (if it didn't
+    // already alias) so there's nothing more to do.
+    b(ne, &done);
+    // At this point, both left and right are either 0 or -0.
+    // We could use a single 'vorr' instruction here if we had NEON support.
+    // The algorithm used is -((-L) + (-R)), which is most efficiently expressed
+    // as -((-L) - R).
+    if (left.is(result)) {
+      DCHECK(!right.is(result));
+      vneg(result, left);
+      vsub(result, result, right);
+      vneg(result, result);
+    } else {
+      DCHECK(!left.is(result));
+      vneg(result, right);
+      vsub(result, result, left);
+      vneg(result, result);
+    }
+    bind(&done);
+  }
+}
+
+template <typename T>
+void MacroAssembler::FloatMinOutOfLineHelper(T result, T left, T right) {
+  DCHECK(!left.is(right));
+
+  // At least one of left and right is a NaN. Use vadd to propagate the NaN
+  // appropriately. +/-0 is handled inline.
+  vadd(result, left, right);
+}
+
+void MacroAssembler::FloatMax(SwVfpRegister result, SwVfpRegister left,
+                              SwVfpRegister right, Label* out_of_line) {
+  FloatMaxHelper(result, left, right, out_of_line);
+}
+
+void MacroAssembler::FloatMin(SwVfpRegister result, SwVfpRegister left,
+                              SwVfpRegister right, Label* out_of_line) {
+  FloatMinHelper(result, left, right, out_of_line);
+}
+
+void MacroAssembler::FloatMax(DwVfpRegister result, DwVfpRegister left,
+                              DwVfpRegister right, Label* out_of_line) {
+  FloatMaxHelper(result, left, right, out_of_line);
+}
+
+void MacroAssembler::FloatMin(DwVfpRegister result, DwVfpRegister left,
+                              DwVfpRegister right, Label* out_of_line) {
+  FloatMinHelper(result, left, right, out_of_line);
+}
+
+void MacroAssembler::FloatMaxOutOfLine(SwVfpRegister result, SwVfpRegister left,
+                                       SwVfpRegister right) {
+  FloatMaxOutOfLineHelper(result, left, right);
+}
+
+void MacroAssembler::FloatMinOutOfLine(SwVfpRegister result, SwVfpRegister left,
+                                       SwVfpRegister right) {
+  FloatMinOutOfLineHelper(result, left, right);
+}
+
+void MacroAssembler::FloatMaxOutOfLine(DwVfpRegister result, DwVfpRegister left,
+                                       DwVfpRegister right) {
+  FloatMaxOutOfLineHelper(result, left, right);
+}
+
+void MacroAssembler::FloatMinOutOfLine(DwVfpRegister result, DwVfpRegister left,
+                                       DwVfpRegister right) {
+  FloatMinOutOfLineHelper(result, left, right);
+}
 
 void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialOneByte(
     Register first, Register second, Register scratch1, Register scratch2,

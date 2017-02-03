@@ -61,7 +61,6 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
       marking_deque_memory_(NULL),
       marking_deque_memory_committed_(0),
       code_flusher_(nullptr),
-      embedder_heap_tracer_(nullptr),
       sweeper_(heap) {
 }
 
@@ -567,6 +566,7 @@ void MarkCompactCollector::EnsureSweepingCompleted() {
 }
 
 bool MarkCompactCollector::Sweeper::IsSweepingCompleted() {
+  DCHECK(FLAG_concurrent_sweeping);
   while (pending_sweeper_tasks_semaphore_.WaitFor(
       base::TimeDelta::FromSeconds(0))) {
     num_sweeping_tasks_.Increment(-1);
@@ -600,7 +600,7 @@ void MarkCompactCollector::ComputeEvacuationHeuristics(
   // For memory reducing and optimize for memory mode we directly define both
   // constants.
   const int kTargetFragmentationPercentForReduceMemory = 20;
-  const int kMaxEvacuatedBytesForReduceMemory = 12 * Page::kPageSize;
+  const int kMaxEvacuatedBytesForReduceMemory = 12 * MB;
   const int kTargetFragmentationPercentForOptimizeMemory = 20;
   const int kMaxEvacuatedBytesForOptimizeMemory = 6 * MB;
 
@@ -608,10 +608,10 @@ void MarkCompactCollector::ComputeEvacuationHeuristics(
   // defaults to start and switch to a trace-based (using compaction speed)
   // approach as soon as we have enough samples.
   const int kTargetFragmentationPercent = 70;
-  const int kMaxEvacuatedBytes = 4 * Page::kPageSize;
+  const int kMaxEvacuatedBytes = 4 * MB;
   // Time to take for a single area (=payload of page). Used as soon as there
   // exist enough compaction speed samples.
-  const int kTargetMsPerArea = 1;
+  const float kTargetMsPerArea = .5;
 
   if (heap()->ShouldReduceMemory()) {
     *target_fragmentation_percent = kTargetFragmentationPercentForReduceMemory;
@@ -801,13 +801,14 @@ void MarkCompactCollector::Prepare() {
   // Clear marking bits if incremental marking is aborted.
   if (was_marked_incrementally_ && heap_->ShouldAbortIncrementalMarking()) {
     heap()->incremental_marking()->Stop();
+    heap()->incremental_marking()->AbortBlackAllocation();
     ClearMarkbits();
     AbortWeakCollections();
     AbortWeakCells();
     AbortTransitionArrays();
     AbortCompaction();
     if (heap_->UsingEmbedderHeapTracer()) {
-      heap_->mark_compact_collector()->embedder_heap_tracer()->AbortTracing();
+      heap_->embedder_heap_tracer()->AbortTracing();
     }
     was_marked_incrementally_ = false;
   }
@@ -815,12 +816,13 @@ void MarkCompactCollector::Prepare() {
   if (!was_marked_incrementally_) {
     if (heap_->UsingEmbedderHeapTracer()) {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPER_PROLOGUE);
-      heap_->mark_compact_collector()->embedder_heap_tracer()->TracePrologue();
+      heap_->embedder_heap_tracer()->TracePrologue(
+          heap_->embedder_reachable_reference_reporter());
     }
   }
 
-  if (UsingEmbedderHeapTracer()) {
-    embedder_heap_tracer()->EnterFinalPause();
+  if (heap_->UsingEmbedderHeapTracer()) {
+    heap_->embedder_heap_tracer()->EnterFinalPause();
   }
 
   // Don't start compaction if we are in the middle of incremental
@@ -1244,7 +1246,7 @@ class MarkCompactMarkingVisitor
     Heap* heap = map->GetHeap();
     MarkCompactCollector* collector = heap->mark_compact_collector();
     if (!collector->is_code_flushing_enabled()) {
-      VisitJSRegExp(map, object);
+      JSObjectVisitor::Visit(map, object);
       return;
     }
     JSRegExp* re = reinterpret_cast<JSRegExp*>(object);
@@ -1252,7 +1254,7 @@ class MarkCompactMarkingVisitor
     UpdateRegExpCodeAgeAndFlush(heap, re, true);
     UpdateRegExpCodeAgeAndFlush(heap, re, false);
     // Visit the fields of the RegExp, including the updated FixedArray.
-    VisitJSRegExp(map, object);
+    JSObjectVisitor::Visit(map, object);
   }
 };
 
@@ -1975,7 +1977,7 @@ void MarkCompactCollector::MarkRoots(RootMarkingVisitor* visitor) {
   MarkStringTable(visitor);
 
   // There may be overflowed objects in the heap.  Visit them now.
-  while (marking_deque_.overflowed()) {
+  while (marking_deque()->overflowed()) {
     RefillMarkingDeque();
     EmptyMarkingDeque();
   }
@@ -2018,8 +2020,8 @@ void MarkCompactCollector::MarkImplicitRefGroups(
 // After: the marking stack is empty, and all objects reachable from the
 // marking stack have been marked, or are overflowed in the heap.
 void MarkCompactCollector::EmptyMarkingDeque() {
-  while (!marking_deque_.IsEmpty()) {
-    HeapObject* object = marking_deque_.Pop();
+  while (!marking_deque()->IsEmpty()) {
+    HeapObject* object = marking_deque()->Pop();
 
     DCHECK(!object->IsFiller());
     DCHECK(object->IsHeapObject());
@@ -2042,25 +2044,25 @@ void MarkCompactCollector::EmptyMarkingDeque() {
 // is cleared.
 void MarkCompactCollector::RefillMarkingDeque() {
   isolate()->CountUsage(v8::Isolate::UseCounterFeature::kMarkDequeOverflow);
-  DCHECK(marking_deque_.overflowed());
+  DCHECK(marking_deque()->overflowed());
 
   DiscoverGreyObjectsInNewSpace();
-  if (marking_deque_.IsFull()) return;
+  if (marking_deque()->IsFull()) return;
 
   DiscoverGreyObjectsInSpace(heap()->old_space());
-  if (marking_deque_.IsFull()) return;
+  if (marking_deque()->IsFull()) return;
 
   DiscoverGreyObjectsInSpace(heap()->code_space());
-  if (marking_deque_.IsFull()) return;
+  if (marking_deque()->IsFull()) return;
 
   DiscoverGreyObjectsInSpace(heap()->map_space());
-  if (marking_deque_.IsFull()) return;
+  if (marking_deque()->IsFull()) return;
 
   LargeObjectIterator lo_it(heap()->lo_space());
   DiscoverGreyObjectsWithIterator(&lo_it);
-  if (marking_deque_.IsFull()) return;
+  if (marking_deque()->IsFull()) return;
 
-  marking_deque_.ClearOverflowed();
+  marking_deque()->ClearOverflowed();
 }
 
 
@@ -2070,7 +2072,7 @@ void MarkCompactCollector::RefillMarkingDeque() {
 // objects in the heap.
 void MarkCompactCollector::ProcessMarkingDeque() {
   EmptyMarkingDeque();
-  while (marking_deque_.overflowed()) {
+  while (marking_deque()->overflowed()) {
     RefillMarkingDeque();
     EmptyMarkingDeque();
   }
@@ -2080,13 +2082,13 @@ void MarkCompactCollector::ProcessMarkingDeque() {
 // stack including references only considered in the atomic marking pause.
 void MarkCompactCollector::ProcessEphemeralMarking(
     ObjectVisitor* visitor, bool only_process_harmony_weak_collections) {
-  DCHECK(marking_deque_.IsEmpty() && !marking_deque_.overflowed());
+  DCHECK(marking_deque()->IsEmpty() && !marking_deque()->overflowed());
   bool work_to_do = true;
   while (work_to_do) {
-    if (UsingEmbedderHeapTracer()) {
+    if (heap_->UsingEmbedderHeapTracer()) {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPER_TRACING);
-      RegisterWrappersWithEmbedderHeapTracer();
-      embedder_heap_tracer()->AdvanceTracing(
+      heap_->RegisterWrappersWithEmbedderHeapTracer();
+      heap_->embedder_heap_tracer()->AdvanceTracing(
           0, EmbedderHeapTracer::AdvanceTracingActions(
                  EmbedderHeapTracer::ForceCompletionAction::FORCE_COMPLETION));
     }
@@ -2097,7 +2099,7 @@ void MarkCompactCollector::ProcessEphemeralMarking(
       MarkImplicitRefGroups(&MarkCompactMarkingVisitor::MarkObject);
     }
     ProcessWeakCollections();
-    work_to_do = !marking_deque_.IsEmpty();
+    work_to_do = !marking_deque()->IsEmpty();
     ProcessMarkingDeque();
   }
 }
@@ -2121,7 +2123,7 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
 
 
 void MarkCompactCollector::EnsureMarkingDequeIsReserved() {
-  DCHECK(!marking_deque_.in_use());
+  DCHECK(!marking_deque()->in_use());
   if (marking_deque_memory_ == NULL) {
     marking_deque_memory_ = new base::VirtualMemory(kMaxMarkingDequeSize);
     marking_deque_memory_committed_ = 0;
@@ -2135,7 +2137,7 @@ void MarkCompactCollector::EnsureMarkingDequeIsReserved() {
 void MarkCompactCollector::EnsureMarkingDequeIsCommitted(size_t max_size) {
   // If the marking deque is too small, we try to allocate a bigger one.
   // If that fails, make do with a smaller one.
-  CHECK(!marking_deque_.in_use());
+  CHECK(!marking_deque()->in_use());
   for (size_t size = max_size; size >= kMinMarkingDequeSize; size >>= 1) {
     base::VirtualMemory* memory = marking_deque_memory_;
     size_t currently_committed = marking_deque_memory_committed_;
@@ -2167,12 +2169,12 @@ void MarkCompactCollector::EnsureMarkingDequeIsCommitted(size_t max_size) {
 
 
 void MarkCompactCollector::InitializeMarkingDeque() {
-  DCHECK(!marking_deque_.in_use());
+  DCHECK(!marking_deque()->in_use());
   DCHECK(marking_deque_memory_committed_ > 0);
   Address addr = static_cast<Address>(marking_deque_memory_->address());
   size_t size = marking_deque_memory_committed_;
   if (FLAG_force_marking_deque_overflows) size = 64 * kPointerSize;
-  marking_deque_.Initialize(addr, addr + size);
+  marking_deque()->Initialize(addr, addr + size);
 }
 
 
@@ -2198,34 +2200,6 @@ void MarkingDeque::Uninitialize(bool aborting) {
   DCHECK(in_use_);
   top_ = bottom_ = 0xdecbad;
   in_use_ = false;
-}
-
-void MarkCompactCollector::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {
-  DCHECK_NOT_NULL(tracer);
-  CHECK_NULL(embedder_heap_tracer_);
-  embedder_heap_tracer_ = tracer;
-}
-
-void MarkCompactCollector::RegisterWrappersWithEmbedderHeapTracer() {
-  DCHECK(UsingEmbedderHeapTracer());
-  if (wrappers_to_trace_.empty()) {
-    return;
-  }
-  embedder_heap_tracer()->RegisterV8References(wrappers_to_trace_);
-  wrappers_to_trace_.clear();
-}
-
-void MarkCompactCollector::TracePossibleWrapper(JSObject* js_object) {
-  DCHECK(js_object->WasConstructedFromApiFunction());
-  if (js_object->GetInternalFieldCount() >= 2 &&
-      js_object->GetInternalField(0) &&
-      js_object->GetInternalField(0) != heap_->undefined_value() &&
-      js_object->GetInternalField(1) != heap_->undefined_value()) {
-    DCHECK(reinterpret_cast<intptr_t>(js_object->GetInternalField(0)) % 2 == 0);
-    wrappers_to_trace_.push_back(std::pair<void*, void*>(
-        reinterpret_cast<void*>(js_object->GetInternalField(0)),
-        reinterpret_cast<void*>(js_object->GetInternalField(1))));
-  }
 }
 
 class MarkCompactCollector::ObjectStatsVisitor
@@ -2259,8 +2233,9 @@ void MarkCompactCollector::VisitAllObjects(HeapObjectVisitor* visitor) {
   SpaceIterator space_it(heap());
   HeapObject* obj = nullptr;
   while (space_it.has_next()) {
-    ObjectIterator* it = space_it.next();
-    while ((obj = it->Next()) != nullptr) {
+    std::unique_ptr<ObjectIterator> it(space_it.next()->GetObjectIterator());
+    ObjectIterator* obj_it = it.get();
+    while ((obj = obj_it->Next()) != nullptr) {
       visitor->Visit(obj);
     }
   }
@@ -2271,6 +2246,13 @@ void MarkCompactCollector::RecordObjectStats() {
     ObjectStatsVisitor visitor(heap(), heap()->live_object_stats_,
                                heap()->dead_object_stats_);
     VisitAllObjects(&visitor);
+    std::stringstream live, dead;
+    heap()->live_object_stats_->Dump(live);
+    heap()->dead_object_stats_->Dump(dead);
+    TRACE_EVENT_INSTANT2(TRACE_DISABLED_BY_DEFAULT("v8.gc_stats"),
+                         "V8.GC_Objects_Stats", TRACE_EVENT_SCOPE_THREAD,
+                         "live", TRACE_STR_COPY(live.str().c_str()), "dead",
+                         TRACE_STR_COPY(dead.str().c_str()));
     if (FLAG_trace_gc_object_stats) {
       heap()->live_object_stats_->PrintJSON("live");
       heap()->dead_object_stats_->PrintJSON("dead");
@@ -2282,10 +2264,6 @@ void MarkCompactCollector::RecordObjectStats() {
 
 void MarkCompactCollector::MarkLiveObjects() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK);
-  double start_time = 0.0;
-  if (FLAG_print_cumulative_gc_stat) {
-    start_time = heap_->MonotonicallyIncreasingTimeInMs();
-  }
   // The recursive GC marker detects when it is nearing stack overflow,
   // and switches to a different marking system.  JS interrupts interfere
   // with the C stack limit check.
@@ -2299,8 +2277,8 @@ void MarkCompactCollector::MarkLiveObjects() {
     } else {
       // Abort any pending incremental activities e.g. incremental sweeping.
       incremental_marking->Stop();
-      if (marking_deque_.in_use()) {
-        marking_deque_.Uninitialize(true);
+      if (marking_deque()->in_use()) {
+        marking_deque()->Uninitialize(true);
       }
     }
   }
@@ -2369,16 +2347,11 @@ void MarkCompactCollector::MarkLiveObjects() {
     {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WEAK_CLOSURE_HARMONY);
       ProcessEphemeralMarking(&root_visitor, true);
-      if (UsingEmbedderHeapTracer()) {
+      if (heap_->UsingEmbedderHeapTracer()) {
         TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPER_EPILOGUE);
-        embedder_heap_tracer()->TraceEpilogue();
+        heap()->embedder_heap_tracer()->TraceEpilogue();
       }
     }
-  }
-
-  if (FLAG_print_cumulative_gc_stat) {
-    heap_->tracer()->AddMarkingTime(heap_->MonotonicallyIncreasingTimeInMs() -
-                                    start_time);
   }
 }
 
@@ -3079,8 +3052,7 @@ class MarkCompactCollector::Evacuator : public Malloced {
   explicit Evacuator(MarkCompactCollector* collector)
       : collector_(collector),
         compaction_spaces_(collector->heap()),
-        local_pretenuring_feedback_(base::HashMap::PointersMatch,
-                                    kInitialLocalPretenuringFeedbackCapacity),
+        local_pretenuring_feedback_(kInitialLocalPretenuringFeedbackCapacity),
         new_space_visitor_(collector->heap(), &compaction_spaces_,
                            &local_pretenuring_feedback_),
         new_space_page_visitor(collector->heap()),
@@ -3221,7 +3193,7 @@ int MarkCompactCollector::NumberOfParallelCompactionTasks(int pages,
   // The number of parallel compaction tasks is limited by:
   // - #evacuation pages
   // - (#cores - 1)
-  const double kTargetCompactionTimeInMs = 1;
+  const double kTargetCompactionTimeInMs = .5;
   const int kNumSweepingTasks = 3;
 
   double compaction_speed =
@@ -3299,10 +3271,11 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
     job.AddPage(page, &abandoned_pages);
   }
 
+  const bool reduce_memory = heap()->ShouldReduceMemory();
   const Address age_mark = heap()->new_space()->age_mark();
   for (Page* page : newspace_evacuation_candidates_) {
     live_bytes += page->LiveBytes();
-    if (!page->NeverEvacuate() &&
+    if (!reduce_memory && !page->NeverEvacuate() &&
         (page->LiveBytes() > Evacuator::PageEvacuationThreshold()) &&
         !page->Contains(age_mark)) {
       if (page->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK)) {
@@ -3700,20 +3673,10 @@ int NumberOfPointerUpdateTasks(int pages) {
 
 template <PointerDirection direction>
 void UpdatePointersInParallel(Heap* heap, base::Semaphore* semaphore) {
-  // Work-around bug in clang-3.4
-  // https://github.com/nodejs/node/issues/8323
-  struct MemoryChunkVisitor {
-    PageParallelJob<PointerUpdateJobTraits<direction> >& job_;
-    MemoryChunkVisitor(PageParallelJob<PointerUpdateJobTraits<direction> >& job)
-      : job_(job) {}
-    void operator()(MemoryChunk* chunk) {
-      job_.AddPage(chunk, 0);
-    }
-  };
-
   PageParallelJob<PointerUpdateJobTraits<direction> > job(
       heap, heap->isolate()->cancelable_task_manager(), semaphore);
-  RememberedSet<direction>::IterateMemoryChunks(heap, MemoryChunkVisitor(job));
+  RememberedSet<direction>::IterateMemoryChunks(
+      heap, [&job](MemoryChunk* chunk) { job.AddPage(chunk, 0); });
   int num_pages = job.NumberOfPages();
   int num_tasks = NumberOfPointerUpdateTasks(num_pages);
   job.Run(num_tasks, [](int i) { return 0; });
@@ -3868,6 +3831,15 @@ int MarkCompactCollector::Sweeper::ParallelSweepPage(Page* page,
     } else {
       max_freed = RawSweep(page, REBUILD_FREE_LIST, free_space_mode);
     }
+
+    // After finishing sweeping of a page we clean up its remembered set.
+    if (page->typed_old_to_new_slots()) {
+      page->typed_old_to_new_slots()->FreeToBeFreedChunks();
+    }
+    if (page->old_to_new_slots()) {
+      page->old_to_new_slots()->FreeToBeFreedBuckets();
+    }
+
     {
       base::LockGuard<base::Mutex> guard(&mutex_);
       swept_list_[identity].Add(page);
@@ -3974,11 +3946,6 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
 
 void MarkCompactCollector::SweepSpaces() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_SWEEP);
-  double start_time = 0.0;
-  if (FLAG_print_cumulative_gc_stat) {
-    start_time = heap_->MonotonicallyIncreasingTimeInMs();
-  }
-
 #ifdef DEBUG
   state_ = SWEEP_SPACES;
 #endif
@@ -4004,11 +3971,6 @@ void MarkCompactCollector::SweepSpaces() {
 
   // Deallocate unmarked large objects.
   heap_->lo_space()->FreeUnmarkedObjects();
-
-  if (FLAG_print_cumulative_gc_stat) {
-    heap_->tracer()->AddSweepingTime(heap_->MonotonicallyIncreasingTimeInMs() -
-                                     start_time);
-  }
 }
 
 Isolate* MarkCompactCollector::isolate() const { return heap_->isolate(); }

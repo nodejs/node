@@ -467,7 +467,7 @@ class MarkCompactCollector {
   static const size_t kMinMarkingDequeSize = 256 * KB;
 
   void EnsureMarkingDequeIsCommittedAndInitialize(size_t max_size) {
-    if (!marking_deque_.in_use()) {
+    if (!marking_deque()->in_use()) {
       EnsureMarkingDequeIsCommitted(max_size);
       InitializeMarkingDeque();
     }
@@ -489,16 +489,6 @@ class MarkCompactCollector {
   void RemoveObjectSlots(Address start_slot, Address end_slot);
 
   Sweeper& sweeper() { return sweeper_; }
-
-  void RegisterWrappersWithEmbedderHeapTracer();
-
-  void SetEmbedderHeapTracer(EmbedderHeapTracer* tracer);
-
-  EmbedderHeapTracer* embedder_heap_tracer() { return embedder_heap_tracer_; }
-
-  bool UsingEmbedderHeapTracer() { return embedder_heap_tracer(); }
-
-  void TracePossibleWrapper(JSObject* js_object);
 
  private:
   class EvacuateNewSpacePageVisitor;
@@ -739,11 +729,8 @@ class MarkCompactCollector {
   base::VirtualMemory* marking_deque_memory_;
   size_t marking_deque_memory_committed_;
   MarkingDeque marking_deque_;
-  std::vector<std::pair<void*, void*>> wrappers_to_trace_;
 
   CodeFlusher* code_flusher_;
-
-  EmbedderHeapTracer* embedder_heap_tracer_;
 
   List<Page*> evacuation_candidates_;
   List<Page*> newspace_evacuation_candidates_;
@@ -768,8 +755,7 @@ class EvacuationScope BASE_EMBEDDED {
   MarkCompactCollector* collector_;
 };
 
-
-const char* AllocationSpaceName(AllocationSpace space);
+V8_EXPORT_PRIVATE const char* AllocationSpaceName(AllocationSpace space);
 }  // namespace internal
 }  // namespace v8
 

@@ -37,10 +37,10 @@ if (typeof process.argv[2] === 'string') {
   async_wrap.setupHooks({ init, pre, post, destroy });
   async_wrap.enable();
 
-  process.on('uncaughtException', () => assert.ok(0, 'UNREACHABLE'));
+  process.on('uncaughtException', common.fail);
 
   const d = domain.create();
-  d.on('error', () => assert.ok(0, 'UNREACHABLE'));
+  d.on('error', common.fail);
   d.run(() => {
     // Using randomBytes because timers are not yet supported.
     crypto.randomBytes(0, () => { });

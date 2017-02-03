@@ -35,6 +35,7 @@ class ObjectStats {
 
   void CheckpointObjectStats();
   void PrintJSON(const char* key);
+  void Dump(std::stringstream& stream);
 
   void RecordObjectStats(InstanceType type, size_t size) {
     DCHECK(type <= LAST_TYPE);

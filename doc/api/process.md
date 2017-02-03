@@ -706,14 +706,15 @@ console.log(process.env.test);
 // => 1
 ```
 
-## process.emitWarning(warning[, name][, ctor])
+## process.emitWarning(warning[, type[, code]][, ctor])
 <!-- YAML
 added: v6.0.0
 -->
 
 * `warning` {String | Error} The warning to emit.
-* `name` {String} When `warning` is a String, `name` is the name to use
-  for the warning. Default: `Warning`.
+* `type` {String} When `warning` is a String, `type` is the name to use
+  for the *type* of warning being emitted. Default: `Warning`.
+* `code` {String} A unique identifier for the warning instance being emitted.
 * `ctor` {Function} When `warning` is a String, `ctor` is an optional
   function used to limit the generated stack trace. Default
   `process.emitWarning`
@@ -729,9 +730,14 @@ process.emitWarning('Something happened!');
 ```
 
 ```js
-// Emit a warning using a string and a name...
+// Emit a warning using a string and a type...
 process.emitWarning('Something Happened!', 'CustomWarning');
 // Emits: (node:56338) CustomWarning: Something Happened!
+```
+
+```js
+process.emitWarning('Something happened!', 'CustomWarning', 'WARN001');
+// Emits: (node:56338) CustomWarning [WARN001]: Something Happened!
 ```
 
 In each of the previous examples, an `Error` object is generated internally by
@@ -742,21 +748,24 @@ In each of the previous examples, an `Error` object is generated internally by
 process.on('warning', (warning) => {
   console.warn(warning.name);
   console.warn(warning.message);
+  console.warn(warning.code);
   console.warn(warning.stack);
 });
 ```
 
 If `warning` is passed as an `Error` object, it will be passed through to the
-`process.on('warning')` event handler unmodified (and the optional `name`
-and `ctor` arguments will be ignored):
+`process.on('warning')` event handler unmodified (and the optional `type`,
+`code` and `ctor` arguments will be ignored):
 
 ```js
 // Emit a warning using an Error object...
 const myWarning = new Error('Warning! Something happened!');
+// Use the Error name property to specify the type name
 myWarning.name = 'CustomWarning';
+myWarning.code = 'WARN001';
 
 process.emitWarning(myWarning);
-// Emits: (node:56338) CustomWarning: Warning! Something Happened!
+// Emits: (node:56338) CustomWarning [WARN001]: Warning! Something Happened!
 ```
 
 A `TypeError` is thrown if `warning` is anything other than a string or `Error`
@@ -765,7 +774,7 @@ object.
 Note that while process warnings use `Error` objects, the process warning
 mechanism is **not** a replacement for normal error handling mechanisms.
 
-The following additional handling is implemented if the warning `name` is
+The following additional handling is implemented if the warning `type` is
 `DeprecationWarning`:
 
 * If the `--throw-deprecation` command-line flag is used, the deprecation
@@ -1016,18 +1025,25 @@ Android)
 added: v0.7.6
 -->
 
-The `process.hrtime()` method returns the current high-resolution real time in a
-`[seconds, nanoseconds]` tuple Array. `time` is an optional parameter that must
-be the result of a previous `process.hrtime()` call (and therefore, a real time
-in a `[seconds, nanoseconds]` tuple Array containing a previous time) to diff
-with the current time. These times are relative to an arbitrary time in the
-past, and not related to the time of day and therefore not subject to clock
-drift. The primary use is for measuring performance between intervals.
+* `time` {Array} The result of a previous call to `process.hrtime()`
+* Returns: {Array}
 
-Passing in the result of a previous call to `process.hrtime()` is useful for
-calculating an amount of time passed between calls:
+The `process.hrtime()` method returns the current high-resolution real time
+in a `[seconds, nanoseconds]` tuple Array, where `nanoseconds` is the
+remaining part of the real time that can't be represented in second precision.
+
+`time` is an optional parameter that must be the result of a previous
+`process.hrtime()` call to diff with the current time. If the parameter
+passed in is not a tuple Array, a `TypeError` will be thrown. Passing in a
+user-defined array instead of the result of a previous call to
+`process.hrtime()` will lead to undefined behavior.
+
+These times are relative to an arbitrary time in the
+past, and not related to the time of day and therefore not subject to clock
+drift. The primary use is for measuring performance between intervals:
 
 ```js
+const NS_PER_SEC = 1e9;
 var time = process.hrtime();
 // [ 1800216, 25 ]
 
@@ -1035,13 +1051,10 @@ setTimeout(() => {
   var diff = process.hrtime(time);
   // [ 1, 552 ]
 
-  console.log(`Benchmark took ${diff[0] * 1e9 + diff[1]} nanoseconds`);
+  console.log(`Benchmark took ${diff[0] * NS_PER_SEC + diff[1]} nanoseconds`);
   // benchmark took 1000000527 nanoseconds
 }, 1000);
 ```
-
-Constructing an array by some method other than calling `process.hrtime()` and
-passing the result to process.hrtime() will result in undefined behavior.
 
 
 ## process.initgroups(user, extra_group)

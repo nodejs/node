@@ -1,9 +1,8 @@
 'use strict';
 const nodeDocUrl = '';
-const jsDocUrl = 'https://developer.mozilla.org/en-US/docs/Web/JavaScript/' +
-                 'Reference/Global_Objects/';
-const jsPrimitiveUrl = 'https://developer.mozilla.org/en-US/docs/Web/' +
-                       'JavaScript/Data_structures';
+const jsDocPrefix = 'https://developer.mozilla.org/en-US/docs/Web/JavaScript/';
+const jsDocUrl = jsDocPrefix + 'Reference/Global_Objects/';
+const jsPrimitiveUrl = jsDocPrefix + 'Data_structures';
 const jsPrimitives = {
   'Integer': 'Number',  // this is for extending
   'Number': 'Number',
@@ -37,6 +36,11 @@ const typeMap = {
   'http.IncomingMessage': 'http.html#http_class_http_incomingmessage',
   'http.Server': 'http.html#http_class_http_server',
   'http.ServerResponse': 'http.html#http_class_http_serverresponse',
+  'Iterable': jsDocPrefix +
+              'Reference/Iteration_protocols#The_iterable_protocol',
+  'Iterator': jsDocPrefix +
+              'Reference/Iteration_protocols#The_iterator_protocol',
+  'URL': 'url.html#url_the_whatwg_url_api'
 };
 
 module.exports = {

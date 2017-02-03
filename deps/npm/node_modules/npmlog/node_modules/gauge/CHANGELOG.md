@@ -1,3 +1,7 @@
+### v2.7.2
+
+* Use supports-color instead of has-color (as the module has been renamed)
+
 ### v2.7.1
 
 * Bug fix: Calls to show/pulse while the progress bar is disabled should still

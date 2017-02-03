@@ -2,42 +2,307 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-# The sources are kept automatically in sync with cctest.gyp.
-
 import("../../gni/v8.gni")
-
-gypi_values = exec_script("//build/gypi_to_gn.py",
-                          [ rebase_path("cctest.gyp") ],
-                          "scope",
-                          [ "cctest.gyp" ])
 
 v8_executable("cctest") {
   testonly = true
 
-  sources = [ "$target_gen_dir/resources.cc" ] + gypi_values.cctest_sources
+  sources = [
+    "$target_gen_dir/resources.cc",
+
+    ### gcmole(all) ###
+    "asmjs/test-asm-typer.cc",
+    "ast-types-fuzz.h",
+    "cctest.cc",
+    "cctest.h",
+    "compiler/c-signature.h",
+    "compiler/call-tester.h",
+    "compiler/code-assembler-tester.h",
+    "compiler/codegen-tester.cc",
+    "compiler/codegen-tester.h",
+    "compiler/function-tester.cc",
+    "compiler/function-tester.h",
+    "compiler/graph-builder-tester.h",
+    "compiler/test-basic-block-profiler.cc",
+    "compiler/test-branch-combine.cc",
+    "compiler/test-code-assembler.cc",
+    "compiler/test-gap-resolver.cc",
+    "compiler/test-graph-visualizer.cc",
+    "compiler/test-instruction.cc",
+    "compiler/test-js-constant-cache.cc",
+    "compiler/test-js-context-specialization.cc",
+    "compiler/test-js-typed-lowering.cc",
+    "compiler/test-jump-threading.cc",
+    "compiler/test-linkage.cc",
+    "compiler/test-loop-analysis.cc",
+    "compiler/test-loop-assignment-analysis.cc",
+    "compiler/test-machine-operator-reducer.cc",
+    "compiler/test-multiple-return.cc",
+    "compiler/test-node.cc",
+    "compiler/test-operator.cc",
+    "compiler/test-osr.cc",
+    "compiler/test-representation-change.cc",
+    "compiler/test-run-bytecode-graph-builder.cc",
+    "compiler/test-run-calls-to-external-references.cc",
+    "compiler/test-run-deopt.cc",
+    "compiler/test-run-inlining.cc",
+    "compiler/test-run-intrinsics.cc",
+    "compiler/test-run-jsbranches.cc",
+    "compiler/test-run-jscalls.cc",
+    "compiler/test-run-jsexceptions.cc",
+    "compiler/test-run-jsobjects.cc",
+    "compiler/test-run-jsops.cc",
+    "compiler/test-run-load-store.cc",
+    "compiler/test-run-machops.cc",
+    "compiler/test-run-native-calls.cc",
+    "compiler/test-run-stackcheck.cc",
+    "compiler/test-run-stubs.cc",
+    "compiler/test-run-unwinding-info.cc",
+    "compiler/test-run-variables.cc",
+    "compiler/test-run-wasm-machops.cc",
+    "compiler/value-helper.h",
+    "expression-type-collector-macros.h",
+    "gay-fixed.cc",
+    "gay-fixed.h",
+    "gay-precision.cc",
+    "gay-precision.h",
+    "gay-shortest.cc",
+    "gay-shortest.h",
+    "heap/heap-tester.h",
+    "heap/heap-utils.cc",
+    "heap/heap-utils.h",
+    "heap/test-alloc.cc",
+    "heap/test-array-buffer-tracker.cc",
+    "heap/test-compaction.cc",
+    "heap/test-heap.cc",
+    "heap/test-incremental-marking.cc",
+    "heap/test-lab.cc",
+    "heap/test-mark-compact.cc",
+    "heap/test-page-promotion.cc",
+    "heap/test-spaces.cc",
+    "interpreter/bytecode-expectations-printer.cc",
+    "interpreter/bytecode-expectations-printer.h",
+    "interpreter/interpreter-tester.cc",
+    "interpreter/interpreter-tester.h",
+    "interpreter/source-position-matcher.cc",
+    "interpreter/source-position-matcher.h",
+    "interpreter/test-bytecode-generator.cc",
+    "interpreter/test-interpreter-intrinsics.cc",
+    "interpreter/test-interpreter.cc",
+    "interpreter/test-source-positions.cc",
+    "libplatform/test-tracing.cc",
+    "libsampler/test-sampler.cc",
+    "parsing/test-scanner-streams.cc",
+    "parsing/test-scanner.cc",
+    "print-extension.cc",
+    "print-extension.h",
+    "profiler-extension.cc",
+    "profiler-extension.h",
+    "test-access-checks.cc",
+    "test-accessors.cc",
+    "test-api-accessors.cc",
+    "test-api-fast-accessor-builder.cc",
+    "test-api-interceptors.cc",
+    "test-api.cc",
+    "test-api.h",
+    "test-array-list.cc",
+    "test-ast-types.cc",
+    "test-ast.cc",
+    "test-atomicops.cc",
+    "test-bignum-dtoa.cc",
+    "test-bignum.cc",
+    "test-bit-vector.cc",
+    "test-circular-queue.cc",
+    "test-code-cache.cc",
+    "test-code-layout.cc",
+    "test-code-stub-assembler.cc",
+    "test-compiler.cc",
+    "test-constantpool.cc",
+    "test-conversions.cc",
+    "test-cpu-profiler.cc",
+    "test-date.cc",
+    "test-debug.cc",
+    "test-decls.cc",
+    "test-deoptimization.cc",
+    "test-dictionary.cc",
+    "test-diy-fp.cc",
+    "test-double.cc",
+    "test-dtoa.cc",
+    "test-elements-kind.cc",
+    "test-fast-dtoa.cc",
+    "test-feedback-vector.cc",
+    "test-feedback-vector.h",
+    "test-field-type-tracking.cc",
+    "test-fixed-dtoa.cc",
+    "test-flags.cc",
+    "test-func-name-inference.cc",
+    "test-global-handles.cc",
+    "test-global-object.cc",
+    "test-hashing.cc",
+    "test-hashmap.cc",
+    "test-heap-profiler.cc",
+    "test-hydrogen-types.cc",
+    "test-identity-map.cc",
+    "test-inobject-slack-tracking.cc",
+    "test-list.cc",
+    "test-liveedit.cc",
+    "test-lockers.cc",
+    "test-log.cc",
+    "test-mementos.cc",
+    "test-modules.cc",
+    "test-object.cc",
+    "test-parsing.cc",
+    "test-platform.cc",
+    "test-profile-generator.cc",
+    "test-random-number-generator.cc",
+    "test-receiver-check-hidden-prototype.cc",
+    "test-regexp.cc",
+    "test-representation.cc",
+    "test-sampler-api.cc",
+    "test-serialize.cc",
+    "test-simd.cc",
+    "test-strings.cc",
+    "test-strtod.cc",
+    "test-symbols.cc",
+    "test-thread-termination.cc",
+    "test-threads.cc",
+    "test-trace-event.cc",
+    "test-transitions.cc",
+    "test-typedarrays.cc",
+    "test-types.cc",
+    "test-unbound-queue.cc",
+    "test-unboxed-doubles.cc",
+    "test-unique.cc",
+    "test-unscopables-hidden-prototype.cc",
+    "test-usecounters.cc",
+    "test-utils.cc",
+    "test-version.cc",
+    "test-weakmaps.cc",
+    "test-weaksets.cc",
+    "trace-extension.cc",
+    "trace-extension.h",
+    "types-fuzz.h",
+    "wasm/test-run-wasm-64.cc",
+    "wasm/test-run-wasm-asmjs.cc",
+    "wasm/test-run-wasm-interpreter.cc",
+    "wasm/test-run-wasm-js.cc",
+    "wasm/test-run-wasm-module.cc",
+    "wasm/test-run-wasm-relocation.cc",
+    "wasm/test-run-wasm.cc",
+    "wasm/test-wasm-function-name-table.cc",
+    "wasm/test-wasm-stack.cc",
+    "wasm/test-wasm-trap-position.cc",
+    "wasm/wasm-run-utils.h",
+  ]
 
   if (v8_current_cpu == "arm") {
-    sources += gypi_values.cctest_sources_arm
+    sources += [  ### gcmole(arch:arm) ###
+      "test-assembler-arm.cc",
+      "test-code-stubs-arm.cc",
+      "test-code-stubs.cc",
+      "test-code-stubs.h",
+      "test-disasm-arm.cc",
+      "test-macro-assembler-arm.cc",
+      "test-run-wasm-relocation-arm.cc",
+    ]
   } else if (v8_current_cpu == "arm64") {
-    sources += gypi_values.cctest_sources_arm64
+    sources += [  ### gcmole(arch:arm64) ###
+      "test-assembler-arm64.cc",
+      "test-code-stubs-arm64.cc",
+      "test-code-stubs.cc",
+      "test-code-stubs.h",
+      "test-disasm-arm64.cc",
+      "test-fuzz-arm64.cc",
+      "test-javascript-arm64.cc",
+      "test-js-arm64-variables.cc",
+      "test-run-wasm-relocation-arm64.cc",
+      "test-utils-arm64.cc",
+      "test-utils-arm64.h",
+    ]
   } else if (v8_current_cpu == "x86") {
-    sources += gypi_values.cctest_sources_ia32
+    sources += [  ### gcmole(arch:ia32) ###
+      "test-assembler-ia32.cc",
+      "test-code-stubs-ia32.cc",
+      "test-code-stubs.cc",
+      "test-code-stubs.h",
+      "test-disasm-ia32.cc",
+      "test-log-stack-tracer.cc",
+      "test-macro-assembler-ia32.cc",
+      "test-run-wasm-relocation-ia32.cc",
+    ]
   } else if (v8_current_cpu == "mips") {
-    sources += gypi_values.cctest_sources_mips
+    sources += [  ### gcmole(arch:mips) ###
+      "test-assembler-mips.cc",
+      "test-code-stubs-mips.cc",
+      "test-code-stubs.cc",
+      "test-code-stubs.h",
+      "test-disasm-mips.cc",
+      "test-macro-assembler-mips.cc",
+    ]
   } else if (v8_current_cpu == "mipsel") {
-    sources += gypi_values.cctest_sources_mipsel
+    sources += [  ### gcmole(arch:mipsel) ###
+      "test-assembler-mips.cc",
+      "test-code-stubs-mips.cc",
+      "test-code-stubs.cc",
+      "test-code-stubs.h",
+      "test-disasm-mips.cc",
+      "test-macro-assembler-mips.cc",
+    ]
   } else if (v8_current_cpu == "mips64") {
-    sources += gypi_values.cctest_sources_mips64
+    sources += [  ### gcmole(arch:mips64) ###
+      "test-assembler-mips64.cc",
+      "test-code-stubs-mips64.cc",
+      "test-code-stubs.cc",
+      "test-code-stubs.h",
+      "test-disasm-mips64.cc",
+      "test-macro-assembler-mips64.cc",
+    ]
   } else if (v8_current_cpu == "mips64el") {
-    sources += gypi_values.cctest_sources_mips64el
+    sources += [  ### gcmole(arch:mips64el) ###
+      "test-assembler-mips64.cc",
+      "test-code-stubs-mips64.cc",
+      "test-code-stubs.cc",
+      "test-code-stubs.h",
+      "test-disasm-mips64.cc",
+      "test-macro-assembler-mips64.cc",
+    ]
   } else if (v8_current_cpu == "x64") {
-    sources += gypi_values.cctest_sources_x64
+    sources += [  ### gcmole(arch:x64) ###
+      "test-assembler-x64.cc",
+      "test-code-stubs-x64.cc",
+      "test-code-stubs.cc",
+      "test-code-stubs.h",
+      "test-disasm-x64.cc",
+      "test-log-stack-tracer.cc",
+      "test-macro-assembler-x64.cc",
+      "test-run-wasm-relocation-x64.cc",
+      "wasm/test-run-wasm-simd.cc",
+    ]
   } else if (v8_current_cpu == "x87") {
-    sources += gypi_values.cctest_sources_x87
+    sources += [  ### gcmole(arch:x87) ###
+      "test-assembler-x87.cc",
+      "test-code-stubs-x87.cc",
+      "test-code-stubs.cc",
+      "test-code-stubs.h",
+      "test-disasm-x87.cc",
+      "test-log-stack-tracer.cc",
+      "test-macro-assembler-x87.cc",
+      "test-run-wasm-relocation-x87.cc",
+    ]
   } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
-    sources += gypi_values.cctest_sources_ppc
+    sources += [  ### gcmole(arch:ppc) ###
+      "test-assembler-ppc.cc",
+      "test-code-stubs.cc",
+      "test-code-stubs.h",
+      "test-disasm-ppc.cc",
+    ]
   } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
-    sources += gypi_values.cctest_sources_s390
+    sources += [  ### gcmole(arch:s390) ###
+      "test-assembler-s390.cc",
+      "test-code-stubs.cc",
+      "test-code-stubs.h",
+      "test-disasm-s390.cc",
+    ]
   }
 
   if (is_linux) {
@@ -60,6 +325,8 @@ v8_executable("cctest") {
   deps = [
     ":resources",
     "../..:v8_libplatform",
+    "../..:wasm_module_runner",
+    "../..:wasm_test_signatures",
     "//build/config/sanitizers:deps",
     "//build/win:default_exe_manifest",
   ]

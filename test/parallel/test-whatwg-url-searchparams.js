@@ -4,6 +4,7 @@ require('../common');
 const assert = require('assert');
 const URL = require('url').URL;
 
+// Tests below are not from WPT.
 const serialized = 'a=a&a=1&a=true&a=undefined&a=null&a=%5Bobject%20Object%5D';
 const values = ['a', 1, true, undefined, null, {}];
 
@@ -44,6 +45,20 @@ n = 0;
 for (val of sp.values()) {
   assert.strictEqual(val, String(values[n++]));
 }
+n = 0;
+sp.forEach(function(val, key, obj) {
+  assert.strictEqual(this, undefined);
+  assert.strictEqual(key, 'a');
+  assert.strictEqual(val, String(values[n++]));
+  assert.strictEqual(obj, sp);
+});
+sp.forEach(function() {
+  assert.strictEqual(this, m);
+}, m);
+assert.throws(() => sp.forEach(),
+              /^TypeError: "callback" argument must be a function$/);
+assert.throws(() => sp.forEach(1),
+              /^TypeError: "callback" argument must be a function$/);
 
 m.search = '?a=a&b=b';
 assert.strictEqual(sp.toString(), 'a=a&b=b');

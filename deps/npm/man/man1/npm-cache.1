@@ -1,4 +1,4 @@
-.TH "NPM\-CACHE" "1" "December 2016" "" ""
+.TH "NPM\-CACHE" "1" "January 2017" "" ""
 .SH "NAME"
 \fBnpm-cache\fR \- Manipulates packages cache
 .SH SYNOPSIS
@@ -13,11 +13,12 @@ npm cache add <name>@<version>
 npm cache ls [<path>]
 
 npm cache clean [<path>]
+aliases: npm cache clear, npm cache rm
 .fi
 .RE
 .SH DESCRIPTION
 .P
-Used to add, list, or clear the npm cache folder\.
+Used to add, list, or clean the npm cache folder\.
 .RS 0
 .IP \(bu 2
 add:
@@ -33,7 +34,7 @@ folder\.  Works a bit like the \fBfind\fP program, but limited by the
 clean:
 Delete data out of the cache folder\.  If an argument is provided, then
 it specifies a subpath to delete\.  If no argument is provided, then
-the entire cache is cleared\.
+the entire cache is deleted\.
 
 .RE
 .SH DETAILS

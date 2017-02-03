@@ -406,6 +406,35 @@ class IsTerminateMatcher final : public NodeMatcher {
   const Matcher<Node*> control_matcher_;
 };
 
+class IsTypeGuardMatcher final : public NodeMatcher {
+ public:
+  IsTypeGuardMatcher(const Matcher<Node*>& value_matcher,
+                     const Matcher<Node*>& control_matcher)
+      : NodeMatcher(IrOpcode::kTypeGuard),
+        value_matcher_(value_matcher),
+        control_matcher_(control_matcher) {}
+
+  void DescribeTo(std::ostream* os) const final {
+    NodeMatcher::DescribeTo(os);
+    *os << " whose value (";
+    value_matcher_.DescribeTo(os);
+    *os << ") and control (";
+    control_matcher_.DescribeTo(os);
+    *os << ")";
+  }
+
+  bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
+    return (NodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),
+                                 "value", value_matcher_, listener) &&
+            PrintMatchAndExplain(NodeProperties::GetControlInput(node),
+                                 "control", control_matcher_, listener));
+  }
+
+ private:
+  const Matcher<Node*> value_matcher_;
+  const Matcher<Node*> control_matcher_;
+};
 
 template <typename T>
 class IsConstantMatcher final : public NodeMatcher {
@@ -1714,6 +1743,10 @@ Matcher<Node*> IsTerminate(const Matcher<Node*>& effect_matcher,
   return MakeMatcher(new IsTerminateMatcher(effect_matcher, control_matcher));
 }
 
+Matcher<Node*> IsTypeGuard(const Matcher<Node*>& value_matcher,
+                           const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(new IsTypeGuardMatcher(value_matcher, control_matcher));
+}
 
 Matcher<Node*> IsExternalConstant(
     const Matcher<ExternalReference>& value_matcher) {
@@ -2274,7 +2307,9 @@ IS_BINOP_MATCHER(Float32LessThan)
 IS_BINOP_MATCHER(Float32LessThanOrEqual)
 IS_BINOP_MATCHER(Float64Max)
 IS_BINOP_MATCHER(Float64Min)
+IS_BINOP_MATCHER(Float64Add)
 IS_BINOP_MATCHER(Float64Sub)
+IS_BINOP_MATCHER(Float64Mul)
 IS_BINOP_MATCHER(Float64InsertLowWord32)
 IS_BINOP_MATCHER(Float64InsertHighWord32)
 #undef IS_BINOP_MATCHER
@@ -2285,6 +2320,9 @@ IS_BINOP_MATCHER(Float64InsertHighWord32)
     return MakeMatcher(new IsUnopMatcher(IrOpcode::k##Name, input_matcher)); \
   }
 IS_UNOP_MATCHER(BooleanNot)
+IS_UNOP_MATCHER(BitcastTaggedToWord)
+IS_UNOP_MATCHER(BitcastWordToTagged)
+IS_UNOP_MATCHER(BitcastWordToTaggedSigned)
 IS_UNOP_MATCHER(TruncateFloat64ToWord32)
 IS_UNOP_MATCHER(ChangeFloat64ToInt32)
 IS_UNOP_MATCHER(ChangeFloat64ToUint32)
@@ -2332,6 +2370,7 @@ IS_UNOP_MATCHER(NumberSqrt)
 IS_UNOP_MATCHER(NumberTan)
 IS_UNOP_MATCHER(NumberTanh)
 IS_UNOP_MATCHER(NumberTrunc)
+IS_UNOP_MATCHER(NumberToBoolean)
 IS_UNOP_MATCHER(NumberToInt32)
 IS_UNOP_MATCHER(NumberToUint32)
 IS_UNOP_MATCHER(PlainPrimitiveToNumber)

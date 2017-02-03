@@ -20,9 +20,7 @@ const server = tls.createServer({
   const c = tls.connect({
     port: this.address().port,
     ciphers: 'RC4'
-  }, function() {
-    assert(false, 'should not be called');
-  });
+  }, common.fail);
 
   c.on('error', common.mustCall(function(err) {
     assert.notStrictEqual(err.code, 'ECONNRESET');

@@ -4,9 +4,10 @@
 
 #include <memory>
 
-#include "src/compiler.h"
+#include "src/compilation-info.h"
 #include "src/compiler/pipeline-statistics.h"
 #include "src/compiler/zone-pool.h"
+#include "src/isolate.h"
 
 namespace v8 {
 namespace internal {

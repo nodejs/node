@@ -7,7 +7,6 @@
 
 #include "src/allocation.h"
 #include "src/ast/modules.h"
-#include "src/ast/variables.h"
 
 namespace v8 {
 namespace internal {

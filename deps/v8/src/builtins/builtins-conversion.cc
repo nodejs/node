@@ -110,133 +110,99 @@ void Builtins::Generate_NonPrimitiveToPrimitive_String(
 }
 
 void Builtins::Generate_StringToNumber(CodeStubAssembler* assembler) {
-  typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
   typedef TypeConversionDescriptor Descriptor;
 
   Node* input = assembler->Parameter(Descriptor::kArgument);
   Node* context = assembler->Parameter(Descriptor::kContext);
 
-  Label runtime(assembler);
+  assembler->Return(assembler->StringToNumber(context, input));
+}
 
-  // Check if string has a cached array index.
-  Node* hash = assembler->LoadNameHashField(input);
-  Node* bit = assembler->Word32And(
-      hash, assembler->Int32Constant(String::kContainsCachedArrayIndexMask));
-  assembler->GotoIf(assembler->Word32NotEqual(bit, assembler->Int32Constant(0)),
-                    &runtime);
+void Builtins::Generate_ToName(CodeStubAssembler* assembler) {
+  typedef compiler::Node Node;
+  typedef TypeConversionDescriptor Descriptor;
 
-  assembler->Return(assembler->SmiTag(
-      assembler->BitFieldDecode<String::ArrayIndexValueBits>(hash)));
+  Node* input = assembler->Parameter(Descriptor::kArgument);
+  Node* context = assembler->Parameter(Descriptor::kContext);
 
-  assembler->Bind(&runtime);
-  {
-    // Note: We cannot tail call to the runtime here, as js-to-wasm
-    // trampolines also use this code currently, and they declare all
-    // outgoing parameters as untagged, while we would push a tagged
-    // object here.
-    Node* result =
-        assembler->CallRuntime(Runtime::kStringToNumber, context, input);
-    assembler->Return(result);
-  }
+  assembler->Return(assembler->ToName(context, input));
+}
+
+// static
+void Builtins::Generate_NonNumberToNumber(CodeStubAssembler* assembler) {
+  typedef compiler::Node Node;
+  typedef TypeConversionDescriptor Descriptor;
+
+  Node* input = assembler->Parameter(Descriptor::kArgument);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  assembler->Return(assembler->NonNumberToNumber(context, input));
 }
 
 // ES6 section 7.1.3 ToNumber ( argument )
-void Builtins::Generate_NonNumberToNumber(CodeStubAssembler* assembler) {
-  typedef CodeStubAssembler::Label Label;
+void Builtins::Generate_ToNumber(CodeStubAssembler* assembler) {
   typedef compiler::Node Node;
-  typedef CodeStubAssembler::Variable Variable;
   typedef TypeConversionDescriptor Descriptor;
 
   Node* input = assembler->Parameter(Descriptor::kArgument);
   Node* context = assembler->Parameter(Descriptor::kContext);
 
-  // We might need to loop once here due to ToPrimitive conversions.
-  Variable var_input(assembler, MachineRepresentation::kTagged);
-  Label loop(assembler, &var_input);
-  var_input.Bind(input);
-  assembler->Goto(&loop);
-  assembler->Bind(&loop);
+  assembler->Return(assembler->ToNumber(context, input));
+}
+
+void Builtins::Generate_ToString(CodeStubAssembler* assembler) {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+  typedef TypeConversionDescriptor Descriptor;
+
+  Node* input = assembler->Parameter(Descriptor::kArgument);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  Label is_number(assembler);
+  Label runtime(assembler);
+
+  assembler->GotoIf(assembler->WordIsSmi(input), &is_number);
+
+  Node* input_map = assembler->LoadMap(input);
+  Node* input_instance_type = assembler->LoadMapInstanceType(input_map);
+
+  Label not_string(assembler);
+  assembler->GotoUnless(assembler->IsStringInstanceType(input_instance_type),
+                        &not_string);
+  assembler->Return(input);
+
+  Label not_heap_number(assembler);
+
+  assembler->Bind(&not_string);
   {
-    // Load the current {input} value (known to be a HeapObject).
-    Node* input = var_input.value();
+    assembler->GotoUnless(
+        assembler->WordEqual(input_map, assembler->HeapNumberMapConstant()),
+        &not_heap_number);
+    assembler->Goto(&is_number);
+  }
 
-    // Dispatch on the {input} instance type.
-    Node* input_instance_type = assembler->LoadInstanceType(input);
-    Label if_inputisstring(assembler), if_inputisoddball(assembler),
-        if_inputisreceiver(assembler, Label::kDeferred),
-        if_inputisother(assembler, Label::kDeferred);
-    assembler->GotoIf(assembler->Int32LessThan(
-                          input_instance_type,
-                          assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
-                      &if_inputisstring);
+  assembler->Bind(&is_number);
+  {
+    // TODO(tebbi): inline as soon as NumberToString is in the CodeStubAssembler
+    Callable callable = CodeFactory::NumberToString(assembler->isolate());
+    assembler->Return(assembler->CallStub(callable, context, input));
+  }
+
+  assembler->Bind(&not_heap_number);
+  {
     assembler->GotoIf(
-        assembler->Word32Equal(input_instance_type,
-                               assembler->Int32Constant(ODDBALL_TYPE)),
-        &if_inputisoddball);
-    STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
-    assembler->Branch(assembler->Int32GreaterThanOrEqual(
-                          input_instance_type,
-                          assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE)),
-                      &if_inputisreceiver, &if_inputisother);
+        assembler->Word32NotEqual(input_instance_type,
+                                  assembler->Int32Constant(ODDBALL_TYPE)),
+        &runtime);
+    assembler->Return(
+        assembler->LoadObjectField(input, Oddball::kToStringOffset));
+  }
 
-    assembler->Bind(&if_inputisstring);
-    {
-      // The {input} is a String, use the fast stub to convert it to a Number.
-      // TODO(bmeurer): Consider inlining the StringToNumber logic here.
-      Callable callable = CodeFactory::StringToNumber(assembler->isolate());
-      assembler->TailCallStub(callable, context, input);
-    }
-
-    assembler->Bind(&if_inputisoddball);
-    {
-      // The {input} is an Oddball, we just need to the Number value of it.
-      Node* result =
-          assembler->LoadObjectField(input, Oddball::kToNumberOffset);
-      assembler->Return(result);
-    }
-
-    assembler->Bind(&if_inputisreceiver);
-    {
-      // The {input} is a JSReceiver, we need to convert it to a Primitive first
-      // using the ToPrimitive type conversion, preferably yielding a Number.
-      Callable callable = CodeFactory::NonPrimitiveToPrimitive(
-          assembler->isolate(), ToPrimitiveHint::kNumber);
-      Node* result = assembler->CallStub(callable, context, input);
-
-      // Check if the {result} is already a Number.
-      Label if_resultisnumber(assembler), if_resultisnotnumber(assembler);
-      assembler->GotoIf(assembler->WordIsSmi(result), &if_resultisnumber);
-      Node* result_map = assembler->LoadMap(result);
-      assembler->Branch(
-          assembler->WordEqual(result_map, assembler->HeapNumberMapConstant()),
-          &if_resultisnumber, &if_resultisnotnumber);
-
-      assembler->Bind(&if_resultisnumber);
-      {
-        // The ToPrimitive conversion already gave us a Number, so we're done.
-        assembler->Return(result);
-      }
-
-      assembler->Bind(&if_resultisnotnumber);
-      {
-        // We now have a Primitive {result}, but it's not yet a Number.
-        var_input.Bind(result);
-        assembler->Goto(&loop);
-      }
-    }
-
-    assembler->Bind(&if_inputisother);
-    {
-      // The {input} is something else (i.e. Symbol or Simd128Value), let the
-      // runtime figure out the correct exception.
-      // Note: We cannot tail call to the runtime here, as js-to-wasm
-      // trampolines also use this code currently, and they declare all
-      // outgoing parameters as untagged, while we would push a tagged
-      // object here.
-      Node* result = assembler->CallRuntime(Runtime::kToNumber, context, input);
-      assembler->Return(result);
-    }
+  assembler->Bind(&runtime);
+  {
+    assembler->Return(
+        assembler->CallRuntime(Runtime::kToString, context, input));
   }
 }
 

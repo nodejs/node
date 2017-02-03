@@ -51,6 +51,14 @@ const qsTestCases = [
      __defineGetter__: 'baz' }],
   // See: https://github.com/joyent/node/issues/3058
   ['foo&bar=baz', 'foo=&bar=baz', { foo: '', bar: 'baz' }],
+  ['a=b&c&d=e', 'a=b&c=&d=e', { a: 'b', c: '', d: 'e' }],
+  ['a=b&c=&d=e', 'a=b&c=&d=e', { a: 'b', c: '', d: 'e' }],
+  ['a=b&=c&d=e', 'a=b&=c&d=e', { a: 'b', '': 'c', d: 'e' }],
+  ['a=b&=&c=d', 'a=b&=&c=d', { a: 'b', '': '', c: 'd' }],
+  ['&&foo=bar&&', 'foo=bar', { foo: 'bar' }],
+  ['&&&&', '', {}],
+  ['&=&', '=', { '': '' }],
+  ['&=&=', '=&=', { '': [ '', '' ]}],
   [null, '', {}],
   [undefined, '', {}]
 ];
@@ -95,6 +103,10 @@ const qsNoMungeTestCases = [
   ['foo=bar&foo=baz', {'foo': ['bar', 'baz']}],
   ['foo=bar&foo=baz', foreignObject],
   ['blah=burp', {'blah': 'burp'}],
+  ['a=!-._~\'()*', {'a': '!-._~\'()*'}],
+  ['a=abcdefghijklmnopqrstuvwxyz', {'a': 'abcdefghijklmnopqrstuvwxyz'}],
+  ['a=ABCDEFGHIJKLMNOPQRSTUVWXYZ', {'a': 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'}],
+  ['a=0123456789', {'a': '0123456789'}],
   ['gragh=1&gragh=3&goo=2', {'gragh': ['1', '3'], 'goo': '2'}],
   ['frappucino=muffin&goat%5B%5D=scone&pond=moose',
    {'frappucino': 'muffin', 'goat[]': 'scone', 'pond': 'moose'}],
@@ -266,6 +278,13 @@ assert.strictEqual(0xeb, b[16]);
 assert.strictEqual(0xd8, b[17]);
 assert.strictEqual(0xa2, b[18]);
 assert.strictEqual(0xe6, b[19]);
+
+assert.strictEqual(qs.unescapeBuffer('a+b', true).toString(), 'a b');
+assert.strictEqual(qs.unescapeBuffer('a%').toString(), 'a%');
+assert.strictEqual(qs.unescapeBuffer('a%2').toString(), 'a%2');
+assert.strictEqual(qs.unescapeBuffer('a%20').toString(), 'a ');
+assert.strictEqual(qs.unescapeBuffer('a%2g').toString(), 'a%2g');
+assert.strictEqual(qs.unescapeBuffer('a%%').toString(), 'a%%');
 
 
 // Test custom decode

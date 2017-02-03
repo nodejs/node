@@ -722,16 +722,25 @@ Reduction JSCreateLowering::ReduceJSCreateIterResultObject(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateIterResultObject, node->opcode());
   Node* value = NodeProperties::GetValueInput(node, 0);
   Node* done = NodeProperties::GetValueInput(node, 1);
-  Node* context = NodeProperties::GetContextInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
 
-  // Load the JSIteratorResult map for the {context}.
-  Node* native_context = effect = graph()->NewNode(
-      javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
-      context, context, effect);
-  Node* iterator_result_map = effect = graph()->NewNode(
-      javascript()->LoadContext(0, Context::ITERATOR_RESULT_MAP_INDEX, true),
-      native_context, native_context, effect);
+  Node* iterator_result_map;
+  Handle<Context> native_context;
+  if (GetSpecializationNativeContext(node).ToHandle(&native_context)) {
+    // Specialize to the constant JSIteratorResult map to enable map check
+    // elimination to eliminate subsequent checks in case of inlining.
+    iterator_result_map = jsgraph()->HeapConstant(
+        handle(native_context->iterator_result_map(), isolate()));
+  } else {
+    // Load the JSIteratorResult map for the {context}.
+    Node* context = NodeProperties::GetContextInput(node);
+    Node* native_context = effect = graph()->NewNode(
+        javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
+        context, context, effect);
+    iterator_result_map = effect = graph()->NewNode(
+        javascript()->LoadContext(0, Context::ITERATOR_RESULT_MAP_INDEX, true),
+        native_context, native_context, effect);
+  }
 
   // Emit code to allocate the JSIteratorResult instance.
   AllocationBuilder a(jsgraph(), effect, graph()->start());
@@ -815,6 +824,7 @@ Reduction JSCreateLowering::ReduceJSCreateFunctionContext(Node* node) {
 
 Reduction JSCreateLowering::ReduceJSCreateWithContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateWithContext, node->opcode());
+  Handle<ScopeInfo> scope_info = OpParameter<Handle<ScopeInfo>>(node);
   Node* object = NodeProperties::GetValueInput(node, 0);
   Node* closure = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -823,12 +833,20 @@ Reduction JSCreateLowering::ReduceJSCreateWithContext(Node* node) {
   Node* native_context = effect = graph()->NewNode(
       javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
       context, context, effect);
-  AllocationBuilder a(jsgraph(), effect, control);
+
+  AllocationBuilder aa(jsgraph(), effect, control);
+  aa.Allocate(ContextExtension::kSize);
+  aa.Store(AccessBuilder::ForMap(), factory()->context_extension_map());
+  aa.Store(AccessBuilder::ForContextExtensionScopeInfo(), scope_info);
+  aa.Store(AccessBuilder::ForContextExtensionExtension(), object);
+  Node* extension = aa.Finish();
+
+  AllocationBuilder a(jsgraph(), extension, control);
   STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);  // Ensure fully covered.
   a.AllocateArray(Context::MIN_CONTEXT_SLOTS, factory()->with_context_map());
   a.Store(AccessBuilder::ForContextSlot(Context::CLOSURE_INDEX), closure);
   a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
-  a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), object);
+  a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), extension);
   a.Store(AccessBuilder::ForContextSlot(Context::NATIVE_CONTEXT_INDEX),
           native_context);
   RelaxControls(node);
@@ -838,7 +856,8 @@ Reduction JSCreateLowering::ReduceJSCreateWithContext(Node* node) {
 
 Reduction JSCreateLowering::ReduceJSCreateCatchContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateCatchContext, node->opcode());
-  Handle<String> name = OpParameter<Handle<String>>(node);
+  const CreateCatchContextParameters& parameters =
+      CreateCatchContextParametersOf(node->op());
   Node* exception = NodeProperties::GetValueInput(node, 0);
   Node* closure = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -847,13 +866,23 @@ Reduction JSCreateLowering::ReduceJSCreateCatchContext(Node* node) {
   Node* native_context = effect = graph()->NewNode(
       javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
       context, context, effect);
-  AllocationBuilder a(jsgraph(), effect, control);
+
+  AllocationBuilder aa(jsgraph(), effect, control);
+  aa.Allocate(ContextExtension::kSize);
+  aa.Store(AccessBuilder::ForMap(), factory()->context_extension_map());
+  aa.Store(AccessBuilder::ForContextExtensionScopeInfo(),
+           parameters.scope_info());
+  aa.Store(AccessBuilder::ForContextExtensionExtension(),
+           parameters.catch_name());
+  Node* extension = aa.Finish();
+
+  AllocationBuilder a(jsgraph(), extension, control);
   STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);  // Ensure fully covered.
   a.AllocateArray(Context::MIN_CONTEXT_SLOTS + 1,
                   factory()->catch_context_map());
   a.Store(AccessBuilder::ForContextSlot(Context::CLOSURE_INDEX), closure);
   a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
-  a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), name);
+  a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), extension);
   a.Store(AccessBuilder::ForContextSlot(Context::NATIVE_CONTEXT_INDEX),
           native_context);
   a.Store(AccessBuilder::ForContextSlot(Context::THROWN_OBJECT_INDEX),
@@ -1013,10 +1042,17 @@ Node* JSCreateLowering::AllocateElements(Node* effect, Node* control,
   ElementAccess access = IsFastDoubleElementsKind(elements_kind)
                              ? AccessBuilder::ForFixedDoubleArrayElement()
                              : AccessBuilder::ForFixedArrayElement();
-  Node* value =
-      IsFastDoubleElementsKind(elements_kind)
-          ? jsgraph()->Float64Constant(bit_cast<double>(kHoleNanInt64))
-          : jsgraph()->TheHoleConstant();
+  Node* value;
+  if (IsFastDoubleElementsKind(elements_kind)) {
+    // Load the hole NaN pattern from the canonical location.
+    value = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForExternalDoubleValue()),
+        jsgraph()->ExternalConstant(
+            ExternalReference::address_of_the_hole_nan()),
+        effect, control);
+  } else {
+    value = jsgraph()->TheHoleConstant();
+  }
 
   // Actually allocate the backing store.
   AllocationBuilder a(jsgraph(), effect, control);
@@ -1065,8 +1101,8 @@ Node* JSCreateLowering::AllocateFastLiteral(
         boilerplate_map->instance_descriptors()->GetKey(i), isolate());
     FieldIndex index = FieldIndex::ForDescriptor(*boilerplate_map, i);
     FieldAccess access = {
-        kTaggedBase,    index.offset(),           property_name,
-        Type::Tagged(), MachineType::AnyTagged(), kFullWriteBarrier};
+        kTaggedBase, index.offset(),           property_name,
+        Type::Any(), MachineType::AnyTagged(), kFullWriteBarrier};
     Node* value;
     if (boilerplate->IsUnboxedDoubleField(index)) {
       access.machine_type = MachineType::Float64();
@@ -1169,18 +1205,18 @@ Node* JSCreateLowering::AllocateFastLiteralElements(
   if (elements_map->instance_type() == FIXED_DOUBLE_ARRAY_TYPE) {
     Handle<FixedDoubleArray> elements =
         Handle<FixedDoubleArray>::cast(boilerplate_elements);
+    Node* the_hole_value = nullptr;
     for (int i = 0; i < elements_length; ++i) {
       if (elements->is_the_hole(i)) {
-        // TODO(turbofan): We cannot currently safely pass thru the (signaling)
-        // hole NaN in C++ code, as the C++ compiler on Intel might use FPU
-        // instructions/registers for doubles and therefore make the NaN quiet.
-        // We should consider passing doubles in the compiler as raw int64
-        // values to prevent this.
-        elements_values[i] = effect =
-            graph()->NewNode(simplified()->LoadElement(
-                                 AccessBuilder::ForFixedDoubleArrayElement()),
-                             jsgraph()->HeapConstant(elements),
-                             jsgraph()->Constant(i), effect, control);
+        if (the_hole_value == nullptr) {
+          // Load the hole NaN pattern from the canonical location.
+          the_hole_value = effect = graph()->NewNode(
+              simplified()->LoadField(AccessBuilder::ForExternalDoubleValue()),
+              jsgraph()->ExternalConstant(
+                  ExternalReference::address_of_the_hole_nan()),
+              effect, control);
+        }
+        elements_values[i] = the_hole_value;
       } else {
         elements_values[i] = jsgraph()->Constant(elements->get_scalar(i));
       }
@@ -1242,6 +1278,13 @@ MaybeHandle<LiteralsArray> JSCreateLowering::GetSpecializationLiterals(
       break;
   }
   return MaybeHandle<LiteralsArray>();
+}
+
+MaybeHandle<Context> JSCreateLowering::GetSpecializationNativeContext(
+    Node* node) {
+  Node* const context = NodeProperties::GetContextInput(node);
+  return NodeProperties::GetSpecializationNativeContext(context,
+                                                        native_context_);
 }
 
 Factory* JSCreateLowering::factory() const { return isolate()->factory(); }

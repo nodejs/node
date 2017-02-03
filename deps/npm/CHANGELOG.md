@@ -1,3 +1,299 @@
+### v4.1.2 (2017-01-12)
+
+We have a twee little release this week as we come back from the holidays.
+
+#### 0.12 IS UNSUPPORTED NOW (really)
+
+After [jumping the gun a
+little](https://github.com/npm/npm/releases/tag/v4.0.2), we can now
+officially remove 0.12 from our supported versions list.  The Node.js
+project has now officially ended even maintenance support for 0.12 and thus,
+so will we.  To reiterate from the last time we did this:
+
+What this means:
+
+* Your contributions will no longer block on the tests passing on 0.12.
+* We will no longer block dependency upgrades on working with 0.12.
+* Bugs filed on the npm CLI that are due to incompatibilities with 0.12
+  (and older versions) will be closed with a strong urging to upgrade to a
+  supported version of Node.
+* On the flip side, we'll continue to (happily!) accept patches that
+  address regressions seen when running the CLI with Node.js 0.12.
+
+What this doesn't mean:
+
+* The CLI is going to start depending on ES2015+ features. npm continues
+  to work, in almost all cases, all the way back to Node.js 0.8, and our
+  long history of backwards compatibility is a source of pride for the
+  team.
+* We aren't concerned about the problems of users who, for whatever
+  reason, can't update to newer versions of npm. As mentioned above, we're
+  happy to take community patches intended to address regressions.
+
+We're not super interested in taking sides on what version of Node.js
+you "should" be running. We're a workflow tool, and we understand that
+you all have a diverse set of operational environments you need to be
+able to support. At the same time, we _are_ a small team, and we need
+to put some limits on what we support. Tracking what's supported by our
+runtime's own team seems most practical, so that's what we're doing.
+
+* [`c7bbba8`](https://github.com/npm/npm/commit/c7bbba8744b62448103a1510c65d9751288abb5d)
+  Remove 0.12 from our supported versions list.
+  ([@iarna](https://github.com/iarna))
+
+#### WRITING TO SYMLINKED `package.json` (AND OTHER FILES)
+
+If your `package.json`, `npm-shrinkwrap.json` or `.npmrc` were a symlink and
+you used an `npm` command that modified one of these (eg `npm config set` or
+`npm install --save`) then previously we would have removed your symlink and
+replaced it with an ordinary file. While making these files symlinks is pretty
+uncommon, this was still surprising behavior. With this fix we now overwrite
+the _destination_ of the symlink and preserve the symlink itself.
+
+* [`a583983`](https://github.com/npm/npm/commit/a5839833d3de7072be06884b91902c093aff1aed)
+  [write-file-atomic/#5](https://github.com/npm/write-file-atomic/issues/5)
+  [#10223](https://github.com/npm/npm/10223)
+  `write-file-atomic@1.3.1`:
+  When the target is a symlink, write-file-atomic now overwrites the
+  _destination_ of the symlink, instead of replacing the symlink itself.  This
+  makes it's behavior match `fs.writeFile`.
+
+  Fixed a bug where it would ALWAYS fs.stat to look up default mode and chown
+  values even if you'd passed them in.  (It still used the values you passed
+  in, but did a needless stat.)
+  ([@iarna](https://github.com/iarna))
+
+#### DEPENDENCY UPDATES
+
+* [`521f230`](https://github.com/npm/npm/commit/521f230dd57261e64ac9613b3db62f5312971dca)
+  `node-gyp@3.5.0`:
+  Improvements to how Python is located. New `--devdir` flag.
+  ([@bnoordhuis](https://github.com/bnoordhuis))
+  ([@mhart](https://github.com/mhart))
+* [`ccd83e8`](https://github.com/npm/npm/commit/ccd83e8a70d35fb0904f8a9adb2ff7ac8a6b2706)
+  `JSONStream@1.3.0`:
+  Add new emitPath option.
+  ([@nathanwills](https://github.com/nathanwills))
+
+#### TEST IMPROVEMENTS
+
+* [`d76e084`](https://github.com/npm/npm/commit/d76e08463fd65705217624b861a1443811692f34)
+  Disable metric reporting for test suite even if the user has it enabled.
+  ([@iarna](https://github.com/iarna))
+
+### v4.1.1 (2016-12-16)
+
+This fixes a bug in the metrics reporting where, if you had enabled it then
+installs would create a metrics reporting process, that would create a
+metrics reporting process, that would… well, you get the idea.  The only
+way to actually kill these processes is to turn off your networking, then
+on MacOS/Linux kill them with `kill -9`. Alternatively you can just reboot.
+
+Anyway, this is a quick release to fix that bug:
+
+* [`51c393f`](https://github.com/npm/npm/commit/51c393feff5f4908c8a9fb02baef505b1f2259be)
+  [#15237](https://github.com/npm/npm/pull/15237)
+  Don't launch a metrics sender process if we're running from a metrics
+  sender process.
+  ([@iarna](https://github.com/iarna))
+
+### v4.1.0 (2016-12-15)
+
+I'm really excited about `npm@4.1.0`. I know, I know, I'm kinda overexcited
+in my changelogs, but this one is GREAT. We've got a WHOLE NEW subcommand, I
+mean, when was the last time you saw that? YEARS! And we have the beginnings
+of usage metrics reporting. Then there's a fix for a really subtle bug that
+resulted in `shasum` errors. And then we also have a few more bug fixes and
+other improvements.
+
+#### ANONYMOUS METRIC REPORTING
+
+We're adding the ability for you all to help us track the quality of your
+experiences using `npm`. Metrics will be sent if you run:
+
+```
+npm config set send-metrics true
+```
+
+Then `npm` will report to `registry.npmjs.org` the number of successful and
+failed installations you've had. The data contains no identifying
+information and npm will not attempt to correlate things like IP address
+with the metrics being submitted.
+
+Currently we only track number of successful and failed installations. In
+the future we would like to find additional metrics to help us better
+quantify the quality of the `npm` experience.
+
+* [`190a658`](https://github.com/npm/npm/commit/190a658c4222f6aa904cbc640fc394a5c875e4db)
+  [#15084](https://github.com/npm/npm/pull/15084)
+  Add facility for recording and reporting success metrics.
+  ([@iarna](https://github.com/iarna))
+* [`87afc8b`](https://github.com/npm/npm/commit/87afc8b466f553fb49746c932c259173de48d0a4)
+  [npm/npm-registry-client#147](https://github.com/npm/npm-registry-client/pull/148)
+  `npm-registry-client@7.4.5`:
+  Add support for sending anonymous CLI metrics.
+  ([@iarna](https://github.com/iarna),
+  [@sisidovski](https://github.com/sisidovski))
+
+### NPM DOCTOR
+
+<pre>
+<u>Check</u>                               <u>Value</u>                        <u>Recommendation</u>
+npm ping                            ok
+npm -v                              v4.0.5
+node -v                             v4.6.1                       Use node v6.9.2
+npm config get registry             https://registry.npmjs.org/
+which git                           /Users/rebecca/bin/git
+Perms check on cached files         ok
+Perms check on global node_modules  ok
+Perms check on local node_modules   ok
+Checksum cached files               ok
+</pre>
+
+It's a rare day that we add a new command to `npm`, so I'm excited to
+present to you `npm doctor`. It checks for a number of common problems and
+provides some recommended solutions. It was put together through the hard
+work of [@watilde](https://github.com/watilde).
+
+* [`2359505`](https://github.com/npm/npm/commit/23595055669f76c9fe8f5f1cf4a705c2e794f0dc)
+  [`0209ee5`](https://github.com/npm/npm/commit/0209ee50448441695fbf9699019d34178b69ba73)
+  [#14582](https://github.com/npm/npm/pull/14582)
+  Add new `npm doctor` to give your project environment a health check.
+  ([@watilde](https://github.com/watilde))
+
+#### FIX MAJOR SOURCE OF SHASUM ERRORS
+
+If you've been getting intermittent shasum errors then you'll be pleased to
+know that we've tracked down at least one source of them, if not THE source
+of them.
+
+* [`87afc8b`](https://github.com/npm/npm/commit/87afc8b466f553fb49746c932c259173de48d0a4)
+  [#14626](https://github.com/npm/npm/issues/14626)
+  [npm/npm-registry-client#148](https://github.com/npm/npm-registry-client/pull/148)
+  `npm-registry-client@7.4.5`:
+  Fix a bug where an `ECONNRESET` while fetching a package file would result
+  in a partial download that would be reported as a "shasum mismatch". It
+  now throws away the partial download and retries it.
+  ([@iarna](https://github.com/iarna))
+
+#### FILE URLS AND NODE.JS 7
+
+When `npm` was formatting `file` URLs we took advantage of `url.format` to
+construct them. Node.js 7 changed the behavior in such a way that our use of
+`url.format` stopped producing URLs that we could make use of.
+
+The reasons for this have to do with the `file` URL specification and how
+invalid (according to the specification) URLs are handled. How this changed
+is most easily explained with a table:
+
+<table>
+<tr><th></th><th>URL</th><th>Node.js &lt;= 6</th><th><tt>npm</tt>'s understanding</th><th>Node.js 7</th><th><tt>npm</tt>'s understanding</th></tr>
+<tr><td>VALID</td><td><tt>file:///abc/def</tt></td><td><tt>file:///abc/def</tt></td><td><tt>/abc/def</tt></td><td><tt>file:///abc/def</tt></td><td><tt>/abc/def</tt></td></tr>
+<tr><td>invalid</td><td><tt>file:/abc/def</tt></td><td><tt>file:/abc/def</tt></td><td><tt>/abc/def</tt></td><td><tt>file:///abc/def</tt></td><td><tt>/abc/def</tt></td></tr>
+<tr><td>invalid</td><td><tt>file:abc/def</tt></td><td><tt>file:abc/def</tt></td><td><tt>$CWD/abc/def</tt></td><td><tt>file://abc/def</tt></td><td><tt>/def</tt> on the <tt>abc</tt> host</td></tr>
+<tr><td>invalid</td><td><tt>file:../abc/def</tt></td><td><tt>file:../abc/def</tt></td><td><tt>$CWD/../abc/def</tt></td><td><tt>file://../abc/def</tt></td><td><tt>/abc/def</tt> on the <tt>..</tt> host</td></tr>
+</table>
+
+So the result was that passing a `file` URL that npm had received that used
+through Node.js 7's `url.format` changed its meaning as far as `npm` was
+concerned. As those kinds of URLs are, per the specification, invalid, how
+they should be handled is undefined and so the change in Node.js wasn't a
+bug per se.
+
+Our solution is to stop using `url.format` when constructing this kind of
+URL.
+
+* [`173935b`](https://github.com/npm/npm/commit/173935b4298e09c4fdcb8f3a44b06134d5aff181)
+  [#15114](https://github.com/npm/npm/issues/15114)
+  Stop using `url.format` for relative local dep paths.
+  ([@zkat](https://github.com/zkat))
+
+#### EXTRANEOUS LIFECYCLE SCRIPT EXECUTION WHEN REMOVING
+
+* [`afb1dfd`](https://github.com/npm/npm/commit/afb1dfd944e57add25a05770c0d52d983dc4e96c)
+  [#15090](https://github.com/npm/npm/pull/15090)
+  Skip top level lifecycles when uninstalling.
+  ([@iarna](https://github.com/iarna))
+
+#### REFACTORING AND INTERNALS
+
+* [`c9b279a`](https://github.com/npm/npm/commit/c9b279aca0fcb8d0e483e534c7f9a7250e2a9392)
+  [#15205](https://github.com/npm/npm/pull/15205)
+  [#15196](https://github.com/npm/npm/pull/15196)
+  Only have one function that determines which version of a package to use
+  given a specifier and a list of versions.
+  ([@iarna](https://github.com/iarna),
+  [@zkat](https://github.com/zkat))
+
+* [`981ce63`](https://github.com/npm/npm/commit/981ce6395e7892dde2591b44e484e191f8625431)
+  [#15090](https://github.com/npm/npm/pull/15090)
+  Rewrite prune to use modern npm plumbing.
+  ([@iarna](https://github.com/iarna))
+
+* [`bc4b739`](https://github.com/npm/npm/commit/bc4b73911f58a11b4a2d28b49e24b4dd7365f95b)
+  [#15089](https://github.com/npm/npm/pull/15089)
+  Rename functions and variables in the module that computes what changes to
+  make to your installation.
+  ([@iarna](https://github.com/iarna))
+
+* [`2449f74`](https://github.com/npm/npm/commit/2449f74a202b3efdb1b2f5a83356a78ea9ecbe35)
+  [#15089](https://github.com/npm/npm/pull/15089)
+  When computing changes to make to your installation, use a function to add
+  new actions to take instead of just pushing on a list.
+  ([@iarna](https://github.com/iarna))
+
+#### IMPROVED LOGGING
+
+* [`335933a`](https://github.com/npm/npm/commit/335933a05396258eead139d27eea3f7668ccdfab)
+  [#15089](https://github.com/npm/npm/pull/15089)
+  Log when we remove obsolete dependencies in the tree.
+  ([@iarna](https://github.com/iarna))
+
+#### DOCUMENTATION
+
+* [`33ca4e6`](https://github.com/npm/npm/commit/33ca4e6db3c1878cbc40d5e862ab49bb0e82cfb2)
+  [#15157](https://github.com/npm/npm/pull/15157)
+  Update `npm cache` docs to use more consistent language
+  ([@JonahMoses](https://github.com/JonahMoses))
+
+#### DEPENDENCY UPDATES
+
+* [`c2d22fa`](https://github.com/npm/npm/commit/c2d22faf916e8260136a1cc95913ca474421c0d3)
+  [#15215](https://github.com/npm/npm/pull/15215)
+  `nopt@4.0.1`:
+  The breaking change is a small tweak to how empty string values are
+  handled. See the brand-new
+  [CHANGELOG.md for nopt](https://github.com/npm/nopt/blob/v4.0.1/CHANGELOG.md) for further
+  details about what's changed in this release!
+  ([@adius](https://github.com/adius),
+  [@samjonester](https://github.com/samjonester),
+  [@elidoran](https://github.com/elidoran),
+  [@helio](https://github.com/helio),
+  [@silkentrance](https://github.com/silkentrance),
+  [@othiym23](https://github.com/othiym23))
+* [`54d949b`](https://github.com/npm/npm/commit/54d949b05adefffeb7b5b10229c5fe0ccb929ac3)
+  [npm/lockfile#24](https://github.com/npm/lockfile/pull/24)
+  `lockfile@1.0.3`:
+  Handled case where callback was not passed in by the user.
+  ([@ORESoftware](https://github.com/ORESoftware))
+* [`54acc03`](https://github.com/npm/npm/commit/54acc0389b39850c0725d0868cb5e61317b57503)
+  `npmlog@4.0.2`:
+  Documentation update.
+  ([@helio-frota](https://github.com/helio-frota))
+* [`57f4bc1`](https://github.com/npm/npm/commit/57f4bc1150322294c1ea0a287ad0a8e457c151e6)
+  `osenv@0.1.4`:
+  Test changes.
+  ([@isaacs](https://github.com/isaacs))
+* [`bea1a2d`](https://github.com/npm/npm/commit/bea1a2d0db566560e13ecc1d5f42e55811269c88)
+  `retry@0.10.1`:
+  No changes.
+  ([@tim-kos](https://github.com/tim-kos))
+* [`6749e39`](https://github.com/npm/npm/commit/6749e395f868109afd97f79d36507e6567dd48fb)
+  [kapouer/marked-man#9](https://github.com/kapouer/marked-man/pull/9)
+  `marked-man@0.2.0`:
+  Add table support.
+  ([@gholk](https://github.com/gholk))
+
 ### v4.0.5 (2016-12-01)
 
 It's that time of year! December is upon us, which means y'all are just going to
@@ -49,13 +345,13 @@ On to the actual changes!
   `EPERM` errors are Windows are now handled more gracefully. Windows users that
   tended to see these errors due to, say, an antivirus-induced race condition,
   should see them much more rarely, if at all.
-  ([@Kat Marchán](https://github.com/Kat Marchán))
+  ([@zkatr](https://github.com/zkat))
 * [`85b0174`](https://github.com/npm/npm/commit/85b0174ba9842e8e89f3c33d009e4b4a9e877c7d)
   `request@2.79.0`
-  ([@Kat Marchán](https://github.com/Kat Marchán))
+  ([@zkat](https://github.com/zkat))
 * [`9664d36`](https://github.com/npm/npm/commit/9664d36653503247737630440bc2ff657de965c3)
   `tap@8.0.1`
-  ([@Kat Marchán](https://github.com/Kat Marchán))
+  ([@zkat](https://github.com/zkat))
 
 #### MISCELLANEOUS
 
@@ -596,6 +892,7 @@ sending `Npm-Scope` and `Npm-In-CI` headers in outgoing requests.
 
 * [`846f61c`](https://github.com/npm/npm/commit/846f61c1dd4a033f77aa736ab01c27ae6724fe1c)
   [npm/npm-registry-client#145](https://github.com/npm/npm-registry-client/pull/145)
+  [npm/npm-registry-client#147](https://github.com/npm/npm-registry-client/pull/147)
   `npm-registry-client@7.3.0`:
   * Allow npm to add headers to outgoing requests.
   * Add `Npm-In-CI` header that reports whether we're running in CI.

@@ -27,6 +27,8 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include "src/list-inl.h"
+#include "src/list.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 

@@ -13,7 +13,7 @@ namespace internal {
 
 class BoundsCheckBbData;
 class BoundsCheckKey;
-class BoundsCheckTable : private ZoneHashMap {
+class BoundsCheckTable : private CustomMatcherZoneHashMap {
  public:
   explicit BoundsCheckTable(Zone* zone);
 

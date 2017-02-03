@@ -9,7 +9,7 @@
 #include "src/compiler/frame-states.h"
 #include "src/deoptimize-reason.h"
 #include "src/machine-type.h"
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -19,7 +19,7 @@ namespace compiler {
 class CallDescriptor;
 struct CommonOperatorGlobalCache;
 class Operator;
-
+class Type;
 
 // Prediction hint for branches.
 enum class BranchHint : uint8_t { kNone, kTrue, kFalse };

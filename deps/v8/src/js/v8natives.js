@@ -18,20 +18,6 @@ var ObjectToString = utils.ImportNow("object_to_string");
 // ----------------------------------------------------------------------------
 
 
-// ES6 18.2.3 isNaN(number)
-function GlobalIsNaN(number) {
-  number = TO_NUMBER(number);
-  return NUMBER_IS_NAN(number);
-}
-
-
-// ES6 18.2.2 isFinite(number)
-function GlobalIsFinite(number) {
-  number = TO_NUMBER(number);
-  return NUMBER_IS_FINITE(number);
-}
-
-
 // ES6 18.2.5 parseInt(string, radix)
 function GlobalParseInt(string, radix) {
   if (IS_UNDEFINED(radix) || radix === 10 || radix === 0) {
@@ -91,8 +77,6 @@ utils.InstallConstants(global, [
 
 // Set up non-enumerable function on the global object.
 utils.InstallFunctions(global, DONT_ENUM, [
-  "isNaN", GlobalIsNaN,
-  "isFinite", GlobalIsFinite,
   "parseInt", GlobalParseInt,
   "parseFloat", GlobalParseFloat,
 ]);
@@ -207,38 +191,6 @@ utils.InstallFunctions(GlobalObject, DONT_ENUM, [
 // ----------------------------------------------------------------------------
 // Number
 
-// Harmony isFinite.
-function NumberIsFinite(number) {
-  return IS_NUMBER(number) && NUMBER_IS_FINITE(number);
-}
-
-
-// Harmony isInteger
-function NumberIsInteger(number) {
-  return NumberIsFinite(number) && TO_INTEGER(number) == number;
-}
-
-
-// Harmony isNaN.
-function NumberIsNaN(number) {
-  return IS_NUMBER(number) && NUMBER_IS_NAN(number);
-}
-
-
-// Harmony isSafeInteger
-function NumberIsSafeInteger(number) {
-  if (NumberIsFinite(number)) {
-    var integral = TO_INTEGER(number);
-    if (integral == number) {
-      return -kMaxSafeInteger <= integral && integral <= kMaxSafeInteger;
-    }
-  }
-  return false;
-}
-
-
-// ----------------------------------------------------------------------------
-
 utils.InstallConstants(GlobalNumber, [
   // ECMA-262 section 15.7.3.1.
   "MAX_VALUE", 1.7976931348623157e+308,
@@ -260,15 +212,10 @@ utils.InstallConstants(GlobalNumber, [
 
 // Harmony Number constructor additions
 utils.InstallFunctions(GlobalNumber, DONT_ENUM, [
-  "isFinite", NumberIsFinite,
-  "isInteger", NumberIsInteger,
-  "isNaN", NumberIsNaN,
-  "isSafeInteger", NumberIsSafeInteger,
   "parseInt", GlobalParseInt,
   "parseFloat", GlobalParseFloat
 ]);
 
-%SetForceInlineFlag(NumberIsNaN);
 
 
 // ----------------------------------------------------------------------------
@@ -295,9 +242,6 @@ function GetIterator(obj, method) {
 utils.Export(function(to) {
   to.GetIterator = GetIterator;
   to.GetMethod = GetMethod;
-  to.IsNaN = GlobalIsNaN;
-  to.NumberIsNaN = NumberIsNaN;
-  to.NumberIsInteger = NumberIsInteger;
   to.ObjectHasOwnProperty = GlobalObject.prototype.hasOwnProperty;
 });
 

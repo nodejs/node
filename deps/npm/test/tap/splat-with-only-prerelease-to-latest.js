@@ -7,7 +7,8 @@ var moduleName = 'xyzzy-wibble'
 var testModule = {
   name: moduleName,
   'dist-tags': {
-    latest: '1.3.0-a'
+    latest: '1.3.0-a',
+    other: '1.2.0-a'
   },
   versions: {
     '1.0.0-a': {
@@ -69,12 +70,19 @@ test('setup', function (t) {
 })
 
 test('splat', function (t) {
-  t.plan(4)
+  t.plan(8)
   var addNamed = require('../../lib/cache/add-named.js')
   addNamed('xyzzy-wibble', '*', testModule, function (err, pkg) {
     t.error(err, 'Succesfully resolved a splat package')
     t.is(pkg.name, moduleName)
     t.is(pkg.version, testModule['dist-tags'].latest)
     t.is(lastFetched, 'https://registry.npmjs.org/aproba/-/xyzzy-wibble-1.3.0-a.tgz')
+    npm.config.set('tag', 'other')
+    addNamed('xyzzy-wibble', '*', testModule, function (err, pkg) {
+      t.error(err, 'Succesfully resolved a splat package')
+      t.is(pkg.name, moduleName)
+      t.is(pkg.version, testModule['dist-tags'].other)
+      t.is(lastFetched, 'https://registry.npmjs.org/aproba/-/xyzzy-wibble-1.2.0-a.tgz')
+    })
   })
 })

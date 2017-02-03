@@ -20,10 +20,6 @@ matrix:
     # then master
     - node_js: "7"
       env: DEPLOY_VERSION=testing
-    # then 0.12, which is still in maintenance mode until the end of 2016 I guess?
-    # https://github.com/nodejs/LTS#lts-schedule
-    - node_js: "0.12"
-      env: DEPLOY_VERSION=testing
 before_install:
   # required by test/tap/registry.js
   - "mkdir -p /var/run/couchdb"

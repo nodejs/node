@@ -1,0 +1,7 @@
+setBreakpointByUrl error: undefined
+setBreakpoint error: {
+  "code": -32602,
+  "message": "Invalid request",
+  "data": "location: object expected"
+}
+

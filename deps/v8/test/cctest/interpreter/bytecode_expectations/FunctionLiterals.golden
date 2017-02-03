@@ -3,8 +3,6 @@
 #
 
 ---
-pool type: mixed
-execute: yes
 wrap: yes
 
 ---
@@ -20,7 +18,7 @@ bytecodes: [
   /*   55 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::SHARED_FUNCTION_INFO_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
 ]
@@ -37,11 +35,11 @@ bytecodes: [
   /*   34 S> */ B(LdrUndefined), R(1),
                 B(CreateClosure), U8(0), U8(2),
                 B(Star), R(0),
-  /*   56 E> */ B(Call), R(0), R(1), U8(1), U8(1),
+  /*   56 E> */ B(Call), R(0), R(1), U8(1), U8(2),
   /*   59 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::SHARED_FUNCTION_INFO_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
 ]
@@ -60,11 +58,11 @@ bytecodes: [
                 B(Star), R(0),
                 B(LdaSmi), U8(1),
                 B(Star), R(2),
-  /*   67 E> */ B(Call), R(0), R(1), U8(2), U8(1),
+  /*   67 E> */ B(Call), R(0), R(1), U8(2), U8(2),
   /*   71 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::SHARED_FUNCTION_INFO_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
 ]
