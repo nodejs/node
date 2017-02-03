@@ -174,6 +174,7 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
     target_shared->set_bytecode_array(source_shared->bytecode_array());
   }
   target_shared->set_scope_info(source_shared->scope_info());
+  target_shared->set_outer_scope_info(source_shared->outer_scope_info());
   target_shared->set_length(source_shared->length());
   target_shared->set_num_literals(source_shared->num_literals());
   target_shared->set_feedback_metadata(source_shared->feedback_metadata());

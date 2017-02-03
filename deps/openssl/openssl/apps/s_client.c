@@ -706,12 +706,12 @@ int MAIN(int argc, char **argv)
     char *inrand = NULL;
     int mbuf_len = 0;
     struct timeval timeout, *timeoutp;
-#ifndef OPENSSL_NO_ENGINE
     char *engine_id = NULL;
+    ENGINE *e = NULL;
+#ifndef OPENSSL_NO_ENGINE
     char *ssl_client_engine_id = NULL;
     ENGINE *ssl_client_engine = NULL;
 #endif
-    ENGINE *e = NULL;
 #if defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_SYS_MSDOS) || defined(OPENSSL_SYS_NETWARE) || defined(OPENSSL_SYS_BEOS_R5)
     struct timeval tv;
 # if defined(OPENSSL_SYS_BEOS_R5)
@@ -1202,8 +1202,8 @@ int MAIN(int argc, char **argv)
         next_proto.data = NULL;
 #endif
 
-#ifndef OPENSSL_NO_ENGINE
     e = setup_engine(bio_err, engine_id, 1);
+#ifndef OPENSSL_NO_ENGINE
     if (ssl_client_engine_id) {
         ssl_client_engine = ENGINE_by_id(ssl_client_engine_id);
         if (!ssl_client_engine) {
@@ -2138,6 +2138,7 @@ int MAIN(int argc, char **argv)
         OPENSSL_cleanse(mbuf, BUFSIZZ);
         OPENSSL_free(mbuf);
     }
+    release_engine(e);
     if (bio_c_out != NULL) {
         BIO_free(bio_c_out);
         bio_c_out = NULL;

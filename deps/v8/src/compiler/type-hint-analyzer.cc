@@ -6,8 +6,8 @@
 
 #include "src/assembler.h"
 #include "src/code-stubs.h"
-#include "src/compiler/type-hints.h"
 #include "src/ic/ic-state.h"
+#include "src/type-hints.h"
 
 namespace v8 {
 namespace internal {
@@ -15,17 +15,21 @@ namespace compiler {
 
 namespace {
 
-BinaryOperationHint ToBinaryOperationHint(BinaryOpICState::Kind kind) {
+BinaryOperationHint ToBinaryOperationHint(Token::Value op,
+                                          BinaryOpICState::Kind kind) {
   switch (kind) {
     case BinaryOpICState::NONE:
       return BinaryOperationHint::kNone;
     case BinaryOpICState::SMI:
       return BinaryOperationHint::kSignedSmall;
     case BinaryOpICState::INT32:
-      return BinaryOperationHint::kSigned32;
+      return (Token::IsTruncatingBinaryOp(op) && SmiValuesAre31Bits())
+                 ? BinaryOperationHint::kNumberOrOddball
+                 : BinaryOperationHint::kSigned32;
     case BinaryOpICState::NUMBER:
       return BinaryOperationHint::kNumberOrOddball;
     case BinaryOpICState::STRING:
+      return BinaryOperationHint::kString;
     case BinaryOpICState::GENERIC:
       return BinaryOperationHint::kAny;
   }
@@ -66,7 +70,7 @@ bool TypeHintAnalysis::GetBinaryOperationHint(TypeFeedbackId id,
   Handle<Code> code = i->second;
   DCHECK_EQ(Code::BINARY_OP_IC, code->kind());
   BinaryOpICState state(code->GetIsolate(), code->extra_ic_state());
-  *hint = ToBinaryOperationHint(state.kind());
+  *hint = ToBinaryOperationHint(state.op(), state.kind());
   return true;
 }
 
@@ -132,20 +136,6 @@ TypeHintAnalysis* TypeHintAnalyzer::Analyze(Handle<Code> code) {
   return new (zone()) TypeHintAnalysis(infos, zone());
 }
 
-// Helper function to transform the feedback to BinaryOperationHint.
-BinaryOperationHint BinaryOperationHintFromFeedback(int type_feedback) {
-  switch (type_feedback) {
-    case BinaryOperationFeedback::kSignedSmall:
-      return BinaryOperationHint::kSignedSmall;
-    case BinaryOperationFeedback::kNumber:
-      return BinaryOperationHint::kNumberOrOddball;
-    case BinaryOperationFeedback::kAny:
-    default:
-      return BinaryOperationHint::kAny;
-  }
-  UNREACHABLE();
-  return BinaryOperationHint::kNone;
-}
 
 }  // namespace compiler
 }  // namespace internal

@@ -325,13 +325,22 @@ class GoogleTestSuite(TestSuite):
     shell = os.path.abspath(os.path.join(context.shell_dir, self.shell()))
     if utils.IsWindows():
       shell += ".exe"
-    output = commands.Execute(context.command_prefix +
-                              [shell, "--gtest_list_tests"] +
-                              context.extra_flags)
-    if output.exit_code != 0:
+
+    output = None
+    for i in xrange(3): # Try 3 times in case of errors.
+      output = commands.Execute(context.command_prefix +
+                                [shell, "--gtest_list_tests"] +
+                                context.extra_flags)
+      if output.exit_code == 0:
+        break
+      print "Test executable failed to list the tests (try %d).\n\nStdout:" % i
       print output.stdout
+      print "\nStderr:"
       print output.stderr
+      print "\nExit code: %d" % output.exit_code
+    else:
       raise Exception("Test executable failed to list the tests.")
+
     tests = []
     test_case = ''
     for line in output.stdout.splitlines():

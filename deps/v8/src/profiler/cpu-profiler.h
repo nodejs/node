@@ -11,7 +11,6 @@
 #include "src/base/atomic-utils.h"
 #include "src/base/atomicops.h"
 #include "src/base/platform/time.h"
-#include "src/compiler.h"
 #include "src/isolate.h"
 #include "src/libsampler/sampler.h"
 #include "src/locked-queue.h"

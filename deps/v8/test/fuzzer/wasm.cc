@@ -12,8 +12,8 @@
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
-#include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-module.h"
+#include "test/common/wasm/wasm-module-runner.h"
 #include "test/fuzzer/fuzzer-support.h"
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
@@ -31,9 +31,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   v8::HandleScope handle_scope(isolate);
   v8::Context::Scope context_scope(support->GetContext());
   v8::TryCatch try_catch(isolate);
-  v8::internal::WasmJs::InstallWasmFunctionMap(i_isolate,
-                                               i_isolate->native_context());
-  v8::internal::wasm::testing::CompileAndRunWasmModule(i_isolate, data,
-                                                       data + size, false);
+  v8::internal::wasm::testing::SetupIsolateForWasmModule(i_isolate);
+  v8::internal::wasm::testing::CompileAndRunWasmModule(
+      i_isolate, data, data + size, v8::internal::wasm::kWasmOrigin);
   return 0;
 }

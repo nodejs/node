@@ -13,7 +13,7 @@
 
 #include "src/compiler/node.h"
 #include "src/wasm/wasm-module.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -775,6 +775,18 @@ void Int64Lowering::LowerNode(Node* node) {
         }
       } else {
         DefaultLowering(node);
+      }
+      break;
+    }
+    case IrOpcode::kProjection: {
+      Node* call = node->InputAt(0);
+      DCHECK_EQ(IrOpcode::kCall, call->opcode());
+      CallDescriptor* descriptor =
+          const_cast<CallDescriptor*>(CallDescriptorOf(call->op()));
+      for (size_t i = 0; i < descriptor->ReturnCount(); i++) {
+        if (descriptor->GetReturnType(i) == MachineType::Int64()) {
+          UNREACHABLE();  // TODO(titzer): implement multiple i64 returns.
+        }
       }
       break;
     }

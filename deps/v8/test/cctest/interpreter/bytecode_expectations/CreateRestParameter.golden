@@ -3,8 +3,6 @@
 #
 
 ---
-pool type: number
-execute: yes
 wrap: no
 test function name: f
 
@@ -67,7 +65,7 @@ bytecodes: [
   /*   10 E> */ B(StackCheck),
                 B(Mov), R(arg0), R(1),
   /*   29 S> */ B(LdaZero),
-  /*   44 E> */ B(LdaKeyedProperty), R(0), U8(1),
+  /*   44 E> */ B(LdaKeyedProperty), R(0), U8(2),
   /*   49 S> */ B(Return),
 ]
 constant pool: [
@@ -80,23 +78,23 @@ snippet: "
   function f(a, ...restArgs) { return restArgs[0] + arguments[0]; }
   f();
 "
-frame size: 5
+frame size: 4
 parameter count: 2
 bytecode array length: 26
 bytecodes: [
                 B(CreateUnmappedArguments),
-                B(Star), R(0),
-                B(CreateRestParameter),
-                B(Star), R(1),
-                B(LdaTheHole),
                 B(Star), R(2),
+                B(CreateRestParameter),
+                B(Star), R(0),
+                B(LdaTheHole),
+                B(Star), R(1),
   /*   10 E> */ B(StackCheck),
-                B(Mov), R(arg0), R(2),
+                B(Mov), R(arg0), R(1),
   /*   29 S> */ B(LdaZero),
-  /*   44 E> */ B(LdrKeyedProperty), R(1), U8(1), R(4),
+  /*   44 E> */ B(LdrKeyedProperty), R(0), U8(2), R(3),
                 B(LdaZero),
-  /*   59 E> */ B(LdaKeyedProperty), R(0), U8(3),
-                B(Add), R(4), U8(5),
+  /*   59 E> */ B(LdaKeyedProperty), R(2), U8(4),
+                B(Add), R(3), U8(6),
   /*   64 S> */ B(Return),
 ]
 constant pool: [

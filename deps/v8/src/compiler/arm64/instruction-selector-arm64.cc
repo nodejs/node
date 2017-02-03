@@ -434,24 +434,18 @@ void VisitBinop(InstructionSelector* selector, Node* node,
   } else if (TryMatchAnyShift(selector, node, right_node, &opcode,
                               !is_add_sub)) {
     Matcher m_shift(right_node);
-    inputs[input_count++] = cont->IsDeoptimize()
-                                ? g.UseRegister(left_node)
-                                : g.UseRegisterOrImmediateZero(left_node);
+    inputs[input_count++] = g.UseRegisterOrImmediateZero(left_node);
     inputs[input_count++] = g.UseRegister(m_shift.left().node());
     inputs[input_count++] = g.UseImmediate(m_shift.right().node());
   } else if (can_commute && TryMatchAnyShift(selector, node, left_node, &opcode,
                                              !is_add_sub)) {
     if (must_commute_cond) cont->Commute();
     Matcher m_shift(left_node);
-    inputs[input_count++] = cont->IsDeoptimize()
-                                ? g.UseRegister(right_node)
-                                : g.UseRegisterOrImmediateZero(right_node);
+    inputs[input_count++] = g.UseRegisterOrImmediateZero(right_node);
     inputs[input_count++] = g.UseRegister(m_shift.left().node());
     inputs[input_count++] = g.UseImmediate(m_shift.right().node());
   } else {
-    inputs[input_count++] = cont->IsDeoptimize()
-                                ? g.UseRegister(left_node)
-                                : g.UseRegisterOrImmediateZero(left_node);
+    inputs[input_count++] = g.UseRegisterOrImmediateZero(left_node);
     inputs[input_count++] = g.UseRegister(right_node);
   }
 
@@ -461,14 +455,7 @@ void VisitBinop(InstructionSelector* selector, Node* node,
   }
 
   if (!IsComparisonField::decode(properties)) {
-    if (cont->IsDeoptimize()) {
-      // If we can deoptimize as a result of the binop, we need to make sure
-      // that the deopt inputs are not overwritten by the binop result. One way
-      // to achieve that is to declare the output register as same-as-first.
-      outputs[output_count++] = g.DefineSameAsFirst(node);
-    } else {
-      outputs[output_count++] = g.DefineAsRegister(node);
-    }
+    outputs[output_count++] = g.DefineAsRegister(node);
   }
 
   if (cont->IsSet()) {
@@ -606,6 +593,10 @@ void InstructionSelector::VisitLoad(Node* node) {
   EmitLoad(this, node, opcode, immediate_mode, rep);
 }
 
+void InstructionSelector::VisitProtectedLoad(Node* node) {
+  // TODO(eholk)
+  UNIMPLEMENTED();
+}
 
 void InstructionSelector::VisitStore(Node* node) {
   Arm64OperandGenerator g(this);
@@ -619,7 +610,7 @@ void InstructionSelector::VisitStore(Node* node) {
 
   // TODO(arm64): I guess this could be done in a better way.
   if (write_barrier_kind != kNoWriteBarrier) {
-    DCHECK_EQ(MachineRepresentation::kTagged, rep);
+    DCHECK(CanBeTaggedPointer(rep));
     AddressingMode addressing_mode;
     InstructionOperand inputs[3];
     size_t input_count = 0;
@@ -2128,11 +2119,101 @@ void MaybeReplaceCmpZeroWithFlagSettingBinop(InstructionSelector* selector,
   }
 }
 
+// Map {cond} to kEqual or kNotEqual, so that we can select
+// either TBZ or TBNZ when generating code for:
+// (x cmp 0), b.{cond}
+FlagsCondition MapForTbz(FlagsCondition cond) {
+  switch (cond) {
+    case kSignedLessThan:  // generate TBNZ
+      return kNotEqual;
+    case kSignedGreaterThanOrEqual:  // generate TBZ
+      return kEqual;
+    default:
+      UNREACHABLE();
+      return cond;
+  }
+}
+
+// Map {cond} to kEqual or kNotEqual, so that we can select
+// either CBZ or CBNZ when generating code for:
+// (x cmp 0), b.{cond}
+FlagsCondition MapForCbz(FlagsCondition cond) {
+  switch (cond) {
+    case kEqual:     // generate CBZ
+    case kNotEqual:  // generate CBNZ
+      return cond;
+    case kUnsignedLessThanOrEqual:  // generate CBZ
+      return kEqual;
+    case kUnsignedGreaterThan:  // generate CBNZ
+      return kNotEqual;
+    default:
+      UNREACHABLE();
+      return cond;
+  }
+}
+
+// Try to emit TBZ, TBNZ, CBZ or CBNZ for certain comparisons of {node}
+// against zero, depending on the condition.
+bool TryEmitCbzOrTbz(InstructionSelector* selector, Node* node, Node* user,
+                     FlagsCondition cond, FlagsContinuation* cont) {
+  Int32BinopMatcher m_user(user);
+  USE(m_user);
+  DCHECK(m_user.right().Is(0) || m_user.left().Is(0));
+
+  // Only handle branches.
+  if (!cont->IsBranch()) return false;
+
+  switch (cond) {
+    case kSignedLessThan:
+    case kSignedGreaterThanOrEqual: {
+      Arm64OperandGenerator g(selector);
+      cont->Overwrite(MapForTbz(cond));
+      Int32Matcher m(node);
+      if (m.IsFloat64ExtractHighWord32() && selector->CanCover(user, node)) {
+        // SignedLessThan(Float64ExtractHighWord32(x), 0) and
+        // SignedGreaterThanOrEqual(Float64ExtractHighWord32(x), 0) essentially
+        // check the sign bit of a 64-bit floating point value.
+        InstructionOperand temp = g.TempRegister();
+        selector->Emit(kArm64U64MoveFloat64, temp,
+                       g.UseRegister(node->InputAt(0)));
+        selector->Emit(cont->Encode(kArm64TestAndBranch), g.NoOutput(), temp,
+                       g.TempImmediate(63), g.Label(cont->true_block()),
+                       g.Label(cont->false_block()));
+        return true;
+      }
+      selector->Emit(cont->Encode(kArm64TestAndBranch32), g.NoOutput(),
+                     g.UseRegister(node), g.TempImmediate(31),
+                     g.Label(cont->true_block()), g.Label(cont->false_block()));
+      return true;
+    }
+    case kEqual:
+    case kNotEqual:
+    case kUnsignedLessThanOrEqual:
+    case kUnsignedGreaterThan: {
+      Arm64OperandGenerator g(selector);
+      cont->Overwrite(MapForCbz(cond));
+      selector->Emit(cont->Encode(kArm64CompareAndBranch32), g.NoOutput(),
+                     g.UseRegister(node), g.Label(cont->true_block()),
+                     g.Label(cont->false_block()));
+      return true;
+    }
+    default:
+      return false;
+  }
+}
+
 void VisitWord32Compare(InstructionSelector* selector, Node* node,
                         FlagsContinuation* cont) {
   Int32BinopMatcher m(node);
   ArchOpcode opcode = kArm64Cmp32;
   FlagsCondition cond = cont->condition();
+  if (m.right().Is(0)) {
+    if (TryEmitCbzOrTbz(selector, m.left().node(), node, cond, cont)) return;
+  } else if (m.left().Is(0)) {
+    FlagsCondition commuted_cond = CommuteFlagsCondition(cond);
+    if (TryEmitCbzOrTbz(selector, m.right().node(), node, commuted_cond, cont))
+      return;
+  }
   ImmediateMode immediate_mode = kArithmeticImm;
   if (m.right().Is(0) && (m.left().IsInt32Add() || m.left().IsWord32And())) {
     // Emit flag setting add/and instructions for comparisons against zero.
@@ -2145,14 +2226,18 @@ void VisitWord32Compare(InstructionSelector* selector, Node* node,
              (m.right().IsInt32Add() || m.right().IsWord32And())) {
     // Same as above, but we need to commute the condition before we
     // continue with the rest of the checks.
-    cond = CommuteFlagsCondition(cond);
-    if (CanUseFlagSettingBinop(cond)) {
+    FlagsCondition commuted_cond = CommuteFlagsCondition(cond);
+    if (CanUseFlagSettingBinop(commuted_cond)) {
       Node* binop = m.right().node();
       MaybeReplaceCmpZeroWithFlagSettingBinop(selector, &node, binop, &opcode,
-                                              cond, cont, &immediate_mode);
+                                              commuted_cond, cont,
+                                              &immediate_mode);
     }
-  } else if (m.right().IsInt32Sub()) {
+  } else if (m.right().IsInt32Sub() && (cond == kEqual || cond == kNotEqual)) {
     // Select negated compare for comparisons with negated right input.
+    // Only do this for kEqual and kNotEqual, which do not depend on the
+    // C and V flags, as those flags will be different with CMN when the
+    // right-hand side of the original subtraction is INT_MIN.
     Node* sub = m.right().node();
     Int32BinopMatcher msub(sub);
     if (msub.left().Is(0)) {

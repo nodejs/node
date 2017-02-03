@@ -67,7 +67,8 @@ void StatisticsExtension::GetCounters(
         args[0]
             ->BooleanValue(args.GetIsolate()->GetCurrentContext())
             .FromMaybe(false)) {
-      heap->CollectAllGarbage(Heap::kNoGCFlags, "counters extension");
+      heap->CollectAllGarbage(Heap::kNoGCFlags,
+                              GarbageCollectionReason::kCountersExtension);
     }
   }
 
@@ -116,19 +117,24 @@ void StatisticsExtension::GetCounters(
   };
 
   const StatisticNumber numbers[] = {
-      {heap->memory_allocator()->Size(), "total_committed_bytes"},
+      {static_cast<intptr_t>(heap->memory_allocator()->Size()),
+       "total_committed_bytes"},
       {heap->new_space()->Size(), "new_space_live_bytes"},
       {heap->new_space()->Available(), "new_space_available_bytes"},
-      {heap->new_space()->CommittedMemory(), "new_space_commited_bytes"},
+      {static_cast<intptr_t>(heap->new_space()->CommittedMemory()),
+       "new_space_commited_bytes"},
       {heap->old_space()->Size(), "old_space_live_bytes"},
       {heap->old_space()->Available(), "old_space_available_bytes"},
-      {heap->old_space()->CommittedMemory(), "old_space_commited_bytes"},
+      {static_cast<intptr_t>(heap->old_space()->CommittedMemory()),
+       "old_space_commited_bytes"},
       {heap->code_space()->Size(), "code_space_live_bytes"},
       {heap->code_space()->Available(), "code_space_available_bytes"},
-      {heap->code_space()->CommittedMemory(), "code_space_commited_bytes"},
+      {static_cast<intptr_t>(heap->code_space()->CommittedMemory()),
+       "code_space_commited_bytes"},
       {heap->lo_space()->Size(), "lo_space_live_bytes"},
       {heap->lo_space()->Available(), "lo_space_available_bytes"},
-      {heap->lo_space()->CommittedMemory(), "lo_space_commited_bytes"},
+      {static_cast<intptr_t>(heap->lo_space()->CommittedMemory()),
+       "lo_space_commited_bytes"},
   };
 
   for (size_t i = 0; i < arraysize(numbers); i++) {

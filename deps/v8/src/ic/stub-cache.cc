@@ -4,6 +4,7 @@
 
 #include "src/ic/stub-cache.h"
 
+#include "src/ast/ast.h"
 #include "src/base/bits.h"
 #include "src/type-info.h"
 

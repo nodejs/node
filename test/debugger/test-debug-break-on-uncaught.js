@@ -73,6 +73,7 @@ function runScenario(scriptName, throwsOnLine, next) {
     client.connect(port);
   }
 
+  let interval;
   function runTest(client) {
     client.req(
       {
@@ -91,14 +92,15 @@ function runScenario(scriptName, throwsOnLine, next) {
 
         client.reqContinue(function(error) {
           assert.ifError(error);
-          setTimeout(assertHasPaused.bind(null, client), 100);
+          interval = setInterval(assertHasPaused.bind(null, client), 10);
         });
       }
     );
   }
 
   function assertHasPaused(client) {
-    assert(exceptions.length, 'no exceptions thrown, race condition in test?');
+    if (!exceptions.length) return;
+
     assert.strictEqual(exceptions.length, 1,
                        'debugger did not pause on exception');
     assert.strictEqual(exceptions[0].uncaught, true);
@@ -106,5 +108,6 @@ function runScenario(scriptName, throwsOnLine, next) {
     assert.strictEqual(exceptions[0].sourceLine + 1, throwsOnLine);
     asserted = true;
     client.reqContinue(assert.ifError);
+    clearInterval(interval);
   }
 }

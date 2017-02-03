@@ -118,9 +118,21 @@ def run_gyp(args):
 if __name__ == '__main__':
   args = sys.argv[1:]
 
-  if int(os.environ.get('GYP_CHROMIUM_NO_ACTION', 0)):
+  gyp_chromium_no_action = os.environ.get('GYP_CHROMIUM_NO_ACTION')
+  if gyp_chromium_no_action == '1':
     print 'Skipping gyp_v8 due to GYP_CHROMIUM_NO_ACTION env var.'
     sys.exit(0)
+
+  running_as_hook = '--running-as-hook'
+  if running_as_hook in args and gyp_chromium_no_action != '0':
+    print 'GYP is now disabled by default in runhooks.\n'
+    print 'If you really want to run this, either run '
+    print '`python gypfiles/gyp_v8` explicitly by hand '
+    print 'or set the environment variable GYP_CHROMIUM_NO_ACTION=0.'
+    sys.exit(0)
+
+  if running_as_hook in args:
+    args.remove(running_as_hook)
 
   gyp_environment.set_environment()
 

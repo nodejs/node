@@ -7,15 +7,16 @@
 
 #include <memory>
 
+#include "include/v8.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/semaphore.h"
-#include "src/compiler.h"
 #include "src/parsing/parse-info.h"
-#include "src/parsing/parser.h"
+#include "src/unicode-cache.h"
 
 namespace v8 {
 namespace internal {
 
+class Parser;
 class ScriptData;
 
 // Internal representation of v8::ScriptCompiler::StreamedSource. Contains all
@@ -25,6 +26,8 @@ struct StreamedSource {
   StreamedSource(ScriptCompiler::ExternalSourceStream* source_stream,
                  ScriptCompiler::StreamedSource::Encoding encoding)
       : source_stream(source_stream), encoding(encoding) {}
+
+  void Release();
 
   // Internal implementation of v8::ScriptCompiler::StreamedSource.
   std::unique_ptr<ScriptCompiler::ExternalSourceStream> source_stream;
@@ -39,10 +42,9 @@ struct StreamedSource {
   std::unique_ptr<ParseInfo> info;
   std::unique_ptr<Parser> parser;
 
- private:
-  // Prevent copying. Not implemented.
-  StreamedSource(const StreamedSource&);
-  StreamedSource& operator=(const StreamedSource&);
+  // Prevent copying.
+  StreamedSource(const StreamedSource&) = delete;
+  StreamedSource& operator=(const StreamedSource&) = delete;
 };
 
 

@@ -1,0 +1,23 @@
+Check that debug and monitor methods from Command Line API works with bound function.
+debug foo and bar
+call foo and bar
+paused in foo
+paused in boo
+undebug foo and bar
+call foo and bar
+monitor foo and bar
+call foo and bar
+function foo called
+function boo called
+unmonitor foo and bar
+call foo and bar
+monitor and debug bar
+call bar
+function boo called
+paused in boo
+undebug bar
+call bar
+function boo called
+debug and unmonitor bar
+call bar
+paused in boo

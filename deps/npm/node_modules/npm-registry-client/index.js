@@ -54,7 +54,7 @@ function RegClient (config) {
     // lib/group-name/operation.js -> client.groupName.operation
     var stat = fs.statSync(entry)
     if (stat.isDirectory()) {
-      var groupName = f.replace(/-([a-z])/, dashToCamel)
+      var groupName = f.replace(/-([a-z])/gi, dashToCamel)
       fs.readdirSync(entry).forEach(function (f) {
         if (!f.match(/\.js$/)) return
 
@@ -62,14 +62,14 @@ function RegClient (config) {
           // keep client.groupName.operation from stomping client.operation
           client[groupName] = Object.create(client)
         }
-        var name = f.replace(/\.js$/, '').replace(/-([a-z])/, dashToCamel)
+        var name = f.replace(/\.js$/, '').replace(/-([a-z])/gi, dashToCamel)
         client[groupName][name] = require(join(entry, f))
       })
       return
     }
 
     if (!f.match(/\.js$/)) return
-    var name = f.replace(/\.js$/, '').replace(/-([a-z])/, dashToCamel)
+    var name = f.replace(/\.js$/, '').replace(/-([a-z])/gi, dashToCamel)
     client[name] = require(entry)
   })
 }

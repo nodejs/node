@@ -72,20 +72,6 @@ class LiveEditFunctionTracker
 
 class LiveEdit : AllStatic {
  public:
-  // Describes how exactly a frame has been dropped from stack.
-  enum FrameDropMode {
-    // No frame has been dropped.
-    FRAMES_UNTOUCHED,
-    // The top JS frame had been calling debug break slot stub. Patch the
-    // address this stub jumps to in the end.
-    FRAME_DROPPED_IN_DEBUG_SLOT_CALL,
-    // The top JS frame had been calling some C++ function. The return address
-    // gets patched automatically.
-    FRAME_DROPPED_IN_DIRECT_CALL,
-    FRAME_DROPPED_IN_RETURN_CALL,
-    CURRENTLY_SET_MODE
-  };
-
   static void InitializeThreadLocal(Debug* debug);
 
   static bool SetAfterBreakTarget(Debug* debug);

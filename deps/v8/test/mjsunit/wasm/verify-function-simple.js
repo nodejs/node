@@ -25,7 +25,7 @@ try {
   var data = bytes(
       kWasmFunctionTypeForm, 0, 1, kAstI32,     // signature
       kDeclNoLocals,                            // --
-      kExprBlock, kExprNop, kExprNop, kExprEnd  // body
+      kExprBlock, kAstStmt, kExprNop, kExprNop, kExprEnd  // body
   );
 
   Wasm.verifyFunction(data);

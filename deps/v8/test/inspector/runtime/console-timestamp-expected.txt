@@ -1,0 +1,9 @@
+Message has timestamp: true
+Message timestamp doesn't differ too much from current time (one minute interval): true
+Message 1 has non-decreasing timestamp: true
+Message has timestamp: true
+Message timestamp doesn't differ too much from current time (one minute interval): true
+Message 2 has non-decreasing timestamp: true
+Message has timestamp: true
+Message timestamp doesn't differ too much from current time (one minute interval): true
+

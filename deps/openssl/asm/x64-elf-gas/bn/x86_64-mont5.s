@@ -1889,6 +1889,7 @@ __bn_sqr8x_reduction:
 
 .align	32
 .L8x_tail_done:
+	xorq	%rax,%rax
 	addq	(%rdx),%r8
 	adcq	$0,%r9
 	adcq	$0,%r10
@@ -1897,9 +1898,7 @@ __bn_sqr8x_reduction:
 	adcq	$0,%r13
 	adcq	$0,%r14
 	adcq	$0,%r15
-
-
-	xorq	%rax,%rax
+	adcq	$0,%rax
 
 	negq	%rsi
 .L8x_no_tail:
@@ -3344,6 +3343,7 @@ __bn_sqrx8x_reduction:
 
 .align	32
 .Lsqrx8x_tail_done:
+	xorq	%rax,%rax
 	addq	24+8(%rsp),%r8
 	adcq	$0,%r9
 	adcq	$0,%r10
@@ -3352,9 +3352,7 @@ __bn_sqrx8x_reduction:
 	adcq	$0,%r13
 	adcq	$0,%r14
 	adcq	$0,%r15
-
-
-	movq	%rsi,%rax
+	adcq	$0,%rax
 
 	subq	16+8(%rsp),%rsi
 .Lsqrx8x_no_tail:
@@ -3369,7 +3367,7 @@ __bn_sqrx8x_reduction:
 	adcq	40(%rdi),%r13
 	adcq	48(%rdi),%r14
 	adcq	56(%rdi),%r15
-	adcq	%rax,%rax
+	adcq	$0,%rax
 
 	movq	32+8(%rsp),%rbx
 	movq	64(%rdi,%rcx,1),%rdx

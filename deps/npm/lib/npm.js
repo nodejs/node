@@ -35,6 +35,7 @@
   var cmdList = require('./config/cmd-list').cmdList
   var plumbing = require('./config/cmd-list').plumbing
   var output = require('./utils/output.js')
+  var startMetrics = require('./utils/metrics.js').start
 
   npm.config = {
     loaded: false,
@@ -307,6 +308,8 @@
         // at this point the configs are all set.
         // go ahead and spin up the registry client.
         npm.registry = new CachingRegClient(npm.config)
+
+        startMetrics()
 
         return cb(null, npm)
       })

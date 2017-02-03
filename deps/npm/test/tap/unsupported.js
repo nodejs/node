@@ -15,7 +15,7 @@ var versions = [
   ['v0.9.6', false, true],
   ['v0.10.48', false, true],
   ['v0.11.16', false, true],
-  ['v0.12.9', false, false],
+  ['v0.12.9', false, true],
   ['v1.0.1', false, true],
   ['v1.6.0', false, true],
   ['v2.3.1', false, true],

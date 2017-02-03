@@ -97,6 +97,13 @@ uint32_t BytecodeArrayIterator::GetFlagOperand(int operand_index) const {
   return GetUnsignedOperand(operand_index, OperandType::kFlag8);
 }
 
+uint32_t BytecodeArrayIterator::GetUnsignedImmediateOperand(
+    int operand_index) const {
+  DCHECK_EQ(Bytecodes::GetOperandType(current_bytecode(), operand_index),
+            OperandType::kUImm);
+  return GetUnsignedOperand(operand_index, OperandType::kUImm);
+}
+
 int32_t BytecodeArrayIterator::GetImmediateOperand(int operand_index) const {
   DCHECK_EQ(Bytecodes::GetOperandType(current_bytecode(), operand_index),
             OperandType::kImm);
@@ -133,11 +140,11 @@ int BytecodeArrayIterator::GetRegisterOperandRange(int operand_index) const {
   DCHECK_LE(operand_index, Bytecodes::NumberOfOperands(current_bytecode()));
   const OperandType* operand_types =
       Bytecodes::GetOperandTypes(current_bytecode());
-  DCHECK(Bytecodes::IsRegisterOperandType(operand_types[operand_index]));
-  if (operand_types[operand_index + 1] == OperandType::kRegCount) {
+  OperandType operand_type = operand_types[operand_index];
+  DCHECK(Bytecodes::IsRegisterOperandType(operand_type));
+  if (operand_type == OperandType::kRegList) {
     return GetRegisterCountOperand(operand_index + 1);
   } else {
-    OperandType operand_type = operand_types[operand_index];
     return Bytecodes::GetNumberOfRegistersRepresentedBy(operand_type);
   }
 }

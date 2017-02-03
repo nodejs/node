@@ -6,7 +6,7 @@
 #define V8_COLLECTOR_H_
 
 #include "src/checks.h"
-#include "src/list.h"
+#include "src/list-inl.h"
 #include "src/vector.h"
 
 namespace v8 {

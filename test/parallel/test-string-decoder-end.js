@@ -12,13 +12,11 @@ const bufs = [ '☃💩', 'asdf' ].map((b) => Buffer.from(b));
 
 // also test just arbitrary bytes from 0-15.
 for (let i = 1; i <= 16; i++) {
-  const bytes = new Array(i).join('.').split('.').map((_, j) => j + 0x78);
+  const bytes = '.'.repeat(i - 1).split('.').map((_, j) => j + 0x78);
   bufs.push(Buffer.from(bytes));
 }
 
 encodings.forEach(testEncoding);
-
-console.log('ok');
 
 function testEncoding(encoding) {
   bufs.forEach((buf) => {
@@ -27,8 +25,6 @@ function testEncoding(encoding) {
 }
 
 function testBuf(encoding, buf) {
-  console.error('# %s', encoding, buf);
-
   // write one byte at a time.
   let s = new SD(encoding);
   let res1 = '';
@@ -46,9 +42,6 @@ function testBuf(encoding, buf) {
   // .toString() on the buffer
   const res3 = buf.toString(encoding);
 
-  console.log('expect=%j', res3);
-  console.log('res1=%j', res1);
-  console.log('res2=%j', res2);
   assert.strictEqual(res1, res3, 'one byte at a time should match toString');
   assert.strictEqual(res2, res3, 'all bytes at once should match toString');
 }

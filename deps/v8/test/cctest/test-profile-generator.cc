@@ -27,11 +27,11 @@
 //
 // Tests of profiles generator and utilities.
 
-#include "src/v8.h"
-
 #include "include/v8-profiler.h"
+#include "src/api.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/profiler/profile-generator-inl.h"
+#include "src/v8.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/profiler-extension.h"
 

@@ -14,6 +14,7 @@ var cachedPackageRoot = require('./cached-package-root.js')
 var mapToRegistry = require('../utils/map-to-registry.js')
 var pulseTillDone = require('../utils/pulse-till-done.js')
 var packageId = require('../utils/package-id.js')
+var pickManifestFromRegistryMetadata = require('../utils/pick-manifest-from-registry-metadata.js')
 
 module.exports = addNamed
 
@@ -252,28 +253,10 @@ function addNameRange (name, range, data, cb) {
     log.silly('addNameRange', 'versions'
              , [data.name, Object.keys(data.versions || {})])
 
-    // if the tagged version satisfies, then use that.
-    var tagged = data['dist-tags'][npm.config.get('tag')]
-    if (tagged &&
-        data.versions[tagged] &&
-        semver.satisfies(tagged, range, true)) {
-      return addNamed(name, tagged, data.versions[tagged], cb)
-    }
-
-    // find the max satisfying version.
-    var versions = Object.keys(data.versions || {})
-    var ms = semver.maxSatisfying(versions, range, true)
-    if (!ms) {
-      if (range === '*' && versions.length) {
-        return addNameTag(name, 'latest', data, cb)
-      } else {
-        return cb(installTargetsError(range, data))
-      }
-    }
-
-    // if we don't have a registry connection, try to see if
-    // there's a cached copy that will be ok.
-    addNamed(name, ms, data.versions[ms], cb)
+    var versions = Object.keys(data.versions).filter(function (v) { return semver.valid(v) })
+    var picked = pickManifestFromRegistryMetadata(range, npm.config.get('tag'), versions, data)
+    if (picked) return addNamed(name, picked.resolvedTo, picked.manifest, cb)
+    return cb(installTargetsError(range, data))
   }
 }
 

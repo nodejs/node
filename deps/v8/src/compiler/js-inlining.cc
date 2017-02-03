@@ -6,10 +6,12 @@
 
 #include "src/ast/ast-numbering.h"
 #include "src/ast/ast.h"
-#include "src/ast/scopes.h"
+#include "src/compilation-info.h"
 #include "src/compiler.h"
+#include "src/compiler/all-nodes.h"
 #include "src/compiler/ast-graph-builder.h"
 #include "src/compiler/ast-loop-assignment-analyzer.h"
+#include "src/compiler/bytecode-graph-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-operator.h"
@@ -68,13 +70,20 @@ class JSCallAccessor {
     return call_->op()->ValueInputCount() - 2;
   }
 
+  float frequency() const {
+    return (call_->opcode() == IrOpcode::kJSCallFunction)
+               ? CallFunctionParametersOf(call_->op()).frequency()
+               : CallConstructParametersOf(call_->op()).frequency();
+  }
+
  private:
   Node* call_;
 };
 
-
 Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
-                                Node* frame_state, Node* start, Node* end) {
+                                Node* frame_state, Node* start, Node* end,
+                                Node* exception_target,
+                                const NodeVector& uncaught_subcalls) {
   // The scheduler is smart enough to place our code; we just ensure {control}
   // becomes the control input of the start of the inlinee, and {effect} becomes
   // the effect input of the start of the inlinee.
@@ -128,6 +137,44 @@ Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
           UNREACHABLE();
         }
         break;
+    }
+  }
+
+  if (exception_target != nullptr) {
+    // Link uncaught calls in the inlinee to {exception_target}
+    int subcall_count = static_cast<int>(uncaught_subcalls.size());
+    if (subcall_count > 0) {
+      TRACE(
+          "Inlinee contains %d calls without IfException; "
+          "linking to existing IfException\n",
+          subcall_count);
+    }
+    NodeVector on_exception_nodes(local_zone_);
+    for (Node* subcall : uncaught_subcalls) {
+      Node* on_exception =
+          graph()->NewNode(common()->IfException(), subcall, subcall);
+      on_exception_nodes.push_back(on_exception);
+    }
+
+    DCHECK_EQ(subcall_count, static_cast<int>(on_exception_nodes.size()));
+    if (subcall_count > 0) {
+      Node* control_output =
+          graph()->NewNode(common()->Merge(subcall_count), subcall_count,
+                           &on_exception_nodes.front());
+      NodeVector values_effects(local_zone_);
+      values_effects = on_exception_nodes;
+      values_effects.push_back(control_output);
+      Node* value_output = graph()->NewNode(
+          common()->Phi(MachineRepresentation::kTagged, subcall_count),
+          subcall_count + 1, &values_effects.front());
+      Node* effect_output =
+          graph()->NewNode(common()->EffectPhi(subcall_count),
+                           subcall_count + 1, &values_effects.front());
+      ReplaceWithValue(exception_target, value_output, effect_output,
+                       control_output);
+    } else {
+      ReplaceWithValue(exception_target, exception_target, exception_target,
+                       jsgraph()->Dead());
     }
   }
 
@@ -235,6 +282,56 @@ Node* JSInliner::CreateTailCallerFrameState(Node* node, Node* frame_state) {
 
 namespace {
 
+// TODO(bmeurer): Unify this with the witness helper functions in the
+// js-builtin-reducer.cc once we have a better understanding of the
+// map tracking we want to do, and eventually changed the CheckMaps
+// operator to carry map constants on the operator instead of inputs.
+// I.e. if the CheckMaps has some kind of SmallMapSet as operator
+// parameter, then this could be changed to call a generic
+//
+//   SmallMapSet NodeProperties::CollectMapWitness(receiver, effect)
+//
+// function, which either returns the map set from the CheckMaps or
+// a singleton set from a StoreField.
+bool NeedsConvertReceiver(Node* receiver, Node* effect) {
+  for (Node* dominator = effect;;) {
+    if (dominator->opcode() == IrOpcode::kCheckMaps &&
+        dominator->InputAt(0) == receiver) {
+      // Check if all maps have the given {instance_type}.
+      for (int i = 1; i < dominator->op()->ValueInputCount(); ++i) {
+        HeapObjectMatcher m(NodeProperties::GetValueInput(dominator, i));
+        if (!m.HasValue()) return true;
+        Handle<Map> const map = Handle<Map>::cast(m.Value());
+        if (!map->IsJSReceiverMap()) return true;
+      }
+      return false;
+    }
+    switch (dominator->opcode()) {
+      case IrOpcode::kStoreField: {
+        FieldAccess const& access = FieldAccessOf(dominator->op());
+        if (access.base_is_tagged == kTaggedBase &&
+            access.offset == HeapObject::kMapOffset) {
+          return true;
+        }
+        break;
+      }
+      case IrOpcode::kStoreElement:
+      case IrOpcode::kStoreTypedElement:
+        break;
+      default: {
+        DCHECK_EQ(1, dominator->op()->EffectOutputCount());
+        if (dominator->op()->EffectInputCount() != 1 ||
+            !dominator->op()->HasProperty(Operator::kNoWrite)) {
+          // Didn't find any appropriate CheckMaps node.
+          return true;
+        }
+        break;
+      }
+    }
+    dominator = NodeProperties::GetEffectInput(dominator);
+  }
+}
+
 // TODO(mstarzinger,verwaest): Move this predicate onto SharedFunctionInfo?
 bool NeedsImplicitReceiver(Handle<SharedFunctionInfo> shared_info) {
   DisallowHeapAllocation no_gc;
@@ -269,7 +366,6 @@ Reduction JSInliner::Reduce(Node* node) {
 
   return ReduceJSCall(node, function);
 }
-
 
 Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   DCHECK(IrOpcode::IsInlineeOpcode(node->opcode()));
@@ -344,12 +440,35 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
     }
   }
 
-  // TODO(turbofan): Inlining into a try-block is not yet supported.
-  if (NodeProperties::IsExceptionalCall(node)) {
-    TRACE("Not inlining %s into %s because of surrounding try-block\n",
+  // Find the IfException node, if any.
+  Node* exception_target = nullptr;
+  for (Edge edge : node->use_edges()) {
+    if (NodeProperties::IsControlEdge(edge) &&
+        edge.from()->opcode() == IrOpcode::kIfException) {
+      DCHECK_NULL(exception_target);
+      exception_target = edge.from();
+    }
+  }
+
+  NodeVector uncaught_subcalls(local_zone_);
+
+  if (exception_target != nullptr) {
+    if (!FLAG_inline_into_try) {
+      TRACE(
+          "Try block surrounds #%d:%s and --no-inline-into-try active, so not "
+          "inlining %s into %s.\n",
+          exception_target->id(), exception_target->op()->mnemonic(),
           shared_info->DebugName()->ToCString().get(),
           info_->shared_info()->DebugName()->ToCString().get());
-    return NoChange();
+      return NoChange();
+    } else {
+      TRACE(
+          "Inlining %s into %s regardless of surrounding try-block to catcher "
+          "#%d:%s\n",
+          shared_info->DebugName()->ToCString().get(),
+          info_->shared_info()->DebugName()->ToCString().get(),
+          exception_target->id(), exception_target->op()->mnemonic());
+    }
   }
 
   Zone zone(info_->isolate()->allocator());
@@ -357,8 +476,20 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   CompilationInfo info(&parse_info, function);
   if (info_->is_deoptimization_enabled()) info.MarkAsDeoptimizationEnabled();
   if (info_->is_type_feedback_enabled()) info.MarkAsTypeFeedbackEnabled();
+  if (info_->is_optimizing_from_bytecode()) info.MarkAsOptimizeFromBytecode();
 
-  if (!Compiler::ParseAndAnalyze(info.parse_info())) {
+  if (info.is_optimizing_from_bytecode() && !Compiler::EnsureBytecode(&info)) {
+    TRACE("Not inlining %s into %s because bytecode generation failed\n",
+          shared_info->DebugName()->ToCString().get(),
+          info_->shared_info()->DebugName()->ToCString().get());
+    if (info_->isolate()->has_pending_exception()) {
+      info_->isolate()->clear_pending_exception();
+    }
+    return NoChange();
+  }
+
+  if (!info.is_optimizing_from_bytecode() &&
+      !Compiler::ParseAndAnalyze(info.parse_info())) {
     TRACE("Not inlining %s into %s because parsing failed\n",
           shared_info->DebugName()->ToCString().get(),
           info_->shared_info()->DebugName()->ToCString().get());
@@ -368,7 +499,8 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
     return NoChange();
   }
 
-  if (!Compiler::EnsureDeoptimizationSupport(&info)) {
+  if (!info.is_optimizing_from_bytecode() &&
+      !Compiler::EnsureDeoptimizationSupport(&info)) {
     TRACE("Not inlining %s into %s because deoptimization support failed\n",
           shared_info->DebugName()->ToCString().get(),
           info_->shared_info()->DebugName()->ToCString().get());
@@ -388,13 +520,23 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
         shared_info->DebugName()->ToCString().get(),
         info_->shared_info()->DebugName()->ToCString().get());
 
-  // If function was lazily compiled, it's literals array may not yet be set up.
+  // If function was lazily compiled, its literals array may not yet be set up.
   JSFunction::EnsureLiterals(function);
 
   // Create the subgraph for the inlinee.
   Node* start;
   Node* end;
-  {
+  if (info.is_optimizing_from_bytecode()) {
+    // Run the BytecodeGraphBuilder to create the subgraph.
+    Graph::SubgraphScope scope(graph());
+    BytecodeGraphBuilder graph_builder(&zone, &info, jsgraph(),
+                                       call.frequency());
+    graph_builder.CreateGraph();
+
+    // Extract the inlinee start/end nodes.
+    start = graph()->start();
+    end = graph()->end();
+  } else {
     // Run the loop assignment analyzer on the inlinee.
     AstLoopAssignmentAnalyzer loop_assignment_analyzer(&zone, &info);
     LoopAssignmentAnalysis* loop_assignment =
@@ -407,13 +549,36 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
 
     // Run the AstGraphBuilder to create the subgraph.
     Graph::SubgraphScope scope(graph());
-    AstGraphBuilder graph_builder(&zone, &info, jsgraph(), loop_assignment,
-                                  type_hint_analysis);
+    AstGraphBuilder graph_builder(&zone, &info, jsgraph(), call.frequency(),
+                                  loop_assignment, type_hint_analysis);
     graph_builder.CreateGraph(false);
 
     // Extract the inlinee start/end nodes.
     start = graph()->start();
     end = graph()->end();
+  }
+
+  if (exception_target != nullptr) {
+    // Find all uncaught 'calls' in the inlinee.
+    AllNodes inlined_nodes(local_zone_, end, graph());
+    for (Node* subnode : inlined_nodes.reachable) {
+      // Every possibly throwing node with an IfSuccess should get an
+      // IfException.
+      if (subnode->op()->HasProperty(Operator::kNoThrow)) {
+        continue;
+      }
+      bool hasIfException = false;
+      for (Node* use : subnode->uses()) {
+        if (use->opcode() == IrOpcode::kIfException) {
+          hasIfException = true;
+          break;
+        }
+      }
+      if (!hasIfException) {
+        DCHECK_EQ(2, subnode->op()->ControlOutputCount());
+        uncaught_subcalls.push_back(subnode);
+      }
+    }
   }
 
   Node* frame_state = call.frame_state();
@@ -475,15 +640,17 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   // in that frame state tho, as the conversion of the receiver can be repeated
   // any number of times, it's not observable.
   if (node->opcode() == IrOpcode::kJSCallFunction &&
-      is_sloppy(parse_info.language_mode()) && !shared_info->native()) {
-    const CallFunctionParameters& p = CallFunctionParametersOf(node->op());
-    Node* frame_state_before = NodeProperties::FindFrameStateBefore(node);
+      is_sloppy(shared_info->language_mode()) && !shared_info->native()) {
     Node* effect = NodeProperties::GetEffectInput(node);
-    Node* convert = graph()->NewNode(
-        javascript()->ConvertReceiver(p.convert_mode()), call.receiver(),
-        context, frame_state_before, effect, start);
-    NodeProperties::ReplaceValueInput(node, convert, 1);
-    NodeProperties::ReplaceEffectInput(node, convert);
+    if (NeedsConvertReceiver(call.receiver(), effect)) {
+      const CallFunctionParameters& p = CallFunctionParametersOf(node->op());
+      Node* frame_state_before = NodeProperties::FindFrameStateBefore(node);
+      Node* convert = effect = graph()->NewNode(
+          javascript()->ConvertReceiver(p.convert_mode()), call.receiver(),
+          context, frame_state_before, effect, start);
+      NodeProperties::ReplaceValueInput(node, convert, 1);
+      NodeProperties::ReplaceEffectInput(node, effect);
+    }
   }
 
   // If we are inlining a JS call at tail position then we have to pop current
@@ -504,7 +671,7 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   // count (i.e. value outputs of start node minus target, receiver, new target,
   // arguments count and context) have to match the number of arguments passed
   // to the call.
-  int parameter_count = info.literal()->parameter_count();
+  int parameter_count = shared_info->internal_formal_parameter_count();
   DCHECK_EQ(parameter_count, start->op()->ValueOutputCount() - 5);
   if (call.formal_arguments() != parameter_count) {
     frame_state = CreateArtificialFrameState(
@@ -512,7 +679,8 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
         FrameStateType::kArgumentsAdaptor, shared_info);
   }
 
-  return InlineCall(node, new_target, context, frame_state, start, end);
+  return InlineCall(node, new_target, context, frame_state, start, end,
+                    exception_target, uncaught_subcalls);
 }
 
 Graph* JSInliner::graph() const { return jsgraph()->graph(); }

@@ -72,11 +72,18 @@ const testData = [
     '<p>I exist and am being linked to.</p>' +
     '<!-- [end-include:doc_inc_2.md] -->'
   },
+  {
+    file: path.join(common.fixturesDir, 'sample_document.md'),
+    html: '<ol><li>fish</li><li><p>fish</p></li><li><p>Redfish</p></li>' +
+      '<li>Bluefish</li></ol>',
+    analyticsId: 'UA-67020396-1'
+  },
 ];
 
 testData.forEach((item) => {
   // Normalize expected data by stripping whitespace
   const expected = item.html.replace(/\s/g, '');
+  const includeAnalytics = typeof item.analyticsId !== 'undefined';
 
   fs.readFile(item.file, 'utf8', common.mustCall((err, input) => {
     assert.ifError(err);
@@ -89,6 +96,7 @@ testData.forEach((item) => {
           filename: 'foo',
           template: 'doc/template.html',
           nodeVersion: process.version,
+          analytics: item.analyticsId,
         },
         common.mustCall((err, output) => {
           assert.ifError(err);
@@ -97,6 +105,16 @@ testData.forEach((item) => {
           // Assert that the input stripped of all whitespace contains the
           // expected list
           assert.notStrictEqual(actual.indexOf(expected), -1);
+
+          // Testing the insertion of Google Analytics script when
+          // an analytics id is provided. Should not be present by default
+          if (includeAnalytics) {
+            assert.notStrictEqual(actual.indexOf('google-analytics.com'), -1,
+                                  'Google Analytics script was not present');
+          } else {
+            assert.strictEqual(actual.indexOf('google-analytics.com'), -1,
+                               'Google Analytics script was present');
+          }
         }));
     }));
   }));

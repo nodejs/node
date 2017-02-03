@@ -297,8 +297,6 @@ class LCodeGen: public LCodeGenBase {
 
   template <class T>
   void EmitVectorLoadICRegisters(T* instr);
-  template <class T>
-  void EmitVectorStoreICRegisters(T* instr);
 
 #ifdef _MSC_VER
   // On windows, you may not access the stack more than one page below

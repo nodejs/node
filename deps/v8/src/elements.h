@@ -114,6 +114,9 @@ class ElementsAccessor {
                                       Handle<Map> map) = 0;
   virtual void GrowCapacityAndConvert(Handle<JSObject> object,
                                       uint32_t capacity) = 0;
+  // Unlike GrowCapacityAndConvert do not attempt to convert the backing store
+  // and simply return false in this case.
+  virtual bool GrowCapacity(Handle<JSObject> object, uint32_t index) = 0;
 
   static void InitializeOncePerProcess();
   static void TearDown();

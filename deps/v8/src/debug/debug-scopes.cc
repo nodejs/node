@@ -7,7 +7,6 @@
 #include <memory>
 
 #include "src/ast/scopes.h"
-#include "src/compiler.h"
 #include "src/debug/debug.h"
 #include "src/frames-inl.h"
 #include "src/globals.h"
@@ -100,7 +99,9 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
     } else {
       DCHECK(scope_info->scope_type() == EVAL_SCOPE);
       info->set_eval();
-      info->set_context(Handle<Context>(function->context()));
+      if (!function->context()->IsNativeContext()) {
+        info->set_outer_scope_info(handle(function->context()->scope_info()));
+      }
       // Language mode may be inherited from the eval caller.
       // Retrieve it from shared function info.
       info->set_language_mode(shared_info->language_mode());
@@ -115,8 +116,7 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
       CollectNonLocals(info.get(), scope);
     }
     if (!ignore_nested_scopes) {
-      AstNodeFactory ast_node_factory(info.get()->ast_value_factory());
-      scope->AllocateVariables(info.get(), &ast_node_factory);
+      DeclarationScope::Analyze(info.get(), AnalyzeMode::kDebugger);
       RetrieveScopeChain(scope);
     }
   } else if (!ignore_nested_scopes) {
@@ -364,7 +364,7 @@ bool ScopeIterator::SetVariableValue(Handle<String> variable_name,
     case ScopeIterator::ScopeTypeEval:
       return SetInnerScopeVariableValue(variable_name, new_value);
     case ScopeIterator::ScopeTypeModule:
-      // TODO(2399): should we implement it?
+      // TODO(neis): Implement.
       break;
   }
   return false;
@@ -619,6 +619,8 @@ MaybeHandle<JSObject> ScopeIterator::MaterializeModuleScope() {
   // Fill all context locals.
   CopyContextLocalsToScopeObject(scope_info, context, module_scope);
 
+  // TODO(neis): Also collect stack locals as well as imports and exports.
+
   return module_scope;
 }
 
@@ -819,11 +821,10 @@ void ScopeIterator::GetNestedScopeChain(Isolate* isolate, Scope* scope,
   if (scope->is_hidden()) {
     // We need to add this chain element in case the scope has a context
     // associated. We need to keep the scope chain and context chain in sync.
-    nested_scope_chain_.Add(ExtendedScopeInfo(scope->GetScopeInfo(isolate)));
+    nested_scope_chain_.Add(ExtendedScopeInfo(scope->scope_info()));
   } else {
-    nested_scope_chain_.Add(ExtendedScopeInfo(scope->GetScopeInfo(isolate),
-                                              scope->start_position(),
-                                              scope->end_position()));
+    nested_scope_chain_.Add(ExtendedScopeInfo(
+        scope->scope_info(), scope->start_position(), scope->end_position()));
   }
   for (Scope* inner_scope = scope->inner_scope(); inner_scope != nullptr;
        inner_scope = inner_scope->sibling()) {

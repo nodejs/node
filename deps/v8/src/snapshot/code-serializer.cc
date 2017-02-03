@@ -98,6 +98,10 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     UNREACHABLE();
   }
 
+  if (ElideObject(obj)) {
+    return SerializeObject(*isolate()->factory()->undefined_value(),
+                           how_to_code, where_to_point, skip);
+  }
   // Past this point we should not see any (context-specific) maps anymore.
   CHECK(!obj->IsMap());
   // There should be no references to the global object embedded.

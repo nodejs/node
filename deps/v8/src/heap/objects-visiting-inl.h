@@ -147,11 +147,17 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(kVisitNativeContext, &VisitNativeContext);
 
-  table_.Register(kVisitAllocationSite, &VisitAllocationSite);
+  table_.Register(
+      kVisitAllocationSite,
+      &FixedBodyVisitor<StaticVisitor, AllocationSite::MarkingBodyDescriptor,
+                        void>::Visit);
 
   table_.Register(kVisitByteArray, &DataObjectVisitor::Visit);
 
-  table_.Register(kVisitBytecodeArray, &VisitBytecodeArray);
+  table_.Register(
+      kVisitBytecodeArray,
+      &FixedBodyVisitor<StaticVisitor, BytecodeArray::MarkingBodyDescriptor,
+                        void>::Visit);
 
   table_.Register(kVisitFreeSpace, &DataObjectVisitor::Visit);
 
@@ -178,13 +184,15 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
       &FlexibleBodyVisitor<StaticVisitor, JSArrayBuffer::BodyDescriptor,
                            void>::Visit);
 
-  // Registration for kVisitJSRegExp is done by StaticVisitor.
+  table_.Register(kVisitJSRegExp, &JSObjectVisitor::Visit);
 
   table_.Register(
       kVisitCell,
       &FixedBodyVisitor<StaticVisitor, Cell::BodyDescriptor, void>::Visit);
 
-  table_.Register(kVisitPropertyCell, &VisitPropertyCell);
+  table_.Register(kVisitPropertyCell,
+                  &FixedBodyVisitor<StaticVisitor, PropertyCell::BodyDescriptor,
+                                    void>::Visit);
 
   table_.Register(kVisitWeakCell, &VisitWeakCell);
 
@@ -319,19 +327,6 @@ void StaticMarkingVisitor<StaticVisitor>::VisitMap(Map* map,
   }
 }
 
-
-template <typename StaticVisitor>
-void StaticMarkingVisitor<StaticVisitor>::VisitPropertyCell(
-    Map* map, HeapObject* object) {
-  Heap* heap = map->GetHeap();
-
-  StaticVisitor::VisitPointers(
-      heap, object,
-      HeapObject::RawField(object, PropertyCell::kPointerFieldsBeginOffset),
-      HeapObject::RawField(object, PropertyCell::kPointerFieldsEndOffset));
-}
-
-
 template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitWeakCell(Map* map,
                                                         HeapObject* object) {
@@ -383,19 +378,6 @@ void StaticMarkingVisitor<StaticVisitor>::VisitTransitionArray(
     heap->set_encountered_transition_arrays(array);
   }
 }
-
-
-template <typename StaticVisitor>
-void StaticMarkingVisitor<StaticVisitor>::VisitAllocationSite(
-    Map* map, HeapObject* object) {
-  Heap* heap = map->GetHeap();
-
-  StaticVisitor::VisitPointers(
-      heap, object,
-      HeapObject::RawField(object, AllocationSite::kPointerFieldsBeginOffset),
-      HeapObject::RawField(object, AllocationSite::kPointerFieldsEndOffset));
-}
-
 
 template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitWeakCollection(
@@ -467,11 +449,11 @@ void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfo(
       // optimized code.
       collector->code_flusher()->AddCandidate(shared);
       // Treat the reference to the code object weakly.
-      VisitSharedFunctionInfoWeakCode(heap, object);
+      VisitSharedFunctionInfoWeakCode(map, object);
       return;
     }
   }
-  VisitSharedFunctionInfoStrongCode(heap, object);
+  VisitSharedFunctionInfoStrongCode(map, object);
 }
 
 
@@ -503,23 +485,6 @@ void StaticMarkingVisitor<StaticVisitor>::VisitJSFunction(Map* map,
   }
   VisitJSFunctionStrongCode(map, object);
 }
-
-
-template <typename StaticVisitor>
-void StaticMarkingVisitor<StaticVisitor>::VisitJSRegExp(Map* map,
-                                                        HeapObject* object) {
-  JSObjectVisitor::Visit(map, object);
-}
-
-template <typename StaticVisitor>
-void StaticMarkingVisitor<StaticVisitor>::VisitBytecodeArray(
-    Map* map, HeapObject* object) {
-  StaticVisitor::VisitPointers(
-      map->GetHeap(), object,
-      HeapObject::RawField(object, BytecodeArray::kConstantPoolOffset),
-      HeapObject::RawField(object, BytecodeArray::kFrameSizeOffset));
-}
-
 
 template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::MarkMapContents(Heap* heap,
@@ -623,7 +588,7 @@ bool StaticMarkingVisitor<StaticVisitor>::IsFlushable(
   // We do not (yet?) flush code for generator functions, or async functions,
   // because we don't know if there are still live activations
   // (generator objects) on the heap.
-  if (shared_info->is_resumable()) {
+  if (IsResumableFunction(shared_info->kind())) {
     return false;
   }
 
@@ -656,38 +621,22 @@ bool StaticMarkingVisitor<StaticVisitor>::IsFlushable(
   return true;
 }
 
-
 template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfoStrongCode(
-    Heap* heap, HeapObject* object) {
-  Object** start_slot = HeapObject::RawField(
-      object, SharedFunctionInfo::BodyDescriptor::kStartOffset);
-  Object** end_slot = HeapObject::RawField(
-      object, SharedFunctionInfo::BodyDescriptor::kEndOffset);
-  StaticVisitor::VisitPointers(heap, object, start_slot, end_slot);
+    Map* map, HeapObject* object) {
+  FixedBodyVisitor<StaticVisitor, SharedFunctionInfo::BodyDescriptor,
+                   void>::Visit(map, object);
 }
-
 
 template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitSharedFunctionInfoWeakCode(
-    Heap* heap, HeapObject* object) {
-  Object** name_slot =
-      HeapObject::RawField(object, SharedFunctionInfo::kNameOffset);
-  StaticVisitor::VisitPointer(heap, object, name_slot);
-
+    Map* map, HeapObject* object) {
   // Skip visiting kCodeOffset as it is treated weakly here.
-  STATIC_ASSERT(SharedFunctionInfo::kNameOffset + kPointerSize ==
-                SharedFunctionInfo::kCodeOffset);
-  STATIC_ASSERT(SharedFunctionInfo::kCodeOffset + kPointerSize ==
-                SharedFunctionInfo::kOptimizedCodeMapOffset);
-
-  Object** start_slot =
-      HeapObject::RawField(object, SharedFunctionInfo::kOptimizedCodeMapOffset);
-  Object** end_slot = HeapObject::RawField(
-      object, SharedFunctionInfo::BodyDescriptor::kEndOffset);
-  StaticVisitor::VisitPointers(heap, object, start_slot, end_slot);
+  STATIC_ASSERT(SharedFunctionInfo::kCodeOffset <
+                SharedFunctionInfo::BodyDescriptorWeakCode::kStartOffset);
+  FixedBodyVisitor<StaticVisitor, SharedFunctionInfo::BodyDescriptorWeakCode,
+                   void>::Visit(map, object);
 }
-
 
 template <typename StaticVisitor>
 void StaticMarkingVisitor<StaticVisitor>::VisitJSFunctionStrongCode(

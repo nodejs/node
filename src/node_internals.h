@@ -8,6 +8,7 @@
 #include "util-inl.h"
 #include "uv.h"
 #include "v8.h"
+#include "tracing/trace_event.h"
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -40,6 +41,11 @@ extern const char* openssl_config;
 // Used in node_config.cc to set a constant on process.binding('config')
 // that is used by lib/module.js
 extern bool config_preserve_symlinks;
+
+// Set in node.cc by ParseArgs when --redirect-warnings= is used.
+// Used to redirect warning output to a file rather than sending
+// it to stderr.
+extern const char* config_warning_file;
 
 // Tells whether it is safe to call v8::Isolate::GetCurrent().
 extern bool v8_initialized;

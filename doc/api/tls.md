@@ -1087,6 +1087,9 @@ console.log(tls.getCiphers()); // ['AES128-SHA', 'AES256-SHA', ...]
 ```
 
 ## tls.DEFAULT_ECDH_CURVE
+<!-- YAML
+added: v0.11.13
+-->
 
 The default curve name to use for ECDH key agreement in a tls server. The
 default value is `'prime256v1'` (NIST P-256). Consult [RFC 4492] and

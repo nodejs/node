@@ -24,6 +24,15 @@ assert.strictEqual(
   'Willst du die Blüthe des frühen, die Früchte des späteren Jahres'
 );
 assert.strictEqual(punycode.decode('wgv71a119e'), '日本語');
+assert.throws(() => {
+  punycode.decode(' ');
+}, /^RangeError: Invalid input$/);
+assert.throws(() => {
+  punycode.decode('α-');
+}, /^RangeError: Illegal input >= 0x80 \(not a basic code point\)$/);
+assert.throws(() => {
+  punycode.decode('あ');
+}, /^RangeError: Overflow: input needs wider integers to process$/);
 
 // http://tools.ietf.org/html/rfc3492#section-7.1
 const tests = [

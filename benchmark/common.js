@@ -128,6 +128,14 @@ Benchmark.prototype.http = function(options, cb) {
 
 Benchmark.prototype._run = function() {
   const self = this;
+  // If forked, report to the parent.
+  if (process.send) {
+    process.send({
+      type: 'config',
+      name: this.name,
+      queueLength: this.queue.length
+    });
+  }
 
   (function recursive(queueIndex) {
     const config = self.queue[queueIndex];
@@ -217,7 +225,8 @@ Benchmark.prototype.report = function(rate, elapsed) {
     name: this.name,
     conf: this.config,
     rate: rate,
-    time: elapsed[0] + elapsed[1] / 1e9
+    time: elapsed[0] + elapsed[1] / 1e9,
+    type: 'report'
   });
 };
 

@@ -5,7 +5,7 @@
 #ifndef V8_CCTEST_COMPILER_CODEGEN_TESTER_H_
 #define V8_CCTEST_COMPILER_CODEGEN_TESTER_H_
 
-#include "src/compiler.h"
+#include "src/compilation-info.h"
 #include "src/compiler/instruction-selector.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/raw-machine-assembler.h"
@@ -67,7 +67,8 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
       Schedule* schedule = this->Export();
       CallDescriptor* call_descriptor = this->call_descriptor();
       Graph* graph = this->graph();
-      CompilationInfo info(ArrayVector("testing"), main_isolate(), main_zone());
+      CompilationInfo info(ArrayVector("testing"), main_isolate(), main_zone(),
+                           Code::ComputeFlags(Code::STUB));
       code_ = Pipeline::GenerateCodeForTesting(&info, call_descriptor, graph,
                                                schedule);
     }

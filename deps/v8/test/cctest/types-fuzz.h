@@ -29,16 +29,18 @@
 #define V8_TEST_CCTEST_TYPES_H_
 
 #include "src/base/utils/random-number-generator.h"
+#include "src/factory.h"
+#include "src/isolate.h"
 #include "src/v8.h"
 
 namespace v8 {
 namespace internal {
-
+namespace compiler {
 
 class Types {
  public:
   Types(Zone* zone, Isolate* isolate, v8::base::RandomNumberGenerator* rng)
-      : zone_(zone), isolate_(isolate), rng_(rng) {
+      : zone_(zone), rng_(rng) {
 #define DECLARE_TYPE(name, value) \
   name = Type::name();            \
   types.push_back(name);
@@ -50,22 +52,6 @@ class Types {
 
     object_map = isolate->factory()->NewMap(
         JS_OBJECT_TYPE, JSObject::kHeaderSize);
-    array_map = isolate->factory()->NewMap(
-        JS_ARRAY_TYPE, JSArray::kSize);
-    number_map = isolate->factory()->NewMap(
-        HEAP_NUMBER_TYPE, HeapNumber::kSize);
-    uninitialized_map = isolate->factory()->uninitialized_map();
-    ObjectClass = Type::Class(object_map, zone);
-    ArrayClass = Type::Class(array_map, zone);
-    NumberClass = Type::Class(number_map, zone);
-    UninitializedClass = Type::Class(uninitialized_map, zone);
-
-    maps.push_back(object_map);
-    maps.push_back(array_map);
-    maps.push_back(uninitialized_map);
-    for (MapVector::iterator it = maps.begin(); it != maps.end(); ++it) {
-      types.push_back(Type::Class(*it, zone));
-    }
 
     smi = handle(Smi::FromInt(666), isolate);
     signed32 = isolate->factory()->NewHeapNumber(0x40000000);
@@ -104,24 +90,12 @@ class Types {
 
     Integer = Type::Range(-V8_INFINITY, +V8_INFINITY, zone);
 
-    NumberArray = Type::Array(Number, zone);
-    StringArray = Type::Array(String, zone);
-    AnyArray = Type::Array(Any, zone);
-
-    SignedFunction1 = Type::Function(SignedSmall, SignedSmall, zone);
-    NumberFunction1 = Type::Function(Number, Number, zone);
-    NumberFunction2 = Type::Function(Number, Number, Number, zone);
-    MethodFunction = Type::Function(String, Object, 0, zone);
-
     for (int i = 0; i < 30; ++i) {
       types.push_back(Fuzz());
     }
   }
 
   Handle<i::Map> object_map;
-  Handle<i::Map> array_map;
-  Handle<i::Map> number_map;
-  Handle<i::Map> uninitialized_map;
 
   Handle<i::Smi> smi;
   Handle<i::HeapNumber> signed32;
@@ -134,16 +108,8 @@ class Types {
   PROPER_BITSET_TYPE_LIST(DECLARE_TYPE)
   #undef DECLARE_TYPE
 
-#define DECLARE_TYPE(name, value) Type* Mask##name##ForTesting;
-  MASK_BITSET_TYPE_LIST(DECLARE_TYPE)
-#undef DECLARE_TYPE
   Type* SignedSmall;
   Type* UnsignedSmall;
-
-  Type* ObjectClass;
-  Type* ArrayClass;
-  Type* NumberClass;
-  Type* UninitializedClass;
 
   Type* SmiConstant;
   Type* Signed32Constant;
@@ -154,29 +120,14 @@ class Types {
 
   Type* Integer;
 
-  Type* NumberArray;
-  Type* StringArray;
-  Type* AnyArray;
-
-  Type* SignedFunction1;
-  Type* NumberFunction1;
-  Type* NumberFunction2;
-  Type* MethodFunction;
-
   typedef std::vector<Type*> TypeVector;
-  typedef std::vector<Handle<i::Map> > MapVector;
   typedef std::vector<Handle<i::Object> > ValueVector;
 
   TypeVector types;
-  MapVector maps;
   ValueVector values;
   ValueVector integers;  // "Integer" values used for range limits.
 
   Type* Of(Handle<i::Object> value) { return Type::Of(value, zone_); }
-
-  Type* NowOf(Handle<i::Object> value) { return Type::NowOf(value, zone_); }
-
-  Type* Class(Handle<i::Map> map) { return Type::Class(map, zone_); }
 
   Type* Constant(Handle<i::Object> value) {
     return Type::Constant(value, zone_);
@@ -184,31 +135,9 @@ class Types {
 
   Type* Range(double min, double max) { return Type::Range(min, max, zone_); }
 
-  Type* Context(Type* outer) { return Type::Context(outer, zone_); }
-
-  Type* Array1(Type* element) { return Type::Array(element, zone_); }
-
-  Type* Function0(Type* result, Type* receiver) {
-    return Type::Function(result, receiver, 0, zone_);
-  }
-
-  Type* Function1(Type* result, Type* receiver, Type* arg) {
-    Type* type = Type::Function(result, receiver, 1, zone_);
-    type->AsFunction()->InitParameter(0, arg);
-    return type;
-  }
-
-  Type* Function2(Type* result, Type* arg1, Type* arg2) {
-    return Type::Function(result, arg1, arg2, zone_);
-  }
-
   Type* Union(Type* t1, Type* t2) { return Type::Union(t1, t2, zone_); }
 
   Type* Intersect(Type* t1, Type* t2) { return Type::Intersect(t1, t2, zone_); }
-
-  Type* Representation(Type* t) { return Type::Representation(t, zone_); }
-
-  Type* Semantic(Type* t) { return Type::Semantic(t, zone_); }
 
   Type* Random() {
     return types[rng_->NextInt(static_cast<int>(types.size()))];
@@ -239,57 +168,17 @@ class Types {
         }
         return result;
       }
-      case 1: {  // class
-        int i = rng_->NextInt(static_cast<int>(maps.size()));
-        return Type::Class(maps[i], zone_);
-      }
-      case 2: {  // constant
+      case 1: {  // constant
         int i = rng_->NextInt(static_cast<int>(values.size()));
         return Type::Constant(values[i], zone_);
       }
-      case 3: {  // range
+      case 2: {  // range
         int i = rng_->NextInt(static_cast<int>(integers.size()));
         int j = rng_->NextInt(static_cast<int>(integers.size()));
         double min = integers[i]->Number();
         double max = integers[j]->Number();
         if (min > max) std::swap(min, max);
         return Type::Range(min, max, zone_);
-      }
-      case 4: {  // context
-        int depth = rng_->NextInt(3);
-        Type* type = Type::Internal();
-        for (int i = 0; i < depth; ++i) type = Type::Context(type, zone_);
-        return type;
-      }
-      case 5: {  // array
-        Type* element = Fuzz(depth / 2);
-        return Type::Array(element, zone_);
-      }
-      case 6:
-      case 7: {  // function
-        Type* result = Fuzz(depth / 2);
-        Type* receiver = Fuzz(depth / 2);
-        int arity = rng_->NextInt(3);
-        Type* type = Type::Function(result, receiver, arity, zone_);
-        for (int i = 0; i < type->AsFunction()->Arity(); ++i) {
-          Type* parameter = Fuzz(depth / 2);
-          type->AsFunction()->InitParameter(i, parameter);
-        }
-        return type;
-      }
-      case 8: {  // simd
-        static const int num_simd_types =
-            #define COUNT_SIMD_TYPE(NAME, Name, name, lane_count, lane_type) +1
-            SIMD128_TYPES(COUNT_SIMD_TYPE);
-            #undef COUNT_SIMD_TYPE
-        Type* (*simd_constructors[num_simd_types])(Isolate*, Zone*) = {
-          #define COUNT_SIMD_TYPE(NAME, Name, name, lane_count, lane_type) \
-          &Type::Name,
-            SIMD128_TYPES(COUNT_SIMD_TYPE)
-          #undef COUNT_SIMD_TYPE
-        };
-        return simd_constructors[rng_->NextInt(num_simd_types)](isolate_,
-                                                                zone_);
       }
       default: {  // union
         int n = rng_->NextInt(10);
@@ -308,11 +197,10 @@ class Types {
 
  private:
   Zone* zone_;
-  Isolate* isolate_;
   v8::base::RandomNumberGenerator* rng_;
 };
 
-
+}  // namespace compiler
 }  // namespace internal
 }  // namespace v8
 

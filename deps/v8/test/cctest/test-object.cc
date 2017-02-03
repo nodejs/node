@@ -2,8 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/factory.h"
+#include "src/handles-inl.h"
+#include "src/handles.h"
+#include "src/isolate.h"
+#include "src/objects.h"
 #include "src/v8.h"
-
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;

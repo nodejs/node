@@ -26,7 +26,7 @@ class AstLiteralReindexer final : public AstVisitor<AstLiteralReindexer> {
   void VisitStatements(ZoneList<Statement*>* statements);
   void VisitDeclarations(ZoneList<Declaration*>* declarations);
   void VisitArguments(ZoneList<Expression*>* arguments);
-  void VisitObjectLiteralProperty(ObjectLiteralProperty* property);
+  void VisitLiteralProperty(LiteralProperty* property);
 
   void UpdateIndex(MaterializedLiteral* literal) {
     literal->literal_index_ = next_index_++;

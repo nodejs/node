@@ -16,7 +16,8 @@ namespace interpreter {
 class BytecodeDeadCodeOptimizerTest : public BytecodePipelineStage,
                                       public TestWithIsolateAndZone {
  public:
-  BytecodeDeadCodeOptimizerTest() : dead_code_optimizer_(this) {}
+  BytecodeDeadCodeOptimizerTest()
+      : dead_code_optimizer_(this), last_written_(Bytecode::kIllegal) {}
   ~BytecodeDeadCodeOptimizerTest() override {}
 
   void Write(BytecodeNode* node) override {
@@ -56,7 +57,7 @@ TEST_F(BytecodeDeadCodeOptimizerTest, LiveCodeKept) {
   CHECK_EQ(add, last_written());
 
   BytecodeLabel target;
-  BytecodeNode jump(Bytecode::kJump, 0);
+  BytecodeNode jump(Bytecode::kJump, 0, nullptr);
   optimizer()->WriteJump(&jump, &target);
   CHECK_EQ(write_count(), 2);
   CHECK_EQ(jump, last_written());
@@ -100,7 +101,7 @@ TEST_F(BytecodeDeadCodeOptimizerTest, DeadCodeAfterReThrowEliminated) {
 
 TEST_F(BytecodeDeadCodeOptimizerTest, DeadCodeAfterJumpEliminated) {
   BytecodeLabel target;
-  BytecodeNode jump(Bytecode::kJump, 0);
+  BytecodeNode jump(Bytecode::kJump, 0, nullptr);
   optimizer()->WriteJump(&jump, &target);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(jump, last_written());
@@ -118,7 +119,7 @@ TEST_F(BytecodeDeadCodeOptimizerTest, DeadCodeStillDeadAfterConditinalJump) {
   CHECK_EQ(ret, last_written());
 
   BytecodeLabel target;
-  BytecodeNode jump(Bytecode::kJumpIfTrue, 0);
+  BytecodeNode jump(Bytecode::kJumpIfTrue, 0, nullptr);
   optimizer()->WriteJump(&jump, &target);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(ret, last_written());

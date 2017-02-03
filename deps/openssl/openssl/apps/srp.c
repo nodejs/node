@@ -293,9 +293,8 @@ int MAIN(int argc, char **argv)
     int i;
     long errorline = -1;
     char *randfile = NULL;
-# ifndef OPENSSL_NO_ENGINE
+    ENGINE *e = NULL;
     char *engine = NULL;
-# endif
     char *tofree = NULL;
     DB_ATTR db_attr;
 
@@ -411,9 +410,7 @@ int MAIN(int argc, char **argv)
 
     ERR_load_crypto_strings();
 
-# ifndef OPENSSL_NO_ENGINE
-    setup_engine(bio_err, engine, 0);
-# endif
+    e = setup_engine(bio_err, engine, 0);
 
     if (!app_passwd(bio_err, passargin, passargout, &passin, &passout)) {
         BIO_printf(bio_err, "Error getting passwords\n");
@@ -760,6 +757,7 @@ int MAIN(int argc, char **argv)
     if (db)
         free_index(db);
 
+    release_engine(e);
     OBJ_cleanup();
     apps_shutdown();
     OPENSSL_EXIT(ret);

@@ -157,6 +157,16 @@ function u32_gteq(a, b) {
   return 0;
 }
 
+function u32_neg(a) {
+  a = a | 0;
+  return (-a) | 0;
+}
+
+function u32_invert(a) {
+  a = a | 0;
+  return (~a) | 0;
+}
+
 
 var inputs = [
   0, 1, 2, 3, 4,
@@ -202,6 +212,8 @@ var funcs = [
   u32_lteq,
   u32_gt,
   u32_gteq,
+  u32_neg,
+  u32_invert,
   // TODO(titzer): u32_min
   // TODO(titzer): u32_max
   // TODO(titzer): u32_abs

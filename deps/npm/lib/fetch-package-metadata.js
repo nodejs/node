@@ -26,6 +26,7 @@ var getCacheStat = require('./cache/get-stat.js')
 var unpack = require('./utils/tar.js').unpack
 var pulseTillDone = require('./utils/pulse-till-done.js')
 var parseJSON = require('./utils/parse-json.js')
+var pickManifestFromRegistryMetadata = require('./utils/pick-manifest-from-registry-metadata.js')
 
 function andLogAndFinish (spec, tracker, done) {
   validate('SF', [spec, done])
@@ -113,7 +114,7 @@ function fetchNamedPackageData (dep, next) {
     } else {
       npm.registry.get(url, {auth: auth}, pulseTillDone('fetchMetadata', iferr(next, pickVersionFromRegistryDocument)))
     }
-    function returnAndAddMetadata (pkg) {
+    function thenAddMetadata (pkg) {
       pkg._from = dep.raw
       pkg._resolved = pkg.dist.tarball
       pkg._shasum = pkg.dist.shasum
@@ -130,35 +131,14 @@ function fetchNamedPackageData (dep, next) {
             'You should delete or re-publish the invalid versions.', pkg.name, invalidVersions.join(', '))
       }
 
-      versions = versions.filter(function (v) { return semver.valid(v) }).sort(semver.rcompare)
+      versions = versions.filter(function (v) { return semver.valid(v) })
 
       if (dep.type === 'tag') {
         var tagVersion = pkg['dist-tags'][dep.spec]
-        if (pkg.versions[tagVersion]) return returnAndAddMetadata(pkg.versions[tagVersion])
+        if (pkg.versions[tagVersion]) return thenAddMetadata(pkg.versions[tagVersion])
       } else {
-        var latestVersion = pkg['dist-tags'][npm.config.get('tag')] || versions[0]
-
-        // Find the the most recent version less than or equal
-        // to latestVersion that satisfies our spec
-        for (var ii = 0; ii < versions.length; ++ii) {
-          if (semver.gt(versions[ii], latestVersion)) continue
-          if (semver.satisfies(versions[ii], dep.spec)) {
-            return returnAndAddMetadata(pkg.versions[versions[ii]])
-          }
-        }
-
-        // Failing that, try finding the most recent version that matches
-        // our spec
-        for (var jj = 0; jj < versions.length; ++jj) {
-          if (semver.satisfies(versions[jj], dep.spec)) {
-            return returnAndAddMetadata(pkg.versions[versions[jj]])
-          }
-        }
-
-        // Failing THAT, if the range was '*' uses latestVersion
-        if (dep.spec === '*') {
-          return returnAndAddMetadata(pkg.versions[latestVersion])
-        }
+        var picked = pickManifestFromRegistryMetadata(dep.spec, npm.config.get('tag'), versions, pkg)
+        if (picked) return thenAddMetadata(picked.manifest)
       }
 
       // We didn't manage to find a compatible version

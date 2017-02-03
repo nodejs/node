@@ -16,7 +16,7 @@ function testCallFFI(func, check) {
     .addBody([
       kExprGetLocal, 0,            // --
       kExprGetLocal, 1,            // --
-      kExprCallImport, kArity2, 0  // --
+      kExprCallFunction, 0  // --
     ])        // --
     .exportFunc();
 
@@ -80,7 +80,7 @@ print("Constructor");
     .addBody([
       kExprGetLocal, 0,            // --
       kExprGetLocal, 1,            // --
-      kExprCallImport, kArity2, 0  // --
+      kExprCallFunction, 0  // --
     ])        // --
     .exportFunc();
 
@@ -98,7 +98,7 @@ print("Native function");
   builder.addImport("func", sig_index);
   builder.addFunction("main", sig_index)
     .addBody([
-      kExprCallImport, kArity0, 0  // --
+      kExprCallFunction, 0  // --
     ])        // --
     .exportFunc();
 
@@ -247,7 +247,7 @@ function testCallBinopVoid(type, func, check) {
     .addBody([
       kExprGetLocal, 0,            // --
       kExprGetLocal, 1,            // --
-      kExprCallImport, kArity2, 0, // --
+      kExprCallFunction, 0,        // --
       kExprI8Const, 99             // --
     ])                             // --
     .exportFunc()
@@ -302,11 +302,11 @@ function testCallPrint() {
   builder.addImport("print", makeSig_v_x(kAstF64));
   builder.addFunction("main", makeSig_v_x(kAstF64))
     .addBody([
-      kExprI8Const, 97,             // --
-      kExprCallImport, kArity1, 0,  // --
-      kExprGetLocal, 0,             // --
-      kExprCallImport, kArity1, 1   // --
-    ])        // --
+      kExprI8Const, 97,      // --
+      kExprCallFunction, 0,  // --
+      kExprGetLocal, 0,      // --
+      kExprCallFunction, 1   // --
+    ])                       // --
     .exportFunc()
 
   var main = builder.instantiate({print: print}).exports.main;

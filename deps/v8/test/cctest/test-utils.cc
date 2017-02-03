@@ -33,6 +33,7 @@
 
 #include "src/base/platform/platform.h"
 #include "src/collector.h"
+#include "src/conversions.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;

@@ -5,7 +5,7 @@
 #ifndef V8_COMPILER_OSR_H_
 #define V8_COMPILER_OSR_H_
 
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 // TurboFan structures OSR graphs in a way that separates almost all phases of
 // compilation from OSR implementation details. This is accomplished with

@@ -101,6 +101,7 @@
       'lib/internal/v8_prof_processor.js',
       'lib/internal/streams/lazy_transform.js',
       'lib/internal/streams/BufferList.js',
+      'lib/internal/streams/legacy.js',
       'deps/v8/tools/splaytree.js',
       'deps/v8/tools/codemap.js',
       'deps/v8/tools/consarray.js',
@@ -908,7 +909,6 @@
             'HAVE_INSPECTOR=1',
           ],
           'dependencies': [
-            'deps/zlib/zlib.gyp:zlib',
             'v8_inspector_compress_protocol_json#host'
           ],
           'include_dirs': [
@@ -921,6 +921,11 @@
             'test/cctest/test_inspector_socket_server.cc'
           ],
           'conditions': [
+            [ 'node_shared_zlib=="false"', {
+              'dependencies': [
+                'deps/zlib/zlib.gyp:zlib',
+              ]
+            }],
             [ 'node_shared_openssl=="false"', {
               'dependencies': [
                 'deps/openssl/openssl.gyp:openssl'

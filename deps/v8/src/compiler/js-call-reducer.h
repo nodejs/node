@@ -20,18 +20,22 @@ class SimplifiedOperatorBuilder;
 
 // Performs strength reduction on {JSCallConstruct} and {JSCallFunction} nodes,
 // which might allow inlining or other optimizations to be performed afterwards.
-class JSCallReducer final : public Reducer {
+class JSCallReducer final : public AdvancedReducer {
  public:
   // Flags that control the mode of operation.
   enum Flag {
     kNoFlags = 0u,
-    kDeoptimizationEnabled = 1u << 0,
+    kBailoutOnUninitialized = 1u << 0,
+    kDeoptimizationEnabled = 1u << 1
   };
   typedef base::Flags<Flag> Flags;
 
-  JSCallReducer(JSGraph* jsgraph, Flags flags,
+  JSCallReducer(Editor* editor, JSGraph* jsgraph, Flags flags,
                 MaybeHandle<Context> native_context)
-      : jsgraph_(jsgraph), flags_(flags), native_context_(native_context) {}
+      : AdvancedReducer(editor),
+        jsgraph_(jsgraph),
+        flags_(flags),
+        native_context_(native_context) {}
 
   Reduction Reduce(Node* node) final;
 

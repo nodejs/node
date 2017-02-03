@@ -6,7 +6,7 @@
 #define V8_COMPILER_MOVE_OPTIMIZER_
 
 #include "src/compiler/instruction.h"
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {

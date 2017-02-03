@@ -11,8 +11,8 @@
 
 #include <memory>
 
-#include "src/base/accounting-allocator.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/zone/accounting-allocator.h"
 
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/int64-lowering.h"
@@ -29,7 +29,7 @@
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
 
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/call-tester.h"
@@ -181,7 +181,7 @@ class TestingModule : public ModuleEnv {
       module_.functions.reserve(kMaxFunctions);
     }
     uint32_t index = static_cast<uint32_t>(module->functions.size());
-    module_.functions.push_back({sig, index, 0, 0, 0, 0, 0});
+    module_.functions.push_back({sig, index, 0, 0, 0, 0, 0, false, false});
     instance->function_code.push_back(code);
     if (interpreter_) {
       const WasmFunction* function = &module->functions.back();
@@ -208,7 +208,7 @@ class TestingModule : public ModuleEnv {
     Handle<String> name = isolate_->factory()->NewStringFromStaticChars("main");
     Handle<JSObject> module_object = Handle<JSObject>(0, isolate_);
     Handle<Code> code = instance->function_code[index];
-    WasmJs::InstallWasmFunctionMap(isolate_, isolate_->native_context());
+    WasmJs::InstallWasmMapsIfNeeded(isolate_, isolate_->native_context());
     Handle<Code> ret_code =
         compiler::CompileJSToWasmWrapper(isolate_, this, code, index);
     FunctionSig* funcSig = this->module->functions[index].sig;
@@ -230,7 +230,7 @@ class TestingModule : public ModuleEnv {
 
   void AddIndirectFunctionTable(uint16_t* functions, uint32_t table_size) {
     module_.function_tables.push_back(
-        {table_size, table_size, std::vector<uint16_t>()});
+        {table_size, table_size, std::vector<int32_t>(), false, false});
     for (uint32_t i = 0; i < table_size; ++i) {
       module_.function_tables.back().values.push_back(functions[i]);
     }
@@ -259,7 +259,7 @@ class TestingModule : public ModuleEnv {
   WasmModule module_;
   WasmModuleInstance instance_;
   Isolate* isolate_;
-  v8::base::AccountingAllocator allocator_;
+  v8::internal::AccountingAllocator allocator_;
   uint32_t global_offset;
   V8_ALIGNED(8) byte global_data[kMaxGlobalsSize];  // preallocated global data.
   WasmInterpreter* interpreter_;
@@ -267,7 +267,8 @@ class TestingModule : public ModuleEnv {
   const WasmGlobal* AddGlobal(LocalType type) {
     byte size = WasmOpcodes::MemSize(WasmOpcodes::MachineTypeFor(type));
     global_offset = (global_offset + size - 1) & ~(size - 1);  // align
-    module_.globals.push_back({0, 0, type, global_offset, false});
+    module_.globals.push_back(
+        {type, true, NO_INIT, global_offset, false, false});
     global_offset += size;
     // limit number of globals.
     CHECK_LT(global_offset, kMaxGlobalsSize);
@@ -283,6 +284,13 @@ inline void TestBuildingGraph(Zone* zone, JSGraph* jsgraph, ModuleEnv* module,
   DecodeResult result =
       BuildTFGraph(zone->allocator(), &builder, module, sig, start, end);
   if (result.failed()) {
+    if (!FLAG_trace_wasm_decoder) {
+      // Retry the compilation with the tracing flag on, to help in debugging.
+      FLAG_trace_wasm_decoder = true;
+      result =
+          BuildTFGraph(zone->allocator(), &builder, module, sig, start, end);
+    }
+
     ptrdiff_t pc = result.error_pc - result.start;
     ptrdiff_t pt = result.error_pt - result.start;
     std::ostringstream str;
@@ -415,7 +423,8 @@ class WasmFunctionWrapper : public HandleAndZoneScope,
         r.LowerGraph();
       }
 
-      CompilationInfo info(ArrayVector("testing"), isolate, graph()->zone());
+      CompilationInfo info(ArrayVector("testing"), isolate, graph()->zone(),
+                           Code::ComputeFlags(Code::STUB));
       code_ =
           Pipeline::GenerateCodeForTesting(&info, descriptor, graph(), nullptr);
       CHECK(!code_.is_null());
@@ -748,7 +757,7 @@ class WasmRunner {
   WasmInterpreter* interpreter() { return compiler_.interpreter_; }
 
  protected:
-  v8::base::AccountingAllocator allocator_;
+  v8::internal::AccountingAllocator allocator_;
   Zone zone;
   bool compiled_;
   LocalType storage_[WASM_RUNNER_MAX_NUM_PARAMETERS];

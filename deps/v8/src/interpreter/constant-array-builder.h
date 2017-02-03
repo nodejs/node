@@ -7,7 +7,7 @@
 
 #include "src/identity-map.h"
 #include "src/interpreter/bytecodes.h"
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -70,7 +70,6 @@ class ConstantArrayBuilder final BASE_EMBEDDED {
  private:
   typedef uint32_t index_t;
 
-  index_t AllocateEntry(Handle<Object> object);
   index_t AllocateIndex(Handle<Object> object);
   index_t AllocateReservedEntry(Smi* value);
 
@@ -108,9 +107,12 @@ class ConstantArrayBuilder final BASE_EMBEDDED {
   Handle<Object> the_hole_value() const { return the_hole_value_; }
 
   ConstantArraySlice* idx_slice_[3];
-  ZoneMap<Address, index_t> constants_map_;
+  base::TemplateHashMapImpl<Address, index_t, base::KeyEqualityMatcher<Address>,
+                            ZoneAllocationPolicy>
+      constants_map_;
   ZoneMap<Smi*, index_t> smi_map_;
   ZoneVector<std::pair<Smi*, index_t>> smi_pairs_;
+  Zone* zone_;
   Handle<Object> the_hole_value_;
 };
 

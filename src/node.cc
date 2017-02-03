@@ -163,6 +163,14 @@ static const char* icu_data_dir = nullptr;
 bool no_deprecation = false;
 
 #if HAVE_OPENSSL
+// use OpenSSL's cert store instead of bundled certs
+bool ssl_openssl_cert_store =
+#if defined(NODE_OPENSSL_CERT_STORE)
+        true;
+#else
+        false;
+#endif
+
 # if NODE_FIPS_MODE
 // used by crypto module
 bool enable_fips_crypto = false;
@@ -179,6 +187,9 @@ bool trace_warnings = false;
 // Used in node_config.cc to set a constant on process.binding('config')
 // that is used by lib/module.js
 bool config_preserve_symlinks = false;
+
+// Set in node.cc by ParseArgs when --redirect-warnings= is used.
+const char* config_warning_file;
 
 bool v8_initialized = false;
 
@@ -3468,83 +3479,99 @@ void LoadEnvironment(Environment* env) {
 static void PrintHelp() {
   // XXX: If you add an option here, please also add it to doc/node.1 and
   // doc/api/cli.md
-  printf("Usage: node [options] [ -e script | script.js ] [arguments] \n"
-         "       node debug script.js [arguments] \n"
+  printf("Usage: node [options] [ -e script | script.js ] [arguments]\n"
+         "       node debug script.js [arguments]\n"
          "\n"
          "Options:\n"
-         "  -v, --version            print Node.js version\n"
-         "  -e, --eval script        evaluate script\n"
-         "  -p, --print              evaluate script and print result\n"
-         "  -c, --check              syntax check script without executing\n"
-         "  -i, --interactive        always enter the REPL even if stdin\n"
-         "                           does not appear to be a terminal\n"
-         "  -r, --require            module to preload (option can be "
+         "  -v, --version              print Node.js version\n"
+         "  -e, --eval script          evaluate script\n"
+         "  -p, --print                evaluate script and print result\n"
+         "  -c, --check                syntax check script without executing\n"
+         "  -i, --interactive          always enter the REPL even if stdin\n"
+         "                             does not appear to be a terminal\n"
+         "  -r, --require              module to preload (option can be "
          "repeated)\n"
 #if HAVE_INSPECTOR
-         "  --inspect[=host:port] activate inspector on host:port\n"
-         "                        (default: 127.0.0.1:9229)\n"
+         "  --inspect[=host:port]      activate inspector on host:port\n"
+         "                             (default: 127.0.0.1:9229)\n"
          "  --inspect-brk[=host:port]  activate inspector on host:port\n"
          "                             and break at start of user script\n"
 #endif
-         "  --no-deprecation         silence deprecation warnings\n"
-         "  --trace-deprecation      show stack traces on deprecations\n"
-         "  --throw-deprecation      throw an exception on deprecations\n"
-         "  --no-warnings            silence all process warnings\n"
-         "  --trace-warnings         show stack traces on process warnings\n"
-         "  --trace-sync-io          show stack trace when use of sync IO\n"
-         "                           is detected after the first tick\n"
-         "  --trace-events-enabled   track trace events\n"
-         "  --trace-event-categories comma separated list of trace event\n"
-         "                           categories to record\n"
-         "  --track-heap-objects     track heap object allocations for heap "
+         "  --no-deprecation           silence deprecation warnings\n"
+         "  --trace-deprecation        show stack traces on deprecations\n"
+         "  --throw-deprecation        throw an exception on deprecations\n"
+         "  --no-warnings              silence all process warnings\n"
+         "  --trace-warnings           show stack traces on process warnings\n"
+         "  --redirect-warnings=path\n"
+         "                             write warnings to path instead of\n"
+         "                             stderr\n"
+         "  --trace-sync-io            show stack trace when use of sync IO\n"
+         "                             is detected after the first tick\n"
+         "  --trace-events-enabled     track trace events\n"
+         "  --trace-event-categories   comma separated list of trace event\n"
+         "                             categories to record\n"
+         "  --track-heap-objects       track heap object allocations for heap "
          "snapshots\n"
-         "  --prof-process           process v8 profiler output generated\n"
-         "                           using --prof\n"
-         "  --zero-fill-buffers      automatically zero-fill all newly "
+         "  --prof-process             process v8 profiler output generated\n"
+         "                             using --prof\n"
+         "  --zero-fill-buffers        automatically zero-fill all newly "
          "allocated\n"
-         "                           Buffer and SlowBuffer instances\n"
-         "  --v8-options             print v8 command line options\n"
-         "  --v8-pool-size=num       set v8's thread pool size\n"
+         "                             Buffer and SlowBuffer instances\n"
+         "  --v8-options               print v8 command line options\n"
+         "  --v8-pool-size=num         set v8's thread pool size\n"
 #if HAVE_OPENSSL
-         "  --tls-cipher-list=val    use an alternative default TLS cipher "
+         "  --tls-cipher-list=val      use an alternative default TLS cipher "
          "list\n"
+         "  --use-bundled-ca           use bundled CA store"
+#if !defined(NODE_OPENSSL_CERT_STORE)
+         " (default)"
+#endif
+         "\n"
+         "  --use-openssl-ca           use OpenSSL's default CA store"
+#if defined(NODE_OPENSSL_CERT_STORE)
+         " (default)"
+#endif
+         "\n"
 #if NODE_FIPS_MODE
-         "  --enable-fips            enable FIPS crypto at startup\n"
-         "  --force-fips             force FIPS crypto (cannot be disabled)\n"
+         "  --enable-fips              enable FIPS crypto at startup\n"
+         "  --force-fips               force FIPS crypto (cannot be disabled)\n"
 #endif  /* NODE_FIPS_MODE */
-         "  --openssl-config=path    load OpenSSL configuration file from the\n"
-         "                           specified path\n"
+         "  --openssl-config=path      load OpenSSL configuration file from\n"
+         "                             the specified path\n"
 #endif /* HAVE_OPENSSL */
 #if defined(NODE_HAVE_I18N_SUPPORT)
-         "  --icu-data-dir=dir       set ICU data load path to dir\n"
-         "                           (overrides NODE_ICU_DATA)\n"
+         "  --icu-data-dir=dir         set ICU data load path to dir\n"
+         "                             (overrides NODE_ICU_DATA)\n"
 #if !defined(NODE_HAVE_SMALL_ICU)
-         "                           note: linked-in ICU data is present\n"
+         "                             note: linked-in ICU data is present\n"
 #endif
-         "  --preserve-symlinks      preserve symbolic links when resolving\n"
-         "                           and caching modules\n"
+         "  --preserve-symlinks        preserve symbolic links when resolving\n"
+         "                             and caching modules\n"
 #endif
          "\n"
          "Environment variables:\n"
-         "NODE_DEBUG                 ','-separated list of core modules that\n"
-         "                           should print debug information\n"
-         "NODE_DISABLE_COLORS        set to 1 to disable colors in the REPL\n"
-         "NODE_EXTRA_CA_CERTS        path to additional CA certificates file\n"
+         "NODE_DEBUG                   ','-separated list of core modules\n"
+         "                             that should print debug information\n"
+         "NODE_DISABLE_COLORS          set to 1 to disable colors in the REPL\n"
+         "NODE_EXTRA_CA_CERTS          path to additional CA certificates\n"
+         "                             file\n"
 #if defined(NODE_HAVE_I18N_SUPPORT)
-         "NODE_ICU_DATA              data path for ICU (Intl object) data\n"
+         "NODE_ICU_DATA                data path for ICU (Intl object) data\n"
 #if !defined(NODE_HAVE_SMALL_ICU)
-         "                           (will extend linked-in data)\n"
+         "                             (will extend linked-in data)\n"
 #endif
 #endif
-         "NODE_NO_WARNINGS           set to 1 to silence process warnings\n"
+         "NODE_NO_WARNINGS             set to 1 to silence process warnings\n"
 #ifdef _WIN32
-         "NODE_PATH                  ';'-separated list of directories\n"
+         "NODE_PATH                    ';'-separated list of directories\n"
 #else
-         "NODE_PATH                  ':'-separated list of directories\n"
+         "NODE_PATH                    ':'-separated list of directories\n"
 #endif
-         "                           prefixed to the module search path\n"
-         "NODE_REPL_HISTORY          path to the persistent REPL history file\n"
-         "\n"
+         "                             prefixed to the module search path\n"
+         "NODE_REPL_HISTORY            path to the persistent REPL history\n"
+         "                             file\n"
+         "NODE_REDIRECT_WARNINGS       write warnings to path instead of\n"
+         "                             stderr\n"
          "Documentation can be found at https://nodejs.org/\n");
 }
 
@@ -3645,6 +3672,8 @@ static void ParseArgs(int* argc,
       no_process_warnings = true;
     } else if (strcmp(arg, "--trace-warnings") == 0) {
       trace_warnings = true;
+    } else if (strncmp(arg, "--redirect-warnings=", 20) == 0) {
+      config_warning_file = arg + 20;
     } else if (strcmp(arg, "--trace-deprecation") == 0) {
       trace_deprecation = true;
     } else if (strcmp(arg, "--trace-sync-io") == 0) {
@@ -3681,6 +3710,10 @@ static void ParseArgs(int* argc,
 #if HAVE_OPENSSL
     } else if (strncmp(arg, "--tls-cipher-list=", 18) == 0) {
       default_cipher_list = arg + 18;
+    } else if (strncmp(arg, "--use-openssl-ca", 16) == 0) {
+      ssl_openssl_cert_store = true;
+    } else if (strncmp(arg, "--use-bundled-ca", 16) == 0) {
+      ssl_openssl_cert_store = false;
 #if NODE_FIPS_MODE
     } else if (strcmp(arg, "--enable-fips") == 0) {
       enable_fips_crypto = true;
@@ -3697,6 +3730,9 @@ static void ParseArgs(int* argc,
     } else if (strcmp(arg, "--expose-internals") == 0 ||
                strcmp(arg, "--expose_internals") == 0) {
       // consumed in js
+    } else if (strcmp(arg, "--") == 0) {
+      index += 1;
+      break;
     } else {
       // V8 option.  Pass through as-is.
       new_v8_argv[new_v8_argc] = arg;
@@ -4178,6 +4214,10 @@ void Init(int* argc,
   // Allow for environment set preserving symlinks.
   if (auto preserve_symlinks = secure_getenv("NODE_PRESERVE_SYMLINKS")) {
     config_preserve_symlinks = (*preserve_symlinks == '1');
+  }
+
+  if (auto redirect_warnings = secure_getenv("NODE_REDIRECT_WARNINGS")) {
+    config_warning_file = redirect_warnings;
   }
 
   // Parse a few arguments which are specific to Node.

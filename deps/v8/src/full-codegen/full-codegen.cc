@@ -10,6 +10,7 @@
 #include "src/ast/scopes.h"
 #include "src/code-factory.h"
 #include "src/codegen.h"
+#include "src/compilation-info.h"
 #include "src/compiler.h"
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
@@ -25,15 +26,69 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm())
 
+class FullCodegenCompilationJob final : public CompilationJob {
+ public:
+  explicit FullCodegenCompilationJob(CompilationInfo* info)
+      : CompilationJob(info->isolate(), info, "Full-Codegen") {}
+
+  bool can_execute_on_background_thread() const override { return false; }
+
+  CompilationJob::Status PrepareJobImpl() final { return SUCCEEDED; }
+
+  CompilationJob::Status ExecuteJobImpl() final {
+    DCHECK(ThreadId::Current().Equals(isolate()->thread_id()));
+    return FullCodeGenerator::MakeCode(info(), stack_limit()) ? SUCCEEDED
+                                                              : FAILED;
+  }
+
+  CompilationJob::Status FinalizeJobImpl() final { return SUCCEEDED; }
+};
+
+FullCodeGenerator::FullCodeGenerator(MacroAssembler* masm,
+                                     CompilationInfo* info,
+                                     uintptr_t stack_limit)
+    : masm_(masm),
+      info_(info),
+      isolate_(info->isolate()),
+      zone_(info->zone()),
+      scope_(info->scope()),
+      nesting_stack_(NULL),
+      loop_depth_(0),
+      operand_stack_depth_(0),
+      globals_(NULL),
+      context_(NULL),
+      bailout_entries_(info->HasDeoptimizationSupport()
+                           ? info->literal()->ast_node_count()
+                           : 0,
+                       info->zone()),
+      back_edges_(2, info->zone()),
+      handler_table_(info->zone()),
+      source_position_table_builder_(info->zone(),
+                                     info->SourcePositionRecordingMode()),
+      ic_total_count_(0) {
+  DCHECK(!info->IsStub());
+  Initialize(stack_limit);
+}
+
+// static
+CompilationJob* FullCodeGenerator::NewCompilationJob(CompilationInfo* info) {
+  return new FullCodegenCompilationJob(info);
+}
+
+// static
 bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
+  return MakeCode(info, info->isolate()->stack_guard()->real_climit());
+}
+
+// static
+bool FullCodeGenerator::MakeCode(CompilationInfo* info, uintptr_t stack_limit) {
   Isolate* isolate = info->isolate();
 
   DCHECK(!FLAG_minimal);
   RuntimeCallTimerScope runtimeTimer(isolate,
                                      &RuntimeCallStats::CompileFullCode);
   TimerEventScope<TimerEventCompileFullCode> timer(info->isolate());
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-      isolate, &tracing::TraceEventStatsTable::CompileFullCode);
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileFullCode");
 
   Handle<Script> script = info->script();
   if (!script->IsUndefined(isolate) &&
@@ -47,7 +102,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
                       CodeObjectRequired::kYes);
   if (info->will_serialize()) masm.enable_serializer();
 
-  FullCodeGenerator cgen(&masm, info);
+  FullCodeGenerator cgen(&masm, info, stack_limit);
   cgen.Generate();
   if (cgen.HasStackOverflow()) {
     DCHECK(!isolate->has_pending_exception());
@@ -157,9 +212,8 @@ bool FullCodeGenerator::MustCreateArrayLiteralWithRuntime(
          expr->values()->length() > JSArray::kInitialMaxFastElementArray;
 }
 
-
-void FullCodeGenerator::Initialize() {
-  InitializeAstVisitor(info_->isolate());
+void FullCodeGenerator::Initialize(uintptr_t stack_limit) {
+  InitializeAstVisitor(stack_limit);
   masm_->set_emit_debug_code(FLAG_debug_code);
   masm_->set_predictable_code_size(true);
 }
@@ -169,23 +223,52 @@ void FullCodeGenerator::PrepareForBailout(Expression* node,
   PrepareForBailoutForId(node->id(), state);
 }
 
-void FullCodeGenerator::CallLoadIC(TypeFeedbackId id) {
+void FullCodeGenerator::CallLoadIC(FeedbackVectorSlot slot, Handle<Object> name,
+                                   TypeFeedbackId id) {
+  DCHECK(name->IsName());
+  __ Move(LoadDescriptor::NameRegister(), name);
+
+  EmitLoadSlot(LoadDescriptor::SlotRegister(), slot);
+
   Handle<Code> ic = CodeFactory::LoadIC(isolate()).code();
   CallIC(ic, id);
   if (FLAG_tf_load_ic_stub) RestoreContext();
 }
 
-void FullCodeGenerator::CallLoadGlobalIC(TypeofMode typeof_mode,
-                                         TypeFeedbackId id) {
-  Handle<Code> ic = CodeFactory::LoadGlobalIC(isolate(), typeof_mode).code();
-  CallIC(ic, id);
-}
+void FullCodeGenerator::CallStoreIC(FeedbackVectorSlot slot,
+                                    Handle<Object> name, TypeFeedbackId id) {
+  DCHECK(name->IsName());
+  __ Move(StoreDescriptor::NameRegister(), name);
 
-void FullCodeGenerator::CallStoreIC(TypeFeedbackId id) {
+  STATIC_ASSERT(!StoreDescriptor::kPassLastArgsOnStack ||
+                StoreDescriptor::kStackArgumentsCount == 2);
+  if (StoreDescriptor::kPassLastArgsOnStack) {
+    __ Push(StoreDescriptor::ValueRegister());
+    EmitPushSlot(slot);
+  } else {
+    EmitLoadSlot(StoreDescriptor::SlotRegister(), slot);
+  }
+
   Handle<Code> ic = CodeFactory::StoreIC(isolate(), language_mode()).code();
   CallIC(ic, id);
+  RestoreContext();
 }
 
+void FullCodeGenerator::CallKeyedStoreIC(FeedbackVectorSlot slot) {
+  STATIC_ASSERT(!StoreDescriptor::kPassLastArgsOnStack ||
+                StoreDescriptor::kStackArgumentsCount == 2);
+  if (StoreDescriptor::kPassLastArgsOnStack) {
+    __ Push(StoreDescriptor::ValueRegister());
+    EmitPushSlot(slot);
+  } else {
+    EmitLoadSlot(StoreDescriptor::SlotRegister(), slot);
+  }
+
+  Handle<Code> ic =
+      CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
+  CallIC(ic);
+  RestoreContext();
+}
 
 void FullCodeGenerator::RecordJSReturnSite(Call* call) {
   // We record the offset of the function return so we can rebuild the frame
@@ -411,6 +494,18 @@ void FullCodeGenerator::VisitVariableProxy(VariableProxy* expr) {
   EmitVariableLoad(expr);
 }
 
+void FullCodeGenerator::EmitGlobalVariableLoad(VariableProxy* proxy,
+                                               TypeofMode typeof_mode) {
+#ifdef DEBUG
+  Variable* var = proxy->var();
+  DCHECK(var->IsUnallocated() ||
+         (var->IsLookupSlot() && var->mode() == DYNAMIC_GLOBAL));
+#endif
+  EmitLoadSlot(LoadGlobalDescriptor::SlotRegister(),
+               proxy->VariableFeedbackSlot());
+  Handle<Code> ic = CodeFactory::LoadGlobalIC(isolate(), typeof_mode).code();
+  CallIC(ic);
+}
 
 void FullCodeGenerator::VisitSloppyBlockFunctionStatement(
     SloppyBlockFunctionStatement* declaration) {
@@ -473,6 +568,7 @@ void FullCodeGenerator::EmitSubString(CallRuntime* expr) {
   VisitForStackValue(args->at(1));
   VisitForStackValue(args->at(2));
   __ CallStub(&stub);
+  RestoreContext();
   OperandStackDepthDecrement(3);
   context()->Plug(result_register());
 }
@@ -816,8 +912,8 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
   DCHECK(!context()->IsEffect());
   DCHECK(!context()->IsTest());
 
-  if (proxy != NULL && (proxy->var()->IsUnallocatedOrGlobalSlot() ||
-                        proxy->var()->IsLookupSlot())) {
+  if (proxy != NULL &&
+      (proxy->var()->IsUnallocated() || proxy->var()->IsLookupSlot())) {
     EmitVariableLoad(proxy, INSIDE_TYPEOF);
     PrepareForBailout(proxy, BailoutState::TOS_REGISTER);
   } else {
@@ -896,6 +992,7 @@ void FullCodeGenerator::EmitContinue(Statement* target) {
   // accumulator on the stack.
   ClearAccumulator();
   while (!current->IsContinueTarget(target)) {
+    if (HasStackOverflow()) return;
     if (current->IsTryFinally()) {
       Comment cmnt(masm(), "[ Deferred continue through finally");
       current->Exit(&context_length);
@@ -936,6 +1033,7 @@ void FullCodeGenerator::EmitBreak(Statement* target) {
   // accumulator on the stack.
   ClearAccumulator();
   while (!current->IsBreakTarget(target)) {
+    if (HasStackOverflow()) return;
     if (current->IsTryFinally()) {
       Comment cmnt(masm(), "[ Deferred break through finally");
       current->Exit(&context_length);
@@ -971,6 +1069,7 @@ void FullCodeGenerator::EmitUnwindAndReturn() {
   NestedStatement* current = nesting_stack_;
   int context_length = 0;
   while (current != NULL) {
+    if (HasStackOverflow()) return;
     if (current->IsTryFinally()) {
       Comment cmnt(masm(), "[ Deferred return through finally");
       current->Exit(&context_length);
@@ -1008,10 +1107,7 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   DCHECK(!key->value()->IsSmi());
   DCHECK(!prop->IsSuperAccess());
 
-  __ Move(LoadDescriptor::NameRegister(), key->value());
-  __ Move(LoadDescriptor::SlotRegister(),
-          SmiFromSlot(prop->PropertyFeedbackSlot()));
-  CallLoadIC();
+  CallLoadIC(prop->PropertyFeedbackSlot(), key->value());
 }
 
 void FullCodeGenerator::EmitNamedSuperPropertyLoad(Property* prop) {
@@ -1027,11 +1123,12 @@ void FullCodeGenerator::EmitNamedSuperPropertyLoad(Property* prop) {
 
 void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   SetExpressionPosition(prop);
+
+  EmitLoadSlot(LoadDescriptor::SlotRegister(), prop->PropertyFeedbackSlot());
+
   Handle<Code> ic = CodeFactory::KeyedLoadIC(isolate()).code();
-  __ Move(LoadDescriptor::SlotRegister(),
-          SmiFromSlot(prop->PropertyFeedbackSlot()));
   CallIC(ic);
-  if (FLAG_tf_load_ic_stub) RestoreContext();
+  RestoreContext();
 }
 
 void FullCodeGenerator::EmitKeyedSuperPropertyLoad(Property* prop) {
@@ -1040,7 +1137,7 @@ void FullCodeGenerator::EmitKeyedSuperPropertyLoad(Property* prop) {
   CallRuntimeWithOperands(Runtime::kLoadKeyedFromSuper);
 }
 
-void FullCodeGenerator::EmitPropertyKey(ObjectLiteralProperty* property,
+void FullCodeGenerator::EmitPropertyKey(LiteralProperty* property,
                                         BailoutId bailout_id) {
   VisitForStackValue(property->key());
   CallRuntimeWithOperands(Runtime::kToName);
@@ -1048,9 +1145,14 @@ void FullCodeGenerator::EmitPropertyKey(ObjectLiteralProperty* property,
   PushOperand(result_register());
 }
 
-void FullCodeGenerator::EmitLoadStoreICSlot(FeedbackVectorSlot slot) {
+void FullCodeGenerator::EmitLoadSlot(Register destination,
+                                     FeedbackVectorSlot slot) {
   DCHECK(!slot.IsInvalid());
-  __ Move(StoreDescriptor::SlotRegister(), SmiFromSlot(slot));
+  __ Move(destination, SmiFromSlot(slot));
+}
+
+void FullCodeGenerator::EmitPushSlot(FeedbackVectorSlot slot) {
+  __ Push(SmiFromSlot(slot));
 }
 
 void FullCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
@@ -1073,6 +1175,7 @@ void FullCodeGenerator::VisitWithStatement(WithStatement* stmt) {
   RestoreContext();
   PrepareForBailoutForId(stmt->ToObjectId(), BailoutState::TOS_REGISTER);
   PushOperand(result_register());
+  PushOperand(stmt->scope()->scope_info());
   PushFunctionArgumentForContextAllocation();
   CallRuntimeWithOperands(Runtime::kPushWithContext);
   StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
@@ -1274,6 +1377,7 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   { Comment cmnt(masm_, "[ Extend catch context");
     PushOperand(stmt->variable()->name());
     PushOperand(result_register());
+    PushOperand(stmt->scope()->scope_info());
     PushFunctionArgumentForContextAllocation();
     CallRuntimeWithOperands(Runtime::kPushCatchContext);
     StoreToFrameField(StandardFrameConstants::kContextOffset,
@@ -1466,9 +1570,7 @@ void FullCodeGenerator::VisitClassLiteral(ClassLiteral* lit) {
 
   // Load the "prototype" from the constructor.
   __ Move(LoadDescriptor::ReceiverRegister(), result_register());
-  __ LoadRoot(LoadDescriptor::NameRegister(), Heap::kprototype_stringRootIndex);
-  __ Move(LoadDescriptor::SlotRegister(), SmiFromSlot(lit->PrototypeSlot()));
-  CallLoadIC();
+  CallLoadIC(lit->PrototypeSlot(), isolate()->factory()->prototype_string());
   PrepareForBailoutForId(lit->PrototypeId(), BailoutState::TOS_REGISTER);
   PushOperand(result_register());
 
@@ -1847,7 +1949,7 @@ FullCodeGenerator::EnterBlockScopeIfNeeded::EnterBlockScopeIfNeeded(
     {
       if (needs_block_context_) {
         Comment cmnt(masm(), "[ Extend block context");
-        codegen_->PushOperand(scope->GetScopeInfo(codegen->isolate()));
+        codegen_->PushOperand(scope->scope_info());
         codegen_->PushFunctionArgumentForContextAllocation();
         codegen_->CallRuntimeWithOperands(Runtime::kPushBlockContext);
 
@@ -1939,6 +2041,17 @@ bool FullCodeGenerator::NeedsHoleCheckForLoad(VariableProxy* proxy) {
          var->initializer_position() >= proxy->position();
 }
 
+Handle<Script> FullCodeGenerator::script() { return info_->script(); }
+
+LanguageMode FullCodeGenerator::language_mode() {
+  return scope()->language_mode();
+}
+
+bool FullCodeGenerator::has_simple_parameters() {
+  return info_->has_simple_parameters();
+}
+
+FunctionLiteral* FullCodeGenerator::literal() const { return info_->literal(); }
 
 #undef __
 

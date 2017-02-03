@@ -7,7 +7,7 @@
 load('test/mjsunit/wasm/wasm-constants.js');
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
-var debug = false;
+var debug = true;
 
 (function BasicTest() {
     var module = new WasmModuleBuilder();
@@ -25,7 +25,7 @@ var debug = false;
     var module = new WasmModuleBuilder();
     var index = module.addImport("print", makeSig_v_x(kAstI32));
     module.addFunction("foo", kSig_v_v)
-        .addBody([kExprI8Const, 13, kExprCallImport, kArity1, index])
+        .addBody([kExprI8Const, 13, kExprCallFunction, index])
         .exportAs("main");
 
     var buffer = module.toBuffer(debug);
@@ -38,7 +38,7 @@ var debug = false;
     var module = new WasmModuleBuilder();
     module.addFunction(undefined, kSig_i_i)
         .addLocals({i32_count: 1})
-        .addBody([kExprGetLocal, 0, kExprSetLocal, 1])
+        .addBody([kExprGetLocal, 0, kExprSetLocal, 1, kExprGetLocal, 1])
         .exportAs("main");
 
     var buffer = module.toBuffer(debug);
@@ -60,7 +60,7 @@ var debug = false;
       var module = new WasmModuleBuilder();
       module.addFunction(undefined, makeSig_r_x(p.type, p.type))
         .addLocals(p.locals)
-        .addBody([kExprGetLocal, 0, kExprSetLocal, 1])
+        .addBody([kExprGetLocal, 0, kExprSetLocal, 1, kExprGetLocal, 1])
         .exportAs("main");
 
       var buffer = module.toBuffer(debug);
@@ -75,7 +75,7 @@ var debug = false;
     module.addFunction("add", kSig_i_ii)
         .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprI32Add]);
     module.addFunction("main", kSig_i_ii)
-        .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprCallFunction, kArity2, 0])
+        .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprCallFunction, 0])
         .exportAs("main");
 
     var instance = module.instantiate();
@@ -89,7 +89,7 @@ var debug = false;
         .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprI32Add]);
     module.addFunction("main", kSig_i_iii)
         .addBody([kExprGetLocal,
-                  0, kExprGetLocal, 1, kExprGetLocal, 2, kExprCallIndirect, kArity2, 0])
+                  1, kExprGetLocal, 2, kExprGetLocal, 0, kExprCallIndirect, 0])
         .exportAs("main");
     module.appendToTable([0]);
 
@@ -143,7 +143,7 @@ var debug = false;
     var module = new WasmModuleBuilder();
     var index = module.addImportWithModule("mod", "print", makeSig_v_x(kAstI32));
     module.addFunction("foo", kSig_v_v)
-        .addBody([kExprI8Const, 19, kExprCallImport, kArity1, index])
+        .addBody([kExprI8Const, 19, kExprCallFunction, index])
         .exportAs("main");
 
     var buffer = module.toBuffer(debug);

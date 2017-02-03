@@ -12,6 +12,7 @@
       'parallel.py',
       'run-gcmole.py',
       # The following contains all relevant source and gyp files.
+      '../../BUILD.gn',
       '../../base/',
       '../../include/',
       '../../src/',

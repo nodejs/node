@@ -188,9 +188,13 @@ function addRequiredDep (tree, child, cb) {
 }
 
 exports.removeObsoleteDep = removeObsoleteDep
-function removeObsoleteDep (child) {
+function removeObsoleteDep (child, log) {
   if (child.removed) return
   child.removed = true
+  if (log) {
+    log.silly('removeObsoleteDep', 'removing ' + packageId(child) +
+      ' from the tree as its been replaced by a newer version or is no longer required')
+  }
   // remove from physical tree
   if (child.parent) {
     child.parent.children = child.parent.children.filter(function (pchild) { return pchild !== child })
@@ -199,7 +203,7 @@ function removeObsoleteDep (child) {
   var requires = child.requires || []
   requires.forEach(function (requirement) {
     requirement.requiredBy = requirement.requiredBy.filter(function (reqBy) { return reqBy !== child })
-    if (requirement.requiredBy.length === 0) removeObsoleteDep(requirement)
+    if (requirement.requiredBy.length === 0) removeObsoleteDep(requirement, log)
   })
 }
 

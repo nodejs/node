@@ -203,7 +203,7 @@ class CppLintProcessor(SourceFileProcessor):
 
   def GetPathsToSearch(self):
     return ['src', 'include', 'samples', join('test', 'cctest'),
-            join('test', 'unittests')]
+            join('test', 'unittests'), join('test', 'inspector')]
 
   def GetCpplintScript(self, prio_path):
     for path in [prio_path] + os.environ["PATH"].split(os.pathsep):
@@ -295,13 +295,21 @@ class SourceProcessor(SourceFileProcessor):
 
   IGNORE_COPYRIGHTS = ['box2d.js',
                        'cpplint.py',
+                       'check_injected_script_source.py',
                        'copy.js',
                        'corrections.js',
                        'crypto.js',
                        'daemon.py',
+                       'debugger-script.js',
                        'earley-boyer.js',
                        'fannkuch.js',
                        'fasta.js',
+                       'generate_protocol_externs.py',
+                       'injected-script.cc',
+                       'injected-script.h',
+                       'injected-script-source.js',
+                       'java-script-call-frame.cc',
+                       'java-script-call-frame.h',
                        'jsmin.py',
                        'libraries.cc',
                        'libraries-empty.cc',
@@ -311,10 +319,19 @@ class SourceProcessor(SourceFileProcessor):
                        'primes.js',
                        'raytrace.js',
                        'regexp-pcre.js',
+                       'rjsmin.py',
+                       'script-breakpoint.h',
                        'sqlite.js',
                        'sqlite-change-heap.js',
                        'sqlite-pointer-masking.js',
                        'sqlite-safe-heap.js',
+                       'v8-debugger-script.h',
+                       'v8-function-call.cc',
+                       'v8-function-call.h',
+                       'v8-inspector-impl.cc',
+                       'v8-inspector-impl.h',
+                       'v8-runtime-agent-impl.cc',
+                       'v8-runtime-agent-impl.h',
                        'gnuplot-4.6.3-emscripten.js',
                        'zlib.js']
   IGNORE_TABS = IGNORE_COPYRIGHTS + ['unicode-test.js', 'html-comments.js']
