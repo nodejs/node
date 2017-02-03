@@ -105,7 +105,7 @@ You can use a Node.js version built from source by installing into the location
 that nvm expects:
 
 ```console
-$ make install DESTDIR='$(HOME)/.nvm/versions/node/' PREFIX='$(FULLVERSION)-pre'
+$ make install DESTDIR='$(NVM_DIR)/versions/node/' PREFIX='$(FULLVERSION)-pre'
 ```
 
 After this you can use `nvm` to switch between released versions and versions
