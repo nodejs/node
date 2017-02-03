@@ -6,4 +6,4 @@ const s = dgram.createSocket('udp4');
 s.bind();
 s.unref();
 
-setTimeout(common.fail, 1000).unref();
+setTimeout(common.mustNotCall(), 1000).unref();

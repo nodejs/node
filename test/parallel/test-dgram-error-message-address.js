@@ -6,7 +6,7 @@ const dgram = require('dgram');
 // IPv4 Test
 const socket_ipv4 = dgram.createSocket('udp4');
 
-socket_ipv4.on('listening', common.fail);
+socket_ipv4.on('listening', common.mustNotCall());
 
 socket_ipv4.on('error', common.mustCall(function(e) {
   assert.strictEqual(e.port, undefined);
@@ -21,7 +21,7 @@ socket_ipv4.bind(0, '1.1.1.1');
 // IPv6 Test
 const socket_ipv6 = dgram.createSocket('udp6');
 
-socket_ipv6.on('listening', common.fail);
+socket_ipv6.on('listening', common.mustNotCall());
 
 socket_ipv6.on('error', common.mustCall(function(e) {
   // EAFNOSUPPORT or EPROTONOSUPPORT means IPv6 is disabled on this system.

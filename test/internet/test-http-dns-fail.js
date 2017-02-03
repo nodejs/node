@@ -16,7 +16,7 @@ function httpreq(count) {
     port: 80,
     path: '/',
     method: 'GET'
-  }, common.fail);
+  }, common.mustNotCall());
 
   req.on('error', common.mustCall((e) => {
     assert.strictEqual(e.code, 'ENOTFOUND');

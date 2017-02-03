@@ -14,10 +14,6 @@ setImmediate(common.mustCall(function() {
   clearImmediate(i3);
 }));
 
-const i2 = setImmediate(function() {
-  common.fail('immediate callback should not have fired');
-});
+const i2 = setImmediate(common.mustNotCall());
 
-const i3 = setImmediate(function() {
-  common.fail('immediate callback should not have fired');
-});
+const i3 = setImmediate(common.mustNotCall());

@@ -15,7 +15,7 @@ const empty = common.fixturesDir + '/empty.js';
 
 assert.throws(function() {
   const child = spawn(invalidcmd, 'this is not an array');
-  child.on('error', common.fail);
+  child.on('error', common.mustNotCall());
 }, TypeError);
 
 // verify that valid argument combinations do not throw

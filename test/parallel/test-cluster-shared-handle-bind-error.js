@@ -8,7 +8,7 @@ if (cluster.isMaster) {
   // Master opens and binds the socket and shares it with the worker.
   cluster.schedulingPolicy = cluster.SCHED_NONE;
   // Hog the TCP port so that when the worker tries to bind, it'll fail.
-  const server = net.createServer(common.fail);
+  const server = net.createServer(common.mustNotCall());
 
   server.listen(common.PORT, common.mustCall(() => {
     const worker = cluster.fork();
@@ -18,8 +18,8 @@ if (cluster.isMaster) {
     }));
   }));
 } else {
-  const s = net.createServer(common.fail);
-  s.listen(common.PORT, common.fail.bind(null, 'listen should have failed'));
+  const s = net.createServer(common.mustNotCall());
+  s.listen(common.PORT, common.mustNotCall('listen should have failed'));
   s.on('error', common.mustCall((err) => {
     assert.strictEqual(err.code, 'EADDRINUSE');
     process.disconnect();

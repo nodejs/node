@@ -24,7 +24,7 @@ cat.stdout.on('data', function(chunk) {
 
 cat.stdout.on('end', common.mustCall(function() {}));
 
-cat.stderr.on('data', common.fail);
+cat.stderr.on('data', common.mustNotCall());
 
 cat.stderr.on('end', common.mustCall(function() {}));
 

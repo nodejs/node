@@ -16,7 +16,7 @@ const options = {
   handshakeTimeout: 50
 };
 
-const server = tls.createServer(options, common.fail);
+const server = tls.createServer(options, common.mustNotCall());
 
 server.on('tlsClientError', common.mustCall(function(err, conn) {
   conn.destroy();

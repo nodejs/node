@@ -15,8 +15,8 @@ const interfacer = spawn(process.execPath, ['debug', `localhost:${PORT}`]);
 interfacer.stdout.setEncoding('utf-8');
 
 // fail the test if either of the processes exit normally
-const debugBreakExit = common.fail.bind(null, 'child should not exit normally');
-const debugExit = common.fail.bind(null, 'interfacer should not exit normally');
+const debugBreakExit = common.mustNotCall('child should not exit normally');
+const debugExit = common.mustNotCall('interfacer should not exit normally');
 child.on('exit', debugBreakExit);
 interfacer.on('exit', debugExit);
 

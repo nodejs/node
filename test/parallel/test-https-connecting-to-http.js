@@ -10,10 +10,10 @@ if (!common.hasCrypto) {
 }
 const https = require('https');
 
-const server = http.createServer(common.fail);
+const server = http.createServer(common.mustNotCall());
 
 server.listen(0, common.mustCall(function() {
-  const req = https.get({ port: this.address().port }, common.fail);
+  const req = https.get({ port: this.address().port }, common.mustNotCall());
 
   req.on('error', common.mustCall(function(e) {
     console.log('Got expected error: ', e.message);

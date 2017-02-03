@@ -19,7 +19,7 @@ server.listen(0, options.host, common.mustCall(onListen));
 // do a GET request, expect it to fail
 function onListen() {
   options.port = this.address().port;
-  const req = http.request(options, common.fail);
+  const req = http.request(options, common.mustNotCall());
   req.on('error', common.mustCall(function(err) {
     assert.strictEqual(err.code, 'ECONNRESET');
   }));
