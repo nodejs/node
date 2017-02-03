@@ -116,6 +116,13 @@ For example, if the version of Node.js is 8.0.0-pre:
 $ nvm use 8
 ```
 
+Once the official release is out you will want to uninstall the version built
+from source:
+
+```console
+$ nvm uninstall 8
+```
+
 ### Windows
 
 Prerequisites:
