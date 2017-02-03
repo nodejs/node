@@ -26,3 +26,5 @@ function test(arg) {
 
 test('--debug-brk');
 test('--debug-brk=5959');
+test('--inspect-brk');
+test('--inspect-brk=9230');

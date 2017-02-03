@@ -428,7 +428,7 @@ Harness.prototype.expectShutDown = function(errorCode) {
 
 exports.startNodeForInspectorTest = function(callback) {
   const child = spawn(process.execPath,
-      [ '--inspect', '--debug-brk', mainScript ]);
+      [ '--inspect-brk', mainScript ]);
 
   const timeoutId = timeout('Child process did not start properly', 4);
 
