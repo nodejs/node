@@ -84,5 +84,9 @@ assert.strictEqual(rangeBuffer.toString({toString: function() {
 }}), 'abc');
 
 // try toString() with 0 and null as the encoding
-assert.throws(() => rangeBuffer.toString(0, 1, 2), /^TypeError: Unknown encoding: 0$/);
-assert.throws(() => rangeBuffer.toString(null, 1, 2), /^TypeError: Unknown encoding: null$/);
+assert.throws(() => {
+  rangeBuffer.toString(0, 1, 2);
+}, /^TypeError: Unknown encoding: 0$/);
+assert.throws(() => {
+  rangeBuffer.toString(null, 1, 2);
+}, /^TypeError: Unknown encoding: null$/);
