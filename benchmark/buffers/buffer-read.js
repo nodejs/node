@@ -15,7 +15,9 @@ const types = [
   'FloatLE',
   'FloatBE',
   'DoubleLE',
-  'DoubleBE'
+  'DoubleBE',
+  'IntLE',
+  'IntBE',
 ];
 
 const bench = common.createBenchmark(main, {
@@ -34,11 +36,19 @@ function main(conf) {
   const fn = `read${type}`;
 
   buff.writeDoubleLE(0, 0, noAssert);
-  const testFunction = new Function('buff', `
-    for (var i = 0; i !== ${len}; i++) {
-      buff.${fn}(0, ${JSON.stringify(noAssert)});
-    }
-  `);
+
+  var call;
+  if (fn === 'readIntLE' || fn === 'readIntBE') {
+    call = `buff.${fn}(0, 1, ${JSON.stringify(noAssert)})`;
+  } else {
+    call = `buff.${fn}(0, ${JSON.stringify(noAssert)})`;
+  }
+
+  const testFunction = new Function(
+    'buff',
+    `for (var i = 0; i !== ${len}; ++i) { ${call}; }`
+  );
+
   bench.start();
   testFunction(buff);
   bench.end(len / 1e6);
