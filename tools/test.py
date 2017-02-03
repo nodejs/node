@@ -1399,7 +1399,7 @@ def BuildOptions():
       default=1, type="int")
   result.add_option('--abort-on-timeout',
       help='Send SIGABRT instead of SIGTERM to kill processes that time out',
-      default=False, dest="abort_on_timeout")
+      default=False, action="store_true", dest="abort_on_timeout")
   return result
 
 
