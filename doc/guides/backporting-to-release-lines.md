@@ -56,12 +56,20 @@ git pull -r upstream v7.x-staging
 git checkout -b backport-10157-to-v7.x
 ```
 
-* After creating the branch, apply the changes to the branch.
+* After creating the branch, apply the changes to the branch. The cherry-pick
+  will likely fail due to conflicts. In that case, you will see something this:
 
 ```shell
-git cherry-pick $SHA # Use your commit hash
+# Say the $SHA is 773cdc31ef
+$ git cherry-pick $SHA # Use your commit hash
+error: could not apply 773cdc3... <commit title>
+hint: after resolving the conflicts, mark the corrected paths
+hint: with 'git add <paths>' or 'git rm <paths>'
+hint: and commit the result with 'git commit'
 ```
 
+* Make the required changes to remove the conflicts, and then commit the
+  changes. That can be done with `git commit`.
 * The commit message should be as close as possible to the commit message on the
   master branch, unless the commit has to be different due to dependencies that
   are not present in the targeted release line. The only exception is that the
