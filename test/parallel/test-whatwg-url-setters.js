@@ -1,9 +1,12 @@
 'use strict';
 
 const common = require('../common');
+const assert = require('assert');
 const path = require('path');
 const URL = require('url').URL;
 const { test, assert_equals } = common.WPT;
+const additionalTestCases = require(
+    path.join(common.fixturesDir, 'url-setter-tests-additional.js'));
 
 if (!common.hasIntl) {
   // A handful of the tests fail when ICU is not included.
@@ -76,3 +79,45 @@ function runURLSettersTests(all_test_cases) {
 
 startURLSettersTests()
 /* eslint-enable */
+
+// Tests below are not from WPT.
+
+{
+  for (const attributeToBeSet in additionalTestCases) {
+    if (attributeToBeSet === 'comment') {
+      continue;
+    }
+    const testCases = additionalTestCases[attributeToBeSet];
+    for (const testCase of testCases) {
+      let name = `Setting <${testCase.href}>.${attributeToBeSet}` +
+                 ` = "${testCase.new_value}"`;
+      if ('comment' in testCase) {
+        name += ' ' + testCase.comment;
+      }
+      test(function() {
+        const url = new URL(testCase.href);
+        url[attributeToBeSet] = testCase.new_value;
+        for (const attribute in testCase.expected) {
+          assert_equals(url[attribute], testCase.expected[attribute]);
+        }
+      }, 'URL: ' + name);
+    }
+  }
+}
+
+{
+  const url = new URL('http://example.com/');
+  const obj = { toString() { throw new Error('toString'); } };
+  const sym = Symbol();
+  const props = Object.getOwnPropertyDescriptors(Object.getPrototypeOf(url));
+  for (const [name, { set }] of Object.entries(props)) {
+    if (set) {
+      assert.throws(() => url[name] = obj,
+                    /^Error: toString$/,
+                    `url.${name} = { toString() { throw ... } }`);
+      assert.throws(() => url[name] = sym,
+                    /^TypeError: Cannot convert a Symbol value to a string$/,
+                    `url.${name} = ${String(sym)}`);
+    }
+  }
+}

@@ -20,6 +20,8 @@
 #include <unicode/utf.h>
 #endif
 
+#define UNICODE_REPLACEMENT_CHARACTER 0xFFFD
+
 namespace node {
 
 using v8::Array;
@@ -142,6 +144,21 @@ namespace url {
     return true;
   }
 #endif
+
+  // If a UTF-16 character is a low/trailing surrogate.
+  static inline bool IsUnicodeTrail(uint16_t c) {
+    return (c & 0xFC00) == 0xDC00;
+  }
+
+  // If a UTF-16 character is a surrogate.
+  static inline bool IsUnicodeSurrogate(uint16_t c) {
+    return (c & 0xF800) == 0xD800;
+  }
+
+  // If a UTF-16 surrogate is a low/trailing one.
+  static inline bool IsUnicodeSurrogateTrail(uint16_t c) {
+    return (c & 0x400) != 0;
+  }
 
   static url_host_type ParseIPv6Host(url_host* host,
                                      const char* input,
@@ -1351,6 +1368,41 @@ namespace url {
                             v8::NewStringType::kNormal).ToLocalChecked());
   }
 
+  static void ToUSVString(const FunctionCallbackInfo<Value>& args) {
+    Environment* env = Environment::GetCurrent(args);
+    CHECK_GE(args.Length(), 2);
+    CHECK(args[0]->IsString());
+    CHECK(args[1]->IsNumber());
+
+    TwoByteValue value(env->isolate(), args[0]);
+    const size_t n = value.length();
+
+    const int64_t start = args[1]->IntegerValue(env->context()).FromJust();
+    CHECK_GE(start, 0);
+
+    for (size_t i = start; i < n; i++) {
+      uint16_t c = value[i];
+      if (!IsUnicodeSurrogate(c)) {
+        continue;
+      } else if (IsUnicodeSurrogateTrail(c) || i == n - 1) {
+        value[i] = UNICODE_REPLACEMENT_CHARACTER;
+      } else {
+        uint16_t d = value[i + 1];
+        if (IsUnicodeTrail(d)) {
+          i++;
+        } else {
+          value[i] = UNICODE_REPLACEMENT_CHARACTER;
+        }
+      }
+    }
+
+    args.GetReturnValue().Set(
+        String::NewFromTwoByte(env->isolate(),
+                               *value,
+                               v8::NewStringType::kNormal,
+                               n).ToLocalChecked());
+  }
+
   static void DomainToASCII(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
     CHECK_GE(args.Length(), 1);
@@ -1398,6 +1450,7 @@ namespace url {
     Environment* env = Environment::GetCurrent(context);
     env->SetMethod(target, "parse", Parse);
     env->SetMethod(target, "encodeAuth", EncodeAuthSet);
+    env->SetMethod(target, "toUSVString", ToUSVString);
     env->SetMethod(target, "domainToASCII", DomainToASCII);
     env->SetMethod(target, "domainToUnicode", DomainToUnicode);
 
