@@ -604,8 +604,7 @@ exports.WPT = {
     try {
       fn();
     } catch (err) {
-      if (err instanceof Error)
-        err.message = `In ${desc}:\n  ${err.message}`;
+      console.error(`In ${desc}:`);
       throw err;
     }
   },
