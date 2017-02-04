@@ -74,7 +74,7 @@ an integer, then it must be `4` or `6`.
 
 Alternatively, `options` can be an object containing these properties:
 
-* `family` {Number} - The record family. If present, must be the integer
+* `family` {number} - The record family. If present, must be the integer
   `4` or `6`. If not provided, both IP v4 and v6 addresses are accepted.
 * `hints`: {Number} - If present, it should be one or more of the supported
   `getaddrinfo` flags. If `hints` is not provided, then no flags are passed to

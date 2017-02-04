@@ -424,8 +424,8 @@ deprecated: v6.0.0
 > Stability: 0 - Deprecated:
 > Use [`Buffer.from(string[, encoding])`][`Buffer.from(string)`] instead.
 
-* `string` {String} String to encode
-* `encoding` {String} The encoding of `string`. **Default:** `'utf8'`
+* `string` {string} String to encode
+* `encoding` {string} The encoding of `string`. **Default:** `'utf8'`
 
 Creates a new `Buffer` containing the given JavaScript string `string`. If
 provided, the `encoding` parameter identifies the character encoding of `string`.
@@ -454,9 +454,9 @@ added: v5.10.0
 -->
 
 * `size` {Integer} The desired length of the new `Buffer`
-* `fill` {String | Buffer | Integer} A value to pre-fill the new `Buffer` with.
+* `fill` {string | Buffer | Integer} A value to pre-fill the new `Buffer` with.
   **Default:** `0`
-* `encoding` {String} If `fill` is a string, this is its encoding.
+* `encoding` {string} If `fill` is a string, this is its encoding.
   **Default:** `'utf8'`
 
 Allocates a new `Buffer` of `size` bytes. If `fill` is `undefined`, the
@@ -609,9 +609,9 @@ A `TypeError` will be thrown if `size` is not a number.
 added: v0.1.90
 -->
 
-* `string` {String | Buffer | TypedArray | DataView | ArrayBuffer} A value to
+* `string` {string | Buffer | TypedArray | DataView | ArrayBuffer} A value to
   calculate the length of
-* `encoding` {String} If `string` is a string, this is its encoding.
+* `encoding` {string} If `string` is a string, this is its encoding.
   **Default:** `'utf8'`
 * Returns: {Integer} The number of bytes contained within `string`
 
@@ -805,8 +805,8 @@ A `TypeError` will be thrown if `buffer` is not a `Buffer`.
 added: v5.10.0
 -->
 
-* `string` {String} A string to encode.
-* `encoding` {String} The encoding of `string`. **Default:** `'utf8'`
+* `string` {string} A string to encode.
+* `encoding` {string} The encoding of `string`. **Default:** `'utf8'`
 
 Creates a new `Buffer` containing the given JavaScript string `string`. If
 provided, the `encoding` parameter identifies the character encoding of `string`.
@@ -846,7 +846,7 @@ Returns `true` if `obj` is a `Buffer`, `false` otherwise.
 added: v0.9.1
 -->
 
-* `encoding` {String} A character encoding name to check
+* `encoding` {string} A character encoding name to check
 * Returns: {Boolean}
 
 Returns `true` if `encoding` contains a supported character encoding, or `false`
@@ -1075,10 +1075,10 @@ console.log(buf1.equals(buf3));
 added: v0.5.0
 -->
 
-* `value` {String | Buffer | Integer} The value to fill `buf` with
+* `value` {string | Buffer | Integer} The value to fill `buf` with
 * `offset` {Integer} Where to start filling `buf`. **Default:** `0`
 * `end` {Integer} Where to stop filling `buf` (not inclusive). **Default:** [`buf.length`]
-* `encoding` {String} If `value` is a string, this is its encoding.
+* `encoding` {string} If `value` is a string, this is its encoding.
   **Default:** `'utf8'`
 * Returns: {Buffer} A reference to `buf`
 
@@ -1107,14 +1107,106 @@ Example: Fill a `Buffer` with a two-byte character
 console.log(Buffer.allocUnsafe(3).fill('\u0222'));
 ```
 
-### buf.indexOf(value[, byteOffset][, encoding])
+<<<<<<< HEAD
+||||||| parent of ff1361957d... doc: consistent case for primitive types
+### buf.includes(value[, byteOffset][, encoding])
 <!-- YAML
-added: v1.5.0
+added: v5.3.0
 -->
 
 * `value` {String | Buffer | Integer} What to search for
 * `byteOffset` {Integer} Where to begin searching in `buf`. **Default:** `0`
 * `encoding` {String} If `value` is a string, this is its encoding.
+  **Default:** `'utf8'`
+* Returns: {Boolean} `true` if `value` was found in `buf`, `false` otherwise
+
+Equivalent to [`buf.indexOf() !== -1`][`buf.indexOf()`].
+
+Examples:
+
+```js
+const buf = Buffer.from('this is a buffer');
+
+// Prints: true
+console.log(buf.includes('this'));
+
+// Prints: true
+console.log(buf.includes('is'));
+
+// Prints: true
+console.log(buf.includes(Buffer.from('a buffer')));
+
+// Prints: true
+// (97 is the decimal ASCII value for 'a')
+console.log(buf.includes(97));
+
+// Prints: false
+console.log(buf.includes(Buffer.from('a buffer example')));
+
+// Prints: true
+console.log(buf.includes(Buffer.from('a buffer example').slice(0, 8)));
+
+// Prints: false
+console.log(buf.includes('this', 4));
+```
+
+=======
+### buf.includes(value[, byteOffset][, encoding])
+<!-- YAML
+added: v5.3.0
+-->
+
+* `value` {string | Buffer | Integer} What to search for
+* `byteOffset` {Integer} Where to begin searching in `buf`. **Default:** `0`
+* `encoding` {string} If `value` is a string, this is its encoding.
+  **Default:** `'utf8'`
+* Returns: {Boolean} `true` if `value` was found in `buf`, `false` otherwise
+
+Equivalent to [`buf.indexOf() !== -1`][`buf.indexOf()`].
+
+Examples:
+
+```js
+const buf = Buffer.from('this is a buffer');
+
+// Prints: true
+console.log(buf.includes('this'));
+
+// Prints: true
+console.log(buf.includes('is'));
+
+// Prints: true
+console.log(buf.includes(Buffer.from('a buffer')));
+
+// Prints: true
+// (97 is the decimal ASCII value for 'a')
+console.log(buf.includes(97));
+
+// Prints: false
+console.log(buf.includes(Buffer.from('a buffer example')));
+
+// Prints: true
+console.log(buf.includes(Buffer.from('a buffer example').slice(0, 8)));
+
+// Prints: false
+console.log(buf.includes('this', 4));
+```
+
+>>>>>>> ff1361957d... doc: consistent case for primitive types
+### buf.indexOf(value[, byteOffset][, encoding])
+<!-- YAML
+added: v1.5.0
+-->
+
+<<<<<<< HEAD
+* `value` {String | Buffer | Integer} What to search for
+||||||| parent of ff1361957d... doc: consistent case for primitive types
+* `value` {String | Buffer | Uint8Array | Integer} What to search for
+=======
+* `value` {string | Buffer | Uint8Array | Integer} What to search for
+>>>>>>> ff1361957d... doc: consistent case for primitive types
+* `byteOffset` {Integer} Where to begin searching in `buf`. **Default:** `0`
+* `encoding` {string} If `value` is a string, this is its encoding.
   **Default:** `'utf8'`
 * Returns: {Integer} The index of the first occurrence of `value` in `buf` or `-1`
   if `buf` does not contain `value`
@@ -1258,10 +1350,16 @@ for (const key of buf.keys()) {
 added: v6.0.0
 -->
 
+<<<<<<< HEAD
 * `value` {String | Buffer | Integer} What to search for
+||||||| parent of ff1361957d... doc: consistent case for primitive types
+* `value` {String | Buffer | Uint8Array | Integer} What to search for
+=======
+* `value` {string | Buffer | Uint8Array | Integer} What to search for
+>>>>>>> ff1361957d... doc: consistent case for primitive types
 * `byteOffset` {Integer} Where to begin searching in `buf`.
   **Default:** [`buf.length`]` - 1`
-* `encoding` {String} If `value` is a string, this is its encoding.
+* `encoding` {string} If `value` is a string, this is its encoding.
   **Default:** `'utf8'`
 * Returns: {Integer} The index of the last occurrence of `value` in `buf` or `-1`
   if `buf` does not contain `value`
@@ -1385,7 +1483,7 @@ added: v0.11.15
 -->
 
 * `offset` {Integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - 8`
-* `noAssert` {Boolean} Skip `offset` validation? **Default:** `false`
+* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
 * Returns: {Number}
 
 Reads a 64-bit double from `buf` at the specified `offset` with specified
@@ -1421,7 +1519,7 @@ added: v0.11.15
 -->
 
 * `offset` {Integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - 4`
-* `noAssert` {Boolean} Skip `offset` validation? **Default:** `false`
+* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
 * Returns: {Number}
 
 Reads a 32-bit float from `buf` at the specified `offset` with specified
@@ -1456,7 +1554,7 @@ added: v0.5.0
 -->
 
 * `offset` {Integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - 1`
-* `noAssert` {Boolean} Skip `offset` validation? **Default:** `false`
+* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
 * Returns: {Integer}
 
 Reads a signed 8-bit integer from `buf` at the specified `offset`.
@@ -1488,7 +1586,7 @@ added: v0.5.5
 -->
 
 * `offset` {Integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - 2`
-* `noAssert` {Boolean} Skip `offset` validation? **Default:** `false`
+* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
 * Returns: {Integer}
 
 Reads a signed 16-bit integer from `buf` at the specified `offset` with
@@ -1522,7 +1620,7 @@ added: v0.5.5
 -->
 
 * `offset` {Integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - 4`
-* `noAssert` {Boolean} Skip `offset` validation? **Default:** `false`
+* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
 * Returns: {Integer}
 
 Reads a signed 32-bit integer from `buf` at the specified `offset` with
@@ -1557,7 +1655,7 @@ added: v0.11.15
 
 * `offset` {Integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - byteLength`
 * `byteLength` {Integer} How many bytes to read. Must satisfy: `0 < byteLength <= 6`
-* `noAssert` {Boolean} Skip `offset` and `byteLength` validation? **Default:** `false`
+* `noAssert` {boolean} Skip `offset` and `byteLength` validation? **Default:** `false`
 * Returns: {Integer}
 
 Reads `byteLength` number of bytes from `buf` at the specified `offset`
@@ -1588,7 +1686,7 @@ added: v0.5.0
 -->
 
 * `offset` {Integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - 1`
-* `noAssert` {Boolean} Skip `offset` validation? **Default:** `false`
+* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
 * Returns: {Integer}
 
 Reads an unsigned 8-bit integer from `buf` at the specified `offset`.
@@ -1618,7 +1716,7 @@ added: v0.5.5
 -->
 
 * `offset` {Integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - 2`
-* `noAssert` {Boolean} Skip `offset` validation? **Default:** `false`
+* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
 * Returns: {Integer}
 
 Reads an unsigned 16-bit integer from `buf` at the specified `offset` with
@@ -1656,7 +1754,7 @@ added: v0.5.5
 -->
 
 * `offset` {Integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - 4`
-* `noAssert` {Boolean} Skip `offset` validation? **Default:** `false`
+* `noAssert` {boolean} Skip `offset` validation? **Default:** `false`
 * Returns: {Integer}
 
 Reads an unsigned 32-bit integer from `buf` at the specified `offset` with
@@ -1689,7 +1787,7 @@ added: v0.11.15
 
 * `offset` {Integer} Where to start reading. Must satisfy: `0 <= offset <= buf.length - byteLength`
 * `byteLength` {Integer} How many bytes to read. Must satisfy: `0 < byteLength <= 6`
-* `noAssert` {Boolean} Skip `offset` and `byteLength` validation? **Default:** `false`
+* `noAssert` {boolean} Skip `offset` and `byteLength` validation? **Default:** `false`
 * Returns: {Integer}
 
 Reads `byteLength` number of bytes from `buf` at the specified `offset`
@@ -1871,7 +1969,7 @@ for working with 64-bit floats.
 added: v0.1.90
 -->
 
-* `encoding` {String} The character encoding to decode to. **Default:** `'utf8'`
+* `encoding` {string} The character encoding to decode to. **Default:** `'utf8'`
 * `start` {Integer} The byte offset to start decoding at. **Default:** `0`
 * `end` {Integer} The byte offset to stop decoding at (not inclusive).
   **Default:** [`buf.length`]
@@ -1981,10 +2079,10 @@ for (const value of buf) {
 added: v0.1.90
 -->
 
-* `string` {String} String to be written to `buf`
+* `string` {string} String to be written to `buf`
 * `offset` {Integer} Where to start writing `string`. **Default:** `0`
 * `length` {Integer} How many bytes to write. **Default:** `buf.length - offset`
-* `encoding` {String} The character encoding of `string`. **Default:** `'utf8'`
+* `encoding` {string} The character encoding of `string`. **Default:** `'utf8'`
 * Returns: {Integer} Number of bytes written
 
 Writes `string` to `buf` at `offset` according to the character encoding in `encoding`.
@@ -2009,9 +2107,9 @@ console.log(`${len} bytes: ${buf.toString('utf8', 0, len)}`);
 added: v0.11.15
 -->
 
-* `value` {Number} Number to be written to `buf`
+* `value` {number} Number to be written to `buf`
 * `offset` {Integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - 8`
-* `noAssert` {Boolean} Skip `value` and `offset` validation? **Default:** `false`
+* `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
 * Returns: {Integer} `offset` plus the number of bytes written
 
 Writes `value` to `buf` at the specified `offset` with specified endian
@@ -2044,9 +2142,9 @@ console.log(buf);
 added: v0.11.15
 -->
 
-* `value` {Number} Number to be written to `buf`
+* `value` {number} Number to be written to `buf`
 * `offset` {Integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - 4`
-* `noAssert` {Boolean} Skip `value` and `offset` validation? **Default:** `false`
+* `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
 * Returns: {Integer} `offset` plus the number of bytes written
 
 Writes `value` to `buf` at the specified `offset` with specified endian
@@ -2080,7 +2178,7 @@ added: v0.5.0
 
 * `value` {Integer} Number to be written to `buf`
 * `offset` {Integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - 1`
-* `noAssert` {Boolean} Skip `value` and `offset` validation? **Default:** `false`
+* `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
 * Returns: {Integer} `offset` plus the number of bytes written
 
 Writes `value` to `buf` at the specified `offset`. `value` *should* be a valid
@@ -2112,7 +2210,7 @@ added: v0.5.5
 
 * `value` {Integer} Number to be written to `buf`
 * `offset` {Integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - 2`
-* `noAssert` {Boolean} Skip `value` and `offset` validation? **Default:** `false`
+* `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
 * Returns: {Integer} `offset` plus the number of bytes written
 
 Writes `value` to `buf` at the specified `offset` with specified endian
@@ -2145,7 +2243,7 @@ added: v0.5.5
 
 * `value` {Integer} Number to be written to `buf`
 * `offset` {Integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - 4`
-* `noAssert` {Boolean} Skip `value` and `offset` validation? **Default:** `false`
+* `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
 * Returns: {Integer} `offset` plus the number of bytes written
 
 Writes `value` to `buf` at the specified `offset` with specified endian
@@ -2179,7 +2277,7 @@ added: v0.11.15
 * `value` {Integer} Number to be written to `buf`
 * `offset` {Integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - byteLength`
 * `byteLength` {Integer} How many bytes to write. Must satisfy: `0 < byteLength <= 6`
-* `noAssert` {Boolean} Skip `value`, `offset`, and `byteLength` validation?
+* `noAssert` {boolean} Skip `value`, `offset`, and `byteLength` validation?
   **Default:** `false`
 * Returns: {Integer} `offset` plus the number of bytes written
 
@@ -2213,7 +2311,7 @@ added: v0.5.0
 
 * `value` {Integer} Number to be written to `buf`
 * `offset` {Integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - 1`
-* `noAssert` {Boolean} Skip `value` and `offset` validation? **Default:** `false`
+* `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
 * Returns: {Integer} `offset` plus the number of bytes written
 
 Writes `value` to `buf` at the specified `offset`. `value` *should* be a
@@ -2245,7 +2343,7 @@ added: v0.5.5
 
 * `value` {Integer} Number to be written to `buf`
 * `offset` {Integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - 2`
-* `noAssert` {Boolean} Skip `value` and `offset` validation? **Default:** `false`
+* `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
 * Returns: {Integer} `offset` plus the number of bytes written
 
 Writes `value` to `buf` at the specified `offset` with specified endian
@@ -2282,7 +2380,7 @@ added: v0.5.5
 
 * `value` {Integer} Number to be written to `buf`
 * `offset` {Integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - 4`
-* `noAssert` {Boolean} Skip `value` and `offset` validation? **Default:** `false`
+* `noAssert` {boolean} Skip `value` and `offset` validation? **Default:** `false`
 * Returns: {Integer} `offset` plus the number of bytes written
 
 Writes `value` to `buf` at the specified `offset` with specified endian
@@ -2318,7 +2416,7 @@ added: v0.5.5
 * `value` {Integer} Number to be written to `buf`
 * `offset` {Integer} Where to start writing. Must satisfy: `0 <= offset <= buf.length - byteLength`
 * `byteLength` {Integer} How many bytes to write. Must satisfy: `0 < byteLength <= 6`
-* `noAssert` {Boolean} Skip `value`, `offset`, and `byteLength` validation?
+* `noAssert` {boolean} Skip `value`, `offset`, and `byteLength` validation?
   **Default:** `false`
 * Returns: {Integer} `offset` plus the number of bytes written
 
@@ -2369,6 +2467,88 @@ added: v3.0.0
 On 32-bit architectures, this value is `(2^30)-1` (~1GB).
 On 64-bit architectures, this value is `(2^31)-1` (~2GB).
 
+<<<<<<< HEAD
+||||||| parent of ff1361957d... doc: consistent case for primitive types
+Note that this is a property on the `buffer` module returned by
+`require('buffer')`, not on the `Buffer` global or a `Buffer` instance.
+
+## buffer.transcode(source, fromEnc, toEnc)
+<!-- YAML
+added: v7.1.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/10236
+    description: The `source` parameter can now be a `Uint8Array`.
+-->
+
+* `source` {Buffer|Uint8Array} A `Buffer` or `Uint8Array` instance
+* `fromEnc` {String} The current encoding
+* `toEnc` {String} To target encoding
+
+Re-encodes the given `Buffer` or `Uint8Array` instance from one character
+encoding to another. Returns a new `Buffer` instance.
+
+Throws if the `fromEnc` or `toEnc` specify invalid character encodings or if
+conversion from `fromEnc` to `toEnc` is not permitted.
+
+The transcoding process will use substitution characters if a given byte
+sequence cannot be adequately represented in the target encoding. For instance:
+
+```js
+const buffer = require('buffer');
+
+const newBuf = buffer.transcode(Buffer.from('€'), 'utf8', 'ascii');
+console.log(newBuf.toString('ascii'));
+// Prints: '?'
+```
+
+Because the Euro (`€`) sign is not representable in US-ASCII, it is replaced
+with `?` in the transcoded `Buffer`.
+
+Note that this is a property on the `buffer` module returned by
+`require('buffer')`, not on the `Buffer` global or a `Buffer` instance.
+
+=======
+Note that this is a property on the `buffer` module returned by
+`require('buffer')`, not on the `Buffer` global or a `Buffer` instance.
+
+## buffer.transcode(source, fromEnc, toEnc)
+<!-- YAML
+added: v7.1.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/10236
+    description: The `source` parameter can now be a `Uint8Array`.
+-->
+
+* `source` {Buffer|Uint8Array} A `Buffer` or `Uint8Array` instance
+* `fromEnc` {string} The current encoding
+* `toEnc` {string} To target encoding
+
+Re-encodes the given `Buffer` or `Uint8Array` instance from one character
+encoding to another. Returns a new `Buffer` instance.
+
+Throws if the `fromEnc` or `toEnc` specify invalid character encodings or if
+conversion from `fromEnc` to `toEnc` is not permitted.
+
+The transcoding process will use substitution characters if a given byte
+sequence cannot be adequately represented in the target encoding. For instance:
+
+```js
+const buffer = require('buffer');
+
+const newBuf = buffer.transcode(Buffer.from('€'), 'utf8', 'ascii');
+console.log(newBuf.toString('ascii'));
+// Prints: '?'
+```
+
+Because the Euro (`€`) sign is not representable in US-ASCII, it is replaced
+with `?` in the transcoded `Buffer`.
+
+Note that this is a property on the `buffer` module returned by
+`require('buffer')`, not on the `Buffer` global or a `Buffer` instance.
+
+>>>>>>> ff1361957d... doc: consistent case for primitive types
 ## Class: SlowBuffer
 <!-- YAML
 deprecated: v6.0.0
