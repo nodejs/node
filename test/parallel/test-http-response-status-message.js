@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 const net = require('net');
@@ -23,7 +23,7 @@ testCases.findByPath = function(path) {
     return testCase.path === path;
   });
   if (matching.length === 0) {
-    throw 'failed to find test case with path ' + path;
+    common.fail(`failed to find test case with path ${path}`);
   }
   return matching[0];
 };
