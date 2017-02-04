@@ -35,9 +35,8 @@ AutocannonBenchmarker.prototype.processResults = function(output) {
   }
   if (!result || !result.requests || !result.requests.average) {
     return undefined;
-  } else {
-    return result.requests.average;
   }
+  return result.requests.average;
 };
 
 function WrkBenchmarker() {
@@ -63,9 +62,8 @@ WrkBenchmarker.prototype.processResults = function(output) {
   const result = match && +match[1];
   if (!isFinite(result)) {
     return undefined;
-  } else {
-    return result;
   }
+  return result;
 };
 
 const http_benchmarkers = [new WrkBenchmarker(), new AutocannonBenchmarker()];

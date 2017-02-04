@@ -332,11 +332,10 @@ Buffer.alloc(8, '');
           elseWasLast = false;
           ctr = ctr + 1;
           return 0;
-        } else {
-          elseWasLast = true;
-          // Once buffer.js calls the C++ implemenation of fill, return -1
-          return -1;
         }
+        elseWasLast = true;
+        // Once buffer.js calls the C++ implemenation of fill, return -1
+        return -1;
       }
     };
     Buffer.alloc(1).fill(Buffer.alloc(1), start, 1);
@@ -365,11 +364,10 @@ assert.throws(() => {
           elseWasLast = false;
           ctr = ctr + 1;
           return 1;
-        } else {
-          elseWasLast = true;
-          // Once buffer.js calls the C++ implemenation of fill, return -1
-          return -1;
         }
+        elseWasLast = true;
+        // Once buffer.js calls the C++ implemenation of fill, return -1
+        return -1;
       }
     };
     Buffer.alloc(1).fill(Buffer.alloc(1), 0, end);

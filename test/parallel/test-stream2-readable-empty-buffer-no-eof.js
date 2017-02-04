@@ -74,8 +74,7 @@ function test2() {
   r._read = function(n) {
     if (!reads--)
       return r.push(null); // EOF
-    else
-      return r.push(Buffer.from('x'));
+    return r.push(Buffer.from('x'));
   };
 
   const results = [];
