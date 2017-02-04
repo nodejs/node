@@ -204,11 +204,11 @@ The formatting process operates as follows:
 
 * `URL` {URL} A [WHATWG URL][] object
 * `options` {Object}
-  * `auth` {Boolean} `true` if the serialized URL string should include the
+  * `auth` {boolean} `true` if the serialized URL string should include the
     username and password, `false` otherwise. Defaults to `true`.
-  * `fragment` {Boolean} `true` if the serialized URL string should include the
+  * `fragment` {boolean} `true` if the serialized URL string should include the
     fragment, `false` otherwise. Defaults to `true`.
-  * `search` {Boolean} `true` if the serialized URL string should include the
+  * `search` {boolean} `true` if the serialized URL string should include the
     search query, `false` otherwise. Defaults to `true`.
   * `unicode` (Boolean) `true` if Unicode characters appearing in the host
     component of the URL string should be encoded directly as opposed to being
@@ -245,12 +245,12 @@ be experimental.
 added: v0.1.25
 -->
 
-* `urlString` {String} The URL string to parse.
-* `parseQueryString` {Boolean} If `true`, the `query` property will always
+* `urlString` {string} The URL string to parse.
+* `parseQueryString` {boolean} If `true`, the `query` property will always
   be set to an object returned by the [`querystring`][] module's `parse()`
   method. If `false`, the `query` property on the returned URL object will be an
   unparsed, undecoded string. Defaults to `false`.
-* `slashesDenoteHost` {Boolean} If `true`, the first token after the literal
+* `slashesDenoteHost` {boolean} If `true`, the first token after the literal
   string `//` and preceding the next `/` will be interpreted as the `host`.
   For instance, given `//foo/bar`, the result would be
   `{host: 'foo', pathname: '/bar'}` rather than `{pathname: '//foo/bar'}`.
@@ -276,8 +276,8 @@ changes:
                  contains a hostname.
 -->
 
-* `from` {String} The Base URL being resolved against.
-* `to` {String} The HREF URL being resolved.
+* `from` {string} The Base URL being resolved against.
+* `to` {string} The HREF URL being resolved.
 
 The `url.resolve()` method resolves a target URL relative to a base URL in a
 manner similar to that of a Web browser resolving an anchor tag HREF.
@@ -355,8 +355,8 @@ object returned by `url.parse()` are shown. Below it are properties of a WHATWG
 ### Class: URL
 #### Constructor: new URL(input[, base])
 
-* `input` {String} The input URL to parse
-* `base` {String | URL} The base URL to resolve against if the `input` is not
+* `input` {string} The input URL to parse
+* `base` {string | URL} The base URL to resolve against if the `input` is not
   absolute.
 
 Creates a new `URL` object by parsing the `input` relative to the `base`. If
@@ -742,7 +742,7 @@ Instantiate a new empty `URLSearchParams` object.
 
 #### Constructor: new URLSearchParams(string)
 
-* `string` {String} A query string
+* `string` {string} A query string
 
 Parse the `string` as a query string, and use it to instantiate a new
 `URLSearchParams` object. A leading `'?'`, if present, is ignored.
@@ -838,14 +838,14 @@ new URLSearchParams([
 
 #### urlSearchParams.append(name, value)
 
-* `name` {String}
-* `value` {String}
+* `name` {string}
+* `value` {string}
 
 Append a new name-value pair to the query string.
 
 #### urlSearchParams.delete(name)
 
-* `name` {String}
+* `name` {string}
 
 Remove all name-value pairs whose name is `name`.
 
@@ -879,15 +879,16 @@ myURL.searchParams.forEach((value, name, searchParams) => {
 
 #### urlSearchParams.get(name)
 
-* `name` {String}
-* Returns: {String | Null}
+* `name` {string}
+* Returns: {string} or `null` if there is no name-value pair with the given
+  `name`.
 
 Returns the value of the first name-value pair whose name is `name`. If there
 are no such pairs, `null` is returned.
 
 #### urlSearchParams.getAll(name)
 
-* `name` {String}
+* `name` {string}
 * Returns: {Array}
 
 Returns the values of all name-value pairs whose name is `name`. If there are
@@ -895,7 +896,7 @@ no such pairs, an empty array is returned.
 
 #### urlSearchParams.has(name)
 
-* `name` {String}
+* `name` {string}
 * Returns: {Boolean}
 
 Returns `true` if there is at least one name-value pair whose name is `name`.
@@ -919,8 +920,8 @@ for (const name of params.keys()) {
 
 #### urlSearchParams.set(name, value)
 
-* `name` {String}
-* `value` {String}
+* `name` {string}
+* `value` {string}
 
 Sets the value in the `URLSearchParams` object associated with `name` to
 `value`. If there are any pre-existing name-value pairs whose names are `name`,
@@ -994,7 +995,7 @@ for (const [name, value] of params) {
 
 ### require('url').domainToASCII(domain)
 
-* `domain` {String}
+* `domain` {string}
 * Returns: {String}
 
 Returns the [Punycode][] ASCII serialization of the `domain`. If `domain` is an
@@ -1017,7 +1018,7 @@ the new `URL` implementation but is not part of the WHATWG URL standard.
 
 ### require('url').domainToUnicode(domain)
 
-* `domain` {String}
+* `domain` {string}
 * Returns: {String}
 
 Returns the Unicode serialization of the `domain`. If `domain` is an invalid

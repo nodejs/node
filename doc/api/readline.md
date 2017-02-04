@@ -237,7 +237,7 @@ If the `readline.Interface` was created with `output` set to `null` or
 added: v0.3.3
 -->
 
-* `query` {String} A statement or query to write to `output`, prepended to the
+* `query` {string} A statement or query to write to `output`, prepended to the
   prompt.
 * `callback` {Function} A callback function that is invoked with the user's
   input in response to the `query`.
@@ -276,7 +276,7 @@ The `rl.resume()` method resumes the `input` stream if it has been paused.
 added: v0.1.98
 -->
 
-* `prompt` {String}
+* `prompt` {string}
 
 The `rl.setPrompt()` method sets the prompt that will be written to `output`
 whenever `rl.prompt()` is called.
@@ -286,12 +286,12 @@ whenever `rl.prompt()` is called.
 added: v0.1.98
 -->
 
-* `data` {String}
+* `data` {string}
 * `key` {Object}
   * `ctrl` {boolean} `true` to indicate the `<ctrl>` key.
   * `meta` {boolean} `true` to indicate the `<Meta>` key.
   * `shift` {boolean} `true` to indicate the `<Shift>` key.
-  * `name` {String} The name of the a key.
+  * `name` {string} The name of the a key.
 
 The `rl.write()` method will write either `data` or a key sequence  identified
 by `key` to the `output`. The `key` argument is supported only if `output` is
@@ -467,7 +467,7 @@ added: v0.7.7
 
 * `stream` {Writable}
 * `dx` {number}
-* `dy` {Number}
+* `dy` {number}
 
 The `readline.moveCursor()` method moves the cursor *relative* to its current
 position in a given [TTY][] `stream`.
