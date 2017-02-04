@@ -185,7 +185,7 @@ added and `'removeListener'` when existing listeners are removed.
 added: v0.1.26
 -->
 
-* `eventName` {String|Symbol} The name of the event being listened for
+* `eventName` {string|symbol} The name of the event being listened for
 * `listener` {Function} The event handler function
 
 The `EventEmitter` instance will emit its own `'newListener'` event *before*
@@ -229,7 +229,7 @@ changes:
                  now yields the original listener function.
 -->
 
-* `eventName` {String|Symbol} The event name
+* `eventName` {string|symbol} The event name
 * `listener` {Function} The event handler function
 
 The `'removeListener'` event is emitted *after* the `listener` is removed.
@@ -345,7 +345,7 @@ set by [`emitter.setMaxListeners(n)`][] or defaults to
 added: v3.2.0
 -->
 
-* `eventName` {String|Symbol} The name of the event being listened for
+* `eventName` {string|symbol} The name of the event being listened for
 
 Returns the number of listeners listening to the event named `eventName`.
 
@@ -374,7 +374,7 @@ console.log(util.inspect(server.listeners('connection')));
 added: v0.1.101
 -->
 
-* `eventName` {String|Symbol} The name of the event.
+* `eventName` {string|symbol} The name of the event.
 * `listener` {Function} The callback function
 
 Adds the `listener` function to the end of the listeners array for the
@@ -410,7 +410,7 @@ myEE.emit('foo');
 added: v0.3.0
 -->
 
-* `eventName` {String|Symbol} The name of the event.
+* `eventName` {string|symbol} The name of the event.
 * `listener` {Function} The callback function
 
 Adds a **one time** `listener` function for the event named `eventName`. The
@@ -443,7 +443,7 @@ myEE.emit('foo');
 added: v6.0.0
 -->
 
-* `eventName` {String|Symbol} The name of the event.
+* `eventName` {string|symbol} The name of the event.
 * `listener` {Function} The callback function
 
 Adds the `listener` function to the *beginning* of the listeners array for the
@@ -465,7 +465,7 @@ Returns a reference to the `EventEmitter`, so that calls can be chained.
 added: v6.0.0
 -->
 
-* `eventName` {String|Symbol} The name of the event.
+* `eventName` {string|symbol} The name of the event.
 * `listener` {Function} The callback function
 
 Adds a **one time** `listener` function for the event named `eventName` to the

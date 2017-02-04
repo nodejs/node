@@ -354,10 +354,10 @@ See also: [`writable.uncork()`][].
 added: v0.9.4
 -->
 
-* `chunk` {String|Buffer|any} Optional data to write. For streams not operating
+* `chunk` {string|Buffer|any} Optional data to write. For streams not operating
   in object mode, `chunk` must be a string or a `Buffer`. For object mode
   streams, `chunk` may be any JavaScript value other than `null`.
-* `encoding` {String} The encoding, if `chunk` is a String
+* `encoding` {string} The encoding, if `chunk` is a String
 * `callback` {Function} Optional callback for when the stream is finished
 
 Calling the `writable.end()` method signals that no more data will be written
@@ -386,7 +386,7 @@ changes:
     description: This method now returns a reference to `writable`.
 -->
 
-* `encoding` {String} The new default encoding
+* `encoding` {string} The new default encoding
 * Returns: `this`
 
 The `writable.setDefaultEncoding()` method sets the default `encoding` for a
@@ -440,8 +440,8 @@ changes:
                  considered invalid now, even in object mode.
 -->
 
-* `chunk` {String|Buffer} The data to write
-* `encoding` {String} The encoding, if `chunk` is a String
+* `chunk` {string|Buffer} The data to write
+* `encoding` {string} The encoding, if `chunk` is a String
 * `callback` {Function} Callback for when this chunk of data is flushed
 * Returns: {Boolean} `false` if the stream wishes for the calling code to
   wait for the `'drain'` event to be emitted before continuing to write
@@ -625,7 +625,7 @@ Not all [Readable][] streams will emit the `'close'` event.
 added: v0.9.4
 -->
 
-* `chunk` {Buffer|String|any} The chunk of data. For streams that are not
+* `chunk` {Buffer|string|any} The chunk of data. For streams that are not
   operating in object mode, the chunk will be either a string or `Buffer`.
   For streams that are in object mode, the chunk can be any JavaScript value
   other than `null`.
@@ -789,7 +789,7 @@ added: v0.9.4
 
 * `destination` {stream.Writable} The destination for writing data
 * `options` {Object} Pipe options
-  * `end` {Boolean} End the writer when the reader ends. Defaults to `true`.
+  * `end` {boolean} End the writer when the reader ends. Defaults to `true`.
 
 The `readable.pipe()` method attaches a [Writable][] stream to the `readable`,
 causing it to switch automatically into flowing mode and push all of its data
@@ -845,8 +845,8 @@ options.
 added: v0.9.4
 -->
 
-* `size` {Number} Optional argument to specify how much data to read.
-* Return {String|Buffer|Null}
+* `size` {number} Optional argument to specify how much data to read.
+* Return {String|Buffer|null}
 
 The `readable.read()` method pulls some data out of the internal buffer and
 returns it. If no data available to be read, `null` is returned. By default,
@@ -917,7 +917,7 @@ getReadableStreamSomehow()
 added: v0.9.4
 -->
 
-* `encoding` {String} The encoding to use.
+* `encoding` {string} The encoding to use.
 * Returns: `this`
 
 The `readable.setEncoding()` method sets the default character encoding for
@@ -981,7 +981,7 @@ setTimeout(() => {
 added: v0.9.11
 -->
 
-* `chunk` {Buffer|String} Chunk of data to unshift onto the read queue
+* `chunk` {Buffer|string} Chunk of data to unshift onto the read queue
 
 The `readable.unshift()` method pushes a chunk of data back into the internal
 buffer. This is useful in certain situations where a stream is being consumed by
@@ -1236,13 +1236,13 @@ constructor and implement the `writable._write()` method. The
 #### Constructor: new stream.Writable([options])
 
 * `options` {Object}
-  * `highWaterMark` {Number} Buffer level when
+  * `highWaterMark` {number} Buffer level when
     [`stream.write()`][stream-write] starts returning `false`. Defaults to
     `16384` (16kb), or `16` for `objectMode` streams.
-  * `decodeStrings` {Boolean} Whether or not to decode strings into
+  * `decodeStrings` {boolean} Whether or not to decode strings into
     Buffers before passing them to [`stream._write()`][stream-_write].
     Defaults to `true`
-  * `objectMode` {Boolean} Whether or not the
+  * `objectMode` {boolean} Whether or not the
     [`stream.write(anyObj)`][stream-write] is a valid operation. When set,
     it becomes possible to write JavaScript values other than string or
     `Buffer` if supported by the stream implementation. Defaults to `false`
@@ -1295,9 +1295,9 @@ const myWritable = new Writable({
 
 #### writable.\_write(chunk, encoding, callback)
 
-* `chunk` {Buffer|String} The chunk to be written. Will **always**
+* `chunk` {Buffer|string} The chunk to be written. Will **always**
   be a buffer unless the `decodeStrings` option was set to `false`.
-* `encoding` {String} If the chunk is a string, then `encoding` is the
+* `encoding` {string} If the chunk is a string, then `encoding` is the
   character encoding of that string. If chunk is a `Buffer`, or if the
   stream is operating in object mode, `encoding` may be ignored.
 * `callback` {Function} Call this function (optionally with an error
@@ -1417,12 +1417,12 @@ constructor and implement the `readable._read()` method.
 #### new stream.Readable([options])
 
 * `options` {Object}
-  * `highWaterMark` {Number} The maximum number of bytes to store in
+  * `highWaterMark` {number} The maximum number of bytes to store in
     the internal buffer before ceasing to read from the underlying
     resource. Defaults to `16384` (16kb), or `16` for `objectMode` streams
-  * `encoding` {String} If specified, then buffers will be decoded to
+  * `encoding` {string} If specified, then buffers will be decoded to
     strings using the specified encoding. Defaults to `null`
-  * `objectMode` {Boolean} Whether this stream should behave
+  * `objectMode` {boolean} Whether this stream should behave
     as a stream of objects. Meaning that [`stream.read(n)`][stream-read] returns
     a single value instead of a Buffer of size n. Defaults to `false`
   * `read` {Function} Implementation for the [`stream._read()`][stream-_read]
@@ -1469,7 +1469,7 @@ const myReadable = new Readable({
 
 #### readable.\_read(size)
 
-* `size` {Number} Number of bytes to read asynchronously
+* `size` {number} Number of bytes to read asynchronously
 
 *Note*: **This function MUST NOT be called by application code directly.** It
 should be implemented by child classes, and called only by the internal Readable
@@ -1500,8 +1500,8 @@ user programs.
 
 #### readable.push(chunk[, encoding])
 
-* `chunk` {Buffer|Null|String} Chunk of data to push into the read queue
-* `encoding` {String} Encoding of String chunks.  Must be a valid
+* `chunk` {Buffer|null|string} Chunk of data to push into the read queue
+* `encoding` {string} Encoding of String chunks.  Must be a valid
   Buffer encoding, such as `'utf8'` or `'ascii'`
 * Returns {Boolean} `true` if additional chunks of data may continued to be
   pushed; `false` otherwise.
@@ -1631,13 +1631,13 @@ constructor and implement *both* the `readable._read()` and
 
 * `options` {Object} Passed to both Writable and Readable
   constructors. Also has the following fields:
-  * `allowHalfOpen` {Boolean} Defaults to `true`. If set to `false`, then
+  * `allowHalfOpen` {boolean} Defaults to `true`. If set to `false`, then
     the stream will automatically end the readable side when the
     writable side ends and vice versa.
-  * `readableObjectMode` {Boolean} Defaults to `false`. Sets `objectMode`
+  * `readableObjectMode` {boolean} Defaults to `false`. Sets `objectMode`
     for readable side of the stream. Has no effect if `objectMode`
     is `true`.
-  * `writableObjectMode` {Boolean} Defaults to `false`. Sets `objectMode`
+  * `writableObjectMode` {boolean} Defaults to `false`. Sets `objectMode`
     for writable side of the stream. Has no effect if `objectMode`
     is `true`.
 
@@ -1873,9 +1873,9 @@ user programs.
 
 #### transform.\_transform(chunk, encoding, callback)
 
-* `chunk` {Buffer|String} The chunk to be transformed. Will **always**
+* `chunk` {Buffer|string} The chunk to be transformed. Will **always**
   be a buffer unless the `decodeStrings` option was set to `false`.
-* `encoding` {String} If the chunk is a string, then this is the
+* `encoding` {string} If the chunk is a string, then this is the
   encoding type. If chunk is a buffer, then this is the special
   value - 'buffer', ignore it in this case.
 * `callback` {Function} A callback function (optionally with an error
