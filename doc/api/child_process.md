@@ -125,25 +125,25 @@ exec('"my script.cmd" a b', (err, stdout, stderr) => {
 added: v0.1.90
 -->
 
-* `command` {String} The command to run, with space-separated arguments
+* `command` {string} The command to run, with space-separated arguments
 * `options` {Object}
-  * `cwd` {String} Current working directory of the child process
+  * `cwd` {string} Current working directory of the child process
   * `env` {Object} Environment key-value pairs
-  * `encoding` {String} (Default: `'utf8'`)
-  * `shell` {String} Shell to execute the command with
+  * `encoding` {string} (Default: `'utf8'`)
+  * `shell` {string} Shell to execute the command with
     (Default: `'/bin/sh'` on UNIX, `'cmd.exe'` on Windows, The shell should
      understand the `-c` switch on UNIX or `/d /s /c` on Windows. On Windows,
      command line parsing should be compatible with `cmd.exe`.)
-  * `timeout` {Number} (Default: `0`)
+  * `timeout` {number} (Default: `0`)
   * [`maxBuffer`][] {Number} largest amount of data (in bytes) allowed on
     stdout or stderr - if exceeded child process is killed (Default: `200*1024`)
-  * `killSignal` {String|Integer} (Default: `'SIGTERM'`)
-  * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
-  * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
+  * `killSignal` {string|Integer} (Default: `'SIGTERM'`)
+  * `uid` {number} Sets the user identity of the process. (See setuid(2).)
+  * `gid` {number} Sets the group identity of the process. (See setgid(2).)
 * `callback` {Function} called with the output when process terminates
   * `error` {Error}
-  * `stdout` {String|Buffer}
-  * `stderr` {String|Buffer}
+  * `stdout` {string|Buffer}
+  * `stderr` {string|Buffer}
 * Returns: {ChildProcess}
 
 Spawns a shell then executes the `command` within that shell, buffering any
@@ -205,22 +205,22 @@ replace the existing process and uses a shell to execute the command.*
 added: v0.1.91
 -->
 
-* `file` {String} The name or path of the executable file to run
+* `file` {string} The name or path of the executable file to run
 * `args` {Array} List of string arguments
 * `options` {Object}
-  * `cwd` {String} Current working directory of the child process
+  * `cwd` {string} Current working directory of the child process
   * `env` {Object} Environment key-value pairs
-  * `encoding` {String} (Default: `'utf8'`)
-  * `timeout` {Number} (Default: `0`)
+  * `encoding` {string} (Default: `'utf8'`)
+  * `timeout` {number} (Default: `0`)
   * [`maxBuffer`][] {Number} largest amount of data (in bytes) allowed on
     stdout or stderr - if exceeded child process is killed (Default: `200*1024`)
-  * `killSignal` {String|Integer} (Default: `'SIGTERM'`)
-  * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
-  * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
+  * `killSignal` {string|Integer} (Default: `'SIGTERM'`)
+  * `uid` {number} Sets the user identity of the process. (See setuid(2).)
+  * `gid` {number} Sets the group identity of the process. (See setgid(2).)
 * `callback` {Function} called with the output when process terminates
   * `error` {Error}
-  * `stdout` {String|Buffer}
-  * `stderr` {String|Buffer}
+  * `stdout` {string|Buffer}
+  * `stderr` {string|Buffer}
 * Returns: {ChildProcess}
 
 The `child_process.execFile()` function is similar to [`child_process.exec()`][]
@@ -260,24 +260,24 @@ changes:
     description: The `stdio` option is supported now.
 -->
 
-* `modulePath` {String} The module to run in the child
+* `modulePath` {string} The module to run in the child
 * `args` {Array} List of string arguments
 * `options` {Object}
-  * `cwd` {String} Current working directory of the child process
+  * `cwd` {string} Current working directory of the child process
   * `env` {Object} Environment key-value pairs
-  * `execPath` {String} Executable used to create the child process
+  * `execPath` {string} Executable used to create the child process
   * `execArgv` {Array} List of string arguments passed to the executable
     (Default: `process.execArgv`)
-  * `silent` {Boolean} If `true`, stdin, stdout, and stderr of the child will be
+  * `silent` {boolean} If `true`, stdin, stdout, and stderr of the child will be
     piped to the parent, otherwise they will be inherited from the parent, see
     the `'pipe'` and `'inherit'` options for [`child_process.spawn()`][]'s
     [`stdio`][] for more details (Default: `false`)
-  * `stdio` {Array|String} See [`child_process.spawn()`][]'s [`stdio`][].
+  * `stdio` {Array|string} See [`child_process.spawn()`][]'s [`stdio`][].
     When this option is provided, it overrides `silent`. If the array variant
     is used, it must contain exactly one item with value `'ipc'` or an error
     will be thrown. For instance `[0, 1, 2, 'ipc']`.
-  * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
-  * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
+  * `uid` {number} Sets the user identity of the process. (See setuid(2).)
+  * `gid` {number} Sets the group identity of the process. (See setgid(2).)
 * Returns: {ChildProcess}
 
 The `child_process.fork()` method is a special case of
@@ -318,21 +318,21 @@ changes:
     description: The `shell` option is supported now.
 -->
 
-* `command` {String} The command to run
+* `command` {string} The command to run
 * `args` {Array} List of string arguments
 * `options` {Object}
-  * `cwd` {String} Current working directory of the child process
+  * `cwd` {string} Current working directory of the child process
   * `env` {Object} Environment key-value pairs
-  * `argv0` {String} Explicitly set the value of `argv[0]` sent to the child
+  * `argv0` {string} Explicitly set the value of `argv[0]` sent to the child
     process. This will be set to `command` if not specified.
-  * `stdio` {Array|String} Child's stdio configuration. (See
+  * `stdio` {Array|string} Child's stdio configuration. (See
     [`options.stdio`][`stdio`])
-  * `detached` {Boolean} Prepare child to run independently of its parent
+  * `detached` {boolean} Prepare child to run independently of its parent
     process. Specific behavior depends on the platform, see
     [`options.detached`][])
-  * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
-  * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
-  * `shell` {Boolean|String} If `true`, runs `command` inside of a shell. Uses
+  * `uid` {number} Sets the user identity of the process. (See setuid(2).)
+  * `gid` {number} Sets the group identity of the process. (See setgid(2).)
+  * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
     `'/bin/sh'` on UNIX, and `'cmd.exe'` on Windows. A different shell can be
     specified as a string. The shell should understand the `-c` switch on UNIX,
     or `/d /s /c` on Windows. Defaults to `false` (no shell).
@@ -601,27 +601,27 @@ changes:
     description: The `encoding` option can now explicitly be set to `buffer`.
 -->
 
-* `file` {String} The name or path of the executable file to run
+* `file` {string} The name or path of the executable file to run
 * `args` {Array} List of string arguments
 * `options` {Object}
-  * `cwd` {String} Current working directory of the child process
-  * `input` {String|Buffer|Uint8Array} The value which will be passed as stdin
+  * `cwd` {string} Current working directory of the child process
+  * `input` {string|Buffer|Uint8Array} The value which will be passed as stdin
     to the spawned process
     - supplying this value will override `stdio[0]`
-  * `stdio` {String | Array} Child's stdio configuration. (Default: `'pipe'`)
+  * `stdio` {string | Array} Child's stdio configuration. (Default: `'pipe'`)
     - `stderr` by default will be output to the parent process' stderr unless
       `stdio` is specified
   * `env` {Object} Environment key-value pairs
-  * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
-  * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
-  * `timeout` {Number} In milliseconds the maximum amount of time the process
+  * `uid` {number} Sets the user identity of the process. (See setuid(2).)
+  * `gid` {number} Sets the group identity of the process. (See setgid(2).)
+  * `timeout` {number} In milliseconds the maximum amount of time the process
     is allowed to run. (Default: `undefined`)
-  * `killSignal` {String|Integer} The signal value to be used when the spawned
+  * `killSignal` {string|Integer} The signal value to be used when the spawned
     process will be killed. (Default: `'SIGTERM'`)
   * [`maxBuffer`][] {Number} largest amount of data (in bytes) allowed on
     stdout or stderr - if exceeded child process is killed
-  * `encoding` {String} The encoding used for all stdio inputs and outputs. (Default: `'buffer'`)
-* Returns: {Buffer|String} The stdout from the command
+  * `encoding` {string} The encoding used for all stdio inputs and outputs. (Default: `'buffer'`)
+* Returns: {Buffer|string} The stdout from the command
 
 The `child_process.execFileSync()` method is generally identical to
 [`child_process.execFile()`][] with the exception that the method will not return
@@ -644,31 +644,31 @@ changes:
     description: The `input` option can now be a `Uint8Array`.
 -->
 
-* `command` {String} The command to run
+* `command` {string} The command to run
 * `options` {Object}
-  * `cwd` {String} Current working directory of the child process
-  * `input` {String|Buffer|Uint8Array} The value which will be passed as stdin
+  * `cwd` {string} Current working directory of the child process
+  * `input` {string|Buffer|Uint8Array} The value which will be passed as stdin
     to the spawned process
     - supplying this value will override `stdio[0]`
-  * `stdio` {String | Array} Child's stdio configuration. (Default: `'pipe'`)
+  * `stdio` {string | Array} Child's stdio configuration. (Default: `'pipe'`)
     - `stderr` by default will be output to the parent process' stderr unless
       `stdio` is specified
   * `env` {Object} Environment key-value pairs
-  * `shell` {String} Shell to execute the command with
+  * `shell` {string} Shell to execute the command with
     (Default: `'/bin/sh'` on UNIX, `'cmd.exe'` on Windows, The shell should
      understand the `-c` switch on UNIX or `/d /s /c` on Windows. On Windows,
      command line parsing should be compatible with `cmd.exe`.)
-  * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
-  * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
-  * `timeout` {Number} In milliseconds the maximum amount of time the process
+  * `uid` {number} Sets the user identity of the process. (See setuid(2).)
+  * `gid` {number} Sets the group identity of the process. (See setgid(2).)
+  * `timeout` {number} In milliseconds the maximum amount of time the process
     is allowed to run. (Default: `undefined`)
-  * `killSignal` {String|Integer} The signal value to be used when the spawned
+  * `killSignal` {string|Integer} The signal value to be used when the spawned
     process will be killed. (Default: `'SIGTERM'`)
   * [`maxBuffer`][] {Number} largest amount of data (in bytes) allowed on
     stdout or stderr - if exceeded child process is killed
-  * `encoding` {String} The encoding used for all stdio inputs and outputs.
+  * `encoding` {string} The encoding used for all stdio inputs and outputs.
     (Default: `'buffer'`)
-* Returns: {Buffer|String} The stdout from the command
+* Returns: {Buffer|string} The stdout from the command
 
 The `child_process.execSync()` method is generally identical to
 [`child_process.exec()`][] with the exception that the method will not return until
@@ -701,36 +701,36 @@ changes:
     description: The `shell` option is supported now.
 -->
 
-* `command` {String} The command to run
+* `command` {string} The command to run
 * `args` {Array} List of string arguments
 * `options` {Object}
-  * `cwd` {String} Current working directory of the child process
-  * `input` {String|Buffer|Uint8Array} The value which will be passed as stdin
+  * `cwd` {string} Current working directory of the child process
+  * `input` {string|Buffer|Uint8Array} The value which will be passed as stdin
     to the spawned process
     - supplying this value will override `stdio[0]`
-  * `stdio` {String | Array} Child's stdio configuration.
+  * `stdio` {string | Array} Child's stdio configuration.
   * `env` {Object} Environment key-value pairs
-  * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
-  * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
-  * `timeout` {Number} In milliseconds the maximum amount of time the process
+  * `uid` {number} Sets the user identity of the process. (See setuid(2).)
+  * `gid` {number} Sets the group identity of the process. (See setgid(2).)
+  * `timeout` {number} In milliseconds the maximum amount of time the process
     is allowed to run. (Default: `undefined`)
-  * `killSignal` {String|Integer} The signal value to be used when the spawned
+  * `killSignal` {string|Integer} The signal value to be used when the spawned
     process will be killed. (Default: `'SIGTERM'`)
   * [`maxBuffer`][] {Number} largest amount of data (in bytes) allowed on
     stdout or stderr - if exceeded child process is killed
-  * `encoding` {String} The encoding used for all stdio inputs and outputs.
+  * `encoding` {string} The encoding used for all stdio inputs and outputs.
     (Default: `'buffer'`)
-  * `shell` {Boolean|String} If `true`, runs `command` inside of a shell. Uses
+  * `shell` {boolean|string} If `true`, runs `command` inside of a shell. Uses
     `'/bin/sh'` on UNIX, and `'cmd.exe'` on Windows. A different shell can be
     specified as a string. The shell should understand the `-c` switch on UNIX,
     or `/d /s /c` on Windows. Defaults to `false` (no shell).
 * Returns: {Object}
-  * `pid` {Number} Pid of the child process
+  * `pid` {number} Pid of the child process
   * `output` {Array} Array of results from stdio output
-  * `stdout` {Buffer|String} The contents of `output[1]`
-  * `stderr` {Buffer|String} The contents of `output[2]`
-  * `status` {Number} The exit code of the child process
-  * `signal` {String} The signal used to kill the child process
+  * `stdout` {Buffer|string} The contents of `output[1]`
+  * `stderr` {Buffer|string} The contents of `output[2]`
+  * `status` {number} The exit code of the child process
+  * `signal` {string} The signal used to kill the child process
   * `error` {Error} The error object if the child process failed or timed out
 
 The `child_process.spawnSync()` method is generally identical to
@@ -763,8 +763,8 @@ instances of `ChildProcess`.
 added: v0.7.7
 -->
 
-* `code` {Number} the exit code if the child exited on its own.
-* `signal` {String} the signal by which the child process was terminated.
+* `code` {number} the exit code if the child exited on its own.
+* `signal` {string} the signal by which the child process was terminated.
 
 The `'close'` event is emitted when the stdio streams of a child process have
 been closed. This is distinct from the [`'exit'`][] event, since multiple
@@ -801,8 +801,8 @@ See also [`child.kill()`][] and [`child.send()`][].
 added: v0.1.90
 -->
 
-* `code` {Number} the exit code if the child exited on its own.
-* `signal` {String} the signal by which the child process was terminated.
+* `code` {number} the exit code if the child exited on its own.
+* `signal` {string} the signal by which the child process was terminated.
 
 The `'exit'` event is emitted after the child process ends. If the process
 exited, `code` is the final exit code of the process, otherwise `null`. If the
@@ -876,7 +876,7 @@ within the child process to close the IPC channel as well.
 added: v0.1.90
 -->
 
-* `signal` {String}
+* `signal` {string}
 
 The `child.kill()` methods sends a signal to the child process. If no argument
 is given, the process will be sent the `'SIGTERM'` signal. See signal(7) for

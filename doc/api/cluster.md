@@ -148,8 +148,8 @@ In a worker you can also use `process.on('error')`.
 added: v0.11.2
 -->
 
-* `code` {Number} the exit code, if it exited normally.
-* `signal` {String} the name of the signal (e.g. `'SIGHUP'`) that caused
+* `code` {number} the exit code, if it exited normally.
+* `signal` {string} the name of the signal (e.g. `'SIGHUP'`) that caused
   the process to be killed.
 
 Similar to the `cluster.on('exit')` event, but specific to this worker.
@@ -386,7 +386,7 @@ because of exiting or being signaled). Otherwise, it returns `false`.
 added: v0.9.12
 -->
 
-* `signal` {String} Name of the kill signal to send to the worker
+* `signal` {string} Name of the kill signal to send to the worker
   process.
 
 This function will kill the worker. In the master, it does this by disconnecting
@@ -514,8 +514,8 @@ added: v0.7.9
 -->
 
 * `worker` {cluster.Worker}
-* `code` {Number} the exit code, if it exited normally.
-* `signal` {String} the name of the signal (e.g. `'SIGHUP'`) that caused
+* `code` {number} the exit code, if it exited normally.
+* `signal` {string} the name of the signal (e.g. `'SIGHUP'`) that caused
   the process to be killed.
 
 When any of the workers die the cluster module will emit the `'exit'` event.
@@ -736,16 +736,16 @@ changes:
 * {Object}
   * `execArgv` {Array} list of string arguments passed to the Node.js
     executable. (Default=`process.execArgv`)
-  * `exec` {String} file path to worker file.  (Default=`process.argv[1]`)
+  * `exec` {string} file path to worker file.  (Default=`process.argv[1]`)
   * `args` {Array} string arguments passed to worker.
     (Default=`process.argv.slice(2)`)
-  * `silent` {Boolean} whether or not to send output to parent's stdio.
+  * `silent` {boolean} whether or not to send output to parent's stdio.
     (Default=`false`)
   * `stdio` {Array} Configures the stdio of forked processes. Because the
     cluster module relies on IPC to function, this configuration must contain an
     `'ipc'` entry. When this option is provided, it overrides `silent`.
-  * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
-  * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
+  * `uid` {number} Sets the user identity of the process. (See setuid(2).)
+  * `gid` {number} Sets the group identity of the process. (See setgid(2).)
 
 After calling `.setupMaster()` (or `.fork()`) this settings object will contain
 the settings, including the default values.
@@ -762,10 +762,10 @@ changes:
 -->
 
 * `settings` {Object}
-  * `exec` {String} file path to worker file.  (Default=`process.argv[1]`)
+  * `exec` {string} file path to worker file.  (Default=`process.argv[1]`)
   * `args` {Array} string arguments passed to worker.
     (Default=`process.argv.slice(2)`)
-  * `silent` {Boolean} whether or not to send output to parent's stdio.
+  * `silent` {boolean} whether or not to send output to parent's stdio.
     (Default=`false`)
   * `stdio` {Array} Configures the stdio of forked processes. When this option
     is provided, it overrides `silent`.

@@ -618,7 +618,7 @@ The module that first required this one.
 added: v0.5.1
 -->
 
-* `id` {String}
+* `id` {string}
 * Returns: {Object} `module.exports` from the resolved module
 
 The `module.require` method provides a way to load a module as if

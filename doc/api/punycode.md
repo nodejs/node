@@ -40,7 +40,7 @@ the module must be directed to the [Punycode.js][] project.
 added: v0.5.1
 -->
 
-* `string` {String}
+* `string` {string}
 
 The `punycode.decode()` method converts a [Punycode][] string of ASCII-only
 characters to the equivalent string of Unicode codepoints.
@@ -55,7 +55,7 @@ punycode.decode('--dqo34k'); // '☃-⌘'
 added: v0.5.1
 -->
 
-* `string` {String}
+* `string` {string}
 
 The `punycode.encode()` method converts a string of Unicode codepoints to a
 [Punycode][] string of ASCII-only characters.
@@ -70,7 +70,7 @@ punycode.encode('☃-⌘'); // '--dqo34k'
 added: v0.6.1
 -->
 
-* `domain` {String}
+* `domain` {string}
 
 The `punycode.toASCII()` method converts a Unicode string representing an
 Internationalized Domain Name to [Punycode][]. Only the non-ASCII parts of the
@@ -89,7 +89,7 @@ punycode.toASCII('example.com'); // 'example.com'
 added: v0.6.1
 -->
 
-* `domain` {String}
+* `domain` {string}
 
 The `punycode.toUnicode()` method converts a string representing a domain name
 containing [Punycode][] encoded characters into Unicode. Only the [Punycode][]
@@ -112,7 +112,7 @@ added: v0.7.0
 added: v0.7.0
 -->
 
-* `string` {String}
+* `string` {string}
 
 The `punycode.ucs2.decode()` method returns an array containing the numeric
 codepoint values of each Unicode symbol in the string.
