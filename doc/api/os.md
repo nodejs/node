@@ -60,7 +60,7 @@ each CPU/core installed.
 
 The properties included on each object include:
 
-* `model` {String}
+* `model` {string}
 * `speed` {number} (in MHz)
 * `times` {Object}
   * `user` {number} The number of milliseconds the CPU has spent in user mode.
@@ -244,10 +244,10 @@ value is an array of objects that each describe an assigned network address.
 
 The properties available on the assigned network address object include:
 
-* `address` {String} The assigned IPv4 or IPv6 address
-* `netmask` {String} The IPv4 or IPv6 network mask
-* `family` {String} Either `IPv4` or `IPv6`
-* `mac` {String} The MAC address of the network interface
+* `address` {string} The assigned IPv4 or IPv6 address
+* `netmask` {string} The IPv4 or IPv6 network mask
+* `family` {string} Either `IPv4` or `IPv6`
+* `mac` {string} The MAC address of the network interface
 * `internal` {boolean} `true` if the network interface is a loopback or
   similar interface that is not remotely accessible; otherwise `false`
 * `scopeid` {number} The numeric IPv6 scope ID (only specified when `family`
@@ -388,7 +388,7 @@ added: v6.0.0
 -->
 
 * `options` {Object}
-  * `encoding` {String} Character encoding used to interpret resulting strings.
+  * `encoding` {string} Character encoding used to interpret resulting strings.
     If `encoding` is set to `'buffer'`, the `username`, `shell`, and `homedir`
     values will be `Buffer` instances. (Default: 'utf8')
 * Returns: {Object}

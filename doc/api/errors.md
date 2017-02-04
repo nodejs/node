@@ -195,7 +195,7 @@ will either be instances of, or inherit from, the `Error` class.
 
 ### new Error(message)
 
-* `message` {String}
+* `message` {string}
 
 Creates a new `Error` object and sets the `error.message` property to the
 provided text message. If an object is passed as `message`, the text message

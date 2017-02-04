@@ -110,16 +110,16 @@ added: v0.3.4
 
 * `options` {Object} Set of configurable options to set on the agent.
   Can have the following fields:
-  * `keepAlive` {Boolean} Keep sockets around even when there are no
+  * `keepAlive` {boolean} Keep sockets around even when there are no
     outstanding requests, so they can be used for future requests without
     having to reestablish a TCP connection. Default = `false`
   * `keepAliveMsecs` {Integer} When using the `keepAlive` option, specifies
     the [initial delay](net.html#net_socket_setkeepalive_enable_initialdelay)
     for TCP Keep-Alive packets. Ignored when the
     `keepAlive` option is `false` or `undefined`. Default = `1000`.
-  * `maxSockets` {Number} Maximum number of sockets to allow per
+  * `maxSockets` {number} Maximum number of sockets to allow per
     host.  Default = `Infinity`.
-  * `maxFreeSockets` {Number} Maximum number of sockets to leave open
+  * `maxFreeSockets` {number} Maximum number of sockets to leave open
     in a free state.  Only relevant if `keepAlive` is set to `true`.
     Default = `256`.
 
@@ -184,9 +184,9 @@ added: v0.11.4
 -->
 
 * `options` {Object} A set of options providing information for name generation
-  * `host` {String} A domain name or IP address of the server to issue the request to
-  * `port` {Number} Port of remote server
-  * `localAddress` {String} Local interface to bind for network connections
+  * `host` {string} A domain name or IP address of the server to issue the request to
+  * `port` {number} Port of remote server
+  * `localAddress` {string} Local interface to bind for network connections
     when issuing the request
 * Returns: {String}
 
@@ -463,8 +463,8 @@ aborted, in milliseconds since 1 January 1970 00:00:00 UTC.
 added: v0.1.90
 -->
 
-* `data` {String | Buffer}
-* `encoding` {String}
+* `data` {string | Buffer}
+* `encoding` {string}
 * `callback` {Function}
 
 Finishes sending the request. If any parts of the body are
@@ -497,7 +497,7 @@ the optimization and kickstart the request.
 added: v0.5.9
 -->
 
-* `noDelay` {Boolean}
+* `noDelay` {boolean}
 
 Once a socket is assigned to this request and is connected
 [`socket.setNoDelay()`][] will be called.
@@ -507,8 +507,8 @@ Once a socket is assigned to this request and is connected
 added: v0.5.9
 -->
 
-* `enable` {Boolean}
-* `initialDelay` {Number}
+* `enable` {boolean}
+* `initialDelay` {number}
 
 Once a socket is assigned to this request and is connected
 [`socket.setKeepAlive()`][] will be called.
@@ -518,7 +518,7 @@ Once a socket is assigned to this request and is connected
 added: v0.5.9
 -->
 
-* `timeout` {Number} Milliseconds before a request is considered to be timed out.
+* `timeout` {number} Milliseconds before a request is considered to be timed out.
 * `callback` {Function} Optional function to be called when a timeout occurs. Same as binding to the `timeout` event.
 
 Once a socket is assigned to this request and is connected
@@ -531,8 +531,8 @@ Returns `request`.
 added: v0.1.29
 -->
 
-* `chunk` {String | Buffer}
-* `encoding` {String}
+* `chunk` {string | Buffer}
+* `encoding` {string}
 * `callback` {Function}
 
 Sends a chunk of the body.  By calling this method
@@ -737,7 +737,7 @@ subsequent call will *re-open* the server using the provided options.
 added: v0.1.90
 -->
 
-* `path` {String}
+* `path` {string}
 * `callback` {Function}
 
 Start a UNIX socket server listening for connections on the given `path`.
@@ -753,9 +753,9 @@ subsequent call will *re-open* the server using the provided options.
 added: v0.1.90
 -->
 
-* `port` {Number}
-* `hostname` {String}
-* `backlog` {Number}
+* `port` {number}
+* `hostname` {string}
+* `backlog` {number}
 * `callback` {Function}
 
 Begin accepting connections on the specified `port` and `hostname`. If the
@@ -809,7 +809,7 @@ no limit will be applied.
 added: v0.9.12
 -->
 
-* `msecs` {Number}
+* `msecs` {number}
 * `callback` {Function}
 
 Sets the timeout value for sockets, and emits a `'timeout'` event on
@@ -907,8 +907,8 @@ will result in a [`TypeError`][] being thrown.
 added: v0.1.90
 -->
 
-* `data` {String | Buffer}
-* `encoding` {String}
+* `data` {string | Buffer}
+* `encoding` {string}
 * `callback` {Function}
 
 This method signals to the server that all of the response headers and body
@@ -936,7 +936,7 @@ as `false`. After [`response.end()`][] executes, the value will be `true`.
 added: v0.4.0
 -->
 
-* `name` {String}
+* `name` {string}
 * Returns: {String}
 
 Reads out a header that's already been queued but not sent to the client.
@@ -1022,7 +1022,7 @@ Boolean (read-only). True if headers were sent, false otherwise.
 added: v0.4.0
 -->
 
-* `name` {String}
+* `name` {string}
 
 Removes a header that's queued for implicit sending.
 
@@ -1050,8 +1050,8 @@ in responses.
 added: v0.4.0
 -->
 
-* `name` {String}
-* `value` {String}
+* `name` {string}
+* `value` {string}
 
 Sets a single header value for implicit headers.  If this header already exists
 in the to-be-sent headers, its value will be replaced.  Use an array of strings
@@ -1091,7 +1091,7 @@ const server = http.createServer((req,res) => {
 added: v0.9.12
 -->
 
-* `msecs` {Number}
+* `msecs` {number}
 * `callback` {Function}
 
 Sets the Socket's timeout value to `msecs`.  If a callback is
@@ -1152,8 +1152,8 @@ status message which was sent out.
 added: v0.1.29
 -->
 
-* `chunk` {String | Buffer}
-* `encoding` {String}
+* `chunk` {string | Buffer}
+* `encoding` {string}
 * `callback` {Function}
 * Returns: {Boolean}
 
@@ -1199,8 +1199,8 @@ changes:
                  the range `[100, 999]`.
 -->
 
-* `statusCode` {Number}
-* `statusMessage` {String}
+* `statusCode` {number}
+* `statusMessage` {string}
 * `headers` {Object}
 
 Sends a response header to the request. The status code is a 3-digit HTTP
@@ -1388,7 +1388,7 @@ received.  Only populated at the `'end'` event.
 added: v0.5.9
 -->
 
-* `msecs` {Number}
+* `msecs` {number}
 * `callback` {Function}
 
 Calls `message.connection.setTimeout(msecs, callback)`.
@@ -1595,28 +1595,28 @@ added: v0.3.6
 -->
 
 * `options` {Object}
-  * `protocol` {String} Protocol to use. Defaults to `'http:'`.
-  * `host` {String} A domain name or IP address of the server to issue the
+  * `protocol` {string} Protocol to use. Defaults to `'http:'`.
+  * `host` {string} A domain name or IP address of the server to issue the
     request to. Defaults to `'localhost'`.
-  * `hostname` {String} Alias for `host`. To support [`url.parse()`][],
+  * `hostname` {string} Alias for `host`. To support [`url.parse()`][],
     `hostname` is preferred over `host`.
-  * `family` {Number} IP address family to use when resolving `host` and
+  * `family` {number} IP address family to use when resolving `host` and
     `hostname`. Valid values are `4` or `6`. When unspecified, both IP v4 and
     v6 will be used.
-  * `port` {Number} Port of remote server. Defaults to 80.
-  * `localAddress` {String} Local interface to bind for network connections.
-  * `socketPath` {String} Unix Domain Socket (use one of host:port or
+  * `port` {number} Port of remote server. Defaults to 80.
+  * `localAddress` {string} Local interface to bind for network connections.
+  * `socketPath` {string} Unix Domain Socket (use one of host:port or
     socketPath).
-  * `method` {String} A string specifying the HTTP request method. Defaults to
+  * `method` {string} A string specifying the HTTP request method. Defaults to
     `'GET'`.
-  * `path` {String} Request path. Defaults to `'/'`. Should include query
+  * `path` {string} Request path. Defaults to `'/'`. Should include query
     string if any. E.G. `'/index.html?page=12'`. An exception is thrown when
     the request path contains illegal characters. Currently, only spaces are
     rejected but that may change in the future.
   * `headers` {Object} An object containing request headers.
-  * `auth` {String} Basic authentication i.e. `'user:password'` to compute an
+  * `auth` {string} Basic authentication i.e. `'user:password'` to compute an
     Authorization header.
-  * `agent` {http.Agent|Boolean} Controls [`Agent`][] behavior. Possible values:
+  * `agent` {http.Agent|boolean} Controls [`Agent`][] behavior. Possible values:
    * `undefined` (default): use [`http.globalAgent`][] for this host and port.
    * `Agent` object: explicitly use the passed in `Agent`.
    * `false`: causes a new `Agent` with default values to be used.
