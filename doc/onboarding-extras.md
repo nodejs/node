@@ -25,7 +25,7 @@
 | `src/async-wrap.*` | @trevnorris |
 | `src/node_crypto.*` | @nodejs/crypto |
 | `test/*` | @nodejs/testing |
-| `tools/eslint`, `.eslintrc` | @silverwind, @trott |
+| `tools/eslint`, `.eslintrc` | @not-an-aardvark, @silverwind, @trott |
 | async_hooks | @nodejs/diagnostics |
 | upgrading V8 | @nodejs/v8, @nodejs/post-mortem |
 | upgrading npm | @fishrock123, @MylesBorins |
