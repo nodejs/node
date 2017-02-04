@@ -10,14 +10,14 @@ const { test, assert_equals } = common.WPT;
    https://github.com/w3c/web-platform-tests/blob/8791bed/url/urlsearchparams-stringifier.html
    License: http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html
 */
-// test(function() {
-//     var params = new URLSearchParams();
-//     params.append('a', 'b c');
-//     assert_equals(params + '', 'a=b+c');
-//     params.delete('a');
-//     params.append('a b', 'c');
-//     assert_equals(params + '', 'a+b=c');
-// }, 'Serialize space');
+test(function() {
+    var params = new URLSearchParams();
+    params.append('a', 'b c');
+    assert_equals(params + '', 'a=b+c');
+    params.delete('a');
+    params.append('a b', 'c');
+    assert_equals(params + '', 'a+b=c');
+}, 'Serialize space');
 
 test(function() {
     var params = new URLSearchParams();
@@ -114,8 +114,8 @@ test(function() {
     var params;
     params = new URLSearchParams('a=b&c=d&&e&&');
     assert_equals(params.toString(), 'a=b&c=d&e=');
-    // params = new URLSearchParams('a = b &a=b&c=d%20');
-    // assert_equals(params.toString(), 'a+=+b+&a=b&c=d+');
+    params = new URLSearchParams('a = b &a=b&c=d%20');
+    assert_equals(params.toString(), 'a+=+b+&a=b&c=d+');
     // The lone '=' _does_ survive the roundtrip.
     params = new URLSearchParams('a=&a=b');
     assert_equals(params.toString(), 'a=&a=b');
