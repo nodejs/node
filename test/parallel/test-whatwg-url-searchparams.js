@@ -7,7 +7,7 @@ const URL = require('url').URL;
 // Tests below are not from WPT.
 const serialized = 'a=a&a=1&a=true&a=undefined&a=null&a=%EF%BF%BD' +
                    '&a=%EF%BF%BD&a=%F0%9F%98%80&a=%EF%BF%BD%EF%BF%BD' +
-                   '&a=%5Bobject%20Object%5D';
+                   '&a=%5Bobject+Object%5D';
 const values = ['a', 1, true, undefined, null, '\uD83D', '\uDE00',
                 '\uD83D\uDE00', '\uDE00\uD83D', {}];
 const normalizedValues = ['a', '1', 'true', 'undefined', 'null', '\uFFFD',

@@ -4639,7 +4639,7 @@ module.exports =
     "port": "",
     "pathname": "/foo/bar",
     "search": "??a=b&c=d",
-    // "searchParams": "%3Fa=b&c=d",
+    "searchParams": "%3Fa=b&c=d",
     "hash": ""
   },
   "# Scheme only",

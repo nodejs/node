@@ -11,7 +11,7 @@ const {
 /* eslint-disable */
 var params;  // Strict mode fix for WPT.
 /* WPT Refs:
-   https://github.com/w3c/web-platform-tests/blob/405394a/url/urlsearchparams-constructor.html
+   https://github.com/w3c/web-platform-tests/blob/e94c604916/url/urlsearchparams-constructor.html
    License: http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html
 */
 test(function() {
@@ -154,7 +154,7 @@ test(function() {
 }, "Constructor with sequence of sequences of strings");
 
 [
-//   { "input": {"+": "%C2"}, "output": [[" ", "\uFFFD"]], "name": "object with +" },
+  { "input": {"+": "%C2"}, "output": [["+", "%C2"]], "name": "object with +" },
   { "input": {c: "x", a: "?"}, "output": [["c", "x"], ["a", "?"]], "name": "object with two keys" },
   { "input": [["c", "x"], ["a", "?"]], "output": [["c", "x"], ["a", "?"]], "name": "array with two keys" }
 ].forEach((val) => {
