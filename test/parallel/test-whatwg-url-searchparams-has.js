@@ -45,4 +45,10 @@ test(function() {
   assert.throws(() => {
     params.has();
   }, /^TypeError: "name" argument must be specified$/);
+
+  const obj = { toString() { throw new Error('toString'); } };
+  const sym = Symbol();
+  assert.throws(() => params.has(obj), /^Error: toString$/);
+  assert.throws(() => params.has(sym),
+                /^TypeError: Cannot convert a Symbol value to a string$/);
 }
