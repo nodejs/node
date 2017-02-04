@@ -1,5 +1,5 @@
 before
-*test*message*throw_in_line_with_tabs.js:9
+*test*message*throw_in_line_with_tabs.js:10
 	throw ({ foo: 'bar' });
 	^
 [object Object]
