@@ -122,7 +122,7 @@ followed to determine which aspects of the Node.js API are considered
 
 Exception to each of these points can be made if use or behavior of a given
 internal API can be demonstrated to be sufficiently relied upon by the Node.js
-ecosystem such that any changes would cause too much breakage. The threshhold
+ecosystem such that any changes would cause too much breakage. The threshold
 for what qualifies as "too much breakage" is to be decided on a case-by-case
 basis by the CTC.
 
@@ -161,7 +161,8 @@ sufficient review by collaborators and approval of at least two CTC members.
 
 Examples of breaking changes include, but are not necessarily limited to,
 removal or redefinition of existing API arguments, changing return values
-(except when return values do not currently exist), removing or modifying existing properties on an options argument, adding or removing errors,
+(except when return values do not currently exist), removing or modifying
+existing properties on an options argument, adding or removing errors,
 changing error messages in any way, altering expected timing of an event (e.g.
 moving from sync to async responses or vice versa), and changing the
 non-internal side effects of using a particular API.
