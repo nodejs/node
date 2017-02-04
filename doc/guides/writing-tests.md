@@ -211,8 +211,7 @@ const freelist = require('internal/freelist');
 
 ### Assertions
 
-When writing assertions for object comparison, prefer the strict versions,
-namely:
+When writing assertions for comparison, prefer the strict versions:
 
 * `assert.strictEqual()` over `assert.equal()`
 * `assert.deepStrictEqual()` over `assert.deepEqual()`
@@ -230,14 +229,14 @@ assert.throws(
 
 ### ES.Next features
 
-At the moment we only use a selected subset of ES.Next features in
-JavaScript code under the `lib` directory for performance considerations,
-but when writing tests, it is encouraged to use ES.Next features that have
-already landed in the ECMAScript specification. For example:
+For performance considerations, we only use a selected subset of ES.Next
+features in JavaScript code in the `lib` directory. However, when writing
+tests, it is encouraged to use ES.Next features that have already landed
+in the ECMAScript specification. For example:
 
 * `let` and `const` over `var`
 * Template literals over string concatenation
-* Arrow functions over normal functions, if appropriate
+* Arrow functions when appropriate
 
 ## Naming Test Files
 
@@ -258,7 +257,7 @@ functions worked correctly with the `beforeExit` event, then it might be named
 Some of the tests for the WHATWG URL implementation (named
 `test-whatwg-url-*.js`) are imported from the
 [Web Platform Tests Project](https://github.com/w3c/web-platform-tests/tree/master/url).
-If you see a test wrapped in code like this
+These imported tests will be wrapped like this:
 
 ```js
 /* eslint-disable */
@@ -272,7 +271,7 @@ If you see a test wrapped in code like this
 /* eslint-enable */
 ```
 
-and want to improve it, please send a PR to the upstream project
-first, and when it's merged, send another PR to this project
-to update the code accordingly (be sure to update the hash in the
-URL following `WPT Refs:`).
+If you want to improve tests that have been imported this way, please send
+a PR to the upstream project first. When your proposed change is merged in
+the upstream project, send another PR to update the code accordingly.
+Be sure to update the hash in the hash in the URL following `WPT Refs:`.
