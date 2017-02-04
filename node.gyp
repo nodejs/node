@@ -92,6 +92,7 @@
       'lib/internal/process/stdio.js',
       'lib/internal/process/warning.js',
       'lib/internal/process.js',
+      'lib/internal/querystring.js',
       'lib/internal/readline.js',
       'lib/internal/repl.js',
       'lib/internal/socket_list.js',
