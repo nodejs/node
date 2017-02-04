@@ -34,7 +34,7 @@ function useLegacy(n, input) {
 }
 
 function useWHATWG(n, input) {
-  var noDead = url.parse(input);
+  var noDead = new URL(input);
   bench.start();
   for (var i = 0; i < n; i += 1) {
     noDead = new URL(input);
