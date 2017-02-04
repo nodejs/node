@@ -6,6 +6,7 @@ console.error('before');
 
 (function() {
 	// these lines should contain tab!
+	// eslint-disable-next-line no-throw-literal
 	throw ({ foo: 'bar' });
 })();
 

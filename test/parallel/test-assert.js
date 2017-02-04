@@ -394,7 +394,7 @@ threw = false;
 try {
   assert.throws(
       function() {
-        throw ({});
+        throw ({}); // eslint-disable-line no-throw-literal
       },
       Array
   );
@@ -576,6 +576,7 @@ testBlockTypeError(assert.throws, undefined);
 testBlockTypeError(assert.doesNotThrow, undefined);
 
 // https://github.com/nodejs/node/issues/3275
+// eslint-disable-next-line no-throw-literal
 assert.throws(() => { throw 'error'; }, (err) => err === 'error');
 assert.throws(() => { throw new Error(); }, (err) => err instanceof Error);
 
