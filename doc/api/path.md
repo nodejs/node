@@ -59,8 +59,8 @@ path.posix.basename('/tmp/myfile.html');
 added: v0.1.25
 -->
 
-* `path` {String}
-* `ext` {String} An optional file extension
+* `path` {string}
+* `ext` {string} An optional file extension
 * Returns: {String}
 
 The `path.basename()` methods returns the last portion of a `path`, similar to
@@ -117,7 +117,7 @@ process.env.PATH.split(path.delimiter)
 added: v0.1.16
 -->
 
-* `path` {String}
+* `path` {string}
 * Returns: {String}
 
 The `path.dirname()` method returns the directory name of a `path`, similar to
@@ -138,7 +138,7 @@ A [`TypeError`][] is thrown if `path` is not a string.
 added: v0.1.25
 -->
 
-* `path` {String}
+* `path` {string}
 * Returns: {String}
 
 The `path.extname()` method returns the extension of the `path`, from the last
@@ -174,11 +174,11 @@ added: v0.11.15
 -->
 
 * `pathObject` {Object}
-  * `dir` {String}
-  * `root` {String}
-  * `base` {String}
-  * `name` {String}
-  * `ext` {String}
+  * `dir` {string}
+  * `root` {string}
+  * `base` {string}
+  * `name` {string}
+  * `ext` {string}
 * Returns: {String}
 
 The `path.format()` method returns a path string from an object. This is the
@@ -237,7 +237,7 @@ path.format({
 added: v0.11.2
 -->
 
-* `path` {String}
+* `path` {string}
 * Returns: {Boolean}
 
 The `path.isAbsolute()` method determines if `path` is an absolute path.
@@ -272,7 +272,7 @@ A [`TypeError`][] is thrown if `path` is not a string.
 added: v0.1.16
 -->
 
-* `...paths` {String} A sequence of path segments
+* `...paths` {string} A sequence of path segments
 * Returns: {String}
 
 The `path.join()` method joins all given `path` segments together using the
@@ -299,7 +299,7 @@ A [`TypeError`][] is thrown if any of the path segments is not a string.
 added: v0.1.23
 -->
 
-* `path` {String}
+* `path` {string}
 * Returns: {String}
 
 The `path.normalize()` method normalizes the given `path`, resolving `'..'` and
@@ -333,7 +333,7 @@ A [`TypeError`][] is thrown if `path` is not a string.
 added: v0.11.15
 -->
 
-* `path` {String}
+* `path` {string}
 * Returns: {Object}
 
 The `path.parse()` method returns an object whose properties represent
@@ -342,11 +342,11 @@ see [`path.sep`][].
 
 The returned object will have the following properties:
 
-* `root` {String}
-* `dir` {String}
-* `base` {String}
-* `ext` {String}
-* `name` {String}
+* `root` {string}
+* `dir` {string}
+* `base` {string}
+* `ext` {string}
+* `name` {string}
 
 For example on POSIX:
 
@@ -413,8 +413,8 @@ of the `path` methods.
 added: v0.5.0
 -->
 
-* `from` {String}
-* `to` {String}
+* `from` {string}
+* `to` {string}
 * Returns: {String}
 
 The `path.relative()` method returns the relative path from `from` to `to`.
@@ -445,7 +445,7 @@ A [`TypeError`][] is thrown if neither `from` nor `to` is a string.
 added: v0.3.4
 -->
 
-* `...paths` {String} A sequence of paths or path segments
+* `...paths` {string} A sequence of paths or path segments
 * Returns: {String}
 
 The `path.resolve()` method resolves a sequence of paths or path segments into
