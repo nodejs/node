@@ -136,7 +136,7 @@ For example: `'#hash'`
 added: v0.1.25
 -->
 
-* `urlObject` {Object | String} A URL object (as returned by `url.parse()` or
+* `urlObject` {Object | string} A URL object (as returned by `url.parse()` or
   constructed otherwise). If a string, it is converted to an object by passing
   it to `url.parse()`.
 
@@ -198,18 +198,59 @@ The formatting process operates as follows:
   string, an [`Error`][] is thrown.
 * `result` is returned.
 
+## url.format(URL[, options])
+
+> Stability: 1 - Experimental
+
+* `URL` {URL} A [WHATWG URL][] object
+* `options` {Object}
+  * `auth` {boolean} `true` if the serialized URL string should include the
+    username and password, `false` otherwise. Defaults to `true`.
+  * `fragment` {boolean} `true` if the serialized URL string should include the
+    fragment, `false` otherwise. Defaults to `true`.
+  * `search` {boolean} `true` if the serialized URL string should include the
+    search query, `false` otherwise. Defaults to `true`.
+  * `unicode` {boolean} `true` if Unicode characters appearing in the host
+    component of the URL string should be encoded directly as opposed to being
+    Punycode encoded. Defaults to `false`.
+
+Returns a customizable serialization of a URL String representation of a
+[WHATWG URL][] object.
+
+The URL object has both a `toString()` method and `href` property that return
+string serializations of the URL. These are not, however, customizable in
+any way. The `url.format(URL[, options])` method allows for basic customization
+of the output.
+
+For example:
+
+```js
+const myURL = new URL('https://a:b@你好你好?abc#foo');
+
+console.log(myURL.href);
+  // Prints https://a:b@xn--6qqa088eba/?abc#foo
+
+console.log(myURL.toString());
+  // Prints https://a:b@xn--6qqa088eba/?abc#foo
+
+console.log(url.format(myURL, {fragment: false, unicode: true, auth: false}));
+  // Prints 'https://你好你好?abc'
+```
+
+*Note*: This variation of the `url.format()` method is currently considered to
+be experimental.
 
 ## url.parse(urlString[, parseQueryString[, slashesDenoteHost]])
 <!-- YAML
 added: v0.1.25
 -->
 
-* `urlString` {String} The URL string to parse.
-* `parseQueryString` {Boolean} If `true`, the `query` property will always
+* `urlString` {string} The URL string to parse.
+* `parseQueryString` {boolean} If `true`, the `query` property will always
   be set to an object returned by the [`querystring`][] module's `parse()`
   method. If `false`, the `query` property on the returned URL object will be an
   unparsed, undecoded string. Defaults to `false`.
-* `slashesDenoteHost` {Boolean} If `true`, the first token after the literal
+* `slashesDenoteHost` {boolean} If `true`, the first token after the literal
   string `//` and preceding the next `/` will be interpreted as the `host`.
   For instance, given `//foo/bar`, the result would be
   `{host: 'foo', pathname: '/bar'}` rather than `{pathname: '//foo/bar'}`.
@@ -223,8 +264,8 @@ object.
 added: v0.1.25
 -->
 
-* `from` {String} The Base URL being resolved against.
-* `to` {String} The HREF URL being resolved.
+* `from` {string} The Base URL being resolved against.
+* `to` {string} The HREF URL being resolved.
 
 The `url.resolve()` method resolves a target URL relative to a base URL in a
 manner similar to that of a Web browser resolving an anchor tag HREF.
@@ -249,7 +290,6 @@ properties of URL objects:
 
 For example, the ASCII space character (`' '`) is encoded as `%20`. The ASCII
 forward slash (`/`) character is encoded as `%3C`.
-
 
 [`Error`]: errors.html#errors_class_error
 [`querystring`]: querystring.html
