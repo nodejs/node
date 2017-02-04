@@ -121,8 +121,8 @@ The object itself emits these events:
 added: v0.5.8
 -->
 
-* `eventType` {String} The type of fs change
-* `filename` {String | Buffer} The filename that changed (if relevant/available)
+* `eventType` {string} The type of fs change
+* `filename` {string | Buffer} The filename that changed (if relevant/available)
 
 Emitted when something changes in a watched directory or file.
 See more details in [`fs.watch()`][].
@@ -317,7 +317,7 @@ argument to `fs.createWriteStream()`. If `path` is passed as a string, then
 added: v0.11.15
 -->
 
-* `path` {String | Buffer}
+* `path` {string | Buffer}
 * `mode` {Integer}
 * `callback` {Function}
 
@@ -438,7 +438,7 @@ process.
 added: v0.11.15
 -->
 
-* `path` {String | Buffer}
+* `path` {string | Buffer}
 * `mode` {Integer}
 
 Synchronous version of [`fs.access()`][]. This throws if any accessibility
@@ -449,12 +449,12 @@ checks fail, and does nothing otherwise.
 added: v0.6.7
 -->
 
-* `file` {String | Buffer | Number} filename or file descriptor
-* `data` {String | Buffer}
+* `file` {string | Buffer | Number} filename or file descriptor
+* `data` {string | Buffer}
 * `options` {Object | String}
-  * `encoding` {String | Null} default = `'utf8'`
+  * `encoding` {string | Null} default = `'utf8'`
   * `mode` {Integer} default = `0o666`
-  * `flag` {String} default = `'a'`
+  * `flag` {string} default = `'a'`
 * `callback` {Function}
 
 Asynchronously append data to a file, creating the file if it does not yet exist.
@@ -485,12 +485,12 @@ automatically._
 added: v0.6.7
 -->
 
-* `file` {String | Buffer | Number} filename or file descriptor
-* `data` {String | Buffer}
+* `file` {string | Buffer | Number} filename or file descriptor
+* `data` {string | Buffer}
 * `options` {Object | String}
-  * `encoding` {String | Null} default = `'utf8'`
+  * `encoding` {string | Null} default = `'utf8'`
   * `mode` {Integer} default = `0o666`
-  * `flag` {String} default = `'a'`
+  * `flag` {string} default = `'a'`
 
 The synchronous version of [`fs.appendFile()`][]. Returns `undefined`.
 
@@ -499,7 +499,7 @@ The synchronous version of [`fs.appendFile()`][]. Returns `undefined`.
 added: v0.1.30
 -->
 
-* `path` {String | Buffer}
+* `path` {string | Buffer}
 * `mode` {Integer}
 * `callback` {Function}
 
@@ -511,7 +511,7 @@ to the completion callback.
 added: v0.6.7
 -->
 
-* `path` {String | Buffer}
+* `path` {string | Buffer}
 * `mode` {Integer}
 
 Synchronous chmod(2). Returns `undefined`.
@@ -521,7 +521,7 @@ Synchronous chmod(2). Returns `undefined`.
 added: v0.1.97
 -->
 
-* `path` {String | Buffer}
+* `path` {string | Buffer}
 * `uid` {Integer}
 * `gid` {Integer}
 * `callback` {Function}
@@ -534,7 +534,7 @@ to the completion callback.
 added: v0.1.97
 -->
 
-* `path` {String | Buffer}
+* `path` {string | Buffer}
 * `uid` {Integer}
 * `gid` {Integer}
 
@@ -571,13 +571,13 @@ operations. The specific constants currently defined are described in
 added: v0.1.31
 -->
 
-* `path` {String | Buffer}
-* `options` {String | Object}
-  * `flags` {String}
-  * `encoding` {String}
+* `path` {string | Buffer}
+* `options` {string | Object}
+  * `flags` {string}
+  * `encoding` {string}
   * `fd` {Integer}
   * `mode` {Integer}
-  * `autoClose` {Boolean}
+  * `autoClose` {boolean}
   * `start` {Integer}
   * `end` {Integer}
 
@@ -632,13 +632,13 @@ If `options` is a string, then it specifies the encoding.
 added: v0.1.31
 -->
 
-* `path` {String | Buffer}
-* `options` {String | Object}
-  * `flags` {String}
-  * `defaultEncoding` {String}
+* `path` {string | Buffer}
+* `options` {string | Object}
+  * `flags` {string}
+  * `defaultEncoding` {string}
   * `fd` {Integer}
   * `mode` {Integer}
-  * `autoClose` {Boolean}
+  * `autoClose` {boolean}
   * `start` {Integer}
 
 Returns a new [`WriteStream`][] object. (See [Writable Stream][]).
@@ -682,7 +682,7 @@ deprecated: v1.0.0
 
 > Stability: 0 - Deprecated: Use [`fs.stat()`][] or [`fs.access()`][] instead.
 
-* `path` {String | Buffer}
+* `path` {string | Buffer}
 * `callback` {Function}
 
 Test whether or not the given path exists by checking with the file system.
@@ -784,7 +784,7 @@ process.
 added: v0.1.21
 -->
 
-* `path` {String | Buffer}
+* `path` {string | Buffer}
 
 Synchronous version of [`fs.exists()`][].
 Returns `true` if the file exists, `false` otherwise.
@@ -993,7 +993,7 @@ Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 deprecated: v0.4.7
 -->
 
-* `path` {String | Buffer}
+* `path` {string | Buffer}
 * `mode` {Integer}
 * `callback` {Function}
 
@@ -1007,7 +1007,7 @@ Only available on macOS.
 deprecated: v0.4.7
 -->
 
-* `path` {String | Buffer}
+* `path` {string | Buffer}
 * `mode` {Integer}
 
 Synchronous lchmod(2). Returns `undefined`.
@@ -1017,7 +1017,7 @@ Synchronous lchmod(2). Returns `undefined`.
 deprecated: v0.4.7
 -->
 
-* `path` {String | Buffer}
+* `path` {string | Buffer}
 * `uid` {Integer}
 * `gid` {Integer}
 * `callback` {Function}
@@ -1030,7 +1030,7 @@ to the completion callback.
 deprecated: v0.4.7
 -->
 
-* `path` {String | Buffer}
+* `path` {string | Buffer}
 * `uid` {Integer}
 * `gid` {Integer}
 
@@ -1041,8 +1041,8 @@ Synchronous lchown(2). Returns `undefined`.
 added: v0.1.31
 -->
 
-* `existingPath` {String | Buffer}
-* `newPath` {String | Buffer}
+* `existingPath` {string | Buffer}
+* `newPath` {string | Buffer}
 * `callback` {Function}
 
 Asynchronous link(2). No arguments other than a possible exception are given to
@@ -1053,8 +1053,8 @@ the completion callback.
 added: v0.1.31
 -->
 
-* `existingPath` {String | Buffer}
-* `newPath` {String | Buffer}
+* `existingPath` {string | Buffer}
+* `newPath` {string | Buffer}
 
 Synchronous link(2). Returns `undefined`.
 
@@ -1063,7 +1063,7 @@ Synchronous link(2). Returns `undefined`.
 added: v0.1.30
 -->
 
-* `path` {String | Buffer}
+* `path` {string | Buffer}
 * `callback` {Function}
 
 Asynchronous lstat(2). The callback gets two arguments `(err, stats)` where
@@ -1076,7 +1076,7 @@ not the file that it refers to.
 added: v0.1.30
 -->
 
-* `path` {String | Buffer}
+* `path` {string | Buffer}
 
 Synchronous lstat(2). Returns an instance of [`fs.Stats`][].
 
@@ -1085,7 +1085,7 @@ Synchronous lstat(2). Returns an instance of [`fs.Stats`][].
 added: v0.1.8
 -->
 
-* `path` {String | Buffer}
+* `path` {string | Buffer}
 * `mode` {Integer}
 * `callback` {Function}
 
@@ -1097,7 +1097,7 @@ to the completion callback. `mode` defaults to `0o777`.
 added: v0.1.21
 -->
 
-* `path` {String | Buffer}
+* `path` {string | Buffer}
 * `mode` {Integer}
 
 Synchronous mkdir(2). Returns `undefined`.
@@ -1107,9 +1107,9 @@ Synchronous mkdir(2). Returns `undefined`.
 added: v5.10.0
 -->
 
-* `prefix` {String}
-* `options` {String | Object}
-  * `encoding` {String} default = `'utf8'`
+* `prefix` {string}
+* `options` {string | Object}
+  * `encoding` {string} default = `'utf8'`
 * `callback` {Function}
 
 Creates a unique temporary directory.
@@ -1169,9 +1169,9 @@ fs.mkdtemp(`${tmpDir}${sep}`, (err, folder) => {
 added: v5.10.0
 -->
 
-* `prefix` {String}
-* `options` {String | Object}
-  * `encoding` {String} default = `'utf8'`
+* `prefix` {string}
+* `options` {string | Object}
+  * `encoding` {string} default = `'utf8'`
 
 The synchronous version of [`fs.mkdtemp()`][]. Returns the created
 folder path.
@@ -1184,8 +1184,8 @@ object with an `encoding` property specifying the character encoding to use.
 added: v0.0.2
 -->
 
-* `path` {String | Buffer}
-* `flags` {String | Number}
+* `path` {string | Buffer}
+* `flags` {string | Number}
 * `mode` {Integer}
 * `callback` {Function}
 
@@ -1268,8 +1268,8 @@ fs.open('<directory>', 'a+', (err, fd) => {
 added: v0.1.21
 -->
 
-* `path` {String | Buffer}
-* `flags` {String | Number}
+* `path` {string | Buffer}
+* `flags` {string | Number}
 * `mode` {Integer}
 
 Synchronous version of [`fs.open()`][]. Returns an integer representing the file
@@ -1281,7 +1281,7 @@ added: v0.0.2
 -->
 
 * `fd` {Integer}
-* `buffer` {String | Buffer}
+* `buffer` {string | Buffer}
 * `offset` {Integer}
 * `length` {Integer}
 * `position` {Integer}
@@ -1305,9 +1305,9 @@ The callback is given the three arguments, `(err, bytesRead, buffer)`.
 added: v0.1.8
 -->
 
-* `path` {String | Buffer}
-* `options` {String | Object}
-  * `encoding` {String} default = `'utf8'`
+* `path` {string | Buffer}
+* `options` {string | Object}
+  * `encoding` {string} default = `'utf8'`
 * `callback` {Function}
 
 Asynchronous readdir(3).  Reads the contents of a directory.
@@ -1324,9 +1324,9 @@ the filenames returned will be passed as `Buffer` objects.
 added: v0.1.21
 -->
 
-* `path` {String | Buffer}
-* `options` {String | Object}
-  * `encoding` {String} default = `'utf8'`
+* `path` {string | Buffer}
+* `options` {string | Object}
+  * `encoding` {string} default = `'utf8'`
 
 Synchronous readdir(3). Returns an array of filenames excluding `'.'` and
 `'..'`.
@@ -1341,10 +1341,10 @@ the filenames returned will be passed as `Buffer` objects.
 added: v0.1.29
 -->
 
-* `file` {String | Buffer | Integer} filename or file descriptor
+* `file` {string | Buffer | Integer} filename or file descriptor
 * `options` {Object | String}
-  * `encoding` {String | Null} default = `null`
-  * `flag` {String} default = `'r'`
+  * `encoding` {string | Null} default = `null`
+  * `flag` {string} default = `'r'`
 * `callback` {Function}
 
 Asynchronously reads the entire contents of a file. Example:
@@ -1377,10 +1377,10 @@ automatically._
 added: v0.1.8
 -->
 
-* `file` {String | Buffer | Integer} filename or file descriptor
+* `file` {string | Buffer | Integer} filename or file descriptor
 * `options` {Object | String}
-  * `encoding` {String | Null} default = `null`
-  * `flag` {String} default = `'r'`
+  * `encoding` {string | Null} default = `null`
+  * `flag` {string} default = `'r'`
 
 Synchronous version of [`fs.readFile`][]. Returns the contents of the `file`.
 
@@ -1392,9 +1392,9 @@ string. Otherwise it returns a buffer.
 added: v0.1.31
 -->
 
-* `path` {String | Buffer}
-* `options` {String | Object}
-  * `encoding` {String} default = `'utf8'`
+* `path` {string | Buffer}
+* `options` {string | Object}
+  * `encoding` {string} default = `'utf8'`
 * `callback` {Function}
 
 Asynchronous readlink(2). The callback gets two arguments `(err,
@@ -1410,9 +1410,9 @@ the link path returned will be passed as a `Buffer` object.
 added: v0.1.31
 -->
 
-* `path` {String | Buffer}
-* `options` {String | Object}
-  * `encoding` {String} default = `'utf8'`
+* `path` {string | Buffer}
+* `options` {string | Object}
+  * `encoding` {string} default = `'utf8'`
 
 Synchronous readlink(2). Returns the symbolic link's string value.
 
@@ -1427,7 +1427,7 @@ added: v0.1.21
 -->
 
 * `fd` {Integer}
-* `buffer` {String | Buffer}
+* `buffer` {string | Buffer}
 * `offset` {Integer}
 * `length` {Integer}
 * `position` {Integer}
@@ -1439,9 +1439,9 @@ Synchronous version of [`fs.read()`][]. Returns the number of `bytesRead`.
 added: v0.1.31
 -->
 
-* `path` {String | Buffer}
-* `options` {String | Object}
-  * `encoding` {String} default = `'utf8'`
+* `path` {string | Buffer}
+* `options` {string | Object}
+  * `encoding` {string} default = `'utf8'`
 * `callback` {Function}
 
 Asynchronous realpath(3). The `callback` gets two arguments `(err,
@@ -1459,9 +1459,9 @@ the path returned will be passed as a `Buffer` object.
 added: v0.1.31
 -->
 
-* `path` {String | Buffer};
-* `options` {String | Object}
-  * `encoding` {String} default = `'utf8'`
+* `path` {string | Buffer};
+* `options` {string | Object}
+  * `encoding` {string} default = `'utf8'`
 
 Synchronous realpath(3). Returns the resolved path.
 
@@ -1477,8 +1477,8 @@ will be passed as a `Buffer` object.
 added: v0.0.2
 -->
 
-* `oldPath` {String | Buffer}
-* `newPath` {String | Buffer}
+* `oldPath` {string | Buffer}
+* `newPath` {string | Buffer}
 * `callback` {Function}
 
 Asynchronous rename(2). No arguments other than a possible exception are given
@@ -1489,8 +1489,8 @@ to the completion callback.
 added: v0.1.21
 -->
 
-* `oldPath` {String | Buffer}
-* `newPath` {String | Buffer}
+* `oldPath` {string | Buffer}
+* `newPath` {string | Buffer}
 
 Synchronous rename(2). Returns `undefined`.
 
@@ -1499,7 +1499,7 @@ Synchronous rename(2). Returns `undefined`.
 added: v0.0.2
 -->
 
-* `path` {String | Buffer}
+* `path` {string | Buffer}
 * `callback` {Function}
 
 Asynchronous rmdir(2). No arguments other than a possible exception are given
@@ -1510,7 +1510,7 @@ to the completion callback.
 added: v0.1.21
 -->
 
-* `path` {String | Buffer}
+* `path` {string | Buffer}
 
 Synchronous rmdir(2). Returns `undefined`.
 
@@ -1519,7 +1519,7 @@ Synchronous rmdir(2). Returns `undefined`.
 added: v0.0.2
 -->
 
-* `path` {String | Buffer}
+* `path` {string | Buffer}
 * `callback` {Function}
 
 Asynchronous stat(2). The callback gets two arguments `(err, stats)` where
@@ -1540,7 +1540,7 @@ is recommended.
 added: v0.1.21
 -->
 
-* `path` {String | Buffer}
+* `path` {string | Buffer}
 
 Synchronous stat(2). Returns an instance of [`fs.Stats`][].
 
@@ -1549,9 +1549,9 @@ Synchronous stat(2). Returns an instance of [`fs.Stats`][].
 added: v0.1.31
 -->
 
-* `target` {String | Buffer}
-* `path` {String | Buffer}
-* `type` {String}
+* `target` {string | Buffer}
+* `path` {string | Buffer}
+* `type` {string}
 * `callback` {Function}
 
 Asynchronous symlink(2). No arguments other than a possible exception are given
@@ -1574,9 +1574,9 @@ It creates a symbolic link named "new-port" that points to "foo".
 added: v0.1.31
 -->
 
-* `target` {String | Buffer}
-* `path` {String | Buffer}
-* `type` {String}
+* `target` {string | Buffer}
+* `path` {string | Buffer}
+* `type` {string}
 
 Synchronous symlink(2). Returns `undefined`.
 
@@ -1585,7 +1585,7 @@ Synchronous symlink(2). Returns `undefined`.
 added: v0.8.6
 -->
 
-* `path` {String | Buffer}
+* `path` {string | Buffer}
 * `len` {Integer} default = `0`
 * `callback` {Function}
 
@@ -1598,7 +1598,7 @@ first argument. In this case, `fs.ftruncate()` is called.
 added: v0.8.6
 -->
 
-* `path` {String | Buffer}
+* `path` {string | Buffer}
 * `len` {Integer} default = `0`
 
 Synchronous truncate(2). Returns `undefined`. A file descriptor can also be
@@ -1609,7 +1609,7 @@ passed as the first argument. In this case, `fs.ftruncateSync()` is called.
 added: v0.0.2
 -->
 
-* `path` {String | Buffer}
+* `path` {string | Buffer}
 * `callback` {Function}
 
 Asynchronous unlink(2). No arguments other than a possible exception are given
@@ -1620,7 +1620,7 @@ to the completion callback.
 added: v0.1.21
 -->
 
-* `path` {String | Buffer}
+* `path` {string | Buffer}
 
 Synchronous unlink(2). Returns `undefined`.
 
@@ -1629,7 +1629,7 @@ Synchronous unlink(2). Returns `undefined`.
 added: v0.1.31
 -->
 
-* `filename` {String | Buffer}
+* `filename` {string | Buffer}
 * `listener` {Function}
 
 Stop watching for changes on `filename`. If `listener` is specified, only that
@@ -1648,7 +1648,7 @@ when possible._
 added: v0.4.2
 -->
 
-* `path` {String | Buffer}
+* `path` {string | Buffer}
 * `atime` {Integer}
 * `mtime` {Integer}
 * `callback` {Function}
@@ -1670,7 +1670,7 @@ follow these rules:
 added: v0.4.2
 -->
 
-* `path` {String | Buffer}
+* `path` {string | Buffer}
 * `atime` {Integer}
 * `mtime` {Integer}
 
@@ -1681,15 +1681,15 @@ Synchronous version of [`fs.utimes()`][]. Returns `undefined`.
 added: v0.5.10
 -->
 
-* `filename` {String | Buffer}
-* `options` {String | Object}
-  * `persistent` {Boolean} Indicates whether the process should continue to run
+* `filename` {string | Buffer}
+* `options` {string | Object}
+  * `persistent` {boolean} Indicates whether the process should continue to run
     as long as files are being watched. default = `true`
-  * `recursive` {Boolean} Indicates whether all subdirectories should be
+  * `recursive` {boolean} Indicates whether all subdirectories should be
     watched, or only the current directory. The applies when a directory is
     specified, and only on supported platforms (See [Caveats][]). default =
     `false`
-  * `encoding` {String} Specifies the character encoding to be used for the
+  * `encoding` {string} Specifies the character encoding to be used for the
      filename passed to the listener. default = `'utf8'`
 * `listener` {Function}
 
@@ -1784,9 +1784,9 @@ fs.watch('somedir', (eventType, filename) => {
 added: v0.1.31
 -->
 
-* `filename` {String | Buffer}
+* `filename` {string | Buffer}
 * `options` {Object}
-  * `persistent` {Boolean}
+  * `persistent` {boolean}
   * `interval` {Integer}
 * `listener` {Function}
 
@@ -1863,9 +1863,9 @@ added: v0.11.5
 -->
 
 * `fd` {Integer}
-* `data` {String | Buffer}
+* `data` {string | Buffer}
 * `position` {Integer}
-* `encoding` {String}
+* `encoding` {string}
 * `callback` {Function}
 
 Write `data` to the file specified by `fd`.  If `data` is not a Buffer instance
@@ -1898,12 +1898,12 @@ the end of the file.
 added: v0.1.29
 -->
 
-* `file` {String | Buffer | Integer} filename or file descriptor
-* `data` {String | Buffer}
+* `file` {string | Buffer | Integer} filename or file descriptor
+* `data` {string | Buffer}
 * `options` {Object | String}
-  * `encoding` {String | Null} default = `'utf8'`
+  * `encoding` {string | Null} default = `'utf8'`
   * `mode` {Integer} default = `0o666`
-  * `flag` {String} default = `'w'`
+  * `flag` {string} default = `'w'`
 * `callback` {Function}
 
 Asynchronously writes data to a file, replacing the file if it already exists.
@@ -1941,12 +1941,12 @@ automatically._
 added: v0.1.29
 -->
 
-* `file` {String | Buffer | Integer} filename or file descriptor
-* `data` {String | Buffer}
+* `file` {string | Buffer | Integer} filename or file descriptor
+* `data` {string | Buffer}
 * `options` {Object | String}
-  * `encoding` {String | Null} default = `'utf8'`
+  * `encoding` {string | Null} default = `'utf8'`
   * `mode` {Integer} default = `0o666`
-  * `flag` {String} default = `'w'`
+  * `flag` {string} default = `'w'`
 
 The synchronous version of [`fs.writeFile()`][]. Returns `undefined`.
 
@@ -1967,9 +1967,9 @@ added: v0.11.5
 -->
 
 * `fd` {Integer}
-* `data` {String | Buffer}
+* `data` {string | Buffer}
 * `position` {Integer}
-* `encoding` {String}
+* `encoding` {string}
 
 Synchronous versions of [`fs.write()`][]. Returns the number of bytes written.
 
