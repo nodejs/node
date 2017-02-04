@@ -123,7 +123,7 @@ added: v0.5.10
 -->
 
 * `handle` {Object}
-* `backlog` {Number}
+* `backlog` {number}
 * `callback` {Function}
 
 The `handle` object can be set to either a server or socket (anything
@@ -149,11 +149,11 @@ added: v0.11.14
 -->
 
 * `options` {Object} - Required. Supports the following properties:
-  * `port` {Number} - Optional.
-  * `host` {String} - Optional.
-  * `backlog` {Number} - Optional.
-  * `path` {String} - Optional.
-  * `exclusive` {Boolean} - Optional.
+  * `port` {number} - Optional.
+  * `host` {string} - Optional.
+  * `backlog` {number} - Optional.
+  * `path` {string} - Optional.
+  * `exclusive` {boolean} - Optional.
 * `callback` {Function} - Optional.
 
 The `port`, `host`, and `backlog` properties of `options`, as well as the
@@ -183,8 +183,8 @@ subsequent call will *re-open* the server using the provided options.
 added: v0.1.90
 -->
 
-* `path` {String}
-* `backlog` {Number}
+* `path` {string}
+* `backlog` {number}
 * `callback` {Function}
 
 Start a local socket server listening for connections on the given `path`.
@@ -349,7 +349,7 @@ About `allowHalfOpen`, refer to [`net.createServer()`][] and [`'end'`][] event.
 added: v0.1.90
 -->
 
-* `had_error` {Boolean} `true` if the socket had a transmission error.
+* `had_error` {boolean} `true` if the socket had a transmission error.
 
 Emitted once the socket is fully closed. The argument `had_error` is a boolean
 which says if the socket was closed due to a transmission error.
@@ -420,10 +420,10 @@ changes:
 Emitted after resolving the hostname but before connecting.
 Not applicable to UNIX sockets.
 
-* `err` {Error|Null} The error object.  See [`dns.lookup()`][].
-* `address` {String} The IP address.
-* `family` {String|Null} The address type.  See [`dns.lookup()`][].
-* `host` {String} The hostname.
+* `err` {Error|null} The error object.  See [`dns.lookup()`][].
+* `address` {string} The IP address.
+* `family` {string|null} The address type.  See [`dns.lookup()`][].
+* `host` {string} The hostname.
 
 ### Event: 'timeout'
 <!-- YAML

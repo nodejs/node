@@ -308,7 +308,7 @@ Clearing context...
 added: v0.3.0
 -->
 
-* `keyword` {String} The command keyword (*without* a leading `.` character).
+* `keyword` {string} The command keyword (*without* a leading `.` character).
 * `cmd` {Object|Function} The function to invoke when the command is processed.
 
 The `replServer.defineCommand()` method is used to add new `.`-prefixed commands
@@ -316,7 +316,7 @@ to the REPL instance. Such commands are invoked by typing a `.` followed by the
 `keyword`. The `cmd` is either a Function or an object with the following
 properties:
 
-* `help` {String} Help text to be displayed when `.help` is entered (Optional).
+* `help` {string} Help text to be displayed when `.help` is entered (Optional).
 * `action` {Function} The function to execute, optionally accepting a single
   string argument.
 
@@ -355,7 +355,7 @@ Goodbye!
 added: v0.1.91
 -->
 
-* `preserveCursor` {Boolean}
+* `preserveCursor` {boolean}
 
 The `replServer.displayPrompt()` method readies the REPL instance for input
 from the user, printing the configured `prompt` to a new line in the `output`
@@ -380,7 +380,7 @@ changes:
 -->
 
 * `options` {Object | String}
-  * `prompt` {String} The input prompt to display. Defaults to `> `
+  * `prompt` {string} The input prompt to display. Defaults to `> `
     (with a trailing space).
   * `input` {Readable} The Readable stream from which REPL input will be read.
     Defaults to `process.stdin`.
