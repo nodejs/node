@@ -64,7 +64,10 @@ git cherry-pick $SHA # Use your commit hash
 
 * The commit message should be as close as possible to the commit message on the
   master branch, unless the commit has to be different due to dependencies that
-  are not present in the targeted release line.
+  are not present in the targeted release line. The only exception is that the
+  metadata from the original commit should be removed. If a backport is
+  required, it should go through the same review steps as a commit landing
+  in the master branch.
 * Push the changes to your fork and open a pull request.
 * Be sure to target the `v7.x-staging` branch in the pull request.
 
