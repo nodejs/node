@@ -1231,6 +1231,15 @@ const formatTests = {
     protocol: 'file',
     pathname: '/home/user',
     path: '/home/user'
+  },
+
+  // surrogate in auth
+  'http://%F0%9F%98%80@www.example.com/': {
+    href: 'http://%F0%9F%98%80@www.example.com/',
+    protocol: 'http:',
+    auth: '\uD83D\uDE00',
+    hostname: 'www.example.com',
+    pathname: '/'
   }
 };
 for (const u in formatTests) {
