@@ -120,12 +120,12 @@ function runURLSearchParamTests() {
     // And in the other direction, altering searchParams propagates
     // back to 'search'.
     searchParams.append('i', ' j ')
-    // assert_equals(url.search, '?e=f&g=h&i=+j+')
-    // assert_equals(url.searchParams.toString(), 'e=f&g=h&i=+j+')
+    assert_equals(url.search, '?e=f&g=h&i=+j+')
+    assert_equals(url.searchParams.toString(), 'e=f&g=h&i=+j+')
     assert_equals(searchParams.get('i'), ' j ')
 
     searchParams.set('e', 'updated')
-    // assert_equals(url.search, '?e=updated&g=h&i=+j+')
+    assert_equals(url.search, '?e=updated&g=h&i=+j+')
     assert_equals(searchParams.get('e'), 'updated')
 
     var url2 = bURL('http://example.org/file??a=b&c=d')
