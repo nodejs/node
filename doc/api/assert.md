@@ -8,10 +8,6 @@ used in application code via `require('assert')`. However, `assert` is not a
 testing framework, and is not intended to be used as a general purpose assertion
 library.
 
-The API for the `assert` module is [Locked][]. This means that there will be no
-additions or changes to any of the methods implemented and exposed by
-the module.
-
 ## assert(value[, message])
 <!-- YAML
 added: v0.5.9
@@ -508,7 +504,6 @@ assert.throws(myFunction, 'missing foo', 'did not throw with expected message');
 assert.throws(myFunction, /missing foo/, 'did not throw with expected message');
 ```
 
-[Locked]: documentation.html#documentation_stability_index
 [`assert.deepEqual()`]: #assert_assert_deepequal_actual_expected_message
 [`assert.deepStrictEqual()`]: #assert_assert_deepstrictequal_actual_expected_message
 [`assert.ok()`]: #assert_assert_ok_value_message
