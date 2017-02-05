@@ -413,8 +413,8 @@ boolean `reuseAddr` field.
 
 When `reuseAddr` is `true` [`socket.bind()`][] will reuse the address, even if
 another process has already bound a socket on it. `reuseAddr` defaults to
-`false`. An optional `callback` function can be passed specified which is added
-as a listener for `'message'` events.
+`false`. The optional `callback` function is added as a listener for `'message'`
+events.
 
 Once the socket is created, calling [`socket.bind()`][] will instruct the
 socket to begin listening for datagram messages. When `address` and `port` are
