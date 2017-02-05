@@ -14,7 +14,7 @@ const setup = () => {
   const socket = setup();
   socket.close(common.mustCall(() => {
     assert.throws(() => { socket.addMembership(multicastAddress); },
-                  /Not running/);
+                  /^Error: Not running$/);
   }));
 }
 
@@ -23,7 +23,7 @@ const setup = () => {
   const socket = setup();
   socket.close(common.mustCall(() => {
     assert.throws(() => { socket.dropMembership(multicastAddress); },
-                  /Not running/);
+                  /^Error: Not running$/);
   }));
 }
 
@@ -31,7 +31,7 @@ const setup = () => {
 {
   const socket = setup();
   assert.throws(() => { socket.addMembership(); },
-                /multicast address must be specified/);
+                /^Error: multicast address must be specified$/);
   socket.close();
 }
 
@@ -39,7 +39,7 @@ const setup = () => {
 {
   const socket = setup();
   assert.throws(() => { socket.dropMembership(); },
-                /multicast address must be specified/);
+                /^Error: multicast address must be specified$/);
   socket.close();
 }
 
@@ -69,7 +69,7 @@ const setup = () => {
   const socket = setup();
   assert.throws(
     () => { socket.dropMembership(multicastAddress); },
-    /EADDRNOTAVAIL/
+    /^Error: dropMembership EADDRNOTAVAIL$/
   );
   socket.close();
 }
