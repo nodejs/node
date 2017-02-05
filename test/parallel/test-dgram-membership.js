@@ -12,7 +12,7 @@ const setup = dgram.createSocket.bind(dgram, {type: 'udp4', reuseAddr: true});
   const socket = setup();
   socket.close(common.mustCall(() => {
     assert.throws(() => { socket.addMembership(multicastAddress); },
-                  /Not running/);
+                  /^Error: Not running$/);
   }));
 }
 
@@ -21,7 +21,7 @@ const setup = dgram.createSocket.bind(dgram, {type: 'udp4', reuseAddr: true});
   const socket = setup();
   socket.close(common.mustCall(() => {
     assert.throws(() => { socket.dropMembership(multicastAddress); },
-                  /Not running/);
+                  /^Error: Not running$/);
   }));
 }
 
@@ -29,7 +29,7 @@ const setup = dgram.createSocket.bind(dgram, {type: 'udp4', reuseAddr: true});
 {
   const socket = setup();
   assert.throws(() => { socket.addMembership(); },
-                /multicast address must be specified/);
+                /^Error: multicast address must be specified$/);
   socket.close();
 }
 
@@ -37,7 +37,7 @@ const setup = dgram.createSocket.bind(dgram, {type: 'udp4', reuseAddr: true});
 {
   const socket = setup();
   assert.throws(() => { socket.dropMembership(); },
-                /multicast address must be specified/);
+                /^Error: multicast address must be specified$/);
   socket.close();
 }
 
@@ -69,7 +69,7 @@ const setup = dgram.createSocket.bind(dgram, {type: 'udp4', reuseAddr: true});
   const socket = setup();
   assert.throws(
     () => { socket.dropMembership(multicastAddress); },
-    /EADDRNOTAVAIL/
+    /^Error: dropMembership EADDRNOTAVAIL$/
   );
   socket.close();
 }
