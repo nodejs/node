@@ -129,7 +129,7 @@ added: v0.1.90
   * `timeout` {Number} (Default: 0)
   * `maxBuffer` {Number} largest amount of data (in bytes) allowed on stdout or
     stderr - if exceeded child process is killed (Default: `200*1024`)
-  * `killSignal` {String} (Default: 'SIGTERM')
+  * `killSignal` {String|Integer} (Default: 'SIGTERM')
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
 * `callback` {Function} called with the output when process terminates
@@ -210,7 +210,7 @@ added: v0.1.91
   * `timeout` {Number} (Default: 0)
   * `maxBuffer` {Number} largest amount of data (in bytes) allowed on stdout or
     stderr - if exceeded child process is killed (Default: 200\*1024)
-  * `killSignal` {String} (Default: 'SIGTERM')
+  * `killSignal` {String|Integer} (Default: 'SIGTERM')
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
 * `callback` {Function} called with the output when process terminates
@@ -571,7 +571,7 @@ added: v0.11.12
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
   * `timeout` {Number} In milliseconds the maximum amount of time the process is allowed to run. (Default: undefined)
-  * `killSignal` {String} The signal value to be used when the spawned process will be killed. (Default: 'SIGTERM')
+  * `killSignal` {String|Integer} The signal value to be used when the spawned process will be killed. (Default: 'SIGTERM')
   * `maxBuffer` {Number} largest amount of data (in bytes) allowed on stdout or
     stderr - if exceeded child process is killed
   * `encoding` {String} The encoding used for all stdio inputs and outputs. (Default: 'buffer')
@@ -610,7 +610,7 @@ added: v0.11.12
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
   * `timeout` {Number} In milliseconds the maximum amount of time the process is allowed to run. (Default: undefined)
-  * `killSignal` {String} The signal value to be used when the spawned process will be killed. (Default: 'SIGTERM')
+  * `killSignal` {String|Integer} The signal value to be used when the spawned process will be killed. (Default: 'SIGTERM')
   * `maxBuffer` {Number} largest amount of data (in bytes) allowed on stdout or
     stderr - if exceeded child process is killed
   * `encoding` {String} The encoding used for all stdio inputs and outputs. (Default: 'buffer')
@@ -648,7 +648,7 @@ added: v0.11.12
   * `uid` {Number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {Number} Sets the group identity of the process. (See setgid(2).)
   * `timeout` {Number} In milliseconds the maximum amount of time the process is allowed to run. (Default: undefined)
-  * `killSignal` {String} The signal value to be used when the spawned process will be killed. (Default: 'SIGTERM')
+  * `killSignal` {String|Integer} The signal value to be used when the spawned process will be killed. (Default: 'SIGTERM')
   * `maxBuffer` {Number} largest amount of data (in bytes) allowed on stdout or
     stderr - if exceeded child process is killed
   * `encoding` {String} The encoding used for all stdio inputs and outputs. (Default: 'buffer')
