@@ -1,15 +1,15 @@
 @include documentation
 @include synopsis
-@include addons
 @include assert
 @include buffer
+@include addons
 @include child_process
 @include cluster
 @include cli
 @include console
 @include crypto
 @include debugger
-@include dgram
+@include deprecations
 @include dns
 @include domain
 @include errors
@@ -31,7 +31,9 @@
 @include string_decoder
 @include timers
 @include tls
+@include tracing
 @include tty
+@include dgram
 @include url
 @include util
 @include v8
