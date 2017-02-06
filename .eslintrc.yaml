@@ -9,38 +9,28 @@ rules:
   # Possible Errors
   # http://eslint.org/docs/rules/#possible-errors
   comma-dangle: [2, only-multiline]
-  no-control-regex: 2
-  no-debugger: 2
-  no-dupe-args: 2
-  no-dupe-keys: 2
-  no-duplicate-case: 2
-  no-empty-character-class: 2
-  no-ex-assign: 2
-  no-extra-boolean-cast: 2
   no-extra-parens: [2, functions]
-  no-extra-semi: 2
-  no-func-assign: 2
-  no-invalid-regexp: 2
-  no-irregular-whitespace: 2
-  no-obj-calls: 2
   no-proto: 2
   no-template-curly-in-string: 2
-  no-unexpected-multiline: 2
-  no-unreachable: 2
   no-unsafe-negation: 2
-  use-isnan: 2
-  valid-typeof: 2
+
+  # Disallowed rules
+  no-console: 0
+  no-empty: 0
+  no-case-declarations: 0
+  no-inner-declarations: 0
+  no-cond-assign: 0
+  no-unsafe-finally: 0
+  no-constant-condition: 0
+  no-sparse-arrays: 0
+  no-regex-spaces: 0
+  no-unused-vars: [2, {args: none}]
 
   # Best Practices
   # http://eslint.org/docs/rules/#best-practices
   dot-location: [2, property]
-  no-fallthrough: 2
   no-global-assign: 2
   no-multi-spaces: 2
-  no-octal: 2
-  no-redeclare: 2
-  no-self-assign: 2
-  no-unused-labels: 2
   no-useless-call: 2
   no-useless-escape: 2
   no-void: 2
@@ -49,12 +39,6 @@ rules:
   # Strict Mode
   # http://eslint.org/docs/rules/#strict-mode
   strict: [2, global]
-
-  # Variables
-  # http://eslint.org/docs/rules/#variables
-  no-delete-var: 2
-  no-undef: 2
-  no-unused-vars: [2, {args: none}]
 
   # Node.js and CommonJS
   # http://eslint.org/docs/rules/#nodejs-and-commonjs
@@ -98,7 +82,6 @@ rules:
   linebreak-style: [2, unix]
   max-len: [2, 80, 2]
   new-parens: 2
-  no-mixed-spaces-and-tabs: 2
   no-multiple-empty-lines: [2, {max: 2, maxEOF: 0, maxBOF: 0}]
   no-tabs: 2
   no-trailing-spaces: 2
@@ -116,13 +99,7 @@ rules:
   # http://eslint.org/docs/rules/#ecmascript-6
   arrow-parens: [2, always]
   arrow-spacing: [2, {before: true, after: true}]
-  constructor-super: 2
-  no-class-assign: 2
   no-confusing-arrow: 2
-  no-const-assign: 2
-  no-dupe-class-members: 2
-  no-new-symbol: 2
-  no-this-before-super: 2
   prefer-const: [2, {ignoreReadBeforeAssign: true}]
   rest-spread-spacing: 2
   template-curly-spacing: 2
@@ -133,6 +110,8 @@ rules:
   assert-throws-arguments: [2, { requireTwo: false }]
   new-with-error: [2, Error, RangeError, TypeError, SyntaxError, ReferenceError]
   timer-arguments: 2
+
+extends: eslint:recommended
 
 # Global scoped method and vars
 globals:
