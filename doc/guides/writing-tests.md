@@ -211,7 +211,7 @@ const freelist = require('internal/freelist');
 
 ### Assertions
 
-When writing assertions for comparison, prefer the strict versions:
+When writing an assertions for comparison, prefer the strict versions:
 
 * `assert.strictEqual()` over `assert.equal()`
 * `assert.deepStrictEqual()` over `assert.deepEqual()`
@@ -273,5 +273,5 @@ These imported tests will be wrapped like this:
 
 If you want to improve tests that have been imported this way, please send
 a PR to the upstream project first. When your proposed change is merged in
-the upstream project, send another PR to update the code accordingly.
-Be sure to update the hash in the hash in the URL following `WPT Refs:`.
+the upstream project, send another PR here to update Node.js accordingly.
+Be sure to update the hash in the URL following `WPT Refs:`.
