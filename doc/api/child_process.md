@@ -136,7 +136,7 @@ added: v0.1.90
      command line parsing should be compatible with `cmd.exe`.)
   * `timeout` {number} (Default: `0`)
   * `maxBuffer` {number} Largest amount of data in bytes allowed on stdout or
-    stderr. (Default: `200*1024`) If exceeded, the child process is terminated.
+    stderr. (Default: `1024*1024`) If exceeded, the child process is terminated.
     See caveat at [`maxBuffer` and Unicode][].
   * `killSignal` {string|integer} (Default: `'SIGTERM'`)
   * `uid` {number} Sets the user identity of the process. (See setuid(2).)
