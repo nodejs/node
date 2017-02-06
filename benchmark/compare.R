@@ -47,7 +47,7 @@ statistics = ddply(dat, "name", function(subdat) {
 
   p.value = NA;
   confidence = 'NA';
-  # Check if there is enough data to calulate the calculate the p-value
+  # Check if there is enough data to calculate the calculate the p-value
   if (length(old.rate) > 1 && length(new.rate) > 1) {
     # Perform a statistics test to see of there actually is a difference in
     # performance.

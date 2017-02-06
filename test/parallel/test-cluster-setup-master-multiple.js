@@ -6,7 +6,7 @@ const cluster = require('cluster');
 assert(cluster.isMaster);
 
 // The cluster.settings object is cloned even though the current implementation
-// makes that unecessary. This is to make the test less fragile if the
+// makes that unnecessary. This is to make the test less fragile if the
 // implementation ever changes such that cluster.settings is mutated instead of
 // replaced.
 function cheapClone(obj) {
