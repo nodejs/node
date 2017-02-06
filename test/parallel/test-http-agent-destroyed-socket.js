@@ -45,14 +45,12 @@ const server = http.createServer(function(req, res) {
       request1.socket.destroy();
 
       response.once('close', function() {
-        console.log('called');
         // assert request2 was removed from the queue
         assert(!agent.requests[key]);
         console.log("waiting for request2.onSocket's nextTick");
         process.nextTick(common.mustCall(function() {
           // assert that the same socket was not assigned to request2,
           // since it was destroyed.
-          console.log('called 2');
           assert.notStrictEqual(request1.socket, request2.socket);
           assert(!request2.socket.destroyed, 'the socket is destroyed');
         }));
