@@ -211,7 +211,7 @@ const freelist = require('internal/freelist');
 
 ### Assertions
 
-When writing an assertion for comparison, prefer the strict versions:
+When writing assertions, prefer the strict versions:
 
 * `assert.strictEqual()` over `assert.equal()`
 * `assert.deepStrictEqual()` over `assert.deepEqual()`
