@@ -148,7 +148,7 @@ class ContextifyContext {
             desc->set_enumerable(desc_vm_context
                 ->Get(context, env()->enumerable_string()).ToLocalChecked()
                 ->BooleanValue(context).FromJust());
-            sandbox_obj->DefineProperty(context, key, *desc);
+            CHECK(sandbox_obj->DefineProperty(context, key, *desc).FromJust());
         };
 
         if (is_accessor) {
