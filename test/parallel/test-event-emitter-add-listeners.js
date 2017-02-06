@@ -5,8 +5,8 @@ const EventEmitter = require('events');
 
 {
   const ee = new EventEmitter();
-  const events_new_listener_emited = [];
-  const listeners_new_listener_emited = [];
+  const events_new_listener_emitted = [];
+  const listeners_new_listener_emitted = [];
 
   // Sanity check
   assert.strictEqual(ee.addListener, ee.on);
@@ -16,8 +16,8 @@ const EventEmitter = require('events');
     if (event === 'newListener')
       return;
 
-    events_new_listener_emited.push(event);
-    listeners_new_listener_emited.push(listener);
+    events_new_listener_emitted.push(event);
+    listeners_new_listener_emitted.push(listener);
   });
 
   const hello = common.mustCall(function(a, b) {
@@ -33,8 +33,8 @@ const EventEmitter = require('events');
 
   ee.on('hello', hello);
   ee.once('foo', common.fail);
-  assert.deepStrictEqual(['hello', 'foo'], events_new_listener_emited);
-  assert.deepStrictEqual([hello, common.fail], listeners_new_listener_emited);
+  assert.deepStrictEqual(['hello', 'foo'], events_new_listener_emitted);
+  assert.deepStrictEqual([hello, common.fail], listeners_new_listener_emitted);
 
   ee.emit('hello', 'a', 'b');
 }

@@ -238,7 +238,7 @@ inline const void* MemrchrFill(const void* haystack, uint8_t needle,
 }
 
 
-// Finds the first occurence of *two-byte* character pattern[0] in the string
+// Finds the first occurrence of *two-byte* character pattern[0] in the string
 // `subject`. Does not check that the whole pattern matches.
 template <typename Char>
 inline size_t FindFirstCharacter(Vector<const Char> pattern,
@@ -284,7 +284,7 @@ inline size_t FindFirstCharacter(Vector<const Char> pattern,
 }
 
 
-// Finds the first occurance of the byte pattern[0] in string `subject`.
+// Finds the first occurrence of the byte pattern[0] in string `subject`.
 // Does not verify that the whole pattern matches.
 template <>
 inline size_t FindFirstCharacter(Vector<const uint8_t> pattern,
@@ -373,7 +373,7 @@ size_t StringSearch<Char>::BoyerMooreSearch(
   // Only preprocess at most kBMMaxShift last characters of pattern.
   size_t start = search->start_;
 
-  int* bad_char_occurence = search->bad_char_table();
+  int* bad_char_occurrence = search->bad_char_table();
   int* good_suffix_shift = search->good_suffix_shift_table();
 
   Char last_char = pattern[pattern_length - 1];
@@ -383,7 +383,7 @@ size_t StringSearch<Char>::BoyerMooreSearch(
     size_t j = pattern_length - 1;
     int c;
     while (last_char != (c = subject[index + j])) {
-      int shift = j - CharOccurrence(bad_char_occurence, c);
+      int shift = j - CharOccurrence(bad_char_occurrence, c);
       index += shift;
       if (index > subject_length - pattern_length) {
         return subject.length();
@@ -399,11 +399,11 @@ size_t StringSearch<Char>::BoyerMooreSearch(
       // we have matched more than our tables allow us to be smart about.
       // Fall back on BMH shift.
       index += pattern_length - 1 -
-               CharOccurrence(bad_char_occurence,
+               CharOccurrence(bad_char_occurrence,
                               static_cast<Char>(last_char));
     } else {
       int gs_shift = good_suffix_shift[j + 1];
-      int bc_occ = CharOccurrence(bad_char_occurence, c);
+      int bc_occ = CharOccurrence(bad_char_occurrence, c);
       int shift = j - bc_occ;
       if (gs_shift > shift) {
         shift = gs_shift;

@@ -182,7 +182,7 @@ void Agent::WorkerRun() {
     CHECK_EQ(&child_loop_, env.event_loop());
     uv_run(&child_loop_, UV_RUN_DEFAULT);
 
-    // Clean-up peristent
+    // Clean-up persistent
     api_.Reset();
   }
   isolate->Dispose();
