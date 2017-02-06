@@ -348,37 +348,44 @@ assert.throws(makeBlock(thrower, a.AssertionError));
 assert.throws(makeBlock(thrower, TypeError));
 
 // when passing a type, only catch errors of the appropriate type
-let threw = false;
-try {
-  a.throws(makeBlock(thrower, TypeError), a.AssertionError);
-} catch (e) {
-  threw = true;
-  assert.ok(e instanceof TypeError, 'type');
+{
+  let threw = false;
+  try {
+    a.throws(makeBlock(thrower, TypeError), a.AssertionError);
+  } catch (e) {
+    threw = true;
+    assert.ok(e instanceof TypeError, 'type');
+  }
+  assert.strictEqual(true, threw,
+                     'a.throws with an explicit error is eating extra errors',
+                     a.AssertionError);
 }
-assert.strictEqual(true, threw,
-                   'a.throws with an explicit error is eating extra errors',
-                   a.AssertionError);
-threw = false;
 
 // doesNotThrow should pass through all errors
-try {
-  a.doesNotThrow(makeBlock(thrower, TypeError), a.AssertionError);
-} catch (e) {
-  threw = true;
-  assert.ok(e instanceof TypeError);
+{
+  let threw = false;
+  try {
+    a.doesNotThrow(makeBlock(thrower, TypeError), a.AssertionError);
+  } catch (e) {
+    threw = true;
+    assert.ok(e instanceof TypeError);
+  }
+  assert.strictEqual(true, threw, 'a.doesNotThrow with an explicit error is ' +
+                     'eating extra errors');
 }
-assert.strictEqual(true, threw, 'a.doesNotThrow with an explicit error is ' +
-                   'eating extra errors');
 
 // key difference is that throwing our correct error makes an assertion error
-try {
-  a.doesNotThrow(makeBlock(thrower, TypeError), TypeError);
-} catch (e) {
-  threw = true;
-  assert.ok(e instanceof a.AssertionError);
+{
+  let threw = false;
+  try {
+    a.doesNotThrow(makeBlock(thrower, TypeError), TypeError);
+  } catch (e) {
+    threw = true;
+    assert.ok(e instanceof a.AssertionError);
+  }
+  assert.strictEqual(true, threw,
+                     'a.doesNotThrow is not catching type matching errors');
 }
-assert.strictEqual(true, threw,
-                   'a.doesNotThrow is not catching type matching errors');
 
 assert.throws(function() { assert.ifError(new Error('test error')); });
 assert.doesNotThrow(function() { assert.ifError(null); });
@@ -390,18 +397,20 @@ assert.throws(() => {
               'a.doesNotThrow ignores user message');
 
 // make sure that validating using constructor really works
-threw = false;
-try {
-  assert.throws(
-      function() {
-        throw ({}); // eslint-disable-line no-throw-literal
-      },
-      Array
-  );
-} catch (e) {
-  threw = true;
+{
+  let threw = false;
+  try {
+    assert.throws(
+        function() {
+          throw ({}); // eslint-disable-line no-throw-literal
+        },
+        Array
+    );
+  } catch (e) {
+    threw = true;
+  }
+  assert.ok(threw, 'wrong constructor validation');
 }
-assert.ok(threw, 'wrong constructor validation');
 
 // use a RegExp to validate error message
 a.throws(makeBlock(thrower, TypeError), /test/);
@@ -414,26 +423,28 @@ a.throws(makeBlock(thrower, TypeError), function(err) {
 });
 
 // https://github.com/nodejs/node/issues/3188
-threw = false;
+{
+  let threw = false;
 
-let AnotherErrorType;
-try {
-  const ES6Error = class extends Error {};
+  let AnotherErrorType;
+  try {
+    const ES6Error = class extends Error {};
 
-  AnotherErrorType = class extends Error {};
+    AnotherErrorType = class extends Error {};
 
-  const functionThatThrows = function() {
-    throw new AnotherErrorType('foo');
-  };
+    const functionThatThrows = function() {
+      throw new AnotherErrorType('foo');
+    };
 
-  assert.throws(functionThatThrows, ES6Error);
-} catch (e) {
-  threw = true;
-  assert(e instanceof AnotherErrorType,
-         `expected AnotherErrorType, received ${e}`);
+    assert.throws(functionThatThrows, ES6Error);
+  } catch (e) {
+    threw = true;
+    assert(e instanceof AnotherErrorType,
+           `expected AnotherErrorType, received ${e}`);
+  }
+
+  assert.ok(threw);
 }
-
-assert.ok(threw);
 
 // https://github.com/nodejs/node/issues/6416
 // Make sure circular refs don't throw.
@@ -515,15 +526,18 @@ testAssertionMessage({a: NaN, b: Infinity, c: -Infinity},
                      '{ a: NaN, b: Infinity, c: -Infinity }');
 
 // #2893
-try {
-  assert.throws(function() {
-    assert.ifError(null);
-  });
-} catch (e) {
-  threw = true;
-  assert.strictEqual(e.message, 'Missing expected exception..');
+{
+  let threw = false;
+  try {
+    assert.throws(function() {
+      assert.ifError(null);
+    });
+  } catch (e) {
+    threw = true;
+    assert.strictEqual(e.message, 'Missing expected exception..');
+  }
+  assert.ok(threw);
 }
-assert.ok(threw);
 
 // #5292
 try {
