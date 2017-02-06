@@ -9,7 +9,7 @@ const BenchmarkProgress = require('./_benchmark_progress.js');
 // Parse arguments
 //
 const cli = CLI(`usage: ./node compare.js [options] [--] <category> ...
-  Run each benchmark in the <category> directory many times using two diffrent
+  Run each benchmark in the <category> directory many times using two different
   node versions. More than one <category> directory can be specified.
   The output is formatted as csv, which can be processed using for
   example 'compare.R'.

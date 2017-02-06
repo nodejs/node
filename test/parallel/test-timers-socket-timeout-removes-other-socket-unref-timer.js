@@ -25,7 +25,7 @@ const server = net.createServer(function onClient(client) {
       clients[1].end();
     });
 
-    // Use a delay that is higher than the lowest timer resolution accross all
+    // Use a delay that is higher than the lowest timer resolution across all
     // supported platforms, so that the two timers don't fire at the same time.
     clients[1].setTimeout(50);
   }

@@ -215,7 +215,7 @@ This is a security release. All Node.js users should consult the security releas
 ### Notable changes
 
 **http**:
-  * Enclose IPv6 Host header in square brackets. This will enable proper separation of the host adress from any port reference (Mihai Potra) [#5314](https://github.com/nodejs/node/pull/5314)
+  * Enclose IPv6 Host header in square brackets. This will enable proper separation of the host address from any port reference (Mihai Potra) [#5314](https://github.com/nodejs/node/pull/5314)
 
 **path**:
   * Make win32.isAbsolute more consistent (Brian White) [#6028](https://github.com/nodejs/node/pull/6028)
