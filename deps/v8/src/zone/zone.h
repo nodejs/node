@@ -63,15 +63,8 @@ class V8_EXPORT_PRIVATE Zone final {
   AccountingAllocator* allocator() const { return allocator_; }
 
  private:
-// All pointers returned from New() have this alignment.  In addition, if the
-// object being allocated has a size that is divisible by 8 then its alignment
-// will be 8. ASan requires 8-byte alignment.
-#ifdef V8_USE_ADDRESS_SANITIZER
-  static const size_t kAlignment = 8;
-  STATIC_ASSERT(kPointerSize <= 8);
-#else
-  static const size_t kAlignment = kPointerSize;
-#endif
+  // All pointers returned from New() are 8-byte aligned.
+  static const size_t kAlignmentInBytes = 8;
 
   // Never allocate segments smaller than this size in bytes.
   static const size_t kMinimumSegmentSize = 8 * KB;
@@ -105,7 +98,7 @@ class V8_EXPORT_PRIVATE Zone final {
 
   // The free region in the current (front) segment is represented as
   // the half-open interval [position, limit). The 'position' variable
-  // is guaranteed to be aligned as dictated by kAlignment.
+  // is guaranteed to be aligned as dictated by kAlignmentInBytes.
   Address position_;
   Address limit_;
 

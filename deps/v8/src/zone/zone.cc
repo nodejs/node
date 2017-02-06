@@ -58,15 +58,7 @@ Zone::~Zone() {
 
 void* Zone::New(size_t size) {
   // Round up the requested size to fit the alignment.
-  size = RoundUp(size, kAlignment);
-
-  // If the allocation size is divisible by 8 then we return an 8-byte aligned
-  // address.
-  if (kPointerSize == 4 && kAlignment == 4) {
-    position_ += ((~size) & 4) & (reinterpret_cast<intptr_t>(position_) & 4);
-  } else {
-    DCHECK(kAlignment >= kPointerSize);
-  }
+  size = RoundUp(size, kAlignmentInBytes);
 
   // Check if the requested size is available without expanding.
   Address result = position_;
@@ -86,7 +78,7 @@ void* Zone::New(size_t size) {
   ASAN_POISON_MEMORY_REGION(redzone_position, kASanRedzoneBytes);
 
   // Check that the result has the proper alignment and return it.
-  DCHECK(IsAddressAligned(result, kAlignment, 0));
+  DCHECK(IsAddressAligned(result, kAlignmentInBytes, 0));
   allocation_size_ += size;
   return reinterpret_cast<void*>(result);
 }
@@ -121,7 +113,7 @@ void Zone::DeleteAll() {
   // force a new segment to be allocated on demand.
   if (keep) {
     Address start = keep->start();
-    position_ = RoundUp(start, kAlignment);
+    position_ = RoundUp(start, kAlignmentInBytes);
     limit_ = keep->end();
     // Un-poison so we can re-use the segment later.
     ASAN_UNPOISON_MEMORY_REGION(start, keep->capacity());
@@ -167,7 +159,7 @@ Segment* Zone::NewSegment(size_t size) {
 Address Zone::NewExpand(size_t size) {
   // Make sure the requested size is already properly aligned and that
   // there isn't enough room in the Zone to satisfy the request.
-  DCHECK_EQ(size, RoundDown(size, kAlignment));
+  DCHECK_EQ(size, RoundDown(size, kAlignmentInBytes));
   DCHECK(limit_ < position_ ||
          reinterpret_cast<uintptr_t>(limit_) -
                  reinterpret_cast<uintptr_t>(position_) <
@@ -179,7 +171,7 @@ Address Zone::NewExpand(size_t size) {
   // is to avoid excessive malloc() and free() overhead.
   Segment* head = segment_head_;
   const size_t old_size = (head == nullptr) ? 0 : head->size();
-  static const size_t kSegmentOverhead = sizeof(Segment) + kAlignment;
+  static const size_t kSegmentOverhead = sizeof(Segment) + kAlignmentInBytes;
   const size_t new_size_no_overhead = size + (old_size << 1);
   size_t new_size = kSegmentOverhead + new_size_no_overhead;
   const size_t min_new_size = kSegmentOverhead + size;
@@ -208,7 +200,7 @@ Address Zone::NewExpand(size_t size) {
   }
 
   // Recompute 'top' and 'limit' based on the new segment.
-  Address result = RoundUp(segment->start(), kAlignment);
+  Address result = RoundUp(segment->start(), kAlignmentInBytes);
   position_ = result + size;
   // Check for address overflow.
   // (Should not happen since the segment is guaranteed to accomodate
