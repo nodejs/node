@@ -275,15 +275,17 @@ for (let lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
   }
 }
 
+const expectedError =
+  /^TypeError: "val" argument must be string, number, Buffer or Uint8Array$/;
 assert.throws(function() {
   b.includes(function() { });
-});
+}, expectedError);
 assert.throws(function() {
   b.includes({});
-});
+}, expectedError);
 assert.throws(function() {
   b.includes([]);
-});
+}, expectedError);
 
 // test truncation of Number arguments to uint8
 {
