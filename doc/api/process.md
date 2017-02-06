@@ -1512,8 +1512,10 @@ Android)
 
 * {Stream}
 
-The `process.stderr` property returns a [Writable][] stream connected to
-`stderr` (fd `2`).
+The `process.stderr` property returns a stream connected to
+`stderr` (fd `2`). It is a [`net.Socket`][] (which is a [Duplex][]
+stream) unless fd `2` refers to a file, in which case it is
+a [Writable][] stream.
 
 Note: `process.stderr` differs from other Node.js streams in important ways,
 see [note on process I/O][] for more information.
@@ -1522,8 +1524,10 @@ see [note on process I/O][] for more information.
 
 * {Stream}
 
-The `process.stdin` property returns a [Readable][] stream equivalent to or
-associated with `stdin` (fd `0`).
+The `process.stdin` property returns a stream connected to
+`stdin` (fd `0`). It is a [`net.Socket`][] (which is a [Duplex][]
+stream) unless fd `0` refers to a file, in which case it is
+a [Readable][] stream.
 
 For example:
 
@@ -1542,7 +1546,7 @@ process.stdin.on('end', () => {
 });
 ```
 
-As a [Readable][] stream, `process.stdin` can also be used in "old" mode that
+As a [Duplex][] stream, `process.stdin` can also be used in "old" mode that
 is compatible with scripts written for Node.js prior to v0.10.
 For more information see [Stream compatibility][].
 
@@ -1554,8 +1558,10 @@ must call `process.stdin.resume()` to read from it. Note also that calling
 
 * {Stream}
 
-The `process.stdout` property returns a [Writable][] stream connected to
-`stdout` (fd `1`).
+The `process.stdout` property returns a stream connected to
+`stdout` (fd `1`). It is a [`net.Socket`][] (which is a [Duplex][]
+stream) unless fd `1` refers to a file, in which case it is
+a [Writable][] stream.
 
 For example, to copy process.stdin to process.stdout:
 
@@ -1790,6 +1796,7 @@ cases:
 [TTY]: tty.html#tty_tty
 [Writable]: stream.html#stream_writable_streams
 [Readable]: stream.html#stream_readable_streams
+[Duplex]: stream.html#stream_duplex_and_transform_streams
 [Child Process]: child_process.html
 [Cluster]: cluster.html
 [`process.exitCode`]: #process_process_exitcode
