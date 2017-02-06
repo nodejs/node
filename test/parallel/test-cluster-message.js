@@ -102,7 +102,7 @@ if (cluster.isWorker) {
       if (data.code === 'received message') {
         check('worker', data.echo === 'message from master');
       } else {
-        throw new Error('wrong TCP message recived: ' + data);
+        throw new Error('wrong TCP message received: ' + data);
       }
     });
 

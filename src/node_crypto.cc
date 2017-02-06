@@ -913,7 +913,7 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
   (void) &clear_error_on_return;  // Silence compiler warning.
 
   // Auto DH is not supported in openssl 1.0.1, so dhparam needs
-  // to be specifed explicitly
+  // to be specified explicitly
   if (args.Length() != 1)
     return env->ThrowTypeError("DH argument is mandatory");
 

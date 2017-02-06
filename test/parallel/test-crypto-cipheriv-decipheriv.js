@@ -9,7 +9,7 @@ if (!common.hasCrypto) {
 const crypto = require('crypto');
 
 function testCipher1(key, iv) {
-  // Test encyrption and decryption with explicit key and iv
+  // Test encryption and decryption with explicit key and iv
   const plaintext =
           '32|RmVZZkFUVmpRRkp0TmJaUm56ZU9qcnJkaXNNWVNpTTU*|iXmckfRWZBGWWELw' +
           'eCBsThSsfUHLeRe0KCsK8ooHgxie0zOINpXxfZi/oNG7uq9JWFVCk70gfzQH8ZUJ' +
@@ -41,7 +41,7 @@ function testCipher1(key, iv) {
 
 
 function testCipher2(key, iv) {
-  // Test encyrption and decryption with explicit key and iv
+  // Test encryption and decryption with explicit key and iv
   const plaintext =
           '32|RmVZZkFUVmpRRkp0TmJaUm56ZU9qcnJkaXNNWVNpTTU*|iXmckfRWZBGWWELw' +
           'eCBsThSsfUHLeRe0KCsK8ooHgxie0zOINpXxfZi/oNG7uq9JWFVCk70gfzQH8ZUJ' +

@@ -503,7 +503,7 @@ def warn(msg):
   prefix = '\033[1m\033[93mWARNING\033[0m' if os.isatty(1) else 'WARNING'
   print('%s: %s' % (prefix, msg))
 
-# track if warnings occured
+# track if warnings occurred
 warn.warned = False
 
 def b(value):

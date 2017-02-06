@@ -3464,7 +3464,7 @@ void LoadEnvironment(Environment* env) {
   // (FatalException(), break on uncaught exception in debugger)
   //
   // This is not strictly necessary since it's almost impossible
-  // to attach the debugger fast enought to break on exception
+  // to attach the debugger fast enough to break on exception
   // thrown during process startup.
   try_catch.SetVerbose(true);
 

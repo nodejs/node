@@ -32,11 +32,11 @@ createFileWithPerms(readWriteFile, 0o666);
  *
  * There's not really any point in resetting the process' user id to 0 after
  * changing it to 'nobody', since in the case that the test runs without
- * superuser priviledge, it is not possible to change its process user id to
+ * superuser privilege, it is not possible to change its process user id to
  * superuser.
  *
  * It can prevent the test from removing files created before the change of user
- * id, but that's fine. In this case, it is the responsability of the
+ * id, but that's fine. In this case, it is the responsibility of the
  * continuous integration platform to take care of that.
  */
 let hasWriteAccessForReadonlyFile = false;

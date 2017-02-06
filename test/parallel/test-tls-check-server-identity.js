@@ -177,7 +177,7 @@ const tests = [
     error: 'Host: a.b.a.com. is not in the cert\'s altnames: ' +
            'DNS:*b.a.com'
   },
-  // Mutliple DNS names
+  // Multiple DNS names
   {
     host: 'a.b.a.com', cert: {
       subjectaltname: 'DNS:*b.a.com, DNS:a.b.a.com',

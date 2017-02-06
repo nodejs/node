@@ -63,7 +63,7 @@ if (process.argv[2] === 'child') {
     const timer = setInterval(function() {
       /*
        * Both the parent and the child got at least one message,
-       * test passed, clean up everyting.
+       * test passed, clean up everything.
        */
       if (parentGotMessage && childGotMessage) {
         clearInterval(timer);

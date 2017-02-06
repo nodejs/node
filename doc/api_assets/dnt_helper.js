@@ -26,7 +26,7 @@ function _dntEnabled(dnt, userAgent) {
     var fxMatch = ua.match(/Firefox\/(\d+)/);
     var ieRegEx = /MSIE|Trident/i;
     var isIE = ieRegEx.test(ua);
-    // Matches from Windows up to the first occurance of ; un-greedily
+    // Matches from Windows up to the first occurrence of ; un-greedily
     // http://www.regexr.com/3c2el
     var platform = ua.match(/Windows.+?(?=;)/g);
 
