@@ -24,6 +24,7 @@
       'lib/internal/bootstrap_node.js',
       'lib/_debug_agent.js',
       'lib/_debugger.js',
+      'lib/async_hooks.js',
       'lib/assert.js',
       'lib/buffer.js',
       'lib/child_process.js',

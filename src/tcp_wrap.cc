@@ -19,7 +19,6 @@ namespace node {
 using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
-using v8::External;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -30,15 +29,17 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
+using AsyncHooks = Environment::AsyncHooks;
+
 
 Local<Object> TCPWrap::Instantiate(Environment* env, AsyncWrap* parent) {
   EscapableHandleScope handle_scope(env->isolate());
+  AsyncHooks::InitScope init_scope(env, parent->get_id());
   CHECK_EQ(env->tcp_constructor_template().IsEmpty(), false);
   Local<Function> constructor = env->tcp_constructor_template()->GetFunction();
   CHECK_EQ(constructor.IsEmpty(), false);
-  Local<Value> ptr = External::New(env->isolate(), parent);
   Local<Object> instance =
-      constructor->NewInstance(env->context(), 1, &ptr).ToLocalChecked();
+      constructor->NewInstance(env->context()).ToLocalChecked();
   return handle_scope.Escape(instance);
 }
 
@@ -63,6 +64,8 @@ void TCPWrap::Initialize(Local<Object> target,
                                                  "onconnection"),
                              Null(env->isolate()));
 
+  env->SetProtoMethod(t, "getAsyncId", AsyncWrap::GetAsyncId);
+  env->SetProtoMethod(t, "asyncReset", AsyncWrap::AsyncReset);
 
   env->SetProtoMethod(t, "close", HandleWrap::Close);
 
@@ -98,6 +101,7 @@ void TCPWrap::Initialize(Local<Object> target,
   };
   auto cwt = FunctionTemplate::New(env->isolate(), constructor);
   cwt->InstanceTemplate()->SetInternalFieldCount(1);
+  env->SetProtoMethod(cwt, "getAsyncId", AsyncWrap::GetAsyncId);
   cwt->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "TCPConnectWrap"));
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "TCPConnectWrap"),
               cwt->GetFunction());
@@ -110,24 +114,14 @@ void TCPWrap::New(const FunctionCallbackInfo<Value>& args) {
   // normal function.
   CHECK(args.IsConstructCall());
   Environment* env = Environment::GetCurrent(args);
-  TCPWrap* wrap;
-  if (args.Length() == 0) {
-    wrap = new TCPWrap(env, args.This(), nullptr);
-  } else if (args[0]->IsExternal()) {
-    void* ptr = args[0].As<External>()->Value();
-    wrap = new TCPWrap(env, args.This(), static_cast<AsyncWrap*>(ptr));
-  } else {
-    UNREACHABLE();
-  }
-  CHECK(wrap);
+  new TCPWrap(env, args.This());
 }
 
 
-TCPWrap::TCPWrap(Environment* env, Local<Object> object, AsyncWrap* parent)
+TCPWrap::TCPWrap(Environment* env, Local<Object> object)
     : ConnectionWrap(env,
                      object,
-                     AsyncWrap::PROVIDER_TCPWRAP,
-                     parent) {
+                     AsyncWrap::PROVIDER_TCPWRAP) {
   int r = uv_tcp_init(env->event_loop(), &handle_);
   CHECK_EQ(r, 0);  // How do we proxy this error up to javascript?
                    // Suggestion: uv_tcp_init() returns void.
@@ -255,6 +249,7 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   int err = uv_ip4_addr(*ip_address, port, &addr);
 
   if (err == 0) {
+    env->set_init_trigger_id(wrap->get_id());
     ConnectWrap* req_wrap =
         new ConnectWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_TCPCONNECTWRAP);
     err = uv_tcp_connect(req_wrap->req(),
@@ -290,6 +285,7 @@ void TCPWrap::Connect6(const FunctionCallbackInfo<Value>& args) {
   int err = uv_ip6_addr(*ip_address, port, &addr);
 
   if (err == 0) {
+    env->set_init_trigger_id(wrap->get_id());
     ConnectWrap* req_wrap =
         new ConnectWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_TCPCONNECTWRAP);
     err = uv_tcp_connect(req_wrap->req(),

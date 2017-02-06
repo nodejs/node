@@ -27,8 +27,10 @@
 namespace node {
 
 using v8::Array;
+using v8::ArrayBuffer;
 using v8::Context;
 using v8::EscapableHandleScope;
+using v8::Float64Array;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -87,7 +89,10 @@ class FSReqWrap: public ReqWrap<uv_fs_t> {
     Wrap(object(), this);
   }
 
-  ~FSReqWrap() { ReleaseEarly(); }
+  ~FSReqWrap() {
+    ReleaseEarly();
+    ClearWrap(object());
+  }
 
   void* operator new(size_t size) = delete;
   void* operator new(size_t size, char* storage) { return storage; }
@@ -194,6 +199,9 @@ static void After(uv_fs_t *req) {
         break;
 
       case UV_FS_OPEN:
+        env->insert_fd_async_ids(req->result,
+                                 req_wrap->get_id(),
+                                 req_wrap->get_trigger_id());
         argv[1] = Integer::New(env->isolate(), req->result);
         break;
 
@@ -409,6 +417,9 @@ static void Close(const FunctionCallbackInfo<Value>& args) {
     return TYPE_ERROR("fd must be a file descriptor");
 
   int fd = args[0]->Int32Value();
+  // Can remove the async_id here because it's only used from JS when setting
+  // the init trigger id.
+  env->erase_fd_async_id(fd);
 
   if (args[1]->IsObject()) {
     ASYNC_CALL(close, args[1], UTF8, fd)
@@ -1433,6 +1444,22 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+
+// The asyncId and triggerId will be written to both indexes of the
+// Float64Array stored on Environment::AsyncHooks. This is much faster than
+// creating and returning an Array.
+static void GetIdsFromFd(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!args[0]->IsInt32())
+    return TYPE_ERROR("fd must be an int");
+
+  auto ptr = env->get_fd_async_ids_inst();
+  node_fd_async_ids slot = env->get_fd_async_id(args[0]->Int32Value());
+  ptr->async_id = slot.async_id;
+  ptr->trigger_id = slot.trigger_id;
+}
+
+
 void FSInitialize(const FunctionCallbackInfo<Value>& args) {
   Local<Function> stats_constructor = args[0].As<Function>();
   CHECK(stats_constructor->IsFunction());
@@ -1440,6 +1467,7 @@ void FSInitialize(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   env->set_fs_stats_constructor_function(stats_constructor);
 }
+
 
 void InitFs(Local<Object> target,
             Local<Value> unused,
@@ -1489,12 +1517,28 @@ void InitFs(Local<Object> target,
 
   env->SetMethod(target, "mkdtemp", Mkdtemp);
 
+  env->SetMethod(target, "getIdsFromFd", GetIdsFromFd);
+
+  // Set Float64Array used by GetIdsFromFd() to quickly retrieve an asyncId
+  // from the unordered_map.
+  node_fd_async_ids* fd_ids_inst = env->get_fd_async_ids_inst();
+  Local<ArrayBuffer> ab =
+    ArrayBuffer::New(env->isolate(),
+                     reinterpret_cast<double*>(fd_ids_inst),
+                     sizeof(*fd_ids_inst));
+  static_assert(sizeof(*fd_ids_inst) == 16, "size is incorrect");
+  Local<String> name = FIXED_ONE_BYTE_STRING(env->isolate(), "fd_async_ids");
+  Local<Float64Array> value =
+    Float64Array::New(ab, 0, sizeof(*fd_ids_inst) / sizeof(double));
+  target->Set(env->context(), name, value).ToChecked();
+
   StatWatcher::Initialize(env, target);
 
   // Create FunctionTemplate for FSReqWrap
   Local<FunctionTemplate> fst =
       FunctionTemplate::New(env->isolate(), NewFSReqWrap);
   fst->InstanceTemplate()->SetInternalFieldCount(1);
+  env->SetProtoMethod(fst, "getAsyncId", AsyncWrap::GetAsyncId);
   fst->SetClassName(FIXED_ONE_BYTE_STRING(env->isolate(), "FSReqWrap"));
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "FSReqWrap"),
               fst->GetFunction());

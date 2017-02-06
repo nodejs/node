@@ -17,6 +17,8 @@
 
 #include <stdint.h>
 #include <vector>
+#include <unordered_map>
+#include <stack>
 
 // Caveat emptor: we're going slightly crazy with macros here but the end
 // hopefully justifies the means. We have a lot of per-context properties
@@ -69,7 +71,6 @@ namespace node {
   V(address_string, "address")                                                \
   V(args_string, "args")                                                      \
   V(async, "async")                                                           \
-  V(async_queue_string, "_asyncQueue")                                        \
   V(buffer_string, "buffer")                                                  \
   V(bytes_string, "bytes")                                                    \
   V(bytes_parsed_string, "bytesParsed")                                       \
@@ -236,8 +237,9 @@ namespace node {
   V(as_external, v8::External)                                                \
   V(async_hooks_destroy_function, v8::Function)                               \
   V(async_hooks_init_function, v8::Function)                                  \
-  V(async_hooks_post_function, v8::Function)                                  \
-  V(async_hooks_pre_function, v8::Function)                                   \
+  V(async_hooks_before_function, v8::Function)                                \
+  V(async_hooks_fatal_error_function, v8::Function)                           \
+  V(async_hooks_after_function, v8::Function)                                 \
   V(binding_cache_object, v8::Object)                                         \
   V(buffer_constructor_function, v8::Function)                                \
   V(buffer_prototype_object, v8::Object)                                      \
@@ -245,13 +247,14 @@ namespace node {
   V(domain_array, v8::Array)                                                  \
   V(domains_stack_array, v8::Array)                                           \
   V(fs_stats_constructor_function, v8::Function)                              \
-  V(generic_internal_field_template, v8::ObjectTemplate)                      \
   V(jsstream_constructor_template, v8::FunctionTemplate)                      \
   V(module_load_list_array, v8::Array)                                        \
+  V(pbkdf2_constructor_template, v8::ObjectTemplate)                          \
   V(pipe_constructor_template, v8::FunctionTemplate)                          \
   V(process_object, v8::Object)                                               \
   V(promise_reject_function, v8::Function)                                    \
   V(push_values_to_array_function, v8::Function)                              \
+  V(randombytes_constructor_template, v8::ObjectTemplate)                     \
   V(script_context_constructor_template, v8::FunctionTemplate)                \
   V(script_data_constructor_function, v8::Function)                           \
   V(secure_context_constructor_template, v8::FunctionTemplate)                \
@@ -270,6 +273,11 @@ struct node_ares_task {
   ares_socket_t sock;
   uv_poll_t poll_watcher;
   RB_ENTRY(node_ares_task) node;
+};
+
+struct node_fd_async_ids {
+  double async_id;
+  double trigger_id;
 };
 
 RB_HEAD(node_ares_task_list, node_ares_task);
@@ -312,22 +320,102 @@ class Environment {
  public:
   class AsyncHooks {
    public:
+    // Reason for both UidFields and Fields are that one is stored as a double*
+    // and the other as a uint32_t*.
+    enum UidFields {
+      kAsyncUidCntr,
+      kInitTriggerId,
+      kScopedTriggerId,
+      kUidFieldsCount,
+    };
+
+    enum Fields {
+      kInit,
+      kBefore,
+      kAfter,
+      kDestroy,
+      kActiveHooks,
+      kIdStackIndex,
+      kIdStackSize,
+      kFieldsCount,
+    };
+
+    static const size_t kIdStackLimit = 1024;
+
     inline uint32_t* fields();
     inline int fields_count() const;
-    inline bool callbacks_enabled();
-    inline void set_enable_callbacks(uint32_t flag);
+    inline double* uid_fields();
+    inline int uid_fields_count() const;
+    inline v8::Local<v8::String> provider_string(int idx);
+
+    inline double* get_id_stack();
+    inline void push_to_id_stack(double id, double trigger_id);
+    inline void pop_from_id_stack(double id);
+    inline void gen_id_array();
+    inline void trim_id_array();
+    inline void reset_id_array();  // Used in fatal exceptions.
+    inline void set_async_wrap_object(v8::Local<v8::Object> object);
+
+    class InitScope {
+     public:
+      explicit InitScope(Environment* env, double init_trigger_id)
+          : uid_fields_(env->async_hooks()->uid_fields()),
+            init_trigger_id_(uid_fields_[AsyncHooks::kScopedTriggerId]) {
+        uid_fields_[AsyncHooks::kScopedTriggerId] = init_trigger_id;
+      }
+      ~InitScope() {
+        uid_fields_[AsyncHooks::kScopedTriggerId] = init_trigger_id_;
+      }
+     private:
+      double* uid_fields_;
+      const double init_trigger_id_;
+
+      DISALLOW_COPY_AND_ASSIGN(InitScope);
+    };
+
+    // ExecScope is meant for use in MakeCallback, to manage the id stack.
+    class ExecScope {
+     public:
+      explicit ExecScope(Environment* env, double id, double trigger_id);
+      ~ExecScope() {
+        if (disposed_) return;
+        Dispose();
+      }
+      void Dispose();
+
+     private:
+      ExecScope() { }
+      Environment* env_;
+      double id_;
+      // Manually track if disposed so if the user calls Dispose() and it's
+      // RAII it won't alter the id stack twice.
+      bool disposed_;
+
+      DISALLOW_COPY_AND_ASSIGN(ExecScope);
+    };
 
    private:
     friend class Environment;  // So we can call the constructor.
     inline AsyncHooks();
+    inline explicit AsyncHooks(v8::Isolate* isolate);
 
-    enum Fields {
-      // Set this to not zero if the init hook should be called.
-      kEnableCallbacks,
-      kFieldsCount
-    };
+    // Keep a list of all Persistent strings used for Provider types.
+    v8::Eternal<v8::String> providers_[AsyncWrap::PROVIDERS_LENGTH];
+    // Store a reference to the async_wrap object so we can override the
+    // async_id_stack property if the stack grows too large.
+    v8::Eternal<v8::Object> async_wrap_object_;
+
+    std::stack<v8::Persistent<v8::Float64Array>*> stack_of_id_stacks_;
+
+    v8::Isolate* isolate_;
 
     uint32_t fields_[kFieldsCount];
+    // Gives us 2^53-1 unique ids. Good enough for now and makes the operation
+    // cheaper in JS.
+    double uid_fields_[kUidFieldsCount];
+    // Pointer to the data in the Float64Array that holds the current stack of
+    // ids.
+    double* id_stack_;
 
     DISALLOW_COPY_AND_ASSIGN(AsyncHooks);
   };
@@ -432,7 +520,6 @@ class Environment {
 
   inline v8::Isolate* isolate() const;
   inline uv_loop_t* event_loop() const;
-  inline bool async_wrap_callbacks_enabled() const;
   inline bool in_domain() const;
   inline uint32_t watched_providers() const;
 
@@ -469,10 +556,24 @@ class Environment {
   void PrintSyncTrace() const;
   inline void set_trace_sync_io(bool value);
 
-  inline int64_t get_async_wrap_uid();
+  inline bool abort_on_uncaught_exception() const;
+  inline void set_abort_on_uncaught_exception(bool value);
+
+  // The necessary API for async_hooks.
+  inline double new_async_id();
+  inline double current_async_id();
+  inline double trigger_id();
+  inline double exchange_init_trigger_id(const double id);
+  inline void set_init_trigger_id(const double id);
+
+  // For propagating hook id's with a file descriptor.
+  inline void erase_fd_async_id(int fd);
+  inline node_fd_async_ids get_fd_async_id(int fd);
+  inline void insert_fd_async_ids(int fd, double async_id, double trigger_id);
+  inline node_fd_async_ids* get_fd_async_ids_inst();
 
   // List of id's that have been destroyed and need the destroy() cb called.
-  inline std::vector<int64_t>* destroy_ids_list();
+  inline std::vector<double>* destroy_ids_list();
 
   inline double* heap_statistics_buffer() const;
   inline void set_heap_statistics_buffer(double* pointer);
@@ -511,8 +612,6 @@ class Environment {
   inline void SetTemplateMethod(v8::Local<v8::FunctionTemplate> that,
                                 const char* name,
                                 v8::FunctionCallback callback);
-
-  inline v8::Local<v8::Object> NewInternalFieldObject();
 
   // Strings and private symbols are shared across shared contexts
   // The getters simply proxy to the per-isolate primitive.
@@ -572,9 +671,12 @@ class Environment {
   bool using_domains_;
   bool printed_error_;
   bool trace_sync_io_;
+  bool abort_on_uncaught_exception_;
   size_t makecallback_cntr_;
-  int64_t async_wrap_uid_;
-  std::vector<int64_t> destroy_ids_list_;
+  double async_wrap_id_;
+  std::vector<double> destroy_ids_list_;
+  node_fd_async_ids fd_async_ids_inst_;
+  std::unordered_map<int, node_fd_async_ids> fd_async_id_map_;
   debugger::Agent debugger_agent_;
 #if HAVE_INSPECTOR
   inspector::Agent inspector_agent_;

@@ -70,6 +70,7 @@ void FSEventWrap::Initialize(Local<Object> target,
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(fsevent_string);
 
+  env->SetProtoMethod(t, "getAsyncId", AsyncWrap::GetAsyncId);
   env->SetProtoMethod(t, "start", Start);
   env->SetProtoMethod(t, "close", Close);
 

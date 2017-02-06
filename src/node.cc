@@ -132,6 +132,8 @@ using v8::Uint32Array;
 using v8::V8;
 using v8::Value;
 
+using AsyncHooks = node::Environment::AsyncHooks;
+
 static bool print_eval = false;
 static bool force_repl = false;
 static bool syntax_check_only = false;
@@ -153,6 +155,7 @@ static node_module* modlist_linked;
 static node_module* modlist_addon;
 static bool trace_enabled = false;
 static const char* trace_enabled_categories = nullptr;
+static bool abort_on_uncaught_exception = false;
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
 // Path to ICU data (for i18n / Intl)
@@ -1198,21 +1201,13 @@ Local<Value> MakeCallback(Environment* env,
   // If you hit this assertion, you forgot to enter the v8::Context first.
   CHECK_EQ(env->context(), env->isolate()->GetCurrentContext());
 
-  Local<Function> pre_fn = env->async_hooks_pre_function();
-  Local<Function> post_fn = env->async_hooks_post_function();
   Local<Object> object, domain;
-  bool ran_init_callback = false;
   bool has_domain = false;
 
   Environment::AsyncCallbackScope callback_scope(env);
 
-  // TODO(trevnorris): Adding "_asyncQueue" to the "this" in the init callback
-  // is a horrible way to detect usage. Rethink how detection should happen.
   if (recv->IsObject()) {
     object = recv.As<Object>();
-    Local<Value> async_queue_v = object->Get(env->async_queue_string());
-    if (async_queue_v->IsObject())
-      ran_init_callback = true;
   }
 
   if (env->using_domains()) {
@@ -1236,33 +1231,11 @@ Local<Value> MakeCallback(Environment* env,
     }
   }
 
-  if (ran_init_callback && !pre_fn.IsEmpty()) {
-    TryCatch try_catch(env->isolate());
-    MaybeLocal<Value> ar = pre_fn->Call(env->context(), object, 0, nullptr);
-    if (ar.IsEmpty()) {
-      ClearFatalExceptionHandlers(env);
-      FatalException(env->isolate(), try_catch);
-      return Local<Value>();
-    }
-  }
+  // TODO(trevnorris): Correct this once node::MakeCallback() support id and
+  // triggerId.
+  AsyncHooks::ExecScope exec_scope(env, 0, 0);
 
   Local<Value> ret = callback->Call(recv, argc, argv);
-
-  if (ran_init_callback && !post_fn.IsEmpty()) {
-    Local<Value> did_throw = Boolean::New(env->isolate(), ret.IsEmpty());
-    // Currently there's no way to retrieve an uid from node::MakeCallback().
-    // This needs to be fixed.
-    Local<Value> vals[] =
-        { Undefined(env->isolate()).As<Value>(), did_throw };
-    TryCatch try_catch(env->isolate());
-    MaybeLocal<Value> ar =
-        post_fn->Call(env->context(), object, arraysize(vals), vals);
-    if (ar.IsEmpty()) {
-      ClearFatalExceptionHandlers(env);
-      FatalException(env->isolate(), try_catch);
-      return Local<Value>();
-    }
-  }
 
   if (ret.IsEmpty()) {
     // NOTE: For backwards compatibility with public API we return Undefined()
@@ -1270,6 +1243,8 @@ Local<Value> MakeCallback(Environment* env,
     return callback_scope.in_makecallback() ?
         ret : Undefined(env->isolate()).As<Value>();
   }
+
+  exec_scope.Dispose();
 
   if (has_domain) {
     Local<Value> exit_v = domain->Get(env->exit_string());
@@ -1291,6 +1266,11 @@ Local<Value> MakeCallback(Environment* env,
     env->isolate()->RunMicrotasks();
   }
 
+  // Make sure the stack unwound properly. If there are nested MakeCallback's
+  // then it should return early and not reach this code.
+  CHECK_EQ(env->current_async_id(), 0);
+  CHECK_EQ(env->trigger_id(), 0);
+
   Local<Object> process = env->process_object();
 
   if (tick_info->length() == 0) {
@@ -1307,10 +1287,10 @@ Local<Value> MakeCallback(Environment* env,
 
 
 Local<Value> MakeCallback(Environment* env,
-                           Local<Object> recv,
-                           Local<String> symbol,
-                           int argc,
-                           Local<Value> argv[]) {
+                          Local<Object> recv,
+                          Local<String> symbol,
+                          int argc,
+                          Local<Value> argv[]) {
   Local<Value> cb_v = recv->Get(symbol);
   CHECK(cb_v->IsFunction());
   return MakeCallback(env, recv.As<Value>(), cb_v.As<Function>(), argc, argv);
@@ -1318,10 +1298,10 @@ Local<Value> MakeCallback(Environment* env,
 
 
 Local<Value> MakeCallback(Environment* env,
-                           Local<Object> recv,
-                           const char* method,
-                           int argc,
-                           Local<Value> argv[]) {
+                          Local<Object> recv,
+                          const char* method,
+                          int argc,
+                          Local<Value> argv[]) {
   Local<String> method_string = OneByteString(env->isolate(), method);
   return MakeCallback(env, recv, method_string, argc, argv);
 }
@@ -3746,6 +3726,9 @@ static void ParseArgs(int* argc,
     } else if (strcmp(arg, "--expose-internals") == 0 ||
                strcmp(arg, "--expose_internals") == 0) {
       // consumed in js
+    } else if (strcmp(arg, "--abort-on-uncaught-exception") ||
+               strcmp(arg, "--abort_on_uncaught_exception")) {
+      abort_on_uncaught_exception = true;
     } else if (strcmp(arg, "--") == 0) {
       index += 1;
       break;
@@ -4423,8 +4406,11 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
       return 12;  // Signal internal error.
   }
 
+  env.set_abort_on_uncaught_exception(abort_on_uncaught_exception);
+
   {
     Environment::AsyncCallbackScope callback_scope(&env);
+    Environment::AsyncHooks::ExecScope exec_scope(&env, 1, 0);
     LoadEnvironment(&env);
   }
 

@@ -14,6 +14,54 @@ const execSync = require('child_process').execSync;
 const testRoot = process.env.NODE_TEST_DIR ?
                    fs.realpathSync(process.env.NODE_TEST_DIR) : __dirname;
 
+// If env var is set then enable async_hook hooks for all tests.
+if (process.env.NODE_TEST_WITH_ASYNC_HOOKS) {
+  const destroydIdsList = {};
+  const destroyListList = {};
+  const initHandles = {};
+  const async_wrap = process.binding('async_wrap');
+
+  if (process.env.NODE_TEST_HANDLE_ACCESS) {
+    process.on('exit', () => {
+      // itterate through handles to make sure nothing crashes
+      for (const k in initHandles)
+        util.inspect(initHandles[k]);
+    });
+  }
+
+  const _addIdToDestroyList = async_wrap.addIdToDestroyList;
+  async_wrap.addIdToDestroyList = function addIdToDestroyList(id) {
+    if (!process.env.NODE_TEST_ASYNC_DESTROY)
+      return _addIdToDestroyList.call(this, id);
+    if (destroyListList[id] !== undefined) {
+      process._rawDebug(destroyListList[id]);
+      process._rawDebug();
+      throw new Error(`same id added twice (${id})`);
+    }
+    destroyListList[id] = new Error().stack;
+  };
+
+  require('async_hooks').createHook({
+    init(id, ty, tr, h) {
+      if (initHandles[id]) {
+        throw new Error(`init called twice for same id (${id})`);
+      }
+      initHandles[id] = h;
+    },
+    before() { },
+    after: process.env.NODE_TEST_ONLY_BEFORE_HOOK ? undefined : () => {},
+    destroy(id) {
+      if (!process.env.NODE_TEST_ASYNC_DESTROY) return;
+      if (destroydIdsList[id] !== undefined) {
+        process._rawDebug(destroydIdsList[id]);
+        process._rawDebug();
+        throw new Error(`destroy called for same id (${id})`);
+      }
+      destroydIdsList[id] = new Error().stack;
+    },
+  }).enable();
+}
+
 exports.fixturesDir = path.join(__dirname, 'fixtures');
 exports.tmpDirName = 'tmp';
 // PORT should match the definition in test/testpy/__init__.py.

@@ -10,7 +10,8 @@ const s = new net.Socket({
     readStart: function() {
       process.nextTick(() => this.onread(uv.UV_EOF, null));
     },
-    close: (cb) => process.nextTick(cb)
+    close: (cb) => process.nextTick(cb),
+    getAsyncId: () => 0,
   },
   writable: false
 });

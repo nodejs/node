@@ -454,6 +454,8 @@ class Parser : public AsyncWrap {
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
     // Should always be called from the same context.
     CHECK_EQ(env, parser->env());
+    // The parser is being reused. Reset the uid and call init() callbacks.
+    parser->Reset();
     parser->Init(type);
   }
 
@@ -763,6 +765,7 @@ void InitHttpParser(Local<Object> target,
 #undef V
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "methods"), methods);
 
+  env->SetProtoMethod(t, "getAsyncId", AsyncWrap::GetAsyncId);
   env->SetProtoMethod(t, "close", Parser::Close);
   env->SetProtoMethod(t, "execute", Parser::Execute);
   env->SetProtoMethod(t, "finish", Parser::Finish);

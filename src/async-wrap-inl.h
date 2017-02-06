@@ -15,18 +15,18 @@
 
 namespace node {
 
-inline bool AsyncWrap::ran_init_callback() const {
-  return static_cast<bool>(bits_ & 1);
-}
-
-
 inline AsyncWrap::ProviderType AsyncWrap::provider_type() const {
-  return static_cast<ProviderType>(bits_ >> 1);
+  return provider_type_;
 }
 
 
-inline int64_t AsyncWrap::get_uid() const {
-  return uid_;
+inline double AsyncWrap::get_id() const {
+  return id_;
+}
+
+
+inline double AsyncWrap::get_trigger_id() const {
+  return trigger_id_;
 }
 
 

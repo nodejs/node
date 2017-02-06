@@ -82,6 +82,7 @@ inline const char* ToErrorCodeString(int status) {
 class GetAddrInfoReqWrap : public ReqWrap<uv_getaddrinfo_t> {
  public:
   GetAddrInfoReqWrap(Environment* env, Local<Object> req_wrap_obj);
+  ~GetAddrInfoReqWrap();
 
   size_t self_size() const override { return sizeof(*this); }
 };
@@ -93,6 +94,11 @@ GetAddrInfoReqWrap::GetAddrInfoReqWrap(Environment* env,
 }
 
 
+GetAddrInfoReqWrap::~GetAddrInfoReqWrap() {
+  ClearWrap(object());
+}
+
+
 static void NewGetAddrInfoReqWrap(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
 }
@@ -101,6 +107,7 @@ static void NewGetAddrInfoReqWrap(const FunctionCallbackInfo<Value>& args) {
 class GetNameInfoReqWrap : public ReqWrap<uv_getnameinfo_t> {
  public:
   GetNameInfoReqWrap(Environment* env, Local<Object> req_wrap_obj);
+  ~GetNameInfoReqWrap();
 
   size_t self_size() const override { return sizeof(*this); }
 };
@@ -109,6 +116,11 @@ GetNameInfoReqWrap::GetNameInfoReqWrap(Environment* env,
                                        Local<Object> req_wrap_obj)
     : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_GETNAMEINFOREQWRAP) {
   Wrap(req_wrap_obj, this);
+}
+
+
+GetNameInfoReqWrap::~GetNameInfoReqWrap() {
+  ClearWrap(object());
 }
 
 
@@ -286,6 +298,7 @@ class QueryWrap : public AsyncWrap {
       : AsyncWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_QUERYWRAP) {
     if (env->in_domain())
       req_wrap_obj->Set(env->domain_string(), env->domain_array()->Get(0));
+    Wrap(req_wrap_obj, this);
   }
 
   ~QueryWrap() override {
@@ -1381,6 +1394,7 @@ static void Initialize(Local<Object> target,
   Local<FunctionTemplate> aiw =
       FunctionTemplate::New(env->isolate(), NewGetAddrInfoReqWrap);
   aiw->InstanceTemplate()->SetInternalFieldCount(1);
+  env->SetProtoMethod(aiw, "getAsyncId", AsyncWrap::GetAsyncId);
   aiw->SetClassName(
       FIXED_ONE_BYTE_STRING(env->isolate(), "GetAddrInfoReqWrap"));
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "GetAddrInfoReqWrap"),
@@ -1389,6 +1403,7 @@ static void Initialize(Local<Object> target,
   Local<FunctionTemplate> niw =
       FunctionTemplate::New(env->isolate(), NewGetNameInfoReqWrap);
   niw->InstanceTemplate()->SetInternalFieldCount(1);
+  env->SetProtoMethod(niw, "getAsyncId", AsyncWrap::GetAsyncId);
   niw->SetClassName(
       FIXED_ONE_BYTE_STRING(env->isolate(), "GetNameInfoReqWrap"));
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "GetNameInfoReqWrap"),
@@ -1397,6 +1412,7 @@ static void Initialize(Local<Object> target,
   Local<FunctionTemplate> qrw =
       FunctionTemplate::New(env->isolate(), NewQueryReqWrap);
   qrw->InstanceTemplate()->SetInternalFieldCount(1);
+  env->SetProtoMethod(qrw, "getAsyncId", AsyncWrap::GetAsyncId);
   qrw->SetClassName(
       FIXED_ONE_BYTE_STRING(env->isolate(), "QueryReqWrap"));
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "QueryReqWrap"),
