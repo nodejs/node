@@ -1,4 +1,15 @@
-# Table of Contents
+# Node.js Core Tests
+
+This folder contains code and data used to test the Node.js implementation.
+
+For a detailed guide on how to write tests in this
+directory, see [the guide on writing tests](../doc/guides/writing-tests.md).
+
+On how to run tests in this direcotry, see
+[the contributing guide](../CONTRIBUTING.md#step-5-test).
+
+## Table of Contents
+
 * [Test directories](#test-directories)
 * [Common module API](#common-module-api)
 
