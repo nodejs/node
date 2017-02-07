@@ -1074,8 +1074,10 @@ namespace url {
                   SET_HAVE_QUERY()
                   url.query = base.query;
                 }
+                break;
               }
-              break;
+              state = kPath;
+              continue;
             case '\\':
             case '/':
               state = kFileSlash;
@@ -1092,8 +1094,8 @@ namespace url {
                 }
                 SET_HAVE_QUERY()
                 state = kQuery;
+                break;
               }
-              break;
             case '#':
               if (base_is_file) {
                 if (DOES_HAVE_HOST(base)) {
@@ -1109,8 +1111,8 @@ namespace url {
                   url.query = base.query;
                 }
                 state = kFragment;
+                break;
               }
-              break;
             default:
               if (base_is_file &&
                   (!WINDOWS_DRIVE_LETTER(ch, p[1]) ||
