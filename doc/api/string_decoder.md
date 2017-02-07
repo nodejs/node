@@ -1,4 +1,4 @@
-# StringDecoder
+# String Decoder
 
 > Stability: 2 - Stable
 
