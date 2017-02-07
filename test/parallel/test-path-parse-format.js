@@ -1,5 +1,5 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const path = require('path');
 
@@ -69,23 +69,27 @@ const unixSpecialCaseFormatTests = [
 
 const errors = [
   {method: 'parse', input: [null],
-   message: /Path must be a string. Received null/},
+   message: /^TypeError: Path must be a string. Received null$/},
   {method: 'parse', input: [{}],
-   message: /Path must be a string. Received {}/},
+   message: /^TypeError: Path must be a string. Received {}$/},
   {method: 'parse', input: [true],
-   message: /Path must be a string. Received true/},
+   message: /^TypeError: Path must be a string. Received true$/},
   {method: 'parse', input: [1],
-   message: /Path must be a string. Received 1/},
+   message: /^TypeError: Path must be a string. Received 1$/},
   {method: 'parse', input: [],
-   message: /Path must be a string. Received undefined/},
+   message: /^TypeError: Path must be a string. Received undefined$/},
   {method: 'format', input: [null],
-   message: /Parameter "pathObject" must be an object, not/},
+   message:
+      /^TypeError: Parameter "pathObject" must be an object, not object$/},
   {method: 'format', input: [''],
-   message: /Parameter "pathObject" must be an object, not string/},
+   message:
+      /^TypeError: Parameter "pathObject" must be an object, not string$/},
   {method: 'format', input: [true],
-   message: /Parameter "pathObject" must be an object, not boolean/},
+   message:
+      /^TypeError: Parameter "pathObject" must be an object, not boolean$/},
   {method: 'format', input: [1],
-   message: /Parameter "pathObject" must be an object, not number/},
+   message:
+      /^TypeError: Parameter "pathObject" must be an object, not number$/},
 ];
 
 checkParseFormat(path.win32, winPaths);
@@ -158,18 +162,9 @@ assert.strictEqual(failures.length, 0, failures.join(''));
 
 function checkErrors(path) {
   errors.forEach(function(errorCase) {
-    try {
+    assert.throws(() => {
       path[errorCase.method].apply(path, errorCase.input);
-    } catch (err) {
-      assert.ok(err instanceof TypeError);
-      assert.ok(
-        errorCase.message.test(err.message),
-        'expected ' + errorCase.message + ' to match ' + err.message
-      );
-      return;
-    }
-
-    common.fail('should have thrown');
+    }, errorCase.message);
   });
 }
 
