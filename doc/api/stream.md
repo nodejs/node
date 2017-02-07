@@ -347,6 +347,8 @@ buffer that would have an adverse impact on performance. In such situations,
 implementations that implement the `writable._writev()` method can perform
 buffered writes in a more optimized manner.
 
+See also: [`writable.uncork()`][].
+
 ##### writable.end([chunk][, encoding][, callback])
 <!-- YAML
 added: v0.9.4
@@ -394,7 +396,7 @@ added: v0.11.2
 The `writable.uncork()` method flushes all data buffered since
 [`stream.cork()`][] was called.
 
-When using `writable.cork()` and `writable.uncork()` to manage the buffering
+When using [`writable.cork()`][] and `writable.uncork()` to manage the buffering
 of writes to a stream, it is recommended that calls to `writable.uncork()` be
 deferred using `process.nextTick()`. Doing so allows batching of all
 `writable.write()` calls that occur within a given Node.js event loop phase.
@@ -406,7 +408,7 @@ stream.write('data ');
 process.nextTick(() => stream.uncork());
 ```
 
-If the `writable.cork()` method is called multiple times on a stream, the same
+If the [`writable.cork()`][] method is called multiple times on a stream, the same
 number of calls to `writable.uncork()` must be called to flush the buffered
 data.
 
@@ -421,6 +423,8 @@ process.nextTick(() => {
   stream.uncork();
 });
 ```
+
+See also: [`writable.cork()`][].
 
 ##### writable.write(chunk[, encoding][, callback])
 <!-- YAML
@@ -2018,6 +2022,8 @@ readable buffer so there is nothing for a user to consume.
 [`stream.uncork()`]: #stream_writable_uncork
 [`stream.unpipe()`]: #stream_readable_unpipe_destination
 [`stream.wrap()`]: #stream_readable_wrap_stream
+[`writable.cork()`]: #stream_writable_cork
+[`writable.uncork()`]: #stream_writable_uncork
 [API for Stream Consumers]: #stream_api_for_stream_consumers
 [API for Stream Implementers]: #stream_api_for_stream_implementers
 [child process stdin]: child_process.html#child_process_child_stdin
