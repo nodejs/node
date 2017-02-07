@@ -1074,8 +1074,10 @@ namespace url {
                   SET_HAVE_QUERY()
                   url.query = base.query;
                 }
+                break;
               }
-              break;
+              state = kPath;
+              continue;
             case '\\':
             case '/':
               state = kFileSlash;
