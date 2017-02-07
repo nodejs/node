@@ -1,4 +1,4 @@
-# punycode
+# Punycode
 
 > Stability: 2 - Stable
 

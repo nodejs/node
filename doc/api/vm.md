@@ -1,4 +1,4 @@
-# Executing JavaScript
+# VM (Executing JavaScript)
 
 > Stability: 2 - Stable
 
