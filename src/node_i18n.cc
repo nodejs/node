@@ -29,6 +29,8 @@
 #include "env-inl.h"
 #include "util.h"
 #include "util-inl.h"
+#include "node_internals.h"
+
 #include "v8.h"
 
 #include <unicode/utypes.h>

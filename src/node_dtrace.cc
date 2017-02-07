@@ -27,6 +27,8 @@
 
 #include "util.h"
 
+#include "node_internals.h"
+
 #include <string.h>
 
 namespace node {

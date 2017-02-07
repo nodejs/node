@@ -1,8 +1,9 @@
-#include "node.h"
 #include "node_watchdog.h"
-#include "v8.h"
 #include "env.h"
 #include "env-inl.h"
+#include "node_internals.h"
+
+#include "v8.h"
 
 namespace node {
 namespace util {

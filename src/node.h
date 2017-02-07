@@ -150,33 +150,10 @@ NODE_EXTERN v8::Local<v8::Value> MakeCallback(
     int argc,
     v8::Local<v8::Value>* argv);
 
-}  // namespace node
-
-#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
-#include "node_internals.h"
-#endif
-
-#include <assert.h>
-#include <stdint.h>
-
 #ifndef NODE_STRINGIFY
 #define NODE_STRINGIFY(n) NODE_STRINGIFY_HELPER(n)
 #define NODE_STRINGIFY_HELPER(n) #n
 #endif
-
-#ifdef _WIN32
-// TODO(tjfontaine) consider changing the usage of ssize_t to ptrdiff_t
-#if !defined(_SSIZE_T_) && !defined(_SSIZE_T_DEFINED)
-typedef intptr_t ssize_t;
-# define _SSIZE_T_
-# define _SSIZE_T_DEFINED
-#endif
-#else  // !_WIN32
-# include <sys/types.h>  // size_t, ssize_t
-#endif  // _WIN32
-
-
-namespace node {
 
 NODE_EXTERN extern bool no_deprecation;
 #if HAVE_OPENSSL
