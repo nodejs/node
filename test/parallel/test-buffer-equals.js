@@ -13,4 +13,5 @@ assert.ok(!c.equals(d));
 assert.ok(!d.equals(e));
 assert.ok(d.equals(d));
 
-assert.throws(() => Buffer.alloc(1).equals('abc'));
+assert.throws(() => Buffer.alloc(1).equals('abc'),
+              /^TypeError: Argument must be a Buffer$/);
