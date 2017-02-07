@@ -1,14 +1,11 @@
 # Async Hooks
 
 
-> Stability: 2 - Stable
+> Stability: 1 - Experimental
 
 
 The `async-hooks` module provides an API to register callbacks tracking the
 lifetime of asynchronous resources created inside a Node.js application.
-
-At its simplest form it can track metadata about each resource and log it when
-the program exits.
 
 ## Terminology
 
@@ -249,19 +246,26 @@ Output from only starting the server:
 
 ```
 TCPWRAP(2): trigger: 1 scope: 1
-# .listen()
-TickObject(3): trigger: 1 scope: 1
+TickObject(3): trigger: 2 scope: 1
 before:  3
   Timeout(4): trigger: 3 scope: 3
   TIMERWRAP(5): trigger: 3 scope: 3
 after:   3
+destroy: 3
 before:  5
   before:  4
     TTYWRAP(6): trigger: 4 scope: 4
     SIGNALWRAP(7): trigger: 4 scope: 4
+    TTYWRAP(8): trigger: 4 scope: 4
 >>> 4
+    TickObject(9): trigger: 4 scope: 4
   after:   4
+  destroy: 4
 after:   5
+before:  9
+after:   9
+destroy: 9
+destroy: 5
 ```
 
 First notice that `scope` and the value returned by `currentId()` are always
