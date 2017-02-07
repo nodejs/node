@@ -277,13 +277,13 @@ for (let lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
 
 const expectedError =
   /^TypeError: "val" argument must be string, number, Buffer or Uint8Array$/;
-assert.throws(function() {
-  b.includes(function() { });
+assert.throws(() => {
+  b.includes(() => {});
 }, expectedError);
-assert.throws(function() {
+assert.throws(() => {
   b.includes({});
 }, expectedError);
-assert.throws(function() {
+assert.throws(() => {
   b.includes([]);
 }, expectedError);
 
