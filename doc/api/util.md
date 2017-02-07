@@ -1,4 +1,4 @@
-# util
+# Util
 
 > Stability: 2 - Stable
 
