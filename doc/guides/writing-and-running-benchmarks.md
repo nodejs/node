@@ -1,8 +1,6 @@
-# Node.js core benchmark
+# How to Write and Run Benchmarks in Node.js Core
 
-This folder contains benchmarks to measure the performance of the Node.js APIs.
-
-## Table of Content
+## Table of Contents
 
 * [Prerequisites](#prerequisites)
 * [Running benchmarks](#running-benchmarks)
