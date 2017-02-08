@@ -2,7 +2,7 @@
 // just like test/gc/http-client.js,
 // but with an on('error') handler that does nothing.
 
-require('../common');
+const common = require('../common');
 
 function serverHandler(req, res) {
   req.resume();
@@ -11,7 +11,7 @@ function serverHandler(req, res) {
 }
 
 const http = require('http');
-const weak = require('weak');
+const weak = require(`./build/${common.buildType}/binding`);
 const todo = 500;
 let done = 0;
 let count = 0;
