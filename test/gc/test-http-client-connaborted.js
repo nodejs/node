@@ -2,14 +2,14 @@
 // just like test/gc/http-client.js,
 // but aborting every connection that comes in.
 
-require('../common');
+const common = require('../common');
 
 function serverHandler(req, res) {
   res.connection.destroy();
 }
 
 const http = require('http');
-const weak = require('weak');
+const weak = require(`./build/${common.buildType}/binding`);
 const todo = 500;
 let done = 0;
 let count = 0;

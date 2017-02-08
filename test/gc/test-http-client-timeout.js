@@ -2,7 +2,7 @@
 // just like test/gc/http-client.js,
 // but with a timeout set
 
-require('../common');
+const common = require('../common');
 
 function serverHandler(req, res) {
   setTimeout(function() {
@@ -13,7 +13,7 @@ function serverHandler(req, res) {
 }
 
 const http = require('http');
-const weak = require('weak');
+const weak = require(`./build/${common.buildType}/binding`);
 const todo = 550;
 let done = 0;
 let count = 0;

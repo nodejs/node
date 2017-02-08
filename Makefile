@@ -133,10 +133,11 @@ test-parallel: all
 test-valgrind: all
 	$(PYTHON) tools/test.py --mode=release --valgrind sequential parallel message
 
-test/gc/node_modules/weak/build/Release/weakref.node: $(NODE_EXE)
+test/gc/build/Release/binding.node: \
+	$(NODE_EXE) test/gc/binding.cc test/gc/binding.gyp
 	$(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
 		--python="$(PYTHON)" \
-		--directory="$(shell pwd)/test/gc/node_modules/weak" \
+		--directory="$(shell pwd)/test/gc" \
 		--nodedir="$(shell pwd)"
 
 # Implicitly depends on $(NODE_EXE), see the build-addons rule for rationale.
@@ -197,12 +198,12 @@ clear-stalled:
 	ps awwx | grep Release/node | grep -v grep | cat
 	ps awwx | grep Release/node | grep -v grep | awk '{print $$1}' | $(XARGS) kill
 
-test-gc: all test/gc/node_modules/weak/build/Release/weakref.node
+test-gc: all test/gc/build/Release/binding.node
 	$(PYTHON) tools/test.py --mode=release gc
 
 test-build: | all build-addons
 
-test-all: test-build test/gc/node_modules/weak/build/Release/weakref.node
+test-all: test-build test/gc/build/Release/binding.node
 	$(PYTHON) tools/test.py --mode=debug,release
 
 test-all-valgrind: test-build
@@ -737,6 +738,7 @@ CPPLINT_FILES = $(filter-out $(CPPLINT_EXCLUDE), $(wildcard \
 	test/addons/*/*.h \
 	test/cctest/*.cc \
 	test/cctest/*.h \
+	test/gc/binding.cc \
 	tools/icu/*.cc \
 	tools/icu/*.h \
 	))
