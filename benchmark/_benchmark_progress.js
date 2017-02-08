@@ -15,9 +15,9 @@ function fraction(numerator, denominator) {
 
 function getTime(diff) {
   const time = Math.ceil(diff[0] + diff[1] / 1e9);
-  const seconds = pad(time % 60, 2, '0');
-  const minutes = pad(Math.floor(time / 60) % (60 * 60), 2, '0');
-  const hours = pad(Math.floor(time / (60 * 60)), 2, '0');
+  const hours = pad(Math.floor(time / 3600), 2, '0');
+  const minutes = pad(Math.floor((time % 3600) / 60), 2, '0');
+  const seconds = pad((time % 3600) % 60, 2, '0');
   return `${hours}:${minutes}:${seconds}`;
 }
 
