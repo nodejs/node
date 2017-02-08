@@ -652,11 +652,31 @@ and [`url.format()`][] methods would produce.
 * Returns: {String}
 
 The `toString()` method on the `URL` object returns the serialized URL. The
-value returned is equivalent to that of [`url.href`][].
+value returned is equivalent to that of [`url.href`][] and [`url.toJSON()`][].
 
 Because of the need for standard compliance, this method does not allow users
 to customize the serialization process of the URL. For more flexibility,
 [`require('url').format()`][] method might be of interest.
+
+#### url.toJSON()
+
+* Returns: {String}
+
+The `toJSON()` method on the `URL` object returns the serialized URL. The
+value returned is equivalent to that of [`url.href`][] and
+[`url.toString()`][].
+
+This method is automatically called when an `URL` object is serialized
+with [`JSON.stringify()`][].
+
+```js
+const myURLs = [
+  new URL('https://www.example.com'),
+  new URL('https://test.example.org')
+];
+console.log(JSON.stringify(myURLs));
+  // Prints ["https://www.example.com/","https://test.example.org/"]
+```
 
 ### Class: URLSearchParams
 
@@ -925,3 +945,5 @@ console.log(myURL.origin);
 [`urlSearchParams.entries()`]: #url_urlsearchparams_entries
 [`urlSearchParams@@iterator()`]: #url_urlsearchparams_iterator
 [stable sorting algorithm]: https://en.wikipedia.org/wiki/Sorting_algorithm#Stability
+[`JSON.stringify()`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
+[`url.toJSON()`]: #url_url_tojson

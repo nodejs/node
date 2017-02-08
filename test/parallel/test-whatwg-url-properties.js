@@ -23,7 +23,7 @@ for (const prop in url) {
 const expected = ['toString',
                   'href', 'origin', 'protocol',
                   'username', 'password', 'host', 'hostname', 'port',
-                  'pathname', 'search', 'searchParams', 'hash'];
+                  'pathname', 'search', 'searchParams', 'hash', 'toJSON'];
 
 assert.deepStrictEqual(props, expected);
 
