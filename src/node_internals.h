@@ -13,6 +13,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#include <string>
+
 struct sockaddr;
 
 // Variation on NODE_DEFINE_CONSTANT that sets a String value.
@@ -45,7 +47,7 @@ extern bool config_preserve_symlinks;
 // Set in node.cc by ParseArgs when --redirect-warnings= is used.
 // Used to redirect warning output to a file rather than sending
 // it to stderr.
-extern const char* config_warning_file;
+extern std::string config_warning_file;  // NOLINT(runtime/string)
 
 // Tells whether it is safe to call v8::Isolate::GetCurrent().
 extern bool v8_initialized;
