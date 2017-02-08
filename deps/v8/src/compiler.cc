@@ -1926,7 +1926,10 @@ void Compiler::PostInstantiation(Handle<JSFunction> function,
                                  PretenureFlag pretenure) {
   Handle<SharedFunctionInfo> shared(function->shared());
 
-  if (FLAG_always_opt && shared->allows_lazy_compilation()) {
+  if (FLAG_always_opt &&
+      shared->allows_lazy_compilation() &&
+      !shared->optimization_disabled() &&
+      !shared->dont_crankshaft()) {
     function->MarkForOptimization();
   }
 
