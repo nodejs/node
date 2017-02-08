@@ -38,7 +38,7 @@ fs.readdir(dir, 'hex', common.mustCall((err, hexList) => {
       assert.strictEqual(
         fromHexList,
         val,
-        `${hexList[idx]} is hex value for ${fromHexList} and not ${val}`
+        `expected ${val}, got ${fromHexList} by hex decoding ${hexList[idx]}`
       );
     });
   }));
