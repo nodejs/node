@@ -2,7 +2,7 @@
 // just like test/gc/http-client-timeout.js,
 // but using a net server/client instead
 
-require('../common');
+const common = require('../common');
 
 function serverHandler(sock) {
   sock.setTimeout(120000);
@@ -19,7 +19,7 @@ function serverHandler(sock) {
 }
 
 const net = require('net');
-const weak = require('weak');
+const weak = require(`./build/${common.buildType}/binding`);
 const assert = require('assert');
 const todo = 500;
 let done = 0;

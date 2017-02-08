@@ -1,7 +1,7 @@
 'use strict';
 // just a simple http server and client.
 
-require('../common');
+const common = require('../common');
 
 function serverHandler(req, res) {
   res.writeHead(200, {'Content-Type': 'text/plain'});
@@ -9,7 +9,7 @@ function serverHandler(req, res) {
 }
 
 const http = require('http');
-const weak = require('weak');
+const weak = require(`./build/${common.buildType}/binding`);
 const todo = 500;
 let done = 0;
 let count = 0;
