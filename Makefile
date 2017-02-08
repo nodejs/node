@@ -186,6 +186,15 @@ test/addons/.buildstamp: config.gypi \
 # TODO(bnoordhuis) Force rebuild after gyp update.
 build-addons: $(NODE_EXE) test/addons/.buildstamp
 
+ifeq ($(OSTYPE),$(filter $(OSTYPE),darwin aix))
+  XARGS = xargs
+else
+  XARGS = xargs -r
+endif
+clear-stalled:
+	ps awwx | grep Release/node | grep -v grep | cat
+	ps awwx | grep Release/node | grep -v grep | awk '{print $$1}' | $(XARGS) kill
+
 test-gc: all test/gc/node_modules/weak/build/Release/weakref.node
 	$(PYTHON) tools/test.py --mode=release gc
 
@@ -208,7 +217,7 @@ test-ci-native: | test/addons/.buildstamp
 		$(TEST_CI_ARGS) $(CI_NATIVE_SUITES)
 
 # This target should not use a native compiler at all
-test-ci-js:
+test-ci-js: | clear-stalled
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=release --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_JS_SUITES)
@@ -219,7 +228,7 @@ test-ci-js:
 	fi
 
 test-ci: LOGLEVEL := info
-test-ci: | build-addons
+test-ci: | clear-stalled build-addons
 	out/Release/cctest --gtest_output=tap:cctest.tap
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=release --flaky-tests=$(FLAKY_TESTS) \
@@ -800,5 +809,4 @@ endif
         bench-buffer bench-net bench-http bench-fs bench-tls cctest run-ci \
         test-v8 test-v8-intl test-v8-benchmarks test-v8-all v8 lint-ci \
         bench-ci jslint-ci doc-only $(TARBALL)-headers test-ci test-ci-native \
-        test-ci-js build-ci
-
+        test-ci-js build-ci clear-stalled
