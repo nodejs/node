@@ -8,6 +8,7 @@ const inputs = {
   encodemany: '%66%6F%6F=bar&%62%61%7A=quux&xyzzy=%74h%75d',
   encodefake: 'foo=%©ar&baz=%A©uux&xyzzy=%©ud',
   encodelast: 'foo=bar&baz=quux&xyzzy=thu%64',
+  multicharsep: 'foo=bar&&&&&&&&&&baz=quux&&&&&&&&&&xyzzy=thud',
   multivalue: 'foo=bar&foo=baz&foo=quux&quuy=quuz',
   multivaluemany: 'foo=bar&foo=baz&foo=quux&quuy=quuz&foo=abc&foo=def&' +
                   'foo=ghi&foo=jkl&foo=mno&foo=pqr&foo=stu&foo=vwxyz',
