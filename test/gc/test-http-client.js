@@ -10,7 +10,6 @@ function serverHandler(req, res) {
 
 const http = require('http');
 const weak = require('weak');
-const assert = require('assert');
 const todo = 500;
 let done = 0;
 let count = 0;
@@ -54,15 +53,11 @@ function afterGC() {
   countGC++;
 }
 
-setInterval(status, 1000).unref();
+setInterval(status, 100).unref();
 
 function status() {
   global.gc();
   console.log('Done: %d/%d', done, todo);
   console.log('Collected: %d/%d', countGC, count);
-  if (done === todo) {
-    console.log('All should be collected now.');
-    assert.strictEqual(count, countGC);
-    process.exit(0);
-  }
+  if (countGC === todo) server.close();
 }

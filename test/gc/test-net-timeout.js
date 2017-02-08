@@ -62,14 +62,5 @@ function status() {
   global.gc();
   console.log('Done: %d/%d', done, todo);
   console.log('Collected: %d/%d', countGC, count);
-  if (done === todo) {
-    /* Give libuv some time to make close callbacks. */
-    setTimeout(function() {
-      global.gc();
-      console.log('All should be collected now.');
-      console.log('Collected: %d/%d', countGC, count);
-      assert.strictEqual(count, countGC);
-      process.exit(0);
-    }, 200);
-  }
+  if (countGC === todo) server.close();
 }
