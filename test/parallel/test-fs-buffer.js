@@ -18,8 +18,8 @@ assert.doesNotThrow(() => {
   fs.open(buf, 'w+', common.mustCall((err, fd) => {
     assert.ifError(err);
     assert(fd);
-    fs.close(fd, common.mustCall(() => {
-      fs.unlinkSync(buf);
+    fs.close(fd, common.mustCall((err) => {
+      assert.ifError(err);
     }));
   }));
 });
@@ -29,13 +29,17 @@ assert.throws(() => {
 }, /path must be a string or Buffer/);
 
 const dir = Buffer.from(common.fixturesDir);
-fs.readdir(dir, 'hex', common.mustCall((err, list) => {
+fs.readdir(dir, 'hex', common.mustCall((err, hexList) => {
   assert.ifError(err);
-  list = list.map((i) => {
-    return Buffer.from(i, 'hex').toString();
-  });
-  fs.readdir(dir, common.mustCall((err, list2) => {
+  fs.readdir(dir, common.mustCall((err, stringList) => {
     assert.ifError(err);
-    assert.deepStrictEqual(list, list2);
+    stringList.forEach((val, idx) => {
+      const fromHexList = Buffer.from(hexList[idx], 'hex').toString();
+      assert.strictEqual(
+        fromHexList,
+        val,
+        `expected ${val}, got ${fromHexList} by hex decoding ${hexList[idx]}`
+      );
+    });
   }));
 }));
