@@ -34,10 +34,6 @@ interfacer.on('line', function(line) {
         expected = `(node:${pid}) ${msg}`;
         break;
 
-      case 2:
-        expected = 'The parameter is incorrect.';
-        break;
-
       default:
         return;
     }
