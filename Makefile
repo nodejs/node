@@ -313,8 +313,7 @@ apidoc_dirs = out/doc out/doc/api/ out/doc/api/assets
 
 apiassets = $(subst api_assets,api/assets,$(addprefix out/,$(wildcard doc/api_assets/*)))
 
-doc-only: $(apidocs_html) $(apidocs_json)
-doc: $(NODE_EXE) doc-only
+doc: $(apidocs_html) $(apidocs_json)
 
 $(apidoc_dirs):
 	mkdir -p $@
@@ -325,9 +324,14 @@ out/doc/api/assets/%: doc/api_assets/% out/doc/api/assets/
 out/doc/%: doc/%
 	cp -r $< $@
 
+GET_NODE := $(or $(shell [ -x ./node ] && echo ./node), $(shell command -v node))
+
 # check if ./node is actually set, else use user pre-installed binary
 gen-json = tools/doc/generate.js --format=json $< > $@
 out/doc/api/%.json: doc/api/%.md
+ifeq ($(call GET_NODE),)
+	$(error Node.js not found. Build it with `make`)
+endif
 	@[ -e tools/doc/node_modules/js-yaml/package.json ] || \
 		[ -e tools/eslint/node_modules/js-yaml/package.json ] || \
 		if [ -x $(NODE) ]; then \
@@ -337,10 +341,14 @@ out/doc/api/%.json: doc/api/%.md
 		fi
 	[ -x $(NODE) ] && $(NODE) $(gen-json) || node $(gen-json)
 
+
 # check if ./node is actually set, else use user pre-installed binary
 gen-html = tools/doc/generate.js --node-version=$(FULLVERSION) --format=html \
 			--template=doc/template.html --analytics=$(DOCS_ANALYTICS) $< > $@
 out/doc/api/%.html: doc/api/%.md
+ifeq ($(call GET_NODE),)
+	$(error Node.js not found. Build it with `make`)
+endif
 	@[ -e tools/doc/node_modules/js-yaml/package.json ] || \
 		[ -e tools/eslint/node_modules/js-yaml/package.json ] || \
 		if [ -x $(NODE) ]; then \
@@ -763,5 +771,5 @@ endif
 	blog blogclean tar binary release-only bench-http-simple bench-idle \
 	bench-all bench bench-misc bench-array bench-buffer bench-net \
 	bench-http bench-fs bench-tls cctest run-ci test-v8 test-v8-intl \
-	test-v8-benchmarks test-v8-all v8 lint-ci bench-ci jslint-ci doc-only \
+	test-v8-benchmarks test-v8-all v8 lint-ci bench-ci jslint-ci \
 	$(TARBALL)-headers test-ci test-ci-native test-ci-js build-ci
