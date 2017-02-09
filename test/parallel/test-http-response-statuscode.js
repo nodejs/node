@@ -6,76 +6,54 @@ const http = require('http');
 const MAX_REQUESTS = 13;
 let reqNum = 0;
 
-const createErrorMessage = (code) => {
-  return new RegExp(`^RangeError: Invalid status code: ${code}$`);
-};
+function test(res, header, code) {
+  const errRegExp = new RegExp(`^RangeError: Invalid status code: ${code}$`);
+  assert.throws(() => {
+    res.writeHead(header);
+  }, errRegExp);
+}
 
 const server = http.Server(common.mustCall(function(req, res) {
   switch (reqNum) {
     case 0:
-      assert.throws(common.mustCall(() => {
-        res.writeHead(-1);
-      }), createErrorMessage(-1));
+      test(res, -1, '-1');
       break;
     case 1:
-      assert.throws(common.mustCall(() => {
-        res.writeHead(Infinity);
-      }), createErrorMessage(Infinity));
+      test(res, Infinity, 'Infinity');
       break;
     case 2:
-      assert.throws(common.mustCall(() => {
-        res.writeHead(NaN);
-      }), createErrorMessage(NaN));
+      test(res, NaN, 'NaN');
       break;
     case 3:
-      assert.throws(common.mustCall(() => {
-        res.writeHead({});
-      }), createErrorMessage('\\[object Object\\]'));
+      test(res, {}, '\\[object Object\\]');
       break;
     case 4:
-      assert.throws(common.mustCall(() => {
-        res.writeHead(99);
-      }), createErrorMessage(99));
+      test(res, 99, '99');
       break;
     case 5:
-      assert.throws(common.mustCall(() => {
-        res.writeHead(1000);
-      }), createErrorMessage(1000));
+      test(res, 1000, '1000');
       break;
     case 6:
-      assert.throws(common.mustCall(() => {
-        res.writeHead('1000');
-      }), createErrorMessage('1000'));
+      test(res, '1000', '1000');
       break;
     case 7:
-      assert.throws(common.mustCall(() => {
-        res.writeHead(null);
-      }), createErrorMessage(null));
+      test(res, null, 'null');
       break;
     case 8:
-      assert.throws(common.mustCall(() => {
-        res.writeHead(true);
-      }), createErrorMessage(true));
+      test(res, true, 'true');
       break;
     case 9:
-      assert.throws(common.mustCall(() => {
-        res.writeHead([]);
-      }), createErrorMessage([]));
+      test(res, [], '');
       break;
     case 10:
-      assert.throws(common.mustCall(() => {
-        res.writeHead('this is not valid');
-      }), createErrorMessage('this is not valid'));
+      test(res, 'this is not valid', 'this is not valid');
       break;
     case 11:
-      assert.throws(common.mustCall(() => {
-        res.writeHead('404 this is not valid either');
-      }), createErrorMessage('404 this is not valid either'));
+      test(res, '404 this is not valid either', '404 this is not valid either');
       break;
     case 12:
-      assert.throws(common.mustCall(() => {
-        res.writeHead();
-      }), createErrorMessage(undefined));
+      assert.throws(() => { res.writeHead(); },
+                    /^RangeError: Invalid status code: undefined$/);
       this.close();
       break;
     default:
