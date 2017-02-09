@@ -534,7 +534,7 @@ testAssertionMessage({a: NaN, b: Infinity, c: -Infinity},
     });
   } catch (e) {
     threw = true;
-    assert.strictEqual(e.message, 'Missing expected exception..');
+    assert.strictEqual(e.message, 'Missing expected exception.');
   }
   assert.ok(threw);
 }
