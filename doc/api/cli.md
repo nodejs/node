@@ -106,6 +106,43 @@ added: v0.11.14
 
 Throw errors for deprecations.
 
+### `--no-warnings`
+<!-- YAML
+added: REPLACEME
+-->
+
+Silence all process warnings.
+
+*Note*: In newer versions of Node.js (e.g. 6.x and higher), The `--no-warnings`
+flag also silences deprecation notices. In Node.js 4.x, however, deprecations
+do *not* use the `process.emitWarning()` API and are not affected by this flag.
+
+### `--trace-warnings`
+<!-- YAML
+added: REPLACEME
+-->
+
+Print stack traces for process warnings.
+
+*Note*: In newer versions of Node.js (e.g. 6.x and higher), The
+`--trace-warnings` flag also impacts deprecation notices. In Node.js 4.x,
+however, deprecations do *not* use the `process.emitWarning()` API and are not
+affected by this flag.
+
+### `--redirect-warnings=file`
+<!-- YAML
+added: REPLACEME
+-->
+
+Write process warnings to the given file instead of printing to stderr. The
+file will be created if it does not exist, and will be appended to if it does.
+If an error occurs while attempting to write the warning to the file, the
+warning will be written to stderr instead.
+
+*Note*: In newer versions of Node.js (e.g. 6.x and higher), The
+`--redirect-warnings=file` flag also impacts deprecation notices. In Node.js
+4.x, however, deprecations do *not* use the `process.emitWarning()` API and are
+not affected by this flag.
 
 ### `--trace-sync-io`
 <!-- YAML
@@ -214,6 +251,12 @@ added: v0.11.15
 Data path for ICU (Intl object) data. Will extend linked-in data when compiled
 with small-icu support.
 
+### `NODE_NO_WARNINGS=1`
+<!-- YAML
+added: REPLACEME
+-->
+
+When set to `1`, process warnings are silenced.
 
 ### `NODE_REPL_HISTORY=file`
 <!-- YAML
@@ -238,6 +281,17 @@ misformatted, but any errors are otherwise ignored.
 
 Note that neither the well known nor extra certificates are used when the `ca`
 options property is explicitly specified for a TLS or HTTPS client or server.
+
+### `NODE_REDIRECT_WARNINGS=file`
+<!-- YAML
+added: REPLACEME
+-->
+
+When set, process warnings will be emitted to the given file instead of
+printing to stderr. The file will be created if it does not exist, and will be
+appended to if it does. If an error occurs while attempting to write the
+warning to the file, the warning will be written to stderr instead. This is
+equivalent to using the `--redirect-warnings=file` command-line flag.
 
 [emit_warning]: process.html#process_process_emitwarning_warning_name_ctor
 [Buffer]: buffer.html#buffer_buffer
