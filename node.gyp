@@ -291,6 +291,15 @@
             'NODE_USE_V8_PLATFORM=0',
           ],
         }],
+        [ 'node_use_v8_platform=="true"' and 'node_use_profiler=="true"', {
+          'defines': [
+            'NODE_USE_PROFILER=1',
+          ],
+        }, {
+          'defines': [
+            'NODE_USE_PROFILER=0',
+          ],
+        }],
         [ 'node_tag!=""', {
           'defines': [ 'NODE_TAG="<(node_tag)"' ],
         }],

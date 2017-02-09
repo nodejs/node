@@ -91,7 +91,9 @@ class AsyncWrap : public BaseObject {
   const int64_t uid_;
 };
 
+#if defined(NODE_USE_PROFILER) && NODE_USE_PROFILER
 void LoadAsyncWrapperInfo(Environment* env);
+#endif
 
 }  // namespace node
 

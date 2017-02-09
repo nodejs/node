@@ -6,8 +6,11 @@
 #include "util-inl.h"
 
 #include "uv.h"
+
 #include "v8.h"
+#if defined(NODE_USE_PROFILER) && NODE_USE_PROFILER
 #include "v8-profiler.h"
+#endif
 
 using v8::Boolean;
 using v8::Context;
@@ -28,7 +31,8 @@ using v8::Value;
 
 namespace node {
 
-static const char* const provider_names[] = {
+#if defined(NODE_USE_PROFILER) && NODE_USE_PROFILER
+static const char* const retained_async_provider_names[] = {
 #define V(PROVIDER)                                                           \
   #PROVIDER,
   NODE_ASYNC_PROVIDER_TYPES(V)
@@ -54,7 +58,7 @@ class RetainedAsyncInfo: public RetainedObjectInfo {
 
 
 RetainedAsyncInfo::RetainedAsyncInfo(uint16_t class_id, AsyncWrap* wrap)
-    : label_(provider_names[class_id - NODE_ASYNC_ID_OFFSET]),
+    : label_(retained_async_provider_names[class_id - NODE_ASYNC_ID_OFFSET]),
       wrap_(wrap),
       length_(wrap->self_size()) {
 }
@@ -100,6 +104,7 @@ RetainedObjectInfo* WrapperInfo(uint16_t class_id, Local<Value> wrapper) {
 
   return new RetainedAsyncInfo(class_id, wrap);
 }
+#endif
 
 
 // end RetainedAsyncInfo
@@ -219,6 +224,7 @@ void AsyncWrap::DestroyIdsCb(uv_idle_t* handle) {
 }
 
 
+#if defined(NODE_USE_PROFILER) && NODE_USE_PROFILER
 void LoadAsyncWrapperInfo(Environment* env) {
   HeapProfiler* heap_profiler = env->isolate()->GetHeapProfiler();
 #define V(PROVIDER)                                                           \
@@ -227,6 +233,7 @@ void LoadAsyncWrapperInfo(Environment* env) {
   NODE_ASYNC_PROVIDER_TYPES(V)
 #undef V
 }
+#endif
 
 
 AsyncWrap::AsyncWrap(Environment* env,

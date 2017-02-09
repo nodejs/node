@@ -427,8 +427,10 @@ class Environment {
              bool start_profiler_idle_notifier);
   void AssignToContext(v8::Local<v8::Context> context);
 
+#if defined(NODE_USE_PROFILER) && NODE_USE_PROFILER
   void StartProfilerIdleNotifier();
   void StopProfilerIdleNotifier();
+#endif
 
   inline v8::Isolate* isolate() const;
   inline uv_loop_t* event_loop() const;
