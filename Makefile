@@ -199,12 +199,22 @@ test-ci-js:
 	$(PYTHON) tools/test.py -p tap --logfile test.tap \
 		--mode=release --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_JS_SUITES)
+	# Clean up any leftover processes
+	PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
+	if [ "$${PS_OUT}" ]; then \
+		echo $${PS_OUT} | $(XARGS) kill; exit 1; \
+	fi
 
 test-ci: LOGLEVEL := info
 test-ci: | build-addons
 	out/Release/cctest --gtest_output=tap:cctest.tap
 	$(PYTHON) tools/test.py -p tap --logfile test.tap --mode=release --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_NATIVE_SUITES) $(CI_JS_SUITES)
+	# Clean up any leftover processes
+	PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
+	if [ "$${PS_OUT}" ]; then \
+		echo $${PS_OUT} | $(XARGS) kill; exit 1; \
+	fi
 
 test-release: test-build
 	$(PYTHON) tools/test.py --mode=release
