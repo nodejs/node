@@ -39,6 +39,7 @@
     startup.processKillAndExit();
     startup.processSignalHandlers();
     startup.processCpuUsage();
+    startup.processWarnings();
 
     // Do not initialize channel in debugger agent, it deletes env variable
     // and the main thread won't see it.
@@ -336,6 +337,93 @@
             num <= Number.MAX_SAFE_INTEGER &&
             num >= 0;
       }
+    };
+  };
+
+  startup.processWarnings = function() {
+    const prefix = `(${process.release.name}:${process.pid}) `;
+    const config = process.binding('config');
+    if (!process.noProcessWarnings && process.env.NODE_NO_WARNINGS !== '1') {
+      function nop() {}
+
+      function writeOut(message) {
+        if (console && typeof console.error === 'function')
+          return console.error(message);
+        process._rawDebug(message);
+      }
+
+      function output(message) {
+        if (typeof config.warningFile === 'string') {
+          var fs = NativeModule.require('fs');
+          fs.appendFile(config.warningFile, `${message}\n`, nop);
+          return;
+        }
+        writeOut(message);
+      }
+
+      process.on('warning', (warning) => {
+        if (!(warning instanceof Error)) return;
+        const isDeprecation = warning.name === 'DeprecationWarning';
+        if (isDeprecation && process.noDeprecation) return;
+        const trace = process.traceProcessWarnings ||
+                      (isDeprecation && process.traceDeprecation);
+        if (trace && warning.stack) {
+          if (warning.code) {
+            output(`${prefix}[${warning.code}] ${warning.stack}`);
+          } else {
+            output(`${prefix}${warning.stack}`);
+          }
+        } else {
+          const toString =
+            typeof warning.toString === 'function' ?
+              warning.toString : Error.prototype.toString;
+          if (warning.code) {
+            output(`${prefix}[${warning.code}] ${toString.apply(warning)}`);
+          } else {
+            output(`${prefix}${toString.apply(warning)}`);
+          }
+        }
+      });
+    }
+
+    function doEmitWarning(warning) {
+      return function() {
+        process.emit('warning', warning);
+      };
+    }
+
+    // process.emitWarning(error)
+    // process.emitWarning(str[, type[, code]][, ctor])
+    process.emitWarning = function(warning, type, code, ctor) {
+      if (typeof type === 'function') {
+        ctor = type;
+        code = undefined;
+        type = 'Warning';
+      }
+      if (typeof code === 'function') {
+        ctor = code;
+        code = undefined;
+      }
+      if (code !== undefined && typeof code !== 'string')
+        throw new TypeError('\'code\' must be a String');
+      if (type !== undefined && typeof type !== 'string')
+        throw new TypeError('\'type\' must be a String');
+      if (warning === undefined || typeof warning === 'string') {
+        warning = new Error(warning);
+        warning.name = String(type || 'Warning');
+        if (code !== undefined) warning.code = code;
+        Error.captureStackTrace(warning, ctor || process.emitWarning);
+      }
+      if (!(warning instanceof Error)) {
+        throw new TypeError('\'warning\' must be an Error object or string.');
+      }
+      if (warning.name === 'DeprecationWarning') {
+        if (process.noDeprecation)
+          return;
+        if (process.throwDeprecation)
+          throw warning;
+      }
+      process.nextTick(doEmitWarning(warning));
     };
   };
 

@@ -160,6 +160,13 @@ static const char* icu_data_dir = nullptr;
 // used by C++ modules as well
 bool no_deprecation = false;
 
+// true if process warnings should be suppressed
+bool no_process_warnings = false;
+bool trace_warnings = false;
+
+// Set in node.cc by ParseArgs when --redirect-warnings= is used.
+std::string config_warning_file;  // NOLINT(runtime/string)
+
 // process-relative uptime base, initialized at start-up
 static double prog_start_time;
 static bool debugger_running;
@@ -3114,6 +3121,14 @@ void SetupProcessObject(Environment* env,
     READONLY_PROPERTY(process, "throwDeprecation", True(env->isolate()));
   }
 
+  if (no_process_warnings) {
+    READONLY_PROPERTY(process, "noProcessWarnings", True(env->isolate()));
+  }
+
+  if (trace_warnings) {
+    READONLY_PROPERTY(process, "traceProcessWarnings", True(env->isolate()));
+  }
+
   // --prof-process
   if (prof_process) {
     READONLY_PROPERTY(process, "profProcess", True(env->isolate()));
@@ -3407,6 +3422,11 @@ static void PrintHelp() {
          "  --trace-deprecation   show stack traces on deprecations\n"
          "  --throw-deprecation   throw an exception anytime a deprecated "
          "function is used\n"
+         "  --no-warnings         silence all process warnings\n"
+         "  --trace-warnings      show stack traces on process warnings\n"
+         "  --redirect-warnings=path\n"
+         "                        write warnings to path instead of\n"
+         "                        stderr\n"
          "  --trace-sync-io       show stack trace when use of sync IO\n"
          "                        is detected after the first tick\n"
          "  --track-heap-objects  track heap object allocations for heap "
@@ -3442,6 +3462,7 @@ static void PrintHelp() {
          "                        (will extend linked-in data)\n"
 #endif
 #endif
+         "NODE_NO_WARNINGS             set to 1 to silence process warnings\n"
          "NODE_REPL_HISTORY       path to the persistent REPL history file\n"
          "\n"
          "Documentation can be found at https://nodejs.org/\n");
@@ -3540,6 +3561,12 @@ static void ParseArgs(int* argc,
       force_repl = true;
     } else if (strcmp(arg, "--no-deprecation") == 0) {
       no_deprecation = true;
+    } else if (strcmp(arg, "--no-warnings") == 0) {
+      no_process_warnings = true;
+    } else if (strcmp(arg, "--trace-warnings") == 0) {
+      trace_warnings = true;
+    } else if (strncmp(arg, "--redirect-warnings=", 20) == 0) {
+      config_warning_file = arg + 20;
     } else if (strcmp(arg, "--trace-deprecation") == 0) {
       trace_deprecation = true;
     } else if (strcmp(arg, "--trace-sync-io") == 0) {
@@ -4021,6 +4048,12 @@ void Init(int* argc,
   // --no_foo from the command line.
   V8::SetFlagsFromString(NODE_V8_OPTIONS, sizeof(NODE_V8_OPTIONS) - 1);
 #endif
+
+  if (config_warning_file.empty()) {
+    const char* path = secure_getenv("NODE_REDIRECT_WARNINGS");
+    if (path != NULL)
+      config_warning_file = path;
+  }
 
   // Parse a few arguments which are specific to Node.
   int v8_argc;

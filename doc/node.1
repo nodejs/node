@@ -104,6 +104,18 @@ Print stack traces for deprecations.
 Throw errors for deprecations.
 
 .TP
+.BR \-\-no\-warnings
+Silence all process warnings (including deprecations).
+
+.TP
+.BR \-\-trace\-warnings
+Print stack traces for process warnings (including deprecations).
+
+.TP
+.BR \-\-redirect\-warnings=\fIfile\fR
+Write process warnings to the given file instead of printing to stderr.
+
+.TP
 .BR \-\-trace\-sync\-io
 Print a stack trace whenever synchronous I/O is detected after the first turn
 of the event loop.
@@ -153,11 +165,20 @@ Data path for ICU (Intl object) data. Will extend linked-in data when compiled
 with small\-icu support.
 
 .TP
+.BR NODE_NO_WARNINGS =\fI1\fR
+When set to \fI1\fR, process warnings are silenced.
+
+.TP
 .BR NODE_REPL_HISTORY =\fIfile\fR
 Path to the file used to store the persistent REPL history. The default path
 is ~/.node_repl_history, which is overridden by this variable. Setting the
 value to an empty string ("" or " ") disables persistent REPL history.
 
+.TP
+.BR NODE_REDIRECT_WARNINGS=\fIfile\fR
+Write process warnings to the given file instead of printing to stderr.
+(equivalent to using the \-\-redirect\-warnings=\fIfile\fR command-line
+argument).
 
 .SH BUGS
 Bugs are tracked in GitHub Issues:

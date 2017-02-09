@@ -9,6 +9,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <string>
 
 struct sockaddr;
 
@@ -29,6 +30,12 @@ struct sockaddr;
   } while (0)
 
 namespace node {
+
+// Set in node.cc by ParseArgs when --redirect-warnings= is used.
+// Used to redirect warning output to a file rather than sending
+// it to stderr.
+extern std::string config_warning_file;  // NOLINT(runtime/string
+
 
 // Forward declaration
 class Environment;
