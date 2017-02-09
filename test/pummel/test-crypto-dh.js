@@ -12,7 +12,7 @@ assert.throws(
   function() {
     crypto.getDiffieHellman('unknown-group');
   },
-  /^Unknown group$/,
+  /^Error: Unknown group$/,
   'crypto.getDiffieHellman(\'unknown-group\') ' +
   'failed to throw the expected error.'
 );
@@ -20,7 +20,8 @@ assert.throws(
   function() {
     crypto.getDiffieHellman('modp1').setPrivateKey('');
   },
-  /^crypto\.getDiffieHellman\(\.\.\.\)\.setPrivateKey is not a function$/,
+  /^TypeError: crypto\.getDiffieHellman\(\.\.\.\)\.setPrivateKey/ +
+  / is not a function$/,
   'crypto.getDiffieHellman(\'modp1\').setPrivateKey(\'\') ' +
   'failed to throw the expected error.'
 );
@@ -28,7 +29,8 @@ assert.throws(
   function() {
     crypto.getDiffieHellman('modp1').setPublicKey('');
   },
-  /^crypto\.getDiffieHellman\(\.\.\.\)\.setPublicKey is not a function$/,
+  /^TypeError: crypto\.getDiffieHellman\(\.\.\.\)\.setPublicKey/ +
+  / is not a function$/,
   'crypto.getDiffieHellman(\'modp1\').setPublicKey(\'\') ' +
   'failed to throw the expected error.'
 );
