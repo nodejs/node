@@ -1,16 +1,11 @@
 'use strict';
+const common = require('../common.js');
+const URL = require('url').URL;
+const inputs = require('../fixtures/url-inputs.js').urls;
 
-var common = require('../common.js');
-var URL = require('url').URL;
-
-var bench = common.createBenchmark(main, {
-  url: [
-    'http://example.com/',
-    'https://encrypted.google.com/search?q=url&q=site:npmjs.org&hl=en',
-    'javascript:alert("node is awesome");',
-    'http://user:pass@foo.bar.com:21/aaa/zzz?l=24#test'
-  ],
-  prop: ['toString', 'href', 'origin', 'protocol',
+const bench = common.createBenchmark(main, {
+  input: Object.keys(inputs),
+  prop: ['href', 'origin', 'protocol',
          'username', 'password', 'host', 'hostname', 'port',
          'pathname', 'search', 'searchParams', 'hash'],
   n: [1e4]
@@ -34,14 +29,6 @@ function get(n, url, prop) {
   bench.end(n);
 }
 
-function stringify(n, url, prop) {
-  bench.start();
-  for (var i = 0; i < n; i += 1) {
-    url.toString();
-  }
-  bench.end(n);
-}
-
 const alternatives = {
   href: 'http://user:pass@foo.bar.com:21/aaa/zzz?l=25#test',
   protocol: 'https:',
@@ -61,7 +48,8 @@ function getAlternative(prop) {
 
 function main(conf) {
   const n = conf.n | 0;
-  const url = new URL(conf.url);
+  const input = inputs[conf.input];
+  const url = new URL(input);
   const prop = conf.prop;
 
   switch (prop) {
@@ -74,16 +62,12 @@ function main(conf) {
     case 'pathname':
     case 'search':
     case 'hash':
+    case 'href':
       setAndGet(n, url, prop, getAlternative(prop));
       break;
-    // TODO: move href to the first group when the setter lands.
-    case 'href':
     case 'origin':
     case 'searchParams':
       get(n, url, prop);
-      break;
-    case 'toString':
-      stringify(n, url);
       break;
     default:
       throw new Error('Unknown prop');
