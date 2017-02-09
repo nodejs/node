@@ -6,9 +6,10 @@ const IncomingMessage = require('http').IncomingMessage;
 function checkDest(field, result, value) {
   const dest = {};
 
-  if (value) dest[field] = 'test';
   const incomingMessage = new IncomingMessage(field);
   // dest is changed by IncomingMessage._addHeaderLine
+  if (value)
+    incomingMessage._addHeaderLine(field, 'test', dest);
   incomingMessage._addHeaderLine(field, value, dest);
   assert.deepStrictEqual(dest, result);
 }
@@ -49,7 +50,7 @@ checkDest('age', {age: 'test'}, 'value');
 checkDest('Expires', {expires: undefined});
 checkDest('expires', {expires: 'test'}, 'value');
 checkDest('Set-Cookie', {'set-cookie': [undefined]});
-checkDest('set-cookie', {'set-cookie': [undefined]});
+checkDest('set-cookie', {'set-cookie': ['test', 'value']}, 'value');
 checkDest('Transfer-Encoding', {'transfer-encoding': undefined});
 checkDest('transfer-encoding', {'transfer-encoding': 'test, value'}, 'value');
 checkDest('Date', {date: undefined});
@@ -64,8 +65,8 @@ checkDest('Vary', {vary: undefined});
 checkDest('vary', {vary: 'test, value'}, 'value');
 checkDest('Content-Encoding', {'content-encoding': undefined}, undefined);
 checkDest('content-encoding', {'content-encoding': 'test, value'}, 'value');
-checkDest('Cookies', {cookies: undefined});
-checkDest('cookies', {cookies: 'test, value'}, 'value');
+checkDest('Cookie', {cookie: undefined});
+checkDest('cookie', {cookie: 'test; value'}, 'value');
 checkDest('Origin', {origin: undefined});
 checkDest('origin', {origin: 'test, value'}, 'value');
 checkDest('Upgrade', {upgrade: undefined});
@@ -88,3 +89,5 @@ checkDest('X-Forwarded-Host', {'x-forwarded-host': undefined});
 checkDest('x-forwarded-host', {'x-forwarded-host': 'test, value'}, 'value');
 checkDest('X-Forwarded-Proto', {'x-forwarded-proto': undefined});
 checkDest('x-forwarded-proto', {'x-forwarded-proto': 'test, value'}, 'value');
+checkDest('X-Foo', {'x-foo': undefined});
+checkDest('x-foo', {'x-foo': 'test, value'}, 'value');
