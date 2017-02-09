@@ -8,6 +8,7 @@ assert.deepStrictEqual(qs.escape(5), '5');
 assert.deepStrictEqual(qs.escape('test'), 'test');
 assert.deepStrictEqual(qs.escape({}), '%5Bobject%20Object%5D');
 assert.deepStrictEqual(qs.escape([5, 10]), '5%2C10');
+assert.deepStrictEqual(qs.escape('Ŋōđĕ'), '%C5%8A%C5%8D%C4%91%C4%95');
 
 // using toString for objects
 assert.strictEqual(
