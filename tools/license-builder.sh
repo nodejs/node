@@ -63,6 +63,8 @@ addlicense "OpenSSL" "deps/openssl" \
 addlicense "Punycode.js" "lib/punycode.js" \
            "$(curl -sL https://raw.githubusercontent.com/bestiejs/punycode.js/master/LICENSE-MIT.txt)"
 addlicense "V8" "deps/v8" "$(cat ${rootdir}/deps/v8/LICENSE)"
+addlicense "v8_inspector" "deps/v8_inspector/third_party/v8_inspector" \
+           "$(sed -e '/^ \*\/$/,$d' -e '/^$/d' -e 's/^[/ ]\* *//' ${rootdir}/deps/v8_inspector/src/inspector/v8-inspector-impl.cc)"
 addlicense "zlib" "deps/zlib" \
            "$(sed -e '/The data format used by the zlib library/,$d' -e 's/^\/\* *//' -e 's/^ *//' ${rootdir}/deps/zlib/zlib.h)"
 
@@ -73,6 +75,11 @@ addlicense "npm" "deps/npm" "$(cat ${rootdir}/deps/npm/LICENSE)"
 addlicense "GYP" "tools/gyp" "$(cat ${rootdir}/tools/gyp/LICENSE)"
 addlicense "marked" "tools/doc/node_modules/marked" \
            "$(cat ${rootdir}/tools/doc/node_modules/marked/LICENSE)"
+# Build tools for v8_inspector
+addlicense "jinja2" "deps/v8_inspector/third_party/jinja2" \
+           "$(cat ${rootdir}/deps/v8_inspector/third_party/jinja2/LICENSE)"
+addlicense "markupsafe" "deps/v8_inspector/third_party/markupsafe" \
+           "$(cat ${rootdir}/deps/v8_inspector/third_party/markupsafe/LICENSE)"
 
 # Testing tools
 addlicense "cpplint.py" "tools/cpplint.py" \
@@ -81,16 +88,6 @@ addlicense "ESLint" "tools/eslint" "$(cat ${rootdir}/tools/eslint/LICENSE)"
 addlicense "gtest" "deps/gtest" "$(cat ${rootdir}/deps/gtest/LICENSE)"
 addlicense "node-weak" "test/gc/node_modules/weak" \
            "$(cat ${rootdir}/test/gc/node_modules/weak/LICENSE)"
-
-# v8_inspector
-addlicense "v8_inspector" "deps/v8_inspector/third_party/v8_inspector" \
-           "$(cat ${rootdir}/deps/v8_inspector/third_party/v8_inspector/LICENSE)"
-# Build tooling for v8_inspector
-addlicense "jinja2" "deps/v8_inspector/third_party/jinja2" \
-           "$(cat ${rootdir}/deps/v8_inspector/third_party/jinja2/LICENSE)"
-addlicense "markupsafe" "deps/v8_inspector/third_party/markupsafe" \
-           "$(cat ${rootdir}/deps/v8_inspector/third_party/markupsafe/LICENSE)"
-
 
 
 mv $tmplicense $licensefile
