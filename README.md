@@ -159,9 +159,7 @@ more information about the governance of the Node.js project, see
 * [bnoordhuis](https://github.com/bnoordhuis) -
 **Ben Noordhuis** &lt;info@bnoordhuis.nl&gt;
 * [ChALkeR](https://github.com/ChALkeR) -
-**Сковорода Никита Андреевич** &lt;chalkerx@gmail.com&gt;
-* [chrisdickinson](https://github.com/chrisdickinson) -
-**Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt;
+**Сковорода Никита Андреевич** &lt;chalkerx@gmail.com&gt; (he/him)
 * [cjihrig](https://github.com/cjihrig) -
 **Colin Ihrig** &lt;cjihrig@gmail.com&gt;
 * [evanlucas](https://github.com/evanlucas) -
@@ -215,6 +213,8 @@ more information about the governance of the Node.js project, see
 **Bartosz Sosnowski** &lt;bartosz@janeasystems.com&gt;
 * [calvinmetcalf](https://github.com/calvinmetcalf) -
 **Calvin Metcalf** &lt;calvin.metcalf@gmail.com&gt;
+* [chrisdickinson](https://github.com/chrisdickinson) -
+**Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt;
 * [claudiorodriguez](https://github.com/claudiorodriguez) -
 **Claudio Rodriguez** &lt;cjrodr@yahoo.com&gt;
 * [danbev](https://github.com/danbev) -
