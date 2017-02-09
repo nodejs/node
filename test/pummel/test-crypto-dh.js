@@ -10,13 +10,13 @@ if (!common.hasCrypto) {
 
 assert.throws(function() {
   crypto.getDiffieHellman('unknown-group');
-});
+}, /^Unknown group$/, "crypto.getDiffieHellman('unknown-group') failed to throw the expected error.");
 assert.throws(function() {
   crypto.getDiffieHellman('modp1').setPrivateKey('');
-});
+}, /^crypto\.getDiffieHellman\(\.\.\.\)\.setPrivateKey is not a function$/, "crypto.getDiffieHellman('modp1').setPrivateKey('') failed to throw the expected error.");
 assert.throws(function() {
   crypto.getDiffieHellman('modp1').setPublicKey('');
-});
+}, /^crypto\.getDiffieHellman\(\.\.\.\)\.setPublicKey is not a function$/, "crypto.getDiffieHellman('modp1').setPublicKey('') failed to throw the expected error.");
 
 const hashes = {
   modp1: '630e9acd2cc63f7e80d8507624ba60ac0757201a',
