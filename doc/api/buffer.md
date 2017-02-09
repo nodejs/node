@@ -618,6 +618,10 @@ Returns the actual byte length of a string. This is not the same as
 [`String.prototype.length`] since that returns the number of *characters* in
 a string.
 
+*Note* that for `'base64'` and `'hex'`, this function assumes valid input. For
+strings that contain non-Base64/Hex-encoded data (e.g. whitespace), the return
+value might be greater than the length of a `Buffer` created from the string.
+
 Example:
 
 ```js
