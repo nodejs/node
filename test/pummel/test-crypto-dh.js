@@ -20,8 +20,8 @@ assert.throws(
   function() {
     crypto.getDiffieHellman('modp1').setPrivateKey('');
   },
-  /^TypeError: crypto\.getDiffieHellman\(\.\.\.\)\.setPrivateKey/ +
-  / is not a function$/,
+  new RegExp(/^TypeError: crypto\.getDiffieHellman\(\.\.\.\)\./.source +
+  /setPrivateKey is not a function$/.source),
   'crypto.getDiffieHellman(\'modp1\').setPrivateKey(\'\') ' +
   'failed to throw the expected error.'
 );
@@ -29,8 +29,8 @@ assert.throws(
   function() {
     crypto.getDiffieHellman('modp1').setPublicKey('');
   },
-  /^TypeError: crypto\.getDiffieHellman\(\.\.\.\)\.setPublicKey/ +
-  / is not a function$/,
+  new RegExp(/^TypeError: crypto\.getDiffieHellman\(\.\.\.\)\./.source +
+  /setPublicKey is not a function$/.source),
   'crypto.getDiffieHellman(\'modp1\').setPublicKey(\'\') ' +
   'failed to throw the expected error.'
 );
