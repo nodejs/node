@@ -441,8 +441,12 @@ class ContextifyContext {
 
     Maybe<bool> success = ctx->sandbox()->Delete(ctx->context(), property);
 
-    if (success.IsJust())
-      args.GetReturnValue().Set(success.FromJust());
+    if (success.FromMaybe(false))
+      return;
+
+    // Delete failed on the sandbox, intercept and do not delete on
+    // the global object.
+    args.GetReturnValue().Set(false);
   }
 
 
