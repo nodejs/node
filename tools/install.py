@@ -154,8 +154,12 @@ def headers(action):
   ], 'include/node/')
 
   # Add the expfile that is created on AIX
-  if sys.platform.startswith('aix'):
+  if os.path.isfile('out/Release/node.exp'):
     action(['out/Release/node.exp'], 'include/node/')
+
+  # Add the x64 windows libfile
+  if os.path.isfile('Release/node.lib'):
+    action(['Release/node.lib'], 'include/node/')
 
   subdir_files('deps/v8/include', 'include/node/', action)
 

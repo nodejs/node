@@ -25,6 +25,7 @@ set test_args=
 set package=
 set msi=
 set upload=
+set tar_headers=
 set licensertf=
 set jslint=
 set buildnodeweak=
@@ -57,6 +58,7 @@ if /i "%1"=="nosnapshot"    set nosnapshot=1&goto arg-ok
 if /i "%1"=="noetw"         set noetw=1&goto arg-ok
 if /i "%1"=="noperfctr"     set noperfctr=1&goto arg-ok
 if /i "%1"=="licensertf"    set licensertf=1&goto arg-ok
+if /i "%1"=="tar-headers"   set tar_headers=1&goto arg-ok
 if /i "%1"=="test"          set test_args=%test_args% addons doctool known_issues message parallel sequential -J&set jslint=1&set build_addons=1&goto arg-ok
 if /i "%1"=="test-ci"       set test_args=%test_args% %test_ci_args% -p tap --logfile test.tap addons doctool inspector known_issues message sequential parallel&set cctest_args=%cctest_args% --gtest_output=tap:cctest.tap&set build_addons=1&goto arg-ok
 if /i "%1"=="test-addons"   set test_args=%test_args% addons&set build_addons=1&goto arg-ok
@@ -296,6 +298,17 @@ ssh -F %SSHCONFIG% %STAGINGSERVER% "touch nodejs/%DISTTYPEDIR%/v%FULLVERSION%/no
 :run
 @rem Run tests if requested.
 
+:tar-headers
+@rem build headers package
+if "%tar_headers%"=="" goto build-node-weak
+set HEADERS_ONLY=1
+set TARNAME=node-%FULLVERSION%
+python tools\install.py install %TARNAME% ""
+7z a %TARNAME%-headers.tar %TARNAME%
+rmdir /s /q %TARNAME%
+7z a %TARNAME%-headers.tar.gz %TARNAME%-headers.tar
+del %TARNAME%-headers.tar
+
 :build-node-weak
 @rem Build node-weak if required
 if "%buildnodeweak%"=="" goto build-addons
@@ -370,6 +383,7 @@ echo Examples:
 echo   vcbuild.bat                : builds release build
 echo   vcbuild.bat debug          : builds debug build
 echo   vcbuild.bat release msi    : builds release build and MSI installer package
+echo   vcbuild.bat tar-headers    : builds header package with node.lib
 echo   vcbuild.bat test           : builds debug build and runs tests
 echo   vcbuild.bat build-release  : builds the release distribution as used by nodejs.org
 echo   vcbuild.bat enable-vtune   : builds nodejs with Intel VTune profiling support to profile JavaScript
