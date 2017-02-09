@@ -90,7 +90,7 @@ using v8::Value;
 #define SET_HAVE_FRAGMENT() url.flags |= URL_FLAGS_HAS_FRAGMENT;
 
 #define UTF8STRING(isolate, str)                                              \
-  String::NewFromUtf8(isolate, str.c_str(), v8::NewStringType::kNormal)       \
+  String::NewFromUtf8(isolate, str.data(), v8::NewStringType::kNormal)       \
     .ToLocalChecked()
 
 namespace url {
@@ -400,7 +400,7 @@ namespace url {
     }
 
     // Check to see if it's an IPv4 IP address
-    type = ParseIPv4Host(host, decoded.c_str(), decoded.length());
+    type = ParseIPv4Host(host, decoded.data(), decoded.length());
     if (type == HOST_TYPE_IPV4 || type == HOST_TYPE_FAILED)
       goto end;
 
@@ -1206,7 +1206,7 @@ namespace url {
                 buffer[1] = ':';
               }
               SET_HAVE_PATH()
-              std::string segment(buffer.c_str(), buffer.size());
+              std::string segment(buffer.data(), buffer.size());
               url.path.push_back(segment);
             }
             buffer.clear();
@@ -1285,7 +1285,7 @@ namespace url {
     argv[ARG_FLAGS] = Integer::NewFromUnsigned(isolate, url.flags);
     if (!IS_FAILED(url.flags)) {
       if (DOES_HAVE_SCHEME(url))
-        argv[ARG_PROTOCOL] = OneByteString(isolate, url.scheme.c_str());
+        argv[ARG_PROTOCOL] = OneByteString(isolate, url.scheme.data());
       if (DOES_HAVE_USERNAME(url))
         argv[ARG_USERNAME] = UTF8STRING(isolate, url.username);
       if (DOES_HAVE_PASSWORD(url))
@@ -1345,7 +1345,7 @@ namespace url {
     }
     args.GetReturnValue().Set(
         String::NewFromUtf8(env->isolate(),
-                            output.c_str(),
+                            output.data(),
                             v8::NewStringType::kNormal).ToLocalChecked());
   }
 
@@ -1365,7 +1365,7 @@ namespace url {
     WriteHost(&host, &out);
     args.GetReturnValue().Set(
         String::NewFromUtf8(env->isolate(),
-                            out.c_str(),
+                            out.data(),
                             v8::NewStringType::kNormal).ToLocalChecked());
   }
 
@@ -1385,7 +1385,7 @@ namespace url {
     WriteHost(&host, &out);
     args.GetReturnValue().Set(
         String::NewFromUtf8(env->isolate(),
-                            out.c_str(),
+                            out.data(),
                             v8::NewStringType::kNormal).ToLocalChecked());
   }
 

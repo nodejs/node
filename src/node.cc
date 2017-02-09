@@ -3102,7 +3102,7 @@ void SetupProcessObject(Environment* env,
     // Did the user attempt (via env var or parameter) to set an ICU path?
     READONLY_PROPERTY(process,
                       "icu_data_dir",
-                      OneByteString(env->isolate(), icu_data_dir.c_str()));
+                      OneByteString(env->isolate(), icu_data_dir.data()));
   }
 #endif
 
@@ -3819,7 +3819,7 @@ static void StartDebug(Environment* env, const char* path,
     debugger_running = env->debugger_agent()->Start(debug_options);
     if (debugger_running == false) {
       fprintf(stderr, "Starting debugger on %s:%d failed\n",
-              debug_options.host_name().c_str(), debug_options.port());
+              debug_options.host_name().data(), debug_options.port());
       fflush(stderr);
     }
   }

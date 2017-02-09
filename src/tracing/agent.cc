@@ -31,7 +31,7 @@ void Agent::Start(v8::Platform* platform, const char* enabled_categories) {
     while (category_list.good()) {
       std::string category;
       getline(category_list, category, ',');
-      trace_config->AddIncludedCategory(category.c_str());
+      trace_config->AddIncludedCategory(category.data());
     }
   } else {
     trace_config->AddIncludedCategory("v8");

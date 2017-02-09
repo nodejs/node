@@ -26,7 +26,7 @@ void Escape(std::string* string) {
 
 std::string GetWsUrl(const std::string& host, int port, const std::string& id) {
   char buf[1024];
-  snprintf(buf, sizeof(buf), "%s:%d/%s", host.c_str(), port, id.c_str());
+  snprintf(buf, sizeof(buf), "%s:%d/%s", host.data(), port, id.data());
   return buf;
 }
 
@@ -94,7 +94,7 @@ void PrintDebuggerReadyMessage(const std::string& host,
     fprintf(out,
             "    chrome-devtools://devtools/bundled/inspector.html?"
             "experiments=true&v8only=true&ws=%s\n",
-            GetWsUrl(host, port, id).c_str());
+            GetWsUrl(host, port, id).data());
   }
   fflush(out);
 }
@@ -294,7 +294,7 @@ void InspectorSocketServer::SessionTerminated(int session_id) {
 
 bool InspectorSocketServer::RespondToGet(InspectorSocket* socket,
                                          const std::string& path) {
-  const char* command = MatchPathSegment(path.c_str(), "/json");
+  const char* command = MatchPathSegment(path.data(), "/json");
   if (command == nullptr)
     return false;
 
@@ -357,7 +357,7 @@ bool InspectorSocketServer::Start(uv_loop_t* loop) {
   loop_ = loop;
   sockaddr_in addr;
   uv_tcp_init(loop_, &server_);
-  uv_ip4_addr(host_.c_str(), port_, &addr);
+  uv_ip4_addr(host_.data(), port_, &addr);
   int err = uv_tcp_bind(&server_,
                         reinterpret_cast<const struct sockaddr*>(&addr), 0);
   if (err == 0)
@@ -372,7 +372,7 @@ bool InspectorSocketServer::Start(uv_loop_t* loop) {
   if (err != 0 && connected_sessions_.empty()) {
     if (out_ != NULL) {
       fprintf(out_, "Starting inspector on %s:%d failed: %s\n",
-              host_.c_str(), port_, uv_strerror(err));
+              host_.data(), port_, uv_strerror(err));
       fflush(out_);
     }
     uv_close(reinterpret_cast<uv_handle_t*>(&server_), nullptr);

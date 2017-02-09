@@ -416,7 +416,7 @@ bool InitializeICUDirectory(const std::string& path) {
     return (status == U_ZERO_ERROR);
   } else {
     flag_icu_data_dir = true;
-    u_setDataDirectory(path.c_str());
+    u_setDataDirectory(path.data());
     return true;  // No error.
   }
 }
