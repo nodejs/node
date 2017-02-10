@@ -776,94 +776,16 @@ assert.throws(() => Buffer.alloc(8).writeFloatLE(0, 5), RangeError);
 assert.throws(() => Buffer.alloc(16).writeDoubleLE(0, 9), RangeError);
 
 // attempt to overflow buffers, similar to previous bug in array buffers
-assert.throws(() => Buffer.allocUnsafe(8).readFloatLE(0xffffffff),
-              RangeError);
 assert.throws(() => Buffer.allocUnsafe(8).writeFloatLE(0.0, 0xffffffff),
-              RangeError);
-assert.throws(() => Buffer.allocUnsafe(8).readFloatLE(0xffffffff),
               RangeError);
 assert.throws(() => Buffer.allocUnsafe(8).writeFloatLE(0.0, 0xffffffff),
               RangeError);
 
 
 // ensure negative values can't get past offset
-assert.throws(() => Buffer.allocUnsafe(8).readFloatLE(-1), RangeError);
 assert.throws(() => Buffer.allocUnsafe(8).writeFloatLE(0.0, -1), RangeError);
-assert.throws(() => Buffer.allocUnsafe(8).readFloatLE(-1), RangeError);
 assert.throws(() => Buffer.allocUnsafe(8).writeFloatLE(0.0, -1), RangeError);
 
-// offset checks
-{
-  const buf = Buffer.allocUnsafe(0);
-
-  assert.throws(() => buf.readUInt8(0), RangeError);
-  assert.throws(() => buf.readInt8(0), RangeError);
-}
-
-{
-  const buf = Buffer.from([0xFF]);
-
-  assert.strictEqual(buf.readUInt8(0), 255);
-  assert.strictEqual(buf.readInt8(0), -1);
-}
-
-[16, 32].forEach((bits) => {
-  const buf = Buffer.allocUnsafe(bits / 8 - 1);
-
-  assert.throws(() => buf[`readUInt${bits}BE`](0),
-                RangeError,
-                `readUInt${bits}BE()`);
-
-  assert.throws(() => buf[`readUInt${bits}LE`](0),
-                RangeError,
-                `readUInt${bits}LE()`);
-
-  assert.throws(() => buf[`readInt${bits}BE`](0),
-                RangeError,
-                `readInt${bits}BE()`);
-
-  assert.throws(() => buf[`readInt${bits}LE`](0),
-                RangeError,
-                `readInt${bits}LE()`);
-});
-
-[16, 32].forEach((bits) => {
-  const buf = Buffer.from([0xFF, 0xFF, 0xFF, 0xFF]);
-
-  assert.strictEqual(buf[`readUInt${bits}BE`](0),
-                     (0xFFFFFFFF >>> (32 - bits)));
-
-  assert.strictEqual(buf[`readUInt${bits}LE`](0),
-                     (0xFFFFFFFF >>> (32 - bits)));
-
-  assert.strictEqual(buf[`readInt${bits}BE`](0),
-                     (0xFFFFFFFF >> (32 - bits)));
-
-  assert.strictEqual(buf[`readInt${bits}LE`](0),
-                     (0xFFFFFFFF >> (32 - bits)));
-});
-
-// test for common read(U)IntLE/BE
-{
-  const buf = Buffer.from([0x01, 0x02, 0x03, 0x04, 0x05, 0x06]);
-
-  assert.strictEqual(buf.readUIntLE(0, 1), 0x01);
-  assert.strictEqual(buf.readUIntBE(0, 1), 0x01);
-  assert.strictEqual(buf.readUIntLE(0, 3), 0x030201);
-  assert.strictEqual(buf.readUIntBE(0, 3), 0x010203);
-  assert.strictEqual(buf.readUIntLE(0, 5), 0x0504030201);
-  assert.strictEqual(buf.readUIntBE(0, 5), 0x0102030405);
-  assert.strictEqual(buf.readUIntLE(0, 6), 0x060504030201);
-  assert.strictEqual(buf.readUIntBE(0, 6), 0x010203040506);
-  assert.strictEqual(buf.readIntLE(0, 1), 0x01);
-  assert.strictEqual(buf.readIntBE(0, 1), 0x01);
-  assert.strictEqual(buf.readIntLE(0, 3), 0x030201);
-  assert.strictEqual(buf.readIntBE(0, 3), 0x010203);
-  assert.strictEqual(buf.readIntLE(0, 5), 0x0504030201);
-  assert.strictEqual(buf.readIntBE(0, 5), 0x0102030405);
-  assert.strictEqual(buf.readIntLE(0, 6), 0x060504030201);
-  assert.strictEqual(buf.readIntBE(0, 6), 0x010203040506);
-}
 
 // test for common write(U)IntLE/BE
 {
