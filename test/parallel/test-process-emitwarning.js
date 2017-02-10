@@ -39,16 +39,19 @@ warningThrowToString.toString = function() {
 };
 process.emitWarning(warningThrowToString);
 
+const expectedError =
+  common.expectsError({code: 'ERR_INVALID_ARG_TYPE', type: TypeError});
+
 // TypeError is thrown on invalid input
-assert.throws(() => process.emitWarning(1), TypeError);
-assert.throws(() => process.emitWarning({}), TypeError);
-assert.throws(() => process.emitWarning(true), TypeError);
-assert.throws(() => process.emitWarning([]), TypeError);
-assert.throws(() => process.emitWarning('', {}), TypeError);
-assert.throws(() => process.emitWarning('', '', {}), TypeError);
-assert.throws(() => process.emitWarning('', 1), TypeError);
-assert.throws(() => process.emitWarning('', '', 1), TypeError);
-assert.throws(() => process.emitWarning('', true), TypeError);
-assert.throws(() => process.emitWarning('', '', true), TypeError);
-assert.throws(() => process.emitWarning('', []), TypeError);
-assert.throws(() => process.emitWarning('', '', []), TypeError);
+assert.throws(() => process.emitWarning(1), expectedError);
+assert.throws(() => process.emitWarning({}), expectedError);
+assert.throws(() => process.emitWarning(true), expectedError);
+assert.throws(() => process.emitWarning([]), expectedError);
+assert.throws(() => process.emitWarning('', {}), expectedError);
+assert.throws(() => process.emitWarning('', '', {}), expectedError);
+assert.throws(() => process.emitWarning('', 1), expectedError);
+assert.throws(() => process.emitWarning('', '', 1), expectedError);
+assert.throws(() => process.emitWarning('', true), expectedError);
+assert.throws(() => process.emitWarning('', '', true), expectedError);
+assert.throws(() => process.emitWarning('', []), expectedError);
+assert.throws(() => process.emitWarning('', '', []), expectedError);
