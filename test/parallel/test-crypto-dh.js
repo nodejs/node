@@ -182,6 +182,10 @@ let firstByte = ecdh1.getPublicKey('buffer', 'compressed')[0];
 assert(firstByte === 2 || firstByte === 3);
 firstByte = ecdh1.getPublicKey('buffer', 'hybrid')[0];
 assert(firstByte === 6 || firstByte === 7);
+// format value should be string
+assert.throws(() => {
+  ecdh1.getPublicKey('buffer', 10);
+}, /^TypeError: Bad format: 10$/);
 
 // ECDH should check that point is on curve
 const ecdh3 = crypto.createECDH('secp256k1');
@@ -277,3 +281,8 @@ ecdh5.setPrivateKey(cafebabeKey, 'hex');
   // Verify object state did not change.
   assert.strictEqual(ecdh5.getPrivateKey('hex'), cafebabeKey);
 });
+
+// invalid test: curve argument is undefined
+assert.throws(() => {
+  crypto.createECDH();
+}, /^TypeError: "curve" argument should be a string$/);
