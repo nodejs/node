@@ -558,6 +558,7 @@ found [here][online].
   encountered by [`http`][] or [`net`][] -- often a sign that a `socket.end()`
   was not properly called.
 
+
 <a id="nodejs-error-codes"></a>
 ## Node.js Error Codes
 
@@ -587,6 +588,14 @@ An error using the `'ERR_STDOUT_CLOSE'` code is thrown specifically when an
 attempt is made to close the `process.stdout` stream. By design, Node.js does
 not allow `stdout` or `stderr` Streams to be closed by user code.
 
+<a id="ERR_UNKNOWN_BUILTIN_MODULE"></a>
+### ERR_UNKNOWN_BUILTIN_MODULE
+
+The `'ERR_UNKNOWN_BUILTIN_MODULE'` error code is used to identify a specific
+kind of internal Node.js error that should not typically be triggered by user
+code. Instances of this error point to an internal bug within the Node.js
+binary itself.
+
 <a id="ERR_UNKNOWN_STDIN_TYPE"></a>
 ### ERR_UNKNOWN_STDIN_TYPE
 
@@ -604,6 +613,7 @@ an attempt is made to launch a Node.js process with an unknown `stdout` or
 `stderr` file type. Errors of this kind cannot *typically* be caused by errors
 in user code, although it is not impossible. Occurrences of this error are most
 likely an indication of a bug within Node.js itself.
+
 
 [`fs.readdir`]: fs.html#fs_fs_readdir_path_options_callback
 [`fs.readFileSync`]: fs.html#fs_fs_readfilesync_file_options
