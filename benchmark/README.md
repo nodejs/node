@@ -22,7 +22,7 @@ either [`wrk`][wrk] or [`autocannon`][autocannon].
 path, hence if you want to compare two HTTP benchmark runs make sure that the
 Node version in the path is not altered.
 
-`wrk` may be available through your preferred package manger. If not, you can
+`wrk` may be available through your preferred package manager. If not, you can
 easily build it [from source][wrk] via `make`.
 
 By default `wrk` will be used as benchmarker. If it is not available
@@ -55,8 +55,8 @@ In the event you get a message that you need to select a CRAN mirror first.
 
 You can specify a mirror by adding in the repo parameter.
 
-If we used the "http://cran.us.r-project.org" mirror, it could look somehting like
-this:
+If we used the "http://cran.us.r-project.org" mirror, it could look something
+like this:
 
 ```R
 install.packages("ggplot2", repo="http://cran.us.r-project.org")
@@ -180,7 +180,7 @@ to be no improvements, then there shouldn't be any stars.
 
 **A word of caution:** Statistics is not a foolproof tool. If a benchmark shows
 a statistical significant difference, there is a 5% risk that this
-difference doesn't actually exists. For a single benchmark this is not an
+difference doesn't actually exist. For a single benchmark this is not an
 issue. But when considering 20 benchmarks it's normal that one of them
 will show significance, when it shouldn't. A possible solution is to instead
 consider at least two stars (`**`) as the threshold, in that case the risk
