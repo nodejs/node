@@ -645,12 +645,17 @@ Local<Object> SyncProcessRunner::BuildResultObject() {
                    Integer::New(env()->isolate(), GetError()));
   }
 
-  if (exit_status_ >= 0)
-    js_result->Set(env()->status_string(),
-        Number::New(env()->isolate(), static_cast<double>(exit_status_)));
-  else
+  if (exit_status_ >= 0) {
+    if (term_signal_ > 0) {
+      js_result->Set(env()->status_string(), Null(env()->isolate()));
+    } else {
+      js_result->Set(env()->status_string(),
+          Number::New(env()->isolate(), static_cast<double>(exit_status_)));
+    }
+  } else {
     // If exit_status_ < 0 the process was never started because of some error.
     js_result->Set(env()->status_string(), Null(env()->isolate()));
+  }
 
   if (term_signal_ > 0)
     js_result->Set(env()->signal_string(),
