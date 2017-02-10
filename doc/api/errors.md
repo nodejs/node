@@ -36,8 +36,8 @@ called.
 
 All JavaScript errors are handled as exceptions that *immediately* generate
 and throw an error using the standard JavaScript `throw` mechanism. These
-are handled using the [`try / catch` construct][try-catch] provided by the JavaScript
-language.
+are handled using the [`try / catch` construct][try-catch] provided by the
+JavaScript language.
 
 ```js
 // Throws with a ReferenceError because z is undefined
@@ -105,8 +105,8 @@ pass or fail).
 
 For *all* `EventEmitter` objects, if an `'error'` event handler is not
 provided, the error will be thrown, causing the Node.js process to report an
-unhandled exception and  crash unless either: The [`domain`][domains] module is used
-appropriately or a handler has been registered for the
+unhandled exception and  crash unless either: The [`domain`][domains] module is
+used appropriately or a handler has been registered for the
 [`process.on('uncaughtException')`][] event.
 
 ```js
@@ -255,15 +255,23 @@ will affect any stack trace captured *after* the value has been changed.
 If set to a non-number value, or set to a negative number, stack traces will
 not capture any frames.
 
-### error.message
+#### error.code
 
 * {string}
 
-The `error.message` property is the string description of the error as set by calling `new Error(message)`.
-The `message` passed to the constructor will also appear in the first line of
-the stack trace of the `Error`, however changing this property after the
-`Error` object is created *may not* change the first line of the stack trace
-(for example, when `error.stack` is read before this property is changed).
+The `error.code` property is a string label that identifies the kind of error.
+See [Node.js Error Codes][] for details about specific codes.
+
+#### error.message
+
+* {string}
+
+The `error.message` property is the string description of the error as set by
+calling `new Error(message)`. The `message` passed to the constructor will also
+appear in the first line of the stack trace of the `Error`, however changing
+this property after the `Error` object is created *may not* change the first
+line of the stack trace (for example, when `error.stack` is read before this
+property is changed).
 
 ```js
 const err = new Error('The message');
@@ -451,18 +459,18 @@ added properties.
 
 * {string}
 
-The `error.code` property is a string representing the error code, which is always
-`E` followed by a sequence of capital letters.
+The `error.code` property is a string representing the error code, which is
+typically `E` followed by a sequence of capital letters.
 
 #### error.errno
 
 * {string|number}
 
 The `error.errno` property is a number or a string.
-The number is a **negative** value which corresponds to the error code defined in
-[`libuv Error handling`]. See uv-errno.h header file (`deps/uv/include/uv-errno.h` in
-the Node.js source tree) for details.
-In case of a string, it is the same as `error.code`.
+The number is a **negative** value which corresponds to the error code defined
+in [`libuv Error handling`]. See uv-errno.h header file
+(`deps/uv/include/uv-errno.h` in the Node.js source tree) for details. In case
+of a string, it is the same as `error.code`.
 
 #### error.syscall
 
@@ -474,22 +482,22 @@ The `error.syscall` property is a string describing the [syscall][] that failed.
 
 * {string}
 
-When present (e.g. in `fs` or `child_process`), the `error.path` property is a string
-containing a relevant invalid pathname.
+When present (e.g. in `fs` or `child_process`), the `error.path` property is a
+string containing a relevant invalid pathname.
 
 #### error.address
 
 * {string}
 
-When present (e.g. in `net` or `dgram`), the `error.address` property is a string
-describing the address to which the connection failed.
+When present (e.g. in `net` or `dgram`), the `error.address` property is a
+string describing the address to which the connection failed.
 
 #### error.port
 
 * {number}
 
-When present (e.g. in `net` or `dgram`), the `error.port` property is a number representing
-the connection's port that is not available.
+When present (e.g. in `net` or `dgram`), the `error.port` property is a number
+representing the connection's port that is not available.
 
 ### Common System Errors
 
@@ -550,6 +558,53 @@ found [here][online].
   encountered by [`http`][] or [`net`][] -- often a sign that a `socket.end()`
   was not properly called.
 
+<a id="nodejs-error-codes"></a>
+## Node.js Error Codes
+
+<a id="ERR_INVALID_ARG_TYPE"></a>
+### ERR_INVALID_ARG_TYPE
+
+The `'ERR_INVALID_ARG_TYPE'` error code is used generically to identify that
+an argument of the wrong type has been passed to a Node.js API.
+
+<a id="ERR_INVALID_CALLBACK"></a>
+### ERR_INVALID_CALLBACK
+
+The `'ERR_INVALID_CALLBACK'` error code is used generically to identify that
+a callback function is required and has not been provided to a Node.js API.
+
+<a id="ERR_STDERR_CLOSE"></a>
+### ERR_STDERR_CLOSE
+
+An error using the `'ERR_STDERR_CLOSE'` code is thrown specifically when an
+attempt is made to close the `process.stderr` stream. By design, Node.js does
+not allow `stdout` or `stderr` Streams to be closed by user code.
+
+<a id="ERR_STDOUT_CLOSE"></a>
+### ERR_STDOUT_CLOSE
+
+An error using the `'ERR_STDOUT_CLOSE'` code is thrown specifically when an
+attempt is made to close the `process.stdout` stream. By design, Node.js does
+not allow `stdout` or `stderr` Streams to be closed by user code.
+
+<a id="ERR_UNKNOWN_STDIN_TYPE"></a>
+### ERR_UNKNOWN_STDIN_TYPE
+
+An error using the `'ERR_UNKNOWN_STDIN_TYPE'` code is thrown specifically when
+an attempt is made to launch a Node.js process with an unknown `stdin` file
+type. Errors of this kind cannot *typically* be caused by errors in user code,
+although it is not impossible. Occurrences of this error are most likely an
+indication of a bug within Node.js itself.
+
+<a id="ERR_UNKNOWN_STREAM_TYPE"></a>
+### ERR_UNKNOWN_STREAM_TYPE
+
+An error using the `'ERR_UNKNOWN_STREAM_TYPE'` code is thrown specifically when
+an attempt is made to launch a Node.js process with an unknown `stdout` or
+`stderr` file type. Errors of this kind cannot *typically* be caused by errors
+in user code, although it is not impossible. Occurrences of this error are most
+likely an indication of a bug within Node.js itself.
+
 [`fs.readdir`]: fs.html#fs_fs_readdir_path_options_callback
 [`fs.readFileSync`]: fs.html#fs_fs_readfilesync_file_options
 [`fs.unlink`]: fs.html#fs_fs_unlink_path_callback
@@ -562,6 +617,7 @@ found [here][online].
 [domains]: domain.html
 [event emitter-based]: events.html#events_class_eventemitter
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
+[Node.js Error Codes]: #nodejs-error-codes
 [online]: http://man7.org/linux/man-pages/man3/errno.3.html
 [stream-based]: stream.html
 [syscall]: http://man7.org/linux/man-pages/man2/syscall.2.html

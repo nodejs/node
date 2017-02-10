@@ -1,14 +1,10 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
-const shouldThrow = function() {
-  process.stdout.end();
-};
-
-const validateError = function(e) {
-  return e instanceof Error &&
-    e.message === 'process.stdout cannot be closed.';
-};
-
-assert.throws(shouldThrow, validateError);
+assert.throws(() => process.stdout.end(),
+              common.expectsError({
+                code: 'ERR_STDOUT_CLOSE',
+                type: Error,
+                message: 'process.stdout cannot be closed'
+              }));
