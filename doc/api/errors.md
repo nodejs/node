@@ -558,7 +558,7 @@ found [here][online].
   the connected party did not properly respond after a period of time. Usually
   encountered by [`http`][] or [`net`][] -- often a sign that a `socket.end()`
   was not properly called.
-
+  
 
 <a id="nodejs-error-codes"></a>
 ## Node.js Error Codes
@@ -702,6 +702,12 @@ in the [WHATWG URL API][] for strict compliance with the specification (which
 in some cases may accept `func(undefined)` but not `func()`). In most native
 Node.js APIs, `func(undefined)` and `func()` are treated identically, and the
 [`ERR_INVALID_ARG_TYPE`][] error code may be used instead.
+
+<a id="ERR_HTTP_NO_DOMAIN"></a>
+### ERR_HTTP_NO_DOMAIN
+
+An error using the `'ERR_HTTP_NO_DOMAIN'` code is thrown specifically when an attempt 
+is made to parse an URL without a valid domain name.
 
 <a id="ERR_STDERR_CLOSE"></a>
 ### ERR_STDERR_CLOSE
