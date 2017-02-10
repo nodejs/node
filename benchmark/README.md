@@ -22,7 +22,7 @@ either [`wrk`][wrk] or [`autocannon`][autocannon].
 path, hence if you want to compare two HTTP benchmark runs make sure that the
 Node version in the path is not altered.
 
-`wrk` may be available through your preferred package manger. If not, you can
+`wrk` may be available through your preferred package manager. If not, you can
 easily build it [from source][wrk] via `make`.
 
 By default `wrk` will be used as benchmarker. If it is not available
@@ -55,8 +55,8 @@ In the event you get a message that you need to select a CRAN mirror first.
 
 You can specify a mirror by adding in the repo parameter.
 
-If we used the "http://cran.us.r-project.org" mirror, it could look somehting like
-this:
+If we used the "http://cran.us.r-project.org" mirror, it could look something
+like this:
 
 ```R
 install.packages("ggplot2", repo="http://cran.us.r-project.org")
