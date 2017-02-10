@@ -498,6 +498,8 @@
         }],
         [ 'node_shared_zlib=="false"', {
           'dependencies': [ 'deps/zlib/zlib.gyp:zlib' ],
+        }, {
+          'defines': [ 'ZLIB_CONST' ],
         }],
 
         [ 'node_shared_http_parser=="false"', {
