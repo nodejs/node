@@ -3,6 +3,8 @@ const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
+const portRangeError = common.expectsError('ERR_INVALID_PORT', RangeError);
+
 function close() { this.close(); }
 
 // From lib/net.js
@@ -36,7 +38,7 @@ listenVariants.forEach((listenVariant, i) => {
       return;
     }
     assert.throws(() => listenVariant(port, common.mustNotCall()),
-                  /"port" argument must be >= 0 and < 65536/i);
+                  portRangeError);
   });
 
   [null, true, false].forEach((port) =>
