@@ -1,14 +1,16 @@
 // Flags: --expose-internals
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const util = require('internal/util');
 
+const expectedError = common.expectsError({
+  code: 'ERR_NO_CRYPTO',
+  type: Error
+});
+
 if (!process.versions.openssl) {
-  assert.throws(
-    () => util.assertCrypto(),
-    /^Error: Node\.js is not compiled with openssl crypto support$/
-  );
+  assert.throws(() => util.assertCrypto(), expectedError);
 } else {
   assert.doesNotThrow(() => util.assertCrypto());
 }
