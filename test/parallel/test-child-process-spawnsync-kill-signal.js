@@ -1,12 +1,11 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const cp = require('child_process');
 
 if (process.argv[2] === 'child') {
   setInterval(() => {}, 1000);
 } else {
-  const exitCode = common.isWindows ? 1 : 0;
   const { SIGKILL } = process.binding('constants').os.signals;
 
   function spawn(killSignal) {
@@ -14,7 +13,7 @@ if (process.argv[2] === 'child') {
                                [__filename, 'child'],
                                {killSignal, timeout: 100});
 
-    assert.strictEqual(child.status, exitCode);
+    assert.strictEqual(child.status, null);
     assert.strictEqual(child.error.code, 'ETIMEDOUT');
     return child;
   }
