@@ -19,7 +19,7 @@ d.run(function() {
   one();
 
   function one() {
-    crypto.pbkdf2('a', 'b', 1, 8, function() {
+    crypto.pbkdf2('a', 'b', 1, 8, 'sha1', function() {
       two();
       throw new Error('pbkdf2');
     });
