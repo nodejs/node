@@ -180,7 +180,7 @@ to be no improvements, then there shouldn't be any stars.
 
 **A word of caution:** Statistics is not a foolproof tool. If a benchmark shows
 a statistical significant difference, there is a 5% risk that this
-difference doesn't actually exists. For a single benchmark this is not an
+difference doesn't actually exist. For a single benchmark this is not an
 issue. But when considering 20 benchmarks it's normal that one of them
 will show significance, when it shouldn't. A possible solution is to instead
 consider at least two stars (`**`) as the threshold, in that case the risk
