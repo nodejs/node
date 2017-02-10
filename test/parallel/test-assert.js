@@ -489,6 +489,29 @@ a.throws(makeBlock(a.deepEqual, args, []));
   a.doesNotThrow(makeBlock(a.deepEqual, someArgs, sameArgs));
 }
 
+// check messages from assert.throws()
+{
+  assert.throws(
+    () => { a.throws(() => {}); },
+    /^AssertionError: Missing expected exception\.$/
+  );
+
+  assert.throws(
+    () => { a.throws(() => {}, TypeError); },
+    /^AssertionError: Missing expected exception \(TypeError\)\.$/
+  );
+
+  assert.throws(
+    () => { a.throws(() => {}, 'fhqwhgads'); },
+    /^AssertionError: Missing expected exception: fhqwhgads$/
+  );
+
+  assert.throws(
+    () => { a.throws(() => {}, TypeError, 'fhqwhgads'); },
+    /^AssertionError: Missing expected exception \(TypeError\): fhqwhgads$/
+  );
+}
+
 const circular = {y: 1};
 circular.x = circular;
 
