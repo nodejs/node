@@ -42,4 +42,4 @@ assert.deepStrictEqual(options, {stdio: 'ignore'});
 
 assert.throws(() => {
   common.spawnPwd({stdio: ['pipe', 'pipe', 'pipe', 'ipc', 'ipc']});
-}, /^Error: Child process can have only one IPC pipe$/);
+}, common.expectsError({code: 'ERR_IPC_ONE_PIPE', type: Error}));
