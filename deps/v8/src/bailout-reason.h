@@ -310,6 +310,7 @@ namespace internal {
   V(kUnsupportedPhiUseOfConstVariable,                                         \
     "Unsupported phi use of const variable")                                   \
   V(kUnsupportedTaggedImmediate, "Unsupported tagged immediate")               \
+  V(kUnstableConstantTypeHeapObject, "Unstable constant-type heap object")     \
   V(kVariableResolvedToWithContext, "Variable resolved to with context")       \
   V(kWeShouldNotHaveAnEmptyLexicalContext,                                     \
     "We should not have an empty lexical context")                             \
