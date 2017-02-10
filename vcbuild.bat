@@ -68,6 +68,7 @@ if /i "%1"=="test-tick-processor" set test_args=%test_args% tick-processor&goto 
 if /i "%1"=="test-internet" set test_args=%test_args% internet&goto arg-ok
 if /i "%1"=="test-pummel"   set test_args=%test_args% pummel&goto arg-ok
 if /i "%1"=="test-all"      set test_args=%test_args% sequential parallel message gc inspector internet pummel&set buildnodeweak=1&set jslint=1&goto arg-ok
+if /i "%1"=="test-npm"      set test_args=%test_args% npm&goto arg-ok
 if /i "%1"=="test-known-issues" set test_args=%test_args% known_issues&goto arg-ok
 if /i "%1"=="jslint"        set jslint=1&goto arg-ok
 if /i "%1"=="jslint-ci"     set jslint_ci=1&goto arg-ok
@@ -334,6 +335,13 @@ goto run-tests
 
 :run-tests
 if "%test_args%"=="" goto jslint
+
+if "%test_args%"=="%test_args:npm=%" goto node-tests
+set test_args="%test_args:npm=%"
+powershell .\tools\test-npm.ps1 -progress tap -logfile test-npm.tap
+goto exit
+
+:node-tests
 if "%config%"=="Debug" set test_args=--mode=debug %test_args%
 if "%config%"=="Release" set test_args=--mode=release %test_args%
 echo running 'cctest %cctest_args%'
@@ -371,6 +379,7 @@ echo   vcbuild.bat                : builds release build
 echo   vcbuild.bat debug          : builds debug build
 echo   vcbuild.bat release msi    : builds release build and MSI installer package
 echo   vcbuild.bat test           : builds debug build and runs tests
+echo   vcbuild.bat test-npm       : builds debug build and runs test-npm.bat
 echo   vcbuild.bat build-release  : builds the release distribution as used by nodejs.org
 echo   vcbuild.bat enable-vtune   : builds nodejs with Intel VTune profiling support to profile JavaScript
 goto exit

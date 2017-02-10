@@ -253,7 +253,7 @@ test-known-issues: all
 	$(PYTHON) tools/test.py known_issues
 
 test-npm: $(NODE_EXE)
-	NODE=$(NODE) tools/test-npm.sh
+	NODE=$(NODE) tools/test-npm.sh -p=tap --logfile=test-npm.tap
 
 test-npm-publish: $(NODE_EXE)
 	npm_package_config_publishtest=true $(NODE) deps/npm/test/run.js
