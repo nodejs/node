@@ -3,7 +3,6 @@ const common = require('../common');
 const PassThrough = require('stream').PassThrough;
 const assert = require('assert');
 const inherits = require('util').inherits;
-const extend = require('util')._extend;
 const Interface = require('readline').Interface;
 
 
@@ -11,6 +10,10 @@ function FakeInput() {
   PassThrough.call(this);
 }
 inherits(FakeInput, PassThrough);
+
+function extend(k) {
+  return Object.assign({ ctrl: false, meta: false, shift: false }, k);
+}
 
 
 const fi = new FakeInput();
@@ -32,9 +35,7 @@ function addTest(sequences, expectedKeys) {
     expectedKeys = [ expectedKeys ];
   }
 
-  expectedKeys = expectedKeys.map((k) => {
-    return k ? extend({ ctrl: false, meta: false, shift: false }, k) : k;
-  });
+  expectedKeys = expectedKeys.map(extend);
 
   keys = [];
 
@@ -65,9 +66,7 @@ const addKeyIntervalTest = (sequences, expectedKeys, interval = 550,
       expectedKeys = [ expectedKeys ];
     }
 
-    expectedKeys = expectedKeys.map((k) => {
-      return k ? extend({ ctrl: false, meta: false, shift: false }, k) : k;
-    });
+    expectedKeys = expectedKeys.map(extend);
 
     const keys = [];
     fi.on('keypress', (s, k) => keys.push(k));
