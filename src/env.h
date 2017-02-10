@@ -40,6 +40,7 @@
 #include <list>
 #include <stdint.h>
 #include <vector>
+#include <map>
 
 // Caveat emptor: we're going slightly crazy with macros here but the end
 // hopefully justifies the means. We have a lot of per-context properties
@@ -267,7 +268,6 @@ namespace node {
   V(process_object, v8::Object)                                               \
   V(promise_unhandled_rejection_function, v8::Function)                       \
   V(promise_unhandled_rejection, v8::Function)                                \
-  V(promise_unhandled_reject_map, v8::NativeWeakMap)                          \
   V(promise_unhandled_reject_keys, v8::Set)                                   \
   V(push_values_to_array_function, v8::Function)                              \
   V(script_context_constructor_template, v8::FunctionTemplate)                \
@@ -578,6 +578,14 @@ class Environment {
   static const int kContextEmbedderDataIndex = NODE_CONTEXT_EMBEDDER_DATA_INDEX;
 
   void AddPromiseHook(promise_hook_func fn, void* arg);
+
+  struct v8LocalCompare {
+     bool operator() (const v8::Local<v8::Value>& lhs, const v8::Local<v8::Value>& rhs) const {
+         return !lhs->StrictEquals(rhs);
+     }
+  };
+
+  std::map<v8::Local<v8::Value>, v8::Local<v8::Object>, v8LocalCompare> promise_unhandled_reject_map;
 
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
