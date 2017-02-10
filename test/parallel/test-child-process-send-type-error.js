@@ -6,7 +6,7 @@ const cp = require('child_process');
 function fail(proc, args) {
   assert.throws(() => {
     proc.send.apply(proc, args);
-  }, /"options" argument must be an object/);
+  }, common.expectsError({code: 'ERR_INVALID_ARG_TYPE', type: TypeError}));
 }
 
 let target = process;
