@@ -963,7 +963,8 @@ assert.throws(() => {
   const a = Buffer.alloc(1);
   const b = Buffer.alloc(1);
   a.copy(b, 0, 0x100000000, 0x100000001);
-}, /out of range index/);
+}, common.expectsError(
+  {code: undefined, type: RangeError, message: 'Index out of range'}));
 
 // Unpooled buffer (replaces SlowBuffer)
 {
