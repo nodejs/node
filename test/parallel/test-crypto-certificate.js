@@ -37,3 +37,6 @@ assert.strictEqual(certificate.exportChallenge(spkacFail), '');
 function stripLineEndings(obj) {
   return obj.replace(/\n/g, '');
 }
+
+// direct call Certificate() should return instance
+assert(crypto.Certificate() instanceof crypto.Certificate);
