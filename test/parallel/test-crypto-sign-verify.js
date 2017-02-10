@@ -70,3 +70,10 @@ var keyPem = fs.readFileSync(common.fixturesDir + '/test_key.pem', 'ascii');
   verified = verStream.verify(certPem, s3);
   assert.strictEqual(verified, true, 'sign and verify (stream)');
 }
+
+// Test throws exception when key options is null
+{
+  assert.throws(() => {
+    crypto.createSign('RSA-SHA1').update('Test123').sign(null, 'base64');
+  }, /^Error: No key provided to sign$/);
+}
