@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const path = require('path');
 
@@ -88,29 +88,21 @@ const unixSpecialCaseFormatTests = [
   [{}, '']
 ];
 
+const expectedMessage = common.expectsError({
+  code: 'ERR_INVALID_ARG_TYPE',
+  type: TypeError
+});
+
 const errors = [
-  {method: 'parse', input: [null],
-   message: /^TypeError: Path must be a string\. Received null$/},
-  {method: 'parse', input: [{}],
-   message: /^TypeError: Path must be a string\. Received {}$/},
-  {method: 'parse', input: [true],
-   message: /^TypeError: Path must be a string\. Received true$/},
-  {method: 'parse', input: [1],
-   message: /^TypeError: Path must be a string\. Received 1$/},
-  {method: 'parse', input: [],
-   message: /^TypeError: Path must be a string\. Received undefined$/},
-  {method: 'format', input: [null],
-   message:
-      /^TypeError: Parameter "pathObject" must be an object, not object$/},
-  {method: 'format', input: [''],
-   message:
-      /^TypeError: Parameter "pathObject" must be an object, not string$/},
-  {method: 'format', input: [true],
-   message:
-      /^TypeError: Parameter "pathObject" must be an object, not boolean$/},
-  {method: 'format', input: [1],
-   message:
-      /^TypeError: Parameter "pathObject" must be an object, not number$/},
+  {method: 'parse', input: [null], message: expectedMessage},
+  {method: 'parse', input: [{}], message: expectedMessage},
+  {method: 'parse', input: [true], message: expectedMessage},
+  {method: 'parse', input: [1], message: expectedMessage},
+  {method: 'parse', input: [], message: expectedMessage},
+  {method: 'format', input: [null], message: expectedMessage},
+  {method: 'format', input: [''], message: expectedMessage},
+  {method: 'format', input: [true], message: expectedMessage},
+  {method: 'format', input: [1], message: expectedMessage},
 ];
 
 checkParseFormat(path.win32, winPaths);
