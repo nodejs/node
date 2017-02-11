@@ -18,14 +18,15 @@ assert.strictEqual('function', typeof Console);
 // when not given a writable stream instance
 assert.throws(() => {
   new Console();
-}, /^TypeError: Console expects a writable stream instance$/);
+}, common.expectsError('ERR_INVALID_ARG_TYPE', TypeError));
+
 
 // Console constructor should throw if stderr exists but is not writable
 assert.throws(() => {
   out.write = () => {};
   err.write = undefined;
   new Console(out, err);
-}, /^TypeError: Console expects writable stream instances$/);
+}, common.expectsError('ERR_INVALID_ARG_TYPE', TypeError));
 
 out.write = err.write = (d) => {};
 
