@@ -8,21 +8,22 @@ function range(n) {
 
 function timeout(nargs) {
   const args = range(nargs);
-  setTimeout.apply(null, [callback, 1].concat(args));
+  const timer = setTimeout.apply(null, [callback, 1].concat(args));
 
   function callback() {
-    assert.deepStrictEqual([].slice.call(arguments), args);
+    clearTimeout(timer);
+    assert.deepStrictEqual(Array.from(arguments), args);
     if (nargs < 128) timeout(nargs + 1);
   }
 }
 
 function interval(nargs) {
   const args = range(nargs);
-  const timer = setTimeout.apply(null, [callback, 1].concat(args));
+  const timer = setInterval.apply(null, [callback, 1].concat(args));
 
   function callback() {
     clearInterval(timer);
-    assert.deepStrictEqual([].slice.call(arguments), args);
+    assert.deepStrictEqual(Array.from(arguments), args);
     if (nargs < 128) interval(nargs + 1);
   }
 }
