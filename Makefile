@@ -133,8 +133,10 @@ test-parallel: all
 test-valgrind: all
 	$(PYTHON) tools/test.py --mode=release --valgrind sequential parallel message
 
-test/gc/build/Release/binding.node: \
-	$(NODE_EXE) test/gc/binding.cc test/gc/binding.gyp
+# Implicitly depends on $(NODE_EXE).  We don't depend on it explicitly because
+# it always triggers a rebuild due to it being a .PHONY rule.  See the comment
+# near the build-addons rule for more background.
+test/gc/build/Release/binding.node: test/gc/binding.cc test/gc/binding.gyp
 	$(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp rebuild \
 		--python="$(PYTHON)" \
 		--directory="$(shell pwd)/test/gc" \
