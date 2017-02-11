@@ -70,8 +70,6 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
-bool flag_icu_data_dir = false;
-
 namespace i18n {
 
 const size_t kStorageSize = 1024;
@@ -415,7 +413,6 @@ bool InitializeICUDirectory(const std::string& path) {
 #endif  // !NODE_HAVE_SMALL_ICU
     return (status == U_ZERO_ERROR);
   } else {
-    flag_icu_data_dir = true;
     u_setDataDirectory(path.c_str());
     return true;  // No error.
   }
