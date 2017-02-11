@@ -10,7 +10,8 @@ const throws = [
   true,
   false,
   0,
-  function() {}
+  function() {},
+  'http://[invalid_ipv6_addr]:8081/'
 ];
 for (let i = 0; i < throws.length; i++) {
   assert.throws(function() { url.format(throws[i]); }, TypeError);
