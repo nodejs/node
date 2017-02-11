@@ -10,7 +10,7 @@
 
 namespace node {
 
-extern bool flag_icu_data_dir;
+extern std::string icu_data_dir;  // NOLINT(runtime/string)
 
 namespace i18n {
 
