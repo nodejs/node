@@ -59,7 +59,7 @@ void NodeTraceWriter::OpenNewFileForStreaming() {
   uv_fs_t req;
   std::ostringstream log_file;
   log_file << "node_trace." << file_num_ << ".log";
-  fd_ = uv_fs_open(tracing_loop_, &req, log_file.str().c_str(),
+  fd_ = uv_fs_open(tracing_loop_, &req, log_file.str().data(),
       O_CREAT | O_WRONLY | O_TRUNC, 0644, NULL);
   CHECK_NE(fd_, -1);
   uv_fs_req_cleanup(&req);
@@ -139,7 +139,7 @@ void NodeTraceWriter::WriteToFile(std::string&& str, int highest_request_id) {
   write_req->str = std::move(str);
   write_req->writer = this;
   write_req->highest_request_id = highest_request_id;
-  uv_buf_t uv_buf = uv_buf_init(const_cast<char*>(write_req->str.c_str()),
+  uv_buf_t uv_buf = uv_buf_init(const_cast<char*>(write_req->str.data()),
       write_req->str.length());
   request_mutex_.Lock();
   // Manage a queue of WriteRequest objects because the behavior of uv_write is

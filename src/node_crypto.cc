@@ -842,11 +842,11 @@ void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
     if (!extra_root_certs_file.empty()) {
       unsigned long err = AddCertsFromFile(  // NOLINT(runtime/int)
                                            root_cert_store,
-                                           extra_root_certs_file.c_str());
+                                           extra_root_certs_file.data());
       if (err) {
         ProcessEmitWarning(sc->env(),
                            "Ignoring extra certs from `%s`, load failed: %s\n",
-                           extra_root_certs_file.c_str(),
+                           extra_root_certs_file.data(),
                            ERR_error_string(err, nullptr));
       }
     }

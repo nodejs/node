@@ -550,7 +550,7 @@ void AgentImpl::WorkerRunIO() {
   std::string script_path;
   if (!script_name_.empty()) {
     uv_fs_t req;
-    if (0 == uv_fs_realpath(&child_loop_, &req, script_name_.c_str(), nullptr))
+    if (0 == uv_fs_realpath(&child_loop_, &req, script_name_.data(), nullptr))
       script_path = std::string(reinterpret_cast<char*>(req.ptr));
     uv_fs_req_cleanup(&req);
   }
