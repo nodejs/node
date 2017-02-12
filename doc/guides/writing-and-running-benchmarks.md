@@ -3,22 +3,32 @@
 ## Table of Contents
 
 * [Prerequisites](#prerequisites)
+  * [HTTP Benchmark Requirements](#http-benchmark-requirements)
+  * [Benchmark Analysis Requirements](#benchmark-analysis-requirements)
 * [Running benchmarks](#running-benchmarks)
- * [Running individual benchmarks](#running-individual-benchmarks)
- * [Running all benchmarks](#running-all-benchmarks)
- * [Comparing node versions](#comparing-node-versions)
- * [Comparing parameters](#comparing-parameters)
+  * [Running individual benchmarks](#running-individual-benchmarks)
+  * [Running all benchmarks](#running-all-benchmarks)
+  * [Comparing Node.js versions](#comparing-nodejs-versions)
+  * [Comparing parameters](#comparing-parameters)
 * [Creating a benchmark](#creating-a-benchmark)
+  * [Basics of a benchmark](#basics-of-a-benchmark)
+  * [Creating an HTTP benchmark](#creating-an-http-benchmark)
 
 ## Prerequisites
+
+Basic Unix tools are required for some benchmarks.
+[Git for Windows][git-for-windows] includes Git Bash and the necessary tools,
+which need to be included in the global Windows `PATH`.
+
+### HTTP Benchmark Requirements
 
 Most of the HTTP benchmarks require a benchmarker to be installed, this can be
 either [`wrk`][wrk] or [`autocannon`][autocannon].
 
-`Autocannon` is a Node script that can be installed using
-`npm install -g autocannon`. It will use the Node executable that is in the
+`Autocannon` is a Node.js script that can be installed using
+`npm install -g autocannon`. It will use the Node.js executable that is in the
 path, hence if you want to compare two HTTP benchmark runs make sure that the
-Node version in the path is not altered.
+Node.js version in the path is not altered.
 
 `wrk` may be available through your preferred package manager. If not, you can
 easily build it [from source][wrk] via `make`.
@@ -32,9 +42,7 @@ benchmarker to be used by providing it as an argument, e. g.:
 
 `node benchmark/http/simple.js benchmarker=autocannon`
 
-Basic Unix tools are required for some benchmarks.
-[Git for Windows][git-for-windows] includes Git Bash and the necessary tools,
-which need to be included in the global Windows `PATH`.
+### Benchmark Analysis Requirements
 
 To analyze the results `R` should be installed. Check you package manager or
 download it from https://www.r-project.org/.
@@ -48,7 +56,6 @@ install.packages("ggplot2")
 install.packages("plyr")
 ```
 
-### CRAN Mirror Issues
 In the event you get a message that you need to select a CRAN mirror first.
 
 You can specify a mirror by adding in the repo parameter.
@@ -133,9 +140,9 @@ It is possible to execute more groups by adding extra process arguments.
 $ node benchmark/run.js arrays buffers
 ```
 
-### Comparing node versions
+### Comparing Node.js versions
 
-To compare the effect of a new node version use the `compare.js` tool. This
+To compare the effect of a new Node.js version use the `compare.js` tool. This
 will run each benchmark multiple times, making it possible to calculate
 statistics on the performance measures.
 
@@ -144,7 +151,7 @@ As an example on how to check for a possible performance improvement, the
 an example. This pull request _claims_ to improve the performance of the
 `string_decoder` module.
 
-First build two versions of node, one from the master branch (here called
+First build two versions of Node.js, one from the master branch (here called
 `./node-master`) and another with the pull request applied (here called
 `./node-pr-5135`).
 
@@ -284,6 +291,8 @@ chunk     encoding       mean confidence.interval
 
 ## Creating a benchmark
 
+### Basics of a benchmark
+
 All benchmarks use the `require('../common.js')` module. This contains the
 `createBenchmark(main, configs[, options])` method which will setup your
 benchmark.
@@ -367,7 +376,7 @@ function main(conf) {
 }
 ```
 
-## Creating HTTP benchmark
+### Creating an HTTP benchmark
 
 The `bench` object returned by `createBenchmark` implements
 `http(options, callback)` method. It can be used to run external tool to
