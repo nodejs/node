@@ -159,6 +159,9 @@ static const char* trace_enabled_categories = nullptr;
 std::string icu_data_dir;  // NOLINT(runtime/string)
 #endif
 
+const char* internal_modules_source_dir = nullptr;
+const char* js_entry_point = nullptr;
+
 // used by C++ modules as well
 bool no_deprecation = false;
 
@@ -3744,6 +3747,10 @@ static void ParseArgs(int* argc,
     } else if (strncmp(arg, "--icu-data-dir=", 15) == 0) {
       icu_data_dir.assign(arg + 15);
 #endif
+    } else if (strncmp(arg, "--internal-modules-source-dir=", 30) == 0) {
+      internal_modules_source_dir = arg + 30;
+    } else if (strncmp(arg, "--js-entry-point=", 17) == 0) {
+      js_entry_point = arg + 17;
     } else if (strcmp(arg, "--expose-internals") == 0 ||
                strcmp(arg, "--expose_internals") == 0) {
       // consumed in js

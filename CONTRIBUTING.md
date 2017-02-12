@@ -202,6 +202,11 @@ $ ./node ./test/parallel/test-stream2-transform.js
 Remember to recompile with `make -j4` in between test runs if you change
 core modules.
 
+*Note*: If you only change the JavaScript source files in `lib/` and
+compiling Node takes a long time on your machine, you can use
+`./node --internal-modules-source-dir=lib test/parallel/...` instead to avoid
+rebuilding.
+
 ### Step 6: Push
 
 ```text

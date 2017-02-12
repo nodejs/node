@@ -52,6 +52,13 @@ extern std::string config_warning_file;  // NOLINT(runtime/string)
 // Tells whether it is safe to call v8::Isolate::GetCurrent().
 extern bool v8_initialized;
 
+// Source file directory to load instead of the ones baked into the executable
+// for hacking.
+extern const char* internal_modules_source_dir;
+// Source file to load instead of the `bootstrap_node.js` one baked into the
+// executable.
+extern const char* js_entry_point;
+
 // Forward declaration
 class Environment;
 
@@ -205,6 +212,9 @@ v8::MaybeLocal<v8::Object> New(Environment* env,
 // Mixing operator new and free() is undefined behavior so don't do that.
 v8::MaybeLocal<v8::Object> New(Environment* env, char* data, size_t length);
 }  // namespace Buffer
+
+v8::MaybeLocal<v8::String> InternalModuleReadFile(Environment* env,
+                                                  const char* path);
 
 }  // namespace node
 
