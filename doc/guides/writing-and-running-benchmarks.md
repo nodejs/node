@@ -113,7 +113,8 @@ buffers/buffer-tostring.js n=10000000 len=1024 arg=false: 3783071.1678948295
 ### Running all benchmarks
 
 Similar to running individual benchmarks, a group of benchmarks can be executed
-by using the `run.js` tool. Again this does not provide the statistical
+by using the `run.js` tool. To see how to use this script,
+run `node benchmark/run.js`. Again this does not provide the statistical
 information to make any conclusions.
 
 ```console
@@ -144,7 +145,8 @@ $ node benchmark/run.js arrays buffers
 
 To compare the effect of a new Node.js version use the `compare.js` tool. This
 will run each benchmark multiple times, making it possible to calculate
-statistics on the performance measures.
+statistics on the performance measures. To see how to use this script,
+run `node benchmark/compare.js`.
 
 As an example on how to check for a possible performance improvement, the
 [#5134](https://github.com/nodejs/node/pull/5134) pull request will be used as
@@ -224,7 +226,8 @@ It can be useful to compare the performance for different parameters, for
 example to analyze the time complexity.
 
 To do this use the `scatter.js` tool, this will run a benchmark multiple times
-and generate a csv with the results.
+and generate a csv with the results. To see how to use this script,
+run `node benchmark/scatter.js`.
 
 ```console
 $ node benchmark/scatter.js benchmark/string_decoder/string-decoder.js > scatter.csv
