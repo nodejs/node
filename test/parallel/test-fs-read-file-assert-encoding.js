@@ -6,8 +6,12 @@ const fs = require('fs');
 
 const encoding = 'foo-8';
 const filename = 'bar.txt';
+const expectedError = common.expectsError({
+  code: 'ERR_INVALID_OPT_VALUE_ENCODING',
+  type: TypeError,
+});
 
 assert.throws(
   fs.readFile.bind(fs, filename, { encoding }, common.mustNotCall()),
-  new RegExp(`^Error: Unknown encoding: ${encoding}$`)
+  expectedError
 );
