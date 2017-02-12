@@ -21,7 +21,7 @@
 
 // Flags: --expose_internals
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const fs = require('fs');
@@ -55,30 +55,29 @@ assert.strictEqual(stringToFlags('xa'), O_APPEND | O_CREAT | O_WRONLY | O_EXCL);
 assert.strictEqual(stringToFlags('ax+'), O_APPEND | O_CREAT | O_RDWR | O_EXCL);
 assert.strictEqual(stringToFlags('xa+'), O_APPEND | O_CREAT | O_RDWR | O_EXCL);
 
+const expectedError =
+  common.expectsError({code: 'ERR_INVALID_OPT_VALUE', type: TypeError}, 23);
+
 ('+ +a +r +w rw wa war raw r++ a++ w++ x +x x+ rx rx+ wxx wax xwx xxx')
   .split(' ')
   .forEach(function(flags) {
     assert.throws(
       () => stringToFlags(flags),
-      new RegExp(`^Error: Unknown file open flag: ${escapeRegExp(flags)}`)
+      expectedError
     );
   });
 
 assert.throws(
   () => stringToFlags({}),
-  /^Error: Unknown file open flag: \[object Object\]$/
+  expectedError
 );
 
 assert.throws(
   () => stringToFlags(true),
-  /^Error: Unknown file open flag: true$/
+  expectedError
 );
 
 assert.throws(
   () => stringToFlags(null),
-  /^Error: Unknown file open flag: null$/
+  expectedError
 );
-
-function escapeRegExp(string) {
-  return string.replace(/[\\^$*+?.()|[\]{}]/g, '\\$&');
-}

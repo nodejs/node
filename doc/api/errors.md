@@ -686,6 +686,11 @@ communication channel to a child process. See [`child.send()`] and
 Used generically to identify when an invalid or unexpected value has been
 passed in an options object.
 
+<a id="ERR_INVALID_OPT_VALUE_ENCODING"></a>
+### ERR_INVALID_OPT_VALUE_ENCODING
+
+Used when an invalid or unknown file encoding is passed.
+
 <a id="ERR_INVALID_REPL_EVAL_CONFIG"></a>
 ### ERR_INVALID_REPL_EVAL_CONFIG
 
