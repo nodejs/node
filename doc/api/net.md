@@ -40,8 +40,10 @@ added: v0.1.90
 
 * {Error}
 
-Emitted when an error occurs.  The [`'close'`][] event will be called directly
-following this event.  See example in discussion of `server.listen`.
+Emitted when an error occurs. Unlike [`net.Socket`][], the [`'close'`][]
+event will **not** be emitted directly following this event unless
+[`server.close()`][] is manually called. See the example in discussion of
+[`server.listen()`][`server.listen(port, host, backlog, callback)`].
 
 ### Event: 'listening'
 <!-- YAML
@@ -899,6 +901,7 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 [`resume()`]: #net_socket_resume
 [`server.getConnections()`]: #net_server_getconnections_callback
 [`server.listen(port, host, backlog, callback)`]: #net_server_listen_port_hostname_backlog_callback
+[`server.close()`]: #net_server_close_callback
 [`socket.connect(options, connectListener)`]: #net_socket_connect_options_connectlistener
 [`socket.connect`]: #net_socket_connect_options_connectlistener
 [`socket.setTimeout()`]: #net_socket_settimeout_timeout_callback
