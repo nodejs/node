@@ -2277,8 +2277,6 @@ struct node_module* get_linked_module(const char* name) {
   return mp;
 }
 
-typedef void (UV_DYNAMIC* extInit)(Local<Object> exports);
-
 // DLOpen is process.dlopen(module, filename).
 // Used to load 'module.node' dynamically shared objects.
 //
