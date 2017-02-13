@@ -15,9 +15,10 @@ For example, looking up `nodejs.org`.
 ```js
 const dns = require('dns');
 
-dns.lookup('nodejs.org', (err, addresses, family) => {
-  console.log('addresses:', addresses);
+dns.lookup('nodejs.org', (err, address, family) => {
+  console.log('address: %j family: IPv%s', address, family);
 });
+// address: "192.0.43.8" family: IPv4
 ```
 
 2) Functions that connect to an actual DNS server to perform name resolution,
@@ -114,6 +115,25 @@ with addresses, and vice versa. This implementation can have subtle but
 important consequences on the behavior of any Node.js program. Please take some
 time to consult the [Implementation considerations section][] before using
 `dns.lookup()`.
+
+Example usage:
+
+```js
+const dns = require('dns');
+const options = {
+  family: 6,
+  hints: dns.ADDRCONFIG | dns.V4MAPPED,
+};
+dns.lookup('example.com', options, (err, address, family) =>
+  console.log('address: %j family: IPv%s', address, family));
+// address: "2606:2800:220:1:248:1893:25c8:1946" family: IPv6
+
+// When options.all is true, the result will be an Array.
+options.all = true;
+dns.lookup('example.com', options, (err, addresses) =>
+  console.log('addresses: %j', addresses));
+// addresses: [{"address":"2606:2800:220:1:248:1893:25c8:1946","family":6}]
+```
 
 ### Supported getaddrinfo flags
 
