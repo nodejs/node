@@ -224,8 +224,20 @@ assert.doesNotThrow(function() {
   assert.strictEqual(f, 'a:b;q:x%3Ay%3By%3Az');
 }
 
+// empty string
+assert.strictEqual(qs.stringify(), '');
+assert.strictEqual(qs.stringify(0), '');
+assert.strictEqual(qs.stringify([]), '');
+assert.strictEqual(qs.stringify(null), '');
+assert.strictEqual(qs.stringify(true), '');
+
 check(qs.parse(), {});
 
+// empty sep
+check(qs.parse('a', []), { a: '' });
+
+// empty eq
+check(qs.parse('a', null, []), { '': 'a' });
 
 // Test limiting
 assert.strictEqual(
