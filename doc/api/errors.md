@@ -570,6 +570,13 @@ The `'ERR_ARG_NOT_ITERABLE'` error code is used generically to identify that an
 iterable argument (i.e. a value that works with `for...of` loops) is required,
 but not provided to a Node.js API.
 
+<a id="ERR_CONSOLE_WRITABLE_STREAM"></a>
+### ERR_CONSOLE_WRITABLE_STREAM
+
+The `ERR_CONSOLE_WRITABLE_STREAM` error code is thrown when `Console` is
+instantiated without `stdout` stream or when `stdout` or `stderr` streams
+are not writable.
+
 <a id="ERR_INVALID_ARG_TYPE"></a>
 ### ERR_INVALID_ARG_TYPE
 
