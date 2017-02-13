@@ -214,19 +214,6 @@ added: v0.3.2
 The `tls.Server` class is a subclass of `net.Server` that accepts encrypted
 connections using TLS or SSL.
 
-### Event: 'tlsClientError'
-<!-- YAML
-added: v6.0.0
--->
-
-The `'tlsClientError'` event is emitted when an error occurs before a secure
-connection is established. The listener callback is passed two arguments when
-called:
-
-* `exception` {Error} The `Error` object describing the error
-* `tlsSocket` {tls.TLSSocket} The `tls.TLSSocket` instance from which the
-  error originated.
-
 ### Event: 'newSession'
 <!-- YAML
 added: v0.9.2
@@ -352,6 +339,19 @@ When ALPN has no selected protocol, `tlsSocket.alpnProtocol` returns `false`.
 
 The `tlsSocket.servername` property is a string containing the server name
 requested via SNI.
+
+### Event: 'tlsClientError'
+<!-- YAML
+added: v6.0.0
+-->
+
+The `'tlsClientError'` event is emitted when an error occurs before a secure
+connection is established. The listener callback is passed two arguments when
+called:
+
+* `exception` {Error} The `Error` object describing the error
+* `tlsSocket` {tls.TLSSocket} The `tls.TLSSocket` instance from which the
+  error originated.
 
 ### server.addContext(hostname, context)
 <!-- YAML
@@ -535,14 +535,6 @@ underlying socket as reported by the operating system. Returns an
 object with three properties, e.g.,
 `{ port: 12346, family: 'IPv4', address: '127.0.0.1' }`
 
-### tlsSocket.authorized
-<!-- YAML
-added: v0.11.4
--->
-
-Returns `true` if the peer certificate was signed by one of the CAs specified
-when creating the `tls.TLSSocket` instance, otherwise `false`.
-
 ### tlsSocket.authorizationError
 <!-- YAML
 added: v0.11.4
@@ -550,6 +542,14 @@ added: v0.11.4
 
 Returns the reason why the peer's certificate was not been verified. This
 property is set only when `tlsSocket.authorized === false`.
+
+### tlsSocket.authorized
+<!-- YAML
+added: v0.11.4
+-->
+
+Returns `true` if the peer certificate was signed by one of the CAs specified
+when creating the `tls.TLSSocket` instance, otherwise `false`.
 
 ### tlsSocket.encrypted
 <!-- YAML
@@ -745,37 +745,6 @@ and their processing can be delayed due to packet loss or reordering. However,
 smaller fragments add extra TLS framing bytes and CPU overhead, which may
 decrease overall server throughput.
 
-## tls.connect(port[, host][, options][, callback])
-<!-- YAML
-added: v0.11.3
--->
-
-* `port` {number} Default value for `options.port`.
-* `host` {string} Optional default value for `options.host`.
-* `options` {Object} See [`tls.connect()`][].
-* `callback` {Function} See [`tls.connect()`][].
-
-Same as [`tls.connect()`][] except that `port` and `host` can be provided
-as arguments instead of options.
-
-*Note*: A port or host option, if specified, will take precedence over any port
-or host argument.
-
-## tls.connect(path[, options][, callback])
-<!-- YAML
-added: v0.11.3
--->
-
-* `path` {string} Default value for `options.path`.
-* `options` {Object} See [`tls.connect()`][].
-* `callback` {Function} See [`tls.connect()`][].
-
-Same as [`tls.connect()`][] except that `path` can be provided
-as an argument instead of an option.
-
-*Note*: A path option, if specified, will take precedence over the path
-argument.
-
 ## tls.connect(options[, callback])
 <!-- YAML
 added: v0.11.3
@@ -894,6 +863,37 @@ socket.on('end', () => {
   server.close();
 });
 ```
+
+## tls.connect(path[, options][, callback])
+<!-- YAML
+added: v0.11.3
+-->
+
+* `path` {string} Default value for `options.path`.
+* `options` {Object} See [`tls.connect()`][].
+* `callback` {Function} See [`tls.connect()`][].
+
+Same as [`tls.connect()`][] except that `path` can be provided
+as an argument instead of an option.
+
+*Note*: A path option, if specified, will take precedence over the path
+argument.
+
+## tls.connect(port[, host][, options][, callback])
+<!-- YAML
+added: v0.11.3
+-->
+
+* `port` {number} Default value for `options.port`.
+* `host` {string} Optional default value for `options.host`.
+* `options` {Object} See [`tls.connect()`][].
+* `callback` {Function} See [`tls.connect()`][].
+
+Same as [`tls.connect()`][] except that `port` and `host` can be provided
+as arguments instead of options.
+
+*Note*: A port or host option, if specified, will take precedence over any port
+or host argument.
 
 
 ## tls.createSecureContext(options)
