@@ -123,8 +123,7 @@ v8:
 test: all
 	$(MAKE) build-addons
 	$(MAKE) cctest
-	$(PYTHON) tools/test.py --mode=release -J \
-		addons doctool inspector known_issues message pseudo-tty parallel sequential
+	$(PYTHON) tools/test.py --mode=release -J $(CI_JS_SUITES) $(CI_NATIVE_SUITES)
 	$(MAKE) lint
 
 test-parallel: all
@@ -210,7 +209,8 @@ test-all-valgrind: test-build
 	$(PYTHON) tools/test.py --mode=debug,release --valgrind
 
 CI_NATIVE_SUITES := addons
-CI_JS_SUITES := doctool inspector known_issues message parallel pseudo-tty sequential
+CI_JS_SUITES := debugger doctool inspector known_issues message parallel \
+	pseudo-tty sequential
 
 # Build and test addons without building anything else
 test-ci-native: LOGLEVEL := info
