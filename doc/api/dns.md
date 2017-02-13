@@ -288,6 +288,15 @@ Uses the DNS protocol to resolve name server records (`NS` records) for the
 contain an array of name server records available for `hostname`
 (e.g. `['ns1.example.com', 'ns2.example.com']`).
 
+## dns.resolvePtr(hostname, callback)
+<!-- YAML
+added: v6.0.0
+-->
+
+Uses the DNS protocol to resolve pointer records (`PTR` records) for the
+`hostname`. The `addresses` argument passed to the `callback` function will
+be an array of strings containing the reply records.
+
 ## dns.resolveSoa(hostname, callback)
 <!-- YAML
 added: v0.11.10
@@ -339,15 +348,6 @@ be an array of objects with the following properties:
   name: 'service.example.com'
 }
 ```
-
-## dns.resolvePtr(hostname, callback)
-<!-- YAML
-added: v6.0.0
--->
-
-Uses the DNS protocol to resolve pointer records (`PTR` records) for the
-`hostname`. The `addresses` argument passed to the `callback` function will
-be an array of strings containing the reply records.
 
 ## dns.resolveTxt(hostname, callback)
 <!-- YAML

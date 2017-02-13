@@ -164,6 +164,14 @@ added: v0.1.93
 
 `ReadStream` is a [Readable Stream][].
 
+### Event: 'close'
+<!-- YAML
+added: v0.1.93
+-->
+
+Emitted when the `ReadStream`'s underlying file descriptor has been closed
+using the `fs.close()` method.
+
 ### Event: 'open'
 <!-- YAML
 added: v0.1.93
@@ -172,14 +180,6 @@ added: v0.1.93
 * `fd` {Integer} Integer file descriptor used by the ReadStream.
 
 Emitted when the ReadStream's file is opened.
-
-### Event: 'close'
-<!-- YAML
-added: v0.1.93
--->
-
-Emitted when the `ReadStream`'s underlying file descriptor has been closed
-using the `fs.close()` method.
 
 ### readStream.bytesRead
 <!-- YAML
@@ -278,6 +278,14 @@ added: v0.1.93
 
 `WriteStream` is a [Writable Stream][].
 
+### Event: 'close'
+<!-- YAML
+added: v0.1.93
+-->
+
+Emitted when the `WriteStream`'s underlying file descriptor has been closed
+using the `fs.close()` method.
+
 ### Event: 'open'
 <!-- YAML
 added: v0.1.93
@@ -286,14 +294,6 @@ added: v0.1.93
 * `fd` {Integer} Integer file descriptor used by the WriteStream.
 
 Emitted when the WriteStream's file is opened.
-
-### Event: 'close'
-<!-- YAML
-added: v0.1.93
--->
-
-Emitted when the `WriteStream`'s underlying file descriptor has been closed
-using the `fs.close()` method.
 
 ### writeStream.bytesWritten
 <!-- YAML
@@ -1753,10 +1753,10 @@ watching the *original* inode. Events for the new inode will not be emitted.
 This is expected behavior.
 
 In AIX, save and close of a file being watched causes two notifications -
-one for adding new content, and one for truncation. Moreover, save and 
-close operations on some platforms cause inode changes that force watch 
-operations to become invalid and ineffective. AIX retains inode for the 
-lifetime of a file, that way though this is different from Linux / OS X, 
+one for adding new content, and one for truncation. Moreover, save and
+close operations on some platforms cause inode changes that force watch
+operations to become invalid and ineffective. AIX retains inode for the
+lifetime of a file, that way though this is different from Linux / OS X,
 this improves the usability of file watching. This is expected behavior.
 
 #### Filename Argument
