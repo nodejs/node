@@ -383,7 +383,7 @@
                     ['OS in "linux freebsd" and node_shared=="false"', {
                       'ldflags': [
                         '-Wl,--whole-archive,'
-                            '<(PRODUCT_DIR)/obj.target/deps/openssl/'
+                            '<(OBJ_DIR)/deps/openssl/'
                             '<(OPENSSL_PRODUCT)',
                         '-Wl,--no-whole-archive',
                       ],
