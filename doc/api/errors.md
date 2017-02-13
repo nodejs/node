@@ -558,6 +558,14 @@ found [here][online].
   the connected party did not properly respond after a period of time. Usually
   encountered by [`http`][] or [`net`][] -- often a sign that a `socket.end()`
   was not properly called.
+  
+  <a id="ERROR_CODES"></a>
+  ### ERROR CODES
+
+  <a id="ERR_INDEX_OUT_OF_RANGE"></a>
+  ### ERR_INDEX_OUT_OF_RANGE
+
+The `'ERR_INDEX_OUT_OF_RANGE'` error code is used to alert user that index parsed is out of range
 
 
 <a id="nodejs-error-codes"></a>
