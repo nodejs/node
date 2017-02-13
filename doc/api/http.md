@@ -1327,6 +1327,18 @@ Calls `message.connection.setTimeout(msecs, callback)`.
 
 Returns `message`.
 
+### message.socket
+<!-- YAML
+added: v0.3.0
+-->
+
+* {net.Socket}
+
+The [`net.Socket`][] object associated with the connection.
+
+With HTTPS support, use [`request.socket.getPeerCertificate()`][] to obtain the
+client's authentication details.
+
 ### message.statusCode
 <!-- YAML
 added: v0.1.1
@@ -1348,18 +1360,6 @@ added: v0.11.10
 **Only valid for response obtained from [`http.ClientRequest`][].**
 
 The HTTP response status message (reason phrase). E.G. `OK` or `Internal Server Error`.
-
-### message.socket
-<!-- YAML
-added: v0.3.0
--->
-
-* {net.Socket}
-
-The [`net.Socket`][] object associated with the connection.
-
-With HTTPS support, use [`request.socket.getPeerCertificate()`][] to obtain the
-client's authentication details.
 
 ### message.trailers
 <!-- YAML

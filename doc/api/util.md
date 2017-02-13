@@ -361,6 +361,14 @@ util.inspect(obj);
 // Returns: "{ bar: 'baz' }"
 ```
 
+### util.inspect.custom
+<!-- YAML
+added: v6.6.0
+-->
+
+A Symbol that can be used to declare custom inspect functions, see
+[Custom inspection functions on Objects][].
+
 ### util.inspect.defaultOptions
 <!-- YAML
 added: v6.4.0
@@ -381,18 +389,24 @@ util.inspect.defaultOptions.maxArrayLength = null;
 console.log(arr); // logs the full array
 ```
 
-### util.inspect.custom
-<!-- YAML
-added: v6.6.0
--->
-
-A Symbol that can be used to declare custom inspect functions, see
-[Custom inspection functions on Objects][].
-
 ## Deprecated APIs
 
 The following APIs have been deprecated and should no longer be used. Existing
 applications and modules should be updated to find alternative approaches.
+
+### util.\_extend(target, source)
+<!-- YAML
+added: v0.7.5
+deprecated: v6.0.0
+-->
+
+> Stability: 0 - Deprecated: Use [`Object.assign()`] instead.
+
+The `util._extend()` method was never intended to be used outside of internal
+Node.js modules. The community found and used it anyway.
+
+It is deprecated and should not be used in new code. JavaScript comes with very
+similar built-in functionality through [`Object.assign()`].
 
 ### util.debug(string)
 <!-- YAML
@@ -846,20 +860,6 @@ deprecated: v0.11.3
 > Stability: 0 - Deprecated: Use [`console.log()`][] instead.
 
 Deprecated predecessor of `console.log`.
-
-### util.\_extend(target, source)
-<!-- YAML
-added: v0.7.5
-deprecated: v6.0.0
--->
-
-> Stability: 0 - Deprecated: Use [`Object.assign()`] instead.
-
-The `util._extend()` method was never intended to be used outside of internal
-Node.js modules. The community found and used it anyway.
-
-It is deprecated and should not be used in new code. JavaScript comes with very
-similar built-in functionality through [`Object.assign()`].
 
 [`Array.isArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray
 [constructor]: https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/Object/constructor

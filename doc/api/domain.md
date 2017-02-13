@@ -269,42 +269,6 @@ uncaught exceptions to the active Domain object.
 Domain is a child class of [`EventEmitter`][].  To handle the errors that it
 catches, listen to its `'error'` event.
 
-### domain.run(fn[, ...args])
-
-* `fn` {Function}
-* `...args` {any}
-
-Run the supplied function in the context of the domain, implicitly
-binding all event emitters, timers, and lowlevel requests that are
-created in that context. Optionally, arguments can be passed to
-the function.
-
-This is the most basic way to use a domain.
-
-Example:
-
-```js
-const domain = require('domain');
-const fs = require('fs');
-const d = domain.create();
-d.on('error', (er) => {
-  console.error('Caught error!', er);
-});
-d.run(() => {
-  process.nextTick(() => {
-    setTimeout(() => { // simulating some various async stuff
-      fs.open('non-existent file', 'r', (er, fd) => {
-        if (er) throw er;
-        // proceed...
-      });
-    }, 100);
-  });
-});
-```
-
-In this example, the `d.on('error')` handler will be triggered, rather
-than crashing the program.
-
 ### domain.members
 
 * {Array}
@@ -327,13 +291,6 @@ the domain 'error' handler.
 
 If the Timer or EventEmitter was already bound to a domain, it is removed
 from that one, and bound to this one instead.
-
-### domain.remove(emitter)
-
-* `emitter` {EventEmitter|Timer} emitter or timer to be removed from the domain
-
-The opposite of [`domain.add(emitter)`][].  Removes domain handling from the
-specified emitter.
 
 ### domain.bind(callback)
 
@@ -362,6 +319,49 @@ d.on('error', (er) => {
   // with the normal line number and stack message.
 });
 ```
+
+### domain.dispose()
+
+> Stability: 0 - Deprecated.  Please recover from failed IO actions
+> explicitly via error event handlers set on the domain.
+
+Once `dispose` has been called, the domain will no longer be used by callbacks
+bound into the domain via `run`, `bind`, or `intercept`, and a `'dispose'` event
+is emitted.
+
+### domain.enter()
+
+The `enter` method is plumbing used by the `run`, `bind`, and `intercept`
+methods to set the active domain. It sets `domain.active` and `process.domain`
+to the domain, and implicitly pushes the domain onto the domain stack managed
+by the domain module (see [`domain.exit()`][] for details on the domain stack). The
+call to `enter` delimits the beginning of a chain of asynchronous calls and I/O
+operations bound to a domain.
+
+Calling `enter` changes only the active domain, and does not alter the domain
+itself. `enter` and `exit` can be called an arbitrary number of times on a
+single domain.
+
+If the domain on which `enter` is called has been disposed, `enter` will return
+without setting the domain.
+
+### domain.exit()
+
+The `exit` method exits the current domain, popping it off the domain stack.
+Any time execution is going to switch to the context of a different chain of
+asynchronous calls, it's important to ensure that the current domain is exited.
+The call to `exit` delimits either the end of or an interruption to the chain
+of asynchronous calls and I/O operations bound to a domain.
+
+If there are multiple, nested domains bound to the current execution context,
+`exit` will exit any domains nested within this domain.
+
+Calling `exit` changes only the active domain, and does not alter the domain
+itself. `enter` and `exit` can be called an arbitrary number of times on a
+single domain.
+
+If the domain on which `exit` is called has been disposed, `exit` will return
+without exiting the domain.
 
 ### domain.intercept(callback)
 
@@ -401,48 +401,48 @@ d.on('error', (er) => {
 });
 ```
 
-### domain.enter()
+### domain.remove(emitter)
 
-The `enter` method is plumbing used by the `run`, `bind`, and `intercept`
-methods to set the active domain. It sets `domain.active` and `process.domain`
-to the domain, and implicitly pushes the domain onto the domain stack managed
-by the domain module (see [`domain.exit()`][] for details on the domain stack). The
-call to `enter` delimits the beginning of a chain of asynchronous calls and I/O
-operations bound to a domain.
+* `emitter` {EventEmitter|Timer} emitter or timer to be removed from the domain
 
-Calling `enter` changes only the active domain, and does not alter the domain
-itself. `enter` and `exit` can be called an arbitrary number of times on a
-single domain.
+The opposite of [`domain.add(emitter)`][].  Removes domain handling from the
+specified emitter.
 
-If the domain on which `enter` is called has been disposed, `enter` will return
-without setting the domain.
+### domain.run(fn[, ...args])
 
-### domain.exit()
+* `fn` {Function}
+* `...args` {any}
 
-The `exit` method exits the current domain, popping it off the domain stack.
-Any time execution is going to switch to the context of a different chain of
-asynchronous calls, it's important to ensure that the current domain is exited.
-The call to `exit` delimits either the end of or an interruption to the chain
-of asynchronous calls and I/O operations bound to a domain.
+Run the supplied function in the context of the domain, implicitly
+binding all event emitters, timers, and lowlevel requests that are
+created in that context. Optionally, arguments can be passed to
+the function.
 
-If there are multiple, nested domains bound to the current execution context,
-`exit` will exit any domains nested within this domain.
+This is the most basic way to use a domain.
 
-Calling `exit` changes only the active domain, and does not alter the domain
-itself. `enter` and `exit` can be called an arbitrary number of times on a
-single domain.
+Example:
 
-If the domain on which `exit` is called has been disposed, `exit` will return
-without exiting the domain.
+```js
+const domain = require('domain');
+const fs = require('fs');
+const d = domain.create();
+d.on('error', (er) => {
+  console.error('Caught error!', er);
+});
+d.run(() => {
+  process.nextTick(() => {
+    setTimeout(() => { // simulating some various async stuff
+      fs.open('non-existent file', 'r', (er, fd) => {
+        if (er) throw er;
+        // proceed...
+      });
+    }, 100);
+  });
+});
+```
 
-### domain.dispose()
-
-> Stability: 0 - Deprecated.  Please recover from failed IO actions
-> explicitly via error event handlers set on the domain.
-
-Once `dispose` has been called, the domain will no longer be used by callbacks
-bound into the domain via `run`, `bind`, or `intercept`, and a `'dispose'` event
-is emitted.
+In this example, the `d.on('error')` handler will be triggered, rather
+than crashing the program.
 
 [`domain.add(emitter)`]: #domain_domain_add_emitter
 [`domain.bind(callback)`]: #domain_domain_bind_callback
