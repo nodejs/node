@@ -34,32 +34,6 @@ illustrate each.
 (all spaces in the "" line should be ignored -- they are purely for formatting)
 ```
 
-### urlObject.href
-
-The `href` property is the full URL string that was parsed with both the
-`protocol` and `host` components converted to lower-case.
-
-For example: `'http://user:pass@host.com:8080/p/a/t/h?query=string#hash'`
-
-### urlObject.protocol
-
-The `protocol` property identifies the URL's lower-cased protocol scheme.
-
-For example: `'http:'`
-
-### urlObject.slashes
-
-The `slashes` property is a `boolean` with a value of `true` if two ASCII
-forward-slash characters (`/`) are required following the colon in the
-`protocol`.
-
-### urlObject.host
-
-The `host` property is the full lower-cased host portion of the URL, including
-the `port` if specified.
-
-For example: `'host.com:8080'`
-
 ### urlObject.auth
 
 The `auth` property is the username and password portion of the URL, also
@@ -70,6 +44,20 @@ with the `[:{password}]` portion being optional.
 
 For example: `'user:pass'`
 
+### urlObject.hash
+
+The `hash` property consists of the "fragment" portion of the URL including
+the leading ASCII hash (`#`) character.
+
+For example: `'#hash'`
+
+### urlObject.host
+
+The `host` property is the full lower-cased host portion of the URL, including
+the `port` if specified.
+
+For example: `'host.com:8080'`
+
 ### urlObject.hostname
 
 The `hostname` property is the lower-cased host name portion of the `host`
@@ -77,11 +65,21 @@ component *without* the `port` included.
 
 For example: `'host.com'`
 
-### urlObject.port
+### urlObject.href
 
-The `port` property is the numeric port portion of the `host` component.
+The `href` property is the full URL string that was parsed with both the
+`protocol` and `host` components converted to lower-case.
 
-For example: `'8080'`
+For example: `'http://user:pass@host.com:8080/p/a/t/h?query=string#hash'`
+
+### urlObject.path
+
+The `path` property is a concatenation of the `pathname` and `search`
+components.
+
+For example: `'/p/a/t/h?query=string'`
+
+No decoding of the `path` is performed.
 
 ### urlObject.pathname
 
@@ -94,23 +92,17 @@ For example `'/p/a/t/h'`
 
 No decoding of the path string is performed.
 
-### urlObject.search
+### urlObject.port
 
-The `search` property consists of the entire "query string" portion of the
-URL, including the leading ASCII question mark (`?`) character.
+The `port` property is the numeric port portion of the `host` component.
 
-For example: `'?query=string'`
+For example: `'8080'`
 
-No decoding of the query string is performed.
+### urlObject.protocol
 
-### urlObject.path
+The `protocol` property identifies the URL's lower-cased protocol scheme.
 
-The `path` property is a concatenation of the `pathname` and `search`
-components.
-
-For example: `'/p/a/t/h?query=string'`
-
-No decoding of the `path` is performed.
+For example: `'http:'`
 
 ### urlObject.query
 
@@ -124,12 +116,20 @@ For example: `'query=string'` or `{'query': 'string'}`
 If returned as a string, no decoding of the query string is performed. If
 returned as an object, both keys and values are decoded.
 
-### urlObject.hash
+### urlObject.search
 
-The `hash` property consists of the "fragment" portion of the URL including
-the leading ASCII hash (`#`) character.
+The `search` property consists of the entire "query string" portion of the
+URL, including the leading ASCII question mark (`?`) character.
 
-For example: `'#hash'`
+For example: `'?query=string'`
+
+No decoding of the query string is performed.
+
+### urlObject.slashes
+
+The `slashes` property is a `boolean` with a value of `true` if two ASCII
+forward-slash characters (`/`) are required following the colon in the
+`protocol`.
 
 ## url.format(urlObject)
 <!-- YAML

@@ -313,32 +313,6 @@ Example:
 const buf = new Buffer([0x62, 0x75, 0x66, 0x66, 0x65, 0x72]);
 ```
 
-### new Buffer(buffer)
-<!-- YAML
-deprecated: v6.0.0
--->
-
-> Stability: 0 - Deprecated: Use [`Buffer.from(buffer)`] instead.
-
-* `buffer` {Buffer} An existing `Buffer` to copy data from
-
-Copies the passed `buffer` data onto a new `Buffer` instance.
-
-Example:
-
-```js
-const buf1 = new Buffer('buffer');
-const buf2 = new Buffer(buf1);
-
-buf1[0] = 0x61;
-
-// Prints: auffer
-console.log(buf1.toString());
-
-// Prints: buffer
-console.log(buf2.toString());
-```
-
 ### new Buffer(arrayBuffer[, byteOffset [, length]])
 <!-- YAML
 deprecated: v6.0.0
@@ -381,6 +355,32 @@ arr[1] = 6000;
 
 // Prints: <Buffer 88 13 70 17>
 console.log(buf);
+```
+
+### new Buffer(buffer)
+<!-- YAML
+deprecated: v6.0.0
+-->
+
+> Stability: 0 - Deprecated: Use [`Buffer.from(buffer)`] instead.
+
+* `buffer` {Buffer} An existing `Buffer` to copy data from
+
+Copies the passed `buffer` data onto a new `Buffer` instance.
+
+Example:
+
+```js
+const buf1 = new Buffer('buffer');
+const buf2 = new Buffer(buf1);
+
+buf1[0] = 0x61;
+
+// Prints: auffer
+console.log(buf1.toString());
+
+// Prints: buffer
+console.log(buf2.toString());
 ```
 
 ### new Buffer(size)
@@ -1113,6 +1113,47 @@ Example: Fill a `Buffer` with a two-byte character
 console.log(Buffer.allocUnsafe(3).fill('\u0222'));
 ```
 
+### buf.includes(value[, byteOffset][, encoding])
+<!-- YAML
+added: v5.3.0
+-->
+
+* `value` {String | Buffer | Integer} What to search for
+* `byteOffset` {Integer} Where to begin searching in `buf`. **Default:** `0`
+* `encoding` {String} If `value` is a string, this is its encoding.
+  **Default:** `'utf8'`
+* Returns: {Boolean} `true` if `value` was found in `buf`, `false` otherwise
+
+Equivalent to [`buf.indexOf() !== -1`][`buf.indexOf()`].
+
+Examples:
+
+```js
+const buf = Buffer.from('this is a buffer');
+
+// Prints: true
+console.log(buf.includes('this'));
+
+// Prints: true
+console.log(buf.includes('is'));
+
+// Prints: true
+console.log(buf.includes(Buffer.from('a buffer')));
+
+// Prints: true
+// (97 is the decimal ASCII value for 'a')
+console.log(buf.includes(97));
+
+// Prints: false
+console.log(buf.includes(Buffer.from('a buffer example')));
+
+// Prints: true
+console.log(buf.includes(Buffer.from('a buffer example').slice(0, 8)));
+
+// Prints: false
+console.log(buf.includes('this', 4));
+```
+
 ### buf.indexOf(value[, byteOffset][, encoding])
 <!-- YAML
 added: v1.5.0
@@ -1190,47 +1231,6 @@ console.log(b.indexOf('b', undefined));
 console.log(b.indexOf('b', {}));
 console.log(b.indexOf('b', null));
 console.log(b.indexOf('b', []));
-```
-
-### buf.includes(value[, byteOffset][, encoding])
-<!-- YAML
-added: v5.3.0
--->
-
-* `value` {String | Buffer | Integer} What to search for
-* `byteOffset` {Integer} Where to begin searching in `buf`. **Default:** `0`
-* `encoding` {String} If `value` is a string, this is its encoding.
-  **Default:** `'utf8'`
-* Returns: {Boolean} `true` if `value` was found in `buf`, `false` otherwise
-
-Equivalent to [`buf.indexOf() !== -1`][`buf.indexOf()`].
-
-Examples:
-
-```js
-const buf = Buffer.from('this is a buffer');
-
-// Prints: true
-console.log(buf.includes('this'));
-
-// Prints: true
-console.log(buf.includes('is'));
-
-// Prints: true
-console.log(buf.includes(Buffer.from('a buffer')));
-
-// Prints: true
-// (97 is the decimal ASCII value for 'a')
-console.log(buf.includes(97));
-
-// Prints: false
-console.log(buf.includes(Buffer.from('a buffer example')));
-
-// Prints: true
-console.log(buf.includes(Buffer.from('a buffer example').slice(0, 8)));
-
-// Prints: false
-console.log(buf.includes('this', 4));
 ```
 
 ### buf.keys()
@@ -1878,6 +1878,35 @@ buf2.swap64();
 Note that JavaScript cannot encode 64-bit integers. This method is intended
 for working with 64-bit floats.
 
+### buf.toJSON()
+<!-- YAML
+added: v0.9.2
+-->
+
+* Returns: {Object}
+
+Returns a JSON representation of `buf`. [`JSON.stringify()`] implicitly calls
+this function when stringifying a `Buffer` instance.
+
+Example:
+
+```js
+const buf = Buffer.from([0x1, 0x2, 0x3, 0x4, 0x5]);
+const json = JSON.stringify(buf);
+
+// Prints: {"type":"Buffer","data":[1,2,3,4,5]}
+console.log(json);
+
+const copy = JSON.parse(json, (key, value) => {
+  return value && value.type === 'Buffer'
+    ? Buffer.from(value.data)
+    : value;
+});
+
+// Prints: <Buffer 01 02 03 04 05>
+console.log(copy);
+```
+
 ### buf.toString([encoding[, start[, end]]])
 <!-- YAML
 added: v0.1.90
@@ -1919,35 +1948,6 @@ console.log(buf2.toString('utf8', 0, 3));
 
 // Prints: té
 console.log(buf2.toString(undefined, 0, 3));
-```
-
-### buf.toJSON()
-<!-- YAML
-added: v0.9.2
--->
-
-* Returns: {Object}
-
-Returns a JSON representation of `buf`. [`JSON.stringify()`] implicitly calls
-this function when stringifying a `Buffer` instance.
-
-Example:
-
-```js
-const buf = Buffer.from([0x1, 0x2, 0x3, 0x4, 0x5]);
-const json = JSON.stringify(buf);
-
-// Prints: {"type":"Buffer","data":[1,2,3,4,5]}
-console.log(json);
-
-const copy = JSON.parse(json, (key, value) => {
-  return value && value.type === 'Buffer'
-    ? Buffer.from(value.data)
-    : value;
-});
-
-// Prints: <Buffer 01 02 03 04 05>
-console.log(copy);
 ```
 
 ### buf.values()
