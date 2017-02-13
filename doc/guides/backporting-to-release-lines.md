@@ -78,6 +78,10 @@ hint: and commit the result with 'git commit'
   in the master branch.
 * Push the changes to your fork and open a pull request.
 * Be sure to target the `v7.x-staging` branch in the pull request.
+* When landing a backport commit, please include the PR-URL from the original
+  pull request and add `Backport: <backport PR-URL>` to the commit metadata.
+  The `Backport` line should be directly after the `PR-URL` line in the
+  metadata.
 
 ### Helpful Hints
 
