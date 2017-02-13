@@ -1110,7 +1110,7 @@ const addon = require('./build/Release/addon');
 
 [bindings]: https://github.com/TooTallNate/node-bindings
 [download]: https://github.com/nodejs/node-addon-examples
-[Embedder's Guide]: https://developers.google.com/v8/embed
+[Embedder's Guide]: https://github.com/v8/v8/wiki/Embedder's%20Guide
 [examples]: https://github.com/nodejs/nan/tree/master/examples/
 [installation instructions]: https://github.com/nodejs/node-gyp#installation
 [libuv]: https://github.com/libuv/libuv
