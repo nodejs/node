@@ -40,24 +40,17 @@ assert.strictEqual(
     inspect(SIMD.Int8x16()),
     'Int8x16 [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ]');
 
-// The SIMD types below are not available in v5.
-if (typeof SIMD.Uint16x8 === 'function') {
-  assert.strictEqual(
-      inspect(SIMD.Uint16x8()),
-      'Uint16x8 [ 0, 0, 0, 0, 0, 0, 0, 0 ]');
-}
+assert.strictEqual(
+    inspect(SIMD.Uint16x8()),
+    'Uint16x8 [ 0, 0, 0, 0, 0, 0, 0, 0 ]');
 
-if (typeof SIMD.Uint32x4 === 'function') {
-  assert.strictEqual(
-      inspect(SIMD.Uint32x4()),
-      'Uint32x4 [ 0, 0, 0, 0 ]');
-}
+assert.strictEqual(
+    inspect(SIMD.Uint32x4()),
+    'Uint32x4 [ 0, 0, 0, 0 ]');
 
-if (typeof SIMD.Uint8x16 === 'function') {
-  assert.strictEqual(
-      inspect(SIMD.Uint8x16()),
-      'Uint8x16 [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ]');
-}
+assert.strictEqual(
+    inspect(SIMD.Uint8x16()),
+    'Uint8x16 [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ]');
 
 // Tests from test-inspect.js that should not fail with --harmony_simd.
 assert.strictEqual(inspect([]), '[]');
