@@ -15,8 +15,8 @@ For example, looking up `iana.org`.
 ```js
 const dns = require('dns');
 
-dns.lookup('iana.org', (err, addresses, family) => {
-  console.log('addresses:', addresses);
+dns.lookup('iana.org', (err, address, family) => {
+  console.log('address:', address);
 });
 ```
 
