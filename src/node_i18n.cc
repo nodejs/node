@@ -70,8 +70,6 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
-bool flag_icu_data_dir = false;
-
 namespace i18n {
 
 const size_t kStorageSize = 1024;
@@ -404,12 +402,8 @@ static void GetVersion(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-bool InitializeICUDirectory(const char* icu_data_path) {
-  if (icu_data_path != nullptr) {
-    flag_icu_data_dir = true;
-    u_setDataDirectory(icu_data_path);
-    return true;  // no error
-  } else {
+bool InitializeICUDirectory(const std::string& path) {
+  if (path.empty()) {
     UErrorCode status = U_ZERO_ERROR;
 #ifdef NODE_HAVE_SMALL_ICU
     // install the 'small' data.
@@ -418,6 +412,9 @@ bool InitializeICUDirectory(const char* icu_data_path) {
     // no small data, so nothing to do.
 #endif  // !NODE_HAVE_SMALL_ICU
     return (status == U_ZERO_ERROR);
+  } else {
+    u_setDataDirectory(path.c_str());
+    return true;  // No error.
   }
 }
 
