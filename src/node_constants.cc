@@ -1,3 +1,6 @@
+// Copyright Node.js contributors. All rights reserved.
+// SPDX-License-Identifier: MIT
+
 #include "node_constants.h"
 #include "env.h"
 #include "env-inl.h"

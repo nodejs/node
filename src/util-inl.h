@@ -1,3 +1,6 @@
+// Copyright Node.js contributors. All rights reserved.
+// SPDX-License-Identifier: MITSE
+
 #ifndef SRC_UTIL_INL_H_
 #define SRC_UTIL_INL_H_
 

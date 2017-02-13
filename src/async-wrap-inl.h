@@ -1,3 +1,6 @@
+// Copyright Node.js contributors. All rights reserved.
+// SPDX-License-Identifier: MIT
+
 #ifndef SRC_ASYNC_WRAP_INL_H_
 #define SRC_ASYNC_WRAP_INL_H_
 

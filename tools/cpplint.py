@@ -264,8 +264,7 @@ _LEGACY_ERROR_CATEGORIES = [
 _DEFAULT_FILTERS = [
     '-build/include',
     '-build/include_alpha',
-    '-build/include_order',
-    '-legal/copyright',
+    '-build/include_order'
     ]
 
 # The default list of categories suppressed for C (not C++) files.
@@ -1692,12 +1691,20 @@ def CheckForCopyright(filename, lines, error):
   # We'll say it should occur by line 10. Don't forget there's a
   # dummy line at the front.
   for line in xrange(1, min(len(lines), 11)):
-    if re.search(r'Copyright', lines[line], re.I): break
+    if (re.search(r'Copyright node.js contributors. All rights reserved.',
+                  lines[line], re.I) or
+        re.search(r'Copyright', lines[line], re.I)): break
   else:                       # means no copyright line was found
     error(filename, 0, 'legal/copyright', 5,
           'No copyright message found.  '
-          'You should have a line: "Copyright [year] <Copyright Owner>"')
-
+          'You should have a line: "Copyright Node.js contributors. '
+          'All rights reserved."')
+  for line in xrange(1, min(len(lines), 11)):
+    if re.search(r'SPDX-License-Identifier: MIT', lines[line], re.I): break
+  else:
+    error(filename, 0, 'legal/copyright', 5,
+          'No SPDX license identifier found.  '
+          'You should have a line: "SPDX-License-Identifier: MIT"')
 
 def GetIndentLevel(line):
   """Return the number of leading spaces in line.

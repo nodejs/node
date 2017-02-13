@@ -1,3 +1,6 @@
+// Copyright Node.js contributors. All rights reserved.
+// SPDX-License-Identifier: MITE
+
 #include "tcp_wrap.h"
 
 #include "connection_wrap.h"

@@ -1,3 +1,6 @@
+// Copyright Node.js contributors. All rights reserved.
+// SPDX-License-Identifier: MIT
+
 #ifndef SRC_SPAWN_SYNC_H_
 #define SRC_SPAWN_SYNC_H_
 

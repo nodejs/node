@@ -1,3 +1,6 @@
+// Copyright Node.js contributors. All rights reserved.
+// SPDX-License-Identifier: MIT
+
 #include "node_crypto_clienthello.h"
 #include "node_crypto_clienthello-inl.h"
 #include "node_buffer.h"  // Buffer

@@ -1,3 +1,6 @@
+// Copyright Node.js contributors. All rights reserved.
+// SPDX-License-Identifier: MIT
+
 #define __INIT_node_perfctr_provider_IMP
 #include "node_counters.h"
 #include "node_win32_perfctr_provider.h"

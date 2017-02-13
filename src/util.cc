@@ -1,3 +1,6 @@
+// Copyright Node.js contributors. All rights reserved.
+// SPDX-License-Identifier: MIT
+
 #include "util.h"
 #include "string_bytes.h"
 #include "node_buffer.h"

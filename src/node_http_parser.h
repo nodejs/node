@@ -1,3 +1,6 @@
+// Copyright Node.js contributors. All rights reserved.
+// SPDX-License-Identifier: MIT
+
 #ifndef SRC_NODE_HTTP_PARSER_H_
 #define SRC_NODE_HTTP_PARSER_H_
 

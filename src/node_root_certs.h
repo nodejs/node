@@ -1,3 +1,6 @@
+// Copyright Node.js contributors. All rights reserved.
+// SPDX-License-Identifier: MIT
+
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 /* GlobalSign Root CA */

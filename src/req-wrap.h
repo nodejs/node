@@ -1,3 +1,6 @@
+// Copyright Node.js contributors. All rights reserved.
+// SPDX-License-Identifier: MIT
+
 #ifndef SRC_REQ_WRAP_H_
 #define SRC_REQ_WRAP_H_
 
