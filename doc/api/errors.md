@@ -563,6 +563,15 @@ found [here][online].
   encountered by [`http`][] or [`net`][] -- often a sign that a `socket.end()`
   was not properly called.
 
+<a id="nodejs-error-codes"></a>
+## Node.js Error Codes
+ 
+<a id="ERR_INVALID_ARG_TYPE"></a>
+### ERR_INVALID_ARG_TYPE
+ 
+The `'ERR_INVALID_ARG_TYPE'` error code is used generically to identify that
+an argument of the wrong type has been passed to a Node.js API.
+
 [`fs.readdir`]: fs.html#fs_fs_readdir_path_options_callback
 [`fs.readFileSync`]: fs.html#fs_fs_readfilesync_file_options
 [`fs.unlink`]: fs.html#fs_fs_unlink_path_callback
