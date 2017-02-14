@@ -562,7 +562,6 @@ found [here][online].
 <a id="nodejs-error-codes"></a>
 ## Node.js Error Codes
 
-<<<<<<< HEAD
 <a id="ERR_ARG_NOT_ITERABLE"></a>
 ### ERR_ARG_NOT_ITERABLE
 
@@ -776,8 +775,12 @@ internal bug within the Node.js binary itself.
 
 <a id="ERR_UNK_ENCODING"></a>
 ### ERR_UNK_ENCODING
+=======
+<a id="ERR_UNKNOWN_ENCODING"></a>
+### ERR_UNKNOWN_ENCODING
+>>>>>>> doc: fix typos and make the error code more verbose
 
-The `'ERR_UNK_ENCODING'` error code is used when an invalid or unknown
+The `'ERR_UNKNOWN_ENCODING'` error code is used when an invalid or unknown
 file encoding is passed.
 
 <a id="ERR_UNKNOWN_SIGNAL"></a>
