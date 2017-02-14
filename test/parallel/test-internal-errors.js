@@ -107,10 +107,10 @@ assert.throws(() => {
   assert.throws(() => {
     throw new errors.TypeError('TEST_ERROR_1', 'a');
   }, common.expectsError('TEST_ERROR_1', RangeError));
-}, /^AssertionError: error is not the expected type/);
+}, /^AssertionError: .+ is not the expected type \S/);
 
 assert.throws(() => {
   assert.throws(() => {
     throw new errors.TypeError('TEST_ERROR_1', 'a');
   }, common.expectsError('TEST_ERROR_1', TypeError, /^Error for testing 2/));
-}, /^AssertionError: error.message does not match/);
+}, /AssertionError: .+ does not match \S/);
