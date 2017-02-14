@@ -3,7 +3,7 @@
 const common = require('../common');
 
 // FIXME add sunos support
-if (!(common.isFreeBSD || common.isOSX || common.isLinux)) {
+if (common.isSunOS) {
   console.log(`1..0 # Skipped: Unsupported platform [${process.platform}]`);
   return;
 }
@@ -20,6 +20,10 @@ let title = 'testme';
 assert.notStrictEqual(process.title, title);
 process.title = title;
 assert.strictEqual(process.title, title);
+
+// Test setting the title but do not try to run `ps` on Windows.
+if (common.isWindows)
+  return;
 
 exec(`ps -p ${process.pid} -o args=`, function callback(error, stdout, stderr) {
   assert.ifError(error);
