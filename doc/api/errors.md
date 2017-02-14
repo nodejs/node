@@ -562,6 +562,7 @@ found [here][online].
 <a id="nodejs-error-codes"></a>
 ## Node.js Error Codes
 
+<<<<<<< HEAD
 <a id="ERR_ARG_NOT_ITERABLE"></a>
 ### ERR_ARG_NOT_ITERABLE
 
@@ -773,6 +774,12 @@ Used to identify a specific kind of internal Node.js error that should not
 typically be triggered by user code. Instances of this error point to an
 internal bug within the Node.js binary itself.
 
+<a id="ERR_UNK_ENCODING"></a>
+### ERR_UNK_ENCODING
+
+The `'ERR_UNK_ENCODING'` error code is used when an invalid or unknown
+file encoding is passed.
+
 <a id="ERR_UNKNOWN_SIGNAL"></a>
 ### ERR_UNKNOWN_SIGNAL
 
@@ -799,6 +806,7 @@ are most likely an indication of a bug within Node.js itself.
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
 [`child.kill()`]: child_process.html#child_process_child_kill_signal
 [`child.send()`]: child_process.html#child_process_child_send_message_sendhandle_options_callback
+[`fs.readdir`]: fs.html#fs_fs_readdir_path_options_callback
 [`fs.readFileSync`]: fs.html#fs_fs_readfilesync_file_options
 [`fs.readdir`]: fs.html#fs_fs_readdir_path_options_callback
 [`fs.unlink`]: fs.html#fs_fs_unlink_path_callback
@@ -817,6 +825,7 @@ are most likely an indication of a bug within Node.js itself.
 [domains]: domain.html
 [event emitter-based]: events.html#events_class_eventemitter
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
+[Node.js Error Codes]: #nodejs-error-codes
 [online]: http://man7.org/linux/man-pages/man3/errno.3.html
 [stream-based]: stream.html
 [syscall]: http://man7.org/linux/man-pages/man2/syscall.2.html
