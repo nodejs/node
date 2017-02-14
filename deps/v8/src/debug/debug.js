@@ -858,16 +858,6 @@ Debug.debuggerFlags = function() {
   return debugger_flags;
 };
 
-Debug.getWasmFunctionOffsetTable = function(scriptId) {
-  var script = scriptById(scriptId);
-  return script ? %GetWasmFunctionOffsetTable(script) : UNDEFINED;
-}
-
-Debug.disassembleWasmFunction = function(scriptId) {
-  var script = scriptById(scriptId);
-  return script ? %DisassembleWasmFunction(script) : UNDEFINED;
-}
-
 Debug.MakeMirror = MakeMirror;
 
 function MakeExecutionState(break_id) {
@@ -1142,15 +1132,15 @@ function MakeScriptObject_(script, include_source) {
 }
 
 
-function MakeAsyncTaskEvent(event_data) {
-  return new AsyncTaskEvent(event_data);
+function MakeAsyncTaskEvent(type, id, name) {
+  return new AsyncTaskEvent(type, id, name);
 }
 
 
-function AsyncTaskEvent(event_data) {
-  this.type_ = event_data.type;
-  this.name_ = event_data.name;
-  this.id_ = event_data.id;
+function AsyncTaskEvent(type, id, name) {
+  this.type_ = type;
+  this.id_ = id;
+  this.name_ = name;
 }
 
 
@@ -2196,6 +2186,7 @@ DebugCommandProcessor.prototype.suspendRequest_ = function(request, response) {
 };
 
 
+// TODO(5510): remove this.
 DebugCommandProcessor.prototype.versionRequest_ = function(request, response) {
   response.body = {
     V8Version: %GetV8Version()

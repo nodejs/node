@@ -125,7 +125,7 @@ Node* IntrinsicsHelper::IsInstanceType(Node* input, int type) {
   InterpreterAssembler::Label if_not_smi(assembler_), return_true(assembler_),
       return_false(assembler_), end(assembler_);
   Node* arg = __ LoadRegister(input);
-  __ GotoIf(__ WordIsSmi(arg), &return_false);
+  __ GotoIf(__ TaggedIsSmi(arg), &return_false);
 
   Node* condition = CompareInstanceType(arg, type, kInstanceTypeEqual);
   __ Branch(condition, &return_true, &return_false);
@@ -154,7 +154,7 @@ Node* IntrinsicsHelper::IsJSReceiver(Node* input, Node* arg_count,
       end(assembler_);
 
   Node* arg = __ LoadRegister(input);
-  __ GotoIf(__ WordIsSmi(arg), &return_false);
+  __ GotoIf(__ TaggedIsSmi(arg), &return_false);
 
   STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
   Node* condition = CompareInstanceType(arg, FIRST_JS_RECEIVER_TYPE,
@@ -202,7 +202,7 @@ Node* IntrinsicsHelper::IsSmi(Node* input, Node* arg_count, Node* context) {
 
   Node* arg = __ LoadRegister(input);
 
-  __ Branch(__ WordIsSmi(arg), &if_smi, &if_not_smi);
+  __ Branch(__ TaggedIsSmi(arg), &if_smi, &if_not_smi);
   __ Bind(&if_smi);
   {
     return_value.Bind(__ BooleanConstant(true));
@@ -247,12 +247,6 @@ Node* IntrinsicsHelper::NumberToString(Node* input, Node* arg_count,
                                        Node* context) {
   return IntrinsicAsStubCall(input, context,
                              CodeFactory::NumberToString(isolate()));
-}
-
-Node* IntrinsicsHelper::RegExpConstructResult(Node* input, Node* arg_count,
-                                              Node* context) {
-  return IntrinsicAsStubCall(input, context,
-                             CodeFactory::RegExpConstructResult(isolate()));
 }
 
 Node* IntrinsicsHelper::RegExpExec(Node* input, Node* arg_count,
@@ -321,7 +315,7 @@ Node* IntrinsicsHelper::ValueOf(Node* args_reg, Node* arg_count,
   return_value.Bind(object);
 
   // If the object is a smi return the object.
-  __ GotoIf(__ WordIsSmi(object), &done);
+  __ GotoIf(__ TaggedIsSmi(object), &done);
 
   // If the object is not a value type, return the object.
   Node* condition =
@@ -346,7 +340,7 @@ Node* IntrinsicsHelper::ClassOf(Node* args_reg, Node* arg_count,
   Node* object = __ LoadRegister(args_reg);
 
   // If the object is not a JSReceiver, we return null.
-  __ GotoIf(__ WordIsSmi(object), &null);
+  __ GotoIf(__ TaggedIsSmi(object), &null);
   STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
   Node* is_js_receiver = CompareInstanceType(object, FIRST_JS_RECEIVER_TYPE,
                                              kInstanceTypeGreaterThanOrEqual);

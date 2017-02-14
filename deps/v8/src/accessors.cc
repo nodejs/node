@@ -19,13 +19,9 @@
 namespace v8 {
 namespace internal {
 
-
 Handle<AccessorInfo> Accessors::MakeAccessor(
-    Isolate* isolate,
-    Handle<Name> name,
-    AccessorNameGetterCallback getter,
-    AccessorNameSetterCallback setter,
-    PropertyAttributes attributes) {
+    Isolate* isolate, Handle<Name> name, AccessorNameGetterCallback getter,
+    AccessorNameBooleanSetterCallback setter, PropertyAttributes attributes) {
   Factory* factory = isolate->factory();
   Handle<AccessorInfo> info = factory->NewAccessorInfo();
   info->set_property_attributes(attributes);
@@ -33,6 +29,7 @@ Handle<AccessorInfo> Accessors::MakeAccessor(
   info->set_all_can_write(false);
   info->set_is_special_data_property(true);
   info->set_is_sloppy(false);
+  info->set_replace_on_access(false);
   name = factory->InternalizeName(name);
   info->set_name(*name);
   Handle<Object> get = v8::FromCData(isolate, getter);
@@ -106,7 +103,7 @@ MUST_USE_RESULT MaybeHandle<Object> ReplaceAccessorWithDataProperty(
 
 void Accessors::ReconfigureToDataProperty(
     v8::Local<v8::Name> key, v8::Local<v8::Value> val,
-    const v8::PropertyCallbackInfo<void>& info) {
+    const v8::PropertyCallbackInfo<v8::Boolean>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
   Handle<Object> receiver = Utils::OpenHandle(*info.This());
@@ -116,7 +113,11 @@ void Accessors::ReconfigureToDataProperty(
   Handle<Object> value = Utils::OpenHandle(*val);
   MaybeHandle<Object> result =
       ReplaceAccessorWithDataProperty(isolate, receiver, holder, name, value);
-  if (result.is_null()) isolate->OptionalRescheduleException(false);
+  if (result.is_null()) {
+    isolate->OptionalRescheduleException(false);
+  } else {
+    info.GetReturnValue().Set(true);
+  }
 }
 
 //
@@ -151,6 +152,8 @@ void Accessors::ArrayLengthGetter(
     v8::Local<v8::Name> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  RuntimeCallTimerScope timer(
+      isolate, &RuntimeCallStats::AccessorNameGetterCallback_ArrayLength);
   DisallowHeapAllocation no_allocation;
   HandleScope scope(isolate);
   JSArray* holder = JSArray::cast(*Utils::OpenHandle(*info.Holder()));
@@ -158,11 +161,9 @@ void Accessors::ArrayLengthGetter(
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(result, isolate)));
 }
 
-
 void Accessors::ArrayLengthSetter(
-    v8::Local<v8::Name> name,
-    v8::Local<v8::Value> val,
-    const v8::PropertyCallbackInfo<void>& info) {
+    v8::Local<v8::Name> name, v8::Local<v8::Value> val,
+    const v8::PropertyCallbackInfo<v8::Boolean>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
 
@@ -178,17 +179,21 @@ void Accessors::ArrayLengthSetter(
 
   JSArray::SetLength(array, length);
 
-  if (info.ShouldThrowOnError()) {
-    uint32_t actual_new_len = 0;
-    CHECK(array->length()->ToArrayLength(&actual_new_len));
-    // Throw TypeError if there were non-deletable elements.
-    if (actual_new_len != length) {
+  uint32_t actual_new_len = 0;
+  CHECK(array->length()->ToArrayLength(&actual_new_len));
+  // Fail if there were non-deletable elements.
+  if (actual_new_len != length) {
+    if (info.ShouldThrowOnError()) {
       Factory* factory = isolate->factory();
       isolate->Throw(*factory->NewTypeError(
           MessageTemplate::kStrictDeleteProperty,
           factory->NewNumberFromUint(actual_new_len - 1), array));
       isolate->OptionalRescheduleException(false);
+    } else {
+      info.GetReturnValue().Set(false);
     }
+  } else {
+    info.GetReturnValue().Set(true);
   }
 }
 
@@ -202,6 +207,50 @@ Handle<AccessorInfo> Accessors::ArrayLengthInfo(
                       attributes);
 }
 
+//
+// Accessors::ModuleNamespaceEntry
+//
+
+void Accessors::ModuleNamespaceEntryGetter(
+    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  JSModuleNamespace* holder =
+      JSModuleNamespace::cast(*Utils::OpenHandle(*info.Holder()));
+  Handle<Object> result;
+  if (!holder->GetExport(Handle<String>::cast(Utils::OpenHandle(*name)))
+           .ToHandle(&result)) {
+    isolate->OptionalRescheduleException(false);
+  } else {
+    info.GetReturnValue().Set(Utils::ToLocal(result));
+  }
+}
+
+void Accessors::ModuleNamespaceEntrySetter(
+    v8::Local<v8::Name> name, v8::Local<v8::Value> val,
+    const v8::PropertyCallbackInfo<v8::Boolean>& info) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  HandleScope scope(isolate);
+  Factory* factory = isolate->factory();
+  Handle<JSModuleNamespace> holder =
+      Handle<JSModuleNamespace>::cast(Utils::OpenHandle(*info.Holder()));
+
+  if (info.ShouldThrowOnError()) {
+    isolate->Throw(*factory->NewTypeError(
+        MessageTemplate::kStrictReadOnlyProperty, Utils::OpenHandle(*name),
+        i::Object::TypeOf(isolate, holder), holder));
+    isolate->OptionalRescheduleException(false);
+  } else {
+    info.GetReturnValue().Set(false);
+  }
+}
+
+Handle<AccessorInfo> Accessors::ModuleNamespaceEntryInfo(
+    Isolate* isolate, Handle<String> name, PropertyAttributes attributes) {
+  return MakeAccessor(isolate, name, &ModuleNamespaceEntryGetter,
+                      &ModuleNamespaceEntrySetter, attributes);
+}
+
 
 //
 // Accessors::StringLength
@@ -211,6 +260,8 @@ void Accessors::StringLengthGetter(
     v8::Local<v8::Name> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  RuntimeCallTimerScope timer(
+      isolate, &RuntimeCallStats::AccessorNameGetterCallback_StringLength);
   DisallowHeapAllocation no_allocation;
   HandleScope scope(isolate);
 
@@ -413,40 +464,6 @@ Handle<AccessorInfo> Accessors::ScriptCompilationTypeInfo(
   Handle<String> name(isolate->factory()->InternalizeOneByteString(
       STATIC_CHAR_VECTOR("compilation_type")));
   return MakeAccessor(isolate, name, &ScriptCompilationTypeGetter, nullptr,
-                      attributes);
-}
-
-
-//
-// Accessors::ScriptGetLineEnds
-//
-
-
-void Accessors::ScriptLineEndsGetter(
-    v8::Local<v8::Name> name,
-    const v8::PropertyCallbackInfo<v8::Value>& info) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
-  HandleScope scope(isolate);
-  Handle<Object> object = Utils::OpenHandle(*info.Holder());
-  Handle<Script> script(
-      Script::cast(Handle<JSValue>::cast(object)->value()), isolate);
-  Script::InitLineEnds(script);
-  DCHECK(script->line_ends()->IsFixedArray());
-  Handle<FixedArray> line_ends(FixedArray::cast(script->line_ends()));
-  // We do not want anyone to modify this array from JS.
-  DCHECK(*line_ends == isolate->heap()->empty_fixed_array() ||
-         line_ends->map() == isolate->heap()->fixed_cow_array_map());
-  Handle<JSArray> js_array =
-      isolate->factory()->NewJSArrayWithElements(line_ends);
-  info.GetReturnValue().Set(Utils::ToLocal(js_array));
-}
-
-
-Handle<AccessorInfo> Accessors::ScriptLineEndsInfo(
-      Isolate* isolate, PropertyAttributes attributes) {
-  Handle<String> name(isolate->factory()->InternalizeOneByteString(
-      STATIC_CHAR_VECTOR("line_ends")));
-  return MakeAccessor(isolate, name, &ScriptLineEndsGetter, nullptr,
                       attributes);
 }
 
@@ -691,6 +708,8 @@ void Accessors::FunctionPrototypeGetter(
     v8::Local<v8::Name> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  RuntimeCallTimerScope timer(
+      isolate, &RuntimeCallStats::AccessorNameGetterCallback_FunctionPrototype);
   HandleScope scope(isolate);
   Handle<JSFunction> function =
       Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
@@ -698,11 +717,9 @@ void Accessors::FunctionPrototypeGetter(
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
-
 void Accessors::FunctionPrototypeSetter(
-    v8::Local<v8::Name> name,
-    v8::Local<v8::Value> val,
-    const v8::PropertyCallbackInfo<void>& info) {
+    v8::Local<v8::Name> name, v8::Local<v8::Value> val,
+    const v8::PropertyCallbackInfo<v8::Boolean>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
   Handle<Object> value = Utils::OpenHandle(*val);
@@ -710,6 +727,8 @@ void Accessors::FunctionPrototypeSetter(
       Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
   if (SetFunctionPrototype(isolate, object, value).is_null()) {
     isolate->OptionalRescheduleException(false);
+  } else {
+    info.GetReturnValue().Set(true);
   }
 }
 
@@ -738,7 +757,7 @@ void Accessors::FunctionLengthGetter(
       Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
   Handle<Object> result;
   if (!JSFunction::GetLength(isolate, function).ToHandle(&result)) {
-    result = handle(Smi::FromInt(0), isolate);
+    result = handle(Smi::kZero, isolate);
     isolate->OptionalRescheduleException(false);
   }
 
@@ -1064,6 +1083,9 @@ Handle<AccessorInfo> Accessors::FunctionCallerInfo(
 void Accessors::BoundFunctionLengthGetter(
     v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  RuntimeCallTimerScope timer(
+      isolate,
+      &RuntimeCallStats::AccessorNameGetterCallback_BoundFunctionLength);
   HandleScope scope(isolate);
   Handle<JSBoundFunction> function =
       Handle<JSBoundFunction>::cast(Utils::OpenHandle(*info.Holder()));
@@ -1072,7 +1094,7 @@ void Accessors::BoundFunctionLengthGetter(
   Handle<JSFunction> target(JSFunction::cast(function->bound_target_function()),
                             isolate);
   if (!JSFunction::GetLength(isolate, target).ToHandle(&target_length)) {
-    target_length = handle(Smi::FromInt(0), isolate);
+    target_length = handle(Smi::kZero, isolate);
     isolate->OptionalRescheduleException(false);
     return;
   }
@@ -1098,6 +1120,8 @@ Handle<AccessorInfo> Accessors::BoundFunctionLengthInfo(
 void Accessors::BoundFunctionNameGetter(
     v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+  RuntimeCallTimerScope timer(
+      isolate, &RuntimeCallStats::AccessorNameGetterCallback_BoundFunctionName);
   HandleScope scope(isolate);
   Handle<JSBoundFunction> function =
       Handle<JSBoundFunction>::cast(Utils::OpenHandle(*info.Holder()));
@@ -1207,9 +1231,9 @@ void Accessors::ErrorStackGetter(
   info.GetReturnValue().Set(value);
 }
 
-void Accessors::ErrorStackSetter(v8::Local<v8::Name> name,
-                                 v8::Local<v8::Value> val,
-                                 const v8::PropertyCallbackInfo<void>& info) {
+void Accessors::ErrorStackSetter(
+    v8::Local<v8::Name> name, v8::Local<v8::Value> val,
+    const v8::PropertyCallbackInfo<v8::Boolean>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
   Handle<JSObject> obj =

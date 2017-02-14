@@ -9,7 +9,7 @@
 
 #include <algorithm>
 #include <fstream>
-#include <map>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -33,6 +33,10 @@
 #include "src/snapshot/natives.h"
 #include "src/utils.h"
 #include "src/v8.h"
+
+#ifdef V8_INSPECTOR_ENABLED
+#include "include/v8-inspector.h"
+#endif  // V8_INSPECTOR_ENABLED
 
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <unistd.h>  // NOLINT
@@ -149,7 +153,6 @@ class PredictablePlatform : public Platform {
 
 v8::Platform* g_platform = NULL;
 
-
 static Local<Value> Throw(Isolate* isolate, const char* message) {
   return isolate->ThrowException(
       String::NewFromUtf8(isolate, message, NewStringType::kNormal)
@@ -196,11 +199,9 @@ const char kRecordContinuously[] = "record-continuously";
 const char kRecordAsMuchAsPossible[] = "record-as-much-as-possible";
 
 const char kRecordModeParam[] = "record_mode";
-const char kEnableSamplingParam[] = "enable_sampling";
 const char kEnableSystraceParam[] = "enable_systrace";
 const char kEnableArgumentFilterParam[] = "enable_argument_filter";
 const char kIncludedCategoriesParam[] = "included_categories";
-const char kExcludedCategoriesParam[] = "excluded_categories";
 
 class TraceConfigParser {
  public:
@@ -221,10 +222,6 @@ class TraceConfigParser {
     trace_config->SetTraceRecordMode(
         GetTraceRecordMode(isolate, context, trace_config_object));
     if (GetBoolean(isolate, context, trace_config_object,
-                   kEnableSamplingParam)) {
-      trace_config->EnableSampling();
-    }
-    if (GetBoolean(isolate, context, trace_config_object,
                    kEnableSystraceParam)) {
       trace_config->EnableSystrace();
     }
@@ -232,10 +229,8 @@ class TraceConfigParser {
                    kEnableArgumentFilterParam)) {
       trace_config->EnableArgumentFilter();
     }
-    UpdateCategoriesList(isolate, context, trace_config_object,
-                         kIncludedCategoriesParam, trace_config);
-    UpdateCategoriesList(isolate, context, trace_config_object,
-                         kExcludedCategoriesParam, trace_config);
+    UpdateIncludedCategoriesList(isolate, context, trace_config_object,
+                                 trace_config);
   }
 
  private:
@@ -249,10 +244,11 @@ class TraceConfigParser {
     return false;
   }
 
-  static int UpdateCategoriesList(
+  static int UpdateIncludedCategoriesList(
       v8::Isolate* isolate, Local<Context> context, Local<v8::Object> object,
-      const char* property, platform::tracing::TraceConfig* trace_config) {
-    Local<Value> value = GetValue(isolate, context, object, property);
+      platform::tracing::TraceConfig* trace_config) {
+    Local<Value> value =
+        GetValue(isolate, context, object, kIncludedCategoriesParam);
     if (value->IsArray()) {
       Local<Array> v8_array = Local<Array>::Cast(value);
       for (int i = 0, length = v8_array->Length(); i < length; ++i) {
@@ -261,11 +257,7 @@ class TraceConfigParser {
                              ->ToString(context)
                              .ToLocalChecked();
         String::Utf8Value str(v->ToString(context).ToLocalChecked());
-        if (kIncludedCategoriesParam == property) {
-          trace_config->AddIncludedCategory(*str);
-        } else {
-          trace_config->AddExcludedCategory(*str);
-        }
+        trace_config->AddIncludedCategory(*str);
       }
       return v8_array->Length();
     }
@@ -553,34 +545,94 @@ std::string DirName(const std::string& path) {
   return path.substr(0, last_slash);
 }
 
-std::string EnsureAbsolutePath(const std::string& path,
-                               const std::string& dir_name) {
-  return IsAbsolutePath(path) ? path : dir_name + '/' + path;
+// Resolves path to an absolute path if necessary, and does some
+// normalization (eliding references to the current directory
+// and replacing backslashes with slashes).
+std::string NormalizePath(const std::string& path,
+                          const std::string& dir_name) {
+  std::string result;
+  if (IsAbsolutePath(path)) {
+    result = path;
+  } else {
+    result = dir_name + '/' + path;
+  }
+  std::replace(result.begin(), result.end(), '\\', '/');
+  size_t i;
+  while ((i = result.find("/./")) != std::string::npos) {
+    result.erase(i, 2);
+  }
+  return result;
+}
+
+// Per-context Module data, allowing sharing of module maps
+// across top-level module loads.
+class ModuleEmbedderData {
+ private:
+  class ModuleGlobalHash {
+   public:
+    explicit ModuleGlobalHash(Isolate* isolate) : isolate_(isolate) {}
+    size_t operator()(const Global<Module>& module) const {
+      return module.Get(isolate_)->GetIdentityHash();
+    }
+
+   private:
+    Isolate* isolate_;
+  };
+
+ public:
+  explicit ModuleEmbedderData(Isolate* isolate)
+      : module_to_directory_map(10, ModuleGlobalHash(isolate)) {}
+
+  // Map from normalized module specifier to Module.
+  std::unordered_map<std::string, Global<Module>> specifier_to_module_map;
+  // Map from Module to the directory that Module was loaded from.
+  std::unordered_map<Global<Module>, std::string, ModuleGlobalHash>
+      module_to_directory_map;
+};
+
+enum {
+  // The debugger reserves the first slot in the Context embedder data.
+  kDebugIdIndex = Context::kDebugIdIndex,
+  kModuleEmbedderDataIndex,
+  kInspectorClientIndex
+};
+
+void InitializeModuleEmbedderData(Local<Context> context) {
+  context->SetAlignedPointerInEmbedderData(
+      kModuleEmbedderDataIndex, new ModuleEmbedderData(context->GetIsolate()));
+}
+
+ModuleEmbedderData* GetModuleDataFromContext(Local<Context> context) {
+  return static_cast<ModuleEmbedderData*>(
+      context->GetAlignedPointerFromEmbedderData(kModuleEmbedderDataIndex));
+}
+
+void DisposeModuleEmbedderData(Local<Context> context) {
+  delete GetModuleDataFromContext(context);
+  context->SetAlignedPointerInEmbedderData(kModuleEmbedderDataIndex, nullptr);
 }
 
 MaybeLocal<Module> ResolveModuleCallback(Local<Context> context,
                                          Local<String> specifier,
-                                         Local<Module> referrer,
-                                         Local<Value> data) {
+                                         Local<Module> referrer) {
   Isolate* isolate = context->GetIsolate();
-  auto module_map = static_cast<std::map<std::string, Global<Module>>*>(
-      External::Cast(*data)->Value());
-  Local<String> dir_name = Local<String>::Cast(referrer->GetEmbedderData());
+  ModuleEmbedderData* d = GetModuleDataFromContext(context);
+  auto dir_name_it =
+      d->module_to_directory_map.find(Global<Module>(isolate, referrer));
+  CHECK(dir_name_it != d->module_to_directory_map.end());
   std::string absolute_path =
-      EnsureAbsolutePath(ToSTLString(specifier), ToSTLString(dir_name));
-  auto it = module_map->find(absolute_path);
-  if (it != module_map->end()) {
-    return it->second.Get(isolate);
-  }
-  return MaybeLocal<Module>();
+      NormalizePath(ToSTLString(specifier), dir_name_it->second);
+  auto module_it = d->specifier_to_module_map.find(absolute_path);
+  CHECK(module_it != d->specifier_to_module_map.end());
+  return module_it->second.Get(isolate);
 }
 
 }  // anonymous namespace
 
-MaybeLocal<Module> Shell::FetchModuleTree(
-    Isolate* isolate, const std::string& file_name,
-    std::map<std::string, Global<Module>>* module_map) {
+MaybeLocal<Module> Shell::FetchModuleTree(Local<Context> context,
+                                          const std::string& file_name) {
   DCHECK(IsAbsolutePath(file_name));
+  Isolate* isolate = context->GetIsolate();
   TryCatch try_catch(isolate);
   try_catch.SetVerbose(true);
   Local<String> source_text = ReadFile(isolate, file_name.c_str());
@@ -597,19 +649,22 @@ MaybeLocal<Module> Shell::FetchModuleTree(
     ReportException(isolate, &try_catch);
     return MaybeLocal<Module>();
   }
-  module_map->insert(
-      std::make_pair(file_name, Global<Module>(isolate, module)));
+
+  ModuleEmbedderData* d = GetModuleDataFromContext(context);
+  CHECK(d->specifier_to_module_map
+            .insert(std::make_pair(file_name, Global<Module>(isolate, module)))
+            .second);
 
   std::string dir_name = DirName(file_name);
-  module->SetEmbedderData(
-      String::NewFromUtf8(isolate, dir_name.c_str(), NewStringType::kNormal)
-          .ToLocalChecked());
+  CHECK(d->module_to_directory_map
+            .insert(std::make_pair(Global<Module>(isolate, module), dir_name))
+            .second);
 
   for (int i = 0, length = module->GetModuleRequestsLength(); i < length; ++i) {
     Local<String> name = module->GetModuleRequest(i);
-    std::string absolute_path = EnsureAbsolutePath(ToSTLString(name), dir_name);
-    if (!module_map->count(absolute_path)) {
-      if (FetchModuleTree(isolate, absolute_path, module_map).IsEmpty()) {
+    std::string absolute_path = NormalizePath(ToSTLString(name), dir_name);
+    if (!d->specifier_to_module_map.count(absolute_path)) {
+      if (FetchModuleTree(context, absolute_path).IsEmpty()) {
         return MaybeLocal<Module>();
       }
     }
@@ -621,14 +676,14 @@ MaybeLocal<Module> Shell::FetchModuleTree(
 bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
   HandleScope handle_scope(isolate);
 
-  std::string absolute_path =
-      EnsureAbsolutePath(file_name, GetWorkingDirectory());
-  std::replace(absolute_path.begin(), absolute_path.end(), '\\', '/');
+  PerIsolateData* data = PerIsolateData::Get(isolate);
+  Local<Context> realm = data->realms_[data->realm_current_].Get(isolate);
+  Context::Scope context_scope(realm);
+
+  std::string absolute_path = NormalizePath(file_name, GetWorkingDirectory());
 
   Local<Module> root_module;
-  std::map<std::string, Global<Module>> module_map;
-  if (!FetchModuleTree(isolate, absolute_path, &module_map)
-           .ToLocal(&root_module)) {
+  if (!FetchModuleTree(realm, absolute_path).ToLocal(&root_module)) {
     return false;
   }
 
@@ -636,16 +691,9 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
   try_catch.SetVerbose(true);
 
   MaybeLocal<Value> maybe_result;
-  {
-    PerIsolateData* data = PerIsolateData::Get(isolate);
-    Local<Context> realm = data->realms_[data->realm_current_].Get(isolate);
-    Context::Scope context_scope(realm);
-
-    if (root_module->Instantiate(realm, ResolveModuleCallback,
-                                 External::New(isolate, &module_map))) {
-      maybe_result = root_module->Evaluate(realm);
-      EmptyMessageQueues(isolate);
-    }
+  if (root_module->Instantiate(realm, ResolveModuleCallback)) {
+    maybe_result = root_module->Evaluate(realm);
+    EmptyMessageQueues(isolate);
   }
   Local<Value> result;
   if (!maybe_result.ToLocal(&result)) {
@@ -670,9 +718,15 @@ PerIsolateData::RealmScope::RealmScope(PerIsolateData* data) : data_(data) {
 
 PerIsolateData::RealmScope::~RealmScope() {
   // Drop realms to avoid keeping them alive.
-  for (int i = 0; i < data_->realm_count_; ++i)
-    data_->realms_[i].Reset();
+  for (int i = 0; i < data_->realm_count_; ++i) {
+    Global<Context>& realm = data_->realms_[i];
+    if (realm.IsEmpty()) continue;
+    DisposeModuleEmbedderData(realm.Get(data_->isolate_));
+    // TODO(adamk): No need to reset manually, Globals reset when destructed.
+    realm.Reset();
+  }
   delete[] data_->realms_;
+  // TODO(adamk): No need to reset manually, Globals reset when destructed.
   if (!data_->realm_shared_.IsEmpty())
     data_->realm_shared_.Reset();
 }
@@ -775,6 +829,7 @@ MaybeLocal<Context> Shell::CreateRealm(
     try_catch.ReThrow();
     return MaybeLocal<Context>();
   }
+  InitializeModuleEmbedderData(context);
   data->realms_[index].Reset(isolate, context);
   args.GetReturnValue().Set(index);
   return context;
@@ -808,6 +863,7 @@ void Shell::RealmDispose(const v8::FunctionCallbackInfo<v8::Value>& args) {
     Throw(args.GetIsolate(), "Invalid realm index");
     return;
   }
+  DisposeModuleEmbedderData(data->realms_[index].Get(isolate));
   data->realms_[index].Reset();
   isolate->ContextDisposedNotification();
   isolate->IdleNotificationDeadline(g_platform->MonotonicallyIncreasingTime());
@@ -870,19 +926,11 @@ void Shell::RealmSharedSet(Local<String> property,
   data->realm_shared_.Reset(isolate, value);
 }
 
-
-void Shell::Print(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  Write(args);
-  printf("\n");
-  fflush(stdout);
-}
-
-
-void Shell::Write(const v8::FunctionCallbackInfo<v8::Value>& args) {
+void WriteToFile(FILE* file, const v8::FunctionCallbackInfo<v8::Value>& args) {
   for (int i = 0; i < args.Length(); i++) {
     HandleScope handle_scope(args.GetIsolate());
     if (i != 0) {
-      printf(" ");
+      fprintf(file, " ");
     }
 
     // Explicitly catch potential exceptions in toString().
@@ -900,14 +948,32 @@ void Shell::Write(const v8::FunctionCallbackInfo<v8::Value>& args) {
     }
 
     v8::String::Utf8Value str(str_obj);
-    int n = static_cast<int>(fwrite(*str, sizeof(**str), str.length(), stdout));
+    int n = static_cast<int>(fwrite(*str, sizeof(**str), str.length(), file));
     if (n != str.length()) {
       printf("Error in fwrite\n");
-      Exit(1);
+      Shell::Exit(1);
     }
   }
 }
 
+void WriteAndFlush(FILE* file,
+                   const v8::FunctionCallbackInfo<v8::Value>& args) {
+  WriteToFile(file, args);
+  fprintf(file, "\n");
+  fflush(file);
+}
+
+void Shell::Print(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  WriteAndFlush(stdout, args);
+}
+
+void Shell::PrintErr(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  WriteAndFlush(stderr, args);
+}
+
+void Shell::Write(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  WriteToFile(stdout, args);
+}
 
 void Shell::Read(const v8::FunctionCallbackInfo<v8::Value>& args) {
   String::Utf8Value file(args[0]);
@@ -1324,6 +1390,10 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
           .ToLocalChecked(),
       FunctionTemplate::New(isolate, Print));
   global_template->Set(
+      String::NewFromUtf8(isolate, "printErr", NewStringType::kNormal)
+          .ToLocalChecked(),
+      FunctionTemplate::New(isolate, PrintErr));
+  global_template->Set(
       String::NewFromUtf8(isolate, "write", NewStringType::kNormal)
           .ToLocalChecked(),
       FunctionTemplate::New(isolate, Write));
@@ -1476,6 +1546,7 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
   EscapableHandleScope handle_scope(isolate);
   Local<Context> context = Context::New(isolate, NULL, global_template);
   DCHECK(!context.IsEmpty());
+  InitializeModuleEmbedderData(context);
   Context::Scope scope(context);
 
   i::Factory* factory = reinterpret_cast<i::Isolate*>(isolate)->factory();
@@ -1497,16 +1568,6 @@ Local<Context> Shell::CreateEvaluationContext(Isolate* isolate) {
       .FromJust();
   return handle_scope.Escape(context);
 }
-
-
-void Shell::Exit(int exit_code) {
-  // Use _exit instead of exit to avoid races between isolate
-  // threads and static destructors.
-  fflush(stdout);
-  fflush(stderr);
-  _exit(exit_code);
-}
-
 
 struct CounterAndKey {
   Counter* counter;
@@ -1700,6 +1761,128 @@ void Shell::RunShell(Isolate* isolate) {
   printf("\n");
 }
 
+#ifdef V8_INSPECTOR_ENABLED
+class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
+ public:
+  explicit InspectorFrontend(Local<Context> context) {
+    isolate_ = context->GetIsolate();
+    context_.Reset(isolate_, context);
+  }
+  virtual ~InspectorFrontend() = default;
+
+ private:
+  void sendProtocolResponse(int callId,
+                            const v8_inspector::StringView& message) override {
+    Send(message);
+  }
+  void sendProtocolNotification(
+      const v8_inspector::StringView& message) override {
+    Send(message);
+  }
+  void flushProtocolNotifications() override {}
+
+  void Send(const v8_inspector::StringView& string) {
+    int length = static_cast<int>(string.length());
+    DCHECK(length < v8::String::kMaxLength);
+    Local<String> message =
+        (string.is8Bit()
+             ? v8::String::NewFromOneByte(
+                   isolate_,
+                   reinterpret_cast<const uint8_t*>(string.characters8()),
+                   v8::NewStringType::kNormal, length)
+             : v8::String::NewFromTwoByte(
+                   isolate_,
+                   reinterpret_cast<const uint16_t*>(string.characters16()),
+                   v8::NewStringType::kNormal, length))
+            .ToLocalChecked();
+    Local<String> callback_name =
+        v8::String::NewFromUtf8(isolate_, "receive", v8::NewStringType::kNormal)
+            .ToLocalChecked();
+    Local<Context> context = context_.Get(isolate_);
+    Local<Value> callback =
+        context->Global()->Get(context, callback_name).ToLocalChecked();
+    if (callback->IsFunction()) {
+      v8::TryCatch try_catch(isolate_);
+      Local<Value> args[] = {message};
+      MaybeLocal<Value> result = Local<Function>::Cast(callback)->Call(
+          context, Undefined(isolate_), 1, args);
+      CHECK(!result.IsEmpty());  // Listeners may not throw.
+    }
+  }
+
+  Isolate* isolate_;
+  Global<Context> context_;
+};
+
+class InspectorClient : public v8_inspector::V8InspectorClient {
+ public:
+  InspectorClient(Local<Context> context, bool connect) {
+    if (!connect) return;
+    isolate_ = context->GetIsolate();
+    channel_.reset(new InspectorFrontend(context));
+    inspector_ = v8_inspector::V8Inspector::create(isolate_, this);
+    session_ =
+        inspector_->connect(1, channel_.get(), v8_inspector::StringView());
+    context->SetAlignedPointerInEmbedderData(kInspectorClientIndex, this);
+    inspector_->contextCreated(v8_inspector::V8ContextInfo(
+        context, kContextGroupId, v8_inspector::StringView()));
+
+    Local<Value> function =
+        FunctionTemplate::New(isolate_, SendInspectorMessage)
+            ->GetFunction(context)
+            .ToLocalChecked();
+    Local<String> function_name =
+        String::NewFromUtf8(isolate_, "send", NewStringType::kNormal)
+            .ToLocalChecked();
+    CHECK(context->Global()->Set(context, function_name, function).FromJust());
+
+    context_.Reset(isolate_, context);
+  }
+
+ private:
+  static v8_inspector::V8InspectorSession* GetSession(Local<Context> context) {
+    InspectorClient* inspector_client = static_cast<InspectorClient*>(
+        context->GetAlignedPointerFromEmbedderData(kInspectorClientIndex));
+    return inspector_client->session_.get();
+  }
+
+  Local<Context> ensureDefaultContextInGroup(int group_id) override {
+    DCHECK(isolate_);
+    DCHECK_EQ(kContextGroupId, group_id);
+    return context_.Get(isolate_);
+  }
+
+  static void SendInspectorMessage(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    Isolate* isolate = args.GetIsolate();
+    v8::HandleScope handle_scope(isolate);
+    Local<Context> context = isolate->GetCurrentContext();
+    args.GetReturnValue().Set(Undefined(isolate));
+    Local<String> message = args[0]->ToString(context).ToLocalChecked();
+    v8_inspector::V8InspectorSession* session =
+        InspectorClient::GetSession(context);
+    int length = message->Length();
+    std::unique_ptr<uint16_t[]> buffer(new uint16_t[length]);
+    message->Write(buffer.get(), 0, length);
+    v8_inspector::StringView message_view(buffer.get(), length);
+    session->dispatchProtocolMessage(message_view);
+    args.GetReturnValue().Set(True(isolate));
+  }
+
+  static const int kContextGroupId = 1;
+
+  std::unique_ptr<v8_inspector::V8Inspector> inspector_;
+  std::unique_ptr<v8_inspector::V8InspectorSession> session_;
+  std::unique_ptr<v8_inspector::V8Inspector::Channel> channel_;
+  Global<Context> context_;
+  Isolate* isolate_;
+};
+#else   // V8_INSPECTOR_ENABLED
+class InspectorClient {
+ public:
+  InspectorClient(Local<Context> context, bool connect) { CHECK(!connect); }
+};
+#endif  // V8_INSPECTOR_ENABLED
 
 SourceGroup::~SourceGroup() {
   delete thread_;
@@ -1783,7 +1966,6 @@ base::Thread::Options SourceGroup::GetThreadOptions() {
   return base::Thread::Options("IsolateThread", 2 * MB);
 }
 
-
 void SourceGroup::ExecuteInThread() {
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
@@ -1798,9 +1980,12 @@ void SourceGroup::ExecuteInThread() {
         Local<Context> context = Shell::CreateEvaluationContext(isolate);
         {
           Context::Scope cscope(context);
+          InspectorClient inspector_client(context,
+                                           Shell::options.enable_inspector);
           PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
           Execute(isolate);
         }
+        DisposeModuleEmbedderData(context);
       }
       Shell::CollectGarbage(isolate);
     }
@@ -2060,6 +2245,7 @@ void Worker::ExecuteInThread() {
           }
         }
       }
+      DisposeModuleEmbedderData(context);
     }
     Shell::CollectGarbage(isolate);
   }
@@ -2191,6 +2377,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strncmp(argv[i], "--trace-config=", 15) == 0) {
       options.trace_config = argv[i] + 15;
       argv[i] = NULL;
+    } else if (strcmp(argv[i], "--enable-inspector") == 0) {
+      options.enable_inspector = true;
+      argv[i] = NULL;
     }
   }
 
@@ -2240,9 +2429,11 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
     }
     {
       Context::Scope cscope(context);
+      InspectorClient inspector_client(context, options.enable_inspector);
       PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
       options.isolate_sources[0].Execute(isolate);
     }
+    DisposeModuleEmbedderData(context);
   }
   CollectGarbage(isolate);
   for (int i = 1; i < options.num_isolates; ++i) {
@@ -2620,6 +2811,20 @@ int Shell::Main(int argc, char* argv[]) {
                    ? new PredictablePlatform()
                    : v8::platform::CreateDefaultPlatform();
 
+  platform::tracing::TracingController* tracing_controller;
+  if (options.trace_enabled) {
+    trace_file.open("v8_trace.json");
+    tracing_controller = new platform::tracing::TracingController();
+    platform::tracing::TraceBuffer* trace_buffer =
+        platform::tracing::TraceBuffer::CreateTraceBufferRingBuffer(
+            platform::tracing::TraceBuffer::kRingBufferChunks,
+            platform::tracing::TraceWriter::CreateJSONTraceWriter(trace_file));
+    tracing_controller->Initialize(trace_buffer);
+    if (!i::FLAG_verify_predictable) {
+      platform::SetTracingController(g_platform, tracing_controller);
+    }
+  }
+
   v8::V8::InitializePlatform(g_platform);
   v8::V8::Initialize();
   if (options.natives_blob || options.snapshot_blob) {
@@ -2649,11 +2854,12 @@ int Shell::Main(int argc, char* argv[]) {
       base::SysInfo::AmountOfVirtualMemory());
 
   Shell::counter_map_ = new CounterMap();
-  if (i::FLAG_dump_counters || i::FLAG_track_gc_object_stats) {
+  if (i::FLAG_dump_counters || i::FLAG_gc_stats) {
     create_params.counter_lookup_callback = LookupCounter;
     create_params.create_histogram_callback = CreateHistogram;
     create_params.add_histogram_sample_callback = AddHistogramSample;
   }
+
   Isolate* isolate = Isolate::New(create_params);
   {
     Isolate::Scope scope(isolate);
@@ -2661,14 +2867,6 @@ int Shell::Main(int argc, char* argv[]) {
     PerIsolateData data(isolate);
 
     if (options.trace_enabled) {
-      trace_file.open("v8_trace.json");
-      platform::tracing::TracingController* tracing_controller =
-          new platform::tracing::TracingController();
-      platform::tracing::TraceBuffer* trace_buffer =
-          platform::tracing::TraceBuffer::CreateTraceBufferRingBuffer(
-              platform::tracing::TraceBuffer::kRingBufferChunks,
-              platform::tracing::TraceWriter::CreateJSONTraceWriter(
-                  trace_file));
       platform::tracing::TraceConfig* trace_config;
       if (options.trace_config) {
         int size = 0;
@@ -2681,11 +2879,7 @@ int Shell::Main(int argc, char* argv[]) {
         trace_config =
             platform::tracing::TraceConfig::CreateDefaultTraceConfig();
       }
-      tracing_controller->Initialize(trace_buffer);
       tracing_controller->StartTracing(trace_config);
-      if (!i::FLAG_verify_predictable) {
-        platform::SetTracingController(g_platform, tracing_controller);
-      }
     }
 
     if (options.dump_heap_constants) {
@@ -2726,7 +2920,7 @@ int Shell::Main(int argc, char* argv[]) {
       RunShell(isolate);
     }
 
-    if (i::FLAG_ignition && i::FLAG_trace_ignition_dispatches &&
+    if (i::FLAG_trace_ignition_dispatches &&
         i::FLAG_trace_ignition_dispatches_output_file != nullptr) {
       WriteIgnitionDispatchCountersFile(isolate);
     }
@@ -2747,6 +2941,9 @@ int Shell::Main(int argc, char* argv[]) {
   V8::Dispose();
   V8::ShutdownPlatform();
   delete g_platform;
+  if (i::FLAG_verify_predictable) {
+    delete tracing_controller;
+  }
 
   return result;
 }

@@ -70,11 +70,6 @@ class JSTypedLoweringTest : public TypedGraphTest {
     return buffer;
   }
 
-  Matcher<Node*> IsIntPtrConstant(intptr_t value) {
-    return sizeof(value) == 4 ? IsInt32Constant(static_cast<int32_t>(value))
-                              : IsInt64Constant(static_cast<int64_t>(value));
-  }
-
   JSOperatorBuilder* javascript() { return &javascript_; }
 
  private:
@@ -126,8 +121,42 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithAny) {
 
 
 // -----------------------------------------------------------------------------
-// JSToNumber
+// JSToName
 
+TEST_F(JSTypedLoweringTest, JSToNameWithString) {
+  Node* const input = Parameter(Type::String(), 0);
+  Node* const context = Parameter(Type::Any(), 1);
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction r = Reduce(graph()->NewNode(javascript()->ToName(), input, context,
+                                        EmptyFrameState(), effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(input, r.replacement());
+}
+
+TEST_F(JSTypedLoweringTest, JSToNameWithSymbol) {
+  Node* const input = Parameter(Type::Symbol(), 0);
+  Node* const context = Parameter(Type::Any(), 1);
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction r = Reduce(graph()->NewNode(javascript()->ToName(), input, context,
+                                        EmptyFrameState(), effect, control));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_EQ(input, r.replacement());
+}
+
+TEST_F(JSTypedLoweringTest, JSToNameWithAny) {
+  Node* const input = Parameter(Type::Any(), 0);
+  Node* const context = Parameter(Type::Any(), 1);
+  Node* const effect = graph()->start();
+  Node* const control = graph()->start();
+  Reduction r = Reduce(graph()->NewNode(javascript()->ToName(), input, context,
+                                        EmptyFrameState(), effect, control));
+  ASSERT_FALSE(r.Changed());
+}
+
+// -----------------------------------------------------------------------------
+// JSToNumber
 
 TEST_F(JSTypedLoweringTest, JSToNumberWithPlainPrimitive) {
   Node* const input = Parameter(Type::PlainPrimitive(), 0);
@@ -569,7 +598,7 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArray) {
     EXPECT_THAT(
         r.replacement(),
         IsLoadBuffer(BufferAccess(type),
-                     IsIntPtrConstant(bit_cast<intptr_t>(&backing_store[0])),
+                     IsPointerConstant(bit_cast<intptr_t>(&backing_store[0])),
                      offset_matcher,
                      IsNumberConstant(array->byte_length()->Number()), effect,
                      control));
@@ -605,7 +634,7 @@ TEST_F(JSTypedLoweringTest, JSLoadPropertyFromExternalTypedArrayWithSafeKey) {
     EXPECT_THAT(
         r.replacement(),
         IsLoadElement(access,
-                      IsIntPtrConstant(bit_cast<intptr_t>(&backing_store[0])),
+                      IsPointerConstant(bit_cast<intptr_t>(&backing_store[0])),
                       key, effect, control));
   }
 }
@@ -650,11 +679,11 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArray) {
       ASSERT_TRUE(r.Changed());
       EXPECT_THAT(
           r.replacement(),
-          IsStoreBuffer(BufferAccess(type),
-                        IsIntPtrConstant(bit_cast<intptr_t>(&backing_store[0])),
-                        offset_matcher,
-                        IsNumberConstant(array->byte_length()->Number()), value,
-                        effect, control));
+          IsStoreBuffer(
+              BufferAccess(type),
+              IsPointerConstant(bit_cast<intptr_t>(&backing_store[0])),
+              offset_matcher, IsNumberConstant(array->byte_length()->Number()),
+              value, effect, control));
     }
   }
 }
@@ -703,11 +732,11 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithConversion) {
       ASSERT_TRUE(r.Changed());
       EXPECT_THAT(
           r.replacement(),
-          IsStoreBuffer(BufferAccess(type),
-                        IsIntPtrConstant(bit_cast<intptr_t>(&backing_store[0])),
-                        offset_matcher,
-                        IsNumberConstant(array->byte_length()->Number()),
-                        value_matcher, effect_matcher, control_matcher));
+          IsStoreBuffer(
+              BufferAccess(type),
+              IsPointerConstant(bit_cast<intptr_t>(&backing_store[0])),
+              offset_matcher, IsNumberConstant(array->byte_length()->Number()),
+              value_matcher, effect_matcher, control_matcher));
     }
   }
 }
@@ -744,7 +773,7 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithSafeKey) {
       EXPECT_THAT(
           r.replacement(),
           IsStoreElement(
-              access, IsIntPtrConstant(bit_cast<intptr_t>(&backing_store[0])),
+              access, IsPointerConstant(bit_cast<intptr_t>(&backing_store[0])),
               key, value, effect, control));
     }
   }

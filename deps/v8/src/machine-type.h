@@ -29,8 +29,13 @@ enum class MachineRepresentation : uint8_t {
   kFloat32,
   kFloat64,
   kSimd128,
-  kFirstFPRepresentation = kFloat32
+  kFirstFPRepresentation = kFloat32,
+  kLastRepresentation = kSimd128
 };
+
+static_assert(static_cast<int>(MachineRepresentation::kLastRepresentation) <
+                  kIntSize * kBitsPerByte,
+              "Bit masks of MachineRepresentation should fit in an int");
 
 const char* MachineReprToString(MachineRepresentation);
 
@@ -223,7 +228,7 @@ V8_INLINE size_t hash_value(MachineType type) {
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            MachineRepresentation rep);
 std::ostream& operator<<(std::ostream& os, MachineSemantic type);
-std::ostream& operator<<(std::ostream& os, MachineType type);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, MachineType type);
 
 inline bool IsFloatingPoint(MachineRepresentation rep) {
   return rep >= MachineRepresentation::kFirstFPRepresentation;
@@ -234,12 +239,17 @@ inline bool CanBeTaggedPointer(MachineRepresentation rep) {
          rep == MachineRepresentation::kTaggedPointer;
 }
 
+inline bool CanBeTaggedSigned(MachineRepresentation rep) {
+  return rep == MachineRepresentation::kTagged ||
+         rep == MachineRepresentation::kTaggedSigned;
+}
+
 inline bool IsAnyTagged(MachineRepresentation rep) {
   return CanBeTaggedPointer(rep) || rep == MachineRepresentation::kTaggedSigned;
 }
 
 // Gets the log2 of the element size in bytes of the machine type.
-inline int ElementSizeLog2Of(MachineRepresentation rep) {
+V8_EXPORT_PRIVATE inline int ElementSizeLog2Of(MachineRepresentation rep) {
   switch (rep) {
     case MachineRepresentation::kBit:
     case MachineRepresentation::kWord8:

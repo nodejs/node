@@ -48,7 +48,7 @@ namespace v8 {
 
 /**
  * TracingCpuProfiler monitors tracing being enabled/disabled
- * and emits CpuProfile trace events once v8.cpu_profile2 tracing category
+ * and emits CpuProfile trace events once v8.cpu_profiler tracing category
  * is enabled. It has no overhead unless the category is enabled.
  */
 class V8_EXPORT TracingCpuProfiler {

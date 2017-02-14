@@ -13,7 +13,6 @@ namespace internal {
 
 class CallOptimization;
 
-enum PrototypeCheckType { CHECK_ALL_MAPS, SKIP_RECEIVER };
 enum ReturnHolder { RETURN_HOLDER, DONT_RETURN_ANYTHING };
 
 class PropertyHandlerCompiler : public PropertyAccessCompiler {
@@ -84,6 +83,18 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
                                         Handle<Name> name, Register scratch,
                                         Label* miss);
 
+  // Generates check that current native context has the same access rights
+  // as the given |native_context_cell|.
+  // If |compare_native_contexts_only| is true then access check is considered
+  // passed if the execution-time native context is equal to contents of
+  // |native_context_cell|.
+  // If |compare_native_contexts_only| is false then access check is considered
+  // passed if the execution-time native context is equal to contents of
+  // |native_context_cell| or security tokens of both contexts are equal.
+  void GenerateAccessCheck(Handle<WeakCell> native_context_cell,
+                           Register scratch1, Register scratch2, Label* miss,
+                           bool compare_native_contexts_only);
+
   // Generates code that verifies that the property holder has not changed
   // (checking maps of objects in the prototype chain for fast and global
   // objects or doing negative lookup for slow objects, ensures that the
@@ -99,7 +110,7 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
   Register CheckPrototypes(Register object_reg, Register holder_reg,
                            Register scratch1, Register scratch2,
                            Handle<Name> name, Label* miss,
-                           PrototypeCheckType check, ReturnHolder return_what);
+                           ReturnHolder return_what);
 
   Handle<Code> GetCode(Code::Kind kind, Handle<Name> name);
   void set_holder(Handle<JSObject> holder) { holder_ = holder; }

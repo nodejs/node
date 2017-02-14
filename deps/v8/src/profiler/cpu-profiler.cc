@@ -305,7 +305,7 @@ void CpuProfiler::StartProcessorIfNotStarted() {
   // Disable logging when using the new implementation.
   saved_is_logging_ = logger->is_logging_;
   logger->is_logging_ = false;
-  generator_.reset(new ProfileGenerator(profiles_.get()));
+  generator_.reset(new ProfileGenerator(isolate_, profiles_.get()));
   processor_.reset(new ProfilerEventsProcessor(isolate_, generator_.get(),
                                                sampling_interval_));
   logger->SetUpProfilerListener();
@@ -326,32 +326,20 @@ void CpuProfiler::StartProcessorIfNotStarted() {
   processor_->StartSynchronously();
 }
 
-
 CpuProfile* CpuProfiler::StopProfiling(const char* title) {
   if (!is_profiling_) return nullptr;
   StopProcessorIfLastProfile(title);
-  CpuProfile* result = profiles_->StopProfiling(title);
-  if (result) {
-    result->Print();
-  }
-  return result;
+  return profiles_->StopProfiling(title);
 }
-
 
 CpuProfile* CpuProfiler::StopProfiling(String* title) {
-  if (!is_profiling_) return nullptr;
-  const char* profile_title = profiles_->GetName(title);
-  StopProcessorIfLastProfile(profile_title);
-  return profiles_->StopProfiling(profile_title);
+  return StopProfiling(profiles_->GetName(title));
 }
-
 
 void CpuProfiler::StopProcessorIfLastProfile(const char* title) {
-  if (profiles_->IsLastProfile(title)) {
-    StopProcessor();
-  }
+  if (!profiles_->IsLastProfile(title)) return;
+  StopProcessor();
 }
-
 
 void CpuProfiler::StopProcessor() {
   Logger* logger = isolate_->logger();

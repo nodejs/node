@@ -269,7 +269,7 @@ TEST(InstructionAddGapMove) {
 
 TEST(InstructionOperands) {
   v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator);
+  Zone zone(&allocator, ZONE_NAME);
 
   {
     TestInstr* i = TestInstr::New(&zone, 101);

@@ -7,7 +7,7 @@
 
 When merging test runner output, the sancov files are expected
 to be located in one directory with the file-name pattern:
-<executable name>.test.<id>.sancov
+<executable name>.test.<id>.<attempt>.sancov
 
 For each executable, this script writes a new file:
 <executable name>.result.sancov
@@ -48,7 +48,7 @@ CPUS = cpu_count()
 
 # Regexp to find sancov file as output by the v8 test runner. Also grabs the
 # executable name in group 1.
-SANCOV_FILE_RE = re.compile(r'^(.*)\.test\.\d+\.sancov$')
+SANCOV_FILE_RE = re.compile(r'^(.*)\.test\.\d+\.\d+\.sancov$')
 
 # Regexp to find sancov result files as returned from swarming.
 SANCOV_RESULTS_FILE_RE = re.compile(r'^.*\.result\.sancov$')

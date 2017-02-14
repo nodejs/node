@@ -47,13 +47,14 @@ OsrHelper::OsrHelper(CompilationInfo* info)
     if (TRACE_COND) PrintF(__VA_ARGS__); \
   } while (false)
 
+namespace {
 
 // Peel outer loops and rewire the graph so that control reduction can
 // produce a properly formed graph.
-static void PeelOuterLoopsForOsr(Graph* graph, CommonOperatorBuilder* common,
-                                 Zone* tmp_zone, Node* dead,
-                                 LoopTree* loop_tree, LoopTree::Loop* osr_loop,
-                                 Node* osr_normal_entry, Node* osr_loop_entry) {
+void PeelOuterLoopsForOsr(Graph* graph, CommonOperatorBuilder* common,
+                          Zone* tmp_zone, Node* dead, LoopTree* loop_tree,
+                          LoopTree::Loop* osr_loop, Node* osr_normal_entry,
+                          Node* osr_loop_entry) {
   const size_t original_count = graph->NodeCount();
   AllNodes all(tmp_zone, graph);
   NodeVector tmp_inputs(tmp_zone);
@@ -93,7 +94,8 @@ static void PeelOuterLoopsForOsr(Graph* graph, CommonOperatorBuilder* common,
         continue;
       }
       if (orig->InputCount() == 0 || orig->opcode() == IrOpcode::kParameter ||
-          orig->opcode() == IrOpcode::kOsrValue) {
+          orig->opcode() == IrOpcode::kOsrValue ||
+          orig->opcode() == IrOpcode::kOsrGuard) {
         // No need to copy leaf nodes or parameters.
         mapping->at(orig->id()) = orig;
         continue;
@@ -255,6 +257,42 @@ static void PeelOuterLoopsForOsr(Graph* graph, CommonOperatorBuilder* common,
   }
 }
 
+void SetTypeForOsrValue(Node* osr_value, Node* loop,
+                        CommonOperatorBuilder* common) {
+  Node* osr_guard = nullptr;
+  for (Node* use : osr_value->uses()) {
+    if (use->opcode() == IrOpcode::kOsrGuard) {
+      DCHECK_EQ(use->InputAt(0), osr_value);
+      osr_guard = use;
+      break;
+    }
+  }
+
+  OsrGuardType guard_type = OsrGuardType::kAny;
+  // Find the phi that uses the OsrGuard node and get the type from
+  // there. Skip the search if the OsrGuard does not have value use
+  // (i.e., if there is other use beyond the effect use).
+  if (OsrGuardTypeOf(osr_guard->op()) == OsrGuardType::kUninitialized &&
+      osr_guard->UseCount() > 1) {
+    Type* type = nullptr;
+    for (Node* use : osr_guard->uses()) {
+      if (use->opcode() == IrOpcode::kPhi) {
+        if (NodeProperties::GetControlInput(use) != loop) continue;
+        CHECK_NULL(type);
+        type = NodeProperties::GetType(use);
+      }
+    }
+    CHECK_NOT_NULL(type);
+
+    if (type->Is(Type::SignedSmall())) {
+      guard_type = OsrGuardType::kSignedSmall;
+    }
+  }
+
+  NodeProperties::ChangeOp(osr_guard, common->OsrGuard(guard_type));
+}
+
+}  // namespace
 
 void OsrHelper::Deconstruct(JSGraph* jsgraph, CommonOperatorBuilder* common,
                             Zone* tmp_zone) {
@@ -282,6 +320,12 @@ void OsrHelper::Deconstruct(JSGraph* jsgraph, CommonOperatorBuilder* common,
   }
 
   CHECK(osr_loop);  // Should have found the OSR loop.
+
+  for (Node* use : osr_loop_entry->uses()) {
+    if (use->opcode() == IrOpcode::kOsrValue) {
+      SetTypeForOsrValue(use, osr_loop, common);
+    }
+  }
 
   // Analyze the graph to determine how deeply nested the OSR loop is.
   LoopTree* loop_tree = LoopFinder::BuildLoopTree(graph, tmp_zone);

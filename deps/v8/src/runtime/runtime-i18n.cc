@@ -926,7 +926,7 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorBreakType) {
   if (status >= UBRK_WORD_NONE && status < UBRK_WORD_NONE_LIMIT) {
     return *isolate->factory()->NewStringFromStaticChars("none");
   } else if (status >= UBRK_WORD_NUMBER && status < UBRK_WORD_NUMBER_LIMIT) {
-    return *isolate->factory()->number_string();
+    return isolate->heap()->number_string();
   } else if (status >= UBRK_WORD_LETTER && status < UBRK_WORD_LETTER_LIMIT) {
     return *isolate->factory()->NewStringFromStaticChars("letter");
   } else if (status >= UBRK_WORD_KANA && status < UBRK_WORD_KANA_LIMIT) {
@@ -939,55 +939,10 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorBreakType) {
 }
 
 namespace {
-void ConvertCaseWithTransliterator(icu::UnicodeString* input,
-                                   const char* transliterator_id) {
-  UErrorCode status = U_ZERO_ERROR;
-  std::unique_ptr<icu::Transliterator> translit(
-      icu::Transliterator::createInstance(
-          icu::UnicodeString(transliterator_id, -1, US_INV), UTRANS_FORWARD,
-          status));
-  if (U_FAILURE(status)) return;
-  translit->transliterate(*input);
-}
-
 MUST_USE_RESULT Object* LocaleConvertCase(Handle<String> s, Isolate* isolate,
                                           bool is_to_upper, const char* lang) {
-  int32_t src_length = s->length();
-
-  // Greek uppercasing has to be done via transliteration.
-  // TODO(jshin): Drop this special-casing once ICU's regular case conversion
-  // API supports Greek uppercasing. See
-  // http://bugs.icu-project.org/trac/ticket/10582 .
-  // In the meantime, if there's no Greek character in |s|, call this
-  // function again with the root locale (lang="").
-  // ICU's C API for transliteration is nasty and we just use C++ API.
-  if (V8_UNLIKELY(is_to_upper && lang[0] == 'e' && lang[1] == 'l')) {
-    icu::UnicodeString converted;
-    std::unique_ptr<uc16[]> sap;
-    {
-      DisallowHeapAllocation no_gc;
-      String::FlatContent flat = s->GetFlatContent();
-      const UChar* src = GetUCharBufferFromFlat(flat, &sap, src_length);
-      // Starts with the source string (read-only alias with copy-on-write
-      // semantics) and will be modified to contain the converted result.
-      // Using read-only alias at first saves one copy operation if
-      // transliteration does not change the input, which is rather rare.
-      // Moreover, transliteration takes rather long so that saving one copy
-      // helps only a little bit.
-      converted.setTo(false, src, src_length);
-      ConvertCaseWithTransliterator(&converted, "el-Upper");
-      // If no change is made, just return |s|.
-      if (converted.getBuffer() == src) return *s;
-    }
-    RETURN_RESULT_OR_FAILURE(
-        isolate,
-        isolate->factory()->NewStringFromTwoByte(Vector<const uint16_t>(
-            reinterpret_cast<const uint16_t*>(converted.getBuffer()),
-            converted.length())));
-  }
-
   auto case_converter = is_to_upper ? u_strToUpper : u_strToLower;
-
+  int32_t src_length = s->length();
   int32_t dest_length = src_length;
   UErrorCode status;
   Handle<SeqTwoByteString> result;
@@ -1138,7 +1093,7 @@ RUNTIME_FUNCTION(Runtime_StringToLowerCaseI18N) {
   s = String::Flatten(s);
   // First scan the string for uppercase and non-ASCII characters:
   if (s->HasOnlyOneByteChars()) {
-    unsigned first_index_to_lower = length;
+    int first_index_to_lower = length;
     for (int index = 0; index < length; ++index) {
       // Blink specializes this path for one-byte strings, so it
       // does not need to do a generic get, but can do the equivalent
@@ -1165,14 +1120,16 @@ RUNTIME_FUNCTION(Runtime_StringToLowerCaseI18N) {
     String::FlatContent flat = s->GetFlatContent();
     if (flat.IsOneByte()) {
       const uint8_t* src = flat.ToOneByteVector().start();
-      CopyChars(result->GetChars(), src, first_index_to_lower);
+      CopyChars(result->GetChars(), src,
+                static_cast<size_t>(first_index_to_lower));
       for (int index = first_index_to_lower; index < length; ++index) {
         uint16_t ch = static_cast<uint16_t>(src[index]);
         result->SeqOneByteStringSet(index, ToLatin1Lower(ch));
       }
     } else {
       const uint16_t* src = flat.ToUC16Vector().start();
-      CopyChars(result->GetChars(), src, first_index_to_lower);
+      CopyChars(result->GetChars(), src,
+                static_cast<size_t>(first_index_to_lower));
       for (int index = first_index_to_lower; index < length; ++index) {
         uint16_t ch = src[index];
         result->SeqOneByteStringSet(index, ToLatin1Lower(ch));
@@ -1283,7 +1240,7 @@ RUNTIME_FUNCTION(Runtime_DateCacheVersion) {
   if (!isolate->eternal_handles()->Exists(EternalHandles::DATE_CACHE_VERSION)) {
     Handle<FixedArray> date_cache_version =
         isolate->factory()->NewFixedArray(1, TENURED);
-    date_cache_version->set(0, Smi::FromInt(0));
+    date_cache_version->set(0, Smi::kZero);
     isolate->eternal_handles()->CreateSingleton(
         isolate, *date_cache_version, EternalHandles::DATE_CACHE_VERSION);
   }

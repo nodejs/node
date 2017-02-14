@@ -15,76 +15,76 @@ namespace wasm {
 class LEBHelperTest : public TestWithZone {};
 
 TEST_F(LEBHelperTest, sizeof_u32v) {
-  EXPECT_EQ(1, LEBHelper::sizeof_u32v(0));
-  EXPECT_EQ(1, LEBHelper::sizeof_u32v(1));
-  EXPECT_EQ(1, LEBHelper::sizeof_u32v(3));
+  EXPECT_EQ(1u, LEBHelper::sizeof_u32v(0));
+  EXPECT_EQ(1u, LEBHelper::sizeof_u32v(1));
+  EXPECT_EQ(1u, LEBHelper::sizeof_u32v(3));
 
   for (uint32_t i = 4; i < 128; i++) {
-    EXPECT_EQ(1, LEBHelper::sizeof_u32v(i));
+    EXPECT_EQ(1u, LEBHelper::sizeof_u32v(i));
   }
 
-  for (uint32_t i = (1 << 7); i < (1 << 9); i++) {
-    EXPECT_EQ(2, LEBHelper::sizeof_u32v(i));
+  for (uint32_t i = (1u << 7); i < (1u << 9); i++) {
+    EXPECT_EQ(2u, LEBHelper::sizeof_u32v(i));
   }
 
-  for (uint32_t i = (1 << 14); i < (1 << 16); i += 33) {
-    EXPECT_EQ(3, LEBHelper::sizeof_u32v(i));
+  for (uint32_t i = (1u << 14); i < (1u << 16); i += 33) {
+    EXPECT_EQ(3u, LEBHelper::sizeof_u32v(i));
   }
 
-  for (uint32_t i = (1 << 21); i < (1 << 24); i += 33999) {
-    EXPECT_EQ(4, LEBHelper::sizeof_u32v(i));
+  for (uint32_t i = (1u << 21); i < (1u << 24); i += 33999) {
+    EXPECT_EQ(4u, LEBHelper::sizeof_u32v(i));
   }
 
-  for (uint32_t i = (1 << 28); i < (1 << 31); i += 33997779) {
-    EXPECT_EQ(5, LEBHelper::sizeof_u32v(i));
+  for (uint32_t i = (1u << 28); i < (1u << 31); i += 33997779u) {
+    EXPECT_EQ(5u, LEBHelper::sizeof_u32v(i));
   }
 
-  EXPECT_EQ(5, LEBHelper::sizeof_u32v(0xFFFFFFFF));
+  EXPECT_EQ(5u, LEBHelper::sizeof_u32v(0xFFFFFFFF));
 }
 
 TEST_F(LEBHelperTest, sizeof_i32v) {
-  EXPECT_EQ(1, LEBHelper::sizeof_i32v(0));
-  EXPECT_EQ(1, LEBHelper::sizeof_i32v(1));
-  EXPECT_EQ(1, LEBHelper::sizeof_i32v(3));
+  EXPECT_EQ(1u, LEBHelper::sizeof_i32v(0));
+  EXPECT_EQ(1u, LEBHelper::sizeof_i32v(1));
+  EXPECT_EQ(1u, LEBHelper::sizeof_i32v(3));
 
   for (int32_t i = 0; i < (1 << 6); i++) {
-    EXPECT_EQ(1, LEBHelper::sizeof_i32v(i));
+    EXPECT_EQ(1u, LEBHelper::sizeof_i32v(i));
   }
 
   for (int32_t i = (1 << 6); i < (1 << 8); i++) {
-    EXPECT_EQ(2, LEBHelper::sizeof_i32v(i));
+    EXPECT_EQ(2u, LEBHelper::sizeof_i32v(i));
   }
 
   for (int32_t i = (1 << 13); i < (1 << 15); i += 31) {
-    EXPECT_EQ(3, LEBHelper::sizeof_i32v(i));
+    EXPECT_EQ(3u, LEBHelper::sizeof_i32v(i));
   }
 
   for (int32_t i = (1 << 20); i < (1 << 22); i += 31991) {
-    EXPECT_EQ(4, LEBHelper::sizeof_i32v(i));
+    EXPECT_EQ(4u, LEBHelper::sizeof_i32v(i));
   }
 
   for (int32_t i = (1 << 27); i < (1 << 29); i += 3199893) {
-    EXPECT_EQ(5, LEBHelper::sizeof_i32v(i));
+    EXPECT_EQ(5u, LEBHelper::sizeof_i32v(i));
   }
 
   for (int32_t i = -(1 << 6); i <= 0; i++) {
-    EXPECT_EQ(1, LEBHelper::sizeof_i32v(i));
+    EXPECT_EQ(1u, LEBHelper::sizeof_i32v(i));
   }
 
   for (int32_t i = -(1 << 13); i < -(1 << 6); i++) {
-    EXPECT_EQ(2, LEBHelper::sizeof_i32v(i));
+    EXPECT_EQ(2u, LEBHelper::sizeof_i32v(i));
   }
 
   for (int32_t i = -(1 << 20); i < -(1 << 18); i += 11) {
-    EXPECT_EQ(3, LEBHelper::sizeof_i32v(i));
+    EXPECT_EQ(3u, LEBHelper::sizeof_i32v(i));
   }
 
   for (int32_t i = -(1 << 27); i < -(1 << 25); i += 11999) {
-    EXPECT_EQ(4, LEBHelper::sizeof_i32v(i));
+    EXPECT_EQ(4u, LEBHelper::sizeof_i32v(i));
   }
 
   for (int32_t i = -(1 << 30); i < -(1 << 28); i += 1199999) {
-    EXPECT_EQ(5, LEBHelper::sizeof_i32v(i));
+    EXPECT_EQ(5u, LEBHelper::sizeof_i32v(i));
   }
 }
 

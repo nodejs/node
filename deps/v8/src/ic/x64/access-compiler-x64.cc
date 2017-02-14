@@ -11,30 +11,27 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-
 void PropertyAccessCompiler::GenerateTailCall(MacroAssembler* masm,
                                               Handle<Code> code) {
   __ jmp(code, RelocInfo::CODE_TARGET);
 }
 
-
-Register* PropertyAccessCompiler::load_calling_convention() {
-  // receiver, name, scratch1, scratch2, scratch3.
+void PropertyAccessCompiler::InitializePlatformSpecific(
+    AccessCompilerData* data) {
   Register receiver = LoadDescriptor::ReceiverRegister();
   Register name = LoadDescriptor::NameRegister();
-  static Register registers[] = {receiver, name, rax, rbx, rdi};
-  return registers;
-}
 
+  // Load calling convention.
+  // receiver, name, scratch1, scratch2, scratch3.
+  Register load_registers[] = {receiver, name, rax, rbx, rdi};
 
-Register* PropertyAccessCompiler::store_calling_convention() {
+  // Store calling convention.
   // receiver, name, scratch1, scratch2.
-  Register receiver = StoreDescriptor::ReceiverRegister();
-  Register name = StoreDescriptor::NameRegister();
-  static Register registers[] = {receiver, name, rbx, rdi};
-  return registers;
-}
+  Register store_registers[] = {receiver, name, rbx, rdi};
 
+  data->Initialize(arraysize(load_registers), load_registers,
+                   arraysize(store_registers), store_registers);
+}
 
 #undef __
 }  // namespace internal

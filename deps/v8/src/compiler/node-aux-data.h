@@ -15,20 +15,20 @@ namespace compiler {
 // Forward declarations.
 class Node;
 
-template <class T>
+template <class T, T def()>
 class NodeAuxData {
  public:
   explicit NodeAuxData(Zone* zone) : aux_data_(zone) {}
 
   void Set(Node* node, T const& data) {
     size_t const id = node->id();
-    if (id >= aux_data_.size()) aux_data_.resize(id + 1);
+    if (id >= aux_data_.size()) aux_data_.resize(id + 1, def());
     aux_data_[id] = data;
   }
 
   T Get(Node* node) const {
     size_t const id = node->id();
-    return (id < aux_data_.size()) ? aux_data_[id] : T();
+    return (id < aux_data_.size()) ? aux_data_[id] : def();
   }
 
   class const_iterator;
@@ -41,9 +41,8 @@ class NodeAuxData {
   ZoneVector<T> aux_data_;
 };
 
-
-template <class T>
-class NodeAuxData<T>::const_iterator {
+template <class T, T def()>
+class NodeAuxData<T, def>::const_iterator {
  public:
   typedef std::forward_iterator_tag iterator_category;
   typedef int difference_type;
@@ -76,14 +75,16 @@ class NodeAuxData<T>::const_iterator {
   size_t current_;
 };
 
-template <class T>
-typename NodeAuxData<T>::const_iterator NodeAuxData<T>::begin() const {
-  return typename NodeAuxData<T>::const_iterator(&aux_data_, 0);
+template <class T, T def()>
+typename NodeAuxData<T, def>::const_iterator NodeAuxData<T, def>::begin()
+    const {
+  return typename NodeAuxData<T, def>::const_iterator(&aux_data_, 0);
 }
 
-template <class T>
-typename NodeAuxData<T>::const_iterator NodeAuxData<T>::end() const {
-  return typename NodeAuxData<T>::const_iterator(&aux_data_, aux_data_.size());
+template <class T, T def()>
+typename NodeAuxData<T, def>::const_iterator NodeAuxData<T, def>::end() const {
+  return typename NodeAuxData<T, def>::const_iterator(&aux_data_,
+                                                      aux_data_.size());
 }
 
 }  // namespace compiler

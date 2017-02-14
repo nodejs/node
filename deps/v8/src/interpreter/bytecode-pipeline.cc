@@ -11,19 +11,6 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-BytecodeNode::BytecodeNode(const BytecodeNode& other) {
-  memcpy(this, &other, sizeof(other));
-}
-
-BytecodeNode& BytecodeNode::operator=(const BytecodeNode& other) {
-  memcpy(this, &other, sizeof(other));
-  return *this;
-}
-
-void BytecodeNode::Clone(const BytecodeNode* const other) {
-  memcpy(this, other, sizeof(*other));
-}
-
 void BytecodeNode::Print(std::ostream& os) const {
 #ifdef DEBUG
   std::ios saved_state(nullptr);

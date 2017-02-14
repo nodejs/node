@@ -1539,6 +1539,8 @@ var getFunction = function(name, jsBuiltin, len) {
   return f;
 };
 
+var ArrayValues = getFunction("values", null, 0);
+
 // Set up non-enumerable functions of the Array.prototype object and
 // set their names.
 // Manipulate the length of some of the functions to meet
@@ -1568,8 +1570,13 @@ utils.InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
   "find", getFunction("find", ArrayFind, 1),
   "findIndex", getFunction("findIndex", ArrayFindIndex, 1),
   "fill", getFunction("fill", ArrayFill, 1),
-  "includes", getFunction("includes", null, 1)
+  "includes", getFunction("includes", null, 1),
+  "keys", getFunction("keys", null, 0),
+  "entries", getFunction("entries", null, 0),
+  iteratorSymbol, ArrayValues
 ]);
+
+%FunctionSetName(ArrayValues, "values");
 
 utils.InstallGetter(GlobalArray, speciesSymbol, ArraySpecies);
 
@@ -1614,6 +1621,7 @@ utils.Export(function(to) {
   to.ArrayJoin = ArrayJoin;
   to.ArrayPush = ArrayPush;
   to.ArrayToString = ArrayToString;
+  to.ArrayValues = ArrayValues;
   to.InnerArrayCopyWithin = InnerArrayCopyWithin;
   to.InnerArrayEvery = InnerArrayEvery;
   to.InnerArrayFill = InnerArrayFill;
@@ -1638,6 +1646,7 @@ utils.Export(function(to) {
   "array_splice", ArraySplice,
   "array_slice", ArraySlice,
   "array_unshift", ArrayUnshift,
+  "array_values_iterator", ArrayValues,
 ]);
 
 });

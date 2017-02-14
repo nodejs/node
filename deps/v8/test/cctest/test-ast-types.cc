@@ -48,7 +48,7 @@ struct Tests {
   Tests()
       : isolate(CcTest::InitIsolateOnce()),
         scope(isolate),
-        zone(isolate->allocator()),
+        zone(isolate->allocator(), ZONE_NAME),
         T(&zone, isolate, isolate->random_number_generator()) {}
 
   bool IsBitset(AstType* type) { return type->IsBitsetForTesting(); }

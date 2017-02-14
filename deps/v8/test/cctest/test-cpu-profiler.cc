@@ -38,6 +38,9 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/profiler-extension.h"
 
+#include "include/libplatform/v8-tracing.h"
+#include "src/tracing/trace-event.h"
+
 using i::CodeEntry;
 using i::CpuProfile;
 using i::CpuProfiler;
@@ -63,15 +66,21 @@ static size_t offset(const char* src, const char* substring) {
   return static_cast<size_t>(it - src);
 }
 
+template <typename A, typename B>
+static int dist(A a, B b) {
+  return abs(static_cast<int>(a) - static_cast<int>(b));
+}
+
 static const char* reason(const i::DeoptimizeReason reason) {
   return i::DeoptimizeReasonToString(reason);
 }
 
 TEST(StartStop) {
-  CpuProfilesCollection profiles(CcTest::i_isolate());
-  ProfileGenerator generator(&profiles);
+  i::Isolate* isolate = CcTest::i_isolate();
+  CpuProfilesCollection profiles(isolate);
+  ProfileGenerator generator(isolate, &profiles);
   std::unique_ptr<ProfilerEventsProcessor> processor(
-      new ProfilerEventsProcessor(CcTest::i_isolate(), &generator,
+      new ProfilerEventsProcessor(isolate, &generator,
                                   v8::base::TimeDelta::FromMicroseconds(100)));
   processor->Start();
   processor->StopSynchronously();
@@ -154,10 +163,9 @@ TEST(CodeEvents) {
   i::AbstractCode* args4_code = CreateCode(&env);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
-  ProfileGenerator* generator = new ProfileGenerator(profiles);
-  ProfilerEventsProcessor* processor =
-      new ProfilerEventsProcessor(CcTest::i_isolate(), generator,
-                                  v8::base::TimeDelta::FromMicroseconds(100));
+  ProfileGenerator* generator = new ProfileGenerator(isolate, profiles);
+  ProfilerEventsProcessor* processor = new ProfilerEventsProcessor(
+      isolate, generator, v8::base::TimeDelta::FromMicroseconds(100));
   CpuProfiler profiler(isolate, profiles, generator, processor);
   profiles->StartProfiling("", false);
   processor->Start();
@@ -223,7 +231,7 @@ TEST(TickEvents) {
   i::AbstractCode* frame3_code = CreateCode(&env);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
-  ProfileGenerator* generator = new ProfileGenerator(profiles);
+  ProfileGenerator* generator = new ProfileGenerator(isolate, profiles);
   ProfilerEventsProcessor* processor =
       new ProfilerEventsProcessor(CcTest::i_isolate(), generator,
                                   v8::base::TimeDelta::FromMicroseconds(100));
@@ -296,7 +304,7 @@ TEST(Issue1398) {
   i::AbstractCode* code = CreateCode(&env);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
-  ProfileGenerator* generator = new ProfileGenerator(profiles);
+  ProfileGenerator* generator = new ProfileGenerator(isolate, profiles);
   ProfilerEventsProcessor* processor =
       new ProfilerEventsProcessor(CcTest::i_isolate(), generator,
                                   v8::base::TimeDelta::FromMicroseconds(100));
@@ -1027,7 +1035,6 @@ static void TickLines(bool optimize) {
   CcTest::InitializeVM();
   LocalContext env;
   i::FLAG_allow_natives_syntax = true;
-  i::FLAG_turbo_source_positions = true;
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
   i::HandleScope scope(isolate);
@@ -1070,7 +1077,7 @@ static void TickLines(bool optimize) {
   CHECK(code_address);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
-  ProfileGenerator* generator = new ProfileGenerator(profiles);
+  ProfileGenerator* generator = new ProfileGenerator(isolate, profiles);
   ProfilerEventsProcessor* processor =
       new ProfilerEventsProcessor(CcTest::i_isolate(), generator,
                                   v8::base::TimeDelta::FromMicroseconds(100));
@@ -1903,10 +1910,9 @@ TEST(SourceLocation) {
       .ToLocalChecked();
 }
 
-
 static const char* inlined_source =
-    "function opt_function(left, right) { var k = left / 10; var r = 10 / "
-    "right; return k + r; }\n";
+    "function opt_function(left, right) { var k = left*right; return k + 1; "
+    "}\n";
 //   0.........1.........2.........3.........4....*....5.........6......*..7
 
 
@@ -1933,7 +1939,7 @@ TEST(DeoptAtFirstLevelInlinedSource) {
       "\n"
       "test(10, 10);\n"
       "\n"
-      "test(undefined, 10);\n"
+      "test(undefined, 1e9);\n"
       "\n"
       "stopProfiling();\n"
       "\n";
@@ -1968,10 +1974,11 @@ TEST(DeoptAtFirstLevelInlinedSource) {
   CHECK_EQ(1U, deopt_infos.size());
 
   const v8::CpuProfileDeoptInfo& info = deopt_infos[0];
-  CHECK_EQ(reason(i::DeoptimizeReason::kNotAHeapNumber), info.deopt_reason);
+  CHECK(reason(i::DeoptimizeReason::kNotASmi) == info.deopt_reason ||
+        reason(i::DeoptimizeReason::kNotAHeapNumber) == info.deopt_reason);
   CHECK_EQ(2U, info.stack.size());
   CHECK_EQ(inlined_script_id, info.stack[0].script_id);
-  CHECK_EQ(offset(inlined_source, "left /"), info.stack[0].position);
+  CHECK_LE(dist(offset(inlined_source, "*right"), info.stack[0].position), 1);
   CHECK_EQ(script_id, info.stack[1].script_id);
   CHECK_EQ(offset(source, "opt_function(left,"), info.stack[1].position);
 
@@ -1993,7 +2000,7 @@ TEST(DeoptAtSecondLevelInlinedSource) {
   //   0.........1.........2.........3.........4.........5.........6.........7
   const char* source =
       "function test2(left, right) { return opt_function(left, right); }\n"
-      "function test1(left, right) { return test2(left, right); }\n"
+      "function test1(left, right) { return test2(left, right); } \n"
       "\n"
       "startProfiling();\n"
       "\n"
@@ -2003,7 +2010,7 @@ TEST(DeoptAtSecondLevelInlinedSource) {
       "\n"
       "test1(10, 10);\n"
       "\n"
-      "test1(undefined, 10);\n"
+      "test1(undefined, 1e9);\n"
       "\n"
       "stopProfiling();\n"
       "\n";
@@ -2041,10 +2048,11 @@ TEST(DeoptAtSecondLevelInlinedSource) {
   CHECK_EQ(1U, deopt_infos.size());
 
   const v8::CpuProfileDeoptInfo info = deopt_infos[0];
-  CHECK_EQ(reason(i::DeoptimizeReason::kNotAHeapNumber), info.deopt_reason);
+  CHECK(reason(i::DeoptimizeReason::kNotASmi) == info.deopt_reason ||
+        reason(i::DeoptimizeReason::kNotAHeapNumber) == info.deopt_reason);
   CHECK_EQ(3U, info.stack.size());
   CHECK_EQ(inlined_script_id, info.stack[0].script_id);
-  CHECK_EQ(offset(inlined_source, "left /"), info.stack[0].position);
+  CHECK_LE(dist(offset(inlined_source, "*right"), info.stack[0].position), 1);
   CHECK_EQ(script_id, info.stack[1].script_id);
   CHECK_EQ(offset(source, "opt_function(left,"), info.stack[1].position);
   CHECK_EQ(offset(source, "test2(left, right);"), info.stack[2].position);
@@ -2097,4 +2105,80 @@ TEST(DeoptUntrackedFunction) {
   CHECK_EQ(0U, itest_node->deopt_infos().size());
 
   iprofiler->DeleteProfile(iprofile);
+}
+
+using v8::platform::tracing::TraceBuffer;
+using v8::platform::tracing::TraceConfig;
+using v8::platform::tracing::TraceObject;
+
+namespace {
+
+class CpuProfileEventChecker : public v8::platform::tracing::TraceWriter {
+ public:
+  void AppendTraceEvent(TraceObject* trace_event) override {
+    if (trace_event->name() != std::string("Profile") &&
+        trace_event->name() != std::string("ProfileChunk"))
+      return;
+    CHECK(!profile_id_ || trace_event->id() == profile_id_);
+    CHECK_EQ(1, trace_event->num_args());
+    CHECK_EQ(TRACE_VALUE_TYPE_CONVERTABLE, trace_event->arg_types()[0]);
+    profile_id_ = trace_event->id();
+    v8::ConvertableToTraceFormat* arg =
+        trace_event->arg_convertables()[0].get();
+    arg->AppendAsTraceFormat(&result_json_);
+  }
+  void Flush() override {}
+
+  std::string result_json() const { return result_json_; }
+
+ private:
+  std::string result_json_;
+  uint64_t profile_id_ = 0;
+};
+
+}  // namespace
+
+TEST(TracingCpuProfiler) {
+  v8::Platform* old_platform = i::V8::GetCurrentPlatform();
+  v8::Platform* default_platform = v8::platform::CreateDefaultPlatform();
+  i::V8::SetPlatformForTesting(default_platform);
+
+  v8::platform::tracing::TracingController tracing_controller;
+  v8::platform::SetTracingController(default_platform, &tracing_controller);
+
+  CpuProfileEventChecker* event_checker = new CpuProfileEventChecker();
+  TraceBuffer* ring_buffer =
+      TraceBuffer::CreateTraceBufferRingBuffer(1, event_checker);
+  tracing_controller.Initialize(ring_buffer);
+  TraceConfig* trace_config = new TraceConfig();
+  trace_config->AddIncludedCategory(
+      TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"));
+
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  {
+    tracing_controller.StartTracing(trace_config);
+    auto profiler = v8::TracingCpuProfiler::Create(env->GetIsolate());
+    CompileRun("function foo() { } foo();");
+    tracing_controller.StopTracing();
+    CompileRun("function bar() { } bar();");
+  }
+
+  const char* profile_checker =
+      "function checkProfile(profile) {\n"
+      "  if (typeof profile['startTime'] !== 'number') return 'startTime';\n"
+      "  return '';\n"
+      "}\n"
+      "checkProfile(";
+  std::string profile_json = event_checker->result_json();
+  CHECK_LT(0u, profile_json.length());
+  printf("Profile JSON: %s\n", profile_json.c_str());
+  std::string code = profile_checker + profile_json + ")";
+  v8::Local<v8::Value> result =
+      CompileRunChecked(CcTest::isolate(), code.c_str());
+  v8::String::Utf8Value value(result);
+  printf("Check result: %*s\n", value.length(), *value);
+  CHECK_EQ(0, value.length());
+
+  i::V8::SetPlatformForTesting(old_platform);
 }

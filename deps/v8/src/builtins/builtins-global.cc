@@ -83,7 +83,7 @@ BUILTIN(GlobalUnescape) {
 BUILTIN(GlobalEval) {
   HandleScope scope(isolate);
   Handle<Object> x = args.atOrUndefined(isolate, 1);
-  Handle<JSFunction> target = args.target<JSFunction>();
+  Handle<JSFunction> target = args.target();
   Handle<JSObject> target_global_proxy(target->global_proxy(), isolate);
   if (!x->IsString()) return *x;
   if (!Builtins::AllowDynamicFunction(isolate, target, target_global_proxy)) {
@@ -121,7 +121,7 @@ void Builtins::Generate_GlobalIsFinite(CodeStubAssembler* assembler) {
     Node* num = var_num.value();
 
     // Check if {num} is a Smi or a HeapObject.
-    assembler->GotoIf(assembler->WordIsSmi(num), &return_true);
+    assembler->GotoIf(assembler->TaggedIsSmi(num), &return_true);
 
     // Check if {num} is a HeapNumber.
     Label if_numisheapnumber(assembler),
@@ -176,7 +176,7 @@ void Builtins::Generate_GlobalIsNaN(CodeStubAssembler* assembler) {
     Node* num = var_num.value();
 
     // Check if {num} is a Smi or a HeapObject.
-    assembler->GotoIf(assembler->WordIsSmi(num), &return_false);
+    assembler->GotoIf(assembler->TaggedIsSmi(num), &return_false);
 
     // Check if {num} is a HeapNumber.
     Label if_numisheapnumber(assembler),

@@ -344,11 +344,12 @@ class TestSetup {
 
 TEST(RecordTickSample) {
   TestSetup test_setup;
-  CpuProfilesCollection profiles(CcTest::i_isolate());
-  CpuProfiler profiler(CcTest::i_isolate());
+  i::Isolate* isolate = CcTest::i_isolate();
+  CpuProfilesCollection profiles(isolate);
+  CpuProfiler profiler(isolate);
   profiles.set_cpu_profiler(&profiler);
   profiles.StartProfiling("", false);
-  ProfileGenerator generator(&profiles);
+  ProfileGenerator generator(isolate, &profiles);
   CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
   CodeEntry* entry2 = new CodeEntry(i::Logger::FUNCTION_TAG, "bbb");
   CodeEntry* entry3 = new CodeEntry(i::Logger::FUNCTION_TAG, "ccc");
@@ -416,11 +417,12 @@ static void CheckNodeIds(ProfileNode* node, unsigned* expectedId) {
 
 TEST(SampleIds) {
   TestSetup test_setup;
-  CpuProfilesCollection profiles(CcTest::i_isolate());
-  CpuProfiler profiler(CcTest::i_isolate());
+  i::Isolate* isolate = CcTest::i_isolate();
+  CpuProfilesCollection profiles(isolate);
+  CpuProfiler profiler(isolate);
   profiles.set_cpu_profiler(&profiler);
   profiles.StartProfiling("", true);
-  ProfileGenerator generator(&profiles);
+  ProfileGenerator generator(isolate, &profiles);
   CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
   CodeEntry* entry2 = new CodeEntry(i::Logger::FUNCTION_TAG, "bbb");
   CodeEntry* entry3 = new CodeEntry(i::Logger::FUNCTION_TAG, "ccc");
@@ -473,11 +475,12 @@ TEST(SampleIds) {
 
 TEST(NoSamples) {
   TestSetup test_setup;
-  CpuProfilesCollection profiles(CcTest::i_isolate());
-  CpuProfiler profiler(CcTest::i_isolate());
+  i::Isolate* isolate = CcTest::i_isolate();
+  CpuProfilesCollection profiles(isolate);
+  CpuProfiler profiler(isolate);
   profiles.set_cpu_profiler(&profiler);
   profiles.StartProfiling("", false);
-  ProfileGenerator generator(&profiles);
+  ProfileGenerator generator(isolate, &profiles);
   CodeEntry* entry1 = new CodeEntry(i::Logger::FUNCTION_TAG, "aaa");
   generator.code_map()->AddCode(ToAddress(0x1500), entry1, 0x200);
 
@@ -681,7 +684,7 @@ TEST(LineNumber) {
 
   profiler.processor()->StopSynchronously();
 
-  bool is_lazy = i::FLAG_lazy && !(i::FLAG_ignition && i::FLAG_ignition_eager);
+  bool is_lazy = i::FLAG_lazy;
   CHECK_EQ(1, GetFunctionLineNumber(profiler, env, "foo_at_the_first_line"));
   CHECK_EQ(is_lazy ? 0 : 4,
            GetFunctionLineNumber(profiler, env, "lazy_func_at_forth_line"));

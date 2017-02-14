@@ -95,7 +95,7 @@ RUNTIME_FUNCTION(Runtime_SetIteratorInitialize) {
         kind == JSSetIterator::kKindEntries);
   Handle<OrderedHashSet> table(OrderedHashSet::cast(set->table()));
   holder->set_table(*table);
-  holder->set_index(Smi::FromInt(0));
+  holder->set_index(Smi::kZero);
   holder->set_kind(Smi::FromInt(kind));
   return isolate->heap()->undefined_value();
 }
@@ -191,7 +191,7 @@ RUNTIME_FUNCTION(Runtime_MapIteratorInitialize) {
         kind == JSMapIterator::kKindEntries);
   Handle<OrderedHashMap> table(OrderedHashMap::cast(map->table()));
   holder->set_table(*table);
-  holder->set_index(Smi::FromInt(0));
+  holder->set_index(Smi::kZero);
   holder->set_kind(Smi::FromInt(kind));
   return isolate->heap()->undefined_value();
 }

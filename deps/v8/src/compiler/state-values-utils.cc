@@ -274,8 +274,7 @@ MachineType StateValuesAccess::iterator::type() {
     return MachineType::AnyTagged();
   } else {
     DCHECK_EQ(IrOpcode::kTypedStateValues, state->opcode());
-    const ZoneVector<MachineType>* types =
-        OpParameter<const ZoneVector<MachineType>*>(state);
+    ZoneVector<MachineType> const* types = MachineTypesOf(state->op());
     return (*types)[Top()->index];
   }
 }

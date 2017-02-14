@@ -14,6 +14,7 @@
 #include "src/code-stubs.h"
 #include "src/contexts.h"
 #include "src/conversions.h"
+#include "src/elements.h"
 #include "src/property-details.h"
 #include "src/property.h"
 #include "src/string-stream.h"
@@ -159,31 +160,30 @@ bool Statement::IsJump() const {
   }
 }
 
-VariableProxy::VariableProxy(Variable* var, int start_position,
-                             int end_position)
+VariableProxy::VariableProxy(Variable* var, int start_position)
     : Expression(start_position, kVariableProxy),
-      end_position_(end_position),
       raw_name_(var->raw_name()),
       next_unresolved_(nullptr) {
   bit_field_ |= IsThisField::encode(var->is_this()) |
-                IsAssignedField::encode(false) | IsResolvedField::encode(false);
+                IsAssignedField::encode(false) |
+                IsResolvedField::encode(false) |
+                HoleCheckModeField::encode(HoleCheckMode::kElided);
   BindTo(var);
 }
 
 VariableProxy::VariableProxy(const AstRawString* name,
-                             VariableKind variable_kind, int start_position,
-                             int end_position)
+                             VariableKind variable_kind, int start_position)
     : Expression(start_position, kVariableProxy),
-      end_position_(end_position),
       raw_name_(name),
       next_unresolved_(nullptr) {
   bit_field_ |= IsThisField::encode(variable_kind == THIS_VARIABLE) |
-                IsAssignedField::encode(false) | IsResolvedField::encode(false);
+                IsAssignedField::encode(false) |
+                IsResolvedField::encode(false) |
+                HoleCheckModeField::encode(HoleCheckMode::kElided);
 }
 
 VariableProxy::VariableProxy(const VariableProxy* copy_from)
     : Expression(copy_from->position(), kVariableProxy),
-      end_position_(copy_from->end_position_),
       next_unresolved_(nullptr) {
   bit_field_ = copy_from->bit_field_;
   DCHECK(!copy_from->is_resolved());
@@ -288,14 +288,16 @@ Token::Value Assignment::binary_op() const {
   return Token::ILLEGAL;
 }
 
+bool FunctionLiteral::ShouldEagerCompile() const {
+  return scope()->ShouldEagerCompile();
+}
+
+void FunctionLiteral::SetShouldEagerCompile() {
+  scope()->set_should_eager_compile();
+}
 
 bool FunctionLiteral::AllowsLazyCompilation() {
   return scope()->AllowsLazyCompilation();
-}
-
-
-bool FunctionLiteral::AllowsLazyCompilationWithoutContext() {
-  return scope()->AllowsLazyCompilationWithoutContext();
 }
 
 
@@ -510,7 +512,7 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
       continue;
     }
 
-    if (position == boilerplate_properties_ * 2) {
+    if (static_cast<uint32_t>(position) == boilerplate_properties_ * 2) {
       DCHECK(property->is_computed_name());
       is_simple = false;
       break;
@@ -579,11 +581,9 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
   if (!constant_elements_.is_null()) return;
 
   int constants_length = values()->length();
-
-  // Allocate a fixed array to hold all the object literals.
-  Handle<JSArray> array = isolate->factory()->NewJSArray(
-      FAST_HOLEY_SMI_ELEMENTS, constants_length, constants_length,
-      INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
+  ElementsKind kind = FIRST_FAST_ELEMENTS_KIND;
+  Handle<FixedArray> fixed_array =
+      isolate->factory()->NewFixedArrayWithHoles(constants_length);
 
   // Fill in the literals.
   bool is_simple = true;
@@ -610,33 +610,38 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
     }
 
     if (boilerplate_value->IsUninitialized(isolate)) {
-      boilerplate_value = handle(Smi::FromInt(0), isolate);
+      boilerplate_value = handle(Smi::kZero, isolate);
       is_simple = false;
     }
 
-    JSObject::AddDataElement(array, array_index, boilerplate_value, NONE)
-        .Assert();
+    kind = GetMoreGeneralElementsKind(kind,
+                                      boilerplate_value->OptimalElementsKind());
+    fixed_array->set(array_index, *boilerplate_value);
   }
 
-  JSObject::ValidateElements(array);
-  Handle<FixedArrayBase> element_values(array->elements());
+  if (is_holey) kind = GetHoleyElementsKind(kind);
 
   // Simple and shallow arrays can be lazily copied, we transform the
   // elements array to a copy-on-write array.
   if (is_simple && depth_acc == 1 && array_index > 0 &&
-      array->HasFastSmiOrObjectElements()) {
-    element_values->set_map(isolate->heap()->fixed_cow_array_map());
+      IsFastSmiOrObjectElementsKind(kind)) {
+    fixed_array->set_map(isolate->heap()->fixed_cow_array_map());
+  }
+
+  Handle<FixedArrayBase> elements = fixed_array;
+  if (IsFastDoubleElementsKind(kind)) {
+    ElementsAccessor* accessor = ElementsAccessor::ForKind(kind);
+    elements = isolate->factory()->NewFixedDoubleArray(constants_length);
+    // We are copying from non-fast-double to fast-double.
+    ElementsKind from_kind = TERMINAL_FAST_ELEMENTS_KIND;
+    accessor->CopyElements(fixed_array, from_kind, elements, constants_length);
   }
 
   // Remember both the literal's constant values as well as the ElementsKind
   // in a 2-element FixedArray.
   Handle<FixedArray> literals = isolate->factory()->NewFixedArray(2, TENURED);
-
-  ElementsKind kind = array->GetElementsKind();
-  kind = is_holey ? GetHoleyElementsKind(kind) : GetPackedElementsKind(kind);
-
   literals->set(0, Smi::FromInt(kind));
-  literals->set(1, *element_values);
+  literals->set(1, *elements);
 
   constant_elements_ = literals;
   set_is_simple(is_simple);
@@ -887,36 +892,20 @@ bool Expression::IsMonomorphic() const {
   }
 }
 
-bool Call::IsUsingCallFeedbackICSlot() const {
-  return GetCallType() != POSSIBLY_EVAL_CALL;
-}
-
-bool Call::IsUsingCallFeedbackSlot() const {
-  // SuperConstructorCall uses a CallConstructStub, which wants
-  // a Slot, in addition to any IC slots requested elsewhere.
-  return GetCallType() == SUPER_CALL;
-}
-
-
 void Call::AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
                                      FeedbackVectorSlotCache* cache) {
-  if (IsUsingCallFeedbackICSlot()) {
-    ic_slot_ = spec->AddCallICSlot();
-  }
-  if (IsUsingCallFeedbackSlot()) {
-    stub_slot_ = spec->AddGeneralSlot();
-  }
+  ic_slot_ = spec->AddCallICSlot();
 }
 
 Call::CallType Call::GetCallType() const {
   VariableProxy* proxy = expression()->AsVariableProxy();
   if (proxy != NULL) {
-    if (is_possibly_eval()) {
-      return POSSIBLY_EVAL_CALL;
-    } else if (proxy->var()->IsUnallocated()) {
+    if (proxy->var()->IsUnallocated()) {
       return GLOBAL_CALL;
     } else if (proxy->var()->IsLookupSlot()) {
-      return LOOKUP_SLOT_CALL;
+      // Calls going through 'with' always use DYNAMIC rather than DYNAMIC_LOCAL
+      // or DYNAMIC_GLOBAL.
+      return proxy->var()->mode() == DYNAMIC ? WITH_CALL : OTHER_CALL;
     }
   }
 

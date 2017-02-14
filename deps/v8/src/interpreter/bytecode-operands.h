@@ -14,8 +14,8 @@ namespace interpreter {
 #define INVALID_OPERAND_TYPE_LIST(V) V(None, OperandTypeInfo::kNone)
 
 #define REGISTER_INPUT_OPERAND_TYPE_LIST(V)        \
-  V(RegList, OperandTypeInfo::kScalableSignedByte) \
   V(Reg, OperandTypeInfo::kScalableSignedByte)     \
+  V(RegList, OperandTypeInfo::kScalableSignedByte) \
   V(RegPair, OperandTypeInfo::kScalableSignedByte)
 
 #define REGISTER_OUTPUT_OPERAND_TYPE_LIST(V)          \
@@ -23,14 +23,16 @@ namespace interpreter {
   V(RegOutPair, OperandTypeInfo::kScalableSignedByte) \
   V(RegOutTriple, OperandTypeInfo::kScalableSignedByte)
 
-#define SCALAR_OPERAND_TYPE_LIST(V)                   \
+#define UNSIGNED_SCALAR_OPERAND_TYPE_LIST(V)          \
   V(Flag8, OperandTypeInfo::kFixedUnsignedByte)       \
   V(IntrinsicId, OperandTypeInfo::kFixedUnsignedByte) \
   V(Idx, OperandTypeInfo::kScalableUnsignedByte)      \
   V(UImm, OperandTypeInfo::kScalableUnsignedByte)     \
-  V(Imm, OperandTypeInfo::kScalableSignedByte)        \
   V(RegCount, OperandTypeInfo::kScalableUnsignedByte) \
   V(RuntimeId, OperandTypeInfo::kFixedUnsignedShort)
+
+#define SIGNED_SCALAR_OPERAND_TYPE_LIST(V) \
+  V(Imm, OperandTypeInfo::kScalableSignedByte)
 
 #define REGISTER_OPERAND_TYPE_LIST(V) \
   REGISTER_INPUT_OPERAND_TYPE_LIST(V) \
@@ -38,7 +40,8 @@ namespace interpreter {
 
 #define NON_REGISTER_OPERAND_TYPE_LIST(V) \
   INVALID_OPERAND_TYPE_LIST(V)            \
-  SCALAR_OPERAND_TYPE_LIST(V)
+  UNSIGNED_SCALAR_OPERAND_TYPE_LIST(V)    \
+  SIGNED_SCALAR_OPERAND_TYPE_LIST(V)
 
 // The list of operand types used by bytecodes.
 #define OPERAND_TYPE_LIST(V)        \
@@ -114,9 +117,12 @@ inline AccumulatorUse operator|(AccumulatorUse lhs, AccumulatorUse rhs) {
   return static_cast<AccumulatorUse>(result);
 }
 
-std::ostream& operator<<(std::ostream& os, const AccumulatorUse& use);
-std::ostream& operator<<(std::ostream& os, const OperandScale& operand_scale);
-std::ostream& operator<<(std::ostream& os, const OperandSize& operand_size);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const AccumulatorUse& use);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const OperandScale& operand_scale);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const OperandSize& operand_size);
 std::ostream& operator<<(std::ostream& os, const OperandType& operand_type);
 
 }  // namespace interpreter

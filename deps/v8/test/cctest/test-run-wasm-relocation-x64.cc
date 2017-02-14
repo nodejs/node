@@ -52,7 +52,7 @@ TEST(WasmRelocationX64MemoryReference) {
   byte* end = begin + code->instruction_size();
   disasm::Disassembler::Disassemble(stdout, begin, end);
 #endif
-  size_t offset = 1234;
+  int offset = 1234;
 
   // Relocating references by offset
   int mode_mask = (1 << RelocInfo::WASM_MEMORY_REFERENCE);
@@ -107,7 +107,7 @@ TEST(WasmRelocationX64WasmMemorySizeReference) {
   CSignature0<int64_t> csig;
   CodeRunner<int64_t> runnable(isolate, code, &csig);
   int64_t ret_value = runnable.Call();
-  CHECK_NE(ret_value, 0xdeadbeef);
+  CHECK_NE(ret_value, bit_cast<uint32_t>(0xdeadbeef));
 
 #ifdef OBJECT_PRINT
   OFStream os(stdout);
@@ -130,7 +130,7 @@ TEST(WasmRelocationX64WasmMemorySizeReference) {
   }
 
   ret_value = runnable.Call();
-  CHECK_NE(ret_value, 0xdeadbeef);
+  CHECK_NE(ret_value, bit_cast<uint32_t>(0xdeadbeef));
 
 #ifdef OBJECT_PRINT
   code->Print(os);

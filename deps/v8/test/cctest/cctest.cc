@@ -197,7 +197,7 @@ InitializedHandleScope::InitializedHandleScope()
 InitializedHandleScope::~InitializedHandleScope() {}
 
 HandleAndZoneScope::HandleAndZoneScope()
-    : main_zone_(new i::Zone(&allocator_)) {}
+    : main_zone_(new i::Zone(&allocator_, ZONE_NAME)) {}
 
 HandleAndZoneScope::~HandleAndZoneScope() {}
 

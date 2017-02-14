@@ -5,6 +5,7 @@
 #ifndef V8_BASE_PLATFORM_CONDITION_VARIABLE_H_
 #define V8_BASE_PLATFORM_CONDITION_VARIABLE_H_
 
+#include "src/base/base-export.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/platform/mutex.h"
 
@@ -28,7 +29,7 @@ class TimeDelta;
 // the mutex and suspend the execution of the calling thread. When the condition
 // variable is notified, the thread is awakened, and the mutex is reacquired.
 
-class ConditionVariable final {
+class V8_BASE_EXPORT ConditionVariable final {
  public:
   ConditionVariable();
   ~ConditionVariable();

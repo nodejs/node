@@ -63,9 +63,8 @@ class ScavengeVisitor : public ObjectVisitor {
 
 // Helper class for turning the scavenger into an object visitor that is also
 // filtering out non-HeapObjects and objects which do not reside in new space.
-template <PromotionMode promotion_mode>
 class StaticScavengeVisitor
-    : public StaticNewSpaceVisitor<StaticScavengeVisitor<promotion_mode>> {
+    : public StaticNewSpaceVisitor<StaticScavengeVisitor> {
  public:
   static inline void VisitPointer(Heap* heap, HeapObject* object, Object** p);
 };

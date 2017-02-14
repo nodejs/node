@@ -19,7 +19,6 @@ class Truncation final {
   static Truncation Bool() { return Truncation(TruncationKind::kBool); }
   static Truncation Word32() { return Truncation(TruncationKind::kWord32); }
   static Truncation Word64() { return Truncation(TruncationKind::kWord64); }
-  static Truncation Float32() { return Truncation(TruncationKind::kFloat32); }
   static Truncation Float64() { return Truncation(TruncationKind::kFloat64); }
   static Truncation Any() { return Truncation(TruncationKind::kAny); }
 
@@ -63,7 +62,6 @@ class Truncation final {
     kBool,
     kWord32,
     kWord64,
-    kFloat32,
     kFloat64,
     kAny
   };
@@ -82,7 +80,8 @@ enum class TypeCheckKind : uint8_t {
   kSignedSmall,
   kSigned32,
   kNumber,
-  kNumberOrOddball
+  kNumberOrOddball,
+  kHeapObject
 };
 
 inline std::ostream& operator<<(std::ostream& os, TypeCheckKind type_check) {
@@ -97,6 +96,8 @@ inline std::ostream& operator<<(std::ostream& os, TypeCheckKind type_check) {
       return os << "Number";
     case TypeCheckKind::kNumberOrOddball:
       return os << "NumberOrOddball";
+    case TypeCheckKind::kHeapObject:
+      return os << "HeapObject";
   }
   UNREACHABLE();
   return os;
@@ -108,7 +109,8 @@ inline std::ostream& operator<<(std::ostream& os, TypeCheckKind type_check) {
 //
 // 1. During propagation, the use info is used to inform the input node
 //    about what part of the input is used (we call this truncation) and what
-//    is the preferred representation.
+//    is the preferred representation. For conversions that will require
+//    checks, we also keep track of whether a minus zero check is needed.
 //
 // 2. During lowering, the use info is used to properly convert the input
 //    to the preferred representation. The preferred representation might be
@@ -117,10 +119,13 @@ inline std::ostream& operator<<(std::ostream& os, TypeCheckKind type_check) {
 class UseInfo {
  public:
   UseInfo(MachineRepresentation representation, Truncation truncation,
-          TypeCheckKind type_check = TypeCheckKind::kNone)
+          TypeCheckKind type_check = TypeCheckKind::kNone,
+          CheckForMinusZeroMode minus_zero_check =
+              CheckForMinusZeroMode::kCheckForMinusZero)
       : representation_(representation),
         truncation_(truncation),
-        type_check_(type_check) {}
+        type_check_(type_check),
+        minus_zero_check_(minus_zero_check) {}
   static UseInfo TruncatingWord32() {
     return UseInfo(MachineRepresentation::kWord32, Truncation::Word32());
   }
@@ -130,8 +135,8 @@ class UseInfo {
   static UseInfo Bool() {
     return UseInfo(MachineRepresentation::kBit, Truncation::Bool());
   }
-  static UseInfo TruncatingFloat32() {
-    return UseInfo(MachineRepresentation::kFloat32, Truncation::Float32());
+  static UseInfo Float32() {
+    return UseInfo(MachineRepresentation::kFloat32, Truncation::Any());
   }
   static UseInfo TruncatingFloat64() {
     return UseInfo(MachineRepresentation::kFloat64, Truncation::Float64());
@@ -150,17 +155,25 @@ class UseInfo {
   }
 
   // Possibly deoptimizing conversions.
+  static UseInfo CheckedHeapObjectAsTaggedPointer() {
+    return UseInfo(MachineRepresentation::kTaggedPointer, Truncation::Any(),
+                   TypeCheckKind::kHeapObject);
+  }
   static UseInfo CheckedSignedSmallAsTaggedSigned() {
     return UseInfo(MachineRepresentation::kTaggedSigned, Truncation::Any(),
                    TypeCheckKind::kSignedSmall);
   }
-  static UseInfo CheckedSignedSmallAsWord32() {
+  static UseInfo CheckedSignedSmallAsWord32(
+      CheckForMinusZeroMode minus_zero_mode =
+          CheckForMinusZeroMode::kCheckForMinusZero) {
     return UseInfo(MachineRepresentation::kWord32, Truncation::Any(),
-                   TypeCheckKind::kSignedSmall);
+                   TypeCheckKind::kSignedSmall, minus_zero_mode);
   }
-  static UseInfo CheckedSigned32AsWord32() {
+  static UseInfo CheckedSigned32AsWord32(
+      CheckForMinusZeroMode minus_zero_mode =
+          CheckForMinusZeroMode::kCheckForMinusZero) {
     return UseInfo(MachineRepresentation::kWord32, Truncation::Any(),
-                   TypeCheckKind::kSigned32);
+                   TypeCheckKind::kSigned32, minus_zero_mode);
   }
   static UseInfo CheckedNumberAsFloat64() {
     return UseInfo(MachineRepresentation::kFloat64, Truncation::Float64(),
@@ -195,11 +208,14 @@ class UseInfo {
   MachineRepresentation representation() const { return representation_; }
   Truncation truncation() const { return truncation_; }
   TypeCheckKind type_check() const { return type_check_; }
+  CheckForMinusZeroMode minus_zero_check() const { return minus_zero_check_; }
 
  private:
   MachineRepresentation representation_;
   Truncation truncation_;
   TypeCheckKind type_check_;
+  // TODO(jarin) Integrate with truncations.
+  CheckForMinusZeroMode minus_zero_check_;
 };
 
 // Contains logic related to changing the representation of values for constants
@@ -251,7 +267,8 @@ class RepresentationChanger final {
                                          UseInfo use_info);
   Node* GetTaggedPointerRepresentationFor(Node* node,
                                           MachineRepresentation output_rep,
-                                          Type* output_type);
+                                          Type* output_type, Node* use_node,
+                                          UseInfo use_info);
   Node* GetTaggedRepresentationFor(Node* node, MachineRepresentation output_rep,
                                    Type* output_type, Truncation truncation);
   Node* GetFloat32RepresentationFor(Node* node,
@@ -275,8 +292,10 @@ class RepresentationChanger final {
   Node* InsertChangeFloat32ToFloat64(Node* node);
   Node* InsertChangeFloat64ToInt32(Node* node);
   Node* InsertChangeFloat64ToUint32(Node* node);
+  Node* InsertChangeInt32ToFloat64(Node* node);
   Node* InsertChangeTaggedSignedToInt32(Node* node);
   Node* InsertChangeTaggedToFloat64(Node* node);
+  Node* InsertChangeUint32ToFloat64(Node* node);
 
   Node* InsertConversion(Node* node, const Operator* op, Node* use_node);
 

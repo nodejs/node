@@ -7,9 +7,11 @@
 
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
+#include "src/base/compiler-specific.h"
+#include "src/globals.h"
 #include "src/parsing/parser-base.h"
-#include "src/parsing/preparse-data.h"
 #include "src/parsing/preparse-data-format.h"
+#include "src/parsing/preparse-data.h"
 #include "src/parsing/preparser.h"
 #include "src/pending-compilation-error-handler.h"
 
@@ -29,11 +31,11 @@ class FunctionEntry BASE_EMBEDDED {
   enum {
     kStartPositionIndex,
     kEndPositionIndex,
+    kNumParametersIndex,
+    kFunctionLengthIndex,
     kLiteralCountIndex,
     kPropertyCountIndex,
-    kLanguageModeIndex,
-    kUsesSuperPropertyIndex,
-    kCallsEvalIndex,
+    kFlagsIndex,
     kSize
   };
 
@@ -42,18 +44,43 @@ class FunctionEntry BASE_EMBEDDED {
 
   FunctionEntry() : backing_() { }
 
-  int start_pos() { return backing_[kStartPositionIndex]; }
-  int end_pos() { return backing_[kEndPositionIndex]; }
-  int literal_count() { return backing_[kLiteralCountIndex]; }
-  int property_count() { return backing_[kPropertyCountIndex]; }
-  LanguageMode language_mode() {
-    DCHECK(is_valid_language_mode(backing_[kLanguageModeIndex]));
-    return static_cast<LanguageMode>(backing_[kLanguageModeIndex]);
-  }
-  bool uses_super_property() { return backing_[kUsesSuperPropertyIndex]; }
-  bool calls_eval() { return backing_[kCallsEvalIndex]; }
+  class LanguageModeField : public BitField<LanguageMode, 0, 1> {};
+  class UsesSuperPropertyField
+      : public BitField<bool, LanguageModeField::kNext, 1> {};
+  class CallsEvalField
+      : public BitField<bool, UsesSuperPropertyField::kNext, 1> {};
+  class HasDuplicateParametersField
+      : public BitField<bool, CallsEvalField::kNext, 1> {};
 
-  bool is_valid() { return !backing_.is_empty(); }
+  static uint32_t EncodeFlags(LanguageMode language_mode,
+                              bool uses_super_property, bool calls_eval,
+                              bool has_duplicate_parameters) {
+    return LanguageModeField::encode(language_mode) |
+           UsesSuperPropertyField::encode(uses_super_property) |
+           CallsEvalField::encode(calls_eval) |
+           HasDuplicateParametersField::encode(has_duplicate_parameters);
+  }
+
+  int start_pos() const { return backing_[kStartPositionIndex]; }
+  int end_pos() const { return backing_[kEndPositionIndex]; }
+  int num_parameters() const { return backing_[kNumParametersIndex]; }
+  int function_length() const { return backing_[kFunctionLengthIndex]; }
+  int literal_count() const { return backing_[kLiteralCountIndex]; }
+  int property_count() const { return backing_[kPropertyCountIndex]; }
+  LanguageMode language_mode() const {
+    return LanguageModeField::decode(backing_[kFlagsIndex]);
+  }
+  bool uses_super_property() const {
+    return UsesSuperPropertyField::decode(backing_[kFlagsIndex]);
+  }
+  bool calls_eval() const {
+    return CallsEvalField::decode(backing_[kFlagsIndex]);
+  }
+  bool has_duplicate_parameters() const {
+    return HasDuplicateParametersField::decode(backing_[kFlagsIndex]);
+  }
+
+  bool is_valid() const { return !backing_.is_empty(); }
 
  private:
   Vector<unsigned> backing_;
@@ -74,8 +101,6 @@ class ParseData {
   void Initialize();
   FunctionEntry GetFunctionEntry(int start);
   int FunctionCount();
-
-  bool HasError();
 
   unsigned* Data() {  // Writable data as unsigned int array.
     return reinterpret_cast<unsigned*>(const_cast<byte*>(script_data_->data()));
@@ -107,7 +132,6 @@ class ParseData {
 // JAVASCRIPT PARSING
 
 class Parser;
-class SingletonLogger;
 
 
 struct ParserFormalParameters : FormalParametersBase {
@@ -134,7 +158,6 @@ struct ParserFormalParameters : FormalParametersBase {
       : FormalParametersBase(scope), params(4, scope->zone()) {}
   ZoneList<Parameter> params;
 
-  int Arity() const { return params.length(); }
   const Parameter& at(int i) const { return params[i]; }
 };
 
@@ -168,7 +191,7 @@ struct ParserTypes<Parser> {
   typedef ParserTargetScope TargetScope;
 };
 
-class Parser : public ParserBase<Parser> {
+class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
  public:
   explicit Parser(ParseInfo* info);
   ~Parser() {
@@ -177,6 +200,8 @@ class Parser : public ParserBase<Parser> {
     delete cached_parse_data_;
     cached_parse_data_ = NULL;
   }
+
+  static bool const IsPreParser() { return false; }
 
   // Parses the source code represented by the compilation info and sets its
   // function literal.  Returns false (and deallocates any allocated AST
@@ -205,6 +230,27 @@ class Parser : public ParserBase<Parser> {
   friend class ParserBase<Parser>;
   friend class v8::internal::ExpressionClassifier<ParserTypes<Parser>>;
 
+  bool AllowsLazyParsingWithoutUnresolvedVariables() const {
+    return scope()->AllowsLazyParsingWithoutUnresolvedVariables(
+        original_scope_);
+  }
+
+  bool parse_lazily() const { return mode_ == PARSE_LAZILY; }
+  enum Mode { PARSE_LAZILY, PARSE_EAGERLY };
+
+  class ParsingModeScope BASE_EMBEDDED {
+   public:
+    ParsingModeScope(Parser* parser, Mode mode)
+        : parser_(parser), old_mode_(parser->mode_) {
+      parser_->mode_ = mode;
+    }
+    ~ParsingModeScope() { parser_->mode_ = old_mode_; }
+
+   private:
+    Parser* parser_;
+    Mode old_mode_;
+  };
+
   // Runtime encoding of different completion modes.
   enum CompletionKind {
     kNormalCompletion,
@@ -230,9 +276,10 @@ class Parser : public ParserBase<Parser> {
   // Returns NULL if parsing failed.
   FunctionLiteral* ParseProgram(Isolate* isolate, ParseInfo* info);
 
-  FunctionLiteral* ParseLazy(Isolate* isolate, ParseInfo* info);
-  FunctionLiteral* DoParseLazy(ParseInfo* info, const AstRawString* raw_name,
-                               Utf16CharacterStream* source);
+  FunctionLiteral* ParseFunction(Isolate* isolate, ParseInfo* info);
+  FunctionLiteral* DoParseFunction(ParseInfo* info,
+                                   const AstRawString* raw_name,
+                                   Utf16CharacterStream* source);
 
   // Called by ParseProgram after setting up the scanner.
   FunctionLiteral* DoParseProgram(ParseInfo* info);
@@ -243,11 +290,12 @@ class Parser : public ParserBase<Parser> {
     return compile_options_;
   }
   bool consume_cached_parse_data() const {
-    return compile_options_ == ScriptCompiler::kConsumeParserCache &&
-           cached_parse_data_ != NULL;
+    return allow_lazy() &&
+           compile_options_ == ScriptCompiler::kConsumeParserCache;
   }
   bool produce_cached_parse_data() const {
-    return compile_options_ == ScriptCompiler::kProduceParserCache;
+    return allow_lazy() &&
+           compile_options_ == ScriptCompiler::kProduceParserCache;
   }
 
   void ParseModuleItemList(ZoneList<Statement*>* body, bool* ok);
@@ -358,11 +406,13 @@ class Parser : public ParserBase<Parser> {
     void VisitObjectLiteral(ObjectLiteral* node, Variable** temp_var);
     void VisitArrayLiteral(ArrayLiteral* node, Variable** temp_var);
 
-    bool IsBindingContext() const { return IsBindingContext(context_); }
+    bool IsBindingContext() const {
+      return context_ == BINDING || context_ == INITIALIZER;
+    }
     bool IsInitializerContext() const { return context_ != ASSIGNMENT; }
-    bool IsAssignmentContext() const { return IsAssignmentContext(context_); }
-    bool IsAssignmentContext(PatternContext c) const;
-    bool IsBindingContext(PatternContext c) const;
+    bool IsAssignmentContext() const {
+      return context_ == ASSIGNMENT || context_ == ASSIGNMENT_INITIALIZER;
+    }
     bool IsSubPattern() const { return recursion_level_ > 1; }
     PatternContext SetAssignmentContextIfNeeded(Expression* node);
     PatternContext SetInitializerContextIfNeeded(Expression* node);
@@ -453,13 +503,13 @@ class Parser : public ParserBase<Parser> {
   void InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope);
 
   VariableProxy* NewUnresolved(const AstRawString* name, int begin_pos,
-                               int end_pos = kNoSourcePosition,
                                VariableKind kind = NORMAL_VARIABLE);
   VariableProxy* NewUnresolved(const AstRawString* name);
   Variable* Declare(Declaration* declaration,
                     DeclarationDescriptor::Kind declaration_kind,
                     VariableMode mode, InitializationFlag init, bool* ok,
-                    Scope* declaration_scope = nullptr);
+                    Scope* declaration_scope = nullptr,
+                    int var_end_pos = kNoSourcePosition);
   Declaration* DeclareVariable(const AstRawString* name, VariableMode mode,
                                int pos, bool* ok);
   Declaration* DeclareVariable(const AstRawString* name, VariableMode mode,
@@ -480,13 +530,11 @@ class Parser : public ParserBase<Parser> {
   // by parsing the function with PreParser. Consumes the ending }.
   // If may_abort == true, the (pre-)parser may decide to abort skipping
   // in order to force the function to be eagerly parsed, after all.
-  LazyParsingResult SkipLazyFunctionBody(int* materialized_literal_count,
-                                         int* expected_property_count,
-                                         bool is_inner_function, bool may_abort,
-                                         bool* ok);
-
-  PreParser::PreParseResult ParseLazyFunctionBodyWithPreParser(
-      SingletonLogger* logger, bool is_inner_function, bool may_abort);
+  LazyParsingResult SkipFunction(
+      FunctionKind kind, DeclarationScope* function_scope, int* num_parameters,
+      int* function_length, bool* has_duplicate_parameters,
+      int* materialized_literal_count, int* expected_property_count,
+      bool is_inner_function, bool may_abort, bool* ok);
 
   Block* BuildParameterInitializationBlock(
       const ParserFormalParameters& parameters, bool* ok);
@@ -497,6 +545,13 @@ class Parser : public ParserBase<Parser> {
       const AstRawString* function_name, int pos,
       const ParserFormalParameters& parameters, FunctionKind kind,
       FunctionLiteral::FunctionType function_type, bool* ok);
+
+  ZoneList<Statement*>* ParseFunction(
+      const AstRawString* function_name, int pos, FunctionKind kind,
+      FunctionLiteral::FunctionType function_type,
+      DeclarationScope* function_scope, int* num_parameters,
+      int* function_length, bool* has_duplicate_parameters,
+      int* materialized_literal_count, int* expected_property_count, bool* ok);
 
   void ThrowPendingError(Isolate* isolate, Handle<Script> script);
 
@@ -923,7 +978,7 @@ class Parser : public ParserBase<Parser> {
   }
 
   V8_INLINE Expression* ThisExpression(int pos = kNoSourcePosition) {
-    return NewUnresolved(ast_value_factory()->this_string(), pos, pos + 4,
+    return NewUnresolved(ast_value_factory()->this_string(), pos,
                          THIS_VARIABLE);
   }
 
@@ -935,12 +990,12 @@ class Parser : public ParserBase<Parser> {
   Literal* ExpressionFromLiteral(Token::Value token, int pos);
 
   V8_INLINE Expression* ExpressionFromIdentifier(
-      const AstRawString* name, int start_position, int end_position,
+      const AstRawString* name, int start_position,
       InferName infer = InferName::kYes) {
     if (infer == InferName::kYes) {
       fni_->PushVariableName(name);
     }
-    return NewUnresolved(name, start_position, end_position);
+    return NewUnresolved(name, start_position);
   }
 
   V8_INLINE Expression* ExpressionFromString(int pos) {
@@ -994,6 +1049,7 @@ class Parser : public ParserBase<Parser> {
                                     Expression* initializer,
                                     int initializer_end_position,
                                     bool is_rest) {
+    parameters->UpdateArityAndFunctionLength(initializer != nullptr, is_rest);
     bool is_simple = pattern->IsVariableProxy() && initializer == nullptr;
     const AstRawString* name = is_simple
                                    ? pattern->AsVariableProxy()->raw_name()
@@ -1076,6 +1132,7 @@ class Parser : public ParserBase<Parser> {
   Scanner scanner_;
   PreParser* reusable_preparser_;
   Scope* original_scope_;  // for ES5 function declarations in sloppy eval
+  Mode mode_;
 
   friend class ParserTarget;
   friend class ParserTargetScope;
@@ -1090,9 +1147,49 @@ class Parser : public ParserBase<Parser> {
   // parsing.
   int use_counts_[v8::Isolate::kUseCounterFeatureCount];
   int total_preparse_skipped_;
-  HistogramTimer* pre_parse_timer_;
-
   bool parsing_on_main_thread_;
+  ParserLogger* log_;
+};
+
+// ----------------------------------------------------------------------------
+// Target is a support class to facilitate manipulation of the
+// Parser's target_stack_ (the stack of potential 'break' and
+// 'continue' statement targets). Upon construction, a new target is
+// added; it is removed upon destruction.
+
+class ParserTarget BASE_EMBEDDED {
+ public:
+  ParserTarget(ParserBase<Parser>* parser, BreakableStatement* statement)
+      : variable_(&parser->impl()->target_stack_),
+        statement_(statement),
+        previous_(parser->impl()->target_stack_) {
+    parser->impl()->target_stack_ = this;
+  }
+
+  ~ParserTarget() { *variable_ = previous_; }
+
+  ParserTarget* previous() { return previous_; }
+  BreakableStatement* statement() { return statement_; }
+
+ private:
+  ParserTarget** variable_;
+  BreakableStatement* statement_;
+  ParserTarget* previous_;
+};
+
+class ParserTargetScope BASE_EMBEDDED {
+ public:
+  explicit ParserTargetScope(ParserBase<Parser>* parser)
+      : variable_(&parser->impl()->target_stack_),
+        previous_(parser->impl()->target_stack_) {
+    parser->impl()->target_stack_ = nullptr;
+  }
+
+  ~ParserTargetScope() { *variable_ = previous_; }
+
+ private:
+  ParserTarget** variable_;
+  ParserTarget* previous_;
 };
 
 }  // namespace internal

@@ -377,7 +377,11 @@ String16 String16::fromInteger(int number) {
 String16 String16::fromInteger(size_t number) {
   const size_t kBufferSize = 50;
   char buffer[kBufferSize];
+#if !defined(_WIN32) && !defined(_WIN64)
   v8::base::OS::SNPrintF(buffer, kBufferSize, "%zu", number);
+#else
+  v8::base::OS::SNPrintF(buffer, kBufferSize, "%Iu", number);
+#endif
   return String16(buffer);
 }
 
@@ -441,6 +445,26 @@ void String16Builder::append(const UChar* characters, size_t length) {
 
 void String16Builder::append(const char* characters, size_t length) {
   m_buffer.insert(m_buffer.end(), characters, characters + length);
+}
+
+void String16Builder::appendNumber(int number) {
+  const int kBufferSize = 11;
+  char buffer[kBufferSize];
+  int chars = v8::base::OS::SNPrintF(buffer, kBufferSize, "%d", number);
+  DCHECK_GT(kBufferSize, chars);
+  m_buffer.insert(m_buffer.end(), buffer, buffer + chars);
+}
+
+void String16Builder::appendNumber(size_t number) {
+  const int kBufferSize = 20;
+  char buffer[kBufferSize];
+#if !defined(_WIN32) && !defined(_WIN64)
+  int chars = v8::base::OS::SNPrintF(buffer, kBufferSize, "%zu", number);
+#else
+  int chars = v8::base::OS::SNPrintF(buffer, kBufferSize, "%Iu", number);
+#endif
+  DCHECK_GT(kBufferSize, chars);
+  m_buffer.insert(m_buffer.end(), buffer, buffer + chars);
 }
 
 String16 String16Builder::toString() {

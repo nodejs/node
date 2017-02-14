@@ -335,7 +335,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, Dispatch) {
             IsChangeUint32ToUint64(after_lookahead_bytecode);
       }
       target_bytecode_matcher =
-          IsPhi(MachineRepresentation::kWord8, target_bytecode_matcher,
+          IsPhi(MachineType::PointerRepresentation(), target_bytecode_matcher,
                 after_lookahead_bytecode, _);
       code_target_matcher =
           m.IsLoad(MachineType::Pointer(),
@@ -538,9 +538,9 @@ TARGET_TEST_F(InterpreterAssemblerTest, SmiTag) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerForTest m(this, bytecode);
     Node* value = m.Int32Constant(44);
-    EXPECT_THAT(m.SmiTag(value),
-                IsIntPtrConstant(static_cast<intptr_t>(44)
-                                 << (kSmiShiftSize + kSmiTagSize)));
+    EXPECT_THAT(m.SmiTag(value), IsBitcastWordToTaggedSigned(IsIntPtrConstant(
+                                     static_cast<intptr_t>(44)
+                                     << (kSmiShiftSize + kSmiTagSize))));
     EXPECT_THAT(m.SmiUntag(value),
                 IsWordSar(IsBitcastTaggedToWord(value),
                           IsIntPtrConstant(kSmiShiftSize + kSmiTagSize)));
@@ -603,39 +603,6 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadObjectField) {
     EXPECT_THAT(load_field,
                 m.IsLoad(MachineType::AnyTagged(), object,
                          IsIntPtrConstant(offset - kHeapObjectTag)));
-  }
-}
-
-TARGET_TEST_F(InterpreterAssemblerTest, LoadContextSlot) {
-  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
-    InterpreterAssemblerForTest m(this, bytecode);
-    Node* context = m.IntPtrConstant(1);
-    Node* slot_index = m.IntPtrConstant(22);
-    Node* load_context_slot = m.LoadContextSlot(context, slot_index);
-
-    Matcher<Node*> offset =
-        IsIntPtrAdd(IsWordShl(slot_index, IsIntPtrConstant(kPointerSizeLog2)),
-                    IsIntPtrConstant(Context::kHeaderSize - kHeapObjectTag));
-    EXPECT_THAT(load_context_slot,
-                m.IsLoad(MachineType::AnyTagged(), context, offset));
-  }
-}
-
-TARGET_TEST_F(InterpreterAssemblerTest, StoreContextSlot) {
-  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
-    InterpreterAssemblerForTest m(this, bytecode);
-    Node* context = m.IntPtrConstant(1);
-    Node* slot_index = m.IntPtrConstant(22);
-    Node* value = m.SmiConstant(Smi::FromInt(100));
-    Node* store_context_slot = m.StoreContextSlot(context, slot_index, value);
-
-    Matcher<Node*> offset =
-        IsIntPtrAdd(IsWordShl(slot_index, IsIntPtrConstant(kPointerSizeLog2)),
-                    IsIntPtrConstant(Context::kHeaderSize - kHeapObjectTag));
-    EXPECT_THAT(store_context_slot,
-                m.IsStore(StoreRepresentation(MachineRepresentation::kTagged,
-                                              kFullWriteBarrier),
-                          context, offset, value));
   }
 }
 

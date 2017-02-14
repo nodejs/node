@@ -429,7 +429,7 @@ void RunJSSelectAlignTest(int num_args, int num_params) {
     HandleScope scope(isolate);
     TestingModule module;
     uint32_t js_index = AddJSSelector(&module, &sig, which);
-    CHECK_EQ(0, js_index);
+    CHECK_EQ(0u, js_index);
     WasmFunctionCompiler t(&sig, &module);
     t.Build(&code[0], &code[end]);
 

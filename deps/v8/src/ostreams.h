@@ -80,7 +80,8 @@ struct AsHex {
 std::ostream& operator<<(std::ostream& os, const AsReversiblyEscapedUC16& c);
 
 // Same as AsReversiblyEscapedUC16 with additional escaping of \n, \r, " and '.
-std::ostream& operator<<(std::ostream& os, const AsEscapedUC16ForJSON& c);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const AsEscapedUC16ForJSON& c);
 
 // Writes the given character to the output escaping everything outside
 // of printable ASCII range.

@@ -178,16 +178,16 @@ struct Lowercase {
 struct Letter {
   static bool Is(uchar c);
 };
-struct ID_Start {
+struct V8_EXPORT_PRIVATE ID_Start {
   static bool Is(uchar c);
 };
-struct ID_Continue {
+struct V8_EXPORT_PRIVATE ID_Continue {
   static bool Is(uchar c);
 };
-struct WhiteSpace {
+struct V8_EXPORT_PRIVATE WhiteSpace {
   static bool Is(uchar c);
 };
-struct LineTerminator {
+struct V8_EXPORT_PRIVATE LineTerminator {
   static bool Is(uchar c);
 };
 struct ToLowercase {

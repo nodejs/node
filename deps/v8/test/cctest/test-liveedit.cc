@@ -96,7 +96,7 @@ void CompareStringsOneWay(const char* s1, const char* s2,
   StringCompareInput input(s1, s2);
 
   v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator);
+  Zone zone(&allocator, ZONE_NAME);
 
   DiffChunkStruct* first_chunk;
   ListDiffOutputWriter writer(&first_chunk, &zone);

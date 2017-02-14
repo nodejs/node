@@ -361,11 +361,7 @@ void FullCodeGenerator::Generate() {
   masm()->CheckConstPool(true, false);
 }
 
-
-void FullCodeGenerator::ClearAccumulator() {
-  __ mov(r0, Operand(Smi::FromInt(0)));
-}
-
+void FullCodeGenerator::ClearAccumulator() { __ mov(r0, Operand(Smi::kZero)); }
 
 void FullCodeGenerator::EmitProfilingCounterDecrement(int delta) {
   __ mov(r2, Operand(profiling_counter_));
@@ -1022,8 +1018,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ CompareRoot(r0, Heap::kUndefinedValueRootIndex);
   __ b(eq, &exit);
   __ bind(&convert);
-  ToObjectStub stub(isolate());
-  __ CallStub(&stub);
+  __ Call(isolate()->builtins()->ToObject(), RelocInfo::CODE_TARGET);
   RestoreContext();
   __ bind(&done_convert);
   PrepareForBailoutForId(stmt->ToObjectId(), BailoutState::TOS_REGISTER);
@@ -1062,7 +1057,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ bind(&use_cache);
 
   __ EnumLength(r1, r0);
-  __ cmp(r1, Operand(Smi::FromInt(0)));
+  __ cmp(r1, Operand(Smi::kZero));
   __ b(eq, &no_descriptors);
 
   __ LoadInstanceDescriptors(r0, r2);
@@ -1071,7 +1066,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // Set up the four remaining stack slots.
   __ push(r0);  // Map.
-  __ mov(r0, Operand(Smi::FromInt(0)));
+  __ mov(r0, Operand(Smi::kZero));
   // Push enumeration cache, enumeration cache length (as smi) and zero.
   __ Push(r2, r1, r0);
   __ jmp(&loop);
@@ -1088,7 +1083,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ ldr(r1, FieldMemOperand(r0, FixedArray::kLengthOffset));
   __ Push(r1);  // Fixed array length (as smi).
   PrepareForBailoutForId(stmt->PrepareId(), BailoutState::NO_REGISTERS);
-  __ mov(r0, Operand(Smi::FromInt(0)));
+  __ mov(r0, Operand(Smi::kZero));
   __ Push(r0);  // Initial index.
 
   // Generate code for doing the condition check.
@@ -1124,10 +1119,9 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ str(r2, FieldMemOperand(r3, FixedArray::OffsetOfElementAt(vector_index)));
 
   // r0 contains the key. The receiver in r1 is the second argument to the
-  // ForInFilterStub. ForInFilter returns undefined if the receiver doesn't
+  // ForInFilter. ForInFilter returns undefined if the receiver doesn't
   // have the key or returns the name-converted key.
-  ForInFilterStub filter_stub(isolate());
-  __ CallStub(&filter_stub);
+  __ Call(isolate()->builtins()->ForInFilter(), RelocInfo::CODE_TARGET);
   RestoreContext();
   PrepareForBailoutForId(stmt->FilterId(), BailoutState::TOS_REGISTER);
   __ CompareRoot(result_register(), Heap::kUndefinedValueRootIndex);
@@ -1299,7 +1293,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy,
       DCHECK_EQ(NOT_INSIDE_TYPEOF, typeof_mode);
       Comment cmnt(masm_, var->IsContextSlot() ? "[ Context variable"
                                                : "[ Stack variable");
-      if (NeedsHoleCheckForLoad(proxy)) {
+      if (proxy->hole_check_mode() == HoleCheckMode::kRequired) {
         // Throw a reference error when using an uninitialized let/const
         // binding in harmony mode.
         Label done;
@@ -1742,12 +1736,14 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
 
   // Store the value.
   switch (assign_type) {
-    case VARIABLE:
-      EmitVariableAssignment(expr->target()->AsVariableProxy()->var(),
-                             expr->op(), expr->AssignmentSlot());
+    case VARIABLE: {
+      VariableProxy* proxy = expr->target()->AsVariableProxy();
+      EmitVariableAssignment(proxy->var(), expr->op(), expr->AssignmentSlot(),
+                             proxy->hole_check_mode());
       PrepareForBailoutForId(expr->AssignmentId(), BailoutState::TOS_REGISTER);
       context()->Plug(r0);
       break;
+    }
     case NAMED_PROPERTY:
       EmitNamedPropertyAssignment(expr);
       break;
@@ -1935,7 +1931,7 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
       __ mov(right, Operand(scratch1), LeaveCC, ne);
       __ b(ne, &done);
       __ add(scratch2, right, Operand(left), SetCC);
-      __ mov(right, Operand(Smi::FromInt(0)), LeaveCC, pl);
+      __ mov(right, Operand(Smi::kZero), LeaveCC, pl);
       __ b(mi, &stub_call);
       break;
     }
@@ -2029,9 +2025,10 @@ void FullCodeGenerator::EmitAssignment(Expression* expr,
 
   switch (assign_type) {
     case VARIABLE: {
-      Variable* var = expr->AsVariableProxy()->var();
+      VariableProxy* proxy = expr->AsVariableProxy();
       EffectContext context(this);
-      EmitVariableAssignment(var, Token::ASSIGN, slot);
+      EmitVariableAssignment(proxy->var(), Token::ASSIGN, slot,
+                             proxy->hole_check_mode());
       break;
     }
     case NAMED_PROPERTY: {
@@ -2106,9 +2103,9 @@ void FullCodeGenerator::EmitStoreToStackLocalOrContextSlot(
   }
 }
 
-
 void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
-                                               FeedbackVectorSlot slot) {
+                                               FeedbackVectorSlot slot,
+                                               HoleCheckMode hole_check_mode) {
   if (var->IsUnallocated()) {
     // Global var, const, or let.
     __ LoadGlobalObject(StoreDescriptor::ReceiverRegister());
@@ -2119,7 +2116,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
     DCHECK(var->IsStackAllocated() || var->IsContextSlot());
     MemOperand location = VarOperand(var, r1);
     // Perform an initialization check for lexically declared variables.
-    if (var->binding_needs_init()) {
+    if (hole_check_mode == HoleCheckMode::kRequired) {
       Label assign;
       __ ldr(r3, location);
       __ CompareRoot(r3, Heap::kTheHoleValueRootIndex);
@@ -2228,17 +2225,6 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
   PrepareForBailoutForId(expr->AssignmentId(), BailoutState::TOS_REGISTER);
   context()->Plug(r0);
 }
-
-
-void FullCodeGenerator::CallIC(Handle<Code> code,
-                               TypeFeedbackId ast_id) {
-  ic_total_count_++;
-  // All calls must have a predictable size in full-codegen code to ensure that
-  // the debugger can patch them correctly.
-  __ Call(code, RelocInfo::CODE_TARGET, ast_id, al,
-          NEVER_INLINE_TARGET_ADDRESS);
-}
-
 
 // Code common for calls using the IC.
 void FullCodeGenerator::EmitCallWithLoadIC(Call* expr) {
@@ -2394,14 +2380,12 @@ void FullCodeGenerator::EmitCall(Call* expr, ConvertReceiverMode mode) {
     // not return to this function.
     EmitProfilingCounterHandlingForReturnSequence(true);
   }
-  Handle<Code> ic =
-      CodeFactory::CallIC(isolate(), arg_count, mode, expr->tail_call_mode())
-          .code();
+  Handle<Code> code =
+      CodeFactory::CallIC(isolate(), mode, expr->tail_call_mode()).code();
   __ mov(r3, Operand(SmiFromSlot(expr->CallFeedbackICSlot())));
   __ ldr(r1, MemOperand(sp, (arg_count + 1) * kPointerSize));
-  // Don't assign a type feedback id to the IC, since type feedback is provided
-  // by the vector above.
-  CallIC(ic);
+  __ mov(r0, Operand(arg_count));
+  CallIC(code);
   OperandStackDepthDecrement(arg_count + 1);
 
   RecordJSReturnSite(expr);
@@ -2505,11 +2489,13 @@ void FullCodeGenerator::EmitPossiblyEvalCall(Call* expr) {
 
   // Record source position for debugger.
   SetCallPosition(expr);
+  Handle<Code> code = CodeFactory::CallIC(isolate(), ConvertReceiverMode::kAny,
+                                          expr->tail_call_mode())
+                          .code();
+  __ mov(r3, Operand(SmiFromSlot(expr->CallFeedbackICSlot())));
   __ ldr(r1, MemOperand(sp, (arg_count + 1) * kPointerSize));
   __ mov(r0, Operand(arg_count));
-  __ Call(isolate()->builtins()->Call(ConvertReceiverMode::kAny,
-                                      expr->tail_call_mode()),
-          RelocInfo::CODE_TARGET);
+  __ Call(code, RelocInfo::CODE_TARGET);
   OperandStackDepthDecrement(arg_count + 1);
   RecordJSReturnSite(expr);
   RestoreContext();
@@ -2549,7 +2535,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   __ mov(r3, Operand(SmiFromSlot(expr->CallNewFeedbackSlot())));
 
   CallConstructStub stub(isolate());
-  __ Call(stub.GetCode(), RelocInfo::CODE_TARGET);
+  CallIC(stub.GetCode());
   OperandStackDepthDecrement(arg_count + 1);
   PrepareForBailoutForId(expr->ReturnId(), BailoutState::TOS_REGISTER);
   RestoreContext();
@@ -2843,41 +2829,6 @@ void FullCodeGenerator::EmitCall(CallRuntime* expr) {
   context()->DropAndPlug(1, r0);
 }
 
-
-void FullCodeGenerator::EmitHasCachedArrayIndex(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  VisitForAccumulatorValue(args->at(0));
-
-  Label materialize_true, materialize_false;
-  Label* if_true = NULL;
-  Label* if_false = NULL;
-  Label* fall_through = NULL;
-  context()->PrepareTest(&materialize_true, &materialize_false,
-                         &if_true, &if_false, &fall_through);
-
-  __ ldr(r0, FieldMemOperand(r0, String::kHashFieldOffset));
-  __ tst(r0, Operand(String::kContainsCachedArrayIndexMask));
-  PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  Split(eq, if_true, if_false, fall_through);
-
-  context()->Plug(if_true, if_false);
-}
-
-
-void FullCodeGenerator::EmitGetCachedArrayIndex(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK(args->length() == 1);
-  VisitForAccumulatorValue(args->at(0));
-
-  __ AssertString(r0);
-
-  __ ldr(r0, FieldMemOperand(r0, String::kHashFieldOffset));
-  __ IndexFromHash(r0, r0);
-
-  context()->Plug(r0);
-}
-
-
 void FullCodeGenerator::EmitGetSuperConstructor(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK_EQ(1, args->length());
@@ -3056,8 +3007,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         VisitForTypeofValue(expr->expression());
       }
       __ mov(r3, r0);
-      TypeofStub typeof_stub(isolate());
-      __ CallStub(&typeof_stub);
+      __ Call(isolate()->builtins()->Typeof(), RelocInfo::CODE_TARGET);
       context()->Plug(r0);
       break;
     }
@@ -3084,7 +3034,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   } else {
     // Reserve space for result of postfix operation.
     if (expr->is_postfix() && !context()->IsEffect()) {
-      __ mov(ip, Operand(Smi::FromInt(0)));
+      __ mov(ip, Operand(Smi::kZero));
       PushOperand(ip);
     }
     switch (assign_type) {
@@ -3236,11 +3186,12 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
 
   // Store the value returned in r0.
   switch (assign_type) {
-    case VARIABLE:
+    case VARIABLE: {
+      VariableProxy* proxy = expr->expression()->AsVariableProxy();
       if (expr->is_postfix()) {
         { EffectContext context(this);
-          EmitVariableAssignment(expr->expression()->AsVariableProxy()->var(),
-                                 Token::ASSIGN, expr->CountSlot());
+          EmitVariableAssignment(proxy->var(), Token::ASSIGN, expr->CountSlot(),
+                                 proxy->hole_check_mode());
           PrepareForBailoutForId(expr->AssignmentId(),
                                  BailoutState::TOS_REGISTER);
           context.Plug(r0);
@@ -3251,13 +3202,14 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
           context()->PlugTOS();
         }
       } else {
-        EmitVariableAssignment(expr->expression()->AsVariableProxy()->var(),
-                               Token::ASSIGN, expr->CountSlot());
+        EmitVariableAssignment(proxy->var(), Token::ASSIGN, expr->CountSlot(),
+                               proxy->hole_check_mode());
         PrepareForBailoutForId(expr->AssignmentId(),
                                BailoutState::TOS_REGISTER);
         context()->Plug(r0);
       }
       break;
+    }
     case NAMED_PROPERTY: {
       PopOperand(StoreDescriptor::ReceiverRegister());
       CallStoreIC(expr->CountSlot(), prop->key()->AsLiteral()->value());
@@ -3426,8 +3378,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       VisitForAccumulatorValue(expr->right());
       SetExpressionPosition(expr);
       PopOperand(r1);
-      InstanceOfStub stub(isolate());
-      __ CallStub(&stub);
+      __ Call(isolate()->builtins()->InstanceOf(), RelocInfo::CODE_TARGET);
       PrepareForBailoutBeforeSplit(expr, false, NULL, NULL);
       __ CompareRoot(r0, Heap::kTrueValueRootIndex);
       Split(eq, if_true, if_false, fall_through);

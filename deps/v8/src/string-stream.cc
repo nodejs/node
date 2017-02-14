@@ -533,7 +533,7 @@ void StringStream::PrintPrototype(JSFunction* fun, Object* receiver) {
     print_name = true;
   } else if (isolate->context() != nullptr) {
     if (!receiver->IsJSObject()) {
-      receiver = receiver->GetRootMap(isolate)->prototype();
+      receiver = receiver->GetPrototypeChainRootMap(isolate)->prototype();
     }
 
     for (PrototypeIterator iter(isolate, JSObject::cast(receiver),

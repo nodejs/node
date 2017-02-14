@@ -10,6 +10,7 @@
 #include "src/compiler/type-cache.h"
 #include "src/field-index-inl.h"
 #include "src/field-type.h"
+#include "src/ic/call-optimization.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
@@ -24,8 +25,6 @@ bool CanInlineElementAccess(Handle<Map> map) {
   if (map->has_indexed_interceptor()) return false;
   ElementsKind const elements_kind = map->elements_kind();
   if (IsFastElementsKind(elements_kind)) return true;
-  // TODO(bmeurer): Add support for other elements kind.
-  if (elements_kind == UINT8_CLAMPED_ELEMENTS) return false;
   if (IsFixedTypedArrayElementsKind(elements_kind)) return true;
   return false;
 }
@@ -93,6 +92,12 @@ PropertyAccessInfo PropertyAccessInfo::AccessorConstant(
     MapList const& receiver_maps, Handle<Object> constant,
     MaybeHandle<JSObject> holder) {
   return PropertyAccessInfo(kAccessorConstant, holder, constant, receiver_maps);
+}
+
+// static
+PropertyAccessInfo PropertyAccessInfo::Generic(MapList const& receiver_maps) {
+  return PropertyAccessInfo(kGeneric, MaybeHandle<JSObject>(), Handle<Object>(),
+                            receiver_maps);
 }
 
 PropertyAccessInfo::PropertyAccessInfo()
@@ -167,6 +172,12 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that) {
         return true;
       }
       return false;
+    }
+    case kGeneric: {
+      this->receiver_maps_.insert(this->receiver_maps_.end(),
+                                  that->receiver_maps_.begin(),
+                                  that->receiver_maps_.end());
+      return true;
     }
   }
 
@@ -301,7 +312,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
               MachineRepresentation::kTagged;
           MaybeHandle<Map> field_map;
           if (details_representation.IsSmi()) {
-            field_type = type_cache_.kSmi;
+            field_type = Type::SignedSmall();
             field_representation = MachineRepresentation::kTaggedSigned;
           } else if (details_representation.IsDouble()) {
             field_type = type_cache_.kFloat64;
@@ -322,7 +333,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
               // Add proper code dependencies in case of stable field map(s).
               Handle<Map> field_owner_map(map->FindFieldOwner(number),
                                           isolate());
-              dependencies()->AssumeFieldType(field_owner_map);
+              dependencies()->AssumeFieldOwner(field_owner_map);
 
               // Remember the field map, and try to infer a useful type.
               field_type = Type::For(descriptors_field_type->AsClass());
@@ -343,8 +354,13 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
                   : Handle<AccessorPair>::cast(accessors)->setter(),
               isolate());
           if (!accessor->IsJSFunction()) {
-            // TODO(turbofan): Add support for API accessors.
-            return false;
+            CallOptimization optimization(accessor);
+            if (!optimization.is_simple_api_call()) {
+              return false;
+            }
+            if (optimization.api_call_info()->fast_handler()->IsCode()) {
+              return false;
+            }
           }
           *access_info = PropertyAccessInfo::AccessorConstant(
               MapList{receiver_map}, accessor, holder);
@@ -474,7 +490,10 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
                                          MaybeHandle<JSObject> holder,
                                          PropertyAccessInfo* access_info) {
   // Check if the {map} has a data transition with the given {name}.
-  if (map->unused_property_fields() == 0) return false;
+  if (map->unused_property_fields() == 0) {
+    *access_info = PropertyAccessInfo::Generic(MapList{map});
+    return true;
+  }
   Handle<Map> transition_map;
   if (TransitionArray::SearchTransition(map, kData, name, NONE)
           .ToHandle(&transition_map)) {
@@ -493,7 +512,7 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
     MaybeHandle<Map> field_map;
     MachineRepresentation field_representation = MachineRepresentation::kTagged;
     if (details_representation.IsSmi()) {
-      field_type = type_cache_.kSmi;
+      field_type = Type::SignedSmall();
       field_representation = MachineRepresentation::kTaggedSigned;
     } else if (details_representation.IsDouble()) {
       field_type = type_cache_.kFloat64;
@@ -512,7 +531,7 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
         // Add proper code dependencies in case of stable field map(s).
         Handle<Map> field_owner_map(transition_map->FindFieldOwner(number),
                                     isolate());
-        dependencies()->AssumeFieldType(field_owner_map);
+        dependencies()->AssumeFieldOwner(field_owner_map);
 
         // Remember the field map, and try to infer a useful type.
         field_type = Type::For(descriptors_field_type->AsClass());

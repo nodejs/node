@@ -19,7 +19,6 @@ namespace interpreter {
   V(ElideCurrentIfOperand0MatchesAction)            \
   V(ElideLastAction)                                \
   V(ChangeBytecodeAction)                           \
-  V(TransformLdaStarToLdrLdarAction)                \
   V(TransformLdaSmiBinaryOpToBinaryOpWithSmiAction) \
   V(TransformLdaZeroBinaryOpToBinaryOpWithZeroAction)
 

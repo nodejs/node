@@ -87,17 +87,13 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
 
   // Reparse the code and analyze the scopes.
   // Check whether we are in global, eval or function code.
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   std::unique_ptr<ParseInfo> info;
   if (scope_info->scope_type() != FUNCTION_SCOPE) {
     // Global or eval code.
     Handle<Script> script(Script::cast(shared_info->script()));
     info.reset(new ParseInfo(&zone, script));
-    info->set_toplevel();
-    if (scope_info->scope_type() == SCRIPT_SCOPE) {
-      info->set_global();
-    } else {
-      DCHECK(scope_info->scope_type() == EVAL_SCOPE);
+    if (scope_info->scope_type() == EVAL_SCOPE) {
       info->set_eval();
       if (!function->context()->IsNativeContext()) {
         info->set_outer_scope_info(handle(function->context()->scope_info()));
@@ -105,10 +101,14 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
       // Language mode may be inherited from the eval caller.
       // Retrieve it from shared function info.
       info->set_language_mode(shared_info->language_mode());
+    } else if (scope_info->scope_type() == MODULE_SCOPE) {
+      info->set_module();
+    } else {
+      DCHECK(scope_info->scope_type() == SCRIPT_SCOPE);
     }
   } else {
     // Inner function.
-    info.reset(new ParseInfo(&zone, function));
+    info.reset(new ParseInfo(&zone, shared_info));
   }
   if (Parser::ParseStatic(info.get()) && Rewriter::Rewrite(info.get())) {
     DeclarationScope* scope = info->literal()->scope();
@@ -610,17 +610,10 @@ MaybeHandle<JSObject> ScopeIterator::MaterializeModuleScope() {
   Handle<Context> context = CurrentContext();
   DCHECK(context->IsModuleContext());
   Handle<ScopeInfo> scope_info(context->scope_info());
-
-  // Allocate and initialize a JSObject with all the members of the debugged
-  // module.
   Handle<JSObject> module_scope =
       isolate_->factory()->NewJSObjectWithNullProto();
-
-  // Fill all context locals.
   CopyContextLocalsToScopeObject(scope_info, context, module_scope);
-
-  // TODO(neis): Also collect stack locals as well as imports and exports.
-
+  CopyModuleVarsToScopeObject(scope_info, context, module_scope);
   return module_scope;
 }
 
@@ -787,6 +780,36 @@ void ScopeIterator::CopyContextLocalsToScopeObject(
     // This should always succeed.
     // TODO(verwaest): Use AddDataProperty instead.
     JSObject::SetOwnPropertyIgnoreAttributes(scope_object, name, value, NONE)
+        .Check();
+  }
+}
+
+void ScopeIterator::CopyModuleVarsToScopeObject(Handle<ScopeInfo> scope_info,
+                                                Handle<Context> context,
+                                                Handle<JSObject> scope_object) {
+  Isolate* isolate = scope_info->GetIsolate();
+
+  int module_variable_count =
+      Smi::cast(scope_info->get(scope_info->ModuleVariableCountIndex()))
+          ->value();
+  for (int i = 0; i < module_variable_count; ++i) {
+    Handle<String> local_name;
+    Handle<Object> value;
+    {
+      String* name;
+      int index;
+      scope_info->ModuleVariable(i, &name, &index);
+      CHECK(!ScopeInfo::VariableIsSynthetic(name));
+      local_name = handle(name, isolate);
+      value = Module::LoadVariable(handle(context->module(), isolate), index);
+    }
+
+    // Reflect variables under TDZ as undefined in scope object.
+    if (value->IsTheHole(isolate)) continue;
+    // This should always succeed.
+    // TODO(verwaest): Use AddDataProperty instead.
+    JSObject::SetOwnPropertyIgnoreAttributes(scope_object, local_name, value,
+                                             NONE)
         .Check();
   }
 }

@@ -37,22 +37,19 @@ class CompilationInfo final {
     kNonDeferredCalling = 1 << 1,
     kSavesCallerDoubles = 1 << 2,
     kRequiresFrame = 1 << 3,
-    kMustNotHaveEagerFrame = 1 << 4,
-    kDeoptimizationSupport = 1 << 5,
-    kDebug = 1 << 6,
-    kSerializing = 1 << 7,
-    kFunctionContextSpecializing = 1 << 8,
-    kFrameSpecializing = 1 << 9,
-    kNativeContextSpecializing = 1 << 10,
-    kInliningEnabled = 1 << 11,
-    kDisableFutureOptimization = 1 << 12,
-    kSplittingEnabled = 1 << 13,
-    kDeoptimizationEnabled = 1 << 14,
-    kSourcePositionsEnabled = 1 << 15,
-    kBailoutOnUninitialized = 1 << 16,
-    kOptimizeFromBytecode = 1 << 17,
-    kTypeFeedbackEnabled = 1 << 18,
-    kAccessorInliningEnabled = 1 << 19,
+    kDeoptimizationSupport = 1 << 4,
+    kAccessorInliningEnabled = 1 << 5,
+    kSerializing = 1 << 6,
+    kFunctionContextSpecializing = 1 << 7,
+    kFrameSpecializing = 1 << 8,
+    kInliningEnabled = 1 << 9,
+    kDisableFutureOptimization = 1 << 10,
+    kSplittingEnabled = 1 << 11,
+    kDeoptimizationEnabled = 1 << 12,
+    kSourcePositionsEnabled = 1 << 13,
+    kBailoutOnUninitialized = 1 << 14,
+    kOptimizeFromBytecode = 1 << 15,
+    kTypeFeedbackEnabled = 1 << 16,
   };
 
   CompilationInfo(ParseInfo* parse_info, Handle<JSFunction> closure);
@@ -112,23 +109,17 @@ class CompilationInfo final {
 
   bool requires_frame() const { return GetFlag(kRequiresFrame); }
 
-  void MarkMustNotHaveEagerFrame() { SetFlag(kMustNotHaveEagerFrame); }
-
-  bool GetMustNotHaveEagerFrame() const {
-    return GetFlag(kMustNotHaveEagerFrame);
-  }
-
   // Compiles marked as debug produce unoptimized code with debug break slots.
   // Inner functions that cannot be compiled w/o context are compiled eagerly.
   // Always include deoptimization support to avoid having to recompile again.
   void MarkAsDebug() {
-    SetFlag(kDebug);
+    set_is_debug();
     SetFlag(kDeoptimizationSupport);
   }
 
-  bool is_debug() const { return GetFlag(kDebug); }
+  bool is_debug() const;
 
-  void PrepareForSerializing() { SetFlag(kSerializing); }
+  void PrepareForSerializing();
 
   bool will_serialize() const { return GetFlag(kSerializing); }
 
@@ -143,14 +134,6 @@ class CompilationInfo final {
   void MarkAsFrameSpecializing() { SetFlag(kFrameSpecializing); }
 
   bool is_frame_specializing() const { return GetFlag(kFrameSpecializing); }
-
-  void MarkAsNativeContextSpecializing() {
-    SetFlag(kNativeContextSpecializing);
-  }
-
-  bool is_native_context_specializing() const {
-    return GetFlag(kNativeContextSpecializing);
-  }
 
   void MarkAsDeoptimizationEnabled() { SetFlag(kDeoptimizationEnabled); }
 
@@ -300,18 +283,29 @@ class CompilationInfo final {
     // Do not remove.
     Handle<Code> inlined_code_object_root;
 
+    InliningPosition position;
+
     InlinedFunctionHolder(Handle<SharedFunctionInfo> inlined_shared_info,
-                          Handle<Code> inlined_code_object_root)
+                          Handle<Code> inlined_code_object_root,
+                          SourcePosition pos)
         : shared_info(inlined_shared_info),
-          inlined_code_object_root(inlined_code_object_root) {}
+          inlined_code_object_root(inlined_code_object_root) {
+      position.position = pos;
+      // initialized when generating the deoptimization literals
+      position.inlined_function_id = DeoptimizationInputData::kNotInlinedIndex;
+    }
+
+    void RegisterInlinedFunctionId(size_t inlined_function_id) {
+      position.inlined_function_id = static_cast<int>(inlined_function_id);
+    }
   };
 
   typedef std::vector<InlinedFunctionHolder> InlinedFunctionList;
-  InlinedFunctionList const& inlined_functions() const {
-    return inlined_functions_;
-  }
+  InlinedFunctionList& inlined_functions() { return inlined_functions_; }
 
-  void AddInlinedFunction(Handle<SharedFunctionInfo> inlined_function);
+  // Returns the inlining id for source position tracking.
+  int AddInlinedFunction(Handle<SharedFunctionInfo> inlined_function,
+                         SourcePosition pos);
 
   std::unique_ptr<char[]> GetDebugName() const;
 
@@ -345,6 +339,8 @@ class CompilationInfo final {
   }
 
   bool GetFlag(Flag flag) const { return (flags_ & flag) != 0; }
+
+  void set_is_debug();
 
   unsigned flags_;
 

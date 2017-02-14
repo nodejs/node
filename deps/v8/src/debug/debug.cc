@@ -27,7 +27,6 @@
 #include "src/log.h"
 #include "src/messages.h"
 #include "src/snapshot/natives.h"
-#include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-module.h"
 
 #include "include/v8-debug.h"
@@ -212,7 +211,7 @@ void CodeBreakIterator::Next() {
   int offset = code_offset();
   while (!source_position_iterator_.done() &&
          source_position_iterator_.code_offset() <= offset) {
-    position_ = source_position_iterator_.source_position();
+    position_ = source_position_iterator_.source_position().ScriptOffset();
     if (source_position_iterator_.is_statement()) {
       statement_position_ = position_;
     }
@@ -296,7 +295,7 @@ void BytecodeArrayBreakIterator::Next() {
     if (!first) source_position_iterator_.Advance();
     first = false;
     if (Done()) return;
-    position_ = source_position_iterator_.source_position();
+    position_ = source_position_iterator_.source_position().ScriptOffset();
     if (source_position_iterator_.is_statement()) {
       statement_position_ = position_;
     }
@@ -1264,7 +1263,8 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
   DCHECK(shared->is_compiled());
 
   if (isolate_->concurrent_recompilation_enabled()) {
-    isolate_->optimizing_compile_dispatcher()->Flush();
+    isolate_->optimizing_compile_dispatcher()->Flush(
+        OptimizingCompileDispatcher::BlockingBehavior::kBlock);
   }
 
   List<Handle<JSFunction> > functions;
@@ -1329,8 +1329,7 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
 
   // We do not need to recompile to debug bytecode.
   if (baseline_exists && !shared->code()->has_debug_break_slots()) {
-    DCHECK(functions.length() > 0);
-    if (!Compiler::CompileDebugCode(functions.first())) return false;
+    if (!Compiler::CompileDebugCode(shared)) return false;
   }
 
   for (Handle<JSFunction> const function : functions) {
@@ -1350,6 +1349,87 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
   isolate_->thread_manager()->IterateArchivedThreads(&redirect_visitor);
 
   return true;
+}
+
+namespace {
+template <typename Iterator>
+void GetBreakablePositions(Iterator* it, int start_position, int end_position,
+                           BreakPositionAlignment alignment,
+                           std::set<int>* positions) {
+  it->SkipToPosition(start_position, alignment);
+  while (!it->Done() && it->position() < end_position &&
+         it->position() >= start_position) {
+    positions->insert(alignment == STATEMENT_ALIGNED ? it->statement_position()
+                                                     : it->position());
+    it->Next();
+  }
+}
+
+void FindBreakablePositions(Handle<DebugInfo> debug_info, int start_position,
+                            int end_position, BreakPositionAlignment alignment,
+                            std::set<int>* positions) {
+  if (debug_info->HasDebugCode()) {
+    CodeBreakIterator it(debug_info, ALL_BREAK_LOCATIONS);
+    GetBreakablePositions(&it, start_position, end_position, alignment,
+                          positions);
+  } else {
+    DCHECK(debug_info->HasDebugBytecodeArray());
+    BytecodeArrayBreakIterator it(debug_info, ALL_BREAK_LOCATIONS);
+    GetBreakablePositions(&it, start_position, end_position, alignment,
+                          positions);
+  }
+}
+}  // namespace
+
+bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
+                                   int end_position, std::set<int>* positions) {
+  while (true) {
+    if (!script->shared_function_infos()->IsWeakFixedArray()) return false;
+
+    WeakFixedArray* infos =
+        WeakFixedArray::cast(script->shared_function_infos());
+    HandleScope scope(isolate_);
+    List<Handle<SharedFunctionInfo>> candidates;
+    {
+      WeakFixedArray::Iterator iterator(infos);
+      SharedFunctionInfo* info;
+      while ((info = iterator.Next<SharedFunctionInfo>())) {
+        if (info->end_position() < start_position ||
+            info->start_position() >= end_position) {
+          continue;
+        }
+        if (!info->IsSubjectToDebugging()) continue;
+        if (!info->HasDebugCode() && !info->allows_lazy_compilation()) continue;
+        candidates.Add(i::handle(info));
+      }
+    }
+
+    bool was_compiled = false;
+    for (int i = 0; i < candidates.length(); ++i) {
+      // Code that cannot be compiled lazily are internal and not debuggable.
+      DCHECK(candidates[i]->allows_lazy_compilation());
+      if (!candidates[i]->HasDebugCode()) {
+        if (!Compiler::CompileDebugCode(candidates[i])) {
+          return false;
+        } else {
+          was_compiled = true;
+        }
+      }
+      if (!EnsureDebugInfo(candidates[i], Handle<JSFunction>::null()))
+        return false;
+    }
+    if (was_compiled) continue;
+
+    for (int i = 0; i < candidates.length(); ++i) {
+      CHECK(candidates[i]->HasDebugInfo());
+      Handle<DebugInfo> debug_info(candidates[i]->GetDebugInfo());
+      FindBreakablePositions(debug_info, start_position, end_position,
+                             STATEMENT_ALIGNED, positions);
+    }
+    return true;
+  }
+  UNREACHABLE();
+  return false;
 }
 
 void Debug::RecordAsyncFunction(Handle<JSGeneratorObject> generator_object) {
@@ -1450,44 +1530,11 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
         return shared_handle;
       }
     }
-    // If not, compile to reveal inner functions, if possible.
-    if (shared->allows_lazy_compilation_without_context()) {
-      HandleScope scope(isolate_);
-      if (!Compiler::CompileDebugCode(handle(shared))) break;
-      continue;
-    }
-
-    // If not possible, comb the heap for the best suitable compile target.
-    JSFunction* closure;
-    {
-      HeapIterator it(isolate_->heap());
-      SharedFunctionInfoFinder finder(position);
-      while (HeapObject* object = it.next()) {
-        JSFunction* candidate_closure = NULL;
-        SharedFunctionInfo* candidate = NULL;
-        if (object->IsJSFunction()) {
-          candidate_closure = JSFunction::cast(object);
-          candidate = candidate_closure->shared();
-        } else if (object->IsSharedFunctionInfo()) {
-          candidate = SharedFunctionInfo::cast(object);
-          if (!candidate->allows_lazy_compilation_without_context()) continue;
-        } else {
-          continue;
-        }
-        if (candidate->script() == *script) {
-          finder.NewCandidate(candidate, candidate_closure);
-        }
-      }
-      closure = finder.ResultClosure();
-      shared = finder.Result();
-    }
-    if (shared == NULL) break;
+    // If not, compile to reveal inner functions.
     HandleScope scope(isolate_);
-    if (closure == NULL) {
-      if (!Compiler::CompileDebugCode(handle(shared))) break;
-    } else {
-      if (!Compiler::CompileDebugCode(handle(closure))) break;
-    }
+    // Code that cannot be compiled lazily are internal and not debuggable.
+    DCHECK(shared->allows_lazy_compilation());
+    if (!Compiler::CompileDebugCode(handle(shared))) break;
   }
   return isolate_->factory()->undefined_value();
 }
@@ -1658,10 +1705,12 @@ MaybeHandle<Object> Debug::MakeCompileEvent(Handle<Script> script,
   return CallFunction("MakeCompileEvent", arraysize(argv), argv);
 }
 
-
-MaybeHandle<Object> Debug::MakeAsyncTaskEvent(Handle<JSObject> task_event) {
+MaybeHandle<Object> Debug::MakeAsyncTaskEvent(Handle<String> type,
+                                              Handle<Object> id,
+                                              Handle<String> name) {
+  DCHECK(id->IsNumber());
   // Create the async task event object.
-  Handle<Object> argv[] = { task_event };
+  Handle<Object> argv[] = {type, id, name};
   return CallFunction("MakeAsyncTaskEvent", arraysize(argv), argv);
 }
 
@@ -1786,8 +1835,9 @@ void Debug::OnAfterCompile(Handle<Script> script) {
   ProcessCompileEvent(v8::AfterCompile, script);
 }
 
-
-void Debug::OnAsyncTaskEvent(Handle<JSObject> data) {
+void Debug::OnAsyncTaskEvent(Handle<String> type, Handle<Object> id,
+                             Handle<String> name) {
+  DCHECK(id->IsNumber());
   if (in_debug_scope() || ignore_events()) return;
 
   HandleScope scope(isolate_);
@@ -1797,7 +1847,7 @@ void Debug::OnAsyncTaskEvent(Handle<JSObject> data) {
   // Create the script collected state object.
   Handle<Object> event_data;
   // Bail out and don't call debugger if exception.
-  if (!MakeAsyncTaskEvent(data).ToHandle(&event_data)) return;
+  if (!MakeAsyncTaskEvent(type, id, name).ToHandle(&event_data)) return;
 
   // Process debug event.
   ProcessDebugEvent(v8::AsyncTaskEvent,
@@ -1843,8 +1893,8 @@ void Debug::CallEventCallback(v8::DebugEvent event,
   in_debug_event_listener_ = true;
   if (event_listener_->IsForeign()) {
     // Invoke the C debug event listener.
-    v8::Debug::EventCallback callback =
-        FUNCTION_CAST<v8::Debug::EventCallback>(
+    v8::DebugInterface::EventCallback callback =
+        FUNCTION_CAST<v8::DebugInterface::EventCallback>(
             Handle<Foreign>::cast(event_listener_)->foreign_address());
     EventDetailsImpl event_details(event,
                                    Handle<JSObject>::cast(exec_state),
@@ -1852,7 +1902,7 @@ void Debug::CallEventCallback(v8::DebugEvent event,
                                    event_listener_data_,
                                    client_data);
     callback(event_details);
-    DCHECK(!isolate_->has_scheduled_exception());
+    CHECK(!isolate_->has_scheduled_exception());
   } else {
     // Invoke the JavaScript debug event listener.
     DCHECK(event_listener_->IsJSFunction());
@@ -1861,8 +1911,10 @@ void Debug::CallEventCallback(v8::DebugEvent event,
                               event_data,
                               event_listener_data_ };
     Handle<JSReceiver> global = isolate_->global_proxy();
-    Execution::TryCall(isolate_, Handle<JSFunction>::cast(event_listener_),
-                       global, arraysize(argv), argv);
+    MaybeHandle<Object> result =
+        Execution::Call(isolate_, Handle<JSFunction>::cast(event_listener_),
+                        global, arraysize(argv), argv);
+    CHECK(!result.is_null());  // Listeners must not throw.
   }
   in_debug_event_listener_ = previous;
 }

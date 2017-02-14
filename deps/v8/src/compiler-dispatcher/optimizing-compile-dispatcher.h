@@ -22,6 +22,8 @@ class SharedFunctionInfo;
 
 class OptimizingCompileDispatcher {
  public:
+  enum class BlockingBehavior { kBlock, kDontBlock };
+
   explicit OptimizingCompileDispatcher(Isolate* isolate)
       : isolate_(isolate),
         input_queue_capacity_(FLAG_concurrent_recompilation_queue_length),
@@ -38,7 +40,7 @@ class OptimizingCompileDispatcher {
 
   void Run();
   void Stop();
-  void Flush();
+  void Flush(BlockingBehavior blocking_behavior);
   void QueueForOptimization(CompilationJob* job);
   void Unblock();
   void InstallOptimizedFunctions();

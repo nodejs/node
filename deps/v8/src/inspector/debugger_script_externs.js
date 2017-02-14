@@ -44,7 +44,7 @@ var FormattedScript;
 var JavaScriptCallFrameDetails;
 
 /** @typedef {{
-        sourceID: function():(number|undefined),
+        sourceID: function():(number),
         line: function():number,
         column: function():number,
         thisObject: !Object,
@@ -60,19 +60,6 @@ var JavaScriptCallFrame;
  * @const
  */
 var Debug = {};
-
-Debug.setBreakOnException = function() {}
-
-Debug.clearBreakOnException = function() {}
-
-Debug.setBreakOnUncaughtException = function() {}
-
-/**
- * @return {undefined}
- */
-Debug.clearBreakOnUncaughtException = function() {}
-
-Debug.clearStepping = function() {}
 
 Debug.clearAllBreakPoints = function() {}
 
@@ -203,9 +190,6 @@ BreakEvent.prototype.breakPointsHit = function() {}
 /** @interface */
 function ExecutionState() {}
 
-/** @param {!Debug.StepAction} action */
-ExecutionState.prototype.prepareStep = function(action) {}
-
 /**
  * @param {string} source
  * @param {boolean} disableBreak
@@ -257,7 +241,6 @@ var SourceLocation;
  *    source_mapping_url: (string|undefined),
  *    is_debugger_script: boolean,
  *    source: string,
- *    line_ends: !Array<number>,
  *    line_offset: number,
  *    column_offset: number,
  *    nameOrSourceURL: function():string,
@@ -287,6 +270,9 @@ FrameDetails.prototype.receiver = function() {}
 
 /** @return {function()} */
 FrameDetails.prototype.func = function() {}
+
+/** @return {!Object} */
+FrameDetails.prototype.script = function() {}
 
 /** @return {boolean} */
 FrameDetails.prototype.isAtReturn = function() {}
@@ -465,6 +451,9 @@ FrameMirror.prototype.allScopes = function(ignoreNestedScopes) {}
 
 /** @return {!FrameDetails} */
 FrameMirror.prototype.details = function() {}
+
+/** @return {!ScriptMirror} */
+FrameMirror.prototype.script = function() {}
 
 /**
  * @param {string} source

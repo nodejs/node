@@ -609,7 +609,7 @@ class StoreICNexus : public FeedbackNexus {
 
   void Clear(Code* host);
 
-  void ConfigureMonomorphic(Handle<Map> receiver_map, Handle<Code> handler);
+  void ConfigureMonomorphic(Handle<Map> receiver_map, Handle<Object> handler);
 
   void ConfigurePolymorphic(MapHandleList* maps,
                             List<Handle<Object>>* handlers);
@@ -637,7 +637,7 @@ class KeyedStoreICNexus : public FeedbackNexus {
 
   // name can be a null handle for element loads.
   void ConfigureMonomorphic(Handle<Name> name, Handle<Map> receiver_map,
-                            Handle<Code> handler);
+                            Handle<Object> handler);
   // name can be null.
   void ConfigurePolymorphic(Handle<Name> name, MapHandleList* maps,
                             List<Handle<Object>>* handlers);

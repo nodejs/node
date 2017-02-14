@@ -56,9 +56,11 @@ void PropertyICCompiler::CompileKeyedStorePolymorphicHandlers(
     // Tracking to do a better job of ensuring the data types are what they need
     // to be. Not all the elements are in place yet, pessimistic elements
     // transitions are still important for performance.
-    bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
-    ElementsKind elements_kind = receiver_map->elements_kind();
     if (!transitioned_map.is_null()) {
+      bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
+      ElementsKind elements_kind = receiver_map->elements_kind();
+      TRACE_HANDLER_STATS(isolate(),
+                          KeyedStoreIC_ElementsTransitionAndStoreStub);
       cached_stub =
           ElementsTransitionAndStoreStub(isolate(), elements_kind,
                                          transitioned_map->elements_kind(),
@@ -66,19 +68,11 @@ void PropertyICCompiler::CompileKeyedStorePolymorphicHandlers(
     } else if (receiver_map->instance_type() < FIRST_JS_RECEIVER_TYPE) {
       // TODO(mvstanton): Consider embedding store_mode in the state of the slow
       // keyed store ic for uniformity.
+      TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_SlowStub);
       cached_stub = isolate()->builtins()->KeyedStoreIC_Slow();
     } else {
-      if (IsSloppyArgumentsElements(elements_kind)) {
-        cached_stub =
-            KeyedStoreSloppyArgumentsStub(isolate(), store_mode).GetCode();
-      } else if (receiver_map->has_fast_elements() ||
-                 receiver_map->has_fixed_typed_array_elements()) {
-        cached_stub = StoreFastElementStub(isolate(), is_js_array,
-                                           elements_kind, store_mode).GetCode();
-      } else {
-        cached_stub =
-            StoreElementStub(isolate(), elements_kind, store_mode).GetCode();
-      }
+      cached_stub =
+          CompileKeyedStoreMonomorphicHandler(receiver_map, store_mode);
     }
     DCHECK(!cached_stub.is_null());
     handlers->Add(cached_stub);

@@ -9,7 +9,8 @@
 #include "src/compiler/node.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/schedule.h"
-#include "src/compiler/zone-pool.h"
+#include "src/compiler/zone-stats.h"
+#include "src/globals.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -25,7 +26,7 @@ class SpecialRPONumberer;
 
 // Computes a schedule from a graph, placing nodes into basic blocks and
 // ordering the basic blocks in the special RPO order.
-class Scheduler {
+class V8_EXPORT_PRIVATE Scheduler {
  public:
   // Flags that control the mode of operation.
   enum Flag { kNoFlags = 0u, kSplitNodes = 1u << 1 };

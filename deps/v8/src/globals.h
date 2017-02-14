@@ -141,19 +141,20 @@ const int kMinUInt16 = 0;
 const uint32_t kMaxUInt32 = 0xFFFFFFFFu;
 const int kMinUInt32 = 0;
 
-const int kCharSize      = sizeof(char);      // NOLINT
-const int kShortSize     = sizeof(short);     // NOLINT
-const int kIntSize       = sizeof(int);       // NOLINT
-const int kInt32Size     = sizeof(int32_t);   // NOLINT
-const int kInt64Size     = sizeof(int64_t);   // NOLINT
-const int kFloatSize     = sizeof(float);     // NOLINT
-const int kDoubleSize    = sizeof(double);    // NOLINT
-const int kIntptrSize    = sizeof(intptr_t);  // NOLINT
-const int kPointerSize   = sizeof(void*);     // NOLINT
+const int kCharSize = sizeof(char);
+const int kShortSize = sizeof(short);  // NOLINT
+const int kIntSize = sizeof(int);
+const int kInt32Size = sizeof(int32_t);
+const int kInt64Size = sizeof(int64_t);
+const int kSizetSize = sizeof(size_t);
+const int kFloatSize = sizeof(float);
+const int kDoubleSize = sizeof(double);
+const int kIntptrSize = sizeof(intptr_t);
+const int kPointerSize = sizeof(void*);
 #if V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
-const int kRegisterSize  = kPointerSize + kPointerSize;
+const int kRegisterSize = kPointerSize + kPointerSize;
 #else
-const int kRegisterSize  = kPointerSize;
+const int kRegisterSize = kPointerSize;
 #endif
 const int kPCOnStackSize = kRegisterSize;
 const int kFPOnStackSize = kRegisterSize;
@@ -576,7 +577,7 @@ enum MinimumCapacity {
   USE_CUSTOM_MINIMUM_CAPACITY
 };
 
-enum GarbageCollector { SCAVENGER, MARK_COMPACTOR };
+enum GarbageCollector { SCAVENGER, MARK_COMPACTOR, MINOR_MARK_COMPACTOR };
 
 enum Executability { NOT_EXECUTABLE, EXECUTABLE };
 
@@ -600,6 +601,14 @@ enum NilValue { kNullValue, kUndefinedValue };
 enum ParseRestriction {
   NO_PARSE_RESTRICTION,         // All expressions are allowed.
   ONLY_SINGLE_FUNCTION_LITERAL  // Only a single FunctionLiteral expression.
+};
+
+// TODO(gsathya): Move this to JSPromise once we create it.
+// This should be in sync with the constants in promise.js
+enum PromiseStatus {
+  kPromisePending,
+  kPromiseFulfilled,
+  kPromiseRejected,
 };
 
 // A CodeDesc describes a buffer holding instructions and relocation
@@ -1048,6 +1057,8 @@ enum VariableLocation : uint8_t {
 // immediately initialized upon creation (kCreatedInitialized).
 enum InitializationFlag : uint8_t { kNeedsInitialization, kCreatedInitialized };
 
+enum class HoleCheckMode { kRequired, kElided };
+
 enum MaybeAssignedFlag : uint8_t { kNotAssigned, kMaybeAssigned };
 
 // Serialized in PreparseData, so numeric values should not be changed.
@@ -1208,16 +1219,22 @@ inline uint32_t ObjectHash(Address address) {
 // Type feedback is encoded in such a way that, we can combine the feedback
 // at different points by performing an 'OR' operation. Type feedback moves
 // to a more generic type when we combine feedback.
-// kSignedSmall -> kNumber  -> kAny
-//                 kString  -> kAny
+// kSignedSmall -> kNumber  -> kNumberOrOddball -> kAny
+//                             kString          -> kAny
+// TODO(mythria): Remove kNumber type when crankshaft can handle Oddballs
+// similar to Numbers. We don't need kNumber feedback for Turbofan. Extra
+// information about Number might reduce few instructions but causes more
+// deopts. We collect Number only because crankshaft does not handle all
+// cases of oddballs.
 class BinaryOperationFeedback {
  public:
   enum {
     kNone = 0x0,
     kSignedSmall = 0x1,
     kNumber = 0x3,
-    kString = 0x4,
-    kAny = 0xF
+    kNumberOrOddball = 0x7,
+    kString = 0x8,
+    kAny = 0x1F
   };
 };
 
@@ -1262,8 +1279,27 @@ inline std::ostream& operator<<(std::ostream& os, UnicodeEncoding encoding) {
   return os;
 }
 
+enum class IterationKind { kKeys, kValues, kEntries };
+
+inline std::ostream& operator<<(std::ostream& os, IterationKind kind) {
+  switch (kind) {
+    case IterationKind::kKeys:
+      return os << "IterationKind::kKeys";
+    case IterationKind::kValues:
+      return os << "IterationKind::kValues";
+    case IterationKind::kEntries:
+      return os << "IterationKind::kEntries";
+  }
+  UNREACHABLE();
+  return os;
+}
+
 }  // namespace internal
 }  // namespace v8
+
+// Used by js-builtin-reducer to identify whether ReduceArrayIterator() is
+// reducing a JSArray method, or a JSTypedArray method.
+enum class ArrayIteratorKind { kArray, kTypedArray };
 
 namespace i = v8::internal;
 

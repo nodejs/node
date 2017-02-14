@@ -210,19 +210,20 @@ AstType* CompareOpHintToType(CompareOperationHint hint) {
   return AstType::None();
 }
 
-AstType* BinaryOpHintToType(BinaryOperationHint hint) {
+AstType* BinaryOpFeedbackToType(int hint) {
   switch (hint) {
-    case BinaryOperationHint::kNone:
+    case BinaryOperationFeedback::kNone:
       return AstType::None();
-    case BinaryOperationHint::kSignedSmall:
+    case BinaryOperationFeedback::kSignedSmall:
       return AstType::SignedSmall();
-    case BinaryOperationHint::kSigned32:
-      return AstType::Signed32();
-    case BinaryOperationHint::kNumberOrOddball:
+    case BinaryOperationFeedback::kNumber:
       return AstType::Number();
-    case BinaryOperationHint::kString:
+    case BinaryOperationFeedback::kString:
       return AstType::String();
-    case BinaryOperationHint::kAny:
+    case BinaryOperationFeedback::kNumberOrOddball:
+      return AstType::NumberOrOddball();
+    case BinaryOperationFeedback::kAny:
+    default:
       return AstType::Any();
   }
   UNREACHABLE();
@@ -262,14 +263,33 @@ void TypeFeedbackOracle::CompareType(TypeFeedbackId id, FeedbackVectorSlot slot,
     CompareICStub stub(code->stub_key(), isolate());
     AstType* left_type_from_ic =
         CompareICState::StateToType(zone(), stub.left());
-    *left_type = AstType::Union(*left_type, left_type_from_ic, zone());
     AstType* right_type_from_ic =
         CompareICState::StateToType(zone(), stub.right());
-    *right_type = AstType::Union(*right_type, right_type_from_ic, zone());
     AstType* combined_type_from_ic =
         CompareICState::StateToType(zone(), stub.state(), map);
-    *combined_type =
-        AstType::Union(*combined_type, combined_type_from_ic, zone());
+    // Full-codegen collects lhs and rhs feedback seperately and Crankshaft
+    // could use this information to optimize better. So if combining the
+    // feedback has made the feedback less precise, we should use the feedback
+    // only from Full-codegen. If the union of the feedback from Full-codegen
+    // is same as that of Ignition, there is no need to combine feedback from
+    // from Ignition.
+    AstType* combined_type_from_fcg = AstType::Union(
+        left_type_from_ic,
+        AstType::Union(right_type_from_ic, combined_type_from_ic, zone()),
+        zone());
+    if (combined_type_from_fcg == *left_type) {
+      // Full-codegen collects information about lhs, rhs and result types
+      // seperately. So just retain that information.
+      *left_type = left_type_from_ic;
+      *right_type = right_type_from_ic;
+      *combined_type = combined_type_from_ic;
+    } else {
+      // Combine Ignition and Full-codegen feedbacks.
+      *left_type = AstType::Union(*left_type, left_type_from_ic, zone());
+      *right_type = AstType::Union(*right_type, right_type_from_ic, zone());
+      *combined_type =
+          AstType::Union(*combined_type, combined_type_from_ic, zone());
+    }
   }
 }
 
@@ -299,7 +319,7 @@ void TypeFeedbackOracle::BinaryType(TypeFeedbackId id, FeedbackVectorSlot slot,
   DCHECK(!slot.IsInvalid());
   BinaryOpICNexus nexus(feedback_vector_, slot);
   *left = *right = *result =
-      BinaryOpHintToType(nexus.GetBinaryOperationFeedback());
+      BinaryOpFeedbackToType(Smi::cast(nexus.GetFeedback())->value());
   *fixed_right_arg = Nothing<int>();
   *allocation_site = Handle<AllocationSite>::null();
 
@@ -311,9 +331,29 @@ void TypeFeedbackOracle::BinaryType(TypeFeedbackId id, FeedbackVectorSlot slot,
   BinaryOpICState state(isolate(), code->extra_ic_state());
   DCHECK_EQ(op, state.op());
 
-  *left = AstType::Union(*left, state.GetLeftType(), zone());
-  *right = AstType::Union(*right, state.GetRightType(), zone());
-  *result = AstType::Union(*result, state.GetResultType(), zone());
+  // Full-codegen collects lhs and rhs feedback seperately and Crankshaft
+  // could use this information to optimize better. So if combining the
+  // feedback has made the feedback less precise, we should use the feedback
+  // only from Full-codegen. If the union of the feedback from Full-codegen
+  // is same as that of Ignition, there is no need to combine feedback from
+  // from Ignition.
+  AstType* combined_type_from_fcg = AstType::Union(
+      state.GetLeftType(),
+      AstType::Union(state.GetRightType(), state.GetResultType(), zone()),
+      zone());
+  if (combined_type_from_fcg == *left) {
+    // Full-codegen collects information about lhs, rhs and result types
+    // seperately. So just retain that information.
+    *left = state.GetLeftType();
+    *right = state.GetRightType();
+    *result = state.GetResultType();
+  } else {
+    // Combine Ignition and Full-codegen feedback.
+    *left = AstType::Union(*left, state.GetLeftType(), zone());
+    *right = AstType::Union(*right, state.GetRightType(), zone());
+    *result = AstType::Union(*result, state.GetResultType(), zone());
+  }
+  // Ignition does not collect this feedback.
   *fixed_right_arg = state.fixed_right_arg();
 
   AllocationSite* first_allocation_site = code->FindFirstAllocationSite();
@@ -334,7 +374,8 @@ AstType* TypeFeedbackOracle::CountType(TypeFeedbackId id,
 
   DCHECK(!slot.IsInvalid());
   BinaryOpICNexus nexus(feedback_vector_, slot);
-  AstType* type = BinaryOpHintToType(nexus.GetBinaryOperationFeedback());
+  AstType* type =
+      BinaryOpFeedbackToType(Smi::cast(nexus.GetFeedback())->value());
 
   if (!object->IsCode()) return type;
 

@@ -368,28 +368,9 @@ class LCodeGen: public LCodeGenBase {
 
   class PushSafepointRegistersScope BASE_EMBEDDED {
    public:
-    explicit PushSafepointRegistersScope(LCodeGen* codegen)
-        : codegen_(codegen) {
-      DCHECK(codegen_->info()->is_calling());
-      DCHECK(codegen_->expected_safepoint_kind_ == Safepoint::kSimple);
-      codegen_->expected_safepoint_kind_ = Safepoint::kWithRegisters;
+    explicit PushSafepointRegistersScope(LCodeGen* codegen);
 
-      UseScratchRegisterScope temps(codegen_->masm_);
-      // Preserve the value of lr which must be saved on the stack (the call to
-      // the stub will clobber it).
-      Register to_be_pushed_lr =
-          temps.UnsafeAcquire(StoreRegistersStateStub::to_be_pushed_lr());
-      codegen_->masm_->Mov(to_be_pushed_lr, lr);
-      StoreRegistersStateStub stub(codegen_->isolate());
-      codegen_->masm_->CallStub(&stub);
-    }
-
-    ~PushSafepointRegistersScope() {
-      DCHECK(codegen_->expected_safepoint_kind_ == Safepoint::kWithRegisters);
-      RestoreRegistersStateStub stub(codegen_->isolate());
-      codegen_->masm_->CallStub(&stub);
-      codegen_->expected_safepoint_kind_ = Safepoint::kSimple;
-    }
+    ~PushSafepointRegistersScope();
 
    private:
     LCodeGen* codegen_;

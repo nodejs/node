@@ -14,14 +14,13 @@ var GlobalMap = global.Map;
 var GlobalObject = global.Object;
 var GlobalSet = global.Set;
 var hashCodeSymbol = utils.ImportNow("hash_code_symbol");
-var MathRandom;
+var MathRandom = global.Math.random;
 var MapIterator;
 var SetIterator;
 var speciesSymbol = utils.ImportNow("species_symbol");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 
 utils.Import(function(from) {
-  MathRandom = from.MathRandom;
   MapIterator = from.MapIterator;
   SetIterator = from.SetIterator;
 });

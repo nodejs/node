@@ -25,7 +25,7 @@ static int32_t DummyStaticFunction(Object* result) { return 1; }
 
 TEST(WasmRelocationX87MemoryReference) {
   Isolate* isolate = CcTest::i_isolate();
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   HandleScope scope(isolate);
   v8::internal::byte buffer[4096];
   Assembler assm(isolate, buffer, sizeof buffer);
@@ -56,7 +56,7 @@ TEST(WasmRelocationX87MemoryReference) {
   disasm::Disassembler::Disassemble(stdout, begin, end);
 #endif
 
-  size_t offset = 1234;
+  int offset = 1234;
 
   // Relocating references by offset
   int mode_mask = (1 << RelocInfo::WASM_MEMORY_REFERENCE);
@@ -87,7 +87,7 @@ TEST(WasmRelocationX87MemoryReference) {
 TEST(WasmRelocationX87MemorySizeReference) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   HandleScope scope(isolate);
   v8::internal::byte buffer[4096];
   Assembler assm(isolate, buffer, sizeof buffer);
@@ -114,7 +114,7 @@ TEST(WasmRelocationX87MemorySizeReference) {
 
   CodeRunner<int32_t> runnable(isolate, code, &csig);
   int32_t ret_value = runnable.Call();
-  CHECK_NE(ret_value, 0xdeadbeef);
+  CHECK_NE(ret_value, bit_cast<int32_t>(0xdeadbeef));
 
 #ifdef OBJECT_PRINT
   OFStream os(stdout);
@@ -138,7 +138,7 @@ TEST(WasmRelocationX87MemorySizeReference) {
   }
 
   ret_value = runnable.Call();
-  CHECK_NE(ret_value, 0xdeadbeef);
+  CHECK_NE(ret_value, bit_cast<int32_t>(0xdeadbeef));
 
 #ifdef OBJECT_PRINT
   code->Print(os);

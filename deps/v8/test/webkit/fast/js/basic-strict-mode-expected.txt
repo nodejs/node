@@ -80,13 +80,13 @@ PASS (function (){(function (){var a; function f() {'use strict'; delete a;} })(
 PASS (function (){'use strict'; with(1){};}) threw exception SyntaxError: Strict mode code may not include a with statement.
 PASS (function (){(function (){'use strict'; with(1){};})}) threw exception SyntaxError: Strict mode code may not include a with statement.
 PASS (function (){'use strict'; arguments.callee; })() threw exception TypeError: 'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them.
-PASS (function (){'use strict'; arguments.caller; })() threw exception TypeError: 'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them.
+PASS (function (){'use strict'; arguments.caller; })() is undefined.
 PASS (function f(){'use strict'; f.arguments; })() threw exception TypeError: 'caller' and 'arguments' are restricted function properties and cannot be accessed in this context..
 PASS (function f(){'use strict'; f.caller; })() threw exception TypeError: 'caller' and 'arguments' are restricted function properties and cannot be accessed in this context..
 PASS (function f(){'use strict'; f.arguments=5; })() threw exception TypeError: 'caller' and 'arguments' are restricted function properties and cannot be accessed in this context..
 PASS (function f(){'use strict'; f.caller=5; })() threw exception TypeError: 'caller' and 'arguments' are restricted function properties and cannot be accessed in this context..
 PASS (function (arg){'use strict'; arguments.callee; })() threw exception TypeError: 'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them.
-PASS (function (arg){'use strict'; arguments.caller; })() threw exception TypeError: 'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them.
+PASS (function (arg){'use strict'; arguments.caller; })() is undefined.
 PASS (function f(arg){'use strict'; f.arguments; })() threw exception TypeError: 'caller' and 'arguments' are restricted function properties and cannot be accessed in this context..
 PASS (function f(arg){'use strict'; f.caller; })() threw exception TypeError: 'caller' and 'arguments' are restricted function properties and cannot be accessed in this context..
 PASS (function f(arg){'use strict'; f.arguments=5; })() threw exception TypeError: 'caller' and 'arguments' are restricted function properties and cannot be accessed in this context..
@@ -200,8 +200,7 @@ PASS (function (){var a = true; eval('"use strict"; var a = false'); return a; }
 PASS (function f(arg){'use strict'; return Object.getOwnPropertyDescriptor(f.__proto__, 'arguments').value; })() is undefined.
 PASS (function f(arg){'use strict'; return Object.getOwnPropertyDescriptor(f.__proto__, 'caller').value; })() is undefined.
 PASS (function f(arg){'use strict'; return Object.getOwnPropertyDescriptor(arguments, 'callee').value; })() is undefined.
-PASS (function f(arg){'use strict'; return Object.getOwnPropertyDescriptor(arguments, 'caller').value; })() is undefined.
-PASS (function f(arg){'use strict'; var descriptor = Object.getOwnPropertyDescriptor(arguments, 'caller'); return descriptor.get === descriptor.set; })() is true
+PASS (function f(arg){'use strict'; return Object.getOwnPropertyDescriptor(arguments, 'caller'); })() is undefined.
 PASS (function f(arg){'use strict'; var descriptor = Object.getOwnPropertyDescriptor(arguments, 'callee'); return descriptor.get === descriptor.set; })() is true
 PASS (function f(arg){'use strict'; var descriptor = Object.getOwnPropertyDescriptor(f.__proto__, 'caller'); return descriptor.get === descriptor.set; })() is true
 PASS (function f(arg){'use strict'; var descriptor = Object.getOwnPropertyDescriptor(f.__proto__, 'arguments'); return descriptor.get === descriptor.set; })() is true

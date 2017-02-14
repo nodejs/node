@@ -79,33 +79,6 @@ const char* PeepholeActionTableWriter::kNamespaceElements[] = {"v8", "internal",
 // static
 PeepholeActionAndData PeepholeActionTableWriter::LookupActionAndData(
     Bytecode last, Bytecode current) {
-  // Optimize various accumulator loads followed by store accumulator
-  // to an equivalent register load and loading the accumulator with
-  // the register. The latter accumulator load can often be elided as
-  // it is side-effect free and often followed by another accumulator
-  // load so can be elided.
-  if (current == Bytecode::kStar) {
-    switch (last) {
-      case Bytecode::kLdaNamedProperty:
-        return {PeepholeAction::kTransformLdaStarToLdrLdarAction,
-                Bytecode::kLdrNamedProperty};
-      case Bytecode::kLdaKeyedProperty:
-        return {PeepholeAction::kTransformLdaStarToLdrLdarAction,
-                Bytecode::kLdrKeyedProperty};
-      case Bytecode::kLdaGlobal:
-        return {PeepholeAction::kTransformLdaStarToLdrLdarAction,
-                Bytecode::kLdrGlobal};
-      case Bytecode::kLdaContextSlot:
-        return {PeepholeAction::kTransformLdaStarToLdrLdarAction,
-                Bytecode::kLdrContextSlot};
-      case Bytecode::kLdaUndefined:
-        return {PeepholeAction::kTransformLdaStarToLdrLdarAction,
-                Bytecode::kLdrUndefined};
-      default:
-        break;
-    }
-  }
-
   // ToName bytecodes can be replaced by Star with the same output register if
   // the value in the accumulator is already a name.
   if (current == Bytecode::kToName && Bytecodes::PutsNameInAccumulator(last)) {

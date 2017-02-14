@@ -19,11 +19,9 @@ namespace wasm {
 namespace testing {
 
 // Decodes the given encoded module.
-const WasmModule* DecodeWasmModuleForTesting(Isolate* isolate, Zone* zone,
-                                             ErrorThrower* thrower,
-                                             const byte* module_start,
-                                             const byte* module_end,
-                                             ModuleOrigin origin);
+const WasmModule* DecodeWasmModuleForTesting(
+    Isolate* isolate, ErrorThrower* thrower, const byte* module_start,
+    const byte* module_end, ModuleOrigin origin, bool verify_functions = false);
 
 // Instantiates a module without any imports and exports.
 const Handle<JSObject> InstantiateModuleForTesting(Isolate* isolate,
@@ -45,11 +43,11 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
 // should not have any imports or exports
 int32_t InterpretWasmModule(Isolate* isolate, ErrorThrower* thrower,
                             const WasmModule* module, int function_index,
-                            WasmVal* args);
+                            WasmVal* args, bool* may_produced_nan);
 
 // Compiles WasmModule bytes and return an instance of the compiled module.
 const Handle<JSObject> CompileInstantiateWasmModuleForTesting(
-    Isolate* isolate, Zone* zone, const byte* module_start,
+    Isolate* isolate, ErrorThrower* thrower, const byte* module_start,
     const byte* module_end, ModuleOrigin origin);
 
 // Runs the module instance with arguments.

@@ -519,17 +519,15 @@ void IncrementalMarking::StartMarking() {
         "[IncrementalMarking] Start marking\n");
   }
 
-  is_compacting_ = !FLAG_never_compact &&
-                   heap_->mark_compact_collector()->StartCompaction(
-                       MarkCompactCollector::INCREMENTAL_COMPACTION);
+  is_compacting_ =
+      !FLAG_never_compact && heap_->mark_compact_collector()->StartCompaction();
 
   state_ = MARKING;
 
   if (heap_->UsingEmbedderHeapTracer()) {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MC_INCREMENTAL_WRAPPER_PROLOGUE);
-    heap_->embedder_heap_tracer()->TracePrologue(
-        heap_->embedder_reachable_reference_reporter());
+    heap_->embedder_heap_tracer()->TracePrologue();
   }
 
   RecordWriteStub::Mode mode = is_compacting_
@@ -538,8 +536,7 @@ void IncrementalMarking::StartMarking() {
 
   PatchIncrementalMarkingRecordWriteStubs(heap_, mode);
 
-  heap_->mark_compact_collector()->EnsureMarkingDequeIsCommittedAndInitialize(
-      MarkCompactCollector::kMaxMarkingDequeSize);
+  heap_->mark_compact_collector()->marking_deque()->StartUsing();
 
   ActivateIncrementalWriteBarrier();
 
@@ -587,9 +584,6 @@ void IncrementalMarking::FinishBlackAllocation() {
 }
 
 void IncrementalMarking::AbortBlackAllocation() {
-  for (Page* page : *heap()->old_space()) {
-    page->ReleaseBlackAreaEndMarkerMap();
-  }
   if (FLAG_trace_incremental_marking) {
     heap()->isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Black allocation aborted\n");
@@ -628,9 +622,9 @@ void IncrementalMarking::ProcessWeakCells() {
 
   Object* the_hole_value = heap()->the_hole_value();
   Object* weak_cell_obj = heap()->encountered_weak_cells();
-  Object* weak_cell_head = Smi::FromInt(0);
+  Object* weak_cell_head = Smi::kZero;
   WeakCell* prev_weak_cell_obj = NULL;
-  while (weak_cell_obj != Smi::FromInt(0)) {
+  while (weak_cell_obj != Smi::kZero) {
     WeakCell* weak_cell = reinterpret_cast<WeakCell*>(weak_cell_obj);
     // We do not insert cleared weak cells into the list, so the value
     // cannot be a Smi here.
@@ -648,7 +642,7 @@ void IncrementalMarking::ProcessWeakCells() {
       weak_cell_obj = weak_cell->next();
       weak_cell->clear_next(the_hole_value);
     } else {
-      if (weak_cell_head == Smi::FromInt(0)) {
+      if (weak_cell_head == Smi::kZero) {
         weak_cell_head = weak_cell;
       }
       prev_weak_cell_obj = weak_cell;
@@ -1053,7 +1047,7 @@ void IncrementalMarking::FinalizeSweeping() {
   DCHECK(state_ == SWEEPING);
   if (heap_->mark_compact_collector()->sweeping_in_progress() &&
       (!FLAG_concurrent_sweeping ||
-       heap_->mark_compact_collector()->sweeper().IsSweepingCompleted())) {
+       !heap_->mark_compact_collector()->sweeper().AreSweeperTasksRunning())) {
     heap_->mark_compact_collector()->EnsureSweepingCompleted();
   }
   if (!heap_->mark_compact_collector()->sweeping_in_progress()) {

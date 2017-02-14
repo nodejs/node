@@ -387,6 +387,7 @@ class FlagsContinuation final {
   void Overwrite(FlagsCondition condition) { condition_ = condition; }
 
   void OverwriteAndNegateIfEqual(FlagsCondition condition) {
+    DCHECK(condition_ == kEqual || condition_ == kNotEqual);
     bool negate = condition_ == kEqual;
     condition_ = condition;
     if (negate) Negate();

@@ -22,8 +22,7 @@ class DuplicateFinder;
   T(StrictModeFormalParametersProduction, 5) \
   T(ArrowFormalParametersProduction, 6)      \
   T(LetPatternProduction, 7)                 \
-  T(TailCallExpressionProduction, 8)         \
-  T(AsyncArrowFormalParametersProduction, 9)
+  T(AsyncArrowFormalParametersProduction, 8)
 
 // Expression classifiers serve two purposes:
 //
@@ -191,13 +190,6 @@ class ExpressionClassifier {
     return reported_error(kLetPatternProduction);
   }
 
-  V8_INLINE bool has_tail_call_expression() const {
-    return !is_valid(TailCallExpressionProduction);
-  }
-  V8_INLINE const Error& tail_call_expression_error() const {
-    return reported_error(kTailCallExpressionProduction);
-  }
-
   V8_INLINE const Error& async_arrow_formal_parameters_error() const {
     return reported_error(kAsyncArrowFormalParametersProduction);
   }
@@ -297,14 +289,6 @@ class ExpressionClassifier {
     if (!is_valid_let_pattern()) return;
     invalid_productions_ |= LetPatternProduction;
     Add(Error(loc, message, kLetPatternProduction, arg));
-  }
-
-  void RecordTailCallExpressionError(const Scanner::Location& loc,
-                                     MessageTemplate::Template message,
-                                     const char* arg = nullptr) {
-    if (has_tail_call_expression()) return;
-    invalid_productions_ |= TailCallExpressionProduction;
-    Add(Error(loc, message, kTailCallExpressionProduction, arg));
   }
 
   void Accumulate(ExpressionClassifier* inner, unsigned productions,

@@ -2152,6 +2152,20 @@ FlagsCondition MapForCbz(FlagsCondition cond) {
   }
 }
 
+void EmitBranchOrDeoptimize(InstructionSelector* selector,
+                            InstructionCode opcode, InstructionOperand value,
+                            FlagsContinuation* cont) {
+  Arm64OperandGenerator g(selector);
+  if (cont->IsBranch()) {
+    selector->Emit(cont->Encode(opcode), g.NoOutput(), value,
+                   g.Label(cont->true_block()), g.Label(cont->false_block()));
+  } else {
+    DCHECK(cont->IsDeoptimize());
+    selector->EmitDeoptimize(cont->Encode(opcode), g.NoOutput(), value,
+                             cont->reason(), cont->frame_state());
+  }
+}
+
 // Try to emit TBZ, TBNZ, CBZ or CBNZ for certain comparisons of {node}
 // against zero, depending on the condition.
 bool TryEmitCbzOrTbz(InstructionSelector* selector, Node* node, Node* user,
@@ -2160,12 +2174,16 @@ bool TryEmitCbzOrTbz(InstructionSelector* selector, Node* node, Node* user,
   USE(m_user);
   DCHECK(m_user.right().Is(0) || m_user.left().Is(0));
 
-  // Only handle branches.
-  if (!cont->IsBranch()) return false;
+  // Only handle branches and deoptimisations.
+  if (!cont->IsBranch() && !cont->IsDeoptimize()) return false;
 
   switch (cond) {
     case kSignedLessThan:
     case kSignedGreaterThanOrEqual: {
+      // We don't generate TBZ/TBNZ for deoptimisations, as they have a
+      // shorter range than conditional branches and generating them for
+      // deoptimisations results in more veneers.
+      if (cont->IsDeoptimize()) return false;
       Arm64OperandGenerator g(selector);
       cont->Overwrite(MapForTbz(cond));
       Int32Matcher m(node);
@@ -2192,9 +2210,8 @@ bool TryEmitCbzOrTbz(InstructionSelector* selector, Node* node, Node* user,
     case kUnsignedGreaterThan: {
       Arm64OperandGenerator g(selector);
       cont->Overwrite(MapForCbz(cond));
-      selector->Emit(cont->Encode(kArm64CompareAndBranch32), g.NoOutput(),
-                     g.UseRegister(node), g.Label(cont->true_block()),
-                     g.Label(cont->false_block()));
+      EmitBranchOrDeoptimize(selector, kArm64CompareAndBranch32,
+                             g.UseRegister(node), cont);
       return true;
     }
     default:
@@ -2336,21 +2353,22 @@ void VisitFloat64Compare(InstructionSelector* selector, Node* node,
 void VisitWordCompareZero(InstructionSelector* selector, Node* user,
                           Node* value, FlagsContinuation* cont) {
   Arm64OperandGenerator g(selector);
-  while (selector->CanCover(user, value)) {
+  // Try to combine with comparisons against 0 by simply inverting the branch.
+  while (value->opcode() == IrOpcode::kWord32Equal &&
+         selector->CanCover(user, value)) {
+    Int32BinopMatcher m(value);
+    if (!m.right().Is(0)) break;
+
+    user = value;
+    value = m.left().node();
+    cont->Negate();
+  }
+
+  if (selector->CanCover(user, value)) {
     switch (value->opcode()) {
-      case IrOpcode::kWord32Equal: {
-        // Combine with comparisons against 0 by simply inverting the
-        // continuation.
-        Int32BinopMatcher m(value);
-        if (m.right().Is(0)) {
-          user = value;
-          value = m.left().node();
-          cont->Negate();
-          continue;
-        }
+      case IrOpcode::kWord32Equal:
         cont->OverwriteAndNegateIfEqual(kEqual);
         return VisitWord32Compare(selector, value, cont);
-      }
       case IrOpcode::kInt32LessThan:
         cont->OverwriteAndNegateIfEqual(kSignedLessThan);
         return VisitWord32Compare(selector, value, cont);
@@ -2380,10 +2398,10 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
                                     kLogical64Imm);
           }
           // Merge the Word64Equal(x, 0) comparison into a cbz instruction.
-          if (cont->IsBranch()) {
-            selector->Emit(cont->Encode(kArm64CompareAndBranch), g.NoOutput(),
-                           g.UseRegister(left), g.Label(cont->true_block()),
-                           g.Label(cont->false_block()));
+          if (cont->IsBranch() || cont->IsDeoptimize()) {
+            EmitBranchOrDeoptimize(selector,
+                                   cont->Encode(kArm64CompareAndBranch),
+                                   g.UseRegister(left), cont);
             return;
           }
         }
@@ -2488,7 +2506,6 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
       default:
         break;
     }
-    break;
   }
 
   // Branch could not be combined with a compare, compare against 0 and branch.

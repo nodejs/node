@@ -136,16 +136,12 @@ MaybeHandle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
                                         Handle<String> pattern,
                                         JSRegExp::Flags flags) {
   Isolate* isolate = re->GetIsolate();
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   CompilationCache* compilation_cache = isolate->compilation_cache();
   MaybeHandle<FixedArray> maybe_cached =
       compilation_cache->LookupRegExp(pattern, flags);
   Handle<FixedArray> cached;
-  bool in_cache = maybe_cached.ToHandle(&cached);
-  LOG(isolate, RegExpCompileEvent(re, in_cache));
-
-  Handle<Object> result;
-  if (in_cache) {
+  if (maybe_cached.ToHandle(&cached)) {
     re->set_data(*cached);
     return re;
   }
@@ -194,7 +190,7 @@ MaybeHandle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
 
 MaybeHandle<Object> RegExpImpl::Exec(Handle<JSRegExp> regexp,
                                      Handle<String> subject, int index,
-                                     Handle<JSObject> last_match_info) {
+                                     Handle<RegExpMatchInfo> last_match_info) {
   switch (regexp->TypeTag()) {
     case JSRegExp::ATOM:
       return AtomExec(regexp, subject, index, last_match_info);
@@ -222,17 +218,14 @@ void RegExpImpl::AtomCompile(Handle<JSRegExp> re,
                                                  match_pattern);
 }
 
-
-static void SetAtomLastCapture(FixedArray* array,
-                               String* subject,
-                               int from,
-                               int to) {
-  SealHandleScope shs(array->GetIsolate());
-  RegExpImpl::SetLastCaptureCount(array, 2);
-  RegExpImpl::SetLastSubject(array, subject);
-  RegExpImpl::SetLastInput(array, subject);
-  RegExpImpl::SetCapture(array, 0, from);
-  RegExpImpl::SetCapture(array, 1, to);
+static void SetAtomLastCapture(Handle<RegExpMatchInfo> last_match_info,
+                               String* subject, int from, int to) {
+  SealHandleScope shs(last_match_info->GetIsolate());
+  last_match_info->SetNumberOfCaptureRegisters(2);
+  last_match_info->SetLastSubject(subject);
+  last_match_info->SetLastInput(subject);
+  last_match_info->SetCapture(0, from);
+  last_match_info->SetCapture(1, to);
 }
 
 
@@ -289,7 +282,7 @@ int RegExpImpl::AtomExecRaw(Handle<JSRegExp> regexp,
 
 Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re, Handle<String> subject,
                                     int index,
-                                    Handle<JSObject> last_match_info) {
+                                    Handle<RegExpMatchInfo> last_match_info) {
   Isolate* isolate = re->GetIsolate();
 
   static const int kNumRegisters = 2;
@@ -302,8 +295,8 @@ Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re, Handle<String> subject,
 
   DCHECK_EQ(res, RegExpImpl::RE_SUCCESS);
   SealHandleScope shs(isolate);
-  FixedArray* array = FixedArray::cast(last_match_info->elements());
-  SetAtomLastCapture(array, *subject, output_registers[0], output_registers[1]);
+  SetAtomLastCapture(last_match_info, *subject, output_registers[0],
+                     output_registers[1]);
   return last_match_info;
 }
 
@@ -343,7 +336,7 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re,
                                  bool is_one_byte) {
   // Compile the RegExp.
   Isolate* isolate = re->GetIsolate();
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   PostponeInterruptsScope postpone(isolate);
   // If we had a compilation error the last time this is saved at the
   // saved code index.
@@ -417,7 +410,7 @@ void RegExpImpl::SetIrregexpMaxRegisterCount(FixedArray* re, int value) {
 void RegExpImpl::SetIrregexpCaptureNameMap(FixedArray* re,
                                            Handle<FixedArray> value) {
   if (value.is_null()) {
-    re->set(JSRegExp::kIrregexpCaptureNameMapIndex, Smi::FromInt(0));
+    re->set(JSRegExp::kIrregexpCaptureNameMapIndex, Smi::kZero);
   } else {
     re->set(JSRegExp::kIrregexpCaptureNameMapIndex, *value);
   }
@@ -566,10 +559,9 @@ int RegExpImpl::IrregexpExecRaw(Handle<JSRegExp> regexp,
 #endif  // V8_INTERPRETED_REGEXP
 }
 
-MaybeHandle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> regexp,
-                                             Handle<String> subject,
-                                             int previous_index,
-                                             Handle<JSObject> last_match_info) {
+MaybeHandle<Object> RegExpImpl::IrregexpExec(
+    Handle<JSRegExp> regexp, Handle<String> subject, int previous_index,
+    Handle<RegExpMatchInfo> last_match_info) {
   Isolate* isolate = regexp->GetIsolate();
   DCHECK_EQ(regexp->TypeTag(), JSRegExp::IRREGEXP);
 
@@ -613,31 +605,40 @@ MaybeHandle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> regexp,
   return isolate->factory()->null_value();
 }
 
-static void EnsureSize(Handle<JSObject> array, uint32_t minimum_size) {
-  if (static_cast<uint32_t>(array->elements()->length()) < minimum_size) {
-    array->GetElementsAccessor()->GrowCapacityAndConvert(array, minimum_size);
-  }
-}
+Handle<RegExpMatchInfo> RegExpImpl::SetLastMatchInfo(
+    Handle<RegExpMatchInfo> last_match_info, Handle<String> subject,
+    int capture_count, int32_t* match) {
+  // This is the only place where match infos can grow. If, after executing the
+  // regexp, RegExpExecStub finds that the match info is too small, it restarts
+  // execution in RegExpImpl::Exec, which finally grows the match info right
+  // here.
 
-Handle<JSObject> RegExpImpl::SetLastMatchInfo(Handle<JSObject> last_match_info,
-                                              Handle<String> subject,
-                                              int capture_count,
-                                              int32_t* match) {
-  DCHECK(last_match_info->HasFastObjectElements());
   int capture_register_count = (capture_count + 1) * 2;
-  EnsureSize(last_match_info, capture_register_count + kLastMatchOverhead);
-  DisallowHeapAllocation no_allocation;
-  FixedArray* array = FixedArray::cast(last_match_info->elements());
-  if (match != NULL) {
-    for (int i = 0; i < capture_register_count; i += 2) {
-      SetCapture(array, i, match[i]);
-      SetCapture(array, i + 1, match[i + 1]);
+  Handle<RegExpMatchInfo> result =
+      RegExpMatchInfo::ReserveCaptures(last_match_info, capture_register_count);
+  result->SetNumberOfCaptureRegisters(capture_register_count);
+
+  if (*result != *last_match_info) {
+    // The match info has been reallocated, update the corresponding reference
+    // on the native context.
+    Isolate* isolate = last_match_info->GetIsolate();
+    if (*last_match_info == *isolate->regexp_last_match_info()) {
+      isolate->native_context()->set_regexp_last_match_info(*result);
+    } else if (*last_match_info == *isolate->regexp_internal_match_info()) {
+      isolate->native_context()->set_regexp_internal_match_info(*result);
     }
   }
-  SetLastCaptureCount(array, capture_register_count);
-  SetLastSubject(array, *subject);
-  SetLastInput(array, *subject);
-  return last_match_info;
+
+  DisallowHeapAllocation no_allocation;
+  if (match != NULL) {
+    for (int i = 0; i < capture_register_count; i += 2) {
+      result->SetCapture(i, match[i]);
+      result->SetCapture(i + 1, match[i + 1]);
+    }
+  }
+  result->SetLastSubject(*subject);
+  result->SetLastInput(*subject);
+  return result;
 }
 
 
@@ -6781,10 +6782,10 @@ Object* RegExpResultsCache::Lookup(Heap* heap, String* key_string,
                                    FixedArray** last_match_cache,
                                    ResultsCacheType type) {
   FixedArray* cache;
-  if (!key_string->IsInternalizedString()) return Smi::FromInt(0);
+  if (!key_string->IsInternalizedString()) return Smi::kZero;
   if (type == STRING_SPLIT_SUBSTRINGS) {
     DCHECK(key_pattern->IsString());
-    if (!key_pattern->IsInternalizedString()) return Smi::FromInt(0);
+    if (!key_pattern->IsInternalizedString()) return Smi::kZero;
     cache = heap->string_split_cache();
   } else {
     DCHECK(type == REGEXP_MULTIPLE_INDICES);
@@ -6801,7 +6802,7 @@ Object* RegExpResultsCache::Lookup(Heap* heap, String* key_string,
         ((index + kArrayEntriesPerCacheEntry) & (kRegExpResultsCacheSize - 1));
     if (cache->get(index + kStringOffset) != key_string ||
         cache->get(index + kPatternOffset) != key_pattern) {
-      return Smi::FromInt(0);
+      return Smi::kZero;
     }
   }
 
@@ -6831,7 +6832,7 @@ void RegExpResultsCache::Enter(Isolate* isolate, Handle<String> key_string,
   uint32_t hash = key_string->Hash();
   uint32_t index = ((hash & (kRegExpResultsCacheSize - 1)) &
                     ~(kArrayEntriesPerCacheEntry - 1));
-  if (cache->get(index + kStringOffset) == Smi::FromInt(0)) {
+  if (cache->get(index + kStringOffset) == Smi::kZero) {
     cache->set(index + kStringOffset, *key_string);
     cache->set(index + kPatternOffset, *key_pattern);
     cache->set(index + kArrayOffset, *value_array);
@@ -6839,16 +6840,16 @@ void RegExpResultsCache::Enter(Isolate* isolate, Handle<String> key_string,
   } else {
     uint32_t index2 =
         ((index + kArrayEntriesPerCacheEntry) & (kRegExpResultsCacheSize - 1));
-    if (cache->get(index2 + kStringOffset) == Smi::FromInt(0)) {
+    if (cache->get(index2 + kStringOffset) == Smi::kZero) {
       cache->set(index2 + kStringOffset, *key_string);
       cache->set(index2 + kPatternOffset, *key_pattern);
       cache->set(index2 + kArrayOffset, *value_array);
       cache->set(index2 + kLastMatchOffset, *last_match_cache);
     } else {
-      cache->set(index2 + kStringOffset, Smi::FromInt(0));
-      cache->set(index2 + kPatternOffset, Smi::FromInt(0));
-      cache->set(index2 + kArrayOffset, Smi::FromInt(0));
-      cache->set(index2 + kLastMatchOffset, Smi::FromInt(0));
+      cache->set(index2 + kStringOffset, Smi::kZero);
+      cache->set(index2 + kPatternOffset, Smi::kZero);
+      cache->set(index2 + kArrayOffset, Smi::kZero);
+      cache->set(index2 + kLastMatchOffset, Smi::kZero);
       cache->set(index + kStringOffset, *key_string);
       cache->set(index + kPatternOffset, *key_pattern);
       cache->set(index + kArrayOffset, *value_array);
@@ -6865,13 +6866,13 @@ void RegExpResultsCache::Enter(Isolate* isolate, Handle<String> key_string,
     }
   }
   // Convert backing store to a copy-on-write array.
-  value_array->set_map_no_write_barrier(*factory->fixed_cow_array_map());
+  value_array->set_map_no_write_barrier(isolate->heap()->fixed_cow_array_map());
 }
 
 
 void RegExpResultsCache::Clear(FixedArray* cache) {
   for (int i = 0; i < kRegExpResultsCacheSize; i++) {
-    cache->set(i, Smi::FromInt(0));
+    cache->set(i, Smi::kZero);
   }
 }
 

@@ -393,6 +393,7 @@ UnicodeEncoding UnicodeEncodingOf(const Operator* op) {
   V(NumberToBoolean, Operator::kNoProperties, 1, 0)              \
   V(NumberToInt32, Operator::kNoProperties, 1, 0)                \
   V(NumberToUint32, Operator::kNoProperties, 1, 0)               \
+  V(NumberToUint8Clamped, Operator::kNoProperties, 1, 0)         \
   V(NumberSilenceNaN, Operator::kNoProperties, 1, 0)             \
   V(StringCharCodeAt, Operator::kNoProperties, 2, 1)             \
   V(StringFromCharCode, Operator::kNoProperties, 1, 0)           \
@@ -404,6 +405,7 @@ UnicodeEncoding UnicodeEncodingOf(const Operator* op) {
   V(ChangeTaggedToUint32, Operator::kNoProperties, 1, 0)         \
   V(ChangeTaggedToFloat64, Operator::kNoProperties, 1, 0)        \
   V(ChangeFloat64ToTagged, Operator::kNoProperties, 1, 0)        \
+  V(ChangeFloat64ToTaggedPointer, Operator::kNoProperties, 1, 0) \
   V(ChangeInt31ToTaggedSigned, Operator::kNoProperties, 1, 0)    \
   V(ChangeInt32ToTagged, Operator::kNoProperties, 1, 0)          \
   V(ChangeUint32ToTagged, Operator::kNoProperties, 1, 0)         \
@@ -430,25 +432,26 @@ UnicodeEncoding UnicodeEncodingOf(const Operator* op) {
   V(SpeculativeNumberLessThan)                \
   V(SpeculativeNumberLessThanOrEqual)
 
-#define CHECKED_OP_LIST(V)             \
-  V(CheckBounds, 2, 1)                 \
-  V(CheckHeapObject, 1, 1)             \
-  V(CheckIf, 1, 0)                     \
-  V(CheckNumber, 1, 1)                 \
-  V(CheckSmi, 1, 1)                    \
-  V(CheckString, 1, 1)                 \
-  V(CheckTaggedHole, 1, 1)             \
-  V(CheckedInt32Add, 2, 1)             \
-  V(CheckedInt32Sub, 2, 1)             \
-  V(CheckedInt32Div, 2, 1)             \
-  V(CheckedInt32Mod, 2, 1)             \
-  V(CheckedUint32Div, 2, 1)            \
-  V(CheckedUint32Mod, 2, 1)            \
-  V(CheckedUint32ToInt32, 1, 1)        \
-  V(CheckedUint32ToTaggedSigned, 1, 1) \
-  V(CheckedInt32ToTaggedSigned, 1, 1)  \
-  V(CheckedTaggedSignedToInt32, 1, 1)  \
-  V(CheckedTaggedToTaggedSigned, 1, 1) \
+#define CHECKED_OP_LIST(V)              \
+  V(CheckBounds, 2, 1)                  \
+  V(CheckHeapObject, 1, 1)              \
+  V(CheckIf, 1, 0)                      \
+  V(CheckNumber, 1, 1)                  \
+  V(CheckSmi, 1, 1)                     \
+  V(CheckString, 1, 1)                  \
+  V(CheckTaggedHole, 1, 1)              \
+  V(CheckedInt32Add, 2, 1)              \
+  V(CheckedInt32Sub, 2, 1)              \
+  V(CheckedInt32Div, 2, 1)              \
+  V(CheckedInt32Mod, 2, 1)              \
+  V(CheckedUint32Div, 2, 1)             \
+  V(CheckedUint32Mod, 2, 1)             \
+  V(CheckedUint32ToInt32, 1, 1)         \
+  V(CheckedUint32ToTaggedSigned, 1, 1)  \
+  V(CheckedInt32ToTaggedSigned, 1, 1)   \
+  V(CheckedTaggedSignedToInt32, 1, 1)   \
+  V(CheckedTaggedToTaggedSigned, 1, 1)  \
+  V(CheckedTaggedToTaggedPointer, 1, 1) \
   V(CheckedTruncateTaggedToWord32, 1, 1)
 
 struct SimplifiedOperatorGlobalCache final {

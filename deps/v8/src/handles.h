@@ -340,13 +340,13 @@ class RootIndexMap;
 // This does not apply to nested inner HandleScopes unless a nested
 // CanonicalHandleScope is introduced. Handles are only canonicalized within
 // the same CanonicalHandleScope, but not across nested ones.
-class CanonicalHandleScope final {
+class V8_EXPORT_PRIVATE CanonicalHandleScope final {
  public:
   explicit CanonicalHandleScope(Isolate* isolate);
   ~CanonicalHandleScope();
 
  private:
-  V8_EXPORT_PRIVATE Object** Lookup(Object* object);
+  Object** Lookup(Object* object);
 
   Isolate* isolate_;
   Zone zone_;

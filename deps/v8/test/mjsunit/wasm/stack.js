@@ -135,7 +135,7 @@ Error.prepareStackTrace = function(error, frames) {
   builder.addFunction("recursion", sig_index)
     .addBody([
       kExprI32Const, 0,
-      kExprCallIndirect, sig_index
+      kExprCallIndirect, sig_index, kTableZero
     ])
     .exportFunc()
   builder.appendToTable([0]);

@@ -166,12 +166,69 @@ void V8InjectedScriptHost::subtypeCallback(
 void V8InjectedScriptHost::getInternalPropertiesCallback(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (info.Length() < 1) return;
-  v8::Local<v8::Array> properties;
-  if (unwrapInspector(info)
-          ->debugger()
-          ->internalProperties(info.GetIsolate()->GetCurrentContext(), info[0])
-          .ToLocal(&properties))
+
+  std::unordered_set<String16> allowedProperties;
+  if (info[0]->IsBooleanObject() || info[0]->IsNumberObject() ||
+      info[0]->IsStringObject() || info[0]->IsSymbolObject()) {
+    allowedProperties.insert(String16("[[PrimitiveValue]]"));
+  } else if (info[0]->IsPromise()) {
+    allowedProperties.insert(String16("[[PromiseStatus]]"));
+    allowedProperties.insert(String16("[[PromiseValue]]"));
+  } else if (info[0]->IsGeneratorObject()) {
+    allowedProperties.insert(String16("[[GeneratorStatus]]"));
+  } else if (info[0]->IsMapIterator() || info[0]->IsSetIterator()) {
+    allowedProperties.insert(String16("[[IteratorHasMore]]"));
+    allowedProperties.insert(String16("[[IteratorIndex]]"));
+    allowedProperties.insert(String16("[[IteratorKind]]"));
+    allowedProperties.insert(String16("[[Entries]]"));
+  } else if (info[0]->IsMap() || info[0]->IsWeakMap() || info[0]->IsSet() ||
+             info[0]->IsWeakSet()) {
+    allowedProperties.insert(String16("[[Entries]]"));
+  }
+  if (!allowedProperties.size()) return;
+
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Array> allProperties;
+  if (!unwrapInspector(info)
+           ->debugger()
+           ->internalProperties(isolate->GetCurrentContext(), info[0])
+           .ToLocal(&allProperties) ||
+      !allProperties->IsArray() || allProperties->Length() % 2 != 0)
+    return;
+
+  {
+    v8::Local<v8::Context> context = isolate->GetCurrentContext();
+    v8::TryCatch tryCatch(isolate);
+    v8::Isolate::DisallowJavascriptExecutionScope throwJs(
+        isolate,
+        v8::Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
+
+    v8::Local<v8::Array> properties = v8::Array::New(isolate);
+    if (tryCatch.HasCaught()) return;
+
+    uint32_t outputIndex = 0;
+    for (uint32_t i = 0; i < allProperties->Length(); i += 2) {
+      v8::Local<v8::Value> key;
+      if (!allProperties->Get(context, i).ToLocal(&key)) continue;
+      if (tryCatch.HasCaught()) {
+        tryCatch.Reset();
+        continue;
+      }
+      String16 keyString = toProtocolStringWithTypeCheck(key);
+      if (keyString.isEmpty() ||
+          allowedProperties.find(keyString) == allowedProperties.end())
+        continue;
+      v8::Local<v8::Value> value;
+      if (!allProperties->Get(context, i + 1).ToLocal(&value)) continue;
+      if (tryCatch.HasCaught()) {
+        tryCatch.Reset();
+        continue;
+      }
+      createDataProperty(context, properties, outputIndex++, key);
+      createDataProperty(context, properties, outputIndex++, value);
+    }
     info.GetReturnValue().Set(properties);
+  }
 }
 
 void V8InjectedScriptHost::objectHasOwnPropertyCallback(

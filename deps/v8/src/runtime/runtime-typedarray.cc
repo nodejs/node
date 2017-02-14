@@ -59,7 +59,7 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferNeuter) {
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, array_buffer, 0);
   if (array_buffer->backing_store() == NULL) {
-    CHECK(Smi::FromInt(0) == array_buffer->byte_length());
+    CHECK(Smi::kZero == array_buffer->byte_length());
     return isolate->heap()->undefined_value();
   }
   // Shared array buffers should never be neutered.
@@ -142,7 +142,7 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitialize) {
   DCHECK_EQ(v8::ArrayBufferView::kInternalFieldCount,
             holder->GetInternalFieldCount());
   for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
-    holder->SetInternalField(i, Smi::FromInt(0));
+    holder->SetInternalField(i, Smi::kZero);
   }
   Handle<Object> length_obj = isolate->factory()->NewNumberFromSize(length);
   holder->set_length(*length_obj);
@@ -215,7 +215,7 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitializeFromArrayLike) {
   DCHECK_EQ(v8::ArrayBufferView::kInternalFieldCount,
             holder->GetInternalFieldCount());
   for (int i = 0; i < v8::ArrayBufferView::kInternalFieldCount; i++) {
-    holder->SetInternalField(i, Smi::FromInt(0));
+    holder->SetInternalField(i, Smi::kZero);
   }
 
   // NOTE: not initializing backing store.
@@ -241,7 +241,7 @@ RUNTIME_FUNCTION(Runtime_TypedArrayInitializeFromArrayLike) {
   }
 
   holder->set_buffer(*buffer);
-  holder->set_byte_offset(Smi::FromInt(0));
+  holder->set_byte_offset(Smi::kZero);
   Handle<Object> byte_length_obj(
       isolate->factory()->NewNumberFromSize(byte_length));
   holder->set_byte_length(*byte_length_obj);

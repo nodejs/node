@@ -163,6 +163,14 @@ endif
 ifeq ($(goma), on)
   GYPFLAGS += -Duse_goma=1
 endif
+# v8_os_page_size=0, when 0 or not specified use build OS page size
+ifdef v8_os_page_size
+  ifneq ($(v8_os_page_size), 0)
+    ifneq ($(snapshot), off)
+      GYPFLAGS += -Dv8_os_page_size=$(v8_os_page_size)
+    endif
+  endif
+endif
 # arm specific flags.
 # arm_version=<number | "default">
 ifneq ($(strip $(arm_version)),)

@@ -1,0 +1,44 @@
+# Copyright 2016 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+[
+[ALWAYS, {
+  # Issue 3660: Replacing activated TurboFan frames by unoptimized code does
+  # not work, but we expect it to not crash.
+  'debug/debug-step-turbofan': [PASS, FAIL],
+}],  # ALWAYS
+
+##############################################################################
+['gc_stress == True', {
+  # Skip tests not suitable for GC stress.
+  # Tests taking too long
+  'debug/debug-stepout-scope-part1': [SKIP],
+  'debug/debug-stepout-scope-part2': [SKIP],
+  'debug/debug-stepout-scope-part3': [SKIP],
+  'debug/debug-stepout-scope-part4': [SKIP],
+  'debug/debug-stepout-scope-part5': [SKIP],
+  'debug/debug-stepout-scope-part6': [SKIP],
+  'debug/debug-stepout-scope-part7': [SKIP],
+  'debug/debug-stepout-scope-part8': [SKIP],
+}],  # 'gc_stress == True'
+
+##############################################################################
+['variant == turbofan_opt', {
+  # TODO(mstarzinger): Debugger cannot materialize de-materialized functions.
+  'debug/regress/regress-crbug-323936': [FAIL],
+
+  # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
+  'debug/debug-evaluate-closure': [FAIL],
+}],  # variant == turbofan_opt
+
+##############################################################################
+['gc_stress == True', {
+  # Async function tests taking too long
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5411
+  'debug/harmony/async-debug-caught-exception-cases0': [SKIP],
+  'debug/harmony/async-debug-caught-exception-cases1': [SKIP],
+  'debug/harmony/async-debug-caught-exception-cases2': [SKIP],
+  'debug/harmony/async-debug-caught-exception-cases3': [SKIP],
+}],  # 'gc_stress == True'
+]

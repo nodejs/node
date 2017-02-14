@@ -180,7 +180,6 @@ class FixedArrayBuilder {
     return target_array;
   }
 
-
  private:
   Handle<FixedArray> array_;
   int length_;

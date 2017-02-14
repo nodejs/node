@@ -40,6 +40,11 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     "use strict"
     var entries = [];
 
+    var properties = ['type', 'category', 'file', 'filePosition', 'state',
+      'key', 'isNative', 'map', 'propertiesMode', 'numberOfOwnProperties',
+      'instanceType'
+    ]
+
     class Entry {
       constructor(id, line) {
         this.id = id;
@@ -50,8 +55,11 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         if (parts[0][0] !== "[") return;
         if (parts[1] === "patching") return;
         this.type = parts[0].substr(1);
-        this.category = "Other";
-        this.map = undefined;
+        this.category = "unknown";
+        this.map = "unknown";
+        this.propertiesMode = "unknown";
+        this.numberOfOwnProperties = 0;
+        this.instanceType = "unknown";
         if (this.type.indexOf("Store") !== -1) {
           this.category = "Store";
         } else if (this.type.indexOf("Load") !== -1) {
@@ -70,13 +78,22 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           var offset = this.parsePositionAndFile(parts, 2);
           if (offset == -1) return
           this.state = parts[++offset];
-          this.map = parts[offset + 1];
-          if (this.map !== undefined && this.map.startsWith("map=")) {
-            this.map = this.map.substring(4);
-            offset++;
-          } else {
-            this.map = undefined;
-          }
+          var mapPart = parts[offset + 1];
+          if (mapPart !== undefined && mapPart.startsWith("map=")) {
+            if (mapPart[4] == "(") {
+              if (mapPart.endsWith(")")) {
+                this.map = mapPart.substr(5, mapPart.length-6);
+              } else {
+                this.map = mapPart.substr(5);
+              }
+              offset++;
+              offset = this.parseMapProperties(parts, offset);
+            } else {
+              this.map = mapPart.substr(4);
+              offset++;
+            }
+            if (this.map == "(nil)") this.map = "unknown";
+          } 
           if (this.type !== "CompareIC") {
             // if there is no address we have a smi key
             var address = parts[++offset];
@@ -106,6 +123,17 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           }
         }
         this.isValid = true;
+      }
+
+      parseMapProperties(parts, offset) {
+        var next = parts[++offset];
+        if (!next.startsWith('dict')) return offset;
+        this.propertiesMode = 
+            next.substr(5) == "0" ? "fast" : "slow";
+        this.numberOfOwnProperties  = parts[++offset].substr(4);
+        next = parts[++offset];
+        this.instanceType = next.substr(5, next.length-6);
+        return offset;
       }
 
       parsePositionAndFile(parts, start) {
@@ -156,11 +184,6 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       initGroupKeySelect();
     }
 
-
-
-    var properties = ['type', 'category', 'file', 'filePosition', 'state',
-      'key', 'isNative', 'map'
-    ]
 
     class Group {
       constructor(property, key, entry) {
@@ -332,15 +355,32 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         select.add(option);
       }
     }
+    
+    function handleOnLoad() {
+      document.querySelector("#uploadInput").focus();
+    }
   </script>
 </head>
 
-<body>
+<body onload="handleOnLoad()">
   <h1>
       <span style="color: #00FF00">I</span>
       <span style="color: #FF00FF">C</span>
       <span style="color: #00FFFF">E</span>
     </h1> Your IC-Explorer.
+
+  <div id="legend" style="padding-right: 200px">
+    <div style="float:right;  border-style: solid; border-width: 1px; padding:20px">
+    0 uninitialized<br>
+    . premonomorphic<br>
+    1 monomorphic<br>
+    ^ recompute handler<br>
+    P polymorphic<br>
+    N megamorphic<br>
+    G generic
+    </div>
+  </div>
+
   <h2>Usage</h2> Run your script with <code>--trace_ic</code> and upload on this page:<br/>
   <code>/path/to/d8 --trace_ic your_script.js > trace.txt</code>
   <h2>Data</h2>

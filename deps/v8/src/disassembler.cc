@@ -172,8 +172,11 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
       }
 
       RelocInfo::Mode rmode = relocinfo.rmode();
-      if (rmode == RelocInfo::DEOPT_POSITION) {
-        out.AddFormatted("    ;; debug: deopt position '%d'",
+      if (rmode == RelocInfo::DEOPT_SCRIPT_OFFSET) {
+        out.AddFormatted("    ;; debug: deopt position, script offset '%d'",
+                         static_cast<int>(relocinfo.data()));
+      } else if (rmode == RelocInfo::DEOPT_INLINING_ID) {
+        out.AddFormatted("    ;; debug: deopt position, inlining id '%d'",
                          static_cast<int>(relocinfo.data()));
       } else if (rmode == RelocInfo::DEOPT_REASON) {
         DeoptimizeReason reason =

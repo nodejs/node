@@ -509,20 +509,25 @@ class DoExpression final : public Expression {
 
 class Declaration : public AstNode {
  public:
+  typedef ThreadedList<Declaration> List;
+
   VariableProxy* proxy() const { return proxy_; }
   Scope* scope() const { return scope_; }
 
  protected:
   Declaration(VariableProxy* proxy, Scope* scope, int pos, NodeType type)
-      : AstNode(pos, type), proxy_(proxy), scope_(scope) {}
+      : AstNode(pos, type), proxy_(proxy), scope_(scope), next_(nullptr) {}
 
   static const uint8_t kNextBitFieldIndex = AstNode::kNextBitFieldIndex;
 
  private:
   VariableProxy* proxy_;
-
   // Nested scope from which the declaration originated.
   Scope* scope_;
+  // Declarations list threaded through the declarations.
+  Declaration** next() { return &next_; }
+  Declaration* next_;
+  friend List;
 };
 
 
@@ -751,7 +756,6 @@ class ForInStatement final : public ForEachStatement {
   BailoutId FilterId() const { return BailoutId(local_id(4)); }
   BailoutId AssignmentId() const { return BailoutId(local_id(5)); }
   BailoutId IncrementId() const { return BailoutId(local_id(6)); }
-  BailoutId ContinueId() const { return EntryId(); }
   BailoutId StackCheckId() const { return BodyId(); }
 
  private:
@@ -1671,7 +1675,13 @@ class VariableProxy final : public Expression {
     bit_field_ = IsNewTargetField::update(bit_field_, true);
   }
 
-  int end_position() const { return end_position_; }
+  HoleCheckMode hole_check_mode() const {
+    return HoleCheckModeField::decode(bit_field_);
+  }
+  void set_needs_hole_check() {
+    bit_field_ =
+        HoleCheckModeField::update(bit_field_, HoleCheckMode::kRequired);
+  }
 
   // Bind this proxy to the variable var.
   void BindTo(Variable* var);
@@ -1693,9 +1703,9 @@ class VariableProxy final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  VariableProxy(Variable* var, int start_position, int end_position);
+  VariableProxy(Variable* var, int start_position);
   VariableProxy(const AstRawString* name, VariableKind variable_kind,
-                int start_position, int end_position);
+                int start_position);
   explicit VariableProxy(const VariableProxy* copy_from);
 
   static int parent_num_ids() { return Expression::num_ids(); }
@@ -1706,11 +1716,9 @@ class VariableProxy final : public Expression {
   class IsAssignedField : public BitField<bool, IsThisField::kNext, 1> {};
   class IsResolvedField : public BitField<bool, IsAssignedField::kNext, 1> {};
   class IsNewTargetField : public BitField<bool, IsResolvedField::kNext, 1> {};
+  class HoleCheckModeField
+      : public BitField<HoleCheckMode, IsNewTargetField::kNext, 1> {};
 
-  // Position is stored in the AstNode superclass, but VariableProxy needs to
-  // know its end position too (for error messages). It cannot be inferred from
-  // the variable name length because it can contain escapes.
-  int end_position_;
   FeedbackVectorSlot variable_feedback_slot_;
   union {
     const AstRawString* raw_name_;  // if !is_resolved_
@@ -1839,8 +1847,6 @@ class Call final : public Expression {
   void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
                                  FeedbackVectorSlotCache* cache);
 
-  FeedbackVectorSlot CallFeedbackSlot() const { return stub_slot_; }
-
   FeedbackVectorSlot CallFeedbackICSlot() const { return ic_slot_; }
 
   SmallMapList* GetReceiverTypes() {
@@ -1894,9 +1900,8 @@ class Call final : public Expression {
   void MarkTail() { bit_field_ = IsTailField::update(bit_field_, true); }
 
   enum CallType {
-    POSSIBLY_EVAL_CALL,
     GLOBAL_CALL,
-    LOOKUP_SLOT_CALL,
+    WITH_CALL,
     NAMED_PROPERTY_CALL,
     KEYED_PROPERTY_CALL,
     NAMED_SUPER_PROPERTY_CALL,
@@ -1912,8 +1917,6 @@ class Call final : public Expression {
 
   // Helpers to determine how to handle the call.
   CallType GetCallType() const;
-  bool IsUsingCallFeedbackSlot() const;
-  bool IsUsingCallFeedbackICSlot() const;
 
 #ifdef DEBUG
   // Used to assert that the FullCodeGenerator records the return site.
@@ -1946,7 +1949,6 @@ class Call final : public Expression {
   class IsPossiblyEvalField : public BitField<bool, IsTailField::kNext, 1> {};
 
   FeedbackVectorSlot ic_slot_;
-  FeedbackVectorSlot stub_slot_;
   Expression* expression_;
   ZoneList<Expression*>* arguments_;
   Handle<JSFunction> target_;
@@ -2597,9 +2599,9 @@ class FunctionLiteral final : public Expression {
   int materialized_literal_count() { return materialized_literal_count_; }
   int expected_property_count() { return expected_property_count_; }
   int parameter_count() { return parameter_count_; }
+  int function_length() { return function_length_; }
 
   bool AllowsLazyCompilation();
-  bool AllowsLazyCompilationWithoutContext();
 
   Handle<String> debug_name() const {
     if (raw_name_ != NULL && !raw_name_->IsEmpty()) {
@@ -2649,12 +2651,8 @@ class FunctionLiteral final : public Expression {
   // function will be called immediately:
   // - (function() { ... })();
   // - var x = function() { ... }();
-  bool should_eager_compile() const {
-    return ShouldEagerCompile::decode(bit_field_);
-  }
-  void set_should_eager_compile() {
-    bit_field_ = ShouldEagerCompile::update(bit_field_, true);
-  }
+  bool ShouldEagerCompile() const;
+  void SetShouldEagerCompile();
 
   // A hint that we expect this function to be called (exactly) once,
   // i.e. we suspect it's an initialization function.
@@ -2708,6 +2706,10 @@ class FunctionLiteral final : public Expression {
         IsClassFieldInitializer::update(bit_field_, is_class_field_initializer);
   }
 
+  int return_position() {
+    return std::max(start_position(), end_position() - (has_braces_ ? 1 : 0));
+  }
+
  private:
   friend class AstNodeFactory;
 
@@ -2715,16 +2717,18 @@ class FunctionLiteral final : public Expression {
                   AstValueFactory* ast_value_factory, DeclarationScope* scope,
                   ZoneList<Statement*>* body, int materialized_literal_count,
                   int expected_property_count, int parameter_count,
-                  FunctionType function_type,
+                  int function_length, FunctionType function_type,
                   ParameterFlag has_duplicate_parameters,
                   EagerCompileHint eager_compile_hint, int position,
-                  bool is_function)
+                  bool is_function, bool has_braces)
       : Expression(position, kFunctionLiteral),
         materialized_literal_count_(materialized_literal_count),
         expected_property_count_(expected_property_count),
         parameter_count_(parameter_count),
+        function_length_(function_length),
         function_token_position_(kNoSourcePosition),
         yield_count_(0),
+        has_braces_(has_braces),
         raw_name_(name),
         scope_(scope),
         body_(body),
@@ -2735,11 +2739,11 @@ class FunctionLiteral final : public Expression {
         HasDuplicateParameters::encode(has_duplicate_parameters ==
                                        kHasDuplicateParameters) |
         IsFunction::encode(is_function) |
-        ShouldEagerCompile::encode(eager_compile_hint == kShouldEagerCompile) |
         RequiresClassFieldInit::encode(false) |
         ShouldNotBeUsedOnceHintField::encode(false) |
         DontOptimizeReasonField::encode(kNoReason) |
         IsClassFieldInitializer::encode(false);
+    if (eager_compile_hint == kShouldEagerCompile) SetShouldEagerCompile();
   }
 
   class FunctionTypeBits
@@ -2747,9 +2751,8 @@ class FunctionLiteral final : public Expression {
   class Pretenure : public BitField<bool, FunctionTypeBits::kNext, 1> {};
   class HasDuplicateParameters : public BitField<bool, Pretenure::kNext, 1> {};
   class IsFunction : public BitField<bool, HasDuplicateParameters::kNext, 1> {};
-  class ShouldEagerCompile : public BitField<bool, IsFunction::kNext, 1> {};
   class ShouldNotBeUsedOnceHintField
-      : public BitField<bool, ShouldEagerCompile::kNext, 1> {};
+      : public BitField<bool, IsFunction::kNext, 1> {};
   class RequiresClassFieldInit
       : public BitField<bool, ShouldNotBeUsedOnceHintField::kNext, 1> {};
   class IsClassFieldInitializer
@@ -2760,8 +2763,10 @@ class FunctionLiteral final : public Expression {
   int materialized_literal_count_;
   int expected_property_count_;
   int parameter_count_;
+  int function_length_;
   int function_token_position_;
   int yield_count_;
+  bool has_braces_;
 
   const AstString* raw_name_;
   DeclarationScope* scope_;
@@ -2962,10 +2967,8 @@ class AstVisitor BASE_EMBEDDED {
  public:
   void Visit(AstNode* node) { impl()->Visit(node); }
 
-  void VisitDeclarations(ZoneList<Declaration*>* declarations) {
-    for (int i = 0; i < declarations->length(); i++) {
-      Visit(declarations->at(i));
-    }
+  void VisitDeclarations(Declaration::List* declarations) {
+    for (Declaration* decl : *declarations) Visit(decl);
   }
 
   void VisitStatements(ZoneList<Statement*>* statements) {
@@ -3279,7 +3282,7 @@ class AstNodeFactory final BASE_EMBEDDED {
         Literal(ast_value_factory_->NewNumber(number, with_dot), pos);
   }
 
-  Literal* NewSmiLiteral(int number, int pos) {
+  Literal* NewSmiLiteral(uint32_t number, int pos) {
     return new (zone_) Literal(ast_value_factory_->NewSmi(number), pos);
   }
 
@@ -3339,18 +3342,15 @@ class AstNodeFactory final BASE_EMBEDDED {
   }
 
   VariableProxy* NewVariableProxy(Variable* var,
-                                  int start_position = kNoSourcePosition,
-                                  int end_position = kNoSourcePosition) {
-    return new (zone_) VariableProxy(var, start_position, end_position);
+                                  int start_position = kNoSourcePosition) {
+    return new (zone_) VariableProxy(var, start_position);
   }
 
   VariableProxy* NewVariableProxy(const AstRawString* name,
                                   VariableKind variable_kind,
-                                  int start_position = kNoSourcePosition,
-                                  int end_position = kNoSourcePosition) {
+                                  int start_position = kNoSourcePosition) {
     DCHECK_NOT_NULL(name);
-    return new (zone_)
-        VariableProxy(name, variable_kind, start_position, end_position);
+    return new (zone_) VariableProxy(name, variable_kind, start_position);
   }
 
   // Recreates the VariableProxy in this Zone.
@@ -3459,15 +3459,16 @@ class AstNodeFactory final BASE_EMBEDDED {
   FunctionLiteral* NewFunctionLiteral(
       const AstRawString* name, DeclarationScope* scope,
       ZoneList<Statement*>* body, int materialized_literal_count,
-      int expected_property_count, int parameter_count,
+      int expected_property_count, int parameter_count, int function_length,
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
       FunctionLiteral::FunctionType function_type,
-      FunctionLiteral::EagerCompileHint eager_compile_hint, int position) {
-    return new (zone_) FunctionLiteral(zone_, name, ast_value_factory_, scope,
-                                       body, materialized_literal_count,
-                                       expected_property_count, parameter_count,
-                                       function_type, has_duplicate_parameters,
-                                       eager_compile_hint, position, true);
+      FunctionLiteral::EagerCompileHint eager_compile_hint, int position,
+      bool has_braces) {
+    return new (zone_) FunctionLiteral(
+        zone_, name, ast_value_factory_, scope, body,
+        materialized_literal_count, expected_property_count, parameter_count,
+        function_length, function_type, has_duplicate_parameters,
+        eager_compile_hint, position, true, has_braces);
   }
 
   // Creates a FunctionLiteral representing a top-level script, the
@@ -3480,9 +3481,9 @@ class AstNodeFactory final BASE_EMBEDDED {
     return new (zone_) FunctionLiteral(
         zone_, ast_value_factory_->empty_string(), ast_value_factory_, scope,
         body, materialized_literal_count, expected_property_count,
-        parameter_count, FunctionLiteral::kAnonymousExpression,
+        parameter_count, parameter_count, FunctionLiteral::kAnonymousExpression,
         FunctionLiteral::kNoDuplicateParameters,
-        FunctionLiteral::kShouldLazyCompile, 0, false);
+        FunctionLiteral::kShouldLazyCompile, 0, false, true);
   }
 
   ClassLiteral::Property* NewClassLiteralProperty(

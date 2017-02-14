@@ -18,7 +18,7 @@ LayoutDescriptor* LayoutDescriptor::FromSmi(Smi* smi) {
 Handle<LayoutDescriptor> LayoutDescriptor::New(Isolate* isolate, int length) {
   if (length <= kSmiValueSize) {
     // The whole bit vector fits into a smi.
-    return handle(LayoutDescriptor::FromSmi(Smi::FromInt(0)), isolate);
+    return handle(LayoutDescriptor::FromSmi(Smi::kZero), isolate);
   }
   length = GetSlowModeBackingStoreLength(length);
   return Handle<LayoutDescriptor>::cast(isolate->factory()->NewFixedTypedArray(
@@ -37,7 +37,7 @@ bool LayoutDescriptor::InobjectUnboxedField(int inobject_properties,
 
 
 LayoutDescriptor* LayoutDescriptor::FastPointerLayout() {
-  return LayoutDescriptor::FromSmi(Smi::FromInt(0));
+  return LayoutDescriptor::FromSmi(Smi::kZero);
 }
 
 

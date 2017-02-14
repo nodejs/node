@@ -30,7 +30,6 @@ utils.Import(function(from) {
   NewPromiseCapability = from.NewPromiseCapability;
   PerformPromiseThen = from.PerformPromiseThen;
   PromiseCreate = from.PromiseCreate;
-  PromiseNextMicrotaskID = from.PromiseNextMicrotaskID;
   RejectPromise = from.RejectPromise;
   ResolvePromise = from.ResolvePromise;
 });
@@ -143,13 +142,9 @@ function AsyncFunctionPromiseCreate() {
     %DebugPushPromise(promise);
     // Assign ID and create a recurring task to save stack for future
     // resumptions from await.
-    var id = PromiseNextMicrotaskID();
+    var id = %DebugNextMicrotaskId();
     SET_PRIVATE(promise, promiseAsyncStackIDSymbol, id);
-    %DebugAsyncTaskEvent({
-      type: "enqueueRecurring",
-      id: id,
-      name: "async function",
-    });
+    %DebugAsyncTaskEvent("enqueueRecurring", id, "async function");
   }
   return promise;
 }
@@ -158,11 +153,12 @@ function AsyncFunctionPromiseRelease(promise) {
   if (DEBUG_IS_ACTIVE) {
     // Cancel
     var id = GET_PRIVATE(promise, promiseAsyncStackIDSymbol);
-    %DebugAsyncTaskEvent({
-      type: "cancel",
-      id: id,
-      name: "async function",
-    });
+
+    // Don't send invalid events when catch prediction is turned on in
+    // the middle of some async operation.
+    if (!IS_UNDEFINED(id)) {
+      %DebugAsyncTaskEvent("cancel", id, "async function");
+    }
     // Pop the Promise under construction in an async function on
     // from catch prediction stack.
     %DebugPopPromise();

@@ -36,7 +36,7 @@ TEST_F(ConstantArrayBuilderTest, AllocateAllEntries) {
   }
   CHECK_EQ(builder.size(), k16BitCapacity);
   for (size_t i = 0; i < k16BitCapacity; i++) {
-    CHECK_EQ(Handle<Smi>::cast(builder.At(i))->value(), i);
+    CHECK_EQ(Handle<Smi>::cast(builder.At(i))->value(), static_cast<int>(i));
   }
 }
 
@@ -50,7 +50,7 @@ TEST_F(ConstantArrayBuilderTest, ToFixedArray) {
     CHECK(builder.At(i)->SameValue(*object));
   }
   Handle<FixedArray> constant_array = builder.ToFixedArray(isolate());
-  CHECK_EQ(constant_array->length(), kNumberOfElements);
+  CHECK_EQ(constant_array->length(), static_cast<int>(kNumberOfElements));
   for (size_t i = 0; i < kNumberOfElements; i++) {
     CHECK(constant_array->get(static_cast<int>(i))->SameValue(*builder.At(i)));
   }
@@ -66,7 +66,7 @@ TEST_F(ConstantArrayBuilderTest, ToLargeFixedArray) {
     CHECK(builder.At(i)->SameValue(*object));
   }
   Handle<FixedArray> constant_array = builder.ToFixedArray(isolate());
-  CHECK_EQ(constant_array->length(), kNumberOfElements);
+  CHECK_EQ(constant_array->length(), static_cast<int>(kNumberOfElements));
   for (size_t i = 0; i < kNumberOfElements; i++) {
     CHECK(constant_array->get(static_cast<int>(i))->SameValue(*builder.At(i)));
   }
@@ -81,7 +81,7 @@ TEST_F(ConstantArrayBuilderTest, ToLargeFixedArrayWithReservations) {
                                 Smi::FromInt(static_cast<int>(i)));
   }
   Handle<FixedArray> constant_array = builder.ToFixedArray(isolate());
-  CHECK_EQ(constant_array->length(), kNumberOfElements);
+  CHECK_EQ(constant_array->length(), static_cast<int>(kNumberOfElements));
   for (size_t i = 0; i < kNumberOfElements; i++) {
     CHECK(constant_array->get(static_cast<int>(i))->SameValue(*builder.At(i)));
   }
@@ -133,11 +133,12 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithIdx8Reservations) {
     for (size_t i = 0; i < duplicates_in_idx8_space; i++) {
       Smi* value = Smi::FromInt(static_cast<int>(2 * k8BitCapacity + i));
       size_t index = builder.CommitReservedEntry(OperandSize::kByte, value);
-      CHECK_EQ(static_cast<int>(index), k8BitCapacity - reserved + i);
+      CHECK_EQ(index, k8BitCapacity - reserved + i);
     }
 
     Handle<FixedArray> constant_array = builder.ToFixedArray(isolate());
-    CHECK_EQ(constant_array->length(), 2 * k8BitCapacity + reserved);
+    CHECK_EQ(constant_array->length(),
+             static_cast<int>(2 * k8BitCapacity + reserved));
 
     // Check all committed values match expected
     for (size_t i = 0; i < k8BitCapacity - reserved; i++) {
@@ -188,7 +189,8 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithWideReservations) {
     }
 
     Handle<FixedArray> constant_array = builder.ToFixedArray(isolate());
-    CHECK_EQ(constant_array->length(), k8BitCapacity + reserved);
+    CHECK_EQ(constant_array->length(),
+             static_cast<int>(k8BitCapacity + reserved));
     for (size_t i = 0; i < k8BitCapacity + reserved; i++) {
       Object* value = constant_array->get(static_cast<int>(i));
       CHECK(value->SameValue(*isolate()->factory()->NewNumberFromSize(i)));
@@ -202,7 +204,7 @@ TEST_F(ConstantArrayBuilderTest, GapFilledWhenLowReservationCommitted) {
   for (size_t i = 0; i < k8BitCapacity; i++) {
     OperandSize operand_size = builder.CreateReservedEntry();
     CHECK(OperandSize::kByte == operand_size);
-    CHECK_EQ(builder.size(), 0);
+    CHECK_EQ(builder.size(), 0u);
   }
   for (size_t i = 0; i < k8BitCapacity; i++) {
     builder.CommitReservedEntry(builder.CreateReservedEntry(),
@@ -215,7 +217,7 @@ TEST_F(ConstantArrayBuilderTest, GapFilledWhenLowReservationCommitted) {
     CHECK_EQ(builder.size(), 2 * k8BitCapacity);
   }
   Handle<FixedArray> constant_array = builder.ToFixedArray(isolate());
-  CHECK_EQ(constant_array->length(), 2 * k8BitCapacity);
+  CHECK_EQ(constant_array->length(), static_cast<int>(2 * k8BitCapacity));
   for (size_t i = 0; i < k8BitCapacity; i++) {
     Object* original = constant_array->get(static_cast<int>(k8BitCapacity + i));
     Object* duplicate = constant_array->get(static_cast<int>(i));
@@ -231,7 +233,7 @@ TEST_F(ConstantArrayBuilderTest, GapNotFilledWhenLowReservationDiscarded) {
   for (size_t i = 0; i < k8BitCapacity; i++) {
     OperandSize operand_size = builder.CreateReservedEntry();
     CHECK(OperandSize::kByte == operand_size);
-    CHECK_EQ(builder.size(), 0);
+    CHECK_EQ(builder.size(), 0u);
   }
   for (size_t i = 0; i < k8BitCapacity; i++) {
     Handle<Object> object = isolate()->factory()->NewNumberFromSize(i);
@@ -260,9 +262,10 @@ TEST_F(ConstantArrayBuilderTest, HolesWithUnusedReservations) {
     CHECK_EQ(builder.CreateReservedEntry(), OperandSize::kByte);
   }
   for (int i = 0; i < 128; ++i) {
-    CHECK_EQ(builder.Insert(isolate()->factory()->NewNumber(i)), i);
+    CHECK_EQ(builder.Insert(isolate()->factory()->NewNumber(i)),
+             static_cast<size_t>(i));
   }
-  CHECK_EQ(builder.Insert(isolate()->factory()->NewNumber(256)), 256);
+  CHECK_EQ(builder.Insert(isolate()->factory()->NewNumber(256)), 256u);
 
   Handle<FixedArray> constant_array = builder.ToFixedArray(isolate());
   CHECK_EQ(constant_array->length(), 257);
@@ -288,11 +291,12 @@ TEST_F(ConstantArrayBuilderTest, ReservationsAtAllScales) {
   for (int i = 65536; i < 131072; ++i) {
     CHECK_EQ(builder.CreateReservedEntry(), OperandSize::kQuad);
   }
-  CHECK_EQ(builder.CommitReservedEntry(OperandSize::kByte, Smi::FromInt(1)), 0);
+  CHECK_EQ(builder.CommitReservedEntry(OperandSize::kByte, Smi::FromInt(1)),
+           0u);
   CHECK_EQ(builder.CommitReservedEntry(OperandSize::kShort, Smi::FromInt(2)),
-           256);
+           256u);
   CHECK_EQ(builder.CommitReservedEntry(OperandSize::kQuad, Smi::FromInt(3)),
-           65536);
+           65536u);
   Handle<FixedArray> constant_array = builder.ToFixedArray(isolate());
   CHECK_EQ(constant_array->length(), 65537);
   int count = 1;
@@ -326,7 +330,7 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithFixedReservations) {
       Handle<Object> empty = builder.At(i);
       CHECK(empty->SameValue(isolate()->heap()->the_hole_value()));
     } else {
-      CHECK_EQ(Handle<Smi>::cast(builder.At(i))->value(), i);
+      CHECK_EQ(Handle<Smi>::cast(builder.At(i))->value(), static_cast<int>(i));
     }
   }
 
@@ -338,7 +342,7 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithFixedReservations) {
 
   // Check values after reserved entries are inserted.
   for (size_t i = 0; i < k16BitCapacity; i++) {
-    CHECK_EQ(Handle<Smi>::cast(builder.At(i))->value(), i);
+    CHECK_EQ(Handle<Smi>::cast(builder.At(i))->value(), static_cast<int>(i));
   }
 }
 

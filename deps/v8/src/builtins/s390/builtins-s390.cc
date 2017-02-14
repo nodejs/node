@@ -267,7 +267,7 @@ void Builtins::Generate_NumberConstructor(MacroAssembler* masm) {
 
   // 2b. No arguments, return +0.
   __ bind(&no_arguments);
-  __ LoadSmiLiteral(r2, Smi::FromInt(0));
+  __ LoadSmiLiteral(r2, Smi::kZero);
   __ Ret(1);
 }
 
@@ -296,7 +296,7 @@ void Builtins::Generate_NumberConstructor_ConstructStub(MacroAssembler* masm) {
     __ LoadP(r4, MemOperand(sp, r4));
     __ b(&done);
     __ bind(&no_arguments);
-    __ LoadSmiLiteral(r4, Smi::FromInt(0));
+    __ LoadSmiLiteral(r4, Smi::kZero);
     __ bind(&done);
   }
 
@@ -551,14 +551,14 @@ void Builtins::Generate_InOptimizationQueue(MacroAssembler* masm) {
   GenerateTailCallToSharedCode(masm);
 }
 
-static void Generate_JSConstructStubHelper(MacroAssembler* masm,
-                                           bool is_api_function,
-                                           bool create_implicit_receiver,
-                                           bool check_derived_construct) {
+namespace {
+
+void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
+                                    bool create_implicit_receiver,
+                                    bool check_derived_construct) {
   // ----------- S t a t e -------------
   //  -- r2     : number of arguments
   //  -- r3     : constructor function
-  //  -- r4     : allocation site or undefined
   //  -- r5     : new target
   //  -- cp     : context
   //  -- lr     : return address
@@ -572,16 +572,15 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     FrameAndConstantPoolScope scope(masm, StackFrame::CONSTRUCT);
 
     // Preserve the incoming parameters on the stack.
-    __ AssertUndefinedOrAllocationSite(r4, r6);
 
     if (!create_implicit_receiver) {
       __ SmiTag(r6, r2);
       __ LoadAndTestP(r6, r6);
-      __ Push(cp, r4, r6);
+      __ Push(cp, r6);
       __ PushRoot(Heap::kTheHoleValueRootIndex);
     } else {
       __ SmiTag(r2);
-      __ Push(cp, r4, r2);
+      __ Push(cp, r2);
 
       // Allocate the new receiver object.
       __ Push(r3, r5);
@@ -709,6 +708,8 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   }
   __ Ret();
 }
+
+}  // namespace
 
 void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   Generate_JSConstructStubHelper(masm, false, true, false);
@@ -1175,31 +1176,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ JumpToJSEntry(r6);
 }
 
-void Builtins::Generate_InterpreterMarkBaselineOnReturn(MacroAssembler* masm) {
-  // Save the function and context for call to CompileBaseline.
-  __ LoadP(r3, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
-  __ LoadP(kContextRegister,
-           MemOperand(fp, StandardFrameConstants::kContextOffset));
-
-  // Leave the frame before recompiling for baseline so that we don't count as
-  // an activation on the stack.
-  LeaveInterpreterFrame(masm, r4);
-
-  {
-    FrameScope frame_scope(masm, StackFrame::INTERNAL);
-    // Push return value.
-    __ push(r2);
-
-    // Push function as argument and compile for baseline.
-    __ push(r3);
-    __ CallRuntime(Runtime::kCompileBaseline);
-
-    // Restore return value.
-    __ pop(r2);
-  }
-  __ Ret();
-}
-
 static void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
                                         Register scratch,
                                         Label* stack_overflow) {
@@ -1352,12 +1328,12 @@ void Builtins::Generate_InterpreterPushArgsAndConstructArray(
   }
 }
 
-void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {
+static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   // Set the return address to the correct point in the interpreter entry
   // trampoline.
   Smi* interpreter_entry_return_pc_offset(
       masm->isolate()->heap()->interpreter_entry_return_pc_offset());
-  DCHECK_NE(interpreter_entry_return_pc_offset, Smi::FromInt(0));
+  DCHECK_NE(interpreter_entry_return_pc_offset, Smi::kZero);
   __ Move(r4, masm->isolate()->builtins()->InterpreterEntryTrampoline());
   __ AddP(r14, r4, Operand(interpreter_entry_return_pc_offset->value() +
                            Code::kHeaderSize - kHeapObjectTag));
@@ -1393,6 +1369,31 @@ void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {
   __ Jump(ip);
 }
 
+void Builtins::Generate_InterpreterEnterBytecodeAdvance(MacroAssembler* masm) {
+  // Advance the current bytecode offset stored within the given interpreter
+  // stack frame. This simulates what all bytecode handlers do upon completion
+  // of the underlying operation.
+  __ LoadP(r3, MemOperand(fp, InterpreterFrameConstants::kBytecodeArrayFromFp));
+  __ LoadP(r4,
+           MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
+  __ LoadP(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ Push(kInterpreterAccumulatorRegister, r3, r4);
+    __ CallRuntime(Runtime::kInterpreterAdvanceBytecodeOffset);
+    __ Move(r4, r2);  // Result is the new bytecode offset.
+    __ Pop(kInterpreterAccumulatorRegister);
+  }
+  __ StoreP(r4,
+            MemOperand(fp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
+
+  Generate_InterpreterEnterBytecode(masm);
+}
+
+void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {
+  Generate_InterpreterEnterBytecode(masm);
+}
+
 void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r2 : argument count (preserved for callee)
@@ -1401,7 +1402,6 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   // -----------------------------------
   // First lookup code, maybe we don't need to compile!
   Label gotta_call_runtime;
-  Label maybe_call_runtime;
   Label try_shared;
   Label loop_top, loop_bottom;
 
@@ -1463,14 +1463,11 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
            FieldMemOperand(array_pointer,
                            SharedFunctionInfo::kOffsetToPreviousCachedCode));
   __ LoadP(entry, FieldMemOperand(entry, WeakCell::kValueOffset));
-  __ JumpIfSmi(entry, &maybe_call_runtime);
+  __ JumpIfSmi(entry, &try_shared);
 
   // Found literals and code. Get them into the closure and return.
   // Store code entry in the closure.
   __ AddP(entry, entry, Operand(Code::kHeaderSize - kHeapObjectTag));
-
-  Label install_optimized_code_and_tailcall;
-  __ bind(&install_optimized_code_and_tailcall);
   __ StoreP(entry, FieldMemOperand(closure, JSFunction::kCodeEntryOffset), r0);
   __ RecordWriteCodeEntryField(closure, entry, r7);
 
@@ -1505,23 +1502,15 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   // We found neither literals nor code.
   __ b(&gotta_call_runtime);
 
-  __ bind(&maybe_call_runtime);
-
-  // Last possibility. Check the context free optimized code map entry.
-  __ LoadP(entry,
-           FieldMemOperand(map, FixedArray::kHeaderSize +
-                                    SharedFunctionInfo::kSharedCodeIndex));
-  __ LoadP(entry, FieldMemOperand(entry, WeakCell::kValueOffset));
-  __ JumpIfSmi(entry, &try_shared);
-
-  // Store code entry in the closure.
-  __ AddP(entry, entry, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ b(&install_optimized_code_and_tailcall);
-
   __ bind(&try_shared);
-  // Is the full code valid?
   __ LoadP(entry,
            FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
+  // Is the shared function marked for tier up?
+  __ LoadlB(temp, FieldMemOperand(
+                      entry, SharedFunctionInfo::kMarkedForTierUpByteOffset));
+  __ TestBit(temp, SharedFunctionInfo::kMarkedForTierUpBitWithinByte, r0);
+  __ bne(&gotta_call_runtime);
+  // Is the full code valid?
   __ LoadP(entry, FieldMemOperand(entry, SharedFunctionInfo::kCodeOffset));
   __ LoadlW(r7, FieldMemOperand(entry, Code::kFlagsOffset));
   __ DecodeField<Code::KindField>(r7);
@@ -1895,7 +1884,7 @@ static void Generate_OnStackReplacementHelper(MacroAssembler* masm,
 
   // If the code object is null, just return to the caller.
   Label skip;
-  __ CmpSmiLiteral(r2, Smi::FromInt(0), r0);
+  __ CmpSmiLiteral(r2, Smi::kZero, r0);
   __ bne(&skip);
   __ Ret();
 
@@ -2516,8 +2505,8 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
         __ Push(r2, r3);
         __ LoadRR(r2, r5);
         __ Push(cp);
-        ToObjectStub stub(masm->isolate());
-        __ CallStub(&stub);
+        __ Call(masm->isolate()->builtins()->ToObject(),
+                RelocInfo::CODE_TARGET);
         __ Pop(cp);
         __ LoadRR(r5, r2);
         __ Pop(r2, r3);
@@ -2865,7 +2854,7 @@ void Builtins::Generate_AllocateInNewSpace(MacroAssembler* masm) {
   // -----------------------------------
   __ SmiTag(r3);
   __ Push(r3);
-  __ LoadSmiLiteral(cp, Smi::FromInt(0));
+  __ LoadSmiLiteral(cp, Smi::kZero);
   __ TailCallRuntime(Runtime::kAllocateInNewSpace);
 }
 
@@ -2878,7 +2867,7 @@ void Builtins::Generate_AllocateInOldSpace(MacroAssembler* masm) {
   __ SmiTag(r3);
   __ LoadSmiLiteral(r4, Smi::FromInt(AllocateTargetSpace::encode(OLD_SPACE)));
   __ Push(r3, r4);
-  __ LoadSmiLiteral(cp, Smi::FromInt(0));
+  __ LoadSmiLiteral(cp, Smi::kZero);
   __ TailCallRuntime(Runtime::kAllocateInTargetSpace);
 }
 
@@ -2889,7 +2878,7 @@ void Builtins::Generate_Abort(MacroAssembler* masm) {
   //  -- lr : return address
   // -----------------------------------
   __ push(r3);
-  __ LoadSmiLiteral(cp, Smi::FromInt(0));
+  __ LoadSmiLiteral(cp, Smi::kZero);
   __ TailCallRuntime(Runtime::kAbort);
 }
 

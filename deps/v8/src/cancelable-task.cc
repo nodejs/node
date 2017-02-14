@@ -26,13 +26,15 @@ Cancelable::~Cancelable() {
   }
 }
 
-CancelableTaskManager::CancelableTaskManager() : task_id_counter_(0) {}
+CancelableTaskManager::CancelableTaskManager()
+    : task_id_counter_(0), canceled_(false) {}
 
 uint32_t CancelableTaskManager::Register(Cancelable* task) {
   base::LockGuard<base::Mutex> guard(&mutex_);
   uint32_t id = ++task_id_counter_;
   // The loop below is just used when task_id_counter_ overflows.
   while (cancelable_tasks_.count(id) > 0) ++id;
+  CHECK(!canceled_);
   cancelable_tasks_[id] = task;
   return id;
 }
@@ -42,12 +44,12 @@ void CancelableTaskManager::RemoveFinishedTask(uint32_t id) {
   base::LockGuard<base::Mutex> guard(&mutex_);
   size_t removed = cancelable_tasks_.erase(id);
   USE(removed);
-  DCHECK_NE(0, removed);
+  DCHECK_NE(0u, removed);
   cancelable_tasks_barrier_.NotifyOne();
 }
 
-
-bool CancelableTaskManager::TryAbort(uint32_t id) {
+CancelableTaskManager::TryAbortResult CancelableTaskManager::TryAbort(
+    uint32_t id) {
   base::LockGuard<base::Mutex> guard(&mutex_);
   auto entry = cancelable_tasks_.find(id);
   if (entry != cancelable_tasks_.end()) {
@@ -56,10 +58,12 @@ bool CancelableTaskManager::TryAbort(uint32_t id) {
       // Cannot call RemoveFinishedTask here because of recursive locking.
       cancelable_tasks_.erase(entry);
       cancelable_tasks_barrier_.NotifyOne();
-      return true;
+      return kTaskAborted;
+    } else {
+      return kTaskRunning;
     }
   }
-  return false;
+  return kTaskRemoved;
 }
 
 
@@ -69,6 +73,7 @@ void CancelableTaskManager::CancelAndWait() {
   // of canceling we wait for the background tasks that have already been
   // started.
   base::LockGuard<base::Mutex> guard(&mutex_);
+  canceled_ = true;
 
   // Cancelable tasks could be running or could potentially register new
   // tasks, requiring a loop here.

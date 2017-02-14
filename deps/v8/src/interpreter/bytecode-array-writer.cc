@@ -94,9 +94,9 @@ void BytecodeArrayWriter::UpdateSourcePositionTable(
   int bytecode_offset = static_cast<int>(bytecodes()->size());
   const BytecodeSourceInfo& source_info = node->source_info();
   if (source_info.is_valid()) {
-    source_position_table_builder()->AddPosition(bytecode_offset,
-                                                 source_info.source_position(),
-                                                 source_info.is_statement());
+    source_position_table_builder()->AddPosition(
+        bytecode_offset, SourcePosition(source_info.source_position()),
+        source_info.is_statement());
   }
 }
 
@@ -211,8 +211,6 @@ void BytecodeArrayWriter::PatchJumpWith16BitOperand(size_t jump_location,
     // and update the jump instruction and operand.
     size_t entry = constant_array_builder()->CommitReservedEntry(
         OperandSize::kShort, Smi::FromInt(delta));
-    DCHECK_EQ(Bytecodes::SizeForUnsignedOperand(static_cast<uint32_t>(entry)),
-              OperandSize::kShort);
     jump_bytecode = GetJumpWithConstantOperand(jump_bytecode);
     bytecodes()->at(jump_location) = Bytecodes::ToByte(jump_bytecode);
     WriteUnalignedUInt16(operand_bytes, static_cast<uint16_t>(entry));
@@ -275,7 +273,7 @@ void BytecodeArrayWriter::PatchJump(size_t jump_target, size_t jump_location) {
 
 void BytecodeArrayWriter::EmitJump(BytecodeNode* node, BytecodeLabel* label) {
   DCHECK(Bytecodes::IsJump(node->bytecode()));
-  DCHECK_EQ(0, node->operand(0));
+  DCHECK_EQ(0u, node->operand(0));
 
   size_t current_offset = bytecodes()->size();
 

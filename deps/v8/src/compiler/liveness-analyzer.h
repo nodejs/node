@@ -7,6 +7,7 @@
 
 #include "src/bit-vector.h"
 #include "src/compiler/node.h"
+#include "src/globals.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -17,20 +18,22 @@ class LivenessAnalyzerBlock;
 class Node;
 class StateValuesCache;
 
-
 class NonLiveFrameStateSlotReplacer {
  public:
   void ClearNonLiveFrameStateSlots(Node* frame_state, BitVector* liveness);
   NonLiveFrameStateSlotReplacer(StateValuesCache* state_values_cache,
                                 Node* replacement, size_t local_count,
-                                Zone* local_zone)
+                                bool has_accumulator, Zone* local_zone)
       : replacement_node_(replacement),
         state_values_cache_(state_values_cache),
         local_zone_(local_zone),
-        permanently_live_(local_count == 0 ? 1 : static_cast<int>(local_count),
-                          local_zone),
-        inputs_buffer_(local_zone) {}
+        permanently_live_(
+            static_cast<int>(local_count) + (has_accumulator ? 1 : 0),
+            local_zone),
+        inputs_buffer_(local_zone),
+        has_accumulator_(has_accumulator) {}
 
+  // TODO(leszeks): Not used by bytecode, remove once AST graph builder is gone.
   void MarkPermanentlyLive(int var) { permanently_live_.Add(var); }
 
  private:
@@ -48,12 +51,13 @@ class NonLiveFrameStateSlotReplacer {
   Zone* local_zone_;
   BitVector permanently_live_;
   NodeVector inputs_buffer_;
+
+  bool has_accumulator_;
 };
 
-
-class LivenessAnalyzer {
+class V8_EXPORT_PRIVATE LivenessAnalyzer {
  public:
-  LivenessAnalyzer(size_t local_count, Zone* zone);
+  LivenessAnalyzer(size_t local_count, bool has_accumulator, Zone* zone);
 
   LivenessAnalyzerBlock* NewBlock();
   LivenessAnalyzerBlock* NewBlock(LivenessAnalyzerBlock* predecessor);
@@ -73,6 +77,10 @@ class LivenessAnalyzer {
   ZoneDeque<LivenessAnalyzerBlock*> blocks_;
   size_t local_count_;
 
+  // TODO(leszeks): Always true for bytecode, remove once AST graph builder is
+  // gone.
+  bool has_accumulator_;
+
   ZoneQueue<LivenessAnalyzerBlock*> queue_;
 };
 
@@ -83,6 +91,17 @@ class LivenessAnalyzerBlock {
 
   void Lookup(int var) { entries_.push_back(Entry(Entry::kLookup, var)); }
   void Bind(int var) { entries_.push_back(Entry(Entry::kBind, var)); }
+  void LookupAccumulator() {
+    DCHECK(has_accumulator_);
+    // The last entry is the accumulator entry.
+    entries_.push_back(Entry(Entry::kLookup, live_.length() - 1));
+  }
+  void BindAccumulator() {
+    DCHECK(has_accumulator_);
+    // The last entry is the accumulator entry.
+    entries_.push_back(Entry(Entry::kBind, live_.length() - 1));
+  }
+
   void Checkpoint(Node* node) { entries_.push_back(Entry(node)); }
   void AddPredecessor(LivenessAnalyzerBlock* b) { predecessors_.push_back(b); }
   LivenessAnalyzerBlock* GetPredecessor() {
@@ -116,7 +135,8 @@ class LivenessAnalyzerBlock {
     Node* node_;
   };
 
-  LivenessAnalyzerBlock(size_t id, size_t local_count, Zone* zone);
+  LivenessAnalyzerBlock(size_t id, size_t local_count, bool has_accumulator,
+                        Zone* zone);
   void Process(BitVector* result, NonLiveFrameStateSlotReplacer* relaxer);
   bool UpdateLive(BitVector* working_area);
 
@@ -138,6 +158,7 @@ class LivenessAnalyzerBlock {
 
   BitVector live_;
   bool queued_;
+  bool has_accumulator_;
 
   size_t id_;
 };

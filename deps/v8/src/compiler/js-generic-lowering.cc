@@ -116,6 +116,8 @@ void JSGenericLowering::ReplaceWithRuntimeCall(Node* node,
 }
 
 void JSGenericLowering::LowerJSStrictEqual(Node* node) {
+  // The === operator doesn't need the current context.
+  NodeProperties::ReplaceContextInput(node, jsgraph()->NoContextConstant());
   Callable callable = CodeFactory::StrictEqual(isolate());
   node->RemoveInput(4);  // control
   ReplaceWithStubCall(node, callable, CallDescriptor::kNoFlags,
@@ -123,6 +125,8 @@ void JSGenericLowering::LowerJSStrictEqual(Node* node) {
 }
 
 void JSGenericLowering::LowerJSStrictNotEqual(Node* node) {
+  // The !== operator doesn't need the current context.
+  NodeProperties::ReplaceContextInput(node, jsgraph()->NoContextConstant());
   Callable callable = CodeFactory::StrictNotEqual(isolate());
   node->RemoveInput(4);  // control
   ReplaceWithStubCall(node, callable, CallDescriptor::kNoFlags,
@@ -130,6 +134,8 @@ void JSGenericLowering::LowerJSStrictNotEqual(Node* node) {
 }
 
 void JSGenericLowering::LowerJSToBoolean(Node* node) {
+  // The ToBoolean conversion doesn't need the current context.
+  NodeProperties::ReplaceContextInput(node, jsgraph()->NoContextConstant());
   Callable callable = CodeFactory::ToBoolean(isolate());
   node->AppendInput(zone(), graph()->start());
   ReplaceWithStubCall(node, callable, CallDescriptor::kNoAllocate,
@@ -137,6 +143,8 @@ void JSGenericLowering::LowerJSToBoolean(Node* node) {
 }
 
 void JSGenericLowering::LowerJSTypeOf(Node* node) {
+  // The typeof operator doesn't need the current context.
+  NodeProperties::ReplaceContextInput(node, jsgraph()->NoContextConstant());
   Callable callable = CodeFactory::Typeof(isolate());
   node->AppendInput(zone(), graph()->start());
   ReplaceWithStubCall(node, callable, CallDescriptor::kNoAllocate,
@@ -460,6 +468,9 @@ void JSGenericLowering::LowerJSCreateIterResultObject(Node* node) {
   ReplaceWithRuntimeCall(node, Runtime::kCreateIterResultObject);
 }
 
+void JSGenericLowering::LowerJSCreateKeyValueArray(Node* node) {
+  ReplaceWithRuntimeCall(node, Runtime::kCreateKeyValueArray);
+}
 
 void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
   CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
@@ -620,6 +631,14 @@ void JSGenericLowering::LowerJSStoreMessage(Node* node) {
   StoreRepresentation representation(MachineRepresentation::kTagged,
                                      kNoWriteBarrier);
   NodeProperties::ChangeOp(node, machine()->Store(representation));
+}
+
+void JSGenericLowering::LowerJSLoadModule(Node* node) {
+  UNREACHABLE();  // Eliminated in typed lowering.
+}
+
+void JSGenericLowering::LowerJSStoreModule(Node* node) {
+  UNREACHABLE();  // Eliminated in typed lowering.
 }
 
 void JSGenericLowering::LowerJSGeneratorStore(Node* node) {

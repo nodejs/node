@@ -210,6 +210,37 @@ std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
+int OsrValueIndexOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kOsrValue, op->opcode());
+  return OpParameter<int>(op);
+}
+
+size_t hash_value(OsrGuardType type) { return static_cast<size_t>(type); }
+
+std::ostream& operator<<(std::ostream& os, OsrGuardType type) {
+  switch (type) {
+    case OsrGuardType::kUninitialized:
+      return os << "Uninitialized";
+    case OsrGuardType::kSignedSmall:
+      return os << "SignedSmall";
+    case OsrGuardType::kAny:
+      return os << "Any";
+  }
+  UNREACHABLE();
+  return os;
+}
+
+OsrGuardType OsrGuardTypeOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kOsrGuard, op->opcode());
+  return OpParameter<OsrGuardType>(op);
+}
+
+ZoneVector<MachineType> const* MachineTypesOf(Operator const* op) {
+  DCHECK(op->opcode() == IrOpcode::kTypedObjectState ||
+         op->opcode() == IrOpcode::kTypedStateValues);
+  return OpParameter<const ZoneVector<MachineType>*>(op);
+}
+
 #define CACHED_OP_LIST(V)                                                     \
   V(Dead, Operator::kFoldable, 0, 0, 0, 1, 1, 1)                              \
   V(IfTrue, Operator::kKontrol, 0, 0, 1, 0, 0, 1)                             \
@@ -231,8 +262,8 @@ std::ostream& operator<<(std::ostream& os,
 #define CACHED_RETURN_LIST(V) \
   V(1)                        \
   V(2)                        \
-  V(3)
-
+  V(3)                        \
+  V(4)
 
 #define CACHED_END_LIST(V) \
   V(1)                     \
@@ -293,7 +324,7 @@ std::ostream& operator<<(std::ostream& os,
   V(LostPrecisionOrNaN)                  \
   V(NoReason)                            \
   V(NotAHeapNumber)                      \
-  V(NotAHeapNumberUndefinedBoolean)      \
+  V(NotANumberOrOddball)                 \
   V(NotASmi)                             \
   V(OutOfBounds)                         \
   V(WrongInstanceType)                   \
@@ -371,16 +402,16 @@ struct CommonOperatorGlobalCache final {
   CACHED_END_LIST(CACHED_END)
 #undef CACHED_END
 
-  template <size_t kInputCount>
+  template <size_t kValueInputCount>
   struct ReturnOperator final : public Operator {
     ReturnOperator()
-        : Operator(                                   // --
-              IrOpcode::kReturn, Operator::kNoThrow,  // opcode
-              "Return",                               // name
-              kInputCount, 1, 1, 0, 0, 1) {}          // counts
+        : Operator(                                    // --
+              IrOpcode::kReturn, Operator::kNoThrow,   // opcode
+              "Return",                                // name
+              kValueInputCount + 1, 1, 1, 0, 0, 1) {}  // counts
   };
-#define CACHED_RETURN(input_count) \
-  ReturnOperator<input_count> kReturn##input_count##Operator;
+#define CACHED_RETURN(value_input_count) \
+  ReturnOperator<value_input_count> kReturn##value_input_count##Operator;
   CACHED_RETURN_LIST(CACHED_RETURN)
 #undef CACHED_RETURN
 
@@ -607,7 +638,6 @@ const Operator* CommonOperatorBuilder::End(size_t control_input_count) {
       0, 0, control_input_count, 0, 0, 0);  // counts
 }
 
-
 const Operator* CommonOperatorBuilder::Return(int value_input_count) {
   switch (value_input_count) {
 #define CACHED_RETURN(input_count) \
@@ -622,7 +652,7 @@ const Operator* CommonOperatorBuilder::Return(int value_input_count) {
   return new (zone()) Operator(               //--
       IrOpcode::kReturn, Operator::kNoThrow,  // opcode
       "Return",                               // name
-      value_input_count, 1, 1, 0, 0, 1);      // counts
+      value_input_count + 1, 1, 1, 0, 0, 1);  // counts
 }
 
 
@@ -780,7 +810,6 @@ const Operator* CommonOperatorBuilder::Parameter(int index,
       ParameterInfo(index, debug_name));         // parameter info
 }
 
-
 const Operator* CommonOperatorBuilder::OsrValue(int index) {
   return new (zone()) Operator1<int>(                // --
       IrOpcode::kOsrValue, Operator::kNoProperties,  // opcode
@@ -789,6 +818,13 @@ const Operator* CommonOperatorBuilder::OsrValue(int index) {
       index);                                        // parameter
 }
 
+const Operator* CommonOperatorBuilder::OsrGuard(OsrGuardType type) {
+  return new (zone()) Operator1<OsrGuardType>(  // --
+      IrOpcode::kOsrGuard, Operator::kNoThrow,  // opcode
+      "OsrGuard",                               // name
+      1, 1, 1, 1, 1, 0,                         // counts
+      type);                                    // parameter
+}
 
 const Operator* CommonOperatorBuilder::Int32Constant(int32_t value) {
   return new (zone()) Operator1<int32_t>(         // --
@@ -844,6 +880,13 @@ const Operator* CommonOperatorBuilder::NumberConstant(volatile double value) {
       value);                                      // parameter
 }
 
+const Operator* CommonOperatorBuilder::PointerConstant(intptr_t value) {
+  return new (zone()) Operator1<intptr_t>(          // --
+      IrOpcode::kPointerConstant, Operator::kPure,  // opcode
+      "PointerConstant",                            // name
+      0, 0, 0, 1, 0, 0,                             // counts
+      value);                                       // parameter
+}
 
 const Operator* CommonOperatorBuilder::HeapConstant(
     const Handle<HeapObject>& value) {
@@ -974,23 +1017,31 @@ const Operator* CommonOperatorBuilder::StateValues(int arguments) {
       arguments, 0, 0, 1, 0, 0);                // counts
 }
 
-
-const Operator* CommonOperatorBuilder::ObjectState(int pointer_slots, int id) {
-  return new (zone()) Operator1<int>(           // --
-      IrOpcode::kObjectState, Operator::kPure,  // opcode
-      "ObjectState",                            // name
-      pointer_slots, 0, 0, 1, 0, 0, id);        // counts
-}
-
-
 const Operator* CommonOperatorBuilder::TypedStateValues(
     const ZoneVector<MachineType>* types) {
   return new (zone()) Operator1<const ZoneVector<MachineType>*>(  // --
       IrOpcode::kTypedStateValues, Operator::kPure,               // opcode
       "TypedStateValues",                                         // name
-      static_cast<int>(types->size()), 0, 0, 1, 0, 0, types);     // counts
+      static_cast<int>(types->size()), 0, 0, 1, 0, 0,             // counts
+      types);                                                     // parameter
 }
 
+const Operator* CommonOperatorBuilder::ObjectState(int pointer_slots) {
+  return new (zone()) Operator1<int>(           // --
+      IrOpcode::kObjectState, Operator::kPure,  // opcode
+      "ObjectState",                            // name
+      pointer_slots, 0, 0, 1, 0, 0,             // counts
+      pointer_slots);                           // parameter
+}
+
+const Operator* CommonOperatorBuilder::TypedObjectState(
+    const ZoneVector<MachineType>* types) {
+  return new (zone()) Operator1<const ZoneVector<MachineType>*>(  // --
+      IrOpcode::kTypedObjectState, Operator::kPure,               // opcode
+      "TypedObjectState",                                         // name
+      static_cast<int>(types->size()), 0, 0, 1, 0, 0,             // counts
+      types);                                                     // parameter
+}
 
 const Operator* CommonOperatorBuilder::FrameState(
     BailoutId bailout_id, OutputFrameStateCombine state_combine,

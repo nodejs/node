@@ -82,7 +82,7 @@ Context* Context::declaration_context() {
 Context* Context::closure_context() {
   Context* current = this;
   while (!current->IsFunctionContext() && !current->IsScriptContext() &&
-         !current->IsNativeContext()) {
+         !current->IsModuleContext() && !current->IsNativeContext()) {
     current = current->previous();
     DCHECK(current->closure() == closure());
   }

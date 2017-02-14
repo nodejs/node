@@ -24,9 +24,8 @@ namespace internal {
 
 static MemoryChunk* AllocateCodeChunk(MemoryAllocator* allocator) {
   return allocator->AllocateChunk(Deoptimizer::GetMaxDeoptTableSize(),
-                                  base::OS::CommitPageSize(),
-                                  EXECUTABLE,
-                                  NULL);
+                                  MemoryAllocator::GetCommitPageSize(),
+                                  EXECUTABLE, NULL);
 }
 
 
@@ -88,7 +87,7 @@ static const int kDeoptTableMaxEpilogueCodeSize = 2 * KB;
 size_t Deoptimizer::GetMaxDeoptTableSize() {
   int entries_size =
       Deoptimizer::kMaxNumberOfEntries * Deoptimizer::table_entry_size_;
-  int commit_page_size = static_cast<int>(base::OS::CommitPageSize());
+  int commit_page_size = static_cast<int>(MemoryAllocator::GetCommitPageSize());
   int page_count = ((kDeoptTableMaxEpilogueCodeSize + entries_size - 1) /
                     commit_page_size) + 1;
   return static_cast<size_t>(commit_page_size * page_count);
@@ -276,7 +275,7 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
 
   // Move marked code from the optimized code list to the deoptimized
   // code list, collecting them into a ZoneList.
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   ZoneList<Code*> codes(10, &zone);
 
   // Walk over all optimized code objects in this native context.
@@ -1001,7 +1000,7 @@ void Deoptimizer::DoComputeJSFrame(TranslatedFrame* translated_frame,
     }
   }
 
-  // Compute this frame's PC, state, and continuation.
+  // Compute this frame's PC and state.
   FixedArray* raw_data = non_optimized_code->deoptimization_data();
   DeoptimizationOutputData* data = DeoptimizationOutputData::cast(raw_data);
   Address start = non_optimized_code->instruction_start();
@@ -1024,7 +1023,7 @@ void Deoptimizer::DoComputeJSFrame(TranslatedFrame* translated_frame,
   // and will be materialized by {Runtime_NotifyDeoptimized}. For additional
   // safety we use Smi(0) instead of the potential {arguments_marker} here.
   if (is_topmost) {
-    intptr_t context_value = reinterpret_cast<intptr_t>(Smi::FromInt(0));
+    intptr_t context_value = reinterpret_cast<intptr_t>(Smi::kZero);
     Register context_reg = JavaScriptFrame::context_register();
     output_frame->SetRegister(context_reg.code(), context_value);
   }
@@ -1243,7 +1242,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
 
   // Translate the accumulator register (depending on frame position).
   if (is_topmost) {
-    // For topmost frmae, p ut the accumulator on the stack. The bailout state
+    // For topmost frame, put the accumulator on the stack. The bailout state
     // for interpreted frames is always set to {BailoutState::TOS_REGISTER} and
     // the {NotifyDeoptimized} builtin pops it off the topmost frame (possibly
     // after materialization).
@@ -1268,9 +1267,15 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   }
   CHECK_EQ(0u, output_offset);
 
+  // Compute this frame's PC and state. The PC will be a special builtin that
+  // continues the bytecode dispatch. Note that non-topmost and lazy-style
+  // bailout handlers also advance the bytecode offset before dispatch, hence
+  // simulating what normal handlers do upon completion of the operation.
   Builtins* builtins = isolate_->builtins();
   Code* dispatch_builtin =
-      builtins->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
+      (!is_topmost || (bailout_type_ == LAZY)) && !goto_catch_handler
+          ? builtins->builtin(Builtins::kInterpreterEnterBytecodeAdvance)
+          : builtins->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
   output_frame->SetPc(reinterpret_cast<intptr_t>(dispatch_builtin->entry()));
   // Restore accumulator (TOS) register.
   output_frame->SetState(
@@ -1292,7 +1297,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   // and will be materialized by {Runtime_NotifyDeoptimized}. For additional
   // safety we use Smi(0) instead of the potential {arguments_marker} here.
   if (is_topmost) {
-    intptr_t context_value = reinterpret_cast<intptr_t>(Smi::FromInt(0));
+    intptr_t context_value = reinterpret_cast<intptr_t>(Smi::kZero);
     Register context_reg = JavaScriptFrame::context_register();
     output_frame->SetRegister(context_reg.code(), context_value);
   }
@@ -1602,12 +1607,6 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   output_frame->SetFrameSlot(output_offset, value);
   DebugPrintOutputSlot(value, frame_index, output_offset, "context\n");
 
-  // The allocation site.
-  output_offset -= kPointerSize;
-  value = reinterpret_cast<intptr_t>(isolate_->heap()->undefined_value());
-  output_frame->SetFrameSlot(output_offset, value);
-  DebugPrintOutputSlot(value, frame_index, output_offset, "allocation site\n");
-
   // Number of incoming arguments.
   output_offset -= kPointerSize;
   value = reinterpret_cast<intptr_t>(Smi::FromInt(height - 1));
@@ -1659,7 +1658,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   // and will be materialized by {Runtime_NotifyDeoptimized}. For additional
   // safety we use Smi(0) instead of the potential {arguments_marker} here.
   if (is_topmost) {
-    intptr_t context_value = reinterpret_cast<intptr_t>(Smi::FromInt(0));
+    intptr_t context_value = reinterpret_cast<intptr_t>(Smi::kZero);
     Register context_reg = JavaScriptFrame::context_register();
     output_frame->SetRegister(context_reg.code(), context_value);
   }
@@ -1843,7 +1842,7 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
   // and will be materialized by {Runtime_NotifyDeoptimized}. For additional
   // safety we use Smi(0) instead of the potential {arguments_marker} here.
   if (is_topmost) {
-    intptr_t context_value = reinterpret_cast<intptr_t>(Smi::FromInt(0));
+    intptr_t context_value = reinterpret_cast<intptr_t>(Smi::kZero);
     Register context_reg = JavaScriptFrame::context_register();
     output_frame->SetRegister(context_reg.code(), context_value);
   }
@@ -2287,7 +2286,7 @@ FrameDescription::FrameDescription(uint32_t frame_size, int parameter_count)
   }
 }
 
-void TranslationBuffer::Add(int32_t value, Zone* zone) {
+void TranslationBuffer::Add(int32_t value) {
   // This wouldn't handle kMinInt correctly if it ever encountered it.
   DCHECK(value != kMinInt);
   // Encode the sign bit in the least significant bit.
@@ -2298,7 +2297,7 @@ void TranslationBuffer::Add(int32_t value, Zone* zone) {
   // each byte to indicate whether or not more bytes follow.
   do {
     uint32_t next = bits >> 7;
-    contents_.Add(((bits << 1) & 0xFF) | (next != 0), zone);
+    contents_.push_back(((bits << 1) & 0xFF) | (next != 0));
     bits = next;
   } while (bits != 0);
 }
@@ -2322,167 +2321,166 @@ int32_t TranslationIterator::Next() {
 
 
 Handle<ByteArray> TranslationBuffer::CreateByteArray(Factory* factory) {
-  int length = contents_.length();
-  Handle<ByteArray> result = factory->NewByteArray(length, TENURED);
-  MemCopy(result->GetDataStartAddress(), contents_.ToVector().start(), length);
+  Handle<ByteArray> result = factory->NewByteArray(CurrentIndex(), TENURED);
+  contents_.CopyTo(result->GetDataStartAddress());
   return result;
 }
 
 
 void Translation::BeginConstructStubFrame(int literal_id, unsigned height) {
-  buffer_->Add(CONSTRUCT_STUB_FRAME, zone());
-  buffer_->Add(literal_id, zone());
-  buffer_->Add(height, zone());
+  buffer_->Add(CONSTRUCT_STUB_FRAME);
+  buffer_->Add(literal_id);
+  buffer_->Add(height);
 }
 
 
 void Translation::BeginGetterStubFrame(int literal_id) {
-  buffer_->Add(GETTER_STUB_FRAME, zone());
-  buffer_->Add(literal_id, zone());
+  buffer_->Add(GETTER_STUB_FRAME);
+  buffer_->Add(literal_id);
 }
 
 
 void Translation::BeginSetterStubFrame(int literal_id) {
-  buffer_->Add(SETTER_STUB_FRAME, zone());
-  buffer_->Add(literal_id, zone());
+  buffer_->Add(SETTER_STUB_FRAME);
+  buffer_->Add(literal_id);
 }
 
 
 void Translation::BeginArgumentsAdaptorFrame(int literal_id, unsigned height) {
-  buffer_->Add(ARGUMENTS_ADAPTOR_FRAME, zone());
-  buffer_->Add(literal_id, zone());
-  buffer_->Add(height, zone());
+  buffer_->Add(ARGUMENTS_ADAPTOR_FRAME);
+  buffer_->Add(literal_id);
+  buffer_->Add(height);
 }
 
 void Translation::BeginTailCallerFrame(int literal_id) {
-  buffer_->Add(TAIL_CALLER_FRAME, zone());
-  buffer_->Add(literal_id, zone());
+  buffer_->Add(TAIL_CALLER_FRAME);
+  buffer_->Add(literal_id);
 }
 
 void Translation::BeginJSFrame(BailoutId node_id,
                                int literal_id,
                                unsigned height) {
-  buffer_->Add(JS_FRAME, zone());
-  buffer_->Add(node_id.ToInt(), zone());
-  buffer_->Add(literal_id, zone());
-  buffer_->Add(height, zone());
+  buffer_->Add(JS_FRAME);
+  buffer_->Add(node_id.ToInt());
+  buffer_->Add(literal_id);
+  buffer_->Add(height);
 }
 
 
 void Translation::BeginInterpretedFrame(BailoutId bytecode_offset,
                                         int literal_id, unsigned height) {
-  buffer_->Add(INTERPRETED_FRAME, zone());
-  buffer_->Add(bytecode_offset.ToInt(), zone());
-  buffer_->Add(literal_id, zone());
-  buffer_->Add(height, zone());
+  buffer_->Add(INTERPRETED_FRAME);
+  buffer_->Add(bytecode_offset.ToInt());
+  buffer_->Add(literal_id);
+  buffer_->Add(height);
 }
 
 
 void Translation::BeginCompiledStubFrame(int height) {
-  buffer_->Add(COMPILED_STUB_FRAME, zone());
-  buffer_->Add(height, zone());
+  buffer_->Add(COMPILED_STUB_FRAME);
+  buffer_->Add(height);
 }
 
 
 void Translation::BeginArgumentsObject(int args_length) {
-  buffer_->Add(ARGUMENTS_OBJECT, zone());
-  buffer_->Add(args_length, zone());
+  buffer_->Add(ARGUMENTS_OBJECT);
+  buffer_->Add(args_length);
 }
 
 
 void Translation::BeginCapturedObject(int length) {
-  buffer_->Add(CAPTURED_OBJECT, zone());
-  buffer_->Add(length, zone());
+  buffer_->Add(CAPTURED_OBJECT);
+  buffer_->Add(length);
 }
 
 
 void Translation::DuplicateObject(int object_index) {
-  buffer_->Add(DUPLICATED_OBJECT, zone());
-  buffer_->Add(object_index, zone());
+  buffer_->Add(DUPLICATED_OBJECT);
+  buffer_->Add(object_index);
 }
 
 
 void Translation::StoreRegister(Register reg) {
-  buffer_->Add(REGISTER, zone());
-  buffer_->Add(reg.code(), zone());
+  buffer_->Add(REGISTER);
+  buffer_->Add(reg.code());
 }
 
 
 void Translation::StoreInt32Register(Register reg) {
-  buffer_->Add(INT32_REGISTER, zone());
-  buffer_->Add(reg.code(), zone());
+  buffer_->Add(INT32_REGISTER);
+  buffer_->Add(reg.code());
 }
 
 
 void Translation::StoreUint32Register(Register reg) {
-  buffer_->Add(UINT32_REGISTER, zone());
-  buffer_->Add(reg.code(), zone());
+  buffer_->Add(UINT32_REGISTER);
+  buffer_->Add(reg.code());
 }
 
 
 void Translation::StoreBoolRegister(Register reg) {
-  buffer_->Add(BOOL_REGISTER, zone());
-  buffer_->Add(reg.code(), zone());
+  buffer_->Add(BOOL_REGISTER);
+  buffer_->Add(reg.code());
 }
 
 void Translation::StoreFloatRegister(FloatRegister reg) {
-  buffer_->Add(FLOAT_REGISTER, zone());
-  buffer_->Add(reg.code(), zone());
+  buffer_->Add(FLOAT_REGISTER);
+  buffer_->Add(reg.code());
 }
 
 void Translation::StoreDoubleRegister(DoubleRegister reg) {
-  buffer_->Add(DOUBLE_REGISTER, zone());
-  buffer_->Add(reg.code(), zone());
+  buffer_->Add(DOUBLE_REGISTER);
+  buffer_->Add(reg.code());
 }
 
 
 void Translation::StoreStackSlot(int index) {
-  buffer_->Add(STACK_SLOT, zone());
-  buffer_->Add(index, zone());
+  buffer_->Add(STACK_SLOT);
+  buffer_->Add(index);
 }
 
 
 void Translation::StoreInt32StackSlot(int index) {
-  buffer_->Add(INT32_STACK_SLOT, zone());
-  buffer_->Add(index, zone());
+  buffer_->Add(INT32_STACK_SLOT);
+  buffer_->Add(index);
 }
 
 
 void Translation::StoreUint32StackSlot(int index) {
-  buffer_->Add(UINT32_STACK_SLOT, zone());
-  buffer_->Add(index, zone());
+  buffer_->Add(UINT32_STACK_SLOT);
+  buffer_->Add(index);
 }
 
 
 void Translation::StoreBoolStackSlot(int index) {
-  buffer_->Add(BOOL_STACK_SLOT, zone());
-  buffer_->Add(index, zone());
+  buffer_->Add(BOOL_STACK_SLOT);
+  buffer_->Add(index);
 }
 
 void Translation::StoreFloatStackSlot(int index) {
-  buffer_->Add(FLOAT_STACK_SLOT, zone());
-  buffer_->Add(index, zone());
+  buffer_->Add(FLOAT_STACK_SLOT);
+  buffer_->Add(index);
 }
 
 void Translation::StoreDoubleStackSlot(int index) {
-  buffer_->Add(DOUBLE_STACK_SLOT, zone());
-  buffer_->Add(index, zone());
+  buffer_->Add(DOUBLE_STACK_SLOT);
+  buffer_->Add(index);
 }
 
 
 void Translation::StoreLiteral(int literal_id) {
-  buffer_->Add(LITERAL, zone());
-  buffer_->Add(literal_id, zone());
+  buffer_->Add(LITERAL);
+  buffer_->Add(literal_id);
 }
 
 
 void Translation::StoreArgumentsObject(bool args_known,
                                        int args_index,
                                        int args_length) {
-  buffer_->Add(ARGUMENTS_OBJECT, zone());
-  buffer_->Add(args_known, zone());
-  buffer_->Add(args_index, zone());
-  buffer_->Add(args_length, zone());
+  buffer_->Add(ARGUMENTS_OBJECT);
+  buffer_->Add(args_known);
+  buffer_->Add(args_index);
+  buffer_->Add(args_length);
 }
 
 
@@ -2728,16 +2726,19 @@ Deoptimizer::DeoptInfo Deoptimizer::GetDeoptInfo(Code* code, Address pc) {
   int last_deopt_id = kNoDeoptimizationId;
   int mask = RelocInfo::ModeMask(RelocInfo::DEOPT_REASON) |
              RelocInfo::ModeMask(RelocInfo::DEOPT_ID) |
-             RelocInfo::ModeMask(RelocInfo::DEOPT_POSITION);
+             RelocInfo::ModeMask(RelocInfo::DEOPT_SCRIPT_OFFSET) |
+             RelocInfo::ModeMask(RelocInfo::DEOPT_INLINING_ID);
   for (RelocIterator it(code, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
     if (info->pc() >= pc) {
       return DeoptInfo(last_position, last_reason, last_deopt_id);
     }
-    if (info->rmode() == RelocInfo::DEOPT_POSITION) {
-      int raw_position = static_cast<int>(info->data());
-      last_position = raw_position ? SourcePosition::FromRaw(raw_position)
-                                   : SourcePosition::Unknown();
+    if (info->rmode() == RelocInfo::DEOPT_SCRIPT_OFFSET) {
+      int script_offset = static_cast<int>(info->data());
+      it.next();
+      DCHECK(it.rinfo()->rmode() == RelocInfo::DEOPT_INLINING_ID);
+      int inlining_id = static_cast<int>(it.rinfo()->data());
+      last_position = SourcePosition(script_offset, inlining_id);
     } else if (info->rmode() == RelocInfo::DEOPT_ID) {
       last_deopt_id = static_cast<int>(info->data());
     } else if (info->rmode() == RelocInfo::DEOPT_REASON) {
@@ -2765,11 +2766,8 @@ int Deoptimizer::ComputeSourcePositionFromBaselineCode(
 int Deoptimizer::ComputeSourcePositionFromBytecodeArray(
     SharedFunctionInfo* shared, BailoutId node_id) {
   DCHECK(shared->HasBytecodeArray());
-  // BailoutId points to the next bytecode in the bytecode aray. Subtract
-  // 1 to get the end of current bytecode.
-  int code_offset = node_id.ToInt() - 1;
   return AbstractCode::cast(shared->bytecode_array())
-      ->SourcePosition(code_offset);
+      ->SourcePosition(node_id.ToInt());
 }
 
 // static

@@ -63,8 +63,9 @@ void TaskRunner::Run() {
 
 void TaskRunner::RunMessageLoop(bool only_protocol) {
   int loop_number = ++nested_loop_count_;
-  while (nested_loop_count_ == loop_number) {
+  while (nested_loop_count_ == loop_number && !is_terminated_.Value()) {
     TaskRunner::Task* task = GetNext(only_protocol);
+    if (!task) return;
     v8::Isolate::Scope isolate_scope(isolate_);
     if (catch_exceptions_) {
       v8::TryCatch try_catch(isolate_);
@@ -93,8 +94,14 @@ void TaskRunner::Append(Task* task) {
   process_queue_semaphore_.Signal();
 }
 
+void TaskRunner::Terminate() {
+  is_terminated_.Increment(1);
+  process_queue_semaphore_.Signal();
+}
+
 TaskRunner::Task* TaskRunner::GetNext(bool only_protocol) {
   for (;;) {
+    if (is_terminated_.Value()) return nullptr;
     if (only_protocol) {
       Task* task = nullptr;
       if (queue_.Dequeue(&task)) {
@@ -108,7 +115,6 @@ TaskRunner::Task* TaskRunner::GetNext(bool only_protocol) {
     }
     process_queue_semaphore_.Wait();
   }
-  UNREACHABLE();
   return nullptr;
 }
 
@@ -117,8 +123,29 @@ TaskRunner* TaskRunner::FromContext(v8::Local<v8::Context> context) {
       context->GetAlignedPointerFromEmbedderData(kTaskRunnerIndex));
 }
 
-ExecuteStringTask::ExecuteStringTask(const v8_inspector::String16& expression)
-    : expression_(expression) {}
+namespace {
+
+v8::internal::Vector<uint16_t> ToVector(v8::Local<v8::String> str) {
+  v8::internal::Vector<uint16_t> buffer =
+      v8::internal::Vector<uint16_t>::New(str->Length());
+  str->Write(buffer.start(), 0, str->Length());
+  return buffer;
+}
+
+}  // namespace
+
+ExecuteStringTask::ExecuteStringTask(
+    const v8::internal::Vector<uint16_t>& expression,
+    v8::Local<v8::String> name, v8::Local<v8::Integer> line_offset,
+    v8::Local<v8::Integer> column_offset)
+    : expression_(expression),
+      name_(ToVector(name)),
+      line_offset_(line_offset.As<v8::Int32>()->Value()),
+      column_offset_(column_offset.As<v8::Int32>()->Value()) {}
+
+ExecuteStringTask::ExecuteStringTask(
+    const v8::internal::Vector<const char>& expression)
+    : expression_utf8_(expression), line_offset_(0), column_offset_(0) {}
 
 void ExecuteStringTask::Run(v8::Isolate* isolate,
                             const v8::Global<v8::Context>& context) {
@@ -128,12 +155,27 @@ void ExecuteStringTask::Run(v8::Isolate* isolate,
   v8::Local<v8::Context> local_context = context.Get(isolate);
   v8::Context::Scope context_scope(local_context);
 
-  v8::ScriptOrigin origin(v8::String::Empty(isolate));
-  v8::Local<v8::String> source =
-      v8::String::NewFromTwoByte(isolate, expression_.characters16(),
-                                 v8::NewStringType::kNormal,
-                                 static_cast<int>(expression_.length()))
+  v8::Local<v8::String> name =
+      v8::String::NewFromTwoByte(isolate, name_.start(),
+                                 v8::NewStringType::kNormal, name_.length())
           .ToLocalChecked();
+  v8::Local<v8::Integer> line_offset = v8::Integer::New(isolate, line_offset_);
+  v8::Local<v8::Integer> column_offset =
+      v8::Integer::New(isolate, column_offset_);
+
+  v8::ScriptOrigin origin(name, line_offset, column_offset);
+  v8::Local<v8::String> source;
+  if (expression_.length()) {
+    source = v8::String::NewFromTwoByte(isolate, expression_.start(),
+                                        v8::NewStringType::kNormal,
+                                        expression_.length())
+                 .ToLocalChecked();
+  } else {
+    source = v8::String::NewFromUtf8(isolate, expression_utf8_.start(),
+                                     v8::NewStringType::kNormal,
+                                     expression_utf8_.length())
+                 .ToLocalChecked();
+  }
 
   v8::ScriptCompiler::Source scriptSource(source, origin);
   v8::Local<v8::Script> script;

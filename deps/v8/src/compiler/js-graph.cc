@@ -242,6 +242,13 @@ Node* JSGraph::Float64Constant(double value) {
   return *loc;
 }
 
+Node* JSGraph::PointerConstant(intptr_t value) {
+  Node** loc = cache_.FindPointerConstant(value);
+  if (*loc == nullptr) {
+    *loc = graph()->NewNode(common()->PointerConstant(value));
+  }
+  return *loc;
+}
 
 Node* JSGraph::ExternalConstant(ExternalReference reference) {
   Node** loc = cache_.FindExternalConstant(reference);

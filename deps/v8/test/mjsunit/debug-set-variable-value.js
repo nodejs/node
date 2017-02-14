@@ -63,7 +63,7 @@ function RunPauseTest(scope_number, expected_old_result, variable_name,
   // Add the debug event listener.
   Debug.setListener(listener);
 
-  var actual_new_value;
+  var actual_new_result;
   try {
     actual_new_result = fun();
   } finally {
@@ -78,7 +78,7 @@ function RunPauseTest(scope_number, expected_old_result, variable_name,
   assertEquals(expected_new_result, actual_new_result);
 }
 
-// Accepts a closure 'fun' that returns a variable from it's outer scope.
+// Accepts a closure 'fun' that returns a variable from its outer scope.
 // The test changes the value of variable via the handle to function and checks
 // that the return value changed accordingly.
 function RunClosureTest(scope_number, expected_old_result, variable_name,
@@ -307,3 +307,32 @@ assertSame(Number, DebugCommandProcessor.resolveValue_(
     {handle: Debug.MakeMirror(Number).handle()}));
 assertSame(RunClosureTest, DebugCommandProcessor.resolveValue_(
     {handle: Debug.MakeMirror(RunClosureTest).handle()}));
+
+
+// Test script-scope variable.
+let abc = 12;
+{
+  let exception;
+  function listener(event, exec_state) {
+    try {
+      if (event == Debug.DebugEvent.Break) {
+        let scope_count = exec_state.frame().scopeCount();
+        let script_scope = exec_state.frame().scope(scope_count - 2);
+        assertTrue(script_scope.isScope());
+        assertEquals(debug.ScopeType.Script, script_scope.scopeType());
+        script_scope.setVariableValue('abc', 42);
+      }
+    } catch(e) { exception = e }
+  }
+
+  Debug.setListener(listener);
+  assertEquals(12, abc);
+  debugger;
+  assertEquals(42, abc);
+
+  if (exception != null) {
+    assertUnreachable("Exception in listener\n" + exception.stack);
+  }
+}
+
+Debug.setListener(null);

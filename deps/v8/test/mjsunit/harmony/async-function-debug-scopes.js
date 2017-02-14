@@ -6,8 +6,6 @@
 
 var Debug = debug.Debug;
 
-var AsyncFunction = (async function() {}).constructor;
-
 async function thrower() { throw 'Exception'; }
 
 async function test(name, func, args, handler, continuation) {

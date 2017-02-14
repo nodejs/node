@@ -88,10 +88,10 @@ TEST(Unreachable) {
       Execution::TryCall(isolate, js_trampoline, global, 1, args, &maybe_exc);
   CHECK(returnObjMaybe.is_null());
 
-  // The column is 1-based, so add 1 to the actual byte offset.
+  // Line and column are 1-based, so add 1 for the expected wasm output.
   ExceptionInfo expected_exceptions[] = {
-      {"<WASM UNNAMED>", static_cast<int>(wasm_index), 2},  // --
-      {"callFn", 1, 24}                                     // --
+      {"<WASM UNNAMED>", static_cast<int>(wasm_index) + 1, 2},  // --
+      {"callFn", 1, 24}                                         // --
   };
   CheckExceptionInfos(maybe_exc.ToHandleChecked(), expected_exceptions);
 }
@@ -130,11 +130,11 @@ TEST(IllegalLoad) {
       Execution::TryCall(isolate, js_trampoline, global, 1, args, &maybe_exc);
   CHECK(returnObjMaybe.is_null());
 
-  // The column is 1-based, so add 1 to the actual byte offset.
+  // Line and column are 1-based, so add 1 for the expected wasm output.
   ExceptionInfo expected_exceptions[] = {
-      {"<WASM UNNAMED>", static_cast<int>(wasm_index), 8},    // --
-      {"<WASM UNNAMED>", static_cast<int>(wasm_index_2), 3},  // --
-      {"callFn", 1, 24}                                       // --
+      {"<WASM UNNAMED>", static_cast<int>(wasm_index) + 1, 8},    // --
+      {"<WASM UNNAMED>", static_cast<int>(wasm_index_2) + 1, 3},  // --
+      {"callFn", 1, 24}                                           // --
   };
   CheckExceptionInfos(maybe_exc.ToHandleChecked(), expected_exceptions);
 }

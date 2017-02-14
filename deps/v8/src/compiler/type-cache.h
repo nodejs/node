@@ -21,11 +21,13 @@ class TypeCache final {
  public:
   static TypeCache const& Get();
 
-  TypeCache() : zone_(&allocator) {}
+  TypeCache() : zone_(&allocator, ZONE_NAME) {}
 
   Type* const kInt8 = CreateRange<int8_t>();
   Type* const kUint8 = CreateRange<uint8_t>();
   Type* const kUint8Clamped = kUint8;
+  Type* const kUint8OrMinusZeroOrNaN =
+      Type::Union(kUint8, Type::MinusZeroOrNaN(), zone());
   Type* const kInt16 = CreateRange<int16_t>();
   Type* const kUint16 = CreateRange<uint16_t>();
   Type* const kInt32 = Type::Signed32();
@@ -33,9 +35,8 @@ class TypeCache final {
   Type* const kFloat32 = Type::Number();
   Type* const kFloat64 = Type::Number();
 
-  Type* const kSmi = Type::SignedSmall();
-  Type* const kHoleySmi = Type::Union(kSmi, Type::Hole(), zone());
-  Type* const kHeapNumber = Type::Number();
+  Type* const kHoleySmi =
+      Type::Union(Type::SignedSmall(), Type::Hole(), zone());
 
   Type* const kSingletonZero = CreateRange(0.0, 0.0);
   Type* const kSingletonOne = CreateRange(1.0, 1.0);

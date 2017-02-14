@@ -65,11 +65,16 @@
       return (arg1 === arg2 && arg2 === 'x') ? 3 : -1;
     }, null, new v8.InternalPackedArray('x', 'x')));
 
+    const rejectedButHandledPromise = v8.createPromise();
+    v8.rejectPromise(rejectedButHandledPromise, 4);
+    v8.markPromiseAsHandled(rejectedButHandledPromise);
+
     return {
       privateSymbol: v8.createPrivateSymbol('sym'),
       fulfilledPromise, // should be fulfilled with 1
       fulfilledPromise2, // should be fulfilled with 2
-      rejectedPromise // should be rejected with 3
+      rejectedPromise, // should be rejected with 3
+      rejectedButHandledPromise // should be rejected but have a handler
     };
   };
 })

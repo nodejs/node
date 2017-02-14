@@ -7,8 +7,9 @@
 #include <algorithm>
 
 #include "src/base/bits.h"
-#include "src/compiler/node.h"
+#include "src/compiler/graph-visualizer.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/node.h"
 #include "src/compiler/verifier.h"
 
 namespace v8 {
@@ -70,6 +71,11 @@ NodeId Graph::NextNodeId() {
   NodeId const id = next_node_id_;
   CHECK(!base::bits::UnsignedAddOverflow32(id, 1, &next_node_id_));
   return id;
+}
+
+void Graph::Print() const {
+  OFStream os(stdout);
+  os << AsRPO(*this);
 }
 
 }  // namespace compiler

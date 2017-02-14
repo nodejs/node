@@ -361,7 +361,9 @@ TEST_F(CommonOperatorReducerTest, ReturnWithPhiAndEffectPhiAndMerge) {
   Node* ephi = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, merge);
   Node* phi = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
                                vtrue, vfalse, merge);
-  Node* ret = graph()->NewNode(common()->Return(), phi, ephi, merge);
+
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret = graph()->NewNode(common()->Return(), zero, phi, ephi, merge);
   graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
   StrictMock<MockAdvancedReducerEditor> editor;
   EXPECT_CALL(editor, Replace(merge, IsDead()));

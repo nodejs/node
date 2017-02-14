@@ -5,8 +5,10 @@
 #ifndef V8_COMPILER_TYPED_OPTIMIZATION_H_
 #define V8_COMPILER_TYPED_OPTIMIZATION_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/base/flags.h"
 #include "src/compiler/graph-reducer.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -23,7 +25,8 @@ class JSGraph;
 class SimplifiedOperatorBuilder;
 class TypeCache;
 
-class TypedOptimization final : public AdvancedReducer {
+class V8_EXPORT_PRIVATE TypedOptimization final
+    : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
   // Flags that control the mode of operation.
   enum Flag {
@@ -39,10 +42,12 @@ class TypedOptimization final : public AdvancedReducer {
   Reduction Reduce(Node* node) final;
 
  private:
+  Reduction ReduceCheckHeapObject(Node* node);
   Reduction ReduceCheckMaps(Node* node);
   Reduction ReduceCheckString(Node* node);
   Reduction ReduceLoadField(Node* node);
   Reduction ReduceNumberRoundop(Node* node);
+  Reduction ReduceNumberToUint8Clamped(Node* node);
   Reduction ReducePhi(Node* node);
   Reduction ReduceSelect(Node* node);
 

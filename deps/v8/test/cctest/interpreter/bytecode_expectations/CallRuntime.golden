@@ -72,13 +72,14 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 14
+bytecode array length: 15
 bytecodes: [
   /*   10 E> */ B(StackCheck),
-  /*   15 S> */ B(LdrUndefined), R(0),
+  /*   15 S> */ B(LdaUndefined),
+                B(Star), R(0),
                 B(CreateArrayLiteral), U8(0), U8(0), U8(9),
                 B(Star), R(1),
-                B(CallJSRuntime), U8(141), R(0), U8(2),
+                B(CallJSRuntime), U8(154), R(0), U8(2),
   /*   44 S> */ B(Return),
 ]
 constant pool: [

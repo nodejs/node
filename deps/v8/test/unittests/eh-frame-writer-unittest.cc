@@ -75,7 +75,7 @@ TEST_F(EhFrameWriterTest, FDEHeader) {
 }
 
 TEST_F(EhFrameWriterTest, SetOffset) {
-  static const int kOffset = 0x0badc0de;
+  static const uint32_t kOffset = 0x0badc0de;
 
   EhFrameWriter writer(zone());
   writer.Initialize();
@@ -91,8 +91,8 @@ TEST_F(EhFrameWriterTest, SetOffset) {
 }
 
 TEST_F(EhFrameWriterTest, IncreaseOffset) {
-  static const int kFirstOffset = 121;
-  static const int kSecondOffset = 16;
+  static const uint32_t kFirstOffset = 121;
+  static const uint32_t kSecondOffset = 16;
 
   EhFrameWriter writer(zone());
   writer.Initialize();
@@ -125,12 +125,13 @@ TEST_F(EhFrameWriterTest, SetRegister) {
 
   EXPECT_EQ(EhFrameConstants::DwarfOpcodes::kDefCfaRegister,
             iterator.GetNextOpcode());
-  EXPECT_EQ(kTestRegisterCode, iterator.GetNextULeb128());
+  EXPECT_EQ(static_cast<uint32_t>(kTestRegisterCode),
+            iterator.GetNextULeb128());
 }
 
 TEST_F(EhFrameWriterTest, SetRegisterAndOffset) {
   Register test_register = Register::from_code(kTestRegisterCode);
-  static const int kOffset = 0x0badc0de;
+  static const uint32_t kOffset = 0x0badc0de;
 
   EhFrameWriter writer(zone());
   writer.Initialize();
@@ -141,7 +142,8 @@ TEST_F(EhFrameWriterTest, SetRegisterAndOffset) {
   iterator.SkipToFdeDirectives();
 
   EXPECT_EQ(EhFrameConstants::DwarfOpcodes::kDefCfa, iterator.GetNextOpcode());
-  EXPECT_EQ(kTestRegisterCode, iterator.GetNextULeb128());
+  EXPECT_EQ(static_cast<uint32_t>(kTestRegisterCode),
+            iterator.GetNextULeb128());
   EXPECT_EQ(kOffset, iterator.GetNextULeb128());
 }
 
@@ -261,7 +263,7 @@ TEST_F(EhFrameWriterTest, PcOffsetEncoding16bitDelta) {
 }
 
 TEST_F(EhFrameWriterTest, PcOffsetEncoding32bit) {
-  static const int kOffset = kMaxUInt16 + 42;
+  static const uint32_t kOffset = kMaxUInt16 + 42;
 
   EhFrameWriter writer(zone());
   writer.Initialize();
@@ -277,8 +279,8 @@ TEST_F(EhFrameWriterTest, PcOffsetEncoding32bit) {
 }
 
 TEST_F(EhFrameWriterTest, PcOffsetEncoding32bitDelta) {
-  static const int kFirstOffset = kMaxUInt16 + 0x42;
-  static const int kSecondOffset = kMaxUInt16 + 0x67;
+  static const uint32_t kFirstOffset = kMaxUInt16 + 0x42;
+  static const uint32_t kSecondOffset = kMaxUInt16 + 0x67;
 
   EhFrameWriter writer(zone());
   writer.Initialize();
@@ -311,8 +313,9 @@ TEST_F(EhFrameWriterTest, SaveRegisterUnsignedOffset) {
   iterator.SkipToFdeDirectives();
 
   EXPECT_EQ((2 << 6) | kTestRegisterCode, iterator.GetNextByte());
-  EXPECT_EQ(kOffset / EhFrameConstants::kDataAlignmentFactor,
-            iterator.GetNextULeb128());
+  EXPECT_EQ(
+      static_cast<uint32_t>(kOffset / EhFrameConstants::kDataAlignmentFactor),
+      iterator.GetNextULeb128());
 }
 
 TEST_F(EhFrameWriterTest, SaveRegisterSignedOffset) {
@@ -332,7 +335,8 @@ TEST_F(EhFrameWriterTest, SaveRegisterSignedOffset) {
 
   EXPECT_EQ(EhFrameConstants::DwarfOpcodes::kOffsetExtendedSf,
             iterator.GetNextOpcode());
-  EXPECT_EQ(kTestRegisterCode, iterator.GetNextULeb128());
+  EXPECT_EQ(static_cast<uint32_t>(kTestRegisterCode),
+            iterator.GetNextULeb128());
   EXPECT_EQ(kOffset / EhFrameConstants::kDataAlignmentFactor,
             iterator.GetNextSLeb128());
 }
@@ -350,7 +354,8 @@ TEST_F(EhFrameWriterTest, RegisterNotModified) {
 
   EXPECT_EQ(EhFrameConstants::DwarfOpcodes::kSameValue,
             iterator.GetNextOpcode());
-  EXPECT_EQ(kTestRegisterCode, iterator.GetNextULeb128());
+  EXPECT_EQ(static_cast<uint32_t>(kTestRegisterCode),
+            iterator.GetNextULeb128());
 }
 
 TEST_F(EhFrameWriterTest, RegisterFollowsInitialRule) {

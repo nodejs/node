@@ -45,22 +45,6 @@ typedef Object* (*F3)(void* p, int p1, int p2, int p3, int p4);
 
 #define __ masm->
 
-
-static byte to_non_zero(int n) {
-  return static_cast<unsigned>(n) % 255 + 1;
-}
-
-
-static bool all_zeroes(const byte* beg, const byte* end) {
-  CHECK(beg);
-  CHECK(beg <= end);
-  while (beg < end) {
-    if (*beg++ != 0)
-      return false;
-  }
-  return true;
-}
-
 TEST(BYTESWAP) {
   DCHECK(kArchVariant == kMips64r6 || kArchVariant == kMips64r2);
   CcTest::InitializeVM();
@@ -144,81 +128,6 @@ TEST(BYTESWAP) {
   CHECK_EQ(static_cast<int64_t>(0xDEFC000000000000), t.r6);
   CHECK_EQ(static_cast<int64_t>(0xC3151AC800000000), t.r7);
 }
-
-TEST(CopyBytes) {
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope handles(isolate);
-
-  const int data_size = 1 * KB;
-  size_t act_size;
-
-  // Allocate two blocks to copy data between.
-  byte* src_buffer =
-      static_cast<byte*>(v8::base::OS::Allocate(data_size, &act_size, 0));
-  CHECK(src_buffer);
-  CHECK(act_size >= static_cast<size_t>(data_size));
-  byte* dest_buffer =
-      static_cast<byte*>(v8::base::OS::Allocate(data_size, &act_size, 0));
-  CHECK(dest_buffer);
-  CHECK(act_size >= static_cast<size_t>(data_size));
-
-  // Storage for a0 and a1.
-  byte* a0_;
-  byte* a1_;
-
-  MacroAssembler assembler(isolate, NULL, 0,
-                           v8::internal::CodeObjectRequired::kYes);
-  MacroAssembler* masm = &assembler;
-
-  // Code to be generated: The stuff in CopyBytes followed by a store of a0 and
-  // a1, respectively.
-  __ CopyBytes(a0, a1, a2, a3);
-  __ li(a2, Operand(reinterpret_cast<int64_t>(&a0_)));
-  __ li(a3, Operand(reinterpret_cast<int64_t>(&a1_)));
-  __ sd(a0, MemOperand(a2));
-  __ jr(ra);
-  __ sd(a1, MemOperand(a3));
-
-  CodeDesc desc;
-  masm->GetCode(&desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
-
-  ::F f = FUNCTION_CAST< ::F>(code->entry());
-
-  // Initialise source data with non-zero bytes.
-  for (int i = 0; i < data_size; i++) {
-    src_buffer[i] = to_non_zero(i);
-  }
-
-  const int fuzz = 11;
-
-  for (int size = 0; size < 600; size++) {
-    for (const byte* src = src_buffer; src < src_buffer + fuzz; src++) {
-      for (byte* dest = dest_buffer; dest < dest_buffer + fuzz; dest++) {
-        memset(dest_buffer, 0, data_size);
-        CHECK(dest + size < dest_buffer + data_size);
-        (void)CALL_GENERATED_CODE(isolate, f, reinterpret_cast<int64_t>(src),
-                                  reinterpret_cast<int64_t>(dest), size, 0, 0);
-        // a0 and a1 should point at the first byte after the copied data.
-        CHECK_EQ(src + size, a0_);
-        CHECK_EQ(dest + size, a1_);
-        // Check that we haven't written outside the target area.
-        CHECK(all_zeroes(dest_buffer, dest));
-        CHECK(all_zeroes(dest + size, dest_buffer + data_size));
-        // Check the target area.
-        CHECK_EQ(0, memcmp(src, dest, size));
-      }
-    }
-  }
-
-  // Check that the source data hasn't been clobbered.
-  for (int i = 0; i < data_size; i++) {
-    CHECK(src_buffer[i] == to_non_zero(i));
-  }
-}
-
 
 TEST(LoadConstants) {
   CcTest::InitializeVM();

@@ -6,13 +6,18 @@
 
 #include "src/ast/ast.h"
 #include "src/base/bits.h"
+#include "src/ic/ic-inl.h"
 #include "src/type-info.h"
 
 namespace v8 {
 namespace internal {
 
 StubCache::StubCache(Isolate* isolate, Code::Kind ic_kind)
-    : isolate_(isolate), ic_kind_(ic_kind) {}
+    : isolate_(isolate), ic_kind_(ic_kind) {
+  // Ensure the nullptr (aka Smi::kZero) which StubCache::Get() returns
+  // when the entry is not found is not considered as a handler.
+  DCHECK(!IC::IsHandler(nullptr));
+}
 
 void StubCache::Initialize() {
   DCHECK(base::bits::IsPowerOfTwo32(kPrimaryTableSize));
@@ -24,18 +29,23 @@ void StubCache::Initialize() {
 namespace {
 
 bool CommonStubCacheChecks(StubCache* stub_cache, Name* name, Map* map,
-                           Code* code) {
-  // Validate that the name does not move on scavenge, and that we
+                           Object* handler) {
+  // Validate that the name and handler do not move on scavenge, and that we
   // can use identity checks instead of structural equality checks.
   DCHECK(!name->GetHeap()->InNewSpace(name));
+  DCHECK(!name->GetHeap()->InNewSpace(handler));
   DCHECK(name->IsUniqueName());
   DCHECK(name->HasHashCode());
-  if (code) {
-    Code::Flags expected_flags = Code::RemoveHolderFromFlags(
-        Code::ComputeHandlerFlags(stub_cache->ic_kind()));
-    Code::Flags flags = Code::RemoveHolderFromFlags(code->flags());
-    DCHECK_EQ(expected_flags, flags);
-    DCHECK_EQ(Code::HANDLER, Code::ExtractKindFromFlags(code->flags()));
+  if (handler) {
+    DCHECK(IC::IsHandler(handler));
+    if (handler->IsCode()) {
+      Code* code = Code::cast(handler);
+      Code::Flags expected_flags = Code::RemoveHolderFromFlags(
+          Code::ComputeHandlerFlags(stub_cache->ic_kind()));
+      Code::Flags flags = Code::RemoveHolderFromFlags(code->flags());
+      DCHECK_EQ(expected_flags, flags);
+      DCHECK_EQ(Code::HANDLER, Code::ExtractKindFromFlags(code->flags()));
+    }
   }
   return true;
 }
@@ -43,17 +53,17 @@ bool CommonStubCacheChecks(StubCache* stub_cache, Name* name, Map* map,
 }  // namespace
 #endif
 
-Code* StubCache::Set(Name* name, Map* map, Code* code) {
-  DCHECK(CommonStubCacheChecks(this, name, map, code));
+Object* StubCache::Set(Name* name, Map* map, Object* handler) {
+  DCHECK(CommonStubCacheChecks(this, name, map, handler));
 
   // Compute the primary entry.
   int primary_offset = PrimaryOffset(name, map);
   Entry* primary = entry(primary_, primary_offset);
-  Code* old_code = primary->value;
+  Object* old_handler = primary->value;
 
   // If the primary entry has useful data in it, we retire it to the
   // secondary cache before overwriting it.
-  if (old_code != isolate_->builtins()->builtin(Builtins::kIllegal)) {
+  if (old_handler != isolate_->builtins()->builtin(Builtins::kIllegal)) {
     Map* old_map = primary->map;
     int seed = PrimaryOffset(primary->key, old_map);
     int secondary_offset = SecondaryOffset(primary->key, seed);
@@ -63,13 +73,13 @@ Code* StubCache::Set(Name* name, Map* map, Code* code) {
 
   // Update primary cache.
   primary->key = name;
-  primary->value = code;
+  primary->value = handler;
   primary->map = map;
   isolate()->counters()->megamorphic_stub_cache_updates()->Increment();
-  return code;
+  return handler;
 }
 
-Code* StubCache::Get(Name* name, Map* map) {
+Object* StubCache::Get(Name* name, Map* map) {
   DCHECK(CommonStubCacheChecks(this, name, map, nullptr));
   int primary_offset = PrimaryOffset(name, map);
   Entry* primary = entry(primary_, primary_offset);
@@ -81,7 +91,7 @@ Code* StubCache::Get(Name* name, Map* map) {
   if (secondary->key == name && secondary->map == map) {
     return secondary->value;
   }
-  return NULL;
+  return nullptr;
 }
 
 

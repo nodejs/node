@@ -319,7 +319,7 @@ uchar Utf8::ValueOfIncremental(byte next, Utf8IncrementalBuffer* buffer) {
     } else {
       // Otherwise, process the previous byte and save the next byte for next
       // time.
-      DCHECK_EQ(0, *buffer);
+      DCHECK_EQ(0u, *buffer);
       *buffer = next;
       return t;
     }

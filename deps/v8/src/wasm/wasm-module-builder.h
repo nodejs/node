@@ -49,6 +49,11 @@ class ZoneBuffer : public ZoneObject {
     LEBHelper::write_u32v(&pos_, val);
   }
 
+  void write_i32v(int32_t val) {
+    EnsureSpace(kMaxVarInt32Size);
+    LEBHelper::write_i32v(&pos_, val);
+  }
+
   void write_size(size_t val) {
     EnsureSpace(kMaxVarInt32Size);
     DCHECK_EQ(val, static_cast<uint32_t>(val));
@@ -83,10 +88,10 @@ class ZoneBuffer : public ZoneObject {
     }
   }
 
-  size_t offset() { return static_cast<size_t>(pos_ - buffer_); }
-  size_t size() { return static_cast<size_t>(pos_ - buffer_); }
-  const byte* begin() { return buffer_; }
-  const byte* end() { return pos_; }
+  size_t offset() const { return static_cast<size_t>(pos_ - buffer_); }
+  size_t size() const { return static_cast<size_t>(pos_ - buffer_); }
+  const byte* begin() const { return buffer_; }
+  const byte* end() const { return pos_; }
 
   void EnsureSpace(size_t size) {
     if ((pos_ + size) > end_) {
@@ -127,12 +132,15 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   void EmitWithU8U8(WasmOpcode opcode, const byte imm1, const byte imm2);
   void EmitWithVarInt(WasmOpcode opcode, uint32_t immediate);
   void EmitDirectCallIndex(uint32_t index);
-  void SetExported();
-  void SetName(const char* name, int name_length);
+  void Export();
+  void ExportAs(Vector<const char> name);
+  void SetName(Vector<const char> name);
+  void AddAsmWasmOffset(int asm_position);
 
   void WriteSignature(ZoneBuffer& buffer) const;
   void WriteExport(ZoneBuffer& buffer) const;
   void WriteBody(ZoneBuffer& buffer) const;
+  void WriteAsmWasmOffsetTable(ZoneBuffer& buffer) const;
 
   bool exported() { return exported_; }
   uint32_t func_index() { return func_index_; }
@@ -155,11 +163,17 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   uint32_t func_index_;
   ZoneVector<uint8_t> body_;
   ZoneVector<char> name_;
+  ZoneVector<char> exported_name_;
   ZoneVector<uint32_t> i32_temps_;
   ZoneVector<uint32_t> i64_temps_;
   ZoneVector<uint32_t> f32_temps_;
   ZoneVector<uint32_t> f64_temps_;
   ZoneVector<DirectCallIndex> direct_calls_;
+
+  // Delta-encoded mapping from wasm bytes to asm.js source positions.
+  ZoneBuffer asm_offsets_;
+  uint32_t last_asm_byte_offset_ = 0;
+  uint32_t last_asm_source_position_ = 0;
 };
 
 class WasmTemporary {
@@ -212,7 +226,8 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
     imports_[index].name_length = name_length;
   }
   WasmFunctionBuilder* AddFunction(FunctionSig* sig = nullptr);
-  uint32_t AddGlobal(LocalType type, bool exported, bool mutability = true);
+  uint32_t AddGlobal(LocalType type, bool exported, bool mutability = true,
+                     const WasmInitExpr& init = WasmInitExpr());
   void AddDataSegment(const byte* data, uint32_t size, uint32_t dest);
   uint32_t AddSignature(FunctionSig* sig);
   void AddIndirectFunction(uint32_t index);
@@ -220,7 +235,10 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 
   // Writing methods.
   void WriteTo(ZoneBuffer& buffer) const;
+  void WriteAsmJsOffsetTable(ZoneBuffer& buffer) const;
 
+  // TODO(titzer): use SignatureMap from signature-map.h here.
+  // This signature map is zone-allocated, but the other is heap allocated.
   struct CompareFunctionSigs {
     bool operator()(FunctionSig* a, FunctionSig* b) const;
   };
@@ -241,6 +259,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
     LocalType type;
     bool exported;
     bool mutability;
+    WasmInitExpr init;
   };
 
   struct WasmDataSegment {

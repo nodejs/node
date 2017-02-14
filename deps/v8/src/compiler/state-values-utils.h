@@ -6,6 +6,7 @@
 #define V8_COMPILER_STATE_VALUES_UTILS_H_
 
 #include "src/compiler/js-graph.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -14,7 +15,7 @@ namespace compiler {
 
 class Graph;
 
-class StateValuesCache {
+class V8_EXPORT_PRIVATE StateValuesCache {
  public:
   explicit StateValuesCache(JSGraph* js_graph);
 
@@ -60,7 +61,7 @@ class StateValuesCache {
   Node* empty_state_values_;
 };
 
-class StateValuesAccess {
+class V8_EXPORT_PRIVATE StateValuesAccess {
  public:
   struct TypedNode {
     Node* node;
@@ -68,7 +69,7 @@ class StateValuesAccess {
     TypedNode(Node* node, MachineType type) : node(node), type(type) {}
   };
 
-  class iterator {
+  class V8_EXPORT_PRIVATE iterator {
    public:
     // Bare minimum of operators needed for range iteration.
     bool operator!=(iterator& other);

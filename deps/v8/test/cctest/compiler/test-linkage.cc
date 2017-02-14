@@ -43,7 +43,7 @@ static Handle<JSFunction> Compile(const char* source) {
 TEST(TestLinkageCreate) {
   HandleAndZoneScope handles;
   Handle<JSFunction> function = Compile("a + b");
-  ParseInfo parse_info(handles.main_zone(), function);
+  ParseInfo parse_info(handles.main_zone(), handle(function->shared()));
   CompilationInfo info(&parse_info, function);
   CallDescriptor* descriptor = Linkage::ComputeIncoming(info.zone(), &info);
   CHECK(descriptor);
@@ -59,7 +59,7 @@ TEST(TestLinkageJSFunctionIncoming) {
     Handle<JSFunction> function =
         Handle<JSFunction>::cast(v8::Utils::OpenHandle(
             *v8::Local<v8::Function>::Cast(CompileRun(sources[i]))));
-    ParseInfo parse_info(handles.main_zone(), function);
+    ParseInfo parse_info(handles.main_zone(), handle(function->shared()));
     CompilationInfo info(&parse_info, function);
     CallDescriptor* descriptor = Linkage::ComputeIncoming(info.zone(), &info);
     CHECK(descriptor);
@@ -75,7 +75,7 @@ TEST(TestLinkageJSFunctionIncoming) {
 TEST(TestLinkageJSCall) {
   HandleAndZoneScope handles;
   Handle<JSFunction> function = Compile("a + c");
-  ParseInfo parse_info(handles.main_zone(), function);
+  ParseInfo parse_info(handles.main_zone(), handle(function->shared()));
   CompilationInfo info(&parse_info, function);
 
   for (int i = 0; i < 32; i++) {
@@ -97,7 +97,7 @@ TEST(TestLinkageRuntimeCall) {
 
 TEST(TestLinkageStubCall) {
   Isolate* isolate = CcTest::InitIsolateOnce();
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   Callable callable = CodeFactory::ToNumber(isolate);
   CompilationInfo info(ArrayVector("test"), isolate, &zone,
                        Code::ComputeFlags(Code::STUB));

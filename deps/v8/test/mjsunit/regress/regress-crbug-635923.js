@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --ignition --turbo-from-bytecode --turbo-filter=f
+// Flags: --allow-natives-syntax --ignition --turbo-filter=f
 
 function f(x) { return x + 23 }
 function g(x) { return f(x) + 42 }

@@ -2,11 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --turbo --always-opt
+// Flags: --allow-natives-syntax --turbo --always-opt
 
 function f() {
-  new Int8Array(new ArrayBuffer(2147483648));
+  var obj = Object.freeze({});
+  %_CreateDataProperty(obj, "foo", "bar");
 }
 
 // Should not crash
-assertThrows(f, RangeError);
+assertThrows(f, TypeError);

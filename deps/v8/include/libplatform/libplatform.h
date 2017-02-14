@@ -5,6 +5,7 @@
 #ifndef V8_LIBPLATFORM_LIBPLATFORM_H_
 #define V8_LIBPLATFORM_LIBPLATFORM_H_
 
+#include "libplatform/libplatform-export.h"
 #include "libplatform/v8-tracing.h"
 #include "v8-platform.h"  // NOLINT(build/include)
 
@@ -19,8 +20,8 @@ namespace platform {
  * of zero is passed, a suitable default based on the current number of
  * processors online will be chosen.
  */
-v8::Platform* CreateDefaultPlatform(int thread_pool_size = 0);
-
+V8_PLATFORM_EXPORT v8::Platform* CreateDefaultPlatform(
+    int thread_pool_size = 0);
 
 /**
  * Pumps the message loop for the given isolate.
@@ -30,14 +31,15 @@ v8::Platform* CreateDefaultPlatform(int thread_pool_size = 0);
  * not block if no task is pending. The |platform| has to be created using
  * |CreateDefaultPlatform|.
  */
-bool PumpMessageLoop(v8::Platform* platform, v8::Isolate* isolate);
+V8_PLATFORM_EXPORT bool PumpMessageLoop(v8::Platform* platform,
+                                        v8::Isolate* isolate);
 
 /**
  * Attempts to set the tracing controller for the given platform.
  *
  * The |platform| has to be created using |CreateDefaultPlatform|.
  */
-void SetTracingController(
+V8_PLATFORM_EXPORT void SetTracingController(
     v8::Platform* platform,
     v8::platform::tracing::TracingController* tracing_controller);
 

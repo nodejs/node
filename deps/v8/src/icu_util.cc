@@ -52,9 +52,9 @@ bool InitializeICUDefaultLocation(const char* exec_path,
   }
   char* icu_data_file_default;
 #if defined(V8_TARGET_LITTLE_ENDIAN)
-  RelativePath(&icu_data_file_default, exec_path, "icudtl.dat");
+  base::RelativePath(&icu_data_file_default, exec_path, "icudtl.dat");
 #elif defined(V8_TARGET_BIG_ENDIAN)
-  RelativePath(&icu_data_file_default, exec_path, "icudtb.dat");
+  base::RelativePath(&icu_data_file_default, exec_path, "icudtb.dat");
 #else
 #error Unknown byte ordering
 #endif

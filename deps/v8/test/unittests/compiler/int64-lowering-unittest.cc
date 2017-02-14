@@ -40,8 +40,9 @@ class Int64LoweringTest : public GraphTest {
   MachineOperatorBuilder* machine() { return &machine_; }
 
   void LowerGraph(Node* node, Signature<MachineRepresentation>* signature) {
-    Node* ret = graph()->NewNode(common()->Return(), node, graph()->start(),
-                                 graph()->start());
+    Node* zero = graph()->NewNode(common()->Int32Constant(0));
+    Node* ret = graph()->NewNode(common()->Return(), zero, node,
+                                 graph()->start(), graph()->start());
     NodeProperties::MergeControlToEnd(graph(), common(), ret);
 
     Int64Lowering lowering(graph(), machine(), common(), zone(), signature);
@@ -216,7 +217,8 @@ TEST_F(Int64LoweringTest, UnalignedInt64Load) {
                                  Int32Constant(base), Int32Constant(index),  \
                                  Int64Constant(value(0)), start(), start()); \
                                                                              \
-  Node* ret = graph()->NewNode(common()->Return(),                           \
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));                 \
+  Node* ret = graph()->NewNode(common()->Return(), zero,                     \
                                Int32Constant(return_value), store, start()); \
                                                                              \
   NodeProperties::MergeControlToEnd(graph(), common(), ret);                 \
@@ -313,7 +315,7 @@ TEST_F(Int64LoweringTest, CallI64Return) {
 
   CompareCallDescriptors(
       OpParameter<const CallDescriptor*>(
-          graph()->end()->InputAt(1)->InputAt(0)->InputAt(0)),
+          graph()->end()->InputAt(1)->InputAt(1)->InputAt(0)),
       wasm::ModuleEnv::GetI32WasmCallDescriptor(zone(), desc));
 }
 
@@ -347,7 +349,7 @@ TEST_F(Int64LoweringTest, CallI64Parameter) {
 
   CompareCallDescriptors(
       OpParameter<const CallDescriptor*>(
-          graph()->end()->InputAt(1)->InputAt(0)),
+          graph()->end()->InputAt(1)->InputAt(1)),
       wasm::ModuleEnv::GetI32WasmCallDescriptor(zone(), desc));
 }
 
@@ -848,6 +850,30 @@ TEST_F(Int64LoweringTest, I64ReverseBytes) {
       IsReturn2(IsWord32ReverseBytes(IsInt32Constant(high_word_value(0))),
                 IsWord32ReverseBytes(IsInt32Constant(low_word_value(0))),
                 start(), start()));
+}
+
+TEST_F(Int64LoweringTest, EffectPhiLoop) {
+  // Construct a cycle consisting of an EffectPhi, a Store, and a Load.
+  Node* eff_phi = graph()->NewNode(common()->EffectPhi(1), graph()->start(),
+                                   graph()->start());
+
+  StoreRepresentation store_rep(MachineRepresentation::kWord64,
+                                WriteBarrierKind::kNoWriteBarrier);
+  LoadRepresentation load_rep(MachineType::Int64());
+
+  Node* load =
+      graph()->NewNode(machine()->Load(load_rep), Int64Constant(value(0)),
+                       Int64Constant(value(1)), eff_phi, graph()->start());
+
+  Node* store =
+      graph()->NewNode(machine()->Store(store_rep), Int64Constant(value(0)),
+                       Int64Constant(value(1)), load, load, graph()->start());
+
+  eff_phi->InsertInput(zone(), 1, store);
+  NodeProperties::ChangeOp(eff_phi,
+                           common()->ResizeMergeOrPhi(eff_phi->op(), 2));
+
+  LowerGraph(load, MachineRepresentation::kWord64);
 }
 }  // namespace compiler
 }  // namespace internal

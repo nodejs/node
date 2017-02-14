@@ -437,9 +437,7 @@ MaybeHandle<JSFunction> InstantiateFunction(Isolate* isolate,
           JSObject::GetProperty(parent_instance,
                                 isolate->factory()->prototype_string()),
           JSFunction);
-      MAYBE_RETURN(JSObject::SetPrototype(prototype, parent_prototype, false,
-                                          Object::THROW_ON_ERROR),
-                   MaybeHandle<JSFunction>());
+      JSObject::ForceSetPrototype(prototype, parent_prototype);
     }
   }
   Handle<JSFunction> function = ApiNatives::CreateApiFunction(
@@ -533,24 +531,22 @@ MaybeHandle<JSObject> ApiNatives::InstantiateRemoteObject(
 void ApiNatives::AddDataProperty(Isolate* isolate, Handle<TemplateInfo> info,
                                  Handle<Name> name, Handle<Object> value,
                                  PropertyAttributes attributes) {
-  const int kSize = 3;
   PropertyDetails details(attributes, DATA, 0, PropertyCellType::kNoCell);
   auto details_handle = handle(details.AsSmi(), isolate);
-  Handle<Object> data[kSize] = {name, details_handle, value};
-  AddPropertyToPropertyList(isolate, info, kSize, data);
+  Handle<Object> data[] = {name, details_handle, value};
+  AddPropertyToPropertyList(isolate, info, arraysize(data), data);
 }
 
 
 void ApiNatives::AddDataProperty(Isolate* isolate, Handle<TemplateInfo> info,
                                  Handle<Name> name, v8::Intrinsic intrinsic,
                                  PropertyAttributes attributes) {
-  const int kSize = 4;
   auto value = handle(Smi::FromInt(intrinsic), isolate);
   auto intrinsic_marker = isolate->factory()->true_value();
   PropertyDetails details(attributes, DATA, 0, PropertyCellType::kNoCell);
   auto details_handle = handle(details.AsSmi(), isolate);
-  Handle<Object> data[kSize] = {name, intrinsic_marker, details_handle, value};
-  AddPropertyToPropertyList(isolate, info, kSize, data);
+  Handle<Object> data[] = {name, intrinsic_marker, details_handle, value};
+  AddPropertyToPropertyList(isolate, info, arraysize(data), data);
 }
 
 
@@ -560,11 +556,10 @@ void ApiNatives::AddAccessorProperty(Isolate* isolate,
                                      Handle<FunctionTemplateInfo> getter,
                                      Handle<FunctionTemplateInfo> setter,
                                      PropertyAttributes attributes) {
-  const int kSize = 4;
   PropertyDetails details(attributes, ACCESSOR, 0, PropertyCellType::kNoCell);
   auto details_handle = handle(details.AsSmi(), isolate);
-  Handle<Object> data[kSize] = {name, details_handle, getter, setter};
-  AddPropertyToPropertyList(isolate, info, kSize, data);
+  Handle<Object> data[] = {name, details_handle, getter, setter};
+  AddPropertyToPropertyList(isolate, info, arraysize(data), data);
 }
 
 
@@ -618,10 +613,12 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
   }
 
   int internal_field_count = 0;
+  bool immutable_proto = false;
   if (!obj->instance_template()->IsUndefined(isolate)) {
     Handle<ObjectTemplateInfo> instance_template = Handle<ObjectTemplateInfo>(
         ObjectTemplateInfo::cast(obj->instance_template()));
     internal_field_count = instance_template->internal_field_count();
+    immutable_proto = instance_template->immutable_proto();
   }
 
   // TODO(svenpanne) Kill ApiInstanceType and refactor things by generalizing
@@ -680,6 +677,8 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
     map->set_is_callable();
     map->set_is_constructor(true);
   }
+
+  if (immutable_proto) map->set_immutable_proto(true);
 
   return result;
 }

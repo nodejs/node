@@ -7,6 +7,7 @@
 Debug = debug.Debug
 var exception = null;
 var break_count = 0;
+const expected_breaks = 9;
 
 var expected_values =
   [ReferenceError, undefined, 0, 0, 0, 0, 1,
@@ -16,12 +17,6 @@ function listener(event, exec_state, event_data, data) {
   try {
     if (event == Debug.DebugEvent.Break) {
       assertTrue(exec_state.frameCount() != 0, "FAIL: Empty stack trace");
-      // Count number of expected breakpoints in this source file.
-      if (!break_count) {
-        var source_text = exec_state.frame(0).func().script().source();
-        expected_breaks = source_text.match(/\/\/\s*Break\s+\d+\./g).length;
-        print("Expected breaks: " + expected_breaks);
-      }
       var frameMirror = exec_state.frame(0);
 
       var v = null;;

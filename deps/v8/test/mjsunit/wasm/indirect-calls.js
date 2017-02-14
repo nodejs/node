@@ -27,7 +27,7 @@ var module = (function () {
       kExprGetLocal, 1,
       kExprGetLocal, 2,
       kExprGetLocal, 0,
-      kExprCallIndirect, sig_index
+      kExprCallIndirect, sig_index, kTableZero
     ])
     .exportFunc()
   builder.appendToTable([1, 2, 3]);
@@ -54,27 +54,27 @@ module = (function () {
 
   var sig_i_ii = builder.addType(kSig_i_ii);
   var sig_i_i = builder.addType(kSig_i_i);
-  builder.addImport("mul", sig_i_ii);
-  builder.addFunction("add", sig_i_ii)
+  var mul = builder.addImport("mul", sig_i_ii);
+  var add = builder.addFunction("add", sig_i_ii)
     .addBody([
       kExprGetLocal, 0,  // --
       kExprGetLocal, 1,  // --
       kExprI32Add        // --
     ]);
-  builder.addFunction("popcnt", sig_i_i)
+  var popcnt = builder.addFunction("popcnt", sig_i_i)
     .addBody([
       kExprGetLocal, 0,  // --
       kExprI32Popcnt     // --
     ]);
-  builder.addFunction("main", kSig_i_iii)
+  var main = builder.addFunction("main", kSig_i_iii)
     .addBody([
       kExprGetLocal, 1,
       kExprGetLocal, 2,
       kExprGetLocal, 0,
-      kExprCallIndirect, sig_i_ii
+      kExprCallIndirect, sig_i_ii, kTableZero
     ])
-    .exportFunc()
-  builder.appendToTable([0, 1, 2, 3]);
+    .exportFunc();
+  builder.appendToTable([mul.index, add.index, popcnt.index, main.index]);
 
   return builder.instantiate({mul: function(a, b) { return a * b | 0; }});
 })();
@@ -84,3 +84,125 @@ assertEquals(99, module.exports.main(1, 22, 77));
 assertTraps(kTrapFuncSigMismatch, "module.exports.main(2, 12, 33)");
 assertTraps(kTrapFuncSigMismatch, "module.exports.main(3, 12, 33)");
 assertTraps(kTrapFuncInvalid, "module.exports.main(4, 12, 33)");
+
+function AddFunctions(builder) {
+  var mul = builder.addFunction("mul", kSig_i_ii)
+    .addBody([
+      kExprGetLocal, 0,  // --
+      kExprGetLocal, 1,  // --
+      kExprI32Mul        // --
+    ]);
+  var add = builder.addFunction("add", kSig_i_ii)
+    .addBody([
+      kExprGetLocal, 0,  // --
+      kExprGetLocal, 1,  // --
+      kExprI32Add        // --
+    ]);
+  var sub = builder.addFunction("sub", kSig_i_ii)
+    .addBody([
+      kExprGetLocal, 0,  // --
+      kExprGetLocal, 1,  // --
+      kExprI32Sub        // --
+    ]);
+  return {mul: mul, add: add, sub: sub};
+}
+
+
+module = (function () {
+  var builder = new WasmModuleBuilder();
+
+  var f = AddFunctions(builder);
+  builder.addFunction("main", kSig_i_ii)
+    .addBody([
+      kExprI32Const, 33,  // --
+      kExprGetLocal, 0,   // --
+      kExprGetLocal, 1,   // --
+      kExprCallIndirect, 0, kTableZero])  // --
+    .exportAs("main");
+
+  builder.appendToTable([f.mul.index, f.add.index, f.sub.index]);
+
+  return builder.instantiate();
+})();
+
+assertEquals(33, module.exports.main(1, 0));
+assertEquals(66, module.exports.main(2, 0));
+assertEquals(34, module.exports.main(1, 1));
+assertEquals(35, module.exports.main(2, 1));
+assertEquals(32, module.exports.main(1, 2));
+assertEquals(31, module.exports.main(2, 2));
+assertTraps(kTrapFuncInvalid, "module.exports.main(12, 3)");
+
+(function ConstBaseTest() {
+  print("ConstBaseTest...");
+  function instanceWithTable(base, length) {
+    var builder = new WasmModuleBuilder();
+
+    var f = AddFunctions(builder);
+    builder.addFunction("main", kSig_i_ii)
+      .addBody([
+        kExprI32Const, 33,  // --
+        kExprGetLocal, 0,   // --
+        kExprGetLocal, 1,   // --
+        kExprCallIndirect, 0, kTableZero])  // --
+      .exportAs("main");
+
+    builder.setFunctionTableLength(length);
+    builder.addFunctionTableInit(base, false, [f.add.index, f.sub.index, f.mul.index]);
+
+    return builder.instantiate();
+  }
+
+  for (var i = 0; i < 5; i++) {
+    print(" base = " + i);
+    var module = instanceWithTable(i, 10);
+    main = module.exports.main;
+    for (var j = 0; j < i; j++) {
+      assertTraps(kTrapFuncSigMismatch, "main(12, " + j + ")");
+    }
+    assertEquals(34, main(1, i + 0));
+    assertEquals(35, main(2, i + 0));
+    assertEquals(32, main(1, i + 1));
+    assertEquals(31, main(2, i + 1));
+    assertEquals(33, main(1, i + 2));
+    assertEquals(66, main(2, i + 2));
+    assertTraps(kTrapFuncInvalid, "main(12, 10)");
+  }
+})();
+
+(function GlobalBaseTest() {
+  print("GlobalBaseTest...");
+
+  var builder = new WasmModuleBuilder();
+
+  var f = AddFunctions(builder);
+  builder.addFunction("main", kSig_i_ii)
+    .addBody([
+      kExprI32Const, 33,  // --
+      kExprGetLocal, 0,   // --
+      kExprGetLocal, 1,   // --
+      kExprCallIndirect, 0, kTableZero])  // --
+    .exportAs("main");
+
+  builder.setFunctionTableLength(10);
+  var g = builder.addImportedGlobal("base", undefined, kAstI32);
+  builder.addFunctionTableInit(g, true, [f.mul.index, f.add.index, f.sub.index]);
+
+  var module = new WebAssembly.Module(builder.toBuffer());
+
+  for (var i = 0; i < 5; i++) {
+    print(" base = " + i);
+    var instance = new WebAssembly.Instance(module, {base: i});
+    main = instance.exports.main;
+    for (var j = 0; j < i; j++) {
+      assertTraps(kTrapFuncSigMismatch, "main(12, " + j + ")");
+    }
+    assertEquals(33, main(1, i + 0));
+    assertEquals(66, main(2, i + 0));
+    assertEquals(34, main(1, i + 1));
+    assertEquals(35, main(2, i + 1));
+    assertEquals(32, main(1, i + 2));
+    assertEquals(31, main(2, i + 2));
+    assertTraps(kTrapFuncInvalid, "main(12, 10)");
+  }
+})();

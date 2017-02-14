@@ -13,15 +13,32 @@ namespace compiler {
 
 const auto GetRegConfig = RegisterConfiguration::Turbofan;
 
-// Fragments the given operand into an equivalent set of operands to simplify
-// ParallelMove equivalence testing.
+// Fragments the given FP operand into an equivalent set of FP operands to
+// simplify ParallelMove equivalence testing.
 void GetCanonicalOperands(const InstructionOperand& op,
                           std::vector<InstructionOperand>* fragments) {
   CHECK(!kSimpleFPAliasing);
   CHECK(op.IsFPLocationOperand());
-  // TODO(bbudge) Split into float operands on platforms with non-simple FP
-  // register aliasing.
-  fragments->push_back(op);
+  const LocationOperand& loc = LocationOperand::cast(op);
+  MachineRepresentation rep = loc.representation();
+  int base = -1;
+  int aliases = GetRegConfig()->GetAliases(
+      rep, 0, MachineRepresentation::kFloat32, &base);
+  CHECK_LT(0, aliases);
+  CHECK_GE(4, aliases);
+  int index = -1;
+  int step = 1;
+  if (op.IsFPRegister()) {
+    index = loc.register_code() * aliases;
+  } else {
+    index = loc.index();
+    step = -1;
+  }
+  for (int i = 0; i < aliases; i++) {
+    fragments->push_back(AllocatedOperand(loc.location_kind(),
+                                          MachineRepresentation::kFloat32,
+                                          index + i * step));
+  }
 }
 
 // The state of our move interpreter is the mapping of operands to values. Note
@@ -36,7 +53,9 @@ class InterpreterState {
       const InstructionOperand& dst = m->destination();
       if (!kSimpleFPAliasing && src.IsFPLocationOperand() &&
           dst.IsFPLocationOperand()) {
-        // Canonicalize FP location-location moves.
+        // Canonicalize FP location-location moves by fragmenting them into
+        // an equivalent sequence of float32 moves, to simplify state
+        // equivalence testing.
         std::vector<InstructionOperand> src_fragments;
         GetCanonicalOperands(src, &src_fragments);
         CHECK(!src_fragments.empty());
@@ -115,9 +134,11 @@ class InterpreterState {
     int index;
     if (!is_constant) {
       const LocationOperand& loc_op = LocationOperand::cast(op);
-      // Canonicalize FP location operand representations to kFloat64.
+      // Preserve FP representation when FP register aliasing is complex.
+      // Otherwise, canonicalize to kFloat64.
       if (IsFloatingPoint(loc_op.representation())) {
-        rep = MachineRepresentation::kFloat64;
+        rep = kSimpleFPAliasing ? MachineRepresentation::kFloat64
+                                : loc_op.representation();
       }
       if (loc_op.IsAnyRegister()) {
         index = loc_op.register_code();
@@ -321,9 +342,11 @@ class ParallelMoveCreator : public HandleAndZoneScope {
     auto GetValidRegisterCode = [&conf](MachineRepresentation rep, int index) {
       switch (rep) {
         case MachineRepresentation::kFloat32:
+          return conf->RegisterConfiguration::GetAllocatableFloatCode(index);
         case MachineRepresentation::kFloat64:
-        case MachineRepresentation::kSimd128:
           return conf->RegisterConfiguration::GetAllocatableDoubleCode(index);
+        case MachineRepresentation::kSimd128:
+          return conf->RegisterConfiguration::GetAllocatableSimd128Code(index);
         default:
           return conf->RegisterConfiguration::GetAllocatableGeneralCode(index);
       }
@@ -366,6 +389,118 @@ void RunTest(ParallelMove* pm, Zone* zone) {
   resolver.Resolve(pm);
 
   CHECK_EQ(mi1.state(), mi2.state());
+}
+
+TEST(Aliasing) {
+  // On platforms with simple aliasing, these parallel moves are ill-formed.
+  if (kSimpleFPAliasing) return;
+
+  ParallelMoveCreator pmc;
+  Zone* zone = pmc.main_zone();
+
+  auto s0 = AllocatedOperand(LocationOperand::REGISTER,
+                             MachineRepresentation::kFloat32, 0);
+  auto s1 = AllocatedOperand(LocationOperand::REGISTER,
+                             MachineRepresentation::kFloat32, 1);
+  auto s2 = AllocatedOperand(LocationOperand::REGISTER,
+                             MachineRepresentation::kFloat32, 2);
+  auto s3 = AllocatedOperand(LocationOperand::REGISTER,
+                             MachineRepresentation::kFloat32, 3);
+  auto s4 = AllocatedOperand(LocationOperand::REGISTER,
+                             MachineRepresentation::kFloat32, 4);
+
+  auto d0 = AllocatedOperand(LocationOperand::REGISTER,
+                             MachineRepresentation::kFloat64, 0);
+  auto d1 = AllocatedOperand(LocationOperand::REGISTER,
+                             MachineRepresentation::kFloat64, 1);
+  auto d16 = AllocatedOperand(LocationOperand::REGISTER,
+                              MachineRepresentation::kFloat64, 16);
+
+  // Double slots must be odd to match frame allocation.
+  auto dSlot = AllocatedOperand(LocationOperand::STACK_SLOT,
+                                MachineRepresentation::kFloat64, 3);
+
+  // Cycles involving s- and d-registers.
+  {
+    std::vector<InstructionOperand> moves = {
+        s2, s0,  // s2 <- s0
+        d0, d1   // d0 <- d1
+    };
+    RunTest(pmc.Create(moves), zone);
+  }
+  {
+    std::vector<InstructionOperand> moves = {
+        d0, d1,  // d0 <- d1
+        s2, s0   // s2 <- s0
+    };
+    RunTest(pmc.Create(moves), zone);
+  }
+  {
+    std::vector<InstructionOperand> moves = {
+        s2, s1,  // s2 <- s1
+        d0, d1   // d0 <- d1
+    };
+    RunTest(pmc.Create(moves), zone);
+  }
+  {
+    std::vector<InstructionOperand> moves = {
+        d0, d1,  // d0 <- d1
+        s2, s1   // s2 <- s1
+    };
+    RunTest(pmc.Create(moves), zone);
+  }
+  // Two cycles involving a single d-register.
+  {
+    std::vector<InstructionOperand> moves = {
+        d0, d1,  // d0 <- d1
+        s2, s1,  // s2 <- s1
+        s3, s0   // s3 <- s0
+    };
+    RunTest(pmc.Create(moves), zone);
+  }
+  // Cycle with a float move that must be deferred until after swaps.
+  {
+    std::vector<InstructionOperand> moves = {
+        d0, d1,  // d0 <- d1
+        s2, s0,  // s2 <- s0
+        s3, s4   // s3 <- s4  must be deferred
+    };
+    RunTest(pmc.Create(moves), zone);
+  }
+  // Cycles involving s-registers and a non-aliased d-register.
+  {
+    std::vector<InstructionOperand> moves = {
+        d16, d0,  // d16 <- d0
+        s1,  s2,  // s1 <- s2
+        d1,  d16  // d1 <- d16
+    };
+    RunTest(pmc.Create(moves), zone);
+  }
+  {
+    std::vector<InstructionOperand> moves = {
+        s2,  s1,   // s1 <- s2
+        d0,  d16,  // d16 <- d0
+        d16, d1    // d1 <- d16
+    };
+    RunTest(pmc.Create(moves), zone);
+  }
+  {
+    std::vector<InstructionOperand> moves = {
+        d0,  d16,  // d0 <- d16
+        d16, d1,   // s2 <- s0
+        s3,  s0    // d0 <- d1
+    };
+    RunTest(pmc.Create(moves), zone);
+  }
+  // Cycle involving aliasing registers and a slot.
+  {
+    std::vector<InstructionOperand> moves = {
+        dSlot, d0,     // dSlot <- d0
+        d1,    dSlot,  // d1 <- dSlot
+        s0,    s3      // s0 <- s3
+    };
+    RunTest(pmc.Create(moves), zone);
+  }
 }
 
 TEST(FuzzResolver) {

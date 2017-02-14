@@ -23,7 +23,7 @@ BUILTIN(DataViewConstructor) {
 // ES6 section 24.2.2 The DataView Constructor for the [[Construct]] case.
 BUILTIN(DataViewConstructor_ConstructStub) {
   HandleScope scope(isolate);
-  Handle<JSFunction> target = args.target<JSFunction>();
+  Handle<JSFunction> target = args.target();
   Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
   Handle<Object> buffer = args.atOrUndefined(isolate, 1);
   Handle<Object> byte_offset = args.atOrUndefined(isolate, 2);
@@ -88,7 +88,7 @@ BUILTIN(DataViewConstructor_ConstructStub) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
                                      JSObject::New(target, new_target));
   for (int i = 0; i < ArrayBufferView::kInternalFieldCount; ++i) {
-    Handle<JSDataView>::cast(result)->SetInternalField(i, Smi::FromInt(0));
+    Handle<JSDataView>::cast(result)->SetInternalField(i, Smi::kZero);
   }
 
   // 12. Set O's [[ViewedArrayBuffer]] internal slot to buffer.

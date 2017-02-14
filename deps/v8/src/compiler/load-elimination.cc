@@ -448,6 +448,26 @@ LoadElimination::AbstractState const* LoadElimination::AbstractState::KillField(
   return this;
 }
 
+LoadElimination::AbstractState const*
+LoadElimination::AbstractState::KillFields(Node* object, Zone* zone) const {
+  for (size_t i = 0;; ++i) {
+    if (i == arraysize(fields_)) return this;
+    if (AbstractField const* this_field = this->fields_[i]) {
+      AbstractField const* that_field = this_field->Kill(object, zone);
+      if (that_field != this_field) {
+        AbstractState* that = new (zone) AbstractState(*this);
+        that->fields_[i] = this_field;
+        while (++i < arraysize(fields_)) {
+          if (this->fields_[i] != nullptr) {
+            that->fields_[i] = this->fields_[i]->Kill(object, zone);
+          }
+        }
+        return that;
+      }
+    }
+  }
+}
+
 Node* LoadElimination::AbstractState::LookupField(Node* object,
                                                   size_t index) const {
   if (AbstractField const* this_field = this->fields_[index]) {
@@ -662,7 +682,7 @@ Reduction LoadElimination::ReduceStoreField(Node* node) {
     state = state->AddField(object, field_index, new_value, zone());
   } else {
     // Unsupported StoreField operator.
-    state = empty_state();
+    state = state->KillFields(object, zone());
   }
   return UpdateState(node, state);
 }
@@ -856,8 +876,11 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
             FieldAccess const& access = FieldAccessOf(current->op());
             Node* const object = NodeProperties::GetValueInput(current, 0);
             int field_index = FieldIndexOf(access);
-            if (field_index < 0) return empty_state();
-            state = state->KillField(object, field_index, zone());
+            if (field_index < 0) {
+              state = state->KillFields(object, zone());
+            } else {
+              state = state->KillField(object, field_index, zone());
+            }
             break;
           }
           case IrOpcode::kStoreElement: {
@@ -897,6 +920,7 @@ int LoadElimination::FieldIndexOf(FieldAccess const& access) {
   switch (rep) {
     case MachineRepresentation::kNone:
     case MachineRepresentation::kBit:
+    case MachineRepresentation::kSimd128:
       UNREACHABLE();
       break;
     case MachineRepresentation::kWord32:
@@ -910,16 +934,20 @@ int LoadElimination::FieldIndexOf(FieldAccess const& access) {
     case MachineRepresentation::kFloat32:
       return -1;  // Currently untracked.
     case MachineRepresentation::kFloat64:
-    case MachineRepresentation::kSimd128:
-      return -1;  // Currently untracked.
+      if (kDoubleSize != kPointerSize) {
+        return -1;  // We currently only track pointer size fields.
+      }
+    // Fall through.
     case MachineRepresentation::kTaggedSigned:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
       // TODO(bmeurer): Check that we never do overlapping load/stores of
-      // individual parts of Float64/Simd128 values.
+      // individual parts of Float64 values.
       break;
   }
-  DCHECK_EQ(kTaggedBase, access.base_is_tagged);
+  if (access.base_is_tagged != kTaggedBase) {
+    return -1;  // We currently only track tagged objects.
+  }
   return FieldIndexOf(access.offset);
 }
 

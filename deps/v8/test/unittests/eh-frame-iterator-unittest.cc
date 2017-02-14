@@ -40,7 +40,7 @@ TEST_F(EhFrameIteratorTest, Skip) {
 TEST_F(EhFrameIteratorTest, ULEB128Decoding) {
   static const byte kEncoded[] = {0xe5, 0x8e, 0x26};
   EhFrameIterator iterator(&kEncoded[0], &kEncoded[0] + sizeof(kEncoded));
-  EXPECT_EQ(624485, iterator.GetNextULeb128());
+  EXPECT_EQ(624485u, iterator.GetNextULeb128());
   EXPECT_TRUE(iterator.Done());
 }
 

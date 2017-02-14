@@ -54,14 +54,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceFixedArrayGet(node);
     case Runtime::kInlineFixedArraySet:
       return ReduceFixedArraySet(node);
-    case Runtime::kInlineRegExpConstructResult:
-      return ReduceRegExpConstructResult(node);
     case Runtime::kInlineRegExpExec:
       return ReduceRegExpExec(node);
-    case Runtime::kInlineRegExpFlags:
-      return ReduceRegExpFlags(node);
-    case Runtime::kInlineRegExpSource:
-      return ReduceRegExpSource(node);
     case Runtime::kInlineSubString:
       return ReduceSubString(node);
     case Runtime::kInlineToInteger:
@@ -234,34 +228,8 @@ Reduction JSIntrinsicLowering::ReduceFixedArraySet(Node* node) {
 }
 
 
-Reduction JSIntrinsicLowering::ReduceRegExpConstructResult(Node* node) {
-  // TODO(bmeurer): Introduce JSCreateRegExpResult?
-  return Change(node, CodeFactory::RegExpConstructResult(isolate()), 0);
-}
-
-
 Reduction JSIntrinsicLowering::ReduceRegExpExec(Node* node) {
   return Change(node, CodeFactory::RegExpExec(isolate()), 4);
-}
-
-
-Reduction JSIntrinsicLowering::ReduceRegExpFlags(Node* node) {
-  Node* const receiver = NodeProperties::GetValueInput(node, 0);
-  Node* const effect = NodeProperties::GetEffectInput(node);
-  Node* const control = NodeProperties::GetControlInput(node);
-  Operator const* const op =
-      simplified()->LoadField(AccessBuilder::ForJSRegExpFlags());
-  return Change(node, op, receiver, effect, control);
-}
-
-
-Reduction JSIntrinsicLowering::ReduceRegExpSource(Node* node) {
-  Node* const receiver = NodeProperties::GetValueInput(node, 0);
-  Node* const effect = NodeProperties::GetEffectInput(node);
-  Node* const control = NodeProperties::GetControlInput(node);
-  Operator const* const op =
-      simplified()->LoadField(AccessBuilder::ForJSRegExpSource());
-  return Change(node, op, receiver, effect, control);
 }
 
 

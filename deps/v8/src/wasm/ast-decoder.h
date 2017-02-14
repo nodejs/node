@@ -5,6 +5,8 @@
 #ifndef V8_WASM_AST_DECODER_H_
 #define V8_WASM_AST_DECODER_H_
 
+#include "src/base/compiler-specific.h"
+#include "src/globals.h"
 #include "src/signature.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/wasm-opcodes.h"
@@ -156,6 +158,9 @@ struct BlockTypeOperand {
       case kLocalF64:
         *result = kAstF64;
         return true;
+      case kLocalS128:
+        *result = kAstS128;
+        return true;
       default:
         *result = kAstStmt;
         return false;
@@ -181,14 +186,19 @@ struct BreakDepthOperand {
 };
 
 struct CallIndirectOperand {
+  uint32_t table_index;
   uint32_t index;
   FunctionSig* sig;
   unsigned length;
   inline CallIndirectOperand(Decoder* decoder, const byte* pc) {
-    unsigned len1 = 0;
-    unsigned len2 = 0;
-    index = decoder->checked_read_u32v(pc, 1 + len1, &len2, "signature index");
-    length = len1 + len2;
+    unsigned len = 0;
+    index = decoder->checked_read_u32v(pc, 1, &len, "signature index");
+    table_index = decoder->checked_read_u8(pc, 1 + len, "table index");
+    if (table_index != 0) {
+      decoder->error(pc, pc + 1 + len, "expected table index 0, found %u",
+                     table_index);
+    }
+    length = 1 + len;
     sig = nullptr;
   }
 };
@@ -203,6 +213,18 @@ struct CallFunctionOperand {
     index = decoder->checked_read_u32v(pc, 1 + len1, &len2, "function index");
     length = len1 + len2;
     sig = nullptr;
+  }
+};
+
+struct MemoryIndexOperand {
+  uint32_t index;
+  unsigned length;
+  inline MemoryIndexOperand(Decoder* decoder, const byte* pc) {
+    index = decoder->checked_read_u8(pc, 1, "memory index");
+    if (index != 0) {
+      decoder->error(pc, pc + 1, "expected memory index 0, found %u", index);
+    }
+    length = 1;
   }
 };
 
@@ -231,7 +253,7 @@ struct BranchTableOperand {
 class BranchTableIterator {
  public:
   unsigned cur_index() { return index_; }
-  bool has_next() { return index_ <= table_count_; }
+  bool has_next() { return decoder_->ok() && index_ <= table_count_; }
   uint32_t next() {
     DCHECK(has_next());
     index_++;
@@ -352,15 +374,18 @@ struct AstLocalDecls {
       : decls_encoded_size(0), total_local_count(0), local_types(zone) {}
 };
 
-bool DecodeLocalDecls(AstLocalDecls& decls, const byte* start, const byte* end);
-BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, size_t num_locals,
-                                           const byte* start, const byte* end);
+V8_EXPORT_PRIVATE bool DecodeLocalDecls(AstLocalDecls& decls, const byte* start,
+                                        const byte* end);
+V8_EXPORT_PRIVATE BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone,
+                                                             size_t num_locals,
+                                                             const byte* start,
+                                                             const byte* end);
 
 // Computes the length of the opcode at the given address.
-unsigned OpcodeLength(const byte* pc, const byte* end);
+V8_EXPORT_PRIVATE unsigned OpcodeLength(const byte* pc, const byte* end);
 
 // A simple forward iterator for bytecodes.
-class BytecodeIterator : public Decoder {
+class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
  public:
   // If one wants to iterate over the bytecode without looking at {pc_offset()}.
   class iterator {

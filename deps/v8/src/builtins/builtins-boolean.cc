@@ -22,7 +22,7 @@ BUILTIN(BooleanConstructor) {
 BUILTIN(BooleanConstructor_ConstructStub) {
   HandleScope scope(isolate);
   Handle<Object> value = args.atOrUndefined(isolate, 1);
-  Handle<JSFunction> target = args.target<JSFunction>();
+  Handle<JSFunction> target = args.target();
   Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
   DCHECK(*target == target->native_context()->boolean_function());
   Handle<JSObject> result;

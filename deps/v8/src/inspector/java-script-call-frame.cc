@@ -30,9 +30,8 @@
 
 #include "src/inspector/java-script-call-frame.h"
 
+#include "src/debug/debug-interface.h"
 #include "src/inspector/string-util.h"
-
-#include "include/v8-debug.h"
 
 namespace v8_inspector {
 
@@ -130,10 +129,10 @@ v8::MaybeLocal<v8::Value> JavaScriptCallFrame::restart() {
   v8::Local<v8::Function> restartFunction = v8::Local<v8::Function>::Cast(
       callFrame->Get(context, toV8StringInternalized(m_isolate, "restart"))
           .ToLocalChecked());
-  v8::Debug::SetLiveEditEnabled(m_isolate, true);
+  v8::DebugInterface::SetLiveEditEnabled(m_isolate, true);
   v8::MaybeLocal<v8::Value> result = restartFunction->Call(
       m_debuggerContext.Get(m_isolate), callFrame, 0, nullptr);
-  v8::Debug::SetLiveEditEnabled(m_isolate, false);
+  v8::DebugInterface::SetLiveEditEnabled(m_isolate, false);
   return result;
 }
 

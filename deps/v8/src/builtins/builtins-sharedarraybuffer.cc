@@ -37,7 +37,7 @@ void ValidateSharedTypedArray(CodeStubAssembler* a, compiler::Node* tagged,
       not_float_or_clamped(a), invalid(a);
 
   // Fail if it is not a heap object.
-  a->Branch(a->WordIsSmi(tagged), &is_smi, &not_smi);
+  a->Branch(a->TaggedIsSmi(tagged), &is_smi, &not_smi);
   a->Bind(&is_smi);
   a->Goto(&invalid);
 
@@ -52,8 +52,9 @@ void ValidateSharedTypedArray(CodeStubAssembler* a, compiler::Node* tagged,
   // Fail if the array's JSArrayBuffer is not shared.
   a->Bind(&is_typed_array);
   Node* array_buffer = a->LoadObjectField(tagged, JSTypedArray::kBufferOffset);
-  Node* is_buffer_shared = a->BitFieldDecode<JSArrayBuffer::IsShared>(
-      a->LoadObjectField(array_buffer, JSArrayBuffer::kBitFieldSlot));
+  Node* is_buffer_shared =
+      a->IsSetWord32<JSArrayBuffer::IsShared>(a->LoadObjectField(
+          array_buffer, JSArrayBuffer::kBitFieldOffset, MachineType::Uint32()));
   a->Branch(is_buffer_shared, &is_shared, &not_shared);
   a->Bind(&not_shared);
   a->Goto(&invalid);
@@ -102,7 +103,7 @@ compiler::Node* ConvertTaggedAtomicIndexToWord32(CodeStubAssembler* a,
   CodeStubAssembler::Label done(a, &var_result);
 
   CodeStubAssembler::Label if_numberissmi(a), if_numberisnotsmi(a);
-  a->Branch(a->WordIsSmi(number_index), &if_numberissmi, &if_numberisnotsmi);
+  a->Branch(a->TaggedIsSmi(number_index), &if_numberissmi, &if_numberisnotsmi);
 
   a->Bind(&if_numberissmi);
   {

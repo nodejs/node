@@ -39,6 +39,7 @@
       'type': 'executable',
       'dependencies': [
         'v8.gyp:v8',
+        'v8.gyp:v8_libbase',
         'v8.gyp:v8_libplatform',
       ],
       # Generated source files need this explicitly:

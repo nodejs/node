@@ -4,11 +4,11 @@
 
 {
   'variables': {
-    'protocol_path': '<(PRODUCT_DIR)/../../third_party/WebKit/Source/platform/inspector_protocol',
+    'protocol_path': '../../third_party/inspector_protocol',
   },
   'includes': [
     'inspector.gypi',
-    '<(PRODUCT_DIR)/../../../third_party/WebKit/Source/platform/inspector_protocol/inspector_protocol.gypi',
+    '<(PRODUCT_DIR)/../../../third_party/inspector_protocol/inspector_protocol.gypi',
   ],
   'targets': [
     { 'target_name': 'inspector_injected_script',
@@ -97,7 +97,7 @@
           'action': [
             'python',
             '<(protocol_path)/CodeGenerator.py',
-            '--jinja_dir', '<(PRODUCT_DIR)/../../third_party',
+            '--jinja_dir', '../../third_party',
             '--output_base', '<(SHARED_INTERMEDIATE_DIR)/src/inspector',
             '--config', 'inspector_protocol_config.json',
           ],

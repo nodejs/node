@@ -41,9 +41,6 @@ class InspectedContext {
  private:
   friend class V8InspectorImpl;
   InspectedContext(V8InspectorImpl*, const V8ContextInfo&, int contextId);
-  static void weakCallback(const v8::WeakCallbackInfo<InspectedContext>&);
-  static void consoleWeakCallback(
-      const v8::WeakCallbackInfo<InspectedContext>&);
 
   V8InspectorImpl* m_inspector;
   v8::Global<v8::Context> m_context;

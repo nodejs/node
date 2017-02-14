@@ -68,16 +68,6 @@ Expression* Parser::PatternRewriter::RewriteDestructuringAssignment(
 }
 
 
-bool Parser::PatternRewriter::IsAssignmentContext(PatternContext c) const {
-  return c == ASSIGNMENT || c == ASSIGNMENT_INITIALIZER;
-}
-
-
-bool Parser::PatternRewriter::IsBindingContext(PatternContext c) const {
-  return c == BINDING || c == INITIALIZER;
-}
-
-
 Parser::PatternRewriter::PatternContext
 Parser::PatternRewriter::SetAssignmentContextIfNeeded(Expression* node) {
   PatternContext old_context = context();
@@ -142,9 +132,8 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   // an initial value in the declaration (because they are initialized upon
   // entering the function).
   const AstRawString* name = pattern->raw_name();
-  VariableProxy* proxy = factory()->NewVariableProxy(
-      name, NORMAL_VARIABLE, parser_->scanner()->location().beg_pos,
-      parser_->scanner()->location().end_pos);
+  VariableProxy* proxy =
+      factory()->NewVariableProxy(name, NORMAL_VARIABLE, pattern->position());
   Declaration* declaration = factory()->NewVariableDeclaration(
       proxy, descriptor_->scope, descriptor_->declaration_pos);
   Variable* var = parser_->Declare(

@@ -333,40 +333,35 @@ void Verifier::Visitor::Check(Node* node) {
       CheckTypeIs(node, Type::Any());
       break;
     }
-    case IrOpcode::kInt32Constant:  // TODO(rossberg): rename Word32Constant?
-      // Constants have no inputs.
-      CHECK_EQ(0, input_count);
-      // Type is a 32 bit integer, signed or unsigned.
-      CheckTypeIs(node, Type::Integral32());
-      break;
-    case IrOpcode::kInt64Constant:
-      // Constants have no inputs.
-      CHECK_EQ(0, input_count);
-      // Type is internal.
-      // TODO(rossberg): Introduce proper Int64 type.
-      CheckTypeIs(node, Type::Internal());
-      break;
+    case IrOpcode::kInt32Constant:  // TODO(turbofan): rename Word32Constant?
+    case IrOpcode::kInt64Constant:  // TODO(turbofan): rename Word64Constant?
     case IrOpcode::kFloat32Constant:
     case IrOpcode::kFloat64Constant:
+    case IrOpcode::kRelocatableInt32Constant:
+    case IrOpcode::kRelocatableInt64Constant:
+      // Constants have no inputs.
+      CHECK_EQ(0, input_count);
+      // Type is empty.
+      CheckNotTyped(node);
+      break;
     case IrOpcode::kNumberConstant:
       // Constants have no inputs.
       CHECK_EQ(0, input_count);
       // Type is a number.
       CheckTypeIs(node, Type::Number());
       break;
-    case IrOpcode::kRelocatableInt32Constant:
-    case IrOpcode::kRelocatableInt64Constant:
-      CHECK_EQ(0, input_count);
-      break;
     case IrOpcode::kHeapConstant:
       // Constants have no inputs.
       CHECK_EQ(0, input_count);
+      // Type is anything.
+      CheckTypeIs(node, Type::Any());
       break;
     case IrOpcode::kExternalConstant:
+    case IrOpcode::kPointerConstant:
       // Constants have no inputs.
       CHECK_EQ(0, input_count);
-      // Type is considered internal.
-      CheckTypeIs(node, Type::Internal());
+      // Type is an external pointer.
+      CheckTypeIs(node, Type::ExternalPointer());
       break;
     case IrOpcode::kOsrValue:
       // OSR values have a value and a control input.
@@ -374,6 +369,23 @@ void Verifier::Visitor::Check(Node* node) {
       CHECK_EQ(1, input_count);
       // Type is merged from other values in the graph and could be any.
       CheckTypeIs(node, Type::Any());
+      break;
+    case IrOpcode::kOsrGuard:
+      // OSR values have a value and a control input.
+      CHECK_EQ(1, value_count);
+      CHECK_EQ(1, effect_count);
+      CHECK_EQ(1, control_count);
+      switch (OsrGuardTypeOf(node->op())) {
+        case OsrGuardType::kUninitialized:
+          CheckTypeIs(node, Type::None());
+          break;
+        case OsrGuardType::kSignedSmall:
+          CheckTypeIs(node, Type::SignedSmall());
+          break;
+        case OsrGuardType::kAny:
+          CheckTypeIs(node, Type::Any());
+          break;
+      }
       break;
     case IrOpcode::kProjection: {
       // Projection has an input that produces enough values.
@@ -471,8 +483,9 @@ void Verifier::Visitor::Check(Node* node) {
       break;
     }
     case IrOpcode::kStateValues:
-    case IrOpcode::kObjectState:
     case IrOpcode::kTypedStateValues:
+    case IrOpcode::kObjectState:
+    case IrOpcode::kTypedObjectState:
       // TODO(jarin): what are the constraints on these?
       break;
     case IrOpcode::kCall:
@@ -566,6 +579,10 @@ void Verifier::Visitor::Check(Node* node) {
       // Type is OtherObject.
       CheckTypeIs(node, Type::OtherObject());
       break;
+    case IrOpcode::kJSCreateKeyValueArray:
+      // Type is OtherObject.
+      CheckTypeIs(node, Type::OtherObject());
+      break;
     case IrOpcode::kJSCreateLiteralArray:
     case IrOpcode::kJSCreateLiteralObject:
     case IrOpcode::kJSCreateLiteralRegExp:
@@ -641,6 +658,13 @@ void Verifier::Visitor::Check(Node* node) {
 
     case IrOpcode::kJSLoadMessage:
     case IrOpcode::kJSStoreMessage:
+      break;
+
+    case IrOpcode::kJSLoadModule:
+      CheckTypeIs(node, Type::Any());
+      break;
+    case IrOpcode::kJSStoreModule:
+      CheckNotTyped(node);
       break;
 
     case IrOpcode::kJSGeneratorStore:
@@ -809,6 +833,7 @@ void Verifier::Visitor::Check(Node* node) {
       CheckTypeIs(node, Type::Signed32());
       break;
     case IrOpcode::kNumberToUint32:
+    case IrOpcode::kNumberToUint8Clamped:
       // Number -> Unsigned32
       CheckValueInputIs(node, 0, Type::Number());
       CheckTypeIs(node, Type::Unsigned32());
@@ -972,6 +997,8 @@ void Verifier::Visitor::Check(Node* node) {
       // CheckTypeIs(node, to));
       break;
     }
+    case IrOpcode::kChangeFloat64ToTaggedPointer:
+      break;
     case IrOpcode::kChangeTaggedToBit: {
       // Boolean /\ TaggedPtr -> Boolean /\ UntaggedInt1
       // TODO(neis): Activate once ChangeRepresentation works in typer.
@@ -1049,6 +1076,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kCheckedTaggedToInt32:
     case IrOpcode::kCheckedTaggedToFloat64:
     case IrOpcode::kCheckedTaggedToTaggedSigned:
+    case IrOpcode::kCheckedTaggedToTaggedPointer:
     case IrOpcode::kCheckedTruncateTaggedToWord32:
       break;
 
@@ -1288,7 +1316,7 @@ void Verifier::Visitor::Check(Node* node) {
 void Verifier::Run(Graph* graph, Typing typing, CheckInputs check_inputs) {
   CHECK_NOT_NULL(graph->start());
   CHECK_NOT_NULL(graph->end());
-  Zone zone(graph->zone()->allocator());
+  Zone zone(graph->zone()->allocator(), ZONE_NAME);
   Visitor visitor(&zone, typing, check_inputs);
   AllNodes all(&zone, graph);
   for (Node* node : all.reachable) visitor.Check(node);
@@ -1378,7 +1406,7 @@ static void CheckInputsDominate(Schedule* schedule, BasicBlock* block,
 
 void ScheduleVerifier::Run(Schedule* schedule) {
   const size_t count = schedule->BasicBlockCount();
-  Zone tmp_zone(schedule->zone()->allocator());
+  Zone tmp_zone(schedule->zone()->allocator(), ZONE_NAME);
   Zone* zone = &tmp_zone;
   BasicBlock* start = schedule->start();
   BasicBlockVector* rpo_order = schedule->rpo_order();

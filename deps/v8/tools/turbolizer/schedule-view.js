@@ -77,7 +77,7 @@ class ScheduleView extends TextView {
       // Parse opcode including []
       [
         [/^[A-Za-z0-9_]+(\[.*\])?$/, NODE_STYLE, -1],
-        [/^[A-Za-z0-9_]+(\[.*\])?/, NODE_STYLE, 3]
+        [/^[A-Za-z0-9_]+(\[(\[.*?\]|.)*?\])?/, NODE_STYLE, 3]
       ],
       // Parse optional parameters
       [

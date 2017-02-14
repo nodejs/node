@@ -33,28 +33,40 @@ RUNTIME_FUNCTION(Runtime_StringToNumber) {
 // ES6 18.2.5 parseInt(string, radix) slow path
 RUNTIME_FUNCTION(Runtime_StringParseInt) {
   HandleScope handle_scope(isolate);
-  DCHECK(args.length() == 2);
-  CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
-  CONVERT_NUMBER_CHECKED(int, radix, Int32, args[1]);
-  // Step 8.a. is already handled in the JS function.
-  CHECK(radix == 0 || (2 <= radix && radix <= 36));
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, string, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, radix, 1);
 
+  // Convert {string} to a String first, and flatten it.
+  Handle<String> subject;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, subject,
+                                     Object::ToString(isolate, string));
   subject = String::Flatten(subject);
-  double value;
 
+  // Convert {radix} to Int32.
+  if (!radix->IsNumber()) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, radix, Object::ToNumber(radix));
+  }
+  int radix32 = DoubleToInt32(radix->Number());
+  if (radix32 != 0 && (radix32 < 2 || radix32 > 36)) {
+    return isolate->heap()->nan_value();
+  }
+
+  double result;
   {
     DisallowHeapAllocation no_gc;
     String::FlatContent flat = subject->GetFlatContent();
 
     if (flat.IsOneByte()) {
-      value =
-          StringToInt(isolate->unicode_cache(), flat.ToOneByteVector(), radix);
+      result = StringToInt(isolate->unicode_cache(), flat.ToOneByteVector(),
+                           radix32);
     } else {
-      value = StringToInt(isolate->unicode_cache(), flat.ToUC16Vector(), radix);
+      result =
+          StringToInt(isolate->unicode_cache(), flat.ToUC16Vector(), radix32);
     }
   }
 
-  return *isolate->factory()->NewNumber(value);
+  return *isolate->factory()->NewNumber(result);
 }
 
 

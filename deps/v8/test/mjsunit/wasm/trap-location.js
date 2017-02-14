@@ -52,10 +52,11 @@ builder.addFunction("main", kSig_i_i)
         kExprEnd,
         // offset 30
         kExprGetLocal, 0,
-        kExprCallIndirect, sig_index,
+        kExprCallIndirect, sig_index, kTableZero,
       kExprEnd,
   ])
   .exportAs("main");
+builder.appendToTable([0]);
 
 var module = builder.instantiate();
 

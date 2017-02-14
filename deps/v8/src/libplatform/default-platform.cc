@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <queue>
 
+#include "include/libplatform/libplatform.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"

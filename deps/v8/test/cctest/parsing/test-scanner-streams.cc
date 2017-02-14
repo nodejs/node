@@ -27,7 +27,7 @@ class ChunkSource : public v8::ScriptCompiler::ExternalSourceStream {
     // If extra_chunky, we'll use increasingly large chunk sizes.
     // If not, we'll have a single chunk of full length.
     size_t chunk_size = extra_chunky ? 1 : len;
-    for (size_t i = 0; i < len; i += chunk_size, chunk_size *= 2) {
+    for (size_t i = 0; i < len; i += chunk_size, chunk_size++) {
       chunks_.push_back({data + i, i::Min(chunk_size, len - i)});
     }
     chunks_.push_back({nullptr, 0});
@@ -130,6 +130,13 @@ TEST(Utf8StreamBOM) {
   stream->Seek(0);
   CHECK_EQ(unicode_ucs2[0], stream->Advance());
 
+  stream->Seek(5);
+  CHECK_EQ(unicode_ucs2[5], stream->Advance());
+
+  // Try again, but make sure we have to seek 'backwards'.
+  while (v8::internal::Utf16CharacterStream::kEndOfInput != stream->Advance()) {
+    // Do nothing. We merely advance the stream to the end of its input.
+  }
   stream->Seek(5);
   CHECK_EQ(unicode_ucs2[5], stream->Advance());
 }

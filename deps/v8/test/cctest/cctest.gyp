@@ -60,7 +60,6 @@
       'compiler/test-multiple-return.cc',
       'compiler/test-node.cc',
       'compiler/test-operator.cc',
-      'compiler/test-osr.cc',
       'compiler/test-representation-change.cc',
       'compiler/test-run-bytecode-graph-builder.cc',
       'compiler/test-run-calls-to-external-references.cc',
@@ -187,6 +186,7 @@
       'test-thread-termination.cc',
       'test-threads.cc',
       'test-trace-event.cc',
+      'test-traced-value.cc',
       'test-transitions.cc',
       'test-typedarrays.cc',
       'test-ast-types.cc',
@@ -203,6 +203,7 @@
       'trace-extension.cc',
       'trace-extension.h',
       'types-fuzz.h',
+      'wasm/test-managed.cc',
       'wasm/test-run-wasm.cc',
       'wasm/test-run-wasm-64.cc',
       'wasm/test-run-wasm-asmjs.cc',
@@ -210,7 +211,6 @@
       'wasm/test-run-wasm-js.cc',
       'wasm/test-run-wasm-module.cc',
       'wasm/test-run-wasm-relocation.cc',
-      'wasm/test-wasm-function-name-table.cc',
       'wasm/test-wasm-stack.cc',
       'wasm/test-wasm-trap-position.cc',
       'wasm/wasm-run-utils.h',
@@ -234,7 +234,8 @@
       'test-macro-assembler-x64.cc',
       'test-log-stack-tracer.cc',
       'test-run-wasm-relocation-x64.cc',
-      'wasm/test-run-wasm-simd.cc'
+      'wasm/test-run-wasm-simd.cc',
+      'wasm/test-run-wasm-simd-lowering.cc',
     ],
     'cctest_sources_arm': [  ### gcmole(arch:arm) ###
       'test-assembler-arm.cc',
@@ -320,6 +321,7 @@
       'type': 'executable',
       'dependencies': [
         'resources',
+        '../../src/v8.gyp:v8_libbase',
         '../../src/v8.gyp:v8_libplatform',
       ],
       'include_dirs': [
@@ -428,6 +430,7 @@
           # cctest can't be built against a shared library, so we need to
           # depend on the underlying static target in that case.
           'dependencies': ['../../src/v8.gyp:v8_maybe_snapshot'],
+          'defines': [ 'BUILDING_V8_SHARED', ]
         }, {
           'dependencies': ['../../src/v8.gyp:v8'],
         }],
@@ -472,15 +475,9 @@
       'target_name': 'generate-bytecode-expectations',
       'type': 'executable',
       'dependencies': [
+        '../../src/v8.gyp:v8',
+        '../../src/v8.gyp:v8_libbase',
         '../../src/v8.gyp:v8_libplatform',
-      ],
-      'conditions': [
-        ['component=="shared_library"', {
-          # Same as cctest, we need to depend on the underlying static target.
-          'dependencies': ['../../src/v8.gyp:v8_maybe_snapshot'],
-        }, {
-          'dependencies': ['../../src/v8.gyp:v8'],
-        }],
       ],
       'include_dirs+': [
         '../..',

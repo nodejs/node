@@ -9,10 +9,11 @@
 #include <sstream>
 #include <string>
 
+#include "src/base/base-export.h"
 #include "src/base/build_config.h"
 #include "src/base/compiler-specific.h"
 
-extern "C" PRINTF_FORMAT(3, 4) V8_NORETURN
+extern "C" PRINTF_FORMAT(3, 4) V8_NORETURN V8_BASE_EXPORT
     void V8_Fatal(const char* file, int line, const char* format, ...);
 
 // The FATAL, UNREACHABLE and UNIMPLEMENTED macros are useful during
@@ -87,8 +88,8 @@ std::string* MakeCheckOpString(Lhs const& lhs, Rhs const& rhs,
 
 // Commonly used instantiations of MakeCheckOpString<>. Explicitly instantiated
 // in logging.cc.
-#define DEFINE_MAKE_CHECK_OP_STRING(type)                     \
-  extern template std::string* MakeCheckOpString<type, type>( \
+#define DEFINE_MAKE_CHECK_OP_STRING(type)                                    \
+  extern template V8_BASE_EXPORT std::string* MakeCheckOpString<type, type>( \
       type const&, type const&, char const*);
 DEFINE_MAKE_CHECK_OP_STRING(int)
 DEFINE_MAKE_CHECK_OP_STRING(long)       // NOLINT(runtime/int)
@@ -117,10 +118,11 @@ DEFINE_MAKE_CHECK_OP_STRING(void const*)
                                            char const* msg) {                  \
     return V8_LIKELY(lhs op rhs) ? nullptr : MakeCheckOpString(lhs, rhs, msg); \
   }                                                                            \
-  extern template std::string* Check##NAME##Impl<float, float>(                \
+  extern template V8_BASE_EXPORT std::string* Check##NAME##Impl<float, float>( \
       float const& lhs, float const& rhs, char const* msg);                    \
-  extern template std::string* Check##NAME##Impl<double, double>(              \
-      double const& lhs, double const& rhs, char const* msg);
+  extern template V8_BASE_EXPORT std::string*                                  \
+      Check##NAME##Impl<double, double>(double const& lhs, double const& rhs,  \
+                                        char const* msg);
 DEFINE_CHECK_OP_IMPL(EQ, ==)
 DEFINE_CHECK_OP_IMPL(NE, !=)
 DEFINE_CHECK_OP_IMPL(LE, <=)

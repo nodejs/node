@@ -13,6 +13,7 @@
 #include <iosfwd>
 #include <string>
 
+#include "src/base/base-export.h"
 #include "src/base/build_config.h"
 
 #if V8_OS_POSIX
@@ -31,8 +32,8 @@ namespace debug {
 // Enables stack dump to console output on exception and signals.
 // When enabled, the process will quit immediately. This is meant to be used in
 // tests only!
-bool EnableInProcessStackDumping();
-void DisableSignalStackDump();
+V8_BASE_EXPORT bool EnableInProcessStackDumping();
+V8_BASE_EXPORT void DisableSignalStackDump();
 
 // A stacktrace can be helpful in debugging. For example, you can include a
 // stacktrace member in a object (probably around #ifndef NDEBUG) so that you

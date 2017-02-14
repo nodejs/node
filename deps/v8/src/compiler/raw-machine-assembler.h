@@ -13,6 +13,7 @@
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
 #include "src/factory.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -34,7 +35,7 @@ class Schedule;
 // Also note that the generated graph is only valid together with the generated
 // schedule, using one without the other is invalid as the graph is inherently
 // non-schedulable due to missing control and effect dependencies.
-class RawMachineAssembler {
+class V8_EXPORT_PRIVATE RawMachineAssembler {
  public:
   RawMachineAssembler(
       Isolate* isolate, Graph* graph, CallDescriptor* call_descriptor,
@@ -717,6 +718,9 @@ class RawMachineAssembler {
   // Call to a runtime function with four arguments.
   Node* CallRuntime4(Runtime::FunctionId function, Node* arg1, Node* arg2,
                      Node* arg3, Node* arg4, Node* context);
+  // Call to a runtime function with five arguments.
+  Node* CallRuntime5(Runtime::FunctionId function, Node* arg1, Node* arg2,
+                     Node* arg3, Node* arg4, Node* arg5, Node* context);
   // Call to a C function with zero arguments.
   Node* CallCFunction0(MachineType return_type, Node* function);
   // Call to a C function with one parameter.
@@ -773,6 +777,9 @@ class RawMachineAssembler {
   void Return(Node* value);
   void Return(Node* v1, Node* v2);
   void Return(Node* v1, Node* v2, Node* v3);
+  void PopAndReturn(Node* pop, Node* value);
+  void PopAndReturn(Node* pop, Node* v1, Node* v2);
+  void PopAndReturn(Node* pop, Node* v1, Node* v2, Node* v3);
   void Bind(RawMachineLabel* label);
   void Deoptimize(Node* state);
   void DebugBreak();
@@ -834,8 +841,7 @@ class RawMachineAssembler {
   DISALLOW_COPY_AND_ASSIGN(RawMachineAssembler);
 };
 
-
-class RawMachineLabel final {
+class V8_EXPORT_PRIVATE RawMachineLabel final {
  public:
   enum Type { kDeferred, kNonDeferred };
 

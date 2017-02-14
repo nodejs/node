@@ -1,0 +1,12 @@
+Check that inspector correctly change break on exception state.
+
+Running test: noBreakOnExceptionAfterEnabled
+
+Running test: breakOnUncaughtException
+paused in throwUncaughtException
+
+Running test: breakOnCaughtException
+paused in throwUncaughtException
+paused in throwCaughtException
+
+Running test: noBreakInEvaluateInSilentMode

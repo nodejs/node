@@ -149,8 +149,9 @@ class TestJob(Job):
 
     Rename files with PIDs to files with unique test IDs, because the number
     of tests might be higher than pid_max. E.g.:
-    d8.1234.sancov -> d8.test.1.sancov, where 1234 was the process' PID
-    and 1 is the test ID.
+    d8.1234.sancov -> d8.test.42.1.sancov, where 1234 was the process' PID,
+    42 is the test ID and 1 is the attempt (the same test might be rerun on
+    failures).
     """
     if context.sancov_dir and output.pid is not None:
       sancov_file = os.path.join(
@@ -160,7 +161,10 @@ class TestJob(Job):
       if os.path.exists(sancov_file):
         parts = sancov_file.split(".")
         new_sancov_file = ".".join(
-            parts[:-2] + ["test", str(self.test.id)] + parts[-1:])
+            parts[:-2] +
+            ["test", str(self.test.id), str(self.test.run)] +
+            parts[-1:]
+        )
         assert not os.path.exists(new_sancov_file)
         os.rename(sancov_file, new_sancov_file)
 

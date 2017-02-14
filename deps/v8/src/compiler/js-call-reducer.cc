@@ -189,12 +189,72 @@ Reduction JSCallReducer::ReduceFunctionPrototypeCall(Node* node) {
   return reduction.Changed() ? reduction : Changed(node);
 }
 
+namespace {
+
+// TODO(turbofan): Shall we move this to the NodeProperties? Or some (untyped)
+// alias analyzer?
+bool IsSame(Node* a, Node* b) {
+  if (a == b) {
+    return true;
+  } else if (a->opcode() == IrOpcode::kCheckHeapObject) {
+    return IsSame(a->InputAt(0), b);
+  } else if (b->opcode() == IrOpcode::kCheckHeapObject) {
+    return IsSame(a, b->InputAt(0));
+  }
+  return false;
+}
+
+// TODO(turbofan): Share with similar functionality in JSInliningHeuristic
+// and JSNativeContextSpecialization, i.e. move to NodeProperties helper?!
+MaybeHandle<Map> InferReceiverMap(Node* node) {
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  // Check if the {node} is dominated by a CheckMaps with a single map
+  // for the {receiver}, and if so use that map for the lowering below.
+  for (Node* dominator = effect;;) {
+    if (dominator->opcode() == IrOpcode::kCheckMaps &&
+        IsSame(dominator->InputAt(0), receiver)) {
+      if (dominator->op()->ValueInputCount() == 2) {
+        HeapObjectMatcher m(dominator->InputAt(1));
+        if (m.HasValue()) return Handle<Map>::cast(m.Value());
+      }
+      return MaybeHandle<Map>();
+    }
+    if (dominator->op()->EffectInputCount() != 1) {
+      // Didn't find any appropriate CheckMaps node.
+      return MaybeHandle<Map>();
+    }
+    dominator = NodeProperties::GetEffectInput(dominator);
+  }
+}
+
+}  // namespace
+
+// ES6 section B.2.2.1.1 get Object.prototype.__proto__
+Reduction JSCallReducer::ReduceObjectPrototypeGetProto(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCallFunction, node->opcode());
+
+  // Try to determine the {receiver} map.
+  Handle<Map> receiver_map;
+  if (InferReceiverMap(node).ToHandle(&receiver_map)) {
+    // Check if we can constant-fold the {receiver} map.
+    if (!receiver_map->IsJSProxyMap() &&
+        !receiver_map->has_hidden_prototype() &&
+        !receiver_map->is_access_check_needed()) {
+      Handle<Object> receiver_prototype(receiver_map->prototype(), isolate());
+      Node* value = jsgraph()->Constant(receiver_prototype);
+      ReplaceWithValue(node, value);
+      return Replace(value);
+    }
+  }
+
+  return NoChange();
+}
 
 Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCallFunction, node->opcode());
   CallFunctionParameters const& p = CallFunctionParametersOf(node->op());
   Node* target = NodeProperties::GetValueInput(node, 0);
-  Node* context = NodeProperties::GetContextInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
 
@@ -215,25 +275,22 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
       }
 
       // Check for known builtin functions.
-      if (shared->HasBuiltinFunctionId()) {
-        switch (shared->builtin_function_id()) {
-          case kFunctionApply:
-            return ReduceFunctionPrototypeApply(node);
-          case kFunctionCall:
-            return ReduceFunctionPrototypeCall(node);
-          default:
-            break;
-        }
+      switch (shared->code()->builtin_index()) {
+        case Builtins::kFunctionPrototypeApply:
+          return ReduceFunctionPrototypeApply(node);
+        case Builtins::kFunctionPrototypeCall:
+          return ReduceFunctionPrototypeCall(node);
+        case Builtins::kNumberConstructor:
+          return ReduceNumberConstructor(node);
+        case Builtins::kObjectPrototypeGetProto:
+          return ReduceObjectPrototypeGetProto(node);
+        default:
+          break;
       }
 
       // Check for the Array constructor.
       if (*function == function->native_context()->array_function()) {
         return ReduceArrayConstructor(node);
-      }
-
-      // Check for the Number constructor.
-      if (*function == function->native_context()->number_function()) {
-        return ReduceNumberConstructor(node);
       }
     } else if (m.Value()->IsJSBoundFunction()) {
       Handle<JSBoundFunction> function =
@@ -298,19 +355,8 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
   Handle<Object> feedback(nexus.GetFeedback(), isolate());
   if (feedback->IsAllocationSite()) {
     // Retrieve the Array function from the {node}.
-    Node* array_function;
-    Handle<Context> native_context;
-    if (GetNativeContext(node).ToHandle(&native_context)) {
-      array_function = jsgraph()->HeapConstant(
-          handle(native_context->array_function(), isolate()));
-    } else {
-      Node* native_context = effect = graph()->NewNode(
-          javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
-          context, context, effect);
-      array_function = effect = graph()->NewNode(
-          javascript()->LoadContext(0, Context::ARRAY_FUNCTION_INDEX, true),
-          native_context, native_context, effect);
-    }
+    Node* array_function = jsgraph()->HeapConstant(
+        handle(native_context()->array_function(), isolate()));
 
     // Check that the {target} is still the {array_function}.
     Node* check = graph()->NewNode(simplified()->ReferenceEqual(), target,
@@ -353,7 +399,6 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
   int const arity = static_cast<int>(p.arity() - 2);
   Node* target = NodeProperties::GetValueInput(node, 0);
   Node* new_target = NodeProperties::GetValueInput(node, arity + 1);
-  Node* context = NodeProperties::GetContextInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
@@ -413,19 +458,8 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
     Handle<AllocationSite> site = Handle<AllocationSite>::cast(feedback);
 
     // Retrieve the Array function from the {node}.
-    Node* array_function;
-    Handle<Context> native_context;
-    if (GetNativeContext(node).ToHandle(&native_context)) {
-      array_function = jsgraph()->HeapConstant(
-          handle(native_context->array_function(), isolate()));
-    } else {
-      Node* native_context = effect = graph()->NewNode(
-          javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
-          context, context, effect);
-      array_function = effect = graph()->NewNode(
-          javascript()->LoadContext(0, Context::ARRAY_FUNCTION_INDEX, true),
-          native_context, native_context, effect);
-    }
+    Node* array_function = jsgraph()->HeapConstant(
+        handle(native_context()->array_function(), isolate()));
 
     // Check that the {target} is still the {array_function}.
     Node* check = graph()->NewNode(simplified()->ReferenceEqual(), target,
@@ -469,24 +503,13 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
   return NoChange();
 }
 
-
-MaybeHandle<Context> JSCallReducer::GetNativeContext(Node* node) {
-  Node* const context = NodeProperties::GetContextInput(node);
-  return NodeProperties::GetSpecializationNativeContext(context,
-                                                        native_context());
-}
-
-
 Graph* JSCallReducer::graph() const { return jsgraph()->graph(); }
 
-
 Isolate* JSCallReducer::isolate() const { return jsgraph()->isolate(); }
-
 
 CommonOperatorBuilder* JSCallReducer::common() const {
   return jsgraph()->common();
 }
-
 
 JSOperatorBuilder* JSCallReducer::javascript() const {
   return jsgraph()->javascript();

@@ -7,6 +7,8 @@
 
 #include <queue>
 
+#include "include/libplatform/libplatform-export.h"
+#include "src/base/compiler-specific.h"
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
 
@@ -16,7 +18,7 @@ namespace platform {
 
 class TaskQueue;
 
-class WorkerThread : public base::Thread {
+class V8_PLATFORM_EXPORT WorkerThread : public NON_EXPORTED_BASE(base::Thread) {
  public:
   explicit WorkerThread(TaskQueue* queue);
   virtual ~WorkerThread();

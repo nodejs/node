@@ -31,6 +31,8 @@ const Register LoadDescriptor::SlotRegister() { return r2; }
 
 const Register LoadWithVectorDescriptor::VectorRegister() { return r5; }
 
+const Register LoadICProtoArrayDescriptor::HandlerRegister() { return r6; }
+
 const Register StoreDescriptor::ReceiverRegister() { return r3; }
 const Register StoreDescriptor::NameRegister() { return r4; }
 const Register StoreDescriptor::ValueRegister() { return r2; }
@@ -41,9 +43,6 @@ const Register StoreWithVectorDescriptor::VectorRegister() { return r5; }
 const Register StoreTransitionDescriptor::SlotRegister() { return r6; }
 const Register StoreTransitionDescriptor::VectorRegister() { return r5; }
 const Register StoreTransitionDescriptor::MapRegister() { return r7; }
-
-const Register StoreGlobalViaContextDescriptor::SlotRegister() { return r4; }
-const Register StoreGlobalViaContextDescriptor::ValueRegister() { return r2; }
 
 const Register StringCompareDescriptor::LeftRegister() { return r3; }
 const Register StringCompareDescriptor::RightRegister() { return r2; }
@@ -143,7 +142,7 @@ void CallFunctionWithFeedbackDescriptor::InitializePlatformSpecific(
 
 void CallFunctionWithFeedbackAndVectorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {r3, r5, r4};
+  Register registers[] = {r3, r2, r5, r4};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
@@ -184,12 +183,6 @@ void ConstructTrampolineDescriptor::InitializePlatformSpecific(
   // r3 : the target to call
   // r5 : the new target
   Register registers[] = {r3, r5, r2};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-void RegExpConstructResultDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  Register registers[] = {r4, r3, r2};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 

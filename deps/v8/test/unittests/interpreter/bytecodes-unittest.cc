@@ -95,42 +95,14 @@ TEST(OperandScaling, ScalableAndNonScalable) {
 
 TEST(Bytecodes, RegisterOperands) {
   CHECK(Bytecodes::IsRegisterOperandType(OperandType::kReg));
+  CHECK(Bytecodes::IsRegisterOperandType(OperandType::kRegPair));
   CHECK(Bytecodes::IsRegisterInputOperandType(OperandType::kReg));
+  CHECK(Bytecodes::IsRegisterInputOperandType(OperandType::kRegPair));
+  CHECK(Bytecodes::IsRegisterInputOperandType(OperandType::kRegList));
   CHECK(!Bytecodes::IsRegisterOutputOperandType(OperandType::kReg));
   CHECK(!Bytecodes::IsRegisterInputOperandType(OperandType::kRegOut));
   CHECK(Bytecodes::IsRegisterOutputOperandType(OperandType::kRegOut));
-
-#define IS_REGISTER_OPERAND_TYPE(Name, _) \
-  CHECK(Bytecodes::IsRegisterOperandType(OperandType::k##Name));
-  REGISTER_OPERAND_TYPE_LIST(IS_REGISTER_OPERAND_TYPE)
-#undef IS_REGISTER_OPERAND_TYPE
-
-#define IS_NOT_REGISTER_OPERAND_TYPE(Name, _) \
-  CHECK(!Bytecodes::IsRegisterOperandType(OperandType::k##Name));
-  NON_REGISTER_OPERAND_TYPE_LIST(IS_NOT_REGISTER_OPERAND_TYPE)
-#undef IS_NOT_REGISTER_OPERAND_TYPE
-
-#define IS_REGISTER_INPUT_OPERAND_TYPE(Name, _) \
-  CHECK(Bytecodes::IsRegisterInputOperandType(OperandType::k##Name));
-  REGISTER_INPUT_OPERAND_TYPE_LIST(IS_REGISTER_INPUT_OPERAND_TYPE)
-#undef IS_REGISTER_INPUT_OPERAND_TYPE
-
-#define IS_NOT_REGISTER_INPUT_OPERAND_TYPE(Name, _) \
-  CHECK(!Bytecodes::IsRegisterInputOperandType(OperandType::k##Name));
-  NON_REGISTER_OPERAND_TYPE_LIST(IS_NOT_REGISTER_INPUT_OPERAND_TYPE);
-  REGISTER_OUTPUT_OPERAND_TYPE_LIST(IS_NOT_REGISTER_INPUT_OPERAND_TYPE)
-#undef IS_NOT_REGISTER_INPUT_OPERAND_TYPE
-
-#define IS_REGISTER_OUTPUT_OPERAND_TYPE(Name, _) \
-  CHECK(Bytecodes::IsRegisterOutputOperandType(OperandType::k##Name));
-  REGISTER_OUTPUT_OPERAND_TYPE_LIST(IS_REGISTER_OUTPUT_OPERAND_TYPE)
-#undef IS_REGISTER_OUTPUT_OPERAND_TYPE
-
-#define IS_NOT_REGISTER_OUTPUT_OPERAND_TYPE(Name, _) \
-  CHECK(!Bytecodes::IsRegisterOutputOperandType(OperandType::k##Name));
-  NON_REGISTER_OPERAND_TYPE_LIST(IS_NOT_REGISTER_OUTPUT_OPERAND_TYPE)
-  REGISTER_INPUT_OPERAND_TYPE_LIST(IS_NOT_REGISTER_OUTPUT_OPERAND_TYPE)
-#undef IS_NOT_REGISTER_INPUT_OPERAND_TYPE
+  CHECK(Bytecodes::IsRegisterOutputOperandType(OperandType::kRegOutPair));
 }
 
 TEST(Bytecodes, DebugBreakExistForEachBytecode) {

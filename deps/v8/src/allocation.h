@@ -5,6 +5,7 @@
 #ifndef V8_ALLOCATION_H_
 #define V8_ALLOCATION_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/globals.h"
 
 namespace v8 {
@@ -39,7 +40,7 @@ class Embedded {
   void* operator new(size_t size);
   void  operator delete(void* p);
 };
-#define BASE_EMBEDDED : public Embedded
+#define BASE_EMBEDDED : public NON_EXPORTED_BASE(Embedded)
 #else
 #define BASE_EMBEDDED
 #endif

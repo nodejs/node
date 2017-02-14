@@ -8,10 +8,11 @@ load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function testExportedMain() {
+  print("TestExportedMain...");
   var kReturnValue = 88;
   var builder = new WasmModuleBuilder();
 
-  builder.addFunction("main", kSig_i)
+  builder.addFunction("main", kSig_i_v)
     .addBody([
       kExprI8Const,
       kReturnValue,
@@ -28,11 +29,12 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 })();
 
 (function testExportedTwice() {
+  print("TestExportedTwice...");
   var kReturnValue = 99;
 
   var builder = new WasmModuleBuilder();
 
-  builder.addFunction("main", kSig_i)
+  builder.addFunction("main", kSig_i_v)
     .addBody([
       kExprI8Const,
       kReturnValue,
@@ -49,15 +51,17 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   assertEquals(kReturnValue, module.exports.foo());
   assertEquals(kReturnValue, module.exports.blah());
+  assertSame(module.exports.blah, module.exports.foo);
 })();
 
 
 (function testNumericName() {
+  print("TestNumericName...");
   var kReturnValue = 93;
 
   var builder = new WasmModuleBuilder();
 
-  builder.addFunction("main", kSig_i)
+  builder.addFunction("main", kSig_i_v)
     .addBody([
       kExprI8Const,
       kReturnValue,
@@ -74,6 +78,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 })();
 
 (function testExportNameClash() {
+  print("TestExportNameClash...");
   var builder = new WasmModuleBuilder();
 
   builder.addFunction("one",   kSig_v_v).addBody([kExprNop]).exportAs("main");
@@ -86,4 +91,24 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   } catch (e) {
     assertContains("Duplicate export", e.toString());
   }
+})();
+
+
+(function testExportMultipleIdentity() {
+  print("TestExportMultipleIdentity...");
+  var builder = new WasmModuleBuilder();
+
+  builder.addFunction("one", kSig_v_v).addBody([kExprNop])
+    .exportAs("a")
+    .exportAs("b")
+    .exportAs("c");
+
+  let instance = builder.instantiate();
+  let e = instance.exports;
+  assertEquals("function", typeof e.a);
+  assertEquals("function", typeof e.b);
+  assertEquals("function", typeof e.c);
+  assertSame(e.a, e.b);
+  assertSame(e.a, e.c);
+  assertEquals("a", e.a.name);
 })();

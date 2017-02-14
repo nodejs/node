@@ -11,20 +11,21 @@ snippet: "
 "
 frame size: 10
 parameter count: 1
-bytecode array length: 69
+bytecode array length: 62
 bytecodes: [
                 B(CreateFunctionContext), U8(3),
                 B(PushContext), R(0),
                 B(Ldar), R(this),
-                B(StaContextSlot), R(context), U8(4), U8(0),
+                B(StaCurrentContextSlot), U8(4),
                 B(CreateMappedArguments),
-                B(StaContextSlot), R(context), U8(6), U8(0),
+                B(StaCurrentContextSlot), U8(6),
                 B(Ldar), R(new_target),
-                B(StaContextSlot), R(context), U8(5), U8(0),
+                B(StaCurrentContextSlot), U8(5),
   /*   30 E> */ B(StackCheck),
-  /*   34 S> */ B(LdaConstant), U8(0),
-                B(Star), R(4),
-                B(CallRuntimeForPair), U16(Runtime::kLoadLookupSlotForCall), R(4), U8(1), R(1),
+  /*   34 S> */ B(LdaUndefined),
+                B(Star), R(2),
+  /*   41 E> */ B(LdaLookupGlobalSlot), U8(0), U8(4), U8(1),
+                B(Star), R(1),
                 B(LdaConstant), U8(1),
                 B(Star), R(3),
                 B(LdaZero),
@@ -38,7 +39,7 @@ bytecodes: [
                 B(Mov), R(closure), R(6),
                 B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4), U8(6),
                 B(Star), R(1),
-  /*   41 E> */ B(Call), R(1), R(2), U8(2), U8(0),
+  /*   41 E> */ B(Call), R(1), R(2), U8(2), U8(2),
   /*   53 S> */ B(Return),
 ]
 constant pool: [

@@ -24,6 +24,8 @@ void HRepresentationChangesPhase::InsertRepresentationChangeForUse(
   HInstruction* new_value = NULL;
   bool is_truncating_to_smi = use_value->CheckFlag(HValue::kTruncatingToSmi);
   bool is_truncating_to_int = use_value->CheckFlag(HValue::kTruncatingToInt32);
+  bool is_truncating_to_number =
+      use_value->CheckFlag(HValue::kTruncatingToNumber);
   if (value->IsConstant()) {
     HConstant* constant = HConstant::cast(value);
     // Try to create a new copy of the constant with the new representation.
@@ -36,14 +38,9 @@ void HRepresentationChangesPhase::InsertRepresentationChangeForUse(
   }
 
   if (new_value == NULL) {
-    new_value = new(graph()->zone()) HChange(
-        value, to, is_truncating_to_smi, is_truncating_to_int);
-    if (!use_value->operand_position(use_index).IsUnknown()) {
-      new_value->set_position(use_value->operand_position(use_index));
-    } else {
-      DCHECK(!FLAG_hydrogen_track_positions ||
-             !graph()->info()->IsOptimizing());
-    }
+    new_value = new (graph()->zone())
+        HChange(value, to, is_truncating_to_smi, is_truncating_to_int,
+                is_truncating_to_number);
   }
 
   new_value->InsertBefore(next);
@@ -116,10 +113,15 @@ void HRepresentationChangesPhase::InsertRepresentationChangesForValue(
 
 
 void HRepresentationChangesPhase::Run() {
-  // Compute truncation flag for phis: Initially assume that all
-  // int32-phis allow truncation and iteratively remove the ones that
-  // are used in an operation that does not allow a truncating
-  // conversion.
+  // Compute truncation flag for phis:
+  //
+  // - Initially assume that all phis allow truncation to number and iteratively
+  //   remove the ones that are used in an operation that not do an implicit
+  //   ToNumber conversion.
+  // - Also assume that all Integer32 phis allow ToInt32 truncation and all
+  //   Smi phis allow truncation to Smi.
+  //
+  ZoneList<HPhi*> number_worklist(8, zone());
   ZoneList<HPhi*> int_worklist(8, zone());
   ZoneList<HPhi*> smi_worklist(8, zone());
 
@@ -132,28 +134,56 @@ void HRepresentationChangesPhase::Run() {
       phi->SetFlag(HValue::kTruncatingToSmi);
       phi->SetFlag(HValue::kTruncatingToInt32);
     }
+    phi->SetFlag(HValue::kTruncatingToNumber);
   }
 
   for (int i = 0; i < phi_list->length(); i++) {
     HPhi* phi = phi_list->at(i);
     HValue* value = NULL;
-    if (phi->representation().IsSmiOrInteger32() &&
-        !phi->CheckUsesForFlag(HValue::kTruncatingToInt32, &value)) {
+
+    if (phi->CheckFlag(HValue::kTruncatingToNumber) &&
+        !phi->CheckUsesForFlag(HValue::kTruncatingToNumber, &value)) {
+      number_worklist.Add(phi, zone());
+      phi->ClearFlag(HValue::kTruncatingToNumber);
+      phi->ClearFlag(HValue::kTruncatingToInt32);
+      phi->ClearFlag(HValue::kTruncatingToSmi);
+      if (FLAG_trace_representation) {
+        PrintF("#%d Phi is not truncating Number because of #%d %s\n",
+               phi->id(), value->id(), value->Mnemonic());
+      }
+    } else if (phi->representation().IsSmiOrInteger32() &&
+               !phi->CheckUsesForFlag(HValue::kTruncatingToInt32, &value)) {
       int_worklist.Add(phi, zone());
       phi->ClearFlag(HValue::kTruncatingToInt32);
+      phi->ClearFlag(HValue::kTruncatingToSmi);
       if (FLAG_trace_representation) {
         PrintF("#%d Phi is not truncating Int32 because of #%d %s\n",
                phi->id(), value->id(), value->Mnemonic());
       }
-    }
-
-    if (phi->representation().IsSmi() &&
-        !phi->CheckUsesForFlag(HValue::kTruncatingToSmi, &value)) {
+    } else if (phi->representation().IsSmi() &&
+               !phi->CheckUsesForFlag(HValue::kTruncatingToSmi, &value)) {
       smi_worklist.Add(phi, zone());
       phi->ClearFlag(HValue::kTruncatingToSmi);
       if (FLAG_trace_representation) {
         PrintF("#%d Phi is not truncating Smi because of #%d %s\n",
                phi->id(), value->id(), value->Mnemonic());
+      }
+    }
+  }
+
+  while (!number_worklist.is_empty()) {
+    HPhi* current = number_worklist.RemoveLast();
+    for (int i = current->OperandCount() - 1; i >= 0; --i) {
+      HValue* input = current->OperandAt(i);
+      if (input->IsPhi() && input->CheckFlag(HValue::kTruncatingToNumber)) {
+        if (FLAG_trace_representation) {
+          PrintF("#%d Phi is not truncating Number because of #%d %s\n",
+                 input->id(), current->id(), current->Mnemonic());
+        }
+        input->ClearFlag(HValue::kTruncatingToNumber);
+        input->ClearFlag(HValue::kTruncatingToInt32);
+        input->ClearFlag(HValue::kTruncatingToSmi);
+        number_worklist.Add(HPhi::cast(input), zone());
       }
     }
   }

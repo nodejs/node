@@ -9,6 +9,8 @@
   'Ieee754.Tan': [SKIP],
   'Ieee754.Acosh': [SKIP],
   'Ieee754.Asinh': [SKIP],
+  'MoveOptimizerTest.RemovesRedundantExplicit': [SKIP],
+  'RegisterAllocatorTest.CanAllocateFPRegisters': [SKIP],
 }],  # 'arch == x87'
 
 ['variant == asm_wasm', {

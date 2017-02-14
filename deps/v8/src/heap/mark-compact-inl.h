@@ -163,12 +163,14 @@ HeapObject* LiveObjectIterator<T>::Next() {
         current_cell_ = *it_.CurrentCell();
       }
 
+      Map* map = nullptr;
       if (current_cell_ & second_bit_index) {
         // We found a black object. If the black object is within a black area,
         // make sure that we skip all set bits in the black area until the
         // object ends.
         HeapObject* black_object = HeapObject::FromAddress(addr);
-        Address end = addr + black_object->Size() - kPointerSize;
+        map = base::NoBarrierAtomicValue<Map*>::FromAddress(addr)->Value();
+        Address end = addr + black_object->SizeFromMap(map) - kPointerSize;
         // One word filler objects do not borrow the second mark bit. We have
         // to jump over the advancing and clearing part.
         // Note that we know that we are at a one word filler when
@@ -198,9 +200,9 @@ HeapObject* LiveObjectIterator<T>::Next() {
 
       // We found a live object.
       if (object != nullptr) {
-        if (object->IsFiller()) {
-          // Black areas together with slack tracking may result in black filler
-          // objects. We filter these objects out in the iterator.
+        if (map != nullptr && map == heap()->one_pointer_filler_map()) {
+          // Black areas together with slack tracking may result in black one
+          // word filler objects. We filter these objects out in the iterator.
           object = nullptr;
         } else {
           break;

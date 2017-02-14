@@ -78,16 +78,12 @@ class Interpreter {
 
   // Generates code to perform the binary operation via |Generator|.
   template <class Generator>
-  void DoBinaryOp(InterpreterAssembler* assembler);
-
-  // Generates code to perform the binary operation via |Generator|.
-  template <class Generator>
   void DoBinaryOpWithFeedback(InterpreterAssembler* assembler);
 
   // Generates code to perform the comparison via |Generator| while gathering
   // type feedback.
-  template <class Generator>
-  void DoCompareOpWithFeedback(InterpreterAssembler* assembler);
+  void DoCompareOpWithFeedback(Token::Value compare_op,
+                               InterpreterAssembler* assembler);
 
   // Generates code to perform the bitwise binary operation corresponding to
   // |bitwise_op| while gathering type feedback.
@@ -98,10 +94,6 @@ class Interpreter {
   // an immediate value rather the accumulator as the rhs operand.
   template <class Generator>
   void DoBinaryOpWithImmediate(InterpreterAssembler* assembler);
-
-  // Generates code to perform the unary operation via |Generator|.
-  template <class Generator>
-  void DoUnaryOp(InterpreterAssembler* assembler);
 
   // Generates code to perform the unary operation via |Generator| while
   // gatering type feedback.
@@ -147,21 +139,10 @@ class Interpreter {
   void DoStaLookupSlot(LanguageMode language_mode,
                        InterpreterAssembler* assembler);
 
-  // Generates code to load a context slot.
-  compiler::Node* BuildLoadContextSlot(InterpreterAssembler* assembler);
-
   // Generates code to load a global.
   compiler::Node* BuildLoadGlobal(Callable ic, compiler::Node* context,
                                   compiler::Node* feedback_slot,
                                   InterpreterAssembler* assembler);
-
-  // Generates code to load a named property.
-  compiler::Node* BuildLoadNamedProperty(Callable ic,
-                                         InterpreterAssembler* assembler);
-
-  // Generates code to load a keyed property.
-  compiler::Node* BuildLoadKeyedProperty(Callable ic,
-                                         InterpreterAssembler* assembler);
 
   // Generates code to prepare the result for ForInPrepare. Cache data
   // are placed into the consecutive series of registers starting at
@@ -183,6 +164,7 @@ class Interpreter {
                                       OperandScale operand_scale);
 
   bool IsDispatchTableInitialized();
+  bool ShouldInitializeDispatchTable();
 
   static const int kNumberOfWideVariants = 3;
   static const int kDispatchTableSize = kNumberOfWideVariants * (kMaxUInt8 + 1);

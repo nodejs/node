@@ -20,7 +20,7 @@
 #include "src/runtime-profiler.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
-
+#include "src/tracing/tracing-category-observer.h"
 
 namespace v8 {
 namespace internal {
@@ -94,11 +94,13 @@ void V8::InitializePlatform(v8::Platform* platform) {
   CHECK(!platform_);
   CHECK(platform);
   platform_ = platform;
+  v8::tracing::TracingCategoryObserver::SetUp();
 }
 
 
 void V8::ShutdownPlatform() {
   CHECK(platform_);
+  v8::tracing::TracingCategoryObserver::TearDown();
   platform_ = NULL;
 }
 

@@ -9,6 +9,7 @@
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
 #include "src/frames.h"
+#include "src/globals.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/runtime/runtime.h"
@@ -17,7 +18,7 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-class InterpreterAssembler : public CodeStubAssembler {
+class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
  public:
   InterpreterAssembler(Isolate* isolate, Zone* zone, Bytecode bytecode,
                        OperandScale operand_scale);
@@ -91,15 +92,6 @@ class InterpreterAssembler : public CodeStubAssembler {
 
   // Load and untag constant at |index| in the constant pool.
   compiler::Node* LoadAndUntagConstantPoolEntry(compiler::Node* index);
-
-  // Load |slot_index| from |context|.
-  compiler::Node* LoadContextSlot(compiler::Node* context, int slot_index);
-  compiler::Node* LoadContextSlot(compiler::Node* context,
-                                  compiler::Node* slot_index);
-  // Stores |value| into |slot_index| of |context|.
-  compiler::Node* StoreContextSlot(compiler::Node* context,
-                                   compiler::Node* slot_index,
-                                   compiler::Node* value);
 
   // Load the TypeFeedbackVector for the current function.
   compiler::Node* LoadTypeFeedbackVector();

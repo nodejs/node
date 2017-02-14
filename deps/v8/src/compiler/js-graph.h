@@ -5,12 +5,14 @@
 #ifndef V8_COMPILER_JS_GRAPH_H_
 #define V8_COMPILER_JS_GRAPH_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/compiler/common-node-cache.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-properties.h"
+#include "src/globals.h"
 #include "src/isolate.h"
 
 namespace v8 {
@@ -23,7 +25,7 @@ class Typer;
 // Implements a facade on a Graph, enhancing the graph with JS-specific
 // notions, including various builders for operators, canonicalized global
 // constants, and various helper methods.
-class JSGraph : public ZoneObject {
+class V8_EXPORT_PRIVATE JSGraph : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   JSGraph(Isolate* isolate, Graph* graph, CommonOperatorBuilder* common,
           JSOperatorBuilder* javascript, SimplifiedOperatorBuilder* simplified,
@@ -106,10 +108,6 @@ class JSGraph : public ZoneObject {
     return machine()->Is32() ? Int32Constant(static_cast<int32_t>(value))
                              : Int64Constant(static_cast<int64_t>(value));
   }
-  template <typename T>
-  Node* PointerConstant(T* value) {
-    return IntPtrConstant(bit_cast<intptr_t>(value));
-  }
 
   Node* RelocatableInt32Constant(int32_t value, RelocInfo::Mode rmode);
   Node* RelocatableInt64Constant(int64_t value, RelocInfo::Mode rmode);
@@ -120,6 +118,13 @@ class JSGraph : public ZoneObject {
 
   // Creates a Float64Constant node, usually canonicalized.
   Node* Float64Constant(double value);
+
+  // Creates a PointerConstant node (asm.js only).
+  Node* PointerConstant(intptr_t value);
+  template <typename T>
+  Node* PointerConstant(T* value) {
+    return PointerConstant(bit_cast<intptr_t>(value));
+  }
 
   // Creates an ExternalConstant node, usually canonicalized.
   Node* ExternalConstant(ExternalReference ref);

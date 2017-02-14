@@ -17,7 +17,7 @@ namespace v8 {
 namespace internal {
 
 FastAccessorAssembler::FastAccessorAssembler(Isolate* isolate)
-    : zone_(isolate->allocator()),
+    : zone_(isolate->allocator(), ZONE_NAME),
       isolate_(isolate),
       assembler_(new CodeStubAssembler(isolate, zone(), 1,
                                        Code::ComputeFlags(Code::STUB),

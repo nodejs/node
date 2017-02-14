@@ -16,6 +16,8 @@ Reduction JSFrameSpecialization::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kOsrValue:
       return ReduceOsrValue(node);
+    case IrOpcode::kOsrGuard:
+      return ReduceOsrGuard(node);
     case IrOpcode::kParameter:
       return ReduceParameter(node);
     default:
@@ -24,11 +26,10 @@ Reduction JSFrameSpecialization::Reduce(Node* node) {
   return NoChange();
 }
 
-
 Reduction JSFrameSpecialization::ReduceOsrValue(Node* node) {
   DCHECK_EQ(IrOpcode::kOsrValue, node->opcode());
   Handle<Object> value;
-  int const index = OpParameter<int>(node);
+  int index = OsrValueIndexOf(node->op());
   int const parameters_count = frame()->ComputeParametersCount() + 1;
   if (index == Linkage::kOsrContextSpillSlotIndex) {
     value = handle(frame()->context(), isolate());
@@ -43,6 +44,12 @@ Reduction JSFrameSpecialization::ReduceOsrValue(Node* node) {
   return Replace(jsgraph()->Constant(value));
 }
 
+Reduction JSFrameSpecialization::ReduceOsrGuard(Node* node) {
+  DCHECK_EQ(IrOpcode::kOsrGuard, node->opcode());
+  ReplaceWithValue(node, node->InputAt(0),
+                   NodeProperties::GetEffectInput(node));
+  return Changed(node);
+}
 
 Reduction JSFrameSpecialization::ReduceParameter(Node* node) {
   DCHECK_EQ(IrOpcode::kParameter, node->opcode());

@@ -84,13 +84,17 @@ TestWithIsolateAndZone::~TestWithIsolateAndZone() {}
 
 Factory* TestWithIsolate::factory() const { return isolate()->factory(); }
 
-
 base::RandomNumberGenerator* TestWithIsolate::random_number_generator() const {
   return isolate()->random_number_generator();
 }
 
-
 TestWithZone::~TestWithZone() {}
+
+TestWithNativeContext::~TestWithNativeContext() {}
+
+Handle<Context> TestWithNativeContext::native_context() const {
+  return isolate()->native_context();
+}
 
 }  // namespace internal
 }  // namespace v8

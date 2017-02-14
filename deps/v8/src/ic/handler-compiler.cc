@@ -6,7 +6,7 @@
 
 #include "src/field-type.h"
 #include "src/ic/call-optimization.h"
-#include "src/ic/handler-configuration.h"
+#include "src/ic/handler-configuration-inl.h"
 #include "src/ic/ic-inl.h"
 #include "src/ic/ic.h"
 #include "src/isolate-inl.h"
@@ -65,7 +65,10 @@ Handle<Code> NamedLoadHandlerCompiler::ComputeLoadNonexistent(
   // name specific if there are global objects involved.
   Handle<Code> handler = PropertyHandlerCompiler::Find(
       cache_name, stub_holder_map, Code::LOAD_IC, flag);
-  if (!handler.is_null()) return handler;
+  if (!handler.is_null()) {
+    TRACE_HANDLER_STATS(isolate, LoadIC_HandlerCacheHit_NonExistent);
+    return handler;
+  }
 
   TRACE_HANDLER_STATS(isolate, LoadIC_LoadNonexistent);
   NamedLoadHandlerCompiler compiler(isolate, receiver_map, last, flag);
@@ -95,24 +98,23 @@ Register NamedLoadHandlerCompiler::FrontendHeader(Register object_reg,
                                                   Handle<Name> name,
                                                   Label* miss,
                                                   ReturnHolder return_what) {
-  PrototypeCheckType check_type = SKIP_RECEIVER;
-  int function_index = map()->IsPrimitiveMap()
-                           ? map()->GetConstructorFunctionIndex()
-                           : Map::kNoConstructorFunctionIndex;
-  if (function_index != Map::kNoConstructorFunctionIndex) {
-    GenerateDirectLoadGlobalFunctionPrototype(masm(), function_index,
-                                              scratch1(), miss);
-    Object* function = isolate()->native_context()->get(function_index);
-    Object* prototype = JSFunction::cast(function)->instance_prototype();
-    Handle<Map> map(JSObject::cast(prototype)->map());
-    set_map(map);
-    object_reg = scratch1();
-    check_type = CHECK_ALL_MAPS;
+  if (map()->IsPrimitiveMap() || map()->IsJSGlobalProxyMap()) {
+    // If the receiver is a global proxy and if we get to this point then
+    // the compile-time (current) native context has access to global proxy's
+    // native context. Since access rights revocation is not supported at all,
+    // we can generate a check that an execution-time native context is either
+    // the same as compile-time native context or has the same access token.
+    Handle<Context> native_context = isolate()->native_context();
+    Handle<WeakCell> weak_cell(native_context->self_weak_cell(), isolate());
+
+    bool compare_native_contexts_only = map()->IsPrimitiveMap();
+    GenerateAccessCheck(weak_cell, scratch1(), scratch2(), miss,
+                        compare_native_contexts_only);
   }
 
   // Check that the maps starting from the prototype haven't changed.
   return CheckPrototypes(object_reg, scratch1(), scratch2(), scratch3(), name,
-                         miss, check_type, return_what);
+                         miss, return_what);
 }
 
 
@@ -122,8 +124,14 @@ Register NamedStoreHandlerCompiler::FrontendHeader(Register object_reg,
                                                    Handle<Name> name,
                                                    Label* miss,
                                                    ReturnHolder return_what) {
+  if (map()->IsJSGlobalProxyMap()) {
+    Handle<Context> native_context = isolate()->native_context();
+    Handle<WeakCell> weak_cell(native_context->self_weak_cell(), isolate());
+    GenerateAccessCheck(weak_cell, scratch1(), scratch2(), miss, false);
+  }
+
   return CheckPrototypes(object_reg, this->name(), scratch1(), scratch2(), name,
-                         miss, SKIP_RECEIVER, return_what);
+                         miss, return_what);
 }
 
 
@@ -224,7 +232,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadNonexistent(
 
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
     Handle<Name> name, Handle<AccessorInfo> callback, Handle<Code> slow_stub) {
-  if (FLAG_runtime_call_stats) {
+  if (V8_UNLIKELY(FLAG_runtime_stats)) {
     GenerateTailCall(masm(), slow_stub);
   }
   Register reg = Frontend(name);
@@ -236,7 +244,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
     Handle<Name> name, const CallOptimization& call_optimization,
     int accessor_index, Handle<Code> slow_stub) {
   DCHECK(call_optimization.is_simple_api_call());
-  if (FLAG_runtime_call_stats) {
+  if (V8_UNLIKELY(FLAG_runtime_stats)) {
     GenerateTailCall(masm(), slow_stub);
   }
   Register holder = Frontend(name);
@@ -590,7 +598,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
     Handle<JSObject> object, Handle<Name> name,
     const CallOptimization& call_optimization, int accessor_index,
     Handle<Code> slow_stub) {
-  if (FLAG_runtime_call_stats) {
+  if (V8_UNLIKELY(FLAG_runtime_stats)) {
     GenerateTailCall(masm(), slow_stub);
   }
   Register holder = Frontend(name);
@@ -633,11 +641,9 @@ Handle<Object> ElementHandlerCompiler::GetKeyedLoadHandler(
   bool is_js_array = instance_type == JS_ARRAY_TYPE;
   if (elements_kind == DICTIONARY_ELEMENTS) {
     if (FLAG_tf_load_ic_stub) {
-      int config = KeyedLoadElementsKind::encode(elements_kind) |
-                   KeyedLoadConvertHole::encode(false) |
-                   KeyedLoadIsJsArray::encode(is_js_array) |
-                   LoadHandlerTypeBit::encode(kLoadICHandlerForElements);
-      return handle(Smi::FromInt(config), isolate);
+      TRACE_HANDLER_STATS(isolate, KeyedLoadIC_LoadElementDH);
+      return LoadHandler::LoadElement(isolate, elements_kind, false,
+                                      is_js_array);
     }
     TRACE_HANDLER_STATS(isolate, KeyedLoadIC_LoadDictionaryElementStub);
     return LoadDictionaryElementStub(isolate).GetCode();
@@ -649,11 +655,9 @@ Handle<Object> ElementHandlerCompiler::GetKeyedLoadHandler(
       is_js_array && elements_kind == FAST_HOLEY_ELEMENTS &&
       *receiver_map == isolate->get_initial_js_array_map(elements_kind);
   if (FLAG_tf_load_ic_stub) {
-    int config = KeyedLoadElementsKind::encode(elements_kind) |
-                 KeyedLoadConvertHole::encode(convert_hole_to_undefined) |
-                 KeyedLoadIsJsArray::encode(is_js_array) |
-                 LoadHandlerTypeBit::encode(kLoadICHandlerForElements);
-    return handle(Smi::FromInt(config), isolate);
+    TRACE_HANDLER_STATS(isolate, KeyedLoadIC_LoadElementDH);
+    return LoadHandler::LoadElement(isolate, elements_kind,
+                                    convert_hole_to_undefined, is_js_array);
   } else {
     TRACE_HANDLER_STATS(isolate, KeyedLoadIC_LoadFastElementStub);
     return LoadFastElementStub(isolate, is_js_array, elements_kind,

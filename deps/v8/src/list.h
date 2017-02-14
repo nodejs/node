@@ -129,7 +129,8 @@ class List {
   INLINE(void Allocate(int length,
                        AllocationPolicy allocator = AllocationPolicy()));
 
-  // Clears the list by setting the length to zero. Even if T is a
+  // Clears the list by freeing the storage memory. If you want to keep the
+  // memory, use Rewind(0) instead. Be aware, that even if T is a
   // pointer type, clearing the list doesn't delete the entries.
   INLINE(void Clear());
 

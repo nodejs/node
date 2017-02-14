@@ -1818,13 +1818,11 @@ TEST(uxtah) {
   }
 }
 
-
 #define TEST_RBIT(expected_, input_)                       \
   t.input = input_;                                        \
   t.result = 0;                                            \
   dummy = CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0); \
-  CHECK_EQ(expected_, t.result);
-
+  CHECK_EQ(static_cast<uint32_t>(expected_), t.result);
 
 TEST(rbit) {
   CcTest::InitializeVM();
@@ -2808,21 +2806,21 @@ TEST(unaligned_loads) {
 #endif
   uint64_t data = UINT64_C(0x84838281807f7e7d);
   dummy = CALL_GENERATED_CODE(isolate, f, &t, &data, 0, 0, 0);
-  CHECK_EQ(0x00007e7d, t.ldrh);
-  CHECK_EQ(0x00007e7d, t.ldrsh);
-  CHECK_EQ(0x807f7e7d, t.ldr);
+  CHECK_EQ(0x00007e7du, t.ldrh);
+  CHECK_EQ(0x00007e7du, t.ldrsh);
+  CHECK_EQ(0x807f7e7du, t.ldr);
   dummy = CALL_GENERATED_CODE(isolate, f, &t, &data, 1, 0, 0);
-  CHECK_EQ(0x00007f7e, t.ldrh);
-  CHECK_EQ(0x00007f7e, t.ldrsh);
-  CHECK_EQ(0x81807f7e, t.ldr);
+  CHECK_EQ(0x00007f7eu, t.ldrh);
+  CHECK_EQ(0x00007f7eu, t.ldrsh);
+  CHECK_EQ(0x81807f7eu, t.ldr);
   dummy = CALL_GENERATED_CODE(isolate, f, &t, &data, 2, 0, 0);
-  CHECK_EQ(0x0000807f, t.ldrh);
-  CHECK_EQ(0xffff807f, t.ldrsh);
-  CHECK_EQ(0x8281807f, t.ldr);
+  CHECK_EQ(0x0000807fu, t.ldrh);
+  CHECK_EQ(0xffff807fu, t.ldrsh);
+  CHECK_EQ(0x8281807fu, t.ldr);
   dummy = CALL_GENERATED_CODE(isolate, f, &t, &data, 3, 0, 0);
-  CHECK_EQ(0x00008180, t.ldrh);
-  CHECK_EQ(0xffff8180, t.ldrsh);
-  CHECK_EQ(0x83828180, t.ldr);
+  CHECK_EQ(0x00008180u, t.ldrh);
+  CHECK_EQ(0xffff8180u, t.ldrsh);
+  CHECK_EQ(0x83828180u, t.ldr);
 }
 
 TEST(unaligned_stores) {

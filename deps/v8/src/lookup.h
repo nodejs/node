@@ -6,13 +6,14 @@
 #define V8_LOOKUP_H_
 
 #include "src/factory.h"
+#include "src/globals.h"
 #include "src/isolate.h"
 #include "src/objects.h"
 
 namespace v8 {
 namespace internal {
 
-class LookupIterator final BASE_EMBEDDED {
+class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
  public:
   enum Configuration {
     // Configuration bits.
@@ -237,6 +238,7 @@ class LookupIterator final BASE_EMBEDDED {
   }
   FieldIndex GetFieldIndex() const;
   Handle<FieldType> GetFieldType() const;
+  int GetFieldDescriptorIndex() const;
   int GetAccessorIndex() const;
   int GetConstantIndex() const;
   Handle<PropertyCell> GetPropertyCell() const;
@@ -256,10 +258,16 @@ class LookupIterator final BASE_EMBEDDED {
     if (*name_ == heap()->is_concat_spreadable_symbol() ||
         *name_ == heap()->constructor_string() ||
         *name_ == heap()->species_symbol() ||
-        *name_ == heap()->has_instance_symbol()) {
+        *name_ == heap()->has_instance_symbol() ||
+        *name_ == heap()->iterator_symbol()) {
       InternalUpdateProtector();
     }
   }
+
+  // Lookup a 'cached' private property for an accessor.
+  // If not found returns false and leaves the LookupIterator unmodified.
+  bool TryLookupCachedProperty();
+  bool LookupCachedProperty();
 
  private:
   void InternalUpdateProtector();

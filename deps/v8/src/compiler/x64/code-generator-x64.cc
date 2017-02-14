@@ -4,6 +4,8 @@
 
 #include "src/compiler/code-generator.h"
 
+#include <limits>
+
 #include "src/compilation-info.h"
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/gap-resolver.h"
@@ -445,7 +447,7 @@ class WasmOutOfLineTrap final : public OutOfLineCode {
     OutOfLineCode* ool;                                                      \
     if (instr->InputAt(3)->IsRegister()) {                                   \
       auto length = i.InputRegister(3);                                      \
-      DCHECK_EQ(0, index2);                                                  \
+      DCHECK_EQ(0u, index2);                                                 \
       __ cmpl(index1, length);                                               \
       ool = new (zone()) OutOfLineLoadNaN(this, result);                     \
     } else {                                                                 \
@@ -500,7 +502,7 @@ class WasmOutOfLineTrap final : public OutOfLineCode {
     OutOfLineCode* ool;                                                        \
     if (instr->InputAt(3)->IsRegister()) {                                     \
       auto length = i.InputRegister(3);                                        \
-      DCHECK_EQ(0, index2);                                                    \
+      DCHECK_EQ(0u, index2);                                                   \
       __ cmpl(index1, length);                                                 \
       ool = new (zone()) OutOfLineLoadZero(this, result);                      \
     } else {                                                                   \
@@ -557,7 +559,7 @@ class WasmOutOfLineTrap final : public OutOfLineCode {
     auto value = i.InputDoubleRegister(4);                                   \
     if (instr->InputAt(3)->IsRegister()) {                                   \
       auto length = i.InputRegister(3);                                      \
-      DCHECK_EQ(0, index2);                                                  \
+      DCHECK_EQ(0u, index2);                                                 \
       Label done;                                                            \
       __ cmpl(index1, length);                                               \
       __ j(above_equal, &done, Label::kNear);                                \
@@ -612,7 +614,7 @@ class WasmOutOfLineTrap final : public OutOfLineCode {
     auto index2 = i.InputUint32(2);                                            \
     if (instr->InputAt(3)->IsRegister()) {                                     \
       auto length = i.InputRegister(3);                                        \
-      DCHECK_EQ(0, index2);                                                    \
+      DCHECK_EQ(0u, index2);                                                   \
       Label done;                                                              \
       __ cmpl(index1, length);                                                 \
       __ j(above_equal, &done, Label::kNear);                                  \
@@ -848,19 +850,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       RecordCallPosition(instr);
       break;
     }
-    case kArchTailCallJSFunctionFromJSFunction:
-    case kArchTailCallJSFunction: {
+    case kArchTailCallJSFunctionFromJSFunction: {
       Register func = i.InputRegister(0);
       if (FLAG_debug_code) {
         // Check the function's context matches the context argument.
         __ cmpp(rsi, FieldOperand(func, JSFunction::kContextOffset));
         __ Assert(equal, kWrongFunctionContext);
       }
-      if (arch_opcode == kArchTailCallJSFunctionFromJSFunction) {
-        AssemblePopArgumentsAdaptorFrame(kJavaScriptCallArgCountRegister,
-                                         i.TempRegister(0), i.TempRegister(1),
-                                         i.TempRegister(2));
-      }
+      AssemblePopArgumentsAdaptorFrame(kJavaScriptCallArgCountRegister,
+                                       i.TempRegister(0), i.TempRegister(1),
+                                       i.TempRegister(2));
       __ jmp(FieldOperand(func, JSFunction::kCodeEntryOffset));
       frame_access_state()->ClearSPDelta();
       frame_access_state()->SetFrameAccessToDefault();
@@ -921,7 +920,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchRet:
-      AssembleReturn();
+      AssembleReturn(instr->InputAt(0));
       break;
     case kArchStackPointer:
       __ movq(i.OutputRegister(), rsp);
@@ -1997,7 +1996,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           if (i.InputRegister(1).is(i.OutputRegister())) {
             __ shll(i.OutputRegister(), Immediate(1));
           } else {
-            __ leal(i.OutputRegister(), i.MemoryOperand());
+            __ addl(i.OutputRegister(), i.InputRegister(1));
           }
         } else if (mode == kMode_M2) {
           __ shll(i.OutputRegister(), Immediate(1));
@@ -2008,15 +2007,51 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         } else {
           __ leal(i.OutputRegister(), i.MemoryOperand());
         }
+      } else if (mode == kMode_MR1 &&
+                 i.InputRegister(1).is(i.OutputRegister())) {
+        __ addl(i.OutputRegister(), i.InputRegister(0));
       } else {
         __ leal(i.OutputRegister(), i.MemoryOperand());
       }
       __ AssertZeroExtended(i.OutputRegister());
       break;
     }
-    case kX64Lea:
-      __ leaq(i.OutputRegister(), i.MemoryOperand());
+    case kX64Lea: {
+      AddressingMode mode = AddressingModeField::decode(instr->opcode());
+      // Shorten "leaq" to "addq", "subq" or "shlq" if the register allocation
+      // and addressing mode just happens to work out. The "addq"/"subq" forms
+      // in these cases are faster based on measurements.
+      if (i.InputRegister(0).is(i.OutputRegister())) {
+        if (mode == kMode_MRI) {
+          int32_t constant_summand = i.InputInt32(1);
+          if (constant_summand > 0) {
+            __ addq(i.OutputRegister(), Immediate(constant_summand));
+          } else if (constant_summand < 0) {
+            __ subq(i.OutputRegister(), Immediate(-constant_summand));
+          }
+        } else if (mode == kMode_MR1) {
+          if (i.InputRegister(1).is(i.OutputRegister())) {
+            __ shlq(i.OutputRegister(), Immediate(1));
+          } else {
+            __ addq(i.OutputRegister(), i.InputRegister(1));
+          }
+        } else if (mode == kMode_M2) {
+          __ shlq(i.OutputRegister(), Immediate(1));
+        } else if (mode == kMode_M4) {
+          __ shlq(i.OutputRegister(), Immediate(2));
+        } else if (mode == kMode_M8) {
+          __ shlq(i.OutputRegister(), Immediate(3));
+        } else {
+          __ leaq(i.OutputRegister(), i.MemoryOperand());
+        }
+      } else if (mode == kMode_MR1 &&
+                 i.InputRegister(1).is(i.OutputRegister())) {
+        __ addq(i.OutputRegister(), i.InputRegister(0));
+      } else {
+        __ leaq(i.OutputRegister(), i.MemoryOperand());
+      }
       break;
+    }
     case kX64Dec32:
       __ decl(i.OutputRegister());
       break;
@@ -2316,7 +2351,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   if (deopt_entry == nullptr) return kTooManyDeoptimizationBailouts;
   DeoptimizeReason deoptimization_reason =
       GetDeoptimizationReason(deoptimization_id);
-  __ RecordDeoptReason(deoptimization_reason, pos.raw(), deoptimization_id);
+  __ RecordDeoptReason(deoptimization_reason, pos, deoptimization_id);
   __ call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
   return kSuccess;
 }
@@ -2362,6 +2397,9 @@ void CodeGenerator::AssembleConstructFrame() {
       __ movq(rbp, rsp);
     } else if (descriptor->IsJSFunctionCall()) {
       __ Prologue(this->info()->GeneratePreagedPrologue());
+      if (descriptor->PushArgumentCount()) {
+        __ pushq(kJavaScriptCallArgCountRegister);
+      }
     } else {
       __ StubPrologue(info()->GetOutputStackFrameType());
     }
@@ -2370,7 +2408,8 @@ void CodeGenerator::AssembleConstructFrame() {
       unwinding_info_writer_.MarkFrameConstructed(pc_base);
     }
   }
-  int shrink_slots = frame()->GetSpillSlotCount();
+  int shrink_slots =
+      frame()->GetTotalFrameSlotCount() - descriptor->CalculateFixedFrameSize();
 
   if (info()->is_osr()) {
     // TurboFan OSR-compiled functions cannot be entered directly.
@@ -2414,8 +2453,7 @@ void CodeGenerator::AssembleConstructFrame() {
   }
 }
 
-
-void CodeGenerator::AssembleReturn() {
+void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
 
   // Restore registers.
@@ -2444,22 +2482,41 @@ void CodeGenerator::AssembleReturn() {
 
   unwinding_info_writer_.MarkBlockWillExit();
 
+  // Might need rcx for scratch if pop_size is too big or if there is a variable
+  // pop count.
+  DCHECK_EQ(0u, descriptor->CalleeSavedRegisters() & rcx.bit());
+  DCHECK_EQ(0u, descriptor->CalleeSavedRegisters() & rdx.bit());
+  size_t pop_size = descriptor->StackParameterCount() * kPointerSize;
+  X64OperandConverter g(this, nullptr);
   if (descriptor->IsCFunctionCall()) {
     AssembleDeconstructFrame();
   } else if (frame_access_state()->has_frame()) {
-    // Canonicalize JSFunction return sites for now.
-    if (return_label_.is_bound()) {
-      __ jmp(&return_label_);
-      return;
+    if (pop->IsImmediate() && g.ToConstant(pop).ToInt32() == 0) {
+      // Canonicalize JSFunction return sites for now.
+      if (return_label_.is_bound()) {
+        __ jmp(&return_label_);
+        return;
+      } else {
+        __ bind(&return_label_);
+        AssembleDeconstructFrame();
+      }
     } else {
-      __ bind(&return_label_);
       AssembleDeconstructFrame();
     }
   }
-  size_t pop_size = descriptor->StackParameterCount() * kPointerSize;
-  // Might need rcx for scratch if pop_size is too big.
-  DCHECK_EQ(0u, descriptor->CalleeSavedRegisters() & rcx.bit());
-  __ Ret(static_cast<int>(pop_size), rcx);
+
+  if (pop->IsImmediate()) {
+    DCHECK_EQ(Constant::kInt32, g.ToConstant(pop).type());
+    pop_size += g.ToConstant(pop).ToInt32() * kPointerSize;
+    CHECK_LT(pop_size, static_cast<size_t>(std::numeric_limits<int>::max()));
+    __ Ret(static_cast<int>(pop_size), rcx);
+  } else {
+    Register pop_reg = g.ToRegister(pop);
+    Register scratch_reg = pop_reg.is(rcx) ? rdx : rcx;
+    __ popq(scratch_reg);
+    __ leaq(rsp, Operand(rsp, pop_reg, times_8, static_cast<int>(pop_size)));
+    __ jmp(scratch_reg);
+  }
 }
 
 

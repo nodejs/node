@@ -6,6 +6,7 @@
 
 #include "src/code-factory.h"
 #include "src/compiler/access-builder.h"
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
@@ -17,10 +18,13 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-EffectControlLinearizer::EffectControlLinearizer(JSGraph* js_graph,
-                                                 Schedule* schedule,
-                                                 Zone* temp_zone)
-    : js_graph_(js_graph), schedule_(schedule), temp_zone_(temp_zone) {}
+EffectControlLinearizer::EffectControlLinearizer(
+    JSGraph* js_graph, Schedule* schedule, Zone* temp_zone,
+    SourcePositionTable* source_positions)
+    : js_graph_(js_graph),
+      schedule_(schedule),
+      temp_zone_(temp_zone),
+      source_positions_(source_positions) {}
 
 Graph* EffectControlLinearizer::graph() const { return js_graph_->graph(); }
 CommonOperatorBuilder* EffectControlLinearizer::common() const {
@@ -74,7 +78,8 @@ void UpdateEffectPhi(Node* node, BasicBlock* block,
   // Update all inputs to an effect phi with the effects from the given
   // block->effect map.
   DCHECK_EQ(IrOpcode::kEffectPhi, node->opcode());
-  DCHECK_EQ(node->op()->EffectInputCount(), block->PredecessorCount());
+  DCHECK_EQ(static_cast<size_t>(node->op()->EffectInputCount()),
+            block->PredecessorCount());
   for (int i = 0; i < node->op()->EffectInputCount(); i++) {
     Node* input = node->InputAt(i);
     BasicBlock* predecessor = block->PredecessorAt(static_cast<size_t>(i));
@@ -96,8 +101,10 @@ void UpdateBlockControl(BasicBlock* block,
 
   // Update all inputs to the given control node with the correct control.
   DCHECK(control->opcode() == IrOpcode::kMerge ||
-         control->op()->ControlInputCount() == block->PredecessorCount());
-  if (control->op()->ControlInputCount() != block->PredecessorCount()) {
+         static_cast<size_t>(control->op()->ControlInputCount()) ==
+             block->PredecessorCount());
+  if (static_cast<size_t>(control->op()->ControlInputCount()) !=
+      block->PredecessorCount()) {
     return;  // We already re-wired the control inputs of this node.
   }
   for (int i = 0; i < control->op()->ControlInputCount(); i++) {
@@ -141,7 +148,8 @@ void RemoveRegionNode(Node* node) {
 
 void TryCloneBranch(Node* node, BasicBlock* block, Graph* graph,
                     CommonOperatorBuilder* common,
-                    BlockEffectControlMap* block_effects) {
+                    BlockEffectControlMap* block_effects,
+                    SourcePositionTable* source_positions) {
   DCHECK_EQ(IrOpcode::kBranch, node->opcode());
 
   // This optimization is a special case of (super)block cloning. It takes an
@@ -193,6 +201,8 @@ void TryCloneBranch(Node* node, BasicBlock* block, Graph* graph,
   //       ^                   ^
   //       |                   |
 
+  SourcePositionTable::Scope scope(source_positions,
+                                   source_positions->GetSourcePosition(node));
   Node* branch = node;
   Node* cond = NodeProperties::GetValueInput(branch, 0);
   if (!cond->OwnedBy(branch) || cond->opcode() != IrOpcode::kPhi) return;
@@ -246,7 +256,7 @@ void TryCloneBranch(Node* node, BasicBlock* block, Graph* graph,
     merge_true->AppendInput(graph->zone(), merge_true_inputs[i]);
     merge_false->AppendInput(graph->zone(), merge_false_inputs[i]);
   }
-  DCHECK_EQ(2, block->SuccessorCount());
+  DCHECK_EQ(2u, block->SuccessorCount());
   NodeProperties::ChangeOp(matcher.IfTrue(), common->Merge(input_count));
   NodeProperties::ChangeOp(matcher.IfFalse(), common->Merge(input_count));
   int const true_index =
@@ -445,7 +455,7 @@ void EffectControlLinearizer::Run() {
       case BasicBlock::kBranch:
         ProcessNode(block->control_input(), &frame_state, &effect, &control);
         TryCloneBranch(block->control_input(), block, graph(), common(),
-                       &block_effects);
+                       &block_effects, source_positions_);
         break;
     }
 
@@ -491,6 +501,9 @@ void TryScheduleCallIfSuccess(Node* node, Node** control) {
 
 void EffectControlLinearizer::ProcessNode(Node* node, Node** frame_state,
                                           Node** effect, Node** control) {
+  SourcePositionTable::Scope scope(source_positions_,
+                                   source_positions_->GetSourcePosition(node));
+
   // If the node needs to be wired into the effect/control chain, do this
   // here. Pass current frame state for lowering to eager deoptimization.
   if (TryWireInStateEffect(node, *frame_state, effect, control)) {
@@ -600,6 +613,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kChangeFloat64ToTagged:
       state = LowerChangeFloat64ToTagged(node, *effect, *control);
       break;
+    case IrOpcode::kChangeFloat64ToTaggedPointer:
+      state = LowerChangeFloat64ToTaggedPointer(node, *effect, *control);
+      break;
     case IrOpcode::kChangeTaggedSignedToInt32:
       state = LowerChangeTaggedSignedToInt32(node, *effect, *control);
       break;
@@ -635,9 +651,6 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kCheckIf:
       state = LowerCheckIf(node, frame_state, *effect, *control);
-      break;
-    case IrOpcode::kCheckHeapObject:
-      state = LowerCheckHeapObject(node, frame_state, *effect, *control);
       break;
     case IrOpcode::kCheckedInt32Add:
       state = LowerCheckedInt32Add(node, frame_state, *effect, *control);
@@ -687,6 +700,10 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckedTaggedToTaggedSigned:
       state = LowerCheckedTaggedToTaggedSigned(node, frame_state, *effect,
                                                *control);
+      break;
+    case IrOpcode::kCheckedTaggedToTaggedPointer:
+      state = LowerCheckedTaggedToTaggedPointer(node, frame_state, *effect,
+                                                *control);
       break;
     case IrOpcode::kTruncateTaggedToWord32:
       state = LowerTruncateTaggedToWord32(node, *effect, *control);
@@ -776,6 +793,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kFloat64RoundTruncate:
       state = LowerFloat64RoundTruncate(node, *effect, *control);
       break;
+    case IrOpcode::kFloat64RoundTiesEven:
+      state = LowerFloat64RoundTiesEven(node, *effect, *control);
+      break;
     default:
       return false;
   }
@@ -788,6 +808,14 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
 EffectControlLinearizer::ValueEffectControl
 EffectControlLinearizer::LowerChangeFloat64ToTagged(Node* node, Node* effect,
                                                     Node* control) {
+  Node* value = node->InputAt(0);
+  return AllocateHeapNumberWithValue(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerChangeFloat64ToTaggedPointer(Node* node,
+                                                           Node* effect,
+                                                           Node* control) {
   Node* value = node->InputAt(0);
   return AllocateHeapNumberWithValue(value, effect, control);
 }
@@ -901,15 +929,14 @@ EffectControlLinearizer::ValueEffectControl
 EffectControlLinearizer::LowerTruncateTaggedToBit(Node* node, Node* effect,
                                                   Node* control) {
   Node* value = node->InputAt(0);
-  Node* one = jsgraph()->Int32Constant(1);
   Node* zero = jsgraph()->Int32Constant(0);
   Node* fzero = jsgraph()->Float64Constant(0.0);
 
   // Collect effect/control/value triples.
   int count = 0;
-  Node* values[7];
-  Node* effects[7];
-  Node* controls[6];
+  Node* values[6];
+  Node* effects[6];
+  Node* controls[5];
 
   // Check if {value} is a Smi.
   Node* check_smi = ObjectIsSmi(value);
@@ -925,7 +952,7 @@ EffectControlLinearizer::LowerTruncateTaggedToBit(Node* node, Node* effect,
     values[count] =
         graph()->NewNode(machine()->Word32Equal(),
                          graph()->NewNode(machine()->WordEqual(), value,
-                                          jsgraph()->ZeroConstant()),
+                                          jsgraph()->IntPtrConstant(0)),
                          zero);
     count++;
   }
@@ -978,7 +1005,7 @@ EffectControlLinearizer::LowerTruncateTaggedToBit(Node* node, Node* effect,
     values[count] =
         graph()->NewNode(machine()->Word32Equal(),
                          graph()->NewNode(machine()->WordEqual(), value_length,
-                                          jsgraph()->ZeroConstant()),
+                                          jsgraph()->IntPtrConstant(0)),
                          zero);
     count++;
   }
@@ -1000,20 +1027,12 @@ EffectControlLinearizer::LowerTruncateTaggedToBit(Node* node, Node* effect,
         simplified()->LoadField(AccessBuilder::ForHeapNumberValue()), value,
         eheapnumber, if_heapnumber);
 
-    // Check if {value} is either less than 0.0 or greater than 0.0.
-    Node* check =
-        graph()->NewNode(machine()->Float64LessThan(), fzero, value_value);
-    Node* branch = graph()->NewNode(common()->Branch(), check, if_heapnumber);
-
-    controls[count] = graph()->NewNode(common()->IfTrue(), branch);
+    // Check if {value} is not one of 0, -0, or NaN.
+    controls[count] = if_heapnumber;
     effects[count] = eheapnumber;
-    values[count] = one;
-    count++;
-
-    controls[count] = graph()->NewNode(common()->IfFalse(), branch);
-    effects[count] = eheapnumber;
-    values[count] =
-        graph()->NewNode(machine()->Float64LessThan(), value_value, fzero);
+    values[count] = graph()->NewNode(
+        machine()->Float64LessThan(), fzero,
+        graph()->NewNode(machine()->Float64Abs(), value_value));
     count++;
   }
   control = graph()->NewNode(common()->IfFalse(), branch_heapnumber);
@@ -1269,19 +1288,6 @@ EffectControlLinearizer::LowerCheckIf(Node* node, Node* frame_state,
   control = effect =
       graph()->NewNode(common()->DeoptimizeUnless(DeoptimizeReason::kNoReason),
                        value, frame_state, effect, control);
-
-  return ValueEffectControl(value, effect, control);
-}
-
-EffectControlLinearizer::ValueEffectControl
-EffectControlLinearizer::LowerCheckHeapObject(Node* node, Node* frame_state,
-                                              Node* effect, Node* control) {
-  Node* value = node->InputAt(0);
-
-  Node* check = ObjectIsSmi(value);
-  control = effect =
-      graph()->NewNode(common()->DeoptimizeIf(DeoptimizeReason::kSmi), check,
-                       frame_state, effect, control);
 
   return ValueEffectControl(value, effect, control);
 }
@@ -1818,8 +1824,7 @@ EffectControlLinearizer::BuildCheckedHeapNumberOrOddballToFloat64(
           graph()->NewNode(machine()->Word32Equal(), instance_type,
                            jsgraph()->Int32Constant(ODDBALL_TYPE));
       if_false = efalse = graph()->NewNode(
-          common()->DeoptimizeUnless(
-              DeoptimizeReason::kNotAHeapNumberUndefinedBoolean),
+          common()->DeoptimizeUnless(DeoptimizeReason::kNotANumberOrOddball),
           check_oddball, frame_state, efalse, if_false);
       STATIC_ASSERT(HeapNumber::kValueOffset == Oddball::kToNumberRawOffset);
 
@@ -1879,6 +1884,21 @@ EffectControlLinearizer::LowerCheckedTaggedToTaggedSigned(Node* node,
   control = effect =
       graph()->NewNode(common()->DeoptimizeUnless(DeoptimizeReason::kNotASmi),
                        check, frame_state, effect, control);
+
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerCheckedTaggedToTaggedPointer(Node* node,
+                                                           Node* frame_state,
+                                                           Node* effect,
+                                                           Node* control) {
+  Node* value = node->InputAt(0);
+
+  Node* check = ObjectIsSmi(value);
+  control = effect =
+      graph()->NewNode(common()->DeoptimizeIf(DeoptimizeReason::kSmi), check,
+                       frame_state, effect, control);
 
   return ValueEffectControl(value, effect, control);
 }
@@ -2447,104 +2467,63 @@ EffectControlLinearizer::LowerStringFromCharCode(Node* node, Node* effect,
   Node* branch0 =
       graph()->NewNode(common()->Branch(BranchHint::kTrue), check0, control);
 
-  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
-  Node* etrue0 = effect;
-  Node* vtrue0;
-  {
-    // Load the isolate wide single character string cache.
-    Node* cache =
-        jsgraph()->HeapConstant(factory()->single_character_string_cache());
-
-    // Compute the {cache} index for {code}.
-    Node* index =
-        machine()->Is32() ? code : graph()->NewNode(
-                                       machine()->ChangeUint32ToUint64(), code);
-
-    // Check if we have an entry for the {code} in the single character string
-    // cache already.
-    Node* entry = etrue0 = graph()->NewNode(
-        simplified()->LoadElement(AccessBuilder::ForFixedArrayElement()), cache,
-        index, etrue0, if_true0);
-
-    Node* check1 = graph()->NewNode(machine()->WordEqual(), entry,
-                                    jsgraph()->UndefinedConstant());
-    Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                     check1, if_true0);
-
-    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
-    Node* etrue1 = etrue0;
-    Node* vtrue1;
-    {
-      // Allocate a new SeqOneByteString for {code}.
-      vtrue1 = etrue1 = graph()->NewNode(
-          simplified()->Allocate(NOT_TENURED),
-          jsgraph()->Int32Constant(SeqOneByteString::SizeFor(1)), etrue1,
-          if_true1);
-      etrue1 = graph()->NewNode(
-          simplified()->StoreField(AccessBuilder::ForMap()), vtrue1,
-          jsgraph()->HeapConstant(factory()->one_byte_string_map()), etrue1,
-          if_true1);
-      etrue1 = graph()->NewNode(
-          simplified()->StoreField(AccessBuilder::ForNameHashField()), vtrue1,
-          jsgraph()->IntPtrConstant(Name::kEmptyHashField), etrue1, if_true1);
-      etrue1 = graph()->NewNode(
-          simplified()->StoreField(AccessBuilder::ForStringLength()), vtrue1,
-          jsgraph()->SmiConstant(1), etrue1, if_true1);
-      etrue1 = graph()->NewNode(
-          machine()->Store(StoreRepresentation(MachineRepresentation::kWord8,
-                                               kNoWriteBarrier)),
-          vtrue1, jsgraph()->IntPtrConstant(SeqOneByteString::kHeaderSize -
-                                            kHeapObjectTag),
-          code, etrue1, if_true1);
-
-      // Remember it in the {cache}.
-      etrue1 = graph()->NewNode(
-          simplified()->StoreElement(AccessBuilder::ForFixedArrayElement()),
-          cache, index, vtrue1, etrue1, if_true1);
-    }
-
-    // Use the {entry} from the {cache}.
-    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
-    Node* efalse1 = etrue0;
-    Node* vfalse1 = entry;
-
-    if_true0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
-    etrue0 =
-        graph()->NewNode(common()->EffectPhi(2), etrue1, efalse1, if_true0);
-    vtrue0 = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                              vtrue1, vfalse1, if_true0);
-  }
-
   Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
   Node* efalse0 = effect;
-  Node* vfalse0;
+
+  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
+  Node* etrue0 = effect;
+
+  // Load the isolate wide single character string cache.
+  Node* cache =
+      jsgraph()->HeapConstant(factory()->single_character_string_cache());
+
+  // Compute the {cache} index for {code}.
+  Node* index = machine()->Is32()
+                    ? code
+                    : graph()->NewNode(machine()->ChangeUint32ToUint64(), code);
+
+  // Check if we have an entry for the {code} in the single character string
+  // cache already.
+  Node* entry = etrue0 = graph()->NewNode(
+      simplified()->LoadElement(AccessBuilder::ForFixedArrayElement()), cache,
+      index, etrue0, if_true0);
+
+  Node* check1 = graph()->NewNode(machine()->WordEqual(), entry,
+                                  jsgraph()->UndefinedConstant());
+  Node* branch1 =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check1, if_true0);
+
+  // Use the {entry} from the {cache}.
+  Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
+  Node* efalse1 = etrue0;
+  Node* vfalse1 = entry;
+
+  // Let %StringFromCharCode handle this case.
+  // TODO(turbofan): At some point we may consider adding a stub for this
+  // deferred case, so that we don't need to call to C++ here.
+  Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+  Node* etrue1 = etrue0;
+  Node* vtrue1;
   {
-    // Allocate a new SeqTwoByteString for {code}.
-    vfalse0 = efalse0 =
-        graph()->NewNode(simplified()->Allocate(NOT_TENURED),
-                         jsgraph()->Int32Constant(SeqTwoByteString::SizeFor(1)),
-                         efalse0, if_false0);
-    efalse0 = graph()->NewNode(
-        simplified()->StoreField(AccessBuilder::ForMap()), vfalse0,
-        jsgraph()->HeapConstant(factory()->string_map()), efalse0, if_false0);
-    efalse0 = graph()->NewNode(
-        simplified()->StoreField(AccessBuilder::ForNameHashField()), vfalse0,
-        jsgraph()->IntPtrConstant(Name::kEmptyHashField), efalse0, if_false0);
-    efalse0 = graph()->NewNode(
-        simplified()->StoreField(AccessBuilder::ForStringLength()), vfalse0,
-        jsgraph()->SmiConstant(1), efalse0, if_false0);
-    efalse0 = graph()->NewNode(
-        machine()->Store(StoreRepresentation(MachineRepresentation::kWord16,
-                                             kNoWriteBarrier)),
-        vfalse0, jsgraph()->IntPtrConstant(SeqTwoByteString::kHeaderSize -
-                                           kHeapObjectTag),
-        code, efalse0, if_false0);
+    if_true1 = graph()->NewNode(common()->Merge(2), if_true1, if_false0);
+    etrue1 =
+        graph()->NewNode(common()->EffectPhi(2), etrue1, efalse0, if_true1);
+    Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
+    Runtime::FunctionId id = Runtime::kStringCharFromCode;
+    CallDescriptor const* desc = Linkage::GetRuntimeCallDescriptor(
+        graph()->zone(), id, 1, properties, CallDescriptor::kNoFlags);
+    vtrue1 = etrue1 = graph()->NewNode(
+        common()->Call(desc), jsgraph()->CEntryStubConstant(1),
+        ChangeInt32ToSmi(code),
+        jsgraph()->ExternalConstant(ExternalReference(id, isolate())),
+        jsgraph()->Int32Constant(1), jsgraph()->NoContextConstant(), etrue1,
+        if_true1);
   }
 
-  control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
-  effect = graph()->NewNode(common()->EffectPhi(2), etrue0, efalse0, control);
+  control = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue1, efalse1, control);
   value = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                           vtrue0, vfalse0, control);
+                           vtrue1, vfalse1, control);
 
   return ValueEffectControl(value, effect, control);
 }
@@ -3412,6 +3391,137 @@ EffectControlLinearizer::LowerFloat64RoundUp(Node* node, Node* effect,
 }
 
 EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::BuildFloat64RoundDown(Node* value, Node* effect,
+                                               Node* control) {
+  if (machine()->Float64RoundDown().IsSupported()) {
+    value = graph()->NewNode(machine()->Float64RoundDown().op(), value);
+  } else {
+    Node* const one = jsgraph()->Float64Constant(1.0);
+    Node* const zero = jsgraph()->Float64Constant(0.0);
+    Node* const minus_one = jsgraph()->Float64Constant(-1.0);
+    Node* const minus_zero = jsgraph()->Float64Constant(-0.0);
+    Node* const two_52 = jsgraph()->Float64Constant(4503599627370496.0E0);
+    Node* const minus_two_52 =
+        jsgraph()->Float64Constant(-4503599627370496.0E0);
+    Node* const input = value;
+
+    // General case for floor.
+    //
+    //   if 0.0 < input then
+    //     if 2^52 <= input then
+    //       input
+    //     else
+    //       let temp1 = (2^52 + input) - 2^52 in
+    //       if input < temp1 then
+    //         temp1 - 1
+    //       else
+    //         temp1
+    //   else
+    //     if input == 0 then
+    //       input
+    //     else
+    //       if input <= -2^52 then
+    //         input
+    //       else
+    //         let temp1 = -0 - input in
+    //         let temp2 = (2^52 + temp1) - 2^52 in
+    //         if temp2 < temp1 then
+    //           -1 - temp2
+    //         else
+    //           -0 - temp2
+    //
+    // Note: We do not use the Diamond helper class here, because it really
+    // hurts
+    // readability with nested diamonds.
+
+    Node* check0 = graph()->NewNode(machine()->Float64LessThan(), zero, input);
+    Node* branch0 =
+        graph()->NewNode(common()->Branch(BranchHint::kTrue), check0, control);
+
+    Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
+    Node* vtrue0;
+    {
+      Node* check1 =
+          graph()->NewNode(machine()->Float64LessThanOrEqual(), two_52, input);
+      Node* branch1 = graph()->NewNode(common()->Branch(), check1, if_true0);
+
+      Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+      Node* vtrue1 = input;
+
+      Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
+      Node* vfalse1;
+      {
+        Node* temp1 = graph()->NewNode(
+            machine()->Float64Sub(),
+            graph()->NewNode(machine()->Float64Add(), two_52, input), two_52);
+        vfalse1 = graph()->NewNode(
+            common()->Select(MachineRepresentation::kFloat64),
+            graph()->NewNode(machine()->Float64LessThan(), input, temp1),
+            graph()->NewNode(machine()->Float64Sub(), temp1, one), temp1);
+      }
+
+      if_true0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
+      vtrue0 =
+          graph()->NewNode(common()->Phi(MachineRepresentation::kFloat64, 2),
+                           vtrue1, vfalse1, if_true0);
+    }
+
+    Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
+    Node* vfalse0;
+    {
+      Node* check1 = graph()->NewNode(machine()->Float64Equal(), input, zero);
+      Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                       check1, if_false0);
+
+      Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+      Node* vtrue1 = input;
+
+      Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
+      Node* vfalse1;
+      {
+        Node* check2 = graph()->NewNode(machine()->Float64LessThanOrEqual(),
+                                        input, minus_two_52);
+        Node* branch2 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                         check2, if_false1);
+
+        Node* if_true2 = graph()->NewNode(common()->IfTrue(), branch2);
+        Node* vtrue2 = input;
+
+        Node* if_false2 = graph()->NewNode(common()->IfFalse(), branch2);
+        Node* vfalse2;
+        {
+          Node* temp1 =
+              graph()->NewNode(machine()->Float64Sub(), minus_zero, input);
+          Node* temp2 = graph()->NewNode(
+              machine()->Float64Sub(),
+              graph()->NewNode(machine()->Float64Add(), two_52, temp1), two_52);
+          vfalse2 = graph()->NewNode(
+              common()->Select(MachineRepresentation::kFloat64),
+              graph()->NewNode(machine()->Float64LessThan(), temp2, temp1),
+              graph()->NewNode(machine()->Float64Sub(), minus_one, temp2),
+              graph()->NewNode(machine()->Float64Sub(), minus_zero, temp2));
+        }
+
+        if_false1 = graph()->NewNode(common()->Merge(2), if_true2, if_false2);
+        vfalse1 =
+            graph()->NewNode(common()->Phi(MachineRepresentation::kFloat64, 2),
+                             vtrue2, vfalse2, if_false1);
+      }
+
+      if_false0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
+      vfalse0 =
+          graph()->NewNode(common()->Phi(MachineRepresentation::kFloat64, 2),
+                           vtrue1, vfalse1, if_false0);
+    }
+
+    control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
+    value = graph()->NewNode(common()->Phi(MachineRepresentation::kFloat64, 2),
+                             vtrue0, vfalse0, control);
+  }
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
 EffectControlLinearizer::LowerFloat64RoundDown(Node* node, Node* effect,
                                                Node* control) {
   // Nothing to be done if a fast hardware instruction is available.
@@ -3419,108 +3529,78 @@ EffectControlLinearizer::LowerFloat64RoundDown(Node* node, Node* effect,
     return ValueEffectControl(node, effect, control);
   }
 
+  Node* const input = node->InputAt(0);
+  return BuildFloat64RoundDown(input, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerFloat64RoundTiesEven(Node* node, Node* effect,
+                                                   Node* control) {
+  // Nothing to be done if a fast hardware instruction is available.
+  if (machine()->Float64RoundTiesEven().IsSupported()) {
+    return ValueEffectControl(node, effect, control);
+  }
+
   Node* const one = jsgraph()->Float64Constant(1.0);
+  Node* const two = jsgraph()->Float64Constant(2.0);
+  Node* const half = jsgraph()->Float64Constant(0.5);
   Node* const zero = jsgraph()->Float64Constant(0.0);
-  Node* const minus_one = jsgraph()->Float64Constant(-1.0);
-  Node* const minus_zero = jsgraph()->Float64Constant(-0.0);
-  Node* const two_52 = jsgraph()->Float64Constant(4503599627370496.0E0);
-  Node* const minus_two_52 = jsgraph()->Float64Constant(-4503599627370496.0E0);
   Node* const input = node->InputAt(0);
 
-  // General case for floor.
+  // Generate case for round ties to even:
   //
-  //   if 0.0 < input then
-  //     if 2^52 <= input then
-  //       input
-  //     else
-  //       let temp1 = (2^52 + input) - 2^52 in
-  //       if input < temp1 then
-  //         temp1 - 1
-  //       else
-  //         temp1
+  //   let value = floor(input) in
+  //   let temp1 = input - value in
+  //   if temp1 < 0.5 then
+  //     value
+  //   else if 0.5 < temp1 then
+  //     value + 1.0
   //   else
-  //     if input == 0 then
-  //       input
+  //     let temp2 = value % 2.0 in
+  //     if temp2 == 0.0 then
+  //       value
   //     else
-  //       if input <= -2^52 then
-  //         input
-  //       else
-  //         let temp1 = -0 - input in
-  //         let temp2 = (2^52 + temp1) - 2^52 in
-  //         if temp2 < temp1 then
-  //           -1 - temp2
-  //         else
-  //           -0 - temp2
+  //       value + 1.0
   //
   // Note: We do not use the Diamond helper class here, because it really hurts
   // readability with nested diamonds.
 
-  Node* check0 = graph()->NewNode(machine()->Float64LessThan(), zero, input);
-  Node* branch0 =
-      graph()->NewNode(common()->Branch(BranchHint::kTrue), check0, control);
+  ValueEffectControl continuation =
+      BuildFloat64RoundDown(input, effect, control);
+  Node* value = continuation.value;
+  effect = continuation.effect;
+  control = continuation.control;
+
+  Node* temp1 = graph()->NewNode(machine()->Float64Sub(), input, value);
+
+  Node* check0 = graph()->NewNode(machine()->Float64LessThan(), temp1, half);
+  Node* branch0 = graph()->NewNode(common()->Branch(), check0, control);
 
   Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
-  Node* vtrue0;
-  {
-    Node* check1 =
-        graph()->NewNode(machine()->Float64LessThanOrEqual(), two_52, input);
-    Node* branch1 = graph()->NewNode(common()->Branch(), check1, if_true0);
-
-    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
-    Node* vtrue1 = input;
-
-    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
-    Node* vfalse1;
-    {
-      Node* temp1 = graph()->NewNode(
-          machine()->Float64Sub(),
-          graph()->NewNode(machine()->Float64Add(), two_52, input), two_52);
-      vfalse1 = graph()->NewNode(
-          common()->Select(MachineRepresentation::kFloat64),
-          graph()->NewNode(machine()->Float64LessThan(), input, temp1),
-          graph()->NewNode(machine()->Float64Sub(), temp1, one), temp1);
-    }
-
-    if_true0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
-    vtrue0 = graph()->NewNode(common()->Phi(MachineRepresentation::kFloat64, 2),
-                              vtrue1, vfalse1, if_true0);
-  }
+  Node* vtrue0 = value;
 
   Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
   Node* vfalse0;
   {
-    Node* check1 = graph()->NewNode(machine()->Float64Equal(), input, zero);
-    Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                     check1, if_false0);
+    Node* check1 = graph()->NewNode(machine()->Float64LessThan(), half, temp1);
+    Node* branch1 = graph()->NewNode(common()->Branch(), check1, if_false0);
 
     Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
-    Node* vtrue1 = input;
+    Node* vtrue1 = graph()->NewNode(machine()->Float64Add(), value, one);
 
     Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
     Node* vfalse1;
     {
-      Node* check2 = graph()->NewNode(machine()->Float64LessThanOrEqual(),
-                                      input, minus_two_52);
-      Node* branch2 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                       check2, if_false1);
+      Node* temp2 = graph()->NewNode(machine()->Float64Mod(), value, two);
+
+      Node* check2 = graph()->NewNode(machine()->Float64Equal(), temp2, zero);
+      Node* branch2 = graph()->NewNode(common()->Branch(), check2, if_false1);
 
       Node* if_true2 = graph()->NewNode(common()->IfTrue(), branch2);
-      Node* vtrue2 = input;
+      Node* vtrue2 = value;
 
       Node* if_false2 = graph()->NewNode(common()->IfFalse(), branch2);
-      Node* vfalse2;
-      {
-        Node* temp1 =
-            graph()->NewNode(machine()->Float64Sub(), minus_zero, input);
-        Node* temp2 = graph()->NewNode(
-            machine()->Float64Sub(),
-            graph()->NewNode(machine()->Float64Add(), two_52, temp1), two_52);
-        vfalse2 = graph()->NewNode(
-            common()->Select(MachineRepresentation::kFloat64),
-            graph()->NewNode(machine()->Float64LessThan(), temp2, temp1),
-            graph()->NewNode(machine()->Float64Sub(), minus_one, temp2),
-            graph()->NewNode(machine()->Float64Sub(), minus_zero, temp2));
-      }
+      Node* vfalse2 = graph()->NewNode(machine()->Float64Add(), value, one);
 
       if_false1 = graph()->NewNode(common()->Merge(2), if_true2, if_false2);
       vfalse1 =
@@ -3534,11 +3614,11 @@ EffectControlLinearizer::LowerFloat64RoundDown(Node* node, Node* effect,
                          vtrue1, vfalse1, if_false0);
   }
 
-  Node* merge0 = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
-  Node* value =
-      graph()->NewNode(common()->Phi(MachineRepresentation::kFloat64, 2),
-                       vtrue0, vfalse0, merge0);
-  return ValueEffectControl(value, effect, merge0);
+  control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
+  value = graph()->NewNode(common()->Phi(MachineRepresentation::kFloat64, 2),
+                           vtrue0, vfalse0, control);
+
+  return ValueEffectControl(value, effect, control);
 }
 
 EffectControlLinearizer::ValueEffectControl

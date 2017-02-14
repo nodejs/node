@@ -12,30 +12,30 @@ cd ${TOOLS_DIR}/..
 rm -rf test/fuzzer/wasm
 rm -rf test/fuzzer/wasm_asmjs
 
-make x64.debug -j
+make x64.release -j
 
 mkdir -p test/fuzzer/wasm
 mkdir -p test/fuzzer/wasm_asmjs
 
 # asm.js
 ./tools/run-tests.py -j8 --variants=default --timeout=10 --arch=x64 \
-  --mode=debug --no-presubmit --extra-flags="--dump-wasm-module \
+  --mode=release --no-presubmit --extra-flags="--dump-wasm-module \
   --dump-wasm-module-path=./test/fuzzer/wasm_asmjs/" mjsunit/wasm/asm*
 ./tools/run-tests.py -j8 --variants=default --timeout=10 --arch=x64 \
-  --mode=debug --no-presubmit --extra-flags="--dump-wasm-module \
+  --mode=release --no-presubmit --extra-flags="--dump-wasm-module \
   --dump-wasm-module-path=./test/fuzzer/wasm_asmjs/" mjsunit/asm/*
 ./tools/run-tests.py -j8 --variants=default --timeout=10 --arch=x64 \
-  --mode=debug --no-presubmit --extra-flags="--dump-wasm-module \
+  --mode=release --no-presubmit --extra-flags="--dump-wasm-module \
   --dump-wasm-module-path=./test/fuzzer/wasm_asmjs/" mjsunit/regress/asm/*
 # WASM
 ./tools/run-tests.py -j8 --variants=default --timeout=10 --arch=x64 \
-  --mode=debug --no-presubmit --extra-flags="--dump-wasm-module \
+  --mode=release --no-presubmit --extra-flags="--dump-wasm-module \
   --dump-wasm-module-path=./test/fuzzer/wasm/" unittests
 ./tools/run-tests.py -j8 --variants=default --timeout=10 --arch=x64 \
-  --mode=debug --no-presubmit --extra-flags="--dump-wasm-module \
+  --mode=release --no-presubmit --extra-flags="--dump-wasm-module \
   --dump-wasm-module-path=./test/fuzzer/wasm/" mjsunit/wasm/*
 ./tools/run-tests.py -j8 --variants=default --timeout=10 --arch=x64 \
-  --mode=debug --no-presubmit --extra-flags="--dump-wasm-module \
+  --mode=release --no-presubmit --extra-flags="--dump-wasm-module \
   --dump-wasm-module-path=./test/fuzzer/wasm/" \
   $(cd test/; ls cctest/wasm/test-*.cc | \
   sed -es/wasm\\///g | sed -es/[.]cc/\\/\\*/g)

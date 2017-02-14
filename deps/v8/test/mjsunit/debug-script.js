@@ -80,9 +80,9 @@ assertTrue(extension_count == 2 || extension_count == 3);
 assertTrue(normal_count == 2 || normal_count == 3);
 
 // Test a builtins script.
-var math_script = Debug.findScript('native math.js');
-assertEquals('native math.js', math_script.name);
-assertEquals(Debug.ScriptType.Native, math_script.type);
+var array_script = Debug.findScript('native array.js');
+assertEquals('native array.js', array_script.name);
+assertEquals(Debug.ScriptType.Native, array_script.type);
 
 // Test a debugger script.
 var debug_delay_script = Debug.findScript('native debug.js');

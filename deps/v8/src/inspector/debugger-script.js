@@ -33,18 +33,6 @@
 
 var DebuggerScript = {};
 
-/** @enum */
-const PauseOnExceptionsState = {
-    DontPauseOnExceptions: 0,
-    PauseOnAllExceptions: 1,
-    PauseOnUncaughtExceptions: 2
-};
-DebuggerScript.PauseOnExceptionsState = PauseOnExceptionsState;
-
-DebuggerScript._pauseOnExceptionsState = DebuggerScript.PauseOnExceptionsState.DontPauseOnExceptions;
-Debug.clearBreakOnException();
-Debug.clearBreakOnUncaughtException();
-
 /**
  * @param {?CompileEvent} eventData
  */
@@ -52,7 +40,7 @@ DebuggerScript.getAfterCompileScript = function(eventData)
 {
     var script = eventData.script().value();
     if (!script.is_debugger_script)
-        return DebuggerScript._formatScript(eventData.script().value());
+        return script;
     return null;
 }
 
@@ -152,82 +140,6 @@ DebuggerScript._executionContextId = function(contextData)
 }
 
 /**
- * @param {string|undefined} contextData
- * @return {string}
- */
-DebuggerScript._executionContextAuxData = function(contextData)
-{
-    if (!contextData)
-        return "";
-    var match = contextData.match(/^[^,]*,[^,]*,(.*)$/);
-    return match ? match[1] : "";
-}
-
-/**
- * @param {string} contextGroupId
- * @return {!Array<!FormattedScript>}
- */
-DebuggerScript.getScripts = function(contextGroupId)
-{
-    var result = [];
-    var scripts = Debug.scripts();
-    var contextDataPrefix = null;
-    if (contextGroupId)
-        contextDataPrefix = contextGroupId + ",";
-    for (var i = 0; i < scripts.length; ++i) {
-        var script = scripts[i];
-        if (contextDataPrefix) {
-            if (!script.context_data)
-                continue;
-            // Context data is a string in the following format:
-            // <contextGroupId>,<contextId>,<auxData>
-            if (script.context_data.indexOf(contextDataPrefix) !== 0)
-                continue;
-        }
-        if (script.is_debugger_script)
-            continue;
-        result.push(DebuggerScript._formatScript(script));
-    }
-    return result;
-}
-
-/**
- * @param {!Script} script
- * @return {!FormattedScript}
- */
-DebuggerScript._formatScript = function(script)
-{
-    var lineEnds = script.line_ends;
-    var lineCount = lineEnds.length;
-    var endLine = script.line_offset + lineCount - 1;
-    var endColumn;
-    // V8 will not count last line if script source ends with \n.
-    if (script.source[script.source.length - 1] === '\n') {
-        endLine += 1;
-        endColumn = 0;
-    } else {
-        if (lineCount === 1)
-            endColumn = script.source.length + script.column_offset;
-        else
-            endColumn = script.source.length - (lineEnds[lineCount - 2] + 1);
-    }
-    return {
-        id: script.id,
-        name: script.nameOrSourceURL(),
-        sourceURL: script.source_url,
-        sourceMappingURL: script.source_mapping_url,
-        source: script.source,
-        startLine: script.line_offset,
-        startColumn: script.column_offset,
-        endLine: endLine,
-        endColumn: endColumn,
-        executionContextId: DebuggerScript._executionContextId(script.context_data),
-        // Note that we cannot derive aux data from context id because of compilation cache.
-        executionContextAuxData: DebuggerScript._executionContextAuxData(script.context_data)
-    };
-}
-
-/**
  * @param {!ExecutionState} execState
  * @param {!BreakpointInfo} info
  * @return {string|undefined}
@@ -253,32 +165,6 @@ DebuggerScript.removeBreakpoint = function(execState, info)
 }
 
 /**
- * @return {number}
- */
-DebuggerScript.pauseOnExceptionsState = function()
-{
-    return DebuggerScript._pauseOnExceptionsState;
-}
-
-/**
- * @param {number} newState
- */
-DebuggerScript.setPauseOnExceptionsState = function(newState)
-{
-    DebuggerScript._pauseOnExceptionsState = newState;
-
-    if (DebuggerScript.PauseOnExceptionsState.PauseOnAllExceptions === newState)
-        Debug.setBreakOnException();
-    else
-        Debug.clearBreakOnException();
-
-    if (DebuggerScript.PauseOnExceptionsState.PauseOnUncaughtExceptions === newState)
-        Debug.setBreakOnUncaughtException();
-    else
-        Debug.clearBreakOnUncaughtException();
-}
-
-/**
  * @param {!ExecutionState} execState
  * @param {number} limit
  * @return {!Array<!JavaScriptCallFrame>}
@@ -289,43 +175,6 @@ DebuggerScript.currentCallFrames = function(execState, limit)
     for (var i = 0; i < execState.frameCount() && (!limit || i < limit); ++i)
         frames.push(DebuggerScript._frameMirrorToJSCallFrame(execState.frame(i)));
     return frames;
-}
-
-/**
- * @param {!ExecutionState} execState
- */
-DebuggerScript.stepIntoStatement = function(execState)
-{
-    execState.prepareStep(Debug.StepAction.StepIn);
-}
-
-/**
- * @param {!ExecutionState} execState
- */
-DebuggerScript.stepFrameStatement = function(execState)
-{
-    execState.prepareStep(Debug.StepAction.StepFrame);
-}
-
-/**
- * @param {!ExecutionState} execState
- */
-DebuggerScript.stepOverStatement = function(execState)
-{
-    execState.prepareStep(Debug.StepAction.StepNext);
-}
-
-/**
- * @param {!ExecutionState} execState
- */
-DebuggerScript.stepOutOfFunction = function(execState)
-{
-    execState.prepareStep(Debug.StepAction.StepOut);
-}
-
-DebuggerScript.clearStepping = function()
-{
-    Debug.clearStepping();
 }
 
 // Returns array in form:
@@ -416,6 +265,7 @@ DebuggerScript._frameMirrorToJSCallFrame = function(frameMirror)
     var frameDetails = frameMirror.details();
 
     var funcObject = frameDetails.func();
+    var scriptObject = frameDetails.script();
     var sourcePosition = frameDetails.sourcePosition();
     var thisObject = frameDetails.receiver();
 
@@ -448,6 +298,7 @@ DebuggerScript._frameMirrorToJSCallFrame = function(frameMirror)
     // Calculated lazily.
     var scopeChain;
     var funcMirror;
+    var scriptMirror;
     var location;
     /** @type {!Array<?RawLocation>} */
     var scopeStartLocations;
@@ -516,7 +367,7 @@ DebuggerScript._frameMirrorToJSCallFrame = function(frameMirror)
     {
         if (!details) {
             var scopeObjects = ensureScopeChain();
-            var script = ensureFuncMirror().script();
+            var script = ensureScriptMirror();
             /** @type {!Array<Scope>} */
             var scopes = [];
             for (var i = 0; i < scopeObjects.length; ++i) {
@@ -570,14 +421,24 @@ DebuggerScript._frameMirrorToJSCallFrame = function(frameMirror)
     }
 
     /**
+     * @return {!ScriptMirror}
+     */
+    function ensureScriptMirror()
+    {
+        if (!scriptMirror) {
+            scriptMirror = MakeMirror(scriptObject);
+        }
+        return /** @type {!ScriptMirror} */(scriptMirror);
+    }
+
+    /**
      * @return {!{line: number, column: number}}
      */
     function ensureLocation()
     {
         if (!location) {
-            var script = ensureFuncMirror().script();
-            if (script)
-                location = script.locationFromPosition(sourcePosition, true);
+            var script = ensureScriptMirror();
+            location = script.locationFromPosition(sourcePosition, true);
             if (!location)
                 location = { line: 0, column: 0 };
         }
@@ -616,12 +477,12 @@ DebuggerScript._frameMirrorToJSCallFrame = function(frameMirror)
     }
 
     /**
-     * @return {number|undefined}
+     * @return {number}
      */
     function sourceID()
     {
-        var script = ensureFuncMirror().script();
-        return script && script.id();
+        var script = ensureScriptMirror();
+        return script.id();
     }
 
     /**

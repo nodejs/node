@@ -538,6 +538,18 @@
                 "description": "Removes JavaScript breakpoint."
             },
             {
+                "name": "getPossibleBreakpoints",
+                "parameters": [
+                    { "name": "start", "$ref": "Location", "description": "Start of range to search possible breakpoint locations in." },
+                    { "name": "end", "$ref": "Location", "optional": true, "description": "End of range to search possible breakpoint locations in (excluding). When not specifed, end of scripts is used as end of range." }
+                ],
+                "returns": [
+                    { "name": "locations", "type": "array", "items": { "$ref": "Location" }, "description": "List of the possible breakpoint locations." }
+                ],
+                "description": "Returns possible locations for breakpoint. scriptId in start and end range locations should be the same.",
+                "experimental": true
+            },
+            {
                 "name": "continueToLocation",
                 "parameters": [
                     { "name": "location", "$ref": "Location", "description": "Location to continue to." }

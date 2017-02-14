@@ -513,7 +513,7 @@ LifetimePosition LiveRange::FirstIntersection(LiveRange* other) {
 }
 
 LAllocator::LAllocator(int num_values, HGraph* graph)
-    : zone_(graph->isolate()->allocator()),
+    : zone_(graph->isolate()->allocator(), ZONE_NAME),
       chunk_(NULL),
       live_in_sets_(graph->blocks()->length(), zone()),
       live_ranges_(num_values * 2, zone()),

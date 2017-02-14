@@ -870,6 +870,18 @@
 }],  # ALWAYS
 
 
+['variant == turbofan_opt', {
+  # These timeout flakily under CFI/turbofan_opt
+  'js1_5/Regress/regress-360969-05': [SKIP],
+  'js1_5/Regress/regress-360969-06': [SKIP],
+
+  # These timeout under CFI/turbofan_opt
+  'ecma/FunctionObjects/15.3.1.1-3': [SKIP],
+  'ecma/FunctionObjects/15.3.2.1-3': [SKIP],
+  'ecma/FunctionObjects/15.3.5-1': [SKIP],
+}],  # variant == turbofan_opt
+
+
 ['no_i18n == True and mode == debug', {
   # Tests too slow for no18n debug.
   'ecma_3/Statements/regress-302439': [PASS, FAST_VARIANTS],

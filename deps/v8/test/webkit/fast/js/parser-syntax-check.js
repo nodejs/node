@@ -21,8 +21,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --no-harmony-restrictive-declarations
-
 description(
 "This test checks that the following expressions or statements are valid ECMASCRIPT code or should throw parse error"
 );
@@ -231,7 +229,7 @@ valid  ("do if (a) with (b) continue; else debugger; while (false)");
 invalid("do if (a) while (false) else debugger");
 invalid("while if (a) ;");
 valid  ("if (a) function f() {} else function g() {}");
-valid  ("if (a()) while(0) function f() {} else function g() {}");
+invalid("if (a()) while(0) function f() {} else function g() {}");
 invalid("if (a()) function f() { else function g() }");
 invalid("if (a) if (b) ; else function f {}");
 invalid("if (a) if (b) ; else function (){}");

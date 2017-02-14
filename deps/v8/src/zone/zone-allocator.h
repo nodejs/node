@@ -26,6 +26,8 @@ class zone_allocator {
     typedef zone_allocator<O> other;
   };
 
+  // TODO(bbudge) Remove when V8 updates to MSVS 2015. See crbug.com/603131.
+  zone_allocator() : zone_(nullptr) { UNREACHABLE(); }
   explicit zone_allocator(Zone* zone) throw() : zone_(zone) {}
   explicit zone_allocator(const zone_allocator& other) throw()
       : zone_(other.zone_) {}
@@ -62,7 +64,6 @@ class zone_allocator {
   Zone* zone() { return zone_; }
 
  private:
-  zone_allocator();
   Zone* zone_;
 };
 

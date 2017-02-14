@@ -7,8 +7,10 @@
 
 #include <ostream>  // NOLINT(readability/streams)
 
+#include "src/base/compiler-specific.h"
 #include "src/base/flags.h"
 #include "src/base/functional.h"
+#include "src/globals.h"
 #include "src/handles.h"
 #include "src/zone/zone.h"
 
@@ -28,7 +30,7 @@ namespace compiler {
 // as the name for a named field access, the ID of a runtime function, etc.
 // Static parameters are private to the operator and only semantically
 // meaningful to the operator itself.
-class Operator : public ZoneObject {
+class V8_EXPORT_PRIVATE Operator : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   typedef uint16_t Opcode;
 
@@ -142,7 +144,7 @@ class Operator : public ZoneObject {
   uint16_t control_in_;
   uint16_t value_out_;
   uint8_t effect_out_;
-  uint16_t control_out_;
+  uint32_t control_out_;
 
   DISALLOW_COPY_AND_ASSIGN(Operator);
 };

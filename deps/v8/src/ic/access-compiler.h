@@ -6,12 +6,12 @@
 #define V8_IC_ACCESS_COMPILER_H_
 
 #include "src/code-stubs.h"
+#include "src/ic/access-compiler-data.h"
 #include "src/macro-assembler.h"
 #include "src/objects.h"
 
 namespace v8 {
 namespace internal {
-
 
 class PropertyAccessCompiler BASE_EMBEDDED {
  public:
@@ -36,7 +36,7 @@ class PropertyAccessCompiler BASE_EMBEDDED {
  protected:
   PropertyAccessCompiler(Isolate* isolate, Code::Kind kind,
                          CacheHolderFlag cache_holder)
-      : registers_(GetCallingConvention(kind)),
+      : registers_(GetCallingConvention(isolate, kind)),
         kind_(kind),
         cache_holder_(cache_holder),
         isolate_(isolate),
@@ -59,11 +59,6 @@ class PropertyAccessCompiler BASE_EMBEDDED {
   Register scratch1() const { return registers_[2]; }
   Register scratch2() const { return registers_[3]; }
 
-  static Register* GetCallingConvention(Code::Kind);
-  static Register* load_calling_convention();
-  static Register* store_calling_convention();
-  static Register* keyed_store_calling_convention();
-
   Register* registers_;
 
   static void GenerateTailCall(MacroAssembler* masm, Handle<Code> code);
@@ -72,6 +67,9 @@ class PropertyAccessCompiler BASE_EMBEDDED {
   Handle<Code> GetCodeWithFlags(Code::Flags flags, Handle<Name> name);
 
  private:
+  static Register* GetCallingConvention(Isolate* isolate, Code::Kind kind);
+  static void InitializePlatformSpecific(AccessCompilerData* data);
+
   Code::Kind kind_;
   CacheHolderFlag cache_holder_;
 

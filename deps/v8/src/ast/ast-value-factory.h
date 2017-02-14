@@ -30,6 +30,7 @@
 
 #include "src/api.h"
 #include "src/base/hashmap.h"
+#include "src/globals.h"
 #include "src/utils.h"
 
 // AstString, AstValue and AstValueFactory are for storing strings and values
@@ -53,17 +54,21 @@ class AstString : public ZoneObject {
 
   // This function can be called after internalizing.
   V8_INLINE Handle<String> string() const {
-    DCHECK(!string_.is_null());
-    return string_;
+    DCHECK_NOT_NULL(string_);
+    return Handle<String>(string_);
   }
 
+  AstString* next() { return next_; }
   AstString** next_location() { return &next_; }
-  AstString* next() const { return next_; }
 
  protected:
-  // Handle<String>::null() until internalized.
-  Handle<String> string_;
-  AstString* next_;
+  void set_string(Handle<String> string) { string_ = string.location(); }
+  // {string_} is stored as String** instead of a Handle<String> so it can be
+  // stored in a union with {next_}.
+  union {
+    AstString* next_;
+    String** string_;
+  };
   // Poor-man's virtual dispatch to AstRawString / AstConsString. Takes less
   // memory.
   class IsRawStringBits : public BitField<bool, 0, 1> {};
@@ -203,13 +208,14 @@ class AstValue : public ZoneObject {
     if (type_ == STRING) {
       return string_->string();
     }
-    DCHECK(!value_.is_null());
-    return value_;
+    DCHECK_NOT_NULL(value_);
+    return Handle<Object>(value_);
   }
   AstValue* next() const { return next_; }
   void set_next(AstValue* next) { next_ = next; }
 
  private:
+  void set_value(Handle<Object> object) { value_ = object.location(); }
   friend class AstValueFactory;
 
   enum Type {
@@ -257,19 +263,21 @@ class AstValue : public ZoneObject {
 
   Type type_;
 
+  // {value_} is stored as Object** instead of a Handle<Object> so it can be
+  // stored in a union with {next_}.
+  union {
+    Object** value_;  // if internalized
+    AstValue* next_;  // if !internalized
+  };
+
   // Uninternalized value.
   union {
     const AstRawString* string_;
     double number_;
     int smi_;
     bool bool_;
-    const AstRawString* strings_;
     const char* symbol_name_;
   };
-
-  // Handle<String>::null() until internalized.
-  Handle<Object> value_;
-  AstValue* next_;
 };
 
 
@@ -324,16 +332,18 @@ class AstValueFactory {
   AstValueFactory(Zone* zone, uint32_t hash_seed)
       : string_table_(AstRawStringCompare),
         values_(nullptr),
+        smis_(),
+        strings_(nullptr),
         strings_end_(&strings_),
         zone_(zone),
         hash_seed_(hash_seed) {
-    ResetStrings();
 #define F(name, str) name##_string_ = NULL;
     STRING_CONSTANTS(F)
 #undef F
 #define F(name) name##_ = NULL;
     OTHER_CONSTANTS(F)
 #undef F
+    std::fill(smis_, smis_ + arraysize(smis_), nullptr);
   }
 
   Zone* zone() const { return zone_; }
@@ -373,7 +383,7 @@ class AstValueFactory {
   // A JavaScript symbol (ECMA-262 edition 6).
   const AstValue* NewSymbol(const char* name);
   const AstValue* NewNumber(double number, bool with_dot = false);
-  const AstValue* NewSmi(int number);
+  const AstValue* NewSmi(uint32_t number);
   const AstValue* NewBoolean(bool b);
   const AstValue* NewStringList(ZoneList<const AstRawString*>* strings);
   const AstValue* NewNull();
@@ -381,6 +391,10 @@ class AstValueFactory {
   const AstValue* NewTheHole();
 
  private:
+  static const uint32_t kMaxCachedSmi = 1 << 10;
+
+  STATIC_ASSERT(kMaxCachedSmi <= Smi::kMaxValue);
+
   AstValue* AddValue(AstValue* value) {
     value->set_next(values_);
     values_ = value;
@@ -395,7 +409,8 @@ class AstValueFactory {
     strings_ = nullptr;
     strings_end_ = &strings_;
   }
-  AstRawString* GetOneByteStringInternal(Vector<const uint8_t> literal);
+  V8_EXPORT_PRIVATE AstRawString* GetOneByteStringInternal(
+      Vector<const uint8_t> literal);
   AstRawString* GetTwoByteStringInternal(Vector<const uint16_t> literal);
   AstRawString* GetString(uint32_t hash, bool is_one_byte,
                           Vector<const byte> literal_bytes);
@@ -407,8 +422,10 @@ class AstValueFactory {
   // For keeping track of all AstValues and AstRawStrings we've created (so that
   // they can be internalized later).
   AstValue* values_;
-  // We need to keep track of strings_ in order, since cons strings require
-  // their members to be internalized first.
+
+  AstValue* smis_[kMaxCachedSmi + 1];
+  // We need to keep track of strings_ in order since cons strings require their
+  // members to be internalized first.
   AstString* strings_;
   AstString** strings_end_;
   Zone* zone_;

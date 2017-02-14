@@ -30,13 +30,13 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 13
+bytecode array length: 12
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   55 S> */ B(LdaSmi), U8(100),
                 B(Star), R(0),
-  /*   42 S> */ B(LdrUndefined), R(1),
-                B(Ldar), R(1),
+  /*   42 S> */ B(LdaUndefined),
+                B(Star), R(1),
                 B(Star), R(2),
   /*   63 S> */ B(Nop),
   /*   73 S> */ B(Return),

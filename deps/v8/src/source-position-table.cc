@@ -47,17 +47,19 @@ void SubtractFromEntry(PositionTableEntry& value,
 }
 
 // Helper: Encode an integer.
-void EncodeInt(ZoneVector<byte>& bytes, int value) {
+template <typename T>
+void EncodeInt(ZoneVector<byte>& bytes, T value) {
   // Zig-zag encoding.
-  static const int kShift = kIntSize * kBitsPerByte - 1;
+  static const int kShift = sizeof(T) * kBitsPerByte - 1;
   value = ((value << 1) ^ (value >> kShift));
   DCHECK_GE(value, 0);
-  unsigned int encoded = static_cast<unsigned int>(value);
+  auto encoded = static_cast<typename std::make_unsigned<T>::type>(value);
   bool more;
   do {
     more = encoded > ValueBits::kMax;
-    bytes.push_back(MoreBit::encode(more) |
-                    ValueBits::encode(encoded & ValueBits::kMask));
+    byte current =
+        MoreBit::encode(more) | ValueBits::encode(encoded & ValueBits::kMask);
+    bytes.push_back(current);
     encoded >>= ValueBits::kSize;
   } while (more);
 }
@@ -73,25 +75,27 @@ void EncodeEntry(ZoneVector<byte>& bytes, const PositionTableEntry& entry) {
 }
 
 // Helper: Decode an integer.
-void DecodeInt(ByteArray* bytes, int* index, int* v) {
+template <typename T>
+T DecodeInt(ByteArray* bytes, int* index) {
   byte current;
   int shift = 0;
-  int decoded = 0;
+  T decoded = 0;
   bool more;
   do {
     current = bytes->get((*index)++);
-    decoded |= ValueBits::decode(current) << shift;
+    decoded |= static_cast<typename std::make_unsigned<T>::type>(
+                   ValueBits::decode(current))
+               << shift;
     more = MoreBit::decode(current);
     shift += ValueBits::kSize;
   } while (more);
   DCHECK_GE(decoded, 0);
   decoded = (decoded >> 1) ^ (-(decoded & 1));
-  *v = decoded;
+  return decoded;
 }
 
 void DecodeEntry(ByteArray* bytes, int* index, PositionTableEntry* entry) {
-  int tmp;
-  DecodeInt(bytes, index, &tmp);
+  int tmp = DecodeInt<int>(bytes, index);
   if (tmp >= 0) {
     entry->is_statement = true;
     entry->code_offset = tmp;
@@ -99,7 +103,7 @@ void DecodeEntry(ByteArray* bytes, int* index, PositionTableEntry* entry) {
     entry->is_statement = false;
     entry->code_offset = -(tmp + 1);
   }
-  DecodeInt(bytes, index, &entry->source_position);
+  entry->source_position = DecodeInt<int64_t>(bytes, index);
 }
 
 }  // namespace
@@ -115,11 +119,12 @@ SourcePositionTableBuilder::SourcePositionTableBuilder(
 }
 
 void SourcePositionTableBuilder::AddPosition(size_t code_offset,
-                                             int source_position,
+                                             SourcePosition source_position,
                                              bool is_statement) {
   if (Omit()) return;
+  DCHECK(source_position.IsKnown());
   int offset = static_cast<int>(code_offset);
-  AddEntry({offset, source_position, is_statement});
+  AddEntry({offset, source_position.raw(), is_statement});
 }
 
 void SourcePositionTableBuilder::AddEntry(const PositionTableEntry& entry) {
@@ -152,7 +157,7 @@ Handle<ByteArray> SourcePositionTableBuilder::ToSourcePositionTable(
        encoded.Advance(), raw++) {
     DCHECK(raw != raw_entries_.end());
     DCHECK_EQ(encoded.code_offset(), raw->code_offset);
-    DCHECK_EQ(encoded.source_position(), raw->source_position);
+    DCHECK_EQ(encoded.source_position().raw(), raw->source_position);
     DCHECK_EQ(encoded.is_statement(), raw->is_statement);
   }
   DCHECK(raw == raw_entries_.end());
@@ -170,7 +175,7 @@ SourcePositionTableIterator::SourcePositionTableIterator(ByteArray* byte_array)
 void SourcePositionTableIterator::Advance() {
   DCHECK(!done());
   DCHECK(index_ >= 0 && index_ <= table_->length());
-  if (index_ == table_->length()) {
+  if (index_ >= table_->length()) {
     index_ = kDone;
   } else {
     PositionTableEntry tmp;

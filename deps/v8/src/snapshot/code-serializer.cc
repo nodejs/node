@@ -12,6 +12,8 @@
 #include "src/snapshot/deserializer.h"
 #include "src/snapshot/snapshot.h"
 #include "src/version.h"
+#include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {
@@ -99,8 +101,8 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   }
 
   if (ElideObject(obj)) {
-    return SerializeObject(*isolate()->factory()->undefined_value(),
-                           how_to_code, where_to_point, skip);
+    return SerializeObject(isolate()->heap()->undefined_value(), how_to_code,
+                           where_to_point, skip);
   }
   // Past this point we should not see any (context-specific) maps anymore.
   CHECK(!obj->IsMap());
@@ -217,15 +219,19 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
 }
 
 std::unique_ptr<ScriptData> WasmCompiledModuleSerializer::SerializeWasmModule(
-    Isolate* isolate, Handle<FixedArray> compiled_module) {
+    Isolate* isolate, Handle<FixedArray> input) {
+  Handle<WasmCompiledModule> compiled_module =
+      Handle<WasmCompiledModule>::cast(input);
   WasmCompiledModuleSerializer wasm_cs(isolate, 0);
   wasm_cs.reference_map()->AddAttachedReference(*isolate->native_context());
+  wasm_cs.reference_map()->AddAttachedReference(
+      *compiled_module->module_bytes());
   ScriptData* data = wasm_cs.Serialize(compiled_module);
   return std::unique_ptr<ScriptData>(data);
 }
 
 MaybeHandle<FixedArray> WasmCompiledModuleSerializer::DeserializeWasmModule(
-    Isolate* isolate, ScriptData* data) {
+    Isolate* isolate, ScriptData* data, Vector<const byte> wire_bytes) {
   SerializedCodeData::SanityCheckResult sanity_check_result =
       SerializedCodeData::CHECK_SUCCESS;
   MaybeHandle<FixedArray> nothing;
@@ -239,6 +245,15 @@ MaybeHandle<FixedArray> WasmCompiledModuleSerializer::DeserializeWasmModule(
   Deserializer deserializer(&scd, true);
   deserializer.AddAttachedObject(isolate->native_context());
 
+  MaybeHandle<String> maybe_wire_bytes_as_string =
+      isolate->factory()->NewStringFromOneByte(wire_bytes, TENURED);
+  Handle<String> wire_bytes_as_string;
+  if (!maybe_wire_bytes_as_string.ToHandle(&wire_bytes_as_string)) {
+    return nothing;
+  }
+  deserializer.AddAttachedObject(
+      handle(SeqOneByteString::cast(*wire_bytes_as_string)));
+
   Vector<const uint32_t> stub_keys = scd.CodeStubKeys();
   for (int i = 0; i < stub_keys.length(); ++i) {
     deserializer.AddAttachedObject(
@@ -247,7 +262,11 @@ MaybeHandle<FixedArray> WasmCompiledModuleSerializer::DeserializeWasmModule(
 
   MaybeHandle<HeapObject> obj = deserializer.DeserializeObject(isolate);
   if (obj.is_null() || !obj.ToHandleChecked()->IsFixedArray()) return nothing;
-  return Handle<FixedArray>::cast(obj.ToHandleChecked());
+  Handle<WasmCompiledModule> compiled_module =
+      Handle<WasmCompiledModule>::cast(obj.ToHandleChecked());
+
+  WasmCompiledModule::RecreateModuleWrapper(isolate, compiled_module);
+  return compiled_module;
 }
 
 class Checksum {
@@ -340,6 +359,7 @@ SerializedCodeData::SerializedCodeData(const List<byte>* payload,
 
 SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
     Isolate* isolate, uint32_t expected_source_hash) const {
+  if (this->size_ < kHeaderSize) return INVALID_HEADER;
   uint32_t magic_number = GetMagicNumber();
   if (magic_number != ComputeMagicNumber(isolate)) return MAGIC_NUMBER_MISMATCH;
   uint32_t version_hash = GetHeaderValue(kVersionHashOffset);

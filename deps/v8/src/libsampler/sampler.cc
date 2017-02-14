@@ -281,7 +281,7 @@ class SamplerManager {
     if (!entry) return;
     SamplerList& samplers = *static_cast<SamplerList*>(entry->value);
 
-    for (int i = 0; i < samplers.size(); ++i) {
+    for (size_t i = 0; i < samplers.size(); ++i) {
       Sampler* sampler = samplers[i];
       Isolate* isolate = sampler->isolate();
       // We require a fully initialized and entered isolate.

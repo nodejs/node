@@ -249,7 +249,7 @@ Handle<Code> HydrogenCodeStub::GenerateLightweightMissCode(
 Handle<Code> HydrogenCodeStub::GenerateRuntimeTailCall(
     CodeStubDescriptor* descriptor) {
   const char* name = CodeStub::MajorName(MajorKey());
-  Zone zone(isolate()->allocator());
+  Zone zone(isolate()->allocator(), ZONE_NAME);
   CallInterfaceDescriptor interface_descriptor(GetCallInterfaceDescriptor());
   CodeStubAssembler assembler(isolate(), &zone, interface_descriptor,
                               GetCodeFlags(), name);
@@ -307,7 +307,7 @@ static Handle<Code> DoGenerateCode(Stub* stub) {
   if (FLAG_profile_hydrogen_code_stub_compilation) {
     timer.Start();
   }
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   CompilationInfo info(CStrVector(CodeStub::MajorName(stub->MajorKey())),
                        isolate, &zone, stub->GetCodeFlags());
   // Parameter count is number of stack parameters.
@@ -327,18 +327,6 @@ static Handle<Code> DoGenerateCode(Stub* stub) {
   return code;
 }
 
-
-template <>
-HValue* CodeStubGraphBuilder<NumberToStringStub>::BuildCodeStub() {
-  info()->MarkAsSavesCallerDoubles();
-  HValue* number = GetParameter(Descriptor::kArgument);
-  return BuildNumberToString(number, AstType::Number());
-}
-
-
-Handle<Code> NumberToStringStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
 
 HValue* CodeStubGraphBuilderBase::BuildPushElement(HValue* object, HValue* argc,
                                                    HValue* argument_elements,
@@ -1043,7 +1031,7 @@ HValue* CodeStubGraphBuilderBase::BuildToString(HValue* input, bool convert) {
       }
       if_inputisprimitive.End();
       // Convert the primitive to a string value.
-      HValue* values[] = {context(), Pop()};
+      HValue* values[] = {Pop()};
       Callable toString = CodeFactory::ToString(isolate());
       Push(AddUncasted<HCallWithDescriptor>(Add<HConstant>(toString.code()), 0,
                                             toString.descriptor(),
@@ -1132,39 +1120,11 @@ HValue* CodeStubGraphBuilderBase::BuildToPrimitive(HValue* input,
   return Pop();
 }
 
-
-template <>
-HValue* CodeStubGraphBuilder<StringAddStub>::BuildCodeInitializedStub() {
-  StringAddStub* stub = casted_stub();
-  StringAddFlags flags = stub->flags();
-  PretenureFlag pretenure_flag = stub->pretenure_flag();
-
-  HValue* left = GetParameter(Descriptor::kLeft);
-  HValue* right = GetParameter(Descriptor::kRight);
-
-  // Make sure that both arguments are strings if not known in advance.
-  if ((flags & STRING_ADD_CHECK_LEFT) == STRING_ADD_CHECK_LEFT) {
-    left =
-        BuildToString(left, (flags & STRING_ADD_CONVERT) == STRING_ADD_CONVERT);
-  }
-  if ((flags & STRING_ADD_CHECK_RIGHT) == STRING_ADD_CHECK_RIGHT) {
-    right = BuildToString(right,
-                          (flags & STRING_ADD_CONVERT) == STRING_ADD_CONVERT);
-  }
-
-  return BuildStringAdd(left, right, HAllocationMode(pretenure_flag));
-}
-
-
-Handle<Code> StringAddStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
 template <>
 HValue* CodeStubGraphBuilder<ToBooleanICStub>::BuildCodeInitializedStub() {
   ToBooleanICStub* stub = casted_stub();
   IfBuilder if_true(this);
-  if_true.If<HBranch>(GetParameter(Descriptor::kArgument), stub->types());
+  if_true.If<HBranch>(GetParameter(Descriptor::kArgument), stub->hints());
   if_true.Then();
   if_true.Return(graph()->GetConstantTrue());
   if_true.Else();
@@ -1190,277 +1150,6 @@ HValue* CodeStubGraphBuilder<LoadDictionaryElementStub>::BuildCodeStub() {
 
 
 Handle<Code> LoadDictionaryElementStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
-template<>
-HValue* CodeStubGraphBuilder<RegExpConstructResultStub>::BuildCodeStub() {
-  // Determine the parameters.
-  HValue* length = GetParameter(Descriptor::kLength);
-  HValue* index = GetParameter(Descriptor::kIndex);
-  HValue* input = GetParameter(Descriptor::kInput);
-
-  // TODO(turbofan): This codestub has regressed to need a frame on ia32 at some
-  // point and wasn't caught since it wasn't built in the snapshot. We should
-  // probably just replace with a TurboFan stub rather than fixing it.
-#if !(V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X87)
-  info()->MarkMustNotHaveEagerFrame();
-#endif
-
-  return BuildRegExpConstructResult(length, index, input);
-}
-
-
-Handle<Code> RegExpConstructResultStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
-template <>
-class CodeStubGraphBuilder<KeyedLoadGenericStub>
-    : public CodeStubGraphBuilderBase {
- public:
-  explicit CodeStubGraphBuilder(CompilationInfo* info, CodeStub* stub)
-      : CodeStubGraphBuilderBase(info, stub) {}
-
-  typedef KeyedLoadGenericStub::Descriptor Descriptor;
-
- protected:
-  virtual HValue* BuildCodeStub();
-
-  void BuildElementsKindLimitCheck(HGraphBuilder::IfBuilder* if_builder,
-                                   HValue* bit_field2,
-                                   ElementsKind kind);
-
-  void BuildFastElementLoad(HGraphBuilder::IfBuilder* if_builder,
-                            HValue* receiver,
-                            HValue* key,
-                            HValue* instance_type,
-                            HValue* bit_field2,
-                            ElementsKind kind);
-
-  KeyedLoadGenericStub* casted_stub() {
-    return static_cast<KeyedLoadGenericStub*>(stub());
-  }
-};
-
-
-void CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildElementsKindLimitCheck(
-    HGraphBuilder::IfBuilder* if_builder, HValue* bit_field2,
-    ElementsKind kind) {
-  ElementsKind next_kind = static_cast<ElementsKind>(kind + 1);
-  HValue* kind_limit = Add<HConstant>(
-      static_cast<int>(Map::ElementsKindBits::encode(next_kind)));
-
-  if_builder->If<HCompareNumericAndBranch>(bit_field2, kind_limit, Token::LT);
-  if_builder->Then();
-}
-
-
-void CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildFastElementLoad(
-    HGraphBuilder::IfBuilder* if_builder, HValue* receiver, HValue* key,
-    HValue* instance_type, HValue* bit_field2, ElementsKind kind) {
-  BuildElementsKindLimitCheck(if_builder, bit_field2, kind);
-
-  IfBuilder js_array_check(this);
-  js_array_check.If<HCompareNumericAndBranch>(
-      instance_type, Add<HConstant>(JS_ARRAY_TYPE), Token::EQ);
-  js_array_check.Then();
-  Push(BuildUncheckedMonomorphicElementAccess(receiver, key, NULL,
-                                              true, kind,
-                                              LOAD, NEVER_RETURN_HOLE,
-                                              STANDARD_STORE));
-  js_array_check.Else();
-  Push(BuildUncheckedMonomorphicElementAccess(receiver, key, NULL,
-                                              false, kind,
-                                              LOAD, NEVER_RETURN_HOLE,
-                                              STANDARD_STORE));
-  js_array_check.End();
-}
-
-
-HValue* CodeStubGraphBuilder<KeyedLoadGenericStub>::BuildCodeStub() {
-  HValue* receiver = GetParameter(Descriptor::kReceiver);
-  HValue* key = GetParameter(Descriptor::kName);
-  // Split into a smi/integer case and unique string case.
-  HIfContinuation index_name_split_continuation(graph()->CreateBasicBlock(),
-                                                graph()->CreateBasicBlock());
-
-  BuildKeyedIndexCheck(key, &index_name_split_continuation);
-
-  IfBuilder index_name_split(this, &index_name_split_continuation);
-  index_name_split.Then();
-  {
-    // Key is an index (number)
-    key = Pop();
-
-    int bit_field_mask = (1 << Map::kIsAccessCheckNeeded) |
-      (1 << Map::kHasIndexedInterceptor);
-    BuildJSObjectCheck(receiver, bit_field_mask);
-
-    HValue* map =
-        Add<HLoadNamedField>(receiver, nullptr, HObjectAccess::ForMap());
-
-    HValue* instance_type =
-        Add<HLoadNamedField>(map, nullptr, HObjectAccess::ForMapInstanceType());
-
-    HValue* bit_field2 =
-        Add<HLoadNamedField>(map, nullptr, HObjectAccess::ForMapBitField2());
-
-    IfBuilder kind_if(this);
-    BuildFastElementLoad(&kind_if, receiver, key, instance_type, bit_field2,
-                         FAST_HOLEY_ELEMENTS);
-
-    kind_if.Else();
-    {
-      BuildFastElementLoad(&kind_if, receiver, key, instance_type, bit_field2,
-                           FAST_HOLEY_DOUBLE_ELEMENTS);
-    }
-    kind_if.Else();
-
-    // The DICTIONARY_ELEMENTS check generates a "kind_if.Then"
-    BuildElementsKindLimitCheck(&kind_if, bit_field2, DICTIONARY_ELEMENTS);
-    {
-      HValue* elements = AddLoadElements(receiver);
-
-      HValue* hash = BuildElementIndexHash(key);
-
-      Push(BuildUncheckedDictionaryElementLoad(receiver, elements, key, hash));
-    }
-    kind_if.Else();
-
-    // The SLOW_SLOPPY_ARGUMENTS_ELEMENTS check generates a "kind_if.Then"
-    STATIC_ASSERT(FAST_SLOPPY_ARGUMENTS_ELEMENTS <
-                  SLOW_SLOPPY_ARGUMENTS_ELEMENTS);
-    BuildElementsKindLimitCheck(&kind_if, bit_field2,
-                                SLOW_SLOPPY_ARGUMENTS_ELEMENTS);
-    // Non-strict elements are not handled.
-    Add<HDeoptimize>(DeoptimizeReason::kNonStrictElementsInKeyedLoadGenericStub,
-                     Deoptimizer::EAGER);
-    Push(graph()->GetConstant0());
-
-    kind_if.ElseDeopt(
-        DeoptimizeReason::kElementsKindUnhandledInKeyedLoadGenericStub);
-
-    kind_if.End();
-  }
-  index_name_split.Else();
-  {
-    // Key is a unique string.
-    key = Pop();
-
-    int bit_field_mask = (1 << Map::kIsAccessCheckNeeded) |
-        (1 << Map::kHasNamedInterceptor);
-    BuildJSObjectCheck(receiver, bit_field_mask);
-
-    HIfContinuation continuation;
-    BuildTestForDictionaryProperties(receiver, &continuation);
-    IfBuilder if_dict_properties(this, &continuation);
-    if_dict_properties.Then();
-    {
-      //  Key is string, properties are dictionary mode
-      BuildNonGlobalObjectCheck(receiver);
-
-      HValue* properties = Add<HLoadNamedField>(
-          receiver, nullptr, HObjectAccess::ForPropertiesPointer());
-
-      HValue* hash =
-          Add<HLoadNamedField>(key, nullptr, HObjectAccess::ForNameHashField());
-
-      hash = AddUncasted<HShr>(hash, Add<HConstant>(Name::kHashShift));
-
-      HValue* value =
-          BuildUncheckedDictionaryElementLoad(receiver, properties, key, hash);
-      Push(value);
-    }
-    if_dict_properties.Else();
-    {
-      // TODO(dcarney): don't use keyed lookup cache, but convert to use
-      // megamorphic stub cache.
-      UNREACHABLE();
-      //  Key is string, properties are fast mode
-      HValue* hash = BuildKeyedLookupCacheHash(receiver, key);
-
-      ExternalReference cache_keys_ref =
-          ExternalReference::keyed_lookup_cache_keys(isolate());
-      HValue* cache_keys = Add<HConstant>(cache_keys_ref);
-
-      HValue* map =
-          Add<HLoadNamedField>(receiver, nullptr, HObjectAccess::ForMap());
-      HValue* base_index = AddUncasted<HMul>(hash, Add<HConstant>(2));
-      base_index->ClearFlag(HValue::kCanOverflow);
-
-      HIfContinuation inline_or_runtime_continuation(
-          graph()->CreateBasicBlock(), graph()->CreateBasicBlock());
-      {
-        IfBuilder lookup_ifs[KeyedLookupCache::kEntriesPerBucket];
-        for (int probe = 0; probe < KeyedLookupCache::kEntriesPerBucket;
-             ++probe) {
-          IfBuilder* lookup_if = &lookup_ifs[probe];
-          lookup_if->Initialize(this);
-          int probe_base = probe * KeyedLookupCache::kEntryLength;
-          HValue* map_index = AddUncasted<HAdd>(
-              base_index,
-              Add<HConstant>(probe_base + KeyedLookupCache::kMapIndex));
-          map_index->ClearFlag(HValue::kCanOverflow);
-          HValue* key_index = AddUncasted<HAdd>(
-              base_index,
-              Add<HConstant>(probe_base + KeyedLookupCache::kKeyIndex));
-          key_index->ClearFlag(HValue::kCanOverflow);
-          HValue* map_to_check =
-              Add<HLoadKeyed>(cache_keys, map_index, nullptr, nullptr,
-                              FAST_ELEMENTS, NEVER_RETURN_HOLE, 0);
-          lookup_if->If<HCompareObjectEqAndBranch>(map_to_check, map);
-          lookup_if->And();
-          HValue* key_to_check =
-              Add<HLoadKeyed>(cache_keys, key_index, nullptr, nullptr,
-                              FAST_ELEMENTS, NEVER_RETURN_HOLE, 0);
-          lookup_if->If<HCompareObjectEqAndBranch>(key_to_check, key);
-          lookup_if->Then();
-          {
-            ExternalReference cache_field_offsets_ref =
-                ExternalReference::keyed_lookup_cache_field_offsets(isolate());
-            HValue* cache_field_offsets =
-                Add<HConstant>(cache_field_offsets_ref);
-            HValue* index = AddUncasted<HAdd>(hash, Add<HConstant>(probe));
-            index->ClearFlag(HValue::kCanOverflow);
-            HValue* property_index =
-                Add<HLoadKeyed>(cache_field_offsets, index, nullptr, cache_keys,
-                                INT32_ELEMENTS, NEVER_RETURN_HOLE, 0);
-            Push(property_index);
-          }
-          lookup_if->Else();
-        }
-        for (int i = 0; i < KeyedLookupCache::kEntriesPerBucket; ++i) {
-          lookup_ifs[i].JoinContinuation(&inline_or_runtime_continuation);
-        }
-      }
-
-      IfBuilder inline_or_runtime(this, &inline_or_runtime_continuation);
-      inline_or_runtime.Then();
-      {
-        // Found a cached index, load property inline.
-        Push(Add<HLoadFieldByIndex>(receiver, Pop()));
-      }
-      inline_or_runtime.Else();
-      {
-        // KeyedLookupCache miss; call runtime.
-        Add<HPushArguments>(receiver, key);
-        Push(Add<HCallRuntime>(
-            Runtime::FunctionForId(Runtime::kKeyedGetProperty), 2));
-      }
-      inline_or_runtime.End();
-    }
-    if_dict_properties.End();
-  }
-  index_name_split.End();
-
-  return Pop();
-}
-
-
-Handle<Code> KeyedLoadGenericStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 

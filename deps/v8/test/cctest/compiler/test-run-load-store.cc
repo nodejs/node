@@ -278,7 +278,7 @@ void RunUnalignedLoadStoreUnalignedAccess(MachineType rep) {
   CType out_buffer[2];
   byte* raw;
 
-  for (int x = 0; x < sizeof(CType); x++) {
+  for (int x = 0; x < static_cast<int>(sizeof(CType)); x++) {
     int y = sizeof(CType) - x;
 
     raw = reinterpret_cast<byte*>(&in);
@@ -523,7 +523,7 @@ void RunLoadStoreSignExtend64(TestAlignment t) {
 void RunLoadStoreZeroExtend64(TestAlignment t) {
   if (kPointerSize < 8) return;
   uint64_t buffer[5];
-  RawMachineAssemblerTester<int64_t> m;
+  RawMachineAssemblerTester<uint64_t> m;
   Node* load8 = m.LoadFromPointer(LSB(&buffer[0], 1), MachineType::Uint8());
   if (t == TestAlignment::kAligned) {
     Node* load16 = m.LoadFromPointer(LSB(&buffer[0], 2), MachineType::Uint16());
@@ -988,12 +988,13 @@ void TestRunOobCheckedLoad_pseudo(uint64_t x, bool length_is_immediate) {
   for (uint32_t i = 0; i < kNumElems; i++) {
     uint32_t offset = static_cast<uint32_t>(i * sizeof(int32_t));
     uint32_t expected = buffer[i];
-    CHECK_EQ(expected, m.Call(offset + pseudo_base, kLength));
+    CHECK_EQ(expected,
+             static_cast<uint32_t>(m.Call(offset + pseudo_base, kLength)));
   }
 
   // slightly out-of-bounds accesses.
-  for (int32_t i = kNumElems; i < kNumElems + 30; i++) {
-    uint32_t offset = static_cast<uint32_t>(i * sizeof(int32_t));
+  for (uint32_t i = kNumElems; i < kNumElems + 30; i++) {
+    uint32_t offset = i * sizeof(int32_t);
     CheckOobValue(m.Call(offset + pseudo_base, kLength));
   }
 
@@ -1089,7 +1090,7 @@ void TestRunOobCheckedLoadT_pseudo(uint64_t x, bool length_is_immediate) {
   }
 
   // slightly out-of-bounds accesses.
-  for (int32_t i = kNumElems; i < kNumElems + 30; i++) {
+  for (uint32_t i = kNumElems; i < kNumElems + 30; i++) {
     uint32_t offset = static_cast<uint32_t>(i * sizeof(MemType));
     CHECK_EQ(kReturn, m.Call(offset + pseudo_base, kLength));
     CheckOobValue(result);

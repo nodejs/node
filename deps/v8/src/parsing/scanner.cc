@@ -59,7 +59,7 @@ void Scanner::BookmarkScope::Apply() {
   } else {
     scanner_->SeekNext(bookmark_);
     scanner_->Next();
-    DCHECK_EQ(scanner_->location().beg_pos, bookmark_);
+    DCHECK_EQ(scanner_->location().beg_pos, static_cast<int>(bookmark_));
   }
   bookmark_ = kBookmarkWasApplied;
 }
@@ -1153,7 +1153,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
 
         if (next_.literal_chars->one_byte_literal().length() <= 10 &&
             value <= Smi::kMaxValue && c0_ != '.' && c0_ != 'e' && c0_ != 'E') {
-          next_.smi_value_ = static_cast<int>(value);
+          next_.smi_value_ = static_cast<uint32_t>(value);
           literal.Complete();
           HandleLeadSurrogate();
 
@@ -1638,7 +1638,7 @@ void Scanner::SeekNext(size_t position) {
   // 3, re-scan, by scanning the look-ahead char + 1 token (next_).
   c0_ = source_->Advance();
   Next();
-  DCHECK_EQ(next_.location.beg_pos, position);
+  DCHECK_EQ(next_.location.beg_pos, static_cast<int>(position));
 }
 
 }  // namespace internal

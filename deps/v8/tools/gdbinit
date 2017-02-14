@@ -68,5 +68,32 @@ Skip the jitted stack on x64 to where we entered JS last.
 Usage: jss
 end
 
+# Print stack trace with assertion scopes.
+define bta
+python
+import re
+frame_re = re.compile("^#(\d+)\s*(?:0x[a-f\d]+ in )?(.+) \(.+ at (.+)")
+assert_re = re.compile("^\s*(\S+) = .+<v8::internal::Per\w+AssertType::(\w+)_ASSERT, (false|true)>")
+btl = gdb.execute("backtrace full", to_string = True).splitlines()
+for l in btl:
+  match = frame_re.match(l)
+  if match:
+    print("[%-2s] %-60s %-40s" % (match.group(1), match.group(2), match.group(3)))
+  match = assert_re.match(l)
+  if match:
+    if match.group(3) == "false":
+      prefix = "Disallow"
+      color = "\033[91m"
+    else:
+      prefix = "Allow"
+      color = "\033[92m"
+    print("%s -> %s %s (%s)\033[0m" % (color, prefix, match.group(2), match.group(1)))
+end
+end
+document bta
+Print stack trace with assertion scopes
+Usage: bta
+end
+
 set disassembly-flavor intel
 set disable-randomization off

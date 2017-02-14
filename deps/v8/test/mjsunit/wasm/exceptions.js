@@ -106,7 +106,7 @@ var test_catch = (function () {
     }
     var kJSThrowLarge = builder.addImport("throw_large", sig_index);
 
-    // Helper function for throwing from Wasm.
+    // Helper function for throwing from WebAssembly.
     var kWasmThrowFunction =
       builder.addFunction("throw", kSig_v_i)
         .addBody([

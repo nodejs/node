@@ -34,12 +34,14 @@
 #include "src/inspector/string-16.h"
 
 #include "include/v8.h"
+#include "src/debug/debug-interface.h"
 
 namespace v8_inspector {
 
 class V8DebuggerScript {
  public:
-  V8DebuggerScript(v8::Local<v8::Context>, v8::Local<v8::Object>,
+  V8DebuggerScript(v8::Isolate* isolate,
+                   v8::Local<v8::DebugInterface::Script> script,
                    bool isLiveEdit);
   ~V8DebuggerScript();
 
@@ -62,7 +64,12 @@ class V8DebuggerScript {
 
   void setSourceURL(const String16&);
   void setSourceMappingURL(const String16&);
-  void setSource(v8::Isolate*, v8::Local<v8::String>);
+  void setSource(v8::Local<v8::String>);
+
+  bool getPossibleBreakpoints(
+      const v8::DebugInterface::Location& start,
+      const v8::DebugInterface::Location& end,
+      std::vector<v8::DebugInterface::Location>* locations);
 
  private:
   String16 m_id;
@@ -78,6 +85,9 @@ class V8DebuggerScript {
   int m_executionContextId;
   String16 m_executionContextAuxData;
   bool m_isLiveEdit;
+
+  v8::Isolate* m_isolate;
+  v8::Global<v8::DebugInterface::Script> m_script;
 
   DISALLOW_COPY_AND_ASSIGN(V8DebuggerScript);
 };

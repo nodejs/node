@@ -18,8 +18,8 @@ class FuzzerVariantGenerator(testsuite.VariantGenerator):
 
 
 class FuzzerTestSuite(testsuite.TestSuite):
-  SUB_TESTS = ( 'json', 'parser', 'regexp', 'wasm', 'wasm_asmjs', 'wasm_code',
-          'wasm_data_section', 'wasm_function_sigs_section',
+  SUB_TESTS = ( 'json', 'parser', 'regexp', 'wasm', 'wasm_asmjs', 'wasm_call',
+          'wasm_code', 'wasm_data_section', 'wasm_function_sigs_section',
           'wasm_globals_section', 'wasm_imports_section', 'wasm_memory_section',
           'wasm_names_section', 'wasm_types_section' )
 

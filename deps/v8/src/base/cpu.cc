@@ -415,7 +415,7 @@ CPU::CPU()
   }
 
   // Check if CPU has non stoppable time stamp counter.
-  const int parameter_containing_non_stop_time_stamp_counter = 0x80000007;
+  const unsigned parameter_containing_non_stop_time_stamp_counter = 0x80000007;
   if (num_ext_ids >= parameter_containing_non_stop_time_stamp_counter) {
     __cpuid(cpu_info, parameter_containing_non_stop_time_stamp_counter);
     has_non_stop_time_stamp_counter_ = (cpu_info[3] & (1 << 8)) != 0;
@@ -607,7 +607,7 @@ CPU::CPU()
   char* implementer = cpu_info.ExtractField("CPU implementer");
   if (implementer != NULL) {
     char* end;
-    implementer_ = strtol(implementer, &end, 0);
+    implementer_ = static_cast<int>(strtol(implementer, &end, 0));
     if (end == implementer) {
       implementer_ = 0;
     }
@@ -617,7 +617,7 @@ CPU::CPU()
   char* variant = cpu_info.ExtractField("CPU variant");
   if (variant != NULL) {
     char* end;
-    variant_ = strtol(variant, &end, 0);
+    variant_ = static_cast<int>(strtol(variant, &end, 0));
     if (end == variant) {
       variant_ = -1;
     }
@@ -628,7 +628,7 @@ CPU::CPU()
   char* part = cpu_info.ExtractField("CPU part");
   if (part != NULL) {
     char* end;
-    part_ = strtol(part, &end, 0);
+    part_ = static_cast<int>(strtol(part, &end, 0));
     if (end == part) {
       part_ = 0;
     }

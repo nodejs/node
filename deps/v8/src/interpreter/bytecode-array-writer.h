@@ -5,6 +5,8 @@
 #ifndef V8_INTERPRETER_BYTECODE_ARRAY_WRITER_H_
 #define V8_INTERPRETER_BYTECODE_ARRAY_WRITER_H_
 
+#include "src/base/compiler-specific.h"
+#include "src/globals.h"
 #include "src/interpreter/bytecode-pipeline.h"
 #include "src/source-position-table.h"
 
@@ -20,7 +22,8 @@ class ConstantArrayBuilder;
 
 // Class for emitting bytecode as the final stage of the bytecode
 // generation pipeline.
-class BytecodeArrayWriter final : public BytecodePipelineStage {
+class V8_EXPORT_PRIVATE BytecodeArrayWriter final
+    : public NON_EXPORTED_BASE(BytecodePipelineStage) {
  public:
   BytecodeArrayWriter(
       Zone* zone, ConstantArrayBuilder* constant_array_builder,

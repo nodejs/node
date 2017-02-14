@@ -25,11 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug --nostack-trace-on-abort --stack-size=150
+// Flags: --expose-debug-as debug --stack-size=150
 
 function f() {
   var i = 0;
-
   // Stack-allocate to reach the end of stack quickly.
   var _A0 = 00; var _A1 = 01; var _A2 = 02; var _A3 = 03; var _A4 = 04;
   var _B0 = 05; var _B1 = 06; var _B2 = 07; var _B3 = 08; var _B4 = 09;
@@ -58,10 +57,16 @@ function f() {
 Debug = debug.Debug;
 
 function listener(event, exec_state, event_data, data) {
-  result = exec_state.frame().evaluate("i").value();
+  if (event != Debug.DebugEvent.Break) return;
+  try {
+    exec_state.frame(0).evaluate("i");
+  } catch (e) {
+  }
 };
 
 Debug.setListener(listener);
-var bp = Debug.setBreakPoint(f, 0);
+var bp = Debug.setBreakPoint(f, 1);
 
 assertThrows(function() { f(); }, RangeError);
+
+Debug.setListener(null);

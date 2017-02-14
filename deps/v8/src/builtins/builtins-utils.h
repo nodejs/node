@@ -48,9 +48,8 @@ class BuiltinArguments : public Arguments {
   static const int kNumExtraArgs = 3;
   static const int kNumExtraArgsWithReceiver = 4;
 
-  template <class S>
-  Handle<S> target() {
-    return Arguments::at<S>(Arguments::length() - 1 - kTargetOffset);
+  Handle<JSFunction> target() {
+    return Arguments::at<JSFunction>(Arguments::length() - 1 - kTargetOffset);
   }
   Handle<HeapObject> new_target() {
     return Arguments::at<HeapObject>(Arguments::length() - 1 -
@@ -92,8 +91,7 @@ class BuiltinArguments : public Arguments {
   MUST_USE_RESULT Object* Builtin_##name(                                     \
       int args_length, Object** args_object, Isolate* isolate) {              \
     DCHECK(isolate->context() == nullptr || isolate->context()->IsContext()); \
-    if (V8_UNLIKELY(TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED() ||       \
-                    FLAG_runtime_call_stats)) {                               \
+    if (V8_UNLIKELY(FLAG_runtime_stats)) {                                    \
       return Builtin_Impl_Stats_##name(args_length, args_object, isolate);    \
     }                                                                         \
     BuiltinArguments args(args_length, args_object);                          \

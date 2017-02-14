@@ -90,17 +90,8 @@ RUNTIME_FUNCTION(Runtime_StringReplaceOneCharWithString) {
 RUNTIME_FUNCTION(Runtime_StringIndexOf) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);
-
-  CONVERT_ARG_HANDLE_CHECKED(String, sub, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, pat, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, index, 2);
-
-  uint32_t start_index = 0;
-  if (!index->ToArrayIndex(&start_index)) return Smi::FromInt(-1);
-
-  CHECK(start_index <= static_cast<uint32_t>(sub->length()));
-  int position = String::IndexOf(isolate, sub, pat, start_index);
-  return Smi::FromInt(position);
+  return String::IndexOf(isolate, args.at<Object>(0), args.at<Object>(1),
+                         args.at<Object>(2));
 }
 
 RUNTIME_FUNCTION(Runtime_StringLastIndexOf) {
@@ -166,59 +157,6 @@ RUNTIME_FUNCTION(Runtime_InternalizeString) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_StringMatch) {
-  HandleScope handles(isolate);
-  DCHECK(args.length() == 3);
-
-  CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSArray, regexp_info, 2);
-
-  CHECK(regexp_info->HasFastObjectElements());
-
-  RegExpImpl::GlobalCache global_cache(regexp, subject, isolate);
-  if (global_cache.HasException()) return isolate->heap()->exception();
-
-  int capture_count = regexp->CaptureCount();
-
-  ZoneScope zone_scope(isolate->runtime_zone());
-  ZoneList<int> offsets(8, zone_scope.zone());
-
-  while (true) {
-    int32_t* match = global_cache.FetchNext();
-    if (match == NULL) break;
-    offsets.Add(match[0], zone_scope.zone());  // start
-    offsets.Add(match[1], zone_scope.zone());  // end
-  }
-
-  if (global_cache.HasException()) return isolate->heap()->exception();
-
-  if (offsets.length() == 0) {
-    // Not a single match.
-    return isolate->heap()->null_value();
-  }
-
-  RegExpImpl::SetLastMatchInfo(regexp_info, subject, capture_count,
-                               global_cache.LastSuccessfulMatch());
-
-  int matches = offsets.length() / 2;
-  Handle<FixedArray> elements = isolate->factory()->NewFixedArray(matches);
-  Handle<String> substring =
-      isolate->factory()->NewSubString(subject, offsets.at(0), offsets.at(1));
-  elements->set(0, *substring);
-  FOR_WITH_HANDLE_SCOPE(isolate, int, i = 1, i, i < matches, i++, {
-    int from = offsets.at(i * 2);
-    int to = offsets.at(i * 2 + 1);
-    Handle<String> substring =
-        isolate->factory()->NewProperSubString(subject, from, to);
-    elements->set(i, *substring);
-  });
-  Handle<JSArray> result = isolate->factory()->NewJSArrayWithElements(elements);
-  result->set_length(Smi::FromInt(matches));
-  return *result;
-}
-
-
 RUNTIME_FUNCTION(Runtime_StringCharCodeAtRT) {
   HandleScope handle_scope(isolate);
   DCHECK(args.length() == 2);
@@ -256,7 +194,7 @@ RUNTIME_FUNCTION(Runtime_StringCompare) {
       break;
   }
   UNREACHABLE();
-  return Smi::FromInt(0);
+  return Smi::kZero;
 }
 
 
@@ -573,13 +511,13 @@ static int CopyCachedOneByteCharsToArray(Heap* heap, const uint8_t* chars,
     elements->set(i, value, mode);
   }
   if (i < length) {
-    DCHECK(Smi::FromInt(0) == 0);
+    DCHECK(Smi::kZero == 0);
     memset(elements->data_start() + i, 0, kPointerSize * (length - i));
   }
 #ifdef DEBUG
   for (int j = 0; j < length; ++j) {
     Object* element = elements->get(j);
-    DCHECK(element == Smi::FromInt(0) ||
+    DCHECK(element == Smi::kZero ||
            (element->IsString() && String::cast(element)->LooksValid()));
   }
 #endif
@@ -942,7 +880,7 @@ RUNTIME_FUNCTION(Runtime_StringLessThan) {
       break;
   }
   UNREACHABLE();
-  return Smi::FromInt(0);
+  return Smi::kZero;
 }
 
 RUNTIME_FUNCTION(Runtime_StringLessThanOrEqual) {
@@ -960,7 +898,7 @@ RUNTIME_FUNCTION(Runtime_StringLessThanOrEqual) {
       break;
   }
   UNREACHABLE();
-  return Smi::FromInt(0);
+  return Smi::kZero;
 }
 
 RUNTIME_FUNCTION(Runtime_StringGreaterThan) {
@@ -978,7 +916,7 @@ RUNTIME_FUNCTION(Runtime_StringGreaterThan) {
       break;
   }
   UNREACHABLE();
-  return Smi::FromInt(0);
+  return Smi::kZero;
 }
 
 RUNTIME_FUNCTION(Runtime_StringGreaterThanOrEqual) {
@@ -996,7 +934,7 @@ RUNTIME_FUNCTION(Runtime_StringGreaterThanOrEqual) {
       break;
   }
   UNREACHABLE();
-  return Smi::FromInt(0);
+  return Smi::kZero;
 }
 
 RUNTIME_FUNCTION(Runtime_StringEqual) {

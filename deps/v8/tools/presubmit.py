@@ -396,13 +396,6 @@ class SourceProcessor(SourceFileProcessor):
     print "Total violating files: %s" % violations
     return success
 
-
-def CheckExternalReferenceRegistration(workspace):
-  code = subprocess.call(
-      [sys.executable, join(workspace, "tools", "external-reference-check.py")])
-  return code == 0
-
-
 def _CheckStatusFileForDuplicateKeys(filepath):
   comma_space_bracket = re.compile(", *]")
   lines = []
@@ -503,7 +496,6 @@ def Main():
   print "Running copyright header, trailing whitespaces and " \
         "two empty lines between declarations check..."
   success &= SourceProcessor().Run(workspace)
-  success &= CheckExternalReferenceRegistration(workspace)
   success &= CheckStatusFiles(workspace)
   if success:
     return 0

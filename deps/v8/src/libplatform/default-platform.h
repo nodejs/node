@@ -11,8 +11,10 @@
 #include <queue>
 #include <vector>
 
+#include "include/libplatform/libplatform-export.h"
 #include "include/libplatform/v8-tracing.h"
 #include "include/v8-platform.h"
+#include "src/base/compiler-specific.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/libplatform/task-queue.h"
@@ -28,7 +30,7 @@ namespace tracing {
 class TracingController;
 }
 
-class DefaultPlatform : public Platform {
+class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
  public:
   DefaultPlatform();
   virtual ~DefaultPlatform();

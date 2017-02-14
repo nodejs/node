@@ -1421,7 +1421,8 @@ class Assembler : public AssemblerBase {
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
-  void RecordDeoptReason(DeoptimizeReason reason, int raw_position, int id);
+  void RecordDeoptReason(DeoptimizeReason reason, SourcePosition position,
+                         int id);
 
   // Record the emission of a constant pool.
   //
@@ -1585,7 +1586,8 @@ class Assembler : public AssemblerBase {
       // Check the constant pool hasn't been blocked for too long.
       DCHECK(pending_32_bit_constants_.empty() ||
              (start + pending_64_bit_constants_.size() * kDoubleSize <
-              (first_const_pool_32_use_ + kMaxDistToIntPool)));
+              static_cast<size_t>(first_const_pool_32_use_ +
+                                  kMaxDistToIntPool)));
       DCHECK(pending_64_bit_constants_.empty() ||
              (start < (first_const_pool_64_use_ + kMaxDistToFPPool)));
 #endif

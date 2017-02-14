@@ -40,8 +40,8 @@ class JSCreateLoweringTest : public TypedGraphTest {
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(zone(), graph());
     JSCreateLowering reducer(&graph_reducer, &deps_, &jsgraph,
-                             MaybeHandle<LiteralsArray>(),
-                             MaybeHandle<Context>(), zone());
+                             MaybeHandle<LiteralsArray>(), native_context(),
+                             zone());
     return reducer.Reduce(node);
   }
 
@@ -65,7 +65,7 @@ class JSCreateLoweringTest : public TypedGraphTest {
 
 TEST_F(JSCreateLoweringTest, JSCreate) {
   Handle<JSFunction> function = isolate()->object_function();
-  Node* const target = Parameter(Type::Constant(function, graph()->zone()));
+  Node* const target = Parameter(Type::HeapConstant(function, graph()->zone()));
   Node* const context = Parameter(Type::Any());
   Node* const effect = graph()->start();
   Reduction r = Reduce(graph()->NewNode(javascript()->Create(), target, target,

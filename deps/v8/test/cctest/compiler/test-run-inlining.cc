@@ -48,11 +48,9 @@ void InstallAssertInlineCountHelper(v8::Isolate* isolate) {
             .FromJust());
 }
 
-const uint32_t kRestrictedInliningFlags =
-    CompilationInfo::kNativeContextSpecializing;
+const uint32_t kRestrictedInliningFlags = 0;
 
-const uint32_t kInlineFlags = CompilationInfo::kInliningEnabled |
-                              CompilationInfo::kNativeContextSpecializing;
+const uint32_t kInlineFlags = CompilationInfo::kInliningEnabled;
 
 }  // namespace
 

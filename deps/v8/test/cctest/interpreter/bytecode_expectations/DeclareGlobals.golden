@@ -104,7 +104,7 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 29
+bytecode array length: 31
 bytecodes: [
                 B(LdaConstant), U8(0),
                 B(Star), R(1),
@@ -113,8 +113,10 @@ bytecodes: [
                 B(Mov), R(closure), R(3),
                 B(CallRuntime), U16(Runtime::kDeclareGlobalsForInterpreter), R(1), U8(3),
   /*    0 E> */ B(StackCheck),
-  /*   16 S> */ B(LdrUndefined), R(2),
-                B(LdrGlobal), U8(2), R(1),
+  /*   16 S> */ B(LdaUndefined),
+                B(Star), R(2),
+                B(LdaGlobal), U8(2),
+                B(Star), R(1),
   /*   16 E> */ B(Call), R(1), R(2), U8(1), U8(4),
                 B(Star), R(0),
   /*   20 S> */ B(Return),

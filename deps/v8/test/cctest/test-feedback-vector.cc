@@ -36,7 +36,7 @@ TEST(VectorStructure) {
   v8::HandleScope scope(context->GetIsolate());
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
 
   // Empty vectors are the empty fixed array.
   StaticFeedbackVectorSpec empty;
@@ -103,7 +103,7 @@ TEST(VectorICMetadata) {
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
   Isolate* isolate = CcTest::i_isolate();
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
 
   FeedbackVectorSpec spec(&zone);
   // Set metadata.
@@ -158,7 +158,7 @@ TEST(VectorSlotClearing) {
   v8::HandleScope scope(context->GetIsolate());
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
 
   // We only test clearing FeedbackVectorSlots, not FeedbackVectorSlots.
   // The reason is that FeedbackVectorSlots need a full code environment

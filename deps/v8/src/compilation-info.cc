@@ -9,6 +9,7 @@
 #include "src/ast/scopes.h"
 #include "src/isolate.h"
 #include "src/parsing/parse-info.h"
+#include "src/source-position.h"
 
 namespace v8 {
 namespace internal {
@@ -32,6 +33,20 @@ PARSE_INFO_GETTER(Handle<SharedFunctionInfo>, shared_info)
 #undef PARSE_INFO_GETTER
 #undef PARSE_INFO_GETTER_WITH_DEFAULT
 
+bool CompilationInfo::is_debug() const {
+  return parse_info() ? parse_info()->is_debug() : false;
+}
+
+void CompilationInfo::set_is_debug() {
+  CHECK(parse_info());
+  parse_info()->set_is_debug();
+}
+
+void CompilationInfo::PrepareForSerializing() {
+  if (parse_info()) parse_info()->set_will_serialize();
+  SetFlag(kSerializing);
+}
+
 bool CompilationInfo::has_shared_info() const {
   return parse_info_ && !parse_info_->shared_info().is_null();
 }
@@ -51,8 +66,12 @@ CompilationInfo::CompilationInfo(ParseInfo* parse_info,
   if (isolate_->serializer_enabled()) EnableDeoptimizationSupport();
 
   if (FLAG_function_context_specialization) MarkAsFunctionContextSpecializing();
-  if (FLAG_turbo_source_positions) MarkAsSourcePositionsEnabled();
   if (FLAG_turbo_splitting) MarkAsSplittingEnabled();
+
+  if (FLAG_trace_deopt || FLAG_trace_turbo || FLAG_trace_turbo_graph ||
+      FLAG_turbo_profiling || isolate_->is_profiling()) {
+    MarkAsSourcePositionsEnabled();
+  }
 }
 
 CompilationInfo::CompilationInfo(Vector<const char> debug_name,
@@ -200,10 +219,12 @@ void CompilationInfo::SetOptimizing() {
   code_flags_ = Code::KindField::update(code_flags_, Code::OPTIMIZED_FUNCTION);
 }
 
-void CompilationInfo::AddInlinedFunction(
-    Handle<SharedFunctionInfo> inlined_function) {
+int CompilationInfo::AddInlinedFunction(
+    Handle<SharedFunctionInfo> inlined_function, SourcePosition pos) {
+  int id = static_cast<int>(inlined_functions_.size());
   inlined_functions_.push_back(InlinedFunctionHolder(
-      inlined_function, handle(inlined_function->code())));
+      inlined_function, handle(inlined_function->code()), pos));
+  return id;
 }
 
 Code::Kind CompilationInfo::output_code_kind() const {

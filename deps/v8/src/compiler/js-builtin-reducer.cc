@@ -96,14 +96,29 @@ class JSCallReduction {
 
 JSBuiltinReducer::JSBuiltinReducer(Editor* editor, JSGraph* jsgraph,
                                    Flags flags,
-                                   CompilationDependencies* dependencies)
+                                   CompilationDependencies* dependencies,
+                                   Handle<Context> native_context)
     : AdvancedReducer(editor),
       dependencies_(dependencies),
       flags_(flags),
       jsgraph_(jsgraph),
+      native_context_(native_context),
       type_cache_(TypeCache::Get()) {}
 
 namespace {
+
+// TODO(turbofan): Shall we move this to the NodeProperties? Or some (untyped)
+// alias analyzer?
+bool IsSame(Node* a, Node* b) {
+  if (a == b) {
+    return true;
+  } else if (a->opcode() == IrOpcode::kCheckHeapObject) {
+    return IsSame(a->InputAt(0), b);
+  } else if (b->opcode() == IrOpcode::kCheckHeapObject) {
+    return IsSame(a, b->InputAt(0));
+  }
+  return false;
+}
 
 MaybeHandle<Map> GetMapWitness(Node* node) {
   Node* receiver = NodeProperties::GetValueInput(node, 1);
@@ -112,7 +127,7 @@ MaybeHandle<Map> GetMapWitness(Node* node) {
   // for the {receiver}, and if so use that map for the lowering below.
   for (Node* dominator = effect;;) {
     if (dominator->opcode() == IrOpcode::kCheckMaps &&
-        dominator->InputAt(0) == receiver) {
+        IsSame(dominator->InputAt(0), receiver)) {
       if (dominator->op()->ValueInputCount() == 2) {
         HeapObjectMatcher m(dominator->InputAt(1));
         if (m.HasValue()) return Handle<Map>::cast(m.Value());
@@ -160,7 +175,553 @@ bool CanInlineArrayResizeOperation(Handle<Map> receiver_map) {
          !IsReadOnlyLengthDescriptor(receiver_map);
 }
 
+bool CanInlineJSArrayIteration(Handle<Map> receiver_map) {
+  Isolate* const isolate = receiver_map->GetIsolate();
+  // Ensure that the [[Prototype]] is actually an exotic Array
+  if (!receiver_map->prototype()->IsJSArray()) return false;
+
+  // Don't inline JSArrays with slow elements of any kind
+  if (!IsFastElementsKind(receiver_map->elements_kind())) return false;
+
+  // If the receiver map has packed elements, no need to check the prototype.
+  // This requires a MapCheck where this is used.
+  if (!IsFastHoleyElementsKind(receiver_map->elements_kind())) return true;
+
+  Handle<JSArray> receiver_prototype(JSArray::cast(receiver_map->prototype()),
+                                     isolate);
+  // Ensure all prototypes of the {receiver} are stable.
+  for (PrototypeIterator it(isolate, receiver_prototype, kStartAtReceiver);
+       !it.IsAtEnd(); it.Advance()) {
+    Handle<JSReceiver> current = PrototypeIterator::GetCurrent<JSReceiver>(it);
+    if (!current->map()->is_stable()) return false;
+  }
+
+  // For holey Arrays, ensure that the array_protector cell is valid (must be
+  // a CompilationDependency), and the JSArray prototype has not been altered.
+  return receiver_map->instance_type() == JS_ARRAY_TYPE &&
+         (!receiver_map->is_dictionary_map() || receiver_map->is_stable()) &&
+         isolate->IsFastArrayConstructorPrototypeChainIntact() &&
+         isolate->IsAnyInitialArrayPrototype(receiver_prototype);
+}
+
 }  // namespace
+
+Reduction JSBuiltinReducer::ReduceArrayIterator(Node* node,
+                                                IterationKind kind) {
+  Handle<Map> receiver_map;
+  if (GetMapWitness(node).ToHandle(&receiver_map)) {
+    return ReduceArrayIterator(receiver_map, node, kind,
+                               ArrayIteratorKind::kArray);
+  }
+  return NoChange();
+}
+
+Reduction JSBuiltinReducer::ReduceTypedArrayIterator(Node* node,
+                                                     IterationKind kind) {
+  Handle<Map> receiver_map;
+  if (GetMapWitness(node).ToHandle(&receiver_map) &&
+      receiver_map->instance_type() == JS_TYPED_ARRAY_TYPE) {
+    return ReduceArrayIterator(receiver_map, node, kind,
+                               ArrayIteratorKind::kTypedArray);
+  }
+  return NoChange();
+}
+
+Reduction JSBuiltinReducer::ReduceArrayIterator(Handle<Map> receiver_map,
+                                                Node* node, IterationKind kind,
+                                                ArrayIteratorKind iter_kind) {
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  if (iter_kind == ArrayIteratorKind::kTypedArray) {
+    // For JSTypedArray iterator methods, deopt if the buffer is neutered. This
+    // is potentially a deopt loop, but should be extremely unlikely.
+    DCHECK_EQ(JS_TYPED_ARRAY_TYPE, receiver_map->instance_type());
+    Node* buffer = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
+        receiver, effect, control);
+
+    Node* check = effect = graph()->NewNode(
+        simplified()->ArrayBufferWasNeutered(), buffer, effect, control);
+    check = graph()->NewNode(simplified()->BooleanNot(), check);
+    effect = graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+  }
+
+  int map_index = -1;
+  Node* object_map = jsgraph()->UndefinedConstant();
+  switch (receiver_map->instance_type()) {
+    case JS_ARRAY_TYPE:
+      if (kind == IterationKind::kKeys) {
+        map_index = Context::FAST_ARRAY_KEY_ITERATOR_MAP_INDEX;
+      } else {
+        map_index = kind == IterationKind::kValues
+                        ? Context::FAST_SMI_ARRAY_VALUE_ITERATOR_MAP_INDEX
+                        : Context::FAST_SMI_ARRAY_KEY_VALUE_ITERATOR_MAP_INDEX;
+
+        if (CanInlineJSArrayIteration(receiver_map)) {
+          // Use `generic` elements for holey arrays if there may be elements
+          // on the prototype chain.
+          map_index += static_cast<int>(receiver_map->elements_kind());
+          object_map = jsgraph()->Constant(receiver_map);
+          if (IsFastHoleyElementsKind(receiver_map->elements_kind())) {
+            Handle<JSObject> initial_array_prototype(
+                native_context()->initial_array_prototype(), isolate());
+            dependencies()->AssumePrototypeMapsStable(receiver_map,
+                                                      initial_array_prototype);
+          }
+        } else {
+          map_index += (Context::GENERIC_ARRAY_VALUE_ITERATOR_MAP_INDEX -
+                        Context::FAST_SMI_ARRAY_VALUE_ITERATOR_MAP_INDEX);
+        }
+      }
+      break;
+    case JS_TYPED_ARRAY_TYPE:
+      if (kind == IterationKind::kKeys) {
+        map_index = Context::TYPED_ARRAY_KEY_ITERATOR_MAP_INDEX;
+      } else {
+        DCHECK_GE(receiver_map->elements_kind(), UINT8_ELEMENTS);
+        DCHECK_LE(receiver_map->elements_kind(), UINT8_CLAMPED_ELEMENTS);
+        map_index = (kind == IterationKind::kValues
+                         ? Context::UINT8_ARRAY_VALUE_ITERATOR_MAP_INDEX
+                         : Context::UINT8_ARRAY_KEY_VALUE_ITERATOR_MAP_INDEX) +
+                    (receiver_map->elements_kind() - UINT8_ELEMENTS);
+      }
+      break;
+    default:
+      if (kind == IterationKind::kKeys) {
+        map_index = Context::GENERIC_ARRAY_KEY_ITERATOR_MAP_INDEX;
+      } else if (kind == IterationKind::kValues) {
+        map_index = Context::GENERIC_ARRAY_VALUE_ITERATOR_MAP_INDEX;
+      } else {
+        map_index = Context::GENERIC_ARRAY_KEY_VALUE_ITERATOR_MAP_INDEX;
+      }
+      break;
+  }
+
+  DCHECK_GE(map_index, Context::TYPED_ARRAY_KEY_ITERATOR_MAP_INDEX);
+  DCHECK_LE(map_index, Context::GENERIC_ARRAY_VALUE_ITERATOR_MAP_INDEX);
+
+  Handle<Map> map(Map::cast(native_context()->get(map_index)), isolate());
+
+  // allocate new iterator
+  effect = graph()->NewNode(
+      common()->BeginRegion(RegionObservability::kNotObservable), effect);
+  Node* value = effect = graph()->NewNode(
+      simplified()->Allocate(NOT_TENURED),
+      jsgraph()->Constant(JSArrayIterator::kSize), effect, control);
+  effect = graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
+                            value, jsgraph()->Constant(map), effect, control);
+  effect = graph()->NewNode(
+      simplified()->StoreField(AccessBuilder::ForJSObjectProperties()), value,
+      jsgraph()->EmptyFixedArrayConstant(), effect, control);
+  effect = graph()->NewNode(
+      simplified()->StoreField(AccessBuilder::ForJSObjectElements()), value,
+      jsgraph()->EmptyFixedArrayConstant(), effect, control);
+
+  // attach the iterator to this object
+  effect = graph()->NewNode(
+      simplified()->StoreField(AccessBuilder::ForJSArrayIteratorObject()),
+      value, receiver, effect, control);
+  effect = graph()->NewNode(
+      simplified()->StoreField(AccessBuilder::ForJSArrayIteratorIndex()), value,
+      jsgraph()->ZeroConstant(), effect, control);
+  effect = graph()->NewNode(
+      simplified()->StoreField(AccessBuilder::ForJSArrayIteratorObjectMap()),
+      value, object_map, effect, control);
+
+  value = effect = graph()->NewNode(common()->FinishRegion(), value, effect);
+
+  // replace it
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
+}
+
+Reduction JSBuiltinReducer::ReduceFastArrayIteratorNext(
+    Handle<Map> iterator_map, Node* node, IterationKind kind) {
+  Node* iterator = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* context = NodeProperties::GetContextInput(node);
+
+  if (kind != IterationKind::kKeys &&
+      !isolate()->IsFastArrayIterationIntact()) {
+    // Avoid deopt loops for non-key iteration if the
+    // fast_array_iteration_protector cell has been invalidated.
+    return NoChange();
+  }
+
+  ElementsKind elements_kind = JSArrayIterator::ElementsKindForInstanceType(
+      iterator_map->instance_type());
+
+  if (IsFastHoleyElementsKind(elements_kind)) {
+    if (!isolate()->IsFastArrayConstructorPrototypeChainIntact()) {
+      return NoChange();
+    } else {
+      Handle<JSObject> initial_array_prototype(
+          native_context()->initial_array_prototype(), isolate());
+      dependencies()->AssumePropertyCell(factory()->array_protector());
+    }
+  }
+
+  Node* array = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSArrayIteratorObject()),
+      iterator, effect, control);
+  Node* check0 = graph()->NewNode(simplified()->ReferenceEqual(), array,
+                                  jsgraph()->UndefinedConstant());
+  Node* branch0 =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check0, control);
+
+  Node* vdone_false0;
+  Node* vfalse0;
+  Node* efalse0 = effect;
+  Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
+  {
+    // iterator.[[IteratedObject]] !== undefined, continue iterating.
+    Node* index = efalse0 = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSArrayIteratorIndex(
+            JS_ARRAY_TYPE, elements_kind)),
+        iterator, efalse0, if_false0);
+
+    Node* length = efalse0 = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSArrayLength(elements_kind)),
+        array, efalse0, if_false0);
+    Node* check1 =
+        graph()->NewNode(simplified()->NumberLessThan(), index, length);
+    Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                     check1, if_false0);
+
+    Node* vdone_true1;
+    Node* vtrue1;
+    Node* etrue1 = efalse0;
+    Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
+    {
+      // iterator.[[NextIndex]] < array.length, continue iterating
+      vdone_true1 = jsgraph()->FalseConstant();
+      if (kind == IterationKind::kKeys) {
+        vtrue1 = index;
+      } else {
+        // For value/entry iteration, first step is a mapcheck to ensure
+        // inlining is still valid.
+        Node* orig_map = etrue1 =
+            graph()->NewNode(simplified()->LoadField(
+                                 AccessBuilder::ForJSArrayIteratorObjectMap()),
+                             iterator, etrue1, if_true1);
+        etrue1 = graph()->NewNode(simplified()->CheckMaps(1), array, orig_map,
+                                  etrue1, if_true1);
+      }
+
+      if (kind != IterationKind::kKeys) {
+        Node* elements = etrue1 = graph()->NewNode(
+            simplified()->LoadField(AccessBuilder::ForJSObjectElements()),
+            array, etrue1, if_true1);
+        Node* value = etrue1 = graph()->NewNode(
+            simplified()->LoadElement(
+                AccessBuilder::ForFixedArrayElement(elements_kind)),
+            elements, index, etrue1, if_true1);
+
+        // Convert hole to undefined if needed.
+        if (elements_kind == FAST_HOLEY_ELEMENTS ||
+            elements_kind == FAST_HOLEY_SMI_ELEMENTS) {
+          value = graph()->NewNode(simplified()->ConvertTaggedHoleToUndefined(),
+                                   value);
+        } else if (elements_kind == FAST_HOLEY_DOUBLE_ELEMENTS) {
+          // TODO(bmeurer): avoid deopt if not all uses of value are truncated.
+          CheckFloat64HoleMode mode = CheckFloat64HoleMode::kAllowReturnHole;
+          value = etrue1 = graph()->NewNode(
+              simplified()->CheckFloat64Hole(mode), value, etrue1, if_true1);
+        }
+
+        if (kind == IterationKind::kEntries) {
+          // Allocate elements for key/value pair
+          vtrue1 = etrue1 =
+              graph()->NewNode(javascript()->CreateKeyValueArray(), index,
+                               value, context, etrue1);
+        } else {
+          DCHECK_EQ(kind, IterationKind::kValues);
+          vtrue1 = value;
+        }
+      }
+
+      Node* next_index = graph()->NewNode(simplified()->NumberAdd(), index,
+                                          jsgraph()->OneConstant());
+      next_index = graph()->NewNode(simplified()->NumberToUint32(), next_index);
+
+      etrue1 = graph()->NewNode(
+          simplified()->StoreField(AccessBuilder::ForJSArrayIteratorIndex(
+              JS_ARRAY_TYPE, elements_kind)),
+          iterator, next_index, etrue1, if_true1);
+    }
+
+    Node* vdone_false1;
+    Node* vfalse1;
+    Node* efalse1 = efalse0;
+    Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
+    {
+      // iterator.[[NextIndex]] >= array.length, stop iterating.
+      vdone_false1 = jsgraph()->TrueConstant();
+      vfalse1 = jsgraph()->UndefinedConstant();
+      efalse1 = graph()->NewNode(
+          simplified()->StoreField(AccessBuilder::ForJSArrayIteratorObject()),
+          iterator, vfalse1, efalse1, if_false1);
+    }
+
+    if_false0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);
+    efalse0 =
+        graph()->NewNode(common()->EffectPhi(2), etrue1, efalse1, if_false0);
+    vfalse0 = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                               vtrue1, vfalse1, if_false0);
+    vdone_false0 =
+        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                         vdone_true1, vdone_false1, if_false0);
+  }
+
+  Node* vdone_true0;
+  Node* vtrue0;
+  Node* etrue0 = effect;
+  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
+  {
+    // iterator.[[IteratedObject]] === undefined, the iterator is done.
+    vdone_true0 = jsgraph()->TrueConstant();
+    vtrue0 = jsgraph()->UndefinedConstant();
+  }
+
+  control = graph()->NewNode(common()->Merge(2), if_false0, if_true0);
+  effect = graph()->NewNode(common()->EffectPhi(2), efalse0, etrue0, control);
+  Node* value =
+      graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                       vfalse0, vtrue0, control);
+  Node* done =
+      graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                       vdone_false0, vdone_true0, control);
+
+  // Create IteratorResult object.
+  value = effect = graph()->NewNode(javascript()->CreateIterResultObject(),
+                                    value, done, context, effect);
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
+}
+
+Reduction JSBuiltinReducer::ReduceTypedArrayIteratorNext(
+    Handle<Map> iterator_map, Node* node, IterationKind kind) {
+  Node* iterator = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* context = NodeProperties::GetContextInput(node);
+
+  ElementsKind elements_kind = JSArrayIterator::ElementsKindForInstanceType(
+      iterator_map->instance_type());
+
+  Node* array = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSArrayIteratorObject()),
+      iterator, effect, control);
+  Node* check0 = graph()->NewNode(simplified()->ReferenceEqual(), array,
+                                  jsgraph()->UndefinedConstant());
+  Node* branch0 =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check0, control);
+
+  Node* vdone_false0;
+  Node* vfalse0;
+  Node* efalse0 = effect;
+  Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
+  {
+    // iterator.[[IteratedObject]] !== undefined, continue iterating.
+    Node* index = efalse0 = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSArrayIteratorIndex(
+            JS_TYPED_ARRAY_TYPE, elements_kind)),
+        iterator, efalse0, if_false0);
+
+    // typedarray.[[ViewedArrayBuffer]]
+    Node* buffer = efalse0 = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
+        array, efalse0, if_false0);
+
+    Node* check1 = efalse0 = graph()->NewNode(
+        simplified()->ArrayBufferWasNeutered(), buffer, efalse0, if_false0);
+    check1 = graph()->NewNode(simplified()->BooleanNot(), check1);
+    efalse0 =
+        graph()->NewNode(simplified()->CheckIf(), check1, efalse0, if_false0);
+
+    Node* length = efalse0 = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSTypedArrayLength()), array,
+        efalse0, if_false0);
+
+    Node* check2 =
+        graph()->NewNode(simplified()->NumberLessThan(), index, length);
+    Node* branch2 = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                     check2, if_false0);
+
+    Node* vdone_true2;
+    Node* vtrue2;
+    Node* etrue2 = efalse0;
+    Node* if_true2 = graph()->NewNode(common()->IfTrue(), branch2);
+    {
+      // iterator.[[NextIndex]] < array.length, continue iterating
+      vdone_true2 = jsgraph()->FalseConstant();
+      if (kind == IterationKind::kKeys) {
+        vtrue2 = index;
+      }
+
+      Node* next_index = graph()->NewNode(simplified()->NumberAdd(), index,
+                                          jsgraph()->OneConstant());
+      next_index = graph()->NewNode(simplified()->NumberToUint32(), next_index);
+
+      etrue2 = graph()->NewNode(
+          simplified()->StoreField(AccessBuilder::ForJSArrayIteratorIndex(
+              JS_TYPED_ARRAY_TYPE, elements_kind)),
+          iterator, next_index, etrue2, if_true2);
+
+      if (kind != IterationKind::kKeys) {
+        Node* elements = etrue2 = graph()->NewNode(
+            simplified()->LoadField(AccessBuilder::ForJSObjectElements()),
+            array, etrue2, if_true2);
+        Node* base_ptr = etrue2 = graph()->NewNode(
+            simplified()->LoadField(
+                AccessBuilder::ForFixedTypedArrayBaseBasePointer()),
+            elements, etrue2, if_true2);
+        Node* external_ptr = etrue2 = graph()->NewNode(
+            simplified()->LoadField(
+                AccessBuilder::ForFixedTypedArrayBaseExternalPointer()),
+            elements, etrue2, if_true2);
+
+        ExternalArrayType array_type = kExternalInt8Array;
+        switch (elements_kind) {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+  case TYPE##_ELEMENTS:                                 \
+    array_type = kExternal##Type##Array;                \
+    break;
+          TYPED_ARRAYS(TYPED_ARRAY_CASE)
+          default:
+            UNREACHABLE();
+#undef TYPED_ARRAY_CASE
+        }
+
+        Node* value = etrue2 =
+            graph()->NewNode(simplified()->LoadTypedElement(array_type), buffer,
+                             base_ptr, external_ptr, index, etrue2, if_true2);
+
+        if (kind == IterationKind::kEntries) {
+          // Allocate elements for key/value pair
+          vtrue2 = etrue2 =
+              graph()->NewNode(javascript()->CreateKeyValueArray(), index,
+                               value, context, etrue2);
+        } else {
+          DCHECK(kind == IterationKind::kValues);
+          vtrue2 = value;
+        }
+      }
+    }
+
+    Node* vdone_false2;
+    Node* vfalse2;
+    Node* efalse2 = efalse0;
+    Node* if_false2 = graph()->NewNode(common()->IfFalse(), branch2);
+    {
+      // iterator.[[NextIndex]] >= array.length, stop iterating.
+      vdone_false2 = jsgraph()->TrueConstant();
+      vfalse2 = jsgraph()->UndefinedConstant();
+      efalse2 = graph()->NewNode(
+          simplified()->StoreField(AccessBuilder::ForJSArrayIteratorObject()),
+          iterator, vfalse2, efalse2, if_false2);
+    }
+
+    if_false0 = graph()->NewNode(common()->Merge(2), if_true2, if_false2);
+    efalse0 =
+        graph()->NewNode(common()->EffectPhi(2), etrue2, efalse2, if_false0);
+    vfalse0 = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                               vtrue2, vfalse2, if_false0);
+    vdone_false0 =
+        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                         vdone_true2, vdone_false2, if_false0);
+  }
+
+  Node* vdone_true0;
+  Node* vtrue0;
+  Node* etrue0 = effect;
+  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
+  {
+    // iterator.[[IteratedObject]] === undefined, the iterator is done.
+    vdone_true0 = jsgraph()->TrueConstant();
+    vtrue0 = jsgraph()->UndefinedConstant();
+  }
+
+  control = graph()->NewNode(common()->Merge(2), if_false0, if_true0);
+  effect = graph()->NewNode(common()->EffectPhi(2), efalse0, etrue0, control);
+  Node* value =
+      graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                       vfalse0, vtrue0, control);
+  Node* done =
+      graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                       vdone_false0, vdone_true0, control);
+
+  // Create IteratorResult object.
+  value = effect = graph()->NewNode(javascript()->CreateIterResultObject(),
+                                    value, done, context, effect);
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
+}
+
+Reduction JSBuiltinReducer::ReduceArrayIteratorNext(Node* node) {
+  Handle<Map> receiver_map;
+  if (GetMapWitness(node).ToHandle(&receiver_map)) {
+    switch (receiver_map->instance_type()) {
+      case JS_TYPED_ARRAY_KEY_ITERATOR_TYPE:
+        return ReduceTypedArrayIteratorNext(receiver_map, node,
+                                            IterationKind::kKeys);
+
+      case JS_FAST_ARRAY_KEY_ITERATOR_TYPE:
+        return ReduceFastArrayIteratorNext(receiver_map, node,
+                                           IterationKind::kKeys);
+
+      case JS_INT8_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+      case JS_UINT8_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+      case JS_INT16_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+      case JS_UINT16_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+      case JS_INT32_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+      case JS_UINT32_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+      case JS_FLOAT32_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+      case JS_FLOAT64_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+      case JS_UINT8_CLAMPED_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+        return ReduceTypedArrayIteratorNext(receiver_map, node,
+                                            IterationKind::kEntries);
+
+      case JS_FAST_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+      case JS_FAST_HOLEY_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+      case JS_FAST_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+      case JS_FAST_HOLEY_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+      case JS_FAST_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+      case JS_FAST_HOLEY_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+        return ReduceFastArrayIteratorNext(receiver_map, node,
+                                           IterationKind::kEntries);
+
+      case JS_INT8_ARRAY_VALUE_ITERATOR_TYPE:
+      case JS_UINT8_ARRAY_VALUE_ITERATOR_TYPE:
+      case JS_INT16_ARRAY_VALUE_ITERATOR_TYPE:
+      case JS_UINT16_ARRAY_VALUE_ITERATOR_TYPE:
+      case JS_INT32_ARRAY_VALUE_ITERATOR_TYPE:
+      case JS_UINT32_ARRAY_VALUE_ITERATOR_TYPE:
+      case JS_FLOAT32_ARRAY_VALUE_ITERATOR_TYPE:
+      case JS_FLOAT64_ARRAY_VALUE_ITERATOR_TYPE:
+      case JS_UINT8_CLAMPED_ARRAY_VALUE_ITERATOR_TYPE:
+        return ReduceTypedArrayIteratorNext(receiver_map, node,
+                                            IterationKind::kValues);
+
+      case JS_FAST_SMI_ARRAY_VALUE_ITERATOR_TYPE:
+      case JS_FAST_HOLEY_SMI_ARRAY_VALUE_ITERATOR_TYPE:
+      case JS_FAST_ARRAY_VALUE_ITERATOR_TYPE:
+      case JS_FAST_HOLEY_ARRAY_VALUE_ITERATOR_TYPE:
+      case JS_FAST_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE:
+      case JS_FAST_HOLEY_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE:
+        return ReduceFastArrayIteratorNext(receiver_map, node,
+                                           IterationKind::kValues);
+
+      default:
+        // Slow array iterators are not reduced
+        return NoChange();
+    }
+  }
+  return NoChange();
+}
 
 // ES6 section 22.1.3.17 Array.prototype.pop ( )
 Reduction JSBuiltinReducer::ReduceArrayPop(Node* node) {
@@ -329,14 +890,14 @@ bool HasInstanceTypeWitness(Node* receiver, Node* effect,
                             InstanceType instance_type) {
   for (Node* dominator = effect;;) {
     if (dominator->opcode() == IrOpcode::kCheckMaps &&
-        dominator->InputAt(0) == receiver) {
+        IsSame(dominator->InputAt(0), receiver)) {
       // Check if all maps have the given {instance_type}.
       for (int i = 1; i < dominator->op()->ValueInputCount(); ++i) {
         Node* const map = NodeProperties::GetValueInput(dominator, i);
         Type* const map_type = NodeProperties::GetType(map);
-        if (!map_type->IsConstant()) return false;
+        if (!map_type->IsHeapConstant()) return false;
         Handle<Map> const map_value =
-            Handle<Map>::cast(map_type->AsConstant()->Value());
+            Handle<Map>::cast(map_type->AsHeapConstant()->Value());
         if (map_value->instance_type() != instance_type) return false;
       }
       return true;
@@ -915,11 +1476,10 @@ Reduction JSBuiltinReducer::ReduceNumberParseInt(Node* node) {
       r.InputsMatchTwo(type_cache_.kSafeInteger,
                        type_cache_.kZeroOrUndefined) ||
       r.InputsMatchTwo(type_cache_.kSafeInteger, type_cache_.kTenOrUndefined)) {
-    // Number.parseInt(a:safe-integer) -> NumberToInt32(a)
-    // Number.parseInt(a:safe-integer,b:#0\/undefined) -> NumberToInt32(a)
-    // Number.parseInt(a:safe-integer,b:#10\/undefined) -> NumberToInt32(a)
-    Node* input = r.GetJSCallInput(0);
-    Node* value = graph()->NewNode(simplified()->NumberToInt32(), input);
+    // Number.parseInt(a:safe-integer) -> a
+    // Number.parseInt(a:safe-integer,b:#0\/undefined) -> a
+    // Number.parseInt(a:safe-integer,b:#10\/undefined) -> a
+    Node* value = r.GetJSCallInput(0);
     return Replace(value);
   }
   return NoChange();
@@ -949,7 +1509,7 @@ Node* GetStringWitness(Node* node) {
   // the lowering below.
   for (Node* dominator = effect;;) {
     if (dominator->opcode() == IrOpcode::kCheckString &&
-        dominator->InputAt(0) == receiver) {
+        IsSame(dominator->InputAt(0), receiver)) {
       return dominator;
     }
     if (dominator->op()->EffectInputCount() != 1) {
@@ -1058,6 +1618,46 @@ Reduction JSBuiltinReducer::ReduceStringCharCodeAt(Node* node) {
   return NoChange();
 }
 
+Reduction JSBuiltinReducer::ReduceStringIterator(Node* node) {
+  if (Node* receiver = GetStringWitness(node)) {
+    Node* effect = NodeProperties::GetEffectInput(node);
+    Node* control = NodeProperties::GetControlInput(node);
+
+    Node* map = jsgraph()->HeapConstant(
+        handle(native_context()->string_iterator_map(), isolate()));
+
+    // allocate new iterator
+    effect = graph()->NewNode(
+        common()->BeginRegion(RegionObservability::kNotObservable), effect);
+    Node* value = effect = graph()->NewNode(
+        simplified()->Allocate(NOT_TENURED),
+        jsgraph()->Constant(JSStringIterator::kSize), effect, control);
+    effect = graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
+                              value, map, effect, control);
+    effect = graph()->NewNode(
+        simplified()->StoreField(AccessBuilder::ForJSObjectProperties()), value,
+        jsgraph()->EmptyFixedArrayConstant(), effect, control);
+    effect = graph()->NewNode(
+        simplified()->StoreField(AccessBuilder::ForJSObjectElements()), value,
+        jsgraph()->EmptyFixedArrayConstant(), effect, control);
+
+    // attach the iterator to this string
+    effect = graph()->NewNode(
+        simplified()->StoreField(AccessBuilder::ForJSStringIteratorString()),
+        value, receiver, effect, control);
+    effect = graph()->NewNode(
+        simplified()->StoreField(AccessBuilder::ForJSStringIteratorIndex()),
+        value, jsgraph()->SmiConstant(0), effect, control);
+
+    value = effect = graph()->NewNode(common()->FinishRegion(), value, effect);
+
+    // replace it
+    ReplaceWithValue(node, value, effect, control);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
 Reduction JSBuiltinReducer::ReduceStringIteratorNext(Node* node) {
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -1090,11 +1690,11 @@ Reduction JSBuiltinReducer::ReduceStringIteratorNext(Node* node) {
                                     index, if_true0);
 
       // branch1: if ((lead & 0xFC00) === 0xD800)
-      Node* check1 = graph()->NewNode(
-          simplified()->NumberEqual(),
-          graph()->NewNode(simplified()->NumberBitwiseAnd(), lead,
-                           jsgraph()->Int32Constant(0xFC00)),
-          jsgraph()->Int32Constant(0xD800));
+      Node* check1 =
+          graph()->NewNode(simplified()->NumberEqual(),
+                           graph()->NewNode(simplified()->NumberBitwiseAnd(),
+                                            lead, jsgraph()->Constant(0xFC00)),
+                           jsgraph()->Constant(0xD800));
       Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
                                        check1, if_true0);
       Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
@@ -1116,8 +1716,8 @@ Reduction JSBuiltinReducer::ReduceStringIteratorNext(Node* node) {
           Node* check3 = graph()->NewNode(
               simplified()->NumberEqual(),
               graph()->NewNode(simplified()->NumberBitwiseAnd(), trail,
-                               jsgraph()->Int32Constant(0xFC00)),
-              jsgraph()->Int32Constant(0xDC00));
+                               jsgraph()->Constant(0xFC00)),
+              jsgraph()->Constant(0xDC00));
           Node* branch3 = graph()->NewNode(common()->Branch(BranchHint::kTrue),
                                            check3, if_true2);
           Node* if_true3 = graph()->NewNode(common()->IfTrue(), branch3);
@@ -1128,11 +1728,11 @@ Reduction JSBuiltinReducer::ReduceStringIteratorNext(Node* node) {
 // Need to swap the order for big-endian platforms
 #if V8_TARGET_BIG_ENDIAN
                 graph()->NewNode(simplified()->NumberShiftLeft(), lead,
-                                 jsgraph()->Int32Constant(16)),
+                                 jsgraph()->Constant(16)),
                 trail);
 #else
                 graph()->NewNode(simplified()->NumberShiftLeft(), trail,
-                                 jsgraph()->Int32Constant(16)),
+                                 jsgraph()->Constant(16)),
                 lead);
 #endif
           }
@@ -1234,6 +1834,14 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
   // Dispatch according to the BuiltinFunctionId if present.
   if (!r.HasBuiltinFunctionId()) return NoChange();
   switch (r.GetBuiltinFunctionId()) {
+    case kArrayEntries:
+      return ReduceArrayIterator(node, IterationKind::kEntries);
+    case kArrayKeys:
+      return ReduceArrayIterator(node, IterationKind::kKeys);
+    case kArrayValues:
+      return ReduceArrayIterator(node, IterationKind::kValues);
+    case kArrayIteratorNext:
+      return ReduceArrayIteratorNext(node);
     case kArrayPop:
       return ReduceArrayPop(node);
     case kArrayPush:
@@ -1370,6 +1978,8 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       return ReduceStringCharAt(node);
     case kStringCharCodeAt:
       return ReduceStringCharCodeAt(node);
+    case kStringIterator:
+      return ReduceStringIterator(node);
     case kStringIteratorNext:
       return ReduceStringIteratorNext(node);
     case kDataViewByteLength:
@@ -1391,6 +2001,12 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
     case kTypedArrayLength:
       return ReduceArrayBufferViewAccessor(
           node, JS_TYPED_ARRAY_TYPE, AccessBuilder::ForJSTypedArrayLength());
+    case kTypedArrayEntries:
+      return ReduceTypedArrayIterator(node, IterationKind::kEntries);
+    case kTypedArrayKeys:
+      return ReduceTypedArrayIterator(node, IterationKind::kKeys);
+    case kTypedArrayValues:
+      return ReduceTypedArrayIterator(node, IterationKind::kValues);
     default:
       break;
   }

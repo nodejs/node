@@ -1381,6 +1381,8 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         this.version = version;
       }
       add(entry) {
+        // Ignore accidentally added Group entries.
+        if (entry.name.startsWith(GroupedEntry.prefix)) return;
         entry.page = this;
         this.entryDict.set(entry.name, entry);
         var added = false;
@@ -1559,7 +1561,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         /StackGuard|.*Optimize.*|.*Deoptimize.*|Recompile.*/, "#DC3912"));
     Group.add('compile', new Group('Compile', /.*Compile.*/, "#FFAA00"));
     Group.add('parse', new Group('Parse', /.*Parse.*/, "#FF6600"));
-    Group.add('callback', new Group('Callback', /.*Callback$/, "#109618"));
+    Group.add('callback', new Group('Callback', /.*Callback.*/, "#109618"));
     Group.add('api', new Group('API', /.*API.*/, "#990099"));
     Group.add('gc', new Group('GC', /GC|AllocateInTargetSpace/, "#0099C6"));
     Group.add('javascript', new Group('JavaScript', /JS_Execution/, "#DD4477"));
@@ -1568,7 +1570,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
 
     class GroupedEntry extends Entry {
       constructor(group) {
-        super(0, 'Group-' + group.name, 0, 0, 0, 0, 0, 0);
+        super(0, GroupedEntry.prefix + group.name, 0, 0, 0, 0, 0, 0);
         this.group = group;
         this.entries = [];
       }
@@ -1636,6 +1638,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         return this.getVarianceForProperty('time')
       }
     }
+    GroupedEntry.prefix = 'Group-';
 
     class UnclassifiedEntry extends GroupedEntry {
       constructor(page) {

@@ -322,9 +322,10 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
   // of the full code.
   CHECK(f->IsOptimized());
   // If the baseline code is bytecode, then it will not have deoptimization
-  // support. has_deoptimization_support() check is only required if the
+  // support. The has_deoptimization_support() check is only required if the
   // baseline code is from fullcodegen.
-  CHECK(f->shared()->has_deoptimization_support() || i::FLAG_ignition);
+  CHECK(f->shared()->has_deoptimization_support() || i::FLAG_ignition ||
+        i::FLAG_turbo);
   object = f->feedback_vector()->Get(slot_for_a);
   CHECK(object->IsWeakCell() &&
         WeakCell::cast(object)->value()->IsJSFunction());
@@ -332,8 +333,7 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
 
 
 TEST(FeedbackVectorUnaffectedByScopeChanges) {
-  if (i::FLAG_always_opt || !i::FLAG_lazy ||
-      (FLAG_ignition && FLAG_ignition_eager)) {
+  if (i::FLAG_always_opt || !i::FLAG_lazy) {
     return;
   }
   CcTest::InitializeVM();
@@ -405,150 +405,6 @@ TEST(OptimizedCodeSharing1) {
     CHECK_EQ(fun1->code(), fun2->code());
   }
 }
-
-// Test that optimized code for different closures is actually shared.
-TEST(OptimizedCodeSharing2) {
-  if (FLAG_stress_compaction) return;
-  FLAG_allow_natives_syntax = true;
-  FLAG_native_context_specialization = false;
-  FLAG_turbo_cache_shared_code = true;
-  const char* flag = "--turbo-filter=*";
-  FlagList::SetFlagsFromString(flag, StrLength(flag));
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Script> script = v8_compile(
-      "function MakeClosure() {"
-      "  return function() { return x; };"
-      "}");
-  Handle<Code> reference_code;
-  {
-    LocalContext env;
-    env->Global()
-        ->Set(env.local(), v8_str("x"), v8::Integer::New(CcTest::isolate(), 23))
-        .FromJust();
-    script->GetUnboundScript()
-        ->BindToCurrentContext()
-        ->Run(env.local())
-        .ToLocalChecked();
-    CompileRun(
-        "var closure0 = MakeClosure();"
-        "%DebugPrint(closure0());"
-        "%OptimizeFunctionOnNextCall(closure0);"
-        "%DebugPrint(closure0());");
-    Handle<JSFunction> fun0 = Handle<JSFunction>::cast(
-        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
-            env->Global()
-                ->Get(env.local(), v8_str("closure0"))
-                .ToLocalChecked())));
-    CHECK(fun0->IsOptimized() || !CcTest::i_isolate()->use_crankshaft());
-    reference_code = handle(fun0->code());
-  }
-  for (int i = 0; i < 3; i++) {
-    LocalContext env;
-    env->Global()
-        ->Set(env.local(), v8_str("x"), v8::Integer::New(CcTest::isolate(), i))
-        .FromJust();
-    script->GetUnboundScript()
-        ->BindToCurrentContext()
-        ->Run(env.local())
-        .ToLocalChecked();
-    CompileRun(
-        "var closure0 = MakeClosure();"
-        "%DebugPrint(closure0());"
-        "%OptimizeFunctionOnNextCall(closure0);"
-        "%DebugPrint(closure0());"
-        "var closure1 = MakeClosure(); closure1();"
-        "var closure2 = MakeClosure(); closure2();");
-    Handle<JSFunction> fun1 = Handle<JSFunction>::cast(
-        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
-            env->Global()
-                ->Get(env.local(), v8_str("closure1"))
-                .ToLocalChecked())));
-    Handle<JSFunction> fun2 = Handle<JSFunction>::cast(
-        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
-            env->Global()
-                ->Get(env.local(), v8_str("closure2"))
-                .ToLocalChecked())));
-    CHECK(fun1->IsOptimized() || !CcTest::i_isolate()->use_crankshaft());
-    CHECK(fun2->IsOptimized() || !CcTest::i_isolate()->use_crankshaft());
-    CHECK_EQ(*reference_code, fun1->code());
-    CHECK_EQ(*reference_code, fun2->code());
-  }
-}
-
-// Test that optimized code for different closures is actually shared.
-TEST(OptimizedCodeSharing3) {
-  if (FLAG_stress_compaction) return;
-  FLAG_allow_natives_syntax = true;
-  FLAG_native_context_specialization = false;
-  FLAG_turbo_cache_shared_code = true;
-  const char* flag = "--turbo-filter=*";
-  FlagList::SetFlagsFromString(flag, StrLength(flag));
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Script> script = v8_compile(
-      "function MakeClosure() {"
-      "  return function() { return x; };"
-      "}");
-  Handle<Code> reference_code;
-  {
-    LocalContext env;
-    env->Global()
-        ->Set(env.local(), v8_str("x"), v8::Integer::New(CcTest::isolate(), 23))
-        .FromJust();
-    script->GetUnboundScript()
-        ->BindToCurrentContext()
-        ->Run(env.local())
-        .ToLocalChecked();
-    CompileRun(
-        "var closure0 = MakeClosure();"
-        "%DebugPrint(closure0());"
-        "%OptimizeFunctionOnNextCall(closure0);"
-        "%DebugPrint(closure0());");
-    Handle<JSFunction> fun0 = Handle<JSFunction>::cast(
-        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
-            env->Global()
-                ->Get(env.local(), v8_str("closure0"))
-                .ToLocalChecked())));
-    CHECK(fun0->IsOptimized() || !CcTest::i_isolate()->use_crankshaft());
-    reference_code = handle(fun0->code());
-    // Evict only the context-dependent entry from the optimized code map. This
-    // leaves it in a state where only the context-independent entry exists.
-    fun0->shared()->TrimOptimizedCodeMap(SharedFunctionInfo::kEntryLength);
-  }
-  for (int i = 0; i < 3; i++) {
-    LocalContext env;
-    env->Global()
-        ->Set(env.local(), v8_str("x"), v8::Integer::New(CcTest::isolate(), i))
-        .FromJust();
-    script->GetUnboundScript()
-        ->BindToCurrentContext()
-        ->Run(env.local())
-        .ToLocalChecked();
-    CompileRun(
-        "var closure0 = MakeClosure();"
-        "%DebugPrint(closure0());"
-        "%OptimizeFunctionOnNextCall(closure0);"
-        "%DebugPrint(closure0());"
-        "var closure1 = MakeClosure(); closure1();"
-        "var closure2 = MakeClosure(); closure2();");
-    Handle<JSFunction> fun1 = Handle<JSFunction>::cast(
-        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
-            env->Global()
-                ->Get(env.local(), v8_str("closure1"))
-                .ToLocalChecked())));
-    Handle<JSFunction> fun2 = Handle<JSFunction>::cast(
-        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
-            env->Global()
-                ->Get(env.local(), v8_str("closure2"))
-                .ToLocalChecked())));
-    CHECK(fun1->IsOptimized() || !CcTest::i_isolate()->use_crankshaft());
-    CHECK(fun2->IsOptimized() || !CcTest::i_isolate()->use_crankshaft());
-    CHECK_EQ(*reference_code, fun1->code());
-    CHECK_EQ(*reference_code, fun2->code());
-  }
-}
-
 
 TEST(CompileFunctionInContext) {
   CcTest::InitializeVM();
@@ -762,53 +618,6 @@ TEST(SplitConstantsInFullCompiler) {
   CheckCodeForUnsafeLiteral(GetJSFunction(context->Global(), "f"));
 }
 #endif
-
-static void IsBaselineCompiled(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  Handle<Object> object = v8::Utils::OpenHandle(*args[0]);
-  Handle<JSFunction> function = Handle<JSFunction>::cast(object);
-  bool is_baseline = function->shared()->code()->kind() == Code::FUNCTION;
-  return args.GetReturnValue().Set(is_baseline);
-}
-
-static void InstallIsBaselineCompiledHelper(v8::Isolate* isolate) {
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
-  v8::Local<v8::FunctionTemplate> t =
-      v8::FunctionTemplate::New(isolate, IsBaselineCompiled);
-  CHECK(context->Global()
-            ->Set(context, v8_str("IsBaselineCompiled"),
-                  t->GetFunction(context).ToLocalChecked())
-            .FromJust());
-}
-
-TEST(IgnitionBaselineOnReturn) {
-  // TODO(4280): Remove this entire test once --ignition-preserve-bytecode is
-  // the default and the flag is removed. This test doesn't provide benefit any
-  // longer once {InterpreterActivationsFinder} is gone.
-  if (FLAG_ignition_preserve_bytecode) return;
-  FLAG_allow_natives_syntax = true;
-  FLAG_always_opt = false;
-  CcTest::InitializeVM();
-  FLAG_ignition = true;
-  Isolate* isolate = CcTest::i_isolate();
-  isolate->interpreter()->Initialize();
-  v8::HandleScope scope(CcTest::isolate());
-  InstallIsBaselineCompiledHelper(CcTest::isolate());
-
-  CompileRun(
-      "var is_baseline_in_function, is_baseline_after_return;\n"
-      "var return_val;\n"
-      "function f() {\n"
-      "  %CompileBaseline(f);\n"
-      "  is_baseline_in_function = IsBaselineCompiled(f);\n"
-      "  return 1234;\n"
-      "};\n"
-      "return_val = f();\n"
-      "is_baseline_after_return = IsBaselineCompiled(f);\n");
-  CHECK_EQ(false, GetGlobalProperty("is_baseline_in_function")->BooleanValue());
-  CHECK_EQ(true, GetGlobalProperty("is_baseline_after_return")->BooleanValue());
-  CHECK_EQ(1234.0, GetGlobalProperty("return_val")->Number());
-}
 
 TEST(IgnitionEntryTrampolineSelfHealing) {
   FLAG_allow_natives_syntax = true;

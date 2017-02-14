@@ -23,8 +23,8 @@ namespace compiler {
 
 using ::testing::Matcher;
 
-
-class GraphTest : public TestWithContext, public TestWithIsolateAndZone {
+class GraphTest : public virtual TestWithNativeContext,
+                  public virtual TestWithIsolateAndZone {
  public:
   explicit GraphTest(int num_parameters = 1);
   ~GraphTest() override;

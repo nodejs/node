@@ -229,9 +229,8 @@ template <typename Key, typename Value, typename MatchFun,
           class AllocationPolicy>
 void TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Clear() {
   // Mark all entries as empty.
-  const Entry* end = map_end();
-  for (Entry* entry = map_; entry < end; entry++) {
-    entry->clear();
+  for (size_t i = 0; i < capacity_; ++i) {
+    map_[i].clear();
   }
   occupancy_ = 0;
 }
@@ -264,19 +263,15 @@ typename TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Entry*
 TemplateHashMapImpl<Key, Value, MatchFun, AllocationPolicy>::Probe(
     const Key& key, uint32_t hash) const {
   DCHECK(base::bits::IsPowerOfTwo32(capacity_));
-  Entry* entry = map_ + (hash & (capacity_ - 1));
-  const Entry* end = map_end();
-  DCHECK(map_ <= entry && entry < end);
+  size_t i = hash & (capacity_ - 1);
+  DCHECK(i < capacity_);
 
   DCHECK(occupancy_ < capacity_);  // Guarantees loop termination.
-  while (entry->exists() && !match_(hash, entry->hash, key, entry->key)) {
-    entry++;
-    if (entry >= end) {
-      entry = map_;
-    }
+  while (map_[i].exists() && !match_(hash, map_[i].hash, key, map_[i].key)) {
+    i = (i + 1) & (capacity_ - 1);
   }
 
-  return entry;
+  return &map_[i];
 }
 
 template <typename Key, typename Value, typename MatchFun,

@@ -29,11 +29,9 @@ f1(new Ctor(), false);
 // Kick off concurrent recompilation and OSR.
 var o = new Ctor();
 f1(o, true);
-assertOptimized(f1, "no sync");
 
 // Flush the optimizing compiler's queue.
 %NotifyContextDisposed();
-assertUnoptimized(f1, "no sync");
 
 // Trigger deopt.
 o.c = 2.2;

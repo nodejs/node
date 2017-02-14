@@ -48,7 +48,7 @@ class RegExpImpl {
   // This function calls the garbage collector if necessary.
   V8_EXPORT_PRIVATE MUST_USE_RESULT static MaybeHandle<Object> Exec(
       Handle<JSRegExp> regexp, Handle<String> subject, int index,
-      Handle<JSObject> lastMatchInfo);
+      Handle<RegExpMatchInfo> last_match_info);
 
   // Prepares a JSRegExp object with Irregexp-specific data.
   static void IrregexpInitialize(Handle<JSRegExp> re,
@@ -71,7 +71,7 @@ class RegExpImpl {
 
   static Handle<Object> AtomExec(Handle<JSRegExp> regexp,
                                  Handle<String> subject, int index,
-                                 Handle<JSObject> lastMatchInfo);
+                                 Handle<RegExpMatchInfo> last_match_info);
 
   enum IrregexpResult { RE_FAILURE = 0, RE_SUCCESS = 1, RE_EXCEPTION = -1 };
 
@@ -103,12 +103,12 @@ class RegExpImpl {
   // Returns an empty handle in case of an exception.
   MUST_USE_RESULT static MaybeHandle<Object> IrregexpExec(
       Handle<JSRegExp> regexp, Handle<String> subject, int index,
-      Handle<JSObject> lastMatchInfo);
+      Handle<RegExpMatchInfo> last_match_info);
 
   // Set last match info.  If match is NULL, then setting captures is omitted.
-  static Handle<JSObject> SetLastMatchInfo(Handle<JSObject> last_match_info,
-                                           Handle<String> subject,
-                                           int capture_count, int32_t* match);
+  static Handle<RegExpMatchInfo> SetLastMatchInfo(
+      Handle<RegExpMatchInfo> last_match_info, Handle<String> subject,
+      int capture_count, int32_t* match);
 
   class GlobalCache {
    public:
@@ -141,49 +141,6 @@ class RegExpImpl {
     Handle<JSRegExp> regexp_;
     Handle<String> subject_;
   };
-
-
-  // Array index in the lastMatchInfo array.
-  static const int kLastCaptureCount = 0;
-  static const int kLastSubject = 1;
-  static const int kLastInput = 2;
-  static const int kFirstCapture = 3;
-  static const int kLastMatchOverhead = 3;
-
-  // Direct offset into the lastMatchInfo array.
-  static const int kLastCaptureCountOffset =
-      FixedArray::kHeaderSize + kLastCaptureCount * kPointerSize;
-  static const int kLastSubjectOffset =
-      FixedArray::kHeaderSize + kLastSubject * kPointerSize;
-  static const int kLastInputOffset =
-      FixedArray::kHeaderSize + kLastInput * kPointerSize;
-  static const int kFirstCaptureOffset =
-      FixedArray::kHeaderSize + kFirstCapture * kPointerSize;
-
-  // Used to access the lastMatchInfo array.
-  static int GetCapture(FixedArray* array, int index) {
-    return Smi::cast(array->get(index + kFirstCapture))->value();
-  }
-
-  static void SetLastCaptureCount(FixedArray* array, int to) {
-    array->set(kLastCaptureCount, Smi::FromInt(to));
-  }
-
-  static void SetLastSubject(FixedArray* array, String* to) {
-    array->set(kLastSubject, to);
-  }
-
-  static void SetLastInput(FixedArray* array, String* to) {
-    array->set(kLastInput, to);
-  }
-
-  static void SetCapture(FixedArray* array, int index, int to) {
-    array->set(index + kFirstCapture, Smi::FromInt(to));
-  }
-
-  static int GetLastCaptureCount(FixedArray* array) {
-    return Smi::cast(array->get(kLastCaptureCount))->value();
-  }
 
   // For acting on the JSRegExp data FixedArray.
   static int IrregexpMaxRegisterCount(FixedArray* re);

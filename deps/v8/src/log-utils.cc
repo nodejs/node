@@ -37,7 +37,6 @@ void Log::Initialize(const char* log_file_name) {
     FLAG_log_gc = true;
     FLAG_log_suspect = true;
     FLAG_log_handles = true;
-    FLAG_log_regexp = true;
     FLAG_log_internal_timer_events = true;
   }
 

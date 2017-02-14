@@ -4,7 +4,7 @@
 
 import("../../gni/v8.gni")
 
-_inspector_protocol = "//third_party/WebKit/Source/platform/inspector_protocol"
+_inspector_protocol = v8_path_prefix + "/third_party/inspector_protocol"
 import("$_inspector_protocol/inspector_protocol.gni")
 
 _protocol_generated = [
@@ -51,6 +51,7 @@ inspector_protocol_generate("protocol_generated_sources") {
     ":protocol_compatibility",
   ]
 
+  inspector_protocol_dir = _inspector_protocol
   out_dir = target_gen_dir
   config_file = "inspector_protocol_config.json"
   inputs = [

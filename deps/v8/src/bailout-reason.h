@@ -35,6 +35,7 @@ namespace internal {
   V(kBailoutWasNotPrepared, "Bailout was not prepared")                        \
   V(kBothRegistersWereSmisInSelectNonSmi,                                      \
     "Both registers were smis in SelectNonSmi")                                \
+  V(kClassConstructorFunction, "Class constructor function")                   \
   V(kClassLiteral, "Class literal")                                            \
   V(kCodeGenerationFailed, "Code generation failed")                           \
   V(kCodeObjectNotProperlyPatched, "Code object not properly patched")         \
@@ -60,6 +61,8 @@ namespace internal {
   V(kEliminatedBoundsCheckFailed, "Eliminated bounds check failed")            \
   V(kEmitLoadRegisterUnsupportedDoubleImmediate,                               \
     "EmitLoadRegister: Unsupported double immediate")                          \
+  V(kCyclicObjectStateDetectedInEscapeAnalysis,                                \
+    "Cyclic object state detected by escape analysis")                         \
   V(kEval, "eval")                                                             \
   V(kExpectedAllocationSite, "Expected allocation site")                       \
   V(kExpectedBooleanValue, "Expected boolean value")                           \
@@ -74,7 +77,6 @@ namespace internal {
   V(kExpectedPositiveZero, "Expected +0.0")                                    \
   V(kExpectedNewSpaceObject, "Expected new space object")                      \
   V(kExpectedUndefinedOrCell, "Expected undefined or cell in register")        \
-  V(kExpectingAlignmentForCopyBytes, "Expecting alignment for CopyBytes")      \
   V(kExternalStringExpectedButNotFound,                                        \
     "External string expected, but not found")                                 \
   V(kForInStatementWithNonLocalEachVariable,                                   \
@@ -116,10 +118,6 @@ namespace internal {
   V(kInvalidLhsInCountOperation, "Invalid lhs in count operation")             \
   V(kInvalidMinLength, "Invalid min_length")                                   \
   V(kInvalidRegisterFileInGenerator, "invalid register file in generator")     \
-  V(kJSGlobalObjectNativeContextShouldBeANativeContext,                        \
-    "JSGlobalObject::native_context should be a native context")               \
-  V(kJSGlobalProxyContextShouldNotBeNull,                                      \
-    "JSGlobalProxy::context() should not be null")                             \
   V(kJSObjectWithFastElementsMapHasSlowElements,                               \
     "JSObject with fast elements map has slow elements")                       \
   V(kLetBindingReInitialization, "Let binding re-initialization")              \
@@ -176,6 +174,7 @@ namespace internal {
   V(kReferenceToAVariableWhichRequiresDynamicLookup,                           \
     "Reference to a variable which requires dynamic lookup")                   \
   V(kReferenceToGlobalLexicalVariable, "Reference to global lexical variable") \
+  V(kReferenceToModuleVariable, "Reference to module-allocated variable")      \
   V(kReferenceToUninitializedVariable, "Reference to uninitialized variable")  \
   V(kRegisterDidNotMatchExpectedRoot, "Register did not match expected root")  \
   V(kRegisterWasClobbered, "Register was clobbered")                           \
@@ -247,6 +246,7 @@ namespace internal {
   V(kUnsupportedLetCompoundAssignment, "Unsupported let compound assignment")  \
   V(kUnsupportedLookupSlotInDeclaration,                                       \
     "Unsupported lookup slot in declaration")                                  \
+  V(kUnsupportedModuleOperation, "Unsupported module operation")               \
   V(kUnsupportedNonPrimitiveCompare, "Unsupported non-primitive compare")      \
   V(kUnsupportedPhiUseOfArguments, "Unsupported phi use of arguments")         \
   V(kUnsupportedPhiUseOfConstVariable,                                         \
@@ -256,8 +256,6 @@ namespace internal {
   V(kUnsupportedTaggedImmediate, "Unsupported tagged immediate")               \
   V(kUnstableConstantTypeHeapObject, "Unstable constant-type heap object")     \
   V(kVariableResolvedToWithContext, "Variable resolved to with context")       \
-  V(kWeShouldNotHaveAnEmptyLexicalContext,                                     \
-    "We should not have an empty lexical context")                             \
   V(kWithStatement, "WithStatement")                                           \
   V(kWrongFunctionContext, "Wrong context passed to function")                 \
   V(kWrongAddressOrValuePassedToRecordWrite,                                   \

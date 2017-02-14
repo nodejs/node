@@ -52,8 +52,6 @@ class GlobalHandles::Node {
     STATIC_ASSERT(NEAR_DEATH == Internals::kNodeStateIsNearDeathValue);
     STATIC_ASSERT(static_cast<int>(IsIndependent::kShift) ==
                   Internals::kNodeIsIndependentShift);
-    STATIC_ASSERT(static_cast<int>(IsPartiallyDependent::kShift) ==
-                  Internals::kNodeIsPartiallyDependentShift);
     STATIC_ASSERT(static_cast<int>(IsActive::kShift) ==
                   Internals::kNodeIsActiveShift);
   }
@@ -66,11 +64,7 @@ class GlobalHandles::Node {
     class_id_ = v8::HeapProfiler::kPersistentHandleNoClassId;
     index_ = 0;
     set_independent(false);
-    if (FLAG_scavenge_reclaim_unmodified_objects) {
-      set_active(false);
-    } else {
-      set_partially_dependent(false);
-    }
+    set_active(false);
     set_in_new_space_list(false);
     parameter_or_next_free_.next_free = NULL;
     weak_callback_ = NULL;
@@ -92,11 +86,7 @@ class GlobalHandles::Node {
     object_ = object;
     class_id_ = v8::HeapProfiler::kPersistentHandleNoClassId;
     set_independent(false);
-    if (FLAG_scavenge_reclaim_unmodified_objects) {
-      set_active(false);
-    } else {
-      set_partially_dependent(false);
-    }
+    set_active(false);
     set_state(NORMAL);
     parameter_or_next_free_.parameter = NULL;
     weak_callback_ = NULL;
@@ -116,11 +106,7 @@ class GlobalHandles::Node {
     object_ = reinterpret_cast<Object*>(kGlobalHandleZapValue);
     class_id_ = v8::HeapProfiler::kPersistentHandleNoClassId;
     set_independent(false);
-    if (FLAG_scavenge_reclaim_unmodified_objects) {
-      set_active(false);
-    } else {
-      set_partially_dependent(false);
-    }
+    set_active(false);
     weak_callback_ = NULL;
     DecreaseBlockUses();
   }
@@ -153,21 +139,10 @@ class GlobalHandles::Node {
     flags_ = IsIndependent::update(flags_, v);
   }
 
-  bool is_partially_dependent() {
-    CHECK(!FLAG_scavenge_reclaim_unmodified_objects);
-    return IsPartiallyDependent::decode(flags_);
-  }
-  void set_partially_dependent(bool v) {
-    CHECK(!FLAG_scavenge_reclaim_unmodified_objects);
-    flags_ = IsPartiallyDependent::update(flags_, v);
-  }
-
   bool is_active() {
-    CHECK(FLAG_scavenge_reclaim_unmodified_objects);
     return IsActive::decode(flags_);
   }
   void set_active(bool v) {
-    CHECK(FLAG_scavenge_reclaim_unmodified_objects);
     flags_ = IsActive::update(flags_, v);
   }
 
@@ -226,14 +201,6 @@ class GlobalHandles::Node {
     DCHECK(IsInUse());
     set_independent(true);
   }
-
-  void MarkPartiallyDependent() {
-    DCHECK(IsInUse());
-    if (GetGlobalHandles()->isolate()->heap()->InNewSpace(object_)) {
-      set_partially_dependent(true);
-    }
-  }
-  void clear_partially_dependent() { set_partially_dependent(false); }
 
   // Callback accessor.
   // TODO(svenpanne) Re-enable or nuke later.
@@ -398,7 +365,6 @@ class GlobalHandles::Node {
   class IsIndependent : public BitField<bool, 3, 1> {};
   // The following two fields are mutually exclusive
   class IsActive : public BitField<bool, 4, 1> {};
-  class IsPartiallyDependent : public BitField<bool, 4, 1> {};
   class IsInNewSpaceList : public BitField<bool, 5, 1> {};
   class NodeWeaknessType : public BitField<WeaknessType, 6, 2> {};
 
@@ -642,12 +608,6 @@ void GlobalHandles::MarkIndependent(Object** location) {
   Node::FromLocation(location)->MarkIndependent();
 }
 
-
-void GlobalHandles::MarkPartiallyDependent(Object** location) {
-  Node::FromLocation(location)->MarkPartiallyDependent();
-}
-
-
 bool GlobalHandles::IsIndependent(Object** location) {
   return Node::FromLocation(location)->is_independent();
 }
@@ -694,18 +654,10 @@ void GlobalHandles::IdentifyWeakHandles(WeakSlotCallback f) {
 void GlobalHandles::IterateNewSpaceStrongAndDependentRoots(ObjectVisitor* v) {
   for (int i = 0; i < new_space_nodes_.length(); ++i) {
     Node* node = new_space_nodes_[i];
-    if (FLAG_scavenge_reclaim_unmodified_objects) {
-      if (node->IsStrongRetainer() ||
-          (node->IsWeakRetainer() && !node->is_independent() &&
-           node->is_active())) {
-        v->VisitPointer(node->location());
-      }
-    } else {
-      if (node->IsStrongRetainer() ||
-          (node->IsWeakRetainer() && !node->is_independent() &&
-           !node->is_partially_dependent())) {
-        v->VisitPointer(node->location());
-      }
+    if (node->IsStrongRetainer() ||
+        (node->IsWeakRetainer() && !node->is_independent() &&
+         node->is_active())) {
+      v->VisitPointer(node->location());
     }
   }
 }
@@ -716,8 +668,8 @@ void GlobalHandles::IdentifyNewSpaceWeakIndependentHandles(
   for (int i = 0; i < new_space_nodes_.length(); ++i) {
     Node* node = new_space_nodes_[i];
     DCHECK(node->is_in_new_space_list());
-    if ((node->is_independent() || node->is_partially_dependent()) &&
-        node->IsWeak() && f(isolate_->heap(), node->location())) {
+    if (node->is_independent() && node->IsWeak() &&
+        f(isolate_->heap(), node->location())) {
       node->MarkPending();
     }
   }
@@ -728,8 +680,7 @@ void GlobalHandles::IterateNewSpaceWeakIndependentRoots(ObjectVisitor* v) {
   for (int i = 0; i < new_space_nodes_.length(); ++i) {
     Node* node = new_space_nodes_[i];
     DCHECK(node->is_in_new_space_list());
-    if ((node->is_independent() || node->is_partially_dependent()) &&
-        node->IsWeakRetainer()) {
+    if (node->is_independent() && node->IsWeakRetainer()) {
       // Pending weak phantom handles die immediately. Everything else survives.
       if (node->IsPendingPhantomResetHandle()) {
         node->ResetPhantomHandle();
@@ -968,18 +919,11 @@ int GlobalHandles::PostScavengeProcessing(
     // to be
     // called between two global garbage collection callbacks which
     // are not called for minor collections.
-    if (FLAG_scavenge_reclaim_unmodified_objects) {
       if (!node->is_independent() && (node->is_active())) {
         node->set_active(false);
         continue;
       }
       node->set_active(false);
-    } else {
-      if (!node->is_independent() && !node->is_partially_dependent()) {
-        continue;
-      }
-      node->clear_partially_dependent();
-    }
 
     if (node->PostGarbageCollectionProcessing(isolate_)) {
       if (initial_post_gc_processing_count != post_gc_processing_count_) {
@@ -1007,11 +951,7 @@ int GlobalHandles::PostMarkSweepProcessing(
       // the freed_nodes.
       continue;
     }
-    if (FLAG_scavenge_reclaim_unmodified_objects) {
-      it.node()->set_active(false);
-    } else {
-      it.node()->clear_partially_dependent();
-    }
+    it.node()->set_active(false);
     if (it.node()->PostGarbageCollectionProcessing(isolate_)) {
       if (initial_post_gc_processing_count != post_gc_processing_count_) {
         // See the comment above.
@@ -1122,7 +1062,7 @@ int GlobalHandles::PostGarbageCollectionProcessing(
     // PostScavengeProcessing.
     return freed_nodes;
   }
-  if (collector == SCAVENGER) {
+  if (Heap::IsYoungGenerationCollector(collector)) {
     freed_nodes += PostScavengeProcessing(initial_post_gc_processing_count);
   } else {
     freed_nodes += PostMarkSweepProcessing(initial_post_gc_processing_count);

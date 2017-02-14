@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --ignition --ignition-osr --turbo-from-bytecode --allow-natives-syntax
+// Flags: --ignition --ignition-osr --allow-natives-syntax
 
 function g() { return 23 }
 function h() { return 42 }

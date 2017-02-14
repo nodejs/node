@@ -464,6 +464,9 @@ TEST(PropertyCall) {
       REPEAT_127(" a.func;\n")  //
       " return a.func(); }\n"
       "f(" FUNC_ARG ")",
+
+      "function f(a) { return a.func(1).func(2).func(3); }\n"
+      "f(new (function Obj() { this.func = function(a) { return this; }})())",
   };
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
@@ -2238,6 +2241,9 @@ TEST(Modules) {
       "export {foo as goo} from \"bar\"\n",
 
       "export * from \"bar\"\n",
+
+      "import * as foo from \"bar\"\n"
+      "foo.f(foo, foo.x);\n",
   };
 
   CHECK(CompareTexts(BuildActual(printer, snippets),

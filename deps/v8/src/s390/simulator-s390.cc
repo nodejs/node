@@ -5682,7 +5682,7 @@ void Simulator::CallInternal(byte* entry, int reg_arg_count) {
 
   // Set up the non-volatile registers with a known value. To be able to check
   // that they are preserved properly across JS execution.
-  intptr_t callee_saved_value = icount_;
+  uintptr_t callee_saved_value = icount_;
   if (reg_arg_count < 5) {
     set_register(r6, callee_saved_value + 6);
   }
@@ -5700,15 +5700,15 @@ void Simulator::CallInternal(byte* entry, int reg_arg_count) {
 // Check that the non-volatile registers have been preserved.
 #ifndef V8_TARGET_ARCH_S390X
   if (reg_arg_count < 5) {
-    DCHECK_EQ(callee_saved_value + 6, get_low_register<int32_t>(r6));
+    DCHECK_EQ(callee_saved_value + 6, get_low_register<uint32_t>(r6));
   }
-  DCHECK_EQ(callee_saved_value + 7, get_low_register<int32_t>(r7));
-  DCHECK_EQ(callee_saved_value + 8, get_low_register<int32_t>(r8));
-  DCHECK_EQ(callee_saved_value + 9, get_low_register<int32_t>(r9));
-  DCHECK_EQ(callee_saved_value + 10, get_low_register<int32_t>(r10));
-  DCHECK_EQ(callee_saved_value + 11, get_low_register<int32_t>(r11));
-  DCHECK_EQ(callee_saved_value + 12, get_low_register<int32_t>(r12));
-  DCHECK_EQ(callee_saved_value + 13, get_low_register<int32_t>(r13));
+  DCHECK_EQ(callee_saved_value + 7, get_low_register<uint32_t>(r7));
+  DCHECK_EQ(callee_saved_value + 8, get_low_register<uint32_t>(r8));
+  DCHECK_EQ(callee_saved_value + 9, get_low_register<uint32_t>(r9));
+  DCHECK_EQ(callee_saved_value + 10, get_low_register<uint32_t>(r10));
+  DCHECK_EQ(callee_saved_value + 11, get_low_register<uint32_t>(r11));
+  DCHECK_EQ(callee_saved_value + 12, get_low_register<uint32_t>(r12));
+  DCHECK_EQ(callee_saved_value + 13, get_low_register<uint32_t>(r13));
 #else
   if (reg_arg_count < 5) {
     DCHECK_EQ(callee_saved_value + 6, get_register(r6));
@@ -5762,7 +5762,7 @@ intptr_t Simulator::Call(byte* entry, int argument_count, ...) {
   // Remaining arguments passed on stack.
   int64_t original_stack = get_register(sp);
   // Compute position of stack on entry to generated code.
-  intptr_t entry_stack =
+  uintptr_t entry_stack =
       (original_stack -
        (kCalleeRegisterSaveAreaSize + stack_arg_count * sizeof(intptr_t)));
   if (base::OS::ActivationFrameAlignment() != 0) {
@@ -5798,7 +5798,7 @@ intptr_t Simulator::Call(byte* entry, int argument_count, ...) {
 
   // Set up the non-volatile registers with a known value. To be able to check
   // that they are preserved properly across JS execution.
-  intptr_t callee_saved_value = icount_;
+  uintptr_t callee_saved_value = icount_;
   if (reg_arg_count < 5) {
     set_register(r6, callee_saved_value + 6);
   }
@@ -5816,15 +5816,15 @@ intptr_t Simulator::Call(byte* entry, int argument_count, ...) {
 // Check that the non-volatile registers have been preserved.
 #ifndef V8_TARGET_ARCH_S390X
   if (reg_arg_count < 5) {
-    DCHECK_EQ(callee_saved_value + 6, get_low_register<int32_t>(r6));
+    DCHECK_EQ(callee_saved_value + 6, get_low_register<uint32_t>(r6));
   }
-  DCHECK_EQ(callee_saved_value + 7, get_low_register<int32_t>(r7));
-  DCHECK_EQ(callee_saved_value + 8, get_low_register<int32_t>(r8));
-  DCHECK_EQ(callee_saved_value + 9, get_low_register<int32_t>(r9));
-  DCHECK_EQ(callee_saved_value + 10, get_low_register<int32_t>(r10));
-  DCHECK_EQ(callee_saved_value + 11, get_low_register<int32_t>(r11));
-  DCHECK_EQ(callee_saved_value + 12, get_low_register<int32_t>(r12));
-  DCHECK_EQ(callee_saved_value + 13, get_low_register<int32_t>(r13));
+  DCHECK_EQ(callee_saved_value + 7, get_low_register<uint32_t>(r7));
+  DCHECK_EQ(callee_saved_value + 8, get_low_register<uint32_t>(r8));
+  DCHECK_EQ(callee_saved_value + 9, get_low_register<uint32_t>(r9));
+  DCHECK_EQ(callee_saved_value + 10, get_low_register<uint32_t>(r10));
+  DCHECK_EQ(callee_saved_value + 11, get_low_register<uint32_t>(r11));
+  DCHECK_EQ(callee_saved_value + 12, get_low_register<uint32_t>(r12));
+  DCHECK_EQ(callee_saved_value + 13, get_low_register<uint32_t>(r13));
 #else
   if (reg_arg_count < 5) {
     DCHECK_EQ(callee_saved_value + 6, get_register(r6));
@@ -5850,7 +5850,7 @@ intptr_t Simulator::Call(byte* entry, int argument_count, ...) {
 // Pop stack passed arguments.
 
 #ifndef V8_TARGET_ARCH_S390X
-  DCHECK_EQ(entry_stack, get_low_register<int32_t>(sp));
+  DCHECK_EQ(entry_stack, get_low_register<uint32_t>(sp));
 #else
   DCHECK_EQ(entry_stack, get_register(sp));
 #endif
@@ -6504,7 +6504,6 @@ EVALUATE(LCR) {
   DCHECK_OPCODE(LCR);
   DECODE_RR_INSTRUCTION(r1, r2);
   int32_t r2_val = get_low_register<int32_t>(r2);
-  int32_t original_r2_val = r2_val;
   r2_val = ~r2_val;
   r2_val = r2_val + 1;
   set_low_register(r1, r2_val);
@@ -6513,7 +6512,7 @@ EVALUATE(LCR) {
   // Cannot do int comparison due to GCC 4.8 bug on x86.
   // Detect INT_MIN alternatively, as it is the only value where both
   // original and result are negative due to overflow.
-  if (r2_val < 0 && original_r2_val < 0) {
+  if (r2_val == (static_cast<int32_t>(1) << 31)) {
     SetS390OverflowCode(true);
   }
   return length;
@@ -9837,7 +9836,7 @@ EVALUATE(LCGR) {
   set_register(r1, r2_val);
   SetS390ConditionCode<int64_t>(r2_val, 0);
   // if the input is INT_MIN, loading its compliment would be overflowing
-  if (r2_val < 0 && (r2_val + 1) > 0) {
+  if (r2_val == (static_cast<int64_t>(1) << 63)) {
     SetS390OverflowCode(true);
   }
   return length;

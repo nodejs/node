@@ -549,6 +549,14 @@ class MacroAssembler: public Assembler {
   void VmovLow(Register dst, DwVfpRegister src);
   void VmovLow(DwVfpRegister dst, Register src);
 
+  // Simulate s-register moves for imaginary s32 - s63 registers.
+  void VmovExtended(Register dst, int src_code);
+  void VmovExtended(int dst_code, Register src);
+  // Move between s-registers and imaginary s-registers.
+  void VmovExtended(int dst_code, int src_code, Register scratch);
+  void VmovExtended(int dst_code, const MemOperand& src, Register scratch);
+  void VmovExtended(const MemOperand& dst, int src_code, Register scratch);
+
   void LslPair(Register dst_low, Register dst_high, Register src_low,
                Register src_high, Register scratch, Register shift);
   void LslPair(Register dst_low, Register dst_high, Register src_low,
@@ -720,23 +728,7 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Inline caching support
 
-  // Generate code for checking access rights - used for security checks
-  // on access to global objects across environments. The holder register
-  // is left untouched, whereas both scratch registers are clobbered.
-  void CheckAccessGlobalProxy(Register holder_reg,
-                              Register scratch,
-                              Label* miss);
-
   void GetNumberHash(Register t0, Register scratch);
-
-  void LoadFromNumberDictionary(Label* miss,
-                                Register elements,
-                                Register key,
-                                Register result,
-                                Register t0,
-                                Register t1,
-                                Register t2);
-
 
   inline void MarkCode(NopMarkerTypes type) {
     nop(type);
@@ -850,14 +842,6 @@ class MacroAssembler: public Assembler {
                        Register scratch1, Register scratch2,
                        Label* gc_required);
 
-  // Copies a number of bytes from src to dst. All registers are clobbered. On
-  // exit src and dst will point to the place just after where the last byte was
-  // read or written and length will be zero.
-  void CopyBytes(Register src,
-                 Register dst,
-                 Register length,
-                 Register scratch);
-
   // Initialize fields with filler values.  Fields starting at |current_address|
   // not including |end_address| are overwritten with the value in |filler|.  At
   // the end the loop, |current_address| takes the value of |end_address|.
@@ -899,13 +883,6 @@ class MacroAssembler: public Assembler {
   void CompareInstanceType(Register map,
                            Register type_reg,
                            InstanceType type);
-
-
-  // Check if a map for a JSObject indicates that the object has fast elements.
-  // Jump to the specified label if it does not.
-  void CheckFastElements(Register map,
-                         Register scratch,
-                         Label* fail);
 
   // Check if a map for a JSObject indicates that the object can have both smi
   // and HeapObject elements.  Jump to the specified label if it does not.
@@ -1015,12 +992,6 @@ class MacroAssembler: public Assembler {
     return eq;
   }
 
-
-  // Picks out an array index from the hash field.
-  // Register use:
-  //   hash - holds the index's hash. Clobbered.
-  //   index - holds the overwritten index on exit.
-  void IndexFromHash(Register hash, Register index);
 
   // Get the number of least significant bits from a register
   void GetLeastBitsFromSmi(Register dst, Register src, int num_least_bits);

@@ -98,16 +98,17 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 29
+bytecode array length: 26
 bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(0),
   /*   30 E> */ B(StackCheck),
   /*   56 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(1), R(1),
                 B(Ldar), R(1),
-  /*   56 E> */ B(StaContextSlot), R(context), U8(4), U8(0),
+  /*   56 E> */ B(StaCurrentContextSlot), U8(4),
   /*   64 S> */ B(CreateClosure), U8(1), U8(2),
-  /*   93 S> */ B(LdrContextSlot), R(context), U8(4), U8(0), R(1),
+  /*   93 S> */ B(LdaCurrentContextSlot), U8(4),
+                B(Star), R(1),
                 B(LdaSmi), U8(1),
                 B(DeletePropertyStrict), R(1),
   /*  113 S> */ B(Return),

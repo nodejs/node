@@ -5,7 +5,9 @@
 #ifndef V8_COMPILER_COMMON_OPERATOR_REDUCER_H_
 #define V8_COMPILER_COMMON_OPERATOR_REDUCER_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/compiler/graph-reducer.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -19,7 +21,8 @@ class Operator;
 
 
 // Performs strength reduction on nodes that have common operators.
-class CommonOperatorReducer final : public AdvancedReducer {
+class V8_EXPORT_PRIVATE CommonOperatorReducer final
+    : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
   CommonOperatorReducer(Editor* editor, Graph* graph,
                         CommonOperatorBuilder* common,

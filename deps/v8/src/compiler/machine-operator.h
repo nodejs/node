@@ -5,7 +5,9 @@
 #ifndef V8_COMPILER_MACHINE_OPERATOR_H_
 #define V8_COMPILER_MACHINE_OPERATOR_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/base/flags.h"
+#include "src/globals.h"
 #include "src/machine-type.h"
 
 namespace v8 {
@@ -62,12 +64,12 @@ class StoreRepresentation final {
   WriteBarrierKind write_barrier_kind_;
 };
 
-bool operator==(StoreRepresentation, StoreRepresentation);
+V8_EXPORT_PRIVATE bool operator==(StoreRepresentation, StoreRepresentation);
 bool operator!=(StoreRepresentation, StoreRepresentation);
 
 size_t hash_value(StoreRepresentation);
 
-std::ostream& operator<<(std::ostream&, StoreRepresentation);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, StoreRepresentation);
 
 StoreRepresentation const& StoreRepresentationOf(Operator const*);
 
@@ -99,7 +101,8 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op);
 // Interface for building machine-level operators. These operators are
 // machine-level but machine-independent and thus define a language suitable
 // for generating code to run on architectures such as ia32, x64, arm, etc.
-class MachineOperatorBuilder final : public ZoneObject {
+class V8_EXPORT_PRIVATE MachineOperatorBuilder final
+    : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   // Flags that specify which operations are available. This is useful
   // for operations that are unsupported by some back-ends.

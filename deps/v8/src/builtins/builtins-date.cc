@@ -203,7 +203,7 @@ BUILTIN(DateConstructor) {
 BUILTIN(DateConstructor_ConstructStub) {
   HandleScope scope(isolate);
   int const argc = args.length() - 1;
-  Handle<JSFunction> target = args.target<JSFunction>();
+  Handle<JSFunction> target = args.target();
   Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
   double time_val;
   if (argc == 0) {
@@ -919,7 +919,7 @@ void Builtins::Generate_DatePrototype_GetField(CodeStubAssembler* assembler,
 
   Label receiver_not_date(assembler, Label::kDeferred);
 
-  assembler->GotoIf(assembler->WordIsSmi(receiver), &receiver_not_date);
+  assembler->GotoIf(assembler->TaggedIsSmi(receiver), &receiver_not_date);
   Node* receiver_instance_type = assembler->LoadInstanceType(receiver);
   assembler->GotoIf(
       assembler->Word32NotEqual(receiver_instance_type,

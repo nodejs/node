@@ -52,7 +52,7 @@ TEST(WasmRelocationArm64MemoryReference) {
   code->Print(os);
   ::printf("f() = %" PRIx64 "\n\n", ret_value);
 #endif
-  size_t offset = 1234;
+  int offset = 1234;
 
   // Relocating reference by offset
   int mode_mask = (1 << RelocInfo::WASM_MEMORY_REFERENCE);

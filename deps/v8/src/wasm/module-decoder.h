@@ -5,14 +5,24 @@
 #ifndef V8_WASM_MODULE_DECODER_H_
 #define V8_WASM_MODULE_DECODER_H_
 
+#include "src/globals.h"
 #include "src/wasm/ast-decoder.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-result.h"
 
 namespace v8 {
 namespace internal {
 namespace wasm {
+
+typedef Result<const WasmModule*> ModuleResult;
+typedef Result<WasmFunction*> FunctionResult;
+typedef std::vector<std::pair<int, int>> FunctionOffsets;
+typedef Result<FunctionOffsets> FunctionOffsetsResult;
+typedef std::vector<std::vector<std::pair<int, int>>> AsmJsOffsets;
+typedef Result<AsmJsOffsets> AsmJsOffsetsResult;
+
 // Decodes the bytes of a WASM module between {module_start} and {module_end}.
-V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(Isolate* isolate, Zone* zone,
+V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(Isolate* isolate,
                                                 const byte* module_start,
                                                 const byte* module_end,
                                                 bool verify_functions,
@@ -20,23 +30,33 @@ V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(Isolate* isolate, Zone* zone,
 
 // Exposed for testing. Decodes a single function signature, allocating it
 // in the given zone. Returns {nullptr} upon failure.
-FunctionSig* DecodeWasmSignatureForTesting(Zone* zone, const byte* start,
-                                           const byte* end);
+V8_EXPORT_PRIVATE FunctionSig* DecodeWasmSignatureForTesting(Zone* zone,
+                                                             const byte* start,
+                                                             const byte* end);
 
 // Decodes the bytes of a WASM function between
 // {function_start} and {function_end}.
-FunctionResult DecodeWasmFunction(Isolate* isolate, Zone* zone, ModuleEnv* env,
-                                  const byte* function_start,
-                                  const byte* function_end);
+V8_EXPORT_PRIVATE FunctionResult DecodeWasmFunction(Isolate* isolate,
+                                                    Zone* zone, ModuleEnv* env,
+                                                    const byte* function_start,
+                                                    const byte* function_end);
 
 // Extracts the function offset table from the wasm module bytes.
 // Returns a vector with <offset, length> entries, or failure if the wasm bytes
 // are detected as invalid. Note that this validation is not complete.
-FunctionOffsetsResult DecodeWasmFunctionOffsets(
-    const byte* module_start, const byte* module_end,
-    uint32_t num_imported_functions);
+FunctionOffsetsResult DecodeWasmFunctionOffsets(const byte* module_start,
+                                                const byte* module_end);
 
-WasmInitExpr DecodeWasmInitExprForTesting(const byte* start, const byte* end);
+V8_EXPORT_PRIVATE WasmInitExpr DecodeWasmInitExprForTesting(const byte* start,
+                                                            const byte* end);
+
+// Extracts the mapping from wasm byte offset to asm.js source position per
+// function.
+// Returns a vector of vectors with <byte_offset, source_position> entries, or
+// failure if the wasm bytes are detected as invalid. Note that this validation
+// is not complete.
+AsmJsOffsetsResult DecodeAsmJsOffsets(const byte* module_start,
+                                      const byte* module_end);
 
 }  // namespace wasm
 }  // namespace internal

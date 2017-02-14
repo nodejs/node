@@ -25,23 +25,22 @@ void PropertyAccessCompiler::GenerateTailCall(MacroAssembler* masm,
 // registers are actually scratch registers, and which are important. For now,
 // we use the same assignments as ARM to remain on the safe side.
 
-Register* PropertyAccessCompiler::load_calling_convention() {
-  // receiver, name, scratch1, scratch2, scratch3.
+void PropertyAccessCompiler::InitializePlatformSpecific(
+    AccessCompilerData* data) {
   Register receiver = LoadDescriptor::ReceiverRegister();
   Register name = LoadDescriptor::NameRegister();
-  static Register registers[] = {receiver, name, x3, x0, x4};
-  return registers;
+
+  // Load calling convention.
+  // receiver, name, scratch1, scratch2, scratch3.
+  Register load_registers[] = {receiver, name, x3, x0, x4};
+
+  // Store calling convention.
+  // receiver, name, scratch1, scratch2.
+  Register store_registers[] = {receiver, name, x3, x4};
+
+  data->Initialize(arraysize(load_registers), load_registers,
+                   arraysize(store_registers), store_registers);
 }
-
-
-Register* PropertyAccessCompiler::store_calling_convention() {
-  // receiver, value, scratch1, scratch2.
-  Register receiver = StoreDescriptor::ReceiverRegister();
-  Register name = StoreDescriptor::NameRegister();
-  static Register registers[] = {receiver, name, x3, x4};
-  return registers;
-}
-
 
 #undef __
 }  // namespace internal

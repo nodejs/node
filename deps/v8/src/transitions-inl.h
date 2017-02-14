@@ -26,7 +26,7 @@ void TransitionArray::set_next_link(Object* next, WriteBarrierMode mode) {
 
 
 bool TransitionArray::HasPrototypeTransitions() {
-  return get(kPrototypeTransitionsIndex) != Smi::FromInt(0);
+  return get(kPrototypeTransitionsIndex) != Smi::kZero;
 }
 
 

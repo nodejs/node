@@ -12,6 +12,7 @@
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-inl.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/object-stats.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/store-buffer.h"
@@ -490,37 +491,18 @@ bool Heap::InOldSpaceSlow(Address address) {
   return old_space_->ContainsSlow(address);
 }
 
-template <PromotionMode promotion_mode>
 bool Heap::ShouldBePromoted(Address old_address, int object_size) {
   Page* page = Page::FromAddress(old_address);
   Address age_mark = new_space_->age_mark();
-
-  if (promotion_mode == PROMOTE_MARKED) {
-    MarkBit mark_bit = ObjectMarking::MarkBitFrom(old_address);
-    if (!Marking::IsWhite(mark_bit)) {
-      return true;
-    }
-  }
-
   return page->IsFlagSet(MemoryChunk::NEW_SPACE_BELOW_AGE_MARK) &&
          (!page->ContainsLimit(age_mark) || old_address < age_mark);
-}
-
-PromotionMode Heap::CurrentPromotionMode() {
-  if (incremental_marking()->IsMarking()) {
-    return PROMOTE_MARKED;
-  } else {
-    return DEFAULT_PROMOTION;
-  }
 }
 
 void Heap::RecordWrite(Object* object, int offset, Object* o) {
   if (!InNewSpace(o) || !object->IsHeapObject() || InNewSpace(object)) {
     return;
   }
-  RememberedSet<OLD_TO_NEW>::Insert(
-      Page::FromAddress(reinterpret_cast<Address>(object)),
-      HeapObject::cast(object)->address() + offset);
+  store_buffer()->InsertEntry(HeapObject::cast(object)->address() + offset);
 }
 
 void Heap::RecordWriteIntoCode(Code* host, RelocInfo* rinfo, Object* value) {
@@ -531,11 +513,9 @@ void Heap::RecordWriteIntoCode(Code* host, RelocInfo* rinfo, Object* value) {
 
 void Heap::RecordFixedArrayElements(FixedArray* array, int offset, int length) {
   if (InNewSpace(array)) return;
-  Page* page = Page::FromAddress(reinterpret_cast<Address>(array));
   for (int i = 0; i < length; i++) {
     if (!InNewSpace(array->get(offset + i))) continue;
-    RememberedSet<OLD_TO_NEW>::Insert(
-        page,
+    store_buffer()->InsertEntry(
         reinterpret_cast<Address>(array->RawFieldOfElementAt(offset + i)));
   }
 }
@@ -647,7 +627,13 @@ AllocationMemento* Heap::FindAllocationMemento(HeapObject* object) {
 template <Heap::UpdateAllocationSiteMode mode>
 void Heap::UpdateAllocationSite(HeapObject* object,
                                 base::HashMap* pretenuring_feedback) {
-  DCHECK(InFromSpace(object));
+  DCHECK(InFromSpace(object) ||
+         (InToSpace(object) &&
+          Page::FromAddress(object->address())
+              ->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION)) ||
+         (!InNewSpace(object) &&
+          Page::FromAddress(object->address())
+              ->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION)));
   if (!FLAG_allocation_site_pretenuring ||
       !AllocationSite::CanTrack(object->map()->instance_type()))
     return;
@@ -759,9 +745,7 @@ void Heap::ExternalStringTable::ShrinkNewStrings(int position) {
 #endif
 }
 
-void Heap::ClearInstanceofCache() {
-  set_instanceof_cache_function(Smi::FromInt(0));
-}
+void Heap::ClearInstanceofCache() { set_instanceof_cache_function(Smi::kZero); }
 
 Oddball* Heap::ToBoolean(bool condition) {
   return condition ? true_value() : false_value();
@@ -769,8 +753,8 @@ Oddball* Heap::ToBoolean(bool condition) {
 
 
 void Heap::CompletelyClearInstanceofCache() {
-  set_instanceof_cache_map(Smi::FromInt(0));
-  set_instanceof_cache_function(Smi::FromInt(0));
+  set_instanceof_cache_map(Smi::kZero);
+  set_instanceof_cache_function(Smi::kZero);
 }
 
 
@@ -793,27 +777,27 @@ int Heap::NextScriptId() {
 }
 
 void Heap::SetArgumentsAdaptorDeoptPCOffset(int pc_offset) {
-  DCHECK(arguments_adaptor_deopt_pc_offset() == Smi::FromInt(0));
+  DCHECK(arguments_adaptor_deopt_pc_offset() == Smi::kZero);
   set_arguments_adaptor_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
 void Heap::SetConstructStubDeoptPCOffset(int pc_offset) {
-  DCHECK(construct_stub_deopt_pc_offset() == Smi::FromInt(0));
+  DCHECK(construct_stub_deopt_pc_offset() == Smi::kZero);
   set_construct_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
 void Heap::SetGetterStubDeoptPCOffset(int pc_offset) {
-  DCHECK(getter_stub_deopt_pc_offset() == Smi::FromInt(0));
+  DCHECK(getter_stub_deopt_pc_offset() == Smi::kZero);
   set_getter_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
 void Heap::SetSetterStubDeoptPCOffset(int pc_offset) {
-  DCHECK(setter_stub_deopt_pc_offset() == Smi::FromInt(0));
+  DCHECK(setter_stub_deopt_pc_offset() == Smi::kZero);
   set_setter_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
 void Heap::SetInterpreterEntryReturnPCOffset(int pc_offset) {
-  DCHECK(interpreter_entry_return_pc_offset() == Smi::FromInt(0));
+  DCHECK(interpreter_entry_return_pc_offset() == Smi::kZero);
   set_interpreter_entry_return_pc_offset(Smi::FromInt(pc_offset));
 }
 
@@ -826,6 +810,16 @@ int Heap::GetNextTemplateSerialNumber() {
 void Heap::SetSerializedTemplates(FixedArray* templates) {
   DCHECK_EQ(empty_fixed_array(), serialized_templates());
   set_serialized_templates(templates);
+}
+
+void Heap::CreateObjectStats() {
+  if (V8_LIKELY(FLAG_gc_stats == 0)) return;
+  if (!live_object_stats_) {
+    live_object_stats_ = new ObjectStats(this);
+  }
+  if (!dead_object_stats_) {
+    dead_object_stats_ = new ObjectStats(this);
+  }
 }
 
 AlwaysAllocateScope::AlwaysAllocateScope(Isolate* isolate)

@@ -110,13 +110,13 @@ TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
       Execution::TryCall(isolate, js_trampoline, global, 1, args, &maybe_exc);
   CHECK(returnObjMaybe.is_null());
 
-  // The column is 1-based, so add 1 to the actual byte offset.
+  // Line and column are 1-based, so add 1 for the expected wasm output.
   ExceptionInfo expected_exceptions[] = {
-      {"a", 3, 8},                                            // -
-      {"js", 4, 2},                                           // -
-      {"<WASM UNNAMED>", static_cast<int>(wasm_index), 3},    // -
-      {"<WASM UNNAMED>", static_cast<int>(wasm_index_2), 2},  // -
-      {"callFn", 1, 24}                                       // -
+      {"a", 3, 8},                                                // -
+      {"js", 4, 2},                                               // -
+      {"<WASM UNNAMED>", static_cast<int>(wasm_index) + 1, 3},    // -
+      {"<WASM UNNAMED>", static_cast<int>(wasm_index_2) + 1, 2},  // -
+      {"callFn", 1, 24}                                           // -
   };
   CheckExceptionInfos(maybe_exc.ToHandleChecked(), expected_exceptions);
 }
@@ -154,11 +154,11 @@ TEST(CollectDetailedWasmStack_WasmError) {
       Execution::TryCall(isolate, js_trampoline, global, 1, args, &maybe_exc);
   CHECK(maybe_return_obj.is_null());
 
-  // The column is 1-based, so add 1 to the actual byte offset.
+  // Line and column are 1-based, so add 1 for the expected wasm output.
   ExceptionInfo expected_exceptions[] = {
-      {"<WASM UNNAMED>", static_cast<int>(wasm_index), 2},    // -
-      {"<WASM UNNAMED>", static_cast<int>(wasm_index_2), 2},  // -
-      {"callFn", 1, 24}                                       //-
+      {"<WASM UNNAMED>", static_cast<int>(wasm_index) + 1, 2},    // -
+      {"<WASM UNNAMED>", static_cast<int>(wasm_index_2) + 1, 2},  // -
+      {"callFn", 1, 24}                                           //-
   };
   CheckExceptionInfos(maybe_exc.ToHandleChecked(), expected_exceptions);
 }

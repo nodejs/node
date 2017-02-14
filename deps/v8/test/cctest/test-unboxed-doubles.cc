@@ -1141,7 +1141,7 @@ TEST(DoScavengeWithIncrementalWriteBarrier) {
   // simulate incremental marking.
   FLAG_stress_compaction = true;
   FLAG_manual_evacuation_candidates_selection = true;
-  ec_page->SetFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+  heap::ForceEvacuationCandidate(ec_page);
   heap::SimulateIncrementalMarking(heap);
   // Disable stress compaction mode in order to let GC do scavenge.
   FLAG_stress_compaction = false;
@@ -1459,7 +1459,7 @@ static void TestIncrementalWriteBarrier(Handle<Map> map, Handle<Map> new_map,
 
   // Heap is ready, force |ec_page| to become an evacuation candidate and
   // simulate incremental marking.
-  ec_page->SetFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+  heap::ForceEvacuationCandidate(ec_page);
   heap::SimulateIncrementalMarking(heap);
 
   // Check that everything is ready for triggering incremental write barrier

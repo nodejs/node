@@ -80,7 +80,9 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kTruncateTaggedToFloat64: {
       NumberMatcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceFloat64(m.Value());
-      if (m.IsChangeFloat64ToTagged()) return Replace(m.node()->InputAt(0));
+      if (m.IsChangeFloat64ToTagged() || m.IsChangeFloat64ToTaggedPointer()) {
+        return Replace(m.node()->InputAt(0));
+      }
       if (m.IsChangeInt31ToTaggedSigned() || m.IsChangeInt32ToTagged()) {
         return Change(node, machine()->ChangeInt32ToFloat64(), m.InputAt(0));
       }
@@ -89,10 +91,11 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
       }
       break;
     }
+    case IrOpcode::kChangeTaggedSignedToInt32:
     case IrOpcode::kChangeTaggedToInt32: {
       NumberMatcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceInt32(DoubleToInt32(m.Value()));
-      if (m.IsChangeFloat64ToTagged()) {
+      if (m.IsChangeFloat64ToTagged() || m.IsChangeFloat64ToTaggedPointer()) {
         return Change(node, machine()->ChangeFloat64ToInt32(), m.InputAt(0));
       }
       if (m.IsChangeInt31ToTaggedSigned() || m.IsChangeInt32ToTagged()) {
@@ -103,7 +106,7 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kChangeTaggedToUint32: {
       NumberMatcher m(node->InputAt(0));
       if (m.HasValue()) return ReplaceUint32(DoubleToUint32(m.Value()));
-      if (m.IsChangeFloat64ToTagged()) {
+      if (m.IsChangeFloat64ToTagged() || m.IsChangeFloat64ToTaggedPointer()) {
         return Change(node, machine()->ChangeFloat64ToUint32(), m.InputAt(0));
       }
       if (m.IsChangeUint32ToTagged()) return Replace(m.InputAt(0));
@@ -121,11 +124,12 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
           m.IsChangeUint32ToTagged()) {
         return Replace(m.InputAt(0));
       }
-      if (m.IsChangeFloat64ToTagged()) {
+      if (m.IsChangeFloat64ToTagged() || m.IsChangeFloat64ToTaggedPointer()) {
         return Change(node, machine()->TruncateFloat64ToWord32(), m.InputAt(0));
       }
       break;
     }
+    case IrOpcode::kCheckedTaggedToInt32:
     case IrOpcode::kCheckedTaggedSignedToInt32: {
       NodeMatcher m(node->InputAt(0));
       if (m.IsConvertTaggedHoleToUndefined()) {

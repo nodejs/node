@@ -19,11 +19,10 @@ namespace internal {
   } while (false)
 #define NOTHING() DCHECK_NULL(replacement_)
 
-
-void AstExpressionRewriter::VisitDeclarations(
-    ZoneList<Declaration*>* declarations) {
-  for (int i = 0; i < declarations->length(); i++) {
-    AST_REWRITE_LIST_ELEMENT(Declaration, declarations, i);
+void AstExpressionRewriter::VisitDeclarations(Declaration::List* declarations) {
+  for (Declaration::List::Iterator it = declarations->begin();
+       it != declarations->end(); ++it) {
+    AST_REWRITE(Declaration, *it, it = replacement);
   }
 }
 

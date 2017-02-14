@@ -56,12 +56,6 @@ bool Type::Contains(RangeType* lhs, RangeType* rhs) {
   return lhs->Min() <= rhs->Min() && rhs->Max() <= lhs->Max();
 }
 
-bool Type::Contains(RangeType* lhs, ConstantType* rhs) {
-  DisallowHeapAllocation no_allocation;
-  return IsInteger(*rhs->Value()) && lhs->Min() <= rhs->Value()->Number() &&
-         rhs->Value()->Number() <= lhs->Max();
-}
-
 bool Type::Contains(RangeType* range, i::Object* val) {
   DisallowHeapAllocation no_allocation;
   return IsInteger(val) && range->Min() <= val->Number() &&
@@ -82,7 +76,8 @@ double Type::Min() {
     return min;
   }
   if (this->IsRange()) return this->AsRange()->Min();
-  if (this->IsConstant()) return this->AsConstant()->Value()->Number();
+  if (this->IsOtherNumberConstant())
+    return this->AsOtherNumberConstant()->Value();
   UNREACHABLE();
   return 0;
 }
@@ -98,7 +93,8 @@ double Type::Max() {
     return max;
   }
   if (this->IsRange()) return this->AsRange()->Max();
-  if (this->IsConstant()) return this->AsConstant()->Value()->Number();
+  if (this->IsOtherNumberConstant())
+    return this->AsOtherNumberConstant()->Value();
   UNREACHABLE();
   return 0;
 }
@@ -139,7 +135,9 @@ Type::bitset BitsetType::Lub(Type* type) {
     }
     return bitset;
   }
-  if (type->IsConstant()) return type->AsConstant()->Lub();
+  if (type->IsHeapConstant()) return type->AsHeapConstant()->Lub();
+  if (type->IsOtherNumberConstant())
+    return type->AsOtherNumberConstant()->Lub();
   if (type->IsRange()) return type->AsRange()->Lub();
   if (type->IsTuple()) return kOtherInternal;
   UNREACHABLE();
@@ -205,6 +203,8 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case JS_DATE_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
+    case JS_MODULE_NAMESPACE_TYPE:
+    case JS_FIXED_ARRAY_ITERATOR_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
     case JS_ARRAY_TYPE:
     case JS_REGEXP_TYPE:  // TODO(rossberg): there should be a RegExp type.
@@ -215,6 +215,43 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case JS_SET_ITERATOR_TYPE:
     case JS_MAP_ITERATOR_TYPE:
     case JS_STRING_ITERATOR_TYPE:
+
+    case JS_TYPED_ARRAY_KEY_ITERATOR_TYPE:
+    case JS_FAST_ARRAY_KEY_ITERATOR_TYPE:
+    case JS_GENERIC_ARRAY_KEY_ITERATOR_TYPE:
+    case JS_UINT8_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_INT8_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_UINT16_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_INT16_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_UINT32_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_INT32_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_FLOAT32_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_FLOAT64_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_UINT8_CLAMPED_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_HOLEY_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_HOLEY_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_HOLEY_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_GENERIC_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_UINT8_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_INT8_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_UINT16_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_INT16_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_UINT32_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_INT32_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_FLOAT32_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_FLOAT64_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_UINT8_CLAMPED_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_SMI_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_HOLEY_SMI_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_HOLEY_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_HOLEY_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_GENERIC_ARRAY_VALUE_ITERATOR_TYPE:
+
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_SET_TYPE:
     case JS_PROMISE_TYPE:
@@ -231,6 +268,7 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case ALLOCATION_SITE_TYPE:
     case ACCESSOR_INFO_TYPE:
     case SHARED_FUNCTION_INFO_TYPE:
+    case FUNCTION_TEMPLATE_INFO_TYPE:
     case ACCESSOR_PAIR_TYPE:
     case FIXED_ARRAY_TYPE:
     case FIXED_DOUBLE_ARRAY_TYPE:
@@ -242,6 +280,7 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case CODE_TYPE:
     case PROPERTY_CELL_TYPE:
     case MODULE_TYPE:
+    case MODULE_INFO_ENTRY_TYPE:
       return kOtherInternal;
 
     // Remaining instance types are unsupported for now. If any of them do
@@ -257,7 +296,6 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case ACCESS_CHECK_INFO_TYPE:
     case INTERCEPTOR_INFO_TYPE:
     case CALL_HANDLER_INFO_TYPE:
-    case FUNCTION_TEMPLATE_INFO_TYPE:
     case OBJECT_TEMPLATE_INFO_TYPE:
     case SIGNATURE_INFO_TYPE:
     case TYPE_SWITCH_INFO_TYPE:
@@ -265,12 +303,14 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case TYPE_FEEDBACK_INFO_TYPE:
     case ALIASED_ARGUMENTS_ENTRY_TYPE:
     case BOX_TYPE:
-    case PROMISE_CONTAINER_TYPE:
+    case PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE:
+    case PROMISE_REACTION_JOB_INFO_TYPE:
     case DEBUG_INFO_TYPE:
     case BREAK_POINT_INFO_TYPE:
     case CELL_TYPE:
     case WEAK_CELL_TYPE:
     case PROTOTYPE_INFO_TYPE:
+    case TUPLE3_TYPE:
     case CONTEXT_EXTENSION_TYPE:
       UNREACHABLE();
       return kNone;
@@ -390,14 +430,43 @@ double BitsetType::Max(bitset bits) {
   return std::numeric_limits<double>::quiet_NaN();
 }
 
+// static
+bool OtherNumberConstantType::IsOtherNumberConstant(double value) {
+  // Not an integer, not NaN, and not -0.
+  return !std::isnan(value) && !Type::IsInteger(value) &&
+         !i::IsMinusZero(value);
+}
+
+// static
+bool OtherNumberConstantType::IsOtherNumberConstant(Object* value) {
+  return value->IsHeapNumber() &&
+         IsOtherNumberConstant(HeapNumber::cast(value)->value());
+}
+
+HeapConstantType::HeapConstantType(BitsetType::bitset bitset,
+                                   i::Handle<i::HeapObject> object)
+    : TypeBase(kHeapConstant), bitset_(bitset), object_(object) {
+  DCHECK(!object->IsHeapNumber());
+  DCHECK(!object->IsString());
+}
+
 // -----------------------------------------------------------------------------
 // Predicates.
 
 bool Type::SimplyEquals(Type* that) {
   DisallowHeapAllocation no_allocation;
-  if (this->IsConstant()) {
-    return that->IsConstant() &&
-           *this->AsConstant()->Value() == *that->AsConstant()->Value();
+  if (this->IsHeapConstant()) {
+    return that->IsHeapConstant() &&
+           this->AsHeapConstant()->Value().address() ==
+               that->AsHeapConstant()->Value().address();
+  }
+  if (this->IsOtherNumberConstant()) {
+    return that->IsOtherNumberConstant() &&
+           this->AsOtherNumberConstant()->Value() ==
+               that->AsOtherNumberConstant()->Value();
+  }
+  if (this->IsRange()) {
+    if (that->IsHeapConstant() || that->IsOtherNumberConstant()) return false;
   }
   if (this->IsTuple()) {
     if (!that->IsTuple()) return false;
@@ -446,9 +515,7 @@ bool Type::SlowIs(Type* that) {
   }
 
   if (that->IsRange()) {
-    return (this->IsRange() && Contains(that->AsRange(), this->AsRange())) ||
-           (this->IsConstant() &&
-            Contains(that->AsRange(), this->AsConstant()));
+    return (this->IsRange() && Contains(that->AsRange(), this->AsRange()));
   }
   if (this->IsRange()) return false;
 
@@ -481,9 +548,6 @@ bool Type::Maybe(Type* that) {
   if (this->IsBitset() && that->IsBitset()) return true;
 
   if (this->IsRange()) {
-    if (that->IsConstant()) {
-      return Contains(this->AsRange(), that->AsConstant());
-    }
     if (that->IsRange()) {
       return Overlap(this->AsRange(), that->AsRange());
     }
@@ -673,9 +737,6 @@ int Type::IntersectAux(Type* lhs, Type* rhs, UnionType* result, int size,
       }
       return size;
     }
-    if (rhs->IsConstant() && Contains(lhs->AsRange(), rhs->AsConstant())) {
-      return AddToUnion(rhs, result, size, zone);
-    }
     if (rhs->IsRange()) {
       RangeType::Limits lim = RangeType::Limits::Intersect(
           RangeType::Limits(lhs->AsRange()), RangeType::Limits(rhs->AsRange()));
@@ -741,6 +802,40 @@ Type* Type::NormalizeRangeAndBitset(Type* range, bitset* bits, Zone* zone) {
     range_max = bitset_max;
   }
   return RangeType::New(range_min, range_max, zone);
+}
+
+Type* Type::NewConstant(double value, Zone* zone) {
+  if (IsInteger(value)) {
+    return Range(value, value, zone);
+  } else if (i::IsMinusZero(value)) {
+    return Type::MinusZero();
+  } else if (std::isnan(value)) {
+    return Type::NaN();
+  }
+
+  DCHECK(OtherNumberConstantType::IsOtherNumberConstant(value));
+  return OtherNumberConstant(value, zone);
+}
+
+Type* Type::NewConstant(i::Handle<i::Object> value, Zone* zone) {
+  if (IsInteger(*value)) {
+    double v = value->Number();
+    return Range(v, v, zone);
+  } else if (value->IsHeapNumber()) {
+    return NewConstant(value->Number(), zone);
+  } else if (value->IsString()) {
+    bitset b = BitsetType::Lub(*value);
+    DCHECK(b == BitsetType::kInternalizedString ||
+           b == BitsetType::kOtherString);
+    if (b == BitsetType::kInternalizedString) {
+      return Type::InternalizedString();
+    } else if (b == BitsetType::kOtherString) {
+      return Type::OtherString();
+    } else {
+      UNREACHABLE();
+    }
+  }
+  return HeapConstant(i::Handle<i::HeapObject>::cast(value), zone);
 }
 
 Type* Type::Union(Type* type1, Type* type2, Zone* zone) {
@@ -833,17 +928,14 @@ Type* Type::NormalizeUnion(Type* union_type, int size, Zone* zone) {
   return union_type;
 }
 
-// -----------------------------------------------------------------------------
-// Iteration.
-
 int Type::NumConstants() {
   DisallowHeapAllocation no_allocation;
-  if (this->IsConstant()) {
+  if (this->IsHeapConstant() || this->IsOtherNumberConstant()) {
     return 1;
   } else if (this->IsUnion()) {
     int result = 0;
     for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {
-      if (this->AsUnion()->Get(i)->IsConstant()) ++result;
+      if (this->AsUnion()->Get(i)->IsHeapConstant()) ++result;
     }
     return result;
   } else {
@@ -905,8 +997,11 @@ void Type::PrintTo(std::ostream& os) {
   DisallowHeapAllocation no_allocation;
   if (this->IsBitset()) {
     BitsetType::Print(os, this->AsBitset());
-  } else if (this->IsConstant()) {
-    os << "Constant(" << Brief(*this->AsConstant()->Value()) << ")";
+  } else if (this->IsHeapConstant()) {
+    os << "HeapConstant(" << Brief(*this->AsHeapConstant()->Value()) << ")";
+  } else if (this->IsOtherNumberConstant()) {
+    os << "OtherNumberConstant(" << this->AsOtherNumberConstant()->Value()
+       << ")";
   } else if (this->IsRange()) {
     std::ostream::fmtflags saved_flags = os.setf(std::ios::fixed);
     std::streamsize saved_precision = os.precision(0);

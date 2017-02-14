@@ -54,27 +54,37 @@ class Types {
         JS_OBJECT_TYPE, JSObject::kHeaderSize);
 
     smi = handle(Smi::FromInt(666), isolate);
+    boxed_smi = isolate->factory()->NewHeapNumber(666);
     signed32 = isolate->factory()->NewHeapNumber(0x40000000);
+    float1 = isolate->factory()->NewHeapNumber(1.53);
+    float2 = isolate->factory()->NewHeapNumber(0.53);
+    // float3 is identical to float1 in order to test that OtherNumberConstant
+    // types are equal by double value and not by handle pointer value.
+    float3 = isolate->factory()->NewHeapNumber(1.53);
     object1 = isolate->factory()->NewJSObjectFromMap(object_map);
     object2 = isolate->factory()->NewJSObjectFromMap(object_map);
     array = isolate->factory()->NewJSArray(20);
     uninitialized = isolate->factory()->uninitialized_value();
-    SmiConstant = Type::Constant(smi, zone);
-    Signed32Constant = Type::Constant(signed32, zone);
+    SmiConstant = Type::NewConstant(smi, zone);
+    Signed32Constant = Type::NewConstant(signed32, zone);
 
-    ObjectConstant1 = Type::Constant(object1, zone);
-    ObjectConstant2 = Type::Constant(object2, zone);
-    ArrayConstant = Type::Constant(array, zone);
-    UninitializedConstant = Type::Constant(uninitialized, zone);
+    ObjectConstant1 = Type::HeapConstant(object1, zone);
+    ObjectConstant2 = Type::HeapConstant(object2, zone);
+    ArrayConstant = Type::HeapConstant(array, zone);
+    UninitializedConstant = Type::HeapConstant(uninitialized, zone);
 
     values.push_back(smi);
+    values.push_back(boxed_smi);
     values.push_back(signed32);
     values.push_back(object1);
     values.push_back(object2);
     values.push_back(array);
     values.push_back(uninitialized);
+    values.push_back(float1);
+    values.push_back(float2);
+    values.push_back(float3);
     for (ValueVector::iterator it = values.begin(); it != values.end(); ++it) {
-      types.push_back(Type::Constant(*it, zone));
+      types.push_back(Type::NewConstant(*it, zone));
     }
 
     integers.push_back(isolate->factory()->NewNumber(-V8_INFINITY));
@@ -98,7 +108,11 @@ class Types {
   Handle<i::Map> object_map;
 
   Handle<i::Smi> smi;
+  Handle<i::HeapNumber> boxed_smi;
   Handle<i::HeapNumber> signed32;
+  Handle<i::HeapNumber> float1;
+  Handle<i::HeapNumber> float2;
+  Handle<i::HeapNumber> float3;
   Handle<i::JSObject> object1;
   Handle<i::JSObject> object2;
   Handle<i::JSArray> array;
@@ -129,8 +143,12 @@ class Types {
 
   Type* Of(Handle<i::Object> value) { return Type::Of(value, zone_); }
 
-  Type* Constant(Handle<i::Object> value) {
-    return Type::Constant(value, zone_);
+  Type* NewConstant(Handle<i::Object> value) {
+    return Type::NewConstant(value, zone_);
+  }
+
+  Type* HeapConstant(Handle<i::HeapObject> value) {
+    return Type::HeapConstant(value, zone_);
   }
 
   Type* Range(double min, double max) { return Type::Range(min, max, zone_); }
@@ -170,7 +188,7 @@ class Types {
       }
       case 1: {  // constant
         int i = rng_->NextInt(static_cast<int>(values.size()));
-        return Type::Constant(values[i], zone_);
+        return Type::NewConstant(values[i], zone_);
       }
       case 2: {  // range
         int i = rng_->NextInt(static_cast<int>(integers.size()));

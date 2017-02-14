@@ -104,7 +104,7 @@ JsonParser<seq_one_byte>::JsonParser(Isolate* isolate, Handle<String> source)
       source_length_(source->length()),
       isolate_(isolate),
       factory_(isolate_->factory()),
-      zone_(isolate_->allocator()),
+      zone_(isolate_->allocator(), ZONE_NAME),
       object_constructor_(isolate_->native_context()->object_function(),
                           isolate_),
       position_(-1) {

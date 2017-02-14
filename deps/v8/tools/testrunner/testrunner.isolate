@@ -20,5 +20,12 @@
         ],
       },
     }],
+    ['is_gn==1', {
+      'variables': {
+        'files': [
+          '<(PRODUCT_DIR)/v8_build_config.json',
+        ],
+      },
+    }],
   ],
 }

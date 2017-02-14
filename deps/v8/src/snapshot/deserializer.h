@@ -88,6 +88,7 @@ class Deserializer : public SerializerDeserializer {
   }
 
   void DeserializeDeferredObjects();
+  void DeserializeInternalFields();
 
   void FlushICacheForNewIsolate();
   void FlushICacheForNewCodeObjectsAndRecordEmbeddedObjects();

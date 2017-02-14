@@ -223,49 +223,6 @@
                                             flow_flags, arg1_name, arg1_val, \
                                             arg2_name, arg2_val)
 
-// UNSHIPPED_TRACE_EVENT* are like TRACE_EVENT* except that they are not
-// included in official builds.
-
-#if OFFICIAL_BUILD
-#undef TRACING_IS_OFFICIAL_BUILD
-#define TRACING_IS_OFFICIAL_BUILD 1
-#elif !defined(TRACING_IS_OFFICIAL_BUILD)
-#define TRACING_IS_OFFICIAL_BUILD 0
-#endif
-
-#if TRACING_IS_OFFICIAL_BUILD
-#define UNSHIPPED_TRACE_EVENT0(category_group, name) (void)0
-#define UNSHIPPED_TRACE_EVENT1(category_group, name, arg1_name, arg1_val) \
-  (void)0
-#define UNSHIPPED_TRACE_EVENT2(category_group, name, arg1_name, arg1_val, \
-                               arg2_name, arg2_val)                       \
-  (void)0
-#define UNSHIPPED_TRACE_EVENT_INSTANT0(category_group, name, scope) (void)0
-#define UNSHIPPED_TRACE_EVENT_INSTANT1(category_group, name, scope, arg1_name, \
-                                       arg1_val)                               \
-  (void)0
-#define UNSHIPPED_TRACE_EVENT_INSTANT2(category_group, name, scope, arg1_name, \
-                                       arg1_val, arg2_name, arg2_val)          \
-  (void)0
-#else
-#define UNSHIPPED_TRACE_EVENT0(category_group, name) \
-  TRACE_EVENT0(category_group, name)
-#define UNSHIPPED_TRACE_EVENT1(category_group, name, arg1_name, arg1_val) \
-  TRACE_EVENT1(category_group, name, arg1_name, arg1_val)
-#define UNSHIPPED_TRACE_EVENT2(category_group, name, arg1_name, arg1_val, \
-                               arg2_name, arg2_val)                       \
-  TRACE_EVENT2(category_group, name, arg1_name, arg1_val, arg2_name, arg2_val)
-#define UNSHIPPED_TRACE_EVENT_INSTANT0(category_group, name, scope) \
-  TRACE_EVENT_INSTANT0(category_group, name, scope)
-#define UNSHIPPED_TRACE_EVENT_INSTANT1(category_group, name, scope, arg1_name, \
-                                       arg1_val)                               \
-  TRACE_EVENT_INSTANT1(category_group, name, scope, arg1_name, arg1_val)
-#define UNSHIPPED_TRACE_EVENT_INSTANT2(category_group, name, scope, arg1_name, \
-                                       arg1_val, arg2_name, arg2_val)          \
-  TRACE_EVENT_INSTANT2(category_group, name, scope, arg1_name, arg1_val,       \
-                       arg2_name, arg2_val)
-#endif
-
 // Records a single event called "name" immediately, with 0, 1 or 2
 // associated arguments. If the category is not enabled, then this
 // does nothing.
@@ -300,16 +257,6 @@
   INTERNAL_TRACE_EVENT_ADD_WITH_TIMESTAMP(                               \
       TRACE_EVENT_PHASE_INSTANT, category_group, name, timestamp,        \
       TRACE_EVENT_FLAG_NONE | scope)
-
-// Syntactic sugars for the sampling tracing in the main thread.
-#define TRACE_EVENT_SCOPED_SAMPLING_STATE(category, name) \
-  TRACE_EVENT_SCOPED_SAMPLING_STATE_FOR_BUCKET(0, category, name)
-#define TRACE_EVENT_GET_SAMPLING_STATE() \
-  TRACE_EVENT_GET_SAMPLING_STATE_FOR_BUCKET(0)
-#define TRACE_EVENT_SET_SAMPLING_STATE(category, name) \
-  TRACE_EVENT_SET_SAMPLING_STATE_FOR_BUCKET(0, category, name)
-#define TRACE_EVENT_SET_NONCONST_SAMPLING_STATE(category_and_name) \
-  TRACE_EVENT_SET_NONCONST_SAMPLING_STATE_FOR_BUCKET(0, category_and_name)
 
 // Records a single BEGIN event called "name" immediately, with 0, 1 or 2
 // associated arguments. If the category is not enabled, then this
@@ -1006,15 +953,15 @@
   INTERNAL_TRACE_EVENT_SCOPED_CONTEXT(category_group, name, context)
 
 // Macro to specify that two trace IDs are identical. For example,
-// TRACE_BIND_IDS(
+// TRACE_LINK_IDS(
 //     "category", "name",
 //     TRACE_ID_WITH_SCOPE("net::URLRequest", 0x1000),
 //     TRACE_ID_WITH_SCOPE("blink::ResourceFetcher::FetchRequest", 0x2000))
 // tells the trace consumer that events with ID ("net::URLRequest", 0x1000) from
 // the current process have the same ID as events with ID
 // ("blink::ResourceFetcher::FetchRequest", 0x2000).
-#define TRACE_BIND_IDS(category_group, name, id, bind_id) \
-  INTERNAL_TRACE_EVENT_ADD_BIND_IDS(category_group, name, id, bind_id);
+#define TRACE_LINK_IDS(category_group, name, id, linked_id) \
+  INTERNAL_TRACE_EVENT_ADD_LINK_IDS(category_group, name, id, linked_id);
 
 // Macro to efficiently determine if a given category group is enabled.
 #define TRACE_EVENT_CATEGORY_GROUP_ENABLED(category_group, ret)             \
@@ -1081,7 +1028,7 @@
 #define TRACE_EVENT_PHASE_CLOCK_SYNC ('c')
 #define TRACE_EVENT_PHASE_ENTER_CONTEXT ('(')
 #define TRACE_EVENT_PHASE_LEAVE_CONTEXT (')')
-#define TRACE_EVENT_PHASE_BIND_IDS ('=')
+#define TRACE_EVENT_PHASE_LINK_IDS ('=')
 
 // Flags for changing the behavior of TRACE_EVENT_API_ADD_TRACE_EVENT.
 #define TRACE_EVENT_FLAG_NONE (static_cast<unsigned int>(0))
