@@ -14,6 +14,7 @@ var writeStreamAtomic = require('fs-write-stream-atomic')
 var ms = require('mississippi')
 var sortedUnionStream = require('sorted-union-stream')
 var once = require('once')
+var gunzip = require('../utils/gunzip-maybe')
 
 // Returns a sorted stream of all package metadata. Internally, takes care of
 // maintaining its metadata cache and making partial or full remote requests,
@@ -153,6 +154,7 @@ function createEntryUpdateStream (all, auth, staleness, latest, cb) {
       ms.through(function (chunk, enc, cb) {
         cb(null, chunk)
       }),
+      gunzip(),
       jsonstream.parse('*', function (pkg, key) {
         if (key[0] === '_updated' || key[0][0] !== '_') {
           return pkg

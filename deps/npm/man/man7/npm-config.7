@@ -1,4 +1,4 @@
-.TH "NPM\-CONFIG" "7" "January 2017" "" ""
+.TH "NPM\-CONFIG" "7" "February 2017" "" ""
 .SH "NAME"
 \fBnpm-config\fR \- More than you probably want to know about npm configuration
 .SH DESCRIPTION
@@ -798,6 +798,16 @@ stderr\.
 .P
 If the \fBcolor\fP config is set to true, then this stream will receive
 colored output if it is a TTY\.
+.SS logs\-max
+.RS 0
+.IP \(bu 2
+Default: 10
+.IP \(bu 2
+Type: Number
+
+.RE
+.P
+The maximum number of log files to store\.
 .SS long
 .RS 0
 .IP \(bu 2
@@ -1151,6 +1161,17 @@ Type: String
 .RE
 .P
 Space\-separated options that are always passed to search\.
+.SS searchlimit
+.RS 0
+.IP \(bu 2
+Default: 20
+.IP \(bu 2
+Type: Number
+
+.RE
+.P
+Number of items to limit search results to\. Will not apply at all to legacy
+searches\.
 .SS searchstaleness
 .RS 0
 .IP \(bu 2
@@ -1160,7 +1181,8 @@ Type: Number
 
 .RE
 .P
-The age of the cache, in seconds, before another registry request is made\.
+The age of the cache, in seconds, before another registry request is made if
+using legacy search endpoint\.
 .SS send\-metrics
 .RS 0
 .IP \(bu 2

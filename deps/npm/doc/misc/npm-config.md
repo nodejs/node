@@ -576,6 +576,13 @@ stderr.
 If the `color` config is set to true, then this stream will receive
 colored output if it is a TTY.
 
+### logs-max
+
+* Default: 10
+* Type: Number
+
+The maximum number of log files to store.
+
 ### long
 
 * Default: false
@@ -844,12 +851,21 @@ Space-separated options that limit the results from search.
 
 Space-separated options that are always passed to search.
 
+### searchlimit
+
+* Default: 20
+* Type: Number
+
+Number of items to limit search results to. Will not apply at all to legacy
+searches.
+
 ### searchstaleness
 
 * Default: 900 (15 minutes)
 * Type: Number
 
-The age of the cache, in seconds, before another registry request is made.
+The age of the cache, in seconds, before another registry request is made if
+using legacy search endpoint.
 
 ### send-metrics
 

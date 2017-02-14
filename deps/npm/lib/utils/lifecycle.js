@@ -277,6 +277,7 @@ function runCmd_ (cmd, pkg, env, wd, stage, unsafe, uid, gid, cb_) {
       process.kill(process.pid, signal)
     } else if (code) {
       var er = new Error('Exit status ' + code)
+      er.errno = code
     }
     procError(er)
   })
