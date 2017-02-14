@@ -558,6 +558,9 @@ found [here][online].
   the connected party did not properly respond after a period of time. Usually
   encountered by [`http`][] or [`net`][] -- often a sign that a `socket.end()`
   was not properly called.
+  
+<a id="ERROR_CODES"></a>
+### ERROR CODES
 
 <a id="nodejs-error-codes"></a>
 ## Node.js Error Codes
@@ -584,6 +587,9 @@ API when a callbackified `Promise` is rejected with a falsy value (e.g. `null`).
 ### ERR_INDEX_OUT_OF_RANGE
 
 Used when a given index is out of the accepted range.
+
+<a id="nodejs-error-codes"></a>
+## Node.js Error Codes
 
 <a id="ERR_INVALID_ARG_TYPE"></a>
 ### ERR_INVALID_ARG_TYPE
@@ -799,6 +805,7 @@ are most likely an indication of a bug within Node.js itself.
 [`ERR_INVALID_ARG_TYPE`]: #ERR_INVALID_ARG_TYPE
 [`child.kill()`]: child_process.html#child_process_child_kill_signal
 [`child.send()`]: child_process.html#child_process_child_send_message_sendhandle_options_callback
+[`fs.readdir`]: fs.html#fs_fs_readdir_path_options_callback
 [`fs.readFileSync`]: fs.html#fs_fs_readfilesync_file_options
 [`fs.readdir`]: fs.html#fs_fs_readdir_path_options_callback
 [`fs.unlink`]: fs.html#fs_fs_unlink_path_callback
@@ -817,6 +824,7 @@ are most likely an indication of a bug within Node.js itself.
 [domains]: domain.html
 [event emitter-based]: events.html#events_class_eventemitter
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
+[Node.js Error Codes]: #nodejs-error-codes
 [online]: http://man7.org/linux/man-pages/man3/errno.3.html
 [stream-based]: stream.html
 [syscall]: http://man7.org/linux/man-pages/man2/syscall.2.html
