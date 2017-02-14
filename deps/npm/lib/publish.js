@@ -52,37 +52,38 @@ function publish (args, isRetry, cb) {
       if (!data.version) return cb(new Error('No version provided'))
     }
 
-    // Error is OK. Could be publishing a URL or tarball, however, that means
-    // that we will not have automatically run the prepublish script, since
-    // that gets run when adding a folder to the cache.
-    if (er) return cacheAddPublish(arg, false, isRetry, cb)
-    else cacheAddPublish(arg, true, isRetry, cb)
+    // if readJson errors, the argument might be a tarball or package URL
+    if (er) {
+      npm.commands.cache.add(arg, null, null, false, function (er, data) {
+        if (er) return cb(er)
+        log.silly('publish', data)
+        var cached = path.resolve(cachedPackageRoot(data), 'package') + '.tgz'
+        // *publish* lifecycle scripts aren't run when publishing a built artifact
+        // go to the next step directly
+        publish_(arg, data, isRetry, cached, cb)
+      })
+    } else {
+      var dir = arg
+      npm.commands.cache.add(dir, null, null, false, function (er, data) {
+        if (er) return cb(er)
+        log.silly('publish', data)
+        var cached = path.resolve(cachedPackageRoot(data), 'package') + '.tgz'
+        // `prepublish` and `prepare` are run by cache.add
+        chain(
+          [
+            [lifecycle, data, 'prepublishOnly', dir],
+            [publish_, dir, data, isRetry, cached],
+            [lifecycle, data, 'publish', dir],
+            [lifecycle, data, 'postpublish', dir]
+          ],
+          cb
+        )
+      })
+    }
   })
 }
 
-// didPre in this case means that we already ran the prepublish script,
-// and that the 'dir' is an actual directory, and not something silly
-// like a tarball or name@version thing.
-// That means that we can run publish/postpublish in the dir, rather than
-// in the cache dir.
-function cacheAddPublish (dir, didPre, isRetry, cb) {
-  npm.commands.cache.add(dir, null, null, false, function (er, data) {
-    if (er) return cb(er)
-    log.silly('publish', data)
-    var cachedir = path.resolve(cachedPackageRoot(data), 'package')
-    chain(
-      [
-        !didPre && [lifecycle, data, 'prepublish', cachedir],
-        [publish_, dir, data, isRetry, cachedir],
-        [lifecycle, data, 'publish', didPre ? dir : cachedir],
-        [lifecycle, data, 'postpublish', didPre ? dir : cachedir]
-      ],
-      cb
-    )
-  })
-}
-
-function publish_ (arg, data, isRetry, cachedir, cb) {
+function publish_ (arg, data, isRetry, cached, cb) {
   if (!data) return cb(new Error('no package.json file found'))
 
   var mappedConfig = getPublishConfig(
@@ -107,11 +108,9 @@ function publish_ (arg, data, isRetry, cachedir, cb) {
   mapToRegistry(data.name, config, function (er, registryURI, auth, registryBase) {
     if (er) return cb(er)
 
-    var tarballPath = cachedir + '.tgz'
-
     // we just want the base registry URL in this case
     log.verbose('publish', 'registryBase', registryBase)
-    log.silly('publish', 'uploading', tarballPath)
+    log.silly('publish', 'uploading', cached)
 
     data._npmUser = {
       name: auth.username,
@@ -120,7 +119,7 @@ function publish_ (arg, data, isRetry, cachedir, cb) {
 
     var params = {
       metadata: data,
-      body: createReadStream(tarballPath),
+      body: createReadStream(cached),
       auth: auth
     }
 

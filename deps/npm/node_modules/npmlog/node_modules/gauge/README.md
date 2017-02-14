@@ -145,6 +145,10 @@ Hides the gauge and ignores further calls to `show` or `pulse`.
 
 Shows the gauge and resumes updating when `show` or `pulse` is called.
 
+#### `gauge.isEnabled()`
+
+Returns true if the gauge is enabled.
+
 #### `gauge.setThemeset(themes)`
 
 Change the themeset to select a theme from. The same as the `themes` option

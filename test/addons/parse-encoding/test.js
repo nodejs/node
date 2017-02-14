@@ -1,8 +1,8 @@
 'use strict';
 
-require('../../common');
+const common = require('../../common');
 const assert = require('assert');
-const { parseEncoding } = require('./build/Release/binding');
+const { parseEncoding } = require(`./build/${common.buildType}/binding`);
 
 assert.strictEqual(parseEncoding(''), 'UNKNOWN');
 

@@ -375,15 +375,9 @@ RUNTIME_FUNCTION(Runtime_GrowArrayElements) {
   uint32_t index = static_cast<uint32_t>(key);
 
   if (index >= capacity) {
-    if (object->map()->is_prototype_map() ||
-        object->WouldConvertToSlowElements(index)) {
-      // We don't want to allow operations that cause lazy deopt. Return a Smi
-      // as a signal that optimized code should eagerly deoptimize.
+    if (!object->GetElementsAccessor()->GrowCapacity(object, index)) {
       return Smi::FromInt(0);
     }
-
-    uint32_t new_capacity = JSObject::NewElementsCapacity(index + 1);
-    object->GetElementsAccessor()->GrowCapacityAndConvert(object, new_capacity);
   }
 
   // On success, return the fixed array elements.

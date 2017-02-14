@@ -1,4 +1,6 @@
 {
+    "id": "config.json",
+    "$schema": "http://json-schema.org/draft-04/schema#",
     "type": "object",
     "properties": {
         "border": {
@@ -11,7 +13,7 @@
             "$ref": "#/definitions/column"
         },
         "drawHorizontalLine": {
-            "type": "function"
+            "typeof": "function"
         }
     },
     "additionalProperties": false,

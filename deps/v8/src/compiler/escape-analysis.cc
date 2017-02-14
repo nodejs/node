@@ -12,13 +12,13 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-operator.h"
-#include "src/compiler/node.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/node.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/compiler/type-cache.h"
 #include "src/objects-inl.h"
-#include "src/type-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -795,8 +795,16 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
       case IrOpcode::kSelect:
       // TODO(mstarzinger): The following list of operators will eventually be
       // handled by the EscapeAnalysisReducer (similar to ObjectIsSmi).
+      case IrOpcode::kStringEqual:
+      case IrOpcode::kStringLessThan:
+      case IrOpcode::kStringLessThanOrEqual:
+      case IrOpcode::kPlainPrimitiveToNumber:
+      case IrOpcode::kPlainPrimitiveToWord32:
+      case IrOpcode::kPlainPrimitiveToFloat64:
+      case IrOpcode::kStringCharCodeAt:
       case IrOpcode::kObjectIsCallable:
       case IrOpcode::kObjectIsNumber:
+      case IrOpcode::kObjectIsReceiver:
       case IrOpcode::kObjectIsString:
       case IrOpcode::kObjectIsUndetectable:
         if (SetEscaped(rep)) {
@@ -853,6 +861,7 @@ EscapeAnalysis::EscapeAnalysis(Graph* graph, CommonOperatorBuilder* common,
       status_analysis_(new (zone) EscapeStatusAnalysis(this, graph, zone)),
       virtual_states_(zone),
       replacements_(zone),
+      cycle_detection_(zone),
       cache_(nullptr) {}
 
 EscapeAnalysis::~EscapeAnalysis() {}
@@ -1456,13 +1465,13 @@ void EscapeAnalysis::ProcessStoreField(Node* node) {
     int offset = OffsetForFieldAccess(node);
     if (static_cast<size_t>(offset) >= object->field_count()) return;
     Node* val = ResolveReplacement(NodeProperties::GetValueInput(node, 1));
-    // TODO(mstarzinger): The following is a workaround to not track the code
-    // entry field in virtual JSFunction objects. We only ever store the inner
-    // pointer into the compile lazy stub in this field and the deoptimizer has
-    // this assumption hard-coded in {TranslatedState::MaterializeAt} as well.
+    // TODO(mstarzinger): The following is a workaround to not track some well
+    // known raw fields. We only ever store default initial values into these
+    // fields which are hard-coded in {TranslatedState::MaterializeAt} as well.
     if (val->opcode() == IrOpcode::kInt32Constant ||
         val->opcode() == IrOpcode::kInt64Constant) {
-      DCHECK_EQ(JSFunction::kCodeEntryOffset, FieldAccessOf(node->op()).offset);
+      DCHECK(FieldAccessOf(node->op()).offset == JSFunction::kCodeEntryOffset ||
+             FieldAccessOf(node->op()).offset == Name::kHashFieldOffset);
       val = slot_not_analyzed_;
     }
     if (object->GetField(offset) != val) {
@@ -1555,6 +1564,27 @@ Node* EscapeAnalysis::GetOrCreateObjectState(Node* effect, Node* node) {
     }
   }
   return nullptr;
+}
+
+bool EscapeAnalysis::IsCyclicObjectState(Node* effect, Node* node) {
+  if ((node->opcode() == IrOpcode::kFinishRegion ||
+       node->opcode() == IrOpcode::kAllocate) &&
+      IsVirtual(node)) {
+    if (VirtualObject* vobj = GetVirtualObject(virtual_states_[effect->id()],
+                                               ResolveReplacement(node))) {
+      if (cycle_detection_.find(vobj) != cycle_detection_.end()) return true;
+      cycle_detection_.insert(vobj);
+      bool cycle_detected = false;
+      for (size_t i = 0; i < vobj->field_count(); ++i) {
+        if (Node* field = vobj->GetField(i)) {
+          if (IsCyclicObjectState(effect, field)) cycle_detected = true;
+        }
+      }
+      cycle_detection_.erase(vobj);
+      return cycle_detected;
+    }
+  }
+  return false;
 }
 
 void EscapeAnalysis::DebugPrintState(VirtualState* state) {

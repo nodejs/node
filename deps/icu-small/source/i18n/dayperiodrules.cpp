@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2016, International Business Machines
@@ -42,129 +44,90 @@ enum CutoffType {
 
 } // namespace
 
-struct DayPeriodRulesDataSink : public ResourceTableSink {
-    // Initialize sub-sinks.
-    DayPeriodRulesDataSink() :
-            rulesSink(*this), ruleSetSink(*this), periodSink(*this), cutoffSink(*this) {
+struct DayPeriodRulesDataSink : public ResourceSink {
+    DayPeriodRulesDataSink() {
         for (int32_t i = 0; i < UPRV_LENGTHOF(cutoffs); ++i) { cutoffs[i] = 0; }
     }
     virtual ~DayPeriodRulesDataSink();
 
-    // Entry point.
-    virtual ResourceTableSink *getOrCreateTableSink(const char *key, int32_t, UErrorCode &errorCode) {
-        if (U_FAILURE(errorCode)) { return NULL; }
+    virtual void put(const char *key, ResourceValue &value, UBool, UErrorCode &errorCode) {
+        ResourceTable dayPeriodData = value.getTable(errorCode);
+        if (U_FAILURE(errorCode)) { return; }
 
-        if (uprv_strcmp(key, "locales") == 0) {
-            return &localesSink;
-        } else if (uprv_strcmp(key, "rules") == 0) {
-            // Allocate one more than needed to skip [0]. See comment in parseSetNum().
-            data->rules = new DayPeriodRules[data->maxRuleSetNum + 1];
-            if (data->rules == NULL) {
-                errorCode = U_MEMORY_ALLOCATION_ERROR;
-                return NULL;
-            } else {
-                return &rulesSink;
+        for (int32_t i = 0; dayPeriodData.getKeyAndValue(i, key, value); ++i) {
+            if (uprv_strcmp(key, "locales") == 0) {
+                ResourceTable locales = value.getTable(errorCode);
+                if (U_FAILURE(errorCode)) { return; }
+
+                for (int32_t j = 0; locales.getKeyAndValue(j, key, value); ++j) {
+                    UnicodeString setNum_str = value.getUnicodeString(errorCode);
+                    int32_t setNum = parseSetNum(setNum_str, errorCode);
+                    uhash_puti(data->localeToRuleSetNumMap, const_cast<char *>(key), setNum, &errorCode);
+                }
+            } else if (uprv_strcmp(key, "rules") == 0) {
+                // Allocate one more than needed to skip [0]. See comment in parseSetNum().
+                data->rules = new DayPeriodRules[data->maxRuleSetNum + 1];
+                if (data->rules == NULL) {
+                    errorCode = U_MEMORY_ALLOCATION_ERROR;
+                    return;
+                }
+                ResourceTable rules = value.getTable(errorCode);
+                processRules(rules, key, value, errorCode);
+                if (U_FAILURE(errorCode)) { return; }
             }
         }
-        return NULL;
     }
 
-    // Data root -> locales.
-    struct LocalesSink : public ResourceTableSink {
-        virtual ~LocalesSink();
+    void processRules(const ResourceTable &rules, const char *key,
+                      ResourceValue &value, UErrorCode &errorCode) {
+        if (U_FAILURE(errorCode)) { return; }
 
-        virtual void put(const char *key, const ResourceValue &value, UErrorCode &errorCode) {
+        for (int32_t i = 0; rules.getKeyAndValue(i, key, value); ++i) {
+            ruleSetNum = parseSetNum(key, errorCode);
+            ResourceTable ruleSet = value.getTable(errorCode);
             if (U_FAILURE(errorCode)) { return; }
 
-            UnicodeString setNum_str = value.getUnicodeString(errorCode);
-            int32_t setNum = parseSetNum(setNum_str, errorCode);
-            uhash_puti(data->localeToRuleSetNumMap, const_cast<char *>(key), setNum, &errorCode);
-        }
-    } localesSink;
+            for (int32_t j = 0; ruleSet.getKeyAndValue(j, key, value); ++j) {
+                period = DayPeriodRules::getDayPeriodFromString(key);
+                if (period == DayPeriodRules::DAYPERIOD_UNKNOWN) {
+                    errorCode = U_INVALID_FORMAT_ERROR;
+                    return;
+                }
+                ResourceTable periodDefinition = value.getTable(errorCode);
+                if (U_FAILURE(errorCode)) { return; }
 
-    // Data root -> rules.
-    struct RulesSink : public ResourceTableSink {
-        DayPeriodRulesDataSink &outer;
-        RulesSink(DayPeriodRulesDataSink &outer) : outer(outer) {}
-        virtual ~RulesSink();
+                for (int32_t k = 0; periodDefinition.getKeyAndValue(k, key, value); ++k) {
+                    if (value.getType() == URES_STRING) {
+                        // Key-value pairs (e.g. before{6:00}).
+                        CutoffType type = getCutoffTypeFromString(key);
+                        addCutoff(type, value.getUnicodeString(errorCode), errorCode);
+                        if (U_FAILURE(errorCode)) { return; }
+                    } else {
+                        // Arrays (e.g. before{6:00, 24:00}).
+                        cutoffType = getCutoffTypeFromString(key);
+                        ResourceArray cutoffArray = value.getArray(errorCode);
+                        if (U_FAILURE(errorCode)) { return; }
 
-        virtual ResourceTableSink *getOrCreateTableSink(const char *key, int32_t, UErrorCode &errorCode) {
-            if (U_FAILURE(errorCode)) { return NULL; }
+                        int32_t length = cutoffArray.getSize();
+                        for (int32_t l = 0; l < length; ++l) {
+                            cutoffArray.getValue(l, value);
+                            addCutoff(cutoffType, value.getUnicodeString(errorCode), errorCode);
+                            if (U_FAILURE(errorCode)) { return; }
+                        }
+                    }
+                }
+                setDayPeriodForHoursFromCutoffs(errorCode);
+                for (int32_t k = 0; k < UPRV_LENGTHOF(cutoffs); ++k) {
+                    cutoffs[k] = 0;
+                }
+            }
 
-            outer.ruleSetNum = parseSetNum(key, errorCode);
-            return &outer.ruleSetSink;
-        }
-    } rulesSink;
-
-    // Data root -> rules -> a rule set.
-    struct RuleSetSink : public ResourceTableSink {
-        DayPeriodRulesDataSink &outer;
-        RuleSetSink(DayPeriodRulesDataSink &outer) : outer(outer) {}
-        virtual ~RuleSetSink();
-
-        virtual ResourceTableSink *getOrCreateTableSink(const char *key, int32_t, UErrorCode &errorCode) {
-            if (U_FAILURE(errorCode)) { return NULL; }
-
-            outer.period = DayPeriodRules::getDayPeriodFromString(key);
-            if (outer.period == DayPeriodRules::DAYPERIOD_UNKNOWN) {
+            if (!data->rules[ruleSetNum].allHoursAreSet()) {
                 errorCode = U_INVALID_FORMAT_ERROR;
-                return NULL;
-            }
-
-            return &outer.periodSink;
-        }
-
-        virtual void leave(UErrorCode &errorCode) {
-            if (U_FAILURE(errorCode)) { return; }
-
-            if (!data->rules[outer.ruleSetNum].allHoursAreSet()) {
-                errorCode = U_INVALID_FORMAT_ERROR;
+                return;
             }
         }
-    } ruleSetSink;
-
-    // Data root -> rules -> a rule set -> a period (e.g. "morning1").
-    // Key-value pairs (e.g. before{6:00}) will be captured here.
-    // Arrays (e.g. before{6:00, 24:00}) will be redirected to the next sink.
-    struct PeriodSink : public ResourceTableSink {
-        DayPeriodRulesDataSink &outer;
-        PeriodSink(DayPeriodRulesDataSink &outer) : outer(outer) {}
-        virtual ~PeriodSink();
-
-        virtual void put(const char *key, const ResourceValue &value, UErrorCode &errorCode) {
-            if (U_FAILURE(errorCode)) { return; }
-
-            CutoffType type = getCutoffTypeFromString(key);
-            outer.addCutoff(type, value.getUnicodeString(errorCode), errorCode);
-        }
-
-        virtual ResourceArraySink *getOrCreateArraySink(const char *key, int32_t, UErrorCode &errorCode) {
-            if (U_FAILURE(errorCode)) { return NULL; }
-            outer.cutoffType = getCutoffTypeFromString(key);
-            return &outer.cutoffSink;
-        }
-
-        virtual void leave(UErrorCode &errorCode) {
-            if (U_FAILURE(errorCode)) { return; }
-
-            outer.setDayPeriodForHoursFromCutoffs(errorCode);
-            for (int32_t i = 0; i < UPRV_LENGTHOF(outer.cutoffs); ++i) {
-                outer.cutoffs[i] = 0;
-            }
-        }
-    } periodSink;
-
-    // Data root -> rules -> a rule set -> a period -> a cutoff type.
-    // Will enter this sink if 2+ times appear in a single cutoff type (e.g. before{6:00, 24:00}).
-    struct CutoffSink : public ResourceArraySink {
-        DayPeriodRulesDataSink &outer;
-        CutoffSink(DayPeriodRulesDataSink &outer) : outer(outer) {}
-        virtual ~CutoffSink();
-
-        virtual void put(int32_t, const ResourceValue &value, UErrorCode &errorCode) {
-            outer.addCutoff(outer.cutoffType, value.getUnicodeString(errorCode), errorCode);
-        }
-    } cutoffSink;
+    }
 
     // Members.
     int32_t cutoffs[25];  // [0] thru [24]: 24 is allowed in "before 24".
@@ -316,35 +279,31 @@ struct DayPeriodRulesDataSink : public ResourceTableSink {
     }
 };  // struct DayPeriodRulesDataSink
 
-struct DayPeriodRulesCountSink : public ResourceTableSink {
+struct DayPeriodRulesCountSink : public ResourceSink {
     virtual ~DayPeriodRulesCountSink();
-    virtual ResourceTableSink *getOrCreateTableSink(const char *key, int32_t, UErrorCode &errorCode) {
-        if (U_FAILURE(errorCode)) { return NULL; }
 
-        int32_t setNum = DayPeriodRulesDataSink::parseSetNum(key, errorCode);
-        if (setNum > data->maxRuleSetNum) {
-            data->maxRuleSetNum = setNum;
+    virtual void put(const char *key, ResourceValue &value, UBool, UErrorCode &errorCode) {
+        ResourceTable rules = value.getTable(errorCode);
+        if (U_FAILURE(errorCode)) { return; }
+
+        for (int32_t i = 0; rules.getKeyAndValue(i, key, value); ++i) {
+            int32_t setNum = DayPeriodRulesDataSink::parseSetNum(key, errorCode);
+            if (setNum > data->maxRuleSetNum) {
+                data->maxRuleSetNum = setNum;
+            }
         }
-
-        return NULL;
     }
 };
 
 // Out-of-line virtual destructors.
-DayPeriodRulesDataSink::LocalesSink::~LocalesSink() {}
-DayPeriodRulesDataSink::CutoffSink::~CutoffSink() {}
-DayPeriodRulesDataSink::PeriodSink::~PeriodSink() {}
-DayPeriodRulesDataSink::RuleSetSink::~RuleSetSink() {}
-DayPeriodRulesDataSink::RulesSink::~RulesSink() {}
 DayPeriodRulesDataSink::~DayPeriodRulesDataSink() {}
-
 DayPeriodRulesCountSink::~DayPeriodRulesCountSink() {}
 
 namespace {
 
 UInitOnce initOnce = U_INITONCE_INITIALIZER;
 
-UBool dayPeriodRulesCleanup() {
+U_CFUNC UBool U_CALLCONV dayPeriodRulesCleanup() {
     delete[] data->rules;
     uhash_close(data->localeToRuleSetNumMap);
     delete data;
@@ -354,7 +313,7 @@ UBool dayPeriodRulesCleanup() {
 
 }  // namespace
 
-void DayPeriodRules::load(UErrorCode &errorCode) {
+void U_CALLCONV DayPeriodRules::load(UErrorCode &errorCode) {
     if (U_FAILURE(errorCode)) {
         return;
     }
@@ -365,11 +324,11 @@ void DayPeriodRules::load(UErrorCode &errorCode) {
 
     // Get the largest rule set number (so we allocate enough objects).
     DayPeriodRulesCountSink countSink;
-    ures_getAllTableItemsWithFallback(rb_dayPeriods.getAlias(), "rules", countSink, errorCode);
+    ures_getAllItemsWithFallback(rb_dayPeriods.getAlias(), "rules", countSink, errorCode);
 
     // Populate rules.
     DayPeriodRulesDataSink sink;
-    ures_getAllTableItemsWithFallback(rb_dayPeriods.getAlias(), "", sink, errorCode);
+    ures_getAllItemsWithFallback(rb_dayPeriods.getAlias(), "", sink, errorCode);
 
     ucln_i18n_registerCleanup(UCLN_I18N_DAYPERIODRULES, dayPeriodRulesCleanup);
 }

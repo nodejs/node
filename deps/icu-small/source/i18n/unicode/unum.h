@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 1997-2015, International Business Machines Corporation and others.
@@ -219,35 +221,35 @@ typedef enum UNumberFormatStyle {
      * @stable ICU 54
      */
     UNUM_CASH_CURRENCY=13,
-#ifndef U_HIDE_DRAFT_API
     /**
      * Decimal format expressed using compact notation
      * (short form, corresponds to UNumberCompactStyle=UNUM_SHORT)
      * e.g. "23K", "45B"
-     * @draft ICU 56
+     * @stable ICU 56
      */
     UNUM_DECIMAL_COMPACT_SHORT=14,
     /**
      * Decimal format expressed using compact notation
      * (long form, corresponds to UNumberCompactStyle=UNUM_LONG)
      * e.g. "23 thousand", "45 billion"
-     * @draft ICU 56
+     * @stable ICU 56
      */
     UNUM_DECIMAL_COMPACT_LONG=15,
     /**
      * Currency format with a currency symbol, e.g., "$1.00",
      * using non-accounting style for negative values (e.g. minus sign).
      * Overrides any style specified using -cf- key in locale.
-     * @draft ICU 56
+     * @stable ICU 56
      */
     UNUM_CURRENCY_STANDARD=16,
-#endif /* U_HIDE_DRAFT_API */
 
+#ifndef U_HIDE_DEPRECATED_API
     /**
-     * One more than the highest number format style constant.
-     * @stable ICU 4.8
+     * One more than the highest normal UNumberFormatStyle value.
+     * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
     UNUM_FORMAT_STYLE_COUNT=17,
+#endif  // U_HIDE_DEPRECATED_API
 
     /**
      * Default format
@@ -323,7 +325,13 @@ enum UCurrencySpacing {
     UNUM_CURRENCY_SURROUNDING_MATCH,
     /** @stable ICU 4.8 */
     UNUM_CURRENCY_INSERT,
-    /** @stable ICU 4.8 */
+
+    // Do not conditionalize the following with #ifndef U_HIDE_DEPRECATED_API,
+    // it is needed for layout of DecimalFormatSymbols object.
+    /**
+     * One more than the highest normal UCurrencySpacing value.
+     * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
+     */
     UNUM_CURRENCY_SPACING_COUNT
 };
 typedef enum UCurrencySpacing UCurrencySpacing; /**< @stable ICU 4.8 */
@@ -357,8 +365,13 @@ typedef enum UNumberFormatFields {
     UNUM_PERMILL_FIELD,
     /** @stable ICU 49 */
     UNUM_SIGN_FIELD,
-    /** @stable ICU 49 */
+#ifndef U_HIDE_DEPRECATED_API
+    /**
+     * One more than the highest normal UNumberFormatFields value.
+     * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
+     */
     UNUM_FIELD_COUNT
+#endif  // U_HIDE_DEPRECATED_API
 } UNumberFormatFields;
 
 
@@ -1272,8 +1285,13 @@ typedef enum UNumberFormatSymbol {
    */
   UNUM_EXPONENT_MULTIPLICATION_SYMBOL = 27,
 
-  /** count symbol constants */
+#ifndef U_HIDE_DEPRECATED_API
+    /**
+     * One more than the highest normal UNumberFormatSymbol value.
+     * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
+     */
   UNUM_FORMAT_SYMBOL_COUNT = 28
+#endif  // U_HIDE_DEPRECATED_API
 } UNumberFormatSymbol;
 
 /**

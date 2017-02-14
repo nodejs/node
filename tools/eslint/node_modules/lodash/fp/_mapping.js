@@ -108,9 +108,10 @@ exports.aryMethod = {
     'includesFrom', 'indexOfFrom', 'inRange', 'intersectionBy', 'intersectionWith',
     'invokeArgs', 'invokeArgsMap', 'isEqualWith', 'isMatchWith', 'flatMapDepth',
     'lastIndexOfFrom', 'mergeWith', 'orderBy', 'padChars', 'padCharsEnd',
-    'padCharsStart', 'pullAllBy', 'pullAllWith', 'reduce', 'reduceRight', 'replace',
-    'set', 'slice', 'sortedIndexBy', 'sortedLastIndexBy', 'transform', 'unionBy',
-    'unionWith', 'update', 'xorBy', 'xorWith', 'zipWith'
+    'padCharsStart', 'pullAllBy', 'pullAllWith', 'rangeStep', 'rangeStepRight',
+    'reduce', 'reduceRight', 'replace', 'set', 'slice', 'sortedIndexBy',
+    'sortedLastIndexBy', 'transform', 'unionBy', 'unionWith', 'update', 'xorBy',
+    'xorWith', 'zipWith'
   ],
   '4': [
     'fill', 'setWith', 'updateWith'
@@ -166,14 +167,15 @@ exports.iterateeAry = {
 
 /** Used to map method names to iteratee rearg configs. */
 exports.iterateeRearg = {
-  'mapKeys': [1]
+  'mapKeys': [1],
+  'reduceRight': [1, 0]
 };
 
 /** Used to map method names to rearg configs. */
 exports.methodRearg = {
-  'assignInAllWith': [1, 2, 0],
+  'assignInAllWith': [1, 0],
   'assignInWith': [1, 2, 0],
-  'assignAllWith': [1, 2, 0],
+  'assignAllWith': [1, 0],
   'assignWith': [1, 2, 0],
   'differenceBy': [1, 2, 0],
   'differenceWith': [1, 2, 0],
@@ -182,13 +184,15 @@ exports.methodRearg = {
   'intersectionWith': [1, 2, 0],
   'isEqualWith': [1, 2, 0],
   'isMatchWith': [2, 1, 0],
-  'mergeAllWith': [1, 2, 0],
+  'mergeAllWith': [1, 0],
   'mergeWith': [1, 2, 0],
   'padChars': [2, 1, 0],
   'padCharsEnd': [2, 1, 0],
   'padCharsStart': [2, 1, 0],
   'pullAllBy': [2, 1, 0],
   'pullAllWith': [2, 1, 0],
+  'rangeStep': [1, 2, 0],
+  'rangeStepRight': [1, 2, 0],
   'setWith': [3, 1, 2, 0],
   'sortedIndexBy': [2, 1, 0],
   'sortedLastIndexBy': [2, 1, 0],
@@ -203,15 +207,15 @@ exports.methodRearg = {
 /** Used to map method names to spread configs. */
 exports.methodSpread = {
   'assignAll': { 'start': 0 },
-  'assignAllWith': { 'afterRearg': true, 'start': 1 },
+  'assignAllWith': { 'start': 0 },
   'assignInAll': { 'start': 0 },
-  'assignInAllWith': { 'afterRearg': true, 'start': 1 },
+  'assignInAllWith': { 'start': 0 },
   'defaultsAll': { 'start': 0 },
   'defaultsDeepAll': { 'start': 0 },
   'invokeArgs': { 'start': 2 },
   'invokeArgsMap': { 'start': 2 },
   'mergeAll': { 'start': 0 },
-  'mergeAllWith': { 'afterRearg': true, 'start': 1 },
+  'mergeAllWith': { 'start': 0 },
   'partial': { 'start': 1 },
   'partialRight': { 'start': 1 },
   'without': { 'start': 1 },
@@ -310,6 +314,8 @@ exports.remap = {
   'padCharsEnd': 'padEnd',
   'padCharsStart': 'padStart',
   'propertyOf': 'get',
+  'rangeStep': 'range',
+  'rangeStepRight': 'rangeRight',
   'restFrom': 'rest',
   'spreadFrom': 'spread',
   'trimChars': 'trim',

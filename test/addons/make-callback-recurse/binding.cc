@@ -22,8 +22,8 @@ void MakeCallback(const FunctionCallbackInfo<Value>& args) {
   node::MakeCallback(isolate, recv, method, 0, nullptr);
 }
 
-void Initialize(Local<Object> target) {
-  NODE_SET_METHOD(target, "makeCallback", MakeCallback);
+void Initialize(Local<Object> exports) {
+  NODE_SET_METHOD(exports, "makeCallback", MakeCallback);
 }
 
 }  // namespace

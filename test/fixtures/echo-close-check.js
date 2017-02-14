@@ -1,7 +1,7 @@
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
-var fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
+const fs = require('fs');
 
 process.stdout.write('hello world\r\n');
 

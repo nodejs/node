@@ -77,6 +77,9 @@ const release = os.release();
 console.log('release = ', release);
 is.string(release);
 assert.ok(release.length > 0);
+//TODO: Check format on more than just AIX
+if (common.isAix)
+  assert.ok(/^\d+\.\d+$/.test(release));
 
 const platform = os.platform();
 console.log('platform = ', platform);
@@ -101,21 +104,21 @@ console.error(interfaces);
 switch (platform) {
   case 'linux':
     {
-      const filter = function(e) { return e.address == '127.0.0.1'; };
+      const filter = function(e) { return e.address === '127.0.0.1'; };
       const actual = interfaces.lo.filter(filter);
       const expected = [{ address: '127.0.0.1', netmask: '255.0.0.0',
-                        mac: '00:00:00:00:00:00', family: 'IPv4',
-                        internal: true }];
+                          mac: '00:00:00:00:00:00', family: 'IPv4',
+                          internal: true }];
       assert.deepStrictEqual(actual, expected);
       break;
     }
   case 'win32':
     {
-      const filter = function(e) { return e.address == '127.0.0.1'; };
+      const filter = function(e) { return e.address === '127.0.0.1'; };
       const actual = interfaces['Loopback Pseudo-Interface 1'].filter(filter);
       const expected = [{ address: '127.0.0.1', netmask: '255.0.0.0',
-                        mac: '00:00:00:00:00:00', family: 'IPv4',
-                        internal: true }];
+                          mac: '00:00:00:00:00:00', family: 'IPv4',
+                          internal: true }];
       assert.deepStrictEqual(actual, expected);
       break;
     }
@@ -129,17 +132,17 @@ const home = os.homedir();
 
 console.log('homedir = ' + home);
 is.string(home);
-assert.ok(home.indexOf(path.sep) !== -1);
+assert.ok(home.includes(path.sep));
 
 if (common.isWindows && process.env.USERPROFILE) {
   assert.strictEqual(home, process.env.USERPROFILE);
   delete process.env.USERPROFILE;
-  assert.ok(os.homedir().indexOf(path.sep) !== -1);
+  assert.ok(os.homedir().includes(path.sep));
   process.env.USERPROFILE = home;
 } else if (!common.isWindows && process.env.HOME) {
   assert.strictEqual(home, process.env.HOME);
   delete process.env.HOME;
-  assert.ok(os.homedir().indexOf(path.sep) !== -1);
+  assert.ok(os.homedir().includes(path.sep));
   process.env.HOME = home;
 }
 
@@ -157,13 +160,13 @@ if (common.isWindows) {
 } else {
   is.number(pwd.uid);
   is.number(pwd.gid);
-  assert.notStrictEqual(pwd.shell.indexOf(path.sep), -1);
+  assert.ok(pwd.shell.includes(path.sep));
   assert.strictEqual(pwd.uid, pwdBuf.uid);
   assert.strictEqual(pwd.gid, pwdBuf.gid);
   assert.strictEqual(pwd.shell, pwdBuf.shell.toString('utf8'));
 }
 
 is.string(pwd.username);
-assert.notStrictEqual(pwd.homedir.indexOf(path.sep), -1);
+assert.ok(pwd.homedir.includes(path.sep));
 assert.strictEqual(pwd.username, pwdBuf.username.toString('utf8'));
 assert.strictEqual(pwd.homedir, pwdBuf.homedir.toString('utf8'));

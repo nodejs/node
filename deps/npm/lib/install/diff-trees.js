@@ -23,7 +23,7 @@ function pkgAreEquiv (aa, bb) {
   return false
 }
 
-function getNameAndVersion (pkg) {
+function getUniqueId (pkg) {
   var versionspec = pkg._shasum
 
   if (!versionspec && nonRegistrySource(pkg)) {
@@ -113,21 +113,25 @@ var sortActions = module.exports.sortActions = function (differences) {
   return sorted
 }
 
-function diffTrees (oldTree, newTree) {
+function setAction (differences, action, pkg) {
+  differences.push([action, pkg])
+}
+
+var diffTrees = module.exports._diffTrees = function (oldTree, newTree) {
   validate('OO', arguments)
   var differences = []
   var flatOldTree = flattenTree(oldTree)
   var flatNewTree = flattenTree(newTree)
   var toRemove = {}
-  var toRemoveByNameAndVer = {}
+  var toRemoveByUniqueId = {}
   // find differences
   Object.keys(flatOldTree).forEach(function (flatname) {
     if (flatNewTree[flatname]) return
     var pkg = flatOldTree[flatname]
     toRemove[flatname] = pkg
-    var namever = getNameAndVersion(pkg.package)
-    if (!toRemoveByNameAndVer[namever]) toRemoveByNameAndVer[namever] = []
-    toRemoveByNameAndVer[namever].push(flatname)
+    var pkgunique = getUniqueId(pkg.package)
+    if (!toRemoveByUniqueId[pkgunique]) toRemoveByUniqueId[pkgunique] = []
+    toRemoveByUniqueId[pkgunique].push(flatname)
   })
   Object.keys(flatNewTree).forEach(function (path) {
     var pkg = flatNewTree[path]
@@ -138,19 +142,21 @@ function diffTrees (oldTree, newTree) {
     if (pkg.oldPkg) {
       if (!pkg.userRequired && pkgAreEquiv(pkg.oldPkg.package, pkg.package)) return
       if (!pkg.isInLink && (isLink(pkg.oldPkg) || isLink(pkg))) {
-        differences.push(['update-linked', pkg])
+        setAction(differences, 'update-linked', pkg)
       } else {
-        differences.push(['update', pkg])
+        setAction(differences, 'update', pkg)
       }
     } else {
-      var vername = getNameAndVersion(pkg.package)
-      if (toRemoveByNameAndVer[vername] && toRemoveByNameAndVer[vername].length && !pkg.fromBundle) {
-        var flatname = toRemoveByNameAndVer[vername].shift()
+      var vername = getUniqueId(pkg.package)
+      var removing = toRemoveByUniqueId[vername] && toRemoveByUniqueId[vername].length
+      var bundlesOrFromBundle = pkg.fromBundle || pkg.package.bundleDependencies
+      if (removing && !bundlesOrFromBundle) {
+        var flatname = toRemoveByUniqueId[vername].shift()
         pkg.fromPath = toRemove[flatname].path
-        differences.push(['move', pkg])
+        setAction(differences, 'move', pkg)
         delete toRemove[flatname]
       } else {
-        differences.push(['add', pkg])
+        setAction(differences, 'add', pkg)
       }
     }
   })
@@ -158,7 +164,7 @@ function diffTrees (oldTree, newTree) {
     .keys(toRemove)
     .map(function (path) { return toRemove[path] })
     .forEach(function (pkg) {
-      differences.push(['remove', pkg])
+      setAction(differences, 'remove', pkg)
     })
   return differences
 }

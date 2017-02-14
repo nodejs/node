@@ -33,7 +33,7 @@ module.exports = {
                 if (callee.type === "MemberExpression" && callee.object.name === "process" &&
                     callee.property.name === "exit"
                 ) {
-                    context.report(node, "Don't use process.exit(); throw an error instead.");
+                    context.report({ node, message: "Don't use process.exit(); throw an error instead." });
                 }
             }
 

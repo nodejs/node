@@ -26,9 +26,9 @@ function get(path, callback) {
 }
 
 server.listen(0, function() {
-  var finished = 0;
+  let finished = 0;
   const num_requests = 6;
-  for (var i = 0; i < num_requests; i++) {
+  for (let i = 0; i < num_requests; i++) {
     const request = get('/1', function() {
     });
     request.on('response', function() {

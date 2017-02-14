@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 1997-2016, International Business Machines Corporation and    *
@@ -33,11 +35,15 @@
 #include "umutex.h"
 #include "cmemory.h"
 #include "cstring.h"
+#include "charstr.h"
+#include "dt_impl.h"
 #include "locbased.h"
 #include "gregoimp.h"
 #include "hash.h"
+#include "uassert.h"
 #include "uresimp.h"
 #include "ureslocs.h"
+#include "uvector.h"
 #include "shareddateformatsymbols.h"
 #include "unicode/calendar.h"
 #include "unifiedcache.h"
@@ -194,6 +200,8 @@ UOBJECT_DEFINE_RTTI_IMPLEMENTATION(DateFormatSymbols)
  * These are the tags we expect to see in normal resource bundle files associated
  * with a locale and calendar
  */
+static const char gCalendarTag[]="calendar";
+static const char gGregorianTag[]="gregorian";
 static const char gErasTag[]="eras";
 static const char gCyclicNameSetsTag[]="cyclicNameSets";
 static const char gNameSetYearsTag[]="years";
@@ -206,11 +214,11 @@ static const char gNamesAbbrTag[]="abbreviated";
 static const char gNamesShortTag[]="short";
 static const char gNamesNarrowTag[]="narrow";
 static const char gNamesAllTag[]="all";
-static const char gNamesLeapTag[]="leap";
 static const char gNamesFormatTag[]="format";
 static const char gNamesStandaloneTag[]="stand-alone";
 static const char gNamesNumericTag[]="numeric";
 static const char gAmPmMarkersTag[]="AmPmMarkers";
+static const char gAmPmMarkersAbbrTag[]="AmPmMarkersAbbr";
 static const char gAmPmMarkersNarrowTag[]="AmPmMarkersNarrow";
 static const char gQuartersTag[]="quarters";
 static const char gNumberElementsTag[]="NumberElements";
@@ -293,8 +301,8 @@ DateFormatSymbols::assignArray(UnicodeString*& dstArray,
                                const UnicodeString* srcArray,
                                int32_t srcCount)
 {
-    // assignArray() is only called by copyData(), which in turn implements the
-    // copy constructor and the assignment operator.
+    // assignArray() is only called by copyData() and initializeData(), which in turn
+    // implements the copy constructor and the assignment operator.
     // All strings in a DateFormatSymbols object are created in one of the following
     // three ways that all allow to safely use UnicodeString::fastCopyFrom():
     // - readonly-aliases from resource bundles
@@ -1271,6 +1279,12 @@ DateFormatSymbols::initZoneStringsArray(void) {
     TimeZoneNames *tzNames = NULL;
     int32_t rows = 0;
 
+    static const UTimeZoneNameType TYPES[] = {
+        UTZNM_LONG_STANDARD, UTZNM_SHORT_STANDARD,
+        UTZNM_LONG_DAYLIGHT, UTZNM_SHORT_DAYLIGHT
+    };
+    static const int32_t NUM_TYPES = 4;
+
     do { // dummy do-while
 
         tzids = TimeZone::createTimeZoneIDEnumeration(ZONE_SET, NULL, NULL, status);
@@ -1289,6 +1303,8 @@ DateFormatSymbols::initZoneStringsArray(void) {
         uprv_memset(zarray, 0, size);
 
         tzNames = TimeZoneNames::createInstance(fZSFLocale, status);
+        tzNames->loadAllDisplayNames(status);
+        if (U_FAILURE(status)) { break; }
 
         const UnicodeString *tzid;
         int32_t i = 0;
@@ -1307,10 +1323,7 @@ DateFormatSymbols::initZoneStringsArray(void) {
             }
 
             zarray[i][0].setTo(*tzid);
-            zarray[i][1].setTo(tzNames->getDisplayName(*tzid, UTZNM_LONG_STANDARD, now, tzDispName));
-            zarray[i][2].setTo(tzNames->getDisplayName(*tzid, UTZNM_SHORT_STANDARD, now, tzDispName));
-            zarray[i][3].setTo(tzNames->getDisplayName(*tzid, UTZNM_LONG_DAYLIGHT, now, tzDispName));
-            zarray[i][4].setTo(tzNames->getDisplayName(*tzid, UTZNM_SHORT_DAYLIGHT, now, tzDispName));
+            tzNames->getDisplayNames(*tzid, TYPES, NUM_TYPES, now, zarray[i]+1, status);
             i++;
         }
 
@@ -1324,6 +1337,7 @@ DateFormatSymbols::initZoneStringsArray(void) {
                 }
             }
             uprv_free(zarray);
+            zarray = NULL;
         }
     }
 
@@ -1336,7 +1350,7 @@ DateFormatSymbols::initZoneStringsArray(void) {
 
     fLocaleZoneStrings = zarray;
     fZoneStringsRowCount = rows;
-    fZoneStringsColCount = 5;
+    fZoneStringsColCount = 1 + NUM_TYPES;
 }
 
 void
@@ -1431,25 +1445,409 @@ DateFormatSymbols::setLocalPatternChars(const UnicodeString& newLocalPatternChar
 
 //------------------------------------------------------
 
-static void
-initField(UnicodeString **field, int32_t& length, const UResourceBundle *data, UErrorCode &status) {
-    if (U_SUCCESS(status)) {
-        int32_t strLen = 0;
-        length = ures_getSize(data);
-        *field = newUnicodeStringArray(length);
-        if (*field) {
-            for(int32_t i = 0; i<length; i++) {
-                const UChar *resStr = ures_getStringByIndex(data, i, &strLen, &status);
-                // setTo() - see assignArray comments
-                (*(field)+i)->setTo(TRUE, resStr, strLen);
+namespace {
+
+// Constants declarations
+static const UChar kCalendarAliasPrefixUChar[] = {
+    SOLIDUS, CAP_L, CAP_O, CAP_C, CAP_A, CAP_L, CAP_E, SOLIDUS,
+    LOW_C, LOW_A, LOW_L, LOW_E, LOW_N, LOW_D, LOW_A, LOW_R, SOLIDUS
+};
+static const UChar kGregorianTagUChar[] = {
+    LOW_G, LOW_R, LOW_E, LOW_G, LOW_O, LOW_R, LOW_I, LOW_A, LOW_N
+};
+static const UChar kVariantTagUChar[] = {
+    PERCENT, LOW_V, LOW_A, LOW_R, LOW_I, LOW_A, LOW_N, LOW_T
+};
+static const UChar kLeapTagUChar[] = {
+    LOW_L, LOW_E, LOW_A, LOW_P
+};
+static const UChar kCyclicNameSetsTagUChar[] = {
+    LOW_C, LOW_Y, LOW_C, LOW_L, LOW_I, LOW_C, CAP_N, LOW_A, LOW_M, LOW_E, CAP_S, LOW_E, LOW_T, LOW_S
+};
+static const UChar kYearsTagUChar[] = {
+    SOLIDUS, LOW_Y, LOW_E, LOW_A, LOW_R, LOW_S
+};
+static const UChar kZodiacsUChar[] = {
+    SOLIDUS, LOW_Z, LOW_O, LOW_D, LOW_I, LOW_A, LOW_C, LOW_S
+};
+static const UChar kDayPartsTagUChar[] = {
+    SOLIDUS, LOW_D, LOW_A, LOW_Y, CAP_P, LOW_A, LOW_R, LOW_T, LOW_S
+};
+static const UChar kFormatTagUChar[] = {
+    SOLIDUS, LOW_F, LOW_O, LOW_R, LOW_M, LOW_A, LOW_T
+};
+static const UChar kAbbrTagUChar[] = {
+    SOLIDUS, LOW_A, LOW_B, LOW_B, LOW_R, LOW_E, LOW_V, LOW_I, LOW_A, LOW_T, LOW_E, LOW_D
+};
+
+// ResourceSink to enumerate all calendar resources
+struct CalendarDataSink : public ResourceSink {
+
+    // Enum which specifies the type of alias received, or no alias
+    enum AliasType {
+        SAME_CALENDAR,
+        DIFFERENT_CALENDAR,
+        GREGORIAN,
+        NONE
+    };
+
+    // Data structures to store resources from the current resource bundle
+    Hashtable arrays;
+    Hashtable arraySizes;
+    Hashtable maps;
+    /**
+     * Whenever there are aliases, the same object will be added twice to 'map'.
+     * To avoid double deletion, 'maps' won't take ownership of the objects. Instead,
+     * 'mapRefs' will own them and will delete them when CalendarDataSink is deleted.
+     */
+    UVector mapRefs;
+
+    // Paths and the aliases they point to
+    UVector aliasPathPairs;
+
+    // Current and next calendar resource table which should be loaded
+    UnicodeString currentCalendarType;
+    UnicodeString nextCalendarType;
+
+    // Resources to visit when enumerating fallback calendars
+    LocalPointer<UVector> resourcesToVisit;
+
+    // Alias' relative path populated whenever an alias is read
+    UnicodeString aliasRelativePath;
+
+    // Initializes CalendarDataSink with default values
+    CalendarDataSink(UErrorCode& status)
+    :   arrays(FALSE, status), arraySizes(FALSE, status), maps(FALSE, status),
+        mapRefs(deleteHashtable, NULL, 10, status),
+        aliasPathPairs(uprv_deleteUObject, uhash_compareUnicodeString, status),
+        currentCalendarType(), nextCalendarType(),
+        resourcesToVisit(NULL), aliasRelativePath() {
+        if (U_FAILURE(status)) { return; }
+    }
+    virtual ~CalendarDataSink();
+
+    // Configure the CalendarSink to visit all the resources
+    void visitAllResources() {
+        resourcesToVisit.adoptInstead(NULL);
+    }
+
+    // Actions to be done before enumerating
+    void preEnumerate(const UnicodeString &calendarType) {
+        currentCalendarType = calendarType;
+        nextCalendarType.setToBogus();
+        aliasPathPairs.removeAllElements();
+    }
+
+    virtual void put(const char *key, ResourceValue &value, UBool, UErrorCode &errorCode) {
+        if (U_FAILURE(errorCode)) { return; }
+        U_ASSERT(!currentCalendarType.isEmpty());
+
+        // Stores the resources to visit on the next calendar.
+        LocalPointer<UVector> resourcesToVisitNext(NULL);
+        ResourceTable calendarData = value.getTable(errorCode);
+        if (U_FAILURE(errorCode)) { return; }
+
+        // Enumerate all resources for this calendar
+        for (int i = 0; calendarData.getKeyAndValue(i, key, value); i++) {
+            UnicodeString keyUString(key, -1, US_INV);
+
+            // == Handle aliases ==
+            AliasType aliasType = processAliasFromValue(keyUString, value, errorCode);
+            if (U_FAILURE(errorCode)) { return; }
+            if (aliasType == GREGORIAN) {
+                // Ignore aliases to the gregorian calendar, all of its resources will be loaded anyway.
+                continue;
+
+            } else if (aliasType == DIFFERENT_CALENDAR) {
+                // Whenever an alias to the next calendar (except gregorian) is encountered, register the
+                // calendar type it's pointing to
+                if (resourcesToVisitNext.isNull()) {
+                    resourcesToVisitNext
+                        .adoptInsteadAndCheckErrorCode(new UVector(uprv_deleteUObject, uhash_compareUnicodeString, errorCode),
+                                                       errorCode);
+                    if (U_FAILURE(errorCode)) { return; }
+                }
+                LocalPointer<UnicodeString> aliasRelativePathCopy(new UnicodeString(aliasRelativePath), errorCode);
+                resourcesToVisitNext->addElement(aliasRelativePathCopy.getAlias(), errorCode);
+                if (U_FAILURE(errorCode)) { return; }
+                // Only release ownership after resourcesToVisitNext takes it (no error happened):
+                aliasRelativePathCopy.orphan();
+                continue;
+
+            } else if (aliasType == SAME_CALENDAR) {
+                // Register same-calendar alias
+                if (arrays.get(aliasRelativePath) == NULL && maps.get(aliasRelativePath) == NULL) {
+                    LocalPointer<UnicodeString> aliasRelativePathCopy(new UnicodeString(aliasRelativePath), errorCode);
+                    aliasPathPairs.addElement(aliasRelativePathCopy.getAlias(), errorCode);
+                    if (U_FAILURE(errorCode)) { return; }
+                    // Only release ownership after aliasPathPairs takes it (no error happened):
+                    aliasRelativePathCopy.orphan();
+                    LocalPointer<UnicodeString> keyUStringCopy(new UnicodeString(keyUString), errorCode);
+                    aliasPathPairs.addElement(keyUStringCopy.getAlias(), errorCode);
+                    if (U_FAILURE(errorCode)) { return; }
+                    // Only release ownership after aliasPathPairs takes it (no error happened):
+                    keyUStringCopy.orphan();
+                }
+                continue;
+            }
+
+            // Only visit the resources that were referenced by an alias on the previous calendar
+            // (AmPmMarkersAbbr is an exception).
+            if (!resourcesToVisit.isNull() && !resourcesToVisit->isEmpty() && !resourcesToVisit->contains(&keyUString)
+                && uprv_strcmp(key, gAmPmMarkersAbbrTag) != 0) { continue; }
+
+            // == Handle data ==
+            if (uprv_strcmp(key, gAmPmMarkersTag) == 0
+                || uprv_strcmp(key, gAmPmMarkersAbbrTag) == 0
+                || uprv_strcmp(key, gAmPmMarkersNarrowTag) == 0) {
+                if (arrays.get(keyUString) == NULL) {
+                    ResourceArray resourceArray = value.getArray(errorCode);
+                    int32_t arraySize = resourceArray.getSize();
+                    LocalArray<UnicodeString> stringArray(new UnicodeString[arraySize], errorCode);
+                    value.getStringArray(stringArray.getAlias(), arraySize, errorCode);
+                    arrays.put(keyUString, stringArray.orphan(), errorCode);
+                    arraySizes.puti(keyUString, arraySize, errorCode);
+                    if (U_FAILURE(errorCode)) { return; }
+                }
+            } else if (uprv_strcmp(key, gErasTag) == 0
+                       || uprv_strcmp(key, gDayNamesTag) == 0
+                       || uprv_strcmp(key, gMonthNamesTag) == 0
+                       || uprv_strcmp(key, gQuartersTag) == 0
+                       || uprv_strcmp(key, gDayPeriodTag) == 0
+                       || uprv_strcmp(key, gMonthPatternsTag) == 0
+                       || uprv_strcmp(key, gCyclicNameSetsTag) == 0) {
+                processResource(keyUString, key, value, errorCode);
             }
         }
-        else {
-            length = 0;
-            status = U_MEMORY_ALLOCATION_ERROR;
+
+        // Apply same-calendar aliases
+        UBool modified;
+        do {
+            modified = false;
+            for (int32_t i = 0; i < aliasPathPairs.size();) {
+                UBool mod = false;
+                UnicodeString *alias = (UnicodeString*)aliasPathPairs[i];
+                UnicodeString *aliasArray;
+                Hashtable *aliasMap;
+                if ((aliasArray = (UnicodeString*)arrays.get(*alias)) != NULL) {
+                    // Clone the array
+                    int32_t aliasArraySize = arraySizes.geti(*alias);
+                    LocalArray<UnicodeString> aliasArrayCopy(new UnicodeString[aliasArraySize], errorCode);
+                    if (U_FAILURE(errorCode)) { return; }
+                    uprv_arrayCopy(aliasArray, aliasArrayCopy.getAlias(), aliasArraySize);
+                    // Put the array on the 'arrays' map
+                    UnicodeString *path = (UnicodeString*)aliasPathPairs[i + 1];
+                    arrays.put(*path, aliasArrayCopy.orphan(), errorCode);
+                    arraySizes.puti(*path, aliasArraySize, errorCode);
+                    if (U_FAILURE(errorCode)) { return; }
+                    mod = true;
+                } else if ((aliasMap = (Hashtable*)maps.get(*alias)) != NULL) {
+                    UnicodeString *path = (UnicodeString*)aliasPathPairs[i + 1];
+                    maps.put(*path, aliasMap, errorCode);
+                    if (U_FAILURE(errorCode)) { return; }
+                    mod = true;
+                }
+                if (mod) {
+                    aliasPathPairs.removeElementAt(i + 1);
+                    aliasPathPairs.removeElementAt(i);
+                    modified = true;
+                } else {
+                    i += 2;
+                }
+            }
+        } while (modified && !aliasPathPairs.isEmpty());
+
+        // Set the resources to visit on the next calendar
+        if (!resourcesToVisitNext.isNull()) {
+            resourcesToVisit.moveFrom(resourcesToVisitNext);
         }
     }
+
+    // Process the nested resource bundle tables
+    void processResource(UnicodeString &path, const char *key, ResourceValue &value, UErrorCode &errorCode) {
+        if (U_FAILURE(errorCode)) return;
+
+        ResourceTable table = value.getTable(errorCode);
+        if (U_FAILURE(errorCode)) return;
+        Hashtable* stringMap = NULL;
+
+        // Iterate over all the elements of the table and add them to the map
+        for (int i = 0; table.getKeyAndValue(i, key, value); i++) {
+            UnicodeString keyUString(key, -1, US_INV);
+
+            // Ignore '%variant' keys
+            if (keyUString.endsWith(kVariantTagUChar, UPRV_LENGTHOF(kVariantTagUChar))) {
+                continue;
+            }
+
+            // == Handle String elements ==
+            if (value.getType() == URES_STRING) {
+                // We are on a leaf, store the map elements into the stringMap
+                if (i == 0) {
+                    LocalPointer<Hashtable> stringMapPtr(new Hashtable(FALSE, errorCode), errorCode);
+                    stringMap = stringMapPtr.getAlias();
+                    maps.put(path, stringMap, errorCode);
+                    // mapRefs will take ownership of 'stringMap':
+                    mapRefs.addElement(stringMap, errorCode);
+                    if (U_FAILURE(errorCode)) { return; }
+                    // Only release ownership after mapRefs takes it (no error happened):
+                    stringMapPtr.orphan();
+                    stringMap->setValueDeleter(uprv_deleteUObject);
+                }
+                U_ASSERT(stringMap != NULL);
+                int32_t valueStringSize;
+                const UChar *valueString = value.getString(valueStringSize, errorCode);
+                if (U_FAILURE(errorCode)) { return; }
+                LocalPointer<UnicodeString> valueUString(new UnicodeString(TRUE, valueString, valueStringSize), errorCode);
+                stringMap->put(keyUString, valueUString.orphan(), errorCode);
+                if (U_FAILURE(errorCode)) { return; }
+                continue;
+            }
+            U_ASSERT(stringMap == NULL);
+
+            // Store the current path's length and append the current key to the path.
+            int32_t pathLength = path.length();
+            path.append(SOLIDUS).append(keyUString);
+
+            // In cyclicNameSets ignore everything but years/format/abbreviated
+            // and zodiacs/format/abbreviated
+            if (path.startsWith(kCyclicNameSetsTagUChar, UPRV_LENGTHOF(kCyclicNameSetsTagUChar))) {
+                UBool skip = TRUE;
+                int32_t startIndex = UPRV_LENGTHOF(kCyclicNameSetsTagUChar);
+                int32_t length = 0;
+                if (startIndex == path.length()
+                    || path.compare(startIndex, (length = UPRV_LENGTHOF(kZodiacsUChar)), kZodiacsUChar, 0, UPRV_LENGTHOF(kZodiacsUChar)) == 0
+                    || path.compare(startIndex, (length = UPRV_LENGTHOF(kYearsTagUChar)), kYearsTagUChar, 0, UPRV_LENGTHOF(kYearsTagUChar)) == 0
+                    || path.compare(startIndex, (length = UPRV_LENGTHOF(kDayPartsTagUChar)), kDayPartsTagUChar, 0, UPRV_LENGTHOF(kDayPartsTagUChar)) == 0) {
+                    startIndex += length;
+                    length = 0;
+                    if (startIndex == path.length()
+                        || path.compare(startIndex, (length = UPRV_LENGTHOF(kFormatTagUChar)), kFormatTagUChar, 0, UPRV_LENGTHOF(kFormatTagUChar)) == 0) {
+                        startIndex += length;
+                        length = 0;
+                        if (startIndex == path.length()
+                            || path.compare(startIndex, (length = UPRV_LENGTHOF(kAbbrTagUChar)), kAbbrTagUChar, 0, UPRV_LENGTHOF(kAbbrTagUChar)) == 0) {
+                            skip = FALSE;
+                        }
+                    }
+                }
+                if (skip) {
+                    // Drop the latest key on the path and continue
+                    path.retainBetween(0, pathLength);
+                    continue;
+                }
+            }
+
+            // == Handle aliases ==
+            if (arrays.get(path) != NULL || maps.get(path) != NULL) {
+                // Drop the latest key on the path and continue
+                path.retainBetween(0, pathLength);
+                continue;
+            }
+
+            AliasType aliasType = processAliasFromValue(path, value, errorCode);
+            if (U_FAILURE(errorCode)) { return; }
+            if (aliasType == SAME_CALENDAR) {
+                // Store the alias path and the current path on aliasPathPairs
+                LocalPointer<UnicodeString> aliasRelativePathCopy(new UnicodeString(aliasRelativePath), errorCode);
+                aliasPathPairs.addElement(aliasRelativePathCopy.getAlias(), errorCode);
+                if (U_FAILURE(errorCode)) { return; }
+                // Only release ownership after aliasPathPairs takes it (no error happened):
+                aliasRelativePathCopy.orphan();
+                LocalPointer<UnicodeString> pathCopy(new UnicodeString(path), errorCode);
+                aliasPathPairs.addElement(pathCopy.getAlias(), errorCode);
+                if (U_FAILURE(errorCode)) { return; }
+                // Only release ownership after aliasPathPairs takes it (no error happened):
+                pathCopy.orphan();
+
+                // Drop the latest key on the path and continue
+                path.retainBetween(0, pathLength);
+                continue;
+            }
+            U_ASSERT(aliasType == NONE);
+
+            // == Handle data ==
+            if (value.getType() == URES_ARRAY) {
+                // We are on a leaf, store the array
+                ResourceArray rDataArray = value.getArray(errorCode);
+                int32_t dataArraySize = rDataArray.getSize();
+                LocalArray<UnicodeString> dataArray(new UnicodeString[dataArraySize], errorCode);
+                value.getStringArray(dataArray.getAlias(), dataArraySize, errorCode);
+                arrays.put(path, dataArray.orphan(), errorCode);
+                arraySizes.puti(path, dataArraySize, errorCode);
+                if (U_FAILURE(errorCode)) { return; }
+            } else if (value.getType() == URES_TABLE) {
+                // We are not on a leaf, recursively process the subtable.
+                processResource(path, key, value, errorCode);
+                if (U_FAILURE(errorCode)) { return; }
+            }
+
+            // Drop the latest key on the path
+            path.retainBetween(0, pathLength);
+        }
+    }
+
+    // Populates an AliasIdentifier with the alias information contained on the UResource.Value.
+    AliasType processAliasFromValue(UnicodeString &currentRelativePath, ResourceValue &value,
+                                    UErrorCode &errorCode) {
+        if (U_FAILURE(errorCode)) { return NONE; }
+
+        if (value.getType() == URES_ALIAS) {
+            int32_t aliasPathSize;
+            const UChar* aliasPathUChar = value.getAliasString(aliasPathSize, errorCode);
+            if (U_FAILURE(errorCode)) { return NONE; }
+            UnicodeString aliasPath(aliasPathUChar, aliasPathSize);
+            const int32_t aliasPrefixLength = UPRV_LENGTHOF(kCalendarAliasPrefixUChar);
+            if (aliasPath.startsWith(kCalendarAliasPrefixUChar, aliasPrefixLength)
+                && aliasPath.length() > aliasPrefixLength) {
+                int32_t typeLimit = aliasPath.indexOf(SOLIDUS, aliasPrefixLength);
+                if (typeLimit > aliasPrefixLength) {
+                    const UnicodeString aliasCalendarType =
+                        aliasPath.tempSubStringBetween(aliasPrefixLength, typeLimit);
+                    aliasRelativePath.setTo(aliasPath, typeLimit + 1, aliasPath.length());
+
+                    if (currentCalendarType == aliasCalendarType
+                        && currentRelativePath != aliasRelativePath) {
+                        // If we have an alias to the same calendar, the path to the resource must be different
+                        return SAME_CALENDAR;
+
+                    } else if (currentCalendarType != aliasCalendarType
+                               && currentRelativePath == aliasRelativePath) {
+                        // If we have an alias to a different calendar, the path to the resource must be the same
+                        if (aliasCalendarType.compare(kGregorianTagUChar, UPRV_LENGTHOF(kGregorianTagUChar)) == 0) {
+                            return GREGORIAN;
+                        } else if (nextCalendarType.isBogus()) {
+                            nextCalendarType = aliasCalendarType;
+                            return DIFFERENT_CALENDAR;
+                        } else if (nextCalendarType == aliasCalendarType) {
+                            return DIFFERENT_CALENDAR;
+                        }
+                    }
+                }
+            }
+            errorCode = U_INTERNAL_PROGRAM_ERROR;
+            return NONE;
+        }
+        return NONE;
+    }
+
+    // Deleter function to be used by 'arrays'
+    static void U_CALLCONV deleteUnicodeStringArray(void *uArray) {
+        delete[] static_cast<UnicodeString *>(uArray);
+    }
+
+    // Deleter function to be used by 'maps'
+    static void U_CALLCONV deleteHashtable(void *table) {
+        delete static_cast<Hashtable *>(table);
+    }
+};
+// Virtual destructors have to be defined out of line
+CalendarDataSink::~CalendarDataSink() {
+    arrays.setValueDeleter(deleteUnicodeStringArray);
 }
+}
+
+//------------------------------------------------------
 
 static void
 initField(UnicodeString **field, int32_t& length, const UChar *data, LastResortSize numStr, LastResortSize strLen, UErrorCode &status) {
@@ -1471,16 +1869,89 @@ initField(UnicodeString **field, int32_t& length, const UChar *data, LastResortS
 }
 
 static void
-initLeapMonthPattern(UnicodeString *field, int32_t index, const UResourceBundle *data, UErrorCode &status) {
-    field[index].remove();
+initField(UnicodeString **field, int32_t& length, CalendarDataSink &sink, CharString &key, UErrorCode &status) {
     if (U_SUCCESS(status)) {
-        int32_t strLen = 0;
-        const UChar *resStr = ures_getStringByKey(data, gNamesLeapTag, &strLen, &status);
-        if (U_SUCCESS(status)) {
-            field[index].setTo(TRUE, resStr, strLen);
+        UnicodeString keyUString(key.data(), -1, US_INV);
+        UnicodeString* array = static_cast<UnicodeString*>(sink.arrays.get(keyUString));
+
+        if (array != NULL) {
+            length = sink.arraySizes.geti(keyUString);
+            *field = array;
+            // DateFormatSymbols takes ownership of the array:
+            sink.arrays.remove(keyUString);
+        } else {
+            length = 0;
+            status = U_MISSING_RESOURCE_ERROR;
         }
     }
-    status = U_ZERO_ERROR;
+}
+
+static void
+initField(UnicodeString **field, int32_t& length, CalendarDataSink &sink, CharString &key, int32_t arrayOffset, UErrorCode &status) {
+    if (U_SUCCESS(status)) {
+        UnicodeString keyUString(key.data(), -1, US_INV);
+        UnicodeString* array = static_cast<UnicodeString*>(sink.arrays.get(keyUString));
+
+        if (array != NULL) {
+            int32_t arrayLength = sink.arraySizes.geti(keyUString);
+            length = arrayLength + arrayOffset;
+            *field = new UnicodeString[length];
+            if (*field == NULL) {
+                status = U_MEMORY_ALLOCATION_ERROR;
+                return;
+            }
+            uprv_arrayCopy(array, 0, *field, arrayOffset, arrayLength);
+        } else {
+            length = 0;
+            status = U_MISSING_RESOURCE_ERROR;
+        }
+    }
+}
+
+static void
+initLeapMonthPattern(UnicodeString *field, int32_t index, CalendarDataSink &sink, CharString &path, UErrorCode &status) {
+    field[index].remove();
+    if (U_SUCCESS(status)) {
+        UnicodeString pathUString(path.data(), -1, US_INV);
+        Hashtable *leapMonthTable = static_cast<Hashtable*>(sink.maps.get(pathUString));
+        if (leapMonthTable != NULL) {
+            UnicodeString leapLabel(FALSE, kLeapTagUChar, UPRV_LENGTHOF(kLeapTagUChar));
+            UnicodeString *leapMonthPattern = static_cast<UnicodeString*>(leapMonthTable->get(leapLabel));
+            if (leapMonthPattern != NULL) {
+                field[index].fastCopyFrom(*leapMonthPattern);
+            } else {
+                field[index].setToBogus();
+            }
+            return;
+        }
+        status = U_MISSING_RESOURCE_ERROR;
+    }
+}
+
+static CharString
+&buildResourcePath(CharString &path, const char* segment1, UErrorCode &errorCode) {
+    return path.clear().append(segment1, -1, errorCode);
+}
+
+static CharString
+&buildResourcePath(CharString &path, const char* segment1, const char* segment2,
+                   UErrorCode &errorCode) {
+    return buildResourcePath(path, segment1, errorCode).append('/', errorCode)
+                                                       .append(segment2, -1, errorCode);
+}
+
+static CharString
+&buildResourcePath(CharString &path, const char* segment1, const char* segment2,
+                   const char* segment3, UErrorCode &errorCode) {
+    return buildResourcePath(path, segment1, segment2, errorCode).append('/', errorCode)
+                                                                 .append(segment3, -1, errorCode);
+}
+
+static CharString
+&buildResourcePath(CharString &path, const char* segment1, const char* segment2,
+                   const char* segment3, const char* segment4, UErrorCode &errorCode) {
+    return buildResourcePath(path, segment1, segment2, segment3, errorCode).append('/', errorCode)
+                                                                           .append(segment4, -1, errorCode);
 }
 
 typedef struct {
@@ -1513,41 +1984,43 @@ static const char *dayPeriodKeys[] = {"midnight", "noon",
                          "morning1", "afternoon1", "evening1", "night1",
                          "morning2", "afternoon2", "evening2", "night2"};
 
-UnicodeString* loadDayPeriodStrings(CalendarData &calData, const char *tag, UBool standalone,
+UnicodeString* loadDayPeriodStrings(CalendarDataSink &sink, CharString &path,
                                     int32_t &stringCount,  UErrorCode &status) {
-    if (U_FAILURE(status)) {
-        return NULL;
-    }
+    if (U_FAILURE(status)) { return NULL; }
 
-    UResourceBundle *dayPeriodData;
-
-    if (standalone) {
-        dayPeriodData = calData.getByKey3(gDayPeriodTag, gNamesStandaloneTag, tag, status);
-    } else {
-        dayPeriodData = calData.getByKey2(gDayPeriodTag, tag, status);
-    }
+    UnicodeString pathUString(path.data(), -1, US_INV);
+    Hashtable* map = static_cast<Hashtable*>(sink.maps.get(pathUString));
 
     stringCount = UPRV_LENGTHOF(dayPeriodKeys);
     UnicodeString *strings = new UnicodeString[stringCount];
-    for (int32_t i = 0; i < stringCount; ++i) {
-        //TODO: Check if there are fallbacks/aliases defined in the data; e.g., if there
-        //is no wide string, then use the narrow one?
-        strings[i].fastCopyFrom(ures_getUnicodeStringByKey(dayPeriodData, dayPeriodKeys[i], &status));
-        if (U_FAILURE(status)) {
-            // string[i] will be bogus if ures_getUnicodeString() returns with an error,
-            // which is just the behavior we want. Simply reset the error code.
-            status = U_ZERO_ERROR;
+    if (strings == NULL) {
+        status = U_MEMORY_ALLOCATION_ERROR;
+        return NULL;
+    }
+
+    if (map != NULL) {
+        for (int32_t i = 0; i < stringCount; ++i) {
+            UnicodeString dayPeriodKey(dayPeriodKeys[i], -1, US_INV);
+            UnicodeString *dayPeriod = static_cast<UnicodeString*>(map->get(dayPeriodKey));
+            if (dayPeriod != NULL) {
+                strings[i].fastCopyFrom(*dayPeriod);
+            } else {
+                strings[i].setToBogus();
+            }
+        }
+    } else {
+        for (int32_t i = 0; i < stringCount; i++) {
+            strings[i].setToBogus();
         }
     }
     return strings;
 }
 
+
 void
 DateFormatSymbols::initializeData(const Locale& locale, const char *type, UErrorCode& status, UBool useLastResortData)
 {
-    int32_t i;
     int32_t len = 0;
-    const UChar *resStr;
     /* In case something goes wrong, initialize all of the data to NULL. */
     fEras = NULL;
     fErasCount = 0;
@@ -1628,97 +2101,107 @@ DateFormatSymbols::initializeData(const Locale& locale, const char *type, UError
 
     if (U_FAILURE(status)) return;
 
-    /**
-     * Retrieve the string arrays we need from the resource bundle file.
-     * We cast away const here, but that's okay; we won't delete any of
-     * these.
-     */
-    CalendarData calData(locale, type, status);
+    // Create a CalendarDataSink to process this data and the resouce bundles
+    CalendarDataSink calendarSink(status);
+    UResourceBundle *rb = ures_open(NULL, locale.getBaseName(), &status);
+    UResourceBundle *cb = ures_getByKey(rb, gCalendarTag, NULL, &status);
 
-    // load the first data item
-    UResourceBundle *erasMain = calData.getByKey(gErasTag, status);
-    UResourceBundle *eras = ures_getByKeyWithFallback(erasMain, gNamesAbbrTag, NULL, &status);
-    UErrorCode oldStatus = status;
-    UResourceBundle *eraNames = ures_getByKeyWithFallback(erasMain, gNamesWideTag, NULL, &status);
-    if ( status == U_MISSING_RESOURCE_ERROR ) { // Workaround because eras/wide was omitted from CLDR 1.3
-       status = oldStatus;
-       eraNames = ures_getByKeyWithFallback(erasMain, gNamesAbbrTag, NULL, &status);
-    }
-    // current ICU4J falls back to abbreviated if narrow eras are missing, so we will too
-    oldStatus = status;
-    UResourceBundle *narrowEras = ures_getByKeyWithFallback(erasMain, gNamesNarrowTag, NULL, &status);
-    if ( status == U_MISSING_RESOURCE_ERROR ) {
-       status = oldStatus;
-       narrowEras = ures_getByKeyWithFallback(erasMain, gNamesAbbrTag, NULL, &status);
-    }
+    if (U_FAILURE(status)) return;
 
-    UErrorCode tempStatus = U_ZERO_ERROR;
-    UResourceBundle *monthPatterns = calData.getByKey(gMonthPatternsTag, tempStatus);
-    if (U_SUCCESS(tempStatus) && monthPatterns != NULL) {
-        fLeapMonthPatterns = newUnicodeStringArray(kMonthPatternsCount);
-        if (fLeapMonthPatterns) {
-            initLeapMonthPattern(fLeapMonthPatterns, kLeapMonthPatternFormatWide, calData.getByKey2(gMonthPatternsTag, gNamesWideTag, tempStatus), tempStatus);
-            initLeapMonthPattern(fLeapMonthPatterns, kLeapMonthPatternFormatAbbrev, calData.getByKey2(gMonthPatternsTag, gNamesAbbrTag, tempStatus), tempStatus);
-            initLeapMonthPattern(fLeapMonthPatterns, kLeapMonthPatternFormatNarrow, calData.getByKey2(gMonthPatternsTag, gNamesNarrowTag, tempStatus), tempStatus);
-            initLeapMonthPattern(fLeapMonthPatterns, kLeapMonthPatternStandaloneWide, calData.getByKey3(gMonthPatternsTag, gNamesStandaloneTag, gNamesWideTag, tempStatus), tempStatus);
-            initLeapMonthPattern(fLeapMonthPatterns, kLeapMonthPatternStandaloneAbbrev, calData.getByKey3(gMonthPatternsTag, gNamesStandaloneTag, gNamesAbbrTag, tempStatus), tempStatus);
-            initLeapMonthPattern(fLeapMonthPatterns, kLeapMonthPatternStandaloneNarrow, calData.getByKey3(gMonthPatternsTag, gNamesStandaloneTag, gNamesNarrowTag, tempStatus), tempStatus);
-            initLeapMonthPattern(fLeapMonthPatterns, kLeapMonthPatternNumeric, calData.getByKey3(gMonthPatternsTag, gNamesNumericTag, gNamesAllTag, tempStatus), tempStatus);
-            if (U_SUCCESS(tempStatus)) {
-                // Hack to fix bad C inheritance for dangi monthPatterns (OK in J); this should be handled by aliases in root, but isn't.
-                // The ordering of the following statements is important.
-                if (fLeapMonthPatterns[kLeapMonthPatternFormatAbbrev].isEmpty()) {
-                    fLeapMonthPatterns[kLeapMonthPatternFormatAbbrev].setTo(fLeapMonthPatterns[kLeapMonthPatternFormatWide]);
-                };
-                if (fLeapMonthPatterns[kLeapMonthPatternFormatNarrow].isEmpty()) {
-                    fLeapMonthPatterns[kLeapMonthPatternFormatNarrow].setTo(fLeapMonthPatterns[kLeapMonthPatternStandaloneNarrow]);
-                };
-                if (fLeapMonthPatterns[kLeapMonthPatternStandaloneWide].isEmpty()) {
-                    fLeapMonthPatterns[kLeapMonthPatternStandaloneWide].setTo(fLeapMonthPatterns[kLeapMonthPatternFormatWide]);
-                };
-                if (fLeapMonthPatterns[kLeapMonthPatternStandaloneAbbrev].isEmpty()) {
-                    fLeapMonthPatterns[kLeapMonthPatternStandaloneAbbrev].setTo(fLeapMonthPatterns[kLeapMonthPatternFormatAbbrev]);
-                };
-                // end of hack
-                fLeapMonthPatternsCount = kMonthPatternsCount;
-            } else {
-                delete[] fLeapMonthPatterns;
-                fLeapMonthPatterns = NULL;
+    // Iterate over the resource bundle data following the fallbacks through different calendar types
+    UnicodeString calendarType((type != NULL && *type != '\0')? type : gGregorianTag, -1, US_INV);
+    while (!calendarType.isBogus()) {
+        CharString calendarTypeBuffer;
+        calendarTypeBuffer.appendInvariantChars(calendarType, status);
+        if (U_FAILURE(status)) { return; }
+        const char *calendarTypeCArray = calendarTypeBuffer.data();
+
+        // Enumerate this calendar type. If the calendar is not found fallback to gregorian
+        UErrorCode oldStatus = status;
+        UResourceBundle *ctb = ures_getByKeyWithFallback(cb, calendarTypeCArray, NULL, &status);
+        if (status == U_MISSING_RESOURCE_ERROR) {
+            ures_close(ctb);
+            if (uprv_strcmp(calendarTypeCArray, gGregorianTag) != 0) {
+                calendarType.setTo(FALSE, kGregorianTagUChar, UPRV_LENGTHOF(kGregorianTagUChar));
+                calendarSink.visitAllResources();
+                status = oldStatus;
+                continue;
             }
+            return;
+        }
+
+        calendarSink.preEnumerate(calendarType);
+        ures_getAllItemsWithFallback(ctb, "", calendarSink, status);
+        ures_close(ctb);
+        if (U_FAILURE(status)) break;
+
+        // Stop loading when gregorian was loaded
+        if (uprv_strcmp(calendarTypeCArray, gGregorianTag) == 0) {
+            break;
+        }
+
+        // Get the next calendar type to process from the sink
+        calendarType = calendarSink.nextCalendarType;
+
+        // Gregorian is always the last fallback
+        if (calendarType.isBogus()) {
+            calendarType.setTo(FALSE, kGregorianTagUChar, UPRV_LENGTHOF(kGregorianTagUChar));
+            calendarSink.visitAllResources();
         }
     }
 
-    tempStatus = U_ZERO_ERROR;
-    UResourceBundle *cyclicNameSets= calData.getByKey(gCyclicNameSetsTag, tempStatus);
-    if (U_SUCCESS(tempStatus) && cyclicNameSets != NULL) {
-        UResourceBundle *nameSetYears = ures_getByKeyWithFallback(cyclicNameSets, gNameSetYearsTag, NULL, &tempStatus);
+    // CharString object to build paths
+    CharString path;
+
+    // Load Leap Month Patterns
+    UErrorCode tempStatus = status;
+    fLeapMonthPatterns = newUnicodeStringArray(kMonthPatternsCount);
+    if (fLeapMonthPatterns) {
+        initLeapMonthPattern(fLeapMonthPatterns, kLeapMonthPatternFormatWide, calendarSink,
+                             buildResourcePath(path, gMonthPatternsTag, gNamesFormatTag, gNamesWideTag, tempStatus), tempStatus);
+        initLeapMonthPattern(fLeapMonthPatterns, kLeapMonthPatternFormatAbbrev, calendarSink,
+                             buildResourcePath(path, gMonthPatternsTag, gNamesFormatTag, gNamesAbbrTag, tempStatus), tempStatus);
+        initLeapMonthPattern(fLeapMonthPatterns, kLeapMonthPatternFormatNarrow, calendarSink,
+                             buildResourcePath(path, gMonthPatternsTag, gNamesFormatTag, gNamesNarrowTag, tempStatus), tempStatus);
+        initLeapMonthPattern(fLeapMonthPatterns, kLeapMonthPatternStandaloneWide, calendarSink,
+                             buildResourcePath(path, gMonthPatternsTag, gNamesStandaloneTag, gNamesWideTag, tempStatus), tempStatus);
+        initLeapMonthPattern(fLeapMonthPatterns, kLeapMonthPatternStandaloneAbbrev, calendarSink,
+                             buildResourcePath(path, gMonthPatternsTag, gNamesStandaloneTag, gNamesAbbrTag, tempStatus), tempStatus);
+        initLeapMonthPattern(fLeapMonthPatterns, kLeapMonthPatternStandaloneNarrow, calendarSink,
+                             buildResourcePath(path, gMonthPatternsTag, gNamesStandaloneTag, gNamesNarrowTag, tempStatus), tempStatus);
+        initLeapMonthPattern(fLeapMonthPatterns, kLeapMonthPatternNumeric, calendarSink,
+                             buildResourcePath(path, gMonthPatternsTag, gNamesNumericTag, gNamesAllTag, tempStatus), tempStatus);
         if (U_SUCCESS(tempStatus)) {
-            UResourceBundle *nameSetYearsFmt = ures_getByKeyWithFallback(nameSetYears, gNamesFormatTag, NULL, &tempStatus);
-            if (U_SUCCESS(tempStatus)) {
-                UResourceBundle *nameSetYearsFmtAbbrev = ures_getByKeyWithFallback(nameSetYearsFmt, gNamesAbbrTag, NULL, &tempStatus);
-                if (U_SUCCESS(tempStatus)) {
-                    initField(&fShortYearNames, fShortYearNamesCount, nameSetYearsFmtAbbrev, tempStatus);
-                    ures_close(nameSetYearsFmtAbbrev);
-                }
-                ures_close(nameSetYearsFmt);
-            }
-            ures_close(nameSetYears);
-        }
-        UResourceBundle *nameSetZodiacs = ures_getByKeyWithFallback(cyclicNameSets, gNameSetZodiacsTag, NULL, &tempStatus);
-        if (U_SUCCESS(tempStatus)) {
-            UResourceBundle *nameSetZodiacsFmt = ures_getByKeyWithFallback(nameSetZodiacs, gNamesFormatTag, NULL, &tempStatus);
-            if (U_SUCCESS(tempStatus)) {
-                UResourceBundle *nameSetZodiacsFmtAbbrev = ures_getByKeyWithFallback(nameSetZodiacsFmt, gNamesAbbrTag, NULL, &tempStatus);
-                if (U_SUCCESS(tempStatus)) {
-                    initField(&fShortZodiacNames, fShortZodiacNamesCount, nameSetZodiacsFmtAbbrev, tempStatus);
-                    ures_close(nameSetZodiacsFmtAbbrev);
-                }
-                ures_close(nameSetZodiacsFmt);
-            }
-            ures_close(nameSetZodiacs);
+            // Hack to fix bad C inheritance for dangi monthPatterns (OK in J); this should be handled by aliases in root, but isn't.
+            // The ordering of the following statements is important.
+            if (fLeapMonthPatterns[kLeapMonthPatternFormatAbbrev].isEmpty()) {
+                fLeapMonthPatterns[kLeapMonthPatternFormatAbbrev].setTo(fLeapMonthPatterns[kLeapMonthPatternFormatWide]);
+            };
+            if (fLeapMonthPatterns[kLeapMonthPatternFormatNarrow].isEmpty()) {
+                fLeapMonthPatterns[kLeapMonthPatternFormatNarrow].setTo(fLeapMonthPatterns[kLeapMonthPatternStandaloneNarrow]);
+            };
+            if (fLeapMonthPatterns[kLeapMonthPatternStandaloneWide].isEmpty()) {
+                fLeapMonthPatterns[kLeapMonthPatternStandaloneWide].setTo(fLeapMonthPatterns[kLeapMonthPatternFormatWide]);
+            };
+            if (fLeapMonthPatterns[kLeapMonthPatternStandaloneAbbrev].isEmpty()) {
+                fLeapMonthPatterns[kLeapMonthPatternStandaloneAbbrev].setTo(fLeapMonthPatterns[kLeapMonthPatternFormatAbbrev]);
+            };
+            // end of hack
+            fLeapMonthPatternsCount = kMonthPatternsCount;
+        } else {
+            delete[] fLeapMonthPatterns;
+            fLeapMonthPatterns = NULL;
         }
     }
 
+    // Load cyclic names sets
+    tempStatus = status;
+    initField(&fShortYearNames, fShortYearNamesCount, calendarSink,
+              buildResourcePath(path, gCyclicNameSetsTag, gNameSetYearsTag, gNamesFormatTag, gNamesAbbrTag, tempStatus), tempStatus);
+    initField(&fShortZodiacNames, fShortZodiacNamesCount, calendarSink,
+              buildResourcePath(path, gCyclicNameSetsTag, gNameSetZodiacsTag, gNamesFormatTag, gNamesAbbrTag, tempStatus), tempStatus);
+
+    // Load context transforms and capitalization
     tempStatus = U_ZERO_ERROR;
     UResourceBundle *localeBundle = ures_open(NULL, locale.getName(), &tempStatus);
     if (U_SUCCESS(tempStatus)) {
@@ -1775,29 +2258,186 @@ DateFormatSymbols::initializeData(const Locale& locale, const char *type, UError
         fTimeSeparator.setTo(DateFormatSymbols::DEFAULT_TIME_SEPARATOR);
     }
 
-    fWideDayPeriods = loadDayPeriodStrings(calData, gNamesWideTag, FALSE,
-                         fWideDayPeriodsCount, status);
-    fNarrowDayPeriods = loadDayPeriodStrings(calData, gNamesNarrowTag, FALSE,
-                         fNarrowDayPeriodsCount, status);
-    fAbbreviatedDayPeriods = loadDayPeriodStrings(calData, gNamesAbbrTag, FALSE,
-                         fAbbreviatedDayPeriodsCount, status);
-    fStandaloneWideDayPeriods = loadDayPeriodStrings(calData, gNamesWideTag, TRUE,
-                         fStandaloneWideDayPeriodsCount, status);
-    fStandaloneNarrowDayPeriods = loadDayPeriodStrings(calData, gNamesNarrowTag, TRUE,
-                         fStandaloneNarrowDayPeriodsCount, status);
-    fStandaloneAbbreviatedDayPeriods = loadDayPeriodStrings(calData, gNamesAbbrTag, TRUE,
-                         fStandaloneAbbreviatedDayPeriodsCount, status);
-
-    UResourceBundle *weekdaysData = NULL; // Data closed by calData
-    UResourceBundle *abbrWeekdaysData = NULL; // Data closed by calData
-    UResourceBundle *shorterWeekdaysData = NULL; // Data closed by calData
-    UResourceBundle *narrowWeekdaysData = NULL; // Data closed by calData
-    UResourceBundle *standaloneWeekdaysData = NULL; // Data closed by calData
-    UResourceBundle *standaloneAbbrWeekdaysData = NULL; // Data closed by calData
-    UResourceBundle *standaloneShorterWeekdaysData = NULL; // Data closed by calData
-    UResourceBundle *standaloneNarrowWeekdaysData = NULL; // Data closed by calData
+    // Load day periods
+    fWideDayPeriods = loadDayPeriodStrings(calendarSink,
+                            buildResourcePath(path, gDayPeriodTag, gNamesFormatTag, gNamesWideTag, status),
+                            fWideDayPeriodsCount, status);
+    fNarrowDayPeriods = loadDayPeriodStrings(calendarSink,
+                            buildResourcePath(path, gDayPeriodTag, gNamesFormatTag, gNamesNarrowTag, status),
+                            fNarrowDayPeriodsCount, status);
+    fAbbreviatedDayPeriods = loadDayPeriodStrings(calendarSink,
+                            buildResourcePath(path, gDayPeriodTag, gNamesFormatTag, gNamesAbbrTag, status),
+                            fAbbreviatedDayPeriodsCount, status);
+    fStandaloneWideDayPeriods = loadDayPeriodStrings(calendarSink,
+                            buildResourcePath(path, gDayPeriodTag, gNamesStandaloneTag, gNamesWideTag, status),
+                            fStandaloneWideDayPeriodsCount, status);
+    fStandaloneNarrowDayPeriods = loadDayPeriodStrings(calendarSink,
+                            buildResourcePath(path, gDayPeriodTag, gNamesStandaloneTag, gNamesNarrowTag, status),
+                            fStandaloneNarrowDayPeriodsCount, status);
+    fStandaloneAbbreviatedDayPeriods = loadDayPeriodStrings(calendarSink,
+                            buildResourcePath(path, gDayPeriodTag, gNamesStandaloneTag, gNamesAbbrTag, status),
+                            fStandaloneAbbreviatedDayPeriodsCount, status);
 
     U_LOCALE_BASED(locBased, *this);
+    // if we make it to here, the resource data is cool, and we can get everything out
+    // of it that we need except for the time-zone and localized-pattern data, which
+    // are stored in a separate file
+    locBased.setLocaleIDs(ures_getLocaleByType(cb, ULOC_VALID_LOCALE, &status),
+                          ures_getLocaleByType(cb, ULOC_ACTUAL_LOCALE, &status));
+
+    // Load eras
+    initField(&fEras, fErasCount, calendarSink, buildResourcePath(path, gErasTag, gNamesAbbrTag, status), status);
+    UErrorCode oldStatus = status;
+    initField(&fEraNames, fEraNamesCount, calendarSink, buildResourcePath(path, gErasTag, gNamesWideTag, status), status);
+    if (status == U_MISSING_RESOURCE_ERROR) { // Workaround because eras/wide was omitted from CLDR 1.3
+        status = oldStatus;
+        assignArray(fEraNames, fEraNamesCount, fEras, fErasCount);
+    }
+    // current ICU4J falls back to abbreviated if narrow eras are missing, so we will too
+    oldStatus = status;
+    initField(&fNarrowEras, fNarrowErasCount, calendarSink, buildResourcePath(path, gErasTag, gNamesNarrowTag, status), status);
+    if (status == U_MISSING_RESOURCE_ERROR) { // Workaround because eras/wide was omitted from CLDR 1.3
+        status = oldStatus;
+        assignArray(fNarrowEras, fNarrowErasCount, fEras, fErasCount);
+    }
+
+    // Load month names
+    initField(&fMonths, fMonthsCount, calendarSink,
+              buildResourcePath(path, gMonthNamesTag, gNamesFormatTag, gNamesWideTag, status), status);
+    initField(&fShortMonths, fShortMonthsCount, calendarSink,
+              buildResourcePath(path, gMonthNamesTag, gNamesFormatTag, gNamesAbbrTag, status), status);
+    initField(&fStandaloneMonths, fStandaloneMonthsCount, calendarSink,
+              buildResourcePath(path, gMonthNamesTag, gNamesStandaloneTag, gNamesWideTag, status), status);
+    if (status == U_MISSING_RESOURCE_ERROR) { /* If standalone/wide not available, use format/wide */
+        status = U_ZERO_ERROR;
+        assignArray(fStandaloneMonths, fStandaloneMonthsCount, fMonths, fMonthsCount);
+    }
+    initField(&fStandaloneShortMonths, fStandaloneShortMonthsCount, calendarSink,
+              buildResourcePath(path, gMonthNamesTag, gNamesStandaloneTag, gNamesAbbrTag, status), status);
+    if (status == U_MISSING_RESOURCE_ERROR) { /* If standalone/abbreviated not available, use format/abbreviated */
+        status = U_ZERO_ERROR;
+        assignArray(fStandaloneShortMonths, fStandaloneShortMonthsCount, fShortMonths, fShortMonthsCount);
+    }
+
+    UErrorCode narrowMonthsEC = status;
+    UErrorCode standaloneNarrowMonthsEC = status;
+    initField(&fNarrowMonths, fNarrowMonthsCount, calendarSink,
+              buildResourcePath(path, gMonthNamesTag, gNamesFormatTag, gNamesNarrowTag, narrowMonthsEC), narrowMonthsEC);
+    initField(&fStandaloneNarrowMonths, fStandaloneNarrowMonthsCount, calendarSink,
+              buildResourcePath(path, gMonthNamesTag, gNamesStandaloneTag, gNamesNarrowTag, narrowMonthsEC), standaloneNarrowMonthsEC);
+    if (narrowMonthsEC == U_MISSING_RESOURCE_ERROR && standaloneNarrowMonthsEC != U_MISSING_RESOURCE_ERROR) {
+        // If format/narrow not available, use standalone/narrow
+        assignArray(fNarrowMonths, fNarrowMonthsCount, fStandaloneNarrowMonths, fStandaloneNarrowMonthsCount);
+    } else if (narrowMonthsEC != U_MISSING_RESOURCE_ERROR && standaloneNarrowMonthsEC == U_MISSING_RESOURCE_ERROR) {
+        // If standalone/narrow not availabe, use format/narrow
+        assignArray(fStandaloneNarrowMonths, fStandaloneNarrowMonthsCount, fNarrowMonths, fNarrowMonthsCount);
+    } else if (narrowMonthsEC == U_MISSING_RESOURCE_ERROR && standaloneNarrowMonthsEC == U_MISSING_RESOURCE_ERROR) {
+        // If neither is available, use format/abbreviated
+        assignArray(fNarrowMonths, fNarrowMonthsCount, fShortMonths, fShortMonthsCount);
+        assignArray(fStandaloneNarrowMonths, fStandaloneNarrowMonthsCount, fShortMonths, fShortMonthsCount);
+    }
+
+    // Load AM/PM markers
+    initField(&fAmPms, fAmPmsCount, calendarSink,
+              buildResourcePath(path, gAmPmMarkersTag, status), status);
+    initField(&fNarrowAmPms, fNarrowAmPmsCount, calendarSink,
+              buildResourcePath(path, gAmPmMarkersNarrowTag, status), status);
+
+    // Load quarters
+    initField(&fQuarters, fQuartersCount, calendarSink,
+              buildResourcePath(path, gQuartersTag, gNamesFormatTag, gNamesWideTag, status), status);
+    initField(&fShortQuarters, fShortQuartersCount, calendarSink,
+              buildResourcePath(path, gQuartersTag, gNamesFormatTag, gNamesAbbrTag, status), status);
+
+    initField(&fStandaloneQuarters, fStandaloneQuartersCount, calendarSink,
+              buildResourcePath(path, gQuartersTag, gNamesStandaloneTag, gNamesWideTag, status), status);
+    if(status == U_MISSING_RESOURCE_ERROR) {
+        status = U_ZERO_ERROR;
+        assignArray(fStandaloneQuarters, fStandaloneQuartersCount, fQuarters, fQuartersCount);
+    }
+    initField(&fStandaloneShortQuarters, fStandaloneShortQuartersCount, calendarSink,
+              buildResourcePath(path, gQuartersTag, gNamesStandaloneTag, gNamesAbbrTag, status), status);
+    if(status == U_MISSING_RESOURCE_ERROR) {
+        status = U_ZERO_ERROR;
+        assignArray(fStandaloneShortQuarters, fStandaloneShortQuartersCount, fShortQuarters, fShortQuartersCount);
+    }
+
+    // ICU 3.8 or later version no longer uses localized date-time pattern characters by default (ticket#5597)
+    /*
+    // fastCopyFrom()/setTo() - see assignArray comments
+    resStr = ures_getStringByKey(fResourceBundle, gLocalPatternCharsTag, &len, &status);
+    fLocalPatternChars.setTo(TRUE, resStr, len);
+    // If the locale data does not include new pattern chars, use the defaults
+    // TODO: Consider making this an error, since this may add conflicting characters.
+    if (len < PATTERN_CHARS_LEN) {
+        fLocalPatternChars.append(UnicodeString(TRUE, &gPatternChars[len], PATTERN_CHARS_LEN-len));
+    }
+    */
+    fLocalPatternChars.setTo(TRUE, gPatternChars, PATTERN_CHARS_LEN);
+
+    // Format wide weekdays -> fWeekdays
+    // {sfb} fixed to handle 1-based weekdays
+    initField(&fWeekdays, fWeekdaysCount, calendarSink,
+              buildResourcePath(path, gDayNamesTag, gNamesFormatTag, gNamesWideTag, status), 1, status);
+
+    // Format abbreviated weekdays -> fShortWeekdays
+    initField(&fShortWeekdays, fShortWeekdaysCount, calendarSink,
+              buildResourcePath(path, gDayNamesTag, gNamesFormatTag, gNamesAbbrTag, status), 1, status);
+
+    // Format short weekdays -> fShorterWeekdays (fall back to abbreviated)
+    initField(&fShorterWeekdays, fShorterWeekdaysCount, calendarSink,
+              buildResourcePath(path, gDayNamesTag, gNamesFormatTag, gNamesShortTag, status), 1, status);
+    if (status == U_MISSING_RESOURCE_ERROR) {
+        status = U_ZERO_ERROR;
+        assignArray(fShorterWeekdays, fShorterWeekdaysCount, fShortWeekdays, fShortWeekdaysCount);
+    }
+
+    // Stand-alone wide weekdays -> fStandaloneWeekdays
+    initField(&fStandaloneWeekdays, fStandaloneWeekdaysCount, calendarSink,
+              buildResourcePath(path, gDayNamesTag, gNamesStandaloneTag, gNamesWideTag, status), 1, status);
+    if (status == U_MISSING_RESOURCE_ERROR) { /* If standalone/wide is not available, use format/wide */
+        status = U_ZERO_ERROR;
+        assignArray(fStandaloneWeekdays, fStandaloneWeekdaysCount, fWeekdays, fWeekdaysCount);
+    }
+
+    // Stand-alone abbreviated weekdays -> fStandaloneShortWeekdays
+    initField(&fStandaloneShortWeekdays, fStandaloneShortWeekdaysCount, calendarSink,
+              buildResourcePath(path, gDayNamesTag, gNamesStandaloneTag, gNamesAbbrTag, status), 1, status);
+    if (status == U_MISSING_RESOURCE_ERROR) { /* If standalone/abbreviated is not available, use format/abbreviated */
+        status = U_ZERO_ERROR;
+        assignArray(fStandaloneShortWeekdays, fStandaloneShortWeekdaysCount, fShortWeekdays, fShortWeekdaysCount);
+    }
+
+    // Stand-alone short weekdays -> fStandaloneShorterWeekdays (fall back to format abbreviated)
+    initField(&fStandaloneShorterWeekdays, fStandaloneShorterWeekdaysCount, calendarSink,
+              buildResourcePath(path, gDayNamesTag, gNamesStandaloneTag, gNamesShortTag, status), 1, status);
+    if (status == U_MISSING_RESOURCE_ERROR) { /* If standalone/short is not available, use format/short */
+        status = U_ZERO_ERROR;
+        assignArray(fStandaloneShorterWeekdays, fStandaloneShorterWeekdaysCount, fShorterWeekdays, fShorterWeekdaysCount);
+    }
+
+    // Format narrow weekdays -> fNarrowWeekdays
+    UErrorCode narrowWeeksEC = status;
+    initField(&fNarrowWeekdays, fNarrowWeekdaysCount, calendarSink,
+              buildResourcePath(path, gDayNamesTag, gNamesFormatTag, gNamesNarrowTag, status), 1, narrowWeeksEC);
+    // Stand-alone narrow weekdays -> fStandaloneNarrowWeekdays
+    UErrorCode standaloneNarrowWeeksEC = status;
+    initField(&fStandaloneNarrowWeekdays, fStandaloneNarrowWeekdaysCount, calendarSink,
+              buildResourcePath(path, gDayNamesTag, gNamesStandaloneTag, gNamesNarrowTag, status), 1, standaloneNarrowWeeksEC);
+
+    if (narrowWeeksEC == U_MISSING_RESOURCE_ERROR && standaloneNarrowWeeksEC != U_MISSING_RESOURCE_ERROR) {
+        // If format/narrow not available, use standalone/narrow
+        assignArray(fNarrowWeekdays, fNarrowWeekdaysCount, fStandaloneNarrowWeekdays, fStandaloneNarrowWeekdaysCount);
+    } else if (narrowWeeksEC != U_MISSING_RESOURCE_ERROR && standaloneNarrowWeeksEC == U_MISSING_RESOURCE_ERROR) {
+        // If standalone/narrow not available, use format/narrow
+        assignArray(fStandaloneNarrowWeekdays, fStandaloneNarrowWeekdaysCount, fNarrowWeekdays, fNarrowWeekdaysCount);
+    } else if (narrowWeeksEC == U_MISSING_RESOURCE_ERROR && standaloneNarrowWeeksEC == U_MISSING_RESOURCE_ERROR ) {
+        // If neither is available, use format/abbreviated
+        assignArray(fNarrowWeekdays, fNarrowWeekdaysCount, fShortWeekdays, fShortWeekdaysCount);
+        assignArray(fStandaloneNarrowWeekdays, fStandaloneNarrowWeekdaysCount, fShortWeekdays, fShortWeekdaysCount);
+    }
+
+    // Last resort fallback in case previous data wasn't loaded
     if (U_FAILURE(status))
     {
         if (useLastResortData)
@@ -1808,7 +2448,7 @@ DateFormatSymbols::initializeData(const Locale& locale, const char *type, UError
             // in most locales.
 
             status = U_USING_FALLBACK_WARNING;
-
+            //TODO(fabalbon): make sure we are storing las resort data for all fields in here.
             initField(&fEras, fErasCount, (const UChar *)gLastResortEras, kEraNum, kEraLen, status);
             initField(&fEraNames, fEraNamesCount, (const UChar *)gLastResortEras, kEraNum, kEraLen, status);
             initField(&fNarrowEras, fNarrowErasCount, (const UChar *)gLastResortEras, kEraNum, kEraLen, status);
@@ -1834,255 +2474,11 @@ DateFormatSymbols::initializeData(const Locale& locale, const char *type, UError
             initField(&fStandaloneShortQuarters, fStandaloneShortQuartersCount, (const UChar *)gLastResortQuarters, kQuarterNum, kQuarterLen, status);
             fLocalPatternChars.setTo(TRUE, gPatternChars, PATTERN_CHARS_LEN);
         }
-        goto cleanup;
     }
 
-    // if we make it to here, the resource data is cool, and we can get everything out
-    // of it that we need except for the time-zone and localized-pattern data, which
-    // are stored in a separate file
-    locBased.setLocaleIDs(ures_getLocaleByType(eras, ULOC_VALID_LOCALE, &status),
-                          ures_getLocaleByType(eras, ULOC_ACTUAL_LOCALE, &status));
-
-    initField(&fEras, fErasCount, eras, status);
-    initField(&fEraNames, fEraNamesCount, eraNames, status);
-    initField(&fNarrowEras, fNarrowErasCount, narrowEras, status);
-
-    initField(&fMonths, fMonthsCount, calData.getByKey2(gMonthNamesTag, gNamesWideTag, status), status);
-    initField(&fShortMonths, fShortMonthsCount, calData.getByKey2(gMonthNamesTag, gNamesAbbrTag, status), status);
-
-    initField(&fNarrowMonths, fNarrowMonthsCount, calData.getByKey2(gMonthNamesTag, gNamesNarrowTag, status), status);
-    if(status == U_MISSING_RESOURCE_ERROR) {
-        status = U_ZERO_ERROR;
-        initField(&fNarrowMonths, fNarrowMonthsCount, calData.getByKey3(gMonthNamesTag, gNamesStandaloneTag, gNamesNarrowTag, status), status);
-    }
-    if ( status == U_MISSING_RESOURCE_ERROR ) { /* If format/narrow not available, use format/abbreviated */
-       status = U_ZERO_ERROR;
-       initField(&fNarrowMonths, fNarrowMonthsCount, calData.getByKey2(gMonthNamesTag, gNamesAbbrTag, status), status);
-    }
-
-    initField(&fStandaloneMonths, fStandaloneMonthsCount, calData.getByKey3(gMonthNamesTag, gNamesStandaloneTag, gNamesWideTag, status), status);
-    if ( status == U_MISSING_RESOURCE_ERROR ) { /* If standalone/wide not available, use format/wide */
-       status = U_ZERO_ERROR;
-       initField(&fStandaloneMonths, fStandaloneMonthsCount, calData.getByKey2(gMonthNamesTag, gNamesWideTag, status), status);
-    }
-    initField(&fStandaloneShortMonths, fStandaloneShortMonthsCount, calData.getByKey3(gMonthNamesTag, gNamesStandaloneTag, gNamesAbbrTag, status), status);
-    if ( status == U_MISSING_RESOURCE_ERROR ) { /* If standalone/abbreviated not available, use format/abbreviated */
-       status = U_ZERO_ERROR;
-       initField(&fStandaloneShortMonths, fStandaloneShortMonthsCount, calData.getByKey2(gMonthNamesTag, gNamesAbbrTag, status), status);
-    }
-    initField(&fStandaloneNarrowMonths, fStandaloneNarrowMonthsCount, calData.getByKey3(gMonthNamesTag, gNamesStandaloneTag, gNamesNarrowTag, status), status);
-    if ( status == U_MISSING_RESOURCE_ERROR ) { /* if standalone/narrow not availabe, try format/narrow */
-       status = U_ZERO_ERROR;
-       initField(&fStandaloneNarrowMonths, fStandaloneNarrowMonthsCount, calData.getByKey2(gMonthNamesTag, gNamesNarrowTag, status), status);
-       if ( status == U_MISSING_RESOURCE_ERROR ) { /* if still not there, use format/abbreviated */
-          status = U_ZERO_ERROR;
-          initField(&fStandaloneNarrowMonths, fStandaloneNarrowMonthsCount, calData.getByKey2(gMonthNamesTag, gNamesAbbrTag, status), status);
-       }
-    }
-    initField(&fAmPms, fAmPmsCount, calData.getByKey(gAmPmMarkersTag, status), status);
-    initField(&fNarrowAmPms, fNarrowAmPmsCount, calData.getByKey(gAmPmMarkersNarrowTag, status), status);
-
-    initField(&fQuarters, fQuartersCount, calData.getByKey2(gQuartersTag, gNamesWideTag, status), status);
-    initField(&fShortQuarters, fShortQuartersCount, calData.getByKey2(gQuartersTag, gNamesAbbrTag, status), status);
-
-    initField(&fStandaloneQuarters, fStandaloneQuartersCount, calData.getByKey3(gQuartersTag, gNamesStandaloneTag, gNamesWideTag, status), status);
-    if(status == U_MISSING_RESOURCE_ERROR) {
-        status = U_ZERO_ERROR;
-        initField(&fStandaloneQuarters, fStandaloneQuartersCount, calData.getByKey2(gQuartersTag, gNamesWideTag, status), status);
-    }
-
-    initField(&fStandaloneShortQuarters, fStandaloneShortQuartersCount, calData.getByKey3(gQuartersTag, gNamesStandaloneTag, gNamesAbbrTag, status), status);
-    if(status == U_MISSING_RESOURCE_ERROR) {
-        status = U_ZERO_ERROR;
-        initField(&fStandaloneShortQuarters, fStandaloneShortQuartersCount, calData.getByKey2(gQuartersTag, gNamesAbbrTag, status), status);
-    }
-
-    // ICU 3.8 or later version no longer uses localized date-time pattern characters by default (ticket#5597)
-    /*
-    // fastCopyFrom()/setTo() - see assignArray comments
-    resStr = ures_getStringByKey(fResourceBundle, gLocalPatternCharsTag, &len, &status);
-    fLocalPatternChars.setTo(TRUE, resStr, len);
-    // If the locale data does not include new pattern chars, use the defaults
-    // TODO: Consider making this an error, since this may add conflicting characters.
-    if (len < PATTERN_CHARS_LEN) {
-        fLocalPatternChars.append(UnicodeString(TRUE, &gPatternChars[len], PATTERN_CHARS_LEN-len));
-    }
-    */
-    fLocalPatternChars.setTo(TRUE, gPatternChars, PATTERN_CHARS_LEN);
-
-    // Format wide weekdays -> fWeekdays
-    // {sfb} fixed to handle 1-based weekdays
-    weekdaysData = calData.getByKey2(gDayNamesTag, gNamesWideTag, status);
-    fWeekdaysCount = ures_getSize(weekdaysData);
-    fWeekdays = new UnicodeString[fWeekdaysCount+1];
-    /* pin the blame on system. If we cannot get a chunk of memory .. the system is dying!*/
-    if (fWeekdays == NULL) {
-        status = U_MEMORY_ALLOCATION_ERROR;
-        goto cleanup;
-    }
-    // leave fWeekdays[0] empty
-    for(i = 0; i<fWeekdaysCount; i++) {
-        resStr = ures_getStringByIndex(weekdaysData, i, &len, &status);
-        // setTo() - see assignArray comments
-        fWeekdays[i+1].setTo(TRUE, resStr, len);
-    }
-    fWeekdaysCount++;
-
-    // Format abbreviated weekdays -> fShortWeekdays
-    abbrWeekdaysData = calData.getByKey2(gDayNamesTag, gNamesAbbrTag, status);
-    fShortWeekdaysCount = ures_getSize(abbrWeekdaysData);
-    fShortWeekdays = new UnicodeString[fShortWeekdaysCount+1];
-    /* test for NULL */
-    if (fShortWeekdays == 0) {
-        status = U_MEMORY_ALLOCATION_ERROR;
-        goto cleanup;
-    }
-    // leave fShortWeekdays[0] empty
-    for(i = 0; i<fShortWeekdaysCount; i++) {
-        resStr = ures_getStringByIndex(abbrWeekdaysData, i, &len, &status);
-        // setTo() - see assignArray comments
-        fShortWeekdays[i+1].setTo(TRUE, resStr, len);
-    }
-    fShortWeekdaysCount++;
-
-   // Format short weekdays -> fShorterWeekdays (fall back to abbreviated)
-    shorterWeekdaysData = calData.getByKey2(gDayNamesTag, gNamesShortTag, status);
-    if ( status == U_MISSING_RESOURCE_ERROR ) {
-       status = U_ZERO_ERROR;
-       shorterWeekdaysData = calData.getByKey2(gDayNamesTag, gNamesAbbrTag, status);
-    }
-    fShorterWeekdaysCount = ures_getSize(shorterWeekdaysData);
-    fShorterWeekdays = new UnicodeString[fShorterWeekdaysCount+1];
-    /* test for NULL */
-    if (fShorterWeekdays == 0) {
-        status = U_MEMORY_ALLOCATION_ERROR;
-        goto cleanup;
-    }
-    // leave fShorterWeekdays[0] empty
-    for(i = 0; i<fShorterWeekdaysCount; i++) {
-        resStr = ures_getStringByIndex(shorterWeekdaysData, i, &len, &status);
-        // setTo() - see assignArray comments
-        fShorterWeekdays[i+1].setTo(TRUE, resStr, len);
-    }
-    fShorterWeekdaysCount++;
-
-   // Format narrow weekdays -> fNarrowWeekdays
-    narrowWeekdaysData = calData.getByKey2(gDayNamesTag, gNamesNarrowTag, status);
-    if(status == U_MISSING_RESOURCE_ERROR) {
-        status = U_ZERO_ERROR;
-        narrowWeekdaysData = calData.getByKey3(gDayNamesTag, gNamesStandaloneTag, gNamesNarrowTag, status);
-    }
-    if ( status == U_MISSING_RESOURCE_ERROR ) {
-       status = U_ZERO_ERROR;
-       narrowWeekdaysData = calData.getByKey2(gDayNamesTag, gNamesAbbrTag, status);
-    }
-    fNarrowWeekdaysCount = ures_getSize(narrowWeekdaysData);
-    fNarrowWeekdays = new UnicodeString[fNarrowWeekdaysCount+1];
-    /* test for NULL */
-    if (fNarrowWeekdays == 0) {
-        status = U_MEMORY_ALLOCATION_ERROR;
-        goto cleanup;
-    }
-    // leave fNarrowWeekdays[0] empty
-    for(i = 0; i<fNarrowWeekdaysCount; i++) {
-        resStr = ures_getStringByIndex(narrowWeekdaysData, i, &len, &status);
-        // setTo() - see assignArray comments
-        fNarrowWeekdays[i+1].setTo(TRUE, resStr, len);
-    }
-    fNarrowWeekdaysCount++;
-
-   // Stand-alone wide weekdays -> fStandaloneWeekdays
-    standaloneWeekdaysData = calData.getByKey3(gDayNamesTag, gNamesStandaloneTag, gNamesWideTag, status);
-    if ( status == U_MISSING_RESOURCE_ERROR ) {
-       status = U_ZERO_ERROR;
-       standaloneWeekdaysData = calData.getByKey2(gDayNamesTag, gNamesWideTag, status);
-    }
-    fStandaloneWeekdaysCount = ures_getSize(standaloneWeekdaysData);
-    fStandaloneWeekdays = new UnicodeString[fStandaloneWeekdaysCount+1];
-    /* test for NULL */
-    if (fStandaloneWeekdays == 0) {
-        status = U_MEMORY_ALLOCATION_ERROR;
-        goto cleanup;
-    }
-    // leave fStandaloneWeekdays[0] empty
-    for(i = 0; i<fStandaloneWeekdaysCount; i++) {
-        resStr = ures_getStringByIndex(standaloneWeekdaysData, i, &len, &status);
-        // setTo() - see assignArray comments
-        fStandaloneWeekdays[i+1].setTo(TRUE, resStr, len);
-    }
-    fStandaloneWeekdaysCount++;
-
-   // Stand-alone abbreviated weekdays -> fStandaloneShortWeekdays
-    standaloneAbbrWeekdaysData = calData.getByKey3(gDayNamesTag, gNamesStandaloneTag, gNamesAbbrTag, status);
-    if ( status == U_MISSING_RESOURCE_ERROR ) {
-       status = U_ZERO_ERROR;
-       standaloneAbbrWeekdaysData = calData.getByKey2(gDayNamesTag, gNamesAbbrTag, status);
-    }
-    fStandaloneShortWeekdaysCount = ures_getSize(standaloneAbbrWeekdaysData);
-    fStandaloneShortWeekdays = new UnicodeString[fStandaloneShortWeekdaysCount+1];
-    /* test for NULL */
-    if (fStandaloneShortWeekdays == 0) {
-        status = U_MEMORY_ALLOCATION_ERROR;
-        goto cleanup;
-    }
-    // leave fStandaloneShortWeekdays[0] empty
-    for(i = 0; i<fStandaloneShortWeekdaysCount; i++) {
-        resStr = ures_getStringByIndex(standaloneAbbrWeekdaysData, i, &len, &status);
-        // setTo() - see assignArray comments
-        fStandaloneShortWeekdays[i+1].setTo(TRUE, resStr, len);
-    }
-    fStandaloneShortWeekdaysCount++;
-
-    // Stand-alone short weekdays -> fStandaloneShorterWeekdays (fall back to format abbreviated)
-    standaloneShorterWeekdaysData = calData.getByKey3(gDayNamesTag, gNamesStandaloneTag, gNamesShortTag, status);
-    if ( status == U_MISSING_RESOURCE_ERROR ) {
-       status = U_ZERO_ERROR;
-       standaloneShorterWeekdaysData = calData.getByKey2(gDayNamesTag, gNamesAbbrTag, status);
-    }
-    fStandaloneShorterWeekdaysCount = ures_getSize(standaloneShorterWeekdaysData);
-    fStandaloneShorterWeekdays = new UnicodeString[fStandaloneShorterWeekdaysCount+1];
-    /* test for NULL */
-    if (fStandaloneShorterWeekdays == 0) {
-        status = U_MEMORY_ALLOCATION_ERROR;
-        goto cleanup;
-    }
-    // leave fStandaloneShorterWeekdays[0] empty
-    for(i = 0; i<fStandaloneShorterWeekdaysCount; i++) {
-        resStr = ures_getStringByIndex(standaloneShorterWeekdaysData, i, &len, &status);
-        // setTo() - see assignArray comments
-        fStandaloneShorterWeekdays[i+1].setTo(TRUE, resStr, len);
-    }
-    fStandaloneShorterWeekdaysCount++;
-
-    // Stand-alone narrow weekdays -> fStandaloneNarrowWeekdays
-    standaloneNarrowWeekdaysData = calData.getByKey3(gDayNamesTag, gNamesStandaloneTag, gNamesNarrowTag, status);
-    if ( status == U_MISSING_RESOURCE_ERROR ) {
-       status = U_ZERO_ERROR;
-       standaloneNarrowWeekdaysData = calData.getByKey2(gDayNamesTag, gNamesNarrowTag, status);
-       if ( status == U_MISSING_RESOURCE_ERROR ) {
-          status = U_ZERO_ERROR;
-          standaloneNarrowWeekdaysData = calData.getByKey2(gDayNamesTag, gNamesAbbrTag, status);
-       }
-    }
-    fStandaloneNarrowWeekdaysCount = ures_getSize(standaloneNarrowWeekdaysData);
-    fStandaloneNarrowWeekdays = new UnicodeString[fStandaloneNarrowWeekdaysCount+1];
-    /* test for NULL */
-    if (fStandaloneNarrowWeekdays == 0) {
-        status = U_MEMORY_ALLOCATION_ERROR;
-        goto cleanup;
-    }
-    // leave fStandaloneNarrowWeekdays[0] empty
-    for(i = 0; i<fStandaloneNarrowWeekdaysCount; i++) {
-        resStr = ures_getStringByIndex(standaloneNarrowWeekdaysData, i, &len, &status);
-        // setTo() - see assignArray comments
-        fStandaloneNarrowWeekdays[i+1].setTo(TRUE, resStr, len);
-    }
-    fStandaloneNarrowWeekdaysCount++;
-
-cleanup:
-    ures_close(eras);
-    ures_close(eraNames);
-    ures_close(narrowEras);
+    // Close resources
+    ures_close(cb);
+    ures_close(rb);
 }
 
 Locale

@@ -15,12 +15,14 @@
       "flags": ["--harmony"],
       "resources": [
         "assign.js",
-        "values.js",
-        "entries.js"
+        "create.js",
+        "entries.js",
+        "values.js"
       ],
       "results_regexp": "^%s\\-Object\\(Score\\): (.+)$",
       "tests": [
         {"name": "Assign"},
+        {"name": "Create"},
         {"name": "Entries"},
         {"name": "EntriesMegamorphic"},
         {"name": "Values"},

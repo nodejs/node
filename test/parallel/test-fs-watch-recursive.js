@@ -22,7 +22,7 @@ const filepathOne = path.join(testsubdir, filenameOne);
 
 const watcher = fs.watch(testDir, {recursive: true});
 
-var watcherClosed = false;
+let watcherClosed = false;
 watcher.on('change', function(event, filename) {
   assert.ok('change' === event || 'rename' === event);
 
@@ -30,14 +30,18 @@ watcher.on('change', function(event, filename) {
   if (filename !== relativePathOne)
     return;
 
+  if (common.isOSX) {
+    clearInterval(interval);
+  }
   watcher.close();
   watcherClosed = true;
 });
 
-if (process.platform === 'darwin') {
-  setTimeout(function() {
+let interval;
+if (common.isOSX) {
+  interval = setInterval(function() {
     fs.writeFileSync(filepathOne, 'world');
-  }, 100);
+  }, 10);
 } else {
   fs.writeFileSync(filepathOne, 'world');
 }

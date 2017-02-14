@@ -8,9 +8,9 @@ const big = Buffer.alloc(16 * 1024, 'A');
 
 const COUNT = 1e4;
 
-var received = 0;
+let received = 0;
 
-var client;
+let client;
 const server = http.createServer(function(req, res) {
   res.end(big, function() {
     if (++received === COUNT) {
@@ -19,7 +19,7 @@ const server = http.createServer(function(req, res) {
     }
   });
 }).listen(0, function() {
-  var req = new Array(COUNT + 1).join('GET / HTTP/1.1\r\n\r\n');
+  const req = 'GET / HTTP/1.1\r\n\r\n'.repeat(COUNT);
   client = net.connect(this.address().port, function() {
     client.write(req);
   });
@@ -36,5 +36,5 @@ process.on('exit', function() {
   // The server should pause connection on pipeline flood, but it shoul still
   // resume it and finish processing the requests, when its output queue will
   // be empty again.
-  assert.equal(received, COUNT);
+  assert.strictEqual(received, COUNT);
 });

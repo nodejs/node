@@ -3,8 +3,6 @@
 #
 
 ---
-pool type: mixed
-execute: yes
 wrap: yes
 
 ---
@@ -13,22 +11,22 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 21
+bytecode array length: 23
 bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(1),
                 B(LdaTheHole),
-                B(StaContextSlot), R(context), U8(4),
+                B(StaContextSlot), R(context), U8(4), U8(0),
                 B(CreateClosure), U8(0), U8(2),
                 B(Star), R(0),
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(10),
-  /*   42 E> */ B(StaContextSlot), R(context), U8(4),
+  /*   42 E> */ B(StaContextSlot), R(context), U8(4), U8(0),
                 B(LdaUndefined),
   /*   72 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::SHARED_FUNCTION_INFO_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
 ]
@@ -39,18 +37,18 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 34
+bytecode array length: 37
 bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(1),
                 B(LdaTheHole),
-                B(StaContextSlot), R(context), U8(4),
+                B(StaContextSlot), R(context), U8(4), U8(0),
                 B(CreateClosure), U8(0), U8(2),
                 B(Star), R(0),
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(10),
-  /*   42 E> */ B(StaContextSlot), R(context), U8(4),
-  /*   72 S> */ B(LdaContextSlot), R(context), U8(4),
+  /*   42 E> */ B(StaContextSlot), R(context), U8(4), U8(0),
+  /*   72 S> */ B(LdaContextSlot), R(context), U8(4), U8(0),
                 B(JumpIfNotHole), U8(11),
                 B(LdaConstant), U8(1),
                 B(Star), R(2),
@@ -58,8 +56,8 @@ bytecodes: [
   /*   82 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::SHARED_FUNCTION_INFO_TYPE,
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
 ]
 handlers: [
 ]
@@ -70,31 +68,31 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 42
+bytecode array length: 46
 bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(1),
                 B(LdaTheHole),
-                B(StaContextSlot), R(context), U8(4),
+                B(StaContextSlot), R(context), U8(4), U8(0),
                 B(CreateClosure), U8(0), U8(2),
                 B(Star), R(0),
   /*   30 E> */ B(StackCheck),
   /*   45 S> */ B(LdaSmi), U8(20),
                 B(Star), R(2),
-  /*   45 E> */ B(LdaContextSlot), R(context), U8(4),
+  /*   45 E> */ B(LdaContextSlot), R(context), U8(4), U8(0),
                 B(JumpIfNotHole), U8(11),
                 B(LdaConstant), U8(1),
                 B(Star), R(3),
                 B(CallRuntime), U16(Runtime::kThrowReferenceError), R(3), U8(1),
                 B(Ldar), R(2),
-                B(StaContextSlot), R(context), U8(4),
-  /*   45 E> */ B(StaContextSlot), R(context), U8(4),
+                B(StaContextSlot), R(context), U8(4), U8(0),
+  /*   45 E> */ B(StaContextSlot), R(context), U8(4), U8(0),
                 B(LdaUndefined),
   /*   78 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::SHARED_FUNCTION_INFO_TYPE,
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
 ]
 handlers: [
 ]
@@ -105,32 +103,32 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 44
+bytecode array length: 48
 bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(1),
                 B(LdaTheHole),
-                B(StaContextSlot), R(context), U8(4),
+                B(StaContextSlot), R(context), U8(4), U8(0),
                 B(CreateClosure), U8(0), U8(2),
                 B(Star), R(0),
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(10),
-  /*   42 E> */ B(StaContextSlot), R(context), U8(4),
+  /*   42 E> */ B(StaContextSlot), R(context), U8(4), U8(0),
   /*   46 S> */ B(LdaSmi), U8(20),
                 B(Star), R(2),
-  /*   48 E> */ B(LdaContextSlot), R(context), U8(4),
+  /*   48 E> */ B(LdaContextSlot), R(context), U8(4), U8(0),
                 B(JumpIfNotHole), U8(11),
                 B(LdaConstant), U8(1),
                 B(Star), R(3),
                 B(CallRuntime), U16(Runtime::kThrowReferenceError), R(3), U8(1),
                 B(Ldar), R(2),
-                B(StaContextSlot), R(context), U8(4),
+                B(StaContextSlot), R(context), U8(4), U8(0),
                 B(LdaUndefined),
   /*   80 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::SHARED_FUNCTION_INFO_TYPE,
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
 ]
 handlers: [
 ]

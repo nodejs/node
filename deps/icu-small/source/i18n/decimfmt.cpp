@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 1997-2015, International Business Machines Corporation and    *
@@ -445,13 +447,25 @@ DecimalFormat::construct(UErrorCode&            status,
     if (patternUsed->indexOf(kCurrencySign) != -1) {
         // initialize for currency, not only for plural format,
         // but also for mix parsing
-        if (fCurrencyPluralInfo == NULL) {
-           fCurrencyPluralInfo = new CurrencyPluralInfo(fImpl->fSymbols->getLocale(), status);
-           if (U_FAILURE(status)) {
-               return;
-           }
-        }
-        // need it for mix parsing
+        handleCurrencySignInPattern(status);
+    }
+}
+
+void
+DecimalFormat::handleCurrencySignInPattern(UErrorCode& status) {
+    // initialize for currency, not only for plural format,
+    // but also for mix parsing
+    if (U_FAILURE(status)) {
+        return;
+    }
+    if (fCurrencyPluralInfo == NULL) {
+       fCurrencyPluralInfo = new CurrencyPluralInfo(fImpl->fSymbols->getLocale(), status);
+       if (U_FAILURE(status)) {
+           return;
+       }
+    }
+    // need it for mix parsing
+    if (fAffixPatternsForCurrency == NULL) {
         setupCurrencyAffixPatterns(status);
     }
 }
@@ -828,7 +842,7 @@ DecimalFormat::format(  double number,
 
 
 UnicodeString&
-DecimalFormat::format(const StringPiece &number,
+DecimalFormat::format(StringPiece number,
                       UnicodeString &toAppendTo,
                       FieldPositionIterator *posIter,
                       UErrorCode &status) const
@@ -1643,7 +1657,7 @@ UBool DecimalFormat::subparse(const UnicodeString& text,
         // if we didn't see a decimal and it is required, check to see if the pattern had one
         if(!sawDecimal && isDecimalPatternMatchRequired())
         {
-            if(formatPattern.indexOf(DecimalFormatSymbols::kDecimalSeparatorSymbol) != 0)
+            if(formatPattern.indexOf(kPatternDecimalSeparator) != -1)
             {
                 parsePosition.setIndex(oldStart);
                 parsePosition.setErrorIndex(position);
@@ -1769,7 +1783,7 @@ printf("PP -> %d, SLOW = [%s]!    pp=%d, os=%d, err=%s\n", position, parsedNum.d
     // check if we missed a required decimal point
     if(fastParseOk && isDecimalPatternMatchRequired())
     {
-        if(formatPattern.indexOf(DecimalFormatSymbols::kDecimalSeparatorSymbol) != 0)
+        if(formatPattern.indexOf(kPatternDecimalSeparator) != -1)
         {
             parsePosition.setIndex(oldStart);
             parsePosition.setErrorIndex(position);
@@ -2815,6 +2829,9 @@ DecimalFormat::toLocalizedPattern(UnicodeString& result) const
 void
 DecimalFormat::applyPattern(const UnicodeString& pattern, UErrorCode& status)
 {
+    if (pattern.indexOf(kCurrencySign) != -1) {
+        handleCurrencySignInPattern(status);
+    }
     fImpl->applyPattern(pattern, status);
 }
 
@@ -2825,6 +2842,9 @@ DecimalFormat::applyPattern(const UnicodeString& pattern,
                             UParseError& parseError,
                             UErrorCode& status)
 {
+    if (pattern.indexOf(kCurrencySign) != -1) {
+        handleCurrencySignInPattern(status);
+    }
     fImpl->applyPattern(pattern, parseError, status);
 }
 //------------------------------------------------------------------------------
@@ -2832,6 +2852,9 @@ DecimalFormat::applyPattern(const UnicodeString& pattern,
 void
 DecimalFormat::applyLocalizedPattern(const UnicodeString& pattern, UErrorCode& status)
 {
+    if (pattern.indexOf(kCurrencySign) != -1) {
+        handleCurrencySignInPattern(status);
+    }
     fImpl->applyLocalizedPattern(pattern, status);
 }
 
@@ -2842,6 +2865,9 @@ DecimalFormat::applyLocalizedPattern(const UnicodeString& pattern,
                                      UParseError& parseError,
                                      UErrorCode& status)
 {
+    if (pattern.indexOf(kCurrencySign) != -1) {
+        handleCurrencySignInPattern(status);
+    }
     fImpl->applyLocalizedPattern(pattern, parseError, status);
 }
 

@@ -16,8 +16,12 @@ if (!is.null(args.options$help) ||
 
 plot.filename = args.options$plot;
 
-dat = read.csv(file('stdin'));
+dat = read.csv(
+  file('stdin'),
+  colClasses=c('character', 'character', 'character', 'numeric', 'numeric')
+);
 dat = data.frame(dat);
+
 dat$nameTwoLines = paste0(dat$filename, '\n', dat$configuration);
 dat$name = paste0(dat$filename, dat$configuration);
 
@@ -42,7 +46,7 @@ statistics = ddply(dat, "name", function(subdat) {
   improvement = sprintf("%.2f %%", ((new.mu - old.mu) / old.mu * 100));
 
   p.value = NA;
-  significant = 'NA';
+  confidence = 'NA';
   # Check if there is enough data to calulate the calculate the p-value
   if (length(old.rate) > 1 && length(new.rate) > 1) {
     # Perform a statistics test to see of there actually is a difference in
@@ -52,19 +56,19 @@ statistics = ddply(dat, "name", function(subdat) {
 
     # Add user friendly stars to the table. There should be at least one star
     # before you can say that there is an improvement.
-    significant = '';
+    confidence = '';
     if (p.value < 0.001) {
-      significant = '***';
+      confidence = '***';
     } else if (p.value < 0.01) {
-      significant = '**';
+      confidence = '**';
     } else if (p.value < 0.05) {
-      significant = '*';
+      confidence = '*';
     }
   }
 
   r = list(
     improvement = improvement,
-    significant = significant,
+    confidence = confidence,
     p.value = p.value
   );
   return(data.frame(r));

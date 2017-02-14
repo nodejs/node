@@ -51,7 +51,7 @@ QUOTE_SETTINGS.backtick.convert = function(str) {
     if (newQuote === oldQuote) {
         return str;
     }
-    return newQuote + str.slice(1, -1).replace(/\\(\${|\r\n?|\n|.)|["'`]|\${|(\r\n?|\n)/g, function(match, escaped, newline) {
+    return newQuote + str.slice(1, -1).replace(/\\(\${|\r\n?|\n|.)|["'`]|\${|(\r\n?|\n)/g, (match, escaped, newline) => {
         if (escaped === oldQuote || oldQuote === "`" && escaped === "${") {
             return escaped; // unescape
         }
@@ -123,12 +123,26 @@ module.exports = {
 
         /**
          * Determines if a given node is part of JSX syntax.
-         * @param {ASTNode} node The node to check.
-         * @returns {boolean} True if the node is a JSX node, false if not.
+         *
+         * This function returns `true` in the following cases:
+         *
+         * - `<div className="foo"></div>` ... If the literal is an attribute value, the parent of the literal is `JSXAttribute`.
+         * - `<div>foo</div>` ... If the literal is a text content, the parent of the literal is `JSXElement`.
+         *
+         * In particular, this function returns `false` in the following cases:
+         *
+         * - `<div className={"foo"}></div>`
+         * - `<div>{"foo"}</div>`
+         *
+         * In both cases, inside of the braces is handled as normal JavaScript.
+         * The braces are `JSXExpressionContainer` nodes.
+         *
+         * @param {ASTNode} node The Literal node to check.
+         * @returns {boolean} True if the node is a part of JSX, false if not.
          * @private
          */
-        function isJSXElement(node) {
-            return node.type.indexOf("JSX") === 0;
+        function isJSXLiteral(node) {
+            return node.parent.type === "JSXAttribute" || node.parent.type === "JSXElement";
         }
 
         /**
@@ -215,7 +229,7 @@ module.exports = {
 
                 if (settings && typeof val === "string") {
                     isValid = (quoteOption === "backtick" && isAllowedAsNonBacktick(node)) ||
-                        isJSXElement(node.parent) ||
+                        isJSXLiteral(node) ||
                         astUtils.isSurroundedBy(rawVal, settings.quote);
 
                     if (!isValid && avoidEscape) {
@@ -244,7 +258,11 @@ module.exports = {
                     return;
                 }
 
-                const shouldWarn = node.quasis.length === 1 && (node.quasis[0].value.cooked.indexOf("\n") === -1);
+                /*
+                 * A warning should be produced if the template literal only has one TemplateElement, and has no unescaped newlines.
+                 * An unescaped newline is a newline preceded by an even number of backslashes.
+                 */
+                const shouldWarn = node.quasis.length === 1 && !/(^|[^\\])(\\\\)*[\r\n\u2028\u2029]/.test(node.quasis[0].value.raw);
 
                 if (shouldWarn) {
                     context.report({
@@ -254,6 +272,15 @@ module.exports = {
                             description: settings.description,
                         },
                         fix(fixer) {
+                            if (isPartOfDirectivePrologue(node)) {
+
+                                /*
+                                 * TemplateLiterals in a directive prologue aren't actually directives, but if they're
+                                 * in the directive prologue, then fixing them might turn them into directives and change
+                                 * the behavior of the code.
+                                 */
+                                return null;
+                            }
                             return fixer.replaceText(node, settings.convert(sourceCode.getText(node)));
                         }
                     });

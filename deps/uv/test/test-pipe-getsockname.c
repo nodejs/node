@@ -231,7 +231,7 @@ TEST_IMPL(pipe_getsockname_blocking) {
   len1 = sizeof buf1;
   r = uv_pipe_getsockname(&pipe_client, buf1, &len1);
   ASSERT(r == 0);
-  ASSERT(buf1[len1 - 1] != 0);
+  ASSERT(len1 == 0);  /* It's an annonymous pipe. */
 
   r = uv_read_start((uv_stream_t*)&pipe_client, NULL, NULL);
   ASSERT(r == 0);
@@ -240,7 +240,7 @@ TEST_IMPL(pipe_getsockname_blocking) {
   len2 = sizeof buf2;
   r = uv_pipe_getsockname(&pipe_client, buf2, &len2);
   ASSERT(r == 0);
-  ASSERT(buf2[len2 - 1] != 0);
+  ASSERT(len2 == 0);  /* It's an annonymous pipe. */
 
   r = uv_read_stop((uv_stream_t*)&pipe_client);
   ASSERT(r == 0);
@@ -255,7 +255,6 @@ TEST_IMPL(pipe_getsockname_blocking) {
 
   ASSERT(pipe_close_cb_called == 1);
 
-  _close(readfd);
   CloseHandle(writeh);
 #endif
 

@@ -149,6 +149,12 @@ if (require.main === module) {
 		} catch (e) {
 			if (e.name === 'KeyEncryptedError') {
 				getPassword(function (err, pw) {
+					if (err) {
+						console.log('sshpk-conv: ' +
+						    err.name + ': ' +
+						    err.message);
+						process.exit(1);
+					}
 					parseOpts.passphrase = pw;
 					processKey();
 				});

@@ -3,7 +3,7 @@
 > Stability: 2 - Stable
 
 The `repl` module provides a Read-Eval-Print-Loop (REPL) implementation that
-is available both as a standalone program or includable in other applications.
+is available both as a standalone program or includible in other applications.
 It can be accessed using:
 
 ```js
@@ -78,15 +78,15 @@ The default evaluator supports direct evaluation of JavaScript expressions:
 ```js
 > 1 + 1
 2
-> var m = 2
+> const m = 2
 undefined
 > m + 1
 3
 ```
 
-Unless otherwise scoped within blocks (e.g. `{ ... }`) or functions, variables
-declared either implicitly or using the `var` keyword are declared at the
-`global` scope.
+Unless otherwise scoped within blocks or functions, variables declared
+either implicitly or using the `const`, `let`, or `var` keywords
+are declared at the global scope.
 
 #### Global and Local Scope
 
@@ -96,7 +96,7 @@ it to the `context` object associated with each `REPLServer`.  For example:
 
 ```js
 const repl = require('repl');
-var msg = 'message';
+const msg = 'message';
 
 repl.start('> ').context.m = msg;
 ```
@@ -115,7 +115,7 @@ To specify read-only globals, context properties must be defined using
 
 ```js
 const repl = require('repl');
-var msg = 'message';
+const msg = 'message';
 
 const r = repl.start('> ');
 Object.defineProperty(r.context, 'm', {
@@ -140,6 +140,7 @@ global or scoped variable, the input `fs` will be evaluated on-demand as
 
 The default evaluator will, by default, assign the result of the most recently
 evaluated expression to the special variable `_` (underscore).
+Explicitly setting `_` to a value will disable this behavior.
 
 ```js
 > [ 'a', 'b', 'c' ]
@@ -147,10 +148,13 @@ evaluated expression to the special variable `_` (underscore).
 > _.length
 3
 > _ += 1
+Expression assignment to _ now disabled.
+4
+> 1 + 1
+2
+> _
 4
 ```
-
-Explicitly setting `_` to a value will disable this behavior.
 
 ### Custom Evaluation Functions
 
@@ -182,8 +186,8 @@ multi-line input, the eval function can return an instance of `repl.Recoverable`
 to the provided callback function:
 
 ```js
-function eval(cmd, context, filename, callback) {
-  var result;
+function myEval(cmd, context, filename, callback) {
+  let result;
   try {
     result = vm.runInThisContext(cmd);
   } catch (e) {
@@ -217,10 +221,10 @@ following example, for instance, simply converts any input text to upper case:
 ```js
 const repl = require('repl');
 
-const r = repl.start({prompt: '>', eval: myEval, writer: myWriter});
+const r = repl.start({prompt: '> ', eval: myEval, writer: myWriter});
 
 function myEval(cmd, context, filename, callback) {
-  callback(null,cmd);
+  callback(null, cmd);
 }
 
 function myWriter(output) {
@@ -275,7 +279,7 @@ function initializeContext(context) {
   context.m = 'test';
 }
 
-var r = repl.start({prompt: '>'});
+const r = repl.start({prompt: '> '});
 initializeContext(r.context);
 
 r.on('reset', initializeContext);
@@ -286,15 +290,15 @@ reset to its initial value using the `.clear` command:
 
 ```js
 $ ./node example.js
->m
+> m
 'test'
->m = 1
+> m = 1
 1
->m
+> m
 1
->.clear
+> .clear
 Clearing context...
->m
+> m
 'test'
 >
 ```
@@ -321,17 +325,17 @@ The following example shows two new commands added to the REPL instance:
 ```js
 const repl = require('repl');
 
-var replServer = repl.start({prompt: '> '});
+const replServer = repl.start({prompt: '> '});
 replServer.defineCommand('sayhello', {
   help: 'Say hello',
-  action: function(name) {
+  action(name) {
     this.lineParser.reset();
     this.bufferedCommand = '';
     console.log(`Hello, ${name}!`);
     this.displayPrompt();
   }
 });
-replServer.defineCommand('saybye', function() {
+replServer.defineCommand('saybye', () => {
   console.log('Goodbye!');
   this.close();
 });
@@ -371,8 +375,9 @@ within the action function for commands registered using the
 added: v0.1.91
 -->
 
-* `options` {Object}
-  * `prompt` {String} The input prompt to display. Defaults to `> `.
+* `options` {Object | String}
+  * `prompt` {String} The input prompt to display. Defaults to `> `
+    (with a trailing space).
   * `input` {Readable} The Readable stream from which REPL input will be read.
     Defaults to `process.stdin`.
   * `output` {Writable} The Writable stream to which REPL output will be
@@ -413,15 +418,24 @@ added: v0.1.91
 
 The `repl.start()` method creates and starts a `repl.REPLServer` instance.
 
+If `options` is a string, then it specifies the input prompt:
+
+```js
+const repl = require('repl');
+
+// a Unix style prompt
+repl.start('$ ');
+```
+
 ## The Node.js REPL
 
 Node.js itself uses the `repl` module to provide its own interactive interface
-for executing JavaScript. This can used by executing the Node.js binary without
-passing any arguments (or by passing the `-i` argument):
+for executing JavaScript. This can be used by executing the Node.js binary
+without passing any arguments (or by passing the `-i` argument):
 
 ```js
 $ node
-> a = [1, 2, 3];
+> const a = [1, 2, 3];
 [ 1, 2, 3 ]
 > a.forEach((v) => {
 ...   console.log(v);
@@ -493,7 +507,7 @@ socket, and a TCP socket:
 ```js
 const net = require('net');
 const repl = require('repl');
-var connections = 0;
+let connections = 0;
 
 repl.start({
   prompt: 'Node.js via stdin> ',
@@ -535,10 +549,11 @@ possible to connect to a long-running Node.js process without restarting it.
 For an example of running a "full-featured" (`terminal`) REPL over
 a `net.Server` and `net.Socket` instance, see: https://gist.github.com/2209310
 
-For an example of running a REPL instance over `curl(1)`,
+For an example of running a REPL instance over [curl(1)][],
 see: https://gist.github.com/2053342
 
 [stream]: stream.html
 [`util.inspect()`]: util.html#util_util_inspect_object_options
 [`readline.Interface`]: readline.html#readline_class_interface
 [`readline.InterfaceCompleter`]: readline.html#readline_use_of_the_completer_function
+[curl(1)]: https://curl.haxx.se/docs/manpage.html

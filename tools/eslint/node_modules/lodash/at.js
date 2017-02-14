@@ -1,6 +1,5 @@
 var baseAt = require('./_baseAt'),
-    baseFlatten = require('./_baseFlatten'),
-    baseRest = require('./_baseRest');
+    flatRest = require('./_flatRest');
 
 /**
  * Creates an array of values corresponding to `paths` of `object`.
@@ -10,7 +9,7 @@ var baseAt = require('./_baseAt'),
  * @since 1.0.0
  * @category Object
  * @param {Object} object The object to iterate over.
- * @param {...(string|string[])} [paths] The property paths of elements to pick.
+ * @param {...(string|string[])} [paths] The property paths to pick.
  * @returns {Array} Returns the picked values.
  * @example
  *
@@ -19,8 +18,6 @@ var baseAt = require('./_baseAt'),
  * _.at(object, ['a[0].b.c', 'a[1]']);
  * // => [3, 4]
  */
-var at = baseRest(function(object, paths) {
-  return baseAt(object, baseFlatten(paths, 1));
-});
+var at = flatRest(baseAt);
 
 module.exports = at;

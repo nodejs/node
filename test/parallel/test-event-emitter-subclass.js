@@ -1,8 +1,8 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var EventEmitter = require('events').EventEmitter;
-var util = require('util');
+const assert = require('assert');
+const EventEmitter = require('events').EventEmitter;
+const util = require('util');
 
 util.inherits(MyEE, EventEmitter);
 
@@ -13,7 +13,7 @@ function MyEE(cb) {
   EventEmitter.call(this);
 }
 
-var myee = new MyEE(common.mustCall(function() {}));
+const myee = new MyEE(common.mustCall(function() {}));
 
 
 util.inherits(ErrorEE, EventEmitter);
@@ -38,9 +38,9 @@ function MyEE2() {
 
 MyEE2.prototype = new EventEmitter();
 
-var ee1 = new MyEE2();
-var ee2 = new MyEE2();
+const ee1 = new MyEE2();
+const ee2 = new MyEE2();
 
 ee1.on('x', function() {});
 
-assert.equal(ee2.listenerCount('x'), 0);
+assert.strictEqual(ee2.listenerCount('x'), 0);

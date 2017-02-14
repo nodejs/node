@@ -409,7 +409,7 @@ static void KeyedStoreGenerateMegamorphicHelper(
   }
   // It's irrelevant whether array is smi-only or not when writing a smi.
   __ mov(FixedArrayElementOperand(ebx, key), value);
-  __ ret(0);
+  __ ret(StoreWithVectorDescriptor::kStackArgumentsCount * kPointerSize);
 
   __ bind(&non_smi_value);
   // Escape to elements kind transition case.
@@ -428,7 +428,7 @@ static void KeyedStoreGenerateMegamorphicHelper(
   __ mov(edx, value);  // Preserve the value which is returned.
   __ RecordWriteArray(ebx, edx, key, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
-  __ ret(0);
+  __ ret(StoreWithVectorDescriptor::kStackArgumentsCount * kPointerSize);
 
   __ bind(fast_double);
   if (check_map == kCheckMap) {
@@ -457,7 +457,7 @@ static void KeyedStoreGenerateMegamorphicHelper(
     __ add(FieldOperand(receiver, JSArray::kLengthOffset),
            Immediate(Smi::FromInt(1)));
   }
-  __ ret(0);
+  __ ret(StoreWithVectorDescriptor::kStackArgumentsCount * kPointerSize);
 
   __ bind(&transition_smi_elements);
   __ mov(ebx, FieldOperand(receiver, HeapObject::kMapOffset));
@@ -504,12 +504,13 @@ static void KeyedStoreGenerateMegamorphicHelper(
 
 void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
                                        LanguageMode language_mode) {
+  typedef StoreWithVectorDescriptor Descriptor;
   // Return address is on the stack.
   Label slow, fast_object, fast_object_grow;
   Label fast_double, fast_double_grow;
   Label array, extra, check_if_double_array, maybe_name_key, miss;
-  Register receiver = StoreDescriptor::ReceiverRegister();
-  Register key = StoreDescriptor::NameRegister();
+  Register receiver = Descriptor::ReceiverRegister();
+  Register key = Descriptor::NameRegister();
   DCHECK(receiver.is(edx));
   DCHECK(key.is(ecx));
 
@@ -522,6 +523,10 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   __ test_b(FieldOperand(edi, Map::kBitFieldOffset),
             Immediate(1 << Map::kIsAccessCheckNeeded));
   __ j(not_zero, &slow);
+
+  __ LoadParameterFromStack<Descriptor>(Descriptor::ValueRegister(),
+                                        Descriptor::kValue);
+
   // Check that the key is a smi.
   __ JumpIfNotSmi(key, &maybe_name_key);
   __ CmpInstanceType(edi, JS_ARRAY_TYPE);
@@ -551,21 +556,8 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
   __ JumpIfNotUniqueNameInstanceType(ebx, &slow);
 
-
-  // The handlers in the stub cache expect a vector and slot. Since we won't
-  // change the IC from any downstream misses, a dummy vector can be used.
-  Handle<TypeFeedbackVector> dummy_vector =
-      TypeFeedbackVector::DummyVector(masm->isolate());
-  int slot = dummy_vector->GetIndex(
-      FeedbackVectorSlot(TypeFeedbackVector::kDummyKeyedStoreICSlot));
-  __ push(Immediate(Smi::FromInt(slot)));
-  __ push(Immediate(dummy_vector));
-
   masm->isolate()->store_stub_cache()->GenerateProbe(masm, receiver, key, edi,
                                                      no_reg);
-
-  __ pop(StoreWithVectorDescriptor::VectorRegister());
-  __ pop(StoreWithVectorDescriptor::SlotRegister());
 
   // Cache miss.
   __ jmp(&miss);
@@ -705,18 +697,21 @@ void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
 }
 
 static void StoreIC_PushArgs(MacroAssembler* masm) {
-  Register receiver = StoreDescriptor::ReceiverRegister();
-  Register name = StoreDescriptor::NameRegister();
-  Register value = StoreDescriptor::ValueRegister();
-  Register slot = StoreWithVectorDescriptor::SlotRegister();
-  Register vector = StoreWithVectorDescriptor::VectorRegister();
+  Register receiver = StoreWithVectorDescriptor::ReceiverRegister();
+  Register name = StoreWithVectorDescriptor::NameRegister();
 
-  __ xchg(receiver, Operand(esp, 0));
+  STATIC_ASSERT(StoreWithVectorDescriptor::kStackArgumentsCount == 3);
+  // Current stack layout:
+  // - esp[12]   -- value
+  // - esp[8]    -- slot
+  // - esp[4]    -- vector
+  // - esp[0]    -- return address
+
+  Register return_address = StoreWithVectorDescriptor::SlotRegister();
+  __ pop(return_address);
+  __ push(receiver);
   __ push(name);
-  __ push(value);
-  __ push(slot);
-  __ push(vector);
-  __ push(receiver);  // Contains the return address.
+  __ push(return_address);
 }
 
 
@@ -730,32 +725,33 @@ void StoreIC::GenerateMiss(MacroAssembler* masm) {
 
 
 void StoreIC::GenerateNormal(MacroAssembler* masm) {
+  typedef StoreWithVectorDescriptor Descriptor;
   Label restore_miss;
-  Register receiver = StoreDescriptor::ReceiverRegister();
-  Register name = StoreDescriptor::NameRegister();
-  Register value = StoreDescriptor::ValueRegister();
-  Register vector = StoreWithVectorDescriptor::VectorRegister();
-  Register slot = StoreWithVectorDescriptor::SlotRegister();
+  Register receiver = Descriptor::ReceiverRegister();
+  Register name = Descriptor::NameRegister();
+  Register value = Descriptor::ValueRegister();
+  // Since the slot and vector values are passed on the stack we can use
+  // respective registers as scratch registers.
+  Register scratch1 = Descriptor::VectorRegister();
+  Register scratch2 = Descriptor::SlotRegister();
 
-  // A lot of registers are needed for storing to slow case
-  // objects. Push and restore receiver but rely on
-  // GenerateDictionaryStore preserving the value and name.
+  __ LoadParameterFromStack<Descriptor>(value, Descriptor::kValue);
+
+  // A lot of registers are needed for storing to slow case objects.
+  // Push and restore receiver but rely on GenerateDictionaryStore preserving
+  // the value and name.
   __ push(receiver);
-  __ push(vector);
-  __ push(slot);
 
-  Register dictionary = ebx;
+  Register dictionary = receiver;
   __ mov(dictionary, FieldOperand(receiver, JSObject::kPropertiesOffset));
   GenerateDictionaryStore(masm, &restore_miss, dictionary, name, value,
-                          receiver, edi);
-  __ Drop(3);
+                          scratch1, scratch2);
+  __ Drop(1);
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->ic_store_normal_hit(), 1);
-  __ ret(0);
+  __ ret(Descriptor::kStackArgumentsCount * kPointerSize);
 
   __ bind(&restore_miss);
-  __ pop(slot);
-  __ pop(vector);
   __ pop(receiver);
   __ IncrementCounter(counters->ic_store_normal_miss(), 1);
   GenerateMiss(masm);
@@ -770,6 +766,13 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
   __ TailCallRuntime(Runtime::kKeyedStoreIC_Miss);
 }
 
+void KeyedStoreIC::GenerateSlow(MacroAssembler* masm) {
+  // Return address is on the stack.
+  StoreIC_PushArgs(masm);
+
+  // Do tail-call to runtime routine.
+  __ TailCallRuntime(Runtime::kKeyedStoreIC_Slow);
+}
 
 #undef __
 

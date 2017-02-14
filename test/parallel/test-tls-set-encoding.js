@@ -1,38 +1,41 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var fs = require('fs');
+const fs = require('fs');
 
 
-var options = {
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem')
 };
 
-var message = 'hello world\n';
+// Contains a UTF8 only character
+const messageUtf8 = 'x√ab c';
 
+// The same string above represented with ASCII
+const messageAscii = 'xb\b\u001aab c';
 
-var server = tls.Server(options, common.mustCall(function(socket) {
-  socket.end(message);
+const server = tls.Server(options, common.mustCall(function(socket) {
+  socket.end(messageUtf8);
 }));
 
 
 server.listen(0, function() {
-  var client = tls.connect({
+  const client = tls.connect({
     port: this.address().port,
     rejectUnauthorized: false
   });
 
-  var buffer = '';
+  let buffer = '';
 
-  client.setEncoding('utf8');
+  client.setEncoding('ascii');
 
   client.on('data', function(d) {
     assert.ok(typeof d === 'string');
@@ -44,10 +47,16 @@ server.listen(0, function() {
     // readyState is deprecated but we want to make
     // sure this isn't triggering an assert in lib/net.js
     // See issue #1069.
-    assert.equal('closed', client.readyState);
+    assert.strictEqual('closed', client.readyState);
 
-    assert.equal(buffer, message);
-    console.log(message);
+    // Confirming the buffer string is encoded in ASCII
+    // and thus does NOT match the UTF8 string
+    assert.notStrictEqual(buffer, messageUtf8);
+
+    // Confirming the buffer string is encoded in ASCII
+    // and thus does equal the ASCII string representation
+    assert.strictEqual(buffer, messageAscii);
+
     server.close();
   });
 });

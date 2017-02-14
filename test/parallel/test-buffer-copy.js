@@ -5,7 +5,7 @@ const assert = require('assert');
 
 const b = Buffer.allocUnsafe(1024);
 const c = Buffer.allocUnsafe(512);
-var cntr = 0;
+let cntr = 0;
 
 {
   // copy 512 bytes, from 0 to 512.

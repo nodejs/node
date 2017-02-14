@@ -1,20 +1,20 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var http = require('http');
-var N = 100;
-var responses = 0;
+const assert = require('assert');
+const http = require('http');
+const N = 100;
+let responses = 0;
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   res.end('Hello');
 });
 
 server.listen(0, function() {
   http.globalAgent.maxSockets = 1;
-  var parser;
-  for (var i = 0; i < N; ++i) {
+  let parser;
+  for (let i = 0; i < N; ++i) {
     (function makeRequest(i) {
-      var req = http.get({port: server.address().port}, function(res) {
+      const req = http.get({port: server.address().port}, function(res) {
         if (!parser) {
           parser = req.parser;
         } else {
@@ -31,5 +31,5 @@ server.listen(0, function() {
 });
 
 process.on('exit', function() {
-  assert.equal(responses, N);
+  assert.strictEqual(responses, N);
 });

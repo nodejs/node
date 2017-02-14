@@ -1,30 +1,30 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
-var fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const fs = require('fs');
 
-var emptyFile = path.join(common.fixturesDir, 'empty.txt');
+const emptyFile = path.join(common.fixturesDir, 'empty.txt');
 
-fs.open(emptyFile, 'r', function(error, fd) {
+fs.open(emptyFile, 'r', common.mustCall((error, fd) => {
   assert.ifError(error);
 
-  var read = fs.createReadStream(emptyFile, { 'fd': fd });
+  const read = fs.createReadStream(emptyFile, { 'fd': fd });
 
-  read.once('data', function() {
+  read.once('data', () => {
     throw new Error('data event should not emit');
   });
 
   read.once('end', common.mustCall(function endEvent1() {}));
-});
+}));
 
-fs.open(emptyFile, 'r', function(error, fd) {
+fs.open(emptyFile, 'r', common.mustCall((error, fd) => {
   assert.ifError(error);
 
-  var read = fs.createReadStream(emptyFile, { 'fd': fd });
+  const read = fs.createReadStream(emptyFile, { 'fd': fd });
   read.pause();
 
-  read.once('data', function() {
+  read.once('data', () => {
     throw new Error('data event should not emit');
   });
 
@@ -32,7 +32,7 @@ fs.open(emptyFile, 'r', function(error, fd) {
     throw new Error('end event should not emit');
   });
 
-  setTimeout(function() {
-    assert.equal(read.isPaused(), true);
-  }, common.platformTimeout(50));
-});
+  setTimeout(common.mustCall(() => {
+    assert.strictEqual(read.isPaused(), true);
+  }), common.platformTimeout(50));
+}));

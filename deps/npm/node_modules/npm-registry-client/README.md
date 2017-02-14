@@ -38,7 +38,7 @@ Every call to the client follows the same pattern:
 
 ### Credentials
 
-Many requests to the registry can by authenticated, and require credentials
+Many requests to the registry can be authenticated, and require credentials
 for authorization. These credentials always look the same:
 
 * `username` {String}
@@ -183,6 +183,20 @@ Publish a package to the registry.
 
 Note that this does not create the tarball from a folder.
 
+### client.sendAnonymousCLIMetrics(uri, params, cb)
+
+- `uri` {String} Base URL for the registry.
+- `params` {Object} Object containing per-request properties.
+  - `metricId` {String} A uuid unique to this dataset.
+  - `metrics` {Object} The metrics to share with the registry, with the following properties:
+    - `from` {Date} When the first data in this report was collected.
+    - `to` {Date} When the last data in this report was collected. Usually right now.
+    - `successfulInstalls` {Number} The number of successful installs in this period.
+    - `failedInstalls` {Number} The number of installs that ended in error in this period.
+- `cb` {Function}
+
+PUT a metrics object to the `/-/npm/anon-metrics/v1/` endpoint on the registry.
+
 ### client.star(uri, params, cb)
 
 * `uri` {String} The complete registry URI for the package to star.
@@ -318,3 +332,11 @@ any):
   origin (unique combination of protocol:host:port). Passed to the
   [httpAgent](https://nodejs.org/api/http.html#http_agent_maxsockets).
   Default = 50
+* `isFromCI` {Boolean} Identify to severs if this request is coming from CI (for statistics purposes).
+  Default = detected from environment– primarily this is done by looking for
+  the CI environment variable to be set to `true`.  Also accepted are the
+  existence of the `JENKINS_URL`, `bamboo.buildKey` and `TDDIUM` environment
+  variables.
+* `scope` {String} The scope of the project this command is being run for. This is the
+  top level npm module in which a command was run.
+  Default = none

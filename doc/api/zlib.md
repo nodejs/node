@@ -9,7 +9,7 @@ Deflate/Inflate. It can be accessed using:
 const zlib = require('zlib');
 ```
 
-Compressing or decompressing a stream (such as a file) can be accomplished by 
+Compressing or decompressing a stream (such as a file) can be accomplished by
 piping the source stream data through a `zlib` stream into a destination stream:
 
 ```js
@@ -46,12 +46,12 @@ zlib.unzip(buffer, (err, buffer) => {
 ## Compressing HTTP requests and responses
 
 The `zlib` module can be used to implement support for the `gzip` and `deflate`
-content-encoding mechanisms defined by 
+content-encoding mechanisms defined by
 [HTTP](https://tools.ietf.org/html/rfc7230#section-4.2).
 
 The HTTP [`Accept-Encoding`][] header is used within an http request to identify
-the compression encodings accepted by the client. The [`Content-Encoding`][] 
-header is used to identify the compression encodings actually applied to a 
+the compression encodings accepted by the client. The [`Content-Encoding`][]
+header is used to identify the compression encodings actually applied to a
 message.
 
 **Note: the examples given below are drastically simplified to show
@@ -113,7 +113,7 @@ http.createServer((request, response) => {
 }).listen(1337);
 ```
 
-By default, the `zlib` methods with throw an error when decompressing
+By default, the `zlib` methods will throw an error when decompressing
 truncated data. However, if it is known that the data is incomplete, or
 the desire is to inspect only the beginning of a compressed file, it is
 possible to suppress the default error handling by changing the flushing
@@ -230,7 +230,7 @@ not surprising. This section is taken almost directly from the
 [zlib documentation][].  See <http://zlib.net/manual.html#Constants> for more
 details.
 
-*Note*: Previously, the constants were available directly from 
+*Note*: Previously, the constants were available directly from
 `require('zlib')`, for instance `zlib.Z_NO_FLUSH`. Accessing the constants
 directly from the module is currently still possible but should be considered
 deprecated.
@@ -384,12 +384,15 @@ Only applicable to deflate algorithm.
 added: v0.7.0
 -->
 
-## zlib.constants
-
-Provides an object enumerating Zlib-related constants.
-
 Reset the compressor/decompressor to factory defaults. Only applicable to
 the inflate and deflate algorithms.
+
+## zlib.constants
+<!-- YAML
+added: v7.0.0
+-->
+
+Provides an object enumerating Zlib-related constants.
 
 ## zlib.createDeflate([options])
 <!-- YAML
@@ -444,8 +447,8 @@ Returns a new [Unzip][] object with an [options][].
 
 <!--type=misc-->
 
-All of these take a [Buffer][] or string as the first argument, an optional 
-second argument to supply options to the `zlib` classes and will call the 
+All of these take a [Buffer][] or string as the first argument, an optional
+second argument to supply options to the `zlib` classes and will call the
 supplied callback with `callback(error, result)`.
 
 Every method has a `*Sync` counterpart, which accept the same arguments, but
@@ -460,7 +463,7 @@ added: v0.6.0
 added: v0.11.12
 -->
 
-Compress a Buffer or string with Deflate.
+Compress a [Buffer][] or string with [Deflate][].
 
 ### zlib.deflateRaw(buf[, options], callback)
 <!-- YAML
@@ -471,7 +474,7 @@ added: v0.6.0
 added: v0.11.12
 -->
 
-Compress a Buffer or string with DeflateRaw.
+Compress a [Buffer][] or string with [DeflateRaw][].
 
 ### zlib.gunzip(buf[, options], callback)
 <!-- YAML
@@ -482,7 +485,7 @@ added: v0.6.0
 added: v0.11.12
 -->
 
-Decompress a Buffer or string with Gunzip.
+Decompress a [Buffer][] or string with [Gunzip][].
 
 ### zlib.gzip(buf[, options], callback)
 <!-- YAML
@@ -493,7 +496,7 @@ added: v0.6.0
 added: v0.11.12
 -->
 
-Compress a Buffer or string with Gzip.
+Compress a [Buffer][] or string with [Gzip][].
 
 ### zlib.inflate(buf[, options], callback)
 <!-- YAML
@@ -504,7 +507,7 @@ added: v0.6.0
 added: v0.11.12
 -->
 
-Decompress a Buffer or string with Inflate.
+Decompress a [Buffer][] or string with [Inflate][].
 
 ### zlib.inflateRaw(buf[, options], callback)
 <!-- YAML
@@ -515,7 +518,7 @@ added: v0.6.0
 added: v0.11.12
 -->
 
-Decompress a Buffer or string with InflateRaw.
+Decompress a [Buffer][] or string with [InflateRaw][].
 
 ### zlib.unzip(buf[, options], callback)
 <!-- YAML
@@ -526,7 +529,7 @@ added: v0.6.0
 added: v0.11.12
 -->
 
-Decompress a Buffer or string with Unzip.
+Decompress a [Buffer][] or string with [Unzip][].
 
 [`Accept-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
 [`Content-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.11

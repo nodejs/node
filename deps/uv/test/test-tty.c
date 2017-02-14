@@ -28,7 +28,7 @@
 #else /*  Unix */
 # include <fcntl.h>
 # include <unistd.h>
-# if defined(__linux__)
+# if (defined(__linux__) || defined(__GLIBC__)) && !defined(__ANDROID__)
 #  include <pty.h>
 # elif defined(__OpenBSD__) || defined(__NetBSD__) || defined(__APPLE__)
 #  include <util.h>
@@ -212,6 +212,96 @@ TEST_IMPL(tty_raw) {
   MAKE_VALGRIND_HAPPY();
   return 0;
 }
+
+TEST_IMPL(tty_empty_write) {
+  int r;
+  int ttyout_fd;
+  uv_tty_t tty_out;
+  char dummy[1];
+  uv_buf_t bufs[1];
+  uv_loop_t* loop;
+
+  /* Make sure we have an FD that refers to a tty */
+  HANDLE handle;
+
+  loop = uv_default_loop();
+
+  handle = CreateFileA("conout$",
+                       GENERIC_READ | GENERIC_WRITE,
+                       FILE_SHARE_READ | FILE_SHARE_WRITE,
+                       NULL,
+                       OPEN_EXISTING,
+                       FILE_ATTRIBUTE_NORMAL,
+                       NULL);
+  ASSERT(handle != INVALID_HANDLE_VALUE);
+  ttyout_fd = _open_osfhandle((intptr_t) handle, 0);
+
+  ASSERT(ttyout_fd >= 0);
+
+  ASSERT(UV_TTY == uv_guess_handle(ttyout_fd));
+
+  r = uv_tty_init(uv_default_loop(), &tty_out, ttyout_fd, 0);  /* Writable. */
+  ASSERT(r == 0);
+
+  bufs[0].len = 0;
+  bufs[0].base = &dummy;
+
+  r = uv_try_write((uv_stream_t*) &tty_out, bufs, 1);
+  ASSERT(r == 0);
+
+  uv_close((uv_handle_t*) &tty_out, NULL);
+
+  uv_run(loop, UV_RUN_DEFAULT);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
+
+TEST_IMPL(tty_large_write) {
+  int r;
+  int ttyout_fd;
+  uv_tty_t tty_out;
+  char dummy[10000];
+  uv_buf_t bufs[1];
+  uv_loop_t* loop;
+
+  /* Make sure we have an FD that refers to a tty */
+  HANDLE handle;
+
+  loop = uv_default_loop();
+
+  handle = CreateFileA("conout$",
+                       GENERIC_READ | GENERIC_WRITE,
+                       FILE_SHARE_READ | FILE_SHARE_WRITE,
+                       NULL,
+                       OPEN_EXISTING,
+                       FILE_ATTRIBUTE_NORMAL,
+                       NULL);
+  ASSERT(handle != INVALID_HANDLE_VALUE);
+  ttyout_fd = _open_osfhandle((intptr_t) handle, 0);
+
+  ASSERT(ttyout_fd >= 0);
+
+  ASSERT(UV_TTY == uv_guess_handle(ttyout_fd));
+
+  r = uv_tty_init(uv_default_loop(), &tty_out, ttyout_fd, 0);  /* Writable. */
+  ASSERT(r == 0);
+
+  memset(dummy, '.', sizeof(dummy) - 1);
+  dummy[sizeof(dummy) - 1] = '\n';
+
+  bufs[0] = uv_buf_init(dummy, sizeof(dummy));
+
+  r = uv_try_write((uv_stream_t*) &tty_out, bufs, 1);
+  ASSERT(r == 10000);
+
+  uv_close((uv_handle_t*) &tty_out, NULL);
+
+  uv_run(loop, UV_RUN_DEFAULT);
+
+  MAKE_VALGRIND_HAPPY();
+  return 0;
+}
 #endif
 
 
@@ -260,16 +350,24 @@ TEST_IMPL(tty_file) {
 }
 
 TEST_IMPL(tty_pty) {
-# if defined(__linux__) || defined(__OpenBSD__) || defined(__NetBSD__) || \
-    defined(__APPLE__) || defined(__FreeBSD__) || defined(__DragonFly__)
-  int master_fd, slave_fd;
+#if defined(__APPLE__)                            || \
+    defined(__DragonFly__)                        || \
+    defined(__FreeBSD__)                          || \
+    defined(__FreeBSD_kernel__)                   || \
+    (defined(__linux__) && !defined(__ANDROID__)) || \
+    defined(__NetBSD__)                           || \
+    defined(__OpenBSD__)
+  int master_fd, slave_fd, r;
   struct winsize w;
   uv_loop_t loop;
   uv_tty_t master_tty, slave_tty;
 
   ASSERT(0 == uv_loop_init(&loop));
 
-  ASSERT(0 == openpty(&master_fd, &slave_fd, NULL, NULL, &w));
+  r = openpty(&master_fd, &slave_fd, NULL, NULL, &w);
+  if (r != 0)
+    RETURN_SKIP("No pty available, skipping.");
+
   ASSERT(0 == uv_tty_init(&loop, &slave_tty, slave_fd, 0));
   ASSERT(0 == uv_tty_init(&loop, &master_tty, master_fd, 0));
   /* Check if the file descriptor was reopened. If it is,

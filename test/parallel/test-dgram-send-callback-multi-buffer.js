@@ -6,13 +6,8 @@ const dgram = require('dgram');
 
 const client = dgram.createSocket('udp4');
 
-const timer = setTimeout(function() {
-  throw new Error('Timeout');
-}, common.platformTimeout(200));
-
 const messageSent = common.mustCall(function messageSent(err, bytes) {
-  assert.equal(bytes, buf1.length + buf2.length);
-  clearTimeout(timer);
+  assert.strictEqual(bytes, buf1.length + buf2.length);
 });
 
 const buf1 = Buffer.alloc(256, 'x');

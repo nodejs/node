@@ -1,15 +1,15 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var net = require('net');
+const assert = require('assert');
+const http = require('http');
+const net = require('net');
 
 // If an HTTP server is broken and sends data after the end of the response,
 // node should ignore it and drop the connection.
 // Demos this bug: https://github.com/joyent/node/issues/680
 
-var body = 'hello world\r\n';
-var fullResponse =
+const body = 'hello world\r\n';
+const fullResponse =
     'HTTP/1.1 500 Internal Server Error\r\n' +
     'Content-Length: ' + body.length + '\r\n' +
     'Content-Type: text/plain\r\n' +
@@ -20,8 +20,8 @@ var fullResponse =
     '\r\n' +
     body;
 
-var server = net.createServer(function(socket) {
-  var postBody = '';
+const server = net.createServer(function(socket) {
+  let postBody = '';
 
   socket.setEncoding('utf8');
 
@@ -36,14 +36,14 @@ var server = net.createServer(function(socket) {
   });
 
   socket.on('error', function(err) {
-    assert.equal(err.code, 'ECONNRESET');
+    assert.strictEqual(err.code, 'ECONNRESET');
   });
 });
 
 
 server.listen(0, common.mustCall(function() {
   http.get({ port: this.address().port }, common.mustCall(function(res) {
-    var buffer = '';
+    let buffer = '';
     console.log('Got res code: ' + res.statusCode);
 
     res.setEncoding('utf8');
@@ -53,7 +53,7 @@ server.listen(0, common.mustCall(function() {
 
     res.on('end', common.mustCall(function() {
       console.log('Response ended, read ' + buffer.length + ' bytes');
-      assert.equal(body, buffer);
+      assert.strictEqual(body, buffer);
       server.close();
     }));
   }));

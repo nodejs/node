@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compilation-info.h"
 #include "test/cctest/compiler/function-tester.h"
 
 namespace v8 {
@@ -127,15 +128,6 @@ TEST(StringCharCodeAt) {
   T.CheckCall(T.Val('e'), T.Val("huge fan!"), T.Val(3));
   T.CheckCall(T.Val('f'), T.Val("\xE2\x9D\x8A fan!"), T.Val(2));
   T.CheckCall(T.nan(), T.Val("not a fan!"), T.Val(23));
-}
-
-
-TEST(StringCharFromCode) {
-  FunctionTester T("(function(a) { return %_StringCharFromCode(a); })", flags);
-
-  T.CheckCall(T.Val("a"), T.Val(97));
-  T.CheckCall(T.Val("\xE2\x9D\x8A"), T.Val(0x274A));
-  T.CheckCall(T.Val(""), T.undefined());
 }
 
 

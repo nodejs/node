@@ -4,6 +4,10 @@
 
 None yet.
 
+## v1.3.1 (2016-09-12)
+
+* #13 Incompatible with webpack
+
 ## v1.3.0 (2016-06-22)
 
 * #14 add safer version of hasOwnProperty()

@@ -18,6 +18,12 @@ namespace compiler {
 class AccessBuilder final : public AllStatic {
  public:
   // ===========================================================================
+  // Access to external values (based on external references).
+
+  // Provides access to a double field identified by an external reference.
+  static FieldAccess ForExternalDoubleValue();
+
+  // ===========================================================================
   // Access to heap object fields and elements (based on tagged pointer).
 
   // Provides access to HeapObject::map() field.
@@ -88,6 +94,9 @@ class AccessBuilder final : public AllStatic {
 
   // Provides access to JSTypedArray::length() field.
   static FieldAccess ForJSTypedArrayLength();
+
+  // Provides access to JSDate::value() field.
+  static FieldAccess ForJSDateValue();
 
   // Provides access to JSDate fields.
   static FieldAccess ForJSDateField(JSDate::FieldIndex index);
@@ -173,6 +182,12 @@ class AccessBuilder final : public AllStatic {
   // Provides access to JSGlobalObject::native_context() field.
   static FieldAccess ForJSGlobalObjectNativeContext();
 
+  // Provides access to JSStringIterator::string() field.
+  static FieldAccess ForJSStringIteratorString();
+
+  // Provides access to JSStringIterator::index() field.
+  static FieldAccess ForJSStringIteratorIndex();
+
   // Provides access to JSValue::value() field.
   static FieldAccess ForValue();
 
@@ -186,9 +201,9 @@ class AccessBuilder final : public AllStatic {
   // Provides access to Context slots.
   static FieldAccess ForContextSlot(size_t index);
 
-  // Provides access to PropertyCell::value() field.
-  static FieldAccess ForPropertyCellValue();
-  static FieldAccess ForPropertyCellValue(Type* type);
+  // Provides access to ContextExtension fields.
+  static FieldAccess ForContextExtensionScopeInfo();
+  static FieldAccess ForContextExtensionExtension();
 
   // Provides access to FixedArray elements.
   static ElementAccess ForFixedArrayElement();

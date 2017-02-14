@@ -4,12 +4,10 @@ root = true
 end_of_line = lf
 charset = utf-8
 trim_trailing_whitespace = true
+insert_final_newline = true
 
 [vcbuild.bat]
 end_of_line = crlf
-
-[*.{md,markdown}]
-trim_trailing_whitespace = false
 
 [{lib,src,test}/**.js]
 indent_style = space
@@ -37,3 +35,6 @@ indent_size = ignore
 end_of_line = ignore
 trim_trailing_whitespace = ignore
 charset = ignore
+
+[{test/fixtures,deps,tools/eslint,tools/gyp,tools/icu,tools/msvs}/**]
+insert_final_newline = false

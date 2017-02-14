@@ -24,7 +24,7 @@ cluster.schedulingPolicy = cluster.SCHED_RR;
 // pending handle queue.
 if (cluster.isMaster) {
   let isKilling = false;
-  const handles = require('internal/cluster').handles;
+  const handles = require('internal/cluster/utils').handles;
   const address = common.hasIPv6 ? '[::1]' : common.localhostIPv4;
   cluster.setupMaster({ execArgv: [`--debug=${address}:${common.PORT}`] });
   const worker = cluster.fork();

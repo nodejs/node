@@ -1,29 +1,29 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var spawn = require('child_process').spawn;
+const spawn = require('child_process').spawn;
 
-var SIZE = 1000 * 1024;
-var N = 40;
-var finished = false;
+const SIZE = 1000 * 1024;
+const N = 40;
+let finished = false;
 
 function doSpawn(i) {
-  var child = spawn('python', ['-c', 'print ' + SIZE + ' * "C"']);
-  var count = 0;
+  const child = spawn('python', ['-c', 'print ' + SIZE + ' * "C"']);
+  let count = 0;
 
   child.stdout.setEncoding('ascii');
-  child.stdout.on('data', function(chunk) {
+  child.stdout.on('data', (chunk) => {
     count += chunk.length;
   });
 
-  child.stderr.on('data', function(chunk) {
+  child.stderr.on('data', (chunk) => {
     console.log('stderr: ' + chunk);
   });
 
-  child.on('close', function() {
+  child.on('close', () => {
     // + 1 for \n or + 2 for \r\n on Windows
-    assert.equal(SIZE + (common.isWindows ? 2 : 1), count);
+    assert.strictEqual(SIZE + (common.isWindows ? 2 : 1), count);
     if (i < N) {
       doSpawn(i + 1);
     } else {
@@ -34,6 +34,6 @@ function doSpawn(i) {
 
 doSpawn(0);
 
-process.on('exit', function() {
+process.on('exit', () => {
   assert.ok(finished);
 });

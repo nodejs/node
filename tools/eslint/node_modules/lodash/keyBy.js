@@ -1,4 +1,5 @@
-var createAggregator = require('./_createAggregator');
+var baseAssignValue = require('./_baseAssignValue'),
+    createAggregator = require('./_createAggregator');
 
 /**
  * Creates an object composed of keys generated from the results of running
@@ -11,8 +12,7 @@ var createAggregator = require('./_createAggregator');
  * @since 4.0.0
  * @category Collection
  * @param {Array|Object} collection The collection to iterate over.
- * @param {Function} [iteratee=_.identity]
- *  The iteratee to transform keys.
+ * @param {Function} [iteratee=_.identity] The iteratee to transform keys.
  * @returns {Object} Returns the composed aggregate object.
  * @example
  *
@@ -30,7 +30,7 @@ var createAggregator = require('./_createAggregator');
  * // => { 'left': { 'dir': 'left', 'code': 97 }, 'right': { 'dir': 'right', 'code': 100 } }
  */
 var keyBy = createAggregator(function(result, value, key) {
-  result[key] = value;
+  baseAssignValue(result, key, value);
 });
 
 module.exports = keyBy;

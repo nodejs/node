@@ -1,6 +1,6 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 const order = [];
 let exceptionHandled = false;
@@ -49,4 +49,3 @@ process.on('uncaughtException', function() {
 process.on('exit', function() {
   assert.deepStrictEqual(['A', 'B', 'C'], order);
 });
-

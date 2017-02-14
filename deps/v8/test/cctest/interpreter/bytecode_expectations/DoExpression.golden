@@ -3,8 +3,6 @@
 #
 
 ---
-pool type: string
-execute: yes
 wrap: yes
 do expressions: yes
 
@@ -36,9 +34,9 @@ bytecode array length: 13
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   55 S> */ B(LdaSmi), U8(100),
-                B(Star), R(1),
-  /*   42 S> */ B(LdrUndefined), R(0),
-                B(Ldar), R(0),
+                B(Star), R(0),
+  /*   42 S> */ B(LdrUndefined), R(1),
+                B(Ldar), R(1),
                 B(Star), R(2),
   /*   63 S> */ B(Nop),
   /*   73 S> */ B(Return),
@@ -59,10 +57,10 @@ bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   34 E> */ B(StackCheck),
   /*   56 S> */ B(LdaSmi), U8(10),
-                B(Star), R(1),
-  /*   69 S> */ B(Inc), U8(1),
-                B(Star), R(1),
                 B(Star), R(0),
+  /*   69 S> */ B(Inc), U8(2),
+                B(Star), R(0),
+                B(Star), R(1),
   /*   74 S> */ B(Jump), U8(2),
                 B(LdaUndefined),
   /*   94 S> */ B(Return),

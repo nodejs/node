@@ -11,10 +11,18 @@ namespace v8 {
 namespace internal {
 
 RuntimeCallTimerScope::RuntimeCallTimerScope(
+    Isolate* isolate, RuntimeCallStats::CounterId counter_id) {
+  if (V8_UNLIKELY(TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED() ||
+                  FLAG_runtime_call_stats)) {
+    Initialize(isolate, counter_id);
+  }
+}
+
+RuntimeCallTimerScope::RuntimeCallTimerScope(
     HeapObject* heap_object, RuntimeCallStats::CounterId counter_id) {
-  if (V8_UNLIKELY(FLAG_runtime_call_stats)) {
-    isolate_ = heap_object->GetIsolate();
-    RuntimeCallStats::Enter(isolate_, &timer_, counter_id);
+  if (V8_UNLIKELY(TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED() ||
+                  FLAG_runtime_call_stats)) {
+    Initialize(heap_object->GetIsolate(), counter_id);
   }
 }
 

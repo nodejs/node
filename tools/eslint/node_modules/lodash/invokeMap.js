@@ -2,8 +2,7 @@ var apply = require('./_apply'),
     baseEach = require('./_baseEach'),
     baseInvoke = require('./_baseInvoke'),
     baseRest = require('./_baseRest'),
-    isArrayLike = require('./isArrayLike'),
-    isKey = require('./_isKey');
+    isArrayLike = require('./isArrayLike');
 
 /**
  * Invokes the method at `path` of each element in `collection`, returning
@@ -31,12 +30,10 @@ var apply = require('./_apply'),
 var invokeMap = baseRest(function(collection, path, args) {
   var index = -1,
       isFunc = typeof path == 'function',
-      isProp = isKey(path),
       result = isArrayLike(collection) ? Array(collection.length) : [];
 
   baseEach(collection, function(value) {
-    var func = isFunc ? path : ((isProp && value != null) ? value[path] : undefined);
-    result[++index] = func ? apply(func, value, args) : baseInvoke(value, path, args);
+    result[++index] = isFunc ? apply(path, value, args) : baseInvoke(value, path, args);
   });
   return result;
 });

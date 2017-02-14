@@ -1,15 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var stream = require('stream');
+require('../common');
+const assert = require('assert');
 
-if (!common.hasCrypto) {
-  common.skip('missing crypto');
-  return;
-}
-var crypto = require('crypto');
-
-var util = require('util');
+const stream = require('stream');
+const util = require('util');
 
 function TestWriter() {
   stream.Writable.call(this);
@@ -21,7 +15,7 @@ TestWriter.prototype._write = function(buffer, encoding, callback) {
   // super slow write stream (callback never called)
 };
 
-var dest = new TestWriter();
+const dest = new TestWriter();
 
 function TestReader(id) {
   stream.Readable.call(this);
@@ -31,11 +25,11 @@ util.inherits(TestReader, stream.Readable);
 
 TestReader.prototype._read = function(size) {
   this.reads += 1;
-  this.push(crypto.randomBytes(size));
+  this.push(Buffer.alloc(size));
 };
 
-var src1 = new TestReader();
-var src2 = new TestReader();
+const src1 = new TestReader();
+const src2 = new TestReader();
 
 src1.pipe(dest);
 
@@ -55,6 +49,6 @@ src1.once('readable', function() {
 
 
 process.on('exit', function() {
-  assert.equal(src1.reads, 2);
-  assert.equal(src2.reads, 2);
+  assert.strictEqual(src1.reads, 2);
+  assert.strictEqual(src2.reads, 2);
 });

@@ -1,12 +1,12 @@
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
-    value: true
+  value: true
 });
 
-var _trim2 = require('lodash/trim');
+var _lodash = require('lodash');
 
-var _trim3 = _interopRequireDefault(_trim2);
+var _lodash2 = _interopRequireDefault(_lodash);
 
 var _sliceAnsi = require('slice-ansi');
 
@@ -29,23 +29,20 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
  * @param {number} size
  * @returns {Array}
  */
+exports.default = (subject, size) => {
+  let subjectSlice;
 
-exports.default = function (subject, size) {
-    var chunks = undefined,
-        subjectSlice = undefined;
+  subjectSlice = subject;
 
-    subjectSlice = subject;
+  const chunks = [];
 
-    chunks = [];
+  do {
+    chunks.push((0, _sliceAnsi2.default)(subjectSlice, 0, size));
 
-    do {
-        chunks.push((0, _sliceAnsi2.default)(subjectSlice, 0, size));
+    subjectSlice = _lodash2.default.trim((0, _sliceAnsi2.default)(subjectSlice, size));
+  } while ((0, _stringWidth2.default)(subjectSlice));
 
-        subjectSlice = (0, _trim3.default)((0, _sliceAnsi2.default)(subjectSlice, size));
-    } while ((0, _stringWidth2.default)(subjectSlice));
-
-    return chunks;
+  return chunks;
 };
 
 module.exports = exports['default'];
-//# sourceMappingURL=wrapString.js.map

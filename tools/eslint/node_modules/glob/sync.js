@@ -16,6 +16,7 @@ var alphasorti = common.alphasorti
 var setopts = common.setopts
 var ownProp = common.ownProp
 var childrenIgnored = common.childrenIgnored
+var isIgnored = common.isIgnored
 
 function globSync (pattern, options) {
   if (typeof options === 'function' || arguments.length === 3)
@@ -187,7 +188,7 @@ GlobSync.prototype._processReaddir = function (prefix, read, abs, remain, index,
       if (e.charAt(0) === '/' && !this.nomount) {
         e = path.join(this.root, e)
       }
-      this.matches[index][e] = true
+      this._emitMatch(index, e)
     }
     // This was the last one, and no stats were needed
     return
@@ -209,20 +210,29 @@ GlobSync.prototype._processReaddir = function (prefix, read, abs, remain, index,
 
 
 GlobSync.prototype._emitMatch = function (index, e) {
+  if (isIgnored(this, e))
+    return
+
   var abs = this._makeAbs(e)
+
   if (this.mark)
     e = this._mark(e)
+
+  if (this.absolute) {
+    e = abs
+  }
 
   if (this.matches[index][e])
     return
 
   if (this.nodir) {
-    var c = this.cache[this._makeAbs(e)]
+    var c = this.cache[abs]
     if (c === 'DIR' || Array.isArray(c))
       return
   }
 
   this.matches[index][e] = true
+
   if (this.stat)
     this._stat(e)
 }
@@ -240,16 +250,18 @@ GlobSync.prototype._readdirInGlobStar = function (abs) {
   try {
     lstat = fs.lstatSync(abs)
   } catch (er) {
-    // lstat failed, doesn't exist
-    return null
+    if (er.code === 'ENOENT') {
+      // lstat failed, doesn't exist
+      return null
+    }
   }
 
-  var isSym = lstat.isSymbolicLink()
+  var isSym = lstat && lstat.isSymbolicLink()
   this.symlinks[abs] = isSym
 
   // If it's not a symlink or a dir, then it's definitely a regular file.
   // don't bother doing a readdir in that case.
-  if (!isSym && !lstat.isDirectory())
+  if (!isSym && lstat && !lstat.isDirectory())
     this.cache[abs] = 'FILE'
   else
     entries = this._readdir(abs, false)
@@ -399,7 +411,7 @@ GlobSync.prototype._processSimple = function (prefix, index) {
     prefix = prefix.replace(/\\/g, '/')
 
   // Mark this as a match
-  this.matches[index][prefix] = true
+  this._emitMatch(index, prefix)
 }
 
 // Returns either 'DIR', 'FILE', or false
@@ -434,10 +446,13 @@ GlobSync.prototype._stat = function (f) {
     try {
       lstat = fs.lstatSync(abs)
     } catch (er) {
-      return false
+      if (er && (er.code === 'ENOENT' || er.code === 'ENOTDIR')) {
+        this.statCache[abs] = false
+        return false
+      }
     }
 
-    if (lstat.isSymbolicLink()) {
+    if (lstat && lstat.isSymbolicLink()) {
       try {
         stat = fs.statSync(abs)
       } catch (er) {
@@ -450,10 +465,13 @@ GlobSync.prototype._stat = function (f) {
 
   this.statCache[abs] = stat
 
-  var c = stat.isDirectory() ? 'DIR' : 'FILE'
+  var c = true
+  if (stat)
+    c = stat.isDirectory() ? 'DIR' : 'FILE'
+
   this.cache[abs] = this.cache[abs] || c
 
-  if (needDir && c !== 'DIR')
+  if (needDir && c === 'FILE')
     return false
 
   return c

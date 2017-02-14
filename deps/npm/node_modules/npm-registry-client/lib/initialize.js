@@ -11,6 +11,11 @@ function initialize (uri, method, accept, headers) {
     this.config.sessionToken = crypto.randomBytes(8).toString('hex')
     this.log.verbose('request id', this.config.sessionToken)
   }
+  if (this.config.isFromCI == null) {
+    this.config.isFromCI = Boolean(
+      process.env['CI'] === 'true' || process.env['TDDIUM'] ||
+      process.env['JENKINS_URL'] || process.env['bamboo.buildKey'])
+  }
 
   var opts = {
     url: uri,
@@ -47,7 +52,11 @@ function initialize (uri, method, accept, headers) {
   if (this.refer) headers.referer = this.refer
 
   headers['npm-session'] = this.config.sessionToken
+  headers['npm-in-ci'] = String(this.config.isFromCI)
   headers['user-agent'] = this.config.userAgent
+  if (this.config.scope) {
+    headers['npm-scope'] = this.config.scope
+  }
 
   return opts
 }

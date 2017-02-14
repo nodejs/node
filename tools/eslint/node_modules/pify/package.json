@@ -16,7 +16,6 @@
   "_from": "pify@>=2.0.0 <3.0.0",
   "_id": "pify@2.3.0",
   "_inCache": true,
-  "_installable": true,
   "_location": "/pify",
   "_nodeVersion": "4.2.1",
   "_npmUser": {

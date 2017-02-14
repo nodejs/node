@@ -48,19 +48,6 @@ function Deduper (where, dryrun) {
 }
 util.inherits(Deduper, Installer)
 
-Deduper.prototype.normalizeTree = function (log, cb) {
-  validate('OF', arguments)
-  log.silly('dedupe', 'normalizeTree')
-  // If we're looking globally only look at the one package we're operating on
-  if (npm.config.get('global')) {
-    var args = this.args
-    this.currentTree.children = this.currentTree.children.filter(function (child) {
-      return args.filter(function (arg) { return arg === moduleName(child) }).length
-    })
-  }
-  Installer.prototype.normalizeTree.call(this, log, cb)
-}
-
 Deduper.prototype.loadIdealTree = function (cb) {
   validate('F', arguments)
   log.silly('install', 'loadIdealTree')

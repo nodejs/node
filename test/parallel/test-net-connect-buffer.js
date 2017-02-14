@@ -1,24 +1,24 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var net = require('net');
+const assert = require('assert');
+const net = require('net');
 
-var dataWritten = false;
-var connectHappened = false;
+let dataWritten = false;
+let connectHappened = false;
 
-var tcp = net.Server(function(s) {
+const tcp = net.Server(function(s) {
   tcp.close();
 
   console.log('tcp server connection');
 
-  var buf = '';
+  let buf = '';
   s.on('data', function(d) {
     buf += d;
   });
 
   s.on('end', function() {
     console.error('SERVER: end', buf.toString());
-    assert.equal(buf, "L'État, c'est moi");
+    assert.strictEqual(buf, "L'État, c'est moi");
     console.log('tcp socket disconnect');
     s.end();
   });
@@ -30,7 +30,7 @@ var tcp = net.Server(function(s) {
 });
 
 tcp.listen(0, function() {
-  var socket = net.Stream({ highWaterMark: 0 });
+  const socket = net.Stream({ highWaterMark: 0 });
 
   console.log('Connecting to socket ');
 
@@ -41,7 +41,7 @@ tcp.listen(0, function() {
 
   console.log('connecting = ' + socket.connecting);
 
-  assert.equal('opening', socket.readyState);
+  assert.strictEqual('opening', socket.readyState);
 
   // Make sure that anything besides a buffer or a string throws.
   [null,
@@ -65,29 +65,29 @@ tcp.listen(0, function() {
 
   // Write a string that contains a multi-byte character sequence to test that
   // `bytesWritten` is incremented with the # of bytes, not # of characters.
-  var a = "L'État, c'est ";
-  var b = 'moi';
+  const a = "L'État, c'est ";
+  const b = 'moi';
 
   // We're still connecting at this point so the datagram is first pushed onto
   // the connect queue. Make sure that it's not added to `bytesWritten` again
   // when the actual write happens.
-  var r = socket.write(a, function(er) {
+  const r = socket.write(a, function(er) {
     console.error('write cb');
     dataWritten = true;
     assert.ok(connectHappened);
     console.error('socket.bytesWritten', socket.bytesWritten);
-    //assert.equal(socket.bytesWritten, Buffer.from(a + b).length);
+    //assert.strictEqual(socket.bytesWritten, Buffer.from(a + b).length);
     console.error('data written');
   });
   console.error('socket.bytesWritten', socket.bytesWritten);
   console.error('write returned', r);
 
-  assert.equal(socket.bytesWritten, Buffer.from(a).length);
+  assert.strictEqual(socket.bytesWritten, Buffer.from(a).length);
 
-  assert.equal(false, r);
+  assert.strictEqual(false, r);
   socket.end(b);
 
-  assert.equal('opening', socket.readyState);
+  assert.strictEqual('opening', socket.readyState);
 });
 
 process.on('exit', function() {

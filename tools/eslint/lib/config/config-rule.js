@@ -23,7 +23,7 @@ const rules = require("../rules"),
  * @returns {Array[]}    An array of arrays.
  */
 function explodeArray(xs) {
-    return xs.reduce(function(accumulator, x) {
+    return xs.reduce((accumulator, x) => {
         accumulator.push([x]);
         return accumulator;
     }, []);
@@ -49,8 +49,8 @@ function combineArrays(arr1, arr2) {
     if (arr2.length === 0) {
         return explodeArray(arr1);
     }
-    arr1.forEach(function(x1) {
-        arr2.forEach(function(x2) {
+    arr1.forEach(x1 => {
+        arr2.forEach(x2 => {
             res.push([].concat(x1, x2));
         });
     });
@@ -78,16 +78,14 @@ function combineArrays(arr1, arr2) {
  * @returns {Array[]}          Array of arrays of objects grouped by property
  */
 function groupByProperty(objects) {
-    const groupedObj = objects.reduce(function(accumulator, obj) {
+    const groupedObj = objects.reduce((accumulator, obj) => {
         const prop = Object.keys(obj)[0];
 
         accumulator[prop] = accumulator[prop] ? accumulator[prop].concat(obj) : [obj];
         return accumulator;
     }, {});
 
-    return Object.keys(groupedObj).map(function(prop) {
-        return groupedObj[prop];
-    });
+    return Object.keys(groupedObj).map(prop => groupedObj[prop]);
 }
 
 
@@ -152,16 +150,16 @@ function combinePropertyObjects(objArr1, objArr2) {
     if (objArr2.length === 0) {
         return objArr1;
     }
-    objArr1.forEach(function(obj1) {
-        objArr2.forEach(function(obj2) {
+    objArr1.forEach(obj1 => {
+        objArr2.forEach(obj2 => {
             const combinedObj = {};
             const obj1Props = Object.keys(obj1);
             const obj2Props = Object.keys(obj2);
 
-            obj1Props.forEach(function(prop1) {
+            obj1Props.forEach(prop1 => {
                 combinedObj[prop1] = obj1[prop1];
             });
-            obj2Props.forEach(function(prop2) {
+            obj2Props.forEach(prop2 => {
                 combinedObj[prop2] = obj2[prop2];
             });
             res.push(combinedObj);
@@ -205,7 +203,7 @@ RuleConfigSet.prototype = {
     addErrorSeverity(severity) {
         severity = severity || 2;
 
-        this.ruleConfigs = this.ruleConfigs.map(function(config) {
+        this.ruleConfigs = this.ruleConfigs.map(config => {
             config.unshift(severity);
             return config;
         });
@@ -241,9 +239,7 @@ RuleConfigSet.prototype = {
             },
 
             combine() {
-                this.objectConfigs = groupByProperty(this.objectConfigs).reduce(function(accumulator, objArr) {
-                    return combinePropertyObjects(accumulator, objArr);
-                }, []);
+                this.objectConfigs = groupByProperty(this.objectConfigs).reduce((accumulator, objArr) => combinePropertyObjects(accumulator, objArr), []);
             }
         };
 
@@ -251,7 +247,7 @@ RuleConfigSet.prototype = {
          * The object schema could have multiple independent properties.
          * If any contain enums or booleans, they can be added and then combined
          */
-        Object.keys(obj.properties).forEach(function(prop) {
+        Object.keys(obj.properties).forEach(prop => {
             if (obj.properties[prop].enum) {
                 objectConfigSet.add(prop, obj.properties[prop].enum);
             }
@@ -276,7 +272,7 @@ function generateConfigsFromSchema(schema) {
     const configSet = new RuleConfigSet();
 
     if (Array.isArray(schema)) {
-        schema.forEach(function(opt) {
+        schema.forEach(opt => {
             if (opt.enum) {
                 configSet.addEnums(opt.enum);
             }
@@ -302,7 +298,7 @@ function generateConfigsFromSchema(schema) {
 function createCoreRuleConfigs() {
     const ruleList = loadRules();
 
-    return Object.keys(ruleList).reduce(function(accumulator, id) {
+    return Object.keys(ruleList).reduce((accumulator, id) => {
         const rule = rules.get(id);
         const schema = (typeof rule === "function") ? rule.schema : rule.meta.schema;
 

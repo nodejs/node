@@ -1,3 +1,17 @@
+### v2.7.2
+
+* Use supports-color instead of has-color (as the module has been renamed)
+
+### v2.7.1
+
+* Bug fix: Calls to show/pulse while the progress bar is disabled should still
+  update our internal representation of what would be shown should it be enabled.
+
+### v2.7.0
+
+* New feature: Add new `isEnabled` method to allow introspection of the gauge's
+  "enabledness" as controlled by `.enable()` and `.disable()`.
+
 ### v2.6.0
 
 * Bug fix: Don't run the code associated with `enable`/`disable` if the gauge

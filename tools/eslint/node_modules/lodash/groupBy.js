@@ -1,4 +1,5 @@
-var createAggregator = require('./_createAggregator');
+var baseAssignValue = require('./_baseAssignValue'),
+    createAggregator = require('./_createAggregator');
 
 /** Used for built-in method references. */
 var objectProto = Object.prototype;
@@ -18,8 +19,7 @@ var hasOwnProperty = objectProto.hasOwnProperty;
  * @since 0.1.0
  * @category Collection
  * @param {Array|Object} collection The collection to iterate over.
- * @param {Function} [iteratee=_.identity]
- *  The iteratee to transform keys.
+ * @param {Function} [iteratee=_.identity] The iteratee to transform keys.
  * @returns {Object} Returns the composed aggregate object.
  * @example
  *
@@ -34,7 +34,7 @@ var groupBy = createAggregator(function(result, value, key) {
   if (hasOwnProperty.call(result, key)) {
     result[key].push(value);
   } else {
-    result[key] = [value];
+    baseAssignValue(result, key, [value]);
   }
 });
 

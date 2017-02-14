@@ -1,11 +1,11 @@
 'use strict';
 const common = require('../common');
-var net = require('net');
+const net = require('net');
 
-var server = net.createServer(common.fail);
+const server = net.createServer(common.mustNotCall());
 
 server.on('close', common.mustCall(function() {}));
 
-server.listen(0, common.fail);
+server.listen(0, common.mustNotCall());
 
 server.close('bad argument');

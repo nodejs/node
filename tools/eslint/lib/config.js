@@ -126,7 +126,7 @@ function getLocalConfig(thisConfig, directory) {
             continue;
         }
 
-        debug("Loading " + localConfigFile);
+        debug(`Loading ${localConfigFile}`);
         const localConfig = loadConfig(localConfigFile);
 
         // Don't consider a local config file found if the config is null
@@ -140,7 +140,7 @@ function getLocalConfig(thisConfig, directory) {
         }
 
         found = true;
-        debug("Using " + localConfigFile);
+        debug(`Using ${localConfigFile}`);
         config = ConfigOps.merge(localConfig, config);
     }
 
@@ -179,155 +179,159 @@ function getLocalConfig(thisConfig, directory) {
 //------------------------------------------------------------------------------
 
 /**
- * Config
- * @constructor
- * @class Config
- * @param {Object} options Options to be passed in
+ * Configuration class
  */
-function Config(options) {
-    options = options || {};
+class Config {
 
-    this.ignore = options.ignore;
-    this.ignorePath = options.ignorePath;
-    this.cache = {};
-    this.parser = options.parser;
-    this.parserOptions = options.parserOptions || {};
-
-    this.baseConfig = options.baseConfig ? loadConfig(options.baseConfig) : { rules: {} };
-
-    this.useEslintrc = (options.useEslintrc !== false);
-
-    this.env = (options.envs || []).reduce(function(envs, name) {
-        envs[name] = true;
-        return envs;
-    }, {});
-
-    /*
-     * Handle declared globals.
-     * For global variable foo, handle "foo:false" and "foo:true" to set
-     * whether global is writable.
-     * If user declares "foo", convert to "foo:false".
+    /**
+     * Config options
+     * @param {Object} options Options to be passed in
      */
-    this.globals = (options.globals || []).reduce(function(globals, def) {
-        const parts = def.split(":");
+    constructor(options) {
+        options = options || {};
 
-        globals[parts[0]] = (parts.length > 1 && parts[1] === "true");
+        this.ignore = options.ignore;
+        this.ignorePath = options.ignorePath;
+        this.cache = {};
+        this.parser = options.parser;
+        this.parserOptions = options.parserOptions || {};
 
-        return globals;
-    }, {});
+        this.baseConfig = options.baseConfig ? loadConfig(options.baseConfig) : { rules: {} };
 
-    const useConfig = options.configFile;
+        this.useEslintrc = (options.useEslintrc !== false);
 
-    this.options = options;
+        this.env = (options.envs || []).reduce((envs, name) => {
+            envs[ name ] = true;
+            return envs;
+        }, {});
 
-    if (useConfig) {
-        debug("Using command line config " + useConfig);
-        if (isResolvable(useConfig) || isResolvable("eslint-config-" + useConfig) || useConfig.charAt(0) === "@") {
-            this.useSpecificConfig = loadConfig(useConfig);
-        } else {
-            this.useSpecificConfig = loadConfig(path.resolve(this.options.cwd, useConfig));
+        /*
+         * Handle declared globals.
+         * For global variable foo, handle "foo:false" and "foo:true" to set
+         * whether global is writable.
+         * If user declares "foo", convert to "foo:false".
+         */
+        this.globals = (options.globals || []).reduce((globals, def) => {
+            const parts = def.split(":");
+
+            globals[parts[0]] = (parts.length > 1 && parts[1] === "true");
+
+            return globals;
+        }, {});
+
+        const useConfig = options.configFile;
+
+        this.options = options;
+
+        if (useConfig) {
+            debug(`Using command line config ${useConfig}`);
+            if (isResolvable(useConfig) || isResolvable(`eslint-config-${useConfig}`) || useConfig.charAt(0) === "@") {
+                this.useSpecificConfig = loadConfig(useConfig);
+            } else {
+                this.useSpecificConfig = loadConfig(path.resolve(this.options.cwd, useConfig));
+            }
         }
     }
-}
 
-/**
- * Build a config object merging the base config (conf/eslint.json), the
- * environments config (conf/environments.js) and eventually the user config.
- * @param {string} filePath a file in whose directory we start looking for a local config
- * @returns {Object} config object
- */
-Config.prototype.getConfig = function(filePath) {
-    const directory = filePath ? path.dirname(filePath) : this.options.cwd;
-    let config,
-        userConfig;
+    /**
+     * Build a config object merging the base config (conf/eslint.json), the
+     * environments config (conf/environments.js) and eventually the user config.
+     * @param {string} filePath a file in whose directory we start looking for a local config
+     * @returns {Object} config object
+     */
+    getConfig(filePath) {
+        const directory = filePath ? path.dirname(filePath) : this.options.cwd;
+        let config,
+            userConfig;
 
-    debug("Constructing config for " + (filePath ? filePath : "text"));
+        debug(`Constructing config for ${filePath ? filePath : "text"}`);
 
-    config = this.cache[directory];
+        config = this.cache[directory];
 
-    if (config) {
-        debug("Using config from cache");
+        if (config) {
+            debug("Using config from cache");
+            return config;
+        }
+
+        // Step 1: Determine user-specified config from .eslintrc.* and package.json files
+        if (this.useEslintrc) {
+            debug("Using .eslintrc and package.json files");
+            userConfig = getLocalConfig(this, directory);
+        } else {
+            debug("Not using .eslintrc or package.json files");
+            userConfig = {};
+        }
+
+        // Step 2: Create a copy of the baseConfig
+        config = ConfigOps.merge({}, this.baseConfig);
+
+        // Step 3: Merge in the user-specified configuration from .eslintrc and package.json
+        config = ConfigOps.merge(config, userConfig);
+
+        // Step 4: Merge in command line config file
+        if (this.useSpecificConfig) {
+            debug("Merging command line config file");
+
+            config = ConfigOps.merge(config, this.useSpecificConfig);
+        }
+
+        // Step 5: Merge in command line environments
+        debug("Merging command line environment settings");
+        config = ConfigOps.merge(config, { env: this.env });
+
+        // Step 6: Merge in command line rules
+        if (this.options.rules) {
+            debug("Merging command line rules");
+            config = ConfigOps.merge(config, { rules: this.options.rules });
+        }
+
+        // Step 7: Merge in command line globals
+        config = ConfigOps.merge(config, { globals: this.globals });
+
+        // Only override parser if it is passed explicitly through the command line or if it's not
+        // defined yet (because the final object will at least have the parser key)
+        if (this.parser || !config.parser) {
+            config = ConfigOps.merge(config, {
+                parser: this.parser
+            });
+        }
+
+        if (this.parserOptions) {
+            config = ConfigOps.merge(config, {
+                parserOptions: this.parserOptions
+            });
+        }
+
+        // Step 8: Merge in command line plugins
+        if (this.options.plugins) {
+            debug("Merging command line plugins");
+            Plugins.loadAll(this.options.plugins);
+            config = ConfigOps.merge(config, { plugins: this.options.plugins });
+        }
+
+        // Step 9: Apply environments to the config if present
+        if (config.env) {
+            config = ConfigOps.applyEnvironments(config);
+        }
+
+        this.cache[directory] = config;
+
         return config;
     }
 
-    // Step 1: Determine user-specified config from .eslintrc.* and package.json files
-    if (this.useEslintrc) {
-        debug("Using .eslintrc and package.json files");
-        userConfig = getLocalConfig(this, directory);
-    } else {
-        debug("Not using .eslintrc or package.json files");
-        userConfig = {};
+    /**
+     * Find local config files from directory and parent directories.
+     * @param {string} directory The directory to start searching from.
+     * @returns {string[]} The paths of local config files found.
+     */
+    findLocalConfigFiles(directory) {
+
+        if (!this.localConfigFinder) {
+            this.localConfigFinder = new FileFinder(ConfigFile.CONFIG_FILES, this.options.cwd);
+        }
+
+        return this.localConfigFinder.findAllInDirectoryAndParents(directory);
     }
-
-    // Step 2: Create a copy of the baseConfig
-    config = ConfigOps.merge({}, this.baseConfig);
-
-    // Step 3: Merge in the user-specified configuration from .eslintrc and package.json
-    config = ConfigOps.merge(config, userConfig);
-
-    // Step 4: Merge in command line config file
-    if (this.useSpecificConfig) {
-        debug("Merging command line config file");
-
-        config = ConfigOps.merge(config, this.useSpecificConfig);
-    }
-
-    // Step 5: Merge in command line environments
-    debug("Merging command line environment settings");
-    config = ConfigOps.merge(config, { env: this.env });
-
-    // Step 6: Merge in command line rules
-    if (this.options.rules) {
-        debug("Merging command line rules");
-        config = ConfigOps.merge(config, { rules: this.options.rules });
-    }
-
-    // Step 7: Merge in command line globals
-    config = ConfigOps.merge(config, { globals: this.globals });
-
-    // Only override parser if it is passed explicitly through the command line or if it's not
-    // defined yet (because the final object will at least have the parser key)
-    if (this.parser || !config.parser) {
-        config = ConfigOps.merge(config, {
-            parser: this.parser
-        });
-    }
-
-    if (this.parserOptions) {
-        config = ConfigOps.merge(config, {
-            parserOptions: this.parserOptions
-        });
-    }
-
-    // Step 8: Merge in command line plugins
-    if (this.options.plugins) {
-        debug("Merging command line plugins");
-        Plugins.loadAll(this.options.plugins);
-        config = ConfigOps.merge(config, { plugins: this.options.plugins });
-    }
-
-    // Step 9: Apply environments to the config if present
-    if (config.env) {
-        config = ConfigOps.applyEnvironments(config);
-    }
-
-    this.cache[directory] = config;
-
-    return config;
-};
-
-/**
- * Find local config files from directory and parent directories.
- * @param {string} directory The directory to start searching from.
- * @returns {string[]} The paths of local config files found.
- */
-Config.prototype.findLocalConfigFiles = function(directory) {
-
-    if (!this.localConfigFinder) {
-        this.localConfigFinder = new FileFinder(ConfigFile.CONFIG_FILES, this.options.cwd);
-    }
-
-    return this.localConfigFinder.findAllInDirectoryAndParents(directory);
-};
+}
 
 module.exports = Config;

@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*******************************************************************************
 * Copyright (C) 2008-2016, International Business Machines Corporation and
 * others. All Rights Reserved.
@@ -24,8 +26,8 @@
 #include "cmemory.h"
 #include "cstring.h"
 #include "dtitv_impl.h"
-#include "gregoimp.h"
 #include "mutex.h"
+#include "uresimp.h"
 
 #ifdef DTITVFMT_DEBUG
 #include <iostream>
@@ -51,7 +53,9 @@ static const UChar gDateFormatSkeleton[][11] = {
 {LOW_Y, CAP_M, LOW_D, 0} };
 
 
-static const char gDateTimePatternsTag[]="DateTimePatterns";
+static const char gCalendarTag[] = "calendar";
+static const char gGregorianTag[] = "gregorian";
+static const char gDateTimePatternsTag[] = "DateTimePatterns";
 
 
 // latestFirst:
@@ -217,15 +221,9 @@ DateIntervalFormat::operator==(const Format& other) const {
         Mutex lock(&gFormatterMutex);
         if (fDateFormat != fmt->fDateFormat && (fDateFormat == NULL || fmt->fDateFormat == NULL)) {return FALSE;}
         if (fDateFormat && fmt->fDateFormat && (*fDateFormat != *fmt->fDateFormat)) {return FALSE;}
-
-        // TODO: should operator == ignore the From and ToCalendar? They hold transient values during
-        //       formatting of a DateInterval.
-        if (fFromCalendar != fmt->fFromCalendar && (fFromCalendar == NULL || fmt->fFromCalendar == NULL)) {return FALSE;}
-        if (fFromCalendar && fmt->fFromCalendar && !fFromCalendar->isEquivalentTo(*fmt->fFromCalendar)) {return FALSE;}
-
-        if (fToCalendar != fmt->fToCalendar && (fToCalendar == NULL || fmt->fToCalendar == NULL)) {return FALSE;}
-        if (fToCalendar && fmt->fToCalendar && !fToCalendar->isEquivalentTo(*fmt->fToCalendar)) {return FALSE;}
     }
+    // note: fFromCalendar and fToCalendar hold no persistent state, and therefore do not participate in operator ==.
+    //       fDateFormat has the master calendar for the DateIntervalFormat.
     if (fSkeleton != fmt->fSkeleton) {return FALSE;}
     if (fDatePattern != fmt->fDatePattern && (fDatePattern == NULL || fmt->fDatePattern == NULL)) {return FALSE;}
     if (fDatePattern && fmt->fDatePattern && (*fDatePattern != *fmt->fDatePattern)) {return FALSE;}
@@ -657,27 +655,22 @@ DateIntervalFormat::initializePattern(UErrorCode& status) {
         // with the time interval.
         // The date/time pattern ( such as {0} {1} ) is saved in
         // calendar, that is why need to get the CalendarData here.
-        CalendarData* calData = new CalendarData(locale, NULL, status);
-        if ( U_FAILURE(status) ) {
-            delete calData;
-            return;
-        }
-        if ( calData == NULL ) {
-            status = U_MEMORY_ALLOCATION_ERROR;
-             return;
-        }
+        LocalUResourceBundlePointer dateTimePatternsRes(ures_open(NULL, locale.getBaseName(), &status));
+        ures_getByKey(dateTimePatternsRes.getAlias(), gCalendarTag,
+                      dateTimePatternsRes.getAlias(), &status);
+        ures_getByKeyWithFallback(dateTimePatternsRes.getAlias(), gGregorianTag,
+                                  dateTimePatternsRes.getAlias(), &status);
+        ures_getByKeyWithFallback(dateTimePatternsRes.getAlias(), gDateTimePatternsTag,
+                                  dateTimePatternsRes.getAlias(), &status);
 
-        const UResourceBundle* dateTimePatternsRes = calData->getByKey(
-                                            gDateTimePatternsTag, status);
         int32_t dateTimeFormatLength;
         const UChar* dateTimeFormat = ures_getStringByIndex(
-                                            dateTimePatternsRes,
+                                            dateTimePatternsRes.getAlias(),
                                             (int32_t)DateFormat::kDateTime,
                                             &dateTimeFormatLength, &status);
         if ( U_SUCCESS(status) && dateTimeFormatLength >= 3 ) {
             fDateTimeFormat = new UnicodeString(dateTimeFormat, dateTimeFormatLength);
         }
-        delete calData;
     }
 
     UBool found = setSeparateDateTimePtn(normalizedDateSkeleton,
@@ -1274,11 +1267,11 @@ DateIntervalFormat::splitPatternInto2Part(const UnicodeString& intervalPattern) 
             }
             count = 0;
         }
-        if (ch == '\'') {
+        if (ch == 0x0027 /*'*/) {
             // Consecutive single quotes are a single quote literal,
             // either outside of quotes or between quotes
             if ((i+1) < intervalPattern.length() &&
-                intervalPattern.charAt(i+1) == '\'') {
+                intervalPattern.charAt(i+1) == 0x0027 /*'*/) {
                 ++i;
             } else {
                 inQuote = ! inQuote;
@@ -1478,10 +1471,10 @@ DateIntervalFormat::adjustFieldWidth(const UnicodeString& inputSkeleton,
             }
             count = 0;
         }
-        if (ch == '\'') {
+        if (ch == 0x0027 /*'*/) {
             // Consecutive single quotes are a single quote literal,
             // either outside of quotes or between quotes
-            if ((i+1) < adjustedPtn.length() && adjustedPtn.charAt(i+1) == '\'') {
+            if ((i+1) < adjustedPtn.length() && adjustedPtn.charAt(i+1) == 0x0027 /* ' */) {
                 ++i;
             } else {
                 inQuote = ! inQuote;

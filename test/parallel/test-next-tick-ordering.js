@@ -1,10 +1,10 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var i;
+const assert = require('assert');
+let i;
 
-var N = 30;
-var done = [];
+const N = 30;
+const done = [];
 
 function get_printer(timeout) {
   return function() {
@@ -26,10 +26,10 @@ console.log('Running from main.');
 
 
 process.on('exit', function() {
-  assert.equal('nextTick', done[0]);
+  assert.strictEqual('nextTick', done[0]);
   /* Disabling this test. I don't think we can ensure the order
   for (i = 0; i < N; i += 1) {
-    assert.equal(i, done[i + 1]);
+    assert.strictEqual(i, done[i + 1]);
   }
   */
 });

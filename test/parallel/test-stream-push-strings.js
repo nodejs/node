@@ -1,9 +1,9 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var Readable = require('stream').Readable;
-var util = require('util');
+const Readable = require('stream').Readable;
+const util = require('util');
 
 util.inherits(MyStream, Readable);
 function MyStream(options) {
@@ -30,17 +30,17 @@ MyStream.prototype._read = function(n) {
   }
 };
 
-var ms = new MyStream();
-var results = [];
+const ms = new MyStream();
+const results = [];
 ms.on('readable', function() {
-  var chunk;
+  let chunk;
   while (null !== (chunk = ms.read()))
     results.push(chunk + '');
 });
 
-var expect = [ 'first chunksecond to last chunk', 'last chunk' ];
+const expect = [ 'first chunksecond to last chunk', 'last chunk' ];
 process.on('exit', function() {
-  assert.equal(ms._chunks, -1);
+  assert.strictEqual(ms._chunks, -1);
   assert.deepStrictEqual(results, expect);
   console.log('ok');
 });

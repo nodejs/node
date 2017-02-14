@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *
@@ -64,7 +66,13 @@ typedef enum UTraceFunctionNumber {
     UTRACE_FUNCTION_START=0,
     UTRACE_U_INIT=UTRACE_FUNCTION_START,
     UTRACE_U_CLEANUP,
+#ifndef U_HIDE_DEPRECATED_API
+    /**
+     * One more than the highest normal collation trace location.
+     * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
+     */
     UTRACE_FUNCTION_LIMIT,
+#endif  // U_HIDE_DEPRECATED_API
 
     UTRACE_CONVERSION_START=0x1000,
     UTRACE_UCNV_OPEN=UTRACE_CONVERSION_START,
@@ -75,7 +83,13 @@ typedef enum UTraceFunctionNumber {
     UTRACE_UCNV_FLUSH_CACHE,
     UTRACE_UCNV_LOAD,
     UTRACE_UCNV_UNLOAD,
+#ifndef U_HIDE_DEPRECATED_API
+    /**
+     * One more than the highest normal collation trace location.
+     * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
+     */
     UTRACE_CONVERSION_LIMIT,
+#endif  // U_HIDE_DEPRECATED_API
 
     UTRACE_COLLATION_START=0x2000,
     UTRACE_UCOL_OPEN=UTRACE_COLLATION_START,
@@ -87,7 +101,13 @@ typedef enum UTraceFunctionNumber {
     UTRACE_UCOL_STRCOLLITER,
     UTRACE_UCOL_OPEN_FROM_SHORT_STRING,
     UTRACE_UCOL_STRCOLLUTF8, /**< @stable ICU 50 */
+#ifndef U_HIDE_DEPRECATED_API
+    /**
+     * One more than the highest normal collation trace location.
+     * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
+     */
     UTRACE_COLLATION_LIMIT
+#endif  // U_HIDE_DEPRECATED_API
 } UTraceFunctionNumber;
 
 /**

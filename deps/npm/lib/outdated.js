@@ -41,6 +41,7 @@ var isExtraneous = require('./install/is-extraneous.js')
 var recalculateMetadata = require('./install/deps.js').recalculateMetadata
 var moduleName = require('./utils/module-name.js')
 var output = require('./utils/output.js')
+var ansiTrim = require('./utils/ansi-trim')
 
 function uniqName (item) {
   return item[0].path + '|' + item[1] + '|' + item[7]
@@ -111,6 +112,7 @@ function outdated (args, silent, cb) {
         }
         output(table(outTable, tableOpts))
       }
+      process.exitCode = 1
       cb(null, list.map(function (item) { return [item[0].parent.path].concat(item.slice(1, 7)) }))
     })
   }))
@@ -146,12 +148,6 @@ function makePretty (p) {
   }
 
   return columns
-}
-
-function ansiTrim (str) {
-  var r = new RegExp('\x1b(?:\\[(?:\\d+[ABCDEFGJKSTm]|\\d+;\\d+[Hfm]|' +
-        '\\d+;\\d+;\\d+m|6n|s|u|\\?25[lh])|\\w)', 'g')
-  return str.replace(r, '')
 }
 
 function makeParseable (list) {

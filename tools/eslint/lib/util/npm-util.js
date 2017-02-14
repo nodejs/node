@@ -53,7 +53,7 @@ function installSyncSaveDev(packages) {
     if (Array.isArray(packages)) {
         packages = packages.join(" ");
     }
-    shell.exec("npm i --save-dev " + packages, {stdio: "inherit"});
+    shell.exec(`npm i --save-dev ${packages}`, { stdio: "inherit" });
 }
 
 /**
@@ -89,7 +89,7 @@ function check(packages, opt) {
     if (opt.dependencies && typeof fileJson.dependencies === "object") {
         deps = deps.concat(Object.keys(fileJson.dependencies));
     }
-    return packages.reduce(function(status, pkg) {
+    return packages.reduce((status, pkg) => {
         status[pkg] = deps.indexOf(pkg) !== -1;
         return status;
     }, {});
@@ -107,7 +107,7 @@ function check(packages, opt) {
  *                               and values are booleans indicating installation.
  */
 function checkDeps(packages, rootDir) {
-    return check(packages, {dependencies: true, startDir: rootDir});
+    return check(packages, { dependencies: true, startDir: rootDir });
 }
 
 /**
@@ -121,7 +121,7 @@ function checkDeps(packages, rootDir) {
  *                               and values are booleans indicating installation.
  */
 function checkDevDeps(packages) {
-    return check(packages, {devDependencies: true});
+    return check(packages, { devDependencies: true });
 }
 
 /**

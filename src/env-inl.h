@@ -194,6 +194,8 @@ inline Environment::Environment(IsolateData* isolate_data,
 
   RB_INIT(&cares_task_list_);
   AssignToContext(context);
+
+  destroy_ids_list_.reserve(512);
 }
 
 inline Environment::~Environment() {
@@ -204,6 +206,19 @@ inline Environment::~Environment() {
     hc->cb_(this, hc->handle_, hc->arg_);
     delete hc;
   }
+
+  while (handle_cleanup_waiting_ != 0)
+    uv_run(event_loop(), UV_RUN_ONCE);
+
+  // Closing the destroy_ids_idle_handle_ within the handle cleanup queue
+  // prevents the async wrap destroy hook from being called.
+  uv_handle_t* handle =
+    reinterpret_cast<uv_handle_t*>(&destroy_ids_idle_handle_);
+  handle->data = this;
+  handle_cleanup_waiting_ = 1;
+  uv_close(handle, [](uv_handle_t* handle) {
+    static_cast<Environment*>(handle->data)->FinishHandleCleanup(handle);
+  });
 
   while (handle_cleanup_waiting_ != 0)
     uv_run(event_loop(), UV_RUN_ONCE);
@@ -245,6 +260,15 @@ inline uv_check_t* Environment::immediate_check_handle() {
 
 inline uv_idle_t* Environment::immediate_idle_handle() {
   return &immediate_idle_handle_;
+}
+
+inline Environment* Environment::from_destroy_ids_idle_handle(
+    uv_idle_t* handle) {
+  return ContainerOf(&Environment::destroy_ids_idle_handle_, handle);
+}
+
+inline uv_idle_t* Environment::destroy_ids_idle_handle() {
+  return &destroy_ids_idle_handle_;
 }
 
 inline void Environment::RegisterHandleCleanup(uv_handle_t* handle,
@@ -301,22 +325,26 @@ inline int64_t Environment::get_async_wrap_uid() {
   return ++async_wrap_uid_;
 }
 
-inline uint32_t* Environment::heap_statistics_buffer() const {
+inline std::vector<int64_t>* Environment::destroy_ids_list() {
+  return &destroy_ids_list_;
+}
+
+inline double* Environment::heap_statistics_buffer() const {
   CHECK_NE(heap_statistics_buffer_, nullptr);
   return heap_statistics_buffer_;
 }
 
-inline void Environment::set_heap_statistics_buffer(uint32_t* pointer) {
+inline void Environment::set_heap_statistics_buffer(double* pointer) {
   CHECK_EQ(heap_statistics_buffer_, nullptr);  // Should be set only once.
   heap_statistics_buffer_ = pointer;
 }
 
-inline uint32_t* Environment::heap_space_statistics_buffer() const {
+inline double* Environment::heap_space_statistics_buffer() const {
   CHECK_NE(heap_space_statistics_buffer_, nullptr);
   return heap_space_statistics_buffer_;
 }
 
-inline void Environment::set_heap_space_statistics_buffer(uint32_t* pointer) {
+inline void Environment::set_heap_space_statistics_buffer(double* pointer) {
   CHECK_EQ(heap_space_statistics_buffer_, nullptr);  // Should be set only once.
   heap_space_statistics_buffer_ = pointer;
 }

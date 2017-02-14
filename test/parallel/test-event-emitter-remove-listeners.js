@@ -20,7 +20,7 @@ function listener2() {}
 {
   const ee = new EventEmitter();
   ee.on('hello', listener1);
-  ee.on('removeListener', common.fail);
+  ee.on('removeListener', common.mustNotCall());
   ee.removeListener('hello', listener2);
   assert.deepStrictEqual([listener1], ee.listeners('hello'));
 }
@@ -116,9 +116,23 @@ function listener2() {}
   ee.emit('hello');
 }
 
+{
+  const ee = new EventEmitter();
+
+  assert.deepStrictEqual(ee, ee.removeListener('foo', () => {}));
+}
+
 // Verify that the removed listener must be a function
 assert.throws(() => {
   const ee = new EventEmitter();
 
   ee.removeListener('foo', null);
 }, /^TypeError: "listener" argument must be a function$/);
+
+{
+  const ee = new EventEmitter();
+  const listener = () => {};
+  ee._events = undefined;
+  const e = ee.removeListener('foo', listener);
+  assert.strictEqual(e, ee);
+}

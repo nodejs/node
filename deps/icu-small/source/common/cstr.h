@@ -1,7 +1,9 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
-*   Copyright (C) 2015, International Business Machines
+*   Copyright (C) 2016, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 ******************************************************************************
@@ -19,12 +21,15 @@
 #include "charstr.h"
 
 /**
- * ICU-internal class CStr, a small helper class to facilitate passing UnicodStrings
+ * ICU-internal class CStr, a small helper class to facilitate passing UnicodeStrings
  * to functions needing (const char *) strings, such as printf().
  *
  * It is intended primarily for use in debugging or in tests. Uses platform
  * default code page conversion, which will do the best job possible,
  * but may be lossy, depending on the platform.
+ *
+ * If no other conversion is available, use invariant conversion and substitue
+ * '?' for non-invariant characters.
  *
  * Example Usage:
  *   UnicodeString s = whatever;

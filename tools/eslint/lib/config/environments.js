@@ -22,7 +22,7 @@ let environments = new Map();
  * @private
  */
 function load() {
-    Object.keys(envs).forEach(function(envName) {
+    Object.keys(envs).forEach(envName => {
         environments.set(envName, envs[envName]);
     });
 }
@@ -65,9 +65,9 @@ module.exports = {
      */
     importPlugin(plugin, pluginName) {
         if (plugin.environments) {
-            Object.keys(plugin.environments).forEach(function(envName) {
-                this.define(pluginName + "/" + envName, plugin.environments[envName]);
-            }, this);
+            Object.keys(plugin.environments).forEach(envName => {
+                this.define(`${pluginName}/${envName}`, plugin.environments[envName]);
+            });
         }
     },
 

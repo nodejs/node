@@ -3,8 +3,6 @@
 #
 
 ---
-pool type: mixed
-execute: yes
 wrap: yes
 
 ---
@@ -24,7 +22,7 @@ bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaZero),
                 B(Star), R(0),
-  /*   56 S> */ B(AddSmi), U8(1), R(0), U8(1),
+  /*   56 S> */ B(AddSmi), U8(1), R(0), U8(2),
                 B(Star), R(0),
   /*   69 S> */ B(Jump), U8(2),
   /*   97 S> */ B(Ldar), R(0),
@@ -48,9 +46,9 @@ snippet: "
   }
   return sum;
 "
-frame size: 5
+frame size: 4
 parameter count: 1
-bytecode array length: 64
+bytecode array length: 69
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   44 S> */ B(LdaZero),
@@ -58,33 +56,33 @@ bytecodes: [
   /*   71 S> */ B(LdaZero),
                 B(Star), R(1),
   /*   76 S> */ B(LdaSmi), U8(10),
-  /*   76 E> */ B(TestLessThan), R(1),
-                B(JumpIfFalse), U8(50),
+  /*   76 E> */ B(TestLessThan), R(1), U8(2),
+                B(JumpIfFalse), U8(54),
   /*   58 E> */ B(StackCheck),
   /*  106 S> */ B(LdaZero),
                 B(Star), R(2),
   /*  111 S> */ B(LdaSmi), U8(3),
-  /*  111 E> */ B(TestLessThan), R(2),
-                B(JumpIfFalse), U8(32),
+  /*  111 E> */ B(TestLessThan), R(2), U8(4),
+                B(JumpIfFalse), U8(34),
   /*   93 E> */ B(StackCheck),
   /*  129 S> */ B(Ldar), R(0),
-                B(Inc), U8(3),
+                B(Inc), U8(6),
                 B(Star), R(0),
   /*  142 S> */ B(Ldar), R(2),
-  /*  150 E> */ B(Add), R(1), U8(4),
-                B(Star), R(4),
+  /*  150 E> */ B(Add), R(1), U8(7),
+                B(Star), R(3),
                 B(LdaSmi), U8(12),
-  /*  152 E> */ B(TestEqual), R(4),
+  /*  152 E> */ B(TestEqual), R(3), U8(8),
                 B(JumpIfFalse), U8(4),
-  /*  161 S> */ B(Jump), U8(18),
+  /*  161 S> */ B(Jump), U8(20),
   /*  118 S> */ B(Ldar), R(2),
-                B(Inc), U8(2),
+                B(Inc), U8(5),
                 B(Star), R(2),
-                B(Jump), U8(-34),
+                B(JumpLoop), U8(-36), U8(1),
   /*   84 S> */ B(Ldar), R(1),
-                B(Inc), U8(1),
+                B(Inc), U8(3),
                 B(Star), R(1),
-                B(Jump), U8(-52),
+                B(JumpLoop), U8(-56), U8(0),
   /*  188 S> */ B(Ldar), R(0),
   /*  200 S> */ B(Return),
 ]
@@ -103,18 +101,18 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 32
+bytecode array length: 34
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(Ldar), R(closure),
                 B(CreateBlockContext), U8(0),
                 B(PushContext), R(2),
                 B(LdaTheHole),
-                B(StaContextSlot), R(context), U8(4),
+                B(StaContextSlot), R(context), U8(4), U8(0),
                 B(CreateClosure), U8(1), U8(2),
                 B(Star), R(0),
   /*   53 S> */ B(LdaSmi), U8(10),
-  /*   53 E> */ B(StaContextSlot), R(context), U8(4),
+  /*   53 E> */ B(StaContextSlot), R(context), U8(4), U8(0),
                 B(Mov), R(0), R(1),
                 B(Ldar), R(0),
   /*   88 S> */ B(Jump), U8(2),
@@ -123,8 +121,8 @@ bytecodes: [
   /*  103 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::FIXED_ARRAY_TYPE,
-  InstanceType::SHARED_FUNCTION_INFO_TYPE,
+  FIXED_ARRAY_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
 ]
@@ -144,60 +142,60 @@ snippet: "
 "
 frame size: 6
 parameter count: 1
-bytecode array length: 107
+bytecode array length: 116
 bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(2),
                 B(LdaTheHole),
-                B(StaContextSlot), R(context), U8(4),
+                B(StaContextSlot), R(context), U8(4), U8(0),
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), U8(1),
-  /*   42 E> */ B(StaContextSlot), R(context), U8(4),
+  /*   42 E> */ B(StaContextSlot), R(context), U8(4), U8(0),
                 B(Ldar), R(closure),
                 B(CreateBlockContext), U8(0),
                 B(PushContext), R(3),
                 B(LdaTheHole),
-                B(StaContextSlot), R(context), U8(4),
+                B(StaContextSlot), R(context), U8(4), U8(0),
                 B(CreateClosure), U8(1), U8(2),
                 B(Star), R(0),
   /*   76 S> */ B(LdaSmi), U8(2),
-  /*   76 E> */ B(StaContextSlot), R(context), U8(4),
+  /*   76 E> */ B(StaContextSlot), R(context), U8(4), U8(0),
                 B(Mov), R(0), R(1),
-  /*  118 S> */ B(LdaContextSlot), R(context), U8(4),
+  /*  118 S> */ B(LdaContextSlot), R(context), U8(4), U8(0),
                 B(JumpIfNotHole), U8(11),
                 B(LdaConstant), U8(2),
                 B(Star), R(4),
                 B(CallRuntime), U16(Runtime::kThrowReferenceError), R(4), U8(1),
                 B(JumpIfToBooleanFalse), U8(6),
   /*  125 S> */ B(PopContext), R(3),
-                B(Jump), U8(27),
+                B(Jump), U8(29),
   /*  142 S> */ B(LdaSmi), U8(3),
                 B(Star), R(4),
-  /*  144 E> */ B(LdaContextSlot), R(context), U8(4),
+  /*  144 E> */ B(LdaContextSlot), R(context), U8(4), U8(0),
                 B(JumpIfNotHole), U8(11),
                 B(LdaConstant), U8(2),
                 B(Star), R(5),
                 B(CallRuntime), U16(Runtime::kThrowReferenceError), R(5), U8(1),
                 B(Ldar), R(4),
-                B(StaContextSlot), R(context), U8(4),
+                B(StaContextSlot), R(context), U8(4), U8(0),
                 B(PopContext), R(3),
   /*  155 S> */ B(LdaSmi), U8(4),
                 B(Star), R(4),
-  /*  157 E> */ B(LdaContextSlot), R(context), U8(4),
+  /*  157 E> */ B(LdaContextSlot), R(context), U8(4), U8(0),
                 B(JumpIfNotHole), U8(11),
                 B(LdaConstant), U8(3),
                 B(Star), R(5),
                 B(CallRuntime), U16(Runtime::kThrowReferenceError), R(5), U8(1),
                 B(Ldar), R(4),
-                B(StaContextSlot), R(context), U8(4),
+                B(StaContextSlot), R(context), U8(4), U8(0),
                 B(LdaUndefined),
   /*  162 S> */ B(Return),
 ]
 constant pool: [
-  InstanceType::FIXED_ARRAY_TYPE,
-  InstanceType::SHARED_FUNCTION_INFO_TYPE,
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
-  InstanceType::ONE_BYTE_INTERNALIZED_STRING_TYPE,
+  FIXED_ARRAY_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["y"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
 ]
 handlers: [
 ]

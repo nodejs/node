@@ -50,7 +50,7 @@ module.exports = {
         const maxLength = typeof options.max !== "undefined" ? options.max : Infinity;
         const properties = options.properties !== "never";
         const exceptions = (options.exceptions ? options.exceptions : [])
-            .reduce(function(obj, item) {
+            .reduce((obj, item) => {
                 obj[item] = true;
 
                 return obj;
@@ -61,7 +61,9 @@ module.exports = {
                 return !parent.computed && (
 
                     // regular property assignment
-                    (parent.parent.left === parent || // or the last identifier in an ObjectPattern destructuring
+                    (parent.parent.left === parent && parent.parent.type === "AssignmentExpression" ||
+
+                    // or the last identifier in an ObjectPattern destructuring
                     parent.parent.type === "Property" && parent.parent.value === parent &&
                     parent.parent.parent.type === "ObjectPattern" && parent.parent.parent.parent.left === parent.parent.parent)
                 );
@@ -100,13 +102,13 @@ module.exports = {
                 const isValidExpression = SUPPORTED_EXPRESSIONS[parent.type];
 
                 if (isValidExpression && (isValidExpression === true || isValidExpression(parent, node))) {
-                    context.report(
+                    context.report({
                         node,
-                        isShort ?
+                        message: isShort ?
                             "Identifier name '{{name}}' is too short (< {{min}})." :
                             "Identifier name '{{name}}' is too long (> {{max}}).",
-                        { name, min: minLength, max: maxLength }
-                    );
+                        data: { name, min: minLength, max: maxLength }
+                    });
                 }
             }
         };

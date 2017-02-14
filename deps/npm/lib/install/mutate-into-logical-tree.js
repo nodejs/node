@@ -38,7 +38,7 @@ var mutateIntoLogicalTree = module.exports = function (tree) {
 
   Object.keys(flat).sort().forEach(function (flatname) {
     var node = flat[flatname]
-    if (!node.requiredBy.length) return
+    if (!(node.requiredBy && node.requiredBy.length)) return
 
     if (node.parent) {
       // If a node is a cycle that never reaches the root of the logical

@@ -20,10 +20,10 @@ else
 
 
 function master() {
-  var received = 0;
+  let received = 0;
 
   // Start listening on a socket.
-  var socket = dgram.createSocket('udp4');
+  const socket = dgram.createSocket('udp4');
   socket.bind(common.PORT);
 
   // Disconnect workers when the expected number of messages have been
@@ -42,7 +42,7 @@ function master() {
   }, NUM_WORKERS * PACKETS_PER_WORKER));
 
   // Fork workers.
-  for (var i = 0; i < NUM_WORKERS; i++)
+  for (let i = 0; i < NUM_WORKERS; i++)
     cluster.fork();
 }
 
@@ -57,6 +57,13 @@ function worker() {
   // send(), explicitly bind them to an ephemeral port.
   socket.bind(0);
 
-  for (var i = 0; i < PACKETS_PER_WORKER; i++)
+  // There is no guarantee that a sent dgram packet will be received so keep
+  // sending until disconnect.
+  const interval = setInterval(() => {
     socket.send(buf, 0, buf.length, common.PORT, '127.0.0.1');
+  }, 1);
+
+  cluster.worker.on('disconnect', () => {
+    clearInterval(interval);
+  });
 }

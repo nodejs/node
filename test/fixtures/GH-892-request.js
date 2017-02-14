@@ -1,8 +1,8 @@
 // Called by test/pummel/test-regress-GH-892.js
 
-var https = require('https');
-var fs = require('fs');
-var assert = require('assert');
+const https = require('https');
+const fs = require('fs');
+const assert = require('assert');
 
 var PORT = parseInt(process.argv[2]);
 var bytesExpected = parseInt(process.argv[3]);
@@ -16,7 +16,7 @@ var options = {
 };
 
 var req = https.request(options, function(res) {
-  assert.equal(200, res.statusCode);
+  assert.strictEqual(200, res.statusCode);
   gotResponse = true;
   console.error('DONE');
   res.resume();

@@ -42,23 +42,25 @@ function regRequest (uri, params, cb_) {
     return cb(new Error('trying to change user document without writing(?!)'))
   }
 
-  // new users can *not* use auth, because they don't *have* auth yet
-  if (isUserChange) {
-    this.log.verbose('request', 'updating existing user; sending authorization')
-    params.authed = true
-  } else if (isNewUser) {
-    this.log.verbose('request', "new user, so can't send auth")
-    params.authed = false
-  } else if (alwaysAuth) {
-    this.log.verbose('request', 'always-auth set; sending authorization')
-    params.authed = true
-  } else if (isWrite) {
-    this.log.verbose('request', 'sending authorization for write operation')
-    params.authed = true
-  } else {
-    // most of the time we don't want to auth
-    this.log.verbose('request', 'no auth needed')
-    params.authed = false
+  if (params.authed == null) {
+    // new users can *not* use auth, because they don't *have* auth yet
+    if (isUserChange) {
+      this.log.verbose('request', 'updating existing user; sending authorization')
+      params.authed = true
+    } else if (isNewUser) {
+      this.log.verbose('request', "new user, so can't send auth")
+      params.authed = false
+    } else if (alwaysAuth) {
+      this.log.verbose('request', 'always-auth set; sending authorization')
+      params.authed = true
+    } else if (isWrite) {
+      this.log.verbose('request', 'sending authorization for write operation')
+      params.authed = true
+    } else {
+      // most of the time we don't want to auth
+      this.log.verbose('request', 'no auth needed')
+      params.authed = false
+    }
   }
 
   var self = this

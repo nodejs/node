@@ -13,7 +13,6 @@
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"
-#include "src/compiler.h"
 #include "src/deoptimizer.h"
 #include "src/globals.h"
 #include "src/objects.h"
@@ -22,39 +21,24 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
+class CompilationInfo;
+class CompilationJob;
 class JumpPatchSite;
+class Scope;
 
 // -----------------------------------------------------------------------------
 // Full code generator.
 
 class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
  public:
-  FullCodeGenerator(MacroAssembler* masm, CompilationInfo* info)
-      : masm_(masm),
-        info_(info),
-        isolate_(info->isolate()),
-        zone_(info->zone()),
-        scope_(info->scope()),
-        nesting_stack_(NULL),
-        loop_depth_(0),
-        operand_stack_depth_(0),
-        globals_(NULL),
-        context_(NULL),
-        bailout_entries_(info->HasDeoptimizationSupport()
-                             ? info->literal()->ast_node_count()
-                             : 0,
-                         info->zone()),
-        back_edges_(2, info->zone()),
-        handler_table_(info->zone()),
-        source_position_table_builder_(info->zone(),
-                                       info->SourcePositionRecordingMode()),
-        ic_total_count_(0) {
-    DCHECK(!info->IsStub());
-    Initialize();
-  }
+  FullCodeGenerator(MacroAssembler* masm, CompilationInfo* info,
+                    uintptr_t stack_limit);
 
-  void Initialize();
+  void Initialize(uintptr_t stack_limit);
 
+  static CompilationJob* NewCompilationJob(CompilationInfo* info);
+
+  static bool MakeCode(CompilationInfo* info, uintptr_t stack_limit);
   static bool MakeCode(CompilationInfo* info);
 
   // Encode bailout state and pc-offset as a BitField<type, start, size>.
@@ -493,7 +477,6 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   F(IsJSProxy)                          \
   F(Call)                               \
   F(NewObject)                          \
-  F(StringCharFromCode)                 \
   F(IsJSReceiver)                       \
   F(HasCachedArrayIndex)                \
   F(GetCachedArrayIndex)                \
@@ -572,7 +555,7 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   void EmitClassDefineProperties(ClassLiteral* lit);
 
   // Pushes the property key as a Name on the stack.
-  void EmitPropertyKey(ObjectLiteralProperty* property, BailoutId bailout_id);
+  void EmitPropertyKey(LiteralProperty* property, BailoutId bailout_id);
 
   // Apply the compound assignment operator. Expects the left operand on top
   // of the stack and the right one in the accumulator.
@@ -629,16 +612,19 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   void EmitSetHomeObjectAccumulator(Expression* initializer, int offset,
                                     FeedbackVectorSlot slot);
 
-  void EmitLoadStoreICSlot(FeedbackVectorSlot slot);
+  // Platform-specific code for loading a slot to a register.
+  void EmitLoadSlot(Register destination, FeedbackVectorSlot slot);
+  // Platform-specific code for pushing a slot to the stack.
+  void EmitPushSlot(FeedbackVectorSlot slot);
 
   void CallIC(Handle<Code> code,
               TypeFeedbackId id = TypeFeedbackId::None());
 
-  void CallLoadIC(TypeFeedbackId id = TypeFeedbackId::None());
-  // Inside typeof reference errors are never thrown.
-  void CallLoadGlobalIC(TypeofMode typeof_mode,
-                        TypeFeedbackId id = TypeFeedbackId::None());
-  void CallStoreIC(TypeFeedbackId id = TypeFeedbackId::None());
+  void CallLoadIC(FeedbackVectorSlot slot, Handle<Object> name,
+                  TypeFeedbackId id = TypeFeedbackId::None());
+  void CallStoreIC(FeedbackVectorSlot slot, Handle<Object> name,
+                   TypeFeedbackId id = TypeFeedbackId::None());
+  void CallKeyedStoreIC(FeedbackVectorSlot slot);
 
   void SetFunctionPosition(FunctionLiteral* fun);
   void SetReturnPosition(FunctionLiteral* fun);
@@ -695,10 +681,10 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
 
   Isolate* isolate() const { return isolate_; }
   Zone* zone() const { return zone_; }
-  Handle<Script> script() { return info_->script(); }
-  LanguageMode language_mode() { return scope()->language_mode(); }
-  bool has_simple_parameters() { return info_->has_simple_parameters(); }
-  FunctionLiteral* literal() const { return info_->literal(); }
+  Handle<Script> script();
+  LanguageMode language_mode();
+  bool has_simple_parameters();
+  FunctionLiteral* literal() const;
   Scope* scope() { return scope_; }
 
   static Register context_register();

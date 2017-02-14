@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const net = require('net');
 
 if (common.isWindows) {
   common.skip('This test is disabled on windows.');
@@ -13,7 +13,7 @@ switch (process.argv[2]) {
   case 'child': return child();
 }
 
-var ok;
+let ok;
 
 process.on('exit', function() {
   assert.ok(ok);
@@ -31,15 +31,15 @@ test(function(child, port) {
     port: port,
     path: '/',
   }).on('response', function(res) {
-    var s = '';
+    let s = '';
     res.on('data', function(c) {
       s += c.toString();
     });
     res.on('end', function() {
       child.kill();
       child.on('exit', function() {
-        assert.equal(s, 'hello from child\n');
-        assert.equal(res.statusCode, 200);
+        assert.strictEqual(s, 'hello from child\n');
+        assert.strictEqual(res.statusCode, 200);
         console.log('ok');
         ok = true;
       });
@@ -67,15 +67,15 @@ function child() {
 }
 
 function test(cb) {
-  var server = net.createServer(function(conn) {
+  const server = net.createServer(function(conn) {
     console.error('connection on parent');
     conn.end('hello from parent\n');
   }).listen(0, function() {
     const port = this.address().port;
     console.error('server listening on %d', port);
 
-    var spawn = require('child_process').spawn;
-    var child = spawn(process.execPath, [__filename, 'child'], {
+    const spawn = require('child_process').spawn;
+    const child = spawn(process.execPath, [__filename, 'child'], {
       stdio: [ 0, 1, 2, server._handle, 'ipc' ]
     });
 

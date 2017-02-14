@@ -64,11 +64,26 @@ function doesChildVersionMatch (child, requested, requestor) {
   if (requested.spec === '*') return true
 
   var childReq = child.package._requested
+  if (!childReq) childReq = npa(moduleName(child) + '@' + child.package._from)
   if (childReq) {
     if (childReq.rawSpec === requested.rawSpec) return true
     if (childReq.type === requested.type && childReq.spec === requested.spec) return true
   }
-  if (!registryTypes[requested.type]) return requested.rawSpec === child.package._from
+  // If _requested didn't exist OR if it didn't match then we'll try using
+  // _from. We pass it through npa to normalize the specifier.
+  // This can happen when installing from an `npm-shrinkwrap.json` where `_requested` will
+  // be the tarball URL from `resolved` and thus can't match what's in the `package.json`.
+  // In those cases _from, will be preserved and we can compare that to ensure that they
+  // really came from the same sources.
+  // You'll see this scenario happen with at least tags and git dependencies.
+  if (!registryTypes[requested.type]) {
+    if (child.package._from) {
+      var fromReq = npa(child.package._from)
+      if (fromReq.rawSpec === requested.rawSpec) return true
+      if (fromReq.type === requested.type && fromReq.spec === requested.spec) return true
+    }
+    return false
+  }
   return semver.satisfies(child.package.version, requested.spec)
 }
 
@@ -173,9 +188,13 @@ function addRequiredDep (tree, child, cb) {
 }
 
 exports.removeObsoleteDep = removeObsoleteDep
-function removeObsoleteDep (child) {
+function removeObsoleteDep (child, log) {
   if (child.removed) return
   child.removed = true
+  if (log) {
+    log.silly('removeObsoleteDep', 'removing ' + packageId(child) +
+      ' from the tree as its been replaced by a newer version or is no longer required')
+  }
   // remove from physical tree
   if (child.parent) {
     child.parent.children = child.parent.children.filter(function (pchild) { return pchild !== child })
@@ -184,7 +203,7 @@ function removeObsoleteDep (child) {
   var requires = child.requires || []
   requires.forEach(function (requirement) {
     requirement.requiredBy = requirement.requiredBy.filter(function (reqBy) { return reqBy !== child })
-    if (requirement.requiredBy.length === 0) removeObsoleteDep(requirement)
+    if (requirement.requiredBy.length === 0) removeObsoleteDep(requirement, log)
   })
 }
 
@@ -311,14 +330,16 @@ function andForEachChild (load, next) {
   }
 }
 
-function isDepOptional (tree, name) {
+function isDepOptional (tree, name, pkg) {
+  if (pkg.package && pkg.package._optional) return true
   if (!tree.package.optionalDependencies) return false
   if (tree.package.optionalDependencies[name] != null) return true
   return false
 }
 
 var failedDependency = exports.failedDependency = function (tree, name_pkg) {
-  var name, pkg
+  var name
+  var pkg = {}
   if (typeof name_pkg === 'string') {
     name = name_pkg
   } else {
@@ -327,7 +348,7 @@ var failedDependency = exports.failedDependency = function (tree, name_pkg) {
   }
   tree.children = tree.children.filter(noModuleNameMatches(name))
 
-  if (isDepOptional(tree, name)) {
+  if (isDepOptional(tree, name, pkg)) {
     return false
   }
 
@@ -389,6 +410,11 @@ function loadDeps (tree, log, next) {
 exports.loadDevDeps = function (tree, log, next) {
   validate('OOF', arguments)
   if (!tree.package.devDependencies) return andFinishTracker.now(log, next)
+  // if any of our prexisting children are from a shrinkwrap then we skip
+  // loading dev deps as the shrinkwrap will already have provided them for us.
+  if (tree.children.some(function (child) { return child.shrinkwrapDev })) {
+    return andFinishTracker.now(log, next)
+  }
   asyncMap(Object.keys(tree.package.devDependencies), function (dep, done) {
     // things defined as both dev dependencies and regular dependencies are treated
     // as the former
@@ -399,7 +425,7 @@ exports.loadDevDeps = function (tree, log, next) {
   }, andForEachChild(loadDeps, andFinishTracker(log, next)))
 }
 
-exports.loadExtraneous = function loadExtraneous (tree, log, next) {
+var loadExtraneous = exports.loadExtraneous = function (tree, log, next) {
   var seen = {}
   function loadExtraneous (tree, log, next) {
     validate('OOF', arguments)
@@ -414,6 +440,9 @@ exports.loadExtraneous = function loadExtraneous (tree, log, next) {
 
 exports.loadExtraneous.andResolveDeps = function (tree, log, next) {
   validate('OOF', arguments)
+  // For canonicalized trees (eg from shrinkwrap) we don't want to bother
+  // resolving the dependencies of extraneous deps.
+  if (tree.loaded) return loadExtraneous(tree, log, next)
   asyncMap(tree.children.filter(function (child) { return !child.loaded }), function (child, done) {
     resolveWithExistingModule(child, tree, log, done)
   }, andForEachChild(loadDeps, andFinishTracker(log, next)))
@@ -597,13 +626,13 @@ var earliestInstallable = exports.earliestInstallable = function (requiredBy, tr
 
   // If any of the children of this tree have conflicting
   // binaries then we need to decline to install this package here.
-  var binaryMatches = typeof pkg.bin === 'object' && tree.children.some(function (child) {
-    if (child.removed) return false
-    if (typeof child.package.bin !== 'object') return false
+  var binaryMatches = pkg.bin && tree.children.some(function (child) {
+    if (child.removed || !child.package.bin) return false
     return Object.keys(child.package.bin).some(function (bin) {
       return pkg.bin[bin]
     })
   })
+
   if (binaryMatches) return null
 
   // if this tree location requested the same module then we KNOW it
@@ -612,6 +641,14 @@ var earliestInstallable = exports.earliestInstallable = function (requiredBy, tr
   var deps = tree.package.dependencies || {}
   if (!tree.removed && requiredBy !== tree && deps[pkg.name]) {
     return null
+  }
+
+  var devDeps = tree.package.devDependencies || {}
+  if (tree.isTop && devDeps[pkg.name]) {
+    var requested = npa(pkg.name + '@' + devDeps[pkg.name])
+    if (!doesChildVersionMatch({package: pkg}, requested, tree)) {
+      return null
+    }
   }
 
   if (tree.phantomChildren && tree.phantomChildren[pkg.name]) return null

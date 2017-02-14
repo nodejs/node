@@ -19,12 +19,12 @@ Reduction RedundancyElimination::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kCheckBounds:
     case IrOpcode::kCheckFloat64Hole:
+    case IrOpcode::kCheckHeapObject:
     case IrOpcode::kCheckIf:
     case IrOpcode::kCheckNumber:
+    case IrOpcode::kCheckSmi:
     case IrOpcode::kCheckString:
     case IrOpcode::kCheckTaggedHole:
-    case IrOpcode::kCheckTaggedPointer:
-    case IrOpcode::kCheckTaggedSigned:
     case IrOpcode::kCheckedFloat64ToInt32:
     case IrOpcode::kCheckedInt32Add:
     case IrOpcode::kCheckedInt32Sub:

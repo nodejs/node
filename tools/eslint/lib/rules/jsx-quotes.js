@@ -48,7 +48,7 @@ module.exports = {
 
         schema: [
             {
-                enum: [ "prefer-single", "prefer-double" ]
+                enum: ["prefer-single", "prefer-double"]
             }
         ]
     },

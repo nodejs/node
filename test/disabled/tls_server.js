@@ -1,11 +1,11 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var util = require('util');
-var net = require('net');
-var fs = require('fs');
-var crypto = require('crypto');
+const util = require('util');
+const net = require('net');
+const fs = require('fs');
+const crypto = require('crypto');
 
 var keyPem = fs.readFileSync(common.fixturesDir + '/cert.pem');
 var certPem = fs.readFileSync(common.fixturesDir + '/cert.pem');

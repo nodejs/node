@@ -30,12 +30,14 @@
 RB_HEAD(uv_signal_tree_s, uv_signal_s);
 
 static struct uv_signal_tree_s uv__signal_tree = RB_INITIALIZER(uv__signal_tree);
-static ssize_t volatile uv__signal_control_handler_refs = 0;
 static CRITICAL_SECTION uv__signal_lock;
 
+static BOOL WINAPI uv__signal_control_handler(DWORD type);
 
 void uv_signals_init() {
   InitializeCriticalSection(&uv__signal_lock);
+  if (!SetConsoleCtrlHandler(uv__signal_control_handler, TRUE))
+    abort();
 }
 
 
@@ -125,102 +127,6 @@ static BOOL WINAPI uv__signal_control_handler(DWORD type) {
 }
 
 
-static int uv__signal_register_control_handler() {
-  /* When this function is called, the uv__signal_lock must be held. */
-
-  /* If the console control handler has already been hooked, just add a */
-  /* reference. */
-  if (uv__signal_control_handler_refs > 0) {
-    uv__signal_control_handler_refs++;
-    return 0;
-  }
-
-  if (!SetConsoleCtrlHandler(uv__signal_control_handler, TRUE))
-    return GetLastError();
-
-  uv__signal_control_handler_refs++;
-
-  return 0;
-}
-
-
-static void uv__signal_unregister_control_handler() {
-  /* When this function is called, the uv__signal_lock must be held. */
-  BOOL r;
-
-  /* Don't unregister if the number of console control handlers exceeds one. */
-  /* Just remove a reference in that case. */
-  if (uv__signal_control_handler_refs > 1) {
-    uv__signal_control_handler_refs--;
-    return;
-  }
-
-  assert(uv__signal_control_handler_refs == 1);
-
-  r = SetConsoleCtrlHandler(uv__signal_control_handler, FALSE);
-  /* This should never fail; if it does it is probably a bug in libuv. */
-  assert(r);
-
-  uv__signal_control_handler_refs--;
-}
-
-
-static int uv__signal_register(int signum) {
-  switch (signum) {
-    case SIGINT:
-    case SIGBREAK:
-    case SIGHUP:
-      return uv__signal_register_control_handler();
-
-    case SIGWINCH:
-      /* SIGWINCH is generated in tty.c. No need to register anything. */
-      return 0;
-
-    case SIGILL:
-    case SIGABRT_COMPAT:
-    case SIGFPE:
-    case SIGSEGV:
-    case SIGTERM:
-    case SIGABRT:
-      /* Signal is never raised. */
-      return 0;
-
-    default:
-      /* Invalid signal. */
-      return ERROR_INVALID_PARAMETER;
-  }
-}
-
-
-static void uv__signal_unregister(int signum) {
-  switch (signum) {
-    case SIGINT:
-    case SIGBREAK:
-    case SIGHUP:
-      uv__signal_unregister_control_handler();
-      return;
-
-    case SIGWINCH:
-      /* SIGWINCH is generated in tty.c. No need to unregister anything. */
-      return;
-
-    case SIGILL:
-    case SIGABRT_COMPAT:
-    case SIGFPE:
-    case SIGSEGV:
-    case SIGTERM:
-    case SIGABRT:
-      /* Nothing is registered for this signal. */
-      return;
-
-    default:
-      /* Libuv bug. */
-      assert(0 && "Invalid signum");
-      return;
-  }
-}
-
-
 int uv_signal_init(uv_loop_t* loop, uv_signal_t* handle) {
   uv_req_t* req;
 
@@ -247,8 +153,6 @@ int uv_signal_stop(uv_signal_t* handle) {
 
   EnterCriticalSection(&uv__signal_lock);
 
-  uv__signal_unregister(handle->signum);
-
   removed_handle = RB_REMOVE(uv_signal_tree_s, &uv__signal_tree, handle);
   assert(removed_handle == handle);
 
@@ -262,14 +166,9 @@ int uv_signal_stop(uv_signal_t* handle) {
 
 
 int uv_signal_start(uv_signal_t* handle, uv_signal_cb signal_cb, int signum) {
-  int err;
-
-  /* If the user supplies signum == 0, then return an error already. If the */
-  /* signum is otherwise invalid then uv__signal_register will find out */
-  /* eventually. */
-  if (signum == 0) {
+  /* Test for invalid signal values. */
+  if (signum != SIGWINCH && (signum <= 0 || signum >= NSIG))
     return UV_EINVAL;
-  }
 
   /* Short circuit: if the signal watcher is already watching {signum} don't */
   /* go through the process of deregistering and registering the handler. */
@@ -288,13 +187,6 @@ int uv_signal_start(uv_signal_t* handle, uv_signal_cb signal_cb, int signum) {
   }
 
   EnterCriticalSection(&uv__signal_lock);
-
-  err = uv__signal_register(signum);
-  if (err) {
-    /* Uh-oh, didn't work. */
-    LeaveCriticalSection(&uv__signal_lock);
-    return uv_translate_sys_error(err);
-  }
 
   handle->signum = signum;
   RB_INSERT(uv_signal_tree_s, &uv__signal_tree, handle);

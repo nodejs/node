@@ -1,10 +1,11 @@
-var getTag = require('./_getTag'),
+var baseKeys = require('./_baseKeys'),
+    getTag = require('./_getTag'),
     isArguments = require('./isArguments'),
     isArray = require('./isArray'),
     isArrayLike = require('./isArrayLike'),
     isBuffer = require('./isBuffer'),
     isPrototype = require('./_isPrototype'),
-    nativeKeys = require('./_nativeKeys');
+    isTypedArray = require('./isTypedArray');
 
 /** `Object#toString` result references. */
 var mapTag = '[object Map]',
@@ -15,12 +16,6 @@ var objectProto = Object.prototype;
 
 /** Used to check objects for own properties. */
 var hasOwnProperty = objectProto.hasOwnProperty;
-
-/** Built-in value references. */
-var propertyIsEnumerable = objectProto.propertyIsEnumerable;
-
-/** Detect if properties shadowing those on `Object.prototype` are non-enumerable. */
-var nonEnumShadows = !propertyIsEnumerable.call({ 'valueOf': 1 }, 'valueOf');
 
 /**
  * Checks if `value` is an empty object, collection, map, or set.
@@ -56,17 +51,20 @@ var nonEnumShadows = !propertyIsEnumerable.call({ 'valueOf': 1 }, 'valueOf');
  * // => false
  */
 function isEmpty(value) {
+  if (value == null) {
+    return true;
+  }
   if (isArrayLike(value) &&
-      (isArray(value) || typeof value == 'string' ||
-        typeof value.splice == 'function' || isBuffer(value) || isArguments(value))) {
+      (isArray(value) || typeof value == 'string' || typeof value.splice == 'function' ||
+        isBuffer(value) || isTypedArray(value) || isArguments(value))) {
     return !value.length;
   }
   var tag = getTag(value);
   if (tag == mapTag || tag == setTag) {
     return !value.size;
   }
-  if (nonEnumShadows || isPrototype(value)) {
-    return !nativeKeys(value).length;
+  if (isPrototype(value)) {
+    return !baseKeys(value).length;
   }
   for (var key in value) {
     if (hasOwnProperty.call(value, key)) {

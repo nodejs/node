@@ -1,13 +1,13 @@
 'use strict';
-var common = require('../common');
-var net = require('net');
-var assert = require('assert');
-var fp = '/tmp/fadagagsdfgsdf';
-var c = net.connect(fp);
+const common = require('../common');
+const net = require('net');
+const assert = require('assert');
+const fp = '/tmp/fadagagsdfgsdf';
+const c = net.connect(fp);
 
-c.on('connect', common.fail);
+c.on('connect', common.mustNotCall());
 
 c.on('error', common.mustCall(function(e) {
-  assert.equal(e.code, 'ENOENT');
-  assert.equal(e.message, 'connect ENOENT ' + fp);
+  assert.strictEqual(e.code, 'ENOENT');
+  assert.strictEqual(e.message, 'connect ENOENT ' + fp);
 }));

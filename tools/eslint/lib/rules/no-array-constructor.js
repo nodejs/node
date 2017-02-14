@@ -34,7 +34,7 @@ module.exports = {
                 node.callee.type === "Identifier" &&
                 node.callee.name === "Array"
             ) {
-                context.report(node, "The array literal notation [] is preferrable.");
+                context.report({ node, message: "The array literal notation [] is preferrable." });
             }
         }
 

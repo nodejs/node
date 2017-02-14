@@ -12,8 +12,8 @@ const listener = common.mustCall(() => {
 triggered = false;
 watch.once('stop', listener);  // Should trigger.
 watch.stop();
-assert.equal(triggered, false);
+assert.strictEqual(triggered, false);
 setImmediate(() => {
-  assert.equal(triggered, true);
+  assert.strictEqual(triggered, true);
   watch.removeListener('stop', listener);
 });

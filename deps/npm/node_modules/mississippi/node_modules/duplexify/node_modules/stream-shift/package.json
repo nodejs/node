@@ -1,0 +1,88 @@
+{
+  "_args": [
+    [
+      {
+        "raw": "stream-shift@^1.0.0",
+        "scope": null,
+        "escapedName": "stream-shift",
+        "name": "stream-shift",
+        "rawSpec": "^1.0.0",
+        "spec": ">=1.0.0 <2.0.0",
+        "type": "range"
+      },
+      "/Users/zkat/Documents/code/npm/node_modules/mississippi/node_modules/duplexify"
+    ]
+  ],
+  "_from": "stream-shift@>=1.0.0 <2.0.0",
+  "_id": "stream-shift@1.0.0",
+  "_inCache": true,
+  "_location": "/mississippi/duplexify/stream-shift",
+  "_nodeVersion": "4.4.3",
+  "_npmOperationalInternal": {
+    "host": "packages-16-east.internal.npmjs.com",
+    "tmp": "tmp/stream-shift-1.0.0.tgz_1468011662152_0.6510484367609024"
+  },
+  "_npmUser": {
+    "name": "mafintosh",
+    "email": "mathiasbuus@gmail.com"
+  },
+  "_npmVersion": "2.15.9",
+  "_phantomChildren": {},
+  "_requested": {
+    "raw": "stream-shift@^1.0.0",
+    "scope": null,
+    "escapedName": "stream-shift",
+    "name": "stream-shift",
+    "rawSpec": "^1.0.0",
+    "spec": ">=1.0.0 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/mississippi/duplexify"
+  ],
+  "_resolved": "https://registry.npmjs.org/stream-shift/-/stream-shift-1.0.0.tgz",
+  "_shasum": "d5c752825e5367e786f78e18e445ea223a155952",
+  "_shrinkwrap": null,
+  "_spec": "stream-shift@^1.0.0",
+  "_where": "/Users/zkat/Documents/code/npm/node_modules/mississippi/node_modules/duplexify",
+  "author": {
+    "name": "Mathias Buus",
+    "url": "@mafintosh"
+  },
+  "bugs": {
+    "url": "https://github.com/mafintosh/stream-shift/issues"
+  },
+  "dependencies": {},
+  "description": "Returns the next buffer/object in a stream's readable queue",
+  "devDependencies": {
+    "standard": "^7.1.2",
+    "tape": "^4.6.0",
+    "through2": "^2.0.1"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "d5c752825e5367e786f78e18e445ea223a155952",
+    "tarball": "https://registry.npmjs.org/stream-shift/-/stream-shift-1.0.0.tgz"
+  },
+  "gitHead": "2ea5f7dcd8ac6babb08324e6e603a3269252a2c4",
+  "homepage": "https://github.com/mafintosh/stream-shift",
+  "license": "MIT",
+  "main": "index.js",
+  "maintainers": [
+    {
+      "name": "mafintosh",
+      "email": "mathiasbuus@gmail.com"
+    }
+  ],
+  "name": "stream-shift",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mafintosh/stream-shift.git"
+  },
+  "scripts": {
+    "test": "standard && tape test.js"
+  },
+  "version": "1.0.0"
+}

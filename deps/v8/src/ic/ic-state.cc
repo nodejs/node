@@ -189,15 +189,14 @@ void BinaryOpICState::GenerateAheadOfTime(
 #undef GENERATE
 }
 
-
-Type* BinaryOpICState::GetResultType() const {
+AstType* BinaryOpICState::GetResultType() const {
   Kind result_kind = result_kind_;
   if (HasSideEffects()) {
     result_kind = NONE;
   } else if (result_kind == GENERIC && op_ == Token::ADD) {
-    return Type::NumberOrString();
+    return AstType::NumberOrString();
   } else if (result_kind == NUMBER && op_ == Token::SHR) {
-    return Type::Unsigned32();
+    return AstType::Unsigned32();
   }
   DCHECK_NE(GENERIC, result_kind);
   return KindToType(result_kind);
@@ -318,20 +317,20 @@ const char* BinaryOpICState::KindToString(Kind kind) {
 
 
 // static
-Type* BinaryOpICState::KindToType(Kind kind) {
+AstType* BinaryOpICState::KindToType(Kind kind) {
   switch (kind) {
     case NONE:
-      return Type::None();
+      return AstType::None();
     case SMI:
-      return Type::SignedSmall();
+      return AstType::SignedSmall();
     case INT32:
-      return Type::Signed32();
+      return AstType::Signed32();
     case NUMBER:
-      return Type::Number();
+      return AstType::Number();
     case STRING:
-      return Type::String();
+      return AstType::String();
     case GENERIC:
-      return Type::Any();
+      return AstType::Any();
   }
   UNREACHABLE();
   return NULL;
@@ -365,29 +364,28 @@ const char* CompareICState::GetStateName(State state) {
   return NULL;
 }
 
-
-Type* CompareICState::StateToType(Zone* zone, State state, Handle<Map> map) {
+AstType* CompareICState::StateToType(Zone* zone, State state, Handle<Map> map) {
   switch (state) {
     case UNINITIALIZED:
-      return Type::None();
+      return AstType::None();
     case BOOLEAN:
-      return Type::Boolean();
+      return AstType::Boolean();
     case SMI:
-      return Type::SignedSmall();
+      return AstType::SignedSmall();
     case NUMBER:
-      return Type::Number();
+      return AstType::Number();
     case STRING:
-      return Type::String();
+      return AstType::String();
     case INTERNALIZED_STRING:
-      return Type::InternalizedString();
+      return AstType::InternalizedString();
     case UNIQUE_NAME:
-      return Type::UniqueName();
+      return AstType::UniqueName();
     case RECEIVER:
-      return Type::Receiver();
+      return AstType::Receiver();
     case KNOWN_RECEIVER:
-      return map.is_null() ? Type::Receiver() : Type::Class(map, zone);
+      return map.is_null() ? AstType::Receiver() : AstType::Class(map, zone);
     case GENERIC:
-      return Type::Any();
+      return AstType::Any();
   }
   UNREACHABLE();
   return NULL;

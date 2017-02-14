@@ -1,16 +1,11 @@
 environment:
   matrix:
     # LTS is our most important target
-    - nodejs_version: "4"
-    # next LTS and master is next most important
     - nodejs_version: "6"
-    # still in LTS maintenance until fall 2016
-    # (also still in wide use)
-    - nodejs_version: "0.10"
-    # will be unsupported as soon as 6 becomes LTS and 7 released
+    # previous LTS is next most important
+    - nodejs_version: "4"
+    # then master
     - nodejs_version: "5"
-    # technically in LTS / distros, unbeloved
-    - nodejs_version: "0.12"
   COVERALLS_REPO_TOKEN:
     secure: XdC0aySefK0HLh1GNk6aKrzZPbCfPQLyA4mYtFGEp4DrTuZA/iuCUS0LDqFYO8JQ
 platform:
@@ -26,7 +21,7 @@ install:
 test_script:
   - node --version
   - npm --version
-  - npm test
+  - npm run test -- --reporter=classic
 notifications:
 - provider: Slack
   incoming_webhook:

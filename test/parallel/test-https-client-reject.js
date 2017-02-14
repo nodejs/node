@@ -1,22 +1,22 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var https = require('https');
+const https = require('https');
 
-var fs = require('fs');
-var path = require('path');
+const fs = require('fs');
+const path = require('path');
 
-var options = {
+const options = {
   key: fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem')),
   cert: fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))
 };
 
-var server = https.createServer(options, common.mustCall(function(req, res) {
+const server = https.createServer(options, common.mustCall(function(req, res) {
   res.writeHead(200);
   res.end();
   req.resume();
@@ -25,7 +25,7 @@ var server = https.createServer(options, common.mustCall(function(req, res) {
 });
 
 function unauthorized() {
-  var req = https.request({
+  const req = https.request({
     port: server.address().port,
     rejectUnauthorized: false
   }, function(res) {
@@ -40,11 +40,11 @@ function unauthorized() {
 }
 
 function rejectUnauthorized() {
-  var options = {
+  const options = {
     port: server.address().port
   };
   options.agent = new https.Agent(options);
-  var req = https.request(options, common.fail);
+  const req = https.request(options, common.mustNotCall());
   req.on('error', function(err) {
     authorized();
   });
@@ -52,16 +52,16 @@ function rejectUnauthorized() {
 }
 
 function authorized() {
-  var options = {
+  const options = {
     port: server.address().port,
     ca: [fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))]
   };
   options.agent = new https.Agent(options);
-  var req = https.request(options, function(res) {
+  const req = https.request(options, function(res) {
     res.resume();
     assert(req.socket.authorized);
     server.close();
   });
-  req.on('error', common.fail);
+  req.on('error', common.mustNotCall());
   req.end();
 }

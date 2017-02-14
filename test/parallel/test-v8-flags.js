@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var v8 = require('v8');
-var vm = require('vm');
+const assert = require('assert');
+const v8 = require('v8');
+const vm = require('vm');
 
 // Note: changing V8 flags after an isolate started is not guaranteed to work.
 // Specifically here, V8 may cache compiled scripts between the flip of the

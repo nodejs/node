@@ -13,7 +13,8 @@ if (cluster.isMaster) {
 
   worker.on('message', common.mustCall((message) => {
     assert.strictEqual(message, true, 'did not receive expected message');
-    worker.disconnect();
+    const w = worker.disconnect();
+    assert.strictEqual(worker, w, 'did not return a reference');
   }));
 
   worker.on('online', () => {

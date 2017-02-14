@@ -1,3 +1,17 @@
+## **6.3.0**
+- [New] Add support for RFC 1738 (#174, #173)
+- [New] `stringify`: Add `serializeDate` option to customize Date serialization (#159)
+- [Fix] ensure `utils.merge` handles merging two arrays
+- [Refactor] only constructors should be capitalized
+- [Refactor] capitalized var names are for constructors only
+- [Refactor] avoid using a sparse array
+- [Robustness] `formats`: cache `String#replace`
+- [Dev Deps] update `browserify`, `eslint`, `@ljharb/eslint-config`; add `safe-publish-latest`
+- [Tests] up to `node` `v6.8`, `v4.6`; improve test matrix
+- [Tests] flesh out arrayLimit/arrayFormat tests (#107)
+- [Tests] skip Object.create tests when null objects are not available
+- [Tests] Turn on eslint for test files (#175)
+
 ## **6.2.1**
 - [Fix] ensure `key[]=x&key[]&key[]=y` results in 3, not 2, values
 - [Refactor] Be explicit and use `Object.prototype.hasOwnProperty.call`

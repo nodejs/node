@@ -1,6 +1,8 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
-* Copyright (C) 2015, International Business Machines
+* Copyright (C) 2015-2016, International Business Machines
 * Corporation and others.  All Rights Reserved.
 *******************************************************************************
 * resource.cpp
@@ -11,50 +13,10 @@
 
 #include "resource.h"
 
-#include "unicode/utypes.h"
-#include "unicode/uobject.h"
-#include "unicode/ures.h"
-
 U_NAMESPACE_BEGIN
 
 ResourceValue::~ResourceValue() {}
 
-
-ResourceArraySink::~ResourceArraySink() {}
-
-void ResourceArraySink::put(
-        int32_t /*index*/, const ResourceValue & /*value*/, UErrorCode & /*errorCode*/) {}
-
-ResourceArraySink *ResourceArraySink::getOrCreateArraySink(
-        int32_t /*index*/, int32_t /*size*/, UErrorCode & /*errorCode*/) {
-    return NULL;
-}
-
-ResourceTableSink *ResourceArraySink::getOrCreateTableSink(
-        int32_t /*index*/, int32_t /*initialSize*/, UErrorCode & /*errorCode*/) {
-    return NULL;
-}
-
-void ResourceArraySink::leave(UErrorCode & /*errorCode*/) {}
-
-
-ResourceTableSink::~ResourceTableSink() {}
-
-void ResourceTableSink::put(
-        const char * /*key*/, const ResourceValue & /*value*/, UErrorCode & /*errorCode*/) {}
-
-void ResourceTableSink::putNoFallback(const char * /*key*/, UErrorCode & /*errorCode*/) {}
-
-ResourceArraySink *ResourceTableSink::getOrCreateArraySink(
-        const char * /*key*/, int32_t /*size*/, UErrorCode & /*errorCode*/) {
-    return NULL;
-}
-
-ResourceTableSink *ResourceTableSink::getOrCreateTableSink(
-        const char * /*key*/, int32_t /*initialSize*/, UErrorCode & /*errorCode*/) {
-    return NULL;
-}
-
-void ResourceTableSink::leave(UErrorCode & /*errorCode*/) {}
+ResourceSink::~ResourceSink() {}
 
 U_NAMESPACE_END

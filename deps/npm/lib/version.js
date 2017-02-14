@@ -263,7 +263,7 @@ function _commit (version, localData, cb) {
   chain(
     [
       git.chainableExec([ 'add', packagePath ], options),
-      localData.hasShrinkwrap && git.chainableExec([ 'add', 'npm-shrinkwrap.json' ], options),
+      localData.hasShrinkwrap && git.chainableExec([ 'add', path.join(npm.localPrefix, 'npm-shrinkwrap.json') ], options),
       git.chainableExec([ 'commit', '-m', message ], options),
       !localData.existingTag && git.chainableExec([
         'tag',

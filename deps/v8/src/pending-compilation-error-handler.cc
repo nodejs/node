@@ -4,6 +4,7 @@
 
 #include "src/pending-compilation-error-handler.h"
 
+#include "src/ast/ast-value-factory.h"
 #include "src/debug/debug.h"
 #include "src/handles.h"
 #include "src/isolate.h"

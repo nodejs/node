@@ -37,6 +37,7 @@ node \- Server-side JavaScript runtime
 .RI [ script.js \ |
 .B -e
 .RI \&" script \&"]
+.B [--]
 .RI [ arguments ]
 .br
 .B node debug
@@ -112,9 +113,22 @@ Silence all process warnings (including deprecations).
 Print stack traces for process warnings (including deprecations).
 
 .TP
+.BR \-\-redirect\-warnings=\fIfile\fR
+Write process warnings to the given file instead of printing to stderr.
+
+.TP
 .BR \-\-trace\-sync\-io
 Print a stack trace whenever synchronous I/O is detected after the first turn
 of the event loop.
+
+.TP
+.BR \-\-trace\-events\-enabled
+Enables the collection of trace event tracing information.
+
+.TP
+.BR \-\-trace\-event\-categories " " \fIcategories\fR
+A comma separated list of categories that should be traced when trace event
+tracing is enabled using \fB--trace-events-enabled\fR.
 
 .TP
 .BR \-\-zero\-fill\-buffers
@@ -166,8 +180,37 @@ Force FIPS-compliant crypto on startup. (Cannot be disabled from script code.)
 (Same requirements as \fB\-\-enable\-fips\fR)
 
 .TP
+.BR \-\-openssl\-config =\fIfile\fR
+Load an OpenSSL configuration file on startup. Among other uses, this can be
+used to enable FIPS-compliant crypto if Node.js is built with
+\fB./configure \-\-openssl\-fips\fR.
+
+.TP
+.BR \-\-use\-openssl\-ca,\-\-use\-bundled\-ca
+Use OpenSSL's default CA store or use bundled Mozilla CA store as supplied by
+current NodeJS version. The default store is selectable at build-time.
+
+Using OpenSSL store allows for external modifications of the store. For most
+Linux and BSD distributions, this store is maintained by the distribution
+maintainers and system administrators. OpenSSL CA store location is dependent on
+configuration of the OpenSSL library but this can be altered at runtime using
+environmental variables.
+
+The bundled CA store, as supplied by NodeJS, is a snapshot of Mozilla CA store
+that is fixed at release time. It is identical on all supported platforms.
+
+See \fBSSL_CERT_DIR\fR and \fBSSL_CERT_FILE\fR.
+
+.TP
 .BR \-\-icu\-data\-dir =\fIfile\fR
 Specify ICU data load path. (overrides \fBNODE_ICU_DATA\fR)
+
+.TP
+.BR \-\-\fR
+Indicate the end of node options. Pass the rest of the arguments to the script.
+
+If no script filename or eval/print script is supplied prior to this, then
+the next argument will be used as a script filename.
 
 .SH ENVIRONMENT VARIABLES
 
@@ -176,12 +219,16 @@ Specify ICU data load path. (overrides \fBNODE_ICU_DATA\fR)
 \',\'\-separated list of core modules that should print debug information.
 
 .TP
-.BR NODE_PATH =\fIpath\fR[:\fI...\fR]
-\':\'\-separated list of directories prefixed to the module search path.
+.BR NODE_DISABLE_COLORS =\fI1\fR
+When set to \fI1\fR, colors will not be used in the REPL.
 
 .TP
-.BR NODE_DISABLE_COLORS=1
-When set to 1 colors will not be used in the REPL.
+.BR NODE_EXTRA_CA_CERTS =\fIfile\fR
+When set, the well known "root" CAs (like VeriSign) will be extended with the
+extra certificates in \fIfile\fR. The file should consist of one or more
+trusted certificates in PEM format. A message will be emitted (once) with
+\fBprocess.emitWarning()\fR if the file is missing or misformatted, but any
+errors are otherwise ignored.
 
 .TP
 .BR NODE_ICU_DATA =\fIfile\fR
@@ -189,21 +236,72 @@ Data path for ICU (Intl object) data. Will extend linked-in data when compiled
 with small\-icu support.
 
 .TP
+.BR NODE_NO_WARNINGS =\fI1\fR
+When set to \fI1\fR, process warnings are silenced.
+
+.TP
+.BR NODE_PATH =\fIpath\fR[:\fI...\fR]
+\':\'\-separated list of directories prefixed to the module search path.
+
+.TP
 .BR NODE_REPL_HISTORY =\fIfile\fR
 Path to the file used to store the persistent REPL history. The default path
-is ~/.node_repl_history, which is overridden by this variable. Setting the
+is \fB~/.node_repl_history\fR, which is overridden by this variable. Setting the
 value to an empty string ("" or " ") disables persistent REPL history.
 
 .TP
-.BR NODE_TTY_UNSAFE_ASYNC=1
-When set to 1, writes to stdout and stderr will be non-blocking and asynchronous
-when outputting to a TTY on platforms which support async stdio.
+.BR NODE_TTY_UNSAFE_ASYNC =\fI1\fR
+When set to \fI1\fR, writes to stdout and stderr will be non-blocking and
+asynchronous when outputting to a TTY on platforms which support async stdio.
 Setting this will void any guarantee that stdio will not be interleaved or
 dropped at program exit. \fBAvoid use.\fR
 
+.TP
+.BR OPENSSL_CONF = \fIfile\fR
+Load an OpenSSL configuration file on startup. Among other uses, this can be
+used to enable FIPS-compliant crypto if Node.js is built with
+\fB./configure \-\-openssl\-fips\fR.
+
+If the
+\fB\-\-openssl\-config\fR
+command line option is used, the environment variable is ignored.
+
+.TP
+.BR SSL_CERT_DIR = \fIdir\fR
+If \fB\-\-use\-openssl\-ca\fR is enabled, this overrides and sets OpenSSL's directory
+containing trusted certificates.
+
+.TP
+.BR SSL_CERT_FILE = \fIfile\fR
+If \fB\-\-use\-openssl\-ca\fR is enabled, this overrides and sets OpenSSL's
+file containing trusted certificates.
+
+.TP
+.BR NODE_REDIRECT_WARNINGS=\fIfile\fR
+Write process warnings to the given file instead of printing to stderr.
+(equivalent to using the \-\-redirect\-warnings=\fIfile\fR command-line
+argument).
+
+.SH BUGS
+Bugs are tracked in GitHub Issues:
+.ur https://github.com/nodejs/node/issues
+
+
+.SH AUTHORS
+Written and maintained by 1000+ contributors:
+.ur https://github.com/nodejs/node/blob/master/AUTHORS
+
+
+.SH COPYRIGHT
+Copyright Node.js contributors. Node.js is available under the MIT license.
+
+Node.js also includes external libraries that are available under a variety
+of licenses. See
+.ur https://github.com/nodejs/node/blob/master/LICENSE
+for the full license text.
+
 
 .SH RESOURCES AND DOCUMENTATION
-
 Website:
 .ur https://nodejs.org/
 
@@ -218,6 +316,7 @@ Mailing list:
 
 IRC (general questions):
 .ur "chat.freenode.net #node.js"
+(unofficial)
 
-IRC (node core development):
+IRC (Node.js core development):
 .ur "chat.freenode.net #node-dev"

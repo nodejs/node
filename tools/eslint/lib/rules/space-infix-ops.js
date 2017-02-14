@@ -11,7 +11,7 @@
 module.exports = {
     meta: {
         docs: {
-            description: "require spacing around operators",
+            description: "require spacing around infix operators",
             category: "Stylistic Issues",
             recommended: false
         },
@@ -57,7 +57,7 @@ module.exports = {
                 const op = tokens[i];
 
                 if (
-                    op.type === "Punctuator" &&
+                    (op.type === "Punctuator" || op.type === "Keyword") &&
                     OPERATORS.indexOf(op.value) >= 0 &&
                     (tokens[i - 1].range[1] >= op.range[0] || op.range[1] >= tokens[i + 1].range[0])
                 ) {

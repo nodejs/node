@@ -201,6 +201,13 @@ TokenTranslator.prototype = {
         }
 
         if (token.type === tt.backQuote) {
+
+            // if there's already a curly, it's not part of the template
+            if (this._curlyBrace) {
+                tokens.push(this.translate(this._curlyBrace, extra));
+                this._curlyBrace = null;
+            }
+
             templateTokens.push(token);
 
             // it's the end
@@ -217,7 +224,6 @@ TokenTranslator.prototype = {
 
             // if there's already a curly, it's not part of the template
             if (this._curlyBrace) {
-
                 tokens.push(this.translate(this._curlyBrace, extra));
             }
 

@@ -92,7 +92,10 @@ def CalculateVariables(default_variables, params):
     if flavor == 'android':
       operating_system = 'linux'  # Keep this legacy behavior for now.
     default_variables.setdefault('OS', operating_system)
-    default_variables.setdefault('SHARED_LIB_SUFFIX', '.so')
+    if flavor == 'aix':
+      default_variables.setdefault('SHARED_LIB_SUFFIX', '.a')
+    else:
+      default_variables.setdefault('SHARED_LIB_SUFFIX', '.so')
     default_variables.setdefault('SHARED_LIB_DIR','$(builddir)/lib.$(TOOLSET)')
     default_variables.setdefault('LIB_DIR', '$(obj).$(TOOLSET)')
 
@@ -1349,7 +1352,10 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
       if target[:3] == 'lib':
         target = target[3:]
       target_prefix = 'lib'
-      target_ext = '.so'
+      if self.flavor == 'aix':
+        target_ext = '.a'
+      else:
+        target_ext = '.so'
     elif self.type == 'none':
       target = '%s.stamp' % target
     elif self.type != 'executable':

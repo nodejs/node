@@ -1,8 +1,6 @@
-var constant = require('./constant'),
-    defineProperty = require('./_defineProperty'),
-    getWrapDetails = require('./_getWrapDetails'),
-    identity = require('./identity'),
+var getWrapDetails = require('./_getWrapDetails'),
     insertWrapDetails = require('./_insertWrapDetails'),
+    setToString = require('./_setToString'),
     updateWrapDetails = require('./_updateWrapDetails');
 
 /**
@@ -15,13 +13,9 @@ var constant = require('./constant'),
  * @param {number} bitmask The bitmask flags. See `createWrap` for more details.
  * @returns {Function} Returns `wrapper`.
  */
-var setWrapToString = !defineProperty ? identity : function(wrapper, reference, bitmask) {
+function setWrapToString(wrapper, reference, bitmask) {
   var source = (reference + '');
-  return defineProperty(wrapper, 'toString', {
-    'configurable': true,
-    'enumerable': false,
-    'value': constant(insertWrapDetails(source, updateWrapDetails(getWrapDetails(source), bitmask)))
-  });
-};
+  return setToString(wrapper, insertWrapDetails(source, updateWrapDetails(getWrapDetails(source), bitmask)));
+}
 
 module.exports = setWrapToString;

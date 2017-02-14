@@ -21,18 +21,18 @@ server.listen(0, function() {
     const client = net.connect(server.address().port);
     client.end('Oopsie-doopsie\r\n');
 
-    var chunks = '';
+    let chunks = '';
     client.on('data', function(chunk) {
       chunks += chunk;
     });
     client.once('end', function() {
-      assert.equal(chunks, 'HTTP/1.1 400 Bad Request\r\n\r\n');
+      assert.strictEqual(chunks, 'HTTP/1.1 400 Bad Request\r\n\r\n');
     });
   }
 
   // Normal request
   http.get({ port: this.address().port, path: '/' }, function(res) {
-    assert.equal(res.statusCode, 200);
+    assert.strictEqual(res.statusCode, 200);
     res.resume();
     res.once('end', next);
   });

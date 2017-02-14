@@ -1,6 +1,5 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
@@ -10,60 +9,61 @@ if (common.hasFipsCrypto) {
   common.skip('not supported in FIPS mode');
   return;
 }
-var crypto = require('crypto');
+const crypto = require('crypto');
+const assert = require('assert');
 
 function testCipher1(key) {
   // Test encryption and decryption
-  var plaintext = 'Keep this a secret? No! Tell everyone about node.js!';
-  var cipher = crypto.createCipher('aes192', key);
+  const plaintext = 'Keep this a secret? No! Tell everyone about node.js!';
+  const cipher = crypto.createCipher('aes192', key);
 
   // encrypt plaintext which is in utf8 format
   // to a ciphertext which will be in hex
-  var ciph = cipher.update(plaintext, 'utf8', 'hex');
+  let ciph = cipher.update(plaintext, 'utf8', 'hex');
   // Only use binary or hex, not base64.
   ciph += cipher.final('hex');
 
-  var decipher = crypto.createDecipher('aes192', key);
-  var txt = decipher.update(ciph, 'hex', 'utf8');
+  const decipher = crypto.createDecipher('aes192', key);
+  let txt = decipher.update(ciph, 'hex', 'utf8');
   txt += decipher.final('utf8');
 
-  assert.equal(txt, plaintext, 'encryption and decryption');
+  assert.strictEqual(txt, plaintext, 'encryption and decryption');
 
   // streaming cipher interface
   // NB: In real life, it's not guaranteed that you can get all of it
   // in a single read() like this.  But in this case, we know it's
   // quite small, so there's no harm.
-  var cStream = crypto.createCipher('aes192', key);
+  const cStream = crypto.createCipher('aes192', key);
   cStream.end(plaintext);
   ciph = cStream.read();
 
-  var dStream = crypto.createDecipher('aes192', key);
+  const dStream = crypto.createDecipher('aes192', key);
   dStream.end(ciph);
   txt = dStream.read().toString('utf8');
 
-  assert.equal(txt, plaintext, 'encryption and decryption with streams');
+  assert.strictEqual(txt, plaintext, 'encryption and decryption with streams');
 }
 
 
 function testCipher2(key) {
   // encryption and decryption with Base64
   // reported in https://github.com/joyent/node/issues/738
-  var plaintext =
+  const plaintext =
       '32|RmVZZkFUVmpRRkp0TmJaUm56ZU9qcnJkaXNNWVNpTTU*|iXmckfRWZBGWWELw' +
       'eCBsThSsfUHLeRe0KCsK8ooHgxie0zOINpXxfZi/oNG7uq9JWFVCk70gfzQH8ZUJ' +
       'jAfaFg**';
-  var cipher = crypto.createCipher('aes256', key);
+  const cipher = crypto.createCipher('aes256', key);
 
   // encrypt plaintext which is in utf8 format
   // to a ciphertext which will be in Base64
-  var ciph = cipher.update(plaintext, 'utf8', 'base64');
+  let ciph = cipher.update(plaintext, 'utf8', 'base64');
   ciph += cipher.final('base64');
 
-  var decipher = crypto.createDecipher('aes256', key);
-  var txt = decipher.update(ciph, 'base64', 'utf8');
+  const decipher = crypto.createDecipher('aes256', key);
+  let txt = decipher.update(ciph, 'base64', 'utf8');
   txt += decipher.final('utf8');
 
-  assert.equal(txt, plaintext, 'encryption and decryption with Base64');
+  assert.strictEqual(txt, plaintext, 'encryption and decryption with Base64');
 }
 
 testCipher1('MySecretKey123');
@@ -119,12 +119,12 @@ testCipher2(Buffer.from('0123456789abcdef'));
   const key = '0123456789abcdef';
   const plaintext = 'Top secret!!!';
   const c = crypto.createCipher('aes192', key);
-  var ciph = c.update(plaintext, 'utf16le', 'base64');
+  let ciph = c.update(plaintext, 'utf16le', 'base64');
   ciph += c.final('base64');
 
-  var decipher = crypto.createDecipher('aes192', key);
+  let decipher = crypto.createDecipher('aes192', key);
 
-  var txt;
+  let txt;
   assert.doesNotThrow(() => txt = decipher.update(ciph, 'base64', 'ucs2'));
   assert.doesNotThrow(() => txt += decipher.final('ucs2'));
   assert.strictEqual(txt, plaintext, 'decrypted result in ucs2');
@@ -138,4 +138,51 @@ testCipher2(Buffer.from('0123456789abcdef'));
   assert.doesNotThrow(() => txt = decipher.update(ciph, 'base64', 'utf-16le'));
   assert.doesNotThrow(() => txt += decipher.final('utf-16le'));
   assert.strictEqual(txt, plaintext, 'decrypted result in utf-16le');
+}
+
+// setAutoPadding/setAuthTag/setAAD should return `this`
+{
+  const key = '0123456789';
+  const tagbuf = Buffer.from('tagbuf');
+  const aadbuf = Buffer.from('aadbuf');
+  const decipher = crypto.createDecipher('aes-256-gcm', key);
+  assert.strictEqual(decipher.setAutoPadding(), decipher);
+  assert.strictEqual(decipher.setAuthTag(tagbuf), decipher);
+  assert.strictEqual(decipher.setAAD(aadbuf), decipher);
+}
+
+// error throwing in setAAD/setAuthTag/getAuthTag/setAutoPadding
+{
+  const key = '0123456789';
+  const aadbuf = Buffer.from('aadbuf');
+  const data = Buffer.from('test-crypto-cipher-decipher');
+
+  const cipher = crypto.createCipher('aes-256-gcm', key);
+  cipher.setAAD(aadbuf);
+  cipher.setAutoPadding();
+
+  assert.throws(() => {
+    cipher.getAuthTag();
+  }, /^Error: Attempting to get auth tag in unsupported state$/);
+
+  const encrypted = Buffer.concat([cipher.update(data), cipher.final()]);
+
+  const decipher = crypto.createDecipher('aes-256-gcm', key);
+  decipher.setAAD(aadbuf);
+  decipher.setAuthTag(cipher.getAuthTag());
+  decipher.setAutoPadding();
+  decipher.update(encrypted);
+  decipher.final();
+
+  assert.throws(() => {
+    decipher.setAAD(aadbuf);
+  }, /^Error: Attempting to set AAD in unsupported state$/);
+
+  assert.throws(() => {
+    decipher.setAuthTag(cipher.getAuthTag());
+  }, /^Error: Attempting to set auth tag in unsupported state$/);
+
+  assert.throws(() => {
+    decipher.setAutoPadding();
+  }, /^Error: Attempting to set auto padding in unsupported state$/);
 }

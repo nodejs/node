@@ -1,6 +1,8 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ********************************************************************************
-*   Copyright (C) 1996-2014, International Business Machines
+*   Copyright (C) 1996-2016, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 ********************************************************************************
 *
@@ -434,7 +436,7 @@ u_getNumericValue(UChar32 c) {
         }
 
         return numValue;
-    } else if(ntv<UPROPS_NTV_RESERVED_START) {
+    } else if(ntv<UPROPS_NTV_FRACTION20_START) {
         /* sexagesimal (base 60) integer */
         int32_t numValue=(ntv>>2)-0xbf;
         int32_t exp=(ntv&3)+1;
@@ -458,6 +460,12 @@ u_getNumericValue(UChar32 c) {
         }
 
         return numValue;
+    } else if(ntv<UPROPS_NTV_RESERVED_START) {
+        // fraction-20 e.g. 3/80
+        int32_t frac20=ntv-UPROPS_NTV_FRACTION20_START;  // 0..0x17
+        int32_t numerator=2*(frac20&3)+1;
+        int32_t denominator=20<<(frac20>>2);
+        return (double)numerator/denominator;
     } else {
         /* reserved */
         return U_NO_NUMERIC_VALUE;

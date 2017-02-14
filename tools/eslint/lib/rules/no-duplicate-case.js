@@ -28,11 +28,11 @@ module.exports = {
             SwitchStatement(node) {
                 const mapping = {};
 
-                node.cases.forEach(function(switchCase) {
+                node.cases.forEach(switchCase => {
                     const key = sourceCode.getText(switchCase.test);
 
                     if (mapping[key]) {
-                        context.report(switchCase, "Duplicate case label.");
+                        context.report({ node: switchCase, message: "Duplicate case label." });
                     } else {
                         mapping[key] = switchCase;
                     }

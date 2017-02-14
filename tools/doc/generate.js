@@ -11,16 +11,19 @@ let format = 'json';
 let template = null;
 let inputFile = null;
 let nodeVersion = null;
+let analytics = null;
 
 args.forEach(function(arg) {
-  if (!arg.match(/^\-\-/)) {
+  if (!arg.startsWith('--')) {
     inputFile = arg;
-  } else if (arg.match(/^\-\-format=/)) {
-    format = arg.replace(/^\-\-format=/, '');
-  } else if (arg.match(/^\-\-template=/)) {
-    template = arg.replace(/^\-\-template=/, '');
-  } else if (arg.match(/^\-\-node\-version=/)) {
-    nodeVersion = arg.replace(/^\-\-node\-version=/, '');
+  } else if (arg.startsWith('--format=')) {
+    format = arg.replace(/^--format=/, '');
+  } else if (arg.startsWith('--template=')) {
+    template = arg.replace(/^--template=/, '');
+  } else if (arg.startsWith('--node-version=')) {
+    nodeVersion = arg.replace(/^--node-version=/, '');
+  } else if (arg.startsWith('--analytics=')) {
+    analytics = arg.replace(/^--analytics=/, '');
   }
 });
 
@@ -54,6 +57,7 @@ function next(er, input) {
           filename: inputFile,
           template: template,
           nodeVersion: nodeVersion,
+          analytics: analytics,
         },
 
         function(er, html) {

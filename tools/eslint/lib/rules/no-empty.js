@@ -63,13 +63,13 @@ module.exports = {
                     return;
                 }
 
-                context.report(node, "Empty block statement.");
+                context.report({ node, message: "Empty block statement." });
             },
 
             SwitchStatement(node) {
 
                 if (typeof node.cases === "undefined" || node.cases.length === 0) {
-                    context.report(node, "Empty switch statement.");
+                    context.report({ node, message: "Empty switch statement." });
                 }
             }
         };

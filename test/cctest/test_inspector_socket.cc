@@ -1,22 +1,27 @@
 #include "inspector_socket.h"
-
 #include "gtest/gtest.h"
 
 #define PORT 9444
 
-using namespace node::inspector;
+namespace {
+
+using node::inspector::InspectorSocket;
+using node::inspector::inspector_from_stream;
+using node::inspector::inspector_handshake_event;
+using node::inspector::kInspectorHandshakeFailed;
+using node::inspector::kInspectorHandshakeHttpGet;
+using node::inspector::kInspectorHandshakeUpgraded;
+using node::inspector::kInspectorHandshakeUpgrading;
 
 static const int MAX_LOOP_ITERATIONS = 10000;
 
 #define SPIN_WHILE(condition)                                                  \
   {                                                                            \
-    bool timed_out = false;                                                    \
-    uv_timer_t* timer = start_timer(&timed_out);                               \
-    while (((condition)) && !timed_out) {                                      \
+    Timeout timeout(&loop);                                                    \
+    while ((condition) && !timeout.timed_out) {                              \
       uv_run(&loop, UV_RUN_NOWAIT);                                            \
     }                                                                          \
     ASSERT_FALSE((condition));                                                 \
-    cleanup_timer(timer);                                                      \
   }
 
 static bool connected = false;
@@ -26,7 +31,7 @@ static enum inspector_handshake_event last_event = kInspectorHandshakeHttpGet;
 static uv_loop_t loop;
 static uv_tcp_t server, client_socket;
 static InspectorSocket inspector;
-static std::string last_path;
+static std::string last_path;  // NOLINT(runtime/string)
 static void (*handshake_delegate)(enum inspector_handshake_event state,
                                   const std::string& path,
                                   bool* should_continue);
@@ -46,32 +51,38 @@ static const char HANDSHAKE_REQ[] = "GET /ws/path HTTP/1.1\r\n"
                                     "Sec-WebSocket-Key: aaa==\r\n"
                                     "Sec-WebSocket-Version: 13\r\n\r\n";
 
-static void dispose_handle(uv_handle_t* handle) {
-  *static_cast<bool*>(handle->data) = true;
-}
-
-static void set_timeout_flag(uv_timer_t* timer) {
-  *(static_cast<bool*>(timer->data)) = true;
-}
-
-static uv_timer_t* start_timer(bool* flag) {
-  uv_timer_t* timer = new uv_timer_t();
-  uv_timer_init(&loop, timer);
-  timer->data = flag;
-  uv_timer_start(timer, set_timeout_flag, 5000, 0);
-  return timer;
-}
-
-static void cleanup_timer(uv_timer_t* timer) {
-  bool done = false;
-  timer->data = &done;
-  uv_timer_stop(timer);
-  uv_close(reinterpret_cast<uv_handle_t*>(timer), dispose_handle);
-  while (!done) {
-    uv_run(&loop, UV_RUN_NOWAIT);
+class Timeout {
+ public:
+  explicit Timeout(uv_loop_t* loop) : timed_out(false), done_(false) {
+    uv_timer_init(loop, &timer_);
+    uv_timer_start(&timer_, Timeout::set_flag, 5000, 0);
   }
-  delete timer;
-}
+
+  ~Timeout() {
+    uv_timer_stop(&timer_);
+    uv_close(reinterpret_cast<uv_handle_t*>(&timer_), mark_done);
+    while (!done_) {
+      uv_run(&loop, UV_RUN_NOWAIT);
+    }
+  }
+
+  bool timed_out;
+
+ private:
+  static void set_flag(uv_timer_t* timer) {
+    Timeout* t = node::ContainerOf(&Timeout::timer_, timer);
+    t->timed_out = true;
+  }
+
+  static void mark_done(uv_handle_t* timer) {
+    Timeout* t = node::ContainerOf(&Timeout::timer_,
+        reinterpret_cast<uv_timer_t*>(timer));
+    t->done_ = true;
+  }
+
+  bool done_;
+  uv_timer_t timer_;
+};
 
 static void stop_if_stop_path(enum inspector_handshake_event state,
                               const std::string& path, bool* cont) {
@@ -110,8 +121,9 @@ static void do_write(const char* data, int len) {
   uv_buf_t buf[1];
   buf[0].base = const_cast<char*>(data);
   buf[0].len = len;
-  uv_write(&req, reinterpret_cast<uv_stream_t*>(&client_socket), buf, 1,
-           write_done);
+  GTEST_ASSERT_EQ(0,
+                  uv_write(&req, reinterpret_cast<uv_stream_t*>(&client_socket),
+                           buf, 1, write_done));
   SPIN_WHILE(req.data);
 }
 
@@ -126,12 +138,12 @@ static void check_data_cb(read_expects* expectation, ssize_t nread,
   EXPECT_TRUE(nread >= 0 && nread != UV_EOF);
   ssize_t i;
   char c, actual;
-  ASSERT_TRUE(expectation->expected_len > 0);
+  ASSERT_GT(expectation->expected_len, 0);
   for (i = 0; i < nread && expectation->pos <= expectation->expected_len; i++) {
     c = expectation->expected[expectation->pos++];
     actual = buf->base[i];
     if (c != actual) {
-      fprintf(stderr, "Unexpected character at position %ld\n",
+      fprintf(stderr, "Unexpected character at position %zd\n",
               expectation->pos - 1);
       GTEST_ASSERT_EQ(c, actual);
     }
@@ -171,9 +183,9 @@ static void fail_callback(uv_stream_t* stream, ssize_t nread,
   if (nread < 0) {
     fprintf(stderr, "IO error: %s\n", uv_strerror(nread));
   } else {
-    fprintf(stderr, "Read %ld bytes\n", nread);
+    fprintf(stderr, "Read %zd bytes\n", nread);
   }
-  ASSERT_TRUE(false); // Shouldn't have been called
+  ASSERT_TRUE(false);  // Shouldn't have been called
 }
 
 static void expect_nothing_on_client() {
@@ -236,7 +248,7 @@ static void grow_expects_buffer(uv_handle_t* stream, size_t size, uv_buf_t* b) {
 
 static void save_read_data(uv_stream_t* stream, ssize_t nread,
                            const uv_buf_t* buf) {
-  expectations* expects =static_cast<expectations*>(
+  expectations* expects = static_cast<expectations*>(
       inspector_from_stream(stream)->data);
   expects->err_code = nread < 0 ? nread : 0;
   if (nread > 0) {
@@ -262,7 +274,7 @@ static void expect_on_server(const char* data, size_t len) {
       char actual = expects->actual_data[expects->actual_offset++];
       char expected = data[i];
       if (expected != actual) {
-        fprintf(stderr, "Character %ld:\n", i);
+        fprintf(stderr, "Character %zu:\n", i);
         GTEST_ASSERT_EQ(expected, actual);
       }
     }
@@ -341,7 +353,7 @@ static void on_connection(uv_connect_t* connect, int status) {
 }
 
 class InspectorSocketTest : public ::testing::Test {
-protected:
+ protected:
   virtual void SetUp() {
     inspector.reinit();
     handshake_delegate = stop_if_stop_path;
@@ -349,7 +361,7 @@ protected:
     connected = false;
     inspector_ready = false;
     last_event = kInspectorHandshakeHttpGet;
-    uv_loop_init(&loop);
+    GTEST_ASSERT_EQ(0, uv_loop_init(&loop));
     server = uv_tcp_t();
     client_socket = uv_tcp_t();
     server.data = &inspector;
@@ -358,14 +370,14 @@ protected:
     uv_tcp_init(&loop, &client_socket);
     uv_ip4_addr("127.0.0.1", PORT, &addr);
     uv_tcp_bind(&server, reinterpret_cast<const struct sockaddr*>(&addr), 0);
-    int err = uv_listen(reinterpret_cast<uv_stream_t*>(&server),
-                        1, on_new_connection);
-    GTEST_ASSERT_EQ(0, err);
+    GTEST_ASSERT_EQ(0, uv_listen(reinterpret_cast<uv_stream_t*>(&server),
+                                 1, on_new_connection));
     uv_connect_t connect;
     connect.data = nullptr;
-    uv_tcp_connect(&connect, &client_socket,
-                   reinterpret_cast<const sockaddr*>(&addr), on_connection);
-    uv_tcp_nodelay(&client_socket, 1); // The buffering messes up the test
+    GTEST_ASSERT_EQ(0, uv_tcp_connect(&connect, &client_socket,
+                                      reinterpret_cast<const sockaddr*>(&addr),
+                                      on_connection));
+    uv_tcp_nodelay(&client_socket, 1);  // The buffering messes up the test
     SPIN_WHILE(!connect.data || !connected);
     really_close(reinterpret_cast<uv_handle_t*>(&server));
   }
@@ -417,7 +429,6 @@ TEST_F(InspectorSocketTest, ReadsAndWritesInspectorMessage) {
 }
 
 TEST_F(InspectorSocketTest, BufferEdgeCases) {
-
   do_write(const_cast<char*>(HANDSHAKE_REQ), sizeof(HANDSHAKE_REQ) - 1);
   expect_handshake();
 
@@ -495,7 +506,8 @@ TEST_F(InspectorSocketTest, AcceptsRequestInSeveralWrites) {
   SPIN_WHILE(!inspector_ready);
   expect_handshake();
   inspector_read_stop(&inspector);
-  GTEST_ASSERT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)), 0);
+  GTEST_ASSERT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)),
+                  0);
   manual_inspector_socket_cleanup();
 }
 
@@ -528,7 +540,6 @@ TEST_F(InspectorSocketTest, RequestWithoutKey) {
                                 "Upgrade: websocket\r\n"
                                 "Connection: Upgrade\r\n"
                                 "Sec-WebSocket-Version: 13\r\n\r\n";
-  ;
 
   do_write(const_cast<char*>(BROKEN_REQUEST), sizeof(BROKEN_REQUEST) - 1);
   SPIN_WHILE(last_event != kInspectorHandshakeFailed);
@@ -546,7 +557,8 @@ TEST_F(InspectorSocketTest, KillsConnectionOnProtocolViolation) {
   const char SERVER_FRAME[] = "I'm not a good WS frame. Nope!";
   do_write(SERVER_FRAME, sizeof(SERVER_FRAME));
   expect_server_read_error();
-  GTEST_ASSERT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)), 0);
+  GTEST_ASSERT_EQ(uv_is_active(reinterpret_cast<uv_handle_t*>(&client_socket)),
+                  0);
 }
 
 TEST_F(InspectorSocketTest, CanStopReadingFromInspector) {
@@ -860,7 +872,7 @@ TEST_F(InspectorSocketTest, Send1Mb) {
   outgoing.resize(outgoing.size() + message.size());
   mask_message(message, &outgoing[sizeof(FRAME_TO_SERVER_HEADER)], MASK);
 
-  setup_inspector_expecting(); // Buffer on the client side.
+  setup_inspector_expecting();  // Buffer on the client side.
   do_write(&outgoing[0], outgoing.size());
   expect_on_server(&message[0], message.size());
 
@@ -893,3 +905,5 @@ TEST_F(InspectorSocketTest, ErrorCleansUpTheSocket) {
   SPIN_WHILE(err > 0);
   EXPECT_EQ(UV_EPROTO, err);
 }
+
+}  // anonymous namespace

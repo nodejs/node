@@ -75,6 +75,8 @@ const debug = require("debug")("eslint:cli-engine");
  * @property {LintMessage[]} messages All of the messages for the result.
  * @property {number} errorCount Number or errors for the result.
  * @property {number} warningCount Number or warnings for the result.
+ * @property {string=} [source] The source code of the file that was linted.
+ * @property {string=} [output] The source code of the file that was linted, with as many fixes applied as possible.
  */
 
 //------------------------------------------------------------------------------
@@ -88,7 +90,7 @@ const debug = require("debug")("eslint:cli-engine");
  * @private
  */
 function calculateStatsPerFile(messages) {
-    return messages.reduce(function(stat, message) {
+    return messages.reduce((stat, message) => {
         if (message.fatal || message.severity === 2) {
             stat.errorCount++;
         } else {
@@ -108,7 +110,7 @@ function calculateStatsPerFile(messages) {
  * @private
  */
 function calculateStatsPerRun(results) {
-    return results.reduce(function(stat, result) {
+    return results.reduce((stat, result) => {
         stat.errorCount += result.errorCount;
         stat.warningCount += result.warningCount;
         return stat;
@@ -150,10 +152,10 @@ function multipassFix(text, config, options) {
     do {
         passNumber++;
 
-        debug("Linting code for " + options.filename + " (pass " + passNumber + ")");
+        debug(`Linting code for ${options.filename} (pass ${passNumber})`);
         messages = eslint.verify(text, config, options);
 
-        debug("Generating fixed text for " + options.filename + " (pass " + passNumber + ")");
+        debug(`Generating fixed text for ${options.filename} (pass ${passNumber})`);
         fixedResult = SourceCodeFixer.applyFixes(eslint.getSourceCode(), messages);
 
         // stop if there are any syntax errors.
@@ -175,7 +177,7 @@ function multipassFix(text, config, options) {
 
 
     /*
-     * If the last result had fixes, we need to lint again to me sure we have
+     * If the last result had fixes, we need to lint again to be sure we have
      * the most up-to-date information.
      */
     if (fixedResult.fixed) {
@@ -198,7 +200,7 @@ function multipassFix(text, config, options) {
  * @param {string} filename An optional string representing the texts filename.
  * @param {boolean} fix Indicates if fixes should be processed.
  * @param {boolean} allowInlineConfig Allow/ignore comments that change config.
- * @returns {Result} The results for linting on this text.
+ * @returns {LintResult} The results for linting on this text.
  * @private
  */
 function processText(text, configHelper, filename, fix, allowInlineConfig) {
@@ -218,7 +220,7 @@ function processText(text, configHelper, filename, fix, allowInlineConfig) {
     }
 
     filename = filename || "<text>";
-    debug("Linting " + filename);
+    debug(`Linting ${filename}`);
     const config = configHelper.getConfig(filePath);
 
     if (config.plugins) {
@@ -239,7 +241,7 @@ function processText(text, configHelper, filename, fix, allowInlineConfig) {
         const parsedBlocks = processor.preprocess(text, filename);
         const unprocessedMessages = [];
 
-        parsedBlocks.forEach(function(block) {
+        parsedBlocks.forEach(block => {
             unprocessedMessages.push(eslint.verify(block, config, {
                 filename,
                 allowInlineConfig
@@ -279,6 +281,10 @@ function processText(text, configHelper, filename, fix, allowInlineConfig) {
         result.output = fixedResult.output;
     }
 
+    if (result.errorCount + result.warningCount > 0 && typeof result.output === "undefined") {
+        result.source = text;
+    }
+
     return result;
 }
 
@@ -288,7 +294,7 @@ function processText(text, configHelper, filename, fix, allowInlineConfig) {
  * @param {string} filename The filename of the file being checked.
  * @param {Object} configHelper The configuration options for ESLint.
  * @param {Object} options The CLIEngine options object.
- * @returns {Result} The results for linting on this file.
+ * @returns {LintResult} The results for linting on this file.
  * @private
  */
 function processFile(filename, configHelper, options) {
@@ -304,7 +310,7 @@ function processFile(filename, configHelper, options) {
  * Returns result with warning by ignore settings
  * @param {string} filePath - File path of checked code
  * @param {string} baseDir  - Absolute path of base directory
- * @returns {Result}           Result with single warning
+ * @returns {LintResult} Result with single warning
  * @private
  */
 function createIgnoreResult(filePath, baseDir) {
@@ -314,11 +320,11 @@ function createIgnoreResult(filePath, baseDir) {
     const isInBowerComponents = baseDir && /^bower_components/.test(path.relative(baseDir, filePath));
 
     if (isHidden) {
-        message = "File ignored by default.  Use a negated ignore pattern (like \"--ignore-pattern \'!<relative/path/to/filename>\'\") to override.";
+        message = "File ignored by default.  Use a negated ignore pattern (like \"--ignore-pattern '!<relative/path/to/filename>'\") to override.";
     } else if (isInNodeModules) {
-        message = "File ignored by default. Use \"--ignore-pattern \'!node_modules/*\'\" to override.";
+        message = "File ignored by default. Use \"--ignore-pattern '!node_modules/*'\" to override.";
     } else if (isInBowerComponents) {
-        message = "File ignored by default. Use \"--ignore-pattern \'!bower_components/*\'\" to override.";
+        message = "File ignored by default. Use \"--ignore-pattern '!bower_components/*'\" to override.";
     } else {
         message = "File ignored because of a matching ignore pattern. Use \"--no-ignore\" to override.";
     }
@@ -376,7 +382,7 @@ function getCacheFile(cacheFile, cwd) {
      * @returns {string} the resolved path to the cacheFile
      */
     function getCacheFileForDirectory() {
-        return path.join(resolvedCacheFile, ".cache_" + hash(cwd));
+        return path.join(resolvedCacheFile, `.cache_${hash(cwd)}`);
     }
 
     let fileStats;
@@ -436,7 +442,7 @@ function CLIEngine(options) {
     options = Object.assign(
         Object.create(null),
         defaultOptions,
-        {cwd: process.cwd()},
+        { cwd: process.cwd() },
         options
     );
 
@@ -460,15 +466,15 @@ function CLIEngine(options) {
     if (this.options.rulePaths) {
         const cwd = this.options.cwd;
 
-        this.options.rulePaths.forEach(function(rulesdir) {
-            debug("Loading rules from " + rulesdir);
+        this.options.rulePaths.forEach(rulesdir => {
+            debug(`Loading rules from ${rulesdir}`);
             rules.load(rulesdir, cwd);
         });
     }
 
-    Object.keys(this.options.rules || {}).forEach(function(name) {
+    Object.keys(this.options.rules || {}).forEach(name => {
         validator.validateRuleOptions(name, this.options.rules[name], "CLI");
-    }.bind(this));
+    });
 }
 
 /**
@@ -497,13 +503,13 @@ CLIEngine.getFormatter = function(format) {
 
             formatterPath = path.resolve(cwd, format);
         } else {
-            formatterPath = "./formatters/" + format;
+            formatterPath = `./formatters/${format}`;
         }
 
         try {
             return require(formatterPath);
         } catch (ex) {
-            ex.message = "There was a problem loading formatter: " + formatterPath + "\nError: " + ex.message;
+            ex.message = `There was a problem loading formatter: ${formatterPath}\nError: ${ex.message}`;
             throw ex;
         }
 
@@ -520,16 +526,17 @@ CLIEngine.getFormatter = function(format) {
 CLIEngine.getErrorResults = function(results) {
     const filtered = [];
 
-    results.forEach(function(result) {
+    results.forEach(result => {
         const filteredMessages = result.messages.filter(isErrorMessage);
 
         if (filteredMessages.length > 0) {
-            filtered.push({
-                filePath: result.filePath,
-                messages: filteredMessages,
-                errorCount: filteredMessages.length,
-                warningCount: 0
-            });
+            filtered.push(
+                Object.assign(result, {
+                    messages: filteredMessages,
+                    errorCount: filteredMessages.length,
+                    warningCount: 0
+                })
+            );
         }
     });
 
@@ -542,9 +549,7 @@ CLIEngine.getErrorResults = function(results) {
  * @returns {void}
  */
 CLIEngine.outputFixes = function(report) {
-    report.results.filter(function(result) {
-        return result.hasOwnProperty("output");
-    }).forEach(function(result) {
+    report.results.filter(result => result.hasOwnProperty("output")).forEach(result => {
         fs.writeFileSync(result.filePath, result.output);
     });
 };
@@ -608,7 +613,7 @@ CLIEngine.prototype = {
 
                 const eslintVersion = pkg.version;
 
-                prevConfig.hash = hash(eslintVersion + "_" + stringify(config));
+                prevConfig.hash = hash(`${eslintVersion}_${stringify(config)}`);
             }
 
             return prevConfig.hash;
@@ -645,7 +650,7 @@ CLIEngine.prototype = {
                 const changed = descriptor.changed || meta.hashOfConfig !== hashOfConfig;
 
                 if (!changed) {
-                    debug("Skipping file since hasn't changed: " + filename);
+                    debug(`Skipping file since hasn't changed: ${filename}`);
 
                     /*
                      * Add the the cached results (always will be 0 error and
@@ -662,7 +667,7 @@ CLIEngine.prototype = {
                 fileCache.destroy();
             }
 
-            debug("Processing " + filename);
+            debug(`Processing ${filename}`);
 
             const res = processFile(filename, configHelper, options);
 
@@ -674,7 +679,7 @@ CLIEngine.prototype = {
                  * next execution will also operate on this file
                  */
                 if (res.errorCount > 0 || res.warningCount > 0) {
-                    debug("File has problems, skipping it: " + filename);
+                    debug(`File has problems, skipping it: ${filename}`);
 
                     // remove the entry from the cache
                     fileCache.removeEntry(filename);
@@ -701,7 +706,7 @@ CLIEngine.prototype = {
         patterns = this.resolveFileGlobPatterns(patterns);
         const fileList = globUtil.listFilesToProcess(patterns, options);
 
-        fileList.forEach(function(fileInfo) {
+        fileList.forEach(fileInfo => {
             executeOnFile(fileInfo.filename, fileInfo.ignored);
         });
 
@@ -713,7 +718,7 @@ CLIEngine.prototype = {
             fileCache.reconcile();
         }
 
-        debug("Linting complete in: " + (Date.now() - startTime) + "ms");
+        debug(`Linting complete in: ${Date.now() - startTime}ms`);
 
         return {
             results,
@@ -786,5 +791,7 @@ CLIEngine.prototype = {
     getFormatter: CLIEngine.getFormatter
 
 };
+
+CLIEngine.version = pkg.version;
 
 module.exports = CLIEngine;

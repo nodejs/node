@@ -48,26 +48,32 @@ list like the following:
 added: v0.3.4
 -->
 
-The HTTP Agent is used for pooling sockets used in HTTP client
-requests.
+An `Agent` is responsible for managing connection persistence
+and reuse for HTTP clients. It maintains a queue of pending requests
+for a given host and port, reusing a single socket connection for each
+until the queue is empty, at which time the socket is either destroyed
+or put into a pool where it is kept to be used again for requests to the
+same host and port. Whether it is destroyed or pooled depends on the
+`keepAlive` [option](#http_new_agent_options).
 
-The HTTP Agent also defaults client requests to using
-Connection:keep-alive. If no pending HTTP requests are waiting on a
-socket to become free the socket is closed. This means that Node.js's
-pool has the benefit of keep-alive when under load but still does not
-require developers to manually close the HTTP clients using
-KeepAlive.
+Pooled connections have TCP Keep-Alive enabled for them, but servers may
+still close idle connections, in which case they will be removed from the
+pool and a new connection will be made when a new HTTP request is made for
+that host and port. Servers may also refuse to allow multiple requests
+over the same connection, in which case the connection will have to be
+remade for every request and cannot be pooled. The `Agent` will still make
+the requests to that server, but each one will occur over a new connection.
 
-If you opt into using HTTP KeepAlive, you can create an Agent object
-with that flag set to `true`.  (See the [constructor options][].)
-Then, the Agent will keep unused sockets in a pool for later use.  They
-will be explicitly marked so as to not keep the Node.js process running.
-However, it is still a good idea to explicitly [`destroy()`][] KeepAlive
-agents when they are no longer in use, so that the Sockets will be shut
-down.
+When a connection is closed by the client or the server, it is removed
+from the pool. Any unused sockets in the pool will be unrefed so as not
+to keep the Node.js process running when there are no outstanding requests.
+(see [socket.unref()]).
 
-Sockets are removed from the agent's pool when the socket emits either
-a `'close'` event or a special `'agentRemove'` event. This means that if
+It is good practice, to [`destroy()`][] an `Agent` instance when it is no
+longer in use, because unused sockets consume OS resources.
+
+Sockets are removed from an agent's pool when the socket emits either
+a `'close'` event or an `'agentRemove'` event. This means that if
 you intend to keep one HTTP request open for a long time and don't
 want it to stay in the pool you can do something along the lines of:
 
@@ -79,7 +85,11 @@ http.get(options, (res) => {
 });
 ```
 
-Alternatively, you could just opt out of pooling entirely using
+You may also use an agent for an individual request. By providing
+`{agent: false}` as an option to the `http.get()` or `http.request()`
+functions, a one-time use `Agent` with default options will be used
+for the client connection.
+
 `agent:false`:
 
 ```js
@@ -100,11 +110,13 @@ added: v0.3.4
 
 * `options` {Object} Set of configurable options to set on the agent.
   Can have the following fields:
-  * `keepAlive` {Boolean} Keep sockets around in a pool to be used by
-    other requests in the future. Default = `false`
-  * `keepAliveMsecs` {Integer} When using HTTP KeepAlive, how often
-    to send TCP KeepAlive packets over sockets being kept alive.
-    Default = `1000`.  Only relevant if `keepAlive` is set to `true`.
+  * `keepAlive` {Boolean} Keep sockets around even when there are no
+    outstanding requests, so they can be used for future requests without
+    having to reestablish a TCP connection. Default = `false`
+  * `keepAliveMsecs` {Integer} When using the `keepAlive` option, specifies
+    the [initial delay](net.html#net_socket_setkeepalive_enable_initialdelay)
+    for TCP Keep-Alive packets. Ignored when the
+    `keepAlive` option is `false` or `undefined`. Default = `1000`.
   * `maxSockets` {Number} Maximum number of sockets to allow per
     host.  Default = `Infinity`.
   * `maxFreeSockets` {Number} Maximum number of sockets to leave open
@@ -114,7 +126,7 @@ added: v0.3.4
 The default [`http.globalAgent`][] that is used by [`http.request()`][] has all
 of these values set to their respective defaults.
 
-To configure any of them, you must create your own [`http.Agent`][] object.
+To configure any of them, you must create your own [`http.Agent`][] instance.
 
 ```js
 const http = require('http');
@@ -128,10 +140,15 @@ http.request(options, onResponseCallback);
 added: v0.11.4
 -->
 
+* `options` {Object} Options containing connection details. Check
+  [`net.createConnection()`][] for the format of the options
+* `callback` {Function} Callback function that receives the created socket
+* Returns: {net.Socket}
+
 Produces a socket/stream to be used for HTTP requests.
 
 By default, this function is the same as [`net.createConnection()`][]. However,
-custom Agents may override this method in case greater flexibility is desired.
+custom agents may override this method in case greater flexibility is desired.
 
 A socket/stream can be supplied in one of two ways: by returning the
 socket/stream from this function, or by passing the socket/stream to `callback`.
@@ -146,7 +163,7 @@ added: v0.11.4
 Destroy any sockets that are currently in use by the agent.
 
 It is usually not necessary to do this.  However, if you are using an
-agent with KeepAlive enabled, then it is best to explicitly shut down
+agent with `keepAlive` enabled, then it is best to explicitly shut down
 the agent when you know that it will no longer be used.  Otherwise,
 sockets may hang open for quite a long time before the server
 terminates them.
@@ -156,33 +173,37 @@ terminates them.
 added: v0.11.4
 -->
 
+* {Object}
+
 An object which contains arrays of sockets currently awaiting use by
-the Agent when HTTP KeepAlive is used.  Do not modify.
+the agent when `keepAlive` is enabled.  Do not modify.
 
 ### agent.getName(options)
 <!-- YAML
 added: v0.11.4
 -->
 
+* `options` {Object} A set of options providing information for name generation
+  * `host` {String} A domain name or IP address of the server to issue the request to
+  * `port` {Number} Port of remote server
+  * `localAddress` {String} Local interface to bind for network connections
+    when issuing the request
+* Returns: {String}
+
 Get a unique name for a set of request options, to determine whether a
-connection can be reused.  In the http agent, this returns
-`host:port:localAddress`.  In the https agent, the name includes the
+connection can be reused.  For an HTTP agent, this returns
+`host:port:localAddress`.  For an HTTPS agent, the name includes the
 CA, cert, ciphers, and other HTTPS/TLS-specific options that determine
 socket reusability.
-
-Options:
-
-- `host`: A domain name or IP address of the server to issue the request to.
-- `port`: Port of remote server.
-- `localAddress`: Local interface to bind for network connections when issuing
-  the request.
 
 ### agent.maxFreeSockets
 <!-- YAML
 added: v0.11.7
 -->
 
-By default set to 256.  For Agents supporting HTTP KeepAlive, this
+* {Number}
+
+By default set to 256.  For agents with `keepAlive` enabled, this
 sets the maximum number of sockets that will be left open in the free
 state.
 
@@ -190,6 +211,8 @@ state.
 <!-- YAML
 added: v0.3.6
 -->
+
+* {Number}
 
 By default set to Infinity. Determines how many concurrent sockets the agent
 can have open per origin. Origin is either a 'host:port' or
@@ -200,6 +223,8 @@ can have open per origin. Origin is either a 'host:port' or
 added: v0.5.9
 -->
 
+* {Object}
+
 An object which contains queues of requests that have not yet been assigned to
 sockets. Do not modify.
 
@@ -208,8 +233,10 @@ sockets. Do not modify.
 added: v0.3.6
 -->
 
+* {Object}
+
 An object which contains arrays of sockets currently in use by the
-Agent.  Do not modify.
+agent.  Do not modify.
 
 ## Class: http.ClientRequest
 <!-- YAML
@@ -250,8 +277,6 @@ The request implements the [Writable Stream][] interface. This is an
 added: v1.4.1
 -->
 
-`function () { }`
-
 Emitted when the request has been aborted by the client. This event is only
 emitted on the first call to `abort()`.
 
@@ -260,37 +285,23 @@ emitted on the first call to `abort()`.
 added: v0.3.8
 -->
 
-`function () { }`
-
 Emitted when the request has been aborted by the server and the network
 socket has closed.
-
-### Event: 'checkExpectation'
-<!-- YAML
-added: v5.5.0
--->
-
-`function (request, response) { }`
-
-Emitted each time a request with an http Expect header is received, where the
-value is not 100-continue. If this event isn't listened for, the server will
-automatically respond with a 417 Expectation Failed as appropriate.
-
-Note that when this event is emitted and handled, the `request` event will
-not be emitted.
 
 ### Event: 'connect'
 <!-- YAML
 added: v0.7.0
 -->
 
-`function (response, socket, head) { }`
+* `response` {http.IncomingMessage}
+* `socket` {net.Socket}
+* `head` {Buffer}
 
 Emitted each time a server responds to a request with a `CONNECT` method. If this
-event isn't being listened for, clients receiving a `CONNECT` method will have
+event is not being listened for, clients receiving a `CONNECT` method will have
 their connections closed.
 
-A client server pair that show you how to listen for the `'connect'` event.
+A client and server pair that shows you how to listen for the `'connect'` event:
 
 ```js
 const http = require('http');
@@ -352,8 +363,6 @@ proxy.listen(1337, '127.0.0.1', () => {
 added: v0.3.2
 -->
 
-`function () { }`
-
 Emitted when the server sends a '100 Continue' HTTP response, usually because
 the request contained 'Expect: 100-continue'. This is an instruction that
 the client should send the request body.
@@ -363,17 +372,17 @@ the client should send the request body.
 added: v0.1.0
 -->
 
-`function (response) { }`
+* `response` {http.IncomingMessage}
 
 Emitted when a response is received to this request. This event is emitted only
-once. The `response` argument will be an instance of [`http.IncomingMessage`][].
+once.
 
 ### Event: 'socket'
 <!-- YAML
 added: v0.5.3
 -->
 
-`function (socket) { }`
+* `socket` {net.Socket}
 
 Emitted after a socket is assigned to this request.
 
@@ -382,10 +391,12 @@ Emitted after a socket is assigned to this request.
 added: v0.1.94
 -->
 
-`function (response, socket, head) { }`
+* `response` {http.IncomingMessage}
+* `socket` {net.Socket}
+* `head` {Buffer}
 
 Emitted each time a server responds to a request with an upgrade. If this
-event isn't being listened for, clients receiving an upgrade header will have
+event is not being listened for, clients receiving an upgrade header will have
 their connections closed.
 
 A client server pair that show you how to listen for the `'upgrade'` event.
@@ -444,6 +455,10 @@ in the response to be dropped and the socket to be destroyed.
 added: v0.1.90
 -->
 
+* `data` {String | Buffer}
+* `encoding` {String}
+* `callback` {Function}
+
 Finishes sending the request. If any parts of the body are
 unsent, it will flush them to the stream. If the request is
 chunked, this will send the terminating `'0\r\n\r\n'`.
@@ -466,13 +481,15 @@ call `request.end()` or write the first chunk of request data.  It then tries
 hard to pack the request headers and data into a single TCP packet.
 
 That's usually what you want (it saves a TCP round-trip) but not when the first
-data isn't sent until possibly much later.  `request.flushHeaders()` lets you bypass
+data is not sent until possibly much later.  `request.flushHeaders()` lets you bypass
 the optimization and kickstart the request.
 
 ### request.setNoDelay([noDelay])
 <!-- YAML
 added: v0.5.9
 -->
+
+* `noDelay` {Boolean}
 
 Once a socket is assigned to this request and is connected
 [`socket.setNoDelay()`][] will be called.
@@ -482,6 +499,9 @@ Once a socket is assigned to this request and is connected
 added: v0.5.9
 -->
 
+* `enable` {Boolean}
+* `initialDelay` {Number}
+
 Once a socket is assigned to this request and is connected
 [`socket.setKeepAlive()`][] will be called.
 
@@ -490,11 +510,11 @@ Once a socket is assigned to this request and is connected
 added: v0.5.9
 -->
 
-Once a socket is assigned to this request and is connected
-[`socket.setTimeout()`][] will be called.
-
 * `timeout` {Number} Milliseconds before a request is considered to be timed out.
 * `callback` {Function} Optional function to be called when a timeout occurs. Same as binding to the `timeout` event.
+
+Once a socket is assigned to this request and is connected
+[`socket.setTimeout()`][] will be called.
 
 Returns `request`.
 
@@ -503,13 +523,15 @@ Returns `request`.
 added: v0.1.29
 -->
 
+* `chunk` {String | Buffer}
+* `encoding` {String}
+* `callback` {Function}
+
 Sends a chunk of the body.  By calling this method
 many times, the user can stream a request body to a
 server--in that case it is suggested to use the
 `['Transfer-Encoding', 'chunked']` header line when
 creating the request.
-
-The `chunk` argument should be a [`Buffer`][] or a string.
 
 The `encoding` argument is optional and only applies when `chunk` is a string.
 Defaults to `'utf8'`.
@@ -531,18 +553,34 @@ This class inherits from [`net.Server`][] and has the following additional even
 added: v0.3.0
 -->
 
-`function (request, response) { }`
+* `request` {http.IncomingMessage}
+* `response` {http.ServerResponse}
 
-Emitted each time a request with an http Expect: 100-continue is received.
-If this event isn't listened for, the server will automatically respond
-with a 100 Continue as appropriate.
+Emitted each time a request with an HTTP `Expect: 100-continue` is received.
+If this event is not listened for, the server will automatically respond
+with a `100 Continue` as appropriate.
 
 Handling this event involves calling [`response.writeContinue()`][] if the client
 should continue to send the request body, or generating an appropriate HTTP
-response (e.g., 400 Bad Request) if the client should not continue to send the
+response (e.g. 400 Bad Request) if the client should not continue to send the
 request body.
 
-Note that when this event is emitted and handled, the `'request'` event will
+Note that when this event is emitted and handled, the [`'request'`][] event will
+not be emitted.
+
+### Event: 'checkExpectation'
+<!-- YAML
+added: v5.5.0
+-->
+
+* `request` {http.ClientRequest}
+* `response` {http.ServerResponse}
+
+Emitted each time a request with an HTTP `Expect` header is received, where the
+value is not `100-continue`. If this event is not listened for, the server will
+automatically respond with a `417 Expectation Failed` as appropriate.
+
+Note that when this event is emitted and handled, the [`'request'`][] event will
 not be emitted.
 
 ### Event: 'clientError'
@@ -550,7 +588,8 @@ not be emitted.
 added: v0.1.94
 -->
 
-`function (exception, socket) { }`
+* `exception` {Error}
+* `socket` {net.Socket}
 
 If a client connection emits an `'error'` event, it will be forwarded here.
 Listener of this event is responsible for closing/destroying the underlying
@@ -583,8 +622,6 @@ ensure the response is a properly formatted HTTP response message.
 added: v0.1.4
 -->
 
-`function () { }`
-
 Emitted when the server closes.
 
 ### Event: 'connect'
@@ -592,17 +629,14 @@ Emitted when the server closes.
 added: v0.7.0
 -->
 
-`function (request, socket, head) { }`
+* `request` {http.IncomingMessage} Arguments for the HTTP request, as it is in
+  the [`'request'`][] event
+* `socket` {net.Socket} Network socket between the server and client
+* `head` {Buffer} The first packet of the tunneling stream (may be empty)
 
-Emitted each time a client requests a http `CONNECT` method. If this event isn't
-listened for, then clients requesting a `CONNECT` method will have their
+Emitted each time a client requests an HTTP `CONNECT` method. If this event is
+not listened for, then clients requesting a `CONNECT` method will have their
 connections closed.
-
-* `request` is the arguments for the http request, as it is in the request
-  event.
-* `socket` is the network socket between the server and client.
-* `head` is an instance of Buffer, the first packet of the tunneling stream,
-  this may be empty.
 
 After this event is emitted, the request's socket will not have a `'data'`
 event listener, meaning you will need to bind to it in order to handle data
@@ -613,7 +647,7 @@ sent to the server on that socket.
 added: v0.1.0
 -->
 
-`function (socket) { }`
+* `socket` {net.Socket}
 
 When a new TCP stream is established. `socket` is an object of type
 [`net.Socket`][]. Usually users will not want to access this event. In
@@ -626,29 +660,25 @@ accessed at `request.connection`.
 added: v0.1.0
 -->
 
-`function (request, response) { }`
+* `request` {http.IncomingMessage}
+* `response` {http.ServerResponse}
 
 Emitted each time there is a request. Note that there may be multiple requests
-per connection (in the case of keep-alive connections).
- `request` is an instance of [`http.IncomingMessage`][] and `response` is
-an instance of [`http.ServerResponse`][].
+per connection (in the case of HTTP Keep-Alive connections).
 
 ### Event: 'upgrade'
 <!-- YAML
 added: v0.1.94
 -->
 
-`function (request, socket, head) { }`
+* `request` {http.IncomingMessage} Arguments for the HTTP request, as it is in
+  the [`'request'`][] event
+* `socket` {net.Socket} Network socket between the server and client
+* `head` {Buffer} The first packet of the upgraded stream (may be empty)
 
-Emitted each time a client requests a http upgrade. If this event isn't
+Emitted each time a client requests an HTTP upgrade. If this event is not
 listened for, then clients requesting an upgrade will have their connections
 closed.
-
-* `request` is the arguments for the http request, as it is in the request
-  event.
-* `socket` is the network socket between the server and client.
-* `head` is an instance of Buffer, the first packet of the upgraded stream,
-  this may be empty.
 
 After this event is emitted, the request's socket will not have a `'data'`
 event listener, meaning you will need to bind to it in order to handle data
@@ -658,6 +688,8 @@ sent to the server on that socket.
 <!-- YAML
 added: v0.1.90
 -->
+
+* `callback` {Function}
 
 Stops the server from accepting new connections.  See [`net.Server.close()`][].
 
@@ -691,6 +723,9 @@ subsequent call will *re-open* the server using the provided options.
 added: v0.1.90
 -->
 
+* `path` {String}
+* `callback` {Function}
+
 Start a UNIX socket server listening for connections on the given `path`.
 
 This function is asynchronous. `callback` will be added as a listener for the
@@ -704,6 +739,11 @@ subsequent call will *re-open* the server using the provided options.
 added: v0.1.90
 -->
 
+* `port` {Number}
+* `hostname` {String}
+* `backlog` {Number}
+* `callback` {Function}
+
 Begin accepting connections on the specified `port` and `hostname`. If the
 `hostname` is omitted, the server will accept connections on any IPv6 address
 (`::`) when IPv6 is available, or any IPv4 address (`0.0.0.0`) otherwise.
@@ -713,7 +753,7 @@ after the `'listening'` event has been emitted.
 
 To listen to a unix socket, supply a filename instead of port and hostname.
 
-Backlog is the maximum length of the queue of pending connections.
+`backlog` is the maximum length of the queue of pending connections.
 The actual length will be determined by your OS through sysctl settings such as
 `tcp_max_syn_backlog` and `somaxconn` on linux. The default value of this
 parameter is 511 (not 512).
@@ -729,6 +769,8 @@ subsequent call will *re-open* the server using the provided options.
 added: v5.7.0
 -->
 
+* {Boolean}
+
 A Boolean indicating whether or not the server is listening for
 connections.
 
@@ -736,6 +778,8 @@ connections.
 <!-- YAML
 added: v0.7.0
 -->
+
+* {Number}
 
 Limits maximum incoming headers count, equal to 1000 by default. If set to 0 -
 no limit will be applied.
@@ -784,8 +828,8 @@ connections.
 added: v0.1.17
 -->
 
-This object is created internally by a HTTP server--not by the user. It is
-passed as the second parameter to the `'request'` event.
+This object is created internally by an HTTP server--not by the user. It is
+passed as the second parameter to the [`'request'`][] event.
 
 The response implements, but does not inherit from, the [Writable Stream][]
 interface. This is an [`EventEmitter`][] with the following events:
@@ -795,8 +839,6 @@ interface. This is an [`EventEmitter`][] with the following events:
 added: v0.6.7
 -->
 
-`function () { }`
-
 Indicates that the underlying connection was terminated before
 [`response.end()`][] was called or able to flush.
 
@@ -804,8 +846,6 @@ Indicates that the underlying connection was terminated before
 <!-- YAML
 added: v0.3.6
 -->
-
-`function () { }`
 
 Emitted when the response has been sent. More specifically, this event is
 emitted when the last segment of the response headers and body have been
@@ -819,11 +859,13 @@ After this event, no more events will be emitted on the response object.
 added: v0.3.0
 -->
 
+* `headers` {Object}
+
 This method adds HTTP trailing headers (a header but at the end of the
 message) to the response.
 
 Trailers will **only** be emitted if chunked encoding is used for the
-response; if it is not (e.g., if the request was HTTP/1.0), they will
+response; if it is not (e.g. if the request was HTTP/1.0), they will
 be silently discarded.
 
 Note that HTTP requires the `Trailer` header to be sent if you intend to
@@ -845,6 +887,10 @@ will result in a [`TypeError`][] being thrown.
 added: v0.1.90
 -->
 
+* `data` {String | Buffer}
+* `encoding` {String}
+* `callback` {Function}
+
 This method signals to the server that all of the response headers and body
 have been sent; that server should consider this message complete.
 The method, `response.end()`, MUST be called on each response.
@@ -860,6 +906,8 @@ is finished.
 added: v0.0.2
 -->
 
+* {Boolean}
+
 Boolean value that indicates whether the response has completed. Starts
 as `false`. After [`response.end()`][] executes, the value will be `true`.
 
@@ -868,9 +916,11 @@ as `false`. After [`response.end()`][] executes, the value will be `true`.
 added: v0.4.0
 -->
 
-Reads out a header that's already been queued but not sent to the client.  Note
-that the name is case insensitive.  This can only be called before headers get
-implicitly flushed.
+* `name` {String}
+* Returns: {String}
+
+Reads out a header that's already been queued but not sent to the client.
+Note that the name is case insensitive.
 
 Example:
 
@@ -883,12 +933,16 @@ var contentType = response.getHeader('content-type');
 added: v0.9.3
 -->
 
+* {Boolean}
+
 Boolean (read-only). True if headers were sent, false otherwise.
 
 ### response.removeHeader(name)
 <!-- YAML
 added: v0.4.0
 -->
+
+* `name` {String}
 
 Removes a header that's queued for implicit sending.
 
@@ -903,6 +957,8 @@ response.removeHeader('Content-Encoding');
 added: v0.7.5
 -->
 
+* {Boolean}
+
 When true, the Date header will be automatically generated and sent in
 the response if it is not already present in the headers. Defaults to true.
 
@@ -913,6 +969,9 @@ in responses.
 <!-- YAML
 added: v0.4.0
 -->
+
+* `name` {String}
+* `value` {String}
 
 Sets a single header value for implicit headers.  If this header already exists
 in the to-be-sent headers, its value will be replaced.  Use an array of strings
@@ -972,6 +1031,8 @@ Returns `response`.
 added: v0.4.0
 -->
 
+* {Number}
+
 When using implicit headers (not calling [`response.writeHead()`][] explicitly),
 this property controls the status code that will be sent to the client when
 the headers get flushed.
@@ -989,6 +1050,8 @@ status code which was sent out.
 <!-- YAML
 added: v0.11.8
 -->
+
+* {String}
 
 When using implicit headers (not calling [`response.writeHead()`][] explicitly), this property
 controls the status message that will be sent to the client when the headers get
@@ -1008,6 +1071,11 @@ status message which was sent out.
 <!-- YAML
 added: v0.1.29
 -->
+
+* `chunk` {String | Buffer}
+* `encoding` {String}
+* `callback` {Function}
+* Returns: {Boolean}
 
 If this method is called and [`response.writeHead()`][] has not been called,
 it will switch to implicit header mode and flush the implicit headers.
@@ -1045,6 +1113,10 @@ the request body should be sent. See the [`'checkContinue'`][] event on `Server`
 <!-- YAML
 added: v0.1.30
 -->
+
+* `statusCode` {Number}
+* `statusMessage` {String}
+* `headers` {Object}
 
 Sends a response header to the request. The status code is a 3-digit HTTP
 status code, like `404`. The last argument, `headers`, are the response headers.
@@ -1096,7 +1168,7 @@ added: v0.1.17
 -->
 
 An `IncomingMessage` object is created by [`http.Server`][] or
-[`http.ClientRequest`][] and passed as the first argument to the `'request'`
+[`http.ClientRequest`][] and passed as the first argument to the [`'request'`][]
 and [`'response'`][] event respectively. It may be used to access response status,
 headers and data.
 
@@ -1108,8 +1180,6 @@ following additional events, methods, and properties.
 added: v0.3.8
 -->
 
-`function () { }`
-
 Emitted when the request has been aborted by the client and the network
 socket has closed.
 
@@ -1117,8 +1187,6 @@ socket has closed.
 <!-- YAML
 added: v0.4.2
 -->
-
-`function () { }`
 
 Indicates that the underlying connection was closed.
 Just like `'end'`, this event occurs only once per response.
@@ -1138,6 +1206,8 @@ to any listeners on the event.
 <!-- YAML
 added: v0.1.5
 -->
+
+* {Object}
 
 The request/response headers object.
 
@@ -1168,6 +1238,8 @@ header name:
 added: v0.1.1
 -->
 
+* {String}
+
 In case of server request, the HTTP version sent by the client. In the case of
 client response, the HTTP version of the connected-to server.
 Probably either `'1.1'` or `'1.0'`.
@@ -1180,6 +1252,8 @@ Also `message.httpVersionMajor` is the first integer and
 added: v0.1.1
 -->
 
+* {String}
+
 **Only valid for request obtained from [`http.Server`][].**
 
 The request method as a string. Read only. Example:
@@ -1189,6 +1263,8 @@ The request method as a string. Read only. Example:
 <!-- YAML
 added: v0.11.6
 -->
+
+* {Array}
 
 The raw request/response headers list exactly as they were received.
 
@@ -1217,6 +1293,8 @@ console.log(request.rawHeaders);
 added: v0.11.6
 -->
 
+* {Array}
+
 The raw request/response trailer keys and values exactly as they were
 received.  Only populated at the `'end'` event.
 
@@ -1237,6 +1315,8 @@ Returns `message`.
 added: v0.1.1
 -->
 
+* {Number}
+
 **Only valid for response obtained from [`http.ClientRequest`][].**
 
 The 3-digit HTTP response status code. E.G. `404`.
@@ -1246,6 +1326,8 @@ The 3-digit HTTP response status code. E.G. `404`.
 added: v0.11.10
 -->
 
+* {String}
+
 **Only valid for response obtained from [`http.ClientRequest`][].**
 
 The HTTP response status message (reason phrase). E.G. `OK` or `Internal Server Error`.
@@ -1254,6 +1336,8 @@ The HTTP response status message (reason phrase). E.G. `OK` or `Internal Server 
 <!-- YAML
 added: v0.3.0
 -->
+
+* {net.Socket}
 
 The [`net.Socket`][] object associated with the connection.
 
@@ -1265,12 +1349,16 @@ client's authentication details.
 added: v0.3.0
 -->
 
+* {Object}
+
 The request/response trailers object. Only populated at the `'end'` event.
 
 ### message.url
 <!-- YAML
 added: v0.1.90
 -->
+
+* {String}
 
 **Only valid for request obtained from [`http.Server`][].**
 
@@ -1343,27 +1431,64 @@ Found'`.
 added: v0.1.13
 -->
 
+* Returns: {http.Server}
+
 Returns a new instance of [`http.Server`][].
 
 The `requestListener` is a function which is automatically
-added to the `'request'` event.
+added to the [`'request'`][] event.
 
 ## http.get(options[, callback])
 <!-- YAML
 added: v0.3.6
 -->
 
-Since most requests are GET requests without bodies, Node.js provides this
-convenience method. The only difference between this method and [`http.request()`][]
-is that it sets the method to GET and calls `req.end()` automatically.
+* `options` {Object}
+* `callback` {Function}
+* Returns: {http.ClientRequest}
 
-Example:
+Since most requests are GET requests without bodies, Node.js provides this
+convenience method. The only difference between this method and
+[`http.request()`][] is that it sets the method to GET and calls `req.end()`
+automatically. Note that response data must be consumed in the callback
+for reasons stated in [`http.ClientRequest`][] section.
+
+The `callback` is invoked with a single argument that is an instance of
+[`http.IncomingMessage`][]
+
+JSON Fetching Example:
 
 ```js
-http.get('http://www.google.com/index.html', (res) => {
-  console.log(`Got response: ${res.statusCode}`);
-  // consume response body
-  res.resume();
+http.get('http://nodejs.org/dist/index.json', (res) => {
+  const statusCode = res.statusCode;
+  const contentType = res.headers['content-type'];
+
+  let error;
+  if (statusCode !== 200) {
+    error = new Error(`Request Failed.\n` +
+                      `Status Code: ${statusCode}`);
+  } else if (!/^application\/json/.test(contentType)) {
+    error = new Error(`Invalid content-type.\n` +
+                      `Expected application/json but received ${contentType}`);
+  }
+  if (error) {
+    console.log(error.message);
+    // consume response data to free up memory
+    res.resume();
+    return;
+  }
+
+  res.setEncoding('utf8');
+  let rawData = '';
+  res.on('data', (chunk) => rawData += chunk);
+  res.on('end', () => {
+    try {
+      let parsedData = JSON.parse(rawData);
+      console.log(parsedData);
+    } catch (e) {
+      console.log(e.message);
+    }
+  });
 }).on('error', (e) => {
   console.log(`Got error: ${e.message}`);
 });
@@ -1374,7 +1499,9 @@ http.get('http://www.google.com/index.html', (res) => {
 added: v0.5.9
 -->
 
-Global instance of Agent which is used as the default for all http client
+* {http.Agent}
+
+Global instance of `Agent` which is used as the default for all HTTP client
 requests.
 
 ## http.request(options[, callback])
@@ -1382,45 +1509,47 @@ requests.
 added: v0.3.6
 -->
 
+* `options` {Object}
+  * `protocol` {String} Protocol to use. Defaults to `'http:'`.
+  * `host` {String} A domain name or IP address of the server to issue the
+    request to. Defaults to `'localhost'`.
+  * `hostname` {String} Alias for `host`. To support [`url.parse()`][],
+    `hostname` is preferred over `host`.
+  * `family` {Number} IP address family to use when resolving `host` and
+    `hostname`. Valid values are `4` or `6`. When unspecified, both IP v4 and
+    v6 will be used.
+  * `port` {Number} Port of remote server. Defaults to 80.
+  * `localAddress` {String} Local interface to bind for network connections.
+  * `socketPath` {String} Unix Domain Socket (use one of host:port or
+    socketPath).
+  * `method` {String} A string specifying the HTTP request method. Defaults to
+    `'GET'`.
+  * `path` {String} Request path. Defaults to `'/'`. Should include query
+    string if any. E.G. `'/index.html?page=12'`. An exception is thrown when
+    the request path contains illegal characters. Currently, only spaces are
+    rejected but that may change in the future.
+  * `headers` {Object} An object containing request headers.
+  * `auth` {String} Basic authentication i.e. `'user:password'` to compute an
+    Authorization header.
+  * `agent` {http.Agent|Boolean} Controls [`Agent`][] behavior. Possible values:
+   * `undefined` (default): use [`http.globalAgent`][] for this host and port.
+   * `Agent` object: explicitly use the passed in `Agent`.
+   * `false`: causes a new `Agent` with default values to be used.
+  * `createConnection` {Function} A function that produces a socket/stream to
+    use for the request when the `agent` option is not used. This can be used to
+    avoid creating a custom `Agent` class just to override the default
+    `createConnection` function. See [`agent.createConnection()`][] for more
+    details.
+  * `timeout` {Integer}: A number specifying the socket timeout in milliseconds.
+    This will set the timeout before the socket is connected.
+* `callback` {Function}
+* Returns: {http.ClientRequest}
+
 Node.js maintains several connections per server to make HTTP requests.
 This function allows one to transparently issue requests.
 
 `options` can be an object or a string. If `options` is a string, it is
 automatically parsed with [`url.parse()`][].
-
-Options:
-
-- `protocol`: Protocol to use. Defaults to `'http:'`.
-- `host`: A domain name or IP address of the server to issue the request to.
-  Defaults to `'localhost'`.
-- `hostname`: Alias for `host`. To support [`url.parse()`][] `hostname` is
-  preferred over `host`.
-- `family`: IP address family to use when resolving `host` and `hostname`.
-  Valid values are `4` or `6`. When unspecified, both IP v4 and v6 will be
-  used.
-- `port`: Port of remote server. Defaults to 80.
-- `localAddress`: Local interface to bind for network connections.
-- `socketPath`: Unix Domain Socket (use one of host:port or socketPath).
-- `method`: A string specifying the HTTP request method. Defaults to `'GET'`.
-- `path`: Request path. Defaults to `'/'`. Should include query string if any.
-  E.G. `'/index.html?page=12'`. An exception is thrown when the request path
-  contains illegal characters. Currently, only spaces are rejected but that
-  may change in the future.
-- `headers`: An object containing request headers.
-- `auth`: Basic authentication i.e. `'user:password'` to compute an
-  Authorization header.
-- `agent`: Controls [`Agent`][] behavior. When an Agent is used request will
-  default to `Connection: keep-alive`. Possible values:
- - `undefined` (default): use [`http.globalAgent`][] for this host and port.
- - `Agent` object: explicitly use the passed in `Agent`.
- - `false`: opts out of connection pooling with an Agent, defaults request to
-   `Connection: close`.
-- `createConnection`: A function that produces a socket/stream to use for the
-  request when the `agent` option is not used. This can be used to avoid
-  creating a custom Agent class just to override the default `createConnection`
-  function. See [`agent.createConnection()`][] for more details.
-- `timeout`: A number specifying the socket timeout in milliseconds. 
-  This will set the timeout before the socket is connected.
 
 The optional `callback` parameter will be added as a one time listener for
 the [`'response'`][] event.
@@ -1482,7 +1611,7 @@ There are a few special headers that should be noted.
 * Sending a 'Connection: keep-alive' will notify Node.js that the connection to
   the server should be persisted until the next request.
 
-* Sending a 'Content-length' header will disable the default chunked encoding.
+* Sending a 'Content-Length' header will disable the default chunked encoding.
 
 * Sending an 'Expect' header will immediately send the request headers.
   Usually, when sending 'Expect: 100-continue', you should both set a timeout
@@ -1494,10 +1623,10 @@ There are a few special headers that should be noted.
 
 [`'checkContinue'`]: #http_event_checkcontinue
 [`'listening'`]: net.html#net_event_listening
+[`'request'`]: #http_event_request
 [`'response'`]: #http_event_response
 [`Agent`]: #http_class_http_agent
 [`agent.createConnection()`]: #http_agent_createconnection_options_callback
-[`Buffer`]: buffer.html#buffer_buffer
 [`destroy()`]: #http_agent_destroy
 [`EventEmitter`]: events.html#events_class_eventemitter
 [`http.Agent`]: #http_class_http_agent
@@ -1506,7 +1635,6 @@ There are a few special headers that should be noted.
 [`http.IncomingMessage`]: #http_class_http_incomingmessage
 [`http.request()`]: #http_http_request_options_callback
 [`http.Server`]: #http_class_http_server
-[`http.ServerResponse`]: #http_class_http_serverresponse
 [`message.headers`]: #http_message_headers
 [`net.createConnection()`]: net.html#net_net_createconnection_options_connectlistener
 [`net.Server`]: net.html#net_class_net_server
@@ -1530,3 +1658,4 @@ There are a few special headers that should be noted.
 [constructor options]: #http_new_agent_options
 [Readable Stream]: stream.html#stream_class_stream_readable
 [Writable Stream]: stream.html#stream_class_stream_writable
+[socket.unref()]: net.html#net_socket_unref

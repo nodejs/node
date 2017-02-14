@@ -16,7 +16,6 @@
   "_from": "prelude-ls@>=1.1.2 <1.2.0",
   "_id": "prelude-ls@1.1.2",
   "_inCache": true,
-  "_installable": true,
   "_location": "/prelude-ls",
   "_nodeVersion": "0.11.15",
   "_npmUser": {

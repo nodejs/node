@@ -1,9 +1,10 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
+const inspect = require('util').inspect;
 
 // test using assert
-var qs = require('querystring');
+const qs = require('querystring');
 
 function createWithNoPrototype(properties) {
   const noProto = Object.create(null);
@@ -15,7 +16,7 @@ function createWithNoPrototype(properties) {
 // folding block, commented to pass gjslint
 // {{{
 // [ wonkyQS, canonicalQS, obj ]
-var qsTestCases = [
+const qsTestCases = [
   ['__proto__=1',
    '__proto__=1',
    createWithNoPrototype([{key: '__proto__', value: '1'}])],
@@ -44,19 +45,36 @@ var qsTestCases = [
   ['foo=%EF%BF%BD', 'foo=%EF%BF%BD', {'foo': '\ufffd' }],
   // See: https://github.com/joyent/node/issues/1707
   ['hasOwnProperty=x&toString=foo&valueOf=bar&__defineGetter__=baz',
-    'hasOwnProperty=x&toString=foo&valueOf=bar&__defineGetter__=baz',
-    { hasOwnProperty: 'x',
-      toString: 'foo',
-      valueOf: 'bar',
-      __defineGetter__: 'baz' }],
+   'hasOwnProperty=x&toString=foo&valueOf=bar&__defineGetter__=baz',
+   { hasOwnProperty: 'x',
+     toString: 'foo',
+     valueOf: 'bar',
+     __defineGetter__: 'baz' }],
   // See: https://github.com/joyent/node/issues/3058
   ['foo&bar=baz', 'foo=&bar=baz', { foo: '', bar: 'baz' }],
+  ['a=b&c&d=e', 'a=b&c=&d=e', { a: 'b', c: '', d: 'e' }],
+  ['a=b&c=&d=e', 'a=b&c=&d=e', { a: 'b', c: '', d: 'e' }],
+  ['a=b&=c&d=e', 'a=b&=c&d=e', { a: 'b', '': 'c', d: 'e' }],
+  ['a=b&=&c=d', 'a=b&=&c=d', { a: 'b', '': '', c: 'd' }],
+  ['&&foo=bar&&', 'foo=bar', { foo: 'bar' }],
+  ['&&&&', '', {}],
+  ['&=&', '=', { '': '' }],
+  ['&=&=', '=&=', { '': [ '', '' ]}],
+  ['a&&b', 'a=&b=', { 'a': '', 'b': '' }],
+  ['a=a&&b=b', 'a=a&b=b', { 'a': 'a', 'b': 'b' }],
+  ['&a', 'a=', { 'a': '' }],
+  ['&=', '=', { '': '' }],
+  ['a&a&', 'a=&a=', { a: [ '', '' ] }],
+  ['a&a&a&', 'a=&a=&a=', { a: [ '', '', '' ] }],
+  ['a&a&a&a&', 'a=&a=&a=&a=', { a: [ '', '', '', '' ] }],
+  ['a=&a=value&a=', 'a=&a=value&a=', { a: [ '', 'value', '' ] }],
+  ['foo+bar=baz+quux', 'foo%20bar=baz%20quux', { 'foo bar': 'baz quux' }],
   [null, '', {}],
   [undefined, '', {}]
 ];
 
 // [ wonkyQS, canonicalQS, obj ]
-var qsColonTestCases = [
+const qsColonTestCases = [
   ['foo:bar', 'foo:bar', {'foo': 'bar'}],
   ['foo:bar;foo:quux', 'foo:bar;foo:quux', {'foo': ['bar', 'quux']}],
   ['foo:1&bar:2;baz:quux',
@@ -67,9 +85,9 @@ var qsColonTestCases = [
 ];
 
 // [wonkyObj, qs, canonicalObj]
-var extendedFunction = function() {};
+const extendedFunction = function() {};
 extendedFunction.prototype = {a: 'b'};
-var qsWeirdObjects = [
+const qsWeirdObjects = [
   [{regexp: /./g}, 'regexp=', {'regexp': ''}],
   [{regexp: new RegExp('.', 'g')}, 'regexp=', {'regexp': ''}],
   [{fn: function() {}}, 'fn=', {'fn': ''}],
@@ -87,14 +105,18 @@ var qsWeirdObjects = [
 ];
 // }}}
 
-var vm = require('vm');
-var foreignObject = vm.runInNewContext('({"foo": ["bar", "baz"]})');
+const vm = require('vm');
+const foreignObject = vm.runInNewContext('({"foo": ["bar", "baz"]})');
 
-var qsNoMungeTestCases = [
+const qsNoMungeTestCases = [
   ['', {}],
   ['foo=bar&foo=baz', {'foo': ['bar', 'baz']}],
   ['foo=bar&foo=baz', foreignObject],
   ['blah=burp', {'blah': 'burp'}],
+  ['a=!-._~\'()*', {'a': '!-._~\'()*'}],
+  ['a=abcdefghijklmnopqrstuvwxyz', {'a': 'abcdefghijklmnopqrstuvwxyz'}],
+  ['a=ABCDEFGHIJKLMNOPQRSTUVWXYZ', {'a': 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'}],
+  ['a=0123456789', {'a': '0123456789'}],
   ['gragh=1&gragh=3&goo=2', {'gragh': ['1', '3'], 'goo': '2'}],
   ['frappucino=muffin&goat%5B%5D=scone&pond=moose',
    {'frappucino': 'muffin', 'goat[]': 'scone', 'pond': 'moose'}],
@@ -105,28 +127,43 @@ assert.strictEqual('918854443121279438895193',
                    qs.parse('id=918854443121279438895193').id);
 
 
-function check(actual, expected) {
+function check(actual, expected, input) {
   assert(!(actual instanceof Object));
-  assert.deepStrictEqual(Object.keys(actual).sort(),
-                         Object.keys(expected).sort());
-  Object.keys(expected).forEach(function(key) {
-    assert.deepStrictEqual(actual[key], expected[key]);
+  const actualKeys = Object.keys(actual).sort();
+  const expectedKeys = Object.keys(expected).sort();
+  let msg;
+  if (typeof input === 'string') {
+    msg = `Input: ${inspect(input)}\n` +
+          `Actual keys: ${inspect(actualKeys)}\n` +
+          `Expected keys: ${inspect(expectedKeys)}`;
+  }
+  assert.deepStrictEqual(actualKeys, expectedKeys, msg);
+  expectedKeys.forEach(function(key) {
+    if (typeof input === 'string') {
+      msg = `Input: ${inspect(input)}\n` +
+            `Key: ${inspect(key)}\n` +
+            `Actual value: ${inspect(actual[key])}\n` +
+            `Expected value: ${inspect(expected[key])}`;
+    } else {
+      msg = undefined;
+    }
+    assert.deepStrictEqual(actual[key], expected[key], msg);
   });
 }
 
 // test that the canonical qs is parsed properly.
 qsTestCases.forEach(function(testCase) {
-  check(qs.parse(testCase[0]), testCase[2]);
+  check(qs.parse(testCase[0]), testCase[2], testCase[0]);
 });
 
 // test that the colon test cases can do the same
 qsColonTestCases.forEach(function(testCase) {
-  check(qs.parse(testCase[0], ';', ':'), testCase[2]);
+  check(qs.parse(testCase[0], ';', ':'), testCase[2], testCase[0]);
 });
 
 // test the weird objects, that they get parsed properly
 qsWeirdObjects.forEach(function(testCase) {
-  check(qs.parse(testCase[1]), testCase[2]);
+  check(qs.parse(testCase[1]), testCase[2], testCase[1]);
 });
 
 qsNoMungeTestCases.forEach(function(testCase) {
@@ -168,15 +205,15 @@ qsNoMungeTestCases.forEach(function(testCase) {
 
 // basic
 qsTestCases.forEach(function(testCase) {
-  assert.equal(testCase[1], qs.stringify(testCase[2]));
+  assert.strictEqual(testCase[1], qs.stringify(testCase[2]));
 });
 
 qsColonTestCases.forEach(function(testCase) {
-  assert.equal(testCase[1], qs.stringify(testCase[2], ';', ':'));
+  assert.strictEqual(testCase[1], qs.stringify(testCase[2], ';', ':'));
 });
 
 qsWeirdObjects.forEach(function(testCase) {
-  assert.equal(testCase[1], qs.stringify(testCase[0]));
+  assert.strictEqual(testCase[1], qs.stringify(testCase[0]));
 });
 
 // invalid surrogate pair throws URIError
@@ -201,7 +238,7 @@ assert.strictEqual('foo=', qs.stringify({ foo: Infinity }));
       y: 'z'
     })
   });
-  assert.equal(f, 'a=b&q=x%3Dy%26y%3Dz');
+  assert.strictEqual(f, 'a=b&q=x%3Dy%26y%3Dz');
 }
 
 assert.doesNotThrow(function() {
@@ -217,14 +254,14 @@ assert.doesNotThrow(function() {
       y: 'z'
     }, ';', ':')
   }, ';', ':');
-  assert.equal(f, 'a:b;q:x%3Ay%3By%3Az');
+  assert.strictEqual(f, 'a:b;q:x%3Ay%3By%3Az');
 }
 
 check(qs.parse(), {});
 
 
 // Test limiting
-assert.equal(
+assert.strictEqual(
     Object.keys(qs.parse('a=1&b=1&c=1', null, null, { maxKeys: 1 })).length,
     1);
 
@@ -232,40 +269,47 @@ assert.equal(
 function testUnlimitedKeys() {
   const query = {};
 
-  for (var i = 0; i < 2000; i++) query[i] = i;
+  for (let i = 0; i < 2000; i++) query[i] = i;
 
   const url = qs.stringify(query);
 
-  assert.equal(
+  assert.strictEqual(
       Object.keys(qs.parse(url, null, null, { maxKeys: 0 })).length,
       2000);
 }
 testUnlimitedKeys();
 
 
-var b = qs.unescapeBuffer('%d3%f2Ug%1f6v%24%5e%98%cb' +
+const b = qs.unescapeBuffer('%d3%f2Ug%1f6v%24%5e%98%cb' +
                           '%0d%ac%a2%2f%9d%eb%d8%a2%e6');
 // <Buffer d3 f2 55 67 1f 36 76 24 5e 98 cb 0d ac a2 2f 9d eb d8 a2 e6>
-assert.equal(0xd3, b[0]);
-assert.equal(0xf2, b[1]);
-assert.equal(0x55, b[2]);
-assert.equal(0x67, b[3]);
-assert.equal(0x1f, b[4]);
-assert.equal(0x36, b[5]);
-assert.equal(0x76, b[6]);
-assert.equal(0x24, b[7]);
-assert.equal(0x5e, b[8]);
-assert.equal(0x98, b[9]);
-assert.equal(0xcb, b[10]);
-assert.equal(0x0d, b[11]);
-assert.equal(0xac, b[12]);
-assert.equal(0xa2, b[13]);
-assert.equal(0x2f, b[14]);
-assert.equal(0x9d, b[15]);
-assert.equal(0xeb, b[16]);
-assert.equal(0xd8, b[17]);
-assert.equal(0xa2, b[18]);
-assert.equal(0xe6, b[19]);
+assert.strictEqual(0xd3, b[0]);
+assert.strictEqual(0xf2, b[1]);
+assert.strictEqual(0x55, b[2]);
+assert.strictEqual(0x67, b[3]);
+assert.strictEqual(0x1f, b[4]);
+assert.strictEqual(0x36, b[5]);
+assert.strictEqual(0x76, b[6]);
+assert.strictEqual(0x24, b[7]);
+assert.strictEqual(0x5e, b[8]);
+assert.strictEqual(0x98, b[9]);
+assert.strictEqual(0xcb, b[10]);
+assert.strictEqual(0x0d, b[11]);
+assert.strictEqual(0xac, b[12]);
+assert.strictEqual(0xa2, b[13]);
+assert.strictEqual(0x2f, b[14]);
+assert.strictEqual(0x9d, b[15]);
+assert.strictEqual(0xeb, b[16]);
+assert.strictEqual(0xd8, b[17]);
+assert.strictEqual(0xa2, b[18]);
+assert.strictEqual(0xe6, b[19]);
+
+assert.strictEqual(qs.unescapeBuffer('a+b', true).toString(), 'a b');
+assert.strictEqual(qs.unescapeBuffer('a%').toString(), 'a%');
+assert.strictEqual(qs.unescapeBuffer('a%2').toString(), 'a%2');
+assert.strictEqual(qs.unescapeBuffer('a%20').toString(), 'a ');
+assert.strictEqual(qs.unescapeBuffer('a%2g').toString(), 'a%2g');
+assert.strictEqual(qs.unescapeBuffer('a%%').toString(), 'a%%');
 
 
 // Test custom decode
@@ -280,13 +324,13 @@ check(qs.parse('a=a&b=b&c=c', null, null, { decodeURIComponent: demoDecode }),
 function demoEncode(str) {
   return str[0];
 }
-var obj = { aa: 'aa', bb: 'bb', cc: 'cc' };
-assert.equal(
+const obj = { aa: 'aa', bb: 'bb', cc: 'cc' };
+assert.strictEqual(
   qs.stringify(obj, null, null, { encodeURIComponent: demoEncode }),
   'a=a&b=b&c=c');
 
 // test overriding .unescape
-var prevUnescape = qs.unescape;
+const prevUnescape = qs.unescape;
 qs.unescape = function(str) {
   return str.replace(/o/g, '_');
 };

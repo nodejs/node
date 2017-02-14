@@ -23,7 +23,7 @@ const resultTemplate = lodash.template(fs.readFileSync(path.join(__dirname, "htm
  * @returns {string} The original word with an s on the end if count is not one.
  */
 function pluralize(word, count) {
-    return (count === 1 ? word : word + "s");
+    return (count === 1 ? word : `${word}s`);
 }
 
 /**
@@ -34,10 +34,10 @@ function pluralize(word, count) {
  */
 function renderSummary(totalErrors, totalWarnings) {
     const totalProblems = totalErrors + totalWarnings;
-    let renderedText = totalProblems + " " + pluralize("problem", totalProblems);
+    let renderedText = `${totalProblems} ${pluralize("problem", totalProblems)}`;
 
     if (totalProblems !== 0) {
-        renderedText += " (" + totalErrors + " " + pluralize("error", totalErrors) + ", " + totalWarnings + " " + pluralize("warning", totalWarnings) + ")";
+        renderedText += ` (${totalErrors} ${pluralize("error", totalErrors)}, ${totalWarnings} ${pluralize("warning", totalWarnings)})`;
     }
     return renderedText;
 }
@@ -70,7 +70,7 @@ function renderMessages(messages, parentIndex) {
      * @param {Object} message Message.
      * @returns {string} HTML (table row) describing a message.
      */
-    return lodash.map(messages, function(message) {
+    return lodash.map(messages, message => {
         const lineNumber = message.line || 0;
         const columnNumber = message.column || 0;
 
@@ -91,15 +91,13 @@ function renderMessages(messages, parentIndex) {
  * @returns {string} HTML string describing the results.
  */
 function renderResults(results) {
-    return lodash.map(results, function(result, index) {
-        return resultTemplate({
-            index,
-            color: renderColor(result.errorCount, result.warningCount),
-            filePath: result.filePath,
-            summary: renderSummary(result.errorCount, result.warningCount)
+    return lodash.map(results, (result, index) => resultTemplate({
+        index,
+        color: renderColor(result.errorCount, result.warningCount),
+        filePath: result.filePath,
+        summary: renderSummary(result.errorCount, result.warningCount)
 
-        }) + renderMessages(result.messages, index);
-    }).join("\n");
+    }) + renderMessages(result.messages, index)).join("\n");
 }
 
 //------------------------------------------------------------------------------
@@ -114,7 +112,7 @@ module.exports = function(results) {
     totalWarnings = 0;
 
     // Iterate over results to get totals
-    results.forEach(function(result) {
+    results.forEach(result => {
         totalErrors += result.errorCount;
         totalWarnings += result.warningCount;
     });

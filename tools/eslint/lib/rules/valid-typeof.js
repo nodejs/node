@@ -34,6 +34,17 @@ module.exports = {
         const VALID_TYPES = ["symbol", "undefined", "object", "boolean", "number", "string", "function"],
             OPERATORS = ["==", "===", "!=", "!=="];
 
+        const requireStringLiterals = context.options[0] && context.options[0].requireStringLiterals;
+
+        /**
+        * Determines whether a node is a typeof expression.
+        * @param {ASTNode} node The node
+        * @returns {boolean} `true` if the node is a typeof expression
+        */
+        function isTypeofExpression(node) {
+            return node.type === "UnaryExpression" && node.operator === "typeof";
+        }
+
         //--------------------------------------------------------------------------
         // Public
         //--------------------------------------------------------------------------
@@ -41,18 +52,20 @@ module.exports = {
         return {
 
             UnaryExpression(node) {
-                if (node.operator === "typeof") {
+                if (isTypeofExpression(node)) {
                     const parent = context.getAncestors().pop();
 
                     if (parent.type === "BinaryExpression" && OPERATORS.indexOf(parent.operator) !== -1) {
                         const sibling = parent.left === node ? parent.right : parent.left;
 
-                        if (sibling.type === "Literal") {
-                            if (VALID_TYPES.indexOf(sibling.value) === -1) {
-                                context.report(sibling, "Invalid typeof comparison value.");
+                        if (sibling.type === "Literal" || sibling.type === "TemplateLiteral" && !sibling.expressions.length) {
+                            const value = sibling.type === "Literal" ? sibling.value : sibling.quasis[0].value.cooked;
+
+                            if (VALID_TYPES.indexOf(value) === -1) {
+                                context.report({ node: sibling, message: "Invalid typeof comparison value." });
                             }
-                        } else if (context.options[0] && context.options[0].requireStringLiterals) {
-                            context.report(sibling, "Typeof comparisons should be to string literals.");
+                        } else if (requireStringLiterals && !isTypeofExpression(sibling)) {
+                            context.report({ node: sibling, message: "Typeof comparisons should be to string literals." });
                         }
                     }
                 }

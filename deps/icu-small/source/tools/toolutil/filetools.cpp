@@ -1,9 +1,12 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /******************************************************************************
  *   Copyright (C) 2009-2013, International Business Machines
  *   Corporation and others.  All Rights Reserved.
  *******************************************************************************
  */
 
+#include "unicode/platform.h"
 #if U_PLATFORM == U_PF_MINGW
 // *cough* - for struct stat
 #ifdef __STRICT_ANSI__
@@ -13,6 +16,7 @@
 
 #include "filetools.h"
 #include "filestrm.h"
+#include "charstr.h"
 #include "cstring.h"
 #include "unicode/putil.h"
 #include "putilimp.h"
@@ -26,8 +30,6 @@
 #if U_HAVE_DIRENT_H
 #include <dirent.h>
 typedef struct dirent DIRENT;
-
-#define MAX_PATH_SIZE 4096 /* Set the limit for the size of the path. */
 
 #define SKIP1 "."
 #define SKIP2 ".."
@@ -56,20 +58,24 @@ isFileModTimeLater(const char *filePath, const char *checkAgainst, UBool isDir) 
 
             while ((dirEntry = readdir(pDir)) != NULL) {
                 if (uprv_strcmp(dirEntry->d_name, SKIP1) != 0 && uprv_strcmp(dirEntry->d_name, SKIP2) != 0) {
-                    char newpath[MAX_PATH_SIZE] = "";
-                    uprv_strcpy(newpath, checkAgainst);
-                    uprv_strcat(newpath, U_FILE_SEP_STRING);
-                    uprv_strcat(newpath, dirEntry->d_name);
+                    UErrorCode status = U_ZERO_ERROR;
+                    icu::CharString newpath(checkAgainst, -1, status);
+                    newpath.append(U_FILE_SEP_STRING, -1, status);
+                    newpath.append(dirEntry->d_name, -1, status);
+                    if (U_FAILURE(status)) {
+                        fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, u_errorName(status));
+                        return FALSE;
+                    };
 
-                    if ((subDirp = opendir(newpath)) != NULL) {
+                    if ((subDirp = opendir(newpath.data())) != NULL) {
                         /* If this new path is a directory, make a recursive call with the newpath. */
                         closedir(subDirp);
-                        isLatest = isFileModTimeLater(filePath, newpath, isDir);
+                        isLatest = isFileModTimeLater(filePath, newpath.data(), isDir);
                         if (!isLatest) {
                             break;
                         }
                     } else {
-                        int32_t latest = whichFileModTimeIsLater(filePath, newpath);
+                        int32_t latest = whichFileModTimeIsLater(filePath, newpath.data());
                         if (latest < 0 || latest == 2) {
                             isLatest = FALSE;
                             break;

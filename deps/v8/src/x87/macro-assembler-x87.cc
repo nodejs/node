@@ -167,9 +167,8 @@ void MacroAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
 void MacroAssembler::InNewSpace(Register object, Register scratch, Condition cc,
                                 Label* condition_met,
                                 Label::Distance distance) {
-  const int mask =
-      (1 << MemoryChunk::IN_FROM_SPACE) | (1 << MemoryChunk::IN_TO_SPACE);
-  CheckPageFlag(object, scratch, mask, cc, condition_met, distance);
+  CheckPageFlag(object, scratch, MemoryChunk::kIsInNewSpaceMask, cc,
+                condition_met, distance);
 }
 
 
@@ -1487,7 +1486,7 @@ void MacroAssembler::Allocate(int object_size,
                               Label* gc_required,
                               AllocationFlags flags) {
   DCHECK((flags & (RESULT_CONTAINS_TOP | SIZE_IN_WORDS)) == 0);
-  DCHECK(object_size <= Page::kMaxRegularHeapObjectSize);
+  DCHECK(object_size <= kMaxRegularHeapObjectSize);
   DCHECK((flags & ALLOCATION_FOLDED) == 0);
   if (!FLAG_inline_new) {
     if (emit_debug_code()) {

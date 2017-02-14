@@ -16,6 +16,7 @@
 #include "v8.h"
 
 #include <stdint.h>
+#include <vector>
 
 // Caveat emptor: we're going slightly crazy with macros here but the end
 // hopefully justifies the means. We have a lot of per-context properties
@@ -81,6 +82,7 @@ namespace node {
   V(oncertcb_string, "oncertcb")                                              \
   V(onclose_string, "_onclose")                                               \
   V(code_string, "code")                                                      \
+  V(configurable_string, "configurable")                                      \
   V(cwd_string, "cwd")                                                        \
   V(dest_string, "dest")                                                      \
   V(detached_string, "detached")                                              \
@@ -88,12 +90,12 @@ namespace node {
   V(domain_string, "domain")                                                  \
   V(emitting_top_level_domain_error_string, "_emittingTopLevelDomainError")   \
   V(exchange_string, "exchange")                                              \
+  V(enumerable_string, "enumerable")                                          \
   V(idle_string, "idle")                                                      \
   V(irq_string, "irq")                                                        \
   V(encoding_string, "encoding")                                              \
   V(enter_string, "enter")                                                    \
   V(env_pairs_string, "envPairs")                                             \
-  V(env_string, "env")                                                        \
   V(errno_string, "errno")                                                    \
   V(error_string, "error")                                                    \
   V(events_string, "_events")                                                 \
@@ -104,6 +106,7 @@ namespace node {
   V(exponent_string, "exponent")                                              \
   V(exports_string, "exports")                                                \
   V(ext_key_usage_string, "ext_key_usage")                                    \
+  V(external_string, "external")                                              \
   V(external_stream_string, "_externalStream")                                \
   V(family_string, "family")                                                  \
   V(fatal_exception_string, "_fatalException")                                \
@@ -111,6 +114,7 @@ namespace node {
   V(file_string, "file")                                                      \
   V(fingerprint_string, "fingerprint")                                        \
   V(flags_string, "flags")                                                    \
+  V(get_string, "get")                                                        \
   V(gid_string, "gid")                                                        \
   V(handle_string, "handle")                                                  \
   V(heap_total_string, "heapTotal")                                           \
@@ -190,6 +194,7 @@ namespace node {
   V(service_string, "service")                                                \
   V(servername_string, "servername")                                          \
   V(session_id_string, "sessionId")                                           \
+  V(set_string, "set")                                                        \
   V(shell_string, "shell")                                                    \
   V(signal_string, "signal")                                                  \
   V(size_string, "size")                                                      \
@@ -216,6 +221,7 @@ namespace node {
   V(username_string, "username")                                              \
   V(valid_from_string, "valid_from")                                          \
   V(valid_to_string, "valid_to")                                              \
+  V(value_string, "value")                                                    \
   V(verify_error_string, "verifyError")                                       \
   V(version_string, "version")                                                \
   V(weight_string, "weight")                                                  \
@@ -431,8 +437,10 @@ class Environment {
   inline uint32_t watched_providers() const;
 
   static inline Environment* from_immediate_check_handle(uv_check_t* handle);
+  static inline Environment* from_destroy_ids_idle_handle(uv_idle_t* handle);
   inline uv_check_t* immediate_check_handle();
   inline uv_idle_t* immediate_idle_handle();
+  inline uv_idle_t* destroy_ids_idle_handle();
 
   // Register clean-up cb to be called on environment destruction.
   inline void RegisterHandleCleanup(uv_handle_t* handle,
@@ -463,11 +471,14 @@ class Environment {
 
   inline int64_t get_async_wrap_uid();
 
-  inline uint32_t* heap_statistics_buffer() const;
-  inline void set_heap_statistics_buffer(uint32_t* pointer);
+  // List of id's that have been destroyed and need the destroy() cb called.
+  inline std::vector<int64_t>* destroy_ids_list();
 
-  inline uint32_t* heap_space_statistics_buffer() const;
-  inline void set_heap_space_statistics_buffer(uint32_t* pointer);
+  inline double* heap_statistics_buffer() const;
+  inline void set_heap_statistics_buffer(double* pointer);
+
+  inline double* heap_space_statistics_buffer() const;
+  inline void set_heap_space_statistics_buffer(double* pointer);
 
   inline char* http_parser_buffer() const;
   inline void set_http_parser_buffer(char* buffer);
@@ -548,6 +559,7 @@ class Environment {
   IsolateData* const isolate_data_;
   uv_check_t immediate_check_handle_;
   uv_idle_t immediate_idle_handle_;
+  uv_idle_t destroy_ids_idle_handle_;
   uv_prepare_t idle_prepare_handle_;
   uv_check_t idle_check_handle_;
   AsyncHooks async_hooks_;
@@ -562,6 +574,7 @@ class Environment {
   bool trace_sync_io_;
   size_t makecallback_cntr_;
   int64_t async_wrap_uid_;
+  std::vector<int64_t> destroy_ids_list_;
   debugger::Agent debugger_agent_;
 #if HAVE_INSPECTOR
   inspector::Agent inspector_agent_;
@@ -573,8 +586,8 @@ class Environment {
            &HandleCleanup::handle_cleanup_queue_> handle_cleanup_queue_;
   int handle_cleanup_waiting_;
 
-  uint32_t* heap_statistics_buffer_ = nullptr;
-  uint32_t* heap_space_statistics_buffer_ = nullptr;
+  double* heap_statistics_buffer_ = nullptr;
+  double* heap_space_statistics_buffer_ = nullptr;
 
   char* http_parser_buffer_;
 

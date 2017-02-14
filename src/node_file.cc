@@ -546,10 +546,11 @@ static void InternalModuleReadFile(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
+  const size_t kBlockSize = 32 << 10;
   std::vector<char> chars;
   int64_t offset = 0;
-  for (;;) {
-    const size_t kBlockSize = 32 << 10;
+  ssize_t numchars;
+  do {
     const size_t start = chars.size();
     chars.resize(start + kBlockSize);
 
@@ -558,26 +559,19 @@ static void InternalModuleReadFile(const FunctionCallbackInfo<Value>& args) {
     buf.len = kBlockSize;
 
     uv_fs_t read_req;
-    const ssize_t numchars =
-        uv_fs_read(loop, &read_req, fd, &buf, 1, offset, nullptr);
+    numchars = uv_fs_read(loop, &read_req, fd, &buf, 1, offset, nullptr);
     uv_fs_req_cleanup(&read_req);
 
     CHECK_GE(numchars, 0);
-    if (static_cast<size_t>(numchars) < kBlockSize) {
-      chars.resize(start + numchars);
-    }
-    if (numchars == 0) {
-      break;
-    }
     offset += numchars;
-  }
+  } while (static_cast<size_t>(numchars) == kBlockSize);
 
   uv_fs_t close_req;
   CHECK_EQ(0, uv_fs_close(loop, &close_req, fd, nullptr));
   uv_fs_req_cleanup(&close_req);
 
   size_t start = 0;
-  if (chars.size() >= 3 && 0 == memcmp(&chars[0], "\xEF\xBB\xBF", 3)) {
+  if (offset >= 3 && 0 == memcmp(&chars[0], "\xEF\xBB\xBF", 3)) {
     start = 3;  // Skip UTF-8 BOM.
   }
 
@@ -585,7 +579,7 @@ static void InternalModuleReadFile(const FunctionCallbackInfo<Value>& args) {
       String::NewFromUtf8(env->isolate(),
                           &chars[start],
                           String::kNormalString,
-                          chars.size() - start);
+                          offset - start);
   args.GetReturnValue().Set(chars_string);
 }
 

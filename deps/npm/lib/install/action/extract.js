@@ -10,35 +10,35 @@ var npm = require('../../npm.js')
 var moduleName = require('../../utils/module-name.js')
 var packageId = require('../../utils/package-id.js')
 var cache = require('../../cache.js')
-var buildPath = require('../build-path.js')
+var moduleStagingPath = require('../module-staging-path.js')
 
-module.exports = function (top, buildpath, pkg, log, next) {
+module.exports = function (staging, pkg, log, next) {
   log.silly('extract', packageId(pkg))
   var up = npm.config.get('unsafe-perm')
   var user = up ? null : npm.config.get('user')
   var group = up ? null : npm.config.get('group')
-  cache.unpack(pkg.package.name, pkg.package.version, buildpath, null, null, user, group,
-        andUpdatePackageJson(pkg, buildpath, andStageBundledChildren(pkg, buildpath, log, next)))
+  var extractTo = moduleStagingPath(staging, pkg)
+  cache.unpack(pkg.package.name, pkg.package.version, extractTo, null, null, user, group,
+        andUpdatePackageJson(pkg, staging, extractTo, andStageBundledChildren(pkg, staging, extractTo, log, next)))
 }
 
-function andUpdatePackageJson (pkg, buildpath, next) {
+function andUpdatePackageJson (pkg, staging, extractTo, next) {
   return iferr(next, function () {
-    updatePackageJson(pkg, buildpath, next)
+    updatePackageJson(pkg, extractTo, next)
   })
 }
 
-function andStageBundledChildren (pkg, buildpath, log, next) {
-  var staging = path.resolve(buildpath, '..')
+function andStageBundledChildren (pkg, staging, extractTo, log, next) {
   return iferr(next, function () {
     for (var i = 0; i < pkg.children.length; ++i) {
       var c = pkg.children[i]
       if (!c.package.name) return next(c.error)
     }
 
-    asyncMap(pkg.children, andStageBundledModule(pkg, staging, buildpath), cleanupBundled)
+    asyncMap(pkg.children, andStageBundledModule(pkg, staging, extractTo), cleanupBundled)
   })
   function cleanupBundled () {
-    gentlyRm(path.join(buildpath, 'node_modules'), next)
+    gentlyRm(path.join(extractTo, 'node_modules'), next)
   }
 }
 
@@ -62,7 +62,7 @@ function warn (pkg, code, msg) {
 
 function stageBundledModule (bundler, child, staging, parentPath, next) {
   var stageFrom = path.join(parentPath, 'node_modules', child.package.name)
-  var stageTo = buildPath(staging, child)
+  var stageTo = moduleStagingPath(staging, child)
 
   asyncMap(child.children, andStageBundledModule(bundler, staging, stageFrom), iferr(next, moveModule))
 

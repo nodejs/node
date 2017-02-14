@@ -3,12 +3,26 @@ var common = require('../common.js');
 var fs = require('fs');
 const path = require('path');
 
+const searchStrings = [
+  '@',
+  'SQ',
+  '10x',
+  '--l',
+  'Alice',
+  'Gryphon',
+  'Panther',
+  'Ou est ma chatte?',
+  'found it very',
+  'among mad people',
+  'neighbouring pool',
+  'Soo--oop',
+  'aaaaaaaaaaaaaaaaa',
+  'venture to go near the house till she had brought herself down to',
+  '</i> to the Caterpillar'
+];
+
 var bench = common.createBenchmark(main, {
-  search: ['@', 'SQ', '10x', '--l', 'Alice', 'Gryphon', 'Panther',
-           'Ou est ma chatte?', 'found it very', 'among mad people',
-           'neighbouring pool', 'Soo--oop', 'aaaaaaaaaaaaaaaaa',
-           'venture to go near the house till she had brought herself down to',
-           '</i> to the Caterpillar'],
+  search: searchStrings,
   encoding: ['undefined', 'utf8', 'ucs2', 'binary'],
   type: ['buffer', 'string'],
   iter: [1]

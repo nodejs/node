@@ -21,10 +21,10 @@ nonStringInputs.forEach(function(input) {
 console.error('Doing the unzips');
 // zlib.Unzip classes need to get valid data, or else they'll throw.
 const unzips = [ zlib.Unzip(),
-               zlib.Gunzip(),
-               zlib.Inflate(),
-               zlib.InflateRaw() ];
-var hadError = [];
+                 zlib.Gunzip(),
+                 zlib.Inflate(),
+                 zlib.InflateRaw() ];
+const hadError = [];
 unzips.forEach(function(uz, i) {
   console.error('Error for ' + uz.constructor.name);
   uz.on('error', function(er) {

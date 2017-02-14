@@ -1,12 +1,26 @@
 'use strict';
 
 require('../common');
-const constants = process.binding('constants');
+const binding = process.binding('constants');
+const constants = require('constants');
 const assert = require('assert');
 
-assert.ok(constants);
-assert.ok(constants.os);
-assert.ok(constants.os.signals);
-assert.ok(constants.os.errno);
-assert.ok(constants.fs);
-assert.ok(constants.crypto);
+assert.ok(binding);
+assert.ok(binding.os);
+assert.ok(binding.os.signals);
+assert.ok(binding.os.errno);
+assert.ok(binding.fs);
+assert.ok(binding.crypto);
+
+['os', 'fs', 'crypto'].forEach((l) => {
+  Object.keys(binding[l]).forEach((k) => {
+    if (typeof binding[l][k] === 'object') { // errno and signals
+      Object.keys(binding[l][k]).forEach((j) => {
+        assert.strictEqual(binding[l][k][j], constants[j]);
+      });
+    }
+    if (l !== 'os') { // top level os constant isn't currently copied
+      assert.strictEqual(binding[l][k], constants[k]);
+    }
+  });
+});

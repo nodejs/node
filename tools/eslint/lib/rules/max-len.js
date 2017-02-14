@@ -39,6 +39,9 @@ const OPTIONS_SCHEMA = {
         ignoreTemplateLiterals: {
             type: "boolean"
         },
+        ignoreRegExpLiterals: {
+            type: "boolean"
+        },
         ignoreTrailingComments: {
             type: "boolean"
         }
@@ -100,14 +103,14 @@ module.exports = {
         function computeLineLength(line, tabWidth) {
             let extraCharacterCount = 0;
 
-            line.replace(/\t/g, function(match, offset) {
+            line.replace(/\t/g, (match, offset) => {
                 const totalOffset = offset + extraCharacterCount,
                     previousTabStopOffset = tabWidth ? totalOffset % tabWidth : 0,
                     spaceCount = tabWidth - previousTabStopOffset;
 
                 extraCharacterCount += spaceCount - 1;  // -1 for the replaced tab
             });
-            return line.length + extraCharacterCount;
+            return Array.from(line).length + extraCharacterCount;
         }
 
         // The options object must be the last option specified…
@@ -129,6 +132,7 @@ module.exports = {
             ignoreComments = options.ignoreComments || false,
             ignoreStrings = options.ignoreStrings || false,
             ignoreTemplateLiterals = options.ignoreTemplateLiterals || false,
+            ignoreRegExpLiterals = options.ignoreRegExpLiterals || false,
             ignoreTrailingComments = options.ignoreTrailingComments || options.ignoreComments || false,
             ignoreUrls = options.ignoreUrls || false,
             maxCommentLength = options.comments;
@@ -209,9 +213,7 @@ module.exports = {
          * @returns {ASTNode[]} An array of string nodes.
          */
         function getAllStrings() {
-            return sourceCode.ast.tokens.filter(function(token) {
-                return token.type === "String";
-            });
+            return sourceCode.ast.tokens.filter(token => token.type === "String");
         }
 
         /**
@@ -220,9 +222,17 @@ module.exports = {
          * @returns {ASTNode[]} An array of template literal nodes.
          */
         function getAllTemplateLiterals() {
-            return sourceCode.ast.tokens.filter(function(token) {
-                return token.type === "Template";
-            });
+            return sourceCode.ast.tokens.filter(token => token.type === "Template");
+        }
+
+
+        /**
+         * Retrieves an array containing all RegExp literals in the source code.
+         *
+         * @returns {ASTNode[]} An array of RegExp literal nodes.
+         */
+        function getAllRegExpLiterals() {
+            return sourceCode.ast.tokens.filter(token => token.type === "RegularExpression");
         }
 
 
@@ -235,8 +245,9 @@ module.exports = {
          * @private
          */
         function groupByLineNumber(acc, node) {
-            ensureArrayAndPush(acc, node.loc.start.line, node);
-            ensureArrayAndPush(acc, node.loc.end.line, node);
+            for (let i = node.loc.start.line; i <= node.loc.end.line; ++i) {
+                ensureArrayAndPush(acc, i, node);
+            }
             return acc;
         }
 
@@ -263,7 +274,10 @@ module.exports = {
             const templateLiterals = getAllTemplateLiterals(sourceCode);
             const templateLiteralsByLine = templateLiterals.reduce(groupByLineNumber, {});
 
-            lines.forEach(function(line, i) {
+            const regExpLiterals = getAllRegExpLiterals(sourceCode);
+            const regExpLiteralsByLine = regExpLiterals.reduce(groupByLineNumber, {});
+
+            lines.forEach((line, i) => {
 
                 // i is zero-indexed, line numbers are one-indexed
                 const lineNumber = i + 1;
@@ -298,7 +312,8 @@ module.exports = {
                 if (ignorePattern && ignorePattern.test(line) ||
                     ignoreUrls && URL_REGEXP.test(line) ||
                     ignoreStrings && stringsByLine[lineNumber] ||
-                    ignoreTemplateLiterals && templateLiteralsByLine[lineNumber]
+                    ignoreTemplateLiterals && templateLiteralsByLine[lineNumber] ||
+                    ignoreRegExpLiterals && regExpLiteralsByLine[lineNumber]
                 ) {
 
                     // ignore this line

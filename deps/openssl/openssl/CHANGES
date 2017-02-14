@@ -2,6 +2,67 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 1.0.2j and 1.0.2k [26 Jan 2017]
+
+  *) Truncated packet could crash via OOB read
+
+     If one side of an SSL/TLS path is running on a 32-bit host and a specific
+     cipher is being used, then a truncated packet can cause that host to
+     perform an out-of-bounds read, usually resulting in a crash.
+
+     This issue was reported to OpenSSL by Robert Święcki of Google.
+     (CVE-2017-3731)
+     [Andy Polyakov]
+
+  *) BN_mod_exp may produce incorrect results on x86_64
+
+     There is a carry propagating bug in the x86_64 Montgomery squaring
+     procedure. No EC algorithms are affected. Analysis suggests that attacks
+     against RSA and DSA as a result of this defect would be very difficult to
+     perform and are not believed likely. Attacks against DH are considered just
+     feasible (although very difficult) because most of the work necessary to
+     deduce information about a private key may be performed offline. The amount
+     of resources required for such an attack would be very significant and
+     likely only accessible to a limited number of attackers. An attacker would
+     additionally need online access to an unpatched system using the target
+     private key in a scenario with persistent DH parameters and a private
+     key that is shared between multiple clients. For example this can occur by
+     default in OpenSSL DHE based SSL/TLS ciphersuites. Note: This issue is very
+     similar to CVE-2015-3193 but must be treated as a separate problem.
+
+     This issue was reported to OpenSSL by the OSS-Fuzz project.
+     (CVE-2017-3732)
+     [Andy Polyakov]
+
+  *) Montgomery multiplication may produce incorrect results
+
+     There is a carry propagating bug in the Broadwell-specific Montgomery
+     multiplication procedure that handles input lengths divisible by, but
+     longer than 256 bits. Analysis suggests that attacks against RSA, DSA
+     and DH private keys are impossible. This is because the subroutine in
+     question is not used in operations with the private key itself and an input
+     of the attacker's direct choice. Otherwise the bug can manifest itself as
+     transient authentication and key negotiation failures or reproducible
+     erroneous outcome of public-key operations with specially crafted input.
+     Among EC algorithms only Brainpool P-512 curves are affected and one
+     presumably can attack ECDH key negotiation. Impact was not analyzed in
+     detail, because pre-requisites for attack are considered unlikely. Namely
+     multiple clients have to choose the curve in question and the server has to
+     share the private key among them, neither of which is default behaviour.
+     Even then only clients that chose the curve will be affected.
+
+     This issue was publicly reported as transient failures and was not
+     initially recognized as a security issue. Thanks to Richard Morgan for
+     providing reproducible case.
+     (CVE-2016-7055)
+     [Andy Polyakov]
+
+  *) OpenSSL now fails if it receives an unrecognised record type in TLS1.0
+     or TLS1.1. Previously this only happened in SSLv3 and TLS1.2. This is to
+     prevent issues where no progress is being made and the peer continually
+     sends unrecognised record types, using up resources processing them.
+     [Matt Caswell]
+
  Changes between 1.0.2i and 1.0.2j [26 Sep 2016]
 
   *) Missing CRL sanity check

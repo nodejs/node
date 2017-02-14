@@ -1,8 +1,8 @@
 var path = require( 'path' );
 var fs = require( 'graceful-fs' );
 var del = require( 'del' ).sync;
-var readJSON = require( './utils' ).readJSON;
-var writeJSON = require( './utils' ).writeJSON;
+var utils = require( './utils' );
+var writeJSON = utils.writeJSON;
 
 var cache = {
   /**
@@ -22,7 +22,7 @@ var cache = {
     me._pathToFile = cacheDir ? path.resolve( cacheDir, docId ) : path.resolve( __dirname, './.cache/', docId );
 
     if ( fs.existsSync( me._pathToFile ) ) {
-      me._persisted = readJSON( me._pathToFile );
+      me._persisted = utils.tryParse( me._pathToFile, { } );
     }
   },
 

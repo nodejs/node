@@ -19,7 +19,6 @@
  * IN THE SOFTWARE.
  */
 
-#ifdef _WIN32
 
 #include <errno.h>
 
@@ -29,6 +28,7 @@
 uv_os_sock_t sock;
 uv_poll_t handle;
 
+#ifdef _WIN32
 static int close_cb_called = 0;
 
 
@@ -50,9 +50,13 @@ static void poll_cb(uv_poll_t* h, int status, int events) {
   uv_close((uv_handle_t*) &handle, close_cb);
 
 }
+#endif
 
 
 TEST_IMPL(poll_closesocket) {
+#ifndef _WIN32
+  RETURN_SKIP("Test only relevant on Windows");
+#else
   struct WSAData wsa_data;
   int r;
   unsigned long on;
@@ -85,5 +89,5 @@ TEST_IMPL(poll_closesocket) {
 
   MAKE_VALGRIND_HAPPY();
   return 0;
-}
 #endif
+}

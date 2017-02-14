@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ********************************************************************************
 * Copyright (C) 1997-2016, International Business Machines Corporation and others.
@@ -266,7 +268,7 @@ public:
      *                  NULL.
      * @param status    Output param filled with success/failure status.
      * @return          Reference to 'appendTo' parameter.
-     * @stable 4.4
+     * @stable ICU 4.4
      */
     virtual UnicodeString& format(const Formattable& obj,
                                   UnicodeString& appendTo,
@@ -389,7 +391,7 @@ public:
      *                  Can be NULL.
      * @param status    Output param filled with success/failure status.
      * @return          Reference to 'appendTo' parameter.
-     * @stable 4.4
+     * @stable ICU 4.4
      */
     virtual UnicodeString& format(double number,
                                   UnicodeString& appendTo,
@@ -441,7 +443,7 @@ public:
      *                  Can be NULL.
      * @param status    Output param filled with success/failure status.
      * @return          Reference to 'appendTo' parameter.
-     * @stable 4.4
+     * @stable ICU 4.4
      */
     virtual UnicodeString& format(int32_t number,
                                   UnicodeString& appendTo,
@@ -494,7 +496,7 @@ public:
      *                  Can be NULL.
      * @param status    Output param filled with success/failure status.
      * @return          Reference to 'appendTo' parameter.
-     * @stable 4.4
+     * @stable ICU 4.4
      */
     virtual UnicodeString& format(int64_t number,
                                   UnicodeString& appendTo,
@@ -515,9 +517,9 @@ public:
      *                  Can be NULL.
      * @param status    Output param filled with success/failure status.
      * @return          Reference to 'appendTo' parameter.
-     * @stable 4.4
+     * @stable ICU 4.4
      */
-    virtual UnicodeString& format(const StringPiece &number,
+    virtual UnicodeString& format(StringPiece number,
                                   UnicodeString& appendTo,
                                   FieldPositionIterator* posIter,
                                   UErrorCode& status) const;

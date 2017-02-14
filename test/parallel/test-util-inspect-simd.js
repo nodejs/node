@@ -1,11 +1,10 @@
 // Flags: --harmony_simd
+/* global SIMD */
 'use strict';
 
 require('../common');
 const assert = require('assert');
 const inspect = require('util').inspect;
-
-const SIMD = global.SIMD;  // Pacify eslint.
 
 assert.strictEqual(
     inspect(SIMD.Bool16x8()),

@@ -326,16 +326,8 @@ span.linkable-text:hover {
     display: none;
 }
 
-.prof-low {
-    color: #888;
-}
-
-.prof-med {
-    color: #080;
-}
-
-.prof-high {
-    color: #800;
+.prof {
+    cursor: default;
 }
 
 tspan {

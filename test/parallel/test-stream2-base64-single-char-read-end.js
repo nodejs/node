@@ -1,14 +1,13 @@
 'use strict';
 const common = require('../common');
-var R = require('_stream_readable');
-var W = require('_stream_writable');
-var assert = require('assert');
+const R = require('_stream_readable');
+const W = require('_stream_writable');
+const assert = require('assert');
 
-var src = new R({encoding: 'base64'});
-var dst = new W();
-var hasRead = false;
-var accum = [];
-var timeout;
+const src = new R({encoding: 'base64'});
+const dst = new W();
+let hasRead = false;
+const accum = [];
 
 src._read = function(n) {
   if (!hasRead) {
@@ -26,12 +25,12 @@ dst._write = function(chunk, enc, cb) {
 };
 
 src.on('end', function() {
-  assert.equal(Buffer.concat(accum) + '', 'MQ==');
+  assert.strictEqual(Buffer.concat(accum) + '', 'MQ==');
   clearTimeout(timeout);
 });
 
 src.pipe(dst);
 
-timeout = setTimeout(function() {
+const timeout = setTimeout(function() {
   common.fail('timed out waiting for _write');
 }, 100);

@@ -13,8 +13,8 @@ agent.maxSockets = 0;
 // localAddress is used when naming requests / sockets
 // while using the Legacy API
 agent.addRequest(req, 'localhost', common.PORT, '127.0.0.1');
-assert.equal(Object.keys(agent.requests).length, 1);
-assert.equal(
+assert.strictEqual(Object.keys(agent.requests).length, 1);
+assert.strictEqual(
   Object.keys(agent.requests)[0],
   'localhost:' + common.PORT + ':127.0.0.1');
 
@@ -25,7 +25,7 @@ agent.addRequest(req, {
   localAddress: '127.0.0.1',
   path: '/foo'
 });
-assert.equal(Object.keys(agent.requests).length, 1);
-assert.equal(
+assert.strictEqual(Object.keys(agent.requests).length, 1);
+assert.strictEqual(
   Object.keys(agent.requests)[0],
   'localhost:' + common.PORT + ':127.0.0.1');

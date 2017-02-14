@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -139,7 +141,7 @@ utrie_clone(UNewTrie *fillIn, const UNewTrie *other, uint32_t *aliasData, int32_
         uprv_free(aliasData);
     } else {
         uprv_memcpy(trie->index, other->index, sizeof(trie->index));
-        uprv_memcpy(trie->data, other->data, other->dataLength*4);
+        uprv_memcpy(trie->data, other->data, (size_t)other->dataLength*4);
         trie->dataLength=other->dataLength;
         trie->isDataAllocated=isDataAllocated;
     }
@@ -839,7 +841,7 @@ utrie_serialize(UNewTrie *trie, void *dt, int32_t capacity,
         }
 
         /* write 32-bit data values */
-        uprv_memcpy(dest16, trie->data, 4*trie->dataLength);
+        uprv_memcpy(dest16, trie->data, 4*(size_t)trie->dataLength);
     }
 
     return length;

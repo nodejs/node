@@ -51,9 +51,9 @@ function executeRequest(cb) {
            __filename,
            'shasum' ].join(' '),
           (err, stdout, stderr) => {
-            if (err) throw err;
-            assert.equal('8c206a1a87599f532ce68675536f0b1546900d7a',
-                         stdout.slice(0, 40));
+            assert.ifError(err);
+            assert.strictEqual('8c206a1a87599f532ce68675536f0b1546900d7a',
+                               stdout.slice(0, 40));
             cb();
           }
   );
@@ -65,7 +65,7 @@ common.refreshTmpDir();
 const ddcmd = common.ddCommand(filename, 10240);
 
 cp.exec(ddcmd, function(err, stdout, stderr) {
-  if (err) throw err;
+  assert.ifError(err);
   server = http.createServer(function(req, res) {
     res.writeHead(200);
 

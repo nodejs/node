@@ -40,7 +40,7 @@
 extern char **environ;
 #endif
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__GLIBC__)
 # include <grp.h>
 #endif
 
@@ -232,7 +232,7 @@ static int uv__process_open_stream(uv_stdio_container_t* container,
     return 0;
 
   err = uv__close(pipefds[1]);
-  if (err != 0 && err != -EINPROGRESS)
+  if (err != 0)
     abort();
 
   pipefds[1] = -1;
@@ -323,7 +323,7 @@ static void uv__process_child_init(const uv_process_options_t* options,
     }
 
     if (fd == use_fd)
-      uv__cloexec(use_fd, 0);
+      uv__cloexec_fcntl(use_fd, 0);
     else
       fd = dup2(use_fd, fd);
 
@@ -333,7 +333,7 @@ static void uv__process_child_init(const uv_process_options_t* options,
     }
 
     if (fd <= 2)
-      uv__nonblock(fd, 0);
+      uv__nonblock_fcntl(fd, 0);
 
     if (close_fd >= stdio_count)
       uv__close(close_fd);

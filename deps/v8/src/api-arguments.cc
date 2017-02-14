@@ -13,8 +13,6 @@ namespace internal {
 Handle<Object> FunctionCallbackArguments::Call(FunctionCallback f) {
   Isolate* isolate = this->isolate();
   RuntimeCallTimerScope timer(isolate, &RuntimeCallStats::FunctionCallback);
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-      isolate, &internal::tracing::TraceEventStatsTable::FunctionCallback);
   VMState<EXTERNAL> state(isolate);
   ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));
   FunctionCallbackInfo<v8::Value> info(begin(), argv_, argc_);
@@ -26,8 +24,6 @@ Handle<JSObject> PropertyCallbackArguments::Call(
     IndexedPropertyEnumeratorCallback f) {
   Isolate* isolate = this->isolate();
   RuntimeCallTimerScope timer(isolate, &RuntimeCallStats::PropertyCallback);
-  TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-      isolate, &internal::tracing::TraceEventStatsTable::PropertyCallback);
   VMState<EXTERNAL> state(isolate);
   ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));
   PropertyCallbackInfo<v8::Array> info(begin());

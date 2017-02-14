@@ -24,7 +24,7 @@ function master() {
   });
   proc.stdout.on('data', common.mustCall((data) => {
     assert.strictEqual(data.toString(), 'ok\r\n');
-    net.createServer(common.fail).listen(0, function() {
+    net.createServer(common.mustNotCall()).listen(0, function() {
       handle = this._handle;
       proc.send('one');
       proc.send('two', handle);
@@ -36,12 +36,12 @@ function master() {
 }
 
 function worker() {
-  process._channel.readStop();  // Make messages batch up.
+  process.channel.readStop();  // Make messages batch up.
   process.stdout.ref();
   process.stdout.write('ok\r\n');
   process.stdin.once('data', common.mustCall((data) => {
     assert.strictEqual(data.toString(), 'ok\r\n');
-    process._channel.readStart();
+    process.channel.readStart();
   }));
   let n = 0;
   process.on('message', common.mustCall((msg, handle) => {

@@ -5386,4 +5386,130 @@ TEST(Trampoline) {
   CHECK_EQ(res, 0);
 }
 
+template <class T>
+struct TestCaseMaddMsub {
+  T fr, fs, ft, fd_add, fd_sub;
+};
+
+template <typename T, typename F>
+void helper_madd_msub_maddf_msubf(F func) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+
+  T x = std::sqrt(static_cast<T>(2.0));
+  T y = std::sqrt(static_cast<T>(3.0));
+  T z = std::sqrt(static_cast<T>(5.0));
+  T x2 = 11.11, y2 = 22.22, z2 = 33.33;
+  TestCaseMaddMsub<T> test_cases[] = {
+      {x, y, z, 0.0, 0.0},
+      {x, y, -z, 0.0, 0.0},
+      {x, -y, z, 0.0, 0.0},
+      {x, -y, -z, 0.0, 0.0},
+      {-x, y, z, 0.0, 0.0},
+      {-x, y, -z, 0.0, 0.0},
+      {-x, -y, z, 0.0, 0.0},
+      {-x, -y, -z, 0.0, 0.0},
+      {-3.14, 0.2345, -123.000056, 0.0, 0.0},
+      {7.3, -23.257, -357.1357, 0.0, 0.0},
+      {x2, y2, z2, 0.0, 0.0},
+      {x2, y2, -z2, 0.0, 0.0},
+      {x2, -y2, z2, 0.0, 0.0},
+      {x2, -y2, -z2, 0.0, 0.0},
+      {-x2, y2, z2, 0.0, 0.0},
+      {-x2, y2, -z2, 0.0, 0.0},
+      {-x2, -y2, z2, 0.0, 0.0},
+      {-x2, -y2, -z2, 0.0, 0.0},
+  };
+
+  if (std::is_same<T, float>::value) {
+    __ lwc1(f4, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fr)));
+    __ lwc1(f6, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fs)));
+    __ lwc1(f8, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, ft)));
+    __ lwc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fr)));
+  } else if (std::is_same<T, double>::value) {
+    __ ldc1(f4, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fr)));
+    __ ldc1(f6, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fs)));
+    __ ldc1(f8, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, ft)));
+    __ ldc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fr)));
+  } else {
+    UNREACHABLE();
+  }
+
+  func(assm);
+
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+
+  const size_t kTableLength = sizeof(test_cases) / sizeof(TestCaseMaddMsub<T>);
+  TestCaseMaddMsub<T> tc;
+  for (size_t i = 0; i < kTableLength; i++) {
+    tc.fr = test_cases[i].fr;
+    tc.fs = test_cases[i].fs;
+    tc.ft = test_cases[i].ft;
+
+    (CALL_GENERATED_CODE(isolate, f, &tc, 0, 0, 0, 0));
+
+    T res_add = tc.fr + (tc.fs * tc.ft);
+    T res_sub = 0;
+    if (IsMipsArchVariant(kMips32r2)) {
+      res_sub = (tc.fs * tc.ft) - tc.fr;
+    } else if (IsMipsArchVariant(kMips32r6)) {
+      res_sub = tc.fr - (tc.fs * tc.ft);
+    } else {
+      UNREACHABLE();
+    }
+
+    CHECK_EQ(tc.fd_add, res_add);
+    CHECK_EQ(tc.fd_sub, res_sub);
+  }
+}
+
+TEST(madd_msub_s) {
+  if (!IsMipsArchVariant(kMips32r2)) return;
+  helper_madd_msub_maddf_msubf<float>([](MacroAssembler& assm) {
+    __ madd_s(f10, f4, f6, f8);
+    __ swc1(f10, MemOperand(a0, offsetof(TestCaseMaddMsub<float>, fd_add)));
+    __ msub_s(f16, f4, f6, f8);
+    __ swc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<float>, fd_sub)));
+  });
+}
+
+TEST(madd_msub_d) {
+  if (!IsMipsArchVariant(kMips32r2)) return;
+  helper_madd_msub_maddf_msubf<double>([](MacroAssembler& assm) {
+    __ madd_d(f10, f4, f6, f8);
+    __ sdc1(f10, MemOperand(a0, offsetof(TestCaseMaddMsub<double>, fd_add)));
+    __ msub_d(f16, f4, f6, f8);
+    __ sdc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<double>, fd_sub)));
+  });
+}
+
+TEST(maddf_msubf_s) {
+  if (!IsMipsArchVariant(kMips32r6)) return;
+  helper_madd_msub_maddf_msubf<float>([](MacroAssembler& assm) {
+    __ maddf_s(f4, f6, f8);
+    __ swc1(f4, MemOperand(a0, offsetof(TestCaseMaddMsub<float>, fd_add)));
+    __ msubf_s(f16, f6, f8);
+    __ swc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<float>, fd_sub)));
+  });
+}
+
+TEST(maddf_msubf_d) {
+  if (!IsMipsArchVariant(kMips32r6)) return;
+  helper_madd_msub_maddf_msubf<double>([](MacroAssembler& assm) {
+    __ maddf_d(f4, f6, f8);
+    __ sdc1(f4, MemOperand(a0, offsetof(TestCaseMaddMsub<double>, fd_add)));
+    __ msubf_d(f16, f6, f8);
+    __ sdc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<double>, fd_sub)));
+  });
+}
+
 #undef __

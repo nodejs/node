@@ -1,35 +1,32 @@
 'use strict';
-require('../common');
-var http = require('http');
-var assert = require('assert');
+const common = require('../common');
+const http = require('http');
+const assert = require('assert');
 
 // first 204 or 304 works, subsequent anything fails
-var codes = [204, 200];
+const codes = [204, 200];
 
 // Methods don't really matter, but we put in something realistic.
-var methods = ['DELETE', 'DELETE'];
+const methods = ['DELETE', 'DELETE'];
 
-var server = http.createServer(function(req, res) {
-  var code = codes.shift();
-  assert.equal('number', typeof code);
+const server = http.createServer(common.mustCall((req, res) => {
+  const code = codes.shift();
+  assert.strictEqual(typeof code, 'number');
   assert.ok(code > 0);
-  console.error('writing %d response', code);
   res.writeHead(code, {});
   res.end();
-});
+}, codes.length));
 
 function nextRequest() {
-  var method = methods.shift();
-  console.error('writing request: %s', method);
+  const method = methods.shift();
 
-  var request = http.request({
+  const request = http.request({
     port: server.address().port,
     method: method,
     path: '/'
-  }, function(response) {
-    response.on('end', function() {
+  }, common.mustCall((response) => {
+    response.on('end', common.mustCall(() => {
       if (methods.length === 0) {
-        console.error('close server');
         server.close();
       } else {
         // throws error:
@@ -37,9 +34,9 @@ function nextRequest() {
         // works just fine:
         //process.nextTick(nextRequest);
       }
-    });
+    }));
     response.resume();
-  });
+  }));
   request.end();
 }
 

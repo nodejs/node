@@ -21,6 +21,7 @@ test("shrinkwrap doesn't strip out the shared dependency", function (t) {
 
       npm.install('.', function (err) {
         if (err) return t.fail(err)
+        npm.config.set('dev', true) // npm install unsets this
 
         npm.commands.shrinkwrap([], true, function (err, results) {
           if (err) return t.fail(err)

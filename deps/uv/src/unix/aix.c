@@ -64,6 +64,11 @@
 #define RDWR_BUF_SIZE   4096
 #define EQ(a,b)         (strcmp(a,b) == 0)
 
+static void* args_mem = NULL;
+static char** process_argv = NULL;
+static int process_argc = 0;
+static char* process_title_ptr = NULL;
+
 int uv__platform_loop_init(uv_loop_t* loop) {
   loop->fs_fd = -1;
 
@@ -156,7 +161,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
         pqry.fd = pc.fd;
         rc = pollset_query(loop->backend_fd, &pqry);
         switch (rc) {
-        case -1: 
+        case -1:
           assert(0 && "Failed to query pollset for file descriptor");
           abort();
         case 0:
@@ -333,20 +338,20 @@ int uv_exepath(char* buffer, size_t* size) {
 
   pi.pi_pid = getpid();
   res = getargs(&pi, sizeof(pi), args, sizeof(args));
-  if (res < 0) 
+  if (res < 0)
     return -EINVAL;
 
   /*
    * Possibilities for args:
    * i) an absolute path such as: /home/user/myprojects/nodejs/node
    * ii) a relative path such as: ./node or ../myprojects/nodejs/node
-   * iii) a bare filename such as "node", after exporting PATH variable 
+   * iii) a bare filename such as "node", after exporting PATH variable
    *     to its location.
    */
 
   /* Case i) and ii) absolute or relative paths */
   if (strchr(args, '/') != NULL) {
-    if (realpath(args, abspath) != abspath) 
+    if (realpath(args, abspath) != abspath)
       return -errno;
 
     abspath_size = strlen(abspath);
@@ -360,7 +365,7 @@ int uv_exepath(char* buffer, size_t* size) {
 
     return 0;
   } else {
-  /* Case iii). Search PATH environment variable */ 
+  /* Case iii). Search PATH environment variable */
     char trypath[PATH_MAX];
     char *clonedpath = NULL;
     char *token = NULL;
@@ -376,7 +381,7 @@ int uv_exepath(char* buffer, size_t* size) {
     token = strtok(clonedpath, ":");
     while (token != NULL) {
       snprintf(trypath, sizeof(trypath) - 1, "%s/%s", token, args);
-      if (realpath(trypath, abspath) == abspath) { 
+      if (realpath(trypath, abspath) == abspath) {
         /* Check the match is executable */
         if (access(abspath, X_OK) == 0) {
           abspath_size = strlen(abspath);
@@ -452,7 +457,7 @@ static char *uv__rawname(char *cp) {
 }
 
 
-/* 
+/*
  * Determine whether given pathname is a directory
  * Returns 0 if the path is a directory, -1 if not
  *
@@ -472,7 +477,7 @@ static int uv__path_is_a_directory(char* filename) {
 }
 
 
-/* 
+/*
  * Check whether AHAFS is mounted.
  * Returns 0 if AHAFS is mounted, or an error code < 0 on failure
  */
@@ -547,7 +552,7 @@ static int uv__makedir_p(const char *dir) {
   return mkdir(tmp, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
 }
 
-/* 
+/*
  * Creates necessary subdirectories in the AIX Event Infrastructure
  * file system for monitoring the object specified.
  * Returns code from mkdir call
@@ -665,7 +670,7 @@ static int uv__skip_lines(char **p, int n) {
 /*
  * Parse the event occurrence data to figure out what event just occurred
  * and take proper action.
- * 
+ *
  * The buf is a pointer to the buffer containing the event occurrence data
  * Returns 0 on success, -1 if unrecoverable error in parsing
  *
@@ -752,6 +757,13 @@ static void uv__ahafs_event(uv_loop_t* loop, uv__io_t* event_watch, unsigned int
   bytes = pread(event_watch->fd, result_data, RDWR_BUF_SIZE, 0);
 
   assert((bytes >= 0) && "uv__ahafs_event - Error reading monitor file");
+
+  /* In file / directory move cases, AIX Event infrastructure
+   * produces a second event with no data.
+   * Ignore it and return gracefully.
+   */
+  if(bytes == 0)
+    return;
 
   /* Parse the data */
   if(bytes > 0)
@@ -881,20 +893,91 @@ void uv__fs_event_close(uv_fs_event_t* handle) {
 
 
 char** uv_setup_args(int argc, char** argv) {
-  return argv;
+  char** new_argv;
+  size_t size;
+  char* s;
+  int i;
+
+  if (argc <= 0)
+    return argv;
+
+  /* Save the original pointer to argv.
+   * AIX uses argv to read the process name.
+   * (Not the memory pointed to by argv[0..n] as on Linux.)
+   */
+  process_argv = argv;
+  process_argc = argc;
+
+  /* Calculate how much memory we need for the argv strings. */
+  size = 0;
+  for (i = 0; i < argc; i++)
+    size += strlen(argv[i]) + 1;
+
+  /* Add space for the argv pointers. */
+  size += (argc + 1) * sizeof(char*);
+
+  new_argv = uv__malloc(size);
+  if (new_argv == NULL)
+    return argv;
+  args_mem = new_argv;
+
+  /* Copy over the strings and set up the pointer table. */
+  s = (char*) &new_argv[argc + 1];
+  for (i = 0; i < argc; i++) {
+    size = strlen(argv[i]) + 1;
+    memcpy(s, argv[i], size);
+    new_argv[i] = s;
+    s += size;
+  }
+  new_argv[i] = NULL;
+
+  return new_argv;
 }
 
 
 int uv_set_process_title(const char* title) {
+  char* new_title;
+
+  /* We cannot free this pointer when libuv shuts down,
+   * the process may still be using it.
+   */
+  new_title = uv__strdup(title);
+  if (new_title == NULL)
+    return -ENOMEM;
+
+  /* If this is the first time this is set,
+   * don't free and set argv[1] to NULL.
+   */
+  if (process_title_ptr != NULL)
+    uv__free(process_title_ptr);
+
+  process_title_ptr = new_title;
+
+  process_argv[0] = process_title_ptr;
+  if (process_argc > 1)
+     process_argv[1] = NULL;
+
   return 0;
 }
 
 
 int uv_get_process_title(char* buffer, size_t size) {
-  if (size > 0) {
-    buffer[0] = '\0';
-  }
+  size_t len;
+  len = strlen(process_argv[0]);
+  if (buffer == NULL || size == 0)
+    return -EINVAL;
+  else if (size <= len)
+    return -ENOBUFS;
+
+  memcpy(buffer, process_argv[0], len + 1);
+
   return 0;
+}
+
+
+UV_DESTRUCTOR(static void free_args_mem(void)) {
+  uv__free(args_mem);  /* Keep valgrind happy. */
+  args_mem = NULL;
 }
 
 

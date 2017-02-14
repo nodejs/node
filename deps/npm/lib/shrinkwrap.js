@@ -35,26 +35,25 @@ function shrinkwrap (args, silent, cb) {
     log.warn('shrinkwrap', "doesn't take positional args")
   }
 
-  var dir = path.resolve(npm.dir, '..')
   var packagePath = path.join(npm.localPrefix, 'package.json')
-  var dev = !!npm.config.get('dev') || /^dev(elopment)?$/.test(npm.config.get('also'))
+  var prod = npm.config.get('production') || /^prod/.test(npm.config.get('only'))
 
   readPackageJson(packagePath, iferr(cb, function (pkg) {
-    createShrinkwrap(dir, pkg, dev, silent, cb)
+    createShrinkwrap(npm.localPrefix, pkg, !prod, silent, cb)
   }))
 }
 
 module.exports.createShrinkwrap = createShrinkwrap
 
 function createShrinkwrap (dir, pkg, dev, silent, cb) {
-  lifecycle(pkg, 'preshrinkwrap', function () {
+  lifecycle(pkg, 'preshrinkwrap', dir, function () {
     readPackageTree(dir, andRecalculateMetadata(iferr(cb, function (tree) {
       var pkginfo = treeToShrinkwrap(tree, dev)
 
       chain([
-        [lifecycle, tree.package, 'shrinkwrap'],
+        [lifecycle, tree.package, 'shrinkwrap', dir],
         [shrinkwrap_, pkginfo, silent],
-        [lifecycle, tree.package, 'postshrinkwrap']
+        [lifecycle, tree.package, 'postshrinkwrap', dir]
       ], iferr(cb, function (data) {
         cb(null, data[0])
       }))
@@ -166,7 +165,7 @@ function isOnlyDev (node, seen) {
 
 // There is a known limitation with this implementation: If a dependency is
 // ONLY required by cycles that are detached from the top level then it will
-// ultimately return ture.
+// ultimately return true.
 //
 // This is ok though: We don't allow shrinkwraps with extraneous deps and
 // these situation is caught by the extraneous checker before we get here.

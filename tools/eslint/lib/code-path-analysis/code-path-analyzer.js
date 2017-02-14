@@ -148,7 +148,7 @@ function forwardCurrentToHead(analyzer, node) {
         headSegment = headSegments[i];
 
         if (currentSegment !== headSegment && currentSegment) {
-            debug.dump("onCodePathSegmentEnd " + currentSegment.id);
+            debug.dump(`onCodePathSegmentEnd ${currentSegment.id}`);
 
             if (currentSegment.reachable) {
                 analyzer.emitter.emit(
@@ -168,7 +168,7 @@ function forwardCurrentToHead(analyzer, node) {
         headSegment = headSegments[i];
 
         if (currentSegment !== headSegment && headSegment) {
-            debug.dump("onCodePathSegmentStart " + headSegment.id);
+            debug.dump(`onCodePathSegmentStart ${headSegment.id}`);
 
             CodePathSegment.markUsed(headSegment);
             if (headSegment.reachable) {
@@ -197,7 +197,7 @@ function leaveFromCurrentSegment(analyzer, node) {
     for (let i = 0; i < currentSegments.length; ++i) {
         const currentSegment = currentSegments[i];
 
-        debug.dump("onCodePathSegmentEnd " + currentSegment.id);
+        debug.dump(`onCodePathSegmentEnd ${currentSegment.id}`);
         if (currentSegment.reachable) {
             analyzer.emitter.emit(
                 "onCodePathSegmentEnd",
@@ -353,7 +353,7 @@ function processCodePathToEnter(analyzer, node) {
             state = CodePath.getState(codePath);
 
             // Emits onCodePathStart events.
-            debug.dump("onCodePathStart " + codePath.id);
+            debug.dump(`onCodePathStart ${codePath.id}`);
             analyzer.emitter.emit("onCodePathStart", codePath, node);
             break;
 
@@ -546,7 +546,7 @@ function postprocess(analyzer, node) {
             leaveFromCurrentSegment(analyzer, node);
 
             // Emits onCodePathEnd event of this code path.
-            debug.dump("onCodePathEnd " + codePath.id);
+            debug.dump(`onCodePathEnd ${codePath.id}`);
             analyzer.emitter.emit("onCodePathEnd", codePath, node);
             debug.dumpDot(codePath);
 
@@ -569,21 +569,20 @@ function postprocess(analyzer, node) {
 /**
  * The class to analyze code paths.
  * This class implements the EventGenerator interface.
- *
- * @constructor
- * @param {EventGenerator} eventGenerator - An event generator to wrap.
  */
-function CodePathAnalyzer(eventGenerator) {
-    this.original = eventGenerator;
-    this.emitter = eventGenerator.emitter;
-    this.codePath = null;
-    this.idGenerator = new IdGenerator("s");
-    this.currentNode = null;
-    this.onLooped = this.onLooped.bind(this);
-}
+class CodePathAnalyzer {
 
-CodePathAnalyzer.prototype = {
-    constructor: CodePathAnalyzer,
+    /**
+     * @param {EventGenerator} eventGenerator - An event generator to wrap.
+     */
+    constructor(eventGenerator) {
+        this.original = eventGenerator;
+        this.emitter = eventGenerator.emitter;
+        this.codePath = null;
+        this.idGenerator = new IdGenerator("s");
+        this.currentNode = null;
+        this.onLooped = this.onLooped.bind(this);
+    }
 
     /**
      * Does the process to enter a given AST node.
@@ -608,7 +607,7 @@ CodePathAnalyzer.prototype = {
         this.original.enterNode(node);
 
         this.currentNode = null;
-    },
+    }
 
     /**
      * Does the process to leave a given AST node.
@@ -631,7 +630,7 @@ CodePathAnalyzer.prototype = {
         postprocess(this, node);
 
         this.currentNode = null;
-    },
+    }
 
     /**
      * This is called on a code path looped.
@@ -643,7 +642,7 @@ CodePathAnalyzer.prototype = {
      */
     onLooped(fromSegment, toSegment) {
         if (fromSegment.reachable && toSegment.reachable) {
-            debug.dump("onCodePathSegmentLoop " + fromSegment.id + " -> " + toSegment.id);
+            debug.dump(`onCodePathSegmentLoop ${fromSegment.id} -> ${toSegment.id}`);
             this.emitter.emit(
                 "onCodePathSegmentLoop",
                 fromSegment,
@@ -652,6 +651,6 @@ CodePathAnalyzer.prototype = {
             );
         }
     }
-};
+}
 
 module.exports = CodePathAnalyzer;

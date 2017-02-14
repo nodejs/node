@@ -42,6 +42,7 @@ import threading
 import utils
 import multiprocessing
 import errno
+import copy
 
 from os.path import join, dirname, abspath, basename, isdir, exists
 from datetime import datetime
@@ -255,11 +256,15 @@ class DotsProgressIndicator(SimpleProgressIndicator):
 
 class TapProgressIndicator(SimpleProgressIndicator):
 
-  def _printDiagnostic(self, messages):
-    for l in messages.splitlines():
-      logger.info('# ' + l)
+  def _printDiagnostic(self, traceback, severity):
+    logger.info('  severity: %s', severity)
+    logger.info('  stack: |-')
+
+    for l in traceback.splitlines():
+      logger.info('    ' + l)
 
   def Starting(self):
+    logger.info('TAP version 13')
     logger.info('1..%i' % len(self.cases))
     self._done = 0
 
@@ -268,6 +273,8 @@ class TapProgressIndicator(SimpleProgressIndicator):
 
   def HasRun(self, output):
     self._done += 1
+    self.traceback = ''
+    self.severity = 'ok'
 
     # Print test name as (for example) "parallel/test-assert".  Tests that are
     # scraped from the addons documentation are all named test.js, making it
@@ -280,19 +287,23 @@ class TapProgressIndicator(SimpleProgressIndicator):
 
     if output.UnexpectedOutput():
       status_line = 'not ok %i %s' % (self._done, command)
+      self.severity = 'fail'
+      self.traceback = output.output.stdout + output.output.stderr
+
       if FLAKY in output.test.outcomes and self.flaky_tests_mode == DONTCARE:
         status_line = status_line + ' # TODO : Fix flaky test'
+        self.severity = 'flaky'
+
       logger.info(status_line)
-      self._printDiagnostic("\n".join(output.diagnostic))
 
       if output.HasCrashed():
-        self._printDiagnostic(PrintCrashed(output.output.exit_code))
+        self.severity = 'crashed'
+        exit_code = output.output.exit_code
+        self.traceback = "oh no!\nexit code: " + PrintCrashed(exit_code)
 
       if output.HasTimedOut():
-        self._printDiagnostic('TIMEOUT')
+        self.severity = 'fail'
 
-      self._printDiagnostic(output.output.stderr)
-      self._printDiagnostic(output.output.stdout)
     else:
       skip = skip_regex.search(output.output.stdout)
       if skip:
@@ -303,7 +314,11 @@ class TapProgressIndicator(SimpleProgressIndicator):
         if FLAKY in output.test.outcomes:
           status_line = status_line + ' # TODO : Fix flaky test'
         logger.info(status_line)
-      self._printDiagnostic("\n".join(output.diagnostic))
+
+      if output.diagnostic:
+        self.severity = 'ok'
+        self.traceback = output.diagnostic
+
 
     duration = output.test.duration
 
@@ -314,7 +329,12 @@ class TapProgressIndicator(SimpleProgressIndicator):
     # duration_ms is measured in seconds and is read as such by TAP parsers.
     # It should read as "duration including ms" rather than "duration in ms"
     logger.info('  ---')
-    logger.info('  duration_ms: %d.%d' % (total_seconds, duration.microseconds / 1000))
+    logger.info('  duration_ms: %d.%d' %
+      (total_seconds, duration.microseconds / 1000))
+    if self.severity is not 'ok' or self.traceback is not '':
+      if output.HasTimedOut():
+        self.traceback = 'timeout'
+      self._printDiagnostic(self.traceback, self.severity)
     logger.info('  ...')
 
   def Done(self):
@@ -545,11 +565,11 @@ class TestOutput(object):
       return execution_failed
 
 
-def KillProcessWithID(pid):
+def KillProcessWithID(pid, signal_to_send=signal.SIGTERM):
   if utils.IsWindows():
     os.popen('taskkill /T /F /PID %d' % pid)
   else:
-    os.kill(pid, signal.SIGTERM)
+    os.kill(pid, signal_to_send)
 
 
 MAX_SLEEP_TIME = 0.1
@@ -567,6 +587,17 @@ def Win32SetErrorMode(mode):
   except ImportError:
     pass
   return prev_error_mode
+
+
+def KillTimedOutProcess(context, pid):
+  signal_to_send = signal.SIGTERM
+  if context.abort_on_timeout:
+    # Using SIGABRT here allows the OS to generate a core dump that can be
+    # looked at post-mortem, which helps for investigating failures that are
+    # difficult to reproduce.
+    signal_to_send = signal.SIGABRT
+  KillProcessWithID(pid, signal_to_send)
+
 
 def RunProcess(context, timeout, args, **rest):
   if context.verbose: print "#", " ".join(args)
@@ -607,7 +638,7 @@ def RunProcess(context, timeout, args, **rest):
     while True:
       if time.time() >= end_time:
         # Kill the process and wait for it to exit.
-        KillProcessWithID(process.pid)
+        KillTimedOutProcess(context, process.pid)
         exit_code = process.wait()
         timed_out = True
         break
@@ -628,7 +659,7 @@ def RunProcess(context, timeout, args, **rest):
   while exit_code is None:
     if (not end_time is None) and (time.time() >= end_time):
       # Kill the process and wait for it to exit.
-      KillProcessWithID(process.pid)
+      KillTimedOutProcess(context, process.pid)
       exit_code = process.wait()
       timed_out = True
     else:
@@ -663,11 +694,12 @@ def Execute(args, context, timeout=None, env={}, faketty=False):
   if faketty:
     import pty
     (out_master, fd_out) = pty.openpty()
-    fd_err = fd_out
+    fd_in = fd_err = fd_out
     pty_out = out_master
   else:
     (fd_out, outname) = tempfile.mkstemp()
     (fd_err, errname) = tempfile.mkstemp()
+    fd_in = 0
     pty_out = None
 
   # Extend environment
@@ -679,6 +711,7 @@ def Execute(args, context, timeout=None, env={}, faketty=False):
     context,
     timeout,
     args = args,
+    stdin = fd_in,
     stdout = fd_out,
     stderr = fd_err,
     env = env_copy,
@@ -773,7 +806,9 @@ class TestRepository(TestSuite):
       tests = self.GetConfiguration(context).ListTests(current_path, path,
                                                        arch, mode)
       for t in tests: t.variant_flags = v
-      result += tests * context.repeat
+      result += tests
+      for i in range(1, context.repeat):
+        result += copy.deepcopy(tests)
 
   def GetTestStatus(self, context, sections, defs):
     self.GetConfiguration(context).GetTestStatus(sections, defs)
@@ -827,7 +862,7 @@ class Context(object):
 
   def __init__(self, workspace, buildspace, verbose, vm, args, expect_fail,
                timeout, processor, suppress_dialogs,
-               store_unexpected_output, repeat):
+               store_unexpected_output, repeat, abort_on_timeout):
     self.workspace = workspace
     self.buildspace = buildspace
     self.verbose = verbose
@@ -839,6 +874,7 @@ class Context(object):
     self.suppress_dialogs = suppress_dialogs
     self.store_unexpected_output = store_unexpected_output
     self.repeat = repeat
+    self.abort_on_timeout = abort_on_timeout
 
   def GetVm(self, arch, mode):
     if arch == 'none':
@@ -1361,6 +1397,9 @@ def BuildOptions():
   result.add_option('--repeat',
       help='Number of times to repeat given tests',
       default=1, type="int")
+  result.add_option('--abort-on-timeout',
+      help='Send SIGABRT instead of SIGTERM to kill processes that time out',
+      default=False, action="store_true", dest="abort_on_timeout")
   return result
 
 
@@ -1439,6 +1478,13 @@ def SplitPath(s):
   stripped = [ c.strip() for c in s.split('/') ]
   return [ Pattern(s) for s in stripped if len(s) > 0 ]
 
+def NormalizePath(path):
+  # strip the extra path information of the specified test
+  if path.startswith('test/'):
+    path = path[5:]
+  if path.endswith('.js'):
+    path = path[:-3]
+  return path
 
 def GetSpecialCommandProcessor(value):
   if (not value) or (value.find('@') == -1):
@@ -1512,7 +1558,7 @@ def Main():
   else:
     paths = [ ]
     for arg in args:
-      path = SplitPath(arg)
+      path = SplitPath(NormalizePath(arg))
       paths.append(path)
 
   # Check for --valgrind option. If enabled, we overwrite the special
@@ -1535,7 +1581,8 @@ def Main():
                     processor,
                     options.suppress_dialogs,
                     options.store_unexpected_output,
-                    options.repeat)
+                    options.repeat,
+                    options.abort_on_timeout)
 
   # Get status for tests
   sections = [ ]
@@ -1597,9 +1644,9 @@ def Main():
 
   tempdir = os.environ.get('NODE_TEST_DIR') or options.temp_dir
   if tempdir:
+    os.environ['NODE_TEST_DIR'] = tempdir
     try:
       os.makedirs(tempdir)
-      os.environ['NODE_TEST_DIR'] = tempdir
     except OSError as exception:
       if exception.errno != errno.EEXIST:
         print "Could not create the temporary directory", options.temp_dir

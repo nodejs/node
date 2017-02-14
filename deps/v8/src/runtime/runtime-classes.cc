@@ -95,7 +95,8 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate,
       prototype_parent = isolate->factory()->null_value();
     } else if (super_class->IsConstructor()) {
       DCHECK(!super_class->IsJSFunction() ||
-             !Handle<JSFunction>::cast(super_class)->shared()->is_resumable());
+             !IsResumableFunction(
+                 Handle<JSFunction>::cast(super_class)->shared()->kind()));
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, prototype_parent,
           Runtime::GetObjectProperty(isolate, super_class,
@@ -187,52 +188,65 @@ RUNTIME_FUNCTION(Runtime_DefineClass) {
                            end_position));
 }
 
+namespace {
 
-static MaybeHandle<Object> LoadFromSuper(Isolate* isolate,
+enum class SuperMode { kLoad, kStore };
+
+MaybeHandle<JSReceiver> GetSuperHolder(
+    Isolate* isolate, Handle<Object> receiver, Handle<JSObject> home_object,
+    SuperMode mode, MaybeHandle<Name> maybe_name, uint32_t index) {
+  if (home_object->IsAccessCheckNeeded() &&
+      !isolate->MayAccess(handle(isolate->context()), home_object)) {
+    isolate->ReportFailedAccessCheck(home_object);
+    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, JSReceiver);
+  }
+
+  PrototypeIterator iter(isolate, home_object);
+  Handle<Object> proto = PrototypeIterator::GetCurrent(iter);
+  if (!proto->IsJSReceiver()) {
+    MessageTemplate::Template message =
+        mode == SuperMode::kLoad ? MessageTemplate::kNonObjectPropertyLoad
+                                 : MessageTemplate::kNonObjectPropertyStore;
+    Handle<Name> name;
+    if (!maybe_name.ToHandle(&name)) {
+      name = isolate->factory()->Uint32ToString(index);
+    }
+    THROW_NEW_ERROR(isolate, NewTypeError(message, name, proto), JSReceiver);
+  }
+  return Handle<JSReceiver>::cast(proto);
+}
+
+MaybeHandle<Object> LoadFromSuper(Isolate* isolate, Handle<Object> receiver,
+                                  Handle<JSObject> home_object,
+                                  Handle<Name> name) {
+  Handle<JSReceiver> holder;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, holder,
+      GetSuperHolder(isolate, receiver, home_object, SuperMode::kLoad, name, 0),
+      Object);
+  LookupIterator it(receiver, name, holder);
+  Handle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, result, Object::GetProperty(&it), Object);
+  return result;
+}
+
+MaybeHandle<Object> LoadElementFromSuper(Isolate* isolate,
                                          Handle<Object> receiver,
                                          Handle<JSObject> home_object,
-                                         Handle<Name> name) {
-  if (home_object->IsAccessCheckNeeded() &&
-      !isolate->MayAccess(handle(isolate->context()), home_object)) {
-    isolate->ReportFailedAccessCheck(home_object);
-    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-  }
-
-  PrototypeIterator iter(isolate, home_object);
-  Handle<Object> proto = PrototypeIterator::GetCurrent(iter);
-  if (!proto->IsJSReceiver()) {
-    return Object::ReadAbsentProperty(isolate, proto, name);
-  }
-
-  LookupIterator it(receiver, name, Handle<JSReceiver>::cast(proto));
+                                         uint32_t index) {
+  Handle<JSReceiver> holder;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, holder,
+      GetSuperHolder(isolate, receiver, home_object, SuperMode::kLoad,
+                     MaybeHandle<Name>(), index),
+      Object);
+  LookupIterator it(isolate, receiver, index, holder);
   Handle<Object> result;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, result, Object::GetProperty(&it), Object);
   return result;
 }
 
-static MaybeHandle<Object> LoadElementFromSuper(Isolate* isolate,
-                                                Handle<Object> receiver,
-                                                Handle<JSObject> home_object,
-                                                uint32_t index) {
-  if (home_object->IsAccessCheckNeeded() &&
-      !isolate->MayAccess(handle(isolate->context()), home_object)) {
-    isolate->ReportFailedAccessCheck(home_object);
-    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
-  }
-
-  PrototypeIterator iter(isolate, home_object);
-  Handle<Object> proto = PrototypeIterator::GetCurrent(iter);
-  if (!proto->IsJSReceiver()) {
-    Handle<Object> name = isolate->factory()->NewNumberFromUint(index);
-    return Object::ReadAbsentProperty(isolate, proto, name);
-  }
-
-  LookupIterator it(isolate, receiver, index, Handle<JSReceiver>::cast(proto));
-  Handle<Object> result;
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, result, Object::GetProperty(&it), Object);
-  return result;
-}
-
+}  // anonymous namespace
 
 RUNTIME_FUNCTION(Runtime_LoadFromSuper) {
   HandleScope scope(isolate);
@@ -272,50 +286,43 @@ RUNTIME_FUNCTION(Runtime_LoadKeyedFromSuper) {
                            LoadFromSuper(isolate, receiver, home_object, name));
 }
 
+namespace {
 
-static Object* StoreToSuper(Isolate* isolate, Handle<JSObject> home_object,
-                            Handle<Object> receiver, Handle<Name> name,
-                            Handle<Object> value, LanguageMode language_mode) {
-  if (home_object->IsAccessCheckNeeded() &&
-      !isolate->MayAccess(handle(isolate->context()), home_object)) {
-    isolate->ReportFailedAccessCheck(home_object);
-    RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-  }
-
-  PrototypeIterator iter(isolate, home_object);
-  Handle<Object> proto = PrototypeIterator::GetCurrent(iter);
-  if (!proto->IsJSReceiver()) return isolate->heap()->undefined_value();
-
-  LookupIterator it(receiver, name, Handle<JSReceiver>::cast(proto));
+MaybeHandle<Object> StoreToSuper(Isolate* isolate, Handle<JSObject> home_object,
+                                 Handle<Object> receiver, Handle<Name> name,
+                                 Handle<Object> value,
+                                 LanguageMode language_mode) {
+  Handle<JSReceiver> holder;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, holder,
+                             GetSuperHolder(isolate, receiver, home_object,
+                                            SuperMode::kStore, name, 0),
+                             Object);
+  LookupIterator it(receiver, name, holder);
   MAYBE_RETURN(Object::SetSuperProperty(&it, value, language_mode,
                                         Object::CERTAINLY_NOT_STORE_FROM_KEYED),
-               isolate->heap()->exception());
-  return *value;
+               MaybeHandle<Object>());
+  return value;
 }
 
-
-static Object* StoreElementToSuper(Isolate* isolate,
-                                   Handle<JSObject> home_object,
-                                   Handle<Object> receiver, uint32_t index,
-                                   Handle<Object> value,
-                                   LanguageMode language_mode) {
-  if (home_object->IsAccessCheckNeeded() &&
-      !isolate->MayAccess(handle(isolate->context()), home_object)) {
-    isolate->ReportFailedAccessCheck(home_object);
-    RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-  }
-
-  PrototypeIterator iter(isolate, home_object);
-  Handle<Object> proto = PrototypeIterator::GetCurrent(iter);
-  if (!proto->IsJSReceiver()) return isolate->heap()->undefined_value();
-
-  LookupIterator it(isolate, receiver, index, Handle<JSReceiver>::cast(proto));
+MaybeHandle<Object> StoreElementToSuper(Isolate* isolate,
+                                        Handle<JSObject> home_object,
+                                        Handle<Object> receiver, uint32_t index,
+                                        Handle<Object> value,
+                                        LanguageMode language_mode) {
+  Handle<JSReceiver> holder;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, holder,
+      GetSuperHolder(isolate, receiver, home_object, SuperMode::kStore,
+                     MaybeHandle<Name>(), index),
+      Object);
+  LookupIterator it(isolate, receiver, index, holder);
   MAYBE_RETURN(Object::SetSuperProperty(&it, value, language_mode,
                                         Object::MAY_BE_STORE_FROM_KEYED),
-               isolate->heap()->exception());
-  return *value;
+               MaybeHandle<Object>());
+  return value;
 }
 
+}  // anonymous namespace
 
 RUNTIME_FUNCTION(Runtime_StoreToSuper_Strict) {
   HandleScope scope(isolate);
@@ -325,7 +332,8 @@ RUNTIME_FUNCTION(Runtime_StoreToSuper_Strict) {
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 2);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 3);
 
-  return StoreToSuper(isolate, home_object, receiver, name, value, STRICT);
+  RETURN_RESULT_OR_FAILURE(isolate, StoreToSuper(isolate, home_object, receiver,
+                                                 name, value, STRICT));
 }
 
 
@@ -337,14 +345,13 @@ RUNTIME_FUNCTION(Runtime_StoreToSuper_Sloppy) {
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 2);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 3);
 
-  return StoreToSuper(isolate, home_object, receiver, name, value, SLOPPY);
+  RETURN_RESULT_OR_FAILURE(isolate, StoreToSuper(isolate, home_object, receiver,
+                                                 name, value, SLOPPY));
 }
 
-
-static Object* StoreKeyedToSuper(Isolate* isolate, Handle<JSObject> home_object,
-                                 Handle<Object> receiver, Handle<Object> key,
-                                 Handle<Object> value,
-                                 LanguageMode language_mode) {
+static MaybeHandle<Object> StoreKeyedToSuper(
+    Isolate* isolate, Handle<JSObject> home_object, Handle<Object> receiver,
+    Handle<Object> key, Handle<Object> value, LanguageMode language_mode) {
   uint32_t index = 0;
 
   if (key->ToArrayIndex(&index)) {
@@ -352,8 +359,8 @@ static Object* StoreKeyedToSuper(Isolate* isolate, Handle<JSObject> home_object,
                                language_mode);
   }
   Handle<Name> name;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, name,
-                                     Object::ToName(isolate, key));
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, name, Object::ToName(isolate, key),
+                             Object);
   // TODO(verwaest): Unify using LookupIterator.
   if (name->AsArrayIndex(&index)) {
     return StoreElementToSuper(isolate, home_object, receiver, index, value,
@@ -372,7 +379,9 @@ RUNTIME_FUNCTION(Runtime_StoreKeyedToSuper_Strict) {
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 2);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 3);
 
-  return StoreKeyedToSuper(isolate, home_object, receiver, key, value, STRICT);
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
+      StoreKeyedToSuper(isolate, home_object, receiver, key, value, STRICT));
 }
 
 
@@ -384,7 +393,9 @@ RUNTIME_FUNCTION(Runtime_StoreKeyedToSuper_Sloppy) {
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 2);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 3);
 
-  return StoreKeyedToSuper(isolate, home_object, receiver, key, value, SLOPPY);
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
+      StoreKeyedToSuper(isolate, home_object, receiver, key, value, SLOPPY));
 }
 
 

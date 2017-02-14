@@ -1,34 +1,34 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var http = require('http');
+const http = require('http');
 
-var serverEndCb = false;
-var serverIncoming = '';
-var serverIncomingExpect = 'bazquuxblerg';
+let serverEndCb = false;
+let serverIncoming = '';
+const serverIncomingExpect = 'bazquuxblerg';
 
-var clientEndCb = false;
-var clientIncoming = '';
-var clientIncomingExpect = 'asdffoobar';
+let clientEndCb = false;
+let clientIncoming = '';
+const clientIncomingExpect = 'asdffoobar';
 
 process.on('exit', function() {
   assert(serverEndCb);
-  assert.equal(serverIncoming, serverIncomingExpect);
+  assert.strictEqual(serverIncoming, serverIncomingExpect);
   assert(clientEndCb);
-  assert.equal(clientIncoming, clientIncomingExpect);
+  assert.strictEqual(clientIncoming, clientIncomingExpect);
   console.log('ok');
 });
 
 // Verify that we get a callback when we do res.write(..., cb)
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   res.statusCode = 400;
   res.end('Bad Request.\nMust send Expect:100-continue\n');
 });
 
 server.on('checkContinue', function(req, res) {
   server.close();
-  assert.equal(req.method, 'PUT');
+  assert.strictEqual(req.method, 'PUT');
   res.writeContinue(function() {
     // continue has been written
     req.on('end', function() {
@@ -51,7 +51,7 @@ server.on('checkContinue', function(req, res) {
 });
 
 server.listen(0, function() {
-  var req = http.request({
+  const req = http.request({
     port: this.address().port,
     method: 'PUT',
     headers: { 'expect': '100-continue' }

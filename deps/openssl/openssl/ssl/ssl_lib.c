@@ -2030,10 +2030,8 @@ SSL_CTX *SSL_CTX_new(const SSL_METHOD *meth)
     ret->rbuf_freelist->len = 0;
     ret->rbuf_freelist->head = NULL;
     ret->wbuf_freelist = OPENSSL_malloc(sizeof(SSL3_BUF_FREELIST));
-    if (!ret->wbuf_freelist) {
-        OPENSSL_free(ret->rbuf_freelist);
+    if (!ret->wbuf_freelist)
         goto err;
-    }
     ret->wbuf_freelist->chunklen = 0;
     ret->wbuf_freelist->len = 0;
     ret->wbuf_freelist->head = NULL;

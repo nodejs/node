@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /********************************************************************
  * COPYRIGHT:
  * Copyright (c) 2001-2016, International Business Machines Corporation and
@@ -100,8 +102,8 @@ class RBBINode : public UMemory {
 
 #ifdef RBBI_DEBUG
         static void printNodeHeader();
-        void        printNode();
-        void        printTree(UBool withHeading);
+        static void printNode(const RBBINode *n);
+        static void printTree(const RBBINode *n, UBool withHeading);
 #endif
 
     private:

@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 1997-2015, International Business Machines Corporation and    *
@@ -39,7 +41,7 @@ static const char gNumberElementsTag[] = "NumberElements";
 static const char gDecimalFormatTag[] = "decimalFormat";
 static const char gPatternsShort[] = "patternsShort";
 static const char gPatternsLong[] = "patternsLong";
-static const char gRoot[] = "root";
+static const char gLatnPath[] = "NumberElements/latn";
 
 static const UChar u_0 = 0x30;
 static const UChar u_apos = 0x27;
@@ -94,7 +96,13 @@ class CDFLocaleStyleData : public UMemory {
   // Compute cdfUnits = unitsByVariant[pluralVariant].
   // Prefix and suffix to use at cdfUnits[log10(x)]
   UHashtable* unitsByVariant;
-  inline CDFLocaleStyleData() : unitsByVariant(NULL) {}
+  // A flag for whether or not this CDFLocaleStyleData was loaded from the
+  // Latin numbering system as a fallback from the locale numbering system.
+  // This value is meaningless if the object is bogus or empty.
+  UBool fromFallback;
+  inline CDFLocaleStyleData() : unitsByVariant(NULL), fromFallback(FALSE) {
+    uprv_memset(divisors, 0, sizeof(divisors));
+  }
   ~CDFLocaleStyleData();
   // Init initializes this object.
   void Init(UErrorCode& status);
@@ -102,6 +110,9 @@ class CDFLocaleStyleData : public UMemory {
     return unitsByVariant == NULL;
   }
   void setToBogus();
+  UBool isEmpty() {
+    return unitsByVariant == NULL || unitsByVariant->count == 0;
+  }
  private:
   CDFLocaleStyleData(const CDFLocaleStyleData&);
   CDFLocaleStyleData& operator=(const CDFLocaleStyleData&);
@@ -146,15 +157,12 @@ static const CDFLocaleStyleData* getCDFLocaleStyleData(const Locale& inLocale, U
 
 static const CDFLocaleStyleData* extractDataByStyleEnum(const CDFLocaleData& data, UNumberCompactStyle style, UErrorCode& status);
 static CDFLocaleData* loadCDFLocaleData(const Locale& inLocale, UErrorCode& status);
-static void initCDFLocaleData(const Locale& inLocale, CDFLocaleData* result, UErrorCode& status);
-static UResourceBundle* tryGetDecimalFallback(const UResourceBundle* numberSystemResource, const char* style, UResourceBundle** fillIn, FallbackFlags flags, UErrorCode& status);
-static UResourceBundle* tryGetByKeyWithFallback(const UResourceBundle* rb, const char* path, UResourceBundle** fillIn, FallbackFlags flags, UErrorCode& status);
-static UBool isRoot(const UResourceBundle* rb, UErrorCode& status);
-static void initCDFLocaleStyleData(const UResourceBundle* decimalFormatBundle, CDFLocaleStyleData* result, UErrorCode& status);
-static void populatePower10(const UResourceBundle* power10Bundle, CDFLocaleStyleData* result, UErrorCode& status);
-static int32_t populatePrefixSuffix(const char* variant, int32_t log10Value, const UnicodeString& formatStr, UHashtable* result, UErrorCode& status);
+static void load(const Locale& inLocale, CDFLocaleData* result, UErrorCode& status);
+static int32_t populatePrefixSuffix(const char* variant, int32_t log10Value, const UnicodeString& formatStr, UHashtable* result, UBool overwrite, UErrorCode& status);
+static double calculateDivisor(double power10, int32_t numZeros);
 static UBool onlySpaces(UnicodeString u);
 static void fixQuotes(UnicodeString& s);
+static void checkForOtherVariants(CDFLocaleStyleData* result, UErrorCode& status);
 static void fillInMissing(CDFLocaleStyleData* result);
 static int32_t computeLog10(double x, UBool inRange);
 static CDFUnit* createCDFUnit(const char* variant, int32_t log10Value, UHashtable* table, UErrorCode& status);
@@ -345,7 +353,7 @@ CompactDecimalFormat::format(
 
 UnicodeString&
 CompactDecimalFormat::format(
-    const StringPiece& /* number */,
+    StringPiece /* number */,
     UnicodeString& appendTo,
     FieldPositionIterator* /* posIter */,
     UErrorCode& status) const {
@@ -518,7 +526,8 @@ static CDFLocaleData* loadCDFLocaleData(const Locale& inLocale, UErrorCode& stat
     return NULL;
   }
 
-  initCDFLocaleData(inLocale, result, status);
+  load(inLocale, result, status);
+
   if (U_FAILURE(status)) {
     delete result;
     return NULL;
@@ -526,278 +535,226 @@ static CDFLocaleData* loadCDFLocaleData(const Locale& inLocale, UErrorCode& stat
   return result;
 }
 
-// initCDFLocaleData initializes result with data from CLDR.
-// inLocale is the locale, the CLDR data is stored in result.
-// We load the UNUM_SHORT  and UNUM_LONG data looking first in local numbering
-// system and not including root locale in fallback. Next we try in the latn
-// numbering system where we fallback all the way to root. If we don't find
-// UNUM_SHORT data in these three places, we report an error. If we find
-// UNUM_SHORT data before finding UNUM_LONG data we make UNUM_LONG data fall
-// back to UNUM_SHORT data.
-static void initCDFLocaleData(const Locale& inLocale, CDFLocaleData* result, UErrorCode& status) {
+namespace {
+
+struct CmptDecDataSink : public ResourceSink {
+
+  CDFLocaleData& dataBundle; // Where to save values when they are read
+  UBool isLatin; // Whether or not we are traversing the Latin tree
+  UBool isFallback; // Whether or not we are traversing the Latin tree as fallback
+
+  enum EPatternsTableKey { PATTERNS_SHORT, PATTERNS_LONG };
+  enum EFormatsTableKey { DECIMAL_FORMAT, CURRENCY_FORMAT };
+
+  /*
+   * NumberElements{              <-- top (numbering system table)
+   *  latn{                       <-- patternsTable (one per numbering system)
+   *    patternsLong{             <-- formatsTable (one per pattern)
+   *      decimalFormat{          <-- powersOfTenTable (one per format)
+   *        1000{                 <-- pluralVariantsTable (one per power of ten)
+   *          one{"0 thousand"}   <-- plural variant and template
+   */
+
+  CmptDecDataSink(CDFLocaleData& _dataBundle)
+    : dataBundle(_dataBundle), isLatin(FALSE), isFallback(FALSE) {}
+  virtual ~CmptDecDataSink();
+
+  virtual void put(const char *key, ResourceValue &value, UBool isRoot, UErrorCode &errorCode) {
+    // SPECIAL CASE: Don't consume root in the non-Latin numbering system
+    if (isRoot && !isLatin) { return; }
+
+    ResourceTable patternsTable = value.getTable(errorCode);
+    if (U_FAILURE(errorCode)) { return; }
+    for (int i1 = 0; patternsTable.getKeyAndValue(i1, key, value); ++i1) {
+
+      // Check for patternsShort or patternsLong
+      EPatternsTableKey patternsTableKey;
+      if (uprv_strcmp(key, gPatternsShort) == 0) {
+        patternsTableKey = PATTERNS_SHORT;
+      } else if (uprv_strcmp(key, gPatternsLong) == 0) {
+        patternsTableKey = PATTERNS_LONG;
+      } else {
+        continue;
+      }
+
+      // Traverse into the formats table
+      ResourceTable formatsTable = value.getTable(errorCode);
+      if (U_FAILURE(errorCode)) { return; }
+      for (int i2 = 0; formatsTable.getKeyAndValue(i2, key, value); ++i2) {
+
+        // Check for decimalFormat or currencyFormat
+        EFormatsTableKey formatsTableKey;
+        if (uprv_strcmp(key, gDecimalFormatTag) == 0) {
+          formatsTableKey = DECIMAL_FORMAT;
+        // TODO: Enable this statement when currency support is added
+        // } else if (uprv_strcmp(key, gCurrencyFormat) == 0) {
+        //   formatsTableKey = CURRENCY_FORMAT;
+        } else {
+          continue;
+        }
+
+        // Set the current style and destination based on the two keys
+        UNumberCompactStyle style;
+        CDFLocaleStyleData* destination = NULL;
+        if (patternsTableKey == PATTERNS_LONG
+            && formatsTableKey == DECIMAL_FORMAT) {
+          style = UNUM_LONG;
+          destination = &dataBundle.longData;
+        } else if (patternsTableKey == PATTERNS_SHORT
+            && formatsTableKey == DECIMAL_FORMAT) {
+          style = UNUM_SHORT;
+          destination = &dataBundle.shortData;
+        // TODO: Enable the following statements when currency support is added
+        // } else if (patternsTableKey == PATTERNS_SHORT
+        //     && formatsTableKey == CURRENCY_FORMAT) {
+        //   style = UNUM_SHORT_CURRENCY; // or whatever the enum gets named
+        //   destination = &dataBundle.shortCurrencyData;
+        // } else {
+        //   // Silently ignore this case
+        //   continue;
+        }
+
+        // SPECIAL CASE: RULES FOR WHETHER OR NOT TO CONSUME THIS TABLE:
+        //   1) Don't consume longData if shortData was consumed from the non-Latin
+        //      locale numbering system
+        //   2) Don't consume longData for the first time if this is the root bundle and
+        //      shortData is already populated from a more specific locale. Note that if
+        //      both longData and shortData are both only in root, longData will be
+        //      consumed since it is alphabetically before shortData in the bundle.
+        if (isFallback
+                && style == UNUM_LONG
+                && !dataBundle.shortData.isEmpty()
+                && !dataBundle.shortData.fromFallback) {
+            continue;
+        }
+        if (isRoot
+                && style == UNUM_LONG
+                && dataBundle.longData.isEmpty()
+                && !dataBundle.shortData.isEmpty()) {
+            continue;
+        }
+
+        // Set the "fromFallback" flag on the data object
+        destination->fromFallback = isFallback;
+
+        // Traverse into the powers of ten table
+        ResourceTable powersOfTenTable = value.getTable(errorCode);
+        if (U_FAILURE(errorCode)) { return; }
+        for (int i3 = 0; powersOfTenTable.getKeyAndValue(i3, key, value); ++i3) {
+
+          // The key will always be some even power of 10. e.g 10000.
+          char* endPtr = NULL;
+          double power10 = uprv_strtod(key, &endPtr);
+          if (*endPtr != 0) {
+            errorCode = U_INTERNAL_PROGRAM_ERROR;
+            return;
+          }
+          int32_t log10Value = computeLog10(power10, FALSE);
+
+          // Silently ignore divisors that are too big.
+          if (log10Value >= MAX_DIGITS) continue;
+
+          // Iterate over the plural variants ("one", "other", etc)
+          ResourceTable pluralVariantsTable = value.getTable(errorCode);
+          if (U_FAILURE(errorCode)) { return; }
+          for (int i4 = 0; pluralVariantsTable.getKeyAndValue(i4, key, value); ++i4) {
+            const char* pluralVariant = key;
+            const UnicodeString formatStr = value.getUnicodeString(errorCode);
+
+            // Copy the data into the in-memory data bundle (do not overwrite
+            // existing values)
+            int32_t numZeros = populatePrefixSuffix(
+                pluralVariant, log10Value, formatStr,
+                destination->unitsByVariant, FALSE, errorCode);
+
+            // If populatePrefixSuffix returns -1, it means that this key has been
+            // encountered already.
+            if (numZeros < 0) {
+              continue;
+            }
+
+            // Set the divisor, which is based on the number of zeros in the template
+            // string.  If the divisor from here is different from the one previously
+            // stored, it means that the number of zeros in different plural variants
+            // differs; throw an exception.
+            // TODO: How should I check for floating-point errors here?
+            //       Is there a good reason why "divisor" is double and not long like Java?
+            double divisor = calculateDivisor(power10, numZeros);
+            if (destination->divisors[log10Value] != 0.0
+                && destination->divisors[log10Value] != divisor) {
+              errorCode = U_INTERNAL_PROGRAM_ERROR;
+              return;
+            }
+            destination->divisors[log10Value] = divisor;
+          }
+        }
+      }
+    }
+  }
+};
+
+// Virtual destructors must be defined out of line.
+CmptDecDataSink::~CmptDecDataSink() {}
+
+} // namespace
+
+static void load(const Locale& inLocale, CDFLocaleData* result, UErrorCode& status) {
   LocalPointer<NumberingSystem> ns(NumberingSystem::createInstance(inLocale, status));
   if (U_FAILURE(status)) {
     return;
   }
-  const char* numberingSystemName = ns->getName();
-  UResourceBundle* rb = ures_open(NULL, inLocale.getName(), &status);
-  rb = ures_getByKeyWithFallback(rb, gNumberElementsTag, rb, &status);
+  const char* nsName = ns->getName();
+
+  LocalUResourceBundlePointer resource(ures_open(NULL, inLocale.getName(), &status));
   if (U_FAILURE(status)) {
-    ures_close(rb);
     return;
   }
-  UResourceBundle* shortDataFillIn = NULL;
-  UResourceBundle* longDataFillIn = NULL;
-  UResourceBundle* shortData = NULL;
-  UResourceBundle* longData = NULL;
+  CmptDecDataSink sink(*result);
+  sink.isFallback = FALSE;
 
-  if (uprv_strcmp(numberingSystemName, gLatnTag) != 0) {
-    LocalUResourceBundlePointer localResource(
-        tryGetByKeyWithFallback(rb, numberingSystemName, NULL, NOT_ROOT, status));
-    shortData = tryGetDecimalFallback(
-        localResource.getAlias(), gPatternsShort, &shortDataFillIn, NOT_ROOT, status);
-    longData = tryGetDecimalFallback(
-        localResource.getAlias(), gPatternsLong, &longDataFillIn, NOT_ROOT, status);
-  }
-  if (U_FAILURE(status)) {
-    ures_close(shortDataFillIn);
-    ures_close(longDataFillIn);
-    ures_close(rb);
-    return;
-  }
-
-  // If we haven't found UNUM_SHORT look in latn numbering system. We must
-  // succeed at finding UNUM_SHORT here.
-  if (shortData == NULL) {
-    LocalUResourceBundlePointer latnResource(tryGetByKeyWithFallback(rb, gLatnTag, NULL, MUST, status));
-    shortData = tryGetDecimalFallback(latnResource.getAlias(), gPatternsShort, &shortDataFillIn, MUST, status);
-    if (longData == NULL) {
-      longData = tryGetDecimalFallback(latnResource.getAlias(), gPatternsLong, &longDataFillIn, ANY, status);
-      if (longData != NULL && isRoot(longData, status) && !isRoot(shortData, status)) {
-        longData = NULL;
-      }
-    }
-  }
-  initCDFLocaleStyleData(shortData, &result->shortData, status);
-  ures_close(shortDataFillIn);
-  if (U_FAILURE(status)) {
-    ures_close(longDataFillIn);
-    ures_close(rb);
-  }
-
-  if (longData == NULL) {
-    result->longData.setToBogus();
-  } else {
-    initCDFLocaleStyleData(longData, &result->longData, status);
-  }
-  ures_close(longDataFillIn);
-  ures_close(rb);
-}
-
-/**
- * tryGetDecimalFallback attempts to fetch the "decimalFormat" resource bundle
- * with a particular style. style is either "patternsShort" or "patternsLong."
- * FillIn, flags, and status work in the same way as in tryGetByKeyWithFallback.
- */
-static UResourceBundle* tryGetDecimalFallback(const UResourceBundle* numberSystemResource, const char* style, UResourceBundle** fillIn, FallbackFlags flags, UErrorCode& status) {
-  UResourceBundle* first = tryGetByKeyWithFallback(numberSystemResource, style, fillIn, flags, status);
-  UResourceBundle* second = tryGetByKeyWithFallback(first, gDecimalFormatTag, fillIn, flags, status);
-  if (fillIn == NULL) {
-    ures_close(first);
-  }
-  return second;
-}
-
-// tryGetByKeyWithFallback returns a sub-resource bundle that matches given
-// criteria or NULL if none found. rb is the resource bundle that we are
-// searching. If rb == NULL then this function behaves as if no sub-resource
-// is found; path is the key of the sub-resource,
-// (i.e "foo" but not "foo/bar"); If fillIn is NULL, caller must always call
-// ures_close() on returned resource. See below for example when fillIn is
-// not NULL. flags is ANY or NOT_ROOT. Optionally, these values
-// can be ored with MUST. MUST by itself is the same as ANY | MUST.
-// The locale of the returned sub-resource will either match the
-// flags or the returned sub-resouce will be NULL. If MUST is included in
-// flags, and not suitable sub-resource is found then in addition to returning
-// NULL, this function also sets status to U_MISSING_RESOURCE_ERROR. If MUST
-// is not included in flags, then this function just returns NULL if no
-// such sub-resource is found and will never set status to
-// U_MISSING_RESOURCE_ERROR.
-//
-// Example: This code first searches for "foo/bar" sub-resource without falling
-// back to ROOT. Then searches for "baz" sub-resource as last resort.
-//
-// UResourcebundle* fillIn = NULL;
-// UResourceBundle* data = tryGetByKeyWithFallback(rb, "foo", &fillIn, NON_ROOT, status);
-// data = tryGetByKeyWithFallback(data, "bar", &fillIn, NON_ROOT, status);
-// if (!data) {
-//   data = tryGetbyKeyWithFallback(rb, "baz", &fillIn, MUST,  status);
-// }
-// if (U_FAILURE(status)) {
-//   ures_close(fillIn);
-//   return;
-// }
-// doStuffWithNonNullSubresource(data);
-//
-// /* Wrong! don't do the following as it can leak memory if fillIn gets set
-// to NULL. */
-// fillIn = tryGetByKeyWithFallback(rb, "wrong", &fillIn, ANY, status);
-//
-// ures_close(fillIn);
-//
-static UResourceBundle* tryGetByKeyWithFallback(const UResourceBundle* rb, const char* path, UResourceBundle** fillIn, FallbackFlags flags, UErrorCode& status) {
-  if (U_FAILURE(status)) {
-    return NULL;
-  }
-  UBool must = (flags & MUST);
-  if (rb == NULL) {
-    if (must) {
-      status = U_MISSING_RESOURCE_ERROR;
-    }
-    return NULL;
-  }
-  UResourceBundle* result = NULL;
-  UResourceBundle* ownedByUs = NULL;
-  if (fillIn == NULL) {
-    ownedByUs = ures_getByKeyWithFallback(rb, path, NULL, &status);
-    result = ownedByUs;
-  } else {
-    *fillIn = ures_getByKeyWithFallback(rb, path, *fillIn, &status);
-    result = *fillIn;
-  }
-  if (U_FAILURE(status)) {
-    ures_close(ownedByUs);
-    if (status == U_MISSING_RESOURCE_ERROR && !must) {
+  // First load the number elements data if nsName is not Latin.
+  if (uprv_strcmp(nsName, gLatnTag) != 0) {
+    sink.isLatin = FALSE;
+    CharString path;
+    path.append(gNumberElementsTag, status)
+        .append('/', status)
+        .append(nsName, status);
+    ures_getAllItemsWithFallback(resource.getAlias(), path.data(), sink, status);
+    if (status == U_MISSING_RESOURCE_ERROR) {
+      // Silently ignore and use Latin
       status = U_ZERO_ERROR;
+    } else if  (U_FAILURE(status)) {
+      return;
     }
-    return NULL;
+    sink.isFallback = TRUE;
   }
-  flags = (FallbackFlags) (flags & ~MUST);
-  switch (flags) {
-    case NOT_ROOT:
-      {
-        UBool bRoot = isRoot(result, status);
-        if (bRoot || U_FAILURE(status)) {
-          ures_close(ownedByUs);
-          if (must && (status == U_ZERO_ERROR)) {
-            status = U_MISSING_RESOURCE_ERROR;
-          }
-          return NULL;
-        }
-        return result;
-      }
-    case ANY:
-      return result;
-    default:
-      ures_close(ownedByUs);
-      status = U_ILLEGAL_ARGUMENT_ERROR;
-      return NULL;
-  }
-}
 
-static UBool isRoot(const UResourceBundle* rb, UErrorCode& status) {
-  const char* actualLocale = ures_getLocaleByType(
-      rb, ULOC_ACTUAL_LOCALE, &status);
-  if (U_FAILURE(status)) {
-    return FALSE;
-  }
-  return uprv_strcmp(actualLocale, gRoot) == 0;
-}
+  // Now load Latin.
+  sink.isLatin = TRUE;
+  ures_getAllItemsWithFallback(resource.getAlias(), gLatnPath, sink, status);
+  if (U_FAILURE(status)) return;
 
+  // If longData is empty, default it to be equal to shortData
+  if (result->longData.isEmpty()) {
+    result->longData.setToBogus();
+  }
 
-// initCDFLocaleStyleData loads formatting data for a particular style.
-// decimalFormatBundle is the "decimalFormat" resource bundle in CLDR.
-// Loaded data stored in result.
-static void initCDFLocaleStyleData(const UResourceBundle* decimalFormatBundle, CDFLocaleStyleData* result, UErrorCode& status) {
-  if (U_FAILURE(status)) {
-    return;
-  }
-  // Iterate through all the powers of 10.
-  int32_t size = ures_getSize(decimalFormatBundle);
-  UResourceBundle* power10 = NULL;
-  for (int32_t i = 0; i < size; ++i) {
-    power10 = ures_getByIndex(decimalFormatBundle, i, power10, &status);
-    if (U_FAILURE(status)) {
-      ures_close(power10);
-      return;
-    }
-    populatePower10(power10, result, status);
-    if (U_FAILURE(status)) {
-      ures_close(power10);
-      return;
-    }
-  }
-  ures_close(power10);
-  fillInMissing(result);
-}
+  // Check for "other" variants in each of the three data classes, and resolve missing elements.
 
-// populatePower10 grabs data for a particular power of 10 from CLDR.
-// The loaded data is stored in result.
-static void populatePower10(const UResourceBundle* power10Bundle, CDFLocaleStyleData* result, UErrorCode& status) {
-  if (U_FAILURE(status)) {
-    return;
+  if (!result->longData.isBogus()) {
+    checkForOtherVariants(&result->longData, status);
+    if (U_FAILURE(status)) return;
+    fillInMissing(&result->longData);
   }
-  char* endPtr = NULL;
-  double power10 = uprv_strtod(ures_getKey(power10Bundle), &endPtr);
-  if (*endPtr != 0) {
-    status = U_INTERNAL_PROGRAM_ERROR;
-    return;
-  }
-  int32_t log10Value = computeLog10(power10, FALSE);
-  // Silently ignore divisors that are too big.
-  if (log10Value == MAX_DIGITS) {
-    return;
-  }
-  int32_t size = ures_getSize(power10Bundle);
-  int32_t numZeros = 0;
-  UBool otherVariantDefined = FALSE;
-  UResourceBundle* variantBundle = NULL;
-  // Iterate over all the plural variants for the power of 10
-  for (int32_t i = 0; i < size; ++i) {
-    variantBundle = ures_getByIndex(power10Bundle, i, variantBundle, &status);
-    if (U_FAILURE(status)) {
-      ures_close(variantBundle);
-      return;
-    }
-    const char* variant = ures_getKey(variantBundle);
-    int32_t resLen;
-    const UChar* formatStrP = ures_getString(variantBundle, &resLen, &status);
-    if (U_FAILURE(status)) {
-      ures_close(variantBundle);
-      return;
-    }
-    UnicodeString formatStr(false, formatStrP, resLen);
-    if (uprv_strcmp(variant, gOther) == 0) {
-      otherVariantDefined = TRUE;
-    }
-    int32_t nz = populatePrefixSuffix(
-        variant, log10Value, formatStr, result->unitsByVariant, status);
-    if (U_FAILURE(status)) {
-      ures_close(variantBundle);
-      return;
-    }
-    if (nz != numZeros) {
-      // We expect all format strings to have the same number of 0's
-      // left of the decimal point.
-      if (numZeros != 0) {
-        status = U_INTERNAL_PROGRAM_ERROR;
-        ures_close(variantBundle);
-        return;
-      }
-      numZeros = nz;
-    }
-  }
-  ures_close(variantBundle);
-  // We expect to find an OTHER variant for each power of 10.
-  if (!otherVariantDefined) {
-    status = U_INTERNAL_PROGRAM_ERROR;
-    return;
-  }
-  double divisor = power10;
-  for (int32_t i = 1; i < numZeros; ++i) {
-    divisor /= 10.0;
-  }
-  result->divisors[log10Value] = divisor;
+
+  checkForOtherVariants(&result->shortData, status);
+  if (U_FAILURE(status)) return;
+  fillInMissing(&result->shortData);
+
+  // TODO: Enable this statement when currency support is added
+  // checkForOtherVariants(&result->shortCurrencyData, status);
+  // if (U_FAILURE(status)) return;
+  // fillInMissing(&result->shortCurrencyData);
 }
 
 // populatePrefixSuffix Adds a specific prefix-suffix pair to result for a
@@ -810,7 +767,7 @@ static void populatePower10(const UResourceBundle* power10Bundle, CDFLocaleStyle
 // In the special case that formatStr contains only spaces for prefix
 // and suffix, populatePrefixSuffix returns log10Value + 1.
 static int32_t populatePrefixSuffix(
-    const char* variant, int32_t log10Value, const UnicodeString& formatStr, UHashtable* result, UErrorCode& status) {
+    const char* variant, int32_t log10Value, const UnicodeString& formatStr, UHashtable* result, UBool overwrite, UErrorCode& status) {
   if (U_FAILURE(status)) {
     return 0;
   }
@@ -825,6 +782,13 @@ static int32_t populatePrefixSuffix(
   if (U_FAILURE(status)) {
     return 0;
   }
+
+  // Return -1 if we are not overwriting an existing value
+  if (unit->isSet() && !overwrite) {
+    return -1;
+  }
+  unit->markAsSet();
+
   // Everything up to first 0 is the prefix
   unit->prefix = formatStr.tempSubString(0, firstIdx);
   fixQuotes(unit->prefix);
@@ -844,6 +808,16 @@ static int32_t populatePrefixSuffix(
     ++idx;
   }
   return (idx - firstIdx);
+}
+
+// Calculate a divisor based on the magnitude and number of zeros in the
+// template string.
+static double calculateDivisor(double power10, int32_t numZeros) {
+  double divisor = power10;
+  for (int32_t i = 1; i < numZeros; ++i) {
+    divisor /= 10.0;
+  }
+  return divisor;
 }
 
 static UBool onlySpaces(UnicodeString u) {
@@ -882,6 +856,38 @@ static void fixQuotes(UnicodeString& s) {
     }
   }
   s.truncate(dest);
+}
+
+// Checks to make sure that an "other" variant is present in all
+// powers of 10.
+static void checkForOtherVariants(CDFLocaleStyleData* result,
+    UErrorCode& status) {
+  if (result == NULL || result->unitsByVariant == NULL) {
+    return;
+  }
+
+  const CDFUnit* otherByBase =
+      (const CDFUnit*) uhash_get(result->unitsByVariant, gOther);
+  if (otherByBase == NULL) {
+    status = U_INTERNAL_PROGRAM_ERROR;
+    return;
+  }
+
+  // Check all other plural variants, and make sure that if
+  // any of them are populated, then other is also populated
+  int32_t pos = UHASH_FIRST;
+  const UHashElement* element;
+  while ((element = uhash_nextElement(result->unitsByVariant, &pos)) != NULL) {
+    CDFUnit* variantsByBase = (CDFUnit*) element->value.pointer;
+    if (variantsByBase == otherByBase) continue;
+    for (int32_t log10Value = 0; log10Value < MAX_DIGITS; ++log10Value) {
+      if (variantsByBase[log10Value].isSet()
+          && !otherByBase[log10Value].isSet()) {
+        status = U_INTERNAL_PROGRAM_ERROR;
+        return;
+      }
+    }
+  }
 }
 
 // fillInMissing ensures that the data in result is complete.
@@ -973,7 +979,6 @@ static CDFUnit* createCDFUnit(const char* variant, int32_t log10Value, UHashtabl
     }
   }
   CDFUnit* result = &cdfUnit[log10Value];
-  result->markAsSet();
   return result;
 }
 

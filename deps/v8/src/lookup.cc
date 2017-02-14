@@ -13,7 +13,6 @@
 namespace v8 {
 namespace internal {
 
-
 // static
 LookupIterator LookupIterator::PropertyOrElement(Isolate* isolate,
                                                  Handle<Object> receiver,
@@ -308,6 +307,11 @@ void LookupIterator::PrepareTransitionToDataProperty(
     PropertyAttributes attributes, Object::StoreFromKeyed store_mode) {
   DCHECK(receiver.is_identical_to(GetStoreTarget()));
   if (state_ == TRANSITION) return;
+
+  if (!IsElement() && name()->IsPrivate()) {
+    attributes = static_cast<PropertyAttributes>(attributes | DONT_ENUM);
+  }
+
   DCHECK(state_ != LookupIterator::ACCESSOR ||
          (GetAccessors()->IsAccessorInfo() &&
           AccessorInfo::cast(*GetAccessors())->is_special_data_property()));
@@ -416,11 +420,6 @@ void LookupIterator::Delete() {
         isolate_, is_prototype_map
                       ? &RuntimeCallStats::PrototypeObject_DeleteProperty
                       : &RuntimeCallStats::Object_DeleteProperty);
-    TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_SCOPED(
-        isolate_,
-        (is_prototype_map
-             ? &tracing::TraceEventStatsTable::PrototypeObject_DeleteProperty
-             : &tracing::TraceEventStatsTable::Object_DeleteProperty));
 
     PropertyNormalizationMode mode =
         is_prototype_map ? KEEP_INOBJECT_PROPERTIES : CLEAR_INOBJECT_PROPERTIES;
@@ -447,6 +446,9 @@ void LookupIterator::TransitionToAccessorProperty(
   // handled via a trap. Adding properties to primitive values is not
   // observable.
   Handle<JSObject> receiver = GetStoreTarget();
+  if (!IsElement() && name()->IsPrivate()) {
+    attributes = static_cast<PropertyAttributes>(attributes | DONT_ENUM);
+  }
 
   if (!IsElement() && !receiver->map()->is_dictionary_map()) {
     Handle<Map> old_map(receiver->map(), isolate_);

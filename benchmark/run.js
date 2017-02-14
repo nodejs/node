@@ -6,7 +6,7 @@ const CLI = require('./_cli.js');
 
 const cli = CLI(`usage: ./node run.js [options] [--] <category> ...
   Run each benchmark in the <category> directory a single time, more than one
-  <categoty> directory can be specified.
+  <category> directory can be specified.
 
   --filter pattern          string to filter benchmark scripts
   --set    variable=value   set benchmark variable (can be repeated)
@@ -44,6 +44,9 @@ if (format === 'csv') {
   }
 
   child.on('message', function(data) {
+    if (data.type !== 'report') {
+      return;
+    }
     // Construct configuration string, " A=a, B=b, ..."
     let conf = '';
     for (const key of Object.keys(data.conf)) {
@@ -56,7 +59,10 @@ if (format === 'csv') {
       conf = conf.replace(/"/g, '""');
       console.log(`"${data.name}", "${conf}", ${data.rate}, ${data.time}`);
     } else {
-      console.log(`${data.name} ${conf}: ${data.rate}`);
+      var rate = data.rate.toString().split('.');
+      rate[0] = rate[0].replace(/(\d)(?=(\d\d\d)+(?!\d))/g, '$1,');
+      rate = (rate[1] ? rate.join('.') : rate[0]);
+      console.log(`${data.name} ${conf}: ${rate}`);
     }
   });
 

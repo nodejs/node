@@ -24,7 +24,10 @@ interpreted as a configuration parameter.  For example, putting
 configuration parameter to <code>bar</code>.  Any environment configurations that
 are not given a value will be given the value of <code>true</code>.  Config
 values are case-insensitive, so <code>NPM_CONFIG_FOO=bar</code> will work the
-same.</p>
+same. However, please note that inside <a href="/misc/scripts">npm-scripts</a>
+npm will set it&#39;s own environment variables and Node will prefer
+those lowercase versions over any uppercase ones that you might set.
+For details see <a href="https://github.com/npm/npm/issues/14528">this issue</a>.</p>
 <h3 id="npmrc-files">npmrc Files</h3>
 <p>The four relevant files are:</p>
 <ul>
@@ -236,8 +239,6 @@ e.g., <code>npm outdated --depth 9999</code></p>
 <li>Type: Boolean</li>
 </ul>
 <p>Install <code>dev-dependencies</code> along with packages.</p>
-<p>Note that <code>dev-dependencies</code> are also installed if the <code>npat</code> flag is
-set.</p>
 <h3 id="dry-run">dry-run</h3>
 <ul>
 <li>Default: false</li>
@@ -431,9 +432,9 @@ version number, if not already set in package.json.</p>
 <li>Type: Boolean</li>
 </ul>
 <p>Whether or not to output JSON data, rather than the normal output.</p>
-<p>This feature is currently experimental, and the output data structures
-for many commands is either not implemented in JSON yet, or subject to
-change.  Only the output from <code>npm ls --json</code> is currently valid.</p>
+<p>This feature is currently experimental, and the output data structures for many
+commands is either not implemented in JSON yet, or subject to change.  Only the
+output from <code>npm ls --json</code> and <code>npm search --json</code> are currently valid.</p>
 <h3 id="key">key</h3>
 <ul>
 <li>Default: <code>null</code></li>
@@ -516,18 +517,18 @@ combination). Passed to the <code>http</code> <code>Agent</code> used to make th
 </ul>
 <p>Commit message which is used by <code>npm version</code> when creating version commit.</p>
 <p>Any &quot;%s&quot; in the message will be replaced with the version number.</p>
+<h3 id="metrics-registry">metrics-registry</h3>
+<ul>
+<li>Default: &quot;<a href="https://registry.npmjs.org/">https://registry.npmjs.org/</a>&quot;</li>
+<li>Type: String</li>
+</ul>
+<p>The registry you want to send cli metrics to if <code>send-metrics</code> is true.</p>
 <h3 id="node-version">node-version</h3>
 <ul>
 <li>Default: process.version</li>
 <li>Type: semver or false</li>
 </ul>
 <p>The node version to use when checking a package&#39;s <code>engines</code> map.</p>
-<h3 id="npat">npat</h3>
-<ul>
-<li>Default: false</li>
-<li>Type: Boolean</li>
-</ul>
-<p>Run tests on installation.</p>
 <h3 id="onload-script">onload-script</h3>
 <ul>
 <li>Default: false</li>
@@ -563,7 +564,7 @@ process is not aborted.</p>
 <li>Type: Boolean</li>
 </ul>
 <p>Output parseable results from commands that write to
-standard output.</p>
+standard output. For <code>npm search</code>, this will be tab-separated table format.</p>
 <h3 id="prefix">prefix</h3>
 <ul>
 <li>Default: see <a href="../files/npm-folders.html">npm-folders(5)</a></li>
@@ -685,7 +686,7 @@ set to <code>^1.2.3</code> which allows minor upgrades for that package, but aft
 patch upgrades.</p>
 <h3 id="scope">scope</h3>
 <ul>
-<li>Default: &quot;&quot;</li>
+<li>Default: the scope of the current project, if any, or &quot;&quot;</li>
 <li>Type: String</li>
 </ul>
 <p>Associate an operation with a scope for a scoped registry. Useful when logging
@@ -693,27 +694,49 @@ in to a private registry for the first time:
 <code>npm login --scope=@organization --registry=registry.organization.com</code>, which
 will cause <code>@organization</code> to be mapped to the registry for future installation
 of packages specified according to the pattern <code>@organization/package</code>.</p>
-<h3 id="searchopts">searchopts</h3>
+<h3 id="scripts-prepend-node-path">scripts-prepend-node-path</h3>
 <ul>
-<li>Default: &quot;&quot;</li>
-<li>Type: String</li>
+<li>Default: &quot;warn-only&quot;</li>
+<li>Type: Boolean, <code>&quot;auto&quot;</code> or <code>&quot;warn-only&quot;</code></li>
 </ul>
-<p>Space-separated options that are always passed to search.</p>
+<p>If set to <code>true</code>, add the directory in which the current <code>node</code> executable
+resides to the <code>PATH</code> environment variable when running scripts,
+even if that means that <code>npm</code> will invoke a different <code>node</code> executable than
+the one which it is running.</p>
+<p>If set to <code>false</code>, never modify <code>PATH</code> with that.</p>
+<p>If set to <code>&quot;warn-only&quot;</code>, never modify <code>PATH</code> but print a warning if <code>npm</code> thinks
+that you may want to run it with <code>true</code>, e.g. because the <code>node</code> executable
+in the <code>PATH</code> is not the one <code>npm</code> was invoked with.</p>
+<p>If set to <code>auto</code>, only add that directory to the <code>PATH</code> environment variable
+if the <code>node</code> executable with which <code>npm</code> was invoked and the one that is found
+first on the <code>PATH</code> are different.</p>
 <h3 id="searchexclude">searchexclude</h3>
 <ul>
 <li>Default: &quot;&quot;</li>
 <li>Type: String</li>
 </ul>
 <p>Space-separated options that limit the results from search.</p>
-<h3 id="searchsort">searchsort</h3>
+<h3 id="searchopts">searchopts</h3>
 <ul>
-<li>Default: &quot;name&quot;</li>
+<li>Default: &quot;&quot;</li>
 <li>Type: String</li>
-<li>Values: &quot;name&quot;, &quot;-name&quot;, &quot;date&quot;, &quot;-date&quot;, &quot;description&quot;,
-&quot;-description&quot;, &quot;keywords&quot;, &quot;-keywords&quot;</li>
 </ul>
-<p>Indication of which field to sort search results by.  Prefix with a <code>-</code>
-character to indicate reverse sort.</p>
+<p>Space-separated options that are always passed to search.</p>
+<h3 id="searchstaleness">searchstaleness</h3>
+<ul>
+<li>Default: 900 (15 minutes)</li>
+<li>Type: Number</li>
+</ul>
+<p>The age of the cache, in seconds, before another registry request is made.</p>
+<h3 id="send-metrics">send-metrics</h3>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>If true, success/failure metrics will be reported to the registry stored in
+<code>metrics-registry</code>.  These requests contain the number of successful and
+failing runs of the npm CLI and the time period overwhich those counts were
+gathered. No identifying information is included in these requests.</p>
 <h3 id="shell">shell</h3>
 <ul>
 <li>Default: SHELL environment variable, or &quot;bash&quot; on Posix, or &quot;cmd&quot; on
@@ -864,5 +887,5 @@ exit successfully.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-config &mdash; npm@3.10.8</p>
+<p id="footer">npm-config &mdash; npm@4.1.2</p>
 

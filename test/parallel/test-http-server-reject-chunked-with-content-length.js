@@ -9,12 +9,10 @@ const reqstr = 'POST / HTTP/1.1\r\n' +
                'Content-Length: 1\r\n' +
                'Transfer-Encoding: chunked\r\n\r\n';
 
-const server = http.createServer((req, res) => {
-  common.fail('callback should not be invoked');
-});
+const server = http.createServer(common.mustNotCall());
 server.on('clientError', common.mustCall((err) => {
   assert(/^Parse Error/.test(err.message));
-  assert.equal(err.code, 'HPE_UNEXPECTED_CONTENT_LENGTH');
+  assert.strictEqual(err.code, 'HPE_UNEXPECTED_CONTENT_LENGTH');
   server.close();
 }));
 server.listen(0, () => {

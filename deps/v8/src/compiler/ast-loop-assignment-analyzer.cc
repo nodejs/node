@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/compiler/ast-loop-assignment-analyzer.h"
-#include "src/compiler.h"
-#include "src/parsing/parser.h"
+#include "src/ast/scopes.h"
+#include "src/compilation-info.h"
 
 namespace v8 {
 namespace internal {
@@ -122,7 +122,7 @@ void ALAA::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 void ALAA::VisitClassLiteral(ClassLiteral* e) {
   VisitIfNotNull(e->extends());
   VisitIfNotNull(e->constructor());
-  ZoneList<ObjectLiteralProperty*>* properties = e->properties();
+  ZoneList<ClassLiteralProperty*>* properties = e->properties();
   for (int i = 0; i < properties->length(); i++) {
     Visit(properties->at(i)->key());
     Visit(properties->at(i)->value());
@@ -252,10 +252,12 @@ void ALAA::VisitForStatement(ForStatement* loop) {
 
 
 void ALAA::VisitForInStatement(ForInStatement* loop) {
+  Expression* l = loop->each();
   Enter(loop);
-  Visit(loop->each());
+  Visit(l);
   Visit(loop->subject());
   Visit(loop->body());
+  if (l->IsVariableProxy()) AnalyzeAssignment(l->AsVariableProxy()->var());
   Exit(loop);
 }
 

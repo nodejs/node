@@ -16,7 +16,6 @@
   "_from": "type-check@>=0.3.2 <0.4.0",
   "_id": "type-check@0.3.2",
   "_inCache": true,
-  "_installable": true,
   "_location": "/type-check",
   "_nodeVersion": "4.2.4",
   "_npmUser": {

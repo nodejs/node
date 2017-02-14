@@ -295,7 +295,7 @@ function f_153(expected_call_stack, a) {
 
   function test() {
     var o = new A();
-    %DebugPrint(o);
+    //%DebugPrint(o);
     assertEquals(153, o.x);
   }
 
@@ -387,14 +387,53 @@ function f_153(expected_call_stack, a) {
     }
   }
 
+  function g1let() {
+    for (let v in {a:0}) {
+      return f_153([f_153, g1let, test]);
+    }
+  }
+
+  function g1nodecl() {
+    var v;
+    for (v in {a:0}) {
+      return f_153([f_153, g1nodecl, test]);
+    }
+  }
+
   function g2() {
     for (var v of [1, 2, 3]) {
       return f_153([f_153, g2, test]);
     }
   }
 
+  function g2let() {
+    for (let v of [1, 2, 3]) {
+      return f_153([f_153, g2let, test]);
+    }
+  }
+
+  function g2nodecl() {
+    var v;
+    for (v of [1, 2, 3]) {
+      return f_153([f_153, g2nodecl, test]);
+    }
+  }
+
   function g3() {
     for (var i = 0; i < 10; i++) {
+      return f_153([f_153, test]);
+    }
+  }
+
+  function g3let() {
+    for (let i = 0; i < 10; i++) {
+      return f_153([f_153, test]);
+    }
+  }
+
+  function g3nodecl() {
+    var i;
+    for (i = 0; i < 10; i++) {
       return f_153([f_153, test]);
     }
   }
@@ -413,8 +452,14 @@ function f_153(expected_call_stack, a) {
 
   function test() {
     assertEquals(153, g1());
+    assertEquals(153, g1let());
+    assertEquals(153, g1nodecl());
     assertEquals(153, g2());
+    assertEquals(153, g2let());
+    assertEquals(153, g2nodecl());
     assertEquals(153, g3());
+    assertEquals(153, g3let());
+    assertEquals(153, g3nodecl());
     assertEquals(153, g4());
     assertEquals(153, g5());
   }

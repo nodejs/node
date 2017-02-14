@@ -13,10 +13,10 @@ namespace internal {
 // Called when allocation routines fail to allocate.
 // This function should not return, but should terminate the current
 // processing.
-void FatalProcessOutOfMemory(const char* message);
+V8_EXPORT_PRIVATE void FatalProcessOutOfMemory(const char* message);
 
 // Superclass for classes managed with new & delete.
-class Malloced {
+class V8_EXPORT_PRIVATE Malloced {
  public:
   void* operator new(size_t size) { return New(size); }
   void  operator delete(void* p) { Delete(p); }
@@ -72,7 +72,7 @@ void DeleteArray(T* array) {
 // The normal strdup functions use malloc.  These versions of StrDup
 // and StrNDup uses new and calls the FatalProcessOutOfMemory handler
 // if allocation fails.
-char* StrDup(const char* str);
+V8_EXPORT_PRIVATE char* StrDup(const char* str);
 char* StrNDup(const char* str, int n);
 
 

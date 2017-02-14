@@ -11,7 +11,7 @@ const Readable = require('stream').Readable;
     highWaterMark: 3
   });
 
-  r._read = common.fail;
+  r._read = common.mustNotCall();
 
   // This triggers a 'readable' event, which is lost.
   r.push(Buffer.from('blerg'));
@@ -20,7 +20,7 @@ const Readable = require('stream').Readable;
     // we're testing what we think we are
     assert(!r._readableState.reading);
     r.on('readable', common.mustCall(function() {}));
-  });
+  }, 1);
 }
 
 {
@@ -40,7 +40,7 @@ const Readable = require('stream').Readable;
     // assert we're testing what we think we are
     assert(r._readableState.reading);
     r.on('readable', common.mustCall(function() {}));
-  });
+  }, 1);
 }
 
 {
@@ -50,7 +50,7 @@ const Readable = require('stream').Readable;
     highWaterMark: 30
   });
 
-  r._read = common.fail;
+  r._read = common.mustNotCall();
 
   // This triggers a 'readable' event, which is lost.
   r.push(Buffer.from('blerg'));
@@ -60,5 +60,5 @@ const Readable = require('stream').Readable;
     // assert we're testing what we think we are
     assert(!r._readableState.reading);
     r.on('readable', common.mustCall(function() {}));
-  });
+  }, 1);
 }

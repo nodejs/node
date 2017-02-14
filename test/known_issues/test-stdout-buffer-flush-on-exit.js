@@ -23,5 +23,3 @@ if (process.argv[2] === 'child') {
 
   assert.strictEqual(stdout, longLine, `failed with exponent ${exponent}`);
 });
-
-

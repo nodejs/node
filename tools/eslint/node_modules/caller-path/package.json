@@ -16,7 +16,6 @@
   "_from": "caller-path@>=0.1.0 <0.2.0",
   "_id": "caller-path@0.1.0",
   "_inCache": true,
-  "_installable": true,
   "_location": "/caller-path",
   "_npmUser": {
     "name": "sindresorhus",

@@ -3,8 +3,8 @@ require('../common');
 const assert = require('assert');
 const net = require('net');
 
-var binaryString = '';
-for (var i = 255; i >= 0; i--) {
+let binaryString = '';
+for (let i = 255; i >= 0; i--) {
   const s = `'\\${i.toString(8)}'`;
   const S = eval(s);
   assert.strictEqual(S.charCodeAt(0), i);
@@ -13,7 +13,7 @@ for (var i = 255; i >= 0; i--) {
 }
 
 // safe constructor
-var echoServer = net.Server(function(connection) {
+const echoServer = net.Server(function(connection) {
   connection.setEncoding('latin1');
   connection.on('data', function(chunk) {
     connection.write(chunk, 'latin1');
@@ -24,10 +24,10 @@ var echoServer = net.Server(function(connection) {
 });
 echoServer.listen(0);
 
-var recv = '';
+let recv = '';
 
 echoServer.on('listening', function() {
-  var j = 0;
+  let j = 0;
   const c = net.createConnection({
     port: this.address().port
   });
@@ -55,7 +55,7 @@ echoServer.on('listening', function() {
 });
 
 process.on('exit', function() {
-  assert.equal(2 * 256, recv.length);
+  assert.strictEqual(2 * 256, recv.length);
 
   const a = recv.split('');
 

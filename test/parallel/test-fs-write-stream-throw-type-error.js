@@ -4,32 +4,44 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
+const numberError = new RegExp('^TypeError: "options" must be a string ' +
+                               'or an object, got number instead.$');
+
+const booleanError = new RegExp('^TypeError: "options" must be a string ' +
+                                'or an object, got boolean instead.$');
+
 const example = path.join(common.tmpDir, 'dummy');
 
 common.refreshTmpDir();
 
-assert.doesNotThrow(function() {
+assert.doesNotThrow(() => {
   fs.createWriteStream(example, undefined);
 });
-assert.doesNotThrow(function() {
+
+assert.doesNotThrow(() => {
+  fs.createWriteStream(example, null);
+});
+
+assert.doesNotThrow(() => {
   fs.createWriteStream(example, 'utf8');
 });
-assert.doesNotThrow(function() {
+
+assert.doesNotThrow(() => {
   fs.createWriteStream(example, {encoding: 'utf8'});
 });
 
-assert.throws(function() {
-  fs.createWriteStream(example, null);
-}, /"options" argument must be a string or an object/);
-assert.throws(function() {
+assert.throws(() => {
   fs.createWriteStream(example, 123);
-}, /"options" argument must be a string or an object/);
-assert.throws(function() {
+}, numberError);
+
+assert.throws(() => {
   fs.createWriteStream(example, 0);
-}, /"options" argument must be a string or an object/);
-assert.throws(function() {
+}, numberError);
+
+assert.throws(() => {
   fs.createWriteStream(example, true);
-}, /"options" argument must be a string or an object/);
-assert.throws(function() {
+}, booleanError);
+
+assert.throws(() => {
   fs.createWriteStream(example, false);
-}, /"options" argument must be a string or an object/);
+}, booleanError);

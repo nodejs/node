@@ -39,15 +39,23 @@ if (process.argv[2] !== 'child') {
       process.send('handle', socket);
   }
 
+  // As a side-effect, listening for the message event will ref the IPC channel,
+  // so the child process will stay alive as long as it has a parent process/IPC
+  // channel. Once this is done, we can unref our client and server sockets, and
+  // the only thing keeping this worker alive will be IPC. This is important,
+  // because it means a worker with no parent will have no referenced handles,
+  // thus no work to do, and will exit immediately, preventing process leaks.
+  process.on('message', function() {});
+
   const server = net.createServer((c) => {
     process.once('message', function(msg) {
       assert.strictEqual(msg, 'got');
       c.end('hello');
     });
     socketConnected();
-  });
+  }).unref();
   server.listen(0, common.localhostIPv4, () => {
     const port = server.address().port;
-    socket = net.connect(port, common.localhostIPv4, socketConnected);
+    socket = net.connect(port, common.localhostIPv4, socketConnected).unref();
   });
 }

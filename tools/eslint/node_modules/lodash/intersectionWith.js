@@ -6,9 +6,9 @@ var arrayMap = require('./_arrayMap'),
 
 /**
  * This method is like `_.intersection` except that it accepts `comparator`
- * which is invoked to compare elements of `arrays`. Result values are chosen
- * from the first array. The comparator is invoked with two arguments:
- * (arrVal, othVal).
+ * which is invoked to compare elements of `arrays`. The order and references
+ * of result values are determined by the first array. The comparator is
+ * invoked with two arguments: (arrVal, othVal).
  *
  * @static
  * @memberOf _
@@ -29,9 +29,8 @@ var intersectionWith = baseRest(function(arrays) {
   var comparator = last(arrays),
       mapped = arrayMap(arrays, castArrayLikeObject);
 
-  if (comparator === last(mapped)) {
-    comparator = undefined;
-  } else {
+  comparator = typeof comparator == 'function' ? comparator : undefined;
+  if (comparator) {
     mapped.pop();
   }
   return (mapped.length && mapped[0] === arrays[0])

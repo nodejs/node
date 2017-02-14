@@ -9,6 +9,7 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/scopes.h"
 #include "src/base/platform/platform.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -603,8 +604,8 @@ void AstPrinter::PrintLiteralWithModeIndented(const char* info,
     PrintLiteralIndented(info, value, true);
   } else {
     EmbeddedVector<char, 256> buf;
-    int pos = SNPrintF(buf, "%s (mode = %s", info,
-                       Variable::Mode2String(var->mode()));
+    int pos =
+        SNPrintF(buf, "%s (mode = %s", info, VariableMode2String(var->mode()));
     SNPrintF(buf + pos, ")");
     PrintLiteralIndented(buf.start(), value, true);
   }
@@ -870,6 +871,9 @@ void AstPrinter::PrintTryStatement(TryStatement* node) {
     case HandlerTable::DESUGARING:
       prediction = "DESUGARING";
       break;
+    case HandlerTable::ASYNC_AWAIT:
+      prediction = "ASYNC_AWAIT";
+      break;
   }
   Print(" %s\n", prediction);
 }
@@ -897,33 +901,26 @@ void AstPrinter::VisitClassLiteral(ClassLiteral* node) {
   if (node->extends() != nullptr) {
     PrintIndentedVisit("EXTENDS", node->extends());
   }
-  PrintProperties(node->properties());
+  PrintClassProperties(node->properties());
 }
 
-
-void AstPrinter::PrintProperties(
-    ZoneList<ObjectLiteral::Property*>* properties) {
+void AstPrinter::PrintClassProperties(
+    ZoneList<ClassLiteral::Property*>* properties) {
   for (int i = 0; i < properties->length(); i++) {
-    ObjectLiteral::Property* property = properties->at(i);
+    ClassLiteral::Property* property = properties->at(i);
     const char* prop_kind = nullptr;
     switch (property->kind()) {
-      case ObjectLiteral::Property::CONSTANT:
-        prop_kind = "CONSTANT";
+      case ClassLiteral::Property::METHOD:
+        prop_kind = "METHOD";
         break;
-      case ObjectLiteral::Property::COMPUTED:
-        prop_kind = "COMPUTED";
-        break;
-      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
-        prop_kind = "MATERIALIZED_LITERAL";
-        break;
-      case ObjectLiteral::Property::PROTOTYPE:
-        prop_kind = "PROTOTYPE";
-        break;
-      case ObjectLiteral::Property::GETTER:
+      case ClassLiteral::Property::GETTER:
         prop_kind = "GETTER";
         break;
-      case ObjectLiteral::Property::SETTER:
+      case ClassLiteral::Property::SETTER:
         prop_kind = "SETTER";
+        break;
+      case ClassLiteral::Property::FIELD:
+        prop_kind = "FIELD";
         break;
     }
     EmbeddedVector<char, 128> buf;
@@ -986,7 +983,40 @@ void AstPrinter::VisitObjectLiteral(ObjectLiteral* node) {
   EmbeddedVector<char, 128> buf;
   SNPrintF(buf, "literal_index = %d\n", node->literal_index());
   PrintIndented(buf.start());
-  PrintProperties(node->properties());
+  PrintObjectProperties(node->properties());
+}
+
+void AstPrinter::PrintObjectProperties(
+    ZoneList<ObjectLiteral::Property*>* properties) {
+  for (int i = 0; i < properties->length(); i++) {
+    ObjectLiteral::Property* property = properties->at(i);
+    const char* prop_kind = nullptr;
+    switch (property->kind()) {
+      case ObjectLiteral::Property::CONSTANT:
+        prop_kind = "CONSTANT";
+        break;
+      case ObjectLiteral::Property::COMPUTED:
+        prop_kind = "COMPUTED";
+        break;
+      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
+        prop_kind = "MATERIALIZED_LITERAL";
+        break;
+      case ObjectLiteral::Property::PROTOTYPE:
+        prop_kind = "PROTOTYPE";
+        break;
+      case ObjectLiteral::Property::GETTER:
+        prop_kind = "GETTER";
+        break;
+      case ObjectLiteral::Property::SETTER:
+        prop_kind = "SETTER";
+        break;
+    }
+    EmbeddedVector<char, 128> buf;
+    SNPrintF(buf, "PROPERTY - %s", prop_kind);
+    IndentedScope prop(this, buf.start());
+    PrintIndentedVisit("KEY", properties->at(i)->key());
+    PrintIndentedVisit("VALUE", properties->at(i)->value());
+  }
 }
 
 
@@ -1027,9 +1057,6 @@ void AstPrinter::VisitVariableProxy(VariableProxy* node) {
         break;
       case VariableLocation::CONTEXT:
         SNPrintF(buf + pos, " context[%d]", var->index());
-        break;
-      case VariableLocation::GLOBAL:
-        SNPrintF(buf + pos, " global[%d]", var->index());
         break;
       case VariableLocation::LOOKUP:
         SNPrintF(buf + pos, " lookup");

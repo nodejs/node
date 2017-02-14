@@ -11,10 +11,10 @@
 #include "src/field-type.h"
 #include "src/messages.h"
 #include "src/objects-inl.h"
-#include "src/parsing/scanner.h"
 #include "src/parsing/token.h"
 #include "src/property-descriptor.h"
 #include "src/transitions.h"
+#include "src/unicode-cache.h"
 
 namespace v8 {
 namespace internal {

@@ -1,4 +1,4 @@
-var exec = require('child_process').exec;
+const exec = require('child_process').exec;
 
 [0, 1].forEach(function(i) {
   exec('ls', function(err, stdout, stderr) {

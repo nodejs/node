@@ -12,7 +12,7 @@
 module.exports = {
     meta: {
         docs: {
-            description: "enforce a maximum number of parameters in `function` definitions",
+            description: "enforce a maximum number of parameters in function definitions",
             category: "Stylistic Issues",
             recommended: false
         },
@@ -66,10 +66,10 @@ module.exports = {
          */
         function checkFunction(node) {
             if (node.params.length > numParams) {
-                context.report(node, "This function has too many parameters ({{count}}). Maximum allowed is {{max}}.", {
+                context.report({ node, message: "This function has too many parameters ({{count}}). Maximum allowed is {{max}}.", data: {
                     count: node.params.length,
                     max: numParams
-                });
+                } });
             }
         }
 

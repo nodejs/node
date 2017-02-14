@@ -5,13 +5,15 @@
  * @author Nicholas C. Zakas
  */
 
+/* eslint no-console:off */
+
 "use strict";
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-var useStdIn = (process.argv.indexOf("--stdin") > -1),
+const useStdIn = (process.argv.indexOf("--stdin") > -1),
     init = (process.argv.indexOf("--init") > -1),
     debug = (process.argv.indexOf("--debug") > -1);
 
@@ -25,7 +27,7 @@ if (debug) {
 //------------------------------------------------------------------------------
 
 // now we can safely include the other modules that use debug
-var concat = require("concat-stream"),
+const concat = require("concat-stream"),
     cli = require("../lib/cli"),
     path = require("path"),
     fs = require("fs");
@@ -34,36 +36,32 @@ var concat = require("concat-stream"),
 // Execution
 //------------------------------------------------------------------------------
 
-process.on("uncaughtException", function(err){
+process.once("uncaughtException", err => {
+
     // lazy load
-    var lodash = require("lodash");
+    const lodash = require("lodash");
 
     if (typeof err.messageTemplate === "string" && err.messageTemplate.length > 0) {
-        var template = lodash.template(fs.readFileSync(path.resolve(__dirname, "../messages/" + err.messageTemplate + ".txt"), "utf-8"));
+        const template = lodash.template(fs.readFileSync(path.resolve(__dirname, `../messages/${err.messageTemplate}.txt`), "utf-8"));
 
         console.log("\nOops! Something went wrong! :(");
-        console.log("\n" + template(err.messageData || {}));
+        console.log(`\n${template(err.messageData || {})}`);
     } else {
         console.log(err.message);
         console.log(err.stack);
     }
 
-    process.exit(1);
+    process.exitCode = 1;
 });
 
 if (useStdIn) {
-    process.stdin.pipe(concat({ encoding: "string" }, function(text) {
-        try {
-            process.exitCode = cli.execute(process.argv, text);
-        } catch (ex) {
-            console.error(ex.message);
-            console.error(ex.stack);
-            process.exitCode = 1;
-        }
+    process.stdin.pipe(concat({ encoding: "string" }, text => {
+        process.exitCode = cli.execute(process.argv, text);
     }));
 } else if (init) {
-    var configInit = require("../lib/config/config-initializer");
-    configInit.initializeConfig(function(err) {
+    const configInit = require("../lib/config/config-initializer");
+
+    configInit.initializeConfig(err => {
         if (err) {
             process.exitCode = 1;
             console.error(err.message);

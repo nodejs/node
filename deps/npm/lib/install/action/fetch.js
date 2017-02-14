@@ -3,7 +3,7 @@
 // var packageId = require('../../utils/package-id.js')
 // var moduleName = require('../../utils/module-name.js')
 
-module.exports = function (top, buildpath, pkg, log, next) {
+module.exports = function (staging, pkg, log, next) {
   next()
 /*
 // FIXME: Unnecessary as long as we have to have the tarball to resolve all deps, which
@@ -24,6 +24,6 @@ module.exports = function (top, buildpath, pkg, log, next) {
       name = pkg.package._requested.raw
   }
   log.silly('fetch', packageId(pkg))
-  cache.add(name, version, top, false, next)
+  cache.add(name, version, pkg.parent.path, false, next)
 */
 }

@@ -1,12 +1,12 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const net = require('net');
 
-var outstanding_reqs = 0;
+let outstanding_reqs = 0;
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   res.writeHead(200, [['content-type', 'text/plain']]);
   res.addTrailers({'x-foo': 'bar'});
   res.end('stuff' + '\n');
@@ -16,8 +16,8 @@ server.listen(0);
 
 // first, we test an HTTP/1.0 request.
 server.on('listening', function() {
-  var c = net.createConnection(this.address().port);
-  var res_buffer = '';
+  const c = net.createConnection(this.address().port);
+  let res_buffer = '';
 
   c.setEncoding('utf8');
 
@@ -44,16 +44,16 @@ server.on('listening', function() {
 
 // now, we test an HTTP/1.1 request.
 server.on('listening', function() {
-  var c = net.createConnection(this.address().port);
-  var res_buffer = '';
-  var tid;
+  const c = net.createConnection(this.address().port);
+  let res_buffer = '';
+  let tid;
 
   c.setEncoding('utf8');
 
   c.on('connect', function() {
     outstanding_reqs++;
     c.write('GET / HTTP/1.1\r\n\r\n');
-    tid = setTimeout(common.fail, 2000, 'Couldn\'t find last chunk.');
+    tid = setTimeout(common.mustNotCall(), 2000, 'Couldn\'t find last chunk.');
   });
 
   c.on('data', function(chunk) {

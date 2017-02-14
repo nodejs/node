@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
@@ -991,7 +993,7 @@ U_CAPI int32_t   U_EXPORT2
 u_strlen(const UChar *s)
 {
 #if U_SIZEOF_WCHAR_T == U_SIZEOF_UCHAR
-    return (int32_t)uprv_wcslen(s);
+    return (int32_t)uprv_wcslen((const wchar_t *)s);
 #else
     const UChar *t = s;
     while(*t != 0) {
@@ -1113,7 +1115,7 @@ u_strHasMoreChar32Than(const UChar *s, int32_t length, int32_t number) {
 U_CAPI UChar * U_EXPORT2
 u_memcpy(UChar *dest, const UChar *src, int32_t count) {
     if(count > 0) {
-        uprv_memcpy(dest, src, count*U_SIZEOF_UCHAR);
+        uprv_memcpy(dest, src, (size_t)count*U_SIZEOF_UCHAR);
     }
     return dest;
 }
@@ -1121,7 +1123,7 @@ u_memcpy(UChar *dest, const UChar *src, int32_t count) {
 U_CAPI UChar * U_EXPORT2
 u_memmove(UChar *dest, const UChar *src, int32_t count) {
     if(count > 0) {
-        uprv_memmove(dest, src, count*U_SIZEOF_UCHAR);
+        uprv_memmove(dest, src, (size_t)count*U_SIZEOF_UCHAR);
     }
     return dest;
 }

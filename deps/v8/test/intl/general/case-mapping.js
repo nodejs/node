@@ -136,3 +136,29 @@ assertEquals("\u{10CC0}", "\u{10C80}".toLocaleLowerCase());
 assertEquals("\u{10C80}", "\u{10CC0}".toLocaleUpperCase(["tr"]));
 assertEquals("\u{10C80}", "\u{10CC0}".toLocaleUpperCase(["tr"]));
 assertEquals("\u{10CC0}", "\u{10C80}".toLocaleLowerCase());
+
+// check fast path for Latin-1 supplement (U+00A0 ~ U+00FF)
+var latin1Suppl = "\u00A0¡¢£¤¥¦§¨©ª«¬\u00AD®°±²³´µ¶·¸¹º»¼½¾¿" +
+    "ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ";
+var latin1SupplLowercased = "\u00A0¡¢£¤¥¦§¨©ª«¬\u00AD®°±²³´µ¶·¸¹º»¼½¾¿" +
+    "àáâãäåæçèéêëìíîïðñòóôõö×øùúûüýþßàáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ";
+var latin1SupplUppercased = "\u00A0¡¢£¤¥¦§¨©ª«¬\u00AD®°±²³´\u039C¶·¸¹º»¼½¾¿" +
+    "ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞSSÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ÷ØÙÚÛÜÝÞ\u0178";
+
+assertEquals(latin1SupplLowercased, latin1Suppl.toLowerCase());
+assertEquals(latin1SupplUppercased, latin1Suppl.toUpperCase());
+assertEquals(latin1SupplLowercased, latin1Suppl.toLocaleLowerCase("de"));
+assertEquals(latin1SupplUppercased, latin1Suppl.toLocaleUpperCase("de"));
+assertEquals(latin1SupplLowercased, latin1Suppl.toLocaleLowerCase("el"));
+assertEquals(latin1SupplUppercased, latin1Suppl.toLocaleUpperCase("el"));
+assertEquals(latin1SupplUppercased, latin1Suppl.toLocaleUpperCase("tr"));
+assertEquals(latin1SupplLowercased, latin1Suppl.toLocaleLowerCase("tr"));
+assertEquals(latin1SupplUppercased, latin1Suppl.toLocaleUpperCase("az"));
+assertEquals(latin1SupplLowercased, latin1Suppl.toLocaleLowerCase("az"));
+assertEquals(latin1SupplUppercased, latin1Suppl.toLocaleUpperCase("lt"));
+// Lithuanian need to have a dot-above for U+00CC(Ì) and U+00CD(Í) when
+// lowercasing.
+assertEquals("\u00A0¡¢£¤¥¦§¨©ª«¬\u00AD®°±²³´µ¶·¸¹º»¼½¾¿" +
+    "àáâãäåæçèéêëi\u0307\u0300i\u0307\u0301îïðñòóôõö×øùúûüýþß" +
+    "àáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ",
+    latin1Suppl.toLocaleLowerCase("lt"));

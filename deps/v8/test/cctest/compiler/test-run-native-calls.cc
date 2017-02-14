@@ -242,7 +242,8 @@ class Int32Signature : public MachineSignature {
 Handle<Code> CompileGraph(const char* name, CallDescriptor* desc, Graph* graph,
                           Schedule* schedule = nullptr) {
   Isolate* isolate = CcTest::InitIsolateOnce();
-  CompilationInfo info(ArrayVector("testing"), isolate, graph->zone());
+  CompilationInfo info(ArrayVector("testing"), isolate, graph->zone(),
+                       Code::ComputeFlags(Code::STUB));
   Handle<Code> code =
       Pipeline::GenerateCodeForTesting(&info, desc, graph, schedule);
   CHECK(!code.is_null());
@@ -604,7 +605,7 @@ static void CopyTwentyInt32(CallDescriptor* desc) {
 
 static void Test_RunInt32SubWithRet(int retreg) {
   Int32Signature sig(2);
-  base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator);
   RegisterPairs pairs;
   while (pairs.More()) {
@@ -655,7 +656,7 @@ TEST(Run_Int32Sub_all_allocatable_single) {
   Int32Signature sig(2);
   RegisterPairs pairs;
   while (pairs.More()) {
-    base::AccountingAllocator allocator;
+    v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator);
     int parray[1];
     int rarray[1];
@@ -673,7 +674,7 @@ TEST(Run_CopyTwentyInt32_all_allocatable_pairs) {
   Int32Signature sig(20);
   RegisterPairs pairs;
   while (pairs.More()) {
-    base::AccountingAllocator allocator;
+    v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator);
     int parray[2];
     int rarray[] = {GetRegConfig()->GetAllocatableGeneralCode(0)};
@@ -724,7 +725,7 @@ static void Test_Int32_WeightedSum_of_size(int count) {
   Int32Signature sig(count);
   for (int p0 = 0; p0 < Register::kNumRegisters; p0++) {
     if (GetRegConfig()->IsAllocatableGeneralCode(p0)) {
-      base::AccountingAllocator allocator;
+      v8::internal::AccountingAllocator allocator;
       Zone zone(&allocator);
 
       int parray[] = {p0};
@@ -787,7 +788,7 @@ void Test_Int32_Select() {
   Allocator rets(rarray, 1, nullptr, 0);
   RegisterConfig config(params, rets);
 
-  base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator);
 
   for (int i = which + 1; i <= 64; i++) {
@@ -826,7 +827,7 @@ TEST(Int64Select_registers) {
   ArgsBuffer<int64_t>::Sig sig(2);
 
   RegisterPairs pairs;
-  base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator);
   while (pairs.More()) {
     int parray[2];
@@ -851,7 +852,7 @@ TEST(Float32Select_registers) {
   ArgsBuffer<float32>::Sig sig(2);
 
   Float32RegisterPairs pairs;
-  base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator);
   while (pairs.More()) {
     int parray[2];
@@ -874,7 +875,7 @@ TEST(Float64Select_registers) {
   ArgsBuffer<float64>::Sig sig(2);
 
   Float64RegisterPairs pairs;
-  base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator);
   while (pairs.More()) {
     int parray[2];
@@ -896,7 +897,7 @@ TEST(Float32Select_stack_params_return_reg) {
   Allocator rets(nullptr, 0, rarray, 1);
   RegisterConfig config(params, rets);
 
-  base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator);
   for (int count = 1; count < 6; count++) {
     ArgsBuffer<float32>::Sig sig(count);
@@ -917,7 +918,7 @@ TEST(Float64Select_stack_params_return_reg) {
   Allocator rets(nullptr, 0, rarray, 1);
   RegisterConfig config(params, rets);
 
-  base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator);
   for (int count = 1; count < 6; count++) {
     ArgsBuffer<float64>::Sig sig(count);
@@ -969,7 +970,7 @@ TEST(Float64StackParamsToStackParams) {
   Allocator params(nullptr, 0, nullptr, 0);
   Allocator rets(nullptr, 0, rarray, 1);
 
-  base::AccountingAllocator allocator;
+  v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator);
   ArgsBuffer<float64>::Sig sig(2);
   RegisterConfig config(params, rets);
@@ -1024,7 +1025,7 @@ void MixedParamTest(int start) {
   RegisterConfig config(palloc, ralloc);
 
   for (int which = 0; which < num_params; which++) {
-    base::AccountingAllocator allocator;
+    v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator);
     HandleScope scope(isolate);
     MachineSignature::Builder builder(&zone, 1, num_params);

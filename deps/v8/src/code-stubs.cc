@@ -6,6 +6,7 @@
 
 #include <sstream>
 
+#include "src/ast/ast.h"
 #include "src/bootstrapper.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
@@ -14,7 +15,6 @@
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
-#include "src/parsing/parser.h"
 
 namespace v8 {
 namespace internal {
@@ -498,6 +498,140 @@ void KeyedLoadICTFStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   assembler->KeyedLoadIC(&p);
 }
 
+void StoreICTrampolineTFStub::GenerateAssembly(
+    CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  Node* name = assembler->Parameter(Descriptor::kName);
+  Node* value = assembler->Parameter(Descriptor::kValue);
+  Node* slot = assembler->Parameter(Descriptor::kSlot);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+  Node* vector = assembler->LoadTypeFeedbackVectorForStub();
+
+  CodeStubAssembler::StoreICParameters p(context, receiver, name, value, slot,
+                                         vector);
+  assembler->StoreIC(&p);
+}
+
+void StoreICTFStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  Node* name = assembler->Parameter(Descriptor::kName);
+  Node* value = assembler->Parameter(Descriptor::kValue);
+  Node* slot = assembler->Parameter(Descriptor::kSlot);
+  Node* vector = assembler->Parameter(Descriptor::kVector);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  CodeStubAssembler::StoreICParameters p(context, receiver, name, value, slot,
+                                         vector);
+  assembler->StoreIC(&p);
+}
+
+void StoreMapStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  Node* map = assembler->Parameter(Descriptor::kMap);
+  Node* value = assembler->Parameter(Descriptor::kValue);
+
+  assembler->StoreObjectField(receiver, JSObject::kMapOffset, map);
+  assembler->Return(value);
+}
+
+void StoreTransitionStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  Node* name = assembler->Parameter(Descriptor::kName);
+  Node* offset =
+      assembler->SmiUntag(assembler->Parameter(Descriptor::kFieldOffset));
+  Node* value = assembler->Parameter(Descriptor::kValue);
+  Node* map = assembler->Parameter(Descriptor::kMap);
+  Node* slot = assembler->Parameter(Descriptor::kSlot);
+  Node* vector = assembler->Parameter(Descriptor::kVector);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  Label miss(assembler);
+
+  Representation representation = this->representation();
+  assembler->Comment("StoreTransitionStub: is_inobject: %d: representation: %s",
+                     is_inobject(), representation.Mnemonic());
+
+  Node* prepared_value =
+      assembler->PrepareValueForWrite(value, representation, &miss);
+
+  if (store_mode() == StoreTransitionStub::ExtendStorageAndStoreMapAndValue) {
+    assembler->Comment("Extend storage");
+    assembler->ExtendPropertiesBackingStore(receiver);
+  } else {
+    DCHECK(store_mode() == StoreTransitionStub::StoreMapAndValue);
+  }
+
+  // Store the new value into the "extended" object.
+  assembler->Comment("Store value");
+  assembler->StoreNamedField(receiver, offset, is_inobject(), representation,
+                             prepared_value, true);
+
+  // And finally update the map.
+  assembler->Comment("Store map");
+  assembler->StoreObjectField(receiver, JSObject::kMapOffset, map);
+  assembler->Return(value);
+
+  // Only store to tagged field never bails out.
+  if (!representation.IsTagged()) {
+    assembler->Bind(&miss);
+    {
+      assembler->Comment("Miss");
+      assembler->TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot,
+                                 vector, receiver, name);
+    }
+  }
+}
+
+void ElementsTransitionAndStoreStub::GenerateAssembly(
+    CodeStubAssembler* assembler) const {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  Node* key = assembler->Parameter(Descriptor::kName);
+  Node* value = assembler->Parameter(Descriptor::kValue);
+  Node* map = assembler->Parameter(Descriptor::kMap);
+  Node* slot = assembler->Parameter(Descriptor::kSlot);
+  Node* vector = assembler->Parameter(Descriptor::kVector);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  assembler->Comment(
+      "ElementsTransitionAndStoreStub: from_kind=%s, to_kind=%s,"
+      " is_jsarray=%d, store_mode=%d",
+      ElementsKindToString(from_kind()), ElementsKindToString(to_kind()),
+      is_jsarray(), store_mode());
+
+  Label miss(assembler);
+
+  if (FLAG_trace_elements_transitions) {
+    // Tracing elements transitions is the job of the runtime.
+    assembler->Goto(&miss);
+  } else {
+    assembler->TransitionElementsKind(receiver, map, from_kind(), to_kind(),
+                                      is_jsarray(), &miss);
+    assembler->EmitElementStore(receiver, key, value, is_jsarray(), to_kind(),
+                                store_mode(), &miss);
+    assembler->Return(value);
+  }
+
+  assembler->Bind(&miss);
+  {
+    assembler->Comment("Miss");
+    assembler->TailCallRuntime(Runtime::kElementsTransitionAndStoreIC_Miss,
+                               context, receiver, key, value, map, slot,
+                               vector);
+  }
+}
+
 void AllocateHeapNumberStub::GenerateAssembly(
     CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
@@ -599,9 +733,8 @@ compiler::Node* AddStub::Generate(CodeStubAssembler* assembler,
         // Check if the {rhs} is a HeapNumber.
         Label if_rhsisnumber(assembler),
             if_rhsisnotnumber(assembler, Label::kDeferred);
-        Node* number_map = assembler->HeapNumberMapConstant();
-        assembler->Branch(assembler->WordEqual(rhs_map, number_map),
-                          &if_rhsisnumber, &if_rhsisnotnumber);
+        assembler->Branch(assembler->IsHeapNumberMap(rhs_map), &if_rhsisnumber,
+                          &if_rhsisnotnumber);
 
         assembler->Bind(&if_rhsisnumber);
         {
@@ -618,9 +751,7 @@ compiler::Node* AddStub::Generate(CodeStubAssembler* assembler,
           // Check if the {rhs} is a String.
           Label if_rhsisstring(assembler, Label::kDeferred),
               if_rhsisnotstring(assembler, Label::kDeferred);
-          assembler->Branch(assembler->Int32LessThan(
-                                rhs_instance_type,
-                                assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
+          assembler->Branch(assembler->IsStringInstanceType(rhs_instance_type),
                             &if_rhsisstring, &if_rhsisnotstring);
 
           assembler->Bind(&if_rhsisstring);
@@ -636,9 +767,7 @@ compiler::Node* AddStub::Generate(CodeStubAssembler* assembler,
             Label if_rhsisreceiver(assembler, Label::kDeferred),
                 if_rhsisnotreceiver(assembler, Label::kDeferred);
             assembler->Branch(
-                assembler->Int32LessThanOrEqual(
-                    assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE),
-                    rhs_instance_type),
+                assembler->IsJSReceiverInstanceType(rhs_instance_type),
                 &if_rhsisreceiver, &if_rhsisnotreceiver);
 
             assembler->Bind(&if_rhsisreceiver);
@@ -670,9 +799,7 @@ compiler::Node* AddStub::Generate(CodeStubAssembler* assembler,
 
       // Check if {lhs} is a String.
       Label if_lhsisstring(assembler), if_lhsisnotstring(assembler);
-      assembler->Branch(assembler->Int32LessThan(
-                            lhs_instance_type,
-                            assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
+      assembler->Branch(assembler->IsStringInstanceType(lhs_instance_type),
                         &if_lhsisstring, &if_lhsisnotstring);
 
       assembler->Bind(&if_lhsisstring);
@@ -714,9 +841,7 @@ compiler::Node* AddStub::Generate(CodeStubAssembler* assembler,
             Label if_lhsisreceiver(assembler, Label::kDeferred),
                 if_lhsisnotreceiver(assembler, Label::kDeferred);
             assembler->Branch(
-                assembler->Int32LessThanOrEqual(
-                    assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE),
-                    lhs_instance_type),
+                assembler->IsJSReceiverInstanceType(lhs_instance_type),
                 &if_lhsisreceiver, &if_lhsisnotreceiver);
 
             assembler->Bind(&if_lhsisreceiver);
@@ -746,9 +871,7 @@ compiler::Node* AddStub::Generate(CodeStubAssembler* assembler,
 
           // Check if {rhs} is a String.
           Label if_rhsisstring(assembler), if_rhsisnotstring(assembler);
-          assembler->Branch(assembler->Int32LessThan(
-                                rhs_instance_type,
-                                assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
+          assembler->Branch(assembler->IsStringInstanceType(rhs_instance_type),
                             &if_rhsisstring, &if_rhsisnotstring);
 
           assembler->Bind(&if_rhsisstring);
@@ -791,9 +914,7 @@ compiler::Node* AddStub::Generate(CodeStubAssembler* assembler,
                 Label if_rhsisreceiver(assembler, Label::kDeferred),
                     if_rhsisnotreceiver(assembler, Label::kDeferred);
                 assembler->Branch(
-                    assembler->Int32LessThanOrEqual(
-                        assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE),
-                        rhs_instance_type),
+                    assembler->IsJSReceiverInstanceType(rhs_instance_type),
                     &if_rhsisreceiver, &if_rhsisnotreceiver);
 
                 assembler->Bind(&if_rhsisreceiver);
@@ -822,9 +943,7 @@ compiler::Node* AddStub::Generate(CodeStubAssembler* assembler,
               Label if_lhsisreceiver(assembler, Label::kDeferred),
                   if_lhsisnotreceiver(assembler);
               assembler->Branch(
-                  assembler->Int32LessThanOrEqual(
-                      assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE),
-                      lhs_instance_type),
+                  assembler->IsJSReceiverInstanceType(lhs_instance_type),
                   &if_lhsisreceiver, &if_lhsisnotreceiver);
 
               assembler->Bind(&if_lhsisreceiver);
@@ -842,9 +961,7 @@ compiler::Node* AddStub::Generate(CodeStubAssembler* assembler,
                 Label if_rhsisreceiver(assembler, Label::kDeferred),
                     if_rhsisnotreceiver(assembler, Label::kDeferred);
                 assembler->Branch(
-                    assembler->Int32LessThanOrEqual(
-                        assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE),
-                        rhs_instance_type),
+                    assembler->IsJSReceiverInstanceType(rhs_instance_type),
                     &if_rhsisreceiver, &if_rhsisnotreceiver);
 
                 assembler->Bind(&if_rhsisreceiver);
@@ -917,7 +1034,7 @@ compiler::Node* AddWithFeedbackStub::Generate(
 
   // Shared entry for floating point addition.
   Label do_fadd(assembler), end(assembler),
-      call_add_stub(assembler, Label::kDeferred);
+      do_add_any(assembler, Label::kDeferred), call_add_stub(assembler);
   Variable var_fadd_lhs(assembler, MachineRepresentation::kFloat64),
       var_fadd_rhs(assembler, MachineRepresentation::kFloat64),
       var_type_feedback(assembler, MachineRepresentation::kWord32),
@@ -965,9 +1082,7 @@ compiler::Node* AddWithFeedbackStub::Generate(
       Node* rhs_map = assembler->LoadMap(rhs);
 
       // Check if the {rhs} is a HeapNumber.
-      assembler->GotoUnless(
-          assembler->WordEqual(rhs_map, assembler->HeapNumberMapConstant()),
-          &call_add_stub);
+      assembler->GotoUnless(assembler->IsHeapNumberMap(rhs_map), &do_add_any);
 
       var_fadd_lhs.Bind(assembler->SmiToFloat64(lhs));
       var_fadd_rhs.Bind(assembler->LoadHeapNumberValue(rhs));
@@ -977,14 +1092,14 @@ compiler::Node* AddWithFeedbackStub::Generate(
 
   assembler->Bind(&if_lhsisnotsmi);
   {
+    Label check_string(assembler);
+
     // Load the map of {lhs}.
     Node* lhs_map = assembler->LoadMap(lhs);
 
     // Check if {lhs} is a HeapNumber.
     Label if_lhsisnumber(assembler), if_lhsisnotnumber(assembler);
-    assembler->GotoUnless(
-        assembler->WordEqual(lhs_map, assembler->HeapNumberMapConstant()),
-        &call_add_stub);
+    assembler->GotoUnless(assembler->IsHeapNumberMap(lhs_map), &check_string);
 
     // Check if the {rhs} is Smi.
     Label if_rhsissmi(assembler), if_rhsisnotsmi(assembler);
@@ -1003,13 +1118,33 @@ compiler::Node* AddWithFeedbackStub::Generate(
       Node* rhs_map = assembler->LoadMap(rhs);
 
       // Check if the {rhs} is a HeapNumber.
-      Node* number_map = assembler->HeapNumberMapConstant();
-      assembler->GotoUnless(assembler->WordEqual(rhs_map, number_map),
-                            &call_add_stub);
+      assembler->GotoUnless(assembler->IsHeapNumberMap(rhs_map), &do_add_any);
 
       var_fadd_lhs.Bind(assembler->LoadHeapNumberValue(lhs));
       var_fadd_rhs.Bind(assembler->LoadHeapNumberValue(rhs));
       assembler->Goto(&do_fadd);
+    }
+
+    assembler->Bind(&check_string);
+    {
+      // Check if the {rhs} is a smi, and exit the string check early if it is.
+      assembler->GotoIf(assembler->WordIsSmi(rhs), &do_add_any);
+
+      Node* lhs_instance_type = assembler->LoadMapInstanceType(lhs_map);
+
+      // Exit unless {lhs} is a string
+      assembler->GotoUnless(assembler->IsStringInstanceType(lhs_instance_type),
+                            &do_add_any);
+
+      Node* rhs_instance_type = assembler->LoadInstanceType(rhs);
+
+      // Exit unless {rhs} is a string
+      assembler->GotoUnless(assembler->IsStringInstanceType(rhs_instance_type),
+                            &do_add_any);
+
+      var_type_feedback.Bind(
+          assembler->Int32Constant(BinaryOperationFeedback::kString));
+      assembler->Goto(&call_add_stub);
     }
   }
 
@@ -1024,10 +1159,15 @@ compiler::Node* AddWithFeedbackStub::Generate(
     assembler->Goto(&end);
   }
 
-  assembler->Bind(&call_add_stub);
+  assembler->Bind(&do_add_any);
   {
     var_type_feedback.Bind(
         assembler->Int32Constant(BinaryOperationFeedback::kAny));
+    assembler->Goto(&call_add_stub);
+  }
+
+  assembler->Bind(&call_add_stub);
+  {
     Callable callable = CodeFactory::Add(assembler->isolate());
     var_result.Bind(assembler->CallStub(callable, context, lhs, rhs));
     assembler->Goto(&end);
@@ -1111,9 +1251,8 @@ compiler::Node* SubtractStub::Generate(CodeStubAssembler* assembler,
         // Check if {rhs} is a HeapNumber.
         Label if_rhsisnumber(assembler),
             if_rhsisnotnumber(assembler, Label::kDeferred);
-        Node* number_map = assembler->HeapNumberMapConstant();
-        assembler->Branch(assembler->WordEqual(rhs_map, number_map),
-                          &if_rhsisnumber, &if_rhsisnotnumber);
+        assembler->Branch(assembler->IsHeapNumberMap(rhs_map), &if_rhsisnumber,
+                          &if_rhsisnotnumber);
 
         assembler->Bind(&if_rhsisnumber);
         {
@@ -1274,9 +1413,8 @@ compiler::Node* SubtractWithFeedbackStub::Generate(
       Node* rhs_map = assembler->LoadMap(rhs);
 
       // Check if {rhs} is a HeapNumber.
-      assembler->GotoUnless(
-          assembler->WordEqual(rhs_map, assembler->HeapNumberMapConstant()),
-          &call_subtract_stub);
+      assembler->GotoUnless(assembler->IsHeapNumberMap(rhs_map),
+                            &call_subtract_stub);
 
       // Perform a floating point subtraction.
       var_fsub_lhs.Bind(assembler->SmiToFloat64(lhs));
@@ -1291,9 +1429,8 @@ compiler::Node* SubtractWithFeedbackStub::Generate(
     Node* lhs_map = assembler->LoadMap(lhs);
 
     // Check if the {lhs} is a HeapNumber.
-    assembler->GotoUnless(
-        assembler->WordEqual(lhs_map, assembler->HeapNumberMapConstant()),
-        &call_subtract_stub);
+    assembler->GotoUnless(assembler->IsHeapNumberMap(lhs_map),
+                          &call_subtract_stub);
 
     // Check if the {rhs} is a Smi.
     Label if_rhsissmi(assembler), if_rhsisnotsmi(assembler);
@@ -1313,9 +1450,8 @@ compiler::Node* SubtractWithFeedbackStub::Generate(
       Node* rhs_map = assembler->LoadMap(rhs);
 
       // Check if the {rhs} is a HeapNumber.
-      assembler->GotoUnless(
-          assembler->WordEqual(rhs_map, assembler->HeapNumberMapConstant()),
-          &call_subtract_stub);
+      assembler->GotoUnless(assembler->IsHeapNumberMap(rhs_map),
+                            &call_subtract_stub);
 
       // Perform a floating point subtraction.
       var_fsub_lhs.Bind(assembler->LoadHeapNumberValue(lhs));
@@ -1713,7 +1849,7 @@ compiler::Node* DivideStub::Generate(CodeStubAssembler* assembler,
         Node* untagged_result =
             assembler->Int32Div(untagged_dividend, untagged_divisor);
         Node* truncated =
-            assembler->IntPtrMul(untagged_result, untagged_divisor);
+            assembler->Int32Mul(untagged_result, untagged_divisor);
         // Do floating point division if the remainder is not 0.
         assembler->GotoIf(
             assembler->Word32NotEqual(untagged_dividend, truncated), &bailout);
@@ -1916,7 +2052,7 @@ compiler::Node* DivideWithFeedbackStub::Generate(
 
       Node* untagged_result =
           assembler->Int32Div(untagged_dividend, untagged_divisor);
-      Node* truncated = assembler->IntPtrMul(untagged_result, untagged_divisor);
+      Node* truncated = assembler->Int32Mul(untagged_result, untagged_divisor);
       // Do floating point division if the remainder is not 0.
       assembler->GotoIf(assembler->Word32NotEqual(untagged_dividend, truncated),
                         &bailout);
@@ -2441,8 +2577,7 @@ compiler::Node* IncStub::Generate(CodeStubAssembler* assembler,
       Label if_valueisnumber(assembler),
           if_valuenotnumber(assembler, Label::kDeferred);
       Node* value_map = assembler->LoadMap(value);
-      Node* number_map = assembler->HeapNumberMapConstant();
-      assembler->Branch(assembler->WordEqual(value_map, number_map),
+      assembler->Branch(assembler->IsHeapNumberMap(value_map),
                         &if_valueisnumber, &if_valuenotnumber);
 
       assembler->Bind(&if_valueisnumber);
@@ -2545,8 +2680,7 @@ compiler::Node* DecStub::Generate(CodeStubAssembler* assembler,
       Label if_valueisnumber(assembler),
           if_valuenotnumber(assembler, Label::kDeferred);
       Node* value_map = assembler->LoadMap(value);
-      Node* number_map = assembler->HeapNumberMapConstant();
-      assembler->Branch(assembler->WordEqual(value_map, number_map),
+      assembler->Branch(assembler->IsHeapNumberMap(value_map),
                         &if_valueisnumber, &if_valuenotnumber);
 
       assembler->Bind(&if_valueisnumber);
@@ -2587,6 +2721,15 @@ compiler::Node* DecStub::Generate(CodeStubAssembler* assembler,
   return result_var.value();
 }
 
+// ES6 section 21.1.3.19 String.prototype.substring ( start, end )
+compiler::Node* SubStringStub::Generate(CodeStubAssembler* assembler,
+                                        compiler::Node* string,
+                                        compiler::Node* from,
+                                        compiler::Node* to,
+                                        compiler::Node* context) {
+  return assembler->SubString(context, string, from, to);
+}
+
 // ES6 section 7.1.13 ToObject (argument)
 void ToObjectStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   typedef compiler::Node Node;
@@ -2601,43 +2744,38 @@ void ToObjectStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   Node* context = assembler->Parameter(Descriptor::kContext);
 
   Variable constructor_function_index_var(assembler,
-                                          MachineRepresentation::kWord32);
+                                          MachineType::PointerRepresentation());
 
   assembler->Branch(assembler->WordIsSmi(object), &if_number, &if_notsmi);
 
   assembler->Bind(&if_notsmi);
   Node* map = assembler->LoadMap(object);
 
-  assembler->GotoIf(
-      assembler->WordEqual(map, assembler->HeapNumberMapConstant()),
-      &if_number);
+  assembler->GotoIf(assembler->IsHeapNumberMap(map), &if_number);
 
   Node* instance_type = assembler->LoadMapInstanceType(map);
-  assembler->GotoIf(
-      assembler->Int32GreaterThanOrEqual(
-          instance_type, assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE)),
-      &if_jsreceiver);
+  assembler->GotoIf(assembler->IsJSReceiverInstanceType(instance_type),
+                    &if_jsreceiver);
 
-  Node* constructor_function_index = assembler->LoadObjectField(
-      map, Map::kInObjectPropertiesOrConstructorFunctionIndexOffset,
-      MachineType::Uint8());
-  assembler->GotoIf(
-      assembler->Word32Equal(
-          constructor_function_index,
-          assembler->Int32Constant(Map::kNoConstructorFunctionIndex)),
-      &if_noconstructor);
+  Node* constructor_function_index =
+      assembler->LoadMapConstructorFunctionIndex(map);
+  assembler->GotoIf(assembler->WordEqual(constructor_function_index,
+                                         assembler->IntPtrConstant(
+                                             Map::kNoConstructorFunctionIndex)),
+                    &if_noconstructor);
   constructor_function_index_var.Bind(constructor_function_index);
   assembler->Goto(&if_wrapjsvalue);
 
   assembler->Bind(&if_number);
   constructor_function_index_var.Bind(
-      assembler->Int32Constant(Context::NUMBER_FUNCTION_INDEX));
+      assembler->IntPtrConstant(Context::NUMBER_FUNCTION_INDEX));
   assembler->Goto(&if_wrapjsvalue);
 
   assembler->Bind(&if_wrapjsvalue);
   Node* native_context = assembler->LoadNativeContext(context);
   Node* constructor = assembler->LoadFixedArrayElement(
-      native_context, constructor_function_index_var.value());
+      native_context, constructor_function_index_var.value(), 0,
+      CodeStubAssembler::INTPTR_PARAMETERS);
   Node* initial_map = assembler->LoadObjectField(
       constructor, JSFunction::kPrototypeOrInitialMapOffset);
   Node* js_value = assembler->Allocate(JSValue::kSize);
@@ -2679,9 +2817,7 @@ compiler::Node* TypeofStub::Generate(CodeStubAssembler* assembler,
 
   Node* map = assembler->LoadMap(value);
 
-  assembler->GotoIf(
-      assembler->WordEqual(map, assembler->HeapNumberMapConstant()),
-      &return_number);
+  assembler->GotoIf(assembler->IsHeapNumberMap(map), &return_number);
 
   Node* instance_type = assembler->LoadMapInstanceType(map);
 
@@ -2703,15 +2839,11 @@ compiler::Node* TypeofStub::Generate(CodeStubAssembler* assembler,
                                                assembler->Int32Constant(0)),
                         &return_undefined);
 
-  assembler->GotoIf(
-      assembler->Int32GreaterThanOrEqual(
-          instance_type, assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE)),
-      &return_object);
+  assembler->GotoIf(assembler->IsJSReceiverInstanceType(instance_type),
+                    &return_object);
 
-  assembler->GotoIf(
-      assembler->Int32LessThan(instance_type,
-                               assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
-      &return_string);
+  assembler->GotoIf(assembler->IsStringInstanceType(instance_type),
+                    &return_string);
 
 #define SIMD128_BRANCH(TYPE, Type, type, lane_count, lane_type)    \
   Label return_##type(assembler);                                  \
@@ -2908,11 +3040,10 @@ compiler::Node* GenerateAbstractRelationalComparison(
         Node* rhs_map = assembler->LoadMap(rhs);
 
         // Check if the {rhs} is a HeapNumber.
-        Node* number_map = assembler->HeapNumberMapConstant();
         Label if_rhsisnumber(assembler),
             if_rhsisnotnumber(assembler, Label::kDeferred);
-        assembler->Branch(assembler->WordEqual(rhs_map, number_map),
-                          &if_rhsisnumber, &if_rhsisnotnumber);
+        assembler->Branch(assembler->IsHeapNumberMap(rhs_map), &if_rhsisnumber,
+                          &if_rhsisnotnumber);
 
         assembler->Bind(&if_rhsisnumber);
         {
@@ -3028,9 +3159,7 @@ compiler::Node* GenerateAbstractRelationalComparison(
           // Check if {lhs} is a String.
           Label if_lhsisstring(assembler),
               if_lhsisnotstring(assembler, Label::kDeferred);
-          assembler->Branch(assembler->Int32LessThan(
-                                lhs_instance_type,
-                                assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
+          assembler->Branch(assembler->IsStringInstanceType(lhs_instance_type),
                             &if_lhsisstring, &if_lhsisnotstring);
 
           assembler->Bind(&if_lhsisstring);
@@ -3041,10 +3170,9 @@ compiler::Node* GenerateAbstractRelationalComparison(
             // Check if {rhs} is also a String.
             Label if_rhsisstring(assembler, Label::kDeferred),
                 if_rhsisnotstring(assembler, Label::kDeferred);
-            assembler->Branch(assembler->Int32LessThan(
-                                  rhs_instance_type, assembler->Int32Constant(
-                                                         FIRST_NONSTRING_TYPE)),
-                              &if_rhsisstring, &if_rhsisnotstring);
+            assembler->Branch(
+                assembler->IsStringInstanceType(rhs_instance_type),
+                &if_rhsisstring, &if_rhsisnotstring);
 
             assembler->Bind(&if_rhsisstring);
             {
@@ -3088,9 +3216,7 @@ compiler::Node* GenerateAbstractRelationalComparison(
               Label if_rhsisreceiver(assembler, Label::kDeferred),
                   if_rhsisnotreceiver(assembler, Label::kDeferred);
               assembler->Branch(
-                  assembler->Int32LessThanOrEqual(
-                      assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE),
-                      rhs_instance_type),
+                  assembler->IsJSReceiverInstanceType(rhs_instance_type),
                   &if_rhsisreceiver, &if_rhsisnotreceiver);
 
               assembler->Bind(&if_rhsisreceiver);
@@ -3122,9 +3248,7 @@ compiler::Node* GenerateAbstractRelationalComparison(
             Label if_lhsisreceiver(assembler, Label::kDeferred),
                 if_lhsisnotreceiver(assembler, Label::kDeferred);
             assembler->Branch(
-                assembler->Int32LessThanOrEqual(
-                    assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE),
-                    lhs_instance_type),
+                assembler->IsJSReceiverInstanceType(lhs_instance_type),
                 &if_lhsisreceiver, &if_lhsisnotreceiver);
 
             assembler->Bind(&if_lhsisreceiver);
@@ -3218,10 +3342,9 @@ void GenerateEqual_Same(CodeStubAssembler* assembler, compiler::Node* value,
     Node* value_map = assembler->LoadMap(value);
 
     // Check if {value} (and therefore {rhs}) is a HeapNumber.
-    Node* number_map = assembler->HeapNumberMapConstant();
     Label if_valueisnumber(assembler), if_valueisnotnumber(assembler);
-    assembler->Branch(assembler->WordEqual(value_map, number_map),
-                      &if_valueisnumber, &if_valueisnotnumber);
+    assembler->Branch(assembler->IsHeapNumberMap(value_map), &if_valueisnumber,
+                      &if_valueisnotnumber);
 
     assembler->Bind(&if_valueisnumber);
     {
@@ -3342,10 +3465,9 @@ compiler::Node* GenerateEqual(CodeStubAssembler* assembler, ResultMode mode,
             // Check if the {rhs} is a String.
             Label if_rhsisstring(assembler, Label::kDeferred),
                 if_rhsisnotstring(assembler);
-            assembler->Branch(assembler->Int32LessThan(
-                                  rhs_instance_type, assembler->Int32Constant(
-                                                         FIRST_NONSTRING_TYPE)),
-                              &if_rhsisstring, &if_rhsisnotstring);
+            assembler->Branch(
+                assembler->IsStringInstanceType(rhs_instance_type),
+                &if_rhsisstring, &if_rhsisnotstring);
 
             assembler->Bind(&if_rhsisstring);
             {
@@ -3358,9 +3480,8 @@ compiler::Node* GenerateEqual(CodeStubAssembler* assembler, ResultMode mode,
             assembler->Bind(&if_rhsisnotstring);
             {
               // Check if the {rhs} is a Boolean.
-              Node* boolean_map = assembler->BooleanMapConstant();
               Label if_rhsisboolean(assembler), if_rhsisnotboolean(assembler);
-              assembler->Branch(assembler->WordEqual(rhs_map, boolean_map),
+              assembler->Branch(assembler->IsBooleanMap(rhs_map),
                                 &if_rhsisboolean, &if_rhsisnotboolean);
 
               assembler->Bind(&if_rhsisboolean);
@@ -3378,9 +3499,7 @@ compiler::Node* GenerateEqual(CodeStubAssembler* assembler, ResultMode mode,
                 Label if_rhsisreceiver(assembler, Label::kDeferred),
                     if_rhsisnotreceiver(assembler);
                 assembler->Branch(
-                    assembler->Int32LessThanOrEqual(
-                        assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE),
-                        rhs_instance_type),
+                    assembler->IsJSReceiverInstanceType(rhs_instance_type),
                     &if_rhsisreceiver, &if_rhsisnotreceiver);
 
                 assembler->Bind(&if_rhsisreceiver);
@@ -3462,10 +3581,9 @@ compiler::Node* GenerateEqual(CodeStubAssembler* assembler, ResultMode mode,
             // Check if {rhs} is also a String.
             Label if_rhsisstring(assembler, Label::kDeferred),
                 if_rhsisnotstring(assembler);
-            assembler->Branch(assembler->Int32LessThan(
-                                  rhs_instance_type, assembler->Int32Constant(
-                                                         FIRST_NONSTRING_TYPE)),
-                              &if_rhsisstring, &if_rhsisnotstring);
+            assembler->Branch(
+                assembler->IsStringInstanceType(rhs_instance_type),
+                &if_rhsisstring, &if_rhsisnotstring);
 
             assembler->Bind(&if_rhsisstring);
             {
@@ -3514,9 +3632,7 @@ compiler::Node* GenerateEqual(CodeStubAssembler* assembler, ResultMode mode,
               Label if_rhsisstring(assembler, Label::kDeferred),
                   if_rhsisnotstring(assembler);
               assembler->Branch(
-                  assembler->Int32LessThan(
-                      rhs_instance_type,
-                      assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
+                  assembler->IsStringInstanceType(rhs_instance_type),
                   &if_rhsisstring, &if_rhsisnotstring);
 
               assembler->Bind(&if_rhsisstring);
@@ -3534,9 +3650,7 @@ compiler::Node* GenerateEqual(CodeStubAssembler* assembler, ResultMode mode,
                     if_rhsisnotreceiver(assembler);
                 STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
                 assembler->Branch(
-                    assembler->Int32LessThanOrEqual(
-                        assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE),
-                        rhs_instance_type),
+                    assembler->IsJSReceiverInstanceType(rhs_instance_type),
                     &if_rhsisreceiver, &if_rhsisnotreceiver);
 
                 assembler->Bind(&if_rhsisreceiver);
@@ -3556,8 +3670,7 @@ compiler::Node* GenerateEqual(CodeStubAssembler* assembler, ResultMode mode,
                   // Check if {rhs} is a Boolean.
                   Label if_rhsisboolean(assembler),
                       if_rhsisnotboolean(assembler);
-                  Node* boolean_map = assembler->BooleanMapConstant();
-                  assembler->Branch(assembler->WordEqual(rhs_map, boolean_map),
+                  assembler->Branch(assembler->IsBooleanMap(rhs_map),
                                     &if_rhsisboolean, &if_rhsisnotboolean);
 
                   assembler->Bind(&if_rhsisboolean);
@@ -3625,9 +3738,7 @@ compiler::Node* GenerateEqual(CodeStubAssembler* assembler, ResultMode mode,
             Label if_rhsisreceiver(assembler), if_rhsisnotreceiver(assembler);
             STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
             assembler->Branch(
-                assembler->Int32LessThanOrEqual(
-                    assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE),
-                    rhs_instance_type),
+                assembler->IsJSReceiverInstanceType(rhs_instance_type),
                 &if_rhsisreceiver, &if_rhsisnotreceiver);
 
             assembler->Bind(&if_rhsisreceiver);
@@ -3672,9 +3783,7 @@ compiler::Node* GenerateEqual(CodeStubAssembler* assembler, ResultMode mode,
               Label if_rhsisreceiver(assembler), if_rhsisnotreceiver(assembler);
               STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
               assembler->Branch(
-                  assembler->Int32LessThanOrEqual(
-                      assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE),
-                      rhs_instance_type),
+                  assembler->IsJSReceiverInstanceType(rhs_instance_type),
                   &if_rhsisreceiver, &if_rhsisnotreceiver);
 
               assembler->Bind(&if_rhsisreceiver);
@@ -3702,9 +3811,7 @@ compiler::Node* GenerateEqual(CodeStubAssembler* assembler, ResultMode mode,
             Label if_rhsisreceiver(assembler), if_rhsisnotreceiver(assembler);
             STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
             assembler->Branch(
-                assembler->Int32LessThanOrEqual(
-                    assembler->Int32Constant(FIRST_JS_RECEIVER_TYPE),
-                    rhs_instance_type),
+                assembler->IsJSReceiverInstanceType(rhs_instance_type),
                 &if_rhsisreceiver, &if_rhsisnotreceiver);
 
             assembler->Bind(&if_rhsisreceiver);
@@ -3940,9 +4047,7 @@ compiler::Node* GenerateStrictEqual(CodeStubAssembler* assembler,
 
           // Check if {lhs} is a String.
           Label if_lhsisstring(assembler), if_lhsisnotstring(assembler);
-          assembler->Branch(assembler->Int32LessThan(
-                                lhs_instance_type,
-                                assembler->Int32Constant(FIRST_NONSTRING_TYPE)),
+          assembler->Branch(assembler->IsStringInstanceType(lhs_instance_type),
                             &if_lhsisstring, &if_lhsisnotstring);
 
           assembler->Bind(&if_lhsisstring);
@@ -3953,10 +4058,9 @@ compiler::Node* GenerateStrictEqual(CodeStubAssembler* assembler,
             // Check if {rhs} is also a String.
             Label if_rhsisstring(assembler, Label::kDeferred),
                 if_rhsisnotstring(assembler);
-            assembler->Branch(assembler->Int32LessThan(
-                                  rhs_instance_type, assembler->Int32Constant(
-                                                         FIRST_NONSTRING_TYPE)),
-                              &if_rhsisstring, &if_rhsisnotstring);
+            assembler->Branch(
+                assembler->IsStringInstanceType(rhs_instance_type),
+                &if_rhsisstring, &if_rhsisnotstring);
 
             assembler->Bind(&if_rhsisstring);
             {
@@ -4057,365 +4161,6 @@ compiler::Node* GenerateStrictEqual(CodeStubAssembler* assembler,
   return result.value();
 }
 
-void GenerateStringRelationalComparison(CodeStubAssembler* assembler,
-                                        RelationalComparisonMode mode) {
-  typedef CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
-  typedef CodeStubAssembler::Variable Variable;
-
-  Node* lhs = assembler->Parameter(0);
-  Node* rhs = assembler->Parameter(1);
-  Node* context = assembler->Parameter(2);
-
-  Label if_less(assembler), if_equal(assembler), if_greater(assembler);
-
-  // Fast check to see if {lhs} and {rhs} refer to the same String object.
-  Label if_same(assembler), if_notsame(assembler);
-  assembler->Branch(assembler->WordEqual(lhs, rhs), &if_same, &if_notsame);
-
-  assembler->Bind(&if_same);
-  assembler->Goto(&if_equal);
-
-  assembler->Bind(&if_notsame);
-  {
-    // Load instance types of {lhs} and {rhs}.
-    Node* lhs_instance_type = assembler->LoadInstanceType(lhs);
-    Node* rhs_instance_type = assembler->LoadInstanceType(rhs);
-
-    // Combine the instance types into a single 16-bit value, so we can check
-    // both of them at once.
-    Node* both_instance_types = assembler->Word32Or(
-        lhs_instance_type,
-        assembler->Word32Shl(rhs_instance_type, assembler->Int32Constant(8)));
-
-    // Check that both {lhs} and {rhs} are flat one-byte strings.
-    int const kBothSeqOneByteStringMask =
-        kStringEncodingMask | kStringRepresentationMask |
-        ((kStringEncodingMask | kStringRepresentationMask) << 8);
-    int const kBothSeqOneByteStringTag =
-        kOneByteStringTag | kSeqStringTag |
-        ((kOneByteStringTag | kSeqStringTag) << 8);
-    Label if_bothonebyteseqstrings(assembler),
-        if_notbothonebyteseqstrings(assembler);
-    assembler->Branch(assembler->Word32Equal(
-                          assembler->Word32And(both_instance_types,
-                                               assembler->Int32Constant(
-                                                   kBothSeqOneByteStringMask)),
-                          assembler->Int32Constant(kBothSeqOneByteStringTag)),
-                      &if_bothonebyteseqstrings, &if_notbothonebyteseqstrings);
-
-    assembler->Bind(&if_bothonebyteseqstrings);
-    {
-      // Load the length of {lhs} and {rhs}.
-      Node* lhs_length = assembler->LoadStringLength(lhs);
-      Node* rhs_length = assembler->LoadStringLength(rhs);
-
-      // Determine the minimum length.
-      Node* length = assembler->SmiMin(lhs_length, rhs_length);
-
-      // Compute the effective offset of the first character.
-      Node* begin = assembler->IntPtrConstant(SeqOneByteString::kHeaderSize -
-                                              kHeapObjectTag);
-
-      // Compute the first offset after the string from the length.
-      Node* end = assembler->IntPtrAdd(begin, assembler->SmiUntag(length));
-
-      // Loop over the {lhs} and {rhs} strings to see if they are equal.
-      Variable var_offset(assembler, MachineType::PointerRepresentation());
-      Label loop(assembler, &var_offset);
-      var_offset.Bind(begin);
-      assembler->Goto(&loop);
-      assembler->Bind(&loop);
-      {
-        // Check if {offset} equals {end}.
-        Node* offset = var_offset.value();
-        Label if_done(assembler), if_notdone(assembler);
-        assembler->Branch(assembler->WordEqual(offset, end), &if_done,
-                          &if_notdone);
-
-        assembler->Bind(&if_notdone);
-        {
-          // Load the next characters from {lhs} and {rhs}.
-          Node* lhs_value = assembler->Load(MachineType::Uint8(), lhs, offset);
-          Node* rhs_value = assembler->Load(MachineType::Uint8(), rhs, offset);
-
-          // Check if the characters match.
-          Label if_valueissame(assembler), if_valueisnotsame(assembler);
-          assembler->Branch(assembler->Word32Equal(lhs_value, rhs_value),
-                            &if_valueissame, &if_valueisnotsame);
-
-          assembler->Bind(&if_valueissame);
-          {
-            // Advance to next character.
-            var_offset.Bind(
-                assembler->IntPtrAdd(offset, assembler->IntPtrConstant(1)));
-          }
-          assembler->Goto(&loop);
-
-          assembler->Bind(&if_valueisnotsame);
-          assembler->BranchIf(assembler->Uint32LessThan(lhs_value, rhs_value),
-                              &if_less, &if_greater);
-        }
-
-        assembler->Bind(&if_done);
-        {
-          // All characters up to the min length are equal, decide based on
-          // string length.
-          Label if_lengthisequal(assembler), if_lengthisnotequal(assembler);
-          assembler->Branch(assembler->SmiEqual(lhs_length, rhs_length),
-                            &if_lengthisequal, &if_lengthisnotequal);
-
-          assembler->Bind(&if_lengthisequal);
-          assembler->Goto(&if_equal);
-
-          assembler->Bind(&if_lengthisnotequal);
-          assembler->BranchIfSmiLessThan(lhs_length, rhs_length, &if_less,
-                                         &if_greater);
-        }
-      }
-    }
-
-    assembler->Bind(&if_notbothonebyteseqstrings);
-    {
-      // TODO(bmeurer): Add fast case support for flattened cons strings;
-      // also add support for two byte string relational comparisons.
-      switch (mode) {
-        case kLessThan:
-          assembler->TailCallRuntime(Runtime::kStringLessThan, context, lhs,
-                                     rhs);
-          break;
-        case kLessThanOrEqual:
-          assembler->TailCallRuntime(Runtime::kStringLessThanOrEqual, context,
-                                     lhs, rhs);
-          break;
-        case kGreaterThan:
-          assembler->TailCallRuntime(Runtime::kStringGreaterThan, context, lhs,
-                                     rhs);
-          break;
-        case kGreaterThanOrEqual:
-          assembler->TailCallRuntime(Runtime::kStringGreaterThanOrEqual,
-                                     context, lhs, rhs);
-          break;
-      }
-    }
-  }
-
-  assembler->Bind(&if_less);
-  switch (mode) {
-    case kLessThan:
-    case kLessThanOrEqual:
-      assembler->Return(assembler->BooleanConstant(true));
-      break;
-
-    case kGreaterThan:
-    case kGreaterThanOrEqual:
-      assembler->Return(assembler->BooleanConstant(false));
-      break;
-  }
-
-  assembler->Bind(&if_equal);
-  switch (mode) {
-    case kLessThan:
-    case kGreaterThan:
-      assembler->Return(assembler->BooleanConstant(false));
-      break;
-
-    case kLessThanOrEqual:
-    case kGreaterThanOrEqual:
-      assembler->Return(assembler->BooleanConstant(true));
-      break;
-  }
-
-  assembler->Bind(&if_greater);
-  switch (mode) {
-    case kLessThan:
-    case kLessThanOrEqual:
-      assembler->Return(assembler->BooleanConstant(false));
-      break;
-
-    case kGreaterThan:
-    case kGreaterThanOrEqual:
-      assembler->Return(assembler->BooleanConstant(true));
-      break;
-  }
-}
-
-void GenerateStringEqual(CodeStubAssembler* assembler, ResultMode mode) {
-  // Here's pseudo-code for the algorithm below in case of kDontNegateResult
-  // mode; for kNegateResult mode we properly negate the result.
-  //
-  // if (lhs == rhs) return true;
-  // if (lhs->length() != rhs->length()) return false;
-  // if (lhs->IsInternalizedString() && rhs->IsInternalizedString()) {
-  //   return false;
-  // }
-  // if (lhs->IsSeqOneByteString() && rhs->IsSeqOneByteString()) {
-  //   for (i = 0; i != lhs->length(); ++i) {
-  //     if (lhs[i] != rhs[i]) return false;
-  //   }
-  //   return true;
-  // }
-  // return %StringEqual(lhs, rhs);
-
-  typedef CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
-  typedef CodeStubAssembler::Variable Variable;
-
-  Node* lhs = assembler->Parameter(0);
-  Node* rhs = assembler->Parameter(1);
-  Node* context = assembler->Parameter(2);
-
-  Label if_equal(assembler), if_notequal(assembler);
-
-  // Fast check to see if {lhs} and {rhs} refer to the same String object.
-  Label if_same(assembler), if_notsame(assembler);
-  assembler->Branch(assembler->WordEqual(lhs, rhs), &if_same, &if_notsame);
-
-  assembler->Bind(&if_same);
-  assembler->Goto(&if_equal);
-
-  assembler->Bind(&if_notsame);
-  {
-    // The {lhs} and {rhs} don't refer to the exact same String object.
-
-    // Load the length of {lhs} and {rhs}.
-    Node* lhs_length = assembler->LoadStringLength(lhs);
-    Node* rhs_length = assembler->LoadStringLength(rhs);
-
-    // Check if the lengths of {lhs} and {rhs} are equal.
-    Label if_lengthisequal(assembler), if_lengthisnotequal(assembler);
-    assembler->Branch(assembler->WordEqual(lhs_length, rhs_length),
-                      &if_lengthisequal, &if_lengthisnotequal);
-
-    assembler->Bind(&if_lengthisequal);
-    {
-      // Load instance types of {lhs} and {rhs}.
-      Node* lhs_instance_type = assembler->LoadInstanceType(lhs);
-      Node* rhs_instance_type = assembler->LoadInstanceType(rhs);
-
-      // Combine the instance types into a single 16-bit value, so we can check
-      // both of them at once.
-      Node* both_instance_types = assembler->Word32Or(
-          lhs_instance_type,
-          assembler->Word32Shl(rhs_instance_type, assembler->Int32Constant(8)));
-
-      // Check if both {lhs} and {rhs} are internalized.
-      int const kBothInternalizedMask =
-          kIsNotInternalizedMask | (kIsNotInternalizedMask << 8);
-      int const kBothInternalizedTag =
-          kInternalizedTag | (kInternalizedTag << 8);
-      Label if_bothinternalized(assembler), if_notbothinternalized(assembler);
-      assembler->Branch(assembler->Word32Equal(
-                            assembler->Word32And(both_instance_types,
-                                                 assembler->Int32Constant(
-                                                     kBothInternalizedMask)),
-                            assembler->Int32Constant(kBothInternalizedTag)),
-                        &if_bothinternalized, &if_notbothinternalized);
-
-      assembler->Bind(&if_bothinternalized);
-      {
-        // Fast negative check for internalized-to-internalized equality.
-        assembler->Goto(&if_notequal);
-      }
-
-      assembler->Bind(&if_notbothinternalized);
-      {
-        // Check that both {lhs} and {rhs} are flat one-byte strings.
-        int const kBothSeqOneByteStringMask =
-            kStringEncodingMask | kStringRepresentationMask |
-            ((kStringEncodingMask | kStringRepresentationMask) << 8);
-        int const kBothSeqOneByteStringTag =
-            kOneByteStringTag | kSeqStringTag |
-            ((kOneByteStringTag | kSeqStringTag) << 8);
-        Label if_bothonebyteseqstrings(assembler),
-            if_notbothonebyteseqstrings(assembler);
-        assembler->Branch(
-            assembler->Word32Equal(
-                assembler->Word32And(
-                    both_instance_types,
-                    assembler->Int32Constant(kBothSeqOneByteStringMask)),
-                assembler->Int32Constant(kBothSeqOneByteStringTag)),
-            &if_bothonebyteseqstrings, &if_notbothonebyteseqstrings);
-
-        assembler->Bind(&if_bothonebyteseqstrings);
-        {
-          // Compute the effective offset of the first character.
-          Node* begin = assembler->IntPtrConstant(
-              SeqOneByteString::kHeaderSize - kHeapObjectTag);
-
-          // Compute the first offset after the string from the length.
-          Node* end =
-              assembler->IntPtrAdd(begin, assembler->SmiUntag(lhs_length));
-
-          // Loop over the {lhs} and {rhs} strings to see if they are equal.
-          Variable var_offset(assembler, MachineType::PointerRepresentation());
-          Label loop(assembler, &var_offset);
-          var_offset.Bind(begin);
-          assembler->Goto(&loop);
-          assembler->Bind(&loop);
-          {
-            // Check if {offset} equals {end}.
-            Node* offset = var_offset.value();
-            Label if_done(assembler), if_notdone(assembler);
-            assembler->Branch(assembler->WordEqual(offset, end), &if_done,
-                              &if_notdone);
-
-            assembler->Bind(&if_notdone);
-            {
-              // Load the next characters from {lhs} and {rhs}.
-              Node* lhs_value =
-                  assembler->Load(MachineType::Uint8(), lhs, offset);
-              Node* rhs_value =
-                  assembler->Load(MachineType::Uint8(), rhs, offset);
-
-              // Check if the characters match.
-              Label if_valueissame(assembler), if_valueisnotsame(assembler);
-              assembler->Branch(assembler->Word32Equal(lhs_value, rhs_value),
-                                &if_valueissame, &if_valueisnotsame);
-
-              assembler->Bind(&if_valueissame);
-              {
-                // Advance to next character.
-                var_offset.Bind(
-                    assembler->IntPtrAdd(offset, assembler->IntPtrConstant(1)));
-              }
-              assembler->Goto(&loop);
-
-              assembler->Bind(&if_valueisnotsame);
-              assembler->Goto(&if_notequal);
-            }
-
-            assembler->Bind(&if_done);
-            assembler->Goto(&if_equal);
-          }
-        }
-
-        assembler->Bind(&if_notbothonebyteseqstrings);
-        {
-          // TODO(bmeurer): Add fast case support for flattened cons strings;
-          // also add support for two byte string equality checks.
-          Runtime::FunctionId function_id = (mode == kDontNegateResult)
-                                                ? Runtime::kStringEqual
-                                                : Runtime::kStringNotEqual;
-          assembler->TailCallRuntime(function_id, context, lhs, rhs);
-        }
-      }
-    }
-
-    assembler->Bind(&if_lengthisnotequal);
-    {
-      // Mismatch in length of {lhs} and {rhs}, cannot be equal.
-      assembler->Goto(&if_notequal);
-    }
-  }
-
-  assembler->Bind(&if_equal);
-  assembler->Return(assembler->BooleanConstant(mode == kDontNegateResult));
-
-  assembler->Bind(&if_notequal);
-  assembler->Return(assembler->BooleanConstant(mode == kNegateResult));
-}
-
 }  // namespace
 
 void LoadApiGetterStub::GenerateAssembly(CodeStubAssembler* assembler) const {
@@ -4427,11 +4172,224 @@ void LoadApiGetterStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   Node* holder = receiver;
   Node* map = assembler->LoadMap(receiver);
   Node* descriptors = assembler->LoadMapDescriptors(map);
-  Node* offset =
-      assembler->Int32Constant(DescriptorArray::ToValueIndex(index()));
-  Node* callback = assembler->LoadFixedArrayElement(descriptors, offset);
+  Node* value_index =
+      assembler->IntPtrConstant(DescriptorArray::ToValueIndex(index()));
+  Node* callback = assembler->LoadFixedArrayElement(
+      descriptors, value_index, 0, CodeStubAssembler::INTPTR_PARAMETERS);
   assembler->TailCallStub(CodeFactory::ApiGetter(isolate()), context, receiver,
                           holder, callback);
+}
+
+void StoreFieldStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+
+  FieldIndex index = this->index();
+  Representation representation = this->representation();
+
+  assembler->Comment("StoreFieldStub: inobject=%d, offset=%d, rep=%s",
+                     index.is_inobject(), index.offset(),
+                     representation.Mnemonic());
+
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  Node* name = assembler->Parameter(Descriptor::kName);
+  Node* value = assembler->Parameter(Descriptor::kValue);
+  Node* slot = assembler->Parameter(Descriptor::kSlot);
+  Node* vector = assembler->Parameter(Descriptor::kVector);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  Label miss(assembler);
+
+  Node* prepared_value =
+      assembler->PrepareValueForWrite(value, representation, &miss);
+  assembler->StoreNamedField(receiver, index, representation, prepared_value,
+                             false);
+  assembler->Return(value);
+
+  // Only stores to tagged field can't bailout.
+  if (!representation.IsTagged()) {
+    assembler->Bind(&miss);
+    {
+      assembler->Comment("Miss");
+      assembler->TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot,
+                                 vector, receiver, name);
+    }
+  }
+}
+
+void StoreGlobalStub::GenerateAssembly(CodeStubAssembler* assembler) const {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+
+  assembler->Comment(
+      "StoreGlobalStub: cell_type=%d, constant_type=%d, check_global=%d",
+      cell_type(), PropertyCellType::kConstantType == cell_type()
+                       ? static_cast<int>(constant_type())
+                       : -1,
+      check_global());
+
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  Node* name = assembler->Parameter(Descriptor::kName);
+  Node* value = assembler->Parameter(Descriptor::kValue);
+  Node* slot = assembler->Parameter(Descriptor::kSlot);
+  Node* vector = assembler->Parameter(Descriptor::kVector);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  Label miss(assembler);
+
+  if (check_global()) {
+    // Check that the map of the global has not changed: use a placeholder map
+    // that will be replaced later with the global object's map.
+    Node* proxy_map = assembler->LoadMap(receiver);
+    Node* global = assembler->LoadObjectField(proxy_map, Map::kPrototypeOffset);
+    Node* map_cell = assembler->HeapConstant(isolate()->factory()->NewWeakCell(
+        StoreGlobalStub::global_map_placeholder(isolate())));
+    Node* expected_map = assembler->LoadWeakCellValue(map_cell);
+    Node* map = assembler->LoadMap(global);
+    assembler->GotoIf(assembler->WordNotEqual(expected_map, map), &miss);
+  }
+
+  Node* weak_cell = assembler->HeapConstant(isolate()->factory()->NewWeakCell(
+      StoreGlobalStub::property_cell_placeholder(isolate())));
+  Node* cell = assembler->LoadWeakCellValue(weak_cell);
+  assembler->GotoIf(assembler->WordIsSmi(cell), &miss);
+
+  // Load the payload of the global parameter cell. A hole indicates that the
+  // cell has been invalidated and that the store must be handled by the
+  // runtime.
+  Node* cell_contents =
+      assembler->LoadObjectField(cell, PropertyCell::kValueOffset);
+
+  PropertyCellType cell_type = this->cell_type();
+  if (cell_type == PropertyCellType::kConstant ||
+      cell_type == PropertyCellType::kUndefined) {
+    // This is always valid for all states a cell can be in.
+    assembler->GotoIf(assembler->WordNotEqual(cell_contents, value), &miss);
+  } else {
+    assembler->GotoIf(assembler->IsTheHole(cell_contents), &miss);
+
+    // When dealing with constant types, the type may be allowed to change, as
+    // long as optimized code remains valid.
+    bool value_is_smi = false;
+    if (cell_type == PropertyCellType::kConstantType) {
+      switch (constant_type()) {
+        case PropertyCellConstantType::kSmi:
+          assembler->GotoUnless(assembler->WordIsSmi(value), &miss);
+          value_is_smi = true;
+          break;
+        case PropertyCellConstantType::kStableMap: {
+          // It is sufficient here to check that the value and cell contents
+          // have identical maps, no matter if they are stable or not or if they
+          // are the maps that were originally in the cell or not. If optimized
+          // code will deopt when a cell has a unstable map and if it has a
+          // dependency on a stable map, it will deopt if the map destabilizes.
+          assembler->GotoIf(assembler->WordIsSmi(value), &miss);
+          assembler->GotoIf(assembler->WordIsSmi(cell_contents), &miss);
+          Node* expected_map = assembler->LoadMap(cell_contents);
+          Node* map = assembler->LoadMap(value);
+          assembler->GotoIf(assembler->WordNotEqual(expected_map, map), &miss);
+          break;
+        }
+      }
+    }
+    if (value_is_smi) {
+      assembler->StoreObjectFieldNoWriteBarrier(
+          cell, PropertyCell::kValueOffset, value);
+    } else {
+      assembler->StoreObjectField(cell, PropertyCell::kValueOffset, value);
+    }
+  }
+
+  assembler->Return(value);
+
+  assembler->Bind(&miss);
+  {
+    assembler->Comment("Miss");
+    assembler->TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot,
+                               vector, receiver, name);
+  }
+}
+
+void KeyedLoadSloppyArgumentsStub::GenerateAssembly(
+    CodeStubAssembler* assembler) const {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  Node* key = assembler->Parameter(Descriptor::kName);
+  Node* slot = assembler->Parameter(Descriptor::kSlot);
+  Node* vector = assembler->Parameter(Descriptor::kVector);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  Label miss(assembler);
+
+  Node* result = assembler->LoadKeyedSloppyArguments(receiver, key, &miss);
+  assembler->Return(result);
+
+  assembler->Bind(&miss);
+  {
+    assembler->Comment("Miss");
+    assembler->TailCallRuntime(Runtime::kKeyedLoadIC_Miss, context, receiver,
+                               key, slot, vector);
+  }
+}
+
+void KeyedStoreSloppyArgumentsStub::GenerateAssembly(
+    CodeStubAssembler* assembler) const {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  Node* key = assembler->Parameter(Descriptor::kName);
+  Node* value = assembler->Parameter(Descriptor::kValue);
+  Node* slot = assembler->Parameter(Descriptor::kSlot);
+  Node* vector = assembler->Parameter(Descriptor::kVector);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  Label miss(assembler);
+
+  assembler->StoreKeyedSloppyArguments(receiver, key, value, &miss);
+  assembler->Return(value);
+
+  assembler->Bind(&miss);
+  {
+    assembler->Comment("Miss");
+    assembler->TailCallRuntime(Runtime::kKeyedStoreIC_Miss, context, value,
+                               slot, vector, receiver, key);
+  }
+}
+
+void LoadScriptContextFieldStub::GenerateAssembly(
+    CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+
+  assembler->Comment("LoadScriptContextFieldStub: context_index=%d, slot=%d",
+                     context_index(), slot_index());
+
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  Node* script_context = assembler->LoadScriptContext(context, context_index());
+  Node* result = assembler->LoadFixedArrayElement(
+      script_context, assembler->IntPtrConstant(slot_index()), 0,
+      CodeStubAssembler::INTPTR_PARAMETERS);
+  assembler->Return(result);
+}
+
+void StoreScriptContextFieldStub::GenerateAssembly(
+    CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+
+  assembler->Comment("StoreScriptContextFieldStub: context_index=%d, slot=%d",
+                     context_index(), slot_index());
+
+  Node* value = assembler->Parameter(Descriptor::kValue);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  Node* script_context = assembler->LoadScriptContext(context, context_index());
+  assembler->StoreFixedArrayElement(
+      script_context, assembler->IntPtrConstant(slot_index()), value,
+      UPDATE_WRITE_BARRIER, CodeStubAssembler::INTPTR_PARAMETERS);
+  assembler->Return(value);
 }
 
 // static
@@ -4499,33 +4457,6 @@ compiler::Node* StrictNotEqualStub::Generate(CodeStubAssembler* assembler,
   return GenerateStrictEqual(assembler, kNegateResult, lhs, rhs, context);
 }
 
-void StringEqualStub::GenerateAssembly(CodeStubAssembler* assembler) const {
-  GenerateStringEqual(assembler, kDontNegateResult);
-}
-
-void StringNotEqualStub::GenerateAssembly(CodeStubAssembler* assembler) const {
-  GenerateStringEqual(assembler, kNegateResult);
-}
-
-void StringLessThanStub::GenerateAssembly(CodeStubAssembler* assembler) const {
-  GenerateStringRelationalComparison(assembler, kLessThan);
-}
-
-void StringLessThanOrEqualStub::GenerateAssembly(
-    CodeStubAssembler* assembler) const {
-  GenerateStringRelationalComparison(assembler, kLessThanOrEqual);
-}
-
-void StringGreaterThanStub::GenerateAssembly(
-    CodeStubAssembler* assembler) const {
-  GenerateStringRelationalComparison(assembler, kGreaterThan);
-}
-
-void StringGreaterThanOrEqualStub::GenerateAssembly(
-    CodeStubAssembler* assembler) const {
-  GenerateStringRelationalComparison(assembler, kGreaterThanOrEqual);
-}
-
 void ToLengthStub::GenerateAssembly(CodeStubAssembler* assembler) const {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
@@ -4557,8 +4488,7 @@ void ToLengthStub::GenerateAssembly(CodeStubAssembler* assembler) const {
     // Check if {len} is a HeapNumber.
     Label if_lenisheapnumber(assembler),
         if_lenisnotheapnumber(assembler, Label::kDeferred);
-    assembler->Branch(assembler->WordEqual(assembler->LoadMap(len),
-                                           assembler->HeapNumberMapConstant()),
+    assembler->Branch(assembler->IsHeapNumberMap(assembler->LoadMap(len)),
                       &if_lenisheapnumber, &if_lenisnotheapnumber);
 
     assembler->Bind(&if_lenisheapnumber);
@@ -4603,64 +4533,12 @@ void ToLengthStub::GenerateAssembly(CodeStubAssembler* assembler) const {
 }
 
 void ToIntegerStub::GenerateAssembly(CodeStubAssembler* assembler) const {
-  typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
-  typedef CodeStubAssembler::Variable Variable;
 
-  Node* context = assembler->Parameter(1);
+  Node* input = assembler->Parameter(Descriptor::kArgument);
+  Node* context = assembler->Parameter(Descriptor::kContext);
 
-  // We might need to loop once for ToNumber conversion.
-  Variable var_arg(assembler, MachineRepresentation::kTagged);
-  Label loop(assembler, &var_arg);
-  var_arg.Bind(assembler->Parameter(0));
-  assembler->Goto(&loop);
-  assembler->Bind(&loop);
-  {
-    // Shared entry points.
-    Label return_arg(assembler), return_zero(assembler, Label::kDeferred);
-
-    // Load the current {arg} value.
-    Node* arg = var_arg.value();
-
-    // Check if {arg} is a Smi.
-    assembler->GotoIf(assembler->WordIsSmi(arg), &return_arg);
-
-    // Check if {arg} is a HeapNumber.
-    Label if_argisheapnumber(assembler),
-        if_argisnotheapnumber(assembler, Label::kDeferred);
-    assembler->Branch(assembler->WordEqual(assembler->LoadMap(arg),
-                                           assembler->HeapNumberMapConstant()),
-                      &if_argisheapnumber, &if_argisnotheapnumber);
-
-    assembler->Bind(&if_argisheapnumber);
-    {
-      // Load the floating-point value of {arg}.
-      Node* arg_value = assembler->LoadHeapNumberValue(arg);
-
-      // Check if {arg} is NaN.
-      assembler->GotoUnless(assembler->Float64Equal(arg_value, arg_value),
-                            &return_zero);
-
-      // Truncate {arg} towards zero.
-      Node* value = assembler->Float64Trunc(arg_value);
-      var_arg.Bind(assembler->ChangeFloat64ToTagged(value));
-      assembler->Goto(&return_arg);
-    }
-
-    assembler->Bind(&if_argisnotheapnumber);
-    {
-      // Need to convert {arg} to a Number first.
-      Callable callable = CodeFactory::NonNumberToNumber(assembler->isolate());
-      var_arg.Bind(assembler->CallStub(callable, context, arg));
-      assembler->Goto(&loop);
-    }
-
-    assembler->Bind(&return_arg);
-    assembler->Return(var_arg.value());
-
-    assembler->Bind(&return_zero);
-    assembler->Return(assembler->SmiConstant(Smi::FromInt(0)));
-  }
+  assembler->Return(assembler->ToInteger(context, input));
 }
 
 void StoreInterceptorStub::GenerateAssembly(
@@ -4727,15 +4605,13 @@ compiler::Node* FastCloneShallowObjectStub::GenerateFastPath(
   typedef compiler::CodeAssembler::Label Label;
   typedef compiler::CodeAssembler::Variable Variable;
 
-  Node* undefined = assembler->UndefinedConstant();
   Node* literals_array =
       assembler->LoadObjectField(closure, JSFunction::kLiteralsOffset);
   Node* allocation_site = assembler->LoadFixedArrayElement(
       literals_array, literals_index,
       LiteralsArray::kFirstLiteralIndex * kPointerSize,
       CodeStubAssembler::SMI_PARAMETERS);
-  assembler->GotoIf(assembler->WordEqual(allocation_site, undefined),
-                    call_runtime);
+  assembler->GotoIf(assembler->IsUndefined(allocation_site), call_runtime);
 
   // Calculate the object and allocation size based on the properties count.
   Node* object_size = assembler->IntPtrAdd(
@@ -4886,14 +4762,10 @@ void KeyedLoadGenericStub::InitializeDescriptor(
 
 
 void HandlerStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
-  if (kind() == Code::STORE_IC) {
-    descriptor->Initialize(FUNCTION_ADDR(Runtime_StoreIC_MissFromStubFailure));
-  } else if (kind() == Code::KEYED_LOAD_IC) {
+  DCHECK(kind() == Code::LOAD_IC || kind() == Code::KEYED_LOAD_IC);
+  if (kind() == Code::KEYED_LOAD_IC) {
     descriptor->Initialize(
         FUNCTION_ADDR(Runtime_KeyedLoadIC_MissFromStubFailure));
-  } else if (kind() == Code::KEYED_STORE_IC) {
-    descriptor->Initialize(
-        FUNCTION_ADDR(Runtime_KeyedStoreIC_MissFromStubFailure));
   }
 }
 
@@ -4908,37 +4780,10 @@ CallInterfaceDescriptor HandlerStub::GetCallInterfaceDescriptor() const {
 }
 
 
-void StoreFastElementStub::InitializeDescriptor(
-    CodeStubDescriptor* descriptor) {
-  descriptor->Initialize(
-      FUNCTION_ADDR(Runtime_KeyedStoreIC_MissFromStubFailure));
-}
-
-
-void ElementsTransitionAndStoreStub::InitializeDescriptor(
-    CodeStubDescriptor* descriptor) {
-  descriptor->Initialize(
-      FUNCTION_ADDR(Runtime_ElementsTransitionAndStoreIC_Miss));
-}
-
-void StoreTransitionStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
-  descriptor->Initialize(
-      FUNCTION_ADDR(Runtime_TransitionStoreIC_MissFromStubFailure));
-}
-
 void NumberToStringStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   descriptor->Initialize(
       Runtime::FunctionForId(Runtime::kNumberToString)->entry);
   descriptor->SetMissHandler(Runtime::kNumberToString);
-}
-
-
-void FastCloneShallowArrayStub::InitializeDescriptor(
-    CodeStubDescriptor* descriptor) {
-  FastCloneShallowArrayDescriptor call_descriptor(isolate());
-  descriptor->Initialize(
-      Runtime::FunctionForId(Runtime::kCreateArrayLiteralStubBailout)->entry);
-  descriptor->SetMissHandler(Runtime::kCreateArrayLiteralStubBailout);
 }
 
 void RegExpConstructResultStub::InitializeDescriptor(
@@ -5088,9 +4933,7 @@ compiler::Node* ForInFilterStub::Generate(CodeStubAssembler* assembler,
 
   assembler->Bind(&return_to_name);
   {
-    // TODO(cbruni): inline ToName here.
-    Callable callable = CodeFactory::ToName(assembler->isolate());
-    var_result.Bind(assembler->CallStub(callable, context, key));
+    var_result.Bind(assembler->ToName(context, key));
     assembler->Goto(&end);
   }
 
@@ -5193,43 +5036,49 @@ compiler::Node* FastNewClosureStub::Generate(CodeStubAssembler* assembler,
   Label if_normal(assembler), if_generator(assembler), if_async(assembler),
       if_class_constructor(assembler), if_function_without_prototype(assembler),
       load_map(assembler);
-  Variable map_index(assembler, MachineRepresentation::kTagged);
+  Variable map_index(assembler, MachineType::PointerRepresentation());
 
+  STATIC_ASSERT(FunctionKind::kNormalFunction == 0);
   Node* is_not_normal = assembler->Word32And(
       compiler_hints,
-      assembler->Int32Constant(SharedFunctionInfo::kFunctionKindMaskBits));
+      assembler->Int32Constant(SharedFunctionInfo::kAllFunctionKindBitsMask));
   assembler->GotoUnless(is_not_normal, &if_normal);
 
   Node* is_generator = assembler->Word32And(
       compiler_hints,
-      assembler->Int32Constant(1 << SharedFunctionInfo::kIsGeneratorBit));
+      assembler->Int32Constant(FunctionKind::kGeneratorFunction
+                               << SharedFunctionInfo::kFunctionKindShift));
   assembler->GotoIf(is_generator, &if_generator);
 
   Node* is_async = assembler->Word32And(
       compiler_hints,
-      assembler->Int32Constant(1 << SharedFunctionInfo::kIsAsyncFunctionBit));
+      assembler->Int32Constant(FunctionKind::kAsyncFunction
+                               << SharedFunctionInfo::kFunctionKindShift));
   assembler->GotoIf(is_async, &if_async);
 
   Node* is_class_constructor = assembler->Word32And(
       compiler_hints,
-      assembler->Int32Constant(SharedFunctionInfo::kClassConstructorBits));
+      assembler->Int32Constant(FunctionKind::kClassConstructor
+                               << SharedFunctionInfo::kFunctionKindShift));
   assembler->GotoIf(is_class_constructor, &if_class_constructor);
 
   if (FLAG_debug_code) {
     // Function must be a function without a prototype.
     assembler->Assert(assembler->Word32And(
-        compiler_hints, assembler->Int32Constant(
-                            SharedFunctionInfo::kAccessorFunctionBits |
-                            (1 << SharedFunctionInfo::kIsArrowBit) |
-                            (1 << SharedFunctionInfo::kIsConciseMethodBit))));
+        compiler_hints,
+        assembler->Int32Constant((FunctionKind::kAccessorFunction |
+                                  FunctionKind::kArrowFunction |
+                                  FunctionKind::kConciseMethod)
+                                 << SharedFunctionInfo::kFunctionKindShift)));
   }
   assembler->Goto(&if_function_without_prototype);
 
   assembler->Bind(&if_normal);
   {
     map_index.Bind(assembler->Select(
-        is_strict, assembler->Int32Constant(Context::STRICT_FUNCTION_MAP_INDEX),
-        assembler->Int32Constant(Context::SLOPPY_FUNCTION_MAP_INDEX)));
+        is_strict,
+        assembler->IntPtrConstant(Context::STRICT_FUNCTION_MAP_INDEX),
+        assembler->IntPtrConstant(Context::SLOPPY_FUNCTION_MAP_INDEX)));
     assembler->Goto(&load_map);
   }
 
@@ -5237,8 +5086,8 @@ compiler::Node* FastNewClosureStub::Generate(CodeStubAssembler* assembler,
   {
     map_index.Bind(assembler->Select(
         is_strict,
-        assembler->Int32Constant(Context::STRICT_GENERATOR_FUNCTION_MAP_INDEX),
-        assembler->Int32Constant(
+        assembler->IntPtrConstant(Context::STRICT_GENERATOR_FUNCTION_MAP_INDEX),
+        assembler->IntPtrConstant(
             Context::SLOPPY_GENERATOR_FUNCTION_MAP_INDEX)));
     assembler->Goto(&load_map);
   }
@@ -5247,21 +5096,21 @@ compiler::Node* FastNewClosureStub::Generate(CodeStubAssembler* assembler,
   {
     map_index.Bind(assembler->Select(
         is_strict,
-        assembler->Int32Constant(Context::STRICT_ASYNC_FUNCTION_MAP_INDEX),
-        assembler->Int32Constant(Context::SLOPPY_ASYNC_FUNCTION_MAP_INDEX)));
+        assembler->IntPtrConstant(Context::STRICT_ASYNC_FUNCTION_MAP_INDEX),
+        assembler->IntPtrConstant(Context::SLOPPY_ASYNC_FUNCTION_MAP_INDEX)));
     assembler->Goto(&load_map);
   }
 
   assembler->Bind(&if_class_constructor);
   {
     map_index.Bind(
-        assembler->Int32Constant(Context::STRICT_FUNCTION_MAP_INDEX));
+        assembler->IntPtrConstant(Context::STRICT_FUNCTION_MAP_INDEX));
     assembler->Goto(&load_map);
   }
 
   assembler->Bind(&if_function_without_prototype);
   {
-    map_index.Bind(assembler->Int32Constant(
+    map_index.Bind(assembler->IntPtrConstant(
         Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
     assembler->Goto(&load_map);
   }
@@ -5272,7 +5121,8 @@ compiler::Node* FastNewClosureStub::Generate(CodeStubAssembler* assembler,
   // as the map of the allocated object.
   Node* native_context = assembler->LoadNativeContext(context);
   Node* map_slot_value =
-      assembler->LoadFixedArrayElement(native_context, map_index.value());
+      assembler->LoadFixedArrayElement(native_context, map_index.value(), 0,
+                                       CodeStubAssembler::INTPTR_PARAMETERS);
   assembler->StoreMapNoWriteBarrier(result, map_slot_value);
 
   // Initialize the rest of the function.
@@ -5405,15 +5255,13 @@ compiler::Node* FastCloneRegExpStub::Generate(CodeStubAssembler* assembler,
 
   Variable result(assembler, MachineRepresentation::kTagged);
 
-  Node* undefined = assembler->UndefinedConstant();
   Node* literals_array =
       assembler->LoadObjectField(closure, JSFunction::kLiteralsOffset);
   Node* boilerplate = assembler->LoadFixedArrayElement(
       literals_array, literal_index,
       LiteralsArray::kFirstLiteralIndex * kPointerSize,
       CodeStubAssembler::SMI_PARAMETERS);
-  assembler->GotoIf(assembler->WordEqual(boilerplate, undefined),
-                    &call_runtime);
+  assembler->GotoIf(assembler->IsUndefined(boilerplate), &call_runtime);
 
   {
     int size = JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kPointerSize;
@@ -5449,6 +5297,191 @@ void FastCloneRegExpStub::GenerateAssembly(CodeStubAssembler* assembler) const {
       Generate(assembler, closure, literal_index, pattern, flags, context));
 }
 
+namespace {
+
+compiler::Node* NonEmptyShallowClone(CodeStubAssembler* assembler,
+                                     compiler::Node* boilerplate,
+                                     compiler::Node* boilerplate_map,
+                                     compiler::Node* boilerplate_elements,
+                                     compiler::Node* allocation_site,
+                                     compiler::Node* capacity,
+                                     ElementsKind kind) {
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::ParameterMode ParameterMode;
+
+  ParameterMode param_mode = CodeStubAssembler::SMI_PARAMETERS;
+
+  Node* length = assembler->LoadJSArrayLength(boilerplate);
+
+  if (assembler->Is64()) {
+    capacity = assembler->SmiUntag(capacity);
+    param_mode = CodeStubAssembler::INTEGER_PARAMETERS;
+  }
+
+  Node *array, *elements;
+  std::tie(array, elements) =
+      assembler->AllocateUninitializedJSArrayWithElements(
+          kind, boilerplate_map, length, allocation_site, capacity, param_mode);
+
+  assembler->Comment("copy elements header");
+  for (int offset = 0; offset < FixedArrayBase::kHeaderSize;
+       offset += kPointerSize) {
+    Node* value = assembler->LoadObjectField(boilerplate_elements, offset);
+    assembler->StoreObjectField(elements, offset, value);
+  }
+
+  if (assembler->Is64()) {
+    length = assembler->SmiUntag(length);
+  }
+
+  assembler->Comment("copy boilerplate elements");
+  assembler->CopyFixedArrayElements(kind, boilerplate_elements, elements,
+                                    length, SKIP_WRITE_BARRIER, param_mode);
+  assembler->IncrementCounter(
+      assembler->isolate()->counters()->inlined_copied_elements(), 1);
+
+  return array;
+}
+
+}  // namespace
+
+// static
+compiler::Node* FastCloneShallowArrayStub::Generate(
+    CodeStubAssembler* assembler, compiler::Node* closure,
+    compiler::Node* literal_index, compiler::Node* context,
+    CodeStubAssembler::Label* call_runtime,
+    AllocationSiteMode allocation_site_mode) {
+  typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
+  typedef compiler::Node Node;
+
+  Label zero_capacity(assembler), cow_elements(assembler),
+      fast_elements(assembler), return_result(assembler);
+  Variable result(assembler, MachineRepresentation::kTagged);
+
+  Node* literals_array =
+      assembler->LoadObjectField(closure, JSFunction::kLiteralsOffset);
+  Node* allocation_site = assembler->LoadFixedArrayElement(
+      literals_array, literal_index,
+      LiteralsArray::kFirstLiteralIndex * kPointerSize,
+      CodeStubAssembler::SMI_PARAMETERS);
+
+  assembler->GotoIf(assembler->IsUndefined(allocation_site), call_runtime);
+  allocation_site = assembler->LoadFixedArrayElement(
+      literals_array, literal_index,
+      LiteralsArray::kFirstLiteralIndex * kPointerSize,
+      CodeStubAssembler::SMI_PARAMETERS);
+
+  Node* boilerplate = assembler->LoadObjectField(
+      allocation_site, AllocationSite::kTransitionInfoOffset);
+  Node* boilerplate_map = assembler->LoadMap(boilerplate);
+  Node* boilerplate_elements = assembler->LoadElements(boilerplate);
+  Node* capacity = assembler->LoadFixedArrayBaseLength(boilerplate_elements);
+  allocation_site =
+      allocation_site_mode == TRACK_ALLOCATION_SITE ? allocation_site : nullptr;
+
+  Node* zero = assembler->SmiConstant(Smi::FromInt(0));
+  assembler->GotoIf(assembler->SmiEqual(capacity, zero), &zero_capacity);
+
+  Node* elements_map = assembler->LoadMap(boilerplate_elements);
+  assembler->GotoIf(assembler->IsFixedCOWArrayMap(elements_map), &cow_elements);
+
+  assembler->GotoIf(assembler->IsFixedArrayMap(elements_map), &fast_elements);
+  {
+    assembler->Comment("fast double elements path");
+    if (FLAG_debug_code) {
+      Label correct_elements_map(assembler), abort(assembler, Label::kDeferred);
+      assembler->BranchIf(assembler->IsFixedDoubleArrayMap(elements_map),
+                          &correct_elements_map, &abort);
+
+      assembler->Bind(&abort);
+      {
+        Node* abort_id = assembler->SmiConstant(
+            Smi::FromInt(BailoutReason::kExpectedFixedDoubleArrayMap));
+        assembler->TailCallRuntime(Runtime::kAbort, context, abort_id);
+      }
+      assembler->Bind(&correct_elements_map);
+    }
+
+    Node* array = NonEmptyShallowClone(assembler, boilerplate, boilerplate_map,
+                                       boilerplate_elements, allocation_site,
+                                       capacity, FAST_DOUBLE_ELEMENTS);
+    result.Bind(array);
+    assembler->Goto(&return_result);
+  }
+
+  assembler->Bind(&fast_elements);
+  {
+    assembler->Comment("fast elements path");
+    Node* array = NonEmptyShallowClone(assembler, boilerplate, boilerplate_map,
+                                       boilerplate_elements, allocation_site,
+                                       capacity, FAST_ELEMENTS);
+    result.Bind(array);
+    assembler->Goto(&return_result);
+  }
+
+  Variable length(assembler, MachineRepresentation::kTagged),
+      elements(assembler, MachineRepresentation::kTagged);
+  Label allocate_without_elements(assembler);
+
+  assembler->Bind(&cow_elements);
+  {
+    assembler->Comment("fixed cow path");
+    length.Bind(assembler->LoadJSArrayLength(boilerplate));
+    elements.Bind(boilerplate_elements);
+
+    assembler->Goto(&allocate_without_elements);
+  }
+
+  assembler->Bind(&zero_capacity);
+  {
+    assembler->Comment("zero capacity path");
+    length.Bind(zero);
+    elements.Bind(assembler->LoadRoot(Heap::kEmptyFixedArrayRootIndex));
+
+    assembler->Goto(&allocate_without_elements);
+  }
+
+  assembler->Bind(&allocate_without_elements);
+  {
+    Node* array = assembler->AllocateUninitializedJSArrayWithoutElements(
+        FAST_ELEMENTS, boilerplate_map, length.value(), allocation_site);
+    assembler->StoreObjectField(array, JSObject::kElementsOffset,
+                                elements.value());
+    result.Bind(array);
+    assembler->Goto(&return_result);
+  }
+
+  assembler->Bind(&return_result);
+  return result.value();
+}
+
+void FastCloneShallowArrayStub::GenerateAssembly(
+    CodeStubAssembler* assembler) const {
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Label Label;
+  Node* closure = assembler->Parameter(Descriptor::kClosure);
+  Node* literal_index = assembler->Parameter(Descriptor::kLiteralIndex);
+  Node* constant_elements = assembler->Parameter(Descriptor::kConstantElements);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+  Label call_runtime(assembler, Label::kDeferred);
+  assembler->Return(Generate(assembler, closure, literal_index, context,
+                             &call_runtime, allocation_site_mode()));
+
+  assembler->Bind(&call_runtime);
+  {
+    assembler->Comment("call runtime");
+    Node* flags = assembler->SmiConstant(
+        Smi::FromInt(ArrayLiteral::kShallowElements |
+                     (allocation_site_mode() == TRACK_ALLOCATION_SITE
+                          ? 0
+                          : ArrayLiteral::kDisableMementos)));
+    assembler->Return(assembler->CallRuntime(Runtime::kCreateArrayLiteral,
+                                             context, closure, literal_index,
+                                             constant_elements, flags));
+  }
+}
+
 void CreateAllocationSiteStub::GenerateAheadOfTime(Isolate* isolate) {
   CreateAllocationSiteStub stub(isolate);
   stub.GetCode();
@@ -5463,9 +5496,38 @@ void CreateWeakCellStub::GenerateAheadOfTime(Isolate* isolate) {
 
 void StoreElementStub::Generate(MacroAssembler* masm) {
   DCHECK_EQ(DICTIONARY_ELEMENTS, elements_kind());
-  ElementHandlerCompiler::GenerateStoreSlow(masm);
+  KeyedStoreIC::GenerateSlow(masm);
 }
 
+void StoreFastElementStub::GenerateAssembly(
+    CodeStubAssembler* assembler) const {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+
+  assembler->Comment(
+      "StoreFastElementStub: js_array=%d, elements_kind=%s, store_mode=%d",
+      is_js_array(), ElementsKindToString(elements_kind()), store_mode());
+
+  Node* receiver = assembler->Parameter(Descriptor::kReceiver);
+  Node* key = assembler->Parameter(Descriptor::kName);
+  Node* value = assembler->Parameter(Descriptor::kValue);
+  Node* slot = assembler->Parameter(Descriptor::kSlot);
+  Node* vector = assembler->Parameter(Descriptor::kVector);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  Label miss(assembler);
+
+  assembler->EmitElementStore(receiver, key, value, is_js_array(),
+                              elements_kind(), store_mode(), &miss);
+  assembler->Return(value);
+
+  assembler->Bind(&miss);
+  {
+    assembler->Comment("Miss");
+    assembler->TailCallRuntime(Runtime::kKeyedStoreIC_Miss, context, value,
+                               slot, vector, receiver, key);
+  }
+}
 
 // static
 void StoreFastElementStub::GenerateAheadOfTime(Isolate* isolate) {
@@ -5597,58 +5659,9 @@ void ProfileEntryHookStub::EntryHookTrampoline(intptr_t function,
 
 void CreateAllocationSiteStub::GenerateAssembly(
     CodeStubAssembler* assembler) const {
-  typedef compiler::Node Node;
-  Node* size = assembler->IntPtrConstant(AllocationSite::kSize);
-  Node* site = assembler->Allocate(size, CodeStubAssembler::kPretenured);
-
-  // Store the map
-  assembler->StoreObjectFieldRoot(site, AllocationSite::kMapOffset,
-                                  Heap::kAllocationSiteMapRootIndex);
-
-  Node* kind =
-      assembler->SmiConstant(Smi::FromInt(GetInitialFastElementsKind()));
-  assembler->StoreObjectFieldNoWriteBarrier(
-      site, AllocationSite::kTransitionInfoOffset, kind);
-
-  // Unlike literals, constructed arrays don't have nested sites
-  Node* zero = assembler->IntPtrConstant(0);
-  assembler->StoreObjectFieldNoWriteBarrier(
-      site, AllocationSite::kNestedSiteOffset, zero);
-
-  // Pretenuring calculation field.
-  assembler->StoreObjectFieldNoWriteBarrier(
-      site, AllocationSite::kPretenureDataOffset, zero);
-
-  // Pretenuring memento creation count field.
-  assembler->StoreObjectFieldNoWriteBarrier(
-      site, AllocationSite::kPretenureCreateCountOffset, zero);
-
-  // Store an empty fixed array for the code dependency.
-  assembler->StoreObjectFieldRoot(site, AllocationSite::kDependentCodeOffset,
-                                  Heap::kEmptyFixedArrayRootIndex);
-
-  // Link the object to the allocation site list
-  Node* site_list = assembler->ExternalConstant(
-      ExternalReference::allocation_sites_list_address(isolate()));
-  Node* next_site = assembler->LoadBufferObject(site_list, 0);
-
-  // TODO(mvstanton): This is a store to a weak pointer, which we may want to
-  // mark as such in order to skip the write barrier, once we have a unified
-  // system for weakness. For now we decided to keep it like this because having
-  // an initial write barrier backed store makes this pointer strong until the
-  // next GC, and allocation sites are designed to survive several GCs anyway.
-  assembler->StoreObjectField(site, AllocationSite::kWeakNextOffset, next_site);
-  assembler->StoreNoWriteBarrier(MachineRepresentation::kTagged, site_list,
-                                 site);
-
-  Node* feedback_vector = assembler->Parameter(Descriptor::kVector);
-  Node* slot = assembler->Parameter(Descriptor::kSlot);
-
-  assembler->StoreFixedArrayElement(feedback_vector, slot, site,
-                                    UPDATE_WRITE_BARRIER,
-                                    CodeStubAssembler::SMI_PARAMETERS);
-
-  assembler->Return(site);
+  assembler->Return(assembler->CreateAllocationSiteInFeedbackVector(
+      assembler->Parameter(Descriptor::kVector),
+      assembler->Parameter(Descriptor::kSlot)));
 }
 
 void CreateWeakCellStub::GenerateAssembly(CodeStubAssembler* assembler) const {
@@ -5674,7 +5687,7 @@ void ArrayNoArgumentConstructorStub::GenerateAssembly(
   Node* array = assembler->AllocateJSArray(
       elements_kind(), array_map,
       assembler->IntPtrConstant(JSArray::kPreallocatedArrayElements),
-      assembler->IntPtrConstant(0), allocation_site);
+      assembler->SmiConstant(Smi::FromInt(0)), allocation_site);
   assembler->Return(array);
 }
 
@@ -5687,7 +5700,7 @@ void InternalArrayNoArgumentConstructorStub::GenerateAssembly(
   Node* array = assembler->AllocateJSArray(
       elements_kind(), array_map,
       assembler->IntPtrConstant(JSArray::kPreallocatedArrayElements),
-      assembler->IntPtrConstant(0), nullptr);
+      assembler->SmiConstant(Smi::FromInt(0)), nullptr);
   assembler->Return(array);
 }
 
@@ -5727,8 +5740,8 @@ void SingleArgumentConstructorCommon(CodeStubAssembler* assembler,
     int element_size =
         IsFastDoubleElementsKind(elements_kind) ? kDoubleSize : kPointerSize;
     int max_fast_elements =
-        (Page::kMaxRegularHeapObjectSize - FixedArray::kHeaderSize -
-         JSArray::kSize - AllocationMemento::kSize) /
+        (kMaxRegularHeapObjectSize - FixedArray::kHeaderSize - JSArray::kSize -
+         AllocationMemento::kSize) /
         element_size;
     assembler->Branch(
         assembler->SmiAboveOrEqual(
@@ -5796,9 +5809,8 @@ void GrowArrayElementsStub::GenerateAssembly(
   ElementsKind kind = elements_kind();
 
   Node* elements = assembler->LoadElements(object);
-  Node* new_elements = assembler->CheckAndGrowElementsCapacity(
-      context, elements, kind, key, &runtime);
-  assembler->StoreObjectField(object, JSObject::kElementsOffset, new_elements);
+  Node* new_elements =
+      assembler->TryGrowElementsCapacity(object, elements, kind, key, &runtime);
   assembler->Return(new_elements);
 
   assembler->Bind(&runtime);
@@ -5837,20 +5849,19 @@ ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate,
 InternalArrayConstructorStub::InternalArrayConstructorStub(Isolate* isolate)
     : PlatformCodeStub(isolate) {}
 
-Representation RepresentationFromType(Type* type) {
-  if (type->Is(Type::UntaggedIntegral())) {
+Representation RepresentationFromMachineType(MachineType type) {
+  if (type == MachineType::Int32()) {
     return Representation::Integer32();
   }
 
-  if (type->Is(Type::TaggedSigned())) {
+  if (type == MachineType::TaggedSigned()) {
     return Representation::Smi();
   }
 
-  if (type->Is(Type::UntaggedPointer())) {
+  if (type == MachineType::Pointer()) {
     return Representation::External();
   }
 
-  DCHECK(!type->Is(Type::Untagged()));
   return Representation::Tagged();
 }
 

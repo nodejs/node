@@ -20,9 +20,18 @@ Prerequisites:
 
 On OS X, you will also need:
 * [Xcode](https://developer.apple.com/xcode/download/)
-  * You also need to install the `Command Line Tools` via Xcode. You can find 
+  * You also need to install the `Command Line Tools` via Xcode. You can find
     this under the menu `Xcode -> Preferences -> Downloads`
   * This step will install `gcc` and the related toolchain containing `make`
+
+* After building, you may want to setup [firewall rules](tools/macosx-firewall.sh)
+to avoid popups asking to accept incoming network connections when running tests:
+
+```console
+$ sudo ./tools/macosx-firewall.sh
+```
+Running this script will add rules for the executable `node` in the out
+directory and the symbolic `node` link in the projects root directory.
 
 On FreeBSD and OpenBSD, you may also need:
 * libexecinfo
@@ -31,8 +40,16 @@ To build Node.js:
 
 ```console
 $ ./configure
-$ make
+$ make -j4
 ```
+
+Running `make` with the `-j4` flag will cause it to run 4 compilation jobs
+concurrently which may significantly reduce build time. The number after `-j`
+can be changed to best suit the number of processor cores on your machine. If
+you run into problems running `make` with concurrency, try running it without
+the `-j4` flag. See the
+[GNU Make Documentation](https://www.gnu.org/software/make/manual/html_node/Parallel.html)
+for more information.
 
 Note that the above requires that `python` resolve to Python 2.6 or 2.7 and not a newer version.
 
@@ -92,13 +109,14 @@ Prerequisites:
 * One of:
   * [Visual C++ Build Tools](http://landinghub.visualstudio.com/visual-cpp-build-tools)
   * [Visual Studio 2015 Update 3](https://www.visualstudio.com/), all editions
-    including the Community edition.
+    including the Community edition (remember to select
+    "Common Tools for Visual C++ 2015" feature during installation).
 * Basic Unix tools required for some tests,
   [Git for Windows](http://git-scm.com/download/win) includes Git Bash
   and tools which can be included in the global `PATH`.
 
 ```console
-> .\vcbuild nosign
+> .\vcbuild
 ```
 
 To run the tests:
@@ -113,7 +131,7 @@ To test if Node.js was built correctly:
 > Release\node -e "console.log('Hello from Node.js', process.version)"
 ```
 
-### Android / Android-based devices (e.g., Firefox OS)
+### Android / Android-based devices (e.g. Firefox OS)
 
 Although these instructions for building on Android are provided, please note
 that Android is not an officially supported platform at this time. Patches to
@@ -230,7 +248,7 @@ as `deps/icu` (You'll have: `deps/icu/source/...`)
 NOTE: Windows is not yet supported
 
 It is possible to build Node.js with
-[OpenSSL FIPS module](https://www.openssl.org/docs/fips/fipsnotes.html).
+[OpenSSL FIPS module](https://www.openssl.org/docs/fipsnotes.html).
 
 **Note**: building in this way does **not** allow you to claim that the
 runtime is FIPS 140-2 validated. Instead you can indicate that the runtime

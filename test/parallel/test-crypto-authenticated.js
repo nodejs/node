@@ -307,12 +307,12 @@ const TEST_CASES = [
     tag: 'a44a8266ee1c8eb0c8b5d4cf5ae9f19a', tampered: false },
 ];
 
-var ciphers = crypto.getCiphers();
+const ciphers = crypto.getCiphers();
 
-for (var i in TEST_CASES) {
-  var test = TEST_CASES[i];
+for (const i in TEST_CASES) {
+  const test = TEST_CASES[i];
 
-  if (ciphers.indexOf(test.algo) === -1) {
+  if (!ciphers.includes(test.algo)) {
     common.skip('unsupported ' + test.algo + ' test');
     continue;
   }
@@ -324,7 +324,8 @@ for (var i in TEST_CASES) {
 
   {
     const encrypt = crypto.createCipheriv(test.algo,
-      Buffer.from(test.key, 'hex'), Buffer.from(test.iv, 'hex'));
+                                          Buffer.from(test.key, 'hex'),
+                                          Buffer.from(test.iv, 'hex'));
     if (test.aad)
       encrypt.setAAD(Buffer.from(test.aad, 'hex'));
 
@@ -342,7 +343,8 @@ for (var i in TEST_CASES) {
 
   {
     const decrypt = crypto.createDecipheriv(test.algo,
-      Buffer.from(test.key, 'hex'), Buffer.from(test.iv, 'hex'));
+                                            Buffer.from(test.key, 'hex'),
+                                            Buffer.from(test.iv, 'hex'));
     decrypt.setAuthTag(Buffer.from(test.tag, 'hex'));
     if (test.aad)
       decrypt.setAAD(Buffer.from(test.aad, 'hex'));
@@ -352,15 +354,14 @@ for (var i in TEST_CASES) {
     let msg = decrypt.update(test.ct, 'hex', outputEncoding);
     if (!test.tampered) {
       msg += decrypt.final(outputEncoding);
-      assert.equal(msg, test.plain);
+      assert.strictEqual(msg, test.plain);
     } else {
       // assert that final throws if input data could not be verified!
       assert.throws(function() { decrypt.final('ascii'); }, / auth/);
     }
   }
 
-  {
-    if (!test.password) return;
+  if (test.password) {
     if (common.hasFipsCrypto) {
       assert.throws(() => { crypto.createCipher(test.algo, test.password); },
                     /not supported in FIPS mode/);
@@ -379,8 +380,7 @@ for (var i in TEST_CASES) {
     }
   }
 
-  {
-    if (!test.password) return;
+  if (test.password) {
     if (common.hasFipsCrypto) {
       assert.throws(() => { crypto.createDecipher(test.algo, test.password); },
                     /not supported in FIPS mode/);
@@ -400,28 +400,11 @@ for (var i in TEST_CASES) {
     }
   }
 
-  // after normal operation, test some incorrect ways of calling the API:
-  // it's most certainly enough to run these tests with one algorithm only.
-
-  if (i > 0) {
-    continue;
-  }
-
-  {
-    // non-authenticating mode:
-    const encrypt = crypto.createCipheriv('aes-128-cbc',
-      'ipxp9a6i1Mb4USb4', '6fKjEjR3Vl30EUYC');
-    encrypt.update('blah', 'ascii');
-    encrypt.final();
-    assert.throws(() => { encrypt.getAuthTag(); }, / state/);
-    assert.throws(() => { encrypt.setAAD(Buffer.from('123', 'ascii')); },
-                  / state/);
-  }
-
   {
     // trying to get tag before inputting all data:
     const encrypt = crypto.createCipheriv(test.algo,
-      Buffer.from(test.key, 'hex'), Buffer.from(test.iv, 'hex'));
+                                          Buffer.from(test.key, 'hex'),
+                                          Buffer.from(test.iv, 'hex'));
     encrypt.update('blah', 'ascii');
     assert.throws(function() { encrypt.getAuthTag(); }, / state/);
   }
@@ -429,7 +412,8 @@ for (var i in TEST_CASES) {
   {
     // trying to set tag on encryption object:
     const encrypt = crypto.createCipheriv(test.algo,
-      Buffer.from(test.key, 'hex'), Buffer.from(test.iv, 'hex'));
+                                          Buffer.from(test.key, 'hex'),
+                                          Buffer.from(test.iv, 'hex'));
     assert.throws(() => { encrypt.setAuthTag(Buffer.from(test.tag, 'hex')); },
                   / state/);
   }
@@ -437,7 +421,8 @@ for (var i in TEST_CASES) {
   {
     // trying to read tag from decryption object:
     const decrypt = crypto.createDecipheriv(test.algo,
-      Buffer.from(test.key, 'hex'), Buffer.from(test.iv, 'hex'));
+                                            Buffer.from(test.key, 'hex'),
+                                            Buffer.from(test.iv, 'hex'));
     assert.throws(function() { decrypt.getAuthTag(); }, / state/);
   }
 
@@ -451,4 +436,16 @@ for (var i in TEST_CASES) {
       );
     }, /Invalid IV length/);
   }
+}
+
+// Non-authenticating mode:
+{
+  const encrypt =
+      crypto.createCipheriv('aes-128-cbc',
+                            'ipxp9a6i1Mb4USb4',
+                            '6fKjEjR3Vl30EUYC');
+  encrypt.update('blah', 'ascii');
+  encrypt.final();
+  assert.throws(() => encrypt.getAuthTag(), / state/);
+  assert.throws(() => encrypt.setAAD(Buffer.from('123', 'ascii')), / state/);
 }

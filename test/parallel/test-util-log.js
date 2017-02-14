@@ -1,19 +1,19 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var util = require('util');
+const assert = require('assert');
+const util = require('util');
 
 assert.ok(process.stdout.writable);
 assert.ok(process.stderr.writable);
 
-var stdout_write = global.process.stdout.write;
-var strings = [];
+const stdout_write = global.process.stdout.write;
+const strings = [];
 global.process.stdout.write = function(string) {
   strings.push(string);
 };
 console._stderr = process.stdout;
 
-var tests = [
+const tests = [
   {input: 'foo', output: 'foo'},
   {input: undefined, output: 'undefined'},
   {input: null, output: 'null'},
@@ -32,7 +32,7 @@ tests.forEach(function(test) {
   const re = (/[0-9]{1,2} [A-Z][a-z]{2} [0-9]{2}:[0-9]{2}:[0-9]{2} - (.+)$/);
   const match = re.exec(result);
   assert.ok(match);
-  assert.equal(match[1], test.output);
+  assert.strictEqual(match[1], test.output);
 });
 
 global.process.stdout.write = stdout_write;

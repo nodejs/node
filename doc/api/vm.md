@@ -1,4 +1,4 @@
-# Executing JavaScript
+# VM (Executing JavaScript)
 
 > Stability: 2 - Stable
 
@@ -212,8 +212,24 @@ that sandbox][contextified] so that it can be used in calls to
 [`vm.runInContext()`][] or [`script.runInContext()`][]. Inside such scripts,
 the `sandbox` object will be the global object, retaining all of its existing
 properties but also having the built-in objects and functions any standard
-[global object][] has. Outside of scripts run by the vm module, `sandbox` will
-remain unchanged.
+[global object][] has. Outside of scripts run by the vm module, global variables
+will remain unchanged.
+
+```js
+const util = require('util');
+const vm = require('vm');
+
+var globalVar = 3;
+
+const sandbox = { globalVar: 1 };
+vm.createContext(sandbox);
+
+vm.runInContext('globalVar *= 2;', sandbox);
+
+console.log(util.inspect(sandbox)); // 2
+
+console.log(util.inspect(globalVar)); // 3
+```
 
 If `sandbox` is omitted (or passed explicitly as `undefined`), a new, empty
 [contextified][] sandbox object will be returned.
@@ -297,7 +313,7 @@ console.log(Debug.findScript(process.exit).name);  // 'internal/process.js'
 implementation and may change (or even be removed) without prior warning.
 
 The `Debug` object can also be made available using the V8-specific
-`--expose_debug_as=` [command line option][cli.md].
+`--expose_debug_as=` [command line option][].
 
 ## vm.runInNewContext(code[, sandbox][, options])
 <!-- YAML
@@ -423,9 +439,9 @@ let code =
  vm.runInThisContext(code)(require);
  ```
 
-*Note*: The `require()` in the above case shares the state with context it is
-passed from. This may introduce risks when untrusted code is executed, e.g.
-altering objects from the calling thread's context in unwanted ways.
+*Note*: The `require()` in the above case shares the state with the context it
+is passed from. This may introduce risks when untrusted code is executed, e.g.
+altering objects in the context in unwanted ways.
 
 ## What does it mean to "contextify" an object?
 
@@ -455,3 +471,4 @@ associating it with the `sandbox` object is what this document refers to as
 [`eval()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval
 [V8 Embedder's Guide]: https://developers.google.com/v8/embed#contexts
 [contextified]: #vm_what_does_it_mean_to_contextify_an_object
+[command line option]: cli.html

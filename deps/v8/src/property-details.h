@@ -62,7 +62,6 @@ STATIC_ASSERT(SKIP_SYMBOLS ==
               static_cast<PropertyFilter>(v8::PropertyFilter::SKIP_SYMBOLS));
 
 class Smi;
-class Type;
 class TypeInfo;
 
 // Type of properties.

@@ -16,7 +16,6 @@
   "_from": "restore-cursor@>=1.0.1 <2.0.0",
   "_id": "restore-cursor@1.0.1",
   "_inCache": true,
-  "_installable": true,
   "_location": "/restore-cursor",
   "_nodeVersion": "4.1.0",
   "_npmUser": {

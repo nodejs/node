@@ -108,23 +108,13 @@ function getNonNumericOperand(node) {
 }
 
 /**
- * Checks whether a node is a string literal or not.
- * @param {ASTNode} node The node to check.
- * @returns {boolean} Whether or not the passed in node is a
- * string literal or not.
- */
-function isStringLiteral(node) {
-    return astUtils.isStringLiteral(node) && node.type !== "TemplateLiteral";
-}
-
-/**
  * Checks whether a node is an empty string literal or not.
  * @param {ASTNode} node The node to check.
  * @returns {boolean} Whether or not the passed in node is an
  * empty string literal or not.
  */
 function isEmptyString(node) {
-    return isStringLiteral(node) && node.value === "";
+    return astUtils.isStringLiteral(node) && (node.value === "" || (node.type === "TemplateLiteral" && node.quasis.length === 1 && node.quasis[0].value.cooked === ""));
 }
 
 /**
@@ -134,8 +124,8 @@ function isEmptyString(node) {
  */
 function isConcatWithEmptyString(node) {
     return node.operator === "+" && (
-        (isEmptyString(node.left) && !isStringLiteral(node.right)) ||
-        (isEmptyString(node.right) && !isStringLiteral(node.left))
+        (isEmptyString(node.left) && !astUtils.isStringLiteral(node.right)) ||
+        (isEmptyString(node.right) && !astUtils.isStringLiteral(node.left))
     );
 }
 
@@ -202,19 +192,24 @@ module.exports = {
         * Reports an error and autofixes the node
         * @param {ASTNode} node - An ast node to report the error on.
         * @param {string} recommendation - The recommended code for the issue
+        * @param {bool} shouldFix - Whether this report should fix the node
         * @returns {void}
         */
-        function report(node, recommendation) {
-            context.report({
+        function report(node, recommendation, shouldFix) {
+            shouldFix = typeof shouldFix === "undefined" ? true : shouldFix;
+            const reportObj = {
                 node,
                 message: "use `{{recommendation}}` instead.",
                 data: {
                     recommendation
-                },
-                fix(fixer) {
-                    return fixer.replaceText(node, recommendation);
                 }
-            });
+            };
+
+            if (shouldFix) {
+                reportObj.fix = fixer => fixer.replaceText(node, recommendation);
+            }
+
+            context.report(reportObj);
         }
 
         return {
@@ -234,7 +229,7 @@ module.exports = {
                 if (!operatorAllowed && options.boolean && isBinaryNegatingOfIndexOf(node)) {
                     const recommendation = `${sourceCode.getText(node.argument)} !== -1`;
 
-                    report(node, recommendation);
+                    report(node, recommendation, false);
                 }
 
                 // +foo

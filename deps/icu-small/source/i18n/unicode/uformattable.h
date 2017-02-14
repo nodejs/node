@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ********************************************************************************
 * Copyright (C) 2013-2014, International Business Machines Corporation and others.
@@ -49,7 +51,13 @@ typedef enum UFormattableType {
   UFMT_ARRAY,    /**< ufmt_countArray() and ufmt_getArray() will return the value.  @see ufmt_getArrayItemByIndex */
   UFMT_INT64,    /**< ufmt_getInt64() will return without conversion. @see ufmt_getInt64 */
   UFMT_OBJECT,   /**< ufmt_getObject() will return without conversion.  @see ufmt_getObject*/
-  UFMT_COUNT     /**< Count of defined UFormattableType values */
+#ifndef U_HIDE_DEPRECATED_API
+    /**
+     * One more than the highest normal UFormattableType value.
+     * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
+     */
+    UFMT_COUNT
+#endif  // U_HIDE_DEPRECATED_API
 } UFormattableType;
 
 

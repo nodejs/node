@@ -10,21 +10,21 @@ net.Server().listen(common.PORT, function() {
   const address = this.address();
   const key = `${address.family.slice(-1)}:${address.address}:${common.PORT}`;
 
-  assert.equal(this._connectionKey, key);
+  assert.strictEqual(this._connectionKey, key);
   this.close();
 });
 
 // The first argument is a configuration object
 assert.throws(() => {
-  net.Server().listen({ port: invalidPort }, common.fail);
+  net.Server().listen({ port: invalidPort }, common.mustNotCall());
 }, errorMessage);
 
 // The first argument is the port, no IP given.
 assert.throws(() => {
-  net.Server().listen(invalidPort, common.fail);
+  net.Server().listen(invalidPort, common.mustNotCall());
 }, errorMessage);
 
 // The first argument is the port, the second an IP.
 assert.throws(() => {
-  net.Server().listen(invalidPort, '0.0.0.0', common.fail);
+  net.Server().listen(invalidPort, '0.0.0.0', common.mustNotCall());
 }, errorMessage);

@@ -5,57 +5,70 @@
 
 "use strict";
 
+const astUtils = require("../ast-utils");
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
-const VALID_STRING_ESCAPES = [
-    "\\",
-    "n",
-    "r",
-    "v",
-    "t",
-    "b",
-    "f",
-    "u",
-    "x",
-    "\n",
-    "\r"
-];
+/**
+* Returns the union of two sets.
+* @param {Set} setA The first set
+* @param {Set} setB The second set
+* @returns {Set} The union of the two sets
+*/
+function union(setA, setB) {
+    return new Set(function *() {
+        yield* setA;
+        yield* setB;
+    }());
+}
 
-const VALID_REGEX_ESCAPES = [
-    "\\",
-    ".",
-    "-",
-    "^",
-    "$",
-    "*",
-    "+",
-    "?",
-    "{",
-    "}",
-    "[",
-    "]",
-    "|",
-    "(",
-    ")",
-    "b",
-    "B",
-    "c",
-    "d",
-    "D",
-    "f",
-    "n",
-    "r",
-    "s",
-    "S",
-    "t",
-    "v",
-    "w",
-    "W",
-    "x",
-    "u"
-];
+const VALID_STRING_ESCAPES = new Set("\\nrvtbfux\n\r\u2028\u2029");
+const REGEX_GENERAL_ESCAPES = new Set("\\bcdDfnrsStvwWxu0123456789]");
+const REGEX_NON_CHARCLASS_ESCAPES = union(REGEX_GENERAL_ESCAPES, new Set("^/.$*+?[{}|()B"));
+
+/**
+* Parses a regular expression into a list of characters with character class info.
+* @param {string} regExpText The raw text used to create the regular expression
+* @returns {Object[]} A list of characters, each with info on escaping and whether they're in a character class.
+* @example
+*
+* parseRegExp('a\\b[cd-]')
+*
+* returns:
+* [
+*   {text: 'a', index: 0, escaped: false, inCharClass: false, startsCharClass: false, endsCharClass: false},
+*   {text: 'b', index: 2, escaped: true, inCharClass: false, startsCharClass: false, endsCharClass: false},
+*   {text: 'c', index: 4, escaped: false, inCharClass: true, startsCharClass: true, endsCharClass: false},
+*   {text: 'd', index: 5, escaped: false, inCharClass: true, startsCharClass: false, endsCharClass: false},
+*   {text: '-', index: 6, escaped: false, inCharClass: true, startsCharClass: false, endsCharClass: false}
+* ]
+*/
+function parseRegExp(regExpText) {
+    const charList = [];
+
+    regExpText.split("").reduce((state, char, index) => {
+        if (!state.escapeNextChar) {
+            if (char === "\\") {
+                return Object.assign(state, { escapeNextChar: true });
+            }
+            if (char === "[" && !state.inCharClass) {
+                return Object.assign(state, { inCharClass: true, startingCharClass: true });
+            }
+            if (char === "]" && state.inCharClass) {
+                if (charList.length && charList[charList.length - 1].inCharClass) {
+                    charList[charList.length - 1].endsCharClass = true;
+                }
+                return Object.assign(state, { inCharClass: false, startingCharClass: false });
+            }
+        }
+        charList.push({ text: char, index, escaped: state.escapeNextChar, inCharClass: state.inCharClass, startsCharClass: state.startingCharClass, endsCharClass: false });
+        return Object.assign(state, { escapeNextChar: false, startingCharClass: false });
+    }, { escapeNextChar: false, inCharClass: false, startingCharClass: false });
+
+    return charList;
+}
 
 module.exports = {
     meta: {
@@ -69,32 +82,59 @@ module.exports = {
     },
 
     create(context) {
+        const sourceCode = context.getSourceCode();
 
         /**
-         * Checks if the escape character in given slice is unnecessary.
-         *
-         * @private
-         * @param {string[]} escapes - list of valid escapes
-         * @param {ASTNode} node - node to validate.
-         * @param {string} elm - string slice to validate.
+         * Reports a node
+         * @param {ASTNode} node The node to report
+         * @param {number} startOffset The backslash's offset from the start of the node
+         * @param {string} character The uselessly escaped character (not including the backslash)
          * @returns {void}
          */
-        function validate(escapes, node, elm) {
-            const escapeNotFound = escapes.indexOf(elm[0][1]) === -1;
-            const isQuoteEscape = elm[0][1] === node.raw[0];
+        function report(node, startOffset, character) {
+            context.report({
+                node,
+                loc: astUtils.getLocationFromRangeIndex(sourceCode, astUtils.getRangeIndexFromLocation(sourceCode, node.loc.start) + startOffset),
+                message: "Unnecessary escape character: \\{{character}}.",
+                data: { character }
+            });
+        }
 
-            if (escapeNotFound && !isQuoteEscape) {
-                context.report({
-                    node,
-                    loc: {
-                        line: node.loc.start.line,
-                        column: node.loc.start.column + elm.index
-                    },
-                    message: "Unnecessary escape character: {{character}}.",
-                    data: {
-                        character: elm[0]
-                    }
-                });
+        /**
+         * Checks if the escape character in given string slice is unnecessary.
+         *
+         * @private
+         * @param {ASTNode} node - node to validate.
+         * @param {string} match - string slice to validate.
+         * @returns {void}
+         */
+        function validateString(node, match) {
+            const isTemplateElement = node.type === "TemplateElement";
+            const escapedChar = match[0][1];
+            let isUnnecessaryEscape = !VALID_STRING_ESCAPES.has(escapedChar);
+            let isQuoteEscape;
+
+            if (isTemplateElement) {
+                isQuoteEscape = escapedChar === "`";
+
+                if (escapedChar === "$") {
+
+                    // Warn if `\$` is not followed by `{`
+                    isUnnecessaryEscape = match.input[match.index + 2] !== "{";
+                } else if (escapedChar === "{") {
+
+                    /* Warn if `\{` is not preceded by `$`. If preceded by `$`, escaping
+                     * is necessary and the rule should not warn. If preceded by `/$`, the rule
+                     * will warn for the `/$` instead, as it is the first unnecessarily escaped character.
+                     */
+                    isUnnecessaryEscape = match.input[match.index - 1] !== "$";
+                }
+            } else {
+                isQuoteEscape = escapedChar === node.raw[0];
+            }
+
+            if (isUnnecessaryEscape && !isQuoteEscape) {
+                report(node, match.index + 1, match[0].slice(1));
             }
         }
 
@@ -105,29 +145,65 @@ module.exports = {
          * @returns {void}
          */
         function check(node) {
-            let nodeEscapes, match;
-            const pattern = /\\[^\d]/g;
+            const isTemplateElement = node.type === "TemplateElement";
 
-            if (typeof node.value === "string") {
+            if (isTemplateElement && node.parent && node.parent.parent && node.parent.parent.type === "TaggedTemplateExpression") {
 
-                // JSXAttribute doesn't have any escape sequence: https://facebook.github.io/jsx/
-                if (node.parent.type === "JSXAttribute") {
-                    return;
-                }
-
-                nodeEscapes = VALID_STRING_ESCAPES;
-            } else if (node.regex) {
-                nodeEscapes = VALID_REGEX_ESCAPES;
-            } else {
+                // Don't report tagged template literals, because the backslash character is accessible to the tag function.
                 return;
             }
 
-            while ((match = pattern.exec(node.raw))) {
-                validate(nodeEscapes, node, match);
+            if (typeof node.value === "string" || isTemplateElement) {
+
+                /*
+                 * JSXAttribute doesn't have any escape sequence: https://facebook.github.io/jsx/.
+                 * In addition, backticks are not supported by JSX yet: https://github.com/facebook/jsx/issues/25.
+                 */
+                if (node.parent.type === "JSXAttribute" || node.parent.type === "JSXElement") {
+                    return;
+                }
+
+                const value = isTemplateElement ? node.value.raw : node.raw.slice(1, -1);
+                const pattern = /\\[^\d]/g;
+                let match;
+
+                while ((match = pattern.exec(value))) {
+                    validateString(node, match);
+                }
+            } else if (node.regex) {
+                parseRegExp(node.regex.pattern)
+
+                    /*
+                     * The '-' character is a special case, because it's only valid to escape it if it's in a character
+                     * class, and is not at either edge of the character class. To account for this, don't consider '-'
+                     * characters to be valid in general, and filter out '-' characters that appear in the middle of a
+                     * character class.
+                     */
+                    .filter(charInfo => !(charInfo.text === "-" && charInfo.inCharClass && !charInfo.startsCharClass && !charInfo.endsCharClass))
+
+                    /*
+                     * The '^' character is also a special case; it must always be escaped outside of character classes, but
+                     * it only needs to be escaped in character classes if it's at the beginning of the character class. To
+                     * account for this, consider it to be a valid escape character outside of character classes, and filter
+                     * out '^' characters that appear at the start of a character class.
+                     */
+                    .filter(charInfo => !(charInfo.text === "^" && charInfo.startsCharClass))
+
+                    // Filter out characters that aren't escaped.
+                    .filter(charInfo => charInfo.escaped)
+
+                    // Filter out characters that are valid to escape, based on their position in the regular expression.
+                    .filter(charInfo => !(charInfo.inCharClass ? REGEX_GENERAL_ESCAPES : REGEX_NON_CHARCLASS_ESCAPES).has(charInfo.text))
+
+                    // Report all the remaining characters.
+                    .forEach(charInfo => report(node, charInfo.index, charInfo.text));
             }
+
         }
+
         return {
-            Literal: check
+            Literal: check,
+            TemplateElement: check
         };
     }
 };

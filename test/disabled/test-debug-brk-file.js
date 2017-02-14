@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var spawn = require('child_process').spawn;
-var path = require('path');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const spawn = require('child_process').spawn;
+const path = require('path');
+const net = require('net');
 
 var isDone = false;
 var targetPath = path.resolve(common.fixturesDir, 'debug-target.js');

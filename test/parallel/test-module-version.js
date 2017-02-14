@@ -1,6 +1,6 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 // check for existence
 assert(process.config.variables.hasOwnProperty('node_module_version'));

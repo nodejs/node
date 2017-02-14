@@ -31,6 +31,8 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   Smi* smi_1 = Smi::FromInt(-65536);
   Register reg_0(0);
   Register reg_1(1);
+  RegisterList pair(0, 2);
+  RegisterList triple(0, 3);
   Register param = Register::FromParameterIndex(2, builder.parameter_count());
   Handle<String> name = factory->NewStringFromStaticChars("abc");
   int name_index = 2;
@@ -54,9 +56,9 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
       .LoadNamedProperty(reg_1, name, feedback_slot)
       .BinaryOperation(Token::Value::ADD, reg_0, 3)
       .StoreAccumulatorInRegister(param)
-      .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, param, 1, reg_0)
-      .ForInPrepare(reg_0, reg_0)
-      .CallRuntime(Runtime::kLoadIC_Miss, reg_0, 1)
+      .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, param, pair)
+      .ForInPrepare(reg_0, triple)
+      .CallRuntime(Runtime::kLoadIC_Miss, reg_0)
       .Debugger()
       .LoadGlobal(0x10000000, TypeofMode::NOT_INSIDE_TYPEOF)
       .Return();

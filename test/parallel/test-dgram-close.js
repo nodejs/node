@@ -6,10 +6,10 @@ const common = require('../common');
 const assert = require('assert');
 const dgram = require('dgram');
 
-var buf = Buffer.alloc(1024, 42);
+const buf = Buffer.alloc(1024, 42);
 
-var socket = dgram.createSocket('udp4');
-var handle = socket._handle;
+let socket = dgram.createSocket('udp4');
+const handle = socket._handle;
 
 socket.send(buf, 0, buf.length, common.PORT, 'localhost');
 assert.strictEqual(socket.close(common.mustCall(function() {})), socket);

@@ -1,6 +1,9 @@
 var baseIsNative = require('./_baseIsNative'),
     isMaskable = require('./_isMaskable');
 
+/** Error message constants. */
+var CORE_ERROR_TEXT = 'Unsupported core-js use. Try https://npms.io/search?q=ponyfill.';
+
 /**
  * Checks if `value` is a pristine native function.
  *
@@ -29,7 +32,7 @@ var baseIsNative = require('./_baseIsNative'),
  */
 function isNative(value) {
   if (isMaskable(value)) {
-    throw new Error('This method is not supported with core-js. Try https://github.com/es-shims.');
+    throw new Error(CORE_ERROR_TEXT);
   }
   return baseIsNative(value);
 }

@@ -37,7 +37,7 @@ client.on('message', function(buf, info) {
 });
 
 client.on('close', common.mustCall(function() {
-  assert.equal(received, limit);
+  assert.strictEqual(received, limit);
 }));
 
 client.bind(0);

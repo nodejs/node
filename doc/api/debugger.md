@@ -4,17 +4,17 @@
 
 <!-- type=misc -->
 
-Node.js includes a full-featured out-of-process debugging utility accessible
-via a simple [TCP-based protocol][] and built-in debugging client. To use it,
-start Node.js with the `debug` argument followed by the path to the script to
-debug; a prompt will be displayed indicating successful launch of the debugger:
+Node.js includes an out-of-process debugging utility accessible via a
+[TCP-based protocol][] and built-in debugging client. To use it, start Node.js
+with the `debug` argument followed by the path to the script to debug; a prompt
+will be displayed indicating successful launch of the debugger:
 
 ```txt
 $ node debug myscript.js
-< debugger listening on port 5858
-connecting... ok
+< Debugger listening on 127.0.0.1:5858
+connecting to 127.0.0.1:5858 ... ok
 break in /home/indutny/Code/git/indutny/myscript.js:1
-  1 x = 5;
+> 1 global.x = 5;
   2 setTimeout(() => {
   3   debugger;
 debug>
@@ -28,7 +28,7 @@ enable a breakpoint at that position in the code:
 
 ```js
 // myscript.js
-x = 5;
+global.x = 5;
 setTimeout(() => {
   debugger;
   console.log('world');
@@ -36,29 +36,29 @@ setTimeout(() => {
 console.log('hello');
 ```
 
-Once the debugger is run, a breakpoint will occur at line 4:
+Once the debugger is run, a breakpoint will occur at line 3:
 
 ```txt
 $ node debug myscript.js
-< debugger listening on port 5858
-connecting... ok
+< Debugger listening on 127.0.0.1:5858
+connecting to 127.0.0.1:5858 ... ok
 break in /home/indutny/Code/git/indutny/myscript.js:1
-  1 x = 5;
+> 1 global.x = 5;
   2 setTimeout(() => {
   3   debugger;
 debug> cont
 < hello
 break in /home/indutny/Code/git/indutny/myscript.js:3
-  1 x = 5;
+  1 global.x = 5;
   2 setTimeout(() => {
-  3   debugger;
+> 3   debugger;
   4   console.log('world');
   5 }, 1000);
 debug> next
 break in /home/indutny/Code/git/indutny/myscript.js:4
   2 setTimeout(() => {
   3   debugger;
-  4   console.log('world');
+> 4   console.log('world');
   5 }, 1000);
   6 console.log('hello');
 debug> repl
@@ -68,11 +68,11 @@ Press Ctrl + C to leave debug repl
 > 2+2
 4
 debug> next
-< world
 break in /home/indutny/Code/git/indutny/myscript.js:5
+< world
   3   debugger;
   4   console.log('world');
-  5 }, 1000);
+> 5 }, 1000);
   6 console.log('hello');
   7
 debug> quit
@@ -117,28 +117,30 @@ script.js
 on line 1
 
 It is also possible to set a breakpoint in a file (module) that
-isn't loaded yet:
+is not loaded yet:
 
 ```txt
-$ ./node debug test/fixtures/break-in-module/main.js
-< debugger listening on port 5858
-connecting to port 5858... ok
+$ node debug test/fixtures/break-in-module/main.js
+< Debugger listening on 127.0.0.1:5858
+connecting to 127.0.0.1:5858 ... ok
 break in test/fixtures/break-in-module/main.js:1
-  1 var mod = require('./mod.js');
+> 1 const mod = require('./mod.js');
   2 mod.hello();
   3 mod.hello();
-debug> setBreakpoint('mod.js', 23)
+debug> setBreakpoint('mod.js', 2)
 Warning: script 'mod.js' was not loaded yet.
-  1 var mod = require('./mod.js');
+> 1 const mod = require('./mod.js');
   2 mod.hello();
   3 mod.hello();
+  4 debugger;
+  5
+  6 });
 debug> c
-break in test/fixtures/break-in-module/mod.js:23
- 21
- 22 exports.hello = () => {
- 23   return 'hello from module';
- 24 };
- 25
+break in test/fixtures/break-in-module/mod.js:2
+  1 exports.hello = function() {
+> 2   return 'hello from module';
+  3 };
+  4
 debug>
 ```
 
@@ -167,6 +169,11 @@ breakpoint)
 
 ## Advanced Usage
 
+### TCP-based protocol
+
+> Stability: 0 - Deprecated: Use [V8 Inspector Integration][] instead.
+The debug protocol used by the `--debug` flag was removed from V8.
+
 An alternative way of enabling and accessing the debugger is to start
 Node.js with the `--debug` command-line flag or by signaling an existing
 Node.js process with `SIGUSR1`.
@@ -179,12 +186,12 @@ process or via URI reference to the listening debugger:
 * `node debug <URI>` - Connects to the process via the URI such as
 localhost:5858
 
-## V8 Inspector Integration for Node.js
+### V8 Inspector Integration for Node.js
 
 **NOTE: This is an experimental feature.**
 
 V8 Inspector integration allows attaching Chrome DevTools to Node.js
-instances for debugging and profiling.
+instances for debugging and profiling. It uses the [Chrome Debugging Protocol][].
 
 V8 Inspector can be enabled by passing the `--inspect` flag when starting a
 Node.js application. It is also possible to supply a custom port with that flag,
@@ -193,4 +200,18 @@ e.g. `--inspect=9222` will accept DevTools connections on port 9222.
 To break on the first line of the application code, provide the `--debug-brk`
 flag in addition to `--inspect`.
 
-[TCP-based protocol]: https://github.com/v8/v8/wiki/Debugging-Protocol
+```txt
+$ node --inspect index.js
+Debugger listening on port 9229.
+Warning: This is an experimental feature and could change at any time.
+To start debugging, open the following URL in Chrome:
+    chrome-devtools://devtools/bundled/inspector.html?experiments=true&v8only=true&ws=127.0.0.1:9229/dc9010dd-f8b8-4ac5-a510-c1a114ec7d29
+```
+
+(In the example above, the UUID dc9010dd-f8b8-4ac5-a510-c1a114ec7d29
+at the end of the URL is generated on the fly, it varies in different
+debugging sessions.)
+
+[Chrome Debugging Protocol]: https://chromedevtools.github.io/debugger-protocol-viewer/
+[TCP-based protocol]: #debugger_tcp_based_protocol
+[V8 Inspector Integration]: #debugger_v8_inspector_integration_for_node_js

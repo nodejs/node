@@ -18,7 +18,7 @@ const astUtils = require("../ast-utils");
 module.exports = {
     meta: {
         docs: {
-            description: "disallow `var` declarations from shadowing variables in the outer scope",
+            description: "disallow variable declarations from shadowing variables declared in the outer scope",
             category: "Variables",
             recommended: false
         },
@@ -27,8 +27,8 @@ module.exports = {
             {
                 type: "object",
                 properties: {
-                    builtinGlobals: {type: "boolean"},
-                    hoist: {enum: ["all", "functions", "never"]},
+                    builtinGlobals: { type: "boolean" },
+                    hoist: { enum: ["all", "functions", "never"] },
                     allow: {
                         type: "array",
                         items: {

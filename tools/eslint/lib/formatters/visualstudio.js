@@ -33,20 +33,20 @@ module.exports = function(results) {
     let output = "",
         total = 0;
 
-    results.forEach(function(result) {
+    results.forEach(result => {
 
         const messages = result.messages;
 
         total += messages.length;
 
-        messages.forEach(function(message) {
+        messages.forEach(message => {
 
             output += result.filePath;
-            output += "(" + (message.line || 0);
-            output += message.column ? "," + message.column : "";
-            output += "): " + getMessageType(message);
-            output += message.ruleId ? " " + message.ruleId : "";
-            output += " : " + message.message;
+            output += `(${message.line || 0}`;
+            output += message.column ? `,${message.column}` : "";
+            output += `): ${getMessageType(message)}`;
+            output += message.ruleId ? ` ${message.ruleId}` : "";
+            output += ` : ${message.message}`;
             output += "\n";
 
         });
@@ -56,7 +56,7 @@ module.exports = function(results) {
     if (total === 0) {
         output += "no problems";
     } else {
-        output += "\n" + total + " problem" + (total !== 1 ? "s" : "");
+        output += `\n${total} problem${total !== 1 ? "s" : ""}`;
     }
 
     return output;

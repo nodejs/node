@@ -18,7 +18,7 @@ const debug = require("debug")("eslint:config-ops");
 //------------------------------------------------------------------------------
 
 const RULE_SEVERITY_STRINGS = ["off", "warn", "error"],
-    RULE_SEVERITY = RULE_SEVERITY_STRINGS.reduce(function(map, value, index) {
+    RULE_SEVERITY = RULE_SEVERITY_STRINGS.reduce((map, value, index) => {
         map[value] = index;
         return map;
     }, {}),
@@ -57,13 +57,11 @@ module.exports = {
 
             envConfig.env = env;
 
-            Object.keys(env).filter(function(name) {
-                return env[name];
-            }).forEach(function(name) {
+            Object.keys(env).filter(name => env[name]).forEach(name => {
                 const environment = Environments.get(name);
 
                 if (environment) {
-                    debug("Creating config for environment " + name);
+                    debug(`Creating config for environment ${name}`);
                     if (environment.globals) {
                         Object.assign(envConfig.globals, environment.globals);
                     }
@@ -149,7 +147,7 @@ module.exports = {
             if (typeof src !== "object" && !Array.isArray(src)) {
                 src = [src];
             }
-            Object.keys(src).forEach(function(e, i) {
+            Object.keys(src).forEach((e, i) => {
                 e = src[i];
                 if (typeof dst[i] === "undefined") {
                     dst[i] = e;
@@ -171,11 +169,11 @@ module.exports = {
             });
         } else {
             if (target && typeof target === "object") {
-                Object.keys(target).forEach(function(key) {
+                Object.keys(target).forEach(key => {
                     dst[key] = target[key];
                 });
             }
-            Object.keys(src).forEach(function(key) {
+            Object.keys(src).forEach(key => {
                 if (Array.isArray(src[key]) || Array.isArray(target[key])) {
                     dst[key] = deepmerge(target[key], src[key], key === "plugins", isRule);
                 } else if (typeof src[key] !== "object" || !src[key] || key === "exported" || key === "astGlobals") {
@@ -199,7 +197,7 @@ module.exports = {
     normalize(config) {
 
         if (config.rules) {
-            Object.keys(config.rules).forEach(function(ruleId) {
+            Object.keys(config.rules).forEach(ruleId => {
                 const ruleConfig = config.rules[ruleId];
 
                 if (typeof ruleConfig === "string") {
@@ -221,7 +219,7 @@ module.exports = {
     normalizeToStrings(config) {
 
         if (config.rules) {
-            Object.keys(config.rules).forEach(function(ruleId) {
+            Object.keys(config.rules).forEach(ruleId => {
                 const ruleConfig = config.rules[ruleId];
 
                 if (typeof ruleConfig === "number") {
@@ -269,8 +267,6 @@ module.exports = {
      * @returns {boolean} `true` if the configuration has valid severity.
      */
     isEverySeverityValid(config) {
-        return Object.keys(config).every(function(ruleId) {
-            return this.isValidSeverity(config[ruleId]);
-        }, this);
+        return Object.keys(config).every(ruleId => this.isValidSeverity(config[ruleId]));
     }
 };

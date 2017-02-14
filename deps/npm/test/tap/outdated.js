@@ -103,7 +103,9 @@ test('it should not throw', function (t) {
             output.push.apply(output, arguments)
           }
           npm.outdated(function (er, d) {
-            t.ifError(er, 'outdated success')
+            t.ifError(err, 'outdated completed without error')
+            t.equals(process.exitCode, 1, 'exitCode set to 1')
+            process.exitCode = 0
             output = output.map(function (x) { return x.replace(/\r/g, '') })
             console.log = originalLog
 

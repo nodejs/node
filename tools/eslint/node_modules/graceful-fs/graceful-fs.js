@@ -127,25 +127,34 @@ function patch (fs) {
 
   var fs$readdir = fs.readdir
   fs.readdir = readdir
-  function readdir (path, cb) {
-    return go$readdir(path, cb)
+  function readdir (path, options, cb) {
+    var args = [path]
+    if (typeof options !== 'function') {
+      args.push(options)
+    } else {
+      cb = options
+    }
+    args.push(go$readdir$cb)
 
-    function go$readdir () {
-      return fs$readdir(path, function (err, files) {
-        if (files && files.sort)
-          files.sort();  // Backwards compatibility with graceful-fs.
+    return go$readdir(args)
 
-        if (err && (err.code === 'EMFILE' || err.code === 'ENFILE'))
-          enqueue([go$readdir, [path, cb]])
-        else {
-          if (typeof cb === 'function')
-            cb.apply(this, arguments)
-          retry()
-        }
-      })
+    function go$readdir$cb (err, files) {
+      if (files && files.sort)
+        files.sort()
+
+      if (err && (err.code === 'EMFILE' || err.code === 'ENFILE'))
+        enqueue([go$readdir, [args]])
+      else {
+        if (typeof cb === 'function')
+          cb.apply(this, arguments)
+        retry()
+      }
     }
   }
 
+  function go$readdir (args) {
+    return fs$readdir.apply(fs, args)
+  }
 
   if (process.version.substr(0, 4) === 'v0.8') {
     var legStreams = legacy(fs)

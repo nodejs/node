@@ -1,8 +1,8 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var util = require('util');
-var repl = require('repl');
+const assert = require('assert');
+const util = require('util');
+const repl = require('repl');
 
 // This test adds global variables
 common.globalCheck = false;
@@ -13,15 +13,16 @@ repl.start('', putIn, null, true);
 test1();
 
 function test1() {
-  var gotWrite = false;
+  let gotWrite = false;
   putIn.write = function(data) {
     gotWrite = true;
     if (data.length) {
 
       // inspect output matches repl output
-      assert.equal(data, util.inspect(require('fs'), null, 2, false) + '\n');
+      assert.strictEqual(data, util.inspect(require('fs'), null, 2, false) +
+                         '\n');
       // globally added lib matches required lib
-      assert.equal(global.fs, require('fs'));
+      assert.strictEqual(global.fs, require('fs'));
       test2();
     }
   };
@@ -31,17 +32,17 @@ function test1() {
 }
 
 function test2() {
-  var gotWrite = false;
+  let gotWrite = false;
   putIn.write = function(data) {
     gotWrite = true;
     if (data.length) {
       // repl response error message
-      assert.equal(data, '{}\n');
+      assert.strictEqual(data, '{}\n');
       // original value wasn't overwritten
-      assert.equal(val, global.url);
+      assert.strictEqual(val, global.url);
     }
   };
-  var val = {};
+  const val = {};
   global.url = val;
   assert(!gotWrite);
   putIn.run(['url']);

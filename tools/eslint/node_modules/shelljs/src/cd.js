@@ -1,28 +1,38 @@
 var fs = require('fs');
 var common = require('./common');
 
+common.register('cd', _cd, {});
+
 //@
 //@ ### cd([dir])
 //@ Changes to directory `dir` for the duration of the script. Changes to home
 //@ directory if no argument is supplied.
 function _cd(options, dir) {
-  if (!dir)
-    dir = common.getUserHome();
+  if (!dir) dir = common.getUserHome();
 
   if (dir === '-') {
-    if (!common.state.previousDir)
+    if (!process.env.OLDPWD) {
       common.error('could not find previous directory');
-    else
-      dir = common.state.previousDir;
+    } else {
+      dir = process.env.OLDPWD;
+    }
   }
 
-  if (!fs.existsSync(dir))
-    common.error('no such file or directory: ' + dir);
-
-  if (!fs.statSync(dir).isDirectory())
-    common.error('not a directory: ' + dir);
-
-  common.state.previousDir = process.cwd();
-  process.chdir(dir);
+  try {
+    var curDir = process.cwd();
+    process.chdir(dir);
+    process.env.OLDPWD = curDir;
+  } catch (e) {
+    // something went wrong, let's figure out the error
+    var err;
+    try {
+      fs.statSync(dir); // if this succeeds, it must be some sort of file
+      err = 'not a directory: ' + dir;
+    } catch (e2) {
+      err = 'no such file or directory: ' + dir;
+    }
+    if (err) common.error(err);
+  }
+  return '';
 }
 module.exports = _cd;

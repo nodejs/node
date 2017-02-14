@@ -8,7 +8,7 @@ assert.doesNotThrow(function() {
 
 assert.throws(function() {
   Buffer.from(10, 'hex');
-});
+}, /^TypeError: "value" argument must not be a number$/);
 
 assert.doesNotThrow(function() {
   Buffer.from('deadbeaf', 'hex');

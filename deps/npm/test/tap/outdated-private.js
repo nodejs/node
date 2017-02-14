@@ -52,7 +52,7 @@ test('setup', function (t) {
 })
 
 test('outdated ignores private modules', function (t) {
-  t.plan(3)
+  t.plan(4)
   process.chdir(pkg)
   mr({ port: common.port }, function (er, s) {
     npm.load(
@@ -66,7 +66,9 @@ test('outdated ignores private modules', function (t) {
           t.ifError(err, 'install success')
           bumpLocalPrivate()
           npm.outdated(function (er, d) {
-            t.ifError(er, 'outdated success')
+            t.ifError(err, 'npm outdated ran without error')
+            t.is(process.exitCode, 1, 'exitCode set to 1')
+            process.exitCode = 0
             t.deepEqual(d, [[
               path.resolve(__dirname, 'outdated-private'),
               'underscore',

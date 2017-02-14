@@ -3,8 +3,10 @@ const common = require('../common');
 const assert = require('assert');
 const vm = require('vm');
 
-const Buffer = require('buffer').Buffer;
-const SlowBuffer = require('buffer').SlowBuffer;
+const buffer = require('buffer');
+const Buffer = buffer.Buffer;
+const SlowBuffer = buffer.SlowBuffer;
+
 
 const b = Buffer.allocUnsafe(1024);
 assert.strictEqual(1024, b.length);
@@ -138,7 +140,7 @@ assert.doesNotThrow(() => Buffer.alloc(1).write('', 1, 0));
   const sliceA = b.slice(offset, offset + asciiString.length);
   const sliceB = b.slice(offset, offset + asciiString.length);
   for (let i = 0; i < asciiString.length; i++) {
-    assert.equal(sliceA[i], sliceB[i]);
+    assert.strictEqual(sliceA[i], sliceB[i]);
   }
 }
 
@@ -149,7 +151,7 @@ assert.doesNotThrow(() => Buffer.alloc(1).write('', 1, 0));
 
   b.write(utf8String, 0, Buffer.byteLength(utf8String), 'utf8');
   let utf8Slice = b.toString('utf8', 0, Buffer.byteLength(utf8String));
-  assert.equal(utf8String, utf8Slice);
+  assert.strictEqual(utf8String, utf8Slice);
 
   assert.strictEqual(Buffer.byteLength(utf8String),
                      b.write(utf8String, offset, 'utf8'));
@@ -585,6 +587,12 @@ assert.strictEqual('<Buffer 81 a3 66 6f 6f a3 62 61 72>', x.inspect());
   assert.strictEqual(b.toString(encoding), 'あいうえお');
 });
 
+['ucs2', 'ucs-2', 'utf16le', 'utf-16le'].forEach((encoding) => {
+  const b = Buffer.allocUnsafe(11);
+  b.write('あいうえお', 1, encoding);
+  assert.strictEqual(b.toString(encoding, 1), 'あいうえお');
+});
+
 {
   // latin1 encoding should write only one byte per character.
   const b = Buffer.from([0xde, 0xad, 0xbe, 0xef]);
@@ -760,34 +768,6 @@ assert.strictEqual(Buffer.from('13.37').length, 5);
 
 // issue GH-3416
 Buffer.from(Buffer.allocUnsafe(0), 0, 0);
-
-// GH-5110
-{
-  const buffer = Buffer.from('test');
-  const string = JSON.stringify(buffer);
-
-  assert.strictEqual(string, '{"type":"Buffer","data":[116,101,115,116]}');
-
-  assert.deepStrictEqual(buffer, JSON.parse(string, (key, value) => {
-    return value && value.type === 'Buffer'
-      ? Buffer.from(value.data)
-      : value;
-  }));
-}
-
-// issue GH-7849
-{
-  const buf = Buffer.from('test');
-  const json = JSON.stringify(buf);
-  const obj = JSON.parse(json);
-  const copy = Buffer.from(obj);
-
-  assert(buf.equals(copy));
-}
-
-// issue GH-4331
-assert.throws(() => Buffer.allocUnsafe(0xFFFFFFFF), RangeError);
-assert.throws(() => Buffer.allocUnsafe(0xFFFFFFFFF), RangeError);
 
 // issue GH-5587
 assert.throws(() => Buffer.alloc(8).writeFloatLE(0, 5), RangeError);
@@ -982,9 +962,7 @@ assert.throws(() => Buffer.from('', 'buffer'), TypeError);
 // Regression test for #6111. Constructing a buffer from another buffer
 // should a) work, and b) not corrupt the source buffer.
 {
-  let a = [0];
-  for (let i = 0; i < 7; ++i) a = a.concat(a);
-  a = a.map((_, i) => {return i;});
+  const a = [...Array(128).keys()]; // [0, 1, 2, 3, ... 126, 127]
   const b = Buffer.from(a);
   const c = Buffer.from(b);
   assert.strictEqual(b.length, a.length);
@@ -995,10 +973,6 @@ assert.throws(() => Buffer.from('', 'buffer'), TypeError);
     assert.strictEqual(c[i], i);
   }
 }
-
-assert.throws(() => Buffer.allocUnsafe((-1 >>> 0) + 1), RangeError);
-assert.throws(() => Buffer.allocUnsafeSlow((-1 >>> 0) + 1), RangeError);
-assert.throws(() => SlowBuffer((-1 >>> 0) + 1), RangeError);
 
 if (common.hasCrypto) {
   // Test truncation after decode
@@ -1021,7 +995,8 @@ assert(Buffer.allocUnsafe(1).parent instanceof ArrayBuffer);
 Buffer.poolSize = ps;
 
 // Test Buffer.copy() segfault
-assert.throws(() => Buffer.allocUnsafe(10).copy());
+assert.throws(() => Buffer.allocUnsafe(10).copy(),
+              /TypeError: argument should be a Buffer/);
 
 const regErrorMsg = new RegExp('First argument must be a string, Buffer, ' +
                                'ArrayBuffer, Array, or array-like object.');
@@ -1030,10 +1005,10 @@ assert.throws(() => Buffer.from(), regErrorMsg);
 assert.throws(() => Buffer.from(null), regErrorMsg);
 
 // Test prototype getters don't throw
-assert.equal(Buffer.prototype.parent, undefined);
-assert.equal(Buffer.prototype.offset, undefined);
-assert.equal(SlowBuffer.prototype.parent, undefined);
-assert.equal(SlowBuffer.prototype.offset, undefined);
+assert.strictEqual(Buffer.prototype.parent, undefined);
+assert.strictEqual(Buffer.prototype.offset, undefined);
+assert.strictEqual(SlowBuffer.prototype.parent, undefined);
+assert.strictEqual(SlowBuffer.prototype.offset, undefined);
 
 
 {
@@ -1059,7 +1034,7 @@ assert.throws(() => {
   const a = Buffer.alloc(1);
   const b = Buffer.alloc(1);
   a.copy(b, 0, 0x100000000, 0x100000001);
-}), /out of range index/;
+}, /out of range index/);
 
 // Unpooled buffer (replaces SlowBuffer)
 {

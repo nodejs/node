@@ -17,6 +17,10 @@
 // https://hg.mozilla.org/mozilla-central/raw-file/98820360ab66/security/
 // certverifier/CNNICHashWhitelist.inc
 #include "CNNICHashWhitelist.inc"
+// StartCom and WoSign root CA list is taken from
+// https://hg.mozilla.org/mozilla-central/file/tip/security/certverifier/
+// StartComAndWoSignData.inc
+#include "StartComAndWoSignData.inc"
 
 #include <errno.h>
 #include <limits.h>  // INT_MAX
@@ -120,7 +124,10 @@ const char* const root_certs[] = {
 #include "node_root_certs.h"  // NOLINT(build/include_order)
 };
 
+std::string extra_root_certs_file;  // NOLINT(runtime/string)
+
 X509_STORE* root_cert_store;
+std::vector<X509*> root_certs_vector;
 
 // Just to generate static methods
 template class SSLWrap<TLSWrap>;
@@ -402,8 +409,6 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
                                  SSL_SESS_CACHE_NO_AUTO_CLEAR);
   SSL_CTX_sess_set_get_cb(sc->ctx_, SSLWrap<Connection>::GetSessionCallback);
   SSL_CTX_sess_set_new_cb(sc->ctx_, SSLWrap<Connection>::NewSessionCallback);
-
-  sc->ca_store_ = nullptr;
 }
 
 
@@ -441,7 +446,10 @@ void SecureContext::SetKey(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (len == 2) {
-    THROW_AND_RETURN_IF_NOT_STRING(args[1], "Pass phrase");
+    if (args[1]->IsUndefined() || args[1]->IsNull())
+      len = 1;
+    else
+      THROW_AND_RETURN_IF_NOT_STRING(args[1], "Pass phrase");
   }
 
   BIO *bio = LoadBIO(env, args[0]);
@@ -672,8 +680,51 @@ void SecureContext::SetCert(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L && !defined(OPENSSL_IS_BORINGSSL)
+// This section contains OpenSSL 1.1.0 functions reimplemented for OpenSSL
+// 1.0.2 so that the following code can be written without lots of #if lines.
+
+static int X509_STORE_up_ref(X509_STORE* store) {
+  CRYPTO_add(&store->references, 1, CRYPTO_LOCK_X509_STORE);
+  return 1;
+}
+
+static int X509_up_ref(X509* cert) {
+  CRYPTO_add(&cert->references, 1, CRYPTO_LOCK_X509);
+  return 1;
+}
+#endif  // OPENSSL_VERSION_NUMBER < 0x10100000L && !OPENSSL_IS_BORINGSSL
+
+
+static X509_STORE* NewRootCertStore() {
+  if (root_certs_vector.empty()) {
+    for (size_t i = 0; i < arraysize(root_certs); i++) {
+      BIO* bp = NodeBIO::NewFixed(root_certs[i], strlen(root_certs[i]));
+      X509 *x509 = PEM_read_bio_X509(bp, nullptr, CryptoPemCallback, nullptr);
+      BIO_free(bp);
+
+      // Parse errors from the built-in roots are fatal.
+      CHECK_NE(x509, nullptr);
+
+      root_certs_vector.push_back(x509);
+    }
+  }
+
+  X509_STORE* store = X509_STORE_new();
+  if (ssl_openssl_cert_store) {
+    X509_STORE_set_default_paths(store);
+  } else {
+    for (X509 *cert : root_certs_vector) {
+      X509_up_ref(cert);
+      X509_STORE_add_cert(store, cert);
+    }
+  }
+
+  return store;
+}
+
+
 void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
-  bool newCAStore = false;
   Environment* env = Environment::GetCurrent(args);
 
   SecureContext* sc;
@@ -685,26 +736,24 @@ void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowTypeError("CA certificate argument is mandatory");
   }
 
-  if (!sc->ca_store_) {
-    sc->ca_store_ = X509_STORE_new();
-    newCAStore = true;
+  BIO* bio = LoadBIO(env, args[0]);
+  if (!bio) {
+    return;
   }
 
-  unsigned cert_count = 0;
-  if (BIO* bio = LoadBIO(env, args[0])) {
-    while (X509* x509 =
-        PEM_read_bio_X509(bio, nullptr, CryptoPemCallback, nullptr)) {
-      X509_STORE_add_cert(sc->ca_store_, x509);
-      SSL_CTX_add_client_CA(sc->ctx_, x509);
-      X509_free(x509);
-      cert_count += 1;
+  X509_STORE* cert_store = SSL_CTX_get_cert_store(sc->ctx_);
+  while (X509* x509 =
+             PEM_read_bio_X509(bio, nullptr, CryptoPemCallback, nullptr)) {
+    if (cert_store == root_cert_store) {
+      cert_store = NewRootCertStore();
+      SSL_CTX_set_cert_store(sc->ctx_, cert_store);
     }
-    BIO_free_all(bio);
+    X509_STORE_add_cert(cert_store, x509);
+    SSL_CTX_add_client_CA(sc->ctx_, x509);
+    X509_free(x509);
   }
 
-  if (cert_count > 0 && newCAStore) {
-    SSL_CTX_set_cert_store(sc->ctx_, sc->ca_store_);
-  }
+  BIO_free_all(bio);
 }
 
 
@@ -725,22 +774,61 @@ void SecureContext::AddCRL(const FunctionCallbackInfo<Value>& args) {
   if (!bio)
     return;
 
-  X509_CRL *x509 =
+  X509_CRL* crl =
       PEM_read_bio_X509_CRL(bio, nullptr, CryptoPemCallback, nullptr);
 
-  if (x509 == nullptr) {
+  if (crl == nullptr) {
     BIO_free_all(bio);
-    return;
+    return env->ThrowError("Failed to parse CRL");
   }
 
-  X509_STORE_add_crl(sc->ca_store_, x509);
-  X509_STORE_set_flags(sc->ca_store_, X509_V_FLAG_CRL_CHECK |
-                                      X509_V_FLAG_CRL_CHECK_ALL);
+  X509_STORE* cert_store = SSL_CTX_get_cert_store(sc->ctx_);
+  if (cert_store == root_cert_store) {
+    cert_store = NewRootCertStore();
+    SSL_CTX_set_cert_store(sc->ctx_, cert_store);
+  }
+
+  X509_STORE_add_crl(cert_store, crl);
+  X509_STORE_set_flags(cert_store,
+                       X509_V_FLAG_CRL_CHECK | X509_V_FLAG_CRL_CHECK_ALL);
+
   BIO_free_all(bio);
-  X509_CRL_free(x509);
+  X509_CRL_free(crl);
 }
 
 
+void UseExtraCaCerts(const std::string& file) {
+  extra_root_certs_file = file;
+}
+
+
+static unsigned long AddCertsFromFile(  // NOLINT(runtime/int)
+    X509_STORE* store,
+    const char* file) {
+  ERR_clear_error();
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+
+  BIO* bio = BIO_new_file(file, "r");
+  if (!bio) {
+    return ERR_get_error();
+  }
+
+  while (X509* x509 =
+      PEM_read_bio_X509(bio, nullptr, CryptoPemCallback, nullptr)) {
+    X509_STORE_add_cert(store, x509);
+    X509_free(x509);
+  }
+  BIO_free_all(bio);
+
+  unsigned long err = ERR_peek_error();  // NOLINT(runtime/int)
+  // Ignore error if its EOF/no start line found.
+  if (ERR_GET_LIB(err) == ERR_LIB_PEM &&
+      ERR_GET_REASON(err) == PEM_R_NO_START_LINE) {
+    return 0;
+  }
+
+  return err;
+}
 
 void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
   SecureContext* sc;
@@ -748,32 +836,25 @@ void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
   ClearErrorOnReturn clear_error_on_return;
   (void) &clear_error_on_return;  // Silence compiler warning.
 
-  CHECK_EQ(sc->ca_store_, nullptr);
-
   if (!root_cert_store) {
-    root_cert_store = X509_STORE_new();
+    root_cert_store = NewRootCertStore();
 
-    for (size_t i = 0; i < arraysize(root_certs); i++) {
-      BIO* bp = NodeBIO::NewFixed(root_certs[i], strlen(root_certs[i]));
-      if (bp == nullptr) {
-        return;
+    if (!extra_root_certs_file.empty()) {
+      unsigned long err = AddCertsFromFile(  // NOLINT(runtime/int)
+                                           root_cert_store,
+                                           extra_root_certs_file.c_str());
+      if (err) {
+        ProcessEmitWarning(sc->env(),
+                           "Ignoring extra certs from `%s`, load failed: %s\n",
+                           extra_root_certs_file.c_str(),
+                           ERR_error_string(err, nullptr));
       }
-
-      X509 *x509 = PEM_read_bio_X509(bp, nullptr, CryptoPemCallback, nullptr);
-      if (x509 == nullptr) {
-        BIO_free_all(bp);
-        return;
-      }
-
-      X509_STORE_add_cert(root_cert_store, x509);
-
-      BIO_free_all(bp);
-      X509_free(x509);
     }
   }
 
-  sc->ca_store_ = root_cert_store;
-  SSL_CTX_set_cert_store(sc->ctx_, sc->ca_store_);
+  // Increment reference count so global store is not deleted along with CTX.
+  X509_STORE_up_ref(root_cert_store);
+  SSL_CTX_set_cert_store(sc->ctx_, root_cert_store);
 }
 
 
@@ -983,6 +1064,8 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
     sc->cert_ = nullptr;
   }
 
+  X509_STORE* cert_store = SSL_CTX_get_cert_store(sc->ctx_);
+
   if (d2i_PKCS12_bio(in, &p12) &&
       PKCS12_parse(p12, pass, &pkey, &cert, &extra_certs) &&
       SSL_CTX_use_certificate_chain(sc->ctx_,
@@ -995,11 +1078,11 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
     for (int i = 0; i < sk_X509_num(extra_certs); i++) {
       X509* ca = sk_X509_value(extra_certs, i);
 
-      if (!sc->ca_store_) {
-        sc->ca_store_ = X509_STORE_new();
-        SSL_CTX_set_cert_store(sc->ctx_, sc->ca_store_);
+      if (cert_store == root_cert_store) {
+        cert_store = NewRootCertStore();
+        SSL_CTX_set_cert_store(sc->ctx_, cert_store);
       }
-      X509_STORE_add_cert(sc->ca_store_, ca);
+      X509_STORE_add_cert(cert_store, ca);
       SSL_CTX_add_client_CA(sc->ctx_, ca);
     }
     ret = true;
@@ -1070,10 +1153,14 @@ void SecureContext::SetTicketKeys(const FunctionCallbackInfo<Value>& args) {
 
 
 void SecureContext::SetFreeListLength(const FunctionCallbackInfo<Value>& args) {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L && !defined(OPENSSL_IS_BORINGSSL)
+  // |freelist_max_len| was removed in OpenSSL 1.1.0. In that version OpenSSL
+  // mallocs and frees buffers directly, without the use of a freelist.
   SecureContext* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
 
   wrap->ctx_->freelist_max_len = args[0]->Int32Value();
+#endif
 }
 
 
@@ -1095,7 +1182,7 @@ int SecureContext::TicketKeyCallback(SSL* ssl,
   static const int kTicketPartSize = 16;
 
   SecureContext* sc = static_cast<SecureContext*>(
-      SSL_CTX_get_app_data(ssl->ctx));
+      SSL_CTX_get_app_data(SSL_get_SSL_CTX(ssl)));
 
   Environment* env = sc->env();
   HandleScope handle_scope(env->isolate());
@@ -1459,9 +1546,14 @@ static Local<Object> X509ToObject(Environment* env, X509* cert) {
                                     String::kNormalString, mem->length));
       (void) BIO_reset(bio);
 
-      BN_ULONG exponent_word = BN_get_word(rsa->e);
-      BIO_printf(bio, "0x%lx", exponent_word);
-
+      uint64_t exponent_word = static_cast<uint64_t>(BN_get_word(rsa->e));
+      uint32_t lo = static_cast<uint32_t>(exponent_word);
+      uint32_t hi = static_cast<uint32_t>(exponent_word >> 32);
+      if (hi == 0) {
+          BIO_printf(bio, "0x%x", lo);
+      } else {
+          BIO_printf(bio, "0x%x%08x", hi, lo);
+      }
       BIO_get_mem_ptr(bio, &mem);
       info->Set(env->exponent_string(),
                 String::NewFromUtf8(env->isolate(), mem->data,
@@ -1632,7 +1724,7 @@ void SSLWrap<Base>::GetPeerCertificate(
   // Last certificate should be self-signed
   while (X509_check_issued(cert, cert) != X509_V_OK) {
     X509* ca;
-    if (SSL_CTX_get_issuer(w->ssl_->ctx, cert, &ca) <= 0)
+    if (SSL_CTX_get_issuer(SSL_get_SSL_CTX(w->ssl_), cert, &ca) <= 0)
       break;
 
     Local<Object> ca_info = X509ToObject(env, ca);
@@ -1734,17 +1826,6 @@ void SSLWrap<Base>::LoadSession(const FunctionCallbackInfo<Value>& args) {
     if (w->next_sess_ != nullptr)
       SSL_SESSION_free(w->next_sess_);
     w->next_sess_ = sess;
-
-    Local<Object> info = Object::New(env->isolate());
-#ifndef OPENSSL_NO_TLSEXT
-    if (sess->tlsext_hostname == nullptr) {
-      info->Set(env->servername_string(), False(args.GetIsolate()));
-    } else {
-      info->Set(env->servername_string(),
-                OneByteString(args.GetIsolate(), sess->tlsext_hostname));
-    }
-#endif
-    args.GetReturnValue().Set(info);
   }
 }
 
@@ -2238,7 +2319,8 @@ void SSLWrap<Base>::SetALPNProtocols(
           env->alpn_buffer_private_symbol(),
           args[0]).FromJust());
     // Server should select ALPN protocol from list of advertised by client
-    SSL_CTX_set_alpn_select_cb(w->ssl_->ctx, SelectALPNCallback, nullptr);
+    SSL_CTX_set_alpn_select_cb(SSL_get_SSL_CTX(w->ssl_), SelectALPNCallback,
+                               nullptr);
   }
 #endif  // TLSEXT_TYPE_application_layer_protocol_negotiation
 }
@@ -2279,8 +2361,7 @@ int SSLWrap<Base>::TLSExtStatusCallback(SSL* s, void* arg) {
     size_t len = Buffer::Length(obj);
 
     // OpenSSL takes control of the pointer after accepting it
-    char* data = reinterpret_cast<char*>(node::Malloc(len));
-    CHECK_NE(data, nullptr);
+    char* data = node::Malloc(len);
     memcpy(data, resp, len);
 
     if (!SSL_set_tlsext_status_ocsp_resp(s, data, len))
@@ -2320,18 +2401,13 @@ int SSLWrap<Base>::SSLCertCallback(SSL* s, void* arg) {
 
   Local<Object> info = Object::New(env->isolate());
 
-  SSL_SESSION* sess = SSL_get_session(s);
-  if (sess != nullptr) {
-    if (sess->tlsext_hostname == nullptr) {
-      info->Set(env->servername_string(), String::Empty(env->isolate()));
-    } else {
-      Local<String> servername = OneByteString(env->isolate(),
-                                               sess->tlsext_hostname,
-                                               strlen(sess->tlsext_hostname));
-      info->Set(env->servername_string(), servername);
-    }
-    info->Set(env->tls_ticket_string(),
-              Boolean::New(env->isolate(), sess->tlsext_ticklen != 0));
+  const char* servername = SSL_get_servername(s, TLSEXT_NAMETYPE_host_name);
+  if (servername == nullptr) {
+    info->Set(env->servername_string(), String::Empty(env->isolate()));
+  } else {
+    Local<String> str = OneByteString(env->isolate(), servername,
+                                      strlen(servername));
+    info->Set(env->servername_string(), str);
   }
 
   bool ocsp = false;
@@ -2678,9 +2754,40 @@ inline X509* FindRoot(STACK_OF(X509)* sk) {
 }
 
 
-// Whitelist check for certs issued by CNNIC. See
+inline bool CertIsStartComOrWoSign(X509_NAME* name) {
+  const unsigned char* startcom_wosign_data;
+  X509_NAME* startcom_wosign_name;
+
+  for (const auto& dn : StartComAndWoSignDNs) {
+    startcom_wosign_data = dn.data;
+    startcom_wosign_name = d2i_X509_NAME(nullptr, &startcom_wosign_data,
+                                         dn.len);
+    if (X509_NAME_cmp(name, startcom_wosign_name) == 0)
+      return true;
+  }
+
+  return false;
+}
+
+// Revoke the certificates issued by StartCom or WoSign that has
+// notBefore after 00:00:00 on October 21, 2016 (1477008000 in epoch).
+inline bool CheckStartComOrWoSign(X509_NAME* root_name, X509* cert) {
+  if (!CertIsStartComOrWoSign(root_name))
+    return true;
+
+  time_t october_21_2016 = static_cast<time_t>(1477008000);
+  if (X509_cmp_time(X509_get_notBefore(cert), &october_21_2016) < 0)
+    return true;
+
+  return false;
+}
+
+
+// Whitelist check for certs issued by CNNIC, StartCom and WoSign. See
 // https://blog.mozilla.org/security/2015/04/02
-// /distrusting-new-cnnic-certificates/
+// /distrusting-new-cnnic-certificates/ and
+// https://blog.mozilla.org/security/2016/10/24/
+// distrusting-new-wosign-and-startcom-certificates
 inline CheckResult CheckWhitelistedServerCert(X509_STORE_CTX* ctx) {
   unsigned char hash[CNNIC_WHITELIST_HASH_LEN];
   unsigned int hashlen = CNNIC_WHITELIST_HASH_LEN;
@@ -2699,11 +2806,14 @@ inline CheckResult CheckWhitelistedServerCert(X509_STORE_CTX* ctx) {
     root_name = X509_get_subject_name(root_cert);
   }
 
+  X509* leaf_cert = sk_X509_value(chain, 0);
+  if (!CheckStartComOrWoSign(root_name, leaf_cert))
+    return CHECK_CERT_REVOKED;
+
   // When the cert is issued from either CNNNIC ROOT CA or CNNNIC EV
   // ROOT CA, check a hash of its leaf cert if it is in the whitelist.
   if (X509_NAME_cmp(root_name, cnnic_name) == 0 ||
       X509_NAME_cmp(root_name, cnnic_ev_name) == 0) {
-    X509* leaf_cert = sk_X509_value(chain, 0);
     int ret = X509_digest(leaf_cert, EVP_sha256(), hash,
                           &hashlen);
     CHECK(ret);
@@ -3258,11 +3368,10 @@ void CipherBase::InitIv(const char* cipher_type,
     return env()->ThrowError("Unknown cipher");
   }
 
-  /* OpenSSL versions up to 0.9.8l failed to return the correct
-     iv_length (0) for ECB ciphers */
-  if (EVP_CIPHER_iv_length(cipher_) != iv_len &&
-      !(EVP_CIPHER_mode(cipher_) == EVP_CIPH_ECB_MODE && iv_len == 0) &&
-      !(EVP_CIPHER_mode(cipher_) == EVP_CIPH_GCM_MODE) && iv_len > 0) {
+  const int expected_iv_len = EVP_CIPHER_iv_length(cipher_);
+  const bool is_gcm_mode = (EVP_CIPH_GCM_MODE == EVP_CIPHER_mode(cipher_));
+
+  if (is_gcm_mode == false && iv_len != expected_iv_len) {
     return env()->ThrowError("Invalid IV length");
   }
 
@@ -3270,13 +3379,10 @@ void CipherBase::InitIv(const char* cipher_type,
   const bool encrypt = (kind_ == kCipher);
   EVP_CipherInit_ex(&ctx_, cipher_, nullptr, nullptr, nullptr, encrypt);
 
-  /* Set IV length. Only required if GCM cipher and IV is not default iv. */
-  if (EVP_CIPHER_mode(cipher_) == EVP_CIPH_GCM_MODE &&
-      iv_len != EVP_CIPHER_iv_length(cipher_)) {
-    if (!EVP_CIPHER_CTX_ctrl(&ctx_, EVP_CTRL_GCM_SET_IVLEN, iv_len, nullptr)) {
-      EVP_CIPHER_CTX_cleanup(&ctx_);
-      return env()->ThrowError("Invalid IV length");
-    }
+  if (is_gcm_mode &&
+      !EVP_CIPHER_CTX_ctrl(&ctx_, EVP_CTRL_GCM_SET_IVLEN, iv_len, nullptr)) {
+    EVP_CIPHER_CTX_cleanup(&ctx_);
+    return env()->ThrowError("Invalid IV length");
   }
 
   if (!EVP_CIPHER_CTX_set_key_length(&ctx_, key_len)) {
@@ -3330,8 +3436,7 @@ bool CipherBase::GetAuthTag(char** out, unsigned int* out_len) const {
   if (initialised_ || kind_ != kCipher || !auth_tag_)
     return false;
   *out_len = auth_tag_len_;
-  *out = static_cast<char*>(node::Malloc(auth_tag_len_));
-  CHECK_NE(*out, nullptr);
+  *out = node::Malloc(auth_tag_len_);
   memcpy(*out, auth_tag_, auth_tag_len_);
   return true;
 }
@@ -3368,15 +3473,12 @@ bool CipherBase::SetAuthTag(const char* data, unsigned int len) {
 void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  Local<Object> buf = args[0].As<Object>();
-
-  if (!buf->IsObject() || !Buffer::HasInstance(buf))
-    return env->ThrowTypeError("Auth tag must be a Buffer");
+  THROW_AND_RETURN_IF_NOT_BUFFER(args[0], "Auth tag");
 
   CipherBase* cipher;
   ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
 
-  if (!cipher->SetAuthTag(Buffer::Data(buf), Buffer::Length(buf)))
+  if (!cipher->SetAuthTag(Buffer::Data(args[0]), Buffer::Length(args[0])))
     env->ThrowError("Attempting to set auth tag in unsupported state");
 }
 
@@ -3485,9 +3587,13 @@ bool CipherBase::SetAutoPadding(bool auto_padding) {
 
 
 void CipherBase::SetAutoPadding(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
   CipherBase* cipher;
   ASSIGN_OR_RETURN_UNWRAP(&cipher, args.Holder());
-  cipher->SetAutoPadding(args.Length() < 1 || args[0]->BooleanValue());
+
+  if (!cipher->SetAutoPadding(args.Length() < 1 || args[0]->BooleanValue()))
+    env->ThrowError("Attempting to set auto padding in unsupported state");
 }
 
 
@@ -3615,8 +3721,8 @@ void Hmac::HmacInit(const FunctionCallbackInfo<Value>& args) {
 bool Hmac::HmacUpdate(const char* data, int len) {
   if (!initialised_)
     return false;
-  HMAC_Update(&ctx_, reinterpret_cast<const unsigned char*>(data), len);
-  return true;
+  int r = HMAC_Update(&ctx_, reinterpret_cast<const unsigned char*>(data), len);
+  return r == 1;
 }
 
 
@@ -4906,8 +5012,7 @@ void ECDH::ComputeSecret(const FunctionCallbackInfo<Value>& args) {
   // NOTE: field_size is in bits
   int field_size = EC_GROUP_get_degree(ecdh->group_);
   size_t out_len = (field_size + 7) / 8;
-  char* out = static_cast<char*>(node::Malloc(out_len));
-  CHECK_NE(out, nullptr);
+  char* out = node::Malloc(out_len);
 
   int r = ECDH_compute_key(out, out_len, pub, ecdh->key_, nullptr);
   EC_POINT_free(pub);
@@ -4942,8 +5047,7 @@ void ECDH::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
   if (size == 0)
     return env->ThrowError("Failed to get public key length");
 
-  unsigned char* out = static_cast<unsigned char*>(node::Malloc(size));
-  CHECK_NE(out, nullptr);
+  unsigned char* out = node::Malloc<unsigned char>(size);
 
   int r = EC_POINT_point2oct(ecdh->group_, pub, form, out, size, nullptr);
   if (r != size) {
@@ -4968,8 +5072,7 @@ void ECDH::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("Failed to get ECDH private key");
 
   int size = BN_num_bytes(b);
-  unsigned char* out = static_cast<unsigned char*>(node::Malloc(size));
-  CHECK_NE(out, nullptr);
+  unsigned char* out = node::Malloc<unsigned char>(size);
 
   if (size != BN_bn2bin(b, out)) {
     free(out);
@@ -5099,10 +5202,8 @@ class PBKDF2Request : public AsyncWrap {
         saltlen_(saltlen),
         salt_(salt),
         keylen_(keylen),
-        key_(static_cast<char*>(node::Malloc(keylen))),
+        key_(node::Malloc(keylen)),
         iter_(iter) {
-    if (key() == nullptr)
-      FatalError("node::PBKDF2Request()", "Out of Memory");
     Wrap(object, this);
   }
 
@@ -5262,10 +5363,7 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
 
   THROW_AND_RETURN_IF_NOT_BUFFER(args[1], "Salt");
 
-  pass = static_cast<char*>(node::Malloc(passlen));
-  if (pass == nullptr) {
-    FatalError("node::PBKDF2()", "Out of Memory");
-  }
+  pass = node::Malloc(passlen);
   memcpy(pass, Buffer::Data(args[0]), passlen);
 
   saltlen = Buffer::Length(args[1]);
@@ -5274,10 +5372,7 @@ void PBKDF2(const FunctionCallbackInfo<Value>& args) {
     goto err;
   }
 
-  salt = static_cast<char*>(node::Malloc(saltlen));
-  if (salt == nullptr) {
-    FatalError("node::PBKDF2()", "Out of Memory");
-  }
+  salt = node::Malloc(saltlen);
   memcpy(salt, Buffer::Data(args[1]), saltlen);
 
   if (!args[2]->IsNumber()) {
@@ -5367,9 +5462,7 @@ class RandomBytesRequest : public AsyncWrap {
       : AsyncWrap(env, object, AsyncWrap::PROVIDER_CRYPTO),
         error_(0),
         size_(size),
-        data_(static_cast<char*>(node::Malloc(size))) {
-    if (data() == nullptr)
-      FatalError("node::RandomBytesRequest()", "Out of Memory");
+        data_(node::Malloc(size)) {
     Wrap(object, this);
   }
 
@@ -5592,13 +5685,9 @@ void GetCurves(const FunctionCallbackInfo<Value>& args) {
   const size_t num_curves = EC_get_builtin_curves(nullptr, 0);
   Local<Array> arr = Array::New(env->isolate(), num_curves);
   EC_builtin_curve* curves;
-  size_t alloc_size;
 
   if (num_curves) {
-    alloc_size = sizeof(*curves) * num_curves;
-    curves = static_cast<EC_builtin_curve*>(node::Malloc(alloc_size));
-
-    CHECK_NE(curves, nullptr);
+    curves = node::Malloc<EC_builtin_curve>(num_curves);
 
     if (EC_get_builtin_curves(curves, num_curves)) {
       for (size_t i = 0; i < num_curves; i++) {
@@ -5789,10 +5878,31 @@ void TimingSafeEqual(const FunctionCallbackInfo<Value>& args) {
 }
 
 void InitCryptoOnce() {
-  OPENSSL_config(NULL);
+  SSL_load_error_strings();
+  OPENSSL_no_config();
+
+  // --openssl-config=...
+  if (!openssl_config.empty()) {
+    OPENSSL_load_builtin_modules();
+#ifndef OPENSSL_NO_ENGINE
+    ENGINE_load_builtin_engines();
+#endif
+    ERR_clear_error();
+    CONF_modules_load_file(
+        openssl_config.c_str(),
+        nullptr,
+        CONF_MFLAGS_DEFAULT_SECTION);
+    int err = ERR_get_error();
+    if (0 != err) {
+      fprintf(stderr,
+              "openssl config failed: %s\n",
+              ERR_error_string(err, NULL));
+      CHECK_NE(err, 0);
+    }
+  }
+
   SSL_library_init();
   OpenSSL_add_all_algorithms();
-  SSL_load_error_strings();
 
   crypto_lock_init();
   CRYPTO_set_locking_callback(crypto_lock_cb);

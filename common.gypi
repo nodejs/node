@@ -188,6 +188,10 @@
         'BufferSecurityCheck': 'true',
         'ExceptionHandling': 0, # /EHsc
         'SuppressStartupBanner': 'true',
+        # Disable "warning C4267: conversion from 'size_t' to 'int',
+        # possible loss of data".  Many originate from our dependencies
+        # and their sheer number drowns out other, more legitimate warnings.
+        'DisableSpecificWarnings': ['4267'],
         'WarnAsError': 'false',
       },
       'VCLibrarianTool': {
@@ -277,6 +281,9 @@
           # The 1990s toolchain on SmartOS can't handle thin archives.
           ['_type=="static_library" and OS=="solaris"', {
             'standalone_static_library': 1,
+          }],
+          ['OS=="openbsd"', {
+            'ldflags': [ '-Wl,-z,wxneeded' ],
           }],
         ],
         'conditions': [

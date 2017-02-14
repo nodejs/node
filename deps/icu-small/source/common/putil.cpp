@@ -1,7 +1,9 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 *
-*   Copyright (C) 1997-2015, International Business Machines
+*   Copyright (C) 1997-2016, International Business Machines
 *   Corporation and others.  All Rights Reserved.
 *
 ******************************************************************************
@@ -832,7 +834,6 @@ static const char* remapShortTimeZone(const char *stdID, const char *dstID, int3
 #endif
 
 #ifdef SEARCH_TZFILE
-#define MAX_PATH_SIZE PATH_MAX /* Set the limit for the size of the path. */
 #define MAX_READ_SIZE 512
 
 typedef struct DefaultTZInfo {
@@ -908,15 +909,19 @@ static UBool compareBinaryFiles(const char* defaultTZFileName, const char* TZFil
 
     return result;
 }
-/*
- * This method recursively traverses the directory given for a matching TZ file and returns the first match.
- */
+
+
 /* dirent also lists two entries: "." and ".." that we can safely ignore. */
 #define SKIP1 "."
 #define SKIP2 ".."
-static char SEARCH_TZFILE_RESULT[MAX_PATH_SIZE] = "";
+static UBool U_CALLCONV putil_cleanup(void);
+static CharString *gSearchTZFileResult = NULL;
+
+/*
+ * This method recursively traverses the directory given for a matching TZ file and returns the first match.
+ * This function is not thread safe - it uses a global, gSearchTZFileResult, to hold its results.
+ */
 static char* searchForTZFile(const char* path, DefaultTZInfo* tzInfo) {
-    char curpath[MAX_PATH_SIZE];
     DIR* dirp = opendir(path);
     DIR* subDirp = NULL;
     struct dirent* dirEntry = NULL;
@@ -926,24 +931,40 @@ static char* searchForTZFile(const char* path, DefaultTZInfo* tzInfo) {
         return result;
     }
 
+    if (gSearchTZFileResult == NULL) {
+        gSearchTZFileResult = new CharString;
+        if (gSearchTZFileResult == NULL) {
+            return NULL;
+        }
+        ucln_common_registerCleanup(UCLN_COMMON_PUTIL, putil_cleanup);
+    }
+
     /* Save the current path */
-    uprv_memset(curpath, 0, MAX_PATH_SIZE);
-    uprv_strcpy(curpath, path);
+    UErrorCode status = U_ZERO_ERROR;
+    CharString curpath(path, -1, status);
+    if (U_FAILURE(status)) {
+        return NULL;
+    }
 
     /* Check each entry in the directory. */
     while((dirEntry = readdir(dirp)) != NULL) {
         const char* dirName = dirEntry->d_name;
         if (uprv_strcmp(dirName, SKIP1) != 0 && uprv_strcmp(dirName, SKIP2) != 0) {
             /* Create a newpath with the new entry to test each entry in the directory. */
-            char newpath[MAX_PATH_SIZE];
-            uprv_strcpy(newpath, curpath);
-            uprv_strcat(newpath, dirName);
+            CharString newpath(curpath, status);
+            newpath.append(dirName, -1, status);
+            if (U_FAILURE(status)) {
+                return NULL;
+            }
 
-            if ((subDirp = opendir(newpath)) != NULL) {
+            if ((subDirp = opendir(newpath.data())) != NULL) {
                 /* If this new path is a directory, make a recursive call with the newpath. */
                 closedir(subDirp);
-                uprv_strcat(newpath, "/");
-                result = searchForTZFile(newpath, tzInfo);
+                newpath.append('/', status);
+                if (U_FAILURE(status)) {
+                    return NULL;
+                }
+                result = searchForTZFile(newpath.data(), tzInfo);
                 /*
                  Have to get out here. Otherwise, we'd keep looking
                  and return the first match in the top-level directory
@@ -955,11 +976,19 @@ static char* searchForTZFile(const char* path, DefaultTZInfo* tzInfo) {
                 if (result != NULL)
                     break;
             } else if (uprv_strcmp(TZFILE_SKIP, dirName) != 0 && uprv_strcmp(TZFILE_SKIP2, dirName) != 0) {
-                if(compareBinaryFiles(TZDEFAULT, newpath, tzInfo)) {
-                    const char* zoneid = newpath + (sizeof(TZZONEINFO)) - 1;
+                if(compareBinaryFiles(TZDEFAULT, newpath.data(), tzInfo)) {
+                    int32_t amountToSkip = sizeof(TZZONEINFO) - 1;
+                    if (amountToSkip > newpath.length()) {
+                        amountToSkip = newpath.length();
+                    }
+                    const char* zoneid = newpath.data() + amountToSkip;
                     skipZoneIDPrefix(&zoneid);
-                    uprv_strcpy(SEARCH_TZFILE_RESULT, zoneid);
-                    result = SEARCH_TZFILE_RESULT;
+                    gSearchTZFileResult->clear();
+                    gSearchTZFileResult->append(zoneid, -1, status);
+                    if (U_FAILURE(status)) {
+                        return NULL;
+                    }
+                    result = gSearchTZFileResult->data();
                     /* Get out after the first one found. */
                     break;
                 }
@@ -970,6 +999,15 @@ static char* searchForTZFile(const char* path, DefaultTZInfo* tzInfo) {
     return result;
 }
 #endif
+
+U_CAPI void U_EXPORT2
+uprv_tzname_clear_cache()
+{
+#if defined(CHECK_LOCALTIME_LINK) && !defined(DEBUG_SKIP_LOCALTIME_LINK)
+    gTimeZoneBufferPtr = NULL;
+#endif
+}
+
 U_CAPI const char* U_EXPORT2
 uprv_tzname(int n)
 {
@@ -1019,7 +1057,7 @@ uprv_tzname(int n)
         because the tzfile contents is underspecified.
         This isn't guaranteed to work because it may not be a symlink.
         */
-        int32_t ret = (int32_t)readlink(TZDEFAULT, gTimeZoneBuffer, sizeof(gTimeZoneBuffer));
+        int32_t ret = (int32_t)readlink(TZDEFAULT, gTimeZoneBuffer, sizeof(gTimeZoneBuffer)-1);
         if (0 < ret) {
             int32_t tzZoneInfoLen = uprv_strlen(TZZONEINFO);
             gTimeZoneBuffer[ret] = 0;
@@ -1138,6 +1176,11 @@ static UBool U_CALLCONV putil_cleanup(void)
     delete gTimeZoneFilesDirectory;
     gTimeZoneFilesDirectory = NULL;
     gTimeZoneFilesInitOnce.reset();
+
+#ifdef SEARCH_TZFILE
+    delete gSearchTZFileResult;
+    gSearchTZFileResult = NULL;
+#endif
 
 #if U_POSIX_LOCALE || U_PLATFORM_USES_ONLY_WIN32_API
     if (gCorrectedPOSIXLocale) {

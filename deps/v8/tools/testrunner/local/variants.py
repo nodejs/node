@@ -13,6 +13,7 @@ ALL_VARIANT_FLAGS = {
   "ignition_staging": [["--ignition-staging"]],
   "ignition_turbofan": [["--ignition-staging", "--turbo"]],
   "preparser": [["--min-preparse-length=0"]],
+  "asm_wasm": [["--validate-asm"]],
 }
 
 # FAST_VARIANTS implies no --always-opt.
@@ -25,8 +26,9 @@ FAST_VARIANT_FLAGS = {
   "ignition_staging": [["--ignition-staging"]],
   "ignition_turbofan": [["--ignition-staging", "--turbo"]],
   "preparser": [["--min-preparse-length=0"]],
+  "asm_wasm": [["--validate-asm"]],
 }
 
 ALL_VARIANTS = set(["default", "stress", "turbofan", "turbofan_opt",
                     "nocrankshaft", "ignition", "ignition_staging",
-                    "ignition_turbofan", "preparser"])
+                    "ignition_turbofan", "preparser", "asm_wasm"])

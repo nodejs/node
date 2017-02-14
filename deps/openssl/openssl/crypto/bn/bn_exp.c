@@ -180,8 +180,9 @@ int BN_exp(BIGNUM *r, const BIGNUM *a, const BIGNUM *p, BN_CTX *ctx)
                 goto err;
         }
     }
-    if (r != rr)
-        BN_copy(r, rr);
+    if (r != rr && BN_copy(r, rr) == NULL)
+        goto err;
+
     ret = 1;
  err:
     BN_CTX_end(ctx);

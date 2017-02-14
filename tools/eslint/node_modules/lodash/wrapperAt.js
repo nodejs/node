@@ -1,8 +1,7 @@
 var LazyWrapper = require('./_LazyWrapper'),
     LodashWrapper = require('./_LodashWrapper'),
     baseAt = require('./_baseAt'),
-    baseFlatten = require('./_baseFlatten'),
-    baseRest = require('./_baseRest'),
+    flatRest = require('./_flatRest'),
     isIndex = require('./_isIndex'),
     thru = require('./thru');
 
@@ -13,7 +12,7 @@ var LazyWrapper = require('./_LazyWrapper'),
  * @memberOf _
  * @since 1.0.0
  * @category Seq
- * @param {...(string|string[])} [paths] The property paths of elements to pick.
+ * @param {...(string|string[])} [paths] The property paths to pick.
  * @returns {Object} Returns the new `lodash` wrapper instance.
  * @example
  *
@@ -22,8 +21,7 @@ var LazyWrapper = require('./_LazyWrapper'),
  * _(object).at(['a[0].b.c', 'a[1]']).value();
  * // => [3, 4]
  */
-var wrapperAt = baseRest(function(paths) {
-  paths = baseFlatten(paths, 1);
+var wrapperAt = flatRest(function(paths) {
   var length = paths.length,
       start = length ? paths[0] : 0,
       value = this.__wrapped__,

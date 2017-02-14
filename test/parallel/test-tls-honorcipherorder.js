@@ -1,27 +1,27 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var fs = require('fs');
-var nconns = 0;
+const fs = require('fs');
+let nconns = 0;
 
 // We explicitly set TLS version to 1.2 so as to be safe when the
 // default method is updated in the future
-var SSL_Method = 'TLSv1_2_method';
-var localhost = '127.0.0.1';
+const SSL_Method = 'TLSv1_2_method';
+const localhost = '127.0.0.1';
 
 process.on('exit', function() {
-  assert.equal(nconns, 6);
+  assert.strictEqual(nconns, 6);
 });
 
 function test(honorCipherOrder, clientCipher, expectedCipher, cb) {
-  var soptions = {
+  const soptions = {
     secureProtocol: SSL_Method,
     key: fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem'),
     cert: fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem'),
@@ -30,7 +30,7 @@ function test(honorCipherOrder, clientCipher, expectedCipher, cb) {
     honorCipherOrder: !!honorCipherOrder
   };
 
-  var server = tls.createServer(soptions, function(cleartextStream) {
+  const server = tls.createServer(soptions, function(cleartextStream) {
     nconns++;
 
     // End socket to send CLOSE_NOTIFY and TCP FIN packet, otherwise
@@ -38,7 +38,7 @@ function test(honorCipherOrder, clientCipher, expectedCipher, cb) {
     cleartextStream.end();
   });
   server.listen(0, localhost, function() {
-    var coptions = {
+    const coptions = {
       rejectUnauthorized: false,
       secureProtocol: SSL_Method
     };
@@ -46,11 +46,11 @@ function test(honorCipherOrder, clientCipher, expectedCipher, cb) {
       coptions.ciphers = clientCipher;
     }
     const port = this.address().port;
-    var client = tls.connect(port, localhost, coptions, function() {
-      var cipher = client.getCipher();
+    const client = tls.connect(port, localhost, coptions, function() {
+      const cipher = client.getCipher();
       client.end();
       server.close();
-      assert.equal(cipher.name, expectedCipher);
+      assert.strictEqual(cipher.name, expectedCipher);
       if (cb) cb();
     });
   });

@@ -289,11 +289,13 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
     if (nfds == 0) {
       assert(timeout != -1);
 
-      timeout = real_timeout - timeout;
-      if (timeout > 0)
-        continue;
+      if (timeout == 0)
+        return;
 
-      return;
+      /* We may have been inside the system call for longer than |timeout|
+       * milliseconds so we need to update the timestamp to avoid drift.
+       */
+      goto update_timeout;
     }
 
     if (nfds == -1) {
@@ -484,12 +486,20 @@ int uv_exepath(char* buffer, size_t* size) {
 
 
 uint64_t uv_get_free_memory(void) {
-  return (uint64_t) sysconf(_SC_PAGESIZE) * sysconf(_SC_AVPHYS_PAGES);
+  struct sysinfo info;
+
+  if (sysinfo(&info) == 0)
+    return (uint64_t) info.freeram * info.mem_unit;
+  return 0;
 }
 
 
 uint64_t uv_get_total_memory(void) {
-  return (uint64_t) sysconf(_SC_PAGESIZE) * sysconf(_SC_PHYS_PAGES);
+  struct sysinfo info;
+
+  if (sysinfo(&info) == 0)
+    return (uint64_t) info.totalram * info.mem_unit;
+  return 0;
 }
 
 

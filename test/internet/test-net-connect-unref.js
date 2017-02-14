@@ -1,14 +1,13 @@
 'use strict';
 const common = require('../common');
-var net = require('net');
+const net = require('net');
 
-var client;
-var TIMEOUT = 10 * 1000;
+const TIMEOUT = 10 * 1000;
 
-client = net.createConnection(53, '8.8.8.8', function() {
+const client = net.createConnection(53, '8.8.8.8', function() {
   client.unref();
 });
 
-client.on('close', common.fail);
+client.on('close', common.mustNotCall());
 
-setTimeout(common.fail, TIMEOUT).unref();
+setTimeout(common.mustNotCall(), TIMEOUT).unref();

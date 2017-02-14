@@ -18,47 +18,56 @@ const IdGenerator = require("./id-generator");
 
 /**
  * A code path.
- *
- * @constructor
- * @param {string} id - An identifier.
- * @param {CodePath|null} upper - The code path of the upper function scope.
- * @param {Function} onLooped - A callback function to notify looping.
  */
-function CodePath(id, upper, onLooped) {
+class CodePath {
 
     /**
-     * The identifier of this code path.
-     * Rules use it to store additional information of each rule.
-     * @type {string}
+     * @param {string} id - An identifier.
+     * @param {CodePath|null} upper - The code path of the upper function scope.
+     * @param {Function} onLooped - A callback function to notify looping.
      */
-    this.id = id;
+    constructor(id, upper, onLooped) {
 
-    /**
-     * The code path of the upper function scope.
-     * @type {CodePath|null}
-     */
-    this.upper = upper;
+        /**
+         * The identifier of this code path.
+         * Rules use it to store additional information of each rule.
+         * @type {string}
+         */
+        this.id = id;
 
-    /**
-     * The code paths of nested function scopes.
-     * @type {CodePath[]}
-     */
-    this.childCodePaths = [];
+        /**
+         * The code path of the upper function scope.
+         * @type {CodePath|null}
+         */
+        this.upper = upper;
 
-    // Initializes internal state.
-    Object.defineProperty(
-        this,
-        "internal",
-        {value: new CodePathState(new IdGenerator(id + "_"), onLooped)});
+        /**
+         * The code paths of nested function scopes.
+         * @type {CodePath[]}
+         */
+        this.childCodePaths = [];
 
-    // Adds this into `childCodePaths` of `upper`.
-    if (upper) {
-        upper.childCodePaths.push(this);
+        // Initializes internal state.
+        Object.defineProperty(
+            this,
+            "internal",
+            { value: new CodePathState(new IdGenerator(`${id}_`), onLooped) });
+
+        // Adds this into `childCodePaths` of `upper`.
+        if (upper) {
+            upper.childCodePaths.push(this);
+        }
     }
-}
 
-CodePath.prototype = {
-    constructor: CodePath,
+    /**
+     * Gets the state of a given code path.
+     *
+     * @param {CodePath} codePath - A code path to get.
+     * @returns {CodePathState} The state of the code path.
+     */
+    static getState(codePath) {
+        return codePath.internal;
+    }
 
     /**
      * The initial code path segment.
@@ -66,7 +75,7 @@ CodePath.prototype = {
      */
     get initialSegment() {
         return this.internal.initialSegment;
-    },
+    }
 
     /**
      * Final code path segments.
@@ -75,7 +84,7 @@ CodePath.prototype = {
      */
     get finalSegments() {
         return this.internal.finalSegments;
-    },
+    }
 
     /**
      * Final code path segments which is with `return` statements.
@@ -85,7 +94,7 @@ CodePath.prototype = {
      */
     get returnedSegments() {
         return this.internal.returnedForkContext;
-    },
+    }
 
     /**
      * Final code path segments which is with `throw` statements.
@@ -93,7 +102,7 @@ CodePath.prototype = {
      */
     get thrownSegments() {
         return this.internal.thrownForkContext;
-    },
+    }
 
     /**
      * Current code path segments.
@@ -101,7 +110,7 @@ CodePath.prototype = {
      */
     get currentSegments() {
         return this.internal.currentSegments;
-    },
+    }
 
     /**
      * Traverses all segments in this code path.
@@ -219,16 +228,6 @@ CodePath.prototype = {
             }
         }
     }
-};
-
-/**
- * Gets the state of a given code path.
- *
- * @param {CodePath} codePath - A code path to get.
- * @returns {CodePathState} The state of the code path.
- */
-CodePath.getState = function getState(codePath) {
-    return codePath.internal;
-};
+}
 
 module.exports = CodePath;

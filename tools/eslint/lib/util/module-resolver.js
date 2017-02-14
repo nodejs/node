@@ -30,18 +30,18 @@ const DEFAULT_OPTIONS = {
 
 /**
  * Resolves modules based on a set of options.
- * @param {Object} options The options for resolving modules.
- * @param {string[]} options.lookupPaths An array of paths to include in the
- *      lookup with the highest priority paths coming first.
- * @constructor
  */
-function ModuleResolver(options) {
-    options = options || {};
+class ModuleResolver {
 
-    this.options = Object.assign({}, DEFAULT_OPTIONS, options);
-}
-
-ModuleResolver.prototype = {
+    /**
+     * Resolves modules based on a set of options.
+     * @param {Object} options The options for resolving modules.
+     * @param {string[]} options.lookupPaths An array of paths to include in the
+     *      lookup with the highest priority paths coming first.
+     */
+    constructor(options) {
+        this.options = Object.assign({}, DEFAULT_OPTIONS, options || {});
+    }
 
     /**
      * Resolves the file location of a given module relative to the configured
@@ -71,14 +71,12 @@ ModuleResolver.prototype = {
         const result = Module._findPath(name, lookupPaths);   // eslint-disable-line no-underscore-dangle
 
         if (!result) {
-            throw new Error("Cannot find module '" + name + "'");
+            throw new Error(`Cannot find module '${name}'`);
         }
 
         return result;
-
     }
-
-};
+}
 
 //------------------------------------------------------------------------------
 // Public API

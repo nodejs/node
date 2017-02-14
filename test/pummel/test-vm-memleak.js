@@ -2,23 +2,23 @@
 // Flags: --max_old_space_size=32
 
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var start = Date.now();
-var maxMem = 0;
+const start = Date.now();
+let maxMem = 0;
 
-var ok = process.execArgv.some(function(arg) {
+const ok = process.execArgv.some(function(arg) {
   return arg === '--max_old_space_size=32';
 });
 assert(ok, 'Run this test with --max_old_space_size=32.');
 
-var interval = setInterval(function() {
+const interval = setInterval(function() {
   try {
     require('vm').runInNewContext('throw 1;');
   } catch (e) {
   }
 
-  var rss = process.memoryUsage().rss;
+  const rss = process.memoryUsage().rss;
   maxMem = Math.max(rss, maxMem);
 
   if (Date.now() - start > 5 * 1000) {
@@ -30,7 +30,7 @@ var interval = setInterval(function() {
 }, 1);
 
 function testContextLeak() {
-  for (var i = 0; i < 1000; i++)
+  for (let i = 0; i < 1000; i++)
     require('vm').createContext({});
 }
 

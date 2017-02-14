@@ -11,6 +11,7 @@
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/full-codegen/full-codegen.h"
+#include "src/interpreter/bytecode-array-iterator.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
 #include "src/v8threads.h"
@@ -172,6 +173,17 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
 
   DCHECK(optimized_code->kind() == Code::OPTIMIZED_FUNCTION);
   DCHECK(type == deoptimizer->bailout_type());
+  DCHECK_NULL(isolate->context());
+
+  // TODO(turbofan): For Crankshaft we restore the context before objects are
+  // being materialized, because it never de-materializes the context but it
+  // requires a context to materialize arguments objects. This is specific to
+  // Crankshaft and can be removed once only TurboFan goes through here.
+  if (!optimized_code->is_turbofanned()) {
+    JavaScriptFrameIterator top_it(isolate);
+    JavaScriptFrame* top_frame = top_it.frame();
+    isolate->set_context(Context::cast(top_frame->context()));
+  }
 
   // Make sure to materialize objects before causing any allocation.
   JavaScriptFrameIterator it(isolate);
@@ -179,9 +191,11 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   delete deoptimizer;
 
   // Ensure the context register is updated for materialized objects.
-  JavaScriptFrameIterator top_it(isolate);
-  JavaScriptFrame* top_frame = top_it.frame();
-  isolate->set_context(Context::cast(top_frame->context()));
+  if (optimized_code->is_turbofanned()) {
+    JavaScriptFrameIterator top_it(isolate);
+    JavaScriptFrame* top_frame = top_it.frame();
+    isolate->set_context(Context::cast(top_frame->context()));
+  }
 
   if (type == Deoptimizer::LAZY) {
     return isolate->heap()->undefined_value();
@@ -279,7 +293,20 @@ BailoutId DetermineEntryAndDisarmOSRForInterpreter(JavaScriptFrame* frame) {
   // Reset the OSR loop nesting depth to disarm back edges.
   bytecode->set_osr_loop_nesting_level(0);
 
-  return BailoutId(iframe->GetBytecodeOffset());
+  // Translate the offset of the jump instruction to the jump target offset of
+  // that instruction so that the derived BailoutId points to the loop header.
+  // TODO(mstarzinger): This can be merged with {BytecodeBranchAnalysis} which
+  // already performs a pre-pass over the bytecode stream anyways.
+  int jump_offset = iframe->GetBytecodeOffset();
+  interpreter::BytecodeArrayIterator iterator(bytecode);
+  while (iterator.current_offset() + iterator.current_prefix_offset() <
+         jump_offset) {
+    iterator.Advance();
+  }
+  DCHECK(interpreter::Bytecodes::IsJump(iterator.current_bytecode()));
+  int jump_target_offset = iterator.GetJumpTargetOffset();
+
+  return BailoutId(jump_target_offset);
 }
 
 }  // namespace
@@ -335,10 +362,18 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
       function->shared()->increment_deopt_count();
 
       if (result->is_turbofanned()) {
-        // TurboFanned OSR code cannot be installed into the function.
-        // But the function is obviously hot, so optimize it next time.
-        function->ReplaceCode(
-            isolate->builtins()->builtin(Builtins::kCompileOptimized));
+        // When we're waiting for concurrent optimization, set to compile on
+        // the next call - otherwise we'd run unoptimized once more
+        // and potentially compile for OSR another time as well.
+        if (function->IsMarkedForConcurrentOptimization()) {
+          if (FLAG_trace_osr) {
+            PrintF("[OSR - Re-marking ");
+            function->PrintName();
+            PrintF(" for non-concurrent optimization]\n");
+          }
+          function->ReplaceCode(
+              isolate->builtins()->builtin(Builtins::kCompileOptimized));
+        }
       } else {
         // Crankshafted OSR code can be installed into the function.
         function->ReplaceCode(*result);

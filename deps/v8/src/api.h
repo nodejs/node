@@ -69,7 +69,6 @@ class RegisteredExtension {
   static RegisteredExtension* first_extension_;
 };
 
-
 #define OPEN_HANDLE_LIST(V)                  \
   V(Template, TemplateInfo)                  \
   V(FunctionTemplate, FunctionTemplateInfo)  \
@@ -101,6 +100,7 @@ class RegisteredExtension {
   V(Symbol, Symbol)                          \
   V(Script, JSFunction)                      \
   V(UnboundScript, SharedFunctionInfo)       \
+  V(Module, Module)                          \
   V(Function, JSReceiver)                    \
   V(Message, JSMessageObject)                \
   V(Context, Context)                        \
@@ -124,6 +124,8 @@ class Utils {
       v8::internal::Handle<v8::internal::Context> obj);
   static inline Local<Value> ToLocal(
       v8::internal::Handle<v8::internal::Object> obj);
+  static inline Local<Module> ToLocal(
+      v8::internal::Handle<v8::internal::Module> obj);
   static inline Local<Name> ToLocal(
       v8::internal::Handle<v8::internal::Name> obj);
   static inline Local<String> ToLocal(
@@ -136,6 +138,8 @@ class Utils {
       v8::internal::Handle<v8::internal::JSReceiver> obj);
   static inline Local<Object> ToLocal(
       v8::internal::Handle<v8::internal::JSObject> obj);
+  static inline Local<Function> ToLocal(
+      v8::internal::Handle<v8::internal::JSFunction> obj);
   static inline Local<Array> ToLocal(
       v8::internal::Handle<v8::internal::JSArray> obj);
   static inline Local<Map> ToLocal(
@@ -284,12 +288,14 @@ inline bool ToLocal(v8::internal::MaybeHandle<v8::internal::Object> maybe,
 
 MAKE_TO_LOCAL(ToLocal, Context, Context)
 MAKE_TO_LOCAL(ToLocal, Object, Value)
+MAKE_TO_LOCAL(ToLocal, Module, Module)
 MAKE_TO_LOCAL(ToLocal, Name, Name)
 MAKE_TO_LOCAL(ToLocal, String, String)
 MAKE_TO_LOCAL(ToLocal, Symbol, Symbol)
 MAKE_TO_LOCAL(ToLocal, JSRegExp, RegExp)
 MAKE_TO_LOCAL(ToLocal, JSReceiver, Object)
 MAKE_TO_LOCAL(ToLocal, JSObject, Object)
+MAKE_TO_LOCAL(ToLocal, JSFunction, Function)
 MAKE_TO_LOCAL(ToLocal, JSArray, Array)
 MAKE_TO_LOCAL(ToLocal, JSMap, Map)
 MAKE_TO_LOCAL(ToLocal, JSSet, Set)
@@ -389,6 +395,7 @@ class HandleScopeImplementer {
         call_depth_(0),
         microtasks_depth_(0),
         microtasks_suppressions_(0),
+        entered_context_count_during_microtasks_(0),
 #ifdef DEBUG
         debug_microtasks_depth_(0),
 #endif
@@ -454,6 +461,11 @@ class HandleScopeImplementer {
   inline void EnterMicrotaskContext(Handle<Context> context);
   inline void LeaveMicrotaskContext();
   inline Handle<Context> MicrotaskContext();
+  inline bool MicrotaskContextIsLastEnteredContext() const {
+    return microtask_context_ &&
+           entered_context_count_during_microtasks_ ==
+               entered_contexts_.length();
+  }
 
   inline void SaveContext(Context* context);
   inline Context* RestoreContext();
@@ -474,6 +486,7 @@ class HandleScopeImplementer {
     entered_contexts_.Initialize(0);
     saved_contexts_.Initialize(0);
     microtask_context_ = nullptr;
+    entered_context_count_during_microtasks_ = 0;
     spare_ = NULL;
     last_handle_before_deferred_block_ = NULL;
     call_depth_ = 0;
@@ -508,6 +521,7 @@ class HandleScopeImplementer {
   int call_depth_;
   int microtasks_depth_;
   int microtasks_suppressions_;
+  int entered_context_count_during_microtasks_;
 #ifdef DEBUG
   int debug_microtasks_depth_;
 #endif
@@ -579,11 +593,13 @@ Handle<Context> HandleScopeImplementer::LastEnteredContext() {
 void HandleScopeImplementer::EnterMicrotaskContext(Handle<Context> context) {
   DCHECK(!microtask_context_);
   microtask_context_ = *context;
+  entered_context_count_during_microtasks_ = entered_contexts_.length();
 }
 
 void HandleScopeImplementer::LeaveMicrotaskContext() {
   DCHECK(microtask_context_);
   microtask_context_ = nullptr;
+  entered_context_count_during_microtasks_ = 0;
 }
 
 Handle<Context> HandleScopeImplementer::MicrotaskContext() {

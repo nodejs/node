@@ -21,7 +21,7 @@
  - `npm -v` prints:
  - `node -v` prints:
  - `npm config get registry` prints:
- - Windows, OS X, or Linux?:
+ - Windows, OS X/macOS, or Linux?:
  - Network issues:
    - Geographic location where npm was run:
    - [ ] I use a proxy to connect to the npm registry.

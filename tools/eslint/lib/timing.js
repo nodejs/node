@@ -54,19 +54,17 @@ const ALIGN = [alignLeft, alignRight, alignRight];
 function display(data) {
     let total = 0;
     const rows = Object.keys(data)
-        .map(function(key) {
+        .map(key => {
             const time = data[key];
 
             total += time;
             return [key, time];
         })
-        .sort(function(a, b) {
-            return b[1] - a[1];
-        })
+        .sort((a, b) => b[1] - a[1])
         .slice(0, 10);
 
-    rows.forEach(function(row) {
-        row.push((row[1] * 100 / total).toFixed(1) + "%");
+    rows.forEach(row => {
+        row.push(`${(row[1] * 100 / total).toFixed(1)}%`);
         row[1] = row[1].toFixed(3);
     });
 
@@ -74,7 +72,7 @@ function display(data) {
 
     const widths = [];
 
-    rows.forEach(function(row) {
+    rows.forEach(row => {
         const len = row.length;
 
         for (let i = 0; i < len; i++) {
@@ -86,13 +84,13 @@ function display(data) {
         }
     });
 
-    const table = rows.map(function(row) {
-        return row.map(function(cell, index) {
-            return ALIGN[index](cell, widths[index]);
-        }).join(" | ");
-    });
+    const table = rows.map(row =>
+        row
+            .map((cell, index) => ALIGN[index](cell, widths[index]))
+            .join(" | ")
+    );
 
-    table.splice(1, 0, widths.map(function(w, index) {
+    table.splice(1, 0, widths.map((w, index) => {
         if (index !== 0 && index !== widths.length - 1) {
             w++;
         }
@@ -130,7 +128,7 @@ module.exports = (function() {
     }
 
     if (enabled) {
-        process.on("exit", function() {
+        process.on("exit", () => {
             display(data);
         });
     }

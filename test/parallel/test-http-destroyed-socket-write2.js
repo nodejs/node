@@ -1,19 +1,19 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 // Verify that ECONNRESET is raised when writing to a http request
 // where the server has ended the socket.
 
-var http = require('http');
-var server = http.createServer(function(req, res) {
+const http = require('http');
+const server = http.createServer(function(req, res) {
   setImmediate(function() {
     res.destroy();
   });
 });
 
 server.listen(0, function() {
-  var req = http.request({
+  const req = http.request({
     port: this.address().port,
     path: '/',
     method: 'POST'
@@ -47,18 +47,14 @@ server.listen(0, function() {
         break;
     }
 
-    assert.equal(req.output.length, 0);
-    assert.equal(req.outputEncodings.length, 0);
+    assert.strictEqual(req.output.length, 0);
+    assert.strictEqual(req.outputEncodings.length, 0);
     server.close();
   }));
 
   req.on('response', function(res) {
-    res.on('data', function(chunk) {
-      common.fail('Should not receive response data');
-    });
-    res.on('end', function() {
-      common.fail('Should not receive response end');
-    });
+    res.on('data', common.mustNotCall('Should not receive response data'));
+    res.on('end', common.mustNotCall('Should not receive response end'));
   });
 
   write();

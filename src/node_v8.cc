@@ -28,7 +28,10 @@ using v8::Value;
   V(2, total_physical_size, kTotalPhysicalSizeIndex)                          \
   V(3, total_available_size, kTotalAvailableSize)                             \
   V(4, used_heap_size, kUsedHeapSizeIndex)                                    \
-  V(5, heap_size_limit, kHeapSizeLimitIndex)
+  V(5, heap_size_limit, kHeapSizeLimitIndex)                                  \
+  V(6, malloced_memory, kMallocedMemoryIndex)                                 \
+  V(7, peak_malloced_memory, kPeakMallocedMemoryIndex)                        \
+  V(8, does_zap_garbage, kDoesZapGarbageIndex)
 
 #define V(a, b, c) +1
 static const size_t kHeapStatisticsPropertiesCount =
@@ -54,8 +57,8 @@ void UpdateHeapStatisticsArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   HeapStatistics s;
   env->isolate()->GetHeapStatistics(&s);
-  uint32_t* const buffer = env->heap_statistics_buffer();
-#define V(index, name, _) buffer[index] = static_cast<uint32_t>(s.name());
+  double* const buffer = env->heap_statistics_buffer();
+#define V(index, name, _) buffer[index] = static_cast<double>(s.name());
   HEAP_STATISTICS_PROPERTIES(V)
 #undef V
 }
@@ -65,13 +68,13 @@ void UpdateHeapSpaceStatisticsBuffer(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   HeapSpaceStatistics s;
   Isolate* const isolate = env->isolate();
-  uint32_t* buffer = env->heap_space_statistics_buffer();
+  double* buffer = env->heap_space_statistics_buffer();
 
   for (size_t i = 0; i < number_of_heap_spaces; i++) {
     isolate->GetHeapSpaceStatistics(&s, i);
     size_t const property_offset = i * kHeapSpaceStatisticsPropertiesCount;
 #define V(index, name, _) buffer[property_offset + index] = \
-                              static_cast<uint32_t>(s.name());
+                              static_cast<double>(s.name());
       HEAP_SPACE_STATISTICS_PROPERTIES(V)
 #undef V
   }
@@ -100,7 +103,7 @@ void InitializeV8Bindings(Local<Object> target,
                  "updateHeapStatisticsArrayBuffer",
                  UpdateHeapStatisticsArrayBuffer);
 
-  env->set_heap_statistics_buffer(new uint32_t[kHeapStatisticsPropertiesCount]);
+  env->set_heap_statistics_buffer(new double[kHeapStatisticsPropertiesCount]);
 
   const size_t heap_statistics_buffer_byte_length =
       sizeof(*env->heap_statistics_buffer()) * kHeapStatisticsPropertiesCount;
@@ -146,7 +149,7 @@ void InitializeV8Bindings(Local<Object> target,
                  UpdateHeapSpaceStatisticsBuffer);
 
   env->set_heap_space_statistics_buffer(
-    new uint32_t[kHeapSpaceStatisticsPropertiesCount * number_of_heap_spaces]);
+    new double[kHeapSpaceStatisticsPropertiesCount * number_of_heap_spaces]);
 
   const size_t heap_space_statistics_buffer_byte_length =
       sizeof(*env->heap_space_statistics_buffer()) *

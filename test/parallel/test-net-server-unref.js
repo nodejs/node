@@ -1,9 +1,9 @@
 'use strict';
 const common = require('../common');
-var net = require('net');
+const net = require('net');
 
-var s = net.createServer();
+const s = net.createServer();
 s.listen(0);
 s.unref();
 
-setTimeout(common.fail, 1000).unref();
+setTimeout(common.mustNotCall(), 1000).unref();

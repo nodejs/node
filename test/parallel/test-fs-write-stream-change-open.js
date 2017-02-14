@@ -4,7 +4,7 @@ const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
 
-var file = path.join(common.tmpDir, 'write.txt');
+const file = path.join(common.tmpDir, 'write.txt');
 
 common.refreshTmpDir();
 
@@ -29,5 +29,5 @@ stream.write('foo');
 stream.end();
 
 process.on('exit', function() {
-  assert.equal(fs.open, _fs_open);
+  assert.strictEqual(fs.open, _fs_open);
 });

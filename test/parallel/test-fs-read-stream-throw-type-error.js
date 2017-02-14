@@ -10,6 +10,9 @@ assert.doesNotThrow(function() {
   fs.createReadStream(example, undefined);
 });
 assert.doesNotThrow(function() {
+  fs.createReadStream(example, null);
+});
+assert.doesNotThrow(function() {
   fs.createReadStream(example, 'utf8');
 });
 assert.doesNotThrow(function() {
@@ -17,17 +20,14 @@ assert.doesNotThrow(function() {
 });
 
 assert.throws(function() {
-  fs.createReadStream(example, null);
-}, /"options" argument must be a string or an object/);
-assert.throws(function() {
   fs.createReadStream(example, 123);
-}, /"options" argument must be a string or an object/);
+}, /"options" must be a string or an object/);
 assert.throws(function() {
   fs.createReadStream(example, 0);
-}, /"options" argument must be a string or an object/);
+}, /"options" must be a string or an object/);
 assert.throws(function() {
   fs.createReadStream(example, true);
-}, /"options" argument must be a string or an object/);
+}, /"options" must be a string or an object/);
 assert.throws(function() {
   fs.createReadStream(example, false);
-}, /"options" argument must be a string or an object/);
+}, /"options" must be a string or an object/);

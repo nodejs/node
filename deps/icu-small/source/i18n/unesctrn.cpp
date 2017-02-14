@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
  **********************************************************************
  *   Copyright (c) 2001-2011, International Business Machines
@@ -85,7 +87,7 @@ static UChar* copySpec(const UChar* spec) {
     UChar *result = (UChar *)uprv_malloc(len*sizeof(UChar));
     // Check for memory allocation error.
     if (result != NULL) {
-	uprv_memcpy(result, spec, len*sizeof(result[0]));
+	uprv_memcpy(result, spec, (size_t)len*sizeof(result[0]));
     }
     return result;
 }

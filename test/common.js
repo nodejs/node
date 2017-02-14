@@ -1,20 +1,20 @@
 /* eslint-disable required-modules */
 'use strict';
-var path = require('path');
-var fs = require('fs');
-var assert = require('assert');
-var os = require('os');
-var child_process = require('child_process');
+const path = require('path');
+const fs = require('fs');
+const assert = require('assert');
+const os = require('os');
+const child_process = require('child_process');
 const stream = require('stream');
+const buffer = require('buffer');
 const util = require('util');
 const Timer = process.binding('timer_wrap').Timer;
+const execSync = require('child_process').execSync;
 
 const testRoot = process.env.NODE_TEST_DIR ?
-                   path.resolve(process.env.NODE_TEST_DIR) : __dirname;
+                   fs.realpathSync(process.env.NODE_TEST_DIR) : __dirname;
 
-exports.testDir = __dirname;
-exports.fixturesDir = path.join(exports.testDir, 'fixtures');
-exports.libDir = path.join(exports.testDir, '../lib');
+exports.fixturesDir = path.join(__dirname, 'fixtures');
 exports.tmpDirName = 'tmp';
 // PORT should match the definition in test/testpy/__init__.py.
 exports.PORT = +process.env.NODE_COMMON_PORT || 12346;
@@ -31,15 +31,20 @@ exports.isLinux = process.platform === 'linux';
 exports.isOSX = process.platform === 'darwin';
 
 exports.enoughTestMem = os.totalmem() > 0x40000000; /* 1 Gb */
-
+exports.bufferMaxSizeMsg = new RegExp('^RangeError: "size" argument' +
+                                      ' must not be larger than ' +
+                                      buffer.kMaxLength + '$');
 const cpus = os.cpus();
-exports.enoughTestCpu = cpus.length > 1 || cpus[0].speed > 999;
+exports.enoughTestCpu = Array.isArray(cpus) &&
+                        (cpus.length > 1 || cpus[0].speed > 999);
 
 exports.rootDir = exports.isWindows ? 'c:\\' : '/';
+exports.buildType = process.config.target_defaults.default_configuration;
 
 function rimrafSync(p) {
+  let st;
   try {
-    var st = fs.lstatSync(p);
+    st = fs.lstatSync(p);
   } catch (e) {
     if (e.code === 'ENOENT')
       return;
@@ -93,9 +98,9 @@ if (process.env.TEST_THREAD_ID) {
 }
 exports.tmpDir = path.join(testRoot, exports.tmpDirName);
 
-var opensslCli = null;
-var inFreeBSDJail = null;
-var localhostIPv4 = null;
+let opensslCli = null;
+let inFreeBSDJail = null;
+let localhostIPv4 = null;
 
 exports.localIPv6Hosts = ['localhost'];
 if (exports.isLinux) {
@@ -165,8 +170,8 @@ Object.defineProperty(exports, 'opensslCli', {get: function() {
 
   if (exports.isWindows) opensslCli += '.exe';
 
-  var openssl_cmd = child_process.spawnSync(opensslCli, ['version']);
-  if (openssl_cmd.status !== 0 || openssl_cmd.error !== undefined) {
+  const opensslCmd = child_process.spawnSync(opensslCli, ['version']);
+  if (opensslCmd.status !== 0 || opensslCmd.error !== undefined) {
     // openssl command cannot be executed
     opensslCli = false;
   }
@@ -194,24 +199,39 @@ if (exports.isWindows) {
   exports.PIPE = exports.tmpDir + '/test.sock';
 }
 
-if (exports.isWindows) {
-  exports.faketimeCli = false;
-} else {
-  exports.faketimeCli = path.join(__dirname, '..', 'tools', 'faketime', 'src',
-                                  'faketime');
-}
-
-var ifaces = os.networkInterfaces();
+const ifaces = os.networkInterfaces();
 exports.hasIPv6 = Object.keys(ifaces).some(function(name) {
   return /lo/.test(name) && ifaces[name].some(function(info) {
     return info.family === 'IPv6';
   });
 });
 
+/*
+ * Check that when running a test with
+ * `$node --abort-on-uncaught-exception $file child`
+ * the process aborts.
+ */
+exports.childShouldThrowAndAbort = function() {
+  let testCmd = '';
+  if (!exports.isWindows) {
+    // Do not create core files, as it can take a lot of disk space on
+    // continuous testing and developers' machines
+    testCmd += 'ulimit -c 0 && ';
+  }
+  testCmd += `${process.argv[0]} --abort-on-uncaught-exception `;
+  testCmd += `${process.argv[1]} child`;
+  const child = child_process.exec(testCmd);
+  child.on('exit', function onExit(exitCode, signal) {
+    const errMsg = 'Test should have aborted ' +
+                   `but instead exited with exit code ${exitCode}` +
+                   ` and signal ${signal}`;
+    assert(exports.nodeProcessAborted(exitCode, signal), errMsg);
+  });
+};
 
 exports.ddCommand = function(filename, kilobytes) {
   if (exports.isWindows) {
-    var p = path.resolve(exports.fixturesDir, 'create-file.js');
+    const p = path.resolve(exports.fixturesDir, 'create-file.js');
     return '"' + process.argv[0] + '" "' + p + '" "' +
            filename + '" ' + (kilobytes * 1024);
   } else {
@@ -221,7 +241,7 @@ exports.ddCommand = function(filename, kilobytes) {
 
 
 exports.spawnCat = function(options) {
-  var spawn = require('child_process').spawn;
+  const spawn = require('child_process').spawn;
 
   if (exports.isWindows) {
     return spawn('more', [], options);
@@ -232,7 +252,7 @@ exports.spawnCat = function(options) {
 
 
 exports.spawnSyncCat = function(options) {
-  var spawnSync = require('child_process').spawnSync;
+  const spawnSync = require('child_process').spawnSync;
 
   if (exports.isWindows) {
     return spawnSync('more', [], options);
@@ -243,7 +263,7 @@ exports.spawnSyncCat = function(options) {
 
 
 exports.spawnPwd = function(options) {
-  var spawn = require('child_process').spawn;
+  const spawn = require('child_process').spawn;
 
   if (exports.isWindows) {
     return spawn('cmd.exe', ['/d', '/c', 'cd'], options);
@@ -284,17 +304,19 @@ exports.platformTimeout = function(ms) {
   return ms; // ARMv8+
 };
 
-var knownGlobals = [setTimeout,
-                    setInterval,
-                    setImmediate,
-                    clearTimeout,
-                    clearInterval,
-                    clearImmediate,
-                    console,
-                    constructor, // Enumerable in V8 3.21.
-                    Buffer,
-                    process,
-                    global];
+let knownGlobals = [
+  Buffer,
+  clearImmediate,
+  clearInterval,
+  clearTimeout,
+  console,
+  constructor, // Enumerable in V8 3.21.
+  global,
+  process,
+  setImmediate,
+  setInterval,
+  setTimeout
+];
 
 if (global.gc) {
   knownGlobals.push(global.gc);
@@ -356,10 +378,10 @@ function allowGlobals(...whitelist) {
 exports.allowGlobals = allowGlobals;
 
 function leakedGlobals() {
-  var leaked = [];
+  const leaked = [];
 
-  for (var val in global)
-    if (-1 === knownGlobals.indexOf(global[val]))
+  for (const val in global)
+    if (!knownGlobals.includes(global[val]))
       leaked.push(val);
 
   return leaked;
@@ -371,21 +393,21 @@ exports.globalCheck = true;
 
 process.on('exit', function() {
   if (!exports.globalCheck) return;
-  var leaked = leakedGlobals();
+  const leaked = leakedGlobals();
   if (leaked.length > 0) {
     console.error('Unknown globals: %s', leaked);
-    assert.ok(false, 'Unknown global found');
+    fail('Unknown global found');
   }
 });
 
 
-var mustCallChecks = [];
+const mustCallChecks = [];
 
 
 function runCallChecks(exitCode) {
   if (exitCode !== 0) return;
 
-  var failed = mustCallChecks.filter(function(context) {
+  const failed = mustCallChecks.filter(function(context) {
     return context.actual !== context.expected;
   });
 
@@ -402,9 +424,12 @@ function runCallChecks(exitCode) {
 
 
 exports.mustCall = function(fn, expected) {
-  if (typeof expected !== 'number') expected = 1;
+  if (expected === undefined)
+    expected = 1;
+  else if (typeof expected !== 'number')
+    throw new TypeError(`Invalid expected value: ${expected}`);
 
-  var context = {
+  const context = {
     expected: expected,
     actual: 0,
     stack: (new Error()).stack,
@@ -423,9 +448,9 @@ exports.mustCall = function(fn, expected) {
 };
 
 exports.hasMultiLocalhost = function hasMultiLocalhost() {
-  var TCP = process.binding('tcp_wrap').TCP;
-  var t = new TCP();
-  var ret = t.bind('127.0.0.2', exports.PORT);
+  const TCP = process.binding('tcp_wrap').TCP;
+  const t = new TCP();
+  const ret = t.bind('127.0.0.2', exports.PORT);
   t.close();
   return ret === 0;
 };
@@ -439,8 +464,43 @@ exports.fileExists = function(pathname) {
   }
 };
 
-exports.fail = function(msg) {
+exports.canCreateSymLink = function() {
+  // On Windows, creating symlinks requires admin privileges.
+  // We'll only try to run symlink test if we have enough privileges.
+  // On other platforms, creating symlinks shouldn't need admin privileges
+  if (exports.isWindows) {
+    // whoami.exe needs to be the one from System32
+    // If unix tools are in the path, they can shadow the one we want,
+    // so use the full path while executing whoami
+    const whoamiPath = path.join(process.env['SystemRoot'],
+                                 'System32', 'whoami.exe');
+
+    let err = false;
+    let output = '';
+
+    try {
+      output = execSync(whoamiPath + ' /priv', { timout: 1000 });
+    } catch (e) {
+      err = true;
+    } finally {
+      if (err || !output.includes('SeCreateSymbolicLinkPrivilege')) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+};
+
+function fail(msg) {
   assert.fail(null, null, msg);
+}
+exports.fail = fail;
+
+exports.mustNotCall = function(msg) {
+  return function mustNotCall() {
+    fail(msg || 'function should not have been called');
+  };
 };
 
 exports.skip = function(msg) {
@@ -470,7 +530,7 @@ ArrayStream.prototype.write = function() {};
 exports.nodeProcessAborted = function nodeProcessAborted(exitCode, signal) {
   // Depending on the compiler used, node will exit with either
   // exit code 132 (SIGILL), 133 (SIGTRAP) or 134 (SIGABRT).
-  var expectedExitCodes = [132, 133, 134];
+  let expectedExitCodes = [132, 133, 134];
 
   // On platforms using KSH as the default shell (like SmartOS),
   // when a process aborts, KSH exits with an exit code that is
@@ -492,15 +552,15 @@ exports.nodeProcessAborted = function nodeProcessAborted(exitCode, signal) {
   // one of them (exit code or signal) needs to be set to one of
   // the expected exit codes or signals.
   if (signal !== null) {
-    return expectedSignals.indexOf(signal) > -1;
+    return expectedSignals.includes(signal);
   } else {
-    return expectedExitCodes.indexOf(exitCode) > -1;
+    return expectedExitCodes.includes(exitCode);
   }
 };
 
 exports.busyLoop = function busyLoop(time) {
-  var startTime = Timer.now();
-  var stopTime = startTime + time;
+  const startTime = Timer.now();
+  const stopTime = startTime + time;
   while (Timer.now() < stopTime) {}
 };
 
@@ -524,4 +584,50 @@ exports.expectWarning = function(name, expected) {
     // get each message only once.
     expected.splice(expected.indexOf(warning.message), 1);
   }, expected.length));
+};
+
+Object.defineProperty(exports, 'hasIntl', {
+  get: function() {
+    return process.binding('config').hasIntl;
+  }
+});
+
+// https://github.com/w3c/testharness.js/blob/master/testharness.js
+exports.WPT = {
+  test: (fn, desc) => {
+    try {
+      fn();
+    } catch (err) {
+      if (err instanceof Error)
+        err.message = `In ${desc}:\n  ${err.message}`;
+      throw err;
+    }
+  },
+  assert_equals: assert.strictEqual,
+  assert_true: (value, message) => assert.strictEqual(value, true, message),
+  assert_false: (value, message) => assert.strictEqual(value, false, message),
+  assert_throws: (code, func, desc) => {
+    assert.throws(func, (err) => {
+      return typeof err === 'object' && 'name' in err && err.name === code.name;
+    }, desc);
+  },
+  assert_array_equals: assert.deepStrictEqual,
+  assert_unreached(desc) {
+    assert.fail(undefined, undefined, `Reached unreachable code: ${desc}`);
+  }
+};
+
+// Useful for testing expected internal/error objects
+exports.expectsError = function expectsError(code, type, message) {
+  return function(error) {
+    assert.strictEqual(error.code, code);
+    if (type !== undefined)
+      assert(error instanceof type, 'error is not the expected type');
+    if (message !== undefined) {
+      if (!util.isRegExp(message))
+        message = new RegExp(String(message));
+      assert(message.test(error.message), 'error.message does not match');
+    }
+    return true;
+  };
 };

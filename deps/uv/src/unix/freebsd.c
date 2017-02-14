@@ -196,13 +196,23 @@ int uv_set_process_title(const char* title) {
 
 
 int uv_get_process_title(char* buffer, size_t size) {
+  size_t len;
+
+  if (buffer == NULL || size == 0)
+    return -EINVAL;
+
   if (process_title) {
-    strncpy(buffer, process_title, size);
+    len = strlen(process_title) + 1;
+
+    if (size < len)
+      return -ENOBUFS;
+
+    memcpy(buffer, process_title, len);
   } else {
-    if (size > 0) {
-      buffer[0] = '\0';
-    }
+    len = 0;
   }
+
+  buffer[len] = '\0';
 
   return 0;
 }

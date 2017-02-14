@@ -8,16 +8,16 @@ var arrayFilter = require('./_arrayFilter'),
 /**
  * This method is like `_.xor` except that it accepts `iteratee` which is
  * invoked for each element of each `arrays` to generate the criterion by
- * which by which they're compared. The iteratee is invoked with one argument:
- * (value).
+ * which by which they're compared. The order of result values is determined
+ * by the order they occur in the arrays. The iteratee is invoked with one
+ * argument: (value).
  *
  * @static
  * @memberOf _
  * @since 4.0.0
  * @category Array
  * @param {...Array} [arrays] The arrays to inspect.
- * @param {Function} [iteratee=_.identity]
- *  The iteratee invoked per element.
+ * @param {Function} [iteratee=_.identity] The iteratee invoked per element.
  * @returns {Array} Returns the new array of filtered values.
  * @example
  *

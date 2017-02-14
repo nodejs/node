@@ -420,7 +420,7 @@ See semver(7) for more details about specifying version ranges.
 * `range1 || range2` Passes if either range1 or range2 are satisfied.
 * `git...` See 'Git URLs as Dependencies' below
 * `user/repo` See 'GitHub URLs' below
-* `tag` A specific version tagged and published as `tag`  See `npm-tag(1)`
+* `tag` A specific version tagged and published as `tag`  See `npm-dist-tag(1)`
 * `path/path/path` See [Local Paths](#local-paths) below
 
 For example, these are all valid:
@@ -471,8 +471,9 @@ included.  For example:
       "name": "foo",
       "version": "0.0.0",
       "dependencies": {
-        "express": "visionmedia/express",
-        "mocha": "visionmedia/mocha#4727d357ea"
+        "express": "expressjs/express",
+        "mocha": "mochajs/mocha#4727d357ea",
+        "module": "user/repo#feature\/branch"
       }
     }
 
@@ -516,7 +517,7 @@ from the root of a package, and can be managed like any other npm
 configuration param.  See `npm-config(7)` for more on the topic.
 
 For build steps that are not platform-specific, such as compiling
-CoffeeScript or other languages to JavaScript, use the `prepublish`
+CoffeeScript or other languages to JavaScript, use the `prepare`
 script to do this, and make the required package a devDependency.
 
 For example:
@@ -528,12 +529,12 @@ For example:
         "coffee-script": "~1.6.3"
       },
       "scripts": {
-        "prepublish": "coffee -o lib/ -c src/waza.coffee"
+        "prepare": "coffee -o lib/ -c src/waza.coffee"
       },
       "main": "lib/waza.js"
     }
 
-The `prepublish` script will be run before publishing, so that users
+The `prepare` script will be run before publishing, so that users
 can consume the functionality without requiring them to compile it
 themselves.  In dev mode (ie, locally running `npm install`), it'll
 run this script as well, so that you can test it easily.

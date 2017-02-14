@@ -49,6 +49,7 @@ typedef struct pollfd {
 
 #include <process.h>
 #include <signal.h>
+#include <fcntl.h>
 #include <sys/stat.h>
 
 #if defined(_MSC_VER) && _MSC_VER < 1600
@@ -116,7 +117,7 @@ typedef struct pollfd {
          {0xb5367df0, 0xcbac, 0x11cf,                                         \
          {0x95, 0xca, 0x00, 0x80, 0x5f, 0x48, 0xa1, 0x92}}
 
-  typedef BOOL PASCAL (*LPFN_ACCEPTEX)
+  typedef BOOL (PASCAL *LPFN_ACCEPTEX)
                       (SOCKET sListenSocket,
                        SOCKET sAcceptSocket,
                        PVOID lpOutputBuffer,
@@ -126,7 +127,7 @@ typedef struct pollfd {
                        LPDWORD lpdwBytesReceived,
                        LPOVERLAPPED lpOverlapped);
 
-  typedef BOOL PASCAL (*LPFN_CONNECTEX)
+  typedef BOOL (PASCAL *LPFN_CONNECTEX)
                       (SOCKET s,
                        const struct sockaddr* name,
                        int namelen,
@@ -135,7 +136,7 @@ typedef struct pollfd {
                        LPDWORD lpdwBytesSent,
                        LPOVERLAPPED lpOverlapped);
 
-  typedef void PASCAL (*LPFN_GETACCEPTEXSOCKADDRS)
+  typedef void (PASCAL *LPFN_GETACCEPTEXSOCKADDRS)
                       (PVOID lpOutputBuffer,
                        DWORD dwReceiveDataLength,
                        DWORD dwLocalAddressLength,
@@ -145,13 +146,13 @@ typedef struct pollfd {
                        LPSOCKADDR* RemoteSockaddr,
                        LPINT RemoteSockaddrLength);
 
-  typedef BOOL PASCAL (*LPFN_DISCONNECTEX)
+  typedef BOOL (PASCAL *LPFN_DISCONNECTEX)
                       (SOCKET hSocket,
                        LPOVERLAPPED lpOverlapped,
                        DWORD dwFlags,
                        DWORD reserved);
 
-  typedef BOOL PASCAL (*LPFN_TRANSMITFILE)
+  typedef BOOL (PASCAL *LPFN_TRANSMITFILE)
                       (SOCKET hSocket,
                        HANDLE hFile,
                        DWORD nNumberOfBytesToWrite,

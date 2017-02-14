@@ -1,6 +1,9 @@
 'use strict';
-
 const common = require('../common');
+
+// This test ensures that the http-parser can handle UTF-8 characters
+// in the http header.
+
 const http = require('http');
 const assert = require('assert');
 
@@ -12,7 +15,7 @@ server.listen(0, () => {
     port: server.address().port,
     headers: {'Test': 'Düsseldorf'}
   }, common.mustCall((res) => {
-    assert.equal(res.statusCode, 200);
+    assert.strictEqual(res.statusCode, 200);
     server.close();
   }));
 });

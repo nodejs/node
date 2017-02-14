@@ -193,7 +193,7 @@ void AllocationTracker::DeleteFunctionInfo(FunctionInfo** info) {
 AllocationTracker::AllocationTracker(HeapObjectsMap* ids, StringsStorage* names)
     : ids_(ids),
       names_(names),
-      id_to_function_info_index_(base::HashMap::PointersMatch),
+      id_to_function_info_index_(),
       info_index_for_other_state_(0) {
   FunctionInfo* info = new FunctionInfo();
   info->name = "(root)";

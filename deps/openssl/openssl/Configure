@@ -7,6 +7,7 @@ eval 'exec perl -S $0 ${1+"$@"}'
 
 require 5.000;
 use strict;
+use File::Compare;
 
 # see INSTALL for instructions.
 
@@ -57,12 +58,13 @@ my $usage="Usage: Configure [no-<cipher> ...] [enable-<cipher> ...] [experimenta
 # zlib-dynamic	Like "zlib", but the zlib library is expected to be a shared
 #		library and will be loaded in run-time by the OpenSSL library.
 # sctp          include SCTP support
-# 386           generate 80386 code
 # enable-weak-ssl-ciphers
 #		Enable EXPORT and LOW SSLv3 ciphers that are disabled by
 #		default.  Note, weak SSLv2 ciphers are unconditionally
 #		disabled.
-# no-sse2	disables IA-32 SSE2 code, above option implies no-sse2
+# 386		generate 80386 code in assembly modules
+# no-sse2	disables IA-32 SSE2 code in assembly modules, the above
+#		mentioned '386' option implies this one
 # no-<cipher>   build without specified algorithm (rsa, idea, rc5, ...)
 # -<xxx> +<xxx> compiler options are passed through 
 #
@@ -1792,8 +1794,16 @@ while (<IN>)
 	}
 close(IN);
 close(OUT);
-rename($Makefile,"$Makefile.bak") || die "unable to rename $Makefile\n" if -e $Makefile;
-rename("$Makefile.new",$Makefile) || die "unable to rename $Makefile.new\n";
+if ((compare($Makefile, "$Makefile.new"))
+	or file_newer('Configure', $Makefile)
+	or file_newer('config', $Makefile)
+	or file_newer('Makefile.org', $Makefile))
+	{
+	rename($Makefile,"$Makefile.bak") || die "unable to rename $Makefile\n" if -e $Makefile;
+	rename("$Makefile.new",$Makefile) || die "unable to rename $Makefile.new\n";
+	}
+else
+	{ unlink("$Makefile.new"); }
 
 print "CC            =$cc\n";
 print "CFLAG         =$cflags\n";
@@ -1985,9 +1995,13 @@ print OUT "#ifdef  __cplusplus\n";
 print OUT "}\n";
 print OUT "#endif\n";
 close(OUT);
-rename("crypto/opensslconf.h","crypto/opensslconf.h.bak") || die "unable to rename crypto/opensslconf.h\n" if -e "crypto/opensslconf.h";
-rename("crypto/opensslconf.h.new","crypto/opensslconf.h") || die "unable to rename crypto/opensslconf.h.new\n";
-
+if (compare("crypto/opensslconf.h.new","crypto/opensslconf.h"))
+	{
+	rename("crypto/opensslconf.h","crypto/opensslconf.h.bak") || die "unable to rename crypto/opensslconf.h\n" if -e "crypto/opensslconf.h";
+	rename("crypto/opensslconf.h.new","crypto/opensslconf.h") || die "unable to rename crypto/opensslconf.h.new\n";
+	}
+else
+	{ unlink("crypto/opensslconf.h.new"); }
 
 # Fix the date
 
@@ -2288,4 +2302,10 @@ sub test_sanity
 		}
 	print STDERR "No sanity errors detected!\n" if $errorcnt == 0;
 	return $errorcnt;
+	}
+
+sub file_newer
+	{
+	my ($file1, $file2) = @_;
+	return (stat($file1))[9] > (stat($file2))[9]
 	}

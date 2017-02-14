@@ -9,11 +9,13 @@ const cmd = common.isWindows ? 'rundll32' : 'ls';
 const invalidcmd = 'hopefully_you_dont_have_this_on_your_machine';
 const invalidArgsMsg = /Incorrect value of args option/;
 const invalidOptionsMsg = /"options" argument must be an object/;
+const invalidFileMsg =
+  /^TypeError: "file" argument must be a non-empty string$/;
 const empty = common.fixturesDir + '/empty.js';
 
 assert.throws(function() {
-  var child = spawn(invalidcmd, 'this is not an array');
-  child.on('error', common.fail);
+  const child = spawn(invalidcmd, 'this is not an array');
+  child.on('error', common.mustNotCall());
 }, TypeError);
 
 // verify that valid argument combinations do not throw
@@ -36,7 +38,16 @@ assert.doesNotThrow(function() {
 // verify that invalid argument combinations throw
 assert.throws(function() {
   spawn();
-}, /Bad argument/);
+}, invalidFileMsg);
+
+assert.throws(function() {
+  spawn('');
+}, invalidFileMsg);
+
+assert.throws(function() {
+  const file = { toString() { throw new Error('foo'); } };
+  spawn(file);
+}, invalidFileMsg);
 
 assert.throws(function() {
   spawn(cmd, null);
@@ -57,7 +68,7 @@ assert.throws(function() {
 // Argument types for combinatorics
 const a = [];
 const o = {};
-const c = function callback() {};
+const c = function c() {};
 const s = 'string';
 const u = undefined;
 const n = null;

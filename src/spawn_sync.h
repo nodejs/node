@@ -184,7 +184,7 @@ class SyncProcessRunner {
   static void KillTimerCallback(uv_timer_t* handle);
   static void KillTimerCloseCallback(uv_handle_t* handle);
 
-  size_t max_buffer_;
+  double max_buffer_;
   uint64_t timeout_;
   int kill_signal_;
 

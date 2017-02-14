@@ -1,4 +1,4 @@
-.TH "NPMRC" "5" "September 2016" "" ""
+.TH "NPMRC" "5" "January 2017" "" ""
 .SH "NAME"
 \fBnpmrc\fR \- The npm config files
 .SH DESCRIPTION
@@ -48,11 +48,6 @@ key[] = "first value"
 key[] = "second value"
 .fi
 .RE
-.P
-\fBNOTE:\fR Because local (per\-project or per\-user) \fB\|\.npmrc\fP files can contain
-sensitive credentials, they must be readable and writable \fIonly\fR by your user
-account (i\.e\. must have a mode of \fB0600\fP), otherwise they \fIwill be ignored by
-npm!\fR
 .SS Comments
 .P
 Lines in \fB\|\.npmrc\fP files are interpreted as comments when they begin with a \fB;\fP or \fB#\fP character\. \fB\|\.npmrc\fP files are parsed by npm/ini \fIhttps://github\.com/npm/ini\fR, which specifies this comment syntax\.

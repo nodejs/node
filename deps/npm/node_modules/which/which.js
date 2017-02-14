@@ -8,7 +8,6 @@ var isWindows = process.platform === 'win32' ||
 var path = require('path')
 var COLON = isWindows ? ';' : ':'
 var isexe = require('isexe')
-var fs = require('fs')
 
 function getNotFoundError (cmd) {
   var er = new Error('not found: ' + cmd)

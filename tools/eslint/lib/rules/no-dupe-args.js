@@ -54,7 +54,7 @@ module.exports = {
                     context.report({
                         node,
                         message: "Duplicate param '{{name}}'.",
-                        data: {name: variable.name}
+                        data: { name: variable.name }
                     });
                 }
             }

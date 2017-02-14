@@ -1,13 +1,13 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
-net.createServer(common.fail).listen({fd: 2})
+net.createServer(common.mustNotCall()).listen({fd: 2})
   .on('error', common.mustCall(onError));
-net.createServer(common.fail).listen({fd: 42})
+net.createServer(common.mustNotCall()).listen({fd: 42})
   .on('error', common.mustCall(onError));
 
 function onError(ex) {
-  assert.equal(ex.code, 'EINVAL');
+  assert.strictEqual(ex.code, 'EINVAL');
 }

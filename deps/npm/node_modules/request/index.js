@@ -18,8 +18,7 @@ var extend                = require('extend')
   , cookies               = require('./lib/cookies')
   , helpers               = require('./lib/helpers')
 
-var isFunction            = helpers.isFunction
-  , paramsHaveRequestBody = helpers.paramsHaveRequestBody
+var paramsHaveRequestBody = helpers.paramsHaveRequestBody
 
 
 // organize params for patch, post, put, head, del
@@ -95,7 +94,7 @@ function wrapRequestMethod (method, options, requester, verb) {
       target.method = verb.toUpperCase()
     }
 
-    if (isFunction(requester)) {
+    if (typeof requester === 'function') {
       method = requester
     }
 

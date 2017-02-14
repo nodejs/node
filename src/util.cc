@@ -1,6 +1,7 @@
 #include "util.h"
 #include "string_bytes.h"
 #include "node_buffer.h"
+#include "node_internals.h"
 #include <stdio.h>
 
 namespace node {
@@ -73,6 +74,15 @@ BufferValue::BufferValue(Isolate* isolate, Local<Value> value) {
     SetLengthAndZeroTerminate(len);
   } else {
     Invalidate();
+  }
+}
+
+void LowMemoryNotification() {
+  if (v8_initialized) {
+    auto isolate = v8::Isolate::GetCurrent();
+    if (isolate != nullptr) {
+      isolate->LowMemoryNotification();
+    }
   }
 }
 

@@ -8,9 +8,6 @@ if (enablei18n === undefined) {
   enablei18n = 0;
 }
 
-// is the Intl object present?
-const haveIntl = (global.Intl !== undefined);
-
 // Returns true if no specific locale ids were configured (i.e. "all")
 // Else, returns true if loc is in the configured list
 // Else, returns false
@@ -19,7 +16,17 @@ function haveLocale(loc) {
   return locs.indexOf(loc) !== -1;
 }
 
-if (!haveIntl) {
+// Always run these. They should always pass, even if the locale
+// param is ignored.
+assert.strictEqual('Ç'.toLocaleLowerCase('el'), 'ç');
+assert.strictEqual('Ç'.toLocaleLowerCase('tr'), 'ç');
+assert.strictEqual('Ç'.toLowerCase(), 'ç');
+
+assert.strictEqual('ç'.toLocaleUpperCase('el'), 'Ç');
+assert.strictEqual('ç'.toLocaleUpperCase('tr'), 'Ç');
+assert.strictEqual('ç'.toUpperCase(), 'Ç');
+
+if (!common.hasIntl) {
   const erMsg =
       '"Intl" object is NOT present but v8_enable_i18n_support is ' +
       enablei18n;
@@ -51,6 +58,11 @@ if (!haveIntl) {
     // Smoke test. Does it format anything, or fail?
     console.log('Date(0) formatted to: ' + dtf.format(date0));
     return;
+  }
+
+  // Check casing
+  {
+    assert.strictEqual('I'.toLocaleLowerCase('tr'), 'ı');
   }
 
   // Check with toLocaleString

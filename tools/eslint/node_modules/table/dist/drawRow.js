@@ -3,6 +3,7 @@
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
+
 /**
  * @typedef {Object} drawRow~border
  * @property {string} bodyLeft
@@ -13,12 +14,10 @@ Object.defineProperty(exports, "__esModule", {
 /**
  * @param {number[]} columns
  * @param {drawRow~border} border
- * @return {string}
+ * @returns {string}
  */
-
-exports.default = function (columns, border) {
+exports.default = (columns, border) => {
   return border.bodyLeft + columns.join(border.bodyJoin) + border.bodyRight + '\n';
 };
 
 module.exports = exports['default'];
-//# sourceMappingURL=drawRow.js.map

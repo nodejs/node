@@ -43,11 +43,6 @@
 
 /* Do platform-specific initialization. */
 int platform_init(int argc, char **argv) {
-  const char* tap;
-
-  tap = getenv("UV_TAP_OUTPUT");
-  tap_output = (tap != NULL && atoi(tap) > 0);
-
   /* Disable stdio output buffering. */
   setvbuf(stdout, NULL, _IONBF, 0);
   setvbuf(stderr, NULL, _IONBF, 0);
@@ -206,7 +201,11 @@ int process_wait(process_info_t* vec, int n, int timeout) {
   if (pthread_attr_init(&attr))
     abort();
 
+#if defined(__MVS__)
+  if (pthread_attr_setstacksize(&attr, 1024 * 1024))
+#else
   if (pthread_attr_setstacksize(&attr, 256 * 1024))
+#endif
     abort();
 
   r = pthread_create(&tid, &attr, dowait, &args);
@@ -294,8 +293,7 @@ long int process_output_size(process_info_t *p) {
 
 
 /* Copy the contents of the stdio output buffer to `fd`. */
-int process_copy_output(process_info_t *p, int fd) {
-  ssize_t nwritten;
+int process_copy_output(process_info_t* p, FILE* stream) {
   char buf[1024];
   int r;
 
@@ -306,20 +304,8 @@ int process_copy_output(process_info_t *p, int fd) {
   }
 
   /* TODO: what if the line is longer than buf */
-  while (fgets(buf, sizeof(buf), p->stdout_file) != NULL) {
-   /* TODO: what if write doesn't write the whole buffer... */
-    nwritten = 0;
-
-    if (tap_output)
-      nwritten += write(fd, "#", 1);
-
-    nwritten += write(fd, buf, strlen(buf));
-
-    if (nwritten < 0) {
-      perror("write");
-      return -1;
-    }
-  }
+  while (fgets(buf, sizeof(buf), p->stdout_file) != NULL)
+    print_lines(buf, strlen(buf), stream);
 
   if (ferror(p->stdout_file)) {
     perror("read");
@@ -390,11 +376,23 @@ void process_cleanup(process_info_t *p) {
 
 /* Move the console cursor one line up and back to the first column. */
 void rewind_cursor(void) {
+#if defined(__MVS__)
+  fprintf(stderr, "\047[2K\r");
+#else
   fprintf(stderr, "\033[2K\r");
+#endif
 }
 
 
 /* Pause the calling thread for a number of milliseconds. */
 void uv_sleep(int msec) {
-  usleep(msec * 1000);
+  int sec;
+  int usec;
+
+  sec = msec / 1000;
+  usec = (msec % 1000) * 1000;
+  if (sec > 0)
+    sleep(sec);
+  if (usec > 0)
+    usleep(usec);
 }

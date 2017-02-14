@@ -1,9 +1,9 @@
 /* eslint-disable no-debugger */
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var vm = require('vm');
-var spawn = require('child_process').spawn;
+const common = require('../common');
+const assert = require('assert');
+const vm = require('vm');
+const spawn = require('child_process').spawn;
 
 assert.throws(function() {
   vm.runInDebugContext('*');
@@ -21,8 +21,8 @@ assert.throws(function() {
   vm.runInDebugContext('(function(f) { f(f) })(function(f) { f(f) })');
 }, /RangeError/);
 
-assert.equal(typeof vm.runInDebugContext('this'), 'object');
-assert.equal(typeof vm.runInDebugContext('Debug'), 'object');
+assert.strictEqual(typeof vm.runInDebugContext('this'), 'object');
+assert.strictEqual(typeof vm.runInDebugContext('Debug'), 'object');
 
 assert.strictEqual(vm.runInDebugContext(), undefined);
 assert.strictEqual(vm.runInDebugContext(0), 0);
@@ -46,11 +46,11 @@ assert.strictEqual(vm.runInDebugContext(undefined), undefined);
     debugger;
   }
 
-  assert.equal(breaks, 0);
+  assert.strictEqual(breaks, 0);
   Debug.setListener(ondebugevent);
-  assert.equal(breaks, 0);
+  assert.strictEqual(breaks, 0);
   breakpoint();
-  assert.equal(breaks, 1);
+  assert.strictEqual(breaks, 1);
 }
 
 // Can set listeners and breakpoints on a single line file
@@ -73,24 +73,24 @@ assert.strictEqual(vm.runInDebugContext(undefined), undefined);
 
 // See https://github.com/nodejs/node/issues/1190, fatal errors should not
 // crash the process.
-var script = common.fixturesDir + '/vm-run-in-debug-context.js';
-var proc = spawn(process.execPath, [script]);
-var data = [];
-proc.stdout.on('data', common.fail);
+const script = common.fixturesDir + '/vm-run-in-debug-context.js';
+let proc = spawn(process.execPath, [script]);
+const data = [];
+proc.stdout.on('data', common.mustNotCall());
 proc.stderr.on('data', data.push.bind(data));
 proc.stderr.once('end', common.mustCall(function() {
-  var haystack = Buffer.concat(data).toString('utf8');
+  const haystack = Buffer.concat(data).toString('utf8');
   assert(/SyntaxError: Unexpected token \*/.test(haystack));
 }));
 proc.once('exit', common.mustCall(function(exitCode, signalCode) {
-  assert.equal(exitCode, 1);
-  assert.equal(signalCode, null);
+  assert.strictEqual(exitCode, 1);
+  assert.strictEqual(signalCode, null);
 }));
 
 proc = spawn(process.execPath, [script, 'handle-fatal-exception']);
-proc.stdout.on('data', common.fail);
-proc.stderr.on('data', common.fail);
+proc.stdout.on('data', common.mustNotCall());
+proc.stderr.on('data', common.mustNotCall());
 proc.once('exit', common.mustCall(function(exitCode, signalCode) {
-  assert.equal(exitCode, 42);
-  assert.equal(signalCode, null);
+  assert.strictEqual(exitCode, 42);
+  assert.strictEqual(signalCode, null);
 }));

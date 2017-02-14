@@ -18,7 +18,6 @@
   "_from": "jsonify@>=0.0.0 <0.1.0",
   "_id": "jsonify@0.0.0",
   "_inCache": true,
-  "_installable": true,
   "_location": "/jsonify",
   "_nodeVersion": "v0.5.0-pre",
   "_npmVersion": "1.0.10",

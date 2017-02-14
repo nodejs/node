@@ -11,7 +11,7 @@ const assert = require('assert');
 const scenarios = [0, 100];
 
 scenarios.forEach(function(delay) {
-  var nestedCalled = false;
+  let nestedCalled = false;
 
   setTimeout(function A() {
     // Create the nested timer with the same delay as the outer timer so that it

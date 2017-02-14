@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ********************************************************************************
 *   Copyright (C) 1997-2014, International Business Machines
@@ -134,7 +136,7 @@ public:
      *                decimal number.
      * @stable ICU 4.4
      */
-    Formattable(const StringPiece &number, UErrorCode &status);
+    Formattable(StringPiece number, UErrorCode &status);
 
     /**
      * Creates a Formattable object with a UnicodeString object to copy from.
@@ -581,7 +583,7 @@ public:
      *                      incoming string is not a valid decimal number.
      * @stable ICU 4.4
      */
-    void             setDecimalNumber(const StringPiece &numberString,
+    void             setDecimalNumber(StringPiece numberString,
                                       UErrorCode &status);
 
     /**

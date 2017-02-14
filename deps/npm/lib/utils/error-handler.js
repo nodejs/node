@@ -13,10 +13,15 @@ var rollbacks = npm.rollbacks
 var chain = require('slide').chain
 var writeStreamAtomic = require('fs-write-stream-atomic')
 var errorMessage = require('./error-message.js')
+var stopMetrics = require('./metrics.js').stop
 
 process.on('exit', function (code) {
   log.disableProgress()
   if (!npm.config || !npm.config.loaded) return
+
+  // kill any outstanding stats reporter if it hasn't finished yet
+  stopMetrics()
+
   if (code) itWorked = false
   if (itWorked) log.info('ok')
   else {
@@ -38,7 +43,7 @@ process.on('exit', function (code) {
       wroteLogFile = false
     }
     if (code) {
-      log.error('code', code)
+      log.verbose('code', code)
     }
   }
 

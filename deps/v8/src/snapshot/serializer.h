@@ -38,7 +38,7 @@ class CodeAddressMap : public CodeEventLogger {
  private:
   class NameMap {
    public:
-    NameMap() : impl_(base::HashMap::PointersMatch) {}
+    NameMap() : impl_() {}
 
     ~NameMap() {
       for (base::HashMap::Entry* p = impl_.Start(); p != NULL;

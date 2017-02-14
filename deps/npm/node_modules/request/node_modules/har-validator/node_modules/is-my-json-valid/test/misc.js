@@ -20,6 +20,14 @@ tape('simple', function(t) {
   t.end()
 })
 
+tape('data is undefined', function (t) {
+  var validate = validator({type: 'string'})
+
+  t.notOk(validate(null))
+  t.notOk(validate(undefined))
+  t.end()
+})
+
 tape('advanced', function(t) {
   var validate = validator(cosmic.schema)
 
@@ -191,6 +199,22 @@ tape('exclusiveMinimum/exclusiveMaximum', function(t) {
   t.ok(validate({foo:11}))
   t.notOk(validate({foo:20}))
   t.ok(validate({foo:19}))
+  t.end()
+})
+
+tape('minimum/maximum number type', function(t) {
+  var validate = validator({
+    type: ['integer', 'null'],
+    minimum: 1,
+    maximum: 100
+  })
+
+  t.notOk(validate(-1))
+  t.notOk(validate(0))
+  t.ok(validate(null))
+  t.ok(validate(1))
+  t.ok(validate(100))
+  t.notOk(validate(101))
   t.end()
 })
 

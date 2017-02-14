@@ -1,15 +1,15 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var http = require('http');
+const http = require('http');
 
 
-var serverSocket = null;
-var server = http.createServer(function(req, res) {
+let serverSocket = null;
+const server = http.createServer(function(req, res) {
   // They should all come in on the same server socket.
   if (serverSocket) {
-    assert.equal(req.socket, serverSocket);
+    assert.strictEqual(req.socket, serverSocket);
   } else {
     serverSocket = req.socket;
   }
@@ -20,12 +20,12 @@ server.listen(0, function() {
   makeRequest(expectRequests);
 });
 
-var agent = http.Agent({ keepAlive: true });
+const agent = http.Agent({ keepAlive: true });
 
 
-var clientSocket = null;
-var expectRequests = 10;
-var actualRequests = 0;
+let clientSocket = null;
+const expectRequests = 10;
+let actualRequests = 0;
 
 
 function makeRequest(n) {
@@ -35,7 +35,7 @@ function makeRequest(n) {
     return;
   }
 
-  var req = http.request({
+  const req = http.request({
     port: server.address().port,
     agent: agent,
     path: '/' + n
@@ -45,20 +45,20 @@ function makeRequest(n) {
 
   req.on('socket', function(sock) {
     if (clientSocket) {
-      assert.equal(sock, clientSocket);
+      assert.strictEqual(sock, clientSocket);
     } else {
       clientSocket = sock;
     }
   });
 
   req.on('response', function(res) {
-    var data = '';
+    let data = '';
     res.setEncoding('utf8');
     res.on('data', function(c) {
       data += c;
     });
     res.on('end', function() {
-      assert.equal(data, '/' + n);
+      assert.strictEqual(data, '/' + n);
       setTimeout(function() {
         actualRequests++;
         makeRequest(n - 1);
@@ -68,6 +68,6 @@ function makeRequest(n) {
 }
 
 process.on('exit', function() {
-  assert.equal(actualRequests, expectRequests);
+  assert.strictEqual(actualRequests, expectRequests);
   console.log('ok');
 });

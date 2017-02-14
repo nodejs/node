@@ -12,7 +12,6 @@
         {
           'target_name': 'zlib',
           'type': 'static_library',
-          'defines': [ 'ZLIB_CONST' ],
           'sources': [
             'adler32.c',
             'compress.c',
@@ -45,7 +44,6 @@
             '.',
           ],
           'direct_dependent_settings': {
-            'defines': [ 'ZLIB_CONST' ],
             'include_dirs': [
               '.',
             ],
@@ -53,7 +51,7 @@
           'conditions': [
             ['OS!="win"', {
               'cflags!': [ '-ansi' ],
-              'defines': [ 'Z_HAVE_UNISTD_H' ],
+              'defines': [ 'Z_HAVE_UNISTD_H', 'HAVE_HIDDEN' ],
             }],
             ['OS=="mac" or OS=="ios" or OS=="freebsd" or OS=="android"', {
               # Mac, Android and the BSDs don't have fopen64, ftello64, or
@@ -74,12 +72,10 @@
           'direct_dependent_settings': {
             'defines': [
               'USE_SYSTEM_ZLIB',
-              'ZLIB_CONST',
             ],
           },
           'defines': [
             'USE_SYSTEM_ZLIB',
-            'ZLIB_CONST',
           ],
           'link_settings': {
             'libraries': [

@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 ******************************************************************************
 * Copyright (C) 1996-2015, International Business Machines Corporation and others.
@@ -114,8 +116,12 @@ typedef enum UBreakIteratorType {
    * @deprecated ICU 2.8 Use the word break iterator for titlecasing for Unicode 4 and later.
    */
   UBRK_TITLE = 4,
-#endif /* U_HIDE_DEPRECATED_API */
-  UBRK_COUNT = 5
+    /**
+     * One more than the highest normal UBreakIteratorType value.
+     * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
+     */
+    UBRK_COUNT = 5
+#endif  // U_HIDE_DEPRECATED_API
 } UBreakIteratorType;
 
 /** Value indicating all text boundaries have been returned.
@@ -130,7 +136,10 @@ typedef enum UBreakIteratorType {
  *  word, to allow for further subdivisions of a category in future releases.
  *  Applications should check for tag values falling within the range, rather
  *  than for single individual values.
- *  @stable ICU 2.2
+ *
+ * The numeric values of all of these constants are stable (will not change).
+ *
+ * @stable ICU 2.2
 */
 typedef enum UWordBreak {
     /** Tag value for "words" that do not fit into any of other categories.
@@ -163,7 +172,10 @@ typedef enum UWordBreak {
  *  word, to allow for further subdivisions of a category in future releases.
  *  Applications should check for tag values falling within the range, rather
  *  than for single individual values.
- *  @stable ICU 2.8
+ *
+ * The numeric values of all of these constants are stable (will not change).
+ *
+ * @stable ICU 2.8
 */
 typedef enum ULineBreakTag {
     /** Tag value for soft line breaks, positions at which a line break
@@ -185,7 +197,10 @@ typedef enum ULineBreakTag {
  *  sentence, to allow for further subdivisions of a category in future releases.
  *  Applications should check for tag values falling within the range, rather
  *  than for single individual values.
- *  @stable ICU 2.8
+ *
+ * The numeric values of all of these constants are stable (will not change).
+ *
+ * @stable ICU 2.8
 */
 typedef enum USentenceBreakTag {
     /** Tag value for for sentences  ending with a sentence terminator
@@ -316,7 +331,11 @@ U_NAMESPACE_END
 #endif
 
 /**
- * Sets an existing iterator to point to a new piece of text
+ * Sets an existing iterator to point to a new piece of text.
+ * The break iterator retains a pointer to the supplied text.
+ * The caller must not modify or delete the text while the BreakIterator
+ * retains the reference.
+ *
  * @param bi The iterator to use
  * @param text The text to be set
  * @param textLength The length of the text

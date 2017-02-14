@@ -8,11 +8,12 @@ const path = require('path');
 
 const port = common.PORT;
 const serverPath = path.join(common.fixturesDir, 'clustered-server', 'app.js');
-const args = [`--debug-port=${port}`, serverPath];
+// cannot use 'Flags: --no-deprecation' since it doesn't effect child
+const args = [`--debug-port=${port}`, '--no-deprecation', serverPath];
 const options = { stdio: ['inherit', 'inherit', 'pipe', 'ipc'] };
 const child = spawn(process.execPath, args, options);
 
-var expectedContent = [
+let expectedContent = [
   'Starting debugger agent.',
   'Debugger listening on 127.0.0.1:' + (port + 0),
   'Starting debugger agent.',
@@ -22,10 +23,10 @@ var expectedContent = [
 ].join(os.EOL);
 expectedContent += os.EOL; // the last line also contains an EOL character
 
-var debuggerAgentsOutput = '';
-var debuggerAgentsStarted = false;
+let debuggerAgentsOutput = '';
+let debuggerAgentsStarted = false;
 
-var pids;
+let pids;
 
 child.stderr.on('data', function(data) {
   const childStderrOutputString = data.toString();
@@ -64,10 +65,6 @@ function onNoMoreDebuggerAgentsOutput() {
   assertDebuggerAgentsOutput();
   process.exit();
 }
-
-setTimeout(function testTimedOut() {
-  common.fail('test timed out');
-}, common.platformTimeout(4000)).unref();
 
 process.on('exit', function onExit() {
   // Kill processes in reverse order to avoid timing problems on Windows where

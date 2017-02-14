@@ -1,16 +1,16 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var http = require('http');
+const assert = require('assert');
+const http = require('http');
 
-var agent = new http.Agent({
+const agent = new http.Agent({
   keepAlive: true,
   keepAliveMsecs: 1000,
   maxSockets: 2,
   maxFreeSockets: 2
 });
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   res.end('hello world');
 });
 
@@ -23,21 +23,21 @@ function get(path, callback) {
   }, callback);
 }
 
-var count = 0;
+let count = 0;
 function done() {
   if (++count !== 2) {
     return;
   }
-  var freepool = agent.freeSockets[Object.keys(agent.freeSockets)[0]];
-  assert.equal(freepool.length, 2,
-               'expect keep 2 free sockets, but got ' + freepool.length);
+  const freepool = agent.freeSockets[Object.keys(agent.freeSockets)[0]];
+  assert.strictEqual(freepool.length, 2,
+                     'expect keep 2 free sockets, but got ' + freepool.length);
   agent.destroy();
   server.close();
 }
 
 server.listen(0, function() {
   get('/1', function(res) {
-    assert.equal(res.statusCode, 200);
+    assert.strictEqual(res.statusCode, 200);
     res.resume();
     res.on('end', function() {
       process.nextTick(done);
@@ -45,7 +45,7 @@ server.listen(0, function() {
   });
 
   get('/2', function(res) {
-    assert.equal(res.statusCode, 200);
+    assert.strictEqual(res.statusCode, 200);
     res.resume();
     res.on('end', function() {
       process.nextTick(done);

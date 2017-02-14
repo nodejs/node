@@ -119,8 +119,15 @@ class PropertyCallbackArguments
   inline Handle<Object> Call(GenericNamedPropertySetterCallback f,
                              Handle<Name> name, Handle<Object> value);
 
+  inline Handle<Object> Call(GenericNamedPropertyDefinerCallback f,
+                             Handle<Name> name,
+                             const v8::PropertyDescriptor& desc);
+
   inline Handle<Object> Call(IndexedPropertySetterCallback f, uint32_t index,
                              Handle<Object> value);
+
+  inline Handle<Object> Call(IndexedPropertyDefinerCallback f, uint32_t index,
+                             const v8::PropertyDescriptor& desc);
 
   inline void Call(AccessorNameSetterCallback f, Handle<Name> name,
                    Handle<Object> value);

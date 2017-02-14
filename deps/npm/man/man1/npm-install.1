@@ -1,4 +1,4 @@
-.TH "NPM\-INSTALL" "1" "September 2016" "" ""
+.TH "NPM\-INSTALL" "1" "January 2017" "" ""
 .SH "NAME"
 \fBnpm-install\fR \- Install a package
 .SH SYNOPSIS
@@ -403,6 +403,10 @@ See npm help 5 folders for a more detailed description of the specific
 folder structures that npm creates\.
 .SS Limitations of npm's Install Algorithm
 .P
+npm will refuse to install any package with an identical name to the
+current package\. This can be overridden with the \fB\-\-force\fP flag, but in
+most cases can simply be addressed by changing the local package name\.
+.P
 There are some very rare and pathological edge\-cases where a cycle can
 cause npm to try to install a never\-ending tree of packages\.  Here is
 the simplest case:
@@ -448,7 +452,7 @@ npm help 5 npmrc
 .IP \(bu 2
 npm help 7 registry
 .IP \(bu 2
-npm help tag
+npm help dist\-tag
 .IP \(bu 2
 npm help uninstall
 .IP \(bu 2

@@ -64,7 +64,7 @@ void ZonePool::StatsScope::ZoneReturned(Zone* zone) {
   }
 }
 
-ZonePool::ZonePool(base::AccountingAllocator* allocator)
+ZonePool::ZonePool(AccountingAllocator* allocator)
     : max_allocated_bytes_(0), total_deleted_bytes_(0), allocator_(allocator) {}
 
 ZonePool::~ZonePool() {

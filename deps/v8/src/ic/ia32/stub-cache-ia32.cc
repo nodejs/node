@@ -22,8 +22,6 @@ static void ProbeTable(StubCache* stub_cache, MacroAssembler* masm,
   ExternalReference key_offset(stub_cache->key_reference(table));
   ExternalReference value_offset(stub_cache->value_reference(table));
   ExternalReference map_offset(stub_cache->map_reference(table));
-  ExternalReference virtual_register =
-      ExternalReference::virtual_handler_register(masm->isolate());
 
   Label miss;
   Code::Kind ic_kind = stub_cache->ic_kind();
@@ -55,19 +53,15 @@ static void ProbeTable(StubCache* stub_cache, MacroAssembler* masm,
     }
 #endif
 
-    // The vector and slot were pushed onto the stack before starting the
-    // probe, and need to be dropped before calling the handler.
     if (is_vector_store) {
-      // The overlap here is rather embarrassing. One does what one must.
-      Register vector = StoreWithVectorDescriptor::VectorRegister();
+      // The value, vector and slot were passed to the IC on the stack and
+      // they are still there. So we can just jump to the handler.
       DCHECK(extra.is(StoreWithVectorDescriptor::SlotRegister()));
       __ add(extra, Immediate(Code::kHeaderSize - kHeapObjectTag));
-      __ pop(vector);
-      __ mov(Operand::StaticVariable(virtual_register), extra);
-      __ pop(extra);  // Pop "slot".
-      // Jump to the first instruction in the code stub.
-      __ jmp(Operand::StaticVariable(virtual_register));
+      __ jmp(extra);
     } else {
+      // The vector and slot were pushed onto the stack before starting the
+      // probe, and need to be dropped before calling the handler.
       __ pop(LoadWithVectorDescriptor::VectorRegister());
       __ pop(LoadDescriptor::SlotRegister());
       __ add(extra, Immediate(Code::kHeaderSize - kHeapObjectTag));
@@ -110,19 +104,10 @@ static void ProbeTable(StubCache* stub_cache, MacroAssembler* masm,
 
     // Jump to the first instruction in the code stub.
     if (is_vector_store) {
-      // The vector and slot were pushed onto the stack before starting the
-      // probe, and need to be dropped before calling the handler.
-      Register vector = StoreWithVectorDescriptor::VectorRegister();
       DCHECK(offset.is(StoreWithVectorDescriptor::SlotRegister()));
-      __ add(offset, Immediate(Code::kHeaderSize - kHeapObjectTag));
-      __ mov(Operand::StaticVariable(virtual_register), offset);
-      __ pop(vector);
-      __ pop(offset);  // Pop "slot".
-      __ jmp(Operand::StaticVariable(virtual_register));
-    } else {
-      __ add(offset, Immediate(Code::kHeaderSize - kHeapObjectTag));
-      __ jmp(offset);
     }
+    __ add(offset, Immediate(Code::kHeaderSize - kHeapObjectTag));
+    __ jmp(offset);
 
     // Pop at miss.
     __ bind(&miss);

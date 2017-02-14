@@ -16,7 +16,7 @@ function _flush(n) {
   n(null, expected);
 }
 
-var t = new Transform({
+const t = new Transform({
   transform: _transform,
   flush: _flush
 });

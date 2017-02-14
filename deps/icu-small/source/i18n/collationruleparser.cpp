@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 * Copyright (C) 2013-2015, International Business Machines
@@ -788,7 +790,7 @@ CollationRuleParser::readWords(int32_t i, UnicodeString &raw) const {
             return i;
         }
         if(PatternProps::isWhiteSpace(c)) {
-            raw.append(0x20);
+            raw.append(sp);
             i = skipWhiteSpace(i + 1);
         } else {
             raw.append(c);

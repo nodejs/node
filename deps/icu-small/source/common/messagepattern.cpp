@@ -1,3 +1,5 @@
+// Copyright (C) 2016 and later: Unicode, Inc. and others.
+// License & terms of use: http://www.unicode.org/copyright.html
 /*
 *******************************************************************************
 *   Copyright (C) 2011-2012, International Business Machines
@@ -114,7 +116,7 @@ MessagePatternList<T, stackCapacity>::copyFrom(
             errorCode=U_MEMORY_ALLOCATION_ERROR;
             return;
         }
-        uprv_memcpy(a.getAlias(), other.a.getAlias(), length*sizeof(T));
+        uprv_memcpy(a.getAlias(), other.a.getAlias(), (size_t)length*sizeof(T));
     }
 }
 

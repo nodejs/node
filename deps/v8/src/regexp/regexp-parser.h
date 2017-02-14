@@ -7,7 +7,7 @@
 
 #include "src/objects.h"
 #include "src/regexp/regexp-ast.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {

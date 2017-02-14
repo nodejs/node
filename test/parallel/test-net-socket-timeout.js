@@ -1,14 +1,17 @@
 'use strict';
-var common = require('../common');
-var net = require('net');
-var assert = require('assert');
+const common = require('../common');
+const net = require('net');
+const assert = require('assert');
 
 // Verify that invalid delays throw
-var noop = function() {};
-var s = new net.Socket();
-var nonNumericDelays = ['100', true, false, undefined, null, '', {}, noop, []];
-var badRangeDelays = [-0.001, -1, -Infinity, Infinity, NaN];
-var validDelays = [0, 0.001, 1, 1e6];
+const noop = function() {};
+const s = new net.Socket();
+const nonNumericDelays = [
+  '100', true, false, undefined, null, '', {}, noop, []
+];
+const badRangeDelays = [-0.001, -1, -Infinity, Infinity, NaN];
+const validDelays = [0, 0.001, 1, 1e6];
+
 
 for (let i = 0; i < nonNumericDelays.length; i++) {
   assert.throws(function() {
@@ -28,15 +31,11 @@ for (let i = 0; i < validDelays.length; i++) {
   });
 }
 
-var server = net.Server();
+const server = net.Server();
 server.listen(0, common.mustCall(function() {
-  var socket = net.createConnection(this.address().port);
-  socket.setTimeout(100, common.mustCall(function() {
+  const socket = net.createConnection(this.address().port);
+  socket.setTimeout(1, common.mustCall(function() {
     socket.destroy();
     server.close();
-    clearTimeout(timer);
   }));
-  var timer = setTimeout(function() {
-    process.exit(1);
-  }, common.platformTimeout(200));
 }));

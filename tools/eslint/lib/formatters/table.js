@@ -36,7 +36,7 @@ function drawTable(messages) {
         chalk.bold("Rule ID")
     ]);
 
-    messages.forEach(function(message) {
+    messages.forEach(message => {
         let messageType;
 
         if (message.fatal || message.severity === 2) {
@@ -92,17 +92,15 @@ function drawTable(messages) {
 function drawReport(results) {
     let files;
 
-    files = results.map(function(result) {
+    files = results.map(result => {
         if (!result.messages.length) {
             return "";
         }
 
-        return "\n" + result.filePath + "\n\n" + drawTable(result.messages);
+        return `\n${result.filePath}\n\n${drawTable(result.messages)}`;
     });
 
-    files = files.filter(function(content) {
-        return content.trim();
-    });
+    files = files.filter(content => content.trim());
 
     return files.join("");
 }
@@ -120,7 +118,7 @@ module.exports = function(report) {
     errorCount = 0;
     warningCount = 0;
 
-    report.forEach(function(fileReport) {
+    report.forEach(fileReport => {
         errorCount += fileReport.errorCount;
         warningCount += fileReport.warningCount;
     });
@@ -129,7 +127,7 @@ module.exports = function(report) {
         result = drawReport(report);
     }
 
-    result += "\n" + table([
+    result += `\n${table([
         [
             chalk.red(pluralize("Error", errorCount, true))
         ],
@@ -146,7 +144,7 @@ module.exports = function(report) {
         drawHorizontalLine() {
             return true;
         }
-    });
+    })}`;
 
     return result;
 };

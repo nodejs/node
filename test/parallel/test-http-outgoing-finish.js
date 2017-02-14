@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var http = require('http');
+const http = require('http');
 
 http.createServer(function(req, res) {
   req.resume();
@@ -11,7 +11,7 @@ http.createServer(function(req, res) {
   });
   this.close();
 }).listen(0, function() {
-  var req = http.request({
+  const req = http.request({
     port: this.address().port,
     method: 'PUT'
   });
@@ -21,11 +21,11 @@ http.createServer(function(req, res) {
   });
 });
 
-var buf = Buffer.alloc(1024 * 16, 'x');
+const buf = Buffer.alloc(1024 * 16, 'x');
 function write(out) {
-  var name = out.constructor.name;
-  var finishEvent = false;
-  var endCb = false;
+  const name = out.constructor.name;
+  let finishEvent = false;
+  let endCb = false;
 
   // first, write until it gets some backpressure
   while (out.write(buf)) {}

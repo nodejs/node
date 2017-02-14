@@ -132,7 +132,7 @@ class StaticVisitorBase : public AllStatic {
            (base == kVisitJSObject) || (base == kVisitJSApiObject));
     DCHECK(IsAligned(object_size, kPointerSize));
     DCHECK(Heap::kMinObjectSizeInWords * kPointerSize <= object_size);
-    DCHECK(object_size <= Page::kMaxRegularHeapObjectSize);
+    DCHECK(object_size <= kMaxRegularHeapObjectSize);
     DCHECK(!has_unboxed_fields || (base == kVisitJSObject) ||
            (base == kVisitJSApiObject));
 
@@ -354,7 +354,6 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     table_.GetVisitor(map)(map, obj);
   }
 
-  INLINE(static void VisitPropertyCell(Map* map, HeapObject* object));
   INLINE(static void VisitWeakCell(Map* map, HeapObject* object));
   INLINE(static void VisitTransitionArray(Map* map, HeapObject* object));
   INLINE(static void VisitCodeEntry(Heap* heap, HeapObject* object,
@@ -374,12 +373,9 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   INLINE(static void VisitMap(Map* map, HeapObject* object));
   INLINE(static void VisitCode(Map* map, HeapObject* object));
   INLINE(static void VisitSharedFunctionInfo(Map* map, HeapObject* object));
-  INLINE(static void VisitAllocationSite(Map* map, HeapObject* object));
   INLINE(static void VisitWeakCollection(Map* map, HeapObject* object));
   INLINE(static void VisitJSFunction(Map* map, HeapObject* object));
-  INLINE(static void VisitJSRegExp(Map* map, HeapObject* object));
   INLINE(static void VisitNativeContext(Map* map, HeapObject* object));
-  INLINE(static void VisitBytecodeArray(Map* map, HeapObject* object));
 
   // Mark pointers in a Map treating some elements of the descriptor array weak.
   static void MarkMapContents(Heap* heap, Map* map);
@@ -390,8 +386,8 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
   // Helpers used by code flushing support that visit pointer fields and treat
   // references to code objects either strongly or weakly.
-  static void VisitSharedFunctionInfoStrongCode(Heap* heap, HeapObject* object);
-  static void VisitSharedFunctionInfoWeakCode(Heap* heap, HeapObject* object);
+  static void VisitSharedFunctionInfoStrongCode(Map* map, HeapObject* object);
+  static void VisitSharedFunctionInfoWeakCode(Map* map, HeapObject* object);
   static void VisitJSFunctionStrongCode(Map* map, HeapObject* object);
   static void VisitJSFunctionWeakCode(Map* map, HeapObject* object);
 

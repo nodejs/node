@@ -10,6 +10,9 @@ The objects listed here are specific to Node.js. There are a number of
 also globally accessible.
 
 ## Class: Buffer
+<!-- YAML
+added: v0.1.103
+-->
 
 <!-- type=global -->
 
@@ -18,71 +21,99 @@ also globally accessible.
 Used to handle binary data. See the [buffer section][].
 
 ## \_\_dirname
+<!-- YAML
+added: v0.1.27
+-->
 
 <!-- type=var -->
 
 * {String}
 
-The name of the directory that the currently executing script resides in.
+The directory name of the current module. This the same as the
+[`path.dirname()`][] of the [`__filename`][].
+
+`__dirname` is not actually a global but rather local to each module.
 
 Example: running `node example.js` from `/Users/mjr`
 
 ```js
 console.log(__dirname);
-// /Users/mjr
+// Prints: /Users/mjr
+console.log(path.dirname(__filename));
+// Prints: /Users/mjr
 ```
 
-`__dirname` isn't actually a global but rather local to each module.
-
-For instance, given two modules: `a` and `b`, where `b` is a dependency of
-`a` and there is a directory structure of:
-
-* `/Users/mjr/app/a.js`
-* `/Users/mjr/app/node_modules/b/b.js`
-
-References to `__dirname` within `b.js` will return
-`/Users/mjr/app/node_modules/b` while references to `__dirname` within `a.js`
-will return `/Users/mjr/app`.
-
 ## \_\_filename
+<!-- YAML
+added: v0.0.1
+-->
 
 <!-- type=var -->
 
 * {String}
 
-The filename of the code being executed.  This is the resolved absolute path
-of this code file.  For a main program this is not necessarily the same
-filename used in the command line.  The value inside a module is the path
-to that module file.
+The file name of the current module. This is the resolved absolute path of the
+current module file.
 
-Example: running `node example.js` from `/Users/mjr`
+For a main program this is not necessarily the same as the file name used in the
+command line.
+
+See [`__dirname`][] for the directory name of the current module.
+
+`__filename` is not actually a global but rather local to each module.
+
+Examples:
+
+Running `node example.js` from `/Users/mjr`
 
 ```js
 console.log(__filename);
-// /Users/mjr/example.js
+// Prints: /Users/mjr/example.js
+console.log(__dirname);
+// Prints: /Users/mjr
 ```
 
-`__filename` isn't actually a global but rather local to each module.
+Given two modules: `a` and `b`, where `b` is a dependency of
+`a` and there is a directory structure of:
+
+* `/Users/mjr/app/a.js`
+* `/Users/mjr/app/node_modules/b/b.js`
+
+References to `__filename` within `b.js` will return
+`/Users/mjr/app/node_modules/b/b.js` while references to `__filename` within
+`a.js` will return `/Users/mjr/app/a.js`.
 
 ## clearImmediate(immediateObject)
+<!-- YAML
+added: v0.9.1
+-->
 
 <!--type=global-->
 
 [`clearImmediate`] is described in the [timers][] section.
 
 ## clearInterval(intervalObject)
+<!-- YAML
+added: v0.0.1
+-->
 
 <!--type=global-->
 
 [`clearInterval`] is described in the [timers][] section.
 
 ## clearTimeout(timeoutObject)
+<!-- YAML
+added: v0.0.1
+-->
 
 <!--type=global-->
 
 [`clearTimeout`] is described in the [timers][] section.
 
 ## console
+<!-- YAML
+added: v0.1.100
+-->
 
 <!-- type=global -->
 
@@ -91,6 +122,9 @@ console.log(__filename);
 Used to print to stdout and stderr. See the [`console`][] section.
 
 ## exports
+<!-- YAML
+added: v0.1.12
+-->
 
 <!-- type=var -->
 
@@ -98,11 +132,14 @@ A reference to the `module.exports` that is shorter to type.
 See [module system documentation][] for details on when to use `exports` and
 when to use `module.exports`.
 
-`exports` isn't actually a global but rather local to each module.
+`exports` is not actually a global but rather local to each module.
 
 See the [module system documentation][] for more information.
 
 ## global
+<!-- YAML
+added: v0.1.27
+-->
 
 <!-- type=global -->
 
@@ -114,6 +151,9 @@ variable. In Node.js this is different. The top-level scope is not the global
 scope; `var something` inside an Node.js module will be local to that module.
 
 ## module
+<!-- YAML
+added: v0.1.16
+-->
 
 <!-- type=var -->
 
@@ -123,11 +163,14 @@ A reference to the current module. In particular
 `module.exports` is used for defining what a module exports and makes
 available through `require()`.
 
-`module` isn't actually a global but rather local to each module.
+`module` is not actually a global but rather local to each module.
 
 See the [module system documentation][] for more information.
 
 ## process
+<!-- YAML
+added: v0.1.7
+-->
 
 <!-- type=global -->
 
@@ -136,15 +179,21 @@ See the [module system documentation][] for more information.
 The process object. See the [`process` object][] section.
 
 ## require()
+<!-- YAML
+added: v0.1.13
+-->
 
 <!-- type=var -->
 
 * {Function}
 
-To require modules. See the [Modules][] section.  `require` isn't actually a
+To require modules. See the [Modules][] section.  `require` is not actually a
 global but rather local to each module.
 
 ### require.cache
+<!-- YAML
+added: v0.3.0
+-->
 
 * {Object}
 
@@ -154,6 +203,10 @@ this does not apply to [native addons][], for which reloading will result in an
 Error.
 
 ### require.extensions
+<!-- YAML
+added: v0.3.0
+deprecated: v0.10.6
+-->
 
 > Stability: 0 - Deprecated
 
@@ -173,34 +226,56 @@ However, in practice, there are much better ways to do this, such as
 loading modules via some other Node.js program, or compiling them to
 JavaScript ahead of time.
 
-Since the Module system is locked, this feature will probably never go
+Since the module system is locked, this feature will probably never go
 away.  However, it may have subtle bugs and complexities that are best
 left untouched.
 
+Note that the number of file system operations that the module system
+has to perform in order to resolve a `require(...)` statement to a
+filename scales linearly with the number of registered extensions.
+
+In other words, adding extensions slows down the module loader and
+should be discouraged.
+
 ### require.resolve()
+<!-- YAML
+added: v0.3.0
+-->
 
 Use the internal `require()` machinery to look up the location of a module,
 but rather than loading the module, just return the resolved filename.
 
 ## setImmediate(callback[, ...args])
+<!-- YAML
+added: v0.9.1
+-->
 
 <!-- type=global -->
 
 [`setImmediate`] is described in the [timers][] section.
 
 ## setInterval(callback, delay[, ...args])
+<!-- YAML
+added: v0.0.1
+-->
 
 <!-- type=global -->
 
 [`setInterval`] is described in the [timers][] section.
 
 ## setTimeout(callback, delay[, ...args])
+<!-- YAML
+added: v0.0.1
+-->
 
 <!-- type=global -->
 
 [`setTimeout`] is described in the [timers][] section.
 
+[`__dirname`]: #globals_dirname
+[`__filename`]: #globals_filename
 [`console`]: console.html
+[`path.dirname()`]: path.html#path_path_dirname_path
 [`process` object]: process.html#process_process
 [buffer section]: buffer.html
 [module system documentation]: modules.html

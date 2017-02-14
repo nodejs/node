@@ -22,7 +22,7 @@ either [`wrk`][wrk] or [`autocannon`][autocannon].
 path, hence if you want to compare two HTTP benchmark runs make sure that the
 Node version in the path is not altered.
 
-`wrk` may be available through your preferred package manger. If not, you can
+`wrk` may be available through your preferred package manager. If not, you can
 easily build it [from source][wrk] via `make`.
 
 By default `wrk` will be used as benchmarker. If it is not available
@@ -33,6 +33,10 @@ benchmarker to be used by providing it as an argument, e. g.:
 `node benchmark/run.js --set benchmarker=autocannon http`
 
 `node benchmark/http/simple.js benchmarker=autocannon`
+
+Basic Unix tools are required for some benchmarks.
+[Git for Windows][git-for-windows] includes Git Bash and the necessary tools,
+which need to be included in the global Windows `PATH`.
 
 To analyze the results `R` should be installed. Check you package manager or
 download it from https://www.r-project.org/.
@@ -45,6 +49,21 @@ $ R
 install.packages("ggplot2")
 install.packages("plyr")
 ```
+
+### CRAN Mirror Issues
+In the event you get a message that you need to select a CRAN mirror first.
+
+You can specify a mirror by adding in the repo parameter.
+
+If we used the "http://cran.us.r-project.org" mirror, it could look something
+like this:
+
+```R
+install.packages("ggplot2", repo="http://cran.us.r-project.org")
+```
+
+Of course, use the mirror that suits your location.
+A list of mirrors is [located here](https://cran.r-project.org/mirrors.html).
 
 ## Running benchmarks
 
@@ -142,7 +161,7 @@ For analysing the benchmark results use the `compare.R` tool.
 ```console
 $ cat compare-pr-5134.csv | Rscript benchmark/compare.R
 
-                                                                                      improvement significant      p.value
+                                                                                      improvement confidence      p.value
 string_decoder/string-decoder.js n=250000 chunk=1024 inlen=1024 encoding=ascii           12.46 %         *** 1.165345e-04
 string_decoder/string-decoder.js n=250000 chunk=1024 inlen=1024 encoding=base64-ascii    24.70 %         *** 1.820615e-15
 string_decoder/string-decoder.js n=250000 chunk=1024 inlen=1024 encoding=base64-utf8     23.60 %         *** 2.105625e-12
@@ -152,7 +171,7 @@ string_decoder/string-decoder.js n=250000 chunk=1024 inlen=128  encoding=ascii  
 ```
 
 In the output, _improvement_ is the relative improvement of the new version,
-hopefully this is positive. _significant_ tells if there is enough
+hopefully this is positive. _confidence_ tells if there is enough
 statistical evidence to validate the _improvement_. If there is enough evidence
 then there will be at least one star (`*`), more stars is just better. **However
 if there are no stars, then you shouldn't make any conclusions based on the
@@ -161,7 +180,7 @@ to be no improvements, then there shouldn't be any stars.
 
 **A word of caution:** Statistics is not a foolproof tool. If a benchmark shows
 a statistical significant difference, there is a 5% risk that this
-difference doesn't actually exists. For a single benchmark this is not an
+difference doesn't actually exist. For a single benchmark this is not an
 issue. But when considering 20 benchmarks it's normal that one of them
 will show significance, when it shouldn't. A possible solution is to instead
 consider at least two stars (`**`) as the threshold, in that case the risk
@@ -170,7 +189,7 @@ may require more runs to obtain (can be set with `--runs`).
 
 _For the statistically minded, the R script performs an [independent/unpaired
 2-group t-test][t-test], with the null hypothesis that the performance is the
-same for both versions. The significant field will show a star if the p-value
+same for both versions. The confidence field will show a star if the p-value
 is less than `0.05`._
 
 The `compare.R` tool can also produce a box plot by using the `--plot filename`
@@ -183,7 +202,7 @@ keep the first line since that contains the header information.
 ```console
 $ cat compare-pr-5134.csv | sed '1p;/encoding=ascii/!d' | Rscript benchmark/compare.R --plot compare-plot.png
 
-                                                                               improvement significant      p.value
+                                                                               improvement confidence      p.value
 string_decoder/string-decoder.js n=250000 chunk=1024 inlen=1024 encoding=ascii    12.46 %         *** 1.165345e-04
 string_decoder/string-decoder.js n=250000 chunk=1024 inlen=128 encoding=ascii      6.70 %           * 2.928003e-02
 string_decoder/string-decoder.js n=250000 chunk=1024 inlen=32 encoding=ascii       7.47 %         *** 5.780583e-04
@@ -268,37 +287,84 @@ chunk     encoding       mean confidence.interval
 ## Creating a benchmark
 
 All benchmarks use the `require('../common.js')` module. This contains the
-`createBenchmark(main, configs)` method which will setup your benchmark.
+`createBenchmark(main, configs[, options])` method which will setup your
+benchmark.
 
-The first argument `main` is the benchmark function, the second argument
-specifies the benchmark parameters. `createBenchmark` will run all possible
-combinations of these parameters, unless specified otherwise. Note that the
-configuration values can only be strings or numbers.
+The arguments of `createBenchmark` are:
 
-`createBenchmark` also creates a `bench` object, which is used for timing
+* `main` {Function} The benchmark function,
+  where the code running operations and controlling timers should go
+* `configs` {Object} The benchmark parameters. `createBenchmark` will run all
+  possible combinations of these parameters, unless specified otherwise.
+  Each configuration is a property with an array of possible values.
+  Note that the configuration values can only be strings or numbers.
+* `options` {Object} The benchmark options. At the moment only the `flags`
+  option for specifying command line flags is supported.
+
+`createBenchmark` returns a `bench` object, which is used for timing
 the runtime of the benchmark. Run `bench.start()` after the initialization
 and `bench.end(n)` when the benchmark is done. `n` is the number of operations
 you performed in the benchmark.
+
+The benchmark script will be run twice:
+
+The first pass will configure the benchmark with the combination of
+parameters specified in `configs`, and WILL NOT run the `main` function.
+In this pass, no flags except the ones directly passed via commands
+that you run the benchmarks with will be used.
+
+In the second pass, the `main` function will be run, and the process
+will be launched with:
+
+* The flags you've passed into `createBenchmark` (the third argument)
+* The flags in the command that you run this benchmark with
+
+Beware that any code outside the `main` function will be run twice
+in different processes. This could be troublesome if the code
+outside the `main` function has side effects. In general, prefer putting
+the code inside the `main` function if it's more than just declaration.
 
 ```js
 'use strict';
 const common = require('../common.js');
 const SlowBuffer = require('buffer').SlowBuffer;
 
-const bench = common.createBenchmark(main, {
+const configs = {
+  // Number of operations, specified here so they show up in the report.
+  // Most benchmarks just use one value for all runs.
   n: [1024],
-  type: ['fast', 'slow'],
-  size: [16, 128, 1024]
-});
+  type: ['fast', 'slow'],  // Custom configurations
+  size: [16, 128, 1024]  // Custom configurations
+};
+
+const options = {
+  // Add --expose-internals if you want to require internal modules in main
+  flags: ['--zero-fill-buffers']
+};
+
+// main and configs are required, options is optional.
+const bench = common.createBenchmark(main, configs, options);
+
+// Note that any code outside main will be run twice,
+// in different processes, with different command line arguments.
 
 function main(conf) {
+  // You will only get the flags that you have passed to createBenchmark
+  // earlier when main is run. If you want to benchmark the internal modules,
+  // require them here. For example:
+  // const URL = require('internal/url').URL
+
+  // Start the timer
   bench.start();
 
+  // Do operations here
   const BufferConstructor = conf.type === 'fast' ? Buffer : SlowBuffer;
 
   for (let i = 0; i < conf.n; i++) {
     new BufferConstructor(conf.size);
   }
+
+  // End the timer, pass in the number of operations
   bench.end(conf.n);
 }
 ```
@@ -322,7 +388,7 @@ const bench = common.createBenchmark(main, {
 function main(conf) {
   const http = require('http');
   const len = conf.kb * 1024;
-  const chunk = Buffer.alloc(len, 'x'); 
+  const chunk = Buffer.alloc(len, 'x');
   const server = http.createServer(function(req, res) {
     res.end(chunk);
   });
@@ -348,3 +414,4 @@ Supported options keys are:
 [autocannon]: https://github.com/mcollina/autocannon
 [wrk]: https://github.com/wg/wrk
 [t-test]: https://en.wikipedia.org/wiki/Student%27s_t-test#Equal_or_unequal_sample_sizes.2C_unequal_variances
+[git-for-windows]: http://git-scm.com/download/win

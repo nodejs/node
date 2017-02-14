@@ -14,6 +14,8 @@ const os = require('os');
 added: v0.7.8
 -->
 
+* {String}
+
 A string constant defining the operating system-specific end-of-line marker:
 
 * `\n` on POSIX
@@ -23,6 +25,8 @@ A string constant defining the operating system-specific end-of-line marker:
 <!-- YAML
 added: v0.5.0
 -->
+
+* Returns: {String}
 
 The `os.arch()` method returns a string identifying the operating system CPU
 architecture *for which the Node.js binary was compiled*.
@@ -34,6 +38,11 @@ The current possible values are: `'arm'`, `'arm64'`, `'ia32'`, `'mips'`,
 Equivalent to [`process.arch`][].
 
 ## os.constants
+<!-- YAML
+added: v6.3.0
+-->
+
+* {Object}
 
 Returns an object containing commonly used operating system specific constants
 for error codes, process signals, and so on. The specific constants currently
@@ -43,6 +52,8 @@ defined are described in [OS Constants][].
 <!-- YAML
 added: v0.3.3
 -->
+
+* Returns: {Array}
 
 The `os.cpus()` method returns an array of objects containing information about
 each CPU/core installed.
@@ -161,6 +172,8 @@ all processors are always 0.
 added: v0.9.4
 -->
 
+* Returns: {String}
+
 The `os.endianness()` method returns a string identifying the endianness of the
 CPU *for which the Node.js binary was compiled*.
 
@@ -174,6 +187,8 @@ Possible values are:
 added: v0.3.3
 -->
 
+* Returns: {Integer}
+
 The `os.freemem()` method returns the amount of free system memory in bytes as
 an integer.
 
@@ -181,6 +196,8 @@ an integer.
 <!-- YAML
 added: v2.3.0
 -->
+
+* Returns: {String}
 
 The `os.homedir()` method returns the home directory of the current user as a
 string.
@@ -190,6 +207,8 @@ string.
 added: v0.3.3
 -->
 
+* Returns: {String}
+
 The `os.hostname()` method returns the hostname of the operating system as a
 string.
 
@@ -197,6 +216,8 @@ string.
 <!-- YAML
 added: v0.3.3
 -->
+
+* Returns: {Array}
 
 The `os.loadavg()` method returns an array containing the 1, 5, and 15 minute
 load averages.
@@ -212,6 +233,8 @@ Windows platforms. On Windows, the return value is always `[0, 0, 0]`.
 <!-- YAML
 added: v0.6.0
 -->
+
+* Returns: {Object}
 
 The `os.networkInterfaces()` method returns an object containing only network
 interfaces that have been assigned a network address.
@@ -272,6 +295,8 @@ The properties available on the assigned network address object include:
 added: v0.5.0
 -->
 
+* Returns: {String}
+
 The `os.platform()` method returns a string identifying the operating system
 platform as set during compile time of Node.js.
 
@@ -296,6 +321,8 @@ to be experimental at this time.
 added: v0.3.3
 -->
 
+* Returns: {String}
+
 The `os.release()` method returns a string identifying the operating system
 release.
 
@@ -308,6 +335,8 @@ https://en.wikipedia.org/wiki/Uname#Examples for more information.
 added: v0.9.9
 -->
 
+* Returns: {String}
+
 The `os.tmpdir()` method returns a string specifying the operating system's
 default directory for temporary files.
 
@@ -316,6 +345,8 @@ default directory for temporary files.
 added: v0.3.3
 -->
 
+* Returns: {Integer}
+
 The `os.totalmem()` method returns the total amount of system memory in bytes
 as an integer.
 
@@ -323,6 +354,8 @@ as an integer.
 <!-- YAML
 added: v0.3.3
 -->
+
+* Returns: {String}
 
 The `os.type()` method returns a string identifying the operating system name
 as returned by uname(3). For example `'Linux'` on Linux, `'Darwin'` on OS X and
@@ -335,6 +368,8 @@ information about the output of running uname(3) on various operating systems.
 <!-- YAML
 added: v0.3.3
 -->
+
+* Returns: {Integer}
 
 The `os.uptime()` method returns the system uptime in number of seconds.
 
@@ -351,6 +386,7 @@ added: v6.0.0
   * `encoding` {String} Character encoding used to interpret resulting strings.
     If `encoding` is set to `'buffer'`, the `username`, `shell`, and `homedir`
     values will be `Buffer` instances. (Default: 'utf8')
+* Returns: {Object}
 
 The `os.userInfo()` method returns information about the currently effective
 user -- on POSIX platforms, this is typically a subset of the password file. The

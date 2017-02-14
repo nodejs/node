@@ -4,19 +4,20 @@
 // that support it, and dropping duplicates for other fields.
 
 require('../common');
-var assert = require('assert');
-var http = require('http');
+const assert = require('assert');
+const http = require('http');
 
-var srv = http.createServer(function(req, res) {
-  assert.equal(req.headers.accept, 'abc, def, ghijklmnopqrst');
-  assert.equal(req.headers.host, 'foo');
-  assert.equal(req.headers['www-authenticate'], 'foo, bar, baz');
-  assert.equal(req.headers['proxy-authenticate'], 'foo, bar, baz');
-  assert.equal(req.headers['x-foo'], 'bingo');
-  assert.equal(req.headers['x-bar'], 'banjo, bango');
-  assert.equal(req.headers['sec-websocket-protocol'], 'chat, share');
-  assert.equal(req.headers['sec-websocket-extensions'], 'foo; 1, bar; 2, baz');
-  assert.equal(req.headers['constructor'], 'foo, bar, baz');
+const srv = http.createServer(function(req, res) {
+  assert.strictEqual(req.headers.accept, 'abc, def, ghijklmnopqrst');
+  assert.strictEqual(req.headers.host, 'foo');
+  assert.strictEqual(req.headers['www-authenticate'], 'foo, bar, baz');
+  assert.strictEqual(req.headers['proxy-authenticate'], 'foo, bar, baz');
+  assert.strictEqual(req.headers['x-foo'], 'bingo');
+  assert.strictEqual(req.headers['x-bar'], 'banjo, bango');
+  assert.strictEqual(req.headers['sec-websocket-protocol'], 'chat, share');
+  assert.strictEqual(req.headers['sec-websocket-extensions'],
+                     'foo; 1, bar; 2, baz');
+  assert.strictEqual(req.headers['constructor'], 'foo, bar, baz');
 
   res.writeHead(200, {'Content-Type': 'text/plain'});
   res.end('EOF');

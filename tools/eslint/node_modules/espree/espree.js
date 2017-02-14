@@ -340,6 +340,7 @@ acorn.plugins.espree = function(instance) {
 
             var prop = this.startNode(),
                 isGenerator,
+                isAsync,
                 startPos,
                 startLoc;
 
@@ -369,8 +370,25 @@ acorn.plugins.espree = function(instance) {
                 }
             }
 
-            this.parsePropertyName(prop);
-            this.parsePropertyValue(prop, isPattern, isGenerator, startPos, startLoc, refShorthandDefaultPos);
+            // grab the property name or "async"
+            this.parsePropertyName(prop, refShorthandDefaultPos);
+            if (this.options.ecmaVersion >= 8 &&
+                !isPattern &&
+                !isGenerator &&
+                !prop.computed &&
+                prop.key.type === "Identifier" &&
+                prop.key.name === "async" &&
+                this.type !== tt.parenL &&
+                this.type !== tt.colon &&
+                !this.canInsertSemicolon()
+            ) {
+                this.parsePropertyName(prop, refShorthandDefaultPos);
+                isAsync = true;
+            } else {
+                isAsync = false;
+            }
+
+            this.parsePropertyValue(prop, isPattern, isGenerator, isAsync, startPos, startLoc, refShorthandDefaultPos);
             this.checkPropClash(prop, propHash);
             node.properties.push(this.finishNode(prop, "Property"));
         }
@@ -506,12 +524,13 @@ function tokenize(code, options) {
             case 5:
             case 6:
             case 7:
+            case 8:
                 acornOptions.ecmaVersion = options.ecmaVersion;
                 extra.ecmaVersion = options.ecmaVersion;
                 break;
 
             default:
-                throw new Error("ecmaVersion must be 3, 5, 6, or 7.");
+                throw new Error("ecmaVersion must be 3, 5, 6, 7, or 8.");
         }
     }
 
@@ -643,12 +662,13 @@ function parse(code, options) {
                 case 5:
                 case 6:
                 case 7:
+                case 8:
                     acornOptions.ecmaVersion = options.ecmaVersion;
                     extra.ecmaVersion = options.ecmaVersion;
                     break;
 
                 default:
-                    throw new Error("ecmaVersion must be 3, 5, 6, or 7.");
+                    throw new Error("ecmaVersion must be 3, 5, 6, 7, or 8.");
             }
         }
 

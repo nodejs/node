@@ -11,6 +11,17 @@ function checkFactory(streamName) {
 }
 
 {
+  const cmd = `"${process.execPath}" -e "console.log('hello world');"`;
+  const options = { maxBuffer: Infinity };
+
+  cp.exec(cmd, options, common.mustCall((err, stdout, stderr) => {
+    assert.ifError(err);
+    assert.strictEqual(stdout.trim(), 'hello world');
+    assert.strictEqual(stderr, '');
+  }));
+}
+
+{
   const cmd = 'echo "hello world"';
 
   cp.exec(cmd, { maxBuffer: 5 }, checkFactory('stdout'));

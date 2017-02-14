@@ -17,7 +17,7 @@
 # include <unistd.h>        // gethostname, sysconf
 # include <sys/param.h>     // MAXHOSTNAMELEN on Linux and the BSDs.
 # include <sys/utsname.h>
-#endif  // __MINGW32__
+#endif  // __POSIX__
 
 // Add Windows fallback.
 #ifndef MAXHOSTNAMELEN
@@ -69,7 +69,7 @@ static void GetOSType(const FunctionCallbackInfo<Value>& args) {
   }
   rval = info.sysname;
 #else  // __MINGW32__
-  rval ="Windows_NT";
+  rval = "Windows_NT";
 #endif  // __POSIX__
 
   args.GetReturnValue().Set(OneByteString(env->isolate(), rval));
@@ -85,7 +85,14 @@ static void GetOSRelease(const FunctionCallbackInfo<Value>& args) {
   if (uname(&info) < 0) {
     return env->ThrowErrnoException(errno, "uname");
   }
+# ifdef _AIX
+  char release[256];
+  snprintf(release, sizeof(release),
+           "%s.%s", info.version, info.release);
+  rval = release;
+# else
   rval = info.release;
+# endif
 #else  // Windows
   char release[256];
   OSVERSIONINFOW info;

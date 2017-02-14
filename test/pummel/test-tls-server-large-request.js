@@ -1,20 +1,20 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var fs = require('fs');
-var stream = require('stream');
-var util = require('util');
+const fs = require('fs');
+const stream = require('stream');
+const util = require('util');
 
-var request = Buffer.from(new Array(1024 * 256).join('ABCD')); // 1mb
+const request = Buffer.from('ABCD'.repeat(1024 * 256 - 1)); // 1mb
 
-var options = {
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
@@ -25,24 +25,24 @@ function Mediator() {
 }
 util.inherits(Mediator, stream.Writable);
 
-Mediator.prototype._write = function write(data, enc, cb) {
+Mediator.prototype._write = function _write(data, enc, cb) {
   this.buf += data;
   setTimeout(cb, 0);
 
   if (this.buf.length >= request.length) {
-    assert.equal(this.buf, request.toString());
+    assert.strictEqual(this.buf, request.toString());
     server.close();
   }
 };
 
-var mediator = new Mediator();
+const mediator = new Mediator();
 
-var server = tls.Server(options, common.mustCall(function(socket) {
+const server = tls.Server(options, common.mustCall(function(socket) {
   socket.pipe(mediator);
 }));
 
 server.listen(common.PORT, common.mustCall(function() {
-  var client1 = tls.connect({
+  const client1 = tls.connect({
     port: common.PORT,
     rejectUnauthorized: false
   }, common.mustCall(function() {

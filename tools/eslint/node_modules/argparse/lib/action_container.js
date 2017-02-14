@@ -323,8 +323,8 @@ ActionContainer.prototype._addContainerActions = function (container) {
   var mutexGroup;
   container._mutuallyExclusiveGroups.forEach(function (group) {
     mutexGroup = this.addMutuallyExclusiveGroup({
-        required: group.required
-      });
+      required: group.required
+    });
     // map the actions to their new mutex group
     group._groupActions.forEach(function (action) {
       groupMap[actionHash(action)] = mutexGroup;

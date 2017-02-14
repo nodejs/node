@@ -1,9 +1,9 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var exec = require('child_process').exec;
+const assert = require('assert');
+const exec = require('child_process').exec;
 
-var pwdcommand, dir;
+let pwdcommand, dir;
 
 if (common.isWindows) {
   pwdcommand = 'echo %cd%';
@@ -15,5 +15,5 @@ if (common.isWindows) {
 
 exec(pwdcommand, {cwd: dir}, common.mustCall(function(err, stdout, stderr) {
   assert.ifError(err);
-  assert.ok(stdout.indexOf(dir) == 0);
+  assert.strictEqual(stdout.indexOf(dir), 0);
 }));

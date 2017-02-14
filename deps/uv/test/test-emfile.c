@@ -38,12 +38,12 @@ static uv_tcp_t client_handle;
 
 
 TEST_IMPL(emfile) {
-#ifdef _AIX
+#if defined(_AIX) || defined(__MVS__)
   /* On AIX, if a 'accept' call fails ECONNRESET is set on the socket
    * which causes uv__emfile_trick to not work as intended and this test
    * to fail.
    */
-  RETURN_SKIP("uv__emfile_trick does not work on AIX");
+  RETURN_SKIP("uv__emfile_trick does not work on this OS");
 #endif
   struct sockaddr_in addr;
   struct rlimit limits;

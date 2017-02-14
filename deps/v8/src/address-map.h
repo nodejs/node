@@ -189,9 +189,7 @@ class SerializerReference {
 class SerializerReferenceMap : public AddressMapBase {
  public:
   SerializerReferenceMap()
-      : no_allocation_(),
-        map_(base::HashMap::PointersMatch),
-        attached_reference_index_(0) {}
+      : no_allocation_(), map_(), attached_reference_index_(0) {}
 
   SerializerReference Lookup(HeapObject* obj) {
     base::HashMap::Entry* entry = LookupEntry(&map_, obj, false);

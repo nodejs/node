@@ -3,10 +3,10 @@ const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
-const server = http.createServer(common.fail);
+const server = http.createServer(common.mustNotCall());
 server.on('connect', common.mustCall(function(req, socket, firstBodyChunk) {
-  assert.equal(req.method, 'CONNECT');
-  assert.equal(req.url, 'example.com:443');
+  assert.strictEqual(req.method, 'CONNECT');
+  assert.strictEqual(req.url, 'example.com:443');
   console.error('Server got CONNECT request');
 
   // It is legal for the server to send some data intended for the client
@@ -18,7 +18,7 @@ server.on('connect', common.mustCall(function(req, socket, firstBodyChunk) {
     'Head'
   );
 
-  var data = firstBodyChunk.toString();
+  let data = firstBodyChunk.toString();
   socket.on('data', function(buf) {
     data += buf.toString();
   });
@@ -31,7 +31,7 @@ server.listen(0, common.mustCall(function() {
     port: this.address().port,
     method: 'CONNECT',
     path: 'example.com:443'
-  }, common.fail);
+  }, common.mustNotCall());
 
   req.on('close', common.mustCall(function() { }));
 
@@ -46,19 +46,19 @@ server.listen(0, common.mustCall(function() {
     // Make sure this socket has detached.
     assert(!socket.ondata);
     assert(!socket.onend);
-    assert.equal(socket.listeners('connect').length, 0);
-    assert.equal(socket.listeners('data').length, 0);
+    assert.strictEqual(socket.listeners('connect').length, 0);
+    assert.strictEqual(socket.listeners('data').length, 0);
 
-    var data = firstBodyChunk.toString();
+    let data = firstBodyChunk.toString();
 
     // test that the firstBodyChunk was not parsed as HTTP
-    assert.equal(data, 'Head');
+    assert.strictEqual(data, 'Head');
 
     socket.on('data', function(buf) {
       data += buf.toString();
     });
     socket.on('end', function() {
-      assert.equal(data, 'HeadRequestEnd');
+      assert.strictEqual(data, 'HeadRequestEnd');
       server.close();
     });
     socket.end('End');

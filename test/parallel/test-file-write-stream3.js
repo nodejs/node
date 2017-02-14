@@ -9,7 +9,7 @@ const filepath = path.join(common.tmpDir, 'write_pos.txt');
 
 
 const cb_expected = 'write open close write open close write open close ';
-var cb_occurred = '';
+let cb_occurred = '';
 
 const fileDataInitial = 'abcdefghijklmnopqrstuvwxyz';
 
@@ -34,10 +34,8 @@ common.refreshTmpDir();
 
 
 function run_test_1() {
-  var file, buffer, options;
-
-  options = {};
-  file = fs.createWriteStream(filepath, options);
+  const options = {};
+  const file = fs.createWriteStream(filepath, options);
   console.log('    (debug: start         ', file.start);
   console.log('    (debug: pos           ', file.pos);
 
@@ -51,10 +49,10 @@ function run_test_1() {
     console.log('    (debug: start         ', file.start);
     console.log('    (debug: pos           ', file.pos);
     assert.strictEqual(file.bytesWritten, buffer.length);
-    var fileData = fs.readFileSync(filepath, 'utf8');
+    const fileData = fs.readFileSync(filepath, 'utf8');
     console.log('    (debug: file data   ', fileData);
     console.log('    (debug: expected    ', fileDataExpected_1);
-    assert.equal(fileData, fileDataExpected_1);
+    assert.strictEqual(fileData, fileDataExpected_1);
 
     run_test_2();
   });
@@ -65,7 +63,7 @@ function run_test_1() {
     throw err;
   });
 
-  buffer = Buffer.from(fileDataInitial);
+  const buffer = Buffer.from(fileDataInitial);
   file.write(buffer);
   cb_occurred += 'write ';
 
@@ -74,13 +72,12 @@ function run_test_1() {
 
 
 function run_test_2() {
-  var file, buffer, options;
 
-  buffer = Buffer.from('123456');
+  const buffer = Buffer.from('123456');
 
-  options = { start: 10,
-              flags: 'r+' };
-  file = fs.createWriteStream(filepath, options);
+  const options = { start: 10,
+                    flags: 'r+' };
+  const file = fs.createWriteStream(filepath, options);
   console.log('    (debug: start         ', file.start);
   console.log('    (debug: pos           ', file.pos);
 
@@ -94,10 +91,10 @@ function run_test_2() {
     console.log('    (debug: start         ', file.start);
     console.log('    (debug: pos           ', file.pos);
     assert.strictEqual(file.bytesWritten, buffer.length);
-    var fileData = fs.readFileSync(filepath, 'utf8');
+    const fileData = fs.readFileSync(filepath, 'utf8');
     console.log('    (debug: file data   ', fileData);
     console.log('    (debug: expected    ', fileDataExpected_2);
-    assert.equal(fileData, fileDataExpected_2);
+    assert.strictEqual(fileData, fileDataExpected_2);
 
     run_test_3();
   });
@@ -116,13 +113,12 @@ function run_test_2() {
 
 
 function run_test_3() {
-  var file, options;
 
   const data = '\u2026\u2026';    // 3 bytes * 2 = 6 bytes in UTF-8
 
-  options = { start: 10,
-              flags: 'r+' };
-  file = fs.createWriteStream(filepath, options);
+  const options = { start: 10,
+                    flags: 'r+' };
+  const file = fs.createWriteStream(filepath, options);
   console.log('    (debug: start         ', file.start);
   console.log('    (debug: pos           ', file.pos);
 
@@ -139,7 +135,7 @@ function run_test_3() {
     const fileData = fs.readFileSync(filepath, 'utf8');
     console.log('    (debug: file data   ', fileData);
     console.log('    (debug: expected    ', fileDataExpected_3);
-    assert.equal(fileData, fileDataExpected_3);
+    assert.strictEqual(fileData, fileDataExpected_3);
 
     run_test_4();
   });

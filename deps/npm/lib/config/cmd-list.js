@@ -64,7 +64,6 @@ var cmdList = [
   'publish',
   'star',
   'stars',
-  'tag',
   'adduser',
   'login', // This is an alias for `adduser` but it can be confusing
   'logout',
@@ -99,7 +98,8 @@ var cmdList = [
   'start',
   'restart',
   'run-script',
-  'completion'
+  'completion',
+  'doctor'
 ]
 
 var plumbing = [

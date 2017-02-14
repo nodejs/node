@@ -5,7 +5,7 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
-var openCount = 0;
+let openCount = 0;
 const _fsopen = fs.open;
 const _fsclose = fs.close;
 
@@ -26,8 +26,8 @@ fs.close = function() {
 function testLeak(endFn, callback) {
   console.log('testing for leaks from fs.createReadStream().%s()...', endFn);
 
-  var i = 0;
-  var check = 0;
+  let i = 0;
+  let check = 0;
 
   const checkFunction = function() {
     if (openCount !== 0 && check < totalCheck) {

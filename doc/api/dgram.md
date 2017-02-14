@@ -70,20 +70,14 @@ datagram messages. This occurs as soon as UDP sockets are created.
 added: v0.1.99
 -->
 
+The `'message'` event is emitted when a new datagram is available on a socket.
+The event handler function is passed two arguments: `msg` and `rinfo`.
 * `msg` {Buffer} - The message
 * `rinfo` {Object} - Remote address information
-
-The `'message'` event is emitted when a new datagram is available on a socket.
-The event handler function is passed two arguments: `msg` and `rinfo`. The
-`msg` argument is a [`Buffer`][] and `rinfo` is an object with the sender's
-address information provided by the `address`, `family` and `port` properties:
-
-```js
-socket.on('message', (msg, rinfo) => {
-  console.log('Received %d bytes from %s:%d\n',
-              msg.length, rinfo.address, rinfo.port);
-});
-```
+  * `address` {String} The sender address
+  * `family` {String} The address family (`'IPv4'` or `'IPv6'`)
+  * `port` {Number} The sender port
+  * `size` {Number} The message size
 
 ### socket.addMembership(multicastAddress[, multicastInterface])
 <!-- YAML
@@ -118,12 +112,13 @@ added: v0.1.99
 * `callback` {Function} with no parameters, Optional. Called when
   binding is complete.
 
-For UDP sockets, causes the `dgram.Socket` to listen for datagram messages on a
-named `port` and optional `address`. If `port` is not specified, the operating
-system will attempt to bind to a random port. If `address` is not specified,
-the operating system will attempt to listen on all addresses.  Once binding is
-complete, a `'listening'` event is emitted and the optional `callback` function
-is called.
+For UDP sockets, causes the `dgram.Socket` to listen for datagram
+messages on a named `port` and optional `address`. If `port` is not
+specified or is `0`, the operating system will attempt to bind to a
+random port. If `address` is not specified, the operating system will
+attempt to listen on all addresses.  Once binding is complete, a
+`'listening'` event is emitted and the optional `callback` function is
+called.
 
 Note that specifying both a `'listening'` event listener and passing a
 `callback` to the `socket.bind()` method is not harmful but not very
@@ -165,18 +160,23 @@ added: v0.11.14
 -->
 
 * `options` {Object} - Required. Supports the following properties:
-  * `port` {Number} - Required.
+  * `port` {Number} - Optional.
   * `address` {String} - Optional.
   * `exclusive` {Boolean} - Optional.
 * `callback` {Function} - Optional.
 
-For UDP sockets, causes the `dgram.Socket` to listen for datagram messages on a
-named `port` and optional `address` that are passed as properties of an
-`options` object passed as the first argument. If `port` is not specified, the
-operating system will attempt to bind to a random port. If `address` is not
-specified, the operating system will attempt to listen on all addresses.  Once
-binding is complete, a `'listening'` event is emitted and the optional
-`callback` function is called.
+For UDP sockets, causes the `dgram.Socket` to listen for datagram
+messages on a named `port` and optional `address` that are passed as
+properties of an `options` object passed as the first argument. If
+`port` is not specified or is `0`, the operating system will attempt
+to bind to a random port. If `address` is not specified, the operating
+system will attempt to listen on all addresses.  Once binding is
+complete, a `'listening'` event is emitted and the optional `callback`
+function is called.
+
+Note that specifying both a `'listening'` event listener and passing a
+`callback` to the `socket.bind()` method is not harmful but not very
+useful.
 
 The `options` object may contain an additional `exclusive` property that is
 use when using `dgram.Socket` objects with the [`cluster`] module. When
@@ -184,6 +184,12 @@ use when using `dgram.Socket` objects with the [`cluster`] module. When
 underlying socket handle allowing connection handling duties to be shared.
 When `exclusive` is `true`, however, the handle is not shared and attempted
 port sharing results in an error.
+
+A bound datagram socket keeps the Node.js process running to receive
+datagram messages.
+
+If binding fails, an `'error'` event is generated. In rare case (e.g.
+attempting to bind with a closed socket), an [`Error`][] may be thrown.
 
 An example socket listening on an exclusive port is shown below.
 
@@ -442,8 +448,8 @@ boolean `reuseAddr` field.
 
 When `reuseAddr` is `true` [`socket.bind()`][] will reuse the address, even if
 another process has already bound a socket on it. `reuseAddr` defaults to
-`false`. An optional `callback` function can be passed specified which is added
-as a listener for `'message'` events.
+`false`. The optional `callback` function is added as a listener for `'message'`
+events.
 
 Once the socket is created, calling [`socket.bind()`][] will instruct the
 socket to begin listening for datagram messages. When `address` and `port` are

@@ -11,7 +11,7 @@
 module.exports = {
     meta: {
         docs: {
-            description: "require or disallow newlines around `var` declarations",
+            description: "require or disallow newlines around variable declarations",
             category: "Stylistic Issues",
             recommended: false
         },
@@ -20,7 +20,9 @@ module.exports = {
             {
                 enum: ["always", "initializations"]
             }
-        ]
+        ],
+
+        fixable: "whitespace"
     },
 
     create(context) {
@@ -57,13 +59,14 @@ module.exports = {
             const declarations = node.declarations;
             let prev;
 
-            declarations.forEach(function(current) {
+            declarations.forEach(current => {
                 if (prev && prev.loc.end.line === current.loc.start.line) {
                     if (always || prev.init || current.init) {
                         context.report({
                             node,
                             message: ERROR_MESSAGE,
-                            loc: current.loc.start
+                            loc: current.loc.start,
+                            fix: fixer => fixer.insertTextBefore(current, "\n")
                         });
                     }
                 }

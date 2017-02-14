@@ -56,7 +56,7 @@ static void TestHashMap(Handle<HashMap> table) {
   CHECK_EQ(table->Lookup(b), CcTest::heap()->the_hole_value());
 
   // Keys still have to be valid after objects were moved.
-  CcTest::heap()->CollectGarbage(NEW_SPACE);
+  CcTest::CollectGarbage(NEW_SPACE);
   CHECK_EQ(table->NumberOfElements(), 1);
   CHECK_EQ(table->Lookup(a), *b);
   CHECK_EQ(table->Lookup(b), CcTest::heap()->the_hole_value());
@@ -126,7 +126,7 @@ static void TestHashSet(Handle<HashSet> table) {
   CHECK(!table->Has(isolate, b));
 
   // Keys still have to be valid after objects were moved.
-  CcTest::heap()->CollectGarbage(NEW_SPACE);
+  CcTest::CollectGarbage(NEW_SPACE);
   CHECK_EQ(table->NumberOfElements(), 1);
   CHECK(table->Has(isolate, a));
   CHECK(!table->Has(isolate, b));

@@ -217,7 +217,7 @@ class Sampler::PlatformData {
 
 class SamplerManager {
  public:
-  SamplerManager() : sampler_map_(base::HashMap::PointersMatch) {}
+  SamplerManager() : sampler_map_() {}
 
   void AddSampler(Sampler* sampler) {
     AtomicGuard atomic_guard(&samplers_access_counter_);

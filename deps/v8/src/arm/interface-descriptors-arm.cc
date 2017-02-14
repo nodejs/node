@@ -42,13 +42,9 @@ const Register StoreDescriptor::SlotRegister() { return r4; }
 
 const Register StoreWithVectorDescriptor::VectorRegister() { return r3; }
 
-const Register VectorStoreTransitionDescriptor::SlotRegister() { return r4; }
-const Register VectorStoreTransitionDescriptor::VectorRegister() { return r3; }
-const Register VectorStoreTransitionDescriptor::MapRegister() { return r5; }
-
-
-const Register StoreTransitionDescriptor::MapRegister() { return r3; }
-
+const Register StoreTransitionDescriptor::SlotRegister() { return r4; }
+const Register StoreTransitionDescriptor::VectorRegister() { return r3; }
+const Register StoreTransitionDescriptor::MapRegister() { return r5; }
 
 const Register StoreGlobalViaContextDescriptor::SlotRegister() { return r2; }
 const Register StoreGlobalViaContextDescriptor::ValueRegister() { return r0; }
@@ -375,7 +371,7 @@ void ArgumentAdaptorDescriptor::InitializePlatformSpecific(
                                    &default_descriptor);
 }
 
-void ApiCallbackDescriptorBase::InitializePlatformSpecific(
+void ApiCallbackDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   static PlatformInterfaceDescriptor default_descriptor =
       PlatformInterfaceDescriptor(CAN_INLINE_TARGET_ADDRESS);
@@ -414,7 +410,19 @@ void InterpreterPushArgsAndConstructDescriptor::InitializePlatformSpecific(
       r0,  // argument count (not including receiver)
       r3,  // new target
       r1,  // constructor to call
-      r2   // address of the first argument
+      r2,  // allocation site feedback if available, undefined otherwise
+      r4   // address of the first argument
+  };
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+void InterpreterPushArgsAndConstructArrayDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {
+      r0,  // argument count (not including receiver)
+      r1,  // target to call checked to be Array function
+      r2,  // allocation site feedback if available, undefined otherwise
+      r3   // address of the first argument
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }

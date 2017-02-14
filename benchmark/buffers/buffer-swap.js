@@ -44,7 +44,7 @@ Buffer.prototype.htonl = function htonl() {
   return this;
 };
 
-Buffer.prototype.htonll = function htonl() {
+Buffer.prototype.htonll = function htonll() {
   if (this.length % 8 !== 0)
     throw new RangeError();
   for (var i = 0; i < this.length; i += 8) {

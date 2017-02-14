@@ -17,10 +17,13 @@ module.exports = {
             recommended: true
         },
 
-        schema: []
+        schema: [],
+
+        fixable: "code"
     },
 
     create(context) {
+        const sourceCode = context.getSourceCode();
 
         // Node types which have a test which will coerce values to booleans.
         const BOOLEAN_NODE_TYPES = [
@@ -70,7 +73,11 @@ module.exports = {
                         grandparent.callee.type === "Identifier" &&
                         grandparent.callee.name === "Boolean")
                 ) {
-                    context.report(node, "Redundant double negation.");
+                    context.report({
+                        node,
+                        message: "Redundant double negation.",
+                        fix: fixer => fixer.replaceText(parent, sourceCode.getText(node.argument))
+                    });
                 }
             },
             CallExpression(node) {
@@ -81,7 +88,11 @@ module.exports = {
                 }
 
                 if (isInBooleanContext(node, parent)) {
-                    context.report(node, "Redundant Boolean call.");
+                    context.report({
+                        node,
+                        message: "Redundant Boolean call.",
+                        fix: fixer => fixer.replaceText(node, sourceCode.getText(node.arguments[0]))
+                    });
                 }
             }
         };

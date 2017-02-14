@@ -9,5 +9,5 @@ const cp = child_process.spawn(process.execPath,
                     [path.resolve(__dirname, 'test-stdin-pause-resume.js')]);
 
 cp.on('exit', common.mustCall((code) => {
-  assert.equal(code, 0);
+  assert.strictEqual(code, 0);
 }));

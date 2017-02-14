@@ -1,28 +1,28 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var https = require('https');
+const https = require('https');
 
-var fs = require('fs');
-var net = require('net');
-var http = require('http');
+const fs = require('fs');
+const net = require('net');
+const http = require('http');
 
-var gotRequest = false;
+let gotRequest = false;
 
-var key = fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem');
-var cert = fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem');
+const key = fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem');
+const cert = fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem');
 
-var options = {
+const options = {
   key: key,
   cert: cert
 };
 
-var server = https.createServer(options, function(req, res) {
+const server = https.createServer(options, function(req, res) {
   console.log('SERVER: got request');
   res.writeHead(200, {
     'content-type': 'text/plain'
@@ -31,19 +31,20 @@ var server = https.createServer(options, function(req, res) {
   res.end('hello world\n');
 });
 
-var proxy = net.createServer(function(clientSocket) {
+const proxy = net.createServer(function(clientSocket) {
   console.log('PROXY: got a client connection');
 
-  var serverSocket = null;
+  let serverSocket = null;
 
   clientSocket.on('data', function(chunk) {
     if (!serverSocket) {
       // Verify the CONNECT request
-      assert.equal(`CONNECT localhost:${server.address().port} HTTP/1.1\r\n` +
-                   'Proxy-Connections: keep-alive\r\n' +
-                   `Host: localhost:${proxy.address().port}\r\n` +
-                   'Connection: close\r\n\r\n',
-                   chunk);
+      assert.strictEqual(`CONNECT localhost:${server.address().port} ` +
+                         'HTTP/1.1\r\n' +
+                         'Proxy-Connections: keep-alive\r\n' +
+                         `Host: localhost:${proxy.address().port}\r\n` +
+                         'Connection: close\r\n\r\n',
+                         chunk.toString());
 
       console.log('PROXY: got CONNECT request');
       console.log('PROXY: creating a tunnel');
@@ -80,7 +81,7 @@ server.listen(0);
 proxy.listen(0, function() {
   console.log('CLIENT: Making CONNECT request');
 
-  var req = http.request({
+  const req = http.request({
     port: this.address().port,
     method: 'CONNECT',
     path: `localhost:${server.address().port}`,
@@ -107,7 +108,7 @@ proxy.listen(0, function() {
   }
 
   function onConnect(res, socket, header) {
-    assert.equal(200, res.statusCode);
+    assert.strictEqual(200, res.statusCode);
     console.log('CLIENT: got CONNECT response');
 
     // detach the socket
@@ -130,10 +131,10 @@ proxy.listen(0, function() {
       agent: false,
       rejectUnauthorized: false
     }, function(res) {
-      assert.equal(200, res.statusCode);
+      assert.strictEqual(200, res.statusCode);
 
       res.on('data', function(chunk) {
-        assert.equal('hello world\n', chunk);
+        assert.strictEqual('hello world\n', chunk.toString());
         console.log('CLIENT: got HTTPS response');
         gotRequest = true;
       });
