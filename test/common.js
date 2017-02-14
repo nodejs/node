@@ -622,11 +622,13 @@ exports.expectsError = function expectsError(code, type, message) {
   return function(error) {
     assert.strictEqual(error.code, code);
     if (type !== undefined)
-      assert(error instanceof type, 'error is not the expected type');
-    if (message !== undefined) {
-      if (!util.isRegExp(message))
-        message = new RegExp(String(message));
-      assert(message.test(error.message), 'error.message does not match');
+      assert(error instanceof type,
+             `${error} is not the expected type ${type}`);
+    if (message instanceof RegExp) {
+      assert(message.test(error.message),
+             `${error.message} does not match ${message}`);
+    } else if (typeof message === 'string') {
+      assert.strictEqual(error.message, message);
     }
     return true;
   };
