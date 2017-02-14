@@ -9,6 +9,7 @@ var isFn = function (fn) {
 }
 
 var isFS = function (stream) {
+  if (!fs) return false // browser
   return (stream instanceof (fs.ReadStream || noop) || stream instanceof (fs.WriteStream || noop)) && isFn(stream.close)
 }
 

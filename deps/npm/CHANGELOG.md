@@ -1,3 +1,117 @@
+### v4.2.0 (2017-01-26):
+
+Hi all! I'm Kat, and I'm currently sitting in a train traveling at ~300km/h
+through Spain. So clearly, this release should have *something* to do with
+speed. And it does! Heck, with this release, you could say we're really
+_blazing_, even. 🌲🔥😏
+
+#### IMPROVED CLI SEARCH~
+
+You might recall if you've been keeping up that one of the reasons for a
+semver-major bump to `npm@4` was an improved CLI search (read: no longer blowing
+up Node). The work done for that new search system, while still relying on a
+full metadata download and local search, was also meant to act as groundwork for
+then-ongoing work on a brand-new, smarter search system for npm. Shortly after
+`npm@4` came out, the bulk of the server-side work was done, and with this
+release, the npm CLI has integrated use of the new endpoint for high-quality,
+fast-turnaround searches.
+
+No, seriously, it's *fast*. And *relevant*:
+
+[![GOTTA GO FAST! This is a gif of the new npm search returning results in around a second for `npm search web framework`.](https://cloud.githubusercontent.com/assets/17535/21954136/f007e8be-d9fd-11e6-9231-f899c12790e0.gif)](https://github.com/npm/npm/pull/15481)
+
+Give it a shot! And remember to check out the new website version of the search,
+too, which uses the same backend as the CLI now. 🎉
+
+Incidentally, the backend is a public service, so you can write your own search
+tools, be they web-based, CLI, or GUI-based. You can read up on the [full
+documentation for the search
+endpoint](https://github.com/npm/registry/blob/master/docs/REGISTRY-API.md#get-v1search),
+and let us know about the cool things you come up with!
+
+* [`ce3ca51`](https://github.com/npm/npm/commit/ce3ca51ca2d60e15e901c8bf6256338e53e1eca2)
+  [#15481](https://github.com/npm/npm/pull/15481)
+  Add an internal `gunzip-maybe` utility for optional gunzipping.
+  ([@zkat](https://github.com/zkat))
+* [`e322932`](https://github.com/npm/npm/commit/e3229324d507fda10ea9e94fd4de8a4ae5025c75) [`a53055e`](https://github.com/npm/npm/commit/a53055e423f1fe168f05047aa0dfec6d963cb211) [`a1f4365`](https://github.com/npm/npm/commit/a1f436570730c6e4a173ca92d1967a87c29b7f2d) [`c56618c`](https://github.com/npm/npm/commit/c56618c62854ea61f6f716dffe7bcac80b5f4144)
+  [#15481](https://github.com/npm/npm/pull/15481)
+  Add support for using the new npm search endpoint for fast, quality search
+  results. Includes a fallback to "classic" search.
+  ([@zkat](https://github.com/zkat))
+
+#### WHERE DID THE DEBUG LOGS GO
+
+This is another pretty significant change: Usually, when the npm process
+crashed, you would get an `npm-debug.log` in your current working directory.
+This debug log would get cleared out as soon as you ran npm again. This was a
+bit annoying because 1) you would get a random file in your `git status` that
+you might accidentally commit, and 2) if you hit a hard-to-reproduce bug and
+instinctually tried again, you would no longer have access to the repro
+`npm-debug.log`.
+
+So now, any time a crash happens, we'll save your debug logs to your cache
+folder, under `_logs` (`~/.npm` on *nix, by default -- use `npm config get
+cache` to see what your current value is). The cache will now hold a
+(configurable) number of `npm-debug.log` files, which you can access in the
+future. Hopefully this will help clean stuff up and reduce frustration from
+missed repros! In the future, this will also be used by `npm report` to make it
+super easy to put up issues about crashes you run into with npm. 💃🕺🏿👯‍♂️
+
+* [`04fca22`](https://github.com/npm/npm/commit/04fca223a0f704b69340c5f81b26907238fad878)
+  [#11439](https://github.com/npm/npm/pull/11439)
+  Put debug logs in `$(npm get cache)/_logs` and store multiple log files.
+  ([@KenanY](https://github.com/KenanY))
+  ([@othiym23](https://github.com/othiym23))
+  ([@isaacs](https://github.com/isaacs))
+  ([@iarna](https://github.com/iarna))
+
+#### DOCS
+
+* [`ae8e71c`](https://github.com/npm/npm/commit/ae8e71c2b7d64d782af287a21e146d7cea6e5273)
+  [#15402](https://github.com/npm/npm/pull/15402)
+  Add missing backtick in one of the `npm doctor` messages.
+  ([@watilde](https://github.com/watilde), [@charlotteis](https://github.com/charlotteis))
+* [`821fee6`](https://github.com/npm/npm/commit/821fee6d0b12a324e035c397ae73904db97d07d2)
+  [#15480](https://github.com/npm/npm/pull/15480)
+  Clarify that unscoped packages can depend on scoped packages and vice-versa.
+  ([@chocolateboy](https://github.com/chocolateboy))
+* [`2ee45a8`](https://github.com/npm/npm/commit/2ee45a884137ae0706b7c741c671fef2cb3bac96)
+  [#15515](https://github.com/npm/npm/pull/15515)
+  Update minimum supported Node version number in the README to `node@>=4`.
+  ([@watilde](https://github.com/watilde))
+* [`af06aa9`](https://github.com/npm/npm/commit/af06aa9a357578a8fd58c575f3dbe55bc65fc376)
+  [#15520](https://github.com/npm/npm/pull/15520)
+  Add section to `npm-scope` docs to explain that scope owners will own scoped
+  packages with that scope. That is, user `@alice` is not allowed to publish to
+  `@bob/my-package` unless explicitly made an owner by user (or org) `@bob`.
+  ([@hzoo](https://github.com/hzoo))
+* [`bc892e6`](https://github.com/npm/npm/commit/bc892e6d07a4c6646480703641a4d71129c38b6d)
+  [#15539](https://github.com/npm/npm/pull/15539)
+  Replace `http` with `https` and fix typos in some docs.
+  ([@watilde](https://github.com/watilde))
+* [`1dfe875`](https://github.com/npm/npm/commit/1dfe875b9ac61a0ab9f61a2eab02bacf6cce583c)
+  [#15545](https://github.com/npm/npm/pull/15545)
+  Update Node.js download link to point to the right place.
+  ([@watilde](https://github.com/watilde))
+
+#### DEPENDENCIES
+
+  * [`b824bfb`](https://github.com/npm/npm/commit/b824bfbeb2d89c92762e9170b026af98b5a3668a)
+    `ansi-regex@2.1.1`
+  * [`81ea3e8`](https://github.com/npm/npm/commit/81ea3e8e4ea34cd9c2b418512dcb508abcee1380)
+    `mississippi@1.3.0`
+
+#### MISC
+
+* [`98df212`](https://github.com/npm/npm/commit/98df212a91fd6ff4a02b9cd247f4166f93d3977a)
+  [#15492](https://github.com/npm/npm/pull/15492)
+  Update the "master" node version used for AppVeyor to `node@7`.
+  ([@watilde](https://github.com/watilde))
+* [`d75fc03`](https://github.com/npm/npm/commit/d75fc03eda5364f12ac266fa4f66e31c2e44e864)
+  [#15413](https://github.com/npm/npm/pull/15413)
+  `npm run-script` now exits with the child process' exit code on exit.
+  ([@kapals](https://github.com/kapals))
+
 ### v4.1.2 (2017-01-12)
 
 We have a twee little release this week as we come back from the holidays.

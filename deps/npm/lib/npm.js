@@ -29,6 +29,8 @@
   var path = require('path')
   var abbrev = require('abbrev')
   var which = require('which')
+  var glob = require('glob')
+  var rimraf = require('rimraf')
   var CachingRegClient = require('./cache/caching-client.js')
   var parseJSON = require('./utils/parse-json.js')
   var aliases = require('./config/cmd-list').aliases
@@ -286,7 +288,20 @@
           log.disableProgress()
         }
 
+        glob(path.resolve(npm.cache, '_logs', '*-debug.log'), function (er, files) {
+          if (er) return cb(er)
+
+          while (files.length >= npm.config.get('logs-max')) {
+            rimraf.sync(files[0])
+            files.splice(0, 1)
+          }
+        })
+
         log.resume()
+
+        // at this point the configs are all set.
+        // go ahead and spin up the registry client.
+        npm.registry = new CachingRegClient(npm.config)
 
         var umask = npm.config.get('umask')
         npm.modes = {
