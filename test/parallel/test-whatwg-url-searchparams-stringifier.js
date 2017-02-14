@@ -112,8 +112,8 @@ test(function() {
 
 test(function() {
     var params;
-    // params = new URLSearchParams('a=b&c=d&&e&&');
-    // assert_equals(params.toString(), 'a=b&c=d&e=');
+    params = new URLSearchParams('a=b&c=d&&e&&');
+    assert_equals(params.toString(), 'a=b&c=d&e=');
     // params = new URLSearchParams('a = b &a=b&c=d%20');
     // assert_equals(params.toString(), 'a+=+b+&a=b&c=d+');
     // The lone '=' _does_ survive the roundtrip.
