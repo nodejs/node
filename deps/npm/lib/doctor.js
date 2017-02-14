@@ -98,7 +98,7 @@ function makePretty (p) {
   if (ping !== 'ok') list[0][2] = 'Check your internet connection'
   if (!semver.satisfies(npmV, '>=' + npmLTS)) list[1][2] = 'Use npm v' + npmLTS
   if (!semver.satisfies(nodeV, '>=' + nodeLTS)) list[2][2] = 'Use node v' + nodeLTS
-  if (registry !== defaultRegistry) list[3][2] = 'Try `npm config set registry ' + defaultRegistry
+  if (registry !== defaultRegistry) list[3][2] = 'Try `npm config set registry ' + defaultRegistry + '`'
   if (whichGit === 'not installed') list[4][2] = 'Install git and ensure it\'s in your PATH.'
   if (readbleCaches !== 'ok') list[5][2] = 'Check the permissions of your files in ' + npm.config.get('cache')
   if (executableGlobalModules !== 'ok') list[6][2] = globalNodeModules + ' must be readable and writable by the current user.'

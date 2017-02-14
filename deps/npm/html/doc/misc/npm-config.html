@@ -497,6 +497,12 @@ programmatically, you may wish to send logs to somewhere other than
 stderr.</p>
 <p>If the <code>color</code> config is set to true, then this stream will receive
 colored output if it is a TTY.</p>
+<h3 id="logs-max">logs-max</h3>
+<ul>
+<li>Default: 10</li>
+<li>Type: Number</li>
+</ul>
+<p>The maximum number of log files to store.</p>
 <h3 id="long">long</h3>
 <ul>
 <li>Default: false</li>
@@ -722,12 +728,20 @@ first on the <code>PATH</code> are different.</p>
 <li>Type: String</li>
 </ul>
 <p>Space-separated options that are always passed to search.</p>
+<h3 id="searchlimit">searchlimit</h3>
+<ul>
+<li>Default: 20</li>
+<li>Type: Number</li>
+</ul>
+<p>Number of items to limit search results to. Will not apply at all to legacy
+searches.</p>
 <h3 id="searchstaleness">searchstaleness</h3>
 <ul>
 <li>Default: 900 (15 minutes)</li>
 <li>Type: Number</li>
 </ul>
-<p>The age of the cache, in seconds, before another registry request is made.</p>
+<p>The age of the cache, in seconds, before another registry request is made if
+using legacy search endpoint.</p>
 <h3 id="send-metrics">send-metrics</h3>
 <ul>
 <li>Default: false</li>
@@ -887,5 +901,5 @@ exit successfully.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-config &mdash; npm@4.1.2</p>
+<p id="footer">npm-config &mdash; npm@4.2.0</p>
 

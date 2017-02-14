@@ -4,6 +4,20 @@ var ms = require('mississippi')
 var jsonstream = require('JSONStream')
 var columnify = require('columnify')
 
+// This module consumes package data in the following format:
+//
+// {
+//   name: String,
+//   description: String,
+//   maintainers: [{ username: String, email: String }],
+//   keywords: String | [String],
+//   version: String,
+//   date: Date // can be null,
+// }
+//
+// The returned stream will format this package data
+// into a byte stream of formatted, displayable output.
+
 module.exports = formatPackageStream
 function formatPackageStream (opts) {
   opts = opts || {}
@@ -33,26 +47,7 @@ function prettify (data, num, opts) {
   opts = opts || {}
   var truncate = !opts.long
 
-  var dat = stripData(data, opts)
-  dat.author = dat.maintainers
-  delete dat.maintainers
-  dat.date = dat.time
-  delete dat.time
-  // split keywords on whitespace or ,
-  if (typeof dat.keywords === 'string') {
-    dat.keywords = dat.keywords.split(/[,\s]+/)
-  }
-  if (Array.isArray(dat.keywords)) {
-    dat.keywords = dat.keywords.join(' ')
-  }
-
-  // split author on whitespace or ,
-  if (typeof dat.author === 'string') {
-    dat.author = dat.author.split(/[,\s]+/)
-  }
-  if (Array.isArray(dat.author)) {
-    dat.author = dat.author.join(' ')
-  }
+  var pkg = normalizePackage(data, opts)
 
   var columns = opts.description
   ? ['name', 'description', 'author', 'date', 'version', 'keywords']
@@ -60,12 +55,12 @@ function prettify (data, num, opts) {
 
   if (opts.parseable) {
     return columns.map(function (col) {
-      return dat[col] && ('' + dat[col]).replace(/\t/g, ' ')
+      return pkg[col] && ('' + pkg[col]).replace(/\t/g, ' ')
     }).join('\t')
   }
 
   var output = columnify(
-    [dat],
+    [pkg],
     {
       include: columns,
       showHeaders: num <= 1,
@@ -153,20 +148,22 @@ function highlightSearchTerms (str, terms) {
   return colorize(str).trim()
 }
 
-function stripData (data, opts) {
+function normalizePackage (data, opts) {
   opts = opts || {}
   return {
     name: data.name,
     description: opts.description ? data.description : '',
-    maintainers: (data.maintainers || []).map(function (m) {
-      return '=' + m.name
-    }),
-    url: !Object.keys(data.versions || {}).length ? data.url : null,
-    keywords: data.keywords || [],
+    author: (data.maintainers || []).map(function (m) {
+      return '=' + m.username
+    }).join(' '),
+    keywords: Array.isArray(data.keywords)
+    ? data.keywords.join(' ')
+    : typeof data.keywords === 'string'
+    ? data.keywords.replace(/[,\s]+/, ' ')
+    : '',
     version: Object.keys(data.versions || {})[0] || [],
-    time: data.time &&
-          data.time.modified &&
-          (new Date(data.time.modified).toISOString() // remove time
+    date: data.date &&
+          (data.date.toISOString() // remove time
             .split('T').join(' ')
             .replace(/:[0-9]{2}\.[0-9]{3}Z$/, ''))
             .slice(0, -5) ||
