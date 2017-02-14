@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const inspect = require('util').inspect;
 const StringDecoder = require('string_decoder').StringDecoder;
@@ -124,13 +124,15 @@ assert.strictEqual(decoder.write(Buffer.from('3DD8', 'hex')), '');
 assert.strictEqual(decoder.write(Buffer.from('4D', 'hex')), '');
 assert.strictEqual(decoder.end(), '\ud83d');
 
+const expectedError = common.expectsError('ERR_UNK_ENCODING', Error);
+
 assert.throws(() => {
   new StringDecoder(1);
-}, /^Error: Unknown encoding: 1$/);
+}, expectedError, 'Unknown encoding: 1');
 
 assert.throws(() => {
   new StringDecoder('test');
-}, /^Error: Unknown encoding: test$/);
+}, expectedError, 'Unknown encoding: test');
 
 // test verifies that StringDecoder will correctly decode the given input
 // buffer with the given encoding to the expected output. It will attempt all
