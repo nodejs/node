@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 function doSetTimeout(callback, after) {
@@ -8,18 +8,20 @@ function doSetTimeout(callback, after) {
   };
 }
 
+const expectedError = common.expectsError('ERR_INVALID_CALLBACK', TypeError);
+
 assert.throws(doSetTimeout('foo'),
-              /"callback" argument must be a function/);
+              expectedError);
 assert.throws(doSetTimeout({foo: 'bar'}),
-              /"callback" argument must be a function/);
+              expectedError);
 assert.throws(doSetTimeout(),
-              /"callback" argument must be a function/);
+              expectedError);
 assert.throws(doSetTimeout(undefined, 0),
-              /"callback" argument must be a function/);
+              expectedError);
 assert.throws(doSetTimeout(null, 0),
-              /"callback" argument must be a function/);
+              expectedError);
 assert.throws(doSetTimeout(false, 0),
-              /"callback" argument must be a function/);
+              expectedError);
 
 
 function doSetInterval(callback, after) {
@@ -29,17 +31,17 @@ function doSetInterval(callback, after) {
 }
 
 assert.throws(doSetInterval('foo'),
-              /"callback" argument must be a function/);
+              expectedError);
 assert.throws(doSetInterval({foo: 'bar'}),
-              /"callback" argument must be a function/);
+              expectedError);
 assert.throws(doSetInterval(),
-              /"callback" argument must be a function/);
+              expectedError);
 assert.throws(doSetInterval(undefined, 0),
-              /"callback" argument must be a function/);
+              expectedError);
 assert.throws(doSetInterval(null, 0),
-              /"callback" argument must be a function/);
+              expectedError);
 assert.throws(doSetInterval(false, 0),
-              /"callback" argument must be a function/);
+              expectedError);
 
 
 function doSetImmediate(callback, after) {
@@ -49,14 +51,14 @@ function doSetImmediate(callback, after) {
 }
 
 assert.throws(doSetImmediate('foo'),
-              /"callback" argument must be a function/);
+              expectedError);
 assert.throws(doSetImmediate({foo: 'bar'}),
-              /"callback" argument must be a function/);
+              expectedError);
 assert.throws(doSetImmediate(),
-              /"callback" argument must be a function/);
+              expectedError);
 assert.throws(doSetImmediate(undefined, 0),
-              /"callback" argument must be a function/);
+              expectedError);
 assert.throws(doSetImmediate(null, 0),
-              /"callback" argument must be a function/);
+              expectedError);
 assert.throws(doSetImmediate(false, 0),
-              /"callback" argument must be a function/);
+              expectedError);
