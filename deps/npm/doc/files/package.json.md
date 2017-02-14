@@ -119,7 +119,7 @@ array of license objects:
     // Not valid metadata
     { "license" :
       { "type" : "ISC"
-      , "url" : "http://opensource.org/licenses/ISC"
+      , "url" : "https://opensource.org/licenses/ISC"
       }
     }
 
@@ -127,10 +127,10 @@ array of license objects:
     { "licenses" :
       [
         { "type": "MIT"
-        , "url": "http://www.opensource.org/licenses/mit-license.php"
+        , "url": "https://www.opensource.org/licenses/mit-license.php"
         }
       , { "type": "Apache-2.0"
-        , "url": "http://opensource.org/licenses/apache2.0.php"
+        , "url": "https://opensource.org/licenses/apache2.0.php"
         }
       ]
     }

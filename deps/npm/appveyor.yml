@@ -5,7 +5,7 @@ environment:
     # previous LTS is next most important
     - nodejs_version: "4"
     # then master
-    - nodejs_version: "5"
+    - nodejs_version: "7"
   COVERALLS_REPO_TOKEN:
     secure: XdC0aySefK0HLh1GNk6aKrzZPbCfPQLyA4mYtFGEp4DrTuZA/iuCUS0LDqFYO8JQ
 platform:
