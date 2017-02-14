@@ -891,8 +891,19 @@ var parseTests = {
     pathname: '/*',
     path: '/*',
     href: 'https:///*'
-  }
+  },
 
+  // surrogate in auth
+  'http://%F0%9F%98%80@www.example.com/': {
+    href: 'http://%F0%9F%98%80@www.example.com/',
+    slashes: true,
+    protocol: 'http:',
+    auth: '\uD83D\uDE00',
+    host: 'www.example.com',
+    hostname: 'www.example.com',
+    pathname: '/',
+    path: '/'
+  }
 };
 
 for (const u in parseTests) {
