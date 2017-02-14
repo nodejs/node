@@ -586,7 +586,7 @@ found [here][online].
 <a id="nodejs-error-codes"></a>
 ## Node.js Error Codes
 
-<a id="ERR_UNK_STATE"></a>
-### ERR_INVALID_CALLBACK
+<a id="ERR_UNKNOWN_DEBUGGER_STATE"></a>
+### ERR_UNKNOWN_DEBUGGER_STATE
 
-The `'ERR_UNK_STATE'` error code is used to identify that the current state is not known.
+The `'ERR_UNKNOWN_DEBUGGER_STATE'` error code is used to identify that the state of the debugger is not known.

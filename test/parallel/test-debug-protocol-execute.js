@@ -16,5 +16,5 @@ assert.strictEqual(protocol.res.body, undefined);
 protocol.state = 'sterrance';
 assert.throws(
   () => { protocol.execute('grumblecakes'); },
-  common.expectsError('ERR_UNK_STATE', Error)
+  common.expectsError('ERR_UNKNOWN_DEBUGGER_STATE', Error)
 );
