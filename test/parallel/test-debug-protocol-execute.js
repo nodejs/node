@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const debug = require('_debugger');
 
@@ -16,5 +16,5 @@ assert.strictEqual(protocol.res.body, undefined);
 protocol.state = 'sterrance';
 assert.throws(
   () => { protocol.execute('grumblecakes'); },
-  /^Error: Unknown state$/
+  common.expectsError('ERR_UNK_STATE', Error)
 );
