@@ -173,48 +173,14 @@ class Decoder {
     return traceOffEnd<uint32_t>();
   }
 
-  // Reads a LEB128 variable-length 32-bit integer and advances {pc_}.
+  // Reads a LEB128 variable-length unsigned 32-bit integer and advances {pc_}.
   uint32_t consume_u32v(const char* name = nullptr) {
-    TRACE("  +%d  %-20s: ", static_cast<int>(pc_ - start_),
-          name ? name : "varint");
-    if (checkAvailable(1)) {
-      const byte* pos = pc_;
-      const byte* end = pc_ + 5;
-      if (end > limit_) end = limit_;
-
-      uint32_t result = 0;
-      int shift = 0;
-      byte b = 0;
-      while (pc_ < end) {
-        b = *pc_++;
-        TRACE("%02x ", b);
-        result = result | ((b & 0x7F) << shift);
-        if ((b & 0x80) == 0) break;
-        shift += 7;
-      }
-
-      int length = static_cast<int>(pc_ - pos);
-      if (pc_ == end && (b & 0x80)) {
-        error(pc_ - 1, "varint too large");
-      } else if (length == 0) {
-        error(pc_, "varint of length 0");
-      } else {
-        TRACE("= %u\n", result);
-      }
-      return result;
-    }
-    return traceOffEnd<uint32_t>();
+    return consume_leb<uint32_t, false>(name);
   }
 
-  // Consume {size} bytes and send them to the bit bucket, advancing {pc_}.
-  void consume_bytes(int size) {
-    TRACE("  +%d  %-20s: %d bytes\n", static_cast<int>(pc_ - start_), "skip",
-          size);
-    if (checkAvailable(size)) {
-      pc_ += size;
-    } else {
-      pc_ = limit_;
-    }
+  // Reads a LEB128 variable-length signed 32-bit integer and advances {pc_}.
+  int32_t consume_i32v(const char* name = nullptr) {
+    return consume_leb<int32_t, true>(name);
   }
 
   // Consume {size} bytes and send them to the bit bucket, advancing {pc_}.
@@ -287,7 +253,7 @@ class Decoder {
   template <typename T>
   Result<T> toResult(T val) {
     Result<T> result;
-    if (error_pc_) {
+    if (failed()) {
       TRACE("Result error: %s\n", error_msg_.get());
       result.error_code = kError;
       result.start = start_;
@@ -313,8 +279,8 @@ class Decoder {
     error_msg_.reset();
   }
 
-  bool ok() const { return error_pc_ == nullptr; }
-  bool failed() const { return !!error_msg_; }
+  bool ok() const { return error_msg_ == nullptr; }
+  bool failed() const { return !ok(); }
   bool more() const { return pc_ < limit_; }
 
   const byte* start() { return start_; }
@@ -382,6 +348,47 @@ class Decoder {
       }
     }
     return result;
+  }
+
+  template <typename IntType, bool is_signed>
+  IntType consume_leb(const char* name = nullptr) {
+    TRACE("  +%d  %-20s: ", static_cast<int>(pc_ - start_),
+          name ? name : "varint");
+    if (checkAvailable(1)) {
+      const int kMaxLength = (sizeof(IntType) * 8 + 6) / 7;
+      const byte* pos = pc_;
+      const byte* end = pc_ + kMaxLength;
+      if (end > limit_) end = limit_;
+
+      IntType result = 0;
+      int shift = 0;
+      byte b = 0;
+      while (pc_ < end) {
+        b = *pc_++;
+        TRACE("%02x ", b);
+        result = result | (static_cast<IntType>(b & 0x7F) << shift);
+        shift += 7;
+        if ((b & 0x80) == 0) break;
+      }
+
+      int length = static_cast<int>(pc_ - pos);
+      if (pc_ == end && (b & 0x80)) {
+        error(pc_ - 1, "varint too large");
+      } else if (length == 0) {
+        error(pc_, "varint of length 0");
+      } else if (is_signed) {
+        if (length < kMaxLength) {
+          int sign_ext_shift = 8 * sizeof(IntType) - shift;
+          // Perform sign extension.
+          result = (result << sign_ext_shift) >> sign_ext_shift;
+        }
+        TRACE("= %" PRIi64 "\n", static_cast<int64_t>(result));
+      } else {
+        TRACE("= %" PRIu64 "\n", static_cast<uint64_t>(result));
+      }
+      return result;
+    }
+    return traceOffEnd<uint32_t>();
   }
 };
 

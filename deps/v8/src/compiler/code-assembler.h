@@ -12,6 +12,7 @@
 // Do not include anything from src/compiler here!
 #include "src/allocation.h"
 #include "src/builtins/builtins.h"
+#include "src/globals.h"
 #include "src/heap/heap.h"
 #include "src/machine-type.h"
 #include "src/runtime/runtime.h"
@@ -57,6 +58,7 @@ class RawMachineLabel;
   V(Uint32LessThanOrEqual)                       \
   V(Uint32GreaterThanOrEqual)                    \
   V(UintPtrLessThan)                             \
+  V(UintPtrLessThanOrEqual)                      \
   V(UintPtrGreaterThan)                          \
   V(UintPtrGreaterThanOrEqual)                   \
   V(WordEqual)                                   \
@@ -173,7 +175,7 @@ class RawMachineLabel;
 // clients, CodeAssembler also provides an abstraction for creating variables
 // and enhanced Label functionality to merge variable values along paths where
 // they have differing values, including loops.
-class CodeAssembler {
+class V8_EXPORT_PRIVATE CodeAssembler {
  public:
   // Create with CallStub linkage.
   // |result_size| specifies the number of results returned by the stub.
@@ -213,6 +215,8 @@ class CodeAssembler {
     CodeAssembler* assembler_;
   };
 
+  typedef ZoneList<Variable*> VariableList;
+
   // ===========================================================================
   // Base Assembler
   // ===========================================================================
@@ -223,6 +227,7 @@ class CodeAssembler {
   Node* IntPtrConstant(intptr_t value);
   Node* NumberConstant(double value);
   Node* SmiConstant(Smi* value);
+  Node* SmiConstant(int value);
   Node* HeapConstant(Handle<HeapObject> object);
   Node* BooleanConstant(bool value);
   Node* ExternalConstant(ExternalReference address);
@@ -231,10 +236,12 @@ class CodeAssembler {
 
   bool ToInt32Constant(Node* node, int32_t& out_value);
   bool ToInt64Constant(Node* node, int64_t& out_value);
+  bool ToSmiConstant(Node* node, Smi*& out_value);
   bool ToIntPtrConstant(Node* node, intptr_t& out_value);
 
   Node* Parameter(int value);
   void Return(Node* value);
+  void PopAndReturn(Node* pop, Node* value);
 
   void DebugBreak();
   void Comment(const char* format, ...);
@@ -403,6 +410,10 @@ class CodeAssembler {
   Node* TailCallStub(Callable const& callable, Node* context, Node* arg1,
                      Node* arg2, Node* arg3, Node* arg4,
                      size_t result_size = 1);
+  Node* TailCallStub(Callable const& callable, Node* context, Node* arg1,
+                     Node* arg2, Node* arg3, Node* arg4, Node* arg5,
+                     size_t result_size = 1);
+
   Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
                      Node* context, Node* arg1, size_t result_size = 1);
   Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
@@ -417,6 +428,10 @@ class CodeAssembler {
   Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
                      Node* context, Node* arg1, Node* arg2, Node* arg3,
                      Node* arg4, Node* arg5, size_t result_size = 1);
+  Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
+                     Node* context, Node* arg1, Node* arg2, Node* arg3,
+                     Node* arg4, Node* arg5, Node* arg6,
+                     size_t result_size = 1);
 
   Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
                      Node* context, const Arg& arg1, const Arg& arg2,
@@ -435,6 +450,9 @@ class CodeAssembler {
                Node* receiver, Node* arg1, size_t result_size = 1);
   Node* CallJS(Callable const& callable, Node* context, Node* function,
                Node* receiver, Node* arg1, Node* arg2, size_t result_size = 1);
+  Node* CallJS(Callable const& callable, Node* context, Node* function,
+               Node* receiver, Node* arg1, Node* arg2, Node* arg3,
+               size_t result_size = 1);
 
   // Call to a C function with two arguments.
   Node* CallCFunction2(MachineType return_type, MachineType arg0_type,
@@ -444,16 +462,6 @@ class CodeAssembler {
   // Exception handling support.
   void GotoIfException(Node* node, Label* if_exception,
                        Variable* exception_var = nullptr);
-
-  // Branching helpers.
-  void BranchIf(Node* condition, Label* if_true, Label* if_false);
-
-#define BRANCH_HELPER(name)                                                \
-  void BranchIf##name(Node* a, Node* b, Label* if_true, Label* if_false) { \
-    BranchIf(name(a, b), if_true, if_false);                               \
-  }
-  CODE_ASSEMBLER_COMPARE_BINARY_OP_LIST(BRANCH_HELPER)
-#undef BRANCH_HELPER
 
   // Helpers which delegate to RawMachineAssembler.
   Factory* factory() const;
@@ -489,12 +497,15 @@ class CodeAssembler::Label {
       CodeAssembler* assembler,
       CodeAssembler::Label::Type type = CodeAssembler::Label::kNonDeferred)
       : CodeAssembler::Label(assembler, 0, nullptr, type) {}
+  Label(CodeAssembler* assembler, const VariableList& merged_variables,
+        CodeAssembler::Label::Type type = CodeAssembler::Label::kNonDeferred)
+      : CodeAssembler::Label(assembler, merged_variables.length(),
+                             &(merged_variables[0]), type) {}
+  Label(CodeAssembler* assembler, size_t count, Variable** vars,
+        CodeAssembler::Label::Type type = CodeAssembler::Label::kNonDeferred);
   Label(CodeAssembler* assembler, CodeAssembler::Variable* merged_variable,
         CodeAssembler::Label::Type type = CodeAssembler::Label::kNonDeferred)
-      : CodeAssembler::Label(assembler, 1, &merged_variable, type) {}
-  Label(CodeAssembler* assembler, int merged_variable_count,
-        CodeAssembler::Variable** merged_variables,
-        CodeAssembler::Label::Type type = CodeAssembler::Label::kNonDeferred);
+      : Label(assembler, 1, &merged_variable, type) {}
   ~Label() {}
 
  private:

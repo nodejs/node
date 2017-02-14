@@ -529,6 +529,18 @@ void AstPrinter::PrintLiteral(Handle<Object> value, bool quote) {
     }
   } else if (object->IsFixedArray()) {
     Print("FixedArray");
+  } else if (object->IsSymbol()) {
+    // Symbols can only occur as literals if they were inserted by the parser.
+    Symbol* symbol = Symbol::cast(object);
+    if (symbol->name()->IsString()) {
+      int length = 0;
+      String* string = String::cast(symbol->name());
+      std::unique_ptr<char[]> desc = string->ToCString(
+          ALLOW_NULLS, FAST_STRING_TRAVERSAL, 0, string->length(), &length);
+      Print("Symbol(%*s)", length, desc.get());
+    } else {
+      Print("Symbol()");
+    }
   } else {
     Print("<unknown literal %p>", static_cast<void*>(object));
   }
@@ -650,13 +662,10 @@ void AstPrinter::PrintOut(Isolate* isolate, AstNode* node) {
   PrintF("%s", printer.output_);
 }
 
-
-void AstPrinter::PrintDeclarations(ZoneList<Declaration*>* declarations) {
-  if (declarations->length() > 0) {
+void AstPrinter::PrintDeclarations(Declaration::List* declarations) {
+  if (!declarations->is_empty()) {
     IndentedScope indent(this, "DECLS");
-    for (int i = 0; i < declarations->length(); i++) {
-      Visit(declarations->at(i));
-    }
+    for (Declaration* decl : *declarations) Visit(decl);
   }
 }
 

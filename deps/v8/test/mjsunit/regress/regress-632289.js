@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --ignition --turbo-from-bytecode --always-opt --allow-natives-syntax
+// Flags: --ignition --always-opt --allow-natives-syntax
 
 try {
 } catch(e) {; }

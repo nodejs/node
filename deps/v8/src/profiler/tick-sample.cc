@@ -5,6 +5,7 @@
 #include "src/profiler/tick-sample.h"
 
 #include "include/v8-profiler.h"
+#include "src/counters.h"
 #include "src/frames-inl.h"
 #include "src/msan.h"
 #include "src/simulator.h"
@@ -237,7 +238,15 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
        it.top_frame_type() == internal::StackFrame::BUILTIN_EXIT)) {
     frames[i++] = isolate->c_function();
   }
+  i::RuntimeCallTimer* timer =
+      isolate->counters()->runtime_call_stats()->current_timer();
   for (; !it.done() && i < frames_limit; it.Advance()) {
+    while (timer && reinterpret_cast<i::Address>(timer) < it.frame()->fp() &&
+           i < frames_limit) {
+      frames[i++] = reinterpret_cast<i::Address>(timer->counter());
+      timer = timer->parent();
+    }
+    if (i == frames_limit) break;
     if (!it.frame()->is_interpreted()) {
       frames[i++] = it.frame()->pc();
       continue;

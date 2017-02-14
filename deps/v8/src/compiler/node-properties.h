@@ -7,6 +7,7 @@
 
 #include "src/compiler/node.h"
 #include "src/compiler/types.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -17,7 +18,7 @@ class Operator;
 class CommonOperatorBuilder;
 
 // A facade that simplifies access to the different kinds of inputs to a node.
-class NodeProperties final {
+class V8_EXPORT_PRIVATE NodeProperties final {
  public:
   // ---------------------------------------------------------------------------
   // Input layout.
@@ -130,18 +131,6 @@ class NodeProperties final {
   // {context}.
   static MaybeHandle<Context> GetSpecializationContext(
       Node* node, MaybeHandle<Context> context = MaybeHandle<Context>());
-
-  // Try to retrieve the specialization native context from the given
-  // {node}, optionally utilizing the knowledge about the (outermost)
-  // {native_context}.
-  static MaybeHandle<Context> GetSpecializationNativeContext(
-      Node* node, MaybeHandle<Context> native_context = MaybeHandle<Context>());
-
-  // Try to retrieve the specialization global object from the given
-  // {node}, optionally utilizing the knowledge about the (outermost)
-  // {native_context}.
-  static MaybeHandle<JSGlobalObject> GetSpecializationGlobalObject(
-      Node* node, MaybeHandle<Context> native_context = MaybeHandle<Context>());
 
   // ---------------------------------------------------------------------------
   // Type.

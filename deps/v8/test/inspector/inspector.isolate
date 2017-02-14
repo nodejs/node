@@ -1,0 +1,27 @@
+# Copyright 2016 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+{
+  'conditions': [
+    ['v8_enable_inspector==1', {
+      'variables': {
+        'files': [
+          './console/',
+          './cpu-profiler/',
+          './debugger/',
+          './inspector.status',
+          './json-parse-expected.txt',
+          './json-parse.js',
+          './protocol-test.js',
+          './runtime/',
+          './testcfg.py',
+          '<(PRODUCT_DIR)/inspector-test<(EXECUTABLE_SUFFIX)',
+        ],
+      },
+    }],
+  ],
+  'includes': [
+    '../../src/base.isolate',
+    '../../tools/testrunner/testrunner.isolate',
+  ],
+}

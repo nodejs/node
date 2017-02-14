@@ -9,9 +9,11 @@
 
 // TODO(turbofan): Move ExternalReference out of assembler.h
 #include "src/assembler.h"
+#include "src/base/compiler-specific.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
 #include "src/double.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -164,6 +166,9 @@ struct FloatMatcher final : public ValueMatcher<T, kOpcode> {
   bool IsZero() const { return this->Is(0.0) && !std::signbit(this->Value()); }
   bool IsNormal() const {
     return this->HasValue() && std::isnormal(this->Value());
+  }
+  bool IsInteger() const {
+    return this->HasValue() && std::nearbyint(this->Value()) == this->Value();
   }
   bool IsPositiveOrNegativePowerOf2() const {
     if (!this->HasValue() || (this->Value() == 0.0)) {
@@ -651,7 +656,7 @@ typedef BaseWithIndexAndDisplacementMatcher<Int32AddMatcher>
 typedef BaseWithIndexAndDisplacementMatcher<Int64AddMatcher>
     BaseWithIndexAndDisplacement64Matcher;
 
-struct BranchMatcher : public NodeMatcher {
+struct V8_EXPORT_PRIVATE BranchMatcher : public NON_EXPORTED_BASE(NodeMatcher) {
   explicit BranchMatcher(Node* branch);
 
   bool Matched() const { return if_true_ && if_false_; }
@@ -665,8 +670,8 @@ struct BranchMatcher : public NodeMatcher {
   Node* if_false_;
 };
 
-
-struct DiamondMatcher : public NodeMatcher {
+struct V8_EXPORT_PRIVATE DiamondMatcher
+    : public NON_EXPORTED_BASE(NodeMatcher) {
   explicit DiamondMatcher(Node* merge);
 
   bool Matched() const { return branch_; }

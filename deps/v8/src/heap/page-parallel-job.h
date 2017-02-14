@@ -103,7 +103,8 @@ class PageParallelJob {
     delete main_task;
     // Wait for background tasks.
     for (int i = 0; i < num_tasks_; i++) {
-      if (!cancelable_task_manager_->TryAbort(task_ids[i])) {
+      if (cancelable_task_manager_->TryAbort(task_ids[i]) !=
+          CancelableTaskManager::kTaskAborted) {
         pending_tasks_->Wait();
       }
     }

@@ -5,3 +5,4 @@
 export {a as b, default} from "modules-skip-1.js";
 import {a as tmp} from "modules-skip-1.js";
 export {tmp as c};
+export const zzz = 999;

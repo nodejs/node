@@ -30,7 +30,11 @@
 Debug = debug.Debug
 
 function listener(event, exec_state, event_data, data) {
-  event_data.script().setSource(1);
+  try {
+    event_data.script().setSource(1);
+  } catch (e) {
+    assertTrue(String(e).indexOf("Source is not a string") > 0);
+  }
 };
 
 Debug.setListener(listener);

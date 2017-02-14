@@ -600,6 +600,42 @@ TEST(Traverse) {
   printf("18\n");
 }
 
+TEST(ConsStringWithEmptyFirstFlatten) {
+  printf("ConsStringWithEmptyFirstFlatten\n");
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+
+  i::Handle<i::String> initial_fst =
+      isolate->factory()->NewStringFromAsciiChecked("fst012345");
+  i::Handle<i::String> initial_snd =
+      isolate->factory()->NewStringFromAsciiChecked("snd012345");
+  i::Handle<i::String> str = isolate->factory()
+                                 ->NewConsString(initial_fst, initial_snd)
+                                 .ToHandleChecked();
+  CHECK(str->IsConsString());
+  auto cons = i::Handle<i::ConsString>::cast(str);
+
+  const int initial_length = cons->length();
+
+  // set_first / set_second does not update the length (which the heap verifier
+  // checks), so we need to ensure the length stays the same.
+
+  i::Handle<i::String> new_fst = isolate->factory()->empty_string();
+  i::Handle<i::String> new_snd =
+      isolate->factory()->NewStringFromAsciiChecked("snd012345012345678");
+  cons->set_first(*new_fst);
+  cons->set_second(*new_snd);
+  CHECK(!cons->IsFlat());
+  CHECK_EQ(initial_length, new_fst->length() + new_snd->length());
+  CHECK_EQ(initial_length, cons->length());
+
+  // Make sure Flatten doesn't alloc a new string.
+  DisallowHeapAllocation no_alloc;
+  i::Handle<i::String> flat = i::String::Flatten(cons);
+  CHECK(flat->IsFlat());
+  CHECK_EQ(initial_length, flat->length());
+}
 
 static void VerifyCharacterStream(
     String* flat_string, String* cons_string) {

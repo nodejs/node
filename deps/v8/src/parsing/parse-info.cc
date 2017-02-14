@@ -31,18 +31,12 @@ ParseInfo::ParseInfo(Zone* zone)
       function_name_(nullptr),
       literal_(nullptr) {}
 
-ParseInfo::ParseInfo(Zone* zone, Handle<JSFunction> function)
-    : ParseInfo(zone, Handle<SharedFunctionInfo>(function->shared())) {
-  if (!function->context()->IsNativeContext()) {
-    set_outer_scope_info(handle(function->context()->scope_info()));
-  }
-}
-
 ParseInfo::ParseInfo(Zone* zone, Handle<SharedFunctionInfo> shared)
     : ParseInfo(zone) {
   isolate_ = shared->GetIsolate();
 
-  set_lazy();
+  set_toplevel(shared->is_toplevel());
+  set_allow_lazy_parsing(FLAG_lazy_inner_functions);
   set_hash_seed(isolate_->heap()->HashSeed());
   set_is_named_expression(shared->is_named_expression());
   set_calls_eval(shared->scope_info()->CallsEval());
@@ -56,22 +50,29 @@ ParseInfo::ParseInfo(Zone* zone, Handle<SharedFunctionInfo> shared)
 
   Handle<Script> script(Script::cast(shared->script()));
   set_script(script);
-  if (!script.is_null() && script->type() == Script::TYPE_NATIVE) {
-    set_native();
+  set_native(script->type() == Script::TYPE_NATIVE);
+  set_eval(script->compilation_type() == Script::COMPILATION_TYPE_EVAL);
+
+  Handle<HeapObject> scope_info(shared->outer_scope_info());
+  if (!scope_info->IsTheHole(isolate()) &&
+      Handle<ScopeInfo>::cast(scope_info)->length() > 0) {
+    set_outer_scope_info(Handle<ScopeInfo>::cast(scope_info));
   }
 }
 
 ParseInfo::ParseInfo(Zone* zone, Handle<Script> script) : ParseInfo(zone) {
   isolate_ = script->GetIsolate();
 
+  set_allow_lazy_parsing(String::cast(script->source())->length() >
+                         FLAG_min_preparse_length);
+  set_toplevel();
   set_hash_seed(isolate_->heap()->HashSeed());
   set_stack_limit(isolate_->stack_guard()->real_climit());
   set_unicode_cache(isolate_->unicode_cache());
   set_script(script);
 
-  if (script->type() == Script::TYPE_NATIVE) {
-    set_native();
-  }
+  set_native(script->type() == Script::TYPE_NATIVE);
+  set_eval(script->compilation_type() == Script::COMPILATION_TYPE_EVAL);
 }
 
 ParseInfo::~ParseInfo() {

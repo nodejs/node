@@ -8,6 +8,8 @@
 #include <deque>
 
 #include "src/base/bits.h"
+#include "src/base/platform/condition-variable.h"
+#include "src/cancelable-task.h"
 #include "src/heap/marking.h"
 #include "src/heap/spaces.h"
 #include "src/heap/store-buffer.h"
@@ -52,24 +54,32 @@ class ObjectMarking : public AllStatic {
 // Marking deque for tracing live objects.
 class MarkingDeque {
  public:
-  MarkingDeque()
-      : array_(NULL),
+  explicit MarkingDeque(Heap* heap)
+      : backing_store_(nullptr),
+        backing_store_committed_size_(0),
+        array_(nullptr),
         top_(0),
         bottom_(0),
         mask_(0),
         overflowed_(false),
-        in_use_(false) {}
+        in_use_(false),
+        uncommit_task_pending_(false),
+        heap_(heap) {}
 
-  void Initialize(Address low, Address high);
-  void Uninitialize(bool aborting = false);
+  void SetUp();
+  void TearDown();
+
+  // Ensures that the marking deque is committed and will stay committed until
+  // StopUsing() is called.
+  void StartUsing();
+  void StopUsing();
+  void Clear();
 
   inline bool IsFull() { return ((top_ + 1) & mask_) == bottom_; }
 
   inline bool IsEmpty() { return top_ == bottom_; }
 
   bool overflowed() const { return overflowed_; }
-
-  bool in_use() const { return in_use_; }
 
   void ClearOverflowed() { overflowed_ = false; }
 
@@ -118,6 +128,43 @@ class MarkingDeque {
   void set_top(int top) { top_ = top; }
 
  private:
+  // This task uncommits the marking_deque backing store if
+  // markin_deque->in_use_ is false.
+  class UncommitTask : public CancelableTask {
+   public:
+    explicit UncommitTask(Isolate* isolate, MarkingDeque* marking_deque)
+        : CancelableTask(isolate), marking_deque_(marking_deque) {}
+
+   private:
+    // CancelableTask override.
+    void RunInternal() override {
+      base::LockGuard<base::Mutex> guard(&marking_deque_->mutex_);
+      if (!marking_deque_->in_use_) {
+        marking_deque_->Uncommit();
+      }
+      marking_deque_->uncommit_task_pending_ = false;
+    }
+
+    MarkingDeque* marking_deque_;
+    DISALLOW_COPY_AND_ASSIGN(UncommitTask);
+  };
+
+  static const size_t kMaxSize = 4 * MB;
+  static const size_t kMinSize = 256 * KB;
+
+  // Must be called with mutex lock.
+  void EnsureCommitted();
+
+  // Must be called with mutex lock.
+  void Uncommit();
+
+  // Must be called with mutex lock.
+  void StartUncommitTask();
+
+  base::Mutex mutex_;
+
+  base::VirtualMemory* backing_store_;
+  size_t backing_store_committed_size_;
   HeapObject** array_;
   // array_[(top - 1) & mask_] is the top element in the deque.  The Deque is
   // empty when top_ == bottom_.  It is full when top_ + 1 == bottom
@@ -126,7 +173,11 @@ class MarkingDeque {
   int bottom_;
   int mask_;
   bool overflowed_;
+  // in_use_ == true after taking mutex lock implies that the marking deque is
+  // committed and will stay committed at least until in_use_ == false.
   bool in_use_;
+  bool uncommit_task_pending_;
+  Heap* heap_;
 
   DISALLOW_COPY_AND_ASSIGN(MarkingDeque);
 };
@@ -270,11 +321,15 @@ class LiveObjectIterator BASE_EMBEDDED {
   HeapObject* Next();
 
  private:
+  inline Heap* heap() { return chunk_->heap(); }
+
   MemoryChunk* chunk_;
   MarkBitCellIterator it_;
   Address cell_base_;
   MarkBit::CellType current_cell_;
 };
+
+enum PageEvacuationMode { NEW_TO_NEW, NEW_TO_OLD };
 
 // -------------------------------------------------------------------------
 // Mark-Compact collector
@@ -288,6 +343,11 @@ class MarkCompactCollector {
 
     enum FreeListRebuildingMode { REBUILD_FREE_LIST, IGNORE_FREE_LIST };
     enum FreeSpaceTreatmentMode { IGNORE_FREE_SPACE, ZAP_FREE_SPACE };
+    enum ClearOldToNewSlotsMode {
+      DO_NOT_CLEAR,
+      CLEAR_REGULAR_SLOTS,
+      CLEAR_TYPED_SLOTS
+    };
 
     typedef std::deque<Page*> SweepingList;
     typedef List<Page*> SweptList;
@@ -299,24 +359,25 @@ class MarkCompactCollector {
         : heap_(heap),
           pending_sweeper_tasks_semaphore_(0),
           sweeping_in_progress_(false),
-          late_pages_(false),
           num_sweeping_tasks_(0) {}
 
     bool sweeping_in_progress() { return sweeping_in_progress_; }
-    bool contains_late_pages() { return late_pages_; }
 
     void AddPage(AllocationSpace space, Page* page);
-    void AddLatePage(AllocationSpace space, Page* page);
 
     int ParallelSweepSpace(AllocationSpace identity, int required_freed_bytes,
                            int max_pages = 0);
     int ParallelSweepPage(Page* page, AllocationSpace identity);
 
+    // After calling this function sweeping is considered to be in progress
+    // and the main thread can sweep lazily, but the background sweeper tasks
+    // are not running yet.
     void StartSweeping();
-    void StartSweepingHelper(AllocationSpace space_to_start);
+    void StartSweeperTasks();
     void EnsureCompleted();
     void EnsureNewSpaceCompleted();
-    bool IsSweepingCompleted();
+    bool AreSweeperTasksRunning();
+    bool IsSweepingCompleted(AllocationSpace space);
     void SweepOrWaitUntilSweepingCompleted(Page* page);
 
     void AddSweptPageSafe(PagedSpace* space, Page* page);
@@ -324,6 +385,8 @@ class MarkCompactCollector {
 
    private:
     static const int kAllocationSpaces = LAST_PAGED_SPACE + 1;
+
+    static ClearOldToNewSlotsMode GetClearOldToNewSlotsMode(Page* p);
 
     template <typename Callback>
     void ForAllSweepingSpaces(Callback callback) {
@@ -343,7 +406,6 @@ class MarkCompactCollector {
     SweptList swept_list_[kAllocationSpaces];
     SweepingList sweeping_list_[kAllocationSpaces];
     bool sweeping_in_progress_;
-    bool late_pages_;
     base::AtomicNumber<intptr_t> num_sweeping_tasks_;
   };
 
@@ -369,9 +431,7 @@ class MarkCompactCollector {
   // Performs a global garbage collection.
   void CollectGarbage();
 
-  enum CompactionMode { INCREMENTAL_COMPACTION, NON_INCREMENTAL_COMPACTION };
-
-  bool StartCompaction(CompactionMode mode);
+  bool StartCompaction();
 
   void AbortCompaction();
 
@@ -412,7 +472,7 @@ class MarkCompactCollector {
         ->ShouldSkipEvacuationSlotRecording();
   }
 
-  INLINE(static bool IsOnEvacuationCandidate(Object* obj)) {
+  static inline bool IsOnEvacuationCandidate(HeapObject* obj) {
     return Page::FromAddress(reinterpret_cast<Address>(obj))
         ->IsEvacuationCandidate();
   }
@@ -463,34 +523,10 @@ class MarkCompactCollector {
 
   MarkingDeque* marking_deque() { return &marking_deque_; }
 
-  static const size_t kMaxMarkingDequeSize = 4 * MB;
-  static const size_t kMinMarkingDequeSize = 256 * KB;
-
-  void EnsureMarkingDequeIsCommittedAndInitialize(size_t max_size) {
-    if (!marking_deque()->in_use()) {
-      EnsureMarkingDequeIsCommitted(max_size);
-      InitializeMarkingDeque();
-    }
-  }
-
-  void EnsureMarkingDequeIsCommitted(size_t max_size);
-  void EnsureMarkingDequeIsReserved();
-
-  void InitializeMarkingDeque();
-
-  // The following two methods can just be called after marking, when the
-  // whole transitive closure is known. They must be called before sweeping
-  // when mark bits are still intact.
-  bool IsSlotInBlackObject(MemoryChunk* p, Address slot);
-  HeapObject* FindBlackObjectBySlotSlow(Address slot);
-
-  // Removes all the slots in the slot buffers that are within the given
-  // address range.
-  void RemoveObjectSlots(Address start_slot, Address end_slot);
-
   Sweeper& sweeper() { return sweeper_; }
 
  private:
+  template <PageEvacuationMode mode>
   class EvacuateNewSpacePageVisitor;
   class EvacuateNewSpaceVisitor;
   class EvacuateOldSpaceVisitor;
@@ -502,11 +538,10 @@ class MarkCompactCollector {
   explicit MarkCompactCollector(Heap* heap);
 
   bool WillBeDeoptimized(Code* code);
-  void ClearInvalidRememberedSetSlots();
 
-  void ComputeEvacuationHeuristics(int area_size,
+  void ComputeEvacuationHeuristics(size_t area_size,
                                    int* target_fragmentation_percent,
-                                   int* max_evacuated_bytes);
+                                   size_t* max_evacuated_bytes);
 
   void VisitAllObjects(HeapObjectVisitor* visitor);
 
@@ -644,21 +679,10 @@ class MarkCompactCollector {
 
   void AbortTransitionArrays();
 
-  // -----------------------------------------------------------------------
-  // Phase 2: Sweeping to clear mark bits and free non-live objects for
-  // a non-compacting collection.
-  //
-  //  Before: Live objects are marked and non-live objects are unmarked.
-  //
-  //   After: Live objects are unmarked, non-live regions have been added to
-  //          their space's free list. Active eden semispace is compacted by
-  //          evacuation.
-  //
-
-  // If we are not compacting the heap, we simply sweep the spaces except
-  // for the large object space, clearing mark bits and adding unmarked
-  // regions to each space's free list.
-  void SweepSpaces();
+  // Starts sweeping of spaces by contributing on the main thread and setting
+  // up other pages for sweeping. Does not start sweeper tasks.
+  void StartSweepSpaces();
+  void StartSweepSpace(PagedSpace* space);
 
   void EvacuateNewSpacePrologue();
 
@@ -681,9 +705,6 @@ class MarkCompactCollector {
 
   void ReleaseEvacuationCandidates();
 
-  // Starts sweeping of a space by contributing on the main thread and setting
-  // up other pages for sweeping.
-  void StartSweepSpace(PagedSpace* space);
 
 #ifdef DEBUG
   friend class MarkObjectVisitor;
@@ -726,8 +747,6 @@ class MarkCompactCollector {
 
   bool have_code_to_deoptimize_;
 
-  base::VirtualMemory* marking_deque_memory_;
-  size_t marking_deque_memory_committed_;
   MarkingDeque marking_deque_;
 
   CodeFlusher* code_flusher_;

@@ -153,6 +153,9 @@ class ScopeIterator {
   void CopyContextLocalsToScopeObject(Handle<ScopeInfo> scope_info,
                                       Handle<Context> context,
                                       Handle<JSObject> scope_object);
+  void CopyModuleVarsToScopeObject(Handle<ScopeInfo> scope_info,
+                                   Handle<Context> context,
+                                   Handle<JSObject> scope_object);
   void CopyContextExtensionToScopeObject(Handle<Context> context,
                                          Handle<JSObject> scope_object,
                                          KeyCollectionMode mode);

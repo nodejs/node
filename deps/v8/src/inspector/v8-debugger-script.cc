@@ -67,50 +67,66 @@ static String16 calculateHash(const String16& str) {
   return hash.toString();
 }
 
-static v8::Local<v8::Value> GetChecked(v8::Local<v8::Context> context,
-                                       v8::Local<v8::Object> object,
-                                       const char* name) {
-  return object
-      ->Get(context, toV8StringInternalized(context->GetIsolate(), name))
-      .ToLocalChecked();
-}
-
-static int GetCheckedInt(v8::Local<v8::Context> context,
-                         v8::Local<v8::Object> object, const char* name) {
-  return static_cast<int>(GetChecked(context, object, name)
-                              ->ToInteger(context)
-                              .ToLocalChecked()
-                              ->Value());
-}
-
-V8DebuggerScript::V8DebuggerScript(v8::Local<v8::Context> context,
-                                   v8::Local<v8::Object> object,
+V8DebuggerScript::V8DebuggerScript(v8::Isolate* isolate,
+                                   v8::Local<v8::DebugInterface::Script> script,
                                    bool isLiveEdit) {
-  v8::Isolate* isolate = context->GetIsolate();
-  v8::Local<v8::Value> idValue = GetChecked(context, object, "id");
-  DCHECK(!idValue.IsEmpty() && idValue->IsInt32());
-  m_id = String16::fromInteger(idValue->Int32Value(context).FromJust());
+  m_isolate = script->GetIsolate();
+  m_id = String16::fromInteger(script->Id());
+  v8::Local<v8::String> tmp;
+  if (script->Name().ToLocal(&tmp)) m_url = toProtocolString(tmp);
+  if (script->SourceURL().ToLocal(&tmp)) {
+    m_sourceURL = toProtocolString(tmp);
+    if (m_url.isEmpty()) m_url = toProtocolString(tmp);
+  }
+  if (script->SourceMappingURL().ToLocal(&tmp))
+    m_sourceMappingURL = toProtocolString(tmp);
+  m_startLine = script->LineOffset();
+  m_startColumn = script->ColumnOffset();
+  std::vector<int> lineEnds = script->LineEnds();
+  CHECK(lineEnds.size());
+  int source_length = lineEnds[lineEnds.size() - 1];
+  if (lineEnds.size()) {
+    m_endLine = static_cast<int>(lineEnds.size()) + m_startLine - 1;
+    if (lineEnds.size() > 1) {
+      m_endColumn = source_length - lineEnds[lineEnds.size() - 2] - 1;
+    } else {
+      m_endColumn = source_length + m_startColumn;
+    }
+  } else {
+    m_endLine = m_startLine;
+    m_endColumn = m_startColumn;
+  }
 
-  m_url = toProtocolStringWithTypeCheck(GetChecked(context, object, "name"));
-  m_sourceURL =
-      toProtocolStringWithTypeCheck(GetChecked(context, object, "sourceURL"));
-  m_sourceMappingURL = toProtocolStringWithTypeCheck(
-      GetChecked(context, object, "sourceMappingURL"));
-  m_startLine = GetCheckedInt(context, object, "startLine");
-  m_startColumn = GetCheckedInt(context, object, "startColumn");
-  m_endLine = GetCheckedInt(context, object, "endLine");
-  m_endColumn = GetCheckedInt(context, object, "endColumn");
-  m_executionContextAuxData = toProtocolStringWithTypeCheck(
-      GetChecked(context, object, "executionContextAuxData"));
-  m_executionContextId = GetCheckedInt(context, object, "executionContextId");
+  if (script->ContextData().ToLocal(&tmp)) {
+    String16 contextData = toProtocolString(tmp);
+    size_t firstComma = contextData.find(",", 0);
+    size_t secondComma = firstComma != String16::kNotFound
+                             ? contextData.find(",", firstComma + 1)
+                             : String16::kNotFound;
+    if (secondComma != String16::kNotFound) {
+      String16 executionContextId =
+          contextData.substring(firstComma + 1, secondComma - firstComma - 1);
+      bool isOk = false;
+      m_executionContextId = executionContextId.toInteger(&isOk);
+      if (!isOk) m_executionContextId = 0;
+      m_executionContextAuxData = contextData.substring(secondComma + 1);
+    }
+  }
+
   m_isLiveEdit = isLiveEdit;
 
-  v8::Local<v8::Value> sourceValue;
-  if (!object->Get(context, toV8StringInternalized(isolate, "source"))
-           .ToLocal(&sourceValue) ||
-      !sourceValue->IsString())
-    return;
-  setSource(isolate, sourceValue.As<v8::String>());
+  if (script->Source().ToLocal(&tmp)) {
+    m_source.Reset(m_isolate, tmp);
+    String16 source = toProtocolString(tmp);
+    m_hash = calculateHash(source);
+    // V8 will not count last line if script source ends with \n.
+    if (source.length() > 1 && source[source.length() - 1] == '\n') {
+      m_endLine++;
+      m_endColumn = 0;
+    }
+  }
+
+  m_script.Reset(m_isolate, script);
 }
 
 V8DebuggerScript::~V8DebuggerScript() {}
@@ -131,10 +147,18 @@ void V8DebuggerScript::setSourceMappingURL(const String16& sourceMappingURL) {
   m_sourceMappingURL = sourceMappingURL;
 }
 
-void V8DebuggerScript::setSource(v8::Isolate* isolate,
-                                 v8::Local<v8::String> source) {
-  m_source.Reset(isolate, source);
+void V8DebuggerScript::setSource(v8::Local<v8::String> source) {
+  m_source.Reset(m_isolate, source);
   m_hash = calculateHash(toProtocolString(source));
+}
+
+bool V8DebuggerScript::getPossibleBreakpoints(
+    const v8::DebugInterface::Location& start,
+    const v8::DebugInterface::Location& end,
+    std::vector<v8::DebugInterface::Location>* locations) {
+  v8::HandleScope scope(m_isolate);
+  v8::Local<v8::DebugInterface::Script> script = m_script.Get(m_isolate);
+  return script->GetPossibleBreakpoints(start, end, locations);
 }
 
 }  // namespace v8_inspector

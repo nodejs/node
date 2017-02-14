@@ -46,14 +46,6 @@ void ErrorThrower::Format(i::Handle<i::JSFunction> constructor,
   exception_ = isolate_->factory()->NewError(constructor, message);
 }
 
-void ErrorThrower::Error(const char* format, ...) {
-  if (error()) return;
-  va_list arguments;
-  va_start(arguments, format);
-  Format(isolate_->error_function(), format, arguments);
-  va_end(arguments);
-}
-
 void ErrorThrower::TypeError(const char* format, ...) {
   if (error()) return;
   va_list arguments;
@@ -66,8 +58,23 @@ void ErrorThrower::RangeError(const char* format, ...) {
   if (error()) return;
   va_list arguments;
   va_start(arguments, format);
-  CHECK(*isolate_->range_error_function() != *isolate_->type_error_function());
   Format(isolate_->range_error_function(), format, arguments);
+  va_end(arguments);
+}
+
+void ErrorThrower::CompileError(const char* format, ...) {
+  if (error()) return;
+  va_list arguments;
+  va_start(arguments, format);
+  Format(isolate_->wasm_compile_error_function(), format, arguments);
+  va_end(arguments);
+}
+
+void ErrorThrower::RuntimeError(const char* format, ...) {
+  if (error()) return;
+  va_list arguments;
+  va_start(arguments, format);
+  Format(isolate_->wasm_runtime_error_function(), format, arguments);
   va_end(arguments);
 }
 

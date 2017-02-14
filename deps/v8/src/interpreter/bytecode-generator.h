@@ -32,7 +32,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 #undef DECLARE_VISIT
 
   // Visiting function for declarations list and statements are overridden.
-  void VisitDeclarations(ZoneList<Declaration*>* declarations);
+  void VisitDeclarations(Declaration::List* declarations);
   void VisitStatements(ZoneList<Statement*>* statments);
 
  private:
@@ -72,10 +72,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   // Used by flow control routines to evaluate loop condition.
   void VisitCondition(Expression* expr);
 
-  // Visit the arguments expressions in |args| and store them in |args_regs|
-  // starting at register |first_argument_register| in the list.
-  void VisitArguments(ZoneList<Expression*>* args, RegisterList arg_regs,
-                      size_t first_argument_register = 0);
+  // Visit the arguments expressions in |args| and store them in |args_regs|,
+  // growing |args_regs| for each argument visited.
+  void VisitArguments(ZoneList<Expression*>* args, RegisterList* arg_regs);
 
   // Visit a keyed super property load. The optional
   // |opt_receiver_out| register will have the receiver stored to it
@@ -92,18 +91,19 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                    Register opt_receiver_out);
 
   void VisitPropertyLoad(Register obj, Property* expr);
-  void VisitPropertyLoadForAccumulator(Register obj, Property* expr);
+  void VisitPropertyLoadForRegister(Register obj, Property* expr,
+                                    Register destination);
 
-  void VisitVariableLoad(Variable* variable, FeedbackVectorSlot slot,
+  void BuildVariableLoad(Variable* variable, FeedbackVectorSlot slot,
+                         HoleCheckMode hole_check_mode,
                          TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
-  void VisitVariableLoadForAccumulatorValue(
+  void BuildVariableLoadForAccumulatorValue(
       Variable* variable, FeedbackVectorSlot slot,
+      HoleCheckMode hole_check_mode,
       TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
-  MUST_USE_RESULT Register
-  VisitVariableLoadForRegisterValue(Variable* variable, FeedbackVectorSlot slot,
-                                    TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
-  void VisitVariableAssignment(Variable* variable, Token::Value op,
-                               FeedbackVectorSlot slot);
+  void BuildVariableAssignment(Variable* variable, Token::Value op,
+                               FeedbackVectorSlot slot,
+                               HoleCheckMode hole_check_mode);
 
   void BuildReturn();
   void BuildReThrow();
@@ -111,7 +111,6 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildThrowIfHole(Handle<String> name);
   void BuildThrowIfNotHole(Handle<String> name);
   void BuildThrowReferenceError(Handle<String> name);
-  void BuildHoleCheckForVariableLoad(Variable* variable);
   void BuildHoleCheckForVariableAssignment(Variable* variable, Token::Value op);
 
   // Build jump to targets[value], where
@@ -143,6 +142,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                   ObjectLiteralProperty* property,
                                   Register value_out);
   void VisitForInAssignment(Expression* expr, FeedbackVectorSlot slot);
+  void VisitModuleNamespaceImports();
 
   // Visit the header/body of a loop iteration.
   void VisitIterationHeader(IterationStatement* stmt,
@@ -152,12 +152,15 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   // Visit a statement and switch scopes, the context is in the accumulator.
   void VisitInScope(Statement* stmt, Scope* scope);
 
+  void BuildPushUndefinedIntoRegisterList(RegisterList* reg_list);
+
   // Visitors for obtaining expression result in the accumulator, in a
   // register, or just getting the effect.
   void VisitForAccumulatorValue(Expression* expr);
   void VisitForAccumulatorValueOrTheHole(Expression* expr);
   MUST_USE_RESULT Register VisitForRegisterValue(Expression* expr);
   void VisitForRegisterValue(Expression* expr, Register destination);
+  void VisitAndPushIntoRegisterList(Expression* expr, RegisterList* reg_list);
   void VisitForEffect(Expression* expr);
   void VisitForTest(Expression* expr, BytecodeLabels* then_labels,
                     BytecodeLabels* else_labels, TestFallthrough fallthrough);
@@ -194,6 +197,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   Handle<Name> home_object_symbol() const { return home_object_symbol_; }
   Handle<Name> prototype_string() const { return prototype_string_; }
+  Handle<FixedArray> empty_fixed_array() const { return empty_fixed_array_; }
 
   Zone* zone_;
   BytecodeArrayBuilder* builder_;
@@ -216,6 +220,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   Handle<Name> home_object_symbol_;
   Handle<Name> prototype_string_;
+  Handle<FixedArray> empty_fixed_array_;
 };
 
 }  // namespace interpreter

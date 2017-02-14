@@ -40,11 +40,6 @@ std::unique_ptr<protocol::Value> parseJSON(const String16& json);
 
 }  // namespace protocol
 
-std::unique_ptr<protocol::Value> toProtocolValue(protocol::String* errorString,
-                                                 v8::Local<v8::Context>,
-                                                 v8::Local<v8::Value>,
-                                                 int maxDepth = 1000);
-
 v8::Local<v8::String> toV8String(v8::Isolate*, const String16&);
 v8::Local<v8::String> toV8StringInternalized(v8::Isolate*, const String16&);
 v8::Local<v8::String> toV8StringInternalized(v8::Isolate*, const char*);

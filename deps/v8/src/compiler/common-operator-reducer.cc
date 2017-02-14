@@ -284,7 +284,7 @@ Reduction CommonOperatorReducer::ReducePhi(Node* node) {
 
 Reduction CommonOperatorReducer::ReduceReturn(Node* node) {
   DCHECK_EQ(IrOpcode::kReturn, node->opcode());
-  Node* const value = node->InputAt(0);
+  Node* const value = node->InputAt(1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* const control = NodeProperties::GetControlInput(node);
   bool changed = false;
@@ -311,8 +311,9 @@ Reduction CommonOperatorReducer::ReduceReturn(Node* node) {
       // {end} as revisit, because we mark {node} as {Dead} below, which was
       // previously connected to {end}, so we know for sure that at some point
       // the reducer logic will visit {end} again.
-      Node* ret = graph()->NewNode(common()->Return(), value->InputAt(i),
-                                   effect->InputAt(i), control->InputAt(i));
+      Node* ret = graph()->NewNode(common()->Return(), node->InputAt(0),
+                                   value->InputAt(i), effect->InputAt(i),
+                                   control->InputAt(i));
       NodeProperties::MergeControlToEnd(graph(), common(), ret);
     }
     // Mark the merge {control} and return {node} as {dead}.

@@ -75,9 +75,7 @@ class LCodeGen;
   V(FlooringDivI)                            \
   V(ForInCacheArray)                         \
   V(ForInPrepareMap)                         \
-  V(GetCachedArrayIndex)                     \
   V(Goto)                                    \
-  V(HasCachedArrayIndexAndBranch)            \
   V(HasInPrototypeChainAndBranch)            \
   V(HasInstanceTypeAndBranch)                \
   V(InnerAllocatedObject)                    \
@@ -92,11 +90,8 @@ class LCodeGen;
   V(LoadContextSlot)                         \
   V(LoadFieldByIndex)                        \
   V(LoadFunctionPrototype)                   \
-  V(LoadGlobalGeneric)                       \
   V(LoadKeyed)                               \
-  V(LoadKeyedGeneric)                        \
   V(LoadNamedField)                          \
-  V(LoadNamedGeneric)                        \
   V(LoadRoot)                                \
   V(MathAbs)                                 \
   V(MathClz32)                               \
@@ -1080,35 +1075,6 @@ class LHasInstanceTypeAndBranch final : public LControlInstruction<1, 1> {
   void PrintDataTo(StringStream* stream) override;
 };
 
-
-class LGetCachedArrayIndex final : public LTemplateInstruction<1, 1, 0> {
- public:
-  explicit LGetCachedArrayIndex(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(GetCachedArrayIndex, "get-cached-array-index")
-  DECLARE_HYDROGEN_ACCESSOR(GetCachedArrayIndex)
-};
-
-
-class LHasCachedArrayIndexAndBranch final : public LControlInstruction<1, 0> {
- public:
-  explicit LHasCachedArrayIndexAndBranch(LOperand* value) {
-    inputs_[0] = value;
-  }
-
-  LOperand* value() { return inputs_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(HasCachedArrayIndexAndBranch,
-                               "has-cached-array-index-and-branch")
-
-  void PrintDataTo(StringStream* stream) override;
-};
-
-
 class LClassOfTestAndBranch final : public LControlInstruction<1, 2> {
  public:
   LClassOfTestAndBranch(LOperand* value, LOperand* temp, LOperand* temp2) {
@@ -1493,25 +1459,6 @@ class LLoadNamedField final : public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LLoadNamedGeneric final : public LTemplateInstruction<1, 2, 1> {
- public:
-  LLoadNamedGeneric(LOperand* context, LOperand* object, LOperand* vector) {
-    inputs_[0] = context;
-    inputs_[1] = object;
-    temps_[0] = vector;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-  LOperand* object() { return inputs_[1]; }
-  LOperand* temp_vector() { return temps_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadNamedGeneric, "load-named-generic")
-  DECLARE_HYDROGEN_ACCESSOR(LoadNamedGeneric)
-
-  Handle<Object> name() const { return hydrogen()->name(); }
-};
-
-
 class LLoadFunctionPrototype final : public LTemplateInstruction<1, 1, 1> {
  public:
   LLoadFunctionPrototype(LOperand* function, LOperand* temp) {
@@ -1574,43 +1521,6 @@ inline static bool ExternalArrayOpRequiresTemp(
          (elements_kind == UINT8_ELEMENTS || elements_kind == INT8_ELEMENTS ||
           elements_kind == UINT8_CLAMPED_ELEMENTS);
 }
-
-
-class LLoadKeyedGeneric final : public LTemplateInstruction<1, 3, 1> {
- public:
-  LLoadKeyedGeneric(LOperand* context, LOperand* obj, LOperand* key,
-                    LOperand* vector) {
-    inputs_[0] = context;
-    inputs_[1] = obj;
-    inputs_[2] = key;
-    temps_[0] = vector;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-  LOperand* object() { return inputs_[1]; }
-  LOperand* key() { return inputs_[2]; }
-  LOperand* temp_vector() { return temps_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadKeyedGeneric, "load-keyed-generic")
-  DECLARE_HYDROGEN_ACCESSOR(LoadKeyedGeneric)
-};
-
-class LLoadGlobalGeneric final : public LTemplateInstruction<1, 1, 1> {
- public:
-  LLoadGlobalGeneric(LOperand* context, LOperand* vector) {
-    inputs_[0] = context;
-    temps_[0] = vector;
-  }
-
-  LOperand* context() { return inputs_[0]; }
-  LOperand* temp_vector() { return temps_[0]; }
-
-  DECLARE_CONCRETE_INSTRUCTION(LoadGlobalGeneric, "load-global-generic")
-  DECLARE_HYDROGEN_ACCESSOR(LoadGlobalGeneric)
-
-  Handle<Object> name() const { return hydrogen()->name(); }
-  TypeofMode typeof_mode() const { return hydrogen()->typeof_mode(); }
-};
 
 
 class LLoadContextSlot final : public LTemplateInstruction<1, 1, 0> {
@@ -1975,6 +1885,8 @@ class LNumberUntagD final : public LTemplateInstruction<1, 1, 1> {
 
   DECLARE_CONCRETE_INSTRUCTION(NumberUntagD, "double-untag")
   DECLARE_HYDROGEN_ACCESSOR(Change);
+
+  bool truncating() { return hydrogen()->CanTruncateToNumber(); }
 };
 
 

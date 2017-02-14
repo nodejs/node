@@ -67,6 +67,8 @@ std::ostream& operator<<(std::ostream& os, ToBooleanHint hint) {
       return os << "SimdValue";
     case ToBooleanHint::kAny:
       return os << "Any";
+    case ToBooleanHint::kNeedsMap:
+      return os << "NeedsMap";
   }
   UNREACHABLE();
   return os;
@@ -84,6 +86,27 @@ std::ostream& operator<<(std::ostream& os, ToBooleanHints hints) {
       os << hint;
     }
   }
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const StringAddFlags& flags) {
+  switch (flags) {
+    case STRING_ADD_CHECK_NONE:
+      return os << "CheckNone";
+    case STRING_ADD_CHECK_LEFT:
+      return os << "CheckLeft";
+    case STRING_ADD_CHECK_RIGHT:
+      return os << "CheckRight";
+    case STRING_ADD_CHECK_BOTH:
+      return os << "CheckBoth";
+    case STRING_ADD_CONVERT_LEFT:
+      return os << "ConvertLeft";
+    case STRING_ADD_CONVERT_RIGHT:
+      return os << "ConvertRight";
+    case STRING_ADD_CONVERT:
+      break;
+  }
+  UNREACHABLE();
   return os;
 }
 

@@ -102,6 +102,13 @@ class AsmTyper final {
       kInvalidMutability,
       kLocal,
       kMutableGlobal,
+      // *VIOLATION* We support const variables in asm.js, as per the
+      //
+      // https://discourse.wicg.io/t/allow-const-global-variables/684
+      //
+      // Global const variables are treated as if they were numeric literals,
+      // and can be used anywhere a literal can be used.
+      kConstGlobal,
       kImmutableGlobal,
     };
 
@@ -114,7 +121,8 @@ class AsmTyper final {
     }
 
     bool IsGlobal() const {
-      return mutability_ == kImmutableGlobal || mutability_ == kMutableGlobal;
+      return mutability_ == kImmutableGlobal || mutability_ == kConstGlobal ||
+             mutability_ == kMutableGlobal;
     }
 
     bool IsStdlib() const { return standard_member_ == kStdlib; }
@@ -307,8 +315,9 @@ class AsmTyper final {
   AsmType* ReturnTypeAnnotations(ReturnStatement* statement);
   // 5.4 VariableTypeAnnotations
   // 5.5 GlobalVariableTypeAnnotations
-  AsmType* VariableTypeAnnotations(Expression* initializer,
-                                   bool global = false);
+  AsmType* VariableTypeAnnotations(
+      Expression* initializer,
+      VariableInfo::Mutability global = VariableInfo::kLocal);
   AsmType* ImportExpression(Property* import);
   AsmType* NewHeapView(CallNew* new_heap_view);
 

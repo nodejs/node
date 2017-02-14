@@ -5,12 +5,15 @@
 #ifndef V8_EH_FRAME_H_
 #define V8_EH_FRAME_H_
 
+#include "src/base/compiler-specific.h"
+#include "src/globals.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {
 namespace internal {
 
-class EhFrameConstants final : public AllStatic {
+class V8_EXPORT_PRIVATE EhFrameConstants final
+    : public NON_EXPORTED_BASE(AllStatic) {
  public:
   enum class DwarfOpcodes : byte {
     kNop = 0x00,
@@ -61,7 +64,7 @@ class EhFrameConstants final : public AllStatic {
   static const int kEhFrameHdrSize = 20;
 };
 
-class EhFrameWriter {
+class V8_EXPORT_PRIVATE EhFrameWriter {
  public:
   explicit EhFrameWriter(Zone* zone);
 
@@ -196,7 +199,7 @@ class EhFrameWriter {
   DISALLOW_COPY_AND_ASSIGN(EhFrameWriter);
 };
 
-class EhFrameIterator {
+class V8_EXPORT_PRIVATE EhFrameIterator {
  public:
   EhFrameIterator(const byte* start, const byte* end)
       : start_(start), next_(start), end_(end) {

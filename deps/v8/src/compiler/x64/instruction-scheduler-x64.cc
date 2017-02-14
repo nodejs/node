@@ -194,8 +194,77 @@ int InstructionScheduler::GetTargetInstructionFlags(
 
 
 int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
-  // TODO(all): Add instruction cost modeling.
-  return 1;
+  // Basic latency modeling for x64 instructions. They have been determined
+  // in an empirical way.
+  switch (instr->arch_opcode()) {
+    case kCheckedLoadInt8:
+    case kCheckedLoadUint8:
+    case kCheckedLoadInt16:
+    case kCheckedLoadUint16:
+    case kCheckedLoadWord32:
+    case kCheckedLoadWord64:
+    case kCheckedLoadFloat32:
+    case kCheckedLoadFloat64:
+    case kCheckedStoreWord8:
+    case kCheckedStoreWord16:
+    case kCheckedStoreWord32:
+    case kCheckedStoreWord64:
+    case kCheckedStoreFloat32:
+    case kCheckedStoreFloat64:
+    case kSSEFloat64Mul:
+      return 5;
+    case kX64Imul:
+    case kX64Imul32:
+    case kX64ImulHigh32:
+    case kX64UmulHigh32:
+    case kSSEFloat32Cmp:
+    case kSSEFloat32Add:
+    case kSSEFloat32Sub:
+    case kSSEFloat32Abs:
+    case kSSEFloat32Neg:
+    case kSSEFloat64Cmp:
+    case kSSEFloat64Add:
+    case kSSEFloat64Sub:
+    case kSSEFloat64Max:
+    case kSSEFloat64Min:
+    case kSSEFloat64Abs:
+    case kSSEFloat64Neg:
+      return 3;
+    case kSSEFloat32Mul:
+    case kSSEFloat32ToFloat64:
+    case kSSEFloat64ToFloat32:
+    case kSSEFloat32Round:
+    case kSSEFloat64Round:
+    case kSSEFloat32ToInt32:
+    case kSSEFloat32ToUint32:
+    case kSSEFloat64ToInt32:
+    case kSSEFloat64ToUint32:
+      return 4;
+    case kX64Idiv:
+      return 49;
+    case kX64Idiv32:
+      return 35;
+    case kX64Udiv:
+      return 38;
+    case kX64Udiv32:
+      return 26;
+    case kSSEFloat32Div:
+    case kSSEFloat64Div:
+    case kSSEFloat32Sqrt:
+    case kSSEFloat64Sqrt:
+      return 13;
+    case kSSEFloat32ToInt64:
+    case kSSEFloat64ToInt64:
+    case kSSEFloat32ToUint64:
+    case kSSEFloat64ToUint64:
+      return 10;
+    case kSSEFloat64Mod:
+      return 50;
+    case kArchTruncateDoubleToI:
+      return 6;
+    default:
+      return 1;
+  }
 }
 
 }  // namespace compiler

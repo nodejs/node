@@ -126,7 +126,7 @@ class WasmStackFrame : public StackFrameBase {
  public:
   virtual ~WasmStackFrame() {}
 
-  Handle<Object> GetReceiver() const override { return wasm_obj_; }
+  Handle<Object> GetReceiver() const override { return wasm_instance_; }
   Handle<Object> GetFunction() const override;
 
   Handle<Object> GetFileName() override { return Null(); }
@@ -148,18 +148,38 @@ class WasmStackFrame : public StackFrameBase {
 
   MaybeHandle<String> ToString() override;
 
- private:
-  void FromFrameArray(Isolate* isolate, Handle<FrameArray> array, int frame_ix);
+ protected:
   Handle<Object> Null() const;
 
   Isolate* isolate_;
 
-  Handle<Object> wasm_obj_;
+  // TODO(wasm): Use proper typing.
+  Handle<Object> wasm_instance_;
   uint32_t wasm_func_index_;
   Handle<AbstractCode> code_;
   int offset_;
 
+ private:
+  void FromFrameArray(Isolate* isolate, Handle<FrameArray> array, int frame_ix);
+
   friend class FrameArrayIterator;
+};
+
+class AsmJsWasmStackFrame : public WasmStackFrame {
+ public:
+  virtual ~AsmJsWasmStackFrame() {}
+
+  Handle<Object> GetReceiver() const override;
+  Handle<Object> GetFunction() const override;
+
+  Handle<Object> GetFileName() override;
+  Handle<Object> GetScriptNameOrSourceUrl() override;
+
+  int GetPosition() const override;
+  int GetLineNumber() override;
+  int GetColumnNumber() override;
+
+  MaybeHandle<String> ToString() override;
 };
 
 class FrameArrayIterator {
@@ -179,6 +199,7 @@ class FrameArrayIterator {
   int next_frame_ix_;
 
   WasmStackFrame wasm_frame_;
+  AsmJsWasmStackFrame asm_wasm_frame_;
   JSStackFrame js_frame_;
 };
 
@@ -499,7 +520,8 @@ class ErrorUtils : public AllStatic {
   T(UnsupportedTimeZone, "Unsupported time zone specified %")                  \
   T(ValueOutOfRange, "Value % out of range for % options property %")          \
   /* SyntaxError */                                                            \
-  T(AmbiguousExport, "Multiple star exports provide name '%'")                 \
+  T(AmbiguousExport,                                                           \
+    "The requested module contains conflicting star exports for name '%'")     \
   T(BadGetterArity, "Getter must not have any formal parameters.")             \
   T(BadSetterArity, "Setter must have exactly one formal parameter.")          \
   T(ConstructorIsAccessor, "Class constructor may not be an accessor")         \
@@ -604,7 +626,8 @@ class ErrorUtils : public AllStatic {
   T(UnexpectedTokenString, "Unexpected string")                                \
   T(UnexpectedTokenRegExp, "Unexpected regular expression")                    \
   T(UnknownLabel, "Undefined label '%'")                                       \
-  T(UnresolvableExport, "Module does not provide an export named '%'")         \
+  T(UnresolvableExport,                                                        \
+    "The requested module does not provide an export named '%'")               \
   T(UnterminatedArgList, "missing ) after argument list")                      \
   T(UnterminatedRegExp, "Invalid regular expression: missing /")               \
   T(UnterminatedTemplate, "Unterminated template literal")                     \

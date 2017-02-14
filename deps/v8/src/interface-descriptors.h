@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "src/assembler.h"
+#include "src/globals.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {
@@ -20,6 +21,7 @@ class PlatformInterfaceDescriptor;
   V(ContextOnly)                          \
   V(Load)                                 \
   V(LoadWithVector)                       \
+  V(LoadICProtoArray)                     \
   V(LoadGlobal)                           \
   V(LoadGlobalWithVector)                 \
   V(Store)                                \
@@ -48,7 +50,6 @@ class PlatformInterfaceDescriptor;
   V(ConstructStub)                        \
   V(ConstructTrampoline)                  \
   V(RegExpExec)                           \
-  V(RegExpConstructResult)                \
   V(CopyFastSmiOrObjectElements)          \
   V(TransitionElementsKind)               \
   V(AllocateHeapNumber)                   \
@@ -62,6 +63,7 @@ class PlatformInterfaceDescriptor;
   V(AllocateInt8x16)                      \
   V(AllocateUint8x16)                     \
   V(AllocateBool8x16)                     \
+  V(Builtin)                              \
   V(ArrayNoArgumentConstructor)           \
   V(ArraySingleArgumentConstructor)       \
   V(ArrayNArgumentsConstructor)           \
@@ -82,7 +84,6 @@ class PlatformInterfaceDescriptor;
   V(ArgumentAdaptor)                      \
   V(ApiCallback)                          \
   V(ApiGetter)                            \
-  V(StoreGlobalViaContext)                \
   V(MathPowTagged)                        \
   V(MathPowInteger)                       \
   V(GrowArrayElements)                    \
@@ -93,7 +94,7 @@ class PlatformInterfaceDescriptor;
   V(InterpreterCEntry)                    \
   V(ResumeGenerator)
 
-class CallInterfaceDescriptorData {
+class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
  public:
   CallInterfaceDescriptorData() : register_param_count_(-1), param_count_(-1) {}
 
@@ -389,6 +390,15 @@ class LoadWithVectorDescriptor : public LoadDescriptor {
   static const Register VectorRegister();
 };
 
+class LoadICProtoArrayDescriptor : public LoadWithVectorDescriptor {
+ public:
+  DEFINE_PARAMETERS(kReceiver, kName, kSlot, kVector, kHandler)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(LoadICProtoArrayDescriptor,
+                                               LoadWithVectorDescriptor)
+
+  static const Register HandlerRegister();
+};
+
 class LoadGlobalWithVectorDescriptor : public LoadGlobalDescriptor {
  public:
   DEFINE_PARAMETERS(kSlot, kVector)
@@ -553,7 +563,7 @@ class CallFunctionWithFeedbackDescriptor : public CallInterfaceDescriptor {
 class CallFunctionWithFeedbackAndVectorDescriptor
     : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kFunction, kSlot, kVector)
+  DEFINE_PARAMETERS(kFunction, kActualArgumentsCount, kSlot, kVector)
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
       CallFunctionWithFeedbackAndVectorDescriptor, CallInterfaceDescriptor)
 };
@@ -569,23 +579,6 @@ class RegExpExecDescriptor : public CallInterfaceDescriptor {
   DEFINE_PARAMETERS(kRegExpObject, kString, kPreviousIndex, kLastMatchInfo)
   DECLARE_DESCRIPTOR_WITH_STACK_ARGS(RegExpExecDescriptor,
                                      CallInterfaceDescriptor)
-};
-
-class RegExpConstructResultDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kLength, kIndex, kInput)
-  DECLARE_DESCRIPTOR(RegExpConstructResultDescriptor, CallInterfaceDescriptor)
-};
-
-
-class StoreGlobalViaContextDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kSlot, kValue)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(StoreGlobalViaContextDescriptor,
-                                               CallInterfaceDescriptor)
-
-  static const Register SlotRegister();
-  static const Register ValueRegister();
 };
 
 class CopyFastSmiOrObjectElementsDescriptor : public CallInterfaceDescriptor {
@@ -614,6 +607,15 @@ class AllocateHeapNumberDescriptor : public CallInterfaceDescriptor {
   };
 SIMD128_TYPES(SIMD128_ALLOC_DESC)
 #undef SIMD128_ALLOC_DESC
+
+class BuiltinDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kNewTarget, kArgumentsCount)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(BuiltinDescriptor,
+                                               CallInterfaceDescriptor)
+  static const Register ArgumentsCountRegister();
+  static const Register NewTargetRegister();
+};
 
 class ArrayNoArgumentConstructorDescriptor : public CallInterfaceDescriptor {
  public:

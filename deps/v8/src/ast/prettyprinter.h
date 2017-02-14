@@ -84,7 +84,7 @@ class AstPrinter final : public AstVisitor<AstPrinter> {
   void PrintIndentedVisit(const char* s, AstNode* node);
 
   void PrintStatements(ZoneList<Statement*>* statements);
-  void PrintDeclarations(ZoneList<Declaration*>* declarations);
+  void PrintDeclarations(Declaration::List* declarations);
   void PrintParameters(DeclarationScope* scope);
   void PrintArguments(ZoneList<Expression*>* arguments);
   void PrintCaseClause(CaseClause* clause);

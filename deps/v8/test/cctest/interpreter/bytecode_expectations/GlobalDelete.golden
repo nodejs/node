@@ -16,10 +16,11 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 9
+bytecode array length: 10
 bytecodes: [
   /*   32 E> */ B(StackCheck),
-  /*   39 S> */ B(LdrGlobal), U8(2), R(0),
+  /*   39 S> */ B(LdaGlobal), U8(2),
+                B(Star), R(0),
                 B(LdaConstant), U8(0),
                 B(DeletePropertySloppy), R(0),
   /*   58 S> */ B(Return),
@@ -41,10 +42,11 @@ snippet: "
 "
 frame size: 1
 parameter count: 1
-bytecode array length: 9
+bytecode array length: 10
 bytecodes: [
   /*   28 E> */ B(StackCheck),
-  /*   51 S> */ B(LdrGlobal), U8(2), R(0),
+  /*   51 S> */ B(LdaGlobal), U8(2),
+                B(Star), R(0),
                 B(LdaSmi), U8(1),
                 B(DeletePropertyStrict), R(0),
   /*   71 S> */ B(Return),
@@ -67,8 +69,10 @@ parameter count: 1
 bytecode array length: 16
 bytecodes: [
   /*   32 E> */ B(StackCheck),
-  /*   39 S> */ B(LdrContextSlot), R(context), U8(3), U8(0), R(0),
-                B(LdrContextSlot), R(0), U8(2), U8(0), R(1),
+  /*   39 S> */ B(LdaCurrentContextSlot), U8(3),
+                B(Star), R(0),
+                B(LdaContextSlot), R(0), U8(2), U8(0),
+                B(Star), R(1),
                 B(LdaConstant), U8(0),
                 B(DeletePropertySloppy), R(1),
   /*   56 S> */ B(Return),
@@ -92,8 +96,10 @@ parameter count: 1
 bytecode array length: 16
 bytecodes: [
   /*   18 E> */ B(StackCheck),
-  /*   25 S> */ B(LdrContextSlot), R(context), U8(3), U8(0), R(0),
-                B(LdrContextSlot), R(0), U8(2), U8(0), R(1),
+  /*   25 S> */ B(LdaCurrentContextSlot), U8(3),
+                B(Star), R(0),
+                B(LdaContextSlot), R(0), U8(2), U8(0),
+                B(Star), R(1),
                 B(LdaConstant), U8(0),
                 B(DeletePropertySloppy), R(1),
   /*   42 S> */ B(Return),

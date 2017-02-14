@@ -57,27 +57,27 @@ class BytecodeArrayWriterUnittest : public TestWithIsolateAndZone {
 
 void BytecodeArrayWriterUnittest::Write(Bytecode bytecode,
                                         BytecodeSourceInfo info) {
-  BytecodeNode node(bytecode, &info);
+  BytecodeNode node(bytecode, info);
   writer()->Write(&node);
 }
 
 void BytecodeArrayWriterUnittest::Write(Bytecode bytecode, uint32_t operand0,
                                         BytecodeSourceInfo info) {
-  BytecodeNode node(bytecode, operand0, &info);
+  BytecodeNode node(bytecode, operand0, info);
   writer()->Write(&node);
 }
 
 void BytecodeArrayWriterUnittest::Write(Bytecode bytecode, uint32_t operand0,
                                         uint32_t operand1,
                                         BytecodeSourceInfo info) {
-  BytecodeNode node(bytecode, operand0, operand1, &info);
+  BytecodeNode node(bytecode, operand0, operand1, info);
   writer()->Write(&node);
 }
 
 void BytecodeArrayWriterUnittest::Write(Bytecode bytecode, uint32_t operand0,
                                         uint32_t operand1, uint32_t operand2,
                                         BytecodeSourceInfo info) {
-  BytecodeNode node(bytecode, operand0, operand1, operand2, &info);
+  BytecodeNode node(bytecode, operand0, operand1, operand2, info);
   writer()->Write(&node);
 }
 
@@ -85,38 +85,38 @@ void BytecodeArrayWriterUnittest::Write(Bytecode bytecode, uint32_t operand0,
                                         uint32_t operand1, uint32_t operand2,
                                         uint32_t operand3,
                                         BytecodeSourceInfo info) {
-  BytecodeNode node(bytecode, operand0, operand1, operand2, operand3, &info);
+  BytecodeNode node(bytecode, operand0, operand1, operand2, operand3, info);
   writer()->Write(&node);
 }
 
 void BytecodeArrayWriterUnittest::WriteJump(Bytecode bytecode,
                                             BytecodeLabel* label,
                                             BytecodeSourceInfo info) {
-  BytecodeNode node(bytecode, 0, &info);
+  BytecodeNode node(bytecode, 0, info);
   writer()->WriteJump(&node, label);
 }
 
 void BytecodeArrayWriterUnittest::WriteJumpLoop(Bytecode bytecode,
                                                 BytecodeLabel* label, int depth,
                                                 BytecodeSourceInfo info) {
-  BytecodeNode node(bytecode, 0, depth, &info);
+  BytecodeNode node(bytecode, 0, depth, info);
   writer()->WriteJump(&node, label);
 }
 
 TEST_F(BytecodeArrayWriterUnittest, SimpleExample) {
-  CHECK_EQ(bytecodes()->size(), 0);
+  CHECK_EQ(bytecodes()->size(), 0u);
 
   Write(Bytecode::kStackCheck, {10, false});
-  CHECK_EQ(bytecodes()->size(), 1);
+  CHECK_EQ(bytecodes()->size(), 1u);
 
   Write(Bytecode::kLdaSmi, 127, {55, true});
-  CHECK_EQ(bytecodes()->size(), 3);
+  CHECK_EQ(bytecodes()->size(), 3u);
 
   Write(Bytecode::kLdar, Register(200).ToOperand());
-  CHECK_EQ(bytecodes()->size(), 7);
+  CHECK_EQ(bytecodes()->size(), 7u);
 
   Write(Bytecode::kReturn, {70, true});
-  CHECK_EQ(bytecodes()->size(), 8);
+  CHECK_EQ(bytecodes()->size(), 8u);
 
   static const uint8_t bytes[] = {B(StackCheck), B(LdaSmi), U8(127),  B(Wide),
                                   B(Ldar),       R16(200),  B(Return)};
@@ -136,7 +136,8 @@ TEST_F(BytecodeArrayWriterUnittest, SimpleExample) {
   for (size_t i = 0; i < arraysize(expected_positions); ++i) {
     const PositionTableEntry& expected = expected_positions[i];
     CHECK_EQ(source_iterator.code_offset(), expected.code_offset);
-    CHECK_EQ(source_iterator.source_position(), expected.source_position);
+    CHECK_EQ(source_iterator.source_position().ScriptOffset(),
+             expected.source_position);
     CHECK_EQ(source_iterator.is_statement(), expected.is_statement);
     source_iterator.Advance();
   }
@@ -222,7 +223,8 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
   for (size_t i = 0; i < arraysize(expected_positions); ++i) {
     const PositionTableEntry& expected = expected_positions[i];
     CHECK_EQ(source_iterator.code_offset(), expected.code_offset);
-    CHECK_EQ(source_iterator.source_position(), expected.source_position);
+    CHECK_EQ(source_iterator.source_position().ScriptOffset(),
+             expected.source_position);
     CHECK_EQ(source_iterator.is_statement(), expected.is_statement);
     source_iterator.Advance();
   }

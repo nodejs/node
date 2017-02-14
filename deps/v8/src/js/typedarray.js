@@ -844,12 +844,7 @@ function TypedArrayFrom(source, mapfn, thisArg) {
 
 // TODO(bmeurer): Migrate this to a proper builtin.
 function TypedArrayConstructor() {
-  if (IS_UNDEFINED(new.target)) {
-    throw %make_type_error(kConstructorNonCallable, "TypedArray");
-  }
-  if (new.target === GlobalTypedArray) {
-    throw %make_type_error(kConstructAbstractClass, "TypedArray");
-  }
+  throw %make_type_error(kConstructAbstractClass, "TypedArray");
 }
 
 function TypedArraySpecies() {

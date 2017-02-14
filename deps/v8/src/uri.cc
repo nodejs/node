@@ -51,7 +51,7 @@ bool DecodeOctets(const uint8_t* octets, int length, List<uc16>* buffer) {
     return false;
   }
 
-  if (value <= unibrow::Utf16::kMaxNonSurrogateCharCode) {
+  if (value <= static_cast<uc32>(unibrow::Utf16::kMaxNonSurrogateCharCode)) {
     buffer->Add(value);
   } else {
     buffer->Add(unibrow::Utf16::LeadSurrogate(value));

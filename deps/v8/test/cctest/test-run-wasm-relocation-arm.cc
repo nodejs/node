@@ -50,7 +50,7 @@ TEST(WasmRelocationArmMemoryReference) {
   code->Print(os);
   ::printf("f() = %d\n\n", ret_value);
 #endif
-  size_t offset = 1234;
+  int offset = 1234;
 
   // Relocating references by offset
   int mode_mask = (1 << RelocInfo::WASM_MEMORY_REFERENCE);
@@ -103,7 +103,7 @@ TEST(WasmRelocationArmMemorySizeReference) {
   CSignature0<int32_t> csig;
   CodeRunner<int32_t> runnable(isolate, code, &csig);
   int32_t ret_value = runnable.Call();
-  CHECK_NE(ret_value, 0xdeadbeef);
+  CHECK_NE(ret_value, bit_cast<int32_t>(0xdeadbeef));
 
 #ifdef DEBUG
   OFStream os(stdout);
@@ -124,7 +124,7 @@ TEST(WasmRelocationArmMemorySizeReference) {
   }
 
   ret_value = runnable.Call();
-  CHECK_NE(ret_value, 0xdeadbeef);
+  CHECK_NE(ret_value, bit_cast<int32_t>(0xdeadbeef));
 
 #ifdef DEBUG
   code->Print(os);

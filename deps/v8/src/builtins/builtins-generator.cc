@@ -26,7 +26,8 @@ void Generate_GeneratorPrototypeResume(
 
   // Check if the {receiver} is actually a JSGeneratorObject.
   Label if_receiverisincompatible(assembler, Label::kDeferred);
-  assembler->GotoIf(assembler->WordIsSmi(receiver), &if_receiverisincompatible);
+  assembler->GotoIf(assembler->TaggedIsSmi(receiver),
+                    &if_receiverisincompatible);
   Node* receiver_instance_type = assembler->LoadInstanceType(receiver);
   assembler->GotoUnless(assembler->Word32Equal(
                             receiver_instance_type,

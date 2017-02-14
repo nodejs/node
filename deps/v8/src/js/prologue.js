@@ -181,10 +181,7 @@ function PostNatives(utils) {
 
   // Whitelist of exports from normal natives to experimental natives and debug.
   var expose_list = [
-    "ArrayToString",
     "FormatDateToParts",
-    "GetIterator",
-    "GetMethod",
     "MapEntries",
     "MapIterator",
     "MapIteratorNext",
@@ -196,26 +193,12 @@ function PostNatives(utils) {
     "ToLocaleLowerCaseI18N",
     "ToLocaleUpperCaseI18N",
     "ToLowerCaseI18N",
-    "ToPositiveInteger",
     "ToUpperCaseI18N",
     // From runtime:
-    "is_concat_spreadable_symbol",
-    "iterator_symbol",
-    "object_freeze",
-    "object_is_frozen",
-    "object_is_sealed",
     "promise_result_symbol",
     "promise_state_symbol",
     "reflect_apply",
-    "reflect_construct",
-    "regexp_flags_symbol",
     "to_string_tag_symbol",
-    "object_to_string",
-    "species_symbol",
-    "match_symbol",
-    "replace_symbol",
-    "search_symbol",
-    "split_symbol",
   ];
 
   var filtered_exports = {};

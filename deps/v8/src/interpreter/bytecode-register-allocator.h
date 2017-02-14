@@ -52,6 +52,27 @@ class BytecodeRegisterAllocator final {
     return reg_list;
   }
 
+  // Returns a growable register list.
+  RegisterList NewGrowableRegisterList() {
+    RegisterList reg_list(next_register_index_, 0);
+    return reg_list;
+  }
+
+  // Appends a new register to |reg_list| increasing it's count by one and
+  // returning the register added.
+  //
+  // Note: no other new registers must be currently allocated since the register
+  // list was originally allocated.
+  Register GrowRegisterList(RegisterList* reg_list) {
+    Register reg(NewRegister());
+    reg_list->IncrementRegisterCount();
+    // If the following CHECK fails then a register was allocated (and not
+    // freed) between the creation of the RegisterList and this call to add a
+    // Register.
+    CHECK_EQ(reg.index(), reg_list->last_register().index());
+    return reg;
+  }
+
   // Release all registers above |register_index|.
   void ReleaseRegisters(int register_index) {
     if (observer_) {

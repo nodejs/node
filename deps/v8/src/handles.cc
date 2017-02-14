@@ -119,7 +119,7 @@ Address HandleScope::current_limit_address(Isolate* isolate) {
 }
 
 CanonicalHandleScope::CanonicalHandleScope(Isolate* isolate)
-    : isolate_(isolate), zone_(isolate->allocator()) {
+    : isolate_(isolate), zone_(isolate->allocator(), ZONE_NAME) {
   HandleScopeData* handle_scope_data = isolate_->handle_scope_data();
   prev_canonical_scope_ = handle_scope_data->canonical_scope;
   handle_scope_data->canonical_scope = this;

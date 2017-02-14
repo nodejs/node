@@ -29,7 +29,7 @@ class AstExpressionRewriter : public AstVisitor<AstExpressionRewriter> {
   }
   virtual ~AstExpressionRewriter() {}
 
-  virtual void VisitDeclarations(ZoneList<Declaration*>* declarations);
+  virtual void VisitDeclarations(Declaration::List* declarations);
   virtual void VisitStatements(ZoneList<Statement*>* statements);
   virtual void VisitExpressions(ZoneList<Expression*>* expressions);
 

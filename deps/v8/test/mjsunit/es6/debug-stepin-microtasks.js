@@ -7,18 +7,12 @@
 Debug = debug.Debug
 var exception = null;
 var break_count = 0;
-var expected_breaks = -1;
+const expected_breaks = 9;
 
 function listener(event, exec_state, event_data, data) {
   try {
     if (event == Debug.DebugEvent.Break) {
       assertTrue(exec_state.frameCount() != 0, "FAIL: Empty stack trace");
-      if (!break_count) {
-        // Count number of expected breakpoints in this source file.
-        var source_text = exec_state.frame(0).func().script().source();
-        expected_breaks = source_text.match(/\/\/\s*Break\s+\d+\./g).length;
-        print("Expected breaks: " + expected_breaks);
-      }
       var source = exec_state.frame(0).sourceLineText();
       print("paused at: " + source);
       assertTrue(source.indexOf("// Break " + break_count + ".") > 0,

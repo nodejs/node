@@ -10,6 +10,12 @@ assertThrows(() => x, ReferenceError);
 assertThrows(() => y, ReferenceError);
 assertThrows(() => z, ReferenceError);
 
+assertThrows(() => v = 666, TypeError);
+assertThrows(() => w = 666, TypeError);
+assertThrows(() => x = 666, TypeError);
+assertThrows(() => y = 666, TypeError);
+assertThrows(() => z = 666, TypeError);
+
 export function check() {
   assertEquals({value: 40, done: true}, v().next());
   assertEquals(41, w);

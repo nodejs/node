@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_JS_OPERATOR_H_
 #define V8_COMPILER_JS_OPERATOR_H_
 
+#include "src/base/compiler-specific.h"
+#include "src/globals.h"
 #include "src/runtime/runtime.h"
 #include "src/type-hints.h"
 
@@ -19,7 +21,7 @@ struct JSOperatorGlobalCache;
 
 // Defines a pair of {TypeFeedbackVector} and {TypeFeedbackVectorSlot}, which
 // is used to access the type feedback for a certain {Node}.
-class VectorSlotPair {
+class V8_EXPORT_PRIVATE VectorSlotPair {
  public:
   VectorSlotPair();
   VectorSlotPair(Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
@@ -182,7 +184,7 @@ bool operator!=(ContextAccess const&, ContextAccess const&);
 
 size_t hash_value(ContextAccess const&);
 
-std::ostream& operator<<(std::ostream&, ContextAccess const&);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, ContextAccess const&);
 
 ContextAccess const& ContextAccessOf(Operator const*);
 
@@ -416,7 +418,8 @@ CompareOperationHint CompareOperationHintOf(const Operator* op);
 // Interface for building JavaScript-level operators, e.g. directly from the
 // AST. Most operators have no parameters, thus can be globally shared for all
 // graphs.
-class JSOperatorBuilder final : public ZoneObject {
+class V8_EXPORT_PRIVATE JSOperatorBuilder final
+    : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   explicit JSOperatorBuilder(Zone* zone);
 
@@ -455,6 +458,7 @@ class JSOperatorBuilder final : public ZoneObject {
   const Operator* CreateClosure(Handle<SharedFunctionInfo> shared_info,
                                 PretenureFlag pretenure);
   const Operator* CreateIterResultObject();
+  const Operator* CreateKeyValueArray();
   const Operator* CreateLiteralArray(Handle<FixedArray> constant_elements,
                                      int literal_flags, int literal_index,
                                      int number_of_elements);
@@ -498,6 +502,9 @@ class JSOperatorBuilder final : public ZoneObject {
 
   const Operator* LoadContext(size_t depth, size_t index, bool immutable);
   const Operator* StoreContext(size_t depth, size_t index);
+
+  const Operator* LoadModule(int32_t cell_index);
+  const Operator* StoreModule(int32_t cell_index);
 
   const Operator* TypeOf();
   const Operator* InstanceOf();

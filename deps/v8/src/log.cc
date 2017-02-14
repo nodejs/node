@@ -27,6 +27,7 @@
 #include "src/runtime-profiler.h"
 #include "src/source-position-table.h"
 #include "src/string-stream.h"
+#include "src/tracing/tracing-category-observer.h"
 #include "src/vm-state-inl.h"
 
 namespace v8 {
@@ -893,64 +894,6 @@ void Logger::LeaveExternal(Isolate* isolate) {
 TIMER_EVENTS_LIST(V)
 #undef V
 
-
-namespace {
-// Emits the source code of a regexp. Used by regexp events.
-void LogRegExpSource(Handle<JSRegExp> regexp, Isolate* isolate,
-                     Log::MessageBuilder* msg) {
-  // Prints "/" + re.source + "/" +
-  //      (re.global?"g":"") + (re.ignorecase?"i":"") + (re.multiline?"m":"")
-
-  Handle<Object> source =
-      JSReceiver::GetProperty(isolate, regexp, "source").ToHandleChecked();
-  if (!source->IsString()) {
-    msg->Append("no source");
-    return;
-  }
-
-  switch (regexp->TypeTag()) {
-    case JSRegExp::ATOM:
-      msg->Append('a');
-      break;
-    default:
-      break;
-  }
-  msg->Append('/');
-  msg->AppendDetailed(*Handle<String>::cast(source), false);
-  msg->Append('/');
-
-  // global flag
-  Handle<Object> global =
-      JSReceiver::GetProperty(isolate, regexp, "global").ToHandleChecked();
-  if (global->IsTrue(isolate)) {
-    msg->Append('g');
-  }
-  // ignorecase flag
-  Handle<Object> ignorecase =
-      JSReceiver::GetProperty(isolate, regexp, "ignoreCase").ToHandleChecked();
-  if (ignorecase->IsTrue(isolate)) {
-    msg->Append('i');
-  }
-  // multiline flag
-  Handle<Object> multiline =
-      JSReceiver::GetProperty(isolate, regexp, "multiline").ToHandleChecked();
-  if (multiline->IsTrue(isolate)) {
-    msg->Append('m');
-  }
-}
-}  // namespace
-
-
-void Logger::RegExpCompileEvent(Handle<JSRegExp> regexp, bool in_cache) {
-  if (!log_->IsEnabled() || !FLAG_log_regexp) return;
-  Log::MessageBuilder msg(log_);
-  msg.Append("regexp-compile,");
-  LogRegExpSource(regexp, isolate_, &msg);
-  msg.Append(in_cache ? ",hit" : ",miss");
-  msg.WriteToLogFile();
-}
-
-
 void Logger::ApiNamedPropertyAccess(const char* tag,
                                     JSObject* holder,
                                     Object* name) {
@@ -1206,12 +1149,13 @@ void Logger::CodeLinePosInfoRecordEvent(AbstractCode* code,
          iter.Advance()) {
       if (iter.is_statement()) {
         jit_logger_->AddCodeLinePosInfoEvent(
-            jit_handler_data, iter.code_offset(), iter.source_position(),
+            jit_handler_data, iter.code_offset(),
+            iter.source_position().ScriptOffset(),
             JitCodeEvent::STATEMENT_POSITION);
       }
-      jit_logger_->AddCodeLinePosInfoEvent(jit_handler_data, iter.code_offset(),
-                                           iter.source_position(),
-                                           JitCodeEvent::POSITION);
+      jit_logger_->AddCodeLinePosInfoEvent(
+          jit_handler_data, iter.code_offset(),
+          iter.source_position().ScriptOffset(), JitCodeEvent::POSITION);
     }
     jit_logger_->EndCodePosInfoEvent(code, jit_handler_data);
   }
@@ -1341,7 +1285,8 @@ void Logger::RuntimeCallTimerEvent() {
 
 void Logger::TickEvent(v8::TickSample* sample, bool overflow) {
   if (!log_->IsEnabled() || !FLAG_prof_cpp) return;
-  if (FLAG_runtime_call_stats) {
+  if (V8_UNLIKELY(FLAG_runtime_stats ==
+                  v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE)) {
     RuntimeCallTimerEvent();
   }
   Log::MessageBuilder msg(log_);
@@ -1542,8 +1487,6 @@ void Logger::LogCodeObjects() {
 }
 
 void Logger::LogBytecodeHandlers() {
-  if (!FLAG_ignition) return;
-
   const interpreter::OperandScale kOperandScales[] = {
 #define VALUE(Name, _) interpreter::OperandScale::k##Name,
       OPERAND_SCALE_LIST(VALUE)

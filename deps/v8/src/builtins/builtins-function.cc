@@ -21,7 +21,7 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
   DCHECK_LE(1, args.length());
   int const argc = args.length() - 1;
 
-  Handle<JSFunction> target = args.target<JSFunction>();
+  Handle<JSFunction> target = args.target();
   Handle<JSObject> target_global_proxy(target->global_proxy(), isolate);
 
   if (!Builtins::AllowDynamicFunction(isolate, target, target_global_proxy)) {
@@ -198,7 +198,7 @@ Object* DoFunctionBind(Isolate* isolate, BuiltinArguments args) {
   if (!target->IsJSFunction() ||
       length_lookup.state() != LookupIterator::ACCESSOR ||
       !length_lookup.GetAccessors()->IsAccessorInfo()) {
-    Handle<Object> length(Smi::FromInt(0), isolate);
+    Handle<Object> length(Smi::kZero, isolate);
     Maybe<PropertyAttributes> attributes =
         JSReceiver::GetPropertyAttributes(&length_lookup);
     if (!attributes.IsJust()) return isolate->heap()->exception();

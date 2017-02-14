@@ -62,10 +62,8 @@ SlotCallbackResult Scavenger::CheckAndScavengeObject(Heap* heap,
 }
 
 // static
-template <PromotionMode promotion_mode>
-void StaticScavengeVisitor<promotion_mode>::VisitPointer(Heap* heap,
-                                                         HeapObject* obj,
-                                                         Object** p) {
+void StaticScavengeVisitor::VisitPointer(Heap* heap, HeapObject* obj,
+                                         Object** p) {
   Object* object = *p;
   if (!heap->InNewSpace(object)) return;
   Scavenger::ScavengeObject(reinterpret_cast<HeapObject**>(p),

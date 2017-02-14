@@ -5,7 +5,9 @@
 #ifndef V8_COMPILER_SIMPLIFIED_OPERATOR_REDUCER_H_
 #define V8_COMPILER_SIMPLIFIED_OPERATOR_REDUCER_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/compiler/graph-reducer.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -21,7 +23,8 @@ class JSGraph;
 class MachineOperatorBuilder;
 class SimplifiedOperatorBuilder;
 
-class SimplifiedOperatorReducer final : public AdvancedReducer {
+class V8_EXPORT_PRIVATE SimplifiedOperatorReducer final
+    : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
   SimplifiedOperatorReducer(Editor* editor, JSGraph* jsgraph);
   ~SimplifiedOperatorReducer() final;

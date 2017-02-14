@@ -11,6 +11,11 @@
 #include "src/deoptimizer.h"
 #include "src/ic/stub-cache.h"
 
+#if defined(DEBUG) && defined(V8_OS_LINUX) && !defined(V8_OS_ANDROID)
+#define SYMBOLIZE_FUNCTION
+#include <execinfo.h>
+#endif  // DEBUG && V8_OS_LINUX && !V8_OS_ANDROID
+
 namespace v8 {
 namespace internal {
 
@@ -31,15 +36,38 @@ ExternalReferenceTable* ExternalReferenceTable::instance(Isolate* isolate) {
 }
 
 ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
+  // nullptr is preserved through serialization/deserialization.
+  Add(nullptr, "nullptr");
   AddReferences(isolate);
   AddBuiltins(isolate);
   AddRuntimeFunctions(isolate);
-  AddStatCounters(isolate);
   AddIsolateAddresses(isolate);
   AddAccessors(isolate);
   AddStubCache(isolate);
   AddDeoptEntries(isolate);
   AddApiReferences(isolate);
+}
+
+#ifdef DEBUG
+void ExternalReferenceTable::ResetCount() {
+  for (ExternalReferenceEntry& entry : refs_) entry.count = 0;
+}
+
+void ExternalReferenceTable::PrintCount() {
+  for (int i = 0; i < refs_.length(); i++) {
+    v8::base::OS::Print("index=%5d count=%5d  %-60s\n", i, refs_[i].count,
+                        refs_[i].name);
+  }
+}
+#endif  // DEBUG
+
+// static
+const char* ExternalReferenceTable::ResolveSymbol(void* address) {
+#ifdef SYMBOLIZE_FUNCTION
+  return backtrace_symbols(&address, 1)[0];
+#else
+  return "<unresolved>";
+#endif  // SYMBOLIZE_FUNCTION
 }
 
 void ExternalReferenceTable::AddReferences(Isolate* isolate) {
@@ -56,11 +84,6 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "Heap::NewSpaceAllocationTopAddress()");
   Add(ExternalReference::mod_two_doubles_operation(isolate).address(),
       "mod_two_doubles");
-  // Keyed lookup cache.
-  Add(ExternalReference::keyed_lookup_cache_keys(isolate).address(),
-      "KeyedLookupCache::keys()");
-  Add(ExternalReference::keyed_lookup_cache_field_offsets(isolate).address(),
-      "KeyedLookupCache::field_offsets()");
   Add(ExternalReference::handle_scope_next_address(isolate).address(),
       "HandleScope::next");
   Add(ExternalReference::handle_scope_limit_address(isolate).address(),
@@ -78,8 +101,6 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
   Add(ExternalReference::isolate_address(isolate).address(), "isolate");
   Add(ExternalReference::interpreter_dispatch_table_address(isolate).address(),
       "Interpreter::dispatch_table_address");
-  Add(ExternalReference::interpreter_dispatch_counters(isolate).address(),
-      "Interpreter::interpreter_dispatch_counters");
   Add(ExternalReference::address_of_negative_infinity().address(),
       "LDoubleConstant::negative_infinity");
   Add(ExternalReference::power_double_double_function(isolate).address(),
@@ -320,32 +341,6 @@ void ExternalReferenceTable::AddRuntimeFunctions(Isolate* isolate) {
   }
 }
 
-void ExternalReferenceTable::AddStatCounters(Isolate* isolate) {
-  // Stat counters
-  struct StatsRefTableEntry {
-    StatsCounter* (Counters::*counter)();
-    const char* name;
-  };
-
-  static const StatsRefTableEntry stats_ref_table[] = {
-#define COUNTER_ENTRY(name, caption) {&Counters::name, "Counters::" #name},
-      STATS_COUNTER_LIST_1(COUNTER_ENTRY) STATS_COUNTER_LIST_2(COUNTER_ENTRY)
-#undef COUNTER_ENTRY
-  };
-
-  Counters* counters = isolate->counters();
-  for (unsigned i = 0; i < arraysize(stats_ref_table); ++i) {
-    // To make sure the indices are not dependent on whether counters are
-    // enabled, use a dummy address as filler.
-    Address address = NotAvailable();
-    StatsCounter* counter = (counters->*(stats_ref_table[i].counter))();
-    if (counter->Enabled()) {
-      address = reinterpret_cast<Address>(counter->GetInternalPointer());
-    }
-    Add(address, stats_ref_table[i].name);
-  }
-}
-
 void ExternalReferenceTable::AddIsolateAddresses(Isolate* isolate) {
   // Top addresses
   static const char* address_names[] = {
@@ -368,22 +363,24 @@ void ExternalReferenceTable::AddAccessors(Isolate* isolate) {
   };
 
   static const AccessorRefTable getters[] = {
-#define ACCESSOR_INFO_DECLARATION(name) \
-  {FUNCTION_ADDR(&Accessors::name##Getter), "Accessors::" #name "Getter"},
+#define ACCESSOR_INFO_DECLARATION(name)     \
+  { FUNCTION_ADDR(&Accessors::name##Getter), \
+    "Redirect to Accessors::" #name "Getter"},
       ACCESSOR_INFO_LIST(ACCESSOR_INFO_DECLARATION)
 #undef ACCESSOR_INFO_DECLARATION
   };
   static const AccessorRefTable setters[] = {
 #define ACCESSOR_SETTER_DECLARATION(name) \
-  {FUNCTION_ADDR(&Accessors::name), "Accessors::" #name},
+  { FUNCTION_ADDR(&Accessors::name), "Accessors::" #name},
       ACCESSOR_SETTER_LIST(ACCESSOR_SETTER_DECLARATION)
 #undef ACCESSOR_INFO_DECLARATION
   };
 
   for (unsigned i = 0; i < arraysize(getters); ++i) {
-    Add(getters[i].address, getters[i].name);
+    const char* name = getters[i].name + 12;  // Skip "Redirect to " prefix.
+    Add(getters[i].address, name);
     Add(AccessorInfo::redirect(isolate, getters[i].address, ACCESSOR_GETTER),
-        "");
+        getters[i].name);
   }
 
   for (unsigned i = 0; i < arraysize(setters); ++i) {
@@ -444,7 +441,8 @@ void ExternalReferenceTable::AddApiReferences(Isolate* isolate) {
   intptr_t* api_external_references = isolate->api_external_references();
   if (api_external_references != nullptr) {
     while (*api_external_references != 0) {
-      Add(reinterpret_cast<Address>(*api_external_references), "<embedder>");
+      Address address = reinterpret_cast<Address>(*api_external_references);
+      Add(address, ResolveSymbol(address));
       api_external_references++;
     }
   }

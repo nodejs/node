@@ -12,7 +12,7 @@ let kReturnValue = 117;
 let buffer = (() => {
   let builder = new WasmModuleBuilder();
   builder.addMemory(1, 1, true);
-  builder.addFunction("main", kSig_i)
+  builder.addFunction("main", kSig_i_v)
     .addBody([kExprI8Const, kReturnValue])
     .exportFunc();
 
@@ -51,9 +51,6 @@ function CheckInstance(instance) {
 
   assertEquals(kReturnValue, main());
 }
-
-// Deprecated experimental API.
-CheckInstance(Wasm.instantiateModule(buffer));
 
 // Official API
 let module = new WebAssembly.Module(buffer);
@@ -119,7 +116,7 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
   builder.addMemory(1,1, true);
   var kSig_v_i = makeSig([kAstI32], []);
   var signature = builder.addType(kSig_v_i);
-  builder.addImport("some_value", kSig_i);
+  builder.addImport("some_value", kSig_i_v);
   builder.addImport("writer", signature);
 
   builder.addFunction("main", kSig_i_i)
@@ -127,7 +124,7 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
       kExprGetLocal, 0,
       kExprI32LoadMem, 0, 0,
       kExprI32Const, 1,
-      kExprCallIndirect, signature,
+      kExprCallIndirect, signature, kTableZero,
       kExprGetLocal,0,
       kExprI32LoadMem,0, 0,
       kExprCallFunction, 0,
@@ -144,10 +141,10 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
 
 
   var module = new WebAssembly.Module(builder.toBuffer());
-  var mem_1 = new ArrayBuffer(4);
-  var mem_2 = new ArrayBuffer(4);
-  var view_1 = new Int32Array(mem_1);
-  var view_2 = new Int32Array(mem_2);
+  var mem_1 = new WebAssembly.Memory({initial: 1});
+  var mem_2 = new WebAssembly.Memory({initial: 1});
+  var view_1 = new Int32Array(mem_1.buffer);
+  var view_2 = new Int32Array(mem_2.buffer);
 
   view_1[0] = 42;
   view_2[0] = 1000;
@@ -169,7 +166,7 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
 (function GlobalsArePrivateToTheInstance() {
   print("GlobalsArePrivateToTheInstance...");
     var builder = new WasmModuleBuilder();
-    builder.addGlobal(kAstI32);
+    builder.addGlobal(kAstI32, true);
     builder.addFunction("read", kSig_i_v)
         .addBody([
             kExprGetGlobal, 0])
@@ -196,16 +193,16 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
   var builder = new WasmModuleBuilder();
   builder.addMemory(1,1, true);
 
-  builder.addFunction("f", kSig_i)
+  builder.addFunction("f", kSig_i_v)
     .addBody([
       kExprI32Const, 0,
       kExprI32LoadMem, 0, 0
     ]).exportFunc();
 
-  var mem_1 = new ArrayBuffer(65536);
-  var mem_2 = new ArrayBuffer(65536);
-  var view_1 = new Int32Array(mem_1);
-  var view_2 = new Int32Array(mem_2);
+  var mem_1 = new WebAssembly.Memory({initial: 1});
+  var mem_2 = new WebAssembly.Memory({initial: 1});
+  var view_1 = new Int32Array(mem_1.buffer);
+  var view_2 = new Int32Array(mem_2.buffer);
   view_1[0] = 1;
   view_2[0] = 1000;
 
@@ -215,4 +212,10 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
 
   assertEquals(1, i1.exports.f());
   assertEquals(1000, i2.exports.f());
+})();
+
+(function MustBeMemory() {
+  var memory = new ArrayBuffer(65536);
+  var module = new WebAssembly.Module(buffer);
+  assertThrows(() => new WebAssembly.Instance(module, null, memory), TypeError);
 })();

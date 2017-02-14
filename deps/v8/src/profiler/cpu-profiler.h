@@ -83,7 +83,6 @@ class CodeDeoptEventRecord : public CodeEventRecord {
  public:
   Address start;
   const char* deopt_reason;
-  SourcePosition position;
   int deopt_id;
   void* pc;
   int fp_to_sp_delta;
@@ -123,7 +122,7 @@ class CodeEventsContainer {
     CodeEventRecord generic;
 #define DECLARE_CLASS(ignore, type) type type##_;
     CODE_EVENTS_TYPE_LIST(DECLARE_CLASS)
-#undef DECLARE_TYPE
+#undef DECLARE_CLASS
   };
 };
 

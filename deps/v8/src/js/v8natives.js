@@ -18,51 +18,6 @@ var ObjectToString = utils.ImportNow("object_to_string");
 // ----------------------------------------------------------------------------
 
 
-// ES6 18.2.5 parseInt(string, radix)
-function GlobalParseInt(string, radix) {
-  if (IS_UNDEFINED(radix) || radix === 10 || radix === 0) {
-    // Some people use parseInt instead of Math.floor.  This
-    // optimization makes parseInt on a Smi 12 times faster (60ns
-    // vs 800ns).  The following optimization makes parseInt on a
-    // non-Smi number 9 times faster (230ns vs 2070ns).  Together
-    // they make parseInt on a string 1.4% slower (274ns vs 270ns).
-    if (%_IsSmi(string)) return string;
-    if (IS_NUMBER(string) &&
-        ((0.01 < string && string < 1e9) ||
-            (-1e9 < string && string < -0.01))) {
-      // Truncate number.
-      return string | 0;
-    }
-    string = TO_STRING(string);
-    radix = radix | 0;
-  } else {
-    // The spec says ToString should be evaluated before ToInt32.
-    string = TO_STRING(string);
-    radix = TO_INT32(radix);
-    if (!(radix == 0 || (2 <= radix && radix <= 36))) {
-      return NaN;
-    }
-  }
-
-  if (%_HasCachedArrayIndex(string) &&
-      (radix == 0 || radix == 10)) {
-    return %_GetCachedArrayIndex(string);
-  }
-  return %StringParseInt(string, radix);
-}
-
-
-// ES6 18.2.4 parseFloat(string)
-function GlobalParseFloat(string) {
-  // 1. Let inputString be ? ToString(string).
-  string = TO_STRING(string);
-  if (%_HasCachedArrayIndex(string)) return %_GetCachedArrayIndex(string);
-  return %StringParseFloat(string);
-}
-
-
-// ----------------------------------------------------------------------------
-
 // Set up global object.
 var attributes = DONT_ENUM | DONT_DELETE | READ_ONLY;
 
@@ -73,12 +28,6 @@ utils.InstallConstants(global, [
   "NaN", NaN,
   // ES6 18.1.3
   "undefined", UNDEFINED,
-]);
-
-// Set up non-enumerable function on the global object.
-utils.InstallFunctions(global, DONT_ENUM, [
-  "parseInt", GlobalParseInt,
-  "parseFloat", GlobalParseFloat,
 ]);
 
 
@@ -114,37 +63,6 @@ function GetMethod(obj, p) {
   throw %make_type_error(kCalledNonCallable, typeof func);
 }
 
-// ES6 section 19.1.2.18.
-function ObjectSetPrototypeOf(obj, proto) {
-  CHECK_OBJECT_COERCIBLE(obj, "Object.setPrototypeOf");
-
-  if (proto !== null && !IS_RECEIVER(proto)) {
-    throw %make_type_error(kProtoObjectOrNull, proto);
-  }
-
-  if (IS_RECEIVER(obj)) {
-    %SetPrototype(obj, proto);
-  }
-
-  return obj;
-}
-
-// ES6 B.2.2.1.1
-function ObjectGetProto() {
-  return %object_get_prototype_of(this);
-}
-
-
-// ES6 B.2.2.1.2
-function ObjectSetProto(proto) {
-  CHECK_OBJECT_COERCIBLE(this, "Object.prototype.__proto__");
-
-  if ((IS_RECEIVER(proto) || IS_NULL(proto)) && IS_RECEIVER(this)) {
-    %SetPrototype(this, proto);
-  }
-}
-
-
 // ES6 19.1.1.1
 function ObjectConstructor(x) {
   if (GlobalObject != new.target && !IS_UNDEFINED(new.target)) {
@@ -176,16 +94,6 @@ utils.InstallFunctions(GlobalObject.prototype, DONT_ENUM, [
   // __defineSetter__ is added in bootstrapper.cc.
   // __lookupSetter__ is added in bootstrapper.cc.
 ]);
-utils.InstallGetterSetter(
-    GlobalObject.prototype, "__proto__", ObjectGetProto, ObjectSetProto);
-
-// Set up non-enumerable functions in the Object object.
-utils.InstallFunctions(GlobalObject, DONT_ENUM, [
-  "setPrototypeOf", ObjectSetPrototypeOf,
-  // getOwnPropertySymbols is added in symbol.js.
-  // Others are added in bootstrapper.cc.
-]);
-
 
 
 // ----------------------------------------------------------------------------
@@ -209,13 +117,6 @@ utils.InstallConstants(GlobalNumber, [
   "MIN_SAFE_INTEGER", -9007199254740991,
   "EPSILON", 2.220446049250313e-16,
 ]);
-
-// Harmony Number constructor additions
-utils.InstallFunctions(GlobalNumber, DONT_ENUM, [
-  "parseInt", GlobalParseInt,
-  "parseFloat", GlobalParseFloat
-]);
-
 
 
 // ----------------------------------------------------------------------------

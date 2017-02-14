@@ -7,6 +7,7 @@
 #include "src/base/bits.h"
 #include "src/base/ieee754.h"
 #include "src/base/safe_math.h"
+#include "src/codegen.h"
 #include "src/crankshaft/hydrogen-infer-representation.h"
 #include "src/double.h"
 #include "src/elements.h"
@@ -44,6 +45,21 @@ namespace internal {
 HYDROGEN_CONCRETE_INSTRUCTION_LIST(DEFINE_COMPILE)
 #undef DEFINE_COMPILE
 
+Representation RepresentationFromMachineType(MachineType type) {
+  if (type == MachineType::Int32()) {
+    return Representation::Integer32();
+  }
+
+  if (type == MachineType::TaggedSigned()) {
+    return Representation::Smi();
+  }
+
+  if (type == MachineType::Pointer()) {
+    return Representation::External();
+  }
+
+  return Representation::Tagged();
+}
 
 Isolate* HValue::isolate() const {
   DCHECK(block() != NULL);
@@ -808,9 +824,7 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kEnterInlined:
     case HValue::kEnvironmentMarker:
     case HValue::kForceRepresentation:
-    case HValue::kGetCachedArrayIndex:
     case HValue::kGoto:
-    case HValue::kHasCachedArrayIndexAndBranch:
     case HValue::kHasInstanceTypeAndBranch:
     case HValue::kInnerAllocatedObject:
     case HValue::kIsSmiAndBranch:
@@ -818,9 +832,7 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kIsUndetectableAndBranch:
     case HValue::kLeaveInlined:
     case HValue::kLoadFieldByIndex:
-    case HValue::kLoadGlobalGeneric:
     case HValue::kLoadNamedField:
-    case HValue::kLoadNamedGeneric:
     case HValue::kLoadRoot:
     case HValue::kMathMinMax:
     case HValue::kParameter:
@@ -864,7 +876,6 @@ bool HInstruction::CanDeoptimize() {
     case HValue::kLoadContextSlot:
     case HValue::kLoadFunctionPrototype:
     case HValue::kLoadKeyed:
-    case HValue::kLoadKeyedGeneric:
     case HValue::kMathFloorOfDiv:
     case HValue::kMaybeGrowElements:
     case HValue::kMod:
@@ -1061,23 +1072,21 @@ std::ostream& HReturn::PrintDataTo(std::ostream& os) const {  // NOLINT
 
 
 Representation HBranch::observed_input_representation(int index) {
-  if (expected_input_types_.Contains(ToBooleanICStub::NULL_TYPE) ||
-      expected_input_types_.Contains(ToBooleanICStub::SPEC_OBJECT) ||
-      expected_input_types_.Contains(ToBooleanICStub::STRING) ||
-      expected_input_types_.Contains(ToBooleanICStub::SYMBOL) ||
-      expected_input_types_.Contains(ToBooleanICStub::SIMD_VALUE)) {
+  if (expected_input_types_ & (ToBooleanHint::kNull | ToBooleanHint::kReceiver |
+                               ToBooleanHint::kString | ToBooleanHint::kSymbol |
+                               ToBooleanHint::kSimdValue)) {
     return Representation::Tagged();
   }
-  if (expected_input_types_.Contains(ToBooleanICStub::UNDEFINED)) {
-    if (expected_input_types_.Contains(ToBooleanICStub::HEAP_NUMBER)) {
+  if (expected_input_types_ & ToBooleanHint::kUndefined) {
+    if (expected_input_types_ & ToBooleanHint::kHeapNumber) {
       return Representation::Double();
     }
     return Representation::Tagged();
   }
-  if (expected_input_types_.Contains(ToBooleanICStub::HEAP_NUMBER)) {
+  if (expected_input_types_ & ToBooleanHint::kHeapNumber) {
     return Representation::Double();
   }
-  if (expected_input_types_.Contains(ToBooleanICStub::SMI)) {
+  if (expected_input_types_ & ToBooleanHint::kSmallInteger) {
     return Representation::Smi();
   }
   return Representation::None();
@@ -1483,8 +1492,8 @@ std::ostream& HChange::PrintDataTo(std::ostream& os) const {  // NOLINT
 
   if (CanTruncateToSmi()) os << " truncating-smi";
   if (CanTruncateToInt32()) os << " truncating-int32";
+  if (CanTruncateToNumber()) os << " truncating-number";
   if (CheckFlag(kBailoutOnMinusZero)) os << " -0?";
-  if (CheckFlag(kAllowUndefinedAsNaN)) os << " allow-undefined-as-nan";
   return os;
 }
 
@@ -1495,8 +1504,8 @@ HValue* HUnaryMathOperation::Canonicalize() {
     if (val->IsChange()) val = HChange::cast(val)->value();
     if (val->representation().IsSmiOrInteger32()) {
       if (val->representation().Equals(representation())) return val;
-      return Prepend(new(block()->zone()) HChange(
-          val, representation(), false, false));
+      return Prepend(new (block()->zone())
+                         HChange(val, representation(), false, false, true));
     }
   }
   if (op() == kMathFloor && representation().IsSmiOrInteger32() &&
@@ -1511,8 +1520,8 @@ HValue* HUnaryMathOperation::Canonicalize() {
       // A change from an integer32 can be replaced by the integer32 value.
       left = HChange::cast(left)->value();
     } else if (hdiv->observed_input_representation(1).IsSmiOrInteger32()) {
-      left = Prepend(new(block()->zone()) HChange(
-          left, Representation::Integer32(), false, false));
+      left = Prepend(new (block()->zone()) HChange(
+          left, Representation::Integer32(), false, false, true));
     } else {
       return this;
     }
@@ -1530,8 +1539,8 @@ HValue* HUnaryMathOperation::Canonicalize() {
       // A change from an integer32 can be replaced by the integer32 value.
       right = HChange::cast(right)->value();
     } else if (hdiv->observed_input_representation(2).IsSmiOrInteger32()) {
-      right = Prepend(new(block()->zone()) HChange(
-          right, Representation::Integer32(), false, false));
+      right = Prepend(new (block()->zone()) HChange(
+          right, Representation::Integer32(), false, false, true));
     } else {
       return this;
     }
@@ -2871,7 +2880,7 @@ void HCompareNumericAndBranch::InferRepresentation(
     // comparisons must cause a deopt when one of their arguments is undefined.
     // See also v8:1434
     if (Token::IsOrderedRelationalCompareOp(token_)) {
-      SetFlag(kAllowUndefinedAsNaN);
+      SetFlag(kTruncatingToNumber);
     }
   }
   ChangeRepresentation(rep);
@@ -2896,13 +2905,6 @@ std::ostream& HLoadNamedField::PrintDataTo(std::ostream& os) const {  // NOLINT
 
   if (HasDependency()) os << " " << NameOf(dependency());
   return os;
-}
-
-
-std::ostream& HLoadNamedGeneric::PrintDataTo(
-    std::ostream& os) const {  // NOLINT
-  Handle<String> n = Handle<String>::cast(name());
-  return os << NameOf(object()) << "." << n->ToCString().get();
 }
 
 
@@ -2977,7 +2979,7 @@ bool HLoadKeyed::UsesMustHandleHole() const {
 
 bool HLoadKeyed::AllUsesCanTreatHoleAsNaN() const {
   return IsFastDoubleElementsKind(elements_kind()) &&
-      CheckUsesForFlag(HValue::kAllowUndefinedAsNaN);
+         CheckUsesForFlag(HValue::kTruncatingToNumber);
 }
 
 
@@ -2997,45 +2999,39 @@ bool HLoadKeyed::RequiresHoleCheck() const {
   return !UsesMustHandleHole();
 }
 
+HValue* HCallWithDescriptor::Canonicalize() {
+  if (kind() != Code::KEYED_LOAD_IC) return this;
 
-std::ostream& HLoadKeyedGeneric::PrintDataTo(
-    std::ostream& os) const {  // NOLINT
-  return os << NameOf(object()) << "[" << NameOf(key()) << "]";
-}
-
-
-HValue* HLoadKeyedGeneric::Canonicalize() {
   // Recognize generic keyed loads that use property name generated
   // by for-in statement as a key and rewrite them into fast property load
   // by index.
-  if (key()->IsLoadKeyed()) {
-    HLoadKeyed* key_load = HLoadKeyed::cast(key());
+  typedef LoadWithVectorDescriptor Descriptor;
+  HValue* key = parameter(Descriptor::kName);
+  if (key->IsLoadKeyed()) {
+    HLoadKeyed* key_load = HLoadKeyed::cast(key);
     if (key_load->elements()->IsForInCacheArray()) {
       HForInCacheArray* names_cache =
           HForInCacheArray::cast(key_load->elements());
 
-      if (names_cache->enumerable() == object()) {
+      HValue* object = parameter(Descriptor::kReceiver);
+      if (names_cache->enumerable() == object) {
         HForInCacheArray* index_cache =
             names_cache->index_cache();
         HCheckMapValue* map_check = HCheckMapValue::New(
             block()->graph()->isolate(), block()->graph()->zone(),
-            block()->graph()->GetInvalidContext(), object(),
-            names_cache->map());
+            block()->graph()->GetInvalidContext(), object, names_cache->map());
         HInstruction* index = HLoadKeyed::New(
             block()->graph()->isolate(), block()->graph()->zone(),
             block()->graph()->GetInvalidContext(), index_cache, key_load->key(),
             key_load->key(), nullptr, key_load->elements_kind());
         map_check->InsertBefore(this);
         index->InsertBefore(this);
-        return Prepend(new(block()->zone()) HLoadFieldByIndex(
-            object(), index));
+        return Prepend(new (block()->zone()) HLoadFieldByIndex(object, index));
       }
     }
   }
-
   return this;
 }
-
 
 std::ostream& HStoreNamedField::PrintDataTo(std::ostream& os) const {  // NOLINT
   os << NameOf(object()) << access_ << " = " << NameOf(value());
@@ -3071,12 +3067,6 @@ std::ostream& HTransitionElementsKind::PrintDataTo(
      << ElementsAccessor::ForKind(to_kind)->name() << "]";
   if (IsSimpleMapChangeTransition(from_kind, to_kind)) os << " (simple)";
   return os;
-}
-
-
-std::ostream& HLoadGlobalGeneric::PrintDataTo(
-    std::ostream& os) const {  // NOLINT
-  return os << name()->ToCString().get() << " ";
 }
 
 
@@ -3596,16 +3586,21 @@ HInstruction* HDiv::New(Isolate* isolate, Zone* zone, HValue* context,
     HConstant* c_left = HConstant::cast(left);
     HConstant* c_right = HConstant::cast(right);
     if ((c_left->HasNumberValue() && c_right->HasNumberValue())) {
-      if (c_right->DoubleValue() != 0) {
+      if (std::isnan(c_left->DoubleValue()) ||
+          std::isnan(c_right->DoubleValue())) {
+        return H_CONSTANT_DOUBLE(std::numeric_limits<double>::quiet_NaN());
+      } else if (c_right->DoubleValue() != 0) {
         double double_res = c_left->DoubleValue() / c_right->DoubleValue();
         if (IsInt32Double(double_res)) {
           return H_CONSTANT_INT(double_res);
         }
         return H_CONSTANT_DOUBLE(double_res);
-      } else {
+      } else if (c_left->DoubleValue() != 0) {
         int sign = Double(c_left->DoubleValue()).Sign() *
                    Double(c_right->DoubleValue()).Sign();  // Right could be -0.
         return H_CONSTANT_DOUBLE(sign * V8_INFINITY);
+      } else {
+        return H_CONSTANT_DOUBLE(std::numeric_limits<double>::quiet_NaN());
       }
     }
   }

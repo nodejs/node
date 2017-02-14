@@ -75,8 +75,11 @@ class PendingCompilationErrorHandler {
   bool has_pending_error() const { return has_pending_error_; }
 
   void ThrowPendingError(Isolate* isolate, Handle<Script> script);
+  Handle<String> FormatMessage(Isolate* isolate);
 
  private:
+  Handle<String> ArgumentString(Isolate* isolate);
+
   bool has_pending_error_;
   int start_position_;
   int end_position_;

@@ -40,7 +40,7 @@
       'V8 Linux - shared': 'gn_release_x86_shared_verify_heap',
       'V8 Linux - noi18n - debug': 'gn_debug_x86_no_i18n',
       # Linux64.
-      'V8 Linux64 - builder': 'gn_release_x64',
+      'V8 Linux64 - builder': 'gn_release_x64_valgrind',
       'V8 Linux64 - debug builder': 'gn_debug_x64_valgrind',
       'V8 Linux64 - custom snapshot - debug builder': 'gn_debug_x64_custom',
       'V8 Linux64 - internal snapshot': 'gn_release_x64_internal',
@@ -156,7 +156,7 @@
       'v8_linux_nosnap_dbg': 'gn_debug_x86_no_snap_trybot',
       'v8_linux_gcc_compile_rel': 'gn_release_x86_gcc_minimal_symbols',
       'v8_linux_gcc_rel': 'gn_release_x86_gcc_minimal_symbols',
-      'v8_linux64_rel_ng': 'gn_release_x64_trybot',
+      'v8_linux64_rel_ng': 'gn_release_x64_valgrind_trybot',
       'v8_linux64_gyp_rel_ng': 'gyp_release_x64',
       'v8_linux64_avx2_rel_ng': 'gn_release_x64_trybot',
       'v8_linux64_avx2_dbg': 'gn_debug_x64_trybot',
@@ -296,6 +296,10 @@
       'gn', 'release_bot', 'x64', 'tsan', 'swarming'],
     'gn_release_x64_tsan_minimal_symbols': [
       'gn', 'release_bot', 'x64', 'tsan', 'minimal_symbols', 'swarming'],
+    'gn_release_x64_valgrind': [
+      'gn', 'release_bot', 'x64', 'swarming', 'valgrind'],
+    'gn_release_x64_valgrind_trybot': [
+      'gn', 'release_trybot', 'x64', 'swarming', 'valgrind'],
 
     # GN debug configs for x64.
     'gn_debug_x64': [
@@ -317,7 +321,8 @@
     'gn_debug_x86_minimal_symbols': [
       'gn', 'debug_bot', 'x86', 'minimal_symbols', 'swarming'],
     'gn_debug_x86_no_i18n': [
-      'gn', 'debug_bot', 'x86', 'v8_no_i18n'],
+      'gn', 'debug_bot', 'x86', 'swarming', 'v8_disable_inspector',
+      'v8_no_i18n'],
     'gn_debug_x86_no_snap': [
       'gn', 'debug_bot', 'x86', 'swarming', 'v8_snapshot_none'],
     'gn_debug_x86_no_snap_trybot': [
@@ -339,7 +344,8 @@
     'gn_release_x86_minimal_symbols': [
       'gn', 'release_bot', 'x86', 'minimal_symbols', 'swarming'],
     'gn_release_x86_no_i18n_trybot': [
-      'gn', 'release_trybot', 'x86', 'swarming', 'v8_no_i18n'],
+      'gn', 'release_trybot', 'x86', 'swarming', 'v8_disable_inspector',
+      'v8_no_i18n'],
     'gn_release_x86_no_snap': [
       'gn', 'release_bot', 'x86', 'swarming', 'v8_snapshot_none'],
     'gn_release_x86_no_snap_shared_minimal_symbols': [
@@ -354,7 +360,8 @@
 
     # Gyp debug configs for simulators.
     'gyp_debug_simulate_x87_no_snap': [
-      'gyp', 'debug_bot', 'simulate_x87', 'swarming', 'v8_snapshot_none'],
+      'gyp', 'debug_bot_static', 'simulate_x87', 'swarming',
+      'v8_snapshot_none'],
 
     # Gyp debug configs for x86.
     'gyp_debug_x86': [
@@ -458,6 +465,12 @@
     'debug_bot': {
       'mixins': [
         'debug', 'shared', 'goma', 'v8_enable_slow_dchecks',
+        'v8_optimized_debug'],
+    },
+
+    'debug_bot_static': {
+      'mixins': [
+        'debug', 'static', 'goma', 'v8_enable_slow_dchecks',
         'v8_optimized_debug'],
     },
 
@@ -611,6 +624,11 @@
     'v8_no_i18n': {
       'gn_args': 'v8_enable_i18n_support=false icu_use_data_file=false',
       'gyp_defines': 'v8_enable_i18n_support=0 icu_use_data_file_flag=0',
+    },
+
+    'v8_disable_inspector': {
+      'gn_args': 'v8_enable_inspector=false',
+      'gyp_defines': 'v8_enable_inspector=0 ',
     },
 
     'v8_enable_disassembler': {

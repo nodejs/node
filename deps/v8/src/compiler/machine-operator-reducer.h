@@ -5,8 +5,10 @@
 #ifndef V8_COMPILER_MACHINE_OPERATOR_REDUCER_H_
 #define V8_COMPILER_MACHINE_OPERATOR_REDUCER_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/machine-operator.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -19,7 +21,8 @@ class JSGraph;
 
 // Performs constant folding and strength reduction on nodes that have
 // machine operators.
-class MachineOperatorReducer final : public Reducer {
+class V8_EXPORT_PRIVATE MachineOperatorReducer final
+    : public NON_EXPORTED_BASE(Reducer) {
  public:
   explicit MachineOperatorReducer(JSGraph* jsgraph);
   ~MachineOperatorReducer();

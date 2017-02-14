@@ -103,8 +103,10 @@ var actions = [ "stepOut", "print", "stepOut", "print", "stepOut", "print",
 function runAction(response)
 {
   var action = actions.shift();
-  if (!action)
+  if (!action) {
     InspectorTest.completeTest();
+    return;
+  }
 
   if (action === "print") {
     printCallFrames(response.params.callFrames);

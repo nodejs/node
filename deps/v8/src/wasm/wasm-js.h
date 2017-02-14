@@ -24,9 +24,11 @@ class WasmJs {
                                       Handle<JSGlobalObject> global,
                                       Handle<Context> context);
 
-  static Handle<JSObject> CreateWasmMemoryObject(Isolate* isolate,
-                                                 Handle<JSArrayBuffer> buffer,
-                                                 bool has_maximum, int maximum);
+  // WebAssembly.Table.
+  static bool IsWasmTableObject(Isolate* isolate, Handle<Object> value);
+
+  // WebAssembly.Memory
+  static bool IsWasmMemoryObject(Isolate* isolate, Handle<Object> value);
 };
 
 }  // namespace internal

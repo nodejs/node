@@ -257,6 +257,7 @@ var ScopeType = { Global:  0,
                   Block:   5,
                   Script:  6,
                   Eval:    7,
+                  Module:  8,
                 };
 
 /**
@@ -1539,7 +1540,7 @@ PropertyMirror.prototype.value = function() {
 
 /**
  * Returns whether this property value is an exception.
- * @return {booolean} True if this property value is an exception
+ * @return {boolean} True if this property value is an exception
  */
 PropertyMirror.prototype.isException = function() {
   return this.exception_ ? true : false;
@@ -1558,7 +1559,7 @@ PropertyMirror.prototype.propertyType = function() {
 
 /**
  * Returns whether this property has a getter defined through __defineGetter__.
- * @return {booolean} True if this property has a getter
+ * @return {boolean} True if this property has a getter
  */
 PropertyMirror.prototype.hasGetter = function() {
   return this.getter_ ? true : false;
@@ -1567,7 +1568,7 @@ PropertyMirror.prototype.hasGetter = function() {
 
 /**
  * Returns whether this property has a setter defined through __defineSetter__.
- * @return {booolean} True if this property has a setter
+ * @return {boolean} True if this property has a setter
  */
 PropertyMirror.prototype.hasSetter = function() {
   return this.setter_ ? true : false;
@@ -1878,6 +1879,15 @@ FrameMirror.prototype.func = function() {
 };
 
 
+FrameMirror.prototype.script = function() {
+  if (!this.script_) {
+    this.script_ = MakeMirror(this.details_.script());
+  }
+
+  return this.script_;
+}
+
+
 FrameMirror.prototype.receiver = function() {
   return MakeMirror(this.details_.receiver());
 };
@@ -1954,12 +1964,9 @@ FrameMirror.prototype.sourcePosition = function() {
 
 
 FrameMirror.prototype.sourceLocation = function() {
-  var func = this.func();
-  if (func.resolved()) {
-    var script = func.script();
-    if (script) {
-      return script.locationFromPosition(this.sourcePosition(), true);
-    }
+  var script = this.script();
+  if (script) {
+    return script.locationFromPosition(this.sourcePosition(), true);
   }
 };
 

@@ -29,7 +29,6 @@
 [ALWAYS, {
   # All tests prefixed with 'Bug' are expected to fail.
   'test-api/Bug*': [FAIL],
-  'test-serialize/Bug*': [FAIL],
 
   ##############################################################################
 
@@ -69,7 +68,8 @@
   'test-ast-types/*': [PASS, NO_VARIANTS],
 
   # This tests API threading, no point in running several variants.
-  'test-api/Threading*': [PASS, NO_VARIANTS],
+  # They are also slow in debug mode.
+  'test-api/Threading*': [PASS, NO_VARIANTS, ['mode == debug', SLOW]],
 
   # BUG(2999). The cpu profiler tests are notoriously flaky.
   'test-cpu-profiler/CpuProfileDeepStack': [SKIP],
@@ -90,12 +90,11 @@
   # BUG(3742).
   'test-mark-compact/MarkCompactCollector': [PASS, ['arch==arm', NO_VARIANTS]],
 
+  # Test that serialization with unknown external reference fails.
+  'test-serialize/SnapshotCreatorUnknownExternalReferences': [FAIL],
+
   ############################################################################
   # Slow tests.
-  'test-api/Threading1': [PASS, ['mode == debug', SLOW]],
-  'test-api/Threading2': [PASS, ['mode == debug', SLOW]],
-  'test-api/Threading3': [PASS, ['mode == debug', SLOW]],
-  'test-api/Threading4': [PASS, ['mode == debug', SLOW]],
   'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],
   'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
   'test-serialize/CustomSnapshotDataBlobImmortalImmovableRoots': [PASS, ['mode == debug', SKIP]],
@@ -132,8 +131,6 @@
 
   # Pass but take too long with the simulator.
   'test-api/ExternalArrays': [PASS, TIMEOUT],
-  'test-api/Threading1': [SKIP],
-  'test-api/Threading2': [SKIP],
 }],  # 'arch == arm64 and simulator_run == True'
 
 ['arch == arm64 and mode == debug and simulator_run == True', {
@@ -165,10 +162,7 @@
   'test-strings/CountBreakIterator': [SKIP],
 
   # Slow tests.
-  'test-api/Threading1': [PASS, SLOW],
-  'test-api/Threading2': [PASS, SLOW],
-  'test-api/Threading3': [PASS, SLOW],
-  'test-api/Threading4': [PASS, SLOW],
+  'test-api/Threading*': [PASS, SLOW],
 }],  # 'msan == True'
 
 ##############################################################################
@@ -227,10 +221,7 @@
 
   ############################################################################
   # Slow tests.
-  'test-api/Threading1': [PASS, SLOW],
-  'test-api/Threading2': [PASS, SLOW],
-  'test-api/Threading3': [PASS, SLOW],
-  'test-api/Threading4': [PASS, SLOW],
+  'test-api/Threading*': [PASS, SLOW],
 }],  # 'arch == arm'
 
 ##############################################################################
@@ -254,7 +245,8 @@
 
   # TODO(mips-team): Currently fails on mips board.
   'test-parsing/TooManyArguments': [SKIP],
-  'test-api/Threading3': [SKIP],
+  'test-api/Threading5': [SKIP],
+  'test-api/Threading6': [SKIP],
 }],  # 'arch == mips'
 
 ##############################################################################
@@ -327,53 +319,42 @@
 ['arch == ppc and simulator_run == True or arch == ppc64 and simulator_run == True', {
 
   # Pass but take too long with the simulator.
-  'test-api/Threading1': [PASS, SLOW],
-  'test-api/Threading2': [PASS, SLOW],
+  'test-api/Threading*': [PASS, SLOW],
   'test-api/ExternalArrays': [PASS, SLOW],
 
 }],  # 'arch == ppc64 and simulator_run == True'
 
 ##############################################################################
-['variant == turbofan', {
-
-  # TurboFan cpu profiler result is different.
-  'test-cpu-profiler/CollectDeoptEvents': [FAIL],
-  'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [FAIL],
-  'test-cpu-profiler/DeoptAtSecondLevelInlinedSource': [FAIL],
-
-}],  # variant == turbofan
-
-##############################################################################
 ['variant == turbofan_opt', {
-  # BUG(5193): Flaky.
-  'test-cpu-profiler/FunctionApplySample': [PASS, ['system == windows', SKIP]],
-}],  # variant == turbofan_opt
-
-##############################################################################
-['variant == ignition', {
-  # TODO(rmcilroy,4680): Related to lack of code flushing. Check failed: !function->shared()->is_compiled() || function->IsOptimized().
-  'test-heap/TestCodeFlushingPreAged': [FAIL],
-  'test-heap/TestCodeFlushingIncrementalScavenge': [FAIL],
-  'test-heap/TestCodeFlushing': [FAIL],
-  'test-heap/TestCodeFlushingIncremental': [FAIL],
-  'test-heap/TestCodeFlushingIncrementalAbort': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
-
-  # TODO(mythria,4680): Lack of code-ageing in interpreter.
-  'test-heap/Regress169209': [FAIL],
-
   # TODO(mythria,4680): Lack of code-ageing and/or lack of compilation cache
   # in interpreter.
   'test-heap/CompilationCacheCachingBehavior': [FAIL],
 
-  # BUG(4680): Missing type feedback makes optimistic optimizations fail.
-  'test-cpu-profiler/DeoptUntrackedFunction': [SKIP],
+  # TODO(mstarzinger): Triggers Ignition+TurboFan on everything now and makes
+  # the stack traces within the profilers look different. Needs investigation.
+  'test-api/SetFunctionEntryHook': [SKIP],
+  'test-cpu-profiler/BoundFunctionCall': [FAIL],
+  'test-cpu-profiler/CollectSampleAPI': [FAIL],
+  'test-cpu-profiler/FunctionApplySample': [FAIL],
+  'test-cpu-profiler/FunctionCallSample': [FAIL],
+  'test-cpu-profiler/JsNativeJsRuntimeJsSample': [FAIL],
+  'test-cpu-profiler/JsNativeJsSample': [FAIL],
+  'test-cpu-profiler/JsNativeJsRuntimeJsSampleMultiple': [FAIL],
+  'test-cpu-profiler/JsNative1JsNative2JsSample': [FAIL],
+  'test-cpu-profiler/NativeMethodUninitializedIC': [FAIL],
+  'test-cpu-profiler/NativeAccessorUninitializedIC': [FAIL],
+  'test-profile-generator/LineNumber': [FAIL],
+  'test-sampler-api/StackFramesConsistent': [FAIL],
 
-  # BUG(4751). Flaky with ignition.
-  'test-cpu-profiler/JsNativeJsSample': [PASS, FAIL],
+  # BUG(v8:5457)
+  'test-api/SetJitCodeEventHandler': [PASS, ['no_snap', SKIP]],
+}],  # variant == turbofan_opt
 
-  # TODO(ignition): Fails due to missing type info when optimizing from bytecode
-  # with crankshaft.
-  'test-cpu-profiler/TickLinesOptimized': [SKIP],
+##############################################################################
+['variant == ignition', {
+  # TODO(mythria,4680): Lack of code-ageing and/or lack of compilation cache
+  # in interpreter.
+  'test-heap/CompilationCacheCachingBehavior': [FAIL],
 
   # BUG(5193): Flaky.
   'test-cpu-profiler/FunctionApplySample': [PASS, ['system == windows', SKIP]],
@@ -384,32 +365,13 @@
   'test-cpu-profiler/DeoptUntrackedFunction': [SKIP],
   'test-cpu-profiler/TickLinesOptimized': [SKIP],
   'test-heap/CompilationCacheCachingBehavior': [FAIL],
-  'test-heap/Regress169209': [FAIL],
-  'test-heap/TestCodeFlushing': [FAIL],
-  'test-heap/TestCodeFlushingIncremental': [FAIL],
-  'test-heap/TestCodeFlushingIncrementalScavenge': [FAIL],
-  'test-heap/TestCodeFlushingPreAged': [FAIL],
 
   # BUG(5193): Flaky.
   'test-cpu-profiler/FunctionApplySample': [PASS, ['system == windows', SKIP]],
 }],  # variant == ignition_staging
 
 ##############################################################################
-['variant == ignition_turbofan', {
-  # TODO(rmcilroy,4766): Requires BytecodeGraphBuilder to track source position
-  # on nodes (behind --turbo_source_positions flag).
-  'test-cpu-profiler/TickLinesOptimized': [FAIL],
-
-  # TODO(rmcilroy,4680): Related to lack of code flushing. Check failed: !function->shared()->is_compiled() || function->IsOptimized().
-  'test-heap/TestCodeFlushingPreAged': [FAIL],
-  'test-heap/TestCodeFlushingIncrementalScavenge': [FAIL],
-  'test-heap/TestCodeFlushing': [FAIL],
-  'test-heap/TestCodeFlushingIncremental': [FAIL],
-  'test-heap/TestCodeFlushingIncrementalAbort': [PASS, ['mode == debug or dcheck_always_on == True', FAIL]],
-
-  # TODO(mythria,4680): Lack of code-ageing in interpreter.
-  'test-heap/Regress169209': [FAIL],
-
+['variant == turbofan or variant == ignition_turbofan', {
   # TODO(mythria,4680): Lack of code-ageing and/or lack of compilation cache
   # in interpreter.
   'test-heap/CompilationCacheCachingBehavior': [FAIL],
@@ -421,13 +383,12 @@
   # BUG(4751). Flaky with Ignition.
   'test-cpu-profiler/JsNativeJsSample': [SKIP],
 
-  # TurboFan cpu profiler result is different.
-  'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [FAIL],
-  'test-cpu-profiler/DeoptAtSecondLevelInlinedSource': [FAIL],
+  # TODO(vogelheim,5548): Turbofan does support cached accessors.
+  'test-api-accessors/CachedAccessorCrankshaft': [FAIL],
 
   # BUG(5193): Flaky.
   'test-cpu-profiler/FunctionApplySample': [PASS, ['system == windows', SKIP]],
-}],  # variant == ignition_turbofan
+}],  # variant == turbofan or variant == ignition_turbofan
 
 ##############################################################################
 ['variant != ignition and variant != ignition_staging and variant != ignition_turbofan', {

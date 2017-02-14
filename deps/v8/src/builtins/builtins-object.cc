@@ -28,7 +28,7 @@ void Builtins::Generate_ObjectHasOwnProperty(CodeStubAssembler* assembler) {
 
   // Smi receivers do not have own properties.
   Label if_objectisnotsmi(assembler);
-  assembler->Branch(assembler->WordIsSmi(object), &return_false,
+  assembler->Branch(assembler->TaggedIsSmi(object), &return_false,
                     &if_objectisnotsmi);
   assembler->Bind(&if_objectisnotsmi);
 
@@ -228,7 +228,7 @@ void IsString(CodeStubAssembler* assembler, compiler::Node* object,
   typedef CodeStubAssembler::Label Label;
 
   Label if_notsmi(assembler);
-  assembler->Branch(assembler->WordIsSmi(object), if_notstring, &if_notsmi);
+  assembler->Branch(assembler->TaggedIsSmi(object), if_notstring, &if_notsmi);
 
   assembler->Bind(&if_notsmi);
   {
@@ -300,13 +300,13 @@ void Builtins::Generate_ObjectProtoToString(CodeStubAssembler* assembler) {
   Node* context = assembler->Parameter(3);
 
   assembler->GotoIf(
-      assembler->Word32Equal(receiver, assembler->UndefinedConstant()),
+      assembler->WordEqual(receiver, assembler->UndefinedConstant()),
       &return_undefined);
 
-  assembler->GotoIf(assembler->Word32Equal(receiver, assembler->NullConstant()),
+  assembler->GotoIf(assembler->WordEqual(receiver, assembler->NullConstant()),
                     &return_null);
 
-  assembler->GotoIf(assembler->WordIsSmi(receiver), &return_number);
+  assembler->GotoIf(assembler->TaggedIsSmi(receiver), &return_number);
 
   Node* receiver_instance_type = assembler->LoadInstanceType(receiver);
   ReturnIfPrimitive(assembler, receiver_instance_type, &return_string,
@@ -431,7 +431,7 @@ void Builtins::Generate_ObjectProtoToString(CodeStubAssembler* assembler) {
     assembler->Bind(&return_jsvalue);
     {
       Node* value = assembler->LoadJSValueValue(receiver);
-      assembler->GotoIf(assembler->WordIsSmi(value), &return_number);
+      assembler->GotoIf(assembler->TaggedIsSmi(value), &return_number);
 
       ReturnIfPrimitive(assembler, assembler->LoadInstanceType(value),
                         &return_string, &return_boolean, &return_number);
@@ -447,13 +447,8 @@ void Builtins::Generate_ObjectProtoToString(CodeStubAssembler* assembler) {
       Node* map = assembler->LoadMap(receiver);
 
       // Return object if the proxy {receiver} is not callable.
-      assembler->Branch(
-          assembler->Word32Equal(
-              assembler->Word32And(
-                  assembler->LoadMapBitField(map),
-                  assembler->Int32Constant(1 << Map::kIsCallable)),
-              assembler->Int32Constant(0)),
-          &return_object, &return_function);
+      assembler->Branch(assembler->IsCallableMap(map), &return_function,
+                        &return_object);
     }
 
     // Default
@@ -463,57 +458,95 @@ void Builtins::Generate_ObjectProtoToString(CodeStubAssembler* assembler) {
   }
 }
 
-// ES6 section 19.1.2.2 Object.create ( O [ , Properties ] )
-// TODO(verwaest): Support the common cases with precached map directly in
-// an Object.create stub.
-BUILTIN(ObjectCreate) {
-  HandleScope scope(isolate);
-  Handle<Object> prototype = args.atOrUndefined(isolate, 1);
-  if (!prototype->IsNull(isolate) && !prototype->IsJSReceiver()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kProtoObjectOrNull, prototype));
+void Builtins::Generate_ObjectCreate(CodeStubAssembler* a) {
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
+
+  Node* prototype = a->Parameter(1);
+  Node* properties = a->Parameter(2);
+  Node* context = a->Parameter(3 + 2);
+
+  Label call_runtime(a, Label::kDeferred), prototype_valid(a), no_properties(a);
+  {
+    a->Comment("Argument 1 check: prototype");
+    a->GotoIf(a->WordEqual(prototype, a->NullConstant()), &prototype_valid);
+    a->BranchIfJSReceiver(prototype, &prototype_valid, &call_runtime);
   }
 
-  // Generate the map with the specified {prototype} based on the Object
-  // function's initial map from the current native context.
-  // TODO(bmeurer): Use a dedicated cache for Object.create; think about
-  // slack tracking for Object.create.
-  Handle<Map> map(isolate->native_context()->object_function()->initial_map(),
-                  isolate);
-  if (map->prototype() != *prototype) {
-    if (prototype->IsNull(isolate)) {
-      map = isolate->object_with_null_prototype_map();
-    } else if (prototype->IsJSObject()) {
-      Handle<JSObject> js_prototype = Handle<JSObject>::cast(prototype);
-      if (!js_prototype->map()->is_prototype_map()) {
-        JSObject::OptimizeAsPrototype(js_prototype, FAST_PROTOTYPE);
-      }
-      Handle<PrototypeInfo> info =
-          Map::GetOrCreatePrototypeInfo(js_prototype, isolate);
-      // TODO(verwaest): Use inobject slack tracking for this map.
-      if (info->HasObjectCreateMap()) {
-        map = handle(info->ObjectCreateMap(), isolate);
-      } else {
-        map = Map::CopyInitialMap(map);
-        Map::SetPrototype(map, prototype, FAST_PROTOTYPE);
-        PrototypeInfo::SetObjectCreateMap(info, map);
-      }
-    } else {
-      map = Map::TransitionToPrototype(map, prototype, REGULAR_PROTOTYPE);
+  a->Bind(&prototype_valid);
+  {
+    a->Comment("Argument 2 check: properties");
+    // Check that we have a simple object
+    a->GotoIf(a->TaggedIsSmi(properties), &call_runtime);
+    // Undefined implies no properties.
+    a->GotoIf(a->WordEqual(properties, a->UndefinedConstant()), &no_properties);
+    Node* properties_map = a->LoadMap(properties);
+    a->GotoIf(a->IsSpecialReceiverMap(properties_map), &call_runtime);
+    // Stay on the fast path only if there are no elements.
+    a->GotoUnless(a->WordEqual(a->LoadElements(properties),
+                               a->LoadRoot(Heap::kEmptyFixedArrayRootIndex)),
+                  &call_runtime);
+    // Handle dictionary objects or fast objects with properties in runtime.
+    Node* bit_field3 = a->LoadMapBitField3(properties_map);
+    a->GotoIf(a->IsSetWord32<Map::DictionaryMap>(bit_field3), &call_runtime);
+    a->Branch(a->IsSetWord32<Map::NumberOfOwnDescriptorsBits>(bit_field3),
+              &call_runtime, &no_properties);
+  }
+
+  // Create a new object with the given prototype.
+  a->Bind(&no_properties);
+  {
+    Variable map(a, MachineRepresentation::kTagged);
+    Variable properties(a, MachineRepresentation::kTagged);
+    Label non_null_proto(a), instantiate_map(a), good(a);
+
+    a->Branch(a->WordEqual(prototype, a->NullConstant()), &good,
+              &non_null_proto);
+
+    a->Bind(&good);
+    {
+      map.Bind(a->LoadContextElement(
+          context, Context::SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP));
+      properties.Bind(
+          a->AllocateNameDictionary(NameDictionary::kInitialCapacity));
+      a->Goto(&instantiate_map);
+    }
+
+    a->Bind(&non_null_proto);
+    {
+      properties.Bind(a->EmptyFixedArrayConstant());
+      Node* object_function =
+          a->LoadContextElement(context, Context::OBJECT_FUNCTION_INDEX);
+      Node* object_function_map = a->LoadObjectField(
+          object_function, JSFunction::kPrototypeOrInitialMapOffset);
+      map.Bind(object_function_map);
+      a->GotoIf(a->WordEqual(prototype, a->LoadMapPrototype(map.value())),
+                &instantiate_map);
+      // Try loading the prototype info.
+      Node* prototype_info =
+          a->LoadMapPrototypeInfo(a->LoadMap(prototype), &call_runtime);
+      a->Comment("Load ObjectCreateMap from PrototypeInfo");
+      Node* weak_cell =
+          a->LoadObjectField(prototype_info, PrototypeInfo::kObjectCreateMap);
+      a->GotoIf(a->WordEqual(weak_cell, a->UndefinedConstant()), &call_runtime);
+      map.Bind(a->LoadWeakCellValue(weak_cell, &call_runtime));
+      a->Goto(&instantiate_map);
+    }
+
+    a->Bind(&instantiate_map);
+    {
+      Node* instance =
+          a->AllocateJSObjectFromMap(map.value(), properties.value());
+      a->Return(instance);
     }
   }
 
-  // Actually allocate the object.
-  Handle<JSObject> object = isolate->factory()->NewJSObjectFromMap(map);
-
-  // Define the properties if properties was specified and is not undefined.
-  Handle<Object> properties = args.atOrUndefined(isolate, 2);
-  if (!properties->IsUndefined(isolate)) {
-    RETURN_FAILURE_ON_EXCEPTION(
-        isolate, JSReceiver::DefineProperties(isolate, object, properties));
+  a->Bind(&call_runtime);
+  {
+    a->Return(
+        a->CallRuntime(Runtime::kObjectCreate, context, prototype, properties));
   }
-
-  return *object;
 }
 
 // ES6 section 19.1.2.3 Object.defineProperties
@@ -690,6 +723,85 @@ BUILTIN(ObjectGetPrototypeOf) {
 
   RETURN_RESULT_OR_FAILURE(isolate,
                            JSReceiver::GetPrototype(isolate, receiver));
+}
+
+// ES6 section 19.1.2.21 Object.setPrototypeOf ( O, proto )
+BUILTIN(ObjectSetPrototypeOf) {
+  HandleScope scope(isolate);
+
+  // 1. Let O be ? RequireObjectCoercible(O).
+  Handle<Object> object = args.atOrUndefined(isolate, 1);
+  if (object->IsNull(isolate) || object->IsUndefined(isolate)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  "Object.setPrototypeOf")));
+  }
+
+  // 2. If Type(proto) is neither Object nor Null, throw a TypeError exception.
+  Handle<Object> proto = args.atOrUndefined(isolate, 2);
+  if (!proto->IsNull(isolate) && !proto->IsJSReceiver()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kProtoObjectOrNull, proto));
+  }
+
+  // 3. If Type(O) is not Object, return O.
+  if (!object->IsJSReceiver()) return *object;
+  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
+
+  // 4. Let status be ? O.[[SetPrototypeOf]](proto).
+  // 5. If status is false, throw a TypeError exception.
+  MAYBE_RETURN(
+      JSReceiver::SetPrototype(receiver, proto, true, Object::THROW_ON_ERROR),
+      isolate->heap()->exception());
+
+  // 6. Return O.
+  return *receiver;
+}
+
+// ES6 section B.2.2.1.1 get Object.prototype.__proto__
+BUILTIN(ObjectPrototypeGetProto) {
+  HandleScope scope(isolate);
+  // 1. Let O be ? ToObject(this value).
+  Handle<JSReceiver> receiver;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, receiver, Object::ToObject(isolate, args.receiver()));
+
+  // 2. Return ? O.[[GetPrototypeOf]]().
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           JSReceiver::GetPrototype(isolate, receiver));
+}
+
+// ES6 section B.2.2.1.2 set Object.prototype.__proto__
+BUILTIN(ObjectPrototypeSetProto) {
+  HandleScope scope(isolate);
+  // 1. Let O be ? RequireObjectCoercible(this value).
+  Handle<Object> object = args.receiver();
+  if (object->IsNull(isolate) || object->IsUndefined(isolate)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
+                              isolate->factory()->NewStringFromAsciiChecked(
+                                  "set Object.prototype.__proto__")));
+  }
+
+  // 2. If Type(proto) is neither Object nor Null, return undefined.
+  Handle<Object> proto = args.at<Object>(1);
+  if (!proto->IsNull(isolate) && !proto->IsJSReceiver()) {
+    return isolate->heap()->undefined_value();
+  }
+
+  // 3. If Type(O) is not Object, return undefined.
+  if (!object->IsJSReceiver()) return isolate->heap()->undefined_value();
+  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
+
+  // 4. Let status be ? O.[[SetPrototypeOf]](proto).
+  // 5. If status is false, throw a TypeError exception.
+  MAYBE_RETURN(
+      JSReceiver::SetPrototype(receiver, proto, true, Object::THROW_ON_ERROR),
+      isolate->heap()->exception());
+
+  // Return undefined.
+  return isolate->heap()->undefined_value();
 }
 
 // ES6 section 19.1.2.6 Object.getOwnPropertyDescriptor ( O, P )
@@ -908,6 +1020,39 @@ BUILTIN(ObjectSeal) {
                  isolate->heap()->exception());
   }
   return *object;
+}
+
+void Builtins::Generate_HasProperty(CodeStubAssembler* assembler) {
+  typedef HasPropertyDescriptor Descriptor;
+  typedef compiler::Node Node;
+
+  Node* key = assembler->Parameter(Descriptor::kKey);
+  Node* object = assembler->Parameter(Descriptor::kObject);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  assembler->Return(
+      assembler->HasProperty(object, key, context, Runtime::kHasProperty));
+}
+
+void Builtins::Generate_ForInFilter(CodeStubAssembler* assembler) {
+  typedef compiler::Node Node;
+  typedef ForInFilterDescriptor Descriptor;
+
+  Node* key = assembler->Parameter(Descriptor::kKey);
+  Node* object = assembler->Parameter(Descriptor::kObject);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  assembler->Return(assembler->ForInFilter(key, object, context));
+}
+
+void Builtins::Generate_InstanceOf(CodeStubAssembler* assembler) {
+  typedef compiler::Node Node;
+  typedef CompareDescriptor Descriptor;
+  Node* object = assembler->Parameter(Descriptor::kLeft);
+  Node* callable = assembler->Parameter(Descriptor::kRight);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  assembler->Return(assembler->InstanceOf(object, callable, context));
 }
 
 // ES6 section 7.3.19 OrdinaryHasInstance ( C, O )

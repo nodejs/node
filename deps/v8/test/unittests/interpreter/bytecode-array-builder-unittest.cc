@@ -42,7 +42,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CreateArguments(CreateArgumentsType::kRestParameter);
 
   // Emit constant loads.
-  builder.LoadLiteral(Smi::FromInt(0))
+  builder.LoadLiteral(Smi::kZero)
       .StoreAccumulatorInRegister(reg)
       .LoadLiteral(Smi::FromInt(8))
       .CompareOperation(Token::Value::NE, reg,
@@ -54,7 +54,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .LoadLiteral(factory->NewStringFromStaticChars("A constant"))
       .StoreAccumulatorInRegister(reg)
       .LoadUndefined()
-      .Debugger()  // Prevent peephole optimization LdaNull, Star -> LdrNull.
+      .StoreAccumulatorInRegister(reg)
       .LoadNull()
       .StoreAccumulatorInRegister(reg)
       .LoadTheHole()
@@ -87,6 +87,10 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .PopContext(reg)
       .LoadContextSlot(reg, 1, 0)
       .StoreContextSlot(reg, 1, 0);
+
+  // Emit context operations which operate on the local context.
+  builder.LoadContextSlot(Register::current_context(), 1, 0)
+      .StoreContextSlot(Register::current_context(), 1, 0);
 
   // Emit load / store property operations.
   builder.LoadNamedProperty(reg, name, 0)
@@ -125,8 +129,10 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CreateObjectLiteral(factory->NewFixedArray(1), 0, 0, reg);
 
   // Call operations.
-  builder.Call(reg, reg_list, 1)
-      .Call(reg, reg_list, 1, TailCallMode::kAllow)
+  builder.Call(reg, reg_list, 1, Call::GLOBAL_CALL)
+      .Call(reg, reg_list, 1, Call::NAMED_PROPERTY_CALL,
+            TailCallMode::kDisallow)
+      .Call(reg, reg_list, 1, Call::GLOBAL_CALL, TailCallMode::kAllow)
       .CallRuntime(Runtime::kIsArray, reg)
       .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, reg_list, pair)
       .CallJSRuntime(Context::SPREAD_ITERABLE_INDEX, reg_list);
@@ -219,9 +225,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
         .JumpIfTrue(&end[1])
         .LoadTrue()
         .JumpIfFalse(&end[2])
-        .LoadLiteral(Smi::FromInt(0))
+        .LoadLiteral(Smi::kZero)
         .JumpIfTrue(&end[3])
-        .LoadLiteral(Smi::FromInt(0))
+        .LoadLiteral(Smi::kZero)
         .JumpIfFalse(&end[4])
         .JumpIfNull(&end[5])
         .JumpIfUndefined(&end[6])
@@ -302,19 +308,6 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreLookupSlot(wide_name, LanguageMode::SLOPPY)
       .StoreLookupSlot(wide_name, LanguageMode::STRICT);
 
-  // Emit loads which will be transformed to Ldr equivalents by the peephole
-  // optimizer.
-  builder.LoadNamedProperty(reg, name, 0)
-      .StoreAccumulatorInRegister(reg)
-      .LoadKeyedProperty(reg, 0)
-      .StoreAccumulatorInRegister(reg)
-      .LoadContextSlot(reg, 1, 0)
-      .StoreAccumulatorInRegister(reg)
-      .LoadGlobal(0, TypeofMode::NOT_INSIDE_TYPEOF)
-      .StoreAccumulatorInRegister(reg)
-      .LoadUndefined()
-      .StoreAccumulatorInRegister(reg);
-
   // CreateClosureWide
   builder.CreateClosure(1000, NOT_TENURED);
 
@@ -324,7 +317,15 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CreateArrayLiteral(factory->NewFixedArray(2), 0, 0)
       .CreateObjectLiteral(factory->NewFixedArray(2), 0, 0, reg);
 
-  // Emit generator operations
+  // Emit load and store operations for module variables.
+  builder.LoadModuleVariable(-1, 42)
+      .LoadModuleVariable(0, 42)
+      .LoadModuleVariable(1, 42)
+      .StoreModuleVariable(-1, 42)
+      .StoreModuleVariable(0, 42)
+      .StoreModuleVariable(1, 42);
+
+  // Emit generator operations.
   builder.SuspendGenerator(reg)
       .ResumeGenerator(reg);
 
@@ -380,11 +381,6 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   if (!FLAG_ignition_peephole) {
     // Insert entries for bytecodes only emitted by peephole optimizer.
-    scorecard[Bytecodes::ToByte(Bytecode::kLdrNamedProperty)] = 1;
-    scorecard[Bytecodes::ToByte(Bytecode::kLdrKeyedProperty)] = 1;
-    scorecard[Bytecodes::ToByte(Bytecode::kLdrGlobal)] = 1;
-    scorecard[Bytecodes::ToByte(Bytecode::kLdrContextSlot)] = 1;
-    scorecard[Bytecodes::ToByte(Bytecode::kLdrUndefined)] = 1;
     scorecard[Bytecodes::ToByte(Bytecode::kLogicalNot)] = 1;
     scorecard[Bytecodes::ToByte(Bytecode::kJump)] = 1;
     scorecard[Bytecodes::ToByte(Bytecode::kJumpIfTrue)] = 1;
@@ -421,12 +417,12 @@ TEST_F(BytecodeArrayBuilderTest, FrameSizesLookGood) {
         BytecodeArrayBuilder builder(isolate(), zone(), 0, contexts, locals);
         BytecodeRegisterAllocator* allocator(builder.register_allocator());
         for (int i = 0; i < locals + contexts; i++) {
-          builder.LoadLiteral(Smi::FromInt(0));
+          builder.LoadLiteral(Smi::kZero);
           builder.StoreAccumulatorInRegister(Register(i));
         }
         for (int i = 0; i < temps; i++) {
           Register temp = allocator->NewRegister();
-          builder.LoadLiteral(Smi::FromInt(0));
+          builder.LoadLiteral(Smi::kZero);
           builder.StoreAccumulatorInRegister(temp);
           // Ensure temporaries are used so not optimized away by the
           // register optimizer.

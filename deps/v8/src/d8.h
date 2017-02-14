@@ -5,7 +5,6 @@
 #ifndef V8_D8_H_
 #define V8_D8_H_
 
-#include <map>
 #include <string>
 
 #include "src/allocation.h"
@@ -275,6 +274,7 @@ class ShellOptions {
         dump_heap_constants(false),
         expected_to_throw(false),
         mock_arraybuffer_allocator(false),
+        enable_inspector(false),
         num_isolates(1),
         compile_options(v8::ScriptCompiler::kNoCompileOptions),
         isolate_sources(NULL),
@@ -304,6 +304,7 @@ class ShellOptions {
   bool dump_heap_constants;
   bool expected_to_throw;
   bool mock_arraybuffer_allocator;
+  bool enable_inspector;
   int num_isolates;
   v8::ScriptCompiler::CompileOptions compile_options;
   SourceGroup* isolate_sources;
@@ -371,6 +372,7 @@ class Shell : public i::AllStatic {
                              const  PropertyCallbackInfo<void>& info);
 
   static void Print(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void PrintErr(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Write(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void QuitOnce(v8::FunctionCallbackInfo<v8::Value>* args);
   static void Quit(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -455,9 +457,8 @@ class Shell : public i::AllStatic {
   static Local<ObjectTemplate> CreateGlobalTemplate(Isolate* isolate);
   static MaybeLocal<Context> CreateRealm(
       const v8::FunctionCallbackInfo<v8::Value>& args);
-  static MaybeLocal<Module> FetchModuleTree(
-      Isolate* isolate, const std::string& file_name,
-      std::map<std::string, Global<Module>>* module_map);
+  static MaybeLocal<Module> FetchModuleTree(v8::Local<v8::Context> context,
+                                            const std::string& file_name);
 };
 
 

@@ -88,7 +88,7 @@ class PropertyCallbackArguments
         Smi::FromInt(should_throw == Object::THROW_ON_ERROR ? 1 : 0);
 
     // Here the hole is set as default value.
-    // It cannot escape into js as it's remove in Call below.
+    // It cannot escape into js as it's removed in Call below.
     values[T::kReturnValueDefaultValueIndex] =
         isolate->heap()->the_hole_value();
     values[T::kReturnValueIndex] = isolate->heap()->the_hole_value();

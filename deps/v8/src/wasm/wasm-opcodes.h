@@ -5,6 +5,7 @@
 #ifndef V8_WASM_OPCODES_H_
 #define V8_WASM_OPCODES_H_
 
+#include "src/globals.h"
 #include "src/machine-type.h"
 #include "src/signature.h"
 
@@ -14,12 +15,12 @@ namespace wasm {
 
 // Binary encoding of local types.
 enum LocalTypeCode {
-  kLocalVoid = 0,
-  kLocalI32 = 1,
-  kLocalI64 = 2,
-  kLocalF32 = 3,
-  kLocalF64 = 4,
-  kLocalS128 = 5
+  kLocalVoid = 0x40,
+  kLocalI32 = 0x7f,
+  kLocalI64 = 0x7e,
+  kLocalF32 = 0x7d,
+  kLocalF64 = 0x7c,
+  kLocalS128 = 0x7b
 };
 
 // Type code for multi-value block types.
@@ -46,199 +47,198 @@ typedef int WasmCodePosition;
 const WasmCodePosition kNoCodePosition = -1;
 
 // Control expressions and blocks.
-#define FOREACH_CONTROL_OPCODE(V) \
-  V(Unreachable, 0x00, _)         \
-  V(Block, 0x01, _)               \
-  V(Loop, 0x02, _)                \
-  V(If, 0x03, _)                  \
-  V(Else, 0x04, _)                \
-  V(Select, 0x05, _)              \
-  V(Br, 0x06, _)                  \
-  V(BrIf, 0x07, _)                \
-  V(BrTable, 0x08, _)             \
-  V(Return, 0x09, _)              \
-  V(Nop, 0x0a, _)                 \
-  V(Throw, 0xfa, _)               \
-  V(Try, 0xfb, _)                 \
-  V(Catch, 0xfe, _)               \
-  V(End, 0x0F, _)
+#define FOREACH_CONTROL_OPCODE(V)      \
+  V(Unreachable, 0x00, _)              \
+  V(Nop, 0x01, _)                      \
+  V(Block, 0x02, _)                    \
+  V(Loop, 0x03, _)                     \
+  V(If, 0x004, _)                      \
+  V(Else, 0x05, _)                     \
+  V(Try, 0x06, _ /* eh_prototype */)   \
+  V(Catch, 0x07, _ /* eh_prototype */) \
+  V(Throw, 0x08, _ /* eh_prototype */) \
+  V(End, 0x0b, _)                      \
+  V(Br, 0x0c, _)                       \
+  V(BrIf, 0x0d, _)                     \
+  V(BrTable, 0x0e, _)                  \
+  V(Return, 0x0f, _)
 
 // Constants, locals, globals, and calls.
 #define FOREACH_MISC_OPCODE(V) \
-  V(I32Const, 0x10, _)         \
-  V(I64Const, 0x11, _)         \
-  V(F64Const, 0x12, _)         \
-  V(F32Const, 0x13, _)         \
-  V(GetLocal, 0x14, _)         \
-  V(SetLocal, 0x15, _)         \
-  V(TeeLocal, 0x19, _)         \
-  V(Drop, 0x0b, _)             \
-  V(CallFunction, 0x16, _)     \
-  V(CallIndirect, 0x17, _)     \
-  V(I8Const, 0xcb, _)          \
-  V(GetGlobal, 0xbb, _)        \
-  V(SetGlobal, 0xbc, _)
+  V(CallFunction, 0x10, _)     \
+  V(CallIndirect, 0x11, _)     \
+  V(Drop, 0x1a, _)             \
+  V(Select, 0x1b, _)           \
+  V(GetLocal, 0x20, _)         \
+  V(SetLocal, 0x21, _)         \
+  V(TeeLocal, 0x22, _)         \
+  V(GetGlobal, 0x23, _)        \
+  V(SetGlobal, 0x24, _)        \
+  V(I32Const, 0x41, _)         \
+  V(I64Const, 0x42, _)         \
+  V(F32Const, 0x43, _)         \
+  V(F64Const, 0x44, _)         \
+  V(I8Const, 0xcb, _ /* TODO(titzer): V8 specific, remove */)
 
 // Load memory expressions.
 #define FOREACH_LOAD_MEM_OPCODE(V) \
-  V(I32LoadMem8S, 0x20, i_i)       \
-  V(I32LoadMem8U, 0x21, i_i)       \
-  V(I32LoadMem16S, 0x22, i_i)      \
-  V(I32LoadMem16U, 0x23, i_i)      \
-  V(I64LoadMem8S, 0x24, l_i)       \
-  V(I64LoadMem8U, 0x25, l_i)       \
-  V(I64LoadMem16S, 0x26, l_i)      \
-  V(I64LoadMem16U, 0x27, l_i)      \
-  V(I64LoadMem32S, 0x28, l_i)      \
-  V(I64LoadMem32U, 0x29, l_i)      \
-  V(I32LoadMem, 0x2a, i_i)         \
-  V(I64LoadMem, 0x2b, l_i)         \
-  V(F32LoadMem, 0x2c, f_i)         \
-  V(F64LoadMem, 0x2d, d_i)
+  V(I32LoadMem, 0x28, i_i)         \
+  V(I64LoadMem, 0x29, l_i)         \
+  V(F32LoadMem, 0x2a, f_i)         \
+  V(F64LoadMem, 0x2b, d_i)         \
+  V(I32LoadMem8S, 0x2c, i_i)       \
+  V(I32LoadMem8U, 0x2d, i_i)       \
+  V(I32LoadMem16S, 0x2e, i_i)      \
+  V(I32LoadMem16U, 0x2f, i_i)      \
+  V(I64LoadMem8S, 0x30, l_i)       \
+  V(I64LoadMem8U, 0x31, l_i)       \
+  V(I64LoadMem16S, 0x32, l_i)      \
+  V(I64LoadMem16U, 0x33, l_i)      \
+  V(I64LoadMem32S, 0x34, l_i)      \
+  V(I64LoadMem32U, 0x35, l_i)
 
 // Store memory expressions.
 #define FOREACH_STORE_MEM_OPCODE(V) \
-  V(I32StoreMem8, 0x2e, i_ii)       \
-  V(I32StoreMem16, 0x2f, i_ii)      \
-  V(I64StoreMem8, 0x30, l_il)       \
-  V(I64StoreMem16, 0x31, l_il)      \
-  V(I64StoreMem32, 0x32, l_il)      \
-  V(I32StoreMem, 0x33, i_ii)        \
-  V(I64StoreMem, 0x34, l_il)        \
-  V(F32StoreMem, 0x35, f_if)        \
-  V(F64StoreMem, 0x36, d_id)
+  V(I32StoreMem, 0x36, i_ii)        \
+  V(I64StoreMem, 0x37, l_il)        \
+  V(F32StoreMem, 0x38, f_if)        \
+  V(F64StoreMem, 0x39, d_id)        \
+  V(I32StoreMem8, 0x3a, i_ii)       \
+  V(I32StoreMem16, 0x3b, i_ii)      \
+  V(I64StoreMem8, 0x3c, l_il)       \
+  V(I64StoreMem16, 0x3d, l_il)      \
+  V(I64StoreMem32, 0x3e, l_il)
 
-#define FOREACH_SIMPLE_MEM_OPCODE(V) V(GrowMemory, 0x39, i_i)
-
-// Load memory expressions.
+// Miscellaneous memory expressions
 #define FOREACH_MISC_MEM_OPCODE(V) \
-  V(MemorySize, 0x3b, i_v)
+  V(MemorySize, 0x3f, i_v)         \
+  V(GrowMemory, 0x40, i_i)
 
 // Expressions with signatures.
 #define FOREACH_SIMPLE_OPCODE(V)  \
-  V(I32Add, 0x40, i_ii)           \
-  V(I32Sub, 0x41, i_ii)           \
-  V(I32Mul, 0x42, i_ii)           \
-  V(I32DivS, 0x43, i_ii)          \
-  V(I32DivU, 0x44, i_ii)          \
-  V(I32RemS, 0x45, i_ii)          \
-  V(I32RemU, 0x46, i_ii)          \
-  V(I32And, 0x47, i_ii)           \
-  V(I32Ior, 0x48, i_ii)           \
-  V(I32Xor, 0x49, i_ii)           \
-  V(I32Shl, 0x4a, i_ii)           \
-  V(I32ShrU, 0x4b, i_ii)          \
-  V(I32ShrS, 0x4c, i_ii)          \
-  V(I32Eq, 0x4d, i_ii)            \
-  V(I32Ne, 0x4e, i_ii)            \
-  V(I32LtS, 0x4f, i_ii)           \
-  V(I32LeS, 0x50, i_ii)           \
-  V(I32LtU, 0x51, i_ii)           \
-  V(I32LeU, 0x52, i_ii)           \
-  V(I32GtS, 0x53, i_ii)           \
-  V(I32GeS, 0x54, i_ii)           \
-  V(I32GtU, 0x55, i_ii)           \
-  V(I32GeU, 0x56, i_ii)           \
-  V(I32Clz, 0x57, i_i)            \
-  V(I32Ctz, 0x58, i_i)            \
-  V(I32Popcnt, 0x59, i_i)         \
-  V(I32Eqz, 0x5a, i_i)            \
-  V(I64Add, 0x5b, l_ll)           \
-  V(I64Sub, 0x5c, l_ll)           \
-  V(I64Mul, 0x5d, l_ll)           \
-  V(I64DivS, 0x5e, l_ll)          \
-  V(I64DivU, 0x5f, l_ll)          \
-  V(I64RemS, 0x60, l_ll)          \
-  V(I64RemU, 0x61, l_ll)          \
-  V(I64And, 0x62, l_ll)           \
-  V(I64Ior, 0x63, l_ll)           \
-  V(I64Xor, 0x64, l_ll)           \
-  V(I64Shl, 0x65, l_ll)           \
-  V(I64ShrU, 0x66, l_ll)          \
-  V(I64ShrS, 0x67, l_ll)          \
-  V(I64Eq, 0x68, i_ll)            \
-  V(I64Ne, 0x69, i_ll)            \
-  V(I64LtS, 0x6a, i_ll)           \
-  V(I64LeS, 0x6b, i_ll)           \
-  V(I64LtU, 0x6c, i_ll)           \
-  V(I64LeU, 0x6d, i_ll)           \
-  V(I64GtS, 0x6e, i_ll)           \
-  V(I64GeS, 0x6f, i_ll)           \
-  V(I64GtU, 0x70, i_ll)           \
-  V(I64GeU, 0x71, i_ll)           \
-  V(I64Clz, 0x72, l_l)            \
-  V(I64Ctz, 0x73, l_l)            \
-  V(I64Popcnt, 0x74, l_l)         \
-  V(I64Eqz, 0xba, i_l)            \
-  V(F32Add, 0x75, f_ff)           \
-  V(F32Sub, 0x76, f_ff)           \
-  V(F32Mul, 0x77, f_ff)           \
-  V(F32Div, 0x78, f_ff)           \
-  V(F32Min, 0x79, f_ff)           \
-  V(F32Max, 0x7a, f_ff)           \
-  V(F32Abs, 0x7b, f_f)            \
-  V(F32Neg, 0x7c, f_f)            \
-  V(F32CopySign, 0x7d, f_ff)      \
-  V(F32Ceil, 0x7e, f_f)           \
-  V(F32Floor, 0x7f, f_f)          \
-  V(F32Trunc, 0x80, f_f)          \
-  V(F32NearestInt, 0x81, f_f)     \
-  V(F32Sqrt, 0x82, f_f)           \
-  V(F32Eq, 0x83, i_ff)            \
-  V(F32Ne, 0x84, i_ff)            \
-  V(F32Lt, 0x85, i_ff)            \
-  V(F32Le, 0x86, i_ff)            \
-  V(F32Gt, 0x87, i_ff)            \
-  V(F32Ge, 0x88, i_ff)            \
-  V(F64Add, 0x89, d_dd)           \
-  V(F64Sub, 0x8a, d_dd)           \
-  V(F64Mul, 0x8b, d_dd)           \
-  V(F64Div, 0x8c, d_dd)           \
-  V(F64Min, 0x8d, d_dd)           \
-  V(F64Max, 0x8e, d_dd)           \
-  V(F64Abs, 0x8f, d_d)            \
-  V(F64Neg, 0x90, d_d)            \
-  V(F64CopySign, 0x91, d_dd)      \
-  V(F64Ceil, 0x92, d_d)           \
-  V(F64Floor, 0x93, d_d)          \
-  V(F64Trunc, 0x94, d_d)          \
-  V(F64NearestInt, 0x95, d_d)     \
-  V(F64Sqrt, 0x96, d_d)           \
-  V(F64Eq, 0x97, i_dd)            \
-  V(F64Ne, 0x98, i_dd)            \
-  V(F64Lt, 0x99, i_dd)            \
-  V(F64Le, 0x9a, i_dd)            \
-  V(F64Gt, 0x9b, i_dd)            \
-  V(F64Ge, 0x9c, i_dd)            \
-  V(I32SConvertF32, 0x9d, i_f)    \
-  V(I32SConvertF64, 0x9e, i_d)    \
-  V(I32UConvertF32, 0x9f, i_f)    \
-  V(I32UConvertF64, 0xa0, i_d)    \
-  V(I32ConvertI64, 0xa1, i_l)     \
-  V(I64SConvertF32, 0xa2, l_f)    \
-  V(I64SConvertF64, 0xa3, l_d)    \
-  V(I64UConvertF32, 0xa4, l_f)    \
-  V(I64UConvertF64, 0xa5, l_d)    \
-  V(I64SConvertI32, 0xa6, l_i)    \
-  V(I64UConvertI32, 0xa7, l_i)    \
-  V(F32SConvertI32, 0xa8, f_i)    \
-  V(F32UConvertI32, 0xa9, f_i)    \
-  V(F32SConvertI64, 0xaa, f_l)    \
-  V(F32UConvertI64, 0xab, f_l)    \
-  V(F32ConvertF64, 0xac, f_d)     \
-  V(F32ReinterpretI32, 0xad, f_i) \
-  V(F64SConvertI32, 0xae, d_i)    \
-  V(F64UConvertI32, 0xaf, d_i)    \
-  V(F64SConvertI64, 0xb0, d_l)    \
-  V(F64UConvertI64, 0xb1, d_l)    \
-  V(F64ConvertF32, 0xb2, d_f)     \
-  V(F64ReinterpretI64, 0xb3, d_l) \
-  V(I32ReinterpretF32, 0xb4, i_f) \
-  V(I64ReinterpretF64, 0xb5, l_d) \
-  V(I32Ror, 0xb6, i_ii)           \
-  V(I32Rol, 0xb7, i_ii)           \
-  V(I64Ror, 0xb8, l_ll)           \
-  V(I64Rol, 0xb9, l_ll)
+  V(I32Eqz, 0x45, i_i)            \
+  V(I32Eq, 0x46, i_ii)            \
+  V(I32Ne, 0x47, i_ii)            \
+  V(I32LtS, 0x48, i_ii)           \
+  V(I32LtU, 0x49, i_ii)           \
+  V(I32GtS, 0x4a, i_ii)           \
+  V(I32GtU, 0x4b, i_ii)           \
+  V(I32LeS, 0x4c, i_ii)           \
+  V(I32LeU, 0x4d, i_ii)           \
+  V(I32GeS, 0x4e, i_ii)           \
+  V(I32GeU, 0x4f, i_ii)           \
+  V(I64Eqz, 0x50, i_l)            \
+  V(I64Eq, 0x51, i_ll)            \
+  V(I64Ne, 0x52, i_ll)            \
+  V(I64LtS, 0x53, i_ll)           \
+  V(I64LtU, 0x54, i_ll)           \
+  V(I64GtS, 0x55, i_ll)           \
+  V(I64GtU, 0x56, i_ll)           \
+  V(I64LeS, 0x57, i_ll)           \
+  V(I64LeU, 0x58, i_ll)           \
+  V(I64GeS, 0x59, i_ll)           \
+  V(I64GeU, 0x5a, i_ll)           \
+  V(F32Eq, 0x5b, i_ff)            \
+  V(F32Ne, 0x5c, i_ff)            \
+  V(F32Lt, 0x5d, i_ff)            \
+  V(F32Gt, 0x5e, i_ff)            \
+  V(F32Le, 0x5f, i_ff)            \
+  V(F32Ge, 0x60, i_ff)            \
+  V(F64Eq, 0x61, i_dd)            \
+  V(F64Ne, 0x62, i_dd)            \
+  V(F64Lt, 0x63, i_dd)            \
+  V(F64Gt, 0x64, i_dd)            \
+  V(F64Le, 0x65, i_dd)            \
+  V(F64Ge, 0x66, i_dd)            \
+  V(I32Clz, 0x67, i_i)            \
+  V(I32Ctz, 0x68, i_i)            \
+  V(I32Popcnt, 0x69, i_i)         \
+  V(I32Add, 0x6a, i_ii)           \
+  V(I32Sub, 0x6b, i_ii)           \
+  V(I32Mul, 0x6c, i_ii)           \
+  V(I32DivS, 0x6d, i_ii)          \
+  V(I32DivU, 0x6e, i_ii)          \
+  V(I32RemS, 0x6f, i_ii)          \
+  V(I32RemU, 0x70, i_ii)          \
+  V(I32And, 0x71, i_ii)           \
+  V(I32Ior, 0x72, i_ii)           \
+  V(I32Xor, 0x73, i_ii)           \
+  V(I32Shl, 0x74, i_ii)           \
+  V(I32ShrS, 0x75, i_ii)          \
+  V(I32ShrU, 0x76, i_ii)          \
+  V(I32Rol, 0x77, i_ii)           \
+  V(I32Ror, 0x78, i_ii)           \
+  V(I64Clz, 0x79, l_l)            \
+  V(I64Ctz, 0x7a, l_l)            \
+  V(I64Popcnt, 0x7b, l_l)         \
+  V(I64Add, 0x7c, l_ll)           \
+  V(I64Sub, 0x7d, l_ll)           \
+  V(I64Mul, 0x7e, l_ll)           \
+  V(I64DivS, 0x7f, l_ll)          \
+  V(I64DivU, 0x80, l_ll)          \
+  V(I64RemS, 0x81, l_ll)          \
+  V(I64RemU, 0x82, l_ll)          \
+  V(I64And, 0x83, l_ll)           \
+  V(I64Ior, 0x84, l_ll)           \
+  V(I64Xor, 0x85, l_ll)           \
+  V(I64Shl, 0x86, l_ll)           \
+  V(I64ShrS, 0x87, l_ll)          \
+  V(I64ShrU, 0x88, l_ll)          \
+  V(I64Rol, 0x89, l_ll)           \
+  V(I64Ror, 0x8a, l_ll)           \
+  V(F32Abs, 0x8b, f_f)            \
+  V(F32Neg, 0x8c, f_f)            \
+  V(F32Ceil, 0x8d, f_f)           \
+  V(F32Floor, 0x8e, f_f)          \
+  V(F32Trunc, 0x8f, f_f)          \
+  V(F32NearestInt, 0x90, f_f)     \
+  V(F32Sqrt, 0x91, f_f)           \
+  V(F32Add, 0x92, f_ff)           \
+  V(F32Sub, 0x93, f_ff)           \
+  V(F32Mul, 0x94, f_ff)           \
+  V(F32Div, 0x95, f_ff)           \
+  V(F32Min, 0x96, f_ff)           \
+  V(F32Max, 0x97, f_ff)           \
+  V(F32CopySign, 0x98, f_ff)      \
+  V(F64Abs, 0x99, d_d)            \
+  V(F64Neg, 0x9a, d_d)            \
+  V(F64Ceil, 0x9b, d_d)           \
+  V(F64Floor, 0x9c, d_d)          \
+  V(F64Trunc, 0x9d, d_d)          \
+  V(F64NearestInt, 0x9e, d_d)     \
+  V(F64Sqrt, 0x9f, d_d)           \
+  V(F64Add, 0xa0, d_dd)           \
+  V(F64Sub, 0xa1, d_dd)           \
+  V(F64Mul, 0xa2, d_dd)           \
+  V(F64Div, 0xa3, d_dd)           \
+  V(F64Min, 0xa4, d_dd)           \
+  V(F64Max, 0xa5, d_dd)           \
+  V(F64CopySign, 0xa6, d_dd)      \
+  V(I32ConvertI64, 0xa7, i_l)     \
+  V(I32SConvertF32, 0xa8, i_f)    \
+  V(I32UConvertF32, 0xa9, i_f)    \
+  V(I32SConvertF64, 0xaa, i_d)    \
+  V(I32UConvertF64, 0xab, i_d)    \
+  V(I64SConvertI32, 0xac, l_i)    \
+  V(I64UConvertI32, 0xad, l_i)    \
+  V(I64SConvertF32, 0xae, l_f)    \
+  V(I64UConvertF32, 0xaf, l_f)    \
+  V(I64SConvertF64, 0xb0, l_d)    \
+  V(I64UConvertF64, 0xb1, l_d)    \
+  V(F32SConvertI32, 0xb2, f_i)    \
+  V(F32UConvertI32, 0xb3, f_i)    \
+  V(F32SConvertI64, 0xb4, f_l)    \
+  V(F32UConvertI64, 0xb5, f_l)    \
+  V(F32ConvertF64, 0xb6, f_d)     \
+  V(F64SConvertI32, 0xb7, d_i)    \
+  V(F64UConvertI32, 0xb8, d_i)    \
+  V(F64SConvertI64, 0xb9, d_l)    \
+  V(F64UConvertI64, 0xba, d_l)    \
+  V(F64ConvertF32, 0xbb, d_f)     \
+  V(I32ReinterpretF32, 0xbc, i_f) \
+  V(I64ReinterpretF64, 0xbd, l_d) \
+  V(F32ReinterpretI32, 0xbe, f_i) \
+  V(F64ReinterpretI64, 0xbf, d_l)
 
 // For compatibility with Asm.js.
 #define FOREACH_ASMJS_COMPAT_OPCODE(V) \
@@ -400,18 +400,55 @@ const WasmCodePosition kNoCodePosition = -1;
   V(I16x8ExtractLane, 0xe539, _)         \
   V(I8x16ExtractLane, 0xe558, _)
 
+#define FOREACH_ATOMIC_OPCODE(V)               \
+  V(I32AtomicAdd8S, 0xe601, i_ii)              \
+  V(I32AtomicAdd8U, 0xe602, i_ii)              \
+  V(I32AtomicAdd16S, 0xe603, i_ii)             \
+  V(I32AtomicAdd16U, 0xe604, i_ii)             \
+  V(I32AtomicAdd32, 0xe605, i_ii)              \
+  V(I32AtomicAnd8S, 0xe606, i_ii)              \
+  V(I32AtomicAnd8U, 0xe607, i_ii)              \
+  V(I32AtomicAnd16S, 0xe608, i_ii)             \
+  V(I32AtomicAnd16U, 0xe609, i_ii)             \
+  V(I32AtomicAnd32, 0xe60a, i_ii)              \
+  V(I32AtomicCompareExchange8S, 0xe60b, i_ii)  \
+  V(I32AtomicCompareExchange8U, 0xe60c, i_ii)  \
+  V(I32AtomicCompareExchange16S, 0xe60d, i_ii) \
+  V(I32AtomicCompareExchange16U, 0xe60e, i_ii) \
+  V(I32AtomicCompareExchange32, 0xe60f, i_ii)  \
+  V(I32AtomicExchange8S, 0xe610, i_ii)         \
+  V(I32AtomicExchange8U, 0xe611, i_ii)         \
+  V(I32AtomicExchange16S, 0xe612, i_ii)        \
+  V(I32AtomicExchange16U, 0xe613, i_ii)        \
+  V(I32AtomicExchange32, 0xe614, i_ii)         \
+  V(I32AtomicOr8S, 0xe615, i_ii)               \
+  V(I32AtomicOr8U, 0xe616, i_ii)               \
+  V(I32AtomicOr16S, 0xe617, i_ii)              \
+  V(I32AtomicOr16U, 0xe618, i_ii)              \
+  V(I32AtomicOr32, 0xe619, i_ii)               \
+  V(I32AtomicSub8S, 0xe61a, i_ii)              \
+  V(I32AtomicSub8U, 0xe61b, i_ii)              \
+  V(I32AtomicSub16S, 0xe61c, i_ii)             \
+  V(I32AtomicSub16U, 0xe61d, i_ii)             \
+  V(I32AtomicSub32, 0xe61e, i_ii)              \
+  V(I32AtomicXor8S, 0xe61f, i_ii)              \
+  V(I32AtomicXor8U, 0xe620, i_ii)              \
+  V(I32AtomicXor16S, 0xe621, i_ii)             \
+  V(I32AtomicXor16U, 0xe622, i_ii)             \
+  V(I32AtomicXor32, 0xe623, i_ii)
+
 // All opcodes.
 #define FOREACH_OPCODE(V)          \
   FOREACH_CONTROL_OPCODE(V)        \
   FOREACH_MISC_OPCODE(V)           \
   FOREACH_SIMPLE_OPCODE(V)         \
-  FOREACH_SIMPLE_MEM_OPCODE(V)     \
   FOREACH_STORE_MEM_OPCODE(V)      \
   FOREACH_LOAD_MEM_OPCODE(V)       \
   FOREACH_MISC_MEM_OPCODE(V)       \
   FOREACH_ASMJS_COMPAT_OPCODE(V)   \
   FOREACH_SIMD_0_OPERAND_OPCODE(V) \
-  FOREACH_SIMD_1_OPERAND_OPCODE(V)
+  FOREACH_SIMD_1_OPERAND_OPCODE(V) \
+  FOREACH_ATOMIC_OPCODE(V)
 
 // All signatures.
 #define FOREACH_SIGNATURE(V)         \
@@ -454,7 +491,9 @@ const WasmCodePosition kNoCodePosition = -1;
   V(s_sii, kAstS128, kAstS128, kAstI32, kAstI32)   \
   V(s_si, kAstS128, kAstS128, kAstI32)
 
-#define FOREACH_PREFIX(V) V(Simd, 0xe5)
+#define FOREACH_PREFIX(V) \
+  V(Simd, 0xe5)           \
+  V(Atomic, 0xe6)
 
 enum WasmOpcode {
 // Declare expression opcodes.
@@ -486,12 +525,13 @@ enum TrapReason {
 };
 
 // A collection of opcode-related static methods.
-class WasmOpcodes {
+class V8_EXPORT_PRIVATE WasmOpcodes {
  public:
   static const char* OpcodeName(WasmOpcode opcode);
   static const char* ShortOpcodeName(WasmOpcode opcode);
   static FunctionSig* Signature(WasmOpcode opcode);
   static FunctionSig* AsmjsSignature(WasmOpcode opcode);
+  static FunctionSig* AtomicSignature(WasmOpcode opcode);
   static bool IsPrefixOpcode(WasmOpcode opcode);
 
   static int TrapReasonToMessageId(TrapReason reason);

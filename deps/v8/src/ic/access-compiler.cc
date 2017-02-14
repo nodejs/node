@@ -4,7 +4,6 @@
 
 #include "src/ic/access-compiler.h"
 
-
 namespace v8 {
 namespace internal {
 
@@ -42,13 +41,17 @@ void PropertyAccessCompiler::TailCallBuiltin(MacroAssembler* masm,
   GenerateTailCall(masm, code);
 }
 
-
-Register* PropertyAccessCompiler::GetCallingConvention(Code::Kind kind) {
+Register* PropertyAccessCompiler::GetCallingConvention(Isolate* isolate,
+                                                       Code::Kind kind) {
+  AccessCompilerData* data = isolate->access_compiler_data();
+  if (!data->IsInitialized()) {
+    InitializePlatformSpecific(data);
+  }
   if (kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC) {
-    return load_calling_convention();
+    return data->load_calling_convention();
   }
   DCHECK(kind == Code::STORE_IC || kind == Code::KEYED_STORE_IC);
-  return store_calling_convention();
+  return data->store_calling_convention();
 }
 
 

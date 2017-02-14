@@ -5,6 +5,7 @@
 #include "test/unittests/compiler/instruction-selector-unittest.h"
 
 #include "src/code-factory.h"
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/schedule.h"
 #include "src/flags.h"
@@ -166,7 +167,7 @@ TARGET_TEST_F(InstructionSelectorTest, ReturnFloat32Constant) {
   ASSERT_EQ(InstructionOperand::CONSTANT, s[0]->OutputAt(0)->kind());
   EXPECT_FLOAT_EQ(kValue, s.ToFloat32(s[0]->OutputAt(0)));
   EXPECT_EQ(kArchRet, s[1]->arch_opcode());
-  EXPECT_EQ(1U, s[1]->InputCount());
+  EXPECT_EQ(2U, s[1]->InputCount());
 }
 
 
@@ -178,7 +179,7 @@ TARGET_TEST_F(InstructionSelectorTest, ReturnParameter) {
   EXPECT_EQ(kArchNop, s[0]->arch_opcode());
   ASSERT_EQ(1U, s[0]->OutputCount());
   EXPECT_EQ(kArchRet, s[1]->arch_opcode());
-  EXPECT_EQ(1U, s[1]->InputCount());
+  EXPECT_EQ(2U, s[1]->InputCount());
 }
 
 
@@ -192,7 +193,7 @@ TARGET_TEST_F(InstructionSelectorTest, ReturnZero) {
   EXPECT_EQ(InstructionOperand::CONSTANT, s[0]->OutputAt(0)->kind());
   EXPECT_EQ(0, s.ToInt32(s[0]->OutputAt(0)));
   EXPECT_EQ(kArchRet, s[1]->arch_opcode());
-  EXPECT_EQ(1U, s[1]->InputCount());
+  EXPECT_EQ(2U, s[1]->InputCount());
 }
 
 
@@ -251,7 +252,7 @@ TARGET_TEST_F(InstructionSelectorTest, FinishRegion) {
   ASSERT_TRUE(s[0]->Output()->IsUnallocated());
   EXPECT_EQ(kArchRet, s[1]->arch_opcode());
   EXPECT_EQ(s.ToVreg(param), s.ToVreg(s[0]->Output()));
-  EXPECT_EQ(s.ToVreg(param), s.ToVreg(s[1]->InputAt(0)));
+  EXPECT_EQ(s.ToVreg(param), s.ToVreg(s[1]->InputAt(1)));
   EXPECT_TRUE(s.IsReference(finish));
 }
 

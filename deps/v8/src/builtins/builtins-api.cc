@@ -122,7 +122,7 @@ MUST_USE_RESULT MaybeHandle<Object> HandleApiCallHelper(
 
 BUILTIN(HandleApiCall) {
   HandleScope scope(isolate);
-  Handle<JSFunction> function = args.target<JSFunction>();
+  Handle<JSFunction> function = args.target();
   Handle<Object> receiver = args.receiver();
   Handle<HeapObject> new_target = args.new_target();
   Handle<FunctionTemplateInfo> fun_data(function->shared()->get_api_func_data(),

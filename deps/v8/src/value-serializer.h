@@ -59,7 +59,13 @@ class ValueSerializer {
    * Returns the stored data. This serializer should not be used once the buffer
    * is released. The contents are undefined if a previous write has failed.
    */
-  std::vector<uint8_t> ReleaseBuffer() { return std::move(buffer_); }
+  std::vector<uint8_t> ReleaseBuffer();
+
+  /*
+   * Returns the buffer, allocated via the delegate, and its size.
+   * Caller assumes ownership of the buffer.
+   */
+  std::pair<uint8_t*, size_t> Release();
 
   /*
    * Marks an ArrayBuffer as havings its contents transferred out of band.
@@ -79,6 +85,9 @@ class ValueSerializer {
   void WriteDouble(double value);
 
  private:
+  // Managing allocations of the internal buffer.
+  void ExpandBuffer(size_t required_capacity);
+
   // Writing the wire format.
   void WriteTag(SerializationTag tag);
   template <typename T>
@@ -105,6 +114,7 @@ class ValueSerializer {
   Maybe<bool> WriteJSSet(Handle<JSSet> map) WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSArrayBuffer(JSArrayBuffer* array_buffer);
   Maybe<bool> WriteJSArrayBufferView(JSArrayBufferView* array_buffer);
+  Maybe<bool> WriteWasmModule(Handle<JSObject> object) WARN_UNUSED_RESULT;
   Maybe<bool> WriteHostObject(Handle<JSObject> object) WARN_UNUSED_RESULT;
 
   /*
@@ -125,7 +135,9 @@ class ValueSerializer {
 
   Isolate* const isolate_;
   v8::ValueSerializer::Delegate* const delegate_;
-  std::vector<uint8_t> buffer_;
+  uint8_t* buffer_ = nullptr;
+  size_t buffer_size_ = 0;
+  size_t buffer_capacity_ = 0;
   Zone zone_;
 
   // To avoid extra lookups in the identity map, ID+1 is actually stored in the
@@ -230,6 +242,7 @@ class ValueDeserializer {
       WARN_UNUSED_RESULT;
   MaybeHandle<JSArrayBufferView> ReadJSArrayBufferView(
       Handle<JSArrayBuffer> buffer) WARN_UNUSED_RESULT;
+  MaybeHandle<JSObject> ReadWasmModule() WARN_UNUSED_RESULT;
   MaybeHandle<JSObject> ReadHostObject() WARN_UNUSED_RESULT;
 
   /*

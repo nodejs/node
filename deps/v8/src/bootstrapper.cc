@@ -364,17 +364,6 @@ void InstallFunction(Handle<JSObject> target, Handle<JSFunction> function,
   InstallFunction(target, name, function, name_string, attributes);
 }
 
-Handle<JSFunction> InstallGetter(Handle<JSObject> target,
-                                 Handle<Name> property_name,
-                                 Handle<JSFunction> getter,
-                                 PropertyAttributes attributes = DONT_ENUM) {
-  Handle<Object> setter = target->GetIsolate()->factory()->undefined_value();
-  JSObject::DefineAccessor(target, property_name, getter, setter, attributes)
-      .Check();
-  getter->shared()->set_native(true);
-  return getter;
-}
-
 Handle<JSFunction> CreateFunction(Isolate* isolate, Handle<String> name,
                                   InstanceType type, int instance_size,
                                   MaybeHandle<JSObject> maybe_prototype,
@@ -460,17 +449,54 @@ Handle<JSFunction> SimpleInstallFunction(Handle<JSObject> base,
   return fun;
 }
 
+void SimpleInstallGetterSetter(Handle<JSObject> base, Handle<String> name,
+                               Builtins::Name call_getter,
+                               Builtins::Name call_setter,
+                               PropertyAttributes attribs) {
+  Isolate* const isolate = base->GetIsolate();
+
+  Handle<String> getter_name =
+      Name::ToFunctionName(name, isolate->factory()->get_string())
+          .ToHandleChecked();
+  Handle<JSFunction> getter =
+      SimpleCreateFunction(isolate, getter_name, call_getter, 0, true);
+  getter->shared()->set_native(true);
+
+  Handle<String> setter_name =
+      Name::ToFunctionName(name, isolate->factory()->set_string())
+          .ToHandleChecked();
+  Handle<JSFunction> setter =
+      SimpleCreateFunction(isolate, setter_name, call_setter, 1, true);
+  setter->shared()->set_native(true);
+
+  JSObject::DefineAccessor(base, name, getter, setter, attribs).Check();
+}
+
+Handle<JSFunction> SimpleInstallGetter(Handle<JSObject> base,
+                                       Handle<String> name,
+                                       Handle<Name> property_name,
+                                       Builtins::Name call, bool adapt) {
+  Isolate* const isolate = base->GetIsolate();
+
+  Handle<String> getter_name =
+      Name::ToFunctionName(name, isolate->factory()->get_string())
+          .ToHandleChecked();
+  Handle<JSFunction> getter =
+      SimpleCreateFunction(isolate, getter_name, call, 0, adapt);
+  getter->shared()->set_native(true);
+
+  Handle<Object> setter = isolate->factory()->undefined_value();
+
+  JSObject::DefineAccessor(base, property_name, getter, setter, DONT_ENUM)
+      .Check();
+
+  return getter;
+}
+
 Handle<JSFunction> SimpleInstallGetter(Handle<JSObject> base,
                                        Handle<String> name, Builtins::Name call,
                                        bool adapt) {
-  Isolate* const isolate = base->GetIsolate();
-  Handle<String> fun_name =
-      Name::ToFunctionName(name, isolate->factory()->get_string())
-          .ToHandleChecked();
-  Handle<JSFunction> fun =
-      SimpleCreateFunction(isolate, fun_name, call, 0, adapt);
-  InstallGetter(base, name, fun);
-  return fun;
+  return SimpleInstallGetter(base, name, name, call, adapt);
 }
 
 Handle<JSFunction> SimpleInstallGetter(Handle<JSObject> base,
@@ -934,8 +960,9 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
   if (global_proxy_template.IsEmpty()) {
     Handle<String> name = Handle<String>(heap()->empty_string());
     Handle<Code> code = isolate()->builtins()->Illegal();
-    global_proxy_function = factory()->NewFunction(
-        name, code, JS_GLOBAL_PROXY_TYPE, JSGlobalProxy::kSize);
+    global_proxy_function =
+        factory()->NewFunction(name, code, JS_GLOBAL_PROXY_TYPE,
+                               JSGlobalProxy::SizeWithInternalFields(0));
   } else {
     Handle<ObjectTemplateInfo> data =
         v8::Utils::OpenHandle(*global_proxy_template);
@@ -1030,7 +1057,6 @@ static void InstallError(Isolate* isolate, Handle<JSObject> global,
                                 Builtins::kErrorPrototypeToString, 0, true);
       isolate->native_context()->set_error_to_string(*to_string_fun);
     } else {
-      DCHECK(context_index != Context::ERROR_FUNCTION_INDEX);
       DCHECK(isolate->native_context()->error_to_string()->IsJSFunction());
 
       InstallFunction(prototype, isolate->error_to_string(),
@@ -1104,9 +1130,12 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(object_function, factory->assign_string(),
                           Builtins::kObjectAssign, 2, false);
     SimpleInstallFunction(object_function, factory->create_string(),
-                          Builtins::kObjectCreate, 2, false);
+                          Builtins::kObjectCreate, 2, true);
     SimpleInstallFunction(object_function, "getOwnPropertyDescriptor",
                           Builtins::kObjectGetOwnPropertyDescriptor, 2, false);
+    SimpleInstallFunction(object_function,
+                          factory->getOwnPropertyDescriptors_string(),
+                          Builtins::kObjectGetOwnPropertyDescriptors, 1, false);
     SimpleInstallFunction(object_function, "getOwnPropertyNames",
                           Builtins::kObjectGetOwnPropertyNames, 1, false);
     SimpleInstallFunction(object_function, "getOwnPropertySymbols",
@@ -1136,6 +1165,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         object_function, "getPrototypeOf", Builtins::kObjectGetPrototypeOf,
         1, false);
     native_context()->set_object_get_prototype_of(*object_get_prototype_of);
+    SimpleInstallFunction(object_function, "setPrototypeOf",
+                          Builtins::kObjectSetPrototypeOf, 2, false);
 
     Handle<JSFunction> object_is_extensible = SimpleInstallFunction(
         object_function, "isExtensible", Builtins::kObjectIsExtensible,
@@ -1153,6 +1184,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSFunction> object_keys = SimpleInstallFunction(
         object_function, "keys", Builtins::kObjectKeys, 1, false);
     native_context()->set_object_keys(*object_keys);
+    SimpleInstallFunction(object_function, factory->entries_string(),
+                          Builtins::kObjectEntries, 1, false);
+    SimpleInstallFunction(object_function, factory->values_string(),
+                          Builtins::kObjectValues, 1, false);
 
     SimpleInstallFunction(isolate->initial_object_prototype(),
                           "__defineGetter__", Builtins::kObjectDefineGetter, 2,
@@ -1171,6 +1206,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(
         isolate->initial_object_prototype(), "propertyIsEnumerable",
         Builtins::kObjectPrototypePropertyIsEnumerable, 1, false);
+
+    SimpleInstallGetterSetter(isolate->initial_object_prototype(),
+                              factory->proto_string(),
+                              Builtins::kObjectPrototypeGetProto,
+                              Builtins::kObjectPrototypeSetProto, DONT_ENUM);
   }
 
   Handle<JSObject> global(native_context()->global_object());
@@ -1280,6 +1320,97 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     native_context()->set_is_arraylike(*is_arraylike);
   }
 
+  {  // --- A r r a y I t e r a t o r ---
+    Handle<JSObject> iterator_prototype(
+        native_context()->initial_iterator_prototype());
+
+    Handle<JSObject> array_iterator_prototype =
+        factory->NewJSObject(isolate->object_function(), TENURED);
+    JSObject::ForceSetPrototype(array_iterator_prototype, iterator_prototype);
+
+    JSObject::AddProperty(
+        array_iterator_prototype, factory->to_string_tag_symbol(),
+        factory->ArrayIterator_string(),
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+    Handle<JSFunction> next = InstallFunction(
+        array_iterator_prototype, "next", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+        MaybeHandle<JSObject>(), Builtins::kArrayIteratorPrototypeNext);
+    next->shared()->set_builtin_function_id(kArrayIteratorNext);
+
+    // Set the expected parameters for %ArrayIteratorPrototype%.next to 0 (not
+    // including the receiver), as required by the builtin.
+    next->shared()->set_internal_formal_parameter_count(0);
+
+    // Set the length for the function to satisfy ECMA-262.
+    next->shared()->set_length(0);
+
+    Handle<JSFunction> array_iterator_function = CreateFunction(
+        isolate, factory->ArrayIterator_string(),
+        JS_FAST_ARRAY_VALUE_ITERATOR_TYPE, JSArrayIterator::kSize,
+        array_iterator_prototype, Builtins::kIllegal);
+    array_iterator_function->shared()->set_instance_class_name(
+        isolate->heap()->ArrayIterator_string());
+
+    native_context()->set_initial_array_iterator_prototype(
+        *array_iterator_prototype);
+    native_context()->set_initial_array_iterator_prototype_map(
+        array_iterator_prototype->map());
+
+    Handle<Map> initial_map(array_iterator_function->initial_map(), isolate);
+
+#define ARRAY_ITERATOR_LIST(V)                                              \
+  V(TYPED_ARRAY, KEY, typed_array, key)                                     \
+  V(FAST_ARRAY, KEY, fast_array, key)                                       \
+  V(GENERIC_ARRAY, KEY, array, key)                                         \
+  V(UINT8_ARRAY, KEY_VALUE, uint8_array, key_value)                         \
+  V(INT8_ARRAY, KEY_VALUE, int8_array, key_value)                           \
+  V(UINT16_ARRAY, KEY_VALUE, uint16_array, key_value)                       \
+  V(INT16_ARRAY, KEY_VALUE, int16_array, key_value)                         \
+  V(UINT32_ARRAY, KEY_VALUE, uint32_array, key_value)                       \
+  V(INT32_ARRAY, KEY_VALUE, int32_array, key_value)                         \
+  V(FLOAT32_ARRAY, KEY_VALUE, float32_array, key_value)                     \
+  V(FLOAT64_ARRAY, KEY_VALUE, float64_array, key_value)                     \
+  V(UINT8_CLAMPED_ARRAY, KEY_VALUE, uint8_clamped_array, key_value)         \
+  V(FAST_SMI_ARRAY, KEY_VALUE, fast_smi_array, key_value)                   \
+  V(FAST_HOLEY_SMI_ARRAY, KEY_VALUE, fast_holey_smi_array, key_value)       \
+  V(FAST_ARRAY, KEY_VALUE, fast_array, key_value)                           \
+  V(FAST_HOLEY_ARRAY, KEY_VALUE, fast_holey_array, key_value)               \
+  V(FAST_DOUBLE_ARRAY, KEY_VALUE, fast_double_array, key_value)             \
+  V(FAST_HOLEY_DOUBLE_ARRAY, KEY_VALUE, fast_holey_double_array, key_value) \
+  V(GENERIC_ARRAY, KEY_VALUE, array, key_value)                             \
+  V(UINT8_ARRAY, VALUE, uint8_array, value)                                 \
+  V(INT8_ARRAY, VALUE, int8_array, value)                                   \
+  V(UINT16_ARRAY, VALUE, uint16_array, value)                               \
+  V(INT16_ARRAY, VALUE, int16_array, value)                                 \
+  V(UINT32_ARRAY, VALUE, uint32_array, value)                               \
+  V(INT32_ARRAY, VALUE, int32_array, value)                                 \
+  V(FLOAT32_ARRAY, VALUE, float32_array, value)                             \
+  V(FLOAT64_ARRAY, VALUE, float64_array, value)                             \
+  V(UINT8_CLAMPED_ARRAY, VALUE, uint8_clamped_array, value)                 \
+  V(FAST_SMI_ARRAY, VALUE, fast_smi_array, value)                           \
+  V(FAST_HOLEY_SMI_ARRAY, VALUE, fast_holey_smi_array, value)               \
+  V(FAST_ARRAY, VALUE, fast_array, value)                                   \
+  V(FAST_HOLEY_ARRAY, VALUE, fast_holey_array, value)                       \
+  V(FAST_DOUBLE_ARRAY, VALUE, fast_double_array, value)                     \
+  V(FAST_HOLEY_DOUBLE_ARRAY, VALUE, fast_holey_double_array, value)         \
+  V(GENERIC_ARRAY, VALUE, array, value)
+
+#define CREATE_ARRAY_ITERATOR_MAP(PREFIX, SUFFIX, prefix, suffix)           \
+  do {                                                                      \
+    const InstanceType type = JS_##PREFIX##_##SUFFIX##_ITERATOR_TYPE;       \
+    Handle<Map> map =                                                       \
+        Map::Copy(initial_map, "JS_" #PREFIX "_" #SUFFIX "_ITERATOR_TYPE"); \
+    map->set_instance_type(type);                                           \
+    native_context()->set_##prefix##_##suffix##_iterator_map(*map);         \
+  } while (0);
+
+    ARRAY_ITERATOR_LIST(CREATE_ARRAY_ITERATOR_MAP)
+
+#undef CREATE_ARRAY_ITERATOR_MAP
+#undef ARRAY_ITERATOR_LIST
+  }
+
   {  // --- N u m b e r ---
     Handle<JSFunction> number_fun = InstallFunction(
         global, "Number", JS_VALUE_TYPE, JSValue::kSize,
@@ -1294,7 +1425,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // Create the %NumberPrototype%
     Handle<JSValue> prototype =
         Handle<JSValue>::cast(factory->NewJSObject(number_fun, TENURED));
-    prototype->set_value(Smi::FromInt(0));
+    prototype->set_value(Smi::kZero);
     Accessors::FunctionSetPrototype(number_fun, prototype).Assert();
 
     // Install the "constructor" property on the {prototype}.
@@ -1325,6 +1456,20 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(number_fun, "isNaN", Builtins::kNumberIsNaN, 1, true);
     SimpleInstallFunction(number_fun, "isSafeInteger",
                           Builtins::kNumberIsSafeInteger, 1, true);
+
+    // Install Number.parseFloat and Global.parseFloat.
+    Handle<JSFunction> parse_float_fun = SimpleInstallFunction(
+        number_fun, "parseFloat", Builtins::kNumberParseFloat, 1, true);
+    JSObject::AddProperty(global_object,
+                          factory->NewStringFromAsciiChecked("parseFloat"),
+                          parse_float_fun, DONT_ENUM);
+
+    // Install Number.parseInt and Global.parseInt.
+    Handle<JSFunction> parse_int_fun = SimpleInstallFunction(
+        number_fun, "parseInt", Builtins::kNumberParseInt, 2, true);
+    JSObject::AddProperty(global_object,
+                          factory->NewStringFromAsciiChecked("parseInt"),
+                          parse_int_fun, DONT_ENUM);
   }
 
   {  // --- B o o l e a n ---
@@ -1385,7 +1530,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     // Install the String.fromCharCode function.
     SimpleInstallFunction(string_fun, "fromCharCode",
-                          Builtins::kStringFromCharCode, 1, true);
+                          Builtins::kStringFromCharCode, 1, false);
 
     // Install the String.fromCodePoint function.
     SimpleInstallFunction(string_fun, "fromCodePoint",
@@ -1406,6 +1551,12 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           1, true);
     SimpleInstallFunction(prototype, "charCodeAt",
                           Builtins::kStringPrototypeCharCodeAt, 1, true);
+    SimpleInstallFunction(prototype, "endsWith",
+                          Builtins::kStringPrototypeEndsWith, 1, false);
+    SimpleInstallFunction(prototype, "includes",
+                          Builtins::kStringPrototypeIncludes, 1, false);
+    SimpleInstallFunction(prototype, "indexOf",
+                          Builtins::kStringPrototypeIndexOf, 1, false);
     SimpleInstallFunction(prototype, "lastIndexOf",
                           Builtins::kStringPrototypeLastIndexOf, 1, false);
     SimpleInstallFunction(prototype, "localeCompare",
@@ -1416,6 +1567,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           2, true);
     SimpleInstallFunction(prototype, "substring",
                           Builtins::kStringPrototypeSubstring, 2, true);
+    SimpleInstallFunction(prototype, "startsWith",
+                          Builtins::kStringPrototypeStartsWith, 1, false);
     SimpleInstallFunction(prototype, "toString",
                           Builtins::kStringPrototypeToString, 0, true);
     SimpleInstallFunction(prototype, "trim", Builtins::kStringPrototypeTrim, 0,
@@ -1431,6 +1584,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         isolate, factory->NewStringFromAsciiChecked("[Symbol.iterator]"),
         Builtins::kStringPrototypeIterator, 0, true);
     iterator->shared()->set_native(true);
+    iterator->shared()->set_builtin_function_id(kStringIterator);
     JSObject::AddProperty(prototype, factory->iterator_symbol(), iterator,
                           static_cast<PropertyAttributes>(DONT_ENUM));
   }
@@ -1662,14 +1816,142 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     shared->DontAdaptArguments();
     shared->set_length(2);
 
-    // RegExp.prototype setup.
+    {
+      // RegExp.prototype setup.
 
-    // Install the "constructor" property on the {prototype}.
-    JSObject::AddProperty(prototype, factory->constructor_string(), regexp_fun,
-                          DONT_ENUM);
+      // Install the "constructor" property on the {prototype}.
+      JSObject::AddProperty(prototype, factory->constructor_string(),
+                            regexp_fun, DONT_ENUM);
 
-    SimpleInstallFunction(prototype, "exec", Builtins::kRegExpPrototypeExec, 1,
-                          true, DONT_ENUM);
+      {
+        Handle<JSFunction> fun = SimpleInstallFunction(
+            prototype, factory->exec_string(), Builtins::kRegExpPrototypeExec,
+            1, true, DONT_ENUM);
+        native_context()->set_regexp_exec_function(*fun);
+      }
+
+      SimpleInstallGetter(prototype, factory->flags_string(),
+                          Builtins::kRegExpPrototypeFlagsGetter, true);
+      SimpleInstallGetter(prototype, factory->global_string(),
+                          Builtins::kRegExpPrototypeGlobalGetter, true);
+      SimpleInstallGetter(prototype, factory->ignoreCase_string(),
+                          Builtins::kRegExpPrototypeIgnoreCaseGetter, true);
+      SimpleInstallGetter(prototype, factory->multiline_string(),
+                          Builtins::kRegExpPrototypeMultilineGetter, true);
+      SimpleInstallGetter(prototype, factory->source_string(),
+                          Builtins::kRegExpPrototypeSourceGetter, false);
+      SimpleInstallGetter(prototype, factory->sticky_string(),
+                          Builtins::kRegExpPrototypeStickyGetter, true);
+      SimpleInstallGetter(prototype, factory->unicode_string(),
+                          Builtins::kRegExpPrototypeUnicodeGetter, true);
+
+      SimpleInstallFunction(prototype, "compile",
+                            Builtins::kRegExpPrototypeCompile, 2, false,
+                            DONT_ENUM);
+      SimpleInstallFunction(prototype, factory->toString_string(),
+                            Builtins::kRegExpPrototypeToString, 0, false,
+                            DONT_ENUM);
+      SimpleInstallFunction(prototype, "test", Builtins::kRegExpPrototypeTest,
+                            1, true, DONT_ENUM);
+
+      {
+        Handle<JSFunction> fun = SimpleCreateFunction(
+            isolate, factory->InternalizeUtf8String("[Symbol.match]"),
+            Builtins::kRegExpPrototypeMatch, 1, false);
+        InstallFunction(prototype, fun, factory->match_symbol(), DONT_ENUM);
+      }
+
+      {
+        Handle<JSFunction> fun = SimpleCreateFunction(
+            isolate, factory->InternalizeUtf8String("[Symbol.replace]"),
+            Builtins::kRegExpPrototypeReplace, 2, true);
+        InstallFunction(prototype, fun, factory->replace_symbol(), DONT_ENUM);
+      }
+
+      {
+        Handle<JSFunction> fun = SimpleCreateFunction(
+            isolate, factory->InternalizeUtf8String("[Symbol.search]"),
+            Builtins::kRegExpPrototypeSearch, 1, true);
+        InstallFunction(prototype, fun, factory->search_symbol(), DONT_ENUM);
+      }
+
+      {
+        Handle<JSFunction> fun = SimpleCreateFunction(
+            isolate, factory->InternalizeUtf8String("[Symbol.split]"),
+            Builtins::kRegExpPrototypeSplit, 2, false);
+        InstallFunction(prototype, fun, factory->split_symbol(), DONT_ENUM);
+      }
+
+      // Store the initial RegExp.prototype map. This is used in fast-path
+      // checks. Do not alter the prototype after this point.
+      native_context()->set_regexp_prototype_map(prototype->map());
+    }
+
+    {
+      // RegExp getters and setters.
+
+      SimpleInstallGetter(regexp_fun,
+                          factory->InternalizeUtf8String("[Symbol.species]"),
+                          factory->species_symbol(),
+                          Builtins::kRegExpPrototypeSpeciesGetter, false);
+
+      // Static properties set by a successful match.
+
+      const PropertyAttributes no_enum = DONT_ENUM;
+      SimpleInstallGetterSetter(regexp_fun, factory->input_string(),
+                                Builtins::kRegExpInputGetter,
+                                Builtins::kRegExpInputSetter, no_enum);
+      SimpleInstallGetterSetter(
+          regexp_fun, factory->InternalizeUtf8String("$_"),
+          Builtins::kRegExpInputGetter, Builtins::kRegExpInputSetter, no_enum);
+
+      SimpleInstallGetterSetter(
+          regexp_fun, factory->InternalizeUtf8String("lastMatch"),
+          Builtins::kRegExpLastMatchGetter, Builtins::kEmptyFunction, no_enum);
+      SimpleInstallGetterSetter(
+          regexp_fun, factory->InternalizeUtf8String("$&"),
+          Builtins::kRegExpLastMatchGetter, Builtins::kEmptyFunction, no_enum);
+
+      SimpleInstallGetterSetter(
+          regexp_fun, factory->InternalizeUtf8String("lastParen"),
+          Builtins::kRegExpLastParenGetter, Builtins::kEmptyFunction, no_enum);
+      SimpleInstallGetterSetter(
+          regexp_fun, factory->InternalizeUtf8String("$+"),
+          Builtins::kRegExpLastParenGetter, Builtins::kEmptyFunction, no_enum);
+
+      SimpleInstallGetterSetter(regexp_fun,
+                                factory->InternalizeUtf8String("leftContext"),
+                                Builtins::kRegExpLeftContextGetter,
+                                Builtins::kEmptyFunction, no_enum);
+      SimpleInstallGetterSetter(regexp_fun,
+                                factory->InternalizeUtf8String("$`"),
+                                Builtins::kRegExpLeftContextGetter,
+                                Builtins::kEmptyFunction, no_enum);
+
+      SimpleInstallGetterSetter(regexp_fun,
+                                factory->InternalizeUtf8String("rightContext"),
+                                Builtins::kRegExpRightContextGetter,
+                                Builtins::kEmptyFunction, no_enum);
+      SimpleInstallGetterSetter(regexp_fun,
+                                factory->InternalizeUtf8String("$'"),
+                                Builtins::kRegExpRightContextGetter,
+                                Builtins::kEmptyFunction, no_enum);
+
+#define INSTALL_CAPTURE_GETTER(i)                         \
+  SimpleInstallGetterSetter(                              \
+      regexp_fun, factory->InternalizeUtf8String("$" #i), \
+      Builtins::kRegExpCapture##i##Getter, Builtins::kEmptyFunction, no_enum)
+      INSTALL_CAPTURE_GETTER(1);
+      INSTALL_CAPTURE_GETTER(2);
+      INSTALL_CAPTURE_GETTER(3);
+      INSTALL_CAPTURE_GETTER(4);
+      INSTALL_CAPTURE_GETTER(5);
+      INSTALL_CAPTURE_GETTER(6);
+      INSTALL_CAPTURE_GETTER(7);
+      INSTALL_CAPTURE_GETTER(8);
+      INSTALL_CAPTURE_GETTER(9);
+#undef INSTALL_CAPTURE_GETTER
+    }
 
     DCHECK(regexp_fun->has_initial_map());
     Handle<Map> initial_map(regexp_fun->initial_map());
@@ -1681,7 +1963,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // ECMA-262, section 15.10.7.5.
     PropertyAttributes writable =
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
-    DataDescriptor field(factory->last_index_string(),
+    DataDescriptor field(factory->lastIndex_string(),
                          JSRegExp::kLastIndexFieldIndex, writable,
                          Representation::Tagged());
     initial_map->AppendDescriptor(&field);
@@ -1691,6 +1973,24 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     initial_map->set_unused_property_fields(0);
     initial_map->set_instance_size(initial_map->instance_size() +
                                    num_fields * kPointerSize);
+
+    {  // Internal: RegExpInternalMatch
+      Handle<JSFunction> function =
+          factory->NewFunction(isolate->factory()->empty_string(),
+                               isolate->builtins()->RegExpInternalMatch(),
+                               JS_OBJECT_TYPE, JSObject::kHeaderSize);
+      function->shared()->set_internal_formal_parameter_count(2);
+      function->shared()->set_length(2);
+      function->shared()->set_native(true);
+      native_context()->set(Context::REGEXP_INTERNAL_MATCH, *function);
+    }
+
+    // Create the last match info. One for external use, and one for internal
+    // use when we don't want to modify the externally visible match info.
+    Handle<RegExpMatchInfo> last_match_info = factory->NewRegExpMatchInfo();
+    native_context()->set_regexp_last_match_info(*last_match_info);
+    Handle<RegExpMatchInfo> internal_match_info = factory->NewRegExpMatchInfo();
+    native_context()->set_regexp_internal_match_info(*internal_match_info);
   }
 
   {  // -- E r r o r
@@ -1736,6 +2036,16 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                  Context::URI_ERROR_FUNCTION_INDEX);
     InstallMakeError(isolate, isolate->builtins()->MakeURIError(),
                      Context::MAKE_URI_ERROR_INDEX);
+  }
+
+  {  // -- C o m p i l e E r r o r
+    Handle<JSObject> dummy = factory->NewJSObject(isolate->object_function());
+    InstallError(isolate, dummy, factory->CompileError_string(),
+                 Context::WASM_COMPILE_ERROR_FUNCTION_INDEX);
+
+    // -- R u n t i m e E r r o r
+    InstallError(isolate, dummy, factory->RuntimeError_string(),
+                 Context::WASM_RUNTIME_ERROR_FUNCTION_INDEX);
   }
 
   // Initialize the embedder data slot.
@@ -1798,6 +2108,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSFunction> math_pow =
         SimpleInstallFunction(math, "pow", Builtins::kMathPow, 2, true);
     native_context()->set_math_pow(*math_pow);
+    SimpleInstallFunction(math, "random", Builtins::kMathRandom, 0, true);
     SimpleInstallFunction(math, "round", Builtins::kMathRound, 1, true);
     SimpleInstallFunction(math, "sign", Builtins::kMathSign, 1, true);
     SimpleInstallFunction(math, "sin", Builtins::kMathSin, 1, true);
@@ -1840,6 +2151,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         math, factory->NewStringFromAsciiChecked("SQRT2"),
         factory->NewNumber(std::sqrt(2.0)),
         static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
+    JSObject::AddProperty(
+        math, factory->to_string_tag_symbol(),
+        factory->NewStringFromAsciiChecked("Math"),
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
   }
 
   {  // -- A r r a y B u f f e r
@@ -1878,6 +2193,24 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallGetter(prototype, factory->length_string(),
                         Builtins::kTypedArrayPrototypeLength, true,
                         kTypedArrayLength);
+
+    // Install "keys", "values" and "entries" methods on the {prototype}.
+    Handle<JSFunction> entries =
+        SimpleInstallFunction(prototype, factory->entries_string(),
+                              Builtins::kTypedArrayPrototypeEntries, 0, true);
+    entries->shared()->set_builtin_function_id(kTypedArrayEntries);
+
+    Handle<JSFunction> keys =
+        SimpleInstallFunction(prototype, factory->keys_string(),
+                              Builtins::kTypedArrayPrototypeKeys, 0, true);
+    keys->shared()->set_builtin_function_id(kTypedArrayKeys);
+
+    Handle<JSFunction> values =
+        SimpleInstallFunction(prototype, factory->values_string(),
+                              Builtins::kTypedArrayPrototypeValues, 0, true);
+    values->shared()->set_builtin_function_id(kTypedArrayValues);
+    JSObject::AddProperty(prototype, factory->iterator_symbol(), values,
+                          DONT_ENUM);
   }
 
   {  // -- T y p e d A r r a y s
@@ -1976,6 +2309,33 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         isolate->initial_object_prototype(), Builtins::kIllegal);
     InstallWithIntrinsicDefaultProto(isolate, js_set_fun,
                                      Context::JS_SET_FUN_INDEX);
+  }
+
+  {  // -- J S M o d u l e N a m e s p a c e
+    Handle<Map> map =
+        factory->NewMap(JS_MODULE_NAMESPACE_TYPE, JSModuleNamespace::kSize);
+    Map::SetPrototype(map, isolate->factory()->null_value());
+    Map::EnsureDescriptorSlack(map, 2);
+    native_context()->set_js_module_namespace_map(*map);
+
+    {  // Install @@toStringTag.
+      PropertyAttributes attribs =
+          static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
+      DataConstantDescriptor d(factory->to_string_tag_symbol(),
+                               factory->NewStringFromAsciiChecked("Module"),
+                               attribs);
+      map->AppendDescriptor(&d);
+    }
+
+    {  // Install @@iterator.
+      Handle<JSFunction> iterator = SimpleCreateFunction(
+          isolate, factory->NewStringFromAsciiChecked("[Symbol.iterator]"),
+          Builtins::kModuleNamespaceIterator, 0, true);
+      iterator->shared()->set_native(true);
+      // TODO(neis): Is this really supposed to be writable?
+      DataConstantDescriptor d(factory->iterator_symbol(), iterator, DONT_ENUM);
+      map->AppendDescriptor(&d);
+    }
   }
 
   {  // -- I t e r a t o r R e s u l t
@@ -2174,23 +2534,20 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     const PropertyAttributes attributes =
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
 
-    // Create the ThrowTypeError functions.
+    // Create the ThrowTypeError function.
     Handle<AccessorPair> callee = factory->NewAccessorPair();
-    Handle<AccessorPair> caller = factory->NewAccessorPair();
 
     Handle<JSFunction> poison = GetStrictArgumentsPoisonFunction();
 
-    // Install the ThrowTypeError functions.
+    // Install the ThrowTypeError function.
     callee->set_getter(*poison);
     callee->set_setter(*poison);
-    caller->set_getter(*poison);
-    caller->set_setter(*poison);
 
     // Create the map. Allocate one in-object field for length.
     Handle<Map> map = factory->NewMap(
         JS_ARGUMENTS_TYPE, JSStrictArgumentsObject::kSize, FAST_ELEMENTS);
     // Create the descriptor array for the arguments object.
-    Map::EnsureDescriptorSlack(map, 3);
+    Map::EnsureDescriptorSlack(map, 2);
 
     {  // length
       DataDescriptor d(factory->length_string(),
@@ -2200,11 +2557,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     }
     {  // callee
       AccessorConstantDescriptor d(factory->callee_string(), callee,
-                                   attributes);
-      map->AppendDescriptor(&d);
-    }
-    {  // caller
-      AccessorConstantDescriptor d(factory->caller_string(), caller,
                                    attributes);
       map->AppendDescriptor(&d);
     }
@@ -2269,16 +2621,10 @@ void Genesis::InstallTypedArray(const char* name, ElementsKind elements_kind,
 
   Handle<JSObject> prototype =
       factory()->NewJSObject(isolate()->object_function(), TENURED);
-  Handle<JSFunction> result =
-      InstallFunction(global, name, JS_TYPED_ARRAY_TYPE, JSTypedArray::kSize,
-                      prototype, Builtins::kIllegal);
-
-  Handle<Map> initial_map = isolate()->factory()->NewMap(
-      JS_TYPED_ARRAY_TYPE,
-      JSTypedArray::kSizeWithInternalFields,
-      elements_kind);
-  JSFunction::SetInitialMap(result, initial_map,
-                            handle(initial_map->prototype(), isolate()));
+  Handle<JSFunction> result = InstallFunction(
+      global, name, JS_TYPED_ARRAY_TYPE, JSTypedArray::kSizeWithInternalFields,
+      prototype, Builtins::kIllegal);
+  result->initial_map()->set_elements_kind(elements_kind);
 
   CHECK(JSObject::SetPrototype(result, typed_array_function, false,
                                Object::DONT_THROW)
@@ -2585,6 +2931,25 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
         *generator_function_function);
   }
 
+  {  // -- F i x e d A r r a y I t e r a t o r
+    int size = JSFixedArrayIterator::kHeaderSize +
+               JSFixedArrayIterator::kInObjectPropertyCount * kPointerSize;
+    Handle<Map> map = factory->NewMap(JS_FIXED_ARRAY_ITERATOR_TYPE, size);
+    Map::SetPrototype(map, iterator_prototype);
+    Map::EnsureDescriptorSlack(map,
+                               JSFixedArrayIterator::kInObjectPropertyCount);
+    map->SetInObjectProperties(JSFixedArrayIterator::kInObjectPropertyCount);
+    map->SetConstructor(native_context->object_function());
+
+    {  // next
+      DataDescriptor d(factory->next_string(), JSFixedArrayIterator::kNextIndex,
+                       DONT_ENUM, Representation::Tagged());
+      map->AppendDescriptor(&d);
+    }
+
+    native_context->set_fixed_array_iterator_map(*map);
+  }
+
   {  // -- S e t I t e r a t o r
     Handle<JSObject> set_iterator_prototype =
         isolate->factory()->NewJSObject(isolate->object_function(), TENURED);
@@ -2677,15 +3042,6 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
       AccessorConstantDescriptor d(
           Handle<Name>(Name::cast(script_compilation_type->name())),
           script_compilation_type, attribs);
-      script_map->AppendDescriptor(&d);
-    }
-
-    Handle<AccessorInfo> script_line_ends =
-        Accessors::ScriptLineEndsInfo(isolate, attribs);
-    {
-      AccessorConstantDescriptor d(
-          Handle<Name>(Name::cast(script_line_ends->name())), script_line_ends,
-          attribs);
       script_map->AppendDescriptor(&d);
     }
 
@@ -2868,13 +3224,11 @@ void Bootstrapper::ExportExperimentalFromRuntime(Isolate* isolate,
   void Genesis::InitializeGlobal_##id() {}
 
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_do_expressions)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_for_in)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_lookbehind)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_named_captures)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_property)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_function_sent)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_tailcalls)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_restrictive_declarations)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_string_padding)
 #ifdef V8_I18N_SUPPORT
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(datetime_format_to_parts)
@@ -2958,35 +3312,6 @@ void Genesis::InitializeGlobal_harmony_simd() {
 #undef SIMD128_INSTALL_FUNCTION
 }
 
-
-void Genesis::InitializeGlobal_harmony_object_values_entries() {
-  if (!FLAG_harmony_object_values_entries) return;
-
-  Handle<JSGlobalObject> global(
-      JSGlobalObject::cast(native_context()->global_object()));
-  Isolate* isolate = global->GetIsolate();
-  Factory* factory = isolate->factory();
-
-  Handle<JSFunction> object_function = isolate->object_function();
-  SimpleInstallFunction(object_function, factory->entries_string(),
-                        Builtins::kObjectEntries, 1, false);
-  SimpleInstallFunction(object_function, factory->values_string(),
-                        Builtins::kObjectValues, 1, false);
-}
-
-void Genesis::InitializeGlobal_harmony_object_own_property_descriptors() {
-  if (!FLAG_harmony_object_own_property_descriptors) return;
-
-  Handle<JSGlobalObject> global(
-      JSGlobalObject::cast(native_context()->global_object()));
-  Isolate* isolate = global->GetIsolate();
-  Factory* factory = isolate->factory();
-
-  Handle<JSFunction> object_function = isolate->object_function();
-  SimpleInstallFunction(object_function,
-                        factory->getOwnPropertyDescriptors_string(),
-                        Builtins::kObjectGetOwnPropertyDescriptors, 1, false);
-}
 
 void Genesis::InitializeGlobal_harmony_array_prototype_values() {
   if (!FLAG_harmony_array_prototype_values) return;
@@ -3165,12 +3490,13 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
       HeapObject::cast(object_function->initial_map()->prototype())->map());
 
   // Set up the map for Object.create(null) instances.
-  Handle<Map> object_with_null_prototype_map =
+  Handle<Map> slow_object_with_null_prototype_map =
       Map::CopyInitialMap(handle(object_function->initial_map(), isolate()));
-  Map::SetPrototype(object_with_null_prototype_map,
+  slow_object_with_null_prototype_map->set_dictionary_map(true);
+  Map::SetPrototype(slow_object_with_null_prototype_map,
                     isolate()->factory()->null_value());
-  native_context()->set_object_with_null_prototype_map(
-      *object_with_null_prototype_map);
+  native_context()->set_slow_object_with_null_prototype_map(
+      *slow_object_with_null_prototype_map);
 
   // Store the map for the %StringPrototype% after the natives has been compiled
   // and the String function has been set up.
@@ -3271,6 +3597,33 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
         *isolate()->builtins()->JSBuiltinsConstructStub());
     InstallWithIntrinsicDefaultProto(isolate(), function,
                                      Context::PROMISE_FUNCTION_INDEX);
+
+    {
+      Handle<Code> code = handle(
+          isolate()->builtins()->builtin(Builtins::kPromiseResolveClosure),
+          isolate());
+      Handle<SharedFunctionInfo> info =
+          isolate()->factory()->NewSharedFunctionInfo(factory()->empty_string(),
+                                                      code, false);
+      info->set_internal_formal_parameter_count(1);
+      info->set_length(1);
+      native_context()->set_promise_resolve_shared_fun(*info);
+
+      code = handle(
+          isolate()->builtins()->builtin(Builtins::kPromiseRejectClosure),
+          isolate());
+      info = isolate()->factory()->NewSharedFunctionInfo(
+          factory()->empty_string(), code, false);
+      info->set_internal_formal_parameter_count(2);
+      info->set_length(1);
+      native_context()->set_promise_reject_shared_fun(*info);
+    }
+
+    Handle<JSFunction> create_resolving_functions =
+        SimpleCreateFunction(isolate(), factory()->empty_string(),
+                             Builtins::kCreateResolvingFunctions, 2, false);
+    native_context()->set_create_resolving_functions(
+        *create_resolving_functions);
   }
 
   InstallBuiltinFunctionIds();
@@ -3461,15 +3814,10 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_simd_natives[] = {"native harmony-simd.js",
                                                nullptr};
   static const char* harmony_do_expressions_natives[] = {nullptr};
-  static const char* harmony_for_in_natives[] = {nullptr};
   static const char* harmony_regexp_lookbehind_natives[] = {nullptr};
-  static const char* harmony_restrictive_declarations_natives[] = {nullptr};
   static const char* harmony_regexp_named_captures_natives[] = {nullptr};
   static const char* harmony_regexp_property_natives[] = {nullptr};
   static const char* harmony_function_sent_natives[] = {nullptr};
-  static const char* harmony_object_values_entries_natives[] = {nullptr};
-  static const char* harmony_object_own_property_descriptors_natives[] = {
-      nullptr};
   static const char* harmony_array_prototype_values_natives[] = {nullptr};
   static const char* harmony_string_padding_natives[] = {
       "native harmony-string-padding.js", nullptr};
@@ -3695,11 +4043,11 @@ bool Genesis::InstallExtensions(Handle<Context> native_context,
           InstallExtension(isolate, "v8/gc", &extension_states)) &&
          (!FLAG_expose_externalize_string ||
           InstallExtension(isolate, "v8/externalize", &extension_states)) &&
-         (!FLAG_track_gc_object_stats ||
+         (!FLAG_gc_stats ||
           InstallExtension(isolate, "v8/statistics", &extension_states)) &&
          (!FLAG_expose_trigger_failure ||
           InstallExtension(isolate, "v8/trigger-failure", &extension_states)) &&
-         (!(FLAG_ignition && FLAG_trace_ignition_dispatches) ||
+         (!FLAG_trace_ignition_dispatches ||
           InstallExtension(isolate, "v8/ignition-statistics",
                            &extension_states)) &&
          InstallRequestedExtensions(isolate, extensions, &extension_states);
@@ -4037,7 +4385,12 @@ Genesis::Genesis(Isolate* isolate,
   // and initialize it later in CreateNewGlobals.
   Handle<JSGlobalProxy> global_proxy;
   if (!maybe_global_proxy.ToHandle(&global_proxy)) {
-    global_proxy = isolate->factory()->NewUninitializedJSGlobalProxy();
+    const int internal_field_count =
+        !global_proxy_template.IsEmpty()
+            ? global_proxy_template->InternalFieldCount()
+            : 0;
+    global_proxy = isolate->factory()->NewUninitializedJSGlobalProxy(
+        JSGlobalProxy::SizeWithInternalFields(internal_field_count));
   }
 
   // We can only de-serialize a context if the isolate was initialized from
@@ -4093,7 +4446,7 @@ Genesis::Genesis(Isolate* isolate,
     isolate->counters()->contexts_created_from_scratch()->Increment();
     // Re-initialize the counter because it got incremented during snapshot
     // creation.
-    isolate->native_context()->set_errors_thrown(Smi::FromInt(0));
+    isolate->native_context()->set_errors_thrown(Smi::kZero);
   }
 
   // Install experimental natives. Do not include them into the
@@ -4146,9 +4499,12 @@ Genesis::Genesis(Isolate* isolate,
     return;
   }
 
+  const int proxy_size = JSGlobalProxy::SizeWithInternalFields(
+      global_proxy_template->InternalFieldCount());
+
   Handle<JSGlobalProxy> global_proxy;
   if (!maybe_global_proxy.ToHandle(&global_proxy)) {
-    global_proxy = factory()->NewUninitializedJSGlobalProxy();
+    global_proxy = factory()->NewUninitializedJSGlobalProxy(proxy_size);
   }
 
   // CreateNewGlobals.
@@ -4164,9 +4520,10 @@ Genesis::Genesis(Isolate* isolate,
   Handle<JSFunction> global_proxy_function =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
           initial_map, shared, factory()->undefined_value());
-  DCHECK_EQ(global_proxy_data->internal_field_count(), 0);
+  DCHECK_EQ(global_proxy_data->internal_field_count(),
+            global_proxy_template->InternalFieldCount());
   Handle<Map> global_proxy_map = isolate->factory()->NewMap(
-      JS_GLOBAL_PROXY_TYPE, JSGlobalProxy::kSize, FAST_HOLEY_SMI_ELEMENTS);
+      JS_GLOBAL_PROXY_TYPE, proxy_size, FAST_HOLEY_SMI_ELEMENTS);
   JSFunction::SetInitialMap(global_proxy_function, global_proxy_map,
                             factory()->null_value());
   global_proxy_map->set_is_access_check_needed(true);
@@ -4179,7 +4536,7 @@ Genesis::Genesis(Isolate* isolate,
   factory()->ReinitializeJSGlobalProxy(global_proxy, global_proxy_function);
 
   // HookUpGlobalProxy.
-  global_proxy->set_native_context(*factory()->null_value());
+  global_proxy->set_native_context(heap()->null_value());
 
   // DetachGlobal.
   JSObject::ForceSetPrototype(global_proxy, factory()->null_value());

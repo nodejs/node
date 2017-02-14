@@ -241,6 +241,146 @@ INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
                         InstructionSelectorChangeUint32ToUint64Test,
                         ::testing::ValuesIn(kWord32BinaryOperations));
 
+// -----------------------------------------------------------------------------
+// CanElideChangeUint32ToUint64
+
+namespace {
+
+template <typename T>
+struct MachInst {
+  T constructor;
+  const char* constructor_name;
+  ArchOpcode arch_opcode;
+  MachineType machine_type;
+};
+
+typedef MachInst<Node* (RawMachineAssembler::*)(Node*, Node*)> MachInst2;
+
+// X64 instructions that clear the top 32 bits of the destination.
+const MachInst2 kCanElideChangeUint32ToUint64[] = {
+    {&RawMachineAssembler::Word32And, "Word32And", kX64And32,
+     MachineType::Uint32()},
+    {&RawMachineAssembler::Word32Or, "Word32Or", kX64Or32,
+     MachineType::Uint32()},
+    {&RawMachineAssembler::Word32Xor, "Word32Xor", kX64Xor32,
+     MachineType::Uint32()},
+    {&RawMachineAssembler::Word32Shl, "Word32Shl", kX64Shl32,
+     MachineType::Uint32()},
+    {&RawMachineAssembler::Word32Shr, "Word32Shr", kX64Shr32,
+     MachineType::Uint32()},
+    {&RawMachineAssembler::Word32Sar, "Word32Sar", kX64Sar32,
+     MachineType::Uint32()},
+    {&RawMachineAssembler::Word32Ror, "Word32Ror", kX64Ror32,
+     MachineType::Uint32()},
+    {&RawMachineAssembler::Word32Equal, "Word32Equal", kX64Cmp32,
+     MachineType::Uint32()},
+    {&RawMachineAssembler::Int32Add, "Int32Add", kX64Lea32,
+     MachineType::Int32()},
+    {&RawMachineAssembler::Int32Sub, "Int32Sub", kX64Sub32,
+     MachineType::Int32()},
+    {&RawMachineAssembler::Int32Mul, "Int32Mul", kX64Imul32,
+     MachineType::Int32()},
+    {&RawMachineAssembler::Int32MulHigh, "Int32MulHigh", kX64ImulHigh32,
+     MachineType::Int32()},
+    {&RawMachineAssembler::Int32Div, "Int32Div", kX64Idiv32,
+     MachineType::Int32()},
+    {&RawMachineAssembler::Int32LessThan, "Int32LessThan", kX64Cmp32,
+     MachineType::Int32()},
+    {&RawMachineAssembler::Int32LessThanOrEqual, "Int32LessThanOrEqual",
+     kX64Cmp32, MachineType::Int32()},
+    {&RawMachineAssembler::Int32Mod, "Int32Mod", kX64Idiv32,
+     MachineType::Int32()},
+    {&RawMachineAssembler::Uint32Div, "Uint32Div", kX64Udiv32,
+     MachineType::Uint32()},
+    {&RawMachineAssembler::Uint32LessThan, "Uint32LessThan", kX64Cmp32,
+     MachineType::Uint32()},
+    {&RawMachineAssembler::Uint32LessThanOrEqual, "Uint32LessThanOrEqual",
+     kX64Cmp32, MachineType::Uint32()},
+    {&RawMachineAssembler::Uint32Mod, "Uint32Mod", kX64Udiv32,
+     MachineType::Uint32()},
+};
+
+}  // namespace
+
+typedef InstructionSelectorTestWithParam<MachInst2>
+    InstructionSelectorElidedChangeUint32ToUint64Test;
+
+TEST_P(InstructionSelectorElidedChangeUint32ToUint64Test, Parameter) {
+  const MachInst2 binop = GetParam();
+  StreamBuilder m(this, MachineType::Uint64(), binop.machine_type,
+                  binop.machine_type);
+  m.Return(m.ChangeUint32ToUint64(
+      (m.*binop.constructor)(m.Parameter(0), m.Parameter(1))));
+  Stream s = m.Build();
+  // Make sure the `ChangeUint32ToUint64` node turned into a no-op.
+  ASSERT_EQ(1U, s.size());
+  EXPECT_EQ(binop.arch_opcode, s[0]->arch_opcode());
+  EXPECT_EQ(2U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+}
+
+INSTANTIATE_TEST_CASE_P(InstructionSelectorTest,
+                        InstructionSelectorElidedChangeUint32ToUint64Test,
+                        ::testing::ValuesIn(kCanElideChangeUint32ToUint64));
+
+// ChangeUint32ToUint64AfterLoad
+TEST_F(InstructionSelectorTest, ChangeUint32ToUint64AfterLoad) {
+  // For each case, make sure the `ChangeUint32ToUint64` node turned into a
+  // no-op.
+
+  // movzxbl
+  {
+    StreamBuilder m(this, MachineType::Uint64(), MachineType::Pointer(),
+                    MachineType::Int32());
+    m.Return(m.ChangeUint32ToUint64(
+        m.Load(MachineType::Uint8(), m.Parameter(0), m.Parameter(1))));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kX64Movzxbl, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_MR1, s[0]->addressing_mode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  // movsxbl
+  {
+    StreamBuilder m(this, MachineType::Uint64(), MachineType::Pointer(),
+                    MachineType::Int32());
+    m.Return(m.ChangeUint32ToUint64(
+        m.Load(MachineType::Int8(), m.Parameter(0), m.Parameter(1))));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kX64Movsxbl, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_MR1, s[0]->addressing_mode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  // movzxwl
+  {
+    StreamBuilder m(this, MachineType::Uint64(), MachineType::Pointer(),
+                    MachineType::Int32());
+    m.Return(m.ChangeUint32ToUint64(
+        m.Load(MachineType::Uint16(), m.Parameter(0), m.Parameter(1))));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kX64Movzxwl, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_MR1, s[0]->addressing_mode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+  // movsxwl
+  {
+    StreamBuilder m(this, MachineType::Uint64(), MachineType::Pointer(),
+                    MachineType::Int32());
+    m.Return(m.ChangeUint32ToUint64(
+        m.Load(MachineType::Int16(), m.Parameter(0), m.Parameter(1))));
+    Stream s = m.Build();
+    ASSERT_EQ(1U, s.size());
+    EXPECT_EQ(kX64Movsxwl, s[0]->arch_opcode());
+    EXPECT_EQ(kMode_MR1, s[0]->addressing_mode());
+    EXPECT_EQ(2U, s[0]->InputCount());
+    EXPECT_EQ(1U, s[0]->OutputCount());
+  }
+}
 
 // -----------------------------------------------------------------------------
 // TruncateInt64ToInt32.

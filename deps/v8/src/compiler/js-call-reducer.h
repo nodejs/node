@@ -31,7 +31,7 @@ class JSCallReducer final : public AdvancedReducer {
   typedef base::Flags<Flag> Flags;
 
   JSCallReducer(Editor* editor, JSGraph* jsgraph, Flags flags,
-                MaybeHandle<Context> native_context)
+                Handle<Context> native_context)
       : AdvancedReducer(editor),
         jsgraph_(jsgraph),
         flags_(flags),
@@ -44,23 +44,22 @@ class JSCallReducer final : public AdvancedReducer {
   Reduction ReduceNumberConstructor(Node* node);
   Reduction ReduceFunctionPrototypeApply(Node* node);
   Reduction ReduceFunctionPrototypeCall(Node* node);
+  Reduction ReduceObjectPrototypeGetProto(Node* node);
   Reduction ReduceJSCallConstruct(Node* node);
   Reduction ReduceJSCallFunction(Node* node);
-
-  MaybeHandle<Context> GetNativeContext(Node* node);
 
   Graph* graph() const;
   Flags flags() const { return flags_; }
   JSGraph* jsgraph() const { return jsgraph_; }
   Isolate* isolate() const;
-  MaybeHandle<Context> native_context() const { return native_context_; }
+  Handle<Context> native_context() const { return native_context_; }
   CommonOperatorBuilder* common() const;
   JSOperatorBuilder* javascript() const;
   SimplifiedOperatorBuilder* simplified() const;
 
   JSGraph* const jsgraph_;
   Flags const flags_;
-  MaybeHandle<Context> const native_context_;
+  Handle<Context> const native_context_;
 };
 
 DEFINE_OPERATORS_FOR_FLAGS(JSCallReducer::Flags)

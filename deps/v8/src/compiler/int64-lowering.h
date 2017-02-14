@@ -9,13 +9,14 @@
 #include "src/compiler/graph.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-marker.h"
+#include "src/globals.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-class Int64Lowering {
+class V8_EXPORT_PRIVATE Int64Lowering {
  public:
   Int64Lowering(Graph* graph, MachineOperatorBuilder* machine,
                 CommonOperatorBuilder* common, Zone* zone,

@@ -6,6 +6,7 @@
 #define V8_COMPILER_AST_GRAPH_BUILDER_H_
 
 #include "src/ast/ast.h"
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/liveness-analyzer.h"
 #include "src/compiler/state-values-utils.h"
@@ -61,7 +62,7 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
 #undef DECLARE_VISIT
 
   // Visiting function for declarations list is overridden.
-  void VisitDeclarations(ZoneList<Declaration*>* declarations);
+  void VisitDeclarations(Declaration::List* declarations);
 
  private:
   class AstContext;
@@ -601,7 +602,6 @@ class AstGraphBuilder::Environment : public ZoneObject {
                        LivenessAnalyzerBlock* liveness_block);
   Environment* CopyAndShareLiveness();
   void UpdateStateValues(Node** state_values, int offset, int count);
-  void UpdateStateValuesWithCache(Node** state_values, int offset, int count);
   Zone* zone() const { return builder_->local_zone(); }
   Graph* graph() const { return builder_->graph(); }
   AstGraphBuilder* builder() const { return builder_; }
@@ -615,6 +615,35 @@ class AstGraphBuilder::Environment : public ZoneObject {
   // Prepare environment to be used as loop header.
   void PrepareForLoop(BitVector* assigned);
   void PrepareForOsrEntry();
+};
+
+class AstGraphBuilderWithPositions final : public AstGraphBuilder {
+ public:
+  AstGraphBuilderWithPositions(Zone* local_zone, CompilationInfo* info,
+                               JSGraph* jsgraph, float invocation_frequency,
+                               LoopAssignmentAnalysis* loop_assignment,
+                               TypeHintAnalysis* type_hint_analysis,
+                               SourcePositionTable* source_positions,
+                               int inlining_id = SourcePosition::kNotInlined);
+
+  bool CreateGraph(bool stack_check = true) {
+    SourcePositionTable::Scope pos_scope(source_positions_, start_position_);
+    return AstGraphBuilder::CreateGraph(stack_check);
+  }
+
+#define DEF_VISIT(type)                                                  \
+  void Visit##type(type* node) override {                                \
+    SourcePositionTable::Scope pos(                                      \
+        source_positions_,                                               \
+        SourcePosition(node->position(), start_position_.InliningId())); \
+    AstGraphBuilder::Visit##type(node);                                  \
+  }
+  AST_NODE_LIST(DEF_VISIT)
+#undef DEF_VISIT
+
+ private:
+  SourcePositionTable* const source_positions_;
+  SourcePosition const start_position_;
 };
 
 }  // namespace compiler

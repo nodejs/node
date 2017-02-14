@@ -8,6 +8,76 @@ function assertValidAsm(func) {
   assertTrue(%IsAsmWasmCode(func));
 }
 
+(function TestConst() {
+  function Module(s) {
+    "use asm";
+    var fround = s.Math.fround;
+    // Global constants. These are treated just like numeric literals.
+    const fConst = fround(-3.0);
+    const dConst = -3.0;
+    const iConst = -3;
+
+    // consts can be used to initialize other consts.
+    const fPrime = fConst;
+
+    // The following methods verify that return statements with global constants
+    // do not need type annotations.
+    function f() {
+      return fPrime;
+    }
+    function d() {
+      return dConst;
+    }
+    function i() {
+      return iConst;
+    }
+
+    // The following methods verify that locals initialized with global
+    // constants do not need type annotations.
+    function fVar() {
+      var v = fPrime;
+      return fround(v);
+    }
+    function iVar() {
+      var v = iConst;
+      return v|0;
+    }
+    function dVar() {
+      var v = dConst;
+      return +v;
+    }
+
+    return {
+      f: f, d: d, i: i,
+      fVar: fVar, dVar: dVar, iVar: iVar,
+    };
+  }
+
+  function DisallowAssignToConstGlobal() {
+    const constant = 0;
+    function invalid(i) {
+      i = i|0;
+      constant = i;
+      return constant;
+    }
+    return invalid;
+  }
+
+  var m = Module(this);
+  assertValidAsm(Module);
+
+  assertEquals(-3, m.i());
+  assertEquals(-3.0, m.d());
+  assertEquals(Math.fround(-3.0), m.f());
+
+  assertEquals(-3, m.iVar());
+  assertEquals(-3.0, m.dVar());
+  assertEquals(Math.fround(-3.0), m.fVar());
+
+  var m = DisallowAssignToConstGlobal();
+  assertTrue(%IsNotAsmWasmCode(DisallowAssignToConstGlobal));
+})();
+
 (function TestModuleArgs() {
   function Module1(stdlib) {
     "use asm";
@@ -212,4 +282,16 @@ function assertValidAsm(func) {
   var m = ModuleBound();
   assertValidAsm(Module);
   assertEquals(123, m.foo());
+})();
+
+(function TestBadConstUnsignedReturn() {
+  function Module() {
+    "use asm";
+    const i = 0xffffffff;
+    function foo() { return i; }
+    return { foo: foo };
+  }
+  var m = Module();
+  assertTrue(%IsNotAsmWasmCode(Module));
+  assertEquals(0xffffffff, m.foo());
 })();

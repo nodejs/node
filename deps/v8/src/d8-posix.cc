@@ -772,4 +772,12 @@ void Shell::AddOSMethods(Isolate* isolate, Local<ObjectTemplate> os_templ) {
                 FunctionTemplate::New(isolate, RemoveDirectory));
 }
 
+void Shell::Exit(int exit_code) {
+  // Use _exit instead of exit to avoid races between isolate
+  // threads and static destructors.
+  fflush(stdout);
+  fflush(stderr);
+  _exit(exit_code);
+}
+
 }  // namespace v8

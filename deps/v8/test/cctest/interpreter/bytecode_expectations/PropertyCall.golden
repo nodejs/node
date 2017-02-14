@@ -13,12 +13,13 @@ snippet: "
 "
 frame size: 1
 parameter count: 2
-bytecode array length: 13
+bytecode array length: 14
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   16 S> */ B(Nop),
-  /*   24 E> */ B(LdrNamedProperty), R(arg0), U8(0), U8(4), R(0),
-  /*   25 E> */ B(Call), R(0), R(arg0), U8(1), U8(2),
+  /*   24 E> */ B(LdaNamedProperty), R(arg0), U8(0), U8(4),
+                B(Star), R(0),
+  /*   25 E> */ B(CallProperty), R(0), R(arg0), U8(1), U8(2),
   /*   33 S> */ B(Return),
 ]
 constant pool: [
@@ -34,16 +35,16 @@ snippet: "
 "
 frame size: 4
 parameter count: 4
-bytecode array length: 24
+bytecode array length: 23
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   22 S> */ B(Nop),
-  /*   30 E> */ B(LdrNamedProperty), R(arg0), U8(0), U8(4), R(0),
-                B(Ldar), R(0),
+  /*   30 E> */ B(LdaNamedProperty), R(arg0), U8(0), U8(4),
+                B(Star), R(0),
                 B(Mov), R(arg0), R(1),
                 B(Mov), R(arg1), R(2),
                 B(Mov), R(arg2), R(3),
-  /*   31 E> */ B(Call), R(0), R(1), U8(3), U8(2),
+  /*   31 E> */ B(CallProperty), R(0), R(1), U8(3), U8(2),
   /*   43 S> */ B(Return),
 ]
 constant pool: [
@@ -59,17 +60,18 @@ snippet: "
 "
 frame size: 4
 parameter count: 3
-bytecode array length: 26
+bytecode array length: 27
 bytecodes: [
   /*   10 E> */ B(StackCheck),
   /*   19 S> */ B(Nop),
-  /*   27 E> */ B(LdrNamedProperty), R(arg0), U8(0), U8(4), R(0),
+  /*   27 E> */ B(LdaNamedProperty), R(arg0), U8(0), U8(4),
+                B(Star), R(0),
                 B(Ldar), R(arg1),
   /*   37 E> */ B(Add), R(arg1), U8(6),
                 B(Star), R(2),
                 B(Mov), R(arg0), R(1),
                 B(Mov), R(arg1), R(3),
-  /*   28 E> */ B(Call), R(0), R(1), U8(3), U8(2),
+  /*   28 E> */ B(CallProperty), R(0), R(1), U8(3), U8(2),
   /*   44 S> */ B(Return),
 ]
 constant pool: [
@@ -474,9 +476,47 @@ bytecodes: [
   /* 1160 S> */ B(Nop),
   /* 1161 E> */ B(Wide), B(LdaNamedProperty), R16(arg0), U16(0), U16(256),
   /* 1169 S> */ B(Nop),
-  /* 1177 E> */ B(Wide), B(LdrNamedProperty), R16(arg0), U16(0), U16(260), R16(0),
-  /* 1178 E> */ B(Wide), B(Call), R16(0), R16(arg0), U16(1), U16(258),
+  /* 1177 E> */ B(Wide), B(LdaNamedProperty), R16(arg0), U16(0), U16(260),
+                B(Star), R(0),
+  /* 1178 E> */ B(Wide), B(CallProperty), R16(0), R16(arg0), U16(1), U16(258),
   /* 1186 S> */ B(Return),
+]
+constant pool: [
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["func"],
+]
+handlers: [
+]
+
+---
+snippet: "
+  function f(a) { return a.func(1).func(2).func(3); }
+  f(new (function Obj() { this.func = function(a) { return this; }})())
+"
+frame size: 5
+parameter count: 2
+bytecode array length: 55
+bytecodes: [
+  /*   10 E> */ B(StackCheck),
+  /*   16 S> */ B(Nop),
+  /*   24 E> */ B(LdaNamedProperty), R(arg0), U8(0), U8(8),
+                B(Star), R(2),
+                B(LdaSmi), U8(1),
+                B(Star), R(4),
+                B(Mov), R(arg0), R(3),
+  /*   25 E> */ B(CallProperty), R(2), R(3), U8(2), U8(6),
+                B(Star), R(2),
+  /*   32 E> */ B(LdaNamedProperty), R(2), U8(0), U8(10),
+                B(Star), R(1),
+                B(LdaSmi), U8(2),
+                B(Star), R(3),
+  /*   33 E> */ B(CallProperty), R(1), R(2), U8(2), U8(4),
+                B(Star), R(1),
+  /*   40 E> */ B(LdaNamedProperty), R(1), U8(0), U8(12),
+                B(Star), R(0),
+                B(LdaSmi), U8(3),
+                B(Star), R(2),
+  /*   41 E> */ B(CallProperty), R(0), R(1), U8(2), U8(2),
+  /*   50 S> */ B(Return),
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["func"],

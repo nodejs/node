@@ -8,6 +8,7 @@
 #include "src/interpreter/bytecodes.h"
 
 #include "src/frames.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -15,7 +16,7 @@ namespace interpreter {
 
 // An interpreter Register which is located in the function's Register file
 // in its stack-frame. Register hold parameters, this, and expression values.
-class Register final {
+class V8_EXPORT_PRIVATE Register final {
  public:
   explicit Register(int index = kInvalidIndex) : index_(index) {}
 
@@ -103,6 +104,9 @@ class RegisterList {
   RegisterList() : first_reg_index_(Register().index()), register_count_(0) {}
   RegisterList(int first_reg_index, int register_count)
       : first_reg_index_(first_reg_index), register_count_(register_count) {}
+
+  // Increases the size of the register list by one.
+  void IncrementRegisterCount() { register_count_++; }
 
   // Returns a new RegisterList which is a truncated version of this list, with
   // |count| registers.

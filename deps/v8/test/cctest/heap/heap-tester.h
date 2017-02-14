@@ -32,11 +32,18 @@
   V(Regress587004)                                        \
   V(Regress538257)                                        \
   V(Regress589413)                                        \
+  V(Regress658718)                                        \
+  V(Regress670675)                                        \
   V(WriteBarriersInCopyJSObject)
 
 #define HEAP_TEST(Name)                                                       \
   CcTest register_test_##Name(v8::internal::HeapTester::Test##Name, __FILE__, \
                               #Name, true, true);                             \
+  void v8::internal::HeapTester::Test##Name()
+
+#define UNINITIALIZED_HEAP_TEST(Name)                                         \
+  CcTest register_test_##Name(v8::internal::HeapTester::Test##Name, __FILE__, \
+                              #Name, true, false);                            \
   void v8::internal::HeapTester::Test##Name()
 
 #define THREADED_HEAP_TEST(Name)                                             \

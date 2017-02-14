@@ -6,6 +6,7 @@
 #include "src/builtins/builtins-utils.h"
 
 #include "src/code-factory.h"
+#include "src/contexts.h"
 #include "src/elements.h"
 
 namespace v8 {
@@ -407,14 +408,18 @@ namespace {
  */
 class ArrayConcatVisitor {
  public:
-  ArrayConcatVisitor(Isolate* isolate, Handle<Object> storage,
+  ArrayConcatVisitor(Isolate* isolate, Handle<HeapObject> storage,
                      bool fast_elements)
       : isolate_(isolate),
         storage_(isolate->global_handles()->Create(*storage)),
         index_offset_(0u),
-        bit_field_(FastElementsField::encode(fast_elements) |
-                   ExceedsLimitField::encode(false) |
-                   IsFixedArrayField::encode(storage->IsFixedArray())) {
+        bit_field_(
+            FastElementsField::encode(fast_elements) |
+            ExceedsLimitField::encode(false) |
+            IsFixedArrayField::encode(storage->IsFixedArray()) |
+            HasSimpleElementsField::encode(storage->IsFixedArray() ||
+                                           storage->map()->instance_type() >
+                                               LAST_CUSTOM_ELEMENTS_RECEIVER)) {
     DCHECK(!(this->fast_elements() && !is_fixed_array()));
   }
 
@@ -503,11 +508,15 @@ class ArrayConcatVisitor {
   // (otherwise)
   Handle<FixedArray> storage_fixed_array() {
     DCHECK(is_fixed_array());
+    DCHECK(has_simple_elements());
     return Handle<FixedArray>::cast(storage_);
   }
   Handle<JSReceiver> storage_jsreceiver() {
     DCHECK(!is_fixed_array());
     return Handle<JSReceiver>::cast(storage_);
+  }
+  bool has_simple_elements() const {
+    return HasSimpleElementsField::decode(bit_field_);
   }
 
  private:
@@ -541,12 +550,14 @@ class ArrayConcatVisitor {
 
   inline void set_storage(FixedArray* storage) {
     DCHECK(is_fixed_array());
+    DCHECK(has_simple_elements());
     storage_ = isolate_->global_handles()->Create(storage);
   }
 
   class FastElementsField : public BitField<bool, 0, 1> {};
   class ExceedsLimitField : public BitField<bool, 1, 1> {};
   class IsFixedArrayField : public BitField<bool, 2, 1> {};
+  class HasSimpleElementsField : public BitField<bool, 3, 1> {};
 
   bool fast_elements() const { return FastElementsField::decode(bit_field_); }
   void set_fast_elements(bool fast) {
@@ -772,7 +783,6 @@ bool IterateElementsSlow(Isolate* isolate, Handle<JSReceiver> receiver,
   visitor->increase_index_offset(length);
   return true;
 }
-
 /**
  * A helper function that visits "array" elements of a JSReceiver in numerical
  * order.
@@ -802,7 +812,8 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
     return IterateElementsSlow(isolate, receiver, length, visitor);
   }
 
-  if (!HasOnlySimpleElements(isolate, *receiver)) {
+  if (!HasOnlySimpleElements(isolate, *receiver) ||
+      !visitor->has_simple_elements()) {
     return IterateElementsSlow(isolate, receiver, length, visitor);
   }
   Handle<JSObject> array = Handle<JSObject>::cast(receiver);
@@ -1071,7 +1082,7 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
     // In case of failure, fall through.
   }
 
-  Handle<Object> storage;
+  Handle<HeapObject> storage;
   if (fast_case) {
     // The backing storage array must have non-existing elements to preserve
     // holes across concat operations.
@@ -1084,12 +1095,12 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
     storage = SeededNumberDictionary::New(isolate, at_least_space_for);
   } else {
     DCHECK(species->IsConstructor());
-    Handle<Object> length(Smi::FromInt(0), isolate);
+    Handle<Object> length(Smi::kZero, isolate);
     Handle<Object> storage_object;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, storage_object,
         Execution::New(isolate, species, species, 1, &length));
-    storage = storage_object;
+    storage = Handle<HeapObject>::cast(storage_object);
   }
 
   ArrayConcatVisitor visitor(isolate, storage, fast_case);
@@ -1236,7 +1247,7 @@ void Builtins::Generate_ArrayIsArray(CodeStubAssembler* assembler) {
   Label call_runtime(assembler), return_true(assembler),
       return_false(assembler);
 
-  assembler->GotoIf(assembler->WordIsSmi(object), &return_false);
+  assembler->GotoIf(assembler->TaggedIsSmi(object), &return_false);
   Node* instance_type = assembler->LoadInstanceType(object);
 
   assembler->GotoIf(assembler->Word32Equal(
@@ -1296,7 +1307,7 @@ void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
   {
     // Handle case where JSArray length is not an Smi in the runtime
     Node* len = assembler->LoadObjectField(array, JSArray::kLengthOffset);
-    assembler->GotoUnless(assembler->WordIsSmi(len), &call_runtime);
+    assembler->GotoUnless(assembler->TaggedIsSmi(len), &call_runtime);
 
     len_var.Bind(assembler->SmiToWord(len));
     assembler->Branch(assembler->WordEqual(len_var.value(), intptr_zero),
@@ -1309,7 +1320,7 @@ void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
         init_k_zero(assembler), init_k_n(assembler);
     Node* tagged_n = assembler->ToInteger(context, start_from);
 
-    assembler->Branch(assembler->WordIsSmi(tagged_n), &init_k_smi,
+    assembler->Branch(assembler->TaggedIsSmi(tagged_n), &init_k_smi,
                       &init_k_heap_num);
 
     assembler->Bind(&init_k_smi);
@@ -1395,7 +1406,7 @@ void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
         undef_loop(assembler, &index_var), not_smi(assembler),
         not_heap_num(assembler);
 
-    assembler->GotoUnless(assembler->WordIsSmi(search_element), &not_smi);
+    assembler->GotoUnless(assembler->TaggedIsSmi(search_element), &not_smi);
     search_num.Bind(assembler->SmiToFloat64(search_element));
     assembler->Goto(&heap_num_loop);
 
@@ -1464,7 +1475,7 @@ void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
         Node* element_k = assembler->LoadFixedArrayElement(
             elements, index_var.value(), 0,
             CodeStubAssembler::INTPTR_PARAMETERS);
-        assembler->GotoUnless(assembler->WordIsSmi(element_k), &not_smi);
+        assembler->GotoUnless(assembler->TaggedIsSmi(element_k), &not_smi);
         assembler->Branch(
             assembler->Float64Equal(search_num.value(),
                                     assembler->SmiToFloat64(element_k)),
@@ -1474,8 +1485,9 @@ void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
         assembler->GotoIf(assembler->WordNotEqual(assembler->LoadMap(element_k),
                                                   heap_number_map),
                           &continue_loop);
-        assembler->BranchIfFloat64Equal(
-            search_num.value(), assembler->LoadHeapNumberValue(element_k),
+        assembler->Branch(
+            assembler->Float64Equal(search_num.value(),
+                                    assembler->LoadHeapNumberValue(element_k)),
             &return_true, &continue_loop);
 
         assembler->Bind(&continue_loop);
@@ -1492,7 +1504,7 @@ void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
         Node* element_k = assembler->LoadFixedArrayElement(
             elements, index_var.value(), 0,
             CodeStubAssembler::INTPTR_PARAMETERS);
-        assembler->GotoIf(assembler->WordIsSmi(element_k), &continue_loop);
+        assembler->GotoIf(assembler->TaggedIsSmi(element_k), &continue_loop);
         assembler->GotoIf(assembler->WordNotEqual(assembler->LoadMap(element_k),
                                                   heap_number_map),
                           &continue_loop);
@@ -1514,7 +1526,7 @@ void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
           &return_false);
       Node* element_k = assembler->LoadFixedArrayElement(
           elements, index_var.value(), 0, CodeStubAssembler::INTPTR_PARAMETERS);
-      assembler->GotoIf(assembler->WordIsSmi(element_k), &continue_loop);
+      assembler->GotoIf(assembler->TaggedIsSmi(element_k), &continue_loop);
       assembler->GotoUnless(assembler->IsStringInstanceType(
                                 assembler->LoadInstanceType(element_k)),
                             &continue_loop);
@@ -1546,7 +1558,7 @@ void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
 
       Node* element_k = assembler->LoadFixedArrayElement(
           elements, index_var.value(), 0, CodeStubAssembler::INTPTR_PARAMETERS);
-      assembler->GotoIf(assembler->WordIsSmi(element_k), &continue_loop);
+      assembler->GotoIf(assembler->TaggedIsSmi(element_k), &continue_loop);
 
       Node* map_k = assembler->LoadMap(element_k);
       assembler->BranchIfSimd128Equal(search_element, map, element_k, map_k,
@@ -1564,7 +1576,8 @@ void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
         hole_loop(assembler, &index_var), search_notnan(assembler);
     Variable search_num(assembler, MachineRepresentation::kFloat64);
 
-    assembler->GotoUnless(assembler->WordIsSmi(search_element), &search_notnan);
+    assembler->GotoUnless(assembler->TaggedIsSmi(search_element),
+                          &search_notnan);
     search_num.Bind(assembler->SmiToFloat64(search_element));
     assembler->Goto(&not_nan_loop);
 
@@ -1588,8 +1601,8 @@ void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
       Node* element_k = assembler->LoadFixedDoubleArrayElement(
           elements, index_var.value(), MachineType::Float64(), 0,
           CodeStubAssembler::INTPTR_PARAMETERS);
-      assembler->BranchIfFloat64Equal(element_k, search_num.value(),
-                                      &return_true, &continue_loop);
+      assembler->Branch(assembler->Float64Equal(element_k, search_num.value()),
+                        &return_true, &continue_loop);
       assembler->Bind(&continue_loop);
       index_var.Bind(assembler->IntPtrAdd(index_var.value(), intptr_one));
       assembler->Goto(&not_nan_loop);
@@ -1618,7 +1631,8 @@ void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
         hole_loop(assembler, &index_var), search_notnan(assembler);
     Variable search_num(assembler, MachineRepresentation::kFloat64);
 
-    assembler->GotoUnless(assembler->WordIsSmi(search_element), &search_notnan);
+    assembler->GotoUnless(assembler->TaggedIsSmi(search_element),
+                          &search_notnan);
     search_num.Bind(assembler->SmiToFloat64(search_element));
     assembler->Goto(&not_nan_loop);
 
@@ -1647,8 +1661,8 @@ void Builtins::Generate_ArrayIncludes(CodeStubAssembler* assembler) {
           elements, index_var.value(), MachineType::Float64(), 0,
           CodeStubAssembler::INTPTR_PARAMETERS, &continue_loop);
 
-      assembler->BranchIfFloat64Equal(element_k, search_num.value(),
-                                      &return_true, &continue_loop);
+      assembler->Branch(assembler->Float64Equal(element_k, search_num.value()),
+                        &return_true, &continue_loop);
       assembler->Bind(&continue_loop);
       index_var.Bind(assembler->IntPtrAdd(index_var.value(), intptr_one));
       assembler->Goto(&not_nan_loop);
@@ -1738,7 +1752,7 @@ void Builtins::Generate_ArrayIndexOf(CodeStubAssembler* assembler) {
   {
     // Handle case where JSArray length is not an Smi in the runtime
     Node* len = assembler->LoadObjectField(array, JSArray::kLengthOffset);
-    assembler->GotoUnless(assembler->WordIsSmi(len), &call_runtime);
+    assembler->GotoUnless(assembler->TaggedIsSmi(len), &call_runtime);
 
     len_var.Bind(assembler->SmiToWord(len));
     assembler->Branch(assembler->WordEqual(len_var.value(), intptr_zero),
@@ -1751,7 +1765,7 @@ void Builtins::Generate_ArrayIndexOf(CodeStubAssembler* assembler) {
         init_k_zero(assembler), init_k_n(assembler);
     Node* tagged_n = assembler->ToInteger(context, start_from);
 
-    assembler->Branch(assembler->WordIsSmi(tagged_n), &init_k_smi,
+    assembler->Branch(assembler->TaggedIsSmi(tagged_n), &init_k_smi,
                       &init_k_heap_num);
 
     assembler->Bind(&init_k_smi);
@@ -1837,7 +1851,7 @@ void Builtins::Generate_ArrayIndexOf(CodeStubAssembler* assembler) {
         undef_loop(assembler, &index_var), not_smi(assembler),
         not_heap_num(assembler);
 
-    assembler->GotoUnless(assembler->WordIsSmi(search_element), &not_smi);
+    assembler->GotoUnless(assembler->TaggedIsSmi(search_element), &not_smi);
     search_num.Bind(assembler->SmiToFloat64(search_element));
     assembler->Goto(&heap_num_loop);
 
@@ -1903,7 +1917,7 @@ void Builtins::Generate_ArrayIndexOf(CodeStubAssembler* assembler) {
         Node* element_k = assembler->LoadFixedArrayElement(
             elements, index_var.value(), 0,
             CodeStubAssembler::INTPTR_PARAMETERS);
-        assembler->GotoUnless(assembler->WordIsSmi(element_k), &not_smi);
+        assembler->GotoUnless(assembler->TaggedIsSmi(element_k), &not_smi);
         assembler->Branch(
             assembler->Float64Equal(search_num.value(),
                                     assembler->SmiToFloat64(element_k)),
@@ -1913,8 +1927,9 @@ void Builtins::Generate_ArrayIndexOf(CodeStubAssembler* assembler) {
         assembler->GotoIf(assembler->WordNotEqual(assembler->LoadMap(element_k),
                                                   heap_number_map),
                           &continue_loop);
-        assembler->BranchIfFloat64Equal(
-            search_num.value(), assembler->LoadHeapNumberValue(element_k),
+        assembler->Branch(
+            assembler->Float64Equal(search_num.value(),
+                                    assembler->LoadHeapNumberValue(element_k)),
             &return_found, &continue_loop);
 
         assembler->Bind(&continue_loop);
@@ -1931,7 +1946,7 @@ void Builtins::Generate_ArrayIndexOf(CodeStubAssembler* assembler) {
           &return_not_found);
       Node* element_k = assembler->LoadFixedArrayElement(
           elements, index_var.value(), 0, CodeStubAssembler::INTPTR_PARAMETERS);
-      assembler->GotoIf(assembler->WordIsSmi(element_k), &continue_loop);
+      assembler->GotoIf(assembler->TaggedIsSmi(element_k), &continue_loop);
       assembler->GotoUnless(assembler->IsStringInstanceType(
                                 assembler->LoadInstanceType(element_k)),
                             &continue_loop);
@@ -1963,7 +1978,7 @@ void Builtins::Generate_ArrayIndexOf(CodeStubAssembler* assembler) {
 
       Node* element_k = assembler->LoadFixedArrayElement(
           elements, index_var.value(), 0, CodeStubAssembler::INTPTR_PARAMETERS);
-      assembler->GotoIf(assembler->WordIsSmi(element_k), &continue_loop);
+      assembler->GotoIf(assembler->TaggedIsSmi(element_k), &continue_loop);
 
       Node* map_k = assembler->LoadMap(element_k);
       assembler->BranchIfSimd128Equal(search_element, map, element_k, map_k,
@@ -1980,7 +1995,8 @@ void Builtins::Generate_ArrayIndexOf(CodeStubAssembler* assembler) {
     Label not_nan_loop(assembler, &index_var), search_notnan(assembler);
     Variable search_num(assembler, MachineRepresentation::kFloat64);
 
-    assembler->GotoUnless(assembler->WordIsSmi(search_element), &search_notnan);
+    assembler->GotoUnless(assembler->TaggedIsSmi(search_element),
+                          &search_notnan);
     search_num.Bind(assembler->SmiToFloat64(search_element));
     assembler->Goto(&not_nan_loop);
 
@@ -2004,8 +2020,8 @@ void Builtins::Generate_ArrayIndexOf(CodeStubAssembler* assembler) {
       Node* element_k = assembler->LoadFixedDoubleArrayElement(
           elements, index_var.value(), MachineType::Float64(), 0,
           CodeStubAssembler::INTPTR_PARAMETERS);
-      assembler->BranchIfFloat64Equal(element_k, search_num.value(),
-                                      &return_found, &continue_loop);
+      assembler->Branch(assembler->Float64Equal(element_k, search_num.value()),
+                        &return_found, &continue_loop);
       assembler->Bind(&continue_loop);
       index_var.Bind(assembler->IntPtrAdd(index_var.value(), intptr_one));
       assembler->Goto(&not_nan_loop);
@@ -2017,7 +2033,8 @@ void Builtins::Generate_ArrayIndexOf(CodeStubAssembler* assembler) {
     Label not_nan_loop(assembler, &index_var), search_notnan(assembler);
     Variable search_num(assembler, MachineRepresentation::kFloat64);
 
-    assembler->GotoUnless(assembler->WordIsSmi(search_element), &search_notnan);
+    assembler->GotoUnless(assembler->TaggedIsSmi(search_element),
+                          &search_notnan);
     search_num.Bind(assembler->SmiToFloat64(search_element));
     assembler->Goto(&not_nan_loop);
 
@@ -2044,8 +2061,8 @@ void Builtins::Generate_ArrayIndexOf(CodeStubAssembler* assembler) {
           elements, index_var.value(), MachineType::Float64(), 0,
           CodeStubAssembler::INTPTR_PARAMETERS, &continue_loop);
 
-      assembler->BranchIfFloat64Equal(element_k, search_num.value(),
-                                      &return_found, &continue_loop);
+      assembler->Branch(assembler->Float64Equal(element_k, search_num.value()),
+                        &return_found, &continue_loop);
       assembler->Bind(&continue_loop);
       index_var.Bind(assembler->IntPtrAdd(index_var.value(), intptr_one));
       assembler->Goto(&not_nan_loop);
@@ -2061,6 +2078,556 @@ void Builtins::Generate_ArrayIndexOf(CodeStubAssembler* assembler) {
   assembler->Bind(&call_runtime);
   assembler->Return(assembler->CallRuntime(Runtime::kArrayIndexOf, context,
                                            array, search_element, start_from));
+}
+
+namespace {
+
+template <IterationKind kIterationKind>
+void Generate_ArrayPrototypeIterationMethod(CodeStubAssembler* assembler) {
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
+
+  Node* receiver = assembler->Parameter(0);
+  Node* context = assembler->Parameter(3);
+
+  Variable var_array(assembler, MachineRepresentation::kTagged);
+  Variable var_map(assembler, MachineRepresentation::kTagged);
+  Variable var_type(assembler, MachineRepresentation::kWord32);
+
+  Label if_isnotobject(assembler, Label::kDeferred);
+  Label create_array_iterator(assembler);
+
+  assembler->GotoIf(assembler->TaggedIsSmi(receiver), &if_isnotobject);
+  var_array.Bind(receiver);
+  var_map.Bind(assembler->LoadMap(receiver));
+  var_type.Bind(assembler->LoadMapInstanceType(var_map.value()));
+  assembler->Branch(assembler->IsJSReceiverInstanceType(var_type.value()),
+                    &create_array_iterator, &if_isnotobject);
+
+  assembler->Bind(&if_isnotobject);
+  {
+    Callable callable = CodeFactory::ToObject(assembler->isolate());
+    Node* result = assembler->CallStub(callable, context, receiver);
+    var_array.Bind(result);
+    var_map.Bind(assembler->LoadMap(result));
+    var_type.Bind(assembler->LoadMapInstanceType(var_map.value()));
+    assembler->Goto(&create_array_iterator);
+  }
+
+  assembler->Bind(&create_array_iterator);
+  assembler->Return(assembler->CreateArrayIterator(
+      var_array.value(), var_map.value(), var_type.value(), context,
+      kIterationKind));
+}
+
+}  // namespace
+
+void Builtins::Generate_ArrayPrototypeValues(CodeStubAssembler* assembler) {
+  Generate_ArrayPrototypeIterationMethod<IterationKind::kValues>(assembler);
+}
+
+void Builtins::Generate_ArrayPrototypeEntries(CodeStubAssembler* assembler) {
+  Generate_ArrayPrototypeIterationMethod<IterationKind::kEntries>(assembler);
+}
+
+void Builtins::Generate_ArrayPrototypeKeys(CodeStubAssembler* assembler) {
+  Generate_ArrayPrototypeIterationMethod<IterationKind::kKeys>(assembler);
+}
+
+void Builtins::Generate_ArrayIteratorPrototypeNext(
+    CodeStubAssembler* assembler) {
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
+
+  Node* iterator = assembler->Parameter(0);
+  Node* context = assembler->Parameter(3);
+
+  Variable var_value(assembler, MachineRepresentation::kTagged);
+  Variable var_done(assembler, MachineRepresentation::kTagged);
+
+  // Required, or else `throw_bad_receiver` fails a DCHECK due to these
+  // variables not being bound along all paths, despite not being used.
+  var_done.Bind(assembler->TrueConstant());
+  var_value.Bind(assembler->UndefinedConstant());
+
+  Label throw_bad_receiver(assembler, Label::kDeferred);
+  Label set_done(assembler);
+  Label allocate_key_result(assembler);
+  Label allocate_entry_if_needed(assembler);
+  Label allocate_iterator_result(assembler);
+  Label generic_values(assembler);
+
+  // If O does not have all of the internal slots of an Array Iterator Instance
+  // (22.1.5.3), throw a TypeError exception
+  assembler->GotoIf(assembler->TaggedIsSmi(iterator), &throw_bad_receiver);
+  Node* instance_type = assembler->LoadInstanceType(iterator);
+  assembler->GotoIf(
+      assembler->Uint32LessThan(
+          assembler->Int32Constant(LAST_ARRAY_ITERATOR_TYPE -
+                                   FIRST_ARRAY_ITERATOR_TYPE),
+          assembler->Int32Sub(instance_type, assembler->Int32Constant(
+                                                 FIRST_ARRAY_ITERATOR_TYPE))),
+      &throw_bad_receiver);
+
+  // Let a be O.[[IteratedObject]].
+  Node* array = assembler->LoadObjectField(
+      iterator, JSArrayIterator::kIteratedObjectOffset);
+
+  // Let index be O.[[ArrayIteratorNextIndex]].
+  Node* index =
+      assembler->LoadObjectField(iterator, JSArrayIterator::kNextIndexOffset);
+  Node* orig_map = assembler->LoadObjectField(
+      iterator, JSArrayIterator::kIteratedObjectMapOffset);
+  Node* array_map = assembler->LoadMap(array);
+
+  Label if_isfastarray(assembler), if_isnotfastarray(assembler);
+
+  assembler->Branch(assembler->WordEqual(orig_map, array_map), &if_isfastarray,
+                    &if_isnotfastarray);
+
+  assembler->Bind(&if_isfastarray);
+  {
+    CSA_ASSERT(assembler,
+               assembler->Word32Equal(assembler->LoadMapInstanceType(array_map),
+                                      assembler->Int32Constant(JS_ARRAY_TYPE)));
+
+    Node* length = assembler->LoadObjectField(array, JSArray::kLengthOffset);
+
+    CSA_ASSERT(assembler, assembler->TaggedIsSmi(length));
+    CSA_ASSERT(assembler, assembler->TaggedIsSmi(index));
+
+    assembler->GotoUnless(assembler->SmiBelow(index, length), &set_done);
+
+    Node* one = assembler->SmiConstant(Smi::FromInt(1));
+    assembler->StoreObjectFieldNoWriteBarrier(
+        iterator, JSArrayIterator::kNextIndexOffset,
+        assembler->IntPtrAdd(assembler->BitcastTaggedToWord(index),
+                             assembler->BitcastTaggedToWord(one)));
+
+    var_done.Bind(assembler->FalseConstant());
+    Node* elements = assembler->LoadElements(array);
+
+    static int32_t kInstanceType[] = {
+        JS_FAST_ARRAY_KEY_ITERATOR_TYPE,
+        JS_FAST_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+        JS_FAST_HOLEY_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+        JS_FAST_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+        JS_FAST_HOLEY_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+        JS_FAST_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+        JS_FAST_HOLEY_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+        JS_FAST_SMI_ARRAY_VALUE_ITERATOR_TYPE,
+        JS_FAST_HOLEY_SMI_ARRAY_VALUE_ITERATOR_TYPE,
+        JS_FAST_ARRAY_VALUE_ITERATOR_TYPE,
+        JS_FAST_HOLEY_ARRAY_VALUE_ITERATOR_TYPE,
+        JS_FAST_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE,
+        JS_FAST_HOLEY_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE,
+    };
+
+    Label packed_object_values(assembler), holey_object_values(assembler),
+        packed_double_values(assembler), holey_double_values(assembler);
+    Label* kInstanceTypeHandlers[] = {
+        &allocate_key_result,  &packed_object_values, &holey_object_values,
+        &packed_object_values, &holey_object_values,  &packed_double_values,
+        &holey_double_values,  &packed_object_values, &holey_object_values,
+        &packed_object_values, &holey_object_values,  &packed_double_values,
+        &holey_double_values};
+
+    assembler->Switch(instance_type, &throw_bad_receiver, kInstanceType,
+                      kInstanceTypeHandlers, arraysize(kInstanceType));
+
+    assembler->Bind(&packed_object_values);
+    {
+      var_value.Bind(assembler->LoadFixedArrayElement(
+          elements, index, 0, CodeStubAssembler::SMI_PARAMETERS));
+      assembler->Goto(&allocate_entry_if_needed);
+    }
+
+    assembler->Bind(&packed_double_values);
+    {
+      Node* value = assembler->LoadFixedDoubleArrayElement(
+          elements, index, MachineType::Float64(), 0,
+          CodeStubAssembler::SMI_PARAMETERS);
+      var_value.Bind(assembler->AllocateHeapNumberWithValue(value));
+      assembler->Goto(&allocate_entry_if_needed);
+    }
+
+    assembler->Bind(&holey_object_values);
+    {
+      // Check the array_protector cell, and take the slow path if it's invalid.
+      Node* invalid =
+          assembler->SmiConstant(Smi::FromInt(Isolate::kProtectorInvalid));
+      Node* cell = assembler->LoadRoot(Heap::kArrayProtectorRootIndex);
+      Node* cell_value =
+          assembler->LoadObjectField(cell, PropertyCell::kValueOffset);
+      assembler->GotoIf(assembler->WordEqual(cell_value, invalid),
+                        &generic_values);
+
+      var_value.Bind(assembler->UndefinedConstant());
+      Node* value = assembler->LoadFixedArrayElement(
+          elements, index, 0, CodeStubAssembler::SMI_PARAMETERS);
+      assembler->GotoIf(
+          assembler->WordEqual(value, assembler->TheHoleConstant()),
+          &allocate_entry_if_needed);
+      var_value.Bind(value);
+      assembler->Goto(&allocate_entry_if_needed);
+    }
+
+    assembler->Bind(&holey_double_values);
+    {
+      // Check the array_protector cell, and take the slow path if it's invalid.
+      Node* invalid =
+          assembler->SmiConstant(Smi::FromInt(Isolate::kProtectorInvalid));
+      Node* cell = assembler->LoadRoot(Heap::kArrayProtectorRootIndex);
+      Node* cell_value =
+          assembler->LoadObjectField(cell, PropertyCell::kValueOffset);
+      assembler->GotoIf(assembler->WordEqual(cell_value, invalid),
+                        &generic_values);
+
+      var_value.Bind(assembler->UndefinedConstant());
+      Node* value = assembler->LoadFixedDoubleArrayElement(
+          elements, index, MachineType::Float64(), 0,
+          CodeStubAssembler::SMI_PARAMETERS, &allocate_entry_if_needed);
+      var_value.Bind(assembler->AllocateHeapNumberWithValue(value));
+      assembler->Goto(&allocate_entry_if_needed);
+    }
+  }
+
+  assembler->Bind(&if_isnotfastarray);
+  {
+    Label if_istypedarray(assembler), if_isgeneric(assembler);
+
+    // If a is undefined, return CreateIterResultObject(undefined, true)
+    assembler->GotoIf(
+        assembler->WordEqual(array, assembler->UndefinedConstant()),
+        &allocate_iterator_result);
+
+    Node* array_type = assembler->LoadInstanceType(array);
+    assembler->Branch(
+        assembler->Word32Equal(array_type,
+                               assembler->Int32Constant(JS_TYPED_ARRAY_TYPE)),
+        &if_istypedarray, &if_isgeneric);
+
+    assembler->Bind(&if_isgeneric);
+    {
+      Label if_wasfastarray(assembler);
+
+      Node* length = nullptr;
+      {
+        Variable var_length(assembler, MachineRepresentation::kTagged);
+        Label if_isarray(assembler), if_isnotarray(assembler), done(assembler);
+        assembler->Branch(
+            assembler->Word32Equal(array_type,
+                                   assembler->Int32Constant(JS_ARRAY_TYPE)),
+            &if_isarray, &if_isnotarray);
+
+        assembler->Bind(&if_isarray);
+        {
+          var_length.Bind(
+              assembler->LoadObjectField(array, JSArray::kLengthOffset));
+
+          // Invalidate protector cell if needed
+          assembler->Branch(
+              assembler->WordNotEqual(orig_map, assembler->UndefinedConstant()),
+              &if_wasfastarray, &done);
+
+          assembler->Bind(&if_wasfastarray);
+          {
+            Label if_invalid(assembler, Label::kDeferred);
+            // A fast array iterator transitioned to a slow iterator during
+            // iteration. Invalidate fast_array_iteration_prtoector cell to
+            // prevent potential deopt loops.
+            assembler->StoreObjectFieldNoWriteBarrier(
+                iterator, JSArrayIterator::kIteratedObjectMapOffset,
+                assembler->UndefinedConstant());
+            assembler->GotoIf(
+                assembler->Uint32LessThanOrEqual(
+                    instance_type, assembler->Int32Constant(
+                                       JS_GENERIC_ARRAY_KEY_ITERATOR_TYPE)),
+                &done);
+
+            Node* invalid = assembler->SmiConstant(
+                Smi::FromInt(Isolate::kProtectorInvalid));
+            Node* cell = assembler->LoadRoot(
+                Heap::kFastArrayIterationProtectorRootIndex);
+            assembler->StoreObjectFieldNoWriteBarrier(cell, Cell::kValueOffset,
+                                                      invalid);
+            assembler->Goto(&done);
+          }
+        }
+
+        assembler->Bind(&if_isnotarray);
+        {
+          Node* length_string = assembler->HeapConstant(
+              assembler->isolate()->factory()->length_string());
+          Callable get_property =
+              CodeFactory::GetProperty(assembler->isolate());
+          Node* length =
+              assembler->CallStub(get_property, context, array, length_string);
+          Callable to_length = CodeFactory::ToLength(assembler->isolate());
+          var_length.Bind(assembler->CallStub(to_length, context, length));
+          assembler->Goto(&done);
+        }
+
+        assembler->Bind(&done);
+        length = var_length.value();
+      }
+
+      assembler->GotoUnlessNumberLessThan(index, length, &set_done);
+
+      assembler->StoreObjectField(iterator, JSArrayIterator::kNextIndexOffset,
+                                  assembler->NumberInc(index));
+      var_done.Bind(assembler->FalseConstant());
+
+      assembler->Branch(
+          assembler->Uint32LessThanOrEqual(
+              instance_type,
+              assembler->Int32Constant(JS_GENERIC_ARRAY_KEY_ITERATOR_TYPE)),
+          &allocate_key_result, &generic_values);
+
+      assembler->Bind(&generic_values);
+      {
+        Callable get_property = CodeFactory::GetProperty(assembler->isolate());
+        var_value.Bind(
+            assembler->CallStub(get_property, context, array, index));
+        assembler->Goto(&allocate_entry_if_needed);
+      }
+    }
+
+    assembler->Bind(&if_istypedarray);
+    {
+      Node* length = nullptr;
+      {
+        Variable var_length(assembler, MachineRepresentation::kTagged);
+        Label if_isdetached(assembler, Label::kDeferred),
+            if_isnotdetached(assembler), done(assembler);
+
+        Node* buffer =
+            assembler->LoadObjectField(array, JSTypedArray::kBufferOffset);
+        assembler->Branch(assembler->IsDetachedBuffer(buffer), &if_isdetached,
+                          &if_isnotdetached);
+
+        assembler->Bind(&if_isnotdetached);
+        {
+          var_length.Bind(
+              assembler->LoadObjectField(array, JSTypedArray::kLengthOffset));
+          assembler->Goto(&done);
+        }
+
+        assembler->Bind(&if_isdetached);
+        {
+          // TODO(caitp): If IsDetached(buffer) is true, throw a TypeError, per
+          // https://github.com/tc39/ecma262/issues/713
+          var_length.Bind(assembler->SmiConstant(Smi::kZero));
+          assembler->Goto(&done);
+        }
+
+        assembler->Bind(&done);
+        length = var_length.value();
+      }
+      CSA_ASSERT(assembler, assembler->TaggedIsSmi(length));
+      CSA_ASSERT(assembler, assembler->TaggedIsSmi(index));
+
+      assembler->GotoUnless(assembler->SmiBelow(index, length), &set_done);
+
+      Node* one = assembler->SmiConstant(Smi::FromInt(1));
+      assembler->StoreObjectFieldNoWriteBarrier(
+          iterator, JSArrayIterator::kNextIndexOffset,
+          assembler->IntPtrAdd(assembler->BitcastTaggedToWord(index),
+                               assembler->BitcastTaggedToWord(one)));
+      var_done.Bind(assembler->FalseConstant());
+
+      Node* elements = assembler->LoadElements(array);
+      Node* base_ptr = assembler->LoadObjectField(
+          elements, FixedTypedArrayBase::kBasePointerOffset);
+      Node* external_ptr = assembler->LoadObjectField(
+          elements, FixedTypedArrayBase::kExternalPointerOffset);
+      Node* data_ptr = assembler->IntPtrAdd(base_ptr, external_ptr);
+
+      static int32_t kInstanceType[] = {
+          JS_TYPED_ARRAY_KEY_ITERATOR_TYPE,
+          JS_UINT8_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+          JS_UINT8_CLAMPED_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+          JS_INT8_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+          JS_UINT16_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+          JS_INT16_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+          JS_UINT32_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+          JS_INT32_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+          JS_FLOAT32_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+          JS_FLOAT64_ARRAY_KEY_VALUE_ITERATOR_TYPE,
+          JS_UINT8_ARRAY_VALUE_ITERATOR_TYPE,
+          JS_UINT8_CLAMPED_ARRAY_VALUE_ITERATOR_TYPE,
+          JS_INT8_ARRAY_VALUE_ITERATOR_TYPE,
+          JS_UINT16_ARRAY_VALUE_ITERATOR_TYPE,
+          JS_INT16_ARRAY_VALUE_ITERATOR_TYPE,
+          JS_UINT32_ARRAY_VALUE_ITERATOR_TYPE,
+          JS_INT32_ARRAY_VALUE_ITERATOR_TYPE,
+          JS_FLOAT32_ARRAY_VALUE_ITERATOR_TYPE,
+          JS_FLOAT64_ARRAY_VALUE_ITERATOR_TYPE,
+      };
+
+      Label uint8_values(assembler), int8_values(assembler),
+          uint16_values(assembler), int16_values(assembler),
+          uint32_values(assembler), int32_values(assembler),
+          float32_values(assembler), float64_values(assembler);
+      Label* kInstanceTypeHandlers[] = {
+          &allocate_key_result, &uint8_values,  &uint8_values,
+          &int8_values,         &uint16_values, &int16_values,
+          &uint32_values,       &int32_values,  &float32_values,
+          &float64_values,      &uint8_values,  &uint8_values,
+          &int8_values,         &uint16_values, &int16_values,
+          &uint32_values,       &int32_values,  &float32_values,
+          &float64_values,
+      };
+
+      var_done.Bind(assembler->FalseConstant());
+      assembler->Switch(instance_type, &throw_bad_receiver, kInstanceType,
+                        kInstanceTypeHandlers, arraysize(kInstanceType));
+
+      assembler->Bind(&uint8_values);
+      {
+        Node* value_uint8 = assembler->LoadFixedTypedArrayElement(
+            data_ptr, index, UINT8_ELEMENTS, CodeStubAssembler::SMI_PARAMETERS);
+        var_value.Bind(assembler->SmiFromWord(value_uint8));
+        assembler->Goto(&allocate_entry_if_needed);
+      }
+
+      assembler->Bind(&int8_values);
+      {
+        Node* value_int8 = assembler->LoadFixedTypedArrayElement(
+            data_ptr, index, INT8_ELEMENTS, CodeStubAssembler::SMI_PARAMETERS);
+        var_value.Bind(assembler->SmiFromWord(value_int8));
+        assembler->Goto(&allocate_entry_if_needed);
+      }
+
+      assembler->Bind(&uint16_values);
+      {
+        Node* value_uint16 = assembler->LoadFixedTypedArrayElement(
+            data_ptr, index, UINT16_ELEMENTS,
+            CodeStubAssembler::SMI_PARAMETERS);
+        var_value.Bind(assembler->SmiFromWord(value_uint16));
+        assembler->Goto(&allocate_entry_if_needed);
+      }
+
+      assembler->Bind(&int16_values);
+      {
+        Node* value_int16 = assembler->LoadFixedTypedArrayElement(
+            data_ptr, index, INT16_ELEMENTS, CodeStubAssembler::SMI_PARAMETERS);
+        var_value.Bind(assembler->SmiFromWord(value_int16));
+        assembler->Goto(&allocate_entry_if_needed);
+      }
+
+      assembler->Bind(&uint32_values);
+      {
+        Node* value_uint32 = assembler->LoadFixedTypedArrayElement(
+            data_ptr, index, UINT32_ELEMENTS,
+            CodeStubAssembler::SMI_PARAMETERS);
+        var_value.Bind(assembler->ChangeUint32ToTagged(value_uint32));
+        assembler->Goto(&allocate_entry_if_needed);
+      }
+      assembler->Bind(&int32_values);
+      {
+        Node* value_int32 = assembler->LoadFixedTypedArrayElement(
+            data_ptr, index, INT32_ELEMENTS, CodeStubAssembler::SMI_PARAMETERS);
+        var_value.Bind(assembler->ChangeInt32ToTagged(value_int32));
+        assembler->Goto(&allocate_entry_if_needed);
+      }
+      assembler->Bind(&float32_values);
+      {
+        Node* value_float32 = assembler->LoadFixedTypedArrayElement(
+            data_ptr, index, FLOAT32_ELEMENTS,
+            CodeStubAssembler::SMI_PARAMETERS);
+        var_value.Bind(assembler->AllocateHeapNumberWithValue(
+            assembler->ChangeFloat32ToFloat64(value_float32)));
+        assembler->Goto(&allocate_entry_if_needed);
+      }
+      assembler->Bind(&float64_values);
+      {
+        Node* value_float64 = assembler->LoadFixedTypedArrayElement(
+            data_ptr, index, FLOAT64_ELEMENTS,
+            CodeStubAssembler::SMI_PARAMETERS);
+        var_value.Bind(assembler->AllocateHeapNumberWithValue(value_float64));
+        assembler->Goto(&allocate_entry_if_needed);
+      }
+    }
+  }
+
+  assembler->Bind(&set_done);
+  {
+    assembler->StoreObjectFieldNoWriteBarrier(
+        iterator, JSArrayIterator::kIteratedObjectOffset,
+        assembler->UndefinedConstant());
+    assembler->Goto(&allocate_iterator_result);
+  }
+
+  assembler->Bind(&allocate_key_result);
+  {
+    var_value.Bind(index);
+    var_done.Bind(assembler->FalseConstant());
+    assembler->Goto(&allocate_iterator_result);
+  }
+
+  assembler->Bind(&allocate_entry_if_needed);
+  {
+    assembler->GotoIf(
+        assembler->Int32GreaterThan(
+            instance_type,
+            assembler->Int32Constant(LAST_ARRAY_KEY_VALUE_ITERATOR_TYPE)),
+        &allocate_iterator_result);
+
+    Node* elements = assembler->AllocateFixedArray(FAST_ELEMENTS,
+                                                   assembler->Int32Constant(2));
+    assembler->StoreFixedArrayElement(elements, assembler->Int32Constant(0),
+                                      index, SKIP_WRITE_BARRIER);
+    assembler->StoreFixedArrayElement(elements, assembler->Int32Constant(1),
+                                      var_value.value(), SKIP_WRITE_BARRIER);
+
+    Node* entry = assembler->Allocate(JSArray::kSize);
+    Node* map = assembler->LoadContextElement(
+        assembler->LoadNativeContext(context),
+        Context::JS_ARRAY_FAST_ELEMENTS_MAP_INDEX);
+
+    assembler->StoreMapNoWriteBarrier(entry, map);
+    assembler->StoreObjectFieldRoot(entry, JSArray::kPropertiesOffset,
+                                    Heap::kEmptyFixedArrayRootIndex);
+    assembler->StoreObjectFieldNoWriteBarrier(entry, JSArray::kElementsOffset,
+                                              elements);
+    assembler->StoreObjectFieldNoWriteBarrier(
+        entry, JSArray::kLengthOffset, assembler->SmiConstant(Smi::FromInt(2)));
+
+    var_value.Bind(entry);
+    assembler->Goto(&allocate_iterator_result);
+  }
+
+  assembler->Bind(&allocate_iterator_result);
+  {
+    Node* result = assembler->Allocate(JSIteratorResult::kSize);
+    Node* map =
+        assembler->LoadContextElement(assembler->LoadNativeContext(context),
+                                      Context::ITERATOR_RESULT_MAP_INDEX);
+    assembler->StoreMapNoWriteBarrier(result, map);
+    assembler->StoreObjectFieldRoot(result, JSIteratorResult::kPropertiesOffset,
+                                    Heap::kEmptyFixedArrayRootIndex);
+    assembler->StoreObjectFieldRoot(result, JSIteratorResult::kElementsOffset,
+                                    Heap::kEmptyFixedArrayRootIndex);
+    assembler->StoreObjectFieldNoWriteBarrier(
+        result, JSIteratorResult::kValueOffset, var_value.value());
+    assembler->StoreObjectFieldNoWriteBarrier(
+        result, JSIteratorResult::kDoneOffset, var_done.value());
+    assembler->Return(result);
+  }
+
+  assembler->Bind(&throw_bad_receiver);
+  {
+    // The {receiver} is not a valid JSArrayIterator.
+    Node* result = assembler->CallRuntime(
+        Runtime::kThrowIncompatibleMethodReceiver, context,
+        assembler->HeapConstant(assembler->factory()->NewStringFromAsciiChecked(
+            "Array Iterator.prototype.next", TENURED)),
+        iterator);
+    assembler->Return(result);
+  }
 }
 
 }  // namespace internal

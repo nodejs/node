@@ -102,14 +102,6 @@ void LCompareNumericAndBranch::PrintDataTo(StringStream* stream) {
   stream->Add(" then B%d else B%d", true_block_id(), false_block_id());
 }
 
-
-void LHasCachedArrayIndexAndBranch::PrintDataTo(StringStream* stream) {
-  stream->Add("if has_cached_array_index(");
-  value()->PrintTo(stream);
-  stream->Add(") then B%d else B%d", true_block_id(), false_block_id());
-}
-
-
 bool LGoto::HasInterestingComment(LCodeGen* gen) const {
   return !gen->IsNextEmittedBlock(block_id());
 }
@@ -942,12 +934,13 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
       return new(zone()) LBranch(UseRegister(value), TempRegister(), NULL);
     }
 
-    ToBooleanICStub::Types expected = instr->expected_input_types();
-    bool needs_temps = expected.NeedsMap() || expected.IsEmpty();
+    ToBooleanHints expected = instr->expected_input_types();
+    bool needs_temps = (expected & ToBooleanHint::kNeedsMap) ||
+                       expected == ToBooleanHint::kNone;
     LOperand* temp1 = needs_temps ? TempRegister() : NULL;
     LOperand* temp2 = needs_temps ? TempRegister() : NULL;
 
-    if (expected.IsGeneric() || expected.IsEmpty()) {
+    if (expected == ToBooleanHint::kAny || expected == ToBooleanHint::kNone) {
       // The generic case cannot deoptimize because it already supports every
       // possible input type.
       DCHECK(needs_temps);
@@ -1409,7 +1402,6 @@ LInstruction* LChunkBuilder::DoEnterInlined(HEnterInlined* instr) {
   inner->BindContext(instr->closure_context());
   inner->set_entry(instr);
   current_block_->UpdateEnvironment(inner);
-  chunk_->AddInlinedFunction(instr->shared());
   return NULL;
 }
 
@@ -1428,27 +1420,9 @@ LInstruction* LChunkBuilder::DoForceRepresentation(
   return NULL;
 }
 
-
-LInstruction* LChunkBuilder::DoGetCachedArrayIndex(
-    HGetCachedArrayIndex* instr) {
-  DCHECK(instr->value()->representation().IsTagged());
-  LOperand* value = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new(zone()) LGetCachedArrayIndex(value));
-}
-
-
 LInstruction* LChunkBuilder::DoGoto(HGoto* instr) {
   return new(zone()) LGoto(instr->FirstSuccessor());
 }
-
-
-LInstruction* LChunkBuilder::DoHasCachedArrayIndexAndBranch(
-    HHasCachedArrayIndexAndBranch* instr) {
-  DCHECK(instr->value()->representation().IsTagged());
-  return new(zone()) LHasCachedArrayIndexAndBranch(
-      UseRegisterAtStart(instr->value()), TempRegister());
-}
-
 
 LInstruction* LChunkBuilder::DoHasInstanceTypeAndBranch(
     HHasInstanceTypeAndBranch* instr) {
@@ -1551,15 +1525,6 @@ LInstruction* LChunkBuilder::DoLoadFunctionPrototype(
 }
 
 
-LInstruction* LChunkBuilder::DoLoadGlobalGeneric(HLoadGlobalGeneric* instr) {
-  LOperand* context = UseFixed(instr->context(), cp);
-  LOperand* vector = FixedTemp(LoadWithVectorDescriptor::VectorRegister());
-
-  LLoadGlobalGeneric* result = new (zone()) LLoadGlobalGeneric(context, vector);
-  return MarkAsCall(DefineFixed(result, x0), instr);
-}
-
-
 LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
   DCHECK(instr->key()->representation().IsSmiOrInteger32());
   ElementsKind elements_kind = instr->elements_kind();
@@ -1610,35 +1575,9 @@ LInstruction* LChunkBuilder::DoLoadKeyed(HLoadKeyed* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoLoadKeyedGeneric(HLoadKeyedGeneric* instr) {
-  LOperand* context = UseFixed(instr->context(), cp);
-  LOperand* object =
-      UseFixed(instr->object(), LoadDescriptor::ReceiverRegister());
-  LOperand* key = UseFixed(instr->key(), LoadDescriptor::NameRegister());
-  LOperand* vector = FixedTemp(LoadWithVectorDescriptor::VectorRegister());
-
-  LInstruction* result =
-      DefineFixed(new(zone()) LLoadKeyedGeneric(context, object, key, vector),
-                  x0);
-  return MarkAsCall(result, instr);
-}
-
-
 LInstruction* LChunkBuilder::DoLoadNamedField(HLoadNamedField* instr) {
   LOperand* object = UseRegisterAtStart(instr->object());
   return DefineAsRegister(new(zone()) LLoadNamedField(object));
-}
-
-
-LInstruction* LChunkBuilder::DoLoadNamedGeneric(HLoadNamedGeneric* instr) {
-  LOperand* context = UseFixed(instr->context(), cp);
-  LOperand* object =
-      UseFixed(instr->object(), LoadDescriptor::ReceiverRegister());
-  LOperand* vector = FixedTemp(LoadWithVectorDescriptor::VectorRegister());
-
-  LInstruction* result =
-      DefineFixed(new(zone()) LLoadNamedGeneric(context, object, vector), x0);
-  return MarkAsCall(result, instr);
 }
 
 

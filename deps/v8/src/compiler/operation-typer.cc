@@ -19,18 +19,14 @@ namespace compiler {
 OperationTyper::OperationTyper(Isolate* isolate, Zone* zone)
     : zone_(zone), cache_(TypeCache::Get()) {
   Factory* factory = isolate->factory();
-  infinity_ = Type::Constant(factory->infinity_value(), zone);
-  minus_infinity_ = Type::Constant(factory->minus_infinity_value(), zone);
-  // Unfortunately, the infinities created in other places might be different
-  // ones (eg the result of NewNumber in TypeNumberConstant).
-  Type* truncating_to_zero =
-      Type::Union(Type::Union(infinity_, minus_infinity_, zone),
-                  Type::MinusZeroOrNaN(), zone);
+  infinity_ = Type::NewConstant(factory->infinity_value(), zone);
+  minus_infinity_ = Type::NewConstant(factory->minus_infinity_value(), zone);
+  Type* truncating_to_zero = Type::MinusZeroOrNaN();
   DCHECK(!truncating_to_zero->Maybe(Type::Integral32()));
 
-  singleton_false_ = Type::Constant(factory->false_value(), zone);
-  singleton_true_ = Type::Constant(factory->true_value(), zone);
-  singleton_the_hole_ = Type::Constant(factory->the_hole_value(), zone);
+  singleton_false_ = Type::HeapConstant(factory->false_value(), zone);
+  singleton_true_ = Type::HeapConstant(factory->true_value(), zone);
+  singleton_the_hole_ = Type::HeapConstant(factory->the_hole_value(), zone);
   signed32ish_ = Type::Union(Type::Signed32(), truncating_to_zero, zone);
   unsigned32ish_ = Type::Union(Type::Unsigned32(), truncating_to_zero, zone);
 }
@@ -492,6 +488,13 @@ Type* OperationTyper::NumberToUint32(Type* type) {
                            Type::Unsigned32(), zone());
   }
   return Type::Unsigned32();
+}
+
+Type* OperationTyper::NumberToUint8Clamped(Type* type) {
+  DCHECK(type->Is(Type::Number()));
+
+  if (type->Is(cache_.kUint8)) return type;
+  return cache_.kUint8;
 }
 
 Type* OperationTyper::NumberSilenceNaN(Type* type) {

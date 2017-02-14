@@ -7,6 +7,7 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
+#include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 
 namespace v8 {
@@ -18,12 +19,15 @@ Reduction TailCallOptimization::Reduce(Node* node) {
   // The value which is returned must be the result of a potential tail call,
   // there must be no try/catch/finally around the Call, and there must be no
   // other effect between the Call and the Return nodes.
-  Node* const call = NodeProperties::GetValueInput(node, 0);
+  Node* const call = NodeProperties::GetValueInput(node, 1);
   if (call->opcode() == IrOpcode::kCall &&
       CallDescriptorOf(call->op())->SupportsTailCalls() &&
       NodeProperties::GetEffectInput(node) == call &&
       !NodeProperties::IsExceptionalCall(call)) {
     Node* const control = NodeProperties::GetControlInput(node);
+    // Ensure that no additional arguments are being popped other than those in
+    // the CallDescriptor, otherwise the tail call transformation is invalid.
+    DCHECK_EQ(0, Int32Matcher(NodeProperties::GetValueInput(node, 0)).Value());
     if (control->opcode() == IrOpcode::kIfSuccess &&
         call->OwnedBy(node, control) && control->OwnedBy(node)) {
       // Furthermore, control has to flow via an IfSuccess from the Call, so
@@ -62,9 +66,10 @@ Reduction TailCallOptimization::Reduce(Node* node) {
       //                 |
 
       DCHECK_EQ(call, NodeProperties::GetControlInput(control, 0));
-      DCHECK_EQ(3, node->InputCount());
+      DCHECK_EQ(4, node->InputCount());
       node->ReplaceInput(0, NodeProperties::GetEffectInput(call));
       node->ReplaceInput(1, NodeProperties::GetControlInput(call));
+      node->RemoveInput(3);
       node->RemoveInput(2);
       for (int index = 0; index < call->op()->ValueInputCount(); ++index) {
         node->InsertInput(graph()->zone(), index,

@@ -28,8 +28,7 @@ class Callable final BASE_EMBEDDED {
   const CallInterfaceDescriptor descriptor_;
 };
 
-
-class CodeFactory final {
+class V8_EXPORT_PRIVATE CodeFactory final {
  public:
   // Initial states for ICs.
   static Callable LoadIC(Isolate* isolate);
@@ -40,18 +39,18 @@ class CodeFactory final {
   static Callable KeyedLoadIC(Isolate* isolate);
   static Callable KeyedLoadICInOptimizedCode(Isolate* isolate);
   static Callable KeyedLoadIC_Megamorphic(Isolate* isolate);
-  static Callable CallIC(Isolate* isolate, int argc,
+  static Callable CallIC(Isolate* isolate,
                          ConvertReceiverMode mode = ConvertReceiverMode::kAny,
                          TailCallMode tail_call_mode = TailCallMode::kDisallow);
   static Callable CallICInOptimizedCode(
-      Isolate* isolate, int argc,
-      ConvertReceiverMode mode = ConvertReceiverMode::kAny,
+      Isolate* isolate, ConvertReceiverMode mode = ConvertReceiverMode::kAny,
       TailCallMode tail_call_mode = TailCallMode::kDisallow);
   static Callable StoreIC(Isolate* isolate, LanguageMode mode);
   static Callable StoreICInOptimizedCode(Isolate* isolate, LanguageMode mode);
   static Callable KeyedStoreIC(Isolate* isolate, LanguageMode mode);
   static Callable KeyedStoreICInOptimizedCode(Isolate* isolate,
                                               LanguageMode mode);
+  static Callable KeyedStoreIC_Megamorphic(Isolate* isolate, LanguageMode mode);
 
   static Callable ResumeGenerator(Isolate* isolate);
 
@@ -65,6 +64,9 @@ class CodeFactory final {
   // Code stubs. Add methods here as needed to reduce dependency on
   // code-stubs.h.
   static Callable InstanceOf(Isolate* isolate);
+  static Callable OrdinaryHasInstance(Isolate* isolate);
+
+  static Callable StringFromCharCode(Isolate* isolate);
 
   static Callable GetProperty(Isolate* isolate);
 
@@ -84,9 +86,6 @@ class CodeFactory final {
                                       OrdinaryToPrimitiveHint hint);
   static Callable NumberToString(Isolate* isolate);
 
-  static Callable OrdinaryHasInstance(Isolate* isolate);
-
-  static Callable RegExpConstructResult(Isolate* isolate);
   static Callable RegExpExec(Isolate* isolate);
 
   static Callable Add(Isolate* isolate);

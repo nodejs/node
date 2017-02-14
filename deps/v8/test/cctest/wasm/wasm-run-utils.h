@@ -8,25 +8,25 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include <memory>
 
 #include "src/base/utils/random-number-generator.h"
 #include "src/zone/accounting-allocator.h"
 
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/int64-lowering.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/wasm-compiler.h"
-#include "src/compiler/zone-pool.h"
-
+#include "src/compiler/zone-stats.h"
 #include "src/wasm/ast-decoder.h"
 #include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-opcodes.h"
 
 #include "src/zone/zone.h"
@@ -68,7 +68,7 @@ const uint32_t kMaxGlobalsSize = 128;
 
 // A helper for module environments that adds the ability to allocate memory
 // and global variables. Contains a built-in {WasmModule} and
-// {WasmModuleInstance}.
+// {WasmInstance}.
 class TestingModule : public ModuleEnv {
  public:
   explicit TestingModule(WasmExecutionMode mode = kExecuteCompiled)
@@ -97,9 +97,11 @@ class TestingModule : public ModuleEnv {
     if (interpreter_) delete interpreter_;
   }
 
+  void ChangeOriginToAsmjs() { origin = kAsmJsOrigin; }
+
   byte* AddMemory(uint32_t size) {
     CHECK_NULL(instance->mem_start);
-    CHECK_EQ(0, instance->mem_size);
+    CHECK_EQ(0u, instance->mem_size);
     instance->mem_start = reinterpret_cast<byte*>(malloc(size));
     CHECK(instance->mem_start);
     memset(instance->mem_start, 0, size);
@@ -206,21 +208,15 @@ class TestingModule : public ModuleEnv {
   Handle<JSFunction> WrapCode(uint32_t index) {
     // Wrap the code so it can be called as a JS function.
     Handle<String> name = isolate_->factory()->NewStringFromStaticChars("main");
-    Handle<JSObject> module_object = Handle<JSObject>(0, isolate_);
+    Handle<WasmInstanceObject> instance_obj(0, isolate_);
     Handle<Code> code = instance->function_code[index];
     WasmJs::InstallWasmMapsIfNeeded(isolate_, isolate_->native_context());
     Handle<Code> ret_code =
         compiler::CompileJSToWasmWrapper(isolate_, this, code, index);
-    FunctionSig* funcSig = this->module->functions[index].sig;
-    Handle<ByteArray> exportedSig = isolate_->factory()->NewByteArray(
-        static_cast<int>(funcSig->parameter_count() + funcSig->return_count()),
-        TENURED);
-    exportedSig->copy_in(0, reinterpret_cast<const byte*>(funcSig->raw_data()),
-                         exportedSig->length());
-    Handle<JSFunction> ret = WrapExportCodeAsJSFunction(
-        isolate_, ret_code, name,
+    Handle<JSFunction> ret = WasmExportedFunction::New(
+        isolate_, instance_obj, name, ret_code,
         static_cast<int>(this->module->functions[index].sig->parameter_count()),
-        exportedSig, module_object);
+        static_cast<int>(index));
     return ret;
   }
 
@@ -228,24 +224,35 @@ class TestingModule : public ModuleEnv {
     instance->function_code[index] = code;
   }
 
-  void AddIndirectFunctionTable(uint16_t* functions, uint32_t table_size) {
-    module_.function_tables.push_back(
-        {table_size, table_size, std::vector<int32_t>(), false, false});
+  void AddIndirectFunctionTable(uint16_t* function_indexes,
+                                uint32_t table_size) {
+    module_.function_tables.push_back({table_size, table_size, true,
+                                       std::vector<int32_t>(), false, false,
+                                       SignatureMap()});
+    WasmIndirectFunctionTable& table = module_.function_tables.back();
+    table.min_size = table_size;
+    table.max_size = table_size;
     for (uint32_t i = 0; i < table_size; ++i) {
-      module_.function_tables.back().values.push_back(functions[i]);
+      table.values.push_back(function_indexes[i]);
+      table.map.FindOrInsert(module_.functions[function_indexes[i]].sig);
     }
 
-    Handle<FixedArray> values = BuildFunctionTable(
-        isolate_, static_cast<int>(module_.function_tables.size() - 1),
-        &module_);
-    instance->function_tables.push_back(values);
+    instance->function_tables.push_back(
+        isolate_->factory()->NewFixedArray(table_size * 2));
   }
 
   void PopulateIndirectFunctionTable() {
+    // Initialize the fixed arrays in instance->function_tables.
     for (uint32_t i = 0; i < instance->function_tables.size(); i++) {
-      PopulateFunctionTable(instance->function_tables[i],
-                            module_.function_tables[i].size,
-                            &instance->function_code);
+      WasmIndirectFunctionTable& table = module_.function_tables[i];
+      Handle<FixedArray> array = instance->function_tables[i];
+      int table_size = static_cast<int>(table.values.size());
+      for (int j = 0; j < table_size; j++) {
+        WasmFunction& function = module_.functions[table.values[j]];
+        array->set(j, Smi::FromInt(table.map.Find(function.sig)));
+        array->set(j + table_size,
+                   *instance->function_code[function.func_index]);
+      }
     }
   }
 
@@ -257,7 +264,7 @@ class TestingModule : public ModuleEnv {
  private:
   WasmExecutionMode execution_mode_;
   WasmModule module_;
-  WasmModuleInstance instance_;
+  WasmInstance instance_;
   Isolate* isolate_;
   v8::internal::AccountingAllocator allocator_;
   uint32_t global_offset;
@@ -268,7 +275,7 @@ class TestingModule : public ModuleEnv {
     byte size = WasmOpcodes::MemSize(WasmOpcodes::MachineTypeFor(type));
     global_offset = (global_offset + size - 1) & ~(size - 1);  // align
     module_.globals.push_back(
-        {type, true, NO_INIT, global_offset, false, false});
+        {type, true, WasmInitExpr(), global_offset, false, false});
     global_offset += size;
     // limit number of globals.
     CHECK_LT(global_offset, kMaxGlobalsSize);
@@ -300,10 +307,7 @@ inline void TestBuildingGraph(Zone* zone, JSGraph* jsgraph, ModuleEnv* module,
     FATAL(str.str().c_str());
   }
   builder.Int64LoweringForTesting();
-  if (FLAG_trace_turbo_graph) {
-    OFStream os(stdout);
-    os << AsRPO(*jsgraph->graph());
-  }
+  builder.SimdScalarLoweringForTesting();
 }
 
 template <typename ReturnType>
@@ -354,7 +358,7 @@ class WasmFunctionWrapper : public HandleAndZoneScope,
     }
     if (p1 != MachineType::None()) {
       parameters[parameter_count] = graph()->NewNode(
-          machine()->Load(p0),
+          machine()->Load(p1),
           graph()->NewNode(common()->Parameter(1), graph()->start()),
           graph()->NewNode(common()->Int32Constant(0)), effect,
           graph()->start());
@@ -362,7 +366,7 @@ class WasmFunctionWrapper : public HandleAndZoneScope,
     }
     if (p2 != MachineType::None()) {
       parameters[parameter_count] = graph()->NewNode(
-          machine()->Load(p0),
+          machine()->Load(p2),
           graph()->NewNode(common()->Parameter(2), graph()->start()),
           graph()->NewNode(common()->Int32Constant(0)), effect,
           graph()->start());
@@ -370,7 +374,7 @@ class WasmFunctionWrapper : public HandleAndZoneScope,
     }
     if (p3 != MachineType::None()) {
       parameters[parameter_count] = graph()->NewNode(
-          machine()->Load(p0),
+          machine()->Load(p3),
           graph()->NewNode(common()->Parameter(3), graph()->start()),
           graph()->NewNode(common()->Int32Constant(0)), effect,
           graph()->start());
@@ -390,8 +394,9 @@ class WasmFunctionWrapper : public HandleAndZoneScope,
                          graph()->start()),
         graph()->NewNode(common()->Int32Constant(0)), call, effect,
         graph()->start());
+    Node* zero = graph()->NewNode(common()->Int32Constant(0));
     Node* r = graph()->NewNode(
-        common()->Return(),
+        common()->Return(), zero,
         graph()->NewNode(common()->Int32Constant(WASM_WRAPPER_RETURN_VALUE)),
         effect, graph()->start());
     graph()->SetEnd(graph()->NewNode(common()->End(2), r, graph()->start()));
@@ -613,7 +618,7 @@ class WasmRunner {
              MachineType p1 = MachineType::None(),
              MachineType p2 = MachineType::None(),
              MachineType p3 = MachineType::None())
-      : zone(&allocator_),
+      : zone(&allocator_, ZONE_NAME),
         compiled_(false),
         signature_(MachineTypeForC<ReturnType>() == MachineType::None() ? 0 : 1,
                    GetParameterCount(p0, p1, p2, p3), storage_),
@@ -625,11 +630,12 @@ class WasmRunner {
              MachineType p1 = MachineType::None(),
              MachineType p2 = MachineType::None(),
              MachineType p3 = MachineType::None())
-      : zone(&allocator_),
+      : zone(&allocator_, ZONE_NAME),
         compiled_(false),
         signature_(MachineTypeForC<ReturnType>() == MachineType::None() ? 0 : 1,
                    GetParameterCount(p0, p1, p2, p3), storage_),
-        compiler_(&signature_, module) {
+        compiler_(&signature_, module),
+        possible_nondeterminism_(false) {
     DCHECK(module);
     InitSigStorage(p0, p1, p2, p3);
   }
@@ -739,6 +745,7 @@ class WasmRunner {
     thread->PushFrame(compiler_.function_, args.start());
     if (thread->Run() == WasmInterpreter::FINISHED) {
       WasmVal val = thread->GetReturnValue();
+      possible_nondeterminism_ |= thread->PossibleNondeterminism();
       return val.to<ReturnType>();
     } else if (thread->state() == WasmInterpreter::TRAPPED) {
       // TODO(titzer): return the correct trap code
@@ -755,6 +762,7 @@ class WasmRunner {
 
   WasmFunction* function() { return compiler_.function_; }
   WasmInterpreter* interpreter() { return compiler_.interpreter_; }
+  bool possible_nondeterminism() { return possible_nondeterminism_; }
 
  protected:
   v8::internal::AccountingAllocator allocator_;
@@ -764,6 +772,7 @@ class WasmRunner {
   FunctionSig signature_;
   WasmFunctionCompiler compiler_;
   WasmFunctionWrapper<ReturnType> wrapper_;
+  bool possible_nondeterminism_;
 
   bool interpret() { return compiler_.execution_mode_ == kExecuteInterpreted; }
 

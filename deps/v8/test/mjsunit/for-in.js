@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --noharmony-for-in
-
 function props(x) {
   var array = [];
   for (var p in x) array.push(p);
@@ -141,6 +139,13 @@ function props(x) {
 (function forInInitialize() {
   for (var hest = 'hest' in {}) { }
   assertEquals('hest', hest, "empty-no-override");
+
+  // Lexical variables are disallowed
+  assertThrows("for (const x = 0 in {});", SyntaxError);
+  assertThrows("for (let x = 0 in {});", SyntaxError);
+
+  // In strict mode, var is disallowed
+  assertThrows("'use strict'; for (var x = 0 in {});", SyntaxError);
 })();
 
 (function forInObjects() {

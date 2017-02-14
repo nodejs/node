@@ -7,6 +7,7 @@
 
 #include <queue>
 
+#include "include/libplatform/libplatform-export.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
@@ -18,7 +19,7 @@ class Task;
 
 namespace platform {
 
-class TaskQueue {
+class V8_PLATFORM_EXPORT TaskQueue {
  public:
   TaskQueue();
   ~TaskQueue();

@@ -10,6 +10,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "libplatform/libplatform-export.h"
 #include "v8-platform.h"  // NOLINT(build/include)
 
 namespace v8 {
@@ -23,7 +24,7 @@ namespace tracing {
 
 const int kTraceMaxNumArgs = 2;
 
-class TraceObject {
+class V8_PLATFORM_EXPORT TraceObject {
  public:
   union ArgValue {
     bool as_bool;
@@ -103,7 +104,7 @@ class TraceObject {
   void operator=(const TraceObject&) = delete;
 };
 
-class TraceWriter {
+class V8_PLATFORM_EXPORT TraceWriter {
  public:
   TraceWriter() {}
   virtual ~TraceWriter() {}
@@ -118,7 +119,7 @@ class TraceWriter {
   void operator=(const TraceWriter&) = delete;
 };
 
-class TraceBufferChunk {
+class V8_PLATFORM_EXPORT TraceBufferChunk {
  public:
   explicit TraceBufferChunk(uint32_t seq);
 
@@ -142,7 +143,7 @@ class TraceBufferChunk {
   void operator=(const TraceBufferChunk&) = delete;
 };
 
-class TraceBuffer {
+class V8_PLATFORM_EXPORT TraceBuffer {
  public:
   TraceBuffer() {}
   virtual ~TraceBuffer() {}
@@ -178,45 +179,37 @@ enum TraceRecordMode {
   ECHO_TO_CONSOLE,
 };
 
-class TraceConfig {
+class V8_PLATFORM_EXPORT TraceConfig {
  public:
   typedef std::vector<std::string> StringList;
 
   static TraceConfig* CreateDefaultTraceConfig();
 
-  TraceConfig()
-      : enable_sampling_(false),
-        enable_systrace_(false),
-        enable_argument_filter_(false) {}
+  TraceConfig() : enable_systrace_(false), enable_argument_filter_(false) {}
   TraceRecordMode GetTraceRecordMode() const { return record_mode_; }
-  bool IsSamplingEnabled() const { return enable_sampling_; }
   bool IsSystraceEnabled() const { return enable_systrace_; }
   bool IsArgumentFilterEnabled() const { return enable_argument_filter_; }
 
   void SetTraceRecordMode(TraceRecordMode mode) { record_mode_ = mode; }
-  void EnableSampling() { enable_sampling_ = true; }
   void EnableSystrace() { enable_systrace_ = true; }
   void EnableArgumentFilter() { enable_argument_filter_ = true; }
 
   void AddIncludedCategory(const char* included_category);
-  void AddExcludedCategory(const char* excluded_category);
 
   bool IsCategoryGroupEnabled(const char* category_group) const;
 
  private:
   TraceRecordMode record_mode_;
-  bool enable_sampling_ : 1;
   bool enable_systrace_ : 1;
   bool enable_argument_filter_ : 1;
   StringList included_categories_;
-  StringList excluded_categories_;
 
   // Disallow copy and assign
   TraceConfig(const TraceConfig&) = delete;
   void operator=(const TraceConfig&) = delete;
 };
 
-class TracingController {
+class V8_PLATFORM_EXPORT TracingController {
  public:
   enum Mode { DISABLED = 0, RECORDING_MODE };
 

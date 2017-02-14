@@ -104,12 +104,11 @@ V8InspectorSessionImpl::V8InspectorSessionImpl(V8InspectorImpl* inspector,
 }
 
 V8InspectorSessionImpl::~V8InspectorSessionImpl() {
-  ErrorString errorString;
-  m_consoleAgent->disable(&errorString);
-  m_profilerAgent->disable(&errorString);
-  m_heapProfilerAgent->disable(&errorString);
-  m_debuggerAgent->disable(&errorString);
-  m_runtimeAgent->disable(&errorString);
+  m_consoleAgent->disable();
+  m_profilerAgent->disable();
+  m_heapProfilerAgent->disable();
+  m_debuggerAgent->disable();
+  m_runtimeAgent->disable();
 
   discardInjectedScripts();
   m_inspector->disconnect(this);
@@ -165,42 +164,35 @@ void V8InspectorSessionImpl::discardInjectedScripts() {
   }
 }
 
-InjectedScript* V8InspectorSessionImpl::findInjectedScript(
-    ErrorString* errorString, int contextId) {
-  if (!contextId) {
-    *errorString = "Cannot find context with specified id";
-    return nullptr;
-  }
+Response V8InspectorSessionImpl::findInjectedScript(
+    int contextId, InjectedScript*& injectedScript) {
+  injectedScript = nullptr;
+  if (!contextId)
+    return Response::Error("Cannot find context with specified id");
 
   const V8InspectorImpl::ContextByIdMap* contexts =
       m_inspector->contextGroup(m_contextGroupId);
-  if (!contexts) {
-    *errorString = "Cannot find context with specified id";
-    return nullptr;
-  }
+  if (!contexts)
+    return Response::Error("Cannot find context with specified id");
 
   auto contextsIt = contexts->find(contextId);
-  if (contextsIt == contexts->end()) {
-    *errorString = "Cannot find context with specified id";
-    return nullptr;
-  }
+  if (contextsIt == contexts->end())
+    return Response::Error("Cannot find context with specified id");
 
   const std::unique_ptr<InspectedContext>& context = contextsIt->second;
   if (!context->getInjectedScript()) {
-    if (!context->createInjectedScript()) {
-      *errorString = "Cannot access specified execution context";
-      return nullptr;
-    }
+    if (!context->createInjectedScript())
+      return Response::Error("Cannot access specified execution context");
     if (m_customObjectFormatterEnabled)
       context->getInjectedScript()->setCustomObjectFormatterEnabled(true);
   }
-  return context->getInjectedScript();
+  injectedScript = context->getInjectedScript();
+  return Response::OK();
 }
 
-InjectedScript* V8InspectorSessionImpl::findInjectedScript(
-    ErrorString* errorString, RemoteObjectIdBase* objectId) {
-  return objectId ? findInjectedScript(errorString, objectId->contextId())
-                  : nullptr;
+Response V8InspectorSessionImpl::findInjectedScript(
+    RemoteObjectIdBase* objectId, InjectedScript*& injectedScript) {
+  return findInjectedScript(objectId->contextId(), injectedScript);
 }
 
 void V8InspectorSessionImpl::releaseObjectGroup(const StringView& objectGroup) {
@@ -230,31 +222,35 @@ bool V8InspectorSessionImpl::unwrapObject(
     std::unique_ptr<StringBuffer>* error, const StringView& objectId,
     v8::Local<v8::Value>* object, v8::Local<v8::Context>* context,
     std::unique_ptr<StringBuffer>* objectGroup) {
-  ErrorString errorString;
   String16 objectGroupString;
-  bool result =
-      unwrapObject(&errorString, toString16(objectId), object, context,
-                   objectGroup ? &objectGroupString : nullptr);
-  if (error) *error = StringBufferImpl::adopt(errorString);
+  Response response = unwrapObject(toString16(objectId), object, context,
+                                   objectGroup ? &objectGroupString : nullptr);
+  if (!response.isSuccess()) {
+    if (error) {
+      String16 errorMessage = response.errorMessage();
+      *error = StringBufferImpl::adopt(errorMessage);
+    }
+    return false;
+  }
   if (objectGroup) *objectGroup = StringBufferImpl::adopt(objectGroupString);
-  return result;
+  return true;
 }
 
-bool V8InspectorSessionImpl::unwrapObject(ErrorString* errorString,
-                                          const String16& objectId,
-                                          v8::Local<v8::Value>* object,
-                                          v8::Local<v8::Context>* context,
-                                          String16* objectGroup) {
-  std::unique_ptr<RemoteObjectId> remoteId =
-      RemoteObjectId::parse(errorString, objectId);
-  if (!remoteId) return false;
-  InjectedScript* injectedScript =
-      findInjectedScript(errorString, remoteId.get());
-  if (!injectedScript) return false;
-  if (!injectedScript->findObject(errorString, *remoteId, object)) return false;
+Response V8InspectorSessionImpl::unwrapObject(const String16& objectId,
+                                              v8::Local<v8::Value>* object,
+                                              v8::Local<v8::Context>* context,
+                                              String16* objectGroup) {
+  std::unique_ptr<RemoteObjectId> remoteId;
+  Response response = RemoteObjectId::parse(objectId, &remoteId);
+  if (!response.isSuccess()) return response;
+  InjectedScript* injectedScript = nullptr;
+  response = findInjectedScript(remoteId.get(), injectedScript);
+  if (!response.isSuccess()) return response;
+  response = injectedScript->findObject(*remoteId, object);
+  if (!response.isSuccess()) return response;
   *context = injectedScript->context()->context();
   if (objectGroup) *objectGroup = injectedScript->objectGroupName(*remoteId);
-  return true;
+  return Response::OK();
 }
 
 std::unique_ptr<protocol::Runtime::API::RemoteObject>
@@ -269,21 +265,20 @@ V8InspectorSessionImpl::wrapObject(v8::Local<v8::Context> context,
                                    v8::Local<v8::Value> value,
                                    const String16& groupName,
                                    bool generatePreview) {
-  ErrorString errorString;
-  InjectedScript* injectedScript =
-      findInjectedScript(&errorString, V8Debugger::contextId(context));
+  InjectedScript* injectedScript = nullptr;
+  findInjectedScript(V8Debugger::contextId(context), injectedScript);
   if (!injectedScript) return nullptr;
-  return injectedScript->wrapObject(&errorString, value, groupName, false,
-                                    generatePreview);
+  std::unique_ptr<protocol::Runtime::RemoteObject> result;
+  injectedScript->wrapObject(value, groupName, false, generatePreview, &result);
+  return result;
 }
 
 std::unique_ptr<protocol::Runtime::RemoteObject>
 V8InspectorSessionImpl::wrapTable(v8::Local<v8::Context> context,
                                   v8::Local<v8::Value> table,
                                   v8::Local<v8::Value> columns) {
-  ErrorString errorString;
-  InjectedScript* injectedScript =
-      findInjectedScript(&errorString, V8Debugger::contextId(context));
+  InjectedScript* injectedScript = nullptr;
+  findInjectedScript(V8Debugger::contextId(context), injectedScript);
   if (!injectedScript) return nullptr;
   return injectedScript->wrapTable(table, columns);
 }
@@ -386,19 +381,12 @@ void V8InspectorSessionImpl::breakProgram(const StringView& breakReason,
 }
 
 void V8InspectorSessionImpl::setSkipAllPauses(bool skip) {
-  ErrorString errorString;
-  m_debuggerAgent->setSkipAllPauses(&errorString, skip);
+  m_debuggerAgent->setSkipAllPauses(skip);
 }
 
-void V8InspectorSessionImpl::resume() {
-  ErrorString errorString;
-  m_debuggerAgent->resume(&errorString);
-}
+void V8InspectorSessionImpl::resume() { m_debuggerAgent->resume(); }
 
-void V8InspectorSessionImpl::stepOver() {
-  ErrorString errorString;
-  m_debuggerAgent->stepOver(&errorString);
-}
+void V8InspectorSessionImpl::stepOver() { m_debuggerAgent->stepOver(); }
 
 std::vector<std::unique_ptr<protocol::Debugger::API::SearchMatch>>
 V8InspectorSessionImpl::searchInTextByLines(const StringView& text,

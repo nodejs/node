@@ -23,7 +23,7 @@ namespace {
 
 int CollectFunctions(Node* node, Handle<JSFunction>* functions,
                      int functions_size) {
-  DCHECK_NE(0u, functions_size);
+  DCHECK_NE(0, functions_size);
   HeapObjectMatcher m(node);
   if (m.HasValue() && m.Value()->IsJSFunction()) {
     functions[0] = Handle<JSFunction>::cast(m.Value());

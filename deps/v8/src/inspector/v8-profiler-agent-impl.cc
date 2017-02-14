@@ -201,34 +201,34 @@ void V8ProfilerAgentImpl::consoleProfileEnd(const String16& title) {
                                     resolvedTitle);
 }
 
-void V8ProfilerAgentImpl::enable(ErrorString*) {
-  if (m_enabled) return;
+Response V8ProfilerAgentImpl::enable() {
+  if (m_enabled) return Response::OK();
   m_enabled = true;
   DCHECK(!m_profiler);
   m_profiler = v8::CpuProfiler::New(m_isolate);
   m_state->setBoolean(ProfilerAgentState::profilerEnabled, true);
+  return Response::OK();
 }
 
-void V8ProfilerAgentImpl::disable(ErrorString* errorString) {
-  if (!m_enabled) return;
+Response V8ProfilerAgentImpl::disable() {
+  if (!m_enabled) return Response::OK();
   for (size_t i = m_startedProfiles.size(); i > 0; --i)
     stopProfiling(m_startedProfiles[i - 1].m_id, false);
   m_startedProfiles.clear();
-  stop(nullptr, nullptr);
+  stop(nullptr);
   m_profiler->Dispose();
   m_profiler = nullptr;
   m_enabled = false;
   m_state->setBoolean(ProfilerAgentState::profilerEnabled, false);
+  return Response::OK();
 }
 
-void V8ProfilerAgentImpl::setSamplingInterval(ErrorString* error,
-                                              int interval) {
-  if (m_recordingCPUProfile) {
-    *error = "Cannot change sampling interval when profiling.";
-    return;
-  }
+Response V8ProfilerAgentImpl::setSamplingInterval(int interval) {
+  if (m_recordingCPUProfile)
+    return Response::Error("Cannot change sampling interval when profiling.");
   m_state->setInteger(ProfilerAgentState::samplingInterval, interval);
   m_profiler->SetSamplingInterval(interval);
+  return Response::OK();
 }
 
 void V8ProfilerAgentImpl::restore() {
@@ -243,39 +243,34 @@ void V8ProfilerAgentImpl::restore() {
   if (interval) m_profiler->SetSamplingInterval(interval);
   if (m_state->booleanProperty(ProfilerAgentState::userInitiatedProfiling,
                                false)) {
-    ErrorString error;
-    start(&error);
+    start();
   }
 }
 
-void V8ProfilerAgentImpl::start(ErrorString* error) {
-  if (m_recordingCPUProfile) return;
-  if (!m_enabled) {
-    *error = "Profiler is not enabled";
-    return;
-  }
+Response V8ProfilerAgentImpl::start() {
+  if (m_recordingCPUProfile) return Response::OK();
+  if (!m_enabled) return Response::Error("Profiler is not enabled");
   m_recordingCPUProfile = true;
   m_frontendInitiatedProfileId = nextProfileId();
   startProfiling(m_frontendInitiatedProfileId);
   m_state->setBoolean(ProfilerAgentState::userInitiatedProfiling, true);
+  return Response::OK();
 }
 
-void V8ProfilerAgentImpl::stop(
-    ErrorString* errorString,
+Response V8ProfilerAgentImpl::stop(
     std::unique_ptr<protocol::Profiler::Profile>* profile) {
-  if (!m_recordingCPUProfile) {
-    if (errorString) *errorString = "No recording profiles found";
-    return;
-  }
+  if (!m_recordingCPUProfile)
+    return Response::Error("No recording profiles found");
   m_recordingCPUProfile = false;
   std::unique_ptr<protocol::Profiler::Profile> cpuProfile =
       stopProfiling(m_frontendInitiatedProfileId, !!profile);
   if (profile) {
     *profile = std::move(cpuProfile);
-    if (!profile->get() && errorString) *errorString = "Profile is not found";
+    if (!profile->get()) return Response::Error("Profile is not found");
   }
   m_frontendInitiatedProfileId = String16();
   m_state->setBoolean(ProfilerAgentState::userInitiatedProfiling, false);
+  return Response::OK();
 }
 
 String16 V8ProfilerAgentImpl::nextProfileId() {

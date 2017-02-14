@@ -116,7 +116,7 @@ Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
           Replace(use, new_target);
         } else if (index == inlinee_arity_index) {
           // The projection is requesting the number of arguments.
-          Replace(use, jsgraph()->Int32Constant(inliner_inputs - 2));
+          Replace(use, jsgraph()->Constant(inliner_inputs - 2));
         } else if (index == inlinee_context_index) {
           // The projection is requesting the inlinee function context.
           Replace(use, context);
@@ -184,7 +184,7 @@ Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
   for (Node* const input : end->inputs()) {
     switch (input->opcode()) {
       case IrOpcode::kReturn:
-        values.push_back(NodeProperties::GetValueInput(input, 0));
+        values.push_back(NodeProperties::GetValueInput(input, 1));
         effects.push_back(NodeProperties::GetEffectInput(input));
         controls.push_back(NodeProperties::GetControlInput(input));
         break;
@@ -282,6 +282,19 @@ Node* JSInliner::CreateTailCallerFrameState(Node* node, Node* frame_state) {
 
 namespace {
 
+// TODO(turbofan): Shall we move this to the NodeProperties? Or some (untyped)
+// alias analyzer?
+bool IsSame(Node* a, Node* b) {
+  if (a == b) {
+    return true;
+  } else if (a->opcode() == IrOpcode::kCheckHeapObject) {
+    return IsSame(a->InputAt(0), b);
+  } else if (b->opcode() == IrOpcode::kCheckHeapObject) {
+    return IsSame(a, b->InputAt(0));
+  }
+  return false;
+}
+
 // TODO(bmeurer): Unify this with the witness helper functions in the
 // js-builtin-reducer.cc once we have a better understanding of the
 // map tracking we want to do, and eventually changed the CheckMaps
@@ -296,7 +309,7 @@ namespace {
 bool NeedsConvertReceiver(Node* receiver, Node* effect) {
   for (Node* dominator = effect;;) {
     if (dominator->opcode() == IrOpcode::kCheckMaps &&
-        dominator->InputAt(0) == receiver) {
+        IsSame(dominator->InputAt(0), receiver)) {
       // Check if all maps have the given {instance_type}.
       for (int i = 1; i < dominator->op()->ValueInputCount(); ++i) {
         HeapObjectMatcher m(NodeProperties::GetValueInput(dominator, i));
@@ -471,8 +484,8 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
     }
   }
 
-  Zone zone(info_->isolate()->allocator());
-  ParseInfo parse_info(&zone, function);
+  Zone zone(info_->isolate()->allocator(), ZONE_NAME);
+  ParseInfo parse_info(&zone, shared_info);
   CompilationInfo info(&parse_info, function);
   if (info_->is_deoptimization_enabled()) info.MarkAsDeoptimizationEnabled();
   if (info_->is_type_feedback_enabled()) info.MarkAsTypeFeedbackEnabled();
@@ -510,7 +523,8 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   // Remember that we inlined this function. This needs to be called right
   // after we ensure deoptimization support so that the code flusher
   // does not remove the code with the deoptimization support.
-  info_->AddInlinedFunction(shared_info);
+  int inlining_id = info_->AddInlinedFunction(
+      shared_info, source_positions_->GetSourcePosition(node));
 
   // ----------------------------------------------------------------
   // After this point, we've made a decision to inline this function.
@@ -530,8 +544,9 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
     // Run the BytecodeGraphBuilder to create the subgraph.
     Graph::SubgraphScope scope(graph());
     BytecodeGraphBuilder graph_builder(&zone, &info, jsgraph(),
-                                       call.frequency());
-    graph_builder.CreateGraph();
+                                       call.frequency(), source_positions_,
+                                       inlining_id);
+    graph_builder.CreateGraph(false);
 
     // Extract the inlinee start/end nodes.
     start = graph()->start();
@@ -549,8 +564,9 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
 
     // Run the AstGraphBuilder to create the subgraph.
     Graph::SubgraphScope scope(graph());
-    AstGraphBuilder graph_builder(&zone, &info, jsgraph(), call.frequency(),
-                                  loop_assignment, type_hint_analysis);
+    AstGraphBuilderWithPositions graph_builder(
+        &zone, &info, jsgraph(), call.frequency(), loop_assignment,
+        type_hint_analysis, source_positions_, inlining_id);
     graph_builder.CreateGraph(false);
 
     // Extract the inlinee start/end nodes.
@@ -590,7 +606,7 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
     // constructor dispatch (allocate implicit receiver and check return value).
     // This models the behavior usually accomplished by our {JSConstructStub}.
     // Note that the context has to be the callers context (input to call node).
-    Node* receiver = jsgraph()->UndefinedConstant();  // Implicit receiver.
+    Node* receiver = jsgraph()->TheHoleConstant();  // Implicit receiver.
     if (NeedsImplicitReceiver(shared_info)) {
       Node* frame_state_before = NodeProperties::FindFrameStateBefore(node);
       Node* effect = NodeProperties::GetEffectInput(node);

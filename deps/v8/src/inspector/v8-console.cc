@@ -618,12 +618,11 @@ static void inspectImpl(const v8::FunctionCallbackInfo<v8::Value>& info,
   if (!context) return;
   InjectedScript* injectedScript = context->getInjectedScript();
   if (!injectedScript) return;
-  ErrorString errorString;
-  std::unique_ptr<protocol::Runtime::RemoteObject> wrappedObject =
-      injectedScript->wrapObject(&errorString, info[0], "",
-                                 false /** forceValueType */,
-                                 false /** generatePreview */);
-  if (!wrappedObject || !errorString.isEmpty()) return;
+  std::unique_ptr<protocol::Runtime::RemoteObject> wrappedObject;
+  protocol::Response response =
+      injectedScript->wrapObject(info[0], "", false /** forceValueType */,
+                                 false /** generatePreview */, &wrappedObject);
+  if (!response.isSuccess()) return;
 
   std::unique_ptr<protocol::DictionaryValue> hints =
       protocol::DictionaryValue::create();

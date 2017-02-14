@@ -115,11 +115,11 @@ TEST(Marking, SetAndClearRange) {
       calloc(Bitmap::kSize / kPointerSize, kPointerSize));
   for (int i = 0; i < 3; i++) {
     bitmap->SetRange(i, Bitmap::kBitsPerCell + i);
-    CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[0], 0xffffffff << i);
-    CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[1], (1 << i) - 1);
+    CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[0], 0xffffffffu << i);
+    CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[1], (1u << i) - 1);
     bitmap->ClearRange(i, Bitmap::kBitsPerCell + i);
-    CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[0], 0x0);
-    CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[1], 0x0);
+    CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[0], 0x0u);
+    CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[1], 0x0u);
   }
   free(bitmap);
 }
@@ -129,9 +129,9 @@ TEST(Marking, ClearMultipleRanges) {
       calloc(Bitmap::kSize / kPointerSize, kPointerSize));
   CHECK(bitmap->AllBitsClearInRange(0, Bitmap::kBitsPerCell * 3));
   bitmap->SetRange(0, Bitmap::kBitsPerCell * 3);
-  CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[0], 0xffffffff);
-  CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[1], 0xffffffff);
-  CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[2], 0xffffffff);
+  CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[0], 0xffffffffu);
+  CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[1], 0xffffffffu);
+  CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[2], 0xffffffffu);
   CHECK(bitmap->AllBitsSetInRange(0, Bitmap::kBitsPerCell * 3));
   bitmap->ClearRange(Bitmap::kBitsPerCell / 2, Bitmap::kBitsPerCell);
   bitmap->ClearRange(Bitmap::kBitsPerCell,
@@ -139,17 +139,17 @@ TEST(Marking, ClearMultipleRanges) {
   bitmap->ClearRange(Bitmap::kBitsPerCell * 2 + 8,
                      Bitmap::kBitsPerCell * 2 + 16);
   bitmap->ClearRange(Bitmap::kBitsPerCell * 2 + 24, Bitmap::kBitsPerCell * 3);
-  CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[0], 0xffff);
+  CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[0], 0xffffu);
   CHECK(bitmap->AllBitsSetInRange(0, Bitmap::kBitsPerCell / 2));
   CHECK(bitmap->AllBitsClearInRange(Bitmap::kBitsPerCell / 2,
                                     Bitmap::kBitsPerCell));
-  CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[1], 0xffff0000);
+  CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[1], 0xffff0000u);
   CHECK(
       bitmap->AllBitsSetInRange(Bitmap::kBitsPerCell + Bitmap::kBitsPerCell / 2,
                                 2 * Bitmap::kBitsPerCell));
   CHECK(bitmap->AllBitsClearInRange(
       Bitmap::kBitsPerCell, Bitmap::kBitsPerCell + Bitmap::kBitsPerCell / 2));
-  CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[2], 0xff00ff);
+  CHECK_EQ(reinterpret_cast<uint32_t*>(bitmap)[2], 0xff00ffu);
   CHECK(bitmap->AllBitsSetInRange(2 * Bitmap::kBitsPerCell,
                                   2 * Bitmap::kBitsPerCell + 8));
   CHECK(bitmap->AllBitsClearInRange(2 * Bitmap::kBitsPerCell + 24,

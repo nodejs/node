@@ -60,7 +60,7 @@ void Generate_NonPrimitiveToPrimitive(CodeStubAssembler* assembler,
     // Verify that the {result} is actually a primitive.
     Label if_resultisprimitive(assembler),
         if_resultisnotprimitive(assembler, Label::kDeferred);
-    assembler->GotoIf(assembler->WordIsSmi(result), &if_resultisprimitive);
+    assembler->GotoIf(assembler->TaggedIsSmi(result), &if_resultisprimitive);
     Node* result_instance_type = assembler->LoadInstanceType(result);
     STATIC_ASSERT(FIRST_PRIMITIVE_TYPE == FIRST_TYPE);
     assembler->Branch(assembler->Int32LessThanOrEqual(
@@ -162,7 +162,7 @@ void Builtins::Generate_ToString(CodeStubAssembler* assembler) {
   Label is_number(assembler);
   Label runtime(assembler);
 
-  assembler->GotoIf(assembler->WordIsSmi(input), &is_number);
+  assembler->GotoIf(assembler->TaggedIsSmi(input), &is_number);
 
   Node* input_map = assembler->LoadMap(input);
   Node* input_instance_type = assembler->LoadMapInstanceType(input_map);
@@ -183,11 +183,7 @@ void Builtins::Generate_ToString(CodeStubAssembler* assembler) {
   }
 
   assembler->Bind(&is_number);
-  {
-    // TODO(tebbi): inline as soon as NumberToString is in the CodeStubAssembler
-    Callable callable = CodeFactory::NumberToString(assembler->isolate());
-    assembler->Return(assembler->CallStub(callable, context, input));
-  }
+  { assembler->Return(assembler->NumberToString(context, input)); }
 
   assembler->Bind(&not_heap_number);
   {
@@ -252,15 +248,10 @@ void Generate_OrdinaryToPrimitive(CodeStubAssembler* assembler,
     // Check if the {method} is callable.
     Label if_methodiscallable(assembler),
         if_methodisnotcallable(assembler, Label::kDeferred);
-    assembler->GotoIf(assembler->WordIsSmi(method), &if_methodisnotcallable);
+    assembler->GotoIf(assembler->TaggedIsSmi(method), &if_methodisnotcallable);
     Node* method_map = assembler->LoadMap(method);
-    Node* method_bit_field = assembler->LoadMapBitField(method_map);
-    assembler->Branch(
-        assembler->Word32Equal(
-            assembler->Word32And(method_bit_field, assembler->Int32Constant(
-                                                       1 << Map::kIsCallable)),
-            assembler->Int32Constant(0)),
-        &if_methodisnotcallable, &if_methodiscallable);
+    assembler->Branch(assembler->IsCallableMap(method_map),
+                      &if_methodiscallable, &if_methodisnotcallable);
 
     assembler->Bind(&if_methodiscallable);
     {
@@ -270,7 +261,7 @@ void Generate_OrdinaryToPrimitive(CodeStubAssembler* assembler,
       var_result.Bind(result);
 
       // Return the {result} if it is a primitive.
-      assembler->GotoIf(assembler->WordIsSmi(result), &return_result);
+      assembler->GotoIf(assembler->TaggedIsSmi(result), &return_result);
       Node* result_instance_type = assembler->LoadInstanceType(result);
       STATIC_ASSERT(FIRST_PRIMITIVE_TYPE == FIRST_TYPE);
       assembler->GotoIf(assembler->Int32LessThanOrEqual(
@@ -317,6 +308,169 @@ void Builtins::Generate_ToBoolean(CodeStubAssembler* assembler) {
 
   assembler->Bind(&return_false);
   assembler->Return(assembler->BooleanConstant(false));
+}
+
+void Builtins::Generate_ToLength(CodeStubAssembler* assembler) {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Variable Variable;
+
+  Node* context = assembler->Parameter(1);
+
+  // We might need to loop once for ToNumber conversion.
+  Variable var_len(assembler, MachineRepresentation::kTagged);
+  Label loop(assembler, &var_len);
+  var_len.Bind(assembler->Parameter(0));
+  assembler->Goto(&loop);
+  assembler->Bind(&loop);
+  {
+    // Shared entry points.
+    Label return_len(assembler),
+        return_two53minus1(assembler, Label::kDeferred),
+        return_zero(assembler, Label::kDeferred);
+
+    // Load the current {len} value.
+    Node* len = var_len.value();
+
+    // Check if {len} is a positive Smi.
+    assembler->GotoIf(assembler->WordIsPositiveSmi(len), &return_len);
+
+    // Check if {len} is a (negative) Smi.
+    assembler->GotoIf(assembler->TaggedIsSmi(len), &return_zero);
+
+    // Check if {len} is a HeapNumber.
+    Label if_lenisheapnumber(assembler),
+        if_lenisnotheapnumber(assembler, Label::kDeferred);
+    assembler->Branch(assembler->IsHeapNumberMap(assembler->LoadMap(len)),
+                      &if_lenisheapnumber, &if_lenisnotheapnumber);
+
+    assembler->Bind(&if_lenisheapnumber);
+    {
+      // Load the floating-point value of {len}.
+      Node* len_value = assembler->LoadHeapNumberValue(len);
+
+      // Check if {len} is not greater than zero.
+      assembler->GotoUnless(assembler->Float64GreaterThan(
+                                len_value, assembler->Float64Constant(0.0)),
+                            &return_zero);
+
+      // Check if {len} is greater than or equal to 2^53-1.
+      assembler->GotoIf(
+          assembler->Float64GreaterThanOrEqual(
+              len_value, assembler->Float64Constant(kMaxSafeInteger)),
+          &return_two53minus1);
+
+      // Round the {len} towards -Infinity.
+      Node* value = assembler->Float64Floor(len_value);
+      Node* result = assembler->ChangeFloat64ToTagged(value);
+      assembler->Return(result);
+    }
+
+    assembler->Bind(&if_lenisnotheapnumber);
+    {
+      // Need to convert {len} to a Number first.
+      Callable callable = CodeFactory::NonNumberToNumber(assembler->isolate());
+      var_len.Bind(assembler->CallStub(callable, context, len));
+      assembler->Goto(&loop);
+    }
+
+    assembler->Bind(&return_len);
+    assembler->Return(var_len.value());
+
+    assembler->Bind(&return_two53minus1);
+    assembler->Return(assembler->NumberConstant(kMaxSafeInteger));
+
+    assembler->Bind(&return_zero);
+    assembler->Return(assembler->SmiConstant(Smi::kZero));
+  }
+}
+
+void Builtins::Generate_ToInteger(CodeStubAssembler* assembler) {
+  typedef TypeConversionDescriptor Descriptor;
+
+  compiler::Node* input = assembler->Parameter(Descriptor::kArgument);
+  compiler::Node* context = assembler->Parameter(Descriptor::kContext);
+
+  assembler->Return(assembler->ToInteger(context, input));
+}
+
+// ES6 section 7.1.13 ToObject (argument)
+void Builtins::Generate_ToObject(CodeStubAssembler* assembler) {
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
+  typedef TypeConversionDescriptor Descriptor;
+
+  Label if_number(assembler, Label::kDeferred), if_notsmi(assembler),
+      if_jsreceiver(assembler), if_noconstructor(assembler, Label::kDeferred),
+      if_wrapjsvalue(assembler);
+
+  Node* object = assembler->Parameter(Descriptor::kArgument);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  Variable constructor_function_index_var(assembler,
+                                          MachineType::PointerRepresentation());
+
+  assembler->Branch(assembler->TaggedIsSmi(object), &if_number, &if_notsmi);
+
+  assembler->Bind(&if_notsmi);
+  Node* map = assembler->LoadMap(object);
+
+  assembler->GotoIf(assembler->IsHeapNumberMap(map), &if_number);
+
+  Node* instance_type = assembler->LoadMapInstanceType(map);
+  assembler->GotoIf(assembler->IsJSReceiverInstanceType(instance_type),
+                    &if_jsreceiver);
+
+  Node* constructor_function_index =
+      assembler->LoadMapConstructorFunctionIndex(map);
+  assembler->GotoIf(assembler->WordEqual(constructor_function_index,
+                                         assembler->IntPtrConstant(
+                                             Map::kNoConstructorFunctionIndex)),
+                    &if_noconstructor);
+  constructor_function_index_var.Bind(constructor_function_index);
+  assembler->Goto(&if_wrapjsvalue);
+
+  assembler->Bind(&if_number);
+  constructor_function_index_var.Bind(
+      assembler->IntPtrConstant(Context::NUMBER_FUNCTION_INDEX));
+  assembler->Goto(&if_wrapjsvalue);
+
+  assembler->Bind(&if_wrapjsvalue);
+  Node* native_context = assembler->LoadNativeContext(context);
+  Node* constructor = assembler->LoadFixedArrayElement(
+      native_context, constructor_function_index_var.value(), 0,
+      CodeStubAssembler::INTPTR_PARAMETERS);
+  Node* initial_map = assembler->LoadObjectField(
+      constructor, JSFunction::kPrototypeOrInitialMapOffset);
+  Node* js_value = assembler->Allocate(JSValue::kSize);
+  assembler->StoreMapNoWriteBarrier(js_value, initial_map);
+  assembler->StoreObjectFieldRoot(js_value, JSValue::kPropertiesOffset,
+                                  Heap::kEmptyFixedArrayRootIndex);
+  assembler->StoreObjectFieldRoot(js_value, JSObject::kElementsOffset,
+                                  Heap::kEmptyFixedArrayRootIndex);
+  assembler->StoreObjectField(js_value, JSValue::kValueOffset, object);
+  assembler->Return(js_value);
+
+  assembler->Bind(&if_noconstructor);
+  assembler->TailCallRuntime(
+      Runtime::kThrowUndefinedOrNullToObject, context,
+      assembler->HeapConstant(assembler->factory()->NewStringFromAsciiChecked(
+          "ToObject", TENURED)));
+
+  assembler->Bind(&if_jsreceiver);
+  assembler->Return(object);
+}
+
+// ES6 section 12.5.5 typeof operator
+void Builtins::Generate_Typeof(CodeStubAssembler* assembler) {
+  typedef compiler::Node Node;
+  typedef TypeofDescriptor Descriptor;
+
+  Node* object = assembler->Parameter(Descriptor::kObject);
+  Node* context = assembler->Parameter(Descriptor::kContext);
+
+  assembler->Return(assembler->Typeof(object, context));
 }
 
 }  // namespace internal

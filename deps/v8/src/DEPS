@@ -8,6 +8,7 @@ include_rules = [
   "-src/heap",
   "+src/heap/heap.h",
   "+src/heap/heap-inl.h",
+  "-src/inspector",
   "-src/interpreter",
   "+src/interpreter/bytecode-array-iterator.h",
   "+src/interpreter/bytecode-decoder.h",

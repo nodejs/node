@@ -213,7 +213,8 @@ void SourcePositionMatcher::MoveToNextStatement(
     if (iterator->is_statement()) {
       break;
     }
-    positions->push_back({iterator->code_offset(), iterator->source_position(),
+    positions->push_back({iterator->code_offset(),
+                          iterator->source_position().raw(),
                           iterator->is_statement()});
     iterator->Advance();
   }

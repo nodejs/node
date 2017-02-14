@@ -7,6 +7,7 @@
 
 // Clients of this interface shouldn't depend on lots of compiler internals.
 // Do not include anything from src/compiler here!
+#include "src/globals.h"
 #include "src/objects.h"
 
 namespace v8 {
@@ -53,9 +54,9 @@ class Pipeline : public AllStatic {
                                              Schedule* schedule = nullptr);
 
   // Run just the register allocator phases.
-  static bool AllocateRegistersForTesting(const RegisterConfiguration* config,
-                                          InstructionSequence* sequence,
-                                          bool run_verifier);
+  V8_EXPORT_PRIVATE static bool AllocateRegistersForTesting(
+      const RegisterConfiguration* config, InstructionSequence* sequence,
+      bool run_verifier);
 
   // Run the pipeline on a machine graph and generate code. If {schedule} is
   // {nullptr}, then compute a new schedule for code generation.

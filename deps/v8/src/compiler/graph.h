@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_GRAPH_H_
 #define V8_COMPILER_GRAPH_H_
 
+#include "src/base/compiler-specific.h"
+#include "src/globals.h"
 #include "src/zone/zone-containers.h"
 #include "src/zone/zone.h"
 
@@ -28,7 +30,7 @@ typedef uint32_t Mark;
 // out-of-line data associated with each node.
 typedef uint32_t NodeId;
 
-class Graph final : public ZoneObject {
+class V8_EXPORT_PRIVATE Graph final : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   explicit Graph(Zone* zone);
 
@@ -118,6 +120,9 @@ class Graph final : public ZoneObject {
   void Decorate(Node* node);
   void AddDecorator(GraphDecorator* decorator);
   void RemoveDecorator(GraphDecorator* decorator);
+
+  // Very simple print API usable in a debugger.
+  void Print() const;
 
  private:
   friend class NodeMarkerBase;

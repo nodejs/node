@@ -30,25 +30,26 @@ class StartupSerializer : public Serializer {
   int PartialSnapshotCacheIndex(HeapObject* o);
 
  private:
-  class PartialCacheIndexMap : public AddressMapBase {
+  class PartialCacheIndexMap {
    public:
     PartialCacheIndexMap() : map_(), next_index_(0) {}
 
     // Lookup object in the map. Return its index if found, or create
     // a new entry with new_index as value, and return kInvalidIndex.
     bool LookupOrInsert(HeapObject* obj, int* index_out) {
-      base::HashMap::Entry* entry = LookupEntry(&map_, obj, false);
-      if (entry != NULL) {
-        *index_out = GetValue(entry);
+      Maybe<uint32_t> maybe_index = map_.Get(obj);
+      if (maybe_index.IsJust()) {
+        *index_out = maybe_index.FromJust();
         return true;
       }
       *index_out = next_index_;
-      SetValue(LookupEntry(&map_, obj, true), next_index_++);
+      map_.Set(obj, next_index_++);
       return false;
     }
 
    private:
-    base::HashMap map_;
+    DisallowHeapAllocation no_allocation_;
+    HeapObjectToIndexHashMap map_;
     int next_index_;
 
     DISALLOW_COPY_AND_ASSIGN(PartialCacheIndexMap);

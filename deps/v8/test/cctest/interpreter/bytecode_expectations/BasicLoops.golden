@@ -677,58 +677,42 @@ snippet: "
     }
   }
 "
-frame size: 6
+frame size: 4
 parameter count: 1
-bytecode array length: 104
+bytecode array length: 53
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaZero),
                 B(Star), R(1),
   /*   52 S> */ B(Ldar), R(1),
-                B(JumpIfToBooleanFalse), U8(96),
+                B(JumpIfToBooleanFalse), U8(45),
   /*   45 E> */ B(StackCheck),
                 B(Ldar), R(closure),
                 B(CreateBlockContext), U8(0),
                 B(PushContext), R(3),
                 B(LdaTheHole),
-                B(StaContextSlot), R(context), U8(4), U8(0),
+                B(StaCurrentContextSlot), U8(4),
                 B(CreateClosure), U8(1), U8(2),
                 B(Star), R(0),
   /*   73 S> */ B(LdaSmi), U8(1),
-  /*   73 E> */ B(StaContextSlot), R(context), U8(4), U8(0),
+  /*   73 E> */ B(StaCurrentContextSlot), U8(4),
                 B(Mov), R(0), R(2),
-  /*  106 S> */ B(LdaContextSlot), R(context), U8(4), U8(0),
-                B(JumpIfNotHole), U8(11),
-                B(LdaConstant), U8(2),
-                B(Star), R(4),
-                B(CallRuntime), U16(Runtime::kThrowReferenceError), R(4), U8(1),
+  /*  106 S> */ B(LdaCurrentContextSlot), U8(4),
                 B(JumpIfToBooleanFalse), U8(8),
   /*  113 S> */ B(PopContext), R(3),
                 B(PopContext), R(3),
-                B(Jump), U8(44),
-  /*  126 S> */ B(LdaContextSlot), R(context), U8(4), U8(0),
-                B(JumpIfNotHole), U8(11),
-                B(LdaConstant), U8(2),
-                B(Star), R(4),
-                B(CallRuntime), U16(Runtime::kThrowReferenceError), R(4), U8(1),
+                B(Jump), U8(10),
+  /*  126 S> */ B(LdaCurrentContextSlot), U8(4),
                 B(Inc), U8(2),
-                B(Star), R(4),
-  /*  127 E> */ B(LdaContextSlot), R(context), U8(4), U8(0),
-                B(JumpIfNotHole), U8(11),
-                B(LdaConstant), U8(2),
-                B(Star), R(5),
-                B(CallRuntime), U16(Runtime::kThrowReferenceError), R(5), U8(1),
-                B(Ldar), R(4),
-                B(StaContextSlot), R(context), U8(4), U8(0),
+  /*  127 E> */ B(StaCurrentContextSlot), U8(4),
                 B(PopContext), R(3),
-                B(JumpLoop), U8(-95), U8(0),
+                B(JumpLoop), U8(-44), U8(0),
                 B(LdaUndefined),
   /*  137 S> */ B(Return),
 ]
 constant pool: [
   FIXED_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["z"],
 ]
 handlers: [
 ]

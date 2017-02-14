@@ -40,7 +40,7 @@ class AstTraversalVisitor : public AstVisitor<Subclass> {
   bool VisitExpression(Expression* node) { return true; }
 
   // Iteration left-to-right.
-  void VisitDeclarations(ZoneList<Declaration*>* declarations);
+  void VisitDeclarations(Declaration::List* declarations);
   void VisitStatements(ZoneList<Statement*>* statements);
 
 // Individual nodes
@@ -104,9 +104,8 @@ AstTraversalVisitor<Subclass>::AstTraversalVisitor(uintptr_t stack_limit,
 
 template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitDeclarations(
-    ZoneList<Declaration*>* decls) {
-  for (int i = 0; i < decls->length(); ++i) {
-    Declaration* decl = decls->at(i);
+    Declaration::List* decls) {
+  for (Declaration* decl : *decls) {
     RECURSE(Visit(decl));
   }
 }
@@ -288,6 +287,8 @@ void AstTraversalVisitor<Subclass>::VisitFunctionLiteral(
   PROCESS_EXPRESSION(expr);
   DeclarationScope* scope = expr->scope();
   RECURSE_EXPRESSION(VisitDeclarations(scope->declarations()));
+  // A lazily parsed function literal won't have a body.
+  if (expr->scope()->is_lazily_parsed()) return;
   RECURSE_EXPRESSION(VisitStatements(expr->body()));
 }
 

@@ -30,11 +30,6 @@
 [ALWAYS, {
   ###################### NEEDS INVESTIGATION #######################
 
-  # This is an incompatibility between ES5 and V8 on enumerating
-  # shadowed elements in a for..in loop.
-  # https://code.google.com/p/v8/issues/detail?id=705
-  'language/statements/for-in/12.6.4-2': [PASS, FAIL_OK],
-
   # Date tests that fail in CE(S)T timezone.
   # https://bugs.chromium.org/p/v8/issues/detail?id=5449
   'built-ins/Date/prototype/setFullYear/new-value-time-clip': [PASS, FAIL],
@@ -110,20 +105,7 @@
   'built-ins/RegExp/prototype/Symbol.replace/y-init-lastindex': [FAIL],
   'built-ins/RegExp/prototype/Symbol.replace/y-set-lastindex': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5360
-  'built-ins/RegExp/prototype/Symbol.match/builtin-failure-set-lastindex-err': [FAIL],
-  'built-ins/RegExp/prototype/Symbol.search/set-lastindex-restore-err': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5123
-  'built-ins/RegExp/prototype/Symbol.replace/coerce-global': [FAIL],
-  'built-ins/RegExp/prototype/Symbol.replace/coerce-unicode': [FAIL],
-
   ###### END REGEXP SUBCLASSING SECTION ######
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5360
-  'built-ins/RegExp/prototype/Symbol.match/builtin-coerce-lastindex-err': [FAIL],
-  'built-ins/RegExp/prototype/Symbol.match/builtin-failure-set-lastindex': [FAIL],
-  'built-ins/RegExp/prototype/Symbol.search/set-lastindex-restore': [FAIL],
 
   # https://code.google.com/p/v8/issues/detail?id=4360
   'intl402/Collator/10.1.1_1': [FAIL],
@@ -198,7 +180,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4648
   'built-ins/TypedArray/prototype/copyWithin/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/entries/detached-buffer': [FAIL],
   'built-ins/TypedArray/prototype/every/detached-buffer': [FAIL],
   'built-ins/TypedArray/prototype/fill/detached-buffer': [FAIL],
   'built-ins/TypedArray/prototype/filter/detached-buffer': [FAIL],
@@ -208,7 +189,6 @@
   'built-ins/TypedArray/prototype/includes/detached-buffer': [FAIL],
   'built-ins/TypedArray/prototype/indexOf/detached-buffer': [FAIL],
   'built-ins/TypedArray/prototype/join/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/keys/detached-buffer': [FAIL],
   'built-ins/TypedArray/prototype/lastIndexOf/detached-buffer': [FAIL],
   'built-ins/TypedArray/prototype/map/detached-buffer': [FAIL],
   'built-ins/TypedArray/prototype/reverse/detached-buffer': [FAIL],
@@ -218,10 +198,20 @@
   'built-ins/TypedArray/prototype/subarray/detached-buffer': [FAIL],
   'built-ins/TypedArray/prototype/toLocaleString/detached-buffer': [FAIL],
   'built-ins/TypedArray/prototype/toString/detached-buffer': [FAIL],
-  'built-ins/TypedArray/prototype/values/detached-buffer': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4034
   'built-ins/ThrowTypeError/unique-per-realm-function-proto': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5535
+  'built-ins/ThrowTypeError/unique-per-realm-non-simple': [FAIL],
+  'built-ins/ThrowTypeError/unique-per-realm-unmapped-args': [FAIL],
+  'language/arguments-object/10.6-13-b-1-s': [FAIL],
+  'language/arguments-object/10.6-13-b-2-s': [FAIL],
+  'language/arguments-object/10.6-13-b-3-s': [FAIL],
+  'language/arguments-object/10.6-14-1-s': [FAIL],
+  'language/arguments-object/10.6-14-b-1-s': [FAIL],
+  'language/arguments-object/10.6-14-b-4-s': [FAIL],
+  'language/statements/class/strict-mode/arguments-caller': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4231
   'language/eval-code/direct/var-env-lower-lex-catch-non-strict': [FAIL],
@@ -312,9 +302,6 @@
   'built-ins/Function/prototype/toString/setter-object': [FAIL],
   'built-ins/Function/prototype/toString/unicode': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5012
-  # http://bugs.icu-project.org/trac/ticket/12671
-  'intl402/Intl/getCanonicalLocales/weird-cases': [FAIL],
   # https://github.com/tc39/test262/issues/743
   'intl402/Intl/getCanonicalLocales/main': [FAIL],
 
@@ -383,12 +370,6 @@
   'annexB/language/eval-code/direct/func-switch-case-eval-func-block-scoping': [FAIL],
   'annexB/language/eval-code/direct/func-switch-dflt-eval-func-block-scoping': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5136
-  'annexB/language/comments/multi-line-html-close': [FAIL],
-  'annexB/language/comments/single-line-html-close': [FAIL],
-  'annexB/language/comments/single-line-html-close-asi': [FAIL],
-  'annexB/language/comments/single-line-html-open': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5137
   'annexB/built-ins/RegExp/prototype/compile/flags-undefined': [FAIL],
   'annexB/built-ins/RegExp/prototype/compile/pattern-regexp-distinct': [FAIL],
@@ -412,26 +393,9 @@
   'built-ins/Number/S9.3.1_A2_U180E': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5051
-  'language/expressions/arrow-function/params-trailing-comma': [FAIL],
-  'language/expressions/arrow-function/params-trailing-comma-length': [FAIL],
-  'language/expressions/function/params-trailing-comma': [FAIL],
-  'language/expressions/function/params-trailing-comma-arguments': [FAIL],
-  'language/expressions/function/params-trailing-comma-length': [FAIL],
-  'language/expressions/generators/params-trailing-comma': [FAIL],
-  'language/expressions/generators/params-trailing-comma-arguments': [FAIL],
-  'language/expressions/generators/params-trailing-comma-length': [FAIL],
-  'language/expressions/object/method-definition/params-trailing-comma': [FAIL],
-  'language/expressions/object/method-definition/params-trailing-comma-arguments': [FAIL],
-  'language/expressions/object/method-definition/params-trailing-comma-length': [FAIL],
+  'language/expressions/call/trailing-comma': [FAIL],
   'language/statements/class/definition/params-trailing-comma': [FAIL],
   'language/statements/class/definition/params-trailing-comma-arguments': [FAIL],
-  'language/statements/class/definition/params-trailing-comma-length': [FAIL],
-  'language/statements/function/params-trailing-comma': [FAIL],
-  'language/statements/function/params-trailing-comma-arguments': [FAIL],
-  'language/statements/function/params-trailing-comma-length': [FAIL],
-  'language/statements/generators/params-trailing-comma': [FAIL],
-  'language/statements/generators/params-trailing-comma-arguments': [FAIL],
-  'language/statements/generators/params-trailing-comma-length': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5326
   'language/expressions/super/call-new-target-undef': [FAIL],
@@ -474,14 +438,14 @@
   'annexB/language/eval-code/direct/func-switch-case-eval-func-no-skip-try': [FAIL],
   'annexB/language/eval-code/direct/func-switch-dflt-eval-func-no-skip-try': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5334
-  'built-ins/Proxy/setPrototypeOf/internals-call-order': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5336
   'language/expressions/super/call-proto-not-ctor': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5337
-  'language/expressions/arrow-function/dstr-dflt-ary-ptrn-rest-ary-rest': [SKIP],
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5546
+  'language/expressions/tagged-template/invalid-escape-sequences': [FAIL],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5537
+  'built-ins/global/*': [SKIP],
 
   ######################## NEEDS INVESTIGATION ###########################
 
@@ -628,8 +592,10 @@
   '*': [SKIP],
 }],  # variant == asm_wasm
 
+
 # Module-related tests
 # https://bugs.chromium.org/p/v8/issues/detail?id=1569
+
 ['variant != ignition and variant != ignition_staging and variant != ignition_turbofan', {
   'language/eval-code/direct/export': [SKIP],
   'language/eval-code/direct/import': [SKIP],
@@ -637,11 +603,23 @@
   'language/eval-code/indirect/import': [SKIP],
   'language/module-code/*': [SKIP],
 }],  # variant != ignition and variant != ignition_staging and variant != ignition_turbofan
+
 ['variant == ignition or variant == ignition_staging or variant == ignition_turbofan', {
-  'language/module-code/comment-*': [SKIP],
-  'language/module-code/eval-*': [SKIP],
-  'language/module-code/instn-*': [SKIP],
-  'language/module-code/namespace/*': [SKIP],
+  # v8:5485
+  'language/module-code/comment-multi-line-html*': [FAIL],
+  'language/module-code/comment-single-line-html*': [FAIL],
+
+  # v8:5486
+  'language/module-code/instn-iee-star-cycle': [FAIL],
+  'language/module-code/instn-named-star-cycle': [FAIL],
+  'language/module-code/instn-star-star-cycle': [FAIL],
+
+  # v8:5487
+  'language/module-code/namespace/internals/get-own-property-str-found-uninit': [FAIL],
+
+  # v8:5401
+  'language/module-code/namespace/internals/set': [FAIL],
+  'language/module-code/namespace/internals/define-own-property': [FAIL],
 }],  # variant == ignition or variant == ignition_staging or variant == ignition_turbofan
 
 ]

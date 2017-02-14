@@ -69,7 +69,7 @@ class AstTyper final : public AstVisitor<AstTyper> {
 
   int variable_index(Variable* var);
 
-  void VisitDeclarations(ZoneList<Declaration*>* declarations);
+  void VisitDeclarations(Declaration::List* declarations);
   void VisitStatements(ZoneList<Statement*>* statements);
 
 #define DECLARE_VISIT(type) void Visit##type(type* node);

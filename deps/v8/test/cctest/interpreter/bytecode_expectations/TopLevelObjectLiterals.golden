@@ -10,9 +10,9 @@ top level: yes
 snippet: "
   var a = { func: function() { } };
 "
-frame size: 5
+frame size: 4
 parameter count: 1
-bytecode array length: 45
+bytecode array length: 42
 bytecodes: [
                 B(LdaConstant), U8(0),
                 B(Star), R(1),
@@ -24,11 +24,10 @@ bytecodes: [
   /*    8 S> */ B(LdaConstant), U8(1),
                 B(Star), R(1),
                 B(LdaZero),
-                B(CreateObjectLiteral), U8(2), U8(0), U8(1), R(4),
+                B(CreateObjectLiteral), U8(2), U8(0), U8(1), R(3),
                 B(Star), R(2),
                 B(CreateClosure), U8(3), U8(0),
-                B(StaNamedPropertySloppy), R(4), U8(4), U8(4),
-                B(Mov), R(4), R(3),
+                B(StaNamedPropertySloppy), R(3), U8(4), U8(4),
                 B(CallRuntime), U16(Runtime::kInitializeVarGlobal), R(1), U8(3),
                 B(LdaUndefined),
   /*   33 S> */ B(Return),

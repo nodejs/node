@@ -22,7 +22,7 @@ enum LoggingAndProfiling {
 
 enum MarksHandling { TRANSFER_MARKS, IGNORE_MARKS };
 
-template <MarksHandling marks_handling, PromotionMode promotion_mode,
+template <MarksHandling marks_handling,
           LoggingAndProfiling logging_and_profiling_mode>
 class ScavengingVisitor : public StaticVisitorBase {
  public:
@@ -185,8 +185,12 @@ class ScavengingVisitor : public StaticVisitorBase {
     if (allocation.To(&target)) {
       MigrateObject(heap, object, target, object_size);
 
-      // Update slot to new target.
-      *slot = target;
+      // Update slot to new target using CAS. A concurrent sweeper thread my
+      // filter the slot concurrently.
+      HeapObject* old = *slot;
+      base::Release_CompareAndSwap(reinterpret_cast<base::AtomicWord*>(slot),
+                                   reinterpret_cast<base::AtomicWord>(old),
+                                   reinterpret_cast<base::AtomicWord>(target));
 
       if (object_contents == POINTER_OBJECT) {
         heap->promotion_queue()->insert(
@@ -206,8 +210,7 @@ class ScavengingVisitor : public StaticVisitorBase {
     SLOW_DCHECK(object->Size() == object_size);
     Heap* heap = map->GetHeap();
 
-    if (!heap->ShouldBePromoted<promotion_mode>(object->address(),
-                                                object_size)) {
+    if (!heap->ShouldBePromoted(object->address(), object_size)) {
       // A semi-space copy may fail due to fragmentation. In that case, we
       // try to promote the object.
       if (SemiSpaceCopyObject<alignment>(map, slot, object, object_size)) {
@@ -219,9 +222,7 @@ class ScavengingVisitor : public StaticVisitorBase {
                                                   object_size)) {
       return;
     }
-    if (promotion_mode == PROMOTE_MARKED) {
-      FatalProcessOutOfMemory("Scavenger: promoting marked\n");
-    }
+
     // If promotion failed, we try to copy the object to the other semi-space
     if (SemiSpaceCopyObject<alignment>(map, slot, object, object_size)) return;
 
@@ -358,21 +359,19 @@ class ScavengingVisitor : public StaticVisitorBase {
   static VisitorDispatchTable<ScavengingCallback> table_;
 };
 
-template <MarksHandling marks_handling, PromotionMode promotion_mode,
+template <MarksHandling marks_handling,
           LoggingAndProfiling logging_and_profiling_mode>
-VisitorDispatchTable<ScavengingCallback> ScavengingVisitor<
-    marks_handling, promotion_mode, logging_and_profiling_mode>::table_;
+VisitorDispatchTable<ScavengingCallback>
+    ScavengingVisitor<marks_handling, logging_and_profiling_mode>::table_;
 
 // static
 void Scavenger::Initialize() {
-  ScavengingVisitor<TRANSFER_MARKS, PROMOTE_MARKED,
+  ScavengingVisitor<TRANSFER_MARKS,
                     LOGGING_AND_PROFILING_DISABLED>::Initialize();
-  ScavengingVisitor<IGNORE_MARKS, DEFAULT_PROMOTION,
-                    LOGGING_AND_PROFILING_DISABLED>::Initialize();
-  ScavengingVisitor<TRANSFER_MARKS, PROMOTE_MARKED,
+  ScavengingVisitor<IGNORE_MARKS, LOGGING_AND_PROFILING_DISABLED>::Initialize();
+  ScavengingVisitor<TRANSFER_MARKS,
                     LOGGING_AND_PROFILING_ENABLED>::Initialize();
-  ScavengingVisitor<IGNORE_MARKS, DEFAULT_PROMOTION,
-                    LOGGING_AND_PROFILING_ENABLED>::Initialize();
+  ScavengingVisitor<IGNORE_MARKS, LOGGING_AND_PROFILING_ENABLED>::Initialize();
 }
 
 
@@ -397,21 +396,21 @@ void Scavenger::SelectScavengingVisitorsTable() {
   if (!heap()->incremental_marking()->IsMarking()) {
     if (!logging_and_profiling) {
       scavenging_visitors_table_.CopyFrom(
-          ScavengingVisitor<IGNORE_MARKS, DEFAULT_PROMOTION,
+          ScavengingVisitor<IGNORE_MARKS,
                             LOGGING_AND_PROFILING_DISABLED>::GetTable());
     } else {
       scavenging_visitors_table_.CopyFrom(
-          ScavengingVisitor<IGNORE_MARKS, DEFAULT_PROMOTION,
+          ScavengingVisitor<IGNORE_MARKS,
                             LOGGING_AND_PROFILING_ENABLED>::GetTable());
     }
   } else {
     if (!logging_and_profiling) {
       scavenging_visitors_table_.CopyFrom(
-          ScavengingVisitor<TRANSFER_MARKS, PROMOTE_MARKED,
+          ScavengingVisitor<TRANSFER_MARKS,
                             LOGGING_AND_PROFILING_DISABLED>::GetTable());
     } else {
       scavenging_visitors_table_.CopyFrom(
-          ScavengingVisitor<TRANSFER_MARKS, PROMOTE_MARKED,
+          ScavengingVisitor<TRANSFER_MARKS,
                             LOGGING_AND_PROFILING_ENABLED>::GetTable());
     }
 

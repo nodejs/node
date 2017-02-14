@@ -38,11 +38,12 @@ function genModule(memory) {
     .exportFunc();
   var module = builder.instantiate(null, memory);
   assertTrue(module.exports.memory instanceof WebAssembly.Memory);
-  if (memory != null) assertEquals(memory, module.exports.memory.buffer);
+  if (memory != null) assertEquals(memory.buffer, module.exports.memory.buffer);
   return module;
 }
 
 function testPokeMemory() {
+  print("testPokeMemory");
   var module = genModule(null);
   var buffer = module.exports.memory.buffer;
   var main = module.exports.main;
@@ -89,12 +90,13 @@ testSurvivalAcrossGc();
 
 
 function testPokeOuterMemory() {
-  var buffer = new ArrayBuffer(kMemSize);
+  print("testPokeOuterMemory");
+  var buffer = new WebAssembly.Memory({initial: kMemSize / kPageSize});
   var module = genModule(buffer);
   var main = module.exports.main;
-  assertEquals(kMemSize, buffer.byteLength);
+  assertEquals(kMemSize, buffer.buffer.byteLength);
 
-  var array = new Int8Array(buffer);
+  var array = new Int8Array(buffer.buffer);
   assertEquals(kMemSize, array.length);
 
   for (var i = 0; i < kMemSize; i++) {
@@ -116,7 +118,7 @@ function testPokeOuterMemory() {
 testPokeOuterMemory();
 
 function testOuterMemorySurvivalAcrossGc() {
-  var buffer = new ArrayBuffer(kMemSize);
+  var buffer = new WebAssembly.Memory({initial: kMemSize / kPageSize});
   var checker = genAndGetMain(buffer);
   for (var i = 0; i < 3; i++) {
     print("gc run ", i);

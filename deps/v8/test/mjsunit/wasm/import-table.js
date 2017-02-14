@@ -266,9 +266,9 @@ testCallPrint();
 function testCallImport2(foo, bar, expected) {
   var builder = new WasmModuleBuilder();
 
-  builder.addImport("foo", kSig_i);
-  builder.addImport("bar", kSig_i);
-  builder.addFunction("main", kSig_i)
+  builder.addImport("foo", kSig_i_v);
+  builder.addImport("bar", kSig_i_v);
+  builder.addFunction("main", kSig_i_v)
     .addBody([
       kExprCallFunction, 0, // --
       kExprCallFunction, 1, // --

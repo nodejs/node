@@ -127,7 +127,7 @@ TEST(ArrayBuffer_Compaction) {
   heap::GcAndSweep(heap, NEW_SPACE);
 
   Page* page_before_gc = Page::FromAddress(buf1->address());
-  page_before_gc->SetFlag(MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+  heap::ForceEvacuationCandidate(page_before_gc);
   CHECK(IsTracked(*buf1));
 
   CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);

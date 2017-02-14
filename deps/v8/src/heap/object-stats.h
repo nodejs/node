@@ -75,6 +75,9 @@ class ObjectStats {
           over_allocated;
       over_allocated_histogram_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type]
                                [HistogramIndexFromSize(over_allocated)]++;
+      over_allocated_[InstanceType::FIXED_ARRAY_TYPE] += over_allocated;
+      over_allocated_histogram_[InstanceType::FIXED_ARRAY_TYPE]
+                               [HistogramIndexFromSize(over_allocated)]++;
     }
     return true;
   }
@@ -96,6 +99,14 @@ class ObjectStats {
   static const int kFirstBucket = 1 << kFirstBucketShift;
   static const int kLastBucket = 1 << kLastBucketShift;
   static const int kNumberOfBuckets = kLastBucketShift - kFirstBucketShift + 1;
+
+  void PrintKeyAndId(const char* key, int gc_count);
+  // The following functions are excluded from inline to reduce the overall
+  // binary size of VB. On x64 this save around 80KB.
+  V8_NOINLINE void PrintInstanceTypeJSON(const char* key, int gc_count,
+                                         const char* name, int index);
+  V8_NOINLINE void DumpInstanceTypeData(std::stringstream& stream,
+                                        const char* name, int index);
 
   int HistogramIndexFromSize(size_t size) {
     if (size == 0) return 0;

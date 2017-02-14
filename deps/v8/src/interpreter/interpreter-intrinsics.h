@@ -35,7 +35,6 @@ namespace interpreter {
   V(IsTypedArray, is_typed_array, 1)                    \
   V(NewObject, new_object, 2)                           \
   V(NumberToString, number_to_string, 1)                \
-  V(RegExpConstructResult, reg_exp_construct_result, 3) \
   V(RegExpExec, reg_exp_exec, 4)                        \
   V(SubString, sub_string, 3)                           \
   V(ToString, to_string, 1)                             \

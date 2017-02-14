@@ -51,6 +51,60 @@ class AtomicNumber {
   base::AtomicWord value_;
 };
 
+// This type uses no barrier accessors to change atomic word. Be careful with
+// data races.
+template <typename T>
+class NoBarrierAtomicValue {
+ public:
+  NoBarrierAtomicValue() : value_(0) {}
+
+  explicit NoBarrierAtomicValue(T initial)
+      : value_(cast_helper<T>::to_storage_type(initial)) {}
+
+  static NoBarrierAtomicValue* FromAddress(void* address) {
+    return reinterpret_cast<base::NoBarrierAtomicValue<T>*>(address);
+  }
+
+  V8_INLINE bool TrySetValue(T old_value, T new_value) {
+    return base::NoBarrier_CompareAndSwap(
+               &value_, cast_helper<T>::to_storage_type(old_value),
+               cast_helper<T>::to_storage_type(new_value)) ==
+           cast_helper<T>::to_storage_type(old_value);
+  }
+
+  V8_INLINE T Value() const {
+    return cast_helper<T>::to_return_type(base::NoBarrier_Load(&value_));
+  }
+
+  V8_INLINE void SetValue(T new_value) {
+    base::NoBarrier_Store(&value_, cast_helper<T>::to_storage_type(new_value));
+  }
+
+ private:
+  STATIC_ASSERT(sizeof(T) <= sizeof(base::AtomicWord));
+
+  template <typename S>
+  struct cast_helper {
+    static base::AtomicWord to_storage_type(S value) {
+      return static_cast<base::AtomicWord>(value);
+    }
+    static S to_return_type(base::AtomicWord value) {
+      return static_cast<S>(value);
+    }
+  };
+
+  template <typename S>
+  struct cast_helper<S*> {
+    static base::AtomicWord to_storage_type(S* value) {
+      return reinterpret_cast<base::AtomicWord>(value);
+    }
+    static S* to_return_type(base::AtomicWord value) {
+      return reinterpret_cast<S*>(value);
+    }
+  };
+
+  base::AtomicWord value_;
+};
 
 // Flag using T atomically. Also accepts void* as T.
 template <typename T>
@@ -73,7 +127,7 @@ class AtomicValue {
   }
 
   V8_INLINE void SetBits(T bits, T mask) {
-    DCHECK_EQ(bits & ~mask, 0);
+    DCHECK_EQ(bits & ~mask, static_cast<T>(0));
     T old_value;
     T new_value;
     do {

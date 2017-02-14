@@ -128,6 +128,7 @@ BinaryOperationHint BinaryOperationHintFromFeedback(int type_feedback) {
     case BinaryOperationFeedback::kSignedSmall:
       return BinaryOperationHint::kSignedSmall;
     case BinaryOperationFeedback::kNumber:
+    case BinaryOperationFeedback::kNumberOrOddball:
       return BinaryOperationHint::kNumberOrOddball;
     case BinaryOperationFeedback::kString:
       return BinaryOperationHint::kString;
@@ -158,8 +159,6 @@ CompareOperationHint CompareOperationHintFromFeedback(int type_feedback) {
 void TypeFeedbackVector::ComputeCounts(int* with_type_info, int* generic,
                                        int* vector_ic_count,
                                        bool code_is_interpreted) {
-  Object* uninitialized_sentinel =
-      TypeFeedbackVector::RawUninitializedSentinel(GetIsolate());
   Object* megamorphic_sentinel =
       *TypeFeedbackVector::MegamorphicSentinel(GetIsolate());
   int with = 0;
@@ -170,47 +169,58 @@ void TypeFeedbackVector::ComputeCounts(int* with_type_info, int* generic,
     FeedbackVectorSlot slot = iter.Next();
     FeedbackVectorSlotKind kind = iter.kind();
 
-    Object* obj = Get(slot);
-    if (kind == FeedbackVectorSlotKind::GENERAL) {
-      continue;
-    }
-    total++;
-
-    if (obj != uninitialized_sentinel) {
-      if (kind == FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC ||
-          kind == FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC) {
-        // If we are not running interpreted code, we need to ignore
-        // the special ic slots for binaryop/compare used by the
-        // interpreter.
-        // TODO(mvstanton): Remove code_is_interpreted when full code
-        // is retired from service.
-        if (!code_is_interpreted) continue;
-
-        DCHECK(obj->IsSmi());
-        int op_feedback = static_cast<int>(Smi::cast(obj)->value());
-        if (kind == FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC) {
-          CompareOperationHint hint =
-              CompareOperationHintFromFeedback(op_feedback);
-          if (hint == CompareOperationHint::kAny) {
-            gen++;
-          } else if (hint != CompareOperationHint::kNone) {
-            with++;
-          }
-        } else {
-          DCHECK(kind == FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC);
-          BinaryOperationHint hint =
-              BinaryOperationHintFromFeedback(op_feedback);
-          if (hint == BinaryOperationHint::kAny) {
-            gen++;
-          } else if (hint != BinaryOperationHint::kNone) {
-            with++;
-          }
+    Object* const obj = Get(slot);
+    switch (kind) {
+      case FeedbackVectorSlotKind::CALL_IC:
+      case FeedbackVectorSlotKind::LOAD_IC:
+      case FeedbackVectorSlotKind::LOAD_GLOBAL_IC:
+      case FeedbackVectorSlotKind::KEYED_LOAD_IC:
+      case FeedbackVectorSlotKind::STORE_IC:
+      case FeedbackVectorSlotKind::KEYED_STORE_IC: {
+        if (obj->IsWeakCell() || obj->IsFixedArray() || obj->IsString()) {
+          with++;
+        } else if (obj == megamorphic_sentinel) {
+          gen++;
         }
-      } else if (obj->IsWeakCell() || obj->IsFixedArray() || obj->IsString()) {
-        with++;
-      } else if (obj == megamorphic_sentinel) {
-        gen++;
+        total++;
+        break;
       }
+      case FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC:
+      case FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC: {
+        // If we are not running interpreted code, we need to ignore the special
+        // IC slots for binaryop/compare used by the interpreter.
+        // TODO(mvstanton): Remove code_is_interpreted when full code is retired
+        // from service.
+        if (code_is_interpreted) {
+          int const feedback = Smi::cast(obj)->value();
+          if (kind == FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC) {
+            CompareOperationHint hint =
+                CompareOperationHintFromFeedback(feedback);
+            if (hint == CompareOperationHint::kAny) {
+              gen++;
+            } else if (hint != CompareOperationHint::kNone) {
+              with++;
+            }
+          } else {
+            DCHECK_EQ(FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC, kind);
+            BinaryOperationHint hint =
+                BinaryOperationHintFromFeedback(feedback);
+            if (hint == BinaryOperationHint::kAny) {
+              gen++;
+            } else if (hint != BinaryOperationHint::kNone) {
+              with++;
+            }
+          }
+          total++;
+        }
+        break;
+      }
+      case FeedbackVectorSlotKind::GENERAL:
+        break;
+      case FeedbackVectorSlotKind::INVALID:
+      case FeedbackVectorSlotKind::KINDS_NUMBER:
+        UNREACHABLE();
+        break;
     }
   }
 

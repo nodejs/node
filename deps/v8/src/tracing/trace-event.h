@@ -49,33 +49,6 @@ enum CategoryGroupEnabledFlags {
 #define TRACE_ID_WITH_SCOPE(scope, id) \
   trace_event_internal::TraceID::WithScope(scope, id)
 
-// Sets the current sample state to the given category and name (both must be
-// constant strings). These states are intended for a sampling profiler.
-// Implementation note: we store category and name together because we don't
-// want the inconsistency/expense of storing two pointers.
-// |thread_bucket| is [0..2] and is used to statically isolate samples in one
-// thread from others.
-#define TRACE_EVENT_SET_SAMPLING_STATE_FOR_BUCKET(bucket_number, category, \
-                                                  name)                    \
-  v8::internal::tracing::TraceEventSamplingStateScope<bucket_number>::Set( \
-      category "\0" name)
-
-// Returns a current sampling state of the given bucket.
-#define TRACE_EVENT_GET_SAMPLING_STATE_FOR_BUCKET(bucket_number) \
-  v8::internal::tracing::TraceEventSamplingStateScope<bucket_number>::Current()
-
-// Creates a scope of a sampling state of the given bucket.
-//
-// {  // The sampling state is set within this scope.
-//    TRACE_EVENT_SAMPLING_STATE_SCOPE_FOR_BUCKET(0, "category", "name");
-//    ...;
-// }
-#define TRACE_EVENT_SCOPED_SAMPLING_STATE_FOR_BUCKET(bucket_number, category, \
-                                                     name)                    \
-  v8::internal::TraceEventSamplingStateScope<bucket_number>                   \
-      traceEventSamplingScope(category "\0" name);
-
-
 #define INTERNAL_TRACE_EVENT_CATEGORY_GROUP_ENABLED_FOR_RECORDING_MODE() \
   *INTERNAL_TRACE_EVENT_UID(category_group_enabled) &                    \
       (kEnabledForRecording_CategoryGroupEnabledFlags |                  \
@@ -137,12 +110,6 @@ enum CategoryGroupEnabledFlags {
 #define TRACE_EVENT_API_ATOMIC_LOAD(var) v8::base::NoBarrier_Load(&(var))
 #define TRACE_EVENT_API_ATOMIC_STORE(var, value) \
   v8::base::NoBarrier_Store(&(var), (value))
-
-// The thread buckets for the sampling profiler.
-extern TRACE_EVENT_API_ATOMIC_WORD g_trace_state[3];
-
-#define TRACE_EVENT_API_THREAD_BUCKET(thread_bucket) \
-  g_trace_state[thread_bucket]
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -282,20 +249,10 @@ extern TRACE_EVENT_API_ATOMIC_WORD g_trace_state[3];
   INTERNAL_TRACE_EVENT_UID(ScopedContext)                                  \
   INTERNAL_TRACE_EVENT_UID(scoped_context)(context);
 
-#define TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED() \
-  base::NoBarrier_Load(&v8::internal::tracing::kRuntimeCallStatsTracingEnabled)
-
 #define TRACE_EVENT_CALL_STATS_SCOPED(isolate, category_group, name) \
   INTERNAL_TRACE_EVENT_CALL_STATS_SCOPED(isolate, category_group, name)
 
 #define INTERNAL_TRACE_EVENT_CALL_STATS_SCOPED(isolate, category_group, name)  \
-  {                                                                            \
-    INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(                                    \
-        TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats"));                        \
-    base::NoBarrier_Store(                                                     \
-        &v8::internal::tracing::kRuntimeCallStatsTracingEnabled,               \
-        INTERNAL_TRACE_EVENT_CATEGORY_GROUP_ENABLED_FOR_RECORDING_MODE());     \
-  }                                                                            \
   INTERNAL_TRACE_EVENT_GET_CATEGORY_INFO(category_group);                      \
   v8::internal::tracing::CallStatsScopedTracer INTERNAL_TRACE_EVENT_UID(       \
       tracer);                                                                 \
@@ -611,48 +568,6 @@ class ScopedTracer {
   };
   Data* p_data_;
   Data data_;
-};
-
-// Used by TRACE_EVENT_BINARY_EFFICIENTx macro. Do not use directly.
-class ScopedTraceBinaryEfficient {
- public:
-  ScopedTraceBinaryEfficient(const char* category_group, const char* name);
-  ~ScopedTraceBinaryEfficient();
-
- private:
-  const uint8_t* category_group_enabled_;
-  const char* name_;
-  uint64_t event_handle_;
-};
-
-// TraceEventSamplingStateScope records the current sampling state
-// and sets a new sampling state. When the scope exists, it restores
-// the sampling state having recorded.
-template <size_t BucketNumber>
-class TraceEventSamplingStateScope {
- public:
-  explicit TraceEventSamplingStateScope(const char* category_and_name) {
-    previous_state_ = TraceEventSamplingStateScope<BucketNumber>::Current();
-    TraceEventSamplingStateScope<BucketNumber>::Set(category_and_name);
-  }
-
-  ~TraceEventSamplingStateScope() {
-    TraceEventSamplingStateScope<BucketNumber>::Set(previous_state_);
-  }
-
-  static V8_INLINE const char* Current() {
-    return reinterpret_cast<const char*>(
-        TRACE_EVENT_API_ATOMIC_LOAD(g_trace_state[BucketNumber]));
-  }
-
-  static V8_INLINE void Set(const char* category_and_name) {
-    TRACE_EVENT_API_ATOMIC_STORE(g_trace_state[BucketNumber],
-                                 reinterpret_cast<TRACE_EVENT_API_ATOMIC_WORD>(
-                                     const_cast<char*>(category_and_name)));
-  }
-
- private:
-  const char* previous_state_;
 };
 
 // Do not use directly.

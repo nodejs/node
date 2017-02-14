@@ -30,7 +30,7 @@ HBasicBlock* HOsrBuilder::BuildOsrLoopEntry(IterationStatement* statement) {
   HBasicBlock* non_osr_entry = graph->CreateBasicBlock();
   osr_entry_ = graph->CreateBasicBlock();
   HValue* true_value = graph->GetConstantTrue();
-  HBranch* test = builder_->New<HBranch>(true_value, ToBooleanICStub::Types(),
+  HBranch* test = builder_->New<HBranch>(true_value, ToBooleanHint::kNone,
                                          non_osr_entry, osr_entry_);
   builder_->FinishCurrentBlock(test);
 

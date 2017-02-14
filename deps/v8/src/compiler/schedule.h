@@ -7,6 +7,8 @@
 
 #include <iosfwd>
 
+#include "src/base/compiler-specific.h"
+#include "src/globals.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -26,7 +28,8 @@ typedef ZoneVector<Node*> NodeVector;
 // A basic block contains an ordered list of nodes and ends with a control
 // node. Note that if a basic block has phis, then all phis must appear as the
 // first nodes in the block.
-class BasicBlock final : public ZoneObject {
+class V8_EXPORT_PRIVATE BasicBlock final
+    : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   // Possible control nodes that can end a block.
   enum Control {
@@ -177,7 +180,7 @@ std::ostream& operator<<(std::ostream&, const BasicBlock::Id&);
 // and ordering them within basic blocks. Prior to computing a schedule,
 // a graph has no notion of control flow ordering other than that induced
 // by the graph's dependencies. A schedule is required to generate code.
-class Schedule final : public ZoneObject {
+class V8_EXPORT_PRIVATE Schedule final : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   explicit Schedule(Zone* zone, size_t node_count_hint = 0);
 
@@ -282,7 +285,7 @@ class Schedule final : public ZoneObject {
   DISALLOW_COPY_AND_ASSIGN(Schedule);
 };
 
-std::ostream& operator<<(std::ostream&, const Schedule&);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, const Schedule&);
 
 }  // namespace compiler
 }  // namespace internal

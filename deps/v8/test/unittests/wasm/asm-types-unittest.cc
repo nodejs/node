@@ -155,7 +155,7 @@ TEST_F(AsmTypeTest, ValidateBits) {
   do {                                                                       \
     ++total_types;                                                           \
     if (AsmValueTypeParents::CamelName != 0) {                               \
-      EXPECT_NE(0, ParentsOf(AsmType::CamelName()).size()) << #CamelName;    \
+      EXPECT_NE(0u, ParentsOf(AsmType::CamelName()).size()) << #CamelName;   \
     }                                                                        \
     seen_types.insert(Type::CamelName());                                    \
     seen_numbers.insert(number);                                             \
@@ -163,7 +163,7 @@ TEST_F(AsmTypeTest, ValidateBits) {
     EXPECT_NE(0, number) << Type::CamelName()->Name();                       \
     /* Inheritance cycles - unlikely, but we're paranoid and check for it */ \
     /* anyways.*/                                                            \
-    EXPECT_EQ(0, (1 << (number)) & AsmValueTypeParents::CamelName);          \
+    EXPECT_EQ(0u, (1 << (number)) & AsmValueTypeParents::CamelName);         \
   } while (0);
   FOR_EACH_ASM_VALUE_TYPE_LIST(V)
 #undef V

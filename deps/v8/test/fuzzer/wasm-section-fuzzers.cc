@@ -36,7 +36,7 @@ int fuzz_wasm_section(WasmSectionCode section, const uint8_t* data,
   v8::TryCatch try_catch(isolate);
 
   v8::internal::AccountingAllocator allocator;
-  v8::internal::Zone zone(&allocator);
+  v8::internal::Zone zone(&allocator, ZONE_NAME);
 
   ZoneBuffer buffer(&zone);
   buffer.write_u32(kWasmMagic);
@@ -57,7 +57,7 @@ int fuzz_wasm_section(WasmSectionCode section, const uint8_t* data,
   ErrorThrower thrower(i_isolate, "decoder");
 
   std::unique_ptr<const WasmModule> module(testing::DecodeWasmModuleForTesting(
-      i_isolate, &zone, &thrower, buffer.begin(), buffer.end(), kWasmOrigin));
+      i_isolate, &thrower, buffer.begin(), buffer.end(), kWasmOrigin));
 
   return 0;
 }

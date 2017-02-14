@@ -37,7 +37,7 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
   void VisitReference(Expression* expr);
 
   void VisitStatements(ZoneList<Statement*>* statements);
-  void VisitDeclarations(ZoneList<Declaration*>* declarations);
+  void VisitDeclarations(Declaration::List* declarations);
   void VisitArguments(ZoneList<Expression*>* arguments);
   void VisitLiteralProperty(LiteralProperty* property);
 
@@ -147,8 +147,15 @@ void AstNumberingVisitor::VisitRegExpLiteral(RegExpLiteral* node) {
 
 void AstNumberingVisitor::VisitVariableProxyReference(VariableProxy* node) {
   IncrementNodeCount();
-  if (node->var()->IsLookupSlot()) {
-    DisableCrankshaft(kReferenceToAVariableWhichRequiresDynamicLookup);
+  switch (node->var()->location()) {
+    case VariableLocation::LOOKUP:
+      DisableCrankshaft(kReferenceToAVariableWhichRequiresDynamicLookup);
+      break;
+    case VariableLocation::MODULE:
+      DisableCrankshaft(kReferenceToModuleVariable);
+      break;
+    default:
+      break;
   }
   node->set_base_id(ReserveIdRange(VariableProxy::num_ids()));
 }
@@ -547,12 +554,8 @@ void AstNumberingVisitor::VisitStatements(ZoneList<Statement*>* statements) {
   }
 }
 
-
-void AstNumberingVisitor::VisitDeclarations(
-    ZoneList<Declaration*>* declarations) {
-  for (int i = 0; i < declarations->length(); i++) {
-    Visit(declarations->at(i));
-  }
+void AstNumberingVisitor::VisitDeclarations(Declaration::List* decls) {
+  for (Declaration* decl : *decls) Visit(decl);
 }
 
 
@@ -592,12 +595,11 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
   }
 
   if (IsGeneratorFunction(node->kind()) || IsAsyncFunction(node->kind())) {
-    // Generators can be optimized if --turbo-from-bytecode is set.
-    if (FLAG_turbo_from_bytecode) {
-      DisableCrankshaft(kGenerator);
-    } else {
-      DisableOptimization(kGenerator);
-    }
+    DisableCrankshaft(kGenerator);
+  }
+
+  if (IsClassConstructor(node->kind())) {
+    DisableCrankshaft(kClassConstructorFunction);
   }
 
   VisitDeclarations(scope->declarations());

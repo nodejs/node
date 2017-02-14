@@ -16,7 +16,8 @@
 namespace i = v8::internal;
 
 void Test(v8::Isolate* isolate, i::Handle<i::JSRegExp> regexp,
-          i::Handle<i::String> subject, i::Handle<i::JSArray> results_array) {
+          i::Handle<i::String> subject,
+          i::Handle<i::RegExpMatchInfo> results_array) {
   v8::TryCatch try_catch(isolate);
   USE(i::RegExpImpl::Exec(regexp, subject, 0, results_array));
 }
@@ -48,7 +49,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   const uint8_t one_byte_array[6] = {'f', 'o', 'o', 'b', 'a', 'r'};
   const i::uc16 two_byte_array[6] = {'f', 0xD83D, 0xDCA9, 'b', 'a', 0x2603};
 
-  i::Handle<i::JSArray> results_array = factory->NewJSArray(5);
+  i::Handle<i::RegExpMatchInfo> results_array = factory->NewRegExpMatchInfo();
   i::Handle<i::String> one_byte =
       factory->NewStringFromOneByte(i::Vector<const uint8_t>(one_byte_array, 6))
           .ToHandleChecked();

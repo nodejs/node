@@ -12,13 +12,13 @@
 
 #include "src/asmjs/asm-types.h"
 #include "src/asmjs/asm-wasm-builder.h"
-#include "src/wasm/switch-logic.h"
+#include "src/asmjs/switch-logic.h"
+
 #include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-opcodes.h"
 
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
-#include "src/codegen.h"
 
 namespace v8 {
 namespace internal {
@@ -81,14 +81,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
          ++i) {
       b.AddParam(i->type);
     }
-    foreign_init_function_->SetExported();
-    std::string raw_name = "__foreign_init__";
-    foreign_init_function_->SetName(
-        AsmWasmBuilder::foreign_init_name,
-        static_cast<int>(strlen(AsmWasmBuilder::foreign_init_name)));
-
-    foreign_init_function_->SetName(raw_name.data(),
-                                    static_cast<int>(raw_name.size()));
+    foreign_init_function_->ExportAs(
+        CStrVector(AsmWasmBuilder::foreign_init_name));
     foreign_init_function_->SetSignature(b.Build());
     for (size_t pos = 0; pos < foreign_variables_.size(); ++pos) {
       foreign_init_function_->EmitGetLocal(static_cast<uint32_t>(pos));
@@ -563,10 +557,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       Variable* var = expr->var();
       DCHECK(var->is_function());
       WasmFunctionBuilder* function = LookupOrInsertFunction(var);
-      function->SetExported();
-      function->SetName(
-          AsmWasmBuilder::single_function_name,
-          static_cast<int>(strlen(AsmWasmBuilder::single_function_name)));
+      function->ExportAs(CStrVector(AsmWasmBuilder::single_function_name));
     }
   }
 
@@ -650,9 +641,9 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       const AstRawString* raw_name = name->AsRawPropertyName();
       if (var->is_function()) {
         WasmFunctionBuilder* function = LookupOrInsertFunction(var);
-        function->SetExported();
-        function->SetName(reinterpret_cast<const char*>(raw_name->raw_data()),
-                          raw_name->length());
+        function->Export();
+        function->SetName({reinterpret_cast<const char*>(raw_name->raw_data()),
+                           raw_name->length()});
       }
     }
   }
@@ -763,7 +754,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     }
   };
 
-  void EmitAssignmentLhs(Expression* target, MachineType* mtype) {
+  void EmitAssignmentLhs(Expression* target, AsmType** atype) {
     // Match the left hand side of the assignment.
     VariableProxy* target_var = target->AsVariableProxy();
     if (target_var != nullptr) {
@@ -774,7 +765,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     Property* target_prop = target->AsProperty();
     if (target_prop != nullptr) {
       // Left hand side is a property access, i.e. the asm.js heap.
-      VisitPropertyAndEmitIndex(target_prop, mtype);
+      VisitPropertyAndEmitIndex(target_prop, atype);
       return;
     }
 
@@ -822,7 +813,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     RECURSE(Visit(value));
   }
 
-  void EmitAssignment(Assignment* expr, MachineType type, ValueFate fate) {
+  void EmitAssignment(Assignment* expr, AsmType* type, ValueFate fate) {
     // Match the left hand side of the assignment.
     VariableProxy* target_var = expr->target()->AsVariableProxy();
     if (target_var != nullptr) {
@@ -857,21 +848,21 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       }
       // Note that unlike StoreMem, AsmjsStoreMem ignores out-of-bounds writes.
       WasmOpcode opcode;
-      if (type == MachineType::Int8()) {
+      if (type == AsmType::Int8Array()) {
         opcode = kExprI32AsmjsStoreMem8;
-      } else if (type == MachineType::Uint8()) {
+      } else if (type == AsmType::Uint8Array()) {
         opcode = kExprI32AsmjsStoreMem8;
-      } else if (type == MachineType::Int16()) {
+      } else if (type == AsmType::Int16Array()) {
         opcode = kExprI32AsmjsStoreMem16;
-      } else if (type == MachineType::Uint16()) {
+      } else if (type == AsmType::Uint16Array()) {
         opcode = kExprI32AsmjsStoreMem16;
-      } else if (type == MachineType::Int32()) {
+      } else if (type == AsmType::Int32Array()) {
         opcode = kExprI32AsmjsStoreMem;
-      } else if (type == MachineType::Uint32()) {
+      } else if (type == AsmType::Uint32Array()) {
         opcode = kExprI32AsmjsStoreMem;
-      } else if (type == MachineType::Float32()) {
+      } else if (type == AsmType::Float32Array()) {
         opcode = kExprF32AsmjsStoreMem;
-      } else if (type == MachineType::Float64()) {
+      } else if (type == AsmType::Float64Array()) {
         opcode = kExprF64AsmjsStoreMem;
       } else {
         UNREACHABLE();
@@ -938,12 +929,12 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     }
 
     if (as_init) LoadInitFunction();
-    MachineType mtype = MachineType::None();
+    AsmType* atype = AsmType::None();
     bool is_nop = false;
-    EmitAssignmentLhs(expr->target(), &mtype);
+    EmitAssignmentLhs(expr->target(), &atype);
     EmitAssignmentRhs(expr->target(), expr->value(), &is_nop);
     if (!is_nop) {
-      EmitAssignment(expr, mtype, fate);
+      EmitAssignment(expr, atype, fate);
     }
     if (as_init) UnLoadInitFunction();
   }
@@ -967,40 +958,10 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     }
   }
 
-  void VisitPropertyAndEmitIndex(Property* expr, MachineType* mtype) {
+  void VisitPropertyAndEmitIndex(Property* expr, AsmType** atype) {
     Expression* obj = expr->obj();
-    AsmType* type = typer_->TypeOf(obj);
-    int size;
-    if (type->IsA(AsmType::Uint8Array())) {
-      *mtype = MachineType::Uint8();
-      size = 1;
-    } else if (type->IsA(AsmType::Int8Array())) {
-      *mtype = MachineType::Int8();
-      size = 1;
-    } else if (type->IsA(AsmType::Uint16Array())) {
-      *mtype = MachineType::Uint16();
-      size = 2;
-    } else if (type->IsA(AsmType::Int16Array())) {
-      *mtype = MachineType::Int16();
-      size = 2;
-    } else if (type->IsA(AsmType::Uint32Array())) {
-      *mtype = MachineType::Uint32();
-      size = 4;
-    } else if (type->IsA(AsmType::Int32Array())) {
-      *mtype = MachineType::Int32();
-      size = 4;
-    } else if (type->IsA(AsmType::Uint32Array())) {
-      *mtype = MachineType::Uint32();
-      size = 4;
-    } else if (type->IsA(AsmType::Float32Array())) {
-      *mtype = MachineType::Float32();
-      size = 4;
-    } else if (type->IsA(AsmType::Float64Array())) {
-      *mtype = MachineType::Float64();
-      size = 8;
-    } else {
-      UNREACHABLE();
-    }
+    *atype = typer_->TypeOf(obj);
+    int size = (*atype)->ElementSizeInBytes();
     if (size == 1) {
       // Allow more general expression in byte arrays than the spec
       // strictly permits.
@@ -1038,24 +999,24 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
   }
 
   void VisitProperty(Property* expr) {
-    MachineType type;
+    AsmType* type = AsmType::None();
     VisitPropertyAndEmitIndex(expr, &type);
     WasmOpcode opcode;
-    if (type == MachineType::Int8()) {
+    if (type == AsmType::Int8Array()) {
       opcode = kExprI32AsmjsLoadMem8S;
-    } else if (type == MachineType::Uint8()) {
+    } else if (type == AsmType::Uint8Array()) {
       opcode = kExprI32AsmjsLoadMem8U;
-    } else if (type == MachineType::Int16()) {
+    } else if (type == AsmType::Int16Array()) {
       opcode = kExprI32AsmjsLoadMem16S;
-    } else if (type == MachineType::Uint16()) {
+    } else if (type == AsmType::Uint16Array()) {
       opcode = kExprI32AsmjsLoadMem16U;
-    } else if (type == MachineType::Int32()) {
+    } else if (type == AsmType::Int32Array()) {
       opcode = kExprI32AsmjsLoadMem;
-    } else if (type == MachineType::Uint32()) {
+    } else if (type == AsmType::Uint32Array()) {
       opcode = kExprI32AsmjsLoadMem;
-    } else if (type == MachineType::Float32()) {
+    } else if (type == AsmType::Float32Array()) {
       opcode = kExprF32AsmjsLoadMem;
-    } else if (type == MachineType::Float64()) {
+    } else if (type == AsmType::Float64Array()) {
       opcode = kExprF64AsmjsLoadMem;
     } else {
       UNREACHABLE();
@@ -1367,11 +1328,13 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
           uint32_t index = imported_function_table_.LookupOrInsertImport(
               vp->var(), sig.Build());
           VisitCallArgs(expr);
+          current_function_builder_->AddAsmWasmOffset(expr->position());
           current_function_builder_->Emit(kExprCallFunction);
           current_function_builder_->EmitVarInt(index);
         } else {
           WasmFunctionBuilder* function = LookupOrInsertFunction(vp->var());
           VisitCallArgs(expr);
+          current_function_builder_->AddAsmWasmOffset(expr->position());
           current_function_builder_->Emit(kExprCallFunction);
           current_function_builder_->EmitDirectCallIndex(
               function->func_index());
@@ -1397,8 +1360,10 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
         VisitCallArgs(expr);
 
         current_function_builder_->EmitGetLocal(tmp.index());
+        current_function_builder_->AddAsmWasmOffset(expr->position());
         current_function_builder_->Emit(kExprCallIndirect);
         current_function_builder_->EmitVarInt(indices->signature_index);
+        current_function_builder_->EmitVarInt(0);  // table index
         returns_value =
             builder_->GetSignature(indices->signature_index)->return_count() >
             0;
@@ -1726,9 +1691,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
 
   void VisitThisFunction(ThisFunction* expr) { UNREACHABLE(); }
 
-  void VisitDeclarations(ZoneList<Declaration*>* decls) {
-    for (int i = 0; i < decls->length(); ++i) {
-      Declaration* decl = decls->at(i);
+  void VisitDeclarations(Declaration::List* decls) {
+    for (Declaration* decl : *decls) {
       RECURSE(Visit(decl));
     }
   }
@@ -1821,8 +1785,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       entry = functions_.LookupOrInsert(v, ComputePointerHash(v),
                                         ZoneAllocationPolicy(zone()));
       function->SetName(
-          reinterpret_cast<const char*>(v->raw_name()->raw_data()),
-          v->raw_name()->length());
+          {reinterpret_cast<const char*>(v->raw_name()->raw_data()),
+           v->raw_name()->length()});
       entry->value = function;
     }
     return (reinterpret_cast<WasmFunctionBuilder*>(entry->value));
@@ -1878,13 +1842,16 @@ AsmWasmBuilder::AsmWasmBuilder(Isolate* isolate, Zone* zone,
 
 // TODO(aseemgarg): probably should take zone (to write wasm to) as input so
 // that zone in constructor may be thrown away once wasm module is written.
-ZoneBuffer* AsmWasmBuilder::Run(i::Handle<i::FixedArray>* foreign_args) {
+AsmWasmBuilder::Result AsmWasmBuilder::Run(
+    i::Handle<i::FixedArray>* foreign_args) {
   AsmWasmBuilderImpl impl(isolate_, zone_, literal_, typer_);
   impl.Build();
   *foreign_args = impl.GetForeignArgs();
-  ZoneBuffer* buffer = new (zone_) ZoneBuffer(zone_);
-  impl.builder_->WriteTo(*buffer);
-  return buffer;
+  ZoneBuffer* module_buffer = new (zone_) ZoneBuffer(zone_);
+  impl.builder_->WriteTo(*module_buffer);
+  ZoneBuffer* asm_offsets_buffer = new (zone_) ZoneBuffer(zone_);
+  impl.builder_->WriteAsmJsOffsetTable(*asm_offsets_buffer);
+  return {module_buffer, asm_offsets_buffer};
 }
 
 const char* AsmWasmBuilder::foreign_init_name = "__foreign_init__";

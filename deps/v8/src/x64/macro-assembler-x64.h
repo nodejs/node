@@ -1112,12 +1112,6 @@ class MacroAssembler: public Assembler {
   // Always use unsigned comparisons: above and below, not less and greater.
   void CmpInstanceType(Register map, InstanceType type);
 
-  // Check if a map for a JSObject indicates that the object has fast elements.
-  // Jump to the specified label if it does not.
-  void CheckFastElements(Register map,
-                         Label* fail,
-                         Label::Distance distance = Label::kFar);
-
   // Check if a map for a JSObject indicates that the object can have both smi
   // and HeapObject elements.  Jump to the specified label if it does not.
   void CheckFastObjectElements(Register map,
@@ -1295,24 +1289,7 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Inline caching support
 
-  // Generate code for checking access rights - used for security checks
-  // on access to global objects across environments. The holder register
-  // is left untouched, but the scratch register and kScratchRegister,
-  // which must be different, are clobbered.
-  void CheckAccessGlobalProxy(Register holder_reg,
-                              Register scratch,
-                              Label* miss);
-
   void GetNumberHash(Register r0, Register scratch);
-
-  void LoadFromNumberDictionary(Label* miss,
-                                Register elements,
-                                Register key,
-                                Register r0,
-                                Register r1,
-                                Register r2,
-                                Register result);
-
 
   // ---------------------------------------------------------------------------
   // Allocation support
@@ -1430,12 +1407,6 @@ class MacroAssembler: public Assembler {
   // clobbered.
   void TryGetFunctionPrototype(Register function, Register result, Label* miss);
 
-  // Picks out an array index from the hash field.
-  // Register use:
-  //   hash - holds the index's hash. Clobbered.
-  //   index - holds the overwritten index on exit.
-  void IndexFromHash(Register hash, Register index);
-
   // Find the function context up the context chain.
   void LoadContext(Register dst, int context_chain_length);
 
@@ -1548,18 +1519,6 @@ class MacroAssembler: public Assembler {
     DCHECK(!code_object_.is_null());
     return code_object_;
   }
-
-  // Copy length bytes from source to destination.
-  // Uses scratch register internally (if you have a low-eight register
-  // free, do use it, otherwise kScratchRegister will be used).
-  // The min_length is a minimum limit on the value that length will have.
-  // The algorithm has some special cases that might be omitted if the string
-  // is known to always be long.
-  void CopyBytes(Register destination,
-                 Register source,
-                 Register length,
-                 int min_length = 0,
-                 Register scratch = kScratchRegister);
 
   // Initialize fields with filler values.  Fields starting at |current_address|
   // not including |end_address| are overwritten with the value in |filler|.  At

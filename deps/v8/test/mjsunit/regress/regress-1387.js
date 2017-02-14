@@ -26,13 +26,13 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Tests that we always return the same type error function when trying to
-// access strict mode caller and callee.
+// access or set strict mode callee.
 
 function foo() {
   'use strict';
   return arguments;
 }
 
-var get1 = Object.getOwnPropertyDescriptor(foo(), "caller").get;
-var get2 = Object.getOwnPropertyDescriptor(foo(), "callee").get;
-assertEquals(get1, get2);
+var get = Object.getOwnPropertyDescriptor(foo(), "callee").get;
+var set = Object.getOwnPropertyDescriptor(foo(), "callee").set;
+assertEquals(get, set);

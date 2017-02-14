@@ -7,7 +7,9 @@
 
 #include <string>
 
+#include "src/base/compiler-specific.h"
 #include "src/base/macros.h"
+#include "src/globals.h"
 #include "src/zone/zone-containers.h"
 #include "src/zone/zone.h"
 
@@ -92,7 +94,7 @@ class AsmValueType {
   }
 
   static AsmType* New(bitset_t bits) {
-    DCHECK_EQ((bits & kAsmValueTypeTag), 0);
+    DCHECK_EQ((bits & kAsmValueTypeTag), 0u);
     return reinterpret_cast<AsmType*>(
         static_cast<uintptr_t>(bits | kAsmValueTypeTag));
   }
@@ -101,7 +103,7 @@ class AsmValueType {
   DISALLOW_IMPLICIT_CONSTRUCTORS(AsmValueType);
 };
 
-class AsmCallableType : public ZoneObject {
+class V8_EXPORT_PRIVATE AsmCallableType : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   virtual std::string Name() = 0;
 
@@ -124,7 +126,7 @@ class AsmCallableType : public ZoneObject {
   DISALLOW_COPY_AND_ASSIGN(AsmCallableType);
 };
 
-class AsmFunctionType final : public AsmCallableType {
+class V8_EXPORT_PRIVATE AsmFunctionType final : public AsmCallableType {
  public:
   AsmFunctionType* AsFunctionType() final { return this; }
 
@@ -151,7 +153,8 @@ class AsmFunctionType final : public AsmCallableType {
   DISALLOW_COPY_AND_ASSIGN(AsmFunctionType);
 };
 
-class AsmOverloadedFunctionType final : public AsmCallableType {
+class V8_EXPORT_PRIVATE AsmOverloadedFunctionType final
+    : public AsmCallableType {
  public:
   AsmOverloadedFunctionType* AsOverloadedFunctionType() override {
     return this;
@@ -173,7 +176,7 @@ class AsmOverloadedFunctionType final : public AsmCallableType {
   DISALLOW_IMPLICIT_CONSTRUCTORS(AsmOverloadedFunctionType);
 };
 
-class AsmFFIType final : public AsmCallableType {
+class V8_EXPORT_PRIVATE AsmFFIType final : public AsmCallableType {
  public:
   AsmFFIType* AsFFIType() override { return this; }
 
@@ -189,7 +192,7 @@ class AsmFFIType final : public AsmCallableType {
   DISALLOW_COPY_AND_ASSIGN(AsmFFIType);
 };
 
-class AsmFunctionTableType : public AsmCallableType {
+class V8_EXPORT_PRIVATE AsmFunctionTableType : public AsmCallableType {
  public:
   AsmFunctionTableType* AsFunctionTableType() override { return this; }
 
@@ -212,7 +215,7 @@ class AsmFunctionTableType : public AsmCallableType {
   DISALLOW_IMPLICIT_CONSTRUCTORS(AsmFunctionTableType);
 };
 
-class AsmType {
+class V8_EXPORT_PRIVATE AsmType {
  public:
 #define DEFINE_CONSTRUCTOR(CamelName, string_name, number, parent_types) \
   static AsmType* CamelName() {                                          \

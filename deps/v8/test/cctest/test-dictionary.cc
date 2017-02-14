@@ -212,7 +212,7 @@ TEST(HashTableRehash) {
     for (int i = 0; i < capacity - 1; i++) {
       t->insert(i, i * i, i);
     }
-    t->Rehash(handle(Smi::FromInt(0), isolate));
+    t->Rehash(handle(Smi::kZero, isolate));
     for (int i = 0; i < capacity - 1; i++) {
       CHECK_EQ(i, t->lookup(i * i));
     }
@@ -225,7 +225,7 @@ TEST(HashTableRehash) {
     for (int i = 0; i < capacity / 2; i++) {
       t->insert(i, i * i, i);
     }
-    t->Rehash(handle(Smi::FromInt(0), isolate));
+    t->Rehash(handle(Smi::kZero, isolate));
     for (int i = 0; i < capacity / 2; i++) {
       CHECK_EQ(i, t->lookup(i * i));
     }
@@ -304,7 +304,7 @@ TEST(SetRequiresCopyOnCapacityChange) {
   dict->SetRequiresCopyOnCapacityChange();
   Handle<Name> key = isolate->factory()->InternalizeString(
       v8::Utils::OpenHandle(*v8_str("key")));
-  Handle<Object> value = handle(Smi::FromInt(0), isolate);
+  Handle<Object> value = handle(Smi::kZero, isolate);
   Handle<NameDictionary> new_dict =
       NameDictionary::Add(dict, key, value, PropertyDetails::Empty());
   CHECK_NE(*dict, *new_dict);

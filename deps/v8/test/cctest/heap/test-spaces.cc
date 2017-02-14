@@ -471,7 +471,7 @@ TEST(LargeObjectSpace) {
   CHECK(lo->Contains(ho));
 
   while (true) {
-    intptr_t available = lo->Available();
+    size_t available = lo->Available();
     { AllocationResult allocation = lo->AllocateRaw(lo_size, NOT_EXECUTABLE);
       if (allocation.IsRetry()) break;
     }
@@ -503,9 +503,15 @@ TEST(SizeOfInitialHeap) {
   // Initial size of LO_SPACE
   size_t initial_lo_space = isolate->heap()->lo_space()->Size();
 
-  // The limit for each space for an empty isolate containing just the
-  // snapshot.
+// The limit for each space for an empty isolate containing just the
+// snapshot.
+// In PPC the page size is 64K, causing more internal fragmentation
+// hence requiring a larger limit.
+#if V8_OS_LINUX && V8_HOST_ARCH_PPC
+  const size_t kMaxInitialSizePerSpace = 3 * MB;
+#else
   const size_t kMaxInitialSizePerSpace = 2 * MB;
+#endif
 
   // Freshly initialized VM gets by with the snapshot size (which is below
   // kMaxInitialSizePerSpace per space).
@@ -530,7 +536,8 @@ TEST(SizeOfInitialHeap) {
   }
 
   // No large objects required to perform the above steps.
-  CHECK_EQ(initial_lo_space, isolate->heap()->lo_space()->Size());
+  CHECK_EQ(initial_lo_space,
+           static_cast<size_t>(isolate->heap()->lo_space()->Size()));
 }
 
 static HeapObject* AllocateUnaligned(NewSpace* space, int size) {
@@ -741,7 +748,7 @@ TEST(ShrinkPageToHighWaterMarkNoFiller) {
   CcTest::heap()->old_space()->EmptyAllocationInfo();
 
   const size_t shrinked = page->ShrinkToHighWaterMark();
-  CHECK_EQ(0, shrinked);
+  CHECK_EQ(0u, shrinked);
 }
 
 TEST(ShrinkPageToHighWaterMarkOneWordFiller) {
@@ -767,7 +774,7 @@ TEST(ShrinkPageToHighWaterMarkOneWordFiller) {
   CHECK_EQ(filler->map(), CcTest::heap()->one_pointer_filler_map());
 
   const size_t shrinked = page->ShrinkToHighWaterMark();
-  CHECK_EQ(0, shrinked);
+  CHECK_EQ(0u, shrinked);
 }
 
 TEST(ShrinkPageToHighWaterMarkTwoWordFiller) {
@@ -793,7 +800,7 @@ TEST(ShrinkPageToHighWaterMarkTwoWordFiller) {
   CHECK_EQ(filler->map(), CcTest::heap()->two_pointer_filler_map());
 
   const size_t shrinked = page->ShrinkToHighWaterMark();
-  CHECK_EQ(0, shrinked);
+  CHECK_EQ(0u, shrinked);
 }
 
 }  // namespace internal

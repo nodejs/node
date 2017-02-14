@@ -354,7 +354,7 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
 
   void VisitInDuplicateContext(Expression* expr);
 
-  void VisitDeclarations(ZoneList<Declaration*>* declarations);
+  void VisitDeclarations(Declaration::List* declarations);
   void DeclareGlobals(Handle<FixedArray> pairs);
   int DeclareGlobalsFlags();
 
@@ -478,15 +478,12 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   F(Call)                               \
   F(NewObject)                          \
   F(IsJSReceiver)                       \
-  F(HasCachedArrayIndex)                \
-  F(GetCachedArrayIndex)                \
   F(GetSuperConstructor)                \
   F(DebugBreakInOptimizedCode)          \
   F(ClassOf)                            \
   F(StringCharCodeAt)                   \
   F(SubString)                          \
   F(RegExpExec)                         \
-  F(RegExpConstructResult)              \
   F(ToInteger)                          \
   F(NumberToString)                     \
   F(ToString)                           \
@@ -519,8 +516,6 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
                         TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
 
   void EmitAccessor(ObjectLiteralProperty* property);
-
-  bool NeedsHoleCheckForLoad(VariableProxy* proxy);
 
   // Expects the arguments and the function already pushed.
   void EmitResolvePossiblyDirectEval(Call* expr);
@@ -576,7 +571,8 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   // Complete a variable assignment.  The right-hand-side value is expected
   // in the accumulator.
   void EmitVariableAssignment(Variable* var, Token::Value op,
-                              FeedbackVectorSlot slot);
+                              FeedbackVectorSlot slot,
+                              HoleCheckMode hole_check_mode);
 
   // Helper functions to EmitVariableAssignment
   void EmitStoreToStackLocalOrContextSlot(Variable* var,
@@ -620,10 +616,8 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   void CallIC(Handle<Code> code,
               TypeFeedbackId id = TypeFeedbackId::None());
 
-  void CallLoadIC(FeedbackVectorSlot slot, Handle<Object> name,
-                  TypeFeedbackId id = TypeFeedbackId::None());
-  void CallStoreIC(FeedbackVectorSlot slot, Handle<Object> name,
-                   TypeFeedbackId id = TypeFeedbackId::None());
+  void CallLoadIC(FeedbackVectorSlot slot, Handle<Object> name);
+  void CallStoreIC(FeedbackVectorSlot slot, Handle<Object> name);
   void CallKeyedStoreIC(FeedbackVectorSlot slot);
 
   void SetFunctionPosition(FunctionLiteral* fun);

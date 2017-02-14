@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/js-context-specialization.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
-#include "src/compiler/source-position.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/function-tester.h"
 #include "test/cctest/compiler/graph-builder-tester.h"

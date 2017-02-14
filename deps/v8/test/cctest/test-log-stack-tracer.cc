@@ -81,9 +81,8 @@ static void construct_call(const v8::FunctionCallbackInfo<v8::Value>& args) {
   frame_iterator.Advance();
   CHECK(frame_iterator.frame()->is_construct());
   frame_iterator.Advance();
-  if (i::FLAG_ignition) {
+  if (frame_iterator.frame()->type() == i::StackFrame::STUB) {
     // Skip over bytecode handler frame.
-    CHECK(frame_iterator.frame()->type() == i::StackFrame::STUB);
     frame_iterator.Advance();
   }
   i::StackFrame* calling_frame = frame_iterator.frame();

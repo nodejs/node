@@ -1312,7 +1312,7 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
   HeapObject* obj = shared;
   String* shared_name = shared->DebugName();
   const char* name = NULL;
-  if (shared_name != *heap_->isolate()->factory()->empty_string()) {
+  if (shared_name != heap_->empty_string()) {
     name = names_->GetName(shared_name);
     TagObject(shared->code(), names_->GetFormatted("(code for %s)", name));
   } else {

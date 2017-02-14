@@ -103,9 +103,8 @@ bool LCodeGenBase::GenerateBody() {
     GenerateBodyInstructionPre(instr);
 
     HValue* value = instr->hydrogen_value();
-    if (!value->position().IsUnknown()) {
-      RecordAndWritePosition(
-        chunk()->graph()->SourcePositionToScriptPosition(value->position()));
+    if (value->position().IsKnown()) {
+      RecordAndWritePosition(value->position());
     }
 
     instr->CompileToNative(codegen);
@@ -141,8 +140,8 @@ void LCodeGenBase::CheckEnvironmentUsage() {
 #endif
 }
 
-void LCodeGenBase::RecordAndWritePosition(int pos) {
-  if (pos == kNoSourcePosition) return;
+void LCodeGenBase::RecordAndWritePosition(SourcePosition pos) {
+  if (!pos.IsKnown()) return;
   source_position_table_builder_.AddPosition(masm_->pc_offset(), pos, false);
 }
 
@@ -167,8 +166,7 @@ void LCodeGenBase::Comment(const char* format, ...) {
 void LCodeGenBase::DeoptComment(const Deoptimizer::DeoptInfo& deopt_info) {
   SourcePosition position = deopt_info.position;
   int deopt_id = deopt_info.deopt_id;
-  int raw_position = position.IsUnknown() ? 0 : position.raw();
-  masm()->RecordDeoptReason(deopt_info.deopt_reason, raw_position, deopt_id);
+  masm()->RecordDeoptReason(deopt_info.deopt_reason, position, deopt_id);
 }
 
 
@@ -311,6 +309,26 @@ void LCodeGenBase::WriteTranslationFrame(LEnvironment* environment,
   }
 }
 
+namespace {
+
+Handle<PodArray<InliningPosition>> CreateInliningPositions(
+    CompilationInfo* info) {
+  const CompilationInfo::InlinedFunctionList& inlined_functions =
+      info->inlined_functions();
+  if (inlined_functions.size() == 0) {
+    return Handle<PodArray<InliningPosition>>::cast(
+        info->isolate()->factory()->empty_byte_array());
+  }
+  Handle<PodArray<InliningPosition>> inl_positions =
+      PodArray<InliningPosition>::New(
+          info->isolate(), static_cast<int>(inlined_functions.size()), TENURED);
+  for (size_t i = 0; i < inlined_functions.size(); ++i) {
+    inl_positions->set(static_cast<int>(i), inlined_functions[i].position);
+  }
+  return inl_positions;
+}
+
+}  // namespace
 
 void LCodeGenBase::PopulateDeoptimizationData(Handle<Code> code) {
   int length = deoptimizations_.length();
@@ -328,9 +346,9 @@ void LCodeGenBase::PopulateDeoptimizationData(Handle<Code> code) {
     AllowDeferredHandleDereference allow_handle_dereference;
     data->SetSharedFunctionInfo(*info_->shared_info());
   } else {
-    data->SetSharedFunctionInfo(Smi::FromInt(0));
+    data->SetSharedFunctionInfo(Smi::kZero);
   }
-  data->SetWeakCellCache(Smi::FromInt(0));
+  data->SetWeakCellCache(Smi::kZero);
 
   Handle<FixedArray> literals =
       factory()->NewFixedArray(deoptimization_literals_.length(), TENURED);
@@ -341,6 +359,9 @@ void LCodeGenBase::PopulateDeoptimizationData(Handle<Code> code) {
     }
     data->SetLiteralArray(*literals);
   }
+
+  Handle<PodArray<InliningPosition>> inl_pos = CreateInliningPositions(info_);
+  data->SetInliningPositions(*inl_pos);
 
   data->SetOsrAstId(Smi::FromInt(info_->osr_ast_id().ToInt()));
   data->SetOsrPcOffset(Smi::FromInt(osr_pc_offset_));
@@ -360,16 +381,22 @@ void LCodeGenBase::PopulateDeoptimizationData(Handle<Code> code) {
 
 void LCodeGenBase::PopulateDeoptimizationLiteralsWithInlinedFunctions() {
   DCHECK_EQ(0, deoptimization_literals_.length());
-  for (Handle<SharedFunctionInfo> function : chunk()->inlined_functions()) {
-    DefineDeoptimizationLiteral(function);
+  for (CompilationInfo::InlinedFunctionHolder& inlined :
+       info()->inlined_functions()) {
+    if (!inlined.shared_info.is_identical_to(info()->shared_info())) {
+      int index = DefineDeoptimizationLiteral(inlined.shared_info);
+      inlined.RegisterInlinedFunctionId(index);
+    }
   }
   inlined_function_count_ = deoptimization_literals_.length();
 
   // Define deoptimization literals for all unoptimized code objects of inlined
   // functions. This ensures unoptimized code is kept alive by optimized code.
-  AllowDeferredHandleDereference allow_shared_function_info_dereference;
-  for (Handle<SharedFunctionInfo> function : chunk()->inlined_functions()) {
-    DefineDeoptimizationLiteral(handle(function->code()));
+  for (const CompilationInfo::InlinedFunctionHolder& inlined :
+       info()->inlined_functions()) {
+    if (!inlined.shared_info.is_identical_to(info()->shared_info())) {
+      DefineDeoptimizationLiteral(inlined.inlined_code_object_root);
+    }
   }
 }
 

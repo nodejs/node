@@ -77,22 +77,10 @@ Handle<Object> FrameInspector::GetExpression(int index) {
                        : handle(frame_->GetExpression(index), isolate_);
 }
 
-
 int FrameInspector::GetSourcePosition() {
-  if (is_optimized_) return deoptimized_frame_->GetSourcePosition();
-  AbstractCode* code;
-  int code_offset;
-  if (is_interpreted_) {
-    InterpretedFrame* frame = reinterpret_cast<InterpretedFrame*>(frame_);
-    code = AbstractCode::cast(frame->GetBytecodeArray());
-    code_offset = frame->GetBytecodeOffset();
-  } else {
-    code = AbstractCode::cast(frame_->LookupCode());
-    code_offset = static_cast<int>(frame_->pc() - code->instruction_start());
-  }
-  return code->SourcePosition(code_offset);
+  return is_optimized_ ? deoptimized_frame_->GetSourcePosition()
+                       : frame_->position();
 }
-
 
 bool FrameInspector::IsConstructor() {
   return is_optimized_ && !is_bottommost_

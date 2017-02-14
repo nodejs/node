@@ -48,6 +48,7 @@ group("default_tests") {
     deps = [
       ":cctest_run",
       ":fuzzer_run",
+      ":inspector-test_run",
       ":intl_run",
       ":message_run",
       ":mjsunit_run",
@@ -77,6 +78,7 @@ v8_isolate_run("default") {
 v8_isolate_run("optimize_for_size") {
   deps = [
     ":cctest_run",
+    ":inspector-test_run",
     ":intl_run",
     ":mjsunit_run",
     ":webkit_run",
@@ -132,6 +134,15 @@ v8_isolate_run("fuzzer") {
   ]
 
   isolate = "fuzzer/fuzzer.isolate"
+}
+
+v8_isolate_run("inspector-test") {
+  deps = []
+  if (v8_enable_inspector_override) {
+    deps += [ "inspector:inspector-test" ]
+  }
+
+  isolate = "inspector/inspector.isolate"
 }
 
 v8_isolate_run("intl") {

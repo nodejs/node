@@ -29,6 +29,7 @@
 #define TARGET_ARCH_OPCODE_LIST(V)
 #define TARGET_ADDRESSING_MODE_LIST(V)
 #endif
+#include "src/globals.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -47,7 +48,6 @@ enum class RecordWriteMode { kValueIsMap, kValueIsPointer, kValueIsAny };
   V(ArchTailCallCodeObject)               \
   V(ArchCallJSFunction)                   \
   V(ArchTailCallJSFunctionFromJSFunction) \
-  V(ArchTailCallJSFunction)               \
   V(ArchTailCallAddress)                  \
   V(ArchPrepareCallCFunction)             \
   V(ArchCallCFunction)                    \
@@ -124,7 +124,8 @@ enum ArchOpcode {
 #undef COUNT_ARCH_OPCODE
 };
 
-std::ostream& operator<<(std::ostream& os, const ArchOpcode& ao);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const ArchOpcode& ao);
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes
@@ -143,7 +144,8 @@ enum AddressingMode {
 #undef COUNT_ADDRESSING_MODE
 };
 
-std::ostream& operator<<(std::ostream& os, const AddressingMode& am);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const AddressingMode& am);
 
 // The mode of the flags continuation (see below).
 enum FlagsMode {
@@ -153,7 +155,8 @@ enum FlagsMode {
   kFlags_set = 3
 };
 
-std::ostream& operator<<(std::ostream& os, const FlagsMode& fm);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const FlagsMode& fm);
 
 // The condition of flags continuation (see below).
 enum FlagsCondition {
@@ -189,7 +192,8 @@ inline FlagsCondition NegateFlagsCondition(FlagsCondition condition) {
 
 FlagsCondition CommuteFlagsCondition(FlagsCondition condition);
 
-std::ostream& operator<<(std::ostream& os, const FlagsCondition& fc);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const FlagsCondition& fc);
 
 // The InstructionCode is an opaque, target-specific integer that encodes
 // what code to emit for an instruction in the code generator. It is not

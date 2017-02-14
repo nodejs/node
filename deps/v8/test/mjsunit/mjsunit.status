@@ -27,6 +27,10 @@
 
 [
 [ALWAYS, {
+  # Modules which are only meant to be imported from by other tests, not to be
+  # tested standalone.
+  'modules-skip*': [SKIP],
+
   # All tests in the bug directory are expected to fail.
   'bugs/*': [FAIL],
 
@@ -55,9 +59,9 @@
   'es6/debug-promises/reject-with-undefined-reject': [FAIL],
   'es6/debug-promises/reject-with-invalid-reject': [FAIL],
 
-  # Issue 3660: Replacing activated TurboFan frames by unoptimized code does
-  # not work, but we expect it to not crash.
-  'debug-step-turbofan': [PASS, FAIL],
+  # Issue 5587: The eval'ed code is piped through Ignition and fails when being
+  # live edited. This needs investigation.
+  'debug-liveedit-double-call': [SKIP],
 
   ##############################################################################
   # Too slow in debug mode with --stress-opt mode.
@@ -154,21 +158,8 @@
   'numops-fuzz-part*': [PASS, ['mode == debug', SLOW]],
   'readonly': [PASS, SLOW],
   'regress/regress-1200351': [PASS, SLOW],
-  'regress/regress-crbug-474297': [PASS, ['mode == debug', SLOW]],
+  'regress/regress-crbug-474297': [PASS, ['gc_stress == False', SKIP]],
   'es6/tail-call-megatest*': [PASS, SLOW, FAST_VARIANTS, ['tsan', SKIP]],
-
-  # TODO(titzer): ASM->WASM tests on these platforms
-  'wasm/asm-wasm': [PASS, ['arch in [arm, arm64, mips, mipsel, mips64, mips64el]', SKIP]],
-  # TODO(branelson): Figure out why ignition + asm-wasm-stdlib fails.
-  # TODO(branelson): The old status entry was misconfigured as it added
-  # "or ignition == True". This was deprecated at some point and was never
-  # true. Essentially the next lines skip the tests for a bunch of
-  # architectures.
-  'wasm/asm-wasm-stdlib': [PASS, ['arch in [arm, arm64, mips, mipsel, mips64, mips64el]', SKIP]],
-  'wasm/asm-wasm-literals': [PASS, ['arch in [arm, arm64, mips, mipsel, mips64, mips64el]', SKIP]],
-  'wasm/asm-wasm-copy': [PASS, ['arch in [arm, arm64, mips, mipsel, mips64, mips64el]', SKIP]],
-  'wasm/asm-wasm-deopt': [PASS, ['arch in [arm, arm64, mips, mipsel, mips64, mips64el]', SKIP]],
-  'wasm/asm-wasm-switch': [PASS, ['arch in [arm, arm64, mips, mipsel, mips64, mips64el]', SKIP]],
 
   # case-insensitive unicode regexp relies on case mapping provided by ICU.
   'es6/unicode-regexp-ignore-case': [PASS, ['no_i18n == True', FAIL]],
@@ -177,13 +168,12 @@
   # desugaring regexp property class relies on ICU.
   'harmony/regexp-property-*': [PASS, ['no_i18n == True', FAIL]],
 
+  # Allocates a large array buffer, which TSAN sometimes cannot handle.
+  'regress/regress-599717': [PASS, ['tsan', SKIP]],
+
   # TODO(bmeurer): Flaky timeouts (sometimes <1s, sometimes >3m).
   'unicodelctest': [PASS, NO_VARIANTS],
   'unicodelctest-no-optimization': [PASS, NO_VARIANTS],
-
-  # TODO(rmcilroy,5038): Crashes in Deoptimizer::PatchCodeForDeoptimization on
-  # nosnap builds when --stress-opt and --turbo-from-bytecode is enabled.
-  'harmony/generators-turbo': [PASS, FAST_VARIANTS],
 }],  # ALWAYS
 
 ['novfp3 == True', {
@@ -215,7 +205,6 @@
   'regress/regress-4121': [SKIP],
   'compare-known-objects-slow': [SKIP],
   # Tests taking too long
-  'debug-stepout-scope-part8': [SKIP],
   'mirror-object': [SKIP],
   'packed-elements': [SKIP],
   'regress/regress-1122': [SKIP],
@@ -230,10 +219,6 @@
   # Async function tests taking too long
   # https://bugs.chromium.org/p/v8/issues/detail?id=5411
   'harmony/async-function-debug-scopes': [SKIP],
-  'harmony/async-debug-caught-exception-cases0': [SKIP],
-  'harmony/async-debug-caught-exception-cases1': [SKIP],
-  'harmony/async-debug-caught-exception-cases2': [SKIP],
-  'harmony/async-debug-caught-exception-cases3': [SKIP],
 
   # TODO(mstarzinger): Takes too long with TF.
   'array-sort': [PASS, NO_VARIANTS],
@@ -250,9 +235,6 @@
   # Too slow for gc stress.
   'asm/embenchen/box2d': [SKIP],
 
-  # Issue 3723.
-  'regress/regress-3717': [SKIP],
-
   # BUG(v8:4237)
   'regress/regress-3976': [SKIP],
 
@@ -268,8 +250,8 @@
   # BUG(v8:4779): Crashes flakily with stress mode on arm64.
   'array-splice': [PASS, SLOW, ['arch == arm64', FAST_VARIANTS]],
 
-  # BUG(v8:5053).
-  'wasm/embenchen/fasta': [PASS, FAST_VARIANTS],
+  # BUG(chromium:664490)
+  'debug-scopes': [SKIP],
 }],  # 'gc_stress == True'
 
 ##############################################################################
@@ -576,12 +558,21 @@
   # Too slow.
   'es6/tail-call-megatest*': [SKIP],
 
+  # Forced optimisation path tests.
+  'shared-function-tier-up-default': [SKIP],
+  'shared-function-tier-up-ignition': [SKIP],
+  'shared-function-tier-up-turbo': [SKIP],
+
   # Ongoing implementation of modules.
   # https://bugs.chromium.org/p/v8/issues/detail?id=1569
   # The deopt fuzzer currently does not respect the 'variant != ignition' rule
   # further down in this file, so we have to duplicate this here.
   # https://bugs.chromium.org/p/v8/issues/detail?id=5374
   'modules-*': [SKIP],
+
+  # Fails deopt_fuzzer due to --deopt_every_n_times or
+  # deopt_every_n_garbage_collections
+  'es6/array-iterator-turbo': [SKIP]
 }],  # 'deopt_fuzzer == True'
 
 ##############################################################################
@@ -608,30 +599,25 @@
 }],  # 'arch == ppc64'
 
 ##############################################################################
+['variant == nocrankshaft', {
+  'es6/array-iterator-turbo': [SKIP],
+}],  # variant == nocranshaft
+
+##############################################################################
 ['variant == stress', {
-  'debug-evaluate-locals-optimized': [FAIL],
-  'debug-evaluate-locals-optimized-double': [FAIL],
+  'es6/array-iterator-turbo': [SKIP],
+
   'ignition/regress-599001-verifyheap': [SKIP],
   'unicode-test': [SKIP],
 }],  # variant == stress
 
 ##############################################################################
-['variant == turbofan', {
-
-  # Assumptions about optimization need investigation in TurboFan.
-  'regress-sync-optimized-lists': [FAIL],
-
-}],  # variant == turbofan
-
-##############################################################################
 ['variant == turbofan_opt', {
+  'es6/array-iterator-turbo': [SKIP],
 
   # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
-  'debug-evaluate-closure': [FAIL],
   'debug-evaluate-locals': [FAIL],
   'debug-set-variable-value': [FAIL],
-  'debug-evaluate-locals-optimized': [FAIL],
-  'debug-evaluate-locals-optimized-double': [FAIL],
   'debug-liveedit-double-call': [FAIL],
   'es6/debug-evaluate-blockscopes': [FAIL],
 
@@ -646,98 +632,19 @@
 }],  # variant == turbofan_opt
 
 ##############################################################################
-['variant == ignition', {
+['variant == ignition or variant == ignition_staging', {
+  # TODO(5587): fails to liveedit evaled code.
   'debug-liveedit-double-call': [FAIL],
-  'regress-sync-optimized-lists': [FAIL],
-
-  # Might trigger stack overflow.
-  'unicode-test': [SKIP],
-
-  # TODO(4680): Test doesn't know about three tier compiler pipeline.
-  'assert-opt-and-deopt': [SKIP],
-
-  # Fails because concurrent compilation is not triggered on bytecode.
-  # Check in Runtime_OptimizeFunctionOnNextCall.
-  'compiler/manual-concurrent-recompile': [FAIL],
-  'regress/regress-embedded-cons-string': [FAIL],
-  'regress/regress-prepare-break-while-recompile': [FAIL],
-
-  # BUG(v8:5451): Flaky crashes.
-  'wasm/asm-wasm': [PASS, ['gc_stress', SKIP]],
 }],  # variant == ignition
-
-['variant == ignition and arch == arm64', {
-  # TODO(rmcilroy,4680): Arm64 specific timeouts.
-  'asm/construct-double': [SKIP],
-  'compiler/osr-one': [SKIP],
-  'compiler/osr-two': [SKIP],
-  'wasm/asm-wasm-i32': [SKIP],
-  'wasm/asm-wasm-u32': [SKIP],
-}],  # variant == ignition and arch == arm64
-
-['variant == ignition and arch == arm', {
-  # TODO(rmcilroy,4680): Arm specific timeouts.
-  'compiler/osr-one': [SKIP],
-  'compiler/osr-two': [SKIP],
-  'regress/regress-1257': [SKIP],
-}],  # variant == ignition and arch == arm
-
-['variant == ignition and msan', {
-  # TODO(mythria,4680): All of these tests have large loops and hence slow
-  # and timeout.
-  'compiler/osr-big': [SKIP],
-  'compiler/osr-nested': [SKIP],
-  'regress/regress-298269': [SKIP],
-  'regress/regress-crbug-319860': [SKIP],
-  'regress/regress-deep-proto': [SKIP],
-  'try': [SKIP],
-  # Too slow for interpreter and msan.
-  'es6/tail-call-megatest*': [SKIP],
-}],  # variant == ignition and msan
-
-##############################################################################
-['variant == ignition_staging', {
-  'assert-opt-and-deopt': [SKIP],
-  'debug-liveedit-double-call': [FAIL],
-  'regress-sync-optimized-lists': [FAIL],
-
-  # Fails because concurrent compilation is not triggered on bytecode.
-  # Check in Runtime_OptimizeFunctionOnNextCall.
-  'compiler/manual-concurrent-recompile': [FAIL],
-  'regress/regress-embedded-cons-string': [FAIL],
-  'regress/regress-prepare-break-while-recompile': [FAIL],
-
-  # Flaky.
-  'asm/int32div': [SKIP],
-  'asm/int32mod': [SKIP],
-  'compiler/uint32': [SKIP],
-  'regress/regress-454725': [SKIP],
-
-  # Might trigger stack overflow.
-  'unicode-test': [SKIP],
-
-  # BUG(v8:5451): Flaky crashes.
-  'wasm/asm-wasm': [PASS, ['gc_stress', SKIP]],
-}],  # variant == ignition_staging
 
 ##############################################################################
 ['variant == ignition_turbofan', {
+  # TODO(5587): fails to liveedit evaled code.
   'debug-liveedit-double-call': [FAIL],
-
-  # Might trigger stack overflow.
-  'unicode-test': [SKIP],
-
-  'wasm/asm-wasm-f32': [PASS, ['arch in [arm64]', SKIP]],
-  'wasm/asm-wasm-f64': [PASS, ['arch in [arm64]', SKIP]],
 
   # TODO(rmcilroy,titzer): Times out after
   # https://codereview.chromium.org/1951013002 .
   'regress/regress-599717': [PASS, ['tsan', SKIP]],
-
-  # TODO(rmcilroy,5038): Crashes in Deoptimizer::PatchCodeForDeoptimization on
-  # nosnap builds when --stress-opt and --turbo-from-bytecode is enabled.
-  'harmony/generators-turbo': [PASS, FAST_VARIANTS],
-  'regress/regress-crbug-352058': [SKIP],
 
   # TODO(jarin): No truncations on CheckFloat64Hole.
   'getters-on-elements': [SKIP],
@@ -746,47 +653,7 @@
   'unicodelctest-no-optimization': [SKIP],
 }],  # variant == ignition_turbofan
 
-['variant == ignition_turbofan and arch == arm64', {
-  # TODO(rmcilroy,4680): Arm64 specific timeouts.
-  'asm/construct-double': [SKIP],
-  'compiler/osr-one': [SKIP],
-  'compiler/osr-two': [SKIP],
-  'wasm/asm-wasm-i32': [SKIP],
-  'wasm/asm-wasm-u32': [SKIP],
-}],  # variant == ignition_turbofan and arch == arm64
-
-['variant == ignition_turbofan and arch == arm', {
-  # TODO(rmcilroy,4680): Arm specific timeouts.
-  'compiler/osr-one': [SKIP],
-  'compiler/osr-two': [SKIP],
-  'regress/regress-1257': [SKIP],
-}],  # variant == ignition_turbofan and arch == arm
-
-['variant == ignition_turbofan and msan', {
-  # TODO(mythria,4680): All of these tests have large loops and hence slow
-  # and timeout.
-  'compiler/osr-big': [SKIP],
-  'compiler/osr-nested': [SKIP],
-  'regress/regress-298269': [SKIP],
-  'regress/regress-crbug-319860': [SKIP],
-  'regress/regress-deep-proto': [SKIP],
-  'try': [SKIP],
-  # Too slow for interpreter and msan.
-  'es6/tail-call-megatest*': [SKIP],
-}],  # variant == ignition_turbofan and msan
-
 ##############################################################################
-['variant == ignition or variant == ignition_staging or variant == ignition_turbofan', {
-  # Modules for which execution must fail (e.g. because of unresolved imports).
-  # Eventually we should test for the precise error message, but for now we only
-  # ensure that there is an error.
-  'modules-fail*': [FAIL],
-
-  # Modules which are only meant to be imported from by other tests, not to be
-  # tested standalone.
-  'modules-skip*': [SKIP],
-}],  # variant == ignition or variant == ignition_staging or variant == ignition_turbofan
-
 ['variant != ignition and variant != ignition_staging and variant != ignition_turbofan', {
   # Ongoing implementation of modules.
   # https://bugs.chromium.org/p/v8/issues/detail?id=1569
@@ -801,6 +668,12 @@
   # Stack overflow.
   'big-array-literal': [SKIP],
 }],  # 'gcov_coverage'
+
+##############################################################################
+['variant == stress or variant == turbofan_opt', {
+  # BUG(v8:5553).
+  'wasm/grow-memory': [SKIP],
+}],  # variant == stress or variant == turbofan_opt
 
 ##############################################################################
 ['variant == asm_wasm', {
@@ -820,14 +693,5 @@
   'unicode-test': [SKIP],
   'whitespaces': [SKIP],
 }],  # variant == asm_wasm
-
-##############################################################################
-# This test allocates a 2G block of memory and if there are multiple
-# varients this leads kills by the OOM killer, crashes or messages
-# indicating the OS cannot allocate memory, exclude for Node.js runs
-# re-evalute when we move up to v8 5.1
-[ALWAYS, {
-'regress/regress-crbug-514081': [PASS, NO_VARIANTS],
-}],  # ALWAYS
 
 ]

@@ -28,6 +28,7 @@
 
 import imp
 import os
+import re
 import sys
 import tarfile
 
@@ -120,7 +121,7 @@ class Test262TestSuite(testsuite.TestSuite):
       dirs.sort()
       files.sort()
       for filename in files:
-        if filename.endswith(".js"):
+        if filename.endswith(".js") and not filename.endswith("_FIXTURE.js"):
           fullpath = os.path.join(dirname, filename)
           relpath = fullpath[len(self.testroot) + 1 : -3]
           testname = relpath.replace(os.path.sep, "/")
@@ -184,10 +185,9 @@ class Test262TestSuite(testsuite.TestSuite):
       return f.read()
 
   def _ParseException(self, str):
-    for line in str.split("\n")[::-1]:
-      if line and not line[0].isspace() and ":" in line:
-        return line.split(":")[0]
-
+    # somefile:somelinenumber: someerror[: sometext]
+    match = re.search('^[^: ]*:[0-9]+: ([^ ]+?)($|: )', str, re.MULTILINE)
+    return match.group(1)
 
   def IsFailureOutput(self, testcase):
     output = testcase.output

@@ -344,7 +344,7 @@ void Schedule::EnsureSplitEdgeForm(BasicBlock* block) {
       split_edge_block->set_control(BasicBlock::kGoto);
       split_edge_block->successors().push_back(block);
       split_edge_block->predecessors().push_back(pred);
-      split_edge_block->set_deferred(pred->deferred());
+      split_edge_block->set_deferred(block->deferred());
       *current_pred = split_edge_block;
       // Find a corresponding successor in the previous block, replace it
       // with the split edge block... but only do it once, since we only

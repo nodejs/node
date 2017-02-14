@@ -12,7 +12,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addMemory(1,1, true);
   var kSig_v_i = makeSig([kAstI32], []);
   var signature = builder.addType(kSig_v_i);
-  builder.addImport("some_value", kSig_i);
+  builder.addImport("some_value", kSig_i_v);
   builder.addImport("writer", signature);
 
   builder.addFunction("main", kSig_i_i)
@@ -20,7 +20,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       kExprGetLocal, 0,
       kExprI32LoadMem, 0, 0,
       kExprI32Const, 1,
-      kExprCallIndirect, signature,
+      kExprCallIndirect, signature, kTableZero,
       kExprGetLocal,0,
       kExprI32LoadMem,0, 0,
       kExprCallFunction, 0,
@@ -35,15 +35,15 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       kExprCallFunction, 1]);
   builder.appendToTable([2, 3]);
 
-
-  var module = new WebAssembly.Module(builder.toBuffer());
+  var wire_bytes = builder.toBuffer();
+  var module = new WebAssembly.Module(wire_bytes);
   var buff = %SerializeWasmModule(module);
   module = null;
   gc();
-  module = %DeserializeWasmModule(buff);
+  module = %DeserializeWasmModule(buff, wire_bytes);
 
-  var mem_1 = new ArrayBuffer(4);
-  var view_1 = new Int32Array(mem_1);
+  var mem_1 = new WebAssembly.Memory({initial: 1});
+  var view_1 = new Int32Array(mem_1.buffer);
 
   view_1[0] = 42;
 
@@ -59,19 +59,20 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 (function DeserializeInvalidObject() {
   var invalid_buffer = new ArrayBuffer(10);
 
-  module = %DeserializeWasmModule(invalid_buffer);
+  module = %DeserializeWasmModule(invalid_buffer, invalid_buffer);
   assertEquals(module, undefined);
 })();
 
 (function RelationBetweenModuleAndClone() {
   let builder = new WasmModuleBuilder();
-  builder.addFunction("main", kSig_i)
+  builder.addFunction("main", kSig_i_v)
     .addBody([kExprI8Const, 42])
     .exportFunc();
 
-  var compiled_module = new WebAssembly.Module(builder.toBuffer());
+  var wire_bytes = builder.toBuffer();
+  var compiled_module = new WebAssembly.Module(wire_bytes);
   var serialized = %SerializeWasmModule(compiled_module);
-  var clone = %DeserializeWasmModule(serialized);
+  var clone = %DeserializeWasmModule(serialized, wire_bytes);
 
   assertNotNull(clone);
   assertFalse(clone == undefined);
@@ -81,15 +82,16 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function SerializeAfterInstantiation() {
   let builder = new WasmModuleBuilder();
-  builder.addFunction("main", kSig_i)
+  builder.addFunction("main", kSig_i_v)
     .addBody([kExprI8Const, 42])
     .exportFunc();
 
-  var compiled_module = new WebAssembly.Module(builder.toBuffer());
+  var wire_bytes = builder.toBuffer()
+  var compiled_module = new WebAssembly.Module(wire_bytes);
   var instance1 = new WebAssembly.Instance(compiled_module);
   var instance2 = new WebAssembly.Instance(compiled_module);
   var serialized = %SerializeWasmModule(compiled_module);
-  var clone = %DeserializeWasmModule(serialized);
+  var clone = %DeserializeWasmModule(serialized, wire_bytes);
 
   assertNotNull(clone);
   assertFalse(clone == undefined);

@@ -45,8 +45,12 @@ assertEquals(4, get_count);
 // Overridden flag getters affect string.replace
 // TODO(adamk): Add more tests here once we've switched
 // to use [[OriginalFlags]] in more cases.
-assertEquals(expected, string.replace(r3, "X"));
-assertEquals(5, get_count);
+// TODO(jgruber): This exact case actually causes an infinite loop in the spec
+// (@@replace sees global = true while BuiltinExec sees global = false).
+// Comment the test for now and remove / fix once this has been resolved on
+// the spec side.
+//assertEquals(expected, string.replace(r3, "X"));
+//assertEquals(5, get_count);
 
 
 function testName(name) {

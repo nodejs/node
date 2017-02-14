@@ -49,7 +49,8 @@ class InstructionSelectorTest : public TestWithContext,
               test->isolate(), new (test->zone()) Graph(test->zone()),
               MakeCallDescriptor(test->zone(), return_type, parameter0_type),
               MachineType::PointerRepresentation(),
-              MachineOperatorBuilder::kAllOptionalOps),
+              MachineOperatorBuilder::kAllOptionalOps,
+              InstructionSelector::AlignmentRequirements()),
           test_(test) {}
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type,
                   MachineType parameter0_type, MachineType parameter1_type)

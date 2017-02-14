@@ -9,6 +9,7 @@
 #include "src/deoptimize-reason.h"
 #include "src/macro-assembler.h"
 #include "src/source-position.h"
+#include "src/zone/zone-chunk-list.h"
 
 namespace v8 {
 namespace internal {
@@ -844,15 +845,15 @@ class DeoptimizerData {
 
 class TranslationBuffer BASE_EMBEDDED {
  public:
-  explicit TranslationBuffer(Zone* zone) : contents_(256, zone) { }
+  explicit TranslationBuffer(Zone* zone) : contents_(zone) {}
 
-  int CurrentIndex() const { return contents_.length(); }
-  void Add(int32_t value, Zone* zone);
+  int CurrentIndex() const { return static_cast<int>(contents_.size()); }
+  void Add(int32_t value);
 
   Handle<ByteArray> CreateByteArray(Factory* factory);
 
  private:
-  ZoneList<uint8_t> contents_;
+  ZoneChunkList<uint8_t> contents_;
 };
 
 
@@ -917,9 +918,9 @@ class Translation BASE_EMBEDDED {
       : buffer_(buffer),
         index_(buffer->CurrentIndex()),
         zone_(zone) {
-    buffer_->Add(BEGIN, zone);
-    buffer_->Add(frame_count, zone);
-    buffer_->Add(jsframe_count, zone);
+    buffer_->Add(BEGIN);
+    buffer_->Add(frame_count);
+    buffer_->Add(jsframe_count);
   }
 
   int index() const { return index_; }

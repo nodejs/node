@@ -11,7 +11,7 @@ namespace v8 {
 namespace internal {
 
 CompilationPhase::CompilationPhase(const char* name, CompilationInfo* info)
-    : name_(name), info_(info), zone_(info->isolate()->allocator()) {
+    : name_(name), info_(info), zone_(info->isolate()->allocator(), ZONE_NAME) {
   if (FLAG_hydrogen_stats) {
     info_zone_start_allocation_size_ = info->zone()->allocation_size();
     timer_.Start();

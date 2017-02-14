@@ -37,12 +37,8 @@ namespace interpreter {
   V(LdaFalse, AccumulatorUse::kWrite)                                          \
   V(LdaConstant, AccumulatorUse::kWrite, OperandType::kIdx)                    \
                                                                                \
-  /* Loading registers */                                                      \
-  V(LdrUndefined, AccumulatorUse::kNone, OperandType::kRegOut)                 \
-                                                                               \
   /* Globals */                                                                \
   V(LdaGlobal, AccumulatorUse::kWrite, OperandType::kIdx)                      \
-  V(LdrGlobal, AccumulatorUse::kNone, OperandType::kIdx, OperandType::kRegOut) \
   V(LdaGlobalInsideTypeof, AccumulatorUse::kWrite, OperandType::kIdx)          \
   V(StaGlobalSloppy, AccumulatorUse::kRead, OperandType::kIdx,                 \
     OperandType::kIdx)                                                         \
@@ -54,10 +50,10 @@ namespace interpreter {
   V(PopContext, AccumulatorUse::kNone, OperandType::kReg)                      \
   V(LdaContextSlot, AccumulatorUse::kWrite, OperandType::kReg,                 \
     OperandType::kIdx, OperandType::kUImm)                                     \
-  V(LdrContextSlot, AccumulatorUse::kNone, OperandType::kReg,                  \
-    OperandType::kIdx, OperandType::kUImm, OperandType::kRegOut)               \
+  V(LdaCurrentContextSlot, AccumulatorUse::kWrite, OperandType::kIdx)          \
   V(StaContextSlot, AccumulatorUse::kRead, OperandType::kReg,                  \
     OperandType::kIdx, OperandType::kUImm)                                     \
+  V(StaCurrentContextSlot, AccumulatorUse::kRead, OperandType::kIdx)           \
                                                                                \
   /* Load-Store lookup slots */                                                \
   V(LdaLookupSlot, AccumulatorUse::kWrite, OperandType::kIdx)                  \
@@ -83,12 +79,14 @@ namespace interpreter {
   /* Property loads (LoadIC) operations */                                     \
   V(LdaNamedProperty, AccumulatorUse::kWrite, OperandType::kReg,               \
     OperandType::kIdx, OperandType::kIdx)                                      \
-  V(LdrNamedProperty, AccumulatorUse::kNone, OperandType::kReg,                \
-    OperandType::kIdx, OperandType::kIdx, OperandType::kRegOut)                \
   V(LdaKeyedProperty, AccumulatorUse::kReadWrite, OperandType::kReg,           \
     OperandType::kIdx)                                                         \
-  V(LdrKeyedProperty, AccumulatorUse::kRead, OperandType::kReg,                \
-    OperandType::kIdx, OperandType::kRegOut)                                   \
+                                                                               \
+  /* Operations on module variables */                                         \
+  V(LdaModuleVariable, AccumulatorUse::kWrite, OperandType::kImm,              \
+    OperandType::kUImm)                                                        \
+  V(StaModuleVariable, AccumulatorUse::kRead, OperandType::kImm,               \
+    OperandType::kUImm)                                                        \
                                                                                \
   /* Propery stores (StoreIC) operations */                                    \
   V(StaNamedPropertySloppy, AccumulatorUse::kRead, OperandType::kReg,          \
@@ -145,6 +143,8 @@ namespace interpreter {
   /* Call operations */                                                        \
   V(Call, AccumulatorUse::kWrite, OperandType::kReg, OperandType::kRegList,    \
     OperandType::kRegCount, OperandType::kIdx)                                 \
+  V(CallProperty, AccumulatorUse::kWrite, OperandType::kReg,                   \
+    OperandType::kRegList, OperandType::kRegCount, OperandType::kIdx)          \
   V(TailCall, AccumulatorUse::kWrite, OperandType::kReg,                       \
     OperandType::kRegList, OperandType::kRegCount, OperandType::kIdx)          \
   V(CallRuntime, AccumulatorUse::kWrite, OperandType::kRuntimeId,              \
@@ -314,7 +314,7 @@ enum class Bytecode : uint8_t {
 #define CONSTEXPR constexpr
 #endif
 
-class Bytecodes final {
+class V8_EXPORT_PRIVATE Bytecodes final {
  public:
   //  The maximum number of operands a bytecode may have.
   static const int kMaxOperands = 4;
@@ -422,15 +422,16 @@ class Bytecodes final {
            bytecode == Bytecode::kLdaTrue || bytecode == Bytecode::kLdaFalse ||
            bytecode == Bytecode::kLdaUndefined ||
            bytecode == Bytecode::kLdaTheHole ||
-           bytecode == Bytecode::kLdaConstant;
+           bytecode == Bytecode::kLdaConstant ||
+           bytecode == Bytecode::kLdaContextSlot ||
+           bytecode == Bytecode::kLdaCurrentContextSlot;
   }
 
   // Return true if |bytecode| is a register load without effects,
-  // e.g. Mov, Star, LdrUndefined.
+  // e.g. Mov, Star.
   static CONSTEXPR bool IsRegisterLoadWithoutEffects(Bytecode bytecode) {
     return bytecode == Bytecode::kMov || bytecode == Bytecode::kPopContext ||
-           bytecode == Bytecode::kPushContext || bytecode == Bytecode::kStar ||
-           bytecode == Bytecode::kLdrUndefined;
+           bytecode == Bytecode::kPushContext || bytecode == Bytecode::kStar;
   }
 
   // Returns true if the bytecode is a conditional jump taking
@@ -525,8 +526,8 @@ class Bytecodes final {
 
   // Returns true if the bytecode is a call or a constructor call.
   static CONSTEXPR bool IsCallOrNew(Bytecode bytecode) {
-    return bytecode == Bytecode::kCall || bytecode == Bytecode::kTailCall ||
-           bytecode == Bytecode::kNew;
+    return bytecode == Bytecode::kCall || bytecode == Bytecode::kCallProperty ||
+           bytecode == Bytecode::kTailCall || bytecode == Bytecode::kNew;
   }
 
   // Returns true if the bytecode is a call to the runtime.
@@ -733,7 +734,8 @@ class Bytecodes final {
 // See crbug.com/603131.
 #undef CONSTEXPR
 
-std::ostream& operator<<(std::ostream& os, const Bytecode& bytecode);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const Bytecode& bytecode);
 
 }  // namespace interpreter
 }  // namespace internal

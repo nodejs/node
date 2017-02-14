@@ -1,0 +1,5 @@
+Check that inspector correctly passes caught/uncaught information.
+paused in throwCaught
+uncaught: false
+paused in throwUncaught
+uncaught: true

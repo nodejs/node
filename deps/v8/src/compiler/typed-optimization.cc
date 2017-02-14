@@ -22,8 +22,9 @@ TypedOptimization::TypedOptimization(Editor* editor,
       dependencies_(dependencies),
       flags_(flags),
       jsgraph_(jsgraph),
-      true_type_(Type::Constant(factory()->true_value(), graph()->zone())),
-      false_type_(Type::Constant(factory()->false_value(), graph()->zone())),
+      true_type_(Type::HeapConstant(factory()->true_value(), graph()->zone())),
+      false_type_(
+          Type::HeapConstant(factory()->false_value(), graph()->zone())),
       type_cache_(TypeCache::Get()) {}
 
 TypedOptimization::~TypedOptimization() {}
@@ -43,8 +44,9 @@ Reduction TypedOptimization::Reduce(Node* node) {
     // the Operator::kNoDeopt property).
     Type* upper = NodeProperties::GetType(node);
     if (upper->IsInhabited()) {
-      if (upper->IsConstant()) {
-        Node* replacement = jsgraph()->Constant(upper->AsConstant()->Value());
+      if (upper->IsHeapConstant()) {
+        Node* replacement =
+            jsgraph()->Constant(upper->AsHeapConstant()->Value());
         ReplaceWithValue(node, replacement);
         return Changed(replacement);
       } else if (upper->Is(Type::MinusZero())) {
@@ -72,6 +74,8 @@ Reduction TypedOptimization::Reduce(Node* node) {
     }
   }
   switch (node->opcode()) {
+    case IrOpcode::kCheckHeapObject:
+      return ReduceCheckHeapObject(node);
     case IrOpcode::kCheckMaps:
       return ReduceCheckMaps(node);
     case IrOpcode::kCheckString:
@@ -83,6 +87,8 @@ Reduction TypedOptimization::Reduce(Node* node) {
     case IrOpcode::kNumberRound:
     case IrOpcode::kNumberTrunc:
       return ReduceNumberRoundop(node);
+    case IrOpcode::kNumberToUint8Clamped:
+      return ReduceNumberToUint8Clamped(node);
     case IrOpcode::kPhi:
       return ReducePhi(node);
     case IrOpcode::kSelect:
@@ -96,16 +102,24 @@ Reduction TypedOptimization::Reduce(Node* node) {
 namespace {
 
 MaybeHandle<Map> GetStableMapFromObjectType(Type* object_type) {
-  if (object_type->IsConstant() &&
-      object_type->AsConstant()->Value()->IsHeapObject()) {
-    Handle<Map> object_map(
-        Handle<HeapObject>::cast(object_type->AsConstant()->Value())->map());
+  if (object_type->IsHeapConstant()) {
+    Handle<Map> object_map(object_type->AsHeapConstant()->Value()->map());
     if (object_map->is_stable()) return object_map;
   }
   return MaybeHandle<Map>();
 }
 
 }  // namespace
+
+Reduction TypedOptimization::ReduceCheckHeapObject(Node* node) {
+  Node* const input = NodeProperties::GetValueInput(node, 0);
+  Type* const input_type = NodeProperties::GetType(input);
+  if (!input_type->Maybe(Type::SignedSmall())) {
+    ReplaceWithValue(node, input);
+    return Replace(input);
+  }
+  return NoChange();
+}
 
 Reduction TypedOptimization::ReduceCheckMaps(Node* node) {
   // The CheckMaps(o, ...map...) can be eliminated if map is stable,
@@ -121,8 +135,8 @@ Reduction TypedOptimization::ReduceCheckMaps(Node* node) {
     for (int i = 1; i < node->op()->ValueInputCount(); ++i) {
       Node* const map = NodeProperties::GetValueInput(node, i);
       Type* const map_type = NodeProperties::GetType(map);
-      if (map_type->IsConstant() &&
-          map_type->AsConstant()->Value().is_identical_to(object_map)) {
+      if (map_type->IsHeapConstant() &&
+          map_type->AsHeapConstant()->Value().is_identical_to(object_map)) {
         if (object_map->CanTransition()) {
           dependencies()->AssumeMapStable(object_map);
         }
@@ -175,6 +189,15 @@ Reduction TypedOptimization::ReduceNumberRoundop(Node* node) {
   Node* const input = NodeProperties::GetValueInput(node, 0);
   Type* const input_type = NodeProperties::GetType(input);
   if (input_type->Is(type_cache_.kIntegerOrMinusZeroOrNaN)) {
+    return Replace(input);
+  }
+  return NoChange();
+}
+
+Reduction TypedOptimization::ReduceNumberToUint8Clamped(Node* node) {
+  Node* const input = NodeProperties::GetValueInput(node, 0);
+  Type* const input_type = NodeProperties::GetType(input);
+  if (input_type->Is(type_cache_.kUint8)) {
     return Replace(input);
   }
   return NoChange();

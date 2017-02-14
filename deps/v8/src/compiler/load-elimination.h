@@ -5,7 +5,9 @@
 #ifndef V8_COMPILER_LOAD_ELIMINATION_H_
 #define V8_COMPILER_LOAD_ELIMINATION_H_
 
+#include "src/base/compiler-specific.h"
 #include "src/compiler/graph-reducer.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -17,7 +19,8 @@ struct FieldAccess;
 class Graph;
 class JSGraph;
 
-class LoadElimination final : public AdvancedReducer {
+class V8_EXPORT_PRIVATE LoadElimination final
+    : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
   LoadElimination(Editor* editor, JSGraph* jsgraph, Zone* zone)
       : AdvancedReducer(editor), node_states_(zone), jsgraph_(jsgraph) {}
@@ -164,6 +167,7 @@ class LoadElimination final : public AdvancedReducer {
                                   Zone* zone) const;
     AbstractState const* KillField(Node* object, size_t index,
                                    Zone* zone) const;
+    AbstractState const* KillFields(Node* object, Zone* zone) const;
     Node* LookupField(Node* object, size_t index) const;
 
     AbstractState const* AddElement(Node* object, Node* index, Node* value,

@@ -55,7 +55,7 @@ RUNTIME_FUNCTION(Runtime_FunctionRemovePrototype) {
   return isolate->heap()->undefined_value();
 }
 
-
+// TODO(5530): Remove once uses in debug.js are gone.
 RUNTIME_FUNCTION(Runtime_FunctionGetScript) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -71,6 +71,20 @@ RUNTIME_FUNCTION(Runtime_FunctionGetScript) {
   return isolate->heap()->undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_FunctionGetScriptId) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, function, 0);
+
+  if (function->IsJSFunction()) {
+    Handle<Object> script(
+        Handle<JSFunction>::cast(function)->shared()->script(), isolate);
+    if (script->IsScript()) {
+      return Smi::FromInt(Handle<Script>::cast(script)->id());
+    }
+  }
+  return Smi::FromInt(-1);
+}
 
 RUNTIME_FUNCTION(Runtime_FunctionGetSourceCode) {
   HandleScope scope(isolate);

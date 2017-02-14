@@ -1607,7 +1607,7 @@ void RegExpBuilder::AddCharacter(uc16 c) {
 
 
 void RegExpBuilder::AddUnicodeCharacter(uc32 c) {
-  if (c > unibrow::Utf16::kMaxNonSurrogateCharCode) {
+  if (c > static_cast<uc32>(unibrow::Utf16::kMaxNonSurrogateCharCode)) {
     DCHECK(unicode());
     AddLeadSurrogate(unibrow::Utf16::LeadSurrogate(c));
     AddTrailSurrogate(unibrow::Utf16::TrailSurrogate(c));

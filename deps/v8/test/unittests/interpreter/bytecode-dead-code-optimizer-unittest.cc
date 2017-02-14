@@ -22,12 +22,12 @@ class BytecodeDeadCodeOptimizerTest : public BytecodePipelineStage,
 
   void Write(BytecodeNode* node) override {
     write_count_++;
-    last_written_.Clone(node);
+    last_written_ = *node;
   }
 
   void WriteJump(BytecodeNode* node, BytecodeLabel* label) override {
     write_count_++;
-    last_written_.Clone(node);
+    last_written_ = *node;
   }
 
   void BindLabel(BytecodeLabel* label) override {}
@@ -57,7 +57,7 @@ TEST_F(BytecodeDeadCodeOptimizerTest, LiveCodeKept) {
   CHECK_EQ(add, last_written());
 
   BytecodeLabel target;
-  BytecodeNode jump(Bytecode::kJump, 0, nullptr);
+  BytecodeNode jump(Bytecode::kJump, 0);
   optimizer()->WriteJump(&jump, &target);
   CHECK_EQ(write_count(), 2);
   CHECK_EQ(jump, last_written());
@@ -101,7 +101,7 @@ TEST_F(BytecodeDeadCodeOptimizerTest, DeadCodeAfterReThrowEliminated) {
 
 TEST_F(BytecodeDeadCodeOptimizerTest, DeadCodeAfterJumpEliminated) {
   BytecodeLabel target;
-  BytecodeNode jump(Bytecode::kJump, 0, nullptr);
+  BytecodeNode jump(Bytecode::kJump, 0);
   optimizer()->WriteJump(&jump, &target);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(jump, last_written());
@@ -119,7 +119,7 @@ TEST_F(BytecodeDeadCodeOptimizerTest, DeadCodeStillDeadAfterConditinalJump) {
   CHECK_EQ(ret, last_written());
 
   BytecodeLabel target;
-  BytecodeNode jump(Bytecode::kJumpIfTrue, 0, nullptr);
+  BytecodeNode jump(Bytecode::kJumpIfTrue, 0);
   optimizer()->WriteJump(&jump, &target);
   CHECK_EQ(write_count(), 1);
   CHECK_EQ(ret, last_written());

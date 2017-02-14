@@ -83,8 +83,10 @@ Code* BuildWithCodeStubAssemblerJS(Isolate* isolate,
                                    CodeAssemblerGenerator generator, int argc,
                                    Code::Flags flags, const char* name) {
   HandleScope scope(isolate);
-  Zone zone(isolate->allocator());
-  CodeStubAssembler assembler(isolate, &zone, argc, flags, name);
+  Zone zone(isolate->allocator(), ZONE_NAME);
+  const int argc_with_recv =
+      (argc == SharedFunctionInfo::kDontAdaptArgumentsSentinel) ? 0 : argc + 1;
+  CodeStubAssembler assembler(isolate, &zone, argc_with_recv, flags, name);
   generator(&assembler);
   Handle<Code> code = assembler.GenerateCode();
   PostBuildProfileAndTracing(isolate, *code, name);
@@ -97,7 +99,7 @@ Code* BuildWithCodeStubAssemblerCS(Isolate* isolate,
                                    CallDescriptors::Key interface_descriptor,
                                    Code::Flags flags, const char* name) {
   HandleScope scope(isolate);
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   // The interface descriptor with given key must be initialized at this point
   // and this construction just queries the details from the descriptors table.
   CallInterfaceDescriptor descriptor(isolate, interface_descriptor);

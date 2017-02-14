@@ -425,7 +425,7 @@ TEST(NoHandlesForTryNumberToSize) {
     SealHandleScope no_handles(isolate);
     Smi* smi = Smi::FromInt(1);
     CHECK(TryNumberToSize(smi, &result));
-    CHECK_EQ(result, 1);
+    CHECK_EQ(result, 1u);
   }
   result = 0;
   {
@@ -434,7 +434,7 @@ TEST(NoHandlesForTryNumberToSize) {
     {
       SealHandleScope no_handles(isolate);
       CHECK(TryNumberToSize(*heap_number1, &result));
-      CHECK_EQ(result, 2);
+      CHECK_EQ(result, 2u);
     }
     Handle<HeapNumber> heap_number2 = isolate->factory()->NewHeapNumber(
         static_cast<double>(std::numeric_limits<size_t>::max()) + 10000.0);

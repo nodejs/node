@@ -272,7 +272,7 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
                       static_cast<size_t>(name_length));
     name_string = std::unique_ptr<char[]>(buffer);
   }
-  DCHECK_EQ(name_length, strlen(name_string.get()));
+  DCHECK_EQ(name_length, static_cast<int>(strlen(name_string.get())));
 
   PerfJitCodeDebugInfo debug_info;
 
@@ -299,7 +299,7 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
 
   for (SourcePositionTableIterator iterator(code->source_position_table());
        !iterator.done(); iterator.Advance()) {
-    int position = iterator.source_position();
+    int position = iterator.source_position().ScriptOffset();
     int line_number = Script::GetLineNumber(script, position);
     // Compute column.
     int relative_line_number = line_number - script_line_offset;
@@ -356,8 +356,8 @@ void PerfJitLogger::LogWriteUnwindingInfo(Code* code) {
   }
 
   char padding_bytes[] = "\0\0\0\0\0\0\0\0";
-  DCHECK_LT(padding_size, sizeof(padding_bytes));
-  LogWriteBytes(padding_bytes, padding_size);
+  DCHECK_LT(padding_size, static_cast<int>(sizeof(padding_bytes)));
+  LogWriteBytes(padding_bytes, static_cast<int>(padding_size));
 }
 
 void PerfJitLogger::CodeMoveEvent(AbstractCode* from, Address to) {

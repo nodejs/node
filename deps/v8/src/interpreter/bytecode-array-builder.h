@@ -6,6 +6,8 @@
 #define V8_INTERPRETER_BYTECODE_ARRAY_BUILDER_H_
 
 #include "src/ast/ast.h"
+#include "src/base/compiler-specific.h"
+#include "src/globals.h"
 #include "src/interpreter/bytecode-array-writer.h"
 #include "src/interpreter/bytecode-register-allocator.h"
 #include "src/interpreter/bytecode-register.h"
@@ -24,9 +26,11 @@ namespace interpreter {
 class BytecodeLabel;
 class BytecodeNode;
 class BytecodePipelineStage;
+class BytecodeRegisterOptimizer;
 class Register;
 
-class BytecodeArrayBuilder final : public ZoneObject {
+class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
+    : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   BytecodeArrayBuilder(
       Isolate* isolate, Zone* zone, int parameter_count, int context_count,
@@ -94,6 +98,14 @@ class BytecodeArrayBuilder final : public ZoneObject {
   // context chain starting with |context|.
   BytecodeArrayBuilder& StoreContextSlot(Register context, int slot_index,
                                          int depth);
+
+  // Load from a module variable into the accumulator. |depth| is the depth of
+  // the current context relative to the module context.
+  BytecodeArrayBuilder& LoadModuleVariable(int cell_index, int depth);
+
+  // Store from the accumulator into a module variable. |depth| is the depth of
+  // the current context relative to the module context.
+  BytecodeArrayBuilder& StoreModuleVariable(int cell_index, int depth);
 
   // Register-accumulator transfers.
   BytecodeArrayBuilder& LoadAccumulatorWithRegister(Register reg);
@@ -183,10 +195,11 @@ class BytecodeArrayBuilder final : public ZoneObject {
 
   // Call a JS function. The JSFunction or Callable to be called should be in
   // |callable|. The arguments should be in |args|, with the receiver in
-  // |args[0]|. Type feedback is recorded in the |feedback_slot| in the type
-  // feedback vector.
+  // |args[0]|. The call type of the expression is in |call_type|. Type feedback
+  // is recorded in the |feedback_slot| in the type feedback vector.
   BytecodeArrayBuilder& Call(
       Register callable, RegisterList args, int feedback_slot,
+      Call::CallType call_type,
       TailCallMode tail_call_mode = TailCallMode::kDisallow);
 
   // Call the new operator. The accumulator holds the |new_target|.
@@ -317,6 +330,12 @@ class BytecodeArrayBuilder final : public ZoneObject {
 
   bool RequiresImplicitReturn() const { return !return_seen_in_block_; }
 
+  // Returns the raw operand value for the given register or register list.
+  uint32_t GetInputRegisterOperand(Register reg);
+  uint32_t GetOutputRegisterOperand(Register reg);
+  uint32_t GetInputRegisterListOperand(RegisterList reg_list);
+  uint32_t GetOutputRegisterListOperand(RegisterList reg_list);
+
   // Accessors
   BytecodeRegisterAllocator* register_allocator() {
     return &register_allocator_;
@@ -328,41 +347,22 @@ class BytecodeArrayBuilder final : public ZoneObject {
 
  private:
   friend class BytecodeRegisterAllocator;
+  template <OperandType... operand_types>
+  friend class BytecodeNodeBuilder;
 
-  INLINE(void Output(Bytecode bytecode, uint32_t operand0, uint32_t operand1,
-                     uint32_t operand2, uint32_t operand3));
-  INLINE(void Output(Bytecode bytecode, uint32_t operand0, uint32_t operand1,
-                     uint32_t operand2));
-  INLINE(void Output(Bytecode bytecode, uint32_t operand0, uint32_t operand1));
-  INLINE(void Output(Bytecode bytecode, uint32_t operand0));
-  INLINE(void Output(Bytecode bytecode));
+  // Returns the current source position for the given |bytecode|.
+  INLINE(BytecodeSourceInfo CurrentSourcePosition(Bytecode bytecode));
 
-  INLINE(void OutputJump(Bytecode bytecode, BytecodeLabel* label));
-  INLINE(void OutputJump(Bytecode bytecode, uint32_t operand0,
-                         BytecodeLabel* label));
+#define DECLARE_BYTECODE_OUTPUT(Name, ...)         \
+  template <typename... Operands>                  \
+  INLINE(void Output##Name(Operands... operands)); \
+  template <typename... Operands>                  \
+  INLINE(void Output##Name(BytecodeLabel* label, Operands... operands));
+  BYTECODE_LIST(DECLARE_BYTECODE_OUTPUT)
+#undef DECLARE_OPERAND_TYPE_INFO
 
   bool RegisterIsValid(Register reg) const;
-  bool OperandsAreValid(Bytecode bytecode, int operand_count,
-                        uint32_t operand0 = 0, uint32_t operand1 = 0,
-                        uint32_t operand2 = 0, uint32_t operand3 = 0) const;
-
-  static uint32_t RegisterOperand(Register reg) {
-    return static_cast<uint32_t>(reg.ToOperand());
-  }
-
-  static uint32_t SignedOperand(int value) {
-    return static_cast<uint32_t>(value);
-  }
-
-  static uint32_t UnsignedOperand(int value) {
-    DCHECK_GE(value, 0);
-    return static_cast<uint32_t>(value);
-  }
-
-  static uint32_t UnsignedOperand(size_t value) {
-    DCHECK_LE(value, kMaxUInt32);
-    return static_cast<uint32_t>(value);
-  }
+  bool RegisterListIsValid(RegisterList reg_list) const;
 
   // Set position for return.
   void SetReturnPosition();
@@ -374,6 +374,8 @@ class BytecodeArrayBuilder final : public ZoneObject {
   // to indicate a bytecode field is not valid or an error has occured
   // during bytecode generation.
   BytecodeArrayBuilder& Illegal();
+
+  void PrepareToOutputBytecode(Bytecode bytecode);
 
   void LeaveBasicBlock() { return_seen_in_block_ = false; }
 
@@ -403,6 +405,7 @@ class BytecodeArrayBuilder final : public ZoneObject {
   BytecodeRegisterAllocator register_allocator_;
   BytecodeArrayWriter bytecode_array_writer_;
   BytecodePipelineStage* pipeline_;
+  BytecodeRegisterOptimizer* register_optimizer_;
   BytecodeSourceInfo latest_source_info_;
 
   static int const kNoFeedbackSlot = 0;

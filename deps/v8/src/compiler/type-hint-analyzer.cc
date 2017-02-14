@@ -92,21 +92,7 @@ bool TypeHintAnalysis::GetToBooleanHints(TypeFeedbackId id,
   Handle<Code> code = i->second;
   DCHECK_EQ(Code::TO_BOOLEAN_IC, code->kind());
   ToBooleanICStub stub(code->GetIsolate(), code->extra_ic_state());
-// TODO(bmeurer): Replace ToBooleanICStub::Types with ToBooleanHints.
-#define ASSERT_COMPATIBLE(NAME, Name)         \
-  STATIC_ASSERT(1 << ToBooleanICStub::NAME == \
-                static_cast<int>(ToBooleanHint::k##Name))
-  ASSERT_COMPATIBLE(UNDEFINED, Undefined);
-  ASSERT_COMPATIBLE(BOOLEAN, Boolean);
-  ASSERT_COMPATIBLE(NULL_TYPE, Null);
-  ASSERT_COMPATIBLE(SMI, SmallInteger);
-  ASSERT_COMPATIBLE(SPEC_OBJECT, Receiver);
-  ASSERT_COMPATIBLE(STRING, String);
-  ASSERT_COMPATIBLE(SYMBOL, Symbol);
-  ASSERT_COMPATIBLE(HEAP_NUMBER, HeapNumber);
-  ASSERT_COMPATIBLE(SIMD_VALUE, SimdValue);
-#undef ASSERT_COMPATIBLE
-  *hints = ToBooleanHints(stub.types().ToIntegral());
+  *hints = stub.hints();
   return true;
 }
 

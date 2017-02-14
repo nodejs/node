@@ -68,7 +68,7 @@ class GCIdleTimeHeapState {
 
 // The idle time handler makes decisions about which garbage collection
 // operations are executing during IdleNotification.
-class GCIdleTimeHandler {
+class V8_EXPORT_PRIVATE GCIdleTimeHandler {
  public:
   // If we haven't recorded any incremental marking events yet, we carefully
   // mark with a conservative lower bound for the marking speed.

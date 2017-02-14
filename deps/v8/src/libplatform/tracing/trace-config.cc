@@ -32,11 +32,6 @@ void TraceConfig::AddIncludedCategory(const char* included_category) {
   included_categories_.push_back(included_category);
 }
 
-void TraceConfig::AddExcludedCategory(const char* excluded_category) {
-  DCHECK(excluded_category != NULL && strlen(excluded_category) > 0);
-  excluded_categories_.push_back(excluded_category);
-}
-
 }  // namespace tracing
 }  // namespace platform
 }  // namespace v8

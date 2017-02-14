@@ -306,8 +306,9 @@ void ConstPool::RecordEntry(intptr_t data,
   DCHECK(mode != RelocInfo::COMMENT && mode != RelocInfo::CONST_POOL &&
          mode != RelocInfo::VENEER_POOL &&
          mode != RelocInfo::CODE_AGE_SEQUENCE &&
-         mode != RelocInfo::DEOPT_POSITION && mode != RelocInfo::DEOPT_REASON &&
-         mode != RelocInfo::DEOPT_ID);
+         mode != RelocInfo::DEOPT_SCRIPT_OFFSET &&
+         mode != RelocInfo::DEOPT_INLINING_ID &&
+         mode != RelocInfo::DEOPT_REASON && mode != RelocInfo::DEOPT_ID);
   uint64_t raw_data = static_cast<uint64_t>(data);
   int offset = assm_->pc_offset();
   if (IsEmpty()) {
@@ -2947,7 +2948,8 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
        (rmode <= RelocInfo::DEBUG_BREAK_SLOT_AT_TAIL_CALL)) ||
       (rmode == RelocInfo::INTERNAL_REFERENCE) ||
       (rmode == RelocInfo::CONST_POOL) || (rmode == RelocInfo::VENEER_POOL) ||
-      (rmode == RelocInfo::DEOPT_POSITION) ||
+      (rmode == RelocInfo::DEOPT_SCRIPT_OFFSET) ||
+      (rmode == RelocInfo::DEOPT_INLINING_ID) ||
       (rmode == RelocInfo::DEOPT_REASON) || (rmode == RelocInfo::DEOPT_ID) ||
       (rmode == RelocInfo::GENERATOR_CONTINUATION)) {
     // Adjust code for new modes.

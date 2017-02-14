@@ -26,7 +26,7 @@ class V8ProfilerAgentImpl;
 class V8RuntimeAgentImpl;
 class V8SchemaAgentImpl;
 
-using protocol::ErrorString;
+using protocol::Response;
 
 class V8InspectorSessionImpl : public V8InspectorSession,
                                public protocol::FrontendChannel {
@@ -44,8 +44,8 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   V8RuntimeAgentImpl* runtimeAgent() { return m_runtimeAgent.get(); }
   int contextGroupId() const { return m_contextGroupId; }
 
-  InjectedScript* findInjectedScript(ErrorString*, int contextId);
-  InjectedScript* findInjectedScript(ErrorString*, RemoteObjectIdBase*);
+  Response findInjectedScript(int contextId, InjectedScript*&);
+  Response findInjectedScript(RemoteObjectIdBase*, InjectedScript*&);
   void reset();
   void discardInjectedScripts();
   void reportAllContexts(V8RuntimeAgentImpl*);
@@ -57,9 +57,8 @@ class V8InspectorSessionImpl : public V8InspectorSession,
       v8::Local<v8::Context>, v8::Local<v8::Value> table,
       v8::Local<v8::Value> columns);
   std::vector<std::unique_ptr<protocol::Schema::Domain>> supportedDomainsImpl();
-  bool unwrapObject(ErrorString*, const String16& objectId,
-                    v8::Local<v8::Value>*, v8::Local<v8::Context>*,
-                    String16* objectGroup);
+  Response unwrapObject(const String16& objectId, v8::Local<v8::Value>*,
+                        v8::Local<v8::Context>*, String16* objectGroup);
   void releaseObjectGroup(const String16& objectGroup);
 
   // V8InspectorSession implementation.

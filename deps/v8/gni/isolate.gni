@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import("//build/config/sanitizers/sanitizers.gni")
+import("//build_overrides/v8.gni")
 import("//third_party/icu/config.gni")
 import("v8.gni")
 
@@ -12,11 +13,21 @@ declare_args() {
 }
 
 template("v8_isolate_run") {
+  forward_variables_from(invoker,
+                         "*",
+                         [
+                           "deps",
+                           "isolate",
+                         ])
+
   # Remember target name as within the action scope the target name will be
   # different.
   name = target_name
-  if (name != "" && invoker.isolate != "" && invoker.deps != [] &&
-      v8_test_isolation_mode != "noop") {
+
+  assert(defined(invoker.deps))
+  assert(defined(invoker.isolate))
+
+  if (name != "" && v8_test_isolation_mode != "noop") {
     action(name + "_run") {
       testonly = true
 
@@ -86,6 +97,11 @@ template("v8_isolate_run") {
       } else {
         icu_use_data_file_flag = "0"
       }
+      if (v8_enable_inspector_override) {
+        enable_inspector = "1"
+      } else {
+        enable_inspector = "0"
+      }
       if (v8_use_external_startup_data) {
         use_external_startup_data = "1"
       } else {
@@ -106,7 +122,6 @@ template("v8_isolate_run") {
       } else {
         gcmole = "0"
       }
-
 
       # Note, all paths will be rebased in isolate_driver.py to be relative to
       # the isolate file.
@@ -142,6 +157,8 @@ template("v8_isolate_run") {
         "--config-variable",
         "icu_use_data_file_flag=$icu_use_data_file_flag",
         "--config-variable",
+        "is_gn=1",
+        "--config-variable",
         "msan=$msan",
         "--config-variable",
         "tsan=$tsan",
@@ -153,6 +170,8 @@ template("v8_isolate_run") {
         "component=$component",
         "--config-variable",
         "target_arch=$target_arch",
+        "--config-variable",
+        "v8_enable_inspector=$enable_inspector",
         "--config-variable",
         "v8_use_external_startup_data=$use_external_startup_data",
         "--config-variable",

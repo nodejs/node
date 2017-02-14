@@ -1,0 +1,27 @@
+{
+  "name": "SixSpeed",
+  "run_count": 3,
+  "run_count_arm": 1,
+  "run_count_arm64": 1,
+  "timeout": 120,
+  "units": "score",
+  "total": true,
+  "resources": ["base.js"],
+  "tests": [
+    {
+      "name": "Spread",
+      "path": ["SixSpeed/spread"],
+      "main": "run.js",
+      "resources": [
+        "run.js",
+        "spread.js"
+      ],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Spread-ES5"},
+        {"name": "Spread-Traceur"},
+        {"name": "Spread-ES6"}
+      ]
+    }
+  ]
+}

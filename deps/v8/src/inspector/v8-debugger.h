@@ -8,12 +8,12 @@
 #include <vector>
 
 #include "src/base/macros.h"
+#include "src/debug/debug-interface.h"
 #include "src/inspector/java-script-call-frame.h"
 #include "src/inspector/protocol/Forward.h"
 #include "src/inspector/protocol/Runtime.h"
 #include "src/inspector/v8-debugger-script.h"
 
-#include "include/v8-debug.h"
 #include "include/v8-inspector.h"
 
 namespace v8_inspector {
@@ -23,7 +23,7 @@ class V8DebuggerAgentImpl;
 class V8InspectorImpl;
 class V8StackTraceImpl;
 
-using protocol::ErrorString;
+using protocol::Response;
 
 class V8Debugger {
  public:
@@ -42,13 +42,8 @@ class V8Debugger {
   void setBreakpointsActivated(bool);
   bool breakpointsActivated() const { return m_breakpointsActivated; }
 
-  enum PauseOnExceptionsState {
-    DontPauseOnExceptions,
-    PauseOnAllExceptions,
-    PauseOnUncaughtExceptions
-  };
-  PauseOnExceptionsState getPauseOnExceptionsState();
-  void setPauseOnExceptionsState(PauseOnExceptionsState);
+  v8::DebugInterface::ExceptionBreakState getPauseOnExceptionsState();
+  void setPauseOnExceptionsState(v8::DebugInterface::ExceptionBreakState);
   void setPauseOnNextStatement(bool);
   bool canBreakProgram();
   void breakProgram();
@@ -58,12 +53,11 @@ class V8Debugger {
   void stepOutOfFunction();
   void clearStepping();
 
-  bool setScriptSource(const String16& sourceID,
-                       v8::Local<v8::String> newSource, bool dryRun,
-                       ErrorString*,
-                       protocol::Maybe<protocol::Runtime::ExceptionDetails>*,
-                       JavaScriptCallFrames* newCallFrames,
-                       protocol::Maybe<bool>* stackChanged);
+  Response setScriptSource(
+      const String16& sourceID, v8::Local<v8::String> newSource, bool dryRun,
+      protocol::Maybe<protocol::Runtime::ExceptionDetails>*,
+      JavaScriptCallFrames* newCallFrames, protocol::Maybe<bool>* stackChanged,
+      bool* compileError);
   JavaScriptCallFrames currentCallFrames(int limit = 0);
 
   // Each script inherits debug data from v8::Context where it has been
@@ -113,11 +107,12 @@ class V8Debugger {
                           v8::Local<v8::Object> executionState,
                           v8::Local<v8::Value> exception,
                           v8::Local<v8::Array> hitBreakpoints,
-                          bool isPromiseRejection = false);
-  static void v8DebugEventCallback(const v8::Debug::EventDetails&);
+                          bool isPromiseRejection = false,
+                          bool isUncaught = false);
+  static void v8DebugEventCallback(const v8::DebugInterface::EventDetails&);
   v8::Local<v8::Value> callInternalGetterFunction(v8::Local<v8::Object>,
                                                   const char* functionName);
-  void handleV8DebugEvent(const v8::Debug::EventDetails&);
+  void handleV8DebugEvent(const v8::DebugInterface::EventDetails&);
   void handleV8AsyncTaskEvent(v8::Local<v8::Context>,
                               v8::Local<v8::Object> executionState,
                               v8::Local<v8::Object> eventData);
@@ -151,6 +146,8 @@ class V8Debugger {
   std::vector<void*> m_currentTasks;
   std::vector<std::unique_ptr<V8StackTraceImpl>> m_currentStacks;
   protocol::HashMap<V8DebuggerAgentImpl*, int> m_maxAsyncCallStackDepthMap;
+
+  v8::DebugInterface::ExceptionBreakState m_pauseOnExceptionsState;
 
   DISALLOW_COPY_AND_ASSIGN(V8Debugger);
 };

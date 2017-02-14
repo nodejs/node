@@ -99,7 +99,7 @@ void Deserializer::Deserialize(Isolate* isolate) {
       isolate_->heap()->undefined_value());
   // The allocation site list is build during root iteration, but if no sites
   // were encountered then it needs to be initialized to undefined.
-  if (isolate_->heap()->allocation_sites_list() == Smi::FromInt(0)) {
+  if (isolate_->heap()->allocation_sites_list() == Smi::kZero) {
     isolate_->heap()->set_allocation_sites_list(
         isolate_->heap()->undefined_value());
   }
@@ -128,6 +128,7 @@ MaybeHandle<Object> Deserializer::DeserializePartial(
   Object* root;
   VisitPointer(&root);
   DeserializeDeferredObjects();
+  DeserializeInternalFields();
 
   isolate->heap()->RegisterReservationsForBlackAllocation(reservations_);
 
@@ -212,6 +213,31 @@ void Deserializer::DeserializeDeferredObjects() {
   }
 }
 
+void Deserializer::DeserializeInternalFields() {
+  if (!source_.HasMore() || source_.Get() != kInternalFieldsData) return;
+  DisallowHeapAllocation no_gc;
+  DisallowJavascriptExecution no_js(isolate_);
+  DisallowCompilation no_compile(isolate_);
+  v8::DeserializeInternalFieldsCallback callback =
+      isolate_->deserialize_internal_fields_callback();
+  DCHECK_NOT_NULL(callback);
+  for (int code = source_.Get(); code != kSynchronize; code = source_.Get()) {
+    HandleScope scope(isolate_);
+    int space = code & kSpaceMask;
+    DCHECK(space <= kNumberOfSpaces);
+    DCHECK(code - space == kNewObject);
+    Handle<JSObject> obj(JSObject::cast(GetBackReferencedObject(space)),
+                         isolate_);
+    int index = source_.GetInt();
+    int size = source_.GetInt();
+    byte* data = new byte[size];
+    source_.CopyRaw(data, size);
+    callback(v8::Utils::ToLocal(obj), index,
+             {reinterpret_cast<char*>(data), size});
+    delete[] data;
+  }
+}
+
 // Used to insert a deserialized internalized string into the string table.
 class StringTableInsertionKey : public HashTableKey {
  public:
@@ -277,7 +303,7 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
     // TODO(mvstanton): consider treating the heap()->allocation_sites_list()
     // as a (weak) root. If this root is relocated correctly, this becomes
     // unnecessary.
-    if (isolate_->heap()->allocation_sites_list() == Smi::FromInt(0)) {
+    if (isolate_->heap()->allocation_sites_list() == Smi::kZero) {
       site->set_weak_next(isolate_->heap()->undefined_value());
     } else {
       site->set_weak_next(isolate_->heap()->allocation_sites_list());
@@ -502,7 +528,7 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
         int skip = source_.GetInt();                                           \
         current = reinterpret_cast<Object**>(                                  \
             reinterpret_cast<Address>(current) + skip);                        \
-        int reference_id = source_.GetInt();                                   \
+        uint32_t reference_id = static_cast<uint32_t>(source_.GetInt());       \
         Address address = external_reference_table_->address(reference_id);    \
         new_object = reinterpret_cast<Object*>(address);                       \
       } else if (where == kAttachedReference) {                                \

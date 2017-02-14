@@ -136,25 +136,13 @@ class ArmOperandConverter final : public InstructionOperandConverter {
     FrameOffset offset = frame_access_state()->GetFrameOffset(slot);
     return MemOperand(offset.from_stack_pointer() ? sp : fp, offset.offset());
   }
-
-  FloatRegister InputFloat32Register(size_t index) {
-    return ToFloat32Register(instr_->InputAt(index));
-  }
-
-  FloatRegister OutputFloat32Register() {
-    return ToFloat32Register(instr_->Output());
-  }
-
-  FloatRegister ToFloat32Register(InstructionOperand* op) {
-    return LowDwVfpRegister::from_code(ToDoubleRegister(op).code()).low();
-  }
 };
 
 namespace {
 
-class OutOfLineLoadFloat32 final : public OutOfLineCode {
+class OutOfLineLoadFloat final : public OutOfLineCode {
  public:
-  OutOfLineLoadFloat32(CodeGenerator* gen, SwVfpRegister result)
+  OutOfLineLoadFloat(CodeGenerator* gen, SwVfpRegister result)
       : OutOfLineCode(gen), result_(result) {}
 
   void Generate() final {
@@ -679,8 +667,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       frame_access_state()->ClearSPDelta();
       break;
     }
-    case kArchTailCallJSFunctionFromJSFunction:
-    case kArchTailCallJSFunction: {
+    case kArchTailCallJSFunctionFromJSFunction: {
       Register func = i.InputRegister(0);
       if (FLAG_debug_code) {
         // Check the function's context matches the context argument.
@@ -688,11 +675,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ cmp(cp, kScratchReg);
         __ Assert(eq, kWrongFunctionContext);
       }
-      if (arch_opcode == kArchTailCallJSFunctionFromJSFunction) {
-        AssemblePopArgumentsAdaptorFrame(kJavaScriptCallArgCountRegister,
-                                         i.TempRegister(0), i.TempRegister(1),
-                                         i.TempRegister(2));
-      }
+      AssemblePopArgumentsAdaptorFrame(kJavaScriptCallArgCountRegister,
+                                       i.TempRegister(0), i.TempRegister(1),
+                                       i.TempRegister(2));
       __ ldr(ip, FieldMemOperand(func, JSFunction::kCodeEntryOffset));
       __ Jump(ip);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -759,7 +744,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchRet:
-      AssembleReturn();
+      AssembleReturn(instr->InputAt(0));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArchStackPointer:
@@ -1084,83 +1069,92 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ mla(i.OutputRegister(1), i.InputRegister(2), i.InputRegister(1),
              i.OutputRegister(1));
       break;
-    case kArmLslPair:
+    case kArmLslPair: {
+      Register second_output =
+          instr->OutputCount() >= 2 ? i.OutputRegister(1) : i.TempRegister(0);
       if (instr->InputAt(2)->IsImmediate()) {
-        __ LslPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+        __ LslPair(i.OutputRegister(0), second_output, i.InputRegister(0),
                    i.InputRegister(1), i.InputInt32(2));
       } else {
-        __ LslPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+        __ LslPair(i.OutputRegister(0), second_output, i.InputRegister(0),
                    i.InputRegister(1), kScratchReg, i.InputRegister(2));
       }
       break;
-    case kArmLsrPair:
+    }
+    case kArmLsrPair: {
+      Register second_output =
+          instr->OutputCount() >= 2 ? i.OutputRegister(1) : i.TempRegister(0);
       if (instr->InputAt(2)->IsImmediate()) {
-        __ LsrPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+        __ LsrPair(i.OutputRegister(0), second_output, i.InputRegister(0),
                    i.InputRegister(1), i.InputInt32(2));
       } else {
-        __ LsrPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+        __ LsrPair(i.OutputRegister(0), second_output, i.InputRegister(0),
                    i.InputRegister(1), kScratchReg, i.InputRegister(2));
       }
       break;
-    case kArmAsrPair:
+    }
+    case kArmAsrPair: {
+      Register second_output =
+          instr->OutputCount() >= 2 ? i.OutputRegister(1) : i.TempRegister(0);
       if (instr->InputAt(2)->IsImmediate()) {
-        __ AsrPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+        __ AsrPair(i.OutputRegister(0), second_output, i.InputRegister(0),
                    i.InputRegister(1), i.InputInt32(2));
       } else {
-        __ AsrPair(i.OutputRegister(0), i.OutputRegister(1), i.InputRegister(0),
+        __ AsrPair(i.OutputRegister(0), second_output, i.InputRegister(0),
                    i.InputRegister(1), kScratchReg, i.InputRegister(2));
       }
       break;
+    }
     case kArmVcmpF32:
       if (instr->InputAt(1)->IsFPRegister()) {
-        __ VFPCompareAndSetFlags(i.InputFloat32Register(0),
-                                 i.InputFloat32Register(1));
+        __ VFPCompareAndSetFlags(i.InputFloatRegister(0),
+                                 i.InputFloatRegister(1));
       } else {
         DCHECK(instr->InputAt(1)->IsImmediate());
         // 0.0 is the only immediate supported by vcmp instructions.
         DCHECK(i.InputFloat32(1) == 0.0f);
-        __ VFPCompareAndSetFlags(i.InputFloat32Register(0), i.InputFloat32(1));
+        __ VFPCompareAndSetFlags(i.InputFloatRegister(0), i.InputFloat32(1));
       }
       DCHECK_EQ(SetCC, i.OutputSBit());
       break;
     case kArmVaddF32:
-      __ vadd(i.OutputFloat32Register(), i.InputFloat32Register(0),
-              i.InputFloat32Register(1));
+      __ vadd(i.OutputFloatRegister(), i.InputFloatRegister(0),
+              i.InputFloatRegister(1));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArmVsubF32:
-      __ vsub(i.OutputFloat32Register(), i.InputFloat32Register(0),
-              i.InputFloat32Register(1));
+      __ vsub(i.OutputFloatRegister(), i.InputFloatRegister(0),
+              i.InputFloatRegister(1));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArmVmulF32:
-      __ vmul(i.OutputFloat32Register(), i.InputFloat32Register(0),
-              i.InputFloat32Register(1));
+      __ vmul(i.OutputFloatRegister(), i.InputFloatRegister(0),
+              i.InputFloatRegister(1));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArmVmlaF32:
-      __ vmla(i.OutputFloat32Register(), i.InputFloat32Register(1),
-              i.InputFloat32Register(2));
+      __ vmla(i.OutputFloatRegister(), i.InputFloatRegister(1),
+              i.InputFloatRegister(2));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArmVmlsF32:
-      __ vmls(i.OutputFloat32Register(), i.InputFloat32Register(1),
-              i.InputFloat32Register(2));
+      __ vmls(i.OutputFloatRegister(), i.InputFloatRegister(1),
+              i.InputFloatRegister(2));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArmVdivF32:
-      __ vdiv(i.OutputFloat32Register(), i.InputFloat32Register(0),
-              i.InputFloat32Register(1));
+      __ vdiv(i.OutputFloatRegister(), i.InputFloatRegister(0),
+              i.InputFloatRegister(1));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArmVsqrtF32:
-      __ vsqrt(i.OutputFloat32Register(), i.InputFloat32Register(0));
+      __ vsqrt(i.OutputFloatRegister(), i.InputFloatRegister(0));
       break;
     case kArmVabsF32:
-      __ vabs(i.OutputFloat32Register(), i.InputFloat32Register(0));
+      __ vabs(i.OutputFloatRegister(), i.InputFloatRegister(0));
       break;
     case kArmVnegF32:
-      __ vneg(i.OutputFloat32Register(), i.InputFloat32Register(0));
+      __ vneg(i.OutputFloatRegister(), i.InputFloatRegister(0));
       break;
     case kArmVcmpF64:
       if (instr->InputAt(1)->IsFPRegister()) {
@@ -1229,7 +1223,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArmVrintmF32: {
       CpuFeatureScope scope(masm(), ARMv8);
-      __ vrintm(i.OutputFloat32Register(), i.InputFloat32Register(0));
+      __ vrintm(i.OutputFloatRegister(), i.InputFloatRegister(0));
       break;
     }
     case kArmVrintmF64: {
@@ -1239,7 +1233,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArmVrintpF32: {
       CpuFeatureScope scope(masm(), ARMv8);
-      __ vrintp(i.OutputFloat32Register(), i.InputFloat32Register(0));
+      __ vrintp(i.OutputFloatRegister(), i.InputFloatRegister(0));
       break;
     }
     case kArmVrintpF64: {
@@ -1249,7 +1243,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArmVrintzF32: {
       CpuFeatureScope scope(masm(), ARMv8);
-      __ vrintz(i.OutputFloat32Register(), i.InputFloat32Register(0));
+      __ vrintz(i.OutputFloatRegister(), i.InputFloatRegister(0));
       break;
     }
     case kArmVrintzF64: {
@@ -1264,7 +1258,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArmVrintnF32: {
       CpuFeatureScope scope(masm(), ARMv8);
-      __ vrintn(i.OutputFloat32Register(), i.InputFloat32Register(0));
+      __ vrintn(i.OutputFloatRegister(), i.InputFloatRegister(0));
       break;
     }
     case kArmVrintnF64: {
@@ -1273,26 +1267,26 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmVcvtF32F64: {
-      __ vcvt_f32_f64(i.OutputFloat32Register(), i.InputDoubleRegister(0));
+      __ vcvt_f32_f64(i.OutputFloatRegister(), i.InputDoubleRegister(0));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
     case kArmVcvtF64F32: {
-      __ vcvt_f64_f32(i.OutputDoubleRegister(), i.InputFloat32Register(0));
+      __ vcvt_f64_f32(i.OutputDoubleRegister(), i.InputFloatRegister(0));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
     case kArmVcvtF32S32: {
       SwVfpRegister scratch = kScratchDoubleReg.low();
       __ vmov(scratch, i.InputRegister(0));
-      __ vcvt_f32_s32(i.OutputFloat32Register(), scratch);
+      __ vcvt_f32_s32(i.OutputFloatRegister(), scratch);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
     case kArmVcvtF32U32: {
       SwVfpRegister scratch = kScratchDoubleReg.low();
       __ vmov(scratch, i.InputRegister(0));
-      __ vcvt_f32_u32(i.OutputFloat32Register(), scratch);
+      __ vcvt_f32_u32(i.OutputFloatRegister(), scratch);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
@@ -1312,7 +1306,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArmVcvtS32F32: {
       SwVfpRegister scratch = kScratchDoubleReg.low();
-      __ vcvt_s32_f32(scratch, i.InputFloat32Register(0));
+      __ vcvt_s32_f32(scratch, i.InputFloatRegister(0));
       __ vmov(i.OutputRegister(), scratch);
       // Avoid INT32_MAX as an overflow indicator and use INT32_MIN instead,
       // because INT32_MIN allows easier out-of-bounds detection.
@@ -1323,7 +1317,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArmVcvtU32F32: {
       SwVfpRegister scratch = kScratchDoubleReg.low();
-      __ vcvt_u32_f32(scratch, i.InputFloat32Register(0));
+      __ vcvt_u32_f32(scratch, i.InputFloatRegister(0));
       __ vmov(i.OutputRegister(), scratch);
       // Avoid UINT32_MAX as an overflow indicator and use 0 instead,
       // because 0 allows easier out-of-bounds detection.
@@ -1347,11 +1341,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmVmovU32F32:
-      __ vmov(i.OutputRegister(), i.InputFloat32Register(0));
+      __ vmov(i.OutputRegister(), i.InputFloatRegister(0));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArmVmovF32U32:
-      __ vmov(i.OutputFloat32Register(), i.InputRegister(0));
+      __ vmov(i.OutputFloatRegister(), i.InputRegister(0));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArmVmovLowU32F64:
@@ -1409,12 +1403,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArmVldrF32: {
-      __ vldr(i.OutputFloat32Register(), i.InputOffset());
+      __ vldr(i.OutputFloatRegister(), i.InputOffset());
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
     case kArmVstrF32:
-      __ vstr(i.InputFloat32Register(0), i.InputOffset(1));
+      __ vstr(i.InputFloatRegister(0), i.InputOffset(1));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArmVldrF64:
@@ -1426,9 +1420,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArmFloat32Max: {
-      SwVfpRegister result = i.OutputFloat32Register();
-      SwVfpRegister left = i.InputFloat32Register(0);
-      SwVfpRegister right = i.InputFloat32Register(1);
+      SwVfpRegister result = i.OutputFloatRegister();
+      SwVfpRegister left = i.InputFloatRegister(0);
+      SwVfpRegister right = i.InputFloatRegister(1);
       if (left.is(right)) {
         __ Move(result, left);
       } else {
@@ -1454,9 +1448,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmFloat32Min: {
-      SwVfpRegister result = i.OutputFloat32Register();
-      SwVfpRegister left = i.InputFloat32Register(0);
-      SwVfpRegister right = i.InputFloat32Register(1);
+      SwVfpRegister result = i.OutputFloatRegister();
+      SwVfpRegister left = i.InputFloatRegister(0);
+      SwVfpRegister right = i.InputFloatRegister(1);
       if (left.is(right)) {
         __ Move(result, left);
       } else {
@@ -1495,7 +1489,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
         } else {
           DCHECK_EQ(MachineRepresentation::kFloat32, op->representation());
-          __ vpush(i.InputFloat32Register(0));
+          __ vpush(i.InputFloatRegister(0));
           frame_access_state()->IncreaseSPDelta(1);
         }
       } else {
@@ -1526,7 +1520,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_CHECKED_LOAD_INTEGER(ldr);
       break;
     case kCheckedLoadFloat32:
-      ASSEMBLE_CHECKED_LOAD_FP(Float32);
+      ASSEMBLE_CHECKED_LOAD_FP(Float);
       break;
     case kCheckedLoadFloat64:
       ASSEMBLE_CHECKED_LOAD_FP(Double);
@@ -1541,7 +1535,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_CHECKED_STORE_INTEGER(str);
       break;
     case kCheckedStoreFloat32:
-      ASSEMBLE_CHECKED_STORE_FP(Float32);
+      ASSEMBLE_CHECKED_STORE_FP(Float);
       break;
     case kCheckedStoreFloat64:
       ASSEMBLE_CHECKED_STORE_FP(Double);
@@ -1649,7 +1643,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
   if (deopt_entry == nullptr) return kTooManyDeoptimizationBailouts;
   DeoptimizeReason deoptimization_reason =
       GetDeoptimizationReason(deoptimization_id);
-  __ RecordDeoptReason(deoptimization_reason, pos.raw(), deoptimization_id);
+  __ RecordDeoptReason(deoptimization_reason, pos, deoptimization_id);
   __ Call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
   __ CheckConstPool(false, false);
   return kSuccess;
@@ -1696,6 +1690,9 @@ void CodeGenerator::AssembleConstructFrame() {
       }
     } else if (descriptor->IsJSFunctionCall()) {
       __ Prologue(this->info()->GeneratePreagedPrologue());
+      if (descriptor->PushArgumentCount()) {
+        __ Push(kJavaScriptCallArgCountRegister);
+      }
     } else {
       __ StubPrologue(info()->GetOutputStackFrameType());
     }
@@ -1705,7 +1702,8 @@ void CodeGenerator::AssembleConstructFrame() {
     }
   }
 
-  int shrink_slots = frame()->GetSpillSlotCount();
+  int shrink_slots =
+      frame()->GetTotalFrameSlotCount() - descriptor->CalculateFixedFrameSize();
 
   if (info()->is_osr()) {
     // TurboFan OSR-compiled functions cannot be entered directly.
@@ -1743,8 +1741,7 @@ void CodeGenerator::AssembleConstructFrame() {
   }
 }
 
-
-void CodeGenerator::AssembleReturn() {
+void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
   int pop_count = static_cast<int>(descriptor->StackParameterCount());
 
@@ -1768,21 +1765,34 @@ void CodeGenerator::AssembleReturn() {
 
   unwinding_info_writer_.MarkBlockWillExit();
 
+  ArmOperandConverter g(this, nullptr);
   if (descriptor->IsCFunctionCall()) {
     AssembleDeconstructFrame();
   } else if (frame_access_state()->has_frame()) {
-    // Canonicalize JSFunction return sites for now.
-    if (return_label_.is_bound()) {
-      __ b(&return_label_);
-      return;
+    // Canonicalize JSFunction return sites for now unless they have an variable
+    // number of stack slot pops.
+    if (pop->IsImmediate() && g.ToConstant(pop).ToInt32() == 0) {
+      if (return_label_.is_bound()) {
+        __ b(&return_label_);
+        return;
+      } else {
+        __ bind(&return_label_);
+        AssembleDeconstructFrame();
+      }
     } else {
-      __ bind(&return_label_);
       AssembleDeconstructFrame();
     }
   }
-  __ Ret(pop_count);
-}
 
+  if (pop->IsImmediate()) {
+    DCHECK_EQ(Constant::kInt32, g.ToConstant(pop).type());
+    pop_count += g.ToConstant(pop).ToInt32();
+  } else {
+    __ Drop(g.ToRegister(pop));
+  }
+  __ Drop(pop_count);
+  __ Ret();
+}
 
 void CodeGenerator::AssembleMove(InstructionOperand* source,
                                  InstructionOperand* destination) {
@@ -1852,12 +1862,12 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       }
       if (destination->IsStackSlot()) __ str(dst, g.ToMemOperand(destination));
     } else if (src.type() == Constant::kFloat32) {
-      if (destination->IsFPStackSlot()) {
+      if (destination->IsFloatStackSlot()) {
         MemOperand dst = g.ToMemOperand(destination);
         __ mov(ip, Operand(bit_cast<int32_t>(src.ToFloat32())));
         __ str(ip, dst);
       } else {
-        SwVfpRegister dst = g.ToFloat32Register(destination);
+        SwVfpRegister dst = g.ToFloatRegister(destination);
         __ vmov(dst, src.ToFloat32());
       }
     } else {
@@ -1866,28 +1876,60 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
                               ? g.ToDoubleRegister(destination)
                               : kScratchDoubleReg;
       __ vmov(dst, src.ToFloat64(), kScratchReg);
-      if (destination->IsFPStackSlot()) {
+      if (destination->IsDoubleStackSlot()) {
         __ vstr(dst, g.ToMemOperand(destination));
       }
     }
   } else if (source->IsFPRegister()) {
-    DwVfpRegister src = g.ToDoubleRegister(source);
-    if (destination->IsFPRegister()) {
-      DwVfpRegister dst = g.ToDoubleRegister(destination);
-      __ Move(dst, src);
+    MachineRepresentation rep = LocationOperand::cast(source)->representation();
+    if (rep == MachineRepresentation::kFloat64) {
+      DwVfpRegister src = g.ToDoubleRegister(source);
+      if (destination->IsDoubleRegister()) {
+        DwVfpRegister dst = g.ToDoubleRegister(destination);
+        __ Move(dst, src);
+      } else {
+        DCHECK(destination->IsDoubleStackSlot());
+        __ vstr(src, g.ToMemOperand(destination));
+      }
     } else {
-      DCHECK(destination->IsFPStackSlot());
-      __ vstr(src, g.ToMemOperand(destination));
+      DCHECK_EQ(MachineRepresentation::kFloat32, rep);
+      // GapResolver may give us reg codes that don't map to actual s-registers.
+      // Generate code to work around those cases.
+      int src_code = LocationOperand::cast(source)->register_code();
+      if (destination->IsFloatRegister()) {
+        int dst_code = LocationOperand::cast(destination)->register_code();
+        __ VmovExtended(dst_code, src_code, kScratchReg);
+      } else {
+        DCHECK(destination->IsFloatStackSlot());
+        __ VmovExtended(g.ToMemOperand(destination), src_code, kScratchReg);
+      }
     }
   } else if (source->IsFPStackSlot()) {
     MemOperand src = g.ToMemOperand(source);
+    MachineRepresentation rep =
+        LocationOperand::cast(destination)->representation();
     if (destination->IsFPRegister()) {
+      if (rep == MachineRepresentation::kFloat64) {
         __ vldr(g.ToDoubleRegister(destination), src);
+      } else {
+        DCHECK_EQ(MachineRepresentation::kFloat32, rep);
+        // GapResolver may give us reg codes that don't map to actual
+        // s-registers. Generate code to work around those cases.
+        int dst_code = LocationOperand::cast(destination)->register_code();
+        __ VmovExtended(dst_code, src, kScratchReg);
+      }
     } else {
       DCHECK(destination->IsFPStackSlot());
+      if (rep == MachineRepresentation::kFloat64) {
         DwVfpRegister temp = kScratchDoubleReg;
         __ vldr(temp, src);
         __ vstr(temp, g.ToMemOperand(destination));
+      } else {
+        DCHECK_EQ(MachineRepresentation::kFloat32, rep);
+        SwVfpRegister temp = kScratchDoubleReg.low();
+        __ vldr(temp, src);
+        __ vstr(temp, g.ToMemOperand(destination));
+      }
     }
   } else {
     UNREACHABLE();
@@ -1927,17 +1969,35 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     __ str(temp_0, dst);
     __ vstr(temp_1, src);
   } else if (source->IsFPRegister()) {
+    MachineRepresentation rep = LocationOperand::cast(source)->representation();
     LowDwVfpRegister temp = kScratchDoubleReg;
-    DwVfpRegister src = g.ToDoubleRegister(source);
-    if (destination->IsFPRegister()) {
-      DwVfpRegister dst = g.ToDoubleRegister(destination);
-      __ vswp(src, dst);
+    if (rep == MachineRepresentation::kFloat64) {
+      DwVfpRegister src = g.ToDoubleRegister(source);
+      if (destination->IsFPRegister()) {
+        DwVfpRegister dst = g.ToDoubleRegister(destination);
+        __ vswp(src, dst);
+      } else {
+        DCHECK(destination->IsFPStackSlot());
+        MemOperand dst = g.ToMemOperand(destination);
+        __ Move(temp, src);
+        __ vldr(src, dst);
+        __ vstr(temp, dst);
+      }
     } else {
-      DCHECK(destination->IsFPStackSlot());
-      MemOperand dst = g.ToMemOperand(destination);
-      __ Move(temp, src);
-      __ vldr(src, dst);
-      __ vstr(temp, dst);
+      DCHECK_EQ(MachineRepresentation::kFloat32, rep);
+      int src_code = LocationOperand::cast(source)->register_code();
+      if (destination->IsFPRegister()) {
+        int dst_code = LocationOperand::cast(destination)->register_code();
+        __ VmovExtended(temp.low().code(), src_code, kScratchReg);
+        __ VmovExtended(src_code, dst_code, kScratchReg);
+        __ VmovExtended(dst_code, temp.low().code(), kScratchReg);
+      } else {
+        DCHECK(destination->IsFPStackSlot());
+        MemOperand dst = g.ToMemOperand(destination);
+        __ VmovExtended(temp.low().code(), src_code, kScratchReg);
+        __ VmovExtended(src_code, dst, kScratchReg);
+        __ vstr(temp.low(), dst);
+      }
     }
   } else if (source->IsFPStackSlot()) {
     DCHECK(destination->IsFPStackSlot());
@@ -1945,20 +2005,28 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     LowDwVfpRegister temp_1 = kScratchDoubleReg;
     MemOperand src0 = g.ToMemOperand(source);
     MemOperand dst0 = g.ToMemOperand(destination);
-    MemOperand src1(src0.rn(), src0.offset() + kPointerSize);
-    MemOperand dst1(dst0.rn(), dst0.offset() + kPointerSize);
-    __ vldr(temp_1, dst0);  // Save destination in temp_1.
-    __ ldr(temp_0, src0);   // Then use temp_0 to copy source to destination.
-    __ str(temp_0, dst0);
-    __ ldr(temp_0, src1);
-    __ str(temp_0, dst1);
-    __ vstr(temp_1, src0);
+    MachineRepresentation rep = LocationOperand::cast(source)->representation();
+    if (rep == MachineRepresentation::kFloat64) {
+      MemOperand src1(src0.rn(), src0.offset() + kPointerSize);
+      MemOperand dst1(dst0.rn(), dst0.offset() + kPointerSize);
+      __ vldr(temp_1, dst0);  // Save destination in temp_1.
+      __ ldr(temp_0, src0);   // Then use temp_0 to copy source to destination.
+      __ str(temp_0, dst0);
+      __ ldr(temp_0, src1);
+      __ str(temp_0, dst1);
+      __ vstr(temp_1, src0);
+    } else {
+      DCHECK_EQ(MachineRepresentation::kFloat32, rep);
+      __ vldr(temp_1.low(), dst0);  // Save destination in temp_1.
+      __ ldr(temp_0, src0);  // Then use temp_0 to copy source to destination.
+      __ str(temp_0, dst0);
+      __ vstr(temp_1.low(), src0);
+    }
   } else {
     // No other combinations are possible.
     UNREACHABLE();
   }
 }
-
 
 void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
   // On 32-bit ARM we emit the jump tables inline.

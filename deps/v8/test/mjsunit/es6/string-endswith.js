@@ -34,6 +34,7 @@ assertFalse(testString.endsWith("world"));
 assertFalse(testString.endsWith("Hello World!"));
 assertFalse(testString.endsWith(null));
 assertFalse(testString.endsWith(undefined));
+assertFalse(testString.endsWith());
 
 assertTrue("null".endsWith(null));
 assertTrue("undefined".endsWith(undefined));

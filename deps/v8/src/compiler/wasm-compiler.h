@@ -84,8 +84,8 @@ class WasmCompilationUnit final {
 // Wraps a JS function, producing a code object that can be called from WASM.
 Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
                                     wasm::FunctionSig* sig, uint32_t index,
-                                    Handle<String> import_module,
-                                    MaybeHandle<String> import_function);
+                                    Handle<String> module_name,
+                                    MaybeHandle<String> import_name);
 
 // Wraps a given wasm code object, producing a code object.
 Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::ModuleEnv* module,
@@ -142,12 +142,16 @@ class WasmGraphBuilder {
   void AppendToMerge(Node* merge, Node* from);
   void AppendToPhi(Node* phi, Node* from);
 
-  void StackCheck(wasm::WasmCodePosition position);
+  void StackCheck(wasm::WasmCodePosition position, Node** effect = nullptr,
+                  Node** control = nullptr);
 
   //-----------------------------------------------------------------------
   // Operations that read and/or write {control} and {effect}.
   //-----------------------------------------------------------------------
-  Node* Branch(Node* cond, Node** true_node, Node** false_node);
+  Node* BranchNoHint(Node* cond, Node** true_node, Node** false_node);
+  Node* BranchExpectTrue(Node* cond, Node** true_node, Node** false_node);
+  Node* BranchExpectFalse(Node* cond, Node** true_node, Node** false_node);
+
   Node* Switch(unsigned count, Node* key);
   Node* IfValue(int32_t value, Node* sw);
   Node* IfDefault(Node* sw);
@@ -166,7 +170,7 @@ class WasmGraphBuilder {
   Node* ToJS(Node* node, wasm::LocalType type);
   Node* FromJS(Node* node, Node* context, wasm::LocalType type);
   Node* Invert(Node* node);
-  Node* FunctionTable(uint32_t index);
+  void EnsureFunctionTableNodes();
 
   //-----------------------------------------------------------------------
   // Operations that concern the linear memory.
@@ -196,9 +200,11 @@ class WasmGraphBuilder {
 
   void Int64LoweringForTesting();
 
+  void SimdScalarLoweringForTesting();
+
   void SetSourcePosition(Node* node, wasm::WasmCodePosition position);
 
-  Node* DefaultS128Value();
+  Node* CreateS128Value(int32_t value);
 
   Node* SimdOp(wasm::WasmOpcode opcode, const NodeVector& inputs);
   Node* SimdExtractLane(wasm::WasmOpcode opcode, uint8_t lane, Node* input);
@@ -213,6 +219,7 @@ class WasmGraphBuilder {
   Node* mem_buffer_;
   Node* mem_size_;
   NodeVector function_tables_;
+  NodeVector function_table_sizes_;
   Node** control_;
   Node** effect_;
   Node** cur_buffer_;

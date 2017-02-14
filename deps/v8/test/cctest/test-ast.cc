@@ -40,7 +40,7 @@ TEST(List) {
   CHECK_EQ(0, list->length());
 
   v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator);
+  Zone zone(&allocator, ZONE_NAME);
   AstValueFactory value_factory(&zone, 0);
   AstNodeFactory factory(&value_factory);
   AstNode* node = factory.NewEmptyStatement(kNoSourcePosition);
@@ -62,7 +62,7 @@ TEST(List) {
 
 TEST(ConcatStrings) {
   v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator);
+  Zone zone(&allocator, ZONE_NAME);
   AstValueFactory value_factory(&zone, 0);
 
   const AstRawString* one_byte = value_factory.GetOneByteString("a");

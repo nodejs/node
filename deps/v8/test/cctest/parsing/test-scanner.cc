@@ -17,8 +17,8 @@ namespace {
 
 const char src_simple[] = "function foo() { var x = 2 * a() + b; }";
 
-std::unique_ptr<Scanner> make_scanner(const char* src) {
-  std::unique_ptr<Scanner> scanner(new Scanner(new UnicodeCache()));
+std::unique_ptr<Scanner> make_scanner(const char* src, UnicodeCache* cache) {
+  std::unique_ptr<Scanner> scanner(new Scanner(cache));
   scanner->Initialize(ScannerStream::ForTesting(src).release());
   return scanner;
 }
@@ -30,11 +30,13 @@ std::unique_ptr<Scanner> make_scanner(const char* src) {
 #define DCHECK_TOK(a, b) DCHECK_EQ(Token::Name(a), Token::Name(b))
 
 TEST(Bookmarks) {
+  UnicodeCache unicode_cache;
+
   // Scan through the given source and record the tokens for use as reference
   // below.
   std::vector<Token::Value> tokens;
   {
-    auto scanner = make_scanner(src_simple);
+    auto scanner = make_scanner(src_simple, &unicode_cache);
     do {
       tokens.push_back(scanner->Next());
     } while (scanner->current_token() != Token::EOS);
@@ -48,7 +50,7 @@ TEST(Bookmarks) {
   // - scan until the end.
   // At each step, compare to the reference token sequence generated above.
   for (size_t bookmark_pos = 0; bookmark_pos < tokens.size(); bookmark_pos++) {
-    auto scanner = make_scanner(src_simple);
+    auto scanner = make_scanner(src_simple, &unicode_cache);
     Scanner::BookmarkScope bookmark(scanner.get());
 
     for (size_t i = 0; i < std::min(bookmark_pos + 10, tokens.size()); i++) {
@@ -77,8 +79,9 @@ TEST(AllThePushbacks) {
       {"<!-- xx -->\nx", {Token::IDENTIFIER, Token::EOS}},
   };
 
+  UnicodeCache unicode_cache;
   for (const auto& test_case : test_cases) {
-    auto scanner = make_scanner(test_case.src);
+    auto scanner = make_scanner(test_case.src, &unicode_cache);
     for (size_t i = 0; test_case.tokens[i] != Token::EOS; i++) {
       DCHECK_TOK(test_case.tokens[i], scanner->Next());
     }

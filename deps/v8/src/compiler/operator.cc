@@ -24,7 +24,6 @@ V8_INLINE N CheckRange(size_t val) {
 // static
 STATIC_CONST_MEMBER_DEFINITION const size_t Operator::kMaxControlOutputCount;
 
-
 Operator::Operator(Opcode opcode, Properties properties, const char* mnemonic,
                    size_t value_in, size_t effect_in, size_t control_in,
                    size_t value_out, size_t effect_out, size_t control_out)
@@ -36,8 +35,7 @@ Operator::Operator(Opcode opcode, Properties properties, const char* mnemonic,
       control_in_(CheckRange<uint16_t>(control_in)),
       value_out_(CheckRange<uint16_t>(value_out)),
       effect_out_(CheckRange<uint8_t>(effect_out)),
-      control_out_(CheckRange<uint16_t>(control_out)) {}
-
+      control_out_(CheckRange<uint32_t>(control_out)) {}
 
 std::ostream& operator<<(std::ostream& os, const Operator& op) {
   op.PrintTo(os);

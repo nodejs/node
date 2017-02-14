@@ -36,6 +36,7 @@
     'type': 'executable',
     'dependencies': [
       '../src/v8.gyp:v8',
+      '../src/v8.gyp:v8_libbase',
       '../src/v8.gyp:v8_libplatform',
     ],
     'include_dirs': [

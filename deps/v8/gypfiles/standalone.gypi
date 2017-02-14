@@ -455,6 +455,7 @@
     'variables': {
       'v8_code%': '<(v8_code)',
       'clang_warning_flags': [
+        '-Wsign-compare',
         # TODO(thakis): https://crbug.com/604888
         '-Wno-undefined-var-template',
         # TODO(yangguo): issue 5258
@@ -503,7 +504,9 @@
     },
     'conditions':[
       ['clang==0', {
-        'cflags+': ['-Wno-sign-compare',],
+        'cflags+': [
+          '-Wno-uninitialized',
+        ],
       }],
       ['clang==1 or host_clang==1', {
         # This is here so that all files get recompiled after a clang roll and

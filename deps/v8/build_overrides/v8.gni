@@ -26,7 +26,7 @@ v8_experimental_extra_library_files =
 
 declare_args() {
   # Enable inspector. See include/v8-inspector.h.
-  v8_enable_inspector = false
+  v8_enable_inspector = true
 }
 
 v8_enable_inspector_override = v8_enable_inspector

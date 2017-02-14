@@ -51,7 +51,7 @@ static void RunLoadStoreRelocation(MachineType rep) {
     raw[i] = static_cast<byte>((i + sizeof(CType)) ^ 0xAA);
     new_raw[i] = static_cast<byte>((i + sizeof(CType)) ^ 0xAA);
   }
-  int32_t OK = 0x29000;
+  uint32_t OK = 0x29000;
   RawMachineAssemblerTester<uint32_t> m;
   Node* base = m.RelocatableIntPtrConstant(reinterpret_cast<intptr_t>(raw),
                                            RelocInfo::WASM_MEMORY_REFERENCE);
@@ -166,5 +166,5 @@ TEST(Uint32LessThanRelocation) {
   UpdateMemoryReferences(code, reinterpret_cast<Address>(1234),
                          reinterpret_cast<Address>(1234), 0x200, 0x400);
   // Check that after limit is increased, index is within bounds.
-  CHECK_EQ(0xaced, m.Call());
+  CHECK_EQ(0xacedu, m.Call());
 }

@@ -107,6 +107,23 @@ bool CallDescriptor::CanTailCall(const Node* node) const {
   return HasSameReturnLocationsAs(CallDescriptorOf(node->op()));
 }
 
+int CallDescriptor::CalculateFixedFrameSize() const {
+  switch (kind_) {
+    case kCallJSFunction:
+      return PushArgumentCount()
+                 ? OptimizedBuiltinFrameConstants::kFixedSlotCount
+                 : StandardFrameConstants::kFixedSlotCount;
+      break;
+    case kCallAddress:
+      return CommonFrameConstants::kFixedSlotCountAboveFp +
+             CommonFrameConstants::kCPSlotCount;
+      break;
+    case kCallCodeObject:
+      return TypedFrameConstants::kFixedSlotCount;
+  }
+  UNREACHABLE();
+  return 0;
+}
 
 CallDescriptor* Linkage::ComputeIncoming(Zone* zone, CompilationInfo* info) {
   DCHECK(!info->IsStub());
@@ -168,8 +185,6 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     case Runtime::kInlineIsRegExp:
     case Runtime::kInlineIsSmi:
     case Runtime::kInlineIsTypedArray:
-    case Runtime::kInlineRegExpFlags:
-    case Runtime::kInlineRegExpSource:
       return false;
 
     default:

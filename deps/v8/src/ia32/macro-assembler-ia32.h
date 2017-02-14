@@ -391,11 +391,6 @@ class MacroAssembler: public Assembler {
   // Compare instance type for map.
   void CmpInstanceType(Register map, InstanceType type);
 
-  // Check if a map for a JSObject indicates that the object has fast elements.
-  // Jump to the specified label if it does not.
-  void CheckFastElements(Register map, Label* fail,
-                         Label::Distance distance = Label::kFar);
-
   // Check if a map for a JSObject indicates that the object can have both smi
   // and HeapObject elements.  Jump to the specified label if it does not.
   void CheckFastObjectElements(Register map, Label* fail,
@@ -604,17 +599,7 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Inline caching support
 
-  // Generate code for checking access rights - used for security checks
-  // on access to global objects across environments. The holder register
-  // is left untouched, but the scratch register is clobbered.
-  void CheckAccessGlobalProxy(Register holder_reg, Register scratch1,
-                              Register scratch2, Label* miss);
-
   void GetNumberHash(Register r0, Register scratch);
-
-  void LoadFromNumberDictionary(Label* miss, Register elements, Register key,
-                                Register r0, Register r1, Register r2,
-                                Register result);
 
   // ---------------------------------------------------------------------------
   // Allocation support
@@ -685,12 +670,6 @@ class MacroAssembler: public Assembler {
   void AllocateJSValue(Register result, Register constructor, Register value,
                        Register scratch, Label* gc_required);
 
-  // Copy memory, byte-by-byte, from source to destination.  Not optimized for
-  // long or aligned copies.
-  // The contents of index and scratch are destroyed.
-  void CopyBytes(Register source, Register destination, Register length,
-                 Register scratch);
-
   // Initialize fields with filler values.  Fields starting at |current_address|
   // not including |end_address| are overwritten with the value in |filler|.  At
   // the end the loop, |current_address| takes the value of |end_address|.
@@ -722,12 +701,6 @@ class MacroAssembler: public Assembler {
   // clobbered.
   void TryGetFunctionPrototype(Register function, Register result,
                                Register scratch, Label* miss);
-
-  // Picks out an array index from the hash field.
-  // Register use:
-  //   hash - holds the index's hash. Clobbered.
-  //   index - holds the overwritten index on exit.
-  void IndexFromHash(Register hash, Register index);
 
   // ---------------------------------------------------------------------------
   // Runtime calls
@@ -821,7 +794,10 @@ class MacroAssembler: public Assembler {
   void Drop(int element_count);
 
   void Call(Label* target) { call(target); }
-  void Call(Handle<Code> target, RelocInfo::Mode rmode) { call(target, rmode); }
+  void Call(Handle<Code> target, RelocInfo::Mode rmode,
+            TypeFeedbackId id = TypeFeedbackId::None()) {
+    call(target, rmode, id);
+  }
   void Jump(Handle<Code> target, RelocInfo::Mode rmode) { jmp(target, rmode); }
   void Push(Register src) { push(src); }
   void Push(const Operand& src) { push(src); }

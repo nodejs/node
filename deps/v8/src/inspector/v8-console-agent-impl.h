@@ -14,7 +14,7 @@ namespace v8_inspector {
 class V8ConsoleMessage;
 class V8InspectorSessionImpl;
 
-using protocol::ErrorString;
+using protocol::Response;
 
 class V8ConsoleAgentImpl : public protocol::Console::Backend {
  public:
@@ -22,9 +22,9 @@ class V8ConsoleAgentImpl : public protocol::Console::Backend {
                      protocol::DictionaryValue* state);
   ~V8ConsoleAgentImpl() override;
 
-  void enable(ErrorString*) override;
-  void disable(ErrorString*) override;
-  void clearMessages(ErrorString*) override;
+  Response enable() override;
+  Response disable() override;
+  Response clearMessages() override;
 
   void restore();
   void messageAdded(V8ConsoleMessage*);

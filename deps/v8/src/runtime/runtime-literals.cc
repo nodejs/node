@@ -86,7 +86,7 @@ MUST_USE_RESULT static MaybeHandle<Object> CreateObjectLiteralBoilerplate(
     if (key->ToArrayIndex(&element_index)) {
       // Array index (uint32).
       if (value->IsUninitialized(isolate)) {
-        value = handle(Smi::FromInt(0), isolate);
+        value = handle(Smi::kZero, isolate);
       }
       maybe_result = JSObject::SetOwnElementIgnoreAttributes(
           boilerplate, element_index, value, NONE);

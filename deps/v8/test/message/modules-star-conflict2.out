@@ -1,0 +1,5 @@
+*%(basename)s:7: SyntaxError: The requested module contains conflicting star exports for name 'a'
+export * from "../mjsunit/modules-skip-star-exports-conflict.js";
+       ^
+SyntaxError: The requested module contains conflicting star exports for name 'a'
+

@@ -12,7 +12,7 @@ namespace internal {
 
 TEST(Zone, 8ByteAlignment) {
   AccountingAllocator allocator;
-  Zone zone(&allocator);
+  Zone zone(&allocator, ZONE_NAME);
 
   for (size_t i = 0; i < 16; ++i) {
     ASSERT_EQ(reinterpret_cast<intptr_t>(zone.New(i)) % 8, 0);

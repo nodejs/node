@@ -13,10 +13,13 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-
-LivenessAnalyzer::LivenessAnalyzer(size_t local_count, Zone* zone)
-    : zone_(zone), blocks_(zone), local_count_(local_count), queue_(zone) {}
-
+LivenessAnalyzer::LivenessAnalyzer(size_t local_count, bool has_accumulator,
+                                   Zone* zone)
+    : zone_(zone),
+      blocks_(zone),
+      local_count_(local_count),
+      has_accumulator_(has_accumulator),
+      queue_(zone) {}
 
 void LivenessAnalyzer::Print(std::ostream& os) {
   for (auto block : blocks_) {
@@ -28,8 +31,8 @@ void LivenessAnalyzer::Print(std::ostream& os) {
 
 LivenessAnalyzerBlock* LivenessAnalyzer::NewBlock() {
   LivenessAnalyzerBlock* result =
-      new (zone()->New(sizeof(LivenessAnalyzerBlock)))
-          LivenessAnalyzerBlock(blocks_.size(), local_count_, zone());
+      new (zone()->New(sizeof(LivenessAnalyzerBlock))) LivenessAnalyzerBlock(
+          blocks_.size(), local_count_, has_accumulator_, zone());
   blocks_.push_back(result);
   return result;
 }
@@ -52,8 +55,8 @@ void LivenessAnalyzer::Queue(LivenessAnalyzerBlock* block) {
 
 
 void LivenessAnalyzer::Run(NonLiveFrameStateSlotReplacer* replacer) {
-  if (local_count_ == 0) {
-    // No local variables => nothing to do.
+  if (local_count_ == 0 && !has_accumulator_) {
+    // No variables => nothing to do.
     return;
   }
 
@@ -64,7 +67,8 @@ void LivenessAnalyzer::Run(NonLiveFrameStateSlotReplacer* replacer) {
   }
 
   // Compute the fix-point.
-  BitVector working_area(static_cast<int>(local_count_), zone_);
+  BitVector working_area(
+      static_cast<int>(local_count_) + (has_accumulator_ ? 1 : 0), zone_);
   while (!queue_.empty()) {
     LivenessAnalyzerBlock* block = queue_.front();
     queue_.pop();
@@ -84,11 +88,12 @@ void LivenessAnalyzer::Run(NonLiveFrameStateSlotReplacer* replacer) {
 }
 
 LivenessAnalyzerBlock::LivenessAnalyzerBlock(size_t id, size_t local_count,
-                                             Zone* zone)
+                                             bool has_accumulator, Zone* zone)
     : entries_(zone),
       predecessors_(zone),
-      live_(local_count == 0 ? 1 : static_cast<int>(local_count), zone),
+      live_(static_cast<int>(local_count) + (has_accumulator ? 1 : 0), zone),
       queued_(false),
+      has_accumulator_(has_accumulator),
       id_(id) {}
 
 void LivenessAnalyzerBlock::Process(BitVector* result,
@@ -123,17 +128,30 @@ bool LivenessAnalyzerBlock::UpdateLive(BitVector* working_area) {
 
 void NonLiveFrameStateSlotReplacer::ClearNonLiveFrameStateSlots(
     Node* frame_state, BitVector* liveness) {
+  DCHECK_EQ(liveness->length(), permanently_live_.length());
+
   DCHECK_EQ(frame_state->opcode(), IrOpcode::kFrameState);
   Node* locals_state = frame_state->InputAt(1);
   DCHECK_EQ(locals_state->opcode(), IrOpcode::kStateValues);
-  int count = static_cast<int>(StateValuesAccess(locals_state).size());
-  DCHECK_EQ(count == 0 ? 1 : count, liveness->length());
+  int count = liveness->length() - (has_accumulator_ ? 1 : 0);
+  DCHECK_EQ(count, static_cast<int>(StateValuesAccess(locals_state).size()));
   for (int i = 0; i < count; i++) {
-    bool live = liveness->Contains(i) || permanently_live_.Contains(i);
-    if (!live || locals_state->InputAt(i) != replacement_node_) {
+    if (!liveness->Contains(i) && !permanently_live_.Contains(i)) {
       Node* new_values = ClearNonLiveStateValues(locals_state, liveness);
       frame_state->ReplaceInput(1, new_values);
       break;
+    }
+  }
+
+  if (has_accumulator_) {
+    DCHECK_EQ(frame_state->InputAt(2)->opcode(), IrOpcode::kStateValues);
+    DCHECK_EQ(
+        static_cast<int>(StateValuesAccess(frame_state->InputAt(2)).size()), 1);
+    int index = liveness->length() - 1;
+    if (!liveness->Contains(index) && !permanently_live_.Contains(index)) {
+      Node* new_value =
+          state_values_cache()->GetNodeForValues(&replacement_node_, 1);
+      frame_state->ReplaceInput(2, new_value);
     }
   }
 }
@@ -142,13 +160,20 @@ void NonLiveFrameStateSlotReplacer::ClearNonLiveFrameStateSlots(
 Node* NonLiveFrameStateSlotReplacer::ClearNonLiveStateValues(
     Node* values, BitVector* liveness) {
   DCHECK(inputs_buffer_.empty());
-  for (StateValuesAccess::TypedNode node : StateValuesAccess(values)) {
+
+  int var = 0;
+  for (Node* value_node : values->inputs()) {
+    // Make sure this isn't a state value tree
+    DCHECK(value_node->opcode() != IrOpcode::kStateValues);
+
     // Index of the next variable is its furure index in the inputs buffer,
     // i.e., the buffer's size.
-    int var = static_cast<int>(inputs_buffer_.size());
     bool live = liveness->Contains(var) || permanently_live_.Contains(var);
-    inputs_buffer_.push_back(live ? node.node : replacement_node_);
+    inputs_buffer_.push_back(live ? value_node : replacement_node_);
+
+    var++;
   }
+
   Node* result = state_values_cache()->GetNodeForValues(
       inputs_buffer_.empty() ? nullptr : &(inputs_buffer_.front()),
       inputs_buffer_.size());
@@ -175,10 +200,18 @@ void LivenessAnalyzerBlock::Print(std::ostream& os) {
     os << "    ";
     switch (entry.kind()) {
       case Entry::kLookup:
-        os << "- Lookup " << entry.var() << std::endl;
+        if (has_accumulator_ && entry.var() == live_.length() - 1) {
+          os << "- Lookup accumulator" << std::endl;
+        } else {
+          os << "- Lookup " << entry.var() << std::endl;
+        }
         break;
       case Entry::kBind:
-        os << "- Bind " << entry.var() << std::endl;
+        if (has_accumulator_ && entry.var() == live_.length() - 1) {
+          os << "- Bind accumulator" << std::endl;
+        } else {
+          os << "- Bind " << entry.var() << std::endl;
+        }
         break;
       case Entry::kCheckpoint:
         os << "- Checkpoint " << entry.node()->id() << std::endl;

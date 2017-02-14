@@ -48,7 +48,6 @@ class Compiler : public AllStatic {
   static bool Compile(Handle<JSFunction> function, ClearExceptionFlag flag);
   static bool CompileBaseline(Handle<JSFunction> function);
   static bool CompileOptimized(Handle<JSFunction> function, ConcurrencyMode);
-  static bool CompileDebugCode(Handle<JSFunction> function);
   static bool CompileDebugCode(Handle<SharedFunctionInfo> shared);
   static MaybeHandle<JSArray> CompileForLiveEdit(Handle<Script> script);
 

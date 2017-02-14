@@ -64,7 +64,6 @@ class Variable final : public ZoneObject {
   bool IsContextSlot() const { return location() == VariableLocation::CONTEXT; }
   bool IsLookupSlot() const { return location() == VariableLocation::LOOKUP; }
   bool IsGlobalObjectProperty() const;
-  bool IsStaticGlobalObjectProperty() const;
 
   bool is_dynamic() const { return IsDynamicVariableMode(mode()); }
   bool binding_needs_init() const {
@@ -102,13 +101,15 @@ class Variable final : public ZoneObject {
   int index() const { return index_; }
 
   bool IsExport() const {
-    DCHECK(location() == VariableLocation::MODULE);
-    return index() == 0;
+    DCHECK_EQ(location(), VariableLocation::MODULE);
+    DCHECK_NE(index(), 0);
+    return index() > 0;
   }
 
   void AllocateTo(VariableLocation location, int index) {
     DCHECK(IsUnallocated() ||
            (this->location() == location && this->index() == index));
+    DCHECK_IMPLIES(location == VariableLocation::MODULE, index != 0);
     bit_field_ = LocationField::update(bit_field_, location);
     DCHECK_EQ(location, this->location());
     index_ = index;
@@ -119,6 +120,8 @@ class Variable final : public ZoneObject {
     return mode == VAR ? kCreatedInitialized : kNeedsInitialization;
   }
 
+  typedef ThreadedList<Variable> List;
+
  private:
   Scope* scope_;
   const AstRawString* name_;
@@ -128,6 +131,7 @@ class Variable final : public ZoneObject {
   // sloppy 'eval' calls between the reference scope (inclusive) and the
   // binding scope (exclusive).
   Variable* local_if_not_shadowed_;
+  Variable* next_;
   int index_;
   int initializer_position_;
   uint16_t bit_field_;
@@ -146,6 +150,8 @@ class Variable final : public ZoneObject {
   class MaybeAssignedFlagField
       : public BitField16<MaybeAssignedFlag, InitializationFlagField::kNext,
                           2> {};
+  Variable** next() { return &next_; }
+  friend List;
 };
 }  // namespace internal
 }  // namespace v8

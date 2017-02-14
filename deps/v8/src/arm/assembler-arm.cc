@@ -4280,10 +4280,10 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
 
   // Deduplicate constants.
   int size_after_marker = estimated_size_after_marker;
-  for (int i = 0; i < pending_64_bit_constants_.size(); i++) {
+  for (size_t i = 0; i < pending_64_bit_constants_.size(); i++) {
     ConstantPoolEntry& entry = pending_64_bit_constants_[i];
     DCHECK(!entry.is_merged());
-    for (int j = 0; j < i; j++) {
+    for (size_t j = 0; j < i; j++) {
       if (entry.value64() == pending_64_bit_constants_[j].value64()) {
         DCHECK(!pending_64_bit_constants_[j].is_merged());
         entry.set_merged_index(j);
@@ -4293,11 +4293,11 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
     }
   }
 
-  for (int i = 0; i < pending_32_bit_constants_.size(); i++) {
+  for (size_t i = 0; i < pending_32_bit_constants_.size(); i++) {
     ConstantPoolEntry& entry = pending_32_bit_constants_[i];
     DCHECK(!entry.is_merged());
     if (!entry.sharing_ok()) continue;
-    for (int j = 0; j < i; j++) {
+    for (size_t j = 0; j < i; j++) {
       if (entry.value() == pending_32_bit_constants_[j].value()) {
         DCHECK(!pending_32_bit_constants_[j].is_merged());
         entry.set_merged_index(j);
@@ -4338,7 +4338,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
 
     // Emit 64-bit constant pool entries first: their range is smaller than
     // 32-bit entries.
-    for (int i = 0; i < pending_64_bit_constants_.size(); i++) {
+    for (size_t i = 0; i < pending_64_bit_constants_.size(); i++) {
       ConstantPoolEntry& entry = pending_64_bit_constants_[i];
 
       Instr instr = instr_at(entry.position());
@@ -4367,7 +4367,7 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
     }
 
     // Emit 32-bit constant pool entries.
-    for (int i = 0; i < pending_32_bit_constants_.size(); i++) {
+    for (size_t i = 0; i < pending_32_bit_constants_.size(); i++) {
       ConstantPoolEntry& entry = pending_32_bit_constants_[i];
       Instr instr = instr_at(entry.position());
 

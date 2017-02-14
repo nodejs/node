@@ -88,7 +88,7 @@ class TypedOptimizationTest : public TypedGraphTest {
 TEST_F(TypedOptimizationTest, ParameterWithMinusZero) {
   {
     Reduction r = Reduce(
-        Parameter(Type::Constant(factory()->minus_zero_value(), zone())));
+        Parameter(Type::NewConstant(factory()->minus_zero_value(), zone())));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsNumberConstant(-0.0));
   }
@@ -98,9 +98,9 @@ TEST_F(TypedOptimizationTest, ParameterWithMinusZero) {
     EXPECT_THAT(r.replacement(), IsNumberConstant(-0.0));
   }
   {
-    Reduction r = Reduce(Parameter(
-        Type::Union(Type::MinusZero(),
-                    Type::Constant(factory()->NewNumber(0), zone()), zone())));
+    Reduction r = Reduce(Parameter(Type::Union(
+        Type::MinusZero(), Type::NewConstant(factory()->NewNumber(0), zone()),
+        zone())));
     EXPECT_FALSE(r.Changed());
   }
 }
@@ -108,7 +108,7 @@ TEST_F(TypedOptimizationTest, ParameterWithMinusZero) {
 TEST_F(TypedOptimizationTest, ParameterWithNull) {
   Handle<HeapObject> null = factory()->null_value();
   {
-    Reduction r = Reduce(Parameter(Type::Constant(null, zone())));
+    Reduction r = Reduce(Parameter(Type::NewConstant(null, zone())));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsHeapConstant(null));
   }
@@ -125,13 +125,13 @@ TEST_F(TypedOptimizationTest, ParameterWithNaN) {
                           std::numeric_limits<double>::signaling_NaN()};
   TRACED_FOREACH(double, nan, kNaNs) {
     Handle<Object> constant = factory()->NewNumber(nan);
-    Reduction r = Reduce(Parameter(Type::Constant(constant, zone())));
+    Reduction r = Reduce(Parameter(Type::NewConstant(constant, zone())));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsNumberConstant(IsNaN()));
   }
   {
     Reduction r =
-        Reduce(Parameter(Type::Constant(factory()->nan_value(), zone())));
+        Reduce(Parameter(Type::NewConstant(factory()->nan_value(), zone())));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsNumberConstant(IsNaN()));
   }
@@ -145,7 +145,7 @@ TEST_F(TypedOptimizationTest, ParameterWithNaN) {
 TEST_F(TypedOptimizationTest, ParameterWithPlainNumber) {
   TRACED_FOREACH(double, value, kFloat64Values) {
     Handle<Object> constant = factory()->NewNumber(value);
-    Reduction r = Reduce(Parameter(Type::Constant(constant, zone())));
+    Reduction r = Reduce(Parameter(Type::NewConstant(constant, zone())));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsNumberConstant(value));
   }
@@ -164,7 +164,7 @@ TEST_F(TypedOptimizationTest, ParameterWithUndefined) {
     EXPECT_THAT(r.replacement(), IsHeapConstant(undefined));
   }
   {
-    Reduction r = Reduce(Parameter(Type::Constant(undefined, zone())));
+    Reduction r = Reduce(Parameter(Type::NewConstant(undefined, zone())));
     ASSERT_TRUE(r.Changed());
     EXPECT_THAT(r.replacement(), IsHeapConstant(undefined));
   }
@@ -182,9 +182,9 @@ TEST_F(TypedOptimizationTest, JSToBooleanWithFalsish) {
                       Type::Undefined(),
                       Type::Union(
                           Type::Undetectable(),
-                          Type::Union(
-                              Type::Constant(factory()->false_value(), zone()),
-                              Type::Range(0.0, 0.0, zone()), zone()),
+                          Type::Union(Type::NewConstant(
+                                          factory()->false_value(), zone()),
+                                      Type::Range(0.0, 0.0, zone()), zone()),
                           zone()),
                       zone()),
                   zone()),
@@ -201,7 +201,7 @@ TEST_F(TypedOptimizationTest, JSToBooleanWithFalsish) {
 TEST_F(TypedOptimizationTest, JSToBooleanWithTruish) {
   Node* input = Parameter(
       Type::Union(
-          Type::Constant(factory()->true_value(), zone()),
+          Type::NewConstant(factory()->true_value(), zone()),
           Type::Union(Type::DetectableReceiver(), Type::Symbol(), zone()),
           zone()),
       0);

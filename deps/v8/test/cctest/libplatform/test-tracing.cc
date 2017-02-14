@@ -14,12 +14,9 @@ namespace tracing {
 TEST(TestTraceConfig) {
   LocalContext env;
   TraceConfig* trace_config = new TraceConfig();
-  trace_config->EnableSampling();
   trace_config->AddIncludedCategory("v8");
   trace_config->AddIncludedCategory(TRACE_DISABLED_BY_DEFAULT("v8.runtime"));
-  trace_config->AddExcludedCategory("v8.cpu_profile");
 
-  CHECK_EQ(trace_config->IsSamplingEnabled(), true);
   CHECK_EQ(trace_config->IsSystraceEnabled(), false);
   CHECK_EQ(trace_config->IsArgumentFilterEnabled(), false);
   CHECK_EQ(trace_config->IsCategoryGroupEnabled("v8"), true);
@@ -41,8 +38,8 @@ TEST(TestTraceObject) {
   CHECK_EQ(category_enabled_flag, *trace_object.category_enabled_flag());
   CHECK_EQ(std::string("Test.Trace"), std::string(trace_object.name()));
   CHECK_EQ(std::string("Test.Scope"), std::string(trace_object.scope()));
-  CHECK_EQ(0, trace_object.duration());
-  CHECK_EQ(0, trace_object.cpu_duration());
+  CHECK_EQ(0u, trace_object.duration());
+  CHECK_EQ(0u, trace_object.cpu_duration());
 }
 
 class ConvertableToTraceFormatMock : public v8::ConvertableToTraceFormat {
@@ -189,7 +186,7 @@ TEST(TestTracingController) {
   TRACE_EVENT0("v8", "v8.Test3");
   tracing_controller.StopTracing();
 
-  CHECK_EQ(2, writer->events().size());
+  CHECK_EQ(2u, writer->events().size());
   CHECK_EQ(std::string("v8.Test"), writer->events()[0]);
   CHECK_EQ(std::string("v8.Test3"), writer->events()[1]);
 
@@ -297,7 +294,7 @@ TEST(TestTracingControllerMultipleArgsAndCopy) {
   GetJSONStrings(all_names, trace_str, "\"name\"", "\"", "\"");
   GetJSONStrings(all_cats, trace_str, "\"cat\"", "\"", "\"");
 
-  CHECK_EQ(all_args.size(), 24);
+  CHECK_EQ(all_args.size(), 24u);
   CHECK_EQ(all_args[0], "\"aa\":11");
   CHECK_EQ(all_args[1], "\"bb\":22");
   CHECK_EQ(all_args[2], "\"cc\":33");

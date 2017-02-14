@@ -202,7 +202,8 @@ TEST(Breakpoint_I32Add) {
         thread->Run();  // run to next breakpoint
         // Check the thread stopped at the right pc.
         CHECK_EQ(WasmInterpreter::PAUSED, thread->state());
-        CHECK_EQ(kLocalsDeclSize + offsets[i], thread->GetBreakpointPc());
+        CHECK_EQ(static_cast<size_t>(kLocalsDeclSize + offsets[i]),
+                 thread->GetBreakpointPc());
       }
 
       thread->Run();  // run to completion
@@ -280,7 +281,8 @@ TEST(Breakpoint_I32And_disable) {
           thread->Run();  // run to next breakpoint
           // Check the thread stopped at the right pc.
           CHECK_EQ(WasmInterpreter::PAUSED, thread->state());
-          CHECK_EQ(kLocalsDeclSize + offsets[0], thread->GetBreakpointPc());
+          CHECK_EQ(static_cast<size_t>(kLocalsDeclSize + offsets[0]),
+                   thread->GetBreakpointPc());
         }
 
         thread->Run();  // run to completion
@@ -333,6 +335,72 @@ TEST(GrowMemoryInvalidSize) {
   }
 }
 
+TEST(TestPossibleNondeterminism) {
+  {
+    // F32Div may produced NaN
+    TestingModule module(kExecuteInterpreted);
+    WasmRunner<float> r(&module, MachineType::Float32(),
+                        MachineType::Float32());
+    BUILD(r, WASM_F32_DIV(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+    r.Call(1048575.5f, 2.5f);
+    CHECK(!r.possible_nondeterminism());
+    r.Call(0.0f, 0.0f);
+    CHECK(r.possible_nondeterminism());
+  }
+  {
+    // F32Sqrt may produced NaN
+    TestingModule module(kExecuteInterpreted);
+    WasmRunner<float> r(&module, MachineType::Float32());
+    BUILD(r, WASM_F32_SQRT(WASM_GET_LOCAL(0)));
+    r.Call(16.0f);
+    CHECK(!r.possible_nondeterminism());
+    r.Call(-1048575.5f);
+    CHECK(r.possible_nondeterminism());
+  }
+  {
+    // F32Mul may produced NaN
+    TestingModule module(kExecuteInterpreted);
+    WasmRunner<float> r(&module, MachineType::Float32(),
+                        MachineType::Float32());
+    BUILD(r, WASM_F32_MUL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+    r.Call(1048575.5f, 2.5f);
+    CHECK(!r.possible_nondeterminism());
+    r.Call(std::numeric_limits<float>::infinity(), 0.0f);
+    CHECK(r.possible_nondeterminism());
+  }
+  {
+    // F64Div may produced NaN
+    TestingModule module(kExecuteInterpreted);
+    WasmRunner<double> r(&module, MachineType::Float64(),
+                         MachineType::Float64());
+    BUILD(r, WASM_F64_DIV(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+    r.Call(1048575.5, 2.5);
+    CHECK(!r.possible_nondeterminism());
+    r.Call(0.0, 0.0);
+    CHECK(r.possible_nondeterminism());
+  }
+  {
+    // F64Sqrt may produced NaN
+    TestingModule module(kExecuteInterpreted);
+    WasmRunner<double> r(&module, MachineType::Float64());
+    BUILD(r, WASM_F64_SQRT(WASM_GET_LOCAL(0)));
+    r.Call(1048575.5);
+    CHECK(!r.possible_nondeterminism());
+    r.Call(-1048575.5);
+    CHECK(r.possible_nondeterminism());
+  }
+  {
+    // F64Mul may produced NaN
+    TestingModule module(kExecuteInterpreted);
+    WasmRunner<double> r(&module, MachineType::Float64(),
+                         MachineType::Float64());
+    BUILD(r, WASM_F64_MUL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+    r.Call(1048575.5, 2.5);
+    CHECK(!r.possible_nondeterminism());
+    r.Call(std::numeric_limits<double>::infinity(), 0.0);
+    CHECK(r.possible_nondeterminism());
+  }
+}
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

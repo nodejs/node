@@ -84,7 +84,10 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(kVisitFreeSpace, &VisitFreeSpace);
 
-  table_.Register(kVisitJSWeakCollection, &JSObjectVisitor::Visit);
+  table_.Register(
+      kVisitJSWeakCollection,
+      &FlexibleBodyVisitor<StaticVisitor, JSWeakCollection::BodyDescriptor,
+                           int>::Visit);
 
   table_.Register(kVisitJSRegExp, &JSObjectVisitor::Visit);
 

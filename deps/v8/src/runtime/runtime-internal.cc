@@ -100,12 +100,29 @@ RUNTIME_FUNCTION(Runtime_ThrowStackOverflow) {
   return isolate->StackOverflow();
 }
 
+RUNTIME_FUNCTION(Runtime_ThrowTypeError) {
+  HandleScope scope(isolate);
+  DCHECK_LE(1, args.length());
+  CONVERT_SMI_ARG_CHECKED(message_id_smi, 0);
+
+  Handle<Object> undefined = isolate->factory()->undefined_value();
+  Handle<Object> arg0 = (args.length() > 1) ? args.at<Object>(1) : undefined;
+  Handle<Object> arg1 = (args.length() > 2) ? args.at<Object>(2) : undefined;
+  Handle<Object> arg2 = (args.length() > 3) ? args.at<Object>(3) : undefined;
+
+  MessageTemplate::Template message_id =
+      static_cast<MessageTemplate::Template>(message_id_smi);
+
+  THROW_NEW_ERROR_RETURN_FAILURE(isolate,
+                                 NewTypeError(message_id, arg0, arg1, arg2));
+}
+
 RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   CONVERT_SMI_ARG_CHECKED(message_id, 0);
   CONVERT_SMI_ARG_CHECKED(byte_offset, 1);
-  Handle<Object> error_obj = isolate->factory()->NewError(
+  Handle<Object> error_obj = isolate->factory()->NewWasmRuntimeError(
       static_cast<MessageTemplate::Template>(message_id));
 
   // For wasm traps, the byte offset (a.k.a source position) can not be
@@ -270,64 +287,6 @@ RUNTIME_FUNCTION(Runtime_ThrowApplyNonFunction) {
       isolate, NewTypeError(MessageTemplate::kApplyNonFunction, object, type));
 }
 
-namespace {
-
-void PromiseRejectEvent(Isolate* isolate, Handle<JSObject> promise,
-                        Handle<Object> rejected_promise, Handle<Object> value,
-                        bool debug_event) {
-  if (isolate->debug()->is_active() && debug_event) {
-    isolate->debug()->OnPromiseReject(rejected_promise, value);
-  }
-  Handle<Symbol> key = isolate->factory()->promise_has_handler_symbol();
-  // Do not report if we actually have a handler.
-  if (JSReceiver::GetDataProperty(promise, key)->IsUndefined(isolate)) {
-    isolate->ReportPromiseReject(promise, value,
-                                 v8::kPromiseRejectWithNoHandler);
-  }
-}
-
-}  // namespace
-
-RUNTIME_FUNCTION(Runtime_PromiseRejectEvent) {
-  DCHECK(args.length() == 3);
-  HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  CONVERT_BOOLEAN_ARG_CHECKED(debug_event, 2);
-
-  PromiseRejectEvent(isolate, promise, promise, value, debug_event);
-  return isolate->heap()->undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_PromiseRejectEventFromStack) {
-  DCHECK(args.length() == 2);
-  HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-
-  Handle<Object> rejected_promise = promise;
-  if (isolate->debug()->is_active()) {
-    // If the Promise.reject call is caught, then this will return
-    // undefined, which will be interpreted by PromiseRejectEvent
-    // as being a caught exception event.
-    rejected_promise = isolate->GetPromiseOnStackOnThrow();
-  }
-  PromiseRejectEvent(isolate, promise, rejected_promise, value, true);
-  return isolate->heap()->undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_PromiseRevokeReject) {
-  DCHECK(args.length() == 1);
-  HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
-  Handle<Symbol> key = isolate->factory()->promise_has_handler_symbol();
-  // At this point, no revocation has been issued before
-  CHECK(JSReceiver::GetDataProperty(promise, key)->IsUndefined(isolate));
-  isolate->ReportPromiseReject(promise, Handle<Object>(),
-                               v8::kPromiseHandlerAddedAfterReject);
-  return isolate->heap()->undefined_value();
-}
-
 
 RUNTIME_FUNCTION(Runtime_StackGuard) {
   SealHandleScope shs(isolate);
@@ -430,10 +389,10 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
 Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object) {
   MessageLocation location;
   if (ComputeLocation(isolate, &location)) {
-    Zone zone(isolate->allocator());
+    Zone zone(isolate->allocator(), ZONE_NAME);
     std::unique_ptr<ParseInfo> info(
         location.function()->shared()->is_function()
-            ? new ParseInfo(&zone, location.function())
+            ? new ParseInfo(&zone, handle(location.function()->shared()))
             : new ParseInfo(&zone, location.script()));
     if (Parser::ParseStatic(info.get())) {
       CallPrinter printer(isolate, location.function()->shared()->IsBuiltin());
@@ -554,36 +513,6 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
   }
 }
 
-RUNTIME_FUNCTION(Runtime_EnqueuePromiseResolveThenableJob) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 6);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, resolution, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, then, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, resolve, 2);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, reject, 3);
-  CONVERT_ARG_HANDLE_CHECKED(Object, before_debug_event, 4);
-  CONVERT_ARG_HANDLE_CHECKED(Object, after_debug_event, 5);
-  Handle<PromiseContainer> container = isolate->factory()->NewPromiseContainer(
-      resolution, then, resolve, reject, before_debug_event, after_debug_event);
-  isolate->EnqueueMicrotask(container);
-  return isolate->heap()->undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_EnqueueMicrotask) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, microtask, 0);
-  isolate->EnqueueMicrotask(microtask);
-  return isolate->heap()->undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_RunMicrotasks) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
-  isolate->RunMicrotasks();
-  return isolate->heap()->undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_OrdinaryHasInstance) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
@@ -593,13 +522,13 @@ RUNTIME_FUNCTION(Runtime_OrdinaryHasInstance) {
       isolate, Object::OrdinaryHasInstance(isolate, callable, object));
 }
 
-RUNTIME_FUNCTION(Runtime_IsWasmObject) {
+RUNTIME_FUNCTION(Runtime_IsWasmInstance) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(Object, object, 0);
-  bool is_wasm_object =
-      object->IsJSObject() && wasm::IsWasmObject(JSObject::cast(object));
-  return *isolate->factory()->ToBoolean(is_wasm_object);
+  bool is_wasm_instance =
+      object->IsJSObject() && wasm::IsWasmInstance(JSObject::cast(object));
+  return *isolate->factory()->ToBoolean(is_wasm_instance);
 }
 
 RUNTIME_FUNCTION(Runtime_Typeof) {

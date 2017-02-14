@@ -252,7 +252,7 @@ void EhFrameWriter::AdvanceLocation(int pc_offset) {
   DCHECK_GE(pc_offset, last_pc_offset_);
   uint32_t delta = pc_offset - last_pc_offset_;
 
-  DCHECK_EQ(delta % EhFrameConstants::kCodeAlignmentFactor, 0);
+  DCHECK_EQ(delta % EhFrameConstants::kCodeAlignmentFactor, 0u);
   uint32_t factored_delta = delta / EhFrameConstants::kCodeAlignmentFactor;
 
   if (factored_delta <= EhFrameConstants::kLocationMask) {

@@ -26,10 +26,8 @@ class CallICState final BASE_EMBEDDED {
  public:
   explicit CallICState(ExtraICState extra_ic_state)
       : bit_field_(extra_ic_state) {}
-  CallICState(int argc, ConvertReceiverMode convert_mode,
-              TailCallMode tail_call_mode)
-      : bit_field_(ArgcBits::encode(argc) |
-                   ConvertModeBits::encode(convert_mode) |
+  CallICState(ConvertReceiverMode convert_mode, TailCallMode tail_call_mode)
+      : bit_field_(ConvertModeBits::encode(convert_mode) |
                    TailCallModeBits::encode(tail_call_mode)) {}
 
   ExtraICState GetExtraICState() const { return bit_field_; }
@@ -38,7 +36,6 @@ class CallICState final BASE_EMBEDDED {
                                   void (*Generate)(Isolate*,
                                                    const CallICState&));
 
-  int argc() const { return ArgcBits::decode(bit_field_); }
   ConvertReceiverMode convert_mode() const {
     return ConvertModeBits::decode(bit_field_);
   }
@@ -47,8 +44,7 @@ class CallICState final BASE_EMBEDDED {
   }
 
  private:
-  typedef BitField<int, 0, Code::kArgumentsBits> ArgcBits;
-  typedef BitField<ConvertReceiverMode, ArgcBits::kNext, 2> ConvertModeBits;
+  typedef BitField<ConvertReceiverMode, 0, 2> ConvertModeBits;
   typedef BitField<TailCallMode, ConvertModeBits::kNext, 1> TailCallModeBits;
 
   int const bit_field_;

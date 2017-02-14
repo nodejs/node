@@ -50,6 +50,8 @@ void AbandonCurrentlyFreeMemory(PagedSpace* space);
 
 void GcAndSweep(Heap* heap, AllocationSpace space);
 
+void ForceEvacuationCandidate(Page* page);
+
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8

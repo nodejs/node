@@ -467,8 +467,8 @@ TEST(PhatomHandlesWithoutCallbacks) {
     g2.SetWeak();
   }
 
-  CHECK_EQ(0, isolate->NumberOfPhantomHandleResetsSinceLastCall());
+  CHECK_EQ(0u, isolate->NumberOfPhantomHandleResetsSinceLastCall());
   CcTest::CollectAllAvailableGarbage();
-  CHECK_EQ(2, isolate->NumberOfPhantomHandleResetsSinceLastCall());
-  CHECK_EQ(0, isolate->NumberOfPhantomHandleResetsSinceLastCall());
+  CHECK_EQ(2u, isolate->NumberOfPhantomHandleResetsSinceLastCall());
+  CHECK_EQ(0u, isolate->NumberOfPhantomHandleResetsSinceLastCall());
 }

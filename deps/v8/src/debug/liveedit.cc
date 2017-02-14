@@ -1105,15 +1105,16 @@ static int TranslatePosition(int original_position,
 void TranslateSourcePositionTable(Handle<AbstractCode> code,
                                   Handle<JSArray> position_change_array) {
   Isolate* isolate = code->GetIsolate();
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   SourcePositionTableBuilder builder(&zone);
 
   Handle<ByteArray> source_position_table(code->source_position_table());
   for (SourcePositionTableIterator iterator(*source_position_table);
        !iterator.done(); iterator.Advance()) {
-    int position = iterator.source_position();
-    int new_position = TranslatePosition(position, position_change_array);
-    builder.AddPosition(iterator.code_offset(), new_position,
+    SourcePosition position = iterator.source_position();
+    position.SetScriptOffset(
+        TranslatePosition(position.ScriptOffset(), position_change_array));
+    builder.AddPosition(iterator.code_offset(), position,
                         iterator.is_statement());
   }
 
@@ -1426,7 +1427,7 @@ static const char* DropFrames(Vector<StackFrame*> frames, int top_frame_index,
   for (Address a = unused_stack_top;
       a < unused_stack_bottom;
       a += kPointerSize) {
-    Memory::Object_at(a) = Smi::FromInt(0);
+    Memory::Object_at(a) = Smi::kZero;
   }
 
   return NULL;
@@ -1517,7 +1518,7 @@ static const char* DropActivationsInActiveThreadImpl(Isolate* isolate,
                                                      TARGET& target,  // NOLINT
                                                      bool do_drop) {
   Debug* debug = isolate->debug();
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   Vector<StackFrame*> frames = CreateStackMap(isolate, &zone);
 
 
@@ -1900,9 +1901,7 @@ Handle<Object> LiveEditFunctionTracker::SerializeFunctionScope(Scope* scope) {
   Scope* current_scope = scope;
   while (current_scope != NULL) {
     HandleScope handle_scope(isolate_);
-    ZoneList<Variable*>* locals = current_scope->locals();
-    for (int i = 0; i < locals->length(); i++) {
-      Variable* var = locals->at(i);
+    for (Variable* var : *current_scope->locals()) {
       if (!var->IsContextSlot()) continue;
       int context_index = var->index() - Context::MIN_CONTEXT_SLOTS;
       int location = scope_info_length + context_index * 2;

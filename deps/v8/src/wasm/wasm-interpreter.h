@@ -18,7 +18,7 @@ namespace wasm {
 
 // forward declarations.
 struct WasmFunction;
-struct WasmModuleInstance;
+struct WasmInstance;
 class WasmInterpreterInternals;
 
 typedef size_t pc_t;
@@ -125,13 +125,17 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
     virtual const WasmFrame* GetFrame(int index) = 0;
     virtual WasmFrame* GetMutableFrame(int index) = 0;
     virtual WasmVal GetReturnValue(int index = 0) = 0;
+    // Returns true if the thread executed an instruction which may produce
+    // nondeterministic results, e.g. float div, float sqrt, and float mul,
+    // where the sign bit of a NaN is nondeterministic.
+    virtual bool PossibleNondeterminism() = 0;
 
     // Thread-specific breakpoints.
     bool SetBreakpoint(const WasmFunction* function, int pc, bool enabled);
     bool GetBreakpoint(const WasmFunction* function, int pc);
   };
 
-  WasmInterpreter(WasmModuleInstance* instance, AccountingAllocator* allocator);
+  WasmInterpreter(WasmInstance* instance, AccountingAllocator* allocator);
   ~WasmInterpreter();
 
   //==========================================================================

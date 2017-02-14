@@ -94,7 +94,7 @@ print("Native function");
 
   var builder = new WasmModuleBuilder();
 
-  var sig_index = builder.addType(kSig_d);
+  var sig_index = builder.addType(kSig_d_v);
   builder.addImport("func", sig_index);
   builder.addFunction("main", sig_index)
     .addBody([

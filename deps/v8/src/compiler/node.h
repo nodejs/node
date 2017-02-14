@@ -8,6 +8,7 @@
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/types.h"
+#include "src/globals.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -39,7 +40,7 @@ typedef uint32_t NodeId;
 // compilation, e.g. during lowering passes. Other information that needs to be
 // associated with Nodes during compilation must be stored out-of-line indexed
 // by the Node's id.
-class Node final {
+class V8_EXPORT_PRIVATE Node final {
  public:
   static Node* New(Zone* zone, NodeId id, const Operator* op, int input_count,
                    Node* const* inputs, bool has_extensible_inputs);
@@ -126,7 +127,7 @@ class Node final {
 
   InputEdges input_edges() { return InputEdges(this); }
 
-  class Inputs final {
+  class V8_EXPORT_PRIVATE Inputs final {
    public:
     typedef Node* value_type;
 
@@ -162,7 +163,7 @@ class Node final {
 
   UseEdges use_edges() { return UseEdges(this); }
 
-  class Uses final {
+  class V8_EXPORT_PRIVATE Uses final {
    public:
     typedef Node* value_type;
 

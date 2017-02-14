@@ -25,8 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --expose-gc
-// Flags: --ignition-osr --turbo-from-bytecode
+// Flags: --allow-natives-syntax --expose-gc --ignition-osr
 
 // IC and Crankshaft support for smi-only elements in dynamic array literals.
 function get(foo) { return foo; }  // Used to generate dynamic values.

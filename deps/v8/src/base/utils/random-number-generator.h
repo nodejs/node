@@ -5,6 +5,7 @@
 #ifndef V8_BASE_UTILS_RANDOM_NUMBER_GENERATOR_H_
 #define V8_BASE_UTILS_RANDOM_NUMBER_GENERATOR_H_
 
+#include "src/base/base-export.h"
 #include "src/base/macros.h"
 
 namespace v8 {
@@ -31,7 +32,7 @@ namespace base {
 // https://code.google.com/p/v8/issues/detail?id=2905
 // This class is neither reentrant nor threadsafe.
 
-class RandomNumberGenerator final {
+class V8_BASE_EXPORT RandomNumberGenerator final {
  public:
   // EntropySource is used as a callback function when V8 needs a source of
   // entropy.

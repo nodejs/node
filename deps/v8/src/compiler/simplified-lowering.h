@@ -44,6 +44,10 @@ class SimplifiedLowering final {
   void DoIntegral32ToBit(Node* node);
   void DoOrderedNumberToBit(Node* node);
   void DoNumberToBit(Node* node);
+  void DoIntegerToUint8Clamped(Node* node);
+  void DoNumberToUint8Clamped(Node* node);
+  void DoSigned32ToUint8Clamped(Node* node);
+  void DoUnsigned32ToUint8Clamped(Node* node);
 
  private:
   JSGraph* const jsgraph_;

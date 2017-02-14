@@ -6,6 +6,7 @@
 #define V8_CODEGEN_H_
 
 #include "src/code-stubs.h"
+#include "src/globals.h"
 #include "src/runtime/runtime.h"
 
 // Include the declaration of the architecture defined class CodeGenerator.
@@ -97,8 +98,7 @@ typedef double (*UnaryMathFunctionWithIsolate)(double x, Isolate* isolate);
 
 UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate);
 
-
-double modulo(double x, double y);
+V8_EXPORT_PRIVATE double modulo(double x, double y);
 
 // Custom implementation of math functions.
 double fast_sqrt(double input, Isolate* isolate);

@@ -27,7 +27,6 @@ MemoryReducer::State RunState(int started_gcs, double next_gc_start_ms) {
                               next_gc_start_ms, 1.0);
 }
 
-
 MemoryReducer::Event MarkCompactEvent(double time_ms,
                                       bool next_gc_likely_to_collect_more) {
   MemoryReducer::Event event;
@@ -37,11 +36,9 @@ MemoryReducer::Event MarkCompactEvent(double time_ms,
   return event;
 }
 
-
 MemoryReducer::Event MarkCompactEventGarbageLeft(double time_ms) {
   return MarkCompactEvent(time_ms, true);
 }
-
 
 MemoryReducer::Event MarkCompactEventNoGarbageLeft(double time_ms) {
   return MarkCompactEvent(time_ms, false);

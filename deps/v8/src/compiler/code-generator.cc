@@ -88,10 +88,11 @@ Handle<Code> CodeGenerator::GenerateCode() {
 
   // Define deoptimization literals for all inlined functions.
   DCHECK_EQ(0u, deoptimization_literals_.size());
-  for (const CompilationInfo::InlinedFunctionHolder& inlined :
+  for (CompilationInfo::InlinedFunctionHolder& inlined :
        info->inlined_functions()) {
     if (!inlined.shared_info.is_identical_to(info->shared_info())) {
-      DefineDeoptimizationLiteral(inlined.shared_info);
+      int index = DefineDeoptimizationLiteral(inlined.shared_info);
+      inlined.RegisterInlinedFunctionId(index);
     }
   }
   inlined_function_count_ = deoptimization_literals_.size();
@@ -469,29 +470,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
 
 
 void CodeGenerator::AssembleSourcePosition(Instruction* instr) {
-  SourcePosition source_position;
+  SourcePosition source_position = SourcePosition::Unknown();
   if (!code()->GetSourcePosition(instr, &source_position)) return;
   if (source_position == current_source_position_) return;
   current_source_position_ = source_position;
-  if (source_position.IsUnknown()) return;
-  int code_pos = source_position.raw();
-  source_position_table_builder_.AddPosition(masm()->pc_offset(), code_pos,
-                                             false);
+  if (!source_position.IsKnown()) return;
+  source_position_table_builder_.AddPosition(masm()->pc_offset(),
+                                             source_position, false);
   if (FLAG_code_comments) {
     CompilationInfo* info = this->info();
     if (!info->parse_info()) return;
-    Vector<char> buffer = Vector<char>::New(256);
-    int ln = Script::GetLineNumber(info->script(), code_pos);
-    int cn = Script::GetColumnNumber(info->script(), code_pos);
-    if (info->script()->name()->IsString()) {
-      Handle<String> file(String::cast(info->script()->name()));
-      base::OS::SNPrintF(buffer.start(), buffer.length(), "-- %s:%d:%d --",
-                         file->ToCString().get(), ln, cn);
-    } else {
-      base::OS::SNPrintF(buffer.start(), buffer.length(),
-                         "-- <unknown>:%d:%d --", ln, cn);
-    }
-    masm()->RecordComment(buffer.start());
+    std::ostringstream buffer;
+    buffer << "-- " << source_position.InliningStack(info) << " --";
+    masm()->RecordComment(StrDup(buffer.str().c_str()));
   }
 }
 
@@ -516,6 +507,26 @@ void CodeGenerator::AssembleGaps(Instruction* instr) {
   }
 }
 
+namespace {
+
+Handle<PodArray<InliningPosition>> CreateInliningPositions(
+    CompilationInfo* info) {
+  const CompilationInfo::InlinedFunctionList& inlined_functions =
+      info->inlined_functions();
+  if (inlined_functions.size() == 0) {
+    return Handle<PodArray<InliningPosition>>::cast(
+        info->isolate()->factory()->empty_byte_array());
+  }
+  Handle<PodArray<InliningPosition>> inl_positions =
+      PodArray<InliningPosition>::New(
+          info->isolate(), static_cast<int>(inlined_functions.size()), TENURED);
+  for (size_t i = 0; i < inlined_functions.size(); ++i) {
+    inl_positions->set(static_cast<int>(i), inlined_functions[i].position);
+  }
+  return inl_positions;
+}
+
+}  // namespace
 
 void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
   CompilationInfo* info = this->info();
@@ -535,7 +546,7 @@ void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
   if (info->has_shared_info()) {
     data->SetSharedFunctionInfo(*info->shared_info());
   } else {
-    data->SetSharedFunctionInfo(Smi::FromInt(0));
+    data->SetSharedFunctionInfo(Smi::kZero);
   }
 
   Handle<FixedArray> literals = isolate()->factory()->NewFixedArray(
@@ -547,6 +558,9 @@ void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
     }
     data->SetLiteralArray(*literals);
   }
+
+  Handle<PodArray<InliningPosition>> inl_pos = CreateInliningPositions(info);
+  data->SetInliningPositions(*inl_pos);
 
   if (info->is_osr()) {
     DCHECK(osr_pc_offset_ >= 0);
@@ -565,7 +579,7 @@ void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
     CHECK(deoptimization_states_[i]);
     data->SetTranslationIndex(
         i, Smi::FromInt(deoptimization_states_[i]->translation_id()));
-    data->SetArgumentsStackHeight(i, Smi::FromInt(0));
+    data->SetArgumentsStackHeight(i, Smi::kZero);
     data->SetPc(i, Smi::FromInt(deoptimization_state->pc_offset()));
   }
 
@@ -858,10 +872,19 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
           constant_object =
               handle(reinterpret_cast<Smi*>(constant.ToInt32()), isolate());
           DCHECK(constant_object->IsSmi());
+        } else if (type.representation() == MachineRepresentation::kBit) {
+          if (constant.ToInt32() == 0) {
+            constant_object = isolate()->factory()->false_value();
+          } else {
+            DCHECK_EQ(1, constant.ToInt32());
+            constant_object = isolate()->factory()->true_value();
+          }
         } else {
+          // TODO(jarin,bmeurer): We currently pass in raw pointers to the
+          // JSFunction::entry here. We should really consider fixing this.
           DCHECK(type == MachineType::Int32() ||
                  type == MachineType::Uint32() ||
-                 type.representation() == MachineRepresentation::kBit ||
+                 type.representation() == MachineRepresentation::kWord32 ||
                  type.representation() == MachineRepresentation::kNone);
           DCHECK(type.representation() != MachineRepresentation::kNone ||
                  constant.ToInt32() == FrameStateDescriptor::kImpossibleValue);
@@ -873,7 +896,10 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
       case Constant::kInt64:
         // When pointers are 8 bytes, we can use int64 constants to represent
         // Smis.
-        DCHECK(type.representation() == MachineRepresentation::kTagged ||
+        // TODO(jarin,bmeurer): We currently pass in raw pointers to the
+        // JSFunction::entry here. We should really consider fixing this.
+        DCHECK(type.representation() == MachineRepresentation::kWord64 ||
+               type.representation() == MachineRepresentation::kTagged ||
                type.representation() == MachineRepresentation::kTaggedSigned);
         DCHECK_EQ(8, kPointerSize);
         constant_object =

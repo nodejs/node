@@ -4,6 +4,7 @@
 
 #include "src/compiler/effect-control-linearizer.h"
 #include "src/compiler/access-builder.h"
+#include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-properties.h"
@@ -29,16 +30,20 @@ class EffectControlLinearizerTest : public GraphTest {
         javascript_(zone()),
         simplified_(zone()),
         jsgraph_(isolate(), graph(), common(), &javascript_, &simplified_,
-                 &machine_) {}
+                 &machine_) {
+    source_positions_ = new (zone()) SourcePositionTable(graph());
+  }
 
   JSGraph* jsgraph() { return &jsgraph_; }
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
+  SourcePositionTable* source_positions() { return source_positions_; }
 
  private:
   MachineOperatorBuilder machine_;
   JSOperatorBuilder javascript_;
   SimplifiedOperatorBuilder simplified_;
   JSGraph jsgraph_;
+  SourcePositionTable* source_positions_;
 };
 
 namespace {
@@ -60,7 +65,8 @@ TEST_F(EffectControlLinearizerTest, SimpleLoad) {
   Node* load = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForHeapNumberValue()), heap_number,
       graph()->start(), graph()->start());
-  Node* ret = graph()->NewNode(common()->Return(), load, graph()->start(),
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret = graph()->NewNode(common()->Return(), zero, load, graph()->start(),
                                graph()->start());
 
   // Build the basic block structure.
@@ -75,7 +81,8 @@ TEST_F(EffectControlLinearizerTest, SimpleLoad) {
   schedule.AddReturn(start, ret);
 
   // Run the state effect introducer.
-  EffectControlLinearizer introducer(jsgraph(), &schedule, zone());
+  EffectControlLinearizer introducer(jsgraph(), &schedule, zone(),
+                                     source_positions());
   introducer.Run();
 
   EXPECT_THAT(load,
@@ -105,8 +112,9 @@ TEST_F(EffectControlLinearizerTest, DiamondLoad) {
   Node* phi = graph()->NewNode(
       common()->Phi(MachineRepresentation::kFloat64, 2), vtrue, vfalse, merge);
 
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
   Node* ret =
-      graph()->NewNode(common()->Return(), phi, graph()->start(), merge);
+      graph()->NewNode(common()->Return(), zero, phi, graph()->start(), merge);
 
   // Build the basic block structure.
   BasicBlock* start = schedule.start();
@@ -135,7 +143,8 @@ TEST_F(EffectControlLinearizerTest, DiamondLoad) {
   schedule.AddReturn(mblock, ret);
 
   // Run the state effect introducer.
-  EffectControlLinearizer introducer(jsgraph(), &schedule, zone());
+  EffectControlLinearizer introducer(jsgraph(), &schedule, zone(),
+                                     source_positions());
   introducer.Run();
 
   // The effect input to the return should be an effect phi with the
@@ -206,8 +215,9 @@ TEST_F(EffectControlLinearizerTest, FloatingDiamondsControlWiring) {
   Node* if_false2 = graph()->NewNode(common()->IfFalse(), branch2);
   Node* merge2 = graph()->NewNode(common()->Merge(2), if_true2, if_false2);
 
-  Node* ret =
-      graph()->NewNode(common()->Return(), call, graph()->start(), if_success);
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret = graph()->NewNode(common()->Return(), zero, call, graph()->start(),
+                               if_success);
 
   // Build the basic block structure.
   BasicBlock* start = schedule.start();
@@ -252,7 +262,8 @@ TEST_F(EffectControlLinearizerTest, FloatingDiamondsControlWiring) {
   schedule.AddReturn(m2block, ret);
 
   // Run the state effect introducer.
-  EffectControlLinearizer introducer(jsgraph(), &schedule, zone());
+  EffectControlLinearizer introducer(jsgraph(), &schedule, zone(),
+                                     source_positions());
   introducer.Run();
 
   // The effect input to the return should be an effect phi with the
@@ -289,7 +300,9 @@ TEST_F(EffectControlLinearizerTest, LoopLoad) {
       simplified()->LoadField(AccessBuilder::ForHeapNumberValue()), heap_number,
       graph()->start(), loop);
 
-  Node* ret = graph()->NewNode(common()->Return(), load, effect_phi, if_true);
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* ret =
+      graph()->NewNode(common()->Return(), zero, load, effect_phi, if_true);
 
   // Build the basic block structure.
   BasicBlock* start = schedule.start();
@@ -318,7 +331,8 @@ TEST_F(EffectControlLinearizerTest, LoopLoad) {
   schedule.AddReturn(rblock, ret);
 
   // Run the state effect introducer.
-  EffectControlLinearizer introducer(jsgraph(), &schedule, zone());
+  EffectControlLinearizer introducer(jsgraph(), &schedule, zone(),
+                                     source_positions());
   introducer.Run();
 
   ASSERT_THAT(ret, IsReturn(load, load, if_true));
@@ -380,7 +394,8 @@ TEST_F(EffectControlLinearizerTest, CloneBranch) {
   schedule.AddNode(mblock, merge);
   schedule.AddNode(mblock, graph()->end());
 
-  EffectControlLinearizer introducer(jsgraph(), &schedule, zone());
+  EffectControlLinearizer introducer(jsgraph(), &schedule, zone(),
+                                     source_positions());
   introducer.Run();
 
   Capture<Node *> branch1_capture, branch2_capture;

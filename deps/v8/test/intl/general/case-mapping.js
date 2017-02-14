@@ -84,20 +84,22 @@ assertEquals("abci\u0307", "aBcI\u0307".toLocaleLowerCase(["en", "tr"]));
 assertEquals("abci\u0307", "aBcI\u0307".toLowerCase());
 
 // Greek uppercasing: not covered by intl402/String/*, yet. Tonos (U+0301) and
-// other diacritic marks are dropped. This rule is based on the current CLDR's
-// el-Upper transformation, but Greek uppercasing rules are more sophisticated
-// than this. See http://bugs.icu-project.org/trac/ticket/10582 and
-// http://unicode.org/cldr/trac/ticket/7905 .
+// other diacritic marks are dropped.  See
+// http://bugs.icu-project.org/trac/ticket/5456#comment:19 for more examples.
+// See also http://bugs.icu-project.org/trac/ticket/12845 .
 assertEquals("Α", "α\u0301".toLocaleUpperCase("el"));
 assertEquals("Α", "α\u0301".toLocaleUpperCase("el-GR"));
 assertEquals("Α", "α\u0301".toLocaleUpperCase("el-Grek"));
 assertEquals("Α", "α\u0301".toLocaleUpperCase("el-Grek-GR"));
 assertEquals("Α", "ά".toLocaleUpperCase("el"));
-assertEquals("ΑΟΥΩ", "άόύώ".toLocaleUpperCase("el"));
-assertEquals("ΑΟΥΩ", "α\u0301ο\u0301υ\u0301ω\u0301".toLocaleUpperCase("el"));
-assertEquals("ΑΟΥΩ", "άόύώ".toLocaleUpperCase("el"));
+assertEquals("ΑΟΫΩ", "άόύώ".toLocaleUpperCase("el"));
+assertEquals("ΑΟΫΩ", "α\u0301ο\u0301υ\u0301ω\u0301".toLocaleUpperCase("el"));
+assertEquals("ΑΟΫΩ", "άόύώ".toLocaleUpperCase("el"));
 assertEquals("ΟΕ", "Ό\u1f15".toLocaleUpperCase("el"));
 assertEquals("ΟΕ", "Ο\u0301ε\u0314\u0301".toLocaleUpperCase("el"));
+assertEquals("ΡΩΜΕΪΚΑ", "ρωμέικα".toLocaleUpperCase("el"));
+assertEquals("ΜΑΪΟΥ, ΤΡΟΛΕΪ", "Μαΐου, τρόλεϊ".toLocaleUpperCase("el"));
+assertEquals("ΤΟ ΕΝΑ Ή ΤΟ ΑΛΛΟ.", "Το ένα ή το άλλο.".toLocaleUpperCase("el"));
 
 // Input and output are identical.
 assertEquals("αβγδε", "αβγδε".toLocaleLowerCase("el"));

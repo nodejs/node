@@ -167,9 +167,6 @@ class GlobalHandles {
   // Mark the reference to this object independent of any object group.
   static void MarkIndependent(Object** location);
 
-  // Mark the reference to this object externaly unreachable.
-  static void MarkPartiallyDependent(Object** location);
-
   static bool IsIndependent(Object** location);
 
   // Tells whether global handle is near death.

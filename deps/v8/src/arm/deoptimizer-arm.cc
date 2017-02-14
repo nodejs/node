@@ -329,7 +329,7 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
     // in a separate table if necessary.
     Label high_fixes[256];
     int high_fix_max = (count() - 1) >> 8;
-    DCHECK_GT(arraysize(high_fixes), high_fix_max);
+    DCHECK_GT(arraysize(high_fixes), static_cast<size_t>(high_fix_max));
     for (int i = 0; i < count(); i++) {
       int start = masm()->pc_offset();
       USE(start);

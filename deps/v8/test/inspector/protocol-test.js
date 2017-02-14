@@ -31,12 +31,13 @@ Protocol = new Proxy({}, {
 
 InspectorTest.log = print.bind(null);
 
-InspectorTest.logMessage = function(message)
+InspectorTest.logMessage = function(originalMessage)
 {
+  var message = JSON.parse(JSON.stringify(originalMessage));
   if (message.id)
     message.id = "<messageId>";
 
-  const nonStableFields = new Set(["objectId", "scriptId", "exceptionId", "timestamp", "executionContextId", "callFrameId"]);
+  const nonStableFields = new Set(["objectId", "scriptId", "exceptionId", "timestamp", "executionContextId", "callFrameId", "breakpointId"]);
   var objects = [ message ];
   while (objects.length) {
     var object = objects.shift();
@@ -49,7 +50,7 @@ InspectorTest.logMessage = function(message)
   }
 
   InspectorTest.logObject(message);
-  return message;
+  return originalMessage;
 }
 
 InspectorTest.logObject = function(object, title)
@@ -96,11 +97,14 @@ InspectorTest.logObject = function(object, title)
     lines.push(prefix + "]");
   }
 
-  dumpValue(object, "", title);
+  dumpValue(object, "", title || "");
   InspectorTest.log(lines.join("\n"));
 }
 
-InspectorTest.completeTest = quit.bind(null);
+InspectorTest.completeTest = function()
+{
+  Protocol.Debugger.disable().then(() => quit());
+}
 
 InspectorTest.completeTestAfterPendingTimeouts = function()
 {
@@ -109,18 +113,7 @@ InspectorTest.completeTestAfterPendingTimeouts = function()
     awaitPromise: true }).then(InspectorTest.completeTest);
 }
 
-InspectorTest.addScript = function(string)
-{
-  return InspectorTest._sendCommandPromise("Runtime.evaluate", { "expression": string }).then(dumpErrorIfNeeded);
-
-  function dumpErrorIfNeeded(message)
-  {
-    if (message.error) {
-      InspectorTest.log("Error while executing '" + string + "': " + message.error.message);
-      InspectorTest.completeTest();
-    }
-  }
-};
+InspectorTest.addScript = (string) => compileAndRunWithOrigin(string, "", 0, 0);
 
 InspectorTest.startDumpingProtocolMessages = function()
 {

@@ -46,6 +46,8 @@ function bar() {
 }
 
 foo();
+%BaselineFunctionOnNextCall(foo);
+foo();
 // Mark and kick off recompilation.
 %OptimizeFunctionOnNextCall(foo, "concurrent");
 foo();

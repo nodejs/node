@@ -327,7 +327,8 @@ Node* EscapeAnalysisReducer::ReduceStateValueInput(Node* node, int node_index,
       if (escape_analysis()->IsCyclicObjectState(effect, input)) {
         // TODO(mstarzinger): Represent cyclic object states differently to
         // ensure the scheduler can properly handle such object states.
-        FATAL("Cyclic object state detected by escape analysis.");
+        compilation_failed_ = true;
+        return nullptr;
       }
       if (Node* object_state =
               escape_analysis()->GetOrCreateObjectState(effect, input)) {

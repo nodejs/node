@@ -473,7 +473,7 @@ TEST(ReconfigureAccessorToNonExistingDataField) {
       map, 0, kData, NONE, Representation::None(), none_type, FORCE_FIELD);
   CHECK_EQ(*new_map, *new_map2);
 
-  Handle<Object> value(Smi::FromInt(0), isolate);
+  Handle<Object> value(Smi::kZero, isolate);
   Handle<Map> prepared_map = Map::PrepareForDataProperty(new_map, 0, value);
   // None to Smi generalization is trivial, map does not change.
   CHECK_EQ(*new_map, *prepared_map);
@@ -589,7 +589,7 @@ static void TestGeneralizeRepresentation(
   CHECK(map->is_stable());
   CHECK(expectations.Check(*map));
 
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
 
   if (is_detached_map) {
     detach_point_map = Map::ReconfigureProperty(
@@ -607,7 +607,7 @@ static void TestGeneralizeRepresentation(
   CompilationDependencies dependencies(isolate, &zone);
   CHECK(!dependencies.HasAborted());
 
-  dependencies.AssumeFieldType(field_owner);
+  dependencies.AssumeFieldOwner(field_owner);
 
   Handle<Map> new_map =
       Map::ReconfigureProperty(map, property_index, kData, NONE,
@@ -981,11 +981,11 @@ static void TestReconfigureDataFieldAttribute_GeneralizeRepresentation(
   CHECK(map2->is_stable());
   CHECK(expectations2.Check(*map2));
 
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   Handle<Map> field_owner(map->FindFieldOwner(kSplitProp), isolate);
   CompilationDependencies dependencies(isolate, &zone);
   CHECK(!dependencies.HasAborted());
-  dependencies.AssumeFieldType(field_owner);
+  dependencies.AssumeFieldOwner(field_owner);
 
   // Reconfigure attributes of property |kSplitProp| of |map2| to NONE, which
   // should generalize representations in |map1|.
@@ -1066,11 +1066,11 @@ static void TestReconfigureDataFieldAttribute_GeneralizeRepresentationTrivial(
   CHECK(map2->is_stable());
   CHECK(expectations2.Check(*map2));
 
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   Handle<Map> field_owner(map->FindFieldOwner(kSplitProp), isolate);
   CompilationDependencies dependencies(isolate, &zone);
   CHECK(!dependencies.HasAborted());
-  dependencies.AssumeFieldType(field_owner);
+  dependencies.AssumeFieldOwner(field_owner);
 
   // Reconfigure attributes of property |kSplitProp| of |map2| to NONE, which
   // should generalize representations in |map1|.
@@ -1597,11 +1597,11 @@ static void TestReconfigureElementsKind_GeneralizeRepresentation(
   CHECK(map2->is_stable());
   CHECK(expectations2.Check(*map2));
 
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   Handle<Map> field_owner(map->FindFieldOwner(kDiffProp), isolate);
   CompilationDependencies dependencies(isolate, &zone);
   CHECK(!dependencies.HasAborted());
-  dependencies.AssumeFieldType(field_owner);
+  dependencies.AssumeFieldOwner(field_owner);
 
   // Reconfigure elements kinds of |map2|, which should generalize
   // representations in |map|.
@@ -1690,11 +1690,11 @@ static void TestReconfigureElementsKind_GeneralizeRepresentationTrivial(
   CHECK(map2->is_stable());
   CHECK(expectations2.Check(*map2));
 
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
   Handle<Map> field_owner(map->FindFieldOwner(kDiffProp), isolate);
   CompilationDependencies dependencies(isolate, &zone);
   CHECK(!dependencies.HasAborted());
-  dependencies.AssumeFieldType(field_owner);
+  dependencies.AssumeFieldOwner(field_owner);
 
   // Reconfigure elements kinds of |map2|, which should generalize
   // representations in |map|.
@@ -2332,7 +2332,7 @@ TEST(TransitionDataFieldToDataField) {
   Isolate* isolate = CcTest::i_isolate();
   Handle<FieldType> any_type = FieldType::Any(isolate);
 
-  Handle<Object> value1 = handle(Smi::FromInt(0), isolate);
+  Handle<Object> value1 = handle(Smi::kZero, isolate);
   TransitionToDataFieldOperator transition_op1(Representation::Smi(), any_type,
                                                value1);
 
@@ -2416,7 +2416,7 @@ TEST(FieldTypeConvertSimple) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  Zone zone(isolate->allocator());
+  Zone zone(isolate->allocator(), ZONE_NAME);
 
   CHECK_EQ(FieldType::Any()->Convert(&zone), AstType::NonInternal());
   CHECK_EQ(FieldType::None()->Convert(&zone), AstType::None());

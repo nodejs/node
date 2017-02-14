@@ -33,8 +33,10 @@ class JSBuiltinReducerTest : public TypedGraphTest {
                     &machine);
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(zone(), graph());
+
     JSBuiltinReducer reducer(&graph_reducer, &jsgraph,
-                             JSBuiltinReducer::kNoFlags, nullptr);
+                             JSBuiltinReducer::kNoFlags, nullptr,
+                             native_context());
     return reducer.Reduce(node);
   }
 
@@ -1517,7 +1519,7 @@ TEST_F(JSBuiltinReducerTest, NumberParseIntWithIntegral32) {
     Reduction r = Reduce(call);
 
     ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(), IsNumberToInt32(p0));
+    EXPECT_EQ(p0, r.replacement());
   }
 }
 
@@ -1537,7 +1539,7 @@ TEST_F(JSBuiltinReducerTest, NumberParseIntWithIntegral32AndUndefined) {
     Reduction r = Reduce(call);
 
     ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(), IsNumberToInt32(p0));
+    EXPECT_EQ(p0, r.replacement());
   }
 }
 
