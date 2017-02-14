@@ -5,9 +5,7 @@ const assert = require('assert');
 const dgram = require('dgram');
 const multicastAddress = '224.0.0.114';
 
-const setup = () => {
-  return dgram.createSocket({type: 'udp4', reuseAddr: true});
-};
+const setup = dgram.createSocket.bind(dgram, {type: 'udp4', reuseAddr: true});
 
 // addMembership() on closed socket should throw
 {
@@ -46,14 +44,16 @@ const setup = () => {
 // addMembership() with invalid multicast address should throw
 {
   const socket = setup();
-  assert.throws(() => { socket.addMembership('256.256.256.256'); }, /EINVAL/);
+  assert.throws(() => { socket.addMembership('256.256.256.256'); },
+                /^Error: addMembership EINVAL$/);
   socket.close();
 }
 
 // dropMembership() with invalid multicast address should throw
 {
   const socket = setup();
-  assert.throws(() => { socket.dropMembership('256.256.256.256'); }, /EINVAL/);
+  assert.throws(() => { socket.dropMembership('256.256.256.256'); },
+                /^Error: dropMembership EINVAL$/);
   socket.close();
 }
 
