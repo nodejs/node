@@ -10,6 +10,14 @@ var client = net.connect({
 });
 
 client.on('error', common.mustCall(function onError(err) {
-  assert.equal(err.localPort, common.PORT);
-  assert.equal(err.localAddress, common.localhostIPv4);
+  assert.strictEqual(
+    err.localPort,
+    common.PORT,
+    `${err.localPort} !== ${common.PORT} in ${err}`
+  );
+  assert.strictEqual(
+    err.localAddress,
+    common.localhostIPv4,
+    `${err.localAddress} !== ${common.localhostIPv4} in ${err}`
+  );
 }));
