@@ -124,7 +124,7 @@ assert.strictEqual(decoder.write(Buffer.from('3DD8', 'hex')), '');
 assert.strictEqual(decoder.write(Buffer.from('4D', 'hex')), '');
 assert.strictEqual(decoder.end(), '\ud83d');
 
-const expectedError = common.expectsError('ERR_UNK_ENCODING', Error);
+const expectedError = common.expectsError('ERR_UNKNOWN_ENCODING', Error);
 
 assert.throws(() => {
   new StringDecoder(1);
