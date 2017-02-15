@@ -255,6 +255,13 @@ will affect any stack trace captured *after* the value has been changed.
 If set to a non-number value, or set to a negative number, stack traces will
 not capture any frames.
 
+#### error.code
+
+* {String}
+
+The `error.code` property is a string label that identifies the kind of error.
+See [Node.js Error Codes][] for details about specific codes.
+
 #### error.message
 
 * {String}
@@ -563,6 +570,14 @@ found [here][online].
   encountered by [`http`][] or [`net`][] -- often a sign that a `socket.end()`
   was not properly called.
 
+<a id="nodejs-error-codes"></a>
+## Node.js Error Codes
+
+<a id="ERR_MALFORMED_URI"></a>
+### ERR_MALFORMED_URI
+The `'ERR_MALFORMED_URI'` error code is used generically to identify that
+a malformed URI has been provided to a Node.js API.
+
 [`fs.readdir`]: fs.html#fs_fs_readdir_path_options_callback
 [`fs.readFileSync`]: fs.html#fs_fs_readfilesync_file_options
 [`fs.unlink`]: fs.html#fs_fs_unlink_path_callback
@@ -575,6 +590,7 @@ found [here][online].
 [domains]: domain.html
 [event emitter-based]: events.html#events_class_eventemitter
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
+[Node.js Error Codes]: #nodejs-error-codes
 [online]: http://man7.org/linux/man-pages/man3/errno.3.html
 [stream-based]: stream.html
 [syscall]: http://man7.org/linux/man-pages/man2/syscall.2.html
