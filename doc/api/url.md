@@ -300,8 +300,8 @@ The `url` module provides an *experimental* implementation of the
 
 A comparison between this API and `url.parse()` is given below. Above the URL
 `'http://user:pass@host.com:8080/p/a/t/h?query=string#hash'`, properties of an
-object returned by `url.parse()` are given. Beneath it are properties of a
-WHATWG `URL` object.
+object returned by `url.parse()` are given. Below it are properties of a WHATWG
+`URL` object.
 
 *Note*: WHATWG URL's `origin` property includes `protocol` and `host`, but not
 `username` or `password`.
@@ -654,8 +654,8 @@ and [`url.format()`][] methods would produce.
 The `toString()` method on the `URL` object returns the serialized URL. The
 value returned is equivalent to that of [`url.href`][].
 
-Because of the need for standard compliance, this method does not allow for
-customization on the serialization process of the URL. For more flexibility,
+Because of the need for standard compliance, this method does not allow users
+to customize the serialization process of the URL. For more flexibility,
 [`require('url').format()`][] method might be of interest.
 
 ### Class: URLSearchParams
@@ -925,7 +925,8 @@ console.log(params.toString());
 
 * Returns: {String}
 
-Returns the search parameters serialized as a percent-encoded string.
+Returns the search parameters serialized as a string, with characters
+percent-encoded where necessary.
 
 #### urlSearchParams.values()
 
