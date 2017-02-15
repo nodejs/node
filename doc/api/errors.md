@@ -594,6 +594,12 @@ an argument of the wrong type has been passed to a Node.js API.
 The `'ERR_INVALID_CALLBACK'` error code is used generically to identify that
 a callback function is required and has not been provided to a Node.js API.
 
+<a id="ERR_INVALID_CURSOR_POS"></a>
+### ERR_INVALID_CURSOR_POS
+
+The `'ERR_INVALID_CURSOR_POS'` is thrown specifically when a cursor on a given
+stream is attempted to move to a specified row without a specified column.
+
 <a id="ERR_INVALID_FILE_URL_HOST"></a>
 ### ERR_INVALID_FILE_URL_HOST
 
