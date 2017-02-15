@@ -132,17 +132,17 @@ const home = os.homedir();
 
 console.log('homedir = ' + home);
 is.string(home);
-assert.ok(home.includes(path.sep));
+assert.ok(home.includes(path.SEPARATOR));
 
 if (common.isWindows && process.env.USERPROFILE) {
   assert.strictEqual(home, process.env.USERPROFILE);
   delete process.env.USERPROFILE;
-  assert.ok(os.homedir().includes(path.sep));
+  assert.ok(os.homedir().includes(path.SEPARATOR));
   process.env.USERPROFILE = home;
 } else if (!common.isWindows && process.env.HOME) {
   assert.strictEqual(home, process.env.HOME);
   delete process.env.HOME;
-  assert.ok(os.homedir().includes(path.sep));
+  assert.ok(os.homedir().includes(path.SEPARATOR));
   process.env.HOME = home;
 }
 
@@ -160,13 +160,13 @@ if (common.isWindows) {
 } else {
   is.number(pwd.uid);
   is.number(pwd.gid);
-  assert.ok(pwd.shell.includes(path.sep));
+  assert.ok(pwd.shell.includes(path.SEPARATOR));
   assert.strictEqual(pwd.uid, pwdBuf.uid);
   assert.strictEqual(pwd.gid, pwdBuf.gid);
   assert.strictEqual(pwd.shell, pwdBuf.shell.toString('utf8'));
 }
 
 is.string(pwd.username);
-assert.ok(pwd.homedir.includes(path.sep));
+assert.ok(pwd.homedir.includes(path.SEPARATOR));
 assert.strictEqual(pwd.username, pwdBuf.username.toString('utf8'));
 assert.strictEqual(pwd.homedir, pwdBuf.homedir.toString('utf8'));

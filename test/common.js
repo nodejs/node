@@ -76,7 +76,8 @@ function rmdirSync(p, originalEr) {
       const enc = exports.isLinux ? 'buffer' : 'utf8';
       fs.readdirSync(p, enc).forEach((f) => {
         if (f instanceof Buffer) {
-          const buf = Buffer.concat([Buffer.from(p), Buffer.from(path.sep), f]);
+          const buf = Buffer.concat([Buffer.from(p),
+                                     Buffer.from(path.SEPARATOR), f]);
           rimrafSync(buf);
         } else {
           rimrafSync(path.join(p, f));

@@ -79,7 +79,7 @@ path.basename('/foo/bar/baz/asdf/quux.html', '.html')
 A [`TypeError`][] is thrown if `path` is not a string or if `ext` is given
 and is not a string.
 
-## path.delimiter
+## path.DELIMITER
 <!-- YAML
 added: v0.9.3
 -->
@@ -97,7 +97,7 @@ For example, on POSIX:
 console.log(process.env.PATH)
 // Prints: '/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin'
 
-process.env.PATH.split(path.delimiter)
+process.env.PATH.split(path.DELIMITER)
 // Returns: ['/usr/bin', '/bin', '/usr/sbin', '/sbin', '/usr/local/bin']
 ```
 
@@ -107,7 +107,7 @@ On Windows:
 console.log(process.env.PATH)
 // Prints: 'C:\Windows\system32;C:\Windows;C:\Program Files\node\'
 
-process.env.PATH.split(path.delimiter)
+process.env.PATH.split(path.DELIMITER)
 // Returns: ['C:\\Windows\\system32', 'C:\\Windows', 'C:\\Program Files\\node\\']
 ```
 
@@ -192,7 +192,7 @@ For example, on POSIX:
 
 ```js
 // If `dir`, `root` and `base` are provided,
-// `${dir}${path.sep}${base}`
+// `${dir}${path.SEPARATOR}${base}`
 // will be returned. `root` is ignored.
 path.format({
   root: '/ignored',
@@ -480,7 +480,7 @@ path.resolve('wwwroot', 'static_files/png/', '../gif/image.gif')
 
 A [`TypeError`][] is thrown if any of the arguments is not a string.
 
-## path.sep
+## path.SEPARATOR
 <!-- YAML
 added: v0.7.9
 -->
@@ -495,14 +495,14 @@ Provides the platform-specific path segment separator:
 For example on POSIX:
 
 ```js
-'foo/bar/baz'.split(path.sep)
+'foo/bar/baz'.split(path.SEPARATOR)
 // Returns: ['foo', 'bar', 'baz']
 ```
 
 On Windows:
 
 ```js
-'foo\\bar\\baz'.split(path.sep)
+'foo\\bar\\baz'.split(path.SEPARATOR)
 // Returns: ['foo', 'bar', 'baz']
 ```
 

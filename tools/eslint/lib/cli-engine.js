@@ -375,7 +375,7 @@ function getCacheFile(cacheFile, cwd) {
     cacheFile = path.normalize(cacheFile);
 
     const resolvedCacheFile = path.resolve(cwd, cacheFile);
-    const looksLikeADirectory = cacheFile[cacheFile.length - 1 ] === path.sep;
+    const looksLikeADirectory = cacheFile[cacheFile.length - 1 ] === path.SEPARATOR;
 
     /**
      * return the name for the cache file in case the provided parameter is a directory

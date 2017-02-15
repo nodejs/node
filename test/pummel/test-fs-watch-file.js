@@ -120,7 +120,7 @@ assert.doesNotThrow(
       function a() {
         ++watchSeenFour;
         assert.strictEqual(1, watchSeenFour);
-        fs.unwatchFile('.' + path.sep + filenameFour, a);
+        fs.unwatchFile('.' + path.SEPARATOR + filenameFour, a);
       }
       fs.watchFile(filenameFour, a);
     }

@@ -31,13 +31,13 @@ var expected = {
     current: '1.3.3',
     wanted: '1.3.3',
     latest: '1.5.1',
-    location: 'node_modules' + path.sep + 'underscore'
+    location: 'node_modules' + path.SEPARATOR + 'underscore'
   },
   request: {
     current: '0.9.5',
     wanted: '0.9.5',
     latest: '2.27.0',
-    location: 'node_modules' + path.sep + 'request'
+    location: 'node_modules' + path.SEPARATOR + 'request'
   }
 }
 

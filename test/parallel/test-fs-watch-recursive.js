@@ -16,7 +16,7 @@ const filenameOne = 'watch.txt';
 
 common.refreshTmpDir();
 
-const testsubdir = fs.mkdtempSync(testDir + path.sep);
+const testsubdir = fs.mkdtempSync(testDir + path.SEPARATOR);
 const relativePathOne = path.join(path.basename(testsubdir), filenameOne);
 const filepathOne = path.join(testsubdir, filenameOne);
 

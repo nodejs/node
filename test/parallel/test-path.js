@@ -550,17 +550,17 @@ relativeTests.forEach((test) => {
 assert.strictEqual(failures.length, 0, failures.join(''));
 
 
-// path.sep tests
+// path.SEPARATOR tests
 // windows
-assert.strictEqual(path.win32.sep, '\\');
+assert.strictEqual(path.win32.SEPARATOR, '\\');
 // posix
-assert.strictEqual(path.posix.sep, '/');
+assert.strictEqual(path.posix.SEPARATOR, '/');
 
-// path.delimiter tests
+// path.DELIMITER tests
 // windows
-assert.strictEqual(path.win32.delimiter, ';');
+assert.strictEqual(path.win32.DELIMITER, ';');
 // posix
-assert.strictEqual(path.posix.delimiter, ':');
+assert.strictEqual(path.posix.DELIMITER, ':');
 
 
 // path._makeLong tests

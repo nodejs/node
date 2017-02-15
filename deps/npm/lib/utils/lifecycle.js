@@ -291,7 +291,7 @@ function runCmd_ (cmd, pkg, env, wd, stage, unsafe, uid, gid, cb_) {
         er.code = 'ELIFECYCLE'
       }
       fs.stat(npm.dir, function (statError, d) {
-        if (statError && statError.code === 'ENOENT' && npm.dir.split(path.sep).slice(-1)[0] === 'node_modules') {
+        if (statError && statError.code === 'ENOENT' && npm.dir.split(path.SEPARATOR).slice(-1)[0] === 'node_modules') {
           log.warn('', 'Local package.json exists, but node_modules missing, did you mean to install?')
         }
       })

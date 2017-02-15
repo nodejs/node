@@ -74,7 +74,7 @@ setImmediate(function() {
 });
 
 const filenameThree = 'newfile.txt';
-const testsubdir = fs.mkdtempSync(testDir + path.sep);
+const testsubdir = fs.mkdtempSync(testDir + path.SEPARATOR);
 const filepathThree = path.join(testsubdir, filenameThree);
 
 assert.doesNotThrow(
