@@ -5,7 +5,7 @@ const ch = require('child_process');
 
 const SIZE = 100000;
 
-const cp = ch.spawn('python', ['-c', 'print ' + SIZE + ' * "C"'], {
+const cp = ch.spawn('python2', ['-c', 'print ' + SIZE + ' * "C"'], {
   stdio: 'inherit'
 });
 

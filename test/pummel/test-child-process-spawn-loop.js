@@ -9,7 +9,7 @@ const N = 40;
 let finished = false;
 
 function doSpawn(i) {
-  const child = spawn('python', ['-c', 'print ' + SIZE + ' * "C"']);
+  const child = spawn('python2', ['-c', 'print ' + SIZE + ' * "C"']);
   let count = 0;
 
   child.stdout.setEncoding('ascii');
