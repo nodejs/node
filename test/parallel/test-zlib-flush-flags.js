@@ -9,11 +9,11 @@ assert.doesNotThrow(() => {
 
 assert.throws(() => {
   zlib.createGzip({ flush: 'foobar' });
-}, /Invalid flush flag: foobar/);
+}, /^RangeError: Invalid flush flag: foobar$/);
 
 assert.throws(() => {
   zlib.createGzip({ flush: 10000 });
-}, /Invalid flush flag: 10000/);
+}, /^RangeError: Invalid flush flag: 10000$/);
 
 assert.doesNotThrow(() => {
   zlib.createGzip({ finishFlush: zlib.constants.Z_SYNC_FLUSH });
@@ -21,8 +21,8 @@ assert.doesNotThrow(() => {
 
 assert.throws(() => {
   zlib.createGzip({ finishFlush: 'foobar' });
-}, /Invalid flush flag: foobar/);
+}, /^RangeError: Invalid flush flag: foobar$/);
 
 assert.throws(() => {
   zlib.createGzip({ finishFlush: 10000 });
-}, /Invalid flush flag: 10000/);
+}, /^RangeError: Invalid flush flag: 10000$/);
