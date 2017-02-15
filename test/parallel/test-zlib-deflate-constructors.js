@@ -15,7 +15,7 @@ assert.ok(new zlib.DeflateRaw() instanceof zlib.DeflateRaw);
 // Throws if `opts.chunkSize` is invalid
 assert.throws(
   () => { new zlib.Deflate({chunkSize: -Infinity}); },
-  /^Error: Invalid chunk size: -Infinity$/
+  /^RangeError: Invalid chunk size: -Infinity$/
 );
 
 // Confirm that maximum chunk size cannot be exceeded because it is `Infinity`.
@@ -24,23 +24,23 @@ assert.strictEqual(zlib.constants.Z_MAX_CHUNK, Infinity);
 // Throws if `opts.windowBits` is invalid
 assert.throws(
   () => { new zlib.Deflate({windowBits: -Infinity}); },
-  /^Error: Invalid windowBits: -Infinity$/
+  /^RangeError: Invalid windowBits: -Infinity$/
 );
 
 assert.throws(
   () => { new zlib.Deflate({windowBits: Infinity}); },
-  /^Error: Invalid windowBits: Infinity$/
+  /^RangeError: Invalid windowBits: Infinity$/
 );
 
 // Throws if `opts.level` is invalid
 assert.throws(
   () => { new zlib.Deflate({level: -Infinity}); },
-  /^Error: Invalid compression level: -Infinity$/
+  /^RangeError: Invalid compression level: -Infinity$/
 );
 
 assert.throws(
   () => { new zlib.Deflate({level: Infinity}); },
-  /^Error: Invalid compression level: Infinity$/
+  /^RangeError: Invalid compression level: Infinity$/
 );
 
 // Throws a RangeError if `level` invalid in  `Deflate.prototype.params()`
@@ -57,12 +57,12 @@ assert.throws(
 // Throws if `opts.memLevel` is invalid
 assert.throws(
   () => { new zlib.Deflate({memLevel: -Infinity}); },
-  /^Error: Invalid memLevel: -Infinity$/
+  /^RangeError: Invalid memLevel: -Infinity$/
 );
 
 assert.throws(
   () => { new zlib.Deflate({memLevel: Infinity}); },
-  /^Error: Invalid memLevel: Infinity$/
+  /^RangeError: Invalid memLevel: Infinity$/
 );
 
 // Does not throw if opts.strategy is valid
@@ -89,13 +89,13 @@ assert.doesNotThrow(
 // Throws if opt.strategy is the wrong type.
 assert.throws(
   () => { new zlib.Deflate({strategy: '' + zlib.constants.Z_RLE }); },
-  /^Error: Invalid strategy: 3$/
+  /^TypeError: Invalid strategy: 3$/
 );
 
 // Throws if opts.strategy is invalid
 assert.throws(
   () => { new zlib.Deflate({strategy: 'this is a bogus strategy'}); },
-  /^Error: Invalid strategy: this is a bogus strategy$/
+  /^TypeError: Invalid strategy: this is a bogus strategy$/
 );
 
 // Throws TypeError if `strategy` is invalid in `Deflate.prototype.params()`
@@ -107,5 +107,5 @@ assert.throws(
 // Throws if opts.dictionary is not a Buffer
 assert.throws(
   () => { new zlib.Deflate({dictionary: 'not a buffer'}); },
-  /^Error: Invalid dictionary: it should be a Buffer instance$/
+  /^TypeError: Invalid dictionary: it should be a Buffer instance$/
 );
