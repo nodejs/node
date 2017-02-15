@@ -315,14 +315,7 @@ function isWarned(emitter) {
       input: fi,
       completer: 'string is not valid'
     });
-  }, function(err) {
-    if (err instanceof TypeError) {
-      if (/Argument "completer" must be a function/.test(err)) {
-        return true;
-      }
-    }
-    return false;
-  });
+  }, common.expectsError('ERR_INVALID_CALLBACK', TypeError));
 
   // duplicate lines are removed from history when
   // `options.removeHistoryDuplicates` is `true`
