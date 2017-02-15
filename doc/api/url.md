@@ -660,9 +660,14 @@ to customize the serialization process of the URL. For more flexibility,
 
 ### Class: URLSearchParams
 
-The `URLSearchParams` object provides read and write access to the query of a
+The `URLSearchParams` API provides read and write access to the query of a
 `URL`. The `URLSearchParams` class can also be used standalone with one of the
 four following constructors.
+
+The WHATWG `URLSearchParams` interface and the [`querystring`][] module have
+similar purpose, but the purpose of the [`querystring`][] module is more
+general, as it allows the customization of delimiter characters (`&` and `=`).
+On the other hand, this API is designed purely for URL query strings.
 
 ```js
 const { URL, URLSearchParams } = require('url');
