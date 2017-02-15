@@ -1,12 +1,12 @@
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
-    value: true
+  value: true
 });
 
-var _map2 = require('lodash/map');
+var _lodash = require('lodash');
 
-var _map3 = _interopRequireDefault(_map2);
+var _lodash2 = _interopRequireDefault(_lodash);
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -14,14 +14,12 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
  * Casts all cell values to a string.
  *
  * @param {table~row[]} rows
- * @return {table~row[]}
+ * @returns {table~row[]}
  */
-
-exports.default = function (rows) {
-    return (0, _map3.default)(rows, function (cells) {
-        return (0, _map3.default)(cells, String);
-    });
+exports.default = rows => {
+  return _lodash2.default.map(rows, cells => {
+    return _lodash2.default.map(cells, String);
+  });
 };
 
 module.exports = exports['default'];
-//# sourceMappingURL=stringifyTableData.js.map

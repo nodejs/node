@@ -1,0 +1,59 @@
+# Copyright 2016 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../gni/isolate.gni")
+
+group("gn_all") {
+  testonly = true
+
+  if (v8_test_isolation_mode != "noop") {
+    deps = [
+      ":check-static-initializers_run",
+      ":jsfunfuzz_run",
+      ":run-deopt-fuzzer_run",
+      ":run-gcmole_run",
+      ":run-valgrind_run",
+    ]
+  }
+}
+
+v8_isolate_run("check-static-initializers") {
+  deps = [
+    "..:d8_run",
+  ]
+
+  isolate = "check-static-initializers.isolate"
+}
+
+v8_isolate_run("jsfunfuzz") {
+  deps = [
+    "..:d8_run",
+  ]
+
+  isolate = "jsfunfuzz/jsfunfuzz.isolate"
+}
+
+v8_isolate_run("run-deopt-fuzzer") {
+  deps = [
+    "..:d8_run",
+  ]
+
+  isolate = "run-deopt-fuzzer.isolate"
+}
+
+v8_isolate_run("run-gcmole") {
+  deps = [
+    "..:d8_run",
+  ]
+
+  isolate = "gcmole/run-gcmole.isolate"
+}
+
+v8_isolate_run("run-valgrind") {
+  deps = [
+    "..:d8_run",
+  ]
+
+  isolate = "run-valgrind.isolate"
+}

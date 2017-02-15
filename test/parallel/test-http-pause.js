@@ -1,14 +1,14 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+require('../common');
+const assert = require('assert');
+const http = require('http');
 
-var expectedServer = 'Request Body from Client';
-var resultServer = '';
-var expectedClient = 'Response Body from Server';
-var resultClient = '';
+const expectedServer = 'Request Body from Client';
+let resultServer = '';
+const expectedClient = 'Response Body from Server';
+let resultClient = '';
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   console.error('pause server request');
   req.pause();
   setTimeout(function() {
@@ -26,9 +26,9 @@ var server = http.createServer(function(req, res) {
   }, 100);
 });
 
-server.listen(common.PORT, function() {
-  var req = http.request({
-    port: common.PORT,
+server.listen(0, function() {
+  const req = http.request({
+    port: this.address().port,
     path: '/',
     method: 'POST'
   }, function(res) {
@@ -50,6 +50,6 @@ server.listen(common.PORT, function() {
 });
 
 process.on('exit', function() {
-  assert.equal(expectedServer, resultServer);
-  assert.equal(expectedClient, resultClient);
+  assert.strictEqual(expectedServer, resultServer);
+  assert.strictEqual(expectedClient, resultClient);
 });

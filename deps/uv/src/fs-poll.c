@@ -138,13 +138,14 @@ int uv_fs_poll_getpath(uv_fs_poll_t* handle, char* buffer, size_t* size) {
   assert(ctx != NULL);
 
   required_len = strlen(ctx->path);
-  if (required_len > *size) {
-    *size = required_len;
+  if (required_len >= *size) {
+    *size = required_len + 1;
     return UV_ENOBUFS;
   }
 
   memcpy(buffer, ctx->path, required_len);
   *size = required_len;
+  buffer[required_len] = '\0';
 
   return 0;
 }

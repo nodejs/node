@@ -1,4 +1,4 @@
-.TH "NPM\-SCRIPTS" "7" "January 2016" "" ""
+.TH "NPM\-SCRIPTS" "7" "January 2017" "" ""
 .SH "NAME"
 \fBnpm-scripts\fR \- How npm handles the "scripts" field
 .SH DESCRIPTION
@@ -9,7 +9,15 @@ following scripts:
 .IP \(bu 2
 prepublish:
 Run BEFORE the package is published\.  (Also run on local \fBnpm
-install\fP without any arguments\.)
+install\fP without any arguments\. See below\.)
+.IP \(bu 2
+prepare:
+Run both BEFORE the package is published, and on local \fBnpm
+install\fP without any arguments\. (See below\.) This is run
+AFTER \fBprepublish\fP, but BEFORE \fBprepublishOnly\fP\|\.
+.IP \(bu 2
+prepublishOnly:
+Run BEFORE the package is published\. (See below\.)
 .IP \(bu 2
 publish, postpublish:
 Run AFTER the package is published\.
@@ -26,11 +34,14 @@ Run BEFORE the package is uninstalled\.
 postuninstall:
 Run AFTER the package is uninstalled\.
 .IP \(bu 2
-preversion, version:
-Run BEFORE bump the package version\.
+preversion:
+Run BEFORE bumping the package version\.
+.IP \(bu 2
+version:
+Run AFTER bumping the package version, but BEFORE commit\.
 .IP \(bu 2
 postversion:
-Run AFTER bump the package version\.
+Run AFTER bumping the package version, and AFTER commit\.
 .IP \(bu 2
 pretest, test, posttest:
 Run by the \fBnpm test\fP command\.
@@ -44,14 +55,40 @@ Run by the \fBnpm start\fP command\.
 prerestart, restart, postrestart:
 Run by the \fBnpm restart\fP command\. Note: \fBnpm restart\fP will run the
 stop and start scripts if no \fBrestart\fP script is provided\.
+.IP \(bu 2
+preshrinkwrap, shrinkwrap, postshrinkwrap:
+Run by the \fBnpm shrinkwrap\fP command\.
 
 .RE
 .P
 Additionally, arbitrary scripts can be executed by running \fBnpm
-run\-script <pkg> <stage>\fP\|\. \fIPre\fR and \fIpost\fR commands with matching
+run\-script <stage>\fP\|\. \fIPre\fR and \fIpost\fR commands with matching
 names will be run for those as well (e\.g\. \fBpremyscript\fP, \fBmyscript\fP,
-\fBpostmyscript\fP)\.
-.SH COMMON USES
+\fBpostmyscript\fP)\. Scripts from dependencies can be run with `npm explore
+.P
+<pkg> \-\- npm run <stage>`\.
+.SH PREPUBLISH AND PREPARE
+.SS DEPRECATION NOTE
+.P
+Since \fBnpm@1\.1\.71\fP, the npm CLI has run the \fBprepublish\fP script for both \fBnpm
+publish\fP and \fBnpm install\fP, because it's a convenient way to prepare a package
+for use (some common use cases are described in the section below)\.  It has
+also turned out to be, in practice, very
+confusing \fIhttps://github\.com/npm/npm/issues/10074\fR\|\.  As of \fBnpm@4\.0\.0\fP, a new
+event has been introduced, \fBprepare\fP, that preserves this existing behavior\. A
+\fInew\fR event, \fBprepublishOnly\fP has been added as a transitional strategy to
+allow users to avoid the confusing behavior of existing npm versions and only
+run on \fBnpm publish\fP (for instance, running the tests one last time to ensure
+they're in good shape)\.
+.P
+\fBIMPORTANT:\fR As of \fBnpm@5\fP, \fBprepublish\fP will \fIonly\fR be run for \fBnpm
+publish\fP\|\.  This will make its behavior identical to \fBprepublishOnly\fP, so
+\fBnpm@6\fP or later may drop support for the use of \fBprepublishOnly\fP, and then
+maybe we can all forget this embarrassing thing ever happened\.
+.P
+See https://github\.com/npm/npm/issues/10074 for a much lengthier
+justification, with further reading, for this change\.
+.SS USE CASES
 .P
 If you need to perform operations on your package before it is used, in a way
 that is not dependent on the operating system or architecture of the
@@ -92,7 +129,8 @@ If there is a \fBserver\.js\fP file in the root of your package, then npm
 will default the \fBstart\fP command to \fBnode server\.js\fP\|\.
 .IP \(bu 2
 \fB"install": "node\-gyp rebuild"\fP:
-If there is a \fBbinding\.gyp\fP file in the root of your package, npm will
+If there is a \fBbinding\.gyp\fP file in the root of your package and you
+haven't defined your own \fBinstall\fP or \fBpreinstall\fP scripts, npm will
 default the \fBinstall\fP command to compile using node\-gyp\.
 
 .RE

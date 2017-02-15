@@ -1,8 +1,8 @@
-.TH "NPM" "1" "January 2016" "" ""
+.TH "NPM" "1" "January 2017" "" ""
 .SH "NAME"
 \fBnpm\fR \- a JavaScript package manager
 .P
-Build Status \fIhttps://img\.shields\.io/travis/npm/npm/master\.svg\fR \fIhttps://travis\-ci\.org/npm/npm\fR
+Build Status \fIhttps://img\.shields\.io/travis/npm/npm/latest\.svg\fR \fIhttps://travis\-ci\.org/npm/npm\fR
 .SH SYNOPSIS
 .P
 This is just enough info to get you up and running\.
@@ -10,7 +10,7 @@ This is just enough info to get you up and running\.
 Much more info available via \fBnpm help\fP once it's installed\.
 .SH IMPORTANT
 .P
-\fBYou need node v0\.8 or higher to run this program\.\fR
+\fBYou need node v0\.10 or higher to run this program\.\fR
 .P
 To install an old \fBand unsupported\fR version of npm that works on node 0\.3
 and prior, clone the git repo and dig through the old tags and branches\.
@@ -27,13 +27,13 @@ terms of use for the default public registry are available at
 https://www\.npmjs\.com\|\.
 .SH Super Easy Install
 .P
-npm is bundled with node \fIhttp://nodejs\.org/download/\fR\|\.
+npm is bundled with node \fIhttps://nodejs\.org/en/download/\fR\|\.
 .SS Windows Computers
 .P
-Get the MSI \fIhttp://nodejs\.org/download/\fR\|\.  npm is in it\.
+Get the MSI \fIhttps://nodejs\.org/en/download/\fR\|\.  npm is in it\.
 .SS Apple Macintosh Computers
 .P
-Get the pkg \fIhttp://nodejs\.org/download/\fR\|\.  npm is in it\.
+Get the pkg \fIhttps://nodejs\.org/en/download/\fR\|\.  npm is in it\.
 .SS Other Sorts of Unices
 .P
 Run \fBmake install\fP\|\.  npm will be installed with node\.
@@ -80,13 +80,12 @@ run npm commands by doing \fBnode cli\.js <cmd> <args>\fP\|\.  (This is helpful
 for testing, or running stuff without actually installing npm itself\.)
 .SH Windows Install or Upgrade
 .P
-You can download a zip file from https://github\.com/npm/npm/releases, and
-unpack it in the \fBnode_modules\\npm\\\fP folder inside node's installation folder\.
-.P
-To upgrade to npm 2, follow the Windows upgrade instructions in
-the npm Troubleshooting Guide:
-.P
-https://github\.com/npm/npm/wiki/Troubleshooting#upgrading\-on\-windows
+Many improvements for Windows users have been made in npm 3 \- you will have a better
+experience if you run a recent version of npm\. To upgrade, either use Microsoft's
+upgrade tool \fIhttps://github\.com/felixrieseberg/npm\-windows\-upgrade\fR,
+download a new version of Node \fIhttp://nodejs\.org/download/\fR,
+or follow the Windows upgrade instructions in the
+npm Troubleshooting Guide \fIhttps://github\.com/npm/npm/wiki/Troubleshooting#upgrading\-on\-windows\fR\|\.
 .P
 If that's not fancy enough for you, then you can fetch the code with
 git, and mess with it directly\.
@@ -145,7 +144,6 @@ you have chosen\.
 .SH More Docs
 .P
 Check out the docs \fIhttps://docs\.npmjs\.com/\fR,
-especially the faq \fIhttps://docs\.npmjs\.com/misc/faq\fR\|\.
 .P
 You can use the \fBnpm help\fP command to read any of them\.
 .P
@@ -164,14 +162,12 @@ https://github\.com/npm/npm/issues
 Be sure to include \fIall\fR of the output from the npm command that didn't work
 as expected\.  The \fBnpm\-debug\.log\fP file is also helpful to provide\.
 .P
-You can also look for isaacs in #node\.js on irc://irc\.freenode\.net\.  He
+You can also look for isaacs in #node\.js on irc://irc\.freenode\.net\.  She
 will no doubt tell you to put the output in a gist or email\.
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2
 npm help npm
-.IP \(bu 2
-npm help 7 faq
 .IP \(bu 2
 npm help help
 .IP \(bu 2

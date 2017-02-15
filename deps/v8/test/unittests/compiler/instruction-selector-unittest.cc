@@ -40,14 +40,14 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
                                instruction_blocks);
   SourcePositionTable source_position_table(graph());
   InstructionSelector selector(test_->zone(), node_count, &linkage, &sequence,
-                               schedule, &source_position_table,
-                               source_position_mode, features);
+                               schedule, &source_position_table, nullptr,
+                               source_position_mode, features,
+                               InstructionSelector::kDisableScheduling);
   selector.SelectInstructions();
   if (FLAG_trace_turbo) {
     OFStream out(stdout);
-    PrintableInstructionSequence printable = {
-        RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN),
-        &sequence};
+    PrintableInstructionSequence printable = {RegisterConfiguration::Turbofan(),
+                                              &sequence};
     out << "=== Code sequence after instruction selection ===" << std::endl
         << printable;
   }
@@ -94,18 +94,18 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
   }
   for (auto i : s.virtual_registers_) {
     int const virtual_register = i.second;
-    if (sequence.IsFloat(virtual_register)) {
+    if (sequence.IsFP(virtual_register)) {
       EXPECT_FALSE(sequence.IsReference(virtual_register));
       s.doubles_.insert(virtual_register);
     }
     if (sequence.IsReference(virtual_register)) {
-      EXPECT_FALSE(sequence.IsFloat(virtual_register));
+      EXPECT_FALSE(sequence.IsFP(virtual_register));
       s.references_.insert(virtual_register);
     }
   }
-  for (int i = 0; i < sequence.GetFrameStateDescriptorCount(); i++) {
-    s.deoptimization_entries_.push_back(sequence.GetFrameStateDescriptor(
-        InstructionSequence::StateId::FromInt(i)));
+  for (int i = 0; i < sequence.GetDeoptimizationEntryCount(); i++) {
+    s.deoptimization_entries_.push_back(
+        sequence.GetDeoptimizationEntry(i).descriptor());
   }
   return s;
 }
@@ -148,7 +148,7 @@ InstructionSelectorTest::StreamBuilder::GetFrameStateFunctionInfo(
     int parameter_count, int local_count) {
   return common()->CreateFrameStateFunctionInfo(
       FrameStateType::kJavaScriptFunction, parameter_count, local_count,
-      Handle<SharedFunctionInfo>(), CALL_MAINTAINS_NATIVE_CONTEXT);
+      Handle<SharedFunctionInfo>());
 }
 
 
@@ -199,11 +199,9 @@ TARGET_TEST_F(InstructionSelectorTest, ReturnZero) {
 // -----------------------------------------------------------------------------
 // Conversions.
 
-
-TARGET_TEST_F(InstructionSelectorTest, TruncateFloat64ToInt32WithParameter) {
+TARGET_TEST_F(InstructionSelectorTest, TruncateFloat64ToWord32WithParameter) {
   StreamBuilder m(this, MachineType::Int32(), MachineType::Float64());
-  m.Return(
-      m.TruncateFloat64ToInt32(TruncationMode::kJavaScript, m.Parameter(0)));
+  m.Return(m.TruncateFloat64ToWord32(m.Parameter(0)));
   Stream s = m.Build(kAllInstructions);
   ASSERT_EQ(4U, s.size());
   EXPECT_EQ(kArchNop, s[0]->arch_opcode());
@@ -247,19 +245,13 @@ TARGET_TEST_F(InstructionSelectorTest, FinishRegion) {
       m.AddNode(m.common()->FinishRegion(), param, m.graph()->start());
   m.Return(finish);
   Stream s = m.Build(kAllInstructions);
-  ASSERT_EQ(4U, s.size());
+  ASSERT_EQ(3U, s.size());
   EXPECT_EQ(kArchNop, s[0]->arch_opcode());
   ASSERT_EQ(1U, s[0]->OutputCount());
   ASSERT_TRUE(s[0]->Output()->IsUnallocated());
+  EXPECT_EQ(kArchRet, s[1]->arch_opcode());
   EXPECT_EQ(s.ToVreg(param), s.ToVreg(s[0]->Output()));
-  EXPECT_EQ(kArchNop, s[1]->arch_opcode());
-  ASSERT_EQ(1U, s[1]->InputCount());
-  ASSERT_TRUE(s[1]->InputAt(0)->IsUnallocated());
   EXPECT_EQ(s.ToVreg(param), s.ToVreg(s[1]->InputAt(0)));
-  ASSERT_EQ(1U, s[1]->OutputCount());
-  ASSERT_TRUE(s[1]->Output()->IsUnallocated());
-  EXPECT_TRUE(UnallocatedOperand::cast(s[1]->Output())->HasSameAsInputPolicy());
-  EXPECT_EQ(s.ToVreg(finish), s.ToVreg(s[1]->Output()));
   EXPECT_TRUE(s.IsReference(finish));
 }
 
@@ -335,7 +327,8 @@ TARGET_TEST_F(InstructionSelectorTest, ValueEffect) {
   Node* p2 = m2.Parameter(0);
   m2.Return(m2.AddNode(
       m2.machine()->Load(MachineType::Int32()), p2, m2.Int32Constant(0),
-      m2.AddNode(m2.common()->BeginRegion(), m2.graph()->start())));
+      m2.AddNode(m2.common()->BeginRegion(RegionObservability::kObservable),
+                 m2.graph()->start())));
   Stream s2 = m2.Build(kAllInstructions);
   EXPECT_LE(3U, s1.size());
   ASSERT_EQ(s1.size(), s2.size());
@@ -482,7 +475,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
   EXPECT_EQ(0, s.ToInt32(call_instr->InputAt(4)));  // This should be a context.
                                                     // We inserted 0 here.
   EXPECT_EQ(0.5, s.ToFloat64(call_instr->InputAt(5)));
-  EXPECT_TRUE(s.ToHeapObject(call_instr->InputAt(6))->IsUndefined());
+  EXPECT_TRUE(s.ToHeapObject(call_instr->InputAt(6))->IsUndefined(isolate()));
   EXPECT_EQ(MachineType::AnyTagged(),
             desc_before->GetType(0));  // function is always
                                        // tagged/any.

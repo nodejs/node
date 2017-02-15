@@ -1,8 +1,6 @@
 /**
  * @fileoverview The event generator for comments.
  * @author Toru Nagashima
- * @copyright 2015 Toru Nagashima. All rights reserved.
- * See LICENSE file in root directory for full license.
  */
 
 "use strict";
@@ -22,8 +20,9 @@
  */
 function emitComments(comments, emitter, locs, eventName) {
     if (comments.length > 0) {
-        comments.forEach(function(node) {
-            var index = locs.indexOf(node.loc);
+        comments.forEach(node => {
+            const index = locs.indexOf(node.loc);
+
             if (index >= 0) {
                 locs.splice(index, 1);
             } else {
@@ -92,7 +91,7 @@ CommentEventGenerator.prototype = {
      * @returns {void}
      */
     enterNode: function enterNode(node) {
-        var comments = this.sourceCode.getComments(node);
+        const comments = this.sourceCode.getComments(node);
 
         emitCommentsEnter(this, comments.leading);
         this.original.enterNode(node);
@@ -105,7 +104,7 @@ CommentEventGenerator.prototype = {
      * @returns {void}
      */
     leaveNode: function leaveNode(node) {
-        var comments = this.sourceCode.getComments(node);
+        const comments = this.sourceCode.getComments(node);
 
         emitCommentsExit(this, comments.trailing);
         this.original.leaveNode(node);

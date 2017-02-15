@@ -91,11 +91,11 @@ class PromiseAplusTestSuite(testsuite.TestSuite):
   def IsNegativeTest(self, testcase):
     return '@negative' in self.GetSourceForTest(testcase)
 
-  def IsFailureOutput(self, output, testpath):
-    if output.exit_code != 0:
+  def IsFailureOutput(self, testcase):
+    if testcase.output.exit_code != 0:
       return True
-    return not 'All tests have run.' in output.stdout or \
-           'FAIL:' in output.stdout
+    return not 'All tests have run.' in testcase.output.stdout or \
+           'FAIL:' in testcase.output.stdout
 
   def DownloadTestData(self):
     archive = os.path.join(self.root, TEST_ARCHIVE)

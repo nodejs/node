@@ -71,7 +71,7 @@ TEST(ScavengeJob, AllocationLimitHighScavengeSpeed) {
   EXPECT_FALSE(ScavengeJob::ReachedIdleAllocationLimit(
       scavenge_speed, expected_size - 1, kNewSpaceCapacity));
   EXPECT_TRUE(ScavengeJob::ReachedIdleAllocationLimit(
-      scavenge_speed, expected_size, kNewSpaceCapacity));
+      scavenge_speed, expected_size + 1, kNewSpaceCapacity));
 }
 
 

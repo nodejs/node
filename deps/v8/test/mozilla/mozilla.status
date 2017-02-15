@@ -59,11 +59,14 @@
 
   # TODO(turbofan): Causes timeouts since top-level code is optimized.
   'ecma_3/Statements/regress-324650': [PASS, NO_VARIANTS],
+  'ecma_3/Statements/regress-444979': [PASS, NO_VARIANTS],
   'ecma_3/Statements/regress-74474-002': [PASS, NO_VARIANTS],
   'ecma_3/Statements/regress-74474-003': [PASS, NO_VARIANTS],
   'js1_5/Regress/regress-111557': [PASS, NO_VARIANTS],
   'js1_5/Regress/regress-155081': [PASS, NO_VARIANTS],
   'js1_5/Regress/regress-155081-2': [PASS, NO_VARIANTS],
+  'js1_5/Regress/regress-159334': [PASS, NO_VARIANTS],
+  'js1_5/Regress/regress-321971': [PASS, NO_VARIANTS],
   'js1_5/Regress/regress-451322': [PASS, NO_VARIANTS],
 
   # TODO(turbofan): Large switch statements crash.
@@ -108,6 +111,9 @@
   # To add insult to injury, these tests time out in debug mode
   'js1_5/Regress/regress-360969-03': [FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
   'js1_5/Regress/regress-360969-04': [FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
+
+  # Function declarations are no longer allowed as the body of a with statement.
+  'js1_5/Regress/regress-326453': [FAIL],
 
   ##################### SKIPPED TESTS #####################
 
@@ -168,6 +174,8 @@
   # in the test: "This test will probably run out of memory".
   'js1_5/extensions/regress-345967': [SKIP],
 
+  # Slow with arm64 simulator in debug.
+  'ecma_3/Statements/regress-302439': [PASS, ['mode == debug', SLOW]],
 
   ##################### FLAKY TESTS #####################
 
@@ -182,7 +190,10 @@
   'ecma_3/RegExp/regress-209067': [PASS, ['mode == debug', FAIL]],
   'js1_5/GC/regress-278725': [PASS, ['mode == debug', FAIL]],
   # http://b/issue?id=1206983
-  'js1_5/Regress/regress-367561-03': [PASS, ['mode == debug', FAIL]],
+  'js1_5/Regress/regress-367561-03': [PASS, ['mode == debug', FAIL], NO_VARIANTS],
+  'ecma/FunctionObjects/15.3.1.1-3': [PASS, FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
+  'ecma/FunctionObjects/15.3.2.1-3': [PASS, FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
+  'ecma/FunctionObjects/15.3.5-1': [PASS, FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
   'ecma/Date/15.9.5.10-2': [PASS, FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
 
   # These tests create two Date objects just after each other and
@@ -234,7 +245,7 @@
   'js1_5/Array/regress-99120-01': [PASS, FAIL, NO_VARIANTS],
   'js1_5/Array/regress-99120-02': [PASS, FAIL],
   'js1_5/Regress/regress-347306-01': [PASS, FAIL],
-  'js1_5/Regress/regress-416628': [PASS, FAIL, ['mode == debug', TIMEOUT, NO_VARIANTS]],
+  'js1_5/Regress/regress-416628': [PASS, FAIL, ['mode == debug', TIMEOUT], NO_VARIANTS],
 
 
   # The following two tests assume that daylight savings time starts first
@@ -672,9 +683,6 @@
   # We do not correctly handle assignments within "with"
   'ecma_3/Statements/12.10-01': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4647
-  'ecma_3/FunExpr/fe-001': [FAIL_OK],
-
   ##################### MOZILLA EXTENSION TESTS #####################
 
   'ecma/extensions/15.1.2.1-1': [FAIL_OK],
@@ -974,4 +982,9 @@
   #BUG(3152): Avoid C stack overflow.
   'js1_5/extensions/regress-355497': [FAIL_OK, 'Flags: --sim-stack-size=512'],
 }],  # 'arch == arm64 and simulator_run == True'
+
+['variant == asm_wasm', {
+  '*': [SKIP],
+}],  # variant == asm_wasm
+
 ]

@@ -1,3 +1,3 @@
 'use strict';
 
-module.exports = global.Promise || require('pinkie');
+module.exports = typeof Promise === 'function' ? Promise : require('pinkie');

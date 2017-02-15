@@ -1,22 +1,20 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var fs = require('fs');
-var path = require('path');
+const fs = require('fs');
+const path = require('path');
 
-var cert = fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'));
-var key = fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem'));
+const cert = fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'));
+const key = fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem'));
 
-var conn = tls.connect({cert: cert, key: key, port: common.PORT}, function() {
-  assert.ok(false); // callback should never be executed
-});
+const conn = tls.connect({cert, key, port: common.PORT}, common.mustNotCall());
 conn.on('error', function() {
 });
 assert.doesNotThrow(function() {

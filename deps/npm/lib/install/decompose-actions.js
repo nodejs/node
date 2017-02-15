@@ -10,8 +10,10 @@ module.exports = function (differences, decomposed, next) {
     var pkg = action[1]
     switch (cmd) {
       case 'add':
-      case 'update':
         addSteps(decomposed, pkg, done)
+        break
+      case 'update':
+        updateSteps(decomposed, pkg, done)
         break
       case 'move':
         moveSteps(decomposed, pkg, done)
@@ -38,6 +40,11 @@ function addSteps (decomposed, pkg, done) {
   }
   decomposed.push(['finalize', pkg])
   done()
+}
+
+function updateSteps (decomposed, pkg, done) {
+  decomposed.push(['remove', pkg])
+  addSteps(decomposed, pkg, done)
 }
 
 function moveSteps (decomposed, pkg, done) {

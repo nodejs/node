@@ -581,7 +581,7 @@ static int client_hello(SSL *s)
         /*
          * challenge id data
          */
-        if (RAND_pseudo_bytes(s->s2->challenge, SSL2_CHALLENGE_LENGTH) <= 0)
+        if (RAND_bytes(s->s2->challenge, SSL2_CHALLENGE_LENGTH) <= 0)
             return -1;
         memcpy(d, s->s2->challenge, SSL2_CHALLENGE_LENGTH);
         d += SSL2_CHALLENGE_LENGTH;
@@ -629,7 +629,7 @@ static int client_master_key(SSL *s)
             return -1;
         }
         if (i > 0)
-            if (RAND_pseudo_bytes(sess->key_arg, i) <= 0)
+            if (RAND_bytes(sess->key_arg, i) <= 0)
                 return -1;
 
         /* make a master key */

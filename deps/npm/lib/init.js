@@ -5,6 +5,8 @@ module.exports = init
 var log = require('npmlog')
 var npm = require('./npm.js')
 var initJson = require('init-package-json')
+var output = require('./utils/output.js')
+var noProgressTillDone = require('./utils/no-progress-while-running').tillDone
 
 init.usage = 'npm init [--force|-f|--yes|-y]'
 
@@ -13,7 +15,7 @@ function init (args, cb) {
   log.pause()
   var initFile = npm.config.get('init-module')
   if (!initJson.yes(npm.config)) {
-    console.log([
+    output([
       'This utility will walk you through creating a package.json file.',
       'It only covers the most common items, and tries to guess sensible defaults.',
       '',
@@ -26,7 +28,7 @@ function init (args, cb) {
       'Press ^C at any time to quit.'
     ].join('\n'))
   }
-  initJson(dir, initFile, npm.config, function (er, data) {
+  initJson(dir, initFile, npm.config, noProgressTillDone(function (er, data) {
     log.resume()
     log.silly('package data', data)
     if (er && er.message === 'canceled') {
@@ -35,5 +37,5 @@ function init (args, cb) {
     }
     log.info('init', 'written successfully')
     cb(er, data)
-  })
+  }))
 }

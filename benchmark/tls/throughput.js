@@ -23,8 +23,7 @@ function main(conf) {
   var chunk;
   switch (type) {
     case 'buf':
-      chunk = new Buffer(size);
-      chunk.fill('b');
+      chunk = Buffer.alloc(size, 'b');
       break;
     case 'asc':
       chunk = new Array(size + 1).join('a');
@@ -38,10 +37,12 @@ function main(conf) {
       throw new Error('invalid type');
   }
 
-  options = { key: fs.readFileSync(cert_dir + '/test_key.pem'),
-              cert: fs.readFileSync(cert_dir + '/test_cert.pem'),
-              ca: [ fs.readFileSync(cert_dir + '/test_ca.pem') ],
-              ciphers: 'AES256-GCM-SHA384' };
+  options = {
+    key: fs.readFileSync(cert_dir + '/test_key.pem'),
+    cert: fs.readFileSync(cert_dir + '/test_cert.pem'),
+    ca: [ fs.readFileSync(cert_dir + '/test_ca.pem') ],
+    ciphers: 'AES256-GCM-SHA384'
+  };
 
   server = tls.createServer(options, onConnection);
   setTimeout(done, dur * 1000);
@@ -74,4 +75,3 @@ function main(conf) {
     server.close();
   }
 }
-

@@ -1,2 +1,5 @@
-var convert = require('./convert');
-module.exports = convert('startsWith', require('../startsWith'));
+var convert = require('./convert'),
+    func = convert('startsWith', require('../startsWith'));
+
+func.placeholder = require('./placeholder');
+module.exports = func;

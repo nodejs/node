@@ -63,7 +63,8 @@ class LoopBuilder final : public ControlBuilder {
       : ControlBuilder(builder),
         loop_environment_(nullptr),
         continue_environment_(nullptr),
-        break_environment_(nullptr) {}
+        break_environment_(nullptr),
+        assigned_(nullptr) {}
 
   // Primitive control commands.
   void BeginLoop(BitVector* assigned, bool is_osr = false);
@@ -74,6 +75,10 @@ class LoopBuilder final : public ControlBuilder {
   // Primitive support for break.
   void Break() final;
 
+  // Loop exit support. Used to introduce explicit loop exit control
+  // node and variable markers.
+  void ExitLoop(Node** extra_value_to_rename = nullptr);
+
   // Compound control commands for conditional break.
   void BreakUnless(Node* condition);
   void BreakWhen(Node* condition);
@@ -82,6 +87,7 @@ class LoopBuilder final : public ControlBuilder {
   Environment* loop_environment_;      // Environment of the loop header.
   Environment* continue_environment_;  // Environment after the loop body.
   Environment* break_environment_;     // Environment after the loop exits.
+  BitVector* assigned_;                // Assigned values in the environment.
 };
 
 

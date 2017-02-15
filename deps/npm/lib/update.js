@@ -1,12 +1,16 @@
 module.exports = update
 
-update.usage = 'npm update [-g] [<pkg>...]'
-
 var url = require('url')
 var log = require('npmlog')
 var chain = require('slide').chain
 var npm = require('./npm.js')
 var Installer = require('./install.js').Installer
+var usage = require('./utils/usage')
+
+update.usage = usage(
+  'update',
+  'npm update [-g] [<pkg>...]'
+)
 
 update.completion = npm.commands.outdated.completion
 
@@ -36,7 +40,7 @@ function update (args, cb) {
           "because it's currently at the maximum version that matches its specified semver range"
         )
       }
-      return ww.current !== ww.wanted
+      return ww.current !== ww.wanted && ww.latest !== 'linked'
     })
     if (wanted.length === 0) return cb()
 

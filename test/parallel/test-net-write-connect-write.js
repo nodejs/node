@@ -1,14 +1,14 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
-var received = '';
-
-var server = net.createServer(function(socket) {
+const server = net.createServer(function(socket) {
   socket.pipe(socket);
-}).listen(common.PORT, function() {
-  var conn = net.connect(common.PORT);
+}).listen(0, common.mustCall(function() {
+  const conn = net.connect(this.address().port);
+  let received = '';
+
   conn.setEncoding('utf8');
   conn.write('before');
   conn.on('connect', function() {
@@ -18,11 +18,8 @@ var server = net.createServer(function(socket) {
     received += buf;
     conn.end();
   });
-  conn.on('end', function() {
+  conn.on('end', common.mustCall(function() {
     server.close();
-  });
-});
-
-process.on('exit', function() {
-  assert.equal(received, 'before' + 'after');
-});
+    assert.strictEqual(received, 'before' + 'after');
+  }));
+}));

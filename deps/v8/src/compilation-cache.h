@@ -210,7 +210,7 @@ class CompilationCache {
   explicit CompilationCache(Isolate* isolate);
   ~CompilationCache();
 
-  HashMap* EagerOptimizingSet();
+  base::HashMap* EagerOptimizingSet();
 
   // The number of sub caches covering the different types to cache.
   static const int kSubCacheCount = 4;

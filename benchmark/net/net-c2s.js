@@ -23,8 +23,7 @@ function main(conf) {
 
   switch (type) {
     case 'buf':
-      chunk = new Buffer(len);
-      chunk.fill('x');
+      chunk = Buffer.alloc(len, 'x');
       break;
     case 'utf':
       encoding = 'utf8';
@@ -63,10 +62,20 @@ Writer.prototype.write = function(chunk, encoding, cb) {
 Writer.prototype.on = function() {};
 Writer.prototype.once = function() {};
 Writer.prototype.emit = function() {};
+Writer.prototype.prependListener = function() {};
 
+
+function flow() {
+  var dest = this.dest;
+  var res = dest.write(chunk, encoding);
+  if (!res)
+    dest.once('drain', this.flow);
+  else
+    process.nextTick(this.flow);
+}
 
 function Reader() {
-  this.flow = this.flow.bind(this);
+  this.flow = flow.bind(this);
   this.readable = true;
 }
 
@@ -74,15 +83,6 @@ Reader.prototype.pipe = function(dest) {
   this.dest = dest;
   this.flow();
   return dest;
-};
-
-Reader.prototype.flow = function() {
-  var dest = this.dest;
-  var res = dest.write(chunk, encoding);
-  if (!res)
-    dest.once('drain', this.flow);
-  else
-    process.nextTick(this.flow);
 };
 
 
@@ -106,6 +106,7 @@ function server() {
         var bytes = writer.received;
         var gbits = (bytes * 8) / (1024 * 1024 * 1024);
         bench.end(gbits);
+        process.exit(0);
       }, dur * 1000);
     });
   });

@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 //
 // Flags: --allow-natives-syntax --no-lazy
-// Flags: --harmony-destructuring-bind
 
 "use strict";
 eval();

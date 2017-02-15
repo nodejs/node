@@ -223,7 +223,7 @@ int uv__async_start(uv_loop_t* loop, struct uv__async* wa, uv__async_cb cb) {
     return err;
 
   uv__io_init(&wa->io_watcher, uv__async_io, pipefd[0]);
-  uv__io_start(loop, &wa->io_watcher, UV__POLLIN);
+  uv__io_start(loop, &wa->io_watcher, POLLIN);
   wa->wfd = pipefd[1];
   wa->cb = cb;
 
@@ -241,7 +241,7 @@ void uv__async_stop(uv_loop_t* loop, struct uv__async* wa) {
     wa->wfd = -1;
   }
 
-  uv__io_stop(loop, &wa->io_watcher, UV__POLLIN);
+  uv__io_stop(loop, &wa->io_watcher, POLLIN);
   uv__close(wa->io_watcher.fd);
   wa->io_watcher.fd = -1;
 }

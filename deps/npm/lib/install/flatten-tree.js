@@ -2,7 +2,11 @@
 var validate = require('aproba')
 var moduleName = require('../utils/module-name.js')
 
-module.exports = function (tree) {
+module.exports = flattenTree
+module.exports.flatName = flatName
+module.exports.flatNameFromTree = flatNameFromTree
+
+function flattenTree (tree) {
   validate('O', arguments)
   var seen = {}
   var flat = {}
@@ -24,7 +28,15 @@ module.exports = function (tree) {
   return flat
 }
 
-var flatName = module.exports.flatName = function (path, child) {
+function flatName (path, child) {
   validate('SO', arguments)
   return path + (moduleName(child) || 'TOP')
+}
+
+function flatNameFromTree (tree) {
+  validate('O', arguments)
+  if (tree.isTop) return '/'
+  var path = flatNameFromTree(tree.parent)
+  if (path !== '/') path += '/'
+  return flatName(path, tree)
 }

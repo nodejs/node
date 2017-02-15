@@ -918,6 +918,12 @@ void Decoder::DecodeTypeRegisterSRsType(Instruction* instr) {
       case CVT_D_S:
         Format(instr, "cvt.d.'t 'fd, 'fs");
         break;
+      case MADDF_S:
+        Format(instr, "maddf.s  'fd, 'fs, 'ft");
+        break;
+      case MSUBF_S:
+        Format(instr, "msubf.s  'fd, 'fs, 'ft");
+        break;
       default:
         Format(instr, "unknown.cop1.'t");
         break;
@@ -928,7 +934,17 @@ void Decoder::DecodeTypeRegisterSRsType(Instruction* instr) {
 
 void Decoder::DecodeTypeRegisterDRsType(Instruction* instr) {
   if (!DecodeTypeRegisterRsType(instr)) {
-    Format(instr, "unknown.cop1.'t");
+    switch (instr->FunctionFieldRaw()) {
+      case MADDF_D:
+        Format(instr, "maddf.d  'fd, 'fs, 'ft");
+        break;
+      case MSUBF_D:
+        Format(instr, "msubf.d  'fd, 'fs, 'ft");
+        break;
+      default:
+        Format(instr, "unknown.cop1.'t");
+        break;
+    }
   }
 }
 
@@ -1191,6 +1207,9 @@ void Decoder::DecodeTypeRegisterSPECIAL(Instruction* instr) {
     case TNE:
       Format(instr, "tne     'rs, 'rt, code: 'code");
       break;
+    case SYNC:
+      Format(instr, "sync");
+      break;
     case MOVZ:
       Format(instr, "movz    'rd, 'rs, 'rt");
       break;
@@ -1261,11 +1280,30 @@ void Decoder::DecodeTypeRegisterSPECIAL3(Instruction* instr) {
           }
           break;
         }
-        case SEB:
-        case SEH:
-        case WSBH:
-          UNREACHABLE();
+        case SEB: {
+          if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+            Format(instr, "seb     'rd, 'rt");
+          } else {
+            Unknown(instr);
+          }
           break;
+        }
+        case SEH: {
+          if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+            Format(instr, "seh     'rd, 'rt");
+          } else {
+            Unknown(instr);
+          }
+          break;
+        }
+        case WSBH: {
+          if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+            Format(instr, "wsbh    'rd, 'rt");
+          } else {
+            Unknown(instr);
+          }
+          break;
+        }
         default: {
           sa >>= kBp2Bits;
           switch (sa) {
@@ -1338,8 +1376,17 @@ void Decoder::DecodeTypeRegister(Instruction* instr) {
       break;
     case COP1X:
       switch (instr->FunctionFieldRaw()) {
+        case MADD_S:
+          Format(instr, "madd.s  'fd, 'fr, 'fs, 'ft");
+          break;
         case MADD_D:
           Format(instr, "madd.d  'fd, 'fr, 'fs, 'ft");
+          break;
+        case MSUB_S:
+          Format(instr, "msub.s  'fd, 'fr, 'fs, 'ft");
+          break;
+        case MSUB_D:
+          Format(instr, "msub.d  'fd, 'fr, 'fs, 'ft");
           break;
         default:
           UNREACHABLE();
@@ -1500,6 +1547,7 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
         if (rs_reg >= rt_reg) {
           Format(instr, "bovc  'rs, 'rt, 'imm16s -> 'imm16p4s2");
         } else {
+          DCHECK(rt_reg > 0);
           if (rs_reg == 0) {
             Format(instr, "beqzalc 'rt, 'imm16s -> 'imm16p4s2");
           } else {
@@ -1516,6 +1564,7 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
         if (rs_reg >= rt_reg) {
           Format(instr, "bnvc  'rs, 'rt, 'imm16s -> 'imm16p4s2");
         } else {
+          DCHECK(rt_reg > 0);
           if (rs_reg == 0) {
             Format(instr, "bnezalc 'rt, 'imm16s -> 'imm16p4s2");
           } else {
@@ -1663,7 +1712,7 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
   out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                                    "%08x       ",
                                    instr->InstructionBits());
-  switch (instr->InstructionType(Instruction::EXTRA)) {
+  switch (instr->InstructionType()) {
     case Instruction::kRegisterType: {
       DecodeTypeRegister(instr);
       break;
@@ -1694,7 +1743,7 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
 namespace disasm {
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  v8::internal::SNPrintF(tmp_buffer_, "%p", addr);
+  v8::internal::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
   return tmp_buffer_.start();
 }
 
@@ -1757,8 +1806,8 @@ void Disassembler::Disassemble(FILE* f, byte* begin, byte* end) {
     buffer[0] = '\0';
     byte* prev_pc = pc;
     pc += d.InstructionDecode(buffer, pc);
-    v8::internal::PrintF(f, "%p    %08x      %s\n",
-        prev_pc, *reinterpret_cast<int32_t*>(prev_pc), buffer.start());
+    v8::internal::PrintF(f, "%p    %08x      %s\n", static_cast<void*>(prev_pc),
+                         *reinterpret_cast<int32_t*>(prev_pc), buffer.start());
   }
 }
 

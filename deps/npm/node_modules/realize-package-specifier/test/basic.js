@@ -69,10 +69,10 @@ test("realize-package-specifier", function (t) {
     t.is(result.type, "directory", "local package directory")
   })
   rps("c", function (err, result) {
-    t.is(result.type, "range", "remote package, non-package local directory")
+    t.is(result.type, "tag", "remote package, non-package local directory")
   })
   rps("d", function (err, result) {
-    t.is(result.type, "range", "remote package, no local directory")
+    t.is(result.type, "tag", "remote package, no local directory")
   })
   rps("file:./a.tar.gz", function (err, result) {
     t.is(result.type, "local", "local tarball")

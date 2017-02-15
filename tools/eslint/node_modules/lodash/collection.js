@@ -1,5 +1,4 @@
 module.exports = {
-  'at': require('./at'),
   'countBy': require('./countBy'),
   'each': require('./each'),
   'eachRight': require('./eachRight'),
@@ -8,6 +7,8 @@ module.exports = {
   'find': require('./find'),
   'findLast': require('./findLast'),
   'flatMap': require('./flatMap'),
+  'flatMapDeep': require('./flatMapDeep'),
+  'flatMapDepth': require('./flatMapDepth'),
   'forEach': require('./forEach'),
   'forEachRight': require('./forEachRight'),
   'groupBy': require('./groupBy'),

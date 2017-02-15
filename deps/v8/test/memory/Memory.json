@@ -12,7 +12,7 @@
     },
     {
       "name": "ReservedMemoryContext",
-      "results_regexp": "(\\d+) bytes per context$"
+      "results_regexp": "(\\d+) bytes per context #0$"
     },
     {
       "name": "SnapshotSizeStartup",
@@ -20,7 +20,7 @@
     },
     {
       "name": "SnapshotSizeContext",
-      "results_regexp": "(\\d+) bytes for context$"
+      "results_regexp": "(\\d+) bytes for context #0$"
     }
   ]
 }

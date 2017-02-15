@@ -5,8 +5,6 @@
  * information of the code path.
  *
  * @author Toru Nagashima
- * @copyright 2015 Toru Nagashima. All rights reserved.
- * See LICENSE file in root directory for full license.
  */
 
 "use strict";
@@ -17,27 +15,32 @@
 
 /**
  * A generator for unique ids.
- *
- * @constructor
- * @param {string} prefix - Optional. A prefix of generated ids.
  */
-function IdGenerator(prefix) {
-    this.prefix = String(prefix);
-    this.n = 0;
-}
+class IdGenerator {
 
-/**
- * Generates id.
- *
- * @returns {string} A generated id.
- */
-IdGenerator.prototype.next = function() {
-    this.n = 1 + this.n | 0;
-    /* istanbul ignore if */
-    if (this.n < 0) {
-        this.n = 1;
+    /**
+     * @param {string} prefix - Optional. A prefix of generated ids.
+     */
+    constructor(prefix) {
+        this.prefix = String(prefix);
+        this.n = 0;
     }
-    return this.prefix + this.n;
-};
+
+    /**
+     * Generates id.
+     *
+     * @returns {string} A generated id.
+     */
+    next() {
+        this.n = 1 + this.n | 0;
+
+        /* istanbul ignore if */
+        if (this.n < 0) {
+            this.n = 1;
+        }
+
+        return this.prefix + this.n;
+    }
+}
 
 module.exports = IdGenerator;

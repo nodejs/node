@@ -1,15 +1,18 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var StringDecoder = require('string_decoder').StringDecoder;
+const assert = require('assert');
+const inspect = require('util').inspect;
+const StringDecoder = require('string_decoder').StringDecoder;
 
-process.stdout.write('scanning ');
+// Test default encoding
+let decoder = new StringDecoder();
+assert.strictEqual(decoder.encoding, 'utf8');
 
 // UTF-8
-test('utf-8', new Buffer('$', 'utf-8'), '$');
-test('utf-8', new Buffer('¢', 'utf-8'), '¢');
-test('utf-8', new Buffer('€', 'utf-8'), '€');
-test('utf-8', new Buffer('𤭢', 'utf-8'), '𤭢');
+test('utf-8', Buffer.from('$', 'utf-8'), '$');
+test('utf-8', Buffer.from('¢', 'utf-8'), '¢');
+test('utf-8', Buffer.from('€', 'utf-8'), '€');
+test('utf-8', Buffer.from('𤭢', 'utf-8'), '𤭢');
 // A mixed ascii and non-ascii string
 // Test stolen from deps/v8/test/cctest/test-strings.cc
 // U+02E4 -> CB A4
@@ -19,17 +22,91 @@ test('utf-8', new Buffer('𤭢', 'utf-8'), '𤭢');
 // U+3045 -> E3 81 85
 test(
   'utf-8',
-  new Buffer([0xCB, 0xA4, 0x64, 0xE1, 0x8B, 0xA4, 0x30, 0xE3, 0x81, 0x85]),
+  Buffer.from([0xCB, 0xA4, 0x64, 0xE1, 0x8B, 0xA4, 0x30, 0xE3, 0x81, 0x85]),
   '\u02e4\u0064\u12e4\u0030\u3045'
 );
 
+// Some invalid input, known to have caused trouble with chunking
+// in https://github.com/nodejs/node/pull/7310#issuecomment-226445923
+// 00: |00000000 ASCII
+// 41: |01000001 ASCII
+// B8: 10|111000 continuation
+// CC: 110|01100 two-byte head
+// E2: 1110|0010 three-byte head
+// F0: 11110|000 four-byte head
+// F1: 11110|001'another four-byte head
+// FB: 111110|11 "five-byte head", not UTF-8
+test('utf-8', Buffer.from('C9B5A941', 'hex'), '\u0275\ufffdA');
+test('utf-8', Buffer.from('E2', 'hex'), '\ufffd');
+test('utf-8', Buffer.from('E241', 'hex'), '\ufffdA');
+test('utf-8', Buffer.from('CCCCB8', 'hex'), '\ufffd\u0338');
+test('utf-8', Buffer.from('F0B841', 'hex'), '\ufffdA');
+test('utf-8', Buffer.from('F1CCB8', 'hex'), '\ufffd\u0338');
+test('utf-8', Buffer.from('F0FB00', 'hex'), '\ufffd\ufffd\0');
+test('utf-8', Buffer.from('CCE2B8B8', 'hex'), '\ufffd\u2e38');
+test('utf-8', Buffer.from('E2B8CCB8', 'hex'), '\ufffd\u0338');
+test('utf-8', Buffer.from('E2FBCC01', 'hex'), '\ufffd\ufffd\ufffd\u0001');
+test('utf-8', Buffer.from('CCB8CDB9', 'hex'), '\u0338\u0379');
+// CESU-8 of U+1D40D
+test('utf-8', Buffer.from('EDA0B5EDB08D', 'hex'), '\ufffd\ufffd');
+
 // UCS-2
-test('ucs2', new Buffer('ababc', 'ucs2'), 'ababc');
+test('ucs2', Buffer.from('ababc', 'ucs2'), 'ababc');
 
 // UTF-16LE
-test('ucs2', new Buffer('3DD84DDC', 'hex'),  '\ud83d\udc4d'); // thumbs up
+test('utf16le', Buffer.from('3DD84DDC', 'hex'), '\ud83d\udc4d'); // thumbs up
 
-console.log(' crayon!');
+// Additional UTF-8 tests
+decoder = new StringDecoder('utf8');
+assert.strictEqual(decoder.write(Buffer.from('E1', 'hex')), '');
+assert.strictEqual(decoder.end(), '\ufffd');
+
+decoder = new StringDecoder('utf8');
+assert.strictEqual(decoder.write(Buffer.from('E18B', 'hex')), '');
+assert.strictEqual(decoder.end(), '\ufffd');
+
+decoder = new StringDecoder('utf8');
+assert.strictEqual(decoder.write(Buffer.from('\ufffd')), '\ufffd');
+assert.strictEqual(decoder.end(), '');
+
+decoder = new StringDecoder('utf8');
+assert.strictEqual(decoder.write(Buffer.from('\ufffd\ufffd\ufffd')),
+                   '\ufffd\ufffd\ufffd');
+assert.strictEqual(decoder.end(), '');
+
+decoder = new StringDecoder('utf8');
+assert.strictEqual(decoder.write(Buffer.from('EFBFBDE2', 'hex')), '\ufffd');
+assert.strictEqual(decoder.end(), '\ufffd');
+
+decoder = new StringDecoder('utf8');
+assert.strictEqual(decoder.write(Buffer.from('F1', 'hex')), '');
+assert.strictEqual(decoder.write(Buffer.from('41F2', 'hex')), '\ufffdA');
+assert.strictEqual(decoder.end(), '\ufffd');
+
+
+// Additional UTF-16LE surrogate pair tests
+decoder = new StringDecoder('utf16le');
+assert.strictEqual(decoder.write(Buffer.from('3DD8', 'hex')), '');
+assert.strictEqual(decoder.write(Buffer.from('4D', 'hex')), '');
+assert.strictEqual(decoder.write(Buffer.from('DC', 'hex')), '\ud83d\udc4d');
+assert.strictEqual(decoder.end(), '');
+
+decoder = new StringDecoder('utf16le');
+assert.strictEqual(decoder.write(Buffer.from('3DD8', 'hex')), '');
+assert.strictEqual(decoder.end(), '\ud83d');
+
+decoder = new StringDecoder('utf16le');
+assert.strictEqual(decoder.write(Buffer.from('3DD8', 'hex')), '');
+assert.strictEqual(decoder.write(Buffer.from('4D', 'hex')), '');
+assert.strictEqual(decoder.end(), '\ud83d');
+
+assert.throws(() => {
+  new StringDecoder(1);
+}, /^Error: Unknown encoding: 1$/);
+
+assert.throws(() => {
+  new StringDecoder('test');
+}, /^Error: Unknown encoding: test$/);
 
 // test verifies that StringDecoder will correctly decode the given input
 // buffer with the given encoding to the expected output. It will attempt all
@@ -37,26 +114,26 @@ console.log(' crayon!');
 // singleSequence allows for easy debugging of a specific sequence which is
 // useful in case of test failures.
 function test(encoding, input, expected, singleSequence) {
-  var sequences;
+  let sequences;
   if (!singleSequence) {
     sequences = writeSequences(input.length);
   } else {
     sequences = [singleSequence];
   }
-  sequences.forEach(function(sequence) {
-    var decoder = new StringDecoder(encoding);
-    var output = '';
-    sequence.forEach(function(write) {
+  sequences.forEach((sequence) => {
+    const decoder = new StringDecoder(encoding);
+    let output = '';
+    sequence.forEach((write) => {
       output += decoder.write(input.slice(write[0], write[1]));
     });
-    process.stdout.write('.');
+    output += decoder.end();
     if (output !== expected) {
-      var message =
+      const message =
         'Expected "' + unicodeEscape(expected) + '", ' +
         'but got "' + unicodeEscape(output) + '"\n' +
+        'input: ' + input.toString('hex').match(/.{2}/g) + '\n' +
         'Write sequence: ' + JSON.stringify(sequence) + '\n' +
-        'Decoder charBuffer: 0x' + decoder.charBuffer.toString('hex') + '\n' +
-        'Full Decoder State: ' + JSON.stringify(decoder, null, 2);
+        'Full Decoder State: ' + inspect(decoder);
       assert.fail(output, expected, message);
     }
   });
@@ -64,8 +141,8 @@ function test(encoding, input, expected, singleSequence) {
 
 // unicodeEscape prints the str contents as unicode escape codes.
 function unicodeEscape(str) {
-  var r = '';
-  for (var i = 0; i < str.length; i++) {
+  let r = '';
+  for (let i = 0; i < str.length; i++) {
     r += '\\u' + str.charCodeAt(i).toString(16);
   }
   return r;
@@ -88,12 +165,11 @@ function writeSequences(length, start, sequence) {
   } else if (start === length) {
     return [sequence];
   }
-  var sequences = [];
-  for (var end = length; end > start; end--) {
-    var subSequence = sequence.concat([[start, end]]);
-    var subSequences = writeSequences(length, end, subSequence, sequences);
+  let sequences = [];
+  for (let end = length; end > start; end--) {
+    const subSequence = sequence.concat([[start, end]]);
+    const subSequences = writeSequences(length, end, subSequence, sequences);
     sequences = sequences.concat(subSequences);
   }
   return sequences;
 }
-

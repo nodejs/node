@@ -2,3 +2,4 @@
 function f() { for ("unassignable" in {}); }
                     ^^^^^^^^^^^^^^
 SyntaxError: Invalid left-hand side in for-loop
+

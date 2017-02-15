@@ -9,8 +9,8 @@ var SetCache = require('./_SetCache'),
 var LARGE_ARRAY_SIZE = 200;
 
 /**
- * The base implementation of methods like `_.difference` without support for
- * excluding multiple arrays or iteratee shorthands.
+ * The base implementation of methods like `_.difference` without support
+ * for excluding multiple arrays or iteratee shorthands.
  *
  * @private
  * @param {Array} array The array to inspect.
@@ -45,8 +45,9 @@ function baseDifference(array, values, iteratee, comparator) {
   outer:
   while (++index < length) {
     var value = array[index],
-        computed = iteratee ? iteratee(value) : value;
+        computed = iteratee == null ? value : iteratee(value);
 
+    value = (comparator || value !== 0) ? value : 0;
     if (isCommon && computed === computed) {
       var valuesIndex = valuesLength;
       while (valuesIndex--) {

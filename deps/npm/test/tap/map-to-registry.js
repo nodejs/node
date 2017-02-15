@@ -48,7 +48,7 @@ test('mapRegistryToURI', function (t) {
       password: undefined,
       email: undefined,
       auth: undefined,
-      alwaysAuth: undefined
+      alwaysAuth: false
     })
     t.equal(registry, 'http://reg.npm/design/-/rewrite/')
   })
@@ -66,7 +66,7 @@ test('mapRegistryToURI', function (t) {
       password: undefined,
       email: undefined,
       auth: undefined,
-      alwaysAuth: undefined
+      alwaysAuth: false
     })
     t.equal(registry, 'http://reg.npm/-/rewrite/')
   })
@@ -84,8 +84,83 @@ test('mapRegistryToURI', function (t) {
       password: undefined,
       email: undefined,
       auth: undefined,
-      alwaysAuth: undefined
+      alwaysAuth: false
     })
     t.equal(registry, 'http://reg.npm/design/-/rewrite/relative/')
   })
+})
+
+test('mapToRegistry token scoping', function (t) {
+  npm.config.set('scope', '')
+  npm.config.set('registry', 'https://reg.npm/')
+  npm.config.set('//reg.npm/:_authToken', 'r-token')
+
+  t.test('pass token to registry host', function (t) {
+    mapRegistry(
+      'https://reg.npm/packages/e/easy-1.0.0.tgz',
+      npm.config,
+      function (er, uri, auth, registry) {
+        t.ifError(er, 'mapRegistryToURI worked')
+        t.equal(uri, 'https://reg.npm/packages/e/easy-1.0.0.tgz')
+        t.deepEqual(auth, {
+          scope: '//reg.npm/',
+          token: 'r-token',
+          username: undefined,
+          password: undefined,
+          email: undefined,
+          auth: undefined,
+          alwaysAuth: false
+        })
+        t.equal(registry, 'https://reg.npm/')
+      }
+    )
+    t.end()
+  })
+
+  t.test("don't pass token to non-registry host", function (t) {
+    mapRegistry(
+      'https://butts.lol/packages/e/easy-1.0.0.tgz',
+      npm.config,
+      function (er, uri, auth, registry) {
+        t.ifError(er, 'mapRegistryToURI worked')
+        t.equal(uri, 'https://butts.lol/packages/e/easy-1.0.0.tgz')
+        t.deepEqual(auth, {
+          scope: '//reg.npm/',
+          token: undefined,
+          username: undefined,
+          password: undefined,
+          email: undefined,
+          auth: undefined,
+          alwaysAuth: false
+        })
+        t.equal(registry, 'https://reg.npm/')
+      }
+    )
+    t.end()
+  })
+
+  t.test('pass token to non-registry host with always-auth', function (t) {
+    npm.config.set('always-auth', true)
+    mapRegistry(
+      'https://butts.lol/packages/e/easy-1.0.0.tgz',
+      npm.config,
+      function (er, uri, auth, registry) {
+        t.ifError(er, 'mapRegistryToURI worked')
+        t.equal(uri, 'https://butts.lol/packages/e/easy-1.0.0.tgz')
+        t.deepEqual(auth, {
+          scope: '//reg.npm/',
+          token: 'r-token',
+          username: undefined,
+          password: undefined,
+          email: undefined,
+          auth: undefined,
+          alwaysAuth: true
+        })
+        t.equal(registry, 'https://reg.npm/')
+      }
+    )
+    t.end()
+  })
+
+  t.end()
 })

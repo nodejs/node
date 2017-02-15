@@ -7,17 +7,18 @@ var basePullAll = require('./_basePullAll');
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Array
  * @param {Array} array The array to modify.
  * @param {Array} values The values to remove.
  * @returns {Array} Returns `array`.
  * @example
  *
- * var array = [1, 2, 3, 1, 2, 3];
+ * var array = ['a', 'b', 'c', 'a', 'b', 'c'];
  *
- * _.pullAll(array, [2, 3]);
+ * _.pullAll(array, ['a', 'c']);
  * console.log(array);
- * // => [1, 1]
+ * // => ['b', 'b']
  */
 function pullAll(array, values) {
   return (array && array.length && values && values.length)

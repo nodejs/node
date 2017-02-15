@@ -10,6 +10,7 @@ var npm = require('./npm.js')
 var path = require('path')
 var fs = require('graceful-fs')
 var editor = require('editor')
+var noProgressTillDone = require('./utils/no-progress-while-running').tillDone
 
 function edit (args, cb) {
   var p = args[0]
@@ -26,9 +27,9 @@ function edit (args, cb) {
   var f = path.resolve(npm.dir, p)
   fs.lstat(f, function (er) {
     if (er) return cb(er)
-    editor(f, { editor: e }, function (er) {
+    editor(f, { editor: e }, noProgressTillDone(function (er) {
       if (er) return cb(er)
       npm.commands.rebuild(args, cb)
-    })
+    }))
   })
 }

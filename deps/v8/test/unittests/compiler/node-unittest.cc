@@ -7,7 +7,9 @@
 #include "test/unittests/test-utils.h"
 #include "testing/gmock-support.h"
 
+using testing::Contains;
 using testing::ElementsAre;
+using testing::ElementsAreArray;
 using testing::UnorderedElementsAre;
 
 namespace v8 {
@@ -252,6 +254,10 @@ TEST_F(NodeTest, BigNodes) {
     for (int i = 0; i < size; i++) {
       EXPECT_EQ(inputs[i], node->InputAt(i));
     }
+
+    EXPECT_THAT(n0->uses(), Contains(node));
+    EXPECT_THAT(n1->uses(), Contains(node));
+    EXPECT_THAT(node->inputs(), ElementsAreArray(inputs, size));
   }
 }
 

@@ -1,0 +1,2 @@
+include LICENSE README.rst AUTHORS
+recursive-include markupsafe *.c

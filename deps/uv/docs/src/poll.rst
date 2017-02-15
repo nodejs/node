@@ -4,8 +4,8 @@
 :c:type:`uv_poll_t` --- Poll handle
 ===================================
 
-Poll handles are used to watch file descriptors for readability and
-writability, similar to the purpose of :man:`poll(2)`.
+Poll handles are used to watch file descriptors for readability,
+writability and disconnection similar to the purpose of :man:`poll(2)`.
 
 The purpose of poll handles is to enable integrating external libraries that
 rely on the event loop to signal it about the socket status changes, like
@@ -31,6 +31,8 @@ closed immediately after a call to :c:func:`uv_poll_stop` or :c:func:`uv_close`.
     On windows only sockets can be polled with poll handles. On Unix any file
     descriptor that would be accepted by :man:`poll(2)` can be used.
 
+.. note::
+    On AIX, watching for disconnection is not supported.
 
 Data types
 ----------
@@ -51,7 +53,8 @@ Data types
 
         enum uv_poll_event {
             UV_READABLE = 1,
-            UV_WRITABLE = 2
+            UV_WRITABLE = 2,
+            UV_DISCONNECT = 4
         };
 
 
@@ -82,9 +85,13 @@ API
 .. c:function:: int uv_poll_start(uv_poll_t* handle, int events, uv_poll_cb cb)
 
     Starts polling the file descriptor. `events` is a bitmask consisting made up
-    of UV_READABLE and UV_WRITABLE. As soon as an event is detected the callback
-    will be called with `status` set to 0, and the detected events set on the
+    of UV_READABLE, UV_WRITABLE and UV_DISCONNECT. As soon as an event is detected
+    the callback will be called with `status` set to 0, and the detected events set on the
     `events` field.
+
+    The UV_DISCONNECT event is optional in the sense that it may not be
+    reported and the user is free to ignore it, but it can help optimize the shutdown
+    path because an extra read or write call might be avoided.
 
     If an error happens while polling, `status` will be < 0 and corresponds
     with one of the UV_E* error codes (see :ref:`errors`). The user should
@@ -95,6 +102,12 @@ API
     .. note::
         Calling :c:func:`uv_poll_start` on a handle that is already active is fine. Doing so
         will update the events mask that is being watched for.
+
+    .. note::
+        Though UV_DISCONNECT can be set, it is unsupported on AIX and as such will not be set
+        on the `events` field in the callback.
+
+    .. versionchanged:: 1.9.0 Added the UV_DISCONNECT event.
 
 .. c:function:: int uv_poll_stop(uv_poll_t* poll)
 

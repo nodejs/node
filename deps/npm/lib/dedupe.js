@@ -19,11 +19,15 @@ var sortActions = require('./install/diff-trees.js').sortActions
 var moduleName = require('./utils/module-name.js')
 var packageId = require('./utils/package-id.js')
 var childPath = require('./utils/child-path.js')
+var usage = require('./utils/usage')
 
 module.exports = dedupe
 module.exports.Deduper = Deduper
 
-dedupe.usage = 'npm dedupe'
+dedupe.usage = usage(
+  'dedupe',
+  'npm dedupe'
+)
 
 function dedupe (args, cb) {
   validate('AF', arguments)
@@ -43,19 +47,6 @@ function Deduper (where, dryrun) {
   this.topLevelLifecycles = false
 }
 util.inherits(Deduper, Installer)
-
-Deduper.prototype.normalizeTree = function (log, cb) {
-  validate('OF', arguments)
-  log.silly('dedupe', 'normalizeTree')
-  // If we're looking globally only look at the one package we're operating on
-  if (npm.config.get('global')) {
-    var args = this.args
-    this.currentTree.children = this.currentTree.children.filter(function (child) {
-      return args.filter(function (arg) { return arg === moduleName(child) }).length
-    })
-  }
-  Installer.prototype.normalizeTree.call(this, log, cb)
-}
 
 Deduper.prototype.loadIdealTree = function (cb) {
   validate('F', arguments)

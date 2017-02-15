@@ -5,7 +5,7 @@ const child_process = require('child_process');
 const fs = require('fs');
 
 if (common.isWindows) {
-  console.log('1..0 # Skipped: no RLIMIT_NOFILE on Windows');
+  common.skip('no RLIMIT_NOFILE on Windows');
   return;
 }
 
@@ -31,7 +31,7 @@ for (;;) {
   try {
     openFds.push(fs.openSync(__filename, 'r'));
   } catch (err) {
-    assert(err.code === 'EMFILE');
+    assert.strictEqual(err.code, 'EMFILE');
     break;
   }
 }
@@ -43,10 +43,7 @@ proc.on('error', common.mustCall(function(err) {
   assert.strictEqual(err.code, 'EMFILE');
 }));
 
-proc.on('exit', function() {
-  const msg = '"exit" should not be emitted (the process never spawned!)';
-  assert.fail(null, null, msg);
-});
+proc.on('exit', common.mustNotCall('"exit" event should not be emitted'));
 
 // close one fd for LSan
 if (openFds.length >= 1) {

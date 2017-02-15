@@ -5,6 +5,7 @@
 #ifndef V8_IDENTITY_MAP_H_
 #define V8_IDENTITY_MAP_H_
 
+#include "src/base/functional.h"
 #include "src/handles.h"
 
 namespace v8 {
@@ -36,6 +37,7 @@ class IdentityMapBase {
 
   RawEntry GetEntry(Object* key);
   RawEntry FindEntry(Object* key);
+  void Clear();
 
  private:
   // Internal implementation should not be called directly by subclasses.
@@ -47,6 +49,7 @@ class IdentityMapBase {
   RawEntry Insert(Object* key);
   int Hash(Object* address);
 
+  base::hash<uintptr_t> hasher_;
   Heap* heap_;
   Zone* zone_;
   int gc_counter_;
@@ -85,6 +88,9 @@ class IdentityMap : public IdentityMapBase {
   // Set the value for the given key.
   void Set(Handle<Object> key, V v) { Set(*key, v); }
   void Set(Object* key, V v) { *(reinterpret_cast<V*>(GetEntry(key))) = v; }
+
+  // Removes all elements from the map.
+  void Clear() { IdentityMapBase::Clear(); }
 };
 }  // namespace internal
 }  // namespace v8

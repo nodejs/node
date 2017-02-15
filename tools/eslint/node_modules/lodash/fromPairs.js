@@ -4,17 +4,18 @@
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Array
  * @param {Array} pairs The key-value pairs.
  * @returns {Object} Returns the new object.
  * @example
  *
- * _.fromPairs([['fred', 30], ['barney', 40]]);
- * // => { 'fred': 30, 'barney': 40 }
+ * _.fromPairs([['a', 1], ['b', 2]]);
+ * // => { 'a': 1, 'b': 2 }
  */
 function fromPairs(pairs) {
   var index = -1,
-      length = pairs ? pairs.length : 0,
+      length = pairs == null ? 0 : pairs.length,
       result = {};
 
   while (++index < length) {

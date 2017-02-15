@@ -74,43 +74,6 @@ TEST(GCIdleTimeHandler, EstimateMarkingStepSizeOverflow2) {
 }
 
 
-TEST(GCIdleTimeHandler, EstimateMarkCompactTimeInitial) {
-  size_t size = 100 * MB;
-  size_t time = GCIdleTimeHandler::EstimateMarkCompactTime(size, 0);
-  EXPECT_EQ(size / GCIdleTimeHandler::kInitialConservativeMarkCompactSpeed,
-            time);
-}
-
-
-TEST(GCIdleTimeHandler, EstimateMarkCompactTimeNonZero) {
-  size_t size = 100 * MB;
-  size_t speed = 1 * MB;
-  size_t time = GCIdleTimeHandler::EstimateMarkCompactTime(size, speed);
-  EXPECT_EQ(size / speed, time);
-}
-
-
-TEST(GCIdleTimeHandler, EstimateMarkCompactTimeMax) {
-  size_t size = std::numeric_limits<size_t>::max();
-  size_t speed = 1;
-  size_t time = GCIdleTimeHandler::EstimateMarkCompactTime(size, speed);
-  EXPECT_EQ(GCIdleTimeHandler::kMaxMarkCompactTimeInMs, time);
-}
-
-
-TEST_F(GCIdleTimeHandlerTest, ShouldDoMarkCompact) {
-  size_t idle_time_ms = GCIdleTimeHandler::kMaxScheduledIdleTime;
-  EXPECT_TRUE(GCIdleTimeHandler::ShouldDoMarkCompact(idle_time_ms, 0, 0));
-}
-
-
-TEST_F(GCIdleTimeHandlerTest, DontDoMarkCompact) {
-  size_t idle_time_ms = 1;
-  EXPECT_FALSE(GCIdleTimeHandler::ShouldDoMarkCompact(
-      idle_time_ms, kSizeOfObjects, kMarkingSpeed));
-}
-
-
 TEST_F(GCIdleTimeHandlerTest, ShouldDoFinalIncrementalMarkCompact) {
   size_t idle_time_ms = 16;
   EXPECT_TRUE(GCIdleTimeHandler::ShouldDoFinalIncrementalMarkCompact(

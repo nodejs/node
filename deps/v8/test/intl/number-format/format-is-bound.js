@@ -28,6 +28,8 @@
 // Create default NumberFormat.
 var nf = new Intl.NumberFormat();
 
+var beforeCount = Object.getOwnPropertyNames(nf).length;
+
 // Array we want to iterate, actual numbers are not important.
 var numberArray = [1, 2, 3];
 
@@ -37,3 +39,6 @@ numberArray.forEach(nf.format);
 
 // Formatting a number should work in a direct call.
 nf.format(12345);
+
+// Reading the format doesn't add any additional property keys
+assertEquals(beforeCount, Object.getOwnPropertyNames(nf).length);

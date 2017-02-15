@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-proxies --harmony-reflect --allow-natives-syntax
+// Flags: --allow-natives-syntax
 
 
 var symbol = %CreatePrivateSymbol("private");
@@ -16,7 +16,6 @@ for (var key of Object.keys(object)) assertUnreachable();
 for (var key of Object.getOwnPropertySymbols(object)) assertUnreachable();
 for (var key of Object.getOwnPropertyNames(object)) assertUnreachable();
 for (var key of Reflect.ownKeys(object)) assertUnreachable();
-for (var key of Reflect.enumerate(object)) assertUnreachable();
 for (var key in object) assertUnreachable();
 
 var object2 = {__proto__: object};
@@ -24,7 +23,6 @@ for (var key of Object.keys(object2)) assertUnreachable();
 for (var key of Object.getOwnPropertySymbols(object2)) assertUnreachable();
 for (var key of Object.getOwnPropertyNames(object2)) assertUnreachable();
 for (var key of Reflect.ownKeys(object2)) assertUnreachable();
-for (var key of Reflect.enumerate(object2)) assertUnreachable();
 for (var key in object2) assertUnreachable();
 
 

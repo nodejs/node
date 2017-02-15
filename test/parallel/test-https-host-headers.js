@@ -1,12 +1,12 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
-var https = require('https');
+const https = require('https');
 
 const fs = require('fs');
 const options = {
@@ -18,10 +18,10 @@ const httpsServer = https.createServer(options, reqHandler);
 function reqHandler(req, res) {
   console.log('Got request: ' + req.headers.host + ' ' + req.url);
   if (req.url === '/setHostFalse5') {
-    assert.equal(req.headers.host, undefined);
+    assert.strictEqual(req.headers.host, undefined);
   } else {
-    assert.equal(req.headers.host, 'localhost:' + common.PORT,
-                 'Wrong host header for req[' + req.url + ']: ' +
+    assert.strictEqual(req.headers.host, `localhost:${this.address().port}`,
+                       'Wrong host header for req[' + req.url + ']: ' +
                  req.headers.host);
   }
   res.writeHead(200, {});
@@ -37,9 +37,7 @@ testHttps();
 
 function testHttps() {
 
-  console.log('testing https on port ' + common.PORT);
-
-  var counter = 0;
+  let counter = 0;
 
   function cb(res) {
     counter--;
@@ -51,15 +49,15 @@ function testHttps() {
     res.resume();
   }
 
-  httpsServer.listen(common.PORT, function(er) {
-    if (er) throw er;
-
+  httpsServer.listen(0, function(er) {
+    console.log(`test https server listening on port ${this.address().port}`);
+    assert.ifError(er);
     https.get({
       method: 'GET',
       path: '/' + (counter++),
       host: 'localhost',
       //agent: false,
-      port: common.PORT,
+      port: this.address().port,
       rejectUnauthorized: false
     }, cb).on('error', thrower);
 
@@ -68,7 +66,7 @@ function testHttps() {
       path: '/' + (counter++),
       host: 'localhost',
       //agent: false,
-      port: common.PORT,
+      port: this.address().port,
       rejectUnauthorized: false
     }, cb).on('error', thrower).end();
 
@@ -77,7 +75,7 @@ function testHttps() {
       path: '/' + (counter++),
       host: 'localhost',
       //agent: false,
-      port: common.PORT,
+      port: this.address().port,
       rejectUnauthorized: false
     }, cb).on('error', thrower).end();
 
@@ -86,7 +84,7 @@ function testHttps() {
       path: '/' + (counter++),
       host: 'localhost',
       //agent: false,
-      port: common.PORT,
+      port: this.address().port,
       rejectUnauthorized: false
     }, cb).on('error', thrower).end();
 
@@ -95,7 +93,7 @@ function testHttps() {
       path: '/' + (counter++),
       host: 'localhost',
       //agent: false,
-      port: common.PORT,
+      port: this.address().port,
       rejectUnauthorized: false
     }, cb).on('error', thrower).end();
 
@@ -104,7 +102,7 @@ function testHttps() {
       path: '/setHostFalse' + (counter++),
       host: 'localhost',
       setHost: false,
-      port: common.PORT,
+      port: this.address().port,
       rejectUnauthorized: false
     }, cb).on('error', thrower).end();
   });

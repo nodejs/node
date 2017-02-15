@@ -1,6 +1,22 @@
 var common = require('./common');
 var fs = require('fs');
 
+common.register('test', _test, {
+  cmdOptions: {
+    'b': 'block',
+    'c': 'character',
+    'd': 'directory',
+    'e': 'exists',
+    'f': 'file',
+    'L': 'link',
+    'p': 'pipe',
+    'S': 'socket',
+  },
+  wrapOutput: false,
+  allowGlobbing: false,
+});
+
+
 //@
 //@ ### test(expression)
 //@ Available expression primaries:
@@ -10,7 +26,7 @@ var fs = require('fs');
 //@ + `'-d', 'path'`: true if path is a directory
 //@ + `'-e', 'path'`: true if path exists
 //@ + `'-f', 'path'`: true if path is a regular file
-//@ + `'-L', 'path'`: true if path is a symboilc link
+//@ + `'-L', 'path'`: true if path is a symbolic link
 //@ + `'-p', 'path'`: true if path is a pipe (FIFO)
 //@ + `'-S', 'path'`: true if path is a socket
 //@
@@ -23,63 +39,43 @@ var fs = require('fs');
 //@
 //@ Evaluates expression using the available primaries and returns corresponding value.
 function _test(options, path) {
-  if (!path)
-    common.error('no path given');
-
-  // hack - only works with unary primaries
-  options = common.parseOptions(options, {
-    'b': 'block',
-    'c': 'character',
-    'd': 'directory',
-    'e': 'exists',
-    'f': 'file',
-    'L': 'link',
-    'p': 'pipe',
-    'S': 'socket'
-  });
+  if (!path) common.error('no path given');
 
   var canInterpret = false;
-  for (var key in options)
+  Object.keys(options).forEach(function (key) {
     if (options[key] === true) {
       canInterpret = true;
-      break;
     }
+  });
 
-  if (!canInterpret)
-    common.error('could not interpret expression');
+  if (!canInterpret) common.error('could not interpret expression');
 
   if (options.link) {
     try {
       return fs.lstatSync(path).isSymbolicLink();
-    } catch(e) {
+    } catch (e) {
       return false;
     }
   }
 
-  if (!fs.existsSync(path))
-    return false;
+  if (!fs.existsSync(path)) return false;
 
-  if (options.exists)
-    return true;
+  if (options.exists) return true;
 
   var stats = fs.statSync(path);
 
-  if (options.block)
-    return stats.isBlockDevice();
+  if (options.block) return stats.isBlockDevice();
 
-  if (options.character)
-    return stats.isCharacterDevice();
+  if (options.character) return stats.isCharacterDevice();
 
-  if (options.directory)
-    return stats.isDirectory();
+  if (options.directory) return stats.isDirectory();
 
-  if (options.file)
-    return stats.isFile();
+  if (options.file) return stats.isFile();
 
-  if (options.pipe)
-    return stats.isFIFO();
+  if (options.pipe) return stats.isFIFO();
 
-  if (options.socket)
-    return stats.isSocket();
+  if (options.socket) return stats.isSocket();
+
+  return false; // fallback
 } // test
 module.exports = _test;

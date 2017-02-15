@@ -1,0 +1,97 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <title>Turbolizer</title>
+    <link rel="stylesheet" href="turbo-visualizer.css" />
+  </head>
+  <body width="100%">
+    <div id="left">
+      <div id='source-text'>
+        <pre id='source-text-pre'\>
+      </div>
+    </div>
+    <div id="middle">
+      <div id="graph-toolbox-anchor">
+        <span id="graph-toolbox">
+          <input id="layout" type="image" title="layout graph" src="layout-icon.png"
+                 alt="layout graph" class="button-input">
+          <input id="show-all" type="image" title="show all nodes" src="expand-all.jpg"
+                 alt="show all nodes" class="button-input">
+          <input id="hide-dead" type="image" title="only live nodes" src="live.png"
+                 alt="only live nodes" class="button-input">
+          <input id="hide-unselected" type="image" title="hide unselected nodes"
+                 src="hide-unselected.png" alt="hide unselected nodes" class="button-input">
+          <input id="hide-selected" type="image" title="hide selected nodes"
+                 src="hide-selected.png" alt="hide selected nodes" class="button-input">
+          <input id="zoom-selection" type="image" title="zoom to selection"
+                 src="search.png" alt="zoom to selection" class="button-input">
+          <input id="toggle-types" type="image" title="show/hide types"
+                 src="types.png" alt="show/hide types" class="button-input">
+          <input id="search-input" type="text" title="search nodes for regex"
+                 alt="search node for regex" class="search-input"
+                 placeholder="find with regexp&hellip;">
+          <select id="display-selector">
+            <option disabled selected>(please open a file)</option>
+          </select>
+        </span>
+      </div>
+
+      <div id="load-file">
+        <input type="file" id="hidden-file-upload">
+        <input id="upload" type="image" title="load graph" class="button-input"
+               src="upload-icon.png" alt="upload graph">
+      </div>
+      <div id="empty" width="100%" height="100%"></div>
+      <div id="graph" width="100%" height="100%"></div>
+      <div id="schedule" width="100%">
+        <pre id="schedule-text-pre" class='prettyprint prettyprinted'>
+          <ul id="schedule-list" class='nolinenums noindent'>
+          </ul>
+        </pre>        
+      </div>
+      <div id='text-placeholder' width="0px" height="0px" style="position: absolute; top:100000px;" ><svg><text text-anchor="right">
+          <tspan white-space="inherit" id="text-measure"/>
+      </text></svg></div>
+    </div>
+    <div id="right">
+      <div id='disassembly'>
+        <pre id='disassembly-text-pre' class='prettyprint prettyprinted'>
+          <ul id='disassembly-list' class='nolinenums noindent'>
+          </ul>
+        </pre>
+      </div>
+    </div>
+    <div id="source-collapse" class="collapse-pane">
+      <input id="source-expand" type="image" title="show source"
+             src="right-arrow.png" class="button-input-invisible">
+      <input id="source-shrink" type="image" title="hide source"
+             src="left-arrow.png" class="button-input">
+    </div>
+    <div id="disassembly-collapse" class="collapse-pane">
+      <input id="disassembly-expand" type="image" title="show disassembly"
+             src="left-arrow.png" class="button-input">
+      <input id="disassembly-shrink" type="image" title="hide disassembly" 
+             src="right-arrow.png" class="button-input-invisible">
+    </div>
+    <script src="https://cdn.rawgit.com/google/code-prettify/master/loader/run_prettify.js"></script>
+    <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+    <script src="https://cdn.jsdelivr.net/filesaver.js/0.1/FileSaver.min.js"></script>
+    <script src="monkey.js"></script>
+    <script src="util.js"></script>
+    <script src="lang-disassembly.js"></script>
+    <script src="node.js"></script>
+    <script src="edge.js"></script>
+    <script src="selection.js"></script>
+    <script src="selection-broker.js"></script>
+    <script src="constants.js"></script>
+    <script src="view.js"></script>
+    <script src="text-view.js"></script>
+    <script src="empty-view.js"></script>
+    <script src="code-view.js"></script>
+    <script src="graph-layout.js"></script>
+    <script src="graph-view.js"></script>
+    <script src="schedule-view.js"></script>
+    <script src="disassembly-view.js"></script>
+    <script src="turbo-visualizer.js"></script>
+  </body>
+</html>

@@ -53,16 +53,16 @@ class CSignature : public MachineSignature {
  public:
   template <typename P1 = void, typename P2 = void, typename P3 = void,
             typename P4 = void, typename P5 = void>
-  void VerifyParams() {
+  static void VerifyParams(MachineSignature* sig) {
     // Verifies the C signature against the machine types. Maximum {5} params.
-    CHECK_LT(parameter_count(), 6u);
+    CHECK_LT(sig->parameter_count(), 6u);
     const int kMax = 5;
     MachineType params[] = {MachineTypeForC<P1>(), MachineTypeForC<P2>(),
                             MachineTypeForC<P3>(), MachineTypeForC<P4>(),
                             MachineTypeForC<P5>()};
     for (int p = kMax - 1; p >= 0; p--) {
-      if (p < static_cast<int>(parameter_count())) {
-        CHECK_EQ(GetParam(p), params[p]);
+      if (p < static_cast<int>(sig->parameter_count())) {
+        CHECK_EQ(sig->GetParam(p), params[p]);
       } else {
         CHECK_EQ(MachineType::None(), params[p]);
       }

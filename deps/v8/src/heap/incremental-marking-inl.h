@@ -6,6 +6,7 @@
 #define V8_HEAP_INCREMENTAL_MARKING_INL_H_
 
 #include "src/heap/incremental-marking.h"
+#include "src/isolate.h"
 
 namespace v8 {
 namespace internal {
@@ -26,14 +27,22 @@ void IncrementalMarking::RecordWriteOfCodeEntry(JSFunction* host, Object** slot,
   }
 }
 
-
-void IncrementalMarking::RecordWriteIntoCode(HeapObject* obj, RelocInfo* rinfo,
+void IncrementalMarking::RecordWriteIntoCode(Code* host, RelocInfo* rinfo,
                                              Object* value) {
   if (IsMarking() && value->IsHeapObject()) {
-    RecordWriteIntoCodeSlow(obj, rinfo, value);
+    RecordWriteIntoCodeSlow(host, rinfo, value);
   }
 }
 
+void IncrementalMarking::RestartIfNotMarking() {
+  if (state_ == COMPLETE) {
+    state_ = MARKING;
+    if (FLAG_trace_incremental_marking) {
+      heap()->isolate()->PrintWithTimestamp(
+          "[IncrementalMarking] Restarting (new grey objects)\n");
+    }
+  }
+}
 
 }  // namespace internal
 }  // namespace v8

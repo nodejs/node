@@ -1,11 +1,11 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const assert = require('assert');
 const EventEmitter = require('events');
 const http = require('http');
 
 const ee = new EventEmitter();
-var count = 3;
+let count = 3;
 
 const server = http.createServer(function(req, res) {
   assert.doesNotThrow(function() {
@@ -16,16 +16,16 @@ const server = http.createServer(function(req, res) {
   }, TypeError);
   res.end('');
 });
-server.listen(common.PORT, function() {
+server.listen(0, function() {
 
-  http.get({port: common.PORT}, function() {
+  http.get({port: this.address().port}, function() {
     ee.emit('done');
   });
 
   assert.throws(
     function() {
-      var options = {
-        port: common.PORT,
+      const options = {
+        port: server.address().port,
         headers: {'testing 123': 123}
       };
       http.get(options, function() {});
@@ -38,8 +38,8 @@ server.listen(common.PORT, function() {
 
   assert.doesNotThrow(
     function() {
-      var options = {
-        port: common.PORT,
+      const options = {
+        port: server.address().port,
         headers: {'testing_123': 123}
       };
       http.get(options, function() {

@@ -1,24 +1,26 @@
-# node-assert-plus
+# assert-plus
 
 This library is a super small wrapper over node's assert module that has two
 things: (1) the ability to disable assertions with the environment variable
-NODE_NDEBUG, and (2) some API wrappers for argument testing.  Like
+NODE\_NDEBUG, and (2) some API wrappers for argument testing.  Like
 `assert.string(myArg, 'myArg')`.  As a simple example, most of my code looks
 like this:
 
+```javascript
     var assert = require('assert-plus');
 
     function fooAccount(options, callback) {
-	    assert.object(options, 'options');
-		assert.number(options.id, 'options.id);
-		assert.bool(options.isManager, 'options.isManager');
-		assert.string(options.name, 'options.name');
-		assert.arrayOfString(options.email, 'options.email');
-		assert.func(callback, 'callback');
+        assert.object(options, 'options');
+        assert.number(options.id, 'options.id');
+        assert.bool(options.isManager, 'options.isManager');
+        assert.string(options.name, 'options.name');
+        assert.arrayOfString(options.email, 'options.email');
+        assert.func(callback, 'callback');
 
         // Do stuff
-		callback(null, {});
+        callback(null, {});
     }
+```
 
 # API
 
@@ -27,60 +29,87 @@ take an argument, and then a string 'name' that's not a message; `AssertionError
 will be thrown if the assertion fails with a message like:
 
     AssertionError: foo (string) is required
-	at test (/home/mark/work/foo/foo.js:3:9)
-	at Object.<anonymous> (/home/mark/work/foo/foo.js:15:1)
-	at Module._compile (module.js:446:26)
-	at Object..js (module.js:464:10)
-	at Module.load (module.js:353:31)
-	at Function._load (module.js:311:12)
-	at Array.0 (module.js:484:10)
-	at EventEmitter._tickCallback (node.js:190:38)
+    at test (/home/mark/work/foo/foo.js:3:9)
+    at Object.<anonymous> (/home/mark/work/foo/foo.js:15:1)
+    at Module._compile (module.js:446:26)
+    at Object..js (module.js:464:10)
+    at Module.load (module.js:353:31)
+    at Function._load (module.js:311:12)
+    at Array.0 (module.js:484:10)
+    at EventEmitter._tickCallback (node.js:190:38)
 
 from:
 
+```javascript
     function test(foo) {
-	    assert.string(foo, 'foo');
+        assert.string(foo, 'foo');
     }
+```
 
-There you go.  You can check that arrays are of a homogenous type with `Arrayof$Type`:
+There you go.  You can check that arrays are of a homogeneous type with `Arrayof$Type`:
 
+```javascript
     function test(foo) {
-	    assert.arrayOfString(foo, 'foo');
+        assert.arrayOfString(foo, 'foo');
     }
+```
 
 You can assert IFF an argument is not `undefined` (i.e., an optional arg):
 
+```javascript
     assert.optionalString(foo, 'foo');
+```
 
 Lastly, you can opt-out of assertion checking altogether by setting the
 environment variable `NODE_NDEBUG=1`.  This is pseudo-useful if you have
 lots of assertions, and don't want to pay `typeof ()` taxes to v8 in
-production.
+production.  Be advised:  The standard functions re-exported from `assert` are
+also disabled in assert-plus if NDEBUG is specified.  Using them directly from
+the `assert` module avoids this behavior.
 
 The complete list of APIs is:
 
+* assert.array
 * assert.bool
 * assert.buffer
 * assert.func
 * assert.number
 * assert.object
 * assert.string
+* assert.stream
+* assert.date
+* assert.regex
+* assert.uuid
+* assert.arrayOfArray
 * assert.arrayOfBool
+* assert.arrayOfBuffer
 * assert.arrayOfFunc
 * assert.arrayOfNumber
 * assert.arrayOfObject
 * assert.arrayOfString
+* assert.arrayOfStream
+* assert.arrayOfDate
+* assert.arrayOfUuid
+* assert.optionalArray
 * assert.optionalBool
 * assert.optionalBuffer
 * assert.optionalFunc
 * assert.optionalNumber
 * assert.optionalObject
 * assert.optionalString
+* assert.optionalStream
+* assert.optionalDate
+* assert.optionalUuid
+* assert.optionalArrayOfArray
 * assert.optionalArrayOfBool
+* assert.optionalArrayOfBuffer
 * assert.optionalArrayOfFunc
 * assert.optionalArrayOfNumber
 * assert.optionalArrayOfObject
 * assert.optionalArrayOfString
+* assert.optionalArrayOfStream
+* assert.optionalArrayOfDate
+* assert.optionalArrayOfUuid
 * assert.AssertionError
 * assert.fail
 * assert.ok

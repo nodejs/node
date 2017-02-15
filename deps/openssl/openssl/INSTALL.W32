@@ -300,17 +300,17 @@
 
  If you link with static OpenSSL libraries [those built with ms/nt.mak],
  then you're expected to additionally link your application with
- WS2_32.LIB, ADVAPI32.LIB, GDI32.LIB and USER32.LIB. Those developing
- non-interactive service applications might feel concerned about linking
- with the latter two, as they are justly associated with interactive
- desktop, which is not available to service processes. The toolkit is
- designed to detect in which context it's currently executed, GUI,
- console app or service, and act accordingly, namely whether or not to
- actually make GUI calls. Additionally those who wish to
- /DELAYLOAD:GDI32.DLL and /DELAYLOAD:USER32.DLL and actually keep them
- off service process should consider implementing and exporting from
- .exe image in question own _OPENSSL_isservice not relying on USER32.DLL.
- E.g., on Windows Vista and later you could:
+ WS2_32.LIB, GDI32.LIB, ADVAPI32.LIB, CRYPT32.LIB and USER32.LIB. Those
+ developing non-interactive service applications might feel concerned about
+ linking with GDI32.LIB and USER32.LIB, as they are justly associated with
+ interactive desktop, which is not available to service processes. The toolkit
+ is designed to detect in which context it's currently executed, GUI, console
+ app or service, and act accordingly, namely whether or not to actually make
+ GUI calls. Additionally those who wish to /DELAYLOAD:GDI32.DLL and
+ /DELAYLOAD:USER32.DLL and actually keep them off service process should
+ consider implementing and exporting from .exe image in question own
+ _OPENSSL_isservice not relying on USER32.DLL. E.g., on Windows Vista and
+ later you could:
 
 	__declspec(dllexport) __cdecl BOOL _OPENSSL_isservice(void)
 	{   DWORD sess;

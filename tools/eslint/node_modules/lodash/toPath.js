@@ -1,12 +1,17 @@
 var arrayMap = require('./_arrayMap'),
+    copyArray = require('./_copyArray'),
     isArray = require('./isArray'),
-    stringToPath = require('./_stringToPath');
+    isSymbol = require('./isSymbol'),
+    stringToPath = require('./_stringToPath'),
+    toKey = require('./_toKey'),
+    toString = require('./toString');
 
 /**
  * Converts `value` to a property path array.
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Util
  * @param {*} value The value to convert.
  * @returns {Array} Returns the new property path array.
@@ -17,18 +22,12 @@ var arrayMap = require('./_arrayMap'),
  *
  * _.toPath('a[0].b.c');
  * // => ['a', '0', 'b', 'c']
- *
- * var path = ['a', 'b', 'c'],
- *     newPath = _.toPath(path);
- *
- * console.log(newPath);
- * // => ['a', 'b', 'c']
- *
- * console.log(path === newPath);
- * // => false
  */
 function toPath(value) {
-  return isArray(value) ? arrayMap(value, String) : stringToPath(value);
+  if (isArray(value)) {
+    return arrayMap(value, toKey);
+  }
+  return isSymbol(value) ? [value] : copyArray(stringToPath(toString(value)));
 }
 
 module.exports = toPath;

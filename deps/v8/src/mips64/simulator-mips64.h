@@ -31,7 +31,6 @@ namespace internal {
 // should act as a function matching the type arm_regexp_matcher.
 // The fifth (or ninth) argument is a dummy that reserves the space used for
 // the return address added by the ExitFrame in native calls.
-#ifdef MIPS_ABI_N64
 typedef int (*mips_regexp_matcher)(String* input,
                                    int64_t start_offset,
                                    const byte* input_start,
@@ -47,26 +46,6 @@ typedef int (*mips_regexp_matcher)(String* input,
                                    p7, p8)                                     \
   (FUNCTION_CAST<mips_regexp_matcher>(entry)(p0, p1, p2, p3, p4, p5, p6, p7,   \
                                              NULL, p8))
-
-#else  // O32 Abi.
-
-typedef int (*mips_regexp_matcher)(String* input,
-                                   int32_t start_offset,
-                                   const byte* input_start,
-                                   const byte* input_end,
-                                   void* return_address,
-                                   int* output,
-                                   int32_t output_size,
-                                   Address stack_base,
-                                   int32_t direct_call,
-                                   Isolate* isolate);
-
-#define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
-                                   p7, p8)                                     \
-  (FUNCTION_CAST<mips_regexp_matcher>(entry)(p0, p1, p2, p3, NULL, p4, p5, p6, \
-                                             p7, p8))
-
-#endif  // MIPS_ABI_N64
 
 
 // The stack limit beyond which we will throw stack overflow errors in
@@ -105,7 +84,7 @@ class SimulatorStack : public v8::internal::AllStatic {
 // Running with a simulator.
 
 #include "src/assembler.h"
-#include "src/hashmap.h"
+#include "src/base/hashmap.h"
 
 namespace v8 {
 namespace internal {
@@ -141,6 +120,39 @@ class CachePage {
   char data_[kPageSize];   // The cached data.
   static const int kValidityMapSize = kPageSize >> kLineShift;
   char validity_map_[kValidityMapSize];  // One byte per line.
+};
+
+class SimInstructionBase : public InstructionBase {
+ public:
+  Type InstructionType() const { return type_; }
+  inline Instruction* instr() const { return instr_; }
+  inline int32_t operand() const { return operand_; }
+
+ protected:
+  SimInstructionBase() : operand_(-1), instr_(nullptr), type_(kUnsupported) {}
+  explicit SimInstructionBase(Instruction* instr) {}
+
+  int32_t operand_;
+  Instruction* instr_;
+  Type type_;
+
+ private:
+  DISALLOW_ASSIGN(SimInstructionBase);
+};
+
+class SimInstruction : public InstructionGetters<SimInstructionBase> {
+ public:
+  SimInstruction() {}
+
+  explicit SimInstruction(Instruction* instr) { *this = instr; }
+
+  SimInstruction& operator=(Instruction* instr) {
+    operand_ = *reinterpret_cast<const int32_t*>(instr);
+    instr_ = instr;
+    type_ = InstructionBase::InstructionType();
+    DCHECK(reinterpret_cast<void*>(&operand_) == this);
+    return *this;
+  }
 };
 
 class Simulator {
@@ -247,7 +259,7 @@ class Simulator {
   // Call on program start.
   static void Initialize(Isolate* isolate);
 
-  static void TearDown(HashMap* i_cache, Redirection* first);
+  static void TearDown(base::CustomMatcherHashMap* i_cache, Redirection* first);
 
   // V8 generally calls into generated JS code with 5 parameters and into
   // generated RegExp code with 7 parameters. This is a convenience function,
@@ -267,7 +279,7 @@ class Simulator {
   char* last_debugger_input() { return last_debugger_input_; }
 
   // ICache checking.
-  static void FlushICache(v8::internal::HashMap* i_cache, void* start,
+  static void FlushICache(base::CustomMatcherHashMap* i_cache, void* start,
                           size_t size);
 
   // Returns true if pc register contains one of the 'special_values' defined
@@ -336,6 +348,8 @@ class Simulator {
   inline int32_t SetDoubleHIW(double* addr);
   inline int32_t SetDoubleLOW(double* addr);
 
+  SimInstruction instr_;
+
   // functions called from DecodeTypeRegister.
   void DecodeTypeRegisterCOP1();
 
@@ -357,40 +371,36 @@ class Simulator {
   void DecodeTypeRegisterLRsType();
 
   // Executing is handled based on the instruction type.
-  void DecodeTypeRegister(Instruction* instr);
+  void DecodeTypeRegister();
 
-  Instruction* currentInstr_;
-  inline Instruction* get_instr() const { return currentInstr_; }
-  inline void set_instr(Instruction* instr) { currentInstr_ = instr; }
-
-  inline int32_t rs_reg() const { return currentInstr_->RsValue(); }
+  inline int32_t rs_reg() const { return instr_.RsValue(); }
   inline int64_t rs() const { return get_register(rs_reg()); }
   inline uint64_t rs_u() const {
     return static_cast<uint64_t>(get_register(rs_reg()));
   }
-  inline int32_t rt_reg() const { return currentInstr_->RtValue(); }
+  inline int32_t rt_reg() const { return instr_.RtValue(); }
   inline int64_t rt() const { return get_register(rt_reg()); }
   inline uint64_t rt_u() const {
     return static_cast<uint64_t>(get_register(rt_reg()));
   }
-  inline int32_t rd_reg() const { return currentInstr_->RdValue(); }
-  inline int32_t fr_reg() const { return currentInstr_->FrValue(); }
-  inline int32_t fs_reg() const { return currentInstr_->FsValue(); }
-  inline int32_t ft_reg() const { return currentInstr_->FtValue(); }
-  inline int32_t fd_reg() const { return currentInstr_->FdValue(); }
-  inline int32_t sa() const { return currentInstr_->SaValue(); }
-  inline int32_t lsa_sa() const { return currentInstr_->LsaSaValue(); }
+  inline int32_t rd_reg() const { return instr_.RdValue(); }
+  inline int32_t fr_reg() const { return instr_.FrValue(); }
+  inline int32_t fs_reg() const { return instr_.FsValue(); }
+  inline int32_t ft_reg() const { return instr_.FtValue(); }
+  inline int32_t fd_reg() const { return instr_.FdValue(); }
+  inline int32_t sa() const { return instr_.SaValue(); }
+  inline int32_t lsa_sa() const { return instr_.LsaSaValue(); }
 
   inline void SetResult(const int32_t rd_reg, const int64_t alu_out) {
     set_register(rd_reg, alu_out);
     TraceRegWr(alu_out);
   }
 
-  void DecodeTypeImmediate(Instruction* instr);
-  void DecodeTypeJump(Instruction* instr);
+  void DecodeTypeImmediate();
+  void DecodeTypeJump();
 
   // Used for breakpoints and traps.
-  void SoftwareInterrupt(Instruction* instr);
+  void SoftwareInterrupt();
 
   // Compact branch guard.
   void CheckForbiddenSlot(int64_t current_pc) {
@@ -436,10 +446,12 @@ class Simulator {
   }
 
   // ICache.
-  static void CheckICache(v8::internal::HashMap* i_cache, Instruction* instr);
-  static void FlushOnePage(v8::internal::HashMap* i_cache, intptr_t start,
+  static void CheckICache(base::CustomMatcherHashMap* i_cache,
+                          Instruction* instr);
+  static void FlushOnePage(base::CustomMatcherHashMap* i_cache, intptr_t start,
                            size_t size);
-  static CachePage* GetCachePage(v8::internal::HashMap* i_cache, void* page);
+  static CachePage* GetCachePage(base::CustomMatcherHashMap* i_cache,
+                                 void* page);
 
   enum Exception {
     none,
@@ -484,7 +496,7 @@ class Simulator {
   char* last_debugger_input_;
 
   // Icache simulation.
-  v8::internal::HashMap* i_cache_;
+  base::CustomMatcherHashMap* i_cache_;
 
   v8::internal::Isolate* isolate_;
 
@@ -516,18 +528,11 @@ class Simulator {
       reinterpret_cast<int64_t*>(p3), reinterpret_cast<int64_t*>(p4)))
 
 
-#ifdef MIPS_ABI_N64
 #define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
                                    p7, p8)                                     \
   static_cast<int>(Simulator::current(isolate)->Call(                          \
       entry, 10, p0, p1, p2, p3, p4, reinterpret_cast<int64_t*>(p5), p6, p7,   \
       NULL, p8))
-#else  // Must be O32 Abi.
-#define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
-                                   p7, p8)                                     \
-  static_cast<int>(Simulator::current(isolate)->Call(                          \
-      entry, 10, p0, p1, p2, p3, NULL, p4, p5, p6, p7, p8))
-#endif  // MIPS_ABI_N64
 
 
 // The simulator has its own stack. Thus it has a different stack limit from

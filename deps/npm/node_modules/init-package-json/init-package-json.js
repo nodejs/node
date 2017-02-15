@@ -40,7 +40,7 @@ function init (dir, input, config, cb) {
     }
   }
 
-  var package = path.resolve(dir, 'package.json')
+  var packageFile = path.resolve(dir, 'package.json')
   input = path.resolve(input)
   var pkg
   var ctx = { yes: yes(config) }
@@ -49,14 +49,14 @@ function init (dir, input, config, cb) {
   readJson.extraSet = es.filter(function (fn) {
     return fn.name !== 'authors' && fn.name !== 'mans'
   })
-  readJson(package, function (er, d) {
+  readJson(packageFile, function (er, d) {
     readJson.extraSet = es
 
     if (er) pkg = {}
     else pkg = d
 
-    ctx.filename = package
-    ctx.dirname = path.dirname(package)
+    ctx.filename = packageFile
+    ctx.dirname = path.dirname(packageFile)
     ctx.basename = path.basename(ctx.dirname)
     if (!pkg.version || !semver.valid(pkg.version))
       delete pkg.version
@@ -80,7 +80,7 @@ function init (dir, input, config, cb) {
       readJson.extraSet = es.filter(function (fn) {
         return fn.name !== 'authors' && fn.name !== 'mans'
       })
-      readJson.extras(package, pkg, function (er, pkg) {
+      readJson.extras(packageFile, pkg, function (er, pkg) {
         readJson.extraSet = es
         if (er) return cb(er, pkg)
         pkg = unParsePeople(pkg)
@@ -105,9 +105,9 @@ function init (dir, input, config, cb) {
 
         var d = JSON.stringify(pkg, null, 2) + '\n'
         function write (yes) {
-          fs.writeFile(package, d, 'utf8', function (er) {
+          fs.writeFile(packageFile, d, 'utf8', function (er) {
             if (!er && yes && !config.get('silent')) {
-              console.log('Wrote to %s:\n\n%s\n', package, d)
+              console.log('Wrote to %s:\n\n%s\n', packageFile, d)
             }
             return cb(er, pkg)
           })
@@ -115,7 +115,7 @@ function init (dir, input, config, cb) {
         if (ctx.yes) {
           return write(true)
         }
-        console.log('About to write to %s:\n\n%s\n', package, d)
+        console.log('About to write to %s:\n\n%s\n', packageFile, d)
         read({prompt:'Is this ok? ', default: 'yes'}, function (er, ok) {
           if (!ok || ok.toLowerCase().charAt(0) !== 'y') {
             console.log('Aborted.')

@@ -1,21 +1,21 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+require('../common');
+const assert = require('assert');
+const net = require('net');
 
-var events = [];
-var sockets = [];
+const events = [];
+const sockets = [];
 
 process.on('exit', function() {
-  assert.equal(server.connections, 0);
-  assert.equal(events.length, 3);
+  assert.strictEqual(server.connections, 0);
+  assert.strictEqual(events.length, 3);
   // Expect to see one server event and two client events. The order of the
   // events is undefined because they arrive on the same event loop tick.
-  assert.equal(events.join(' ').match(/server/g).length, 1);
-  assert.equal(events.join(' ').match(/client/g).length, 2);
+  assert.strictEqual(events.join(' ').match(/server/g).length, 1);
+  assert.strictEqual(events.join(' ').match(/client/g).length, 2);
 });
 
-var server = net.createServer(function(c) {
+const server = net.createServer(function(c) {
   c.on('close', function() {
     events.push('client');
   });
@@ -32,7 +32,7 @@ server.on('close', function() {
   events.push('server');
 });
 
-server.listen(common.PORT, function() {
-  net.createConnection(common.PORT);
-  net.createConnection(common.PORT);
+server.listen(0, function() {
+  net.createConnection(this.address().port);
+  net.createConnection(this.address().port);
 });

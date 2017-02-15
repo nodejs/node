@@ -2,6 +2,7 @@
 #include "v8.h"
 #include "env.h"
 #include "env-inl.h"
+#include "string_bytes.h"
 
 #include <errno.h>
 #include <string.h>
@@ -16,7 +17,7 @@
 # include <unistd.h>        // gethostname, sysconf
 # include <sys/param.h>     // MAXHOSTNAMELEN on Linux and the BSDs.
 # include <sys/utsname.h>
-#endif  // __MINGW32__
+#endif  // __POSIX__
 
 // Add Windows fallback.
 #ifndef MAXHOSTNAMELEN
@@ -32,6 +33,7 @@ using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::Integer;
 using v8::Local;
+using v8::Null;
 using v8::Number;
 using v8::Object;
 using v8::String;
@@ -67,7 +69,7 @@ static void GetOSType(const FunctionCallbackInfo<Value>& args) {
   }
   rval = info.sysname;
 #else  // __MINGW32__
-  rval ="Windows_NT";
+  rval = "Windows_NT";
 #endif  // __POSIX__
 
   args.GetReturnValue().Set(OneByteString(env->isolate(), rval));
@@ -83,7 +85,14 @@ static void GetOSRelease(const FunctionCallbackInfo<Value>& args) {
   if (uname(&info) < 0) {
     return env->ThrowErrnoException(errno, "uname");
   }
+# ifdef _AIX
+  char release[256];
+  snprintf(release, sizeof(release),
+           "%s.%s", info.version, info.release);
+  rval = release;
+# else
   rval = info.release;
+# endif
 #else  // Windows
   char release[256];
   OSVERSIONINFOW info;
@@ -290,6 +299,72 @@ static void GetHomeDirectory(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  uv_passwd_t pwd;
+  enum encoding encoding;
+
+  if (args[0]->IsObject()) {
+    Local<Object> options = args[0].As<Object>();
+    Local<Value> encoding_opt = options->Get(env->encoding_string());
+    encoding = ParseEncoding(env->isolate(), encoding_opt, UTF8);
+  } else {
+    encoding = UTF8;
+  }
+
+  const int err = uv_os_get_passwd(&pwd);
+
+  if (err) {
+    return env->ThrowUVException(err, "uv_os_get_passwd");
+  }
+
+  Local<Value> uid = Number::New(env->isolate(), pwd.uid);
+  Local<Value> gid = Number::New(env->isolate(), pwd.gid);
+  Local<Value> username = StringBytes::Encode(env->isolate(),
+                                              pwd.username,
+                                              encoding);
+  Local<Value> homedir = StringBytes::Encode(env->isolate(),
+                                             pwd.homedir,
+                                             encoding);
+  Local<Value> shell;
+
+  if (pwd.shell == NULL)
+    shell = Null(env->isolate());
+  else
+    shell = StringBytes::Encode(env->isolate(), pwd.shell, encoding);
+
+  uv_os_free_passwd(&pwd);
+
+  if (username.IsEmpty()) {
+    return env->ThrowUVException(UV_EINVAL,
+                                 "uv_os_get_passwd",
+                                 "Invalid character encoding for username");
+  }
+
+  if (homedir.IsEmpty()) {
+    return env->ThrowUVException(UV_EINVAL,
+                                 "uv_os_get_passwd",
+                                 "Invalid character encoding for homedir");
+  }
+
+  if (shell.IsEmpty()) {
+    return env->ThrowUVException(UV_EINVAL,
+                                 "uv_os_get_passwd",
+                                 "Invalid character encoding for shell");
+  }
+
+  Local<Object> entry = Object::New(env->isolate());
+
+  entry->Set(env->uid_string(), uid);
+  entry->Set(env->gid_string(), gid);
+  entry->Set(env->username_string(), username);
+  entry->Set(env->homedir_string(), homedir);
+  entry->Set(env->shell_string(), shell);
+
+  args.GetReturnValue().Set(entry);
+}
+
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context) {
@@ -304,6 +379,7 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "getOSRelease", GetOSRelease);
   env->SetMethod(target, "getInterfaceAddresses", GetInterfaceAddresses);
   env->SetMethod(target, "getHomeDirectory", GetHomeDirectory);
+  env->SetMethod(target, "getUserInfo", GetUserInfo);
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "isBigEndian"),
               Boolean::New(env->isolate(), IsBigEndian()));
 }

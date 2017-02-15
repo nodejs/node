@@ -10,6 +10,7 @@
 #include <cstdarg>
 
 #include "src/allocation.h"
+#include "src/base/compiler-specific.h"
 #include "src/base/platform/mutex.h"
 #include "src/flags.h"
 
@@ -30,7 +31,7 @@ class Log {
   static bool InitLogAtStart() {
     return FLAG_log || FLAG_log_api || FLAG_log_code || FLAG_log_gc ||
            FLAG_log_handles || FLAG_log_suspect || FLAG_log_regexp ||
-           FLAG_ll_prof || FLAG_perf_basic_prof ||
+           FLAG_ll_prof || FLAG_perf_basic_prof || FLAG_perf_prof ||
            FLAG_log_internal_timer_events || FLAG_prof_cpp;
   }
 
@@ -62,10 +63,10 @@ class Log {
     ~MessageBuilder() { }
 
     // Append string data to the log message.
-    void Append(const char* format, ...);
+    void PRINTF_FORMAT(2, 3) Append(const char* format, ...);
 
     // Append string data to the log message.
-    void AppendVA(const char* format, va_list args);
+    void PRINTF_FORMAT(2, 0) AppendVA(const char* format, va_list args);
 
     // Append a character to the log message.
     void Append(const char c);

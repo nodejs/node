@@ -3,7 +3,7 @@
 const common = require('../../common');
 const assert = require('assert');
 const domain = require('domain');
-const binding = require('./build/Release/binding');
+const binding = require(`./build/${common.buildType}/binding`);
 const makeCallback = binding.makeCallback;
 
 // Make sure this is run in the future.
@@ -24,51 +24,50 @@ assert.throws(function() {
 // TODO(trevnorris): Is there a way to verify this is being run during
 // bootstrap?
 (function verifyExecutionOrder(arg) {
-  const results_arr = [];
+  const results = [];
 
   // Processing of the MicrotaskQueue is manually handled by node. They are not
   // processed until after the nextTickQueue has been processed.
   Promise.resolve(1).then(common.mustCall(function() {
-    results_arr.push(7);
+    results.push(7);
   }));
 
   // The nextTick should run after all immediately invoked calls.
   process.nextTick(common.mustCall(function() {
-    results_arr.push(3);
+    results.push(3);
 
     // Run same test again but while processing the nextTickQueue to make sure
     // the following MakeCallback call breaks in the middle of processing the
     // queue and allows the script to run normally.
     process.nextTick(common.mustCall(function() {
-      results_arr.push(6);
+      results.push(6);
     }));
 
     makeCallback({}, common.mustCall(function() {
-      results_arr.push(4);
+      results.push(4);
     }));
 
-    results_arr.push(5);
+    results.push(5);
   }));
 
-  results_arr.push(0);
+  results.push(0);
 
   // MakeCallback is calling the function immediately, but should then detect
   // that a script is already in the middle of execution and return before
   // either the nextTickQueue or MicrotaskQueue are processed.
   makeCallback({}, common.mustCall(function() {
-    results_arr.push(1);
+    results.push(1);
   }));
 
   // This should run before either the nextTickQueue or MicrotaskQueue are
   // processed. Previously MakeCallback would not detect this circumstance
   // and process them immediately.
-  results_arr.push(2);
+  results.push(2);
 
   setImmediate(common.mustCall(function() {
-    for (var i = 0; i < results_arr.length; i++) {
-      assert.equal(results_arr[i],
-                   i,
-                   `verifyExecutionOrder(${arg}) results: ${results_arr}`);
+    for (let i = 0; i < results.length; i++) {
+      assert.strictEqual(results[i], i,
+                         `verifyExecutionOrder(${arg}) results: ${results}`);
     }
     if (arg === 1) {
       // The tests are first run on bootstrap during LoadEnvironment() in
@@ -102,16 +101,16 @@ function checkDomains() {
     const d2 = domain.create();
     const d3 = domain.create();
 
-    makeCallback({ domain: d1 }, common.mustCall(function() {
-      assert.equal(d1, process.domain);
-      makeCallback({ domain: d2 }, common.mustCall(function() {
-        assert.equal(d2, process.domain);
-        makeCallback({ domain: d3 }, common.mustCall(function() {
-          assert.equal(d3, process.domain);
+    makeCallback({domain: d1}, common.mustCall(function() {
+      assert.strictEqual(d1, process.domain);
+      makeCallback({domain: d2}, common.mustCall(function() {
+        assert.strictEqual(d2, process.domain);
+        makeCallback({domain: d3}, common.mustCall(function() {
+          assert.strictEqual(d3, process.domain);
         }));
-        assert.equal(d2, process.domain);
+        assert.strictEqual(d2, process.domain);
       }));
-      assert.equal(d1, process.domain);
+      assert.strictEqual(d1, process.domain);
     }));
   }));
 
@@ -120,51 +119,33 @@ function checkDomains() {
     const d2 = domain.create();
     const d3 = domain.create();
 
-    makeCallback({ domain: d1 }, common.mustCall(function() {
-      assert.equal(d1, process.domain);
-      makeCallback({ domain: d2 }, common.mustCall(function() {
-        assert.equal(d2, process.domain);
-        makeCallback({ domain: d3 }, common.mustCall(function() {
-          assert.equal(d3, process.domain);
+    makeCallback({domain: d1}, common.mustCall(function() {
+      assert.strictEqual(d1, process.domain);
+      makeCallback({domain: d2}, common.mustCall(function() {
+        assert.strictEqual(d2, process.domain);
+        makeCallback({domain: d3}, common.mustCall(function() {
+          assert.strictEqual(d3, process.domain);
         }));
-        assert.equal(d2, process.domain);
+        assert.strictEqual(d2, process.domain);
       }));
-      assert.equal(d1, process.domain);
+      assert.strictEqual(d1, process.domain);
     }));
   }), 1);
 
-  // Make sure nextTick, setImmediate and setTimeout can all recover properly
-  // after a thrown makeCallback call.
-  process.nextTick(common.mustCall(function() {
+  function testTimer(id) {
+    // Make sure nextTick, setImmediate and setTimeout can all recover properly
+    // after a thrown makeCallback call.
     const d = domain.create();
     d.on('error', common.mustCall(function(e) {
-      assert.equal(e.message, 'throw from domain 3');
+      assert.strictEqual(e.message, `throw from domain ${id}`);
     }));
-    makeCallback({ domain: d }, function() {
-      throw new Error('throw from domain 3');
+    makeCallback({domain: d}, function() {
+      throw new Error(`throw from domain ${id}`);
     });
     throw new Error('UNREACHABLE');
-  }));
+  }
 
-  setImmediate(common.mustCall(function() {
-    const d = domain.create();
-    d.on('error', common.mustCall(function(e) {
-      assert.equal(e.message, 'throw from domain 2');
-    }));
-    makeCallback({ domain: d }, function() {
-      throw new Error('throw from domain 2');
-    });
-    throw new Error('UNREACHABLE');
-  }));
-
-  setTimeout(common.mustCall(function() {
-    const d = domain.create();
-    d.on('error', common.mustCall(function(e) {
-      assert.equal(e.message, 'throw from domain 1');
-    }));
-    makeCallback({ domain: d }, function() {
-      throw new Error('throw from domain 1');
-    });
-    throw new Error('UNREACHABLE');
-  }));
+  process.nextTick(common.mustCall(testTimer), 3);
+  setImmediate(common.mustCall(testTimer), 2);
+  setTimeout(common.mustCall(testTimer), 1, 1);
 }

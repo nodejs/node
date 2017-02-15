@@ -1,19 +1,19 @@
 'use strict';
-require('../common');
-var assert = require('assert');
+const common = require('../common');
+const dgram = require('dgram');
 
-var dgram = require('dgram');
-var closed = false;
+{
+  // Test the case of unref()'ing a socket with a handle.
+  const s = dgram.createSocket('udp4');
+  s.bind();
+  s.unref();
+}
 
-var s = dgram.createSocket('udp4');
-s.bind();
-s.unref();
+{
+  // Test the case of unref()'ing a socket with no handle.
+  const s = dgram.createSocket('udp4');
 
-setTimeout(function() {
-  closed = true;
-  s.close();
-}, 1000).unref();
+  s.close(common.mustCall(() => s.unref()));
+}
 
-process.on('exit', function() {
-  assert.strictEqual(closed, false, 'Unrefd socket should not hold loop open');
-});
+setTimeout(common.mustNotCall(), 1000).unref();

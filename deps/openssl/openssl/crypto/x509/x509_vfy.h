@@ -368,6 +368,7 @@ void X509_STORE_CTX_set_depth(X509_STORE_CTX *ctx, int depth);
 # define         X509_V_ERR_PERMITTED_VIOLATION                  47
 # define         X509_V_ERR_EXCLUDED_VIOLATION                   48
 # define         X509_V_ERR_SUBTREE_MINMAX                       49
+# define         X509_V_ERR_APPLICATION_VERIFICATION             50
 # define         X509_V_ERR_UNSUPPORTED_CONSTRAINT_TYPE          51
 # define         X509_V_ERR_UNSUPPORTED_CONSTRAINT_SYNTAX        52
 # define         X509_V_ERR_UNSUPPORTED_NAME_SYNTAX              53
@@ -386,8 +387,12 @@ void X509_STORE_CTX_set_depth(X509_STORE_CTX *ctx, int depth);
 # define         X509_V_ERR_EMAIL_MISMATCH                       63
 # define         X509_V_ERR_IP_ADDRESS_MISMATCH                  64
 
-/* The application is not happy */
-# define         X509_V_ERR_APPLICATION_VERIFICATION             50
+/* Caller error */
+# define         X509_V_ERR_INVALID_CALL                         65
+/* Issuer lookup error */
+# define         X509_V_ERR_STORE_LOOKUP                         66
+
+# define         X509_V_ERR_PROXY_SUBJECT_NAME_VIOLATION         67
 
 /* Certificate verify flags */
 

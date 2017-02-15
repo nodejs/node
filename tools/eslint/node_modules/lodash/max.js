@@ -1,12 +1,13 @@
 var baseExtremum = require('./_baseExtremum'),
-    gt = require('./gt'),
+    baseGt = require('./_baseGt'),
     identity = require('./identity');
 
 /**
- * Computes the maximum value of `array`. If `array` is empty or falsey
+ * Computes the maximum value of `array`. If `array` is empty or falsey,
  * `undefined` is returned.
  *
  * @static
+ * @since 0.1.0
  * @memberOf _
  * @category Math
  * @param {Array} array The array to iterate over.
@@ -21,7 +22,7 @@ var baseExtremum = require('./_baseExtremum'),
  */
 function max(array) {
   return (array && array.length)
-    ? baseExtremum(array, identity, gt)
+    ? baseExtremum(array, identity, baseGt)
     : undefined;
 }
 

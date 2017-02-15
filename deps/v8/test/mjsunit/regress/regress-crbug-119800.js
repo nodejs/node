@@ -5,9 +5,9 @@
 // Flags: --expose-debug-as debug
 
 function f() {
-  1;
-  2;
-  3;
+  print(1);
+  print(2);
+  print(3);
 }
 
 var Debug = debug.Debug;
@@ -34,4 +34,5 @@ Debug.setListener(null);
 Debug.debuggerFlags().breakPointsActive.setValue(true);
 
 assertNull(exception);
-assertEquals(breaks, ["1;", "2;", "3;", "}", "Debug.setListener(null);"]);
+assertEquals(breaks, ["print(1);", "print(2);", "print(3);", "}",
+                      "Debug.setListener(null);"]);

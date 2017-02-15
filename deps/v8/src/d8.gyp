@@ -31,28 +31,36 @@
     # Enable support for Intel VTune. Supported on ia32/x64 only
     'v8_enable_vtunejit%': 0,
     'v8_enable_i18n_support%': 1,
-    'v8_toolset_for_d8%': 'target',
   },
-  'includes': ['../build/toolchain.gypi', '../build/features.gypi'],
+  'includes': ['../gypfiles/toolchain.gypi', '../gypfiles/features.gypi'],
   'targets': [
     {
       'target_name': 'd8',
       'type': 'executable',
       'dependencies': [
-        '../tools/gyp/v8.gyp:v8',
-        '../tools/gyp/v8.gyp:v8_libplatform',
+        'v8.gyp:v8',
+        'v8.gyp:v8_libplatform',
       ],
       # Generated source files need this explicitly:
       'include_dirs+': [
         '..',
+        '<(DEPTH)',
       ],
       'sources': [
         'd8.h',
         'd8.cc',
+        '<(SHARED_INTERMEDIATE_DIR)/d8-js.cc',
       ],
       'conditions': [
         [ 'want_separate_host_toolset==1', {
-          'toolsets': [ '<(v8_toolset_for_d8)', ],
+          'toolsets': [ 'target', ],
+          'dependencies': [
+            'd8_js2c#host',
+          ],
+        }, {
+          'dependencies': [
+            'd8_js2c',
+          ],
         }],
         ['(OS=="linux" or OS=="mac" or OS=="freebsd" or OS=="netbsd" \
            or OS=="openbsd" or OS=="solaris" or OS=="android" \
@@ -63,19 +71,7 @@
           'sources': [ 'd8-windows.cc', ]
         }],
         [ 'component!="shared_library"', {
-          'sources': [
-            '<(SHARED_INTERMEDIATE_DIR)/d8-js.cc',
-          ],
           'conditions': [
-            [ 'want_separate_host_toolset==1', {
-              'dependencies': [
-                'd8_js2c#host',
-              ],
-            }, {
-              'dependencies': [
-                'd8_js2c',
-              ],
-            }],
             [ 'v8_postmortem_support=="true"', {
               'xcode_settings': {
                 'OTHER_LDFLAGS': [
@@ -141,7 +137,7 @@
     },
   ],
   'conditions': [
-    ['test_isolation_mode != "noop" and v8_toolset_for_d8 == "target"', {
+    ['test_isolation_mode != "noop"', {
       'targets': [
         {
           'target_name': 'd8_run',
@@ -150,7 +146,7 @@
             'd8',
           ],
           'includes': [
-            '../build/isolate.gypi',
+            '../gypfiles/isolate.gypi',
           ],
           'sources': [
             'd8.isolate',

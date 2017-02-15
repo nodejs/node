@@ -4,17 +4,19 @@
 
 #include "src/compiler/graph-visualizer.h"
 
+#include <memory>
 #include <sstream>
 #include <string>
 
 #include "src/code-stubs.h"
+#include "src/compilation-info.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/graph.h"
-#include "src/compiler/node.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/node.h"
 #include "src/compiler/opcodes.h"
-#include "src/compiler/operator.h"
 #include "src/compiler/operator-properties.h"
+#include "src/compiler/operator.h"
 #include "src/compiler/register-allocator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
@@ -25,11 +27,11 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-
-FILE* OpenVisualizerLogFile(CompilationInfo* info, const char* phase,
-                            const char* suffix, const char* mode) {
+std::unique_ptr<char[]> GetVisualizerLogFileName(CompilationInfo* info,
+                                                 const char* phase,
+                                                 const char* suffix) {
   EmbeddedVector<char, 256> filename(0);
-  base::SmartArrayPointer<char> debug_name = info->GetDebugName();
+  std::unique_ptr<char[]> debug_name = info->GetDebugName();
   if (strlen(debug_name.get()) > 0) {
     SNPrintF(filename, "turbo-%s", debug_name.get());
   } else if (info->has_shared_info()) {
@@ -37,16 +39,40 @@ FILE* OpenVisualizerLogFile(CompilationInfo* info, const char* phase,
   } else {
     SNPrintF(filename, "turbo-none-%s", phase);
   }
+  EmbeddedVector<char, 256> source_file(0);
+  bool source_available = false;
+  if (FLAG_trace_file_names && info->parse_info()) {
+    Object* source_name = info->script()->name();
+    if (source_name->IsString()) {
+      String* str = String::cast(source_name);
+      if (str->length() > 0) {
+        SNPrintF(source_file, "%s", str->ToCString().get());
+        std::replace(source_file.start(),
+                     source_file.start() + source_file.length(), '/', '_');
+        source_available = true;
+      }
+    }
+  }
   std::replace(filename.start(), filename.start() + filename.length(), ' ',
                '_');
 
   EmbeddedVector<char, 256> full_filename;
-  if (phase == nullptr) {
+  if (phase == nullptr && !source_available) {
     SNPrintF(full_filename, "%s.%s", filename.start(), suffix);
-  } else {
+  } else if (phase != nullptr && !source_available) {
     SNPrintF(full_filename, "%s-%s.%s", filename.start(), phase, suffix);
+  } else if (phase == nullptr && source_available) {
+    SNPrintF(full_filename, "%s_%s.%s", filename.start(), source_file.start(),
+             suffix);
+  } else {
+    SNPrintF(full_filename, "%s_%s-%s.%s", filename.start(),
+             source_file.start(), phase, suffix);
   }
-  return base::OS::FOpen(full_filename.start(), mode);
+
+  char* buffer = new char[full_filename.length() + 1];
+  memcpy(buffer, full_filename.start(), full_filename.length());
+  buffer[full_filename.length()] = '\0';
+  return std::unique_ptr<char[]>(buffer);
 }
 
 
@@ -60,7 +86,7 @@ static const char* SafeMnemonic(Node* node) {
 class Escaped {
  public:
   explicit Escaped(const std::ostringstream& os,
-                   const char* escaped_chars = "<>|{}")
+                   const char* escaped_chars = "<>|{}\\")
       : str_(os.str()), escaped_chars_(escaped_chars) {}
 
   friend std::ostream& operator<<(std::ostream& os, const Escaped& e) {
@@ -88,10 +114,14 @@ class JSONGraphNodeWriter {
  public:
   JSONGraphNodeWriter(std::ostream& os, Zone* zone, const Graph* graph,
                       const SourcePositionTable* positions)
-      : os_(os), all_(zone, graph), positions_(positions), first_node_(true) {}
+      : os_(os),
+        all_(zone, graph, false),
+        live_(zone, graph, true),
+        positions_(positions),
+        first_node_(true) {}
 
   void Print() {
-    for (Node* const node : all_.live) PrintNode(node);
+    for (Node* const node : all_.reachable) PrintNode(node);
     os_ << "\n";
   }
 
@@ -101,10 +131,15 @@ class JSONGraphNodeWriter {
     } else {
       os_ << ",\n";
     }
-    std::ostringstream label;
-    label << *node->op();
-    os_ << "{\"id\":" << SafeId(node) << ",\"label\":\"" << Escaped(label, "\"")
-        << "\"";
+    std::ostringstream label, title, properties;
+    node->op()->PrintTo(label, Operator::PrintVerbosity::kSilent);
+    node->op()->PrintTo(title, Operator::PrintVerbosity::kVerbose);
+    node->op()->PrintPropsTo(properties);
+    os_ << "{\"id\":" << SafeId(node) << ",\"label\":\""
+        << Escaped(label, "\"\\") << "\""
+        << ",\"title\":\"" << Escaped(title, "\"\\") << "\""
+        << ",\"live\": " << (live_.IsLive(node) ? "true" : "false")
+        << ",\"properties\":\"" << Escaped(properties, "\"\\") << "\"";
     IrOpcode::Value opcode = node->opcode();
     if (IrOpcode::IsPhiOpcode(opcode)) {
       os_ << ",\"rankInputs\":[0," << NodeProperties::FirstControlIndex(node)
@@ -126,11 +161,17 @@ class JSONGraphNodeWriter {
     os_ << ",\"opcode\":\"" << IrOpcode::Mnemonic(node->opcode()) << "\"";
     os_ << ",\"control\":" << (NodeProperties::IsControl(node) ? "true"
                                                                : "false");
+    os_ << ",\"opinfo\":\"" << node->op()->ValueInputCount() << " v "
+        << node->op()->EffectInputCount() << " eff "
+        << node->op()->ControlInputCount() << " ctrl in, "
+        << node->op()->ValueOutputCount() << " v "
+        << node->op()->EffectOutputCount() << " eff "
+        << node->op()->ControlOutputCount() << " ctrl out\"";
     if (NodeProperties::IsTyped(node)) {
       Type* type = NodeProperties::GetType(node);
       std::ostringstream type_out;
       type->PrintTo(type_out);
-      os_ << ",\"type\":\"" << Escaped(type_out, "\"") << "\"";
+      os_ << ",\"type\":\"" << Escaped(type_out, "\"\\") << "\"";
     }
     os_ << "}";
   }
@@ -138,6 +179,7 @@ class JSONGraphNodeWriter {
  private:
   std::ostream& os_;
   AllNodes all_;
+  AllNodes live_;
   const SourcePositionTable* positions_;
   bool first_node_;
 
@@ -148,10 +190,10 @@ class JSONGraphNodeWriter {
 class JSONGraphEdgeWriter {
  public:
   JSONGraphEdgeWriter(std::ostream& os, Zone* zone, const Graph* graph)
-      : os_(os), all_(zone, graph), first_edge_(true) {}
+      : os_(os), all_(zone, graph, false), first_edge_(true) {}
 
   void Print() {
-    for (Node* const node : all_.live) PrintEdges(node);
+    for (Node* const node : all_.reachable) PrintEdges(node);
     os_ << "\n";
   }
 
@@ -197,7 +239,8 @@ class JSONGraphEdgeWriter {
 
 
 std::ostream& operator<<(std::ostream& os, const AsJSON& ad) {
-  Zone tmp_zone;
+  AccountingAllocator allocator;
+  Zone tmp_zone(&allocator);
   os << "{\n\"nodes\":[";
   JSONGraphNodeWriter(os, &tmp_zone, &ad.graph, ad.positions).Print();
   os << "],\n\"edges\":[";
@@ -231,8 +274,8 @@ class GraphC1Visualizer {
   void PrintInputs(InputIterator* i, int count, const char* prefix);
   void PrintType(Node* node);
 
-  void PrintLiveRange(LiveRange* range, const char* type, int vreg);
-  void PrintLiveRangeChain(TopLevelLiveRange* range, const char* type);
+  void PrintLiveRange(const LiveRange* range, const char* type, int vreg);
+  void PrintLiveRangeChain(const TopLevelLiveRange* range, const char* type);
 
   class Tag final BASE_EMBEDDED {
    public:
@@ -302,7 +345,7 @@ void GraphC1Visualizer::PrintIntProperty(const char* name, int value) {
 
 void GraphC1Visualizer::PrintCompilation(const CompilationInfo* info) {
   Tag tag(this, "compilation");
-  base::SmartArrayPointer<char> name = info->GetDebugName();
+  std::unique_ptr<char[]> name = info->GetDebugName();
   if (info->IsOptimizing()) {
     PrintStringProperty("name", name.get());
     PrintIndent();
@@ -490,9 +533,8 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
       for (int j = instruction_block->first_instruction_index();
            j <= instruction_block->last_instruction_index(); j++) {
         PrintIndent();
-        PrintableInstruction printable = {
-            RegisterConfiguration::ArchDefault(RegisterConfiguration::TURBOFAN),
-            instructions->InstructionAt(j)};
+        PrintableInstruction printable = {RegisterConfiguration::Turbofan(),
+                                          instructions->InstructionAt(j)};
         os_ << j << " " << printable << " <|@\n";
       }
     }
@@ -505,47 +547,50 @@ void GraphC1Visualizer::PrintLiveRanges(const char* phase,
   Tag tag(this, "intervals");
   PrintStringProperty("name", phase);
 
-  for (auto range : data->fixed_double_live_ranges()) {
+  for (const TopLevelLiveRange* range : data->fixed_double_live_ranges()) {
     PrintLiveRangeChain(range, "fixed");
   }
 
-  for (auto range : data->fixed_live_ranges()) {
+  for (const TopLevelLiveRange* range : data->fixed_live_ranges()) {
     PrintLiveRangeChain(range, "fixed");
   }
 
-  for (auto range : data->live_ranges()) {
+  for (const TopLevelLiveRange* range : data->live_ranges()) {
     PrintLiveRangeChain(range, "object");
   }
 }
 
-
-void GraphC1Visualizer::PrintLiveRangeChain(TopLevelLiveRange* range,
+void GraphC1Visualizer::PrintLiveRangeChain(const TopLevelLiveRange* range,
                                             const char* type) {
   if (range == nullptr || range->IsEmpty()) return;
   int vreg = range->vreg();
-  for (LiveRange* child = range; child != nullptr; child = child->next()) {
+  for (const LiveRange* child = range; child != nullptr;
+       child = child->next()) {
     PrintLiveRange(child, type, vreg);
   }
 }
 
-
-void GraphC1Visualizer::PrintLiveRange(LiveRange* range, const char* type,
+void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
                                        int vreg) {
   if (range != nullptr && !range->IsEmpty()) {
     PrintIndent();
     os_ << vreg << ":" << range->relative_id() << " " << type;
     if (range->HasRegisterAssigned()) {
       AllocatedOperand op = AllocatedOperand::cast(range->GetAssignedOperand());
-      if (op.IsDoubleRegister()) {
-        DoubleRegister assigned_reg = op.GetDoubleRegister();
-        os_ << " \"" << assigned_reg.ToString() << "\"";
+      const auto config = RegisterConfiguration::Turbofan();
+      if (op.IsRegister()) {
+        os_ << " \"" << config->GetGeneralRegisterName(op.register_code())
+            << "\"";
+      } else if (op.IsDoubleRegister()) {
+        os_ << " \"" << config->GetDoubleRegisterName(op.register_code())
+            << "\"";
       } else {
-        DCHECK(op.IsRegister());
-        Register assigned_reg = op.GetRegister();
-        os_ << " \"" << assigned_reg.ToString() << "\"";
+        DCHECK(op.IsFloatRegister());
+        os_ << " \"" << config->GetFloatRegisterName(op.register_code())
+            << "\"";
       }
     } else if (range->spilled()) {
-      auto top = range->TopLevel();
+      const TopLevelLiveRange* top = range->TopLevel();
       int index = -1;
       if (top->HasSpillRange()) {
         index = kMaxInt;  // This hasn't been set yet.
@@ -555,17 +600,17 @@ void GraphC1Visualizer::PrintLiveRange(LiveRange* range, const char* type,
             << "\"";
       } else {
         index = AllocatedOperand::cast(top->GetSpillOperand())->index();
-        if (top->kind() == DOUBLE_REGISTERS) {
-          os_ << " \"double_stack:" << index << "\"";
-        } else if (top->kind() == GENERAL_REGISTERS) {
+        if (IsFloatingPoint(top->representation())) {
+          os_ << " \"fp_stack:" << index << "\"";
+        } else {
           os_ << " \"stack:" << index << "\"";
         }
       }
     }
 
     os_ << " " << vreg;
-    for (auto interval = range->first_interval(); interval != nullptr;
-         interval = interval->next()) {
+    for (const UseInterval* interval = range->first_interval();
+         interval != nullptr; interval = interval->next()) {
       os_ << " [" << interval->start().value() << ", "
           << interval->end().value() << "[";
     }
@@ -584,14 +629,16 @@ void GraphC1Visualizer::PrintLiveRange(LiveRange* range, const char* type,
 
 
 std::ostream& operator<<(std::ostream& os, const AsC1VCompilation& ac) {
-  Zone tmp_zone;
+  AccountingAllocator allocator;
+  Zone tmp_zone(&allocator);
   GraphC1Visualizer(os, &tmp_zone).PrintCompilation(ac.info_);
   return os;
 }
 
 
 std::ostream& operator<<(std::ostream& os, const AsC1V& ac) {
-  Zone tmp_zone;
+  AccountingAllocator allocator;
+  Zone tmp_zone(&allocator);
   GraphC1Visualizer(os, &tmp_zone)
       .PrintSchedule(ac.phase_, ac.schedule_, ac.positions_, ac.instructions_);
   return os;
@@ -600,7 +647,8 @@ std::ostream& operator<<(std::ostream& os, const AsC1V& ac) {
 
 std::ostream& operator<<(std::ostream& os,
                          const AsC1VRegisterAllocationData& ac) {
-  Zone tmp_zone;
+  AccountingAllocator allocator;
+  Zone tmp_zone(&allocator);
   GraphC1Visualizer(os, &tmp_zone).PrintLiveRanges(ac.phase_, ac.data_);
   return os;
 }
@@ -610,7 +658,22 @@ const int kOnStack = 1;
 const int kVisited = 2;
 
 std::ostream& operator<<(std::ostream& os, const AsRPO& ar) {
-  Zone local_zone;
+  AccountingAllocator allocator;
+  Zone local_zone(&allocator);
+
+  // Do a post-order depth-first search on the RPO graph. For every node,
+  // print:
+  //
+  //   - the node id
+  //   - the operator mnemonic
+  //   - in square brackets its parameter (if present)
+  //   - in parentheses the list of argument ids and their mnemonics
+  //   - the node type (if it is typed)
+
+  // Post-order guarantees that all inputs of a node will be printed before
+  // the node itself, if there are no cycles. Any cycles are broken
+  // arbitrarily.
+
   ZoneVector<byte> state(ar.graph.NodeCount(), kUnvisited, &local_zone);
   ZoneStack<Node*> stack(&local_zone);
 
@@ -631,12 +694,20 @@ std::ostream& operator<<(std::ostream& os, const AsRPO& ar) {
       state[n->id()] = kVisited;
       stack.pop();
       os << "#" << n->id() << ":" << *n->op() << "(";
+      // Print the inputs.
       int j = 0;
       for (Node* const i : n->inputs()) {
         if (j++ > 0) os << ", ";
         os << "#" << SafeId(i) << ":" << SafeMnemonic(i);
       }
-      os << ")" << std::endl;
+      os << ")";
+      // Print the node type, if any.
+      if (NodeProperties::IsTyped(n)) {
+        os << "  [Type: ";
+        NodeProperties::GetType(n)->PrintTo(os);
+        os << "]";
+      }
+      os << std::endl;
     }
   }
   return os;

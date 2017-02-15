@@ -637,17 +637,12 @@ void HGlobalValueNumberingPhase::ProcessLoopBlock(
 }
 
 
-bool HGlobalValueNumberingPhase::AllowCodeMotion() {
-  return info()->IsStub() || info()->opt_count() + 1 < FLAG_max_opt_count;
-}
-
-
 bool HGlobalValueNumberingPhase::ShouldMove(HInstruction* instr,
                                             HBasicBlock* loop_header) {
   // If we've disabled code motion or we're in a block that unconditionally
   // deoptimizes, don't move any instructions.
-  return AllowCodeMotion() && !instr->block()->IsDeoptimizing() &&
-      instr->block()->IsReachable();
+  return graph()->allow_code_motion() && !instr->block()->IsDeoptimizing() &&
+         instr->block()->IsReachable();
 }
 
 

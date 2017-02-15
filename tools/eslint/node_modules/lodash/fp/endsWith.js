@@ -1,2 +1,5 @@
-var convert = require('./convert');
-module.exports = convert('endsWith', require('../endsWith'));
+var convert = require('./convert'),
+    func = convert('endsWith', require('../endsWith'));
+
+func.placeholder = require('./placeholder');
+module.exports = func;

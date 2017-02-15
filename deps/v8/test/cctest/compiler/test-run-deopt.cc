@@ -84,7 +84,6 @@ TEST(DeoptExceptionHandlerCatch) {
 
 TEST(DeoptExceptionHandlerFinally) {
   FLAG_allow_natives_syntax = true;
-  FLAG_turbo_try_finally = true;
 
   FunctionTester T(
       "(function f() {"
@@ -98,9 +97,7 @@ TEST(DeoptExceptionHandlerFinally) {
 
   CompileRun("function DeoptAndThrow(f) { %DeoptimizeFunction(f); throw 0; }");
   InstallIsOptimizedHelper(CcTest::isolate());
-#if 0  // TODO(4195,mstarzinger): Reproduces on MIPS64, re-enable once fixed.
   T.CheckCall(T.false_value());
-#endif
 }
 
 

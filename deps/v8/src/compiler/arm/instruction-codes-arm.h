@@ -27,6 +27,7 @@ namespace compiler {
   V(ArmMul)                        \
   V(ArmMla)                        \
   V(ArmMls)                        \
+  V(ArmSmull)                      \
   V(ArmSmmul)                      \
   V(ArmSmmla)                      \
   V(ArmUmull)                      \
@@ -36,6 +37,7 @@ namespace compiler {
   V(ArmMvn)                        \
   V(ArmBfc)                        \
   V(ArmUbfx)                       \
+  V(ArmSbfx)                       \
   V(ArmSxtb)                       \
   V(ArmSxth)                       \
   V(ArmSxtab)                      \
@@ -43,7 +45,14 @@ namespace compiler {
   V(ArmUxtb)                       \
   V(ArmUxth)                       \
   V(ArmUxtab)                      \
+  V(ArmRbit)                       \
   V(ArmUxtah)                      \
+  V(ArmAddPair)                    \
+  V(ArmSubPair)                    \
+  V(ArmMulPair)                    \
+  V(ArmLslPair)                    \
+  V(ArmLsrPair)                    \
+  V(ArmAsrPair)                    \
   V(ArmVcmpF32)                    \
   V(ArmVaddF32)                    \
   V(ArmVsubF32)                    \
@@ -76,19 +85,31 @@ namespace compiler {
   V(ArmVrintnF64)                  \
   V(ArmVcvtF32F64)                 \
   V(ArmVcvtF64F32)                 \
+  V(ArmVcvtF32S32)                 \
+  V(ArmVcvtF32U32)                 \
   V(ArmVcvtF64S32)                 \
   V(ArmVcvtF64U32)                 \
+  V(ArmVcvtS32F32)                 \
+  V(ArmVcvtU32F32)                 \
   V(ArmVcvtS32F64)                 \
   V(ArmVcvtU32F64)                 \
+  V(ArmVmovU32F32)                 \
+  V(ArmVmovF32U32)                 \
   V(ArmVmovLowU32F64)              \
   V(ArmVmovLowF64U32)              \
   V(ArmVmovHighU32F64)             \
   V(ArmVmovHighF64U32)             \
   V(ArmVmovF64U32U32)              \
+  V(ArmVmovU32U32F64)              \
   V(ArmVldrF32)                    \
   V(ArmVstrF32)                    \
   V(ArmVldrF64)                    \
   V(ArmVstrF64)                    \
+  V(ArmFloat32Max)                 \
+  V(ArmFloat64Max)                 \
+  V(ArmFloat32Min)                 \
+  V(ArmFloat64Min)                 \
+  V(ArmFloat64SilenceNaN)          \
   V(ArmLdrb)                       \
   V(ArmLdrsb)                      \
   V(ArmStrb)                       \
@@ -99,7 +120,6 @@ namespace compiler {
   V(ArmStr)                        \
   V(ArmPush)                       \
   V(ArmPoke)
-
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

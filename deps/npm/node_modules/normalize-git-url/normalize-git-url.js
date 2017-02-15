@@ -23,6 +23,8 @@ module.exports = function normalize (u) {
   if (altered) {
     if (u.match(/^git\+https?/) && parsed.pathname.match(/\/?:[^0-9]/)) {
       returnedUrl = u.replace(/^git\+(.*:[^:]+):(.*)/, '$1/$2')
+    } else if (u.match(/^git\+file/)) {
+      returnedUrl = u.replace(/^git\+/, '')
     } else {
       returnedUrl = u.replace(/^(?:git\+)?ssh:\/\//, '')
     }

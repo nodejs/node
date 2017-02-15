@@ -5,10 +5,7 @@
 #ifndef V8_COMPILER_SELECT_LOWERING_H_
 #define V8_COMPILER_SELECT_LOWERING_H_
 
-#include <map>
-
 #include "src/compiler/graph-reducer.h"
-#include "src/zone-allocator.h"
 
 namespace v8 {
 namespace internal {
@@ -28,17 +25,11 @@ class SelectLowering final : public Reducer {
   Reduction Reduce(Node* node) override;
 
  private:
-  typedef std::multimap<Node*, Node*, std::less<Node*>,
-                        zone_allocator<std::pair<Node* const, Node*>>> Merges;
-
-  bool ReachableFrom(Node* const sink, Node* const source);
-
   CommonOperatorBuilder* common() const { return common_; }
   Graph* graph() const { return graph_; }
 
   CommonOperatorBuilder* common_;
   Graph* graph_;
-  Merges merges_;
 };
 
 }  // namespace compiler

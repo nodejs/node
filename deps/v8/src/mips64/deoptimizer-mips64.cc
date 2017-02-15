@@ -80,27 +80,6 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
 }
 
 
-void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
-  // Set the register values. The values are not important as there are no
-  // callee saved registers in JavaScript frames, so all registers are
-  // spilled. Registers fp and sp are set to the correct values though.
-
-  for (int i = 0; i < Register::kNumRegisters; i++) {
-    input_->SetRegister(i, i * 4);
-  }
-  input_->SetRegister(sp.code(), reinterpret_cast<intptr_t>(frame->sp()));
-  input_->SetRegister(fp.code(), reinterpret_cast<intptr_t>(frame->fp()));
-  for (int i = 0; i < DoubleRegister::kMaxNumRegisters; i++) {
-    input_->SetDoubleRegister(i, 0.0);
-  }
-
-  // Fill the frame content from the actual data on the frame.
-  for (unsigned i = 0; i < input_->GetFrameSize(); i += kPointerSize) {
-    input_->SetFrameSlot(i, Memory::uint64_at(tos + i));
-  }
-}
-
-
 void Deoptimizer::SetPlatformCompiledStubRegisters(
     FrameDescription* output_frame, CodeStubDescriptor* descriptor) {
   ApiFunction function(descriptor->deoptimization_handler());
@@ -118,13 +97,6 @@ void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
     output_frame->SetDoubleRegister(i, double_value);
   }
 }
-
-
-bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
-  // There is no dynamic alignment padding on MIPS in the input frame.
-  return false;
-}
-
 
 #define __ masm()->
 
@@ -145,8 +117,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   // Save all FPU registers before messing with them.
   __ Dsubu(sp, sp, Operand(kDoubleRegsSize));
-  const RegisterConfiguration* config =
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
+  const RegisterConfiguration* config = RegisterConfiguration::Crankshaft();
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     const DoubleRegister fpu_reg = DoubleRegister::from_code(code);
@@ -183,20 +154,19 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   // Allocate a new deoptimizer object.
   __ PrepareCallCFunction(6, a5);
-  // Pass six arguments, according to O32 or n64 ABI. a0..a3 are same for both.
-  __ li(a1, Operand(type()));  // bailout type,
+  // Pass six arguments, according to n64 ABI.
+  __ mov(a0, zero_reg);
+  Label context_check;
+  __ ld(a1, MemOperand(fp, CommonFrameConstants::kContextOrFrameTypeOffset));
+  __ JumpIfSmi(a1, &context_check);
   __ ld(a0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  __ bind(&context_check);
+  __ li(a1, Operand(type()));  // Bailout type.
   // a2: bailout id already loaded.
   // a3: code address or 0 already loaded.
-  if (kMipsAbi == kN64) {
-    // a4: already has fp-to-sp delta.
-    __ li(a5, Operand(ExternalReference::isolate_address(isolate())));
-  } else {  // O32 abi.
-    // Pass four arguments in a0 to a3 and fifth & sixth arguments on stack.
-    __ sd(a4, CFunctionArgumentOperand(5));  // Fp-to-sp delta.
-    __ li(a5, Operand(ExternalReference::isolate_address(isolate())));
-    __ sd(a5, CFunctionArgumentOperand(6));  // Isolate.
-  }
+  // a4: already has fp-to-sp delta.
+  __ li(a5, Operand(ExternalReference::isolate_address(isolate())));
+
   // Call Deoptimizer::New().
   {
     AllowExternalCallThatCantCauseGC scope(masm());
@@ -266,6 +236,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   }
   __ pop(a0);  // Restore deoptimizer object (class Deoptimizer).
 
+  __ ld(sp, MemOperand(a0, Deoptimizer::caller_frame_top_offset()));
+
   // Replace the current (input) frame with the output frames.
   Label outer_push_loop, inner_push_loop,
       outer_loop_header, inner_loop_header;
@@ -273,8 +245,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // a1 = one past the last FrameDescription**.
   __ lw(a1, MemOperand(a0, Deoptimizer::output_count_offset()));
   __ ld(a4, MemOperand(a0, Deoptimizer::output_offset()));  // a4 is output_.
-  __ dsll(a1, a1, kPointerSizeLog2);  // Count to offset.
-  __ daddu(a1, a4, a1);  // a1 = one past the last FrameDescription**.
+  __ Dlsa(a1, a4, a1, kPointerSizeLog2);
   __ BranchShort(&outer_loop_header);
   __ bind(&outer_push_loop);
   // Inner loop state: a2 = current FrameDescription*, a3 = loop index.

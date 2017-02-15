@@ -193,7 +193,8 @@ void TermPerfCountersWin32() {
 
 
 void NODE_COUNT_HTTP_SERVER_REQUEST() {
-  if (NodeCounterProvider != nullptr && perfctr_incrementULongValue != nullptr) {
+  if (NodeCounterProvider != nullptr &&
+      perfctr_incrementULongValue != nullptr) {
     perfctr_incrementULongValue(NodeCounterProvider,
                                 perfctr_instance,
                                 NODE_COUNTER_HTTP_SERVER_REQUEST,
@@ -203,7 +204,8 @@ void NODE_COUNT_HTTP_SERVER_REQUEST() {
 
 
 void NODE_COUNT_HTTP_SERVER_RESPONSE() {
-  if (NodeCounterProvider != nullptr && perfctr_incrementULongValue != nullptr) {
+  if (NodeCounterProvider != nullptr &&
+      perfctr_incrementULongValue != nullptr) {
     perfctr_incrementULongValue(NodeCounterProvider,
                                 perfctr_instance,
                                 NODE_COUNTER_HTTP_SERVER_RESPONSE,
@@ -213,7 +215,8 @@ void NODE_COUNT_HTTP_SERVER_RESPONSE() {
 
 
 void NODE_COUNT_HTTP_CLIENT_REQUEST() {
-  if (NodeCounterProvider != nullptr && perfctr_incrementULongValue != nullptr) {
+  if (NodeCounterProvider != nullptr &&
+      perfctr_incrementULongValue != nullptr) {
     perfctr_incrementULongValue(NodeCounterProvider,
                                 perfctr_instance,
                                 NODE_COUNTER_HTTP_CLIENT_REQUEST,
@@ -223,7 +226,8 @@ void NODE_COUNT_HTTP_CLIENT_REQUEST() {
 
 
 void NODE_COUNT_HTTP_CLIENT_RESPONSE() {
-  if (NodeCounterProvider != nullptr && perfctr_incrementULongValue != nullptr) {
+  if (NodeCounterProvider != nullptr &&
+      perfctr_incrementULongValue != nullptr) {
     perfctr_incrementULongValue(NodeCounterProvider,
                                 perfctr_instance,
                                 NODE_COUNTER_HTTP_CLIENT_RESPONSE,
@@ -233,7 +237,8 @@ void NODE_COUNT_HTTP_CLIENT_RESPONSE() {
 
 
 void NODE_COUNT_SERVER_CONN_OPEN() {
-  if (NodeCounterProvider != nullptr && perfctr_incrementULongValue != nullptr) {
+  if (NodeCounterProvider != nullptr &&
+      perfctr_incrementULongValue != nullptr) {
     perfctr_incrementULongValue(NodeCounterProvider,
                                 perfctr_instance,
                                 NODE_COUNTER_SERVER_CONNS,
@@ -243,7 +248,8 @@ void NODE_COUNT_SERVER_CONN_OPEN() {
 
 
 void NODE_COUNT_SERVER_CONN_CLOSE() {
-  if (NodeCounterProvider != nullptr && perfctr_decrementULongValue != nullptr) {
+  if (NodeCounterProvider != nullptr &&
+      perfctr_decrementULongValue != nullptr) {
     perfctr_decrementULongValue(NodeCounterProvider,
                                 perfctr_instance,
                                 NODE_COUNTER_SERVER_CONNS,
@@ -253,7 +259,8 @@ void NODE_COUNT_SERVER_CONN_CLOSE() {
 
 
 void NODE_COUNT_NET_BYTES_SENT(int bytes) {
-  if (NodeCounterProvider != nullptr && perfctr_incrementULongLongValue != nullptr) {
+  if (NodeCounterProvider != nullptr &&
+      perfctr_incrementULongLongValue != nullptr) {
     perfctr_incrementULongLongValue(NodeCounterProvider,
                                     perfctr_instance,
                                     NODE_COUNTER_NET_BYTES_SENT,
@@ -263,7 +270,8 @@ void NODE_COUNT_NET_BYTES_SENT(int bytes) {
 
 
 void NODE_COUNT_NET_BYTES_RECV(int bytes) {
-  if (NodeCounterProvider != nullptr && perfctr_incrementULongLongValue != nullptr) {
+  if (NodeCounterProvider != nullptr &&
+      perfctr_incrementULongLongValue != nullptr) {
     perfctr_incrementULongLongValue(NodeCounterProvider,
                                     perfctr_instance,
                                     NODE_COUNTER_NET_BYTES_RECV,
@@ -293,7 +301,8 @@ void NODE_COUNT_GC_PERCENTTIME(unsigned int percent) {
 
 
 void NODE_COUNT_PIPE_BYTES_SENT(int bytes) {
-  if (NodeCounterProvider != nullptr && perfctr_incrementULongLongValue != nullptr) {
+  if (NodeCounterProvider != nullptr &&
+      perfctr_incrementULongLongValue != nullptr) {
     perfctr_incrementULongLongValue(NodeCounterProvider,
                                     perfctr_instance,
                                     NODE_COUNTER_PIPE_BYTES_SENT,
@@ -303,7 +312,8 @@ void NODE_COUNT_PIPE_BYTES_SENT(int bytes) {
 
 
 void NODE_COUNT_PIPE_BYTES_RECV(int bytes) {
-  if (NodeCounterProvider != nullptr && perfctr_incrementULongLongValue != nullptr) {
+  if (NodeCounterProvider != nullptr &&
+      perfctr_incrementULongLongValue != nullptr) {
     perfctr_incrementULongLongValue(NodeCounterProvider,
                                     perfctr_instance,
                                     NODE_COUNTER_PIPE_BYTES_RECV,

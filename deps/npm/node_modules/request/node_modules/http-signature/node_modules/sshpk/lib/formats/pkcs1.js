@@ -19,12 +19,12 @@ var pem = require('./pem');
 var pkcs8 = require('./pkcs8');
 var readECDSACurve = pkcs8.readECDSACurve;
 
-function read(buf) {
-	return (pem.read(buf, 'pkcs1'));
+function read(buf, options) {
+	return (pem.read(buf, options, 'pkcs1'));
 }
 
-function write(key) {
-	return (pem.write(key, 'pkcs1'));
+function write(key, options) {
+	return (pem.write(key, options, 'pkcs1'));
 }
 
 /* Helper to read in a single mpint */

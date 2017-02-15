@@ -1,0 +1,85 @@
+{
+  "_args": [
+    [
+      "wide-align@^1.1.0",
+      "/Users/rebecca/code/npm-with-new-gauge/node_modules/npmlog/node_modules/gauge"
+    ]
+  ],
+  "_from": "wide-align@>=1.1.0 <2.0.0",
+  "_id": "wide-align@1.1.0",
+  "_inCache": true,
+  "_installable": true,
+  "_location": "/npmlog/gauge/wide-align",
+  "_nodeVersion": "4.2.2",
+  "_npmUser": {
+    "email": "me@re-becca.org",
+    "name": "iarna"
+  },
+  "_npmVersion": "3.5.3",
+  "_phantomChildren": {},
+  "_requested": {
+    "name": "wide-align",
+    "raw": "wide-align@^1.1.0",
+    "rawSpec": "^1.1.0",
+    "scope": null,
+    "spec": ">=1.1.0 <2.0.0",
+    "type": "range"
+  },
+  "_requiredBy": [
+    "/npmlog/gauge"
+  ],
+  "_resolved": "https://registry.npmjs.org/wide-align/-/wide-align-1.1.0.tgz",
+  "_shasum": "40edde802a71fea1f070da3e62dcda2e7add96ad",
+  "_shrinkwrap": null,
+  "_spec": "wide-align@^1.1.0",
+  "_where": "/Users/rebecca/code/npm-with-new-gauge/node_modules/npmlog/node_modules/gauge",
+  "author": {
+    "email": "me@re-becca.org",
+    "name": "Rebecca Turner",
+    "url": "http://re-becca.org/"
+  },
+  "bugs": {
+    "url": "https://github.com/iarna/wide-align/issues"
+  },
+  "dependencies": {
+    "string-width": "^1.0.1"
+  },
+  "description": "A wide-character aware text alignment function for use on the console or with fixed width fonts.",
+  "devDependencies": {
+    "tap": "^2.3.2"
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "40edde802a71fea1f070da3e62dcda2e7add96ad",
+    "tarball": "http://registry.npmjs.org/wide-align/-/wide-align-1.1.0.tgz"
+  },
+  "gitHead": "fe3f7f210650913d5bee702d7e19938f6977bc8a",
+  "homepage": "https://github.com/iarna/wide-align#readme",
+  "keywords": [
+    "wide",
+    "double",
+    "unicode",
+    "cjkv",
+    "pad",
+    "align"
+  ],
+  "license": "ISC",
+  "main": "align.js",
+  "maintainers": [
+    {
+      "email": "me@re-becca.org",
+      "name": "iarna"
+    }
+  ],
+  "name": "wide-align",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iarna/wide-align.git"
+  },
+  "scripts": {
+    "test": "tap --coverage test/*.js"
+  },
+  "version": "1.1.0"
+}

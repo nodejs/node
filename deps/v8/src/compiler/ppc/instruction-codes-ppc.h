@@ -19,10 +19,13 @@ namespace compiler {
   V(PPC_Xor)                       \
   V(PPC_ShiftLeft32)               \
   V(PPC_ShiftLeft64)               \
+  V(PPC_ShiftLeftPair)             \
   V(PPC_ShiftRight32)              \
   V(PPC_ShiftRight64)              \
+  V(PPC_ShiftRightPair)            \
   V(PPC_ShiftRightAlg32)           \
   V(PPC_ShiftRightAlg64)           \
+  V(PPC_ShiftRightAlgPair)         \
   V(PPC_RotRight32)                \
   V(PPC_RotRight64)                \
   V(PPC_Not)                       \
@@ -32,14 +35,18 @@ namespace compiler {
   V(PPC_RotLeftAndClearRight64)    \
   V(PPC_Add)                       \
   V(PPC_AddWithOverflow32)         \
+  V(PPC_AddPair)                   \
   V(PPC_AddDouble)                 \
   V(PPC_Sub)                       \
   V(PPC_SubWithOverflow32)         \
+  V(PPC_SubPair)                   \
   V(PPC_SubDouble)                 \
   V(PPC_Mul32)                     \
+  V(PPC_Mul32WithHigh32)          \
   V(PPC_Mul64)                     \
   V(PPC_MulHigh32)                 \
   V(PPC_MulHighU32)                \
+  V(PPC_MulPair)                   \
   V(PPC_MulDouble)                 \
   V(PPC_Div32)                     \
   V(PPC_Div64)                     \
@@ -82,9 +89,12 @@ namespace compiler {
   V(PPC_Int64ToDouble)             \
   V(PPC_Uint64ToFloat32)           \
   V(PPC_Uint64ToDouble)            \
+  V(PPC_Int32ToFloat32)            \
   V(PPC_Int32ToDouble)             \
+  V(PPC_Uint32ToFloat32)           \
   V(PPC_Uint32ToDouble)            \
   V(PPC_Float32ToDouble)           \
+  V(PPC_Float64SilenceNaN)         \
   V(PPC_DoubleToInt32)             \
   V(PPC_DoubleToUint32)            \
   V(PPC_DoubleToInt64)             \
@@ -104,6 +114,7 @@ namespace compiler {
   V(PPC_LoadWordS16)               \
   V(PPC_LoadWordU16)               \
   V(PPC_LoadWordS32)               \
+  V(PPC_LoadWordU32)               \
   V(PPC_LoadWord64)                \
   V(PPC_LoadFloat32)               \
   V(PPC_LoadDouble)                \
@@ -113,7 +124,6 @@ namespace compiler {
   V(PPC_StoreWord64)               \
   V(PPC_StoreFloat32)              \
   V(PPC_StoreDouble)
-
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

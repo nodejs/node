@@ -1,12 +1,13 @@
 var baseExtremum = require('./_baseExtremum'),
-    identity = require('./identity'),
-    lt = require('./lt');
+    baseLt = require('./_baseLt'),
+    identity = require('./identity');
 
 /**
- * Computes the minimum value of `array`. If `array` is empty or falsey
+ * Computes the minimum value of `array`. If `array` is empty or falsey,
  * `undefined` is returned.
  *
  * @static
+ * @since 0.1.0
  * @memberOf _
  * @category Math
  * @param {Array} array The array to iterate over.
@@ -21,7 +22,7 @@ var baseExtremum = require('./_baseExtremum'),
  */
 function min(array) {
   return (array && array.length)
-    ? baseExtremum(array, identity, lt)
+    ? baseExtremum(array, identity, baseLt)
     : undefined;
 }
 

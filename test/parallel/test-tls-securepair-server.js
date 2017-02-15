@@ -1,33 +1,37 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
 
-var join = require('path').join;
-var net = require('net');
-var fs = require('fs');
-var spawn = require('child_process').spawn;
+if (!common.opensslCli) {
+  common.skip('missing openssl-cli');
+  return;
+}
 
-var connections = 0;
-var key = fs.readFileSync(join(common.fixturesDir, 'agent.key')).toString();
-var cert = fs.readFileSync(join(common.fixturesDir, 'agent.crt')).toString();
+const tls = require('tls');
+
+const join = require('path').join;
+const net = require('net');
+const fs = require('fs');
+const spawn = require('child_process').spawn;
+
+const key = fs.readFileSync(join(common.fixturesDir, 'agent.key')).toString();
+const cert = fs.readFileSync(join(common.fixturesDir, 'agent.crt')).toString();
 
 function log(a) {
   console.error('***server*** ' + a);
 }
 
-var server = net.createServer(function(socket) {
-  connections++;
+const server = net.createServer(common.mustCall(function(socket) {
   log('connection fd=' + socket.fd);
-  var sslcontext = tls.createSecureContext({key: key, cert: cert});
+  const sslcontext = tls.createSecureContext({key: key, cert: cert});
   sslcontext.context.setCiphers('RC4-SHA:AES128-SHA:AES256-SHA');
 
-  var pair = tls.createSecurePair(sslcontext, true);
+  const pair = tls.createSecurePair(sslcontext, true);
 
   assert.ok(pair.encrypted.writable);
   assert.ok(pair.cleartext.writable);
@@ -84,26 +88,25 @@ var server = net.createServer(function(socket) {
     log(err.stack);
     socket.destroy();
   });
-});
+}));
 
-var gotHello = false;
-var sentWorld = false;
-var gotWorld = false;
-var opensslExitCode = -1;
+let gotHello = false;
+let sentWorld = false;
+let gotWorld = false;
 
-server.listen(common.PORT, function() {
+server.listen(0, common.mustCall(function() {
   // To test use: openssl s_client -connect localhost:8000
 
-  var args = ['s_client', '-connect', '127.0.0.1:' + common.PORT];
+  const args = ['s_client', '-connect', `127.0.0.1:${this.address().port}`];
 
   // for the performance and stability issue in s_client on Windows
   if (common.isWindows)
     args.push('-no_rand_screen');
 
-  var client = spawn(common.opensslCli, args);
+  const client = spawn(common.opensslCli, args);
 
 
-  var out = '';
+  let out = '';
 
   client.stdout.setEncoding('utf8');
   client.stdout.on('data', function(d) {
@@ -123,16 +126,14 @@ server.listen(common.PORT, function() {
 
   client.stdout.pipe(process.stdout, { end: false });
 
-  client.on('exit', function(code) {
-    opensslExitCode = code;
+  client.on('exit', common.mustCall(function(code) {
+    assert.strictEqual(0, code);
     server.close();
-  });
-});
+  }));
+}));
 
 process.on('exit', function() {
-  assert.equal(1, connections);
   assert.ok(gotHello);
   assert.ok(sentWorld);
   assert.ok(gotWorld);
-  assert.equal(0, opensslExitCode);
 });

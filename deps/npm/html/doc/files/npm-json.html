@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
   <title>package.json</title>
-  <meta http-equiv="content-type" value="text/html;utf-8">
+  <meta charset="utf-8">
   <link rel="stylesheet" type="text/css" href="../../static/style.css">
   <link rel="canonical" href="https://www.npmjs.org/doc/files/package.json.html">
   <script async=true src="../../static/toc.js"></script>
@@ -62,10 +62,6 @@ package, as it&#39;s listed in <code>npm search</code>.</p>
 discover your package as it&#39;s listed in <code>npm search</code>.</p>
 <h2 id="homepage">homepage</h2>
 <p>The url to the project homepage.</p>
-<p><strong>NOTE</strong>: This is <em>not</em> the same as &quot;url&quot;.  If you put a &quot;url&quot; field,
-then the registry will think it&#39;s a redirection to your package that has
-been published somewhere else, and spit at you.</p>
-<p>Literally.  Spit.  I&#39;m so not kidding.</p>
 <h2 id="bugs">bugs</h2>
 <p>The url to your project&#39;s issue tracker and / or the email address to which
 issues should be reported. These are helpful for people who encounter issues
@@ -90,7 +86,7 @@ Ideally you should pick one that is
 expression syntax version 2.0 string</a>, like this:</p>
 <pre><code>{ &quot;license&quot; : &quot;(ISC OR GPL-3.0)&quot; }
 </code></pre><p>If you are using a license that hasn&#39;t been assigned an SPDX identifier, or if
-you are using a custom license, use the following valid SPDX expression:</p>
+you are using a custom license, use a string value like this one:</p>
 <pre><code>{ &quot;license&quot; : &quot;SEE LICENSE IN &lt;filename&gt;&quot; }
 </code></pre><p>Then include a file named <code>&lt;filename&gt;</code> at the top level of the package.</p>
 <p>Some old packages used license objects or a &quot;licenses&quot; property containing an
@@ -143,10 +139,13 @@ works just like a <code>.gitignore</code>.</p>
 <p>Certain files are always included, regardless of settings:</p>
 <ul>
 <li><code>package.json</code></li>
-<li><code><a href="../../doc/README.html">README</a></code> (and its variants)</li>
-<li><code>CHANGELOG</code> (and its variants)</li>
+<li><code><a href="../../doc/README.html">README</a></code></li>
+<li><code>CHANGES</code> / <code>CHANGELOG</code> / <code>HISTORY</code></li>
 <li><code>LICENSE</code> / <code>LICENCE</code></li>
+<li><code>NOTICE</code></li>
+<li>The file in the &quot;main&quot; field</li>
 </ul>
+<p><code><a href="../../doc/README.html">README</a></code>, <code>CHANGES</code>, <code>LICENSE</code> &amp; <code>NOTICE</code> can have any case and extension.</p>
 <p>Conversely, some files are always ignored:</p>
 <ul>
 <li><code>.git</code></li>
@@ -155,10 +154,14 @@ works just like a <code>.gitignore</code>.</p>
 <li><code>.hg</code></li>
 <li><code>.lock-wscript</code></li>
 <li><code>.wafpickle-N</code></li>
-<li><code>*.swp</code></li>
+<li><code>.*.swp</code></li>
 <li><code>.DS_Store</code></li>
 <li><code>._*</code></li>
 <li><code>npm-debug.log</code></li>
+<li><code>.npmrc</code></li>
+<li><code>node_modules</code></li>
+<li><code>config.gypi</code></li>
+<li><code>*.orig</code></li>
 </ul>
 <h2 id="main">main</h2>
 <p>The main field is a module ID that is the primary entry point to your program.
@@ -188,7 +191,10 @@ of the package, then you can just supply it as a string.  For example:</p>
 <pre><code>{ &quot;name&quot;: &quot;my-program&quot;
 , &quot;version&quot;: &quot;1.2.5&quot;
 , &quot;bin&quot; : { &quot;my-program&quot; : &quot;./path/to/program&quot; } }
-</code></pre><h2 id="man">man</h2>
+</code></pre><p>Please make sure that your file(s) referenced in <code>bin</code> starts with
+<code>#!/usr/bin/env node</code>, otherwise the scripts are started without the node
+executable!</p>
+<h2 id="man">man</h2>
 <p>Specify either a single file or an array of filenames to put in place for the
 <code>man</code> program to find.</p>
 <p>If only a single file is provided, then it&#39;s installed such that it is the
@@ -242,6 +248,9 @@ walking the folder.</p>
 maybe, someday.</p>
 <h3 id="directories-example">directories.example</h3>
 <p>Put example scripts in here.  Someday, it might be exposed in some clever way.</p>
+<h3 id="directories-test">directories.test</h3>
+<p>Put your tests in here. It is currently not exposed, but it might be in the
+future.</p>
 <h2 id="repository">repository</h2>
 <p>Specify the place where your code lives. This is helpful for people who
 want to contribute.  If the git repo is on GitHub, then the <code>npm docs</code>
@@ -308,7 +317,7 @@ tarball or git URL.</p>
 <li><code>range1 || range2</code> Passes if either range1 or range2 are satisfied.</li>
 <li><code>git...</code> See &#39;Git URLs as Dependencies&#39; below</li>
 <li><code>user/repo</code> See &#39;GitHub URLs&#39; below</li>
-<li><code>tag</code> A specific version tagged and published as <code>tag</code>  See <code><a href="../cli/npm-tag.html">npm-tag(1)</a></code></li>
+<li><code>tag</code> A specific version tagged and published as <code>tag</code>  See <code><a href="../cli/npm-dist-tag.html">npm-dist-tag(1)</a></code></li>
 <li><code>path/path/path</code> See <a href="#local-paths">Local Paths</a> below</li>
 </ul>
 <p>For example, these are all valid:</p>
@@ -348,8 +357,9 @@ included.  For example:</p>
   &quot;name&quot;: &quot;foo&quot;,
   &quot;version&quot;: &quot;0.0.0&quot;,
   &quot;dependencies&quot;: {
-    &quot;express&quot;: &quot;visionmedia/express&quot;,
-    &quot;mocha&quot;: &quot;visionmedia/mocha#4727d357ea&quot;
+    &quot;express&quot;: &quot;expressjs/express&quot;,
+    &quot;mocha&quot;: &quot;mochajs/mocha#4727d357ea&quot;,
+    &quot;module&quot;: &quot;user/repo#feature\/branch&quot;
   }
 }
 </code></pre><h2 id="local-paths">Local Paths</h2>
@@ -382,7 +392,7 @@ object.</p>
 from the root of a package, and can be managed like any other npm
 configuration param.  See <code><a href="../misc/npm-config.html">npm-config(7)</a></code> for more on the topic.</p>
 <p>For build steps that are not platform-specific, such as compiling
-CoffeeScript or other languages to JavaScript, use the <code>prepublish</code>
+CoffeeScript or other languages to JavaScript, use the <code>prepare</code>
 script to do this, and make the required package a devDependency.</p>
 <p>For example:</p>
 <pre><code>{ &quot;name&quot;: &quot;ethopia-waza&quot;,
@@ -392,11 +402,11 @@ script to do this, and make the required package a devDependency.</p>
     &quot;coffee-script&quot;: &quot;~1.6.3&quot;
   },
   &quot;scripts&quot;: {
-    &quot;prepublish&quot;: &quot;coffee -o lib/ -c src/waza.coffee&quot;
+    &quot;prepare&quot;: &quot;coffee -o lib/ -c src/waza.coffee&quot;
   },
   &quot;main&quot;: &quot;lib/waza.js&quot;
 }
-</code></pre><p>The <code>prepublish</code> script will be run before publishing, so that users
+</code></pre><p>The <code>prepare</code> script will be run before publishing, so that users
 can consume the functionality without requiring them to compile it
 themselves.  In dev mode (ie, locally running <code>npm install</code>), it&#39;ll
 run this script as well, so that you can test it easily.</p>
@@ -432,7 +442,25 @@ the host package&#39;s major version will break your plugin. Thus, if you&#39;ve
 with every 1.x version of the host package, use <code>&quot;^1.0&quot;</code> or <code>&quot;1.x&quot;</code> to express
 this. If you depend on features introduced in 1.5.2, use <code>&quot;&gt;= 1.5.2 &lt; 2&quot;</code>.</p>
 <h2 id="bundleddependencies">bundledDependencies</h2>
-<p>Array of package names that will be bundled when publishing the package.</p>
+<p>This defines an array of package names that will be bundled when publishing
+the package.</p>
+<p>In cases where you need to preserve npm packages locally or have them
+available through a single file download, you can bundle the packages in a
+tarball file by specifying the package names in the <code>bundledDependencies</code>
+array and executing <code>npm pack</code>.</p>
+<p>For example:</p>
+<p>If we define a package.json like this:</p>
+<pre><code>{
+  &quot;name&quot;: &quot;awesome-web-framework&quot;,
+  &quot;version&quot;: &quot;1.0.0&quot;,
+  &quot;bundledDependencies&quot;: [
+    &#39;renderized&#39;, &#39;super-streams&#39;
+  ]
+}
+</code></pre><p>we can obtain <code>awesome-web-framework-1.0.0.tgz</code> file by running <code>npm pack</code>.
+This file contains the dependencies <code>renderized</code> and <code>super-streams</code> which
+can be installed in a new project by executing <code>npm install
+awesome-web-framework-1.0.0.tgz</code>.</p>
 <p>If this is spelled <code>&quot;bundleDependencies&quot;</code>, then that is also honored.</p>
 <h2 id="optionaldependencies">optionalDependencies</h2>
 <p>If a dependency can be used, but you would like npm to proceed if it cannot be
@@ -470,12 +498,12 @@ that it works on node.</p>
 <p>You can also use the &quot;engines&quot; field to specify which versions of npm
 are capable of properly installing your program.  For example:</p>
 <pre><code>{ &quot;engines&quot; : { &quot;npm&quot; : &quot;~1.0.20&quot; } }
-</code></pre><p>Note that, unless the user has set the <code>engine-strict</code> config flag, this
-field is advisory only.</p>
+</code></pre><p>Unless the user has set the <code>engine-strict</code> config flag, this
+field is advisory only will produce warnings when your package is installed as a dependency.</p>
 <h2 id="enginestrict">engineStrict</h2>
-<p><strong>This feature was deprecated with npm 3.0.0</strong></p>
+<p><strong>This feature was removed in npm 3.0.0</strong></p>
 <p>Prior to npm 3.0.0, this feature was used to treat this package as if the
-user had set <code>engine-strict</code>.</p>
+user had set <code>engine-strict</code>. It is no longer used.</p>
 <h2 id="os">os</h2>
 <p>You can specify which operating systems your
 module will run on:</p>
@@ -523,9 +551,9 @@ overridden.</p>
 <p>If there is a <code>server.js</code> file in the root of your package, then npm
 will default the <code>start</code> command to <code>node server.js</code>.</p>
 </li>
-<li><p><code>&quot;scripts&quot;:{&quot;preinstall&quot;: &quot;node-gyp rebuild&quot;}</code></p>
-<p>If there is a <code>binding.gyp</code> file in the root of your package, npm will
-default the <code>preinstall</code> command to compile using node-gyp.</p>
+<li><p><code>&quot;scripts&quot;:{&quot;install&quot;: &quot;node-gyp rebuild&quot;}</code></p>
+<p>If there is a <code>binding.gyp</code> file in the root of your package and you have not defined an <code>install</code> or <code>preinstall</code> script, npm will
+default the <code>install</code> command to compile using node-gyp.</p>
 </li>
 <li><p><code>&quot;contributors&quot;: [...]</code></p>
 <p>If there is an <code>AUTHORS</code> file in the root of your package, npm will
@@ -542,7 +570,6 @@ ignored.</p>
 <li><a href="../cli/npm-config.html">npm-config(1)</a></li>
 <li><a href="../misc/npm-config.html">npm-config(7)</a></li>
 <li><a href="../cli/npm-help.html">npm-help(1)</a></li>
-<li><a href="../misc/npm-faq.html">npm-faq(7)</a></li>
 <li><a href="../cli/npm-install.html">npm-install(1)</a></li>
 <li><a href="../cli/npm-publish.html">npm-publish(1)</a></li>
 <li><a href="../cli/npm-uninstall.html">npm-uninstall(1)</a></li>
@@ -559,5 +586,5 @@ ignored.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">package.json &mdash; npm@3.6.0</p>
+<p id="footer">package.json &mdash; npm@4.1.2</p>
 

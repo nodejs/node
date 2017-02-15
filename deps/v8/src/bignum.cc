@@ -539,13 +539,6 @@ static int SizeInHexChars(S number) {
 }
 
 
-static char HexCharOfValue(int value) {
-  DCHECK(0 <= value && value <= 16);
-  if (value < 10) return value + '0';
-  return value - 10 + 'A';
-}
-
-
 bool Bignum::ToHexString(char* buffer, int buffer_size) const {
   DCHECK(IsClamped());
   // Each bigit must be printable as separate hex-character.

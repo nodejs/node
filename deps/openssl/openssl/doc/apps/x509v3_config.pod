@@ -104,7 +104,7 @@ Examples:
 This extensions consists of a list of usages indicating purposes for which
 the certificate public key can be used for,
 
-These can either be object short names of the dotted numerical form of OIDs.
+These can either be object short names or the dotted numerical form of OIDs.
 While any OID can be used only certain values make sense. In particular the
 following PKIX, NS and MS values are meaningful:
 

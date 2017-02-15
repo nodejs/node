@@ -1,8 +1,6 @@
 /**
  * @fileoverview An object that caches and applies source code fixes.
  * @author Nicholas C. Zakas
- * @copyright 2015 Nicholas C. Zakas. All rights reserved.
- * See LICENSE file in root directory for full license.
  */
 "use strict";
 
@@ -10,13 +8,13 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var debug = require("debug")("eslint:text-fixer");
+const debug = require("debug")("eslint:text-fixer");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-var BOM = "\uFEFF";
+const BOM = "\uFEFF";
 
 /**
  * Compares items in a messages array by line and column.
@@ -26,7 +24,7 @@ var BOM = "\uFEFF";
  * @private
  */
 function compareMessagesByLocation(a, b) {
-    var lineDiff = a.line - b.line;
+    const lineDiff = a.line - b.line;
 
     if (lineDiff === 0) {
         return a.column - b.column;
@@ -62,19 +60,19 @@ SourceCodeFixer.applyFixes = function(sourceCode, messages) {
         debug("No source code to fix");
         return {
             fixed: false,
-            messages: messages,
+            messages,
             output: ""
         };
     }
 
     // clone the array
-    var remainingMessages = [],
+    const remainingMessages = [],
         fixes = [],
-        text = sourceCode.text,
-        lastFixPos = text.length + 1,
+        text = sourceCode.text;
+    let lastFixPos = text.length + 1,
         prefix = (sourceCode.hasBOM ? BOM : "");
 
-    messages.forEach(function(problem) {
+    messages.forEach(problem => {
         if (problem.hasOwnProperty("fix")) {
             fixes.push(problem);
         } else {
@@ -86,30 +84,27 @@ SourceCodeFixer.applyFixes = function(sourceCode, messages) {
         debug("Found fixes to apply");
 
         // sort in reverse order of occurrence
-        fixes.sort(function(a, b) {
-            if (a.fix.range[1] <= b.fix.range[0]) {
-                return 1;
-            } else {
-                return -1;
-            }
-        });
+        fixes.sort((a, b) => b.fix.range[1] - a.fix.range[1] || b.fix.range[0] - a.fix.range[0]);
 
         // split into array of characters for easier manipulation
-        var chars = text.split("");
+        const chars = text.split("");
 
-        fixes.forEach(function(problem) {
-            var fix = problem.fix;
-            var start = fix.range[0];
-            var end = fix.range[1];
-            var insertionText = fix.text;
+        fixes.forEach(problem => {
+            const fix = problem.fix;
+            let start = fix.range[0];
+            const end = fix.range[1];
+            let insertionText = fix.text;
 
             if (end < lastFixPos) {
                 if (start < 0) {
+
                     // Remove BOM.
                     prefix = "";
                     start = 0;
                 }
+
                 if (start === 0 && insertionText[0] === BOM) {
+
                     // Set BOM.
                     prefix = BOM;
                     insertionText = insertionText.slice(1);
@@ -131,7 +126,7 @@ SourceCodeFixer.applyFixes = function(sourceCode, messages) {
         debug("No fixes to apply");
         return {
             fixed: false,
-            messages: messages,
+            messages,
             output: prefix + text
         };
     }

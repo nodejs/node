@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
   <title>npm-logout</title>
-  <meta http-equiv="content-type" value="text/html;utf-8">
+  <meta charset="utf-8">
   <link rel="stylesheet" type="text/css" href="../../static/style.css">
   <link rel="canonical" href="https://www.npmjs.org/doc/cli/npm-logout.html">
   <script async=true src="../../static/toc.js"></script>
@@ -27,14 +27,10 @@ connected to that scope, if set.</p>
 <p>The base URL of the npm package registry. If <code>scope</code> is also specified,
 it takes precedence.</p>
 <h3 id="scope">scope</h3>
-<p>Default: none</p>
-<p>If specified, the user and login credentials given will be associated
-with the specified scope. See <code><a href="../misc/npm-scope.html">npm-scope(7)</a></code>. You can use both at the same time,
-e.g.</p>
-<pre><code>npm adduser --registry=http://myregistry.example.com --scope=@myco
-</code></pre><p>This will set a registry for the given scope and login or create a user for
-that registry at the same time.</p>
-<h2 id="see-also">SEE ALSO</h2>
+<p>Default: The scope of your current project, if any, otherwise none.</p>
+<p>If specified, you will be logged out of the specified scope. See <code><a href="../misc/npm-scope.html">npm-scope(7)</a></code>.</p>
+<pre><code>npm logout --scope=@myco
+</code></pre><h2 id="see-also">SEE ALSO</h2>
 <ul>
 <li><a href="../cli/npm-adduser.html">npm-adduser(1)</a></li>
 <li><a href="../misc/npm-registry.html">npm-registry(7)</a></li>
@@ -55,5 +51,5 @@ that registry at the same time.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-logout &mdash; npm@3.6.0</p>
+<p id="footer">npm-logout &mdash; npm@4.1.2</p>
 

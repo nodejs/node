@@ -21,25 +21,37 @@ plain-English description of the following regexp:
 4. `[gimuy]*`: optional regexp flags
 5. `$`: fix the match at the end of the string
 */
-var regex = /^\/([^\\[]|\\.|\[([^\\\]]|\\.)+\])*\/[gimuy]*$/;
+const regex = /^\/([^\\[]|\\.|\[([^\\\]]|\\.)+])*\/[gimuy]*$/;
 
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow empty character classes in regular expressions",
+            category: "Possible Errors",
+            recommended: true
+        },
 
-    return {
+        schema: []
+    },
 
-        "Literal": function(node) {
-            var token = context.getFirstToken(node);
-            if (token.type === "RegularExpression" && !regex.test(token.value)) {
-                context.report(node, "Empty class.");
+    create(context) {
+        const sourceCode = context.getSourceCode();
+
+        return {
+
+            Literal(node) {
+                const token = sourceCode.getFirstToken(node);
+
+                if (token.type === "RegularExpression" && !regex.test(token.value)) {
+                    context.report({ node, message: "Empty class." });
+                }
             }
-        }
 
-    };
+        };
 
+    }
 };
-
-module.exports.schema = [];

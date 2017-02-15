@@ -7,15 +7,17 @@ var tmpDirectory = path.join(__dirname, '..', 'tmp');
 var benchmarkDirectory = path.join(tmpDirectory, 'nodejs-benchmark-module');
 
 var bench = common.createBenchmark(main, {
-  thousands: [50]
+  thousands: [50],
+  fullPath: ['true', 'false']
 });
 
 function main(conf) {
+  var n = +conf.thousands * 1e3;
+
   rmrf(tmpDirectory);
   try { fs.mkdirSync(tmpDirectory); } catch (e) {}
   try { fs.mkdirSync(benchmarkDirectory); } catch (e) {}
 
-  var n = +conf.thousands * 1e3;
   for (var i = 0; i <= n; i++) {
     fs.mkdirSync(benchmarkDirectory + i);
     fs.writeFileSync(
@@ -28,10 +30,21 @@ function main(conf) {
     );
   }
 
-  measure(n);
+  if (conf.fullPath === 'true')
+    measureFull(n);
+  else
+    measureDir(n);
 }
 
-function measure(n) {
+function measureFull(n) {
+  bench.start();
+  for (var i = 0; i <= n; i++) {
+    require(benchmarkDirectory + i + '/index.js');
+  }
+  bench.end(n / 1e3);
+}
+
+function measureDir(n) {
   bench.start();
   for (var i = 0; i <= n; i++) {
     require(benchmarkDirectory + i);

@@ -16,7 +16,7 @@ function createAggregator(setter, initializer) {
     var func = isArray(collection) ? arrayAggregator : baseAggregator,
         accumulator = initializer ? initializer() : {};
 
-    return func(collection, setter, baseIteratee(iteratee), accumulator);
+    return func(collection, setter, baseIteratee(iteratee, 2), accumulator);
   };
 }
 

@@ -41,7 +41,7 @@ requires compiling of C++ Code, npm will use
 [node-gyp](https://github.com/TooTallNate/node-gyp) for that task.
 For a Unix system, [node-gyp](https://github.com/TooTallNate/node-gyp)
 needs Python, make and a buildchain like GCC. On Windows,
-Python and Microsoft Visual Studio C++ is needed. Python 3 is
+Python and Microsoft Visual Studio C++ are needed. Python 3 is
 not supported by [node-gyp](https://github.com/TooTallNate/node-gyp).
 For more information visit
 [the node-gyp repository](https://github.com/TooTallNate/node-gyp) and
@@ -127,11 +127,11 @@ Patches welcome!
 Contributors are listed in npm's `package.json` file.  You can view them
 easily by doing `npm view npm contributors`.
 
-If you would like to contribute, but don't know what to work on, check
-the issues list or ask on the mailing list.
+If you would like to contribute, but don't know what to work on, read
+the contributing guidelines and check the issues list.
 
+* https://github.com/npm/npm/wiki/Contributing-Guidelines
 * <https://github.com/npm/npm/issues>
-* <npm-@googlegroups.com>
 
 ## BUGS
 
@@ -139,8 +139,6 @@ When you find issues, please report them:
 
 * web:
   <https://github.com/npm/npm/issues>
-* email:
-  <npm-@googlegroups.com>
 
 Be sure to include *all* of the output from the npm command that didn't work
 as expected.  The `npm-debug.log` file is also helpful to provide.
@@ -158,7 +156,6 @@ will no doubt tell you to put the output in a gist or email.
 ## SEE ALSO
 
 * npm-help(1)
-* npm-faq(7)
 * README
 * package.json(5)
 * npm-install(1)

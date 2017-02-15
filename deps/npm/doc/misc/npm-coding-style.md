@@ -189,5 +189,4 @@ Boolean objects are verboten.
 ## SEE ALSO
 
 * npm-developers(7)
-* npm-faq(7)
 * npm(1)

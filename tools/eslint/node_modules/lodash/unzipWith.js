@@ -9,9 +9,11 @@ var apply = require('./_apply'),
  *
  * @static
  * @memberOf _
+ * @since 3.8.0
  * @category Array
  * @param {Array} array The array of grouped elements to process.
- * @param {Function} [iteratee=_.identity] The function to combine regrouped values.
+ * @param {Function} [iteratee=_.identity] The function to combine
+ *  regrouped values.
  * @returns {Array} Returns the new array of regrouped elements.
  * @example
  *

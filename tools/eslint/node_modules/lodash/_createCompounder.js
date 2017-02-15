@@ -2,6 +2,12 @@ var arrayReduce = require('./_arrayReduce'),
     deburr = require('./deburr'),
     words = require('./words');
 
+/** Used to compose unicode capture groups. */
+var rsApos = "['\u2019]";
+
+/** Used to match apostrophes. */
+var reApos = RegExp(rsApos, 'g');
+
 /**
  * Creates a function like `_.camelCase`.
  *
@@ -11,7 +17,7 @@ var arrayReduce = require('./_arrayReduce'),
  */
 function createCompounder(callback) {
   return function(string) {
-    return arrayReduce(words(deburr(string)), callback, '');
+    return arrayReduce(words(deburr(string).replace(reApos, '')), callback, '');
   };
 }
 

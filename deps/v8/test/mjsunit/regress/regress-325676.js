@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug --debug-eval-readonly-locals
+// Flags: --expose-debug-as debug
 
 // If a function parameter is forced to be context allocated,
 // debug evaluate need to resolve it to a context slot instead of
@@ -51,12 +51,12 @@ Debug.setListener(listener);
 function f(arg) {
   expected = arg;
   debugger;
-  assertEquals(expected, arg);
+  assertEquals("evaluated", arg);
 
   arg = "value";
   expected = arg;
   debugger;
-  assertEquals(expected, arg);
+  assertEquals("evaluated", arg);
 
   // Forces arg to be context allocated even though a parameter.
   function g() { arg; }

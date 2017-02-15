@@ -6,6 +6,7 @@ var baseSortedUniq = require('./_baseSortedUniq');
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Array
  * @param {Array} array The array to inspect.
  * @returns {Array} Returns the new duplicate free array.

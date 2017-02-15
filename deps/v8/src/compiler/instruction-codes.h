@@ -21,6 +21,8 @@
 #include "src/compiler/x64/instruction-codes-x64.h"
 #elif V8_TARGET_ARCH_PPC
 #include "src/compiler/ppc/instruction-codes-ppc.h"
+#elif V8_TARGET_ARCH_S390
+#include "src/compiler/s390/instruction-codes-s390.h"
 #elif V8_TARGET_ARCH_X87
 #include "src/compiler/x87/instruction-codes-x87.h"
 #else
@@ -39,40 +41,75 @@ enum class RecordWriteMode { kValueIsMap, kValueIsPointer, kValueIsAny };
 
 // Target-specific opcodes that specify which assembly sequence to emit.
 // Most opcodes specify a single instruction.
-#define COMMON_ARCH_OPCODE_LIST(V) \
-  V(ArchCallCodeObject)            \
-  V(ArchTailCallCodeObject)        \
-  V(ArchCallJSFunction)            \
-  V(ArchTailCallJSFunction)        \
-  V(ArchPrepareCallCFunction)      \
-  V(ArchCallCFunction)             \
-  V(ArchPrepareTailCall)           \
-  V(ArchLazyBailout)               \
-  V(ArchJmp)                       \
-  V(ArchLookupSwitch)              \
-  V(ArchTableSwitch)               \
-  V(ArchNop)                       \
-  V(ArchThrowTerminator)           \
-  V(ArchDeoptimize)                \
-  V(ArchRet)                       \
-  V(ArchStackPointer)              \
-  V(ArchFramePointer)              \
-  V(ArchTruncateDoubleToI)         \
-  V(ArchStoreWithWriteBarrier)     \
-  V(CheckedLoadInt8)               \
-  V(CheckedLoadUint8)              \
-  V(CheckedLoadInt16)              \
-  V(CheckedLoadUint16)             \
-  V(CheckedLoadWord32)             \
-  V(CheckedLoadWord64)             \
-  V(CheckedLoadFloat32)            \
-  V(CheckedLoadFloat64)            \
-  V(CheckedStoreWord8)             \
-  V(CheckedStoreWord16)            \
-  V(CheckedStoreWord32)            \
-  V(CheckedStoreWord64)            \
-  V(CheckedStoreFloat32)           \
-  V(CheckedStoreFloat64)
+#define COMMON_ARCH_OPCODE_LIST(V)        \
+  V(ArchCallCodeObject)                   \
+  V(ArchTailCallCodeObjectFromJSFunction) \
+  V(ArchTailCallCodeObject)               \
+  V(ArchCallJSFunction)                   \
+  V(ArchTailCallJSFunctionFromJSFunction) \
+  V(ArchTailCallJSFunction)               \
+  V(ArchTailCallAddress)                  \
+  V(ArchPrepareCallCFunction)             \
+  V(ArchCallCFunction)                    \
+  V(ArchPrepareTailCall)                  \
+  V(ArchJmp)                              \
+  V(ArchLookupSwitch)                     \
+  V(ArchTableSwitch)                      \
+  V(ArchNop)                              \
+  V(ArchDebugBreak)                       \
+  V(ArchComment)                          \
+  V(ArchThrowTerminator)                  \
+  V(ArchDeoptimize)                       \
+  V(ArchRet)                              \
+  V(ArchStackPointer)                     \
+  V(ArchFramePointer)                     \
+  V(ArchParentFramePointer)               \
+  V(ArchTruncateDoubleToI)                \
+  V(ArchStoreWithWriteBarrier)            \
+  V(CheckedLoadInt8)                      \
+  V(CheckedLoadUint8)                     \
+  V(CheckedLoadInt16)                     \
+  V(CheckedLoadUint16)                    \
+  V(CheckedLoadWord32)                    \
+  V(CheckedLoadWord64)                    \
+  V(CheckedLoadFloat32)                   \
+  V(CheckedLoadFloat64)                   \
+  V(CheckedStoreWord8)                    \
+  V(CheckedStoreWord16)                   \
+  V(CheckedStoreWord32)                   \
+  V(CheckedStoreWord64)                   \
+  V(CheckedStoreFloat32)                  \
+  V(CheckedStoreFloat64)                  \
+  V(ArchStackSlot)                        \
+  V(AtomicLoadInt8)                       \
+  V(AtomicLoadUint8)                      \
+  V(AtomicLoadInt16)                      \
+  V(AtomicLoadUint16)                     \
+  V(AtomicLoadWord32)                     \
+  V(AtomicStoreWord8)                     \
+  V(AtomicStoreWord16)                    \
+  V(AtomicStoreWord32)                    \
+  V(Ieee754Float64Acos)                   \
+  V(Ieee754Float64Acosh)                  \
+  V(Ieee754Float64Asin)                   \
+  V(Ieee754Float64Asinh)                  \
+  V(Ieee754Float64Atan)                   \
+  V(Ieee754Float64Atanh)                  \
+  V(Ieee754Float64Atan2)                  \
+  V(Ieee754Float64Cbrt)                   \
+  V(Ieee754Float64Cos)                    \
+  V(Ieee754Float64Cosh)                   \
+  V(Ieee754Float64Exp)                    \
+  V(Ieee754Float64Expm1)                  \
+  V(Ieee754Float64Log)                    \
+  V(Ieee754Float64Log1p)                  \
+  V(Ieee754Float64Log10)                  \
+  V(Ieee754Float64Log2)                   \
+  V(Ieee754Float64Pow)                    \
+  V(Ieee754Float64Sin)                    \
+  V(Ieee754Float64Sinh)                   \
+  V(Ieee754Float64Tan)                    \
+  V(Ieee754Float64Tanh)
 
 #define ARCH_OPCODE_LIST(V)  \
   COMMON_ARCH_OPCODE_LIST(V) \
@@ -109,7 +146,12 @@ enum AddressingMode {
 std::ostream& operator<<(std::ostream& os, const AddressingMode& am);
 
 // The mode of the flags continuation (see below).
-enum FlagsMode { kFlags_none = 0, kFlags_branch = 1, kFlags_set = 2 };
+enum FlagsMode {
+  kFlags_none = 0,
+  kFlags_branch = 1,
+  kFlags_deoptimize = 2,
+  kFlags_set = 3
+};
 
 std::ostream& operator<<(std::ostream& os, const FlagsMode& fm);
 
@@ -136,7 +178,9 @@ enum FlagsCondition {
   kUnorderedEqual,
   kUnorderedNotEqual,
   kOverflow,
-  kNotOverflow
+  kNotOverflow,
+  kPositiveOrZero,
+  kNegative
 };
 
 inline FlagsCondition NegateFlagsCondition(FlagsCondition condition) {

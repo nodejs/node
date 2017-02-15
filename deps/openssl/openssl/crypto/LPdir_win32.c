@@ -1,8 +1,4 @@
 /*
- * $LP: LPlib/source/LPdir_win32.c,v 1.3 2004/08/26 13:36:05 _cvs_levitte Exp
- * $
- */
-/*
  * Copyright (c) 2004, Richard Levitte <richard@levitte.org>
  * All rights reserved.
  *

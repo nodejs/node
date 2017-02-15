@@ -1,10 +1,11 @@
-var dropRight = require('./dropRight');
+var baseSlice = require('./_baseSlice');
 
 /**
  * Gets all but the last element of `array`.
  *
  * @static
  * @memberOf _
+ * @since 0.1.0
  * @category Array
  * @param {Array} array The array to query.
  * @returns {Array} Returns the slice of `array`.
@@ -14,7 +15,8 @@ var dropRight = require('./dropRight');
  * // => [1, 2]
  */
 function initial(array) {
-  return dropRight(array, 1);
+  var length = array == null ? 0 : array.length;
+  return length ? baseSlice(array, 0, -1) : [];
 }
 
 module.exports = initial;

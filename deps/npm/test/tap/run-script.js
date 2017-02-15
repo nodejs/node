@@ -25,8 +25,13 @@ var fullyPopulated = {
     'prewith-both': 'node -e "console.log(process.argv[1] || \'pre\')"',
     'with-both': 'node -e "console.log(process.argv[1] || \'main\')"',
     'postwith-both': 'node -e "console.log(process.argv[1] || \'post\')"',
-    'stop': 'node -e "console.log(process.argv[1] || \'stop\')"'
-  }
+    'stop': 'node -e "console.log(process.argv[1] || \'stop\')"',
+    'env-vars': 'node -e "console.log(process.env.run_script_foo_var)"',
+    'npm-env-vars': 'node -e "console.log(process.env.npm_run_script_foo_var)"',
+    'package-env-vars': 'node -e "console.log(process.env.run_script_foo_var)"',
+    'prefixed-package-env-vars': 'node -e "console.log(process.env.npm_package_run_script_foo_var)"'
+  },
+  'run_script_foo_var': 'run_script_test_foo_val'
 }
 
 var lifecycleOnly = {
@@ -176,6 +181,64 @@ test('npm run-script nonexistent-script with --if-present flag', function (t) {
   common.npm(['run-script', '--if-present', 'nonexistent-script'], opts, function (er, code, stdout, stderr) {
     t.ifError(er, 'npm run-script --if-present non-existent-script ran without issue')
     t.notOk(stderr, 'should not generate errors')
+    t.end()
+  })
+})
+
+test('npm run-script env vars accessible', function (t) {
+  process.env.run_script_foo_var = 'run_script_test_foo_val'
+  common.npm(['run-script', 'env-vars'], {
+    cwd: pkg
+  }, function (err, code, stdout, stderr) {
+    t.ifError(err, 'ran run-script without crashing')
+    t.equal(code, 0, 'exited normally')
+    t.equal(stderr, '', 'no error output')
+    t.match(stdout,
+      new RegExp(process.env.run_script_foo_var),
+      'script had env access')
+    t.end()
+  })
+})
+
+test('npm run-script package.json vars injected', function (t) {
+  common.npm(['run-script', 'package-env-vars'], {
+    cwd: pkg
+  }, function (err, code, stdout, stderr) {
+    t.ifError(err, 'ran run-script without crashing')
+    t.equal(code, 0, 'exited normally')
+    t.equal(stderr, '', 'no error output')
+    t.match(stdout,
+      new RegExp(fullyPopulated.run_script_foo_var),
+      'script injected package.json value')
+    t.end()
+  })
+})
+
+test('npm run-script package.json vars injected with prefix', function (t) {
+  common.npm(['run-script', 'prefixed-package-env-vars'], {
+    cwd: pkg
+  }, function (err, code, stdout, stderr) {
+    t.ifError(err, 'ran run-script without crashing')
+    t.equal(code, 0, 'exited normally')
+    t.equal(stderr, '', 'no error output')
+    t.match(stdout,
+      new RegExp(fullyPopulated.run_script_foo_var),
+      'script injected npm_package-prefixed package.json value')
+    t.end()
+  })
+})
+
+test('npm run-script env vars stripped npm-prefixed', function (t) {
+  process.env.npm_run_script_foo_var = 'run_script_test_foo_val'
+  common.npm(['run-script', 'npm-env-vars'], {
+    cwd: pkg
+  }, function (err, code, stdout, stderr) {
+    t.ifError(err, 'ran run-script without crashing')
+    t.equal(code, 0, 'exited normally')
+    t.equal(stderr, '', 'no error output')
+    t.notMatch(stdout,
+      new RegExp(process.env.npm_run_script_foo_var),
+      'script stripped npm-prefixed env var')
     t.end()
   })
 })

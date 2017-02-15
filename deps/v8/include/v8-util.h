@@ -95,12 +95,12 @@ class DefaultPersistentValueMapTraits : public StdMapTraits<K, V> {
       MapType* map, const K& key, Local<V> value) {
     return NULL;
   }
-  static MapType* MapFromWeakCallbackData(
-          const WeakCallbackData<V, WeakCallbackDataType>& data) {
+  static MapType* MapFromWeakCallbackInfo(
+      const WeakCallbackInfo<WeakCallbackDataType>& data) {
     return NULL;
   }
-  static K KeyFromWeakCallbackData(
-      const WeakCallbackData<V, WeakCallbackDataType>& data) {
+  static K KeyFromWeakCallbackInfo(
+      const WeakCallbackInfo<WeakCallbackDataType>& data) {
     return K();
   }
   static void DisposeCallbackData(WeakCallbackDataType* data) { }
@@ -203,6 +203,22 @@ class PersistentValueMapBase {
     GetIsolate()->SetReference(
       reinterpret_cast<internal::Object**>(parent.val_),
       reinterpret_cast<internal::Object**>(FromVal(Traits::Get(&impl_, key))));
+  }
+
+  /**
+   * Deprecated. Call V8::RegisterExternallyReferencedObject with the map value
+   * for given key.
+   * TODO(hlopko) Remove once migration to reporter is finished.
+   */
+  void RegisterExternallyReferencedObject(K& key) {}
+
+  /**
+   * Use EmbedderReachableReferenceReporter with the map value for given key.
+   */
+  void RegisterExternallyReferencedObject(
+      EmbedderReachableReferenceReporter* reporter, K& key) {
+    DCHECK(Contains(key));
+    reporter->ReportExternalReference(FromVal(Traits::Get(&impl_, key)));
   }
 
   /**
@@ -402,11 +418,11 @@ class PersistentValueMap : public PersistentValueMapBase<K, V, Traits> {
 
  private:
   static void WeakCallback(
-      const WeakCallbackData<V, typename Traits::WeakCallbackDataType>& data) {
+      const WeakCallbackInfo<typename Traits::WeakCallbackDataType>& data) {
     if (Traits::kCallbackType != kNotWeak) {
       PersistentValueMap<K, V, Traits>* persistentValueMap =
-          Traits::MapFromWeakCallbackData(data);
-      K key = Traits::KeyFromWeakCallbackData(data);
+          Traits::MapFromWeakCallbackInfo(data);
+      K key = Traits::KeyFromWeakCallbackInfo(data);
       Traits::Dispose(data.GetIsolate(),
                       persistentValueMap->Remove(key).Pass(), key);
       Traits::DisposeCallbackData(data.GetParameter());

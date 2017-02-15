@@ -88,31 +88,6 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
 }
 
 
-void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
-  // Set the register values. The values are not important as there are no
-  // callee saved registers in JavaScript frames, so all registers are
-  // spilled. Registers fp and sp are set to the correct values though.
-  // We ensure the values are Smis to avoid confusing the garbage
-  // collector in the event that any values are retreived and stored
-  // elsewhere.
-
-  for (int i = 0; i < Register::kNumRegisters; i++) {
-    input_->SetRegister(i, reinterpret_cast<intptr_t>(Smi::FromInt(i)));
-  }
-  input_->SetRegister(sp.code(), reinterpret_cast<intptr_t>(frame->sp()));
-  input_->SetRegister(fp.code(), reinterpret_cast<intptr_t>(frame->fp()));
-  for (int i = 0; i < DoubleRegister::kNumRegisters; i++) {
-    input_->SetDoubleRegister(i, 0.0);
-  }
-
-  // Fill the frame content from the actual data on the frame.
-  for (unsigned i = 0; i < input_->GetFrameSize(); i += kPointerSize) {
-    input_->SetFrameSlot(
-        i, reinterpret_cast<intptr_t>(Memory::Address_at(tos + i)));
-  }
-}
-
-
 void Deoptimizer::SetPlatformCompiledStubRegisters(
     FrameDescription* output_frame, CodeStubDescriptor* descriptor) {
   ApiFunction function(descriptor->deoptimization_handler());
@@ -130,13 +105,6 @@ void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
     output_frame->SetDoubleRegister(i, double_value);
   }
 }
-
-
-bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
-  // There is no dynamic alignment padding on PPC in the input frame.
-  return false;
-}
-
 
 #define __ masm()->
 
@@ -156,8 +124,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   // Save all double registers before messing with them.
   __ subi(sp, sp, Operand(kDoubleRegsSize));
-  const RegisterConfiguration* config =
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
+  const RegisterConfiguration* config = RegisterConfiguration::Crankshaft();
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     const DoubleRegister dreg = DoubleRegister::from_code(code);
@@ -194,7 +161,12 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Allocate a new deoptimizer object.
   // Pass six arguments in r3 to r8.
   __ PrepareCallCFunction(6, r8);
+  __ li(r3, Operand::Zero());
+  Label context_check;
+  __ LoadP(r4, MemOperand(fp, CommonFrameConstants::kContextOrFrameTypeOffset));
+  __ JumpIfSmi(r4, &context_check);
   __ LoadP(r3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  __ bind(&context_check);
   __ li(r4, Operand(type()));  // bailout type,
   // r5: bailout id already loaded.
   // r6: code address or 0 already loaded.
@@ -263,6 +235,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
         ExternalReference::compute_output_frames_function(isolate()), 1);
   }
   __ pop(r3);  // Restore deoptimizer object (class Deoptimizer).
+
+  __ LoadP(sp, MemOperand(r3, Deoptimizer::caller_frame_top_offset()));
 
   // Replace the current (input) frame with the output frames.
   Label outer_push_loop, inner_push_loop, outer_loop_header, inner_loop_header;

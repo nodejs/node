@@ -141,6 +141,7 @@ void *ASN1_item_d2i_fp(const ASN1_ITEM *it, FILE *in, void *x)
 #endif
 
 #define HEADER_SIZE   8
+#define ASN1_CHUNK_INITIAL_SIZE (16 * 1024)
 static int asn1_d2i_read_bio(BIO *in, BUF_MEM **pb)
 {
     BUF_MEM *b;
@@ -217,29 +218,44 @@ static int asn1_d2i_read_bio(BIO *in, BUF_MEM **pb)
             /* suck in c.slen bytes of data */
             want = c.slen;
             if (want > (len - off)) {
+                size_t chunk_max = ASN1_CHUNK_INITIAL_SIZE;
+
                 want -= (len - off);
                 if (want > INT_MAX /* BIO_read takes an int length */  ||
                     len + want < len) {
                     ASN1err(ASN1_F_ASN1_D2I_READ_BIO, ASN1_R_TOO_LONG);
                     goto err;
                 }
-                if (!BUF_MEM_grow_clean(b, len + want)) {
-                    ASN1err(ASN1_F_ASN1_D2I_READ_BIO, ERR_R_MALLOC_FAILURE);
-                    goto err;
-                }
                 while (want > 0) {
-                    i = BIO_read(in, &(b->data[len]), want);
-                    if (i <= 0) {
-                        ASN1err(ASN1_F_ASN1_D2I_READ_BIO,
-                                ASN1_R_NOT_ENOUGH_DATA);
+                    /*
+                     * Read content in chunks of increasing size
+                     * so we can return an error for EOF without
+                     * having to allocate the entire content length
+                     * in one go.
+                     */
+                    size_t chunk = want > chunk_max ? chunk_max : want;
+
+                    if (!BUF_MEM_grow_clean(b, len + chunk)) {
+                        ASN1err(ASN1_F_ASN1_D2I_READ_BIO, ERR_R_MALLOC_FAILURE);
                         goto err;
                     }
+                    want -= chunk;
+                    while (chunk > 0) {
+                        i = BIO_read(in, &(b->data[len]), chunk);
+                        if (i <= 0) {
+                            ASN1err(ASN1_F_ASN1_D2I_READ_BIO,
+                                    ASN1_R_NOT_ENOUGH_DATA);
+                            goto err;
+                        }
                     /*
                      * This can't overflow because |len+want| didn't
                      * overflow.
                      */
-                    len += i;
-                    want -= i;
+                        len += i;
+                        chunk -= i;
+                    }
+                    if (chunk_max < INT_MAX/2)
+                        chunk_max *= 2;
                 }
             }
             if (off + c.slen < off) {

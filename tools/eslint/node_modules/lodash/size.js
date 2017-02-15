@@ -1,16 +1,22 @@
-var isArrayLike = require('./isArrayLike'),
+var baseKeys = require('./_baseKeys'),
+    getTag = require('./_getTag'),
+    isArrayLike = require('./isArrayLike'),
     isString = require('./isString'),
-    keys = require('./keys'),
     stringSize = require('./_stringSize');
+
+/** `Object#toString` result references. */
+var mapTag = '[object Map]',
+    setTag = '[object Set]';
 
 /**
  * Gets the size of `collection` by returning its length for array-like
- * values or the number of own enumerable properties for objects.
+ * values or the number of own enumerable string keyed properties for objects.
  *
  * @static
  * @memberOf _
+ * @since 0.1.0
  * @category Collection
- * @param {Array|Object} collection The collection to inspect.
+ * @param {Array|Object|string} collection The collection to inspect.
  * @returns {number} Returns the collection size.
  * @example
  *
@@ -28,10 +34,13 @@ function size(collection) {
     return 0;
   }
   if (isArrayLike(collection)) {
-    var result = collection.length;
-    return (result && isString(collection)) ? stringSize(collection) : result;
+    return isString(collection) ? stringSize(collection) : collection.length;
   }
-  return keys(collection).length;
+  var tag = getTag(collection);
+  if (tag == mapTag || tag == setTag) {
+    return collection.size;
+  }
+  return baseKeys(collection).length;
 }
 
 module.exports = size;

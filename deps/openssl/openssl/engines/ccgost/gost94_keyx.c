@@ -126,6 +126,8 @@ int pkey_GOST94cp_encrypt(EVP_PKEY_CTX *ctx, unsigned char *out,
         key_is_ephemeral = 1;
         if (out) {
             mykey = EVP_PKEY_new();
+            if (!mykey)
+                goto memerr;
             EVP_PKEY_assign(mykey, EVP_PKEY_base_id(pubk), DSA_new());
             EVP_PKEY_copy_parameters(mykey, pubk);
             if (!gost_sign_keygen(EVP_PKEY_get0(mykey))) {

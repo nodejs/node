@@ -1,9 +1,11 @@
 'use strict'
-var url = require('url')
 var asyncMap = require('slide').asyncMap
 var validate = require('aproba')
 var iferr = require('iferr')
+var realizeShrinkwrapSpecifier = require('./realize-shrinkwrap-specifier.js')
+var isRegistrySpecifier = require('./is-registry-specifier.js')
 var fetchPackageMetadata = require('../fetch-package-metadata.js')
+var annotateMetadata = require('../fetch-package-metadata.js').annotateMetadata
 var addShrinkwrap = require('../fetch-package-metadata.js').addShrinkwrap
 var addBundled = require('../fetch-package-metadata.js').addBundled
 var inflateBundled = require('./inflate-bundled.js')
@@ -12,48 +14,92 @@ var createChild = require('./node.js').create
 var moduleName = require('../utils/module-name.js')
 var childPath = require('../utils/child-path.js')
 
-var inflateShrinkwrap = module.exports = function (tree, swdeps, finishInflating) {
-  validate('OOF', arguments)
+module.exports = function (tree, swdeps, finishInflating) {
   if (!npm.config.get('shrinkwrap')) return finishInflating()
+  tree.loaded = true
+  return inflateShrinkwrap(tree.path, tree, swdeps, finishInflating)
+}
+
+function inflateShrinkwrap (topPath, tree, swdeps, finishInflating) {
+  validate('SOOF', arguments)
   var onDisk = {}
   tree.children.forEach(function (child) { onDisk[moduleName(child)] = child })
-  tree.children = []
-  asyncMap(Object.keys(swdeps), function (name, next) {
-    var sw = swdeps[name]
-    var spec = sw.resolved
-             ? name + '@' + sw.resolved
-             : (sw.from && url.parse(sw.from).protocol)
-             ? name + '@' + sw.from
-             : name + '@' + sw.version
-    var child = onDisk[name]
-    if (child && (child.fromShrinkwrap ||
-                  (sw.resolved && child.package._resolved === sw.resolved) ||
-                  (sw.from && url.parse(sw.from).protocol && child.package._from === sw.from) ||
-                  child.package.version === sw.version)) {
-      if (!child.fromShrinkwrap) child.fromShrinkwrap = spec
-      tree.children.push(child)
-      return next()
+  var dev = npm.config.get('dev') || (!/^prod(uction)?$/.test(npm.config.get('only')) && !npm.config.get('production')) || /^dev(elopment)?$/.test(npm.config.get('only'))
+  var prod = !/^dev(elopment)?$/.test(npm.config.get('only'))
+
+  // If the shrinkwrap has no dev dependencies in it then we'll leave the one's
+  // already on disk. If it DOES have dev dependencies then ONLY those in the
+  // shrinkwrap will be included.
+  var swHasDev = Object.keys(swdeps).some(function (name) { return swdeps[name].dev })
+  tree.children = swHasDev ? [] : tree.children.filter(function (child) {
+    return tree.package.devDependencies[moduleName(child)]
+  })
+
+  return asyncMap(Object.keys(swdeps), doRealizeAndInflate, finishInflating)
+
+  function doRealizeAndInflate (name, next) {
+    return realizeShrinkwrapSpecifier(name, swdeps[name], topPath, iferr(next, andInflate(name, next)))
+  }
+
+  function andInflate (name, next) {
+    return function (requested) {
+      var sw = swdeps[name]
+      var dependencies = sw.dependencies || {}
+      if ((!prod && !sw.dev) || (!dev && sw.dev)) return next()
+      var child = onDisk[name]
+      if (childIsEquivalent(sw, requested, child)) {
+        if (!child.fromShrinkwrap) child.fromShrinkwrap = requested.raw
+        if (sw.dev) child.shrinkwrapDev = true
+        tree.children.push(child)
+        annotateMetadata(child.package, requested, requested.raw, topPath)
+        return inflateShrinkwrap(topPath, child, dependencies || {}, next)
+      } else {
+        var from = sw.from || requested.raw
+        var optional = sw.optional
+        return fetchPackageMetadata(requested, topPath, iferr(next, andAddShrinkwrap(from, optional, dependencies, next)))
+      }
     }
-    fetchPackageMetadata(spec, tree.path, iferr(next, function (pkg) {
-      pkg._from = sw.from || spec
-      addShrinkwrap(pkg, iferr(next, function () {
-        addBundled(pkg, iferr(next, function () {
-          var child = createChild({
-            package: pkg,
-            loaded: false,
-            parent: tree,
-            fromShrinkwrap: spec,
-            path: childPath(tree.path, pkg),
-            realpath: childPath(tree.realpath, pkg),
-            children: pkg._bundled || []
-          })
-          tree.children.push(child)
-          if (pkg._bundled) {
-            inflateBundled(child, child.children)
-          }
-          inflateShrinkwrap(child, sw.dependencies || {}, next)
-        }))
-      }))
-    }))
-  }, finishInflating)
+  }
+
+  function andAddShrinkwrap (from, optional, dependencies, next) {
+    return function (pkg) {
+      pkg._from = from
+      pkg._optional = optional
+      addShrinkwrap(pkg, iferr(next, andAddBundled(pkg, dependencies, next)))
+    }
+  }
+
+  function andAddBundled (pkg, dependencies, next) {
+    return function () {
+      return addBundled(pkg, iferr(next, andAddChild(pkg, dependencies, next)))
+    }
+  }
+
+  function andAddChild (pkg, dependencies, next) {
+    return function () {
+      var child = createChild({
+        package: pkg,
+        loaded: true,
+        parent: tree,
+        fromShrinkwrap: pkg._from,
+        path: childPath(tree.path, pkg),
+        realpath: childPath(tree.realpath, pkg),
+        children: pkg._bundled || []
+      })
+      tree.children.push(child)
+      if (pkg._bundled) {
+        delete pkg._bundled
+        inflateBundled(child, child.children)
+      }
+      inflateShrinkwrap(topPath, child, dependencies || {}, next)
+    }
+  }
+}
+
+function childIsEquivalent (sw, requested, child) {
+  if (!child) return false
+  if (child.fromShrinkwrap) return true
+  if (sw.resolved) return child.package._resolved === sw.resolved
+  if (!isRegistrySpecifier(requested) && sw.from) return child.package._from === sw.from
+  return child.package.version === sw.version
 }

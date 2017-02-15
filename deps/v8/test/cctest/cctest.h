@@ -28,43 +28,48 @@
 #ifndef CCTEST_H_
 #define CCTEST_H_
 
+#include <memory>
+
 #include "include/libplatform/libplatform.h"
-#include "src/isolate-inl.h"  // TODO(everyone): Make cctest IWYU.
-#include "src/objects-inl.h"  // TODO(everyone): Make cctest IWYU.
+#include "include/v8-debug.h"
+#include "src/utils.h"
 #include "src/v8.h"
+#include "src/zone/accounting-allocator.h"
+
+namespace v8 {
+namespace base {
+
+class RandomNumberGenerator;
+
+}  // namespace base
+
+namespace internal {
+
+class HandleScope;
+class Zone;
+
+}  // namespace internal
+
+}  // namespace v8
 
 #ifndef TEST
-#define TEST(Name)                                                             \
-  static void Test##Name();                                                    \
-  CcTest register_test_##Name(Test##Name, __FILE__, #Name, NULL, true, true);  \
+#define TEST(Name)                                                      \
+  static void Test##Name();                                             \
+  CcTest register_test_##Name(Test##Name, __FILE__, #Name, true, true); \
   static void Test##Name()
 #endif
 
 #ifndef UNINITIALIZED_TEST
-#define UNINITIALIZED_TEST(Name)                                               \
-  static void Test##Name();                                                    \
-  CcTest register_test_##Name(Test##Name, __FILE__, #Name, NULL, true, false); \
-  static void Test##Name()
-#endif
-
-#ifndef DEPENDENT_TEST
-#define DEPENDENT_TEST(Name, Dep)                                              \
-  static void Test##Name();                                                    \
-  CcTest register_test_##Name(Test##Name, __FILE__, #Name, #Dep, true, true);  \
-  static void Test##Name()
-#endif
-
-#ifndef UNINITIALIZED_DEPENDENT_TEST
-#define UNINITIALIZED_DEPENDENT_TEST(Name, Dep)                                \
-  static void Test##Name();                                                    \
-  CcTest register_test_##Name(Test##Name, __FILE__, #Name, #Dep, true, false); \
+#define UNINITIALIZED_TEST(Name)                                         \
+  static void Test##Name();                                              \
+  CcTest register_test_##Name(Test##Name, __FILE__, #Name, true, false); \
   static void Test##Name()
 #endif
 
 #ifndef DISABLED_TEST
-#define DISABLED_TEST(Name)                                                    \
-  static void Test##Name();                                                    \
-  CcTest register_test_##Name(Test##Name, __FILE__, #Name, NULL, false, true); \
+#define DISABLED_TEST(Name)                                              \
+  static void Test##Name();                                              \
+  CcTest register_test_##Name(Test##Name, __FILE__, #Name, false, true); \
   static void Test##Name()
 #endif
 
@@ -94,14 +99,13 @@ class CcTest {
  public:
   typedef void (TestFunction)();
   CcTest(TestFunction* callback, const char* file, const char* name,
-         const char* dependency, bool enabled, bool initialize);
+         bool enabled, bool initialize);
   ~CcTest() { i::DeleteArray(file_); }
   void Run();
   static CcTest* last() { return last_; }
   CcTest* prev() { return prev_; }
   const char* file() { return file_; }
   const char* name() { return name_; }
-  const char* dependency() { return dependency_; }
   bool enabled() { return enabled_; }
 
   static v8::Isolate* isolate() {
@@ -119,17 +123,15 @@ class CcTest {
     return reinterpret_cast<i::Isolate*>(isolate());
   }
 
-  static i::Heap* heap() {
-    return i_isolate()->heap();
-  }
+  static i::Heap* heap();
 
-  static v8::base::RandomNumberGenerator* random_number_generator() {
-    return InitIsolateOnce()->random_number_generator();
-  }
+  static void CollectGarbage(i::AllocationSpace space);
+  static void CollectAllGarbage(int flags);
+  static void CollectAllAvailableGarbage();
 
-  static v8::Local<v8::Object> global() {
-    return isolate()->GetCurrentContext()->Global();
-  }
+  static v8::base::RandomNumberGenerator* random_number_generator();
+
+  static v8::Local<v8::Object> global();
 
   static v8::ArrayBuffer::Allocator* array_buffer_allocator() {
     return allocator_;
@@ -142,13 +144,7 @@ class CcTest {
 
   // TODO(dcarney): Remove.
   // This must be called first in a test.
-  static void InitializeVM() {
-    CHECK(!v8::base::NoBarrier_Load(&isolate_used_));
-    CHECK(!initialize_called_);
-    initialize_called_ = true;
-    v8::HandleScope handle_scope(CcTest::isolate());
-    v8::Context::New(CcTest::isolate())->Enter();
-  }
+  static void InitializeVM();
 
   // Only for UNINITIALIZED_TESTs
   static void DisableAutomaticDispose();
@@ -159,16 +155,13 @@ class CcTest {
       CcTestExtensionFlags extensions,
       v8::Isolate* isolate = CcTest::isolate());
 
-  static void TearDown() {
-    if (isolate_ != NULL) isolate_->Dispose();
-  }
+  static void TearDown();
 
  private:
   friend int main(int argc, char** argv);
   TestFunction* callback_;
   const char* file_;
   const char* name_;
-  const char* dependency_;
   bool enabled_;
   bool initialize_;
   CcTest* prev_;
@@ -285,11 +278,7 @@ class LocalContext {
     Initialize(CcTest::isolate(), extensions, global_template, global_object);
   }
 
-  virtual ~LocalContext() {
-    v8::HandleScope scope(isolate_);
-    v8::Local<v8::Context>::New(isolate_, context_)->Exit();
-    context_.Reset();
-  }
+  virtual ~LocalContext();
 
   v8::Context* operator->() {
     return *reinterpret_cast<v8::Context**>(&context_);
@@ -304,17 +293,7 @@ class LocalContext {
  private:
   void Initialize(v8::Isolate* isolate, v8::ExtensionConfiguration* extensions,
                   v8::Local<v8::ObjectTemplate> global_template,
-                  v8::Local<v8::Value> global_object) {
-     v8::HandleScope scope(isolate);
-     v8::Local<v8::Context> context = v8::Context::New(isolate,
-                                                       extensions,
-                                                       global_template,
-                                                       global_object);
-     context_.Reset(isolate, context);
-     context->Enter();
-     // We can't do this later perhaps because of a fatal error.
-     isolate_ = isolate;
-  }
+                  v8::Local<v8::Value> global_object);
 
   v8::Persistent<v8::Context> context_;
   v8::Isolate* isolate_;
@@ -583,31 +562,33 @@ static inline void EmptyMessageQueues(v8::Isolate* isolate) {
   }
 }
 
+class InitializedHandleScopeImpl;
 
 class InitializedHandleScope {
  public:
-  InitializedHandleScope()
-      : main_isolate_(CcTest::InitIsolateOnce()),
-        handle_scope_(main_isolate_) {}
+  InitializedHandleScope();
+  ~InitializedHandleScope();
 
   // Prefixing the below with main_ reduces a lot of naming clashes.
   i::Isolate* main_isolate() { return main_isolate_; }
 
  private:
   i::Isolate* main_isolate_;
-  i::HandleScope handle_scope_;
+  std::unique_ptr<InitializedHandleScopeImpl> initialized_handle_scope_impl_;
 };
 
 
 class HandleAndZoneScope : public InitializedHandleScope {
  public:
-  HandleAndZoneScope() {}
+  HandleAndZoneScope();
+  ~HandleAndZoneScope();
 
   // Prefixing the below with main_ reduces a lot of naming clashes.
-  i::Zone* main_zone() { return &main_zone_; }
+  i::Zone* main_zone() { return main_zone_.get(); }
 
  private:
-  i::Zone main_zone_;
+  v8::internal::AccountingAllocator allocator_;
+  std::unique_ptr<i::Zone> main_zone_;
 };
 
 #endif  // ifndef CCTEST_H_

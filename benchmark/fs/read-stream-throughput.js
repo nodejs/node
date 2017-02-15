@@ -60,7 +60,7 @@ function runTest() {
 }
 
 function makeFile() {
-  var buf = new Buffer(filesize / 1024);
+  var buf = Buffer.allocUnsafe(filesize / 1024);
   if (encoding === 'utf8') {
     // ü
     for (var i = 0; i < buf.length; i++) {

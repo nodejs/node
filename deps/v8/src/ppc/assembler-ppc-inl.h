@@ -49,6 +49,7 @@ namespace internal {
 
 bool CpuFeatures::SupportsCrankshaft() { return true; }
 
+bool CpuFeatures::SupportsSimd128() { return false; }
 
 void RelocInfo::apply(intptr_t delta) {
   // absolute code pointer inside code object moves with the code object.
@@ -88,7 +89,6 @@ Address RelocInfo::target_address() {
   DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
   return Assembler::target_address_at(pc_, host_);
 }
-
 
 Address RelocInfo::target_address_address() {
   DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) ||
@@ -132,21 +132,6 @@ Address RelocInfo::constant_pool_entry_address() {
 int RelocInfo::target_address_size() { return Assembler::kSpecialTargetSize; }
 
 
-void RelocInfo::set_target_address(Address target,
-                                   WriteBarrierMode write_barrier_mode,
-                                   ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
-  Assembler::set_target_address_at(isolate_, pc_, host_, target,
-                                   icache_flush_mode);
-  if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != NULL &&
-      IsCodeTarget(rmode_)) {
-    Object* target_code = Code::GetCodeFromTargetAddress(target);
-    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
-        host(), this, HeapObject::cast(target_code));
-  }
-}
-
-
 Address Assembler::target_address_from_return_address(Address pc) {
 // Returns the address of the call target from the return address that will
 // be returned to after a call.
@@ -179,7 +164,6 @@ Address Assembler::return_address_from_call_start(Address pc) {
   return pc + (len + 2) * kInstrSize;
 }
 
-
 Object* RelocInfo::target_object() {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   return reinterpret_cast<Object*>(Assembler::target_address_at(pc_, host_));
@@ -202,8 +186,9 @@ void RelocInfo::set_target_object(Object* target,
                                    icache_flush_mode);
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != NULL &&
       target->IsHeapObject()) {
-    host()->GetHeap()->incremental_marking()->RecordWrite(
-        host(), &Memory::Object_at(pc_), HeapObject::cast(target));
+    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
+        host(), this, HeapObject::cast(target));
+    host()->GetHeap()->RecordWriteIntoCode(host(), this, target);
   }
 }
 
@@ -248,9 +233,8 @@ void RelocInfo::set_target_cell(Cell* cell, WriteBarrierMode write_barrier_mode,
   Address address = cell->address() + Cell::kValueOffset;
   Memory::Address_at(pc_) = address;
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != NULL) {
-    // TODO(1550) We are passing NULL as a slot because cell can never be on
-    // evacuation candidate.
-    host()->GetHeap()->incremental_marking()->RecordWrite(host(), NULL, cell);
+    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
+                                                                  cell);
   }
 }
 
@@ -328,40 +312,7 @@ void RelocInfo::WipeOut() {
   }
 }
 
-
-bool RelocInfo::IsPatchedReturnSequence() {
-  //
-  // The patched return sequence is defined by
-  // BreakLocation::SetDebugBreakAtReturn()
-  // FIXED_SEQUENCE
-
-  Instr instr0 = Assembler::instr_at(pc_);
-  Instr instr1 = Assembler::instr_at(pc_ + 1 * Assembler::kInstrSize);
-#if V8_TARGET_ARCH_PPC64
-  Instr instr3 = Assembler::instr_at(pc_ + (3 * Assembler::kInstrSize));
-  Instr instr4 = Assembler::instr_at(pc_ + (4 * Assembler::kInstrSize));
-  Instr binstr = Assembler::instr_at(pc_ + (7 * Assembler::kInstrSize));
-#else
-  Instr binstr = Assembler::instr_at(pc_ + 4 * Assembler::kInstrSize);
-#endif
-  bool patched_return =
-      ((instr0 & kOpcodeMask) == ADDIS && (instr1 & kOpcodeMask) == ORI &&
-#if V8_TARGET_ARCH_PPC64
-       (instr3 & kOpcodeMask) == ORIS && (instr4 & kOpcodeMask) == ORI &&
-#endif
-       (binstr == 0x7d821008));  // twge r2, r2
-
-  // printf("IsPatchedReturnSequence: %d\n", patched_return);
-  return patched_return;
-}
-
-
-bool RelocInfo::IsPatchedDebugBreakSlotSequence() {
-  Instr current_instr = Assembler::instr_at(pc_);
-  return !Assembler::IsNop(current_instr, Assembler::DEBUG_BREAK_NOP);
-}
-
-
+template <typename ObjectVisitor>
 void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {

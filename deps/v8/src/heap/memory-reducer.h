@@ -96,7 +96,7 @@ class MemoryReducer {
     double last_gc_time_ms;
   };
 
-  enum EventType { kTimer, kMarkCompact, kContextDisposed };
+  enum EventType { kTimer, kMarkCompact, kPossibleGarbage };
 
   struct Event {
     EventType type;
@@ -113,7 +113,7 @@ class MemoryReducer {
         js_calls_sample_time_ms_(0.0) {}
   // Callbacks.
   void NotifyMarkCompact(const Event& event);
-  void NotifyContextDisposed(const Event& event);
+  void NotifyPossibleGarbage(const Event& event);
   void NotifyBackgroundIdleNotification(const Event& event);
   // The step function that computes the next state from the current state and
   // the incoming event.

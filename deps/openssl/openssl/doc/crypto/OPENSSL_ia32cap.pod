@@ -6,7 +6,7 @@ OPENSSL_ia32cap, OPENSSL_ia32cap_loc - the IA-32 processor capabilities vector
 
 =head1 SYNOPSIS
 
- unsigned int *OPENSSL_ia32cap_loc(void);
+ unsigned long *OPENSSL_ia32cap_loc(void);
  #define OPENSSL_ia32cap ((OPENSSL_ia32cap_loc())[0])
 
 =head1 DESCRIPTION

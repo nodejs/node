@@ -147,6 +147,8 @@ int pkey_GOST01cp_encrypt(EVP_PKEY_CTX *pctx, unsigned char *out,
         key_is_ephemeral = 1;
         if (out) {
             sec_key = EVP_PKEY_new();
+            if (sec_key == NULL)
+                goto err;
             EVP_PKEY_assign(sec_key, EVP_PKEY_base_id(pubk), EC_KEY_new());
             EVP_PKEY_copy_parameters(sec_key, pubk);
             if (!gost2001_keygen(EVP_PKEY_get0(sec_key))) {

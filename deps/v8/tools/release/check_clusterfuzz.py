@@ -71,7 +71,25 @@ BUG_SPECS = [
   },
   {
     "args": {
+      "job_type": "linux_asan_d8_ignition_dbg",
+      "reproducible": "True",
+      "open": "True",
+      "bug_information": "",
+    },
+    "crash_state": ANY_RE,
+  },
+  {
+    "args": {
       "job_type": "linux_asan_d8_v8_arm_dbg",
+      "reproducible": "True",
+      "open": "True",
+      "bug_information": "",
+    },
+    "crash_state": ANY_RE,
+  },
+  {
+    "args": {
+      "job_type": "linux_asan_d8_ignition_v8_arm_dbg",
       "reproducible": "True",
       "open": "True",
       "bug_information": "",

@@ -57,6 +57,7 @@
  */
 
 #include <stdio.h>
+#include <limits.h>
 #include "cryptlib.h"
 #include <openssl/evp.h>
 
@@ -151,13 +152,13 @@ void EVP_EncodeUpdate(EVP_ENCODE_CTX *ctx, unsigned char *out, int *outl,
                       const unsigned char *in, int inl)
 {
     int i, j;
-    unsigned int total = 0;
+    size_t total = 0;
 
     *outl = 0;
     if (inl <= 0)
         return;
     OPENSSL_assert(ctx->length <= (int)sizeof(ctx->enc_data));
-    if ((ctx->num + inl) < ctx->length) {
+    if (ctx->length - ctx->num > inl) {
         memcpy(&(ctx->enc_data[ctx->num]), in, inl);
         ctx->num += inl;
         return;
@@ -174,7 +175,7 @@ void EVP_EncodeUpdate(EVP_ENCODE_CTX *ctx, unsigned char *out, int *outl,
         *out = '\0';
         total = j + 1;
     }
-    while (inl >= ctx->length) {
+    while (inl >= ctx->length && total <= INT_MAX) {
         j = EVP_EncodeBlock(out, in, ctx->length);
         in += ctx->length;
         inl -= ctx->length;
@@ -182,6 +183,11 @@ void EVP_EncodeUpdate(EVP_ENCODE_CTX *ctx, unsigned char *out, int *outl,
         *(out++) = '\n';
         *out = '\0';
         total += j + 1;
+    }
+    if (total > INT_MAX) {
+        /* Too much output data! */
+        *outl = 0;
+        return;
     }
     if (inl != 0)
         memcpy(&(ctx->enc_data[0]), in, inl);

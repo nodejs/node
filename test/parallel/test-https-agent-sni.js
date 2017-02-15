@@ -3,7 +3,7 @@ const common = require('../common');
 const assert = require('assert');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 const https = require('https');
@@ -16,7 +16,7 @@ const options = {
 };
 
 const TOTAL = 4;
-var waiting = TOTAL;
+let waiting = TOTAL;
 
 const server = https.Server(options, function(req, res) {
   if (--waiting === 0) server.close();
@@ -27,23 +27,23 @@ const server = https.Server(options, function(req, res) {
   res.end('hello world');
 });
 
-server.listen(common.PORT, function() {
+server.listen(0, function() {
   function expectResponse(id) {
     return common.mustCall(function(res) {
       res.resume();
-      assert.equal(res.headers['x-sni'], 'sni.' + id);
+      assert.strictEqual(res.headers['x-sni'], 'sni.' + id);
     });
   }
 
-  var agent = new https.Agent({
+  const agent = new https.Agent({
     maxSockets: 1
   });
-  for (var j = 0; j < TOTAL; j++) {
+  for (let j = 0; j < TOTAL; j++) {
     https.get({
       agent: agent,
 
       path: '/',
-      port: common.PORT,
+      port: this.address().port,
       host: '127.0.0.1',
       servername: 'sni.' + j,
       rejectUnauthorized: false

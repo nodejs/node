@@ -23,7 +23,7 @@ function pkgAreEquiv (aa, bb) {
   return false
 }
 
-function getNameAndVersion (pkg) {
+function getUniqueId (pkg) {
   var versionspec = pkg._shasum
 
   if (!versionspec && nonRegistrySource(pkg)) {
@@ -59,17 +59,15 @@ function requiredByAllLinked (node) {
   return node.requiredBy.filter(isLink).length === node.requiredBy.length
 }
 
-function isNotReqByTop (req) {
-  return req !== '/' &&     // '/' is the top level itself
-         req !== '#USER' && // #USER
-         req !== '#EXTRANEOUS'
+function isNotTopOrExtraneous (node) {
+  return !node.isTop && !node.userRequired && !node.existing
 }
 
 var sortActions = module.exports.sortActions = function (differences) {
   var actions = {}
   differences.forEach(function (action) {
     var child = action[1]
-    actions[child.package._location] = action
+    actions[child.location] = action
   })
 
   var sorted = []
@@ -77,14 +75,18 @@ var sortActions = module.exports.sortActions = function (differences) {
 
   var sortedlocs = Object.keys(actions).sort(sortByLocation)
 
-  // Do top level deps first, this stops the sorting by required order from
-  // unsorting these deps.
+  // We're going to sort the actions taken on top level dependencies first, before
+  // considering the order of transitive deps. Because we're building our list
+  // from the bottom up, this means we will return a list with top level deps LAST.
+  // This is important in terms of keeping installations as consistent as possible
+  // as folks add new dependencies.
   var toplocs = sortedlocs.filter(function (location) {
     var mod = actions[location][1]
-    if (!mod.package._requiredBy) return true
-    // If the module is required by ANY non-top level package
-    // then we don't want to include this.
-    return !mod.package._requiredBy.some(isNotReqByTop)
+    if (!mod.requiredBy) return true
+    // If this module is required by any non-top level module
+    // or by any extraneous module, eg user requested or existing
+    // then we don't want to give this priority sorting.
+    return !mod.requiredBy.some(isNotTopOrExtraneous)
   })
 
   toplocs.concat(sortedlocs).forEach(function (location) {
@@ -94,12 +96,16 @@ var sortActions = module.exports.sortActions = function (differences) {
   function sortByLocation (aa, bb) {
     return bb.localeCompare(aa)
   }
+  function sortModuleByLocation (aa, bb) {
+    return sortByLocation(aa && aa.location, bb && bb.location)
+  }
   function sortByDeps (action) {
     var mod = action[1]
-    if (added[mod.package._location]) return
-    added[mod.package._location] = action
-    mod.package._requiredBy.sort().forEach(function (location) {
-      if (actions[location]) sortByDeps(actions[location])
+    if (added[mod.location]) return
+    added[mod.location] = action
+    if (!mod.requiredBy) mod.requiredBy = []
+    mod.requiredBy.sort(sortModuleByLocation).forEach(function (mod) {
+      if (actions[mod.location]) sortByDeps(actions[mod.location])
     })
     sorted.unshift(action)
   }
@@ -107,21 +113,25 @@ var sortActions = module.exports.sortActions = function (differences) {
   return sorted
 }
 
-function diffTrees (oldTree, newTree) {
+function setAction (differences, action, pkg) {
+  differences.push([action, pkg])
+}
+
+var diffTrees = module.exports._diffTrees = function (oldTree, newTree) {
   validate('OO', arguments)
   var differences = []
   var flatOldTree = flattenTree(oldTree)
   var flatNewTree = flattenTree(newTree)
   var toRemove = {}
-  var toRemoveByNameAndVer = {}
+  var toRemoveByUniqueId = {}
   // find differences
   Object.keys(flatOldTree).forEach(function (flatname) {
     if (flatNewTree[flatname]) return
     var pkg = flatOldTree[flatname]
     toRemove[flatname] = pkg
-    var namever = getNameAndVersion(pkg.package)
-    if (!toRemoveByNameAndVer[namever]) toRemoveByNameAndVer[namever] = []
-    toRemoveByNameAndVer[namever].push(flatname)
+    var pkgunique = getUniqueId(pkg.package)
+    if (!toRemoveByUniqueId[pkgunique]) toRemoveByUniqueId[pkgunique] = []
+    toRemoveByUniqueId[pkgunique].push(flatname)
   })
   Object.keys(flatNewTree).forEach(function (path) {
     var pkg = flatNewTree[path]
@@ -132,19 +142,21 @@ function diffTrees (oldTree, newTree) {
     if (pkg.oldPkg) {
       if (!pkg.userRequired && pkgAreEquiv(pkg.oldPkg.package, pkg.package)) return
       if (!pkg.isInLink && (isLink(pkg.oldPkg) || isLink(pkg))) {
-        differences.push(['update-linked', pkg])
+        setAction(differences, 'update-linked', pkg)
       } else {
-        differences.push(['update', pkg])
+        setAction(differences, 'update', pkg)
       }
     } else {
-      var vername = getNameAndVersion(pkg.package)
-      if (toRemoveByNameAndVer[vername] && toRemoveByNameAndVer[vername].length && !pkg.fromBundle) {
-        var flatname = toRemoveByNameAndVer[vername].shift()
+      var vername = getUniqueId(pkg.package)
+      var removing = toRemoveByUniqueId[vername] && toRemoveByUniqueId[vername].length
+      var bundlesOrFromBundle = pkg.fromBundle || pkg.package.bundleDependencies
+      if (removing && !bundlesOrFromBundle) {
+        var flatname = toRemoveByUniqueId[vername].shift()
         pkg.fromPath = toRemove[flatname].path
-        differences.push(['move', pkg])
+        setAction(differences, 'move', pkg)
         delete toRemove[flatname]
       } else {
-        differences.push(['add', pkg])
+        setAction(differences, 'add', pkg)
       }
     }
   })
@@ -152,7 +164,7 @@ function diffTrees (oldTree, newTree) {
     .keys(toRemove)
     .map(function (path) { return toRemove[path] })
     .forEach(function (pkg) {
-      differences.push(['remove', pkg])
+      setAction(differences, 'remove', pkg)
     })
   return differences
 }

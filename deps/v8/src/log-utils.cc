@@ -164,16 +164,14 @@ void Log::MessageBuilder::Append(String* str) {
   }
 }
 
-
 void Log::MessageBuilder::AppendAddress(Address addr) {
-  Append("0x%" V8PRIxPTR, addr);
+  Append("%p", static_cast<void*>(addr));
 }
-
 
 void Log::MessageBuilder::AppendSymbolName(Symbol* symbol) {
   DCHECK(symbol);
   Append("symbol(");
-  if (!symbol->name()->IsUndefined()) {
+  if (!symbol->name()->IsUndefined(symbol->GetIsolate())) {
     Append("\"");
     AppendDetailed(String::cast(symbol->name()), false);
     Append("\" ");

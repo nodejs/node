@@ -4,13 +4,17 @@
 
 # include <openssl/crypto.h>
 
+# ifdef OPENSSL_NO_COMP
+#  error COMP is disabled.
+# endif
+
 #ifdef  __cplusplus
 extern "C" {
 #endif
 
 typedef struct comp_ctx_st COMP_CTX;
 
-typedef struct comp_method_st {
+struct comp_method_st {
     int type;                   /* NID for compression library */
     const char *name;           /* A text string to identify the library */
     int (*init) (COMP_CTX *ctx);
@@ -26,7 +30,7 @@ typedef struct comp_method_st {
      */
     long (*ctrl) (void);
     long (*callback_ctrl) (void);
-} COMP_METHOD;
+};
 
 struct comp_ctx_st {
     COMP_METHOD *meth;

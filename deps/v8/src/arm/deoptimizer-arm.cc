@@ -66,42 +66,18 @@ void Deoptimizer::PatchCodeForDeoptimization(Isolate* isolate, Code* code) {
     Address deopt_entry = GetDeoptimizationEntry(isolate, i, LAZY);
     // We need calls to have a predictable size in the unoptimized code, but
     // this is optimized code, so we don't have to have a predictable size.
-    int call_size_in_bytes =
-        MacroAssembler::CallSizeNotPredictableCodeSize(isolate,
-                                                       deopt_entry,
-                                                       RelocInfo::NONE32);
+    int call_size_in_bytes = MacroAssembler::CallDeoptimizerSize();
     int call_size_in_words = call_size_in_bytes / Assembler::kInstrSize;
     DCHECK(call_size_in_bytes % Assembler::kInstrSize == 0);
     DCHECK(call_size_in_bytes <= patch_size());
     CodePatcher patcher(isolate, call_address, call_size_in_words);
-    patcher.masm()->Call(deopt_entry, RelocInfo::NONE32);
+    patcher.masm()->CallDeoptimizer(deopt_entry);
     DCHECK(prev_call_address == NULL ||
            call_address >= prev_call_address + patch_size());
     DCHECK(call_address + patch_size() <= code->instruction_end());
 #ifdef DEBUG
     prev_call_address = call_address;
 #endif
-  }
-}
-
-
-void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
-  // Set the register values. The values are not important as there are no
-  // callee saved registers in JavaScript frames, so all registers are
-  // spilled. Registers fp and sp are set to the correct values though.
-
-  for (int i = 0; i < Register::kNumRegisters; i++) {
-    input_->SetRegister(i, i * 4);
-  }
-  input_->SetRegister(sp.code(), reinterpret_cast<intptr_t>(frame->sp()));
-  input_->SetRegister(fp.code(), reinterpret_cast<intptr_t>(frame->fp()));
-  for (int i = 0; i < DoubleRegister::kMaxNumRegisters; i++) {
-    input_->SetDoubleRegister(i, 0.0);
-  }
-
-  // Fill the frame content from the actual data on the frame.
-  for (unsigned i = 0; i < input_->GetFrameSize(); i += kPointerSize) {
-    input_->SetFrameSlot(i, Memory::uint32_at(tos + i));
   }
 }
 
@@ -124,13 +100,6 @@ void Deoptimizer::CopyDoubleRegisters(FrameDescription* output_frame) {
   }
 }
 
-
-bool Deoptimizer::HasAlignmentPadding(JSFunction* function) {
-  // There is no dynamic alignment padding on ARM in the input frame.
-  return false;
-}
-
-
 #define __ masm()->
 
 // This code tries to be close to ia32 code so that any changes can be
@@ -150,14 +119,20 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   DCHECK(kDoubleRegZero.code() == 14);
   DCHECK(kScratchDoubleReg.code() == 15);
 
-  // Check CPU flags for number of registers, setting the Z condition flag.
-  __ CheckFor32DRegs(ip);
+  {
+    // We use a run-time check for VFP32DREGS.
+    CpuFeatureScope scope(masm(), VFP32DREGS,
+                          CpuFeatureScope::kDontCheckSupported);
 
-  // Push registers d0-d15, and possibly d16-d31, on the stack.
-  // If d16-d31 are not pushed, decrease the stack pointer instead.
-  __ vstm(db_w, sp, d16, d31, ne);
-  __ sub(sp, sp, Operand(16 * kDoubleSize), LeaveCC, eq);
-  __ vstm(db_w, sp, d0, d15);
+    // Check CPU flags for number of registers, setting the Z condition flag.
+    __ CheckFor32DRegs(ip);
+
+    // Push registers d0-d15, and possibly d16-d31, on the stack.
+    // If d16-d31 are not pushed, decrease the stack pointer instead.
+    __ vstm(db_w, sp, d16, d31, ne);
+    __ sub(sp, sp, Operand(16 * kDoubleSize), LeaveCC, eq);
+    __ vstm(db_w, sp, d0, d15);
+  }
 
   // Push all 16 registers (needed to populate FrameDescription::registers_).
   // TODO(1588) Note that using pc with stm is deprecated, so we should perhaps
@@ -184,7 +159,12 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Allocate a new deoptimizer object.
   // Pass four arguments in r0 to r3 and fifth argument on stack.
   __ PrepareCallCFunction(6, r5);
+  __ mov(r0, Operand(0));
+  Label context_check;
+  __ ldr(r1, MemOperand(fp, CommonFrameConstants::kContextOrFrameTypeOffset));
+  __ JumpIfSmi(r1, &context_check);
   __ ldr(r0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  __ bind(&context_check);
   __ mov(r1, Operand(type()));  // bailout type,
   // r2: bailout id already loaded.
   // r3: code address or 0 already loaded.
@@ -212,8 +192,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Copy VFP registers to
   // double_registers_[DoubleRegister::kMaxNumAllocatableRegisters]
   int double_regs_offset = FrameDescription::double_registers_offset();
-  const RegisterConfiguration* config =
-      RegisterConfiguration::ArchDefault(RegisterConfiguration::CRANKSHAFT);
+  const RegisterConfiguration* config = RegisterConfiguration::Crankshaft();
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
     int code = config->GetAllocatableDoubleCode(i);
     int dst_offset = code * kDoubleSize + double_regs_offset;
@@ -257,6 +236,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   }
   __ pop(r0);  // Restore deoptimizer object (class Deoptimizer).
 
+  __ ldr(sp, MemOperand(r0, Deoptimizer::caller_frame_top_offset()));
+
   // Replace the current (input) frame with the output frames.
   Label outer_push_loop, inner_push_loop,
       outer_loop_header, inner_loop_header;
@@ -284,18 +265,12 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ cmp(r4, r1);
   __ b(lt, &outer_push_loop);
 
-  // Check CPU flags for number of registers, setting the Z condition flag.
-  __ CheckFor32DRegs(ip);
-
   __ ldr(r1, MemOperand(r0, Deoptimizer::input_offset()));
-  int src_offset = FrameDescription::double_registers_offset();
-  for (int i = 0; i < DwVfpRegister::kMaxNumRegisters; ++i) {
-    if (i == kDoubleRegZero.code()) continue;
-    if (i == kScratchDoubleReg.code()) continue;
-
-    const DwVfpRegister reg = DwVfpRegister::from_code(i);
-    __ vldr(reg, r1, src_offset, i < 16 ? al : ne);
-    src_offset += kDoubleSize;
+  for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
+    int code = config->GetAllocatableDoubleCode(i);
+    DwVfpRegister reg = DwVfpRegister::from_code(code);
+    int src_offset = code * kDoubleSize + double_regs_offset;
+    __ vldr(reg, r1, src_offset);
   }
 
   // Push state, pc, and continuation from the last output frame.
@@ -331,15 +306,50 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   // Create a sequence of deoptimization entries.
   // Note that registers are still live when jumping to an entry.
-  Label done;
-  for (int i = 0; i < count(); i++) {
-    int start = masm()->pc_offset();
-    USE(start);
-    __ mov(ip, Operand(i));
-    __ b(&done);
-    DCHECK(masm()->pc_offset() - start == table_entry_size_);
+
+  // We need to be able to generate immediates up to kMaxNumberOfEntries. On
+  // ARMv7, we can use movw (with a maximum immediate of 0xffff). On ARMv6, we
+  // need two instructions.
+  STATIC_ASSERT((kMaxNumberOfEntries - 1) <= 0xffff);
+  if (CpuFeatures::IsSupported(ARMv7)) {
+    CpuFeatureScope scope(masm(), ARMv7);
+    Label done;
+    for (int i = 0; i < count(); i++) {
+      int start = masm()->pc_offset();
+      USE(start);
+      __ movw(ip, i);
+      __ b(&done);
+      DCHECK_EQ(table_entry_size_, masm()->pc_offset() - start);
+    }
+    __ bind(&done);
+  } else {
+    // We want to keep table_entry_size_ == 8 (since this is the common case),
+    // but we need two instructions to load most immediates over 0xff. To handle
+    // this, we set the low byte in the main table, and then set the high byte
+    // in a separate table if necessary.
+    Label high_fixes[256];
+    int high_fix_max = (count() - 1) >> 8;
+    DCHECK_GT(arraysize(high_fixes), high_fix_max);
+    for (int i = 0; i < count(); i++) {
+      int start = masm()->pc_offset();
+      USE(start);
+      __ mov(ip, Operand(i & 0xff));  // Set the low byte.
+      __ b(&high_fixes[i >> 8]);      // Jump to the secondary table.
+      DCHECK_EQ(table_entry_size_, masm()->pc_offset() - start);
+    }
+    // Generate the secondary table, to set the high byte.
+    for (int high = 1; high <= high_fix_max; high++) {
+      __ bind(&high_fixes[high]);
+      __ orr(ip, ip, Operand(high << 8));
+      // If this isn't the last entry, emit a branch to the end of the table.
+      // The last entry can just fall through.
+      if (high < high_fix_max) __ b(&high_fixes[0]);
+    }
+    // Bind high_fixes[0] last, for indices like 0x00**. This case requires no
+    // fix-up, so for (common) small tables we can jump here, then just fall
+    // through with no additional branch.
+    __ bind(&high_fixes[0]);
   }
-  __ bind(&done);
   __ push(ip);
 }
 

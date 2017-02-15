@@ -38,17 +38,6 @@
 using namespace std;
 using namespace v8;
 
-class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
- public:
-  virtual void* Allocate(size_t length) {
-    void* data = AllocateUninitialized(length);
-    return data == NULL ? data : memset(data, 0, length);
-  }
-  virtual void* AllocateUninitialized(size_t length) { return malloc(length); }
-  virtual void Free(void* data, size_t) { free(data); }
-};
-
-
 // These interfaces represent an existing request processing interface.
 // The idea is to imagine a real application that uses these interfaces
 // and then add scripting capabilities that allow you to interact with
@@ -687,7 +676,7 @@ void PrintMap(map<string, string>* m) {
 
 
 int main(int argc, char* argv[]) {
-  v8::V8::InitializeICU();
+  v8::V8::InitializeICUDefaultLocation(argv[0]);
   v8::V8::InitializeExternalStartupData(argv[0]);
   v8::Platform* platform = v8::platform::CreateDefaultPlatform();
   v8::V8::InitializePlatform(platform);
@@ -699,9 +688,9 @@ int main(int argc, char* argv[]) {
     fprintf(stderr, "No script was specified.\n");
     return 1;
   }
-  ArrayBufferAllocator array_buffer_allocator;
   Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = &array_buffer_allocator;
+  create_params.array_buffer_allocator =
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator();
   Isolate* isolate = Isolate::New(create_params);
   Isolate::Scope isolate_scope(isolate);
   HandleScope scope(isolate);

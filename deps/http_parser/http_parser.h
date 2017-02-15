@@ -26,8 +26,8 @@ extern "C" {
 
 /* Also update SONAME in the Makefile whenever you change these. */
 #define HTTP_PARSER_VERSION_MAJOR 2
-#define HTTP_PARSER_VERSION_MINOR 6
-#define HTTP_PARSER_VERSION_PATCH 2
+#define HTTP_PARSER_VERSION_MINOR 7
+#define HTTP_PARSER_VERSION_PATCH 0
 
 #include <sys/types.h>
 #if defined(_WIN32) && !defined(__MINGW32__) && \
@@ -76,6 +76,11 @@ typedef struct http_parser_settings http_parser_settings;
  * should not expect a body. This is used when receiving a response to a
  * HEAD request which may contain 'Content-Length' or 'Transfer-Encoding:
  * chunked' headers that indicate the presence of a body.
+ *
+ * Returning `2` from on_headers_complete will tell parser that it should not
+ * expect neither a body nor any futher responses on this connection. This is
+ * useful for handling responses to a CONNECT request which may not contain
+ * `Upgrade` or `Connection: upgrade` headers.
  *
  * http_data_cb does not return data chunks. It will be called arbitrarily
  * many times for each string. E.G. you might get 10 callbacks for "on_url"

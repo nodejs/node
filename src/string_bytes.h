@@ -1,28 +1,22 @@
 #ifndef SRC_STRING_BYTES_H_
 #define SRC_STRING_BYTES_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 // Decodes a v8::Local<v8::String> or Buffer to a raw char*
 
 #include "v8.h"
 #include "node.h"
 #include "env.h"
 #include "env-inl.h"
+#include "util.h"
 
 namespace node {
 
 class StringBytes {
  public:
-  class InlineDecoder {
+  class InlineDecoder : public MaybeStackBuffer<char> {
    public:
-    InlineDecoder() : out_(nullptr) {
-    }
-
-    ~InlineDecoder() {
-      if (out_ != out_st_)
-        delete[] out_;
-      out_ = nullptr;
-    }
-
     inline bool Decode(Environment* env,
                        v8::Local<v8::String> string,
                        v8::Local<v8::Value> encoding,
@@ -33,28 +27,22 @@ class StringBytes {
         return false;
       }
 
-      size_t buflen = StringBytes::StorageSize(env->isolate(), string, enc);
-      if (buflen > sizeof(out_st_))
-        out_ = new char[buflen];
-      else
-        out_ = out_st_;
-      size_ = StringBytes::Write(env->isolate(),
-                                 out_,
-                                 buflen,
-                                 string,
-                                 enc);
+      const size_t storage = StringBytes::StorageSize(env->isolate(),
+                                                      string,
+                                                      enc);
+      AllocateSufficientStorage(storage);
+      const size_t length = StringBytes::Write(env->isolate(),
+                                               out(),
+                                               storage,
+                                               string,
+                                               enc);
+
+      // No zero terminator is included when using this method.
+      SetLength(length);
       return true;
     }
 
-    inline const char* out() const { return out_; }
-    inline size_t size() const { return size_; }
-
-   private:
-    static const int kStorageSize = 1024;
-
-    char out_st_[kStorageSize];
-    char* out_;
-    size_t size_;
+    inline size_t size() const { return length(); }
   };
 
   // Does the string match the encoding? Quick but non-exhaustive.
@@ -106,51 +94,9 @@ class StringBytes {
                                      const uint16_t* buf,
                                      size_t buflen);
 
-  // Deprecated legacy interface
-
-  NODE_DEPRECATED("Use IsValidString(isolate, ...)",
-                  static inline bool IsValidString(
-      v8::Local<v8::String> string,
-      enum encoding enc) {
-    return IsValidString(v8::Isolate::GetCurrent(), string, enc);
-  })
-
-  NODE_DEPRECATED("Use StorageSize(isolate, ...)",
-                  static inline size_t StorageSize(v8::Local<v8::Value> val,
-                                                  enum encoding enc) {
-    return StorageSize(v8::Isolate::GetCurrent(), val, enc);
-  })
-
-  NODE_DEPRECATED("Use Size(isolate, ...)",
-                  static inline size_t Size(v8::Local<v8::Value> val,
-                                            enum encoding enc) {
-    return Size(v8::Isolate::GetCurrent(), val, enc);
-  })
-
-  NODE_DEPRECATED("Use GetExternalParts(isolate, ...)",
-                  static inline bool GetExternalParts(v8::Local<v8::Value> val,
-                                                      const char** data,
-                                                      size_t* len) {
-    return GetExternalParts(v8::Isolate::GetCurrent(), val, data, len);
-  })
-
-  NODE_DEPRECATED("Use Write(isolate, ...)",
-                  static inline size_t Write(char* buf,
-                                             size_t buflen,
-                                             v8::Local<v8::Value> val,
-                                             enum encoding enc,
-                                             int* chars_written = nullptr) {
-    v8::Isolate* isolate = v8::Isolate::GetCurrent();
-    return Write(isolate, buf, buflen, val, enc, chars_written);
-  })
-
-  NODE_DEPRECATED("Use Encode(isolate, ...)",
-                  static inline v8::Local<v8::Value> Encode(
-      const char* buf,
-      size_t buflen,
-      enum encoding encoding) {
-    return Encode(v8::Isolate::GetCurrent(), buf, buflen, encoding);
-  })
+  static v8::Local<v8::Value> Encode(v8::Isolate* isolate,
+                                     const char* buf,
+                                     enum encoding encoding);
 
  private:
   static size_t WriteUCS2(char* buf,
@@ -163,5 +109,7 @@ class StringBytes {
 };
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_STRING_BYTES_H_

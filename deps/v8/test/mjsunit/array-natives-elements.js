@@ -30,6 +30,16 @@
 // IC and Crankshaft support for smi-only elements in dynamic array literals.
 function get(foo) { return foo; }  // Used to generate dynamic values.
 
+// This code exists to eliminate the learning influence of AllocationSites
+// on the following tests.
+function make_array_string(literal) {
+  this.__sequence = this.__sequence + 1;
+  return "/* " + this.__sequence + " */  " + literal;
+}
+function make_array(literal) {
+  return eval(make_array_string(literal));
+}
+
 var __sequence = 0;
 function array_natives_test() {
 
@@ -39,16 +49,6 @@ function array_natives_test() {
   assertTrue(%HasFastSmiElements([1,2]));
   assertTrue(%HasFastDoubleElements([1.1]));
   assertTrue(%HasFastDoubleElements([1.1,2]));
-
-  // This code exists to eliminate the learning influence of AllocationSites
-  // on the following tests.
-  function make_array_string(literal) {
-    this.__sequence = this.__sequence + 1;
-    return "/* " + this.__sequence + " */  " + literal;
-  }
-  function make_array(literal) {
-    return eval(make_array_string(literal));
-  }
 
   // Push
   var a0 = make_array("[1, 2, 3]");

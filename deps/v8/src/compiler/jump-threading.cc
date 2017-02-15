@@ -53,10 +53,10 @@ struct JumpThreadingState {
   RpoNumber onstack() { return RpoNumber::FromInt(-2); }
 };
 
-
 bool JumpThreading::ComputeForwarding(Zone* local_zone,
                                       ZoneVector<RpoNumber>& result,
-                                      InstructionSequence* code) {
+                                      InstructionSequence* code,
+                                      bool frame_at_start) {
   ZoneStack<RpoNumber> stack(local_zone);
   JumpThreadingState state = {false, result, stack};
   state.Clear(code->InstructionBlockCount());
@@ -91,7 +91,16 @@ bool JumpThreading::ComputeForwarding(Zone* local_zone,
         } else if (instr->arch_opcode() == kArchJmp) {
           // try to forward the jump instruction.
           TRACE("  jmp\n");
-          fw = code->InputRpo(instr, 0);
+          // if this block deconstructs the frame, we can't forward it.
+          // TODO(mtrofin): we can still forward if we end up building
+          // the frame at start. So we should move the decision of whether
+          // to build a frame or not in the register allocator, and trickle it
+          // here and to the code generator.
+          if (frame_at_start ||
+              !(block->must_deconstruct_frame() ||
+                block->must_construct_frame())) {
+            fw = code->InputRpo(instr, 0);
+          }
           fallthru = false;
         } else {
           // can't skip other instructions.
@@ -134,7 +143,7 @@ void JumpThreading::ApplyForwarding(ZoneVector<RpoNumber>& result,
                                     InstructionSequence* code) {
   if (!FLAG_turbo_jt) return;
 
-  Zone local_zone;
+  Zone local_zone(code->isolate()->allocator());
   ZoneVector<bool> skip(static_cast<int>(result.size()), false, &local_zone);
 
   // Skip empty blocks when the previous block doesn't fall through.

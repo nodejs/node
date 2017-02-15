@@ -1,26 +1,15 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
-var gotError = false;
+const server1 = net.createServer(common.mustNotCall());
+server1.listen(0, '127.0.0.1', common.mustCall(function() {
+  const server2 = net.createServer(common.mustNotCall());
+  server2.listen(this.address().port, '127.0.0.1', common.mustNotCall());
 
-process.on('exit', function() {
-  assert(gotError);
-});
-
-function dontCall() {
-  assert(false);
-}
-
-var server1 = net.createServer(dontCall);
-server1.listen(common.PORT, '127.0.0.1', function() {});
-
-var server2 = net.createServer(dontCall);
-server2.listen(common.PORT, '127.0.0.1', dontCall);
-
-server2.on('error', function(e) {
-  assert.equal(e.code, 'EADDRINUSE');
-  server1.close();
-  gotError = true;
-});
+  server2.on('error', common.mustCall(function(e) {
+    assert.strictEqual(e.code, 'EADDRINUSE');
+    server1.close();
+  }));
+}));

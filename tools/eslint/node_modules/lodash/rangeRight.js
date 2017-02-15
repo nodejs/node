@@ -6,11 +6,13 @@ var createRange = require('./_createRange');
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Util
  * @param {number} [start=0] The start of the range.
  * @param {number} end The end of the range.
  * @param {number} [step=1] The value to increment or decrement by.
- * @returns {Array} Returns the new array of numbers.
+ * @returns {Array} Returns the range of numbers.
+ * @see _.inRange, _.range
  * @example
  *
  * _.rangeRight(4);

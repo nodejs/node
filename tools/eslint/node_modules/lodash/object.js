@@ -3,9 +3,12 @@ module.exports = {
   'assignIn': require('./assignIn'),
   'assignInWith': require('./assignInWith'),
   'assignWith': require('./assignWith'),
+  'at': require('./at'),
   'create': require('./create'),
   'defaults': require('./defaults'),
   'defaultsDeep': require('./defaultsDeep'),
+  'entries': require('./entries'),
+  'entriesIn': require('./entriesIn'),
   'extend': require('./extend'),
   'extendWith': require('./extendWith'),
   'findKey': require('./findKey'),
@@ -39,6 +42,8 @@ module.exports = {
   'toPairsIn': require('./toPairsIn'),
   'transform': require('./transform'),
   'unset': require('./unset'),
+  'update': require('./update'),
+  'updateWith': require('./updateWith'),
   'values': require('./values'),
   'valuesIn': require('./valuesIn')
 };

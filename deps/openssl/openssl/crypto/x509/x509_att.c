@@ -296,7 +296,7 @@ int X509_ATTRIBUTE_set1_object(X509_ATTRIBUTE *attr, const ASN1_OBJECT *obj)
 int X509_ATTRIBUTE_set1_data(X509_ATTRIBUTE *attr, int attrtype,
                              const void *data, int len)
 {
-    ASN1_TYPE *ttmp;
+    ASN1_TYPE *ttmp = NULL;
     ASN1_STRING *stmp = NULL;
     int atype = 0;
     if (!attr)
@@ -324,20 +324,26 @@ int X509_ATTRIBUTE_set1_data(X509_ATTRIBUTE *attr, int attrtype,
      * least one value but some types use and zero length SET and require
      * this.
      */
-    if (attrtype == 0)
+    if (attrtype == 0) {
+        ASN1_STRING_free(stmp);
         return 1;
+    }
     if (!(ttmp = ASN1_TYPE_new()))
         goto err;
     if ((len == -1) && !(attrtype & MBSTRING_FLAG)) {
         if (!ASN1_TYPE_set1(ttmp, attrtype, data))
             goto err;
-    } else
+    } else {
         ASN1_TYPE_set(ttmp, atype, stmp);
+        stmp = NULL;
+    }
     if (!sk_ASN1_TYPE_push(attr->value.set, ttmp))
         goto err;
     return 1;
  err:
     X509err(X509_F_X509_ATTRIBUTE_SET1_DATA, ERR_R_MALLOC_FAILURE);
+    ASN1_TYPE_free(ttmp);
+    ASN1_STRING_free(stmp);
     return 0;
 }
 

@@ -384,6 +384,14 @@ TEST(MIPS3) {
 
 
 TEST(MIPS4) {
+  // Exchange between GP anf FP registers is done through memory
+  // on FPXX compiled binaries and architectures that do not support
+  // MTHC1 and MTFC1. If this is the case, skipping this test.
+  if (IsFpxxMode() &&
+      (IsMipsArchVariant(kMips32r1) || IsMipsArchVariant(kLoongson))) {
+    return;
+  }
+
   // Test moves between floating point and integer registers.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -403,7 +411,7 @@ TEST(MIPS4) {
   __ ldc1(f6, MemOperand(a0, offsetof(T, b)) );
 
   // Swap f4 and f6, by using four integer registers, t0-t3.
-  if (!IsFp64Mode()) {
+  if (IsFp32Mode()) {
     __ mfc1(t0, f4);
     __ mfc1(t1, f5);
     __ mfc1(t2, f6);
@@ -415,6 +423,7 @@ TEST(MIPS4) {
     __ mtc1(t3, f5);
   } else {
     CHECK(!IsMipsArchVariant(kMips32r1) && !IsMipsArchVariant(kLoongson));
+    DCHECK(IsFp64Mode() || IsFpxxMode());
     __ mfc1(t0, f4);
     __ mfhc1(t1, f4);
     __ mfc1(t2, f6);
@@ -425,6 +434,7 @@ TEST(MIPS4) {
     __ mtc1(t2, f4);
     __ mthc1(t3, f4);
   }
+
   // Store the swapped f4 and f5 back to memory.
   __ sdc1(f4, MemOperand(a0, offsetof(T, a)) );
   __ sdc1(f6, MemOperand(a0, offsetof(T, c)) );
@@ -811,8 +821,6 @@ TEST(MIPS9) {
 
 TEST(MIPS10) {
   // Test conversions between doubles and words.
-  // Test maps double to FP reg pairs in fp32 mode
-  // and into FP reg in fp64 mode.
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
@@ -830,24 +838,16 @@ TEST(MIPS10) {
   Assembler assm(isolate, NULL, 0);
   Label L, C;
 
-  if (!IsMipsArchVariant(kMips32r2)) return;
+  if (IsMipsArchVariant(kMips32r1) || IsMipsArchVariant(kLoongson)) return;
 
   // Load all structure elements to registers.
   // (f0, f1) = a (fp32), f0 = a (fp64)
   __ ldc1(f0, MemOperand(a0, offsetof(T, a)));
 
-  if (IsFp64Mode()) {
-    __ mfc1(t0, f0);  // t0 = f0(31..0)
-    __ mfhc1(t1, f0);  // t1 = sign_extend(f0(63..32))
-    __ sw(t0, MemOperand(a0, offsetof(T, dbl_mant)));  // dbl_mant = t0
-    __ sw(t1, MemOperand(a0, offsetof(T, dbl_exp)));  // dbl_exp = t1
-  } else {
-    // Save the raw bits of the double.
-    __ mfc1(t0, f0);  // t0 = a1
-    __ mfc1(t1, f1);  // t1 = a2
-    __ sw(t0, MemOperand(a0, offsetof(T, dbl_mant)));  // dbl_mant = t0
-    __ sw(t1, MemOperand(a0, offsetof(T, dbl_exp)));  // dbl_exp = t1
-  }
+  __ mfc1(t0, f0);   // t0 = f0(31..0)
+  __ mfhc1(t1, f0);  // t1 = sign_extend(f0(63..32))
+  __ sw(t0, MemOperand(a0, offsetof(T, dbl_mant)));  // dbl_mant = t0
+  __ sw(t1, MemOperand(a0, offsetof(T, dbl_exp)));   // dbl_exp = t1
 
   // Convert double in f0 to word, save hi/lo parts.
   __ cvt_w_d(f0, f0);  // a_word = (word)a
@@ -1456,10 +1456,10 @@ TEST(min_max) {
     CcTest::InitializeVM();
     Isolate* isolate = CcTest::i_isolate();
     HandleScope scope(isolate);
-    MacroAssembler assm(isolate, NULL, 0,
+    MacroAssembler assm(isolate, nullptr, 0,
                         v8::internal::CodeObjectRequired::kYes);
 
-    typedef struct test_float {
+    struct TestFloat {
       double a;
       double b;
       double c;
@@ -1468,21 +1468,35 @@ TEST(min_max) {
       float f;
       float g;
       float h;
-    } TestFloat;
+    };
 
     TestFloat test;
-    const double double_nan = std::numeric_limits<double>::quiet_NaN();
-    const float  float_nan = std::numeric_limits<float>::quiet_NaN();
-    const int kTableLength = 5;
-    double inputsa[kTableLength] = {2.0, 3.0, double_nan, 3.0, double_nan};
-    double inputsb[kTableLength] = {3.0, 2.0, 3.0, double_nan, double_nan};
-    double outputsdmin[kTableLength] = {2.0, 2.0, 3.0, 3.0, double_nan};
-    double outputsdmax[kTableLength] = {3.0, 3.0, 3.0, 3.0, double_nan};
+    const double dnan = std::numeric_limits<double>::quiet_NaN();
+    const double dinf = std::numeric_limits<double>::infinity();
+    const double dminf = -std::numeric_limits<double>::infinity();
+    const float fnan = std::numeric_limits<float>::quiet_NaN();
+    const float finf = std::numeric_limits<float>::infinity();
+    const float fminf = std::numeric_limits<float>::infinity();
+    const int kTableLength = 13;
+    double inputsa[kTableLength] = {2.0,  3.0,  dnan, 3.0,   -0.0, 0.0, dinf,
+                                    dnan, 42.0, dinf, dminf, dinf, dnan};
+    double inputsb[kTableLength] = {3.0,  2.0,  3.0,  dnan, 0.0,   -0.0, dnan,
+                                    dinf, dinf, 42.0, dinf, dminf, dnan};
+    double outputsdmin[kTableLength] = {2.0,   2.0,   3.0,  3.0,  -0.0,
+                                        -0.0,  dinf,  dinf, 42.0, 42.0,
+                                        dminf, dminf, dnan};
+    double outputsdmax[kTableLength] = {3.0,  3.0,  3.0,  3.0,  0.0,  0.0, dinf,
+                                        dinf, dinf, dinf, dinf, dinf, dnan};
 
-    float inputse[kTableLength] = {2.0, 3.0, float_nan, 3.0, float_nan};
-    float inputsf[kTableLength] = {3.0, 2.0, 3.0, float_nan, float_nan};
-    float outputsfmin[kTableLength] = {2.0, 2.0, 3.0, 3.0, float_nan};
-    float outputsfmax[kTableLength] = {3.0, 3.0, 3.0, 3.0, float_nan};
+    float inputse[kTableLength] = {2.0,  3.0,  fnan, 3.0,   -0.0, 0.0, finf,
+                                   fnan, 42.0, finf, fminf, finf, fnan};
+    float inputsf[kTableLength] = {3.0,  2.0,  3.0,  fnan, 0.0,   -0.0, fnan,
+                                   finf, finf, 42.0, finf, fminf, fnan};
+    float outputsfmin[kTableLength] = {2.0,   2.0,   3.0,  3.0,  -0.0,
+                                       -0.0,  finf,  finf, 42.0, 42.0,
+                                       fminf, fminf, fnan};
+    float outputsfmax[kTableLength] = {3.0,  3.0,  3.0,  3.0,  0.0,  0.0, finf,
+                                       finf, finf, finf, finf, finf, fnan};
 
     __ ldc1(f4, MemOperand(a0, offsetof(TestFloat, a)));
     __ ldc1(f8, MemOperand(a0, offsetof(TestFloat, b)));
@@ -1510,19 +1524,12 @@ TEST(min_max) {
       test.e = inputse[i];
       test.f = inputsf[i];
 
-      (CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0));
+      CALL_GENERATED_CODE(isolate, f, &test, 0, 0, 0, 0);
 
-      if (i < kTableLength - 1) {
-        CHECK_EQ(test.c, outputsdmin[i]);
-        CHECK_EQ(test.d, outputsdmax[i]);
-        CHECK_EQ(test.g, outputsfmin[i]);
-        CHECK_EQ(test.h, outputsfmax[i]);
-      } else {
-        CHECK(std::isnan(test.c));
-        CHECK(std::isnan(test.d));
-        CHECK(std::isnan(test.g));
-        CHECK(std::isnan(test.h));
-      }
+      CHECK_EQ(0, memcmp(&test.c, &outputsdmin[i], sizeof(test.c)));
+      CHECK_EQ(0, memcmp(&test.d, &outputsdmax[i], sizeof(test.d)));
+      CHECK_EQ(0, memcmp(&test.g, &outputsfmin[i], sizeof(test.g)));
+      CHECK_EQ(0, memcmp(&test.h, &outputsfmax[i], sizeof(test.h)));
     }
   }
 }
@@ -1863,16 +1870,20 @@ TEST(Cvt_d_uw) {
 
 TEST(mina_maxa) {
   if (IsMipsArchVariant(kMips32r6)) {
-    const int kTableLength = 15;
+    const int kTableLength = 23;
     CcTest::InitializeVM();
     Isolate* isolate = CcTest::i_isolate();
     HandleScope scope(isolate);
-    MacroAssembler assm(isolate, NULL, 0,
+    MacroAssembler assm(isolate, nullptr, 0,
                         v8::internal::CodeObjectRequired::kYes);
-    const double double_nan = std::numeric_limits<double>::quiet_NaN();
-    const float  float_nan = std::numeric_limits<float>::quiet_NaN();
+    const double dnan = std::numeric_limits<double>::quiet_NaN();
+    const double dinf = std::numeric_limits<double>::infinity();
+    const double dminf = -std::numeric_limits<double>::infinity();
+    const float fnan = std::numeric_limits<float>::quiet_NaN();
+    const float finf = std::numeric_limits<float>::infinity();
+    const float fminf = std::numeric_limits<float>::infinity();
 
-    typedef struct test_float {
+    struct TestFloat {
       double a;
       double b;
       double resd;
@@ -1881,41 +1892,34 @@ TEST(mina_maxa) {
       float d;
       float resf;
       float resf1;
-    }TestFloat;
+    };
 
     TestFloat test;
     double inputsa[kTableLength] = {
-      5.3, 4.8, 6.1, 9.8, 9.8, 9.8, -10.0, -8.9,
-      -9.8, -10.0, -8.9, -9.8, double_nan, 3.0, double_nan
-    };
+        5.3,  4.8, 6.1,  9.8, 9.8,  9.8,  -10.0, -8.9, -9.8,  -10.0, -8.9, -9.8,
+        dnan, 3.0, -0.0, 0.0, dinf, dnan, 42.0,  dinf, dminf, dinf,  dnan};
     double inputsb[kTableLength] = {
-      4.8, 5.3, 6.1, -10.0, -8.9, -9.8, 9.8, 9.8,
-      9.8, -9.8, -11.2, -9.8, 3.0, double_nan, double_nan
-    };
+        4.8, 5.3,  6.1, -10.0, -8.9, -9.8, 9.8,  9.8,  9.8,  -9.8,  -11.2, -9.8,
+        3.0, dnan, 0.0, -0.0,  dnan, dinf, dinf, 42.0, dinf, dminf, dnan};
     double resd[kTableLength] = {
-      4.8, 4.8, 6.1, 9.8, -8.9, -9.8, 9.8, -8.9,
-      -9.8, -9.8, -8.9, -9.8, 3.0, 3.0, double_nan
-    };
+        4.8, 4.8, 6.1,  9.8,  -8.9, -9.8, 9.8,  -8.9, -9.8,  -9.8,  -8.9, -9.8,
+        3.0, 3.0, -0.0, -0.0, dinf, dinf, 42.0, 42.0, dminf, dminf, dnan};
     double resd1[kTableLength] = {
-      5.3, 5.3, 6.1, -10.0, 9.8, 9.8, -10.0, 9.8,
-      9.8, -10.0, -11.2, -9.8, 3.0, 3.0, double_nan
-    };
+        5.3, 5.3, 6.1, -10.0, 9.8,  9.8,  -10.0, 9.8,  9.8,  -10.0, -11.2, -9.8,
+        3.0, 3.0, 0.0, 0.0,   dinf, dinf, dinf,  dinf, dinf, dinf,  dnan};
     float inputsc[kTableLength] = {
-      5.3, 4.8, 6.1, 9.8, 9.8, 9.8, -10.0, -8.9,
-      -9.8, -10.0, -8.9, -9.8, float_nan, 3.0, float_nan
-    };
-    float inputsd[kTableLength] = {
-      4.8, 5.3, 6.1, -10.0, -8.9, -9.8, 9.8, 9.8,
-      9.8, -9.8, -11.2, -9.8, 3.0, float_nan, float_nan
-    };
+        5.3,  4.8, 6.1,  9.8, 9.8,  9.8,  -10.0, -8.9, -9.8,  -10.0, -8.9, -9.8,
+        fnan, 3.0, -0.0, 0.0, finf, fnan, 42.0,  finf, fminf, finf,  fnan};
+    float inputsd[kTableLength] = {4.8,  5.3,  6.1,  -10.0, -8.9,  -9.8,
+                                   9.8,  9.8,  9.8,  -9.8,  -11.2, -9.8,
+                                   3.0,  fnan, -0.0, 0.0,   fnan,  finf,
+                                   finf, 42.0, finf, fminf, fnan};
     float resf[kTableLength] = {
-      4.8, 4.8, 6.1, 9.8, -8.9, -9.8, 9.8, -8.9,
-      -9.8, -9.8, -8.9, -9.8, 3.0, 3.0, float_nan
-    };
+        4.8, 4.8, 6.1,  9.8,  -8.9, -9.8, 9.8,  -8.9, -9.8,  -9.8,  -8.9, -9.8,
+        3.0, 3.0, -0.0, -0.0, finf, finf, 42.0, 42.0, fminf, fminf, fnan};
     float resf1[kTableLength] = {
-      5.3, 5.3, 6.1, -10.0, 9.8, 9.8, -10.0, 9.8,
-      9.8, -10.0, -11.2, -9.8, 3.0, 3.0, float_nan
-    };
+        5.3, 5.3, 6.1, -10.0, 9.8,  9.8,  -10.0, 9.8,  9.8,  -10.0, -11.2, -9.8,
+        3.0, 3.0, 0.0, 0.0,   finf, finf, finf,  finf, finf, finf,  fnan};
 
     __ ldc1(f2, MemOperand(a0, offsetof(TestFloat, a)) );
     __ ldc1(f4, MemOperand(a0, offsetof(TestFloat, b)) );
@@ -2044,7 +2048,7 @@ TEST(movz_movn) {
                         v8::internal::CodeObjectRequired::kYes);
 
     typedef struct test_float {
-      int64_t rt;
+      int32_t rt;
       double a;
       double b;
       double bold;
@@ -3186,6 +3190,8 @@ TEST(jump_tables1) {
   __ addiu(sp, sp, 4);
   __ jr(ra);
   __ nop();
+
+  CHECK_EQ(assm.UnboundLabelsCount(), 0);
 
   CodeDesc desc;
   assm.GetCode(&desc);
@@ -5024,8 +5030,7 @@ TEST(r6_jialc) {
   }
 }
 
-
-uint64_t run_addiupc(int32_t imm19) {
+static uint32_t run_addiupc(int32_t imm19) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
@@ -5058,13 +5063,13 @@ TEST(r6_addiupc) {
       int32_t   imm19;
     };
 
-    struct TestCaseAddiupc tc[] = {
-      //  imm19
-      { -262144 },   // 0x40000
-      {      -1 },   // 0x7FFFF
-      {       0 },
-      {       1 },   // 0x00001
-      {  262143 }    // 0x3FFFF
+    TestCaseAddiupc tc[] = {
+        //  imm19
+        {-262144},  // 0x40000
+        {-1},       // 0x7FFFF
+        {0},
+        {1},      // 0x00001
+        {262143}  // 0x3FFFF
     };
 
     size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseAddiupc);
@@ -5350,78 +5355,6 @@ TEST(bal) {
 }
 
 
-static uint32_t run_lsa(uint32_t rt, uint32_t rs, int8_t sa) {
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-  MacroAssembler assm(isolate, nullptr, 0,
-                      v8::internal::CodeObjectRequired::kYes);
-
-  __ lsa(v0, a0, a1, sa);
-  __ jr(ra);
-  __ nop();
-
-  CodeDesc desc;
-  assm.GetCode(&desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
-
-  F1 f = FUNCTION_CAST<F1>(code->entry());
-
-  uint32_t res = reinterpret_cast<uint32_t>(
-      CALL_GENERATED_CODE(isolate, f, rt, rs, 0, 0, 0));
-
-  return res;
-}
-
-
-TEST(lsa) {
-  if (!IsMipsArchVariant(kMips32r6)) return;
-
-  CcTest::InitializeVM();
-  struct TestCaseLsa {
-    int32_t rt;
-    int32_t rs;
-    uint8_t sa;
-    uint32_t expected_res;
-  };
-
-  struct TestCaseLsa tc[] = {
-      // rt, rs, sa, expected_res
-      {0x4, 0x1, 1, 0x6},
-      {0x4, 0x1, 2, 0x8},
-      {0x4, 0x1, 3, 0xc},
-      {0x4, 0x1, 4, 0x14},
-      {0x0, 0x1, 1, 0x2},
-      {0x0, 0x1, 2, 0x4},
-      {0x0, 0x1, 3, 0x8},
-      {0x0, 0x1, 4, 0x10},
-      {0x4, 0x0, 1, 0x4},
-      {0x4, 0x0, 2, 0x4},
-      {0x4, 0x0, 3, 0x4},
-      {0x4, 0x0, 4, 0x4},
-      {0x4, INT32_MAX, 1, 0x2},              // Shift overflow.
-      {0x4, INT32_MAX >> 1, 2, 0x0},         // Shift overflow.
-      {0x4, INT32_MAX >> 2, 3, 0xfffffffc},  // Shift overflow.
-      {0x4, INT32_MAX >> 3, 4, 0xfffffff4},  // Shift overflow.
-      {INT32_MAX - 1, 0x1, 1, 0x80000000},   // Signed adition overflow.
-      {INT32_MAX - 3, 0x1, 2, 0x80000000},   // Signed addition overflow.
-      {INT32_MAX - 7, 0x1, 3, 0x80000000},   // Signed addition overflow.
-      {INT32_MAX - 15, 0x1, 4, 0x80000000},  // Signed addition overflow.
-      {-2, 0x1, 1, 0x0},                     // Addition overflow.
-      {-4, 0x1, 2, 0x0},                     // Addition overflow.
-      {-8, 0x1, 3, 0x0},                     // Addition overflow.
-      {-16, 0x1, 4, 0x0}};                   // Addition overflow.
-
-  size_t nr_test_cases = sizeof(tc) / sizeof(TestCaseLsa);
-  for (size_t i = 0; i < nr_test_cases; ++i) {
-    uint32_t res = run_lsa(tc[i].rt, tc[i].rs, tc[i].sa);
-    PrintF("0x%x =? 0x%x == lsa(v0, %x, %x, %hhu)\n", tc[i].expected_res, res,
-           tc[i].rt, tc[i].rs, tc[i].sa);
-    CHECK_EQ(tc[i].expected_res, res);
-  }
-}
-
-
 TEST(Trampoline) {
   // Private member of Assembler class.
   static const int kMaxBranchOffset = (1 << (18 - 1)) - 1;
@@ -5451,6 +5384,132 @@ TEST(Trampoline) {
   int32_t res = reinterpret_cast<int32_t>(
       CALL_GENERATED_CODE(isolate, f, 42, 42, 0, 0, 0));
   CHECK_EQ(res, 0);
+}
+
+template <class T>
+struct TestCaseMaddMsub {
+  T fr, fs, ft, fd_add, fd_sub;
+};
+
+template <typename T, typename F>
+void helper_madd_msub_maddf_msubf(F func) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+
+  T x = std::sqrt(static_cast<T>(2.0));
+  T y = std::sqrt(static_cast<T>(3.0));
+  T z = std::sqrt(static_cast<T>(5.0));
+  T x2 = 11.11, y2 = 22.22, z2 = 33.33;
+  TestCaseMaddMsub<T> test_cases[] = {
+      {x, y, z, 0.0, 0.0},
+      {x, y, -z, 0.0, 0.0},
+      {x, -y, z, 0.0, 0.0},
+      {x, -y, -z, 0.0, 0.0},
+      {-x, y, z, 0.0, 0.0},
+      {-x, y, -z, 0.0, 0.0},
+      {-x, -y, z, 0.0, 0.0},
+      {-x, -y, -z, 0.0, 0.0},
+      {-3.14, 0.2345, -123.000056, 0.0, 0.0},
+      {7.3, -23.257, -357.1357, 0.0, 0.0},
+      {x2, y2, z2, 0.0, 0.0},
+      {x2, y2, -z2, 0.0, 0.0},
+      {x2, -y2, z2, 0.0, 0.0},
+      {x2, -y2, -z2, 0.0, 0.0},
+      {-x2, y2, z2, 0.0, 0.0},
+      {-x2, y2, -z2, 0.0, 0.0},
+      {-x2, -y2, z2, 0.0, 0.0},
+      {-x2, -y2, -z2, 0.0, 0.0},
+  };
+
+  if (std::is_same<T, float>::value) {
+    __ lwc1(f4, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fr)));
+    __ lwc1(f6, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fs)));
+    __ lwc1(f8, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, ft)));
+    __ lwc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fr)));
+  } else if (std::is_same<T, double>::value) {
+    __ ldc1(f4, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fr)));
+    __ ldc1(f6, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fs)));
+    __ ldc1(f8, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, ft)));
+    __ ldc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<T>, fr)));
+  } else {
+    UNREACHABLE();
+  }
+
+  func(assm);
+
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+
+  const size_t kTableLength = sizeof(test_cases) / sizeof(TestCaseMaddMsub<T>);
+  TestCaseMaddMsub<T> tc;
+  for (size_t i = 0; i < kTableLength; i++) {
+    tc.fr = test_cases[i].fr;
+    tc.fs = test_cases[i].fs;
+    tc.ft = test_cases[i].ft;
+
+    (CALL_GENERATED_CODE(isolate, f, &tc, 0, 0, 0, 0));
+
+    T res_add = tc.fr + (tc.fs * tc.ft);
+    T res_sub = 0;
+    if (IsMipsArchVariant(kMips32r2)) {
+      res_sub = (tc.fs * tc.ft) - tc.fr;
+    } else if (IsMipsArchVariant(kMips32r6)) {
+      res_sub = tc.fr - (tc.fs * tc.ft);
+    } else {
+      UNREACHABLE();
+    }
+
+    CHECK_EQ(tc.fd_add, res_add);
+    CHECK_EQ(tc.fd_sub, res_sub);
+  }
+}
+
+TEST(madd_msub_s) {
+  if (!IsMipsArchVariant(kMips32r2)) return;
+  helper_madd_msub_maddf_msubf<float>([](MacroAssembler& assm) {
+    __ madd_s(f10, f4, f6, f8);
+    __ swc1(f10, MemOperand(a0, offsetof(TestCaseMaddMsub<float>, fd_add)));
+    __ msub_s(f16, f4, f6, f8);
+    __ swc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<float>, fd_sub)));
+  });
+}
+
+TEST(madd_msub_d) {
+  if (!IsMipsArchVariant(kMips32r2)) return;
+  helper_madd_msub_maddf_msubf<double>([](MacroAssembler& assm) {
+    __ madd_d(f10, f4, f6, f8);
+    __ sdc1(f10, MemOperand(a0, offsetof(TestCaseMaddMsub<double>, fd_add)));
+    __ msub_d(f16, f4, f6, f8);
+    __ sdc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<double>, fd_sub)));
+  });
+}
+
+TEST(maddf_msubf_s) {
+  if (!IsMipsArchVariant(kMips32r6)) return;
+  helper_madd_msub_maddf_msubf<float>([](MacroAssembler& assm) {
+    __ maddf_s(f4, f6, f8);
+    __ swc1(f4, MemOperand(a0, offsetof(TestCaseMaddMsub<float>, fd_add)));
+    __ msubf_s(f16, f6, f8);
+    __ swc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<float>, fd_sub)));
+  });
+}
+
+TEST(maddf_msubf_d) {
+  if (!IsMipsArchVariant(kMips32r6)) return;
+  helper_madd_msub_maddf_msubf<double>([](MacroAssembler& assm) {
+    __ maddf_d(f4, f6, f8);
+    __ sdc1(f4, MemOperand(a0, offsetof(TestCaseMaddMsub<double>, fd_add)));
+    __ msubf_d(f16, f6, f8);
+    __ sdc1(f16, MemOperand(a0, offsetof(TestCaseMaddMsub<double>, fd_sub)));
+  });
 }
 
 #undef __

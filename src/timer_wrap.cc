@@ -11,7 +11,6 @@
 namespace node {
 
 using v8::Context;
-using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
@@ -39,6 +38,7 @@ class TimerWrap : public HandleWrap {
     env->SetProtoMethod(constructor, "close", HandleWrap::Close);
     env->SetProtoMethod(constructor, "ref", HandleWrap::Ref);
     env->SetProtoMethod(constructor, "unref", HandleWrap::Unref);
+    env->SetProtoMethod(constructor, "hasRef", HandleWrap::HasRef);
 
     env->SetProtoMethod(constructor, "start", Start);
     env->SetProtoMethod(constructor, "stop", Stop);
@@ -74,8 +74,7 @@ class TimerWrap : public HandleWrap {
     CHECK(HandleWrap::IsAlive(wrap));
 
     int64_t timeout = args[0]->IntegerValue();
-    int64_t repeat = args[1]->IntegerValue();
-    int err = uv_timer_start(&wrap->handle_, OnTimeout, timeout, repeat);
+    int err = uv_timer_start(&wrap->handle_, OnTimeout, timeout, 0);
     args.GetReturnValue().Set(err);
   }
 

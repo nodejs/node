@@ -1,38 +1,24 @@
 'use strict';
-require('../common');
-var assert = require('assert');
-var fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
 
-var caughtException = false;
+let caughtException = false;
+
 try {
   // should throw ENOENT, not EBADF
   // see https://github.com/joyent/node/pull/1228
   fs.openSync('/path/to/file/that/does/not/exist', 'r');
-}
-catch (e) {
-  assert.equal(e.code, 'ENOENT');
+} catch (e) {
+  assert.strictEqual(e.code, 'ENOENT');
   caughtException = true;
 }
-assert.ok(caughtException);
+assert.strictEqual(caughtException, true);
 
-var openFd;
-fs.open(__filename, 'r', function(err, fd) {
-  if (err) {
-    throw err;
-  }
-  openFd = fd;
-});
+fs.open(__filename, 'r', common.mustCall((err) => {
+  assert.ifError(err);
+}));
 
-var openFd2;
-fs.open(__filename, 'rs', function(err, fd) {
-  if (err) {
-    throw err;
-  }
-  openFd2 = fd;
-});
-
-process.on('exit', function() {
-  assert.ok(openFd);
-  assert.ok(openFd2);
-});
-
+fs.open(__filename, 'rs', common.mustCall((err) => {
+  assert.ifError(err);
+}));

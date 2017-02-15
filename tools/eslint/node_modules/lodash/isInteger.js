@@ -3,10 +3,12 @@ var toInteger = require('./toInteger');
 /**
  * Checks if `value` is an integer.
  *
- * **Note:** This method is based on [`Number.isInteger`](https://mdn.io/Number/isInteger).
+ * **Note:** This method is based on
+ * [`Number.isInteger`](https://mdn.io/Number/isInteger).
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Lang
  * @param {*} value The value to check.
  * @returns {boolean} Returns `true` if `value` is an integer, else `false`.

@@ -6,18 +6,19 @@
 #define V8_TYPE_INFO_H_
 
 #include "src/allocation.h"
+#include "src/ast/ast-types.h"
 #include "src/contexts.h"
 #include "src/globals.h"
 #include "src/parsing/token.h"
-#include "src/types.h"
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
 
 // Forward declarations.
 class SmallMapList;
-
+class FeedbackNexus;
+class StubCache;
 
 class TypeFeedbackOracle: public ZoneObject {
  public:
@@ -56,8 +57,7 @@ class TypeFeedbackOracle: public ZoneObject {
                           SmallMapList* receiver_types);
 
   void CollectReceiverTypes(FeedbackVectorSlot slot, SmallMapList* types);
-  template <class T>
-  void CollectReceiverTypes(T* obj, SmallMapList* types);
+  void CollectReceiverTypes(FeedbackNexus* nexus, SmallMapList* types);
 
   static bool IsRelevantFeedback(Map* map, Context* native_context) {
     Object* constructor = map->GetConstructor();
@@ -71,36 +71,31 @@ class TypeFeedbackOracle: public ZoneObject {
   Handle<JSFunction> GetCallNewTarget(FeedbackVectorSlot slot);
   Handle<AllocationSite> GetCallNewAllocationSite(FeedbackVectorSlot slot);
 
-  // TODO(1571) We can't use ToBooleanStub::Types as the return value because
+  // TODO(1571) We can't use ToBooleanICStub::Types as the return value because
   // of various cycles in our headers. Death to tons of implementations in
   // headers!! :-P
   uint16_t ToBooleanTypes(TypeFeedbackId id);
 
   // Get type information for arithmetic operations and compares.
-  void BinaryType(TypeFeedbackId id,
-                  Type** left,
-                  Type** right,
-                  Type** result,
+  void BinaryType(TypeFeedbackId id, FeedbackVectorSlot slot, AstType** left,
+                  AstType** right, AstType** result,
                   Maybe<int>* fixed_right_arg,
                   Handle<AllocationSite>* allocation_site,
                   Token::Value operation);
 
-  void CompareType(TypeFeedbackId id,
-                   Type** left,
-                   Type** right,
-                   Type** combined);
+  void CompareType(TypeFeedbackId id, FeedbackVectorSlot slot, AstType** left,
+                   AstType** right, AstType** combined);
 
-  Type* CountType(TypeFeedbackId id);
+  AstType* CountType(TypeFeedbackId id, FeedbackVectorSlot slot);
 
   Zone* zone() const { return zone_; }
   Isolate* isolate() const { return isolate_; }
 
  private:
-  void CollectReceiverTypes(FeedbackVectorSlot slot, Handle<Name> name,
-                            Code::Flags flags, SmallMapList* types);
-  template <class T>
-  void CollectReceiverTypes(T* obj, Handle<Name> name, Code::Flags flags,
-                            SmallMapList* types);
+  void CollectReceiverTypes(StubCache* stub_cache, FeedbackVectorSlot slot,
+                            Handle<Name> name, SmallMapList* types);
+  void CollectReceiverTypes(StubCache* stub_cache, FeedbackNexus* nexus,
+                            Handle<Name> name, SmallMapList* types);
 
   // Returns true if there is at least one string map and if
   // all maps are string maps.

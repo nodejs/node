@@ -1,8 +1,6 @@
 /**
  * @fileoverview Restrict usage of specified node imports.
  * @author Guy Ellis
- * @copyright 2015 Guy Ellis. All rights reserved.
- * See LICENSE file in root directory for full license.
  */
 "use strict";
 
@@ -10,34 +8,78 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
-    var restrictedImports = context.options;
+const ignore = require("ignore");
 
-    // if no imports are restricted we don"t need to check
-    if (restrictedImports.length === 0) {
-        return {};
-    }
-
-    return {
-        "ImportDeclaration": function(node) {
-            if (node && node.source && node.source.value) {
-
-                var value = node.source.value.trim();
-
-                if (restrictedImports.indexOf(value) !== -1) {
-                    context.report(node, "'{{importName}}' import is restricted from being used.", {
-                        importName: value
-                    });
-                }
-            }
-        }
-    };
+const arrayOfStrings = {
+    type: "array",
+    items: {
+        type: "string"
+    },
+    uniqueItems: true
 };
 
-module.exports.schema = {
-    "type": "array",
-    "items": {
-        "type": "string"
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow specified modules when loaded by `import`",
+            category: "ECMAScript 6",
+            recommended: false
+        },
+
+        schema: {
+            anyOf: [
+                arrayOfStrings,
+                {
+                    type: "array",
+                    items: [{
+                        type: "object",
+                        properties: {
+                            paths: arrayOfStrings,
+                            patterns: arrayOfStrings
+                        },
+                        additionalProperties: false
+                    }],
+                    additionalItems: false
+                }
+            ]
+        }
     },
-    "uniqueItems": true
+
+    create(context) {
+        const options = Array.isArray(context.options) ? context.options : [];
+        const isStringArray = typeof options[0] !== "object";
+        const restrictedPaths = new Set(isStringArray ? context.options : options[0].paths || []);
+        const restrictedPatterns = isStringArray ? [] : options[0].patterns || [];
+
+        // if no imports are restricted we don"t need to check
+        if (restrictedPaths.size === 0 && restrictedPatterns.length === 0) {
+            return {};
+        }
+
+        const ig = ignore().add(restrictedPatterns);
+
+        return {
+            ImportDeclaration(node) {
+                if (node && node.source && node.source.value) {
+
+                    const importName = node.source.value.trim();
+
+                    if (restrictedPaths.has(importName)) {
+                        context.report({
+                            node,
+                            message: "'{{importName}}' import is restricted from being used.",
+                            data: { importName }
+                        });
+                    }
+                    if (restrictedPatterns.length > 0 && ig.ignores(importName)) {
+                        context.report({
+                            node,
+                            message: "'{{importName}}' import is restricted from being used by a pattern.",
+                            data: { importName }
+                        });
+                    }
+                }
+            }
+        };
+    }
 };

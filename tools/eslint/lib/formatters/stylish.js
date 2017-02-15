@@ -4,7 +4,7 @@
  */
 "use strict";
 
-var chalk = require("chalk"),
+const chalk = require("chalk"),
     table = require("text-table");
 
 //------------------------------------------------------------------------------
@@ -18,7 +18,7 @@ var chalk = require("chalk"),
  * @returns {string} The original word with an s on the end if count is not one.
  */
 function pluralize(word, count) {
-    return (count === 1 ? word : word + "s");
+    return (count === 1 ? word : `${word}s`);
 }
 
 //------------------------------------------------------------------------------
@@ -27,25 +27,25 @@ function pluralize(word, count) {
 
 module.exports = function(results) {
 
-    var output = "\n",
+    let output = "\n",
         total = 0,
         errors = 0,
         warnings = 0,
         summaryColor = "yellow";
 
-    results.forEach(function(result) {
-        var messages = result.messages;
+    results.forEach(result => {
+        const messages = result.messages;
 
         if (messages.length === 0) {
             return;
         }
 
         total += messages.length;
-        output += chalk.underline(result.filePath) + "\n";
+        output += `${chalk.underline(result.filePath)}\n`;
 
-        output += table(
-            messages.map(function(message) {
-                var messageType;
+        output += `${table(
+            messages.map(message => {
+                let messageType;
 
                 if (message.fatal || message.severity === 2) {
                     messageType = chalk.red("error");
@@ -67,15 +67,11 @@ module.exports = function(results) {
             }),
             {
                 align: ["", "r", "l"],
-                stringLength: function(str) {
+                stringLength(str) {
                     return chalk.stripColor(str).length;
                 }
             }
-        ).split("\n").map(function(el) {
-            return el.replace(/(\d+)\s+(\d+)/, function(m, p1, p2) {
-                return chalk.dim(p1 + ":" + p2);
-            });
-        }).join("\n") + "\n\n";
+        ).split("\n").map(el => el.replace(/(\d+)\s+(\d+)/, (m, p1, p2) => chalk.dim(`${p1}:${p2}`))).join("\n")}\n\n`;
     });
 
     if (total > 0) {

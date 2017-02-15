@@ -5,7 +5,8 @@
 #ifndef V8_SNAPSHOT_SNAPSHOT_H_
 #define V8_SNAPSHOT_SNAPSHOT_H_
 
-#include "src/snapshot/serialize.h"
+#include "src/snapshot/partial-serializer.h"
+#include "src/snapshot/startup-serializer.h"
 
 namespace v8 {
 namespace internal {
@@ -15,70 +16,94 @@ class Isolate;
 class PartialSerializer;
 class StartupSerializer;
 
+// Wrapper around reservation sizes and the serialization payload.
+class SnapshotData : public SerializedData {
+ public:
+  // Used when producing.
+  explicit SnapshotData(const Serializer* serializer);
+
+  // Used when consuming.
+  explicit SnapshotData(const Vector<const byte> snapshot)
+      : SerializedData(const_cast<byte*>(snapshot.begin()), snapshot.length()) {
+    CHECK(IsSane());
+  }
+
+  Vector<const Reservation> Reservations() const;
+  Vector<const byte> Payload() const;
+
+  Vector<const byte> RawData() const {
+    return Vector<const byte>(data_, size_);
+  }
+
+ private:
+  bool IsSane();
+
+  // The data header consists of uint32_t-sized entries:
+  // [0] magic number and external reference count
+  // [1] version hash
+  // [2] number of reservation size entries
+  // [3] payload length
+  // ... reservations
+  // ... serialized payload
+  static const int kCheckSumOffset = kMagicNumberOffset + kInt32Size;
+  static const int kNumReservationsOffset = kCheckSumOffset + kInt32Size;
+  static const int kPayloadLengthOffset = kNumReservationsOffset + kInt32Size;
+  static const int kHeaderSize = kPayloadLengthOffset + kInt32Size;
+};
+
 class Snapshot : public AllStatic {
  public:
-  class Metadata {
-   public:
-    explicit Metadata(uint32_t data = 0) : data_(data) {}
-    bool embeds_script() { return EmbedsScriptBits::decode(data_); }
-    void set_embeds_script(bool v) {
-      data_ = EmbedsScriptBits::update(data_, v);
-    }
-
-    uint32_t& RawValue() { return data_; }
-
-   private:
-    class EmbedsScriptBits : public BitField<bool, 0, 1> {};
-    uint32_t data_;
-  };
-
   // Initialize the Isolate from the internal snapshot. Returns false if no
   // snapshot could be found.
   static bool Initialize(Isolate* isolate);
   // Create a new context using the internal partial snapshot.
   static MaybeHandle<Context> NewContextFromSnapshot(
-      Isolate* isolate, Handle<JSGlobalProxy> global_proxy);
+      Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
+      size_t context_index);
 
   static bool HaveASnapshotToStartFrom(Isolate* isolate);
 
+  static bool HasContextSnapshot(Isolate* isolate, size_t index);
+
   static bool EmbedsScript(Isolate* isolate);
-
-  static uint32_t SizeOfFirstPage(Isolate* isolate, AllocationSpace space);
-
 
   // To be implemented by the snapshot source.
   static const v8::StartupData* DefaultSnapshotBlob();
 
   static v8::StartupData CreateSnapshotBlob(
-      const StartupSerializer& startup_ser,
-      const PartialSerializer& context_ser, Snapshot::Metadata metadata);
+      const SnapshotData* startup_snapshot,
+      const List<SnapshotData*>* context_snapshots);
 
 #ifdef DEBUG
   static bool SnapshotIsValid(v8::StartupData* snapshot_blob);
 #endif  // DEBUG
 
  private:
+  static int ExtractNumContexts(const v8::StartupData* data);
   static Vector<const byte> ExtractStartupData(const v8::StartupData* data);
-  static Vector<const byte> ExtractContextData(const v8::StartupData* data);
-  static Metadata ExtractMetadata(const v8::StartupData* data);
+  static Vector<const byte> ExtractContextData(const v8::StartupData* data,
+                                               int index);
 
   // Snapshot blob layout:
-  // [0] metadata
-  // [1 - 6] pre-calculated first page sizes for paged spaces
-  // [7] serialized start up data length
-  // ... serialized start up data
-  // ... serialized context data
+  // [0] number of contexts N
+  // [1] offset to context 0
+  // [2] offset to context 1
+  // ...
+  // ... offset to context N - 1
+  // ... startup snapshot data
+  // ... context 0 snapshot data
+  // ... context 1 snapshot data
 
-  static const int kNumPagedSpaces = LAST_PAGED_SPACE - FIRST_PAGED_SPACE + 1;
+  static const int kNumberOfContextsOffset = 0;
+  static const int kFirstContextOffsetOffset =
+      kNumberOfContextsOffset + kInt32Size;
 
-  static const int kMetadataOffset = 0;
-  static const int kFirstPageSizesOffset = kMetadataOffset + kInt32Size;
-  static const int kStartupLengthOffset =
-      kFirstPageSizesOffset + kNumPagedSpaces * kInt32Size;
-  static const int kStartupDataOffset = kStartupLengthOffset + kInt32Size;
+  static int StartupSnapshotOffset(int num_contexts) {
+    return kFirstContextOffsetOffset + num_contexts * kInt32Size;
+  }
 
-  static int ContextOffset(int startup_length) {
-    return kStartupDataOffset + startup_length;
+  static int ContextSnapshotOffsetOffset(int index) {
+    return kFirstContextOffsetOffset + index * kInt32Size;
   }
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Snapshot);

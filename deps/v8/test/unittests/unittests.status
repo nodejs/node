@@ -3,12 +3,16 @@
 # found in the LICENSE file.
 
 [
-['byteorder == big', {
-  # TODO(mips-team): Fix Wasm for big-endian.
-  'WasmModuleVerifyTest*': [SKIP],
-  'WasmFunctionVerifyTest*': [SKIP],
-  'WasmDecoderTest.TableSwitch*': [SKIP],
-  'WasmDecoderTest.AllLoadMemCombinations': [SKIP],
-}],  # 'byteorder == big'
+['arch == x87', {
+  'Ieee754.Expm1': [SKIP],
+  'Ieee754.Cos': [SKIP],
+  'Ieee754.Tan': [SKIP],
+  'Ieee754.Acosh': [SKIP],
+  'Ieee754.Asinh': [SKIP],
+}],  # 'arch == x87'
+
+['variant == asm_wasm', {
+  '*': [SKIP],
+}],  # variant == asm_wasm
 
 ]

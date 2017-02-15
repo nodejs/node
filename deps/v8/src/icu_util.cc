@@ -15,6 +15,9 @@
 #include "unicode/putil.h"
 #include "unicode/udata.h"
 
+#include "src/base/build_config.h"
+#include "src/base/file-utils.h"
+
 #define ICU_UTIL_DATA_FILE   0
 #define ICU_UTIL_DATA_SHARED 1
 #define ICU_UTIL_DATA_STATIC 2
@@ -37,6 +40,32 @@ void free_icu_data_ptr() {
 
 }  // namespace
 #endif
+
+bool InitializeICUDefaultLocation(const char* exec_path,
+                                  const char* icu_data_file) {
+#if !defined(V8_I18N_SUPPORT)
+  return true;
+#else
+#if ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_FILE
+  if (icu_data_file) {
+    return InitializeICU(icu_data_file);
+  }
+  char* icu_data_file_default;
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+  RelativePath(&icu_data_file_default, exec_path, "icudtl.dat");
+#elif defined(V8_TARGET_BIG_ENDIAN)
+  RelativePath(&icu_data_file_default, exec_path, "icudtb.dat");
+#else
+#error Unknown byte ordering
+#endif
+  bool result = InitializeICU(icu_data_file_default);
+  free(icu_data_file_default);
+  return result;
+#else
+  return InitializeICU(NULL);
+#endif
+#endif
+}
 
 bool InitializeICU(const char* icu_data_file) {
 #if !defined(V8_I18N_SUPPORT)

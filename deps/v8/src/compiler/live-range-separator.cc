@@ -58,6 +58,15 @@ void CreateSplinter(TopLevelLiveRange *range, RegisterAllocationData *data,
   }
 }
 
+void SetSlotUse(TopLevelLiveRange *range) {
+  range->set_has_slot_use(false);
+  for (const UsePosition *pos = range->first_pos();
+       !range->has_slot_use() && pos != nullptr; pos = pos->next()) {
+    if (pos->type() == UsePositionType::kRequiresSlot) {
+      range->set_has_slot_use(true);
+    }
+  }
+}
 
 void SplinterLiveRange(TopLevelLiveRange *range, RegisterAllocationData *data) {
   const InstructionSequence *code = data->code();
@@ -99,7 +108,14 @@ void SplinterLiveRange(TopLevelLiveRange *range, RegisterAllocationData *data) {
   if (first_cut.IsValid()) {
     CreateSplinter(range, data, first_cut, last_cut);
   }
+
+  // Redo has_slot_use
+  if (range->has_slot_use() && range->splinter() != nullptr) {
+    SetSlotUse(range);
+    SetSlotUse(range->splinter());
+  }
 }
+
 }  // namespace
 
 
@@ -119,8 +135,10 @@ void LiveRangeSeparator::Splinter() {
 
 
 void LiveRangeMerger::MarkRangesSpilledInDeferredBlocks() {
+  const InstructionSequence *code = data()->code();
   for (TopLevelLiveRange *top : data()->live_ranges()) {
-    if (top == nullptr || top->IsEmpty() || top->splinter() == nullptr) {
+    if (top == nullptr || top->IsEmpty() || top->splinter() == nullptr ||
+        top->HasSpillOperand() || !top->splinter()->HasSpillRange()) {
       continue;
     }
 
@@ -131,7 +149,10 @@ void LiveRangeMerger::MarkRangesSpilledInDeferredBlocks() {
         break;
       }
     }
-    if (child == nullptr) top->MarkSpilledInDeferredBlock();
+    if (child == nullptr) {
+      top->TreatAsSpilledInDeferredBlock(data()->allocation_zone(),
+                                         code->InstructionBlockCount());
+    }
   }
 }
 

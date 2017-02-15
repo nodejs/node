@@ -103,9 +103,10 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
       return kVisitJSArrayBuffer;
 
     case JS_OBJECT_TYPE:
+    case JS_ERROR_TYPE:
+    case JS_ARGUMENTS_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE:
-    case JS_MODULE_TYPE:
     case JS_VALUE_TYPE:
     case JS_DATE_TYPE:
     case JS_ARRAY_TYPE:
@@ -118,10 +119,14 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case JS_MAP_TYPE:
     case JS_SET_ITERATOR_TYPE:
     case JS_MAP_ITERATOR_TYPE:
-    case JS_ITERATOR_RESULT_TYPE:
+    case JS_STRING_ITERATOR_TYPE:
     case JS_PROMISE_TYPE:
     case JS_BOUND_FUNCTION_TYPE:
       return GetVisitorIdForSize(kVisitJSObject, kVisitJSObjectGeneric,
+                                 instance_size, has_unboxed_fields);
+    case JS_API_OBJECT_TYPE:
+    case JS_SPECIAL_API_OBJECT_TYPE:
+      return GetVisitorIdForSize(kVisitJSApiObject, kVisitJSApiObjectGeneric,
                                  instance_size, has_unboxed_fields);
 
     case JS_FUNCTION_TYPE:
@@ -209,7 +214,7 @@ Object* VisitWeakList(Heap* heap, Object* list, WeakObjectRetainer* retainer) {
         }
       }
       // Retained object is new tail.
-      DCHECK(!retained->IsUndefined());
+      DCHECK(!retained->IsUndefined(heap->isolate()));
       candidate = reinterpret_cast<T*>(retained);
       tail = candidate;
 
@@ -282,7 +287,7 @@ struct WeakListVisitor<Context> {
   }
 
   static Object* WeakNext(Context* context) {
-    return context->get(Context::NEXT_CONTEXT_LINK);
+    return context->next_context_link();
   }
 
   static int WeakNextOffset() {

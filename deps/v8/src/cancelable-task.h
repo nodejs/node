@@ -5,11 +5,12 @@
 #ifndef V8_CANCELABLE_TASK_H_
 #define V8_CANCELABLE_TASK_H_
 
+#include <map>
+
 #include "include/v8-platform.h"
-#include "src/atomic-utils.h"
+#include "src/base/atomic-utils.h"
 #include "src/base/macros.h"
 #include "src/base/platform/condition-variable.h"
-#include "src/hashmap.h"
 
 namespace v8 {
 namespace internal {
@@ -51,7 +52,7 @@ class CancelableTaskManager {
   uint32_t task_id_counter_;
 
   // A set of cancelable tasks that are currently registered.
-  HashMap cancelable_tasks_;
+  std::map<uint32_t, Cancelable*> cancelable_tasks_;
 
   // Mutex and condition variable enabling concurrent register and removing, as
   // well as waiting for background tasks on {CancelAndWait}.
@@ -104,13 +105,13 @@ class Cancelable {
   }
 
   CancelableTaskManager* parent_;
-  AtomicValue<Status> status_;
+  base::AtomicValue<Status> status_;
   uint32_t id_;
 
   // The counter is incremented for failing tries to cancel a task. This can be
   // used by the task itself as an indication how often external entities tried
   // to abort it.
-  AtomicNumber<intptr_t> cancel_counter_;
+  base::AtomicNumber<intptr_t> cancel_counter_;
 
   friend class CancelableTaskManager;
 

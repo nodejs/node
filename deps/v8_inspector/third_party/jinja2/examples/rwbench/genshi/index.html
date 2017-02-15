@@ -1,0 +1,41 @@
+<?python
+  from rwbench import dateformat
+?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:xi="http://www.w3.org/2001/XInclude"
+      xmlns:py="http://genshi.edgewall.org/">
+  <xi:include href="layout.html" />
+  <xi:include href="helpers.html" />
+  <head><title>Index Page</title></head>
+  <body>
+    <div class="article" py:for="article in articles">
+      <py:if test="article.published">
+        <h2><a href="${article.href}">${article.title}</a></h2>
+        <p class="meta">written by <a href="${article.user.href}"
+          >${article.user.username}</a> on ${dateformat(article.pub_date)}</p>
+        <div class="text">${Markup(article.body)}</div>
+      </py:if>
+    </div>
+    <!--
+      For a fair and balanced comparison we would have to use a def here
+      that wraps the form data but I don't know what would be the best
+      Genshi equivalent for that.  Quite frankly I doubt that this makes
+      sense in Genshi anyways.
+    -->
+    <form action="" method="post">
+      <dl>
+        <dt>Name</dt>
+        <dd>${input_field('name')}</dd>
+        <dt>E-Mail</dt>
+        <dd>${input_field('email')}</dd>
+        <dt>URL</dt>
+        <dd>${input_field('url')}</dd>
+        <dt>Comment</dt>
+        <dd>${textarea('comment')}</dd>
+        <dt>Captcha</dt>
+        <dd>${input_field('captcha')}</dd>
+      </dl>
+      ${input_field(type='submit', value='Submit')}
+      ${input_field(name='cancel', type='submit', value='Cancel')}
+    </form>
+  </body>
+</html>

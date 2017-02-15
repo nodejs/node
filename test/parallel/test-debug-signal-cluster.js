@@ -1,21 +1,36 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var spawn = require('child_process').spawn;
 
-var port = common.PORT + 42;
-var args = ['--debug-port=' + port,
-            common.fixturesDir + '/clustered-server/app.js'];
-var options = { stdio: ['inherit', 'inherit', 'pipe', 'ipc'] };
-var child = spawn(process.execPath, args, options);
+const common = require('../common');
+const assert = require('assert');
+const spawn = require('child_process').spawn;
+const os = require('os');
+const path = require('path');
 
-var outputLines = [];
-var waitingForDebuggers = false;
+const port = common.PORT;
+const serverPath = path.join(common.fixturesDir, 'clustered-server', 'app.js');
+// cannot use 'Flags: --no-deprecation' since it doesn't effect child
+const args = [`--debug-port=${port}`, '--no-deprecation', serverPath];
+const options = { stdio: ['inherit', 'inherit', 'pipe', 'ipc'] };
+const child = spawn(process.execPath, args, options);
 
-var pids = null;
+let expectedContent = [
+  'Starting debugger agent.',
+  'Debugger listening on 127.0.0.1:' + (port + 0),
+  'Starting debugger agent.',
+  'Debugger listening on 127.0.0.1:' + (port + 1),
+  'Starting debugger agent.',
+  'Debugger listening on 127.0.0.1:' + (port + 2),
+].join(os.EOL);
+expectedContent += os.EOL; // the last line also contains an EOL character
+
+let debuggerAgentsOutput = '';
+let debuggerAgentsStarted = false;
+
+let pids;
 
 child.stderr.on('data', function(data) {
-  var lines = data.toString().replace(/\r/g, '').trim().split('\n');
+  const childStderrOutputString = data.toString();
+  const lines = childStderrOutputString.replace(/\r/g, '').trim().split('\n');
 
   lines.forEach(function(line) {
     console.log('> ' + line);
@@ -28,30 +43,28 @@ child.stderr.on('data', function(data) {
         pids = msg.pids;
         console.error('got pids %j', pids);
 
-        waitingForDebuggers = true;
         process._debugProcess(child.pid);
+        debuggerAgentsStarted = true;
       });
 
       child.send({
         type: 'getpids'
       });
-    } else if (waitingForDebuggers) {
-      outputLines.push(line);
     }
-
   });
-  if (outputLines.length >= expectedLines.length)
-    onNoMoreLines();
+
+  if (debuggerAgentsStarted) {
+    debuggerAgentsOutput += childStderrOutputString;
+    if (debuggerAgentsOutput.length === expectedContent.length) {
+      onNoMoreDebuggerAgentsOutput();
+    }
+  }
 });
 
-function onNoMoreLines() {
-  assertOutputLines();
+function onNoMoreDebuggerAgentsOutput() {
+  assertDebuggerAgentsOutput();
   process.exit();
 }
-
-setTimeout(function testTimedOut() {
-  assert(false, 'test timed out.');
-}, common.platformTimeout(4000)).unref();
 
 process.on('exit', function onExit() {
   // Kill processes in reverse order to avoid timing problems on Windows where
@@ -61,23 +74,19 @@ process.on('exit', function onExit() {
   });
 });
 
-var expectedLines = [
-  'Starting debugger agent.',
-  'Debugger listening on port ' + (port + 0),
-  'Starting debugger agent.',
-  'Debugger listening on port ' + (port + 1),
-  'Starting debugger agent.',
-  'Debugger listening on port ' + (port + 2),
-];
+function assertDebuggerAgentsOutput() {
+  // Workers can take different amout of time to start up, and child processes'
+  // output may be interleaved arbitrarily. Moreover, child processes' output
+  // may be written using an arbitrary number of system calls, and no assumption
+  // on buffering or atomicity of output should be made. Thus, we process the
+  // output of all child processes' debugger agents character by character, and
+  // remove each character from the set of expected characters. Once all the
+  // output from all debugger agents has been processed, we consider that we got
+  // the content we expected if there's no character left in the initial
+  // expected content.
+  debuggerAgentsOutput.split('').forEach(function gotChar(char) {
+    expectedContent = expectedContent.replace(char, '');
+  });
 
-function assertOutputLines() {
-  // Do not assume any particular order of output messages,
-  // since workers can take different amout of time to
-  // start up
-  outputLines.sort();
-  expectedLines.sort();
-
-  assert.equal(outputLines.length, expectedLines.length);
-  for (var i = 0; i < expectedLines.length; i++)
-    assert.equal(outputLines[i], expectedLines[i]);
+  assert.strictEqual(expectedContent, '');
 }

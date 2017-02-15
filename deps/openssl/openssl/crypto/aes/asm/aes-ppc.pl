@@ -590,7 +590,7 @@ Lenc_loop:
 	xor	$s2,$t2,$acc14
 	xor	$s3,$t3,$acc15
 	addi	$key,$key,16
-	bdnz-	Lenc_loop
+	bdnz	Lenc_loop
 
 	addi	$Tbl2,$Tbl0,2048
 	nop
@@ -1068,7 +1068,7 @@ Ldec_loop:
 	xor	$s2,$t2,$acc14
 	xor	$s3,$t3,$acc15
 	addi	$key,$key,16
-	bdnz-	Ldec_loop
+	bdnz	Ldec_loop
 
 	addi	$Tbl2,$Tbl0,2048
 	nop

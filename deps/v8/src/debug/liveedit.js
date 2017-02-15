@@ -842,11 +842,9 @@
     this.start_position = raw_array[1];
     this.end_position = raw_array[2];
     this.param_num = raw_array[3];
-    this.code = raw_array[4];
-    this.code_scope_info = raw_array[5];
-    this.scope_info = raw_array[6];
-    this.outer_index = raw_array[7];
-    this.shared_function_info = raw_array[8];
+    this.scope_info = raw_array[4];
+    this.outer_index = raw_array[5];
+    this.shared_function_info = raw_array[6];
     this.next_sibling_index = null;
     this.raw_array = raw_array;
   }
@@ -1014,11 +1012,6 @@
     details.position = position_struct;
   }
 
-  // A testing entry.
-  function GetPcFromSourcePos(func, source_pos) {
-    return %GetFunctionCodePositionFromSource(func, source_pos);
-  }
-
   // LiveEdit main entry point: changes a script text to a new string.
   function SetScriptSource(script, new_source, preview_only, change_log) {
     var old_source = script.source;
@@ -1119,7 +1112,6 @@
   LiveEdit.SetScriptSource = SetScriptSource;
   LiveEdit.ApplyPatchMultiChunk = ApplyPatchMultiChunk;
   LiveEdit.Failure = Failure;
-  LiveEdit.GetPcFromSourcePos = GetPcFromSourcePos;
 
   LiveEdit.TestApi = {
     PosTranslator: PosTranslator,

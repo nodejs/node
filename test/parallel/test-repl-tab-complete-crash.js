@@ -4,24 +4,24 @@ const common = require('../common');
 const assert = require('assert');
 const repl = require('repl');
 
-var referenceErrorCount = 0;
-
-common.ArrayStream.prototype.write = function(msg) {
-  if (msg.startsWith('ReferenceError: ')) {
-    referenceErrorCount++;
-  }
-};
+common.ArrayStream.prototype.write = function(msg) {};
 
 const putIn = new common.ArrayStream();
 const testMe = repl.start('', putIn);
 
 // https://github.com/nodejs/node/issues/3346
-// Tab-completion for an undefined variable inside a function should report a
-// ReferenceError.
+// Tab-completion should be empty
 putIn.run(['.clear']);
 putIn.run(['function () {']);
-testMe.complete('arguments.');
+testMe.complete('arguments.', common.mustCall((err, completions) => {
+  assert.strictEqual(err, null);
+  assert.deepStrictEqual(completions, [[], 'arguments.']);
+}));
 
-process.on('exit', function() {
-  assert.strictEqual(referenceErrorCount, 1);
-});
+putIn.run(['.clear']);
+putIn.run(['function () {']);
+putIn.run(['undef;']);
+testMe.complete('undef.', common.mustCall((err, completions) => {
+  assert.strictEqual(err, null);
+  assert.deepStrictEqual(completions, [[], 'undef.']);
+}));

@@ -23,8 +23,7 @@ function main(conf) {
   var len = conf.kb * 1024;
   switch (conf.type) {
     case 'buf':
-      chunk = new Buffer(len);
-      chunk.fill('x');
+      chunk = Buffer.alloc(len, 'x');
       break;
     case 'utf':
       chunk = new Array(len / 2 + 1).join('ü');
@@ -44,14 +43,15 @@ function main(conf) {
   }
 
   var method = conf.method === 'write' ? write : end;
-  var args = ['-d', '10s', '-t', 8, '-c', conf.c];
 
   var server = http.createServer(function(req, res) {
     method(res);
   });
 
   server.listen(common.PORT, function() {
-    bench.http('/', args, function() {
+    bench.http({
+      connections: conf.c
+    }, function() {
       server.close();
     });
   });

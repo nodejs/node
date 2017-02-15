@@ -67,7 +67,8 @@ void StatisticsExtension::GetCounters(
         args[0]
             ->BooleanValue(args.GetIsolate()->GetCurrentContext())
             .FromMaybe(false)) {
-      heap->CollectAllGarbage(Heap::kNoGCFlags, "counters extension");
+      heap->CollectAllGarbage(Heap::kNoGCFlags,
+                              GarbageCollectionReason::kCountersExtension);
     }
   }
 
@@ -116,29 +117,56 @@ void StatisticsExtension::GetCounters(
   };
 
   const StatisticNumber numbers[] = {
-      {isolate->memory_allocator()->Size(), "total_committed_bytes"},
+      {static_cast<intptr_t>(heap->memory_allocator()->Size()),
+       "total_committed_bytes"},
       {heap->new_space()->Size(), "new_space_live_bytes"},
       {heap->new_space()->Available(), "new_space_available_bytes"},
-      {heap->new_space()->CommittedMemory(), "new_space_commited_bytes"},
+      {static_cast<intptr_t>(heap->new_space()->CommittedMemory()),
+       "new_space_commited_bytes"},
       {heap->old_space()->Size(), "old_space_live_bytes"},
       {heap->old_space()->Available(), "old_space_available_bytes"},
-      {heap->old_space()->CommittedMemory(), "old_space_commited_bytes"},
+      {static_cast<intptr_t>(heap->old_space()->CommittedMemory()),
+       "old_space_commited_bytes"},
       {heap->code_space()->Size(), "code_space_live_bytes"},
       {heap->code_space()->Available(), "code_space_available_bytes"},
-      {heap->code_space()->CommittedMemory(), "code_space_commited_bytes"},
+      {static_cast<intptr_t>(heap->code_space()->CommittedMemory()),
+       "code_space_commited_bytes"},
       {heap->lo_space()->Size(), "lo_space_live_bytes"},
       {heap->lo_space()->Available(), "lo_space_available_bytes"},
-      {heap->lo_space()->CommittedMemory(), "lo_space_commited_bytes"},
+      {static_cast<intptr_t>(heap->lo_space()->CommittedMemory()),
+       "lo_space_commited_bytes"},
   };
 
   for (size_t i = 0; i < arraysize(numbers); i++) {
     AddNumber(args.GetIsolate(), result, numbers[i].number, numbers[i].name);
   }
 
-  AddNumber64(args.GetIsolate(), result,
-              heap->amount_of_external_allocated_memory(),
+  AddNumber64(args.GetIsolate(), result, heap->external_memory(),
               "amount_of_external_allocated_memory");
   args.GetReturnValue().Set(result);
+
+  HeapIterator iterator(reinterpret_cast<Isolate*>(args.GetIsolate())->heap());
+  HeapObject* obj;
+  int reloc_info_total = 0;
+  int source_position_table_total = 0;
+  while ((obj = iterator.next())) {
+    if (obj->IsCode()) {
+      Code* code = Code::cast(obj);
+      reloc_info_total += code->relocation_info()->Size();
+      ByteArray* source_position_table = code->source_position_table();
+      if (source_position_table->length() > 0) {
+        source_position_table_total += code->source_position_table()->Size();
+      }
+    } else if (obj->IsBytecodeArray()) {
+      source_position_table_total +=
+          BytecodeArray::cast(obj)->source_position_table()->Size();
+    }
+  }
+
+  AddNumber(args.GetIsolate(), result, reloc_info_total,
+            "reloc_info_total_size");
+  AddNumber(args.GetIsolate(), result, source_position_table_total,
+            "source_position_table_total_size");
 }
 
 }  // namespace internal

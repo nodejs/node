@@ -6,6 +6,9 @@
 *.pyc
 *.sdf
 *.suo
+.vs/
+*.VC.db
+*.VC.opendb
 core
 vgcore.*
 .buildstamp
@@ -64,6 +67,9 @@ ipch
 
 # sphinx generated files
 /docs/build/
+
+# Clion / IntelliJ project files
+/.idea/
 
 *.xcodeproj
 *.xcworkspace

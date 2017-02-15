@@ -1,17 +1,12 @@
 #!/usr/bin/env python
 
 import errno
-
-try:
-  import json
-except ImportError:
-  import simplejson as json
-
+import json
 import os
 import re
 import shutil
-import stat
 import sys
+from getmoduleversion import get_version
 
 # set at init time
 node_prefix = '/usr/local' # PREFIX variable from Makefile
@@ -80,12 +75,6 @@ def try_remove(path, dst):
 def install(paths, dst): map(lambda path: try_copy(path, dst), paths)
 def uninstall(paths, dst): map(lambda path: try_remove(path, dst), paths)
 
-def update_shebang(path, shebang):
-  print 'updating shebang of %s to %s' % (path, shebang)
-  s = open(path, 'r').read()
-  s = re.sub(r'#!.*\n', '#!' + shebang + '\n', s)
-  open(path, 'w').write(s)
-
 def npm_files(action):
   target_path = 'lib/node_modules/npm/'
 
@@ -106,16 +95,6 @@ def npm_files(action):
     action([link_path], 'bin/npm')
   elif action == install:
     try_symlink('../lib/node_modules/npm/bin/npm-cli.js', link_path)
-    if os.environ.get('PORTABLE'):
-      # This crazy hack is necessary to make the shebang execute the copy
-      # of node relative to the same directory as the npm script. The precompiled
-      # binary tarballs use a prefix of "/" which gets translated to "/bin/node"
-      # in the regular shebang modifying logic, which is incorrect since the
-      # precompiled bundle should be able to be extracted anywhere and "just work"
-      shebang = '/bin/sh\n// 2>/dev/null; exec "`dirname "$0"`/node" "$0" "$@"'
-    else:
-      shebang = os.path.join(node_prefix or '/', 'bin/node')
-    update_shebang(link_path, shebang)
   else:
     assert(0) # unhandled action type
 
@@ -129,9 +108,23 @@ def subdir_files(path, dest, action):
 
 def files(action):
   is_windows = sys.platform == 'win32'
+  output_file = 'node'
+  output_prefix = 'out/Release/'
 
-  exeext = '.exe' if is_windows else ''
-  action(['out/Release/node' + exeext], 'bin/node' + exeext)
+  if 'false' == variables.get('node_shared'):
+    if is_windows:
+      output_file += '.exe'
+  else:
+    if is_windows:
+      output_file += '.dll'
+    else:
+      output_file = 'lib' + output_file + '.' + variables.get('shlib_suffix')
+      # GYP will output to lib.target except on OS X, this is hardcoded
+      # in its source - see the _InstallableTargetInstallPath function.
+      if sys.platform != 'darwin':
+        output_prefix += 'lib.target/'
+
+  action([output_prefix + output_file], 'bin/' + output_file)
 
   if 'true' == variables.get('node_use_dtrace'):
     action(['out/Release/node.d'], 'lib/dtrace/node.d')
@@ -156,7 +149,6 @@ def headers(action):
     'config.gypi',
     'src/node.h',
     'src/node_buffer.h',
-    'src/node_internals.h',
     'src/node_object_wrap.h',
     'src/node_version.h',
   ], 'include/node/')
@@ -165,8 +157,10 @@ def headers(action):
   if sys.platform.startswith('aix'):
     action(['out/Release/node.exp'], 'include/node/')
 
-  subdir_files('deps/cares/include', 'include/node/', action)
   subdir_files('deps/v8/include', 'include/node/', action)
+
+  if 'false' == variables.get('node_shared_cares'):
+    subdir_files('deps/cares/include', 'include/node/', action)
 
   if 'false' == variables.get('node_shared_libuv'):
     subdir_files('deps/uv/include', 'include/node/', action)

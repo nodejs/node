@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
   <title>npm-shrinkwrap</title>
-  <meta http-equiv="content-type" value="text/html;utf-8">
+  <meta charset="utf-8">
   <link rel="stylesheet" type="text/css" href="../../static/style.css">
   <link rel="canonical" href="https://www.npmjs.org/doc/cli/npm-shrinkwrap.html">
   <script async=true src="../../static/toc.js"></script>
@@ -72,16 +72,16 @@ when B hasn&#39;t changed at all.</p>
 </code></pre><p>This generates <code>npm-shrinkwrap.json</code>, which will look something like this:</p>
 <pre><code>{
   &quot;name&quot;: &quot;A&quot;,
-  &quot;version&quot;: &quot;1.1.0&quot;,
+  &quot;version&quot;: &quot;0.1.0&quot;,
   &quot;dependencies&quot;: {
     &quot;B&quot;: {
-      &quot;version&quot;: &quot;1.0.1&quot;,
-      &quot;from&quot;: &quot;B@^1.0.0&quot;,
-      &quot;resolved&quot;: &quot;https://registry.npmjs.org/B/-/B-1.0.1.tgz&quot;,
+      &quot;version&quot;: &quot;0.0.1&quot;,
+      &quot;from&quot;: &quot;B@^0.0.1&quot;,
+      &quot;resolved&quot;: &quot;https://registry.npmjs.org/B/-/B-0.0.1.tgz&quot;,
       &quot;dependencies&quot;: {
         &quot;C&quot;: {
-          &quot;version&quot;: &quot;1.0.1&quot;,
-          &quot;from&quot;: &quot;org/C#v1.0.1&quot;,
+          &quot;version&quot;: &quot;0.0.1&quot;,
+          &quot;from&quot;: &quot;org/C#v0.0.1&quot;,
           &quot;resolved&quot;: &quot;git://github.com/org/C.git#5c380ae319fc4efe9e7f2d9c78b0faa588fd99b4&quot;
         }
       }
@@ -99,7 +99,12 @@ resolution using &quot;version&quot; if one isn&#39;t.</p>
 <li><p>The tree is walked and any missing dependencies are installed in the usual fashion.</p>
 </li>
 </ol>
-<h3 id="using-shrinkwrapped-packages">Using shrinkwrapped packages</h3>
+<p>If <code>preshrinkwrap</code>, <code>shrinkwrap</code> or <code>postshrinkwrap</code> are in the <code>scripts</code> property of the
+<code>package.json</code>, they will be executed by running <code>npm shrinkwrap</code>.
+<code>preshrinkwrap</code> and <code>shrinkwrap</code> are executed before the shrinkwrap, <code>postshrinkwrap</code> is
+executed afterwards. For example to run some postprocessing on the generated file:</p>
+<pre><code>&quot;scripts&quot;: { &quot;postshrinkwrap&quot;: &quot;node fix-shrinkwrap.js&quot; }
+</code></pre><h3 id="using-shrinkwrapped-packages">Using shrinkwrapped packages</h3>
 <p>Using a shrinkwrapped package is no different than using any other
 package: you can <code>npm install</code> it by hand, or add a dependency to your
 <code>package.json</code> file and <code>npm install</code> it.</p>
@@ -116,11 +121,11 @@ your package.</li>
 <ol>
 <li>Run <code>npm install</code> in the package root to install the current
 versions of all dependencies.</li>
-<li>Add or update dependencies. <code>npm install --save</code> each new or updated
-package individually to update the <code>package.json</code> and the shrinkwrap.
-Note that they must be explicitly named in order to be installed: running
-<code>npm install</code> with no arguments will merely reproduce the existing
-shrinkwrap.</li>
+<li>Add or update dependencies. <code>npm install --save</code> or <code>npm install --save-dev</code>
+each new or updated package individually to update the <code>package.json</code> and
+the shrinkwrap. Note that they must be explicitly named in order to be
+installed: running <code>npm install</code> with no arguments will merely reproduce
+the existing shrinkwrap.</li>
 <li>Validate that the package works as expected with the new
 dependencies.</li>
 <li>Commit the new <code>npm-shrinkwrap.json</code>, and publish your package.</li>
@@ -134,12 +139,16 @@ already installed, since that would result in a shrinkwrap that
 wouldn&#39;t actually work. Similarly, the command will fail if there are
 extraneous packages (not referenced by <code>package.json</code>), since that would
 indicate that <code>package.json</code> is not correct.</p>
-<p>Since <code>npm shrinkwrap</code> is intended to lock down your dependencies for
-production use, <code>devDependencies</code> will not be included unless you
-explicitly set the <code>--dev</code> flag when you run <code>npm shrinkwrap</code>.  If
-installed <code>devDependencies</code> are excluded, then npm will print a
-warning.  If you want them to be installed with your module by
-default, please consider adding them to <code>dependencies</code> instead.</p>
+<p>Starting with npm v4.0.1, <code>devDependencies</code> are included when you run
+<code>npm shrinkwrap</code> and follow the usual rules as to when they&#39;re installed.
+As of npm v3.10.8, if you run <code>npm install --only=production</code> or
+<code>npm install --production</code> with a shrinkwrap including your development
+dependencies they won&#39;t be installed. Similarly, if the environment
+variable <code>NODE_ENV</code> is <code>production</code> then they won&#39;t be installed. If you
+need compatibility with versions of npm prior to v3.10.8 or otherwise
+don&#39;t want them in your shrinkwrap you can exclude development
+dependencies with:
+<code>npm shrinkwrap --only=prod</code> or <code>npm shrinkwrap --production</code>.</p>
 <p>If shrinkwrapped package A depends on shrinkwrapped package B, B&#39;s
 shrinkwrap will not be used as part of the installation of A. However,
 because A&#39;s shrinkwrap is constructed from a valid installation of B
@@ -154,6 +163,8 @@ contents rather than versions.</p>
 <h2 id="see-also">SEE ALSO</h2>
 <ul>
 <li><a href="../cli/npm-install.html">npm-install(1)</a></li>
+<li><a href="../cli/npm-run-script.html">npm-run-script(1)</a></li>
+<li><a href="../misc/npm-scripts.html">npm-scripts(7)</a></li>
 <li><a href="../files/package.json.html">package.json(5)</a></li>
 <li><a href="../cli/npm-ls.html">npm-ls(1)</a></li>
 </ul>
@@ -169,5 +180,5 @@ contents rather than versions.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-shrinkwrap &mdash; npm@3.6.0</p>
+<p id="footer">npm-shrinkwrap &mdash; npm@4.1.2</p>
 

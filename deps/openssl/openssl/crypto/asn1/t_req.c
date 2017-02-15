@@ -196,6 +196,7 @@ int X509_REQ_print_ex(BIO *bp, X509_REQ *x, unsigned long nmflags,
                 if (BIO_puts(bp, ":") <= 0)
                     goto err;
                 if ((type == V_ASN1_PRINTABLESTRING) ||
+                    (type == V_ASN1_UTF8STRING) ||
                     (type == V_ASN1_T61STRING) ||
                     (type == V_ASN1_IA5STRING)) {
                     if (BIO_write(bp, (char *)bs->data, bs->length)

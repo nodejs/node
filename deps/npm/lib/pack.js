@@ -12,6 +12,7 @@ var path = require('path')
 var cwd = process.cwd()
 var writeStreamAtomic = require('fs-write-stream-atomic')
 var cachedPackageRoot = require('./cache/cached-package-root.js')
+var output = require('./utils/output.js')
 
 pack.usage = 'npm pack [[<@scope>/]<pkg>...]'
 
@@ -39,7 +40,7 @@ function printFiles (files, cb) {
   files = files.map(function (file) {
     return path.relative(cwd, file)
   })
-  console.log(files.join('\n'))
+  output(files.join('\n'))
   cb()
 }
 

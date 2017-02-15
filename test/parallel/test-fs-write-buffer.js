@@ -2,35 +2,127 @@
 const common = require('../common');
 const assert = require('assert');
 const path = require('path');
-const Buffer = require('buffer').Buffer;
 const fs = require('fs');
-const filename = path.join(common.tmpDir, 'write.txt');
-const expected = new Buffer('hello');
-let openCalled = 0;
-let writeCalled = 0;
-
+const expected = Buffer.from('hello');
 
 common.refreshTmpDir();
 
-fs.open(filename, 'w', 0o644, function(err, fd) {
-  openCalled++;
-  if (err) throw err;
+// fs.write with all parameters provided:
+{
+  const filename = path.join(common.tmpDir, 'write1.txt');
+  fs.open(filename, 'w', 0o644, common.mustCall((err, fd) => {
+    assert.ifError(err);
 
-  fs.write(fd, expected, 0, expected.length, null, function(err, written) {
-    writeCalled++;
-    if (err) throw err;
+    const cb = common.mustCall((err, written) => {
+      assert.ifError(err);
 
-    assert.equal(expected.length, written);
-    fs.closeSync(fd);
+      assert.strictEqual(expected.length, written);
+      fs.closeSync(fd);
 
-    var found = fs.readFileSync(filename, 'utf8');
-    assert.deepEqual(expected.toString(), found);
-    fs.unlinkSync(filename);
-  });
-});
+      const found = fs.readFileSync(filename, 'utf8');
+      assert.strictEqual(expected.toString(), found);
+    });
 
-process.on('exit', function() {
-  assert.equal(1, openCalled);
-  assert.equal(1, writeCalled);
-});
+    fs.write(fd, expected, 0, expected.length, null, cb);
+  }));
+}
 
+// fs.write with a buffer, without the length parameter:
+{
+  const filename = path.join(common.tmpDir, 'write2.txt');
+  fs.open(filename, 'w', 0o644, common.mustCall((err, fd) => {
+    assert.ifError(err);
+
+    const cb = common.mustCall((err, written) => {
+      assert.ifError(err);
+
+      assert.strictEqual(2, written);
+      fs.closeSync(fd);
+
+      const found = fs.readFileSync(filename, 'utf8');
+      assert.strictEqual('lo', found);
+    });
+
+    fs.write(fd, Buffer.from('hello'), 3, cb);
+  }));
+}
+
+// fs.write with a buffer, without the offset and length parameters:
+{
+  const filename = path.join(common.tmpDir, 'write3.txt');
+  fs.open(filename, 'w', 0o644, common.mustCall(function(err, fd) {
+    assert.ifError(err);
+
+    const cb = common.mustCall(function(err, written) {
+      assert.ifError(err);
+
+      assert.strictEqual(expected.length, written);
+      fs.closeSync(fd);
+
+      const found = fs.readFileSync(filename, 'utf8');
+      assert.deepStrictEqual(expected.toString(), found);
+    });
+
+    fs.write(fd, expected, cb);
+  }));
+}
+
+// fs.write with the offset passed as undefined followed by the callback:
+{
+  const filename = path.join(common.tmpDir, 'write4.txt');
+  fs.open(filename, 'w', 0o644, common.mustCall(function(err, fd) {
+    assert.ifError(err);
+
+    const cb = common.mustCall(function(err, written) {
+      assert.ifError(err);
+
+      assert.strictEqual(expected.length, written);
+      fs.closeSync(fd);
+
+      const found = fs.readFileSync(filename, 'utf8');
+      assert.deepStrictEqual(expected.toString(), found);
+    });
+
+    fs.write(fd, expected, undefined, cb);
+  }));
+}
+
+// fs.write with offset and length passed as undefined followed by the callback:
+{
+  const filename = path.join(common.tmpDir, 'write5.txt');
+  fs.open(filename, 'w', 0o644, common.mustCall((err, fd) => {
+    assert.ifError(err);
+
+    const cb = common.mustCall((err, written) => {
+      assert.ifError(err);
+
+      assert.strictEqual(expected.length, written);
+      fs.closeSync(fd);
+
+      const found = fs.readFileSync(filename, 'utf8');
+      assert.strictEqual(expected.toString(), found);
+    });
+
+    fs.write(fd, expected, undefined, undefined, cb);
+  }));
+}
+
+// fs.write with a Uint8Array, without the offset and length parameters:
+{
+  const filename = path.join(common.tmpDir, 'write6.txt');
+  fs.open(filename, 'w', 0o644, common.mustCall((err, fd) => {
+    assert.ifError(err);
+
+    const cb = common.mustCall((err, written) => {
+      assert.ifError(err);
+
+      assert.strictEqual(expected.length, written);
+      fs.closeSync(fd);
+
+      const found = fs.readFileSync(filename, 'utf8');
+      assert.strictEqual(expected.toString(), found);
+    });
+
+    fs.write(fd, Uint8Array.from(expected), cb);
+  }));
+}

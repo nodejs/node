@@ -5,7 +5,7 @@
 
 ## Install
 
-```sh
+```
 $ npm install --save array-union
 ```
 
@@ -13,7 +13,7 @@ $ npm install --save array-union
 ## Usage
 
 ```js
-var arrayUnion = require('array-union');
+const arrayUnion = require('array-union');
 
 arrayUnion([1, 1, 2, 3], [2, 3]);
 //=> [1, 2, 3]
@@ -25,4 +25,4 @@ arrayUnion(['foo', 'foo', 'bar'], ['foo']);
 
 ## License
 
-MIT © [Sindre Sorhus](http://sindresorhus.com)
+MIT © [Sindre Sorhus](https://sindresorhus.com)

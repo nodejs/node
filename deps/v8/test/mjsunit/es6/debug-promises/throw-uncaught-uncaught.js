@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug --allow-natives-syntax --promise-extra
+// Flags: --expose-debug-as debug --allow-natives-syntax
 
 // Test debug events when we only listen to uncaught exceptions and
 // there is a catch handler for the exception thrown in a Promise.
@@ -18,7 +18,7 @@ var p = new Promise(function(resolve, reject) {
   resolve();
 });
 
-var q = p.chain(
+var q = p.then(
   function() {
     log.push("throw");
     throw new Error("uncaught");  // event

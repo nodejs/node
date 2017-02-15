@@ -1,2 +1,0 @@
-test/fixtures/noname
-└── test/fixtures/noname/node_modules/foo

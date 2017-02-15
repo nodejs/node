@@ -1,7 +1,6 @@
 /**
  * @fileoverview Rule to flag wrapping non-iife in parens
  * @author Gyandeep Singh
- * @copyright 2015 Gyandeep Singh. All rights reserved.
  */
 
 "use strict";
@@ -29,7 +28,8 @@ function isIdentifier(node, name) {
  * @returns {boolean} `true` if the node is an argument of the specified method call.
  */
 function isArgumentOfMethodCall(node, index, object, property) {
-    var parent = node.parent;
+    const parent = node.parent;
+
     return (
         parent.type === "CallExpression" &&
         parent.callee.type === "MemberExpression" &&
@@ -46,6 +46,7 @@ function isArgumentOfMethodCall(node, index, object, property) {
  * @returns {boolean} `true` if the node is a property descriptor.
  */
 function isPropertyDescriptor(node) {
+
     // Object.defineProperty(obj, "foo", {set: ...})
     if (isArgumentOfMethodCall(node, 2, "Object", "defineProperty") ||
         isArgumentOfMethodCall(node, 2, "Reflect", "defineProperty")
@@ -53,9 +54,12 @@ function isPropertyDescriptor(node) {
         return true;
     }
 
-    // Object.defineProperties(obj, {foo: {set: ...}})
-    // Object.create(proto, {foo: {set: ...}})
+    /*
+     * Object.defineProperties(obj, {foo: {set: ...}})
+     * Object.create(proto, {foo: {set: ...}})
+     */
     node = node.parent.parent;
+
     return node.type === "ObjectExpression" && (
         isArgumentOfMethodCall(node, 1, "Object", "create") ||
         isArgumentOfMethodCall(node, 1, "Object", "defineProperties")
@@ -69,27 +73,27 @@ function isPropertyDescriptor(node) {
 module.exports = {
     meta: {
         docs: {
-            description: "Enforces getter/setter pairs in objects",
+            description: "enforce getter and setter pairs in objects",
             category: "Best Practices",
             recommended: false
         },
         schema: [{
-            "type": "object",
-            "properties": {
-                "getWithoutSet": {
-                    "type": "boolean"
+            type: "object",
+            properties: {
+                getWithoutSet: {
+                    type: "boolean"
                 },
-                "setWithoutGet": {
-                    "type": "boolean"
+                setWithoutGet: {
+                    type: "boolean"
                 }
             },
-            "additionalProperties": false
+            additionalProperties: false
         }]
     },
-    create: function(context) {
-        var config = context.options[0] || {};
-        var checkGetWithoutSet = config.getWithoutSet === true;
-        var checkSetWithoutGet = config.setWithoutGet !== false;
+    create(context) {
+        const config = context.options[0] || {};
+        const checkGetWithoutSet = config.getWithoutSet === true;
+        const checkSetWithoutGet = config.setWithoutGet !== false;
 
         /**
          * Checks a object expression to see if it has setter and getter both present or none.
@@ -98,14 +102,15 @@ module.exports = {
          * @private
          */
         function checkLonelySetGet(node) {
-            var isSetPresent = false;
-            var isGetPresent = false;
-            var isDescriptor = isPropertyDescriptor(node);
+            let isSetPresent = false;
+            let isGetPresent = false;
+            const isDescriptor = isPropertyDescriptor(node);
 
-            for (var i = 0, end = node.properties.length; i < end; i++) {
-                var property = node.properties[i];
+            for (let i = 0, end = node.properties.length; i < end; i++) {
+                const property = node.properties[i];
 
-                var propToCheck = "";
+                let propToCheck = "";
+
                 if (property.kind === "init") {
                     if (isDescriptor && !property.computed) {
                         propToCheck = property.key.name;
@@ -124,6 +129,7 @@ module.exports = {
                         break;
 
                     default:
+
                         // Do nothing
                 }
 
@@ -133,14 +139,14 @@ module.exports = {
             }
 
             if (checkSetWithoutGet && isSetPresent && !isGetPresent) {
-                context.report(node, "Getter is not present");
+                context.report({ node, message: "Getter is not present." });
             } else if (checkGetWithoutSet && isGetPresent && !isSetPresent) {
-                context.report(node, "Setter is not present");
+                context.report({ node, message: "Setter is not present." });
             }
         }
 
         return {
-            "ObjectExpression": function(node) {
+            ObjectExpression(node) {
                 if (checkSetWithoutGet || checkGetWithoutSet) {
                     checkLonelySetGet(node);
                 }

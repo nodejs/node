@@ -1,6 +1,8 @@
 #ifndef SRC_JS_STREAM_H_
 #define SRC_JS_STREAM_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "async-wrap.h"
 #include "env.h"
 #include "stream_base.h"
@@ -8,7 +10,7 @@
 
 namespace node {
 
-class JSStream : public StreamBase, public AsyncWrap {
+class JSStream : public AsyncWrap, public StreamBase {
  public:
   static void Initialize(v8::Local<v8::Object> target,
                          v8::Local<v8::Value> unused,
@@ -47,5 +49,7 @@ class JSStream : public StreamBase, public AsyncWrap {
 };
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_JS_STREAM_H_

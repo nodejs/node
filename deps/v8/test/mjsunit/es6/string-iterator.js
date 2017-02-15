@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-tostring
-
 function TestStringPrototypeIterator() {
   assertTrue(String.prototype.hasOwnProperty(Symbol.iterator));
   assertFalse("".hasOwnProperty(Symbol.iterator));
@@ -94,3 +92,11 @@ function TestNonOwnSlots() {
   assertThrows(function() { object.next(); }, TypeError);
 }
 TestNonOwnSlots();
+
+
+function TestSlicedStringRegression() {
+  var long_string = "abcdefhijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  var sliced_string = long_string.substring(1);
+  var iterator = sliced_string[Symbol.iterator]();
+}
+TestSlicedStringRegression();

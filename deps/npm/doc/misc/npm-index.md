@@ -65,6 +65,10 @@ Modify package distribution tags
 
 Docs for a package in a web browser maybe
 
+### npm-doctor(1)
+
+Check your environments
+
 ### npm-edit(1)
 
 Edit an installed package
@@ -176,10 +180,6 @@ Start a package
 ### npm-stop(1)
 
 Stop a package
-
-### npm-tag(1)
-
-Tag a published version
 
 ### npm-team(1)
 

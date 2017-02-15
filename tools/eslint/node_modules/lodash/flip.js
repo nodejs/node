@@ -1,16 +1,17 @@
-var createWrapper = require('./_createWrapper');
+var createWrap = require('./_createWrap');
 
-/** Used to compose bitmasks for wrapper metadata. */
-var FLIP_FLAG = 512;
+/** Used to compose bitmasks for function metadata. */
+var WRAP_FLIP_FLAG = 512;
 
 /**
  * Creates a function that invokes `func` with arguments reversed.
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Function
  * @param {Function} func The function to flip arguments for.
- * @returns {Function} Returns the new function.
+ * @returns {Function} Returns the new flipped function.
  * @example
  *
  * var flipped = _.flip(function() {
@@ -21,7 +22,7 @@ var FLIP_FLAG = 512;
  * // => ['d', 'c', 'b', 'a']
  */
 function flip(func) {
-  return createWrapper(func, FLIP_FLAG);
+  return createWrap(func, WRAP_FLIP_FLAG);
 }
 
 module.exports = flip;

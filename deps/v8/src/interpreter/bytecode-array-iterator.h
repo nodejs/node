@@ -6,8 +6,10 @@
 #define V8_INTERPRETER_BYTECODE_ARRAY_ITERATOR_H_
 
 #include "src/handles.h"
+#include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/objects.h"
+#include "src/runtime/runtime.h"
 
 namespace v8 {
 namespace internal {
@@ -22,19 +24,22 @@ class BytecodeArrayIterator {
   Bytecode current_bytecode() const;
   int current_bytecode_size() const;
   int current_offset() const { return bytecode_offset_; }
+  OperandScale current_operand_scale() const { return operand_scale_; }
+  int current_prefix_offset() const { return prefix_offset_; }
   const Handle<BytecodeArray>& bytecode_array() const {
     return bytecode_array_;
   }
 
-  int8_t GetImmediateOperand(int operand_index) const;
-  int GetIndexOperand(int operand_index) const;
-  int GetCountOperand(int operand_index) const;
+  uint32_t GetFlagOperand(int operand_index) const;
+  uint32_t GetUnsignedImmediateOperand(int operand_index) const;
+  int32_t GetImmediateOperand(int operand_index) const;
+  uint32_t GetIndexOperand(int operand_index) const;
+  uint32_t GetRegisterCountOperand(int operand_index) const;
   Register GetRegisterOperand(int operand_index) const;
+  int GetRegisterOperandRange(int operand_index) const;
+  Runtime::FunctionId GetRuntimeIdOperand(int operand_index) const;
+  Runtime::FunctionId GetIntrinsicIdOperand(int operand_index) const;
   Handle<Object> GetConstantForIndexOperand(int operand_index) const;
-
-  // Get the raw byte for the given operand. Note: you should prefer using the
-  // typed versions above which cast the return to an appropriate type.
-  uint32_t GetRawOperand(int operand_index, OperandType operand_type) const;
 
   // Returns the absolute offset of the branch target at the current
   // bytecode. It is an error to call this method if the bytecode is
@@ -42,8 +47,16 @@ class BytecodeArrayIterator {
   int GetJumpTargetOffset() const;
 
  private:
+  uint32_t GetUnsignedOperand(int operand_index,
+                              OperandType operand_type) const;
+  int32_t GetSignedOperand(int operand_index, OperandType operand_type) const;
+
+  void UpdateOperandScale();
+
   Handle<BytecodeArray> bytecode_array_;
   int bytecode_offset_;
+  OperandScale operand_scale_;
+  int prefix_offset_;
 
   DISALLOW_COPY_AND_ASSIGN(BytecodeArrayIterator);
 };

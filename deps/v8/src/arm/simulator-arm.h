@@ -68,7 +68,7 @@ class SimulatorStack : public v8::internal::AllStatic {
 
 #include "src/arm/constants-arm.h"
 #include "src/assembler.h"
-#include "src/hashmap.h"
+#include "src/base/hashmap.h"
 
 namespace v8 {
 namespace internal {
@@ -200,7 +200,7 @@ class Simulator {
   // Call on program start.
   static void Initialize(Isolate* isolate);
 
-  static void TearDown(HashMap* i_cache, Redirection* first);
+  static void TearDown(base::CustomMatcherHashMap* i_cache, Redirection* first);
 
   // V8 generally calls into generated JS code with 5 parameters and into
   // generated RegExp code with 7 parameters. This is a convenience function,
@@ -222,7 +222,7 @@ class Simulator {
   char* last_debugger_input() { return last_debugger_input_; }
 
   // ICache checking.
-  static void FlushICache(v8::internal::HashMap* i_cache, void* start,
+  static void FlushICache(base::CustomMatcherHashMap* i_cache, void* start,
                           size_t size);
 
   // Returns true if pc register contains one of the 'special_values' defined
@@ -262,7 +262,7 @@ class Simulator {
   void SetCFlag(bool val);
   void SetVFlag(bool val);
   bool CarryFrom(int32_t left, int32_t right, int32_t carry = 0);
-  bool BorrowFrom(int32_t left, int32_t right);
+  bool BorrowFrom(int32_t left, int32_t right, int32_t carry = 1);
   bool OverflowFrom(int32_t alu_out,
                     int32_t left,
                     int32_t right,
@@ -328,6 +328,9 @@ class Simulator {
   void DecodeType6(Instruction* instr);
   void DecodeType7(Instruction* instr);
 
+  // CP15 coprocessor instructions.
+  void DecodeTypeCP15(Instruction* instr);
+
   // Support for VFP.
   void DecodeTypeVFP(Instruction* instr);
   void DecodeType6CoprocessorIns(Instruction* instr);
@@ -342,10 +345,12 @@ class Simulator {
   void InstructionDecode(Instruction* instr);
 
   // ICache.
-  static void CheckICache(v8::internal::HashMap* i_cache, Instruction* instr);
-  static void FlushOnePage(v8::internal::HashMap* i_cache, intptr_t start,
+  static void CheckICache(base::CustomMatcherHashMap* i_cache,
+                          Instruction* instr);
+  static void FlushOnePage(base::CustomMatcherHashMap* i_cache, intptr_t start,
                            int size);
-  static CachePage* GetCachePage(v8::internal::HashMap* i_cache, void* page);
+  static CachePage* GetCachePage(base::CustomMatcherHashMap* i_cache,
+                                 void* page);
 
   // Runtime call support.
   static void* RedirectExternalReference(
@@ -362,6 +367,9 @@ class Simulator {
 
   template<class InputType, int register_size>
       void SetVFPRegister(int reg_index, const InputType& value);
+
+  void SetSpecialRegister(SRegisterFieldMask reg_and_mask, uint32_t value);
+  uint32_t GetFromSpecialRegister(SRegister reg);
 
   void CallInternal(byte* entry);
 
@@ -402,7 +410,7 @@ class Simulator {
   char* last_debugger_input_;
 
   // Icache simulation
-  v8::internal::HashMap* i_cache_;
+  base::CustomMatcherHashMap* i_cache_;
 
   // Registered breakpoints.
   Instruction* break_pc_;

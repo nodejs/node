@@ -1,19 +1,8 @@
 'use strict';
-require('../common');
-var assert = require('assert');
-var net = require('net');
-var gotError = false;
+const common = require('../common');
+const net = require('net');
 
-var server = net.createServer(function(socket) {
+const server = net.createServer(function(socket) {
 });
-server.listen(1, '1.1.1.1', function() { // EACCESS or EADDRNOTAVAIL
-  assert(false);
-});
-server.on('error', function(error) {
-  console.error(error);
-  gotError = true;
-});
-
-process.on('exit', function() {
-  assert(gotError);
-});
+server.listen(1, '1.1.1.1', common.mustNotCall()); // EACCESS or EADDRNOTAVAIL
+server.on('error', common.mustCall(function(error) {}));

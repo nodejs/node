@@ -5,6 +5,7 @@
 #include "src/runtime/runtime.h"
 
 #include "src/assembler.h"
+#include "src/base/hashmap.h"
 #include "src/contexts.h"
 #include "src/handles-inl.h"
 #include "src/heap/heap.h"
@@ -26,6 +27,12 @@ FOR_EACH_INTRINSIC_RETURN_OBJECT(F)
                             Isolate* isolate);
 FOR_EACH_INTRINSIC_RETURN_PAIR(P)
 #undef P
+
+#define T(name, number_of_args, result_size)                         \
+  ObjectTriple Runtime_##name(int args_length, Object** args_object, \
+                              Isolate* isolate);
+FOR_EACH_INTRINSIC_RETURN_TRIPLE(T)
+#undef T
 
 
 #define F(name, number_of_args, result_size)                                  \
@@ -51,30 +58,61 @@ static const Runtime::Function kIntrinsicFunctions[] = {
 #undef I
 #undef F
 
+namespace {
 
-void Runtime::InitializeIntrinsicFunctionNames(Isolate* isolate,
-                                               Handle<NameDictionary> dict) {
-  DCHECK(dict->NumberOfElements() == 0);
-  HandleScope scope(isolate);
-  for (int i = 0; i < kNumFunctions; ++i) {
-    const char* name = kIntrinsicFunctions[i].name;
-    if (name == NULL) continue;
-    Handle<NameDictionary> new_dict = NameDictionary::Add(
-        dict, isolate->factory()->InternalizeUtf8String(name),
-        Handle<Smi>(Smi::FromInt(i), isolate), PropertyDetails::Empty());
-    // The dictionary does not need to grow.
-    CHECK(new_dict.is_identical_to(dict));
+V8_DECLARE_ONCE(initialize_function_name_map_once);
+static const base::CustomMatcherHashMap* kRuntimeFunctionNameMap;
+
+struct IntrinsicFunctionIdentifier {
+  IntrinsicFunctionIdentifier(const unsigned char* data, const int length)
+      : data_(data), length_(length) {}
+
+  static bool Match(void* key1, void* key2) {
+    const IntrinsicFunctionIdentifier* lhs =
+        static_cast<IntrinsicFunctionIdentifier*>(key1);
+    const IntrinsicFunctionIdentifier* rhs =
+        static_cast<IntrinsicFunctionIdentifier*>(key2);
+    if (lhs->length_ != rhs->length_) return false;
+    return CompareCharsUnsigned(reinterpret_cast<const uint8_t*>(lhs->data_),
+                                reinterpret_cast<const uint8_t*>(rhs->data_),
+                                rhs->length_) == 0;
   }
+
+  uint32_t Hash() {
+    return StringHasher::HashSequentialString<uint8_t>(
+        data_, length_, v8::internal::kZeroHashSeed);
+  }
+
+  const unsigned char* data_;
+  const int length_;
+};
+
+void InitializeIntrinsicFunctionNames() {
+  base::CustomMatcherHashMap* function_name_map =
+      new base::CustomMatcherHashMap(IntrinsicFunctionIdentifier::Match);
+  for (size_t i = 0; i < arraysize(kIntrinsicFunctions); ++i) {
+    const Runtime::Function* function = &kIntrinsicFunctions[i];
+    IntrinsicFunctionIdentifier* identifier = new IntrinsicFunctionIdentifier(
+        reinterpret_cast<const unsigned char*>(function->name),
+        static_cast<int>(strlen(function->name)));
+    base::HashMap::Entry* entry =
+        function_name_map->InsertNew(identifier, identifier->Hash());
+    entry->value = const_cast<Runtime::Function*>(function);
+  }
+  kRuntimeFunctionNameMap = function_name_map;
 }
 
+}  // namespace
 
-const Runtime::Function* Runtime::FunctionForName(Handle<String> name) {
-  Heap* heap = name->GetHeap();
-  int entry = heap->intrinsic_function_names()->FindEntry(name);
-  if (entry != kNotFound) {
-    Object* smi_index = heap->intrinsic_function_names()->ValueAt(entry);
-    int function_index = Smi::cast(smi_index)->value();
-    return &(kIntrinsicFunctions[function_index]);
+const Runtime::Function* Runtime::FunctionForName(const unsigned char* name,
+                                                  int length) {
+  base::CallOnce(&initialize_function_name_map_once,
+                 &InitializeIntrinsicFunctionNames);
+  IntrinsicFunctionIdentifier identifier(name, length);
+  base::HashMap::Entry* entry =
+      kRuntimeFunctionNameMap->Lookup(&identifier, identifier.Hash());
+  if (entry) {
+    return reinterpret_cast<Function*>(entry->value);
   }
   return NULL;
 }
@@ -123,6 +161,7 @@ const Runtime::Function* Runtime::RuntimeFunctionTable(Isolate* isolate) {
 std::ostream& operator<<(std::ostream& os, Runtime::FunctionId id) {
   return os << Runtime::FunctionForId(id)->name;
 }
+
 
 }  // namespace internal
 }  // namespace v8

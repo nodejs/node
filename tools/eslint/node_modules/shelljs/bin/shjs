@@ -32,20 +32,8 @@ for (var i = 0, l = args.length; i < l; i++) {
   }
 }
 
-if (scriptName.match(/\.coffee$/)) {
-  //
-  // CoffeeScript
-  //
-  if (which('coffee')) {
-    exec('coffee ' + scriptName + ' ' + args.join(' '), { async: true });
-  } else {
-    console.log('ShellJS: CoffeeScript interpreter not found');
-    console.log();
-    process.exit(1);
-  }
-} else {
-  //
-  // JavaScript
-  //
-  exec('node ' + scriptName + ' ' + args.join(' '), { async: true });
-}
+var path = require('path');
+var extensions = require('interpret').extensions;
+var rechoir = require('rechoir');
+rechoir.prepare(extensions, scriptName);
+require(require.resolve(path.resolve(process.cwd(), scriptName)));

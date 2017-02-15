@@ -32,7 +32,6 @@
 namespace node {
 
 using v8::FunctionCallbackInfo;
-using v8::FunctionTemplate;
 using v8::GCCallbackFlags;
 using v8::GCType;
 using v8::HandleScope;
@@ -58,7 +57,7 @@ using v8::Value;
       "expected object for " #obj " to contain integer member " #member); \
   } \
   *valp = obj->Get(OneByteString(env->isolate(), #member)) \
-      ->ToInteger(env->isolate())->Value();
+      ->Int32Value();
 
 #define SLURP_OBJECT(obj, member, valp) \
   if (!(obj)->IsObject()) { \
@@ -255,7 +254,7 @@ void InitDTrace(Environment* env, Local<Object> target) {
 #undef NODE_PROBE
   };
 
-  for (unsigned int i = 0; i < ARRAY_SIZE(tab); i++) {
+  for (size_t i = 0; i < arraysize(tab); i++) {
     Local<String> key = OneByteString(env->isolate(), tab[i].name);
     Local<Value> val = env->NewFunctionTemplate(tab[i].func)->GetFunction();
     target->Set(key, val);

@@ -1,4 +1,4 @@
-.TH "NPM\-INSTALL" "1" "January 2016" "" ""
+.TH "NPM\-INSTALL" "1" "January 2017" "" ""
 .SH "NAME"
 \fBnpm-install\fR \- Install a package
 .SH SYNOPSIS
@@ -15,7 +15,7 @@ npm install <tarball url>
 npm install <folder>
 
 alias: npm i
-common options: [\-S|\-\-save|\-D|\-\-save\-dev|\-O|\-\-save\-optional] [\-E|\-\-save\-exact] [\-\-dry\-run]
+common options: [\-S|\-\-save|\-D|\-\-save\-dev|\-O|\-\-save\-optional] [\-E|\-\-save\-exact] [\-B|\-\-save\-bundle] [\-\-dry\-run]
 .fi
 .RE
 .SH DESCRIPTION
@@ -108,11 +108,13 @@ after packing it up into a tarball (b)\.
 .IP \(bu 2
 \fB\-O, \-\-save\-optional\fP: Package will appear in your \fBoptionalDependencies\fP\|\.
 When using any of the above options to save dependencies to your
-package\.json, there is an additional, optional flag:
+package\.json, there are two additional, optional flags:
 .IP \(bu 2
 \fB\-E, \-\-save\-exact\fP: Saved dependencies will be configured with an
 exact version rather than using npm's default semver range
 operator\.
+.IP \(bu 2
+\fB\-B, \-\-save\-bundle\fP: Saved dependencies will also be added to your \fBbundleDependencies\fP list\.
 Further, if you have an \fBnpm\-shrinkwrap\.json\fP then it will be updated as
 well\.
 \fB<scope>\fP is optional\. The package will be downloaded from the registry
@@ -131,6 +133,7 @@ npm install @myorg/privatepackage
 npm install node\-tap \-\-save\-dev
 npm install dtrace\-provider \-\-save\-optional
 npm install readable\-stream \-\-save \-\-save\-exact
+npm install ansi\-regex \-\-save \-\-save\-bundle
 .fi
 .RE
 
@@ -195,14 +198,18 @@ fetch the package by name if it is not valid\.
     <protocol>://[<user>[:<password>]@]<hostname>[:<port>][:][/]<path>[#<commit\-ish>]
 .fi
 .RE
-  \fB<protocol>\fP is one of \fBgit\fP, \fBgit+ssh\fP, \fBgit+http\fP, or
-  \fBgit+https\fP\|\.  If no \fB<commit\-ish>\fP is specified, then \fBmaster\fP is
-  used\.
+  \fB<protocol>\fP is one of \fBgit\fP, \fBgit+ssh\fP, \fBgit+http\fP, \fBgit+https\fP,
+  or \fBgit+file\fP\|\.
+  If no \fB<commit\-ish>\fP is specified, then \fBmaster\fP is used\.
+  If the repository makes use of submodules, those submodules will
+  be cloned as well\.
   The following git environment variables are recognized by npm and will be added
   to the environment when running git:
 .RS 0
 .IP \(bu 2
 \fBGIT_ASKPASS\fP
+.IP \(bu 2
+\fBGIT_EXEC_PATH\fP
 .IP \(bu 2
 \fBGIT_PROXY_COMMAND\fP
 .IP \(bu 2
@@ -313,7 +320,10 @@ The \fB\-\-global\-style\fP argument will cause npm to install the package into
 your local \fBnode_modules\fP folder with the same layout it uses with the
 global \fBnode_modules\fP folder\. Only your direct dependencies will show in
 \fBnode_modules\fP and everything they depend on will be flattened in their
-\fBnode_modules\fP folders\. This obviously will elminate some deduping\.
+\fBnode_modules\fP folders\. This obviously will eliminate some deduping\.
+.P
+The \fB\-\-ignore\-scripts\fP argument will cause npm to not execute any 
+scripts defined in the package\.json\. See npm help 7 \fBnpm\-scripts\fP\|\.
 .P
 The \fB\-\-legacy\-bundling\fP argument will cause npm to install the package such
 that versions of npm prior to 1\.4, such as the one included with node 0\.8,
@@ -393,6 +403,10 @@ See npm help 5 folders for a more detailed description of the specific
 folder structures that npm creates\.
 .SS Limitations of npm's Install Algorithm
 .P
+npm will refuse to install any package with an identical name to the
+current package\. This can be overridden with the \fB\-\-force\fP flag, but in
+most cases can simply be addressed by changing the local package name\.
+.P
 There are some very rare and pathological edge\-cases where a cycle can
 cause npm to try to install a never\-ending tree of packages\.  Here is
 the simplest case:
@@ -438,7 +452,7 @@ npm help 5 npmrc
 .IP \(bu 2
 npm help 7 registry
 .IP \(bu 2
-npm help tag
+npm help dist\-tag
 .IP \(bu 2
 npm help uninstall
 .IP \(bu 2

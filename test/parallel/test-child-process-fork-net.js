@@ -1,8 +1,8 @@
 'use strict';
-var assert = require('assert');
-var common = require('../common');
-var fork = require('child_process').fork;
-var net = require('net');
+require('../common');
+const assert = require('assert');
+const fork = require('child_process').fork;
+const net = require('net');
 
 // progress tracker
 function ProgressTracker(missing, callback) {
@@ -19,7 +19,7 @@ ProgressTracker.prototype.check = function() {
 
 if (process.argv[2] === 'child') {
 
-  var serverScope;
+  let serverScope;
 
   process.on('message', function onServer(msg, server) {
     if (msg.what !== 'server') return;
@@ -58,17 +58,17 @@ if (process.argv[2] === 'child') {
   process.send({what: 'ready'});
 } else {
 
-  var child = fork(process.argv[1], ['child']);
+  const child = fork(process.argv[1], ['child']);
 
   child.on('exit', function() {
     console.log('CHILD: died');
   });
 
   // send net.Server to child and test by connecting
-  var testServer = function(callback) {
+  const testServer = function(callback) {
 
     // destroy server execute callback when done
-    var progress = new ProgressTracker(2, function() {
+    const progress = new ProgressTracker(2, function() {
       server.on('close', function() {
         console.log('PARENT: server closed');
         child.send({what: 'close'});
@@ -76,12 +76,12 @@ if (process.argv[2] === 'child') {
       server.close();
     });
 
-    // we expect 10 connections and close events
-    var connections = new ProgressTracker(10, progress.done.bind(progress));
-    var closed = new ProgressTracker(10, progress.done.bind(progress));
+    // we expect 4 connections and close events
+    const connections = new ProgressTracker(4, progress.done.bind(progress));
+    const closed = new ProgressTracker(4, progress.done.bind(progress));
 
     // create server and send it to child
-    var server = net.createServer();
+    const server = net.createServer();
     server.on('connection', function(socket) {
       console.log('PARENT: got connection');
       socket.destroy();
@@ -91,16 +91,16 @@ if (process.argv[2] === 'child') {
       console.log('PARENT: server listening');
       child.send({what: 'server'}, server);
     });
-    server.listen(common.PORT);
+    server.listen(0);
 
     // handle client messages
-    var messageHandlers = function(msg) {
+    const messageHandlers = function(msg) {
 
       if (msg.what === 'listening') {
         // make connections
-        var socket;
-        for (var i = 0; i < 10; i++) {
-          socket = net.connect(common.PORT, function() {
+        let socket;
+        for (let i = 0; i < 4; i++) {
+          socket = net.connect(server.address().port, function() {
             console.log('CLIENT: connected');
           });
           socket.on('close', function() {
@@ -122,11 +122,11 @@ if (process.argv[2] === 'child') {
   };
 
   // send net.Socket to child
-  var testSocket = function(callback) {
+  const testSocket = function(callback) {
 
     // create a new server and connect to it,
     // but the socket will be handled by the child
-    var server = net.createServer();
+    const server = net.createServer();
     server.on('connection', function(socket) {
       socket.on('close', function() {
         console.log('CLIENT: socket closed');
@@ -143,25 +143,25 @@ if (process.argv[2] === 'child') {
     //
     // An isolated test for this would be lovely, but for now, this
     // will have to do.
-    server.listen(common.PORT + 1, function() {
+    server.listen(0, function() {
       console.error('testSocket, listening');
-      var connect = net.connect(common.PORT + 1);
-      var store = '';
+      const connect = net.connect(server.address().port);
+      let store = '';
       connect.on('data', function(chunk) {
         store += chunk;
         console.log('CLIENT: got data');
       });
       connect.on('close', function() {
         console.log('CLIENT: closed');
-        assert.equal(store, 'echo');
+        assert.strictEqual(store, 'echo');
         server.close();
       });
     });
   };
 
   // create server and send it to child
-  var serverSuccess = false;
-  var socketSuccess = false;
+  let serverSuccess = false;
+  let socketSuccess = false;
   child.on('message', function onReady(msg) {
     if (msg.what !== 'ready') return;
     child.removeListener('message', onReady);

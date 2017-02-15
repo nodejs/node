@@ -9,42 +9,27 @@
 #include "src/api.h"
 #include "src/base/platform/platform.h"
 #include "src/full-codegen/full-codegen.h"
+#include "src/snapshot/deserializer.h"
+#include "src/snapshot/snapshot-source-sink.h"
+#include "src/version.h"
 
 namespace v8 {
 namespace internal {
 
 #ifdef DEBUG
 bool Snapshot::SnapshotIsValid(v8::StartupData* snapshot_blob) {
-  return !Snapshot::ExtractStartupData(snapshot_blob).is_empty() &&
-         !Snapshot::ExtractContextData(snapshot_blob).is_empty();
+  return Snapshot::ExtractNumContexts(snapshot_blob) > 0;
 }
 #endif  // DEBUG
 
-
-bool Snapshot::HaveASnapshotToStartFrom(Isolate* isolate) {
+bool Snapshot::HasContextSnapshot(Isolate* isolate, size_t index) {
   // Do not use snapshots if the isolate is used to create snapshots.
-  return isolate->snapshot_blob() != NULL &&
-         isolate->snapshot_blob()->data != NULL;
+  const v8::StartupData* blob = isolate->snapshot_blob();
+  if (blob == nullptr) return false;
+  if (blob->data == nullptr) return false;
+  size_t num_contexts = static_cast<size_t>(ExtractNumContexts(blob));
+  return index < num_contexts;
 }
-
-
-bool Snapshot::EmbedsScript(Isolate* isolate) {
-  if (!isolate->snapshot_available()) return false;
-  return ExtractMetadata(isolate->snapshot_blob()).embeds_script();
-}
-
-
-uint32_t Snapshot::SizeOfFirstPage(Isolate* isolate, AllocationSpace space) {
-  DCHECK(space >= FIRST_PAGED_SPACE && space <= LAST_PAGED_SPACE);
-  if (!isolate->snapshot_available()) {
-    return static_cast<uint32_t>(MemoryAllocator::PageAreaSize(space));
-  }
-  uint32_t size;
-  int offset = kFirstPageSizesOffset + (space - FIRST_PAGED_SPACE) * kInt32Size;
-  memcpy(&size, isolate->snapshot_blob()->data + offset, kInt32Size);
-  return size;
-}
-
 
 bool Snapshot::Initialize(Isolate* isolate) {
   if (!isolate->snapshot_available()) return false;
@@ -64,15 +49,16 @@ bool Snapshot::Initialize(Isolate* isolate) {
   return success;
 }
 
-
 MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
-    Isolate* isolate, Handle<JSGlobalProxy> global_proxy) {
+    Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
+    size_t context_index) {
   if (!isolate->snapshot_available()) return Handle<Context>();
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
 
   const v8::StartupData* blob = isolate->snapshot_blob();
-  Vector<const byte> context_data = ExtractContextData(blob);
+  Vector<const byte> context_data =
+      ExtractContextData(blob, static_cast<int>(context_index));
   SnapshotData snapshot_data(context_data);
   Deserializer deserializer(&snapshot_data);
 
@@ -84,149 +70,160 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
     int bytes = context_data.length();
-    PrintF("[Deserializing context (%d bytes) took %0.3f ms]\n", bytes, ms);
+    PrintF("[Deserializing context #%zu (%d bytes) took %0.3f ms]\n",
+           context_index, bytes, ms);
   }
   return Handle<Context>::cast(result);
 }
 
-
-void CalculateFirstPageSizes(bool is_default_snapshot,
-                             const SnapshotData& startup_snapshot,
-                             const SnapshotData& context_snapshot,
-                             uint32_t* sizes_out) {
-  Vector<const SerializedData::Reservation> startup_reservations =
-      startup_snapshot.Reservations();
-  Vector<const SerializedData::Reservation> context_reservations =
-      context_snapshot.Reservations();
-  int startup_index = 0;
-  int context_index = 0;
-
+void ProfileDeserialization(const SnapshotData* startup_snapshot,
+                            const List<SnapshotData*>* context_snapshots) {
   if (FLAG_profile_deserialization) {
     int startup_total = 0;
-    int context_total = 0;
-    for (auto& reservation : startup_reservations) {
+    PrintF("Deserialization will reserve:\n");
+    for (const auto& reservation : startup_snapshot->Reservations()) {
       startup_total += reservation.chunk_size();
     }
-    for (auto& reservation : context_reservations) {
-      context_total += reservation.chunk_size();
+    PrintF("%10d bytes per isolate\n", startup_total);
+    for (int i = 0; i < context_snapshots->length(); i++) {
+      int context_total = 0;
+      for (const auto& reservation : context_snapshots->at(i)->Reservations()) {
+        context_total += reservation.chunk_size();
+      }
+      PrintF("%10d bytes per context #%d\n", context_total, i);
     }
-    PrintF(
-        "Deserialization will reserve:\n"
-        "%10d bytes per isolate\n"
-        "%10d bytes per context\n",
-        startup_total, context_total);
   }
-
-  for (int space = 0; space < i::Serializer::kNumberOfSpaces; space++) {
-    bool single_chunk = true;
-    while (!startup_reservations[startup_index].is_last()) {
-      single_chunk = false;
-      startup_index++;
-    }
-    while (!context_reservations[context_index].is_last()) {
-      single_chunk = false;
-      context_index++;
-    }
-
-    uint32_t required = kMaxUInt32;
-    if (single_chunk) {
-      // If both the startup snapshot data and the context snapshot data on
-      // this space fit in a single page, then we consider limiting the size
-      // of the first page. For this, we add the chunk sizes and some extra
-      // allowance. This way we achieve a smaller startup memory footprint.
-      required = (startup_reservations[startup_index].chunk_size() +
-                  2 * context_reservations[context_index].chunk_size()) +
-                 Page::kObjectStartOffset;
-      // Add a small allowance to the code space for small scripts.
-      if (space == CODE_SPACE) required += 32 * KB;
-    } else {
-      // We expect the vanilla snapshot to only require on page per space.
-      DCHECK(!is_default_snapshot);
-    }
-
-    if (space >= FIRST_PAGED_SPACE && space <= LAST_PAGED_SPACE) {
-      uint32_t max_size =
-          MemoryAllocator::PageAreaSize(static_cast<AllocationSpace>(space));
-      sizes_out[space - FIRST_PAGED_SPACE] = Min(required, max_size);
-    } else {
-      DCHECK(single_chunk);
-    }
-    startup_index++;
-    context_index++;
-  }
-
-  DCHECK_EQ(startup_reservations.length(), startup_index);
-  DCHECK_EQ(context_reservations.length(), context_index);
 }
 
-
 v8::StartupData Snapshot::CreateSnapshotBlob(
-    const i::StartupSerializer& startup_ser,
-    const i::PartialSerializer& context_ser, Snapshot::Metadata metadata) {
-  SnapshotData startup_snapshot(startup_ser);
-  SnapshotData context_snapshot(context_ser);
-  Vector<const byte> startup_data = startup_snapshot.RawData();
-  Vector<const byte> context_data = context_snapshot.RawData();
-
-  uint32_t first_page_sizes[kNumPagedSpaces];
-
-  CalculateFirstPageSizes(!metadata.embeds_script(), startup_snapshot,
-                          context_snapshot, first_page_sizes);
-
-  int startup_length = startup_data.length();
-  int context_length = context_data.length();
-  int context_offset = ContextOffset(startup_length);
-
-  int length = context_offset + context_length;
-  char* data = new char[length];
-
-  memcpy(data + kMetadataOffset, &metadata.RawValue(), kInt32Size);
-  memcpy(data + kFirstPageSizesOffset, first_page_sizes,
-         kNumPagedSpaces * kInt32Size);
-  memcpy(data + kStartupLengthOffset, &startup_length, kInt32Size);
-  memcpy(data + kStartupDataOffset, startup_data.begin(), startup_length);
-  memcpy(data + context_offset, context_data.begin(), context_length);
-  v8::StartupData result = {data, length};
-
-  if (FLAG_profile_deserialization) {
-    PrintF(
-        "Snapshot blob consists of:\n"
-        "%10d bytes for startup\n"
-        "%10d bytes for context\n",
-        startup_length, context_length);
+    const SnapshotData* startup_snapshot,
+    const List<SnapshotData*>* context_snapshots) {
+  int num_contexts = context_snapshots->length();
+  int startup_snapshot_offset = StartupSnapshotOffset(num_contexts);
+  int total_length = startup_snapshot_offset;
+  total_length += startup_snapshot->RawData().length();
+  for (const auto& context_snapshot : *context_snapshots) {
+    total_length += context_snapshot->RawData().length();
   }
+
+  ProfileDeserialization(startup_snapshot, context_snapshots);
+
+  char* data = new char[total_length];
+  memcpy(data + kNumberOfContextsOffset, &num_contexts, kInt32Size);
+  int payload_offset = StartupSnapshotOffset(num_contexts);
+  int payload_length = startup_snapshot->RawData().length();
+  memcpy(data + payload_offset, startup_snapshot->RawData().start(),
+         payload_length);
+  if (FLAG_profile_deserialization) {
+    PrintF("Snapshot blob consists of:\n%10d bytes for startup\n",
+           payload_length);
+  }
+  payload_offset += payload_length;
+  for (int i = 0; i < num_contexts; i++) {
+    memcpy(data + ContextSnapshotOffsetOffset(i), &payload_offset, kInt32Size);
+    SnapshotData* context_snapshot = context_snapshots->at(i);
+    payload_length = context_snapshot->RawData().length();
+    memcpy(data + payload_offset, context_snapshot->RawData().start(),
+           payload_length);
+    if (FLAG_profile_deserialization) {
+      PrintF("%10d bytes for context #%d\n", payload_length, i);
+    }
+    payload_offset += payload_length;
+  }
+
+  v8::StartupData result = {data, total_length};
   return result;
 }
 
-
-Snapshot::Metadata Snapshot::ExtractMetadata(const v8::StartupData* data) {
-  uint32_t raw;
-  memcpy(&raw, data->data + kMetadataOffset, kInt32Size);
-  return Metadata(raw);
+int Snapshot::ExtractNumContexts(const v8::StartupData* data) {
+  CHECK_LT(kNumberOfContextsOffset, data->raw_size);
+  int num_contexts;
+  memcpy(&num_contexts, data->data + kNumberOfContextsOffset, kInt32Size);
+  return num_contexts;
 }
 
-
 Vector<const byte> Snapshot::ExtractStartupData(const v8::StartupData* data) {
-  DCHECK_LT(kIntSize, data->raw_size);
-  int startup_length;
-  memcpy(&startup_length, data->data + kStartupLengthOffset, kInt32Size);
-  DCHECK_LT(startup_length, data->raw_size);
+  int num_contexts = ExtractNumContexts(data);
+  int startup_offset = StartupSnapshotOffset(num_contexts);
+  CHECK_LT(startup_offset, data->raw_size);
+  int first_context_offset;
+  memcpy(&first_context_offset, data->data + ContextSnapshotOffsetOffset(0),
+         kInt32Size);
+  CHECK_LT(first_context_offset, data->raw_size);
+  int startup_length = first_context_offset - startup_offset;
   const byte* startup_data =
-      reinterpret_cast<const byte*>(data->data + kStartupDataOffset);
+      reinterpret_cast<const byte*>(data->data + startup_offset);
   return Vector<const byte>(startup_data, startup_length);
 }
 
+Vector<const byte> Snapshot::ExtractContextData(const v8::StartupData* data,
+                                                int index) {
+  int num_contexts = ExtractNumContexts(data);
+  CHECK_LT(index, num_contexts);
 
-Vector<const byte> Snapshot::ExtractContextData(const v8::StartupData* data) {
-  DCHECK_LT(kIntSize, data->raw_size);
-  int startup_length;
-  memcpy(&startup_length, data->data + kStartupLengthOffset, kIntSize);
-  int context_offset = ContextOffset(startup_length);
+  int context_offset;
+  memcpy(&context_offset, data->data + ContextSnapshotOffsetOffset(index),
+         kInt32Size);
+  int next_context_offset;
+  if (index == num_contexts - 1) {
+    next_context_offset = data->raw_size;
+  } else {
+    memcpy(&next_context_offset,
+           data->data + ContextSnapshotOffsetOffset(index + 1), kInt32Size);
+    CHECK_LT(next_context_offset, data->raw_size);
+  }
+
   const byte* context_data =
       reinterpret_cast<const byte*>(data->data + context_offset);
-  DCHECK_LT(context_offset, data->raw_size);
-  int context_length = data->raw_size - context_offset;
+  int context_length = next_context_offset - context_offset;
   return Vector<const byte>(context_data, context_length);
 }
+
+SnapshotData::SnapshotData(const Serializer* serializer) {
+  DisallowHeapAllocation no_gc;
+  List<Reservation> reservations;
+  serializer->EncodeReservations(&reservations);
+  const List<byte>* payload = serializer->sink()->data();
+
+  // Calculate sizes.
+  int reservation_size = reservations.length() * kInt32Size;
+  int size = kHeaderSize + reservation_size + payload->length();
+
+  // Allocate backing store and create result data.
+  AllocateData(size);
+
+  // Set header values.
+  SetMagicNumber(serializer->isolate());
+  SetHeaderValue(kCheckSumOffset, Version::Hash());
+  SetHeaderValue(kNumReservationsOffset, reservations.length());
+  SetHeaderValue(kPayloadLengthOffset, payload->length());
+
+  // Copy reservation chunk sizes.
+  CopyBytes(data_ + kHeaderSize, reinterpret_cast<byte*>(reservations.begin()),
+            reservation_size);
+
+  // Copy serialized data.
+  CopyBytes(data_ + kHeaderSize + reservation_size, payload->begin(),
+            static_cast<size_t>(payload->length()));
+}
+
+bool SnapshotData::IsSane() {
+  return GetHeaderValue(kCheckSumOffset) == Version::Hash();
+}
+
+Vector<const SerializedData::Reservation> SnapshotData::Reservations() const {
+  return Vector<const Reservation>(
+      reinterpret_cast<const Reservation*>(data_ + kHeaderSize),
+      GetHeaderValue(kNumReservationsOffset));
+}
+
+Vector<const byte> SnapshotData::Payload() const {
+  int reservations_size = GetHeaderValue(kNumReservationsOffset) * kInt32Size;
+  const byte* payload = data_ + kHeaderSize + reservations_size;
+  int length = GetHeaderValue(kPayloadLengthOffset);
+  DCHECK_EQ(data_ + size_, payload + length);
+  return Vector<const byte>(payload, length);
+}
+
 }  // namespace internal
 }  // namespace v8

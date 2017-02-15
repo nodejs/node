@@ -56,11 +56,6 @@
  * [including the GNU Public Licence.]
  */
 
-/* We need to define this to get macros like S_IFBLK and S_IFCHR */
-#if !defined(OPENSSL_SYS_VXWORKS)
-# define _XOPEN_SOURCE 500
-#endif
-
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -80,6 +75,29 @@
 #ifndef OPENSSL_NO_POSIX_IO
 # include <sys/stat.h>
 # include <fcntl.h>
+/*
+ * Following should not be needed, and we could have been stricter
+ * and demand S_IS*. But some systems just don't comply... Formally
+ * below macros are "anatomically incorrect", because normally they
+ * would look like ((m) & MASK == TYPE), but since MASK availability
+ * is as questionable, we settle for this poor-man fallback...
+ */
+# if !defined(S_ISBLK)
+#  if defined(_S_IFBLK)
+#   define S_ISBLK(m) ((m) & _S_IFBLK)
+#  elif defined(S_IFBLK)
+#   define S_ISBLK(m) ((m) & S_IFBLK)
+#  elif defined(_WIN32)
+#   define S_ISBLK(m) 0 /* no concept of block devices on Windows */
+#  endif
+# endif
+# if !defined(S_ISCHR)
+#  if defined(_S_IFCHR)
+#   define S_ISCHR(m) ((m) & _S_IFCHR)
+#  elif defined(S_IFCHR)
+#   define S_ISCHR(m) ((m) & S_IFCHR)
+#  endif
+# endif
 #endif
 
 #ifdef _WIN32
@@ -93,7 +111,7 @@
 #define BUFSIZE 1024
 #define RAND_DATA 1024
 
-#ifdef OPENSSL_SYS_VMS
+#if (defined(OPENSSL_SYS_VMS) && (defined(__alpha) || defined(__ia64)))
 /*
  * This declaration is a nasty hack to get around vms' extension to fopen for
  * passing in sharing options being disabled by our /STANDARD=ANSI89
@@ -122,7 +140,24 @@ int RAND_load_file(const char *file, long bytes)
     struct stat sb;
 #endif
     int i, ret = 0, n;
+/*
+ * If setvbuf() is to be called, then the FILE pointer
+ * to it must be 32 bit.
+*/
+
+#if !defined OPENSSL_NO_SETVBUF_IONBF && defined(OPENSSL_SYS_VMS) && defined(__VMS_VER) && (__VMS_VER >= 70000000)
+    /* For 64-bit-->32 bit API Support*/
+#if __INITIAL_POINTER_SIZE == 64
+#pragma __required_pointer_size __save
+#pragma __required_pointer_size 32
+#endif
+    FILE *in; /* setvbuf() requires 32-bit pointers */
+#if __INITIAL_POINTER_SIZE == 64
+#pragma __required_pointer_size __restore
+#endif
+#else
     FILE *in;
+#endif /* OPENSSL_SYS_VMS */
 
     if (file == NULL)
         return (0);
@@ -151,8 +186,8 @@ int RAND_load_file(const char *file, long bytes)
 #endif
     if (in == NULL)
         goto err;
-#if defined(S_IFBLK) && defined(S_IFCHR) && !defined(OPENSSL_NO_POSIX_IO)
-    if (sb.st_mode & (S_IFBLK | S_IFCHR)) {
+#if defined(S_ISBLK) && defined(S_ISCHR) && !defined(OPENSSL_NO_POSIX_IO)
+    if (S_ISBLK(sb.st_mode) || S_ISCHR(sb.st_mode)) {
         /*
          * this file is a device. we don't want read an infinite number of
          * bytes from a random device, nor do we want to use buffered I/O
@@ -231,7 +266,7 @@ int RAND_write_file(const char *file)
     }
 #endif
 
-#ifdef OPENSSL_SYS_VMS
+#if (defined(OPENSSL_SYS_VMS) && (defined(__alpha) || defined(__ia64)))
     /*
      * VMS NOTE: Prior versions of this routine created a _new_ version of
      * the rand file for each call into this routine, then deleted all

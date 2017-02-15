@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax
-
 var stdlib = { Math: Math };
 
 var f = (function Module(stdlib) {
@@ -26,6 +24,5 @@ for (var i = 0; i < 32; ++i) {
   assertEquals(i, f((-1) >>> i));
 }
 for (var i = -2147483648; i < 2147483648; i += 3999773) {
-  assertEquals(%MathClz32(i), f(i));
-  assertEquals(%MathClz32(i), %_MathClz32(i >>> 0));
+  assertEquals(Math.clz32(i), f(i));
 }

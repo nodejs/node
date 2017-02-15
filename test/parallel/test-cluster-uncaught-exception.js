@@ -3,37 +3,26 @@
 // one that the cluster module installs.
 // https://github.com/joyent/node/issues/2556
 
-require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var fork = require('child_process').fork;
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
+const fork = require('child_process').fork;
 
-var MAGIC_EXIT_CODE = 42;
+const MAGIC_EXIT_CODE = 42;
 
-var isTestRunner = process.argv[2] != 'child';
+const isTestRunner = process.argv[2] !== 'child';
 
 if (isTestRunner) {
-  var exitCode = -1;
-
-  process.on('exit', function() {
-    assert.equal(exitCode, MAGIC_EXIT_CODE);
-  });
-
-  var master = fork(__filename, ['child']);
-  master.on('exit', function(code) {
-    exitCode = code;
-  });
-}
-else if (cluster.isMaster) {
-  process.on('uncaughtException', function() {
-    process.nextTick(function() {
-      process.exit(MAGIC_EXIT_CODE);
-    });
-  });
-
+  const master = fork(__filename, ['child']);
+  master.on('exit', common.mustCall((code) => {
+    assert.strictEqual(code, MAGIC_EXIT_CODE);
+  }));
+} else if (cluster.isMaster) {
+  process.on('uncaughtException', common.mustCall(() => {
+    process.nextTick(() => process.exit(MAGIC_EXIT_CODE));
+  }));
   cluster.fork();
   throw new Error('kill master');
-}
-else { // worker
+} else { // worker
   process.exit();
 }

@@ -1,18 +1,9 @@
 'use strict';
-require('../common');
-var assert = require('assert');
-var zlib = require('zlib');
+const common = require('../common');
+const zlib = require('zlib');
 
-var closed = false;
-
-zlib.gzip('hello', function(err, out) {
-  var unzip = zlib.createGunzip();
+zlib.gzip('hello', common.mustCall(function(err, out) {
+  const unzip = zlib.createGunzip();
   unzip.write(out);
-  unzip.close(function() {
-    closed = true;
-  });
-});
-
-process.on('exit', function() {
-  assert(closed);
-});
+  unzip.close(common.mustCall(function() {}));
+}));

@@ -6,10 +6,12 @@ var baseFunctions = require('./_baseFunctions'),
  * of `object`.
  *
  * @static
+ * @since 0.1.0
  * @memberOf _
  * @category Object
  * @param {Object} object The object to inspect.
- * @returns {Array} Returns the new array of property names.
+ * @returns {Array} Returns the function names.
+ * @see _.functionsIn
  * @example
  *
  * function Foo() {

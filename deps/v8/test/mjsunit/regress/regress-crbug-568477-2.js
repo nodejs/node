@@ -8,7 +8,7 @@ var Debug = debug.Debug;
 var expected = ["debugger;",
                 "var x = y;",
                 "new Promise(f).catch(call_f_with_deeper_stack);",
-                "var a = 1;", "", "var a = 1;",
+                "var a = 1;", "var a = 1;",
                 "debugger;",
                 "var x = y;"];
 

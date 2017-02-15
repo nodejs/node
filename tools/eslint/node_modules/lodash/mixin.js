@@ -7,21 +7,21 @@ var arrayEach = require('./_arrayEach'),
     keys = require('./keys');
 
 /**
- * Adds all own enumerable function properties of a source object to the
- * destination object. If `object` is a function then methods are added to
- * its prototype as well.
+ * Adds all own enumerable string keyed function properties of a source
+ * object to the destination object. If `object` is a function, then methods
+ * are added to its prototype as well.
  *
  * **Note:** Use `_.runInContext` to create a pristine `lodash` function to
  * avoid conflicts caused by modifying the original.
  *
  * @static
+ * @since 0.1.0
  * @memberOf _
  * @category Util
  * @param {Function|Object} [object=lodash] The destination object.
  * @param {Object} source The object of functions to add.
- * @param {Object} [options] The options object.
- * @param {boolean} [options.chain=true] Specify whether the functions added
- *  are chainable.
+ * @param {Object} [options={}] The options object.
+ * @param {boolean} [options.chain=true] Specify whether mixins are chainable.
  * @returns {Function|Object} Returns `object`.
  * @example
  *
@@ -46,7 +46,7 @@ function mixin(object, source, options) {
   var props = keys(source),
       methodNames = baseFunctions(source, props);
 
-  var chain = (isObject(options) && 'chain' in options) ? options.chain : true,
+  var chain = !(isObject(options) && 'chain' in options) || !!options.chain,
       isFunc = isFunction(object);
 
   arrayEach(methodNames, function(methodName) {

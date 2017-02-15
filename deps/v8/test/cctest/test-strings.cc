@@ -40,6 +40,7 @@
 #include "src/objects.h"
 #include "src/unicode-decoder.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/heap/heap-utils.h"
 
 // Adapted from http://en.wikipedia.org/wiki/Multiply-with-carry
 class MyRandomNumberGenerator {
@@ -1110,7 +1111,8 @@ TEST(CachedHashOverflow) {
             .ToLocalChecked()
             ->Run(context)
             .ToLocalChecked();
-    CHECK_EQ(results[i]->IsUndefined(), result->IsUndefined());
+    CHECK_EQ(results[i]->IsUndefined(CcTest::i_isolate()),
+             result->IsUndefined());
     CHECK_EQ(results[i]->IsNumber(), result->IsNumber());
     if (result->IsNumber()) {
       int32_t value = 0;
@@ -1238,8 +1240,8 @@ TEST(SliceFromSlice) {
 UNINITIALIZED_TEST(OneByteArrayJoin) {
   v8::Isolate::CreateParams create_params;
   // Set heap limits.
-  create_params.constraints.set_max_semi_space_size(1 * Page::kPageSize / MB);
-  create_params.constraints.set_max_old_space_size(6 * Page::kPageSize / MB);
+  create_params.constraints.set_max_semi_space_size(1);
+  create_params.constraints.set_max_old_space_size(6);
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   isolate->Enter();
@@ -1318,6 +1320,46 @@ TEST(RobustSubStringStub) {
   CheckException("%_SubString(slice, 0, 17);");
 }
 
+TEST(RobustSubStringStubExternalStrings) {
+  // Ensure that the specific combination of calling the SubStringStub on an
+  // external string and triggering a GC on string allocation does not crash.
+  // See crbug.com/649967.
+
+  FLAG_allow_natives_syntax = true;
+#ifdef VERIFY_HEAP
+  FLAG_verify_heap = true;
+#endif
+
+  CcTest::InitializeVM();
+  v8::HandleScope handle_scope(CcTest::isolate());
+
+  v8::Local<v8::String> underlying =
+      CompileRun(
+          "var str = 'abcdefghijklmnopqrstuvwxyz';"
+          "str")
+          ->ToString(CcTest::isolate()->GetCurrentContext())
+          .ToLocalChecked();
+  CHECK(v8::Utils::OpenHandle(*underlying)->IsSeqOneByteString());
+
+  const int length = underlying->Length();
+  uc16* two_byte = NewArray<uc16>(length + 1);
+  underlying->Write(two_byte);
+
+  Resource* resource = new Resource(two_byte, length);
+  CHECK(underlying->MakeExternal(resource));
+  CHECK(v8::Utils::OpenHandle(*underlying)->IsExternalTwoByteString());
+
+  v8::Local<v8::Script> script = v8_compile(v8_str("%_SubString(str, 5, 8)"));
+
+  // Trigger a GC on string allocation.
+  i::heap::SimulateFullSpace(CcTest::heap()->new_space());
+
+  v8::Local<v8::Value> result;
+  CHECK(script->Run(v8::Isolate::GetCurrent()->GetCurrentContext())
+            .ToLocal(&result));
+  Handle<String> string = v8::Utils::OpenHandle(v8::String::Cast(*result));
+  CHECK_EQ(0, strcmp("fgh", string->ToCString().get()));
+}
 
 namespace {
 
@@ -1507,4 +1549,26 @@ TEST(FormatMessage) {
   Handle<String> expected = isolate->factory()->NewStringFromAsciiChecked(
       "'arg0' returned for property 'arg1' of object 'arg2' is not a function");
   CHECK(String::Equals(result, expected));
+}
+
+TEST(Regress609831) {
+  CcTest::InitializeVM();
+  LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+  {
+    HandleScope scope(isolate);
+    v8::Local<v8::Value> result = CompileRun(
+        "String.fromCharCode(32, 32, 32, 32, 32, "
+        "32, 32, 32, 32, 32, 32, 32, 32, 32, 32, "
+        "32, 32, 32, 32, 32, 32, 32, 32, 32, 32)");
+    CHECK(v8::Utils::OpenHandle(*result)->IsSeqOneByteString());
+  }
+  {
+    HandleScope scope(isolate);
+    v8::Local<v8::Value> result = CompileRun(
+        "String.fromCharCode(432, 432, 432, 432, 432, "
+        "432, 432, 432, 432, 432, 432, 432, 432, 432, "
+        "432, 432, 432, 432, 432, 432, 432, 432, 432)");
+    CHECK(v8::Utils::OpenHandle(*result)->IsSeqTwoByteString());
+  }
 }

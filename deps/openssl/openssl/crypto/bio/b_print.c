@@ -423,9 +423,15 @@ _dopr(char **sbuffer,
             break;
         }
     }
-    *truncated = (currlen > *maxlen - 1);
-    if (*truncated)
-        currlen = *maxlen - 1;
+    /*
+     * We have to truncate if there is no dynamic buffer and we have filled the
+     * static buffer.
+     */
+    if (buffer == NULL) {
+        *truncated = (currlen > *maxlen - 1);
+        if (*truncated)
+            currlen = *maxlen - 1;
+    }
     if(!doapr_outch(sbuffer, buffer, &currlen, maxlen, '\0'))
         return 0;
     *retlen = currlen - 1;

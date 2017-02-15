@@ -18,16 +18,19 @@ function fetch (uri, params, cb) {
     makeRequest.call(client, uri, params, function (er, req) {
       if (er) return cb(er)
 
-      req.on('error', function (er) {
+      req.once('error', retryOnError)
+
+      function retryOnError (er) {
         if (operation.retry(er)) {
           client.log.info('retry', 'will retry, error on last attempt: ' + er)
         } else {
           cb(er)
         }
-      })
+      }
 
       req.on('response', function (res) {
         client.log.http('fetch', '' + res.statusCode, uri)
+        req.removeListener('error', retryOnError)
 
         var er
         var statusCode = res && res.statusCode
@@ -36,6 +39,10 @@ function fetch (uri, params, cb) {
           // gets stuck and never starts reading again.
           res.resume()
           if (process.version === 'v0.10.0') unstick(res)
+
+          req.once('error', function (er) {
+            res.emit('error', er)
+          })
 
           return cb(null, res)
           // Only retry on 408, 5xx or no `response`.

@@ -1,1 +1,1 @@
-module.exports = require('../property');
+module.exports = require('./get');

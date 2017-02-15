@@ -9,24 +9,28 @@ const fork = require('child_process').fork;
 const LOCAL_BROADCAST_HOST = '255.255.255.255';
 const TIMEOUT = common.platformTimeout(5000);
 const messages = [
-  new Buffer('First message to send'),
-  new Buffer('Second message to send'),
-  new Buffer('Third message to send'),
-  new Buffer('Fourth message to send')
+  Buffer.from('First message to send'),
+  Buffer.from('Second message to send'),
+  Buffer.from('Third message to send'),
+  Buffer.from('Fourth message to send')
 ];
 
 if (common.inFreeBSDJail) {
-  console.log('1..0 # Skipped: in a FreeBSD jail');
+  common.skip('in a FreeBSD jail');
   return;
 }
 
-// take the first non-internal interface as the address for binding
-get_bindAddress: for (var name in networkInterfaces) {
-  var interfaces = networkInterfaces[name];
-  for (var i = 0; i < interfaces.length; i++) {
-    var localInterface = interfaces[i];
+let bindAddress = null;
+
+// Take the first non-internal interface as the address for binding.
+// Ideally, this should check for whether or not an interface is set up for
+// BROADCAST and favor internal/private interfaces.
+get_bindAddress: for (const name in networkInterfaces) {
+  const interfaces = networkInterfaces[name];
+  for (let i = 0; i < interfaces.length; i++) {
+    const localInterface = interfaces[i];
     if (!localInterface.internal && localInterface.family === 'IPv4') {
-      var bindAddress = localInterface.address;
+      bindAddress = localInterface.address;
       break get_bindAddress;
     }
   }
@@ -54,9 +58,9 @@ if (process.argv[2] !== 'child') {
   }, TIMEOUT);
 
   //launch child processes
-  for (var x = 0; x < listeners; x++) {
+  for (let x = 0; x < listeners; x++) {
     (function() {
-      var worker = fork(process.argv[1], ['child']);
+      const worker = fork(process.argv[1], ['child']);
       workers[worker.pid] = worker;
 
       worker.messagesReceived = [];
@@ -66,7 +70,7 @@ if (process.argv[2] !== 'child') {
         // don't consider this the true death if the worker
         // has finished successfully
         // or if the exit code is 0
-        if (worker.isDone || code == 0) {
+        if (worker.isDone || code === 0) {
           return;
         }
 
@@ -94,8 +98,7 @@ if (process.argv[2] !== 'child') {
             //all child process are listening, so start sending
             sendSocket.sendNext();
           }
-        }
-        else if (msg.message) {
+        } else if (msg.message) {
           worker.messagesReceived.push(msg.message);
 
           if (worker.messagesReceived.length === messages.length) {
@@ -112,12 +115,12 @@ if (process.argv[2] !== 'child') {
                           'messages. Will now compare.');
 
             Object.keys(workers).forEach(function(pid) {
-              var worker = workers[pid];
+              const worker = workers[pid];
 
-              var count = 0;
+              let count = 0;
 
               worker.messagesReceived.forEach(function(buf) {
-                for (var i = 0; i < messages.length; ++i) {
+                for (let i = 0; i < messages.length; ++i) {
                   if (buf.toString() === messages[i].toString()) {
                     count++;
                     break;
@@ -129,8 +132,11 @@ if (process.argv[2] !== 'child') {
                             worker.pid,
                             count);
 
-              assert.equal(count, messages.length,
-                           'A worker received an invalid multicast message');
+              assert.strictEqual(
+                count,
+                messages.length,
+                'A worker received an invalid multicast message'
+              );
             });
 
             clearTimeout(timer);
@@ -142,7 +148,7 @@ if (process.argv[2] !== 'child') {
     })(x);
   }
 
-  var sendSocket = dgram.createSocket({
+  const sendSocket = dgram.createSocket({
     type: 'udp4',
     reuseAddr: true
   });
@@ -159,7 +165,7 @@ if (process.argv[2] !== 'child') {
   });
 
   sendSocket.sendNext = function() {
-    var buf = messages[i++];
+    const buf = messages[i++];
 
     if (!buf) {
       try { sendSocket.close(); } catch (e) {}
@@ -173,7 +179,7 @@ if (process.argv[2] !== 'child') {
       common.PORT,
       LOCAL_BROADCAST_HOST,
       function(err) {
-        if (err) throw err;
+        assert.ifError(err);
         console.error('[PARENT] sent %s to %s:%s',
                       util.inspect(buf.toString()),
                       LOCAL_BROADCAST_HOST, common.PORT);
@@ -185,15 +191,15 @@ if (process.argv[2] !== 'child') {
 
   function killChildren(children) {
     Object.keys(children).forEach(function(key) {
-      var child = children[key];
+      const child = children[key];
       child.kill();
     });
   }
 }
 
 if (process.argv[2] === 'child') {
-  var receivedMessages = [];
-  var listenSocket = dgram.createSocket({
+  const receivedMessages = [];
+  const listenSocket = dgram.createSocket({
     type: 'udp4',
     reuseAddr: true
   });
@@ -209,9 +215,9 @@ if (process.argv[2] === 'child') {
 
     receivedMessages.push(buf);
 
-    process.send({ message: buf.toString() });
+    process.send({message: buf.toString()});
 
-    if (receivedMessages.length == messages.length) {
+    if (receivedMessages.length === messages.length) {
       process.nextTick(function() {
         listenSocket.close();
       });
@@ -228,7 +234,7 @@ if (process.argv[2] === 'child') {
   });
 
   listenSocket.on('listening', function() {
-    process.send({ listening: true });
+    process.send({listening: true});
   });
 
   listenSocket.bind(common.PORT);

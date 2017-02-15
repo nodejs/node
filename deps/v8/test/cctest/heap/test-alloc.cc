@@ -31,7 +31,7 @@
 #include "src/accessors.h"
 #include "src/api.h"
 #include "test/cctest/heap/heap-tester.h"
-#include "test/cctest/heap/utils-inl.h"
+#include "test/cctest/heap/heap-utils.h"
 
 using namespace v8::internal;
 
@@ -52,11 +52,11 @@ AllocationResult v8::internal::HeapTester::AllocateAfterFailures() {
   heap->CopyJSObject(JSObject::cast(object)).ToObjectChecked();
 
   // Old data space.
-  SimulateFullSpace(heap->old_space());
+  heap::SimulateFullSpace(heap->old_space());
   heap->AllocateByteArray(100, TENURED).ToObjectChecked();
 
   // Old pointer space.
-  SimulateFullSpace(heap->old_space());
+  heap::SimulateFullSpace(heap->old_space());
   heap->AllocateFixedArray(10000, TENURED).ToObjectChecked();
 
   // Large object space.
@@ -72,12 +72,12 @@ AllocationResult v8::internal::HeapTester::AllocateAfterFailures() {
       kLargeObjectSpaceFillerLength, TENURED).ToObjectChecked();
 
   // Map space.
-  SimulateFullSpace(heap->map_space());
+  heap::SimulateFullSpace(heap->map_space());
   int instance_size = JSObject::kHeaderSize;
   heap->AllocateMap(JS_OBJECT_TYPE, instance_size).ToObjectChecked();
 
   // Test that we can allocate in old pointer space and code space.
-  SimulateFullSpace(heap->code_space());
+  heap::SimulateFullSpace(heap->code_space());
   heap->AllocateFixedArray(100, TENURED).ToObjectChecked();
   heap->CopyCode(CcTest::i_isolate()->builtins()->builtin(
       Builtins::kIllegal)).ToObjectChecked();
@@ -91,7 +91,7 @@ Handle<Object> v8::internal::HeapTester::TestAllocateAfterFailures() {
   // Similar to what the CALL_AND_RETRY macro does in the last-resort case, we
   // are wrapping the allocator function in an AlwaysAllocateScope.  Test that
   // all allocations succeed immediately without any retry.
-  CcTest::heap()->CollectAllAvailableGarbage("panic");
+  CcTest::CollectAllAvailableGarbage();
   AlwaysAllocateScope scope(CcTest::i_isolate());
   return handle(AllocateAfterFailures().ToObjectChecked(), CcTest::i_isolate());
 }
@@ -102,7 +102,7 @@ HEAP_TEST(StressHandles) {
   v8::Local<v8::Context> env = v8::Context::New(CcTest::isolate());
   env->Enter();
   Handle<Object> o = TestAllocateAfterFailures();
-  CHECK(o->IsTrue());
+  CHECK(o->IsTrue(CcTest::i_isolate()));
   env->Exit();
 }
 
@@ -211,8 +211,7 @@ TEST(CodeRange) {
   const size_t code_range_size = 32*MB;
   CcTest::InitializeVM();
   CodeRange code_range(reinterpret_cast<Isolate*>(CcTest::isolate()));
-  code_range.SetUp(code_range_size +
-                   kReservedCodeRangePages * v8::base::OS::CommitPageSize());
+  code_range.SetUp(code_range_size);
   size_t current_allocated = 0;
   size_t total_allocated = 0;
   List< ::Block> blocks(1000);
@@ -221,12 +220,11 @@ TEST(CodeRange) {
     if (current_allocated < code_range_size / 10) {
       // Allocate a block.
       // Geometrically distributed sizes, greater than
-      // Page::kMaxRegularHeapObjectSize (which is greater than code page area).
+      // kMaxRegularHeapObjectSize (which is greater than code page area).
       // TODO(gc): instead of using 3 use some contant based on code_range_size
       // kMaxRegularHeapObjectSize.
-      size_t requested =
-          (Page::kMaxRegularHeapObjectSize << (Pseudorandom() % 3)) +
-          Pseudorandom() % 5000 + 1;
+      size_t requested = (kMaxRegularHeapObjectSize << (Pseudorandom() % 3)) +
+                         Pseudorandom() % 5000 + 1;
       size_t allocated = 0;
 
       // The request size has to be at least 2 code guard pages larger than the

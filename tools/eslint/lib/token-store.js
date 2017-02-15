@@ -1,8 +1,6 @@
 /**
  * @fileoverview Object to handle access and retrieval of tokens.
  * @author Brandon Mills
- * @copyright 2014 Nicholas C. Zakas. All rights reserved.
- * @copyright 2014 Brandon Mills. All rights reserved.
  */
 "use strict";
 
@@ -11,10 +9,10 @@
 //------------------------------------------------------------------------------
 
 module.exports = function(tokens) {
-    var api = {},
+    const api = {},
         starts = Object.create(null),
         ends = Object.create(null),
-        index, length, range;
+        length = tokens.length;
 
     /**
      * Gets tokens in a given interval.
@@ -23,10 +21,9 @@ module.exports = function(tokens) {
      * @returns {Token[]} Tokens in the interval.
      */
     function get(start, end) {
-        var result = [],
-            i;
+        const result = [];
 
-        for (i = Math.max(0, start); i < end && i < length; i++) {
+        for (let i = Math.max(0, start); i < end && i < length; i++) {
             result.push(tokens[i]);
         }
 
@@ -41,8 +38,8 @@ module.exports = function(tokens) {
      * @returns {int} Index in the tokens array of the node's last token.
      */
     function lastTokenIndex(node) {
-        var end = node.range[1],
-            cursor = ends[end];
+        const end = node.range[1];
+        let cursor = ends[end];
 
         // If the node extends beyond its last token, get the token before the
         // next token
@@ -60,10 +57,11 @@ module.exports = function(tokens) {
     }
 
     // Map tokens' start and end range to the index in the tokens array
-    for (index = 0, length = tokens.length; index < length; index++) {
-        range = tokens[index].range;
-        starts[range[0]] = index;
-        ends[range[1]] = index;
+    for (let i = 0; i < length; i++) {
+        const range = tokens[i].range;
+
+        starts[range[0]] = i;
+        ends[range[1]] = i;
     }
 
     /**
@@ -75,7 +73,8 @@ module.exports = function(tokens) {
      * @returns {Token[]} Array of objects representing tokens.
      */
     api.getTokensBefore = function(node, beforeCount) {
-        var first = starts[node.range[0]];
+        const first = starts[node.range[0]];
+
         return get(first - (beforeCount || 0), first);
     };
 
@@ -99,7 +98,8 @@ module.exports = function(tokens) {
      * @returns {Token[]} Array of objects representing tokens.
      */
     api.getTokensAfter = function(node, afterCount) {
-        var start = lastTokenIndex(node) + 1;
+        const start = lastTokenIndex(node) + 1;
+
         return get(start, start + (afterCount || 0));
     };
 
@@ -135,7 +135,8 @@ module.exports = function(tokens) {
      * @returns {Token[]} Array of objects representing tokens.
      */
     api.getFirstTokens = function(node, count) {
-        var first = starts[node.range[0]];
+        const first = starts[node.range[0]];
+
         return get(
             first,
             Math.min(lastTokenIndex(node) + 1, first + (count || 0))
@@ -159,7 +160,8 @@ module.exports = function(tokens) {
      * @returns {Token[]} Array of objects representing tokens.
      */
     api.getLastTokens = function(node, count) {
-        var last = lastTokenIndex(node) + 1;
+        const last = lastTokenIndex(node) + 1;
+
         return get(Math.max(starts[node.range[0]], last - (count || 0)), last);
     };
 

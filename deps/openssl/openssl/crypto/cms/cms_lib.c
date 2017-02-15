@@ -413,6 +413,8 @@ static STACK_OF(CMS_CertificateChoices)
         return &cms->d.signedData->certificates;
 
     case NID_pkcs7_enveloped:
+        if (cms->d.envelopedData->originatorInfo == NULL)
+            return NULL;
         return &cms->d.envelopedData->originatorInfo->certificates;
 
     default:
@@ -488,6 +490,8 @@ static STACK_OF(CMS_RevocationInfoChoice)
         return &cms->d.signedData->crls;
 
     case NID_pkcs7_enveloped:
+        if (cms->d.envelopedData->originatorInfo == NULL)
+            return NULL;
         return &cms->d.envelopedData->originatorInfo->crls;
 
     default:

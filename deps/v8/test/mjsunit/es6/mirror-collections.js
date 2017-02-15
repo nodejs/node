@@ -88,16 +88,21 @@ assertEquals(1, setMirror.values(1).length);
 assertSame(o2, values[0]);
 assertEquals(undefined, values[1]);
 
+function initWeakMap(weakMap) {
+  weakMap.set(o1, 11);
+  weakMap.set(new Object(), 22);
+  weakMap.set(o3, 33);
+  weakMap.set(new Object(), 44);
+  var weakMapMirror = debug.MakeMirror(weakMap);
+  testMapMirror(weakMapMirror);
+  weakMap.set(new Object(), 55);
+  assertTrue(weakMapMirror.entries().length <= 5);
+  return weakMapMirror;
+}
+
 // Test the mirror object for WeakMaps
 var weakMap = new WeakMap();
-weakMap.set(o1, 11);
-weakMap.set(new Object(), 22);
-weakMap.set(o3, 33);
-weakMap.set(new Object(), 44);
-var weakMapMirror = debug.MakeMirror(weakMap);
-testMapMirror(weakMapMirror);
-weakMap.set(new Object(), 55);
-assertTrue(weakMapMirror.entries().length <= 5);
+var weakMapMirror = initWeakMap(weakMap);
 gc();
 
 function testWeakMapEntries(weakMapMirror) {
@@ -121,18 +126,23 @@ function testWeakMapEntries(weakMapMirror) {
 
 testWeakMapEntries(weakMapMirror);
 
+function initWeakSet(weakSet) {
+  weakSet.add(o1);
+  weakSet.add(new Object());
+  weakSet.add(o2);
+  weakSet.add(new Object());
+  weakSet.add(new Object());
+  weakSet.add(o3);
+  weakSet.delete(o2);
+  var weakSetMirror =  debug.MakeMirror(weakSet);
+  testSetMirror(weakSetMirror);
+  assertTrue(weakSetMirror.values().length <= 5);
+  return weakSetMirror;
+}
+
 // Test the mirror object for WeakSets
 var weakSet = new WeakSet();
-weakSet.add(o1);
-weakSet.add(new Object());
-weakSet.add(o2);
-weakSet.add(new Object());
-weakSet.add(new Object());
-weakSet.add(o3);
-weakSet.delete(o2);
-var weakSetMirror = debug.MakeMirror(weakSet);
-testSetMirror(weakSetMirror);
-assertTrue(weakSetMirror.values().length <= 5);
+var weakSetMirror = initWeakSet(weakSet);
 gc();
 
 function testWeakSetValues(weakSetMirror) {

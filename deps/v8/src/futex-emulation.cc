@@ -75,7 +75,7 @@ void FutexWaitList::RemoveNode(FutexWaitListNode* node) {
 Object* FutexEmulation::Wait(Isolate* isolate,
                              Handle<JSArrayBuffer> array_buffer, size_t addr,
                              int32_t value, double rel_timeout_ms) {
-  DCHECK(addr < NumberToSize(isolate, array_buffer->byte_length()));
+  DCHECK(addr < NumberToSize(array_buffer->byte_length()));
 
   void* backing_store = array_buffer->backing_store();
   int32_t* p =
@@ -84,7 +84,7 @@ Object* FutexEmulation::Wait(Isolate* isolate,
   base::LockGuard<base::Mutex> lock_guard(mutex_.Pointer());
 
   if (*p != value) {
-    return Smi::FromInt(Result::kNotEqual);
+    return isolate->heap()->not_equal();
   }
 
   FutexWaitListNode* node = isolate->futex_wait_list_node();
@@ -142,7 +142,7 @@ Object* FutexEmulation::Wait(Isolate* isolate,
     // be false, so we'll loop and then check interrupts.
     if (interrupted) {
       Object* interrupt_object = isolate->stack_guard()->HandleInterrupts();
-      if (interrupt_object->IsException()) {
+      if (interrupt_object->IsException(isolate)) {
         result = interrupt_object;
         mutex_.Pointer()->Lock();
         break;
@@ -157,7 +157,7 @@ Object* FutexEmulation::Wait(Isolate* isolate,
     }
 
     if (!node->waiting_) {
-      result = Smi::FromInt(Result::kOk);
+      result = isolate->heap()->ok();
       break;
     }
 
@@ -165,7 +165,7 @@ Object* FutexEmulation::Wait(Isolate* isolate,
     if (use_timeout) {
       current_time = base::TimeTicks::Now();
       if (current_time >= timeout_time) {
-        result = Smi::FromInt(Result::kTimedOut);
+        result = isolate->heap()->timed_out();
         break;
       }
 
@@ -191,7 +191,7 @@ Object* FutexEmulation::Wait(Isolate* isolate,
 Object* FutexEmulation::Wake(Isolate* isolate,
                              Handle<JSArrayBuffer> array_buffer, size_t addr,
                              int num_waiters_to_wake) {
-  DCHECK(addr < NumberToSize(isolate, array_buffer->byte_length()));
+  DCHECK(addr < NumberToSize(array_buffer->byte_length()));
 
   int waiters_woken = 0;
   void* backing_store = array_buffer->backing_store();
@@ -213,48 +213,10 @@ Object* FutexEmulation::Wake(Isolate* isolate,
 }
 
 
-Object* FutexEmulation::WakeOrRequeue(Isolate* isolate,
-                                      Handle<JSArrayBuffer> array_buffer,
-                                      size_t addr, int num_waiters_to_wake,
-                                      int32_t value, size_t addr2) {
-  DCHECK(addr < NumberToSize(isolate, array_buffer->byte_length()));
-  DCHECK(addr2 < NumberToSize(isolate, array_buffer->byte_length()));
-
-  void* backing_store = array_buffer->backing_store();
-  int32_t* p =
-      reinterpret_cast<int32_t*>(static_cast<int8_t*>(backing_store) + addr);
-
-  base::LockGuard<base::Mutex> lock_guard(mutex_.Pointer());
-  if (*p != value) {
-    return Smi::FromInt(Result::kNotEqual);
-  }
-
-  // Wake |num_waiters_to_wake|
-  int waiters_woken = 0;
-  FutexWaitListNode* node = wait_list_.Pointer()->head_;
-  while (node) {
-    if (backing_store == node->backing_store_ && addr == node->wait_addr_) {
-      if (num_waiters_to_wake > 0) {
-        node->waiting_ = false;
-        node->cond_.NotifyOne();
-        --num_waiters_to_wake;
-        waiters_woken++;
-      } else {
-        node->wait_addr_ = addr2;
-      }
-    }
-
-    node = node->next_;
-  }
-
-  return Smi::FromInt(waiters_woken);
-}
-
-
 Object* FutexEmulation::NumWaitersForTesting(Isolate* isolate,
                                              Handle<JSArrayBuffer> array_buffer,
                                              size_t addr) {
-  DCHECK(addr < NumberToSize(isolate, array_buffer->byte_length()));
+  DCHECK(addr < NumberToSize(array_buffer->byte_length()));
   void* backing_store = array_buffer->backing_store();
 
   base::LockGuard<base::Mutex> lock_guard(mutex_.Pointer());

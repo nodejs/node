@@ -34,24 +34,5 @@ FixedArray* NativesCollection<EXPERIMENTAL_EXTRAS>::GetSourceCache(Heap* heap) {
   return heap->experimental_extra_natives_source_cache();
 }
 
-
-template <NativeType type>
-void NativesCollection<type>::UpdateSourceCache(Heap* heap) {
-  for (int i = 0; i < GetBuiltinsCount(); i++) {
-    Object* source = GetSourceCache(heap)->get(i);
-    if (!source->IsUndefined()) {
-      ExternalOneByteString::cast(source)->update_data_cache();
-    }
-  }
-}
-
-
-// Explicit template instantiations.
-template void NativesCollection<CORE>::UpdateSourceCache(Heap* heap);
-template void NativesCollection<EXPERIMENTAL>::UpdateSourceCache(Heap* heap);
-template void NativesCollection<EXTRAS>::UpdateSourceCache(Heap* heap);
-template void NativesCollection<EXPERIMENTAL_EXTRAS>::UpdateSourceCache(
-    Heap* heap);
-
 }  // namespace internal
 }  // namespace v8

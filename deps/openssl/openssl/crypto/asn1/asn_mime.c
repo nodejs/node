@@ -289,7 +289,7 @@ int SMIME_write_ASN1(BIO *bio, ASN1_VALUE *val, BIO *data, int flags,
     if ((flags & SMIME_DETACHED) && data) {
         /* We want multipart/signed */
         /* Generate a random boundary */
-        if (RAND_pseudo_bytes((unsigned char *)bound, 32) < 0)
+        if (RAND_bytes((unsigned char *)bound, 32) <= 0)
             return 0;
         for (i = 0; i < 32; i++) {
             c = bound[i] & 0xf;
@@ -623,6 +623,8 @@ static int multi_split(BIO *bio, char *bound, STACK_OF(BIO) **ret)
                 if (bpart)
                     sk_BIO_push(parts, bpart);
                 bpart = BIO_new(BIO_s_mem());
+                if (bpart == NULL)
+                    return 1;
                 BIO_set_mem_eof_return(bpart, 0);
             } else if (eol)
                 BIO_write(bpart, "\r\n", 2);

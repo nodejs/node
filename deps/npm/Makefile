@@ -160,18 +160,23 @@ test: doc
 tag:
 	npm tag npm@$(PUBLISHTAG) latest
 
-publish: link doc
+ls-ok:
+	node . ls >/dev/null
+
+gitclean:
+	git clean -fd
+
+publish: gitclean ls-ok link doc-clean doc
 	@git push origin :v$(shell npm -v) 2>&1 || true
-	git clean -fd &&\
 	git push origin $(BRANCH) &&\
 	git push origin --tags &&\
 	npm publish --tag=$(PUBLISHTAG)
 
-release: markedclean marked-manclean doc-clean doc
+release: gitclean ls-ok markedclean marked-manclean doc-clean doc
 	node cli.js prune --production
 	@bash scripts/release.sh
 
 sandwich:
 	@[ $$(whoami) = "root" ] && (echo "ok"; echo "ham" > sandwich) || (echo "make it yourself" && exit 13)
 
-.PHONY: all latest install dev link doc clean uninstall test man doc-clean docclean release
+.PHONY: all latest install dev link doc clean uninstall test man doc-clean docclean release ls-ok realclean

@@ -5,15 +5,19 @@ var arrayFilter = require('./_arrayFilter'),
 
 /**
  * Iterates over elements of `collection`, returning an array of all elements
- * `predicate` returns truthy for. The predicate is invoked with three arguments:
- * (value, index|key, collection).
+ * `predicate` returns truthy for. The predicate is invoked with three
+ * arguments: (value, index|key, collection).
+ *
+ * **Note:** Unlike `_.remove`, this method returns a new array.
  *
  * @static
  * @memberOf _
+ * @since 0.1.0
  * @category Collection
  * @param {Array|Object} collection The collection to iterate over.
- * @param {Function|Object|string} [predicate=_.identity] The function invoked per iteration.
+ * @param {Function} [predicate=_.identity] The function invoked per iteration.
  * @returns {Array} Returns the new filtered array.
+ * @see _.reject
  * @example
  *
  * var users = [

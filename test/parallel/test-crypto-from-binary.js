@@ -3,19 +3,19 @@
 // to use buffers by default.
 
 
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
-var crypto = require('crypto');
+const crypto = require('crypto');
 
-var EXTERN_APEX = 0xFBEE9;
+const EXTERN_APEX = 0xFBEE9;
 
 // manually controlled string for checking binary output
-var ucs2_control = 'a\u0000';
+let ucs2_control = 'a\u0000';
 
 // grow the strings to proper length
 while (ucs2_control.length <= EXTERN_APEX) {
@@ -24,23 +24,23 @@ while (ucs2_control.length <= EXTERN_APEX) {
 
 
 // check resultant buffer and output string
-var b = new Buffer(ucs2_control + ucs2_control, 'ucs2');
+const b = Buffer.from(ucs2_control + ucs2_control, 'ucs2');
 
 //
 // Test updating from birant data
 //
-(function() {
-  var datum1 = b.slice(700000);
-  var hash1_converted = crypto.createHash('sha1')
+{
+  const datum1 = b.slice(700000);
+  const hash1_converted = crypto.createHash('sha1')
     .update(datum1.toString('base64'), 'base64')
     .digest('hex');
-  var hash1_direct = crypto.createHash('sha1').update(datum1).digest('hex');
-  assert.equal(hash1_direct, hash1_converted, 'should hash the same.');
+  const hash1_direct = crypto.createHash('sha1').update(datum1).digest('hex');
+  assert.strictEqual(hash1_direct, hash1_converted, 'should hash the same.');
 
-  var datum2 = b;
-  var hash2_converted = crypto.createHash('sha1')
+  const datum2 = b;
+  const hash2_converted = crypto.createHash('sha1')
     .update(datum2.toString('base64'), 'base64')
     .digest('hex');
-  var hash2_direct = crypto.createHash('sha1').update(datum2).digest('hex');
-  assert.equal(hash2_direct, hash2_converted, 'should hash the same.');
-})();
+  const hash2_direct = crypto.createHash('sha1').update(datum2).digest('hex');
+  assert.strictEqual(hash2_direct, hash2_converted, 'should hash the same.');
+}

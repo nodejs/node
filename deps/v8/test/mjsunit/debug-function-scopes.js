@@ -42,14 +42,7 @@ function CheckScope(scope_mirror, scope_expectations, expected_scope_type) {
   }
 }
 
-// A copy of the scope types from debug/mirrors.js.
-var ScopeType = { Global: 0,
-                  Local: 1,
-                  With: 2,
-                  Closure: 3,
-                  Catch: 4,
-                  Block: 5,
-                  Script: 6};
+var ScopeType = debug.ScopeType;
 
 var f1 = (function F1(x) {
   function F2(y) {
@@ -73,7 +66,7 @@ assertEquals(6, mirror.scopeCount());
 
 CheckScope(mirror.scope(0), { a: 4, b: 5 }, ScopeType.Closure);
 CheckScope(mirror.scope(1), { w: 5, v: "Capybara" }, ScopeType.With);
-CheckScope(mirror.scope(2), { y: 17, z: 22 }, ScopeType.Closure);
+CheckScope(mirror.scope(2), { z: 22 }, ScopeType.Closure);
 CheckScope(mirror.scope(3), { x: 5 }, ScopeType.Closure);
 CheckScope(mirror.scope(4), {}, ScopeType.Script);
 CheckScope(mirror.scope(5), {}, ScopeType.Global);
@@ -94,7 +87,6 @@ var f3 = (function F1(invisible_parameter) {
     var invisible2 = 2;
     return (function F3() {
       var visible2 = 20;
-      var invisible2 = 3;
       return (function () {return visible1 + visible2 + visible1a;});
     })();
   })();
@@ -162,6 +154,3 @@ function CheckNoScopeVisible(f) {
 CheckNoScopeVisible(Number);
 
 CheckNoScopeVisible(Function.toString);
-
-// This getter is known to be implemented as closure.
-CheckNoScopeVisible(new Error().__lookupGetter__("stack"));

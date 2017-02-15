@@ -1,5 +1,5 @@
-var baseSlice = require('./_baseSlice'),
-    get = require('./get');
+var baseGet = require('./_baseGet'),
+    baseSlice = require('./_baseSlice');
 
 /**
  * Gets the parent value at `path` of `object`.
@@ -10,7 +10,7 @@ var baseSlice = require('./_baseSlice'),
  * @returns {*} Returns the parent value.
  */
 function parent(object, path) {
-  return path.length == 1 ? object : get(object, baseSlice(path, 0, -1));
+  return path.length < 2 ? object : baseGet(object, baseSlice(path, 0, -1));
 }
 
 module.exports = parent;

@@ -1,15 +1,14 @@
 'use strict'
-var path = require('path')
 var validate = require('aproba')
 var chain = require('slide').chain
 var asyncMap = require('slide').asyncMap
-var log = require('npmlog')
+var iferr = require('iferr')
 var andFinishTracker = require('./and-finish-tracker.js')
 var andAddParentToErrors = require('./and-add-parent-to-errors.js')
 var failedDependency = require('./deps.js').failedDependency
-var packageId = require('../utils/package-id.js')
 var moduleName = require('../utils/module-name.js')
-var buildPath = require('./build-path.js')
+var reportOptionalFailure = require('./report-optional-failure.js')
+var isInstallable = require('./validate-args.js').isInstallable
 
 var actions = {}
 
@@ -20,7 +19,7 @@ actions.test = require('./action/test.js')
 actions.preinstall = require('./action/preinstall.js')
 actions.install = require('./action/install.js')
 actions.postinstall = require('./action/postinstall.js')
-actions.prepublish = require('./action/prepublish.js')
+actions.prepare = require('./action/prepare.js')
 actions.finalize = require('./action/finalize.js')
 actions.remove = require('./action/remove.js')
 actions.move = require('./action/move.js')
@@ -33,8 +32,9 @@ actions['global-link'] = require('./action/global-link.js')
 
 Object.keys(actions).forEach(function (actionName) {
   var action = actions[actionName]
-  actions[actionName] = function (top, buildpath, pkg, log, next) {
-    validate('SSOOF', arguments)
+  actions[actionName] = function (staging, pkg, log, next) {
+  // top, buildpath, pkg, log
+    validate('SOOF', arguments)
     // refuse to run actions for failed packages
     if (pkg.failed) return next()
     if (action.rollback) {
@@ -45,7 +45,23 @@ Object.keys(actions).forEach(function (actionName) {
       if (!pkg.commit) pkg.commit = []
       pkg.commit.push(action.commit)
     }
-    return action(top, buildpath, pkg, log, andFinishTracker(log, andAddParentToErrors(pkg.parent, andHandleOptionalDepErrors(pkg, next))))
+    if (pkg.knownInstallable) {
+      return thenRunAction()
+    } else {
+      return isInstallable(pkg.package, iferr(andDone(next), andMarkInstallable(thenRunAction)))
+    }
+    function andMarkInstallable (cb) {
+      return function () {
+        pkg.knownInstallable = true
+        cb()
+      }
+    }
+    function thenRunAction () {
+      action(staging, pkg, log, andDone(next))
+    }
+    function andDone (cb) {
+      return andFinishTracker(log, andAddParentToErrors(pkg.parent, andHandleOptionalDepErrors(pkg, cb)))
+    }
   }
 })
 
@@ -63,15 +79,14 @@ function andHandleOptionalDepErrors (pkg, next) {
   return function (er) {
     if (!er) return next.apply(null, arguments)
     markAsFailed(pkg)
-    var anyFatal = pkg.userRequired || !pkg.parent
+    var anyFatal = pkg.userRequired || pkg.isTop
     for (var ii = 0; ii < pkg.requiredBy.length; ++ii) {
       var parent = pkg.requiredBy[ii]
       var isFatal = failedDependency(parent, pkg)
       if (isFatal) anyFatal = true
     }
     if (anyFatal) return next.apply(null, arguments)
-    log.warn('install:' + packageId(pkg), er.message)
-    log.verbose('install:' + packageId(pkg), er.stack)
+    reportOptionalFailure(pkg, null, er)
     next()
   }
 }
@@ -83,9 +98,7 @@ function prepareAction (staging, log) {
     var cmd = action[0]
     var pkg = action[1]
     if (!actions[cmd]) throw new Error('Unknown decomposed command "' + cmd + '" (is it new?)')
-    var top = path.resolve(staging, '../..')
-    var buildpath = buildPath(staging, pkg)
-    return [actions[cmd], top, buildpath, pkg, log.newGroup(cmd + ':' + moduleName(pkg))]
+    return [actions[cmd], staging, pkg, log.newGroup(cmd + ':' + moduleName(pkg))]
   }
 }
 

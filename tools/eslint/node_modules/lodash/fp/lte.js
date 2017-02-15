@@ -1,2 +1,5 @@
-var convert = require('./convert');
-module.exports = convert('lte', require('../lte'));
+var convert = require('./convert'),
+    func = convert('lte', require('../lte'));
+
+func.placeholder = require('./placeholder');
+module.exports = func;

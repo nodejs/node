@@ -117,89 +117,89 @@ const unsigned kDoubleExponentBias = 1023;
 const unsigned kFloatMantissaBits = 23;
 const unsigned kFloatExponentBits = 8;
 
-#define INSTRUCTION_FIELDS_LIST(V_)                                            \
-/* Register fields */                                                          \
-V_(Rd, 4, 0, Bits)                        /* Destination register.     */      \
-V_(Rn, 9, 5, Bits)                        /* First source register.    */      \
-V_(Rm, 20, 16, Bits)                      /* Second source register.   */      \
-V_(Ra, 14, 10, Bits)                      /* Third source register.    */      \
-V_(Rt, 4, 0, Bits)                        /* Load dest / store source. */      \
-V_(Rt2, 14, 10, Bits)                     /* Load second dest /        */      \
-                                         /* store second source.      */       \
-V_(PrefetchMode, 4, 0, Bits)                                                   \
-                                                                               \
-/* Common bits */                                                              \
-V_(SixtyFourBits, 31, 31, Bits)                                                \
-V_(FlagsUpdate, 29, 29, Bits)                                                  \
-                                                                               \
-/* PC relative addressing */                                                   \
-V_(ImmPCRelHi, 23, 5, SignedBits)                                              \
-V_(ImmPCRelLo, 30, 29, Bits)                                                   \
-                                                                               \
-/* Add/subtract/logical shift register */                                      \
-V_(ShiftDP, 23, 22, Bits)                                                      \
-V_(ImmDPShift, 15, 10, Bits)                                                   \
-                                                                               \
-/* Add/subtract immediate */                                                   \
-V_(ImmAddSub, 21, 10, Bits)                                                    \
-V_(ShiftAddSub, 23, 22, Bits)                                                  \
-                                                                               \
-/* Add/substract extend */                                                     \
-V_(ImmExtendShift, 12, 10, Bits)                                               \
-V_(ExtendMode, 15, 13, Bits)                                                   \
-                                                                               \
-/* Move wide */                                                                \
-V_(ImmMoveWide, 20, 5, Bits)                                                   \
-V_(ShiftMoveWide, 22, 21, Bits)                                                \
-                                                                               \
-/* Logical immediate, bitfield and extract */                                  \
-V_(BitN, 22, 22, Bits)                                                         \
-V_(ImmRotate, 21, 16, Bits)                                                    \
-V_(ImmSetBits, 15, 10, Bits)                                                   \
-V_(ImmR, 21, 16, Bits)                                                         \
-V_(ImmS, 15, 10, Bits)                                                         \
-                                                                               \
-/* Test and branch immediate */                                                \
-V_(ImmTestBranch, 18, 5, SignedBits)                                           \
-V_(ImmTestBranchBit40, 23, 19, Bits)                                           \
-V_(ImmTestBranchBit5, 31, 31, Bits)                                            \
-                                                                               \
-/* Conditionals */                                                             \
-V_(Condition, 15, 12, Bits)                                                    \
-V_(ConditionBranch, 3, 0, Bits)                                                \
-V_(Nzcv, 3, 0, Bits)                                                           \
-V_(ImmCondCmp, 20, 16, Bits)                                                   \
-V_(ImmCondBranch, 23, 5, SignedBits)                                           \
-                                                                               \
-/* Floating point */                                                           \
-V_(FPType, 23, 22, Bits)                                                       \
-V_(ImmFP, 20, 13, Bits)                                                        \
-V_(FPScale, 15, 10, Bits)                                                      \
-                                                                               \
-/* Load Store */                                                               \
-V_(ImmLS, 20, 12, SignedBits)                                                  \
-V_(ImmLSUnsigned, 21, 10, Bits)                                                \
-V_(ImmLSPair, 21, 15, SignedBits)                                              \
-V_(SizeLS, 31, 30, Bits)                                                       \
-V_(ImmShiftLS, 12, 12, Bits)                                                   \
-                                                                               \
-/* Other immediates */                                                         \
-V_(ImmUncondBranch, 25, 0, SignedBits)                                         \
-V_(ImmCmpBranch, 23, 5, SignedBits)                                            \
-V_(ImmLLiteral, 23, 5, SignedBits)                                             \
-V_(ImmException, 20, 5, Bits)                                                  \
-V_(ImmHint, 11, 5, Bits)                                                       \
-V_(ImmBarrierDomain, 11, 10, Bits)                                             \
-V_(ImmBarrierType, 9, 8, Bits)                                                 \
-                                                                               \
-/* System (MRS, MSR) */                                                        \
-V_(ImmSystemRegister, 19, 5, Bits)                                             \
-V_(SysO0, 19, 19, Bits)                                                        \
-V_(SysOp1, 18, 16, Bits)                                                       \
-V_(SysOp2, 7, 5, Bits)                                                         \
-V_(CRn, 15, 12, Bits)                                                          \
-V_(CRm, 11, 8, Bits)                                                           \
-
+#define INSTRUCTION_FIELDS_LIST(V_)                     \
+  /* Register fields */                                 \
+  V_(Rd, 4, 0, Bits)    /* Destination register.     */ \
+  V_(Rn, 9, 5, Bits)    /* First source register.    */ \
+  V_(Rm, 20, 16, Bits)  /* Second source register.   */ \
+  V_(Ra, 14, 10, Bits)  /* Third source register.    */ \
+  V_(Rt, 4, 0, Bits)    /* Load dest / store source. */ \
+  V_(Rt2, 14, 10, Bits) /* Load second dest /        */ \
+                        /* store second source.      */ \
+  V_(Rs, 20, 16, Bits)  /* Store-exclusive status */    \
+  V_(PrefetchMode, 4, 0, Bits)                          \
+                                                        \
+  /* Common bits */                                     \
+  V_(SixtyFourBits, 31, 31, Bits)                       \
+  V_(FlagsUpdate, 29, 29, Bits)                         \
+                                                        \
+  /* PC relative addressing */                          \
+  V_(ImmPCRelHi, 23, 5, SignedBits)                     \
+  V_(ImmPCRelLo, 30, 29, Bits)                          \
+                                                        \
+  /* Add/subtract/logical shift register */             \
+  V_(ShiftDP, 23, 22, Bits)                             \
+  V_(ImmDPShift, 15, 10, Bits)                          \
+                                                        \
+  /* Add/subtract immediate */                          \
+  V_(ImmAddSub, 21, 10, Bits)                           \
+  V_(ShiftAddSub, 23, 22, Bits)                         \
+                                                        \
+  /* Add/substract extend */                            \
+  V_(ImmExtendShift, 12, 10, Bits)                      \
+  V_(ExtendMode, 15, 13, Bits)                          \
+                                                        \
+  /* Move wide */                                       \
+  V_(ImmMoveWide, 20, 5, Bits)                          \
+  V_(ShiftMoveWide, 22, 21, Bits)                       \
+                                                        \
+  /* Logical immediate, bitfield and extract */         \
+  V_(BitN, 22, 22, Bits)                                \
+  V_(ImmRotate, 21, 16, Bits)                           \
+  V_(ImmSetBits, 15, 10, Bits)                          \
+  V_(ImmR, 21, 16, Bits)                                \
+  V_(ImmS, 15, 10, Bits)                                \
+                                                        \
+  /* Test and branch immediate */                       \
+  V_(ImmTestBranch, 18, 5, SignedBits)                  \
+  V_(ImmTestBranchBit40, 23, 19, Bits)                  \
+  V_(ImmTestBranchBit5, 31, 31, Bits)                   \
+                                                        \
+  /* Conditionals */                                    \
+  V_(Condition, 15, 12, Bits)                           \
+  V_(ConditionBranch, 3, 0, Bits)                       \
+  V_(Nzcv, 3, 0, Bits)                                  \
+  V_(ImmCondCmp, 20, 16, Bits)                          \
+  V_(ImmCondBranch, 23, 5, SignedBits)                  \
+                                                        \
+  /* Floating point */                                  \
+  V_(FPType, 23, 22, Bits)                              \
+  V_(ImmFP, 20, 13, Bits)                               \
+  V_(FPScale, 15, 10, Bits)                             \
+                                                        \
+  /* Load Store */                                      \
+  V_(ImmLS, 20, 12, SignedBits)                         \
+  V_(ImmLSUnsigned, 21, 10, Bits)                       \
+  V_(ImmLSPair, 21, 15, SignedBits)                     \
+  V_(SizeLS, 31, 30, Bits)                              \
+  V_(ImmShiftLS, 12, 12, Bits)                          \
+                                                        \
+  /* Other immediates */                                \
+  V_(ImmUncondBranch, 25, 0, SignedBits)                \
+  V_(ImmCmpBranch, 23, 5, SignedBits)                   \
+  V_(ImmLLiteral, 23, 5, SignedBits)                    \
+  V_(ImmException, 20, 5, Bits)                         \
+  V_(ImmHint, 11, 5, Bits)                              \
+  V_(ImmBarrierDomain, 11, 10, Bits)                    \
+  V_(ImmBarrierType, 9, 8, Bits)                        \
+                                                        \
+  /* System (MRS, MSR) */                               \
+  V_(ImmSystemRegister, 19, 5, Bits)                    \
+  V_(SysO0, 19, 19, Bits)                               \
+  V_(SysOp1, 18, 16, Bits)                              \
+  V_(SysOp2, 7, 5, Bits)                                \
+  V_(CRn, 15, 12, Bits)                                 \
+  V_(CRm, 11, 8, Bits)
 
 #define SYSTEM_REGISTER_FIELDS_LIST(V_, M_)                                    \
 /* NZCV */                                                                     \
@@ -855,6 +855,29 @@ enum LoadStoreRegisterOffset {
   A##B##_##C##_reg = LoadStoreRegisterOffsetFixed | D
   LOAD_STORE_OP_LIST(LOAD_STORE_REGISTER_OFFSET)
   #undef LOAD_STORE_REGISTER_OFFSET
+};
+
+// Load/store acquire/release
+enum LoadStoreAcquireReleaseOp {
+  LoadStoreAcquireReleaseFixed = 0x08000000,
+  LoadStoreAcquireReleaseFMask = 0x3F000000,
+  LoadStoreAcquireReleaseMask = 0xCFC08000,
+  STLXR_b = LoadStoreAcquireReleaseFixed | 0x00008000,
+  LDAXR_b = LoadStoreAcquireReleaseFixed | 0x00408000,
+  STLR_b  = LoadStoreAcquireReleaseFixed | 0x00808000,
+  LDAR_b  = LoadStoreAcquireReleaseFixed | 0x00C08000,
+  STLXR_h = LoadStoreAcquireReleaseFixed | 0x40008000,
+  LDAXR_h = LoadStoreAcquireReleaseFixed | 0x40408000,
+  STLR_h  = LoadStoreAcquireReleaseFixed | 0x40808000,
+  LDAR_h  = LoadStoreAcquireReleaseFixed | 0x40C08000,
+  STLXR_w = LoadStoreAcquireReleaseFixed | 0x80008000,
+  LDAXR_w = LoadStoreAcquireReleaseFixed | 0x80408000,
+  STLR_w  = LoadStoreAcquireReleaseFixed | 0x80808000,
+  LDAR_w  = LoadStoreAcquireReleaseFixed | 0x80C08000,
+  STLXR_x = LoadStoreAcquireReleaseFixed | 0xC0008000,
+  LDAXR_x = LoadStoreAcquireReleaseFixed | 0xC0408000,
+  STLR_x  = LoadStoreAcquireReleaseFixed | 0xC0808000,
+  LDAR_x  = LoadStoreAcquireReleaseFixed | 0xC0C08000,
 };
 
 // Conditional compare.

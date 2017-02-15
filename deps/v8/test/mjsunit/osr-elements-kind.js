@@ -30,7 +30,7 @@
 // Limit the number of stress runs to reduce polymorphism it defeats some of the
 // assumptions made about how elements transitions work because transition stubs
 // end up going generic.
-// Flags: --stress-runs=2
+// Flags: --stress-runs=1
 
 var elements_kind = {
   fast_smi_only             :  'fast smi only elements',

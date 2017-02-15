@@ -41,7 +41,7 @@ function testGlobalAccess() {
 }
 function shouldBeSyntaxError(str) {
     shouldThrow(str);
-    shouldThrow("(function(){" + str + "})");
+    shouldThrow("(function (){" + str + "})");
 }
 function testLineContinuation() {
     "use stric\

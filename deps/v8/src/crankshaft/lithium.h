@@ -9,9 +9,10 @@
 
 #include "src/allocation.h"
 #include "src/bailout-reason.h"
+#include "src/crankshaft/compilation-phase.h"
 #include "src/crankshaft/hydrogen.h"
 #include "src/safepoint-table.h"
-#include "src/zone-allocator.h"
+#include "src/zone/zone-allocator.h"
 
 namespace v8 {
 namespace internal {
@@ -638,7 +639,13 @@ class LChunk : public ZoneObject {
 
   int ParameterAt(int index);
   int GetParameterStackSlot(int index) const;
-  int spill_slot_count() const { return spill_slot_count_; }
+  bool HasAllocatedStackSlots() const {
+    return current_frame_slots_ != base_frame_slots_;
+  }
+  int GetSpillSlotCount() const {
+    return current_frame_slots_ - base_frame_slots_;
+  }
+  int GetTotalFrameSlotCount() const { return current_frame_slots_; }
   CompilationInfo* info() const { return info_; }
   HGraph* graph() const { return graph_; }
   Isolate* isolate() const { return graph_->isolate(); }
@@ -687,7 +694,8 @@ class LChunk : public ZoneObject {
  protected:
   LChunk(CompilationInfo* info, HGraph* graph);
 
-  int spill_slot_count_;
+  int base_frame_slots_;
+  int current_frame_slots_;
 
  private:
   void CommitDependencies(Handle<Code> code) const;
@@ -737,6 +745,16 @@ class LChunkBuilderBase BASE_EMBEDDED {
   // Will not be moved to a register even if one is freely available.
   virtual MUST_USE_RESULT LOperand* UseAny(HValue* value) = 0;
 
+  // Constructs proper environment for a lazy bailout point after call, creates
+  // LLazyBailout instruction and adds it to current block.
+  void CreateLazyBailoutForCall(HBasicBlock* current_block, LInstruction* instr,
+                                HInstruction* hydrogen_val);
+
+  // Assigns given environment to an instruction.  An instruction which can
+  // deoptimize must have an environment.
+  LInstruction* AssignEnvironment(LInstruction* instr,
+                                  HEnvironment* hydrogen_env);
+
   LEnvironment* CreateEnvironment(HEnvironment* hydrogen_env,
                                   int* argument_index_accumulator,
                                   ZoneList<HValue*>* objects_to_materialize);
@@ -756,8 +774,6 @@ class LChunkBuilderBase BASE_EMBEDDED {
   Zone* zone_;
 };
 
-
-int StackSlotOffset(int index);
 
 enum NumberUntagDMode {
   NUMBER_CANDIDATE_IS_SMI,

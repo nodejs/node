@@ -1,2 +1,5 @@
-node_modules
-.DS_Store
+test
+.gitignore
+.travis.yml
+Makefile
+example.js

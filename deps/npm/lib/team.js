@@ -1,5 +1,6 @@
 var mapToRegistry = require('./utils/map-to-registry.js')
 var npm = require('./npm')
+var output = require('./utils/output.js')
 
 module.exports = team
 
@@ -44,7 +45,7 @@ function team (args, cb) {
         team: entity[1],
         user: args.shift()
       }, function (err, data) {
-        !err && data && console.log(JSON.stringify(data, undefined, 2))
+        !err && data && output(JSON.stringify(data, undefined, 2))
         cb(err, data)
       })
     } catch (e) {

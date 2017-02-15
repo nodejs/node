@@ -26,6 +26,7 @@ var getCacheStat = require('./cache/get-stat.js')
 var unpack = require('./utils/tar.js').unpack
 var pulseTillDone = require('./utils/pulse-till-done.js')
 var parseJSON = require('./utils/parse-json.js')
+var pickManifestFromRegistryMetadata = require('./utils/pick-manifest-from-registry-metadata.js')
 
 function andLogAndFinish (spec, tracker, done) {
   validate('SF', [spec, done])
@@ -63,23 +64,26 @@ module.exports = function fetchPackageMetadata (spec, where, tracker, done) {
     fetchOtherPackageData(spec, dep, where, addRequestedAndFinish)
   }
   function addRequestedAndFinish (er, pkg) {
-    if (pkg) {
-      pkg._requested = dep
-      pkg._spec = spec
-      pkg._where = where
-      if (!pkg._args) pkg._args = []
-      pkg._args.push([pkg._spec, pkg._where])
-      // non-npm registries can and will return unnormalized data, plus
-      // even the npm registry may have package data normalized with older
-      // normalization rules. This ensures we get package data in a consistent,
-      // stable format.
-      try {
-        normalizePackageData(pkg)
-      } catch (ex) {
-        // don't care
-      }
-    }
+    if (pkg) annotateMetadata(pkg, dep, spec, where)
     logAndFinish(er, pkg)
+  }
+}
+
+var annotateMetadata = module.exports.annotateMetadata = function (pkg, requested, spec, where) {
+  validate('OOSS', arguments)
+  pkg._requested = requested
+  pkg._spec = spec
+  pkg._where = where
+  if (!pkg._args) pkg._args = []
+  pkg._args.push([requested, where])
+  // non-npm registries can and will return unnormalized data, plus
+  // even the npm registry may have package data normalized with older
+  // normalization rules. This ensures we get package data in a consistent,
+  // stable format.
+  try {
+    normalizePackageData(pkg)
+  } catch (ex) {
+    // don't care
   }
 }
 
@@ -110,43 +114,41 @@ function fetchNamedPackageData (dep, next) {
     } else {
       npm.registry.get(url, {auth: auth}, pulseTillDone('fetchMetadata', iferr(next, pickVersionFromRegistryDocument)))
     }
-    function returnAndAddMetadata (pkg) {
-      delete pkg._from
-      delete pkg._resolved
-      delete pkg._shasum
+    function thenAddMetadata (pkg) {
+      pkg._from = dep.raw
+      pkg._resolved = pkg.dist.tarball
+      pkg._shasum = pkg.dist.shasum
+
       next(null, pkg)
     }
     function pickVersionFromRegistryDocument (pkg) {
       if (!regCache[url]) regCache[url] = pkg
-      var versions = Object.keys(pkg.versions).sort(semver.rcompare)
+      var versions = Object.keys(pkg.versions)
+
+      var invalidVersions = versions.filter(function (v) { return !semver.valid(v) })
+      if (invalidVersions.length > 0) {
+        log.warn('pickVersion', 'The package %s has invalid semver-version(s): %s. This usually only happens for unofficial private registries. ' +
+            'You should delete or re-publish the invalid versions.', pkg.name, invalidVersions.join(', '))
+      }
+
+      versions = versions.filter(function (v) { return semver.valid(v) })
 
       if (dep.type === 'tag') {
         var tagVersion = pkg['dist-tags'][dep.spec]
-        if (pkg.versions[tagVersion]) return returnAndAddMetadata(pkg.versions[tagVersion])
+        if (pkg.versions[tagVersion]) return thenAddMetadata(pkg.versions[tagVersion])
       } else {
-        var latestVersion = pkg['dist-tags'][npm.config.get('tag')] || versions[0]
+        var picked = pickManifestFromRegistryMetadata(dep.spec, npm.config.get('tag'), versions, pkg)
+        if (picked) return thenAddMetadata(picked.manifest)
+      }
 
-        // Find the the most recent version less than or equal
-        // to latestVersion that satisfies our spec
-        for (var ii = 0; ii < versions.length; ++ii) {
-          if (semver.gt(versions[ii], latestVersion)) continue
-          if (semver.satisfies(versions[ii], dep.spec)) {
-            return returnAndAddMetadata(pkg.versions[versions[ii]])
-          }
-        }
-
-        // Failing that, try finding the most recent version that matches
-        // our spec
-        for (var jj = 0; jj < versions.length; ++jj) {
-          if (semver.satisfies(versions[jj], dep.spec)) {
-            return returnAndAddMetadata(pkg.versions[versions[jj]])
-          }
-        }
-
-        // Failing THAT, if the range was '*' uses latestVersion
-        if (dep.spec === '*') {
-          return returnAndAddMetadata(pkg.versions[latestVersion])
-        }
+      // We didn't manage to find a compatible version
+      // If this package was requested from cache, force hitting the network
+      if (pkg._cached) {
+        log.silly('fetchNamedPackageData', 'No valid target from cache, forcing network')
+        return npm.registry.get(url, {
+          auth: auth,
+          skipCache: true
+        }, pulseTillDone('fetchMetadata', iferr(next, pickVersionFromRegistryDocument)))
       }
 
       // And failing that, we error out
@@ -155,6 +157,7 @@ function fetchNamedPackageData (dep, next) {
                   : 'No valid targets found.'
       var er = new Error('No compatible version found: ' +
                          dep.raw + '\n' + targets)
+      er.code = 'ETARGET'
       return next(er)
     }
   }))

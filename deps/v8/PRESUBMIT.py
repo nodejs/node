@@ -216,6 +216,38 @@ def _CheckNoProductionCodeUsingTestOnlyFunctions(input_api, output_api):
     return []
 
 
+def _CheckMissingFiles(input_api, output_api):
+  """Runs verify_source_deps.py to ensure no files were added that are not in
+  GN.
+  """
+  # We need to wait until we have an input_api object and use this
+  # roundabout construct to import checkdeps because this file is
+  # eval-ed and thus doesn't have __file__.
+  original_sys_path = sys.path
+  try:
+    sys.path = sys.path + [input_api.os_path.join(
+        input_api.PresubmitLocalPath(), 'tools')]
+    from verify_source_deps import missing_gn_files, missing_gyp_files
+  finally:
+    # Restore sys.path to what it was before.
+    sys.path = original_sys_path
+
+  gn_files = missing_gn_files()
+  gyp_files = missing_gyp_files()
+  results = []
+  if gn_files:
+    results.append(output_api.PresubmitError(
+        "You added one or more source files but didn't update the\n"
+        "corresponding BUILD.gn files:\n",
+        gn_files))
+  if gyp_files:
+    results.append(output_api.PresubmitError(
+        "You added one or more source files but didn't update the\n"
+        "corresponding gyp files:\n",
+        gyp_files))
+  return results
+
+
 def _CommonChecks(input_api, output_api):
   """Checks common to both upload and commit."""
   results = []
@@ -223,12 +255,15 @@ def _CommonChecks(input_api, output_api):
       input_api, output_api, source_file_filter=None))
   results.extend(input_api.canned_checks.CheckPatchFormatted(
       input_api, output_api))
+  results.extend(input_api.canned_checks.CheckGenderNeutral(
+      input_api, output_api))
   results.extend(_V8PresubmitChecks(input_api, output_api))
   results.extend(_CheckUnwantedDependencies(input_api, output_api))
   results.extend(
       _CheckNoProductionCodeUsingTestOnlyFunctions(input_api, output_api))
   results.extend(
       _CheckNoInlineHeaderIncludesInNormalHeaders(input_api, output_api))
+  results.extend(_CheckMissingFiles(input_api, output_api))
   return results
 
 
@@ -242,32 +277,15 @@ def _SkipTreeCheck(input_api, output_api):
   return input_api.environ.get('PRESUBMIT_TREE_CHECK') == 'skip'
 
 
-def _CheckChangeLogFlag(input_api, output_api, warn):
-  """Checks usage of LOG= flag in the commit message."""
-  results = []
-  if (input_api.change.BUG and input_api.change.BUG != 'none' and
-      not 'LOG' in input_api.change.tags):
-    text = ('An issue reference (BUG=) requires a change log flag (LOG=). '
-            'Use LOG=Y for including this commit message in the change log. '
-            'Use LOG=N or leave blank otherwise.')
-    if warn:
-      results.append(output_api.PresubmitPromptWarning(text))
-    else:
-      results.append(output_api.PresubmitError(text))
-  return results
-
-
 def CheckChangeOnUpload(input_api, output_api):
   results = []
   results.extend(_CommonChecks(input_api, output_api))
-  results.extend(_CheckChangeLogFlag(input_api, output_api, True))
   return results
 
 
 def CheckChangeOnCommit(input_api, output_api):
   results = []
   results.extend(_CommonChecks(input_api, output_api))
-  results.extend(_CheckChangeLogFlag(input_api, output_api, False))
   results.extend(input_api.canned_checks.CheckChangeHasDescription(
       input_api, output_api))
   if not _SkipTreeCheck(input_api, output_api):

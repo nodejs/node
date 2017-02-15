@@ -199,6 +199,7 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
 
     if (ctx->cert == NULL) {
         X509err(X509_F_X509_VERIFY_CERT, X509_R_NO_CERT_SET_FOR_US_TO_VERIFY);
+        ctx->error = X509_V_ERR_INVALID_CALL;
         return -1;
     }
     if (ctx->chain != NULL) {
@@ -207,6 +208,7 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
          * cannot do another one.
          */
         X509err(X509_F_X509_VERIFY_CERT, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+        ctx->error = X509_V_ERR_INVALID_CALL;
         return -1;
     }
 
@@ -219,6 +221,7 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
     if (((ctx->chain = sk_X509_new_null()) == NULL) ||
         (!sk_X509_push(ctx->chain, ctx->cert))) {
         X509err(X509_F_X509_VERIFY_CERT, ERR_R_MALLOC_FAILURE);
+        ctx->error = X509_V_ERR_OUT_OF_MEM;
         ok = -1;
         goto err;
     }
@@ -229,6 +232,7 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
     if (ctx->untrusted != NULL
         && (sktmp = sk_X509_dup(ctx->untrusted)) == NULL) {
         X509err(X509_F_X509_VERIFY_CERT, ERR_R_MALLOC_FAILURE);
+        ctx->error = X509_V_ERR_OUT_OF_MEM;
         ok = -1;
         goto err;
     }
@@ -253,8 +257,10 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
          */
         if (ctx->param->flags & X509_V_FLAG_TRUSTED_FIRST) {
             ok = ctx->get_issuer(&xtmp, ctx, x);
-            if (ok < 0)
+            if (ok < 0) {
+                ctx->error = X509_V_ERR_STORE_LOOKUP;
                 goto err;
+            }
             /*
              * If successful for now free up cert so it will be picked up
              * again later.
@@ -271,6 +277,7 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
             if (xtmp != NULL) {
                 if (!sk_X509_push(ctx->chain, xtmp)) {
                     X509err(X509_F_X509_VERIFY_CERT, ERR_R_MALLOC_FAILURE);
+                    ctx->error = X509_V_ERR_OUT_OF_MEM;
                     ok = -1;
                     goto err;
                 }
@@ -352,14 +359,17 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
                 break;
             ok = ctx->get_issuer(&xtmp, ctx, x);
 
-            if (ok < 0)
+            if (ok < 0) {
+                ctx->error = X509_V_ERR_STORE_LOOKUP;
                 goto err;
+            }
             if (ok == 0)
                 break;
             x = xtmp;
             if (!sk_X509_push(ctx->chain, x)) {
                 X509_free(xtmp);
                 X509err(X509_F_X509_VERIFY_CERT, ERR_R_MALLOC_FAILURE);
+                ctx->error = X509_V_ERR_OUT_OF_MEM;
                 ok = -1;
                 goto err;
             }
@@ -386,8 +396,10 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
             while (j-- > 1) {
                 xtmp2 = sk_X509_value(ctx->chain, j - 1);
                 ok = ctx->get_issuer(&xtmp, ctx, xtmp2);
-                if (ok < 0)
+                if (ok < 0) {
+                    ctx->error = X509_V_ERR_STORE_LOOKUP;
                     goto err;
+                }
                 /* Check if we found an alternate chain */
                 if (ok > 0) {
                     /*
@@ -515,6 +527,10 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
         sk_X509_free(sktmp);
     if (chain_ss != NULL)
         X509_free(chain_ss);
+
+    /* Safety net, error returns must set ctx->error */
+    if (ok <= 0 && ctx->error == X509_V_OK)
+        ctx->error = X509_V_ERR_UNSPECIFIED;
     return ok;
 }
 
@@ -697,13 +713,27 @@ static int check_chain_extensions(X509_STORE_CTX *ctx)
          * the next certificate must be a CA certificate.
          */
         if (x->ex_flags & EXFLAG_PROXY) {
-            if (x->ex_pcpathlen != -1 && i > x->ex_pcpathlen) {
-                ctx->error = X509_V_ERR_PROXY_PATH_LENGTH_EXCEEDED;
-                ctx->error_depth = i;
-                ctx->current_cert = x;
-                ok = cb(0, ctx);
-                if (!ok)
-                    goto end;
+            /*
+             * RFC3820, 4.1.3 (b)(1) stipulates that if pCPathLengthConstraint
+             * is less than max_path_length, the former should be copied to
+             * the latter, and 4.1.4 (a) stipulates that max_path_length
+             * should be verified to be larger than zero and decrement it.
+             *
+             * Because we're checking the certs in the reverse order, we start
+             * with verifying that proxy_path_length isn't larger than pcPLC,
+             * and copy the latter to the former if it is, and finally,
+             * increment proxy_path_length.
+             */
+            if (x->ex_pcpathlen != -1) {
+                if (proxy_path_length > x->ex_pcpathlen) {
+                    ctx->error = X509_V_ERR_PROXY_PATH_LENGTH_EXCEEDED;
+                    ctx->error_depth = i;
+                    ctx->current_cert = x;
+                    ok = cb(0, ctx);
+                    if (!ok)
+                        goto end;
+                }
+                proxy_path_length = x->ex_pcpathlen;
             }
             proxy_path_length++;
             must_be_ca = 0;
@@ -726,6 +756,81 @@ static int check_name_constraints(X509_STORE_CTX *ctx)
         /* Ignore self issued certs unless last in chain */
         if (i && (x->ex_flags & EXFLAG_SI))
             continue;
+
+        /*
+         * Proxy certificates policy has an extra constraint, where the
+         * certificate subject MUST be the issuer with a single CN entry
+         * added.
+         * (RFC 3820: 3.4, 4.1.3 (a)(4))
+         */
+        if (x->ex_flags & EXFLAG_PROXY) {
+            X509_NAME *tmpsubject = X509_get_subject_name(x);
+            X509_NAME *tmpissuer = X509_get_issuer_name(x);
+            X509_NAME_ENTRY *tmpentry = NULL;
+            int last_object_nid = 0;
+            int err = X509_V_OK;
+            int last_object_loc = X509_NAME_entry_count(tmpsubject) - 1;
+
+            /* Check that there are at least two RDNs */
+            if (last_object_loc < 1) {
+                err = X509_V_ERR_PROXY_SUBJECT_NAME_VIOLATION;
+                goto proxy_name_done;
+            }
+
+            /*
+             * Check that there is exactly one more RDN in subject as
+             * there is in issuer.
+             */
+            if (X509_NAME_entry_count(tmpsubject)
+                != X509_NAME_entry_count(tmpissuer) + 1) {
+                err = X509_V_ERR_PROXY_SUBJECT_NAME_VIOLATION;
+                goto proxy_name_done;
+            }
+
+            /*
+             * Check that the last subject component isn't part of a
+             * multivalued RDN
+             */
+            if (X509_NAME_get_entry(tmpsubject, last_object_loc)->set
+                == X509_NAME_get_entry(tmpsubject, last_object_loc - 1)->set) {
+                err = X509_V_ERR_PROXY_SUBJECT_NAME_VIOLATION;
+                goto proxy_name_done;
+            }
+
+            /*
+             * Check that the last subject RDN is a commonName, and that
+             * all the previous RDNs match the issuer exactly
+             */
+            tmpsubject = X509_NAME_dup(tmpsubject);
+            if (tmpsubject == NULL) {
+                X509err(X509_F_CHECK_NAME_CONSTRAINTS, ERR_R_MALLOC_FAILURE);
+                ctx->error = X509_V_ERR_OUT_OF_MEM;
+                return 0;
+            }
+
+            tmpentry =
+                X509_NAME_delete_entry(tmpsubject, last_object_loc);
+            last_object_nid =
+                OBJ_obj2nid(X509_NAME_ENTRY_get_object(tmpentry));
+
+            if (last_object_nid != NID_commonName
+                || X509_NAME_cmp(tmpsubject, tmpissuer) != 0) {
+                err = X509_V_ERR_PROXY_SUBJECT_NAME_VIOLATION;
+            }
+
+            X509_NAME_ENTRY_free(tmpentry);
+            X509_NAME_free(tmpsubject);
+
+         proxy_name_done:
+            if (err != X509_V_OK) {
+                ctx->error = err;
+                ctx->error_depth = i;
+                ctx->current_cert = x;
+                if (!ctx->verify_cb(0, ctx))
+                    return 0;
+            }
+        }
+
         /*
          * Check against constraints for all certificates higher in chain
          * including trust anchor. Trust anchor not strictly speaking needed
@@ -736,12 +841,19 @@ static int check_name_constraints(X509_STORE_CTX *ctx)
             NAME_CONSTRAINTS *nc = sk_X509_value(ctx->chain, j)->nc;
             if (nc) {
                 rv = NAME_CONSTRAINTS_check(x, nc);
-                if (rv != X509_V_OK) {
+                switch (rv) {
+                case X509_V_OK:
+                    continue;
+                case X509_V_ERR_OUT_OF_MEM:
+                    ctx->error = rv;
+                    return 0;
+                default:
                     ctx->error = rv;
                     ctx->error_depth = i;
                     ctx->current_cert = x;
                     if (!ctx->verify_cb(0, ctx))
                         return 0;
+                    break;
                 }
             }
         }
@@ -880,6 +992,8 @@ static int check_cert(X509_STORE_CTX *ctx)
     ctx->current_issuer = NULL;
     ctx->current_crl_score = 0;
     ctx->current_reasons = 0;
+    if (x->ex_flags & EXFLAG_PROXY)
+        return 1;
     while (ctx->current_reasons != CRLDP_ALL_REASONS) {
         last_reasons = ctx->current_reasons;
         /* Try to retrieve relevant CRL */
@@ -1010,13 +1124,25 @@ static int get_crl_sk(X509_STORE_CTX *ctx, X509_CRL **pcrl, X509_CRL **pdcrl,
         crl = sk_X509_CRL_value(crls, i);
         reasons = *preasons;
         crl_score = get_crl_score(ctx, &crl_issuer, &reasons, crl, x);
-
-        if (crl_score > best_score) {
-            best_crl = crl;
-            best_crl_issuer = crl_issuer;
-            best_score = crl_score;
-            best_reasons = reasons;
+        if (crl_score < best_score || crl_score == 0)
+            continue;
+        /* If current CRL is equivalent use it if it is newer */
+        if (crl_score == best_score && best_crl != NULL) {
+            int day, sec;
+            if (ASN1_TIME_diff(&day, &sec, X509_CRL_get_lastUpdate(best_crl),
+                               X509_CRL_get_lastUpdate(crl)) == 0)
+                continue;
+            /*
+             * ASN1_TIME_diff never returns inconsistent signs for |day|
+             * and |sec|.
+             */
+            if (day <= 0 && sec <= 0)
+                continue;
         }
+        best_crl = crl;
+        best_crl_issuer = crl_issuer;
+        best_score = crl_score;
+        best_reasons = reasons;
     }
 
     if (best_crl) {
@@ -1630,6 +1756,7 @@ static int check_policy(X509_STORE_CTX *ctx)
                             ctx->param->policies, ctx->param->flags);
     if (ret == 0) {
         X509err(X509_F_CHECK_POLICY, ERR_R_MALLOC_FAILURE);
+        ctx->error = X509_V_ERR_OUT_OF_MEM;
         return 0;
     }
     /* Invalid or inconsistent extensions */
@@ -1658,7 +1785,12 @@ static int check_policy(X509_STORE_CTX *ctx)
 
     if (ctx->param->flags & X509_V_FLAG_NOTIFY_POLICY) {
         ctx->current_cert = NULL;
-        ctx->error = X509_V_OK;
+        /*
+         * Verification errors need to be "sticky", a callback may have allowed
+         * an SSL handshake to continue despite an error, and we must then
+         * remain in an error state.  Therefore, we MUST NOT clear earlier
+         * verification errors by setting the error to X509_V_OK.
+         */
         if (!ctx->verify_cb(2, ctx))
             return 0;
     }

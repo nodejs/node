@@ -1,2 +1,5 @@
-var convert = require('./convert');
-module.exports = convert('partialRight', require('../partialRight'));
+var convert = require('./convert'),
+    func = convert('partialRight', require('../partialRight'));
+
+func.placeholder = require('./placeholder');
+module.exports = func;

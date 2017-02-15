@@ -125,7 +125,9 @@ var la1 = [1, [2, 3], 4];
 assertEquals("1,2,3,4", la1.toLocaleString());
 
 // Used on a string (which looks like an array of characters).
-String.prototype.toLocaleString = Array.prototype.toLocaleString;
+String.prototype.toLocaleString = function() {
+  return (this.length == 1) ? this : Array.prototype.toLocaleString.call(this);
+}
 assertEquals("1,2,3,4", "1234".toLocaleString());
 
 // If toLocaleString of element is not callable, throw a TypeError.
@@ -157,3 +159,23 @@ for (var i = 0; i < 3; i++) {
 }
 Number.prototype.arrayToLocaleString = Array.prototype.toLocaleString;
 assertEquals("42,42,42", (42).arrayToLocaleString());
+
+
+(function TestToLocaleStringCalls() {
+  let log = [];
+  let pushArgs = (label) => (...args) => log.push(label, args);
+
+  let NumberToLocaleString = Number.prototype.toLocaleString;
+  let StringToLocaleString = String.prototype.toLocaleString;
+  let ObjectToLocaleString = Object.prototype.toLocaleString;
+  Number.prototype.toLocaleString = pushArgs("Number");
+  String.prototype.toLocaleString = pushArgs("String");
+  Object.prototype.toLocaleString = pushArgs("Object");
+
+  [42, "foo", {}].toLocaleString();
+  assertEquals(["Number", [], "String", [], "Object", []], log);
+
+  Number.prototype.toLocaleString = NumberToLocaleString;
+  String.prototype.toLocaleString = StringToLocaleString;
+  Object.prototype.toLocaleString = ObjectToLocaleString;
+})();

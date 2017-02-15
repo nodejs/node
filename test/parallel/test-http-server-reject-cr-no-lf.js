@@ -11,19 +11,15 @@ const str = 'GET / HTTP/1.1\r\n' +
             '\r\n';
 
 
-const server = http.createServer((req, res) => {
-  assert.fail(null, null, 'this should not be called');
-});
+const server = http.createServer(common.mustNotCall());
 server.on('clientError', common.mustCall((err) => {
   assert(/^Parse Error/.test(err.message));
-  assert.equal(err.code, 'HPE_LF_EXPECTED');
+  assert.strictEqual(err.code, 'HPE_LF_EXPECTED');
   server.close();
 }));
-server.listen(common.PORT, () => {
-  const client = net.connect({port:common.PORT}, () => {
-    client.on('data', (chunk) => {
-      assert.fail(null, null, 'this should not be called');
-    });
+server.listen(0, () => {
+  const client = net.connect({port: server.address().port}, () => {
+    client.on('data', common.mustNotCall());
     client.on('end', common.mustCall(() => {
       server.close();
     }));

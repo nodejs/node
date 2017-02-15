@@ -29,11 +29,13 @@
 
 #include "src/v8.h"
 
+#include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8;
 
+namespace {
 
 enum Expectations {
   EXPECT_RESULT,
@@ -143,7 +145,7 @@ void DeclarationContext::Check(const char* source, int get, int set, int query,
   InitializeIfNeeded();
   // A retry after a GC may pollute the counts, so perform gc now
   // to avoid that.
-  CcTest::heap()->CollectGarbage(v8::internal::NEW_SPACE);
+  CcTest::CollectGarbage(v8::internal::NEW_SPACE);
   HandleScope scope(CcTest::isolate());
   TryCatch catcher(CcTest::isolate());
   catcher.SetVerbose(true);
@@ -174,7 +176,7 @@ void DeclarationContext::Check(const char* source, int get, int set, int query,
     }
   }
   // Clean slate for the next test.
-  CcTest::heap()->CollectAllAvailableGarbage();
+  CcTest::CollectAllAvailableGarbage();
 }
 
 
@@ -223,11 +225,11 @@ v8::Local<Integer> DeclarationContext::Query(Local<Name> key) {
   return v8::Local<Integer>();
 }
 
+}  // namespace
 
 // Test global declaration of a property the interceptor doesn't know
 // about and doesn't handle.
 TEST(Unknown) {
-  i::FLAG_legacy_const = true;
   HandleScope scope(CcTest::isolate());
   v8::V8::Initialize();
 
@@ -247,23 +249,7 @@ TEST(Unknown) {
   { DeclarationContext context;
     context.Check("function x() { }; x",
                   1,  // access
-                  0,
-                  0,
-                  EXPECT_RESULT);
-  }
-
-  { DeclarationContext context;
-    context.Check("const x; x",
-                  1,  // access
-                  0, 0, EXPECT_RESULT, Undefined(CcTest::isolate()));
-  }
-
-  { DeclarationContext context;
-    context.Check("const x = 0; x",
-                  1,  // access
-                  0,
-                  0,
-                  EXPECT_RESULT, Number::New(CcTest::isolate(), 0));
+                  1, 1, EXPECT_RESULT);
   }
 }
 
@@ -277,7 +263,6 @@ class AbsentPropertyContext: public DeclarationContext {
 
 
 TEST(Absent) {
-  i::FLAG_legacy_const = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::V8::Initialize();
   HandleScope scope(isolate);
@@ -298,21 +283,7 @@ TEST(Absent) {
   { AbsentPropertyContext context;
     context.Check("function x() { }; x",
                   1,  // access
-                  0,
-                  0,
-                  EXPECT_RESULT);
-  }
-
-  { AbsentPropertyContext context;
-    context.Check("const x; x",
-                  1,  // access
-                  0, 0, EXPECT_RESULT, Undefined(isolate));
-  }
-
-  { AbsentPropertyContext context;
-    context.Check("const x = 0; x",
-                  1,  // access
-                  0, 0, EXPECT_RESULT, Number::New(isolate, 0));
+                  1, 1, EXPECT_RESULT);
   }
 
   { AbsentPropertyContext context;
@@ -361,7 +332,6 @@ class AppearingPropertyContext: public DeclarationContext {
 
 
 TEST(Appearing) {
-  i::FLAG_legacy_const = true;
   v8::V8::Initialize();
   HandleScope scope(CcTest::isolate());
 
@@ -381,21 +351,7 @@ TEST(Appearing) {
   { AppearingPropertyContext context;
     context.Check("function x() { }; x",
                   1,  // access
-                  0,
-                  0,
-                  EXPECT_RESULT);
-  }
-
-  { AppearingPropertyContext context;
-    context.Check("const x; x",
-                  1,  // access
-                  0, 0, EXPECT_RESULT, Undefined(CcTest::isolate()));
-  }
-
-  { AppearingPropertyContext context;
-    context.Check("const x = 0; x",
-                  1,  // access
-                  0, 0, EXPECT_RESULT, Number::New(CcTest::isolate(), 0));
+                  1, 1, EXPECT_RESULT);
   }
 }
 
@@ -418,7 +374,6 @@ class ExistsInPrototypeContext: public DeclarationContext {
 
 
 TEST(ExistsInPrototype) {
-  i::FLAG_legacy_const = true;
   HandleScope scope(CcTest::isolate());
 
   // Sanity check to make sure that the holder of the interceptor
@@ -438,22 +393,6 @@ TEST(ExistsInPrototype) {
 
   { ExistsInPrototypeContext context;
     context.Check("var x = 0; x",
-                  0,
-                  0,
-                  0,
-                  EXPECT_RESULT, Number::New(CcTest::isolate(), 0));
-  }
-
-  { ExistsInPrototypeContext context;
-    context.Check("const x; x",
-                  0,
-                  0,
-                  0,
-                  EXPECT_RESULT, Undefined(CcTest::isolate()));
-  }
-
-  { ExistsInPrototypeContext context;
-    context.Check("const x = 0; x",
                   0,
                   0,
                   0,
@@ -528,7 +467,6 @@ class ExistsInHiddenPrototypeContext: public DeclarationContext {
 
 
 TEST(ExistsInHiddenPrototype) {
-  i::FLAG_legacy_const = true;
   HandleScope scope(CcTest::isolate());
 
   { ExistsInHiddenPrototypeContext context;
@@ -542,23 +480,7 @@ TEST(ExistsInHiddenPrototype) {
   }
 
   { ExistsInHiddenPrototypeContext context;
-    context.Check("function x() { }; x",
-                  0,
-                  0,
-                  0,
-                  EXPECT_RESULT);
-  }
-
-  // TODO(mstarzinger): The semantics of global const is vague.
-  { ExistsInHiddenPrototypeContext context;
-    context.Check("const x; x", 0, 0, 0, EXPECT_RESULT,
-                  Undefined(CcTest::isolate()));
-  }
-
-  // TODO(mstarzinger): The semantics of global const is vague.
-  { ExistsInHiddenPrototypeContext context;
-    context.Check("const x = 0; x", 0, 0, 0, EXPECT_RESULT,
-                  Number::New(CcTest::isolate(), 0));
+    context.Check("function x() { }; x", 0, 1, 1, EXPECT_RESULT);
   }
 }
 
@@ -612,7 +534,6 @@ class SimpleContext {
 
 
 TEST(CrossScriptReferences) {
-  i::FLAG_legacy_const = true;
   v8::Isolate* isolate = CcTest::isolate();
   HandleScope scope(isolate);
 
@@ -621,8 +542,6 @@ TEST(CrossScriptReferences) {
                   EXPECT_RESULT, Number::New(isolate, 1));
     context.Check("var x = 2; x",
                   EXPECT_RESULT, Number::New(isolate, 2));
-    context.Check("const x = 3; x", EXPECT_EXCEPTION);
-    context.Check("const x = 4; x", EXPECT_EXCEPTION);
     context.Check("x = 5; x",
                   EXPECT_RESULT, Number::New(isolate, 5));
     context.Check("var x = 6; x",
@@ -631,22 +550,6 @@ TEST(CrossScriptReferences) {
                   EXPECT_RESULT, Number::New(isolate, 6));
     context.Check("function x() { return 7 }; x()",
                   EXPECT_RESULT, Number::New(isolate, 7));
-  }
-
-  { SimpleContext context;
-    context.Check("const x = 1; x",
-                  EXPECT_RESULT, Number::New(isolate, 1));
-    context.Check("var x = 2; x",  // assignment ignored
-                  EXPECT_RESULT, Number::New(isolate, 1));
-    context.Check("const x = 3; x", EXPECT_EXCEPTION);
-    context.Check("x = 4; x",  // assignment ignored
-                  EXPECT_RESULT, Number::New(isolate, 1));
-    context.Check("var x = 5; x",  // assignment ignored
-                  EXPECT_RESULT, Number::New(isolate, 1));
-    context.Check("this.x",
-                  EXPECT_RESULT, Number::New(isolate, 1));
-    context.Check("function x() { return 7 }; x",
-                  EXPECT_EXCEPTION);
   }
 }
 

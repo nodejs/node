@@ -1,11 +1,12 @@
 'use strict';
-require('../common');
-var assert = require('assert');
+const common = require('../common');
+const path = require('path');
+const assert = require('assert');
 
 try {
-  require('../fixtures/invalid.json');
+  require(path.join(common.fixturesDir, 'invalid.json'));
 } catch (err) {
-  var re = /test[\/\\]fixtures[\/\\]invalid.json: Unexpected string/;
-  var i = err.message.match(re);
-  assert(null !== i, 'require() json error should include path');
+  const re = /test[/\\]fixtures[/\\]invalid.json: Unexpected string/;
+  const i = err.message.match(re);
+  assert.notStrictEqual(null, i, 'require() json error should include path');
 }

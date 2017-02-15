@@ -1216,6 +1216,12 @@ int ssl3_get_server_certificate(SSL *s)
         goto f_err;
     }
     for (nc = 0; nc < llen;) {
+        if (nc + 3 > llen) {
+            al = SSL_AD_DECODE_ERROR;
+            SSLerr(SSL_F_SSL3_GET_SERVER_CERTIFICATE,
+                   SSL_R_CERT_LENGTH_MISMATCH);
+            goto f_err;
+        }
         n2l3(p, l);
         if ((l + nc + 3) > llen) {
             al = SSL_AD_DECODE_ERROR;
@@ -1704,12 +1710,6 @@ int ssl3_get_key_exchange(SSL *s)
         }
         p += i;
 
-        if (BN_is_zero(dh->p)) {
-            SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE, SSL_R_BAD_DH_P_VALUE);
-            goto f_err;
-        }
-
-
         if (2 > n - param_len) {
             SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE, SSL_R_LENGTH_TOO_SHORT);
             goto f_err;
@@ -1729,11 +1729,6 @@ int ssl3_get_key_exchange(SSL *s)
             goto err;
         }
         p += i;
-
-        if (BN_is_zero(dh->g)) {
-            SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE, SSL_R_BAD_DH_G_VALUE);
-            goto f_err;
-        }
 
         if (2 > n - param_len) {
             SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE, SSL_R_LENGTH_TOO_SHORT);
@@ -1759,6 +1754,39 @@ int ssl3_get_key_exchange(SSL *s)
         if (BN_is_zero(dh->pub_key)) {
             SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE, SSL_R_BAD_DH_PUB_KEY_VALUE);
             goto f_err;
+        }
+
+        /*-
+         * Check that p and g are suitable enough
+         *
+         * p is odd
+         * 1 < g < p - 1
+         */
+        {
+            BIGNUM *tmp = NULL;
+
+            if (!BN_is_odd(dh->p)) {
+                SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE, SSL_R_BAD_DH_P_VALUE);
+                goto f_err;
+            }
+            if (BN_is_negative(dh->g) || BN_is_zero(dh->g)
+                || BN_is_one(dh->g)) {
+                SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE, SSL_R_BAD_DH_G_VALUE);
+                goto f_err;
+            }
+            if ((tmp = BN_new()) == NULL
+                || BN_copy(tmp, dh->p) == NULL
+                || !BN_sub_word(tmp, 1)) {
+                BN_free(tmp);
+                SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE, ERR_R_BN_LIB);
+                goto err;
+            }
+            if (BN_cmp(dh->g, tmp) >= 0) {
+                BN_free(tmp);
+                SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE, SSL_R_BAD_DH_G_VALUE);
+                goto f_err;
+            }
+            BN_free(tmp);
         }
 
 # ifndef OPENSSL_NO_RSA
@@ -2111,6 +2139,10 @@ int ssl3_get_certificate_request(SSL *s)
     if (ctype_num > SSL3_CT_NUMBER) {
         /* If we exceed static buffer copy all to cert structure */
         s->cert->ctypes = OPENSSL_malloc(ctype_num);
+        if (s->cert->ctypes == NULL) {
+            SSLerr(SSL_F_SSL3_GET_CERTIFICATE_REQUEST, ERR_R_MALLOC_FAILURE);
+            goto err;
+        }
         memcpy(s->cert->ctypes, p, ctype_num);
         s->cert->ctype_num = (size_t)ctype_num;
         ctype_num = SSL3_CT_NUMBER;
@@ -2167,6 +2199,11 @@ int ssl3_get_certificate_request(SSL *s)
     }
 
     for (nc = 0; nc < llen;) {
+        if (nc + 2 > llen) {
+            ssl3_send_alert(s, SSL3_AL_FATAL, SSL_AD_DECODE_ERROR);
+            SSLerr(SSL_F_SSL3_GET_CERTIFICATE_REQUEST, SSL_R_CA_DN_TOO_LONG);
+            goto err;
+        }
         n2s(p, l);
         if ((l + nc + 2) > llen) {
             if ((s->options & SSL_OP_NETSCAPE_CA_DN_BUG))
@@ -2199,6 +2236,7 @@ int ssl3_get_certificate_request(SSL *s)
             SSLerr(SSL_F_SSL3_GET_CERTIFICATE_REQUEST, ERR_R_MALLOC_FAILURE);
             goto err;
         }
+        xn = NULL;
 
         p += l;
         nc += l + 2;
@@ -2222,6 +2260,7 @@ int ssl3_get_certificate_request(SSL *s)
  err:
     s->state = SSL_ST_ERR;
  done:
+    X509_NAME_free(xn);
     if (ca_sk != NULL)
         sk_X509_NAME_pop_free(ca_sk, X509_NAME_free);
     return (ret);
@@ -2997,19 +3036,6 @@ int ssl3_send_client_key_exchange(SSL *s)
                 goto err;
             }
             /*
-             * If we have client certificate, use its secret as peer key
-             */
-            if (s->s3->tmp.cert_req && s->cert->key->privatekey) {
-                if (EVP_PKEY_derive_set_peer
-                    (pkey_ctx, s->cert->key->privatekey) <= 0) {
-                    /*
-                     * If there was an error - just ignore it. Ephemeral key
-                     * * would be used
-                     */
-                    ERR_clear_error();
-                }
-            }
-            /*
              * Compute shared IV and store it in algorithm-specific context
              * data
              */
@@ -3055,12 +3081,6 @@ int ssl3_send_client_key_exchange(SSL *s)
                 n = msglen + 2;
             }
             memcpy(p, tmp, msglen);
-            /* Check if pubkey from client certificate was used */
-            if (EVP_PKEY_CTX_ctrl
-                (pkey_ctx, -1, -1, EVP_PKEY_CTRL_PEER_KEY, 2, NULL) > 0) {
-                /* Set flag "skip certificate verify" */
-                s->s3->flags |= TLS1_FLAGS_SKIP_CERT_VERIFY;
-            }
             EVP_PKEY_CTX_free(pkey_ctx);
             s->session->master_key_length =
                 s->method->ssl3_enc->generate_master_secret(s,

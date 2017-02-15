@@ -19,27 +19,27 @@ const server = http.createServer((req, res) => {
       res.writeHead(200, {'content-length': [1, 2]});
       break;
     default:
-      assert.fail(null, null, 'should never get here');
+      common.fail('should never get here');
   }
   res.end('ok');
 });
 
-var count = 0;
+let count = 0;
 
-server.listen(common.PORT, common.mustCall(() => {
-  for (let n = 1; n <= MAX_COUNT ; n++) {
+server.listen(0, common.mustCall(() => {
+  for (let n = 1; n <= MAX_COUNT; n++) {
     // This runs twice, the first time, the server will use
     // setHeader, the second time it uses writeHead. In either
     // case, the error handler must be called because the client
     // is not allowed to accept multiple content-length headers.
     http.get(
-      {port:common.PORT, headers:{'x-num': n}},
+      {port: server.address().port, headers: {'x-num': n}},
       (res) => {
-        assert(false, 'client allowed multiple content-length headers.');
+        common.fail('client allowed multiple content-length headers.');
       }
     ).on('error', common.mustCall((err) => {
       assert(/^Parse Error/.test(err.message));
-      assert.equal(err.code, 'HPE_UNEXPECTED_CONTENT_LENGTH');
+      assert.strictEqual(err.code, 'HPE_UNEXPECTED_CONTENT_LENGTH');
       count++;
       if (count === MAX_COUNT)
         server.close();
@@ -48,5 +48,5 @@ server.listen(common.PORT, common.mustCall(() => {
 }));
 
 process.on('exit', () => {
-  assert.equal(count, MAX_COUNT);
+  assert.strictEqual(count, MAX_COUNT);
 });

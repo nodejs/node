@@ -14,9 +14,25 @@ module.exports = {
     var assign = require( 'object-assign' );
     var normalizedEntries = { };
 
+    var removeNotFoundFiles = function removeNotFoundFiles() {
+      const cachedEntries = cache.keys();
+      // remove not found entries
+      cachedEntries.forEach( function remover( fPath ) {
+        try {
+          fs.statSync( fPath );
+        } catch (err) {
+          if ( err.code === 'ENOENT' ) {
+            cache.removeKey( fPath );
+          }
+        }
+      } );
+    };
+
+    removeNotFoundFiles();
+
     return {
       /**
-       * the flat cache storage used to persist the metadata of the files
+       * the flat cache storage used to persist the metadata of the `files
        * @type {Object}
        */
       cache: cache,
@@ -161,29 +177,39 @@ module.exports = {
       },
       /**
        * Sync the files and persist them to the cache
-       *
        * @method reconcile
        */
       reconcile: function () {
-        var entries = normalizedEntries;
+        removeNotFoundFiles();
 
+        var entries = normalizedEntries;
         var keys = Object.keys( entries );
+
         if ( keys.length === 0 ) {
           return;
         }
+
         keys.forEach( function ( entryName ) {
           var cacheEntry = entries[ entryName ];
-          var stat = fs.statSync( cacheEntry.key );
 
-          var meta = assign( cacheEntry.meta, {
-            size: stat.size,
-            mtime: stat.mtime.getTime()
-          } );
+          try {
+            var stat = fs.statSync( cacheEntry.key );
+            var meta = assign( cacheEntry.meta, {
+              size: stat.size,
+              mtime: stat.mtime.getTime()
+            } );
 
-          cache.setKey( entryName, meta );
+            cache.setKey( entryName, meta );
+          } catch (err) {
+            // if the file does not exists we don't save it
+            // other errors are just thrown
+            if ( err.code !== 'ENOENT' ) {
+              throw err;
+            }
+          }
         } );
 
-        cache.save();
+        cache.save( true );
       }
     };
   }

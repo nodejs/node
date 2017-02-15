@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug --allow-natives-syntax --promise-extra
+// Flags: --expose-debug-as debug --allow-natives-syntax
 
 // Test debug events when a Promise is rejected, which is caught by a custom
 // promise, which has a number for reject closure.  We expect an Exception debug
@@ -28,7 +28,7 @@ function MyPromise(resolver) {
 MyPromise.prototype = new Promise(function() {});
 p.constructor = MyPromise;
 
-var q = p.chain(
+var q = p.then(
   function() {
     log.push("reject caught");
     return Promise.reject(new Error("caught"));

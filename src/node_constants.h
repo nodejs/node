@@ -1,6 +1,8 @@
 #ifndef SRC_NODE_CONSTANTS_H_
 #define SRC_NODE_CONSTANTS_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "node.h"
 #include "v8.h"
 
@@ -34,7 +36,9 @@ namespace node {
 extern const char* default_cipher_list;
 #endif
 
-void DefineConstants(v8::Local<v8::Object> target);
+void DefineConstants(v8::Isolate* isolate, v8::Local<v8::Object> target);
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_CONSTANTS_H_

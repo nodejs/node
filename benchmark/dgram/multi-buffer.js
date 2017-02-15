@@ -31,7 +31,7 @@ function main(conf) {
 
   chunk = [];
   for (var i = 0; i < chunks; i++) {
-    chunk.push(new Buffer(Math.round(len / chunks)));
+    chunk.push(Buffer.allocUnsafe(Math.round(len / chunks)));
   }
 
   server();
@@ -45,7 +45,7 @@ function server() {
   var socket = dgram.createSocket('udp4');
 
   function onsend() {
-    if (sent++ % num == 0)
+    if (sent++ % num === 0)
       for (var i = 0; i < num; i++)
         socket.send(chunk, PORT, '127.0.0.1', onsend);
   }
@@ -58,6 +58,7 @@ function server() {
       var bytes = (type === 'send' ? sent : received) * len;
       var gbits = (bytes * 8) / (1024 * 1024 * 1024);
       bench.end(gbits);
+      process.exit(0);
     }, dur * 1000);
   });
 

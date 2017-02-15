@@ -1,2 +1,5 @@
-var convert = require('./convert');
-module.exports = convert('sortedLastIndex', require('../sortedLastIndex'));
+var convert = require('./convert'),
+    func = convert('sortedLastIndex', require('../sortedLastIndex'));
+
+func.placeholder = require('./placeholder');
+module.exports = func;

@@ -93,6 +93,34 @@ describe('Utils', function () {
             expect(host.name).to.equal('[123:123:123]');
             done();
         });
+
+        it('errors on header too long', function (done) {
+
+            var long = '';
+            for (var i = 0; i < 5000; ++i) {
+                long += 'x';
+            }
+
+            expect(Hawk.utils.parseHost({ headers: { host: long } })).to.be.null();
+            done();
+        });
+    });
+
+    describe('parseAuthorizationHeader()', function () {
+
+        it('errors on header too long', function (done) {
+
+            var long = 'Scheme a="';
+            for (var i = 0; i < 5000; ++i) {
+                long += 'x';
+            }
+            long += '"';
+
+            var err = Hawk.utils.parseAuthorizationHeader(long, ['a']);
+            expect(err).to.be.instanceof(Error);
+            expect(err.message).to.equal('Header length too long');
+            done();
+        });
     });
 
     describe('version()', function () {

@@ -6,8 +6,8 @@
 
 #include <cstring>
 
-#include "src/zone.h"
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -114,6 +114,9 @@ void NodeCache<Key, Hash, Pred>::GetCachedNodes(ZoneVector<Node*>* nodes) {
 
 template class NodeCache<int32_t>;
 template class NodeCache<int64_t>;
+
+template class NodeCache<RelocInt32Key>;
+template class NodeCache<RelocInt64Key>;
 
 }  // namespace compiler
 }  // namespace internal

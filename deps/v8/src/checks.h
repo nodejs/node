@@ -7,6 +7,7 @@
 
 #include "include/v8.h"
 #include "src/base/logging.h"
+#include "src/globals.h"
 
 namespace v8 {
 
@@ -17,10 +18,10 @@ namespace internal {
 #ifdef ENABLE_SLOW_DCHECKS
 #define SLOW_DCHECK(condition) \
   CHECK(!v8::internal::FLAG_enable_slow_asserts || (condition))
-extern bool FLAG_enable_slow_asserts;
+V8_EXPORT_PRIVATE extern bool FLAG_enable_slow_asserts;
 #else
 #define SLOW_DCHECK(condition) ((void) 0)
-const bool FLAG_enable_slow_asserts = false;
+static const bool FLAG_enable_slow_asserts = false;
 #endif
 
 }  // namespace internal

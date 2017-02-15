@@ -60,7 +60,12 @@
 #include "cryptlib.h"
 #include <openssl/asn1.h>
 
-static int asn1_collate_primitive(ASN1_STRING *a, ASN1_const_CTX *c);
+static int asn1_collate_primitive(ASN1_STRING *a, ASN1_const_CTX *c,
+                                  int depth);
+static ASN1_STRING *int_d2i_ASN1_bytes(ASN1_STRING **a,
+                                       const unsigned char **pp, long length,
+                                       int Ptag, int Pclass, int depth,
+                                       int *perr);
 /*
  * type is a 'bitmap' of acceptable string types.
  */
@@ -99,7 +104,7 @@ ASN1_STRING *d2i_ASN1_type_bytes(ASN1_STRING **a, const unsigned char **pp,
         ret = (*a);
 
     if (len != 0) {
-        s = (unsigned char *)OPENSSL_malloc((int)len + 1);
+        s = OPENSSL_malloc((int)len + 1);
         if (s == NULL) {
             i = ERR_R_MALLOC_FAILURE;
             goto err;
@@ -154,15 +159,38 @@ int i2d_ASN1_bytes(ASN1_STRING *a, unsigned char **pp, int tag, int xclass)
     return (r);
 }
 
+/*
+ * Maximum recursion depth of d2i_ASN1_bytes(): much more than should be
+ * encountered in pratice.
+ */
+
+#define ASN1_BYTES_MAXDEPTH 20
+
 ASN1_STRING *d2i_ASN1_bytes(ASN1_STRING **a, const unsigned char **pp,
                             long length, int Ptag, int Pclass)
+{
+    int err = 0;
+    ASN1_STRING *s = int_d2i_ASN1_bytes(a, pp, length, Ptag, Pclass, 0, &err);
+    if (err != 0)
+        ASN1err(ASN1_F_D2I_ASN1_BYTES, err);
+    return s;
+}
+
+static ASN1_STRING *int_d2i_ASN1_bytes(ASN1_STRING **a,
+                                       const unsigned char **pp, long length,
+                                       int Ptag, int Pclass,
+                                       int depth, int *perr)
 {
     ASN1_STRING *ret = NULL;
     const unsigned char *p;
     unsigned char *s;
     long len;
     int inf, tag, xclass;
-    int i = 0;
+
+    if (depth > ASN1_BYTES_MAXDEPTH) {
+        *perr = ASN1_R_NESTED_ASN1_STRING;
+        return NULL;
+    }
 
     if ((a == NULL) || ((*a) == NULL)) {
         if ((ret = ASN1_STRING_new()) == NULL)
@@ -173,18 +201,19 @@ ASN1_STRING *d2i_ASN1_bytes(ASN1_STRING **a, const unsigned char **pp,
     p = *pp;
     inf = ASN1_get_object(&p, &len, &tag, &xclass, length);
     if (inf & 0x80) {
-        i = ASN1_R_BAD_OBJECT_HEADER;
+        *perr = ASN1_R_BAD_OBJECT_HEADER;
         goto err;
     }
 
     if (tag != Ptag) {
-        i = ASN1_R_WRONG_TAG;
+        *perr = ASN1_R_WRONG_TAG;
         goto err;
     }
 
     if (inf & V_ASN1_CONSTRUCTED) {
         ASN1_const_CTX c;
 
+        c.error = 0;
         c.pp = pp;
         c.p = p;
         c.inf = inf;
@@ -192,21 +221,22 @@ ASN1_STRING *d2i_ASN1_bytes(ASN1_STRING **a, const unsigned char **pp,
         c.tag = Ptag;
         c.xclass = Pclass;
         c.max = (length == 0) ? 0 : (p + length);
-        if (!asn1_collate_primitive(ret, &c))
+        if (!asn1_collate_primitive(ret, &c, depth)) {
+            *perr = c.error;
             goto err;
-        else {
+        } else {
             p = c.p;
         }
     } else {
         if (len != 0) {
             if ((ret->length < len) || (ret->data == NULL)) {
-                if (ret->data != NULL)
-                    OPENSSL_free(ret->data);
-                s = (unsigned char *)OPENSSL_malloc((int)len + 1);
+                s = OPENSSL_malloc((int)len + 1);
                 if (s == NULL) {
-                    i = ERR_R_MALLOC_FAILURE;
+                    *perr = ERR_R_MALLOC_FAILURE;
                     goto err;
                 }
+                if (ret->data != NULL)
+                    OPENSSL_free(ret->data);
             } else
                 s = ret->data;
             memcpy(s, p, (int)len);
@@ -230,7 +260,6 @@ ASN1_STRING *d2i_ASN1_bytes(ASN1_STRING **a, const unsigned char **pp,
  err:
     if ((ret != NULL) && ((a == NULL) || (*a != ret)))
         ASN1_STRING_free(ret);
-    ASN1err(ASN1_F_D2I_ASN1_BYTES, i);
     return (NULL);
 }
 
@@ -242,7 +271,8 @@ ASN1_STRING *d2i_ASN1_bytes(ASN1_STRING **a, const unsigned char **pp,
  * There have been a few bug fixes for this function from Paul Keogh
  * <paul.keogh@sse.ie>, many thanks to him
  */
-static int asn1_collate_primitive(ASN1_STRING *a, ASN1_const_CTX *c)
+static int asn1_collate_primitive(ASN1_STRING *a, ASN1_const_CTX *c,
+                                  int depth)
 {
     ASN1_STRING *os = NULL;
     BUF_MEM b;
@@ -270,9 +300,8 @@ static int asn1_collate_primitive(ASN1_STRING *a, ASN1_const_CTX *c)
         }
 
         c->q = c->p;
-        if (d2i_ASN1_bytes(&os, &c->p, c->max - c->p, c->tag, c->xclass)
-            == NULL) {
-            c->error = ERR_R_ASN1_LIB;
+        if (int_d2i_ASN1_bytes(&os, &c->p, c->max - c->p, c->tag, c->xclass,
+                               depth + 1, &c->error) == NULL) {
             goto err;
         }
 
@@ -297,7 +326,6 @@ static int asn1_collate_primitive(ASN1_STRING *a, ASN1_const_CTX *c)
         ASN1_STRING_free(os);
     return (1);
  err:
-    ASN1err(ASN1_F_ASN1_COLLATE_PRIMITIVE, c->error);
     if (os != NULL)
         ASN1_STRING_free(os);
     if (b.data != NULL)

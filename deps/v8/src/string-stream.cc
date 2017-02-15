@@ -4,6 +4,8 @@
 
 #include "src/string-stream.h"
 
+#include <memory>
+
 #include "src/handles-inl.h"
 #include "src/prototype.h"
 
@@ -249,12 +251,11 @@ void StringStream::Add(const char* format, FmtElm arg0, FmtElm arg1,
   Add(CStrVector(format), Vector<FmtElm>(argv, argc));
 }
 
-
-base::SmartArrayPointer<const char> StringStream::ToCString() const {
+std::unique_ptr<char[]> StringStream::ToCString() const {
   char* str = NewArray<char>(length_ + 1);
   MemCopy(str, buffer_, length_);
   str[length_] = '\0';
-  return base::SmartArrayPointer<const char>(str);
+  return std::unique_ptr<char[]>(str);
 }
 
 
@@ -378,14 +379,14 @@ void StringStream::PrintUsingMap(JSObject* js_object) {
 
 
 void StringStream::PrintFixedArray(FixedArray* array, unsigned int limit) {
-  Heap* heap = array->GetHeap();
+  Isolate* isolate = array->GetIsolate();
   for (unsigned int i = 0; i < 10 && i < limit; i++) {
     Object* element = array->get(i);
-    if (element != heap->the_hole_value()) {
-      for (int len = 1; len < 18; len++)
-        Put(' ');
-      Add("%d: %o\n", i, array->get(i));
+    if (element->IsTheHole(isolate)) continue;
+    for (int len = 1; len < 18; len++) {
+      Put(' ');
     }
+    Add("%d: %o\n", i, array->get(i));
   }
   if (limit >= 10) {
     Add("                  ...\n");
@@ -527,12 +528,20 @@ void StringStream::PrintPrototype(JSFunction* fun, Object* receiver) {
   Object* name = fun->shared()->name();
   bool print_name = false;
   Isolate* isolate = fun->GetIsolate();
-  for (PrototypeIterator iter(isolate, receiver,
-                              PrototypeIterator::START_AT_RECEIVER);
-       !iter.IsAtEnd(); iter.Advance()) {
-    if (iter.GetCurrent()->IsJSObject()) {
+  if (receiver->IsNull(isolate) || receiver->IsUndefined(isolate) ||
+      receiver->IsTheHole(isolate) || receiver->IsJSProxy()) {
+    print_name = true;
+  } else if (isolate->context() != nullptr) {
+    if (!receiver->IsJSObject()) {
+      receiver = receiver->GetRootMap(isolate)->prototype();
+    }
+
+    for (PrototypeIterator iter(isolate, JSObject::cast(receiver),
+                                kStartAtReceiver);
+         !iter.IsAtEnd(); iter.Advance()) {
+      if (iter.GetCurrent()->IsJSProxy()) break;
       Object* key = iter.GetCurrent<JSObject>()->SlowReverseLookup(fun);
-      if (key != isolate->heap()->undefined_value()) {
+      if (!key->IsUndefined(isolate)) {
         if (!name->IsString() ||
             !key->IsString() ||
             !String::cast(name)->Equals(String::cast(key))) {
@@ -542,9 +551,8 @@ void StringStream::PrintPrototype(JSFunction* fun, Object* receiver) {
           print_name = false;
         }
         name = key;
+        break;
       }
-    } else {
-      print_name = true;
     }
   }
   PrintName(name);

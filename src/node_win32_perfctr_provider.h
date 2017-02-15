@@ -1,6 +1,8 @@
 #ifndef SRC_NODE_WIN32_PERFCTR_PROVIDER_H_
 #define SRC_NODE_WIN32_PERFCTR_PROVIDER_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #if defined(_MSC_VER)
 # define INLINE __forceinline
 #else
@@ -29,5 +31,7 @@ void InitPerfCountersWin32();
 void TermPerfCountersWin32();
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_WIN32_PERFCTR_PROVIDER_H_

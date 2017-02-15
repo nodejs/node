@@ -91,3 +91,16 @@ for (var i = 0; i < a.length; i++) a[i] = undefined;
 a[5] = "ab";
 a[90000] = "cd";
 assertEquals("abcd", a.join(""));  // Must not throw.
+
+
+// Make sure that each element is accessed exactly once, and in the correct
+// order.
+{
+  var log = [];
+  var p = new Proxy({length: 3, 0: 'a', 1: 'b'}, {
+      get: function(t, k, r) { log.push(k); return Reflect.get(t, k, r); }
+  });
+
+  assertEquals("a,b,", Array.prototype.join.call(p));
+  assertEquals(["length", "0", "1", "2"], log);
+}

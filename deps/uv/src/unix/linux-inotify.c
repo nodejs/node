@@ -102,7 +102,7 @@ static int init_inotify(uv_loop_t* loop) {
 
   loop->inotify_fd = err;
   uv__io_init(&loop->inotify_read_watcher, uv__inotify_read, loop->inotify_fd);
-  uv__io_start(loop, &loop->inotify_read_watcher, UV__POLLIN);
+  uv__io_start(loop, &loop->inotify_read_watcher, POLLIN);
 
   return 0;
 }

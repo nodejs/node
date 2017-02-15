@@ -1,29 +1,29 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
 
-var bufferSize = 5 * 1024 * 1024;
-var measuredSize = 0;
+const bufferSize = 5 * 1024 * 1024;
+let measuredSize = 0;
 
-var buffer = Buffer(bufferSize);
-for (var i = 0; i < buffer.length; i++) {
+const buffer = Buffer.allocUnsafe(bufferSize);
+for (let i = 0; i < buffer.length; i++) {
   buffer[i] = i % 256;
 }
 
 
-var web = http.Server(function(req, res) {
+const web = http.Server(function(req, res) {
   web.close();
 
   console.log(req.headers);
 
-  var i = 0;
+  let i = 0;
 
   req.on('data', function(d) {
     process.stdout.write(',');
     measuredSize += d.length;
-    for (var j = 0; j < d.length; j++) {
-      assert.equal(buffer[i], d[j]);
+    for (let j = 0; j < d.length; j++) {
+      assert.strictEqual(buffer[i], d[j]);
       i++;
     }
   });
@@ -42,29 +42,25 @@ var web = http.Server(function(req, res) {
   });
 });
 
-var gotThanks = false;
-
-web.listen(common.PORT, function() {
+web.listen(0, common.mustCall(function() {
   console.log('Making request');
 
-  var req = http.request({
-    port: common.PORT,
+  const req = http.request({
+    port: this.address().port,
     method: 'GET',
     path: '/',
     headers: { 'content-length': buffer.length }
-  }, function(res) {
+  }, common.mustCall(function(res) {
     console.log('Got response');
     res.setEncoding('utf8');
-    res.on('data', function(string) {
-      assert.equal('thanks', string);
-      gotThanks = true;
-    });
-  });
+    res.on('data', common.mustCall(function(string) {
+      assert.strictEqual('thanks', string);
+    }));
+  }));
   req.end(buffer);
-});
+}));
 
 
 process.on('exit', function() {
-  assert.equal(bufferSize, measuredSize);
-  assert.ok(gotThanks);
+  assert.strictEqual(bufferSize, measuredSize);
 });

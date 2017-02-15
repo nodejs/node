@@ -12,7 +12,7 @@ testEscapes("\\/", /\//);
 testEscapes("\\/\\/", /\/\//);
 testEscapes("\\/", new RegExp("/"));
 testEscapes("\\/", new RegExp("\\/"));
-testEscapes("\\\\/", new RegExp("\\\\/"));
+testEscapes("\\\\\\/", new RegExp("\\\\/"));
 testEscapes("\\/\\/", new RegExp("\\/\\/"));
 testEscapes("\\/\\/\\/\\/", new RegExp("////"));
 testEscapes("\\/\\/\\/\\/", new RegExp("\\//\\//"));

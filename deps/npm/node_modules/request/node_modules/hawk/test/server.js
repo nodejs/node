@@ -970,6 +970,33 @@ describe('Server', function () {
         });
     });
 
+    describe('authenticateBewit()', function () {
+
+        it('errors on uri too long', function (done) {
+
+            var long = '/';
+            for (var i = 0; i < 5000; ++i) {
+                long += 'x';
+            }
+
+            var req = {
+                method: 'GET',
+                url: long,
+                host: 'example.com',
+                port: 8080,
+                authorization: 'Hawk id="1", ts="1353788437", nonce="k3j4h2", mac="zy79QQ5/EYFmQqutVnYb73gAc/U=", ext="hello"'
+            };
+
+            Hawk.server.authenticateBewit(req, credentialsFunc, {}, function (err, credentials, bewit) {
+
+                expect(err).to.exist();
+                expect(err.output.statusCode).to.equal(400);
+                expect(err.message).to.equal('Resource path exceeds max length');
+                done();
+            });
+        });
+    });
+
     describe('authenticateMessage()', function () {
 
         it('errors on invalid authorization (ts)', function (done) {

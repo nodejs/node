@@ -71,9 +71,10 @@ API
 
 .. c:function:: int uv_loop_close(uv_loop_t* loop)
 
-    Closes all internal loop resources. This function must only be called once
-    the loop has finished its execution or it will return UV_EBUSY. After this
-    function returns the user shall free the memory allocated for the loop.
+    Releases all internal loop resources. Call this function only when the loop
+    has finished executing and all open handles and requests have been closed,
+    or it will return UV_EBUSY. After this function returns, the user can free
+    the memory allocated for the loop.
 
 .. c:function:: uv_loop_t* uv_default_loop(void)
 

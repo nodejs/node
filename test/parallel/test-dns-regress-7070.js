@@ -1,8 +1,10 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var dns = require('dns');
+const assert = require('assert');
+const dns = require('dns');
 
 // Should not raise assertion error. Issue #7070
-assert.throws(function() { dns.resolveNs([]); }); // bad name
-assert.throws(function() { dns.resolveNs(''); }); // bad callback
+assert.throws(() => dns.resolveNs([]), // bad name
+              /^Error: "name" argument must be a string$/);
+assert.throws(() => dns.resolveNs(''), // bad callback
+              /^Error: "callback" argument must be a function$/);

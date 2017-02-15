@@ -30,9 +30,14 @@
 #elif V8_TARGET_ARCH_PPC
 #include "src/crankshaft/ppc/lithium-ppc.h"          // NOLINT
 #include "src/crankshaft/ppc/lithium-codegen-ppc.h"  // NOLINT
+#elif V8_TARGET_ARCH_S390
+#include "src/crankshaft/s390/lithium-s390.h"          // NOLINT
+#include "src/crankshaft/s390/lithium-codegen-s390.h"  // NOLINT
 #else
 #error Unsupported target architecture.
 #endif
+
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -41,7 +46,6 @@ namespace internal {
 HGraph* LCodeGenBase::graph() const {
   return chunk()->graph();
 }
-
 
 LCodeGenBase::LCodeGenBase(LChunk* chunk, MacroAssembler* assembler,
                            CompilationInfo* info)
@@ -58,8 +62,11 @@ LCodeGenBase::LCodeGenBase(LChunk* chunk, MacroAssembler* assembler,
       translations_(info->zone()),
       inlined_function_count_(0),
       last_lazy_deopt_pc_(0),
-      osr_pc_offset_(-1) {}
+      osr_pc_offset_(-1),
+      source_position_table_builder_(info->zone(),
+                                     info->SourcePositionRecordingMode()) {}
 
+Isolate* LCodeGenBase::isolate() const { return info_->isolate(); }
 
 bool LCodeGenBase::GenerateBody() {
   DCHECK(is_generating());
@@ -134,6 +141,10 @@ void LCodeGenBase::CheckEnvironmentUsage() {
 #endif
 }
 
+void LCodeGenBase::RecordAndWritePosition(int pos) {
+  if (pos == kNoSourcePosition) return;
+  source_position_table_builder_.AddPosition(masm_->pc_offset(), pos, false);
+}
 
 void LCodeGenBase::Comment(const char* format, ...) {
   if (!FLAG_code_comments) return;
@@ -154,7 +165,10 @@ void LCodeGenBase::Comment(const char* format, ...) {
 
 
 void LCodeGenBase::DeoptComment(const Deoptimizer::DeoptInfo& deopt_info) {
-  masm()->RecordDeoptReason(deopt_info.deopt_reason, deopt_info.position);
+  SourcePosition position = deopt_info.position;
+  int deopt_id = deopt_info.deopt_id;
+  int raw_position = position.IsUnknown() ? 0 : position.raw();
+  masm()->RecordDeoptReason(deopt_info.deopt_reason, raw_position, deopt_id);
 }
 
 
@@ -235,8 +249,8 @@ void LCodeGenBase::WriteTranslationFrame(LEnvironment* environment,
       break;
     }
     case JS_GETTER: {
-      DCHECK(translation_size == 1);
-      DCHECK(height == 0);
+      DCHECK_EQ(1, translation_size);
+      DCHECK_EQ(0, height);
       int shared_id = DefineDeoptimizationLiteral(
           environment->entry() ? environment->entry()->shared()
                                : info()->shared_info());
@@ -250,12 +264,26 @@ void LCodeGenBase::WriteTranslationFrame(LEnvironment* environment,
       break;
     }
     case JS_SETTER: {
-      DCHECK(translation_size == 2);
-      DCHECK(height == 0);
+      DCHECK_EQ(2, translation_size);
+      DCHECK_EQ(0, height);
       int shared_id = DefineDeoptimizationLiteral(
           environment->entry() ? environment->entry()->shared()
                                : info()->shared_info());
       translation->BeginSetterStubFrame(shared_id);
+      if (info()->closure().is_identical_to(environment->closure())) {
+        translation->StoreJSFrameFunction();
+      } else {
+        int closure_id = DefineDeoptimizationLiteral(environment->closure());
+        translation->StoreLiteral(closure_id);
+      }
+      break;
+    }
+    case TAIL_CALLER_FUNCTION: {
+      DCHECK_EQ(0, translation_size);
+      int shared_id = DefineDeoptimizationLiteral(
+          environment->entry() ? environment->entry()->shared()
+                               : info()->shared_info());
+      translation->BeginTailCallerFrame(shared_id);
       if (info()->closure().is_identical_to(environment->closure())) {
         translation->StoreJSFrameFunction();
       } else {
@@ -345,14 +373,12 @@ void LCodeGenBase::PopulateDeoptimizationLiteralsWithInlinedFunctions() {
   }
 }
 
-
 Deoptimizer::DeoptInfo LCodeGenBase::MakeDeoptInfo(
-    LInstruction* instr, Deoptimizer::DeoptReason deopt_reason) {
+    LInstruction* instr, DeoptimizeReason deopt_reason, int deopt_id) {
   Deoptimizer::DeoptInfo deopt_info(instr->hydrogen_value()->position(),
-                                    instr->Mnemonic(), deopt_reason);
-  HEnterInlined* enter_inlined = instr->environment()->entry();
-  deopt_info.inlining_id = enter_inlined ? enter_inlined->inlining_id() : 0;
+                                    deopt_reason, deopt_id);
   return deopt_info;
 }
+
 }  // namespace internal
 }  // namespace v8

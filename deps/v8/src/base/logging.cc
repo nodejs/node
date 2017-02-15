@@ -4,17 +4,10 @@
 
 #include "src/base/logging.h"
 
-#if V8_LIBC_GLIBC || V8_OS_BSD
-#include <cxxabi.h>
-#include <dlfcn.h>
-#include <execinfo.h>
-#elif V8_OS_QNX
-#include <backtrace.h>
-#endif  // V8_LIBC_GLIBC || V8_OS_BSD
-
 #include <cstdio>
 #include <cstdlib>
 
+#include "src/base/debug/stack_trace.h"
 #include "src/base/platform/platform.h"
 
 namespace v8 {
@@ -49,53 +42,6 @@ DEFINE_CHECK_OP_IMPL(GE)
 DEFINE_CHECK_OP_IMPL(GT)
 #undef DEFINE_CHECK_OP_IMPL
 
-
-// Attempts to dump a backtrace (if supported).
-void DumpBacktrace() {
-#if V8_LIBC_GLIBC || V8_OS_BSD
-  void* trace[100];
-  int size = backtrace(trace, arraysize(trace));
-  OS::PrintError("\n==== C stack trace ===============================\n\n");
-  if (size == 0) {
-    OS::PrintError("(empty)\n");
-  } else {
-    for (int i = 1; i < size; ++i) {
-      OS::PrintError("%2d: ", i);
-      Dl_info info;
-      char* demangled = NULL;
-      if (!dladdr(trace[i], &info) || !info.dli_sname) {
-        OS::PrintError("%p\n", trace[i]);
-      } else if ((demangled = abi::__cxa_demangle(info.dli_sname, 0, 0, 0))) {
-        OS::PrintError("%s\n", demangled);
-        free(demangled);
-      } else {
-        OS::PrintError("%s\n", info.dli_sname);
-      }
-    }
-  }
-#elif V8_OS_QNX
-  char out[1024];
-  bt_accessor_t acc;
-  bt_memmap_t memmap;
-  bt_init_accessor(&acc, BT_SELF);
-  bt_load_memmap(&acc, &memmap);
-  bt_sprn_memmap(&memmap, out, sizeof(out));
-  OS::PrintError(out);
-  bt_addr_t trace[100];
-  int size = bt_get_backtrace(&acc, trace, arraysize(trace));
-  OS::PrintError("\n==== C stack trace ===============================\n\n");
-  if (size == 0) {
-    OS::PrintError("(empty)\n");
-  } else {
-    bt_sprnf_addrs(&memmap, trace, size, const_cast<char*>("%a\n"),
-                   out, sizeof(out), NULL);
-    OS::PrintError(out);
-  }
-  bt_unload_memmap(&memmap);
-  bt_release_accessor(&acc);
-#endif  // V8_LIBC_GLIBC || V8_OS_BSD
-}
-
 }  // namespace base
 }  // namespace v8
 
@@ -111,7 +57,12 @@ extern "C" void V8_Fatal(const char* file, int line, const char* format, ...) {
   v8::base::OS::VPrintError(format, arguments);
   va_end(arguments);
   v8::base::OS::PrintError("\n#\n");
-  v8::base::DumpBacktrace();
+
+  v8::base::debug::StackTrace trace;
+  trace.Print();
+
   fflush(stderr);
+  // Avoid dumping stack trace on abort signal.
+  v8::base::debug::DisableSignalStackDump();
   v8::base::OS::Abort();
 }

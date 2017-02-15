@@ -78,7 +78,28 @@
 #  include <descrip.h>
 #  include <stdlib.h>
 # endif                         /* ndef VMS_GMTIME_OK */
-#endif
+
+
+/*
+ * Needed to pick up the correct definitions and declarations in some of the
+ * DEC C Header Files (*.H).
+ */
+# define __NEW_STARLET 1
+
+# if (defined(__alpha) || defined(__ia64))
+#  include <iledef.h>
+# else
+
+/* VAX */
+typedef struct _ile3 {          /* Copied from ILEDEF.H for Alpha   */
+#  pragma __nomember_alignment
+    unsigned short int ile3$w_length;        /* Length of buffer in bytes */
+    unsigned short int ile3$w_code;          /* Item code value */
+    void *ile3$ps_bufaddr;                   /* Buffer address */
+    unsigned short int *ile3$ps_retlen_addr; /* Address of word for returned length */
+} ILE3;
+# endif   /* alpha || ia64    */
+#endif    /* OPENSSL_SYS_VMS  */
 
 struct tm *OPENSSL_gmtime(const time_t *timer, struct tm *result)
 {
@@ -105,26 +126,42 @@ struct tm *OPENSSL_gmtime(const time_t *timer, struct tm *result)
         static $DESCRIPTOR(lognam, "SYS$TIMEZONE_DIFFERENTIAL");
         char logvalue[256];
         unsigned int reslen = 0;
-        struct {
-            short buflen;
-            short code;
-            void *bufaddr;
-            unsigned int *reslen;
-        } itemlist[] = {
-            {
-                0, LNM$_STRING, 0, 0
-            },
-            {
-                0, 0, 0, 0
-            },
-        };
+# if __INITIAL_POINTER_SIZE == 64
+        ILEB_64 itemlist[2], *pitem;
+# else
+        ILE3 itemlist[2], *pitem;
+# endif
         int status;
         time_t t;
 
+
+        /*
+         * Setup an itemlist for the call to $TRNLNM - Translate Logical Name.
+         */
+        pitem = itemlist;
+
+# if __INITIAL_POINTER_SIZE == 64
+        pitem->ileb_64$w_mbo = 1;
+        pitem->ileb_64$w_code = LNM$_STRING;
+        pitem->ileb_64$l_mbmo = -1;
+        pitem->ileb_64$q_length = sizeof (logvalue);
+        pitem->ileb_64$pq_bufaddr = logvalue;
+        pitem->ileb_64$pq_retlen_addr = (unsigned __int64 *) &reslen;
+        pitem++;
+        /* Last item of the item list is null terminated */
+        pitem->ileb_64$q_length = pitem->ileb_64$w_code = 0;
+# else
+        pitem->ile3$w_length = sizeof (logvalue);
+        pitem->ile3$w_code = LNM$_STRING;
+        pitem->ile3$ps_bufaddr = logvalue;
+        pitem->ile3$ps_retlen_addr = (unsigned short int *) &reslen;
+        pitem++;
+        /* Last item of the item list is null terminated */
+        pitem->ile3$w_length = pitem->ile3$w_code = 0;
+# endif
+
+
         /* Get the value for SYS$TIMEZONE_DIFFERENTIAL */
-        itemlist[0].buflen = sizeof(logvalue);
-        itemlist[0].bufaddr = logvalue;
-        itemlist[0].reslen = &reslen;
         status = sys$trnlnm(0, &tabnam, &lognam, 0, itemlist);
         if (!(status & 1))
             return NULL;
@@ -132,7 +169,7 @@ struct tm *OPENSSL_gmtime(const time_t *timer, struct tm *result)
 
         t = *timer;
 
-/* The following is extracted from the DEC C header time.h */
+        /* The following is extracted from the DEC C header time.h */
         /*
          **  Beginning in OpenVMS Version 7.0 mktime, time, ctime, strftime
          **  have two implementations.  One implementation is provided

@@ -1,4 +1,4 @@
-.TH "PACKAGE\.JSON" "5" "January 2016" "" ""
+.TH "PACKAGE\.JSON" "5" "January 2017" "" ""
 .SH "NAME"
 \fBpackage.json\fR \- Specifics of npm's package\.json handling
 .SH DESCRIPTION
@@ -76,12 +76,6 @@ discover your package as it's listed in \fBnpm search\fP\|\.
 .SH homepage
 .P
 The url to the project homepage\.
-.P
-\fBNOTE\fR: This is \fInot\fR the same as "url"\.  If you put a "url" field,
-then the registry will think it's a redirection to your package that has
-been published somewhere else, and spit at you\.
-.P
-Literally\.  Spit\.  I'm so not kidding\.
 .SH bugs
 .P
 The url to your project's issue tracker and / or the email address to which
@@ -130,7 +124,7 @@ expression syntax version 2\.0 string \fIhttps://npmjs\.com/package/spdx\fR, lik
 .RE
 .P
 If you are using a license that hasn't been assigned an SPDX identifier, or if
-you are using a custom license, use the following valid SPDX expression:
+you are using a custom license, use a string value like this one:
 .P
 .RS 2
 .nf
@@ -227,13 +221,19 @@ Certain files are always included, regardless of settings:
 .IP \(bu 2
 \fBpackage\.json\fP
 .IP \(bu 2
-\fBREADME\fP (and its variants)
+\fBREADME\fP
 .IP \(bu 2
-\fBCHANGELOG\fP (and its variants)
+\fBCHANGES\fP / \fBCHANGELOG\fP / \fBHISTORY\fP
 .IP \(bu 2
 \fBLICENSE\fP / \fBLICENCE\fP
+.IP \(bu 2
+\fBNOTICE\fP
+.IP \(bu 2
+The file in the "main" field
 
 .RE
+.P
+\fBREADME\fP, \fBCHANGES\fP, \fBLICENSE\fP & \fBNOTICE\fP can have any case and extension\.
 .P
 Conversely, some files are always ignored:
 .RS 0
@@ -250,13 +250,21 @@ Conversely, some files are always ignored:
 .IP \(bu 2
 \fB\|\.wafpickle\-N\fP
 .IP \(bu 2
-\fB*\.swp\fP
+\fB\|\.*\.swp\fP
 .IP \(bu 2
 \fB\|\.DS_Store\fP
 .IP \(bu 2
 \fB\|\._*\fP
 .IP \(bu 2
 \fBnpm\-debug\.log\fP
+.IP \(bu 2
+\fB\|\.npmrc\fP
+.IP \(bu 2
+\fBnode_modules\fP
+.IP \(bu 2
+\fBconfig\.gypi\fP
+.IP \(bu 2
+\fB*\.orig\fP
 
 .RE
 .SH main
@@ -311,6 +319,10 @@ would be the same as this:
 , "bin" : { "my\-program" : "\./path/to/program" } }
 .fi
 .RE
+.P
+Please make sure that your file(s) referenced in \fBbin\fP starts with
+\fB#!/usr/bin/env node\fP, otherwise the scripts are started without the node
+executable!
 .SH man
 .P
 Specify either a single file or an array of filenames to put in place for the
@@ -395,6 +407,10 @@ maybe, someday\.
 .SS directories\.example
 .P
 Put example scripts in here\.  Someday, it might be exposed in some clever way\.
+.SS directories\.test
+.P
+Put your tests in here\. It is currently not exposed, but it might be in the
+future\.
 .SH repository
 .P
 Specify the place where your code lives\. This is helpful for people who
@@ -504,7 +520,7 @@ See npm help 7 semver for more details about specifying version ranges\.
 .IP \(bu 2
 \fBuser/repo\fP See 'GitHub URLs' below
 .IP \(bu 2
-\fBtag\fP A specific version tagged and published as \fBtag\fP  See npm help \fBnpm\-tag\fP
+\fBtag\fP A specific version tagged and published as \fBtag\fP  See npm help \fBnpm\-dist\-tag\fP
 .IP \(bu 2
 \fBpath/path/path\fP See Local Paths \fI#local\-paths\fR below
 
@@ -565,8 +581,9 @@ included\.  For example:
   "name": "foo",
   "version": "0\.0\.0",
   "dependencies": {
-    "express": "visionmedia/express",
-    "mocha": "visionmedia/mocha#4727d357ea"
+    "express": "expressjs/express",
+    "mocha": "mochajs/mocha#4727d357ea",
+    "module": "user/repo#feature\\/branch"
   }
 }
 .fi
@@ -618,7 +635,7 @@ from the root of a package, and can be managed like any other npm
 configuration param\.  See npm help 7 \fBnpm\-config\fP for more on the topic\.
 .P
 For build steps that are not platform\-specific, such as compiling
-CoffeeScript or other languages to JavaScript, use the \fBprepublish\fP
+CoffeeScript or other languages to JavaScript, use the \fBprepare\fP
 script to do this, and make the required package a devDependency\.
 .P
 For example:
@@ -632,14 +649,14 @@ For example:
     "coffee\-script": "~1\.6\.3"
   },
   "scripts": {
-    "prepublish": "coffee \-o lib/ \-c src/waza\.coffee"
+    "prepare": "coffee \-o lib/ \-c src/waza\.coffee"
   },
   "main": "lib/waza\.js"
 }
 .fi
 .RE
 .P
-The \fBprepublish\fP script will be run before publishing, so that users
+The \fBprepare\fP script will be run before publishing, so that users
 can consume the functionality without requiring them to compile it
 themselves\.  In dev mode (ie, locally running \fBnpm install\fP), it'll
 run this script as well, so that you can test it easily\.
@@ -692,7 +709,34 @@ with every 1\.x version of the host package, use \fB"^1\.0"\fP or \fB"1\.x"\fP t
 this\. If you depend on features introduced in 1\.5\.2, use \fB">= 1\.5\.2 < 2"\fP\|\.
 .SH bundledDependencies
 .P
-Array of package names that will be bundled when publishing the package\.
+This defines an array of package names that will be bundled when publishing
+the package\.
+.P
+In cases where you need to preserve npm packages locally or have them
+available through a single file download, you can bundle the packages in a
+tarball file by specifying the package names in the \fBbundledDependencies\fP
+array and executing \fBnpm pack\fP\|\.
+.P
+For example:
+.P
+If we define a package\.json like this:
+.P
+.RS 2
+.nf
+{
+  "name": "awesome\-web\-framework",
+  "version": "1\.0\.0",
+  "bundledDependencies": [
+    'renderized', 'super\-streams'
+  ]
+}
+.fi
+.RE
+.P
+we can obtain \fBawesome\-web\-framework\-1\.0\.0\.tgz\fP file by running \fBnpm pack\fP\|\.
+This file contains the dependencies \fBrenderized\fP and \fBsuper\-streams\fP which
+can be installed in a new project by executing \fBnpm install
+awesome\-web\-framework\-1\.0\.0\.tgz\fP\|\.
 .P
 If this is spelled \fB"bundleDependencies"\fP, then that is also honored\.
 .SH optionalDependencies
@@ -754,14 +798,14 @@ are capable of properly installing your program\.  For example:
 .fi
 .RE
 .P
-Note that, unless the user has set the \fBengine\-strict\fP config flag, this
-field is advisory only\.
+Unless the user has set the \fBengine\-strict\fP config flag, this
+field is advisory only will produce warnings when your package is installed as a dependency\.
 .SH engineStrict
 .P
-\fBThis feature was deprecated with npm 3\.0\.0\fR
+\fBThis feature was removed in npm 3\.0\.0\fR
 .P
 Prior to npm 3\.0\.0, this feature was used to treat this package as if the
-user had set \fBengine\-strict\fP\|\.
+user had set \fBengine\-strict\fP\|\. It is no longer used\.
 .SH os
 .P
 You can specify which operating systems your
@@ -845,9 +889,9 @@ npm will default some values based on package contents\.
 If there is a \fBserver\.js\fP file in the root of your package, then npm
 will default the \fBstart\fP command to \fBnode server\.js\fP\|\.
 .IP \(bu 2
-\fB"scripts":{"preinstall": "node\-gyp rebuild"}\fP
-If there is a \fBbinding\.gyp\fP file in the root of your package, npm will
-default the \fBpreinstall\fP command to compile using node\-gyp\.
+\fB"scripts":{"install": "node\-gyp rebuild"}\fP
+If there is a \fBbinding\.gyp\fP file in the root of your package and you have not defined an \fBinstall\fP or \fBpreinstall\fP script, npm will
+default the \fBinstall\fP command to compile using node\-gyp\.
 .IP \(bu 2
 \fB"contributors": [\.\.\.]\fP
 If there is an \fBAUTHORS\fP file in the root of your package, npm will
@@ -870,8 +914,6 @@ npm help config
 npm help 7 config
 .IP \(bu 2
 npm help help
-.IP \(bu 2
-npm help 7 faq
 .IP \(bu 2
 npm help install
 .IP \(bu 2

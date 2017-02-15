@@ -1,19 +1,9 @@
-var repeat = require('./repeat'),
+var baseRepeat = require('./_baseRepeat'),
+    baseToString = require('./_baseToString'),
+    castSlice = require('./_castSlice'),
+    hasUnicode = require('./_hasUnicode'),
     stringSize = require('./_stringSize'),
-    stringToArray = require('./_stringToArray'),
-    toInteger = require('./toInteger');
-
-/** Used to compose unicode character classes. */
-var rsAstralRange = '\\ud800-\\udfff',
-    rsComboMarksRange = '\\u0300-\\u036f\\ufe20-\\ufe23',
-    rsComboSymbolsRange = '\\u20d0-\\u20f0',
-    rsVarRange = '\\ufe0e\\ufe0f';
-
-/** Used to compose unicode capture groups. */
-var rsZWJ = '\\u200d';
-
-/** Used to detect strings with [zero-width joiners or code points from the astral planes](http://eev.ee/blog/2015/09/12/dark-corners-of-unicode/). */
-var reHasComplexSymbol = RegExp('[' + rsZWJ + rsAstralRange  + rsComboMarksRange + rsComboSymbolsRange + rsVarRange + ']');
+    stringToArray = require('./_stringToArray');
 
 /* Built-in method references for those with the same name as other `lodash` methods. */
 var nativeCeil = Math.ceil;
@@ -23,25 +13,21 @@ var nativeCeil = Math.ceil;
  * is truncated if the number of characters exceeds `length`.
  *
  * @private
- * @param {string} string The string to create padding for.
- * @param {number} [length=0] The padding length.
+ * @param {number} length The padding length.
  * @param {string} [chars=' '] The string used as padding.
  * @returns {string} Returns the padding for `string`.
  */
-function createPadding(string, length, chars) {
-  length = toInteger(length);
+function createPadding(length, chars) {
+  chars = chars === undefined ? ' ' : baseToString(chars);
 
-  var strLength = stringSize(string);
-  if (!length || strLength >= length) {
-    return '';
+  var charsLength = chars.length;
+  if (charsLength < 2) {
+    return charsLength ? baseRepeat(chars, length) : chars;
   }
-  var padLength = length - strLength;
-  chars = chars === undefined ? ' ' : (chars + '');
-
-  var result = repeat(chars, nativeCeil(padLength / stringSize(chars)));
-  return reHasComplexSymbol.test(chars)
-    ? stringToArray(result).slice(0, padLength).join('')
-    : result.slice(0, padLength);
+  var result = baseRepeat(chars, nativeCeil(length / stringSize(chars)));
+  return hasUnicode(chars)
+    ? castSlice(stringToArray(result), 0, length).join('')
+    : result.slice(0, length);
 }
 
 module.exports = createPadding;

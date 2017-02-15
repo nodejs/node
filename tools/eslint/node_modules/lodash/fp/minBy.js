@@ -1,2 +1,5 @@
-var convert = require('./convert');
-module.exports = convert('minBy', require('../minBy'));
+var convert = require('./convert'),
+    func = convert('minBy', require('../minBy'));
+
+func.placeholder = require('./placeholder');
+module.exports = func;

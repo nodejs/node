@@ -1,3 +1,19 @@
+# Whitelist dotfiles
+.*
+!deps/**/.*
+!test/fixtures/**/.*
+!tools/eslint/**/.*
+!tools/doc/node_modules/**/.*
+!.editorconfig
+!.eslintignore
+!.eslintrc
+!.gitattributes
+!.github
+!.gitignore
+!.gitkeep
+!.mailmap
+!.remarkrc
+
 core
 vgcore.*
 v8*.log
@@ -16,9 +32,8 @@ node
 node_g
 *.swp
 .benchmark_reports
-/.project
-/.cproject
 icu_config.gypi
+.eslintcache
 
 /out
 
@@ -41,6 +56,9 @@ _UpgradeReport_Files/
 ipch/
 *.sdf
 *.opensdf
+*.VC.opendb
+.vs/
+.vscode/
 
 /config.mk
 /config.gypi
@@ -50,6 +68,7 @@ ipch/
 /dist-osx
 /npm.wxs
 /tools/msvs/npm.wixobj
+/tools/msvs/genfiles/
 /tools/osx-pkg.pmdoc/index.xml
 /test/addons/??_*/
 email.md
@@ -83,7 +102,7 @@ deps/npm/node_modules/.bin/
 # test artifacts
 tools/faketime
 icu_config.gypi
-test.tap
+*.tap
 
 # Xcode workspaces and project folders
 *.xcodeproj

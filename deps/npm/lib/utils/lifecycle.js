@@ -1,6 +1,7 @@
 exports = module.exports = lifecycle
 exports.cmd = cmd
 exports.makeEnv = makeEnv
+exports._incorrectWorkingDirectory = _incorrectWorkingDirectory
 
 var log = require('npmlog')
 var spawn = require('./spawn')
@@ -12,6 +13,9 @@ var Stream = require('stream').Stream
 var PATH = 'PATH'
 var uidNumber = require('uid-number')
 var umask = require('./umask')
+var usage = require('./usage')
+var output = require('./output.js')
+var which = require('which')
 
 // windows calls it's path 'Path' usually, but this is not guaranteed.
 if (process.platform === 'win32') {
@@ -45,15 +49,19 @@ function lifecycle (pkg, stage, wd, unsafe, failOk, cb) {
   if (!pkg) return cb(new Error('Invalid package data'))
 
   log.info('lifecycle', logid(pkg, stage), pkg._id)
-  if (!pkg.scripts || npm.config.get('ignore-scripts')) pkg.scripts = {}
+  if (!pkg.scripts) pkg.scripts = {}
+
+  if (npm.config.get('ignore-scripts')) {
+    log.info('lifecycle', logid(pkg, stage), 'ignored because ignore-scripts is set to true', pkg._id)
+    pkg.scripts = {}
+  }
 
   validWd(wd || path.resolve(npm.dir, pkg.name), function (er, wd) {
     if (er) return cb(er)
 
     unsafe = unsafe || npm.config.get('unsafe-perm')
 
-    if ((wd.indexOf(npm.dir) !== 0 ||
-          wd.indexOf(pkg.name) !== wd.length - pkg.name.length) &&
+    if ((wd.indexOf(npm.dir) !== 0 || _incorrectWorkingDirectory(wd, pkg)) &&
         !unsafe && pkg.scripts[stage]) {
       log.warn('lifecycle', logid(pkg, stage), 'cannot run in wd',
         '%s %s (wd=%s)', pkg._id, pkg.scripts[stage], wd
@@ -75,9 +83,13 @@ function lifecycle (pkg, stage, wd, unsafe, failOk, cb) {
   })
 }
 
+function _incorrectWorkingDirectory (wd, pkg) {
+  return wd.lastIndexOf(pkg.name) !== wd.length - pkg.name.length
+}
+
 function lifecycle_ (pkg, stage, wd, env, unsafe, failOk, cb) {
   var pathArr = []
-  var p = wd.split('node_modules')
+  var p = wd.split(/[\\\/]node_modules[\\\/]/)
   var acc = path.resolve(p.shift())
 
   p.forEach(function (pp) {
@@ -89,6 +101,11 @@ function lifecycle_ (pkg, stage, wd, env, unsafe, failOk, cb) {
   // we also unshift the bundled node-gyp-bin folder so that
   // the bundled one will be used for installing things.
   pathArr.unshift(path.join(__dirname, '..', '..', 'bin', 'node-gyp-bin'))
+
+  if (shouldPrependCurrentNodeDirToPATH()) {
+    // prefer current node interpreter in child scripts
+    pathArr.push(path.dirname(process.execPath))
+  }
 
   if (env[PATH]) pathArr.push(env[PATH])
   env[PATH] = pathArr.join(process.platform === 'win32' ? ';' : ':')
@@ -122,6 +139,40 @@ function lifecycle_ (pkg, stage, wd, env, unsafe, failOk, cb) {
     ],
     done
   )
+}
+
+function shouldPrependCurrentNodeDirToPATH () {
+  var cfgsetting = npm.config.get('scripts-prepend-node-path')
+  if (cfgsetting === false) return false
+  if (cfgsetting === true) return true
+
+  var isDifferentNodeInPath
+
+  var isWindows = process.platform === 'win32'
+  var foundExecPath
+  try {
+    foundExecPath = which.sync(path.basename(process.execPath), {pathExt: isWindows ? ';' : ':'})
+    // Apply `fs.realpath()` here to avoid false positives when `node` is a symlinked executable.
+    isDifferentNodeInPath = fs.realpathSync(process.execPath).toUpperCase() !==
+        fs.realpathSync(foundExecPath).toUpperCase()
+  } catch (e) {
+    isDifferentNodeInPath = true
+  }
+
+  if (cfgsetting === 'warn-only') {
+    if (isDifferentNodeInPath && !shouldPrependCurrentNodeDirToPATH.hasWarned) {
+      if (foundExecPath) {
+        log.warn('lifecycle', 'The node binary used for scripts is', foundExecPath, 'but npm is using', process.execPath, 'itself. Use the `--scripts-prepend-node-path` option to include the path for the node binary npm was executed with.')
+      } else {
+        log.warn('lifecycle', 'npm is using', process.execPath, 'but there is no node binary in the current PATH. Use the `--scripts-prepend-node-path` option to include the path for the node binary npm was executed with.')
+      }
+      shouldPrependCurrentNodeDirToPATH.hasWarned = true
+    }
+
+    return false
+  }
+
+  return isDifferentNodeInPath
 }
 
 function validWd (d, cb) {
@@ -169,9 +220,7 @@ function runCmd (note, cmd, pkg, env, stage, wd, unsafe, cb) {
   var group = unsafe ? null : npm.config.get('group')
 
   if (log.level !== 'silent') {
-    log.clearProgress()
-    console.log(note)
-    log.showProgress()
+    output(note)
   }
   log.verbose('lifecycle', logid(pkg, stage), 'unsafe-perm in lifecycle', unsafe)
 
@@ -219,8 +268,6 @@ function runCmd_ (cmd, pkg, env, wd, stage, unsafe, uid, gid, cb_) {
   log.verbose('lifecycle', logid(pkg, stage), 'CWD:', wd)
   log.silly('lifecycle', logid(pkg, stage), 'Args:', [shFlag, cmd])
 
-  var progressEnabled = log.progressEnabled
-  if (progressEnabled) log.disableProgress()
   var proc = spawn(sh, [shFlag, cmd], conf)
 
   proc.on('error', procError)
@@ -233,9 +280,9 @@ function runCmd_ (cmd, pkg, env, wd, stage, unsafe, uid, gid, cb_) {
     }
     procError(er)
   })
+  process.once('SIGTERM', procKill)
 
   function procError (er) {
-    if (progressEnabled) log.enableProgress()
     if (er) {
       log.info('lifecycle', logid(pkg, stage), 'Failed to exec ' + stage + ' script')
       er.message = pkg._id + ' ' + stage + ': `' + cmd + '`\n' +
@@ -253,7 +300,11 @@ function runCmd_ (cmd, pkg, env, wd, stage, unsafe, uid, gid, cb_) {
       er.script = cmd
       er.pkgname = pkg.name
     }
+    process.removeListener('SIGTERM', procKill)
     return cb(er)
+  }
+  function procKill () {
+    proc.kill()
   }
 }
 
@@ -275,12 +326,11 @@ function makeEnv (data, prefix, env) {
   prefix = prefix || 'npm_package_'
   if (!env) {
     env = {}
-    for (var i in process.env) if (!i.match(/^npm_/)) {
-      env[i] = process.env[i]
+    for (var i in process.env) {
+      if (!i.match(/^npm_/)) {
+        env[i] = process.env[i]
+      }
     }
-
-    // npat asks for tap output
-    if (npm.config.get('npat')) env.TAP = 1
 
     // express and others respect the NODE_ENV value.
     if (npm.config.get('production')) env.NODE_ENV = 'production'
@@ -293,31 +343,33 @@ function makeEnv (data, prefix, env) {
     )
   }
 
-  for (i in data) if (i.charAt(0) !== '_') {
-    var envKey = (prefix + i).replace(/[^a-zA-Z0-9_]/g, '_')
-    if (i === 'readme') {
-      continue
-    }
-    if (data[i] && typeof data[i] === 'object') {
-      try {
-        // quick and dirty detection for cyclical structures
-        JSON.stringify(data[i])
-        makeEnv(data[i], envKey + '_', env)
-      } catch (ex) {
-        // usually these are package objects.
-        // just get the path and basic details.
-        var d = data[i]
-        makeEnv(
-          { name: d.name, version: d.version, path: d.path },
-          envKey + '_',
-          env
-        )
+  for (i in data) {
+    if (i.charAt(0) !== '_') {
+      var envKey = (prefix + i).replace(/[^a-zA-Z0-9_]/g, '_')
+      if (i === 'readme') {
+        continue
       }
-    } else {
-      env[envKey] = String(data[i])
-      env[envKey] = env[envKey].indexOf('\n') !== -1
-                      ? JSON.stringify(env[envKey])
-                      : env[envKey]
+      if (data[i] && typeof data[i] === 'object') {
+        try {
+          // quick and dirty detection for cyclical structures
+          JSON.stringify(data[i])
+          makeEnv(data[i], envKey + '_', env)
+        } catch (ex) {
+          // usually these are package objects.
+          // just get the path and basic details.
+          var d = data[i]
+          makeEnv(
+            { name: d.name, version: d.version, path: d.path },
+            envKey + '_',
+            env
+          )
+        }
+      } else {
+        env[envKey] = String(data[i])
+        env[envKey] = env[envKey].indexOf('\n') !== -1
+                        ? JSON.stringify(env[envKey])
+                        : env[envKey]
+      }
     }
   }
 
@@ -374,7 +426,7 @@ function cmd (stage) {
   function CMD (args, cb) {
     npm.commands['run-script']([stage].concat(args), cb)
   }
-  CMD.usage = 'npm ' + stage + ' [-- <args>]'
+  CMD.usage = usage(stage, 'npm ' + stage + ' [-- <args>]')
   var installedShallow = require('./completion/installed-shallow.js')
   CMD.completion = function (opts, cb) {
     installedShallow(opts, function (d) {

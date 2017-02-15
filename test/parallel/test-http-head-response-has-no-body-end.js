@@ -1,36 +1,27 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-
-var http = require('http');
+const common = require('../common');
+const http = require('http');
 
 // This test is to make sure that when the HTTP server
 // responds to a HEAD request with data to res.end,
 // it does not send any body.
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   res.writeHead(200);
   res.end('FAIL'); // broken: sends FAIL from hot path.
 });
-server.listen(common.PORT);
+server.listen(0);
 
-var responseComplete = false;
-
-server.on('listening', function() {
-  var req = http.request({
-    port: common.PORT,
+server.on('listening', common.mustCall(function() {
+  const req = http.request({
+    port: this.address().port,
     method: 'HEAD',
     path: '/'
-  }, function(res) {
-    res.on('end', function() {
+  }, common.mustCall(function(res) {
+    res.on('end', common.mustCall(function() {
       server.close();
-      responseComplete = true;
-    });
+    }));
     res.resume();
-  });
+  }));
   req.end();
-});
-
-process.on('exit', function() {
-  assert.ok(responseComplete);
-});
+}));

@@ -15,12 +15,15 @@
 #include "src/ppc/constants-ppc.h"
 #include "src/ppc/frames-ppc.h"
 #include "src/ppc/simulator-ppc.h"
+#include "src/runtime/runtime-utils.h"
 
 #if defined(USE_SIMULATOR)
 
 // Only build the simulator if not compiling for real PPC hardware.
 namespace v8 {
 namespace internal {
+
+const auto GetRegConfig = RegisterConfiguration::Crankshaft;
 
 // This macro provides a platform independent use of sscanf. The reason for
 // SScanF not being implemented in a platform independent way through
@@ -33,7 +36,6 @@ namespace internal {
 class PPCDebugger {
  public:
   explicit PPCDebugger(Simulator* sim) : sim_(sim) {}
-  ~PPCDebugger();
 
   void Stop(Instruction* instr);
   void Debug();
@@ -60,53 +62,6 @@ class PPCDebugger {
   void RedoBreakpoints();
 };
 
-
-PPCDebugger::~PPCDebugger() {}
-
-
-#ifdef GENERATED_CODE_COVERAGE
-static FILE* coverage_log = NULL;
-
-
-static void InitializeCoverage() {
-  char* file_name = getenv("V8_GENERATED_CODE_COVERAGE_LOG");
-  if (file_name != NULL) {
-    coverage_log = fopen(file_name, "aw+");
-  }
-}
-
-
-void PPCDebugger::Stop(Instruction* instr) {
-  // Get the stop code.
-  uint32_t code = instr->SvcValue() & kStopCodeMask;
-  // Retrieve the encoded address, which comes just after this stop.
-  char** msg_address =
-      reinterpret_cast<char**>(sim_->get_pc() + Instruction::kInstrSize);
-  char* msg = *msg_address;
-  DCHECK(msg != NULL);
-
-  // Update this stop description.
-  if (isWatchedStop(code) && !watched_stops_[code].desc) {
-    watched_stops_[code].desc = msg;
-  }
-
-  if (strlen(msg) > 0) {
-    if (coverage_log != NULL) {
-      fprintf(coverage_log, "%s\n", msg);
-      fflush(coverage_log);
-    }
-    // Overwrite the instruction and address with nops.
-    instr->SetInstructionBits(kNopInstr);
-    reinterpret_cast<Instruction*>(msg_address)->SetInstructionBits(kNopInstr);
-  }
-  sim_->set_pc(sim_->get_pc() + Instruction::kInstrSize + kPointerSize);
-}
-
-#else  // ndef GENERATED_CODE_COVERAGE
-
-static void InitializeCoverage() {}
-
-
 void PPCDebugger::Stop(Instruction* instr) {
   // Get the stop code.
   // use of kStopCodeMask not right on PowerPC
@@ -127,8 +82,6 @@ void PPCDebugger::Stop(Instruction* instr) {
   sim_->set_pc(sim_->get_pc() + Instruction::kInstrSize + kPointerSize);
   Debug();
 }
-#endif
-
 
 intptr_t PPCDebugger::GetRegisterValue(int regnum) {
   return sim_->get_register(regnum);
@@ -314,7 +267,7 @@ void PPCDebugger::Debug() {
             for (int i = 0; i < kNumRegisters; i++) {
               value = GetRegisterValue(i);
               PrintF("    %3s: %08" V8PRIxPTR,
-                     Register::from_code(i).ToString(), value);
+                     GetRegConfig()->GetGeneralRegisterName(i), value);
               if ((argc == 3 && strcmp(arg2, "fp") == 0) && i < 8 &&
                   (i % 2) == 0) {
                 dvalue = GetRegisterPairDoubleValue(i);
@@ -333,7 +286,7 @@ void PPCDebugger::Debug() {
             for (int i = 0; i < kNumRegisters; i++) {
               value = GetRegisterValue(i);
               PrintF("     %3s: %08" V8PRIxPTR " %11" V8PRIdPTR,
-                     Register::from_code(i).ToString(), value, value);
+                     GetRegConfig()->GetGeneralRegisterName(i), value, value);
               if ((argc == 3 && strcmp(arg2, "fp") == 0) && i < 8 &&
                   (i % 2) == 0) {
                 dvalue = GetRegisterPairDoubleValue(i);
@@ -353,7 +306,7 @@ void PPCDebugger::Debug() {
               dvalue = GetFPDoubleRegisterValue(i);
               uint64_t as_words = bit_cast<uint64_t>(dvalue);
               PrintF("%3s: %f 0x%08x %08x\n",
-                     DoubleRegister::from_code(i).ToString(), dvalue,
+                     GetRegConfig()->GetDoubleRegisterName(i), dvalue,
                      static_cast<uint32_t>(as_words >> 32),
                      static_cast<uint32_t>(as_words & 0xffffffff));
             }
@@ -446,7 +399,8 @@ void PPCDebugger::Debug() {
           HeapObject* obj = reinterpret_cast<HeapObject*>(*cur);
           intptr_t value = *cur;
           Heap* current_heap = sim_->isolate_->heap();
-          if (((value & 1) == 0) || current_heap->Contains(obj)) {
+          if (((value & 1) == 0) ||
+              current_heap->ContainsSlow(obj->address())) {
             PrintF(" (");
             if ((value & 1) == 0) {
               PrintF("smi %d", PlatformSmiTagging::SmiToInt(obj));
@@ -704,9 +658,8 @@ void Simulator::set_last_debugger_input(char* input) {
   last_debugger_input_ = input;
 }
 
-
-void Simulator::FlushICache(v8::internal::HashMap* i_cache, void* start_addr,
-                            size_t size) {
+void Simulator::FlushICache(base::CustomMatcherHashMap* i_cache,
+                            void* start_addr, size_t size) {
   intptr_t start = reinterpret_cast<intptr_t>(start_addr);
   int intra_line = (start & CachePage::kLineMask);
   start -= intra_line;
@@ -726,10 +679,9 @@ void Simulator::FlushICache(v8::internal::HashMap* i_cache, void* start_addr,
   }
 }
 
-
-CachePage* Simulator::GetCachePage(v8::internal::HashMap* i_cache, void* page) {
-  v8::internal::HashMap::Entry* entry =
-      i_cache->LookupOrInsert(page, ICacheHash(page));
+CachePage* Simulator::GetCachePage(base::CustomMatcherHashMap* i_cache,
+                                   void* page) {
+  base::HashMap::Entry* entry = i_cache->LookupOrInsert(page, ICacheHash(page));
   if (entry->value == NULL) {
     CachePage* new_page = new CachePage();
     entry->value = new_page;
@@ -739,8 +691,8 @@ CachePage* Simulator::GetCachePage(v8::internal::HashMap* i_cache, void* page) {
 
 
 // Flush from start up to and not including start + size.
-void Simulator::FlushOnePage(v8::internal::HashMap* i_cache, intptr_t start,
-                             int size) {
+void Simulator::FlushOnePage(base::CustomMatcherHashMap* i_cache,
+                             intptr_t start, int size) {
   DCHECK(size <= CachePage::kPageSize);
   DCHECK(AllOnOnePage(start, size - 1));
   DCHECK((start & CachePage::kLineMask) == 0);
@@ -752,8 +704,7 @@ void Simulator::FlushOnePage(v8::internal::HashMap* i_cache, intptr_t start,
   memset(valid_bytemap, CachePage::LINE_INVALID, size >> CachePage::kLineShift);
 }
 
-
-void Simulator::CheckICache(v8::internal::HashMap* i_cache,
+void Simulator::CheckICache(base::CustomMatcherHashMap* i_cache,
                             Instruction* instr) {
   intptr_t address = reinterpret_cast<intptr_t>(instr);
   void* page = reinterpret_cast<void*>(address & (~CachePage::kPageMask));
@@ -787,7 +738,7 @@ void Simulator::Initialize(Isolate* isolate) {
 Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   i_cache_ = isolate_->simulator_i_cache();
   if (i_cache_ == NULL) {
-    i_cache_ = new v8::internal::HashMap(&ICacheMatch);
+    i_cache_ = new base::CustomMatcherHashMap(&ICacheMatch);
     isolate_->set_simulator_i_cache(i_cache_);
   }
   Initialize(isolate);
@@ -826,7 +777,6 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   // some buffer below.
   registers_[sp] =
       reinterpret_cast<intptr_t>(stack_) + stack_size - stack_protection_size_;
-  InitializeCoverage();
 
   last_debugger_input_ = NULL;
 }
@@ -855,10 +805,19 @@ class Redirection {
         isolate->simulator_i_cache(),
         reinterpret_cast<void*>(&swi_instruction_), Instruction::kInstrSize);
     isolate->set_simulator_redirection(this);
+    if (ABI_USES_FUNCTION_DESCRIPTORS) {
+      function_descriptor_[0] = reinterpret_cast<intptr_t>(&swi_instruction_);
+      function_descriptor_[1] = 0;
+      function_descriptor_[2] = 0;
+    }
   }
 
-  void* address_of_swi_instruction() {
-    return reinterpret_cast<void*>(&swi_instruction_);
+  void* address() {
+    if (ABI_USES_FUNCTION_DESCRIPTORS) {
+      return reinterpret_cast<void*>(function_descriptor_);
+    } else {
+      return reinterpret_cast<void*>(&swi_instruction_);
+    }
   }
 
   void* external_function() { return external_function_; }
@@ -883,9 +842,16 @@ class Redirection {
     return reinterpret_cast<Redirection*>(addr_of_redirection);
   }
 
+  static Redirection* FromAddress(void* address) {
+    int delta = ABI_USES_FUNCTION_DESCRIPTORS
+                    ? offsetof(Redirection, function_descriptor_)
+                    : offsetof(Redirection, swi_instruction_);
+    char* addr_of_redirection = reinterpret_cast<char*>(address) - delta;
+    return reinterpret_cast<Redirection*>(addr_of_redirection);
+  }
+
   static void* ReverseRedirection(intptr_t reg) {
-    Redirection* redirection = FromSwiInstruction(
-        reinterpret_cast<Instruction*>(reinterpret_cast<void*>(reg)));
+    Redirection* redirection = FromAddress(reinterpret_cast<void*>(reg));
     return redirection->external_function();
   }
 
@@ -902,14 +868,16 @@ class Redirection {
   uint32_t swi_instruction_;
   ExternalReference::Type type_;
   Redirection* next_;
+  intptr_t function_descriptor_[3];
 };
 
 
 // static
-void Simulator::TearDown(HashMap* i_cache, Redirection* first) {
+void Simulator::TearDown(base::CustomMatcherHashMap* i_cache,
+                         Redirection* first) {
   Redirection::DeleteChain(first);
   if (i_cache != nullptr) {
-    for (HashMap::Entry* entry = i_cache->Start(); entry != nullptr;
+    for (base::HashMap::Entry* entry = i_cache->Start(); entry != nullptr;
          entry = i_cache->Next(entry)) {
       delete static_cast<CachePage*>(entry->value);
     }
@@ -922,7 +890,7 @@ void* Simulator::RedirectExternalReference(Isolate* isolate,
                                            void* external_function,
                                            ExternalReference::Type type) {
   Redirection* redirection = Redirection::Get(isolate, external_function, type);
-  return redirection->address_of_swi_instruction();
+  return redirection->address();
 }
 
 
@@ -1171,20 +1139,11 @@ bool Simulator::OverflowFrom(int32_t alu_out, int32_t left, int32_t right,
 
 
 #if V8_TARGET_ARCH_PPC64
-struct ObjectPair {
-  intptr_t x;
-  intptr_t y;
-};
-
-
 static void decodeObjectPair(ObjectPair* pair, intptr_t* x, intptr_t* y) {
-  *x = pair->x;
-  *y = pair->y;
+  *x = reinterpret_cast<intptr_t>(pair->x);
+  *y = reinterpret_cast<intptr_t>(pair->y);
 }
 #else
-typedef uint64_t ObjectPair;
-
-
 static void decodeObjectPair(ObjectPair* pair, intptr_t* x, intptr_t* y) {
 #if V8_TARGET_BIG_ENDIAN
   *x = static_cast<int32_t>(*pair >> 32);
@@ -1196,16 +1155,17 @@ static void decodeObjectPair(ObjectPair* pair, intptr_t* x, intptr_t* y) {
 }
 #endif
 
-// Calls into the V8 runtime are based on this very simple interface.
-// Note: To be able to return two values from some calls the code in
-// runtime.cc uses the ObjectPair which is essentially two pointer
-// values stuffed into a structure. With the code below we assume that
-// all runtime calls return this pair. If they don't, the r4 result
-// register contains a bogus value, which is fine because it is
-// caller-saved.
-typedef ObjectPair (*SimulatorRuntimeCall)(intptr_t arg0, intptr_t arg1,
-                                           intptr_t arg2, intptr_t arg3,
-                                           intptr_t arg4, intptr_t arg5);
+// Calls into the V8 runtime.
+typedef intptr_t (*SimulatorRuntimeCall)(intptr_t arg0, intptr_t arg1,
+                                         intptr_t arg2, intptr_t arg3,
+                                         intptr_t arg4, intptr_t arg5);
+typedef ObjectPair (*SimulatorRuntimePairCall)(intptr_t arg0, intptr_t arg1,
+                                               intptr_t arg2, intptr_t arg3,
+                                               intptr_t arg4, intptr_t arg5);
+typedef ObjectTriple (*SimulatorRuntimeTripleCall)(intptr_t arg0, intptr_t arg1,
+                                                   intptr_t arg2, intptr_t arg3,
+                                                   intptr_t arg4,
+                                                   intptr_t arg5);
 
 // These prototypes handle the four types of FP calls.
 typedef int (*SimulatorRuntimeCompareCall)(double darg0, double darg1);
@@ -1237,13 +1197,15 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       Redirection* redirection = Redirection::FromSwiInstruction(instr);
       const int kArgCount = 6;
       int arg0_regnum = 3;
-#if !ABI_RETURNS_OBJECT_PAIRS_IN_REGS
       intptr_t result_buffer = 0;
-      if (redirection->type() == ExternalReference::BUILTIN_OBJECTPAIR_CALL) {
+      bool uses_result_buffer =
+          redirection->type() == ExternalReference::BUILTIN_CALL_TRIPLE ||
+          (redirection->type() == ExternalReference::BUILTIN_CALL_PAIR &&
+           !ABI_RETURNS_OBJECT_PAIRS_IN_REGS);
+      if (uses_result_buffer) {
         result_buffer = get_register(r3);
         arg0_regnum++;
       }
-#endif
       intptr_t arg[kArgCount];
       for (int i = 0; i < kArgCount; i++) {
         arg[i] = get_register(arg0_regnum + i);
@@ -1271,15 +1233,18 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
             case ExternalReference::BUILTIN_FP_FP_CALL:
             case ExternalReference::BUILTIN_COMPARE_CALL:
               PrintF("Call to host function at %p with args %f, %f",
-                     FUNCTION_ADDR(generic_target), dval0, dval1);
+                     static_cast<void*>(FUNCTION_ADDR(generic_target)),
+                     dval0, dval1);
               break;
             case ExternalReference::BUILTIN_FP_CALL:
               PrintF("Call to host function at %p with arg %f",
-                     FUNCTION_ADDR(generic_target), dval0);
+                     static_cast<void*>(FUNCTION_ADDR(generic_target)),
+                     dval0);
               break;
             case ExternalReference::BUILTIN_FP_INT_CALL:
               PrintF("Call to host function at %p with args %f, %" V8PRIdPTR,
-                     FUNCTION_ADDR(generic_target), dval0, ival);
+                     static_cast<void*>(FUNCTION_ADDR(generic_target)),
+                     dval0, ival);
               break;
             default:
               UNREACHABLE();
@@ -1389,9 +1354,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         CHECK(stack_aligned);
         SimulatorRuntimeDirectGetterCall target =
             reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
-#if !ABI_PASSES_HANDLES_IN_REGS
-        arg[0] = *(reinterpret_cast<intptr_t*>(arg[0]));
-#endif
+        if (!ABI_PASSES_HANDLES_IN_REGS) {
+          arg[0] = *(reinterpret_cast<intptr_t*>(arg[0]));
+        }
         target(arg[0], arg[1]);
       } else if (redirection->type() ==
                  ExternalReference::PROFILING_GETTER_CALL) {
@@ -1408,9 +1373,9 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
         CHECK(stack_aligned);
         SimulatorRuntimeProfilingGetterCall target =
             reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(external);
-#if !ABI_PASSES_HANDLES_IN_REGS
-        arg[0] = *(reinterpret_cast<intptr_t*>(arg[0]));
-#endif
+        if (!ABI_PASSES_HANDLES_IN_REGS) {
+          arg[0] = *(reinterpret_cast<intptr_t*>(arg[0]));
+        }
         target(arg[0], arg[1], Redirection::ReverseRedirection(arg[2]));
       } else {
         // builtin call.
@@ -1421,8 +1386,8 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
               "Call to host function at %p,\n"
               "\t\t\t\targs %08" V8PRIxPTR ", %08" V8PRIxPTR ", %08" V8PRIxPTR
               ", %08" V8PRIxPTR ", %08" V8PRIxPTR ", %08" V8PRIxPTR,
-              FUNCTION_ADDR(target), arg[0], arg[1], arg[2], arg[3], arg[4],
-              arg[5]);
+              static_cast<void*>(FUNCTION_ADDR(target)), arg[0], arg[1],
+              arg[2], arg[3], arg[4], arg[5]);
           if (!stack_aligned) {
             PrintF(" with unaligned stack %08" V8PRIxPTR "\n",
                    get_register(sp));
@@ -1430,19 +1395,53 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
           PrintF("\n");
         }
         CHECK(stack_aligned);
-        DCHECK(redirection->type() == ExternalReference::BUILTIN_CALL);
-        SimulatorRuntimeCall target =
-            reinterpret_cast<SimulatorRuntimeCall>(external);
-        ObjectPair result =
-            target(arg[0], arg[1], arg[2], arg[3], arg[4], arg[5]);
-        intptr_t x;
-        intptr_t y;
-        decodeObjectPair(&result, &x, &y);
-        if (::v8::internal::FLAG_trace_sim) {
-          PrintF("Returned {%08" V8PRIxPTR ", %08" V8PRIxPTR "}\n", x, y);
+        if (redirection->type() == ExternalReference::BUILTIN_CALL_TRIPLE) {
+          SimulatorRuntimeTripleCall target =
+              reinterpret_cast<SimulatorRuntimeTripleCall>(external);
+          ObjectTriple result =
+              target(arg[0], arg[1], arg[2], arg[3], arg[4], arg[5]);
+          if (::v8::internal::FLAG_trace_sim) {
+            PrintF("Returned {%08" V8PRIxPTR ", %08" V8PRIxPTR ", %08" V8PRIxPTR
+                   "}\n",
+                   reinterpret_cast<intptr_t>(result.x),
+                   reinterpret_cast<intptr_t>(result.y),
+                   reinterpret_cast<intptr_t>(result.z));
+          }
+          memcpy(reinterpret_cast<void*>(result_buffer), &result,
+                 sizeof(ObjectTriple));
+          set_register(r3, result_buffer);
+        } else {
+          if (redirection->type() == ExternalReference::BUILTIN_CALL_PAIR) {
+            SimulatorRuntimePairCall target =
+                reinterpret_cast<SimulatorRuntimePairCall>(external);
+            ObjectPair result =
+                target(arg[0], arg[1], arg[2], arg[3], arg[4], arg[5]);
+            intptr_t x;
+            intptr_t y;
+            decodeObjectPair(&result, &x, &y);
+            if (::v8::internal::FLAG_trace_sim) {
+              PrintF("Returned {%08" V8PRIxPTR ", %08" V8PRIxPTR "}\n", x, y);
+            }
+            if (ABI_RETURNS_OBJECT_PAIRS_IN_REGS) {
+              set_register(r3, x);
+              set_register(r4, y);
+            } else {
+              memcpy(reinterpret_cast<void*>(result_buffer), &result,
+                     sizeof(ObjectPair));
+              set_register(r3, result_buffer);
+            }
+          } else {
+            DCHECK(redirection->type() == ExternalReference::BUILTIN_CALL);
+            SimulatorRuntimeCall target =
+                reinterpret_cast<SimulatorRuntimeCall>(external);
+            intptr_t result =
+                target(arg[0], arg[1], arg[2], arg[3], arg[4], arg[5]);
+            if (::v8::internal::FLAG_trace_sim) {
+              PrintF("Returned %08" V8PRIxPTR "\n", result);
+            }
+            set_register(r3, result);
+          }
         }
-        set_register(r3, x);
-        set_register(r4, y);
       }
       set_pc(saved_lr);
       break;
@@ -1686,8 +1685,8 @@ bool Simulator::ExecuteExt2_10bit(Instruction* instr) {
       int ra = instr->RAValue();
       int rb = instr->RBValue();
       uint32_t rs_val = get_register(rs);
-      uintptr_t rb_val = get_register(rb);
-      intptr_t result = rs_val >> (rb_val & 0x3f);
+      uintptr_t rb_val = get_register(rb) & 0x3f;
+      intptr_t result = (rb_val > 31) ? 0 : rs_val >> rb_val;
       set_register(ra, result);
       if (instr->Bit(0)) {  // RC bit set
         SetCR0(result);
@@ -1700,8 +1699,8 @@ bool Simulator::ExecuteExt2_10bit(Instruction* instr) {
       int ra = instr->RAValue();
       int rb = instr->RBValue();
       uintptr_t rs_val = get_register(rs);
-      uintptr_t rb_val = get_register(rb);
-      intptr_t result = rs_val >> (rb_val & 0x7f);
+      uintptr_t rb_val = get_register(rb) & 0x7f;
+      intptr_t result = (rb_val > 63) ? 0 : rs_val >> rb_val;
       set_register(ra, result);
       if (instr->Bit(0)) {  // RC bit set
         SetCR0(result);
@@ -1714,8 +1713,8 @@ bool Simulator::ExecuteExt2_10bit(Instruction* instr) {
       int ra = instr->RAValue();
       int rb = instr->RBValue();
       int32_t rs_val = get_register(rs);
-      intptr_t rb_val = get_register(rb);
-      intptr_t result = rs_val >> (rb_val & 0x3f);
+      intptr_t rb_val = get_register(rb) & 0x3f;
+      intptr_t result = (rb_val > 31) ? rs_val >> 31 : rs_val >> rb_val;
       set_register(ra, result);
       if (instr->Bit(0)) {  // RC bit set
         SetCR0(result);
@@ -1728,8 +1727,8 @@ bool Simulator::ExecuteExt2_10bit(Instruction* instr) {
       int ra = instr->RAValue();
       int rb = instr->RBValue();
       intptr_t rs_val = get_register(rs);
-      intptr_t rb_val = get_register(rb);
-      intptr_t result = rs_val >> (rb_val & 0x7f);
+      intptr_t rb_val = get_register(rb) & 0x7f;
+      intptr_t result = (rb_val > 63) ? rs_val >> 63 : rs_val >> rb_val;
       set_register(ra, result);
       if (instr->Bit(0)) {  // RC bit set
         SetCR0(result);
@@ -1978,15 +1977,33 @@ bool Simulator::ExecuteExt2_9bit_part1(Instruction* instr) {
       uintptr_t ra_val = get_register(ra);
       uintptr_t rb_val = get_register(rb);
       uintptr_t alu_out = ~ra_val + rb_val + 1;
-      set_register(rt, alu_out);
-      // If the sign of rb and alu_out don't match, carry = 0
-      if ((alu_out ^ rb_val) & 0x80000000) {
-        special_reg_xer_ &= ~0xF0000000;
-      } else {
+      // Set carry
+      if (ra_val <= rb_val) {
         special_reg_xer_ = (special_reg_xer_ & ~0xF0000000) | 0x20000000;
+      } else {
+        special_reg_xer_ &= ~0xF0000000;
       }
+      set_register(rt, alu_out);
       if (instr->Bit(0)) {  // RC bit set
         SetCR0(alu_out);
+      }
+      // todo - handle OE bit
+      break;
+    }
+    case SUBFEX: {
+      int rt = instr->RTValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      // int oe = instr->Bit(10);
+      uintptr_t ra_val = get_register(ra);
+      uintptr_t rb_val = get_register(rb);
+      uintptr_t alu_out = ~ra_val + rb_val;
+      if (special_reg_xer_ & 0x20000000) {
+        alu_out += 1;
+      }
+      set_register(rt, alu_out);
+      if (instr->Bit(0)) {  // RC bit set
+        SetCR0(static_cast<intptr_t>(alu_out));
       }
       // todo - handle OE bit
       break;
@@ -1999,11 +2016,29 @@ bool Simulator::ExecuteExt2_9bit_part1(Instruction* instr) {
       uintptr_t ra_val = get_register(ra);
       uintptr_t rb_val = get_register(rb);
       uintptr_t alu_out = ra_val + rb_val;
-      // Check overflow
+      // Set carry
       if (~ra_val < rb_val) {
         special_reg_xer_ = (special_reg_xer_ & ~0xF0000000) | 0x20000000;
       } else {
         special_reg_xer_ &= ~0xF0000000;
+      }
+      set_register(rt, alu_out);
+      if (instr->Bit(0)) {  // RC bit set
+        SetCR0(static_cast<intptr_t>(alu_out));
+      }
+      // todo - handle OE bit
+      break;
+    }
+    case ADDEX: {
+      int rt = instr->RTValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      // int oe = instr->Bit(10);
+      uintptr_t ra_val = get_register(ra);
+      uintptr_t rb_val = get_register(rb);
+      uintptr_t alu_out = ra_val + rb_val;
+      if (special_reg_xer_ & 0x20000000) {
+        alu_out += 1;
       }
       set_register(rt, alu_out);
       if (instr->Bit(0)) {  // RC bit set
@@ -2070,8 +2105,8 @@ bool Simulator::ExecuteExt2_9bit_part1(Instruction* instr) {
       int ra = instr->RAValue();
       int rb = instr->RBValue();
       uint32_t rs_val = get_register(rs);
-      uintptr_t rb_val = get_register(rb);
-      uint32_t result = rs_val << (rb_val & 0x3f);
+      uintptr_t rb_val = get_register(rb) & 0x3f;
+      uint32_t result = (rb_val > 31) ? 0 : rs_val << rb_val;
       set_register(ra, result);
       if (instr->Bit(0)) {  // RC bit set
         SetCR0(result);
@@ -2084,8 +2119,8 @@ bool Simulator::ExecuteExt2_9bit_part1(Instruction* instr) {
       int ra = instr->RAValue();
       int rb = instr->RBValue();
       uintptr_t rs_val = get_register(rs);
-      uintptr_t rb_val = get_register(rb);
-      uintptr_t result = rs_val << (rb_val & 0x7f);
+      uintptr_t rb_val = get_register(rb) & 0x7f;
+      uintptr_t result = (rb_val > 63) ? 0 : rs_val << rb_val;
       set_register(ra, result);
       if (instr->Bit(0)) {  // RC bit set
         SetCR0(result);
@@ -3852,17 +3887,19 @@ void Simulator::CallInternal(byte* entry) {
   // Adjust JS-based stack limit to C-based stack limit.
   isolate_->stack_guard()->AdjustStackLimitForSimulator();
 
-// Prepare to execute the code at entry
-#if ABI_USES_FUNCTION_DESCRIPTORS
-  // entry is the function descriptor
-  set_pc(*(reinterpret_cast<intptr_t*>(entry)));
-#else
-  // entry is the instruction address
-  set_pc(reinterpret_cast<intptr_t>(entry));
-#endif
+  // Prepare to execute the code at entry
+  if (ABI_USES_FUNCTION_DESCRIPTORS) {
+    // entry is the function descriptor
+    set_pc(*(reinterpret_cast<intptr_t*>(entry)));
+  } else {
+    // entry is the instruction address
+    set_pc(reinterpret_cast<intptr_t>(entry));
+  }
 
-  // Put target address in ip (for JS prologue).
-  set_register(r12, get_pc());
+  if (ABI_CALL_VIA_IP) {
+    // Put target address in ip (for JS prologue).
+    set_register(r12, get_pc());
+  }
 
   // Put down marker for end of simulation. The simulator will stop simulation
   // when the PC reaches this value. By saving the "end simulation" value into
@@ -3919,8 +3956,12 @@ void Simulator::CallInternal(byte* entry) {
   Execute();
 
   // Check that the non-volatile registers have been preserved.
-  CHECK_EQ(callee_saved_value, get_register(r2));
-  CHECK_EQ(callee_saved_value, get_register(r13));
+  if (ABI_TOC_REGISTER != 2) {
+    CHECK_EQ(callee_saved_value, get_register(r2));
+  }
+  if (ABI_TOC_REGISTER != 13) {
+    CHECK_EQ(callee_saved_value, get_register(r13));
+  }
   CHECK_EQ(callee_saved_value, get_register(r14));
   CHECK_EQ(callee_saved_value, get_register(r15));
   CHECK_EQ(callee_saved_value, get_register(r16));

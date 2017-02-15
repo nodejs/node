@@ -14,22 +14,7 @@ RUNTIME_FUNCTION(Runtime_Multiply) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, lhs, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, rhs, 1);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     Object::Multiply(isolate, lhs, rhs));
-  return *result;
-}
-
-
-RUNTIME_FUNCTION(Runtime_Multiply_Strong) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, lhs, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, rhs, 1);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Object::Multiply(isolate, lhs, rhs, Strength::STRONG));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, Object::Multiply(isolate, lhs, rhs));
 }
 
 
@@ -38,22 +23,7 @@ RUNTIME_FUNCTION(Runtime_Divide) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, lhs, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, rhs, 1);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     Object::Divide(isolate, lhs, rhs));
-  return *result;
-}
-
-
-RUNTIME_FUNCTION(Runtime_Divide_Strong) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, lhs, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, rhs, 1);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Object::Divide(isolate, lhs, rhs, Strength::STRONG));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, Object::Divide(isolate, lhs, rhs));
 }
 
 
@@ -62,22 +32,7 @@ RUNTIME_FUNCTION(Runtime_Modulus) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, lhs, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, rhs, 1);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     Object::Modulus(isolate, lhs, rhs));
-  return *result;
-}
-
-
-RUNTIME_FUNCTION(Runtime_Modulus_Strong) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, lhs, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, rhs, 1);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Object::Modulus(isolate, lhs, rhs, Strength::STRONG));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, Object::Modulus(isolate, lhs, rhs));
 }
 
 
@@ -86,22 +41,7 @@ RUNTIME_FUNCTION(Runtime_Add) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, lhs, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, rhs, 1);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     Object::Add(isolate, lhs, rhs));
-  return *result;
-}
-
-
-RUNTIME_FUNCTION(Runtime_Add_Strong) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, lhs, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, rhs, 1);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Object::Add(isolate, lhs, rhs, Strength::STRONG));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, Object::Add(isolate, lhs, rhs));
 }
 
 
@@ -110,22 +50,7 @@ RUNTIME_FUNCTION(Runtime_Subtract) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, lhs, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, rhs, 1);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     Object::Subtract(isolate, lhs, rhs));
-  return *result;
-}
-
-
-RUNTIME_FUNCTION(Runtime_Subtract_Strong) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, lhs, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, rhs, 1);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Object::Subtract(isolate, lhs, rhs, Strength::STRONG));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, Object::Subtract(isolate, lhs, rhs));
 }
 
 
@@ -134,22 +59,7 @@ RUNTIME_FUNCTION(Runtime_ShiftLeft) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, lhs, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, rhs, 1);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     Object::ShiftLeft(isolate, lhs, rhs));
-  return *result;
-}
-
-
-RUNTIME_FUNCTION(Runtime_ShiftLeft_Strong) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, lhs, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, rhs, 1);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Object::ShiftLeft(isolate, lhs, rhs, Strength::STRONG));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, Object::ShiftLeft(isolate, lhs, rhs));
 }
 
 
@@ -158,22 +68,7 @@ RUNTIME_FUNCTION(Runtime_ShiftRight) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, lhs, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, rhs, 1);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     Object::ShiftRight(isolate, lhs, rhs));
-  return *result;
-}
-
-
-RUNTIME_FUNCTION(Runtime_ShiftRight_Strong) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, lhs, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, rhs, 1);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Object::ShiftRight(isolate, lhs, rhs, Strength::STRONG));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, Object::ShiftRight(isolate, lhs, rhs));
 }
 
 
@@ -182,23 +77,8 @@ RUNTIME_FUNCTION(Runtime_ShiftRightLogical) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, lhs, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, rhs, 1);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Object::ShiftRightLogical(isolate, lhs, rhs));
-  return *result;
-}
-
-
-RUNTIME_FUNCTION(Runtime_ShiftRightLogical_Strong) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, lhs, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, rhs, 1);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result,
-      Object::ShiftRightLogical(isolate, lhs, rhs, Strength::STRONG));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           Object::ShiftRightLogical(isolate, lhs, rhs));
 }
 
 
@@ -207,22 +87,7 @@ RUNTIME_FUNCTION(Runtime_BitwiseAnd) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, lhs, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, rhs, 1);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     Object::BitwiseAnd(isolate, lhs, rhs));
-  return *result;
-}
-
-
-RUNTIME_FUNCTION(Runtime_BitwiseAnd_Strong) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, lhs, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, rhs, 1);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Object::BitwiseAnd(isolate, lhs, rhs, Strength::STRONG));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, Object::BitwiseAnd(isolate, lhs, rhs));
 }
 
 
@@ -231,22 +96,7 @@ RUNTIME_FUNCTION(Runtime_BitwiseOr) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, lhs, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, rhs, 1);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     Object::BitwiseOr(isolate, lhs, rhs));
-  return *result;
-}
-
-
-RUNTIME_FUNCTION(Runtime_BitwiseOr_Strong) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, lhs, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, rhs, 1);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Object::BitwiseOr(isolate, lhs, rhs, Strength::STRONG));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, Object::BitwiseOr(isolate, lhs, rhs));
 }
 
 
@@ -255,22 +105,92 @@ RUNTIME_FUNCTION(Runtime_BitwiseXor) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, lhs, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, rhs, 1);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     Object::BitwiseXor(isolate, lhs, rhs));
-  return *result;
+  RETURN_RESULT_OR_FAILURE(isolate, Object::BitwiseXor(isolate, lhs, rhs));
 }
 
-
-RUNTIME_FUNCTION(Runtime_BitwiseXor_Strong) {
+RUNTIME_FUNCTION(Runtime_Equal) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, lhs, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, rhs, 1);
-  Handle<Object> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result, Object::BitwiseXor(isolate, lhs, rhs, Strength::STRONG));
-  return *result;
+  CONVERT_ARG_HANDLE_CHECKED(Object, x, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, y, 1);
+  Maybe<bool> result = Object::Equals(x, y);
+  if (!result.IsJust()) return isolate->heap()->exception();
+  return isolate->heap()->ToBoolean(result.FromJust());
+}
+
+RUNTIME_FUNCTION(Runtime_NotEqual) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, x, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, y, 1);
+  Maybe<bool> result = Object::Equals(x, y);
+  if (!result.IsJust()) return isolate->heap()->exception();
+  return isolate->heap()->ToBoolean(!result.FromJust());
+}
+
+RUNTIME_FUNCTION(Runtime_StrictEqual) {
+  SealHandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_CHECKED(Object, x, 0);
+  CONVERT_ARG_CHECKED(Object, y, 1);
+  return isolate->heap()->ToBoolean(x->StrictEquals(y));
+}
+
+RUNTIME_FUNCTION(Runtime_StrictNotEqual) {
+  SealHandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_CHECKED(Object, x, 0);
+  CONVERT_ARG_CHECKED(Object, y, 1);
+  return isolate->heap()->ToBoolean(!x->StrictEquals(y));
+}
+
+RUNTIME_FUNCTION(Runtime_LessThan) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, x, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, y, 1);
+  Maybe<bool> result = Object::LessThan(x, y);
+  if (!result.IsJust()) return isolate->heap()->exception();
+  return isolate->heap()->ToBoolean(result.FromJust());
+}
+
+RUNTIME_FUNCTION(Runtime_GreaterThan) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, x, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, y, 1);
+  Maybe<bool> result = Object::GreaterThan(x, y);
+  if (!result.IsJust()) return isolate->heap()->exception();
+  return isolate->heap()->ToBoolean(result.FromJust());
+}
+
+RUNTIME_FUNCTION(Runtime_LessThanOrEqual) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, x, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, y, 1);
+  Maybe<bool> result = Object::LessThanOrEqual(x, y);
+  if (!result.IsJust()) return isolate->heap()->exception();
+  return isolate->heap()->ToBoolean(result.FromJust());
+}
+
+RUNTIME_FUNCTION(Runtime_GreaterThanOrEqual) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, x, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, y, 1);
+  Maybe<bool> result = Object::GreaterThanOrEqual(x, y);
+  if (!result.IsJust()) return isolate->heap()->exception();
+  return isolate->heap()->ToBoolean(result.FromJust());
+}
+
+RUNTIME_FUNCTION(Runtime_InstanceOf) {
+  HandleScope shs(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, callable, 1);
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           Object::InstanceOf(isolate, object, callable));
 }
 
 }  // namespace internal

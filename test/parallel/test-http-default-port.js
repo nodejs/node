@@ -1,25 +1,24 @@
 'use strict';
 const common = require('../common');
+
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
+}
+
 const http = require('http');
-const PORT = common.PORT;
-const SSLPORT = common.PORT + 1;
+const https = require('https');
 const assert = require('assert');
 const hostExpect = 'localhost';
 const fs = require('fs');
 const path = require('path');
-const fixtures = path.resolve(__dirname, '../fixtures/keys');
+const fixtures = path.join(common.fixturesDir, 'keys');
 const options = {
   key: fs.readFileSync(fixtures + '/agent1-key.pem'),
   cert: fs.readFileSync(fixtures + '/agent1-cert.pem')
 };
 let gotHttpsResp = false;
 let gotHttpResp = false;
-
-if (common.hasCrypto) {
-  var https = require('https');
-} else {
-  console.log('1..0 # Skipped: missing crypto');
-}
 
 process.on('exit', function() {
   if (common.hasCrypto) {
@@ -29,18 +28,18 @@ process.on('exit', function() {
   console.log('ok');
 });
 
-http.globalAgent.defaultPort = PORT;
 http.createServer(function(req, res) {
-  assert.equal(req.headers.host, hostExpect);
-  assert.equal(req.headers['x-port'], PORT);
+  assert.strictEqual(req.headers.host, hostExpect);
+  assert.strictEqual(req.headers['x-port'], this.address().port.toString());
   res.writeHead(200);
   res.end('ok');
   this.close();
-}).listen(PORT, function() {
+}).listen(0, function() {
+  http.globalAgent.defaultPort = this.address().port;
   http.get({
     host: 'localhost',
     headers: {
-      'x-port': PORT
+      'x-port': this.address().port
     }
   }, function(res) {
     gotHttpResp = true;
@@ -49,19 +48,19 @@ http.createServer(function(req, res) {
 });
 
 if (common.hasCrypto) {
-  https.globalAgent.defaultPort = SSLPORT;
   https.createServer(options, function(req, res) {
-    assert.equal(req.headers.host, hostExpect);
-    assert.equal(req.headers['x-port'], SSLPORT);
+    assert.strictEqual(req.headers.host, hostExpect);
+    assert.strictEqual(req.headers['x-port'], this.address().port.toString());
     res.writeHead(200);
     res.end('ok');
     this.close();
-  }).listen(SSLPORT, function() {
+  }).listen(0, function() {
+    https.globalAgent.defaultPort = this.address().port;
     https.get({
       host: 'localhost',
       rejectUnauthorized: false,
       headers: {
-        'x-port': SSLPORT
+        'x-port': this.address().port
       }
     }, function(res) {
       gotHttpsResp = true;

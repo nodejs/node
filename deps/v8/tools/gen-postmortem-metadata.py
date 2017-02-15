@@ -50,7 +50,8 @@ import re
 import sys
 
 #
-# Miscellaneous constants, tags, and masks used for object identification.
+# Miscellaneous constants such as tags and masks used for object identification,
+# enumeration values used as indexes in internal tables, etc..
 #
 consts_misc = [
     { 'name': 'FirstNonstringType',     'value': 'FIRST_NONSTRING_TYPE' },
@@ -82,7 +83,7 @@ consts_misc = [
     { 'name': 'OddballTrue',            'value': 'Oddball::kTrue' },
     { 'name': 'OddballTheHole',         'value': 'Oddball::kTheHole' },
     { 'name': 'OddballNull',            'value': 'Oddball::kNull' },
-    { 'name': 'OddballArgumentMarker',  'value': 'Oddball::kArgumentMarker' },
+    { 'name': 'OddballArgumentsMarker', 'value': 'Oddball::kArgumentsMarker' },
     { 'name': 'OddballUndefined',       'value': 'Oddball::kUndefined' },
     { 'name': 'OddballUninitialized',   'value': 'Oddball::kUninitialized' },
     { 'name': 'OddballOther',           'value': 'Oddball::kOther' },
@@ -92,6 +93,8 @@ consts_misc = [
         'value': 'DescriptorArray::kFirstIndex' },
     { 'name': 'prop_type_field',
         'value': 'DATA' },
+    { 'name': 'prop_type_const_field',
+        'value': 'DATA_CONSTANT' },
     { 'name': 'prop_type_mask',
         'value': 'PropertyDetails::TypeField::kMask' },
     { 'name': 'prop_index_mask',
@@ -154,8 +157,6 @@ consts_misc = [
         'value': 'StandardFrameConstants::kContextOffset' },
     { 'name': 'off_fp_constant_pool',
         'value': 'StandardFrameConstants::kConstantPoolOffset' },
-    { 'name': 'off_fp_marker',
-        'value': 'StandardFrameConstants::kMarkerOffset' },
     { 'name': 'off_fp_function',
         'value': 'JavaScriptFrameConstants::kFunctionOffset' },
     { 'name': 'off_fp_args',
@@ -167,8 +168,6 @@ consts_misc = [
         'value': 'ScopeInfo::kStackLocalCount' },
     { 'name': 'scopeinfo_idx_ncontextlocals',
         'value': 'ScopeInfo::kContextLocalCount' },
-    { 'name': 'scopeinfo_idx_ncontextglobals',
-        'value': 'ScopeInfo::kContextGlobalCount' },
     { 'name': 'scopeinfo_idx_first_vars',
         'value': 'ScopeInfo::kVariablePartIndex' },
 
@@ -181,17 +180,49 @@ consts_misc = [
         'value': 'JSArrayBuffer::WasNeutered::kMask' },
     { 'name': 'jsarray_buffer_was_neutered_shift',
         'value': 'JSArrayBuffer::WasNeutered::kShift' },
+
+    { 'name': 'context_idx_closure',
+        'value': 'Context::CLOSURE_INDEX' },
+    { 'name': 'context_idx_native',
+        'value': 'Context::NATIVE_CONTEXT_INDEX' },
+    { 'name': 'context_idx_prev',
+        'value': 'Context::PREVIOUS_INDEX' },
+    { 'name': 'context_idx_ext',
+        'value': 'Context::EXTENSION_INDEX' },
+    { 'name': 'context_min_slots',
+        'value': 'Context::MIN_CONTEXT_SLOTS' },
+
+    { 'name': 'namedictionaryshape_prefix_size',
+        'value': 'NameDictionaryShape::kPrefixSize' },
+    { 'name': 'namedictionaryshape_entry_size',
+        'value': 'NameDictionaryShape::kEntrySize' },
+    { 'name': 'globaldictionaryshape_entry_size',
+        'value': 'GlobalDictionaryShape::kEntrySize' },
+
+    { 'name': 'namedictionary_prefix_start_index',
+        'value': 'NameDictionary::kPrefixStartIndex' },
+
+    { 'name': 'seedednumberdictionaryshape_prefix_size',
+        'value': 'SeededNumberDictionaryShape::kPrefixSize' },
+    { 'name': 'seedednumberdictionaryshape_entry_size',
+        'value': 'SeededNumberDictionaryShape::kEntrySize' },
+
+    { 'name': 'unseedednumberdictionaryshape_prefix_size',
+        'value': 'UnseededNumberDictionaryShape::kPrefixSize' },
+    { 'name': 'unseedednumberdictionaryshape_entry_size',
+        'value': 'UnseededNumberDictionaryShape::kEntrySize' }
 ];
 
 #
 # The following useful fields are missing accessors, so we define fake ones.
+# Please note that extra accessors should _only_ be added to expose offsets that
+# can be used to access actual V8 objects' properties. They should not be added
+# for exposing other values. For instance, enumeration values or class'
+# constants should be exposed by adding an entry in the "consts_misc" table, not
+# in this "extras_accessors" table.
 #
 extras_accessors = [
     'JSFunction, context, Context, kContextOffset',
-    'Context, closure_index, int, CLOSURE_INDEX',
-    'Context, native_context_index, int, NATIVE_CONTEXT_INDEX',
-    'Context, previous_index, int, PREVIOUS_INDEX',
-    'Context, min_context_slots, int, MIN_CONTEXT_SLOTS',
     'HeapObject, map, Map, kMapOffset',
     'JSObject, elements, Object, kElementsOffset',
     'FixedArray, data, uintptr_t, kHeaderSize',
@@ -205,12 +236,6 @@ extras_accessors = [
     'Map, bit_field2, char, kBitField2Offset',
     'Map, bit_field3, int, kBitField3Offset',
     'Map, prototype, Object, kPrototypeOffset',
-    'NameDictionaryShape, prefix_size, int, kPrefixSize',
-    'NameDictionaryShape, entry_size, int, kEntrySize',
-    'NameDictionary, prefix_start_index, int, kPrefixStartIndex',
-    'SeededNumberDictionaryShape, prefix_size, int, kPrefixSize',
-    'UnseededNumberDictionaryShape, prefix_size, int, kPrefixSize',
-    'NumberDictionaryShape, entry_size, int, kEntrySize',
     'Oddball, kind_offset, int, kKindOffset',
     'HeapNumber, value, double, kValueOffset',
     'ConsString, first, String, kFirstOffset',
@@ -254,6 +279,7 @@ header = '''
 #include "src/v8.h"
 #include "src/frames.h"
 #include "src/frames-inl.h" /* for architecture-specific frame constants */
+#include "src/contexts.h"
 
 using namespace v8::internal;
 

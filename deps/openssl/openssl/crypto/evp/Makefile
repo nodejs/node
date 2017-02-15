@@ -199,8 +199,8 @@ e_aes.o: ../../include/openssl/opensslv.h ../../include/openssl/ossl_typ.h
 e_aes.o: ../../include/openssl/rand.h ../../include/openssl/safestack.h
 e_aes.o: ../../include/openssl/stack.h ../../include/openssl/symhacks.h
 e_aes.o: ../modes/modes_lcl.h e_aes.c evp_locl.h
-e_aes_cbc_hmac_sha1.o: ../../include/openssl/aes.h ../../include/openssl/asn1.h
-e_aes_cbc_hmac_sha1.o: ../../include/openssl/bio.h
+e_aes_cbc_hmac_sha1.o: ../../e_os.h ../../include/openssl/aes.h
+e_aes_cbc_hmac_sha1.o: ../../include/openssl/asn1.h ../../include/openssl/bio.h
 e_aes_cbc_hmac_sha1.o: ../../include/openssl/crypto.h
 e_aes_cbc_hmac_sha1.o: ../../include/openssl/e_os2.h
 e_aes_cbc_hmac_sha1.o: ../../include/openssl/evp.h
@@ -214,9 +214,9 @@ e_aes_cbc_hmac_sha1.o: ../../include/openssl/rand.h
 e_aes_cbc_hmac_sha1.o: ../../include/openssl/safestack.h
 e_aes_cbc_hmac_sha1.o: ../../include/openssl/sha.h
 e_aes_cbc_hmac_sha1.o: ../../include/openssl/stack.h
-e_aes_cbc_hmac_sha1.o: ../../include/openssl/symhacks.h ../modes/modes_lcl.h
-e_aes_cbc_hmac_sha1.o: e_aes_cbc_hmac_sha1.c
-e_aes_cbc_hmac_sha256.o: ../../include/openssl/aes.h
+e_aes_cbc_hmac_sha1.o: ../../include/openssl/symhacks.h ../constant_time_locl.h
+e_aes_cbc_hmac_sha1.o: ../modes/modes_lcl.h e_aes_cbc_hmac_sha1.c
+e_aes_cbc_hmac_sha256.o: ../../e_os.h ../../include/openssl/aes.h
 e_aes_cbc_hmac_sha256.o: ../../include/openssl/asn1.h
 e_aes_cbc_hmac_sha256.o: ../../include/openssl/bio.h
 e_aes_cbc_hmac_sha256.o: ../../include/openssl/crypto.h
@@ -232,7 +232,8 @@ e_aes_cbc_hmac_sha256.o: ../../include/openssl/rand.h
 e_aes_cbc_hmac_sha256.o: ../../include/openssl/safestack.h
 e_aes_cbc_hmac_sha256.o: ../../include/openssl/sha.h
 e_aes_cbc_hmac_sha256.o: ../../include/openssl/stack.h
-e_aes_cbc_hmac_sha256.o: ../../include/openssl/symhacks.h ../modes/modes_lcl.h
+e_aes_cbc_hmac_sha256.o: ../../include/openssl/symhacks.h
+e_aes_cbc_hmac_sha256.o: ../constant_time_locl.h ../modes/modes_lcl.h
 e_aes_cbc_hmac_sha256.o: e_aes_cbc_hmac_sha256.c
 e_bf.o: ../../e_os.h ../../include/openssl/asn1.h ../../include/openssl/bio.h
 e_bf.o: ../../include/openssl/blowfish.h ../../include/openssl/buffer.h

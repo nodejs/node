@@ -20,13 +20,8 @@ var arrayIteratorObjectSymbol =
 var GlobalArray = global.Array;
 var IteratorPrototype = utils.ImportNow("IteratorPrototype");
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
-var MakeTypeError;
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
-var GlobalTypedArray = global.Uint8Array.__proto__;
-
-utils.Import(function(from) {
-  MakeTypeError = from.MakeTypeError;
-})
+var GlobalTypedArray = %object_get_prototype_of(global.Uint8Array);
 
 // -----------------------------------------------------------------------
 
@@ -63,7 +58,7 @@ function ArrayIteratorNext() {
 
   if (!IS_RECEIVER(iterator) ||
       !HAS_DEFINED_PRIVATE(iterator, arrayIteratorNextIndexSymbol)) {
-    throw MakeTypeError(kIncompatibleMethodReceiver,
+    throw %make_type_error(kIncompatibleMethodReceiver,
                         'Array Iterator.prototype.next', this);
   }
 
@@ -109,6 +104,24 @@ function ArrayKeys() {
   return CreateArrayIterator(this, ITERATOR_KIND_KEYS);
 }
 
+// TODO(littledan): Check for detached TypedArray in these three methods
+function TypedArrayEntries() {
+  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
+  return %_Call(ArrayEntries, this);
+}
+
+
+function TypedArrayValues() {
+  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
+  return %_Call(ArrayValues, this);
+}
+
+
+function TypedArrayKeys() {
+  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
+  return %_Call(ArrayKeys, this);
+}
+
 
 %FunctionSetPrototype(ArrayIterator, {__proto__: IteratorPrototype});
 %FunctionSetInstanceClassName(ArrayIterator, 'Array Iterator');
@@ -117,8 +130,6 @@ utils.InstallFunctions(ArrayIterator.prototype, DONT_ENUM, [
   'next', ArrayIteratorNext
 ]);
 utils.SetFunctionName(ArrayIteratorIterator, iteratorSymbol);
-%AddNamedProperty(ArrayIterator.prototype, iteratorSymbol,
-                  ArrayIteratorIterator, DONT_ENUM);
 %AddNamedProperty(ArrayIterator.prototype, toStringTagSymbol,
                   "Array Iterator", READ_ONLY | DONT_ENUM);
 
@@ -128,19 +139,22 @@ utils.InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
   'keys', ArrayKeys
 ]);
 
-// TODO(adam): Remove this call once 'values' is in the above
-// InstallFunctions block, as it'll be redundant.
+// TODO(adam): Remove these calls once 'values' is in the above
+// InstallFunctions block, as they'll be redundant.
 utils.SetFunctionName(ArrayValues, 'values');
+%FunctionRemovePrototype(ArrayValues);
+%SetNativeFlag(ArrayValues);
 
 %AddNamedProperty(GlobalArray.prototype, iteratorSymbol, ArrayValues,
                   DONT_ENUM);
 
+utils.InstallFunctions(GlobalTypedArray.prototype, DONT_ENUM, [
+  'entries', TypedArrayEntries,
+  'keys', TypedArrayKeys,
+  'values', TypedArrayValues
+]);
 %AddNamedProperty(GlobalTypedArray.prototype,
-                  'entries', ArrayEntries, DONT_ENUM);
-%AddNamedProperty(GlobalTypedArray.prototype, 'values', ArrayValues, DONT_ENUM);
-%AddNamedProperty(GlobalTypedArray.prototype, 'keys', ArrayKeys, DONT_ENUM);
-%AddNamedProperty(GlobalTypedArray.prototype,
-                  iteratorSymbol, ArrayValues, DONT_ENUM);
+                  iteratorSymbol, TypedArrayValues, DONT_ENUM);
 
 // -------------------------------------------------------------------
 // Exports

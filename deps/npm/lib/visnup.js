@@ -1,5 +1,6 @@
 module.exports = visnup
 var npm = require('./npm.js')
+var output = require('./utils/output.js')
 
 var handsomeFace = [
   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 232, 237, 236, 236, 232, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -31,7 +32,7 @@ var handsomeFace = [
 
 function visnup (args, cb) {
   handsomeFace.forEach(function (line) {
-    console.log(line.map(function (ch) {
+    output(line.map(function (ch) {
       return '\u001b[' + (ch ? '48;5;' + ch : ch) + 'm'
     }).join(' '))
   })

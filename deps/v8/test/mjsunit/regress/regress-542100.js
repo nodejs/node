@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-sloppy --harmony-sloppy-function
+// Flags: --no-harmony-restrictive-declarations
 
 (function() {
   var x = {a: 1}

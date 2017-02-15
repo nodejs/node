@@ -8,7 +8,7 @@ assert.throws(function() {
 }, function(err) {
   assert(err);
   assert(/non-existent-file/.test(err));
-  assert.equal(err.filename, 'non-existent-file');
+  assert.strictEqual(err.filename, 'non-existent-file');
   return true;
 });
 
@@ -16,6 +16,6 @@ const watcher = fs.watch(__filename);
 watcher.on('error', common.mustCall(function(err) {
   assert(err);
   assert(/non-existent-file/.test(err));
-  assert.equal(err.filename, 'non-existent-file');
+  assert.strictEqual(err.filename, 'non-existent-file');
 }));
 watcher._handle.onchange(-1, 'ENOENT', 'non-existent-file');

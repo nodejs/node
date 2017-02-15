@@ -10,12 +10,16 @@ var chain = require('slide').chain
 var path = require('path')
 var build = require('./build.js')
 var npa = require('npm-package-arg')
+var usage = require('./utils/usage')
+var output = require('./utils/output.js')
 
 module.exports = link
 
-link.usage = 'npm link (in package dir)' +
-             '\nnpm link [<@scope>/]<pkg>[@<version>]' +
-             '\n\nalias: npm ln'
+link.usage = usage(
+  'link',
+  'npm link (in package dir)' +
+  '\nnpm link [<@scope>/]<pkg>[@<version>]'
+)
 
 link.completion = function (opts, cb) {
   var dir = npm.globalDir
@@ -176,9 +180,7 @@ function resultPrinter (pkg, src, dest, rp, cb) {
     return parseableOutput(dest, rp || src, cb)
   }
   if (rp === src) rp = null
-  log.clearProgress()
-  console.log(where + ' -> ' + src + (rp ? ' -> ' + rp : ''))
-  log.showProgress()
+  output(where + ' -> ' + src + (rp ? ' -> ' + rp : ''))
   cb()
 }
 
@@ -190,8 +192,6 @@ function parseableOutput (dest, rp, cb) {
   // *just* print the target folder.
   // However, we don't actually ever read the version number, so
   // the second field is always blank.
-  log.clearProgress()
-  console.log(dest + '::' + rp)
-  log.showProgress()
+  output(dest + '::' + rp)
   cb()
 }

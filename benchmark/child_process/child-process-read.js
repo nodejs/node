@@ -1,29 +1,36 @@
 'use strict';
-var common = require('../common.js');
-var bench = common.createBenchmark(main, {
-  len: [64, 256, 1024, 4096, 32768],
+const common = require('../common.js');
+const os = require('os');
+
+var messagesLength = [64, 256, 1024, 4096];
+// Windows does not support that long arguments
+if (os.platform() !== 'win32')
+  messagesLength.push(32768);
+
+const bench = common.createBenchmark(main, {
+  len: messagesLength,
   dur: [5]
 });
 
-var spawn = require('child_process').spawn;
+const spawn = require('child_process').spawn;
 function main(conf) {
   bench.start();
 
-  var dur = +conf.dur;
-  var len = +conf.len;
+  const dur = +conf.dur;
+  const len = +conf.len;
 
-  var msg = '"' + Array(len).join('.') + '"';
-  var options = { 'stdio': ['ignore', 'ipc', 'ignore'] };
-  var child = spawn('yes', [msg], options);
+  const msg = '"' + Array(len).join('.') + '"';
+  const options = { 'stdio': ['ignore', 'pipe', 'ignore'] };
+  const child = spawn('yes', [msg], options);
 
   var bytes = 0;
-  child.on('message', function(msg) {
+  child.stdout.on('data', function(msg) {
     bytes += msg.length;
   });
 
   setTimeout(function() {
     child.kill();
-    var gbits = (bytes * 8) / (1024 * 1024 * 1024);
+    const gbits = (bytes * 8) / (1024 * 1024 * 1024);
     bench.end(gbits);
   }, dur * 1000);
 }

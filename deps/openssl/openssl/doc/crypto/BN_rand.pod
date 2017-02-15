@@ -19,7 +19,11 @@ BN_rand, BN_pseudo_rand, BN_rand_range, BN_pseudo_rand_range - generate pseudo-r
 =head1 DESCRIPTION
 
 BN_rand() generates a cryptographically strong pseudo-random number of
-B<bits> in length and stores it in B<rnd>. If B<top> is -1, the
+B<bits> in length and stores it in B<rnd>.
+If B<bits> is less than zero, or too small to
+accomodate the requirements specified by the B<top> and B<bottom>
+parameters, an error is returned.
+If B<top> is -1, the
 most significant bit of the random number can be zero. If B<top> is 0,
 it is set to 1, and if B<top> is 1, the two most significant bits of
 the number will be set to 1, so that the product of two such random

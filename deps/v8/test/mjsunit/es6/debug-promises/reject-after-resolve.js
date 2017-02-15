@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug --allow-natives-syntax --promise-extra
+// Flags: --expose-debug-as debug --allow-natives-syntax
 
 // Test debug events when we listen to uncaught exceptions and
 // the Promise is rejected in a chained closure after it has been resolved.
@@ -17,7 +17,7 @@ var p = new Promise(function(resolve, reject) {
   resolve(reject);
 });
 
-var q = p.chain(
+var q = p.then(
   function(value) {
     assertEquals(["resolve", "end main"], log);
     value(new Error("reject"));

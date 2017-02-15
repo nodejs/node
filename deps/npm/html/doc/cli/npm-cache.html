@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
   <title>npm-cache</title>
-  <meta http-equiv="content-type" value="text/html;utf-8">
+  <meta charset="utf-8">
   <link rel="stylesheet" type="text/css" href="../../static/style.css">
   <link rel="canonical" href="https://www.npmjs.org/doc/cli/npm-cache.html">
   <script async=true src="../../static/toc.js"></script>
@@ -19,8 +19,9 @@ npm cache add &lt;name&gt;@&lt;version&gt;
 npm cache ls [&lt;path&gt;]
 
 npm cache clean [&lt;path&gt;]
+aliases: npm cache clear, npm cache rm
 </code></pre><h2 id="description">DESCRIPTION</h2>
-<p>Used to add, list, or clear the npm cache folder.</p>
+<p>Used to add, list, or clean the npm cache folder.</p>
 <ul>
 <li><p>add:
 Add the specified package to the local cache.  This command is primarily
@@ -35,7 +36,7 @@ folder.  Works a bit like the <code>find</code> program, but limited by the
 <li><p>clean:
 Delete data out of the cache folder.  If an argument is provided, then
 it specifies a subpath to delete.  If no argument is provided, then
-the entire cache is cleared.</p>
+the entire cache is deleted.</p>
 </li>
 </ul>
 <h2 id="details">DETAILS</h2>
@@ -81,5 +82,5 @@ they do not make an HTTP request to the registry.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-cache &mdash; npm@3.6.0</p>
+<p id="footer">npm-cache &mdash; npm@4.1.2</p>
 

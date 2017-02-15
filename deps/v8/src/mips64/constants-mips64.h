@@ -45,27 +45,6 @@ enum ArchVariants {
 #error Unknown endianness
 #endif
 
-// TODO(plind): consider deriving ABI from compiler flags or build system.
-
-// ABI-dependent definitions are made with #define in simulator-mips64.h,
-// so the ABI choice must be available to the pre-processor. However, in all
-// other cases, we should use the enum AbiVariants with normal if statements.
-
-#define MIPS_ABI_N64 1
-// #define MIPS_ABI_O32 1
-
-// The only supported Abi's are O32, and n64.
-enum AbiVariants {
-  kO32,
-  kN64  // Use upper case N for 'n64' ABI to conform to style standard.
-};
-
-#ifdef MIPS_ABI_N64
-static const AbiVariants kMipsAbi = kN64;
-#else
-static const AbiVariants kMipsAbi = kO32;
-#endif
-
 
 // TODO(plind): consider renaming these ...
 #if(defined(__mips_hard_float) && __mips_hard_float != 0)
@@ -81,6 +60,27 @@ const bool IsMipsSoftFloatABI = true;
 const bool IsMipsSoftFloatABI = true;
 #endif
 
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+const uint32_t kMipsLwrOffset = 0;
+const uint32_t kMipsLwlOffset = 3;
+const uint32_t kMipsSwrOffset = 0;
+const uint32_t kMipsSwlOffset = 3;
+const uint32_t kMipsLdrOffset = 0;
+const uint32_t kMipsLdlOffset = 7;
+const uint32_t kMipsSdrOffset = 0;
+const uint32_t kMipsSdlOffset = 7;
+#elif defined(V8_TARGET_BIG_ENDIAN)
+const uint32_t kMipsLwrOffset = 3;
+const uint32_t kMipsLwlOffset = 0;
+const uint32_t kMipsSwrOffset = 3;
+const uint32_t kMipsSwlOffset = 0;
+const uint32_t kMipsLdrOffset = 7;
+const uint32_t kMipsLdlOffset = 0;
+const uint32_t kMipsSdrOffset = 7;
+const uint32_t kMipsSdlOffset = 0;
+#else
+#error Unknown endianness
+#endif
 
 #ifndef __STDC_FORMAT_MACROS
 #define __STDC_FORMAT_MACROS
@@ -405,6 +405,7 @@ enum SecondaryField : uint32_t {
   MOVZ = ((1U << 3) + 2),
   MOVN = ((1U << 3) + 3),
   BREAK = ((1U << 3) + 5),
+  SYNC = ((1U << 3) + 7),
 
   MFHI = ((2U << 3) + 0),
   CLZ_R6 = ((2U << 3) + 0),
@@ -554,6 +555,8 @@ enum SecondaryField : uint32_t {
   FLOOR_W_S = ((1U << 3) + 7),
   RECIP_S = ((2U << 3) + 5),
   RSQRT_S = ((2U << 3) + 6),
+  MADDF_S = ((3U << 3) + 0),
+  MSUBF_S = ((3U << 3) + 1),
   CLASS_S = ((3U << 3) + 3),
   CVT_D_S = ((4U << 3) + 1),
   CVT_W_S = ((4U << 3) + 4),
@@ -578,6 +581,8 @@ enum SecondaryField : uint32_t {
   FLOOR_W_D = ((1U << 3) + 7),
   RECIP_D = ((2U << 3) + 5),
   RSQRT_D = ((2U << 3) + 6),
+  MADDF_D = ((3U << 3) + 0),
+  MSUBF_D = ((3U << 3) + 1),
   CLASS_D = ((3U << 3) + 3),
   MIN = ((3U << 3) + 4),
   MINA = ((3U << 3) + 5),
@@ -645,8 +650,12 @@ enum SecondaryField : uint32_t {
   SELNEZ_C = ((2U << 3) + 7),  // COP1 on FPR registers.
 
   // COP1 Encoding of Function Field When rs=PS.
+
   // COP1X Encoding of Function Field.
+  MADD_S = ((4U << 3) + 0),
   MADD_D = ((4U << 3) + 1),
+  MSUB_S = ((5U << 3) + 0),
+  MSUB_D = ((5U << 3) + 1),
 
   // PCREL Encoding of rt Field.
   ADDIUPC = ((0U << 2) + 0),
@@ -665,7 +674,6 @@ enum SecondaryField : uint32_t {
 
   NULLSF = 0U
 };
-
 
 // ----- Emulated conditions.
 // On MIPS we use this enum to abstract from conditional branch instructions.
@@ -840,6 +848,7 @@ enum CheckForInexactConversion {
   kDontCheckForInexactConversion
 };
 
+enum class MaxMinKind : int { kMin = 0, kMax = 1 };
 
 // -----------------------------------------------------------------------------
 // Hints.
@@ -890,8 +899,7 @@ static constexpr uint64_t OpcodeToBitNumber(Opcode opcode) {
   return 1ULL << (static_cast<uint32_t>(opcode) >> kOpcodeShift);
 }
 
-
-class Instruction {
+class InstructionBase {
  public:
   enum {
     kInstrSize = 4,
@@ -900,6 +908,9 @@ class Instruction {
     // always the value of the current instruction being executed.
     kPCReadOffset = 0
   };
+
+  // Instruction type.
+  enum Type { kRegisterType, kImmediateType, kJumpType, kUnsupported = -1 };
 
   // Get the raw instruction bits.
   inline Instr InstructionBits() const {
@@ -921,17 +932,6 @@ class Instruction {
     return (InstructionBits() >> lo) & ((2U << (hi - lo)) - 1);
   }
 
-  // Instruction type.
-  enum Type {
-    kRegisterType,
-    kImmediateType,
-    kJumpType,
-    kUnsupported = -1
-  };
-
-  enum TypeChecks { NORMAL, EXTRA };
-
-
   static constexpr uint64_t kOpcodeImmediateTypeMask =
       OpcodeToBitNumber(REGIMM) | OpcodeToBitNumber(BEQ) |
       OpcodeToBitNumber(BNE) | OpcodeToBitNumber(BLEZ) |
@@ -946,12 +946,14 @@ class Instruction {
       OpcodeToBitNumber(POP76) | OpcodeToBitNumber(LB) | OpcodeToBitNumber(LH) |
       OpcodeToBitNumber(LWL) | OpcodeToBitNumber(LW) | OpcodeToBitNumber(LWU) |
       OpcodeToBitNumber(LD) | OpcodeToBitNumber(LBU) | OpcodeToBitNumber(LHU) |
-      OpcodeToBitNumber(LWR) | OpcodeToBitNumber(SB) | OpcodeToBitNumber(SH) |
+      OpcodeToBitNumber(LDL) | OpcodeToBitNumber(LDR) | OpcodeToBitNumber(LWR) |
+      OpcodeToBitNumber(SDL) | OpcodeToBitNumber(SB) | OpcodeToBitNumber(SH) |
       OpcodeToBitNumber(SWL) | OpcodeToBitNumber(SW) | OpcodeToBitNumber(SD) |
-      OpcodeToBitNumber(SWR) | OpcodeToBitNumber(LWC1) |
-      OpcodeToBitNumber(LDC1) | OpcodeToBitNumber(SWC1) |
-      OpcodeToBitNumber(SDC1) | OpcodeToBitNumber(PCREL) |
-      OpcodeToBitNumber(DAUI) | OpcodeToBitNumber(BC) | OpcodeToBitNumber(BALC);
+      OpcodeToBitNumber(SWR) | OpcodeToBitNumber(SDR) |
+      OpcodeToBitNumber(LWC1) | OpcodeToBitNumber(LDC1) |
+      OpcodeToBitNumber(SWC1) | OpcodeToBitNumber(SDC1) |
+      OpcodeToBitNumber(PCREL) | OpcodeToBitNumber(DAUI) |
+      OpcodeToBitNumber(BC) | OpcodeToBitNumber(BALC);
 
 #define FunctionFieldToBitNumber(function) (1ULL << function)
 
@@ -984,11 +986,7 @@ class Instruction {
       FunctionFieldToBitNumber(TEQ) | FunctionFieldToBitNumber(TNE) |
       FunctionFieldToBitNumber(MOVZ) | FunctionFieldToBitNumber(MOVN) |
       FunctionFieldToBitNumber(MOVCI) | FunctionFieldToBitNumber(SELEQZ_S) |
-      FunctionFieldToBitNumber(SELNEZ_S);
-
-
-  // Get the encoding type of the instruction.
-  inline Type InstructionType(TypeChecks checks = NORMAL) const;
+      FunctionFieldToBitNumber(SELNEZ_S) | FunctionFieldToBitNumber(SYNC);
 
 
   // Accessors for the different named fields used in the MIPS encoding.
@@ -997,78 +995,8 @@ class Instruction {
         Bits(kOpcodeShift + kOpcodeBits - 1, kOpcodeShift));
   }
 
-  inline int RsValue() const {
-    DCHECK(InstructionType() == kRegisterType ||
-           InstructionType() == kImmediateType);
-    return Bits(kRsShift + kRsBits - 1, kRsShift);
-  }
-
-  inline int RtValue() const {
-    DCHECK(InstructionType() == kRegisterType ||
-           InstructionType() == kImmediateType);
-    return Bits(kRtShift + kRtBits - 1, kRtShift);
-  }
-
-  inline int RdValue() const {
-    DCHECK(InstructionType() == kRegisterType);
-    return Bits(kRdShift + kRdBits - 1, kRdShift);
-  }
-
-  inline int SaValue() const {
-    DCHECK(InstructionType() == kRegisterType);
-    return Bits(kSaShift + kSaBits - 1, kSaShift);
-  }
-
-  inline int LsaSaValue() const {
-    DCHECK(InstructionType() == kRegisterType);
-    return Bits(kSaShift + kLsaSaBits - 1, kSaShift);
-  }
-
-  inline int FunctionValue() const {
-    DCHECK(InstructionType() == kRegisterType ||
-           InstructionType() == kImmediateType);
-    return Bits(kFunctionShift + kFunctionBits - 1, kFunctionShift);
-  }
-
-  inline int FdValue() const {
-    return Bits(kFdShift + kFdBits - 1, kFdShift);
-  }
-
-  inline int FsValue() const {
-    return Bits(kFsShift + kFsBits - 1, kFsShift);
-  }
-
-  inline int FtValue() const {
-    return Bits(kFtShift + kFtBits - 1, kFtShift);
-  }
-
-  inline int FrValue() const {
-    return Bits(kFrShift + kFrBits -1, kFrShift);
-  }
-
-  inline int Bp2Value() const {
-    DCHECK(InstructionType() == kRegisterType);
-    return Bits(kBp2Shift + kBp2Bits - 1, kBp2Shift);
-  }
-
-  inline int Bp3Value() const {
-    DCHECK(InstructionType() == kRegisterType);
-    return Bits(kBp3Shift + kBp3Bits - 1, kBp3Shift);
-  }
-
-  // Float Compare condition code instruction bits.
-  inline int FCccValue() const {
-    return Bits(kFCccShift + kFCccBits - 1, kFCccShift);
-  }
-
-  // Float Branch condition code instruction bits.
-  inline int FBccValue() const {
-    return Bits(kFBccShift + kFBccBits - 1, kFBccShift);
-  }
-
-  // Float Branch true/false instruction bit.
-  inline int FBtrueValue() const {
-    return Bits(kFBtrueShift + kFBtrueBits - 1, kFBtrueShift);
+  inline int FunctionFieldRaw() const {
+    return InstructionBits() & kFunctionFieldMask;
   }
 
   // Return the fields at their original place in the instruction encoding.
@@ -1076,39 +1004,135 @@ class Instruction {
     return static_cast<Opcode>(InstructionBits() & kOpcodeMask);
   }
 
-  inline int RsFieldRaw() const {
-    DCHECK(InstructionType() == kRegisterType ||
-           InstructionType() == kImmediateType);
-    return InstructionBits() & kRsFieldMask;
-  }
-
-  // Same as above function, but safe to call within InstructionType().
+  // Safe to call within InstructionType().
   inline int RsFieldRawNoAssert() const {
     return InstructionBits() & kRsFieldMask;
   }
 
+  inline int SaFieldRaw() const { return InstructionBits() & kSaFieldMask; }
+
+  // Get the encoding type of the instruction.
+  inline Type InstructionType() const;
+
+ protected:
+  InstructionBase() {}
+};
+
+template <class T>
+class InstructionGetters : public T {
+ public:
+  inline int RsValue() const {
+    DCHECK(this->InstructionType() == InstructionBase::kRegisterType ||
+           this->InstructionType() == InstructionBase::kImmediateType);
+    return this->Bits(kRsShift + kRsBits - 1, kRsShift);
+  }
+
+  inline int RtValue() const {
+    DCHECK(this->InstructionType() == InstructionBase::kRegisterType ||
+           this->InstructionType() == InstructionBase::kImmediateType);
+    return this->Bits(kRtShift + kRtBits - 1, kRtShift);
+  }
+
+  inline int RdValue() const {
+    DCHECK(this->InstructionType() == InstructionBase::kRegisterType);
+    return this->Bits(kRdShift + kRdBits - 1, kRdShift);
+  }
+
+  inline int SaValue() const {
+    DCHECK(this->InstructionType() == InstructionBase::kRegisterType);
+    return this->Bits(kSaShift + kSaBits - 1, kSaShift);
+  }
+
+  inline int LsaSaValue() const {
+    DCHECK(this->InstructionType() == InstructionBase::kRegisterType);
+    return this->Bits(kSaShift + kLsaSaBits - 1, kSaShift);
+  }
+
+  inline int FunctionValue() const {
+    DCHECK(this->InstructionType() == InstructionBase::kRegisterType ||
+           this->InstructionType() == InstructionBase::kImmediateType);
+    return this->Bits(kFunctionShift + kFunctionBits - 1, kFunctionShift);
+  }
+
+  inline int FdValue() const {
+    return this->Bits(kFdShift + kFdBits - 1, kFdShift);
+  }
+
+  inline int FsValue() const {
+    return this->Bits(kFsShift + kFsBits - 1, kFsShift);
+  }
+
+  inline int FtValue() const {
+    return this->Bits(kFtShift + kFtBits - 1, kFtShift);
+  }
+
+  inline int FrValue() const {
+    return this->Bits(kFrShift + kFrBits - 1, kFrShift);
+  }
+
+  inline int Bp2Value() const {
+    DCHECK(this->InstructionType() == InstructionBase::kRegisterType);
+    return this->Bits(kBp2Shift + kBp2Bits - 1, kBp2Shift);
+  }
+
+  inline int Bp3Value() const {
+    DCHECK(this->InstructionType() == InstructionBase::kRegisterType);
+    return this->Bits(kBp3Shift + kBp3Bits - 1, kBp3Shift);
+  }
+
+  // Float Compare condition code instruction bits.
+  inline int FCccValue() const {
+    return this->Bits(kFCccShift + kFCccBits - 1, kFCccShift);
+  }
+
+  // Float Branch condition code instruction bits.
+  inline int FBccValue() const {
+    return this->Bits(kFBccShift + kFBccBits - 1, kFBccShift);
+  }
+
+  // Float Branch true/false instruction bit.
+  inline int FBtrueValue() const {
+    return this->Bits(kFBtrueShift + kFBtrueBits - 1, kFBtrueShift);
+  }
+
+  // Return the fields at their original place in the instruction encoding.
+  inline Opcode OpcodeFieldRaw() const {
+    return static_cast<Opcode>(this->InstructionBits() & kOpcodeMask);
+  }
+
+  inline int RsFieldRaw() const {
+    DCHECK(this->InstructionType() == InstructionBase::kRegisterType ||
+           this->InstructionType() == InstructionBase::kImmediateType);
+    return this->InstructionBits() & kRsFieldMask;
+  }
+
+  // Same as above function, but safe to call within InstructionType().
+  inline int RsFieldRawNoAssert() const {
+    return this->InstructionBits() & kRsFieldMask;
+  }
+
   inline int RtFieldRaw() const {
-    DCHECK(InstructionType() == kRegisterType ||
-           InstructionType() == kImmediateType);
-    return InstructionBits() & kRtFieldMask;
+    DCHECK(this->InstructionType() == InstructionBase::kRegisterType ||
+           this->InstructionType() == InstructionBase::kImmediateType);
+    return this->InstructionBits() & kRtFieldMask;
   }
 
   inline int RdFieldRaw() const {
-    DCHECK(InstructionType() == kRegisterType);
-    return InstructionBits() & kRdFieldMask;
+    DCHECK(this->InstructionType() == InstructionBase::kRegisterType);
+    return this->InstructionBits() & kRdFieldMask;
   }
 
   inline int SaFieldRaw() const {
-    return InstructionBits() & kSaFieldMask;
+    return this->InstructionBits() & kSaFieldMask;
   }
 
   inline int FunctionFieldRaw() const {
-    return InstructionBits() & kFunctionFieldMask;
+    return this->InstructionBits() & kFunctionFieldMask;
   }
 
   // Get the secondary field according to the opcode.
   inline int SecondaryValue() const {
-    Opcode op = OpcodeFieldRaw();
+    Opcode op = this->OpcodeFieldRaw();
     switch (op) {
       case SPECIAL:
       case SPECIAL2:
@@ -1123,34 +1147,34 @@ class Instruction {
   }
 
   inline int32_t ImmValue(int bits) const {
-    DCHECK(InstructionType() == kImmediateType);
-    return Bits(bits - 1, 0);
+    DCHECK(this->InstructionType() == InstructionBase::kImmediateType);
+    return this->Bits(bits - 1, 0);
   }
 
   inline int32_t Imm16Value() const {
-    DCHECK(InstructionType() == kImmediateType);
-    return Bits(kImm16Shift + kImm16Bits - 1, kImm16Shift);
+    DCHECK(this->InstructionType() == InstructionBase::kImmediateType);
+    return this->Bits(kImm16Shift + kImm16Bits - 1, kImm16Shift);
   }
 
   inline int32_t Imm18Value() const {
-    DCHECK(InstructionType() == kImmediateType);
-    return Bits(kImm18Shift + kImm18Bits - 1, kImm18Shift);
+    DCHECK(this->InstructionType() == InstructionBase::kImmediateType);
+    return this->Bits(kImm18Shift + kImm18Bits - 1, kImm18Shift);
   }
 
   inline int32_t Imm19Value() const {
-    DCHECK(InstructionType() == kImmediateType);
-    return Bits(kImm19Shift + kImm19Bits - 1, kImm19Shift);
+    DCHECK(this->InstructionType() == InstructionBase::kImmediateType);
+    return this->Bits(kImm19Shift + kImm19Bits - 1, kImm19Shift);
   }
 
   inline int32_t Imm21Value() const {
-    DCHECK(InstructionType() == kImmediateType);
-    return Bits(kImm21Shift + kImm21Bits - 1, kImm21Shift);
+    DCHECK(this->InstructionType() == InstructionBase::kImmediateType);
+    return this->Bits(kImm21Shift + kImm21Bits - 1, kImm21Shift);
   }
 
   inline int32_t Imm26Value() const {
-    DCHECK((InstructionType() == kJumpType) ||
-           (InstructionType() == kImmediateType));
-    return Bits(kImm26Shift + kImm26Bits - 1, kImm26Shift);
+    DCHECK((this->InstructionType() == InstructionBase::kJumpType) ||
+           (this->InstructionType() == InstructionBase::kImmediateType));
+    return this->Bits(kImm26Shift + kImm26Bits - 1, kImm26Shift);
   }
 
   static bool IsForbiddenAfterBranchInstr(Instr instr);
@@ -1158,14 +1182,21 @@ class Instruction {
   // Say if the instruction should not be used in a branch delay slot or
   // immediately after a compact branch.
   inline bool IsForbiddenAfterBranch() const {
-    return IsForbiddenAfterBranchInstr(InstructionBits());
+    return IsForbiddenAfterBranchInstr(this->InstructionBits());
+  }
+
+  inline bool IsForbiddenInBranchDelay() const {
+    return IsForbiddenAfterBranch();
   }
 
   // Say if the instruction 'links'. e.g. jal, bal.
   bool IsLinkingInstruction() const;
   // Say if the instruction is a break or a trap.
   bool IsTrap() const;
+};
 
+class Instruction : public InstructionGetters<InstructionBase> {
+ public:
   // Instructions are read of out a code stream. The only way to get a
   // reference to an instruction is to convert a pointer. There is no way
   // to allocate or create instances of class Instruction.
@@ -1184,7 +1215,7 @@ class Instruction {
 // MIPS assembly various constants.
 
 // C/C++ argument slots size.
-const int kCArgSlotCount = (kMipsAbi == kN64) ? 0 : 4;
+const int kCArgSlotCount = 0;
 
 // TODO(plind): below should be based on kPointerSize
 // TODO(plind): find all usages and remove the needless instructions for n64.
@@ -1193,26 +1224,14 @@ const int kCArgsSlotsSize = kCArgSlotCount * Instruction::kInstrSize * 2;
 const int kInvalidStackOffset = -1;
 const int kBranchReturnOffset = 2 * Instruction::kInstrSize;
 
-
-Instruction::Type Instruction::InstructionType(TypeChecks checks) const {
-  if (checks == EXTRA) {
-    if (OpcodeToBitNumber(OpcodeFieldRaw()) & kOpcodeImmediateTypeMask) {
-      return kImmediateType;
-    }
-  }
+InstructionBase::Type InstructionBase::InstructionType() const {
   switch (OpcodeFieldRaw()) {
     case SPECIAL:
-      if (checks == EXTRA) {
-        if (FunctionFieldToBitNumber(FunctionFieldRaw()) &
-            kFunctionFieldRegisterTypeMask) {
-          return kRegisterType;
-        } else {
-          return kUnsupported;
-        }
-      } else {
+      if (FunctionFieldToBitNumber(FunctionFieldRaw()) &
+          kFunctionFieldRegisterTypeMask) {
         return kRegisterType;
       }
-      break;
+      return kUnsupported;
     case SPECIAL2:
       switch (FunctionFieldRaw()) {
         case MUL:
@@ -1226,6 +1245,7 @@ Instruction::Type Instruction::InstructionType(TypeChecks checks) const {
     case SPECIAL3:
       switch (FunctionFieldRaw()) {
         case INS:
+        case DINS:
         case EXT:
         case DEXT:
         case DEXTM:
@@ -1235,11 +1255,10 @@ Instruction::Type Instruction::InstructionType(TypeChecks checks) const {
           int sa = SaFieldRaw() >> kSaShift;
           switch (sa) {
             case BITSWAP:
-              return kRegisterType;
             case WSBH:
             case SEB:
             case SEH:
-              return kUnsupported;
+              return kRegisterType;
           }
           sa >>= kBp2Bits;
           switch (sa) {
@@ -1253,10 +1272,9 @@ Instruction::Type Instruction::InstructionType(TypeChecks checks) const {
           int sa = SaFieldRaw() >> kSaShift;
           switch (sa) {
             case DBITSWAP:
-              return kRegisterType;
             case DSBH:
             case DSHD:
-              return kUnsupported;
+              return kRegisterType;
           }
           sa = SaFieldRaw() >> kSaShift;
           sa >>= kBp3Bits;
@@ -1290,17 +1308,123 @@ Instruction::Type Instruction::InstructionType(TypeChecks checks) const {
       return kJumpType;
 
     default:
-      if (checks == NORMAL) {
-        return kImmediateType;
-      } else {
-        return kUnsupported;
-      }
+      return kImmediateType;
   }
   return kUnsupported;
 }
-
 #undef OpcodeToBitNumber
 #undef FunctionFieldToBitNumber
+
+// -----------------------------------------------------------------------------
+// Instructions.
+
+template <class P>
+bool InstructionGetters<P>::IsLinkingInstruction() const {
+  switch (OpcodeFieldRaw()) {
+    case JAL:
+      return true;
+    case POP76:
+      if (RsFieldRawNoAssert() == JIALC)
+        return true;  // JIALC
+      else
+        return false;  // BNEZC
+    case REGIMM:
+      switch (RtFieldRaw()) {
+        case BGEZAL:
+        case BLTZAL:
+          return true;
+        default:
+          return false;
+      }
+    case SPECIAL:
+      switch (FunctionFieldRaw()) {
+        case JALR:
+          return true;
+        default:
+          return false;
+      }
+    default:
+      return false;
+  }
+}
+
+template <class P>
+bool InstructionGetters<P>::IsTrap() const {
+  if (OpcodeFieldRaw() != SPECIAL) {
+    return false;
+  } else {
+    switch (FunctionFieldRaw()) {
+      case BREAK:
+      case TGE:
+      case TGEU:
+      case TLT:
+      case TLTU:
+      case TEQ:
+      case TNE:
+        return true;
+      default:
+        return false;
+    }
+  }
+}
+
+// static
+template <class T>
+bool InstructionGetters<T>::IsForbiddenAfterBranchInstr(Instr instr) {
+  Opcode opcode = static_cast<Opcode>(instr & kOpcodeMask);
+  switch (opcode) {
+    case J:
+    case JAL:
+    case BEQ:
+    case BNE:
+    case BLEZ:  // POP06 bgeuc/bleuc, blezalc, bgezalc
+    case BGTZ:  // POP07 bltuc/bgtuc, bgtzalc, bltzalc
+    case BEQL:
+    case BNEL:
+    case BLEZL:  // POP26 bgezc, blezc, bgec/blec
+    case BGTZL:  // POP27 bgtzc, bltzc, bltc/bgtc
+    case BC:
+    case BALC:
+    case POP10:  // beqzalc, bovc, beqc
+    case POP30:  // bnezalc, bnvc, bnec
+    case POP66:  // beqzc, jic
+    case POP76:  // bnezc, jialc
+      return true;
+    case REGIMM:
+      switch (instr & kRtFieldMask) {
+        case BLTZ:
+        case BGEZ:
+        case BLTZAL:
+        case BGEZAL:
+          return true;
+        default:
+          return false;
+      }
+      break;
+    case SPECIAL:
+      switch (instr & kFunctionFieldMask) {
+        case JR:
+        case JALR:
+          return true;
+        default:
+          return false;
+      }
+      break;
+    case COP1:
+      switch (instr & kRsFieldMask) {
+        case BC1:
+        case BC1EQZ:
+        case BC1NEZ:
+          return true;
+          break;
+        default:
+          return false;
+      }
+      break;
+    default:
+      return false;
+  }
+}
 }  // namespace internal
 }  // namespace v8
 

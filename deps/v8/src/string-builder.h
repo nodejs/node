@@ -293,6 +293,14 @@ class IncrementalStringBuilder {
     }
   }
 
+  INLINE(void AppendCString(const uc16* s)) {
+    if (encoding_ == String::ONE_BYTE_ENCODING) {
+      while (*s != '\0') Append<uc16, uint8_t>(*(s++));
+    } else {
+      while (*s != '\0') Append<uc16, uc16>(*(s++));
+    }
+  }
+
   INLINE(bool CurrentPartCanFit(int length)) {
     return part_length_ - current_index_ > length;
   }
@@ -300,6 +308,8 @@ class IncrementalStringBuilder {
   void AppendString(Handle<String> string);
 
   MaybeHandle<String> Finish();
+
+  INLINE(bool HasOverflowed()) const { return overflowed_; }
 
   // Change encoding to two-byte.
   void ChangeEncoding() {

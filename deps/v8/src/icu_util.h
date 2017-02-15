@@ -14,6 +14,11 @@ namespace internal {
 // function should be called before ICU is used.
 bool InitializeICU(const char* icu_data_file);
 
+// Like above, but using the default icudt[lb].dat location if icu_data_file is
+// not specified.
+bool InitializeICUDefaultLocation(const char* exec_path,
+                                  const char* icu_data_file);
+
 }  // namespace internal
 }  // namespace v8
 

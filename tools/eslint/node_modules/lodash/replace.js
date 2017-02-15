@@ -3,10 +3,12 @@ var toString = require('./toString');
 /**
  * Replaces matches for `pattern` in `string` with `replacement`.
  *
- * **Note:** This method is based on [`String#replace`](https://mdn.io/String/replace).
+ * **Note:** This method is based on
+ * [`String#replace`](https://mdn.io/String/replace).
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category String
  * @param {string} [string=''] The string to modify.
  * @param {RegExp|string} pattern The pattern to replace.

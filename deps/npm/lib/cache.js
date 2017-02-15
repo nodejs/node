@@ -82,6 +82,7 @@ var npa = require('npm-package-arg')
 var getStat = require('./cache/get-stat.js')
 var cachedPackageRoot = require('./cache/cached-package-root.js')
 var mapToRegistry = require('./utils/map-to-registry.js')
+var output = require('./utils/output.js')
 
 cache.usage = 'npm cache add <tarball file>' +
               '\nnpm cache add <folder>' +
@@ -182,7 +183,7 @@ function ls (args, cb) {
     prefix = '~' + prefix.substr(process.env.HOME.length)
   }
   ls_(normalize(args), npm.config.get('depth'), function (er, files) {
-    console.log(files.map(function (f) {
+    output(files.map(function (f) {
       return path.join(prefix, f)
     }).join('\n').trim())
     cb(er, files)
@@ -285,7 +286,7 @@ function add (args, where, cb) {
         break
       case 'remote':
         // get auth, if possible
-        mapToRegistry(spec, npm.config, function (err, uri, auth) {
+        mapToRegistry(p.raw, npm.config, function (err, uri, auth) {
           if (err) return cb(err)
 
           addRemoteTarball(p.spec, { name: p.name }, null, auth, cb)

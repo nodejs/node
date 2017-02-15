@@ -45,6 +45,29 @@ test('cache from repo', function (t) {
   })
 })
 
+test('save install', function (t) {
+  process.chdir(pkg)
+  fs.writeFileSync('package.json', JSON.stringify({
+    name: 'parent',
+    version: '5.4.3'
+  }, null, 2) + '\n')
+  var prev = npm.config.get('save')
+  npm.config.set('save', true)
+  npm.commands.install('.', [cloneURL], function (er) {
+    npm.config.set('save', prev)
+    t.ifError(er, 'npm installed via git')
+    var pj = JSON.parse(fs.readFileSync('package.json', 'utf-8'))
+    var dep = pj.dependencies.child
+    t.equal(
+      url.parse(dep).protocol,
+      'git+file:',
+      'npm didn\'t strip the git+ from git+file://'
+    )
+
+    t.end()
+  })
+})
+
 test('clean', function (t) {
   cleanup()
   t.end()

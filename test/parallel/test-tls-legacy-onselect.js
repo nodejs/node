@@ -1,35 +1,28 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
-var net = require('net');
+const tls = require('tls');
+const net = require('net');
 
-var success = false;
-
-var server = net.Server(function(raw) {
-  var pair = tls.createSecurePair(null, true, false, false);
+const server = net.Server(common.mustCall(function(raw) {
+  const pair = tls.createSecurePair(null, true, false, false);
   pair.on('error', function() {});
-  pair.ssl.setSNICallback(function() {
+  pair.ssl.setSNICallback(common.mustCall(function() {
     raw.destroy();
     server.close();
-    success = true;
-  });
+  }));
   require('_tls_legacy').pipe(pair, raw);
-}).listen(common.PORT, function() {
+})).listen(0, function() {
   tls.connect({
-    port: common.PORT,
+    port: this.address().port,
     rejectUnauthorized: false,
     servername: 'server'
   }, function() {
   }).on('error', function() {
     // Just ignore
   });
-});
-process.on('exit', function() {
-  assert(success);
 });

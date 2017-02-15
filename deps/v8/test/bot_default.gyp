@@ -11,6 +11,7 @@
           'type': 'none',
           'dependencies': [
             'cctest/cctest.gyp:cctest_run',
+            'fuzzer/fuzzer.gyp:fuzzer_run',
             'intl/intl.gyp:intl_run',
             'message/message.gyp:message_run',
             'mjsunit/mjsunit.gyp:mjsunit_run',
@@ -19,8 +20,8 @@
             'webkit/webkit.gyp:webkit_run',
           ],
           'includes': [
-            '../build/features.gypi',
-            '../build/isolate.gypi',
+            '../gypfiles/features.gypi',
+            '../gypfiles/isolate.gypi',
           ],
           'sources': [
             'bot_default.isolate',

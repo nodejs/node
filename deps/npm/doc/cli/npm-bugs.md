@@ -5,6 +5,8 @@ npm-bugs(1) -- Bugs for a package in a web browser maybe
 
     npm bugs [<pkgname>]
 
+    aliases: issues
+
 ## DESCRIPTION
 
 This command tries to guess at the likely location of a package's

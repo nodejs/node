@@ -3,10 +3,11 @@
 
 [![npm package](https://nodei.co/npm/request.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/request/)
 
-[![Build status](https://img.shields.io/travis/request/request.svg?style=flat-square)](https://travis-ci.org/request/request)
+[![Build status](https://img.shields.io/travis/request/request/master.svg?style=flat-square)](https://travis-ci.org/request/request)
 [![Coverage](https://img.shields.io/codecov/c/github/request/request.svg?style=flat-square)](https://codecov.io/github/request/request?branch=master)
 [![Coverage](https://img.shields.io/coveralls/request/request.svg?style=flat-square)](https://coveralls.io/r/request/request)
 [![Dependency Status](https://img.shields.io/david/request/request.svg?style=flat-square)](https://david-dm.org/request/request)
+[![Known Vulnerabilities](https://snyk.io/test/npm/request/badge.svg?style=flat-square)](https://snyk.io/test/npm/request)
 [![Gitter](https://img.shields.io/badge/gitter-join_chat-blue.svg?style=flat-square)](https://gitter.im/request/request?utm_source=badge)
 
 
@@ -66,7 +67,7 @@ Request can also `pipe` to itself. When doing so, `content-type` and `content-le
 request.get('http://google.com/img.png').pipe(request.put('http://mysite.com/img.png'))
 ```
 
-Request emits a "response" event when a response is received. The `response` argument will be an instance of [http.IncomingMessage](http://nodejs.org/api/http.html#http_http_incomingmessage).
+Request emits a "response" event when a response is received. The `response` argument will be an instance of [http.IncomingMessage](https://nodejs.org/api/http.html#http_class_http_incomingmessage).
 
 ```js
 request
@@ -600,7 +601,6 @@ var options = {
     key: fs.readFileSync(keyFile),
     passphrase: 'password',
     ca: fs.readFileSync(caFile)
-    }
 };
 
 request.get(options);
@@ -733,7 +733,7 @@ The first argument can be either a `url` or an `options` object. The only requir
 
 ---
 
-- `body` - entity body for PATCH, POST and PUT requests. Must be a `Buffer` or `String`, unless `json` is `true`. If `json` is `true`, then `body` must be a JSON-serializable object.
+- `body` - entity body for PATCH, POST and PUT requests. Must be a `Buffer`, `String` or `ReadStream`. If `json` is `true`, then `body` must be a JSON-serializable object.
 - `form` - when passed an object or a querystring, this sets `body` to a querystring representation of value, and adds `Content-type: application/x-www-form-urlencoded` header. When passed no options, a `FormData` instance is returned (and is piped to request). See "Forms" section above.
 - `formData` - Data to pass for a `multipart/form-data` request. See
   [Forms](#forms) section above.
@@ -748,19 +748,21 @@ The first argument can be either a `url` or an `options` object. The only requir
 - `postambleCRLF` - append a newline/CRLF at the end of the boundary of your `multipart/form-data` request.
 - `json` - sets `body` to JSON representation of value and adds `Content-type: application/json` header.  Additionally, parses the response body as JSON.
 - `jsonReviver` - a [reviver function](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse) that will be passed to `JSON.parse()` when parsing a JSON response body.
+- `jsonReplacer` - a [replacer function](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify) that will be passed to `JSON.stringify()` when stringifying a JSON request body.
 
 ---
 
 - `auth` - A hash containing values `user` || `username`, `pass` || `password`, and `sendImmediately` (optional).  See documentation above.
 - `oauth` - Options for OAuth HMAC-SHA1 signing. See documentation above.
 - `hawk` - Options for [Hawk signing](https://github.com/hueniverse/hawk). The `credentials` key must contain the necessary signing info, [see hawk docs for details](https://github.com/hueniverse/hawk#usage-example).
-- `aws` - `object` containing AWS signing information. Should have the properties `key`, `secret`. Also requires the property `bucket`, unless you’re specifying your `bucket` as part of the path, or the request doesn’t use a bucket (i.e. GET Services)
+- `aws` - `object` containing AWS signing information. Should have the properties `key`, `secret`, and optionally `session` (note that this only works for services that require session as part of the canonical string). Also requires the property `bucket`, unless you’re specifying your `bucket` as part of the path, or the request doesn’t use a bucket (i.e. GET Services). If you want to use AWS sign version 4 use the parameter `sign_version` with value `4` otherwise the default is version 2. **Note:** you need to `npm install aws4` first.
 - `httpSignature` - Options for the [HTTP Signature Scheme](https://github.com/joyent/node-http-signature/blob/master/http_signing.md) using [Joyent's library](https://github.com/joyent/node-http-signature). The `keyId` and `key` properties must be specified. See the docs for other options.
 
 ---
 
 - `followRedirect` - follow HTTP 3xx responses as redirects (default: `true`). This property can also be implemented as function which gets `response` object as a single argument and should return `true` if redirects should continue or `false` otherwise.
 - `followAllRedirects` - follow non-GET HTTP 3xx responses as redirects (default: `false`)
+- `followOriginalHttpMethod` - by default we redirect to HTTP method GET. you can enable this property to redirect to the original HTTP method (default: `false`)
 - `maxRedirects` - the maximum number of redirects to follow (default: `10`)
 - `removeRefererHeader` - removes the referer header when a redirect happens (default: `false`). **Note:** if true, referer header set in the initial request is preserved during redirect chain.
 
@@ -810,13 +812,14 @@ default in Linux can be anywhere from 20-120 seconds][linux-timeout]).
 
 ---
 
-- `time` - If `true`, the request-response cycle (including all redirects) is timed at millisecond resolution, and the result provided on the response's `elapsedTime` property.
+- `time` - If `true`, the request-response cycle (including all redirects) is timed at millisecond resolution, and the result provided on the response's `elapsedTime` property. The `responseStartTime` property is also available to indicate the timestamp when the response begins.
 - `har` - A [HAR 1.2 Request Object](http://www.softwareishard.com/blog/har-12-spec/#request), will be processed from HAR format into options overwriting matching values *(see the [HAR 1.2 section](#support-for-har-1.2) for details)*
+- `callback` - alternatively pass the request's callback in the options object
 
 The callback argument gets 3 arguments:
 
 1. An `error` when applicable (usually from [`http.ClientRequest`](http://nodejs.org/api/http.html#http_class_http_clientrequest) object)
-2. An [`http.IncomingMessage`](http://nodejs.org/api/http.html#http_http_incomingmessage) object
+2. An [`http.IncomingMessage`](https://nodejs.org/api/http.html#http_class_http_incomingmessage) object
 3. The third is the `response` body (`String` or `Buffer`, or JSON object if the `json` option is supplied)
 
 [back to top](#table-of-contents)
@@ -886,12 +889,13 @@ Same as `request()`, but defaults to `method: "HEAD"`.
 request.head(url)
 ```
 
-### request.del
+### request.del / request.delete
 
 Same as `request()`, but defaults to `method: "DELETE"`.
 
 ```js
 request.del(url)
+request.delete(url)
 ```
 
 ### request.get

@@ -16,7 +16,8 @@ class SourcePositionTable::Decorator final : public GraphDecorator {
       : source_positions_(source_positions) {}
 
   void Decorate(Node* node) final {
-    source_positions_->table_.Set(node, source_positions_->current_position_);
+    source_positions_->SetSourcePosition(node,
+                                         source_positions_->current_position_);
   }
 
  private:
@@ -49,6 +50,10 @@ SourcePosition SourcePositionTable::GetSourcePosition(Node* node) const {
   return table_.Get(node);
 }
 
+void SourcePositionTable::SetSourcePosition(Node* node,
+                                            SourcePosition position) {
+  table_.Set(node, position);
+}
 
 void SourcePositionTable::Print(std::ostream& os) const {
   os << "{";

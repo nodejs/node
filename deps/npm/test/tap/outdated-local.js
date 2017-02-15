@@ -78,7 +78,7 @@ test('setup', function (t) {
 })
 
 test('outdated support local modules', function (t) {
-  t.plan(4)
+  t.plan(5)
   process.chdir(pkg)
   mr({ port: common.port, plugin: mocks }, function (err, s) {
     t.ifError(err, 'mock registry started without problems')
@@ -115,7 +115,9 @@ test('outdated support local modules', function (t) {
           t.ifError(err, 'install success')
           bumpLocalModules()
           npm.outdated(function (er, d) {
-            t.ifError(er, 'outdated success')
+            t.ifError(err, 'npm outdated ran without error')
+            t.is(process.exitCode, 1, 'errorCode set to 1')
+            process.exitCode = 0
             t.ok(verify(d, [
               [
                 path.resolve(__dirname, 'outdated-local'),

@@ -1,7 +1,9 @@
-var eq = require('./eq');
+var baseAssignValue = require('./_baseAssignValue'),
+    eq = require('./eq');
 
 /**
- * This function is like `assignValue` except that it doesn't assign `undefined` values.
+ * This function is like `assignValue` except that it doesn't assign
+ * `undefined` values.
  *
  * @private
  * @param {Object} object The object to modify.
@@ -10,8 +12,8 @@ var eq = require('./eq');
  */
 function assignMergeValue(object, key, value) {
   if ((value !== undefined && !eq(object[key], value)) ||
-      (typeof key == 'number' && value === undefined && !(key in object))) {
-    object[key] = value;
+      (value === undefined && !(key in object))) {
+    baseAssignValue(object, key, value);
   }
 }
 

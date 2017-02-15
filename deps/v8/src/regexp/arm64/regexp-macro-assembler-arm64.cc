@@ -9,7 +9,6 @@
 #include "src/code-stubs.h"
 #include "src/log.h"
 #include "src/macro-assembler.h"
-#include "src/profiler/cpu-profiler.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/unicode.h"
@@ -274,7 +273,7 @@ void RegExpMacroAssemblerARM64::CheckGreedyLoop(Label* on_equal) {
 
 
 void RegExpMacroAssemblerARM64::CheckNotBackReferenceIgnoreCase(
-    int start_reg, bool read_backward, Label* on_no_match) {
+    int start_reg, bool read_backward, bool unicode, Label* on_no_match) {
   Label fallthrough;
 
   Register capture_start_offset = w10;
@@ -388,7 +387,7 @@ void RegExpMacroAssemblerARM64::CheckNotBackReferenceIgnoreCase(
     //   x0: Address byte_offset1 - Address captured substring's start.
     //   x1: Address byte_offset2 - Address of current character position.
     //   w2: size_t byte_length - length of capture in bytes(!)
-    //   x3: Isolate* isolate
+    //   x3: Isolate* isolate or 0 if unicode flag
 
     // Address of start of capture.
     __ Add(x0, input_end(), Operand(capture_start_offset, SXTW));
@@ -400,7 +399,14 @@ void RegExpMacroAssemblerARM64::CheckNotBackReferenceIgnoreCase(
       __ Sub(x1, x1, Operand(capture_length, SXTW));
     }
     // Isolate.
-    __ Mov(x3, ExternalReference::isolate_address(isolate()));
+#ifdef V8_I18N_SUPPORT
+    if (unicode) {
+      __ Mov(x3, Operand(0));
+    } else  // NOLINT
+#endif      // V8_I18N_SUPPORT
+    {
+      __ Mov(x3, ExternalReference::isolate_address(isolate()));
+    }
 
     {
       AllowExternalCallThatCantCauseGC scope(masm_);
@@ -991,9 +997,12 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
         // Offset from the end is zero if we already reached the end.
         __ Cbz(current_input_offset(), &return_w0);
         // Advance current position after a zero-length match.
+        Label advance;
+        __ bind(&advance);
         __ Add(current_input_offset(),
                current_input_offset(),
                Operand((mode_ == UC16) ? 2 : 1));
+        if (global_unicode()) CheckNotInSurrogatePair(0, &advance);
       }
 
       __ B(&load_char_start_regexp);
@@ -1078,7 +1087,8 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   masm_->GetCode(&code_desc);
   Handle<Code> code = isolate()->factory()->NewCode(
       code_desc, Code::ComputeFlags(Code::REGEXP), masm_->CodeObject());
-  PROFILE(masm_->isolate(), RegExpCodeCreateEvent(*code, *source));
+  PROFILE(masm_->isolate(),
+          RegExpCodeCreateEvent(AbstractCode::cast(*code), *source));
   return Handle<HeapObject>::cast(code);
 }
 
@@ -1350,12 +1360,6 @@ void RegExpMacroAssemblerARM64::CheckPosition(int cp_offset,
     __ Cmp(w12, string_start_minus_one());
     BranchOrBacktrack(le, on_outside_input);
   }
-}
-
-
-bool RegExpMacroAssemblerARM64::CanReadUnaligned() {
-  // TODO(pielan): See whether or not we should disable unaligned accesses.
-  return !slow_safe();
 }
 
 

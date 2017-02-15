@@ -7,9 +7,10 @@ SyntaxError: Strict mode code may not include a with statement
     at Object.exports.runInThisContext (vm.js:*)
     at Object.<anonymous> ([stdin]-wrapper:*:*)
     at Module._compile (module.js:*:*)
-    at node.js:*:*
-    at _combinedTickCallback (node.js:*:*)
-    at process._tickCallback (node.js:*:*)
+    at Immediate.<anonymous> (bootstrap_node.js:*:*)
+    at runCallback (timers.js:*:*)
+    at tryOnImmediate (timers.js:*:*)
+    at processImmediate [as _immediateCallback] (timers.js:*:*)
 42
 42
 
@@ -18,24 +19,28 @@ throw new Error("hello")
 ^
 Error: hello
     at [stdin]:1:*
+    at ContextifyScript.Script.runInThisContext (vm.js:*)
     at Object.exports.runInThisContext (vm.js:*)
     at Object.<anonymous> ([stdin]-wrapper:*:*)
     at Module._compile (module.js:*:*)
-    at node.js:*:*
-    at _combinedTickCallback (node.js:*:*)
-    at process._tickCallback (node.js:*:*)
+    at Immediate.<anonymous> (bootstrap_node.js:*:*)
+    at runCallback (timers.js:*:*)
+    at tryOnImmediate (timers.js:*:*)
+    at processImmediate [as _immediateCallback] (timers.js:*:*)
 
 [stdin]:1
 throw new Error("hello")
 ^
 Error: hello
     at [stdin]:1:*
+    at ContextifyScript.Script.runInThisContext (vm.js:*)
     at Object.exports.runInThisContext (vm.js:*)
     at Object.<anonymous> ([stdin]-wrapper:*:*)
     at Module._compile (module.js:*:*)
-    at node.js:*:*
-    at _combinedTickCallback (node.js:*:*)
-    at process._tickCallback (node.js:*:*)
+    at Immediate.<anonymous> (bootstrap_node.js:*:*)
+    at runCallback (timers.js:*:*)
+    at tryOnImmediate (timers.js:*:*)
+    at processImmediate [as _immediateCallback] (timers.js:*:*)
 100
 
 [stdin]:1
@@ -43,12 +48,14 @@ var x = 100; y = x;
                ^
 ReferenceError: y is not defined
     at [stdin]:1:16
+    at ContextifyScript.Script.runInThisContext (vm.js:*)
     at Object.exports.runInThisContext (vm.js:*)
     at Object.<anonymous> ([stdin]-wrapper:*:*)
     at Module._compile (module.js:*:*)
-    at node.js:*:*
-    at _combinedTickCallback (node.js:*:*)
-    at process._tickCallback (node.js:*:*)
+    at Immediate.<anonymous> (bootstrap_node.js:*:*)
+    at runCallback (timers.js:*:*)
+    at tryOnImmediate (timers.js:*:*)
+    at processImmediate [as _immediateCallback] (timers.js:*:*)
 
 [stdin]:1
 var ______________________________________________; throw 10

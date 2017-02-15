@@ -1,3 +1,0 @@
-rules:
-  # Custom rules in tools/eslint-rules
-  require-buffer: 2

@@ -1,4 +1,4 @@
-// ES2015 Symbol polyfill for environments that do not support it (or partially support it_
+// ES2015 Symbol polyfill for environments that do not support it (or partially support it)
 
 'use strict';
 
@@ -7,9 +7,16 @@ var d              = require('d')
 
   , create = Object.create, defineProperties = Object.defineProperties
   , defineProperty = Object.defineProperty, objPrototype = Object.prototype
-  , NativeSymbol, SymbolPolyfill, HiddenSymbol, globalSymbols = create(null);
+  , NativeSymbol, SymbolPolyfill, HiddenSymbol, globalSymbols = create(null)
+  , isNativeSafe;
 
-if (typeof Symbol === 'function') NativeSymbol = Symbol;
+if (typeof Symbol === 'function') {
+	NativeSymbol = Symbol;
+	try {
+		String(NativeSymbol());
+		isNativeSafe = true;
+	} catch (ignore) {}
+}
 
 var generateName = (function () {
 	var created = create(null);
@@ -45,6 +52,7 @@ HiddenSymbol = function Symbol(description) {
 module.exports = SymbolPolyfill = function Symbol(description) {
 	var symbol;
 	if (this instanceof Symbol) throw new TypeError('TypeError: Symbol is not a constructor');
+	if (isNativeSafe) return NativeSymbol(description);
 	symbol = create(HiddenSymbol.prototype);
 	description = (description === undefined ? '' : String(description));
 	return defineProperties(symbol, {
@@ -91,8 +99,11 @@ defineProperties(SymbolPolyfill.prototype, {
 	toString: d(function () { return 'Symbol (' + validateSymbol(this).__description__ + ')'; }),
 	valueOf: d(function () { return validateSymbol(this); })
 });
-defineProperty(SymbolPolyfill.prototype, SymbolPolyfill.toPrimitive, d('',
-	function () { return validateSymbol(this); }));
+defineProperty(SymbolPolyfill.prototype, SymbolPolyfill.toPrimitive, d('', function () {
+	var symbol = validateSymbol(this);
+	if (typeof symbol === 'symbol') return symbol;
+	return symbol.toString();
+}));
 defineProperty(SymbolPolyfill.prototype, SymbolPolyfill.toStringTag, d('c', 'Symbol'));
 
 // Proper implementaton of toPrimitive and toStringTag for returned symbol instances

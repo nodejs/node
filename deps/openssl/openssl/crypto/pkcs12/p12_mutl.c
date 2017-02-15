@@ -179,7 +179,7 @@ int PKCS12_setup_mac(PKCS12 *p12, int iter, unsigned char *salt, int saltlen,
     }
     p12->mac->salt->length = saltlen;
     if (!salt) {
-        if (RAND_pseudo_bytes(p12->mac->salt->data, saltlen) < 0)
+        if (RAND_bytes(p12->mac->salt->data, saltlen) <= 0)
             return 0;
     } else
         memcpy(p12->mac->salt->data, salt, saltlen);

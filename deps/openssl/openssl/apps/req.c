@@ -179,9 +179,7 @@ int MAIN(int argc, char **argv)
     int nodes = 0, kludge = 0, newhdr = 0, subject = 0, pubkey = 0;
     char *infile, *outfile, *prog, *keyfile = NULL, *template =
         NULL, *keyout = NULL;
-#ifndef OPENSSL_NO_ENGINE
     char *engine = NULL;
-#endif
     char *extensions = NULL;
     char *req_exts = NULL;
     const EVP_CIPHER *cipher = NULL;
@@ -332,9 +330,10 @@ int MAIN(int argc, char **argv)
             subject = 1;
         else if (strcmp(*argv, "-text") == 0)
             text = 1;
-        else if (strcmp(*argv, "-x509") == 0)
+        else if (strcmp(*argv, "-x509") == 0) {
+            newreq = 1;
             x509 = 1;
-        else if (strcmp(*argv, "-asn1-kludge") == 0)
+        } else if (strcmp(*argv, "-asn1-kludge") == 0)
             kludge = 1;
         else if (strcmp(*argv, "-no-asn1-kludge") == 0)
             kludge = 0;
@@ -594,9 +593,7 @@ int MAIN(int argc, char **argv)
     if ((in == NULL) || (out == NULL))
         goto end;
 
-#ifndef OPENSSL_NO_ENGINE
     e = setup_engine(bio_err, engine, 0);
-#endif
 
     if (keyfile != NULL) {
         pkey = load_key(bio_err, keyfile, keyform, 0, passin, e,
@@ -756,7 +753,7 @@ int MAIN(int argc, char **argv)
         }
     }
 
-    if (newreq || x509) {
+    if (newreq) {
         if (pkey == NULL) {
             BIO_printf(bio_err, "you need to specify a private key\n");
             goto end;
@@ -1039,6 +1036,7 @@ int MAIN(int argc, char **argv)
     X509_REQ_free(req);
     X509_free(x509ss);
     ASN1_INTEGER_free(serial);
+    release_engine(e);
     if (passargin && passin)
         OPENSSL_free(passin);
     if (passargout && passout)
@@ -1331,12 +1329,11 @@ static int auto_info(X509_REQ *req, STACK_OF(CONF_VALUE) *dn_sk,
                 break;
             }
 #ifndef CHARSET_EBCDIC
-        if (*p == '+')
+        if (*type == '+') {
 #else
-        if (*p == os_toascii['+'])
+        if (*type == os_toascii['+']) {
 #endif
-        {
-            p++;
+            type++;
             mval = -1;
         } else
             mval = 0;

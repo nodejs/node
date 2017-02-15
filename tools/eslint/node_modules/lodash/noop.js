@@ -1,16 +1,14 @@
 /**
- * A no-operation function that returns `undefined` regardless of the
- * arguments it receives.
+ * This method returns `undefined`.
  *
  * @static
  * @memberOf _
+ * @since 2.3.0
  * @category Util
  * @example
  *
- * var object = { 'user': 'fred' };
- *
- * _.noop(object) === undefined;
- * // => true
+ * _.times(2, _.noop);
+ * // => [undefined, undefined]
  */
 function noop() {
   // No operation performed.

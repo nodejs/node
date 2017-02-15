@@ -1556,7 +1556,7 @@ Lppcasm_sub_mainloop:
 				# if carry = 1 this is r7-r8. Else it
 				# is r7-r8 -1 as we need.
 	$STU	r6,$BNSZ(r3)
-	bdnz-	Lppcasm_sub_mainloop
+	bdnz	Lppcasm_sub_mainloop
 Lppcasm_sub_adios:	
 	subfze	r3,r0		# if carry bit is set then r3 = 0 else -1
 	andi.	r3,r3,1         # keep only last bit.
@@ -1603,7 +1603,7 @@ Lppcasm_add_mainloop:
 	$LDU	r8,$BNSZ(r5)
 	adde	r8,r7,r8
 	$STU	r8,$BNSZ(r3)
-	bdnz-	Lppcasm_add_mainloop
+	bdnz	Lppcasm_add_mainloop
 Lppcasm_add_adios:	
 	addze	r3,r0			#return carry bit.
 	blr
@@ -1762,7 +1762,7 @@ Lppcasm_sqr_mainloop:
 	$UMULH  r8,r6,r6
 	$STU	r7,$BNSZ(r3)
 	$STU	r8,$BNSZ(r3)
-	bdnz-	Lppcasm_sqr_mainloop
+	bdnz	Lppcasm_sqr_mainloop
 Lppcasm_sqr_adios:	
 	blr
 	.long	0
@@ -1827,7 +1827,7 @@ Lppcasm_mw_LOOP:
 	
 	addi	r3,r3,`4*$BNSZ`
 	addi	r4,r4,`4*$BNSZ`
-	bdnz-	Lppcasm_mw_LOOP
+	bdnz	Lppcasm_mw_LOOP
 
 Lppcasm_mw_REM:
 	andi.	r5,r5,0x3
@@ -1951,7 +1951,7 @@ Lppcasm_maw_mainloop:
 	$ST	r11,`3*$BNSZ`(r3)
 	addi	r3,r3,`4*$BNSZ`
 	addi	r4,r4,`4*$BNSZ`
-	bdnz-	Lppcasm_maw_mainloop
+	bdnz	Lppcasm_maw_mainloop
 	
 Lppcasm_maw_leftover:
 	andi.	r5,r5,0x3

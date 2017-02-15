@@ -6,9 +6,13 @@ var path = require('path')
 var readJson = require('read-package-json')
 var log = require('npmlog')
 var chain = require('slide').chain
+var usage = require('./utils/usage')
+var output = require('./utils/output.js')
 
-runScript.usage = 'npm run-script <command> [-- <args>...]' +
-                  '\n\nalias: npm run'
+runScript.usage = usage(
+  'run-script',
+  'npm run-script <command> [-- <args>...]'
+)
 
 runScript.completion = function (opts, cb) {
   // see if there's already a package specified.
@@ -88,13 +92,13 @@ function list (cb) {
     }
 
     if (npm.config.get('json')) {
-      console.log(JSON.stringify(d.scripts || {}, null, 2))
+      output(JSON.stringify(d.scripts || {}, null, 2))
       return cb(null, allScripts)
     }
 
     if (npm.config.get('parseable')) {
       allScripts.forEach(function (script) {
-        console.log(script + ':' + d.scripts[script])
+        output(script + ':' + d.scripts[script])
       })
       return cb(null, allScripts)
     }
@@ -102,18 +106,18 @@ function list (cb) {
     var s = '\n    '
     var prefix = '  '
     if (scripts.length) {
-      console.log('Lifecycle scripts included in %s:', d.name)
+      output('Lifecycle scripts included in %s:', d.name)
     }
     scripts.forEach(function (script) {
-      console.log(prefix + script + s + d.scripts[script])
+      output(prefix + script + s + d.scripts[script])
     })
     if (!scripts.length && runScripts.length) {
-      console.log('Scripts available in %s via `npm run-script`:', d.name)
+      output('Scripts available in %s via `npm run-script`:', d.name)
     } else if (runScripts.length) {
-      console.log('\navailable via `npm run-script`:')
+      output('\navailable via `npm run-script`:')
     }
     runScripts.forEach(function (script) {
-      console.log(prefix + script + s + d.scripts[script])
+      output(prefix + script + s + d.scripts[script])
     })
     return cb(null, allScripts)
   })

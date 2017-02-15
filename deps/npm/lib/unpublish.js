@@ -8,6 +8,7 @@ var path = require('path')
 var mapToRegistry = require('./utils/map-to-registry.js')
 var npa = require('npm-package-arg')
 var getPublishConfig = require('./utils/get-publish-config.js')
+var output = require('./utils/output.js')
 
 unpublish.usage = 'npm unpublish [<@scope>/]<pkg>[@<version>]'
 
@@ -89,7 +90,7 @@ function gotProject (project, version, publishConfig, cb_) {
 
   function cb (er) {
     if (er) return cb_(er)
-    console.log('- ' + project + (version ? '@' + version : ''))
+    output('- ' + project + (version ? '@' + version : ''))
     cb_()
   }
 

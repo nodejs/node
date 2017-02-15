@@ -1,14 +1,13 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+require('../common');
+const assert = require('assert');
+const net = require('net');
 
-var tcpPort = common.PORT;
-var bytesRead = 0;
-var bytesWritten = 0;
-var count = 0;
+let bytesRead = 0;
+let bytesWritten = 0;
+let count = 0;
 
-var tcp = net.Server(function(s) {
+const tcp = net.Server(function(s) {
   console.log('tcp server connection');
 
   // trigger old mode.
@@ -20,9 +19,9 @@ var tcp = net.Server(function(s) {
   });
 });
 
-tcp.listen(common.PORT, function doTest() {
+tcp.listen(0, function doTest() {
   console.error('listening');
-  var socket = net.createConnection(tcpPort);
+  const socket = net.createConnection(this.address().port);
 
   socket.on('connect', function() {
     count++;
@@ -45,7 +44,7 @@ tcp.listen(common.PORT, function doTest() {
     console.log('Bytes written: ' + bytesWritten);
     if (count < 2) {
       console.error('RECONNECTING');
-      socket.connect(tcpPort);
+      socket.connect(tcp.address().port);
     } else {
       tcp.close();
     }
@@ -53,6 +52,6 @@ tcp.listen(common.PORT, function doTest() {
 });
 
 process.on('exit', function() {
-  assert.equal(bytesRead, 12);
-  assert.equal(bytesWritten, 12);
+  assert.strictEqual(bytesRead, 12);
+  assert.strictEqual(bytesWritten, 12);
 });

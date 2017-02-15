@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --turbo-osr --allow-natives-syntax
+// Flags: --allow-natives-syntax
 
 function test(e, f, v) {
   assertEquals(e, f(v));

@@ -219,6 +219,22 @@ enum {
 };
 
 
+enum BarrierOption {
+  OSHLD = 0x1,
+  OSHST = 0x2,
+  OSH = 0x3,
+  NSHLD = 0x5,
+  NSHST = 0x6,
+  NSH = 0x7,
+  ISHLD = 0x9,
+  ISHST = 0xa,
+  ISH = 0xb,
+  LD = 0xd,
+  ST = 0xe,
+  SY = 0xf,
+};
+
+
 // -----------------------------------------------------------------------------
 // Addressing modes and instruction variants.
 
@@ -461,39 +477,41 @@ class Instruction {
     *reinterpret_cast<Instr*>(this) = value;
   }
 
-  // Read one particular bit out of the instruction bits.
+  // Extract a single bit from the instruction bits and return it as bit 0 in
+  // the result.
   inline int Bit(int nr) const {
     return (InstructionBits() >> nr) & 1;
   }
 
-  // Read a bit field's value out of the instruction bits.
+  // Extract a bit field <hi:lo> from the instruction bits and return it in the
+  // least-significant bits of the result.
   inline int Bits(int hi, int lo) const {
     return (InstructionBits() >> lo) & ((2 << (hi - lo)) - 1);
   }
 
-  // Read a bit field out of the instruction bits.
+  // Read a bit field <hi:lo>, leaving its position unchanged in the result.
   inline int BitField(int hi, int lo) const {
     return InstructionBits() & (((2 << (hi - lo)) - 1) << lo);
   }
 
   // Static support.
 
-  // Read one particular bit out of the instruction bits.
+  // Extract a single bit from the instruction bits and return it as bit 0 in
+  // the result.
   static inline int Bit(Instr instr, int nr) {
     return (instr >> nr) & 1;
   }
 
-  // Read the value of a bit field out of the instruction bits.
+  // Extract a bit field <hi:lo> from the instruction bits and return it in the
+  // least-significant bits of the result.
   static inline int Bits(Instr instr, int hi, int lo) {
     return (instr >> lo) & ((2 << (hi - lo)) - 1);
   }
 
-
-  // Read a bit field out of the instruction bits.
+  // Read a bit field <hi:lo>, leaving its position unchanged in the result.
   static inline int BitField(Instr instr, int hi, int lo) {
     return instr & (((2 << (hi - lo)) - 1) << lo);
   }
-
 
   // Accessors for the different named fields used in the ARM encoding.
   // The naming of these accessor corresponds to figure A3-1.
@@ -509,13 +527,11 @@ class Instruction {
 
 
   // Generally applicable fields
-  inline Condition ConditionValue() const {
-    return static_cast<Condition>(Bits(31, 28));
-  }
+  inline int ConditionValue() const { return Bits(31, 28); }
   inline Condition ConditionField() const {
     return static_cast<Condition>(BitField(31, 28));
   }
-  DECLARE_STATIC_TYPED_ACCESSOR(Condition, ConditionValue);
+  DECLARE_STATIC_TYPED_ACCESSOR(int, ConditionValue);
   DECLARE_STATIC_TYPED_ACCESSOR(Condition, ConditionField);
 
   inline int TypeValue() const { return Bits(27, 25); }
@@ -638,7 +654,7 @@ class Instruction {
   inline bool HasH()    const { return HValue() == 1; }
   inline bool HasLink() const { return LinkValue() == 1; }
 
-  // Decoding the double immediate in the vmov instruction.
+  // Decode the double immediate from a vmov instruction.
   double DoubleImmedVmov() const;
 
   // Instructions are read of out a code stream. The only way to get a

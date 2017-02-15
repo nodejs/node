@@ -9,8 +9,10 @@ i2d_X509_fp - X509 encode and decode functions
 
  #include <openssl/x509.h>
 
- X509 *d2i_X509(X509 **px, const unsigned char **in, int len);
+ X509 *d2i_X509(X509 **px, const unsigned char **in, long len);
+ X509 *d2i_X509_AUX(X509 **px, const unsigned char **in, long len);
  int i2d_X509(X509 *x, unsigned char **out);
+ int i2d_X509_AUX(X509 *x, unsigned char **out);
 
  X509 *d2i_X509_bio(BIO *bp, X509 **x);
  X509 *d2i_X509_fp(FILE *fp, X509 **x);
@@ -37,6 +39,11 @@ below, and the discussion in the RETURN VALUES section).
 If the call is successful B<*in> is incremented to the byte following the
 parsed data.
 
+d2i_X509_AUX() is similar to d2i_X509() but the input is expected to consist of
+an X509 certificate followed by auxiliary trust information.
+This is used by the PEM routines to read "TRUSTED CERTIFICATE" objects.
+This function should not be called on untrusted input.
+
 i2d_X509() encodes the structure pointed to by B<x> into DER format.
 If B<out> is not B<NULL> is writes the DER encoded data to the buffer
 at B<*out>, and increments it to point after the data just written.
@@ -47,6 +54,11 @@ For OpenSSL 0.9.7 and later if B<*out> is B<NULL> memory will be
 allocated for a buffer and the encoded data written to it. In this
 case B<*out> is not incremented and it points to the start of the
 data just written.
+
+i2d_X509_AUX() is similar to i2d_X509(), but the encoded output contains both
+the certificate and any auxiliary trust information.
+This is used by the PEM routines to write "TRUSTED CERTIFICATE" objects.
+Note, this is a non-standard OpenSSL-specific data format.
 
 d2i_X509_bio() is similar to d2i_X509() except it attempts
 to parse data from BIO B<bp>.

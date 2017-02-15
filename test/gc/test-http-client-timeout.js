@@ -2,6 +2,8 @@
 // just like test/gc/http-client.js,
 // but with a timeout set
 
+const common = require('../common');
+
 function serverHandler(req, res) {
   setTimeout(function() {
     req.resume();
@@ -11,10 +13,7 @@ function serverHandler(req, res) {
 }
 
 const http = require('http');
-const weak = require('weak');
-const common = require('../common');
-const assert = require('assert');
-const PORT = common.PORT;
+const weak = require(`./build/${common.buildType}/binding`);
 const todo = 550;
 let done = 0;
 let count = 0;
@@ -22,8 +21,8 @@ let countGC = 0;
 
 console.log('We should do ' + todo + ' requests');
 
-var server = http.createServer(serverHandler);
-server.listen(PORT, getall);
+const server = http.createServer(serverHandler);
+server.listen(0, getall);
 
 function getall() {
   if (count >= todo)
@@ -33,13 +32,12 @@ function getall() {
     function cb(res) {
       res.resume();
       done += 1;
-      statusLater();
     }
 
-    var req = http.get({
+    const req = http.get({
       hostname: 'localhost',
       pathname: '/',
-      port: PORT
+      port: server.address().port
     }, cb);
     req.on('error', cb);
     req.setTimeout(10, function() {
@@ -53,28 +51,18 @@ function getall() {
   setImmediate(getall);
 }
 
-for (var i = 0; i < 10; i++)
+for (let i = 0; i < 10; i++)
   getall();
 
 function afterGC() {
   countGC++;
 }
 
-var timer;
-function statusLater() {
-  gc();
-  if (timer) clearTimeout(timer);
-  timer = setTimeout(status, 1);
-}
+setInterval(status, 100).unref();
 
 function status() {
-  gc();
+  global.gc();
   console.log('Done: %d/%d', done, todo);
   console.log('Collected: %d/%d', countGC, count);
-  if (done === todo) {
-    console.log('All should be collected now.');
-    assert(count === countGC);
-    process.exit(0);
-  }
+  if (countGC === todo) server.close();
 }
-

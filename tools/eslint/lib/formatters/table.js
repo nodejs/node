@@ -1,7 +1,6 @@
 /**
  * @fileoverview "table reporter.
  * @author Gajus Kuizinas <gajus@gajus.com>
- * @copyright 2016 Gajus Kuizinas <gajus@gajus.com>. All rights reserved.
  */
 "use strict";
 
@@ -9,13 +8,9 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var chalk,
-    table,
-    pluralize;
-
-chalk = require("chalk");
-table = require("table").default;
-pluralize = require("pluralize");
+const chalk = require("chalk"),
+    table = require("table").default,
+    pluralize = require("pluralize");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -27,9 +22,7 @@ pluralize = require("pluralize");
  * @returns {string} A text table.
  */
 function drawTable(messages) {
-    var rows;
-
-    rows = [];
+    const rows = [];
 
     if (messages.length === 0) {
         return "";
@@ -43,8 +36,8 @@ function drawTable(messages) {
         chalk.bold("Rule ID")
     ]);
 
-    messages.forEach(function(message) {
-        var messageType;
+    messages.forEach(message => {
+        let messageType;
 
         if (message.fatal || message.severity === 2) {
             messageType = chalk.red("error");
@@ -85,7 +78,7 @@ function drawTable(messages) {
                 wrapWord: true
             }
         },
-        drawHorizontalLine: function(index) {
+        drawHorizontalLine(index) {
             return index === 1;
         }
     });
@@ -97,19 +90,17 @@ function drawTable(messages) {
  * @returns {string} A column of text tables.
  */
 function drawReport(results) {
-    var files;
+    let files;
 
-    files = results.map(function(result) {
+    files = results.map(result => {
         if (!result.messages.length) {
             return "";
         }
 
-        return "\n" + result.filePath + "\n\n" + drawTable(result.messages);
+        return `\n${result.filePath}\n\n${drawTable(result.messages)}`;
     });
 
-    files = files.filter(function(content) {
-        return content.trim();
-    });
+    files = files.filter(content => content.trim());
 
     return files.join("");
 }
@@ -119,7 +110,7 @@ function drawReport(results) {
 //------------------------------------------------------------------------------
 
 module.exports = function(report) {
-    var result,
+    let result,
         errorCount,
         warningCount;
 
@@ -127,7 +118,7 @@ module.exports = function(report) {
     errorCount = 0;
     warningCount = 0;
 
-    report.forEach(function(fileReport) {
+    report.forEach(fileReport => {
         errorCount += fileReport.errorCount;
         warningCount += fileReport.warningCount;
     });
@@ -136,7 +127,7 @@ module.exports = function(report) {
         result = drawReport(report);
     }
 
-    result += "\n" + table([
+    result += `\n${table([
         [
             chalk.red(pluralize("Error", errorCount, true))
         ],
@@ -150,10 +141,10 @@ module.exports = function(report) {
                 wrapWord: true
             }
         },
-        drawHorizontalLine: function() {
+        drawHorizontalLine() {
             return true;
         }
-    });
+    })}`;
 
     return result;
 };

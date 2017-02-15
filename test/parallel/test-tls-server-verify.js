@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 
 if (!common.opensslCli) {
-  console.log('1..0 # Skipped: node compiled without OpenSSL CLI.');
+  common.skip('node compiled without OpenSSL CLI.');
   return;
 }
 
@@ -14,100 +14,102 @@ if (!common.opensslCli) {
 // - accepted and "unauthorized", or
 // - accepted and "authorized".
 
-var testCases =
-    [{ title: 'Do not request certs. Everyone is unauthorized.',
-      requestCert: false,
-      rejectUnauthorized: false,
-      renegotiate: false,
-      CAs: ['ca1-cert'],
-      clients:
-       [{ name: 'agent1', shouldReject: false, shouldAuth: false },
+const testCases =
+  [{ title: 'Do not request certs. Everyone is unauthorized.',
+     requestCert: false,
+     rejectUnauthorized: false,
+     renegotiate: false,
+     CAs: ['ca1-cert'],
+     clients:
+     [{ name: 'agent1', shouldReject: false, shouldAuth: false },
         { name: 'agent2', shouldReject: false, shouldAuth: false },
         { name: 'agent3', shouldReject: false, shouldAuth: false },
         { name: 'nocert', shouldReject: false, shouldAuth: false }
-       ]
-    },
+     ]
+  },
 
-    { title: 'Allow both authed and unauthed connections with CA1',
-      requestCert: true,
-      rejectUnauthorized: false,
-      renegotiate: false,
-      CAs: ['ca1-cert'],
-      clients:
-       [{ name: 'agent1', shouldReject: false, shouldAuth: true },
+  { title: 'Allow both authed and unauthed connections with CA1',
+    requestCert: true,
+    rejectUnauthorized: false,
+    renegotiate: false,
+    CAs: ['ca1-cert'],
+    clients:
+    [{ name: 'agent1', shouldReject: false, shouldAuth: true },
         { name: 'agent2', shouldReject: false, shouldAuth: false },
         { name: 'agent3', shouldReject: false, shouldAuth: false },
         { name: 'nocert', shouldReject: false, shouldAuth: false }
-       ]
-    },
+    ]
+  },
 
-    { title: 'Do not request certs at connection. Do that later',
-      requestCert: false,
-      rejectUnauthorized: false,
-      renegotiate: true,
-      CAs: ['ca1-cert'],
-      clients:
-       [{ name: 'agent1', shouldReject: false, shouldAuth: true },
+  { title: 'Do not request certs at connection. Do that later',
+    requestCert: false,
+    rejectUnauthorized: false,
+    renegotiate: true,
+    CAs: ['ca1-cert'],
+    clients:
+    [{ name: 'agent1', shouldReject: false, shouldAuth: true },
         { name: 'agent2', shouldReject: false, shouldAuth: false },
         { name: 'agent3', shouldReject: false, shouldAuth: false },
         { name: 'nocert', shouldReject: false, shouldAuth: false }
-       ]
-    },
+    ]
+  },
 
-    { title: 'Allow only authed connections with CA1',
-      requestCert: true,
-      rejectUnauthorized: true,
-      renegotiate: false,
-      CAs: ['ca1-cert'],
-      clients:
-       [{ name: 'agent1', shouldReject: false, shouldAuth: true },
+  { title: 'Allow only authed connections with CA1',
+    requestCert: true,
+    rejectUnauthorized: true,
+    renegotiate: false,
+    CAs: ['ca1-cert'],
+    clients:
+    [{ name: 'agent1', shouldReject: false, shouldAuth: true },
         { name: 'agent2', shouldReject: true },
         { name: 'agent3', shouldReject: true },
         { name: 'nocert', shouldReject: true }
-       ]
-    },
+    ]
+  },
 
-    { title: 'Allow only authed connections with CA1 and CA2',
-      requestCert: true,
-      rejectUnauthorized: true,
-      renegotiate: false,
-      CAs: ['ca1-cert', 'ca2-cert'],
-      clients:
-       [{ name: 'agent1', shouldReject: false, shouldAuth: true },
+  { title: 'Allow only authed connections with CA1 and CA2',
+    requestCert: true,
+    rejectUnauthorized: true,
+    renegotiate: false,
+    CAs: ['ca1-cert', 'ca2-cert'],
+    clients:
+    [{ name: 'agent1', shouldReject: false, shouldAuth: true },
         { name: 'agent2', shouldReject: true },
         { name: 'agent3', shouldReject: false, shouldAuth: true },
         { name: 'nocert', shouldReject: true }
-       ]
-    },
+    ]
+  },
 
 
-    { title: 'Allow only certs signed by CA2 but not in the CRL',
-      requestCert: true,
-      rejectUnauthorized: true,
-      renegotiate: false,
-      CAs: ['ca2-cert'],
-      crl: 'ca2-crl',
-      clients: [
+  { title: 'Allow only certs signed by CA2 but not in the CRL',
+    requestCert: true,
+    rejectUnauthorized: true,
+    renegotiate: false,
+    CAs: ['ca2-cert'],
+    crl: 'ca2-crl',
+    clients: [
         { name: 'agent1', shouldReject: true, shouldAuth: false },
         { name: 'agent2', shouldReject: true, shouldAuth: false },
         { name: 'agent3', shouldReject: false, shouldAuth: true },
         // Agent4 has a cert in the CRL.
         { name: 'agent4', shouldReject: true, shouldAuth: false },
         { name: 'nocert', shouldReject: true }
-      ]
-    }
-    ];
+    ]
+  }
+  ];
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var constants = require('constants');
-var assert = require('assert');
-var fs = require('fs');
-var spawn = require('child_process').spawn;
+const SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION =
+  require('crypto').constants.SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION;
+
+const assert = require('assert');
+const fs = require('fs');
+const spawn = require('child_process').spawn;
 
 
 function filenamePEM(n) {
@@ -120,8 +122,8 @@ function loadPEM(n) {
 }
 
 
-var serverKey = loadPEM('agent2-key');
-var serverCert = loadPEM('agent2-cert');
+const serverKey = loadPEM('agent2-key');
+const serverCert = loadPEM('agent2-cert');
 
 
 function runClient(prefix, port, options, cb) {
@@ -131,7 +133,7 @@ function runClient(prefix, port, options, cb) {
   // - Certificate, but not signed by CA.
   // - Certificate signed by CA.
 
-  var args = ['s_client', '-connect', '127.0.0.1:' + port];
+  const args = ['s_client', '-connect', '127.0.0.1:' + port];
 
   // for the performance issue in s_client on Windows
   if (common.isWindows)
@@ -182,13 +184,13 @@ function runClient(prefix, port, options, cb) {
   }
 
   // To test use: openssl s_client -connect localhost:8000
-  var client = spawn(common.opensslCli, args);
+  const client = spawn(common.opensslCli, args);
 
-  var out = '';
+  let out = '';
 
-  var rejected = true;
-  var authed = false;
-  var goodbye = false;
+  let rejected = true;
+  let authed = false;
+  let goodbye = false;
 
   client.stdout.setEncoding('utf8');
   client.stdout.on('data', function(d) {
@@ -214,15 +216,15 @@ function runClient(prefix, port, options, cb) {
   //client.stdout.pipe(process.stdout);
 
   client.on('exit', function(code) {
-    //assert.equal(0, code, prefix + options.name +
+    //assert.strictEqual(0, code, prefix + options.name +
     //      ": s_client exited with error code " + code);
     if (options.shouldReject) {
-      assert.equal(true, rejected, prefix + options.name +
+      assert.strictEqual(true, rejected, prefix + options.name +
           ' NOT rejected, but should have been');
     } else {
-      assert.equal(false, rejected, prefix + options.name +
+      assert.strictEqual(false, rejected, prefix + options.name +
           ' rejected, but should NOT have been');
-      assert.equal(options.shouldAuth, authed, prefix +
+      assert.strictEqual(options.shouldAuth, authed, prefix +
           options.name + ' authed is ' + authed +
           ' but should have been ' + options.shouldAuth);
     }
@@ -233,19 +235,19 @@ function runClient(prefix, port, options, cb) {
 
 
 // Run the tests
-var successfulTests = 0;
+let successfulTests = 0;
 function runTest(port, testIndex) {
-  var prefix = testIndex + ' ';
-  var tcase = testCases[testIndex];
+  const prefix = testIndex + ' ';
+  const tcase = testCases[testIndex];
   if (!tcase) return;
 
   console.error(prefix + "Running '%s'", tcase.title);
 
-  var cas = tcase.CAs.map(loadPEM);
+  const cas = tcase.CAs.map(loadPEM);
 
-  var crl = tcase.crl ? loadPEM(tcase.crl) : null;
+  const crl = tcase.crl ? loadPEM(tcase.crl) : null;
 
-  var serverOptions = {
+  const serverOptions = {
     key: serverKey,
     cert: serverCert,
     ca: cas,
@@ -254,19 +256,17 @@ function runTest(port, testIndex) {
     rejectUnauthorized: tcase.rejectUnauthorized
   };
 
-  var connections = 0;
-
   /*
    * If renegotiating - session might be resumed and openssl won't request
    * client's certificate (probably because of bug in the openssl)
    */
   if (tcase.renegotiate) {
     serverOptions.secureOptions =
-        constants.SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION;
+        SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION;
   }
 
-  var renegotiated = false;
-  var server = tls.Server(serverOptions, function handleConnection(c) {
+  let renegotiated = false;
+  const server = tls.Server(serverOptions, function handleConnection(c) {
     c.on('error', function(e) {
       // child.kill() leads ECONNRESET errro in the TLS connection of
       // openssl s_client via spawn(). A Test result is already
@@ -282,7 +282,7 @@ function runTest(port, testIndex) {
           requestCert: true,
           rejectUnauthorized: false
         }, function(err) {
-          assert(!err);
+          assert.ifError(err);
           c.write('\n_renegotiated\n');
           handleConnection(c);
         });
@@ -290,7 +290,6 @@ function runTest(port, testIndex) {
       return;
     }
 
-    connections++;
     if (c.authorized) {
       console.error(prefix + '- authed connection: ' +
                     c.getPeerCertificate().subject.CN);
@@ -302,7 +301,7 @@ function runTest(port, testIndex) {
   });
 
   function runNextClient(clientIndex) {
-    var options = tcase.clients[clientIndex];
+    const options = tcase.clients[clientIndex];
     if (options) {
       runClient(prefix + clientIndex + ' ', port, options, function() {
         runNextClient(clientIndex + 1);
@@ -315,14 +314,15 @@ function runTest(port, testIndex) {
   }
 
   server.listen(port, function() {
+    port = server.address().port;
     if (tcase.debug) {
       console.error(prefix + 'TLS server running on port ' + port);
     } else {
       if (tcase.renegotiate) {
         runNextClient(0);
       } else {
-        var clientsCompleted = 0;
-        for (var i = 0; i < tcase.clients.length; i++) {
+        let clientsCompleted = 0;
+        for (let i = 0; i < tcase.clients.length; i++) {
           runClient(prefix + i + ' ', port, tcase.clients[i], function() {
             clientsCompleted++;
             if (clientsCompleted === tcase.clients.length) {
@@ -338,11 +338,11 @@ function runTest(port, testIndex) {
 }
 
 
-var nextTest = 0;
-runTest(common.PORT, nextTest++);
-runTest(common.PORT + 1, nextTest++);
+let nextTest = 0;
+runTest(0, nextTest++);
+runTest(0, nextTest++);
 
 
 process.on('exit', function() {
-  assert.equal(successfulTests, testCases.length);
+  assert.strictEqual(successfulTests, testCases.length);
 });

@@ -158,8 +158,7 @@ static void GenerateKeyedLoadReceiverCheck(MacroAssembler* masm,
 static void GenerateFastArrayLoad(MacroAssembler* masm, Register receiver,
                                   Register key, Register elements,
                                   Register scratch1, Register scratch2,
-                                  Register result, Label* slow,
-                                  LanguageMode language_mode) {
+                                  Register result, Label* slow) {
   // Register use:
   //
   // receiver - holds the receiver on entry.
@@ -215,12 +214,8 @@ static void GenerateFastArrayLoad(MacroAssembler* masm, Register receiver,
   __ Branch(&check_next_prototype);
 
   __ bind(&absent);
-  if (is_strong(language_mode)) {
-    __ Branch(slow);
-  } else {
-    __ LoadRoot(result, Heap::kUndefinedValueRootIndex);
-    __ Branch(&done);
-  }
+  __ LoadRoot(result, Heap::kUndefinedValueRootIndex);
+  __ Branch(&done);
 
   __ bind(&in_bounds);
   // Fast case: Do the load.
@@ -269,8 +264,7 @@ static void GenerateKeyNameCheck(MacroAssembler* masm, Register key,
   __ bind(&unique);
 }
 
-
-void LoadIC::GenerateNormal(MacroAssembler* masm, LanguageMode language_mode) {
+void LoadIC::GenerateNormal(MacroAssembler* masm) {
   Register dictionary = a0;
   DCHECK(!dictionary.is(LoadDescriptor::ReceiverRegister()));
   DCHECK(!dictionary.is(LoadDescriptor::NameRegister()));
@@ -284,7 +278,7 @@ void LoadIC::GenerateNormal(MacroAssembler* masm, LanguageMode language_mode) {
 
   // Dictionary load failed, go slow (but don't miss).
   __ bind(&slow);
-  GenerateRuntimeGetProperty(masm, language_mode);
+  GenerateRuntimeGetProperty(masm);
 }
 
 
@@ -308,7 +302,7 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
 
   DCHECK(!AreAliased(a4, a5, LoadWithVectorDescriptor::SlotRegister(),
                      LoadWithVectorDescriptor::VectorRegister()));
-  __ IncrementCounter(isolate->counters()->load_miss(), 1, a4, a5);
+  __ IncrementCounter(isolate->counters()->ic_load_miss(), 1, a4, a5);
 
   LoadIC_PushArgs(masm);
 
@@ -316,17 +310,14 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
   __ TailCallRuntime(Runtime::kLoadIC_Miss);
 }
 
-
-void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm,
-                                        LanguageMode language_mode) {
+void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
   // The return address is in ra.
 
   __ mov(LoadIC_TempRegister(), LoadDescriptor::ReceiverRegister());
   __ Push(LoadIC_TempRegister(), LoadDescriptor::NameRegister());
 
   // Do tail-call to runtime routine.
-  __ TailCallRuntime(is_strong(language_mode) ? Runtime::kGetPropertyStrong
-                                              : Runtime::kGetProperty);
+  __ TailCallRuntime(Runtime::kGetProperty);
 }
 
 
@@ -336,7 +327,7 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
 
   DCHECK(!AreAliased(a4, a5, LoadWithVectorDescriptor::SlotRegister(),
                      LoadWithVectorDescriptor::VectorRegister()));
-  __ IncrementCounter(isolate->counters()->keyed_load_miss(), 1, a4, a5);
+  __ IncrementCounter(isolate->counters()->ic_keyed_load_miss(), 1, a4, a5);
 
   LoadIC_PushArgs(masm);
 
@@ -344,21 +335,16 @@ void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
   __ TailCallRuntime(Runtime::kKeyedLoadIC_Miss);
 }
 
-
-void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm,
-                                             LanguageMode language_mode) {
+void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
   // The return address is in ra.
 
   __ Push(LoadDescriptor::ReceiverRegister(), LoadDescriptor::NameRegister());
 
   // Do tail-call to runtime routine.
-  __ TailCallRuntime(is_strong(language_mode) ? Runtime::kKeyedGetPropertyStrong
-                                              : Runtime::kKeyedGetProperty);
+  __ TailCallRuntime(Runtime::kKeyedGetProperty);
 }
 
-
-void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm,
-                                      LanguageMode language_mode) {
+void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   // The return address is in ra.
   Label slow, check_name, index_smi, index_name, property_array_property;
   Label probe_dictionary, check_number_dictionary;
@@ -382,9 +368,9 @@ void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm,
   // Check the receiver's map to see if it has fast elements.
   __ CheckFastElements(a0, a3, &check_number_dictionary);
 
-  GenerateFastArrayLoad(masm, receiver, key, a0, a3, a4, v0, &slow,
-                        language_mode);
-  __ IncrementCounter(isolate->counters()->keyed_load_generic_smi(), 1, a4, a3);
+  GenerateFastArrayLoad(masm, receiver, key, a0, a3, a4, v0, &slow);
+  __ IncrementCounter(isolate->counters()->ic_keyed_load_generic_smi(), 1, a4,
+                      a3);
   __ Ret();
 
   __ bind(&check_number_dictionary);
@@ -402,9 +388,9 @@ void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm,
 
   // Slow case, key and receiver still in a2 and a1.
   __ bind(&slow);
-  __ IncrementCounter(isolate->counters()->keyed_load_generic_slow(), 1, a4,
+  __ IncrementCounter(isolate->counters()->ic_keyed_load_generic_slow(), 1, a4,
                       a3);
-  GenerateRuntimeGetProperty(masm, language_mode);
+  GenerateRuntimeGetProperty(masm);
 
   __ bind(&check_name);
   GenerateKeyNameCheck(masm, key, a0, a3, &index_name, &slow);
@@ -432,10 +418,8 @@ void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm,
   __ LoadRoot(vector, Heap::kDummyVectorRootIndex);
   __ li(slot, Operand(Smi::FromInt(slot_index)));
 
-  Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
-      Code::ComputeHandlerFlags(Code::LOAD_IC));
-  masm->isolate()->stub_cache()->GenerateProbe(masm, Code::LOAD_IC, flags,
-                                               receiver, key, a4, a5, a6, t1);
+  masm->isolate()->load_stub_cache()->GenerateProbe(masm, receiver, key, a4, a5,
+                                                    a6, t1);
   // Cache miss.
   GenerateMiss(masm);
 
@@ -448,8 +432,8 @@ void KeyedLoadIC::GenerateMegamorphic(MacroAssembler* masm,
   GenerateGlobalInstanceTypeCheck(masm, a0, &slow);
   // Load the property to v0.
   GenerateDictionaryLoad(masm, &slow, a3, key, v0, a5, a4);
-  __ IncrementCounter(isolate->counters()->keyed_load_generic_symbol(), 1, a4,
-                      a3);
+  __ IncrementCounter(isolate->counters()->ic_keyed_load_generic_symbol(), 1,
+                      a4, a3);
   __ Ret();
 
   __ bind(&index_name);
@@ -512,7 +496,8 @@ static void KeyedStoreGenerateMegamorphicHelper(
   __ SmiScale(scratch, key, kPointerSizeLog2);
   __ Daddu(address, address, scratch);
   __ sd(value, MemOperand(address));
-  __ Ret();
+  __ Ret(USE_DELAY_SLOT);
+  __ Move(v0, value);  // Ensure the stub returns correct value.
 
   __ bind(&non_smi_value);
   // Escape to elements kind transition case.
@@ -534,7 +519,8 @@ static void KeyedStoreGenerateMegamorphicHelper(
   __ mov(scratch, value);  // Preserve the value which is returned.
   __ RecordWrite(elements, address, scratch, kRAHasNotBeenSaved,
                  kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
-  __ Ret();
+  __ Ret(USE_DELAY_SLOT);
+  __ Move(v0, value);  // Ensure the stub returns correct value.
 
   __ bind(fast_double);
   if (check_map == kCheckMap) {
@@ -565,7 +551,8 @@ static void KeyedStoreGenerateMegamorphicHelper(
     __ Daddu(scratch, key, Operand(Smi::FromInt(1)));
     __ sd(scratch, FieldMemOperand(receiver, JSArray::kLengthOffset));
   }
-  __ Ret();
+  __ Ret(USE_DELAY_SLOT);
+  __ Move(v0, value);  // Ensure the stub returns correct value.
 
   __ bind(&transition_smi_elements);
   // Transition the array appropriately depending on the value type.
@@ -636,11 +623,10 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   __ JumpIfSmi(receiver, &slow);
   // Get the map of the object.
   __ ld(receiver_map, FieldMemOperand(receiver, HeapObject::kMapOffset));
-  // Check that the receiver does not require access checks and is not observed.
-  // The generic stub does not perform map checks or handle observed objects.
+  // Check that the receiver does not require access checks.
+  // The generic stub does not perform map checks.
   __ lbu(a4, FieldMemOperand(receiver_map, Map::kBitFieldOffset));
-  __ And(a4, a4,
-         Operand(1 << Map::kIsAccessCheckNeeded | 1 << Map::kIsObserved));
+  __ And(a4, a4, Operand(1 << Map::kIsAccessCheckNeeded));
   __ Branch(&slow, ne, a4, Operand(zero_reg));
   // Check if the object is a JS array or not.
   __ lbu(a4, FieldMemOperand(receiver_map, Map::kInstanceTypeOffset));
@@ -670,8 +656,8 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
 
   // The handlers in the stub cache expect a vector and slot. Since we won't
   // change the IC from any downstream misses, a dummy vector can be used.
-  Register vector = VectorStoreICDescriptor::VectorRegister();
-  Register slot = VectorStoreICDescriptor::SlotRegister();
+  Register vector = StoreWithVectorDescriptor::VectorRegister();
+  Register slot = StoreWithVectorDescriptor::SlotRegister();
 
   DCHECK(!AreAliased(vector, slot, a5, a6, a7, t0));
   Handle<TypeFeedbackVector> dummy_vector =
@@ -681,10 +667,8 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
   __ LoadRoot(vector, Heap::kDummyVectorRootIndex);
   __ li(slot, Operand(Smi::FromInt(slot_index)));
 
-  Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
-      Code::ComputeHandlerFlags(Code::STORE_IC));
-  masm->isolate()->stub_cache()->GenerateProbe(masm, Code::STORE_IC, flags,
-                                               receiver, key, a5, a6, a7, t0);
+  masm->isolate()->store_stub_cache()->GenerateProbe(masm, receiver, key, a5,
+                                                     a6, a7, t0);
   // Cache miss.
   __ Branch(&miss);
 
@@ -733,10 +717,11 @@ void KeyedStoreIC::GenerateMegamorphic(MacroAssembler* masm,
 
 
 static void StoreIC_PushArgs(MacroAssembler* masm) {
-  __ Push(StoreDescriptor::ReceiverRegister(), StoreDescriptor::NameRegister(),
-          StoreDescriptor::ValueRegister(),
-          VectorStoreICDescriptor::SlotRegister(),
-          VectorStoreICDescriptor::VectorRegister());
+  __ Push(StoreWithVectorDescriptor::ValueRegister(),
+          StoreWithVectorDescriptor::SlotRegister(),
+          StoreWithVectorDescriptor::VectorRegister(),
+          StoreWithVectorDescriptor::ReceiverRegister(),
+          StoreWithVectorDescriptor::NameRegister());
 }
 
 
@@ -746,24 +731,13 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
   __ TailCallRuntime(Runtime::kKeyedStoreIC_Miss);
 }
 
+void KeyedStoreIC::GenerateSlow(MacroAssembler* masm) {
+  StoreIC_PushArgs(masm);
 
-void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
-  Register receiver = StoreDescriptor::ReceiverRegister();
-  Register name = StoreDescriptor::NameRegister();
-  DCHECK(receiver.is(a1));
-  DCHECK(name.is(a2));
-  DCHECK(StoreDescriptor::ValueRegister().is(a0));
-
-  // Get the receiver from the stack and probe the stub cache.
-  Code::Flags flags = Code::RemoveTypeAndHolderFromFlags(
-      Code::ComputeHandlerFlags(Code::STORE_IC));
-  masm->isolate()->stub_cache()->GenerateProbe(masm, Code::STORE_IC, flags,
-                                               receiver, name, a3, a4, a5, a6);
-
-  // Cache miss: Jump to runtime.
-  GenerateMiss(masm);
+  // The slow case calls into the runtime to complete the store without causing
+  // an IC miss that would otherwise cause a transition to the generic stub.
+  __ TailCallRuntime(Runtime::kKeyedStoreIC_Slow);
 }
-
 
 void StoreIC::GenerateMiss(MacroAssembler* masm) {
   StoreIC_PushArgs(masm);
@@ -780,18 +754,19 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
   Register value = StoreDescriptor::ValueRegister();
   Register dictionary = a5;
   DCHECK(!AreAliased(
-      value, receiver, name, VectorStoreICDescriptor::VectorRegister(),
-      VectorStoreICDescriptor::SlotRegister(), dictionary, a6, a7));
+      value, receiver, name, StoreWithVectorDescriptor::VectorRegister(),
+      StoreWithVectorDescriptor::SlotRegister(), dictionary, a6, a7));
 
   __ ld(dictionary, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
 
   GenerateDictionaryStore(masm, &miss, dictionary, name, value, a6, a7);
   Counters* counters = masm->isolate()->counters();
-  __ IncrementCounter(counters->store_normal_hit(), 1, a6, a7);
-  __ Ret();
+  __ IncrementCounter(counters->ic_store_normal_hit(), 1, a6, a7);
+  __ Ret(USE_DELAY_SLOT);
+  __ Move(v0, value);  // Ensure the stub returns correct value.
 
   __ bind(&miss);
-  __ IncrementCounter(counters->store_normal_miss(), 1, a6, a7);
+  __ IncrementCounter(counters->ic_store_normal_miss(), 1, a6, a7);
   GenerateMiss(masm);
 }
 
@@ -856,8 +831,9 @@ void PatchInlinedSmiCode(Isolate* isolate, Address address,
   }
 
   if (FLAG_trace_ic) {
-    PrintF("[  patching ic at %p, andi=%p, delta=%d\n", address,
-           andi_instruction_address, delta);
+    PrintF("[  patching ic at %p, andi=%p, delta=%d\n",
+           static_cast<void*>(address),
+           static_cast<void*>(andi_instruction_address), delta);
   }
 
   Address patch_address =

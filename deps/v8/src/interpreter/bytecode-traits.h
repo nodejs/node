@@ -5,173 +5,148 @@
 #ifndef V8_INTERPRETER_BYTECODE_TRAITS_H_
 #define V8_INTERPRETER_BYTECODE_TRAITS_H_
 
-#include "src/interpreter/bytecodes.h"
+#include "src/interpreter/bytecode-operands.h"
 
 namespace v8 {
 namespace internal {
 namespace interpreter {
 
-// TODO(rmcilroy): consider simplifying this to avoid the template magic.
+template <OperandTypeInfo>
+struct OperandTypeInfoTraits {
+  static const bool kIsScalable = false;
+  static const bool kIsUnsigned = false;
+  static const OperandSize kUnscaledSize = OperandSize::kNone;
+};
 
-// Template helpers to deduce the number of operands each bytecode has.
-#define OPERAND_TERM OperandType::kNone, OperandType::kNone, OperandType::kNone
+#define DECLARE_OPERAND_TYPE_INFO(Name, Scalable, Unsigned, BaseSize) \
+  template <>                                                         \
+  struct OperandTypeInfoTraits<OperandTypeInfo::k##Name> {            \
+    static const bool kIsScalable = Scalable;                         \
+    static const bool kIsUnsigned = Unsigned;                         \
+    static const OperandSize kUnscaledSize = BaseSize;                \
+  };
+OPERAND_TYPE_INFO_LIST(DECLARE_OPERAND_TYPE_INFO)
+#undef DECLARE_OPERAND_TYPE_INFO
 
 template <OperandType>
-struct OperandTraits {};
+struct OperandTraits {
+  typedef OperandTypeInfoTraits<OperandTypeInfo::kNone> TypeInfoTraits;
+  static const OperandTypeInfo kOperandTypeInfo = OperandTypeInfo::kNone;
+};
 
-#define DECLARE_OPERAND_SIZE(Name, Size)             \
-  template <>                                        \
-  struct OperandTraits<OperandType::k##Name> {       \
-    static const OperandSize kSizeType = Size;       \
-    static const int kSize = static_cast<int>(Size); \
+#define DECLARE_OPERAND_TYPE_TRAITS(Name, InfoType)           \
+  template <>                                                 \
+  struct OperandTraits<OperandType::k##Name> {                \
+    typedef OperandTypeInfoTraits<InfoType> TypeInfoTraits;   \
+    static const OperandTypeInfo kOperandTypeInfo = InfoType; \
   };
-OPERAND_TYPE_LIST(DECLARE_OPERAND_SIZE)
-#undef DECLARE_OPERAND_SIZE
+OPERAND_TYPE_LIST(DECLARE_OPERAND_TYPE_TRAITS)
+#undef DECLARE_OPERAND_TYPE_TRAITS
 
+template <OperandType operand_type, OperandScale operand_scale>
+struct OperandScaler {
+  template <bool, OperandSize, OperandScale>
+  struct Helper {
+    static const int kSize = 0;
+  };
+  template <OperandSize size, OperandScale scale>
+  struct Helper<false, size, scale> {
+    static const int kSize = static_cast<int>(size);
+  };
+  template <OperandSize size, OperandScale scale>
+  struct Helper<true, size, scale> {
+    static const int kSize = static_cast<int>(size) * static_cast<int>(scale);
+  };
 
-template <OperandType... Args>
-struct BytecodeTraits {};
-
-template <OperandType operand_0, OperandType operand_1, OperandType operand_2,
-          OperandType operand_3>
-struct BytecodeTraits<operand_0, operand_1, operand_2, operand_3,
-                      OPERAND_TERM> {
-  static OperandType GetOperandType(int i) {
-    DCHECK(0 <= i && i < kOperandCount);
-    const OperandType kOperands[] = {operand_0, operand_1, operand_2,
-                                     operand_3};
-    return kOperands[i];
-  }
-
-  static inline OperandSize GetOperandSize(int i) {
-    DCHECK(0 <= i && i < kOperandCount);
-    const OperandSize kOperandSizes[] =
-        {OperandTraits<operand_0>::kSizeType,
-         OperandTraits<operand_1>::kSizeType,
-         OperandTraits<operand_2>::kSizeType,
-         OperandTraits<operand_3>::kSizeType};
-    return kOperandSizes[i];
-  }
-
-  static inline int GetOperandOffset(int i) {
-    DCHECK(0 <= i && i < kOperandCount);
-    const int kOffset0 = 1;
-    const int kOffset1 = kOffset0 + OperandTraits<operand_0>::kSize;
-    const int kOffset2 = kOffset1 + OperandTraits<operand_1>::kSize;
-    const int kOffset3 = kOffset2 + OperandTraits<operand_2>::kSize;
-    const int kOperandOffsets[] = {kOffset0, kOffset1, kOffset2, kOffset3};
-    return kOperandOffsets[i];
-  }
-
-  static const int kOperandCount = 4;
   static const int kSize =
-      1 + OperandTraits<operand_0>::kSize + OperandTraits<operand_1>::kSize +
-      OperandTraits<operand_2>::kSize + OperandTraits<operand_3>::kSize;
+      Helper<OperandTraits<operand_type>::TypeInfoTraits::kIsScalable,
+             OperandTraits<operand_type>::TypeInfoTraits::kUnscaledSize,
+             operand_scale>::kSize;
+  static const OperandSize kOperandSize = static_cast<OperandSize>(kSize);
 };
 
-
-template <OperandType operand_0, OperandType operand_1, OperandType operand_2>
-struct BytecodeTraits<operand_0, operand_1, operand_2, OPERAND_TERM> {
-  static inline OperandType GetOperandType(int i) {
-    DCHECK(0 <= i && i <= 2);
-    const OperandType kOperands[] = {operand_0, operand_1, operand_2};
-    return kOperands[i];
-  }
-
-  static inline OperandSize GetOperandSize(int i) {
-    DCHECK(0 <= i && i < kOperandCount);
-    const OperandSize kOperandSizes[] =
-        {OperandTraits<operand_0>::kSizeType,
-         OperandTraits<operand_1>::kSizeType,
-         OperandTraits<operand_2>::kSizeType};
-    return kOperandSizes[i];
-  }
-
-  static inline int GetOperandOffset(int i) {
-    DCHECK(0 <= i && i < kOperandCount);
-    const int kOffset0 = 1;
-    const int kOffset1 = kOffset0 + OperandTraits<operand_0>::kSize;
-    const int kOffset2 = kOffset1 + OperandTraits<operand_1>::kSize;
-    const int kOperandOffsets[] = {kOffset0, kOffset1, kOffset2};
-    return kOperandOffsets[i];
-  }
-
-  static const int kOperandCount = 3;
-  static const int kSize =
-      1 + OperandTraits<operand_0>::kSize + OperandTraits<operand_1>::kSize +
-      OperandTraits<operand_2>::kSize;
+template <int... values>
+struct SumHelper;
+template <int value>
+struct SumHelper<value> {
+  static const int kValue = value;
+};
+template <int value, int... values>
+struct SumHelper<value, values...> {
+  static const int kValue = value + SumHelper<values...>::kValue;
 };
 
-template <OperandType operand_0, OperandType operand_1>
-struct BytecodeTraits<operand_0, operand_1, OPERAND_TERM> {
-  static inline OperandType GetOperandType(int i) {
-    DCHECK(0 <= i && i < kOperandCount);
-    const OperandType kOperands[] = {operand_0, operand_1};
-    return kOperands[i];
-  }
-
-  static inline OperandSize GetOperandSize(int i) {
-    DCHECK(0 <= i && i < kOperandCount);
-    const OperandSize kOperandSizes[] =
-        {OperandTraits<operand_0>::kSizeType,
-         OperandTraits<operand_1>::kSizeType};
-    return kOperandSizes[i];
-  }
-
-  static inline int GetOperandOffset(int i) {
-    DCHECK(0 <= i && i < kOperandCount);
-    const int kOffset0 = 1;
-    const int kOffset1 = kOffset0 + OperandTraits<operand_0>::kSize;
-    const int kOperandOffsets[] = {kOffset0, kOffset1};
-    return kOperandOffsets[i];
-  }
-
-  static const int kOperandCount = 2;
-  static const int kSize =
-      1 + OperandTraits<operand_0>::kSize + OperandTraits<operand_1>::kSize;
+template <AccumulatorUse accumulator_use, OperandType... operands>
+struct BytecodeTraits {
+  static const OperandType kOperandTypes[];
+  static const OperandTypeInfo kOperandTypeInfos[];
+  static const OperandSize kSingleScaleOperandSizes[];
+  static const OperandSize kDoubleScaleOperandSizes[];
+  static const OperandSize kQuadrupleScaleOperandSizes[];
+  static const int kSingleScaleSize = SumHelper<
+      1, OperandScaler<operands, OperandScale::kSingle>::kSize...>::kValue;
+  static const int kDoubleScaleSize = SumHelper<
+      1, OperandScaler<operands, OperandScale::kDouble>::kSize...>::kValue;
+  static const int kQuadrupleScaleSize = SumHelper<
+      1, OperandScaler<operands, OperandScale::kQuadruple>::kSize...>::kValue;
+  static const AccumulatorUse kAccumulatorUse = accumulator_use;
+  static const int kOperandCount = sizeof...(operands);
 };
 
-template <OperandType operand_0>
-struct BytecodeTraits<operand_0, OPERAND_TERM> {
-  static inline OperandType GetOperandType(int i) {
-    DCHECK(i == 0);
-    return operand_0;
-  }
+template <AccumulatorUse accumulator_use, OperandType... operands>
+STATIC_CONST_MEMBER_DEFINITION const OperandType
+    BytecodeTraits<accumulator_use, operands...>::kOperandTypes[] = {
+        operands...};
+template <AccumulatorUse accumulator_use, OperandType... operands>
+STATIC_CONST_MEMBER_DEFINITION const OperandTypeInfo
+    BytecodeTraits<accumulator_use, operands...>::kOperandTypeInfos[] = {
+        OperandTraits<operands>::kOperandTypeInfo...};
+template <AccumulatorUse accumulator_use, OperandType... operands>
+STATIC_CONST_MEMBER_DEFINITION const OperandSize
+    BytecodeTraits<accumulator_use, operands...>::kSingleScaleOperandSizes[] = {
+        OperandScaler<operands, OperandScale::kSingle>::kOperandSize...};
+template <AccumulatorUse accumulator_use, OperandType... operands>
+STATIC_CONST_MEMBER_DEFINITION const OperandSize
+    BytecodeTraits<accumulator_use, operands...>::kDoubleScaleOperandSizes[] = {
+        OperandScaler<operands, OperandScale::kDouble>::kOperandSize...};
+template <AccumulatorUse accumulator_use, OperandType... operands>
+STATIC_CONST_MEMBER_DEFINITION const OperandSize BytecodeTraits<
+    accumulator_use, operands...>::kQuadrupleScaleOperandSizes[] = {
+    OperandScaler<operands, OperandScale::kQuadruple>::kOperandSize...};
 
-  static inline OperandSize GetOperandSize(int i) {
-    DCHECK(i == 0);
-    return OperandTraits<operand_0>::kSizeType;
-  }
-
-  static inline int GetOperandOffset(int i) {
-    DCHECK(i == 0);
-    return 1;
-  }
-
-  static const int kOperandCount = 1;
-  static const int kSize = 1 + OperandTraits<operand_0>::kSize;
-};
-
-template <>
-struct BytecodeTraits<OperandType::kNone, OPERAND_TERM> {
-  static inline OperandType GetOperandType(int i) {
-    UNREACHABLE();
-    return OperandType::kNone;
-  }
-
-  static inline OperandSize GetOperandSize(int i) {
-    UNREACHABLE();
-    return OperandSize::kNone;
-  }
-
-  static inline int GetOperandOffset(int i) {
-    UNREACHABLE();
-    return 1;
-  }
-
+template <AccumulatorUse accumulator_use>
+struct BytecodeTraits<accumulator_use> {
+  static const OperandType kOperandTypes[];
+  static const OperandTypeInfo kOperandTypeInfos[];
+  static const OperandSize kSingleScaleOperandSizes[];
+  static const OperandSize kDoubleScaleOperandSizes[];
+  static const OperandSize kQuadrupleScaleOperandSizes[];
+  static const int kSingleScaleSize = 1;
+  static const int kDoubleScaleSize = 1;
+  static const int kQuadrupleScaleSize = 1;
+  static const AccumulatorUse kAccumulatorUse = accumulator_use;
   static const int kOperandCount = 0;
-  static const int kSize = 1 + OperandTraits<OperandType::kNone>::kSize;
 };
+
+template <AccumulatorUse accumulator_use>
+STATIC_CONST_MEMBER_DEFINITION const OperandType
+    BytecodeTraits<accumulator_use>::kOperandTypes[] = {OperandType::kNone};
+template <AccumulatorUse accumulator_use>
+STATIC_CONST_MEMBER_DEFINITION const OperandTypeInfo
+    BytecodeTraits<accumulator_use>::kOperandTypeInfos[] = {
+        OperandTypeInfo::kNone};
+template <AccumulatorUse accumulator_use>
+STATIC_CONST_MEMBER_DEFINITION const OperandSize
+    BytecodeTraits<accumulator_use>::kSingleScaleOperandSizes[] = {
+        OperandSize::kNone};
+template <AccumulatorUse accumulator_use>
+STATIC_CONST_MEMBER_DEFINITION const OperandSize
+    BytecodeTraits<accumulator_use>::kDoubleScaleOperandSizes[] = {
+        OperandSize::kNone};
+template <AccumulatorUse accumulator_use>
+STATIC_CONST_MEMBER_DEFINITION const OperandSize
+    BytecodeTraits<accumulator_use>::kQuadrupleScaleOperandSizes[] = {
+        OperandSize::kNone};
 
 }  // namespace interpreter
 }  // namespace internal

@@ -1,36 +1,27 @@
-var isFunction = require('./isFunction'),
-    isHostObject = require('./_isHostObject'),
-    isObjectLike = require('./isObjectLike');
+var baseIsNative = require('./_baseIsNative'),
+    isMaskable = require('./_isMaskable');
 
-/** Used to match `RegExp` [syntax characters](http://ecma-international.org/ecma-262/6.0/#sec-patterns). */
-var reRegExpChar = /[\\^$.*+?()[\]{}|]/g;
-
-/** Used to detect host constructors (Safari > 5). */
-var reIsHostCtor = /^\[object .+?Constructor\]$/;
-
-/** Used for built-in method references. */
-var objectProto = Object.prototype;
-
-/** Used to resolve the decompiled source of functions. */
-var funcToString = Function.prototype.toString;
-
-/** Used to check objects for own properties. */
-var hasOwnProperty = objectProto.hasOwnProperty;
-
-/** Used to detect if a method is native. */
-var reIsNative = RegExp('^' +
-  funcToString.call(hasOwnProperty).replace(reRegExpChar, '\\$&')
-  .replace(/hasOwnProperty|(function).*?(?=\\\()| for .+?(?=\\\])/g, '$1.*?') + '$'
-);
+/** Error message constants. */
+var CORE_ERROR_TEXT = 'Unsupported core-js use. Try https://npms.io/search?q=ponyfill.';
 
 /**
- * Checks if `value` is a native function.
+ * Checks if `value` is a pristine native function.
+ *
+ * **Note:** This method can't reliably detect native functions in the presence
+ * of the core-js package because core-js circumvents this kind of detection.
+ * Despite multiple requests, the core-js maintainer has made it clear: any
+ * attempt to fix the detection will be obstructed. As a result, we're left
+ * with little choice but to throw an error. Unfortunately, this also affects
+ * packages, like [babel-polyfill](https://www.npmjs.com/package/babel-polyfill),
+ * which rely on core-js.
  *
  * @static
  * @memberOf _
+ * @since 3.0.0
  * @category Lang
  * @param {*} value The value to check.
- * @returns {boolean} Returns `true` if `value` is a native function, else `false`.
+ * @returns {boolean} Returns `true` if `value` is a native function,
+ *  else `false`.
  * @example
  *
  * _.isNative(Array.prototype.push);
@@ -40,14 +31,10 @@ var reIsNative = RegExp('^' +
  * // => false
  */
 function isNative(value) {
-  if (value == null) {
-    return false;
+  if (isMaskable(value)) {
+    throw new Error(CORE_ERROR_TEXT);
   }
-  if (isFunction(value)) {
-    return reIsNative.test(funcToString.call(value));
-  }
-  return isObjectLike(value) &&
-    (isHostObject(value) ? reIsNative : reIsHostCtor).test(value);
+  return baseIsNative(value);
 }
 
 module.exports = isNative;

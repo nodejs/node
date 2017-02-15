@@ -4,8 +4,10 @@
 
 #if V8_TARGET_ARCH_X87
 
-#include "src/codegen.h"
 #include "src/debug/debug.h"
+
+#include "src/codegen.h"
+#include "src/debug/liveedit.h"
 #include "src/x87/frames-x87.h"
 
 namespace v8 {
@@ -38,7 +40,7 @@ void DebugCodegen::ClearDebugBreakSlot(Isolate* isolate, Address pc) {
 
 void DebugCodegen::PatchDebugBreakSlot(Isolate* isolate, Address pc,
                                        Handle<Code> code) {
-  DCHECK_EQ(Code::BUILTIN, code->kind());
+  DCHECK(code->is_debug_stub());
   static const int kSize = Assembler::kDebugBreakSlotLength;
   CodePatcher patcher(isolate, pc, kSize);
 
@@ -50,6 +52,9 @@ void DebugCodegen::PatchDebugBreakSlot(Isolate* isolate, Address pc,
   DCHECK_EQ(kSize, patcher.masm()->SizeOfCodeGeneratedSince(&check_codesize));
 }
 
+bool DebugCodegen::DebugBreakSlotIsPatched(Address pc) {
+  return !Assembler::IsNop(pc);
+}
 
 void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
                                           DebugBreakCallHelperMode mode) {
@@ -65,9 +70,15 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
     }
     __ push(Immediate(Smi::FromInt(LiveEdit::kFramePaddingInitialSize)));
 
-    if (mode == SAVE_RESULT_REGISTER) __ push(eax);
-
-    __ Move(eax, Immediate(0));  // No arguments.
+    // Push arguments for DebugBreak call.
+    if (mode == SAVE_RESULT_REGISTER) {
+      // Break on return.
+      __ push(eax);
+    } else {
+      // Non-return breaks.
+      __ Push(masm->isolate()->factory()->the_hole_value());
+    }
+    __ Move(eax, Immediate(1));
     __ mov(ebx,
            Immediate(ExternalReference(
                Runtime::FunctionForId(Runtime::kDebugBreak), masm->isolate())));
@@ -78,11 +89,13 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
     if (FLAG_debug_code) {
       for (int i = 0; i < kNumJSCallerSaved; ++i) {
         Register reg = {JSCallerSavedCode(i)};
-        __ Move(reg, Immediate(kDebugZapValue));
+        // Do not clobber eax if mode is SAVE_RESULT_REGISTER. It will
+        // contain return value of the function.
+        if (!(reg.is(eax) && (mode == SAVE_RESULT_REGISTER))) {
+          __ Move(reg, Immediate(kDebugZapValue));
+        }
       }
     }
-
-    if (mode == SAVE_RESULT_REGISTER) __ pop(eax);
 
     __ pop(ebx);
     // We divide stored value by 2 (untagging) and multiply it by word's size.
@@ -107,9 +120,12 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
 
 void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   // We do not know our frame height, but set esp based on ebp.
-  __ lea(esp, Operand(ebp, -1 * kPointerSize));
-
+  __ lea(esp, Operand(ebp, FrameDropperFrameConstants::kFunctionOffset));
   __ pop(edi);  // Function.
+  __ add(esp, Immediate(-FrameDropperFrameConstants::kCodeOffset));  // INTERNAL
+                                                                     // frame
+                                                                     // marker
+                                                                     // and code
   __ pop(ebp);
 
   ParameterCount dummy(0);

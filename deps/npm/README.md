@@ -1,6 +1,6 @@
 npm(1) -- a JavaScript package manager
 ==============================
-[![Build Status](https://img.shields.io/travis/npm/npm/master.svg)](https://travis-ci.org/npm/npm)
+[![Build Status](https://img.shields.io/travis/npm/npm/latest.svg)](https://travis-ci.org/npm/npm)
 ## SYNOPSIS
 
 This is just enough info to get you up and running.
@@ -9,7 +9,7 @@ Much more info available via `npm help` once it's installed.
 
 ## IMPORTANT
 
-**You need node v0.8 or higher to run this program.**
+**You need node v0.10 or higher to run this program.**
 
 To install an old **and unsupported** version of npm that works on node 0.3
 and prior, clone the git repo and dig through the old tags and branches.
@@ -27,15 +27,15 @@ terms of use for the default public registry are available at
 
 ## Super Easy Install
 
-npm is bundled with [node](http://nodejs.org/download/).
+npm is bundled with [node](https://nodejs.org/en/download/).
 
 ### Windows Computers
 
-[Get the MSI](http://nodejs.org/download/).  npm is in it.
+[Get the MSI](https://nodejs.org/en/download/).  npm is in it.
 
 ### Apple Macintosh Computers
 
-[Get the pkg](http://nodejs.org/download/).  npm is in it.
+[Get the pkg](https://nodejs.org/en/download/).  npm is in it.
 
 ### Other Sorts of Unices
 
@@ -81,13 +81,12 @@ for testing, or running stuff without actually installing npm itself.)
 
 ## Windows Install or Upgrade
 
-You can download a zip file from <https://github.com/npm/npm/releases>, and
-unpack it in the `node_modules\npm\` folder inside node's installation folder.
-
-To upgrade to npm 2, follow the Windows upgrade instructions in
-the npm Troubleshooting Guide:
-
-<https://github.com/npm/npm/wiki/Troubleshooting#upgrading-on-windows>
+Many improvements for Windows users have been made in npm 3 - you will have a better
+experience if you run a recent version of npm. To upgrade, either use [Microsoft's
+upgrade tool](https://github.com/felixrieseberg/npm-windows-upgrade),
+[download a new version of Node](http://nodejs.org/download/),
+or follow the Windows upgrade instructions in the
+[npm Troubleshooting Guide](https://github.com/npm/npm/wiki/Troubleshooting#upgrading-on-windows).
 
 If that's not fancy enough for you, then you can fetch the code with
 git, and mess with it directly.
@@ -141,7 +140,6 @@ you have chosen.
 ## More Docs
 
 Check out the [docs](https://docs.npmjs.com/),
-especially the [faq](https://docs.npmjs.com/misc/faq).
 
 You can use the `npm help` command to read any of them.
 
@@ -158,12 +156,11 @@ When you find issues, please report them:
 Be sure to include *all* of the output from the npm command that didn't work
 as expected.  The `npm-debug.log` file is also helpful to provide.
 
-You can also look for isaacs in #node.js on irc://irc.freenode.net.  He
+You can also look for isaacs in #node.js on irc://irc.freenode.net.  She
 will no doubt tell you to put the output in a gist or email.
 
 ## SEE ALSO
 
 * npm(1)
-* npm-faq(7)
 * npm-help(1)
 * npm-index(7)

@@ -1,19 +1,19 @@
 'use strict';
+const common = require('../common');
 if (!process.features.tls_sni) {
-  console.log('1..0 # Skipped: node compiled without OpenSSL or ' +
+  common.skip('node compiled without OpenSSL or ' +
               'with old OpenSSL version.');
   return;
 }
 
-const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
 function filenamePEM(n) {
   return require('path').join(common.fixturesDir, 'keys', n + '.pem');
@@ -23,13 +23,13 @@ function loadPEM(n) {
   return fs.readFileSync(filenamePEM(n));
 }
 
-var serverOptions = {
+const serverOptions = {
   key: loadPEM('agent2-key'),
   cert: loadPEM('agent2-cert'),
   requestCert: true,
   rejectUnauthorized: false,
   SNICallback: function(servername, callback) {
-    var context = SNIContexts[servername];
+    const context = SNIContexts[servername];
 
     // Just to test asynchronous callback
     setTimeout(function() {
@@ -45,7 +45,7 @@ var serverOptions = {
   }
 };
 
-var SNIContexts = {
+const SNIContexts = {
   'a.example.com': {
     key: loadPEM('agent1-key'),
     cert: loadPEM('agent1-cert'),
@@ -60,38 +60,36 @@ var SNIContexts = {
   }
 };
 
-var serverPort = common.PORT;
-
-var clientsOptions = [{
-  port: serverPort,
+const clientsOptions = [{
+  port: undefined,
   key: loadPEM('agent1-key'),
   cert: loadPEM('agent1-cert'),
   ca: [loadPEM('ca1-cert')],
   servername: 'a.example.com',
   rejectUnauthorized: false
 }, {
-  port: serverPort,
+  port: undefined,
   key: loadPEM('agent4-key'),
   cert: loadPEM('agent4-cert'),
   ca: [loadPEM('ca1-cert')],
   servername: 'a.example.com',
   rejectUnauthorized: false
 }, {
-  port: serverPort,
+  port: undefined,
   key: loadPEM('agent2-key'),
   cert: loadPEM('agent2-cert'),
   ca: [loadPEM('ca2-cert')],
   servername: 'b.example.com',
   rejectUnauthorized: false
 }, {
-  port: serverPort,
+  port: undefined,
   key: loadPEM('agent3-key'),
   cert: loadPEM('agent3-cert'),
   ca: [loadPEM('ca1-cert')],
   servername: 'c.wrong.com',
   rejectUnauthorized: false
 }, {
-  port: serverPort,
+  port: undefined,
   key: loadPEM('agent3-key'),
   cert: loadPEM('agent3-cert'),
   ca: [loadPEM('ca1-cert')],
@@ -106,7 +104,7 @@ const clientErrors = [];
 let serverError;
 let clientError;
 
-var server = tls.createServer(serverOptions, function(c) {
+const server = tls.createServer(serverOptions, function(c) {
   serverResults.push({ sni: c.servername, authorized: c.authorized });
 });
 
@@ -115,15 +113,16 @@ server.on('tlsClientError', function(err) {
   serverError = err.message;
 });
 
-server.listen(serverPort, startTest);
+server.listen(0, startTest);
 
 function startTest() {
   function connectClient(i, callback) {
-    var options = clientsOptions[i];
+    const options = clientsOptions[i];
     clientError = null;
     serverError = null;
 
-    var client = tls.connect(options, function() {
+    options.port = server.address().port;
+    const client = tls.connect(options, function() {
       clientResults.push(
           /Hostname\/IP doesn't/.test(client.authorizationError || ''));
       client.destroy();
@@ -154,16 +153,18 @@ function startTest() {
 }
 
 process.on('exit', function() {
-  assert.deepEqual(serverResults, [
+  assert.deepStrictEqual(serverResults, [
     { sni: 'a.example.com', authorized: false },
     { sni: 'a.example.com', authorized: true },
     { sni: 'b.example.com', authorized: false },
     { sni: 'c.wrong.com', authorized: false },
     null
   ]);
-  assert.deepEqual(clientResults, [true, true, true, false, false]);
-  assert.deepEqual(clientErrors, [null, null, null, null, 'socket hang up']);
-  assert.deepEqual(serverErrors, [
+  assert.deepStrictEqual(clientResults, [true, true, true, false, false]);
+  assert.deepStrictEqual(clientErrors, [
+    null, null, null, null, 'socket hang up'
+  ]);
+  assert.deepStrictEqual(serverErrors, [
     null, null, null, null, 'Invalid SNI context'
   ]);
 });

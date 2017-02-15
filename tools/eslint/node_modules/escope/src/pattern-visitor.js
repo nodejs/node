@@ -42,8 +42,8 @@ export default class PatternVisitor extends esrecurse.Visitor {
         );
     }
 
-    constructor(rootPattern, callback) {
-        super();
+    constructor(options, rootPattern, callback) {
+        super(null, options);
         this.rootPattern = rootPattern;
         this.callback = callback;
         this.assignments = [];

@@ -1,9 +1,7 @@
 /**
  * @fileoverview Rule to check for implicit global variables and functions.
  * @author Joshua Peek
- * @copyright 2015 Joshua Peek. All rights reserved.
- * See LICENSE file in root directory for full license.
-*/
+ */
 
 "use strict";
 
@@ -11,36 +9,47 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
-    return {
-        "Program": function() {
-            var scope = context.getScope();
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow variable and `function` declarations in the global scope",
+            category: "Best Practices",
+            recommended: false
+        },
 
-            scope.variables.forEach(function(variable) {
-                if (variable.writeable) {
-                    return;
-                }
+        schema: []
+    },
 
-                variable.defs.forEach(function(def) {
-                    if (def.type === "FunctionName" || (def.type === "Variable" && def.parent.kind === "var")) {
-                        context.report(def.node, "Implicit global variable, assign as global property instead.");
+    create(context) {
+        return {
+            Program() {
+                const scope = context.getScope();
+
+                scope.variables.forEach(variable => {
+                    if (variable.writeable) {
+                        return;
                     }
+
+                    variable.defs.forEach(def => {
+                        if (def.type === "FunctionName" || (def.type === "Variable" && def.parent.kind === "var")) {
+                            context.report({ node: def.node, message: "Implicit global variable, assign as global property instead." });
+                        }
+                    });
                 });
-            });
 
-            scope.implicit.variables.forEach(function(variable) {
-                var scopeVariable = scope.set.get(variable.name);
-                if (scopeVariable && scopeVariable.writeable) {
-                    return;
-                }
+                scope.implicit.variables.forEach(variable => {
+                    const scopeVariable = scope.set.get(variable.name);
 
-                variable.defs.forEach(function(def) {
-                    context.report(def.node, "Implicit global variable, assign as global property instead.");
+                    if (scopeVariable && scopeVariable.writeable) {
+                        return;
+                    }
+
+                    variable.defs.forEach(def => {
+                        context.report({ node: def.node, message: "Implicit global variable, assign as global property instead." });
+                    });
                 });
-            });
-        }
-    };
+            }
+        };
 
+    }
 };
-
-module.exports.schema = [];

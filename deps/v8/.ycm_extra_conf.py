@@ -42,7 +42,7 @@ import sys
 # Flags from YCM's default config.
 flags = [
 '-DUSE_CLANG_COMPLETER',
-'-std=gnu++0x',
+'-std=gnu++11',
 '-x',
 'c++',
 ]

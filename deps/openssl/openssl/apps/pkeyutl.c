@@ -357,6 +357,7 @@ int MAIN(int argc, char **argv)
  end:
     if (ctx)
         EVP_PKEY_CTX_free(ctx);
+    release_engine(e);
     BIO_free(in);
     BIO_free_all(out);
     if (buf_in != NULL)
@@ -446,14 +447,14 @@ static EVP_PKEY_CTX *init_ctx(int *pkeysize,
 
     if (!pkey)
         goto end;
-
+        
 #ifndef OPENSSL_NO_ENGINE
     if (engine_impl)
 	impl = e;
 #endif
-
+            
     ctx = EVP_PKEY_CTX_new(pkey, impl);
-
+    
     EVP_PKEY_free(pkey);
 
     if (!ctx)

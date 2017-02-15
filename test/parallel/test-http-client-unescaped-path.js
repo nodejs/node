@@ -1,9 +1,10 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
 
-assert.throws(function() {
-  // Path with spaces in it should throw.
-  http.get({ path: 'bad path' }, common.fail);
-}, /contains unescaped characters/);
+for (let i = 0; i <= 32; i += 1) {
+  const path = 'bad' + String.fromCharCode(i) + 'path';
+  assert.throws(() => http.get({ path }, common.mustNotCall()),
+                /contains unescaped characters/);
+}

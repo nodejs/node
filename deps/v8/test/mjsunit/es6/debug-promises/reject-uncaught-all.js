@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-debug-as debug --allow-natives-syntax --promise-extra
+// Flags: --expose-debug-as debug --allow-natives-syntax
 
 // Test debug events when we listen to all exceptions and
 // there is a catch handler for the to-be-rejected Promise.
@@ -18,7 +18,7 @@ var p = new Promise(function(resolve, reject) {
   resolve();
 });
 
-var q = p.chain(
+var q = p.then(
   function() {
     log.push("reject");
     return Promise.reject(new Error("uncaught reject"));
@@ -33,8 +33,8 @@ function listener(event, exec_state, event_data, data) {
       assertTrue(event_data.promise() instanceof Promise);
       assertSame(q, event_data.promise());
       assertTrue(event_data.uncaught());
-      // All of the frames on the stack are from native Javascript.
-      assertEquals(0, exec_state.frameCount());
+      // The frame comes from the Promise.reject call
+      assertNotNull(/Promise\.reject/.exec(event_data.sourceLineText()));
     }
   } catch (e) {
     %AbortJS(e + "\n" + e.stack);

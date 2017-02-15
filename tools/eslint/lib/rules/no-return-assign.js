@@ -8,65 +8,71 @@
 // Helpers
 //------------------------------------------------------------------------------
 
-/**
- * Checks whether or not a node is an `AssignmentExpression`.
- * @param {Node|null} node - A node to check.
- * @returns {boolean} Whether or not the node is an `AssignmentExpression`.
- */
-function isAssignment(node) {
-    return node && node.type === "AssignmentExpression";
-}
+const SENTINEL_TYPE = /^(?:[a-zA-Z]+?Statement|ArrowFunctionExpression|FunctionExpression|ClassExpression)$/;
 
 /**
  * Checks whether or not a node is enclosed in parentheses.
  * @param {Node|null} node - A node to check.
- * @param {RuleContext} context - The current context.
+ * @param {sourceCode} sourceCode - The ESLint SourceCode object.
  * @returns {boolean} Whether or not the node is enclosed in parentheses.
  */
-function isEnclosedInParens(node, context) {
-    var prevToken = context.getTokenBefore(node);
-    var nextToken = context.getTokenAfter(node);
+function isEnclosedInParens(node, sourceCode) {
+    const prevToken = sourceCode.getTokenBefore(node);
+    const nextToken = sourceCode.getTokenAfter(node);
 
-    return prevToken.value === "(" && nextToken.value === ")";
+    return prevToken && prevToken.value === "(" && nextToken && nextToken.value === ")";
 }
 
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
-    var always = (context.options[0] || "except-parens") !== "except-parens";
-
-    /**
-     * Check whether return statement contains assignment
-     * @param {ASTNode} nodeToCheck node to check
-     * @param {ASTNode} nodeToReport node to report
-     * @param {string} message message to report
-     * @returns {void}
-     * @private
-     */
-    function checkForAssignInReturn(nodeToCheck, nodeToReport, message) {
-        if (isAssignment(nodeToCheck) && (always || !isEnclosedInParens(nodeToCheck, context))) {
-            context.report(nodeToReport, message);
-        }
-    }
-
-    return {
-        "ReturnStatement": function(node) {
-            var message = "Return statement should not contain assignment.";
-            checkForAssignInReturn(node.argument, node, message);
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow assignment operators in `return` statements",
+            category: "Best Practices",
+            recommended: false
         },
-        "ArrowFunctionExpression": function(node) {
-            if (node.body.type !== "BlockStatement") {
-                var message = "Arrow function should not return assignment.";
-                checkForAssignInReturn(node.body, node, message);
-            }
-        }
-    };
-};
 
-module.exports.schema = [
-    {
-        "enum": ["except-parens", "always"]
+        schema: [
+            {
+                enum: ["except-parens", "always"]
+            }
+        ]
+    },
+
+    create(context) {
+        const always = (context.options[0] || "except-parens") !== "except-parens";
+        const sourceCode = context.getSourceCode();
+
+        return {
+            AssignmentExpression(node) {
+                if (!always && isEnclosedInParens(node, sourceCode)) {
+                    return;
+                }
+
+                let parent = node.parent;
+
+                // Find ReturnStatement or ArrowFunctionExpression in ancestors.
+                while (parent && !SENTINEL_TYPE.test(parent.type)) {
+                    node = parent;
+                    parent = parent.parent;
+                }
+
+                // Reports.
+                if (parent && parent.type === "ReturnStatement") {
+                    context.report({
+                        node: parent,
+                        message: "Return statement should not contain assignment."
+                    });
+                } else if (parent && parent.type === "ArrowFunctionExpression" && parent.body === node) {
+                    context.report({
+                        node: parent,
+                        message: "Arrow function should not return assignment."
+                    });
+                }
+            }
+        };
     }
-];
+};

@@ -34,6 +34,7 @@ import time
 
 from . import execution
 from . import junit_output
+from . import statusfile
 
 
 ABS_PATH_PREFIX = os.getcwd() + os.sep
@@ -51,9 +52,6 @@ class ProgressIndicator(object):
     pass
 
   def Done(self):
-    pass
-
-  def AboutToRun(self, test):
     pass
 
   def HasRun(self, test, has_unexpected_output):
@@ -146,10 +144,6 @@ class SimpleProgressIndicator(ProgressIndicator):
 
 class VerboseProgressIndicator(SimpleProgressIndicator):
 
-  def AboutToRun(self, test):
-    print 'Starting %s...' % test.GetLabel()
-    sys.stdout.flush()
-
   def HasRun(self, test, has_unexpected_output):
     if has_unexpected_output:
       if test.output.HasCrashed():
@@ -200,10 +194,8 @@ class CompactProgressIndicator(ProgressIndicator):
     self.PrintProgress('Done')
     print ""  # Line break.
 
-  def AboutToRun(self, test):
-    self.PrintProgress(test.GetLabel())
-
   def HasRun(self, test, has_unexpected_output):
+    self.PrintProgress(test.GetLabel())
     if has_unexpected_output:
       self.ClearLine(self.last_status_length)
       self.PrintFailureHeader(test)
@@ -329,6 +321,12 @@ class JsonTestProgressIndicator(ProgressIndicator):
         # Buildbot might start out with an empty file.
         complete_results = json.loads(f.read() or "[]")
 
+    duration_mean = None
+    if self.tests:
+      # Get duration mean.
+      duration_mean = (
+          sum(t.duration for t in self.tests) / float(len(self.tests)))
+
     # Sort tests by duration.
     timed_tests = [t for t in self.tests if t.duration is not None]
     timed_tests.sort(lambda a, b: cmp(b.duration, a.duration))
@@ -338,6 +336,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
         "flags": test.flags,
         "command": self._EscapeCommand(test).replace(ABS_PATH_PREFIX, ""),
         "duration": test.duration,
+        "marked_slow": statusfile.IsSlow(test.outcomes),
       } for test in timed_tests[:20]
     ]
 
@@ -346,6 +345,8 @@ class JsonTestProgressIndicator(ProgressIndicator):
       "mode": self.mode,
       "results": self.results,
       "slowest_tests": slowest_tests,
+      "duration_mean": duration_mean,
+      "test_total": len(self.tests),
     })
 
     with open(self.json_test_results, "w") as f:

@@ -1,0 +1,10 @@
+# Keep in sync with src/asmjs/OWNERS.
+
+set noparent
+
+ahaas@chromium.org
+bradnelson@chromium.org
+jpp@chromium.org
+mtrofin@chromium.org
+rossberg@chromium.org
+titzer@chromium.org

@@ -1,23 +1,19 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
-var ok = false;
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
-var server = net.createServer(function(client) {
+const server = net.createServer(function(client) {
   client.end();
   server.close();
 });
 
-server.listen(common.PORT, '127.0.0.1', function() {
-  net.connect(common.PORT, 'localhost').on('lookup', function(err, ip, type) {
-    assert.equal(err, null);
-    assert.equal(ip, '127.0.0.1');
-    assert.equal(type, '4');
-    ok = true;
-  });
-});
-
-process.on('exit', function() {
-  assert(ok);
-});
+server.listen(0, '127.0.0.1', common.mustCall(function() {
+  net.connect(this.address().port, 'localhost')
+    .on('lookup', common.mustCall(function(err, ip, type, host) {
+      assert.strictEqual(err, null);
+      assert.strictEqual(ip, '127.0.0.1');
+      assert.strictEqual(type, 4);
+      assert.strictEqual(host, 'localhost');
+    }));
+}));

@@ -55,9 +55,9 @@ $	    tests := -
 	test_rand,test_bn,test_ec,test_ecdsa,test_ecdh,-
 	test_enc,test_x509,test_rsa,test_crl,test_sid,-
 	test_gen,test_req,test_pkcs7,test_verify,test_dh,test_dsa,-
-	test_ss,test_ca,test_engine,test_evp,test_ssl,test_tsa,test_ige,-
+	test_ss,test_ca,test_engine,test_evp,test_evp_extra,test_ssl,test_tsa,test_ige,-
 	test_jpake,test_srp,test_cms,test_ocsp,test_v3name,test_heartbeat,-
-	test_constant_time
+	test_constant_time,test_verify_extra,test_clienthello,test_sslv2conftest,test_dtls
 $	endif
 $	tests = f$edit(tests,"COLLAPSE")
 $
@@ -92,6 +92,7 @@ $	SSLTEST :=	ssltest
 $	RSATEST :=	rsa_test
 $	ENGINETEST :=	enginetest
 $	EVPTEST :=	evp_test
+$	EVPEXTRATEST :=	evp_extra_test
 $	IGETEST :=	igetest
 $	JPAKETEST :=	jpaketest
 $	SRPTEST :=	srptest
@@ -99,6 +100,10 @@ $	V3NAMETEST :=	v3nametest
 $	ASN1TEST :=	asn1test
 $	HEARTBEATTEST :=	heartbeat_test
 $	CONSTTIMETEST :=	constant_time_test
+$	VERIFYEXTRATEST :=	verify_extra_test
+$	CLIENTHELLOTEST :=	clienthellotest
+$	SSLV2CONFTEST := 	sslv2conftest
+$	DTLSTEST :=	dtlstest
 $!
 $	tests_i = 0
 $ loop_tests:
@@ -111,6 +116,9 @@ $	goto loop_tests
 $
 $ test_evp:
 $	mcr 'texe_dir''evptest' 'ROOT'.CRYPTO.EVP]evptests.txt
+$	return
+$ test_evp_extra:
+$	mcr 'texe_dir''evpextratest'
 $	return
 $ test_des:
 $	mcr 'texe_dir''destest'
@@ -386,7 +394,22 @@ $ test_constant_time:
 $       write sys$output "Test constant time utilities"
 $       mcr 'texe_dir''consttimetest'
 $       return
-$
+$ test_verify_extra:
+$	write sys$output "''START' test_verify_extra"
+$	mcr 'texe_dir''verifyextratest'
+$       return
+$ test_clienthello:
+$	write sys$output "''START' test_clienthello"
+$	mcr 'texe_dir''clienthellotest'
+$       return
+$ test_sslv2conftest:
+$	write sys$output "''START' test_sslv2conftest"
+$	mcr 'texe_dir''sslv2conftest'
+$       return
+$ test_dtls:
+$	write sys$output "''START' test_dtls"
+$	mcr 'texe_dir''dtlstest' 'ROOT'.APPS]server.pem 'ROOT'.APPS]server.pem
+$	return
 $
 $ exit:
 $	on error then goto exit2 ! In case openssl.exe didn't build.

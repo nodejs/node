@@ -6,10 +6,11 @@ var baseSlice = require('./_baseSlice'),
  *
  * @static
  * @memberOf _
+ * @since 3.0.0
  * @category Array
  * @param {Array} array The array to query.
  * @param {number} [n=1] The number of elements to take.
- * @param- {Object} [guard] Enables use as an iteratee for functions like `_.map`.
+ * @param- {Object} [guard] Enables use as an iteratee for methods like `_.map`.
  * @returns {Array} Returns the slice of `array`.
  * @example
  *
@@ -26,7 +27,7 @@ var baseSlice = require('./_baseSlice'),
  * // => []
  */
 function takeRight(array, n, guard) {
-  var length = array ? array.length : 0;
+  var length = array == null ? 0 : array.length;
   if (!length) {
     return [];
   }

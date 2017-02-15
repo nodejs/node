@@ -4,9 +4,12 @@
 
 #include "src/counters.h"
 
+#include <iomanip>
+
 #include "src/base/platform/platform.h"
 #include "src/isolate.h"
 #include "src/log-inl.h"
+#include "src/log.h"
 
 namespace v8 {
 namespace internal {
@@ -191,6 +194,207 @@ void Counters::ResetHistograms() {
 #define HM(name, caption) name##_.Reset();
     HISTOGRAM_LEGACY_MEMORY_LIST(HM)
 #undef HM
+}
+
+class RuntimeCallStatEntries {
+ public:
+  void Print(std::ostream& os) {
+    if (total_call_count == 0) return;
+    std::sort(entries.rbegin(), entries.rend());
+    os << std::setw(50) << "Runtime Function/C++ Builtin" << std::setw(12)
+       << "Time" << std::setw(18) << "Count" << std::endl
+       << std::string(88, '=') << std::endl;
+    for (Entry& entry : entries) {
+      entry.SetTotal(total_time, total_call_count);
+      entry.Print(os);
+    }
+    os << std::string(88, '-') << std::endl;
+    Entry("Total", total_time, total_call_count).Print(os);
+  }
+
+  // By default, the compiler will usually inline this, which results in a large
+  // binary size increase: std::vector::push_back expands to a large amount of
+  // instructions, and this function is invoked repeatedly by macros.
+  V8_NOINLINE void Add(RuntimeCallCounter* counter) {
+    if (counter->count == 0) return;
+    entries.push_back(Entry(counter->name, counter->time, counter->count));
+    total_time += counter->time;
+    total_call_count += counter->count;
+  }
+
+ private:
+  class Entry {
+   public:
+    Entry(const char* name, base::TimeDelta time, uint64_t count)
+        : name_(name),
+          time_(time.InMicroseconds()),
+          count_(count),
+          time_percent_(100),
+          count_percent_(100) {}
+
+    bool operator<(const Entry& other) const {
+      if (time_ < other.time_) return true;
+      if (time_ > other.time_) return false;
+      return count_ < other.count_;
+    }
+
+    void Print(std::ostream& os) {
+      os.precision(2);
+      os << std::fixed << std::setprecision(2);
+      os << std::setw(50) << name_;
+      os << std::setw(10) << static_cast<double>(time_) / 1000 << "ms ";
+      os << std::setw(6) << time_percent_ << "%";
+      os << std::setw(10) << count_ << " ";
+      os << std::setw(6) << count_percent_ << "%";
+      os << std::endl;
+    }
+
+    void SetTotal(base::TimeDelta total_time, uint64_t total_count) {
+      if (total_time.InMicroseconds() == 0) {
+        time_percent_ = 0;
+      } else {
+        time_percent_ = 100.0 * time_ / total_time.InMicroseconds();
+      }
+      count_percent_ = 100.0 * count_ / total_count;
+    }
+
+   private:
+    const char* name_;
+    int64_t time_;
+    uint64_t count_;
+    double time_percent_;
+    double count_percent_;
+  };
+
+  uint64_t total_call_count = 0;
+  base::TimeDelta total_time;
+  std::vector<Entry> entries;
+};
+
+void RuntimeCallCounter::Reset() {
+  count = 0;
+  time = base::TimeDelta();
+}
+
+void RuntimeCallCounter::Dump(std::stringstream& out) {
+  out << "\"" << name << "\":[" << count << "," << time.InMicroseconds()
+      << "],";
+}
+
+// static
+void RuntimeCallStats::Enter(RuntimeCallStats* stats, RuntimeCallTimer* timer,
+                             CounterId counter_id) {
+  RuntimeCallCounter* counter = &(stats->*counter_id);
+  timer->Start(counter, stats->current_timer_);
+  stats->current_timer_ = timer;
+}
+
+// static
+void RuntimeCallStats::Leave(RuntimeCallStats* stats, RuntimeCallTimer* timer) {
+  if (stats->current_timer_ == timer) {
+    stats->current_timer_ = timer->Stop();
+  } else {
+    // Must be a Threading cctest. Walk the chain of Timers to find the
+    // buried one that's leaving. We don't care about keeping nested timings
+    // accurate, just avoid crashing by keeping the chain intact.
+    RuntimeCallTimer* next = stats->current_timer_;
+    while (next->parent_ != timer) next = next->parent_;
+    next->parent_ = timer->Stop();
+  }
+}
+
+// static
+void RuntimeCallStats::CorrectCurrentCounterId(RuntimeCallStats* stats,
+                                               CounterId counter_id) {
+  DCHECK_NOT_NULL(stats->current_timer_);
+  RuntimeCallCounter* counter = &(stats->*counter_id);
+  stats->current_timer_->counter_ = counter;
+}
+
+void RuntimeCallStats::Print(std::ostream& os) {
+  RuntimeCallStatEntries entries;
+
+#define PRINT_COUNTER(name) entries.Add(&this->name);
+  FOR_EACH_MANUAL_COUNTER(PRINT_COUNTER)
+#undef PRINT_COUNTER
+
+#define PRINT_COUNTER(name, nargs, ressize) entries.Add(&this->Runtime_##name);
+  FOR_EACH_INTRINSIC(PRINT_COUNTER)
+#undef PRINT_COUNTER
+
+#define PRINT_COUNTER(name) entries.Add(&this->Builtin_##name);
+  BUILTIN_LIST_C(PRINT_COUNTER)
+#undef PRINT_COUNTER
+
+#define PRINT_COUNTER(name) entries.Add(&this->API_##name);
+  FOR_EACH_API_COUNTER(PRINT_COUNTER)
+#undef PRINT_COUNTER
+
+#define PRINT_COUNTER(name) entries.Add(&this->Handler_##name);
+  FOR_EACH_HANDLER_COUNTER(PRINT_COUNTER)
+#undef PRINT_COUNTER
+
+  entries.Print(os);
+}
+
+void RuntimeCallStats::Reset() {
+  if (!FLAG_runtime_call_stats &&
+      !TRACE_EVENT_RUNTIME_CALL_STATS_TRACING_ENABLED())
+    return;
+#define RESET_COUNTER(name) this->name.Reset();
+  FOR_EACH_MANUAL_COUNTER(RESET_COUNTER)
+#undef RESET_COUNTER
+
+#define RESET_COUNTER(name, nargs, result_size) this->Runtime_##name.Reset();
+  FOR_EACH_INTRINSIC(RESET_COUNTER)
+#undef RESET_COUNTER
+
+#define RESET_COUNTER(name) this->Builtin_##name.Reset();
+  BUILTIN_LIST_C(RESET_COUNTER)
+#undef RESET_COUNTER
+
+#define RESET_COUNTER(name) this->API_##name.Reset();
+  FOR_EACH_API_COUNTER(RESET_COUNTER)
+#undef RESET_COUNTER
+
+#define RESET_COUNTER(name) this->Handler_##name.Reset();
+  FOR_EACH_HANDLER_COUNTER(RESET_COUNTER)
+#undef RESET_COUNTER
+
+  in_use_ = true;
+}
+
+std::string RuntimeCallStats::Dump() {
+  buffer_.str(std::string());
+  buffer_.clear();
+  buffer_ << "{";
+#define DUMP_COUNTER(name) \
+  if (this->name.count > 0) this->name.Dump(buffer_);
+  FOR_EACH_MANUAL_COUNTER(DUMP_COUNTER)
+#undef DUMP_COUNTER
+
+#define DUMP_COUNTER(name, nargs, result_size) \
+  if (this->Runtime_##name.count > 0) this->Runtime_##name.Dump(buffer_);
+  FOR_EACH_INTRINSIC(DUMP_COUNTER)
+#undef DUMP_COUNTER
+
+#define DUMP_COUNTER(name) \
+  if (this->Builtin_##name.count > 0) this->Builtin_##name.Dump(buffer_);
+  BUILTIN_LIST_C(DUMP_COUNTER)
+#undef DUMP_COUNTER
+
+#define DUMP_COUNTER(name) \
+  if (this->API_##name.count > 0) this->API_##name.Dump(buffer_);
+  FOR_EACH_API_COUNTER(DUMP_COUNTER)
+#undef DUMP_COUNTER
+
+#define DUMP_COUNTER(name) \
+  if (this->Handler_##name.count > 0) this->Handler_##name.Dump(buffer_);
+  FOR_EACH_HANDLER_COUNTER(DUMP_COUNTER)
+#undef DUMP_COUNTER
+  buffer_ << "\"END\":[]}";
+  in_use_ = false;
+  return buffer_.str();
 }
 
 }  // namespace internal

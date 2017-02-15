@@ -1,19 +1,22 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var v8 = require('v8');
+const assert = require('assert');
+const v8 = require('v8');
 
-var s = v8.getHeapStatistics();
-var keys = [
+const s = v8.getHeapStatistics();
+const keys = [
+  'does_zap_garbage',
   'heap_size_limit',
+  'malloced_memory',
+  'peak_malloced_memory',
   'total_available_size',
   'total_heap_size',
   'total_heap_size_executable',
   'total_physical_size',
   'used_heap_size'];
-assert.deepEqual(Object.keys(s).sort(), keys);
+assert.deepStrictEqual(Object.keys(s).sort(), keys);
 keys.forEach(function(key) {
-  assert.equal(typeof s[key], 'number');
+  assert.strictEqual(typeof s[key], 'number');
 });
 
 
@@ -26,7 +29,7 @@ const expectedHeapSpaces = [
 ];
 const heapSpaceStatistics = v8.getHeapSpaceStatistics();
 const actualHeapSpaceNames = heapSpaceStatistics.map((s) => s.space_name);
-assert.deepEqual(actualHeapSpaceNames.sort(), expectedHeapSpaces.sort());
+assert.deepStrictEqual(actualHeapSpaceNames.sort(), expectedHeapSpaces.sort());
 heapSpaceStatistics.forEach((heapSpace) => {
   assert.strictEqual(typeof heapSpace.space_name, 'string');
   assert.strictEqual(typeof heapSpace.space_size, 'number');

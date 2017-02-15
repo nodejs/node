@@ -10,9 +10,9 @@ const cluster = require('cluster');
 cluster.schedulingPolicy = cluster.SCHED_NONE;
 
 if (cluster.isMaster) {
-  var conn, worker1, worker2;
+  let conn, worker2;
 
-  worker1 = cluster.fork();
+  const worker1 = cluster.fork();
   worker1.on('message', common.mustCall(function() {
     worker2 = cluster.fork();
     worker2.on('online', function() {
@@ -40,6 +40,11 @@ if (cluster.isMaster) {
 }
 
 const server = net.createServer(function(c) {
+  c.on('error', function(e) {
+    // ECONNRESET is OK, so we don't exit with code !== 0
+    if (e.code !== 'ECONNRESET')
+      throw e;
+  });
   c.end('bye');
 });
 

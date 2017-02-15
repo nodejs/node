@@ -1,6 +1,8 @@
 #ifndef SRC_REQ_WRAP_INL_H_
 #define SRC_REQ_WRAP_INL_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "req-wrap.h"
 #include "async-wrap.h"
 #include "async-wrap-inl.h"
@@ -28,6 +30,7 @@ template <typename T>
 ReqWrap<T>::~ReqWrap() {
   CHECK_EQ(req_.data, this);  // Assert that someone has called Dispatched().
   CHECK_EQ(false, persistent().IsEmpty());
+  ClearWrap(object());
   persistent().Reset();
 }
 
@@ -37,5 +40,7 @@ void ReqWrap<T>::Dispatched() {
 }
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_REQ_WRAP_INL_H_

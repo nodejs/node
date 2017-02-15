@@ -26,7 +26,6 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --expose-debug-as debug --allow-natives-syntax
-// Flags: --debug-eval-readonly-locals
 
 Debug = debug.Debug;
 var listened = false;
@@ -35,7 +34,7 @@ function listener(event, exec_state, event_data, data) {
   if (event != Debug.DebugEvent.Break) return;
   try {
     assertEquals("goo", exec_state.frame(0).evaluate("goo").value());
-    exec_state.frame(0).evaluate("goo = 'goo foo'");  // no effect
+    exec_state.frame(0).evaluate("goo = 'goo foo'");
     assertEquals("bar return", exec_state.frame(0).evaluate("bar()").value());
     assertEquals("inner bar", exec_state.frame(0).evaluate("inner").value());
     assertEquals("outer bar", exec_state.frame(0).evaluate("outer").value());
@@ -43,10 +42,10 @@ function listener(event, exec_state, event_data, data) {
     assertEquals("baz inner", exec_state.frame(0).evaluate("baz").value());
     assertEquals("baz outer", exec_state.frame(1).evaluate("baz").value());
     exec_state.frame(0).evaluate("w = 'w foo'");
-    exec_state.frame(0).evaluate("inner = 'inner foo'");  // no effect
-    exec_state.frame(0).evaluate("outer = 'outer foo'");  // has effect
-    exec_state.frame(0).evaluate("baz = 'baz inner foo'");  // no effect
-    exec_state.frame(1).evaluate("baz = 'baz outer foo'");  // has effect
+    exec_state.frame(0).evaluate("inner = 'inner foo'");
+    exec_state.frame(0).evaluate("outer = 'outer foo'");
+    exec_state.frame(0).evaluate("baz = 'baz inner foo'");
+    exec_state.frame(1).evaluate("baz = 'baz outer foo'");
     listened = true;
   } catch (e) {
     print(e);
@@ -68,7 +67,7 @@ function foo() {
 
   with (withv) {
     var bar = function bar() {
-      assertEquals("goo", goo);
+      assertEquals("goo foo", goo);
       inner = "inner bar";
       outer = "outer bar";
       v = "v bar";
@@ -80,8 +79,8 @@ function foo() {
     debugger;
   }
 
-  assertEquals("inner bar", inner);
-  assertEquals("baz inner", baz);
+  assertEquals("inner foo", inner);
+  assertEquals("baz inner foo", baz);
   assertEquals("w foo", withw.w);
   assertEquals("v bar", withv.v);
 }

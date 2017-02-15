@@ -25,26 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --legacy-const
-
 // Regression test cases for issue 1178598.
-
-// Make sure const-initialization doesn't conflict
-// with heap-allocated locals for catch variables.
-var value = (function(){
-  try { } catch(e) {
-    // Force the 'e' variable to be heap-allocated
-    // by capturing it in a function closure.
-    (function() { e; });
-  }
-  // Make sure the two definitions of 'e' do
-  // not conflict in any way.
-  eval("const e=1");
-  return e;
-})();
-
-assertEquals(1, value);
-
 
 
 // Make sure that catch variables can be accessed using eval.

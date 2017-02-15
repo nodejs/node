@@ -9,6 +9,7 @@ var nativeJoin = arrayProto.join;
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Array
  * @param {Array} array The array to convert.
  * @param {string} [separator=','] The element separator.
@@ -19,7 +20,7 @@ var nativeJoin = arrayProto.join;
  * // => 'a~b~c'
  */
 function join(array, separator) {
-  return array ? nativeJoin.call(array, separator) : '';
+  return array == null ? '' : nativeJoin.call(array, separator);
 }
 
 module.exports = join;

@@ -7,6 +7,7 @@ var asyncMap = require('slide').asyncMap
 var npm = require('./npm.js')
 var glob = require('glob')
 var color = require('ansicolors')
+var output = require('./utils/output.js')
 
 helpSearch.usage = 'npm help-search <text>'
 
@@ -135,7 +136,7 @@ function searchFiles (args, files, cb) {
   }
 
   if (results.length === 0) {
-    console.log('No results for ' + args.map(JSON.stringify).join(' '))
+    output('No results for ' + args.map(JSON.stringify).join(' '))
     return cb()
   }
 
@@ -206,6 +207,6 @@ function formatResults (args, results, cb) {
           '(run with -l or --long to see more context)'
   }
 
-  console.log(out.trim())
+  output(out.trim())
   cb(null, results)
 }

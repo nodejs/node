@@ -1,24 +1,19 @@
-### Pull Request check-list
+<!--
+Thank you for your pull request. Please provide a description above and review
+the requirements below.
 
-_Please make sure to review and check all of these items:_
+Bug fixes and new features should include tests and possibly benchmarks.
 
-- [ ] Does `make -j8 test` (UNIX) or `vcbuild test nosign` (Windows) pass with
-  this change (including linting)?
-- [ ] Is the commit message formatted according to [CONTRIBUTING.md][0]?
-- [ ] If this change fixes a bug (or a performance problem), is a regression
-  test (or a benchmark) included?
-- [ ] Is a documentation update included (if this change modifies
-  existing APIs, or introduces new ones)?
+Contributors guide: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md
+-->
 
-_NOTE: these things are not required to open a PR and can be done
-afterwards / while the PR is open._
+##### Checklist
+<!-- Remove items that do not apply. For completed items, change [ ] to [x]. -->
 
-### Affected core subsystem(s)
+- [ ] `make -j4 test` (UNIX), or `vcbuild test` (Windows) passes
+- [ ] tests and/or benchmarks are included
+- [ ] documentation is changed or added
+- [ ] commit message follows commit guidelines
 
-_Please provide affected core subsystem(s) (like buffer, cluster, crypto, etc)_
-
-[0]: https://github.com/nodejs/node/blob/master/CONTRIBUTING.md#step-3-commit
-
-### Description of change
-
-_Please provide a description of the change here._
+##### Affected core subsystem(s)
+<!-- Provide affected core subsystem(s) (like doc, cluster, crypto, etc). -->

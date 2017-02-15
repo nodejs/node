@@ -244,7 +244,16 @@ int SSL_clear(SSL *s)
     ssl_clear_hash_ctx(&s->write_hash);
 
     s->first_packet = 0;
-
+#ifndef OPENSSL_NO_TLSEXT
+    if (s->cert != NULL) {
+        if (s->cert->alpn_proposed) {
+            OPENSSL_free(s->cert->alpn_proposed);
+            s->cert->alpn_proposed = NULL;
+        }
+        s->cert->alpn_proposed_len = 0;
+        s->cert->alpn_sent = 0;
+    }
+#endif
 #if 1
     /*
      * Check to see if we were changed into a different method, if so, revert
@@ -1819,7 +1828,7 @@ int SSL_export_keying_material(SSL *s, unsigned char *out, size_t olen,
                                const unsigned char *p, size_t plen,
                                int use_context)
 {
-    if (s->version < TLS1_VERSION)
+    if (s->version < TLS1_VERSION && s->version != DTLS1_BAD_VER)
         return -1;
 
     return s->method->ssl3_enc->export_keying_material(s, out, olen, label,
@@ -1991,7 +2000,7 @@ SSL_CTX *SSL_CTX_new(const SSL_METHOD *meth)
     ret->tlsext_servername_callback = 0;
     ret->tlsext_servername_arg = NULL;
     /* Setup RFC4507 ticket keys */
-    if ((RAND_pseudo_bytes(ret->tlsext_tick_key_name, 16) <= 0)
+    if ((RAND_bytes(ret->tlsext_tick_key_name, 16) <= 0)
         || (RAND_bytes(ret->tlsext_tick_hmac_key, 16) <= 0)
         || (RAND_bytes(ret->tlsext_tick_aes_key, 16) <= 0))
         ret->options |= SSL_OP_NO_TICKET;
@@ -2021,10 +2030,8 @@ SSL_CTX *SSL_CTX_new(const SSL_METHOD *meth)
     ret->rbuf_freelist->len = 0;
     ret->rbuf_freelist->head = NULL;
     ret->wbuf_freelist = OPENSSL_malloc(sizeof(SSL3_BUF_FREELIST));
-    if (!ret->wbuf_freelist) {
-        OPENSSL_free(ret->rbuf_freelist);
+    if (!ret->wbuf_freelist)
         goto err;
-    }
     ret->wbuf_freelist->chunklen = 0;
     ret->wbuf_freelist->len = 0;
     ret->wbuf_freelist->head = NULL;
@@ -3041,12 +3048,12 @@ const SSL_CIPHER *SSL_get_current_cipher(const SSL *s)
 }
 
 #ifdef OPENSSL_NO_COMP
-const void *SSL_get_current_compression(SSL *s)
+const COMP_METHOD *SSL_get_current_compression(SSL *s)
 {
     return NULL;
 }
 
-const void *SSL_get_current_expansion(SSL *s)
+const COMP_METHOD *SSL_get_current_expansion(SSL *s)
 {
     return NULL;
 }
@@ -3174,6 +3181,12 @@ SSL_CTX *SSL_set_SSL_CTX(SSL *ssl, SSL_CTX *ctx)
             ssl->cert->ciphers_rawlen = ocert->ciphers_rawlen;
             ocert->ciphers_raw = NULL;
         }
+#ifndef OPENSSL_NO_TLSEXT
+        ssl->cert->alpn_proposed = ocert->alpn_proposed;
+        ssl->cert->alpn_proposed_len = ocert->alpn_proposed_len;
+        ocert->alpn_proposed = NULL;
+        ssl->cert->alpn_sent = ocert->alpn_sent;
+#endif
         ssl_cert_free(ocert);
     }
 

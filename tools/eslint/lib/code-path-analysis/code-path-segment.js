@@ -1,8 +1,6 @@
 /**
  * @fileoverview A class of the code path segment.
  * @author Toru Nagashima
- * @copyright 2015 Toru Nagashima. All rights reserved.
- * See LICENSE file in root directory for full license.
  */
 
 "use strict";
@@ -11,8 +9,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var assert = require("assert"),
-    debug = require("./debug-helpers");
+const debug = require("./debug-helpers");
 
 //------------------------------------------------------------------------------
 // Helpers
@@ -25,11 +22,11 @@ var assert = require("assert"),
  * @returns {CodePathSegment[]} The replaced array.
  */
 function flattenUnusedSegments(segments) {
-    var done = Object.create(null);
-    var retv = [];
+    const done = Object.create(null);
+    const retv = [];
 
-    for (var i = 0; i < segments.length; ++i) {
-        var segment = segments[i];
+    for (let i = 0; i < segments.length; ++i) {
+        const segment = segments[i];
 
         // Ignores duplicated.
         if (done[segment.id]) {
@@ -38,8 +35,8 @@ function flattenUnusedSegments(segments) {
 
         // Use previous segments if unused.
         if (!segment.internal.used) {
-            for (var j = 0; j < segment.allPrevSegments.length; ++j) {
-                var prevSegment = segment.allPrevSegments[j];
+            for (let j = 0; j < segment.allPrevSegments.length; ++j) {
+                const prevSegment = segment.allPrevSegments[j];
 
                 if (!done[prevSegment.id]) {
                     done[prevSegment.id] = true;
@@ -71,138 +68,175 @@ function isReachable(segment) {
 
 /**
  * A code path segment.
- *
- * @constructor
- * @param {string} id - An identifier.
- * @param {CodePathSegment[]} allPrevSegments - An array of the previous segments.
- *   This array includes unreachable segments.
- * @param {boolean} reachable - A flag which shows this is reachable.
  */
-function CodePathSegment(id, allPrevSegments, reachable) {
-    /**
-     * The identifier of this code path.
-     * Rules use it to store additional information of each rule.
-     * @type {string}
-     */
-    this.id = id;
+class CodePathSegment {
 
     /**
-     * An array of the next segments.
-     * @type {CodePathSegment[]}
+     * @param {string} id - An identifier.
+     * @param {CodePathSegment[]} allPrevSegments - An array of the previous segments.
+     *   This array includes unreachable segments.
+     * @param {boolean} reachable - A flag which shows this is reachable.
      */
-    this.nextSegments = [];
+    constructor(id, allPrevSegments, reachable) {
+
+        /**
+         * The identifier of this code path.
+         * Rules use it to store additional information of each rule.
+         * @type {string}
+         */
+        this.id = id;
+
+        /**
+         * An array of the next segments.
+         * @type {CodePathSegment[]}
+         */
+        this.nextSegments = [];
+
+        /**
+         * An array of the previous segments.
+         * @type {CodePathSegment[]}
+         */
+        this.prevSegments = allPrevSegments.filter(isReachable);
+
+        /**
+         * An array of the next segments.
+         * This array includes unreachable segments.
+         * @type {CodePathSegment[]}
+         */
+        this.allNextSegments = [];
+
+        /**
+         * An array of the previous segments.
+         * This array includes unreachable segments.
+         * @type {CodePathSegment[]}
+         */
+        this.allPrevSegments = allPrevSegments;
+
+        /**
+         * A flag which shows this is reachable.
+         * @type {boolean}
+         */
+        this.reachable = reachable;
+
+        // Internal data.
+        Object.defineProperty(this, "internal", {
+            value: {
+                used: false,
+                loopedPrevSegments: []
+            }
+        });
+
+        /* istanbul ignore if */
+        if (debug.enabled) {
+            this.internal.nodes = [];
+            this.internal.exitNodes = [];
+        }
+    }
 
     /**
-     * An array of the previous segments.
-     * @type {CodePathSegment[]}
+     * Checks a given previous segment is coming from the end of a loop.
+     *
+     * @param {CodePathSegment} segment - A previous segment to check.
+     * @returns {boolean} `true` if the segment is coming from the end of a loop.
      */
-    this.prevSegments = allPrevSegments.filter(isReachable);
+    isLoopedPrevSegment(segment) {
+        return this.internal.loopedPrevSegments.indexOf(segment) !== -1;
+    }
 
     /**
-     * An array of the next segments.
-     * This array includes unreachable segments.
-     * @type {CodePathSegment[]}
+     * Creates the root segment.
+     *
+     * @param {string} id - An identifier.
+     * @returns {CodePathSegment} The created segment.
      */
-    this.allNextSegments = [];
+    static newRoot(id) {
+        return new CodePathSegment(id, [], true);
+    }
 
     /**
-     * An array of the previous segments.
-     * This array includes unreachable segments.
-     * @type {CodePathSegment[]}
+     * Creates a segment that follows given segments.
+     *
+     * @param {string} id - An identifier.
+     * @param {CodePathSegment[]} allPrevSegments - An array of the previous segments.
+     * @returns {CodePathSegment} The created segment.
      */
-    this.allPrevSegments = allPrevSegments;
+    static newNext(id, allPrevSegments) {
+        return new CodePathSegment(
+            id,
+            flattenUnusedSegments(allPrevSegments),
+            allPrevSegments.some(isReachable));
+    }
 
     /**
-     * A flag which shows this is reachable.
-     * @type {boolean}
+     * Creates an unreachable segment that follows given segments.
+     *
+     * @param {string} id - An identifier.
+     * @param {CodePathSegment[]} allPrevSegments - An array of the previous segments.
+     * @returns {CodePathSegment} The created segment.
      */
-    this.reachable = reachable;
+    static newUnreachable(id, allPrevSegments) {
+        const segment = new CodePathSegment(id, flattenUnusedSegments(allPrevSegments), false);
 
-    // Internal data.
-    Object.defineProperty(this, "internal", {value: {
-        used: false
-    }});
+        // In `if (a) return a; foo();` case, the unreachable segment preceded by
+        // the return statement is not used but must not be remove.
+        CodePathSegment.markUsed(segment);
 
-    /* istanbul ignore if */
-    if (debug.enabled) {
-        this.internal.nodes = [];
-        this.internal.exitNodes = [];
+        return segment;
+    }
+
+    /**
+     * Creates a segment that follows given segments.
+     * This factory method does not connect with `allPrevSegments`.
+     * But this inherits `reachable` flag.
+     *
+     * @param {string} id - An identifier.
+     * @param {CodePathSegment[]} allPrevSegments - An array of the previous segments.
+     * @returns {CodePathSegment} The created segment.
+     */
+    static newDisconnected(id, allPrevSegments) {
+        return new CodePathSegment(id, [], allPrevSegments.some(isReachable));
+    }
+
+    /**
+     * Makes a given segment being used.
+     *
+     * And this function registers the segment into the previous segments as a next.
+     *
+     * @param {CodePathSegment} segment - A segment to mark.
+     * @returns {void}
+     */
+    static markUsed(segment) {
+        if (segment.internal.used) {
+            return;
+        }
+        segment.internal.used = true;
+
+        let i;
+
+        if (segment.reachable) {
+            for (i = 0; i < segment.allPrevSegments.length; ++i) {
+                const prevSegment = segment.allPrevSegments[i];
+
+                prevSegment.allNextSegments.push(segment);
+                prevSegment.nextSegments.push(segment);
+            }
+        } else {
+            for (i = 0; i < segment.allPrevSegments.length; ++i) {
+                segment.allPrevSegments[i].allNextSegments.push(segment);
+            }
+        }
+    }
+
+    /**
+     * Marks a previous segment as looped.
+     *
+     * @param {CodePathSegment} segment - A segment.
+     * @param {CodePathSegment} prevSegment - A previous segment to mark.
+     * @returns {void}
+     */
+    static markPrevSegmentAsLooped(segment, prevSegment) {
+        segment.internal.loopedPrevSegments.push(prevSegment);
     }
 }
-
-/**
- * Creates the root segment.
- *
- * @param {string} id - An identifier.
- * @returns {CodePathSegment} The created segment.
- */
-CodePathSegment.newRoot = function(id) {
-    return new CodePathSegment(id, [], true);
-};
-
-/**
- * Creates a segment that follows given segments.
- *
- * @param {string} id - An identifier.
- * @param {CodePathSegment[]} allPrevSegments - An array of the previous segments.
- * @returns {CodePathSegment} The created segment.
- */
-CodePathSegment.newNext = function(id, allPrevSegments) {
-    return new CodePathSegment(
-        id,
-        flattenUnusedSegments(allPrevSegments),
-        allPrevSegments.some(isReachable));
-};
-
-/**
- * Creates an unreachable segment that follows given segments.
- *
- * @param {string} id - An identifier.
- * @param {CodePathSegment[]} allPrevSegments - An array of the previous segments.
- * @returns {CodePathSegment} The created segment.
- */
-CodePathSegment.newUnreachable = function(id, allPrevSegments) {
-    return new CodePathSegment(id, flattenUnusedSegments(allPrevSegments), false);
-};
-
-/**
- * Creates a segment that follows given segments.
- * This factory method does not connect with `allPrevSegments`.
- * But this inherits `reachable` flag.
- *
- * @param {string} id - An identifier.
- * @param {CodePathSegment[]} allPrevSegments - An array of the previous segments.
- * @returns {CodePathSegment} The created segment.
- */
-CodePathSegment.newDisconnected = function(id, allPrevSegments) {
-    return new CodePathSegment(id, [], allPrevSegments.some(isReachable));
-};
-
-/**
- * Makes a given segment being used.
- *
- * And this function registers the segment into the previous segments as a next.
- *
- * @param {CodePathSegment} segment - A segment to mark.
- * @returns {void}
- */
-CodePathSegment.markUsed = function(segment) {
-    assert(!segment.internal.used, segment.id + " is marked twice.");
-    segment.internal.used = true;
-
-    var i;
-    if (segment.reachable) {
-        for (i = 0; i < segment.allPrevSegments.length; ++i) {
-            var prevSegment = segment.allPrevSegments[i];
-
-            prevSegment.allNextSegments.push(segment);
-            prevSegment.nextSegments.push(segment);
-        }
-    } else {
-        for (i = 0; i < segment.allPrevSegments.length; ++i) {
-            segment.allPrevSegments[i].allNextSegments.push(segment);
-        }
-    }
-};
 
 module.exports = CodePathSegment;

@@ -70,7 +70,8 @@ typedef struct {
 } EVP_SEED_KEY;
 
 IMPLEMENT_BLOCK_CIPHER(seed, ks, SEED, EVP_SEED_KEY, NID_seed,
-                       16, 16, 16, 128, 0, seed_init_key, 0, 0, 0, 0)
+                       16, 16, 16, 128, EVP_CIPH_FLAG_DEFAULT_ASN1,
+                       seed_init_key, 0, 0, 0, 0)
 
 static int seed_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
                          const unsigned char *iv, int enc)

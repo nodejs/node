@@ -27,9 +27,20 @@
 
 #include <stdlib.h>
 
-#include "src/v8.h"
-
 #include "src/base/platform/platform.h"
+#include "src/conversions.h"
+#include "src/factory.h"
+#include "src/isolate.h"
+// FIXME(mstarzinger, marja): This is weird, but required because of the missing
+// (disallowed) include: src/factory.h -> src/objects-inl.h
+#include "src/objects-inl.h"
+#include "src/objects.h"
+// FIXME(mstarzinger, marja): This is weird, but required because of the missing
+// (disallowed) include: src/type-feedback-vector.h ->
+// src/type-feedback-vector-inl.h
+#include "src/type-feedback-vector-inl.h"
+#include "src/unicode-cache.h"
+#include "src/v8.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
@@ -405,4 +416,31 @@ TEST(SpecialIndexParsing) {
   CheckNonArrayIndex(true, "-999999999999999");
   CheckNonArrayIndex(false, "-9999999999999999");
   CheckNonArrayIndex(false, "42949672964294967296429496729694966");
+}
+
+TEST(NoHandlesForTryNumberToSize) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  size_t result = 0;
+  {
+    SealHandleScope no_handles(isolate);
+    Smi* smi = Smi::FromInt(1);
+    CHECK(TryNumberToSize(smi, &result));
+    CHECK_EQ(result, 1);
+  }
+  result = 0;
+  {
+    HandleScope scope(isolate);
+    Handle<HeapNumber> heap_number1 = isolate->factory()->NewHeapNumber(2.0);
+    {
+      SealHandleScope no_handles(isolate);
+      CHECK(TryNumberToSize(*heap_number1, &result));
+      CHECK_EQ(result, 2);
+    }
+    Handle<HeapNumber> heap_number2 = isolate->factory()->NewHeapNumber(
+        static_cast<double>(std::numeric_limits<size_t>::max()) + 10000.0);
+    {
+      SealHandleScope no_handles(isolate);
+      CHECK(!TryNumberToSize(*heap_number2, &result));
+    }
+  }
 }

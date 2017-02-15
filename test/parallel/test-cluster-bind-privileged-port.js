@@ -1,29 +1,28 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
+const net = require('net');
 
 if (common.isWindows) {
-  console.log('1..0 # Skipped: not reliable on Windows.');
+  common.skip('not reliable on Windows.');
   return;
 }
 
 if (process.getuid() === 0) {
-  console.log('1..0 # Skipped: Test is not supposed to be run as root.');
+  common.skip('Test is not supposed to be run as root.');
   return;
 }
 
 if (cluster.isMaster) {
-  cluster.fork().on('exit', common.mustCall(function(exitCode) {
-    assert.equal(exitCode, 0);
+  cluster.fork().on('exit', common.mustCall((exitCode) => {
+    assert.strictEqual(exitCode, 0);
   }));
-}
-else {
-  var s = net.createServer(common.fail);
-  s.listen(42, common.fail.bind(null, 'listen should have failed'));
-  s.on('error', common.mustCall(function(err) {
-    assert.equal(err.code, 'EACCES');
+} else {
+  const s = net.createServer(common.mustNotCall());
+  s.listen(42, common.mustNotCall('listen should have failed'));
+  s.on('error', common.mustCall((err) => {
+    assert.strictEqual(err.code, 'EACCES');
     process.disconnect();
   }));
 }

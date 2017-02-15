@@ -60,7 +60,7 @@ L$enc_loop:
 	addq	$16,%r11
 	pxor	%xmm0,%xmm3
 .byte	102,15,56,0,193
-	andq	$48,%r11
+	andq	$0x30,%r11
 	subq	$1,%rax
 	pxor	%xmm3,%xmm0
 
@@ -120,10 +120,10 @@ _vpaes_decrypt_core:
 	pand	%xmm9,%xmm0
 .byte	102,15,56,0,208
 	movdqa	L$k_dipt+16(%rip),%xmm0
-	xorq	$48,%r11
+	xorq	$0x30,%r11
 	leaq	L$k_dsbd(%rip),%r10
 .byte	102,15,56,0,193
-	andq	$48,%r11
+	andq	$0x30,%r11
 	pxor	%xmm5,%xmm2
 	movdqa	L$k_mc_forward+48(%rip),%xmm5
 	pxor	%xmm2,%xmm0
@@ -242,7 +242,7 @@ L$schedule_am_decrypting:
 	movdqa	(%r8,%r10,1),%xmm1
 .byte	102,15,56,0,217
 	movdqu	%xmm3,(%rdx)
-	xorq	$48,%r8
+	xorq	$0x30,%r8
 
 L$schedule_go:
 	cmpl	$192,%esi
@@ -332,7 +332,7 @@ L$oop_schedule_256:
 	call	_vpaes_schedule_mangle
 
 
-	pshufd	$255,%xmm0,%xmm0
+	pshufd	$0xFF,%xmm0,%xmm0
 	movdqa	%xmm7,%xmm5
 	movdqa	%xmm6,%xmm7
 	call	_vpaes_schedule_low_round
@@ -399,8 +399,8 @@ L$schedule_mangle_last_dec:
 
 .p2align	4
 _vpaes_schedule_192_smear:
-	pshufd	$128,%xmm6,%xmm1
-	pshufd	$254,%xmm7,%xmm0
+	pshufd	$0x80,%xmm6,%xmm1
+	pshufd	$0xFE,%xmm7,%xmm0
 	pxor	%xmm1,%xmm6
 	pxor	%xmm1,%xmm1
 	pxor	%xmm0,%xmm6
@@ -437,7 +437,7 @@ _vpaes_schedule_round:
 	pxor	%xmm1,%xmm7
 
 
-	pshufd	$255,%xmm0,%xmm0
+	pshufd	$0xFF,%xmm0,%xmm0
 .byte	102,15,58,15,192,1
 
 
@@ -596,7 +596,7 @@ L$schedule_mangle_both:
 	movdqa	(%r8,%r10,1),%xmm1
 .byte	102,15,56,0,217
 	addq	$-16,%r8
-	andq	$48,%r8
+	andq	$0x30,%r8
 	movdqu	%xmm3,(%rdx)
 	.byte	0xf3,0xc3
 
@@ -614,7 +614,7 @@ _vpaes_set_encrypt_key:
 	movl	%eax,240(%rdx)
 
 	movl	$0,%ecx
-	movl	$48,%r8d
+	movl	$0x30,%r8d
 	call	_vpaes_schedule_core
 	xorl	%eax,%eax
 	.byte	0xf3,0xc3

@@ -1,14 +1,11 @@
 'use strict';
-require('../common');
-var assert = require('assert');
+const common = require('../common');
+const path = require('path');
+const assert = require('assert');
 
-var a;
-setTimeout(function() {
-  a = require('../fixtures/a');
-}, 50);
-
-process.on('exit', function() {
-  assert.equal(true, 'A' in a);
-  assert.equal('A', a.A());
-  assert.equal('D', a.D());
-});
+setTimeout(common.mustCall(function() {
+  const a = require(path.join(common.fixturesDir, 'a'));
+  assert.strictEqual(true, 'A' in a);
+  assert.strictEqual('A', a.A());
+  assert.strictEqual('D', a.D());
+}), 50);

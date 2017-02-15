@@ -126,9 +126,7 @@ int ASN1_TYPE_cmp(const ASN1_TYPE *a, const ASN1_TYPE *b)
         result = 0;             /* They do not have content. */
         break;
     case V_ASN1_INTEGER:
-    case V_ASN1_NEG_INTEGER:
     case V_ASN1_ENUMERATED:
-    case V_ASN1_NEG_ENUMERATED:
     case V_ASN1_BIT_STRING:
     case V_ASN1_OCTET_STRING:
     case V_ASN1_SEQUENCE:

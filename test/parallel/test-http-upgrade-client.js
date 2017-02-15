@@ -3,18 +3,15 @@
 // the HTTP client. This test uses a raw TCP server to better control server
 // behavior.
 
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var http = require('http');
-var net = require('net');
+const http = require('http');
+const net = require('net');
 
 // Create a TCP server
-var srv = net.createServer(function(c) {
-  var data = '';
+const srv = net.createServer(function(c) {
   c.on('data', function(d) {
-    data += d.toString('utf8');
-
     c.write('HTTP/1.1 101\r\n');
     c.write('hello: world\r\n');
     c.write('connection: upgrade\r\n');
@@ -28,40 +25,52 @@ var srv = net.createServer(function(c) {
   });
 });
 
-var gotUpgrade = false;
-
-srv.listen(common.PORT, '127.0.0.1', function() {
-
-  var req = http.get({
-    port: common.PORT,
-    headers: {
+srv.listen(0, '127.0.0.1', common.mustCall(function() {
+  const port = this.address().port;
+  const headers = [
+    {
       connection: 'upgrade',
       upgrade: 'websocket'
-    }
-  });
-  req.on('upgrade', function(res, socket, upgradeHead) {
-    var recvData = upgradeHead;
-    socket.on('data', function(d) {
-      recvData += d;
+    },
+    [
+      ['Host', 'echo.websocket.org'],
+      ['Connection', 'Upgrade'],
+      ['Upgrade', 'websocket'],
+      ['Origin', 'http://www.websocket.org']
+    ]
+  ];
+  let left = headers.length;
+  headers.forEach(function(h) {
+    const req = http.get({
+      port: port,
+      headers: h
     });
+    let sawUpgrade = false;
+    req.on('upgrade', common.mustCall(function(res, socket, upgradeHead) {
+      sawUpgrade = true;
+      let recvData = upgradeHead;
+      socket.on('data', function(d) {
+        recvData += d;
+      });
 
-    socket.on('close', common.mustCall(function() {
-      assert.equal(recvData, 'nurtzo');
+      socket.on('close', common.mustCall(function() {
+        assert.strictEqual(recvData.toString(), 'nurtzo');
+      }));
+
+      console.log(res.headers);
+      const expectedHeaders = {
+        hello: 'world',
+        connection: 'upgrade',
+        upgrade: 'websocket'
+      };
+      assert.deepStrictEqual(expectedHeaders, res.headers);
+
+      socket.end();
+      if (--left === 0)
+        srv.close();
     }));
-
-    console.log(res.headers);
-    var expectedHeaders = {'hello': 'world',
-                            'connection': 'upgrade',
-                            'upgrade': 'websocket' };
-    assert.deepEqual(expectedHeaders, res.headers);
-
-    socket.end();
-    srv.close();
-
-    gotUpgrade = true;
+    req.on('close', common.mustCall(function() {
+      assert.strictEqual(sawUpgrade, true);
+    }));
   });
-});
-
-process.on('exit', function() {
-  assert.ok(gotUpgrade);
-});
+}));

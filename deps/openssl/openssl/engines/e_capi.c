@@ -1106,6 +1106,10 @@ static int capi_get_provname(CAPI_CTX * ctx, LPSTR * pname, DWORD * ptype,
         name = alloca(len);
     else
         name = OPENSSL_malloc(len);
+    if (name == NULL) {
+        CAPIerr(CAPI_F_CAPI_GET_PROVNAME, ERR_R_MALLOC_FAILURE);
+        return 0;
+    }
     if (!CryptEnumProviders(idx, NULL, 0, ptype, name, &len)) {
         err = GetLastError();
         if (err == ERROR_NO_MORE_ITEMS)
@@ -1286,6 +1290,10 @@ char *capi_cert_get_fname(CAPI_CTX * ctx, PCCERT_CONTEXT cert)
         (cert, CERT_FRIENDLY_NAME_PROP_ID, NULL, &dlen))
         return NULL;
     wfname = OPENSSL_malloc(dlen);
+    if (wfname == NULL) {
+        CAPIerr(CAPI_F_CAPI_CERT_GET_FNAME, ERR_R_MALLOC_FAILURE);
+        return NULL;
+    }
     if (CertGetCertificateContextProperty
         (cert, CERT_FRIENDLY_NAME_PROP_ID, wfname, &dlen)) {
         char *fname = wide_to_asc(wfname);
@@ -1436,6 +1444,11 @@ static CAPI_KEY *capi_get_key(CAPI_CTX * ctx, const TCHAR *contname,
     CAPI_KEY *key;
     DWORD dwFlags = 0;
     key = OPENSSL_malloc(sizeof(CAPI_KEY));
+    if (key == NULL) {
+        CAPIerr(CAPI_F_CAPI_GET_KEY, ERR_R_MALLOC_FAILURE);
+        capi_addlasterror();
+        goto err;
+    }
     if (sizeof(TCHAR) == sizeof(char))
         CAPI_trace(ctx, "capi_get_key, contname=%s, provname=%s, type=%d\n",
                    contname, provname, ptype);

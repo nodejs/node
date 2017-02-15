@@ -15,19 +15,20 @@ const server = net.createServer((conn) => {
 });
 
 const host = common.localhostIPv4;
-const port = common.PORT;
+const port = 0;
 const options = { host, port };
 
-var answer = '';
+let answer = '';
 server.listen(options, function() {
+  options.port = this.address().port;
   const conn = net.connect(options);
   conn.setEncoding('utf8');
   conn.on('data', (data) => answer += data);
-  conn.write('require("baz")\n.exit\n');
+  conn.write('require("baz")\nrequire("./baz")\n.exit\n');
 });
 
 process.on('exit', function() {
   assert.strictEqual(false, /Cannot find module/.test(answer));
   assert.strictEqual(false, /Error/.test(answer));
-  assert.strictEqual(true, /eye catcher/.test(answer));
+  assert.strictEqual(answer, '\'eye catcher\'\n\'perhaps I work\'\n');
 });

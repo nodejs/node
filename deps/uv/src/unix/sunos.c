@@ -33,6 +33,8 @@
 #endif
 #include <net/if.h>
 #include <net/if_dl.h>
+#include <net/if_arp.h>
+#include <sys/sockio.h>
 
 #include <sys/loadavg.h>
 #include <sys/time.h>
@@ -116,6 +118,17 @@ void uv__platform_invalidate_fd(uv_loop_t* loop, int fd) {
 }
 
 
+int uv__io_check_fd(uv_loop_t* loop, int fd) {
+  if (port_associate(loop->backend_fd, PORT_SOURCE_FD, fd, POLLIN, 0))
+    return -errno;
+
+  if (port_dissociate(loop->backend_fd, PORT_SOURCE_FD, fd))
+    abort();
+
+  return 0;
+}
+
+
 void uv__io_poll(uv_loop_t* loop, int timeout) {
   struct port_event events[1024];
   struct port_event* pe;
@@ -129,6 +142,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
   unsigned int nfds;
   unsigned int i;
   int saved_errno;
+  int have_signals;
   int nevents;
   int count;
   int err;
@@ -219,6 +233,7 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       return;
     }
 
+    have_signals = 0;
     nevents = 0;
 
     assert(loop->watchers != NULL);
@@ -241,7 +256,14 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       if (w == NULL)
         continue;
 
-      w->cb(loop, w, pe->portev_events);
+      /* Run signal watchers last.  This also affects child process watchers
+       * because those are implemented in terms of signal watchers.
+       */
+      if (w == &loop->signal_io_watcher)
+        have_signals = 1;
+      else
+        w->cb(loop, w, pe->portev_events);
+
       nevents++;
 
       if (w != loop->watchers[fd])
@@ -251,8 +273,15 @@ void uv__io_poll(uv_loop_t* loop, int timeout) {
       if (w->pevents != 0 && QUEUE_EMPTY(&w->watcher_queue))
         QUEUE_INSERT_TAIL(&loop->watcher_queue, &w->watcher_queue);
     }
+
+    if (have_signals != 0)
+      loop->signal_io_watcher.cb(loop, &loop->signal_io_watcher, POLLIN);
+
     loop->watchers[loop->nwatchers] = NULL;
     loop->watchers[loop->nwatchers + 1] = NULL;
+
+    if (have_signals != 0)
+      return;  /* Event loop should cycle now so don't poll again. */
 
     if (nevents != 0) {
       if (nfds == ARRAY_SIZE(events) && --count != 0) {
@@ -445,7 +474,7 @@ int uv_fs_event_start(uv_fs_event_t* handle,
 
   if (first_run) {
     uv__io_init(&handle->loop->fs_event_watcher, uv__fs_event_read, portfd);
-    uv__io_start(handle->loop, &handle->loop->fs_event_watcher, UV__POLLIN);
+    uv__io_start(handle->loop, &handle->loop->fs_event_watcher, POLLIN);
   }
 
   return 0;
@@ -513,9 +542,10 @@ int uv_set_process_title(const char* title) {
 
 
 int uv_get_process_title(char* buffer, size_t size) {
-  if (size > 0) {
-    buffer[0] = '\0';
-  }
+  if (buffer == NULL || size == 0)
+    return -EINVAL;
+
+  buffer[0] = '\0';
   return 0;
 }
 
@@ -665,13 +695,59 @@ void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
   uv__free(cpu_infos);
 }
 
+#ifdef SUNOS_NO_IFADDRS
+int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
+  return -ENOSYS;
+}
+#else  /* SUNOS_NO_IFADDRS */
+/*
+ * Inspired By:
+ * https://blogs.oracle.com/paulie/entry/retrieving_mac_address_in_solaris
+ * http://www.pauliesworld.org/project/getmac.c
+ */
+static int uv__set_phys_addr(uv_interface_address_t* address,
+                             struct ifaddrs* ent) {
+
+  struct sockaddr_dl* sa_addr;
+  int sockfd;
+  int i;
+  struct arpreq arpreq;
+
+  /* This appears to only work as root */
+  sa_addr = (struct sockaddr_dl*)(ent->ifa_addr);
+  memcpy(address->phys_addr, LLADDR(sa_addr), sizeof(address->phys_addr));
+  for (i = 0; i < sizeof(address->phys_addr); i++) {
+    if (address->phys_addr[i] != 0)
+      return 0;
+  }
+  memset(&arpreq, 0, sizeof(arpreq));
+  if (address->address.address4.sin_family == AF_INET) {
+    struct sockaddr_in* sin = ((struct sockaddr_in*)&arpreq.arp_pa);
+    sin->sin_addr.s_addr = address->address.address4.sin_addr.s_addr;
+  } else if (address->address.address4.sin_family == AF_INET6) {
+    struct sockaddr_in6* sin = ((struct sockaddr_in6*)&arpreq.arp_pa);
+    memcpy(sin->sin6_addr.s6_addr,
+           address->address.address6.sin6_addr.s6_addr,
+           sizeof(address->address.address6.sin6_addr.s6_addr));
+  } else {
+    return 0;
+  }
+
+  sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+  if (sockfd < 0)
+    return -errno;
+
+  if (ioctl(sockfd, SIOCGARP, (char*)&arpreq) == -1) {
+    uv__close(sockfd);
+    return -errno;
+  }
+  memcpy(address->phys_addr, arpreq.arp_ha.sa_data, sizeof(address->phys_addr));
+  uv__close(sockfd);
+  return 0;
+}
 
 int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
-#ifdef SUNOS_NO_IFADDRS
-  return -ENOSYS;
-#else
   uv_interface_address_t* address;
-  struct sockaddr_dl* sa_addr;
   struct ifaddrs* addrs;
   struct ifaddrs* ent;
   int i;
@@ -724,34 +800,15 @@ int uv_interface_addresses(uv_interface_address_t** addresses, int* count) {
     address->is_internal = !!((ent->ifa_flags & IFF_PRIVATE) ||
                            (ent->ifa_flags & IFF_LOOPBACK));
 
+    uv__set_phys_addr(address, ent);
     address++;
-  }
-
-  /* Fill in physical addresses for each interface */
-  for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
-    if (!((ent->ifa_flags & IFF_UP) && (ent->ifa_flags & IFF_RUNNING)) ||
-        (ent->ifa_addr == NULL) ||
-        (ent->ifa_addr->sa_family != AF_LINK)) {
-      continue;
-    }
-
-    address = *addresses;
-
-    for (i = 0; i < (*count); i++) {
-      if (strcmp(address->name, ent->ifa_name) == 0) {
-        sa_addr = (struct sockaddr_dl*)(ent->ifa_addr);
-        memcpy(address->phys_addr, LLADDR(sa_addr), sizeof(address->phys_addr));
-      }
-      address++;
-    }
   }
 
   freeifaddrs(addrs);
 
   return 0;
-#endif  /* SUNOS_NO_IFADDRS */
 }
-
+#endif  /* SUNOS_NO_IFADDRS */
 
 void uv_free_interface_addresses(uv_interface_address_t* addresses,
   int count) {

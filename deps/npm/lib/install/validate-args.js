@@ -50,7 +50,12 @@ function checkSelf (idealTree, pkg, force, next) {
     idealTree.warnings.push(warn)
     next()
   } else {
-    var er = new Error('Refusing to install ' + pkg.name + ' as a dependency of itself')
+    var er = new Error('Refusing to install package with name "' + pkg.name +
+     '" under a package\n' +
+     'also called "' + pkg.name + '". Did you name your project the same\n' +
+     'as the dependency you\'re installing?\n\n' +
+     'For more information, see:\n' +
+     '    <https://docs.npmjs.com/cli/install#limitations-of-npms-install-algorithm>')
     er.code = 'ENOSELF'
     next(er)
   }

@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --use-osr --allow-natives-syntax --turbo-osr
+// Flags: --use-osr --allow-natives-syntax
 
 var global_counter = 0;
 
 function thrower() {
   var x = global_counter++;
-  if (x == 5)  %OptimizeOsr(thrower.caller);
+  if (x == 5)  %OptimizeOsr(1);
   if (x == 10) throw "terminate";
 }
 

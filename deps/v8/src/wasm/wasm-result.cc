@@ -6,8 +6,7 @@
 
 #include "src/factory.h"
 #include "src/heap/heap.h"
-#include "src/isolate.h"
-#include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker!
+#include "src/isolate-inl.h"
 #include "src/objects.h"
 
 #include "src/base/platform/platform.h"
@@ -28,16 +27,13 @@ std::ostream& operator<<(std::ostream& os, const ErrorCode& error_code) {
   return os;
 }
 
+void ErrorThrower::Format(i::Handle<i::JSFunction> constructor,
+                          const char* format, va_list args) {
+  // Only report the first error.
+  if (error()) return;
 
-void ErrorThrower::Error(const char* format, ...) {
-  if (error_) return;  // only report the first error.
-  error_ = true;
   char buffer[256];
-
-  va_list arguments;
-  va_start(arguments, format);
-  base::OS::VSNPrintF(buffer, 255, format, arguments);
-  va_end(arguments);
+  base::OS::VSNPrintF(buffer, 255, format, args);
 
   std::ostringstream str;
   if (context_ != nullptr) {
@@ -45,8 +41,40 @@ void ErrorThrower::Error(const char* format, ...) {
   }
   str << buffer;
 
-  isolate_->ScheduleThrow(
-      *isolate_->factory()->NewStringFromAsciiChecked(str.str().c_str()));
+  i::Handle<i::String> message =
+      isolate_->factory()->NewStringFromAsciiChecked(str.str().c_str());
+  exception_ = isolate_->factory()->NewError(constructor, message);
+}
+
+void ErrorThrower::Error(const char* format, ...) {
+  if (error()) return;
+  va_list arguments;
+  va_start(arguments, format);
+  Format(isolate_->error_function(), format, arguments);
+  va_end(arguments);
+}
+
+void ErrorThrower::TypeError(const char* format, ...) {
+  if (error()) return;
+  va_list arguments;
+  va_start(arguments, format);
+  Format(isolate_->type_error_function(), format, arguments);
+  va_end(arguments);
+}
+
+void ErrorThrower::RangeError(const char* format, ...) {
+  if (error()) return;
+  va_list arguments;
+  va_start(arguments, format);
+  CHECK(*isolate_->range_error_function() != *isolate_->type_error_function());
+  Format(isolate_->range_error_function(), format, arguments);
+  va_end(arguments);
+}
+
+ErrorThrower::~ErrorThrower() {
+  if (error() && !isolate_->has_pending_exception()) {
+    isolate_->ScheduleThrow(*exception_);
+  }
 }
 }  // namespace wasm
 }  // namespace internal

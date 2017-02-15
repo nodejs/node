@@ -6,18 +6,19 @@ const fork = require('child_process').fork;
 const LOCAL_BROADCAST_HOST = '224.0.0.114';
 const TIMEOUT = common.platformTimeout(5000);
 const messages = [
-  new Buffer('First message to send'),
-  new Buffer('Second message to send'),
-  new Buffer('Third message to send'),
-  new Buffer('Fourth message to send')
+  Buffer.from('First message to send'),
+  Buffer.from('Second message to send'),
+  Buffer.from('Third message to send'),
+  Buffer.from('Fourth message to send')
 ];
 const workers = {};
 const listeners = 3;
+let listening, sendSocket, done, timer, dead;
 
 
 // Skip test in FreeBSD jails.
 if (common.inFreeBSDJail) {
-  console.log('1..0 # Skipped: In a FreeBSD jail');
+  common.skip('In a FreeBSD jail');
   return;
 }
 
@@ -76,10 +77,10 @@ function launchChildProcess(index) {
         Object.keys(workers).forEach(function(pid) {
           const worker = workers[pid];
 
-          var count = 0;
+          let count = 0;
 
           worker.messagesReceived.forEach(function(buf) {
-            for (var i = 0; i < messages.length; ++i) {
+            for (let i = 0; i < messages.length; ++i) {
               if (buf.toString() === messages[i].toString()) {
                 count++;
                 break;
@@ -91,7 +92,7 @@ function launchChildProcess(index) {
                         worker.pid, count);
 
           assert.strictEqual(count, messages.length,
-                       'A worker received an invalid multicast message');
+                             'A worker received an invalid multicast message');
         });
 
         clearTimeout(timer);
@@ -110,13 +111,13 @@ function killChildren(children) {
 }
 
 if (process.argv[2] !== 'child') {
-  var listening = 0;
-  var dead = 0;
-  var i = 0;
-  var done = 0;
+  listening = 0;
+  dead = 0;
+  let i = 0;
+  done = 0;
 
   // Exit the test if it doesn't succeed within TIMEOUT.
-  var timer = setTimeout(function() {
+  timer = setTimeout(function() {
     console.error('[PARENT] Responses were not received within %d ms.',
                   TIMEOUT);
     console.error('[PARENT] Fail');
@@ -127,11 +128,11 @@ if (process.argv[2] !== 'child') {
   }, TIMEOUT);
 
   // Launch child processes.
-  for (var x = 0; x < listeners; x++) {
+  for (let x = 0; x < listeners; x++) {
     launchChildProcess(x);
   }
 
-  var sendSocket = dgram.createSocket('udp4');
+  sendSocket = dgram.createSocket('udp4');
 
   // The socket is actually created async now.
   sendSocket.on('listening', function() {
@@ -160,7 +161,7 @@ if (process.argv[2] !== 'child') {
       common.PORT,
       LOCAL_BROADCAST_HOST,
       function(err) {
-        if (err) throw err;
+        assert.ifError(err);
         console.error('[PARENT] sent "%s" to %s:%s',
                       buf.toString(),
                       LOCAL_BROADCAST_HOST, common.PORT);

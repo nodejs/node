@@ -6,13 +6,13 @@
 
 function Foo() { }
 
-assertThrows(function() { _WASMEXP_.verifyModule(); })
-assertThrows(function() { _WASMEXP_.verifyModule(0); })
-assertThrows(function() { _WASMEXP_.verifyModule("s"); })
-assertThrows(function() { _WASMEXP_.verifyModule(undefined); })
-assertThrows(function() { _WASMEXP_.verifyModule(1.1); })
-assertThrows(function() { _WASMEXP_.verifyModule(1/0); })
-assertThrows(function() { _WASMEXP_.verifyModule(null); })
-assertThrows(function() { _WASMEXP_.verifyModule(new Foo()); })
-assertThrows(function() { _WASMEXP_.verifyModule(new ArrayBuffer(0)); })
-assertThrows(function() { _WASMEXP_.verifyModule(new ArrayBuffer(7)); })
+assertThrows(function() { Wasm.verifyModule(); })
+assertThrows(function() { Wasm.verifyModule(0); })
+assertThrows(function() { Wasm.verifyModule("s"); })
+assertThrows(function() { Wasm.verifyModule(undefined); })
+assertThrows(function() { Wasm.verifyModule(1.1); })
+assertThrows(function() { Wasm.verifyModule(1/0); })
+assertThrows(function() { Wasm.verifyModule(null); })
+assertThrows(function() { Wasm.verifyModule(new Foo()); })
+assertThrows(function() { Wasm.verifyModule(new ArrayBuffer(0)); })
+assertThrows(function() { Wasm.verifyModule(new ArrayBuffer(7)); })

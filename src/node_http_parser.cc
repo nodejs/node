@@ -15,12 +15,6 @@
 #include <stdlib.h>  // free()
 #include <string.h>  // strdup()
 
-#if defined(_MSC_VER)
-#define strcasecmp _stricmp
-#else
-#include <strings.h>  // strcasecmp()
-#endif
-
 // This is a binding to http_parser (https://github.com/joyent/http-parser)
 // The goal is to decouple sockets from parsing for more javascript-level
 // agility. A Buffer is read from a socket and passed to parser.execute().
@@ -113,9 +107,9 @@ struct StringPtr {
 
 
   void Update(const char* str, size_t size) {
-    if (str_ == nullptr)
+    if (str_ == nullptr) {
       str_ = str;
-    else if (on_heap_ || str_ + size_ != str) {
+    } else if (on_heap_ || str_ + size_ != str) {
       // Non-consecutive input, make a copy on the heap.
       // TODO(bnoordhuis) Use slab allocation, O(n) allocs is bad.
       char* s = new char[size_ + size];
@@ -193,7 +187,7 @@ class Parser : public AsyncWrap {
     if (num_fields_ == num_values_) {
       // start of new field name
       num_fields_++;
-      if (num_fields_ == ARRAY_SIZE(fields_)) {
+      if (num_fields_ == arraysize(fields_)) {
         // ran out of space - flush to javascript land
         Flush();
         num_fields_ = 1;
@@ -202,7 +196,7 @@ class Parser : public AsyncWrap {
       fields_[num_fields_ - 1].Reset();
     }
 
-    CHECK_LT(num_fields_, static_cast<int>(ARRAY_SIZE(fields_)));
+    CHECK_LT(num_fields_, arraysize(fields_));
     CHECK_EQ(num_fields_, num_values_ + 1);
 
     fields_[num_fields_ - 1].Update(at, length);
@@ -218,7 +212,7 @@ class Parser : public AsyncWrap {
       values_[num_values_ - 1].Reset();
     }
 
-    CHECK_LT(num_values_, static_cast<int>(ARRAY_SIZE(values_)));
+    CHECK_LT(num_values_, arraysize(values_));
     CHECK_EQ(num_values_, num_fields_);
 
     values_[num_values_ - 1].Update(at, length);
@@ -252,7 +246,7 @@ class Parser : public AsyncWrap {
       return 0;
 
     Local<Value> undefined = Undefined(env()->isolate());
-    for (size_t i = 0; i < ARRAY_SIZE(argv); i++)
+    for (size_t i = 0; i < arraysize(argv); i++)
       argv[i] = undefined;
 
     if (have_flushed_) {
@@ -293,14 +287,14 @@ class Parser : public AsyncWrap {
     Environment::AsyncCallbackScope callback_scope(env());
 
     Local<Value> head_response =
-        MakeCallback(cb.As<Function>(), ARRAY_SIZE(argv), argv);
+        MakeCallback(cb.As<Function>(), arraysize(argv), argv);
 
     if (head_response.IsEmpty()) {
       got_exception_ = true;
       return -1;
     }
 
-    return head_response->IsTrue() ? 1 : 0;
+    return head_response->IntegerValue();
   }
 
 
@@ -328,7 +322,7 @@ class Parser : public AsyncWrap {
       Integer::NewFromUnsigned(env()->isolate(), length)
     };
 
-    Local<Value> r = MakeCallback(cb.As<Function>(), ARRAY_SIZE(argv), argv);
+    Local<Value> r = MakeCallback(cb.As<Function>(), arraysize(argv), argv);
 
     if (r.IsEmpty()) {
       got_exception_ = true;
@@ -374,7 +368,8 @@ class Parser : public AsyncWrap {
 
 
   static void Close(const FunctionCallbackInfo<Value>& args) {
-    Parser* parser = Unwrap<Parser>(args.Holder());
+    Parser* parser;
+    ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
 
     if (--parser->refcount_ == 0)
       delete parser;
@@ -385,11 +380,11 @@ class Parser : public AsyncWrap {
     url_.Save();
     status_message_.Save();
 
-    for (int i = 0; i < num_fields_; i++) {
+    for (size_t i = 0; i < num_fields_; i++) {
       fields_[i].Save();
     }
 
-    for (int i = 0; i < num_values_; i++) {
+    for (size_t i = 0; i < num_values_; i++) {
       values_[i].Save();
     }
   }
@@ -397,7 +392,8 @@ class Parser : public AsyncWrap {
 
   // var bytesParsed = parser->execute(buffer);
   static void Execute(const FunctionCallbackInfo<Value>& args) {
-    Parser* parser = Unwrap<Parser>(args.Holder());
+    Parser* parser;
+    ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
     CHECK(parser->current_buffer_.IsEmpty());
     CHECK_EQ(parser->current_buffer_len_, 0);
     CHECK_EQ(parser->current_buffer_data_, nullptr);
@@ -422,7 +418,8 @@ class Parser : public AsyncWrap {
   static void Finish(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
 
-    Parser* parser = Unwrap<Parser>(args.Holder());
+    Parser* parser;
+    ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
 
     CHECK(parser->current_buffer_.IsEmpty());
     parser->got_exception_ = false;
@@ -453,7 +450,8 @@ class Parser : public AsyncWrap {
         static_cast<http_parser_type>(args[0]->Int32Value());
 
     CHECK(type == HTTP_REQUEST || type == HTTP_RESPONSE);
-    Parser* parser = Unwrap<Parser>(args.Holder());
+    Parser* parser;
+    ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
     // Should always be called from the same context.
     CHECK_EQ(env, parser->env());
     parser->Init(type);
@@ -463,7 +461,8 @@ class Parser : public AsyncWrap {
   template <bool should_pause>
   static void Pause(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
-    Parser* parser = Unwrap<Parser>(args.Holder());
+    Parser* parser;
+    ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
     // Should always be called from the same context.
     CHECK_EQ(env, parser->env());
     http_parser_pause(&parser->parser_, should_pause);
@@ -471,7 +470,8 @@ class Parser : public AsyncWrap {
 
 
   static void Consume(const FunctionCallbackInfo<Value>& args) {
-    Parser* parser = Unwrap<Parser>(args.Holder());
+    Parser* parser;
+    ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
     Local<External> stream_obj = args[0].As<External>();
     StreamBase* stream = static_cast<StreamBase*>(stream_obj->Value());
     CHECK_NE(stream, nullptr);
@@ -487,7 +487,8 @@ class Parser : public AsyncWrap {
 
 
   static void Unconsume(const FunctionCallbackInfo<Value>& args) {
-    Parser* parser = Unwrap<Parser>(args.Holder());
+    Parser* parser;
+    ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
 
     // Already unconsumed
     if (parser->prev_alloc_cb_.is_empty())
@@ -509,7 +510,8 @@ class Parser : public AsyncWrap {
 
 
   static void GetCurrentBuffer(const FunctionCallbackInfo<Value>& args) {
-    Parser* parser = Unwrap<Parser>(args.Holder());
+    Parser* parser;
+    ASSIGN_OR_RETURN_UNWRAP(&parser, args.Holder());
 
     Local<Object> ret = Buffer::Copy(
         parser->env(),
@@ -587,8 +589,6 @@ class Parser : public AsyncWrap {
     if (!cb->IsFunction())
       return;
 
-    Environment::AsyncCallbackScope callback_scope(parser->env());
-
     // Hooks for GetCurrentBuffer
     parser->current_buffer_len_ = nread;
     parser->current_buffer_data_ = buf->base;
@@ -597,8 +597,6 @@ class Parser : public AsyncWrap {
 
     parser->current_buffer_len_ = 0;
     parser->current_buffer_data_ = nullptr;
-
-    parser->env()->KickNextTick(&callback_scope);
   }
 
 
@@ -641,16 +639,14 @@ class Parser : public AsyncWrap {
   }
 
   Local<Array> CreateHeaders() {
-    // num_values_ is either -1 or the entry # of the last header
-    // so num_values_ == 0 means there's a single header
     Local<Array> headers = Array::New(env()->isolate());
     Local<Function> fn = env()->push_values_to_array_function();
     Local<Value> argv[NODE_PUSH_VAL_TO_ARRAY_MAX * 2];
-    int i = 0;
+    size_t i = 0;
 
     do {
       size_t j = 0;
-      while (i < num_values_ && j < ARRAY_SIZE(argv) / 2) {
+      while (i < num_values_ && j < arraysize(argv) / 2) {
         argv[j * 2] = fields_[i].ToString(env());
         argv[j * 2 + 1] = values_[i].ToString(env());
         i++;
@@ -680,7 +676,7 @@ class Parser : public AsyncWrap {
       url_.ToString(env())
     };
 
-    Local<Value> r = MakeCallback(cb.As<Function>(), ARRAY_SIZE(argv), argv);
+    Local<Value> r = MakeCallback(cb.As<Function>(), arraysize(argv), argv);
 
     if (r.IsEmpty())
       got_exception_ = true;
@@ -706,8 +702,8 @@ class Parser : public AsyncWrap {
   StringPtr values_[32];  // header values
   StringPtr url_;
   StringPtr status_message_;
-  int num_fields_;
-  int num_values_;
+  size_t num_fields_;
+  size_t num_values_;
   bool have_flushed_;
   bool got_exception_;
   Local<Object> current_buffer_;
@@ -765,7 +761,7 @@ void InitHttpParser(Local<Object> target,
     methods->Set(num, FIXED_ONE_BYTE_STRING(env->isolate(), #string));
   HTTP_METHOD_MAP(V)
 #undef V
-  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "methods"), methods);
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "methods"), methods);
 
   env->SetProtoMethod(t, "close", Parser::Close);
   env->SetProtoMethod(t, "execute", Parser::Execute);

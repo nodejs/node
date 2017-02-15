@@ -33,7 +33,7 @@ template int StreamBase::WriteString<UTF8>(
     const FunctionCallbackInfo<Value>& args);
 template int StreamBase::WriteString<UCS2>(
     const FunctionCallbackInfo<Value>& args);
-template int StreamBase::WriteString<BINARY>(
+template int StreamBase::WriteString<LATIN1>(
     const FunctionCallbackInfo<Value>& args);
 
 
@@ -82,10 +82,8 @@ void StreamBase::AfterShutdown(ShutdownWrap* req_wrap, int status) {
     req_wrap_obj
   };
 
-  if (req_wrap->object()->Has(env->context(),
-                              env->oncomplete_string()).FromJust()) {
-    req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
-  }
+  if (req_wrap_obj->Has(env->context(), env->oncomplete_string()).FromJust())
+    req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
 
   delete req_wrap;
 }
@@ -102,8 +100,7 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
 
   size_t count = chunks->Length() >> 1;
 
-  uv_buf_t bufs_[16];
-  uv_buf_t* bufs = bufs_;
+  MaybeStackBuffer<uv_buf_t, 16> bufs(count);
 
   // Determine storage size first
   size_t storage_size = 0;
@@ -131,9 +128,6 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
 
   if (storage_size > INT_MAX)
     return UV_ENOBUFS;
-
-  if (ARRAY_SIZE(bufs_) < count)
-    bufs = new uv_buf_t[count];
 
   WriteWrap* req_wrap = WriteWrap::New(env,
                                        req_wrap_obj,
@@ -174,15 +168,10 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
     bytes += str_size;
   }
 
-  int err = DoWrite(req_wrap, bufs, count, nullptr);
+  int err = DoWrite(req_wrap, *bufs, count, nullptr);
 
-  // Deallocate space
-  if (bufs != bufs_)
-    delete[] bufs;
-
-  req_wrap->object()->Set(env->async(), True(env->isolate()));
-  req_wrap->object()->Set(env->bytes_string(),
-                          Number::New(env->isolate(), bytes));
+  req_wrap_obj->Set(env->async(), True(env->isolate()));
+  req_wrap_obj->Set(env->bytes_string(), Number::New(env->isolate(), bytes));
   const char* msg = Error();
   if (msg != nullptr) {
     req_wrap_obj->Set(env->error_string(), OneByteString(env->isolate(), msg));
@@ -227,6 +216,7 @@ int StreamBase::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
 
   err = DoWrite(req_wrap, bufs, count, nullptr);
   req_wrap_obj->Set(env->async(), True(env->isolate()));
+  req_wrap_obj->Set(env->buffer_string(), args[1]);
 
   if (err)
     req_wrap->Dispose();
@@ -329,12 +319,13 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
     uv_handle_t* send_handle = nullptr;
 
     if (!send_handle_obj.IsEmpty()) {
-      HandleWrap* wrap = Unwrap<HandleWrap>(send_handle_obj);
+      HandleWrap* wrap;
+      ASSIGN_OR_RETURN_UNWRAP(&wrap, send_handle_obj, UV_EINVAL);
       send_handle = wrap->GetHandle();
       // Reference StreamWrap instance to prevent it from being garbage
       // collected before `AfterWrite` is called.
       CHECK_EQ(false, req_wrap->persistent().IsEmpty());
-      req_wrap->object()->Set(env->handle_string(), send_handle_obj);
+      req_wrap_obj->Set(env->handle_string(), send_handle_obj);
     }
 
     err = DoWrite(
@@ -344,7 +335,7 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
         reinterpret_cast<uv_stream_t*>(send_handle));
   }
 
-  req_wrap->object()->Set(env->async(), True(env->isolate()));
+  req_wrap_obj->Set(env->async(), True(env->isolate()));
 
   if (err)
     req_wrap->Dispose();
@@ -389,10 +380,8 @@ void StreamBase::AfterWrite(WriteWrap* req_wrap, int status) {
     wrap->ClearError();
   }
 
-  if (req_wrap->object()->Has(env->context(),
-                              env->oncomplete_string()).FromJust()) {
-    req_wrap->MakeCallback(env->oncomplete_string(), ARRAY_SIZE(argv), argv);
-  }
+  if (req_wrap_obj->Has(env->context(), env->oncomplete_string()).FromJust())
+    req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
 
   req_wrap->Dispose();
 }
@@ -420,10 +409,10 @@ void StreamBase::EmitData(ssize_t nread,
     node::MakeCallback(env,
                        GetObject(),
                        env->onread_string(),
-                       ARRAY_SIZE(argv),
+                       arraysize(argv),
                        argv);
   } else {
-    async->MakeCallback(env->onread_string(), ARRAY_SIZE(argv), argv);
+    async->MakeCallback(env->onread_string(), arraysize(argv), argv);
   }
 }
 

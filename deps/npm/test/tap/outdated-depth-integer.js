@@ -3,7 +3,8 @@ var test = require('tap').test
 var rimraf = require('rimraf')
 var npm = require('../../')
 var mr = require('npm-registry-mock')
-var pkg = __dirname + '/outdated-depth-integer'
+var path = require('path')
+var pkg = path.resolve('outdated-depth-integer')
 
 var osenv = require('osenv')
 var mkdirp = require('mkdirp')
@@ -61,7 +62,9 @@ test('outdated depth integer', function (t) {
       npm.install('request@0.9.0', function (er) {
         if (er) throw new Error(er)
         npm.outdated(function (err, d) {
-          if (err) throw new Error(err)
+          t.ifError(err, 'outdated did not error')
+          t.is(process.exitCode, 1, 'exitCode set to 1')
+          process.exitCode = 0
           t.deepEqual(d, expected)
           s.close()
           t.end()

@@ -13,15 +13,13 @@ const server = net.createServer((socket) => {
   socket.write(reqstr);
 });
 
-server.listen(common.PORT, () => {
+server.listen(0, () => {
   // The callback should not be called because the server is sending a
   // header field that ends only in \r with no following \n
-  const req = http.get({port:common.PORT}, (res) => {
-    assert.fail(null, null, 'callback should not be called');
-  });
+  const req = http.get({port: server.address().port}, common.mustNotCall());
   req.on('error', common.mustCall((err) => {
     assert(/^Parse Error/.test(err.message));
-    assert.equal(err.code, 'HPE_LF_EXPECTED');
+    assert.strictEqual(err.code, 'HPE_LF_EXPECTED');
     server.close();
   }));
 });

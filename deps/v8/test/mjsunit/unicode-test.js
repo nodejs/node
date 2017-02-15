@@ -5726,7 +5726,7 @@ var source =
 "   All uses of av_ are via get_malloc_state().\n" +
 "   At most one \"call\" to get_malloc_state is made per invocation of\n" +
 "   the public versions of malloc and free, but other routines\n" +
-"   that in turn invoke malloc and/or free may call more then once.\n" +
+"   that in turn invoke malloc and/or free may call more than once.\n" +
 "   Also, it is called in check* routines if DEBUG is set.\n" +
 "*/\n" +
 "\n" +

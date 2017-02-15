@@ -503,7 +503,7 @@ _aesni_ecb_encrypt:
 	testl	%r8d,%r8d
 	jz	L$ecb_decrypt
 
-	cmpq	$128,%rdx
+	cmpq	$0x80,%rdx
 	jb	L$ecb_enc_tail
 
 	movdqu	(%rdi),%xmm2
@@ -515,7 +515,7 @@ _aesni_ecb_encrypt:
 	movdqu	96(%rdi),%xmm8
 	movdqu	112(%rdi),%xmm9
 	leaq	128(%rdi),%rdi
-	subq	$128,%rdx
+	subq	$0x80,%rdx
 	jmp	L$ecb_enc_loop8_enter
 .p2align	4
 L$ecb_enc_loop8:
@@ -543,7 +543,7 @@ L$ecb_enc_loop8_enter:
 
 	call	_aesni_encrypt8
 
-	subq	$128,%rdx
+	subq	$0x80,%rdx
 	jnc	L$ecb_enc_loop8
 
 	movups	%xmm2,(%rsi)
@@ -557,22 +557,22 @@ L$ecb_enc_loop8_enter:
 	movups	%xmm8,96(%rsi)
 	movups	%xmm9,112(%rsi)
 	leaq	128(%rsi),%rsi
-	addq	$128,%rdx
+	addq	$0x80,%rdx
 	jz	L$ecb_ret
 
 L$ecb_enc_tail:
 	movups	(%rdi),%xmm2
-	cmpq	$32,%rdx
+	cmpq	$0x20,%rdx
 	jb	L$ecb_enc_one
 	movups	16(%rdi),%xmm3
 	je	L$ecb_enc_two
 	movups	32(%rdi),%xmm4
-	cmpq	$64,%rdx
+	cmpq	$0x40,%rdx
 	jb	L$ecb_enc_three
 	movups	48(%rdi),%xmm5
 	je	L$ecb_enc_four
 	movups	64(%rdi),%xmm6
-	cmpq	$96,%rdx
+	cmpq	$0x60,%rdx
 	jb	L$ecb_enc_five
 	movups	80(%rdi),%xmm7
 	je	L$ecb_enc_six
@@ -646,7 +646,7 @@ L$ecb_enc_six:
 
 .p2align	4
 L$ecb_decrypt:
-	cmpq	$128,%rdx
+	cmpq	$0x80,%rdx
 	jb	L$ecb_dec_tail
 
 	movdqu	(%rdi),%xmm2
@@ -658,7 +658,7 @@ L$ecb_decrypt:
 	movdqu	96(%rdi),%xmm8
 	movdqu	112(%rdi),%xmm9
 	leaq	128(%rdi),%rdi
-	subq	$128,%rdx
+	subq	$0x80,%rdx
 	jmp	L$ecb_dec_loop8_enter
 .p2align	4
 L$ecb_dec_loop8:
@@ -687,7 +687,7 @@ L$ecb_dec_loop8_enter:
 	call	_aesni_decrypt8
 
 	movups	(%r11),%xmm0
-	subq	$128,%rdx
+	subq	$0x80,%rdx
 	jnc	L$ecb_dec_loop8
 
 	movups	%xmm2,(%rsi)
@@ -709,22 +709,22 @@ L$ecb_dec_loop8_enter:
 	movups	%xmm9,112(%rsi)
 	pxor	%xmm9,%xmm9
 	leaq	128(%rsi),%rsi
-	addq	$128,%rdx
+	addq	$0x80,%rdx
 	jz	L$ecb_ret
 
 L$ecb_dec_tail:
 	movups	(%rdi),%xmm2
-	cmpq	$32,%rdx
+	cmpq	$0x20,%rdx
 	jb	L$ecb_dec_one
 	movups	16(%rdi),%xmm3
 	je	L$ecb_dec_two
 	movups	32(%rdi),%xmm4
-	cmpq	$64,%rdx
+	cmpq	$0x40,%rdx
 	jb	L$ecb_dec_three
 	movups	48(%rdi),%xmm5
 	je	L$ecb_dec_four
 	movups	64(%rdi),%xmm6
-	cmpq	$96,%rdx
+	cmpq	$0x60,%rdx
 	jb	L$ecb_dec_five
 	movups	80(%rdi),%xmm7
 	je	L$ecb_dec_six
@@ -1598,7 +1598,7 @@ L$oop_enc1_8:
 
 	movdqa	L$xts_magic(%rip),%xmm8
 	movdqa	%xmm2,%xmm15
-	pshufd	$95,%xmm2,%xmm9
+	pshufd	$0x5f,%xmm2,%xmm9
 	pxor	%xmm0,%xmm1
 	movdqa	%xmm9,%xmm14
 	paddd	%xmm9,%xmm9
@@ -1697,7 +1697,7 @@ L$xts_enc_grandloop:
 .byte	102,15,56,220,248
 	movups	64(%r11),%xmm0
 	movdqa	%xmm8,80(%rsp)
-	pshufd	$95,%xmm15,%xmm9
+	pshufd	$0x5f,%xmm15,%xmm9
 	jmp	L$xts_enc_loop6
 .p2align	5
 L$xts_enc_loop6:
@@ -1836,13 +1836,13 @@ L$xts_enc_short:
 	jz	L$xts_enc_done
 
 	pxor	%xmm0,%xmm11
-	cmpq	$32,%rdx
+	cmpq	$0x20,%rdx
 	jb	L$xts_enc_one
 	pxor	%xmm0,%xmm12
 	je	L$xts_enc_two
 
 	pxor	%xmm0,%xmm13
-	cmpq	$64,%rdx
+	cmpq	$0x40,%rdx
 	jb	L$xts_enc_three
 	pxor	%xmm0,%xmm14
 	je	L$xts_enc_four
@@ -2069,7 +2069,7 @@ L$oop_enc1_11:
 
 	movdqa	L$xts_magic(%rip),%xmm8
 	movdqa	%xmm2,%xmm15
-	pshufd	$95,%xmm2,%xmm9
+	pshufd	$0x5f,%xmm2,%xmm9
 	pxor	%xmm0,%xmm1
 	movdqa	%xmm9,%xmm14
 	paddd	%xmm9,%xmm9
@@ -2168,7 +2168,7 @@ L$xts_dec_grandloop:
 .byte	102,15,56,222,248
 	movups	64(%r11),%xmm0
 	movdqa	%xmm8,80(%rsp)
-	pshufd	$95,%xmm15,%xmm9
+	pshufd	$0x5f,%xmm15,%xmm9
 	jmp	L$xts_dec_loop6
 .p2align	5
 L$xts_dec_loop6:
@@ -2308,13 +2308,13 @@ L$xts_dec_short:
 	jz	L$xts_dec_done
 
 	pxor	%xmm0,%xmm12
-	cmpq	$32,%rdx
+	cmpq	$0x20,%rdx
 	jb	L$xts_dec_one
 	pxor	%xmm0,%xmm13
 	je	L$xts_dec_two
 
 	pxor	%xmm0,%xmm14
-	cmpq	$64,%rdx
+	cmpq	$0x40,%rdx
 	jb	L$xts_dec_three
 	je	L$xts_dec_four
 
@@ -2345,7 +2345,7 @@ L$xts_dec_short:
 	pcmpgtd	%xmm15,%xmm14
 	movdqu	%xmm6,64(%rsi)
 	leaq	80(%rsi),%rsi
-	pshufd	$19,%xmm14,%xmm11
+	pshufd	$0x13,%xmm14,%xmm11
 	andq	$15,%r9
 	jz	L$xts_dec_ret
 
@@ -2634,7 +2634,7 @@ L$cbc_decrypt_bulk:
 	leaq	-8(%rax),%rbp
 	movups	(%r8),%xmm10
 	movl	%r10d,%eax
-	cmpq	$80,%rdx
+	cmpq	$0x50,%rdx
 	jbe	L$cbc_dec_tail
 
 	movups	(%rcx),%xmm0
@@ -2650,14 +2650,14 @@ L$cbc_decrypt_bulk:
 	movdqu	80(%rdi),%xmm7
 	movdqa	%xmm6,%xmm15
 	movl	_OPENSSL_ia32cap_P+4(%rip),%r9d
-	cmpq	$112,%rdx
+	cmpq	$0x70,%rdx
 	jbe	L$cbc_dec_six_or_seven
 
 	andl	$71303168,%r9d
-	subq	$80,%rdx
+	subq	$0x50,%rdx
 	cmpl	$4194304,%r9d
 	je	L$cbc_dec_loop6_enter
-	subq	$32,%rdx
+	subq	$0x20,%rdx
 	leaq	112(%rcx),%rcx
 	jmp	L$cbc_dec_loop8_enter
 .p2align	4
@@ -2672,7 +2672,7 @@ L$cbc_dec_loop8_enter:
 	movups	16-112(%rcx),%xmm1
 	pxor	%xmm0,%xmm4
 	xorq	%r11,%r11
-	cmpq	$112,%rdx
+	cmpq	$0x70,%rdx
 	pxor	%xmm0,%xmm5
 	pxor	%xmm0,%xmm6
 	pxor	%xmm0,%xmm7
@@ -2857,21 +2857,21 @@ L$cbc_dec_done:
 	movups	%xmm8,96(%rsi)
 	leaq	112(%rsi),%rsi
 
-	subq	$128,%rdx
+	subq	$0x80,%rdx
 	ja	L$cbc_dec_loop8
 
 	movaps	%xmm9,%xmm2
 	leaq	-112(%rcx),%rcx
-	addq	$112,%rdx
+	addq	$0x70,%rdx
 	jle	L$cbc_dec_clear_tail_collected
 	movups	%xmm9,(%rsi)
 	leaq	16(%rsi),%rsi
-	cmpq	$80,%rdx
+	cmpq	$0x50,%rdx
 	jbe	L$cbc_dec_tail
 
 	movaps	%xmm11,%xmm2
 L$cbc_dec_six_or_seven:
-	cmpq	$96,%rdx
+	cmpq	$0x60,%rdx
 	ja	L$cbc_dec_seven
 
 	movaps	%xmm7,%xmm8
@@ -2964,33 +2964,33 @@ L$cbc_dec_loop6_enter:
 	movl	%r10d,%eax
 	movdqu	%xmm6,64(%rsi)
 	leaq	80(%rsi),%rsi
-	subq	$96,%rdx
+	subq	$0x60,%rdx
 	ja	L$cbc_dec_loop6
 
 	movdqa	%xmm7,%xmm2
-	addq	$80,%rdx
+	addq	$0x50,%rdx
 	jle	L$cbc_dec_clear_tail_collected
 	movups	%xmm7,(%rsi)
 	leaq	16(%rsi),%rsi
 
 L$cbc_dec_tail:
 	movups	(%rdi),%xmm2
-	subq	$16,%rdx
+	subq	$0x10,%rdx
 	jbe	L$cbc_dec_one
 
 	movups	16(%rdi),%xmm3
 	movaps	%xmm2,%xmm11
-	subq	$16,%rdx
+	subq	$0x10,%rdx
 	jbe	L$cbc_dec_two
 
 	movups	32(%rdi),%xmm4
 	movaps	%xmm3,%xmm12
-	subq	$16,%rdx
+	subq	$0x10,%rdx
 	jbe	L$cbc_dec_three
 
 	movups	48(%rdi),%xmm5
 	movaps	%xmm4,%xmm13
-	subq	$16,%rdx
+	subq	$0x10,%rdx
 	jbe	L$cbc_dec_four
 
 	movups	64(%rdi),%xmm6
@@ -3015,7 +3015,7 @@ L$cbc_dec_tail:
 	movdqa	%xmm6,%xmm2
 	pxor	%xmm6,%xmm6
 	pxor	%xmm7,%xmm7
-	subq	$16,%rdx
+	subq	$0x10,%rdx
 	jmp	L$cbc_dec_tail_collected
 
 .p2align	4
@@ -3332,7 +3332,7 @@ L$oop_key192:
 	pslldq	$4,%xmm0
 	pxor	%xmm3,%xmm0
 
-	pshufd	$255,%xmm0,%xmm3
+	pshufd	$0xff,%xmm0,%xmm3
 	pxor	%xmm1,%xmm3
 	pslldq	$4,%xmm1
 	pxor	%xmm1,%xmm3
@@ -3419,7 +3419,7 @@ L$oop_key256:
 	decl	%r10d
 	jz	L$done_key256
 
-	pshufd	$255,%xmm0,%xmm2
+	pshufd	$0xff,%xmm0,%xmm2
 	pxor	%xmm3,%xmm3
 .byte	102,15,56,221,211
 

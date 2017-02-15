@@ -1,6 +1,6 @@
 'use strict';
-const assert = require('assert');
 const common = require('../common');
+const assert = require('assert');
 const fork = require('child_process').fork;
 const net = require('net');
 const count = 12;
@@ -20,7 +20,7 @@ if (process.argv[2] === 'child') {
     }
 
     if (m.cmd === 'close') {
-      assert.equal(socket, undefined);
+      assert.strictEqual(socket, undefined);
       if (sockets[m.id].destroyed) {
         // Workaround for https://github.com/nodejs/node/issues/2610
         sendClosed(m.id);
@@ -75,7 +75,7 @@ if (process.argv[2] === 'child') {
     }
 
     child.once('message', function(m) {
-      assert(m.status === 'closed');
+      assert.strictEqual(m.status, 'closed');
       server.getConnections(function(err, num) {
         closeSockets(i + 1);
       });
@@ -92,8 +92,8 @@ if (process.argv[2] === 'child') {
   server.listen(common.PORT, '127.0.0.1');
 
   process.on('exit', function() {
-    assert.equal(sent, count);
-    assert.equal(disconnected, count);
+    assert.strictEqual(sent, count);
+    assert.strictEqual(disconnected, count);
     assert.ok(closeEmitted);
     console.log('ok');
   });

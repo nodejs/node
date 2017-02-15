@@ -30,6 +30,9 @@
 #elif V8_TARGET_ARCH_X87
 #include "src/crankshaft/x87/lithium-x87.h"  // NOLINT
 #include "src/crankshaft/x87/lithium-codegen-x87.h"  // NOLINT
+#elif V8_TARGET_ARCH_S390
+#include "src/crankshaft/s390/lithium-s390.h"          // NOLINT
+#include "src/crankshaft/s390/lithium-codegen-s390.h"  // NOLINT
 #else
 #error "Unknown architecture."
 #endif
@@ -37,6 +40,7 @@
 namespace v8 {
 namespace internal {
 
+const auto GetRegConfig = RegisterConfiguration::Crankshaft;
 
 void LOperand::PrintTo(StringStream* stream) {
   LUnallocated* unalloc = NULL;
@@ -60,7 +64,7 @@ void LOperand::PrintTo(StringStream* stream) {
             stream->Add("(=invalid_reg#%d)", reg_index);
           } else {
             const char* register_name =
-                Register::from_code(reg_index).ToString();
+                GetRegConfig()->GetGeneralRegisterName(reg_index);
             stream->Add("(=%s)", register_name);
           }
           break;
@@ -71,7 +75,7 @@ void LOperand::PrintTo(StringStream* stream) {
             stream->Add("(=invalid_double_reg#%d)", reg_index);
           } else {
             const char* double_register_name =
-                DoubleRegister::from_code(reg_index).ToString();
+                GetRegConfig()->GetDoubleRegisterName(reg_index);
             stream->Add("(=%s)", double_register_name);
           }
           break;
@@ -107,7 +111,8 @@ void LOperand::PrintTo(StringStream* stream) {
       if (reg_index < 0 || reg_index >= Register::kNumRegisters) {
         stream->Add("(=invalid_reg#%d|R)", reg_index);
       } else {
-        stream->Add("[%s|R]", Register::from_code(reg_index).ToString());
+        stream->Add("[%s|R]",
+                    GetRegConfig()->GetGeneralRegisterName(reg_index));
       }
       break;
     }
@@ -116,7 +121,7 @@ void LOperand::PrintTo(StringStream* stream) {
       if (reg_index < 0 || reg_index >= DoubleRegister::kMaxNumRegisters) {
         stream->Add("(=invalid_double_reg#%d|R)", reg_index);
       } else {
-        stream->Add("[%s|R]", DoubleRegister::from_code(reg_index).ToString());
+        stream->Add("[%s|R]", GetRegConfig()->GetDoubleRegisterName(reg_index));
       }
       break;
     }
@@ -246,22 +251,11 @@ void LPointerMap::PrintTo(StringStream* stream) {
   stream->Add("}");
 }
 
-
-int StackSlotOffset(int index) {
-  if (index >= 0) {
-    // Local or spill slot. Skip the frame pointer, function, and
-    // context in the fixed part of the frame.
-    return -(index + 1) * kPointerSize -
-        StandardFrameConstants::kFixedFrameSizeFromFp;
-  } else {
-    // Incoming parameter. Skip the return address.
-    return -(index + 1) * kPointerSize + kFPOnStackSize + kPCOnStackSize;
-  }
-}
-
-
 LChunk::LChunk(CompilationInfo* info, HGraph* graph)
-    : spill_slot_count_(0),
+    : base_frame_slots_(info->IsStub()
+                            ? TypedFrameConstants::kFixedSlotCount
+                            : StandardFrameConstants::kFixedSlotCount),
+      current_frame_slots_(base_frame_slots_),
       info_(info),
       graph_(graph),
       instructions_(32, info->zone()),
@@ -269,7 +263,6 @@ LChunk::LChunk(CompilationInfo* info, HGraph* graph)
       inlined_functions_(1, info->zone()),
       deprecation_dependencies_(32, info->zone()),
       stability_dependencies_(8, info->zone()) {}
-
 
 LLabel* LChunk::GetLabel(int block_id) const {
   HBasicBlock* block = graph_->blocks()->at(block_id);
@@ -346,7 +339,6 @@ void LChunk::AddInstruction(LInstruction* instr, HBasicBlock* block) {
     instr->pointer_map()->set_lithium_position(index);
   }
 }
-
 
 LConstantOperand* LChunk::DefineConstantOperand(HConstant* constant) {
   return LConstantOperand::Create(constant->id(), zone());
@@ -456,9 +448,6 @@ LChunk* LChunk::NewChunk(HGraph* graph) {
 Handle<Code> LChunk::Codegen() {
   MacroAssembler assembler(info()->isolate(), NULL, 0,
                            CodeObjectRequired::kYes);
-  LOG_CODE_EVENT(info()->isolate(),
-                 CodeStartLinePosInfoRecordEvent(
-                     assembler.positions_recorder()));
   // Code serializer only takes unoptimized code.
   DCHECK(!info()->will_serialize());
   LCodeGen generator(this, &assembler, info());
@@ -468,18 +457,18 @@ Handle<Code> LChunk::Codegen() {
   if (generator.GenerateCode()) {
     generator.CheckEnvironmentUsage();
     CodeGenerator::MakeCodePrologue(info(), "optimized");
-    Handle<Code> code = CodeGenerator::MakeCodeEpilogue(&assembler, info());
+    Handle<Code> code = CodeGenerator::MakeCodeEpilogue(
+        &assembler, nullptr, info(), assembler.CodeObject());
     generator.FinishCode(code);
     CommitDependencies(code);
+    Handle<ByteArray> source_positions =
+        generator.source_position_table_builder()->ToSourcePositionTable(
+            info()->isolate(), Handle<AbstractCode>::cast(code));
+    code->set_source_position_table(*source_positions);
     code->set_is_crankshafted(true);
-    void* jit_handler_data =
-        assembler.positions_recorder()->DetachJITHandlerData();
-    LOG_CODE_EVENT(info()->isolate(),
-                   CodeEndLinePosInfoRecordEvent(*code, jit_handler_data));
 
     CodeGenerator::PrintCode(code, info());
-    DCHECK(!(info()->isolate()->serializer_enabled() &&
-             info()->GetMustNotHaveEagerFrame() &&
+    DCHECK(!(info()->GetMustNotHaveEagerFrame() &&
              generator.NeedsEagerFrame()));
     return code;
   }
@@ -495,9 +484,9 @@ void LChunk::set_allocated_double_registers(BitVector* allocated_registers) {
   while (!iterator.Done()) {
     if (info()->saves_caller_doubles()) {
       if (kDoubleSize == kPointerSize * 2) {
-        spill_slot_count_ += 2;
+        current_frame_slots_ += 2;
       } else {
-        spill_slot_count_++;
+        current_frame_slots_++;
       }
     }
     iterator.Advance();
@@ -516,18 +505,94 @@ void LChunkBuilderBase::Retry(BailoutReason reason) {
   status_ = ABORTED;
 }
 
+void LChunkBuilderBase::CreateLazyBailoutForCall(HBasicBlock* current_block,
+                                                 LInstruction* instr,
+                                                 HInstruction* hydrogen_val) {
+  if (!instr->IsCall()) return;
+
+  HEnvironment* hydrogen_env = current_block->last_environment();
+  HValue* hydrogen_value_for_lazy_bailout = hydrogen_val;
+  DCHECK_NOT_NULL(hydrogen_env);
+  if (instr->IsSyntacticTailCall()) {
+    // If it was a syntactic tail call we need to drop the current frame and
+    // all the frames on top of it that are either an arguments adaptor frame
+    // or a tail caller frame.
+    hydrogen_env = hydrogen_env->outer();
+    while (hydrogen_env != nullptr &&
+           (hydrogen_env->frame_type() == ARGUMENTS_ADAPTOR ||
+            hydrogen_env->frame_type() == TAIL_CALLER_FUNCTION)) {
+      hydrogen_env = hydrogen_env->outer();
+    }
+    if (hydrogen_env != nullptr) {
+      if (hydrogen_env->frame_type() == JS_FUNCTION) {
+        // In case an outer frame is a function frame we have to replay
+        // environment manually because
+        // 1) it does not contain a result of inlined function yet,
+        // 2) we can't find the proper simulate that corresponds to the point
+        //    after inlined call to do a ReplayEnvironment() on.
+        // So we push return value on top of outer environment.
+        // As for JS_GETTER/JS_SETTER/JS_CONSTRUCT nothing has to be done here,
+        // the deoptimizer ensures that the result of the callee is correctly
+        // propagated to result register during deoptimization.
+        hydrogen_env = hydrogen_env->Copy();
+        hydrogen_env->Push(hydrogen_val);
+      }
+    } else {
+      // Although we don't need this lazy bailout for normal execution
+      // (because when we tail call from the outermost function we should pop
+      // its frame) we still need it when debugger is on.
+      hydrogen_env = current_block->last_environment();
+    }
+  } else {
+    if (hydrogen_val->HasObservableSideEffects()) {
+      HSimulate* sim = HSimulate::cast(hydrogen_val->next());
+      sim->ReplayEnvironment(hydrogen_env);
+      hydrogen_value_for_lazy_bailout = sim;
+    }
+  }
+  LInstruction* bailout = LChunkBuilderBase::AssignEnvironment(
+      new (zone()) LLazyBailout(), hydrogen_env);
+  bailout->set_hydrogen_value(hydrogen_value_for_lazy_bailout);
+  chunk_->AddInstruction(bailout, current_block);
+}
+
+LInstruction* LChunkBuilderBase::AssignEnvironment(LInstruction* instr,
+                                                   HEnvironment* hydrogen_env) {
+  int argument_index_accumulator = 0;
+  ZoneList<HValue*> objects_to_materialize(0, zone());
+  DCHECK_NE(TAIL_CALLER_FUNCTION, hydrogen_env->frame_type());
+  instr->set_environment(CreateEnvironment(
+      hydrogen_env, &argument_index_accumulator, &objects_to_materialize));
+  return instr;
+}
 
 LEnvironment* LChunkBuilderBase::CreateEnvironment(
     HEnvironment* hydrogen_env, int* argument_index_accumulator,
     ZoneList<HValue*>* objects_to_materialize) {
   if (hydrogen_env == NULL) return NULL;
 
+  BailoutId ast_id = hydrogen_env->ast_id();
+  DCHECK(!ast_id.IsNone() ||
+         (hydrogen_env->frame_type() != JS_FUNCTION &&
+          hydrogen_env->frame_type() != TAIL_CALLER_FUNCTION));
+
+  if (hydrogen_env->frame_type() == TAIL_CALLER_FUNCTION) {
+    // Skip potential outer arguments adaptor frame.
+    HEnvironment* outer_hydrogen_env = hydrogen_env->outer();
+    if (outer_hydrogen_env != nullptr &&
+        outer_hydrogen_env->frame_type() == ARGUMENTS_ADAPTOR) {
+      outer_hydrogen_env = outer_hydrogen_env->outer();
+    }
+    LEnvironment* outer = CreateEnvironment(
+        outer_hydrogen_env, argument_index_accumulator, objects_to_materialize);
+    return new (zone())
+        LEnvironment(hydrogen_env->closure(), hydrogen_env->frame_type(),
+                     ast_id, 0, 0, 0, outer, hydrogen_env->entry(), zone());
+  }
+
   LEnvironment* outer =
       CreateEnvironment(hydrogen_env->outer(), argument_index_accumulator,
                         objects_to_materialize);
-  BailoutId ast_id = hydrogen_env->ast_id();
-  DCHECK(!ast_id.IsNone() ||
-         hydrogen_env->frame_type() != JS_FUNCTION);
 
   int omitted_count = (hydrogen_env->frame_type() == JS_FUNCTION)
                           ? 0

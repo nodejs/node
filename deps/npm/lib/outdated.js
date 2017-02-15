@@ -40,6 +40,8 @@ var mapToRegistry = require('./utils/map-to-registry.js')
 var isExtraneous = require('./install/is-extraneous.js')
 var recalculateMetadata = require('./install/deps.js').recalculateMetadata
 var moduleName = require('./utils/module-name.js')
+var output = require('./utils/output.js')
+var ansiTrim = require('./utils/ansi-trim')
 
 function uniqName (item) {
   return item[0].path + '|' + item[1] + '|' + item[7]
@@ -75,6 +77,7 @@ function outdated (args, silent, cb) {
   if (npm.config.get('depth') === Infinity) npm.config.set('depth', 0)
 
   readPackageTree(dir, andRecalculateMetadata(function (er, tree) {
+    if (!tree) return cb(er)
     mutateIntoLogicalTree(tree)
     outdated_(args, '', tree, {}, 0, function (er, list) {
       list = uniq(list || []).sort(function (aa, bb) {
@@ -82,11 +85,10 @@ function outdated (args, silent, cb) {
           aa[1].localeCompare(bb[1])
       })
       if (er || silent || list.length === 0) return cb(er, list)
-      log.disableProgress()
       if (npm.config.get('json')) {
-        console.log(makeJSON(list))
+        output(makeJSON(list))
       } else if (npm.config.get('parseable')) {
-        console.log(makeParseable(list))
+        output(makeParseable(list))
       } else {
         var outList = list.map(makePretty)
         var outHead = [ 'Package',
@@ -108,8 +110,9 @@ function outdated (args, silent, cb) {
           align: ['l', 'r', 'r', 'r', 'l'],
           stringLength: function (s) { return ansiTrim(s).length }
         }
-        console.log(table(outTable, tableOpts))
+        output(table(outTable, tableOpts))
       }
+      process.exitCode = 1
       cb(null, list.map(function (item) { return [item[0].parent.path].concat(item.slice(1, 7)) }))
     })
   }))
@@ -139,20 +142,12 @@ function makePretty (p) {
   if (long) columns[5] = type
 
   if (npm.color) {
-    columns[0] = color[has === want ? 'yellow' : 'red'](columns[0]) // dep
+    columns[0] = color[has === want || want === 'linked' ? 'yellow' : 'red'](columns[0]) // dep
     columns[2] = color.green(columns[2]) // want
     columns[3] = color.magenta(columns[3]) // latest
-    columns[4] = color.brightBlack(columns[4]) // dir
-    if (long) columns[5] = color.brightBlack(columns[5]) // type
   }
 
   return columns
-}
-
-function ansiTrim (str) {
-  var r = new RegExp('\x1b(?:\\[(?:\\d+[ABCDEFGJKSTm]|\\d+;\\d+[Hfm]|' +
-        '\\d+;\\d+;\\d+m|6n|s|u|\\?25[lh])|\\w)', 'g')
-  return str.replace(r, '')
 }
 
 function makeParseable (list) {
@@ -333,7 +328,7 @@ function shouldUpdate (args, tree, dep, has, req, depth, pkgpath, cb, type) {
 
   if (args.length && args.indexOf(dep) === -1) return skip()
   var parsed = npa(dep + '@' + req)
-  if (tree.isLink && (tree.parent !== null && tree.parent.parent === null)) {
+  if (tree.isLink && tree.parent && tree.parent.isTop) {
     return doIt('linked', 'linked')
   }
   if (parsed.type === 'git' || parsed.type === 'hosted') {

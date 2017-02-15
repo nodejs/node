@@ -22,7 +22,7 @@
 #include "debug-agent.h"
 
 #include "node.h"
-#include "node_internals.h"  // ARRAY_SIZE
+#include "node_internals.h"  // arraysize
 #include "env.h"
 #include "env-inl.h"
 #include "v8.h"
@@ -36,7 +36,6 @@ namespace node {
 namespace debugger {
 
 using v8::Context;
-using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
@@ -44,24 +43,18 @@ using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::Locker;
+using v8::NewStringType;
 using v8::Object;
 using v8::String;
 using v8::Value;
 
 
 Agent::Agent(Environment* env) : state_(kNone),
-                                 port_(5858),
                                  wait_(false),
                                  parent_env_(env),
                                  child_env_(nullptr),
                                  dispatch_handler_(nullptr) {
-  int err;
-
-  err = uv_sem_init(&start_sem_, 0);
-  CHECK_EQ(err, 0);
-
-  err = uv_mutex_init(&message_mutex_);
-  CHECK_EQ(err, 0);
+  CHECK_EQ(0, uv_sem_init(&start_sem_, 0));
 }
 
 
@@ -69,14 +62,13 @@ Agent::~Agent() {
   Stop();
 
   uv_sem_destroy(&start_sem_);
-  uv_mutex_destroy(&message_mutex_);
 
   while (AgentMessage* msg = messages_.PopFront())
     delete msg;
 }
 
 
-bool Agent::Start(int port, bool wait) {
+bool Agent::Start(const DebugOptions& options) {
   int err;
 
   if (state_ == kRunning)
@@ -92,8 +84,8 @@ bool Agent::Start(int port, bool wait) {
     goto async_init_failed;
   uv_unref(reinterpret_cast<uv_handle_t*>(&child_signal_));
 
-  port_ = port;
-  wait_ = wait;
+  options_ = options;
+  wait_ = options_.wait_for_connect();
 
   err = uv_thread_create(&thread_,
                          reinterpret_cast<uv_thread_cb>(ThreadCb),
@@ -169,35 +161,29 @@ void Agent::WorkerRun() {
     Isolate::Scope isolate_scope(isolate);
 
     HandleScope handle_scope(isolate);
+    IsolateData isolate_data(isolate, &child_loop_,
+                             array_buffer_allocator.zero_fill_field());
     Local<Context> context = Context::New(isolate);
 
     Context::Scope context_scope(context);
-    Environment* env = CreateEnvironment(
-        isolate,
-        &child_loop_,
-        context,
-        ARRAY_SIZE(argv),
-        argv,
-        ARRAY_SIZE(argv),
-        argv);
+    Environment env(&isolate_data, context);
 
-    child_env_ = env;
+    const bool start_profiler_idle_notifier = false;
+    env.Start(arraysize(argv), argv,
+              arraysize(argv), argv,
+              start_profiler_idle_notifier);
+
+    child_env_ = &env;
 
     // Expose API
-    InitAdaptor(env);
-    LoadEnvironment(env);
+    InitAdaptor(&env);
+    LoadEnvironment(&env);
 
-    CHECK_EQ(&child_loop_, env->event_loop());
+    CHECK_EQ(&child_loop_, env.event_loop());
     uv_run(&child_loop_, UV_RUN_DEFAULT);
 
     // Clean-up peristent
     api_.Reset();
-
-    // Clean-up all running handles
-    env->CleanupHandles();
-
-    env->Dispose();
-    env = nullptr;
   }
   isolate->Dispose();
 }
@@ -220,7 +206,13 @@ void Agent::InitAdaptor(Environment* env) {
       t->GetFunction()->NewInstance(env->context()).ToLocalChecked();
   api->SetAlignedPointerInInternalField(0, this);
 
-  api->Set(String::NewFromUtf8(isolate, "port"), Integer::New(isolate, port_));
+  api->Set(String::NewFromUtf8(isolate, "host",
+                               NewStringType::kNormal).ToLocalChecked(),
+           String::NewFromUtf8(isolate, options_.host_name().data(),
+                               NewStringType::kNormal,
+                               options_.host_name().size()).ToLocalChecked());
+  api->Set(String::NewFromUtf8(isolate, "port"),
+           Integer::New(isolate, options_.port()));
 
   env->process_object()->Set(String::NewFromUtf8(isolate, "_debugAPI"), api);
   api_.Reset(env->isolate(), api);
@@ -276,7 +268,7 @@ void Agent::ChildSignalCb(uv_async_t* signal) {
   HandleScope scope(isolate);
   Local<Object> api = PersistentToLocal(isolate, a->api_);
 
-  uv_mutex_lock(&a->message_mutex_);
+  Mutex::ScopedLock scoped_lock(a->message_mutex_);
   while (AgentMessage* msg = a->messages_.PopFront()) {
     // Time to close everything
     if (msg->data() == nullptr) {
@@ -303,18 +295,16 @@ void Agent::ChildSignalCb(uv_async_t* signal) {
     MakeCallback(isolate,
                  api,
                  "onmessage",
-                 ARRAY_SIZE(argv),
+                 arraysize(argv),
                  argv);
     delete msg;
   }
-  uv_mutex_unlock(&a->message_mutex_);
 }
 
 
 void Agent::EnqueueMessage(AgentMessage* message) {
-  uv_mutex_lock(&message_mutex_);
+  Mutex::ScopedLock scoped_lock(message_mutex_);
   messages_.PushBack(message);
-  uv_mutex_unlock(&message_mutex_);
   uv_async_send(&child_signal_);
 }
 

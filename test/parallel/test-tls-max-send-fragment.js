@@ -1,21 +1,20 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var fs = require('fs');
+const fs = require('fs');
 
-var buf = new Buffer(10000);
-var received = 0;
-var ended = 0;
-var maxChunk = 768;
+const buf = Buffer.allocUnsafe(10000);
+let received = 0;
+const maxChunk = 768;
 
-var server = tls.createServer({
+const server = tls.createServer({
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 }, function(c) {
@@ -27,25 +26,20 @@ var server = tls.createServer({
   assert(c.setMaxSendFragment(maxChunk));
 
   c.end(buf);
-}).listen(common.PORT, function() {
-  var c = tls.connect(common.PORT, {
+}).listen(0, common.mustCall(function() {
+  const c = tls.connect(this.address().port, {
     rejectUnauthorized: false
-  }, function() {
+  }, common.mustCall(function() {
     c.on('data', function(chunk) {
       assert(chunk.length <= maxChunk);
       received += chunk.length;
     });
 
     // Ensure that we receive 'end' event anyway
-    c.on('end', function() {
-      ended++;
+    c.on('end', common.mustCall(function() {
       c.destroy();
       server.close();
-    });
-  });
-});
-
-process.on('exit', function() {
-  assert.equal(ended, 1);
-  assert.equal(received, buf.length);
-});
+      assert.strictEqual(received, buf.length);
+    }));
+  }));
+}));

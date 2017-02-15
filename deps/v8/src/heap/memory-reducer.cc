@@ -47,7 +47,7 @@ void MemoryReducer::TimerTask::RunInternal() {
   event.should_start_incremental_gc = is_idle || optimize_for_memory;
   event.can_start_incremental_gc =
       heap->incremental_marking()->IsStopped() &&
-      heap->incremental_marking()->CanBeActivated();
+      (heap->incremental_marking()->CanBeActivated() || optimize_for_memory);
   memory_reducer_->NotifyTimer(event);
 }
 
@@ -73,14 +73,8 @@ void MemoryReducer::NotifyTimer(const Event& event) {
       PrintIsolate(heap()->isolate(), "Memory reducer: started GC #%d\n",
                    state_.started_gcs);
     }
-    if (heap()->ShouldOptimizeForMemoryUsage()) {
-      // TODO(ulan): Remove this once crbug.com/552305 is fixed.
-      // Do full GC if memory usage has higher priority than latency.
-      heap()->CollectAllGarbage(Heap::kReduceMemoryFootprintMask,
-                                "memory reducer");
-    } else {
-      heap()->StartIdleIncrementalMarking();
-    }
+    heap()->StartIdleIncrementalMarking(
+        GarbageCollectionReason::kMemoryReducer);
   } else if (state_.action == kWait) {
     if (!heap()->incremental_marking()->IsStopped() &&
         heap()->ShouldOptimizeForMemoryUsage()) {
@@ -91,12 +85,10 @@ void MemoryReducer::NotifyTimer(const Event& event) {
       double deadline = heap()->MonotonicallyIncreasingTimeInMs() +
                         kIncrementalMarkingDelayMs;
       heap()->incremental_marking()->AdvanceIncrementalMarking(
-          0, deadline, i::IncrementalMarking::StepActions(
-                           i::IncrementalMarking::NO_GC_VIA_STACK_GUARD,
-                           i::IncrementalMarking::FORCE_MARKING,
-                           i::IncrementalMarking::FORCE_COMPLETION));
+          deadline, IncrementalMarking::NO_GC_VIA_STACK_GUARD,
+          IncrementalMarking::FORCE_COMPLETION, StepOrigin::kTask);
       heap()->FinalizeIncrementalMarkingIfComplete(
-          "Memory reducer: finalize incremental marking");
+          GarbageCollectionReason::kFinalizeMarkingViaTask);
     }
     // Re-schedule the timer.
     ScheduleTimer(event.time_ms, state_.next_gc_start_ms - event.time_ms);
@@ -125,9 +117,8 @@ void MemoryReducer::NotifyMarkCompact(const Event& event) {
   }
 }
 
-
-void MemoryReducer::NotifyContextDisposed(const Event& event) {
-  DCHECK_EQ(kContextDisposed, event.type);
+void MemoryReducer::NotifyPossibleGarbage(const Event& event) {
+  DCHECK_EQ(kPossibleGarbage, event.type);
   Action old_action = state_.action;
   state_ = Step(state_, event);
   if (old_action != kWait && state_.action == kWait) {
@@ -154,14 +145,14 @@ MemoryReducer::State MemoryReducer::Step(const State& state,
       if (event.type == kTimer) {
         return state;
       } else {
-        DCHECK(event.type == kContextDisposed || event.type == kMarkCompact);
+        DCHECK(event.type == kPossibleGarbage || event.type == kMarkCompact);
         return State(
             kWait, 0, event.time_ms + kLongDelayMs,
             event.type == kMarkCompact ? event.time_ms : state.last_gc_time_ms);
       }
     case kWait:
       switch (event.type) {
-        case kContextDisposed:
+        case kPossibleGarbage:
           return state;
         case kTimer:
           if (state.started_gcs >= kMaxNumberOfGCs) {

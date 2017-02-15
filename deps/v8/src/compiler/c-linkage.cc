@@ -7,15 +7,15 @@
 
 #include "src/compiler/linkage.h"
 
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
 namespace {
-LinkageLocation regloc(Register reg) {
-  return LinkageLocation::ForRegister(reg.code());
+LinkageLocation regloc(Register reg, MachineType type) {
+  return LinkageLocation::ForRegister(reg.code(), type);
 }
 
 
@@ -90,6 +90,7 @@ LinkageLocation regloc(Register reg) {
 // ===========================================================================
 // == mips ===================================================================
 // ===========================================================================
+#define STACK_SHADOW_WORDS 4
 #define PARAM_REGISTERS a0, a1, a2, a3
 #define CALLEE_SAVE_REGISTERS                                                  \
   s0.bit() | s1.bit() | s2.bit() | s3.bit() | s4.bit() | s5.bit() | s6.bit() | \
@@ -122,6 +123,26 @@ LinkageLocation regloc(Register reg) {
       d20.bit() | d21.bit() | d22.bit() | d23.bit() | d24.bit() | d25.bit() | \
       d26.bit() | d27.bit() | d28.bit() | d29.bit() | d30.bit() | d31.bit()
 
+#elif V8_TARGET_ARCH_S390X
+// ===========================================================================
+// == s390x ==================================================================
+// ===========================================================================
+#define PARAM_REGISTERS r2, r3, r4, r5, r6
+#define CALLEE_SAVE_REGISTERS \
+  r6.bit() | r7.bit() | r8.bit() | r9.bit() | r10.bit() | ip.bit() | r13.bit()
+#define CALLEE_SAVE_FP_REGISTERS                                        \
+  d8.bit() | d9.bit() | d10.bit() | d11.bit() | d12.bit() | d13.bit() | \
+      d14.bit() | d15.bit()
+
+#elif V8_TARGET_ARCH_S390
+// ===========================================================================
+// == s390 ===================================================================
+// ===========================================================================
+#define PARAM_REGISTERS r2, r3, r4, r5, r6
+#define CALLEE_SAVE_REGISTERS \
+  r6.bit() | r7.bit() | r8.bit() | r9.bit() | r10.bit() | ip.bit() | r13.bit()
+#define CALLEE_SAVE_FP_REGISTERS (d4.bit() | d6.bit())
+
 #else
 // ===========================================================================
 // == unknown ================================================================
@@ -133,23 +154,22 @@ LinkageLocation regloc(Register reg) {
 
 // General code uses the above configuration data.
 CallDescriptor* Linkage::GetSimplifiedCDescriptor(
-    Zone* zone, const MachineSignature* msig) {
+    Zone* zone, const MachineSignature* msig, bool set_initialize_root_flag) {
   LocationSignature::Builder locations(zone, msig->return_count(),
                                        msig->parameter_count());
-#if 0  // TODO(titzer): instruction selector tests break here.
   // Check the types of the signature.
   // Currently no floating point parameters or returns are allowed because
   // on x87 and ia32, the FP top of stack is involved.
-
   for (size_t i = 0; i < msig->return_count(); i++) {
-    MachineType type = RepresentationOf(msig->GetReturn(i));
-    CHECK(type != kRepFloat32 && type != kRepFloat64);
+    MachineRepresentation rep = msig->GetReturn(i).representation();
+    CHECK_NE(MachineRepresentation::kFloat32, rep);
+    CHECK_NE(MachineRepresentation::kFloat64, rep);
   }
   for (size_t i = 0; i < msig->parameter_count(); i++) {
-    MachineType type = RepresentationOf(msig->GetParam(i));
-    CHECK(type != kRepFloat32 && type != kRepFloat64);
+    MachineRepresentation rep = msig->GetParam(i).representation();
+    CHECK_NE(MachineRepresentation::kFloat32, rep);
+    CHECK_NE(MachineRepresentation::kFloat64, rep);
   }
-#endif
 
 #ifdef UNSUPPORTED_C_LINKAGE
   // This method should not be called on unknown architectures.
@@ -162,21 +182,20 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(
   CHECK(locations.return_count_ <= 2);
 
   if (locations.return_count_ > 0) {
-    locations.AddReturn(regloc(kReturnRegister0));
+    locations.AddReturn(regloc(kReturnRegister0, msig->GetReturn(0)));
   }
   if (locations.return_count_ > 1) {
-    locations.AddReturn(regloc(kReturnRegister1));
+    locations.AddReturn(regloc(kReturnRegister1, msig->GetReturn(1)));
   }
 
   const int parameter_count = static_cast<int>(msig->parameter_count());
 
 #ifdef PARAM_REGISTERS
-  static const Register kParamRegisters[] = {PARAM_REGISTERS};
-  static const int kParamRegisterCount =
-      static_cast<int>(arraysize(kParamRegisters));
+  const Register kParamRegisters[] = {PARAM_REGISTERS};
+  const int kParamRegisterCount = static_cast<int>(arraysize(kParamRegisters));
 #else
-  static const Register* kParamRegisters = nullptr;
-  static const int kParamRegisterCount = 0;
+  const Register* kParamRegisters = nullptr;
+  const int kParamRegisterCount = 0;
 #endif
 
 #ifdef STACK_SHADOW_WORDS
@@ -187,10 +206,10 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(
   // Add register and/or stack parameter(s).
   for (int i = 0; i < parameter_count; i++) {
     if (i < kParamRegisterCount) {
-      locations.AddParam(regloc(kParamRegisters[i]));
+      locations.AddParam(regloc(kParamRegisters[i], msig->GetParam(i)));
     } else {
-      locations.AddParam(
-          LinkageLocation::ForCallerFrameSlot(-1 - stack_offset));
+      locations.AddParam(LinkageLocation::ForCallerFrameSlot(
+          -1 - stack_offset, msig->GetParam(i)));
       stack_offset++;
     }
   }
@@ -209,19 +228,22 @@ CallDescriptor* Linkage::GetSimplifiedCDescriptor(
 
   // The target for C calls is always an address (i.e. machine pointer).
   MachineType target_type = MachineType::Pointer();
-  LinkageLocation target_loc = LinkageLocation::ForAnyRegister();
+  LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
+  CallDescriptor::Flags flags = CallDescriptor::kUseNativeStack;
+  if (set_initialize_root_flag) {
+    flags |= CallDescriptor::kInitializeRootRegister;
+  }
+
   return new (zone) CallDescriptor(  // --
       CallDescriptor::kCallAddress,  // kind
       target_type,                   // target MachineType
       target_loc,                    // target location
-      msig,                          // machine_sig
       locations.Build(),             // location_sig
       0,                             // stack_parameter_count
       Operator::kNoProperties,       // properties
       kCalleeSaveRegisters,          // callee-saved registers
       kCalleeSaveFPRegisters,        // callee-saved fp regs
-      CallDescriptor::kNoFlags,      // flags
-      "c-call");
+      flags, "c-call");
 }
 
 }  // namespace compiler

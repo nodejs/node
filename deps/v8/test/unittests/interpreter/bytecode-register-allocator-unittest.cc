@@ -14,52 +14,81 @@ namespace interpreter {
 
 class BytecodeRegisterAllocatorTest : public TestWithIsolateAndZone {
  public:
-  BytecodeRegisterAllocatorTest() {}
+  BytecodeRegisterAllocatorTest() : allocator_(0) {}
   ~BytecodeRegisterAllocatorTest() override {}
+
+  BytecodeRegisterAllocator* allocator() { return &allocator_; }
+
+ private:
+  BytecodeRegisterAllocator allocator_;
 };
 
+TEST_F(BytecodeRegisterAllocatorTest, SimpleAllocations) {
+  CHECK_EQ(allocator()->maximum_register_count(), 0);
+  Register reg0 = allocator()->NewRegister();
+  CHECK_EQ(reg0.index(), 0);
+  CHECK_EQ(allocator()->maximum_register_count(), 1);
+  CHECK_EQ(allocator()->next_register_index(), 1);
+  CHECK(allocator()->RegisterIsLive(reg0));
 
-TEST_F(BytecodeRegisterAllocatorTest, TemporariesRecycled) {
-  BytecodeArrayBuilder builder(isolate(), zone());
-  builder.set_parameter_count(0);
-  builder.set_locals_count(0);
-  builder.set_context_count(0);
+  allocator()->ReleaseRegisters(0);
+  CHECK(!allocator()->RegisterIsLive(reg0));
+  CHECK_EQ(allocator()->maximum_register_count(), 1);
+  CHECK_EQ(allocator()->next_register_index(), 0);
 
-  int first;
-  {
-    BytecodeRegisterAllocator temporaries(&builder);
-    first = temporaries.NewRegister().index();
-    temporaries.NewRegister();
-    temporaries.NewRegister();
-    temporaries.NewRegister();
-  }
+  reg0 = allocator()->NewRegister();
+  Register reg1 = allocator()->NewRegister();
+  CHECK_EQ(reg0.index(), 0);
+  CHECK_EQ(reg1.index(), 1);
+  CHECK(allocator()->RegisterIsLive(reg0));
+  CHECK(allocator()->RegisterIsLive(reg1));
+  CHECK_EQ(allocator()->maximum_register_count(), 2);
+  CHECK_EQ(allocator()->next_register_index(), 2);
 
-  int second;
-  {
-    BytecodeRegisterAllocator temporaries(&builder);
-    second = temporaries.NewRegister().index();
-  }
-
-  CHECK_EQ(first, second);
+  allocator()->ReleaseRegisters(1);
+  CHECK(allocator()->RegisterIsLive(reg0));
+  CHECK(!allocator()->RegisterIsLive(reg1));
+  CHECK_EQ(allocator()->maximum_register_count(), 2);
+  CHECK_EQ(allocator()->next_register_index(), 1);
 }
 
+TEST_F(BytecodeRegisterAllocatorTest, RegisterListAllocations) {
+  CHECK_EQ(allocator()->maximum_register_count(), 0);
+  RegisterList reg_list = allocator()->NewRegisterList(3);
+  CHECK_EQ(reg_list.first_register().index(), 0);
+  CHECK_EQ(reg_list.register_count(), 3);
+  CHECK_EQ(reg_list[0].index(), 0);
+  CHECK_EQ(reg_list[1].index(), 1);
+  CHECK_EQ(reg_list[2].index(), 2);
+  CHECK_EQ(allocator()->maximum_register_count(), 3);
+  CHECK_EQ(allocator()->next_register_index(), 3);
+  CHECK(allocator()->RegisterIsLive(reg_list[2]));
 
-TEST_F(BytecodeRegisterAllocatorTest, ConsecutiveRegisters) {
-  BytecodeArrayBuilder builder(isolate(), zone());
-  builder.set_parameter_count(0);
-  builder.set_locals_count(0);
-  builder.set_context_count(0);
+  Register reg = allocator()->NewRegister();
+  RegisterList reg_list_2 = allocator()->NewRegisterList(2);
+  CHECK_EQ(reg.index(), 3);
+  CHECK_EQ(reg_list_2.first_register().index(), 4);
+  CHECK_EQ(reg_list_2.register_count(), 2);
+  CHECK_EQ(reg_list_2[0].index(), 4);
+  CHECK_EQ(reg_list_2[1].index(), 5);
+  CHECK_EQ(allocator()->maximum_register_count(), 6);
+  CHECK_EQ(allocator()->next_register_index(), 6);
+  CHECK(allocator()->RegisterIsLive(reg));
+  CHECK(allocator()->RegisterIsLive(reg_list_2[1]));
 
-  BytecodeRegisterAllocator temporaries(&builder);
-  temporaries.PrepareForConsecutiveAllocations(4);
-  Register reg0 = temporaries.NextConsecutiveRegister();
-  Register other = temporaries.NewRegister();
-  Register reg1 = temporaries.NextConsecutiveRegister();
-  Register reg2 = temporaries.NextConsecutiveRegister();
-  Register reg3 = temporaries.NextConsecutiveRegister();
-  USE(other);
+  allocator()->ReleaseRegisters(reg.index());
+  CHECK(!allocator()->RegisterIsLive(reg));
+  CHECK(!allocator()->RegisterIsLive(reg_list_2[0]));
+  CHECK(!allocator()->RegisterIsLive(reg_list_2[1]));
+  CHECK(allocator()->RegisterIsLive(reg_list[2]));
+  CHECK_EQ(allocator()->maximum_register_count(), 6);
+  CHECK_EQ(allocator()->next_register_index(), 3);
 
-  CHECK(Register::AreContiguous(reg0, reg1, reg2, reg3));
+  RegisterList empty_reg_list = allocator()->NewRegisterList(0);
+  CHECK_EQ(empty_reg_list.first_register().index(), 0);
+  CHECK_EQ(empty_reg_list.register_count(), 0);
+  CHECK_EQ(allocator()->maximum_register_count(), 6);
+  CHECK_EQ(allocator()->next_register_index(), 3);
 }
 
 }  // namespace interpreter

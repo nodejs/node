@@ -114,6 +114,9 @@ var assertUnreachable;
 var assertOptimized;
 var assertUnoptimized;
 
+// Assert that a string contains another expected substring.
+var assertContains;
+
 
 (function () {  // Scope for utility functions.
 
@@ -414,6 +417,12 @@ var assertUnoptimized;
       message += " - " + name_opt;
     }
     throw new MjsUnitAssertionError(message);
+  };
+
+  assertContains = function(sub, value, name_opt) {
+    if (value == null ? (sub != null) : value.indexOf(sub) == -1) {
+      fail("contains '" + String(sub) + "'", value, name_opt);
+    }
   };
 
   var OptimizationStatusImpl = undefined;

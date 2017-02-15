@@ -5,14 +5,13 @@
 #include "v8.h"
 
 namespace node {
+
+extern bool zero_fill_all_buffers;
+
 namespace Buffer {
 
 static const unsigned int kMaxLength =
     sizeof(int32_t) == sizeof(intptr_t) ? 0x3fffffff : 0x7fffffff;
-
-// Buffers have two internal fields, the first of which is reserved for use by
-// Node.
-static const unsigned int kBufferInternalFieldIndex = 0;
 
 NODE_EXTERN typedef void (*FreeCallback)(char* data, void* hint);
 

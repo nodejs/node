@@ -1,18 +1,17 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
-var crypto = require('crypto');
+const crypto = require('crypto');
 
 function test() {
-  var odd = new Buffer(39);
-  odd.fill('A');
+  const odd = Buffer.alloc(39, 'A');
 
-  var c = crypto.createDiffieHellman(32);
+  const c = crypto.createDiffieHellman(32);
   c.setPrivateKey(odd);
   c.generateKeys();
 }

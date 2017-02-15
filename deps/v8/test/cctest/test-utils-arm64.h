@@ -36,7 +36,8 @@
 #include "src/macro-assembler.h"
 
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 
 // RegisterDump: Object allowing integer, floating point and flags registers
@@ -229,5 +230,8 @@ void ClobberFP(MacroAssembler* masm, RegList reg_list,
 // using this method, the clobber value is always the default for the basic
 // Clobber or ClobberFP functions.
 void Clobber(MacroAssembler* masm, CPURegList reg_list);
+
+}  // namespace internal
+}  // namespace v8
 
 #endif  // V8_ARM64_TEST_UTILS_ARM64_H_

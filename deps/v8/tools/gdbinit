@@ -4,7 +4,7 @@
 
 # Print HeapObjects.
 define job
-print ((v8::internal::HeapObject*)($arg0))->Print()
+call _v8_internal_Print_Object((void*)($arg0))
 end
 document job
 Print a v8 JavaScript object
@@ -13,7 +13,7 @@ end
 
 # Print Code objects containing given PC.
 define jco
-job (v8::internal::Isolate::Current()->FindCodeObject((v8::internal::Address)$arg0))
+call _v8_internal_Print_Code((void*)($arg0))
 end
 document jco
 Print a v8 Code object from an internal code address
@@ -22,7 +22,7 @@ end
 
 # Print TypeFeedbackVector
 define jfv
-print ((v8::internal::TypeFeedbackVector*)($arg0))->Print()
+call _v8_internal_Print_TypeFeedbackVector((void*)($arg0))
 end
 document jfv
 Print a v8 TypeFeedbackVector object
@@ -31,7 +31,7 @@ end
 
 # Print DescriptorArray.
 define jda
-print ((v8::internal::DescriptorArray*)($arg0))->Print()
+call _v8_internal_Print_DescriptorArray((void*)($arg0))
 end
 document jda
 Print a v8 DescriptorArray object
@@ -40,7 +40,7 @@ end
 
 # Print TransitionArray.
 define jta
-print ((v8::internal::TransitionArray*)($arg0))->Print()
+call _v8_internal_Print_TransitionArray((void*)($arg0))
 end
 document jta
 Print a v8 TransitionArray object
@@ -49,11 +49,23 @@ end
 
 # Print JavaScript stack trace.
 define jst
-print v8::internal::Isolate::Current()->PrintStack((FILE*) stdout, 1)
+call _v8_internal_Print_StackTrace()
 end
 document jst
 Print the current JavaScript stack trace
 Usage: jst
+end
+
+# Skip the JavaScript stack.
+define jss
+set $js_entry_sp=v8::internal::Isolate::Current()->thread_local_top()->js_entry_sp_
+set $rbp=*(void**)$js_entry_sp
+set $rsp=$js_entry_sp + 2*sizeof(void*)
+set $pc=*(void**)($js_entry_sp+sizeof(void*))
+end
+document jss
+Skip the jitted stack on x64 to where we entered JS last.
+Usage: jss
 end
 
 set disassembly-flavor intel

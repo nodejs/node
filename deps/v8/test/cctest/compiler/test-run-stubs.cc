@@ -4,6 +4,7 @@
 
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
+#include "src/compilation-info.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/js-graph.h"
@@ -11,7 +12,6 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/pipeline.h"
-#include "src/parsing/parser.h"
 #include "test/cctest/compiler/function-tester.h"
 
 namespace v8 {
@@ -27,8 +27,13 @@ TEST(RunStringLengthStub) {
   // Create code and an accompanying descriptor.
   StringLengthStub stub(isolate);
   Handle<Code> code = stub.GenerateCode();
-  CompilationInfo info(&stub, isolate, zone);
-  CallDescriptor* descriptor = Linkage::ComputeIncoming(zone, &info);
+  CompilationInfo info(ArrayVector("test"), isolate, zone,
+                       Code::ComputeFlags(Code::HANDLER));
+  CallInterfaceDescriptor interface_descriptor =
+      stub.GetCallInterfaceDescriptor();
+  CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
+      isolate, zone, interface_descriptor, stub.GetStackParameterCount(),
+      CallDescriptor::kNoFlags, Operator::kNoProperties);
 
   // Create a function to call the code using the descriptor.
   Graph graph(zone);

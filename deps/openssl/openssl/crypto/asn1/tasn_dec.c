@@ -400,7 +400,9 @@ int ASN1_item_ex_d2i(ASN1_VALUE **pval, const unsigned char **in, long len,
             if (tt->flags & ASN1_TFLG_ADB_MASK) {
                 const ASN1_TEMPLATE *seqtt;
                 ASN1_VALUE **pseqval;
-                seqtt = asn1_do_adb(pval, tt, 1);
+                seqtt = asn1_do_adb(pval, tt, 0);
+                if (seqtt == NULL)
+                    continue;
                 pseqval = asn1_get_field_ptr(pval, seqtt);
                 ASN1_template_free(pseqval, seqtt);
             }
@@ -411,7 +413,7 @@ int ASN1_item_ex_d2i(ASN1_VALUE **pval, const unsigned char **in, long len,
             const ASN1_TEMPLATE *seqtt;
             ASN1_VALUE **pseqval;
             seqtt = asn1_do_adb(pval, tt, 1);
-            if (!seqtt)
+            if (seqtt == NULL)
                 goto err;
             pseqval = asn1_get_field_ptr(pval, seqtt);
             /* Have we ran out of data? */
@@ -476,7 +478,7 @@ int ASN1_item_ex_d2i(ASN1_VALUE **pval, const unsigned char **in, long len,
         for (; i < it->tcount; tt++, i++) {
             const ASN1_TEMPLATE *seqtt;
             seqtt = asn1_do_adb(pval, tt, 1);
-            if (!seqtt)
+            if (seqtt == NULL)
                 goto err;
             if (seqtt->flags & ASN1_TFLG_OPTIONAL) {
                 ASN1_VALUE **pseqval;
@@ -901,9 +903,7 @@ int asn1_ex_c2i(ASN1_VALUE **pval, const unsigned char *cont, int len,
         break;
 
     case V_ASN1_INTEGER:
-    case V_ASN1_NEG_INTEGER:
     case V_ASN1_ENUMERATED:
-    case V_ASN1_NEG_ENUMERATED:
         tint = (ASN1_INTEGER **)pval;
         if (!c2i_ASN1_INTEGER(tint, &cont, len))
             goto err;

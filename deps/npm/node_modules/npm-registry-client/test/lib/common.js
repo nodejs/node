@@ -10,6 +10,14 @@ if (!global.setImmediate || !require('timers').setImmediate) {
   }
 }
 
+// See https://github.com/npm/npm-registry-client/pull/142 for background.
+// Note: `process.on('warning')` only works with Node >= 6.
+process.on('warning', function (warning) {
+  if (/Possible EventEmitter memory leak detected/.test(warning.message)) {
+    throw new Error('There should not be any EventEmitter memory leaks')
+  }
+})
+
 module.exports = {
   port: server.port,
   registry: REGISTRY,

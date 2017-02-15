@@ -1816,8 +1816,6 @@ bsaes_xts_encrypt:
 	b		.Lxts_enc_done
 .align	4
 .Lxts_enc_6:
-	vst1.64		{q14}, [r0,:128]		@ next round tweak
-
 	veor		q4, q4, q12
 #ifndef	BSAES_ASM_EXTENDED_KEY
 	add		r4, sp, #0x90			@ pass key schedule
@@ -1853,8 +1851,6 @@ bsaes_xts_encrypt:
 
 .align	5
 .Lxts_enc_5:
-	vst1.64		{q13}, [r0,:128]		@ next round tweak
-
 	veor		q3, q3, q11
 #ifndef	BSAES_ASM_EXTENDED_KEY
 	add		r4, sp, #0x90			@ pass key schedule
@@ -1883,8 +1879,6 @@ bsaes_xts_encrypt:
 	b		.Lxts_enc_done
 .align	4
 .Lxts_enc_4:
-	vst1.64		{q12}, [r0,:128]		@ next round tweak
-
 	veor		q2, q2, q10
 #ifndef	BSAES_ASM_EXTENDED_KEY
 	add		r4, sp, #0x90			@ pass key schedule
@@ -1910,8 +1904,6 @@ bsaes_xts_encrypt:
 	b		.Lxts_enc_done
 .align	4
 .Lxts_enc_3:
-	vst1.64		{q11}, [r0,:128]		@ next round tweak
-
 	veor		q1, q1, q9
 #ifndef	BSAES_ASM_EXTENDED_KEY
 	add		r4, sp, #0x90			@ pass key schedule
@@ -1936,8 +1928,6 @@ bsaes_xts_encrypt:
 	b		.Lxts_enc_done
 .align	4
 .Lxts_enc_2:
-	vst1.64		{q10}, [r0,:128]		@ next round tweak
-
 	veor		q0, q0, q8
 #ifndef	BSAES_ASM_EXTENDED_KEY
 	add		r4, sp, #0x90			@ pass key schedule
@@ -1960,7 +1950,7 @@ bsaes_xts_encrypt:
 .align	4
 .Lxts_enc_1:
 	mov		r0, sp
-	veor		q0, q8
+	veor		q0, q0, q8
 	mov		r1, sp
 	vst1.8		{q0}, [sp,:128]
 	mov		r2, r10
@@ -2346,8 +2336,6 @@ bsaes_xts_decrypt:
 	b		.Lxts_dec_done
 .align	4
 .Lxts_dec_5:
-	vst1.64		{q13}, [r0,:128]		@ next round tweak
-
 	veor		q3, q3, q11
 #ifndef	BSAES_ASM_EXTENDED_KEY
 	add		r4, sp, #0x90			@ pass key schedule
@@ -2376,8 +2364,6 @@ bsaes_xts_decrypt:
 	b		.Lxts_dec_done
 .align	4
 .Lxts_dec_4:
-	vst1.64		{q12}, [r0,:128]		@ next round tweak
-
 	veor		q2, q2, q10
 #ifndef	BSAES_ASM_EXTENDED_KEY
 	add		r4, sp, #0x90			@ pass key schedule
@@ -2403,8 +2389,6 @@ bsaes_xts_decrypt:
 	b		.Lxts_dec_done
 .align	4
 .Lxts_dec_3:
-	vst1.64		{q11}, [r0,:128]		@ next round tweak
-
 	veor		q1, q1, q9
 #ifndef	BSAES_ASM_EXTENDED_KEY
 	add		r4, sp, #0x90			@ pass key schedule
@@ -2429,8 +2413,6 @@ bsaes_xts_decrypt:
 	b		.Lxts_dec_done
 .align	4
 .Lxts_dec_2:
-	vst1.64		{q10}, [r0,:128]		@ next round tweak
-
 	veor		q0, q0, q8
 #ifndef	BSAES_ASM_EXTENDED_KEY
 	add		r4, sp, #0x90			@ pass key schedule
@@ -2453,12 +2435,12 @@ bsaes_xts_decrypt:
 .align	4
 .Lxts_dec_1:
 	mov		r0, sp
-	veor		q0, q8
+	veor		q0, q0, q8
 	mov		r1, sp
 	vst1.8		{q0}, [sp,:128]
+	mov		r5, r2			@ preserve magic
 	mov		r2, r10
 	mov		r4, r3				@ preserve fp
-	mov		r5, r2			@ preserve magic
 
 	bl		AES_decrypt
 

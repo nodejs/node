@@ -63,6 +63,9 @@ namespace internal {
   V(f16) V(f17) V(f18) V(f19) V(f20) V(f21) V(f22) V(f23) \
   V(f24) V(f25) V(f26) V(f27) V(f28) V(f29) V(f30) V(f31)
 
+#define FLOAT_REGISTERS DOUBLE_REGISTERS
+#define SIMD128_REGISTERS DOUBLE_REGISTERS
+
 #define ALLOCATABLE_DOUBLE_REGISTERS(V)                   \
   V(f0)  V(f2)  V(f4)  V(f6)  V(f8)  V(f10) V(f12) V(f14) \
   V(f16) V(f18) V(f20) V(f22) V(f24) V(f26)
@@ -123,8 +126,6 @@ struct Register {
     Register r = {code};
     return r;
   }
-  const char* ToString();
-  bool IsAllocatable() const;
   bool is_valid() const { return 0 <= reg_code && reg_code < kNumRegisters; }
   bool is(Register reg) const { return reg_code == reg.reg_code; }
   int code() const {
@@ -153,8 +154,10 @@ int ToNumber(Register reg);
 
 Register ToRegister(int num);
 
+static const bool kSimpleFPAliasing = true;
+
 // Coprocessor register.
-struct DoubleRegister {
+struct FPURegister {
   enum Code {
 #define REGISTER_CODE(R) kCode_##R,
     DOUBLE_REGISTERS(REGISTER_CODE)
@@ -171,22 +174,20 @@ struct DoubleRegister {
   // to number of 32-bit FPU regs, but kNumAllocatableRegisters refers to
   // number of Double regs (64-bit regs, or FPU-reg-pairs).
 
-  const char* ToString();
-  bool IsAllocatable() const;
   bool is_valid() const { return 0 <= reg_code && reg_code < kMaxNumRegisters; }
-  bool is(DoubleRegister reg) const { return reg_code == reg.reg_code; }
-  DoubleRegister low() const {
+  bool is(FPURegister reg) const { return reg_code == reg.reg_code; }
+  FPURegister low() const {
     // Find low reg of a Double-reg pair, which is the reg itself.
     DCHECK(reg_code % 2 == 0);  // Specified Double reg must be even.
-    DoubleRegister reg;
+    FPURegister reg;
     reg.reg_code = reg_code;
     DCHECK(reg.is_valid());
     return reg;
   }
-  DoubleRegister high() const {
+  FPURegister high() const {
     // Find high reg of a Doubel-reg pair, which is reg + 1.
     DCHECK(reg_code % 2 == 0);  // Specified Double reg must be even.
-    DoubleRegister reg;
+    FPURegister reg;
     reg.reg_code = reg_code + 1;
     DCHECK(reg.is_valid());
     return reg;
@@ -201,8 +202,8 @@ struct DoubleRegister {
     return 1 << reg_code;
   }
 
-  static DoubleRegister from_code(int code) {
-    DoubleRegister r = {code};
+  static FPURegister from_code(int code) {
+    FPURegister r = {code};
     return r;
   }
   void setcode(int f) {
@@ -227,8 +228,12 @@ struct DoubleRegister {
 // but it is not in common use. Someday we will want to support this in v8.)
 
 // For O32 ABI, Floats and Doubles refer to same set of 32 32-bit registers.
-typedef DoubleRegister FPURegister;
-typedef DoubleRegister FloatRegister;
+typedef FPURegister FloatRegister;
+
+typedef FPURegister DoubleRegister;
+
+// TODO(mips) Define SIMD registers.
+typedef FPURegister Simd128Register;
 
 const DoubleRegister no_freg = {-1};
 
@@ -303,7 +308,6 @@ struct FPUControlRegister {
 
 const FPUControlRegister no_fpucreg = { kInvalidFPUControlRegister };
 const FPUControlRegister FCSR = { kFCSRRegister };
-
 
 // -----------------------------------------------------------------------------
 // Machine instruction Operands.
@@ -518,18 +522,19 @@ class Assembler : public AssemblerBase {
   // a target is resolved and written.
   static const int kSpecialTargetSize = 0;
 
-  // Number of consecutive instructions used to store 32bit constant.
-  // Before jump-optimizations, this constant was used in
-  // RelocInfo::target_address_address() function to tell serializer address of
-  // the instruction that follows LUI/ORI instruction pair. Now, with new jump
-  // optimization, where jump-through-register instruction that usually
-  // follows LUI/ORI pair is substituted with J/JAL, this constant equals
-  // to 3 instructions (LUI+ORI+J/JAL/JR/JALR).
-  static const int kInstructionsFor32BitConstant = 3;
+  // Number of consecutive instructions used to store 32bit constant. This
+  // constant is used in RelocInfo::target_address_address() function to tell
+  // serializer address of the instruction that follows LUI/ORI instruction
+  // pair.
+  static const int kInstructionsFor32BitConstant = 2;
 
   // Distance between the instruction referring to the address of the call
   // target and the return address.
+#ifdef _MIPS_ARCH_MIPS32R6
+  static const int kCallTargetAddressOffset = 3 * kInstrSize;
+#else
   static const int kCallTargetAddressOffset = 4 * kInstrSize;
+#endif
 
   // Distance between start of patched debug break slot and the emitted address
   // to jump to.
@@ -539,7 +544,11 @@ class Assembler : public AssemblerBase {
   // register.
   static const int kPcLoadDelta = 4;
 
+#ifdef _MIPS_ARCH_MIPS32R6
+  static const int kDebugBreakSlotInstructions = 3;
+#else
   static const int kDebugBreakSlotInstructions = 4;
+#endif
   static const int kDebugBreakSlotLength =
       kDebugBreakSlotInstructions * kInstrSize;
 
@@ -751,9 +760,6 @@ class Assembler : public AssemblerBase {
   void rotr(Register rd, Register rt, uint16_t sa);
   void rotrv(Register rd, Register rt, Register rs);
 
-  // Address computing instructions with shift.
-  void lsa(Register rd, Register rt, Register rs, uint8_t sa);
-
   // ------------Memory-instructions-------------
 
   void lb(Register rd, const MemOperand& rs);
@@ -794,6 +800,9 @@ class Assembler : public AssemblerBase {
   void tltu(Register rs, Register rt, uint16_t code);
   void teq(Register rs, Register rt, uint16_t code);
   void tne(Register rs, Register rt, uint16_t code);
+
+  // Memory barrier instruction.
+  void sync();
 
   // Move from HI/LO register.
   void mfhi(Register rd);
@@ -840,6 +849,10 @@ class Assembler : public AssemblerBase {
   void bitswap(Register rd, Register rt);
   void align(Register rd, Register rs, Register rt, uint8_t bp);
 
+  void wsbh(Register rd, Register rt);
+  void seh(Register rd, Register rt);
+  void seb(Register rd, Register rt);
+
   // --------Coprocessor-instructions----------------
 
   // Load, store, and move.
@@ -865,7 +878,14 @@ class Assembler : public AssemblerBase {
   void sub_d(FPURegister fd, FPURegister fs, FPURegister ft);
   void mul_s(FPURegister fd, FPURegister fs, FPURegister ft);
   void mul_d(FPURegister fd, FPURegister fs, FPURegister ft);
+  void madd_s(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
   void madd_d(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
+  void msub_s(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
+  void msub_d(FPURegister fd, FPURegister fr, FPURegister fs, FPURegister ft);
+  void maddf_s(FPURegister fd, FPURegister fs, FPURegister ft);
+  void maddf_d(FPURegister fd, FPURegister fs, FPURegister ft);
+  void msubf_s(FPURegister fd, FPURegister fs, FPURegister ft);
+  void msubf_d(FPURegister fd, FPURegister fs, FPURegister ft);
   void div_s(FPURegister fd, FPURegister fs, FPURegister ft);
   void div_d(FPURegister fd, FPURegister fs, FPURegister ft);
   void abs_s(FPURegister fd, FPURegister fs);
@@ -1035,8 +1055,7 @@ class Assembler : public AssemblerBase {
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
-  void RecordDeoptReason(const int reason, const SourcePosition position);
-
+  void RecordDeoptReason(DeoptimizeReason reason, int raw_position, int id);
 
   static int RelocateInternalReference(RelocInfo::Mode rmode, byte* pc,
                                        intptr_t pc_delta);
@@ -1048,8 +1067,6 @@ class Assembler : public AssemblerBase {
   void dq(uint64_t data);
   void dp(uintptr_t data) { dd(data); }
   void dd(Label* label);
-
-  PositionsRecorder* positions_recorder() { return &positions_recorder_; }
 
   // Postpone the generation of the trampoline pool for the specified number of
   // instructions.
@@ -1083,6 +1100,7 @@ class Assembler : public AssemblerBase {
   static bool IsBnezc(Instr instr);
   static bool IsBeqc(Instr instr);
   static bool IsBnec(Instr instr);
+  static bool IsJicOrJialc(Instr instr);
 
   static bool IsJump(Instr instr);
   static bool IsJ(Instr instr);
@@ -1122,12 +1140,20 @@ class Assembler : public AssemblerBase {
   static int32_t GetBranchOffset(Instr instr);
   static bool IsLw(Instr instr);
   static int16_t GetLwOffset(Instr instr);
+  static int16_t GetJicOrJialcOffset(Instr instr);
+  static int16_t GetLuiOffset(Instr instr);
   static Instr SetLwOffset(Instr instr, int16_t offset);
 
   static bool IsSw(Instr instr);
   static Instr SetSwOffset(Instr instr, int16_t offset);
   static bool IsAddImmediate(Instr instr);
   static Instr SetAddImmediateOffset(Instr instr, int16_t offset);
+  static uint32_t CreateTargetAddress(Instr instr_lui, Instr instr_jic);
+  static void UnpackTargetAddress(uint32_t address, int16_t& lui_offset,
+                                  int16_t& jic_offset);
+  static void UnpackTargetAddressUnsigned(uint32_t address,
+                                          uint32_t& lui_offset,
+                                          uint32_t& jic_offset);
 
   static bool IsAndImmediate(Instr instr);
   static bool IsEmittedConstant(Instr instr);
@@ -1143,7 +1169,15 @@ class Assembler : public AssemblerBase {
 
   bool IsPrevInstrCompactBranch() { return prev_instr_compact_branch_; }
 
+  inline int UnboundLabelsCount() { return unbound_labels_count_; }
+
  protected:
+  // Load Scaled Address instruction.
+  void lsa(Register rd, Register rt, Register rs, uint8_t sa);
+
+  // Helpers.
+  void LoadRegPlusOffsetToAt(const MemOperand& src);
+
   // Relocation for a type-recording IC has the AST id added to it.  This
   // member variable is a way to pass the information from the call site to
   // the relocation info.
@@ -1206,7 +1240,15 @@ class Assembler : public AssemblerBase {
     return block_buffer_growth_;
   }
 
+  void EmitForbiddenSlotInstruction() {
+    if (IsPrevInstrCompactBranch()) {
+      nop();
+    }
+  }
+
   inline void CheckTrampolinePoolQuick(int extra_instructions = 0);
+
+  inline void CheckBuffer();
 
  private:
   inline static void set_target_internal_reference_encoded_at(Address pc,
@@ -1254,7 +1296,6 @@ class Assembler : public AssemblerBase {
   enum class CompactBranchType : bool { NO = false, COMPACT_BRANCH = true };
 
   // Code emission.
-  inline void CheckBuffer();
   void GrowBuffer();
   inline void emit(Instr x,
                    CompactBranchType is_compact_branch = CompactBranchType::NO);
@@ -1334,8 +1375,6 @@ class Assembler : public AssemblerBase {
   void GenInstrJump(Opcode opcode,
                      uint32_t address);
 
-  // Helpers.
-  void LoadRegPlusOffsetToAt(const MemOperand& src);
 
   // Labels.
   void print(Label* L);
@@ -1401,7 +1440,11 @@ class Assembler : public AssemblerBase {
   // branch instruction generation, where we use jump instructions rather
   // than regular branch instructions.
   bool trampoline_emitted_;
+#ifdef _MIPS_ARCH_MIPS32R6
+  static const int kTrampolineSlotsSize = 2 * kInstrSize;
+#else
   static const int kTrampolineSlotsSize = 4 * kInstrSize;
+#endif
   static const int kMaxBranchOffset = (1 << (18 - 1)) - 1;
   static const int kMaxCompactBranchOffset = (1 << (28 - 1)) - 1;
   static const int kInvalidSlotPos = -1;
@@ -1421,9 +1464,6 @@ class Assembler : public AssemblerBase {
   friend class RelocInfo;
   friend class CodePatcher;
   friend class BlockTrampolinePoolScope;
-
-  PositionsRecorder positions_recorder_;
-  friend class PositionsRecorder;
   friend class EnsureSpace;
 };
 

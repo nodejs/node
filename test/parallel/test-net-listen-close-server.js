@@ -1,15 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const net = require('net');
 
-var server = net.createServer(function(socket) {
+const server = net.createServer(function(socket) {
 });
-server.listen(common.PORT, function() {
-  assert(false);
-});
-server.on('error', function(error) {
-  console.error(error);
-  assert(false);
-});
+server.listen(0, common.mustNotCall());
+server.on('error', common.mustNotCall());
 server.close();

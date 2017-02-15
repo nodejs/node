@@ -70,10 +70,9 @@ if test "$contains" -eq 0; then
   rm $calibration_log
 
   # Overhead in picoseconds.
-  options=--distortion=
-  options+=`echo "1000*(($t_1_end - $t_1_start) - ($t_2_end - $t_2_start)) \
+  distortion=`echo "1000*(($t_1_end - $t_1_start) - ($t_2_end - $t_2_start)) \
               / ($n_1 - $n_2)" | bc`
-  echo $options
+  options="--distortion=$distortion"
 fi
 
 cat $log_file |

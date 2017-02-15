@@ -7,7 +7,7 @@ const server = http.createServer();
 
 assert.strictEqual(server.listening, false);
 
-server.listen(common.PORT, common.mustCall(() => {
+server.listen(0, common.mustCall(() => {
   assert.strictEqual(server.listening, true);
 
   server.close(common.mustCall(() => {

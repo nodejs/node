@@ -28,6 +28,8 @@ Reduction DeadCodeElimination::Reduce(Node* node) {
     case IrOpcode::kLoop:
     case IrOpcode::kMerge:
       return ReduceLoopOrMerge(node);
+    case IrOpcode::kLoopExit:
+      return ReduceLoopExit(node);
     default:
       return ReduceNode(node);
   }
@@ -96,6 +98,9 @@ Reduction DeadCodeElimination::ReduceLoopOrMerge(Node* node) {
     for (Node* const use : node->uses()) {
       if (NodeProperties::IsPhi(use)) {
         Replace(use, use->InputAt(0));
+      } else if (use->opcode() == IrOpcode::kLoopExit &&
+                 use->InputAt(1) == node) {
+        RemoveLoopExit(use);
       } else if (use->opcode() == IrOpcode::kTerminate) {
         DCHECK_EQ(IrOpcode::kLoop, node->opcode());
         Replace(use, dead());
@@ -121,6 +126,18 @@ Reduction DeadCodeElimination::ReduceLoopOrMerge(Node* node) {
   return NoChange();
 }
 
+Reduction DeadCodeElimination::RemoveLoopExit(Node* node) {
+  DCHECK_EQ(IrOpcode::kLoopExit, node->opcode());
+  for (Node* const use : node->uses()) {
+    if (use->opcode() == IrOpcode::kLoopExitValue ||
+        use->opcode() == IrOpcode::kLoopExitEffect) {
+      Replace(use, use->InputAt(0));
+    }
+  }
+  Node* control = NodeProperties::GetControlInput(node, 0);
+  Replace(node, control);
+  return Replace(control);
+}
 
 Reduction DeadCodeElimination::ReduceNode(Node* node) {
   // If {node} has exactly one control input and this is {Dead},
@@ -133,6 +150,15 @@ Reduction DeadCodeElimination::ReduceNode(Node* node) {
   return NoChange();
 }
 
+Reduction DeadCodeElimination::ReduceLoopExit(Node* node) {
+  Node* control = NodeProperties::GetControlInput(node, 0);
+  Node* loop = NodeProperties::GetControlInput(node, 1);
+  if (control->opcode() == IrOpcode::kDead ||
+      loop->opcode() == IrOpcode::kDead) {
+    return RemoveLoopExit(node);
+  }
+  return NoChange();
+}
 
 void DeadCodeElimination::TrimMergeOrPhi(Node* node, int size) {
   const Operator* const op = common()->ResizeMergeOrPhi(node->op(), size);

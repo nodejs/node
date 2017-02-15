@@ -242,6 +242,10 @@ class GitRecipesMixin(object):
     self.Git(
         "cl land -f --bypass-hooks", retry_on=lambda x: x is None, **kwargs)
 
+  def GitCLAddComment(self, message, **kwargs):
+    args = ["cl", "comments", "-a", Quoted(message)]
+    self.Git(MakeArgs(args), **kwargs)
+
   def GitDiff(self, loc1, loc2, **kwargs):
     return self.Git(MakeArgs(["diff", loc1, loc2]), **kwargs)
 

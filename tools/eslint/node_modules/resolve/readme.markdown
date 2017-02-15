@@ -1,7 +1,7 @@
 # resolve
 
 implements the [node `require.resolve()`
-algorithm](http://nodejs.org/docs/v0.4.8/api/all.html#all_Together...)
+algorithm](https://nodejs.org/api/modules.html#modules_all_together)
 such that you can `require.resolve()` on behalf of a file asynchronously and
 synchronously
 

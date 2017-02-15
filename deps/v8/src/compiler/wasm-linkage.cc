@@ -3,13 +3,15 @@
 // found in the LICENSE file.
 
 #include "src/assembler.h"
+#include "src/base/lazy-instance.h"
 #include "src/macro-assembler.h"
+#include "src/register-configuration.h"
 
 #include "src/wasm/wasm-module.h"
 
 #include "src/compiler/linkage.h"
 
-#include "src/zone.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -21,6 +23,7 @@ using compiler::CallDescriptor;
 using compiler::LinkageLocation;
 
 namespace {
+
 MachineType MachineTypeFor(LocalType type) {
   switch (type) {
     case kAstI32:
@@ -31,26 +34,24 @@ MachineType MachineTypeFor(LocalType type) {
       return MachineType::Float64();
     case kAstF32:
       return MachineType::Float32();
+    case kAstS128:
+      return MachineType::Simd128();
     default:
       UNREACHABLE();
       return MachineType::AnyTagged();
   }
 }
 
-
-// Platform-specific configuration for C calling convention.
-LinkageLocation regloc(Register reg) {
-  return LinkageLocation::ForRegister(reg.code());
+LinkageLocation regloc(Register reg, MachineType type) {
+  return LinkageLocation::ForRegister(reg.code(), type);
 }
 
-
-LinkageLocation regloc(DoubleRegister reg) {
-  return LinkageLocation::ForRegister(reg.code());
+LinkageLocation regloc(DoubleRegister reg, MachineType type) {
+  return LinkageLocation::ForRegister(reg.code(), type);
 }
 
-
-LinkageLocation stackloc(int i) {
-  return LinkageLocation::ForCallerFrameSlot(i);
+LinkageLocation stackloc(int i, MachineType type) {
+  return LinkageLocation::ForCallerFrameSlot(i, type);
 }
 
 
@@ -58,7 +59,7 @@ LinkageLocation stackloc(int i) {
 // ===========================================================================
 // == ia32 ===================================================================
 // ===========================================================================
-#define GP_PARAM_REGISTERS eax, edx, ecx, ebx, esi, edi
+#define GP_PARAM_REGISTERS eax, edx, ecx, ebx, esi
 #define GP_RETURN_REGISTERS eax, edx
 #define FP_PARAM_REGISTERS xmm1, xmm2, xmm3, xmm4, xmm5, xmm6
 #define FP_RETURN_REGISTERS xmm1, xmm2
@@ -76,7 +77,7 @@ LinkageLocation stackloc(int i) {
 // ===========================================================================
 // == x87 ====================================================================
 // ===========================================================================
-#define GP_PARAM_REGISTERS eax, edx, ecx, ebx, esi, edi
+#define GP_PARAM_REGISTERS eax, edx, ecx, ebx, esi
 #define GP_RETURN_REGISTERS eax, edx
 #define FP_RETURN_REGISTERS stX_0
 
@@ -125,6 +126,24 @@ LinkageLocation stackloc(int i) {
 #define FP_PARAM_REGISTERS d1, d2, d3, d4, d5, d6, d7, d8
 #define FP_RETURN_REGISTERS d1, d2
 
+#elif V8_TARGET_ARCH_S390X
+// ===========================================================================
+// == s390x ==================================================================
+// ===========================================================================
+#define GP_PARAM_REGISTERS r2, r3, r4, r5, r6
+#define GP_RETURN_REGISTERS r2, r3
+#define FP_PARAM_REGISTERS d0, d2, d4, d6
+#define FP_RETURN_REGISTERS d0, d2, d4, d6
+
+#elif V8_TARGET_ARCH_S390
+// ===========================================================================
+// == s390 ===================================================================
+// ===========================================================================
+#define GP_PARAM_REGISTERS r2, r3, r4, r5, r6
+#define GP_RETURN_REGISTERS r2, r3
+#define FP_PARAM_REGISTERS d0, d2
+#define FP_RETURN_REGISTERS d0, d2
+
 #else
 // ===========================================================================
 // == unknown ================================================================
@@ -158,20 +177,21 @@ struct Allocator {
     if (IsFloatingPoint(type)) {
       // Allocate a floating point register/stack location.
       if (fp_offset < fp_count) {
-        return regloc(fp_regs[fp_offset++]);
+        DoubleRegister reg = fp_regs[fp_offset++];
+        return regloc(reg, MachineTypeFor(type));
       } else {
         int offset = -1 - stack_offset;
         stack_offset += Words(type);
-        return stackloc(offset);
+        return stackloc(offset, MachineTypeFor(type));
       }
     } else {
       // Allocate a general purpose register/stack location.
       if (gp_offset < gp_count) {
-        return regloc(gp_regs[gp_offset++]);
+        return regloc(gp_regs[gp_offset++], MachineTypeFor(type));
       } else {
         int offset = -1 - stack_offset;
         stack_offset += Words(type);
-        return stackloc(offset);
+        return stackloc(offset, MachineTypeFor(type));
       }
     }
   }
@@ -179,11 +199,7 @@ struct Allocator {
     return type == kAstF32 || type == kAstF64;
   }
   int Words(LocalType type) {
-    // The code generation for pushing parameters on the stack does not
-    // distinguish between float32 and float64. Therefore also float32 needs
-    // two words.
-    if (kPointerSize < 8 &&
-        (type == kAstI64 || type == kAstF64 || type == kAstF32)) {
+    if (kPointerSize < 8 && (type == kAstI64 || type == kAstF64)) {
       return 2;
     }
     return 1;
@@ -191,70 +207,83 @@ struct Allocator {
 };
 }  // namespace
 
+struct ParameterRegistersCreateTrait {
+  static void Construct(Allocator* allocated_ptr) {
+#ifdef GP_PARAM_REGISTERS
+    static const Register kGPParamRegisters[] = {GP_PARAM_REGISTERS};
+    static const int kGPParamRegistersCount =
+        static_cast<int>(arraysize(kGPParamRegisters));
+#else
+    static const Register* kGPParamRegisters = nullptr;
+    static const int kGPParamRegistersCount = 0;
+#endif
+
+#ifdef FP_PARAM_REGISTERS
+    static const DoubleRegister kFPParamRegisters[] = {FP_PARAM_REGISTERS};
+    static const int kFPParamRegistersCount =
+        static_cast<int>(arraysize(kFPParamRegisters));
+#else
+    static const DoubleRegister* kFPParamRegisters = nullptr;
+    static const int kFPParamRegistersCount = 0;
+#endif
+
+    new (allocated_ptr) Allocator(kGPParamRegisters, kGPParamRegistersCount,
+                                  kFPParamRegisters, kFPParamRegistersCount);
+  }
+};
+
+static base::LazyInstance<Allocator, ParameterRegistersCreateTrait>::type
+    parameter_registers = LAZY_INSTANCE_INITIALIZER;
+
+struct ReturnRegistersCreateTrait {
+  static void Construct(Allocator* allocated_ptr) {
+#ifdef GP_RETURN_REGISTERS
+    static const Register kGPReturnRegisters[] = {GP_RETURN_REGISTERS};
+    static const int kGPReturnRegistersCount =
+        static_cast<int>(arraysize(kGPReturnRegisters));
+#else
+    static const Register* kGPReturnRegisters = nullptr;
+    static const int kGPReturnRegistersCount = 0;
+#endif
+
+#ifdef FP_RETURN_REGISTERS
+    static const DoubleRegister kFPReturnRegisters[] = {FP_RETURN_REGISTERS};
+    static const int kFPReturnRegistersCount =
+        static_cast<int>(arraysize(kFPReturnRegisters));
+#else
+    static const DoubleRegister* kFPReturnRegisters = nullptr;
+    static const int kFPReturnRegistersCount = 0;
+#endif
+
+    new (allocated_ptr) Allocator(kGPReturnRegisters, kGPReturnRegistersCount,
+                                  kFPReturnRegisters, kFPReturnRegistersCount);
+  }
+};
+
+static base::LazyInstance<Allocator, ReturnRegistersCreateTrait>::type
+    return_registers = LAZY_INSTANCE_INITIALIZER;
 
 // General code uses the above configuration data.
 CallDescriptor* ModuleEnv::GetWasmCallDescriptor(Zone* zone,
                                                  FunctionSig* fsig) {
-  MachineSignature::Builder msig(zone, fsig->return_count(),
-                                 fsig->parameter_count());
   LocationSignature::Builder locations(zone, fsig->return_count(),
                                        fsig->parameter_count());
 
-#ifdef GP_RETURN_REGISTERS
-  static const Register kGPReturnRegisters[] = {GP_RETURN_REGISTERS};
-  static const int kGPReturnRegistersCount =
-      static_cast<int>(arraysize(kGPReturnRegisters));
-#else
-  static const Register* kGPReturnRegisters = nullptr;
-  static const int kGPReturnRegistersCount = 0;
-#endif
-
-#ifdef FP_RETURN_REGISTERS
-  static const DoubleRegister kFPReturnRegisters[] = {FP_RETURN_REGISTERS};
-  static const int kFPReturnRegistersCount =
-      static_cast<int>(arraysize(kFPReturnRegisters));
-#else
-  static const DoubleRegister* kFPReturnRegisters = nullptr;
-  static const int kFPReturnRegistersCount = 0;
-#endif
-
-  Allocator rets(kGPReturnRegisters, kGPReturnRegistersCount,
-                 kFPReturnRegisters, kFPReturnRegistersCount);
+  Allocator rets = return_registers.Get();
 
   // Add return location(s).
   const int return_count = static_cast<int>(locations.return_count_);
   for (int i = 0; i < return_count; i++) {
     LocalType ret = fsig->GetReturn(i);
-    msig.AddReturn(MachineTypeFor(ret));
     locations.AddReturn(rets.Next(ret));
   }
 
-#ifdef GP_PARAM_REGISTERS
-  static const Register kGPParamRegisters[] = {GP_PARAM_REGISTERS};
-  static const int kGPParamRegistersCount =
-      static_cast<int>(arraysize(kGPParamRegisters));
-#else
-  static const Register* kGPParamRegisters = nullptr;
-  static const int kGPParamRegistersCount = 0;
-#endif
-
-#ifdef FP_PARAM_REGISTERS
-  static const DoubleRegister kFPParamRegisters[] = {FP_PARAM_REGISTERS};
-  static const int kFPParamRegistersCount =
-      static_cast<int>(arraysize(kFPParamRegisters));
-#else
-  static const DoubleRegister* kFPParamRegisters = nullptr;
-  static const int kFPParamRegistersCount = 0;
-#endif
-
-  Allocator params(kGPParamRegisters, kGPParamRegistersCount, kFPParamRegisters,
-                   kFPParamRegistersCount);
+  Allocator params = parameter_registers.Get();
 
   // Add register and/or stack parameter(s).
   const int parameter_count = static_cast<int>(fsig->parameter_count());
   for (int i = 0; i < parameter_count; i++) {
     LocalType param = fsig->GetParam(i);
-    msig.AddParam(MachineTypeFor(param));
     locations.AddParam(params.Next(param));
   }
 
@@ -263,20 +292,87 @@ CallDescriptor* ModuleEnv::GetWasmCallDescriptor(Zone* zone,
 
   // The target for WASM calls is always a code object.
   MachineType target_type = MachineType::AnyTagged();
-  LinkageLocation target_loc = LinkageLocation::ForAnyRegister();
+  LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
+
   return new (zone) CallDescriptor(       // --
       CallDescriptor::kCallCodeObject,    // kind
       target_type,                        // target MachineType
       target_loc,                         // target location
-      msig.Build(),                       // machine_sig
       locations.Build(),                  // location_sig
       params.stack_offset,                // stack_parameter_count
       compiler::Operator::kNoProperties,  // properties
       kCalleeSaveRegisters,               // callee-saved registers
       kCalleeSaveFPRegisters,             // callee-saved fp regs
       CallDescriptor::kUseNativeStack,    // flags
-      "c-call");
+      "wasm-call");
 }
+
+CallDescriptor* ModuleEnv::GetI32WasmCallDescriptor(
+    Zone* zone, CallDescriptor* descriptor) {
+  size_t parameter_count = descriptor->ParameterCount();
+  size_t return_count = descriptor->ReturnCount();
+  for (size_t i = 0; i < descriptor->ParameterCount(); i++) {
+    if (descriptor->GetParameterType(i) == MachineType::Int64()) {
+      // For each int64 input we get two int32 inputs.
+      parameter_count++;
+    }
+  }
+  for (size_t i = 0; i < descriptor->ReturnCount(); i++) {
+    if (descriptor->GetReturnType(i) == MachineType::Int64()) {
+      // For each int64 return we get two int32 returns.
+      return_count++;
+    }
+  }
+  if (parameter_count == descriptor->ParameterCount() &&
+      return_count == descriptor->ReturnCount()) {
+    // If there is no int64 parameter or return value, we can just return the
+    // original descriptor.
+    return descriptor;
+  }
+
+  LocationSignature::Builder locations(zone, return_count, parameter_count);
+
+  Allocator rets = return_registers.Get();
+
+  for (size_t i = 0; i < descriptor->ReturnCount(); i++) {
+    if (descriptor->GetReturnType(i) == MachineType::Int64()) {
+      // For each int64 return we get two int32 returns.
+      locations.AddReturn(rets.Next(MachineRepresentation::kWord32));
+      locations.AddReturn(rets.Next(MachineRepresentation::kWord32));
+    } else {
+      locations.AddReturn(
+          rets.Next(descriptor->GetReturnType(i).representation()));
+    }
+  }
+
+  Allocator params = parameter_registers.Get();
+
+  for (size_t i = 0; i < descriptor->ParameterCount(); i++) {
+    if (descriptor->GetParameterType(i) == MachineType::Int64()) {
+      // For each int64 input we get two int32 inputs.
+      locations.AddParam(params.Next(MachineRepresentation::kWord32));
+      locations.AddParam(params.Next(MachineRepresentation::kWord32));
+    } else {
+      locations.AddParam(
+          params.Next(descriptor->GetParameterType(i).representation()));
+    }
+  }
+
+  return new (zone) CallDescriptor(          // --
+      descriptor->kind(),                    // kind
+      descriptor->GetInputType(0),           // target MachineType
+      descriptor->GetInputLocation(0),       // target location
+      locations.Build(),                     // location_sig
+      params.stack_offset,                   // stack_parameter_count
+      descriptor->properties(),              // properties
+      descriptor->CalleeSavedRegisters(),    // callee-saved registers
+      descriptor->CalleeSavedFPRegisters(),  // callee-saved fp regs
+      descriptor->flags(),                   // flags
+      descriptor->debug_name());
+
+  return descriptor;
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

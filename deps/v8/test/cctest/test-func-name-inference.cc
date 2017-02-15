@@ -25,6 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include <memory>
 
 #include "src/v8.h"
 
@@ -34,7 +35,6 @@
 #include "test/cctest/cctest.h"
 
 
-using ::v8::base::SmartArrayPointer;
 using ::v8::internal::CStrVector;
 using ::v8::internal::Factory;
 using ::v8::internal::Handle;
@@ -85,7 +85,7 @@ static void CheckFunctionName(v8::Local<v8::Script> script,
           isolate->debug()->FindSharedFunctionInfoInScript(i_script, func_pos));
 
   // Verify inferred function name.
-  SmartArrayPointer<char> inferred_name =
+  std::unique_ptr<char[]> inferred_name =
       shared_func_info->inferred_name()->ToCString();
   i::PrintF("expected: %s, found: %s\n", ref_inferred_name,
             inferred_name.get());
@@ -287,7 +287,8 @@ TEST(MultipleFuncsConditional) {
   v8::HandleScope scope(CcTest::isolate());
 
   v8::Local<v8::Script> script = Compile(CcTest::isolate(),
-                                         "fun1 = 0 ?\n"
+                                         "var x = 0;\n"
+                                         "fun1 = x ?\n"
                                          "    function() { return 1; } :\n"
                                          "    function() { return 2; }");
   CheckFunctionName(script, "return 1", "fun1");
@@ -301,9 +302,10 @@ TEST(MultipleFuncsInLiteral) {
 
   v8::Local<v8::Script> script =
       Compile(CcTest::isolate(),
+              "var x = 0;\n"
               "function MyClass() {}\n"
               "MyClass.prototype = {\n"
-              "  method1: 0 ? function() { return 1; } :\n"
+              "  method1: x ? function() { return 1; } :\n"
               "               function() { return 2; } }");
   CheckFunctionName(script, "return 1", "MyClass.method1");
   CheckFunctionName(script, "return 2", "MyClass.method1");

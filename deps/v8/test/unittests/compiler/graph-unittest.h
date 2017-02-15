@@ -29,7 +29,6 @@ class GraphTest : public TestWithContext, public TestWithIsolateAndZone {
   explicit GraphTest(int num_parameters = 1);
   ~GraphTest() override;
 
- protected:
   Node* start() { return graph()->start(); }
   Node* end() { return graph()->end(); }
 
@@ -49,6 +48,9 @@ class GraphTest : public TestWithContext, public TestWithIsolateAndZone {
 
   Node* EmptyFrameState();
 
+  Matcher<Node*> IsBooleanConstant(bool value) {
+    return value ? IsTrueConstant() : IsFalseConstant();
+  }
   Matcher<Node*> IsFalseConstant();
   Matcher<Node*> IsTrueConstant();
   Matcher<Node*> IsUndefinedConstant();

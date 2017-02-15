@@ -4,9 +4,6 @@
 module.exports = uninstall
 module.exports.Uninstaller = Uninstaller
 
-uninstall.usage = 'npm uninstall [<@scope>/]<pkg>[@<version>]... [--save|--save-dev|--save-optional]' +
-                  '\n\naliases: remove, rm, r, un, unlink'
-
 var util = require('util')
 var path = require('path')
 var validate = require('aproba')
@@ -18,6 +15,12 @@ var getSaveType = require('./install/save.js').getSaveType
 var removeDeps = require('./install/deps.js').removeDeps
 var loadExtraneous = require('./install/deps.js').loadExtraneous
 var log = require('npmlog')
+var usage = require('./utils/usage')
+
+uninstall.usage = usage(
+  'uninstall',
+  'npm uninstall [<@scope>/]<pkg>[@<version>]... [--save|--save-dev|--save-optional]'
+)
 
 uninstall.completion = require('./utils/completion/installed-shallow.js')
 
@@ -71,3 +74,6 @@ Uninstaller.prototype.loadAllDepsIntoIdealTree = function (cb) {
     [loadExtraneous, this.idealTree, cg.newGroup('loadExtraneous')])
   chain(steps, cb)
 }
+
+Uninstaller.prototype.runPreinstallTopLevelLifecycles = function (cb) { cb() }
+Uninstaller.prototype.runPostinstallTopLevelLifecycles = function (cb) { cb() }

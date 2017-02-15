@@ -1,0 +1,29 @@
+{% extends "layout.html" %}
+{% block page_title %}Index Page{% endblock %}
+{% block body %}
+  {% for article in articles %}
+  {% if article.published %}
+  <div class="article">
+    <h2><a href="{{ article.href }}">{{ article.title }}</a></h2>
+    <p class="meta">written by <a href="{{ article.user.href }}">{{ article.user.username }}</a> on {{ article.pub_date|dateformat }}</p>
+    <div class="text">{{ article.body|safe }}</div>
+  </div>
+  {% endif %}
+  {% endfor %}
+  {% form %}
+    <dl>
+      <dt>Name</dt>
+      <dd>{% input_field 'name' %}</dd>
+      <dt>E-Mail</dt>
+      <dd>{% input_field 'email' %}</dd>
+      <dt>URL</dt>
+      <dd>{% input_field 'url' %}</dd>
+      <dt>Comment</dt>
+      <dd>{% textarea 'comment' %}</dd>
+      <dt>Captcha</dt>
+      <dd>{% input_field 'captcha' %}</dd>
+    </dl>
+    {% input_field '' 'submit' 'Submit' %}
+    {% input_field 'cancel' 'submit' 'Cancel' %}
+  {% endform %}
+{% endblock %}

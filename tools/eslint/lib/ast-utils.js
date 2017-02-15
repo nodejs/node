@@ -1,8 +1,6 @@
 /**
  * @fileoverview Common utils for AST.
  * @author Gyandeep Singh
- * @copyright 2015 Gyandeep Singh. All rights reserved.
- * See LICENSE file in root directory for full license.
  */
 
 "use strict";
@@ -11,18 +9,20 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var esutils = require("esutils");
+const esutils = require("esutils");
+const lodash = require("lodash");
 
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
 
-var anyFunctionPattern = /^(?:Function(?:Declaration|Expression)|ArrowFunctionExpression)$/;
-var arrayOrTypedArrayPattern = /Array$/;
-var arrayMethodPattern = /^(?:every|filter|find|findIndex|forEach|map|some)$/;
-var bindOrCallOrApplyPattern = /^(?:bind|call|apply)$/;
-var breakableTypePattern = /^(?:(?:Do)?While|For(?:In|Of)?|Switch)Statement$/;
-var thisTagPattern = /^[\s\*]*@this/m;
+const anyFunctionPattern = /^(?:Function(?:Declaration|Expression)|ArrowFunctionExpression)$/;
+const anyLoopPattern = /^(?:DoWhile|For|ForIn|ForOf|While)Statement$/;
+const arrayOrTypedArrayPattern = /Array$/;
+const arrayMethodPattern = /^(?:every|filter|find|findIndex|forEach|map|some)$/;
+const bindOrCallOrApplyPattern = /^(?:bind|call|apply)$/;
+const breakableTypePattern = /^(?:(?:Do)?While|For(?:In|Of)?|Switch)Statement$/;
+const thisTagPattern = /^[\s*]*@this/m;
 
 /**
  * Checks reference if is non initializer and writable.
@@ -33,15 +33,31 @@ var thisTagPattern = /^[\s\*]*@this/m;
  * @private
  */
 function isModifyingReference(reference, index, references) {
-    var identifier = reference.identifier;
+    const identifier = reference.identifier;
+
+    /*
+     * Destructuring assignments can have multiple default value, so
+     * possibly there are multiple writeable references for the same
+     * identifier.
+     */
+    const modifyingDifferentIdentifier = index === 0 ||
+        references[index - 1].identifier !== identifier;
 
     return (identifier &&
         reference.init === false &&
         reference.isWrite() &&
-            // Destructuring assignments can have multiple default value,
-            // so possibly there are multiple writeable references for the same identifier.
-        (index === 0 || references[index - 1].identifier !== identifier)
+        modifyingDifferentIdentifier
     );
+}
+
+/**
+ * Checks whether the given string starts with uppercase or not.
+ *
+ * @param {string} s - The string to check.
+ * @returns {boolean} `true` if the string starts with uppercase.
+ */
+function startsWithUpperCase(s) {
+    return s[0] !== s[0].toLocaleLowerCase();
 }
 
 /**
@@ -50,10 +66,7 @@ function isModifyingReference(reference, index, references) {
  * @returns {boolean} Wehether or not a node is a constructor.
  */
 function isES5Constructor(node) {
-    return (
-        node.id &&
-        node.id.name[0] === node.id.name[0].toLocaleUpperCase()
-    );
+    return (node.id && startsWithUpperCase(node.id.name));
 }
 
 /**
@@ -69,6 +82,56 @@ function getUpperFunction(node) {
         node = node.parent;
     }
     return null;
+}
+
+/**
+ * Checks whether a given node is a function node or not.
+ * The following types are function nodes:
+ *
+ * - ArrowFunctionExpression
+ * - FunctionDeclaration
+ * - FunctionExpression
+ *
+ * @param {ASTNode|null} node - A node to check.
+ * @returns {boolean} `true` if the node is a function node.
+ */
+function isFunction(node) {
+    return Boolean(node && anyFunctionPattern.test(node.type));
+}
+
+/**
+ * Checks whether a given node is a loop node or not.
+ * The following types are loop nodes:
+ *
+ * - DoWhileStatement
+ * - ForInStatement
+ * - ForOfStatement
+ * - ForStatement
+ * - WhileStatement
+ *
+ * @param {ASTNode|null} node - A node to check.
+ * @returns {boolean} `true` if the node is a loop node.
+ */
+function isLoop(node) {
+    return Boolean(node && anyLoopPattern.test(node.type));
+}
+
+/**
+ * Checks whether the given node is in a loop or not.
+ *
+ * @param {ASTNode} node - The node to check.
+ * @returns {boolean} `true` if the node is in a loop.
+ */
+function isInLoop(node) {
+    while (node && !isFunction(node)) {
+        if (isLoop(node)) {
+            return true;
+        }
+
+        node = node.parent;
+    }
+
+    return false;
 }
 
 /**
@@ -154,7 +217,8 @@ function isMethodWhichHasThisArg(node) {
  * @returns {boolean} Whether or not the node has a `@this` tag in its comments.
  */
 function hasJSDocThisTag(node, sourceCode) {
-    var jsdocComment = sourceCode.getJSDocComment(node);
+    const jsdocComment = sourceCode.getJSDocComment(node);
+
     if (jsdocComment && thisTagPattern.test(jsdocComment.value)) {
         return true;
     }
@@ -163,9 +227,76 @@ function hasJSDocThisTag(node, sourceCode) {
     // because callbacks don't have its JSDoc comment.
     // e.g.
     //     sinon.test(/* @this sinon.Sandbox */function() { this.spy(); });
-    return sourceCode.getComments(node).leading.some(function(comment) {
-        return thisTagPattern.test(comment.value);
-    });
+    return sourceCode.getComments(node).leading.some(comment => thisTagPattern.test(comment.value));
+}
+
+/**
+ * Determines if a node is surrounded by parentheses.
+ * @param {SourceCode} sourceCode The ESLint source code object
+ * @param {ASTNode} node The node to be checked.
+ * @returns {boolean} True if the node is parenthesised.
+ * @private
+ */
+function isParenthesised(sourceCode, node) {
+    const previousToken = sourceCode.getTokenBefore(node),
+        nextToken = sourceCode.getTokenAfter(node);
+
+    return Boolean(previousToken && nextToken) &&
+        previousToken.value === "(" && previousToken.range[1] <= node.range[0] &&
+        nextToken.value === ")" && nextToken.range[0] >= node.range[1];
+}
+
+/**
+ * Gets the `=>` token of the given arrow function node.
+ *
+ * @param {ASTNode} node - The arrow function node to get.
+ * @param {SourceCode} sourceCode - The source code object to get tokens.
+ * @returns {Token} `=>` token.
+ */
+function getArrowToken(node, sourceCode) {
+    let token = sourceCode.getTokenBefore(node.body);
+
+    while (token.value !== "=>") {
+        token = sourceCode.getTokenBefore(token);
+    }
+
+    return token;
+}
+
+/**
+ * Gets the `(` token of the given function node.
+ *
+ * @param {ASTNode} node - The function node to get.
+ * @param {SourceCode} sourceCode - The source code object to get tokens.
+ * @returns {Token} `(` token.
+ */
+function getOpeningParenOfParams(node, sourceCode) {
+    let token = node.id ? sourceCode.getTokenAfter(node.id) : sourceCode.getFirstToken(node);
+
+    while (token.value !== "(") {
+        token = sourceCode.getTokenAfter(token);
+    }
+
+    return token;
+}
+
+const lineIndexCache = new WeakMap();
+
+/**
+ * Gets the range index for the first character in each of the lines of `sourceCode`.
+ * @param {SourceCode} sourceCode A sourceCode object
+ * @returns {number[]} The indices of the first characters in the each of the lines of the code
+ */
+function getLineIndices(sourceCode) {
+
+    if (!lineIndexCache.has(sourceCode)) {
+        const lineIndices = (sourceCode.text.match(/[^\r\n\u2028\u2029]*(\r\n|\r|\n|\u2028|\u2029)/g) || [])
+            .reduce((indices, line) => indices.concat(indices[indices.length - 1] + line.length), [0]);
+
+        // Store the sourceCode object in a WeakMap to avoid iterating over all of the lines every time a sourceCode object is passed in.
+        lineIndexCache.set(sourceCode, lineIndices);
+    }
+    return lineIndexCache.get(sourceCode);
 }
 
 //------------------------------------------------------------------------------
@@ -181,21 +312,26 @@ module.exports = {
      * @returns {boolean} Whether or not the tokens are on the same line.
      * @public
      */
-    isTokenOnSameLine: function(left, right) {
+    isTokenOnSameLine(left, right) {
         return left.loc.end.line === right.loc.start.line;
     },
 
-    isNullOrUndefined: isNullOrUndefined,
-    isCallee: isCallee,
-    getUpperFunction: getUpperFunction,
-    isArrayFromMethod: isArrayFromMethod,
+    isNullOrUndefined,
+    isCallee,
+    isES5Constructor,
+    getUpperFunction,
+    isFunction,
+    isLoop,
+    isInLoop,
+    isArrayFromMethod,
+    isParenthesised,
 
     /**
      * Checks whether or not a given node is a string literal.
      * @param {ASTNode} node - A node to check.
      * @returns {boolean} `true` if the node is a string literal.
      */
-    isStringLiteral: function(node) {
+    isStringLiteral(node) {
         return (
             (node.type === "Literal" && typeof node.value === "string") ||
             node.type === "TemplateLiteral"
@@ -216,7 +352,7 @@ module.exports = {
      * @param {ASTNode} node - A node to check.
      * @returns {boolean} `true` if the node is breakable.
      */
-    isBreakableStatement: function(node) {
+    isBreakableStatement(node) {
         return breakableTypePattern.test(node.type);
     },
 
@@ -226,7 +362,7 @@ module.exports = {
      * @param {ASTNode} node - A node to get.
      * @returns {string|null} The label or `null`.
      */
-    getLabel: function(node) {
+    getLabel(node) {
         if (node.parent.type === "LabeledStatement") {
             return node.parent.label.name;
         }
@@ -239,7 +375,7 @@ module.exports = {
      * @returns {Reference[]} An array of only references which are non initializer and writable.
      * @public
      */
-    getModifyingReferences: function(references) {
+    getModifyingReferences(references) {
         return references.filter(isModifyingReference);
     },
 
@@ -250,7 +386,7 @@ module.exports = {
      * @returns {boolean} True if the text is surrounded by the character, false if not.
      * @private
      */
-    isSurroundedBy: function(val, character) {
+    isSurroundedBy(val, character) {
         return val[0] === character && val[val.length - 1] === character;
     },
 
@@ -259,8 +395,9 @@ module.exports = {
      * @param {LineComment|BlockComment} node The node to be checked
      * @returns {boolean} `true` if the node is an ESLint directive comment
      */
-    isDirectiveComment: function(node) {
-        var comment = node.value.trim();
+    isDirectiveComment(node) {
+        const comment = node.value.trim();
+
         return (
             node.type === "Line" && comment.indexOf("eslint-") === 0 ||
             node.type === "Block" && (
@@ -291,10 +428,12 @@ module.exports = {
      * @param {string} name - A variable name to find.
      * @returns {escope.Variable|null} A found variable or `null`.
      */
-    getVariableByName: function(initScope, name) {
-        var scope = initScope;
+    getVariableByName(initScope, name) {
+        let scope = initScope;
+
         while (scope) {
-            var variable = scope.set.get(name);
+            const variable = scope.set.get(name);
+
             if (variable) {
                 return variable;
             }
@@ -317,26 +456,30 @@ module.exports = {
      * If the location is below, this judges `this` is valid.
      *
      * - The location is not on an object literal.
-     * - The location does not assign to a property.
+     * - The location is not assigned to a variable which starts with an uppercase letter.
      * - The location is not on an ES2015 class.
-     * - The location does not call its `bind`/`call`/`apply` method directly.
+     * - Its `bind`/`call`/`apply` method is not called directly.
      * - The function is not a callback of array methods (such as `.forEach()`) if `thisArg` is given.
      *
      * @param {ASTNode} node - A function node to check.
      * @param {SourceCode} sourceCode - A SourceCode instance to get comments.
      * @returns {boolean} The function node is the default `this` binding.
      */
-    isDefaultThisBinding: function(node, sourceCode) {
+    isDefaultThisBinding(node, sourceCode) {
         if (isES5Constructor(node) || hasJSDocThisTag(node, sourceCode)) {
             return false;
         }
+        const isAnonymous = node.id === null;
 
         while (node) {
-            var parent = node.parent;
+            const parent = node.parent;
+
             switch (parent.type) {
-                // Looks up the destination.
-                // e.g.
-                //   obj.foo = nativeFoo || function foo() { ... };
+
+                /*
+                 * Looks up the destination.
+                 * e.g., obj.foo = nativeFoo || function foo() { ... };
+                 */
                 case "LogicalExpression":
                 case "ConditionalExpression":
                     node = parent;
@@ -348,36 +491,57 @@ module.exports = {
                 //     // setup...
                 //     return function foo() { ... };
                 //   })();
-                case "ReturnStatement":
-                    var func = getUpperFunction(parent);
+                case "ReturnStatement": {
+                    const func = getUpperFunction(parent);
+
                     if (func === null || !isCallee(func)) {
                         return true;
                     }
                     node = func.parent;
                     break;
+                }
 
                 // e.g.
                 //   var obj = { foo() { ... } };
                 //   var obj = { foo: function() { ... } };
-                case "Property":
-                    return false;
-
-                // e.g.
-                //   obj.foo = foo() { ... };
-                case "AssignmentExpression":
-                    return (
-                        parent.right !== node ||
-                        parent.left.type !== "MemberExpression"
-                    );
-
-                // e.g.
                 //   class A { constructor() { ... } }
                 //   class A { foo() { ... } }
                 //   class A { get foo() { ... } }
                 //   class A { set foo() { ... } }
                 //   class A { static foo() { ... } }
+                case "Property":
                 case "MethodDefinition":
-                    return false;
+                    return parent.value !== node;
+
+                // e.g.
+                //   obj.foo = function foo() { ... };
+                //   Foo = function() { ... };
+                //   [obj.foo = function foo() { ... }] = a;
+                //   [Foo = function() { ... }] = a;
+                case "AssignmentExpression":
+                case "AssignmentPattern":
+                    if (parent.right === node) {
+                        if (parent.left.type === "MemberExpression") {
+                            return false;
+                        }
+                        if (isAnonymous &&
+                            parent.left.type === "Identifier" &&
+                            startsWithUpperCase(parent.left.name)
+                        ) {
+                            return false;
+                        }
+                    }
+                    return true;
+
+                // e.g.
+                //   var Foo = function() { ... };
+                case "VariableDeclarator":
+                    return !(
+                        isAnonymous &&
+                        parent.init === node &&
+                        parent.id.type === "Identifier" &&
+                        startsWithUpperCase(parent.id.name)
+                    );
 
                 // e.g.
                 //   var foo = function foo() { ... }.bind(obj);
@@ -429,5 +593,509 @@ module.exports = {
 
         /* istanbul ignore next */
         return true;
+    },
+
+    /**
+     * Get the precedence level based on the node type
+     * @param {ASTNode} node node to evaluate
+     * @returns {int} precedence level
+     * @private
+     */
+    getPrecedence(node) {
+        switch (node.type) {
+            case "SequenceExpression":
+                return 0;
+
+            case "AssignmentExpression":
+            case "ArrowFunctionExpression":
+            case "YieldExpression":
+                return 1;
+
+            case "ConditionalExpression":
+                return 3;
+
+            case "LogicalExpression":
+                switch (node.operator) {
+                    case "||":
+                        return 4;
+                    case "&&":
+                        return 5;
+
+                    // no default
+                }
+
+                /* falls through */
+
+            case "BinaryExpression":
+
+                switch (node.operator) {
+                    case "|":
+                        return 6;
+                    case "^":
+                        return 7;
+                    case "&":
+                        return 8;
+                    case "==":
+                    case "!=":
+                    case "===":
+                    case "!==":
+                        return 9;
+                    case "<":
+                    case "<=":
+                    case ">":
+                    case ">=":
+                    case "in":
+                    case "instanceof":
+                        return 10;
+                    case "<<":
+                    case ">>":
+                    case ">>>":
+                        return 11;
+                    case "+":
+                    case "-":
+                        return 12;
+                    case "*":
+                    case "/":
+                    case "%":
+                        return 13;
+
+                    // no default
+                }
+
+                /* falls through */
+
+            case "UnaryExpression":
+            case "AwaitExpression":
+                return 14;
+
+            case "UpdateExpression":
+                return 15;
+
+            case "CallExpression":
+
+                // IIFE is allowed to have parens in any position (#655)
+                if (node.callee.type === "FunctionExpression") {
+                    return -1;
+                }
+                return 16;
+
+            case "NewExpression":
+                return 17;
+
+            // no default
+        }
+        return 18;
+    },
+
+    /**
+     * Checks whether the given node is an empty block node or not.
+     *
+     * @param {ASTNode|null} node - The node to check.
+     * @returns {boolean} `true` if the node is an empty block.
+     */
+    isEmptyBlock(node) {
+        return Boolean(node && node.type === "BlockStatement" && node.body.length === 0);
+    },
+
+    /**
+     * Checks whether the given node is an empty function node or not.
+     *
+     * @param {ASTNode|null} node - The node to check.
+     * @returns {boolean} `true` if the node is an empty function.
+     */
+    isEmptyFunction(node) {
+        return isFunction(node) && module.exports.isEmptyBlock(node.body);
+    },
+
+    /**
+     * Gets the property name of a given node.
+     * The node can be a MemberExpression, a Property, or a MethodDefinition.
+     *
+     * If the name is dynamic, this returns `null`.
+     *
+     * For examples:
+     *
+     *     a.b           // => "b"
+     *     a["b"]        // => "b"
+     *     a['b']        // => "b"
+     *     a[`b`]        // => "b"
+     *     a[100]        // => "100"
+     *     a[b]          // => null
+     *     a["a" + "b"]  // => null
+     *     a[tag`b`]     // => null
+     *     a[`${b}`]     // => null
+     *
+     *     let a = {b: 1}            // => "b"
+     *     let a = {["b"]: 1}        // => "b"
+     *     let a = {['b']: 1}        // => "b"
+     *     let a = {[`b`]: 1}        // => "b"
+     *     let a = {[100]: 1}        // => "100"
+     *     let a = {[b]: 1}          // => null
+     *     let a = {["a" + "b"]: 1}  // => null
+     *     let a = {[tag`b`]: 1}     // => null
+     *     let a = {[`${b}`]: 1}     // => null
+     *
+     * @param {ASTNode} node - The node to get.
+     * @returns {string|null} The property name if static. Otherwise, null.
+     */
+    getStaticPropertyName(node) {
+        let prop;
+
+        switch (node && node.type) {
+            case "Property":
+            case "MethodDefinition":
+                prop = node.key;
+                break;
+
+            case "MemberExpression":
+                prop = node.property;
+                break;
+
+            // no default
+        }
+
+        switch (prop && prop.type) {
+            case "Literal":
+                return String(prop.value);
+
+            case "TemplateLiteral":
+                if (prop.expressions.length === 0 && prop.quasis.length === 1) {
+                    return prop.quasis[0].value.cooked;
+                }
+                break;
+
+            case "Identifier":
+                if (!node.computed) {
+                    return prop.name;
+                }
+                break;
+
+            // no default
+        }
+
+        return null;
+    },
+
+    /**
+     * Get directives from directive prologue of a Program or Function node.
+     * @param {ASTNode} node - The node to check.
+     * @returns {ASTNode[]} The directives found in the directive prologue.
+     */
+    getDirectivePrologue(node) {
+        const directives = [];
+
+        // Directive prologues only occur at the top of files or functions.
+        if (
+            node.type === "Program" ||
+            node.type === "FunctionDeclaration" ||
+            node.type === "FunctionExpression" ||
+
+            // Do not check arrow functions with implicit return.
+            // `() => "use strict";` returns the string `"use strict"`.
+            (node.type === "ArrowFunctionExpression" && node.body.type === "BlockStatement")
+        ) {
+            const statements = node.type === "Program" ? node.body : node.body.body;
+
+            for (const statement of statements) {
+                if (
+                    statement.type === "ExpressionStatement" &&
+                    statement.expression.type === "Literal"
+                ) {
+                    directives.push(statement);
+                } else {
+                    break;
+                }
+            }
+        }
+
+        return directives;
+    },
+
+
+    /**
+     * Determines whether this node is a decimal integer literal. If a node is a decimal integer literal, a dot added
+     after the node will be parsed as a decimal point, rather than a property-access dot.
+     * @param {ASTNode} node - The node to check.
+     * @returns {boolean} `true` if this node is a decimal integer.
+     * @example
+     *
+     * 5       // true
+     * 5.      // false
+     * 5.0     // false
+     * 05      // false
+     * 0x5     // false
+     * 0b101   // false
+     * 0o5     // false
+     * 5e0     // false
+     * '5'     // false
+     */
+    isDecimalInteger(node) {
+        return node.type === "Literal" && typeof node.value === "number" && /^(0|[1-9]\d*)$/.test(node.raw);
+    },
+
+    /**
+     * Gets the name and kind of the given function node.
+     *
+     * - `function foo() {}`  .................... `function 'foo'`
+     * - `(function foo() {})`  .................. `function 'foo'`
+     * - `(function() {})`  ...................... `function`
+     * - `function* foo() {}`  ................... `generator function 'foo'`
+     * - `(function* foo() {})`  ................. `generator function 'foo'`
+     * - `(function*() {})`  ..................... `generator function`
+     * - `() => {}`  ............................. `arrow function`
+     * - `async () => {}`  ....................... `async arrow function`
+     * - `({ foo: function foo() {} })`  ......... `method 'foo'`
+     * - `({ foo: function() {} })`  ............. `method 'foo'`
+     * - `({ ['foo']: function() {} })`  ......... `method 'foo'`
+     * - `({ [foo]: function() {} })`  ........... `method`
+     * - `({ foo() {} })`  ....................... `method 'foo'`
+     * - `({ foo: function* foo() {} })`  ........ `generator method 'foo'`
+     * - `({ foo: function*() {} })`  ............ `generator method 'foo'`
+     * - `({ ['foo']: function*() {} })`  ........ `generator method 'foo'`
+     * - `({ [foo]: function*() {} })`  .......... `generator method`
+     * - `({ *foo() {} })`  ...................... `generator method 'foo'`
+     * - `({ foo: async function foo() {} })`  ... `async method 'foo'`
+     * - `({ foo: async function() {} })`  ....... `async method 'foo'`
+     * - `({ ['foo']: async function() {} })`  ... `async method 'foo'`
+     * - `({ [foo]: async function() {} })`  ..... `async method`
+     * - `({ async foo() {} })`  ................. `async method 'foo'`
+     * - `({ get foo() {} })`  ................... `getter 'foo'`
+     * - `({ set foo(a) {} })`  .................. `setter 'foo'`
+     * - `class A { constructor() {} }`  ......... `constructor`
+     * - `class A { foo() {} }`  ................. `method 'foo'`
+     * - `class A { *foo() {} }`  ................ `generator method 'foo'`
+     * - `class A { async foo() {} }`  ........... `async method 'foo'`
+     * - `class A { ['foo']() {} }`  ............. `method 'foo'`
+     * - `class A { *['foo']() {} }`  ............ `generator method 'foo'`
+     * - `class A { async ['foo']() {} }`  ....... `async method 'foo'`
+     * - `class A { [foo]() {} }`  ............... `method`
+     * - `class A { *[foo]() {} }`  .............. `generator method`
+     * - `class A { async [foo]() {} }`  ......... `async method`
+     * - `class A { get foo() {} }`  ............. `getter 'foo'`
+     * - `class A { set foo(a) {} }`  ............ `setter 'foo'`
+     * - `class A { static foo() {} }`  .......... `static method 'foo'`
+     * - `class A { static *foo() {} }`  ......... `static generator method 'foo'`
+     * - `class A { static async foo() {} }`  .... `static async method 'foo'`
+     * - `class A { static get foo() {} }`  ...... `static getter 'foo'`
+     * - `class A { static set foo(a) {} }`  ..... `static setter 'foo'`
+     *
+     * @param {ASTNode} node - The function node to get.
+     * @returns {string} The name and kind of the function node.
+     */
+    getFunctionNameWithKind(node) {
+        const parent = node.parent;
+        const tokens = [];
+
+        if (parent.type === "MethodDefinition" && parent.static) {
+            tokens.push("static");
+        }
+        if (node.async) {
+            tokens.push("async");
+        }
+        if (node.generator) {
+            tokens.push("generator");
+        }
+
+        if (node.type === "ArrowFunctionExpression") {
+            tokens.push("arrow", "function");
+        } else if (parent.type === "Property" || parent.type === "MethodDefinition") {
+            if (parent.kind === "constructor") {
+                return "constructor";
+            } else if (parent.kind === "get") {
+                tokens.push("getter");
+            } else if (parent.kind === "set") {
+                tokens.push("setter");
+            } else {
+                tokens.push("method");
+            }
+        } else {
+            tokens.push("function");
+        }
+
+        if (node.id) {
+            tokens.push(`'${node.id.name}'`);
+        } else {
+            const name = module.exports.getStaticPropertyName(parent);
+
+            if (name) {
+                tokens.push(`'${name}'`);
+            }
+        }
+
+        return tokens.join(" ");
+    },
+
+    /**
+     * Gets the location of the given function node for reporting.
+     *
+     * - `function foo() {}`
+     *    ^^^^^^^^^^^^
+     * - `(function foo() {})`
+     *     ^^^^^^^^^^^^
+     * - `(function() {})`
+     *     ^^^^^^^^
+     * - `function* foo() {}`
+     *    ^^^^^^^^^^^^^
+     * - `(function* foo() {})`
+     *     ^^^^^^^^^^^^^
+     * - `(function*() {})`
+     *     ^^^^^^^^^
+     * - `() => {}`
+     *       ^^
+     * - `async () => {}`
+     *             ^^
+     * - `({ foo: function foo() {} })`
+     *       ^^^^^^^^^^^^^^^^^
+     * - `({ foo: function() {} })`
+     *       ^^^^^^^^^^^^^
+     * - `({ ['foo']: function() {} })`
+     *       ^^^^^^^^^^^^^^^^^
+     * - `({ [foo]: function() {} })`
+     *       ^^^^^^^^^^^^^^^
+     * - `({ foo() {} })`
+     *       ^^^
+     * - `({ foo: function* foo() {} })`
+     *       ^^^^^^^^^^^^^^^^^^
+     * - `({ foo: function*() {} })`
+     *       ^^^^^^^^^^^^^^
+     * - `({ ['foo']: function*() {} })`
+     *       ^^^^^^^^^^^^^^^^^^
+     * - `({ [foo]: function*() {} })`
+     *       ^^^^^^^^^^^^^^^^
+     * - `({ *foo() {} })`
+     *       ^^^^
+     * - `({ foo: async function foo() {} })`
+     *       ^^^^^^^^^^^^^^^^^^^^^^^
+     * - `({ foo: async function() {} })`
+     *       ^^^^^^^^^^^^^^^^^^^
+     * - `({ ['foo']: async function() {} })`
+     *       ^^^^^^^^^^^^^^^^^^^^^^^
+     * - `({ [foo]: async function() {} })`
+     *       ^^^^^^^^^^^^^^^^^^^^^
+     * - `({ async foo() {} })`
+     *       ^^^^^^^^^
+     * - `({ get foo() {} })`
+     *       ^^^^^^^
+     * - `({ set foo(a) {} })`
+     *       ^^^^^^^
+     * - `class A { constructor() {} }`
+     *              ^^^^^^^^^^^
+     * - `class A { foo() {} }`
+     *              ^^^
+     * - `class A { *foo() {} }`
+     *              ^^^^
+     * - `class A { async foo() {} }`
+     *              ^^^^^^^^^
+     * - `class A { ['foo']() {} }`
+     *              ^^^^^^^
+     * - `class A { *['foo']() {} }`
+     *              ^^^^^^^^
+     * - `class A { async ['foo']() {} }`
+     *              ^^^^^^^^^^^^^
+     * - `class A { [foo]() {} }`
+     *              ^^^^^
+     * - `class A { *[foo]() {} }`
+     *              ^^^^^^
+     * - `class A { async [foo]() {} }`
+     *              ^^^^^^^^^^^
+     * - `class A { get foo() {} }`
+     *              ^^^^^^^
+     * - `class A { set foo(a) {} }`
+     *              ^^^^^^^
+     * - `class A { static foo() {} }`
+     *              ^^^^^^^^^^
+     * - `class A { static *foo() {} }`
+     *              ^^^^^^^^^^^
+     * - `class A { static async foo() {} }`
+     *              ^^^^^^^^^^^^^^^^
+     * - `class A { static get foo() {} }`
+     *              ^^^^^^^^^^^^^^
+     * - `class A { static set foo(a) {} }`
+     *              ^^^^^^^^^^^^^^
+     *
+     * @param {ASTNode} node - The function node to get.
+     * @param {SourceCode} sourceCode - The source code object to get tokens.
+     * @returns {string} The location of the function node for reporting.
+     */
+    getFunctionHeadLoc(node, sourceCode) {
+        const parent = node.parent;
+        let start = null;
+        let end = null;
+
+        if (node.type === "ArrowFunctionExpression") {
+            const arrowToken = getArrowToken(node, sourceCode);
+
+            start = arrowToken.loc.start;
+            end = arrowToken.loc.end;
+        } else if (parent.type === "Property" || parent.type === "MethodDefinition") {
+            start = parent.loc.start;
+            end = getOpeningParenOfParams(node, sourceCode).loc.start;
+        } else {
+            start = node.loc.start;
+            end = getOpeningParenOfParams(node, sourceCode).loc.start;
+        }
+
+        return {
+            start: Object.assign({}, start),
+            end: Object.assign({}, end),
+        };
+    },
+
+    /*
+    * Converts a range index into a (line, column) pair.
+    * @param {SourceCode} sourceCode A SourceCode object
+    * @param {number} rangeIndex The range index of a character in a file
+    * @returns {Object} A {line, column} location object with a 0-indexed column
+    */
+    getLocationFromRangeIndex(sourceCode, rangeIndex) {
+        const lineIndices = getLineIndices(sourceCode);
+
+        /*
+         * lineIndices is a sorted list of indices of the first character of each line.
+         * To figure out which line rangeIndex is on, determine the last index at which rangeIndex could
+         * be inserted into lineIndices to keep the list sorted.
+         */
+        const lineNumber = lodash.sortedLastIndex(lineIndices, rangeIndex);
+
+        return { line: lineNumber, column: rangeIndex - lineIndices[lineNumber - 1] };
+
+    },
+
+    /**
+    * Converts a (line, column) pair into a range index.
+    * @param {SourceCode} sourceCode A SourceCode object
+    * @param {Object} loc A line/column location
+    * @param {number} loc.line The line number of the location (1-indexed)
+    * @param {number} loc.column The column number of the location (0-indexed)
+    * @returns {number} The range index of the location in the file.
+    */
+    getRangeIndexFromLocation(sourceCode, loc) {
+        return getLineIndices(sourceCode)[loc.line - 1] + loc.column;
+    },
+
+    /**
+    * Gets the parenthesized text of a node. This is similar to sourceCode.getText(node), but it also includes any parentheses
+    * surrounding the node.
+    * @param {SourceCode} sourceCode The source code object
+    * @param {ASTNode} node An expression node
+    * @returns {string} The text representing the node, with all surrounding parentheses included
+    */
+    getParenthesisedText(sourceCode, node) {
+        let leftToken = sourceCode.getFirstToken(node);
+        let rightToken = sourceCode.getLastToken(node);
+
+        while (
+            sourceCode.getTokenBefore(leftToken) &&
+            sourceCode.getTokenBefore(leftToken).type === "Punctuator" &&
+            sourceCode.getTokenBefore(leftToken).value === "(" &&
+            sourceCode.getTokenAfter(rightToken) &&
+            sourceCode.getTokenAfter(rightToken).type === "Punctuator" &&
+            sourceCode.getTokenAfter(rightToken).value === ")"
+        ) {
+            leftToken = sourceCode.getTokenBefore(leftToken);
+            rightToken = sourceCode.getTokenAfter(rightToken);
+        }
+
+        return sourceCode.getText().slice(leftToken.range[0], rightToken.range[1]);
     }
 };

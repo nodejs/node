@@ -1,0 +1,4 @@
+*%(basename)s:8: SyntaxError: 'function.sent' must not contain escaped characters
+  return function.s\u0065nt;
+         ^^^^^^^^^^^^^^^^^^
+SyntaxError: 'function.sent' must not contain escaped characters

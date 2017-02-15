@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --harmony-tostring
+// Flags: --allow-natives-syntax
 
 // Test instantations of generators.
 
@@ -59,18 +59,12 @@ function TestGeneratorObject() {
   assertEquals("[object Generator]", String(iter));
   assertEquals([], Object.getOwnPropertyNames(iter));
   assertTrue(iter !== g());
-
-  // g() is the same as new g().
-  iter = new g();
-  assertSame(g.prototype, Object.getPrototypeOf(iter));
-  assertTrue(iter instanceof g);
-  assertEquals("Generator", %_ClassOf(iter));
-  assertEquals("[object Generator]", String(iter));
   assertEquals("[object Generator]", Object.prototype.toString.call(iter));
   var gf = iter.__proto__.constructor;
   assertEquals("[object GeneratorFunction]", Object.prototype.toString.call(gf));
-  assertEquals([], Object.getOwnPropertyNames(iter));
-  assertTrue(iter !== new g());
+
+  // generators are not constructable.
+  assertThrows(()=>new g());
 }
 TestGeneratorObject();
 
@@ -93,3 +87,43 @@ function TestGeneratorObjectMethods() {
   TestNonGenerator(g.prototype);
 }
 TestGeneratorObjectMethods();
+
+
+function TestPrototype() {
+  function* g() { }
+
+  let g_prototype = g.prototype;
+  assertEquals([], Reflect.ownKeys(g_prototype));
+
+  let generator_prototype = Object.getPrototypeOf(g_prototype);
+  assertSame(generator_prototype, Object.getPrototypeOf(g).prototype);
+
+  // Unchanged .prototype
+  assertSame(g_prototype, Object.getPrototypeOf(g()));
+
+  // Custom object as .prototype
+  {
+    let proto = {};
+    g.prototype = proto;
+    assertSame(proto, Object.getPrototypeOf(g()));
+  }
+
+  // Custom non-object as .prototype
+  g.prototype = null;
+  assertSame(generator_prototype, Object.getPrototypeOf(g()));
+}
+TestPrototype();
+
+
+function TestComputedPropertyNames() {
+  function* f1() { return {[yield]: 42} }
+  var g1 = f1();
+  g1.next();
+  assertEquals(42, g1.next('a').value.a);
+
+  function* f2() { return {['a']: yield} }
+  var g2 = f2();
+  g2.next();
+  assertEquals(42, g2.next(42).value.a);
+}
+TestComputedPropertyNames();

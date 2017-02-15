@@ -1,2 +1,5 @@
-var convert = require('./convert');
-module.exports = convert('difference', require('../difference'));
+var convert = require('./convert'),
+    func = convert('difference', require('../difference'));
+
+func.placeholder = require('./placeholder');
+module.exports = func;

@@ -19,19 +19,19 @@ void PropertyAccessCompiler::GenerateTailCall(MacroAssembler* masm,
 
 
 Register* PropertyAccessCompiler::load_calling_convention() {
-  // receiver, name, scratch1, scratch2, scratch3, scratch4.
+  // receiver, name, scratch1, scratch2, scratch3.
   Register receiver = LoadDescriptor::ReceiverRegister();
   Register name = LoadDescriptor::NameRegister();
-  static Register registers[] = {receiver, name, r6, r3, r7, r8};
+  static Register registers[] = {receiver, name, r6, r3, r7};
   return registers;
 }
 
 
 Register* PropertyAccessCompiler::store_calling_convention() {
-  // receiver, name, scratch1, scratch2, scratch3.
+  // receiver, name, scratch1, scratch2.
   Register receiver = StoreDescriptor::ReceiverRegister();
   Register name = StoreDescriptor::NameRegister();
-  static Register registers[] = {receiver, name, r6, r7, r8};
+  static Register registers[] = {receiver, name, r6, r7};
   return registers;
 }
 

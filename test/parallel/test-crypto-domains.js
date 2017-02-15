@@ -1,31 +1,25 @@
 'use strict';
-var common = require('../common');
-var domain = require('domain');
-var assert = require('assert');
-var d = domain.create();
-var expect = ['pbkdf2', 'randomBytes', 'pseudoRandomBytes'];
-var errors = 0;
+const common = require('../common');
+const domain = require('domain');
+const assert = require('assert');
+const d = domain.create();
+const expect = ['pbkdf2', 'randomBytes', 'pseudoRandomBytes'];
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
-var crypto = require('crypto');
+const crypto = require('crypto');
 
-process.on('exit', function() {
-  assert.equal(errors, 3);
-});
-
-d.on('error', function(e) {
-  assert.equal(e.message, expect.shift());
-  errors += 1;
-});
+d.on('error', common.mustCall(function(e) {
+  assert.strictEqual(e.message, expect.shift());
+}, 3));
 
 d.run(function() {
   one();
 
   function one() {
-    crypto.pbkdf2('a', 'b', 1, 8, function() {
+    crypto.pbkdf2('a', 'b', 1, 8, 'sha1', function() {
       two();
       throw new Error('pbkdf2');
     });

@@ -293,7 +293,7 @@ link_a.cygwin:
 	fi; \
 	dll_name=$$SHLIB$$SHLIB_SOVER$$SHLIB_SUFFIX; \
 	$(PERL) util/mkrc.pl $$dll_name | \
-		$(CROSS_COMPILE)windres -o rc.o; \
+		$(RC) -o rc.o; \
 	extras="$$extras rc.o"; \
 	ALLSYMSFLAGS='-Wl,--whole-archive'; \
 	NOALLSYMSFLAGS='-Wl,--no-whole-archive'; \

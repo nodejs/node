@@ -33,11 +33,8 @@
   'dfg-inline-arguments-become-int32': [PASS, FAIL],
   'dfg-inline-arguments-reset': [PASS, FAIL],
   'dfg-inline-arguments-reset-changetype': [PASS, FAIL],
-  # TODO(turbofan): We run out of stack earlier on 64-bit for now.
-  'fast/js/deep-recursion-test': [PASS, NO_VARIANTS],
-  # This test leads to a SyntaxError from conflicting let declarations
-  # in ES2015
-  'function-declarations-in-switch-statement': [FAIL],
+  # Irregexp interpreter overflows stack. We should just not crash.
+  'fast/js/regexp-stack-overflow': [PASS, FAIL],
 }],  # ALWAYS
 ['mode == debug', {
   # Too slow in debug mode.
@@ -71,6 +68,14 @@
   # Too slow.
   'dfg-int-overflow-in-loop': [SKIP],
 }], # 'arch == ppc or arch == ppc64'
+['arch == s390 or arch == s390x', {
+  # Too slow.
+  'dfg-int-overflow-in-loop': [SKIP],
+}],  # 'arch == s390 or arch == s390x'
+['arch == x87', {
+  # Too slow.
+  'dfg-negative-array-index': [SKIP],
+}], # 'arch == x87'
 
 ##############################################################################
 ['asan == True', {
@@ -98,11 +103,36 @@
 }],  # 'gc_stress == True and mode == debug'
 
 ##############################################################################
+['variant == ignition and msan', {
+  # TODO(mythria,4680): Too slow and timeout on ignition.
+  'dfg-double-vote-fuzz': [SKIP],
+  'dfg-int-overflow-in-loop': [SKIP],
+}],  # variant == ignition and msan
+
+##############################################################################
+['variant == ignition_turbofan and msan', {
+  # TODO(mythria,4680): Too slow and timeout on ignition.
+  'dfg-double-vote-fuzz': [SKIP],
+  'dfg-int-overflow-in-loop': [SKIP],
+}],  # variant == ignition_turbofan and msan
+
+##############################################################################
+['arch == arm64 and msan', {
+  # Stack size too large with masm on Arm64.
+  'fast/js/excessive-comma-usage': [SKIP],
+}],  # arch == arm64 and msan
+
+##############################################################################
 ['gcov_coverage', {
   # Tests taking too long or getting too large call stacks.
   'fast/js/excessive-comma-usage': [SKIP],
   'run-json-stringify': [SKIP],
 }],  # 'gcov_coverage'
+
+##############################################################################
+['variant == asm_wasm', {
+  '*': [SKIP],
+}],  # variant == asm_wasm
 
 ##############################################################################
 ]

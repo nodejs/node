@@ -4,10 +4,11 @@
 
 #if V8_TARGET_ARCH_X64
 
-#include "src/assembler.h"
-#include "src/codegen.h"
 #include "src/debug/debug.h"
 
+#include "src/assembler.h"
+#include "src/codegen.h"
+#include "src/debug/liveedit.h"
 
 namespace v8 {
 namespace internal {
@@ -39,7 +40,7 @@ void DebugCodegen::ClearDebugBreakSlot(Isolate* isolate, Address pc) {
 
 void DebugCodegen::PatchDebugBreakSlot(Isolate* isolate, Address pc,
                                        Handle<Code> code) {
-  DCHECK_EQ(Code::BUILTIN, code->kind());
+  DCHECK(code->is_debug_stub());
   static const int kSize = Assembler::kDebugBreakSlotLength;
   CodePatcher patcher(isolate, pc, kSize);
   Label check_codesize;
@@ -51,6 +52,9 @@ void DebugCodegen::PatchDebugBreakSlot(Isolate* isolate, Address pc,
   DCHECK_EQ(kSize, patcher.masm()->SizeOfCodeGeneratedSince(&check_codesize));
 }
 
+bool DebugCodegen::DebugBreakSlotIsPatched(Address pc) {
+  return !Assembler::IsNop(pc);
+}
 
 void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
                                           DebugBreakCallHelperMode mode) {
@@ -66,9 +70,15 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
     }
     __ Push(Smi::FromInt(LiveEdit::kFramePaddingInitialSize));
 
-    if (mode == SAVE_RESULT_REGISTER) __ Push(rax);
-
-    __ Set(rax, 0);  // No arguments (argc == 0).
+    // Push arguments for DebugBreak call.
+    if (mode == SAVE_RESULT_REGISTER) {
+      // Break on return.
+      __ Push(rax);
+    } else {
+      // Non-return breaks.
+      __ Push(masm->isolate()->factory()->the_hole_value());
+    }
+    __ Set(rax, 1);
     __ Move(rbx, ExternalReference(Runtime::FunctionForId(Runtime::kDebugBreak),
                                    masm->isolate()));
 
@@ -78,11 +88,13 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
     if (FLAG_debug_code) {
       for (int i = 0; i < kNumJSCallerSaved; ++i) {
         Register reg = {JSCallerSavedCode(i)};
-        __ Set(reg, kDebugZapValue);
+        // Do not clobber rax if mode is SAVE_RESULT_REGISTER. It will
+        // contain return value of the function.
+        if (!(reg.is(rax) && (mode == SAVE_RESULT_REGISTER))) {
+          __ Set(reg, kDebugZapValue);
+        }
       }
     }
-
-    if (mode == SAVE_RESULT_REGISTER) __ Pop(rax);
 
     // Read current padding counter and skip corresponding number of words.
     __ Pop(kScratchRegister);
@@ -108,9 +120,12 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
 
 void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   // We do not know our frame height, but set rsp based on rbp.
-  __ leap(rsp, Operand(rbp, -1 * kPointerSize));
-
+  __ leap(rsp, Operand(rbp, FrameDropperFrameConstants::kFunctionOffset));
   __ Pop(rdi);  // Function.
+  __ addp(rsp,
+          Immediate(-FrameDropperFrameConstants::kCodeOffset));  // INTERNAL
+                                                                 // frame marker
+                                                                 // and code
   __ popq(rbp);
 
   ParameterCount dummy(0);

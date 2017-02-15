@@ -1,81 +1,103 @@
 /**
  * @fileoverview Rule to disallow whitespace before properties
  * @author Kai Cataldo
- * @copyright 2015 Kai Cataldo. All rights reserved.
- * See LICENSE file in root directory for full license.
  */
 "use strict";
 
-var astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
-    var sourceCode = context.getSourceCode();
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow whitespace before properties",
+            category: "Stylistic Issues",
+            recommended: false
+        },
 
-    //--------------------------------------------------------------------------
-    // Helpers
-    //--------------------------------------------------------------------------
+        fixable: "whitespace",
+        schema: []
+    },
 
-    /**
-     * Finds opening bracket token of node's computed property
-     * @param {ASTNode} node - the node to check
-     * @returns {Token} opening bracket token of node's computed property
-     * @private
-     */
-    function findOpeningBracket(node) {
-        var token = sourceCode.getTokenBefore(node.property);
+    create(context) {
+        const sourceCode = context.getSourceCode();
 
-        while (token.value !== "[") {
-            token = sourceCode.getTokenBefore(token);
+        //--------------------------------------------------------------------------
+        // Helpers
+        //--------------------------------------------------------------------------
+
+        /**
+         * Finds opening bracket token of node's computed property
+         * @param {ASTNode} node - the node to check
+         * @returns {Token} opening bracket token of node's computed property
+         * @private
+         */
+        function findOpeningBracket(node) {
+            let token = sourceCode.getTokenBefore(node.property);
+
+            while (token.value !== "[") {
+                token = sourceCode.getTokenBefore(token);
+            }
+            return token;
         }
-        return token;
-    }
 
-    /**
-     * Reports whitespace before property token
-     * @param {ASTNode} node - the node to report in the event of an error
-     * @returns {void}
-     * @private
-     */
-    function reportError(node) {
-        context.report({
-            node: node,
-            message: "Unexpected whitespace before property {{propName}}.",
-            data: {
-                propName: sourceCode.getText(node.property)
-            }
-        });
-    }
+        /**
+         * Reports whitespace before property token
+         * @param {ASTNode} node - the node to report in the event of an error
+         * @param {Token} leftToken - the left token
+         * @param {Token} rightToken - the right token
+         * @returns {void}
+         * @private
+         */
+        function reportError(node, leftToken, rightToken) {
+            const replacementText = node.computed ? "" : ".";
 
-    //--------------------------------------------------------------------------
-    // Public
-    //--------------------------------------------------------------------------
+            context.report({
+                node,
+                message: "Unexpected whitespace before property {{propName}}.",
+                data: {
+                    propName: sourceCode.getText(node.property)
+                },
+                fix(fixer) {
+                    if (!node.computed && astUtils.isDecimalInteger(node.object)) {
 
-    return {
-        MemberExpression: function(node) {
-            var rightToken;
-            var leftToken;
-
-            if (!astUtils.isTokenOnSameLine(node.object, node.property)) {
-                return;
-            }
-
-            if (node.computed) {
-                rightToken = findOpeningBracket(node);
-                leftToken = sourceCode.getTokenBefore(rightToken);
-            } else {
-                rightToken = sourceCode.getFirstToken(node.property);
-                leftToken = sourceCode.getTokenBefore(rightToken, 1);
-            }
-
-            if (sourceCode.isSpaceBetweenTokens(leftToken, rightToken)) {
-                reportError(node);
-            }
+                        // If the object is a number literal, fixing it to something like 5.toString() would cause a SyntaxError.
+                        // Don't fix this case.
+                        return null;
+                    }
+                    return fixer.replaceTextRange([leftToken.range[1], rightToken.range[0]], replacementText);
+                }
+            });
         }
-    };
+
+        //--------------------------------------------------------------------------
+        // Public
+        //--------------------------------------------------------------------------
+
+        return {
+            MemberExpression(node) {
+                let rightToken;
+                let leftToken;
+
+                if (!astUtils.isTokenOnSameLine(node.object, node.property)) {
+                    return;
+                }
+
+                if (node.computed) {
+                    rightToken = findOpeningBracket(node);
+                    leftToken = sourceCode.getTokenBefore(rightToken);
+                } else {
+                    rightToken = sourceCode.getFirstToken(node.property);
+                    leftToken = sourceCode.getTokenBefore(rightToken, 1);
+                }
+
+                if (sourceCode.isSpaceBetweenTokens(leftToken, rightToken)) {
+                    reportError(node, leftToken, rightToken);
+                }
+            }
+        };
+    }
 };
-
-module.exports.schema = [];

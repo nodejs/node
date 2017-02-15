@@ -21,6 +21,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --no-harmony-restrictive-declarations
+
 description(
 "This test checks that the following expressions or statements are valid ECMASCRIPT code or should throw parse error"
 );

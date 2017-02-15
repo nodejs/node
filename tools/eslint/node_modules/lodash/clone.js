@@ -1,5 +1,8 @@
 var baseClone = require('./_baseClone');
 
+/** Used to compose bitmasks for cloning. */
+var CLONE_SYMBOLS_FLAG = 4;
+
 /**
  * Creates a shallow clone of `value`.
  *
@@ -13,9 +16,11 @@ var baseClone = require('./_baseClone');
  *
  * @static
  * @memberOf _
+ * @since 0.1.0
  * @category Lang
  * @param {*} value The value to clone.
  * @returns {*} Returns the cloned value.
+ * @see _.cloneDeep
  * @example
  *
  * var objects = [{ 'a': 1 }, { 'b': 2 }];
@@ -25,7 +30,7 @@ var baseClone = require('./_baseClone');
  * // => true
  */
 function clone(value) {
-  return baseClone(value);
+  return baseClone(value, CLONE_SYMBOLS_FLAG);
 }
 
 module.exports = clone;

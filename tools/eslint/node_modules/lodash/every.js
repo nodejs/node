@@ -9,21 +9,28 @@ var arrayEvery = require('./_arrayEvery'),
  * Iteration is stopped once `predicate` returns falsey. The predicate is
  * invoked with three arguments: (value, index|key, collection).
  *
+ * **Note:** This method returns `true` for
+ * [empty collections](https://en.wikipedia.org/wiki/Empty_set) because
+ * [everything is true](https://en.wikipedia.org/wiki/Vacuous_truth) of
+ * elements of empty collections.
+ *
  * @static
  * @memberOf _
+ * @since 0.1.0
  * @category Collection
  * @param {Array|Object} collection The collection to iterate over.
- * @param {Function|Object|string} [predicate=_.identity] The function invoked per iteration.
- * @param- {Object} [guard] Enables use as an iteratee for functions like `_.map`.
- * @returns {boolean} Returns `true` if all elements pass the predicate check, else `false`.
+ * @param {Function} [predicate=_.identity] The function invoked per iteration.
+ * @param- {Object} [guard] Enables use as an iteratee for methods like `_.map`.
+ * @returns {boolean} Returns `true` if all elements pass the predicate check,
+ *  else `false`.
  * @example
  *
  * _.every([true, 1, null, 'yes'], Boolean);
  * // => false
  *
  * var users = [
- *   { 'user': 'barney', 'active': false },
- *   { 'user': 'fred',   'active': false }
+ *   { 'user': 'barney', 'age': 36, 'active': false },
+ *   { 'user': 'fred',   'age': 40, 'active': false }
  * ];
  *
  * // The `_.matches` iteratee shorthand.

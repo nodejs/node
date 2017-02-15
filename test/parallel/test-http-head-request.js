@@ -1,43 +1,31 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
+const common = require('../common');
+const http = require('http');
 
-
-var body = 'hello world\n';
-var id = 0;
+const body = 'hello world\n';
 
 function test(headers) {
-  var port = common.PORT + id++;
-
-  var server = http.createServer(function(req, res) {
+  const server = http.createServer(function(req, res) {
     console.error('req: %s headers: %j', req.method, headers);
     res.writeHead(200, headers);
     res.end();
     server.close();
   });
 
-  var gotEnd = false;
-
-  server.listen(port, function() {
-    var request = http.request({
-      port: port,
+  server.listen(0, common.mustCall(function() {
+    const request = http.request({
+      port: this.address().port,
       method: 'HEAD',
       path: '/'
-    }, function(response) {
+    }, common.mustCall(function(response) {
       console.error('response start');
-      response.on('end', function() {
+      response.on('end', common.mustCall(function() {
         console.error('response end');
-        gotEnd = true;
-      });
+      }));
       response.resume();
-    });
+    }));
     request.end();
-  });
-
-  process.on('exit', function() {
-    assert.ok(gotEnd);
-  });
+  }));
 }
 
 test({

@@ -2,9 +2,14 @@
 
 /*eslint-disable no-bitwise*/
 
-// A trick for browserified version.
-// Since we make browserifier to ignore `buffer` module, NodeBuffer will be undefined
-var NodeBuffer = require('buffer').Buffer;
+var NodeBuffer;
+
+try {
+  // A trick for browserified version, to not include `Buffer` shim
+  var _require = require;
+  NodeBuffer = _require('buffer').Buffer;
+} catch (__) {}
+
 var Type       = require('../type');
 
 

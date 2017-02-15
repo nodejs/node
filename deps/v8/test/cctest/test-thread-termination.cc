@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "src/api.h"
+#include "src/isolate.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
@@ -204,6 +206,31 @@ TEST(TerminateOnlyV8ThreadFromOtherThread) {
   semaphore = NULL;
 }
 
+// Test that execution can be terminated from within JSON.stringify.
+TEST(TerminateJsonStringify) {
+  semaphore = new v8::base::Semaphore(0);
+  TerminatorThread thread(CcTest::i_isolate());
+  thread.Start();
+
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::ObjectTemplate> global =
+      CreateGlobalTemplate(CcTest::isolate(), Signal, DoLoop);
+  v8::Local<v8::Context> context =
+      v8::Context::New(CcTest::isolate(), NULL, global);
+  v8::Context::Scope context_scope(context);
+  CHECK(!CcTest::isolate()->IsExecutionTerminating());
+  v8::MaybeLocal<v8::Value> result =
+      CompileRun(CcTest::isolate()->GetCurrentContext(),
+                 "var x = [];"
+                 "x[2**31]=1;"
+                 "terminate();"
+                 "JSON.stringify(x);"
+                 "fail();");
+  CHECK(result.IsEmpty());
+  thread.Join();
+  delete semaphore;
+  semaphore = NULL;
+}
 
 int call_count = 0;
 
@@ -403,7 +430,7 @@ TEST(TerminateFromOtherThreadWhileMicrotaskRunning) {
   thread.Start();
 
   v8::Isolate* isolate = CcTest::isolate();
-  isolate->SetAutorunMicrotasks(false);
+  isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kExplicit);
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> global =
       CreateGlobalTemplate(CcTest::isolate(), Signal, DoLoop);
@@ -492,8 +519,7 @@ TEST(ErrorObjectAfterTermination) {
   v8::Context::Scope context_scope(context);
   isolate->TerminateExecution();
   v8::Local<v8::Value> error = v8::Exception::Error(v8_str("error"));
-  // TODO(yangguo): crbug/403509. Check for empty handle instead.
-  CHECK(error->IsUndefined());
+  CHECK(error->IsNativeError());
 }
 
 

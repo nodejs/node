@@ -6,6 +6,7 @@
 #define V8_VM_STATE_H_
 
 #include "src/allocation.h"
+#include "src/counters.h"
 #include "src/isolate.h"
 
 namespace v8 {

@@ -107,8 +107,7 @@ CMS_ReceiptRequest *CMS_ReceiptRequest_create0(unsigned char *id, int idlen,
     else {
         if (!ASN1_STRING_set(rr->signedContentIdentifier, NULL, 32))
             goto merr;
-        if (RAND_pseudo_bytes(rr->signedContentIdentifier->data, 32)
-            <= 0)
+        if (RAND_bytes(rr->signedContentIdentifier->data, 32) <= 0)
             goto err;
     }
 

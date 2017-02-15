@@ -34,13 +34,13 @@
 #include <cmath>
 #endif  // __linux__
 
-#include "src/v8.h"
-
-#include "src/log.h"
+#include "src/api.h"
 #include "src/log-utils.h"
+#include "src/log.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/snapshot/natives.h"
 #include "src/utils.h"
+#include "src/v8.h"
 #include "src/v8threads.h"
 #include "src/version.h"
 #include "src/vm-state-inl.h"
@@ -370,10 +370,13 @@ TEST(LogCallbacks) {
         i::ReadFile(initialize_logger.StopLoggingGetTempFile(), &exists, true));
     CHECK(exists);
 
+    Address ObjMethod1_entry = reinterpret_cast<Address>(ObjMethod1);
+#if USES_FUNCTION_DESCRIPTORS
+    ObjMethod1_entry = *FUNCTION_ENTRYPOINT_ADDRESS(ObjMethod1_entry);
+#endif
     i::EmbeddedVector<char, 100> ref_data;
-    i::SNPrintF(ref_data,
-                "code-creation,Callback,-2,0x%" V8PRIxPTR ",1,\"method1\"",
-                reinterpret_cast<intptr_t>(ObjMethod1));
+    i::SNPrintF(ref_data, "code-creation,Callback,-2,%p,1,\"method1\"",
+                static_cast<void*>(ObjMethod1_entry));
 
     CHECK(StrNStr(log.start(), ref_data.start(), log.length()));
     log.Dispose();
@@ -419,22 +422,34 @@ TEST(LogAccessorCallbacks) {
         i::ReadFile(initialize_logger.StopLoggingGetTempFile(), &exists, true));
     CHECK(exists);
 
+    Address Prop1Getter_entry = reinterpret_cast<Address>(Prop1Getter);
+#if USES_FUNCTION_DESCRIPTORS
+    Prop1Getter_entry = *FUNCTION_ENTRYPOINT_ADDRESS(Prop1Getter_entry);
+#endif
     EmbeddedVector<char, 100> prop1_getter_record;
     i::SNPrintF(prop1_getter_record,
-                "code-creation,Callback,-2,0x%" V8PRIxPTR ",1,\"get prop1\"",
-                reinterpret_cast<intptr_t>(Prop1Getter));
+                "code-creation,Callback,-2,%p,1,\"get prop1\"",
+                static_cast<void*>(Prop1Getter_entry));
     CHECK(StrNStr(log.start(), prop1_getter_record.start(), log.length()));
 
+    Address Prop1Setter_entry = reinterpret_cast<Address>(Prop1Setter);
+#if USES_FUNCTION_DESCRIPTORS
+    Prop1Setter_entry = *FUNCTION_ENTRYPOINT_ADDRESS(Prop1Setter_entry);
+#endif
     EmbeddedVector<char, 100> prop1_setter_record;
     i::SNPrintF(prop1_setter_record,
-                "code-creation,Callback,-2,0x%" V8PRIxPTR ",1,\"set prop1\"",
-                reinterpret_cast<intptr_t>(Prop1Setter));
+                "code-creation,Callback,-2,%p,1,\"set prop1\"",
+                static_cast<void*>(Prop1Setter_entry));
     CHECK(StrNStr(log.start(), prop1_setter_record.start(), log.length()));
 
+    Address Prop2Getter_entry = reinterpret_cast<Address>(Prop2Getter);
+#if USES_FUNCTION_DESCRIPTORS
+    Prop2Getter_entry = *FUNCTION_ENTRYPOINT_ADDRESS(Prop2Getter_entry);
+#endif
     EmbeddedVector<char, 100> prop2_getter_record;
     i::SNPrintF(prop2_getter_record,
-                "code-creation,Callback,-2,0x%" V8PRIxPTR ",1,\"get prop2\"",
-                reinterpret_cast<intptr_t>(Prop2Getter));
+                "code-creation,Callback,-2,%p,1,\"get prop2\"",
+                static_cast<void*>(Prop2Getter_entry));
     CHECK(StrNStr(log.start(), prop2_getter_record.start(), log.length()));
     log.Dispose();
   }
@@ -471,7 +486,7 @@ TEST(EquivalenceOfLoggingAndTraversal) {
         "})(this);");
     logger->StopProfiler();
     reinterpret_cast<i::Isolate*>(isolate)->heap()->CollectAllGarbage(
-        i::Heap::kMakeHeapIterableMask);
+        i::Heap::kMakeHeapIterableMask, i::GarbageCollectionReason::kTesting);
     logger->StringEvent("test-logging-done", "");
 
     // Iterate heap to find compiled functions, will write to log.
@@ -553,14 +568,13 @@ TEST(LogVersion) {
 TEST(Issue539892) {
   class : public i::CodeEventLogger {
    public:
-    virtual void CodeMoveEvent(Address from, Address to) {}
-    virtual void CodeDeleteEvent(Address from) {}
-    virtual void CodeDisableOptEvent(i::Code* code,
-                                     i::SharedFunctionInfo* shared) {}
+    void CodeMoveEvent(i::AbstractCode* from, Address to) override {}
+    void CodeDisableOptEvent(i::AbstractCode* code,
+                             i::SharedFunctionInfo* shared) override {}
 
    private:
-    virtual void LogRecordedBuffer(i::Code* code, i::SharedFunctionInfo* shared,
-                                   const char* name, int length) {}
+    void LogRecordedBuffer(i::AbstractCode* code, i::SharedFunctionInfo* shared,
+                           const char* name, int length) override {}
   } code_event_logger;
   SETUP_FLAGS();
   v8::Isolate::CreateParams create_params;

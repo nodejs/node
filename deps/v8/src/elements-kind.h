@@ -30,10 +30,16 @@ enum ElementsKind {
   // The "slow" kind.
   DICTIONARY_ELEMENTS,
 
+  // Elements kind of the "arguments" object (only in sloppy mode).
   FAST_SLOPPY_ARGUMENTS_ELEMENTS,
   SLOW_SLOPPY_ARGUMENTS_ELEMENTS,
 
-  // Fixed typed arrays
+  // For string wrapper objects ("new String('...')"), the string's characters
+  // are overlaid onto a regular elements backing store.
+  FAST_STRING_WRAPPER_ELEMENTS,
+  SLOW_STRING_WRAPPER_ELEMENTS,
+
+  // Fixed typed arrays.
   UINT8_ELEMENTS,
   INT8_ELEMENTS,
   UINT16_ELEMENTS,
@@ -44,7 +50,10 @@ enum ElementsKind {
   FLOAT64_ELEMENTS,
   UINT8_CLAMPED_ELEMENTS,
 
-  // Derived constants from ElementsKind
+  // Sentinel ElementsKind for objects with no elements.
+  NO_ELEMENTS,
+
+  // Derived constants from ElementsKind.
   FIRST_ELEMENTS_KIND = FAST_SMI_ELEMENTS,
   LAST_ELEMENTS_KIND = UINT8_CLAMPED_ELEMENTS,
   FIRST_FAST_ELEMENTS_KIND = FAST_SMI_ELEMENTS,
@@ -83,6 +92,10 @@ inline bool IsSloppyArgumentsElements(ElementsKind kind) {
          kind == SLOW_SLOPPY_ARGUMENTS_ELEMENTS;
 }
 
+inline bool IsStringWrapperElementsKind(ElementsKind kind) {
+  return kind == FAST_STRING_WRAPPER_ELEMENTS ||
+         kind == SLOW_STRING_WRAPPER_ELEMENTS;
+}
 
 inline bool IsFixedTypedArrayElementsKind(ElementsKind kind) {
   return kind >= FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND &&
@@ -104,7 +117,8 @@ inline bool IsFastElementsKind(ElementsKind kind) {
 
 inline bool IsTransitionElementsKind(ElementsKind kind) {
   return IsFastElementsKind(kind) || IsFixedTypedArrayElementsKind(kind) ||
-         kind == FAST_SLOPPY_ARGUMENTS_ELEMENTS;
+         kind == FAST_SLOPPY_ARGUMENTS_ELEMENTS ||
+         kind == FAST_STRING_WRAPPER_ELEMENTS;
 }
 
 

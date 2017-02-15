@@ -68,10 +68,12 @@
 #endif
 #include "asn1_locl.h"
 
+#ifndef OPENSSL_NO_CMS
 static int rsa_cms_sign(CMS_SignerInfo *si);
 static int rsa_cms_verify(CMS_SignerInfo *si);
 static int rsa_cms_decrypt(CMS_RecipientInfo *ri);
 static int rsa_cms_encrypt(CMS_RecipientInfo *ri);
+#endif
 
 static int rsa_pub_encode(X509_PUBKEY *pk, const EVP_PKEY *pkey)
 {
@@ -665,6 +667,7 @@ static int rsa_pss_to_ctx(EVP_MD_CTX *ctx, EVP_PKEY_CTX *pkctx,
     return rv;
 }
 
+#ifndef OPENSSL_NO_CMS
 static int rsa_cms_verify(CMS_SignerInfo *si)
 {
     int nid, nid2;
@@ -683,6 +686,7 @@ static int rsa_cms_verify(CMS_SignerInfo *si)
     }
     return 0;
 }
+#endif
 
 /*
  * Customised RSA item verification routine. This is called when a signature
@@ -705,6 +709,7 @@ static int rsa_item_verify(EVP_MD_CTX *ctx, const ASN1_ITEM *it, void *asn,
     return -1;
 }
 
+#ifndef OPENSSL_NO_CMS
 static int rsa_cms_sign(CMS_SignerInfo *si)
 {
     int pad_mode = RSA_PKCS1_PADDING;
@@ -729,6 +734,7 @@ static int rsa_cms_sign(CMS_SignerInfo *si)
     X509_ALGOR_set0(alg, OBJ_nid2obj(NID_rsassaPss), V_ASN1_SEQUENCE, os);
     return 1;
 }
+#endif
 
 static int rsa_item_sign(EVP_MD_CTX *ctx, const ASN1_ITEM *it, void *asn,
                          X509_ALGOR *alg1, X509_ALGOR *alg2,
@@ -785,6 +791,7 @@ static RSA_OAEP_PARAMS *rsa_oaep_decode(const X509_ALGOR *alg,
     return pss;
 }
 
+#ifndef OPENSSL_NO_CMS
 static int rsa_cms_decrypt(CMS_RecipientInfo *ri)
 {
     EVP_PKEY_CTX *pkctx;
@@ -920,6 +927,7 @@ static int rsa_cms_encrypt(CMS_RecipientInfo *ri)
         ASN1_STRING_free(os);
     return rv;
 }
+#endif
 
 const EVP_PKEY_ASN1_METHOD rsa_asn1_meths[] = {
     {

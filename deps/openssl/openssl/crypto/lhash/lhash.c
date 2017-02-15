@@ -335,8 +335,8 @@ static void expand(_LHASH *lh)
         n = (LHASH_NODE **)OPENSSL_realloc(lh->b,
                                            (int)(sizeof(LHASH_NODE *) * j));
         if (n == NULL) {
-/*                      fputs("realloc error in lhash",stderr); */
             lh->error++;
+            lh->num_nodes--;
             lh->p = 0;
             return;
         }

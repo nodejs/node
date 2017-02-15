@@ -1,7 +1,6 @@
 /**
  * @fileoverview Defines environment settings and globals.
  * @author Elan Shanker
- * @copyright 2014 Elan Shanker. All rights reserved.
  */
 "use strict";
 
@@ -9,7 +8,7 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var globals = require("globals");
+const globals = require("globals");
 
 //------------------------------------------------------------------------------
 // Public Interface

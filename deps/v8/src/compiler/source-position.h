@@ -5,8 +5,8 @@
 #ifndef V8_COMPILER_SOURCE_POSITION_H_
 #define V8_COMPILER_SOURCE_POSITION_H_
 
-#include "src/assembler.h"
 #include "src/compiler/node-aux-data.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -25,7 +25,7 @@ class SourcePosition final {
   int raw() const { return raw_; }
 
  private:
-  static const int kUnknownPosition = RelocInfo::kNoPosition;
+  static const int kUnknownPosition = kNoSourcePosition;
   int raw_;
 };
 
@@ -38,8 +38,7 @@ inline bool operator!=(const SourcePosition& lhs, const SourcePosition& rhs) {
   return !(lhs == rhs);
 }
 
-
-class SourcePositionTable final {
+class SourcePositionTable final : public ZoneObject {
  public:
   class Scope final {
    public:
@@ -66,14 +65,12 @@ class SourcePositionTable final {
   };
 
   explicit SourcePositionTable(Graph* graph);
-  ~SourcePositionTable() {
-    if (decorator_) RemoveDecorator();
-  }
 
   void AddDecorator();
   void RemoveDecorator();
 
   SourcePosition GetSourcePosition(Node* node) const;
+  void SetSourcePosition(Node* node, SourcePosition position);
 
   void Print(std::ostream& os) const;
 

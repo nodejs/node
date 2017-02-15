@@ -941,7 +941,7 @@ $     CC = "CC"
 $     IF ARCH.EQS."VAX" .AND. F$TRNLNM("DECC$CC_DEFAULT").NES."/DECC" -
 	 THEN CC = "CC/DECC"
 $     CC = CC + " /''CC_OPTIMIZE' /''DEBUGGER' /STANDARD=RELAXED"+ -
-       "''POINTER_SIZE' /NOLIST /PREFIX=ALL" + -
+       "''POINTER_SIZE' /NOLIST /PREFIX=ALL /EXTERN_MODEL=STRICT_REFDEF" + -
        " /INCLUDE=(''CC_INCLUDES') " + CCEXTRAFLAGS
 $!
 $!    Define The Linker Options File Name.

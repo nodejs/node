@@ -21,7 +21,7 @@ exports.ucData =
     'sign-git-tag': true,
     message: 'v%s',
     'strict-ssl': false,
-    'tmp': process.env.HOME + '/.tmp',
+    'tmp': path.normalize(process.env.HOME + '/.tmp'),
     _auth: 'dXNlcm5hbWU6cGFzc3dvcmQ=',
     _token:
      { AuthSession: 'yabba-dabba-doodle',
@@ -38,10 +38,10 @@ Object.keys(process.env).forEach(function (k) {
   }
 })
 process.env.npm_config_userconfig = exports.userconfig
-process.env.npm_config_other_env_thing = 1000
+process.env.npm_config_other_env_thing = '1000'
 process.env.random_env_var = 'asdf'
 process.env.npm_config__underbar_env_thing = 'underful'
-process.env.NPM_CONFIG_UPPERCASE_ENV_THING = 42
+process.env.NPM_CONFIG_UPPERCASE_ENV_THING = '42'
 
 exports.envData = {
   userconfig: exports.userconfig,
@@ -61,11 +61,11 @@ try {
   fs.statSync(projectConf)
 } catch (er) {
   // project conf not found, probably working with packed npm
-  fs.writeFileSync(projectConf, function () {/*
+  fs.writeFileSync(projectConf, function () { /*
 save-prefix = ~
 proprietary-attribs = false
 legacy-bundling = true
-  */}.toString().split('\n').slice(1, -1).join('\n'))
+  */ }.toString().split('\n').slice(1, -1).join('\n'))
 }
 
 var projectRc = path.join(__dirname, '..', 'fixtures', 'config', '.npmrc')

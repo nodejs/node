@@ -10,7 +10,7 @@ Debug.setBreakOnException();
 
 try {
   try {
-    %DebugPushPromise(new Promise(function() {}), function() {});
+    %DebugPushPromise(new Promise(function() {}));
   } catch (e) {
   }
   throw new Error();

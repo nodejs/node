@@ -1,0 +1,59 @@
+=pod
+
+=head1 NAME
+
+d2i_Private_key, d2i_AutoPrivateKey, i2d_PrivateKey - decode and encode
+functions for reading and saving EVP_PKEY structures.
+
+=head1 SYNOPSIS
+
+ #include <openssl/evp.h>
+
+ EVP_PKEY *d2i_PrivateKey(int type, EVP_PKEY **a, const unsigned char **pp,
+                          long length);
+ EVP_PKEY *d2i_AutoPrivateKey(EVP_PKEY **a, const unsigned char **pp,
+                              long length);
+ int i2d_PrivateKey(EVP_PKEY *a, unsigned char **pp);
+
+=head1 DESCRIPTION
+
+d2i_PrivateKey() decodes a private key using algorithm B<type>. It attempts to
+use any key specific format or PKCS#8 unencrypted PrivateKeyInfo format. The
+B<type> parameter should be a public key algorithm constant such as
+B<EVP_PKEY_RSA>. An error occurs if the decoded key does not match B<type>.
+
+d2i_AutoPrivateKey() is similar to d2i_PrivateKey() except it attempts to
+automatically detect the private key format.
+
+i2d_PrivateKey() encodes B<key>. It uses a key specific format or, if none is
+defined for that key type, PKCS#8 unencrypted PrivateKeyInfo format.
+
+These functions are similar to the d2i_X509() functions, and you should refer to
+that page for a detailed description (see L<d2i_X509(3)>).
+
+=head1 NOTES
+
+All these functions use DER format and unencrypted keys. Applications wishing
+to encrypt or decrypt private keys should use other functions such as
+d2i_PKC8PrivateKey() instead.
+
+If the B<*a> is not NULL when calling d2i_PrivateKey() or d2i_AutoPrivateKey()
+(i.e. an existing structure is being reused) and the key format is PKCS#8
+then B<*a> will be freed and replaced on a successful call.
+
+=head1 RETURN VALUES
+
+d2i_PrivateKey() and d2i_AutoPrivateKey() return a valid B<EVP_KEY> structure
+or B<NULL> if an error occurs. The error code can be obtained by calling
+L<ERR_get_error(3)>.
+
+i2d_PrivateKey() returns the number of bytes successfully encoded or a
+negative value if an error occurs. The error code can be obtained by calling
+L<ERR_get_error(3)>.
+
+=head1 SEE ALSO
+
+L<crypto(3)>,
+L<d2i_PKCS8PrivateKey(3)>
+
+=cut

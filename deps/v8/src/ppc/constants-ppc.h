@@ -241,6 +241,8 @@ enum OpcodeExt2 {
   POPCNTD = 506 << 1,  // Population Count Doubleword
 
   // Below represent bits 10-1  (any value >= 512)
+  LDBRX = 532 << 1,   // load double word byte reversed w/ x-form
+  LWBRX = 534 << 1,   // load word byte reversed w/ x-form
   LFSX = 535 << 1,    // load float-single w/ x-form
   SRWX = 536 << 1,    // Shift Right Word
   SRDX = 539 << 1,    // Shift Right Double Word
@@ -252,6 +254,7 @@ enum OpcodeExt2 {
   STFSUX = 695 << 1,  // store float-single w/ update x-form
   STFDX = 727 << 1,   // store float-double w/ x-form
   STFDUX = 759 << 1,  // store float-double w/ update x-form
+  LHBRX = 790 << 1,   // load half word byte reversed w/ x-form
   SRAW = 792 << 1,    // Shift Right Algebraic Word
   SRAD = 794 << 1,    // Shift Right Algebraic Double Word
   SRAWIX = 824 << 1,  // Shift Right Algebraic Word Immediate

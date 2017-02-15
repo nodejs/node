@@ -18,7 +18,9 @@ https://github.com/v8/v8/wiki/Triaging%20issues
 
 Please close rolling in case of a roll revert:
 https://v8-roll.appspot.com/
-This only works with a Google account.""")
+This only works with a Google account.
+
+CQ_INCLUDE_TRYBOTS=master.tryserver.blink:linux_precise_blink_rel;master.tryserver.chromium.linux:linux_optional_gpu_tests_rel;master.tryserver.chromium.mac:mac_optional_gpu_tests_rel;master.tryserver.chromium.win:win_optional_gpu_tests_rel""")
 
 class Preparation(Step):
   MESSAGE = "Preparation."
@@ -123,7 +125,6 @@ class UpdateChromiumCheckout(Step):
     cwd = self._options.chromium
     self.GitCheckout("master", cwd=cwd)
     self.DeleteBranch("work-branch", cwd=cwd)
-    self.Command("gclient", "sync --nohooks", cwd=cwd)
     self.GitPull(cwd=cwd)
 
     # Update v8 remotes.
@@ -156,6 +157,7 @@ class UploadCL(Step):
     if not self._options.dry_run:
       self.GitUpload(author=self._options.author,
                      force=True,
+                     bypass_hooks=True,
                      cq=self._options.use_commit_queue,
                      cwd=cwd)
       print "CL uploaded."

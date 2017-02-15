@@ -1,21 +1,20 @@
 'use strict';
-const common = require('../common');
+require('../common');
 const http = require('http');
 const net = require('net');
 
-var once = false;
-var first = null;
-var second = null;
+let once = false;
+let first = null;
+let second = null;
 
-const chunk = new Buffer(1024);
-chunk.fill('X');
+const chunk = Buffer.alloc(1024, 'X');
 
-var size = 0;
+let size = 0;
 
-var more;
-var done;
+let more;
+let done;
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   if (!once)
     server.close();
   once = true;
@@ -41,8 +40,8 @@ var server = http.createServer(function(req, res) {
     socket.end();
   });
   first.end('hello');
-}).listen(common.PORT, function() {
-  var s = net.connect(common.PORT);
+}).listen(0, function() {
+  const s = net.connect(this.address().port);
   more = function() {
     s.write('GET / HTTP/1.1\r\n\r\n');
   };

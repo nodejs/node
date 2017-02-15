@@ -7,7 +7,7 @@
 
 #include "src/bit-vector.h"
 #include "src/compiler/node.h"
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -85,6 +85,10 @@ class LivenessAnalyzerBlock {
   void Bind(int var) { entries_.push_back(Entry(Entry::kBind, var)); }
   void Checkpoint(Node* node) { entries_.push_back(Entry(node)); }
   void AddPredecessor(LivenessAnalyzerBlock* b) { predecessors_.push_back(b); }
+  LivenessAnalyzerBlock* GetPredecessor() {
+    DCHECK(predecessors_.size() == 1);
+    return predecessors_[0];
+  }
 
  private:
   class Entry {

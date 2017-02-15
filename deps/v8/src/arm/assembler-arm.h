@@ -57,11 +57,21 @@ namespace internal {
 #define ALLOCATABLE_GENERAL_REGISTERS(V) \
   V(r0)  V(r1)  V(r2)  V(r3)  V(r4)  V(r5)  V(r6)  V(r7)  V(r8)
 
+#define FLOAT_REGISTERS(V)                                \
+  V(s0)  V(s1)  V(s2)  V(s3)  V(s4)  V(s5)  V(s6)  V(s7)  \
+  V(s8)  V(s9)  V(s10) V(s11) V(s12) V(s13) V(s14) V(s15) \
+  V(s16) V(s17) V(s18) V(s19) V(s20) V(s21) V(s22) V(s23) \
+  V(s24) V(s25) V(s26) V(s27) V(s28) V(s29) V(s30) V(s31)
+
 #define DOUBLE_REGISTERS(V)                               \
   V(d0)  V(d1)  V(d2)  V(d3)  V(d4)  V(d5)  V(d6)  V(d7)  \
   V(d8)  V(d9)  V(d10) V(d11) V(d12) V(d13) V(d14) V(d15) \
   V(d16) V(d17) V(d18) V(d19) V(d20) V(d21) V(d22) V(d23) \
   V(d24) V(d25) V(d26) V(d27) V(d28) V(d29) V(d30) V(d31)
+
+#define SIMD128_REGISTERS(V)                              \
+  V(q0)  V(q1)  V(q2)  V(q3)  V(q4)  V(q5)  V(q6)  V(q7)  \
+  V(q8)  V(q9)  V(q10) V(q11) V(q12) V(q13) V(q14) V(q15)
 
 #define ALLOCATABLE_DOUBLE_REGISTERS(V)                   \
   V(d0)  V(d1)  V(d2)  V(d3)  V(d4)  V(d5)  V(d6)  V(d7)  \
@@ -112,8 +122,6 @@ struct Register {
     Register r = {code};
     return r;
   }
-  const char* ToString();
-  bool IsAllocatable() const;
   bool is_valid() const { return 0 <= reg_code && reg_code < kNumRegisters; }
   bool is(Register reg) const { return reg_code == reg.reg_code; }
   int code() const {
@@ -141,9 +149,22 @@ GENERAL_REGISTERS(DECLARE_REGISTER)
 #undef DECLARE_REGISTER
 const Register no_reg = {Register::kCode_no_reg};
 
+static const bool kSimpleFPAliasing = false;
+
 // Single word VFP register.
 struct SwVfpRegister {
+  enum Code {
+#define REGISTER_CODE(R) kCode_##R,
+    FLOAT_REGISTERS(REGISTER_CODE)
+#undef REGISTER_CODE
+        kAfterLast,
+    kCode_no_reg = -1
+  };
+
+  static const int kMaxNumRegisters = Code::kAfterLast;
+
   static const int kSizeInBytes = 4;
+
   bool is_valid() const { return 0 <= reg_code && reg_code < 32; }
   bool is(SwVfpRegister reg) const { return reg_code == reg.reg_code; }
   int code() const {
@@ -154,6 +175,10 @@ struct SwVfpRegister {
     DCHECK(is_valid());
     return 1 << reg_code;
   }
+  static SwVfpRegister from_code(int code) {
+    SwVfpRegister r = {code};
+    return r;
+  }
   void split_code(int* vm, int* m) const {
     DCHECK(is_valid());
     *m = reg_code & 0x1;
@@ -163,9 +188,10 @@ struct SwVfpRegister {
   int reg_code;
 };
 
+typedef SwVfpRegister FloatRegister;
 
 // Double word VFP register.
-struct DoubleRegister {
+struct DwVfpRegister {
   enum Code {
 #define REGISTER_CODE(R) kCode_##R,
     DOUBLE_REGISTERS(REGISTER_CODE)
@@ -184,10 +210,8 @@ struct DoubleRegister {
   //  d15: scratch register.
   static const int kSizeInBytes = 8;
 
-  const char* ToString();
-  bool IsAllocatable() const;
   bool is_valid() const { return 0 <= reg_code && reg_code < kMaxNumRegisters; }
-  bool is(DoubleRegister reg) const { return reg_code == reg.reg_code; }
+  bool is(DwVfpRegister reg) const { return reg_code == reg.reg_code; }
   int code() const {
     DCHECK(is_valid());
     return reg_code;
@@ -197,8 +221,8 @@ struct DoubleRegister {
     return 1 << reg_code;
   }
 
-  static DoubleRegister from_code(int code) {
-    DoubleRegister r = {code};
+  static DwVfpRegister from_code(int code) {
+    DwVfpRegister r = {code};
     return r;
   }
   void split_code(int* vm, int* m) const {
@@ -211,7 +235,7 @@ struct DoubleRegister {
 };
 
 
-typedef DoubleRegister DwVfpRegister;
+typedef DwVfpRegister DoubleRegister;
 
 
 // Double word VFP register d0-15.
@@ -285,6 +309,7 @@ struct QwNeonRegister {
 
 typedef QwNeonRegister QuadRegister;
 
+typedef QwNeonRegister Simd128Register;
 
 // Support for the VFP registers s0 to s31 (d0 to d15).
 // Note that "s(N):s(N+1)" is the same as "d(N/2)".
@@ -950,6 +975,9 @@ class Assembler : public AssemblerBase {
   void uxtah(Register dst, Register src1, Register src2, int rotate = 0,
              Condition cond = al);
 
+  // Reverse the bits in a register.
+  void rbit(Register dst, Register src, Condition cond = al);
+
   // Status register access instructions
 
   void mrs(Register dst, SRegister s, Condition cond = al);
@@ -971,6 +999,14 @@ class Assembler : public AssemblerBase {
             Register src2,
             const MemOperand& dst, Condition cond = al);
 
+  // Load/Store exclusive instructions
+  void ldrex(Register dst, Register src, Condition cond = al);
+  void strex(Register src1, Register src2, Register dst, Condition cond = al);
+  void ldrexb(Register dst, Register src, Condition cond = al);
+  void strexb(Register src1, Register src2, Register dst, Condition cond = al);
+  void ldrexh(Register dst, Register src, Condition cond = al);
+  void strexh(Register src1, Register src2, Register dst, Condition cond = al);
+
   // Preload instructions
   void pld(const MemOperand& address);
 
@@ -985,6 +1021,12 @@ class Assembler : public AssemblerBase {
 
   void bkpt(uint32_t imm16);  // v5 and above
   void svc(uint32_t imm24, Condition cond = al);
+
+  // Synchronization instructions.
+  // On ARMv6, an equivalent CP15 operation will be used.
+  void dmb(BarrierOption option);
+  void dsb(BarrierOption option);
+  void isb(BarrierOption option);
 
   // Coprocessor instructions
 
@@ -1125,6 +1167,18 @@ class Assembler : public AssemblerBase {
                     const SwVfpRegister src,
                     VFPConversionMode mode = kDefaultRoundToZero,
                     const Condition cond = al);
+  void vcvt_f32_u32(const SwVfpRegister dst,
+                    const SwVfpRegister src,
+                    VFPConversionMode mode = kDefaultRoundToZero,
+                    const Condition cond = al);
+  void vcvt_s32_f32(const SwVfpRegister dst,
+                    const SwVfpRegister src,
+                    VFPConversionMode mode = kDefaultRoundToZero,
+                    const Condition cond = al);
+  void vcvt_u32_f32(const SwVfpRegister dst,
+                    const SwVfpRegister src,
+                    VFPConversionMode mode = kDefaultRoundToZero,
+                    const Condition cond = al);
   void vcvt_s32_f64(const SwVfpRegister dst,
                     const DwVfpRegister src,
                     VFPConversionMode mode = kDefaultRoundToZero,
@@ -1204,6 +1258,30 @@ class Assembler : public AssemblerBase {
             const Condition cond = al);
   void vcmp(const SwVfpRegister src1, const float src2,
             const Condition cond = al);
+
+  void vmaxnm(const DwVfpRegister dst,
+              const DwVfpRegister src1,
+              const DwVfpRegister src2);
+  void vmaxnm(const SwVfpRegister dst,
+              const SwVfpRegister src1,
+              const SwVfpRegister src2);
+  void vminnm(const DwVfpRegister dst,
+              const DwVfpRegister src1,
+              const DwVfpRegister src2);
+  void vminnm(const SwVfpRegister dst,
+              const SwVfpRegister src1,
+              const SwVfpRegister src2);
+
+  // VSEL supports cond in {eq, ne, ge, lt, gt, le, vs, vc}.
+  void vsel(const Condition cond,
+            const DwVfpRegister dst,
+            const DwVfpRegister src1,
+            const DwVfpRegister src2);
+  void vsel(const Condition cond,
+            const SwVfpRegister dst,
+            const SwVfpRegister src1,
+            const SwVfpRegister src2);
+
   void vsqrt(const DwVfpRegister dst,
              const DwVfpRegister src,
              const Condition cond = al);
@@ -1225,8 +1303,8 @@ class Assembler : public AssemblerBase {
               const Condition cond = al);
 
   // Support for NEON.
-  // All these APIs support D0 to D31 and Q0 to Q15.
 
+  // All these APIs support D0 to D31 and Q0 to Q15.
   void vld1(NeonSize size,
             const NeonListOperand& dst,
             const NeonMemOperand& src);
@@ -1234,6 +1312,9 @@ class Assembler : public AssemblerBase {
             const NeonListOperand& src,
             const NeonMemOperand& dst);
   void vmovl(NeonDataType dt, QwNeonRegister dst, DwVfpRegister src);
+
+  // Currently, vswp supports only D0 to D31.
+  void vswp(DwVfpRegister srcdst0, DwVfpRegister srcdst1);
 
   // Pseudo instructions
 
@@ -1266,6 +1347,10 @@ class Assembler : public AssemblerBase {
   }
 
   void vpush(DwVfpRegister src, Condition cond = al) {
+    vstm(db_w, sp, src, src, cond);
+  }
+
+  void vpush(SwVfpRegister src, Condition cond = al) {
     vstm(db_w, sp, src, src, cond);
   }
 
@@ -1336,7 +1421,7 @@ class Assembler : public AssemblerBase {
 
   // Record a deoptimization reason that can be used by a log or cpu profiler.
   // Use --trace-deopt to enable.
-  void RecordDeoptReason(const int reason, const SourcePosition position);
+  void RecordDeoptReason(DeoptimizeReason reason, int raw_position, int id);
 
   // Record the emission of a constant pool.
   //
@@ -1368,8 +1453,6 @@ class Assembler : public AssemblerBase {
 
   // Emits the address of the code stub's first instruction.
   void emit_code_stub_address(Code* stub);
-
-  PositionsRecorder* positions_recorder() { return &positions_recorder_; }
 
   // Read/patch instructions
   Instr instr_at(int pos) { return *reinterpret_cast<Instr*>(buffer_ + pos); }
@@ -1500,10 +1583,10 @@ class Assembler : public AssemblerBase {
       // Max pool start (if we need a jump and an alignment).
       int start = pc_offset() + kInstrSize + 2 * kPointerSize;
       // Check the constant pool hasn't been blocked for too long.
-      DCHECK((num_pending_32_bit_constants_ == 0) ||
-             (start + num_pending_64_bit_constants_ * kDoubleSize <
+      DCHECK(pending_32_bit_constants_.empty() ||
+             (start + pending_64_bit_constants_.size() * kDoubleSize <
               (first_const_pool_32_use_ + kMaxDistToIntPool)));
-      DCHECK((num_pending_64_bit_constants_ == 0) ||
+      DCHECK(pending_64_bit_constants_.empty() ||
              (start < (first_const_pool_64_use_ + kMaxDistToFPPool)));
 #endif
       // Two cases:
@@ -1518,6 +1601,12 @@ class Assembler : public AssemblerBase {
   bool is_const_pool_blocked() const {
     return (const_pool_blocked_nesting_ > 0) ||
            (pc_offset() < no_const_pool_before_);
+  }
+
+  bool VfpRegisterIsAvailable(DwVfpRegister reg) {
+    DCHECK(reg.is_valid());
+    return IsEnabled(VFP32DREGS) ||
+           (reg.reg_code < LowDwVfpRegister::kMaxNumLowRegisters);
   }
 
  private:
@@ -1570,14 +1659,8 @@ class Assembler : public AssemblerBase {
   // pending relocation entry per instruction.
 
   // The buffers of pending constant pool entries.
-  ConstantPoolEntry pending_32_bit_constants_buffer_[kMinNumPendingConstants];
-  ConstantPoolEntry pending_64_bit_constants_buffer_[kMinNumPendingConstants];
-  ConstantPoolEntry* pending_32_bit_constants_;
-  ConstantPoolEntry* pending_64_bit_constants_;
-  // Number of pending constant pool entries in the 32 bits buffer.
-  int num_pending_32_bit_constants_;
-  // Number of pending constant pool entries in the 64 bits buffer.
-  int num_pending_64_bit_constants_;
+  std::vector<ConstantPoolEntry> pending_32_bit_constants_;
+  std::vector<ConstantPoolEntry> pending_64_bit_constants_;
 
   ConstantPoolBuilder constant_pool_builder_;
 
@@ -1616,8 +1699,6 @@ class Assembler : public AssemblerBase {
   friend class RelocInfo;
   friend class CodePatcher;
   friend class BlockConstPoolScope;
-  PositionsRecorder positions_recorder_;
-  friend class PositionsRecorder;
   friend class EnsureSpace;
 };
 

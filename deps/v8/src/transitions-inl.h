@@ -100,7 +100,9 @@ void TransitionArray::SetTarget(int transition_number, Map* value) {
 
 
 int TransitionArray::SearchName(Name* name, int* out_insertion_index) {
-  return internal::Search<ALL_ENTRIES>(this, name, 0, out_insertion_index);
+  DCHECK(name->IsUniqueName());
+  return internal::Search<ALL_ENTRIES>(this, name, number_of_entries(),
+                                       out_insertion_index);
 }
 
 
@@ -111,9 +113,7 @@ bool TransitionArray::IsSpecialTransition(Name* name) {
   return name == heap->nonextensible_symbol() ||
          name == heap->sealed_symbol() || name == heap->frozen_symbol() ||
          name == heap->elements_transition_symbol() ||
-         name == heap->strict_function_transition_symbol() ||
-         name == heap->strong_function_transition_symbol() ||
-         name == heap->observed_symbol();
+         name == heap->strict_function_transition_symbol();
 }
 #endif
 

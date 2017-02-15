@@ -1,27 +1,17 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var net = require('net');
-var connected = false;
-var secure = false;
+const net = require('net');
 
-process.on('exit', function() {
-  assert(connected);
-  assert(secure);
-  console.log('ok');
-});
-
-var socket = net.connect(443, 'www.google.com', function() {
-  connected = true;
-  var secureSocket = tls.connect({ socket: socket }, function() {
-    secure = true;
+const socket = net.connect(443, 'www.example.org', common.mustCall(() => {
+  const secureSocket = tls.connect({socket: socket}, common.mustCall(() => {
     secureSocket.destroy();
-  });
-});
+    console.log('ok');
+  }));
+}));

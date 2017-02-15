@@ -1,0 +1,24 @@
+language: python
+python:
+  - "2.6"
+  - "2.7"
+  - "3.3"
+  - "3.4"
+  - "3.5"
+  - "pypy"
+
+install:
+    - pip install tox
+script:
+    - tox -e \
+      $(echo $TRAVIS_PYTHON_VERSION | sed 's/^\([0-9]\)\.\([0-9]\).*/py\1\2/')
+
+notifications:
+  email: false
+  irc:
+    channels:
+      - "chat.freenode.net#pocoo"
+    on_success: change
+    on_failure: always
+    use_notice: true
+    skip_join: true

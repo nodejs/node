@@ -4,39 +4,26 @@
  * should trigger the error event after each attempt.
  */
 
-require('../common');
-var assert = require('assert');
-var http = require('http');
-
-var resDespiteError = false;
-var hadError = 0;
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
 
 function httpreq(count) {
-  if (1 < count) return;
+  if (count > 1) return;
 
-  var req = http.request({
+  const req = http.request({
     host: 'not-a-real-domain-name.nobody-would-register-this-as-a-tld',
     port: 80,
     path: '/',
     method: 'GET'
-  }, function(res) {
-    resDespiteError = true;
-  });
+  }, common.mustNotCall());
 
-  req.on('error', function(e) {
-    console.log(e.message);
+  req.on('error', common.mustCall((e) => {
     assert.strictEqual(e.code, 'ENOTFOUND');
-    hadError++;
     httpreq(count + 1);
-  });
+  }));
 
   req.end();
 }
 
 httpreq(0);
-
-
-process.on('exit', function() {
-  assert.equal(false, resDespiteError);
-  assert.equal(2, hadError);
-});

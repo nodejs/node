@@ -1,1 +1,1 @@
-module.exports = require('./filter');
+module.exports = require('./isMatch');

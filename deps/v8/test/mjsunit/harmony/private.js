@@ -278,8 +278,8 @@ function TestKeyDescriptor(obj) {
     assertEquals(i|0, desc.value)
     assertTrue(desc.configurable)
     assertEquals(i % 2 == 0, desc.writable)
-    assertEquals(i % 2 == 0, desc.enumerable)
-    assertEquals(i % 2 == 0,
+    assertEquals(false, desc.enumerable)
+    assertEquals(false,
         Object.prototype.propertyIsEnumerable.call(obj, symbols[i]))
   }
 }

@@ -5,69 +5,82 @@
 // Flags: --expose-wasm
 
 load("test/mjsunit/wasm/wasm-constants.js");
+load("test/mjsunit/wasm/wasm-module-builder.js");
 
 var module = (function () {
-  var kFuncWithBody = 9;
-  var kFuncImported = 7;
-  var kBodySize1 = 5;
-  var kBodySize2 = 8;
-  var kFuncTableSize = 8;
-  var kSubOffset = 13 + kFuncWithBody + kBodySize1 + kFuncImported + kFuncWithBody + kBodySize2 + kFuncTableSize + 1;
-  var kAddOffset = kSubOffset + 4;
-  var kMainOffset = kAddOffset + 4;
+  var builder = new WasmModuleBuilder();
 
-  var ffi = new Object();
-  ffi.add = (function(a, b) { return a + b | 0; });
+  var sig_index = builder.addType(kSig_i_ii);
+  builder.addImport("add", sig_index);
+  builder.addFunction("add", sig_index)
+    .addBody([
+      kExprGetLocal, 0, kExprGetLocal, 1, kExprCallFunction, 0
+    ]);
+  builder.addFunction("sub", sig_index)
+    .addBody([
+      kExprGetLocal, 0,             // --
+      kExprGetLocal, 1,             // --
+      kExprI32Sub,                  // --
+    ]);
+  builder.addFunction("main", kSig_i_iii)
+    .addBody([
+      kExprGetLocal, 1,
+      kExprGetLocal, 2,
+      kExprGetLocal, 0,
+      kExprCallIndirect, sig_index
+    ])
+    .exportFunc()
+  builder.appendToTable([1, 2, 3]);
 
-  return _WASMEXP_.instantiateModule(bytes(
-    // -- signatures
-    kDeclSignatures, 2,
-    2, kAstI32, kAstI32, kAstI32, // int, int -> int
-    3, kAstI32, kAstI32, kAstI32, kAstI32, // int, int, int -> int
-    // -- function #0 (sub)
-    kDeclFunctions, 3,
-    kDeclFunctionName,
-    0, 0,                         // signature offset
-    kSubOffset, 0, 0, 0,          // name offset
-    kBodySize1, 0,                // body size
-    kExprI32Sub,                  // --
-    kExprGetLocal, 0,             // --
-    kExprGetLocal, 1,             // --
-    // -- function #1 (add)
-    kDeclFunctionName | kDeclFunctionImport,
-    0, 0,                         // signature offset
-    kAddOffset, 0, 0, 0,          // name offset
-    // -- function #2 (main)
-    kDeclFunctionName | kDeclFunctionExport,
-    1, 0,                         // signature offset
-    kMainOffset, 0, 0, 0,         // name offset
-    kBodySize2, 0,                // body size
-    kExprCallIndirect, 0,
-    kExprGetLocal, 0,
-    kExprGetLocal, 1,
-    kExprGetLocal, 2,
-    // -- function table
-    kDeclFunctionTable,
-    3,
-    0, 0,
-    1, 0,
-    2, 0,
-    kDeclEnd,
-    's', 'u', 'b', 0,              // name
-    'a', 'd', 'd', 0,              // name
-    'm', 'a', 'i', 'n', 0          // name
-  ), ffi);
+  return builder.instantiate({add: function(a, b) { return a + b | 0; }});
 })();
 
 // Check the module exists.
 assertFalse(module === undefined);
 assertFalse(module === null);
 assertFalse(module === 0);
-assertEquals("object", typeof module);
-assertEquals("function", typeof module.main);
+assertEquals("object", typeof module.exports);
+assertEquals("function", typeof module.exports.main);
 
-assertEquals(5, module.main(0, 12, 7));
-assertEquals(19, module.main(1, 12, 7));
+assertEquals(5, module.exports.main(1, 12, 7));
+assertEquals(19, module.exports.main(0, 12, 7));
 
-assertTraps(kTrapFuncSigMismatch, "module.main(2, 12, 33)");
-assertTraps(kTrapFuncInvalid, "module.main(3, 12, 33)");
+assertTraps(kTrapFuncSigMismatch, "module.exports.main(2, 12, 33)");
+assertTraps(kTrapFuncInvalid, "module.exports.main(3, 12, 33)");
+
+
+module = (function () {
+  var builder = new WasmModuleBuilder();
+
+  var sig_i_ii = builder.addType(kSig_i_ii);
+  var sig_i_i = builder.addType(kSig_i_i);
+  builder.addImport("mul", sig_i_ii);
+  builder.addFunction("add", sig_i_ii)
+    .addBody([
+      kExprGetLocal, 0,  // --
+      kExprGetLocal, 1,  // --
+      kExprI32Add        // --
+    ]);
+  builder.addFunction("popcnt", sig_i_i)
+    .addBody([
+      kExprGetLocal, 0,  // --
+      kExprI32Popcnt     // --
+    ]);
+  builder.addFunction("main", kSig_i_iii)
+    .addBody([
+      kExprGetLocal, 1,
+      kExprGetLocal, 2,
+      kExprGetLocal, 0,
+      kExprCallIndirect, sig_i_ii
+    ])
+    .exportFunc()
+  builder.appendToTable([0, 1, 2, 3]);
+
+  return builder.instantiate({mul: function(a, b) { return a * b | 0; }});
+})();
+
+assertEquals(-6, module.exports.main(0, -2, 3));
+assertEquals(99, module.exports.main(1, 22, 77));
+assertTraps(kTrapFuncSigMismatch, "module.exports.main(2, 12, 33)");
+assertTraps(kTrapFuncSigMismatch, "module.exports.main(3, 12, 33)");
+assertTraps(kTrapFuncInvalid, "module.exports.main(4, 12, 33)");

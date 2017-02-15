@@ -1,4 +1,4 @@
-.TH "NPM\-CONFIG" "7" "January 2016" "" ""
+.TH "NPM\-CONFIG" "7" "January 2017" "" ""
 .SH "NAME"
 \fBnpm-config\fR \- More than you probably want to know about npm configuration
 .SH DESCRIPTION
@@ -18,19 +18,24 @@ interpreted as a configuration parameter\.  For example, putting
 configuration parameter to \fBbar\fP\|\.  Any environment configurations that
 are not given a value will be given the value of \fBtrue\fP\|\.  Config
 values are case\-insensitive, so \fBNPM_CONFIG_FOO=bar\fP will work the
-same\.
+same\. However, please note that inside npm\-scripts \fI/misc/scripts\fR
+npm will set it's own environment variables and Node will prefer
+those lowercase versions over any uppercase ones that you might set\.
+For details see this issue \fIhttps://github\.com/npm/npm/issues/14528\fR\|\.
 .SS npmrc Files
 .P
 The four relevant files are:
 .RS 0
 .IP \(bu 2
-per\-project config file (/path/to/my/project/\.npmrc)
+per\-project configuration file (\fB/path/to/my/project/\.npmrc\fP)
 .IP \(bu 2
-per\-user config file (~/\.npmrc)
+per\-user configuration file (defaults to \fB$HOME/\.npmrc\fP; configurable via CLI
+option \fB\-\-userconfig\fP or environment variable \fB$NPM_CONF_USERCONFIG\fP)
 .IP \(bu 2
-global config file ($PREFIX/etc/npmrc)
+global configuration file (defaults to \fB$PREFIX/etc/npmrc\fP; configurable via
+CLI option \fB\-\-globalconfig\fP or environment variable \fB$NPM_CONF_GLOBALCONFIG\fP)
 .IP \(bu 2
-npm builtin config file (/path/to/npm/npmrc)
+npm's built\-in configuration file (\fB/path/to/npm/npmrc\fP)
 
 .RE
 .P
@@ -330,7 +335,16 @@ Type: String
 
 .RE
 .P
-A client certificate to pass when accessing the registry\.
+A client certificate to pass when accessing the registry\.  Values should be in
+PEM format with newlines replaced by the string "\\n"\. For example:
+.P
+.RS 2
+.nf
+cert="\-\-\-\-\-BEGIN CERTIFICATE\-\-\-\-\-\\nXXXX\\nXXXX\\n\-\-\-\-\-END CERTIFICATE\-\-\-\-\-"
+.fi
+.RE
+.P
+It is \fInot\fR the path to a certificate file (and there is no "certfile" option)\.
 .SS color
 .RS 0
 .IP \(bu 2
@@ -378,9 +392,6 @@ Type: Boolean
 .RE
 .P
 Install \fBdev\-dependencies\fP along with packages\.
-.P
-Note that \fBdev\-dependencies\fP are also installed if the \fBnpat\fP flag is
-set\.
 .SS dry\-run
 .RS 0
 .IP \(bu 2
@@ -550,7 +561,7 @@ Causes npm to install the package into your local \fBnode_modules\fP folder with
 the same layout it uses with the global \fBnode_modules\fP folder\.  Only your
 direct dependencies will show in \fBnode_modules\fP and everything they depend
 on will be flattened in their \fBnode_modules\fP folders\.  This obviously will
-elminate some deduping\. If used with \fBlegacy\-bundling\fP, \fBlegacy\-bundling\fP will be
+eliminate some deduping\. If used with \fBlegacy\-bundling\fP, \fBlegacy\-bundling\fP will be
 preferred\.
 .SS group
 .RS 0
@@ -684,9 +695,9 @@ Type: Boolean
 .P
 Whether or not to output JSON data, rather than the normal output\.
 .P
-This feature is currently experimental, and the output data structures
-for many commands is either not implemented in JSON yet, or subject to
-change\.  Only the output from \fBnpm ls \-\-json\fP is currently valid\.
+This feature is currently experimental, and the output data structures for many
+commands is either not implemented in JSON yet, or subject to change\.  Only the
+output from \fBnpm ls \-\-json\fP and \fBnpm search \-\-json\fP are currently valid\.
 .SS key
 .RS 0
 .IP \(bu 2
@@ -696,7 +707,16 @@ Type: String
 
 .RE
 .P
-A client key to pass when accessing the registry\.
+A client key to pass when accessing the registry\.  Values should be in PEM
+format with newlines replaced by the string "\\n"\. For example:
+.P
+.RS 2
+.nf
+key="\-\-\-\-\-BEGIN PRIVATE KEY\-\-\-\-\-\\nXXXX\\nXXXX\\n\-\-\-\-\-END PRIVATE KEY\-\-\-\-\-"
+.fi
+.RE
+.P
+It is \fInot\fR the path to a key file (and there is no "keyfile" option)\.
 .SS legacy\-bundling
 .RS 0
 .IP \(bu 2
@@ -788,6 +808,17 @@ Type: Boolean
 .RE
 .P
 Show extended information in \fBnpm ls\fP and \fBnpm search\fP\|\.
+.SS maxsockets
+.RS 0
+.IP \(bu 2
+Default: 50
+.IP \(bu 2
+Type: Number
+
+.RE
+.P
+The maximum number of connections to use per origin (protocol/host/port
+combination)\. Passed to the \fBhttp\fP \fBAgent\fP used to make the request\.
 .SS message
 .RS 0
 .IP \(bu 2
@@ -800,6 +831,16 @@ Type: String
 Commit message which is used by \fBnpm version\fP when creating version commit\.
 .P
 Any "%s" in the message will be replaced with the version number\.
+.SS metrics\-registry
+.RS 0
+.IP \(bu 2
+Default: "https://registry\.npmjs\.org/"
+.IP \(bu 2
+Type: String
+
+.RE
+.P
+The registry you want to send cli metrics to if \fBsend\-metrics\fP is true\.
 .SS node\-version
 .RS 0
 .IP \(bu 2
@@ -810,16 +851,6 @@ Type: semver or false
 .RE
 .P
 The node version to use when checking a package's \fBengines\fP map\.
-.SS npat
-.RS 0
-.IP \(bu 2
-Default: false
-.IP \(bu 2
-Type: Boolean
-
-.RE
-.P
-Run tests on installation\.
 .SS onload\-script
 .RS 0
 .IP \(bu 2
@@ -874,7 +905,7 @@ Type: Boolean
 .RE
 .P
 Output parseable results from commands that write to
-standard output\.
+standard output\. For \fBnpm search\fP, this will be tab\-separated table format\.
 .SS prefix
 .RS 0
 .IP \(bu 2
@@ -907,7 +938,7 @@ Set the NODE_ENV="production" for lifecycle scripts\.
 .SS progress
 .RS 0
 .IP \(bu 2
-Default: true
+Default: true, unless TRAVIS or CI env vars set\.
 .IP \(bu 2
 Type: Boolean
 
@@ -1066,7 +1097,7 @@ patch upgrades\.
 .SS scope
 .RS 0
 .IP \(bu 2
-Default: ""
+Default: the scope of the current project, if any, or ""
 .IP \(bu 2
 Type: String
 
@@ -1077,16 +1108,29 @@ in to a private registry for the first time:
 \fBnpm login \-\-scope=@organization \-\-registry=registry\.organization\.com\fP, which
 will cause \fB@organization\fP to be mapped to the registry for future installation
 of packages specified according to the pattern \fB@organization/package\fP\|\.
-.SS searchopts
+.SS scripts\-prepend\-node\-path
 .RS 0
 .IP \(bu 2
-Default: ""
+Default: "warn\-only"
 .IP \(bu 2
-Type: String
+Type: Boolean, \fB"auto"\fP or \fB"warn\-only"\fP
 
 .RE
 .P
-Space\-separated options that are always passed to search\.
+If set to \fBtrue\fP, add the directory in which the current \fBnode\fP executable
+resides to the \fBPATH\fP environment variable when running scripts,
+even if that means that \fBnpm\fP will invoke a different \fBnode\fP executable than
+the one which it is running\.
+.P
+If set to \fBfalse\fP, never modify \fBPATH\fP with that\.
+.P
+If set to \fB"warn\-only"\fP, never modify \fBPATH\fP but print a warning if \fBnpm\fP thinks
+that you may want to run it with \fBtrue\fP, e\.g\. because the \fBnode\fP executable
+in the \fBPATH\fP is not the one \fBnpm\fP was invoked with\.
+.P
+If set to \fBauto\fP, only add that directory to the \fBPATH\fP environment variable
+if the \fBnode\fP executable with which \fBnpm\fP was invoked and the one that is found
+first on the \fBPATH\fP are different\.
 .SS searchexclude
 .RS 0
 .IP \(bu 2
@@ -1097,20 +1141,39 @@ Type: String
 .RE
 .P
 Space\-separated options that limit the results from search\.
-.SS searchsort
+.SS searchopts
 .RS 0
 .IP \(bu 2
-Default: "name"
+Default: ""
 .IP \(bu 2
 Type: String
-.IP \(bu 2
-Values: "name", "\-name", "date", "\-date", "description",
-"\-description", "keywords", "\-keywords"
 
 .RE
 .P
-Indication of which field to sort search results by\.  Prefix with a \fB\-\fP
-character to indicate reverse sort\.
+Space\-separated options that are always passed to search\.
+.SS searchstaleness
+.RS 0
+.IP \(bu 2
+Default: 900 (15 minutes)
+.IP \(bu 2
+Type: Number
+
+.RE
+.P
+The age of the cache, in seconds, before another registry request is made\.
+.SS send\-metrics
+.RS 0
+.IP \(bu 2
+Default: false
+.IP \(bu 2
+Type: Boolean
+
+.RE
+.P
+If true, success/failure metrics will be reported to the registry stored in
+\fBmetrics\-registry\fP\|\.  These requests contain the number of successful and
+failing runs of the npm CLI and the time period overwhich those counts were
+gathered\. No identifying information is included in these requests\.
 .SS shell
 .RS 0
 .IP \(bu 2

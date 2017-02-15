@@ -58,7 +58,6 @@ class PropertyAccessCompiler BASE_EMBEDDED {
   Register vector() const;
   Register scratch1() const { return registers_[2]; }
   Register scratch2() const { return registers_[3]; }
-  Register scratch3() const { return registers_[4]; }
 
   static Register* GetCallingConvention(Code::Kind);
   static Register* load_calling_convention();

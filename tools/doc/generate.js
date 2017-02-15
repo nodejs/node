@@ -1,31 +1,37 @@
 'use strict';
 
-var processIncludes = require('./preprocess.js');
-var fs = require('fs');
+const processIncludes = require('./preprocess.js');
+const fs = require('fs');
 
 // parse the args.
 // Don't use nopt or whatever for this.  It's simple enough.
 
-var args = process.argv.slice(2);
-var format = 'json';
-var template = null;
-var inputFile = null;
+const args = process.argv.slice(2);
+let format = 'json';
+let template = null;
+let inputFile = null;
+let nodeVersion = null;
+let analytics = null;
 
 args.forEach(function(arg) {
-  if (!arg.match(/^\-\-/)) {
+  if (!arg.startsWith('--')) {
     inputFile = arg;
-  } else if (arg.match(/^\-\-format=/)) {
-    format = arg.replace(/^\-\-format=/, '');
-  } else if (arg.match(/^\-\-template=/)) {
-    template = arg.replace(/^\-\-template=/, '');
+  } else if (arg.startsWith('--format=')) {
+    format = arg.replace(/^--format=/, '');
+  } else if (arg.startsWith('--template=')) {
+    template = arg.replace(/^--template=/, '');
+  } else if (arg.startsWith('--node-version=')) {
+    nodeVersion = arg.replace(/^--node-version=/, '');
+  } else if (arg.startsWith('--analytics=')) {
+    analytics = arg.replace(/^--analytics=/, '');
   }
 });
 
+nodeVersion = nodeVersion || process.version;
 
 if (!inputFile) {
   throw new Error('No input file specified');
 }
-
 
 console.error('Input file = %s', inputFile);
 fs.readFile(inputFile, 'utf8', function(er, input) {
@@ -33,7 +39,6 @@ fs.readFile(inputFile, 'utf8', function(er, input) {
   // process the input for @include lines
   processIncludes(inputFile, input, next);
 });
-
 
 function next(er, input) {
   if (er) throw er;
@@ -46,10 +51,20 @@ function next(er, input) {
       break;
 
     case 'html':
-      require('./html.js')(input, inputFile, template, function(er, html) {
-        if (er) throw er;
-        console.log(html);
-      });
+      require('./html.js')(
+        {
+          input: input,
+          filename: inputFile,
+          template: template,
+          nodeVersion: nodeVersion,
+          analytics: analytics,
+        },
+
+        function(er, html) {
+          if (er) throw er;
+          console.log(html);
+        }
+      );
       break;
 
     default:

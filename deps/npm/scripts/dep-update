@@ -1,0 +1,6 @@
+#!/bin/bash
+node . install --save $1@$2 &&\
+git add node_modules/$1/ package.json &&\
+git commit -m"$1@$2" &&\
+node . repo $1 &&\
+git commit --amend

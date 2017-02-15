@@ -8,15 +8,14 @@ OPENSSL_config, OPENSSL_no_config - simple OpenSSL configuration functions
 
  #include <openssl/conf.h>
 
- void OPENSSL_config(const char *config_name);
+ void OPENSSL_config(const char *appname);
  void OPENSSL_no_config(void);
 
 =head1 DESCRIPTION
 
-OPENSSL_config() configures OpenSSL using the standard B<openssl.cnf>
-configuration file name using B<config_name>. If B<config_name> is NULL then
-the file specified in the environment variable B<OPENSSL_CONF> will be used,
-and if that is not set then a system default location is used.
+OPENSSL_config() configures OpenSSL using the standard B<openssl.cnf> and
+reads from the application section B<appname>. If B<appname> is NULL then
+the default section, B<openssl_conf>, will be used.
 Errors are silently ignored.
 Multiple calls have no effect.
 

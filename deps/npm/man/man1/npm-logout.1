@@ -1,4 +1,4 @@
-.TH "NPM\-LOGOUT" "1" "January 2016" "" ""
+.TH "NPM\-LOGOUT" "1" "January 2017" "" ""
 .SH "NAME"
 \fBnpm-logout\fR \- Log out of the registry
 .SH SYNOPSIS
@@ -29,20 +29,15 @@ The base URL of the npm package registry\. If \fBscope\fP is also specified,
 it takes precedence\.
 .SS scope
 .P
-Default: none
+Default: The scope of your current project, if any, otherwise none\.
 .P
-If specified, the user and login credentials given will be associated
-with the specified scope\. See npm help 7 \fBnpm\-scope\fP\|\. You can use both at the same time,
-e\.g\.
+If specified, you will be logged out of the specified scope\. See npm help 7 \fBnpm\-scope\fP\|\.
 .P
 .RS 2
 .nf
-npm adduser \-\-registry=http://myregistry\.example\.com \-\-scope=@myco
+npm logout \-\-scope=@myco
 .fi
 .RE
-.P
-This will set a registry for the given scope and login or create a user for
-that registry at the same time\.
 .SH SEE ALSO
 .RS 0
 .IP \(bu 2

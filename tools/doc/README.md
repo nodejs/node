@@ -1,71 +1,107 @@
 Here's how the node docs work.
 
-1:1 relationship from `lib/<module>.js` to `doc/api/<module>.markdown`
+1:1 relationship from `lib/<module>.js` to `doc/api/<module>.md`
 
 Each type of heading has a description block.
 
+```md
+## module
+<!-- YAML
+added: v0.10.0
+-->
 
-    ## module
+> Stability: 3 - Stable
 
-        Stability: 3 - Stable
+description and examples.
 
-    description and examples.
+### module.property
+<!-- YAML
+added: v0.10.0
+-->
 
-    ### module.property
+* Type
 
-    * Type
+description of the property.
 
-    description of the property.
+### module.someFunction(x, y, [z=100])
+<!-- YAML
+added: v0.10.0
+-->
 
-    ### module.someFunction(x, y, [z=100])
+* `x` {String} the description of the string
+* `y` {Boolean} Should I stay or should I go?
+* `z` {Number} How many zebras to bring.
 
-    * `x` {String} the description of the string
-    * `y` {Boolean} Should I stay or should I go?
-    * `z` {Number} How many zebras to bring.
+A description of the function.
 
-    A description of the function.
+### module.someNewFunction(x)
+<!-- YAML
+added: REPLACEME
+-->
 
-    ### Event: 'blerg'
+* `x` {String} the description of the string
 
-    * Argument: SomeClass object.
+This feature is not in a release yet.
 
-    Modules don't usually raise events on themselves.  `cluster` is the
-    only exception.
+### Event: 'blerg'
+<!-- YAML
+added: v0.10.0
+-->
 
-    ## Class: SomeClass
+* Argument: SomeClass object.
 
-    description of the class.
+Modules don't usually raise events on themselves.  `cluster` is the
+only exception.
 
-    ### Class Method: SomeClass.classMethod(anArg)
+## Class: SomeClass
+<!-- YAML
+added: v0.10.0
+-->
 
-    * `anArg` {Object}  Just an argument
-      * `field` {String} anArg can have this field.
-      * `field2` {Boolean}  Another field.  Default: `false`.
-    * Return: {Boolean} `true` if it worked.
+description of the class.
 
-    Description of the method for humans.
+### Class Method: SomeClass.classMethod(anArg)
+<!-- YAML
+added: v0.10.0
+-->
 
-    ### someClass.nextSibling()
+* `anArg` {Object}  Just an argument
+  * `field` {String} anArg can have this field.
+  * `field2` {Boolean}  Another field.  Default: `false`.
+* Return: {Boolean} `true` if it worked.
 
-    * Return: {SomeClass object | null}  The next someClass in line.
+Description of the method for humans.
 
-    ### someClass.someProperty
+### someClass.nextSibling()
+<!-- YAML
+added: v0.10.0
+-->
 
-    * String
+* Return: {SomeClass object | null}  The next someClass in line.
 
-    The indication of what someProperty is.
+### someClass.someProperty
+<!-- YAML
+added: v0.10.0
+-->
 
-    ### Event: 'grelb'
+* String
 
-    * `isBlerg` {Boolean}
+The indication of what someProperty is.
 
-    This event is emitted on instances of SomeClass, not on the module itself.
+### Event: 'grelb'
+<!-- YAML
+added: v0.10.0
+-->
+
+* `isBlerg` {Boolean}
+
+This event is emitted on instances of SomeClass, not on the module itself.
+```
 
 
-* Modules have (description, Properties, Functions, Classes, Examples)
-* Properties have (type, description)
-* Functions have (list of arguments, description)
 * Classes have (description, Properties, Methods, Events)
 * Events have (list of arguments, description)
+* Functions have (list of arguments, description)
 * Methods have (list of arguments, description)
+* Modules have (description, Properties, Functions, Classes, Examples)
 * Properties have (type, description)

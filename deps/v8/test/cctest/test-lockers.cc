@@ -27,15 +27,15 @@
 
 #include <limits.h>
 
+#include <memory>
+
 #include "src/v8.h"
 
 #include "src/api.h"
 #include "src/base/platform/platform.h"
-#include "src/base/smart-pointers.h"
 #include "src/compilation-cache.h"
 #include "src/execution.h"
 #include "src/isolate.h"
-#include "src/parsing/parser.h"
 #include "src/unicode-inl.h"
 #include "src/utils.h"
 #include "test/cctest/cctest.h"
@@ -100,7 +100,7 @@ TEST(KangarooIsolates) {
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
-  v8::base::SmartPointer<KangarooThread> thread1;
+  std::unique_ptr<KangarooThread> thread1;
   {
     v8::Locker locker(isolate);
     v8::Isolate::Scope isolate_scope(isolate);
@@ -109,7 +109,7 @@ TEST(KangarooIsolates) {
     v8::Context::Scope context_scope(context);
     CHECK_EQ(isolate, v8::Isolate::GetCurrent());
     CompileRun("function getValue() { return 30; }");
-    thread1.Reset(new KangarooThread(isolate, context));
+    thread1.reset(new KangarooThread(isolate, context));
   }
   thread1->Start();
   thread1->Join();
@@ -298,7 +298,7 @@ class SeparateIsolatesLocksNonexclusiveThread : public JoinableThread {
 // Run parallel threads that lock and access different isolates in parallel
 TEST(SeparateIsolatesLocksNonexclusive) {
   i::FLAG_always_opt = false;
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_S390
   const int kNThreads = 50;
 #else
   const int kNThreads = 100;
@@ -382,7 +382,7 @@ class LockerUnlockerThread : public JoinableThread {
 // Use unlocker inside of a Locker, multiple threads.
 TEST(LockerUnlocker) {
   i::FLAG_always_opt = false;
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_S390
   const int kNThreads = 50;
 #else
   const int kNThreads = 100;
@@ -439,7 +439,7 @@ class LockTwiceAndUnlockThread : public JoinableThread {
 // Use Unlocker inside two Lockers.
 TEST(LockTwiceAndUnlock) {
   i::FLAG_always_opt = false;
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_S390
   const int kNThreads = 50;
 #else
   const int kNThreads = 100;
@@ -465,8 +465,7 @@ class LockAndUnlockDifferentIsolatesThread : public JoinableThread {
   }
 
   virtual void Run() {
-    v8::base::SmartPointer<LockIsolateAndCalculateFibSharedContextThread>
-        thread;
+    std::unique_ptr<LockIsolateAndCalculateFibSharedContextThread> thread;
     v8::Locker lock1(isolate1_);
     CHECK(v8::Locker::IsLocked(isolate1_));
     CHECK(!v8::Locker::IsLocked(isolate2_));
@@ -478,8 +477,8 @@ class LockAndUnlockDifferentIsolatesThread : public JoinableThread {
         v8::Context::Scope context_scope(context1);
         CalcFibAndCheck(context1);
       }
-      thread.Reset(new LockIsolateAndCalculateFibSharedContextThread(
-          isolate1_, context1));
+      thread.reset(new LockIsolateAndCalculateFibSharedContextThread(isolate1_,
+                                                                     context1));
     }
     v8::Locker lock2(isolate2_);
     CHECK(v8::Locker::IsLocked(isolate1_));
@@ -710,6 +709,8 @@ TEST(ExtensionsRegistration) {
   const int kNThreads = 10;
 #elif V8_TARGET_ARCH_X64 && V8_TARGET_ARCH_32_BIT
   const int kNThreads = 4;
+#elif V8_TARGET_ARCH_S390 && V8_TARGET_ARCH_32_BIT
+  const int kNThreads = 10;
 #else
   const int kNThreads = 40;
 #endif

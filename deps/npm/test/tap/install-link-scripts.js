@@ -24,15 +24,15 @@ var dependency = {
   name: 'dep',
   version: '1.0.0',
   scripts: {
-    install: './bin/foo'
+    install: 'node ./bin/foo'
   }
 }
 
-var foo = function () {/*
+var foo = function () { /*
 #!/usr/bin/env node
 
 console.log('hey sup')
-*/}.toString().split('\n').slice(1, -1).join('\n')
+*/ }.toString().split('\n').slice(1, -1).join('\n')
 
 process.env.npm_config_prefix = tmp
 

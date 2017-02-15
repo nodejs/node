@@ -5,6 +5,8 @@
 #ifndef V8_UNITTESTS_COMPILER_INSTRUCTION_SEQUENCE_UNITTEST_H_
 #define V8_UNITTESTS_COMPILER_INSTRUCTION_SEQUENCE_UNITTEST_H_
 
+#include <memory>
+
 #include "src/compiler/instruction.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -229,7 +231,7 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
   typedef std::map<int, const Instruction*> Instructions;
   typedef std::vector<BlockCompletion> Completions;
 
-  base::SmartPointer<RegisterConfiguration> config_;
+  std::unique_ptr<RegisterConfiguration> config_;
   InstructionSequence* sequence_;
   int num_general_registers_;
   int num_double_registers_;
@@ -241,6 +243,8 @@ class InstructionSequenceTest : public TestWithIsolateAndZone {
   LoopBlocks loop_blocks_;
   InstructionBlock* current_block_;
   bool block_returns_;
+
+  DISALLOW_COPY_AND_ASSIGN(InstructionSequenceTest);
 };
 
 }  // namespace compiler

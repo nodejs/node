@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
   <title>npm-version</title>
-  <meta http-equiv="content-type" value="text/html;utf-8">
+  <meta charset="utf-8">
   <link rel="stylesheet" type="text/css" href="../../static/style.css">
   <link rel="canonical" href="https://www.npmjs.org/doc/cli/npm-version.html">
   <script async=true src="../../static/toc.js"></script>
@@ -79,6 +79,13 @@ and tag up to the server, and deletes the <code>build/temp</code> directory.</p>
 <li>Type: Boolean</li>
 </ul>
 <p>Commit and tag the version change.</p>
+<h3 id="sign-git-tag">sign-git-tag</h3>
+<ul>
+<li>Default: false</li>
+<li>Type: Boolean</li>
+</ul>
+<p>Pass the <code>-s</code> flag to git to sign the tag.</p>
+<p>Note that you must have a default GPG key set up in your git config for this to work properly.</p>
 <h2 id="see-also">SEE ALSO</h2>
 <ul>
 <li><a href="../cli/npm-init.html">npm-init(1)</a></li>
@@ -100,5 +107,5 @@ and tag up to the server, and deletes the <code>build/temp</code> directory.</p>
 <tr><td style="width:60px;height:10px;background:rgb(237,127,127)" colspan=6>&nbsp;</td><td colspan=10 style="width:10px;height:10px;background:rgb(237,127,127)">&nbsp;</td></tr>
 <tr><td colspan=5 style="width:50px;height:10px;background:#fff">&nbsp;</td><td style="width:40px;height:10px;background:rgb(237,127,127)" colspan=4>&nbsp;</td><td style="width:90px;height:10px;background:#fff" colspan=9>&nbsp;</td></tr>
 </table>
-<p id="footer">npm-version &mdash; npm@3.6.0</p>
+<p id="footer">npm-version &mdash; npm@4.1.2</p>
 

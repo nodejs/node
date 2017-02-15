@@ -65,23 +65,30 @@ var installJSON = {
 
 test('setup', function (t) {
   setup()
-  common.npm(['ls', '-g', '--depth=0'], OPTS, function (err, c, out) {
-    t.ifError(err)
-    t.equal(c, 0, 'set up ok')
-    t.notOk(out.match(/UNMET DEPENDENCY foo@/), "foo isn't in global")
+  common.npm(['ls', '-g', '--depth=0'], OPTS, function (err, code, stdout, stderr) {
+    if (err) throw err
+    t.comment(stdout)
+    t.comment(stderr)
+    t.is(code, 0, 'ls -g')
+    t.notMatch(stdout, /UNMET DEPENDENCY foo@/, "foo isn't in global")
     t.end()
   })
 })
 
 test('creates global link', function (t) {
   process.chdir(link)
-  common.npm(['link'], OPTS, function (err, c, out) {
-    t.ifError(err, 'link has no error')
-    common.npm(['ls', '-g'], OPTS, function (err, c, out, stderr) {
-      t.ifError(err)
-      t.equal(c, 0)
+  common.npm(['link'], OPTS, function (err, code, stdout, stderr) {
+    if (err) throw err
+    t.is(code, 0, 'link')
+    t.comment(stdout)
+    t.comment(stderr)
+    common.npm(['ls', '-g'], OPTS, function (err, code, stdout, stderr) {
+      if (err) throw err
+      t.comment(stdout)
+      t.comment(stderr)
+      t.is(code, 0, 'ls -g')
       t.equal(stderr, '', 'got expected stderr')
-      t.has(out, /foo@1.0.0/, 'creates global link ok')
+      t.match(stdout, /foo@1.0.0/, 'creates global link ok')
       t.end()
     })
   })
@@ -89,13 +96,18 @@ test('creates global link', function (t) {
 
 test('uninstall the global linked package', function (t) {
   process.chdir(osenv.tmpdir())
-  common.npm(['uninstall', '-g', 'foo'], OPTS, function (err) {
-    t.ifError(err, 'uninstall has no error')
+  common.npm(['uninstall', '-g', 'foo'], OPTS, function (err, code, stdout, stderr) {
+    if (err) throw err
+    t.is(code, 0, 'uninstall -g foo')
+    t.comment(stdout)
+    t.comment(stderr)
     process.chdir(link)
-    common.npm(['ls'], OPTS, function (err, c, out) {
-      t.ifError(err)
-      t.equal(c, 0)
-      t.has(out, /baz@1.0.0/, "uninstall didn't remove dep")
+    common.npm(['ls'], OPTS, function (err, code, stdout) {
+      if (err) throw err
+      t.is(code, 0, 'ls')
+      t.comment(stdout)
+      t.comment(stderr)
+      t.match(stdout, /baz@1.0.0/, "uninstall didn't remove dep")
       t.end()
     })
   })

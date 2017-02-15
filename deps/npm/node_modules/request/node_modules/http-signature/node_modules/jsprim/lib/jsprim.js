@@ -15,6 +15,7 @@ var mod_jsonschema = require('json-schema');
 exports.deepCopy = deepCopy;
 exports.deepEqual = deepEqual;
 exports.isEmpty = isEmpty;
+exports.hasKey = hasKey;
 exports.forEachKey = forEachKey;
 exports.pluck = pluck;
 exports.flattenObject = flattenObject;
@@ -122,10 +123,19 @@ function isEmpty(obj)
 	return (true);
 }
 
+function hasKey(obj, key)
+{
+	mod_assert.equal(typeof (key), 'string');
+	return (Object.prototype.hasOwnProperty.call(obj, key));
+}
+
 function forEachKey(obj, callback)
 {
-	for (var key in obj)
-		callback(key, obj[key]);
+	for (var key in obj) {
+		if (hasKey(obj, key)) {
+			callback(key, obj[key]);
+		}
+	}
 }
 
 function pluck(obj, key)

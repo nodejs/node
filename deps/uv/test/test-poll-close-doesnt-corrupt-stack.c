@@ -19,8 +19,6 @@
  * IN THE SOFTWARE.
  */
 
-#ifdef _WIN32
-
 #include <errno.h>
 #include <stdio.h>
 
@@ -37,6 +35,7 @@
 uv_os_sock_t sock;
 uv_poll_t handle;
 
+#ifdef _WIN32
 static int close_cb_called = 0;
 
 
@@ -69,9 +68,13 @@ static void NO_INLINE close_socket_and_verify_stack() {
   for (i = 0; i < ARRAY_SIZE(data); i++)
     ASSERT(data[i] == MARKER);
 }
+#endif
 
 
 TEST_IMPL(poll_close_doesnt_corrupt_stack) {
+#ifndef _WIN32
+  RETURN_SKIP("Test only relevant on Windows");
+#else
   struct WSAData wsa_data;
   int r;
   unsigned long on;
@@ -109,6 +112,5 @@ TEST_IMPL(poll_close_doesnt_corrupt_stack) {
 
   MAKE_VALGRIND_HAPPY();
   return 0;
+#endif
 }
-
-#endif  /* _WIN32 */

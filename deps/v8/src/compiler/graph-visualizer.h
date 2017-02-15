@@ -7,6 +7,7 @@
 
 #include <stdio.h>
 #include <iosfwd>
+#include <memory>
 
 namespace v8 {
 namespace internal {
@@ -21,8 +22,9 @@ class RegisterAllocationData;
 class Schedule;
 class SourcePositionTable;
 
-FILE* OpenVisualizerLogFile(CompilationInfo* info, const char* phase,
-                            const char* suffix, const char* mode);
+std::unique_ptr<char[]> GetVisualizerLogFileName(CompilationInfo* info,
+                                                 const char* phase,
+                                                 const char* suffix);
 
 struct AsJSON {
   AsJSON(const Graph& g, SourcePositionTable* p) : graph(g), positions(p) {}

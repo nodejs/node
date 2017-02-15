@@ -4,6 +4,7 @@
  *
  * @static
  * @memberOf _
+ * @since 0.1.0
  * @category Array
  * @param {Array} array The array to compact.
  * @returns {Array} Returns the new array of filtered values.
@@ -14,14 +15,14 @@
  */
 function compact(array) {
   var index = -1,
-      length = array ? array.length : 0,
-      resIndex = -1,
+      length = array == null ? 0 : array.length,
+      resIndex = 0,
       result = [];
 
   while (++index < length) {
     var value = array[index];
     if (value) {
-      result[++resIndex] = value;
+      result[resIndex++] = value;
     }
   }
   return result;

@@ -10,18 +10,28 @@
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow `new` operators outside of assignments or comparisons",
+            category: "Best Practices",
+            recommended: false
+        },
 
-    return {
+        schema: []
+    },
 
-        "ExpressionStatement": function(node) {
+    create(context) {
 
-            if (node.expression.type === "NewExpression") {
-                context.report(node, "Do not use 'new' for side effects.");
+        return {
+
+            ExpressionStatement(node) {
+
+                if (node.expression.type === "NewExpression") {
+                    context.report({ node, message: "Do not use 'new' for side effects." });
+                }
             }
-        }
-    };
+        };
 
+    }
 };
-
-module.exports.schema = [];

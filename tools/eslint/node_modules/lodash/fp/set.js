@@ -1,2 +1,5 @@
-var convert = require('./convert');
-module.exports = convert('set', require('../set'));
+var convert = require('./convert'),
+    func = convert('set', require('../set'));
+
+func.placeholder = require('./placeholder');
+module.exports = func;

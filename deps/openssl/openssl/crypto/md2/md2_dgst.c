@@ -219,6 +219,6 @@ int MD2_Final(unsigned char *md, MD2_CTX *c)
 
     for (i = 0; i < 16; i++)
         md[i] = (UCHAR) (p1[i] & 0xff);
-    memset((char *)&c, 0, sizeof(c));
+    OPENSSL_cleanse(c, sizeof(*c));
     return 1;
 }

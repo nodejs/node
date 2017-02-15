@@ -3498,6 +3498,127 @@ std::string XmlUnitTestResultPrinter::RemoveInvalidXmlCharacters(
 //   </testsuite>
 // </testsuites>
 
+class TapUnitTestResultPrinter : public EmptyTestEventListener {
+ public:
+  TapUnitTestResultPrinter();
+  explicit TapUnitTestResultPrinter(const char* output_file);
+  virtual void OnTestIterationEnd(const UnitTest& unit_test, int iteration);
+
+ private:
+  static void PrintTapUnitTest(::std::ostream* stream,
+                               const UnitTest& unit_test);
+  static void PrintTapTestCase(int* count,
+                               ::std::ostream* stream,
+                               const TestCase& test_case);
+  static void OutputTapTestInfo(int* count,
+                                ::std::ostream* stream,
+                                const char* test_case_name,
+                                const TestInfo& test_info);
+  static void OutputTapComment(::std::ostream* stream, const char* comment);
+
+  const std::string output_file_;
+  GTEST_DISALLOW_COPY_AND_ASSIGN_(TapUnitTestResultPrinter);
+};
+
+TapUnitTestResultPrinter::TapUnitTestResultPrinter() {}
+
+TapUnitTestResultPrinter::TapUnitTestResultPrinter(const char* output_file)
+    : output_file_(output_file) {
+  if (output_file_.c_str() == NULL || output_file_.empty()) {
+    fprintf(stderr, "TAP output file may not be null\n");
+    fflush(stderr);
+    exit(EXIT_FAILURE);
+  }
+}
+
+void TapUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
+                                                  int /*iteration*/) {
+  FILE* tapout = stdout;
+
+  if (!output_file_.empty()) {
+    FilePath output_file(output_file_);
+    FilePath output_dir(output_file.RemoveFileName());
+
+    tapout = NULL;
+    if (output_dir.CreateDirectoriesRecursively())
+      tapout = posix::FOpen(output_file_.c_str(), "w");
+
+    if (tapout == NULL) {
+      fprintf(stderr, "Unable to open file \"%s\"\n", output_file_.c_str());
+      fflush(stderr);
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  std::stringstream stream;
+  PrintTapUnitTest(&stream, unit_test);
+  fprintf(tapout, "%s", StringStreamToString(&stream).c_str());
+  fflush(tapout);
+
+  if (tapout != stdout)
+    fclose(tapout);
+}
+
+void TapUnitTestResultPrinter::PrintTapUnitTest(std::ostream* stream,
+                                                const UnitTest& unit_test) {
+  *stream << "TAP version 13\n";
+  *stream << "1.." << unit_test.reportable_test_count() << "\n";
+
+  int count = 1;
+  for (int i = 0; i < unit_test.total_test_case_count(); ++i) {
+    const TestCase& test_case = *unit_test.GetTestCase(i);
+    if (test_case.reportable_test_count() > 0)
+      PrintTapTestCase(&count, stream, test_case);
+  }
+
+  *stream << "# failures: " << unit_test.failed_test_count() << "\n";
+}
+
+void TapUnitTestResultPrinter::PrintTapTestCase(int* count,
+                                                std::ostream* stream,
+                                                const TestCase& test_case) {
+  for (int i = 0; i < test_case.total_test_count(); ++i) {
+    const TestInfo& test_info = *test_case.GetTestInfo(i);
+    if (test_info.is_reportable())
+      OutputTapTestInfo(count, stream, test_case.name(), test_info);
+  }
+}
+
+void TapUnitTestResultPrinter::OutputTapTestInfo(int* count,
+                                                 ::std::ostream* stream,
+                                                 const char* test_case_name,
+                                                 const TestInfo& test_info) {
+  const TestResult& result = *test_info.result();
+  const char* status = result.Passed() ? "ok" : "not ok";
+
+  *stream << status << " " << *count << " - " <<
+             test_case_name << "." << test_info.name() << "\n";
+  *stream << "  ---\n";
+  *stream << "  duration_ms: " <<
+             FormatTimeInMillisAsSeconds(result.elapsed_time()) << "\n";
+
+  if (result.total_part_count() > 0) {
+    *stream << "  stack: |-\n";
+    for (int i = 0; i < result.total_part_count(); ++i) {
+      const TestPartResult& part = result.GetTestPartResult(i);
+      OutputTapComment(stream, part.message());
+    }
+  }
+  *stream << "  ...\n";
+  *count += 1;
+}
+
+void TapUnitTestResultPrinter::OutputTapComment(::std::ostream* stream,
+                                                const char* comment) {
+  const char* start = comment;
+  while (const char* end = strchr(start, '\n')) {
+    *stream << "    " << std::string(start, end) << "\n";
+    start = end + 1;
+  }
+  if (*start)
+    *stream << "    " << start << "\n";
+}
+
 // Formats the given time in milliseconds as seconds.
 std::string FormatTimeInMillisAsSeconds(TimeInMillis ms) {
   ::std::stringstream ss;
@@ -4364,6 +4485,9 @@ void UnitTestImpl::ConfigureXmlOutput() {
   const std::string& output_format = UnitTestOptions::GetOutputFormat();
   if (output_format == "xml") {
     listeners()->SetDefaultXmlGenerator(new XmlUnitTestResultPrinter(
+        UnitTestOptions::GetAbsolutePathToOutputFile().c_str()));
+  } else if (output_format == "tap") {
+    listeners()->SetDefaultXmlGenerator(new TapUnitTestResultPrinter(
         UnitTestOptions::GetAbsolutePathToOutputFile().c_str()));
   } else if (output_format != "") {
     printf("WARNING: unrecognized output format \"%s\" ignored.\n",

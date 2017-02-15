@@ -89,9 +89,7 @@ int MAIN(int argc, char **argv)
     X509_LOOKUP *lookup = NULL;
     X509_VERIFY_PARAM *vpm = NULL;
     int crl_download = 0;
-#ifndef OPENSSL_NO_ENGINE
     char *engine = NULL;
-#endif
 
     cert_ctx = X509_STORE_new();
     if (cert_ctx == NULL)
@@ -115,43 +113,43 @@ int MAIN(int argc, char **argv)
         if (argc >= 1) {
             if (strcmp(*argv, "-CApath") == 0) {
                 if (argc-- < 1)
-                    goto end;
+                    goto usage;
                 CApath = *(++argv);
             } else if (strcmp(*argv, "-CAfile") == 0) {
                 if (argc-- < 1)
-                    goto end;
+                    goto usage;
                 CAfile = *(++argv);
             } else if (args_verify(&argv, &argc, &badarg, bio_err, &vpm)) {
                 if (badarg)
-                    goto end;
+                    goto usage;
                 continue;
             } else if (strcmp(*argv, "-untrusted") == 0) {
                 if (argc-- < 1)
-                    goto end;
+                    goto usage;
                 untfile = *(++argv);
             } else if (strcmp(*argv, "-trusted") == 0) {
                 if (argc-- < 1)
-                    goto end;
+                    goto usage;
                 trustfile = *(++argv);
             } else if (strcmp(*argv, "-CRLfile") == 0) {
                 if (argc-- < 1)
-                    goto end;
+                    goto usage;
                 crlfile = *(++argv);
             } else if (strcmp(*argv, "-crl_download") == 0)
                 crl_download = 1;
 #ifndef OPENSSL_NO_ENGINE
             else if (strcmp(*argv, "-engine") == 0) {
                 if (--argc < 1)
-                    goto end;
+                    goto usage;
                 engine = *(++argv);
             }
 #endif
             else if (strcmp(*argv, "-help") == 0)
-                goto end;
+                goto usage;
             else if (strcmp(*argv, "-verbose") == 0)
                 v_verbose = 1;
             else if (argv[0][0] == '-')
-                goto end;
+                goto usage;
             else
                 break;
             argc--;
@@ -160,9 +158,7 @@ int MAIN(int argc, char **argv)
             break;
     }
 
-#ifndef OPENSSL_NO_ENGINE
     e = setup_engine(bio_err, engine, 0);
-#endif
 
     if (vpm)
         X509_STORE_set1_param(cert_ctx, vpm);
@@ -228,7 +224,7 @@ int MAIN(int argc, char **argv)
                 ret = -1;
     }
 
- end:
+ usage:
     if (ret == 1) {
         BIO_printf(bio_err,
                    "usage: verify [-verbose] [-CApath path] [-CAfile file] [-purpose purpose] [-crl_check]");
@@ -247,6 +243,7 @@ int MAIN(int argc, char **argv)
                        X509_PURPOSE_get0_name(ptmp));
         }
     }
+ end:
     if (vpm)
         X509_VERIFY_PARAM_free(vpm);
     if (cert_ctx != NULL)
@@ -254,6 +251,7 @@ int MAIN(int argc, char **argv)
     sk_X509_pop_free(untrusted, X509_free);
     sk_X509_pop_free(trusted, X509_free);
     sk_X509_CRL_pop_free(crls, X509_CRL_free);
+    release_engine(e);
     apps_shutdown();
     OPENSSL_EXIT(ret < 0 ? 2 : ret);
 }

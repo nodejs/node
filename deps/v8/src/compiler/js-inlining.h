@@ -36,17 +36,27 @@ class JSInliner final : public AdvancedReducer {
   Reduction ReduceJSCall(Node* node, Handle<JSFunction> function);
 
  private:
-  Zone* local_zone_;
+  CommonOperatorBuilder* common() const;
+  JSOperatorBuilder* javascript() const;
+  SimplifiedOperatorBuilder* simplified() const;
+  Graph* graph() const;
+  JSGraph* jsgraph() const { return jsgraph_; }
+
+  Zone* const local_zone_;
   CompilationInfo* info_;
-  JSGraph* jsgraph_;
+  JSGraph* const jsgraph_;
 
   Node* CreateArtificialFrameState(Node* node, Node* outer_frame_state,
                                    int parameter_count,
                                    FrameStateType frame_state_type,
                                    Handle<SharedFunctionInfo> shared);
 
+  Node* CreateTailCallerFrameState(Node* node, Node* outer_frame_state);
+
   Reduction InlineCall(Node* call, Node* new_target, Node* context,
-                       Node* frame_state, Node* start, Node* end);
+                       Node* frame_state, Node* start, Node* end,
+                       Node* exception_target,
+                       const NodeVector& uncaught_subcalls);
 };
 
 }  // namespace compiler

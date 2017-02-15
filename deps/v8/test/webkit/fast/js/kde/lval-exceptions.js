@@ -25,19 +25,19 @@ description("KDE JS Test");
 // Tests for raising --- and non-raising exceptions on access to reference to undefined things...
 
 // Locals should throw on access if undefined..
-fnShouldThrow(function() { a = x; }, ReferenceError);
+fnShouldThrow(function () { a = x; }, ReferenceError);
 
 // Read-modify-write versions of assignment should throw as well
-fnShouldThrow(function() { x += "foo"; }, ReferenceError);
+fnShouldThrow(function () { x += "foo"; }, ReferenceError);
 
 // Other reference types should just return undefined...
 a = new Object();
-fnShouldNotThrow(function() { b = a.x; });
-fnShouldNotThrow(function() { b = a['x']; });
-fnShouldNotThrow(function() { a['x'] += 'baz'; });
+fnShouldNotThrow(function () { b = a.x; });
+fnShouldNotThrow(function () { b = a['x']; });
+fnShouldNotThrow(function () { a['x'] += 'baz'; });
 shouldBe("a['x']", '"undefinedbaz"');
-fnShouldNotThrow(function() { b = a.y; });
-fnShouldNotThrow(function() { a.y += 'glarch'; });
+fnShouldNotThrow(function () { b = a.y; });
+fnShouldNotThrow(function () { a.y += 'glarch'; });
 shouldBe("a['y']", '"undefinedglarch"');
 
 

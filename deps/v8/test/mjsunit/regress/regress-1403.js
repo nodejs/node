@@ -28,7 +28,7 @@
 // See: http://code.google.com/p/v8/issues/detail?id=1403
 
 a = [];
-Object.prototype.__proto__ = { __proto__: null };
+assertThrows(() => Object.prototype.__proto__ = { __proto__: null }, TypeError);
 a.shift();
 
 a = [];

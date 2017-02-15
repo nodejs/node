@@ -1,2 +1,5 @@
-var convert = require('./convert');
-module.exports = convert('random', require('../random'));
+var convert = require('./convert'),
+    func = convert('random', require('../random'));
+
+func.placeholder = require('./placeholder');
+module.exports = func;

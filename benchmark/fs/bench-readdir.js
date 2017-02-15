@@ -14,7 +14,7 @@ function main(conf) {
 
   bench.start();
   (function r(cntr) {
-    if (--cntr <= 0)
+    if (cntr-- <= 0)
       return bench.end(n);
     fs.readdir(path.resolve(__dirname, '../../lib/'), function() {
       r(cntr);

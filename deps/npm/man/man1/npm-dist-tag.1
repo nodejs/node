@@ -1,4 +1,4 @@
-.TH "NPM\-DIST\-TAG" "1" "January 2016" "" ""
+.TH "NPM\-DIST\-TAG" "1" "January 2017" "" ""
 .SH "NAME"
 \fBnpm-dist-tag\fR \- Modify package distribution tags
 .SH SYNOPSIS
@@ -8,6 +8,8 @@
 npm dist\-tag add <pkg>@<version> [<tag>]
 npm dist\-tag rm <pkg> <tag>
 npm dist\-tag ls [<pkg>]
+
+aliases: dist\-tags
 .fi
 .RE
 .SH DESCRIPTION
@@ -86,8 +88,6 @@ The simplest way to avoid semver problems with tags is to use tags that do not
 begin with a number or the letter \fBv\fP\|\.
 .SH SEE ALSO
 .RS 0
-.IP \(bu 2
-npm help tag
 .IP \(bu 2
 npm help publish
 .IP \(bu 2

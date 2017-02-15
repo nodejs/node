@@ -1,0 +1,42 @@
+# Copyright 2016 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+{
+  'variables': {
+    'files': [
+      '<(PRODUCT_DIR)/v8_simple_json_fuzzer<(EXECUTABLE_SUFFIX)',
+      '<(PRODUCT_DIR)/v8_simple_parser_fuzzer<(EXECUTABLE_SUFFIX)',
+      '<(PRODUCT_DIR)/v8_simple_regexp_fuzzer<(EXECUTABLE_SUFFIX)',
+      '<(PRODUCT_DIR)/v8_simple_wasm_fuzzer<(EXECUTABLE_SUFFIX)',
+      '<(PRODUCT_DIR)/v8_simple_wasm_asmjs_fuzzer<(EXECUTABLE_SUFFIX)',
+      '<(PRODUCT_DIR)/v8_simple_wasm_code_fuzzer<(EXECUTABLE_SUFFIX)',
+      '<(PRODUCT_DIR)/v8_simple_wasm_data_section_fuzzer<(EXECUTABLE_SUFFIX)',
+      '<(PRODUCT_DIR)/v8_simple_wasm_function_sigs_section_fuzzer<(EXECUTABLE_SUFFIX)',
+      '<(PRODUCT_DIR)/v8_simple_wasm_globals_section_fuzzer<(EXECUTABLE_SUFFIX)',
+      '<(PRODUCT_DIR)/v8_simple_wasm_imports_section_fuzzer<(EXECUTABLE_SUFFIX)',
+      '<(PRODUCT_DIR)/v8_simple_wasm_memory_section_fuzzer<(EXECUTABLE_SUFFIX)',
+      '<(PRODUCT_DIR)/v8_simple_wasm_names_section_fuzzer<(EXECUTABLE_SUFFIX)',
+      '<(PRODUCT_DIR)/v8_simple_wasm_types_section_fuzzer<(EXECUTABLE_SUFFIX)',
+      './fuzzer.status',
+      './testcfg.py',
+      './json/',
+      './parser/',
+      './regexp/',
+      './wasm/',
+      './wasm_asmjs/',
+      './wasm_code/',
+      './wasm_data_section/',
+      './wasm_function_sigs_section/',
+      './wasm_globals_section/',
+      './wasm_imports_section/',
+      './wasm_memory_section/',
+      './wasm_names_section/',
+      './wasm_types_section/',
+    ],
+  },
+  'includes': [
+    '../../src/base.isolate',
+    '../../tools/testrunner/testrunner.isolate',
+  ],
+}

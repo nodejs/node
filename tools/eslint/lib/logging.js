@@ -1,17 +1,20 @@
 /**
- * @fileoverview Handle logging for Eslint
+ * @fileoverview Handle logging for ESLint
  * @author Gyandeep Singh
- * @copyright 2015 Gyandeep Singh. All rights reserved.
  */
+
 "use strict";
+
+/* eslint no-console: "off" */
 
 /* istanbul ignore next */
 module.exports = {
+
     /**
      * Cover for console.log
      * @returns {void}
      */
-    info: function() {
+    info() {
         console.log.apply(console, Array.prototype.slice.call(arguments));
     },
 
@@ -19,7 +22,7 @@ module.exports = {
      * Cover for console.error
      * @returns {void}
      */
-    error: function() {
+    error() {
         console.error.apply(console, Array.prototype.slice.call(arguments));
     }
 };

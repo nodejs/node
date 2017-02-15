@@ -11,7 +11,7 @@ if (cluster.isMaster) {
     c: [50, 500]
   });
 } else {
-  require('../http_simple.js');
+  require('./_http_simple.js');
 }
 
 function main(conf) {
@@ -27,9 +27,11 @@ function main(conf) {
 
     setTimeout(function() {
       var path = '/' + conf.type + '/' + conf.length;
-      var args = ['-d', '10s', '-t', 8, '-c', conf.c];
 
-      bench.http(path, args, function() {
+      bench.http({
+        path: path,
+        connections: conf.c
+      }, function() {
         w1.destroy();
         w2.destroy();
       });

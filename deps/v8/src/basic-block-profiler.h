@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "src/base/macros.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -58,15 +59,16 @@ class BasicBlockProfiler {
   const DataList* data_list() { return &data_list_; }
 
  private:
-  friend std::ostream& operator<<(std::ostream& os,
-                                  const BasicBlockProfiler& s);
+  friend V8_EXPORT_PRIVATE std::ostream& operator<<(
+      std::ostream& os, const BasicBlockProfiler& s);
 
   DataList data_list_;
 
   DISALLOW_COPY_AND_ASSIGN(BasicBlockProfiler);
 };
 
-std::ostream& operator<<(std::ostream& os, const BasicBlockProfiler& s);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           const BasicBlockProfiler& s);
 std::ostream& operator<<(std::ostream& os, const BasicBlockProfiler::Data& s);
 
 }  // namespace internal

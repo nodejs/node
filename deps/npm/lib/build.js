@@ -22,6 +22,7 @@ var asyncMap = require('slide').asyncMap
 var ini = require('ini')
 var writeFile = require('write-file-atomic')
 var packageId = require('./utils/package-id.js')
+var output = require('./utils/output.js')
 
 module.exports = build
 build.usage = 'npm build [<folder>]'
@@ -65,8 +66,7 @@ function build_ (global, didPre, didRB) {
         [linkStuff, pkg, folder, global, didRB],
         [writeBuiltinConf, pkg, folder],
         didPre !== build._noLC && [lifecycle, pkg, 'install', folder],
-        didPre !== build._noLC && [lifecycle, pkg, 'postinstall', folder],
-        didPre !== build._noLC && npm.config.get('npat') && [lifecycle, pkg, 'test', folder]
+        didPre !== build._noLC && [lifecycle, pkg, 'postinstall', folder]
       ],
       cb)
     })
@@ -190,7 +190,7 @@ function linkBins (pkg, folder, parent, gtop, cb) {
   }
   var binRoot = gtop ? npm.globalBin
                      : path.resolve(parent, '.bin')
-  log.verbose('link bins', [pkg.bin, binRoot, gtop])
+  log.verbose('linkBins', [pkg.bin, binRoot, gtop])
 
   asyncMap(Object.keys(pkg.bin), function (b, cb) {
     linkBin(
@@ -211,9 +211,7 @@ function linkBins (pkg, folder, parent, gtop, cb) {
           var out = npm.config.get('parseable')
                   ? dest + '::' + src + ':BINFILE'
                   : dest + ' -> ' + src
-          log.clearProgress()
-          console.log(out)
-          log.showProgress()
+          output(out)
           cb()
         })
       }

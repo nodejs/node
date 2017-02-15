@@ -1,44 +1,53 @@
 {
   "_args": [
     [
-      "eslint@latest",
-      "/Users/trott/test"
+      {
+        "raw": "eslint@3.13.0",
+        "scope": null,
+        "escapedName": "eslint",
+        "name": "eslint",
+        "rawSpec": "3.13.0",
+        "spec": "3.13.0",
+        "type": "version"
+      },
+      "/Users/trott/io.js/tools"
     ]
   ],
-  "_from": "eslint@latest",
-  "_id": "eslint@2.1.0",
+  "_from": "eslint@3.13.0",
+  "_id": "eslint@3.13.0",
   "_inCache": true,
-  "_installable": true,
   "_location": "/eslint",
+  "_nodeVersion": "4.4.7",
   "_npmOperationalInternal": {
-    "host": "packages-6-west.internal.npmjs.com",
-    "tmp": "tmp/eslint-2.1.0.tgz_1455561335213_0.7634323448874056"
+    "host": "packages-12-west.internal.npmjs.com",
+    "tmp": "tmp/eslint-3.13.0.tgz_1483735229408_0.023912116652354598"
   },
   "_npmUser": {
-    "email": "nicholas@nczconsulting.com",
-    "name": "nzakas"
+    "name": "eslint",
+    "email": "nicholas+eslint@nczconsulting.com"
   },
-  "_npmVersion": "1.4.10",
+  "_npmVersion": "2.15.8",
   "_phantomChildren": {},
   "_requested": {
-    "name": "eslint",
-    "raw": "eslint@latest",
-    "rawSpec": "latest",
+    "raw": "eslint@3.13.0",
     "scope": null,
-    "spec": "latest",
-    "type": "tag"
+    "escapedName": "eslint",
+    "name": "eslint",
+    "rawSpec": "3.13.0",
+    "spec": "3.13.0",
+    "type": "version"
   },
   "_requiredBy": [
     "#USER"
   ],
-  "_resolved": "https://registry.npmjs.org/eslint/-/eslint-2.1.0.tgz",
-  "_shasum": "6c5c28c0bf686cfeea379fcd4eb3c9a2ce2ac72f",
+  "_resolved": "https://registry.npmjs.org/eslint/-/eslint-3.13.0.tgz",
+  "_shasum": "636925fd163c9babe2e8be7ae43caf518d469577",
   "_shrinkwrap": null,
-  "_spec": "eslint@latest",
-  "_where": "/Users/trott/test",
+  "_spec": "eslint@3.13.0",
+  "_where": "/Users/trott/io.js/tools",
   "author": {
-    "email": "nicholas+npm@nczconsulting.com",
-    "name": "Nicholas C. Zakas"
+    "name": "Nicholas C. Zakas",
+    "email": "nicholas+npm@nczconsulting.com"
   },
   "bin": {
     "eslint": "./bin/eslint.js"
@@ -47,86 +56,98 @@
     "url": "https://github.com/eslint/eslint/issues/"
   },
   "dependencies": {
-    "chalk": "^1.0.0",
+    "babel-code-frame": "^6.16.0",
+    "chalk": "^1.1.3",
     "concat-stream": "^1.4.6",
     "debug": "^2.1.1",
-    "doctrine": "^1.1.0",
-    "es6-map": "^0.1.3",
-    "escope": "^3.4.0",
-    "espree": "^3.0.0",
-    "estraverse": "^4.1.1",
-    "estraverse-fb": "^1.3.1",
+    "doctrine": "^1.2.2",
+    "escope": "^3.6.0",
+    "espree": "^3.3.1",
+    "estraverse": "^4.2.0",
     "esutils": "^2.0.2",
-    "file-entry-cache": "^1.1.1",
-    "glob": "^6.0.4",
-    "globals": "^8.18.0",
-    "ignore": "^2.2.19",
+    "file-entry-cache": "^2.0.0",
+    "glob": "^7.0.3",
+    "globals": "^9.14.0",
+    "ignore": "^3.2.0",
+    "imurmurhash": "^0.1.4",
     "inquirer": "^0.12.0",
     "is-my-json-valid": "^2.10.0",
     "is-resolvable": "^1.0.0",
     "js-yaml": "^3.5.1",
     "json-stable-stringify": "^1.0.0",
+    "levn": "^0.3.0",
     "lodash": "^4.0.0",
     "mkdirp": "^0.5.0",
-    "optionator": "^0.8.1",
-    "path-is-absolute": "^1.0.0",
+    "natural-compare": "^1.4.0",
+    "optionator": "^0.8.2",
     "path-is-inside": "^1.0.1",
     "pluralize": "^1.2.1",
     "progress": "^1.1.8",
-    "resolve": "^1.1.6",
-    "shelljs": "^0.5.3",
-    "strip-json-comments": "~1.0.1",
+    "require-uncached": "^1.0.2",
+    "shelljs": "^0.7.5",
+    "strip-bom": "^3.0.0",
+    "strip-json-comments": "~2.0.1",
     "table": "^3.7.8",
     "text-table": "~0.2.0",
     "user-home": "^2.0.0"
   },
   "description": "An AST-based pattern checker for JavaScript.",
   "devDependencies": {
+    "babel-polyfill": "^6.9.1",
+    "babel-preset-es2015": "^6.9.0",
+    "babelify": "^7.3.0",
     "beefy": "^2.0.0",
     "brfs": "0.0.9",
     "browserify": "^12.0.1",
-    "chai": "^3.4.0",
+    "chai": "^3.5.0",
     "cheerio": "^0.19.0",
     "coveralls": "2.11.4",
     "dateformat": "^1.0.8",
     "ejs": "^2.3.3",
-    "eslint-release": "^0.3.0",
+    "eslint-plugin-node": "^2.0.0",
+    "eslint-release": "^0.10.0",
     "esprima": "^2.4.1",
     "esprima-fb": "^15001.1001.0-dev-harmony-fb",
     "gh-got": "^2.2.0",
     "istanbul": "^0.4.0",
     "jsdoc": "^3.3.0-beta1",
+    "karma": "^0.13.22",
+    "karma-babel-preprocessor": "^6.0.1",
+    "karma-mocha": "^1.0.1",
+    "karma-mocha-reporter": "^2.0.3",
+    "karma-phantomjs-launcher": "^1.0.0",
     "leche": "^2.1.1",
     "linefix": "^0.1.1",
     "load-perf": "^0.2.0",
-    "markdownlint": "^0.1.0",
+    "markdownlint": "^0.3.1",
     "mocha": "^2.4.5",
-    "mocha-phantomjs": "4.0.1",
-    "npm-license": "^0.3.1",
-    "phantomjs": "1.9.18",
-    "phantomjs-polyfill": "0.0.1",
-    "proxyquire": "^1.0.0",
+    "mock-fs": "^3.12.1",
+    "npm-license": "^0.3.2",
+    "phantomjs-prebuilt": "^2.1.7",
+    "proxyquire": "^1.7.10",
     "semver": "^5.0.3",
     "shelljs-nodecli": "~0.1.0",
     "sinon": "^1.17.2",
-    "through": "^2.3.6",
-    "tmp": "0.0.28"
+    "temp": "^0.8.3",
+    "through": "^2.3.6"
   },
   "directories": {},
   "dist": {
-    "shasum": "6c5c28c0bf686cfeea379fcd4eb3c9a2ce2ac72f",
-    "tarball": "http://registry.npmjs.org/eslint/-/eslint-2.1.0.tgz"
+    "shasum": "636925fd163c9babe2e8be7ae43caf518d469577",
+    "tarball": "https://registry.npmjs.org/eslint/-/eslint-3.13.0.tgz"
   },
   "engines": {
-    "node": ">=0.10"
+    "node": ">=4"
   },
   "files": [
     "LICENSE",
     "README.md",
     "bin",
     "conf",
-    "lib"
+    "lib",
+    "messages"
   ],
+  "gitHead": "8571ab82af1d86bf4aa6a9be79ece42493607c69",
   "homepage": "http://eslint.org",
   "keywords": [
     "ast",
@@ -139,12 +160,16 @@
   "main": "./lib/api.js",
   "maintainers": [
     {
-      "email": "nicholas@nczconsulting.com",
-      "name": "nzakas"
+      "name": "eslint",
+      "email": "nicholas+eslint@nczconsulting.com"
     },
     {
-      "email": "ivolodin@gmail.com",
-      "name": "ivolodin"
+      "name": "ivolodin",
+      "email": "ivolodin@gmail.com"
+    },
+    {
+      "name": "nzakas",
+      "email": "nicholas@nczconsulting.com"
     }
   ],
   "name": "eslint",
@@ -159,6 +184,7 @@
     "betarelease": "node Makefile.js prerelease -- beta",
     "browserify": "node Makefile.js browserify",
     "check-commit": "node Makefile.js checkGitCommit",
+    "ci-release": "node Makefile.js ciRelease",
     "coveralls": "cat ./coverage/lcov.info | coveralls",
     "docs": "node Makefile.js docs",
     "gensite": "node Makefile.js gensite",
@@ -168,5 +194,5 @@
     "release": "node Makefile.js release",
     "test": "node Makefile.js test"
   },
-  "version": "2.1.0"
+  "version": "3.13.0"
 }

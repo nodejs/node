@@ -2,22 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/bit-vector.h"
 #include "src/compiler/escape-analysis.h"
+#include "src/bit-vector.h"
 #include "src/compiler/escape-analysis-reducer.h"
 #include "src/compiler/graph-visualizer.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/types-inl.h"
-#include "src/zone-containers.h"
+#include "src/compiler/types.h"
+#include "src/zone/zone-containers.h"
 #include "test/unittests/compiler/graph-unittest.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-class EscapeAnalysisTest : public GraphTest {
+class EscapeAnalysisTest : public TypedGraphTest {
  public:
   EscapeAnalysisTest()
       : simplified_(zone()),
@@ -48,7 +48,8 @@ class EscapeAnalysisTest : public GraphTest {
       effect = effect_;
     }
 
-    return effect_ = graph()->NewNode(common()->BeginRegion(), effect);
+    return effect_ = graph()->NewNode(
+               common()->BeginRegion(RegionObservability::kObservable), effect);
   }
 
   Node* FinishRegion(Node* value, Node* effect = nullptr) {
@@ -83,6 +84,20 @@ class EscapeAnalysisTest : public GraphTest {
     }
     return effect_ = graph()->NewNode(simplified()->StoreField(access),
                                       allocation, value, effect, control);
+  }
+
+  Node* StoreElement(const ElementAccess& access, Node* allocation, Node* index,
+                     Node* value, Node* effect = nullptr,
+                     Node* control = nullptr) {
+    if (!effect) {
+      effect = effect_;
+    }
+    if (!control) {
+      control = control_;
+    }
+    return effect_ =
+               graph()->NewNode(simplified()->StoreElement(access), allocation,
+                                index, value, effect, control);
   }
 
   Node* Load(const FieldAccess& access, Node* from, Node* effect = nullptr,
@@ -131,9 +146,19 @@ class EscapeAnalysisTest : public GraphTest {
     return control_ = graph()->NewNode(common()->Merge(2), control1, control2);
   }
 
-  FieldAccess AccessAtIndex(int offset) {
-    FieldAccess access = {kTaggedBase, offset, MaybeHandle<Name>(), Type::Any(),
-                          MachineType::AnyTagged()};
+  FieldAccess FieldAccessAtIndex(int offset) {
+    FieldAccess access = {kTaggedBase,
+                          offset,
+                          MaybeHandle<Name>(),
+                          Type::Any(),
+                          MachineType::AnyTagged(),
+                          kFullWriteBarrier};
+    return access;
+  }
+
+  ElementAccess MakeElementAccess(int header_size) {
+    ElementAccess access = {kTaggedBase, header_size, Type::Any(),
+                            MachineType::AnyTagged(), kFullWriteBarrier};
     return access;
   }
 
@@ -166,6 +191,7 @@ class EscapeAnalysisTest : public GraphTest {
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
 
   Node* effect() { return effect_; }
+  Node* control() { return control_; }
 
  private:
   SimplifiedOperatorBuilder simplified_;
@@ -185,9 +211,9 @@ TEST_F(EscapeAnalysisTest, StraightNonEscape) {
   Node* object1 = Constant(1);
   BeginRegion();
   Node* allocation = Allocate(Constant(kPointerSize));
-  Store(AccessAtIndex(0), allocation, object1);
+  Store(FieldAccessAtIndex(0), allocation, object1);
   Node* finish = FinishRegion(allocation);
-  Node* load = Load(AccessAtIndex(0), finish);
+  Node* load = Load(FieldAccessAtIndex(0), finish);
   Node* result = Return(load);
   EndGraph();
 
@@ -202,13 +228,39 @@ TEST_F(EscapeAnalysisTest, StraightNonEscape) {
 }
 
 
+TEST_F(EscapeAnalysisTest, StraightNonEscapeNonConstStore) {
+  Node* object1 = Constant(1);
+  Node* object2 = Constant(2);
+  BeginRegion();
+  Node* allocation = Allocate(Constant(kPointerSize));
+  Store(FieldAccessAtIndex(0), allocation, object1);
+  Node* index =
+      graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
+                       object1, object2, control());
+  StoreElement(MakeElementAccess(0), allocation, index, object1);
+  Node* finish = FinishRegion(allocation);
+  Node* load = Load(FieldAccessAtIndex(0), finish);
+  Node* result = Return(load);
+  EndGraph();
+
+  Analysis();
+
+  ExpectEscaped(allocation);
+  ExpectReplacement(load, nullptr);
+
+  Transformation();
+
+  ASSERT_EQ(load, NodeProperties::GetValueInput(result, 0));
+}
+
+
 TEST_F(EscapeAnalysisTest, StraightEscape) {
   Node* object1 = Constant(1);
   BeginRegion();
   Node* allocation = Allocate(Constant(kPointerSize));
-  Store(AccessAtIndex(0), allocation, object1);
+  Store(FieldAccessAtIndex(0), allocation, object1);
   Node* finish = FinishRegion(allocation);
-  Node* load = Load(AccessAtIndex(0), finish);
+  Node* load = Load(FieldAccessAtIndex(0), finish);
   Node* result = Return(allocation);
   EndGraph();
   graph()->end()->AppendInput(zone(), load);
@@ -229,15 +281,15 @@ TEST_F(EscapeAnalysisTest, StoreLoadEscape) {
 
   BeginRegion();
   Node* allocation1 = Allocate(Constant(kPointerSize));
-  Store(AccessAtIndex(0), allocation1, object1);
+  Store(FieldAccessAtIndex(0), allocation1, object1);
   Node* finish1 = FinishRegion(allocation1);
 
   BeginRegion();
   Node* allocation2 = Allocate(Constant(kPointerSize));
-  Store(AccessAtIndex(0), allocation2, finish1);
+  Store(FieldAccessAtIndex(0), allocation2, finish1);
   Node* finish2 = FinishRegion(allocation2);
 
-  Node* load = Load(AccessAtIndex(0), finish2);
+  Node* load = Load(FieldAccessAtIndex(0), finish2);
   Node* result = Return(load);
   EndGraph();
   Analysis();
@@ -257,16 +309,18 @@ TEST_F(EscapeAnalysisTest, BranchNonEscape) {
   Node* object2 = Constant(2);
   BeginRegion();
   Node* allocation = Allocate(Constant(kPointerSize));
-  Store(AccessAtIndex(0), allocation, object1);
+  Store(FieldAccessAtIndex(0), allocation, object1);
   Node* finish = FinishRegion(allocation);
   Branch();
   Node* ifFalse = IfFalse();
   Node* ifTrue = IfTrue();
-  Node* effect1 = Store(AccessAtIndex(0), allocation, object1, finish, ifFalse);
-  Node* effect2 = Store(AccessAtIndex(0), allocation, object2, finish, ifTrue);
+  Node* effect1 =
+      Store(FieldAccessAtIndex(0), allocation, object1, finish, ifFalse);
+  Node* effect2 =
+      Store(FieldAccessAtIndex(0), allocation, object2, finish, ifTrue);
   Node* merge = Merge2(ifFalse, ifTrue);
   Node* phi = graph()->NewNode(common()->EffectPhi(2), effect1, effect2, merge);
-  Node* load = Load(AccessAtIndex(0), finish, phi, merge);
+  Node* load = Load(FieldAccessAtIndex(0), finish, phi, merge);
   Node* result = Return(load, phi);
   EndGraph();
   graph()->end()->AppendInput(zone(), result);
@@ -283,14 +337,81 @@ TEST_F(EscapeAnalysisTest, BranchNonEscape) {
 }
 
 
+TEST_F(EscapeAnalysisTest, BranchEscapeOne) {
+  Node* object1 = Constant(1);
+  Node* object2 = Constant(2);
+  Node* index = graph()->NewNode(common()->Parameter(0), start());
+  BeginRegion();
+  Node* allocation = Allocate(Constant(kPointerSize));
+  Store(FieldAccessAtIndex(0), allocation, object1);
+  Node* finish = FinishRegion(allocation);
+  Branch();
+  Node* ifFalse = IfFalse();
+  Node* ifTrue = IfTrue();
+  Node* effect1 =
+      Store(FieldAccessAtIndex(0), allocation, object1, finish, ifFalse);
+  Node* effect2 = StoreElement(MakeElementAccess(0), allocation, index, object2,
+                               finish, ifTrue);
+  Node* merge = Merge2(ifFalse, ifTrue);
+  Node* phi = graph()->NewNode(common()->EffectPhi(2), effect1, effect2, merge);
+  Node* load = Load(FieldAccessAtIndex(0), finish, phi, merge);
+  Node* result = Return(load, phi);
+  EndGraph();
+
+  Analysis();
+
+  ExpectEscaped(allocation);
+  ExpectReplacement(load, nullptr);
+
+  Transformation();
+
+  ASSERT_EQ(load, NodeProperties::GetValueInput(result, 0));
+}
+
+
+TEST_F(EscapeAnalysisTest, BranchEscapeThroughStore) {
+  Node* object1 = Constant(1);
+  Node* object2 = Constant(2);
+  BeginRegion();
+  Node* allocation = Allocate(Constant(kPointerSize));
+  Store(FieldAccessAtIndex(0), allocation, object1);
+  FinishRegion(allocation);
+  BeginRegion();
+  Node* allocation2 = Allocate(Constant(kPointerSize));
+  Store(FieldAccessAtIndex(0), allocation, object2);
+  Node* finish2 = FinishRegion(allocation2);
+  Branch();
+  Node* ifFalse = IfFalse();
+  Node* ifTrue = IfTrue();
+  Node* effect1 =
+      Store(FieldAccessAtIndex(0), allocation, allocation2, finish2, ifFalse);
+  Node* merge = Merge2(ifFalse, ifTrue);
+  Node* phi = graph()->NewNode(common()->EffectPhi(2), effect1, finish2, merge);
+  Node* load = Load(FieldAccessAtIndex(0), finish2, phi, merge);
+  Node* result = Return(allocation, phi);
+  EndGraph();
+  graph()->end()->AppendInput(zone(), load);
+
+  Analysis();
+
+  ExpectEscaped(allocation);
+  ExpectEscaped(allocation2);
+  ExpectReplacement(load, nullptr);
+
+  Transformation();
+
+  ASSERT_EQ(allocation, NodeProperties::GetValueInput(result, 0));
+}
+
+
 TEST_F(EscapeAnalysisTest, DanglingLoadOrder) {
   Node* object1 = Constant(1);
   Node* object2 = Constant(2);
   Node* allocation = Allocate(Constant(kPointerSize));
-  Node* store1 = Store(AccessAtIndex(0), allocation, object1);
-  Node* load1 = Load(AccessAtIndex(0), allocation);
-  Node* store2 = Store(AccessAtIndex(0), allocation, object2);
-  Node* load2 = Load(AccessAtIndex(0), allocation, store1);
+  Node* store1 = Store(FieldAccessAtIndex(0), allocation, object1);
+  Node* load1 = Load(FieldAccessAtIndex(0), allocation);
+  Node* store2 = Store(FieldAccessAtIndex(0), allocation, object2);
+  Node* load2 = Load(FieldAccessAtIndex(0), allocation, store1);
   Node* result = Return(load2);
   EndGraph();
   graph()->end()->AppendInput(zone(), store2);
@@ -312,9 +433,9 @@ TEST_F(EscapeAnalysisTest, DeoptReplacement) {
   Node* object1 = Constant(1);
   BeginRegion();
   Node* allocation = Allocate(Constant(kPointerSize));
-  Store(AccessAtIndex(0), allocation, object1);
+  Store(FieldAccessAtIndex(0), allocation, object1);
   Node* finish = FinishRegion(allocation);
-  Node* effect1 = Store(AccessAtIndex(0), allocation, object1, finish);
+  Node* effect1 = Store(FieldAccessAtIndex(0), allocation, object1, finish);
   Branch();
   Node* ifFalse = IfFalse();
   Node* state_values1 = graph()->NewNode(common()->StateValues(1), finish);
@@ -325,10 +446,11 @@ TEST_F(EscapeAnalysisTest, DeoptReplacement) {
                            nullptr),
       state_values1, state_values2, state_values3, UndefinedConstant(),
       graph()->start(), graph()->start());
-  Node* deopt = graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager),
-                                 frame_state, effect1, ifFalse);
+  Node* deopt = graph()->NewNode(
+      common()->Deoptimize(DeoptimizeKind::kEager, DeoptimizeReason::kNoReason),
+      frame_state, effect1, ifFalse);
   Node* ifTrue = IfTrue();
-  Node* load = Load(AccessAtIndex(0), finish, effect1, ifTrue);
+  Node* load = Load(FieldAccessAtIndex(0), finish, effect1, ifTrue);
   Node* result = Return(load, effect1, ifTrue);
   EndGraph();
   graph()->end()->AppendInput(zone(), deopt);
@@ -346,15 +468,14 @@ TEST_F(EscapeAnalysisTest, DeoptReplacement) {
   ASSERT_EQ(object1, NodeProperties::GetValueInput(object_state, 0));
 }
 
-
-TEST_F(EscapeAnalysisTest, DeoptReplacementIdentity) {
+TEST_F(EscapeAnalysisTest, DISABLED_DeoptReplacementIdentity) {
   Node* object1 = Constant(1);
   BeginRegion();
   Node* allocation = Allocate(Constant(kPointerSize * 2));
-  Store(AccessAtIndex(0), allocation, object1);
-  Store(AccessAtIndex(kPointerSize), allocation, allocation);
+  Store(FieldAccessAtIndex(0), allocation, object1);
+  Store(FieldAccessAtIndex(kPointerSize), allocation, allocation);
   Node* finish = FinishRegion(allocation);
-  Node* effect1 = Store(AccessAtIndex(0), allocation, object1, finish);
+  Node* effect1 = Store(FieldAccessAtIndex(0), allocation, object1, finish);
   Branch();
   Node* ifFalse = IfFalse();
   Node* state_values1 = graph()->NewNode(common()->StateValues(1), finish);
@@ -365,10 +486,11 @@ TEST_F(EscapeAnalysisTest, DeoptReplacementIdentity) {
                            nullptr),
       state_values1, state_values2, state_values3, UndefinedConstant(),
       graph()->start(), graph()->start());
-  Node* deopt = graph()->NewNode(common()->Deoptimize(DeoptimizeKind::kEager),
-                                 frame_state, effect1, ifFalse);
+  Node* deopt = graph()->NewNode(
+      common()->Deoptimize(DeoptimizeKind::kEager, DeoptimizeReason::kNoReason),
+      frame_state, effect1, ifFalse);
   Node* ifTrue = IfTrue();
-  Node* load = Load(AccessAtIndex(0), finish, effect1, ifTrue);
+  Node* load = Load(FieldAccessAtIndex(0), finish, effect1, ifTrue);
   Node* result = Return(load, effect1, ifTrue);
   EndGraph();
   graph()->end()->AppendInput(zone(), deopt);

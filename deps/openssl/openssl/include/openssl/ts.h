@@ -565,6 +565,9 @@ int TS_RESP_CTX_set_clock_precision_digits(TS_RESP_CTX *ctx,
 /* At most we accept usec precision. */
 # define TS_MAX_CLOCK_PRECISION_DIGITS   6
 
+/* Maximum status message length */
+# define TS_MAX_STATUS_LENGTH   (1024 * 1024)
+
 /* No flags are set by default. */
 void TS_RESP_CTX_add_flags(TS_RESP_CTX *ctx, int flags);
 

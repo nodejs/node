@@ -61,7 +61,7 @@ class LivenessAnalysisTest : public GraphTest {
     const FrameStateFunctionInfo* state_info =
         common()->CreateFrameStateFunctionInfo(
             FrameStateType::kJavaScriptFunction, 0, locals_count_,
-            Handle<SharedFunctionInfo>(), CALL_MAINTAINS_NATIVE_CONTEXT);
+            Handle<SharedFunctionInfo>());
 
     const Operator* op = common()->FrameState(
         BailoutId(ast_num), OutputFrameStateCombine::Ignore(), state_info);

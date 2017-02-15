@@ -4,8 +4,10 @@
 
 #if V8_TARGET_ARCH_ARM
 
-#include "src/codegen.h"
 #include "src/debug/debug.h"
+
+#include "src/codegen.h"
+#include "src/debug/liveedit.h"
 
 namespace v8 {
 namespace internal {
@@ -41,7 +43,7 @@ void DebugCodegen::ClearDebugBreakSlot(Isolate* isolate, Address pc) {
 
 void DebugCodegen::PatchDebugBreakSlot(Isolate* isolate, Address pc,
                                        Handle<Code> code) {
-  DCHECK_EQ(Code::BUILTIN, code->kind());
+  DCHECK(code->is_debug_stub());
   CodePatcher patcher(isolate, pc, Assembler::kDebugBreakSlotInstructions);
   // Patch the code changing the debug break slot code from
   //   mov r2, r2
@@ -62,6 +64,10 @@ void DebugCodegen::PatchDebugBreakSlot(Isolate* isolate, Address pc,
   patcher.masm()->blx(ip);
 }
 
+bool DebugCodegen::DebugBreakSlotIsPatched(Address pc) {
+  Instr current_instr = Assembler::instr_at(pc);
+  return !Assembler::IsNop(current_instr, Assembler::DEBUG_BREAK_NOP);
+}
 
 void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
                                           DebugBreakCallHelperMode mode) {
@@ -77,9 +83,15 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
     __ mov(ip, Operand(Smi::FromInt(LiveEdit::kFramePaddingInitialSize)));
     __ push(ip);
 
-    if (mode == SAVE_RESULT_REGISTER) __ push(r0);
-
-    __ mov(r0, Operand::Zero());  // no arguments
+    // Push arguments for DebugBreak call.
+    if (mode == SAVE_RESULT_REGISTER) {
+      // Break on return.
+      __ push(r0);
+    } else {
+      // Non-return breaks.
+      __ Push(masm->isolate()->factory()->the_hole_value());
+    }
+    __ mov(r0, Operand(1));
     __ mov(r1,
            Operand(ExternalReference(
                Runtime::FunctionForId(Runtime::kDebugBreak), masm->isolate())));
@@ -90,11 +102,13 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
     if (FLAG_debug_code) {
       for (int i = 0; i < kNumJSCallerSaved; i++) {
         Register reg = {JSCallerSavedCode(i)};
-        __ mov(reg, Operand(kDebugZapValue));
+        // Do not clobber r0 if mode is SAVE_RESULT_REGISTER. It will
+        // contain return value of the function.
+        if (!(reg.is(r0) && (mode == SAVE_RESULT_REGISTER))) {
+          __ mov(reg, Operand(kDebugZapValue));
+        }
       }
     }
-
-    if (mode == SAVE_RESULT_REGISTER) __ pop(r0);
 
     // Don't bother removing padding bytes pushed on the stack
     // as the frame is going to be restored right away.
@@ -115,8 +129,7 @@ void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
 
 void DebugCodegen::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   // Load the function pointer off of our current stack frame.
-  __ ldr(r1, MemOperand(fp,
-         StandardFrameConstants::kConstantPoolOffset - kPointerSize));
+  __ ldr(r1, MemOperand(fp, FrameDropperFrameConstants::kFunctionOffset));
 
   // Pop return address, frame and constant pool pointer (if
   // FLAG_enable_embedded_constant_pool).

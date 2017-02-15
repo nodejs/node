@@ -1,4 +1,4 @@
-.TH "NPM\-SHRINKWRAP" "1" "January 2016" "" ""
+.TH "NPM\-SHRINKWRAP" "1" "January 2017" "" ""
 .SH "NAME"
 \fBnpm-shrinkwrap\fR \- Lock down dependency versions
 .SH SYNOPSIS
@@ -111,16 +111,16 @@ This generates \fBnpm\-shrinkwrap\.json\fP, which will look something like this:
 .nf
 {
   "name": "A",
-  "version": "1\.1\.0",
+  "version": "0\.1\.0",
   "dependencies": {
     "B": {
-      "version": "1\.0\.1",
-      "from": "B@^1\.0\.0",
-      "resolved": "https://registry\.npmjs\.org/B/\-/B\-1\.0\.1\.tgz",
+      "version": "0\.0\.1",
+      "from": "B@^0\.0\.1",
+      "resolved": "https://registry\.npmjs\.org/B/\-/B\-0\.0\.1\.tgz",
       "dependencies": {
         "C": {
-          "version": "1\.0\.1",
-          "from": "org/C#v1\.0\.1",
+          "version": "0\.0\.1",
+          "from": "org/C#v0\.0\.1",
           "resolved": "git://github\.com/org/C\.git#5c380ae319fc4efe9e7f2d9c78b0faa588fd99b4"
         }
       }
@@ -141,6 +141,17 @@ resolution using "version" if one isn't\.
 .IP 2. 3
 The tree is walked and any missing dependencies are installed in the usual fashion\.
 
+.RE
+.P
+If \fBpreshrinkwrap\fP, \fBshrinkwrap\fP or \fBpostshrinkwrap\fP are in the \fBscripts\fP property of the
+\fBpackage\.json\fP, they will be executed by running \fBnpm shrinkwrap\fP\|\.
+\fBpreshrinkwrap\fP and \fBshrinkwrap\fP are executed before the shrinkwrap, \fBpostshrinkwrap\fP is
+executed afterwards\. For example to run some postprocessing on the generated file:
+.P
+.RS 2
+.nf
+"scripts": { "postshrinkwrap": "node fix\-shrinkwrap\.js" }
+.fi
 .RE
 .SS Using shrinkwrapped packages
 .P
@@ -168,11 +179,11 @@ To add or update a dependency in a shrinkwrapped package:
 Run \fBnpm install\fP in the package root to install the current
 versions of all dependencies\.
 .IP 2. 3
-Add or update dependencies\. \fBnpm install \-\-save\fP each new or updated
-package individually to update the \fBpackage\.json\fP and the shrinkwrap\.
-Note that they must be explicitly named in order to be installed: running
-\fBnpm install\fP with no arguments will merely reproduce the existing
-shrinkwrap\.
+Add or update dependencies\. \fBnpm install \-\-save\fP or \fBnpm install \-\-save\-dev\fP
+each new or updated package individually to update the \fBpackage\.json\fP and
+the shrinkwrap\. Note that they must be explicitly named in order to be
+installed: running \fBnpm install\fP with no arguments will merely reproduce
+the existing shrinkwrap\.
 .IP 3. 3
 Validate that the package works as expected with the new
 dependencies\.
@@ -192,12 +203,16 @@ wouldn't actually work\. Similarly, the command will fail if there are
 extraneous packages (not referenced by \fBpackage\.json\fP), since that would
 indicate that \fBpackage\.json\fP is not correct\.
 .P
-Since \fBnpm shrinkwrap\fP is intended to lock down your dependencies for
-production use, \fBdevDependencies\fP will not be included unless you
-explicitly set the \fB\-\-dev\fP flag when you run \fBnpm shrinkwrap\fP\|\.  If
-installed \fBdevDependencies\fP are excluded, then npm will print a
-warning\.  If you want them to be installed with your module by
-default, please consider adding them to \fBdependencies\fP instead\.
+Starting with npm v4\.0\.1, \fBdevDependencies\fP are included when you run
+\fBnpm shrinkwrap\fP and follow the usual rules as to when they're installed\.
+As of npm v3\.10\.8, if you run \fBnpm install \-\-only=production\fP or
+\fBnpm install \-\-production\fP with a shrinkwrap including your development
+dependencies they won't be installed\. Similarly, if the environment
+variable \fBNODE_ENV\fP is \fBproduction\fP then they won't be installed\. If you
+need compatibility with versions of npm prior to v3\.10\.8 or otherwise
+don't want them in your shrinkwrap you can exclude development
+dependencies with:
+\fBnpm shrinkwrap \-\-only=prod\fP or \fBnpm shrinkwrap \-\-production\fP\|\.
 .P
 If shrinkwrapped package A depends on shrinkwrapped package B, B's
 shrinkwrap will not be used as part of the installation of A\. However,
@@ -215,6 +230,10 @@ contents rather than versions\.
 .RS 0
 .IP \(bu 2
 npm help install
+.IP \(bu 2
+npm help run\-script
+.IP \(bu 2
+npm help 7 scripts
 .IP \(bu 2
 npm help 5 package\.json
 .IP \(bu 2

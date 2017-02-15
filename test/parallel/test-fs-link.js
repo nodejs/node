@@ -12,7 +12,7 @@ const dstPath = path.join(common.tmpDir, 'link1.js');
 fs.writeFileSync(srcPath, 'hello world');
 
 const callback = function(err) {
-  if (err) throw err;
+  assert.ifError(err);
   const dstContent = fs.readFileSync(dstPath, 'utf8');
   assert.strictEqual('hello world', dstContent);
 };
@@ -25,12 +25,12 @@ assert.throws(
   function() {
     fs.link();
   },
-  /src path/
+  /src must be a string or Buffer/
 );
 
 assert.throws(
   function() {
     fs.link('abc');
   },
-  /dest path/
+  /dest must be a string or Buffer/
 );

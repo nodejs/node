@@ -1,8 +1,6 @@
 /**
  * @fileoverview Rule to disallow empty functions.
  * @author Toru Nagashima
- * @copyright 2016 Toru Nagashima. All rights reserved.
- * See LICENSE file in root directory for full license.
  */
 
 "use strict";
@@ -11,7 +9,7 @@
 // Helpers
 //------------------------------------------------------------------------------
 
-var ALLOW_OPTIONS = Object.freeze([
+const ALLOW_OPTIONS = Object.freeze([
     "functions",
     "arrowFunctions",
     "generatorFunctions",
@@ -21,7 +19,7 @@ var ALLOW_OPTIONS = Object.freeze([
     "setters",
     "constructors"
 ]);
-var SHOW_KIND = Object.freeze({
+const SHOW_KIND = Object.freeze({
     functions: "function",
     arrowFunctions: "arrow function",
     generatorFunctions: "generator function",
@@ -46,8 +44,8 @@ var SHOW_KIND = Object.freeze({
  *      "constructors".
  */
 function getKind(node) {
-    var parent = node.parent;
-    var kind = "";
+    const parent = node.parent;
+    let kind = "";
 
     if (node.type === "ArrowFunctionExpression") {
         return "arrowFunctions";
@@ -80,7 +78,8 @@ function getKind(node) {
     }
 
     // Detects prefix.
-    var prefix = "";
+    let prefix = "";
+
     if (node.generator) {
         prefix = "generator";
     } else if (node.async) {
@@ -95,55 +94,70 @@ function getKind(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
-    var options = context.options[0] || {};
-    var allowed = options.allow || [];
-
-    /**
-     * Reports a given function node if the node matches the following patterns.
-     *
-     * - Not allowed by options.
-     * - The body is empty.
-     * - The body doesn't have any comments.
-     *
-     * @param {ASTNode} node - A function node to report. This is one of
-     *      an ArrowFunctionExpression, a FunctionDeclaration, or a
-     *      FunctionExpression.
-     * @returns {void}
-     */
-    function reportIfEmpty(node) {
-        var kind = getKind(node);
-
-        if (allowed.indexOf(kind) === -1 &&
-            node.body.type === "BlockStatement" &&
-            node.body.body.length === 0 &&
-            context.getComments(node.body).trailing.length === 0
-        ) {
-            context.report({
-                node: node,
-                loc: node.body.loc.start,
-                message: "Unexpected empty " + SHOW_KIND[kind] + "."
-            });
-        }
-    }
-
-    return {
-        ArrowFunctionExpression: reportIfEmpty,
-        FunctionDeclaration: reportIfEmpty,
-        FunctionExpression: reportIfEmpty
-    };
-};
-
-module.exports.schema = [
-    {
-        type: "object",
-        properties: {
-            allow: {
-                type: "array",
-                items: {enum: ALLOW_OPTIONS},
-                uniqueItems: true
-            }
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow empty functions",
+            category: "Best Practices",
+            recommended: false
         },
-        additionalProperties: false
+
+        schema: [
+            {
+                type: "object",
+                properties: {
+                    allow: {
+                        type: "array",
+                        items: { enum: ALLOW_OPTIONS },
+                        uniqueItems: true
+                    }
+                },
+                additionalProperties: false
+            }
+        ]
+    },
+
+    create(context) {
+        const options = context.options[0] || {};
+        const allowed = options.allow || [];
+
+        const sourceCode = context.getSourceCode();
+
+        /**
+         * Reports a given function node if the node matches the following patterns.
+         *
+         * - Not allowed by options.
+         * - The body is empty.
+         * - The body doesn't have any comments.
+         *
+         * @param {ASTNode} node - A function node to report. This is one of
+         *      an ArrowFunctionExpression, a FunctionDeclaration, or a
+         *      FunctionExpression.
+         * @returns {void}
+         */
+        function reportIfEmpty(node) {
+            const kind = getKind(node);
+
+            if (allowed.indexOf(kind) === -1 &&
+                node.body.type === "BlockStatement" &&
+                node.body.body.length === 0 &&
+                sourceCode.getComments(node.body).trailing.length === 0
+            ) {
+                context.report({
+                    node,
+                    loc: node.body.loc.start,
+                    message: "Unexpected empty {{kind}}.",
+                    data: {
+                        kind: SHOW_KIND[kind]
+                    }
+                });
+            }
+        }
+
+        return {
+            ArrowFunctionExpression: reportIfEmpty,
+            FunctionDeclaration: reportIfEmpty,
+            FunctionExpression: reportIfEmpty
+        };
     }
-];
+};

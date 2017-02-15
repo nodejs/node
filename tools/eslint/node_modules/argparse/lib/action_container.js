@@ -165,19 +165,23 @@ ActionContainer.prototype.getDefault = function (dest) {
 
 /**
  * ActionContainer#addArgument(args, options) -> Object
- * - args (Array): array of argument keys
+ * - args (String|Array): argument key, or array of argument keys
  * - options (Object): action objects see [[Action.new]]
  *
  * #### Examples
- * - addArgument([-f, --foo], {action:'store', defaultValue=1, ...})
- * - addArgument(['bar'], action: 'store', nargs:1, ...})
+ * - addArgument([ '-f', '--foo' ], { action: 'store', defaultValue: 1, ... })
+ * - addArgument([ 'bar' ], { action: 'store', nargs: 1, ... })
+ * - addArgument('--baz', { action: 'store', nargs: 1, ... })
  **/
 ActionContainer.prototype.addArgument = function (args, options) {
   args = args;
   options = options || {};
 
+  if (typeof args === 'string') {
+    args = [ args ];
+  }
   if (!Array.isArray(args)) {
-    throw new TypeError('addArgument first argument should be an array');
+    throw new TypeError('addArgument first argument should be a string or an array');
   }
   if (typeof options !== 'object' || Array.isArray(options)) {
     throw new TypeError('addArgument second argument should be a hash');
@@ -319,8 +323,8 @@ ActionContainer.prototype._addContainerActions = function (container) {
   var mutexGroup;
   container._mutuallyExclusiveGroups.forEach(function (group) {
     mutexGroup = this.addMutuallyExclusiveGroup({
-        required: group.required
-      });
+      required: group.required
+    });
     // map the actions to their new mutex group
     group._groupActions.forEach(function (action) {
       groupMap[actionHash(action)] = mutexGroup;

@@ -4,11 +4,12 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
+#include "src/compiler/js-operator.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/verifier.h"
-#include "src/types-inl.h"
+#include "src/handles-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -61,9 +62,9 @@ Node* NodeProperties::GetContextInput(Node* node) {
 
 
 // static
-Node* NodeProperties::GetFrameStateInput(Node* node, int index) {
-  DCHECK_LT(index, OperatorProperties::GetFrameStateInputCount(node->op()));
-  return node->InputAt(FirstFrameStateIndex(node) + index);
+Node* NodeProperties::GetFrameStateInput(Node* node) {
+  DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
+  return node->InputAt(FirstFrameStateIndex(node));
 }
 
 
@@ -123,6 +124,7 @@ bool NodeProperties::IsControlEdge(Edge edge) {
 
 // static
 bool NodeProperties::IsExceptionalCall(Node* node) {
+  if (node->op()->HasProperty(Operator::kNoThrow)) return false;
   for (Edge const edge : node->use_edges()) {
     if (!NodeProperties::IsControlEdge(edge)) continue;
     if (edge.from()->opcode() == IrOpcode::kIfException) return true;
@@ -156,8 +158,9 @@ void NodeProperties::ReplaceContextInput(Node* node, Node* context) {
 
 
 // static
-void NodeProperties::ReplaceControlInput(Node* node, Node* control) {
-  node->ReplaceInput(FirstControlIndex(node), control);
+void NodeProperties::ReplaceControlInput(Node* node, Node* control, int index) {
+  DCHECK(index < node->op()->ControlInputCount());
+  node->ReplaceInput(FirstControlIndex(node) + index, control);
 }
 
 
@@ -169,17 +172,9 @@ void NodeProperties::ReplaceEffectInput(Node* node, Node* effect, int index) {
 
 
 // static
-void NodeProperties::ReplaceFrameStateInput(Node* node, int index,
-                                            Node* frame_state) {
-  DCHECK_LT(index, OperatorProperties::GetFrameStateInputCount(node->op()));
-  node->ReplaceInput(FirstFrameStateIndex(node) + index, frame_state);
-}
-
-
-// static
-void NodeProperties::RemoveFrameStateInput(Node* node, int index) {
-  DCHECK_LT(index, OperatorProperties::GetFrameStateInputCount(node->op()));
-  node->RemoveInput(FirstFrameStateIndex(node) + index);
+void NodeProperties::ReplaceFrameStateInput(Node* node, Node* frame_state) {
+  DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
+  node->ReplaceInput(FirstFrameStateIndex(node), frame_state);
 }
 
 
@@ -219,7 +214,8 @@ void NodeProperties::ReplaceUses(Node* node, Node* value, Node* effect,
         DCHECK_NOT_NULL(exception);
         edge.UpdateTo(exception);
       } else {
-        UNREACHABLE();
+        DCHECK_NOT_NULL(success);
+        edge.UpdateTo(success);
       }
     } else if (IsEffectEdge(edge)) {
       DCHECK_NOT_NULL(effect);
@@ -238,6 +234,18 @@ void NodeProperties::ChangeOp(Node* node, const Operator* new_op) {
   Verifier::VerifyNode(node);
 }
 
+
+// static
+Node* NodeProperties::FindFrameStateBefore(Node* node) {
+  Node* effect = NodeProperties::GetEffectInput(node);
+  while (effect->opcode() != IrOpcode::kCheckpoint) {
+    if (effect->opcode() == IrOpcode::kDead) return effect;
+    DCHECK_EQ(1, effect->op()->EffectInputCount());
+    effect = NodeProperties::GetEffectInput(effect);
+  }
+  Node* frame_state = GetFrameStateInput(effect);
+  return frame_state;
+}
 
 // static
 Node* NodeProperties::FindProjection(Node* node, size_t projection_index) {
@@ -334,10 +342,19 @@ MaybeHandle<Context> NodeProperties::GetSpecializationNativeContext(
     Node* node, MaybeHandle<Context> native_context) {
   while (true) {
     switch (node->opcode()) {
+      case IrOpcode::kJSLoadContext: {
+        ContextAccess const& access = ContextAccessOf(node->op());
+        if (access.index() != Context::NATIVE_CONTEXT_INDEX) {
+          return MaybeHandle<Context>();
+        }
+        // Skip over the intermediate contexts, we're only interested in the
+        // very last context in the context chain anyway.
+        node = NodeProperties::GetContextInput(node);
+        break;
+      }
       case IrOpcode::kJSCreateBlockContext:
       case IrOpcode::kJSCreateCatchContext:
       case IrOpcode::kJSCreateFunctionContext:
-      case IrOpcode::kJSCreateModuleContext:
       case IrOpcode::kJSCreateScriptContext:
       case IrOpcode::kJSCreateWithContext: {
         // Skip over the intermediate contexts, we're only interested in the

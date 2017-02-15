@@ -36,6 +36,19 @@ ConditionVariable::ConditionVariable() {
 
 
 ConditionVariable::~ConditionVariable() {
+#if defined(V8_OS_MACOSX)
+  // This hack is necessary to avoid a fatal pthreads subsystem bug in the
+  // Darwin kernel. http://crbug.com/517681.
+  {
+    Mutex lock;
+    LockGuard<Mutex> l(&lock);
+    struct timespec ts;
+    ts.tv_sec = 0;
+    ts.tv_nsec = 1;
+    pthread_cond_timedwait_relative_np(&native_handle_, &lock.native_handle(),
+                                       &ts);
+  }
+#endif
   int result = pthread_cond_destroy(&native_handle_);
   DCHECK_EQ(0, result);
   USE(result);

@@ -1,6 +1,7 @@
-var baseClamp = require('./_baseClamp'),
-    baseRandom = require('./_baseRandom'),
-    toArray = require('./toArray'),
+var arraySampleSize = require('./_arraySampleSize'),
+    baseSampleSize = require('./_baseSampleSize'),
+    isArray = require('./isArray'),
+    isIterateeCall = require('./_isIterateeCall'),
     toInteger = require('./toInteger');
 
 /**
@@ -9,9 +10,11 @@ var baseClamp = require('./_baseClamp'),
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Collection
  * @param {Array|Object} collection The collection to sample.
- * @param {number} [n=0] The number of elements to sample.
+ * @param {number} [n=1] The number of elements to sample.
+ * @param- {Object} [guard] Enables use as an iteratee for methods like `_.map`.
  * @returns {Array} Returns the random elements.
  * @example
  *
@@ -21,22 +24,14 @@ var baseClamp = require('./_baseClamp'),
  * _.sampleSize([1, 2, 3], 4);
  * // => [2, 3, 1]
  */
-function sampleSize(collection, n) {
-  var index = -1,
-      result = toArray(collection),
-      length = result.length,
-      lastIndex = length - 1;
-
-  n = baseClamp(toInteger(n), 0, length);
-  while (++index < n) {
-    var rand = baseRandom(index, lastIndex),
-        value = result[rand];
-
-    result[rand] = result[index];
-    result[index] = value;
+function sampleSize(collection, n, guard) {
+  if ((guard ? isIterateeCall(collection, n, guard) : n === undefined)) {
+    n = 1;
+  } else {
+    n = toInteger(n);
   }
-  result.length = n;
-  return result;
+  var func = isArray(collection) ? arraySampleSize : baseSampleSize;
+  return func(collection, n);
 }
 
 module.exports = sampleSize;

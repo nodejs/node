@@ -1,7 +1,6 @@
 /**
  * @fileoverview A rule to ensure consistent quotes used in jsx syntax.
  * @author Mathias Schreck <https://github.com/lo1tuma>
- * @copyright 2015 Mathias Schreck
  */
 
 "use strict";
@@ -10,24 +9,24 @@
 // Requirements
 //------------------------------------------------------------------------------
 
-var astUtils = require("../ast-utils");
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Constants
 //------------------------------------------------------------------------------
 
-var QUOTE_SETTINGS = {
+const QUOTE_SETTINGS = {
     "prefer-double": {
         quote: "\"",
         description: "singlequote",
-        convert: function(str) {
+        convert(str) {
             return str.replace(/'/g, "\"");
         }
     },
     "prefer-single": {
         quote: "'",
         description: "doublequote",
-        convert: function(str) {
+        convert(str) {
             return str.replace(/"/g, "'");
         }
     }
@@ -37,39 +36,54 @@ var QUOTE_SETTINGS = {
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
-    var quoteOption = context.options[0] || "prefer-double",
-        setting = QUOTE_SETTINGS[quoteOption];
+module.exports = {
+    meta: {
+        docs: {
+            description: "enforce the consistent use of either double or single quotes in JSX attributes",
+            category: "Stylistic Issues",
+            recommended: false
+        },
 
-    /**
-     * Checks if the given string literal node uses the expected quotes
-     * @param {ASTNode} node - A string literal node.
-     * @returns {boolean} Whether or not the string literal used the expected quotes.
-     * @public
-     */
-    function usesExpectedQuotes(node) {
-        return node.value.indexOf(setting.quote) !== -1 || astUtils.isSurroundedBy(node.raw, setting.quote);
-    }
+        fixable: "whitespace",
 
-    return {
-        "JSXAttribute": function(node) {
-            var attributeValue = node.value;
-
-            if (attributeValue && astUtils.isStringLiteral(attributeValue) && !usesExpectedQuotes(attributeValue)) {
-                context.report({
-                    node: attributeValue,
-                    message: "Unexpected usage of " + setting.description + ".",
-                    fix: function(fixer) {
-                        return fixer.replaceText(attributeValue, setting.convert(attributeValue.raw));
-                    }
-                });
+        schema: [
+            {
+                enum: ["prefer-single", "prefer-double"]
             }
-        }
-    };
-};
+        ]
+    },
 
-module.exports.schema = [
-    {
-        "enum": [ "prefer-single", "prefer-double" ]
+    create(context) {
+        const quoteOption = context.options[0] || "prefer-double",
+            setting = QUOTE_SETTINGS[quoteOption];
+
+        /**
+         * Checks if the given string literal node uses the expected quotes
+         * @param {ASTNode} node - A string literal node.
+         * @returns {boolean} Whether or not the string literal used the expected quotes.
+         * @public
+         */
+        function usesExpectedQuotes(node) {
+            return node.value.indexOf(setting.quote) !== -1 || astUtils.isSurroundedBy(node.raw, setting.quote);
+        }
+
+        return {
+            JSXAttribute(node) {
+                const attributeValue = node.value;
+
+                if (attributeValue && astUtils.isStringLiteral(attributeValue) && !usesExpectedQuotes(attributeValue)) {
+                    context.report({
+                        node: attributeValue,
+                        message: "Unexpected usage of {{description}}.",
+                        data: {
+                            description: setting.description
+                        },
+                        fix(fixer) {
+                            return fixer.replaceText(attributeValue, setting.convert(attributeValue.raw));
+                        }
+                    });
+                }
+            }
+        };
     }
-];
+};

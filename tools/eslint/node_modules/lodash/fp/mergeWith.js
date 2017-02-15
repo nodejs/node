@@ -1,2 +1,5 @@
-var convert = require('./convert');
-module.exports = convert('mergeWith', require('../mergeWith'));
+var convert = require('./convert'),
+    func = convert('mergeWith', require('../mergeWith'));
+
+func.placeholder = require('./placeholder');
+module.exports = func;

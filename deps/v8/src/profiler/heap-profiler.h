@@ -5,7 +5,8 @@
 #ifndef V8_PROFILER_HEAP_PROFILER_H_
 #define V8_PROFILER_HEAP_PROFILER_H_
 
-#include "src/base/smart-pointers.h"
+#include <memory>
+
 #include "src/isolate.h"
 #include "src/list.h"
 
@@ -16,6 +17,7 @@ namespace internal {
 class AllocationTracker;
 class HeapObjectsMap;
 class HeapSnapshot;
+class SamplingHeapProfiler;
 class StringsStorage;
 
 class HeapProfiler {
@@ -28,6 +30,12 @@ class HeapProfiler {
   HeapSnapshot* TakeSnapshot(
       v8::ActivityControl* control,
       v8::HeapProfiler::ObjectNameResolver* resolver);
+
+  bool StartSamplingHeapProfiler(uint64_t sample_interval, int stack_depth,
+                                 v8::HeapProfiler::SamplingFlags);
+  void StopSamplingHeapProfiler();
+  bool is_sampling_allocations() { return !!sampling_heap_profiler_; }
+  AllocationProfile* GetAllocationProfile();
 
   void StartHeapObjectsTracking(bool track_allocations);
   void StopHeapObjectsTracking();
@@ -59,9 +67,7 @@ class HeapProfiler {
   void SetRetainedObjectInfo(UniqueId id, RetainedObjectInfo* info);
 
   bool is_tracking_object_moves() const { return is_tracking_object_moves_; }
-  bool is_tracking_allocations() const {
-    return !allocation_tracker_.is_empty();
-  }
+  bool is_tracking_allocations() const { return !!allocation_tracker_; }
 
   Handle<HeapObject> FindHeapObjectById(SnapshotObjectId id);
   void ClearHeapObjectMap();
@@ -72,13 +78,16 @@ class HeapProfiler {
   Heap* heap() const;
 
   // Mapping from HeapObject addresses to objects' uids.
-  base::SmartPointer<HeapObjectsMap> ids_;
+  std::unique_ptr<HeapObjectsMap> ids_;
   List<HeapSnapshot*> snapshots_;
-  base::SmartPointer<StringsStorage> names_;
+  std::unique_ptr<StringsStorage> names_;
   List<v8::HeapProfiler::WrapperInfoCallback> wrapper_callbacks_;
-  base::SmartPointer<AllocationTracker> allocation_tracker_;
+  std::unique_ptr<AllocationTracker> allocation_tracker_;
   bool is_tracking_object_moves_;
   base::Mutex profiler_mutex_;
+  std::unique_ptr<SamplingHeapProfiler> sampling_heap_profiler_;
+
+  DISALLOW_COPY_AND_ASSIGN(HeapProfiler);
 };
 
 }  // namespace internal

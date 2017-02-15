@@ -47,6 +47,7 @@ namespace internal {
 
 bool CpuFeatures::SupportsCrankshaft() { return true; }
 
+bool CpuFeatures::SupportsSimd128() { return false; }
 
 static const byte kCallOpcode = 0xE8;
 static const int kNoCodeAgeSequenceLength = 5;
@@ -81,7 +82,6 @@ Address RelocInfo::target_address() {
   return Assembler::target_address_at(pc_, host_);
 }
 
-
 Address RelocInfo::target_address_address() {
   DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
                               || rmode_ == EMBEDDED_OBJECT
@@ -98,21 +98,6 @@ Address RelocInfo::constant_pool_entry_address() {
 
 int RelocInfo::target_address_size() {
   return Assembler::kSpecialTargetSize;
-}
-
-
-void RelocInfo::set_target_address(Address target,
-                                   WriteBarrierMode write_barrier_mode,
-                                   ICacheFlushMode icache_flush_mode) {
-  Assembler::set_target_address_at(isolate_, pc_, host_, target,
-                                   icache_flush_mode);
-  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
-  if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != NULL &&
-      IsCodeTarget(rmode_)) {
-    Object* target_code = Code::GetCodeFromTargetAddress(target);
-    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
-        host(), this, HeapObject::cast(target_code));
-  }
 }
 
 
@@ -139,8 +124,9 @@ void RelocInfo::set_target_object(Object* target,
   if (write_barrier_mode == UPDATE_WRITE_BARRIER &&
       host() != NULL &&
       target->IsHeapObject()) {
-    host()->GetHeap()->incremental_marking()->RecordWrite(
-        host(), &Memory::Object_at(pc_), HeapObject::cast(target));
+    host()->GetHeap()->RecordWriteIntoCode(host(), this, target);
+    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
+        host(), this, HeapObject::cast(target));
   }
 }
 
@@ -203,10 +189,8 @@ void RelocInfo::set_target_cell(Cell* cell,
     Assembler::FlushICache(isolate_, pc_, sizeof(Address));
   }
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != NULL) {
-    // TODO(1550) We are passing NULL as a slot because cell can never be on
-    // evacuation candidate.
-    host()->GetHeap()->incremental_marking()->RecordWrite(
-        host(), NULL, cell);
+    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
+                                                                  cell);
   }
 }
 
@@ -267,17 +251,7 @@ void RelocInfo::WipeOut() {
   }
 }
 
-
-bool RelocInfo::IsPatchedReturnSequence() {
-  return *pc_ == kCallOpcode;
-}
-
-
-bool RelocInfo::IsPatchedDebugBreakSlotSequence() {
-  return !Assembler::IsNop(pc());
-}
-
-
+template <typename ObjectVisitor>
 void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
@@ -333,6 +307,10 @@ Immediate::Immediate(int x)  {
   rmode_ = RelocInfo::NONE32;
 }
 
+Immediate::Immediate(Address x, RelocInfo::Mode rmode) {
+  x_ = reinterpret_cast<int32_t>(x);
+  rmode_ = rmode;
+}
 
 Immediate::Immediate(const ExternalReference& ext) {
   x_ = reinterpret_cast<int32_t>(ext.address());
@@ -351,7 +329,6 @@ Immediate::Immediate(Handle<Object> handle) {
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
   if (obj->IsHeapObject()) {
-    DCHECK(!HeapObject::cast(obj)->GetHeap()->InNewSpace(obj));
     x_ = reinterpret_cast<intptr_t>(handle.location());
     rmode_ = RelocInfo::EMBEDDED_OBJECT;
   } else {
@@ -390,7 +367,6 @@ void Assembler::emit(Handle<Object> handle) {
   AllowDeferredHandleDereference heap_object_check;
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
-  DCHECK(!isolate()->heap()->InNewSpace(obj));
   if (obj->IsHeapObject()) {
     emit(reinterpret_cast<intptr_t>(handle.location()),
          RelocInfo::EMBEDDED_OBJECT);
@@ -441,6 +417,11 @@ void Assembler::emit_code_relative_offset(Label* label) {
   }
 }
 
+void Assembler::emit_b(Immediate x) {
+  DCHECK(x.is_int8() || x.is_uint8());
+  uint8_t value = static_cast<uint8_t>(x.x_);
+  *pc_++ = value;
+}
 
 void Assembler::emit_w(const Immediate& x) {
   DCHECK(RelocInfo::IsNone(x.rmode_));

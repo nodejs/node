@@ -1,18 +1,14 @@
 'use strict';
-var fs = require('fs');
-var net = require('net');
-var path = require('path');
-var assert = require('assert');
-var common = require('../common');
-
-var notSocketErrorFired = false;
-var noEntErrorFired = false;
-var accessErrorFired = false;
+const common = require('../common');
+const fs = require('fs');
+const net = require('net');
+const path = require('path');
+const assert = require('assert');
 
 // Test if ENOTSOCK is fired when trying to connect to a file which is not
 // a socket.
 
-var emptyTxt;
+let emptyTxt;
 
 if (common.isWindows) {
   // on Win, common.PIPE will be a named pipe, so we use an existing empty
@@ -30,8 +26,7 @@ if (common.isWindows) {
     try {
       fs.unlinkSync(emptyTxt);
     } catch (e) {
-      if (e.code != 'ENOENT')
-        throw e;
+      assert.strictEqual(e.code, 'ENOENT');
     }
   }
   process.on('exit', cleanup);
@@ -39,56 +34,41 @@ if (common.isWindows) {
   fs.writeFileSync(emptyTxt, '');
 }
 
-var notSocketClient = net.createConnection(emptyTxt, function() {
-  assert.ok(false);
+const notSocketClient = net.createConnection(emptyTxt, function() {
+  common.fail('connection callback should not run');
 });
 
-notSocketClient.on('error', function(err) {
+notSocketClient.on('error', common.mustCall(function(err) {
   assert(err.code === 'ENOTSOCK' || err.code === 'ECONNREFUSED',
-    `received ${err.code} instead of ENOTSOCK or ECONNREFUSED`);
-  notSocketErrorFired = true;
-});
+         `received ${err.code} instead of ENOTSOCK or ECONNREFUSED`);
+}));
 
 
 // Trying to connect to not-existing socket should result in ENOENT error
-var noEntSocketClient = net.createConnection('no-ent-file', function() {
-  assert.ok(false);
+const noEntSocketClient = net.createConnection('no-ent-file', function() {
+  common.fail('connection to non-existent socket, callback should not run');
 });
 
-noEntSocketClient.on('error', function(err) {
-  assert.equal(err.code, 'ENOENT');
-  noEntErrorFired = true;
-});
+noEntSocketClient.on('error', common.mustCall(function(err) {
+  assert.strictEqual(err.code, 'ENOENT');
+}));
 
 
 // On Windows or when running as root, a chmod has no effect on named pipes
 if (!common.isWindows && process.getuid() !== 0) {
   // Trying to connect to a socket one has no access to should result in EACCES
-  var accessServer = net.createServer(function() {
-    assert.ok(false);
-  });
-  accessServer.listen(common.PIPE, function() {
+  const accessServer = net.createServer(
+    common.mustNotCall('server callback should not run'));
+  accessServer.listen(common.PIPE, common.mustCall(function() {
     fs.chmodSync(common.PIPE, 0);
 
-    var accessClient = net.createConnection(common.PIPE, function() {
-      assert.ok(false);
+    const accessClient = net.createConnection(common.PIPE, function() {
+      common.fail('connection should get EACCES, callback should not run');
     });
 
-    accessClient.on('error', function(err) {
-      assert.equal(err.code, 'EACCES');
-      accessErrorFired = true;
+    accessClient.on('error', common.mustCall(function(err) {
+      assert.strictEqual(err.code, 'EACCES');
       accessServer.close();
-    });
-  });
+    }));
+  }));
 }
-
-
-// Assert that all error events were fired
-process.on('exit', function() {
-  assert.ok(notSocketErrorFired);
-  assert.ok(noEntErrorFired);
-  if (!common.isWindows && process.getuid() !== 0) {
-    assert.ok(accessErrorFired);
-  }
-});
-

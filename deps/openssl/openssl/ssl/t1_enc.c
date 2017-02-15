@@ -673,7 +673,6 @@ int tls1_setup_key_block(SSL *s)
 
     if ((p2 = (unsigned char *)OPENSSL_malloc(num)) == NULL) {
         SSLerr(SSL_F_TLS1_SETUP_KEY_BLOCK, ERR_R_MALLOC_FAILURE);
-        OPENSSL_free(p1);
         goto err;
     }
 #ifdef TLS_DEBUG

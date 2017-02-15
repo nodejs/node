@@ -26,6 +26,7 @@ var templates = path.join(remotes, '_templates')
 
 var VALID_VARIABLES = [
   'GIT_ASKPASS',
+  'GIT_EXEC_PATH',
   'GIT_PROXY_COMMAND',
   'GIT_SSH',
   'GIT_SSH_COMMAND',
@@ -346,6 +347,24 @@ function checkoutTreeish (from, resolvedURL, resolvedTreeish, tmpdir, cb) {
       }
       log.verbose('checkoutTreeish', from, 'checkout', stdout)
 
+      updateSubmodules(from, resolvedURL, tmpdir, cb)
+    }
+  )
+}
+
+function updateSubmodules (from, resolvedURL, tmpdir, cb) {
+  var args = ['submodule', '-q', 'update', '--init', '--recursive']
+  git.whichAndExec(
+    args,
+    { cwd: tmpdir, env: gitEnv() },
+    function (er, stdout, stderr) {
+      stdout = (stdout + '\n' + stderr).trim()
+      if (er) {
+        log.error('git ' + args.join(' ') + ':', stderr)
+        return cb(er)
+      }
+      log.verbose('updateSubmodules', from, 'submodule update', stdout)
+
       // convince addLocal that the checkout is a local dependency
       realizePackageSpecifier(tmpdir, function (er, spec) {
         if (er) {
@@ -425,7 +444,7 @@ function getResolved (uri, treeish) {
   // Checks for known protocols:
   // http:, https:, ssh:, and git:, with optional git+ prefix.
   if (!parsed.protocol ||
-      !parsed.protocol.match(/^(((git\+)?(https?|ssh))|git|file):$/)) {
+      !parsed.protocol.match(/^(((git\+)?(https?|ssh|file))|git|file):$/)) {
     uri = 'git+ssh://' + uri
   }
 

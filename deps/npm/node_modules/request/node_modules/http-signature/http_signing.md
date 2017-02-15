@@ -231,7 +231,7 @@ will want to enforce, but service providers SHOULD at minimum include the
 
 # Appendix A - Test Values
 
-The following test data uses the RSA (2048b) keys, which we will refer
+The following test data uses the RSA (1024b) keys, which we will refer
 to as `keyId=Test` in the following samples:
 
     -----BEGIN PUBLIC KEY-----
@@ -259,6 +259,8 @@ to as `keyId=Test` in the following samples:
 
 And all examples use this request:
 
+<!-- httpreq -->
+
     POST /foo?param=value&pet=dog HTTP/1.1
     Host: example.com
     Date: Thu, 05 Jan 2014 21:31:40 GMT
@@ -268,20 +270,34 @@ And all examples use this request:
 
     {"hello": "world"}
 
+<!-- /httpreq -->
+
 ### Default
 
 The string to sign would be:
 
+<!-- sign {"name": "Default", "options": {"keyId":"Test", "algorithm": "rsa-sha256"}} -->
+<!-- signstring -->
+
     date: Thu, 05 Jan 2014 21:31:40 GMT
+
+<!-- /signstring -->
 
 The Authorization header would be:
 
-    Authorization: Signature keyId="Test",algorithm="rsa-sha256",signature="ATp0r26dbMIxOopqw0OfABDT7CKMIoENumuruOtarj8n/97Q3htHFYpH8yOSQk3Z5zh8UxUym6FYTb5+A0Nz3NRsXJibnYi7brE/4tx5But9kkFGzG+xpUmimN4c3TMN7OFH//+r8hBf7BT9/GmHDUVZT2JzWGLZES2xDOUuMtA="
+<!-- authz -->
+
+    Authorization: Signature keyId="Test",algorithm="rsa-sha256",headers="date",signature="jKyvPcxB4JbmYY4mByyBY7cZfNl4OW9HpFQlG7N4YcJPteKTu4MWCLyk+gIr0wDgqtLWf9NLpMAMimdfsH7FSWGfbMFSrsVTHNTk0rK3usrfFnti1dxsM4jl0kYJCKTGI/UWkqiaxwNiKqGcdlEDrTcUhhsFsOIo8VhddmZTZ8w="
+
+<!-- /authz -->
 
 ### All Headers
 
 Parameterized to include all headers, the string to sign would be (`+ "\n"`
 inserted for readability):
+
+<!-- sign {"name": "All Headers", "options": {"keyId":"Test", "algorithm": "rsa-sha256", "headers": ["(request-target)", "host", "date", "content-type", "digest", "content-length"]}} -->
+<!-- signstring -->
 
     (request-target): post /foo?param=value&pet=dog
     host: example.com
@@ -290,6 +306,58 @@ inserted for readability):
     digest: SHA-256=X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=
     content-length: 18
 
+<!-- /signstring -->
+
 The Authorization header would be:
 
-    Authorization: Signature keyId="Test",algorithm="rsa-sha256",headers="(request-target) host date content-type digest content-length",signature="jgSqYK0yKclIHfF9zdApVEbDp5eqj8C4i4X76pE+XHoxugXv7qnVrGR+30bmBgtpR39I4utq17s9ghz/2QFVxlnToYAvbSVZJ9ulLd1HQBugO0jOyn9sXOtcN7uNHBjqNCqUsnt0sw/cJA6B6nJZpyNqNyAXKdxZZItOuhIs78w="
+<!-- authz -->
+
+    Authorization: Signature keyId="Test",algorithm="rsa-sha256",headers="(request-target) host date content-type digest content-length",signature="Ef7MlxLXoBovhil3AlyjtBwAL9g4TN3tibLj7uuNB3CROat/9KaeQ4hW2NiJ+pZ6HQEOx9vYZAyi+7cmIkmJszJCut5kQLAwuX+Ms/mUFvpKlSo9StS2bMXDBNjOh4Auj774GFj4gwjS+3NhFeoqyr/MuN6HsEnkvn6zdgfE2i0="
+
+<!-- /authz -->
+
+## Generating and verifying signatures using `openssl`
+
+The `openssl` commandline tool can be used to generate or verify the signatures listed above.
+
+Compose the signing string as usual, and pipe it into the the `openssl dgst` command, then into `openssl enc -base64`, as follows:
+
+    $ printf 'date: Thu, 05 Jan 2014 21:31:40 GMT' | \
+      openssl dgst -binary -sign /path/to/private.pem -sha256 | \
+      openssl enc -base64
+    jKyvPcxB4JbmYY4mByyBY7cZfNl4OW9Hp...
+    $
+
+The `-sha256` option is necessary to produce an `rsa-sha256` signature. You can select other hash algorithms such as `sha1` by changing this argument.
+
+To verify a signature, first save the signature data, Base64-decoded, into a file, then use `openssl dgst` again with the `-verify` option:
+
+    $ echo 'jKyvPcxB4JbmYY4mByy...' | openssl enc -A -d -base64 > signature
+    $ printf 'date: Thu, 05 Jan 2014 21:31:40 GMT' | \
+      openssl dgst -sha256 -verify /path/to/public.pem -signature ./signature
+    Verified OK
+    $
+
+## Generating and verifying signatures using `sshpk-sign`
+
+You can also generate and check signatures using the `sshpk-sign` tool which is
+included with the `sshpk` package in `npm`.
+
+Compose the signing string as above, and pipe it into `sshpk-sign` as follows:
+
+    $ printf 'date: Thu, 05 Jan 2014 21:31:40 GMT' | \
+      sshpk-sign -i /path/to/private.pem
+    jKyvPcxB4JbmYY4mByyBY7cZfNl4OW9Hp...
+    $
+
+This will produce an `rsa-sha256` signature by default, as you can see using
+the `-v` option:
+
+    sshpk-sign: using rsa-sha256 with a 1024 bit key
+
+You can also use `sshpk-verify` in a similar manner:
+
+    $ printf 'date: Thu, 05 Jan 2014 21:31:40 GMT' | \
+      sshpk-verify -i ./public.pem -s 'jKyvPcxB4JbmYY...'
+    OK
+    $

@@ -44,7 +44,6 @@ class HAliasAnalyzer : public ZoneObject {
 
     // Constant objects can be distinguished statically.
     if (a->IsConstant()) {
-      // TODO(titzer): DataEquals() is more efficient, but that's protected.
       return a->Equals(b) ? kMustAlias : kNoAlias;
     }
     return kMayAlias;

@@ -372,6 +372,7 @@ int uv__stdio_create(uv_loop_t* loop,
 
           case FILE_TYPE_PIPE:
             CHILD_STDIO_CRT_FLAGS(buffer, i) = FOPEN | FPIPE;
+            break;
 
           case FILE_TYPE_CHAR:
           case FILE_TYPE_REMOTE:

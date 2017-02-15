@@ -678,8 +678,7 @@ TEST_F(RegisterAllocatorTest, MultipleDeferredBlockSpills) {
 
   Allocate();
   // TODO(mtrofin): at the moment, the linear allocator spills var1 and var2,
-  // so only var3 is spilled in deferred blocks. Greedy avoids spilling 1&2.
-  // Expand the test once greedy is back online with this facility.
+  // so only var3 is spilled in deferred blocks.
   const int var3_reg = 2;
   const int var3_slot = 2;
 

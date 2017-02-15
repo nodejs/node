@@ -1,7 +1,6 @@
 /**
  * @fileoverview A rule to control the style of variable initializations.
  * @author Colin Ihrig
- * @copyright 2015 Colin Ihrig. All rights reserved.
  */
 
 "use strict";
@@ -27,8 +26,8 @@ function isForLoop(block) {
  * @returns {boolean} `true` when the node has its initializer.
  */
 function isInitialized(node) {
-    var declaration = node.parent;
-    var block = declaration.parent;
+    const declaration = node.parent;
+    const block = declaration.parent;
 
     if (isForLoop(block)) {
         if (block.type === "ForStatement") {
@@ -43,72 +42,96 @@ function isInitialized(node) {
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
-
-    var MODE_ALWAYS = "always",
-        MODE_NEVER = "never";
-
-    var mode = context.options[0] || MODE_ALWAYS;
-    var params = context.options[1] || {};
-    //--------------------------------------------------------------------------
-    // Public API
-    //--------------------------------------------------------------------------
-
-    return {
-        "VariableDeclaration:exit": function(node) {
-
-            var kind = node.kind,
-                declarations = node.declarations;
-
-            for (var i = 0; i < declarations.length; ++i) {
-                var declaration = declarations[i],
-                    id = declaration.id,
-                    initialized = isInitialized(declaration),
-                    isIgnoredForLoop = params.ignoreForLoopInit && isForLoop(node.parent);
-                if (id.type !== "Identifier") {
-                    continue;
-                }
-
-                if (mode === MODE_ALWAYS && !initialized) {
-                    context.report(declaration, "Variable '" + id.name + "' should be initialized on declaration.");
-                } else if (mode === MODE_NEVER && kind !== "const" && initialized && !isIgnoredForLoop) {
-                    context.report(declaration, "Variable '" + id.name + "' should not be initialized on declaration.");
-                }
-            }
-        }
-    };
-};
-
-module.exports.schema = {
-    "anyOf": [
-        {
-            "type": "array",
-            "items": [
-                {
-                    "enum": ["always"]
-                }
-            ],
-            "minItems": 0,
-            "maxItems": 1
+module.exports = {
+    meta: {
+        docs: {
+            description: "require or disallow initialization in variable declarations",
+            category: "Variables",
+            recommended: false
         },
-        {
-            "type": "array",
-            "items": [
+
+        schema: {
+            anyOf: [
                 {
-                    "enum": ["never"]
+                    type: "array",
+                    items: [
+                        {
+                            enum: ["always"]
+                        }
+                    ],
+                    minItems: 0,
+                    maxItems: 1
                 },
                 {
-                    "type": "object",
-                    "properties": {
-                        "ignoreForLoopInit": {
-                            "type": "boolean"
+                    type: "array",
+                    items: [
+                        {
+                            enum: ["never"]
+                        },
+                        {
+                            type: "object",
+                            properties: {
+                                ignoreForLoopInit: {
+                                    type: "boolean"
+                                }
+                            },
+                            additionalProperties: false
                         }
-                    },
-                    "additionalProperties": false
+                    ],
+                    minItems: 0,
+                    maxItems: 2
                 }
-            ],
-            "minItems": 0,
-            "maxItems": 2
+            ]
         }
-    ]
+    },
+
+    create(context) {
+
+        const MODE_ALWAYS = "always",
+            MODE_NEVER = "never";
+
+        const mode = context.options[0] || MODE_ALWAYS;
+        const params = context.options[1] || {};
+
+        //--------------------------------------------------------------------------
+        // Public API
+        //--------------------------------------------------------------------------
+
+        return {
+            "VariableDeclaration:exit"(node) {
+
+                const kind = node.kind,
+                    declarations = node.declarations;
+
+                for (let i = 0; i < declarations.length; ++i) {
+                    const declaration = declarations[i],
+                        id = declaration.id,
+                        initialized = isInitialized(declaration),
+                        isIgnoredForLoop = params.ignoreForLoopInit && isForLoop(node.parent);
+
+                    if (id.type !== "Identifier") {
+                        continue;
+                    }
+
+                    if (mode === MODE_ALWAYS && !initialized) {
+                        context.report({
+                            node: declaration,
+                            message: "Variable '{{idName}}' should be initialized on declaration.",
+                            data: {
+                                idName: id.name
+                            }
+                        });
+                    } else if (mode === MODE_NEVER && kind !== "const" && initialized && !isIgnoredForLoop) {
+                        context.report({
+                            node: declaration,
+                            message: "Variable '{{idName}}' should not be initialized on declaration.",
+                            data: {
+                                idName: id.name
+                            }
+                        });
+                    }
+                }
+            }
+        };
+    }
 };

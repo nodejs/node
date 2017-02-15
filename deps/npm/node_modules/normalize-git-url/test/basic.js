@@ -59,6 +59,13 @@ test('basic normalization tests', function (t) {
     normalize('git+ssh://git@github.com:npm/npm-proto.git#othiym23/organized'),
     { url: 'git@github.com:npm/npm-proto.git', branch: 'othiym23/organized' }
   )
-
+  t.same(
+    normalize('git+file:///foo/bar.git'),
+    { url: 'file:///foo/bar.git', branch: 'master' }
+  )
+  t.same(
+    normalize('git+file://C:\\Users\\hello\\testing.git#zkat/windows-files'),
+    { url: 'file://C:\\Users\\hello\\testing.git', branch: 'zkat/windows-files'}
+  )
   t.end()
 })

@@ -44,14 +44,15 @@ namespace base {
 //
 
 inline void MemoryBarrier() {
-#if defined(__linux__) || defined(__ANDROID__)
+#if defined(__ANDROID__)
   // Note: This is a function call, which is also an implicit compiler barrier.
   typedef void (*KernelMemoryBarrierFunc)();
   ((KernelMemoryBarrierFunc)0xffff0fa0)();
 #elif defined(__QNXNTO__)
   __cpu_membarrier();
 #else
-#error MemoryBarrier() is not implemented on this platform.
+  // Fallback to GCC built-in function
+  __sync_synchronize();
 #endif
 }
 

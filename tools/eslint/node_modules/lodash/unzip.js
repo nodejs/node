@@ -14,16 +14,17 @@ var nativeMax = Math.max;
  *
  * @static
  * @memberOf _
+ * @since 1.2.0
  * @category Array
  * @param {Array} array The array of grouped elements to process.
  * @returns {Array} Returns the new array of regrouped elements.
  * @example
  *
- * var zipped = _.zip(['fred', 'barney'], [30, 40], [true, false]);
- * // => [['fred', 30, true], ['barney', 40, false]]
+ * var zipped = _.zip(['a', 'b'], [1, 2], [true, false]);
+ * // => [['a', 1, true], ['b', 2, false]]
  *
  * _.unzip(zipped);
- * // => [['fred', 'barney'], [30, 40], [true, false]]
+ * // => [['a', 'b'], [1, 2], [true, false]]
  */
 function unzip(array) {
   if (!(array && array.length)) {

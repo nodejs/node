@@ -30,12 +30,12 @@ class CommonOperatorReducer final : public AdvancedReducer {
 
  private:
   Reduction ReduceBranch(Node* node);
+  Reduction ReduceDeoptimizeConditional(Node* node);
   Reduction ReduceMerge(Node* node);
   Reduction ReduceEffectPhi(Node* node);
   Reduction ReducePhi(Node* node);
   Reduction ReduceReturn(Node* node);
   Reduction ReduceSelect(Node* node);
-  Reduction ReduceGuard(Node* node);
 
   Reduction Change(Node* node, Operator const* op, Node* a);
   Reduction Change(Node* node, Operator const* op, Node* a, Node* b);

@@ -204,7 +204,6 @@ cannot be found elsewhere.  See `package.json(5)` for more information.
 
 ## SEE ALSO
 
-* npm-faq(7)
 * package.json(5)
 * npm-install(1)
 * npm-pack(1)

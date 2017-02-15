@@ -7,8 +7,7 @@
 Debug = debug.Debug
 
 function BestEditor() {
-  var best_editor = "Emacs";
-  return best_editor;
+  return 'Emacs';
 }
 
 var exception = null;
@@ -62,20 +61,15 @@ print(JSON.stringify(log, 1));
 assertEquals([
   "debugger;",
   "results.push(BestEditor());",
-  "  var best_editor = \"Emacs\";",
-  "  return best_editor;","}",
+  "  return 'Emacs';","}",
   "results.push(BestEditor());",
   "results.push(BestEditor());",
-  "  var best_editor = \"Emacs\";",
-  "  return best_editor;",
-  "  var best_editor = \"Eclipse\";",
-  "  return best_editor;","}",
+  "  return 'Emacs';",
+  "  return 'Eclipse';","}",
   "results.push(BestEditor());",
   "results.push(BestEditor());",
-  "  var best_editor = \"Eclipse\";",
-  "  return best_editor;",
-  "  var best_editor = \"Vim\";",
-  "  return best_editor;",
+  "  return 'Eclipse';",
+  "  return 'Vim';",
   "}","results.push(BestEditor());",
   "Debug.setListener(null);"
 ], log);

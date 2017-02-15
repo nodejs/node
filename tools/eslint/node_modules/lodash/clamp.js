@@ -6,6 +6,7 @@ var baseClamp = require('./_baseClamp'),
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category Number
  * @param {number} number The number to clamp.
  * @param {number} [lower] The lower bound.

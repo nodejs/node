@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-sloppy-let --harmony-sloppy
-
 // Test that hoisting a function out of a lexical scope does not
 // lead to a parsing error
 

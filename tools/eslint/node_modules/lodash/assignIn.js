@@ -10,26 +10,28 @@ var copyObject = require('./_copyObject'),
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @alias extend
  * @category Object
  * @param {Object} object The destination object.
  * @param {...Object} [sources] The source objects.
  * @returns {Object} Returns `object`.
+ * @see _.assign
  * @example
  *
  * function Foo() {
- *   this.b = 2;
+ *   this.a = 1;
  * }
  *
  * function Bar() {
- *   this.d = 4;
+ *   this.c = 3;
  * }
  *
- * Foo.prototype.c = 3;
- * Bar.prototype.e = 5;
+ * Foo.prototype.b = 2;
+ * Bar.prototype.d = 4;
  *
- * _.assignIn({ 'a': 1 }, new Foo, new Bar);
- * // => { 'a': 1, 'b': 2, 'c': 3, 'd': 4, 'e': 5 }
+ * _.assignIn({ 'a': 0 }, new Foo, new Bar);
+ * // => { 'a': 1, 'b': 2, 'c': 3, 'd': 4 }
  */
 var assignIn = createAssigner(function(object, source) {
   copyObject(source, keysIn(source), object);

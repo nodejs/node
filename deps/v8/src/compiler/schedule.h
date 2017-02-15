@@ -7,7 +7,7 @@
 
 #include <iosfwd>
 
-#include "src/zone-containers.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -243,6 +243,7 @@ class Schedule final : public ZoneObject {
     return AddSuccessor(block, succ);
   }
 
+  const BasicBlockVector* all_blocks() const { return &all_blocks_; }
   BasicBlockVector* rpo_order() { return &rpo_order_; }
   const BasicBlockVector* rpo_order() const { return &rpo_order_; }
 
@@ -254,6 +255,16 @@ class Schedule final : public ZoneObject {
  private:
   friend class Scheduler;
   friend class BasicBlockInstrumentor;
+  friend class RawMachineAssembler;
+
+  // Ensure properties of the CFG assumed by further stages.
+  void EnsureCFGWellFormedness();
+  // Ensure split-edge form for a hand-assembled schedule.
+  void EnsureSplitEdgeForm(BasicBlock* block);
+  // Ensure entry into a deferred block happens from a single hot block.
+  void EnsureDeferredCodeSingleEntryPoint(BasicBlock* block);
+  // Copy deferred block markers down as far as possible
+  void PropagateDeferredMark();
 
   void AddSuccessor(BasicBlock* block, BasicBlock* succ);
   void MoveSuccessors(BasicBlock* from, BasicBlock* to);

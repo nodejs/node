@@ -3,18 +3,15 @@
 // the HTTP client. This test uses a raw TCP server to better control server
 // behavior.
 
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var http = require('http');
-var net = require('net');
+const http = require('http');
+const net = require('net');
 
 // Create a TCP server
-var srv = net.createServer(function(c) {
-  var data = '';
+const srv = net.createServer(function(c) {
   c.on('data', function(d) {
-    data += d.toString('utf8');
-
     c.write('HTTP/1.1 101\r\n');
     c.write('hello: world\r\n');
     c.write('connection: upgrade\r\n');
@@ -28,52 +25,43 @@ var srv = net.createServer(function(c) {
   });
 });
 
-var gotUpgrade = false;
+srv.listen(0, '127.0.0.1', common.mustCall(function() {
 
-srv.listen(common.PORT, '127.0.0.1', function() {
-
-  var options = {
-    port: common.PORT,
+  const options = {
+    port: this.address().port,
     host: '127.0.0.1',
     headers: {
       'connection': 'upgrade',
       'upgrade': 'websocket'
     }
   };
-  var name = options.host + ':' + options.port;
+  const name = options.host + ':' + options.port;
 
-  var req = http.request(options);
+  const req = http.request(options);
   req.end();
 
-  req.on('upgrade', function(res, socket, upgradeHead) {
-    var recvData = upgradeHead;
+  req.on('upgrade', common.mustCall(function(res, socket, upgradeHead) {
+    let recvData = upgradeHead;
     socket.on('data', function(d) {
       recvData += d;
     });
 
     socket.on('close', common.mustCall(function() {
-      assert.equal(recvData, 'nurtzo');
+      assert.strictEqual(recvData.toString(), 'nurtzo');
     }));
 
     console.log(res.headers);
-    var expectedHeaders = { 'hello': 'world',
-                            'connection': 'upgrade',
-                            'upgrade': 'websocket' };
-    assert.deepEqual(expectedHeaders, res.headers);
+    const expectedHeaders = { 'hello': 'world',
+                              'connection': 'upgrade',
+                              'upgrade': 'websocket' };
+    assert.deepStrictEqual(expectedHeaders, res.headers);
 
     // Make sure this request got removed from the pool.
     assert(!http.globalAgent.sockets.hasOwnProperty(name));
 
-    req.on('close', function() {
+    req.on('close', common.mustCall(function() {
       socket.end();
       srv.close();
-
-      gotUpgrade = true;
-    });
-  });
-
-});
-
-process.on('exit', function() {
-  assert.ok(gotUpgrade);
-});
+    }));
+  }));
+}));

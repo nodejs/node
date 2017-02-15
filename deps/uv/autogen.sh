@@ -40,7 +40,7 @@ echo "m4_define([UV_EXTRA_AUTOMAKE_FLAGS], [$UV_EXTRA_AUTOMAKE_FLAGS])" \
     > m4/libuv-extra-automake-flags.m4
 
 set -ex
-"$LIBTOOLIZE"
+"$LIBTOOLIZE" --copy
 "$ACLOCAL" -I m4
 "$AUTOCONF"
 "$AUTOMAKE" --add-missing --copy

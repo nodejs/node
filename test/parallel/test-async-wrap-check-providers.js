@@ -1,6 +1,11 @@
 'use strict';
 
 const common = require('../common');
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
+}
+
 const assert = require('assert');
 const crypto = require('crypto');
 const dgram = require('dgram');
@@ -23,7 +28,7 @@ keyList.splice(0, 1);
 // want to improve under https://github.com/nodejs/node/issues/5085.
 // strip out fs watch related parts for now
 if (common.isAix) {
-  for (var i = 0; i < keyList.length; i++) {
+  for (let i = 0; i < keyList.length; i++) {
     if ((keyList[i] === 'FSEVENTWRAP') || (keyList[i] === 'STATWATCHER')) {
       keyList.splice(i, 1);
     }
@@ -31,17 +36,17 @@ if (common.isAix) {
 }
 
 function init(id, provider) {
-  keyList = keyList.filter((e) => e != pkeys[provider]);
+  keyList = keyList.filter((e) => e !== pkeys[provider]);
 }
 
 function noop() { }
 
-async_wrap.setupHooks(init, noop, noop);
+async_wrap.setupHooks({ init });
 
 async_wrap.enable();
 
 
-setTimeout(function() { });
+setTimeout(function() { }, 1);
 
 fs.stat(__filename, noop);
 
@@ -76,12 +81,12 @@ net.createServer(function(c) {
 net.createServer(function(c) {
   c.end();
   this.close(checkTLS);
-}).listen(common.PORT, function() {
-  net.connect(common.PORT, noop);
+}).listen(0, function() {
+  net.connect(this.address().port, noop);
 });
 
-dgram.createSocket('udp4').bind(common.PORT, function() {
-  this.send(new Buffer(2), 0, 2, common.PORT, '::', () => {
+dgram.createSocket('udp4').bind(0, function() {
+  this.send(Buffer.allocUnsafe(2), 0, 2, this.address().port, '::', () => {
     this.close();
   });
 });
@@ -95,8 +100,9 @@ function checkTLS() {
     cert: fs.readFileSync(common.fixturesDir + '/keys/ec-cert.pem')
   };
   const server = tls.createServer(options, noop)
-    .listen(common.PORT, function() {
-      tls.connect(common.PORT, { rejectUnauthorized: false }, function() {
+    .listen(0, function() {
+      const connectOpts = { rejectUnauthorized: false };
+      tls.connect(this.address().port, connectOpts, function() {
         this.destroy();
         server.close();
       });
@@ -113,6 +119,6 @@ process.on('exit', function() {
   if (keyList.length !== 0) {
     process._rawDebug('Not all keys have been used:');
     process._rawDebug(keyList);
-    assert.equal(keyList.length, 0);
+    assert.strictEqual(keyList.length, 0);
   }
 });

@@ -7,7 +7,7 @@ to JavaScript for modern browsers and Node.js. Public domain.
 [![Build Status](https://travis-ci.org/dchest/tweetnacl-js.svg?branch=master)
 ](https://travis-ci.org/dchest/tweetnacl-js)
 
-[Demo](https://dchest.github.io/tweetnacl-js/)
+Demo: <https://tweetnacl.js.org>
 
 **:warning: Beta version. The library is stable and API is frozen, however
 it has not been independently reviewed. If you can help reviewing it, please
@@ -26,8 +26,6 @@ Documentation
   * [Hashing](#hashing)
   * [Random bytes generation](#random-bytes-generation)
   * [Constant-time comparison](#constant-time-comparison)
-  * [Utilities](#utilities)
-* [Examples](#examples)
 * [System requirements](#system-requirements)
 * [Development and testing](#development-and-testing)
 * [Contributors](#contributors)
@@ -67,10 +65,20 @@ or [download source code](https://github.com/dchest/tweetnacl-js/releases).
 
 
 Usage
-------
+-----
 
 All API functions accept and return bytes as `Uint8Array`s.  If you need to
-encode or decode strings, use functions from `nacl.util` namespace.
+encode or decode strings, use functions from
+<https://github.com/dchest/tweetnacl-util-js> or one of the more robust codec
+packages.
+
+In Node.js v4 and later `Buffer` objects are backed by `Uint8Array`s, so you
+can freely pass them to TweetNaCl.js functions as arguments. The returned
+objects are still `Uint8Array`s, so if you need `Buffer`s, you'll have to
+convert them manually; make sure to convert using copying: `new Buffer(array)`,
+instead of sharing: `new Buffer(array.buffer)`, because some functions return
+subarrays of their buffers.
+
 
 ### Public-key authenticated encryption (box)
 
@@ -287,12 +295,6 @@ depending on the platform it runs on:
 * `window.msCrypto.getRandomValues` (Internet Explorer 11)
 * `crypto.randomBytes` (Node.js)
 
-Note that browsers are required to throw `QuotaExceededError` exception if
-requested `length` is more than 65536, so do not ask for more than 65536 bytes
-in *one call* (multiple calls to get as many bytes as you like are okay:
-browsers can generate infinite amount of random bytes without any bad
-consequences).
-
 If the platform doesn't provide a suitable PRNG, the following functions,
 which require random numbers, will throw exception:
 
@@ -326,30 +328,6 @@ Returns `false` if either of the arguments has zero length, or arguments have
 different lengths, or their contents differ.
 
 
-### Utilities
-
-Encoding/decoding functions are provided for convenience. They are correct,
-however their performance and wide compatibility with uncommon runtimes is not
-something that is considered important compared to the simplicity and size of
-implementation. You can use third-party libraries if you need to.
-
-#### nacl.util.decodeUTF8(string)
-
-Decodes string and returns `Uint8Array` of bytes.
-
-#### nacl.util.encodeUTF8(array)
-
-Encodes `Uint8Array` or `Array` of bytes into string.
-
-#### nacl.util.decodeBase64(string)
-
-Decodes Base-64 encoded string and returns `Uint8Array` of bytes.
-
-#### nacl.util.encodeBase64(array)
-
-Encodes `Uint8Array` or `Array` of bytes into string using Base-64 encoding.
-
-
 System requirements
 -------------------
 
@@ -364,7 +342,7 @@ of:
 
 Other systems:
 
-* Node.js (we test on 0.10 and later)
+* Node.js
 
 
 Development and testing
@@ -385,31 +363,35 @@ Tests use minified version, so make sure to rebuild it every time you change
 
 To run tests in Node.js:
 
-    $ npm test
+    $ npm run test-node
 
 By default all tests described here work on `nacl.min.js`. To test other
 versions, set environment variable `NACL_SRC` to the file name you want to test.
 For example, the following command will test fast minified version:
 
-    $ NACL_SRC=nacl-fast.min.js npm test
+    $ NACL_SRC=nacl-fast.min.js npm run test-node
 
 To run full suite of tests in Node.js, including comparing outputs of
 JavaScript port to outputs of the original C version:
 
-    $ npm run testall
+    $ npm run test-node-all
 
 To prepare tests for browsers:
 
-    $ npm run browser
+    $ npm run build-test-browser
 
 and then open `test/browser/test.html` (or `test/browser/test-fast.html`) to
 run them.
 
-To run headless browser tests with `testling`:
+To run headless browser tests with `tape-run` (powered by Electron):
 
-    $ npm run testling
+    $ npm run test-browser
 
 (If you get `Error: spawn ENOENT`, install *xvfb*: `sudo apt-get install xvfb`.)
+
+To run tests in both Node and Electron:
+
+    $ npm test
 
 ### Benchmarking
 

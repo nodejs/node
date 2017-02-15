@@ -1,24 +1,23 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var fs = require('fs');
+const fs = require('fs');
 
-var PORT = common.PORT;
-var dir = common.fixturesDir;
-var options = { key: fs.readFileSync(dir + '/test_key.pem'),
-                cert: fs.readFileSync(dir + '/test_cert.pem'),
-                ca: [ fs.readFileSync(dir + '/test_ca.pem') ] };
+const dir = common.fixturesDir;
+const options = { key: fs.readFileSync(dir + '/test_key.pem'),
+                  cert: fs.readFileSync(dir + '/test_cert.pem'),
+                  ca: [ fs.readFileSync(dir + '/test_ca.pem') ] };
 
-var server = tls.createServer(options, onconnection);
-var gotChunk = false;
-var gotDrain = false;
+const server = tls.createServer(options, onconnection);
+let gotChunk = false;
+let gotDrain = false;
 
 setTimeout(function() {
   console.log('not ok - timed out');
@@ -41,11 +40,10 @@ function onconnection(conn) {
   });
 }
 
-server.listen(PORT, function() {
-  var chunk = new Buffer(1024);
-  chunk.fill('x');
-  var opt = { port: PORT, rejectUnauthorized: false };
-  var conn = tls.connect(opt, function() {
+server.listen(0, function() {
+  const chunk = Buffer.alloc(1024, 'x');
+  const opt = { port: this.address().port, rejectUnauthorized: false };
+  const conn = tls.connect(opt, function() {
     conn.on('drain', ondrain);
     write();
   });

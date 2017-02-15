@@ -49,6 +49,7 @@ namespace internal {
 
 bool CpuFeatures::SupportsCrankshaft() { return IsSupported(FPU); }
 
+bool CpuFeatures::SupportsSimd128() { return false; }
 
 // -----------------------------------------------------------------------------
 // Operand and MemOperand.
@@ -102,7 +103,6 @@ Address RelocInfo::target_address() {
   return Assembler::target_address_at(pc_, host_);
 }
 
-
 Address RelocInfo::target_address_address() {
   DCHECK(IsCodeTarget(rmode_) ||
          IsRuntimeEntry(rmode_) ||
@@ -137,21 +137,6 @@ Address RelocInfo::constant_pool_entry_address() {
 
 int RelocInfo::target_address_size() {
   return Assembler::kSpecialTargetSize;
-}
-
-
-void RelocInfo::set_target_address(Address target,
-                                   WriteBarrierMode write_barrier_mode,
-                                   ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
-  Assembler::set_target_address_at(isolate_, pc_, host_, target,
-                                   icache_flush_mode);
-  if (write_barrier_mode == UPDATE_WRITE_BARRIER &&
-      host() != NULL && IsCodeTarget(rmode_)) {
-    Object* target_code = Code::GetCodeFromTargetAddress(target);
-    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
-        host(), this, HeapObject::cast(target_code));
-  }
 }
 
 
@@ -213,8 +198,9 @@ void RelocInfo::set_target_object(Object* target,
   if (write_barrier_mode == UPDATE_WRITE_BARRIER &&
       host() != NULL &&
       target->IsHeapObject()) {
-    host()->GetHeap()->incremental_marking()->RecordWrite(
-        host(), &Memory::Object_at(pc_), HeapObject::cast(target));
+    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(
+        host(), this, HeapObject::cast(target));
+    host()->GetHeap()->RecordWriteIntoCode(host(), this, target);
   }
 }
 
@@ -282,10 +268,8 @@ void RelocInfo::set_target_cell(Cell* cell,
   Address address = cell->address() + Cell::kValueOffset;
   Memory::Address_at(pc_) = address;
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != NULL) {
-    // TODO(1550) We are passing NULL as a slot because cell can never be on
-    // evacuation candidate.
-    host()->GetHeap()->incremental_marking()->RecordWrite(
-        host(), NULL, cell);
+    host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
+                                                                  cell);
   }
 }
 
@@ -348,29 +332,7 @@ void RelocInfo::WipeOut() {
   }
 }
 
-
-bool RelocInfo::IsPatchedReturnSequence() {
-  Instr instr0 = Assembler::instr_at(pc_);  // lui.
-  Instr instr1 = Assembler::instr_at(pc_ + 1 * Assembler::kInstrSize);  // ori.
-  Instr instr2 = Assembler::instr_at(pc_ + 2 * Assembler::kInstrSize);  // dsll.
-  Instr instr3 = Assembler::instr_at(pc_ + 3 * Assembler::kInstrSize);  // ori.
-  Instr instr4 = Assembler::instr_at(pc_ + 4 * Assembler::kInstrSize);  // jalr.
-
-  bool patched_return = ((instr0 & kOpcodeMask) == LUI &&
-                         (instr1 & kOpcodeMask) == ORI &&
-                         (instr2 & kFunctionFieldMask) == DSLL &&
-                         (instr3 & kOpcodeMask) == ORI &&
-                         (instr4 & kFunctionFieldMask) == JALR);
-  return patched_return;
-}
-
-
-bool RelocInfo::IsPatchedDebugBreakSlotSequence() {
-  Instr current_instr = Assembler::instr_at(pc_);
-  return !Assembler::IsNop(current_instr, Assembler::DEBUG_BREAK_NOP);
-}
-
-
+template <typename ObjectVisitor>
 void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
@@ -471,6 +433,8 @@ void Assembler::EmitHelper(Instr x, CompactBranchType is_compact_branch) {
   CheckTrampolinePoolQuick();
 }
 
+template <>
+inline void Assembler::EmitHelper(uint8_t x);
 
 template <typename T>
 void Assembler::EmitHelper(T x) {
@@ -479,6 +443,14 @@ void Assembler::EmitHelper(T x) {
   CheckTrampolinePoolQuick();
 }
 
+template <>
+void Assembler::EmitHelper(uint8_t x) {
+  *reinterpret_cast<uint8_t*>(pc_) = x;
+  pc_ += sizeof(x);
+  if (reinterpret_cast<intptr_t>(pc_) % kInstrSize == 0) {
+    CheckTrampolinePoolQuick();
+  }
+}
 
 void Assembler::emit(Instr x, CompactBranchType is_compact_branch) {
   if (!is_buffer_growth_blocked()) {

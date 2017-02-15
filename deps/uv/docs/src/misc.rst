@@ -17,11 +17,11 @@ Data types
 
     .. c:member:: char* uv_buf_t.base
 
-        Pointer to the base of the buffer. Readonly.
+        Pointer to the base of the buffer.
 
     .. c:member:: size_t uv_buf_t.len
 
-        Total bytes in the buffer. Readonly.
+        Total bytes in the buffer.
 
         .. note::
             On Windows this field is ULONG.
@@ -69,20 +69,23 @@ Data types
             uv_timeval_t ru_utime; /* user CPU time used */
             uv_timeval_t ru_stime; /* system CPU time used */
             uint64_t ru_maxrss; /* maximum resident set size */
-            uint64_t ru_ixrss; /* integral shared memory size */
-            uint64_t ru_idrss; /* integral unshared data size */
-            uint64_t ru_isrss; /* integral unshared stack size */
-            uint64_t ru_minflt; /* page reclaims (soft page faults) */
+            uint64_t ru_ixrss; /* integral shared memory size (X) */
+            uint64_t ru_idrss; /* integral unshared data size (X) */
+            uint64_t ru_isrss; /* integral unshared stack size (X) */
+            uint64_t ru_minflt; /* page reclaims (soft page faults) (X) */
             uint64_t ru_majflt; /* page faults (hard page faults) */
-            uint64_t ru_nswap; /* swaps */
+            uint64_t ru_nswap; /* swaps (X) */
             uint64_t ru_inblock; /* block input operations */
             uint64_t ru_oublock; /* block output operations */
-            uint64_t ru_msgsnd; /* IPC messages sent */
-            uint64_t ru_msgrcv; /* IPC messages received */
-            uint64_t ru_nsignals; /* signals received */
-            uint64_t ru_nvcsw; /* voluntary context switches */
-            uint64_t ru_nivcsw; /* involuntary context switches */
+            uint64_t ru_msgsnd; /* IPC messages sent (X) */
+            uint64_t ru_msgrcv; /* IPC messages received (X) */
+            uint64_t ru_nsignals; /* signals received (X) */
+            uint64_t ru_nvcsw; /* voluntary context switches (X) */
+            uint64_t ru_nivcsw; /* involuntary context switches (X) */
         } uv_rusage_t;
+
+    Members marked with `(X)` are unsupported on Windows.
+    See :man:`getrusage(2)` for supported fields on Unix
 
 .. c:type:: uv_cpu_info_t
 
@@ -121,6 +124,20 @@ Data types
                 struct sockaddr_in6 netmask6;
             } netmask;
         } uv_interface_address_t;
+
+.. c:type:: uv_passwd_t
+
+    Data type for password file information.
+
+    ::
+
+        typedef struct uv_passwd_s {
+            char* username;
+            long uid;
+            long gid;
+            char* shell;
+            char* homedir;
+        } uv_passwd_t;
 
 
 API
@@ -169,11 +186,17 @@ API
 
 .. c:function:: int uv_get_process_title(char* buffer, size_t size)
 
-    Gets the title of the current process.
+    Gets the title of the current process. If `buffer` is `NULL` or `size` is
+    zero, `UV_EINVAL` is returned. If `size` cannot accommodate the process
+    title and terminating `NULL` character, the function returns `UV_ENOBUFS`.
 
 .. c:function:: int uv_set_process_title(const char* title)
 
-    Sets the current process title.
+    Sets the current process title. On platforms with a fixed size buffer for the
+    process title the contents of `title` will be copied to the buffer and
+    truncated if larger than the available space. Other platforms will return
+    `UV_ENOMEM` if they cannot allocate enough space to duplicate the contents of
+    `title`.
 
 .. c:function:: int uv_resident_set_memory(size_t* rss)
 
@@ -189,6 +212,7 @@ API
 
     .. note::
         On Windows not all fields are set, the unsupported fields are filled with zeroes.
+        See :c:type:`uv_rusage_t` for more details.
 
 .. c:function:: int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count)
 
@@ -265,13 +289,49 @@ API
     `uv_os_homedir()` first checks the `HOME` environment variable using
     :man:`getenv(3)`. If `HOME` is not set, :man:`getpwuid_r(3)` is called. The
     user's home directory is stored in `buffer`. When `uv_os_homedir()` is
-    called, `size` indicates the maximum size of `buffer`. On success or
-    `UV_ENOBUFS` failure, `size` is set to the string length of `buffer`.
+    called, `size` indicates the maximum size of `buffer`. On success `size` is set
+    to the string length of `buffer`. On `UV_ENOBUFS` failure `size` is set to the
+    required length for `buffer`, including the null byte.
 
     .. warning::
         `uv_os_homedir()` is not thread safe.
 
     .. versionadded:: 1.6.0
+
+.. c:function:: int uv_os_tmpdir(char* buffer, size_t* size)
+
+    Gets the temp directory. On Windows, `uv_os_tmpdir()` uses `GetTempPathW()`.
+    On all other operating systems, `uv_os_tmpdir()` uses the first environment
+    variable found in the ordered list `TMPDIR`, `TMP`, `TEMP`, and `TEMPDIR`.
+    If none of these are found, the path `"/tmp"` is used, or, on Android,
+    `"/data/local/tmp"` is used. The temp directory is stored in `buffer`. When
+    `uv_os_tmpdir()` is called, `size` indicates the maximum size of `buffer`.
+    On success `size` is set to the string length of `buffer` (which does not
+    include the terminating null). On `UV_ENOBUFS` failure `size` is set to the
+    required length for `buffer`, including the null byte.
+
+    .. warning::
+        `uv_os_tmpdir()` is not thread safe.
+
+    .. versionadded:: 1.9.0
+
+.. c:function:: int uv_os_get_passwd(uv_passwd_t* pwd)
+
+    Gets a subset of the password file entry for the current effective uid (not
+    the real uid). The populated data includes the username, euid, gid, shell,
+    and home directory. On non-Windows systems, all data comes from
+    :man:`getpwuid_r(3)`. On Windows, uid and gid are set to -1 and have no
+    meaning, and shell is `NULL`. After successfully calling this function, the
+    memory allocated to `pwd` needs to be freed with
+    :c:func:`uv_os_free_passwd`.
+
+    .. versionadded:: 1.9.0
+
+.. c:function:: void uv_os_free_passwd(uv_passwd_t* pwd)
+
+    Frees the `pwd` memory previously allocated with :c:func:`uv_os_get_passwd`.
+
+    .. versionadded:: 1.9.0
 
 .. uint64_t uv_get_free_memory(void)
 .. c:function:: uint64_t uv_get_total_memory(void)

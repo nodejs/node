@@ -2,6 +2,16 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/factory.h"
+#include "src/isolate.h"
+#include "src/objects.h"
+// FIXME(mstarzinger, marja): This is weird, but required because of the missing
+// (disallowed) include: src/factory.h -> src/objects-inl.h
+#include "src/objects-inl.h"
+// FIXME(mstarzinger, marja): This is weird, but required because of the missing
+// (disallowed) include: src/type-feedback-vector.h ->
+// src/type-feedback-vector-inl.h
+#include "src/type-feedback-vector-inl.h"
 #include "test/cctest/compiler/function-tester.h"
 
 namespace v8 {
@@ -16,7 +26,7 @@ TEST(ArgumentsMapped) {
   CHECK(arguments->IsJSObject() && !arguments->IsJSArray());
   CHECK(JSObject::cast(*arguments)->HasSloppyArgumentsElements());
   Handle<String> l = T.isolate->factory()->length_string();
-  Handle<Object> length = JSObject::GetProperty(arguments, l).ToHandleChecked();
+  Handle<Object> length = Object::GetProperty(arguments, l).ToHandleChecked();
   CHECK_EQ(4, length->Number());
 }
 
@@ -29,7 +39,7 @@ TEST(ArgumentsUnmapped) {
   CHECK(arguments->IsJSObject() && !arguments->IsJSArray());
   CHECK(!JSObject::cast(*arguments)->HasSloppyArgumentsElements());
   Handle<String> l = T.isolate->factory()->length_string();
-  Handle<Object> length = JSObject::GetProperty(arguments, l).ToHandleChecked();
+  Handle<Object> length = Object::GetProperty(arguments, l).ToHandleChecked();
   CHECK_EQ(4, length->Number());
 }
 
@@ -42,7 +52,7 @@ TEST(ArgumentsRest) {
   CHECK(arguments->IsJSObject() && arguments->IsJSArray());
   CHECK(!JSObject::cast(*arguments)->HasSloppyArgumentsElements());
   Handle<String> l = T.isolate->factory()->length_string();
-  Handle<Object> length = JSObject::GetProperty(arguments, l).ToHandleChecked();
+  Handle<Object> length = Object::GetProperty(arguments, l).ToHandleChecked();
   CHECK_EQ(3, length->Number());
 }
 

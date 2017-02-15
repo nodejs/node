@@ -1,4 +1,6 @@
 var createPadding = require('./_createPadding'),
+    stringSize = require('./_stringSize'),
+    toInteger = require('./toInteger'),
     toString = require('./toString');
 
 /**
@@ -7,6 +9,7 @@ var createPadding = require('./_createPadding'),
  *
  * @static
  * @memberOf _
+ * @since 4.0.0
  * @category String
  * @param {string} [string=''] The string to pad.
  * @param {number} [length=0] The padding length.
@@ -25,7 +28,12 @@ var createPadding = require('./_createPadding'),
  */
 function padStart(string, length, chars) {
   string = toString(string);
-  return createPadding(string, length, chars) + string;
+  length = toInteger(length);
+
+  var strLength = length ? stringSize(string) : 0;
+  return (length && strLength < length)
+    ? (createPadding(length - strLength, chars) + string)
+    : string;
 }
 
 module.exports = padStart;

@@ -2,7 +2,7 @@
 const common = require('../common');
 
 if (!common.hasCrypto) {
-  console.log('1..0 # Skipped: missing crypto');
+  common.skip('missing crypto');
   return;
 }
 
@@ -17,14 +17,14 @@ const options = {
 
 const server = tls.createServer(options, function(s) {
   s.end('hello');
-}).listen(common.PORT, function() {
+}).listen(0, function() {
   const opts = {
-    port: common.PORT,
+    port: this.address().port,
     rejectUnauthorized: false
   };
 
   server.on('connection', common.mustCall(function(socket) {
-    assert(socket.server === server);
+    assert.strictEqual(socket.server, server);
     server.close();
   }));
 

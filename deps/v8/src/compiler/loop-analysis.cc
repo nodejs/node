@@ -5,10 +5,10 @@
 #include "src/compiler/loop-analysis.h"
 
 #include "src/compiler/graph.h"
-#include "src/compiler/node.h"
 #include "src/compiler/node-marker.h"
 #include "src/compiler/node-properties.h"
-#include "src/zone.h"
+#include "src/compiler/node.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -29,6 +29,7 @@ struct NodeInfo {
 struct LoopInfo {
   Node* header;
   NodeInfo* header_list;
+  NodeInfo* exit_list;
   NodeInfo* body_list;
   LoopTree::Loop* loop;
 };
@@ -81,9 +82,9 @@ class LoopFinderImpl {
         if (marked_forward && marked_backward) {
           PrintF("X");
         } else if (marked_forward) {
-          PrintF("/");
+          PrintF(">");
         } else if (marked_backward) {
-          PrintF("\\");
+          PrintF("<");
         } else {
           PrintF(" ");
         }
@@ -198,12 +199,22 @@ class LoopFinderImpl {
         if (merge->opcode() == IrOpcode::kLoop) {
           loop_num = CreateLoopInfo(merge);
         }
+      } else if (node->opcode() == IrOpcode::kLoopExit) {
+        // Intentionally ignore return value. Loop exit node marks
+        // are propagated normally.
+        CreateLoopInfo(node->InputAt(1));
+      } else if (node->opcode() == IrOpcode::kLoopExitValue ||
+                 node->opcode() == IrOpcode::kLoopExitEffect) {
+        Node* loop_exit = NodeProperties::GetControlInput(node);
+        // Intentionally ignore return value. Loop exit node marks
+        // are propagated normally.
+        CreateLoopInfo(loop_exit->InputAt(1));
       }
 
       // Propagate marks backwards from this node.
       for (int i = 0; i < node->InputCount(); i++) {
         Node* input = node->InputAt(i);
-        if (loop_num > 0 && i != kAssumedLoopEntryIndex) {
+        if (IsBackedge(node, i)) {
           // Only propagate the loop mark on backedges.
           if (SetBackwardMark(input, loop_num)) Queue(input);
         } else {
@@ -216,6 +227,7 @@ class LoopFinderImpl {
 
   // Make a new loop if necessary for the given node.
   int CreateLoopInfo(Node* node) {
+    DCHECK_EQ(IrOpcode::kLoop, node->opcode());
     int loop_num = LoopNum(node);
     if (loop_num > 0) return loop_num;
 
@@ -223,21 +235,39 @@ class LoopFinderImpl {
     if (INDEX(loop_num) >= width_) ResizeBackwardMarks();
 
     // Create a new loop.
-    loops_.push_back({node, nullptr, nullptr, nullptr});
+    loops_.push_back({node, nullptr, nullptr, nullptr, nullptr});
     loop_tree_->NewLoop();
+    SetLoopMarkForLoopHeader(node, loop_num);
+    return loop_num;
+  }
+
+  void SetLoopMark(Node* node, int loop_num) {
+    info(node);  // create the NodeInfo
     SetBackwardMark(node, loop_num);
     loop_tree_->node_to_loop_num_[node->id()] = loop_num;
+  }
 
-    // Setup loop mark for phis attached to loop header.
+  void SetLoopMarkForLoopHeader(Node* node, int loop_num) {
+    DCHECK_EQ(IrOpcode::kLoop, node->opcode());
+    SetLoopMark(node, loop_num);
     for (Node* use : node->uses()) {
       if (NodeProperties::IsPhi(use)) {
-        info(use);  // create the NodeInfo
-        SetBackwardMark(use, loop_num);
-        loop_tree_->node_to_loop_num_[use->id()] = loop_num;
+        SetLoopMark(use, loop_num);
+      }
+
+      // Do not keep the loop alive if it does not have any backedges.
+      if (node->InputCount() <= 1) continue;
+
+      if (use->opcode() == IrOpcode::kLoopExit) {
+        SetLoopMark(use, loop_num);
+        for (Node* exit_use : use->uses()) {
+          if (exit_use->opcode() == IrOpcode::kLoopExitValue ||
+              exit_use->opcode() == IrOpcode::kLoopExitEffect) {
+            SetLoopMark(exit_use, loop_num);
+          }
+        }
       }
     }
-
-    return loop_num;
   }
 
   void ResizeBackwardMarks() {
@@ -276,20 +306,33 @@ class LoopFinderImpl {
       queued_.Set(node, false);
       for (Edge edge : node->use_edges()) {
         Node* use = edge.from();
-        if (!IsBackedge(use, edge)) {
+        if (!IsBackedge(use, edge.index())) {
           if (PropagateForwardMarks(node, use)) Queue(use);
         }
       }
     }
   }
 
-  bool IsBackedge(Node* use, Edge& edge) {
+  bool IsLoopHeaderNode(Node* node) {
+    return node->opcode() == IrOpcode::kLoop || NodeProperties::IsPhi(node);
+  }
+
+  bool IsLoopExitNode(Node* node) {
+    return node->opcode() == IrOpcode::kLoopExit ||
+           node->opcode() == IrOpcode::kLoopExitValue ||
+           node->opcode() == IrOpcode::kLoopExitEffect;
+  }
+
+  bool IsBackedge(Node* use, int index) {
     if (LoopNum(use) <= 0) return false;
-    if (edge.index() == kAssumedLoopEntryIndex) return false;
     if (NodeProperties::IsPhi(use)) {
-      return !NodeProperties::IsControlEdge(edge);
+      return index != NodeProperties::FirstControlIndex(use) &&
+             index != kAssumedLoopEntryIndex;
+    } else if (use->opcode() == IrOpcode::kLoop) {
+      return index != kAssumedLoopEntryIndex;
     }
-    return true;
+    DCHECK(IsLoopExitNode(use));
+    return false;
   }
 
   int LoopNum(Node* node) { return loop_tree_->node_to_loop_num_[node->id()]; }
@@ -304,6 +347,22 @@ class LoopFinderImpl {
     if (!queued_.Get(node)) {
       queue_.push_back(node);
       queued_.Set(node, true);
+    }
+  }
+
+  void AddNodeToLoop(NodeInfo* node_info, LoopInfo* loop, int loop_num) {
+    if (LoopNum(node_info->node) == loop_num) {
+      if (IsLoopHeaderNode(node_info->node)) {
+        node_info->next = loop->header_list;
+        loop->header_list = node_info;
+      } else {
+        DCHECK(IsLoopExitNode(node_info->node));
+        node_info->next = loop->exit_list;
+        loop->exit_list = node_info;
+      }
+    } else {
+      node_info->next = loop->body_list;
+      loop->body_list = node_info;
     }
   }
 
@@ -342,13 +401,7 @@ class LoopFinderImpl {
         }
       }
       if (innermost == nullptr) continue;
-      if (LoopNum(ni.node) == innermost_index) {
-        ni.next = innermost->header_list;
-        innermost->header_list = &ni;
-      } else {
-        ni.next = innermost->body_list;
-        innermost->body_list = &ni;
-      }
+      AddNodeToLoop(&ni, innermost, innermost_index);
       count++;
     }
 
@@ -368,13 +421,7 @@ class LoopFinderImpl {
     size_t count = 0;
     for (NodeInfo& ni : info_) {
       if (ni.node == nullptr || !IsInLoop(ni.node, 1)) continue;
-      if (LoopNum(ni.node) == 1) {
-        ni.next = li->header_list;
-        li->header_list = &ni;
-      } else {
-        ni.next = li->body_list;
-        li->body_list = &ni;
-      }
+      AddNodeToLoop(&ni, li, 1);
       count++;
     }
 
@@ -406,7 +453,14 @@ class LoopFinderImpl {
     // Serialize nested loops.
     for (LoopTree::Loop* child : loop->children_) SerializeLoop(child);
 
-    loop->body_end_ = static_cast<int>(loop_tree_->loop_nodes_.size());
+    // Serialize the exits.
+    loop->exits_start_ = static_cast<int>(loop_tree_->loop_nodes_.size());
+    for (NodeInfo* ni = li.exit_list; ni != nullptr; ni = ni->next) {
+      loop_tree_->loop_nodes_.push_back(ni->node);
+      loop_tree_->node_to_loop_num_[ni->node->id()] = loop_num;
+    }
+
+    loop->exits_end_ = static_cast<int>(loop_tree_->loop_nodes_.size());
   }
 
   // Connect the LoopTree loops to their parents recursively.
@@ -438,8 +492,11 @@ class LoopFinderImpl {
     while (i < loop->body_start_) {
       PrintF(" H#%d", loop_tree_->loop_nodes_[i++]->id());
     }
-    while (i < loop->body_end_) {
+    while (i < loop->exits_start_) {
       PrintF(" B#%d", loop_tree_->loop_nodes_[i++]->id());
+    }
+    while (i < loop->exits_end_) {
+      PrintF(" E#%d", loop_tree_->loop_nodes_[i++]->id());
     }
     PrintF("\n");
     for (LoopTree::Loop* child : loop->children_) PrintLoop(child);
@@ -452,7 +509,7 @@ LoopTree* LoopFinder::BuildLoopTree(Graph* graph, Zone* zone) {
       new (graph->zone()) LoopTree(graph->NodeCount(), graph->zone());
   LoopFinderImpl finder(graph, loop_tree, zone);
   finder.Run();
-  if (FLAG_trace_turbo_graph) {
+  if (FLAG_trace_turbo_loop) {
     finder.Print();
   }
   return loop_tree;

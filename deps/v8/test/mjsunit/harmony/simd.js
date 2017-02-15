@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-simd --harmony-tostring  --harmony-reflect
+// Flags: --harmony-simd
 // Flags: --allow-natives-syntax --expose-natives-as natives --noalways-opt
 
 function lanesForType(typeName) {
@@ -407,7 +407,7 @@ function TestSameValue(type, lanes) {
   var simdFn = SIMD[type];
   var instance = createInstance(type);
   var sameValue = Object.is
-  var sameValueZero = natives.ImportNow("SameValueZero");
+  var sameValueZero = function(x, y) { return %SameValueZero(x, y); }
 
   // SIMD values should not be the same as instances of different types.
   checkTypeMatrix(type, function(other) {
@@ -622,7 +622,9 @@ TestSIMDObject()
 
 function TestStringify(expected, input) {
   assertEquals(expected, JSON.stringify(input));
-  assertEquals(expected, JSON.stringify(input, null, 0));
+  assertEquals(expected, JSON.stringify(input, (key, value) => value));
+  assertEquals(JSON.stringify(input, null, "="),
+               JSON.stringify(input, (key, value) => value, "="));
 }
 
 TestStringify(undefined, SIMD.Float32x4(1, 2, 3, 4));

@@ -209,3 +209,24 @@ TEST_IMPL(thread_local_storage) {
   uv_key_delete(&tls_key);
   return 0;
 }
+
+
+#if defined(__APPLE__)
+static void thread_check_stack(void* arg) {
+  /* 512KB is the default stack size of threads other than the main thread
+   * on OSX. */
+  ASSERT(pthread_get_stacksize_np(pthread_self()) > 512*1024);
+}
+#endif
+
+
+TEST_IMPL(thread_stack_size) {
+#if defined(__APPLE__)
+  uv_thread_t thread;
+  ASSERT(0 == uv_thread_create(&thread, thread_check_stack, NULL));
+  ASSERT(0 == uv_thread_join(&thread));
+  return 0;
+#else
+  RETURN_SKIP("OSX only test");
+#endif
+}

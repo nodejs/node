@@ -23,8 +23,8 @@ PASS x.prototype.__proto__ is Base.prototype
 PASS Object.getPrototypeOf(x.prototype) is Base.prototype
 PASS x = class extends null { constructor() { } }; x.__proto__ is Function.prototype
 PASS x.__proto__ is Function.prototype
-PASS x = class extends 3 { constructor() { } }; x.__proto__ threw exception TypeError: Class extends value 3 is not a function or null.
-PASS x = class extends "abc" { constructor() { } }; x.__proto__ threw exception TypeError: Class extends value abc is not a function or null.
+PASS x = class extends 3 { constructor() { } }; x.__proto__ threw exception TypeError: Class extends value 3 is not a constructor or null.
+PASS x = class extends "abc" { constructor() { } }; x.__proto__ threw exception TypeError: Class extends value abc is not a constructor or null.
 PASS baseWithBadPrototype = function () {}; baseWithBadPrototype.prototype = 3; new baseWithBadPrototype did not throw exception.
 PASS x = class extends baseWithBadPrototype { constructor() { } } threw exception TypeError: Class extends value does not have valid prototype property 3.
 PASS baseWithBadPrototype.prototype = "abc" did not throw exception.
@@ -32,8 +32,8 @@ PASS x = class extends baseWithBadPrototype { constructor() { } } threw exceptio
 PASS baseWithBadPrototype.prototype = null; x = class extends baseWithBadPrototype { constructor() { } } did not throw exception.
 PASS x = 1; c = class extends ++x { constructor() { } }; threw exception SyntaxError: Unexpected token ++.
 PASS x = 1; c = class extends x++ { constructor() { } }; threw exception SyntaxError: Unexpected token ++.
-PASS x = 1; c = class extends (++x) { constructor() { } }; threw exception TypeError: Class extends value 2 is not a function or null.
-PASS x = 1; c = class extends (x++) { constructor() { } }; threw exception TypeError: Class extends value 1 is not a function or null.
+PASS x = 1; c = class extends (++x) { constructor() { } }; threw exception TypeError: Class extends value 2 is not a constructor or null.
+PASS x = 1; c = class extends (x++) { constructor() { } }; threw exception TypeError: Class extends value 1 is not a constructor or null.
 PASS x = 1; try { c = class extends (++x) { constructor() { } } } catch (e) { }; x is 2
 PASS x = 1; try { c = class extends (x++) { constructor() { } } } catch (e) { }; x is 2
 PASS namespace = {}; namespace.A = class { }; namespace.B = class extends namespace.A { } did not throw exception.
@@ -47,17 +47,17 @@ PASS namespace = {}; namespace.A = class { constructor() { } }; function getClas
 PASS namespace = {}; namespace.A = class { constructor() { } }; namespace.B = class extends (false||null||namespace.A) { constructor() { } } did not throw exception.
 PASS namespace = {}; namespace.A = class { constructor() { } }; namespace.B = class extends false||null||namespace.A { constructor() { } } threw exception SyntaxError: Unexpected token ||.
 PASS x = 1; namespace = {}; namespace.A = class { constructor() { } }; namespace.B = class extends (x++, namespace.A) { constructor() { } }; did not throw exception.
-PASS x = 1; namespace = {}; namespace.A = class { constructor() { } }; namespace.B = class extends (namespace.A, x++) { constructor() { } }; threw exception TypeError: Class extends value 1 is not a function or null.
-PASS namespace = {}; namespace.A = class { constructor() { } }; namespace.B = class extends new namespace.A { constructor() { } } threw exception TypeError: Class extends value [object Object] is not a function or null.
-PASS namespace = {}; namespace.A = class { constructor() { } }; namespace.B = class extends new namespace.A() { constructor() { } } threw exception TypeError: Class extends value [object Object] is not a function or null.
+PASS x = 1; namespace = {}; namespace.A = class { constructor() { } }; namespace.B = class extends (namespace.A, x++) { constructor() { } }; threw exception TypeError: Class extends value 1 is not a constructor or null.
+PASS namespace = {}; namespace.A = class { constructor() { } }; namespace.B = class extends new namespace.A { constructor() { } } threw exception TypeError: Class extends value [object Object] is not a constructor or null.
+PASS namespace = {}; namespace.A = class { constructor() { } }; namespace.B = class extends new namespace.A() { constructor() { } } threw exception TypeError: Class extends value [object Object] is not a constructor or null.
 PASS x = 1; namespace = {}; namespace.A = class { constructor() { } }; try { namespace.B = class extends (x++, namespace.A) { constructor() { } } } catch (e) { } x is 2
 PASS x = 1; namespace = {}; namespace.A = class { constructor() { } }; try { namespace.B = class extends (namespace.A, x++) { constructor() { } } } catch (e) { } x is 2
 PASS Object.getPrototypeOf((class { constructor () { } }).prototype) is Object.prototype
 PASS Object.getPrototypeOf((class extends null { constructor () { super(); } }).prototype) is null
-PASS new (class extends undefined { constructor () { this } }) threw exception TypeError: Class extends value undefined is not a function or null.
-PASS new (class extends undefined { constructor () { super(); } }) threw exception TypeError: Class extends value undefined is not a function or null.
-PASS x = {}; new (class extends undefined { constructor () { return x; } }) threw exception TypeError: Class extends value undefined is not a function or null.
-PASS y = 12; new (class extends undefined { constructor () { return y; } }) threw exception TypeError: Class extends value undefined is not a function or null.
+PASS new (class extends undefined { constructor () { this } }) threw exception TypeError: Class extends value undefined is not a constructor or null.
+PASS new (class extends undefined { constructor () { super(); } }) threw exception TypeError: Class extends value undefined is not a constructor or null.
+PASS x = {}; new (class extends undefined { constructor () { return x; } }) threw exception TypeError: Class extends value undefined is not a constructor or null.
+PASS y = 12; new (class extends undefined { constructor () { return y; } }) threw exception TypeError: Class extends value undefined is not a constructor or null.
 PASS class x {}; new (class extends null { constructor () { return new x; } }) instanceof x is true
 PASS new (class extends null { constructor () { this; } }) threw exception ReferenceError: this is not defined.
 PASS new (class extends null { constructor () { super(); } }) threw exception TypeError: super is not a constructor.

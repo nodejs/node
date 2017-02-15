@@ -20,31 +20,48 @@ bool OperatorProperties::HasContextInput(const Operator* op) {
 
 
 // static
-int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
+bool OperatorProperties::HasFrameStateInput(const Operator* op) {
   switch (op->opcode()) {
+    case IrOpcode::kCheckpoint:
     case IrOpcode::kFrameState:
-      return 1;
+      return true;
     case IrOpcode::kJSCallRuntime: {
       const CallRuntimeParameters& p = CallRuntimeParametersOf(op);
-      return Linkage::FrameStateInputCount(p.id());
+      return Linkage::NeedsFrameStateInput(p.id());
     }
 
     // Strict equality cannot lazily deoptimize.
     case IrOpcode::kJSStrictEqual:
     case IrOpcode::kJSStrictNotEqual:
-      return 0;
+      return false;
 
-    // We record the frame state immediately before and immediately after every
-    // construct/function call.
-    case IrOpcode::kJSCallConstruct:
-    case IrOpcode::kJSCallFunction:
-      return 2;
+    // Binary operations
+    case IrOpcode::kJSAdd:
+    case IrOpcode::kJSSubtract:
+    case IrOpcode::kJSMultiply:
+    case IrOpcode::kJSDivide:
+    case IrOpcode::kJSModulus:
+
+    // Bitwise operations
+    case IrOpcode::kJSBitwiseOr:
+    case IrOpcode::kJSBitwiseXor:
+    case IrOpcode::kJSBitwiseAnd:
+
+    // Shift operations
+    case IrOpcode::kJSShiftLeft:
+    case IrOpcode::kJSShiftRight:
+    case IrOpcode::kJSShiftRightLogical:
 
     // Compare operations
     case IrOpcode::kJSEqual:
     case IrOpcode::kJSNotEqual:
+    case IrOpcode::kJSGreaterThan:
+    case IrOpcode::kJSGreaterThanOrEqual:
+    case IrOpcode::kJSLessThan:
+    case IrOpcode::kJSLessThanOrEqual:
     case IrOpcode::kJSHasProperty:
     case IrOpcode::kJSInstanceOf:
+    case IrOpcode::kJSOrdinaryHasInstance:
 
     // Object operations
     case IrOpcode::kJSCreate:
@@ -54,61 +71,39 @@ int OperatorProperties::GetFrameStateInputCount(const Operator* op) {
     case IrOpcode::kJSCreateLiteralObject:
     case IrOpcode::kJSCreateLiteralRegExp:
 
-    // Context operations
-    case IrOpcode::kJSLoadDynamic:
-    case IrOpcode::kJSCreateScriptContext:
-
-    // Conversions
-    case IrOpcode::kJSToName:
-    case IrOpcode::kJSToNumber:
-    case IrOpcode::kJSToObject:
-    case IrOpcode::kJSToString:
-
-    // Misc operations
-    case IrOpcode::kJSConvertReceiver:
-    case IrOpcode::kJSForInNext:
-    case IrOpcode::kJSForInPrepare:
-    case IrOpcode::kJSStackCheck:
-    case IrOpcode::kJSDeleteProperty:
-      return 1;
-
-    // We record the frame state immediately before and immediately after
-    // every property or global variable access.
+    // Property access operations
     case IrOpcode::kJSLoadNamed:
     case IrOpcode::kJSStoreNamed:
     case IrOpcode::kJSLoadProperty:
     case IrOpcode::kJSStoreProperty:
     case IrOpcode::kJSLoadGlobal:
     case IrOpcode::kJSStoreGlobal:
-      return 2;
+    case IrOpcode::kJSDeleteProperty:
 
-    // Binary operators that can deopt in the middle the operation (e.g.,
-    // as a result of lazy deopt in ToNumber conversion) need a second frame
-    // state so that we can resume before the operation.
-    case IrOpcode::kJSMultiply:
-    case IrOpcode::kJSAdd:
-    case IrOpcode::kJSBitwiseAnd:
-    case IrOpcode::kJSBitwiseOr:
-    case IrOpcode::kJSBitwiseXor:
-    case IrOpcode::kJSDivide:
-    case IrOpcode::kJSModulus:
-    case IrOpcode::kJSShiftLeft:
-    case IrOpcode::kJSShiftRight:
-    case IrOpcode::kJSShiftRightLogical:
-    case IrOpcode::kJSSubtract:
-      return 2;
+    // Context operations
+    case IrOpcode::kJSCreateScriptContext:
 
-    // Compare operators that can deopt in the middle the operation (e.g.,
-    // as a result of lazy deopt in ToNumber conversion) need a second frame
-    // state so that we can resume before the operation.
-    case IrOpcode::kJSGreaterThan:
-    case IrOpcode::kJSGreaterThanOrEqual:
-    case IrOpcode::kJSLessThan:
-    case IrOpcode::kJSLessThanOrEqual:
-      return 2;
+    // Conversions
+    case IrOpcode::kJSToInteger:
+    case IrOpcode::kJSToLength:
+    case IrOpcode::kJSToName:
+    case IrOpcode::kJSToNumber:
+    case IrOpcode::kJSToObject:
+    case IrOpcode::kJSToString:
+
+    // Call operations
+    case IrOpcode::kJSCallConstruct:
+    case IrOpcode::kJSCallFunction:
+
+    // Misc operations
+    case IrOpcode::kJSConvertReceiver:
+    case IrOpcode::kJSForInNext:
+    case IrOpcode::kJSForInPrepare:
+    case IrOpcode::kJSStackCheck:
+      return true;
 
     default:
-      return 0;
+      return false;
   }
 }
 

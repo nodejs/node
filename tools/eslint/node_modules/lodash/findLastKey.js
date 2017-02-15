@@ -1,4 +1,4 @@
-var baseFind = require('./_baseFind'),
+var baseFindKey = require('./_baseFindKey'),
     baseForOwnRight = require('./_baseForOwnRight'),
     baseIteratee = require('./_baseIteratee');
 
@@ -8,10 +8,12 @@ var baseFind = require('./_baseFind'),
  *
  * @static
  * @memberOf _
+ * @since 2.0.0
  * @category Object
- * @param {Object} object The object to search.
- * @param {Function|Object|string} [predicate=_.identity] The function invoked per iteration.
- * @returns {string|undefined} Returns the key of the matched element, else `undefined`.
+ * @param {Object} object The object to inspect.
+ * @param {Function} [predicate=_.identity] The function invoked per iteration.
+ * @returns {string|undefined} Returns the key of the matched element,
+ *  else `undefined`.
  * @example
  *
  * var users = {
@@ -36,7 +38,7 @@ var baseFind = require('./_baseFind'),
  * // => 'pebbles'
  */
 function findLastKey(object, predicate) {
-  return baseFind(object, baseIteratee(predicate, 3), baseForOwnRight, true);
+  return baseFindKey(object, baseIteratee(predicate, 3), baseForOwnRight);
 }
 
 module.exports = findLastKey;

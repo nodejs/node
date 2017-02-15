@@ -21,10 +21,10 @@ assertFalse(TypedArrayPrototype.propertyIsEnumerable('values'));
 assertFalse(TypedArrayPrototype.propertyIsEnumerable('keys'));
 assertFalse(TypedArrayPrototype.propertyIsEnumerable(Symbol.iterator));
 
-assertEquals(Array.prototype.entries, TypedArrayPrototype.entries);
-assertEquals(Array.prototype[Symbol.iterator], TypedArrayPrototype.values);
-assertEquals(Array.prototype.keys, TypedArrayPrototype.keys);
-assertEquals(Array.prototype[Symbol.iterator], TypedArrayPrototype[Symbol.iterator]);
+assertFalse(Array.prototype.entries === TypedArrayPrototype.entries);
+assertFalse(Array.prototype[Symbol.iterator] === TypedArrayPrototype.values);
+assertFalse(Array.prototype.keys === TypedArrayPrototype.keys);
+assertFalse(Array.prototype[Symbol.iterator] === TypedArrayPrototype[Symbol.iterator]);
 
 
 function TestTypedArrayValues(constructor) {

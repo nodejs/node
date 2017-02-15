@@ -234,7 +234,7 @@ const ASN1_TEMPLATE *asn1_do_adb(ASN1_VALUE **pval, const ASN1_TEMPLATE *tt,
     sfld = offset2ptr(*pval, adb->offset);
 
     /* Check if NULL */
-    if (!sfld) {
+    if (*sfld == NULL) {
         if (!adb->null_tt)
             goto err;
         return adb->null_tt;

@@ -21,11 +21,10 @@ test('npm version <semver> with failing preversion lifecycle script', function (
     version: '0.0.0',
     description: 'Test for npm version if preversion script fails',
     scripts: {
-      preversion: './fail.sh'
+      preversion: 'node ./fail.js'
     }
   }), 'utf8')
-  fs.writeFileSync(path.resolve(pkg, 'fail.sh'), 'exit 50', 'utf8')
-  fs.chmodSync(path.resolve(pkg, 'fail.sh'), 448)
+  fs.writeFileSync(path.resolve(pkg, 'fail.js'), 'process.exit(50)', 'utf8')
   npm.load({cache: cache, 'sign-git-tag': false, registry: common.registry}, function () {
     var version = require('../../lib/version')
     version(['patch'], function (err) {
@@ -44,11 +43,10 @@ test('npm version <semver> with failing version lifecycle script', function (t) 
     version: '0.0.0',
     description: 'Test for npm version if postversion script fails',
     scripts: {
-      version: './fail.sh'
+      version: 'node ./fail.js'
     }
   }), 'utf8')
-  fs.writeFileSync(path.resolve(pkg, 'fail.sh'), 'exit 50', 'utf8')
-  fs.chmodSync(path.resolve(pkg, 'fail.sh'), 448)
+  fs.writeFileSync(path.resolve(pkg, 'fail.js'), 'process.exit(50)', 'utf8')
   npm.load({cache: cache, 'sign-git-tag': false, registry: common.registry}, function () {
     var version = require('../../lib/version')
     version(['patch'], function (err) {
@@ -67,11 +65,10 @@ test('npm version <semver> with failing postversion lifecycle script', function 
     version: '0.0.0',
     description: 'Test for npm version if postversion script fails',
     scripts: {
-      postversion: './fail.sh'
+      postversion: 'node ./fail.js'
     }
   }), 'utf8')
-  fs.writeFileSync(path.resolve(pkg, 'fail.sh'), 'exit 50', 'utf8')
-  fs.chmodSync(path.resolve(pkg, 'fail.sh'), 448)
+  fs.writeFileSync(path.resolve(pkg, 'fail.js'), 'process.exit(50)', 'utf8')
   npm.load({cache: cache, 'sign-git-tag': false, registry: common.registry}, function () {
     var version = require('../../lib/version')
     version(['patch'], function (err) {
@@ -90,9 +87,9 @@ test('npm version <semver> execution order', function (t) {
     version: '0.0.0',
     description: 'Test for npm version if postversion script fails',
     scripts: {
-      preversion: './preversion.sh',
-      version: './version.sh',
-      postversion: './postversion.sh'
+      preversion: 'node ./preversion.js',
+      version: 'node ./version.js',
+      postversion: 'node ./postversion.js'
     }
   }), 'utf8')
   makeScript('preversion')
@@ -143,14 +140,31 @@ function setup () {
 }
 
 function makeScript (lifecycle) {
-  var contents = [
-    'cp package.json ' + lifecycle + '-package.json',
-    'git add ' + lifecycle + '-package.json',
-    'git status --porcelain > ' + lifecycle + '-git.txt'
-  ].join('\n')
-  var scriptPath = path.join(pkg, lifecycle + '.sh')
-  fs.writeFileSync(scriptPath, contents, 'utf-8')
-  fs.chmodSync(scriptPath, 448)
+  function contents (lifecycle) {
+    var fs = require('fs')
+    var exec = require('child_process').exec
+    fs.createReadStream('package.json')
+      .pipe(fs.createWriteStream(lifecycle + '-package.json'))
+      .on('close', function () {
+        exec(
+          'git add ' + lifecycle + '-package.json',
+          function () {
+            exec(
+              'git status --porcelain',
+              function (err, stdout) {
+                if (err) throw err
+                fs.writeFileSync(lifecycle + '-git.txt', stdout)
+              }
+            )
+          }
+        )
+      })
+  }
+  var scriptPath = path.join(pkg, lifecycle + '.js')
+  fs.writeFileSync(
+    scriptPath,
+    '(' + contents.toString() + ')(\'' + lifecycle + '\')',
+    'utf-8')
 }
 
 function readPackage (lifecycle) {

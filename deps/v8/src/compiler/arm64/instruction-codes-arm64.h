@@ -73,22 +73,28 @@ namespace compiler {
   V(Arm64Ubfx32)                   \
   V(Arm64Ubfiz32)                  \
   V(Arm64Bfi)                      \
+  V(Arm64Rbit)                     \
+  V(Arm64Rbit32)                   \
   V(Arm64TestAndBranch32)          \
   V(Arm64TestAndBranch)            \
   V(Arm64CompareAndBranch32)       \
-  V(Arm64ClaimForCallArguments)    \
-  V(Arm64Poke)                     \
+  V(Arm64CompareAndBranch)         \
+  V(Arm64ClaimCSP)                 \
+  V(Arm64ClaimJSSP)                \
+  V(Arm64PokeCSP)                  \
+  V(Arm64PokeJSSP)                 \
   V(Arm64PokePair)                 \
   V(Arm64Float32Cmp)               \
   V(Arm64Float32Add)               \
   V(Arm64Float32Sub)               \
   V(Arm64Float32Mul)               \
   V(Arm64Float32Div)               \
-  V(Arm64Float32Max)               \
-  V(Arm64Float32Min)               \
   V(Arm64Float32Abs)               \
+  V(Arm64Float32Neg)               \
   V(Arm64Float32Sqrt)              \
   V(Arm64Float32RoundDown)         \
+  V(Arm64Float32Max)               \
+  V(Arm64Float32Min)               \
   V(Arm64Float64Cmp)               \
   V(Arm64Float64Add)               \
   V(Arm64Float64Sub)               \
@@ -108,17 +114,22 @@ namespace compiler {
   V(Arm64Float64RoundTruncate)     \
   V(Arm64Float32RoundTiesEven)     \
   V(Arm64Float64RoundTiesEven)     \
+  V(Arm64Float64SilenceNaN)        \
   V(Arm64Float32ToFloat64)         \
   V(Arm64Float64ToFloat32)         \
+  V(Arm64Float32ToInt32)           \
   V(Arm64Float64ToInt32)           \
+  V(Arm64Float32ToUint32)          \
   V(Arm64Float64ToUint32)          \
   V(Arm64Float32ToInt64)           \
   V(Arm64Float64ToInt64)           \
   V(Arm64Float32ToUint64)          \
   V(Arm64Float64ToUint64)          \
+  V(Arm64Int32ToFloat32)           \
   V(Arm64Int32ToFloat64)           \
   V(Arm64Int64ToFloat32)           \
   V(Arm64Int64ToFloat64)           \
+  V(Arm64Uint32ToFloat32)          \
   V(Arm64Uint32ToFloat64)          \
   V(Arm64Uint64ToFloat32)          \
   V(Arm64Uint64ToFloat64)          \
@@ -138,11 +149,11 @@ namespace compiler {
   V(Arm64Ldrh)                     \
   V(Arm64Ldrsh)                    \
   V(Arm64Strh)                     \
+  V(Arm64Ldrsw)                    \
   V(Arm64LdrW)                     \
   V(Arm64StrW)                     \
   V(Arm64Ldr)                      \
   V(Arm64Str)
-
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes
@@ -167,7 +178,10 @@ namespace compiler {
   V(Operand2_R_UXTB)  /* %r0 UXTB (unsigned extend byte) */     \
   V(Operand2_R_UXTH)  /* %r0 UXTH (unsigned extend halfword) */ \
   V(Operand2_R_SXTB)  /* %r0 SXTB (signed extend byte) */       \
-  V(Operand2_R_SXTH)  /* %r0 SXTH (signed extend halfword) */
+  V(Operand2_R_SXTH)  /* %r0 SXTH (signed extend halfword) */   \
+  V(Operand2_R_SXTW)  /* %r0 SXTW (signed extend word) */
+
+enum ResetJSSPAfterCall { kNoResetJSSP, kResetJSSP };
 
 }  // namespace compiler
 }  // namespace internal

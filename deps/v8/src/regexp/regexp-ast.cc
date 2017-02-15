@@ -172,9 +172,9 @@ void* RegExpUnparser::VisitAlternative(RegExpAlternative* that, void* data) {
 
 
 void RegExpUnparser::VisitCharacterRange(CharacterRange that) {
-  os_ << AsUC16(that.from());
+  os_ << AsUC32(that.from());
   if (!that.IsSingleton()) {
-    os_ << "-" << AsUC16(that.to());
+    os_ << "-" << AsUC32(that.to());
   }
 }
 

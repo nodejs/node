@@ -1,6 +1,11 @@
 'use strict';
 
 const common = require('../common');
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  return;
+}
+
 const assert = require('assert');
 const fs = require('fs');
 const tls = require('tls');
@@ -10,7 +15,7 @@ const sslcontext = tls.createSecureContext({
   key: fs.readFileSync(common.fixturesDir + '/test_key.pem')
 });
 
-var catchedServername;
+let catchedServername;
 const pair = tls.createSecurePair(sslcontext, true, false, false, {
   SNICallback: common.mustCall(function(servername, cb) {
     catchedServername = servername;

@@ -2,144 +2,128 @@
  * @fileoverview Disallows multiple blank lines.
  * implementation adapted from the no-trailing-spaces rule.
  * @author Greg Cochard
- * @copyright 2014 Greg Cochard. All rights reserved.
  */
 "use strict";
+
+const astUtils = require("../ast-utils");
 
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
-module.exports = function(context) {
-
-    // Use options.max or 2 as default
-    var max = 2,
-        maxEOF,
-        maxBOF;
-
-    // store lines that appear empty but really aren't
-    var notEmpty = [];
-
-    if (context.options.length) {
-        max = context.options[0].max;
-        maxEOF = context.options[0].maxEOF;
-        maxBOF = context.options[0].maxBOF;
-    }
-
-    //--------------------------------------------------------------------------
-    // Public
-    //--------------------------------------------------------------------------
-
-    return {
-
-        "TemplateLiteral": function(node) {
-            var start = node.loc.start.line;
-            var end = node.loc.end.line;
-            while (start <= end) {
-                notEmpty.push(start);
-                start++;
-            }
+module.exports = {
+    meta: {
+        docs: {
+            description: "disallow multiple empty lines",
+            category: "Stylistic Issues",
+            recommended: false
         },
 
-        "Program:exit": function checkBlankLines(node) {
-            var lines = context.getSourceLines(),
-                currentLocation = -1,
-                lastLocation,
-                blankCounter = 0,
-                location,
-                firstOfEndingBlankLines,
-                firstNonBlankLine = -1,
-                trimmedLines = [];
+        fixable: "whitespace",
 
-            lines.forEach(function(str, i) {
-                var trimmed = str.trim();
-                if ((firstNonBlankLine === -1) && (trimmed !== "")) {
-                    firstNonBlankLine = i;
-                }
-
-                trimmedLines.push(trimmed);
-            });
-
-            // add the notEmpty lines in there with a placeholder
-            notEmpty.forEach(function(x, i) {
-                trimmedLines[i] = x;
-            });
-
-            if (typeof maxEOF === "undefined") {
-                // swallow the final newline, as some editors add it
-                // automatically and we don't want it to cause an issue
-                if (trimmedLines[trimmedLines.length - 1] === "") {
-                    trimmedLines = trimmedLines.slice(0, -1);
-                }
-                firstOfEndingBlankLines = trimmedLines.length;
-            } else {
-                // save the number of the first of the last blank lines
-                firstOfEndingBlankLines = trimmedLines.length;
-                while (trimmedLines[firstOfEndingBlankLines - 1] === ""
-                        && firstOfEndingBlankLines > 0) {
-                    firstOfEndingBlankLines--;
-                }
-            }
-
-            // Aggregate and count blank lines
-            if (firstNonBlankLine > maxBOF) {
-                context.report(node, 0,
-                        "Too many blank lines at the beginning of file. Max of " + maxBOF + " allowed.");
-            }
-
-            lastLocation = currentLocation;
-            currentLocation = trimmedLines.indexOf("", currentLocation + 1);
-            while (currentLocation !== -1) {
-                lastLocation = currentLocation;
-                currentLocation = trimmedLines.indexOf("", currentLocation + 1);
-                if (lastLocation === currentLocation - 1) {
-                    blankCounter++;
-                } else {
-                    location = {
-                        line: lastLocation + 1,
-                        column: 1
-                    };
-                    if (lastLocation < firstOfEndingBlankLines) {
-                        // within the file, not at the end
-                        if (blankCounter >= max) {
-                            context.report(node, location,
-                                    "More than " + max + " blank " + (max === 1 ? "line" : "lines") + " not allowed.");
-                        }
-                    } else {
-                        // inside the last blank lines
-                        if (blankCounter > maxEOF) {
-                            context.report(node, location,
-                                    "Too many blank lines at the end of file. Max of " + maxEOF + " allowed.");
-                        }
+        schema: [
+            {
+                type: "object",
+                properties: {
+                    max: {
+                        type: "integer",
+                        minimum: 0
+                    },
+                    maxEOF: {
+                        type: "integer",
+                        minimum: 0
+                    },
+                    maxBOF: {
+                        type: "integer",
+                        minimum: 0
                     }
-
-                    // Finally, reset the blank counter
-                    blankCounter = 0;
-                }
+                },
+                required: ["max"],
+                additionalProperties: false
             }
+        ]
+    },
+
+    create(context) {
+
+        // Use options.max or 2 as default
+        let max = 2,
+            maxEOF = max,
+            maxBOF = max;
+
+        if (context.options.length) {
+            max = context.options[0].max;
+            maxEOF = typeof context.options[0].maxEOF !== "undefined" ? context.options[0].maxEOF : max;
+            maxBOF = typeof context.options[0].maxBOF !== "undefined" ? context.options[0].maxBOF : max;
         }
-    };
 
-};
+        const sourceCode = context.getSourceCode();
 
-module.exports.schema = [
-    {
-        "type": "object",
-        "properties": {
-            "max": {
-                "type": "integer",
-                "minimum": 0
+        // Swallow the final newline, as some editors add it automatically and we don't want it to cause an issue
+        const allLines = sourceCode.lines[sourceCode.lines.length - 1] === "" ? sourceCode.lines.slice(0, -1) : sourceCode.lines;
+        const templateLiteralLines = new Set();
+
+        //--------------------------------------------------------------------------
+        // Public
+        //--------------------------------------------------------------------------
+
+        return {
+            TemplateLiteral(node) {
+                node.quasis.forEach(literalPart => {
+
+                    // Empty lines have a semantic meaning if they're inside template literals. Don't count these as empty lines.
+                    for (let ignoredLine = literalPart.loc.start.line; ignoredLine < literalPart.loc.end.line; ignoredLine++) {
+                        templateLiteralLines.add(ignoredLine);
+                    }
+                });
             },
-            "maxEOF": {
-                "type": "integer",
-                "minimum": 0
-            },
-            "maxBOF": {
-                "type": "integer",
-                "minimum": 0
+            "Program:exit"(node) {
+                return allLines
+
+                    // Given a list of lines, first get a list of line numbers that are non-empty.
+                    .reduce((nonEmptyLineNumbers, line, index) => {
+                        if (line.trim() || templateLiteralLines.has(index + 1)) {
+                            nonEmptyLineNumbers.push(index + 1);
+                        }
+                        return nonEmptyLineNumbers;
+                    }, [])
+
+                    // Add a value at the end to allow trailing empty lines to be checked.
+                    .concat(allLines.length + 1)
+
+                    // Given two line numbers of non-empty lines, report the lines between if the difference is too large.
+                    .reduce((lastLineNumber, lineNumber) => {
+                        let message, maxAllowed;
+
+                        if (lastLineNumber === 0) {
+                            message = "Too many blank lines at the beginning of file. Max of {{max}} allowed.";
+                            maxAllowed = maxBOF;
+                        } else if (lineNumber === allLines.length + 1) {
+                            message = "Too many blank lines at the end of file. Max of {{max}} allowed.";
+                            maxAllowed = maxEOF;
+                        } else {
+                            message = "More than {{max}} blank {{pluralizedLines}} not allowed.";
+                            maxAllowed = max;
+                        }
+
+                        if (lineNumber - lastLineNumber - 1 > maxAllowed) {
+                            context.report({
+                                node,
+                                loc: { start: { line: lastLineNumber + 1, column: 0 }, end: { line: lineNumber, column: 0 } },
+                                message,
+                                data: { max: maxAllowed, pluralizedLines: maxAllowed === 1 ? "line" : "lines" },
+                                fix(fixer) {
+                                    return fixer.removeRange([
+                                        astUtils.getRangeIndexFromLocation(sourceCode, { line: lastLineNumber + 1, column: 0 }),
+                                        astUtils.getRangeIndexFromLocation(sourceCode, { line: lineNumber - maxAllowed, column: 0 })
+                                    ]);
+                                }
+                            });
+                        }
+
+                        return lineNumber;
+                    }, 0);
             }
-        },
-        "required": ["max"],
-        "additionalProperties": false
+        };
     }
-];
+};

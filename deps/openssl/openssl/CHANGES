@@ -2,6 +2,336 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 1.0.2j and 1.0.2k [26 Jan 2017]
+
+  *) Truncated packet could crash via OOB read
+
+     If one side of an SSL/TLS path is running on a 32-bit host and a specific
+     cipher is being used, then a truncated packet can cause that host to
+     perform an out-of-bounds read, usually resulting in a crash.
+
+     This issue was reported to OpenSSL by Robert Święcki of Google.
+     (CVE-2017-3731)
+     [Andy Polyakov]
+
+  *) BN_mod_exp may produce incorrect results on x86_64
+
+     There is a carry propagating bug in the x86_64 Montgomery squaring
+     procedure. No EC algorithms are affected. Analysis suggests that attacks
+     against RSA and DSA as a result of this defect would be very difficult to
+     perform and are not believed likely. Attacks against DH are considered just
+     feasible (although very difficult) because most of the work necessary to
+     deduce information about a private key may be performed offline. The amount
+     of resources required for such an attack would be very significant and
+     likely only accessible to a limited number of attackers. An attacker would
+     additionally need online access to an unpatched system using the target
+     private key in a scenario with persistent DH parameters and a private
+     key that is shared between multiple clients. For example this can occur by
+     default in OpenSSL DHE based SSL/TLS ciphersuites. Note: This issue is very
+     similar to CVE-2015-3193 but must be treated as a separate problem.
+
+     This issue was reported to OpenSSL by the OSS-Fuzz project.
+     (CVE-2017-3732)
+     [Andy Polyakov]
+
+  *) Montgomery multiplication may produce incorrect results
+
+     There is a carry propagating bug in the Broadwell-specific Montgomery
+     multiplication procedure that handles input lengths divisible by, but
+     longer than 256 bits. Analysis suggests that attacks against RSA, DSA
+     and DH private keys are impossible. This is because the subroutine in
+     question is not used in operations with the private key itself and an input
+     of the attacker's direct choice. Otherwise the bug can manifest itself as
+     transient authentication and key negotiation failures or reproducible
+     erroneous outcome of public-key operations with specially crafted input.
+     Among EC algorithms only Brainpool P-512 curves are affected and one
+     presumably can attack ECDH key negotiation. Impact was not analyzed in
+     detail, because pre-requisites for attack are considered unlikely. Namely
+     multiple clients have to choose the curve in question and the server has to
+     share the private key among them, neither of which is default behaviour.
+     Even then only clients that chose the curve will be affected.
+
+     This issue was publicly reported as transient failures and was not
+     initially recognized as a security issue. Thanks to Richard Morgan for
+     providing reproducible case.
+     (CVE-2016-7055)
+     [Andy Polyakov]
+
+  *) OpenSSL now fails if it receives an unrecognised record type in TLS1.0
+     or TLS1.1. Previously this only happened in SSLv3 and TLS1.2. This is to
+     prevent issues where no progress is being made and the peer continually
+     sends unrecognised record types, using up resources processing them.
+     [Matt Caswell]
+
+ Changes between 1.0.2i and 1.0.2j [26 Sep 2016]
+
+  *) Missing CRL sanity check
+
+     A bug fix which included a CRL sanity check was added to OpenSSL 1.1.0
+     but was omitted from OpenSSL 1.0.2i. As a result any attempt to use
+     CRLs in OpenSSL 1.0.2i will crash with a null pointer exception.
+
+     This issue only affects the OpenSSL 1.0.2i
+     (CVE-2016-7052)
+     [Matt Caswell]
+
+ Changes between 1.0.2h and 1.0.2i [22 Sep 2016]
+
+  *) OCSP Status Request extension unbounded memory growth
+
+     A malicious client can send an excessively large OCSP Status Request
+     extension. If that client continually requests renegotiation, sending a
+     large OCSP Status Request extension each time, then there will be unbounded
+     memory growth on the server. This will eventually lead to a Denial Of
+     Service attack through memory exhaustion. Servers with a default
+     configuration are vulnerable even if they do not support OCSP. Builds using
+     the "no-ocsp" build time option are not affected.
+
+     This issue was reported to OpenSSL by Shi Lei (Gear Team, Qihoo 360 Inc.)
+     (CVE-2016-6304)
+     [Matt Caswell]
+
+  *) In order to mitigate the SWEET32 attack, the DES ciphers were moved from
+     HIGH to MEDIUM.
+
+     This issue was reported to OpenSSL Karthikeyan Bhargavan and Gaetan
+     Leurent (INRIA)
+     (CVE-2016-2183)
+     [Rich Salz]
+
+  *) OOB write in MDC2_Update()
+
+     An overflow can occur in MDC2_Update() either if called directly or
+     through the EVP_DigestUpdate() function using MDC2. If an attacker
+     is able to supply very large amounts of input data after a previous
+     call to EVP_EncryptUpdate() with a partial block then a length check
+     can overflow resulting in a heap corruption.
+
+     The amount of data needed is comparable to SIZE_MAX which is impractical
+     on most platforms.
+
+     This issue was reported to OpenSSL by Shi Lei (Gear Team, Qihoo 360 Inc.)
+     (CVE-2016-6303)
+     [Stephen Henson]
+
+  *) Malformed SHA512 ticket DoS
+
+     If a server uses SHA512 for TLS session ticket HMAC it is vulnerable to a
+     DoS attack where a malformed ticket will result in an OOB read which will
+     ultimately crash.
+
+     The use of SHA512 in TLS session tickets is comparatively rare as it requires
+     a custom server callback and ticket lookup mechanism.
+
+     This issue was reported to OpenSSL by Shi Lei (Gear Team, Qihoo 360 Inc.)
+     (CVE-2016-6302)
+     [Stephen Henson]
+
+  *) OOB write in BN_bn2dec()
+
+     The function BN_bn2dec() does not check the return value of BN_div_word().
+     This can cause an OOB write if an application uses this function with an
+     overly large BIGNUM. This could be a problem if an overly large certificate
+     or CRL is printed out from an untrusted source. TLS is not affected because
+     record limits will reject an oversized certificate before it is parsed.
+
+     This issue was reported to OpenSSL by Shi Lei (Gear Team, Qihoo 360 Inc.)
+     (CVE-2016-2182)
+     [Stephen Henson]
+
+  *) OOB read in TS_OBJ_print_bio()
+
+     The function TS_OBJ_print_bio() misuses OBJ_obj2txt(): the return value is
+     the total length the OID text representation would use and not the amount
+     of data written. This will result in OOB reads when large OIDs are
+     presented.
+
+     This issue was reported to OpenSSL by Shi Lei (Gear Team, Qihoo 360 Inc.)
+     (CVE-2016-2180)
+     [Stephen Henson]
+
+  *) Pointer arithmetic undefined behaviour
+
+     Avoid some undefined pointer arithmetic
+
+     A common idiom in the codebase is to check limits in the following manner:
+     "p + len > limit"
+
+     Where "p" points to some malloc'd data of SIZE bytes and
+     limit == p + SIZE
+
+     "len" here could be from some externally supplied data (e.g. from a TLS
+     message).
+
+     The rules of C pointer arithmetic are such that "p + len" is only well
+     defined where len <= SIZE. Therefore the above idiom is actually
+     undefined behaviour.
+
+     For example this could cause problems if some malloc implementation
+     provides an address for "p" such that "p + len" actually overflows for
+     values of len that are too big and therefore p + len < limit.
+
+     This issue was reported to OpenSSL by Guido Vranken
+     (CVE-2016-2177)
+     [Matt Caswell]
+
+  *) Constant time flag not preserved in DSA signing
+
+     Operations in the DSA signing algorithm should run in constant time in
+     order to avoid side channel attacks. A flaw in the OpenSSL DSA
+     implementation means that a non-constant time codepath is followed for
+     certain operations. This has been demonstrated through a cache-timing
+     attack to be sufficient for an attacker to recover the private DSA key.
+
+     This issue was reported by César Pereida (Aalto University), Billy Brumley
+     (Tampere University of Technology), and Yuval Yarom (The University of
+     Adelaide and NICTA).
+     (CVE-2016-2178)
+     [César Pereida]
+
+  *) DTLS buffered message DoS
+
+     In a DTLS connection where handshake messages are delivered out-of-order
+     those messages that OpenSSL is not yet ready to process will be buffered
+     for later use. Under certain circumstances, a flaw in the logic means that
+     those messages do not get removed from the buffer even though the handshake
+     has been completed. An attacker could force up to approx. 15 messages to
+     remain in the buffer when they are no longer required. These messages will
+     be cleared when the DTLS connection is closed. The default maximum size for
+     a message is 100k. Therefore the attacker could force an additional 1500k
+     to be consumed per connection. By opening many simulataneous connections an
+     attacker could cause a DoS attack through memory exhaustion.
+
+     This issue was reported to OpenSSL by Quan Luo.
+     (CVE-2016-2179)
+     [Matt Caswell]
+
+  *) DTLS replay protection DoS
+
+     A flaw in the DTLS replay attack protection mechanism means that records
+     that arrive for future epochs update the replay protection "window" before
+     the MAC for the record has been validated. This could be exploited by an
+     attacker by sending a record for the next epoch (which does not have to
+     decrypt or have a valid MAC), with a very large sequence number. This means
+     that all subsequent legitimate packets are dropped causing a denial of
+     service for a specific DTLS connection.
+
+     This issue was reported to OpenSSL by the OCAP audit team.
+     (CVE-2016-2181)
+     [Matt Caswell]
+
+  *) Certificate message OOB reads
+
+     In OpenSSL 1.0.2 and earlier some missing message length checks can result
+     in OOB reads of up to 2 bytes beyond an allocated buffer. There is a
+     theoretical DoS risk but this has not been observed in practice on common
+     platforms.
+
+     The messages affected are client certificate, client certificate request
+     and server certificate. As a result the attack can only be performed
+     against a client or a server which enables client authentication.
+
+     This issue was reported to OpenSSL by Shi Lei (Gear Team, Qihoo 360 Inc.)
+     (CVE-2016-6306)
+     [Stephen Henson]
+
+ Changes between 1.0.2g and 1.0.2h [3 May 2016]
+
+  *) Prevent padding oracle in AES-NI CBC MAC check
+
+     A MITM attacker can use a padding oracle attack to decrypt traffic
+     when the connection uses an AES CBC cipher and the server support
+     AES-NI.
+
+     This issue was introduced as part of the fix for Lucky 13 padding
+     attack (CVE-2013-0169). The padding check was rewritten to be in
+     constant time by making sure that always the same bytes are read and
+     compared against either the MAC or padding bytes. But it no longer
+     checked that there was enough data to have both the MAC and padding
+     bytes.
+
+     This issue was reported by Juraj Somorovsky using TLS-Attacker.
+     (CVE-2016-2107)
+     [Kurt Roeckx]
+
+  *) Fix EVP_EncodeUpdate overflow
+
+     An overflow can occur in the EVP_EncodeUpdate() function which is used for
+     Base64 encoding of binary data. If an attacker is able to supply very large
+     amounts of input data then a length check can overflow resulting in a heap
+     corruption.
+
+     Internally to OpenSSL the EVP_EncodeUpdate() function is primarly used by
+     the PEM_write_bio* family of functions. These are mainly used within the
+     OpenSSL command line applications, so any application which processes data
+     from an untrusted source and outputs it as a PEM file should be considered
+     vulnerable to this issue. User applications that call these APIs directly
+     with large amounts of untrusted data may also be vulnerable.
+
+     This issue was reported by Guido Vranken.
+     (CVE-2016-2105)
+     [Matt Caswell]
+
+  *) Fix EVP_EncryptUpdate overflow
+
+     An overflow can occur in the EVP_EncryptUpdate() function. If an attacker
+     is able to supply very large amounts of input data after a previous call to
+     EVP_EncryptUpdate() with a partial block then a length check can overflow
+     resulting in a heap corruption. Following an analysis of all OpenSSL
+     internal usage of the EVP_EncryptUpdate() function all usage is one of two
+     forms. The first form is where the EVP_EncryptUpdate() call is known to be
+     the first called function after an EVP_EncryptInit(), and therefore that
+     specific call must be safe. The second form is where the length passed to
+     EVP_EncryptUpdate() can be seen from the code to be some small value and
+     therefore there is no possibility of an overflow. Since all instances are
+     one of these two forms, it is believed that there can be no overflows in
+     internal code due to this problem. It should be noted that
+     EVP_DecryptUpdate() can call EVP_EncryptUpdate() in certain code paths.
+     Also EVP_CipherUpdate() is a synonym for EVP_EncryptUpdate(). All instances
+     of these calls have also been analysed too and it is believed there are no
+     instances in internal usage where an overflow could occur.
+
+     This issue was reported by Guido Vranken.
+     (CVE-2016-2106)
+     [Matt Caswell]
+
+  *) Prevent ASN.1 BIO excessive memory allocation
+
+     When ASN.1 data is read from a BIO using functions such as d2i_CMS_bio()
+     a short invalid encoding can casuse allocation of large amounts of memory
+     potentially consuming excessive resources or exhausting memory.
+
+     Any application parsing untrusted data through d2i BIO functions is
+     affected. The memory based functions such as d2i_X509() are *not* affected.
+     Since the memory based functions are used by the TLS library, TLS
+     applications are not affected.
+
+     This issue was reported by Brian Carpenter.
+     (CVE-2016-2109)
+     [Stephen Henson]
+
+  *) EBCDIC overread
+
+     ASN1 Strings that are over 1024 bytes can cause an overread in applications
+     using the X509_NAME_oneline() function on EBCDIC systems. This could result
+     in arbitrary stack data being returned in the buffer.
+
+     This issue was reported by Guido Vranken.
+     (CVE-2016-2176)
+     [Matt Caswell]
+
+  *) Modify behavior of ALPN to invoke callback after SNI/servername
+     callback, such that updates to the SSL_CTX affect ALPN.
+     [Todd Short]
+
+  *) Remove LOW from the DEFAULT cipher list.  This removes singles DES from the
+     default.
+     [Kurt Roeckx]
+
+  *) Only remove the SSLv2 methods with the no-ssl2-method option. When the
+     methods are enabled and ssl2 is disabled the methods return NULL.
+     [Kurt Roeckx]
+
  Changes between 1.0.2f and 1.0.2g [1 Mar 2016]
 
   * Disable weak ciphers in SSLv3 and up in default builds of OpenSSL.
@@ -8572,7 +8902,7 @@ des-cbc           3624.96k     5258.21k     5530.91k     5624.30k     5628.26k
 
   *) Source code cleanups: use const where appropriate, eliminate casts,
      use void * instead of char * in lhash.
-     [Ulf Möller]
+     [Ulf Möller] 
 
   *) Bugfix: ssl3_send_server_key_exchange was not restartable
      (the state was not changed to SSL3_ST_SW_KEY_EXCH_B, and because of

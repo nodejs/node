@@ -1,15 +1,15 @@
 /**
  * @fileoverview Options configuration for optionator.
  * @author George Zahariev
- * See LICENSE in root directory for full license.
  */
+
 "use strict";
 
 //------------------------------------------------------------------------------
 // Requirements
 //------------------------------------------------------------------------------
 
-var optionator = require("optionator");
+const optionator = require("optionator");
 
 //------------------------------------------------------------------------------
 // Initialization and Public Interface
@@ -57,8 +57,12 @@ module.exports = optionator({
         {
             option: "parser",
             type: "String",
-            default: "espree",
             description: "Specify the parser to be used"
+        },
+        {
+            option: "parser-options",
+            type: "Object",
+            description: "Specify parser options"
         },
         {
             heading: "Caching"
@@ -110,7 +114,7 @@ module.exports = optionator({
             option: "ignore",
             type: "Boolean",
             default: "true",
-            description: "Disable use of .eslintignore"
+            description: "Disable use of ignore files and patterns"
         },
         {
             option: "ignore-pattern",
@@ -168,8 +172,8 @@ module.exports = optionator({
         {
             option: "color",
             type: "Boolean",
-            default: "true",
-            description: "Disable color in piped output"
+            alias: "no-color",
+            description: "Force enabling/disabling of color"
         },
         {
             heading: "Miscellaneous"
@@ -202,18 +206,18 @@ module.exports = optionator({
             option: "version",
             alias: "v",
             type: "Boolean",
-            description: "Outputs the version number"
+            description: "Output the version number"
         },
         {
             option: "inline-config",
             type: "Boolean",
             default: "true",
-            description: "Allow comments to change eslint config/rules"
+            description: "Prevent comments from changing config or rules"
         },
         {
             option: "print-config",
-            type: "Boolean",
-            description: "Print the configuration to be used"
+            type: "path::String",
+            description: "Print the configuration for the given file"
         }
     ]
 });

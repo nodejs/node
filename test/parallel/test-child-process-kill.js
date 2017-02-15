@@ -1,41 +1,18 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
+const spawn = require('child_process').spawn;
+const cat = spawn(common.isWindows ? 'cmd' : 'cat');
 
-var spawn = require('child_process').spawn;
+cat.stdout.on('end', common.mustCall(function() {}));
+cat.stderr.on('data', common.mustNotCall());
+cat.stderr.on('end', common.mustCall(function() {}));
 
-var exitCode;
-var termSignal;
-var gotStdoutEOF = false;
-var gotStderrEOF = false;
+cat.on('exit', common.mustCall(function(code, signal) {
+  assert.strictEqual(code, null);
+  assert.strictEqual(signal, 'SIGTERM');
+}));
 
-var cat = spawn(common.isWindows ? 'cmd' : 'cat');
-
-
-cat.stdout.on('end', function() {
-  gotStdoutEOF = true;
-});
-
-cat.stderr.on('data', function(chunk) {
-  assert.ok(false);
-});
-
-cat.stderr.on('end', function() {
-  gotStderrEOF = true;
-});
-
-cat.on('exit', function(code, signal) {
-  exitCode = code;
-  termSignal = signal;
-});
-
-assert.equal(cat.killed, false);
+assert.strictEqual(cat.killed, false);
 cat.kill();
-assert.equal(cat.killed, true);
-
-process.on('exit', function() {
-  assert.strictEqual(exitCode, null);
-  assert.strictEqual(termSignal, 'SIGTERM');
-  assert.ok(gotStdoutEOF);
-  assert.ok(gotStderrEOF);
-});
+assert.strictEqual(cat.killed, true);

@@ -8,11 +8,8 @@ var Uint8Array = require('./_Uint8Array');
  * @returns {ArrayBuffer} Returns the cloned array buffer.
  */
 function cloneArrayBuffer(arrayBuffer) {
-  var Ctor = arrayBuffer.constructor,
-      result = new Ctor(arrayBuffer.byteLength),
-      view = new Uint8Array(result);
-
-  view.set(new Uint8Array(arrayBuffer));
+  var result = new arrayBuffer.constructor(arrayBuffer.byteLength);
+  new Uint8Array(result).set(new Uint8Array(arrayBuffer));
   return result;
 }
 

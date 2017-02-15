@@ -1,6 +1,8 @@
 #ifndef SRC_NODE_CRYPTO_GROUPS_H_
 #define SRC_NODE_CRYPTO_GROUPS_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 /*
     These modular groups were literally taken from:
        * RFC 2412 (groups 1 and 2)
@@ -387,5 +389,7 @@ static const modp_group modp_groups[] = {
   { "modp18", V(group_modp18), sizeof(group_modp18), V(two_generator), 1 }
 #undef V
 };
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_NODE_CRYPTO_GROUPS_H_

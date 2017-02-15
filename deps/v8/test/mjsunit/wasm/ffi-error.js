@@ -5,40 +5,22 @@
 // Flags: --expose-wasm
 
 load("test/mjsunit/wasm/wasm-constants.js");
+load("test/mjsunit/wasm/wasm-module-builder.js");
 
 function testCallFFI(ffi) {
-  var kBodySize = 6;
-  var kNameAddOffset = 28 + kBodySize + 1;
-  var kNameMainOffset = kNameAddOffset + 4;
+  var builder = new WasmModuleBuilder();
 
-  var data = bytes(
-    kDeclMemory,
-    12, 12, 1,                  // memory
-    // -- signatures
-    kDeclSignatures, 1,
-    2, kAstI32, kAstF64, kAstF64, // (f64,f64)->int
-    // -- foreign function
-    kDeclFunctions, 2,
-    kDeclFunctionName | kDeclFunctionImport,
-    0, 0,                       // signature index
-    kNameAddOffset, 0, 0, 0,    // name offset
-    // -- main function
-    kDeclFunctionName | kDeclFunctionExport,
-    0, 0,                       // signature index
-    kNameMainOffset, 0, 0, 0,   // name offset
-    kBodySize, 0,
-    // main body
-    kExprCallFunction, 0,       // --
-    kExprGetLocal, 0,           // --
-    kExprGetLocal, 1,           // --
-    // names
-    kDeclEnd,
-    'f', 'u', 'n', 0,           //  --
-    'm', 'a', 'i', 'n', 0       //  --
-  );
+  var sig_index = kSig_i_dd;
+  builder.addImport("fun", sig_index);
+  builder.addFunction("main", sig_index)
+    .addBody([
+      kExprGetLocal, 0,              // --
+      kExprGetLocal, 1,              // --
+      kExprCallFunction, 0, // --
+    ])    // --
+    .exportFunc();
 
-  print("instantiate FFI");
-  var module = _WASMEXP_.instantiateModule(data, ffi);
+  var module = builder.instantiate(ffi);
 }
 
 // everything is good.
@@ -77,3 +59,59 @@ assertThrows(function() {
   ffi.fun = 0;
   testCallFFI(ffi);
 });
+
+
+(function I64InSignatureThrows() {
+  var builder = new WasmModuleBuilder();
+
+  builder.addMemory(1, 1, true);
+  builder.addFunction("function_with_invalid_signature", kSig_l_ll)
+    .addBody([           // --
+      kExprGetLocal, 0,  // --
+      kExprGetLocal, 1,  // --
+      kExprI64Sub])      // --
+    .exportFunc()
+
+  var module = builder.instantiate();
+
+  assertThrows(function() {
+      module.exports.function_with_invalid_signature(33, 88);
+    }, TypeError);
+})();
+
+(function I64ParamsInSignatureThrows() {
+  var builder = new WasmModuleBuilder();
+
+  builder.addMemory(1, 1, true);
+  builder.addFunction("function_with_invalid_signature", kSig_i_l)
+    .addBody([
+       kExprGetLocal, 0,
+       kExprI32ConvertI64
+     ])
+    .exportFunc()
+
+  var module = builder.instantiate();
+
+  assertThrows(function() {
+      module.exports.function_with_invalid_signature(33);
+    }, TypeError);
+})();
+
+(function I64JSImportThrows() {
+  var builder = new WasmModuleBuilder();
+  var sig_index = builder.addType(kSig_i_i);
+  var sig_i64_index = builder.addType(kSig_i_l);
+  var index = builder.addImport("func", sig_i64_index);
+  builder.addFunction("main", sig_index)
+    .addBody([
+      kExprGetLocal, 0,
+      kExprI64SConvertI32,
+      kExprCallFunction, index  // --
+    ])        // --
+    .exportFunc();
+  var func = function() {return {};};
+  var main = builder.instantiate({func: func}).exports.main;
+  assertThrows(function() {
+    main(13);
+  }, TypeError);
+})();

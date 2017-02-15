@@ -1,2 +1,5 @@
-var convert = require('./convert');
-module.exports = convert('zipObjectDeep', require('../zipObjectDeep'));
+var convert = require('./convert'),
+    func = convert('zipObjectDeep', require('../zipObjectDeep'));
+
+func.placeholder = require('./placeholder');
+module.exports = func;

@@ -1,1 +1,1 @@
-module.exports = require('../matches');
+module.exports = require('./isMatch');

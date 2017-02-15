@@ -2,11 +2,13 @@ var baseAssign = require('./_baseAssign'),
     baseCreate = require('./_baseCreate');
 
 /**
- * Creates an object that inherits from the `prototype` object. If a `properties`
- * object is given its own enumerable properties are assigned to the created object.
+ * Creates an object that inherits from the `prototype` object. If a
+ * `properties` object is given, its own enumerable string keyed properties
+ * are assigned to the created object.
  *
  * @static
  * @memberOf _
+ * @since 2.3.0
  * @category Object
  * @param {Object} prototype The object to inherit from.
  * @param {Object} [properties] The properties to assign to the object.
@@ -35,7 +37,7 @@ var baseAssign = require('./_baseAssign'),
  */
 function create(prototype, properties) {
   var result = baseCreate(prototype);
-  return properties ? baseAssign(result, properties) : result;
+  return properties == null ? result : baseAssign(result, properties);
 }
 
 module.exports = create;
