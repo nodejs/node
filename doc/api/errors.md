@@ -589,4 +589,5 @@ found [here][online].
 <a id="ERR_UNKNOWN_DEBUGGER_STATE"></a>
 ### ERR_UNKNOWN_DEBUGGER_STATE
 
-The `'ERR_UNKNOWN_DEBUGGER_STATE'` error code is used to identify that the state of the debugger is not known.
+The `'ERR_UNKNOWN_DEBUGGER_STATE'` error code is used to identify that the state
+of the debugger is not known, possibly set by code outside the debugger module.
