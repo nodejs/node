@@ -10,12 +10,12 @@ e.on('maxListeners', common.mustCall(function() {}));
 e.setMaxListeners(42);
 
 assert.throws(() => e.setMaxListeners(NaN),
-  common.expectsError('ERR_INVALID_ARG_TYPE', TypeError));
+              common.expectsError('ERR_INVALID_ARG_TYPE', TypeError));
 
 assert.throws(() => e.setMaxListeners(-1),
-  common.expectsError('ERR_INVALID_ARG_TYPE', TypeError));
+              common.expectsError('ERR_INVALID_ARG_TYPE', TypeError));
 
 assert.throws(() => e.setMaxListeners('and even this'),
-  common.expectsError('ERR_INVALID_ARG_TYPE', TypeError));
+              common.expectsError('ERR_INVALID_ARG_TYPE', TypeError));
 
 e.emit('maxListeners');
