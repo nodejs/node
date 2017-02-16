@@ -126,7 +126,7 @@ assert.strictEqual(require('../fixtures/registerExt.hello.world').test,
                    'passed');
 
 console.error('load custom file types that return non-strings');
-require.extensions['.test'] = function(module, filename) {
+require.extensions['.test'] = function(module) {
   module.exports = {
     custom: 'passed'
   };
