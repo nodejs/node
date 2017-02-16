@@ -26,7 +26,7 @@ const dgram = require('dgram');
   socket.bind(0, common.localhostIPv4);
 }
 
-{
+if (common.hasIPv6) {
   // IPv6 Test
   const socket = dgram.createSocket('udp6');
   const localhost = '::1';
