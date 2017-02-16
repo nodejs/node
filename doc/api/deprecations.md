@@ -534,6 +534,14 @@ deprecated. Please use `ServerResponse.prototype.writeHead()` instead.
 *Note*: The `ServerResponse.prototype.writeHeader()` method was never documented
 as an officially supported API.
 
+<a id="DEP0064"></a>
+### DEP0064: tls.createSecurePair()
+
+Type: Runtime
+
+The `tls.createSecurePair()` API was deprecated in documentation in Node.js
+0.11.3. Users should use `tls.Socket` instead.
+
 [alloc]: buffer.html#buffer_class_method_buffer_alloc_size_fill_encoding
 [alloc_unsafe_size]: buffer.html#buffer_class_method_buffer_allocunsafe_size
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
