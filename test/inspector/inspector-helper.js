@@ -427,9 +427,24 @@ Harness.prototype.expectShutDown = function(errorCode) {
   });
 };
 
-exports.startNodeForInspectorTest = function(callback) {
-  const child = spawn(process.execPath,
-      [ '--inspect-brk', mainScript ]);
+Harness.prototype.kill = function() {
+  return this.enqueue_((callback) => {
+    this.process_.kill();
+    callback();
+  });
+};
+
+exports.startNodeForInspectorTest = function(callback,
+                                             inspectorFlag = '--inspect-brk',
+                                             opt_script_contents) {
+  const args = [inspectorFlag];
+  if (opt_script_contents) {
+    args.push('-e', opt_script_contents);
+  } else {
+    args.push(mainScript);
+  }
+
+  const child = spawn(process.execPath, args);
 
   const timeoutId = timeout('Child process did not start properly', 4);
 
