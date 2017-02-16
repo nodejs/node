@@ -55,12 +55,25 @@ const { test, assert_array_equals } = common.WPT;
 /* eslint-enable */
 
 // Tests below are not from WPT.
-;[
+
+// Test bottom-up iterative stable merge sort
+const tests = [{input: '', output: []}];
+const pairs = [];
+for (let i = 10; i < 100; i++) {
+  pairs.push([`a${i}`, 'b']);
+  tests[0].output.push([`a${i}`, 'b']);
+}
+tests[0].input = pairs.sort(() => Math.random() > 0.5)
+  .map((pair) => pair.join('=')).join('&');
+
+tests.push(
   {
     'input': 'z=a&=b&c=d',
     'output': [['', 'b'], ['c', 'd'], ['z', 'a']]
   }
-].forEach((val) => {
+);
+
+tests.forEach((val) => {
   test(() => {
     const params = new URLSearchParams(val.input);
     let i = 0;
