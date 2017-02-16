@@ -523,6 +523,17 @@ Type: Runtime
 of V8 5.8. It is replaced by Inspector which is activated with `--inspect`
 instead.
 
+<a id="DEP0063"></a>
+#### DEP0063: ServerResponse.prototype.writeHeader()
+
+Type: Documentation-only
+
+The `http` module `ServerResponse.prototype.writeHeader()` API has been
+deprecated. Please use `ServerResponse.prototype.writeHead()` instead.
+
+*Note*: The `ServerResponse.prototype.writeHeader()` method was never documented
+as an officially supported API.
+
 [alloc]: buffer.html#buffer_class_method_buffer_alloc_size_fill_encoding
 [alloc_unsafe_size]: buffer.html#buffer_class_method_buffer_allocunsafe_size
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
