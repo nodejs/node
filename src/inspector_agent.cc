@@ -159,6 +159,7 @@ class AgentImpl {
 
   static void ThreadCbIO(void* agent);
   static void WriteCbIO(uv_async_t* async);
+  static void MainThreadAsyncCb(uv_async_t* req);
 
   void InstallInspectorOnProcess();
 
@@ -190,6 +191,7 @@ class AgentImpl {
   node::Environment* parent_env_;
 
   uv_async_t io_thread_req_;
+  uv_async_t main_thread_req_;
   V8NodeInspector* inspector_;
   v8::Platform* platform_;
   MessageQueue<InspectorAction> incoming_message_queue_;
@@ -334,6 +336,9 @@ AgentImpl::AgentImpl(Environment* env) : delegate_(nullptr),
                                          dispatching_messages_(false),
                                          session_id_(0),
                                          server_(nullptr) {
+  CHECK_EQ(0, uv_async_init(env->event_loop(), &main_thread_req_,
+                            AgentImpl::MainThreadAsyncCb));
+  uv_unref(reinterpret_cast<uv_handle_t*>(&main_thread_req_));
   CHECK_EQ(0, uv_sem_init(&start_sem_, 0));
   memset(&io_thread_req_, 0, sizeof(io_thread_req_));
 }
@@ -416,10 +421,7 @@ bool AgentImpl::Start(v8::Platform* platform, const char* path,
 
   InstallInspectorOnProcess();
 
-  int err = uv_loop_init(&child_loop_);
-  CHECK_EQ(err, 0);
-
-  err = uv_thread_create(&thread_, AgentImpl::ThreadCbIO, this);
+  int err = uv_thread_create(&thread_, AgentImpl::ThreadCbIO, this);
   CHECK_EQ(err, 0);
   uv_sem_wait(&start_sem_);
 
@@ -606,6 +608,7 @@ void AgentImpl::PostIncomingMessage(InspectorAction action, int session_id,
     platform_->CallOnForegroundThread(isolate,
                                       new DispatchOnInspectorBackendTask(this));
     isolate->RequestInterrupt(InterruptCallback, this);
+    CHECK_EQ(0, uv_async_send(&main_thread_req_));
   }
   NotifyMessageReceived();
 }
@@ -660,6 +663,12 @@ void AgentImpl::DispatchMessages() {
     }
   } while (!tasks.empty());
   dispatching_messages_ = false;
+}
+
+// static
+void AgentImpl::MainThreadAsyncCb(uv_async_t* req) {
+  AgentImpl* agent = node::ContainerOf(&AgentImpl::main_thread_req_, req);
+  agent->DispatchMessages();
 }
 
 void AgentImpl::Write(TransportAction action, int session_id,
