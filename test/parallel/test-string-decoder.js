@@ -85,7 +85,7 @@ assert.strictEqual(decoder.end(), '\ufffd');
 
 //Additional utf8Text test
 decoder = new StringDecoder('utf8');
-assert.strictEqual(decoder.text(Buffer.from([0x41, 0x42]), 1), 'B');
+assert.strictEqual(decoder.text(Buffer.from([0x41]), 2), '');
 
 // Additional UTF-16LE surrogate pair tests
 decoder = new StringDecoder('utf16le');
