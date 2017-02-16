@@ -298,6 +298,35 @@ forward slash (`/`) character is encoded as `%3C`.
 The `url` module provides an *experimental* implementation of the
 [WHATWG URL Standard][] as an alternative to the existing `url.parse()` API.
 
+A comparison between this API and `url.parse()` is given below. Above the URL
+`'http://user:pass@host.com:8080/p/a/t/h?query=string#hash'`, properties of an
+object returned by `url.parse()` are given. Below it are properties of a WHATWG
+`URL` object.
+
+*Note*: WHATWG URL's `origin` property includes `protocol` and `host`, but not
+`username` or `password`.
+
+```txt
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                                          href                                           │
+├──────────┬──┬─────────────────────┬─────────────────┬───────────────────────────┬───────┤
+│ protocol │  │        auth         │      host       │           path            │ hash  │
+│          │  │                     ├──────────┬──────┼──────────┬────────────────┤       │
+│          │  │                     │ hostname │ port │ pathname │     search     │       │
+│          │  │                     │          │      │          ├─┬──────────────┤       │
+│          │  │                     │          │      │          │ │    query     │       │
+"  http:    //    user   :   pass   @ host.com : 8080   /p/a/t/h  ?  query=string   #hash "
+│          │  │          │          │ hostname │ port │          │                │       │
+│          │  │          │          ├──────────┴──────┤          │                │       │
+│ protocol │  │ username │ password │      host       │          │                │       │
+├──────────┴──┼──────────┴──────────┼─────────────────┤          │                │       │
+│   origin    │                     │     origin      │ pathname │     search     │ hash  │
+├─────────────┴─────────────────────┴─────────────────┴──────────┴────────────────┴───────┤
+│                                          href                                           │
+└─────────────────────────────────────────────────────────────────────────────────────────┘
+(all spaces in the "" line should be ignored -- they are purely for formatting)
+```
+
 ```js
 const URL = require('url').URL;
 const myURL = new URL('https://example.org/foo');
