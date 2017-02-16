@@ -715,6 +715,12 @@ in some cases may accept `func(undefined)` but not `func()`). In most native
 Node.js APIs, `func(undefined)` and `func()` are treated identically, and the
 [`ERR_INVALID_ARG_TYPE`][] error code may be used instead.
 
+<a id="ERR_REQUIRED_ARG"></a>
+### ERR_REQUIRED_ARG
+
+The `'ERR_REQUIRED_ARG'` error code is used generically when a required 
+argument is not passed to a function or is undefined.
+
 <a id="ERR_SOCKET_ALREADY_BOUND"></a>
 ### ERR_SOCKET_ALREADY_BOUND
 An error using the `'ERR_SOCKET_ALREADY_BOUND'` code is thrown when an attempt

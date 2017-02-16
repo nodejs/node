@@ -44,6 +44,7 @@ assert.strictEqual(util.format(symbol), 'Symbol(foo)');
 assert.strictEqual(util.format('foo', symbol), 'foo Symbol(foo)');
 assert.strictEqual(util.format('%s', symbol), 'Symbol(foo)');
 assert.strictEqual(util.format('%j', symbol), 'undefined');
+// This error is thrown by a cast, so common.expectsError not necessary.
 assert.throws(function() {
   util.format('%d', symbol);
 }, TypeError);
