@@ -19,23 +19,23 @@ const y = 'foo⠊Set-Cookie: foo=bar';
 
 let count = 0;
 
+function test(res, code, header) {
+  assert.throws(() => {
+    res.writeHead(code, header);
+  }, /^TypeError: The header content contains invalid characters$/);
+}
+
 const server = http.createServer((req, res) => {
   switch (count++) {
     case 0:
       const loc = url.parse(req.url, true).query.lang;
-      assert.throws(common.mustCall(() => {
-        res.writeHead(302, {Location: `/foo?lang=${loc}`});
-      }));
+      test(res, 302, {Location: `/foo?lang=${loc}`});
       break;
     case 1:
-      assert.throws(common.mustCall(() => {
-        res.writeHead(200, {'foo': x});
-      }));
+      test(res, 200, {'foo': x});
       break;
     case 2:
-      assert.throws(common.mustCall(() => {
-        res.writeHead(200, {'foo': y});
-      }));
+      test(res, 200, {'foo': y});
       break;
     default:
       common.fail('should not get to here.');
