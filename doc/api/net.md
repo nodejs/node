@@ -40,8 +40,9 @@ added: v0.1.90
 
 * {Error}
 
-Emitted when an error occurs.  The [`'close'`][] event will be called directly
-following this event.  See example in discussion of `server.listen`.
+Emitted when an error occurs. Unlike the [`net.Socket`][], the [`'close'`][]
+event will NOT be called directly following this event, unless you call
+`server.close()` manually.  See example in discussion of `server.listen`.
 
 ### Event: 'listening'
 <!-- YAML
