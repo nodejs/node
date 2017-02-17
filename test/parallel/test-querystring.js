@@ -105,6 +105,17 @@ const qsNoMungeTestCases = [
   ['trololol=yes&lololo=no', {'trololol': 'yes', 'lololo': 'no'}]
 ];
 
+const qsUnescapeTestCases = [
+  ['there is nothing to unescape here',
+   'there is nothing to unescape here'],
+  ['there%20are%20several%20spaces%20that%20need%20to%20be%20unescaped',
+   'there are several spaces that need to be unescaped'],
+  ['there%2Qare%0-fake%escaped values in%%%%this%9Hstring',
+   'there%2Qare%0-fake%escaped values in%%%%this%9Hstring'],
+  ['%20%21%22%23%24%25%26%27%28%29%2A%2B%2C%2D%2E%2F%30%31%32%33%34%35%36%37',
+   ' !"#$%&\'()*+,-./01234567']
+];
+
 assert.strictEqual('918854443121279438895193',
                    qs.parse('id=918854443121279438895193').id);
 
@@ -298,6 +309,12 @@ function demoDecode(str) {
 check(qs.parse('a=a&b=b&c=c', null, null, { decodeURIComponent: demoDecode }),
       { aa: 'aa', bb: 'bb', cc: 'cc' });
 
+// Test QueryString.unescape
+function errDecode(str) {
+  throw new Error('To jump to the catch scope');
+}
+check(qs.parse('a=a', null, null, { decodeURIComponent: errDecode }),
+      { a: 'a' });
 
 // Test custom encode
 function demoEncode(str) {
@@ -307,6 +324,12 @@ const obj = { aa: 'aa', bb: 'bb', cc: 'cc' };
 assert.strictEqual(
   qs.stringify(obj, null, null, { encodeURIComponent: demoEncode }),
   'a=a&b=b&c=c');
+
+// Test QueryString.unescapeBuffer
+qsUnescapeTestCases.forEach(function(testCase) {
+  assert.strictEqual(qs.unescape(testCase[0]), testCase[1]);
+  assert.strictEqual(qs.unescapeBuffer(testCase[0]).toString(), testCase[1]);
+});
 
 // test overriding .unescape
 const prevUnescape = qs.unescape;
