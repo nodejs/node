@@ -83,7 +83,7 @@ assert.strictEqual(decoder.write(Buffer.from('F1', 'hex')), '');
 assert.strictEqual(decoder.write(Buffer.from('41F2', 'hex')), '\ufffdA');
 assert.strictEqual(decoder.end(), '\ufffd');
 
-//Additional utf8Text test
+// Additional utf8Text test
 decoder = new StringDecoder('utf8');
 assert.strictEqual(decoder.text(Buffer.from([0x41]), 2), '');
 
