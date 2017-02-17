@@ -4,7 +4,6 @@
 const common = require('../common');
 const path = require('path');
 const assert = require('assert');
-const spawnSync = require('child_process').spawnSync;
 
 const binding = process.binding('util');
 const kArrowMessagePrivateSymbolIndex = binding['arrow_message_private_symbol'];
@@ -59,12 +58,3 @@ try {
 }
 
 assert(/bad_syntax\.js:1/.test(arrowMessage));
-
-const args = [
-  '--expose-internals',
-  '-e',
-  "require('internal/util').error('foo %d', 5)"
-];
-const result = spawnSync(process.argv[0], args, { encoding: 'utf8' });
-assert.strictEqual(result.stderr.indexOf('%'), -1);
-assert(/foo 5/.test(result.stderr));
