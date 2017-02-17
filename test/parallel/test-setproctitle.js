@@ -21,6 +21,10 @@ assert.notStrictEqual(process.title, title);
 process.title = title;
 assert.strictEqual(process.title, title);
 
+// Test setting the title but do not try to run `ps` on Windows.
+if (common.isWindows)
+  return;
+
 exec(`ps -p ${process.pid} -o args=`, function callback(error, stdout, stderr) {
   assert.ifError(error);
   assert.strictEqual(stderr, '');
