@@ -11,6 +11,7 @@ const offset = 20;
 const len = buf.length - offset;
 
 const messageSent = common.mustCall(function messageSent(err, bytes) {
+  assert.ifError(err);
   assert.notStrictEqual(bytes, buf.length);
   assert.strictEqual(bytes, buf.length - offset);
   client.close();
