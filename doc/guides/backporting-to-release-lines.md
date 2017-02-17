@@ -29,7 +29,7 @@ releaser will then add a comment that a backport is needed.
 The "Current" release line (currently v7.x) is much more lenient than the LTS
 release lines in what can be landed. Our LTS release lines
 (currently v4.x and v6.x) require that commits live in a Current release for at
-least 2 weeks before backporting. Please see the [`LTS Plan`][] for more
+least 2 weeks before backporting. Please see the [LTS Plan][] for more
 information. After that time, if the commit can be cherry-picked cleanly from
 master, then nothing needs to be done. If not, a backport pull request will
 need to be submitted.
@@ -121,4 +121,4 @@ the backport pull request should be reviewed the same way a new pull request
 is reviewed. When each commit is landed, the new reviewers and the new PR-URL
 should be used.
 
-[`LTS Plan`]: https://github.com/nodejs/LTS#lts-plan
+[LTS Plan]: https://github.com/nodejs/LTS#lts-plan
