@@ -12,7 +12,7 @@ if (!common.hasIntl) {
 }
 
 // Tests below are not from WPT.
-const tests = require(path.join(common.fixturesDir, 'url-tests.json'));
+const tests = require(path.join(common.fixturesDir, 'url-tests'));
 
 for (const test of tests) {
   if (typeof test === 'string')

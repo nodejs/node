@@ -11,7 +11,7 @@ if (!common.hasIntl) {
 }
 
 const request = {
-  response: require(path.join(common.fixturesDir, 'url-tests.json'))
+  response: require(path.join(common.fixturesDir, 'url-tests'))
 };
 
 /* eslint-disable */
