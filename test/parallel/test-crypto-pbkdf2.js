@@ -96,3 +96,11 @@ assert.doesNotThrow(() => {
     assert.ifError(e);
   }));
 });
+
+assert.throws(() => {
+  crypto.pbkdf2('password', 'salt', 8, 8, function() {});
+}, /^TypeError: The "digest" argument is required and must not be undefined$/);
+
+assert.throws(() => {
+  crypto.pbkdf2Sync('password', 'salt', 8, 8);
+}, /^TypeError: The "digest" argument is required and must not be undefined$/);

@@ -27,7 +27,7 @@ set msi=
 set upload=
 set licensertf=
 set jslint=
-set buildnodeweak=
+set build_testgc_addon=
 set noetw=
 set noetw_msi_arg=
 set noperfctr=
@@ -39,6 +39,7 @@ set enable_vtune_arg=
 set configure_flags=
 set build_addons=
 set dll=
+set test_node_inspect=
 
 :next-arg
 if "%1"=="" goto args-done
@@ -62,13 +63,14 @@ if /i "%1"=="test-ci"       set test_args=%test_args% %test_ci_args% -p tap --lo
 if /i "%1"=="test-addons"   set test_args=%test_args% addons&set build_addons=1&goto arg-ok
 if /i "%1"=="test-simple"   set test_args=%test_args% sequential parallel -J&goto arg-ok
 if /i "%1"=="test-message"  set test_args=%test_args% message&goto arg-ok
-if /i "%1"=="test-gc"       set test_args=%test_args% gc&set buildnodeweak=1&goto arg-ok
+if /i "%1"=="test-gc"       set test_args=%test_args% gc&set build_testgc_addon=1&goto arg-ok
 if /i "%1"=="test-inspector" set test_args=%test_args% inspector&goto arg-ok
 if /i "%1"=="test-tick-processor" set test_args=%test_args% tick-processor&goto arg-ok
 if /i "%1"=="test-internet" set test_args=%test_args% internet&goto arg-ok
 if /i "%1"=="test-pummel"   set test_args=%test_args% pummel&goto arg-ok
-if /i "%1"=="test-all"      set test_args=%test_args% sequential parallel message gc inspector internet pummel&set buildnodeweak=1&set jslint=1&goto arg-ok
+if /i "%1"=="test-all"      set test_args=%test_args% sequential parallel message gc inspector internet pummel&set build_testgc_addon=1&set jslint=1&goto arg-ok
 if /i "%1"=="test-known-issues" set test_args=%test_args% known_issues&goto arg-ok
+if /i "%1"=="test-node-inspect" set test_node_inspect=1&goto arg-ok
 if /i "%1"=="jslint"        set jslint=1&goto arg-ok
 if /i "%1"=="jslint-ci"     set jslint_ci=1&goto arg-ok
 if /i "%1"=="package"       set package=1&goto arg-ok
@@ -296,15 +298,14 @@ ssh -F %SSHCONFIG% %STAGINGSERVER% "touch nodejs/%DISTTYPEDIR%/v%FULLVERSION%/no
 :run
 @rem Run tests if requested.
 
-:build-node-weak
-@rem Build node-weak if required
-if "%buildnodeweak%"=="" goto build-addons
-"%config%\node" deps\npm\node_modules\node-gyp\bin\node-gyp rebuild --directory="%~dp0test\gc\node_modules\weak" --nodedir="%~dp0."
-if errorlevel 1 goto build-node-weak-failed
+@rem Build test/gc add-on if required.
+if "%build_testgc_addon%"=="" goto build-addons
+"%config%\node" deps\npm\node_modules\node-gyp\bin\node-gyp rebuild --directory="%~dp0test\gc" --nodedir="%~dp0."
+if errorlevel 1 goto build-testgc-addon-failed
 goto build-addons
 
-:build-node-weak-failed
-echo Failed to build node-weak.
+:build-testgc-addon-failed
+echo Failed to build test/gc add-on."
 goto exit
 
 :build-addons
@@ -333,6 +334,12 @@ EndLocal
 goto run-tests
 
 :run-tests
+if not defined test_node_inspect goto node-tests
+set USE_EMBEDDED_NODE_INSPECT=1
+%config%\node tools\test-npm-package.js --install deps\node-inspect test
+goto node-tests
+
+:node-tests
 if "%test_args%"=="" goto jslint
 if "%config%"=="Debug" set test_args=--mode=debug %test_args%
 if "%config%"=="Release" set test_args=--mode=release %test_args%

@@ -115,10 +115,13 @@ to the `constants` property exposed by the relevant module. For instance,
 <a id="DEP0009"></a>
 ### DEP0009: crypto.pbkdf2 without digest
 
-Type: Runtime
+Type: End-of-life
 
-Use of the [`crypto.pbkdf2()`][] API without specifying a digest is deprecated.
-Please specify a digest.
+Use of the [`crypto.pbkdf2()`][] API without specifying a digest was deprecated
+in Node.js 6.0 because the method defaulted to using the non-recommendend
+`'SHA1'` digest. Previously, a deprecation warning was printed. Starting in
+Node.js 8.0.0, calling `crypto.pbkdf2()` or `crypto.pbkdf2Sync()` with an
+undefined `digest` will throw a `TypeError`.
 
 <a id="DEP0010"></a>
 ### DEP0010: crypto.createCredentials
@@ -510,6 +513,15 @@ Type: Documentation-only
 
 The `fs.SyncWriteStream` class was never intended to be a publicly accessible
 API.
+
+<a id="DEP0062"></a>
+### DEP0062: node --debug
+
+Type: Runtime
+
+`--debug` activates the legacy V8 debugger interface, which has been removed as
+of V8 5.8. It is replaced by Inspector which is activated with `--inspect`
+instead.
 
 [alloc]: buffer.html#buffer_class_method_buffer_alloc_size_fill_encoding
 [alloc_unsafe_size]: buffer.html#buffer_class_method_buffer_allocunsafe_size

@@ -1,6 +1,7 @@
 'use strict';
 require('../common');
 const assert = require('assert');
+const inspect = require('util').inspect;
 
 // test using assert
 const qs = require('querystring');
@@ -59,6 +60,15 @@ const qsTestCases = [
   ['&&&&', '', {}],
   ['&=&', '=', { '': '' }],
   ['&=&=', '=&=', { '': [ '', '' ]}],
+  ['a&&b', 'a=&b=', { 'a': '', 'b': '' }],
+  ['a=a&&b=b', 'a=a&b=b', { 'a': 'a', 'b': 'b' }],
+  ['&a', 'a=', { 'a': '' }],
+  ['&=', '=', { '': '' }],
+  ['a&a&', 'a=&a=', { a: [ '', '' ] }],
+  ['a&a&a&', 'a=&a=&a=', { a: [ '', '', '' ] }],
+  ['a&a&a&a&', 'a=&a=&a=&a=', { a: [ '', '', '', '' ] }],
+  ['a=&a=value&a=', 'a=&a=value&a=', { a: [ '', 'value', '' ] }],
+  ['foo+bar=baz+quux', 'foo%20bar=baz%20quux', { 'foo bar': 'baz quux' }],
   [null, '', {}],
   [undefined, '', {}]
 ];
@@ -117,28 +127,43 @@ assert.strictEqual('918854443121279438895193',
                    qs.parse('id=918854443121279438895193').id);
 
 
-function check(actual, expected) {
+function check(actual, expected, input) {
   assert(!(actual instanceof Object));
-  assert.deepStrictEqual(Object.keys(actual).sort(),
-                         Object.keys(expected).sort());
-  Object.keys(expected).forEach(function(key) {
-    assert.deepStrictEqual(actual[key], expected[key]);
+  const actualKeys = Object.keys(actual).sort();
+  const expectedKeys = Object.keys(expected).sort();
+  let msg;
+  if (typeof input === 'string') {
+    msg = `Input: ${inspect(input)}\n` +
+          `Actual keys: ${inspect(actualKeys)}\n` +
+          `Expected keys: ${inspect(expectedKeys)}`;
+  }
+  assert.deepStrictEqual(actualKeys, expectedKeys, msg);
+  expectedKeys.forEach(function(key) {
+    if (typeof input === 'string') {
+      msg = `Input: ${inspect(input)}\n` +
+            `Key: ${inspect(key)}\n` +
+            `Actual value: ${inspect(actual[key])}\n` +
+            `Expected value: ${inspect(expected[key])}`;
+    } else {
+      msg = undefined;
+    }
+    assert.deepStrictEqual(actual[key], expected[key], msg);
   });
 }
 
 // test that the canonical qs is parsed properly.
 qsTestCases.forEach(function(testCase) {
-  check(qs.parse(testCase[0]), testCase[2]);
+  check(qs.parse(testCase[0]), testCase[2], testCase[0]);
 });
 
 // test that the colon test cases can do the same
 qsColonTestCases.forEach(function(testCase) {
-  check(qs.parse(testCase[0], ';', ':'), testCase[2]);
+  check(qs.parse(testCase[0], ';', ':'), testCase[2], testCase[0]);
 });
 
 // test the weird objects, that they get parsed properly
 qsWeirdObjects.forEach(function(testCase) {
-  check(qs.parse(testCase[1]), testCase[2]);
+  check(qs.parse(testCase[1]), testCase[2], testCase[1]);
 });
 
 qsNoMungeTestCases.forEach(function(testCase) {
@@ -232,8 +257,20 @@ assert.doesNotThrow(function() {
   assert.strictEqual(f, 'a:b;q:x%3Ay%3By%3Az');
 }
 
+// empty string
+assert.strictEqual(qs.stringify(), '');
+assert.strictEqual(qs.stringify(0), '');
+assert.strictEqual(qs.stringify([]), '');
+assert.strictEqual(qs.stringify(null), '');
+assert.strictEqual(qs.stringify(true), '');
+
 check(qs.parse(), {});
 
+// empty sep
+check(qs.parse('a', []), { a: '' });
+
+// empty eq
+check(qs.parse('a', null, []), { '': 'a' });
 
 // Test limiting
 assert.strictEqual(

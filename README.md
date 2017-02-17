@@ -160,8 +160,6 @@ more information about the governance of the Node.js project, see
 **Ben Noordhuis** &lt;info@bnoordhuis.nl&gt;
 * [ChALkeR](https://github.com/ChALkeR) -
 **Сковорода Никита Андреевич** &lt;chalkerx@gmail.com&gt; (he/him)
-* [chrisdickinson](https://github.com/chrisdickinson) -
-**Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt;
 * [cjihrig](https://github.com/cjihrig) -
 **Colin Ihrig** &lt;cjihrig@gmail.com&gt;
 * [evanlucas](https://github.com/evanlucas) -
@@ -217,6 +215,8 @@ more information about the governance of the Node.js project, see
 **Bartosz Sosnowski** &lt;bartosz@janeasystems.com&gt;
 * [calvinmetcalf](https://github.com/calvinmetcalf) -
 **Calvin Metcalf** &lt;calvin.metcalf@gmail.com&gt;
+* [chrisdickinson](https://github.com/chrisdickinson) -
+**Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt;
 * [claudiorodriguez](https://github.com/claudiorodriguez) -
 **Claudio Rodriguez** &lt;cjrodr@yahoo.com&gt;
 * [danbev](https://github.com/danbev) -
@@ -262,7 +262,7 @@ more information about the governance of the Node.js project, see
 * [julianduque](https://github.com/julianduque) -
 **Julian Duque** &lt;julianduquej@gmail.com&gt; (he/him)
 * [JungMinu](https://github.com/JungMinu) -
-**Minwoo Jung** &lt;jmwsoft@gmail.com&gt;
+**Minwoo Jung** &lt;minwoo@nodesource.com&gt; (he/him)
 * [lance](https://github.com/lance) -
 **Lance Ball** &lt;lball@redhat.com&gt;
 * [lpinca](https://github.com/lpinca) -
@@ -350,12 +350,14 @@ project.
 
 ### Release Team
 
-Releases of Node.js and io.js will be signed with one of the following GPG keys:
+Node.js releases are signed with one of the following GPG keys:
 
 * **Colin Ihrig** &lt;cjihrig@gmail.com&gt;
 `94AE36675C464D64BAFA68DD7434390BDBE9B9C5`
 * **Evan Lucas** &lt;evanlucas@me.com&gt;
 `B9AE9905FFD7803F25714661B63B535A4C206CA9`
+* **Italo A. Casas** &lt;me@italoacasas.com&gt;
+`56730D5401028683275BD23C23EFEFE93C4CFFFE`
 * **James M Snell** &lt;jasnell@keybase.io&gt;
 `71DCFD284A79C3B38668286BC97EC7A07EDE3FC1`
 * **Jeremiah Senkpiel** &lt;fishrock@keybase.io&gt;
@@ -374,13 +376,13 @@ gpg --keyserver pool.sks-keyservers.net --recv-keys 71DCFD284A79C3B38668286BC97E
 gpg --keyserver pool.sks-keyservers.net --recv-keys DD8F2338BAE7501E3DD5AC78C273792F7D83545D
 gpg --keyserver pool.sks-keyservers.net --recv-keys C4F0DFFF4E8C1A8236409D08E73BC641CC11F4C8
 gpg --keyserver pool.sks-keyservers.net --recv-keys B9AE9905FFD7803F25714661B63B535A4C206CA9
+gpg --keyserver pool.sks-keyservers.net --recv-keys 56730D5401028683275BD23C23EFEFE93C4CFFFE
 ```
 
 See the section above on [Verifying Binaries](#verifying-binaries) for details
 on what to do with these keys to verify that a downloaded file is official.
 
-Previous releases of Node.js have been signed with one of the following GPG
-keys:
+Previous releases may also have been signed with one of the following GPG keys:
 
 * **Chris Dickinson** &lt;christopher.s.dickinson@gmail.com&gt;
 `9554F04D7259F04124DE6B476D5A82AC7E37093B`

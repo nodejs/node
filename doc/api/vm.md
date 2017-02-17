@@ -469,6 +469,6 @@ associating it with the `sandbox` object is what this document refers to as
 [`vm.runInContext()`]: #vm_vm_runincontext_code_contextifiedsandbox_options
 [`vm.runInThisContext()`]: #vm_vm_runinthiscontext_code_options
 [`eval()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval
-[V8 Embedder's Guide]: https://developers.google.com/v8/embed#contexts
+[V8 Embedder's Guide]: https://github.com/v8/v8/wiki/Embedder's%20Guide#contexts
 [contextified]: #vm_what_does_it_mean_to_contextify_an_object
 [command line option]: cli.html

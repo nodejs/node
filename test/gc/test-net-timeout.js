@@ -2,7 +2,7 @@
 // just like test/gc/http-client-timeout.js,
 // but using a net server/client instead
 
-require('../common');
+const common = require('../common');
 
 function serverHandler(sock) {
   sock.setTimeout(120000);
@@ -19,7 +19,7 @@ function serverHandler(sock) {
 }
 
 const net = require('net');
-const weak = require('weak');
+const weak = require(`./build/${common.buildType}/binding`);
 const assert = require('assert');
 const todo = 500;
 let done = 0;
@@ -62,14 +62,5 @@ function status() {
   global.gc();
   console.log('Done: %d/%d', done, todo);
   console.log('Collected: %d/%d', countGC, count);
-  if (done === todo) {
-    /* Give libuv some time to make close callbacks. */
-    setTimeout(function() {
-      global.gc();
-      console.log('All should be collected now.');
-      console.log('Collected: %d/%d', countGC, count);
-      assert.strictEqual(count, countGC);
-      process.exit(0);
-    }, 200);
-  }
+  if (countGC === todo) server.close();
 }

@@ -224,8 +224,14 @@ added: v0.1.90
 -->
 
 Begin accepting connections on the specified `port` and `hostname`. If the
-`hostname` is omitted, the server will accept connections on any IPv6 address
-(`::`) when IPv6 is available, or any IPv4 address (`0.0.0.0`) otherwise.
+`hostname` is omitted, the server will accept connections on the
+[unspecified IPv6 address][] (`::`) when IPv6 is available, or the
+[unspecified IPv4 address][] (`0.0.0.0`) otherwise.
+
+*Note*: in most operating systems, listening to the
+[unspecified IPv6 address][] (`::`) may cause the `net.Server` to also listen on
+the [unspecified IPv4 address][] (`0.0.0.0`).
+
 Omit the port argument, or use a port value of `0`, to have the operating system
 assign a random port, which can be retrieved by using `server.address().port`
 after the `'listening'` event has been emitted.
@@ -941,3 +947,5 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 [`socket.setTimeout()`]: #net_socket_settimeout_timeout_callback
 [`stream.setEncoding()`]: stream.html#stream_readable_setencoding_encoding
 [Readable Stream]: stream.html#stream_class_stream_readable
+[unspecified IPv6 address]: https://en.wikipedia.org/wiki/IPv6_address#Unspecified_address
+[unspecified IPv4 address]: https://en.wikipedia.org/wiki/0.0.0.0

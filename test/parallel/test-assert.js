@@ -387,7 +387,8 @@ assert.throws(makeBlock(thrower, TypeError));
                      'a.doesNotThrow is not catching type matching errors');
 }
 
-assert.throws(function() { assert.ifError(new Error('test error')); });
+assert.throws(function() { assert.ifError(new Error('test error')); },
+              /^Error: test error$/);
 assert.doesNotThrow(function() { assert.ifError(null); });
 assert.doesNotThrow(function() { assert.ifError(); });
 
@@ -489,6 +490,29 @@ a.throws(makeBlock(a.deepEqual, args, []));
   a.doesNotThrow(makeBlock(a.deepEqual, someArgs, sameArgs));
 }
 
+// check messages from assert.throws()
+{
+  assert.throws(
+    () => { a.throws(() => {}); },
+    /^AssertionError: Missing expected exception\.$/
+  );
+
+  assert.throws(
+    () => { a.throws(() => {}, TypeError); },
+    /^AssertionError: Missing expected exception \(TypeError\)\.$/
+  );
+
+  assert.throws(
+    () => { a.throws(() => {}, 'fhqwhgads'); },
+    /^AssertionError: Missing expected exception: fhqwhgads$/
+  );
+
+  assert.throws(
+    () => { a.throws(() => {}, TypeError, 'fhqwhgads'); },
+    /^AssertionError: Missing expected exception \(TypeError\): fhqwhgads$/
+  );
+}
+
 const circular = {y: 1};
 circular.x = circular;
 
@@ -534,7 +558,7 @@ testAssertionMessage({a: NaN, b: Infinity, c: -Infinity},
     });
   } catch (e) {
     threw = true;
-    assert.strictEqual(e.message, 'Missing expected exception..');
+    assert.strictEqual(e.message, 'Missing expected exception.');
   }
   assert.ok(threw);
 }

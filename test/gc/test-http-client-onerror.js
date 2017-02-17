@@ -2,7 +2,7 @@
 // just like test/gc/http-client.js,
 // but with an on('error') handler that does nothing.
 
-require('../common');
+const common = require('../common');
 
 function serverHandler(req, res) {
   req.resume();
@@ -11,8 +11,7 @@ function serverHandler(req, res) {
 }
 
 const http = require('http');
-const weak = require('weak');
-const assert = require('assert');
+const weak = require(`./build/${common.buildType}/binding`);
 const todo = 500;
 let done = 0;
 let count = 0;
@@ -31,7 +30,6 @@ function getall() {
     function cb(res) {
       res.resume();
       done += 1;
-      statusLater();
     }
     function onerror(er) {
       throw er;
@@ -59,20 +57,11 @@ function afterGC() {
   countGC++;
 }
 
-let timer;
-function statusLater() {
-  global.gc();
-  if (timer) clearTimeout(timer);
-  timer = setTimeout(status, 1);
-}
+setInterval(status, 100).unref();
 
 function status() {
   global.gc();
   console.log('Done: %d/%d', done, todo);
   console.log('Collected: %d/%d', countGC, count);
-  if (done === todo) {
-    console.log('All should be collected now.');
-    assert.strictEqual(count, countGC);
-    process.exit(0);
-  }
+  if (countGC === todo) server.close();
 }

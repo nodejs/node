@@ -156,7 +156,7 @@ static const char* trace_enabled_categories = nullptr;
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
 // Path to ICU data (for i18n / Intl)
-static std::string icu_data_dir;  // NOLINT(runtime/string)
+std::string icu_data_dir;  // NOLINT(runtime/string)
 #endif
 
 // used by C++ modules as well
@@ -2400,8 +2400,6 @@ struct node_module* get_linked_module(const char* name) {
   return mp;
 }
 
-typedef void (UV_DYNAMIC* extInit)(Local<Object> exports);
-
 // DLOpen is process.dlopen(module, filename).
 // Used to load 'module.node' dynamically shared objects.
 //
@@ -3095,17 +3093,6 @@ void SetupProcessObject(Environment* env,
                     "ares",
                     FIXED_ONE_BYTE_STRING(env->isolate(), ARES_VERSION_STR));
 
-#if defined(NODE_HAVE_I18N_SUPPORT) && defined(U_ICU_VERSION)
-  // ICU-related versions are now handled on the js side, see bootstrap_node.js
-
-  if (!icu_data_dir.empty()) {
-    // Did the user attempt (via env var or parameter) to set an ICU path?
-    READONLY_PROPERTY(process,
-                      "icu_data_dir",
-                      OneByteString(env->isolate(), icu_data_dir.c_str()));
-  }
-#endif
-
   const char node_modules_version[] = NODE_STRINGIFY(NODE_MODULE_VERSION);
   READONLY_PROPERTY(
       versions,
@@ -3753,7 +3740,7 @@ static void ParseArgs(int* argc,
 #endif /* HAVE_OPENSSL */
 #if defined(NODE_HAVE_I18N_SUPPORT)
     } else if (strncmp(arg, "--icu-data-dir=", 15) == 0) {
-      icu_data_dir.assign(arg, 15);
+      icu_data_dir.assign(arg + 15);
 #endif
     } else if (strcmp(arg, "--expose-internals") == 0 ||
                strcmp(arg, "--expose_internals") == 0) {
