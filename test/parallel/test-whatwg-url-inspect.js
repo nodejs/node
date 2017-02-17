@@ -13,9 +13,9 @@ if (!common.hasIntl) {
 }
 
 // Tests below are not from WPT.
-const tests = require(path.join(common.fixturesDir, 'url-tests.json'));
+const tests = require(path.join(common.fixturesDir, 'url-tests'));
 const additional_tests = require(
-  path.join(common.fixturesDir, 'url-tests-additional.js'));
+  path.join(common.fixturesDir, 'url-tests-additional'));
 
 const allTests = additional_tests.slice();
 for (const test of tests) {
