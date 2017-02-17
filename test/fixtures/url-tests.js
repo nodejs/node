@@ -1,7 +1,13 @@
+'use strict';
+
+/* WPT Refs:
+   https://github.com/w3c/web-platform-tests/blob/master/url/urltestdata.json
+   License: http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html
+*/
+
+module.exports =
 [
   "# Based on http://trac.webkit.org/browser/trunk/LayoutTests/fast/url/script-tests/segments.js",
-  "License: http://www.w3.org/Consortium/Legal/2008/04-testsuite-copyright.html",
-  "Source: https://github.com/w3c/web-platform-tests/tree/master/url",
   {
     "input": "http://example\t.\norg",
     "base": "http://example.org/foo/bar",

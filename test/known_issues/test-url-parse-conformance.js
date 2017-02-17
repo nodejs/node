@@ -7,7 +7,7 @@ const url = require('url');
 const assert = require('assert');
 const path = require('path');
 
-const tests = require(path.join(common.fixturesDir, 'url-tests.json'));
+const tests = require(path.join(common.fixturesDir, 'url-tests'));
 
 let failed = 0;
 let attempted = 0;
