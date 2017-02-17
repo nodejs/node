@@ -933,7 +933,7 @@ void SecureContext::SetDHParam(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowError("DH parameter is less than 1024 bits");
   } else if (size < 2048) {
     args.GetReturnValue().Set(FIXED_ONE_BYTE_STRING(
-        env->isolate(), "WARNING: DH parameter is less than 2048 bits"));
+        env->isolate(), "DH parameter is less than 2048 bits"));
   }
 
   SSL_CTX_set_options(sc->ctx_, SSL_OP_SINGLE_DH_USE);
