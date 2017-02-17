@@ -177,8 +177,6 @@ coverage-test: coverage-build
 	@grep -A3 Lines coverage/cxxcoverage.html | grep style  \
 		| sed 's/<[^>]*>//g'| sed 's/ //g'
 
-
-
 cctest: all
 	@out/$(BUILDTYPE)/$@
 
