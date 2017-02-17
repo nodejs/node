@@ -63,7 +63,7 @@ function runURLTests(urltests) {
       assert_equals(url.search, expected.search, "search")
       if ("searchParams" in expected) {
         assert_true("searchParams" in url)
-      //   assert_equals(url.searchParams.toString(), expected.searchParams, "searchParams")
+        assert_equals(url.searchParams.toString(), expected.searchParams, "searchParams")
       }
       assert_equals(url.hash, expected.hash, "hash")
     }, "Parsing: <" + expected.input + "> against <" + expected.base + ">")
