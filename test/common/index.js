@@ -454,6 +454,19 @@ process.on('exit', function() {
   }
 });
 
+if (process.env.TEST_RUNNER_READ_PIPE) {
+  const net = require('net');
+  const pipe_read = new net.Socket({ fd: process.env.TEST_RUNNER_READ_PIPE });
+  delete process.env.TEST_RUNNER_READ_PIPE;
+  let data = '';
+  pipe_read.unref();
+  pipe_read.on('data', (d) => {
+    data += d;
+    if (data.includes('timeout')) {
+      process.exit(0);
+    }
+  });
+}
 
 const mustCallChecks = [];
 
