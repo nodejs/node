@@ -99,7 +99,8 @@ console.error('test name clashes');
 const my_path = require('../fixtures/path');
 assert.ok(my_path.path_func instanceof Function);
 // this one does not exist and should throw
-assert.throws(function() { require('./utils'); });
+assert.throws(function() { require('./utils'); },
+              /^Error: Cannot find module '.\/utils'$/);
 
 let errorThrown = false;
 try {
