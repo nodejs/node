@@ -565,7 +565,7 @@ found [here][online].
   <a id="ERR_INDEX_OUT_OF_RANGE"></a>
   ### ERR_INDEX_OUT_OF_RANGE
 
-The `'ERR_INDEX_OUT_OF_RANGE'` error code is used to alert user that index parsed is out of range
+The `'ERR_INDEX_OUT_OF_RANGE'` error code is used when a given index is out of the accepted range.
 
 
 <a id="nodejs-error-codes"></a>
