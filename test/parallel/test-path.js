@@ -10,6 +10,7 @@ const failures = [];
 // path.basename tests
 assert.strictEqual(path.basename(f), 'test-path.js');
 assert.strictEqual(path.basename(f, '.js'), 'test-path');
+assert.strictEqual(path.basename('.js', '.js'), '');
 assert.strictEqual(path.basename(''), '');
 assert.strictEqual(path.basename('/dir/basename.ext'), 'basename.ext');
 assert.strictEqual(path.basename('/basename.ext'), 'basename.ext');
@@ -74,6 +75,7 @@ assert.strictEqual(path.posix.dirname('/a'), '/');
 assert.strictEqual(path.posix.dirname(''), '.');
 assert.strictEqual(path.posix.dirname('/'), '/');
 assert.strictEqual(path.posix.dirname('////'), '/');
+assert.strictEqual(path.posix.dirname('//a'), '//');
 assert.strictEqual(path.posix.dirname('foo'), '.');
 
 assert.strictEqual(path.win32.dirname('c:\\'), 'c:\\');
