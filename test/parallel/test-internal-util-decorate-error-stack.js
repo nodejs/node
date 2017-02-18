@@ -10,16 +10,18 @@ const path = require('path');
 const kArrowMessagePrivateSymbolIndex = binding['arrow_message_private_symbol'];
 const kDecoratedPrivateSymbolIndex = binding['decorated_private_symbol'];
 
+const decorateErrorStack = internalUtil.decorateErrorStack;
+
 assert.doesNotThrow(function() {
-  internalUtil.decorateErrorStack();
-  internalUtil.decorateErrorStack(null);
-  internalUtil.decorateErrorStack(1);
-  internalUtil.decorateErrorStack(true);
+  decorateErrorStack();
+  decorateErrorStack(null);
+  decorateErrorStack(1);
+  decorateErrorStack(true);
 });
 
 // Verify that a stack property is not added to non-Errors
 const obj = {};
-internalUtil.decorateErrorStack(obj);
+decorateErrorStack(obj);
 assert.strictEqual(obj.stack, undefined);
 
 // Verify that the stack is decorated when possible
@@ -43,8 +45,8 @@ assert(typeof err, 'object');
 checkStack(err.stack);
 
 // Verify that the stack is only decorated once
-internalUtil.decorateErrorStack(err);
-internalUtil.decorateErrorStack(err);
+decorateErrorStack(err);
+decorateErrorStack(err);
 checkStack(err.stack);
 
 // Verify that the stack is only decorated once for uncaught exceptions
@@ -58,7 +60,7 @@ checkStack(result.stderr);
 // Verify that the stack is unchanged when there is no arrow message
 err = new Error('foo');
 let originalStack = err.stack;
-internalUtil.decorateErrorStack(err);
+decorateErrorStack(err);
 assert.strictEqual(originalStack, err.stack);
 
 // Verify that the arrow message is added to the start of the stack when it
@@ -67,9 +69,9 @@ const arrowMessage = 'arrow_message';
 err = new Error('foo');
 originalStack = err.stack;
 
-internalUtil.setHiddenValue(err, kArrowMessagePrivateSymbolIndex, arrowMessage);
-internalUtil.decorateErrorStack(err);
+binding.setHiddenValue(err, kArrowMessagePrivateSymbolIndex, arrowMessage);
+decorateErrorStack(err);
 
 assert.strictEqual(err.stack, `${arrowMessage}${originalStack}`);
-assert.strictEqual(internalUtil
-  .getHiddenValue(err, kDecoratedPrivateSymbolIndex), true);
+assert.strictEqual(
+  binding.getHiddenValue(err, kDecoratedPrivateSymbolIndex), true);
