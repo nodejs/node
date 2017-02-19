@@ -12,14 +12,14 @@ var gargs = [1, 2, 3];
 
 function main(conf) {
 
-  var args, n = +conf.n;
+  var n = +conf.n;
   var myArguments = gargs.slice(0, conf.arguments);
   bench.start();
 
   bdomain.enter();
   for (var i = 0; i < n; i++) {
     if (myArguments.length >= 2) {
-      args = Array.prototype.slice.call(myArguments, 1);
+      const args = Array.prototype.slice.call(myArguments, 1);
       fn.apply(this, args);
     } else {
       fn.call(this);

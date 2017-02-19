@@ -16,7 +16,8 @@ const image = fs.readFileSync(common.fixturesDir + '/person.jpg');
 console.log('image.length = ' + image.length);
 
 const total = 10;
-let requests = 0, responses = 0;
+let requests = 0;
+let responses = 0;
 
 const server = http.Server(function(req, res) {
   if (++requests === total) {
