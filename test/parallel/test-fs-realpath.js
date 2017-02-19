@@ -191,21 +191,25 @@ function test_cyclic_link_protection(callback) {
     common.skip('symlink test (no privs)');
     return runNextTest();
   }
-  const entry = common.tmpDir + '/cycles/realpath-3a';
+  const entry = path.join(common.tmpDir, '/cycles/realpath-3a');
   [
     [entry, '../cycles/realpath-3b'],
-    [common.tmpDir + '/cycles/realpath-3b', '../cycles/realpath-3c'],
-    [common.tmpDir + '/cycles/realpath-3c', '../cycles/realpath-3a']
+    [path.join(common.tmpDir, '/cycles/realpath-3b'), '../cycles/realpath-3c'],
+    [path.join(common.tmpDir, '/cycles/realpath-3c'), '../cycles/realpath-3a']
   ].forEach(function(t) {
     try { fs.unlinkSync(t[0]); } catch (e) {}
     fs.symlinkSync(t[1], t[0], 'dir');
     unlink.push(t[0]);
   });
-  assert.throws(function() { fs.realpathSync(entry); });
-  asynctest(fs.realpath, [entry], callback, function(err, result) {
-    assert.ok(err && true);
-    return true;
-  });
+  assert.throws(() => {
+    fs.realpathSync(entry);
+  }, common.expectsError({ code: 'ELOOP', type: Error }));
+  asynctest(
+    fs.realpath, [entry], callback, common.mustCall(function(err, result) {
+      assert.strictEqual(err.path, entry);
+      assert.strictEqual(result, undefined);
+      return true;
+    }));
 }
 
 function test_cyclic_link_overprotection(callback) {
