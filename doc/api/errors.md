@@ -575,9 +575,19 @@ found [here][online].
 [domains]: domain.html
 [event emitter-based]: events.html#events_class_eventemitter
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
+[Node.js Error Codes]: #nodejs-error-codes
 [online]: http://man7.org/linux/man-pages/man3/errno.3.html
 [stream-based]: stream.html
 [syscall]: http://man7.org/linux/man-pages/man2/syscall.2.html
 [try-catch]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch
 [V8's stack trace API]: https://github.com/v8/v8/wiki/Stack-Trace-API
 [vm]: vm.html
+
+<a id="nodejs-error-codes"></a>
+## Node.js Error Codes
+
+<a id="ERR_UNKNOWN_DEBUGGER_STATE"></a>
+### ERR_UNKNOWN_DEBUGGER_STATE
+
+The `'ERR_UNKNOWN_DEBUGGER_STATE'` error code is used to identify that the state
+of the debugger is not known, possibly set by code outside the debugger module.
