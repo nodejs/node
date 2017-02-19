@@ -97,9 +97,9 @@ if (process.argv[2] === 'child') {
   let disconnected = 0;
   server.on('listening', function() {
 
-    let j = count, client;
+    let j = count;
     while (j--) {
-      client = net.connect(this.address().port, '127.0.0.1');
+      const client = net.connect(this.address().port, '127.0.0.1');
       client.on('error', function() {
         // This can happen if we kill the child too early.
         // The client should still get a close event afterwards.

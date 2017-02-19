@@ -103,6 +103,7 @@ rules:
   no-multiple-empty-lines: [2, {max: 2, maxEOF: 0, maxBOF: 0}]
   no-tabs: 2
   no-trailing-spaces: 2
+  one-var-declaration-per-line: 2
   operator-linebreak: [2, after]
   quotes: [2, single, avoid-escape]
   semi: 2
