@@ -4,7 +4,8 @@ const assert = require('assert');
 const net = require('net');
 
 const N = 200;
-let recv = '', chars_recved = 0;
+let recv = '';
+let chars_recved = 0;
 
 const server = net.createServer(function(connection) {
   function write(j) {

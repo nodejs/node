@@ -36,7 +36,8 @@ assert.strictEqual(m.search, `?${serialized}`);
 
 assert.strictEqual(sp[Symbol.iterator], sp.entries);
 
-let key, val, n = 0;
+let key, val;
+let n = 0;
 for ([key, val] of sp) {
   assert.strictEqual(key, 'a');
   assert.strictEqual(val, String(values[n++]));

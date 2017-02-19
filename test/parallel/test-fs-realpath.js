@@ -4,7 +4,8 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const exec = require('child_process').exec;
-let async_completed = 0, async_expected = 0;
+let async_completed = 0;
+let async_expected = 0;
 const unlink = [];
 let skipSymlinks = false;
 
