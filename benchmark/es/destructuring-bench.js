@@ -9,9 +9,9 @@ const bench = common.createBenchmark(main, {
 });
 
 function runSwapManual(n) {
-  var i = 0, x, y, r;
+  var x, y, r;
   bench.start();
-  for (; i < n; i++) {
+  for (var i = 0; i < n; i++) {
     x = 1, y = 2;
     r = x;
     x = y;
@@ -23,9 +23,9 @@ function runSwapManual(n) {
 }
 
 function runSwapDestructured(n) {
-  var i = 0, x, y;
+  var x, y;
   bench.start();
-  for (; i < n; i++) {
+  for (var i = 0; i < n; i++) {
     x = 1, y = 2;
     [x, y] = [y, x];
     assert.strictEqual(x, 2);
