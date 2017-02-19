@@ -231,8 +231,12 @@ assert.throws(
 
 For performance considerations, we only use a selected subset of ES.Next
 features in JavaScript code in the `lib` directory. However, when writing
-tests, it is encouraged to use ES.Next features that have already landed
-in the ECMAScript specification. For example:
+tests, for the ease of backporting, it is encouraged to use those ES.Next
+features that can be used directly without a flag in [all maintained branches]
+(https://github.com/nodejs/lts), you can check [node.green](http://node.green)
+for all available features in each release.
+
+For example:
 
 * `let` and `const` over `var`
 * Template literals over string concatenation
