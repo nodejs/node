@@ -8,14 +8,13 @@ If you consistently can reproduce a test failure, search for it in the
 [Node.js issue tracker](https://github.com/nodejs/node/issues) or
 file a new issue.
 
-
 ## Supported platforms
 
 This list of supported platforms is current as of the branch / release to which it is attached.
 
 ### Input
 
-We rely on a few dependencies that _makes us who we are—most importantly V8 and libuv. We therefore need to adopt their supported platforms and potentially add to their lists based on test and/or release coverage.
+Node.js relies on V8 and libuv. Therefore, we adopt a subset of their supported platforms.
 
 ### Strategy
 
@@ -32,14 +31,13 @@ Support is divided into three tiers:
 | GNU/Linux    | Tier 1       | kernel >= 2.6.18, glibc >= 2.5   | x86, x64, arm, arm64 |                  | 
 | macOS        | Tier 1       | >= 10.10                         | x64                  |                  |
 | Windows      | Tier 1       | >= Windows 7 or >= Windows2008R2 | x86, x64             |                  |
-| SmartOS      | Tier 2       | = 14                             | x86, x64             |                  |
+| SmartOS      | Tier 2       | >= 14 < 17                       | x86, x64             |                  |
 | FreeBSD      | Tier 2       | >= 10                            | x64                  |                  |
 | GNU/Linux    | Tier 2       | kernel >= 4.2.0, glibc >= 2.19   | ppc64be              |                  |
 | GNU/Linux    | Tier 2       | kernel >= 3.13.0, glibc >= 2.19  | ppc64le              |                  |
-| AIX          | Tier 2       | >= 6.1                           | ppc64be              |                  |
+| AIX          | Tier 2       | >= >= 6.1 TL09                   | ppc64be              |                  |
 | GNU/Linux    | Tier 2       | kernel >= 3.10, glibc >= 2.17    | s390x                |                  |
 | macOS        | Experimental | >= 10.8 < 10.10                  | x64                  | no test coverage |
-| SmartOS      | Experimental | >= 15                            | x86, x64             |                  |
 | Linux (musl) | Experimental | musl >= 1.0                      | x64                  |                  |
 
 ### Supported toolchains
@@ -58,8 +56,7 @@ Depending on host platform, the selection of toolchains may vary.
 
 ### Shared libraries & dependencies
 
-Node.js intends to support building against shared representations of dependencies found found in the [*deps*][./deps/] directory.
-
+Node.js intends to support building against shared representations of dependencies found in the [*deps*][./deps/] directory.
 
 ## Building Node.js on supported platforms
 
@@ -74,11 +71,7 @@ Prerequisites:
 
 On OS X, you will also need:
 * [Xcode](https://developer.apple.com/xcode/download/)
-<<<<<<< HEAD
-  * You also need to install the `Command Line Tools` via Xcode. You can find
-=======
   - You also need to install the `Command Line Tools` via Xcode. You can find
->>>>>>> doc: add supported platforms list
     this under the menu `Xcode -> Preferences -> Downloads`
   - This step will install `gcc` and the related toolchain containing `make`
 
