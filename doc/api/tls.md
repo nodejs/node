@@ -463,7 +463,11 @@ connection is open.
 added: v0.11.4
 -->
 
-* `socket` {net.Socket} An instance of [`net.Socket`][]
+* `socket` {net.Socket} An instance of [`net.Socket`][]. Optional, by default
+  a new TCP or Pipe object will be created, unconnected (it is the caller's
+  responsibility to connect it).  Its unusual to not provide a pre-existing
+  `socket` when directly creating a `tls.TLSSocket`. The auto-creation feature
+  is mostly intended for internal use.
 * `options` {Object}
   * `isServer`: The SSL/TLS protocol is asymetrical, TLSSockets must know if
     they are to behave as a server or a client. If `true` the TLS socket will be
@@ -481,6 +485,8 @@ added: v0.11.4
   * `requestOCSP` {boolean} If `true`, specifies that the OCSP status request
     extension will be added to the client hello and an `'OCSPResponse'` event
     will be emitted on the socket before establishing a secure communication
+  * `pipe`: Optional. When `socket` is not passed, a Pipe will be created if
+    true, and a TCP socket will be created otherwise.
   * `secureContext`: Optional TLS context object created with
     [`tls.createSecureContext()`][]. If a `secureContext` is _not_ provided, one
     will be created by passing the entire `options` object to
@@ -490,7 +496,18 @@ added: v0.11.4
   * ...: Optional [`tls.createSecureContext()`][] options can be provided, see
     the `secureContext` option for more information.
 
-Construct a new `tls.TLSSocket` object from an existing TCP socket.
+Directly construct a new `tls.TLSSocket` object on top of an underlying
+socket.
+
+Always prefer calling [`tls.connect()`][] to direct construction, unless a
+socket already exists, and a TLS connection is to be initiated on it. This
+latter case is common when implementing protocols like SMTP, that can start off
+insecure, and then initiate a secure channel over the existing TCP connection.
+
+***Warning***: When directly constructing a `tls.TLSSocket` instead of using
+[`tls.connect()`][] it is the caller's responsibility to:
+- manage the lifetime of the the underlying socket, including connecting it;
+- validate the peer certificate and identity, see the [`'secure'`][] event.
 
 ### Event: 'OCSPResponse'
 <!-- YAML
@@ -512,7 +529,7 @@ added: v0.11.4
 -->
 
 The `'secureConnect'` event is emitted after the handshaking process for a new
-connection has successfully completed. The listener callback will be called
+connection has successfully completed. The event will be emitted
 regardless of whether or not the server's certificate has been authorized. It
 is the client's responsibility to check the `tlsSocket.authorized` property to
 determine if the server certificate was signed by one of the specified CAs. If
@@ -520,6 +537,38 @@ determine if the server certificate was signed by one of the specified CAs. If
 `tlsSocket.authorizationError` property. If either ALPN or NPN was used,
 the `tlsSocket.alpnProtocol` or `tlsSocket.npnProtocol` properties can be
 checked to determine the negotiated protocol.
+
+***Note***: Only for sockets created using `tls.connect()`.
+
+### Event: 'secure'
+<!-- YAML
+added: XXX
+-->
+
+Emitted after the handshake is complete.
+
+***Warning***: Before using the connection, the user *must* make the following
+checks or the connection should be considered completely insecure:
+
+1. Verify that the peer certificate is valid, see [`ssl.verifyError()`][].
+2. Verify that the peer certificate is for the expected host, see
+   [`tls.checkServerIdentity()`][] and [`tls.TLSSocket.getPeerCertificate()`][].
+
+Example:
+
+```
+tlsSocket.on('secure', function() {
+    const err = this.ssl.verifyError() ||
+        tls.checkServerIdentity(hostname, this.getPeerCertificate());
+    if (err)
+        this.emit('error', err);
+});
+```
+
+### Event: 'connect'
+<!-- YAML
+added: v0.11.4
+-->
 
 ### tlsSocket.address()
 <!-- YAML
@@ -539,6 +588,8 @@ added: v0.11.4
 Returns `true` if the peer certificate was signed by one of the CAs specified
 when creating the `tls.TLSSocket` instance, otherwise `false`.
 
+***Note***: Only for sockets created using `tls.connect()`.
+
 ### tlsSocket.authorizationError
 <!-- YAML
 added: v0.11.4
@@ -546,6 +597,8 @@ added: v0.11.4
 
 Returns the reason why the peer's certificate was not been verified. This
 property is set only when `tlsSocket.authorized === false`.
+
+***Note***: Only for sockets created using `tls.connect()`.
 
 ### tlsSocket.encrypted
 <!-- YAML
@@ -741,6 +794,21 @@ and their processing can be delayed due to packet loss or reordering. However,
 smaller fragments add extra TLS framing bytes and CPU overhead, which may
 decrease overall server throughput.
 
+### tlsSocket.ssl.verifyError()
+<!-- YAML
+added: XXX
+-->
+
+Returns an `Error` object if the peer's certificate fails validation. Validation
+includes many checks, but including
+that the certificate is either trusted or can be chained to a trusted
+CA (see the `ca` option of [`tls.createSecureContext()`][] for more information).
+
+***Warning***: Validation explicitly does *not* include any authentication of
+the identity.  [`tls.checkServerIdentity()`][] can be used to authenticate the
+identity of the peer.
+
+
 ## tls.connect(port[, host][, options][, callback])
 <!-- YAML
 added: v0.11.3
@@ -806,9 +874,10 @@ added: v0.11.3
   * `servername`: {string} Server name for the SNI (Server Name Indication) TLS
     extension.
   * `checkServerIdentity(servername, cert)` {Function} A callback function
-    to be used when checking the server's hostname against the certificate.
-    This should throw an error if verification fails. The method should return
-    `undefined` if the `servername` and `cert` are verified.
+    to be used when checking the server's name against the certificate.
+    The method should return `undefined` if the `servername` and `cert` are
+    acceptable and an instance of `Error` if they are not. Default value is
+    [`tls.checkServerIdentity()`][].
   * `session` {Buffer} A `Buffer` instance, containing TLS session.
   * `minDHSize` {number} Minimum size of the DH parameter in bits to accept a
     TLS connection. When a server offers a DH parameter with a size less
@@ -1078,6 +1147,28 @@ This server can be tested by connecting to it using `openssl s_client`:
 openssl s_client -connect 127.0.0.1:8000
 ```
 
+## tls.checkServerIdentity(host, cert)
+<!-- YAML
+added: XXX
+-->
+
+  * host: {String) The hostname that the `cert` should certify.
+  * cert: {Object} Object representing the peer's certificate.
+
+Check's that the certificate was issued for `host`.
+
+Returns `undefined` if `host` matches any of the certificate's names. If it does
+not match, it returns an Error with the following additional properties:
+- reason: {String} Describe why the certificate does not match the host.
+- host: {String} The `host`.
+- cert: {Object} The `cert`.
+
+Example:
+```
+if(!tls.checkServerIdentity('example.com', tlsSock.getPeerCertificate())
+    // Peer is not authentic, do not trust the peer is 'example.com'!
+```
+
 ## tls.getCiphers()
 <!-- YAML
 added: v0.10.2
@@ -1223,6 +1314,7 @@ where `secure_socket` has the same API as `pair.cleartext`.
 [Stream]: stream.html#stream_stream
 [TLS Session Tickets]: https://www.ietf.org/rfc/rfc5077.txt
 [TLS recommendations]: https://wiki.mozilla.org/Security/Server_Side_TLS
+[`'secure'`]: #tls_event_secure
 [`'secureConnect'`]: #tls_event_secureconnect
 [`'secureConnection'`]: #tls_event_secureconnection
 [`crypto.getCurves()`]: crypto.html#crypto_crypto_getcurves
@@ -1236,6 +1328,7 @@ where `secure_socket` has the same API as `pair.cleartext`.
 [`tls.createSecureContext()`]: #tls_tls_createsecurecontext_options
 [`tls.createSecurePair()`]: #tls_tls_createsecurepair_context_isserver_requestcert_rejectunauthorized_options
 [`tls.createServer()`]: #tls_tls_createserver_options_secureconnectionlistener
+[`tls.checkServerIdentity()`]: #tls_tls_checkserveridentity_host_cert
 [asn1.js]: https://npmjs.org/package/asn1.js
 [modifying the default cipher suite]: #tls_modifying_the_default_tls_cipher_suite
 [specific attacks affecting larger AES key sizes]: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html

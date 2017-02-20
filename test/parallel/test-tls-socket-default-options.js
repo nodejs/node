@@ -20,10 +20,16 @@ test(undefined, (err) => {
 
 test({}, (err) => {
   assert.strictEqual(err.message, 'unable to verify the first certificate');
+  // Properties never set on success or failure when tls.connect not used.
+  assert(!('authorized' in this), 'only supported for tls.connect');
+  assert(!('authorizationError' in this), 'only supported for tls.connect');
 });
 
 test({secureContext: tls.createSecureContext({ca: keys.agent1.ca})}, (err) => {
   assert.ifError(err);
+  // Properties never set on success or failure when tls.connect not used.
+  assert(!('authorized' in this), 'only supported for tls.connect');
+  assert(!('authorizationError' in this), 'only supported for tls.connect');
 });
 
 test({ca: keys.agent1.ca}, (err) => {
@@ -62,8 +68,9 @@ function test(client, callback) {
       .on('connect', common.mustCall(function() {
         this.end('hello');
       }))
+      .on('secureConnect', () => assert(0, 'only supported for tls.connect'))
       .on('secure', common.mustCall(function() {
-        callback(this.ssl.verifyError());
+        callback.call(this, this.ssl.verifyError());
       }));
   });
 }
