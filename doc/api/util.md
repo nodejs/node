@@ -371,6 +371,27 @@ added: v6.6.0
 A Symbol that can be used to declare custom inspect functions, see
 [Custom inspection functions on Objects][].
 
+## util.inspectTag
+<!-- YAML
+added: REPLACEME
+-->
+
+A template literal tag that ensures each replacement in a template string is
+passed through `util.inspect()`.
+
+```js
+const inspectTag = require('util').inspectTag;
+const obj = {a: 1};
+
+// Without the tag:
+console.log(`${obj}`);
+  // Prints: '[object Object]'
+
+// With the tag:
+console.log(inspectTag`${obj}`);
+  // Prints: '{ a : 1 }'
+```
+
 ## Deprecated APIs
 
 The following APIs have been deprecated and should no longer be used. Existing
