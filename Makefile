@@ -156,7 +156,7 @@ test/addons/.buildstamp: config.gypi \
 #	Cannot use $(wildcard test/addons/*/) here, it's evaluated before
 #	embedded addons have been generated from the documentation.
 	@for dirname in test/addons/*/; do \
-		echo "\nBuilding addon $$PWD/$$dirname" ; \
+		printf "\nBuilding addon $$PWD/$$dirname\n" ; \
 		env MAKEFLAGS="-j1" $(NODE) deps/npm/node_modules/node-gyp/bin/node-gyp \
 		        --loglevel=$(LOGLEVEL) rebuild \
 			--python="$(PYTHON)" \
