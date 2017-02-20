@@ -1921,6 +1921,10 @@ console.log(buf2.toString('utf8', 0, 3));
 console.log(buf2.toString(undefined, 0, 3));
 ```
 
+_Note_: If the size of the resulting string would exceed an
+implementation-specific limit, this method will throw an Error. This limit is
+equal to `2^28 - 16` in V8.
+
 ### buf.toJSON()
 <!-- YAML
 added: v0.9.2
