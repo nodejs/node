@@ -22,9 +22,9 @@ const tests = {
 
 for (const test in tests) {
   const dest = buffer.transcode(orig, 'utf8', test);
-  assert.strictEqual(dest.length, tests[test].length);
+  assert.strictEqual(dest.length, tests[test].length, `utf8->${test} length`);
   for (let n = 0; n < tests[test].length; n++)
-    assert.strictEqual(dest[n], tests[test][n]);
+    assert.strictEqual(dest[n], tests[test][n], `utf8->${test} char ${n}`);
 }
 
 {
