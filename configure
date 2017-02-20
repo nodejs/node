@@ -432,6 +432,11 @@ parser.add_option('--without-ssl',
     dest='without_ssl',
     help='build without SSL')
 
+parser.add_option('--without-node-options',
+    action='store_true',
+    dest='without_node_options',
+    help='build without NODE_OPTIONS support')
+
 parser.add_option('--xcode',
     action='store_true',
     dest='use_xcode',
@@ -965,6 +970,9 @@ def configure_openssl(o):
   o['variables']['openssl_no_asm'] = 1 if options.openssl_no_asm else 0
   if options.use_openssl_ca_store:
     o['defines'] += ['NODE_OPENSSL_CERT_STORE']
+  o['variables']['node_without_node_options'] = b(options.without_node_options)
+  if options.without_node_options:
+      o['defines'] += ['NODE_WITHOUT_NODE_OPTIONS']
   if options.openssl_fips:
     o['variables']['openssl_fips'] = options.openssl_fips
     fips_dir = os.path.join(root_dir, 'deps', 'openssl', 'fips')
