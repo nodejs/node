@@ -397,6 +397,40 @@ added: v7.5.0
 
 When set to `1`, process warnings are silenced.
 
+### `NODE_OPTIONS=options...`
+<!-- YAML
+added: REPLACEME
+-->
+
+`options...` are interpreted as if they had been specified on the command line
+before the actual command line (so they can be overriden).  Node will exit with
+an error if an option that is not allowed in the environment is used, such as
+`-p` or a script file.
+
+Node options that are allowed are:
+- `--enable-fips`
+- `--force-fips`
+- `--icu-data-dir`
+- `--no-deprecation`
+- `--no-warnings`
+- `--openssl-config`
+- `--prof-process`
+- `--redirect-warnings`
+- `--require`, `-r`
+- `--throw-deprecation`
+- `--trace-deprecation`
+- `--trace-events-enabled`
+- `--trace-sync-io`
+- `--trace-warnings`
+- `--track-heap-objects`
+- `--use-bundled-ca`
+- `--use-openssl-ca`
+- `--v8-pool-size`
+- `--zero-fill-buffers`
+
+V8 options that are allowed are:
+- `--max_old_space_size`
+
 ### `NODE_PENDING_DEPRECATION=1`
 <!-- YAML
 added: REPLACEME
