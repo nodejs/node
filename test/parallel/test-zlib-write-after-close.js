@@ -6,7 +6,5 @@ var zlib = require('zlib');
 zlib.gzip('hello', common.mustCall(function(err, out) {
   var unzip = zlib.createGunzip();
   unzip.close(common.mustCall(function() {}));
-  assert.throws(function() {
-    unzip.write(out);
-  });
+  assert.throws(() => unzip.write(out), /^Error: zlib binding closed$/);
 }));
