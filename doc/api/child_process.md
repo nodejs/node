@@ -251,6 +251,10 @@ encoding, `Buffer` objects will be passed to the callback instead.
 ### child_process.fork(modulePath[, args][, options])
 <!-- YAML
 added: v0.5.0
+changes:
+  - version: v6.4.0
+    pr-url: https://github.com/nodejs/node/pull/7811
+    description: The `stdio` option is supported now.
 -->
 
 * `modulePath` {String} The module to run in the child
@@ -302,6 +306,13 @@ not clone the current process.*
 ### child_process.spawn(command[, args][, options])
 <!-- YAML
 added: v0.1.90
+changes:
+  - version: v6.4.0
+    pr-url: https://github.com/nodejs/node/pull/7696
+    description: The `argv0` option is supported now.
+  - version: v5.7.0
+    pr-url: https://github.com/nodejs/node/pull/4598
+    description: The `shell` option is supported now.
 -->
 
 * `command` {String} The command to run
@@ -485,6 +496,10 @@ child.unref();
 #### options.stdio
 <!-- YAML
 added: v0.7.10
+changes:
+  - version: v3.3.1
+    pr-url: https://github.com/nodejs/node/pull/2727
+    description: The value `0` is now accepted as a file descriptor.
 -->
 
 The `options.stdio` option is used to configure the pipes that are established
@@ -574,6 +589,10 @@ configuration at startup.
 ### child_process.execFileSync(file[, args][, options])
 <!-- YAML
 added: v0.11.12
+changes:
+  - version: v6.2.1, v4.5.0
+    pr-url: https://github.com/nodejs/node/pull/6939
+    description: The `encoding` option can now explicitly be set to `buffer`.
 -->
 
 * `file` {String} The name or path of the executable file to run
@@ -660,6 +679,13 @@ execution.**
 ### child_process.spawnSync(command[, args][, options])
 <!-- YAML
 added: v0.11.12
+changes:
+  - version: v6.2.1, v4.5.0
+    pr-url: https://github.com/nodejs/node/pull/6939
+    description: The `encoding` option can now explicitly be set to `buffer`.
+  - version: v5.7.0
+    pr-url: https://github.com/nodejs/node/pull/4598
+    description: The `shell` option is supported now.
 -->
 
 * `command` {String} The command to run
@@ -911,6 +937,17 @@ grep.stdin.end();
 ### child.send(message[, sendHandle[, options]][, callback])
 <!-- YAML
 added: v0.5.9
+changes:
+  - version: v5.8.0
+    pr-url: https://github.com/nodejs/node/pull/5283
+    description: The `options` parameter, and the `keepOpen` option
+                 in particular, is supported now.
+  - version: v5.0.0
+    pr-url: https://github.com/nodejs/node/pull/3516
+    description: This method returns a boolean for flow control now.
+  - version: v4.0.0
+    pr-url: https://github.com/nodejs/node/pull/2620
+    description: The `callback` parameter is supported now.
 -->
 
 * `message` {Object}
