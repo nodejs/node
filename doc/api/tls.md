@@ -461,6 +461,10 @@ connection is open.
 ### new tls.TLSSocket(socket[, options])
 <!-- YAML
 added: v0.11.4
+changes:
+  - version: v5.0.0
+    pr-url: https://github.com/nodejs/node/pull/2564
+    description: ALPN options are supported now.
 -->
 
 * `socket` {net.Socket} An instance of [`net.Socket`][]
@@ -770,6 +774,13 @@ argument.
 ## tls.connect(options[, callback])
 <!-- YAML
 added: v0.11.3
+changes:
+  - version: v5.3.0, v4.7.0
+    pr-url: https://github.com/nodejs/node/pull/4246
+    description: The `secureContext` option is supported now.
+  - version: v5.0.0
+    pr-url: https://github.com/nodejs/node/pull/2564
+    description: ALPN options are supported now.
 -->
 
 * `options` {Object}
@@ -883,6 +894,16 @@ socket.on('end', () => {
 ## tls.createSecureContext(options)
 <!-- YAML
 added: v0.11.13
+changes:
+  - version: v7.3.0
+    pr-url: https://github.com/nodejs/node/pull/10294
+    description: If the `key` option is an array, individual entries do not
+                 need a `passphrase` property anymore. Array entries can also
+                 just be `string`s or `Buffer`s now.
+  - version: v5.2.0
+    pr-url: https://github.com/nodejs/node/pull/4099
+    description: The `ca` option can now be a single string containing multiple
+                 CA certificates.
 -->
 
 * `options` {Object}
@@ -972,6 +993,10 @@ publicly trusted list of CAs as given in
 ## tls.createServer([options][, secureConnectionListener])
 <!-- YAML
 added: v0.3.2
+changes:
+  - version: v5.0.0
+    pr-url: https://github.com/nodejs/node/pull/2564
+    description: ALPN options are supported now.
 -->
 
 * `options` {Object}
@@ -1146,6 +1171,10 @@ certificate used is properly authorized.
 <!-- YAML
 added: v0.3.2
 deprecated: v0.11.3
+changes:
+  - version: v5.0.0
+    pr-url: https://github.com/nodejs/node/pull/2564
+    description: ALPN options are supported now.
 -->
 
 > Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
