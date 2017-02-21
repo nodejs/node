@@ -586,6 +586,12 @@ not be emitted.
 ### Event: 'clientError'
 <!-- YAML
 added: v0.1.94
+changes:
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/4557
+    description: The default action of calling `.destroy()` on the `socket`
+                 will no longer take place if there are listeners attached
+                 for `clientError`.
 -->
 
 * `exception` {Error}
@@ -1178,6 +1184,11 @@ the request body should be sent. See the [`'checkContinue'`][] event on `Server`
 ### response.writeHead(statusCode[, statusMessage][, headers])
 <!-- YAML
 added: v0.1.30
+changes:
+  - version: v5.11.0, v4.4.5
+    pr-url: https://github.com/nodejs/node/pull/6291
+    description: A `RangeError` is thrown if `statusCode` is not a number in
+                 the range `[100, 999]`.
 -->
 
 * `statusCode` {Number}
