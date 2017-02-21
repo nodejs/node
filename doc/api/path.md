@@ -57,6 +57,10 @@ path.posix.basename('/tmp/myfile.html');
 ## path.basename(path[, ext])
 <!-- YAML
 added: v0.1.25
+changes:
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/5348
+    description: Passing a non-string as the `path` argument will throw now.
 -->
 
 * `path` {String}
@@ -114,6 +118,10 @@ process.env.PATH.split(path.delimiter)
 ## path.dirname(path)
 <!-- YAML
 added: v0.1.16
+changes:
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/5348
+    description: Passing a non-string as the `path` argument will throw now.
 -->
 
 * `path` {String}
@@ -134,6 +142,10 @@ A [`TypeError`][] is thrown if `path` is not a string.
 ## path.extname(path)
 <!-- YAML
 added: v0.1.25
+changes:
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/5348
+    description: Passing a non-string as the `path` argument will throw now.
 -->
 
 * `path` {String}
@@ -408,6 +420,11 @@ of the `path` methods.
 ## path.relative(from, to)
 <!-- YAML
 added: v0.5.0
+changes:
+  - version: v6.8.0
+    pr-url: https://github.com/nodejs/node/pull/8523
+    description: On Windows, the leading slashes for UNC paths are now included
+                 in the return value.
 -->
 
 * `from` {String}
