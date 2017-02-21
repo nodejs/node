@@ -655,39 +655,45 @@ try {
                      'Message incorrectly marked as generated');
 }
 
-// Verify that throws() and doesNotThrow() throw on non-function block
-function testBlockTypeError(method, block) {
-  let threw = true;
+{
+  // Verify that throws() and doesNotThrow() throw on non-function block
+  const validationFunction = common.expectsError({
+    code: 'ERR_INVALID_ARG_TYPE',
+    type: TypeError
+  });
 
-  try {
-    method(block);
-    threw = false;
-  } catch (e) {
-    assert.strictEqual(e.toString(),
-                       'TypeError: "block" argument must be a function');
-  }
+  const testBlockTypeError = (method, block) => {
+    let threw = true;
 
-  assert.ok(threw);
+    try {
+      method(block);
+      threw = false;
+    } catch (e) {
+      validationFunction(e);
+    }
+
+    assert.ok(threw);
+  };
+
+  testBlockTypeError(assert.throws, 'string');
+  testBlockTypeError(assert.doesNotThrow, 'string');
+  testBlockTypeError(assert.throws, 1);
+  testBlockTypeError(assert.doesNotThrow, 1);
+  testBlockTypeError(assert.throws, true);
+  testBlockTypeError(assert.doesNotThrow, true);
+  testBlockTypeError(assert.throws, false);
+  testBlockTypeError(assert.doesNotThrow, false);
+  testBlockTypeError(assert.throws, []);
+  testBlockTypeError(assert.doesNotThrow, []);
+  testBlockTypeError(assert.throws, {});
+  testBlockTypeError(assert.doesNotThrow, {});
+  testBlockTypeError(assert.throws, /foo/);
+  testBlockTypeError(assert.doesNotThrow, /foo/);
+  testBlockTypeError(assert.throws, null);
+  testBlockTypeError(assert.doesNotThrow, null);
+  testBlockTypeError(assert.throws, undefined);
+  testBlockTypeError(assert.doesNotThrow, undefined);
 }
-
-testBlockTypeError(assert.throws, 'string');
-testBlockTypeError(assert.doesNotThrow, 'string');
-testBlockTypeError(assert.throws, 1);
-testBlockTypeError(assert.doesNotThrow, 1);
-testBlockTypeError(assert.throws, true);
-testBlockTypeError(assert.doesNotThrow, true);
-testBlockTypeError(assert.throws, false);
-testBlockTypeError(assert.doesNotThrow, false);
-testBlockTypeError(assert.throws, []);
-testBlockTypeError(assert.doesNotThrow, []);
-testBlockTypeError(assert.throws, {});
-testBlockTypeError(assert.doesNotThrow, {});
-testBlockTypeError(assert.throws, /foo/);
-testBlockTypeError(assert.doesNotThrow, /foo/);
-testBlockTypeError(assert.throws, null);
-testBlockTypeError(assert.doesNotThrow, null);
-testBlockTypeError(assert.throws, undefined);
-testBlockTypeError(assert.doesNotThrow, undefined);
 
 // https://github.com/nodejs/node/issues/3275
 // eslint-disable-next-line no-throw-literal
