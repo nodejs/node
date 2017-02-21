@@ -916,7 +916,7 @@ class PreParserTraits {
   }
 
   inline void QueueDestructuringAssignmentForRewriting(PreParserExpression) {}
-  inline void QueueNonPatternForRewriting(PreParserExpression) {}
+  inline void QueueNonPatternForRewriting(PreParserExpression, bool* ok) {}
 
   void SetFunctionNameFromPropertyName(PreParserExpression,
                                        PreParserIdentifier) {}
@@ -926,6 +926,8 @@ class PreParserTraits {
   inline void RewriteNonPattern(Type::ExpressionClassifier* classifier,
                                 bool* ok);
 
+  V8_INLINE ZoneList<typename Type::ExpressionClassifier::Error>*
+      GetReportedErrorList() const;
   V8_INLINE Zone* zone() const;
   V8_INLINE ZoneList<PreParserExpression>* GetNonPatternList() const;
 
@@ -1126,13 +1128,19 @@ void PreParserTraits::RewriteNonPattern(Type::ExpressionClassifier* classifier,
 }
 
 
-Zone* PreParserTraits::zone() const {
-  return pre_parser_->function_state_->scope()->zone();
+ZoneList<PreParserExpression>* PreParserTraits::GetNonPatternList() const {
+  return pre_parser_->function_state_->non_patterns_to_rewrite();
 }
 
 
-ZoneList<PreParserExpression>* PreParserTraits::GetNonPatternList() const {
-  return pre_parser_->function_state_->non_patterns_to_rewrite();
+ZoneList<typename PreParserTraits::Type::ExpressionClassifier::Error>*
+PreParserTraits::GetReportedErrorList() const {
+  return pre_parser_->function_state_->GetReportedErrorList();
+}
+
+
+Zone* PreParserTraits::zone() const {
+  return pre_parser_->function_state_->scope()->zone();
 }
 
 
