@@ -380,6 +380,10 @@ file.end('world!');
 ##### writable.setDefaultEncoding(encoding)
 <!-- YAML
 added: v0.11.15
+changes:
+  - version: v6.1.0
+    pr-url: https://github.com/nodejs/node/pull/5040
+    description: This method now returns a reference to `writable`.
 -->
 
 * `encoding` {String} The new default encoding
@@ -429,6 +433,11 @@ See also: [`writable.cork()`][].
 ##### writable.write(chunk[, encoding][, callback])
 <!-- YAML
 added: v0.9.4
+changes:
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/6170
+    description: Passing `null` as the `chunk` parameter will always be
+                 considered invalid now, even in object mode.
 -->
 
 * `chunk` {String|Buffer} The data to write
@@ -1069,6 +1078,11 @@ myReader.on('readable', () => {
 #### Class: stream.Duplex
 <!-- YAML
 added: v0.9.4
+changes:
+  - version: v6.8.0
+    pr-url: https://github.com/nodejs/node/pull/8834
+    description: Instances of `Duplex` now return `true` when
+                 checking `instanceof stream.Writable`.
 -->
 
 <!--type=class-->
@@ -1190,6 +1204,9 @@ the [API for Stream Consumers][] section). Doing so may lead to adverse
 side effects in application code consuming the stream.
 
 ### Simplified Construction
+<!-- YAML
+added: v1.2.0
+-->
 
 For many simple cases, it is possible to construct a stream without relying on
 inheritance. This can be accomplished by directly creating instances of the
