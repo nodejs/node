@@ -118,3 +118,29 @@ assert.strictEqual(b.copy(c, 0, 100, 10), 0);
 
 // when targetStart > targetLength, zero copied
 assert.strictEqual(b.copy(c, 512, 0, 10), 0);
+
+// Test that the `target` can be a Uint8Array.
+{
+  const d = new Uint8Array(c);
+  // copy 512 bytes, from 0 to 512.
+  b.fill(++cntr);
+  d.fill(++cntr);
+  const copied = b.copy(d, 0, 0, 512);
+  assert.strictEqual(512, copied);
+  for (let i = 0; i < d.length; i++) {
+    assert.strictEqual(b[i], d[i]);
+  }
+}
+
+// Test that the source can be a Uint8Array, too.
+{
+  const e = new Uint8Array(b);
+  // copy 512 bytes, from 0 to 512.
+  e.fill(++cntr);
+  c.fill(++cntr);
+  const copied = Buffer.prototype.copy.call(e, c, 0, 0, 512);
+  assert.strictEqual(512, copied);
+  for (let i = 0; i < c.length; i++) {
+    assert.strictEqual(e[i], c[i]);
+  }
+}
