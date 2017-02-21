@@ -35,7 +35,7 @@ Support is divided into three tiers:
 | FreeBSD      | Tier 2       | >= 10                            | x64                  |                  |
 | GNU/Linux    | Tier 2       | kernel >= 4.2.0, glibc >= 2.19   | ppc64be              |                  |
 | GNU/Linux    | Tier 2       | kernel >= 3.13.0, glibc >= 2.19  | ppc64le              |                  |
-| AIX          | Tier 2       | >= >= 6.1 TL09                   | ppc64be              |                  |
+| AIX          | Tier 2       | >= 6.1 TL09                      | ppc64be              |                  |
 | GNU/Linux    | Tier 2       | kernel >= 3.10, glibc >= 2.17    | s390x                |                  |
 | macOS        | Experimental | >= 10.8 < 10.10                  | x64                  | no test coverage |
 | Linux (musl) | Experimental | musl >= 1.0                      | x64                  |                  |
