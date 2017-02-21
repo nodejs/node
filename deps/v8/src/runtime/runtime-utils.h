@@ -85,9 +85,11 @@ namespace internal {
 // Assert that the given argument has a valid value for a LanguageMode
 // and store it in a LanguageMode variable with the given name.
 #define CONVERT_LANGUAGE_MODE_ARG_CHECKED(name, index)        \
-  RUNTIME_ASSERT(args[index]->IsSmi());                       \
-  RUNTIME_ASSERT(is_valid_language_mode(args.smi_at(index))); \
-  LanguageMode name = static_cast<LanguageMode>(args.smi_at(index));
+  RUNTIME_ASSERT(args[index]->IsNumber());                    \
+  int32_t __tmp_##name = 0;                                   \
+  RUNTIME_ASSERT(args[index]->ToInt32(&__tmp_##name));        \
+  RUNTIME_ASSERT(is_valid_language_mode(__tmp_##name));       \
+  LanguageMode name = static_cast<LanguageMode>(__tmp_##name);
 
 
 // Assert that the given argument is a number within the Int32 range
