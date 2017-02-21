@@ -373,6 +373,10 @@ within the action function for commands registered using the
 ## repl.start([options])
 <!-- YAML
 added: v0.1.91
+changes:
+  - version: v5.8.0
+    pr-url: https://github.com/nodejs/node/pull/5388
+    description: The `options` parameter is optional now.
 -->
 
 * `options` {Object | String}
