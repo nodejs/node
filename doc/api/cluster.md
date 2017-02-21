@@ -260,6 +260,10 @@ It is not emitted in the worker.
 ### worker.disconnect()
 <!-- YAML
 added: v0.7.7
+changes:
+  - version: v7.3.0
+    pr-url: https://github.com/nodejs/node/pull/10019
+    description: This method now returns a reference to `worker`.
 -->
 
 * Returns: {Worker} A reference to `worker`.
@@ -416,6 +420,10 @@ accidental disconnection.
 ### worker.send(message[, sendHandle][, callback])
 <!-- YAML
 added: v0.7.0
+changes:
+  - version: v4.0.0
+    pr-url: https://github.com/nodejs/node/pull/2620
+    description: The `callback` parameter is supported now.
 -->
 
 * `message` {Object}
@@ -449,6 +457,10 @@ if (cluster.isMaster) {
 <!-- YAML
 added: v0.7.0
 deprecated: v6.0.0
+changes:
+  - version: v7.0.0
+    pr-url: https://github.com/nodejs/node/pull/3747
+    description: Accessing this property will now emit a deprecation warning.
 -->
 
 > Stability: 0 - Deprecated: Use [`worker.exitedAfterDisconnect`][] instead.
@@ -579,6 +591,13 @@ The `addressType` is one of:
 * `"udp4"` or `"udp6"` (UDP v4 or v6)
 
 ## Event: 'message'
+<!-- YAML
+added: v2.5.0
+changes:
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/5361
+    description: The `worker` parameter is passed now; see below for details.
+-->
 
 * `worker` {cluster.Worker}
 * `message` {Object}
@@ -708,6 +727,10 @@ values are `"rr"` and `"none"`.
 ## cluster.settings
 <!-- YAML
 added: v0.7.1
+changes:
+  - version: v6.4.0
+    pr-url: https://github.com/nodejs/node/pull/7838
+    description: The `stdio` option is supported now.
 -->
 
 * {Object}
@@ -732,6 +755,10 @@ This object is not supposed to be changed or set manually, by you.
 ## cluster.setupMaster([settings])
 <!-- YAML
 added: v0.7.1
+changes:
+  - version: v6.4.0
+    pr-url: https://github.com/nodejs/node/pull/7838
+    description: The `stdio` option is supported now.
 -->
 
 * `settings` {Object}
