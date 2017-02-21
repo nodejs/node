@@ -333,6 +333,11 @@ https://en.wikipedia.org/wiki/Uname#Examples for more information.
 ## os.tmpdir()
 <!-- YAML
 added: v0.9.9
+changes:
+  - version: v2.0.0
+    pr-url: https://github.com/nodejs/node/pull/747
+    description: This function is now cross-platform consistent and no longer
+                 returns a path with a trailing slash on any platform
 -->
 
 * Returns: {String}
@@ -404,6 +409,12 @@ The following constants are exported by `os.constants`. **Note:** Not all
 constants will be available on every operating system.
 
 ### Signal Constants
+<!-- YAML
+changes:
+  - version: v5.11.0
+    pr-url: https://github.com/nodejs/node/pull/6093
+    description: Added support for `SIGINFO`.
+-->
 
 The following signal constants are exported by `os.constants.signals`:
 
