@@ -449,6 +449,8 @@ class CallSite {
     "Too many arguments in function call (only 65535 allowed)")                \
   T(TooManyParameters,                                                         \
     "Too many parameters in function definition (only 65535 allowed)")         \
+  T(TooManySpreads,                                                            \
+    "Literal containing too many nested spreads (up to 65534 allowed)")        \
   T(TooManyVariables, "Too many variables declared (only 4194303 allowed)")    \
   T(TypedArrayTooShort,                                                        \
     "Derived TypedArray constructor created an array which was too small")     \
