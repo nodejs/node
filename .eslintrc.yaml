@@ -113,6 +113,7 @@ rules:
   space-in-parens: [2, never]
   space-infix-ops: 2
   space-unary-ops: 2
+  unicode-bom: 2
 
   # ECMAScript 6
   # http://eslint.org/docs/rules/#ecmascript-6
