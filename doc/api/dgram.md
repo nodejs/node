@@ -244,6 +244,15 @@ chained.
 ### socket.send(msg, [offset, length,] port [, address] [, callback])
 <!-- YAML
 added: v0.1.99
+changes:
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/5929
+    description: On success, `callback` will now be called with an `error`
+                 argument of `null` rather than `0`.
+  - version: v5.7.0
+    pr-url: https://github.com/nodejs/node/pull/4374
+    description: The `msg` parameter can be an array now. Also, the `offset`
+                 and `length` parameters are optional now.
 -->
 
 * `msg` {Buffer|String|Array} Message to be sent
