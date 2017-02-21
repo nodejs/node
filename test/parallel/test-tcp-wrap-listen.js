@@ -15,7 +15,8 @@ port = port.port;
 
 server.listen(128);
 
-let sliceCount = 0, eofCount = 0;
+let sliceCount = 0;
+let eofCount = 0;
 
 let writeCount = 0;
 let recvCount = 0;
