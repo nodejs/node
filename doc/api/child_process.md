@@ -252,6 +252,9 @@ encoding, `Buffer` objects will be passed to the callback instead.
 <!-- YAML
 added: v0.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/10866
+    description: The `stdio` option can now be a string.
   - version: v6.4.0
     pr-url: https://github.com/nodejs/node/pull/7811
     description: The `stdio` option is supported now.
@@ -590,6 +593,9 @@ configuration at startup.
 <!-- YAML
 added: v0.11.12
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/10653
+    description: The `input` option can now be a `Uint8Array`.
   - version: v6.2.1, v4.5.0
     pr-url: https://github.com/nodejs/node/pull/6939
     description: The `encoding` option can now explicitly be set to `buffer`.
@@ -632,6 +638,10 @@ throw.  The [`Error`][] object will contain the entire result from
 ### child_process.execSync(command[, options])
 <!-- YAML
 added: v0.11.12
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/10653
+    description: The `input` option can now be a `Uint8Array`.
 -->
 
 * `command` {String} The command to run
@@ -680,6 +690,9 @@ execution.**
 <!-- YAML
 added: v0.11.12
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/10653
+    description: The `input` option can now be a `Uint8Array`.
   - version: v6.2.1, v4.5.0
     pr-url: https://github.com/nodejs/node/pull/6939
     description: The `encoding` option can now explicitly be set to `buffer`.
@@ -1234,3 +1247,4 @@ to `stdout` although there are only 4 characters.
 [`process.send()`]: process.html#process_process_send_message_sendhandle_options_callback
 [`stdio`]: #child_process_options_stdio
 [synchronous counterparts]: #child_process_synchronous_process_creation
+[`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array

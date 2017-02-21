@@ -704,6 +704,10 @@ actual byte length is returned.
 ### Class Method: Buffer.compare(buf1, buf2)
 <!-- YAML
 added: v0.11.13
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/10236
+    description: The arguments can now be `Uint8Array`s.
 -->
 
 * `buf1` {Buffer|Uint8Array}
@@ -729,6 +733,10 @@ console.log(arr.sort(Buffer.compare));
 ### Class Method: Buffer.concat(list[, totalLength])
 <!-- YAML
 added: v0.7.11
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/10236
+    description: The elements of `list` can now be `Uint8Array`s.
 -->
 
 * `list` {Array} List of `Buffer` or [`Uint8Array`] instances to concat
@@ -966,6 +974,9 @@ console.log(buffer.buffer === arrayBuffer);
 <!-- YAML
 added: v0.11.13
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/10236
+    description: The `target` parameter can now be a `Uint8Array`.
   - version: v5.11.0
     pr-url: https://github.com/nodejs/node/pull/5880
     description: Additional parameters for specifying offsets are supported now.
@@ -1124,6 +1135,10 @@ for (const pair of buf.entries()) {
 ### buf.equals(otherBuffer)
 <!-- YAML
 added: v0.11.13
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/10236
+    description: The arguments can now be `Uint8Array`s.
 -->
 
 * `otherBuffer` {Buffer} A `Buffer` or [`Uint8Array`] to compare to
@@ -1232,6 +1247,9 @@ console.log(buf.includes('this', 4));
 <!-- YAML
 added: v1.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/10236
+    description: The `value` can now be a `Uint8Array`.
   - version: v5.7.0, v4.4.0
     pr-url: https://github.com/nodejs/node/pull/4803
     description: When `encoding` is being passed, the `byteOffset` parameter
@@ -1341,6 +1359,10 @@ for (const key of buf.keys()) {
 ### buf.lastIndexOf(value[, byteOffset][, encoding])
 <!-- YAML
 added: v6.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/10236
+    description: The `value` can now be a `Uint8Array`.
 -->
 
 * `value` {String | Buffer | Uint8Array | Integer} What to search for
@@ -1464,6 +1486,9 @@ console.log(buf.length);
 ```
 
 ### buf.parent
+<!-- YAML
+deprecated: REPLACEME
+-->
 
 > Stability: 0 - Deprecated: Use [`buf.buffer`] instead.
 
@@ -2475,6 +2500,10 @@ Note that this is a property on the `buffer` module returned by
 ## buffer.transcode(source, fromEnc, toEnc)
 <!-- YAML
 added: v7.1.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/10236
+    description: The `source` parameter can now be a `Uint8Array`.
 -->
 
 * `source` {Buffer|Uint8Array} A `Buffer` or `Uint8Array` instance
