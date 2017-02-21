@@ -288,6 +288,11 @@ assert.strictEqual(
     Object.keys(qs.parse('a=1&b=1&c=1', null, null, { maxKeys: 1 })).length,
     1);
 
+// Test limiting with a case that starts from `&`
+assert.strictEqual(
+    Object.keys(qs.parse('&a', null, null, { maxKeys: 1 })).length,
+    0);
+
 // Test removing limit
 function testUnlimitedKeys() {
   const query = {};
@@ -334,6 +339,8 @@ assert.strictEqual(qs.unescapeBuffer('a%20').toString(), 'a ');
 assert.strictEqual(qs.unescapeBuffer('a%2g').toString(), 'a%2g');
 assert.strictEqual(qs.unescapeBuffer('a%%').toString(), 'a%%');
 
+// Test invalid encoded string
+check(qs.parse('%\u0100=%\u0101'), { '%Ā': '%ā' });
 
 // Test custom decode
 function demoDecode(str) {
