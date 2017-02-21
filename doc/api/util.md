@@ -136,6 +136,10 @@ util.format(1, 2, 3); // '1 2 3'
 ## util.inherits(constructor, superConstructor)
 <!-- YAML
 added: v0.3.0
+changes:
+  - version: v5.0.0
+    pr-url: https://github.com/nodejs/node/pull/3455
+    description: The `constructor` parameter can refer to an ES6 class now.
 -->
 
 _Note: usage of `util.inherits()` is discouraged. Please use the ES6 `class` and
@@ -203,6 +207,20 @@ stream.write('With ES6');
 ## util.inspect(object[, options])
 <!-- YAML
 added: v0.3.0
+changes:
+  - version: v6.6.0
+    pr-url: https://github.com/nodejs/node/pull/8174
+    description: Custom inspection functions can now return `this`.
+  - version: v6.3.0
+    pr-url: https://github.com/nodejs/node/pull/7499
+    description: The `breakLength` option is supported now.
+  - version: v6.1.0
+    pr-url: https://github.com/nodejs/node/pull/6334
+    description: The `maxArrayLength` option is supported now; in particular,
+                 long arrays are truncated by default.
+  - version: v6.1.0
+    pr-url: https://github.com/nodejs/node/pull/6465
+    description: The `showProxy` option is supported now.
 -->
 
 * `object` {any} Any JavaScript primitive or Object.
