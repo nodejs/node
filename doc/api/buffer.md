@@ -964,7 +964,7 @@ A `RangeError` will be thrown if: `targetStart < 0`, `sourceStart < 0`,
 added: v0.1.90
 -->
 
-* `target` {Buffer} A `Buffer` to copy into.
+* `target` {Buffer|Uint8Array} A `Buffer` or [`Uint8Array`] to copy into.
 * `targetStart` {Integer} The offset within `target` at which to begin
   copying to. **Default:** `0`
 * `sourceStart` {Integer} The offset within `buf` at which to begin copying from.
