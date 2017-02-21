@@ -344,6 +344,13 @@ the current position of the cursor down.
 ## readline.createInterface(options)
 <!-- YAML
 added: v0.1.98
+changes:
+  - version: v6.3.0
+    pr-url: https://github.com/nodejs/node/pull/7125
+    description: The `prompt` option is supported now.
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/6352
+    description: The `historySize` option can be `0` now.
 -->
 
 * `options` {Object}
