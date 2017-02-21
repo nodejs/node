@@ -10,6 +10,7 @@
 #endif
 #include "handle_wrap.h"
 #include "req-wrap.h"
+#include "track-promise.h"
 #include "tree.h"
 #include "util.h"
 #include "uv.h"
@@ -17,7 +18,7 @@
 
 #include <stdint.h>
 #include <vector>
-#include <map>
+#include <unordered_map>
 
 // Caveat emptor: we're going slightly crazy with macros here but the end
 // hopefully justifies the means. We have a lot of per-context properties
@@ -556,12 +557,23 @@ class Environment {
   static const int kContextEmbedderDataIndex = NODE_CONTEXT_EMBEDDER_DATA_INDEX;
 
   struct v8LocalCompare {
-     bool operator() (const v8::Local<v8::Value>& lhs, const v8::Local<v8::Value>& rhs) const {
-         return !lhs->StrictEquals(rhs);
-     }
+    bool operator() (const v8::Local<v8::Value>& lhs, const v8::Local<v8::Value>& rhs) const {
+      return !lhs->StrictEquals(rhs);
+    }
   };
 
-  std::map<v8::Local<v8::Value>, v8::Local<v8::Object>, v8LocalCompare> promise_unhandled_reject_map;
+  struct v8LocalHash {
+    size_t operator() (const v8::Local<v8::Value>& key) const {
+      if (!key.IsObject()) {
+
+      }
+      return (size_t) key.As<v8::Object>()->GetIdentityHash();
+    }
+  };
+
+  std::unordered_map<v8::Local<v8::Value>, TrackPromise*, v8LocalHash, v8LocalCompare> promise_unhandled_reject_map;
+
+  // std::map<v8::Local<v8::Value>, v8::Local<v8::Object>, v8LocalCompare> promise_unhandled_reject_map;
 
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),

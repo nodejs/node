@@ -13,9 +13,9 @@ class TrackPromise {
   virtual ~TrackPromise();
 
   static TrackPromise* New(v8::Isolate* isolate,
-                                  v8::Local<v8::Object> object);
+                           v8::Local<v8::Object> object);
 
-  inline v8::Persistent<v8::Object>* persistent();
+  v8::Persistent<v8::Object>* persistent();
 
   static inline void WeakCallback(
       const v8::WeakCallbackInfo<TrackPromise>& data);

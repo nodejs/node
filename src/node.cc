@@ -64,7 +64,7 @@
 
 #include <string>
 #include <vector>
-#include <map>
+#include <unordered_map>
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
 #include <unicode/uvernum.h>
@@ -1207,9 +1207,11 @@ void TrackPromise(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject());
   Local<Object> promise = args[0].As<Object>();
 
+  class TrackPromise* tp = TrackPromise::New(env->isolate(), promise);
+
   Local<Value> promise_value = GetPromiseReason(env, promise);
-  std::map<Local<Value>, Local<Object>, Environment::v8LocalCompare> unhandled_reject_map =
-      env->promise_unhandled_reject_map;
+  std::unordered_map<v8::Local<v8::Value>, class TrackPromise*, Environment::v8LocalHash, Environment::v8LocalCompare>* unhandled_reject_map =
+      &env->promise_unhandled_reject_map;
   Local<Set> unhandled_reject_keys =
       env->promise_unhandled_reject_keys();
 
@@ -1217,9 +1219,9 @@ void TrackPromise(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  if (unhandled_reject_map.find(promise_value) != unhandled_reject_map.end() &&
+  if (unhandled_reject_map->find(promise_value) != unhandled_reject_map->end() &&
       !promise_value->IsUndefined()) {
-    unhandled_reject_map.insert(std::make_pair(promise_value, promise));
+    unhandled_reject_map->insert(std::make_pair(promise_value, tp));
     CHECK(!unhandled_reject_keys->Add(env->context(), promise_value).IsEmpty());
   }
 }
@@ -1231,14 +1233,14 @@ void UntrackPromise(const FunctionCallbackInfo<Value>& args) {
   Local<Value> promise = args[0].As<Value>();
 
   Local<Value> err = GetPromiseReason(env, promise);
-  std::map<Local<Value>, Local<Object>, Environment::v8LocalCompare> unhandled_reject_map =
-      env->promise_unhandled_reject_map;
+  std::unordered_map<v8::Local<v8::Value>, class TrackPromise*, Environment::v8LocalHash, Environment::v8LocalCompare>* unhandled_reject_map =
+      &env->promise_unhandled_reject_map;
   Local<Set> unhandled_reject_keys =
       env->promise_unhandled_reject_keys();
 
   if (unhandled_reject_keys->Has(env->context(), err).IsJust()) {
     CHECK(unhandled_reject_keys->Delete(env->context(), err).IsJust());
-    unhandled_reject_map.erase(err);
+    unhandled_reject_map->erase(err);
   }
 }
 
@@ -1246,8 +1248,8 @@ void SetupPromises(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
 
-  std::map<Local<Value>, Local<Object>, Environment::v8LocalCompare> promise_reject_map;
-  env->promise_unhandled_reject_map = promise_reject_map;
+  // std::unordered_map<v8::Local<v8::Value>, class TrackPromise, Environment::v8LocalHash, Environment::v8LocalCompare> promise_reject_map;
+  // env->promise_unhandled_reject_map = &promise_reject_map;
   env->set_promise_unhandled_reject_keys(Set::New(isolate));
 
   CHECK(args[0]->IsFunction());
@@ -4554,16 +4556,17 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
       Null(env.isolate()), 1, &promise_keys_set).ToLocalChecked();
   Local<Array> promise_keys = ret.As<Array>();
   uint32_t key_count = promise_keys->Length();
-  std::map<Local<Value>, Local<Object>, Environment::v8LocalCompare> unhandled_reject_map =
-      env.promise_unhandled_reject_map;
+  std::unordered_map<v8::Local<v8::Value>, class TrackPromise*, Environment::v8LocalHash, Environment::v8LocalCompare>* unhandled_reject_map =
+      &env.promise_unhandled_reject_map;
 
   for (uint32_t key_iter = 0; key_iter < key_count; key_iter++) {
     Local<Value> key = promise_keys->Get(env.context(),
                                          key_iter).ToLocalChecked();
 
-    if (unhandled_reject_map.find(key) != unhandled_reject_map.end()) {
-      Local<Value> promise =
-          unhandled_reject_map.find(key)->second;
+    if (unhandled_reject_map->find(key) != unhandled_reject_map->end()) {
+      class TrackPromise* tp =
+          unhandled_reject_map->find(key)->second;
+      Local<Value> promise = tp->persistent()->Get(isolate);
       Local<Value> err = GetPromiseReason(&env, promise);
       Local<Message> message = Exception::CreateMessage(isolate, err);
 
