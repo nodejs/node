@@ -411,6 +411,10 @@ following this event.
 ### Event: 'lookup'
 <!-- YAML
 added: v0.11.3
+changes:
+  - version: v5.10.0
+    pr-url: https://github.com/nodejs/node/pull/5598
+    description: The `host` parameter is supported now.
 -->
 
 Emitted after resolving the hostname but before connecting.
@@ -479,6 +483,15 @@ The amount of bytes sent.
 ### socket.connect(options[, connectListener])
 <!-- YAML
 added: v0.1.90
+changes:
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/6021
+    description: The `hints` option defaults to `0` in all cases now.
+                 Previously, in the absence of the `family` option it would
+                 default to `dns.ADDRCONFIG | dns.V4MAPPED`.
+  - version: v5.11.0
+    pr-url: https://github.com/nodejs/node/pull/6000
+    description: The `hints` option is supported now.
 -->
 
 Opens the connection for a given socket.
