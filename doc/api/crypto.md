@@ -229,6 +229,10 @@ Returns `this` for method chaining.
 ### cipher.update(data[, input_encoding][, output_encoding])
 <!-- YAML
 added: v0.1.94
+changes:
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/5522
+    description: The default `input_encoding` changed from `binary` to `utf8`.
 -->
 
 Updates the cipher with `data`. If the `input_encoding` argument is given,
@@ -327,6 +331,10 @@ than once will result in an error being thrown.
 ### decipher.setAAD(buffer)
 <!-- YAML
 added: v1.0.0
+changes:
+  - version: v7.2.0
+    pr-url: https://github.com/nodejs/node/pull/9398
+    description: This method now returns a reference to `decipher`.
 -->
 
 When using an authenticated encryption mode (only `GCM` is currently
@@ -338,6 +346,10 @@ Returns `this` for method chaining.
 ### decipher.setAuthTag(buffer)
 <!-- YAML
 added: v1.0.0
+changes:
+  - version: v7.2.0
+    pr-url: https://github.com/nodejs/node/pull/9398
+    description: This method now returns a reference to `decipher`.
 -->
 
 When using an authenticated encryption mode (only `GCM` is currently
@@ -368,6 +380,10 @@ Returns `this` for method chaining.
 ### decipher.update(data[, input_encoding][, output_encoding])
 <!-- YAML
 added: v0.1.94
+changes:
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/5522
+    description: The default `input_encoding` changed from `binary` to `utf8`.
 -->
 
 Updates the decipher with `data`. If the `input_encoding` argument is given,
@@ -548,6 +564,10 @@ assert.strictEqual(aliceSecret.toString('hex'), bobSecret.toString('hex'));
 ### ecdh.computeSecret(other_public_key[, input_encoding][, output_encoding])
 <!-- YAML
 added: v0.11.14
+changes:
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/5522
+    description: The default `input_encoding` changed from `binary` to `utf8`.
 -->
 
 Computes the shared secret using `other_public_key` as the other
@@ -731,6 +751,10 @@ called. Multiple calls will cause an error to be thrown.
 ### hash.update(data[, input_encoding])
 <!-- YAML
 added: v0.1.92
+changes:
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/5522
+    description: The default `input_encoding` changed from `binary` to `utf8`.
 -->
 
 Updates the hash content with the given `data`, the encoding of which
@@ -813,6 +837,10 @@ called. Multiple calls to `hmac.digest()` will result in an error being thrown.
 ### hmac.update(data[, input_encoding])
 <!-- YAML
 added: v0.1.94
+changes:
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/5522
+    description: The default `input_encoding` changed from `binary` to `utf8`.
 -->
 
 Updates the `Hmac` content with the given `data`, the encoding of which
@@ -914,6 +942,10 @@ called. Multiple calls to `sign.sign()` will result in an error being thrown.
 ### sign.update(data[, input_encoding])
 <!-- YAML
 added: v0.1.92
+changes:
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/5522
+    description: The default `input_encoding` changed from `binary` to `utf8`.
 -->
 
 Updates the `Sign` content with the given `data`, the encoding of which
@@ -972,6 +1004,10 @@ console.log(verify.verify(publicKey, signature));
 ### verifier.update(data[, input_encoding])
 <!-- YAML
 added: v0.1.92
+changes:
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/5522
+    description: The default `input_encoding` changed from `binary` to `utf8`.
 -->
 
 Updates the `Verify` content with the given `data`, the encoding of which
@@ -1133,6 +1169,11 @@ The `key` is the raw key used by the `algorithm` and `iv` is an
 ### crypto.createDiffieHellman(prime[, prime_encoding][, generator][, generator_encoding])
 <!-- YAML
 added: v0.11.12
+changes:
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/5522
+    description: The default for the encoding parameters changed
+                 from `binary` to `utf8`.
 -->
 
 Creates a `DiffieHellman` key exchange object using the supplied `prime` and an
@@ -1334,6 +1375,15 @@ console.log(hashes); // ['DSA', 'DSA-SHA', 'DSA-SHA1', ...]
 ### crypto.pbkdf2(password, salt, iterations, keylen, digest, callback)
 <!-- YAML
 added: v0.5.5
+changes:
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/4047
+    description: Calling this function without passing the `digest` parameter
+                 is deprecated now and will emit a warning.
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/5522
+    description: The default encoding for `password` if it is a string changed
+                 from `binary` to `utf8`.
 -->
 
 Provides an asynchronous Password-Based Key Derivation Function 2 (PBKDF2)
@@ -1369,6 +1419,15 @@ An array of supported digest functions can be retrieved using
 ### crypto.pbkdf2Sync(password, salt, iterations, keylen, digest)
 <!-- YAML
 added: v0.9.3
+changes:
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/4047
+    description: Calling this function without passing the `digest` parameter
+                 is deprecated now and will emit a warning.
+  - version: v6.0.0
+    pr-url: https://github.com/nodejs/node/pull/5522
+    description: The default encoding for `password` if it is a string changed
+                 from `binary` to `utf8`.
 -->
 
 Provides a synchronous Password-Based Key Derivation Function 2 (PBKDF2)
