@@ -21,7 +21,6 @@ if (cluster.isMaster) {
 
     worker.on('exit', fail);
 
-    // give node time to start up the debugger
     let socket = net.connect(debuggerPort + offset, () => {
       socket.end();
       worker.removeListener('exit', fail);
