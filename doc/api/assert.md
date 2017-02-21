@@ -30,6 +30,16 @@ assert(false, 'it\'s false');
 ## assert.deepEqual(actual, expected[, message])
 <!-- YAML
 added: v0.1.21
+changes:
+  - version: v6.4.0, v4.7.1
+    pr-url: https://github.com/nodejs/node/pull/8002
+    description: Typed array slices are handled correctly now.
+  - version: v6.1.0, v4.5.0
+    pr-url: https://github.com/nodejs/node/pull/6432
+    description: Objects with circular references can be used as inputs now.
+  - version: v5.10.1, v4.4.3
+    pr-url: https://github.com/nodejs/node/pull/5910
+    description: Handle non-`Uint8Array` typed arrays correctly.
 -->
 
 Tests for deep equality between the `actual` and `expected` parameters.
@@ -91,6 +101,16 @@ parameter is undefined, a default error message is assigned.
 ## assert.deepStrictEqual(actual, expected[, message])
 <!-- YAML
 added: v1.2.0
+changes:
+  - version: v6.4.0, v4.7.1
+    pr-url: https://github.com/nodejs/node/pull/8002
+    description: Typed array slices are handled correctly now.
+  - version: v6.1.0
+    pr-url: https://github.com/nodejs/node/pull/6432
+    description: Objects with circular references can be used as inputs now.
+  - version: v5.10.1, v4.4.3
+    pr-url: https://github.com/nodejs/node/pull/5910
+    description: Handle non-`Uint8Array` typed arrays correctly.
 -->
 
 Generally identical to `assert.deepEqual()` with two exceptions. First,
@@ -115,6 +135,13 @@ parameter is undefined, a default error message is assigned.
 ## assert.doesNotThrow(block[, error][, message])
 <!-- YAML
 added: v0.1.21
+changes:
+  - version: v5.11.0, v4.4.5
+    pr-url: https://github.com/nodejs/node/pull/2407
+    description: The `message` parameter is respected now.
+  - version: v4.2.0
+    pr-url: https://github.com/nodejs/node/pull/3276
+    description: The `error` parameter can now be an arrow function.
 -->
 
 Asserts that the function `block` does not throw an error. See
@@ -402,6 +429,10 @@ If the values are not strictly equal, an `AssertionError` is thrown with a
 ## assert.throws(block[, error][, message])
 <!-- YAML
 added: v0.1.21
+changes:
+  - version: v4.2.0
+    pr-url: https://github.com/nodejs/node/pull/3276
+    description: The `error` parameter can now be an arrow function.
 -->
 
 Expects the function `block` to throw an error.
