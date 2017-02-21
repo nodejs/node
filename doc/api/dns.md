@@ -65,6 +65,10 @@ resolution.
 ## dns.lookup(hostname[, options], callback)
 <!-- YAML
 added: v0.1.90
+changes:
+  - version: v1.2.0
+    pr-url: https://github.com/nodejs/node/pull/744
+    description: The `all` option is supported now.
 -->
 
 Resolves a hostname (e.g. `'nodejs.org'`) into the first found A (IPv4) or
@@ -198,6 +202,11 @@ one of the error codes listed [here](#dns_error_codes).
 ## dns.resolve4(hostname[, options], callback)
 <!-- YAML
 added: v0.1.16
+changes:
+  - version: v7.2.0
+    pr-url: https://github.com/nodejs/node/pull/9296
+    description: This method now supports passing `options`,
+                 specifically `options.ttl`.
 -->
 
 Uses the DNS protocol to resolve a IPv4 addresses (`A` records) for the
@@ -215,6 +224,11 @@ will contain an array of IPv4 addresses (e.g.
 ## dns.resolve6(hostname[, options], callback)
 <!-- YAML
 added: v0.1.16
+changes:
+  - version: v7.2.0
+    pr-url: https://github.com/nodejs/node/pull/9296
+    description: This method now supports passing `options`,
+                 specifically `options.ttl`.
 -->
 
 Uses the DNS protocol to resolve a IPv6 addresses (`AAAA` records) for the
