@@ -203,6 +203,14 @@ to detect application failures and recover or restart as needed.
 ### Event: 'unhandledRejection'
 <!-- YAML
 added: v1.4.1
+changes:
+  - version: v7.0.0
+    pr-url: https://github.com/nodejs/node/pull/8217
+    description: Not handling Promise rejections has been deprecated.
+  - version: v6.6.0
+    pr-url: https://github.com/nodejs/node/pull/8223
+    description: Unhandled Promise rejections have been will now emit
+                 a process warning.
 -->
 
 The `'unhandledRejection`' event is emitted whenever a `Promise` is rejected and
@@ -1143,6 +1151,10 @@ is no entry script.
 ## process.memoryUsage()
 <!-- YAML
 added: v0.1.16
+changes:
+  - version: v7.2.0
+    pr-url: https://github.com/nodejs/node/pull/9587
+    description: Added `external` to the returned object.
 -->
 
 * Returns: {Object}
@@ -1178,6 +1190,10 @@ objects managed by V8.
 ## process.nextTick(callback[, ...args])
 <!-- YAML
 added: v0.1.26
+changes:
+  - version: v1.8.1
+    pr-url: https://github.com/nodejs/node/pull/1077
+    description: Additional arguments after `callback` are now supported.
 -->
 
 * `callback` {Function}
@@ -1297,6 +1313,10 @@ console.log(`This platform is ${process.platform}`);
 ## process.release
 <!-- YAML
 added: v3.0.0
+changes:
+  - version: v4.2.0
+    pr-url: https://github.com/nodejs/node/pull/3212
+    description: The `lts` property is now supported.
 -->
 
 The `process.release` property returns an Object containing metadata related to
@@ -1659,6 +1679,10 @@ console.log(`Version: ${process.version}`);
 ## process.versions
 <!-- YAML
 added: v0.2.0
+changes:
+  - version: v4.2.0
+    pr-url: https://github.com/nodejs/node/pull/3102
+    description: The `icu` property is now supported.
 -->
 
 * {Object}
