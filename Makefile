@@ -11,6 +11,7 @@ STAGINGSERVER ?= node-www
 LOGLEVEL ?= silent
 OSTYPE := $(shell uname -s | tr '[A-Z]' '[a-z]')
 COVTESTS ?= test
+GTEST_FILTER ?= "*"
 
 ifdef JOBS
   PARALLEL_ARGS = -j $(JOBS)
@@ -178,7 +179,13 @@ coverage-test: coverage-build
 		| sed 's/<[^>]*>//g'| sed 's/ //g'
 
 cctest: all
-	@out/$(BUILDTYPE)/$@
+	@out/$(BUILDTYPE)/$@ --gtest_filter=$(GTEST_FILTER)
+
+list-gtests:
+ifeq (,$(wildcard out/$(BUILDTYPE)/cctest))
+	$(error Please run 'make cctest' first)
+endif
+	@out/$(BUILDTYPE)/cctest --gtest_list_tests
 
 v8:
 	tools/make-v8.sh
@@ -846,4 +853,4 @@ endif
 	bench-http bench-fs bench-tls cctest run-ci test-v8 test-v8-intl \
 	test-v8-benchmarks test-v8-all v8 lint-ci bench-ci jslint-ci doc-only \
 	$(TARBALL)-headers test-ci test-ci-native test-ci-js build-ci clear-stalled \
-	coverage-clean coverage-build coverage-test coverage
+	coverage-clean coverage-build coverage-test coverage list-gtests
