@@ -43,6 +43,10 @@ The output of this option is less detailed than this document.
 ### `-e`, `--eval "script"`
 <!-- YAML
 added: v0.5.2
+changes:
+  - version: v5.11.0
+    pr-url: https://github.com/nodejs/node/pull/5348
+    description: Built-in libraries are now available as predefined variables.
 -->
 
 Evaluate the following argument as JavaScript. The modules which are
@@ -52,6 +56,10 @@ predefined in the REPL can also be used in `script`.
 ### `-p`, `--print "script"`
 <!-- YAML
 added: v0.6.4
+changes:
+  - version: v5.11.0
+    pr-url: https://github.com/nodejs/node/pull/5348
+    description: Built-in libraries are now available as predefined variables.
 -->
 
 Identical to `-e` but prints the result.
@@ -59,7 +67,9 @@ Identical to `-e` but prints the result.
 
 ### `-c`, `--check`
 <!-- YAML
-added: v5.0.0
+added:
+  - v5.0.0
+  - v4.2.0
 -->
 
 Syntax check the script without executing.
