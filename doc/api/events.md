@@ -222,6 +222,11 @@ myEmitter.emit('event');
 ### Event: 'removeListener'
 <!-- YAML
 added: v0.9.3
+changes:
+  - version: v6.1.0, v4.7.0
+    pr-url: https://github.com/nodejs/node/pull/6394
+    description: For listeners attached using `.once()`, the `listener` argument
+                 now yields the original listener function.
 -->
 
 * `eventName` {String|Symbol} The event name
@@ -347,6 +352,11 @@ Returns the number of listeners listening to the event named `eventName`.
 ### emitter.listeners(eventName)
 <!-- YAML
 added: v0.1.26
+changes:
+  - version: v7.0.0
+    pr-url: https://github.com/nodejs/node/pull/6881
+    description: For listeners attached using `.once()` this returns the
+                 original listeners instead of wrapper functions now.
 -->
 
 Returns a copy of the array of listeners for the event named `eventName`.
