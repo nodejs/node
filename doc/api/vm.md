@@ -25,6 +25,11 @@ executed in specific sandboxes (or "contexts").
 ### new vm.Script(code, options)
 <!-- YAML
 added: v0.3.1
+changes:
+  - version: v5.7.0
+    pr-url: https://github.com/nodejs/node/pull/4777
+    description: The `cachedData` and `produceCachedData` options are
+                 supported now.
 -->
 
 * `code` {string} The JavaScript code to compile.
@@ -60,6 +65,10 @@ each run, just for that run.
 ### script.runInContext(contextifiedSandbox[, options])
 <!-- YAML
 added: v0.3.1
+changes:
+  - version: v6.3.0
+    pr-url: https://github.com/nodejs/node/pull/6635
+    description: The `breakOnSigint` option is supported now.
 -->
 
 * `contextifiedSandbox` {Object} A [contextified][] object as returned by the
