@@ -5,6 +5,11 @@ const vm = require('vm');
 
 const spawn = require('child_process').spawn;
 
+const methods = [
+  'runInThisContext',
+  'runInContext'
+];
+
 if (common.isWindows) {
   // No way to send CTRL_C_EVENT to processes from JS right now.
   common.skip('platform not supported');
@@ -12,8 +17,8 @@ if (common.isWindows) {
 }
 
 if (process.argv[2] === 'child') {
-  const parent = +process.env.REPL_TEST_PPID;
-  assert.ok(parent);
+  const method = process.argv[3];
+  assert.ok(method);
 
   let firstHandlerCalled = 0;
   process.on('SIGINT', common.mustCall(() => {
@@ -27,12 +32,14 @@ if (process.argv[2] === 'child') {
     // Handler attached _before_ execution.
   }));
 
-  assert.throws(() => {
-    vm.runInThisContext(`process.kill(${parent}, 'SIGUSR2'); while(true) {}`, {
-      breakOnSigint: true
-    });
-  }, /Script execution interrupted/);
+  const script = `process.send('${method}'); while(true) {}`;
+  const args = method === 'runInContext' ?
+                          [vm.createContext({ process })] :
+                          [];
+  const options = { breakOnSigint: true };
 
+  assert.throws(() => { vm[method](script, ...args, options); },
+                /^Error: Script execution interrupted\.$/);
   assert.strictEqual(firstHandlerCalled, 0);
   assert.strictEqual(onceHandlerCalled, 0);
 
@@ -46,7 +53,9 @@ if (process.argv[2] === 'child') {
     if (afterHandlerCalled++ === 0) {
       // The first time it just bounces back to check that the `once()`
       // handler is not called the second time.
-      process.kill(parent, 'SIGUSR2');
+      assert.strictEqual(firstHandlerCalled, 1);
+      assert.strictEqual(onceHandlerCalled, 1);
+      process.send(method);
       return;
     }
 
@@ -55,26 +64,24 @@ if (process.argv[2] === 'child') {
     timeout.unref();
   }, 2));
 
-  process.kill(parent, 'SIGUSR2');
+  process.send(method);
 
   return;
 }
 
-process.env.REPL_TEST_PPID = process.pid;
+for (const method of methods) {
+  const child = spawn(process.execPath, [__filename, 'child', method], {
+    stdio: [null, 'inherit', 'inherit', 'ipc']
+  });
 
-// Set the `SIGUSR2` handler before spawning the child process to make sure
-// the signal is always handled.
-process.on('SIGUSR2', common.mustCall(() => {
-  // First kill() breaks the while(true) loop, second one invokes the real
-  // signal handlers.
-  process.kill(child.pid, 'SIGINT');
-}, 3));
+  child.on('message', common.mustCall(() => {
+    // First kill() breaks the while(true) loop, second one invokes the real
+    // signal handlers.
+    process.kill(child.pid, 'SIGINT');
+  }, 3));
 
-const child = spawn(process.execPath, [__filename, 'child'], {
-  stdio: [null, 'inherit', 'inherit']
-});
-
-child.on('close', function(code, signal) {
-  assert.strictEqual(signal, null);
-  assert.strictEqual(code, 0);
-});
+  child.on('close', common.mustCall((code, signal) => {
+    assert.strictEqual(signal, null);
+    assert.strictEqual(code, 0);
+  }));
+}
