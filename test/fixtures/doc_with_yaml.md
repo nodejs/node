@@ -18,7 +18,7 @@ changes:
     description: The `error` parameter can now be an arrow function.
 -->
 
-Describe `Foobar II` in more detail here.
+Describe `Foobar II` in more detail here. fg(1)
 
 ## Deprecated thingy
 <!-- YAML
@@ -26,7 +26,7 @@ added: v1.0.0
 deprecated: v2.0.0
 -->
 
-Describe `Deprecated thingy` in more detail here.
+Describe `Deprecated thingy` in more detail here. fg(1p)
 
 ## Something
 <!-- This is not a metadata comment -->

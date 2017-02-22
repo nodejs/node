@@ -111,7 +111,7 @@ const testData = [
                 ]
               },
               desc: '<p>Describe <code>Foobar II</code> in more detail ' +
-                'here.</p>\n',
+                'here. fg(1)</p>\n',
               type: 'module',
               displayName: 'Foobar II'
             },
@@ -124,7 +124,7 @@ const testData = [
                 changes: []
               },
               desc: '<p>Describe <code>Deprecated thingy</code> in more ' +
-                'detail here.</p>\n',
+                'detail here. fg(1p)</p>\n',
               type: 'module',
               displayName: 'Deprecated thingy'
             },
