@@ -5,9 +5,6 @@ const debug = require('_debug_agent');
 
 assert.throws(
   () => { debug.start(); },
-  common.expectsError(
-    undefined,
-    assert.AssertionError,
-    'Debugger agent running without bindings!'
-  )
+  common.expectsError({ type: assert.AssertionError,
+                        message: 'Debugger agent running without bindings!' })
 );

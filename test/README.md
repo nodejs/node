@@ -187,16 +187,18 @@ Platform normalizes the `dd` command
 
 Check if there is more than 1gb of total memory.
 
-### expectsError(code[, type[, message]])
-* `code` [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
-  expected error must have this value for its `code` property
-* `type` [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function)
-  expected error must be an instance of `type`
-* `message` [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
-  or [&lt;RegExp>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp)
-  if a string is provided for `message`, expected error must have it for its
-  `message` property; if a regular expression is provided for `message`, the
-  regular expression must match the `message` property of the expected error
+### expectsError(settings)
+* `settings` [&lt;Object>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
+  with the following optional properties:
+  * `code` [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
+    expected error must have this value for its `code` property
+  * `type` [&lt;Function>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function)
+    expected error must be an instance of `type`
+  * `message` [&lt;String>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Data_structures#String_type)
+    or [&lt;RegExp>](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp)
+    if a string is provided for `message`, expected error must have it for its
+    `message` property; if a regular expression is provided for `message`, the
+    regular expression must match the `message` property of the expected error
 
 * return function suitable for use as a validation function passed as the second
   argument to `assert.throws()`
