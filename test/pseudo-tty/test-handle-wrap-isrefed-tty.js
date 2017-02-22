@@ -4,24 +4,20 @@
 
 const common = require('../common');
 const strictEqual = require('assert').strictEqual;
-
-function makeAssert(message) {
-  return function(actual, expected) {
-    strictEqual(actual, expected, message);
-  };
-}
-
-const assert = makeAssert('hasRef() not working on tty_wrap');
-
 const ReadStream = require('tty').ReadStream;
 const tty = new ReadStream(0);
 const isTTY = process.binding('tty_wrap').isTTY;
-assert(isTTY(0), true);
-assert(Object.getPrototypeOf(tty._handle).hasOwnProperty('hasRef'), true);
-assert(tty._handle.hasRef(), true);
+strictEqual(isTTY(0), true, 'tty_wrap: stdin is not a TTY');
+strictEqual(Object.getPrototypeOf(tty._handle).hasOwnProperty('hasRef'),
+            true, 'tty_wrap: hasRef() missing');
+strictEqual(tty._handle.hasRef(),
+            true, 'tty_wrap: not initially refed');
 tty.unref();
-assert(tty._handle.hasRef(), false);
+strictEqual(tty._handle.hasRef(),
+            false, 'tty_wrap: unref() ineffective');
 tty.ref();
-assert(tty._handle.hasRef(), true);
-tty._handle.close(
-    common.mustCall(() => assert(tty._handle.hasRef(), false)));
+strictEqual(tty._handle.hasRef(),
+            true, 'tty_wrap: ref() ineffective');
+tty._handle.close(common.mustCall(() =>
+    strictEqual(tty._handle.hasRef(),
+                false, 'tty_wrap: not unrefed on close')));
