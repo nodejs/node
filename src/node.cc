@@ -2290,25 +2290,22 @@ void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
     return env->ThrowUVException(err, "uv_resident_set_memory");
   }
 
+  Isolate* isolate = env->isolate();
   // V8 memory usage
   HeapStatistics v8_heap_stats;
-  env->isolate()->GetHeapStatistics(&v8_heap_stats);
+  isolate->GetHeapStatistics(&v8_heap_stats);
 
-  Local<Number> heap_total =
-      Number::New(env->isolate(), v8_heap_stats.total_heap_size());
-  Local<Number> heap_used =
-      Number::New(env->isolate(), v8_heap_stats.used_heap_size());
-  Local<Number> external_mem =
-      Number::New(env->isolate(),
-                  env->isolate()->AdjustAmountOfExternalAllocatedMemory(0));
+  // Get the double array pointer from the Float64Array argument.
+  CHECK(args[0]->IsFloat64Array());
+  Local<Float64Array> array = args[0].As<Float64Array>();
+  CHECK_EQ(array->Length(), 4);
+  Local<ArrayBuffer> ab = array->Buffer();
+  double* fields = static_cast<double*>(ab->GetContents().Data());
 
-  Local<Object> info = Object::New(env->isolate());
-  info->Set(env->rss_string(), Number::New(env->isolate(), rss));
-  info->Set(env->heap_total_string(), heap_total);
-  info->Set(env->heap_used_string(), heap_used);
-  info->Set(env->external_string(), external_mem);
-
-  args.GetReturnValue().Set(info);
+  fields[0] = rss;
+  fields[1] = v8_heap_stats.total_heap_size();
+  fields[2] = v8_heap_stats.used_heap_size();
+  fields[3] = isolate->AdjustAmountOfExternalAllocatedMemory(0);
 }
 
 
