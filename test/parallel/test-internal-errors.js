@@ -82,35 +82,39 @@ assert.throws(
 assert.doesNotThrow(() => {
   assert.throws(() => {
     throw new errors.TypeError('TEST_ERROR_1', 'a');
-  }, common.expectsError('TEST_ERROR_1'));
+  }, common.expectsError({ code: 'TEST_ERROR_1' }));
 });
 
 assert.doesNotThrow(() => {
   assert.throws(() => {
     throw new errors.TypeError('TEST_ERROR_1', 'a');
-  }, common.expectsError('TEST_ERROR_1', TypeError, /^Error for testing/));
+  }, common.expectsError({ code: 'TEST_ERROR_1',
+                           type: TypeError,
+                           message: /^Error for testing/ }));
 });
 
 assert.doesNotThrow(() => {
   assert.throws(() => {
     throw new errors.TypeError('TEST_ERROR_1', 'a');
-  }, common.expectsError('TEST_ERROR_1', TypeError));
+  }, common.expectsError({ code: 'TEST_ERROR_1', type: TypeError }));
 });
 
 assert.doesNotThrow(() => {
   assert.throws(() => {
     throw new errors.TypeError('TEST_ERROR_1', 'a');
-  }, common.expectsError('TEST_ERROR_1', Error));
+  }, common.expectsError({ code: 'TEST_ERROR_1', type: Error }));
 });
 
 assert.throws(() => {
   assert.throws(() => {
     throw new errors.TypeError('TEST_ERROR_1', 'a');
-  }, common.expectsError('TEST_ERROR_1', RangeError));
+  }, common.expectsError({ code: 'TEST_ERROR_1', type: RangeError }));
 }, /^AssertionError: .+ is not the expected type \S/);
 
 assert.throws(() => {
   assert.throws(() => {
     throw new errors.TypeError('TEST_ERROR_1', 'a');
-  }, common.expectsError('TEST_ERROR_1', TypeError, /^Error for testing 2/));
+  }, common.expectsError({ code: 'TEST_ERROR_1',
+                           type: TypeError,
+                           message: /^Error for testing 2/ }));
 }, /AssertionError: .+ does not match \S/);
