@@ -52,6 +52,10 @@ function test() {
   assert.strictEqual(fooModule.dep1.bar.version, 'CORRECT_VERSION');
   assert.strictEqual(fooModule.dep2.bar.version, 'CORRECT_VERSION');
 
+  // make sure same realpath load once
+  assert(require(linkTarget) === fooModule.dep2);
+  assert(require(linkTarget) === require(linkDir));
+
   // load symlinked-script as main
   const node = process.execPath;
   const child = spawn(node, ['--preserve-symlinks', linkScript]);
