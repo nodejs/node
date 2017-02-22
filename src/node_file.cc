@@ -997,16 +997,25 @@ static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->IsInt32())
     return env->ThrowTypeError("First argument must be file descriptor");
 
-  CHECK(Buffer::HasInstance(args[1]));
+  CHECK(Buffer::HasInstance(args[1]) || args[1]->IsArrayBuffer());
 
   int fd = args[0]->Int32Value();
-  Local<Object> obj = args[1].As<Object>();
-  const char* buf = Buffer::Data(obj);
-  size_t buffer_length = Buffer::Length(obj);
-  size_t off = args[2]->Uint32Value();
-  size_t len = args[3]->Uint32Value();
+  size_t off = args[2]->IntegerValue();
+  size_t len = args[3]->IntegerValue();
   int64_t pos = GET_OFFSET(args[4]);
   Local<Value> req = args[5];
+  char* buf;
+  size_t buffer_length;
+
+  if (args[1]->IsArrayBuffer()) {
+    auto contents = args[1].As<ArrayBuffer>()->GetContents();
+    buf = reinterpret_cast<char*>(contents.Data());
+    buffer_length = contents.ByteLength();
+  } else {
+    Local<Object> obj = args[1].As<Object>();
+    buf = Buffer::Data(obj);
+    buffer_length = Buffer::Length(obj);
+  }
 
   if (off > buffer_length)
     return env->ThrowRangeError("offset out of bounds");
@@ -1020,6 +1029,9 @@ static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   buf += off;
 
   uv_buf_t uvbuf = uv_buf_init(const_cast<char*>(buf), len);
+  // Compensate for a bug in libuv where uvbuf.len is truncated at 0x80000000.
+  // Issue ref: https://github.com/libuv/libuv/issues/1233
+  uvbuf.len = len;
 
   if (req->IsObject()) {
     ASYNC_CALL(write, req, UTF8, fd, &uvbuf, 1, pos)
@@ -1162,8 +1174,8 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
     return TYPE_ERROR("fd and buffer are required");
   if (!args[0]->IsInt32())
     return TYPE_ERROR("fd must be a file descriptor");
-  if (!Buffer::HasInstance(args[1]))
-    return TYPE_ERROR("Second argument needs to be a buffer");
+  if (!Buffer::HasInstance(args[1]) && !args[1]->IsArrayBuffer())
+    return TYPE_ERROR("Second argument needs to be a buffer or ArrayBuffer");
 
   int fd = args[0]->Int32Value();
 
@@ -1172,18 +1184,26 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
   size_t len;
   int64_t pos;
 
-  char * buf = nullptr;
+  char* buf = nullptr;
+  char* buffer_data;
+  size_t buffer_length;
 
-  Local<Object> buffer_obj = args[1]->ToObject(env->isolate());
-  char *buffer_data = Buffer::Data(buffer_obj);
-  size_t buffer_length = Buffer::Length(buffer_obj);
+  if (args[1]->IsArrayBuffer()) {
+    auto contents = args[1].As<ArrayBuffer>()->GetContents();
+    buffer_data = reinterpret_cast<char*>(contents.Data());
+    buffer_length = contents.ByteLength();
+  } else {
+    Local<Object> buffer_obj = args[1]->ToObject(env->isolate());
+    buffer_data = Buffer::Data(buffer_obj);
+    buffer_length = Buffer::Length(buffer_obj);
+  }
 
-  size_t off = args[2]->Int32Value();
+  size_t off = args[2]->IntegerValue();
   if (off >= buffer_length) {
     return env->ThrowError("Offset is out of bounds");
   }
 
-  len = args[3]->Int32Value();
+  len = args[3]->IntegerValue();
   if (!Buffer::IsWithinBounds(off, len, buffer_length))
     return env->ThrowRangeError("Length extends beyond buffer");
 
@@ -1192,6 +1212,9 @@ static void Read(const FunctionCallbackInfo<Value>& args) {
   buf = buffer_data + off;
 
   uv_buf_t uvbuf = uv_buf_init(const_cast<char*>(buf), len);
+  // Compensate for a bug in libuv where uvbuf.len is truncated at 0x80000000.
+  // Issue ref: https://github.com/libuv/libuv/issues/1233
+  uvbuf.len = len;
 
   req = args[5];
 
