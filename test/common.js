@@ -625,7 +625,7 @@ exports.WPT = {
 };
 
 // Useful for testing expected internal/error objects
-exports.expectsError = function expectsError(code, type, message) {
+exports.expectsError = function expectsError({code, type, message}) {
   return function(error) {
     assert.strictEqual(error.code, code);
     if (type !== undefined)
