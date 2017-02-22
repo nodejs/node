@@ -562,6 +562,17 @@ found [here][online].
   the connected party did not properly respond after a period of time. Usually
   encountered by [`http`][] or [`net`][] -- often a sign that a `socket.end()`
   was not properly called.
+  
+<a id="nodejs-error-codes"></a>
+## Node.js Error Codes
+
+<a id="ERR_INVALID_PORT"></a>
+### ERR_INVALID_PORT
+
+An error using the `'ERR_INVALID_PORT'` code is thrown specifically when an attempt 
+is made to provide a network port which is not in the range of valid port numbers 
+(0-65535)
+
 
 [`fs.readdir`]: fs.html#fs_fs_readdir_path_options_callback
 [`fs.readFileSync`]: fs.html#fs_fs_readfilesync_file_options
@@ -575,6 +586,7 @@ found [here][online].
 [domains]: domain.html
 [event emitter-based]: events.html#events_class_eventemitter
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
+[Node.js Error Codes]: #nodejs-error-codes
 [online]: http://man7.org/linux/man-pages/man3/errno.3.html
 [stream-based]: stream.html
 [syscall]: http://man7.org/linux/man-pages/man2/syscall.2.html
