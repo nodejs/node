@@ -290,16 +290,15 @@ var BSD_ONLY_SYSCALLS = new Set(['lchmod']);
 function linkManPages(text) {
   return text.replace(
     / ([a-z.]+)\((\d)([a-z]?)\)/gm,
-    function(match, name, number, optionalCharacter) {
+    (match, name, number, optionalCharacter) => {
       // name consists of lowercase letters, number is a single digit
-      var displayAs = name + '(' + number + optionalCharacter + ')';
+      var displayAs = `${name}(${number}${optionalCharacter})`;
       if (BSD_ONLY_SYSCALLS.has(name)) {
-        return ' <a href="https://www.freebsd.org/cgi/man.cgi?query=' + name +
-               '&sektion=' + number + '">' + displayAs + '</a>';
+        return ` <a href="https://www.freebsd.org/cgi/man.cgi?query=${name}` +
+          `&sektion=${number}">${displayAs}</a>`;
       } else {
-        return ' <a href="http://man7.org/linux/man-pages/man' + number +
-               '/' + name + '.' + (number + optionalCharacter) + '.html">' +
-               displayAs + '</a>';
+        return ` <a href="http://man7.org/linux/man-pages/man${number}` +
+          `/${name}.${number}${optionalCharacter}.html">${displayAs}</a>`;
       }
     });
 }
