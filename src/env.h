@@ -227,24 +227,6 @@ namespace node {
   V(write_queue_size_string, "writeQueueSize")                                \
   V(x_forwarded_string, "x-forwarded-for")                                    \
   V(zero_return_string, "ZERO_RETURN")                                        \
-  V(user_cpu_time_used_sec, "userCpuTimeUsedSec")                             \
-  V(user_cpu_time_used_ms, "userCpuTimeUsedMs")                               \
-  V(system_cpu_time_used_sec, "systemCpuTimeUsedSec")                         \
-  V(system_cpu_time_used_ms, "systemCpuTimeUsedMs")                           \
-  V(max_resident_set_size, "maxResidentSetSize")                              \
-  V(integral_shared_mem_size, "integralSharedMemorySize")                     \
-  V(integral_unshared_data_size, "integralUnsharedDataSize")                  \
-  V(integral_unshared_stack_size, "integralUnsharedStackSize")                \
-  V(page_reclaims, "pageReclaims")                                            \
-  V(page_faults, "pageFaults")                                                \
-  V(swaps, "swaps")                                                           \
-  V(block_input_operations, "blockInputOperations")                           \
-  V(block_output_operations, "blockOutputOperations")                         \
-  V(ipc_messages_sent, "ipcMessagesSent")                                     \
-  V(ipc_messages_received, "ipcMessagesReceived")                             \
-  V(signals_received, "signalsReceived")                                      \
-  V(voluntary_context_switches, "voluntaryContextSwitches")                   \
-  V(involuntary_context_switches, "involuntaryContextSwitches")               \
 
 #define ENVIRONMENT_STRONG_PERSISTENT_PROPERTIES(V)                           \
   V(as_external, v8::External)                                                \
