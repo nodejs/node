@@ -5,6 +5,11 @@ const vm = require('vm');
 
 const spawn = require('child_process').spawn;
 
+const methods = [
+  'runInThisContext',
+  'runInContext'
+];
+
 if (common.isWindows) {
   // No way to send CTRL_C_EVENT to processes from JS right now.
   common.skip('platform not supported');
@@ -12,31 +17,32 @@ if (common.isWindows) {
 }
 
 if (process.argv[2] === 'child') {
-  const parent = +process.env.REPL_TEST_PPID;
-  assert.ok(parent);
+  const method = process.argv[3];
+  assert.ok(method);
 
-  assert.throws(() => {
-    vm.runInThisContext(`process.kill(${parent}, "SIGUSR2"); while(true) {}`, {
-      breakOnSigint: true
-    });
-  }, /Script execution interrupted/);
+  const script = `process.send('${method}'); while(true) {}`;
+  const args = method === 'runInContext' ?
+                          [vm.createContext({ process })] :
+                          [];
+  const options = { breakOnSigint: true };
+
+  assert.throws(() => { vm[method](script, ...args, options); },
+                /^Error: Script execution interrupted\.$/);
 
   return;
 }
 
-process.env.REPL_TEST_PPID = process.pid;
+for (const method of methods) {
+  const child = spawn(process.execPath, [__filename, 'child', method], {
+    stdio: [null, 'pipe', 'inherit', 'ipc']
+  });
 
-// Set the `SIGUSR2` handler before spawning the child process to make sure
-// the signal is always handled.
-process.on('SIGUSR2', common.mustCall(() => {
-  process.kill(child.pid, 'SIGINT');
-}));
+  child.on('message', common.mustCall(() => {
+    process.kill(child.pid, 'SIGINT');
+  }));
 
-const child = spawn(process.execPath, [__filename, 'child'], {
-  stdio: [null, 'pipe', 'inherit']
-});
-
-child.on('close', common.mustCall((code, signal) => {
-  assert.strictEqual(signal, null);
-  assert.strictEqual(code, 0);
-}));
+  child.on('close', common.mustCall((code, signal) => {
+    assert.strictEqual(signal, null);
+    assert.strictEqual(code, 0);
+  }));
+}
