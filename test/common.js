@@ -234,9 +234,8 @@ exports.ddCommand = function(filename, kilobytes) {
     const p = path.resolve(exports.fixturesDir, 'create-file.js');
     return '"' + process.argv[0] + '" "' + p + '" "' +
            filename + '" ' + (kilobytes * 1024);
-  } else {
-    return 'dd if=/dev/zero of="' + filename + '" bs=1024 count=' + kilobytes;
   }
+  return 'dd if=/dev/zero of="' + filename + '" bs=1024 count=' + kilobytes;
 };
 
 
@@ -245,9 +244,8 @@ exports.spawnCat = function(options) {
 
   if (exports.isWindows) {
     return spawn('more', [], options);
-  } else {
-    return spawn('cat', [], options);
   }
+  return spawn('cat', [], options);
 };
 
 
@@ -256,9 +254,8 @@ exports.spawnSyncCat = function(options) {
 
   if (exports.isWindows) {
     return spawnSync('more', [], options);
-  } else {
-    return spawnSync('cat', [], options);
   }
+  return spawnSync('cat', [], options);
 };
 
 
@@ -267,9 +264,8 @@ exports.spawnPwd = function(options) {
 
   if (exports.isWindows) {
     return spawn('cmd.exe', ['/d', '/c', 'cd'], options);
-  } else {
-    return spawn('pwd', [], options);
   }
+  return spawn('pwd', [], options);
 };
 
 
@@ -278,9 +274,8 @@ exports.spawnSyncPwd = function(options) {
 
   if (exports.isWindows) {
     return spawnSync('cmd.exe', ['/d', '/c', 'cd'], options);
-  } else {
-    return spawnSync('pwd', [], options);
   }
+  return spawnSync('pwd', [], options);
 };
 
 exports.platformTimeout = function(ms) {
@@ -560,9 +555,8 @@ exports.nodeProcessAborted = function nodeProcessAborted(exitCode, signal) {
   // the expected exit codes or signals.
   if (signal !== null) {
     return expectedSignals.includes(signal);
-  } else {
-    return expectedExitCodes.includes(exitCode);
   }
+  return expectedExitCodes.includes(exitCode);
 };
 
 exports.busyLoop = function busyLoop(time) {

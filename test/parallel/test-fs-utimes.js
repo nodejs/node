@@ -10,11 +10,10 @@ let tests_run = 0;
 function stat_resource(resource) {
   if (typeof resource === 'string') {
     return fs.statSync(resource);
-  } else {
-    // ensure mtime has been written to disk
-    fs.fsyncSync(resource);
-    return fs.fstatSync(resource);
   }
+  // ensure mtime has been written to disk
+  fs.fsyncSync(resource);
+  return fs.fstatSync(resource);
 }
 
 function check_mtime(resource, mtime) {

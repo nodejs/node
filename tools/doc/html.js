@@ -294,10 +294,9 @@ function linkManPages(text) {
     if (BSD_ONLY_SYSCALLS.has(name)) {
       return ' <a href="https://www.freebsd.org/cgi/man.cgi?query=' + name +
              '&sektion=' + number + '">' + displayAs + '</a>';
-    } else {
-      return ' <a href="http://man7.org/linux/man-pages/man' + number +
-             '/' + name + '.' + number + '.html">' + displayAs + '</a>';
     }
+    return ' <a href="http://man7.org/linux/man-pages/man' + number +
+             '/' + name + '.' + number + '.html">' + displayAs + '</a>';
   });
 }
 

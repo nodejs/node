@@ -30,9 +30,8 @@ if (common.isWindows) {
     if (err || !o.includes('SeCreateSymbolicLinkPrivilege')) {
       common.skip('insufficient privileges');
       return;
-    } else {
-      test();
     }
+    test();
   });
 } else {
   test();

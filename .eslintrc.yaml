@@ -34,6 +34,7 @@ rules:
   # Best Practices
   # http://eslint.org/docs/rules/#best-practices
   dot-location: [2, property]
+  no-else-return: 2
   no-fallthrough: 2
   no-global-assign: 2
   no-multi-spaces: 2

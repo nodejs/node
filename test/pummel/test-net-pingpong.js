@@ -67,9 +67,8 @@ function pingPongTest(port, host, on_complete) {
       if (sent_final_ping) {
         assert.strictEqual('readOnly', client.readyState);
         return;
-      } else {
-        assert.strictEqual('open', client.readyState);
       }
+      assert.strictEqual('open', client.readyState);
 
       if (count < N) {
         client.write('PING');

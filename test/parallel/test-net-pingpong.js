@@ -79,10 +79,9 @@ function pingPongTest(port, host) {
         assert.strictEqual(client.writable, false);
         assert.strictEqual(client.readable, true);
         return;
-      } else {
-        assert.strictEqual(client.writable, true);
-        assert.strictEqual(client.readable, true);
       }
+      assert.strictEqual(client.writable, true);
+      assert.strictEqual(client.readable, true);
 
       if (count < N) {
         client.write('PING');
