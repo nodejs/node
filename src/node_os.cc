@@ -28,8 +28,10 @@ namespace node {
 namespace os {
 
 using v8::Array;
+using v8::ArrayBuffer;
 using v8::Boolean;
 using v8::Context;
+using v8::Float64Array;
 using v8::FunctionCallbackInfo;
 using v8::Integer;
 using v8::Local;
@@ -182,14 +184,12 @@ static void GetUptime(const FunctionCallbackInfo<Value>& args) {
 
 
 static void GetLoadAvg(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  double loadavg[3];
+  CHECK(args[0]->IsFloat64Array());
+  Local<Float64Array> array = args[0].As<Float64Array>();
+  CHECK_EQ(array->Length(), 3);
+  Local<ArrayBuffer> ab = array->Buffer();
+  double* loadavg = static_cast<double*>(ab->GetContents().Data());
   uv_loadavg(loadavg);
-  Local<Array> loads = Array::New(env->isolate(), 3);
-  loads->Set(0, Number::New(env->isolate(), loadavg[0]));
-  loads->Set(1, Number::New(env->isolate(), loadavg[1]));
-  loads->Set(2, Number::New(env->isolate(), loadavg[2]));
-  args.GetReturnValue().Set(loads);
 }
 
 
