@@ -331,13 +331,13 @@ class MaybeStackBuffer {
   }
 
   void SetLength(size_t length) {
-    // capacity_ stores how much memory was allocated.
+    // capacity() returns how much memory is actually available.
     CHECK_LE(length, capacity());
     length_ = length;
   }
 
   void SetLengthAndZeroTerminate(size_t length) {
-    // length_ stores how much memory was allocated.
+    // capacity() returns how much memory is actually available.
     CHECK_LE(length + 1, capacity());
     SetLength(length);
 
