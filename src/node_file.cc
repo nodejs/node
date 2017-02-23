@@ -27,8 +27,10 @@
 namespace node {
 
 using v8::Array;
+using v8::ArrayBuffer;
 using v8::Context;
 using v8::EscapableHandleScope;
+using v8::Float64Array;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -528,6 +530,37 @@ Local<Value> BuildStatsObject(Environment* env, const uv_stat_t* s) {
   return handle_scope.Escape(stats);
 }
 
+void FillStatsArray(double* fields, const uv_stat_t* s) {
+  fields[0] = s->st_dev;
+  fields[1] = s->st_mode;
+  fields[2] = s->st_nlink;
+  fields[3] = s->st_uid;
+  fields[4] = s->st_gid;
+  fields[5] = s->st_rdev;
+#if defined(__POSIX__)
+  fields[6] = s->st_blksize;
+#else
+  fields[6] = -1;
+#endif
+  fields[7] = s->st_ino;
+  fields[8] = s->st_size;
+#if defined(__POSIX__)
+  fields[9] = s->st_blocks;
+#else
+  fields[9] = -1;
+#endif
+  // Dates.
+#define X(idx, name)                                                          \
+  fields[idx] = (static_cast<double>(s->st_##name.tv_sec) * 1000) +           \
+                (static_cast<double>(s->st_##name.tv_nsec / 1000000));        \
+
+  X(10, atim)
+  X(11, mtim)
+  X(12, ctim)
+  X(13, birthtim)
+#undef X
+}
+
 // Used to speed up module loading.  Returns the contents of the file as
 // a string or undefined when the file cannot be opened.  The speedup
 // comes from not creating Error objects on failure.
@@ -618,12 +651,15 @@ static void Stat(const FunctionCallbackInfo<Value>& args) {
   BufferValue path(env->isolate(), args[0]);
   ASSERT_PATH(path)
 
-  if (args[1]->IsObject()) {
-    ASYNC_CALL(stat, args[1], UTF8, *path)
-  } else {
+  if (args[1]->IsFloat64Array()) {
+    Local<Float64Array> array = args[1].As<Float64Array>();
+    CHECK_EQ(array->Length(), 14);
+    Local<ArrayBuffer> ab = array->Buffer();
+    double* fields = static_cast<double*>(ab->GetContents().Data());
     SYNC_CALL(stat, *path, *path)
-    args.GetReturnValue().Set(
-        BuildStatsObject(env, static_cast<const uv_stat_t*>(SYNC_REQ.ptr)));
+    FillStatsArray(fields, static_cast<const uv_stat_t*>(SYNC_REQ.ptr));
+  } else if (args[1]->IsObject()) {
+    ASYNC_CALL(stat, args[1], UTF8, *path)
   }
 }
 
@@ -636,12 +672,15 @@ static void LStat(const FunctionCallbackInfo<Value>& args) {
   BufferValue path(env->isolate(), args[0]);
   ASSERT_PATH(path)
 
-  if (args[1]->IsObject()) {
-    ASYNC_CALL(lstat, args[1], UTF8, *path)
-  } else {
+  if (args[1]->IsFloat64Array()) {
+    Local<Float64Array> array = args[1].As<Float64Array>();
+    CHECK_EQ(array->Length(), 14);
+    Local<ArrayBuffer> ab = array->Buffer();
+    double* fields = static_cast<double*>(ab->GetContents().Data());
     SYNC_CALL(lstat, *path, *path)
-    args.GetReturnValue().Set(
-        BuildStatsObject(env, static_cast<const uv_stat_t*>(SYNC_REQ.ptr)));
+    FillStatsArray(fields, static_cast<const uv_stat_t*>(SYNC_REQ.ptr));
+  } else if (args[1]->IsObject()) {
+    ASYNC_CALL(lstat, args[1], UTF8, *path)
   }
 }
 
@@ -655,12 +694,15 @@ static void FStat(const FunctionCallbackInfo<Value>& args) {
 
   int fd = args[0]->Int32Value();
 
-  if (args[1]->IsObject()) {
-    ASYNC_CALL(fstat, args[1], UTF8, fd)
-  } else {
+  if (args[1]->IsFloat64Array()) {
+    Local<Float64Array> array = args[1].As<Float64Array>();
+    CHECK_EQ(array->Length(), 14);
+    Local<ArrayBuffer> ab = array->Buffer();
+    double* fields = static_cast<double*>(ab->GetContents().Data());
     SYNC_CALL(fstat, 0, fd)
-    args.GetReturnValue().Set(
-        BuildStatsObject(env, static_cast<const uv_stat_t*>(SYNC_REQ.ptr)));
+    FillStatsArray(fields, static_cast<const uv_stat_t*>(SYNC_REQ.ptr));
+  } else if (args[1]->IsObject()) {
+    ASYNC_CALL(fstat, args[1], UTF8, fd)
   }
 }
 
