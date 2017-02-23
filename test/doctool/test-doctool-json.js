@@ -103,7 +103,7 @@ const testData = [
                 added: ['v5.3.0', 'v4.2.0']
               },
               desc: '<p>Describe <code>Foobar II</code> in more detail ' +
-                'here.</p>\n',
+                'here. fg(1)</p>\n',
               type: 'module',
               displayName: 'Foobar II'
             },
@@ -115,7 +115,7 @@ const testData = [
                 deprecated: ['v2.0.0']
               },
               desc: '<p>Describe <code>Deprecated thingy</code> in more ' +
-                'detail here.</p>\n',
+                'detail here. fg(1p)</p>\n',
               type: 'module',
               displayName: 'Deprecated thingy'
             },
