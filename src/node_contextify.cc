@@ -247,11 +247,19 @@ class ContextifyContext {
     function_template->InstanceTemplate()->SetInternalFieldCount(1);
     env->set_script_data_constructor_function(function_template->GetFunction());
 
+    env->SetMethod(target, "cachedDataVersionTag", CachedDataVersionTag);
     env->SetMethod(target, "runInDebugContext", RunInDebugContext);
     env->SetMethod(target, "makeContext", MakeContext);
     env->SetMethod(target, "isContext", IsContext);
   }
 
+  static void CachedDataVersionTag(const FunctionCallbackInfo<Value>& args) {
+    Environment* env = Environment::GetCurrent(args);
+    Local<Integer> result =
+        Integer::NewFromUnsigned(env->isolate(),
+                                 ScriptCompiler::CachedDataVersionTag());
+    args.GetReturnValue().Set(result);
+  }
 
   static void RunInDebugContext(const FunctionCallbackInfo<Value>& args) {
     Local<String> script_source(args[0]->ToString(args.GetIsolate()));

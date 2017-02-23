@@ -90,3 +90,8 @@ assert.throws(() => {
     cachedData: 'ohai'
   });
 });
+
+function testCachedDataVersionTag() {
+  assert.strictEqual(typeof vm.Script.cachedDataVersionTag(), 'number');
+}
+testCachedDataVersionTag();

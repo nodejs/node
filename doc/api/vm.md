@@ -22,6 +22,14 @@ added: v0.3.1
 Instances of the `vm.Script` class contain precompiled scripts that can be
 executed in specific sandboxes (or "contexts").
 
+## vm.Script.cachedDataVersionTag()
+<!-- YAML
+added: v7.x.x
+-->
+
+Returns an integer representing the version tag for `cachedData` for the current V8 version & flags.
+  * This value is meant only for determining whether a previously generated `cachedData` buffer is still valid; the tag has no other meaning.
+
 ### new vm.Script(code, options)
 <!-- YAML
 added: v0.3.1
