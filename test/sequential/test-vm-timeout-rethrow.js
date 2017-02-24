@@ -9,11 +9,7 @@ if (process.argv[2] === 'child') {
                'while(true);\n' +
                'j;';
 
-  const ctx = vm.createContext({
-    add: function(x, y) {
-      return x + y;
-    }
-  });
+  const ctx = vm.createContext();
 
   vm.runInContext(code, ctx, { timeout: 1 });
 } else {
