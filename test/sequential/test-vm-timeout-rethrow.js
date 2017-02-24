@@ -5,9 +5,7 @@ const vm = require('vm');
 const spawn = require('child_process').spawn;
 
 if (process.argv[2] === 'child') {
-  const code = 'let j = 0;\n' +
-               'while(true);\n' +
-               'j;';
+  const code = 'while(true);';
 
   const ctx = vm.createContext();
 
