@@ -523,6 +523,12 @@ Type: Runtime
 of V8 5.8. It is replaced by Inspector which is activated with `--inspect`
 instead.
 
+### DEP0063: http.Agent.prototype.addRequest() Legacy API
+
+The legacy `http.Agent.prototype.addRequest(req, host, port, localAddress)`
+variation has been deprecated in favor of
+`http.Agent.prototype.addRequest(req, options)`.
+
 [alloc]: buffer.html#buffer_class_method_buffer_alloc_size_fill_encoding
 [alloc_unsafe_size]: buffer.html#buffer_class_method_buffer_allocunsafe_size
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
