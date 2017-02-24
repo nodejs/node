@@ -5,15 +5,9 @@ const vm = require('vm');
 const spawn = require('child_process').spawn;
 
 if (process.argv[2] === 'child') {
-  const code = 'let j = 0;\n' +
-               'for (let i = 0; i < 1000000; i++) j += add(i, i + 1);\n' +
-               'j;';
+  const code = 'while(true);';
 
-  const ctx = vm.createContext({
-    add: function(x, y) {
-      return x + y;
-    }
-  });
+  const ctx = vm.createContext();
 
   vm.runInContext(code, ctx, { timeout: 1 });
 } else {
