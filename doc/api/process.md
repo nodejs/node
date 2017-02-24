@@ -1369,6 +1369,8 @@ Note: Windows only provides the following resource usage measures:
 - `userCpuTimeUsedMs`
 - `systemCpuTimeUsedSec`
 - `systemCpuTimeUsedMs`
+- `blockInputOperations`
+- `blockOutputOperations`
 
 On Windows, all other values are `0`.
 
