@@ -1,4 +1,4 @@
-# How to backport a Pull Request to a Release Line
+# How to Backport a Pull Request to a Release Line
 
 ## Staging branches
 
@@ -16,13 +16,10 @@ pad while preparing a release. The branch name is formatted as follows:
 
 ## What needs to be backported?
 
-When a release is being prepared, the releaser attempts to cherry-pick a
-certain set of commits from the master branch to the release staging branch.
-The criteria for consideration depends on the target version (Current vs. LTS).
-If a cherry-pick does not land cleanly on the staging branch, the releaser
-will mark the pull request with a particular label for that release line,
-specifying to our tooling that this pull request should not be included. The
-releaser will then add a comment that a backport is needed.
+If a cherry-pick from master does not land cleanly on a staging branch, the
+releaser will mark the pull request with a particular label for that release
+line, specifying to our tooling that this pull request should not be included.
+The releaser will then add a comment that a backport is needed.
 
 ## What can be backported?
 
@@ -68,8 +65,9 @@ hint: with 'git add <paths>' or 'git rm <paths>'
 hint: and commit the result with 'git commit'
 ```
 
-* Make the required changes to remove the conflicts, and then commit the
-  changes. That can be done with `git commit`.
+* Make the required changes to remove the conflicts, add the files to the index
+  using `git add`, and then commit the changes. That can be done with
+  `git commit`.
 * The commit message should be as close as possible to the commit message on the
   master branch, unless the commit has to be different due to dependencies that
   are not present in the targeted release line. The only exception is that the
@@ -115,6 +113,8 @@ Backport-of: https://github.com/nodejs/node/pull/1234
   * Ex. `(v4.x backport) process: improve performance of nextTick`
 * Please include the text `Backport of #<pull request number>` in the
   pull request description. This will link to the original pull request.
+* Please check the checkbox labelled "Allow edits from maintainers".
+  This is the easiest way to to avoid constant rebases.
 
 In the event the backport pull request is different than the original,
 the backport pull request should be reviewed the same way a new pull request
