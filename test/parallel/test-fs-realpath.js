@@ -201,13 +201,15 @@ function test_cyclic_link_protection(callback) {
     fs.symlinkSync(t[1], t[0], 'dir');
     unlink.push(t[0]);
   });
-  assert.throws(function() { fs.realpathSync(entry); }, /^Error: ELOOP/);
-  asynctest(fs.realpath, [entry], callback, function(err, result) {
-    assert.ok(err.code === 'ELOOP');
-    assert.ok(err.path === entry);
-    assert.ok(result === undefined);
-    return true;
-  });
+  assert.throws(() => {
+    fs.realpathSync(entry);
+  }, common.expectsError('ELOOP', Error));
+  asynctest(
+    fs.realpath, [entry], callback, common.mustCall(function(err, result) {
+      assert.ok(err.path === entry);
+      assert.ok(result === undefined);
+      return true;
+    }));
 }
 
 function test_cyclic_link_overprotection(callback) {
