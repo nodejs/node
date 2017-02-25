@@ -395,6 +395,11 @@ Previous releases may also have been signed with one of the following GPG keys:
 * **Timothy J Fontaine** &lt;tjfontaine@gmail.com&gt;
 `7937DFD2AB06298B2293C3187D33FF9D0246406D`
 
+### Working Groups
+
+Information on the current Node.js Working Groups can be found in the
+[CTC repository](https://github.com/nodejs/CTC/blob/master/WORKING_GROUPS.md).
+
 [npm]: https://www.npmjs.com
 [Website]: https://nodejs.org/en/
 [Contributing to the project]: CONTRIBUTING.md
