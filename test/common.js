@@ -360,8 +360,7 @@ process.on('exit', function() {
   if (!exports.globalCheck) return;
   var leaked = leakedGlobals();
   if (leaked.length > 0) {
-    console.error('Unknown globals: %s', leaked);
-    assert.ok(false, 'Unknown global found');
+    exports.fail(`Unexpected global(s) found: ${leaked.join(', ')}`);
   }
 });
 
