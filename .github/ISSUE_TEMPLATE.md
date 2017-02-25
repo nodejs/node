@@ -21,3 +21,10 @@ simple and free of external dependencies as you are able.
 * **Subsystem**:
 
 <!-- Enter your issue details below this comment. -->
+
+<!--
+If this is your first contribution to the Node.js project, please take a moment
+to review the Node.js Code of Conduct:
+
+* https://github.com/nodejs/node/blob/master/CODE_OF_CONDUCT.md
+-->
