@@ -69,6 +69,7 @@ const qsTestCases = [
   ['a&a&a&a&', 'a=&a=&a=&a=', { a: [ '', '', '', '' ] }],
   ['a=&a=value&a=', 'a=&a=value&a=', { a: [ '', 'value', '' ] }],
   ['foo+bar=baz+quux', 'foo%20bar=baz%20quux', { 'foo bar': 'baz quux' }],
+  ['+foo=+bar', '%20foo=%20bar', { ' foo': ' bar' }],
   [null, '', {}],
   [undefined, '', {}]
 ];
@@ -333,6 +334,7 @@ assert.strictEqual(0xa2, b[18]);
 assert.strictEqual(0xe6, b[19]);
 
 assert.strictEqual(qs.unescapeBuffer('a+b', true).toString(), 'a b');
+assert.strictEqual(qs.unescapeBuffer('a+b').toString(), 'a+b');
 assert.strictEqual(qs.unescapeBuffer('a%').toString(), 'a%');
 assert.strictEqual(qs.unescapeBuffer('a%2').toString(), 'a%2');
 assert.strictEqual(qs.unescapeBuffer('a%20').toString(), 'a ');
