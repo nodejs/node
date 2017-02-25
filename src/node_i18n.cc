@@ -410,7 +410,8 @@ bool InitializeICUDirectory(const std::string& path) {
 
 int32_t ToUnicode(MaybeStackBuffer<char>* buf,
                   const char* input,
-                  size_t length) {
+                  size_t length,
+                  bool lenient) {
   UErrorCode status = U_ZERO_ERROR;
   uint32_t options = UIDNA_DEFAULT;
   options |= UIDNA_NONTRANSITIONAL_TO_UNICODE;
@@ -435,7 +436,7 @@ int32_t ToUnicode(MaybeStackBuffer<char>* buf,
                                   &status);
   }
 
-  if (U_FAILURE(status)) {
+  if (U_FAILURE(status) || (!lenient && info.errors != 0)) {
     len = -1;
     buf->SetLength(0);
   } else {
@@ -448,7 +449,8 @@ int32_t ToUnicode(MaybeStackBuffer<char>* buf,
 
 int32_t ToASCII(MaybeStackBuffer<char>* buf,
                 const char* input,
-                size_t length) {
+                size_t length,
+                bool lenient) {
   UErrorCode status = U_ZERO_ERROR;
   uint32_t options = UIDNA_DEFAULT;
   options |= UIDNA_NONTRANSITIONAL_TO_ASCII;
@@ -473,7 +475,7 @@ int32_t ToASCII(MaybeStackBuffer<char>* buf,
                                  &status);
   }
 
-  if (U_FAILURE(status)) {
+  if (U_FAILURE(status) || (!lenient && info.errors != 0)) {
     len = -1;
     buf->SetLength(0);
   } else {
@@ -489,8 +491,11 @@ static void ToUnicode(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(args.Length(), 1);
   CHECK(args[0]->IsString());
   Utf8Value val(env->isolate(), args[0]);
+  // optional arg
+  bool lenient = args[1]->BooleanValue(env->context()).FromJust();
+
   MaybeStackBuffer<char> buf;
-  int32_t len = ToUnicode(&buf, *val, val.length());
+  int32_t len = ToUnicode(&buf, *val, val.length(), lenient);
 
   if (len < 0) {
     return env->ThrowError("Cannot convert name to Unicode");
@@ -508,8 +513,11 @@ static void ToASCII(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(args.Length(), 1);
   CHECK(args[0]->IsString());
   Utf8Value val(env->isolate(), args[0]);
+  // optional arg
+  bool lenient = args[1]->BooleanValue(env->context()).FromJust();
+
   MaybeStackBuffer<char> buf;
-  int32_t len = ToASCII(&buf, *val, val.length());
+  int32_t len = ToASCII(&buf, *val, val.length(), lenient);
 
   if (len < 0) {
     return env->ThrowError("Cannot convert name to ASCII");

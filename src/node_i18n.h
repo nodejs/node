@@ -18,10 +18,12 @@ bool InitializeICUDirectory(const std::string& path);
 
 int32_t ToASCII(MaybeStackBuffer<char>* buf,
                 const char* input,
-                size_t length);
+                size_t length,
+                bool lenient = false);
 int32_t ToUnicode(MaybeStackBuffer<char>* buf,
                   const char* input,
-                  size_t length);
+                  size_t length,
+                  bool lenient = false);
 
 }  // namespace i18n
 }  // namespace node
