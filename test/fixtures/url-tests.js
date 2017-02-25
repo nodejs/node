@@ -3589,17 +3589,17 @@ module.exports =
     "base": "http://other.com/",
     "failure": true
   },
-  // "U+FFFD",
-  // {
-  //   "input": "https://\ufffd",
-  //   "base": "about:blank",
-  //   "failure": true
-  // },
-  // {
-  //   "input": "https://%EF%BF%BD",
-  //   "base": "about:blank",
-  //   "failure": true
-  // },
+  "U+FFFD",
+  {
+    "input": "https://\ufffd",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "https://%EF%BF%BD",
+    "base": "about:blank",
+    "failure": true
+  },
   {
     "input": "https://x/\ufffd?\ufffd#\ufffd",
     "base": "about:blank",
@@ -4497,26 +4497,26 @@ module.exports =
     "hash": ""
   },
   "# Hosts and percent-encoding",
-  // {
-  //   "input": "ftp://example.com%80/",
-  //   "base": "about:blank",
-  //   "failure": true
-  // },
-  // {
-  //   "input": "ftp://example.com%A0/",
-  //   "base": "about:blank",
-  //   "failure": true
-  // },
-  // {
-  //   "input": "https://example.com%80/",
-  //   "base": "about:blank",
-  //   "failure": true
-  // },
-  // {
-  //   "input": "https://example.com%A0/",
-  //   "base": "about:blank",
-  //   "failure": true
-  // },
+  {
+    "input": "ftp://example.com%80/",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "ftp://example.com%A0/",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "https://example.com%80/",
+    "base": "about:blank",
+    "failure": true
+  },
+  {
+    "input": "https://example.com%A0/",
+    "base": "about:blank",
+    "failure": true
+  },
   {
     "input": "ftp://%e2%98%83",
     "base": "about:blank",
