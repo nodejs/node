@@ -992,14 +992,27 @@ for (const [name, value] of params) {
   // xyz baz
 ```
 
-### require('url').domainToAscii(domain)
+### require('url').domainToASCII(domain)
 
 * `domain` {String}
 * Returns: {String}
 
-Returns the [Punycode][] ASCII serialization of the `domain`.
+Returns the [Punycode][] ASCII serialization of the `domain`. If `domain` is an
+invalid domain, the empty string is returned.
 
-*Note*: The `require('url').domainToAscii()` method is introduced as part of
+It performs the inverse operation to [`require('url').domainToUnicode()`][].
+
+```js
+const url = require('url');
+console.log(url.domainToASCII('español.com'));
+  // Prints xn--espaol-zwa.com
+console.log(url.domainToASCII('中文.com'));
+  // Prints xn--fiq228c.com
+console.log(url.domainToASCII('xn--iñvalid.com'));
+  // Prints an empty string
+```
+
+*Note*: The `require('url').domainToASCII()` method is introduced as part of
 the new `URL` implementation but is not part of the WHATWG URL standard.
 
 ### require('url').domainToUnicode(domain)
@@ -1007,7 +1020,20 @@ the new `URL` implementation but is not part of the WHATWG URL standard.
 * `domain` {String}
 * Returns: {String}
 
-Returns the Unicode serialization of the `domain`.
+Returns the Unicode serialization of the `domain`. If `domain` is an invalid
+domain, the empty string is returned.
+
+It performs the inverse operation to [`require('url').domainToASCII()`][].
+
+```js
+const url = require('url');
+console.log(url.domainToUnicode('xn--espaol-zwa.com'));
+  // Prints español.com
+console.log(url.domainToUnicode('xn--fiq228c.com'));
+  // Prints 中文.com
+console.log(url.domainToUnicode('xn--iñvalid.com'));
+  // Prints an empty string
+```
 
 *Note*: The `require('url').domainToUnicode()` API is introduced as part of the
 the new `URL` implementation but is not part of the WHATWG URL standard.
@@ -1074,6 +1100,8 @@ console.log(myURL.origin);
 [`URLSearchParams`]: #url_class_urlsearchparams
 [`urlSearchParams.entries()`]: #url_urlsearchparams_entries
 [`urlSearchParams@@iterator()`]: #url_urlsearchparams_iterator
+[`require('url').domainToASCII()`]: #url_require_url_domaintoascii_domain
+[`require('url').domainToUnicode()`]: #url_require_url_domaintounicode_domain
 [stable sorting algorithm]: https://en.wikipedia.org/wiki/Sorting_algorithm#Stability
 [`JSON.stringify()`]: https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
 [`url.toJSON()`]: #url_url_tojson
