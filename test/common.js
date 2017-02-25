@@ -402,8 +402,7 @@ process.on('exit', function() {
   if (!exports.globalCheck) return;
   const leaked = leakedGlobals();
   if (leaked.length > 0) {
-    console.error('Unknown globals: %s', leaked);
-    fail('Unknown global found');
+    fail(`Unexpected global(s) found: ${leaked.join(', ')}`);
   }
 });
 
