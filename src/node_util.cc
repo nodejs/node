@@ -141,6 +141,12 @@ void Initialize(Local<Object> target,
   }
 #undef V
 
+  target->DefineOwnProperty(
+    env->context(),
+    OneByteString(env->isolate(), "pushValToArrayMax"),
+    Integer::NewFromUnsigned(env->isolate(), NODE_PUSH_VAL_TO_ARRAY_MAX),
+    v8::ReadOnly).FromJust();
+
   env->SetMethod(target, "getHiddenValue", GetHiddenValue);
   env->SetMethod(target, "setHiddenValue", SetHiddenValue);
   env->SetMethod(target, "getProxyDetails", GetProxyDetails);
