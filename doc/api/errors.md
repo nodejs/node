@@ -359,7 +359,7 @@ For example:
 
 ```js
 require('net').connect(-1);
-  // throws RangeError, port should be > 0 && < 65536
+  // throws "RangeError: "port" option should be >= 0 and < 65536: -1"
 ```
 
 Node.js will generate and throw `RangeError` instances *immediately* as a form
