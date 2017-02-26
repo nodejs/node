@@ -141,15 +141,15 @@ the first argument will be passed as `null`.
 const fs = require('fs');
 
 function nodeStyleCallback(err, data) {
- if (err) {
-   console.error('There was an error', err);
-   return;
- }
- console.log(data);
+  if (err) {
+    console.error('There was an error', err);
+    return;
+  }
+  console.log(data);
 }
 
 fs.readFile('/some/file/that/does-not-exist', nodeStyleCallback);
-fs.readFile('/some/file/that/does-exist', nodeStyleCallback)
+fs.readFile('/some/file/that/does-exist', nodeStyleCallback);
 ```
 
 The JavaScript `try / catch` mechanism **cannot** be used to intercept errors
@@ -167,15 +167,15 @@ try {
       throw err;
     }
   });
-} catch(err) {
+} catch (err) {
   // This will not catch the throw!
-  console.log(err);
+  console.error(err);
 }
 ```
 
 This will not work because the callback function passed to `fs.readFile()` is
 called asynchronously. By the time the callback has been called, the
-surrounding code (including the `try { } catch(err) { }` block will have
+surrounding code (including the `try { } catch (err) { }` block will have
 already exited. Throwing an error inside the callback **can crash the Node.js
 process** in most cases. If [domains][] are enabled, or a handler has been
 registered with `process.on('uncaughtException')`, such errors can be
@@ -217,7 +217,7 @@ a string representing the location in the code at which
 ```js
 const myObject = {};
 Error.captureStackTrace(myObject);
-myObject.stack  // similar to `new Error().stack`
+myObject.stack;  // similar to `new Error().stack`
 ```
 
 The first line of the trace, instead of being prefixed with `ErrorType:
@@ -238,7 +238,7 @@ function MyError() {
 // Without passing MyError to captureStackTrace, the MyError
 // frame would show up in the .stack property. By passing
 // the constructor, we omit that frame and all frames above it.
-new MyError().stack
+new MyError().stack;
 ```
 
 ### Error.stackTraceLimit
@@ -255,7 +255,7 @@ will affect any stack trace captured *after* the value has been changed.
 If set to a non-number value, or set to a negative number, stack traces will
 not capture any frames.
 
-#### error.message
+### error.message
 
 * {String}
 
@@ -267,11 +267,11 @@ the stack trace of the `Error`, however changing this property after the
 
 ```js
 const err = new Error('The message');
-console.log(err.message);
+console.error(err.message);
 // Prints: The message
 ```
 
-#### error.stack
+### error.stack
 
 * {String}
 
@@ -359,7 +359,7 @@ For example:
 
 ```js
 require('net').connect(-1);
-  // throws RangeError, port should be > 0 && < 65536
+  // throws "RangeError: "port" option should be >= 0 and < 65536: -1"
 ```
 
 Node.js will generate and throw `RangeError` instances *immediately* as a form
@@ -379,19 +379,6 @@ doesNotExist;
   // throws ReferenceError, doesNotExist is not a variable in this program.
 ```
 
-`ReferenceError` instances will have an `error.arguments` property whose value
-is an array containing a single element: a string representing the variable
-that was not defined.
-
-```js
-const assert = require('assert');
-try {
-  doesNotExist;
-} catch(err) {
-  assert(err.arguments[0], 'doesNotExist');
-}
-```
-
 Unless an application is dynamically generating and running code,
 `ReferenceError` instances should always be considered a bug in the code
 or its dependencies.
@@ -407,7 +394,7 @@ program.
 ```js
 try {
   require('vm').runInThisContext('binary ! isNotOk');
-} catch(err) {
+} catch (err) {
   // err will be a SyntaxError
 }
 ```
