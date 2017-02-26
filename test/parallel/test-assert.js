@@ -240,7 +240,10 @@ assert.throws(
 {
   const re1 = /a/;
   re1.lastIndex = 3;
-  assert.throws(makeBlock(a.deepStrictEqual, re1, /a/));
+  assert.throws(
+    makeBlock(a.deepStrictEqual, re1, /a/),
+    /^AssertionError: \/a\/ deepStrictEqual \/a\/$/
+  );
 }
 
 // 7.4 - strict
