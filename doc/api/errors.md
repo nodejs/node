@@ -255,7 +255,7 @@ will affect any stack trace captured *after* the value has been changed.
 If set to a non-number value, or set to a negative number, stack traces will
 not capture any frames.
 
-#### error.message
+### error.message
 
 * {String}
 
@@ -271,7 +271,7 @@ console.error(err.message);
 // Prints: The message
 ```
 
-#### error.stack
+### error.stack
 
 * {String}
 
