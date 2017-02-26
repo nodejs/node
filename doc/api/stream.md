@@ -21,7 +21,7 @@ const stream = require('stream');
 
 While it is important for all Node.js users to understand how streams work,
 the `stream` module itself is most useful for developers that are creating new
-types of stream instances. Developer's who are primarily *consuming* stream
+types of stream instances. Developers who are primarily *consuming* stream
 objects will rarely (if ever) have need to use the `stream` module directly.
 
 ## Organization of this Document
