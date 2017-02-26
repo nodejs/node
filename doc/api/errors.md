@@ -167,7 +167,7 @@ try {
       throw err;
     }
   });
-} catch(err) {
+} catch (err) {
   // This will not catch the throw!
   console.log(err);
 }
@@ -175,7 +175,7 @@ try {
 
 This will not work because the callback function passed to `fs.readFile()` is
 called asynchronously. By the time the callback has been called, the
-surrounding code (including the `try { } catch(err) { }` block will have
+surrounding code (including the `try { } catch (err) { }` block will have
 already exited. Throwing an error inside the callback **can crash the Node.js
 process** in most cases. If [domains][] are enabled, or a handler has been
 registered with `process.on('uncaughtException')`, such errors can be
@@ -387,7 +387,7 @@ that was not defined.
 const assert = require('assert');
 try {
   doesNotExist;
-} catch(err) {
+} catch (err) {
   assert(err.arguments[0], 'doesNotExist');
 }
 ```
@@ -407,7 +407,7 @@ program.
 ```js
 try {
   require('vm').runInThisContext('binary ! isNotOk');
-} catch(err) {
+} catch (err) {
   // err will be a SyntaxError
 }
 ```
