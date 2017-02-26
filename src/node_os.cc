@@ -32,6 +32,7 @@ using v8::ArrayBuffer;
 using v8::Boolean;
 using v8::Context;
 using v8::Float64Array;
+using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::Integer;
 using v8::Local;
@@ -122,36 +123,47 @@ static void GetOSRelease(const FunctionCallbackInfo<Value>& args) {
 static void GetCPUInfo(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   uv_cpu_info_t* cpu_infos;
-  int count, i;
+  int count, i, field_idx;
 
   int err = uv_cpu_info(&cpu_infos, &count);
   if (err)
     return;
 
-  Local<Array> cpus = Array::New(env->isolate());
-  for (i = 0; i < count; i++) {
+  CHECK(args[0]->IsFunction());
+  Local<Function> addfn = args[0].As<Function>();
+
+  CHECK(args[1]->IsFloat64Array());
+  Local<Float64Array> array = args[1].As<Float64Array>();
+  CHECK_EQ(array->Length(), 6 * NODE_PUSH_VAL_TO_ARRAY_MAX);
+  Local<ArrayBuffer> ab = array->Buffer();
+  double* fields = static_cast<double*>(ab->GetContents().Data());
+
+  CHECK(args[2]->IsArray());
+  Local<Array> cpus = args[2].As<Array>();
+
+  Local<Value> model_argv[NODE_PUSH_VAL_TO_ARRAY_MAX];
+  int model_idx = 0;
+
+  for (i = 0, field_idx = 0; i < count; i++) {
     uv_cpu_info_t* ci = cpu_infos + i;
 
-    Local<Object> times_info = Object::New(env->isolate());
-    times_info->Set(env->user_string(),
-                    Number::New(env->isolate(), ci->cpu_times.user));
-    times_info->Set(env->nice_string(),
-                    Number::New(env->isolate(), ci->cpu_times.nice));
-    times_info->Set(env->sys_string(),
-                    Number::New(env->isolate(), ci->cpu_times.sys));
-    times_info->Set(env->idle_string(),
-                    Number::New(env->isolate(), ci->cpu_times.idle));
-    times_info->Set(env->irq_string(),
-                    Number::New(env->isolate(), ci->cpu_times.irq));
+    fields[field_idx++] = ci->speed;
+    fields[field_idx++] = ci->cpu_times.user;
+    fields[field_idx++] = ci->cpu_times.nice;
+    fields[field_idx++] = ci->cpu_times.sys;
+    fields[field_idx++] = ci->cpu_times.idle;
+    fields[field_idx++] = ci->cpu_times.irq;
+    model_argv[model_idx++] = OneByteString(env->isolate(), ci->model);
 
-    Local<Object> cpu_info = Object::New(env->isolate());
-    cpu_info->Set(env->model_string(),
-                  OneByteString(env->isolate(), ci->model));
-    cpu_info->Set(env->speed_string(),
-                  Number::New(env->isolate(), ci->speed));
-    cpu_info->Set(env->times_string(), times_info);
+    if (model_idx >= NODE_PUSH_VAL_TO_ARRAY_MAX) {
+      addfn->Call(env->context(), cpus, model_idx, model_argv).ToLocalChecked();
+      model_idx = 0;
+      field_idx = 0;
+    }
+  }
 
-    (*cpus)->Set(i, cpu_info);
+  if (model_idx > 0) {
+    addfn->Call(env->context(), cpus, model_idx, model_argv).ToLocalChecked();
   }
 
   uv_free_cpu_info(cpu_infos, count);
