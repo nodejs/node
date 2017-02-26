@@ -14,7 +14,8 @@ const vm = require('vm');
 JavaScript code can be compiled and run immediately or compiled, saved, and run
 later.
 
-*Note*: The vm module makes a wrong impression as a security mechanism. In fact, it is not at all, you shouldn't use it to run untrusted scripts.
+*Note*: The vm module is not a security mechanism.
+Do not use it to run untrusted scripts.
 
 ## Class: vm.Script
 <!-- YAML
