@@ -149,7 +149,7 @@ function nodeStyleCallback(err, data) {
 }
 
 fs.readFile('/some/file/that/does-not-exist', nodeStyleCallback);
-fs.readFile('/some/file/that/does-exist', nodeStyleCallback)
+fs.readFile('/some/file/that/does-exist', nodeStyleCallback);
 ```
 
 The JavaScript `try / catch` mechanism **cannot** be used to intercept errors
@@ -217,7 +217,7 @@ a string representing the location in the code at which
 ```js
 const myObject = {};
 Error.captureStackTrace(myObject);
-myObject.stack  // similar to `new Error().stack`
+myObject.stack;  // similar to `new Error().stack`
 ```
 
 The first line of the trace, instead of being prefixed with `ErrorType:
@@ -238,7 +238,7 @@ function MyError() {
 // Without passing MyError to captureStackTrace, the MyError
 // frame would show up in the .stack property. By passing
 // the constructor, we omit that frame and all frames above it.
-new MyError().stack
+new MyError().stack;
 ```
 
 ### Error.stackTraceLimit
