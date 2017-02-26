@@ -169,7 +169,7 @@ try {
   });
 } catch (err) {
   // This will not catch the throw!
-  console.log(err);
+  console.error(err);
 }
 ```
 
@@ -267,7 +267,7 @@ the stack trace of the `Error`, however changing this property after the
 
 ```js
 const err = new Error('The message');
-console.log(err.message);
+console.error(err.message);
 // Prints: The message
 ```
 
