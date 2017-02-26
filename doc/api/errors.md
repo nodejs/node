@@ -379,19 +379,6 @@ doesNotExist;
   // throws ReferenceError, doesNotExist is not a variable in this program.
 ```
 
-`ReferenceError` instances will have an `error.arguments` property whose value
-is an array containing a single element: a string representing the variable
-that was not defined.
-
-```js
-const assert = require('assert');
-try {
-  doesNotExist;
-} catch (err) {
-  assert(err.arguments[0], 'doesNotExist');
-}
-```
-
 Unless an application is dynamically generating and running code,
 `ReferenceError` instances should always be considered a bug in the code
 or its dependencies.
