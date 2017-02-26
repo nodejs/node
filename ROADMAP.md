@@ -19,6 +19,7 @@ the *major* version of Node.js will be increased.
 *minor* version number will be increased. TC39 has stated clearly that no
 backwards incompatible changes will be made to the language so it is
 appropriate to increase the minor rather than major.
+* V8 command line options described by `--v8-options` CAN change in a minor release and should only be regarded as stable across patch-level releases.
 
 No new API will be added in *patch* releases.
 
