@@ -9,39 +9,31 @@ const net = require('net');
 const debuggerPort = common.PORT;
 const script = common.fixturesDir + '/empty.js';
 
-function fail() {
-  assert(0); // `node --debug-brk script.js` should not quit
-}
-
 if (cluster.isMaster) {
 
   function fork(offset, execArgv) {
     cluster.setupMaster(execArgv);
     let worker = cluster.fork();
 
-    worker.on('exit', fail);
+    worker.on('exit', common.mustCall((code, signal) => {
+      assert.strictEqual(code, null);
+      assert.strictEqual(signal, 'SIGTERM');
+    }));
 
-    let socket = net.connect(debuggerPort + offset, () => {
+    let socket = net.connect(debuggerPort + offset, common.mustCall(() => {
       socket.end();
-      worker.removeListener('exit', fail);
       worker.kill();
-    });
-
-    return worker;
+    }));
   }
   
   assert.strictEqual(process.debugPort, debuggerPort);
 
-  let workers = [
-    fork(1, [`--inspect-brk`, script]),
-    fork(2, [`--inspect-brk=${debuggerPort}`, script]),
-    fork(3, [`--debug-brk`, script]),
-    fork(4, [`--debug-brk=${debuggerPort}`, script])
-  ];
+  fork(1, [`--inspect-brk`, script]);
+  fork(2, [`--inspect-brk=${debuggerPort}`, script]);
+  fork(3, [`--debug-brk`, script]);
+  fork(4, [`--debug-brk=${debuggerPort}`, script]);
 
-  process.on('exit', function() {
-    workers.map((wk) => {
-      assert.equal(wk.process.killed, true);
-    });
+  process.on('exit', (code, signal) => {
+    assert.strictEqual(code, 0);
   });
 }
