@@ -6,15 +6,10 @@ const vm = require('vm');
 // Test 1: Timeout of 100ms executing endless loop
 assert.throws(function() {
   vm.runInThisContext('while(true) {}', { timeout: 100 });
-},
-  function(err) {
-    if ( (err instanceof Error) && /^Script execution timed out\.$/.test(err.message) ) {
-      return true;
-    }
-  }
-
-  
-);
+}, function(err) {
+  const re = /^Script execution timed out\.$/;
+  if ((err instanceof Error) && re.test(err.message)) { return true; }
+});
 
 // Test 2: Timeout must be >= 0ms
 assert.throws(function() {
