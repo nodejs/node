@@ -318,7 +318,7 @@ for (const i in TEST_CASES) {
   }
 
   if (common.hasFipsCrypto && test.iv.length < 24) {
-    console.log('1..0 # Skipped: IV len < 12 bytes unsupported in FIPS mode');
+    common.skip('IV len < 12 bytes unsupported in FIPS mode');
     continue;
   }
 
