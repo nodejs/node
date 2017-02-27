@@ -1,4 +1,6 @@
-/* eslint-disable max-len, strict */
+/* eslint-disable max-len */
+'use strict';
+
 const common = require('../common');
 const assert = require('assert');
 
