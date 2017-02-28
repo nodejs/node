@@ -57,7 +57,7 @@
 * When using underscores, asterisks and backticks please use proper escaping (**\\\_**, **\\\*** and **\\\`** instead of **\_**, **\*** and **\`**)
 * References to constructor functions should use PascalCase
 * References to constructor instances should be camelCased
-* References to methods should be used with parenthesis: `socket.end()` instead of `socket.end`
+* References to methods should be used with parentheses: `socket.end()` instead of `socket.end`
 
 [plugin]: http://editorconfig.org/#download
 [Oxford comma]: https://en.wikipedia.org/wiki/Serial_comma
