@@ -23,7 +23,7 @@ function check(async, sync) {
 
 check(fs.access, fs.accessSync, 'foo\u0000bar');
 check(fs.access, fs.accessSync, 'foo\u0000bar', fs.F_OK);
-check(fs.appendFile, fs.appendFileSync, 'foo\u0000bar');
+check(fs.appendFile, fs.appendFileSync, 'foo\u0000bar', 'abc');
 check(fs.chmod, fs.chmodSync, 'foo\u0000bar', '0644');
 check(fs.chown, fs.chownSync, 'foo\u0000bar', 12, 34);
 check(fs.link, fs.linkSync, 'foo\u0000bar', 'foobar');
@@ -47,14 +47,14 @@ check(null, fs.unwatchFile, 'foo\u0000bar', common.mustNotCall());
 check(fs.utimes, fs.utimesSync, 'foo\u0000bar', 0, 0);
 check(null, fs.watch, 'foo\u0000bar', common.mustNotCall());
 check(null, fs.watchFile, 'foo\u0000bar', common.mustNotCall());
-check(fs.writeFile, fs.writeFileSync, 'foo\u0000bar');
+check(fs.writeFile, fs.writeFileSync, 'foo\u0000bar', 'abc');
 
 const fileUrl = new URL('file:///C:/foo\u0000bar');
 const fileUrl2 = new URL('file:///C:/foo%00bar');
 
 check(fs.access, fs.accessSync, fileUrl);
 check(fs.access, fs.accessSync, fileUrl, fs.F_OK);
-check(fs.appendFile, fs.appendFileSync, fileUrl);
+check(fs.appendFile, fs.appendFileSync, fileUrl, 'abc');
 check(fs.chmod, fs.chmodSync, fileUrl, '0644');
 check(fs.chown, fs.chownSync, fileUrl, 12, 34);
 check(fs.link, fs.linkSync, fileUrl, 'foobar');
@@ -78,11 +78,11 @@ check(null, fs.unwatchFile, fileUrl, common.fail);
 check(fs.utimes, fs.utimesSync, fileUrl, 0, 0);
 check(null, fs.watch, fileUrl, common.fail);
 check(null, fs.watchFile, fileUrl, common.fail);
-check(fs.writeFile, fs.writeFileSync, fileUrl);
+check(fs.writeFile, fs.writeFileSync, fileUrl, 'abc');
 
 check(fs.access, fs.accessSync, fileUrl2);
 check(fs.access, fs.accessSync, fileUrl2, fs.F_OK);
-check(fs.appendFile, fs.appendFileSync, fileUrl2);
+check(fs.appendFile, fs.appendFileSync, fileUrl2, 'abc');
 check(fs.chmod, fs.chmodSync, fileUrl2, '0644');
 check(fs.chown, fs.chownSync, fileUrl2, 12, 34);
 check(fs.link, fs.linkSync, fileUrl2, 'foobar');
@@ -106,7 +106,7 @@ check(null, fs.unwatchFile, fileUrl2, common.fail);
 check(fs.utimes, fs.utimesSync, fileUrl2, 0, 0);
 check(null, fs.watch, fileUrl2, common.fail);
 check(null, fs.watchFile, fileUrl2, common.fail);
-check(fs.writeFile, fs.writeFileSync, fileUrl2);
+check(fs.writeFile, fs.writeFileSync, fileUrl2, 'abc');
 
 // an 'error' for exists means that it doesn't exist.
 // one of many reasons why this file is the absolute worst.
