@@ -557,17 +557,17 @@ added: v0.11.12
 
 Decompress a [Buffer][] or string with [Unzip][].
 
-[`Accept-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
-[`Content-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.11
-[Memory Usage Tuning]: #zlib_memory_usage_tuning
-[zlib documentation]: http://zlib.net/manual.html#Constants
-[options]: #zlib_class_options
-[Deflate]: #zlib_class_zlib_deflate
+[Buffer]: buffer.html
 [DeflateRaw]: #zlib_class_zlib_deflateraw
+[Deflate]: #zlib_class_zlib_deflate
 [Gunzip]: #zlib_class_zlib_gunzip
 [Gzip]: #zlib_class_zlib_gzip
-[Inflate]: #zlib_class_zlib_inflate
 [InflateRaw]: #zlib_class_zlib_inflateraw
+[Inflate]: #zlib_class_zlib_inflate
+[Memory Usage Tuning]: #zlib_memory_usage_tuning
 [Unzip]: #zlib_class_zlib_unzip
+[options]: #zlib_class_options
+[zlib documentation]: http://zlib.net/manual.html#Constants
 [`.flush()`]: #zlib_zlib_flush_kind_callback
-[Buffer]: buffer.html
+[`Accept-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
+[`Content-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.11
