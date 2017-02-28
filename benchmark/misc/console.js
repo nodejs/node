@@ -4,9 +4,6 @@ const common = require('../common.js');
 const assert = require('assert');
 const Writable = require('stream').Writable;
 const util = require('util');
-const v8 = require('v8');
-
-v8.setFlagsFromString('--allow_natives_syntax');
 
 const methods = [
   'restAndSpread',
@@ -51,14 +48,7 @@ function usingArgumentsAndApplyC() {
   nullStream.write(util.format.apply(null, arguments) + '\n');
 }
 
-function optimize(method, ...args) {
-  method(...args);
-  eval(`%OptimizeFunctionOnNextCall(${method.name})`);
-  method(...args);
-}
-
 function runUsingRestAndConcat(n) {
-  optimize(usingRestAndConcat, 'a', 1);
 
   var i = 0;
   bench.start();
@@ -70,7 +60,6 @@ function runUsingRestAndConcat(n) {
 function runUsingRestAndSpread(n, concat) {
 
   const method = concat ? usingRestAndSpreadC : usingRestAndSpreadTS;
-  optimize(method, 'this is %s of %d', 'a', 1);
 
   var i = 0;
   bench.start();
@@ -82,7 +71,6 @@ function runUsingRestAndSpread(n, concat) {
 function runUsingRestAndApply(n, concat) {
 
   const method = concat ? usingRestAndApplyC : usingRestAndApplyTS;
-  optimize(method, 'this is %s of %d', 'a', 1);
 
   var i = 0;
   bench.start();
@@ -94,7 +82,6 @@ function runUsingRestAndApply(n, concat) {
 function runUsingArgumentsAndApply(n, concat) {
 
   const method = concat ? usingArgumentsAndApplyC : usingArgumentsAndApplyTS;
-  optimize(method, 'this is %s of %d', 'a', 1);
 
   var i = 0;
   bench.start();
