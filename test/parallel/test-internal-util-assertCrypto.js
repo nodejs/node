@@ -6,7 +6,7 @@ const util = require('internal/util');
 
 if (!process.versions.openssl) {
   assert.throws(() => util.assertCrypto(),
-                /^Node.js is not compiled with openssl crypto support$/);
+                /^Error: Node.js is not compiled with openssl crypto support$/);
 } else {
   assert.doesNotThrow(() => util.assertCrypto());
 }
