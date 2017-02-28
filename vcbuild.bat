@@ -14,7 +14,7 @@ if /i "%1"=="/?" goto help
 @rem Process arguments.
 set config=Release
 set target=Build
-set target_arch=x86
+set target_arch=x64
 set target_env=
 set noprojgen=
 set nobuild=
