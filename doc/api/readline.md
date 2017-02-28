@@ -523,10 +523,10 @@ rl.on('line', (line) => {
 });
 ```
 
-[`process.stdin`]: process.html#process_process_stdin
-[`process.stdout`]: process.html#process_process_stdout
-[Writable]: stream.html#stream_writable_streams
 [Readable]: stream.html#stream_readable_streams
 [TTY]: tty.html
-[`SIGTSTP`]: readline.html#readline_event_sigtstp
+[Writable]: stream.html#stream_writable_streams
 [`SIGCONT`]: readline.html#readline_event_sigcont
+[`SIGTSTP`]: readline.html#readline_event_sigtstp
+[`process.stdin`]: process.html#process_process_stdin
+[`process.stdout`]: process.html#process_process_stdout
