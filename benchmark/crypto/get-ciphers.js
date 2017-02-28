@@ -12,8 +12,11 @@ function main(conf) {
   const v = conf.v;
   const method = require(v).getCiphers;
   var i = 0;
-
-  common.v8ForceOptimization(method);
+  // first call to getChipers will dominate the results
+  if (n > 1) {
+    for (; i < n; i++)
+      method();
+  }
   bench.start();
   for (; i < n; i++) method();
   bench.end(n);
