@@ -206,8 +206,8 @@ function test_cyclic_link_protection(callback) {
   }, common.expectsError({ code: 'ELOOP', type: Error }));
   asynctest(
     fs.realpath, [entry], callback, common.mustCall(function(err, result) {
-      assert.ok(err.path === entry);
-      assert.ok(result === undefined);
+      assert.strictEqual(err.path, entry);
+      assert.strictEqual(result, undefined);
       return true;
     }));
 }
