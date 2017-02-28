@@ -3,27 +3,50 @@
 
 #include "v8.h"
 
+#include <unordered_set>
+#include <memory>
+
 namespace node {
 
 class Environment;
 
-class TrackPromise {
+struct v8ObjectHash {
+  size_t operator() (v8::Persistent<v8::Object>* handle) const;
+  
+  Environment* env;
+};
+
+struct v8ObjectEquals {
+  bool operator() (v8::Persistent<v8::Object>* lhs,
+                   v8::Persistent<v8::Object>* rhs) const;
+
+  Environment* env;
+};
+
+class PromiseTracker {
  public:
-  TrackPromise(v8::Isolate* isolate, v8::Local<v8::Object> object);
-  virtual ~TrackPromise();
+  explicit inline PromiseTracker(Environment* env)
+    : env_(env), set_(0, v8ObjectHash({env}), v8ObjectEquals({env})) { }
 
-  static TrackPromise* New(v8::Isolate* isolate,
-                           v8::Local<v8::Object> object);
+  void TrackPromise(v8::Local<v8::Object> promise);
+  void UntrackPromise(v8::Local<v8::Object> promise);
+  bool HasPromise(v8::Local<v8::Object> promise);
 
-  v8::Persistent<v8::Object>* persistent();
+  typedef void (*Iterator)(Environment* env, v8::Local<v8::Object> promise);
 
-  static inline void WeakCallback(
-      const v8::WeakCallbackInfo<TrackPromise>& data);
+  void ForEach(Iterator fn);
 
+  inline size_t Size() const { return set_.size(); }
+
+  static void WeakCallback(
+      const v8::WeakCallbackInfo<v8::Persistent<v8::Object>>& data);
  private:
-  inline void WeakCallback(v8::Isolate* isolate);
+  inline void WeakCallback(v8::Persistent<v8::Object>* promise);
 
-  v8::Persistent<v8::Object> persistent_;
+  Environment* env_;
+  std::unordered_set<v8::Persistent<v8::Object>*,
+                     v8ObjectHash,
+                     v8ObjectEquals> set_;
 };
 
 }  // namespace node

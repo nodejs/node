@@ -269,7 +269,6 @@ namespace node {
   V(process_object, v8::Object)                                               \
   V(promise_unhandled_rejection_function, v8::Function)                       \
   V(promise_unhandled_rejection, v8::Function)                                \
-  V(promise_unhandled_reject_keys, v8::Set)                                   \
   V(push_values_to_array_function, v8::Function)                              \
   V(script_context_constructor_template, v8::FunctionTemplate)                \
   V(script_data_constructor_function, v8::Function)                           \
@@ -580,24 +579,7 @@ class Environment {
 
   void AddPromiseHook(promise_hook_func fn, void* arg);
 
-  struct v8LocalCompare {
-    bool operator() (const v8::Local<v8::Value>& lhs, const v8::Local<v8::Value>& rhs) const {
-      return !lhs->StrictEquals(rhs);
-    }
-  };
-
-  struct v8LocalHash {
-    size_t operator() (const v8::Local<v8::Value>& key) const {
-      if (!key.IsObject()) {
-
-      }
-      return (size_t) key.As<v8::Object>()->GetIdentityHash();
-    }
-  };
-
-  std::unordered_map<v8::Local<v8::Value>, TrackPromise*, v8LocalHash, v8LocalCompare> promise_unhandled_reject_map;
-
-  // std::map<v8::Local<v8::Value>, v8::Local<v8::Object>, v8LocalCompare> promise_unhandled_reject_map;
+  PromiseTracker promise_tracker_;
 
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),

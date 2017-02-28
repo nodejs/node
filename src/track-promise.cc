@@ -16,48 +16,63 @@ using v8::Value;
 using v8::WeakCallbackInfo;
 using v8::WeakCallbackType;
 
-typedef void (*FreeCallback)(Local<Object> object, Local<Function> fn);
-
-
-TrackPromise* TrackPromise::New(Isolate* isolate,
-                                Local<Object> object) {
-  return new TrackPromise(isolate, object);
+size_t v8ObjectHash::operator() (Persistent<Object>* handle) const {
+  Local<Object> object = handle->Get(env->isolate());
+  return static_cast<size_t>(object->GetIdentityHash());
 }
 
-
-Persistent<Object>* TrackPromise::persistent() {
-  return &persistent_;
+bool v8ObjectEquals::operator() (Persistent<Object>* lhs,
+                                 Persistent<Object>* rhs) const {
+  Local<Object> lhs_ = lhs->Get(env->isolate());
+  Local<Object> rhs_ = rhs->Get(env->isolate());
+  return lhs_->StrictEquals(rhs_);
 }
 
-
-TrackPromise::TrackPromise(Isolate* isolate,
-                           Local<Object> object)
-    : persistent_(isolate, object) {
-  persistent_.SetWeak(this, WeakCallback, WeakCallbackType::kFinalizer);
-  persistent_.MarkIndependent();
+void PromiseTracker::TrackPromise(Local<Object> promise) {
+  Persistent<Object>* p = new Persistent<Object>(env_->isolate(), promise);
+  set_.insert(p);
+  p->SetWeak(p, WeakCallback, WeakCallbackType::kFinalizer);
+  p->MarkIndependent();
 }
 
-
-TrackPromise::~TrackPromise() {
-  persistent_.Reset();
+void PromiseTracker::UntrackPromise(Local<Object> promise) {
+  Persistent<Object> p(env_->isolate(), promise);
+  auto it = set_.find(&p);
+  CHECK_NE(it, set_.end());
+  (*it)->Reset();
+  set_.erase(it);
+  delete *it;
+  p.Reset();
 }
 
-
-void TrackPromise::WeakCallback(
-    const WeakCallbackInfo<TrackPromise>& data) {
-  data.GetParameter()->WeakCallback(data.GetIsolate());
+bool PromiseTracker::HasPromise(Local<Object> promise) {
+  Persistent<Object> p(env_->isolate(), promise);
+  bool found = set_.find(&p) != set_.end();
+  p.Reset();
+  return found;
 }
 
+void PromiseTracker::WeakCallback(
+    const v8::WeakCallbackInfo<v8::Persistent<v8::Object>>& data) {
+  Environment* env = Environment::GetCurrent(data.GetIsolate());
+  env->promise_tracker_.WeakCallback(data.GetParameter());
+}
 
-void TrackPromise::WeakCallback(Isolate* isolate) {
-  Environment* env = Environment::GetCurrent(isolate);
+void PromiseTracker::WeakCallback(v8::Persistent<v8::Object>* persistent_) {
+  Local<Object> promise = persistent_->Get(env_->isolate());
+  CHECK(HasPromise(promise));
+  Local<Value> err = node::GetPromiseReason(env_, promise);
+  Local<Message> message = Exception::CreateMessage(env_->isolate(), err);
 
-  Local<Value> promise = persistent_.Get(isolate);
-  Local<Value> err = node::GetPromiseReason(env, promise);
-  Local<Message> message = Exception::CreateMessage(isolate, err);
+  node::InternalFatalException(env_->isolate(), err, message, true);
+  UntrackPromise(promise);
+}
 
-  node::InternalFatalException(isolate, err, message, true);
-  delete this;
+void PromiseTracker::ForEach(Iterator fn) {
+  for (auto it = set_.begin(); it != set_.end(); ++it) {
+    Local<Object> object = (*it)->Get(env_->isolate());
+    fn(env_, object);
+  }
 }
 
 }  // namespace node
