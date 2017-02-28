@@ -839,10 +839,13 @@ cpplint:
 	@$(PYTHON) tools/cpplint.py $(CPPLINT_FILES)
 	@$(PYTHON) tools/check-imports.py
 
+doclint:
+	@$(NODE) tools/doc/linter
+
 ifneq ("","$(wildcard tools/eslint/lib/eslint.js)")
-lint: jslint cpplint
+lint: jslint cpplint doclint
 CONFLICT_RE=^>>>>>>> [0-9A-Fa-f]+|^<<<<<<< [A-Za-z]+
-lint-ci: jslint-ci cpplint
+lint-ci: jslint-ci cpplint doclint
 	@if ! ( grep -IEqrs "$(CONFLICT_RE)" benchmark deps doc lib src test tools ) \
 		&& ! ( find . -maxdepth 1 -type f | xargs grep -IEqs "$(CONFLICT_RE)" ); then \
 		exit 0 ; \

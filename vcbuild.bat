@@ -58,7 +58,7 @@ if /i "%1"=="nosnapshot"    set nosnapshot=1&goto arg-ok
 if /i "%1"=="noetw"         set noetw=1&goto arg-ok
 if /i "%1"=="noperfctr"     set noperfctr=1&goto arg-ok
 if /i "%1"=="licensertf"    set licensertf=1&goto arg-ok
-if /i "%1"=="test"          set test_args=%test_args% addons doctool known_issues message parallel sequential -J&set jslint=1&set build_addons=1&goto arg-ok
+if /i "%1"=="test"          set test_args=%test_args% addons doctool known_issues message parallel sequential -J&set jslint=1&set doclint=1&set build_addons=1&goto arg-ok
 if /i "%1"=="test-ci"       set test_args=%test_args% %test_ci_args% -p tap --logfile test.tap addons doctool inspector known_issues message sequential parallel&set cctest_args=%cctest_args% --gtest_output=tap:cctest.tap&set build_addons=1&goto arg-ok
 if /i "%1"=="test-addons"   set test_args=%test_args% addons&set build_addons=1&goto arg-ok
 if /i "%1"=="test-simple"   set test_args=%test_args% sequential parallel -J&goto arg-ok
@@ -68,9 +68,10 @@ if /i "%1"=="test-inspector" set test_args=%test_args% inspector&goto arg-ok
 if /i "%1"=="test-tick-processor" set test_args=%test_args% tick-processor&goto arg-ok
 if /i "%1"=="test-internet" set test_args=%test_args% internet&goto arg-ok
 if /i "%1"=="test-pummel"   set test_args=%test_args% pummel&goto arg-ok
-if /i "%1"=="test-all"      set test_args=%test_args% sequential parallel message gc inspector internet pummel&set build_testgc_addon=1&set jslint=1&goto arg-ok
+if /i "%1"=="test-all"      set test_args=%test_args% sequential parallel message gc inspector internet pummel&set build_testgc_addon=1&set jslint=1&set doclint=1&goto arg-ok
 if /i "%1"=="test-known-issues" set test_args=%test_args% known_issues&goto arg-ok
 if /i "%1"=="test-node-inspect" set test_node_inspect=1&goto arg-ok
+if /i "%1"=="doclint"       set doclint=1&goto arg-ok
 if /i "%1"=="jslint"        set jslint=1&goto arg-ok
 if /i "%1"=="jslint-ci"     set jslint_ci=1&goto arg-ok
 if /i "%1"=="package"       set package=1&goto arg-ok
@@ -360,6 +361,12 @@ goto exit
 :jslint-ci
 echo running jslint-ci
 %config%\node tools\jslint.js -J -f tap -o test-eslint.tap benchmark lib test tools
+goto exit
+
+:doclint
+if not defined doclint goto exit
+echo running doclint
+%config%\node tools\doc\linter
 goto exit
 
 :no-lint
