@@ -4233,8 +4233,10 @@ void Init(int* argc,
   if (config_warning_file.empty())
     SafeGetenv("NODE_REDIRECT_WARNINGS", &config_warning_file);
 
+#if HAVE_OPENSSL
   if (openssl_config.empty())
     SafeGetenv("OPENSSL_CONF", &openssl_config);
+#endif
 
   // Parse a few arguments which are specific to Node.
   int v8_argc;
