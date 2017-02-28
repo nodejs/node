@@ -255,18 +255,18 @@ var req = https.request(options, (res) => {
 
 [`Agent`]: #https_class_https_agent
 [`Buffer`]: buffer.html#buffer_buffer
+[`SSL_METHODS`]: https://www.openssl.org/docs/man1.0.2/ssl/ssl.html#DEALING-WITH-PROTOCOL-METHODS
 [`globalAgent`]: #https_https_globalagent
 [`http.Agent`]: http.html#http_class_http_agent
+[`http.Server#setTimeout()`]: http.html#http_server_settimeout_msecs_callback
+[`http.Server#timeout`]: http.html#http_server_timeout
+[`http.Server`]: http.html#http_class_http_server
 [`http.close()`]: http.html#http_server_close_callback
 [`http.get()`]: http.html#http_http_get_options_callback
 [`http.listen()`]: http.html#http_server_listen_port_hostname_backlog_callback
 [`http.request()`]: http.html#http_http_request_options_callback
-[`http.Server#setTimeout()`]: http.html#http_server_settimeout_msecs_callback
-[`http.Server#timeout`]: http.html#http_server_timeout
-[`http.Server`]: http.html#http_class_http_server
 [`https.Agent`]: #https_class_https_agent
 [`https.request()`]: #https_https_request_options_callback
-[`SSL_METHODS`]: https://www.openssl.org/docs/man1.0.2/ssl/ssl.html#DEALING-WITH-PROTOCOL-METHODS
 [`tls.connect()`]: tls.html#tls_tls_connect_options_callback
 [`tls.createServer()`]: tls.html#tls_tls_createserver_options_secureconnectionlistener
 [`url.parse()`]: url.html#url_url_parse_urlstring_parsequerystring_slashesdenotehost
