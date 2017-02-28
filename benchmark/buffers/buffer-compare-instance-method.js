@@ -1,6 +1,5 @@
 'use strict';
 const common = require('../common.js');
-const v8 = require('v8');
 
 const bench = common.createBenchmark(main, {
   size: [16, 512, 1024, 4096, 16386],
@@ -20,7 +19,6 @@ function main(conf) {
 
   b1[size - 1] = 'b'.charCodeAt(0);
 
-  // Force optimization before starting the benchmark
   switch (args) {
     case 2:
       b0.compare(b1, 0);
@@ -37,8 +35,6 @@ function main(conf) {
     default:
       b0.compare(b1);
   }
-  v8.setFlagsFromString('--allow_natives_syntax');
-  eval('%OptimizeFunctionOnNextCall(b0.compare)');
   switch (args) {
     case 2:
       b0.compare(b1, 0);
