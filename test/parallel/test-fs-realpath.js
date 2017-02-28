@@ -203,7 +203,7 @@ function test_cyclic_link_protection(callback) {
   });
   assert.throws(() => {
     fs.realpathSync(entry);
-  }, common.expectsError('ELOOP', Error));
+  }, common.expectsError({ code: 'ELOOP', type: Error }));
   asynctest(
     fs.realpath, [entry], callback, common.mustCall(function(err, result) {
       assert.ok(err.path === entry);
