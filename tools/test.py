@@ -702,8 +702,13 @@ def Execute(args, context, timeout=None, env={}, faketty=False):
     fd_in = 0
     pty_out = None
 
-  # Extend environment
   env_copy = os.environ.copy()
+
+  # Remove NODE_PATH
+  if "NODE_PATH" in env_copy:
+    del env_copy["NODE_PATH"]
+
+  # Extend environment
   for key, value in env.iteritems():
     env_copy[key] = value
 
