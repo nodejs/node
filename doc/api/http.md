@@ -950,7 +950,7 @@ var contentType = response.getHeader('content-type');
 
 ### response.getHeaderNames()
 <!-- YAML
-added: REPLACEME
+added: v7.7.0
 -->
 
 * Returns: {Array}
@@ -970,7 +970,7 @@ var headerNames = response.getHeaderNames();
 
 ### response.getHeaders()
 <!-- YAML
-added: REPLACEME
+added: v7.7.0
 -->
 
 * Returns: {Object}
@@ -993,7 +993,7 @@ var headers = response.getHeaders();
 
 ### response.hasHeader(name)
 <!-- YAML
-added: REPLACEME
+added: v7.7.0
 -->
 
 * `name` {String}
