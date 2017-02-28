@@ -4311,8 +4311,10 @@ void Init(int* argc,
         SafeGetenv("NODE_PRESERVE_SYMLINKS", &text) && text[0] == '1';
   }
 
+#if HAVE_OPENSSL
   if (openssl_config.empty())
     SafeGetenv("OPENSSL_CONF", &openssl_config);
+#endif
 
 #if !defined(NODE_WITHOUT_NODE_OPTIONS)
   std::string node_options;
