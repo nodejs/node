@@ -1108,14 +1108,14 @@ Test in JavaScript by running:
 const addon = require('./build/Release/addon');
 ```
 
+[Embedder's Guide]: https://github.com/v8/v8/wiki/Embedder's%20Guide
+[Linking to Node.js' own dependencies]: #addons_linking_to_node_js_own_dependencies
+[Native Abstractions for Node.js]: https://github.com/nodejs/nan
 [bindings]: https://github.com/TooTallNate/node-bindings
 [download]: https://github.com/nodejs/node-addon-examples
-[Embedder's Guide]: https://github.com/v8/v8/wiki/Embedder's%20Guide
 [examples]: https://github.com/nodejs/nan/tree/master/examples/
 [installation instructions]: https://github.com/nodejs/node-gyp#installation
 [libuv]: https://github.com/libuv/libuv
-[Linking to Node.js' own dependencies]: #addons_linking_to_node_js_own_dependencies
-[Native Abstractions for Node.js]: https://github.com/nodejs/nan
 [node-gyp]: https://github.com/nodejs/node-gyp
 [require]: globals.html#globals_require
 [v8-docs]: https://v8docs.nodesource.com/
