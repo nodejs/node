@@ -13,17 +13,19 @@ if (cluster.isMaster) {
 
   function fork(offset, execArgv) {
     cluster.setupMaster(execArgv);
-    let worker = cluster.fork();
+    const worker = cluster.fork();
 
     worker.on('exit', common.mustCall((code, signal) => {
       assert.strictEqual(code, null);
       assert.strictEqual(signal, 'SIGTERM');
     }));
 
-    let socket = net.connect(debuggerPort + offset, common.mustCall(() => {
-      socket.end();
-      worker.kill();
-    }));
+    worker.on('online', common.mustCall(() => {
+      const socket = net.connect(debuggerPort + offset, common.mustCall(() => {
+        socket.end();
+        worker.kill();
+      }));
+    }));    
   }
   
   assert.strictEqual(process.debugPort, debuggerPort);
@@ -32,8 +34,4 @@ if (cluster.isMaster) {
   fork(2, [`--inspect-brk=${debuggerPort}`, script]);
   fork(3, [`--debug-brk`, script]);
   fork(4, [`--debug-brk=${debuggerPort}`, script]);
-
-  process.on('exit', (code, signal) => {
-    assert.strictEqual(code, 0);
-  });
 }
