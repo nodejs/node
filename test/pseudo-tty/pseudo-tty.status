@@ -2,5 +2,7 @@ prefix pseudo-tty
 
 [$system==aix]
 # test issue only, covered under https://github.com/nodejs/node/issues/7973
-no_dropped_stdio           : SKIP
-no_interleaved_stdio       : SKIP
+no_dropped_stdio                      : SKIP
+no_interleaved_stdio                  : SKIP
+# test issue: https://github.com/nodejs/node/issues/11541
+test-stderr-stdout-handle-sigwinch    : SKIP
