@@ -453,17 +453,20 @@ void CreateFromString(const FunctionCallbackInfo<Value>& args) {
 
 
 template <encoding encoding>
-void StringSlice(const FunctionCallbackInfo<Value>& args) {
+inline void StringSlice(const FunctionCallbackInfo<Value>& args,
+                        Local<Value> buffer_arg,
+                        Local<Value> start_arg,
+                        Local<Value> end_arg) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
 
-  THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
-  SPREAD_BUFFER_ARG(args.This(), ts_obj);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, buffer_arg);
+  SPREAD_BUFFER_ARG(buffer_arg, ts_obj);
 
   if (ts_obj_length == 0)
     return args.GetReturnValue().SetEmptyString();
 
-  SLICE_START_END(args[0], args[1], ts_obj_length)
+  SLICE_START_END(start_arg, end_arg, ts_obj_length)
 
   Local<Value> error;
   MaybeLocal<Value> ret =
@@ -482,17 +485,20 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
 
 
 template <>
-void StringSlice<UCS2>(const FunctionCallbackInfo<Value>& args) {
+inline void StringSlice<UCS2>(const FunctionCallbackInfo<Value>& args,
+                              Local<Value> buffer_arg,
+                              Local<Value> start_arg,
+                              Local<Value> end_arg) {
   Isolate* isolate = args.GetIsolate();
-  Environment* env = Environment::GetCurrent(isolate);
+  Environment* env = Environment::GetCurrent(args);
 
-  THROW_AND_RETURN_UNLESS_BUFFER(env, args.This());
-  SPREAD_BUFFER_ARG(args.This(), ts_obj);
+  THROW_AND_RETURN_UNLESS_BUFFER(env, buffer_arg);
+  SPREAD_BUFFER_ARG(buffer_arg, ts_obj);
 
   if (ts_obj_length == 0)
     return args.GetReturnValue().SetEmptyString();
 
-  SLICE_START_END(args[0], args[1], ts_obj_length)
+  SLICE_START_END(start_arg, end_arg, ts_obj_length)
   length /= 2;
 
   const char* data = ts_obj_data + start;
@@ -537,6 +543,17 @@ void StringSlice<UCS2>(const FunctionCallbackInfo<Value>& args) {
     return;
   }
   args.GetReturnValue().Set(ret.ToLocalChecked());
+}
+
+
+template <encoding encoding>
+void StringSliceProto(const FunctionCallbackInfo<Value>& args) {
+  return StringSlice<encoding>(args, args.This(), args[0], args[1]);
+}
+
+template <encoding encoding>
+void StringSliceStandalone(const FunctionCallbackInfo<Value>& args) {
+  return StringSlice<encoding>(args, args[0], args[1], args[2]);
 }
 
 
@@ -1186,12 +1203,12 @@ void SetupBufferJS(const FunctionCallbackInfo<Value>& args) {
   Local<Object> proto = args[0].As<Object>();
   env->set_buffer_prototype_object(proto);
 
-  env->SetMethod(proto, "asciiSlice", StringSlice<ASCII>);
-  env->SetMethod(proto, "base64Slice", StringSlice<BASE64>);
-  env->SetMethod(proto, "latin1Slice", StringSlice<LATIN1>);
-  env->SetMethod(proto, "hexSlice", StringSlice<HEX>);
-  env->SetMethod(proto, "ucs2Slice", StringSlice<UCS2>);
-  env->SetMethod(proto, "utf8Slice", StringSlice<UTF8>);
+  env->SetMethod(proto, "asciiSlice", StringSliceProto<ASCII>);
+  env->SetMethod(proto, "base64Slice", StringSliceProto<BASE64>);
+  env->SetMethod(proto, "latin1Slice", StringSliceProto<LATIN1>);
+  env->SetMethod(proto, "hexSlice", StringSliceProto<HEX>);
+  env->SetMethod(proto, "ucs2Slice", StringSliceProto<UCS2>);
+  env->SetMethod(proto, "utf8Slice", StringSliceProto<UTF8>);
 
   env->SetMethod(proto, "asciiWrite", StringWrite<ASCII>);
   env->SetMethod(proto, "base64Write", StringWrite<BASE64>);
@@ -1243,6 +1260,13 @@ void Initialize(Local<Object> target,
   env->SetMethod(target, "swap16", Swap16);
   env->SetMethod(target, "swap32", Swap32);
   env->SetMethod(target, "swap64", Swap64);
+
+  env->SetMethod(target, "asciiSlice", StringSliceStandalone<ASCII>);
+  env->SetMethod(target, "base64Slice", StringSliceStandalone<BASE64>);
+  env->SetMethod(target, "latin1Slice", StringSliceStandalone<LATIN1>);
+  env->SetMethod(target, "hexSlice", StringSliceStandalone<HEX>);
+  env->SetMethod(target, "ucs2Slice", StringSliceStandalone<UCS2>);
+  env->SetMethod(target, "utf8Slice", StringSliceStandalone<UTF8>);
 
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(env->isolate(), "kMaxLength"),
