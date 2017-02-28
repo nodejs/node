@@ -1997,8 +1997,21 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
   </tr>
 </table>
 
-
+[Caveats]: #crypto_support_for_weak_or_compromised_algorithms
+[Crypto Constants]: #crypto_crypto_constants_1
+[HTML5's `keygen` element]: http://www.w3.org/TR/html5/forms.html#the-keygen-element
+[NIST SP 800-131A]: http://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar1.pdf
+[NIST SP 800-132]: http://csrc.nist.gov/publications/nistpubs/800-132/nist-sp800-132.pdf
+[OpenSSL cipher list format]: https://www.openssl.org/docs/man1.0.2/apps/ciphers.html#CIPHER-LIST-FORMAT
+[OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/man1.0.2/apps/spkac.html
+[RFC 2412]: https://www.rfc-editor.org/rfc/rfc2412.txt
+[RFC 3526]: https://www.rfc-editor.org/rfc/rfc3526.txt
+[initialization vector]: https://en.wikipedia.org/wiki/Initialization_vector
+[publicly trusted list of CAs]: https://mxr.mozilla.org/mozilla/source/security/nss/lib/ckfw/builtins/certdata.txt
+[stream-writable-write]: stream.html#stream_writable_write_chunk_encoding_callback
+[stream]: stream.html
 [`Buffer`]: buffer.html
+[`EVP_BytesToKey`]: https://www.openssl.org/docs/man1.0.2/crypto/EVP_BytesToKey.html
 [`cipher.final()`]: #crypto_cipher_final_output_encoding
 [`cipher.update()`]: #crypto_cipher_update_data_input_encoding_output_encoding
 [`crypto.createCipher()`]: #crypto_crypto_createcipher_algorithm_password
@@ -2020,7 +2033,6 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [`ecdh.generateKeys()`]: #crypto_ecdh_generatekeys_encoding_format
 [`ecdh.setPrivateKey()`]: #crypto_ecdh_setprivatekey_private_key_encoding
 [`ecdh.setPublicKey()`]: #crypto_ecdh_setpublickey_public_key_encoding
-[`EVP_BytesToKey`]: https://www.openssl.org/docs/man1.0.2/crypto/EVP_BytesToKey.html
 [`hash.digest()`]: #crypto_hash_digest_encoding
 [`hash.update()`]: #crypto_hash_update_data_input_encoding
 [`hmac.digest()`]: #crypto_hmac_digest_encoding
@@ -2030,16 +2042,3 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
 [`tls.createSecureContext()`]: tls.html#tls_tls_createsecurecontext_options
 [`verify.update()`]: #crypto_verifier_update_data_input_encoding
 [`verify.verify()`]: #crypto_verifier_verify_object_signature_signature_format
-[Caveats]: #crypto_support_for_weak_or_compromised_algorithms
-[HTML5's `keygen` element]: http://www.w3.org/TR/html5/forms.html#the-keygen-element
-[initialization vector]: https://en.wikipedia.org/wiki/Initialization_vector
-[NIST SP 800-131A]: http://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar1.pdf
-[NIST SP 800-132]: http://csrc.nist.gov/publications/nistpubs/800-132/nist-sp800-132.pdf
-[OpenSSL cipher list format]: https://www.openssl.org/docs/man1.0.2/apps/ciphers.html#CIPHER-LIST-FORMAT
-[OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/man1.0.2/apps/spkac.html
-[publicly trusted list of CAs]: https://mxr.mozilla.org/mozilla/source/security/nss/lib/ckfw/builtins/certdata.txt
-[RFC 2412]: https://www.rfc-editor.org/rfc/rfc2412.txt
-[RFC 3526]: https://www.rfc-editor.org/rfc/rfc3526.txt
-[stream]: stream.html
-[stream-writable-write]: stream.html#stream_writable_write_chunk_encoding_callback
-[Crypto Constants]: #crypto_crypto_constants_1
