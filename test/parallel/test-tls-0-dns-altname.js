@@ -2,7 +2,7 @@
 const common = require('../common');
 const assert = require('assert');
 
-// check getPeerCertificate can properly handle '\0' for fix CVE-2009-2408
+// Check getPeerCertificate can properly handle '\0' for fix CVE-2009-2408.
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');

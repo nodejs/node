@@ -22,5 +22,5 @@ $ npm install
 
 $ node ./createCert.js
 $ openssl x509 -text -in 0-dns-cert.pem
-(You can not see evel.example.com in subjectAltName field)
+(You can not see evil.example.com in subjectAltName field)
 ```
