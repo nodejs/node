@@ -2,9 +2,14 @@
 
 > Stability: 2 - Stable
 
-The `net` module provides you with an asynchronous network wrapper. It contains
-functions for creating both servers and clients (called streams). You can include
-this module with `require('net');`.
+The `net` module provides an asynchronous network API for creating
+servers ([`net.Server`][]) and clients ([`net.Socket`][]) that implement TCP
+or local communications (domain sockets on UNIX, named pipes on Windows).
+It can be accessed using:
+
+```js
+const net = require('net');
+```
 
 ## Class: net.Server
 <!-- YAML
@@ -12,6 +17,10 @@ added: v0.1.90
 -->
 
 This class is used to create a TCP or local server.
+
+## new net.Server([options][, connectionListener])
+
+See [`net.createServer([options][, connectionListener])`][`net.createServer()`].
 
 `net.Server` is an [`EventEmitter`][] with the following events:
 
@@ -43,14 +52,14 @@ added: v0.1.90
 Emitted when an error occurs. Unlike [`net.Socket`][], the [`'close'`][]
 event will **not** be emitted directly following this event unless
 [`server.close()`][] is manually called. See the example in discussion of
-[`server.listen()`][`server.listen(port, host, backlog, callback)`].
+[`server.listen()`][].
 
 ### Event: 'listening'
 <!-- YAML
 added: v0.1.90
 -->
 
-Emitted when the server has been bound after calling `server.listen`.
+Emitted when the server has been bound after calling [`server.listen()`][].
 
 ### server.address()
 <!-- YAML
@@ -117,49 +126,91 @@ when sockets were sent to forks.
 
 Callback should take two arguments `err` and `count`.
 
-### server.listen(handle[, backlog][, callback])
+### server.listen()
+
+Start a server listening for connections. A `net.Server` can be a TCP or
+local (domain sockets on UNIX, named pipes on Windows) server depending on
+what it listens to.
+
+*Note*: Unix named pipes (FIFOs) are not supported.
+
+Possible signatures:
+
+* [`server.listen(handle[, backlog][, callback])`][`server.listen(handle, backlog, callback)`]
+* [`server.listen(options[, callback])`][`server.listen(options, callback)`]
+* [`server.listen(path[, backlog][, callback])`][`server.listen(path, backlog, callback)`] for local servers
+* [`server.listen([port][, host][, backlog][, callback])`][`server.listen(port, host, backlog, callback)`] for TCP servers
+
+This function is asynchronous.  When the server starts listening, the
+[`'listening'`][] event will be emitted.  The last parameter `callback`
+will be added as a listener for the [`'listening'`][] event.
+
+All `listen()` methods can take a `backlog` parameter to specify the maximum
+length of the queue of pending connections. The actual length will be determined
+by the OS through sysctl settings such as `tcp_max_syn_backlog` and `somaxconn`
+on Linux. The default value of this parameter is 511 (not 512).
+
+
+Note:
+
+* All [`net.Socket`][] are set to `SO_REUSEADDR`.
+* The `server.listen()` method may be called multiple times. Each
+  subsequent call will *re-open* the server using the provided options.
+
+One of the most common errors raised when listening is `EADDRINUSE`.
+This happens when another server is already listening on the requested
+`port` / `path` / `handle`. One way to handle this would be to retry after a certain
+amount of time:
+
+```js
+server.on('error', (e) => {
+  if (e.code === 'EADDRINUSE') {
+    console.log('Address in use, retrying...');
+    setTimeout(() => {
+      server.close();
+      server.listen(PORT, HOST);
+    }, 1000);
+  }
+});
+```
+
+#### server.listen(handle[, backlog][, callback])
 <!-- YAML
 added: v0.5.10
 -->
 
 * `handle` {Object}
-* `backlog` {number}
-* `callback` {Function}
+* `backlog` {number} Common parameter of [`server.listen()`][] functions
+* `callback` {Function} Common parameter of [`server.listen()`][] functions
 
-The `handle` object can be set to either a server or socket (anything
-with an underlying `_handle` member), or a `{fd: <n>}` object.
+Start a server listening for connections on a given `handle` that has
+already been bound to a port, a UNIX domain socket, or a Windows named pipe.
 
-This will cause the server to accept connections on the specified
-handle, but it is presumed that the file descriptor or handle has
-already been bound to a port or domain socket.
+The `handle` object can be either a server, a socket (anything with an
+underlying `_handle` member), or an object with a `fd` member that is a valid file descriptor.
 
-Listening on a file descriptor is not supported on Windows.
+*Note*: Listening on a file descriptor is not supported on Windows.
 
-This function is asynchronous.  When the server has been bound,
-[`'listening'`][] event will be emitted.
-The last parameter `callback` will be added as a listener for the
-[`'listening'`][] event.
-
-The parameter `backlog` behaves the same as in
-[`server.listen([port][, hostname][, backlog][, callback])`][`server.listen(port, host, backlog, callback)`].
-
-### server.listen(options[, callback])
+#### server.listen(options[, callback])
 <!-- YAML
 added: v0.11.14
 -->
 
-* `options` {Object} - Required. Supports the following properties:
-  * `port` {number} - Optional.
-  * `host` {string} - Optional.
-  * `backlog` {number} - Optional.
-  * `path` {string} - Optional.
-  * `exclusive` {boolean} - Optional.
-* `callback` {Function} - Optional.
+* `options` {Object} Required. Supports the following properties:
+  * `port` {number} Optional.
+  * `host` {string} Optional.
+  * `path` {string} Optional. Will be ignored if `port` is specified.
+  * `backlog` {number} Optional. Common parameter of [`server.listen()`][]
+    functions
+  * `exclusive` {boolean} Optional. Default to `false`
+* `callback` {Function} Optional. Common parameter of [`server.listen()`][]
+  functions
 
-The `port`, `host`, and `backlog` properties of `options`, as well as the
-optional callback function, behave as they do on a call to
+If `port` is specified, it behaves the same as
 [`server.listen([port][, hostname][, backlog][, callback])`][`server.listen(port, host, backlog, callback)`].
-Alternatively, the `path` option can be used to specify a UNIX socket.
+Otherwise, if `path` is specified, it behaves the same as
+[`server.listen(path[, backlog][, callback])`][`server.listen(path, backlog, callback)`].
+If none of them is specified, an error will be thrown.
 
 If `exclusive` is `false` (default), then cluster workers will use the same
 underlying handle, allowing connection handling duties to be shared. When
@@ -175,23 +226,16 @@ server.listen({
 });
 ```
 
-*Note*: The `server.listen()` method may be called multiple times. Each
-subsequent call will *re-open* the server using the provided options.
-
-### server.listen(path[, backlog][, callback])
+#### server.listen(path[, backlog][, callback])
 <!-- YAML
 added: v0.1.90
 -->
 
-* `path` {string}
-* `backlog` {number}
-* `callback` {Function}
+* `path` {String}
+* `backlog` {number} Common parameter of [`server.listen()`][] functions
+* `callback` {Function} Common parameter of [`server.listen()`][] functions
 
 Start a local socket server listening for connections on the given `path`.
-
-This function is asynchronous.  When the server has been bound,
-[`'listening'`][] event will be emitted.  The last parameter `callback`
-will be added as a listener for the [`'listening'`][] event.
 
 On UNIX, the local domain is usually known as the UNIX domain. The path is a
 filesystem path name. It gets truncated to `sizeof(sockaddr_un.sun_path)`
@@ -214,59 +258,28 @@ net.createServer().listen(
     path.join('\\\\?\\pipe', process.cwd(), 'myctl'))
 ```
 
-The parameter `backlog` behaves the same as in
-[`server.listen([port][, hostname][, backlog][, callback])`][`server.listen(port, host, backlog, callback)`].
-
-*Note*: The `server.listen()` method may be called multiple times. Each
-subsequent call will *re-open* the server using the provided options.
-
-### server.listen([port][, hostname][, backlog][, callback])
+#### server.listen([port][, host][, backlog][, callback])
 <!-- YAML
 added: v0.1.90
 -->
+* `port` {number}
+* `host` {string}
+* `backlog` {number} Common parameter of [`server.listen()`][] functions
+* `callback` {Function} Common parameter of [`server.listen()`][] functions
 
-Begin accepting connections on the specified `port` and `hostname`. If the
-`hostname` is omitted, the server will accept connections on the
+Start a TCP server listening for connections on the given `port` and `host`.
+
+If `port` is omitted or is 0, the operating system will assign a random
+port, which can be retrieved by using `server.address().port`
+after the [`'listening'`][] event has been emitted.
+
+If `host` is omitted, the server will accept connections on the
 [unspecified IPv6 address][] (`::`) when IPv6 is available, or the
 [unspecified IPv4 address][] (`0.0.0.0`) otherwise.
 
 *Note*: in most operating systems, listening to the
 [unspecified IPv6 address][] (`::`) may cause the `net.Server` to also listen on
 the [unspecified IPv4 address][] (`0.0.0.0`).
-
-Omit the port argument, or use a port value of `0`, to have the operating system
-assign a random port, which can be retrieved by using `server.address().port`
-after the `'listening'` event has been emitted.
-
-Backlog is the maximum length of the queue of pending connections.
-The actual length will be determined by the OS through sysctl settings such as
-`tcp_max_syn_backlog` and `somaxconn` on Linux. The default value of this
-parameter is 511 (not 512).
-
-This function is asynchronous.  When the server has been bound,
-[`'listening'`][] event will be emitted.  The last parameter `callback`
-will be added as a listener for the [`'listening'`][] event.
-
-One issue some users run into is getting `EADDRINUSE` errors. This means that
-another server is already running on the requested port. One way of handling this
-would be to wait a second and then try again:
-
-```js
-server.on('error', (e) => {
-  if (e.code == 'EADDRINUSE') {
-    console.log('Address in use, retrying...');
-    setTimeout(() => {
-      server.close();
-      server.listen(PORT, HOST);
-    }, 1000);
-  }
-});
-```
-
-(Note: All sockets in Node.js are set `SO_REUSEADDR`.)
-
-*Note*: The `server.listen()` method may be called multiple times. Each
-subsequent call will *re-open* the server using the provided options.
 
 ### server.listening
 <!-- YAML
@@ -392,11 +405,12 @@ added: v0.1.90
 
 Emitted when the other end of the socket sends a FIN packet.
 
-By default (`allowHalfOpen == false`) the socket will destroy its file
-descriptor  once it has written out its pending write queue.  However, by
-setting `allowHalfOpen == true` the socket will not automatically `end()`
-its side allowing the user to write arbitrary amounts of data, with the
-caveat that the user is required to `end()` their side now.
+By default (`allowHalfOpen` is `false`) the socket will send a FIN packet
+back and destroy its file descriptor once it has written out its pending
+write queue. However, if `allowHalfOpen` is set to `true`, the socket will
+not automatically [`end()`][`socket.end()`] its side, allowing the user to
+write arbitrary amounts of data. The user must call [`end()`][`socket.end()`]
+explicitly to close the connection.
 
 ### Event: 'error'
 <!-- YAML
@@ -464,7 +478,8 @@ written, but the buffer may contain strings, and the strings are lazily
 encoded, so the exact number of bytes is not known.)
 
 Users who experience large or growing `bufferSize` should attempt to
-"throttle" the data flows in their program with [`pause()`][] and [`resume()`][].
+"throttle" the data flows in their program with
+[`socket.pause()`][] and [`socket.resume()`][].
 
 ### socket.bytesRead
 <!-- YAML
@@ -570,7 +585,7 @@ Half-closes the socket. i.e., it sends a FIN packet. It is possible the
 server will still send some data.
 
 If `data` is specified, it is equivalent to calling
-`socket.write(data, encoding)` followed by `socket.end()`.
+`socket.write(data, encoding)` followed by [`socket.end()`][].
 
 ### socket.localAddress
 <!-- YAML
@@ -631,7 +646,7 @@ The numeric representation of the remote port. For example,
 
 ### socket.resume()
 
-Resumes reading after a call to [`pause()`][].
+Resumes reading after a call to [`socket.pause()`][].
 
 ### socket.setEncoding([encoding])
 <!-- YAML
@@ -678,8 +693,16 @@ Sets the socket to timeout after `timeout` milliseconds of inactivity on
 the socket. By default `net.Socket` do not have a timeout.
 
 When an idle timeout is triggered the socket will receive a [`'timeout'`][]
-event but the connection will not be severed. The user must manually [`end()`][]
-or [`destroy()`][] the socket.
+event but the connection will not be severed. The user must manually call
+[`socket.end()`][] or [`socket.destroy()`][] to end the connection.
+
+```js
+socket.setTimeout(3000);
+socket.on('timeout', () => {
+  console.log('socket timeout');
+  socket.end();
+})
+```
 
 If `timeout` is 0, then the existing idle timeout is disabled.
 
@@ -847,29 +870,32 @@ The `connectListener` parameter will be added as a listener for the
 added: v0.5.0
 -->
 
-Creates a new server. The `connectionListener` argument is
-automatically set as a listener for the [`'connection'`][] event.
+Creates a new TCP or local server.
 
-`options` is an object with the following defaults:
+* `options` {Object}
+  * `allowHalfOpen` {boolean} Default to `false`. Indicates whether half-opened
+    TCP connections are allowed.
+  * `pauseOnConnect` {boolean} Default to `false`. Indicates whether the socket
+    should be paused on incoming connections.
+* `connectionListener` {Function} Automatically set as a listener for the
+  [`'connection'`][] event
 
-```js
-{
-  allowHalfOpen: false,
-  pauseOnConnect: false
-}
-```
+If `allowHalfOpen` is set to `true`, when the other end of the socket
+sends a FIN packet, the server will only send a FIN packet back when
+[`socket.end()`][] is explicitly called, until then the connection is
+half-closed (non-readable but still writable). See [`'end'`][] event
+and [RFC 1122][half-closed] for more information.
 
-If `allowHalfOpen` is `true`, then the socket won't automatically send a FIN
-packet when the other end of the socket sends a FIN packet. The socket becomes
-non-readable, but still writable. You should call the [`end()`][] method explicitly.
-See [`'end'`][] event for more information.
+If `pauseOnConnect` is set to `true`, then the socket associated with each
+incoming connection will be paused, and no data will be read from its handle.
+This allows connections to be passed between processes without any data being
+read by the original process. To begin reading data from a paused socket, call
+[`socket.resume()`][].
 
-If `pauseOnConnect` is `true`, then the socket associated with each incoming
-connection will be paused, and no data will be read from its handle. This allows
-connections to be passed between processes without any data being read by the
-original process. To begin reading data from a paused socket, call [`resume()`][].
+The server can be a TCP server or a local server, depending on what it
+[`listen()`][`server.listen()`] to.
 
-Here is an example of an echo server which listens for connections
+Here is an example of an TCP echo server which listens for connections
 on port 8124:
 
 ```js
@@ -947,22 +973,28 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 [`'timeout'`]: #net_event_timeout
 [`child_process.fork()`]: child_process.html#child_process_child_process_fork_modulepath_args_options
 [`connect()`]: #net_socket_connect_options_connectlistener
-[`destroy()`]: #net_socket_destroy_exception
 [`dns.lookup()`]: dns.html#dns_dns_lookup_hostname_options_callback
 [`dns.lookup()` hints]: dns.html#dns_supported_getaddrinfo_flags
-[`end()`]: #net_socket_end_data_encoding
+[`socket.end()`]: #net_socket_end_data_encoding
 [`EventEmitter`]: events.html#events_class_eventemitter
 [`net.createServer()`]: #net_net_createserver_options_connectionlistener
+[`net.Server`]: #net_class_net_server
 [`net.Socket`]: #net_class_net_socket
-[`pause()`]: #net_socket_pause
-[`resume()`]: #net_socket_resume
 [`server.getConnections()`]: #net_server_getconnections_callback
-[`server.listen(port, host, backlog, callback)`]: #net_server_listen_port_hostname_backlog_callback
+[`server.listen()`]: #net_server_listen
+[`server.listen(handle, backlog, callback)`]: #net_server_listen_handle_backlog_callback
+[`server.listen(options, callback)`]: #net_server_listen_options_callback
+[`server.listen(port, host, backlog, callback)`]: #net_server_listen_port_host_backlog_callback
+[`server.listen(path, backlog, callback)`]: #net_server_listen_path_backlog_callback
 [`server.close()`]: #net_server_close_callback
 [`socket.connect(options, connectListener)`]: #net_socket_connect_options_connectlistener
 [`socket.connect`]: #net_socket_connect_options_connectlistener
+[`socket.destroy()`]: #net_socket_destroy_exception
 [`socket.setTimeout()`]: #net_socket_settimeout_timeout_callback
+[`socket.resume()`]: #net_socket_resume
+[`socket.pause()`]: #net_socket_pause
 [`stream.setEncoding()`]: stream.html#stream_readable_setencoding_encoding
+[half-closed]: https://tools.ietf.org/html/rfc1122#section-4.2.2.13
 [Readable Stream]: stream.html#stream_class_stream_readable
 [unspecified IPv6 address]: https://en.wikipedia.org/wiki/IPv6_address#Unspecified_address
 [unspecified IPv4 address]: https://en.wikipedia.org/wiki/0.0.0.0
