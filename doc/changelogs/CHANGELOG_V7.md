@@ -6,7 +6,8 @@
 </tr>
 <tr>
 <td>
-<a href="#7.6.0">7.7.0</a><br/>
+<a href="#7.7.1">7.7.1</a><br/>
+<a href="#7.7.0">7.7.0</a><br/>
 <a href="#7.6.0">7.6.0</a><br/>
 <a href="#7.5.0">7.5.0</a><br/>
 <a href="#7.4.0">7.4.0</a><br/>
@@ -28,6 +29,24 @@
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
 
+<a id="7.7.1"></a>
+## 2017-03-01, Version 7.7.1 (Current), @italoacasas
+
+### Notables changes
+
+Node.js 7.7.0 contains a bug that will prevent all native modules from building, this patch should fix the issue. Apologies to everyone who was affected by 7.7.0.
+
+### Commits
+
+* [[`c8e34b61f6`](https://github.com/nodejs/node/commit/c8e34b61f6)] - **build**: add missing src/tracing header files (Daniel Bevenius) [#10851](https://github.com/nodejs/node/pull/10851)
+* [[`96f55f9e59`](https://github.com/nodejs/node/commit/96f55f9e59)] - **src**: move trace_event.h include to internal header (Ben Noordhuis) [#10959](https://github.com/nodejs/node/pull/10959)
+* [[`30c80cbe6f`](https://github.com/nodejs/node/commit/30c80cbe6f)] - **src**: fix TracingController cleanup (Jason Ginchereau) [#10623](https://github.com/nodejs/node/pull/10623)
+* [[`b89b2a7d36`](https://github.com/nodejs/node/commit/b89b2a7d36)] - **src**: always initialize tracing controller in agent (Matt Loring) [#10507](https://github.com/nodejs/node/pull/10507)
+* [[`54e55e05ca`](https://github.com/nodejs/node/commit/54e55e05ca)] - **test**: make test-intl-no-icu-data more robust (Michaël Zasso) [#10992](https://github.com/nodejs/node/pull/10992)
+* [[`7b253eb3ed`](https://github.com/nodejs/node/commit/7b253eb3ed)] - **test**: increase strictness for test-trace-event (Rich Trott) [#11065](https://github.com/nodejs/node/pull/11065)
+* [[`3dc4a5f1f4`](https://github.com/nodejs/node/commit/3dc4a5f1f4)] - **tracing**: fix -Wunused-private-field warning (Santiago Gimeno) [#10416](https://github.com/nodejs/node/pull/10416)
+* [[`8a918bf411`](https://github.com/nodejs/node/commit/8a918bf411)] - **tracing**: fix -Wreorder warning (Santiago Gimeno) [#10416](https://github.com/nodejs/node/pull/10416)
+
 <a id="7.7.0"></a>
 ## 2017-02-28, Version 7.7.0 (Current), @italoacasas
 
@@ -47,8 +66,8 @@ This release contains a deprecation warning for `node --debug`. You can find mor
 
 ### Commits
 
-* [[`18599fc3d7`](https://github.com/nodejs/node/commit/18599fc3d7)] - doc/url: various improvements to WHATWG API (Timothy Gu) 
-* [[`e7d37a3f09`](https://github.com/nodejs/node/commit/e7d37a3f09)] - tools/doc: add more intrinsic and custom types (Timothy Gu) 
+* [[`18599fc3d7`](https://github.com/nodejs/node/commit/18599fc3d7)] - doc/url: various improvements to WHATWG API (Timothy Gu)
+* [[`e7d37a3f09`](https://github.com/nodejs/node/commit/e7d37a3f09)] - tools/doc: add more intrinsic and custom types (Timothy Gu)
 * [[`6bcc841786`](https://github.com/nodejs/node/commit/6bcc841786)] - **assert**: apply minor refactoring (Rich Trott) [#11511](https://github.com/nodejs/node/pull/11511)
 * [[`6a2f330dbd`](https://github.com/nodejs/node/commit/6a2f330dbd)] - **assert**: remove unneeded condition (Rich Trott) [#11314](https://github.com/nodejs/node/pull/11314)
 * [[`0762482339`](https://github.com/nodejs/node/commit/0762482339)] - **assert**: unlock the assert API (Rich Trott) [#11304](https://github.com/nodejs/node/pull/11304)
@@ -56,8 +75,8 @@ This release contains a deprecation warning for `node --debug`. You can find mor
 * [[`3951bd9ac1`](https://github.com/nodejs/node/commit/3951bd9ac1)] - **benchmark**: strip BOM in dgram/bind-params (Anna Henningsen) [#11479](https://github.com/nodejs/node/pull/11479)
 * [[`e1573b9fb7`](https://github.com/nodejs/node/commit/e1573b9fb7)] - **benchmark**: add dgram bind(+/- params) benchmark (Vse Mozhet Byt) [#11313](https://github.com/nodejs/node/pull/11313)
 * [[`48f6660d78`](https://github.com/nodejs/node/commit/48f6660d78)] - **benchmark**: fix timer display in progress output (Brian White) [#11235](https://github.com/nodejs/node/pull/11235)
-* [[`5a81031fd8`](https://github.com/nodejs/node/commit/5a81031fd8)] - **benchmark**: clean up legacy url benchmarks (Joyee Cheung) 
-* [[`7e37628c51`](https://github.com/nodejs/node/commit/7e37628c51)] - **benchmark**: add url/url-searchparams-sort.js (Timothy Gu) 
+* [[`5a81031fd8`](https://github.com/nodejs/node/commit/5a81031fd8)] - **benchmark**: clean up legacy url benchmarks (Joyee Cheung)
+* [[`7e37628c51`](https://github.com/nodejs/node/commit/7e37628c51)] - **benchmark**: add url/url-searchparams-sort.js (Timothy Gu)
 * [[`4ffad094ba`](https://github.com/nodejs/node/commit/4ffad094ba)] - **buffer**: refactor slowToString (James M Snell) [#11358](https://github.com/nodejs/node/pull/11358)
 * [[`d08a8e68e8`](https://github.com/nodejs/node/commit/d08a8e68e8)] - **buffer**: avoid use of arguments (James M Snell) [#11358](https://github.com/nodejs/node/pull/11358)
 * [[`4408437796`](https://github.com/nodejs/node/commit/4408437796)] - **build**: add rule to clean addon tests build (Joyee Cheung) [#11519](https://github.com/nodejs/node/pull/11519)
@@ -123,7 +142,7 @@ This release contains a deprecation warning for `node --debug`. You can find mor
 * [[`ef1731d972`](https://github.com/nodejs/node/commit/ef1731d972)] - **doc**: add missing function to test common doc (Rich Trott) [#11382](https://github.com/nodejs/node/pull/11382)
 * [[`c3c874f514`](https://github.com/nodejs/node/commit/c3c874f514)] - **doc**: dns examples implied string args were arrays (Sam Roberts) [#11350](https://github.com/nodejs/node/pull/11350)
 * [[`5f1a568ccc`](https://github.com/nodejs/node/commit/5f1a568ccc)] - **doc**: describe when stdout/err is sync (Sam Roberts) [#10884](https://github.com/nodejs/node/pull/10884)
-* [[`5a2db15736`](https://github.com/nodejs/node/commit/5a2db15736)] - **doc**: add documentation for url.format(URL\[, options\]); (James M Snell) 
+* [[`5a2db15736`](https://github.com/nodejs/node/commit/5a2db15736)] - **doc**: add documentation for url.format(URL\[, options\]); (James M Snell)
 * [[`4d7c9427c1`](https://github.com/nodejs/node/commit/4d7c9427c1)] - **doc**: synchronize + update _toc.md and all.md (Vse Mozhet Byt) [#11206](https://github.com/nodejs/node/pull/11206)
 * [[`6a45265e81`](https://github.com/nodejs/node/commit/6a45265e81)] - **doc**: update code examples in domain.md (Vse Mozhet Byt) [#11110](https://github.com/nodejs/node/pull/11110)
 * [[`89b66dc636`](https://github.com/nodejs/node/commit/89b66dc636)] - **doc,test**: args to `buffer.copy` can be Uint8Arrays (Anna Henningsen) [#11486](https://github.com/nodejs/node/pull/11486)
@@ -184,7 +203,7 @@ This release contains a deprecation warning for `node --debug`. You can find mor
 * [[`348f2ef59f`](https://github.com/nodejs/node/commit/348f2ef59f)] - **test**: improve crypto coverage (Akito Ito) [#11280](https://github.com/nodejs/node/pull/11280)
 * [[`e7978f04a4`](https://github.com/nodejs/node/commit/e7978f04a4)] - **test**: cover dgram socket close during cluster bind (cjihrig) [#11292](https://github.com/nodejs/node/pull/11292)
 * [[`66081d1ddb`](https://github.com/nodejs/node/commit/66081d1ddb)] - **test**: increase coverage of buffer (DavidCai) [#11312](https://github.com/nodejs/node/pull/11312)
-* [[`7aaa960f4c`](https://github.com/nodejs/node/commit/7aaa960f4c)] - **test, url**: synchronize WPT url tests (Joyee Cheung) 
+* [[`7aaa960f4c`](https://github.com/nodejs/node/commit/7aaa960f4c)] - **test, url**: synchronize WPT url tests (Joyee Cheung)
 * [[`506a1cb03f`](https://github.com/nodejs/node/commit/506a1cb03f)] - **timer,domain**: maintain order of timer callbacks (John Barboza) [#10522](https://github.com/nodejs/node/pull/10522)
 * [[`4e327708a9`](https://github.com/nodejs/node/commit/4e327708a9)] - **(SEMVER-MINOR)** **tls**: new tls.TLSSocket() supports sec ctx options (Sam Roberts) [#11005](https://github.com/nodejs/node/pull/11005)
 * [[`f37ab7968e`](https://github.com/nodejs/node/commit/f37ab7968e)] - **tls**: do not crash on STARTTLS when OCSP requested (Fedor Indutny) [#10706](https://github.com/nodejs/node/pull/10706)
@@ -197,8 +216,8 @@ This release contains a deprecation warning for `node --debug`. You can find mor
 * [[`5f10827248`](https://github.com/nodejs/node/commit/5f10827248)] - **url**: fix handling of ? in URLSearchParams creation (Timothy Gu) [#11372](https://github.com/nodejs/node/pull/11372)
 * [[`72da362d6e`](https://github.com/nodejs/node/commit/72da362d6e)] - **url**: fix file state clarification in binding (Daijiro Wachi) [#11123](https://github.com/nodejs/node/pull/11123)
 * [[`4366ab539f`](https://github.com/nodejs/node/commit/4366ab539f)] - **url**: implement URL.prototype.toJSON (Michaël Zasso) [#11236](https://github.com/nodejs/node/pull/11236)
-* [[`8dbd562590`](https://github.com/nodejs/node/commit/8dbd562590)] - **url**: fix surrogate handling in encodeAuth() (Timothy Gu) 
-* [[`c25c16cc1b`](https://github.com/nodejs/node/commit/c25c16cc1b)] - **url**: add urlSearchParams.sort() (Timothy Gu) 
+* [[`8dbd562590`](https://github.com/nodejs/node/commit/8dbd562590)] - **url**: fix surrogate handling in encodeAuth() (Timothy Gu)
+* [[`c25c16cc1b`](https://github.com/nodejs/node/commit/c25c16cc1b)] - **url**: add urlSearchParams.sort() (Timothy Gu)
 * [[`d8cb65aa6e`](https://github.com/nodejs/node/commit/d8cb65aa6e)] - **url, test**: synchronize WPT url tests for file URL (Daijiro Wachi) [#11123](https://github.com/nodejs/node/pull/11123)
 * [[`237db9c497`](https://github.com/nodejs/node/commit/237db9c497)] - **util**: cleanup internalUtil.deprecate (James M Snell) [#11450](https://github.com/nodejs/node/pull/11450)
 * [[`95bee8f202`](https://github.com/nodejs/node/commit/95bee8f202)] - **util**: eliminate unnecessary exports (James M Snell) [#11451](https://github.com/nodejs/node/pull/11451)
