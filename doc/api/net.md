@@ -334,7 +334,7 @@ Construct a new socket object.
 `fd` allows you to specify the existing file descriptor of socket.
 Set `readable` and/or `writable` to `true` to allow reads and/or writes on this
 socket (NOTE: Works only when `fd` is passed).
-About `allowHalfOpen`, refer to `createServer()` and `'end'` event.
+About `allowHalfOpen`, refer to [`net.createServer()`][] and [`'end'`][] event.
 
 `net.Socket` instances are [`EventEmitter`][] with the following events:
 
@@ -933,6 +933,7 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 [`dns.lookup()` hints]: dns.html#dns_supported_getaddrinfo_flags
 [`end()`]: #net_socket_end_data_encoding
 [`EventEmitter`]: events.html#events_class_eventemitter
+[`net.createServer()`]: #net_net_createserver_options_connectionlistener
 [`net.Socket`]: #net_class_net_socket
 [`pause()`]: #net_socket_pause
 [`resume()`]: #net_socket_resume
