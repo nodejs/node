@@ -1,7 +1,6 @@
 'use strict';
 const common = require('../common.js');
 const url = require('url');
-const v8 = require('v8');
 
 const inputs = {
   slashes: {slashes: true, host: 'localhost'},
@@ -23,9 +22,6 @@ function main(conf) {
   // disrupted by the optimizer kicking in halfway through.
   for (const name in inputs)
     url.format(inputs[name]);
-
-  v8.setFlagsFromString('--allow_natives_syntax');
-  eval('%OptimizeFunctionOnNextCall(url.format)');
 
   bench.start();
   for (var i = 0; i < n; i += 1)
