@@ -255,6 +255,13 @@ will affect any stack trace captured *after* the value has been changed.
 If set to a non-number value, or set to a negative number, stack traces will
 not capture any frames.
 
+#### error.code
+
+* {String}
+
+The `error.code` property is a string label that identifies the kind of error.
+See [Node.js Error Codes][] for details about specific codes.
+
 #### error.message
 
 * {String}
@@ -563,6 +570,14 @@ found [here][online].
   encountered by [`http`][] or [`net`][] -- often a sign that a `socket.end()`
   was not properly called.
 
+<a id="nodejs-error-codes"></a>
+## Node.js Error Codes
+
+<a id="ERR_UNKNOWN_DOMAIN_NAME"></a>
+### ERR_UNKNOWN_DOMAIN_NAME
+
+The `'ERR_UNKNOWN_DOMAIN_NAME'` error code is used generically to identify that
+the domain name was unable be determine.
 [`fs.readdir`]: fs.html#fs_fs_readdir_path_options_callback
 [`fs.readFileSync`]: fs.html#fs_fs_readfilesync_file_options
 [`fs.unlink`]: fs.html#fs_fs_unlink_path_callback
