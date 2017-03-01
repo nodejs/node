@@ -20,6 +20,23 @@ policies, and releases are managed under an
 If you need help using or installing Node.js, please use the
 [nodejs/help](https://github.com/nodejs/help) issue tracker.
 
+
+# Table of Contents
+
+* [Resources for Newcomers](#resources-for-newcomers)
+* [Release Types](#release-types)
+  * [Download](#download)
+    * [Current and LTS Releases](#current-and-lts-releases)
+    * [Nightly Releases](#nightly-releases)
+    * [API Documentation](#api-documentation)
+  * [Verifying Binaries](#verifying-binaries)
+* [Building Node.js](#building-nodejs)
+  * [Security](#security)
+  * [Current Project Team Members](#current-project-team-members)
+    * [CTC (Core Technical Committee)](#ctc-core-technical-committee)
+    * [Collaborators](#collaborators)
+    * [Release Team](#release-team)
+
 ## Resources for Newcomers
 
 ### Official Resources
@@ -73,6 +90,7 @@ The Node.js project maintains multiple types of releases:
 Binaries, installers, and source tarballs are available at
 <https://nodejs.org>.
 
+#### Current and LTS Releases
 **Current** and **LTS** releases are available at
 <https://nodejs.org/download/release/>, listed under their version strings.
 The [latest](https://nodejs.org/download/release/latest/) directory is an
@@ -80,11 +98,13 @@ alias for the latest Current release. The latest LTS release from an LTS
 line is available in the form: latest-_codename_. For example:
 <https://nodejs.org/download/release/latest-argon>
 
+#### Nightly Releases
 **Nightly** builds are available at
 <https://nodejs.org/download/nightly/>, listed under their version
 string which includes their date (in UTC time) and the commit SHA at
 the HEAD of the release.
 
+#### API Documentation
 **API documentation** is available in each release and nightly
 directory under _docs_. <https://nodejs.org/api/> points to the API
 documentation of the latest stable version.
