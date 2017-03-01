@@ -1,7 +1,6 @@
 'use strict';
 var common = require('../common.js');
 var querystring = require('querystring');
-var v8 = require('v8');
 
 var bench = common.createBenchmark(main, {
   type: ['noencode', 'encodemany', 'encodelast'],
@@ -35,10 +34,6 @@ function main(conf) {
   // disrupted by the optimizer kicking in halfway through.
   for (var name in inputs)
     querystring.stringify(inputs[name]);
-
-  v8.setFlagsFromString('--allow_natives_syntax');
-  eval('%OptimizeFunctionOnNextCall(querystring.stringify)');
-  querystring.stringify(input);
 
   bench.start();
   for (var i = 0; i < n; i += 1)
