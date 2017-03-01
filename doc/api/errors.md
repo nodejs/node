@@ -563,15 +563,7 @@ found [here][online].
   encountered by [`http`][] or [`net`][] -- often a sign that a `socket.end()`
   was not properly called.
 
-[`fs.readdir`]: fs.html#fs_fs_readdir_path_options_callback
-[`fs.readFileSync`]: fs.html#fs_fs_readfilesync_file_options
-[`fs.unlink`]: fs.html#fs_fs_unlink_path_callback
-[`fs`]: fs.html
-[`http`]: http.html
-[`https`]: https.html
-[`libuv Error handling`]: http://docs.libuv.org/en/v1.x/errors.html
-[`net`]: net.html
-[`process.on('uncaughtException')`]: process.html#process_event_uncaughtexception
+[V8's stack trace API]: https://github.com/v8/v8/wiki/Stack-Trace-API
 [domains]: domain.html
 [event emitter-based]: events.html#events_class_eventemitter
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
@@ -579,5 +571,13 @@ found [here][online].
 [stream-based]: stream.html
 [syscall]: http://man7.org/linux/man-pages/man2/syscall.2.html
 [try-catch]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch
-[V8's stack trace API]: https://github.com/v8/v8/wiki/Stack-Trace-API
 [vm]: vm.html
+[`fs.readFileSync`]: fs.html#fs_fs_readfilesync_file_options
+[`fs.readdir`]: fs.html#fs_fs_readdir_path_options_callback
+[`fs.unlink`]: fs.html#fs_fs_unlink_path_callback
+[`fs`]: fs.html
+[`http`]: http.html
+[`https`]: https.html
+[`libuv Error handling`]: http://docs.libuv.org/en/v1.x/errors.html
+[`net`]: net.html
+[`process.on('uncaughtException')`]: process.html#process_event_uncaughtexception

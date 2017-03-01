@@ -272,20 +272,20 @@ added: v0.0.1
 
 [`setTimeout`] is described in the [timers][] section.
 
-[`__dirname`]: #globals_dirname
-[`__filename`]: #globals_filename
-[`console`]: console.html
-[`path.dirname()`]: path.html#path_path_dirname_path
-[`process` object]: process.html#process_process
-[buffer section]: buffer.html
-[module system documentation]: modules.html
 [Modules]: modules.html#modules_modules
+[buffer section]: buffer.html
+[built-in objects]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
+[module system documentation]: modules.html
 [native addons]: addons.html
 [timers]: timers.html
+[`__dirname`]: #globals_dirname
+[`__filename`]: #globals_filename
 [`clearImmediate`]: timers.html#timers_clearimmediate_immediate
 [`clearInterval`]: timers.html#timers_clearinterval_timeout
 [`clearTimeout`]: timers.html#timers_cleartimeout_timeout
+[`console`]: console.html
+[`path.dirname()`]: path.html#path_path_dirname_path
+[`process` object]: process.html#process_process
 [`setImmediate`]: timers.html#timers_setimmediate_callback_args
 [`setInterval`]: timers.html#timers_setinterval_callback_delay_args
 [`setTimeout`]: timers.html#timers_settimeout_callback_delay_args
-[built-in objects]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects

@@ -556,8 +556,8 @@ a `net.Server` and `net.Socket` instance, see: https://gist.github.com/2209310
 For an example of running a REPL instance over [curl(1)][],
 see: https://gist.github.com/2053342
 
-[stream]: stream.html
-[`util.inspect()`]: util.html#util_util_inspect_object_options
-[`readline.Interface`]: readline.html#readline_class_interface
-[`readline.InterfaceCompleter`]: readline.html#readline_use_of_the_completer_function
 [curl(1)]: https://curl.haxx.se/docs/manpage.html
+[stream]: stream.html
+[`readline.InterfaceCompleter`]: readline.html#readline_use_of_the_completer_function
+[`readline.Interface`]: readline.html#readline_class_interface
+[`util.inspect()`]: util.html#util_util_inspect_object_options

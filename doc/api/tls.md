@@ -1252,6 +1252,10 @@ where `secure_socket` has the same API as `pair.cleartext`.
 [Stream]: stream.html#stream_stream
 [TLS Session Tickets]: https://www.ietf.org/rfc/rfc5077.txt
 [TLS recommendations]: https://wiki.mozilla.org/Security/Server_Side_TLS
+[asn1.js]: https://npmjs.org/package/asn1.js
+[modifying the default cipher suite]: #tls_modifying_the_default_tls_cipher_suite
+[specific attacks affecting larger AES key sizes]: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html
+[tls.Server]: #tls_class_tls_server
 [`'secureConnect'`]: #tls_event_secureconnect
 [`'secureConnection'`]: #tls_event_secureconnection
 [`crypto.getCurves()`]: crypto.html#crypto_crypto_getcurves
@@ -1265,7 +1269,3 @@ where `secure_socket` has the same API as `pair.cleartext`.
 [`tls.createSecureContext()`]: #tls_tls_createsecurecontext_options
 [`tls.createSecurePair()`]: #tls_tls_createsecurepair_context_isserver_requestcert_rejectunauthorized_options
 [`tls.createServer()`]: #tls_tls_createserver_options_secureconnectionlistener
-[asn1.js]: https://npmjs.org/package/asn1.js
-[modifying the default cipher suite]: #tls_modifying_the_default_tls_cipher_suite
-[specific attacks affecting larger AES key sizes]: https://www.schneier.com/blog/archives/2009/07/another_new_aes.html
-[tls.Server]: #tls_class_tls_server

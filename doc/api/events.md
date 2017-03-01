@@ -574,13 +574,13 @@ to indicate an unlimited number of listeners.
 
 Returns a reference to the `EventEmitter`, so that calls can be chained.
 
-[`net.Server`]: net.html#net_class_net_server
-[`fs.ReadStream`]: fs.html#fs_class_fs_readstream
-[`emitter.setMaxListeners(n)`]: #events_emitter_setmaxlisteners_n
-[`EventEmitter.defaultMaxListeners`]: #events_eventemitter_defaultmaxlisteners
-[`emitter.listenerCount()`]: #events_emitter_listenercount_eventname
-[`domain`]: domain.html
-[`process` object's `uncaughtException` event]: process.html#process_event_uncaughtexception
-[`process.on('warning')`]: process.html#process_event_warning
 [stream]: stream.html
 [`--trace-warnings`]: cli.html#cli_trace_warnings
+[`EventEmitter.defaultMaxListeners`]: #events_eventemitter_defaultmaxlisteners
+[`domain`]: domain.html
+[`emitter.listenerCount()`]: #events_emitter_listenercount_eventname
+[`emitter.setMaxListeners(n)`]: #events_emitter_setmaxlisteners_n
+[`fs.ReadStream`]: fs.html#fs_class_fs_readstream
+[`net.Server`]: net.html#net_class_net_server
+[`process.on('warning')`]: process.html#process_event_warning
+[`process` object's `uncaughtException` event]: process.html#process_event_uncaughtexception

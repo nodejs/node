@@ -629,5 +629,5 @@ object.  Since `require()` returns the `module.exports`, and the `module` is
 typically *only* available within a specific module's code, it must be
 explicitly exported in order to be used.
 
-[`Error`]: errors.html#errors_class_error
 [module resolution]: #modules_all_together
+[`Error`]: errors.html#errors_class_error

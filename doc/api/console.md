@@ -298,6 +298,9 @@ added: v0.1.100
 
 The `console.warn()` function is an alias for [`console.error()`][].
 
+[customizing `util.inspect()` colors]: util.html#util_customizing_util_inspect_colors
+[note on process I/O]: process.html#process_a_note_on_process_i_o
+[web-api-assert]: https://developer.mozilla.org/en-US/docs/Web/API/console/assert
 [`console.error()`]: #console_console_error_data_args
 [`console.log()`]: #console_console_log_data_args
 [`console.time()`]: #console_console_time_label
@@ -306,6 +309,3 @@ The `console.warn()` function is an alias for [`console.error()`][].
 [`process.stdout`]: process.html#process_process_stdout
 [`util.format()`]: util.html#util_util_format_format_args
 [`util.inspect()`]: util.html#util_util_inspect_object_options
-[customizing `util.inspect()` colors]: util.html#util_customizing_util_inspect_colors
-[note on process I/O]: process.html#process_a_note_on_process_i_o
-[web-api-assert]: https://developer.mozilla.org/en-US/docs/Web/API/console/assert
