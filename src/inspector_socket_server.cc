@@ -139,6 +139,28 @@ void SendProtocolJson(InspectorSocket* socket) {
   SendHttpResponse(socket, data);
 }
 
+int GetSocketHost(uv_tcp_t* socket, std::string* out_host) {
+  char ip[INET6_ADDRSTRLEN];
+  sockaddr_storage addr;
+  int len = sizeof(addr);
+  int err = uv_tcp_getsockname(socket,
+                               reinterpret_cast<struct sockaddr*>(&addr),
+                               &len);
+  if (err != 0)
+    return err;
+  if (addr.ss_family == AF_INET6) {
+    const sockaddr_in6* v6 = reinterpret_cast<const sockaddr_in6*>(&addr);
+    err = uv_ip6_name(v6, ip, sizeof(ip));
+  } else {
+    const sockaddr_in* v4 = reinterpret_cast<const sockaddr_in*>(&addr);
+    err = uv_ip4_name(v4, ip, sizeof(ip));
+  }
+  if (err != 0)
+    return err;
+  *out_host = ip;
+  return err;
+}
+
 int GetPort(uv_tcp_t* socket, int* out_port) {
   sockaddr_storage addr;
   int len = sizeof(addr);
@@ -341,7 +363,9 @@ void InspectorSocketServer::SendListResponse(InspectorSocket* socket) {
       }
     }
     if (!connected) {
-      std::string address = GetWsUrl(host_, port_, id);
+      std::string host;
+      GetSocketHost(&socket->client, &host);
+      std::string address = GetWsUrl(host, port_, id);
       std::ostringstream frontend_url;
       frontend_url << "chrome-devtools://devtools/bundled";
       frontend_url << "/inspector.html?experiments=true&v8only=true&ws=";
