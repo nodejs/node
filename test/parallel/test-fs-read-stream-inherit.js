@@ -48,7 +48,7 @@ let paused = false;
 }
 
 {
-  const file3 = fs.createReadStream(fn, Object.create({encoding: 'utf8'}));
+  const file3 = fs.createReadStream(fn, Object.assign({}, {encoding: 'utf8'}));
   file3.length = 0;
   file3.on('data', function(data) {
     assert.strictEqual(typeof data, 'string');
@@ -66,7 +66,7 @@ let paused = false;
 }
 
 {
-  const options = Object.create({bufferSize: 1, start: 1, end: 2});
+  const options = Object.assign({}, {bufferSize: 1, start: 1, end: 2});
   const file4 = fs.createReadStream(rangeFile, options);
   assert.strictEqual(file4.start, 1);
   assert.strictEqual(file4.end, 2);
@@ -80,7 +80,7 @@ let paused = false;
 }
 
 {
-  const options = Object.create({bufferSize: 1, start: 1});
+  const options = Object.assign({}, {bufferSize: 1, start: 1});
   const file5 = fs.createReadStream(rangeFile, options);
   assert.strictEqual(file5.start, 1);
   file5.data = '';
@@ -94,7 +94,7 @@ let paused = false;
 
 // https://github.com/joyent/node/issues/2320
 {
-  const options = Object.create({bufferSize: 1.23, start: 1});
+  const options = Object.assign({}, {bufferSize: 1.23, start: 1});
   const file6 = fs.createReadStream(rangeFile, options);
   assert.strictEqual(file6.start, 1);
   file6.data = '';
@@ -108,12 +108,12 @@ let paused = false;
 
 {
   assert.throws(function() {
-    fs.createReadStream(rangeFile, Object.create({start: 10, end: 2}));
+    fs.createReadStream(rangeFile, Object.assign({}, {start: 10, end: 2}));
   }, /"start" option must be <= "end" option/);
 }
 
 {
-  const options = Object.create({start: 0, end: 0});
+  const options = Object.assign({}, {start: 0, end: 0});
   const stream = fs.createReadStream(rangeFile, options);
   assert.strictEqual(stream.start, 0);
   assert.strictEqual(stream.end, 0);
@@ -137,7 +137,7 @@ let paused = false;
 
 {
   let file7 =
-    fs.createReadStream(rangeFile, Object.create({autoClose: false }));
+    fs.createReadStream(rangeFile, Object.assign({}, {autoClose: false }));
   assert.strictEqual(file7.autoClose, false);
   file7.on('data', function() {});
   file7.on('end', common.mustCall(function() {
@@ -150,7 +150,7 @@ let paused = false;
 
   function file7Next() {
     // This will tell us if the fd is usable again or not.
-    file7 = fs.createReadStream(null, Object.create({fd: file7.fd, start: 0 }));
+    file7 = fs.createReadStream(null, Object.assign({}, {fd: file7.fd, start: 0 }));
     file7.data = '';
     file7.on('data', function(data) {
       file7.data += data;
@@ -167,7 +167,7 @@ let paused = false;
 
 // Just to make sure autoClose won't close the stream because of error.
 {
-  const options = Object.create({fd: 13337, autoClose: false});
+  const options = Object.assign({}, {fd: 13337, autoClose: false});
   const file8 = fs.createReadStream(null, options);
   file8.on('data', function() {});
   file8.on('error', common.mustCall(function() {}));
