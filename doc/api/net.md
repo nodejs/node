@@ -2,7 +2,7 @@
 
 > Stability: 2 - Stable
 
-The `net` module provides an asynchronous network API for creating
+The `net` module provides an asynchronous network API for creating stream-based
 servers ([`net.Server`][]) and clients ([`net.Socket`][]) that implement TCP
 or local communications (domain sockets on UNIX, named pipes on Windows).
 It can be accessed using:
