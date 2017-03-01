@@ -9,11 +9,6 @@ const {
   connect, keys, tls
 } = require(join(common.fixturesDir, 'tls-connect'));
 
-if (!common.hasCrypto) {
-  common.skip('missing crypto');
-  return;
-}
-
 test(undefined, (err) => {
   assert.strictEqual(err.message, 'unable to verify the first certificate');
 });
