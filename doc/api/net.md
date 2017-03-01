@@ -271,7 +271,8 @@ added: v0.1.90
 
 Start a TCP server listening for connections on the given `port` and `host`.
 
-If `port` is omitted or is 0, the operating system will assign an arbitrary unused port, which can be retrieved by using `server.address().port`
+If `port` is omitted or is 0, the operating system will assign an arbitrary
+unused port, which can be retrieved by using `server.address().port`
 after the [`'listening'`][] event has been emitted.
 
 If `host` is omitted, the server will accept connections on the
