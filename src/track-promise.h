@@ -1,6 +1,8 @@
 #ifndef SRC_TRACK_PROMISE_H_
 #define SRC_TRACK_PROMISE_H_
 
+#if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
+
 #include "v8.h"
 
 #include <unordered_set>
@@ -32,9 +34,8 @@ class PromiseTracker {
   void UntrackPromise(v8::Local<v8::Object> promise);
   bool HasPromise(v8::Local<v8::Object> promise);
 
-  typedef void (*Iterator)(Environment* env, v8::Local<v8::Object> promise);
-
-  void ForEach(Iterator fn);
+  template<typename Iterator>
+  inline void ForEach(Iterator fn);
 
   inline size_t Size() const { return set_.size(); }
 
@@ -50,5 +51,7 @@ class PromiseTracker {
 };
 
 }  // namespace node
+
+#endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #endif  // SRC_TRACK_PROMISE_H_

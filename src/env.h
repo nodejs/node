@@ -194,6 +194,7 @@ namespace node {
   V(preference_string, "preference")                                          \
   V(priority_string, "priority")                                              \
   V(produce_cached_data_string, "produceCachedData")                          \
+  V(promise_rejection_index_string, "_promiseRejectionIndex")                 \
   V(raw_string, "raw")                                                        \
   V(read_host_object_string, "_readHostObject")                               \
   V(readable_string, "readable")                                              \
@@ -580,6 +581,7 @@ class Environment {
   void AddPromiseHook(promise_hook_func fn, void* arg);
 
   PromiseTracker promise_tracker_;
+  int64_t promise_tracker_index_ = 0;
 
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),

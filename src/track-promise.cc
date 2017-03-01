@@ -38,10 +38,11 @@ void PromiseTracker::TrackPromise(Local<Object> promise) {
 void PromiseTracker::UntrackPromise(Local<Object> promise) {
   Persistent<Object> p(env_->isolate(), promise);
   auto it = set_.find(&p);
-  CHECK_NE(it, set_.end());
-  (*it)->Reset();
-  set_.erase(it);
-  delete *it;
+  if (it != set_.end()) {
+    (*it)->Reset();
+    set_.erase(it);
+    delete *it;
+  }
   p.Reset();
 }
 
@@ -66,13 +67,6 @@ void PromiseTracker::WeakCallback(v8::Persistent<v8::Object>* persistent_) {
 
   node::InternalFatalException(env_->isolate(), err, message, true);
   UntrackPromise(promise);
-}
-
-void PromiseTracker::ForEach(Iterator fn) {
-  for (auto it = set_.begin(); it != set_.end(); ++it) {
-    Local<Object> object = (*it)->Get(env_->isolate());
-    fn(env_, object);
-  }
 }
 
 }  // namespace node

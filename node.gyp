@@ -232,6 +232,7 @@
         'src/node_i18n.h',
         'src/pipe_wrap.h',
         'src/track-promise.h',
+        'src/track-promise-inl.h',
         'src/tty_wrap.h',
         'src/tcp_wrap.h',
         'src/udp_wrap.h',

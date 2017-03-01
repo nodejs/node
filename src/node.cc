@@ -60,6 +60,7 @@
 #include "string_bytes.h"
 #include "tracing/agent.h"
 #include "track-promise.h"
+#include "track-promise-inl.h"
 #include "util.h"
 #include "uv.h"
 #if NODE_USE_V8_PLATFORM
@@ -1294,6 +1295,11 @@ void TrackPromise(const FunctionCallbackInfo<Value>& args) {
 
   CHECK(args[0]->IsObject());
   Local<Object> promise = args[0].As<Object>();
+
+  promise->Set(env->context(),
+               env->promise_rejection_index_string(),
+               Number::New(env->isolate(), env->promise_tracker_index_++))
+                  .FromJust();
 
   if (env->promise_tracker_.Size() > 1000) {
     return;
@@ -4638,14 +4644,29 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
     } while (more == true);
   }
 
-  env.promise_tracker_.ForEach([](Environment* env, Local<Object> promise) {
-    Local<Value> err = GetPromiseReason(env, promise);
-    Local<Message> message = Exception::CreateMessage(env->isolate(), err);
+  Local<Object> oldest_rejected_promise;
+  int64_t lowest_rejection_index = -1;
+
+  env.promise_tracker_.ForEach([&](Environment* env, Local<Object> promise) {
+    Local<Value> index_ =
+        promise->Get(env->context(), env->promise_rejection_index_string())
+            .ToLocalChecked();
+    CHECK(index_->IsNumber());
+    int64_t index = index_->IntegerValue(env->context()).FromJust();
+    if (index < lowest_rejection_index || lowest_rejection_index == -1) {
+      oldest_rejected_promise = promise;
+      lowest_rejection_index = index;
+    }
+  });
+
+  if (!oldest_rejected_promise.IsEmpty()) {
+    Local<Value> err = GetPromiseReason(&env, oldest_rejected_promise);
+    Local<Message> message = Exception::CreateMessage(isolate, err);
 
     // XXX(Fishrock123): Should this just call ReportException and
     // set exit_code = 1 instead?
-    InternalFatalException(env->isolate(), err, message, true);
-  });
+    InternalFatalException(isolate, err, message, true);
+  }
 
   env.set_trace_sync_io(false);
 
