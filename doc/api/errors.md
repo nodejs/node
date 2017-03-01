@@ -255,6 +255,13 @@ will affect any stack trace captured *after* the value has been changed.
 If set to a non-number value, or set to a negative number, stack traces will
 not capture any frames.
 
+#### error.code
+
+* {String}
+
+The `error.code` property is a string label that identifies the kind of error.
+See [Node.js Error Codes][] for details about specific codes.
+
 #### error.message
 
 * {String}
@@ -563,6 +570,53 @@ found [here][online].
   encountered by [`http`][] or [`net`][] -- often a sign that a `socket.end()`
   was not properly called.
 
+<a id="nodejs-error-codes"></a>
+## Node.js Error Codes
+
+<a id="ERR_INVALID_ARG_TYPE"></a>
+### ERR_INVALID_ARG_TYPE
+
+The `'ERR_INVALID_ARG_TYPE'` error code is used generically to identify that
+an argument of the wrong type has been passed to a Node.js API.
+
+<a id="ERR_INVALID_CALLBACK"></a>
+### ERR_INVALID_CALLBACK
+
+The `'ERR_INVALID_CALLBACK'` error code is used generically to identify that
+a callback function is required and has not been provided to a Node.js API.
+
+<a id="ERR_STDERR_CLOSE"></a>
+### ERR_STDERR_CLOSE
+
+An error using the `'ERR_STDERR_CLOSE'` code is thrown specifically when an
+attempt is made to close the `process.stderr` stream. By design, Node.js does
+not allow `stdout` or `stderr` Streams to be closed by user code.
+
+<a id="ERR_STDOUT_CLOSE"></a>
+### ERR_STDOUT_CLOSE
+
+An error using the `'ERR_STDOUT_CLOSE'` code is thrown specifically when an
+attempt is made to close the `process.stdout` stream. By design, Node.js does
+not allow `stdout` or `stderr` Streams to be closed by user code.
+
+<a id="ERR_UNK_STDIN_TYPE"></a>
+### ERR_UNK_STDIN_TYPE
+
+An error using the `'ERR_UNK_STDIN_TYPE'` code is thrown specifically when an
+attempt is made to launch a Node.js process with an unknown `stdin` file type.
+Errors of this kind cannot *typically* be caused by errors in user code,
+although it is not impossible. Occurrences of this error are most likely an
+indication of a bug within Node.js itself.
+
+<a id="ERR_UNK_STREAM_TYPE"></a>
+### ERR_UNK_STREAM_TYPE
+
+An error using the `'ERR_UNK_STREAM_TYPE'` code is thrown specifically when an
+attempt is made to launch a Node.js process with an unknown `stdout` or
+`stderr` file type. Errors of this kind cannot *typically* be caused by errors
+in user code, although it is not impossible. Occurrences of this error are most
+likely an indication of a bug within Node.js itself.
+
 [`fs.readdir`]: fs.html#fs_fs_readdir_path_options_callback
 [`fs.readFileSync`]: fs.html#fs_fs_readfilesync_file_options
 [`fs.unlink`]: fs.html#fs_fs_unlink_path_callback
@@ -575,6 +629,7 @@ found [here][online].
 [domains]: domain.html
 [event emitter-based]: events.html#events_class_eventemitter
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
+[Node.js Error Codes]: #nodejs-error-codes
 [online]: http://man7.org/linux/man-pages/man3/errno.3.html
 [stream-based]: stream.html
 [syscall]: http://man7.org/linux/man-pages/man2/syscall.2.html
