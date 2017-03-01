@@ -82,7 +82,7 @@ var server = net.createServer((socket) => {
   throw err;
 });
 
-// grab a random port.
+// grab an arbitrary unused port.
 server.listen(() => {
   console.log('opened server on', server.address());
 });
@@ -136,10 +136,12 @@ what it listens to.
 
 Possible signatures:
 
-* [`server.listen(handle[, backlog][, callback])`][`server.listen(handle, backlog, callback)`]
-* [`server.listen(options[, callback])`][`server.listen(options, callback)`]
-* [`server.listen(path[, backlog][, callback])`][`server.listen(path, backlog, callback)`] for local servers
-* [`server.listen([port][, host][, backlog][, callback])`][`server.listen(port, host, backlog, callback)`] for TCP servers
+* [`server.listen(handle[, backlog][, callback])`][`server.listen(handle)`]
+* [`server.listen(options[, callback])`][`server.listen(options)`]
+* [`server.listen(path[, backlog][, callback])`][`server.listen(path)`]
+  for local servers
+* [`server.listen([port][, host][, backlog][, callback])`][`server.listen(port, host)`]
+  for TCP servers
 
 This function is asynchronous.  When the server starts listening, the
 [`'listening'`][] event will be emitted.  The last parameter `callback`
@@ -153,7 +155,7 @@ on Linux. The default value of this parameter is 511 (not 512).
 
 Note:
 
-* All [`net.Socket`][] are set to `SO_REUSEADDR`.
+* All [`net.Socket`][] are set to `SO_REUSEADDR`(See [socket(7)][] for details).
 * The `server.listen()` method may be called multiple times. Each
   subsequent call will *re-open* the server using the provided options.
 
@@ -207,9 +209,9 @@ added: v0.11.14
   functions
 
 If `port` is specified, it behaves the same as
-[`server.listen([port][, hostname][, backlog][, callback])`][`server.listen(port, host, backlog, callback)`].
+[`server.listen([port][, hostname][, backlog][, callback])`][`server.listen(port, host)`].
 Otherwise, if `path` is specified, it behaves the same as
-[`server.listen(path[, backlog][, callback])`][`server.listen(path, backlog, callback)`].
+[`server.listen(path[, backlog][, callback])`][`server.listen(path)`].
 If none of them is specified, an error will be thrown.
 
 If `exclusive` is `false` (default), then cluster workers will use the same
@@ -269,8 +271,7 @@ added: v0.1.90
 
 Start a TCP server listening for connections on the given `port` and `host`.
 
-If `port` is omitted or is 0, the operating system will assign a random
-port, which can be retrieved by using `server.address().port`
+If `port` is omitted or is 0, the operating system will assign an arbitrary unused port, which can be retrieved by using `server.address().port`
 after the [`'listening'`][] event has been emitted.
 
 If `host` is omitted, the server will accept connections on the
@@ -982,10 +983,10 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 [`net.Socket`]: #net_class_net_socket
 [`server.getConnections()`]: #net_server_getconnections_callback
 [`server.listen()`]: #net_server_listen
-[`server.listen(handle, backlog, callback)`]: #net_server_listen_handle_backlog_callback
-[`server.listen(options, callback)`]: #net_server_listen_options_callback
-[`server.listen(port, host, backlog, callback)`]: #net_server_listen_port_host_backlog_callback
-[`server.listen(path, backlog, callback)`]: #net_server_listen_path_backlog_callback
+[`server.listen(handle)`]: #net_server_listen_handle_backlog_callback
+[`server.listen(options)`]: #net_server_listen_options_callback
+[`server.listen(port, host)`]: #net_server_listen_port_host_backlog_callback
+[`server.listen(path)`]: #net_server_listen_path_backlog_callback
 [`server.close()`]: #net_server_close_callback
 [`socket.connect(options, connectListener)`]: #net_socket_connect_options_connectlistener
 [`socket.connect`]: #net_socket_connect_options_connectlistener
@@ -996,5 +997,6 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 [`stream.setEncoding()`]: stream.html#stream_readable_setencoding_encoding
 [half-closed]: https://tools.ietf.org/html/rfc1122#section-4.2.2.13
 [Readable Stream]: stream.html#stream_class_stream_readable
+[socket(7)]: http://man7.org/linux/man-pages/man7/socket.7.html
 [unspecified IPv6 address]: https://en.wikipedia.org/wiki/IPv6_address#Unspecified_address
 [unspecified IPv4 address]: https://en.wikipedia.org/wiki/0.0.0.0
