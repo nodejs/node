@@ -80,8 +80,8 @@ function tearDown(child, err) {
   }
 }
 
-function checkHttpResponse(port, path, callback) {
-  http.get({port, path}, function(res) {
+function checkHttpResponse(host, port, path, callback, errorcb) {
+  const req = http.get({host, port, path}, function(res) {
     let response = '';
     res.setEncoding('utf8');
     res
@@ -98,6 +98,8 @@ function checkHttpResponse(port, path, callback) {
         callback(err, json);
       });
   });
+  if (errorcb)
+    req.on('error', errorcb);
 }
 
 function makeBufferingDataCallback(dataCallback) {
@@ -295,7 +297,7 @@ TestSession.prototype.disconnect = function(childDone) {
 
 TestSession.prototype.testHttpResponse = function(path, check) {
   return this.enqueue((callback) =>
-      checkHttpResponse(this.harness_.port, path, (err, response) => {
+      checkHttpResponse(null, this.harness_.port, path, (err, response) => {
         check.call(this, err, response);
         callback();
       }));
@@ -361,12 +363,17 @@ Harness.prototype.enqueue_ = function(task) {
   return this;
 };
 
-Harness.prototype.testHttpResponse = function(path, check) {
+Harness.prototype.testHttpResponse = function(host, path, check, errorcb) {
   return this.enqueue_((doneCallback) => {
-    checkHttpResponse(this.port, path, (err, response) => {
-      check.call(this, err, response);
-      doneCallback();
-    });
+    function wrap(callback) {
+      if (callback) {
+        return function() {
+          callback(...arguments);
+          doneCallback();
+        };
+      }
+    }
+    checkHttpResponse(host, this.port, path, wrap(check), wrap(errorcb));
   });
 };
 
@@ -404,7 +411,7 @@ Harness.prototype.wsHandshake = function(devtoolsUrl, tests, readyCallback) {
 
 Harness.prototype.runFrontendSession = function(tests) {
   return this.enqueue_((callback) => {
-    checkHttpResponse(this.port, '/json/list', (err, response) => {
+    checkHttpResponse(null, this.port, '/json/list', (err, response) => {
       assert.ifError(err);
       this.wsHandshake(response[0]['webSocketDebuggerUrl'], tests, callback);
     });
