@@ -33,4 +33,4 @@ assert.throws(() => {
   const ee = new EventEmitter();
 
   ee.once('foo', null);
-}, /^TypeError: "listener" argument must be a function$/);
+}, common.expectsError('ERR_INVALID_ARG_TYPE', TypeError));
