@@ -229,17 +229,3 @@ Benchmark.prototype.report = function(rate, elapsed) {
     type: 'report'
   });
 };
-
-exports.v8ForceOptimization = function(method) {
-  if (typeof method !== 'function')
-    return;
-
-  const v8 = require('v8');
-  v8.setFlagsFromString('--allow_natives_syntax');
-
-  const args = Array.prototype.slice.call(arguments, 1);
-  method.apply(null, args);
-  eval('%OptimizeFunctionOnNextCall(method)');
-  method.apply(null, args);
-  return eval('%GetOptimizationStatus(method)');
-};
