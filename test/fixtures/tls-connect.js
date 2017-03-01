@@ -6,6 +6,9 @@
 const common = require('../common');
 const fs = require('fs');
 const join = require('path').join;
+// Check if Node was compiled --without-ssl and if so exit early
+// as the require of tls will otherwise throw an Error.
+checkCrypto();
 const tls = require('tls');
 const util = require('util');
 
@@ -18,6 +21,7 @@ function checkCrypto() {
   }
   return exports;
 }
+
 
 exports.assert = require('assert');
 exports.debug = util.debuglog('test');
