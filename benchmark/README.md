@@ -235,12 +235,3 @@ it returns to accomplish what they need. This function reports timing
 data to the parent process (usually created by running `compare.js`, `run.js` or
 `scatter.js`).
 
-### v8ForceOptimization(method[, ...args])
-
-Force V8 to mark the `method` for optimization with the native function
-`%OptimizeFunctionOnNextCall()` and return the optimization status
-after that.
-
-It can be used to prevent the benchmark from getting disrupted by the optimizer
-kicking in halfway through. However, this could result in a less effective
-optimization. In general, only use it if you know what it actually does.
