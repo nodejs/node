@@ -638,3 +638,10 @@ exports.expectsError = function expectsError({code, type, message}) {
     return true;
   };
 };
+
+exports.skipIfInspectorDisabled = function skipIfInspectorDisabled() {
+  if (!exports.hasCrypto) {
+    exports.skip('missing ssl support so inspector is disabled');
+    process.exit(0);
+  }
+};
