@@ -1,7 +1,6 @@
 'use strict';
 var common = require('../common.js');
 var path = require('path');
-var v8 = require('v8');
 
 var bench = common.createBenchmark(main, {
   paths: [
@@ -25,14 +24,13 @@ function main(conf) {
     from = from.slice(0, delimIdx);
   }
 
-  // Force optimization before starting the benchmark
-  p.relative(from, to);
-  v8.setFlagsFromString('--allow_natives_syntax');
-  eval('%OptimizeFunctionOnNextCall(p.relative)');
-  p.relative(from, to);
+  // Warmup
+  for (var i = 0; i < n; i++) {
+    p.relative(from, to);
+  }
 
   bench.start();
-  for (var i = 0; i < n; i++) {
+  for (i = 0; i < n; i++) {
     p.relative(from, to);
   }
   bench.end(n);
