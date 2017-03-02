@@ -1,6 +1,6 @@
 # Modules
 
-> Stability: 3 - Locked
+> Stability: 2 - Stable
 
 <!--name=module-->
 
