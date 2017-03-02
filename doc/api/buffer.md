@@ -38,11 +38,11 @@ const buf3 = Buffer.allocUnsafe(10);
 // Creates a Buffer containing [0x1, 0x2, 0x3].
 const buf4 = Buffer.from([1, 2, 3]);
 
-// Creates a Buffer containing ASCII bytes [0x74, 0x65, 0x73, 0x74].
-const buf5 = Buffer.from('test');
-
 // Creates a Buffer containing UTF-8 bytes [0x74, 0xc3, 0xa9, 0x73, 0x74].
-const buf6 = Buffer.from('tést', 'utf8');
+const buf5 = Buffer.from('tést');
+
+// Creates a Buffer containing Latin-1 bytes [0x74, 0xe9, 0x73, 0x74].
+const buf6 = Buffer.from('tést', 'latin-1');
 ```
 
 ## `Buffer.from()`, `Buffer.alloc()`, and `Buffer.allocUnsafe()`
@@ -309,7 +309,7 @@ Allocates a new `Buffer` using an `array` of octets.
 Example:
 
 ```js
-// Creates a new Buffer containing the ASCII bytes of the string 'buffer'
+// Creates a new Buffer containing the UTF-8 bytes of the string 'buffer'
 const buf = new Buffer([0x62, 0x75, 0x66, 0x66, 0x65, 0x72]);
 ```
 
@@ -716,7 +716,7 @@ Allocates a new `Buffer` using an `array` of octets.
 Example:
 
 ```js
-// Creates a new Buffer containing ASCII bytes of the string 'buffer'
+// Creates a new Buffer containing UTF-8 bytes of the string 'buffer'
 const buf = Buffer.from([0x62, 0x75, 0x66, 0x66, 0x65, 0x72]);
 ```
 
