@@ -72,4 +72,4 @@ const cert = {
 };
 const pem = rfc5280.Certificate.encode(cert, 'pem', {label: 'CERTIFICATE'});
 
-fs.writeFileSync('./0-dns-cert.pem', pem);
+fs.writeFileSync('./0-dns-cert.pem', pem + '\n');
