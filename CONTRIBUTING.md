@@ -46,15 +46,6 @@ $ git remote add upstream git://github.com/nodejs/node.git
 For developing new features and bug fixes, the `master` branch should be pulled
 and built upon.
 
-#### Respect the stability index
-
-The rules for the master branch are less strict; consult the
-[stability index](./doc/api/documentation.md#stability-index) for details.
-
-In a nutshell, modules are at varying levels of API stability. Bug fixes are
-always welcome but API or behavioral changes to modules at stability level 3
-(Locked) are off-limits.
-
 #### Dependencies
 
 Node.js has several bundled dependencies in the *deps/* and the *tools/*

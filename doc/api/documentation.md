@@ -56,12 +56,6 @@ The API has proven satisfactory. Compatibility with the npm ecosystem
 is a high priority, and will not be broken unless absolutely necessary.
 ```
 
-```txt
-Stability: 3 - Locked
-Only bug fixes, security fixes, and performance improvements will be accepted.
-Please do not suggest API changes in this area; they will be refused.
-```
-
 ## JSON Output
 
 > Stability: 1 - Experimental
