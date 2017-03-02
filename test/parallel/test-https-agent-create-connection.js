@@ -18,10 +18,6 @@ const options = {
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem'),
 };
 
-const server = https.createServer(options, (req, res) => {
-  res.end('hello world\n');
-});
-
 const expectedHeader = /^HTTP\/1.1 200 OK/;
 const expectedBody = /hello world\n/;
 const expectCertError = /^Error: unable to verify the first certificate$/;
@@ -42,83 +38,109 @@ const checkRequest = (socket, server) => {
   }));
 };
 
+function createServer() {
+  return https.createServer(options, (req, res) => {
+    res.end('hello world\n');
+  });
+}
+
 // use option connect
-server.listen(0, common.mustCall(() => {
-  const port = server.address().port;
-  const host = 'localhost';
-  const options = {
-    port: port,
-    host: host,
-    rejectUnauthorized: false,
-    _agentKey: agent.getName({
+{
+  const server = createServer();
+  server.listen(0, common.mustCall(() => {
+    const port = server.address().port;
+    const host = 'localhost';
+    const options = {
       port: port,
       host: host,
-    }),
-  };
+      rejectUnauthorized: false,
+      _agentKey: agent.getName({
+        port: port,
+        host: host,
+      }),
+    };
 
-  const socket = agent.createConnection(options);
-  checkRequest(socket, server);
-}));
+    const socket = agent.createConnection(options);
+    checkRequest(socket, server);
+  }));
+}
 
 // use port and option connect
-server.listen(0, common.mustCall(() => {
-  const port = server.address().port;
-  const host = 'localhost';
-  const options = {
-    rejectUnauthorized: false,
-    _agentKey: agent.getName({
-      port: port,
-      host: host,
-    }),
-  };
-  const socket = agent.createConnection(port, options);
-  checkRequest(socket, server);
-}));
+{
+  const server = createServer();
+  server.listen(0, common.mustCall(() => {
+    const port = server.address().port;
+    const host = 'localhost';
+    const options = {
+      rejectUnauthorized: false,
+      _agentKey: agent.getName({
+        port: port,
+        host: host,
+      }),
+    };
+    const socket = agent.createConnection(port, options);
+    checkRequest(socket, server);
+  }));
+}
 
 // use port and host and option connect
-server.listen(0, common.mustCall(() => {
-  const port = server.address().port;
-  const host = 'localhost';
-  const options = {
-    rejectUnauthorized: false,
-    _agentKey: agent.getName({
-      port: port,
-      host: host,
-    }),
-  };
-  const socket = agent.createConnection(port, host, options);
-  checkRequest(socket, server);
-}));
+{
+  const server = createServer();
+  server.listen(0, common.mustCall(() => {
+    const port = server.address().port;
+    const host = 'localhost';
+    const options = {
+      rejectUnauthorized: false,
+      _agentKey: agent.getName({
+        port: port,
+        host: host,
+      }),
+    };
+    const socket = agent.createConnection(port, host, options);
+    checkRequest(socket, server);
+  }));
+}
 
 // use port and host and option does not have agentKey
-server.listen(0, common.mustCall(() => {
-  const port = server.address().port;
-  const host = 'localhost';
-  const options = {
-    rejectUnauthorized: false,
-  };
-  const socket = agent.createConnection(port, host, options);
-  checkRequest(socket, server);
-}));
+{
+  const server = createServer();
+  server.listen(0, common.mustCall(() => {
+    const port = server.address().port;
+    const host = 'localhost';
+    const options = {
+      rejectUnauthorized: false,
+    };
+    const socket = agent.createConnection(port, host, options);
+    checkRequest(socket, server);
+  }));
+}
 
 // options is null
-server.listen(0, common.mustCall(() => {
-  const port = server.address().port;
-  const host = 'localhost';
-  const options = null;
-  const socket = agent.createConnection(port, host, options);
-  socket.on('error', common.mustCall((e) => {
-    assert(expectCertError.test(e.toString()));
+{
+  const server = createServer();
+  server.listen(0, common.mustCall(() => {
+    const port = server.address().port;
+    const host = 'localhost';
+    const options = null;
+    const socket = agent.createConnection(port, host, options);
+    socket.on('error', common.mustCall((e) => {
+      assert(expectCertError.test(e.toString()));
+      server.close();
+    }));
   }));
-}));
+}
 
 // options is undefined
-server.listen(0, common.mustCall(() => {
-  const port = server.address().port;
-  const host = 'localhost';
-  const options = undefined;
-  const socket = agent.createConnection(port, host, options);
-  socket.on('error', common.mustCall((e) => {
-    assert(expectCertError.test(e.toString()));
+{
+  const server = createServer();
+  server.listen(0, common.mustCall(() => {
+    const port = server.address().port;
+    const host = 'localhost';
+    const options = undefined;
+    const socket = agent.createConnection(port, host, options);
+    socket.on('error', common.mustCall((e) => {
+      assert(expectCertError.test(e.toString()));
+      server.close();
+    }));
   }));
-}));
+}
