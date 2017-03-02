@@ -69,7 +69,7 @@ class SimpleTestCase(test.TestCase):
       # The following block reads config.gypi to extract the v8_enable_inspector
       # value. This is done to check if the inspector is disabled in which case
       # the '--inspect' flag cannot be passed to the node process as it will
-      # that will cause node to exit and report the test as failed. The use case
+      # cause node to exit and report the test as failed. The use case
       # is currently when Node is configured --without-ssl and the tests should
       # still be runnable but skip any tests that require ssl (which includes the
       # inspector related tests).
