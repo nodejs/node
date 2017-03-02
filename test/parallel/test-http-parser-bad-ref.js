@@ -75,12 +75,10 @@ demoBug('POST /1', '/22 HTTP/1.1\r\n' +
         'Content-Length: 4\r\n\r\n' +
         'pong');
 
-/* eslint-disable align-function-arguments */
 demoBug('POST /1/22 HTTP/1.1\r\n' +
         'Content-Type: tex', 't/plain\r\n' +
         'Content-Length: 4\r\n\r\n' +
         'pong');
-/* eslint-enable align-function-arguments */
 
 process.on('exit', function() {
   assert.strictEqual(2, headersComplete);
