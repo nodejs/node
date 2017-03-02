@@ -22,7 +22,6 @@ function checkCrypto() {
   return exports;
 }
 
-
 exports.assert = require('assert');
 exports.debug = util.debuglog('test');
 exports.tls = tls;
