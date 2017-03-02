@@ -322,9 +322,12 @@ function linkJsTypeDocs(text) {
 }
 
 function parseAPIHeader(text) {
+  const classNames = 'api_stability api_stability_$2';
+  const docsUrl = 'documentation.html#documentation_stability_index';
+
   text = text.replace(
     STABILITY_TEXT_REG_EXP,
-    '<pre class="api_stability api_stability_$2">$1 $2$3</pre>'
+    `<pre class="${classNames}"><a href="${docsUrl}">$1 $2</a>$3</pre>`
   );
   return text;
 }
