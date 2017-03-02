@@ -25,13 +25,13 @@ if (cluster.isMaster) {
         socket.end();
         worker.kill();
       }));
-    }));    
+    }));
   }
-  
+
   assert.strictEqual(process.debugPort, debuggerPort);
 
-  fork(1, [`--inspect-brk`, script]);
+  fork(1, ['--inspect-brk', script]);
   fork(2, [`--inspect-brk=${debuggerPort}`, script]);
-  fork(3, [`--debug-brk`, script]);
+  fork(3, ['--debug-brk', script]);
   fork(4, [`--debug-brk=${debuggerPort}`, script]);
 }
