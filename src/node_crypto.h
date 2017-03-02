@@ -249,7 +249,7 @@ class SSLWrap {
       const v8::FunctionCallbackInfo<v8::Value>& args);
 #endif  // SSL_set_max_send_fragment
 
-#ifdef OPENSSL_NPN_NEGOTIATED
+#ifndef OPENSSL_NO_NEXTPROTONEG
   static void GetNegotiatedProto(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetNPNProtocols(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -263,7 +263,7 @@ class SSLWrap {
                                      const unsigned char* in,
                                      unsigned int inlen,
                                      void* arg);
-#endif  // OPENSSL_NPN_NEGOTIATED
+#endif  // OPENSSL_NO_NEXTPROTONEG
 
   static void GetALPNNegotiatedProto(
       const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -328,7 +328,7 @@ class Connection : public AsyncWrap, public SSLWrap<Connection> {
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
   void NewSessionDoneCb();
 
-#ifdef OPENSSL_NPN_NEGOTIATED
+#ifndef OPENSSL_NO_NEXTPROTONEG
   v8::Persistent<v8::Object> npnProtos_;
   v8::Persistent<v8::Value> selectedNPNProto_;
 #endif
