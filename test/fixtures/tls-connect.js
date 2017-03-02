@@ -8,19 +8,16 @@ const fs = require('fs');
 const join = require('path').join;
 // Check if Node was compiled --without-ssl and if so exit early
 // as the require of tls will otherwise throw an Error.
-checkCrypto();
+if (!common.hasCrypto) {
+  common.skip('missing crypto');
+  process.exit(0);
+}
 const tls = require('tls');
 const util = require('util');
 
-module.exports = exports = checkCrypto;
-
-function checkCrypto() {
-  if (!common.hasCrypto) {
-    common.skip('missing crypto');
-    process.exit(0);
-  }
+module.exports = exports = function() {
   return exports;
-}
+};
 
 exports.assert = require('assert');
 exports.debug = util.debuglog('test');
