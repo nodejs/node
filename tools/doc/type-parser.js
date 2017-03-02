@@ -89,7 +89,8 @@ module.exports = {
           typeLinks.push('<a href="' + typeUrl + '" class="type">&lt;' +
             typeTextFull + '&gt;</a>');
         } else {
-          typeLinks.push('<span class="type">&lt;' + typeTextFull + '&gt;</span>');
+          typeLinks.push('<span class="type">&lt;' + typeTextFull +
+                         '&gt;</span>');
         }
       }
     });
