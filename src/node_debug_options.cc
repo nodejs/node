@@ -1,9 +1,6 @@
 #include "node_debug_options.h"
-
-#include <errno.h>
-#include <stdlib.h>
-#include <string.h>
 #include "util.h"
+#include "util-inl.h"
 
 namespace node {
 
@@ -19,14 +16,17 @@ inline std::string remove_brackets(const std::string& host) {
 }
 
 int parse_and_validate_port(const std::string& port) {
-  char* endptr;
-  errno = 0;
-  const long result = strtol(port.c_str(), &endptr, 10);  // NOLINT(runtime/int)
-  if (errno != 0 || *endptr != '\0'|| result < 1024 || result > 65535) {
-    fprintf(stderr, "Debug port must be in range 1024 to 65535.\n");
+  static const int kMinPort = 1024;
+  static const int kMaxPort = 65535;
+  auto result =
+      StringToUint64InRange(port.data(), port.size(), kMinPort, kMaxPort,
+                            NumberBase::kDecimal);
+  if (result.IsNothing()) {
+    fprintf(stderr, "Debug port must be in range %d to %d.\n",
+            kMinPort, kMaxPort);
     exit(12);
   }
-  return static_cast<int>(result);
+  return static_cast<int>(result.FromJust());
 }
 
 std::pair<std::string, int> split_host_port(const std::string& arg) {
