@@ -73,14 +73,10 @@ class SimpleTestCase(test.TestCase):
       # is currently when Node is configured --without-ssl and the tests should
       # still be runnable but skip any tests that require ssl (which includes the
       # inspector related tests).
-      with open('config.gypi', 'r') as f:
-        s = f.read()
-        config_gypi = ast.literal_eval(s)
-        v8_disable_inspector = config_gypi['variables']['v8_enable_inspector'] == 0
-        if flag[0].startswith('--inspect') and v8_disable_inspector:
-          print('Skipping as inspector is disabled')
-        else:
-          result += flag
+      if flag[0].startswith('--inspect') and self.context.v8_enable_inspector == 0:
+        print('Skipping as inspector is disabled')
+      else:
+        result += flag
     files_match = FILES_PATTERN.search(source);
     additional_files = []
     if files_match:
