@@ -6,10 +6,10 @@ if (!common.hasCrypto) {
   return;
 }
 
-if (!process.features.tls_alpn) {
-  console.error('Skipping because node compiled without OpenSSL or ' +
-                'with old OpenSSL version.');
-  process.exit(0);
+if (!process.features.tls_alpn || !process.features.tls_npn) {
+  common.skip('Skipping because node compiled without NPN or ALPN' +
+              ' feature of OpenSSL.');
+  return;
 }
 
 const assert = require('assert');
