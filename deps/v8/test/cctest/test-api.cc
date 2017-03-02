@@ -13350,6 +13350,43 @@ THREADED_TEST(IsConstructCall) {
   CHECK(value->BooleanValue(context.local()).FromJust());
 }
 
+static void NewTargetHandler(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  ApiTestFuzzer::Fuzz();
+  args.GetReturnValue().Set(args.NewTarget());
+}
+
+THREADED_TEST(NewTargetHandler) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+
+  // Function template with call handler.
+  Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
+  templ->SetCallHandler(NewTargetHandler);
+
+  LocalContext context;
+
+  Local<Function> function =
+      templ->GetFunction(context.local()).ToLocalChecked();
+  CHECK(context->Global()
+            ->Set(context.local(), v8_str("f"), function)
+            .FromJust());
+  Local<Value> value = CompileRun("f()");
+  CHECK(value->IsUndefined());
+  value = CompileRun("new f()");
+  CHECK(value->IsFunction());
+  CHECK(value == function);
+  Local<Value> subclass = CompileRun("var g = class extends f { }; g");
+  CHECK(subclass->IsFunction());
+  value = CompileRun("new g()");
+  CHECK(value->IsFunction());
+  CHECK(value == subclass);
+  value = CompileRun("Reflect.construct(f, [], Array)");
+  CHECK(value->IsFunction());
+  CHECK(value ==
+        context->Global()
+            ->Get(context.local(), v8_str("Array"))
+            .ToLocalChecked());
+}
 
 THREADED_TEST(ObjectProtoToString) {
   v8::Isolate* isolate = CcTest::isolate();
