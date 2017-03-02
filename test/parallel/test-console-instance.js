@@ -57,3 +57,13 @@ out.write = common.mustCall((d) => {
 assert.doesNotThrow(() => {
   Console(out, err);
 });
+
+// Instance that does not ignore the stream errors.
+const c2 = new Console(out, err, false);
+
+out.write = () => { throw new Error('out'); };
+err.write = () => { throw new Error('err'); };
+
+assert.throws(() => c2.log('foo'), /^Error: out$/);
+assert.throws(() => c2.warn('foo'), /^Error: err$/);
+assert.throws(() => c2.dir('foo'), /^Error: out$/);
