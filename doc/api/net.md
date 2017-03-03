@@ -3,7 +3,7 @@
 > Stability: 2 - Stable
 
 The `net` module provides an asynchronous network API for creating stream-based
-servers ([`net.Server`][]) and clients ([`net.Socket`][]) that implement TCP
+servers ([`net.createServer()`][]) and clients ([`net.createConnection()`][]) that implement TCP
 or local communications (domain sockets on UNIX, named pipes on Windows).
 It can be accessed using:
 
@@ -155,7 +155,8 @@ on Linux. The default value of this parameter is 511 (not 512).
 
 Note:
 
-* All [`net.Socket`][] are set to `SO_REUSEADDR`(See [socket(7)][] for details).
+* All [`net.Socket`][] are set to `SO_REUSEADDR` (See [socket(7)][] for
+  details).
 * The `server.listen()` method may be called multiple times. Each
   subsequent call will *re-open* the server using the provided options.
 
@@ -405,14 +406,16 @@ See also: the return values of `socket.write()`
 added: v0.1.90
 -->
 
-Emitted when the other end of the socket sends a FIN packet.
+Emitted when the other end of the socket sends a FIN packet, thus ending the
+readable side of the socket.
 
 By default (`allowHalfOpen` is `false`) the socket will send a FIN packet
 back and destroy its file descriptor once it has written out its pending
 write queue. However, if `allowHalfOpen` is set to `true`, the socket will
-not automatically [`end()`][`socket.end()`] its side, allowing the user to
-write arbitrary amounts of data. The user must call [`end()`][`socket.end()`]
-explicitly to close the connection.
+not automatically [`end()`][`socket.end()`] its writable side, allowing the
+user to write arbitrary amounts of data. The user must call
+[`end()`][`socket.end()`] explicitly to close the connection (i.e. sending a
+FIN packet back).
 
 ### Event: 'error'
 <!-- YAML
@@ -978,6 +981,7 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 [`dns.lookup()`]: dns.html#dns_dns_lookup_hostname_options_callback
 [`dns.lookup()` hints]: dns.html#dns_supported_getaddrinfo_flags
 [`EventEmitter`]: events.html#events_class_eventemitter
+[`net.createConnection()`]: #net_net_createconnection_options_connectlistener
 [`net.createServer()`]: #net_net_createserver_options_connectionlistener
 [`net.Server`]: #net_class_net_server
 [`net.Socket`]: #net_class_net_socket
