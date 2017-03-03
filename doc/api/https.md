@@ -21,17 +21,20 @@ added: v0.3.4
 This class is a subclass of `tls.Server` and emits events same as
 [`http.Server`][]. See [`http.Server`][] for more information.
 
-### server.setTimeout(msecs, callback)
+### server.setTimeout([msecs][, callback])
 <!-- YAML
 added: v0.11.2
 -->
+- `msecs` {number} Defaults to 120000 (2 minutes).
+- `callback` {Function}
 
 See [`http.Server#setTimeout()`][].
 
-### server.timeout
+### server.timeout([msecs])
 <!-- YAML
 added: v0.11.2
 -->
+- `msecs` {number} Defaults to 120000 (2 minutes).
 
 See [`http.Server#timeout`][].
 
@@ -39,10 +42,8 @@ See [`http.Server#timeout`][].
 <!-- YAML
 added: v0.3.4
 -->
-
-Returns a new HTTPS web server object. The `options` is similar to
-[`tls.createServer()`][].  The `requestListener` is a function which is
-automatically added to the `'request'` event.
+- `options` {Object} Accepts `options` from [`tls.createServer()`][] and [`tls.createSecureContext()`][].
+- `requestListener` {Function} A listener to be added to the `request` event.
 
 Example:
 
@@ -82,19 +83,33 @@ https.createServer(options, (req, res) => {
 <!-- YAML
 added: v0.1.90
 -->
+- `callback` {Function}
 
 See [`http.close()`][] for details.
 
 ### server.listen(handle[, callback])
+- `handle` {Object}
+- `callback` {Function}
+
 ### server.listen(path[, callback])
-### server.listen(port[, host][, backlog][, callback])
+- `path` {string}
+- `callback` {Function}
+
+### server.listen([port][, host][, backlog][, callback])
+- `port` {number}
+- `hostname` {string}
+- `backlog` {number}
+- `callback` {Function}
 
 See [`http.listen()`][] for details.
 
-## https.get(options, callback)
+## https.get(options[, callback])
 <!-- YAML
 added: v0.3.6
 -->
+- `options` {Object | string} Accepts the same `options` as
+  [`https.request()`][], with the `method` always set to `GET`.
+- `callback` {Function}
 
 Like [`http.get()`][] but for HTTPS.
 
@@ -126,17 +141,26 @@ added: v0.5.9
 
 Global instance of [`https.Agent`][] for all HTTPS client requests.
 
-## https.request(options, callback)
+## https.request(options[, callback])
 <!-- YAML
 added: v0.3.6
 -->
+- `options` {Object | string} Accepts all `options` from [`http.request()`][],
+  with some differences in default values:
+  - `protocol` Defaults to `https:`
+  - `port` Defaults to `443`.
+  - `agent` Defaults to `https.globalAgent`.
+- `callback` {Function}
+
 
 Makes a request to a secure web server.
 
+The following additional `options` from [`tls.connect()`][] are also accepted when using a
+  custom [`Agent`][]:
+  `pfx`, `key`, `passphrase`, `cert`, `ca`, `ciphers`, `rejectUnauthorized`, `secureProtocol`, `servername`
+
 `options` can be an object or a string. If `options` is a string, it is
 automatically parsed with [`url.parse()`][].
-
-All options from [`http.request()`][] are valid.
 
 Example:
 
@@ -164,58 +188,7 @@ req.on('error', (e) => {
 });
 req.end();
 ```
-
-The options argument has the following options
-
-- `host`: A domain name or IP address of the server to issue the request to.
-  Defaults to `'localhost'`.
-- `hostname`: Alias for `host`. To support `url.parse()` `hostname` is
-  preferred over `host`.
-- `family`: IP address family to use when resolving `host` and `hostname`.
-  Valid values are `4` or `6`. When unspecified, both IP v4 and v6 will be
-  used.
-- `port`: Port of remote server. Defaults to 443.
-- `localAddress`: Local interface to bind for network connections.
-- `socketPath`: Unix Domain Socket (use one of host:port or socketPath).
-- `method`: A string specifying the HTTP request method. Defaults to `'GET'`.
-- `path`: Request path. Defaults to `'/'`. Should include query string if any.
-  E.G. `'/index.html?page=12'`. An exception is thrown when the request path
-  contains illegal characters. Currently, only spaces are rejected but that
-  may change in the future.
-- `headers`: An object containing request headers.
-- `auth`: Basic authentication i.e. `'user:password'` to compute an
-  Authorization header.
-- `agent`: Controls [`Agent`][] behavior. When an Agent is used request will
-  default to `Connection: keep-alive`. Possible values:
- - `undefined` (default): use [`globalAgent`][] for this host and port.
- - `Agent` object: explicitly use the passed in `Agent`.
- - `false`: opts out of connection pooling with an Agent, defaults request to
-   `Connection: close`.
-
-The following options from [`tls.connect()`][] can also be specified:
-
-- `pfx`: Certificate, Private key and CA certificates to use for SSL. Default `null`.
-- `key`: Private key to use for SSL. Default `null`.
-- `passphrase`: A string of passphrase for the private key or pfx. Default `null`.
-- `cert`: Public x509 certificate to use. Default `null`.
-- `ca`: A string, [`Buffer`][] or array of strings or [`Buffer`][]s of trusted
-  certificates in PEM format. If this is omitted several well known "root"
-  CAs will be used, like VeriSign. These are used to authorize connections.
-- `ciphers`: A string describing the ciphers to use or exclude. Consult
-  <https://www.openssl.org/docs/man1.0.2/apps/ciphers.html#CIPHER-LIST-FORMAT> for
-  details on the format.
-- `rejectUnauthorized`: If `true`, the server certificate is verified against
-  the list of supplied CAs. An `'error'` event is emitted if verification
-  fails. Verification happens at the connection level, *before* the HTTP
-  request is sent. Default `true`.
-- `secureProtocol`: The SSL method to use, e.g. `SSLv3_method` to force
-  SSL version 3. The possible values depend on your installation of
-  OpenSSL and are defined in the constant [`SSL_METHODS`][].
-- `servername`: Servername for SNI (Server Name Indication) TLS extension.
-
-In order to specify these options, use a custom [`Agent`][].
-
-Example:
+Example using options from [`tls.connect()`][]:
 
 ```js
 var options = {
@@ -269,4 +242,5 @@ var req = https.request(options, (res) => {
 [`SSL_METHODS`]: https://www.openssl.org/docs/man1.0.2/ssl/ssl.html#DEALING-WITH-PROTOCOL-METHODS
 [`tls.connect()`]: tls.html#tls_tls_connect_options_callback
 [`tls.createServer()`]: tls.html#tls_tls_createserver_options_secureconnectionlistener
+[`tls.createSecureContext()`]: tls.html#tls_tls_createsecurecontext_options
 [`url.parse()`]: url.html#url_url_parse_urlstring_parsequerystring_slashesdenotehost
