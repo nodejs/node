@@ -737,7 +737,7 @@ end
 preferred over the use of the `'readable'` event.
 
 ##### readable.isPaused()
-<!--
+<!-- YAML
 added: v0.11.14
 -->
 
