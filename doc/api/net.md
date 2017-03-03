@@ -977,7 +977,6 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 [`connect()`]: #net_socket_connect_options_connectlistener
 [`dns.lookup()`]: dns.html#dns_dns_lookup_hostname_options_callback
 [`dns.lookup()` hints]: dns.html#dns_supported_getaddrinfo_flags
-[`socket.end()`]: #net_socket_end_data_encoding
 [`EventEmitter`]: events.html#events_class_eventemitter
 [`net.createServer()`]: #net_net_createserver_options_connectionlistener
 [`net.Server`]: #net_class_net_server
@@ -986,12 +985,13 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 [`server.listen()`]: #net_server_listen
 [`server.listen(handle)`]: #net_server_listen_handle_backlog_callback
 [`server.listen(options)`]: #net_server_listen_options_callback
-[`server.listen(port, host)`]: #net_server_listen_port_host_backlog_callback
 [`server.listen(path)`]: #net_server_listen_path_backlog_callback
+[`server.listen(port, host)`]: #net_server_listen_port_host_backlog_callback
 [`server.close()`]: #net_server_close_callback
 [`socket.connect(options, connectListener)`]: #net_socket_connect_options_connectlistener
 [`socket.connect`]: #net_socket_connect_options_connectlistener
 [`socket.destroy()`]: #net_socket_destroy_exception
+[`socket.end()`]: #net_socket_end_data_encoding
 [`socket.setTimeout()`]: #net_socket_settimeout_timeout_callback
 [`socket.resume()`]: #net_socket_resume
 [`socket.pause()`]: #net_socket_pause
