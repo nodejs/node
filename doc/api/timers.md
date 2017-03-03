@@ -163,7 +163,7 @@ added: v0.0.1
 Cancels a `Timeout` object created by [`setTimeout()`][].
 
 
-[the Node.js Event Loop]: https://github.com/nodejs/node/blob/master/doc/topics/event-loop-timers-and-nexttick.md
+[the Node.js Event Loop]: https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick
 [`TypeError`]: errors.html#errors_class_typeerror
 [`clearImmediate()`]: timers.html#timers_clearimmediate_immediate
 [`clearInterval()`]: timers.html#timers_clearinterval_timeout
