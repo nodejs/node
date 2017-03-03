@@ -73,9 +73,9 @@ It is good practice, to [`destroy()`][] an `Agent` instance when it is no
 longer in use, because unused sockets consume OS resources.
 
 Sockets are removed from an agent's pool when the socket emits either
-a `'close'` event or an `'agentRemove'` event. This means that if
-you intend to keep one HTTP request open for a long time and don't
-want it to stay in the pool you can do something along the lines of:
+a `'close'` event or an `'agentRemove'` event. When intending to keep one
+HTTP request open for a long time without keeping it in the pool, something
+like the following may be done:
 
 ```js
 http.get(options, (res) => {
@@ -85,7 +85,7 @@ http.get(options, (res) => {
 });
 ```
 
-You may also use an agent for an individual request. By providing
+An agent may also be used for an individual request. By providing
 `{agent: false}` as an option to the `http.get()` or `http.request()`
 functions, a one-time use `Agent` with default options will be used
 for the client connection.
@@ -112,21 +112,21 @@ added: v0.3.4
   Can have the following fields:
   * `keepAlive` {boolean} Keep sockets around even when there are no
     outstanding requests, so they can be used for future requests without
-    having to reestablish a TCP connection. Default = `false`
-  * `keepAliveMsecs` {Integer} When using the `keepAlive` option, specifies
+    having to reestablish a TCP connection. Defaults to `false`
+  * `keepAliveMsecs` {number} When using the `keepAlive` option, specifies
     the [initial delay](net.html#net_socket_setkeepalive_enable_initialdelay)
     for TCP Keep-Alive packets. Ignored when the
-    `keepAlive` option is `false` or `undefined`. Default = `1000`.
+    `keepAlive` option is `false` or `undefined`. Defaults to `1000`.
   * `maxSockets` {number} Maximum number of sockets to allow per
-    host.  Default = `Infinity`.
+    host.  Defaults to `Infinity`.
   * `maxFreeSockets` {number} Maximum number of sockets to leave open
     in a free state.  Only relevant if `keepAlive` is set to `true`.
-    Default = `256`.
+    Defaults to `256`.
 
 The default [`http.globalAgent`][] that is used by [`http.request()`][] has all
 of these values set to their respective defaults.
 
-To configure any of them, you must create your own [`http.Agent`][] instance.
+To configure any of them, a custom [`http.Agent`][] instance must be created.
 
 ```js
 const http = require('http');
@@ -162,9 +162,9 @@ added: v0.11.4
 
 Destroy any sockets that are currently in use by the agent.
 
-It is usually not necessary to do this.  However, if you are using an
+It is usually not necessary to do this.  However, if using an
 agent with `keepAlive` enabled, then it is best to explicitly shut down
-the agent when you know that it will no longer be used.  Otherwise,
+the agent when it will no longer be used.  Otherwise,
 sockets may hang open for quite a long time before the server
 terminates them.
 
@@ -188,7 +188,7 @@ added: v0.11.4
   * `port` {number} Port of remote server
   * `localAddress` {string} Local interface to bind for network connections
     when issuing the request
-* Returns: {String}
+* Returns: {string}
 
 Get a unique name for a set of request options, to determine whether a
 connection can be reused.  For an HTTP agent, this returns
@@ -201,7 +201,7 @@ socket reusability.
 added: v0.11.7
 -->
 
-* {Number}
+* {number}
 
 By default set to 256.  For agents with `keepAlive` enabled, this
 sets the maximum number of sockets that will be left open in the free
@@ -212,7 +212,7 @@ state.
 added: v0.3.6
 -->
 
-* {Number}
+* {number}
 
 By default set to Infinity. Determines how many concurrent sockets the agent
 can have open per origin. Origin is either a 'host:port' or
@@ -258,8 +258,8 @@ During the [`'response'`][] event, one can add listeners to the
 response object; particularly to listen for the `'data'` event.
 
 If no [`'response'`][] handler is added, then the response will be
-entirely discarded.  However, if you add a [`'response'`][] event handler,
-then you **must** consume the data from the response object, either by
+entirely discarded.  However, if a [`'response'`][] event handler is added,
+then the data from the response object **must** be consumed, either by
 calling `response.read()` whenever there is a `'readable'` event, or
 by adding a `'data'` handler, or by calling the `.resume()` method.
 Until the data is consumed, the `'end'` event will not fire.  Also, until
@@ -301,7 +301,7 @@ Emitted each time a server responds to a request with a `CONNECT` method. If thi
 event is not being listened for, clients receiving a `CONNECT` method will have
 their connections closed.
 
-A client and server pair that shows you how to listen for the `'connect'` event:
+A client and server pair demonstrating how to listen for the `'connect'` event:
 
 ```js
 const http = require('http');
@@ -399,7 +399,7 @@ Emitted each time a server responds to a request with an upgrade. If this
 event is not being listened for, clients receiving an upgrade header will have
 their connections closed.
 
-A client server pair that show you how to listen for the `'upgrade'` event.
+A client server pair demonstrating how to listen for the `'upgrade'` event.
 
 ```js
 const http = require('http');
@@ -484,13 +484,13 @@ added: v1.6.0
 
 Flush the request headers.
 
-For efficiency reasons, Node.js normally buffers the request headers until you
-call `request.end()` or write the first chunk of request data.  It then tries
-hard to pack the request headers and data into a single TCP packet.
+For efficiency reasons, Node.js normally buffers the request headers until
+`request.end()` is called or the first chunk of request data is written. It
+then tries to pack the request headers and data into a single TCP packet.
 
-That's usually what you want (it saves a TCP round-trip) but not when the first
-data is not sent until possibly much later.  `request.flushHeaders()` lets you bypass
-the optimization and kickstart the request.
+That's usually desired (it saves a TCP round-trip), but not when the first
+data is not sent until possibly much later.  `request.flushHeaders()` bypasses
+the optimization and kickstarts the request.
 
 ### request.setNoDelay([noDelay])
 <!-- YAML
@@ -536,7 +536,7 @@ added: v0.1.29
 * `callback` {Function}
 
 Sends a chunk of the body.  By calling this method
-many times, the user can stream a request body to a
+many times, a request body can be sent to a
 server--in that case it is suggested to use the
 `['Transfer-Encoding', 'chunked']` header line when
 creating the request.
@@ -653,7 +653,7 @@ not listened for, then clients requesting a `CONNECT` method will have their
 connections closed.
 
 After this event is emitted, the request's socket will not have a `'data'`
-event listener, meaning you will need to bind to it in order to handle data
+event listener, meaning it will need to be bound in order to handle data
 sent to the server on that socket.
 
 ### Event: 'connection'
@@ -695,7 +695,7 @@ listened for, then clients requesting an upgrade will have their connections
 closed.
 
 After this event is emitted, the request's socket will not have a `'data'`
-event listener, meaning you will need to bind to it in order to handle data
+event listener, meaning it will need to be bound in order to handle data
 sent to the server on that socket.
 
 ### server.close([callback])
@@ -774,7 +774,7 @@ after the `'listening'` event has been emitted.
 To listen to a unix socket, supply a filename instead of port and hostname.
 
 `backlog` is the maximum length of the queue of pending connections.
-The actual length will be determined by your OS through sysctl settings such as
+The actual length will be determined by the OS through sysctl settings such as
 `tcp_max_syn_backlog` and `somaxconn` on linux. The default value of this
 parameter is 511 (not 512).
 
@@ -789,27 +789,27 @@ subsequent call will *re-open* the server using the provided options.
 added: v5.7.0
 -->
 
-* {Boolean}
+* {boolean}
 
 A Boolean indicating whether or not the server is listening for
 connections.
 
-### server.maxHeadersCount
+### server.maxHeadersCount([limit])
 <!-- YAML
 added: v0.7.0
 -->
 
-* {Number}
+* `limit` {number} Defaults to 1000.
 
 Limits maximum incoming headers count, equal to 1000 by default. If set to 0 -
 no limit will be applied.
 
-### server.setTimeout(msecs, callback)
+### server.setTimeout([msecs][, callback])
 <!-- YAML
 added: v0.9.12
 -->
 
-* `msecs` {number}
+* `msecs` {number} Defaults to 120000 (2 minutes).
 * `callback` {Function}
 
 Sets the timeout value for sockets, and emits a `'timeout'` event on
@@ -820,18 +820,17 @@ If there is a `'timeout'` event listener on the Server object, then it
 will be called with the timed-out socket as an argument.
 
 By default, the Server's timeout value is 2 minutes, and sockets are
-destroyed automatically if they time out.  However, if you assign a
-callback to the Server's `'timeout'` event, then you are responsible
-for handling socket timeouts.
+destroyed automatically if they time out.  However, if a callback is assigned
+to the Server's `'timeout'` event, timeouts must be handled explicitly.
 
 Returns `server`.
 
-### server.timeout
+### server.timeout([msecs])
 <!-- YAML
 added: v0.9.12
 -->
 
-* {Number} Default = 120000 (2 minutes)
+* `msecs` {number} Defaults to 120000 (2 minutes).
 
 The number of milliseconds of inactivity before a socket is presumed
 to have timed out.
@@ -888,7 +887,7 @@ Trailers will **only** be emitted if chunked encoding is used for the
 response; if it is not (e.g. if the request was HTTP/1.0), they will
 be silently discarded.
 
-Note that HTTP requires the `Trailer` header to be sent if you intend to
+Note that HTTP requires the `Trailer` header to be sent in order to
 emit trailers, with a list of the header fields in its value. E.g.,
 
 ```js
@@ -926,7 +925,7 @@ is finished.
 added: v0.0.2
 -->
 
-* {Boolean}
+* {boolean}
 
 Boolean value that indicates whether the response has completed. Starts
 as `false`. After [`response.end()`][] executes, the value will be `true`.
@@ -937,7 +936,7 @@ added: v0.4.0
 -->
 
 * `name` {string}
-* Returns: {String}
+* Returns: {string}
 
 Reads out a header that's already been queued but not sent to the client.
 Note that the name is case insensitive.
@@ -996,8 +995,8 @@ var headers = response.getHeaders();
 added: v7.7.0
 -->
 
-* `name` {String}
-* Returns: {Boolean}
+* `name` {string}
+* Returns: {boolean}
 
 Returns `true` if the header identified by `name` is currently set in the
 outgoing headers. Note that the header name matching is case-insensitive.
@@ -1013,7 +1012,7 @@ var hasContentType = response.hasHeader('content-type');
 added: v0.9.3
 -->
 
-* {Boolean}
+* {boolean}
 
 Boolean (read-only). True if headers were sent, false otherwise.
 
@@ -1037,7 +1036,7 @@ response.removeHeader('Content-Encoding');
 added: v0.7.5
 -->
 
-* {Boolean}
+* {boolean}
 
 When true, the Date header will be automatically generated and sent in
 the response if it is not already present in the headers. Defaults to true.
@@ -1051,11 +1050,11 @@ added: v0.4.0
 -->
 
 * `name` {string}
-* `value` {string}
+* `value` {string | string[]}
 
 Sets a single header value for implicit headers.  If this header already exists
 in the to-be-sent headers, its value will be replaced.  Use an array of strings
-here if you need to send multiple headers with the same name.
+here to send multiple headers with the same name.
 
 Example:
 
@@ -1086,7 +1085,7 @@ const server = http.createServer((req,res) => {
 });
 ```
 
-### response.setTimeout(msecs, callback)
+### response.setTimeout(msecs[, callback])
 <!-- YAML
 added: v0.9.12
 -->
@@ -1099,10 +1098,9 @@ provided, then it is added as a listener on the `'timeout'` event on
 the response object.
 
 If no `'timeout'` listener is added to the request, the response, or
-the server, then sockets are destroyed when they time out.  If you
-assign a handler on the request, the response, or the server's
-`'timeout'` events, then it is your responsibility to handle timed out
-sockets.
+the server, then sockets are destroyed when they time out.  If a handler is
+assigned to the request, the response, or the server's `'timeout'` events,
+timed out sockets must be handled explicitly.
 
 Returns `response`.
 
@@ -1111,7 +1109,7 @@ Returns `response`.
 added: v0.4.0
 -->
 
-* {Number}
+* {number}
 
 When using implicit headers (not calling [`response.writeHead()`][] explicitly),
 this property controls the status code that will be sent to the client when
@@ -1131,7 +1129,7 @@ status code which was sent out.
 added: v0.11.8
 -->
 
-* {String}
+* {string}
 
 When using implicit headers (not calling [`response.writeHead()`][] explicitly), this property
 controls the status message that will be sent to the client when the headers get
@@ -1155,7 +1153,7 @@ added: v0.1.29
 * `chunk` {string | Buffer}
 * `encoding` {string}
 * `callback` {Function}
-* Returns: {Boolean}
+* Returns: {boolean}
 
 If this method is called and [`response.writeHead()`][] has not been called,
 it will switch to implicit header mode and flush the implicit headers.
@@ -1172,10 +1170,10 @@ of data is flushed.
 higher-level multi-part body encodings that may be used.
 
 The first time [`response.write()`][] is called, it will send the buffered
-header information and the first body to the client. The second time
-[`response.write()`][] is called, Node.js assumes you're going to be streaming
-data, and sends that separately. That is, the response is buffered up to the
-first chunk of body.
+header information and the first chunk of the body to the client. The second
+time [`response.write()`][] is called, Node.js assumes data will be streamed,
+and sends the new data separately. That is, the response is buffered up to the
+first chunk of the body.
 
 Returns `true` if the entire data was flushed successfully to the kernel
 buffer. Returns `false` if all or part of the data was queued in user memory.
@@ -1220,8 +1218,8 @@ response.writeHead(200, {
 This method must only be called once on a message and it must
 be called before [`response.end()`][] is called.
 
-If you call [`response.write()`][] or [`response.end()`][] before calling this,
-the implicit/mutable headers will be calculated and call this function for you.
+If [`response.write()`][] or [`response.end()`][] are called before calling
+this, the implicit/mutable headers will be calculated and call this function.
 
 When headers have been set with [`response.setHeader()`][], they will be merged with
 any headers passed to [`response.writeHead()`][], with the headers passed to
@@ -1323,7 +1321,7 @@ header name:
 added: v0.1.1
 -->
 
-* {String}
+* {string}
 
 In case of server request, the HTTP version sent by the client. In the case of
 client response, the HTTP version of the connected-to server.
@@ -1337,7 +1335,7 @@ Also `message.httpVersionMajor` is the first integer and
 added: v0.1.1
 -->
 
-* {String}
+* {string}
 
 **Only valid for request obtained from [`http.Server`][].**
 
@@ -1412,7 +1410,7 @@ client's authentication details.
 added: v0.1.1
 -->
 
-* {Number}
+* {number}
 
 **Only valid for response obtained from [`http.ClientRequest`][].**
 
@@ -1423,7 +1421,7 @@ The 3-digit HTTP response status code. E.G. `404`.
 added: v0.11.10
 -->
 
-* {String}
+* {string}
 
 **Only valid for response obtained from [`http.ClientRequest`][].**
 
@@ -1443,7 +1441,7 @@ The request/response trailers object. Only populated at the `'end'` event.
 added: v0.1.90
 -->
 
-* {String}
+* {string}
 
 **Only valid for request obtained from [`http.Server`][].**
 
@@ -1462,8 +1460,8 @@ Then `request.url` will be:
 '/status?name=ryan'
 ```
 
-If you would like to parse the URL into its parts, you can use
-`require('url').parse(request.url)`.  Example:
+To parse the url into its parts `require('url').parse(request.url)`
+can be used.  Example:
 
 ```txt
 $ node
@@ -1476,9 +1474,10 @@ $ node
 }
 ```
 
-If you would like to extract the parameters from the query string,
-you can use the `require('querystring').parse` function, or pass
-`true` as the second argument to `require('url').parse`.  Example:
+To extract the parameters from the query string, the
+`require('querystring').parse` function can be used, or
+`true` can be passed as the second argument to `require('url').parse`.
+Example:
 
 ```txt
 $ node
@@ -1515,6 +1514,7 @@ Found'`.
 <!-- YAML
 added: v0.1.13
 -->
+- `requestListener` {Function}
 
 * Returns: {http.Server}
 
@@ -1528,7 +1528,8 @@ added to the [`'request'`][] event.
 added: v0.3.6
 -->
 
-* `options` {Object}
+* `options` {Object | string} Accepts the same `options` as
+  [`http.request()`][], with the `method` always set to `GET`.
 * `callback` {Function}
 * Returns: {http.ClientRequest}
 
@@ -1594,10 +1595,10 @@ requests.
 added: v0.3.6
 -->
 
-* `options` {Object}
-  * `protocol` {string} Protocol to use. Defaults to `'http:'`.
+* `options` {Object | string}
+  * `protocol` {string} Protocol to use. Defaults to `http:`.
   * `host` {string} A domain name or IP address of the server to issue the
-    request to. Defaults to `'localhost'`.
+    request to. Defaults to `localhost`.
   * `hostname` {string} Alias for `host`. To support [`url.parse()`][],
     `hostname` is preferred over `host`.
   * `family` {number} IP address family to use when resolving `host` and
@@ -1616,7 +1617,7 @@ added: v0.3.6
   * `headers` {Object} An object containing request headers.
   * `auth` {string} Basic authentication i.e. `'user:password'` to compute an
     Authorization header.
-  * `agent` {http.Agent|boolean} Controls [`Agent`][] behavior. Possible values:
+  * `agent` {http.Agent | boolean} Controls [`Agent`][] behavior. Possible values:
    * `undefined` (default): use [`http.globalAgent`][] for this host and port.
    * `Agent` object: explicitly use the passed in `Agent`.
    * `false`: causes a new `Agent` with default values to be used.
@@ -1625,7 +1626,7 @@ added: v0.3.6
     avoid creating a custom `Agent` class just to override the default
     `createConnection` function. See [`agent.createConnection()`][] for more
     details.
-  * `timeout` {Integer}: A number specifying the socket timeout in milliseconds.
+  * `timeout` {number}: A number specifying the socket timeout in milliseconds.
     This will set the timeout before the socket is connected.
 * `callback` {Function}
 * Returns: {http.ClientRequest}
@@ -1683,7 +1684,7 @@ req.end();
 ```
 
 Note that in the example `req.end()` was called. With `http.request()` one
-must always call `req.end()` to signify that you're done with the request -
+must always call `req.end()` to signify the end of the request -
 even if there is no data being written to the request body.
 
 If any error is encountered during the request (be that with DNS resolution,
@@ -1699,8 +1700,8 @@ There are a few special headers that should be noted.
 * Sending a 'Content-Length' header will disable the default chunked encoding.
 
 * Sending an 'Expect' header will immediately send the request headers.
-  Usually, when sending 'Expect: 100-continue', you should both set a timeout
-  and listen for the `'continue'` event. See RFC2616 Section 8.2.3 for more
+  Usually, when sending 'Expect: 100-continue', both a timeout and a listener
+  for the `continue` event should be set. See RFC2616 Section 8.2.3 for more
   information.
 
 * Sending an Authorization header will override using the `auth` option
