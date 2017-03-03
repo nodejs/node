@@ -191,11 +191,11 @@ function test_cyclic_link_protection(callback) {
     common.skip('symlink test (no privs)');
     return runNextTest();
   }
-  const entry = common.tmpDir + '/cycles/realpath-3a';
+  const entry = path.join(common.tmpDir, '/cycles/realpath-3a');
   [
     [entry, '../cycles/realpath-3b'],
-    [common.tmpDir + '/cycles/realpath-3b', '../cycles/realpath-3c'],
-    [common.tmpDir + '/cycles/realpath-3c', '../cycles/realpath-3a']
+    [path.join(common.tmpDir, '/cycles/realpath-3b'), '../cycles/realpath-3c'],
+    [path.join(common.tmpDir, '/cycles/realpath-3c'), '../cycles/realpath-3a']
   ].forEach(function(t) {
     try { fs.unlinkSync(t[0]); } catch (e) {}
     fs.symlinkSync(t[1], t[0], 'dir');
