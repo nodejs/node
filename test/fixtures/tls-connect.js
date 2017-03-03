@@ -15,10 +15,6 @@ if (!common.hasCrypto) {
 const tls = require('tls');
 const util = require('util');
 
-module.exports = exports = function() {
-  return exports;
-};
-
 exports.assert = require('assert');
 exports.debug = util.debuglog('test');
 exports.tls = tls;

@@ -7,7 +7,7 @@ const common = require('../common');
 const join = require('path').join;
 const {
   assert, connect, debug, keys
-} = require(join(common.fixturesDir, 'tls-connect'))();
+} = require(join(common.fixturesDir, 'tls-connect'));
 
 
 // agent6-cert.pem includes cert for agent6 and ca3, split it apart and
