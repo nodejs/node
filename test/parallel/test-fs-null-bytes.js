@@ -22,7 +22,7 @@ function check(async, sync) {
 
 check(fs.access, fs.accessSync, 'foo\u0000bar');
 check(fs.access, fs.accessSync, 'foo\u0000bar', fs.F_OK);
-check(fs.appendFile, fs.appendFileSync, 'foo\u0000bar');
+check(fs.appendFile, fs.appendFileSync, 'foo\u0000bar', 'abc');
 check(fs.chmod, fs.chmodSync, 'foo\u0000bar', '0644');
 check(fs.chown, fs.chownSync, 'foo\u0000bar', 12, 34);
 check(fs.link, fs.linkSync, 'foo\u0000bar', 'foobar');
@@ -46,7 +46,7 @@ check(null, fs.unwatchFile, 'foo\u0000bar', common.fail);
 check(fs.utimes, fs.utimesSync, 'foo\u0000bar', 0, 0);
 check(null, fs.watch, 'foo\u0000bar', common.fail);
 check(null, fs.watchFile, 'foo\u0000bar', common.fail);
-check(fs.writeFile, fs.writeFileSync, 'foo\u0000bar');
+check(fs.writeFile, fs.writeFileSync, 'foo\u0000bar', 'abc');
 
 // an 'error' for exists means that it doesn't exist.
 // one of many reasons why this file is the absolute worst.
