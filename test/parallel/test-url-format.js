@@ -1,11 +1,10 @@
-/* eslint-disable max-len */
 'use strict';
 require('../common');
 const assert = require('assert');
 const url = require('url');
 
-// some extra formatting tests, just to verify
-// that it'll format slightly wonky content to a valid url.
+// Formatting tests to verify that it'll format slightly wonky content to a
+// valid URL.
 const formatTests = {
   'http://example.com?': {
     href: 'http://example.com/?',
@@ -133,7 +132,7 @@ const formatTests = {
     protocol: 'dot.test:',
     pathname: '/bar'
   },
-  // ipv6 support
+  // IPv6 support
   'coap:u:p@[::1]:61616/.well-known/r?n=Temperature': {
     href: 'coap:u:p@[::1]:61616/.well-known/r?n=Temperature',
     protocol: 'coap:',
@@ -150,9 +149,9 @@ const formatTests = {
     pathname: '/s/stopButton'
   },
 
-  // encode context-specific delimiters in path and query, but do not touch
+  // Encode context-specific delimiters in path and query, but do not touch
   // other non-delimiter chars like `%`.
-  // <https://github.com/joyent/node/issues/4082>
+  // <https://github.com/nodejs/node-v0.x-archive/issues/4082>
 
   // `#`,`?` in path
   '/path/to/%%23%3F+=&.txt?foo=theA1#bar': {
