@@ -499,7 +499,10 @@ added: v0.1.26
 -->
 
 Removes the specified `listener` from the listener array for the event named
-`eventName`.
+`eventName`. 
+
+Note that a `listener` added with `once()` cannot be removed using 
+`removeListener`. To achieve that, use `removeAllListeners`.
 
 ```js
 var callback = (stream) => {
