@@ -7,7 +7,7 @@ changes:
                  the first promise of a chain was created.
 -->
 
-<!--doc_created=v0.10.0-->
+<!--introduced_in=v0.10.0-->
 
 > Stability: 0 - Deprecated
 

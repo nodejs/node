@@ -1,6 +1,6 @@
 # Console
 
-<!--doc_created=v0.10.13-->
+<!--introduced_in=v0.10.13-->
 
 > Stability: 2 - Stable
 

@@ -6,7 +6,7 @@ changes:
     description: Accessing this module will now emit a deprecation warning.
 -->
 
-<!--doc_created=v0.10.0-->
+<!--introduced_in=v0.10.0-->
 
 > Stability: 0 - Deprecated
 

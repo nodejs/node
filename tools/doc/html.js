@@ -31,7 +31,7 @@ const typeParser = require('./type-parser.js');
 module.exports = toHTML;
 
 const STABILITY_TEXT_REG_EXP = /(.*:)\s*(\d)([\s\S]*)/;
-const DOC_CREATED_REG_EXP = /<!--doc_created=v([0-9]+).([0-9]+).([0-9]+)-->/;
+const DOC_CREATED_REG_EXP = /<!--introduced_in=v([0-9]+).([0-9]+).([0-9]+)-->/;
 
 // customized heading without id attribute
 const renderer = new marked.Renderer();

@@ -1,6 +1,6 @@
 # About this Documentation
 
-<!--doc_created=v0.10.0-->
+<!--introduced_in=v0.10.0-->
 <!-- type=misc -->
 
 The goal of this documentation is to comprehensively explain the Node.js
