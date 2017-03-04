@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const fork = require('child_process').fork;
 const net = require('net');
@@ -81,9 +81,10 @@ if (process.argv[2] === 'child') {
 
   const child = fork(process.argv[1], ['child']);
 
-  child.on('exit', function() {
-    console.log('CHILD: died');
-  });
+  child.on('exit', common.mustCall(function(code, signal) {
+    const message = `CHILD: died with ${code}, ${signal}`;
+    assert.strictEqual(code, 0, message);
+  }));
 
   // send net.Server to child and test by connecting
   const testServer = function(callback) {
@@ -192,7 +193,6 @@ if (process.argv[2] === 'child') {
 
       testSocket(function() {
         socketSuccess = true;
-        child.kill();
       });
     });
 
