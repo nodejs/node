@@ -506,7 +506,25 @@ added: v0.5.3
 
 The amount of bytes sent.
 
-### socket.connect(options[, connectListener])
+### socket.connect()
+
+Initiate a connection on a given socket.
+
+Possible signatures:
+
+* [socket.connect(options[, connectListener])][`socket.connect(options)`]
+* [socket.connect(path[, connectListener])][`socket.connect(path)`]
+  for [IPC][] connections.
+* [socket.connect(port[, host][, connectListener])][`socket.connect(port, host)`] for TCP connections.
+
+This function is asynchronous. When the connection is established, the
+[`'connect'`][] event will be emitted. If there is a problem connecting,
+instead of a [`'connect'`][] event, an [`'error'`][] event will be emitted with
+the error passed to the [`'error'`][] listener.
+The last parameter `connectListener`, if supplied, will be added as a listener
+for the [`'connect'`][] event **once**.
+
+#### socket.connect(options[, connectListener])
 <!-- YAML
 added: v0.1.90
 changes:
@@ -520,56 +538,67 @@ changes:
     description: The `hints` option is supported now.
 -->
 
-Opens the connection for a given socket.
+* `options` {Object}
+* `connectListener` {Function} Common parameter of [`socket.connect()`][]
+  methods. Will be added as a listener for the [`'connect'`][] event once.
+* Returns: {net.Socket} The socket itself.
 
-For TCP sockets, `options` argument should be an object which specifies:
+Initiate a connection on a given socket. Normally this method is not needed,
+the socket should be created and opened with [`net.createConnection()`][]. Use
+this only if you are implementing a custom Socket.
 
-  - `port`: Port the client should connect to (Required).
+For TCP connections, available `options` are:
 
-  - `host`: Host the client should connect to. Defaults to `'localhost'`.
+* `port` {number} Required. Port the socket should connect to.
+* `host` {string} Host the socket should connect to. Defaults to `'localhost'`.
+* `localAddress` {string} Local address the socket should connect from.
+* `localPort` {number} Local port the socket should connect from.
+* `family` {number}: Version of IP stack, can be either 4 or 6. Defaults to 4.
+* `hints` {number} Optional [`dns.lookup()` hints][].
+* `lookup` {Function} Custom lookup function. Defaults to [`dns.lookup()`][].
 
-  - `localAddress`: Local interface to bind to for network connections.
+For [IPC][] connections, available `options` are:
 
-  - `localPort`: Local port to bind to for network connections.
+* `path` {string} Required. Path the client should connect to.
 
-  - `family` : Version of IP stack. Defaults to `4`.
+#### socket.connect(path[, connectListener])
 
-  - `hints`: [`dns.lookup()` hints][]. Defaults to `0`.
+* `path` {string} Path the client should connect to.
+* `connectListener` {Function} Common parameter of [`socket.connect()`][]
+  methods. Will be added as a listener for the [`'connect'`][] event once.
+* Returns: {net.Socket} The socket itself.
 
-  - `lookup` : Custom lookup function. Defaults to `dns.lookup`.
+Initiate an [IPC][] connection on the given socket.
 
-For local domain sockets, `options` argument should be an object which
-specifies:
+Alias to
+[`socket.connect(options[, connectListener])`][`socket.connect(options)`]
+called with `{ path: path }` as `options`.
 
-  - `path`: Path the client should connect to (Required).
-
-Normally this method is not needed, as `net.createConnection` opens the
-socket. Use this only if you are implementing a custom Socket.
-
-This function is asynchronous. When the [`'connect'`][] event is emitted the
-socket is established. If there is a problem connecting, the `'connect'` event
-will not be emitted, the [`'error'`][] event will be emitted with the exception.
-
-The `connectListener` parameter will be added as a listener for the
-[`'connect'`][] event.
-
-### socket.connect(path[, connectListener])
-### socket.connect(port[, host][, connectListener])
+#### socket.connect(port[, host][, connectListener])
 <!-- YAML
 added: v0.1.90
 -->
 
-As [`socket.connect(options[, connectListener])`][`socket.connect(options, connectListener)`],
-with options as either `{port: port, host: host}` or `{path: path}`.
+* `port` {number} Port the client should connect to.
+* `host` {string} Host the client should connect to.
+* `connectListener` {Function} Common parameter of [`socket.connect()`][]
+  methods. Will be added as a listener for the [`'connect'`][] event once.
+* Returns: {net.Socket} The socket itself.
+
+Initiate a TCP connection on the given socket.
+
+Alias to
+[`socket.connect(options[, connectListener])`][`socket.connect(options)`]
+called with `{port: port, host: host}` as `options`.
 
 ### socket.connecting
 <!-- YAML
 added: v6.1.0
 -->
 
-If `true` - [`socket.connect(options[, connectListener])`][`socket.connect(options, connectListener)`] was called and
+If `true` - [`socket.connect(options[, connectListener])`][`socket.connect(options)`] was called and
 haven't yet finished. Will be set to `false` before emitting `connect` event
-and/or calling [`socket.connect(options[, connectListener])`][`socket.connect(options, connectListener)`]'s callback.
+and/or calling [`socket.connect(options[, connectListener])`][`socket.connect(options)`]'s callback.
 
 ### socket.destroy([exception])
 <!-- YAML
@@ -757,7 +786,7 @@ A factory function, which returns a new [`net.Socket`][] and automatically
 connects with the supplied `options`.
 
 The options are passed to both the [`net.Socket`][] constructor and the
-[`socket.connect`][] method.
+[`socket.connect()`][] method.
 
 The `connectListener` parameter will be added as a listener for the
 [`'connect'`][] event once.
@@ -816,11 +845,13 @@ The `connectListener` parameter will be added as a listener for the
 added: v0.1.90
 -->
 
-A factory function, which returns a new [`net.Socket`][] and automatically
-connects with the supplied `options`.
+* `options` {Object} Required.
+* `connectListener` {Function}
 
-The options are passed to both the [`net.Socket`][] constructor and the
-[`socket.connect`][] method.
+A factory function, which returns a new [`net.Socket`][] and automatically
+connects with the supplied `options`. The options are passed to both the
+[`net.Socket`][] constructor and the
+[`socket.connect(options[, connectListener])`][`socket.connect(options)`] method.
 
 Passing `timeout` as an option will call [`socket.setTimeout()`][] after the socket is created, but before it is connecting.
 
@@ -998,14 +1029,17 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 [`server.listen(path)`]: #net_server_listen_path_backlog_callback
 [`server.listen(port, host)`]: #net_server_listen_port_host_backlog_callback
 [`server.close()`]: #net_server_close_callback
-[`socket.connect(options, connectListener)`]: #net_socket_connect_options_connectlistener
-[`socket.connect`]: #net_socket_connect_options_connectlistener
+[`socket.connect()`]: #net_socket_connect
+[`socket.connect(options)`]: #net_socket_connect_options_connectlistener
+[`socket.connect(path)`]: #net_socket_connect_path_connectlistener
+[`socket.connect(port, host)`]: #net_socket_connect_port_host_connectlistener
 [`socket.destroy()`]: #net_socket_destroy_exception
 [`socket.end()`]: #net_socket_end_data_encoding
 [`socket.setTimeout()`]: #net_socket_settimeout_timeout_callback
 [`socket.resume()`]: #net_socket_resume
 [`socket.pause()`]: #net_socket_pause
 [`stream.setEncoding()`]: stream.html#stream_readable_setencoding_encoding
+[duplex stream]: stream.html#stream_class_stream_duplex
 [half-closed]: https://tools.ietf.org/html/rfc1122#section-4.2.2.13
 [IPC]: #net_ipc_support
 [Readable Stream]: stream.html#stream_class_stream_readable
