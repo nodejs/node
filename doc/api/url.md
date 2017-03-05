@@ -136,7 +136,7 @@ For example: `'#hash'`
 added: v0.1.25
 -->
 
-* `urlObject` {Object | string} A URL object (as returned by `url.parse()` or
+* `urlObject` {Object|string} A URL object (as returned by `url.parse()` or
   constructed otherwise). If a string, it is converted to an object by passing
   it to `url.parse()`.
 

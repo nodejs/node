@@ -135,9 +135,9 @@ added: v0.1.90
      understand the `-c` switch on UNIX or `/s /c` on Windows. On Windows,
      command line parsing should be compatible with `cmd.exe`.)
   * `timeout` {number} (Default: `0`)
-  * [`maxBuffer`][] {Number} largest amount of data (in bytes) allowed on
+  * [`maxBuffer`][] {number} largest amount of data (in bytes) allowed on
     stdout or stderr - if exceeded child process is killed (Default: `200*1024`)
-  * `killSignal` {string|Integer} (Default: `'SIGTERM'`)
+  * `killSignal` {string|integer} (Default: `'SIGTERM'`)
   * `uid` {number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {number} Sets the group identity of the process. (See setgid(2).)
 * `callback` {Function} called with the output when process terminates
@@ -212,9 +212,9 @@ added: v0.1.91
   * `env` {Object} Environment key-value pairs
   * `encoding` {string} (Default: `'utf8'`)
   * `timeout` {number} (Default: `0`)
-  * [`maxBuffer`][] {Number} largest amount of data (in bytes) allowed on
+  * [`maxBuffer`][] {number} largest amount of data (in bytes) allowed on
     stdout or stderr - if exceeded child process is killed (Default: `200*1024`)
-  * `killSignal` {string|Integer} (Default: `'SIGTERM'`)
+  * `killSignal` {string|integer} (Default: `'SIGTERM'`)
   * `uid` {number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {number} Sets the group identity of the process. (See setgid(2).)
 * `callback` {Function} called with the output when process terminates
@@ -583,7 +583,7 @@ added: v0.11.12
   * `input` {string|Buffer} The value which will be passed as stdin to the
     spawned process
     - supplying this value will override `stdio[0]`
-  * `stdio` {string | Array} Child's stdio configuration. (Default: `'pipe'`)
+  * `stdio` {string|Array} Child's stdio configuration. (Default: `'pipe'`)
     - `stderr` by default will be output to the parent process' stderr unless
       `stdio` is specified
   * `env` {Object} Environment key-value pairs
@@ -591,9 +591,9 @@ added: v0.11.12
   * `gid` {number} Sets the group identity of the process. (See setgid(2).)
   * `timeout` {number} In milliseconds the maximum amount of time the process
     is allowed to run. (Default: `undefined`)
-  * `killSignal` {string|Integer} The signal value to be used when the spawned
+  * `killSignal` {string|integer} The signal value to be used when the spawned
     process will be killed. (Default: `'SIGTERM'`)
-  * [`maxBuffer`][] {Number} largest amount of data (in bytes) allowed on
+  * [`maxBuffer`][] {number} largest amount of data (in bytes) allowed on
     stdout or stderr - if exceeded child process is killed
   * `encoding` {string} The encoding used for all stdio inputs and outputs. (Default: `'buffer'`)
 * Returns: {Buffer|string} The stdout from the command
@@ -621,7 +621,7 @@ added: v0.11.12
   * `input` {string|Buffer} The value which will be passed as stdin to the
     spawned process
     - supplying this value will override `stdio[0]`
-  * `stdio` {string | Array} Child's stdio configuration. (Default: `'pipe'`)
+  * `stdio` {string|Array} Child's stdio configuration. (Default: `'pipe'`)
     - `stderr` by default will be output to the parent process' stderr unless
       `stdio` is specified
   * `env` {Object} Environment key-value pairs
@@ -633,9 +633,9 @@ added: v0.11.12
   * `gid` {number} Sets the group identity of the process. (See setgid(2).)
   * `timeout` {number} In milliseconds the maximum amount of time the process
     is allowed to run. (Default: `undefined`)
-  * `killSignal` {string|Integer} The signal value to be used when the spawned
+  * `killSignal` {string|integer} The signal value to be used when the spawned
     process will be killed. (Default: `'SIGTERM'`)
-  * [`maxBuffer`][] {Number} largest amount of data (in bytes) allowed on
+  * [`maxBuffer`][] {number} largest amount of data (in bytes) allowed on
     stdout or stderr - if exceeded child process is killed
   * `encoding` {string} The encoding used for all stdio inputs and outputs.
     (Default: `'buffer'`)
@@ -669,15 +669,15 @@ added: v0.11.12
   * `input` {string|Buffer} The value which will be passed as stdin to the
     spawned process
     - supplying this value will override `stdio[0]`
-  * `stdio` {string | Array} Child's stdio configuration.
+  * `stdio` {string|Array} Child's stdio configuration.
   * `env` {Object} Environment key-value pairs
   * `uid` {number} Sets the user identity of the process. (See setuid(2).)
   * `gid` {number} Sets the group identity of the process. (See setgid(2).)
   * `timeout` {number} In milliseconds the maximum amount of time the process
     is allowed to run. (Default: `undefined`)
-  * `killSignal` {string|Integer} The signal value to be used when the spawned
+  * `killSignal` {string|integer} The signal value to be used when the spawned
     process will be killed. (Default: `'SIGTERM'`)
-  * [`maxBuffer`][] {Number} largest amount of data (in bytes) allowed on
+  * [`maxBuffer`][] {number} largest amount of data (in bytes) allowed on
     stdout or stderr - if exceeded child process is killed
   * `encoding` {string} The encoding used for all stdio inputs and outputs.
     (Default: `'buffer'`)
@@ -797,7 +797,7 @@ to send messages.
 added: v0.7.2
 -->
 
-* {Boolean} Set to `false` after `child.disconnect()` is called
+* {boolean} Set to `false` after `child.disconnect()` is called
 
 The `child.connected` property indicates whether it is still possible to send
 and receive messages from a child process. When `child.connected` is `false`, it
@@ -884,7 +884,7 @@ setTimeout(() => {
 added: v0.1.90
 -->
 
-* {Number} Integer
+* {number} Integer
 
 Returns the process identifier (PID) of the child process.
 
@@ -907,7 +907,7 @@ added: v0.5.9
 * `sendHandle` {Handle}
 * `options` {Object}
 * `callback` {Function}
-* Returns: {Boolean}
+* Returns: {boolean}
 
 When an IPC channel has been established between the parent and child (
 i.e. when using [`child_process.fork()`][]), the `child.send()` method can be

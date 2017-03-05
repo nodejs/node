@@ -27,7 +27,7 @@ added: v0.1.27
 
 <!-- type=var -->
 
-* {String}
+* {string}
 
 The directory name of the current module. This the same as the
 [`path.dirname()`][] of the [`__filename`][].
@@ -50,7 +50,7 @@ added: v0.0.1
 
 <!-- type=var -->
 
-* {String}
+* {string}
 
 The file name of the current module. This is the resolved absolute path of the
 current module file.

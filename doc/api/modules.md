@@ -586,7 +586,7 @@ function require(/* ... */) {
 added: v0.1.16
 -->
 
-* {String}
+* {string}
 
 The fully resolved filename to the module.
 
@@ -595,7 +595,7 @@ The fully resolved filename to the module.
 added: v0.1.16
 -->
 
-* {String}
+* {string}
 
 The identifier for the module.  Typically this is the fully resolved
 filename.
@@ -605,7 +605,7 @@ filename.
 added: v0.1.16
 -->
 
-* {Boolean}
+* {boolean}
 
 Whether or not the module is done loading, or is in the process of
 loading.
