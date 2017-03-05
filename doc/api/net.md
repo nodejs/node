@@ -336,36 +336,41 @@ Returns `server`.
 added: v0.3.4
 -->
 
-This object is an abstraction of a TCP or local socket.  `net.Socket`
-instances implement a duplex Stream interface.  They can be created by the
-user and used as a client (with [`net.createConnection()`][]) or they can
-be created by Node.js and passed to the user through the `'connection'`
-event of a server.
+This class is an abstraction of a TCP socket or a streaming [IPC][] endpoint
+(uses named pipes on Windows, and UNIX domain sockets otherwise). A
+`net.Socket` is also a [duplex stream][], so it can be both readable and
+writable, and it is also a [`EventEmitter`][].
+
+A `net.Socket` can be created by the user and used directly to interact with
+a server. For example, it is returned by [`net.createConnection()`][],
+so the user can use it to talk to the server.
+
+It can also be be created by Node.js and passed to the user when a connection
+is received. For example, it is passed to the listeners of a
+[`'connection'`][] event emitted on a [`net.Server`][], so the user can use
+it to interact with the client.
 
 ### new net.Socket([options])
 <!-- YAML
 added: v0.3.4
 -->
 
-Construct a new socket object.
+Creates a new socket object.
 
-`options` is an object with the following defaults:
+* `options` {Object} Available options are:
+  * `fd`: {number} If specified, wrap around an existing socket with
+    the given file descriptor, otherwise a new socket will be created.
+  * `allowHalfOpen` {boolean} Indicates whether half-opened TCP connections
+    are allowed. See [`net.createServer()`][] and the [`'end'`][] event
+    for details. Defaults to `false`.
+  * `readable` {boolean} Allow reads on the socket when a `fd` is passed,
+    otherwise ignored. Defaults to `false`.
+  * `writable` {boolean} Allow reads on the socket when a `fd` is passed,
+    otherwise ignored. Defaults to `false`.
+* Returns: {net.Socket}
 
-```js
-{
-  fd: null,
-  allowHalfOpen: false,
-  readable: false,
-  writable: false
-}
-```
-
-`fd` allows you to specify the existing file descriptor of socket.
-Set `readable` and/or `writable` to `true` to allow reads and/or writes on this
-socket (NOTE: Works only when `fd` is passed).
-About `allowHalfOpen`, refer to [`net.createServer()`][] and [`'end'`][] event.
-
-`net.Socket` instances are [`EventEmitter`][] with the following events:
+The newly created socket can be either a TCP socket or a streaming [IPC][]
+endpoint, depending on what it [`connect()`][`socket.connect()`] to.
 
 ### Event: 'close'
 <!-- YAML
