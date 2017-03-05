@@ -463,7 +463,7 @@ aborted, in milliseconds since 1 January 1970 00:00:00 UTC.
 added: v0.1.90
 -->
 
-* `data` {string | Buffer}
+* `data` {string|Buffer}
 * `encoding` {string}
 * `callback` {Function}
 
@@ -531,7 +531,7 @@ Returns `request`.
 added: v0.1.29
 -->
 
-* `chunk` {string | Buffer}
+* `chunk` {string|Buffer}
 * `encoding` {string}
 * `callback` {Function}
 
@@ -895,7 +895,7 @@ will result in a [`TypeError`][] being thrown.
 added: v0.1.90
 -->
 
-* `data` {string | Buffer}
+* `data` {string|Buffer}
 * `encoding` {string}
 * `callback` {Function}
 
@@ -1080,7 +1080,7 @@ status message which was sent out.
 added: v0.1.29
 -->
 
-* `chunk` {string | Buffer}
+* `chunk` {string|Buffer}
 * `encoding` {string}
 * `callback` {Function}
 * Returns: {Boolean}
