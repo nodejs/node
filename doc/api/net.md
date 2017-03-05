@@ -338,8 +338,9 @@ added: v0.3.4
 
 This object is an abstraction of a TCP or local socket.  `net.Socket`
 instances implement a duplex Stream interface.  They can be created by the
-user and used as a client (with [`connect()`][]) or they can be created by Node.js
-and passed to the user through the `'connection'` event of a server.
+user and used as a client (with [`net.createConnection()`][]) or they can
+be created by Node.js and passed to the user through the `'connection'`
+event of a server.
 
 ### new net.Socket([options])
 <!-- YAML
@@ -382,7 +383,7 @@ added: v0.1.90
 -->
 
 Emitted when a socket connection is successfully established.
-See [`connect()`][].
+See [`net.createConnection()`][].
 
 ### Event: 'data'
 <!-- YAML
@@ -777,68 +778,41 @@ buffer. Returns `false` if all or part of the data was queued in user memory.
 The optional `callback` parameter will be executed when the data is finally
 written out - this may not be immediately.
 
-## net.connect(options[, connectListener])
+## net.connect()
+
+Aliases to
+[`net.createConnection()`][`net.createConnection()`].
+
+Possible signatures:
+
+* [`net.connect(options[, connectListener])`][`net.connect(options)`]
+* [`net.connect(path[, connectListener])`][`net.connect(path)`] for [IPC][]
+  connections.
+* [`net.connect(port[, host][, connectListener])`][`net.connect(port, host)`]
+  for TCP connections.
+
+### net.connect(options[, connectListener])
 <!-- YAML
 added: v0.7.0
 -->
+Alias to
+[`net.createConnection(options[, connectListener])`][`net.createConnection(options)`].
 
-A factory function, which returns a new [`net.Socket`][] and automatically
-connects with the supplied `options`.
-
-The options are passed to both the [`net.Socket`][] constructor and the
-[`socket.connect()`][] method.
-
-The `connectListener` parameter will be added as a listener for the
-[`'connect'`][] event once.
-
-Here is an example of a client of the previously described echo server:
-
-```js
-const net = require('net');
-const client = net.connect({port: 8124}, () => {
-  // 'connect' listener
-  console.log('connected to server!');
-  client.write('world!\r\n');
-});
-client.on('data', (data) => {
-  console.log(data.toString());
-  client.end();
-});
-client.on('end', () => {
-  console.log('disconnected from server');
-});
-```
-
-To connect on the socket `/tmp/echo.sock` the second line would just be
-changed to
-
-```js
-const client = net.connect({path: '/tmp/echo.sock'});
-```
-
-## net.connect(path[, connectListener])
+### net.connect(path[, connectListener])
 <!-- YAML
 added: v0.1.90
 -->
 
-A factory function, which returns a new unix [`net.Socket`][] and automatically
-connects to the supplied `path`.
+Alias to
+[`net.createConnection(path[, connectListener])`][`net.createConnection(path)`].
 
-The `connectListener` parameter will be added as a listener for the
-[`'connect'`][] event once.
-
-## net.connect(port[, host][, connectListener])
+### net.connect(port[, host][, connectListener])
 <!-- YAML
 added: v0.1.90
 -->
 
-A factory function, which returns a new [`net.Socket`][] and automatically
-connects to the supplied `port` and `host`.
-
-If `host` is omitted, `'localhost'` will be assumed.
-
-The `connectListener` parameter will be added as a listener for the
-[`'connect'`][] event once.
+Alias to
+[`net.createConnection(port[, host][, connectListener])`][`net.createConnection(port, host)`].
 
 ## net.createConnection(options[, connectListener])
 <!-- YAML
@@ -1014,11 +988,18 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 [`'listening'`]: #net_event_listening
 [`'timeout'`]: #net_event_timeout
 [`child_process.fork()`]: child_process.html#child_process_child_process_fork_modulepath_args_options
-[`connect()`]: #net_socket_connect_options_connectlistener
 [`dns.lookup()`]: dns.html#dns_dns_lookup_hostname_options_callback
 [`dns.lookup()` hints]: dns.html#dns_supported_getaddrinfo_flags
 [`EventEmitter`]: events.html#events_class_eventemitter
+[`net.connect()`]: #net_net_connect
+[`net.connect(options)`]: #net_net_connect_options_connectlistener
+[`net.connect(path)`]: #net_net_connect_path_connectlistener
+[`net.connect(port, host)`]: #net_net_connect_port_host_connectlistener
+[`net.connect()`]: #net_net_connect
 [`net.createConnection()`]: #net_net_createconnection_options_connectlistener
+[`net.createConnection(options)`]: #net_net_createconnection_options_connectlistener
+[`net.createConnection(path)`]: #net_net_createconnection_path_connectlistener
+[`net.createConnection(port, host)`]: #net_net_createconnection_port_host_connectlistener
 [`net.createServer()`]: #net_net_createserver_options_connectionlistener
 [`net.Server`]: #net_class_net_server
 [`net.Socket`]: #net_class_net_socket
