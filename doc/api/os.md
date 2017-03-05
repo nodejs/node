@@ -14,7 +14,7 @@ const os = require('os');
 added: v0.7.8
 -->
 
-* {String}
+* {string}
 
 A string constant defining the operating system-specific end-of-line marker:
 
@@ -26,7 +26,7 @@ A string constant defining the operating system-specific end-of-line marker:
 added: v0.5.0
 -->
 
-* Returns: {String}
+* Returns: {string}
 
 The `os.arch()` method returns a string identifying the operating system CPU
 architecture *for which the Node.js binary was compiled*.
@@ -172,7 +172,7 @@ all processors are always 0.
 added: v0.9.4
 -->
 
-* Returns: {String}
+* Returns: {string}
 
 The `os.endianness()` method returns a string identifying the endianness of the
 CPU *for which the Node.js binary was compiled*.
@@ -187,7 +187,7 @@ Possible values are:
 added: v0.3.3
 -->
 
-* Returns: {Integer}
+* Returns: {integer}
 
 The `os.freemem()` method returns the amount of free system memory in bytes as
 an integer.
@@ -197,7 +197,7 @@ an integer.
 added: v2.3.0
 -->
 
-* Returns: {String}
+* Returns: {string}
 
 The `os.homedir()` method returns the home directory of the current user as a
 string.
@@ -207,7 +207,7 @@ string.
 added: v0.3.3
 -->
 
-* Returns: {String}
+* Returns: {string}
 
 The `os.hostname()` method returns the hostname of the operating system as a
 string.
@@ -295,7 +295,7 @@ The properties available on the assigned network address object include:
 added: v0.5.0
 -->
 
-* Returns: {String}
+* Returns: {string}
 
 The `os.platform()` method returns a string identifying the operating system
 platform as set during compile time of Node.js.
@@ -321,7 +321,7 @@ to be experimental at this time.
 added: v0.3.3
 -->
 
-* Returns: {String}
+* Returns: {string}
 
 The `os.release()` method returns a string identifying the operating system
 release.
@@ -340,7 +340,7 @@ changes:
                  returns a path with a trailing slash on any platform
 -->
 
-* Returns: {String}
+* Returns: {string}
 
 The `os.tmpdir()` method returns a string specifying the operating system's
 default directory for temporary files.
@@ -350,7 +350,7 @@ default directory for temporary files.
 added: v0.3.3
 -->
 
-* Returns: {Integer}
+* Returns: {integer}
 
 The `os.totalmem()` method returns the total amount of system memory in bytes
 as an integer.
@@ -360,7 +360,7 @@ as an integer.
 added: v0.3.3
 -->
 
-* Returns: {String}
+* Returns: {string}
 
 The `os.type()` method returns a string identifying the operating system name
 as returned by uname(3). For example `'Linux'` on Linux, `'Darwin'` on OS X and
@@ -374,7 +374,7 @@ information about the output of running uname(3) on various operating systems.
 added: v0.3.3
 -->
 
-* Returns: {Integer}
+* Returns: {integer}
 
 The `os.uptime()` method returns the system uptime in number of seconds.
 

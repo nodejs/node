@@ -136,7 +136,7 @@ forward-slash characters (`/`) are required following the colon in the
 added: v0.1.25
 -->
 
-* `urlObject` {Object | String} A URL object (as returned by `url.parse()` or
+* `urlObject` {Object|string} A URL object (as returned by `url.parse()` or
   constructed otherwise). If a string, it is converted to an object by passing
   it to `url.parse()`.
 
@@ -356,7 +356,7 @@ object returned by `url.parse()` are shown. Below it are properties of a WHATWG
 #### Constructor: new URL(input[, base])
 
 * `input` {string} The input URL to parse
-* `base` {string | URL} The base URL to resolve against if the `input` is not
+* `base` {string|URL} The base URL to resolve against if the `input` is not
   absolute.
 
 Creates a new `URL` object by parsing the `input` relative to the `base`. If
@@ -388,7 +388,7 @@ Additional [examples of parsed URLs][] may be found in the WHATWG URL Standard.
 
 #### url.hash
 
-* {String}
+* {string}
 
 Gets and sets the fragment portion of the URL.
 
@@ -409,7 +409,7 @@ percent-encode may vary somewhat from what the [`url.parse()`][] and
 
 #### url.host
 
-* {String}
+* {string}
 
 Gets and sets the host portion of the URL.
 
@@ -427,7 +427,7 @@ Invalid host values assigned to the `host` property are ignored.
 
 #### url.hostname
 
-* {String}
+* {string}
 
 Gets and sets the hostname portion of the URL. The key difference between
 `url.host` and `url.hostname` is that `url.hostname` does *not* include the
@@ -447,7 +447,7 @@ Invalid hostname values assigned to the `hostname` property are ignored.
 
 #### url.href
 
-* {String}
+* {string}
 
 Gets and sets the serialized URL.
 
@@ -472,7 +472,7 @@ will be thrown.
 
 #### url.origin
 
-* {String}
+* {string}
 
 Gets the read-only serialization of the URL's origin. Unicode characters that
 may be contained within the hostname will be encoded as-is without [Punycode][]
@@ -495,7 +495,7 @@ console.log(idnURL.hostname);
 
 #### url.password
 
-* {String}
+* {string}
 
 Gets and sets the password portion of the URL.
 
@@ -516,7 +516,7 @@ percent-encode may vary somewhat from what the [`url.parse()`][] and
 
 #### url.pathname
 
-* {String}
+* {string}
 
 Gets and sets the path portion of the URL.
 
@@ -537,7 +537,7 @@ to percent-encode may vary somewhat from what the [`url.parse()`][] and
 
 #### url.port
 
-* {String}
+* {string}
 
 Gets and sets the port portion of the URL.
 
@@ -592,7 +592,7 @@ lies outside the range denoted above, it is ignored.
 
 #### url.protocol
 
-* {String}
+* {string}
 
 Gets and sets the protocol portion of the URL.
 
@@ -610,7 +610,7 @@ Invalid URL protocol values assigned to the `protocol` property are ignored.
 
 #### url.search
 
-* {String}
+* {string}
 
 Gets and sets the serialized query portion of the URL.
 
@@ -640,7 +640,7 @@ documentation for details.
 
 #### url.username
 
-* {String}
+* {string}
 
 Gets and sets the username portion of the URL.
 
@@ -661,7 +661,7 @@ and [`url.format()`][] methods would produce.
 
 #### url.toString()
 
-* Returns: {String}
+* Returns: {string}
 
 The `toString()` method on the `URL` object returns the serialized URL. The
 value returned is equivalent to that of [`url.href`][] and [`url.toJSON()`][].
@@ -672,7 +672,7 @@ to customize the serialization process of the URL. For more flexibility,
 
 #### url.toJSON()
 
-* Returns: {String}
+* Returns: {string}
 
 The `toJSON()` method on the `URL` object returns the serialized URL. The
 value returned is equivalent to that of [`url.href`][] and
@@ -781,7 +781,7 @@ no such pairs, an empty array is returned.
 #### urlSearchParams.has(name)
 
 * `name` {string}
-* Returns: {Boolean}
+* Returns: {boolean}
 
 Returns `true` if there is at least one name-value pair whose name is `name`.
 
@@ -845,7 +845,7 @@ console.log(params.toString());
 
 #### urlSearchParams.toString()
 
-* Returns: {String}
+* Returns: {string}
 
 Returns the search parameters serialized as a string, with characters
 percent-encoded where necessary.
@@ -880,7 +880,7 @@ for (const [name, value] of params) {
 ### require('url').domainToASCII(domain)
 
 * `domain` {string}
-* Returns: {String}
+* Returns: {string}
 
 Returns the [Punycode][] ASCII serialization of the `domain`. If `domain` is an
 invalid domain, the empty string is returned.
@@ -903,7 +903,7 @@ the new `URL` implementation but is not part of the WHATWG URL standard.
 ### require('url').domainToUnicode(domain)
 
 * `domain` {string}
-* Returns: {String}
+* Returns: {string}
 
 Returns the Unicode serialization of the `domain`. If `domain` is an invalid
 domain, the empty string is returned.

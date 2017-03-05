@@ -443,7 +443,7 @@ changes:
 * `chunk` {string|Buffer} The data to write
 * `encoding` {string} The encoding, if `chunk` is a String
 * `callback` {Function} Callback for when this chunk of data is flushed
-* Returns: {Boolean} `false` if the stream wishes for the calling code to
+* Returns: {boolean} `false` if the stream wishes for the calling code to
   wait for the `'drain'` event to be emitted before continuing to write
   additional data; otherwise `true`.
 
@@ -741,7 +741,7 @@ preferred over the use of the `'readable'` event.
 added: v0.11.14
 -->
 
-* Returns: {Boolean}
+* Returns: {boolean}
 
 The `readable.isPaused()` method returns the current operating state of the
 Readable. This is used primarily by the mechanism that underlies the
@@ -846,7 +846,7 @@ added: v0.9.4
 -->
 
 * `size` {number} Optional argument to specify how much data to read.
-* Return {String|Buffer|null}
+* Return {string|Buffer|null}
 
 The `readable.read()` method pulls some data out of the internal buffer and
 returns it. If no data available to be read, `null` is returned. By default,
@@ -1503,7 +1503,7 @@ user programs.
 * `chunk` {Buffer|null|string} Chunk of data to push into the read queue
 * `encoding` {string} Encoding of String chunks.  Must be a valid
   Buffer encoding, such as `'utf8'` or `'ascii'`
-* Returns {Boolean} `true` if additional chunks of data may continued to be
+* Returns {boolean} `true` if additional chunks of data may continued to be
   pushed; `false` otherwise.
 
 When `chunk` is a `Buffer` or `string`, the `chunk` of data will be added to the
