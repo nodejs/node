@@ -476,7 +476,7 @@ th > *:last-child, td > *:last-child {
 
 @media only screen and (max-width: 1024px) {
   #content {
-    font-size: 2.5em;
+    font-size: 1.6em;
     overflow: visible;
   }
   #column1.interior {
