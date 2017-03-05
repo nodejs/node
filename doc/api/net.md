@@ -814,23 +814,49 @@ added: v0.1.90
 Alias to
 [`net.createConnection(port[, host][, connectListener])`][`net.createConnection(port, host)`].
 
-## net.createConnection(options[, connectListener])
+## net.createConnection()
+
+A factory function, which creates a new [`net.Socket`][],
+immediately initiates connection with [`socket.connect()`][],
+then returns the `net.Socket` that starts the connection.
+
+When the connection is established, a [`'connect'`][] event will be emitted
+on the returned socket. The last parameter `connectListener`, if supplied,
+will be added as a listener for the [`'connect'`][] event **once**.
+
+Possible signatures:
+
+* [`net.createConnection(options[, connectListener])`][`net.createConnection(options)`]
+* [`net.createConnection(path[, connectListener])`][`net.createConnection(path)`]
+  for [IPC][] connections.
+* [`net.createConnection(port[, host][, connectListener])`][`net.createConnection(port, host)`]
+  for TCP connections.
+
+*Note*: the [`net.connect()`][] function is an alias to this function.
+
+### net.createConnection(options[, connectListener])
 <!-- YAML
 added: v0.1.90
 -->
 
-* `options` {Object} Required.
-* `connectListener` {Function}
+* `options` {Object} Required. Will be passed to both the
+  [`new net.Socket([options])`][`new net.Socket(options)`] call and the
+  [`socket.connect(options[, connectListener])`][`socket.connect(options)`]
+  method.
+* `connectListener` {Function} Common parameter of the
+  [`net.createConnection()`][] functions. If supplied, will be added as
+  a listener for the [`'connect'`][] event on the returned socket once.
+* Returns: {net.Socket} The newly created socket used to start the connection.
 
-A factory function, which returns a new [`net.Socket`][] and automatically
-connects with the supplied `options`. The options are passed to both the
-[`net.Socket`][] constructor and the
-[`socket.connect(options[, connectListener])`][`socket.connect(options)`] method.
+For available options, see
+[`new net.Socket([options])`][`new net.Socket(options)`]
+and [`socket.connect(options[, connectListener])`][`socket.connect(options)`].
 
-Passing `timeout` as an option will call [`socket.setTimeout()`][] after the socket is created, but before it is connecting.
+Additional options:
 
-The `connectListener` parameter will be added as a listener for the
-[`'connect'`][] event once.
+* `timeout` {number} If set, will be used to call
+  [`socket.setTimeout(timeout)`][] after the socket is created, but before
+  it starts the connection.
 
 Here is an example of a client of the previously described echo server:
 
@@ -854,32 +880,51 @@ To connect on the socket `/tmp/echo.sock` the second line would just be
 changed to
 
 ```js
-const client = net.connect({path: '/tmp/echo.sock'});
+const client = net.createConnection({path: '/tmp/echo.sock'});
 ```
 
-## net.createConnection(path[, connectListener])
+### net.createConnection(path[, connectListener])
 <!-- YAML
 added: v0.1.90
 -->
 
-A factory function, which returns a new unix [`net.Socket`][] and automatically
-connects to the supplied `path`.
+* `path` {string} Path the socket should connect to. Will be passed to
+  [`socket.connect(path[, connectListener])`][`socket.connect(path)`].
+* `connectListener` {Function} Common parameter of the
+  [`net.createConnection()`][] functions, an "once" listener for the
+  `'connect'` event on the initiating socket. Will be passed to
+  [`socket.connect(path[, connectListener])`][`socket.connect(path)`].
+* Returns: {net.Socket} The newly created socket used to start the connection.
 
-The `connectListener` parameter will be added as a listener for the
-[`'connect'`][] event once.
+Initiates an [IPC][] connection.
 
-## net.createConnection(port[, host][, connectListener])
+This function creates a new [`net.Socket`][] with all options set to default,
+immediately initiates connection with
+[`socket.connect(path[, connectListener])`][`socket.connect(path)`],
+then returns the `net.Socket` that starts the connection.
+
+### net.createConnection(port[, host][, connectListener])
 <!-- YAML
 added: v0.1.90
 -->
 
-A factory function, which returns a new [`net.Socket`][] and automatically
-connects to the supplied `port` and `host`.
+* `port` {number} Port the socket should connect to. Will be passed to
+  [`socket.connect(port[, host][, connectListener])`][`socket.connect(port, host)`].
+* `host` {string} Host the socket should connect to. Defaults to `'localhost'`.
+  Will be passed to
+  [`socket.connect(port[, host][, connectListener])`][`socket.connect(port, host)`].
+* `connectListener` {Function} Common parameter of the
+  [`net.createConnection()`][] functions, an "once" listener for the
+  `'connect'` event on the initiating socket. Will be passed to
+  [`socket.connect(path[, connectListener])`][`socket.connect(port, host)`].
+* Returns: {net.Socket} The newly created socket used to start the connection.
 
-If `host` is omitted, `'localhost'` will be assumed.
+Initiates a TCP connection.
 
-The `connectListener` parameter will be added as a listener for the
-[`'connect'`][] event once.
+This function creates a new [`net.Socket`][] with all options set to default,
+immediately initiates connection with
+[`socket.connect(port[, host][, connectListener])`][`socket.connect(port, host)`],
+then returns the `net.Socket` that starts the connection.
 
 ## net.createServer([options][, connectionListener])
 <!-- YAML
@@ -996,13 +1041,14 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 [`net.connect(path)`]: #net_net_connect_path_connectlistener
 [`net.connect(port, host)`]: #net_net_connect_port_host_connectlistener
 [`net.connect()`]: #net_net_connect
-[`net.createConnection()`]: #net_net_createconnection_options_connectlistener
+[`net.createConnection()`]: #net_net_createconnection
 [`net.createConnection(options)`]: #net_net_createconnection_options_connectlistener
 [`net.createConnection(path)`]: #net_net_createconnection_path_connectlistener
 [`net.createConnection(port, host)`]: #net_net_createconnection_port_host_connectlistener
 [`net.createServer()`]: #net_net_createserver_options_connectionlistener
 [`net.Server`]: #net_class_net_server
 [`net.Socket`]: #net_class_net_socket
+[`new net.Socket(options)`]: #net_new_net_socket_options
 [`server.getConnections()`]: #net_server_getconnections_callback
 [`server.listen()`]: #net_server_listen
 [`server.listen(handle)`]: #net_server_listen_handle_backlog_callback
@@ -1017,6 +1063,7 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 [`socket.destroy()`]: #net_socket_destroy_exception
 [`socket.end()`]: #net_socket_end_data_encoding
 [`socket.setTimeout()`]: #net_socket_settimeout_timeout_callback
+[`socket.setTimeout(timeout)`]: #net_socket_settimeout_timeout_callback
 [`socket.resume()`]: #net_socket_resume
 [`socket.pause()`]: #net_socket_pause
 [`stream.setEncoding()`]: stream.html#stream_readable_setencoding_encoding
