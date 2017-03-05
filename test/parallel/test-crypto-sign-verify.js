@@ -71,6 +71,38 @@ const keyPem = fs.readFileSync(common.fixturesDir + '/test_key.pem', 'ascii');
   assert.strictEqual(verified, true, 'sign and verify (stream)');
 }
 
+{
+  [ 'RSA-SHA1', 'RSA-SHA256' ].forEach((algo) => {
+    [ null, -2, -1, 0, 16, 32, 64 ].forEach((saltLength) => {
+      let verified;
+
+      // Test sign and verify with the given parameters
+      const s4 = crypto.createSign(algo)
+                       .update('Test123')
+                       .sign(keyPem, null, { padding: 'pss', saltLength });
+      verified = crypto.createVerify(algo)
+                       .update('Test')
+                       .update('123')
+                       .verify(certPem, s4, { padding: 'pss', saltLength });
+      assert.strictEqual(verified, true, 'sign and verify (buffer, PSS)');
+
+      // Setting the salt length to -2 should always work for verification
+      verified = crypto.createVerify(algo)
+                       .update('Test123')
+                       .verify(certPem, s4, { padding: 'pss', saltLength: -2 });
+      assert.strictEqual(verified, true, 'sign and verify (buffer, PSS)');
+    });
+  });
+}
+
+{
+  assert.throws(() => {
+    crypto.createSign('RSA-SHA1')
+      .update('Test123')
+      .sign(keyPem, { padding: 'foo' });
+  }, /^Error: Padding must be 'pkcs1' or 'pss'$/);
+}
+
 // Test throws exception when key options is null
 {
   assert.throws(() => {

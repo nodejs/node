@@ -961,7 +961,7 @@ pQhByd5eyj3lgZ7m7jbchtdgyOF8Io/1ng==
 console.log(sign.sign(privateKey).toString('hex'));
 ```
 
-### sign.sign(private_key[, output_format])
+### sign.sign(private_key[, output_format][, options])
 <!-- YAML
 added: v0.1.92
 -->
@@ -983,6 +983,15 @@ object, it is interpreted as a hash containing two properties:
 The `output_format` can specify one of `'latin1'`, `'hex'` or `'base64'`. If
 `output_format` is provided a string is returned; otherwise a [`Buffer`][] is
 returned.
+
+The optional `options` argument is an object which specifies additional
+cryptographic parameters. Currently, the following options are supported:
+
+* `padding` : {String} - RSA padding, either `'pkcs1'` for RSASSA-PKCS1-v1_5
+  (default) or `'pss'` for RSASSA-PSS
+* `saltLength` : {number} - salt length for RSASSA-PSS. If this is set to `-1`,
+  the salt length will be set to the digest size. If this is set to `-2`
+  (default), the salt length will be set to the maximum permissible value.
 
 The `Sign` object can not be again used after `sign.sign()` method has been
 called. Multiple calls to `sign.sign()` will result in an error being thrown.
@@ -1070,7 +1079,7 @@ then `input_encoding` is ignored.
 
 This can be called many times with new data as it is streamed.
 
-### verifier.verify(object, signature[, signature_format])
+### verifier.verify(object, signature[, signature_format][, options])
 <!-- YAML
 added: v0.1.92
 -->
@@ -1086,6 +1095,16 @@ the `signature_format` which can be `'latin1'`, `'hex'` or `'base64'`.
 If a `signature_format` is specified, the `signature` is expected to be a
 string; otherwise `signature` is expected to be a [`Buffer`][] or
 `Uint8Array`.
+
+The optional `options` argument is an object which specifies additional
+cryptographic parameters. Currently, the following options are supported:
+
+* `padding` : {String} - RSA padding, either `'pkcs1'` for RSASSA-PKCS1-v1_5
+  (default) or `'pss'` for RSASSA-PSS
+* `saltLength` : {number} - salt length for RSASSA-PSS. If this is set to `-1`,
+  the salt length will be set to the digest size. A value of `-2` (default)
+  causes the salt length to be automatically determined based on the PSS block
+  structure.
 
 Returns `true` or `false` depending on the validity of the signature for
 the data and public key.

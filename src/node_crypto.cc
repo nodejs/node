@@ -101,6 +101,7 @@ using v8::HandleScope;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Null;
 using v8::Object;
 using v8::Persistent;
@@ -3972,6 +3973,41 @@ void SignBase::CheckThrow(SignBase::Error error) {
   }
 }
 
+int SignBase::GetRSAOptions(Environment *env, v8::Local<v8::Object> options,
+                            int *padding, int *saltlen) {
+  Local<Value> key = String::NewFromUtf8(env->isolate(), "padding");
+  MaybeLocal<Value> maybePadding = options->Get(key);
+  if (!maybePadding.IsEmpty()) {
+    Local<Value> paddingValue = maybePadding.ToLocalChecked();
+    if (paddingValue->IsString()) {
+      v8::String::Utf8Value paddingUtf8(paddingValue);
+      const char *paddingName = *paddingUtf8;
+      if (strcmp(paddingName, "pkcs1") == 0) {
+        *padding = RSA_PKCS1_PADDING;
+      }
+      else if (strcmp(paddingName, "pss") == 0) {
+        *padding = RSA_PKCS1_PSS_PADDING;
+      }
+      else {
+        env->ThrowError("Padding must be 'pkcs1' or 'pss'");
+        return 0;
+      }
+    }
+  }
+
+  if (*padding == RSA_PKCS1_PSS_PADDING) {
+    key = String::NewFromUtf8(env->isolate(), "saltLength");
+    MaybeLocal<Value> maybeSaltlen = options->Get(key);
+    if (!maybeSaltlen.IsEmpty()) {
+      Local<Value> saltlenValue = maybeSaltlen.ToLocalChecked();
+      if (saltlenValue->IsNumber()) {
+        *saltlen = saltlenValue->Int32Value();
+      }
+    }
+  }
+
+  return 1;
+}
 
 
 
@@ -4001,7 +4037,7 @@ SignBase::Error Sign::SignInit(const char* sign_type) {
     return kSignUnknownDigest;
 
   EVP_MD_CTX_init(&mdctx_);
-  if (!EVP_SignInit_ex(&mdctx_, md, nullptr))
+  if (!EVP_DigestInit_ex(&mdctx_, md, nullptr))
     return kSignInit;
   initialised_ = true;
 
@@ -4028,7 +4064,7 @@ void Sign::SignInit(const FunctionCallbackInfo<Value>& args) {
 SignBase::Error Sign::SignUpdate(const char* data, int len) {
   if (!initialised_)
     return kSignNotInitialised;
-  if (!EVP_SignUpdate(&mdctx_, data, len))
+  if (!EVP_DigestUpdate(&mdctx_, data, len))
     return kSignUpdate;
   return kSignOk;
 }
@@ -4058,12 +4094,59 @@ void Sign::SignUpdate(const FunctionCallbackInfo<Value>& args) {
   sign->CheckThrow(err);
 }
 
+static int Node_SignFinal(EVP_MD_CTX *mdctx, unsigned char *md, unsigned int *s,
+                          EVP_PKEY *pkey, int padding, int pss_saltlen) {
+  unsigned char m[EVP_MAX_MD_SIZE];
+  unsigned int m_len;
+  int i = 0;
+  EVP_PKEY_CTX *pkctx = nullptr;
+
+  *s = 0;
+  if (!EVP_DigestFinal_ex(mdctx, &(m[0]), &m_len))
+    goto err;
+
+  if (mdctx->digest->flags & EVP_MD_FLAG_PKEY_METHOD_SIGNATURE) {
+    size_t sltmp = (size_t)EVP_PKEY_size(pkey);
+    i = 0;
+    pkctx = EVP_PKEY_CTX_new(pkey, nullptr);
+    if (!pkctx)
+      goto err;
+    if (EVP_PKEY_sign_init(pkctx) <= 0)
+      goto err;
+    if (pkey->type == EVP_PKEY_RSA || pkey->type == EVP_PKEY_RSA2) {
+      if (EVP_PKEY_CTX_set_rsa_padding(pkctx, padding) <= 0)
+        goto err;
+      if (padding == RSA_PKCS1_PSS_PADDING)
+        if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkctx, pss_saltlen) <= 0)
+          goto err;
+    }
+    if (EVP_PKEY_CTX_set_signature_md(pkctx, mdctx->digest) <= 0)
+      goto err;
+    if (EVP_PKEY_sign(pkctx, md, &sltmp, m, m_len) <= 0)
+      goto err;
+    *s = sltmp;
+    i = 1;
+   err:
+    EVP_PKEY_CTX_free(pkctx);
+    return i;
+  }
+
+  if (!mdctx->digest->sign) {
+    EVPerr(EVP_F_EVP_SIGNFINAL, EVP_R_NO_SIGN_FUNCTION_CONFIGURED);
+    return 0;
+  }
+
+  return (mdctx->digest->sign(mdctx->digest->type, m, m_len, md, s,
+    pkey->pkey.ptr));
+}
 
 SignBase::Error Sign::SignFinal(const char* key_pem,
                                 int key_pem_len,
                                 const char* passphrase,
                                 unsigned char** sig,
-                                unsigned int *sig_len) {
+                                unsigned int *sig_len,
+                                int padding,
+                                int saltlen) {
   if (!initialised_)
     return kSignNotInitialised;
 
@@ -4109,7 +4192,7 @@ SignBase::Error Sign::SignFinal(const char* key_pem,
   }
 #endif  // NODE_FIPS_MODE
 
-  if (EVP_SignFinal(&mdctx_, *sig, sig_len, pkey))
+  if (Node_SignFinal(&mdctx_, *sig, sig_len, pkey, padding, saltlen))
     fatal = false;
 
   initialised_ = false;
@@ -4152,6 +4235,12 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
   size_t buf_len = Buffer::Length(args[0]);
   char* buf = Buffer::Data(args[0]);
 
+  int padding = RSA_PKCS1_PADDING;
+  int saltlen = -2;
+  if (len >= 4 && args[3]->IsObject()) {
+    sign->GetRSAOptions(env, Local<Object>::Cast(args[3]), &padding, &saltlen);
+  }
+
   md_len = 8192;  // Maximum key size is 8192 bits
   md_value = new unsigned char[md_len];
 
@@ -4163,7 +4252,9 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
       buf_len,
       len >= 3 && !args[2]->IsNull() ? *passphrase : nullptr,
       &md_value,
-      &md_len);
+      &md_len,
+      padding,
+      saltlen);
   if (err != kSignOk) {
     delete[] md_value;
     md_value = nullptr;
@@ -4207,7 +4298,7 @@ SignBase::Error Verify::VerifyInit(const char* verify_type) {
     return kSignUnknownDigest;
 
   EVP_MD_CTX_init(&mdctx_);
-  if (!EVP_VerifyInit_ex(&mdctx_, md, nullptr))
+  if (!EVP_DigestInit_ex(&mdctx_, md, nullptr))
     return kSignInit;
   initialised_ = true;
 
@@ -4235,7 +4326,7 @@ SignBase::Error Verify::VerifyUpdate(const char* data, int len) {
   if (!initialised_)
     return kSignNotInitialised;
 
-  if (!EVP_VerifyUpdate(&mdctx_, data, len))
+  if (!EVP_DigestUpdate(&mdctx_, data, len))
     return kSignUpdate;
 
   return kSignOk;
@@ -4271,6 +4362,8 @@ SignBase::Error Verify::VerifyFinal(const char* key_pem,
                                     int key_pem_len,
                                     const char* sig,
                                     int siglen,
+                                    int padding,
+                                    int saltlen,
                                     bool* verify_result) {
   if (!initialised_)
     return kSignNotInitialised;
@@ -4282,7 +4375,10 @@ SignBase::Error Verify::VerifyFinal(const char* key_pem,
   BIO* bp = nullptr;
   X509* x509 = nullptr;
   bool fatal = true;
+  unsigned char m[EVP_MAX_MD_SIZE];
+  unsigned int m_len;
   int r = 0;
+  EVP_PKEY_CTX *pkctx = nullptr;
 
   bp = BIO_new_mem_buf(const_cast<char*>(key_pem), key_pem_len);
   if (bp == nullptr)
@@ -4317,11 +4413,35 @@ SignBase::Error Verify::VerifyFinal(const char* key_pem,
       goto exit;
   }
 
+  if (!EVP_DigestFinal_ex(&mdctx_, m, &m_len)) {
+    goto exit;
+  }
+
   fatal = false;
-  r = EVP_VerifyFinal(&mdctx_,
-                      reinterpret_cast<const unsigned char*>(sig),
-                      siglen,
-                      pkey);
+
+  pkctx = EVP_PKEY_CTX_new(pkey, nullptr);
+  if (!pkctx)
+    goto err;
+  if (EVP_PKEY_verify_init(pkctx) <= 0)
+    goto err;
+  if (pkey->type == EVP_PKEY_RSA || pkey->type == EVP_PKEY_RSA2) {
+    if (EVP_PKEY_CTX_set_rsa_padding(pkctx, padding) <= 0)
+      goto err;
+    if (padding == RSA_PKCS1_PSS_PADDING)
+      if (EVP_PKEY_CTX_set_rsa_pss_saltlen(pkctx, saltlen) <= 0)
+        goto err;
+  }
+  if (EVP_PKEY_CTX_set_signature_md(pkctx, mdctx_.digest) <= 0)
+    goto err;
+  r = EVP_PKEY_verify(pkctx,
+                    reinterpret_cast<const unsigned char*>(sig),
+                    siglen,
+                    m,
+                    m_len);
+  fatal = false;
+
+ err:
+  EVP_PKEY_CTX_free(pkctx);
 
  exit:
   if (pkey != nullptr)
@@ -4377,8 +4497,15 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
     hbuf = Buffer::Data(args[1]);
   }
 
+  int padding = RSA_PKCS1_PADDING;
+  int saltlen = -2;
+  if (args.Length() >= 4 && args[3]->IsObject()) {
+    verify->GetRSAOptions(env, args[3]->ToObject(), &padding, &saltlen);
+  }
+
   bool verify_result;
-  Error err = verify->VerifyFinal(kbuf, klen, hbuf, hlen, &verify_result);
+  Error err = verify->VerifyFinal(kbuf, klen, hbuf, hlen, padding, saltlen,
+                                  &verify_result);
   if (args[1]->IsString())
     delete[] hbuf;
   if (err != kSignOk)
