@@ -155,6 +155,11 @@ console.log('this will also print');
 <!-- YAML
 added: v0.1.101
 -->
+* `obj` {any}
+* `options` {Object}
+  * `showHidden` {boolean}
+  * `depth` {number}
+  * `colors` {boolean}
 
 Uses [`util.inspect()`][] on `obj` and prints the resulting string to `stdout`.
 This function bypasses any custom `inspect()` function defined on `obj`. An
@@ -227,6 +232,7 @@ values are concatenated. See [`util.format()`][] for more information.
 <!-- YAML
 added: v0.1.104
 -->
+* `label` {string}
 
 Starts a timer that can be used to compute the duration of an operation. Timers
 are identified by a unique `label`. Use the same `label` when you call
@@ -237,6 +243,7 @@ milliseconds to `stdout`. Timer durations are accurate to the sub-millisecond.
 <!-- YAML
 added: v0.1.104
 -->
+* `label` {string}
 
 Stops a timer that was previously started by calling [`console.time()`][] and
 prints the result to `stdout`:
