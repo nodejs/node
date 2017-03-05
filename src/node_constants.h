@@ -28,6 +28,19 @@
 #include "v8.h"
 
 #if HAVE_OPENSSL
+
+#ifndef RSA_PSS_SALTLEN_DIGEST
+#define RSA_PSS_SALTLEN_DIGEST -1
+#endif
+
+#ifndef RSA_PSS_SALTLEN_MAX_SIGN
+#define RSA_PSS_SALTLEN_MAX_SIGN -2
+#endif
+
+#ifndef RSA_PSS_SALTLEN_AUTO
+#define RSA_PSS_SALTLEN_AUTO -2
+#endif
+
 #define DEFAULT_CIPHER_LIST_CORE "ECDHE-RSA-AES128-GCM-SHA256:"     \
                                  "ECDHE-ECDSA-AES128-GCM-SHA256:"   \
                                  "ECDHE-RSA-AES256-GCM-SHA384:"     \
