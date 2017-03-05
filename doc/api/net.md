@@ -235,7 +235,7 @@ server.listen({
 added: v0.1.90
 -->
 
-* `path` {String}
+* `path` {string}
 * `backlog` {number} Common parameter of [`server.listen()`][] functions
 * `callback` {Function} Common parameter of [`server.listen()`][] functions
 
