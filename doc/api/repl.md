@@ -371,7 +371,7 @@ within the action function for commands registered using the
 added: v0.1.91
 -->
 
-* `options` {Object | String}
+* `options` {Object | string}
   * `prompt` {string} The input prompt to display. Defaults to `> `.
   * `input` {Readable} The Readable stream from which REPL input will be read.
     Defaults to `process.stdin`.
