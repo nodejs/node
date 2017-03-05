@@ -169,9 +169,9 @@ added: v0.1.101
 -->
 * `obj` {any}
 * `options` {Object}
-  * `showHidden` {Boolean}
-  * `depth` {Number}
-  * `colors` {Boolean}
+  * `showHidden` {boolean}
+  * `depth` {number}
+  * `colors` {boolean}
 
 Uses [`util.inspect()`][] on `obj` and prints the resulting string to `stdout`.
 This function bypasses any custom `inspect()` function defined on `obj`. An
@@ -250,7 +250,7 @@ values are concatenated. See [`util.format()`][] for more information.
 <!-- YAML
 added: v0.1.104
 -->
-* `label` {String}
+* `label` {string}
 
 Starts a timer that can be used to compute the duration of an operation. Timers
 are identified by a unique `label`. Use the same `label` when you call
@@ -266,7 +266,7 @@ changes:
     description: This method no longer supports multiple calls that don’t map
                  to individual `console.time()` calls; see below for details.
 -->
-* `label` {String}
+* `label` {string}
 
 Stops a timer that was previously started by calling [`console.time()`][] and
 prints the result to `stdout`:

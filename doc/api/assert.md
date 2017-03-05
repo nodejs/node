@@ -248,7 +248,7 @@ added: v0.1.21
 * `actual` {any}
 * `expected` {any}
 * `message` {any}
-* `operator` {String}
+* `operator` {string}
 
 Throws an `AssertionError`. If `message` is falsy, the error message is set as
 the values of `actual` and `expected` separated by the provided `operator`.

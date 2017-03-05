@@ -379,7 +379,7 @@ changes:
     description: The `options` parameter is optional now.
 -->
 
-* `options` {Object | String}
+* `options` {Object|string}
   * `prompt` {string} The input prompt to display. Defaults to `> `
     (with a trailing space).
   * `input` {Readable} The Readable stream from which REPL input will be read.

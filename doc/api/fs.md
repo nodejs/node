@@ -122,7 +122,7 @@ added: v0.5.8
 -->
 
 * `eventType` {string} The type of fs change
-* `filename` {string | Buffer} The filename that changed (if relevant/available)
+* `filename` {string|Buffer} The filename that changed (if relevant/available)
 
 Emitted when something changes in a watched directory or file.
 See more details in [`fs.watch()`][].
@@ -177,7 +177,7 @@ using the `fs.close()` method.
 added: v0.1.93
 -->
 
-* `fd` {Integer} Integer file descriptor used by the ReadStream.
+* `fd` {integer} Integer file descriptor used by the ReadStream.
 
 Emitted when the ReadStream's file is opened.
 
@@ -291,7 +291,7 @@ using the `fs.close()` method.
 added: v0.1.93
 -->
 
-* `fd` {Integer} Integer file descriptor used by the WriteStream.
+* `fd` {integer} Integer file descriptor used by the WriteStream.
 
 Emitted when the WriteStream's file is opened.
 
@@ -318,8 +318,8 @@ argument to `fs.createWriteStream()`. If `path` is passed as a string, then
 added: v0.11.15
 -->
 
-* `path` {string | Buffer}
-* `mode` {Integer}
+* `path` {string|Buffer}
+* `mode` {integer}
 * `callback` {Function}
 
 Tests a user's permissions for the file or directory specified by `path`.
@@ -439,8 +439,8 @@ process.
 added: v0.11.15
 -->
 
-* `path` {string | Buffer}
-* `mode` {Integer}
+* `path` {string|Buffer}
+* `mode` {integer}
 
 Synchronous version of [`fs.access()`][]. This throws if any accessibility
 checks fail, and does nothing otherwise.
@@ -461,11 +461,11 @@ changes:
     description: The `file` parameter can be a file descriptor now.
 -->
 
-* `file` {string | Buffer | Number} filename or file descriptor
-* `data` {string | Buffer}
-* `options` {Object | String}
-  * `encoding` {string | Null} default = `'utf8'`
-  * `mode` {Integer} default = `0o666`
+* `file` {string|Buffer|number} filename or file descriptor
+* `data` {string|Buffer}
+* `options` {Object|string}
+  * `encoding` {string|null} default = `'utf8'`
+  * `mode` {integer} default = `0o666`
   * `flag` {string} default = `'a'`
 * `callback` {Function}
 
@@ -504,11 +504,11 @@ changes:
     description: The `file` parameter can be a file descriptor now.
 -->
 
-* `file` {string | Buffer | Number} filename or file descriptor
-* `data` {string | Buffer}
-* `options` {Object | String}
-  * `encoding` {string | Null} default = `'utf8'`
-  * `mode` {Integer} default = `0o666`
+* `file` {string|Buffer|number} filename or file descriptor
+* `data` {string|Buffer}
+* `options` {Object|string}
+  * `encoding` {string|null} default = `'utf8'`
+  * `mode` {integer} default = `0o666`
   * `flag` {string} default = `'a'`
 
 The synchronous version of [`fs.appendFile()`][]. Returns `undefined`.
@@ -523,8 +523,8 @@ changes:
                  it will emit a deprecation warning.
 -->
 
-* `path` {string | Buffer}
-* `mode` {Integer}
+* `path` {string|Buffer}
+* `mode` {integer}
 * `callback` {Function}
 
 Asynchronous chmod(2). No arguments other than a possible exception are given
@@ -535,8 +535,8 @@ to the completion callback.
 added: v0.6.7
 -->
 
-* `path` {string | Buffer}
-* `mode` {Integer}
+* `path` {string|Buffer}
+* `mode` {integer}
 
 Synchronous chmod(2). Returns `undefined`.
 
@@ -550,9 +550,9 @@ changes:
                  it will emit a deprecation warning.
 -->
 
-* `path` {string | Buffer}
-* `uid` {Integer}
-* `gid` {Integer}
+* `path` {string|Buffer}
+* `uid` {integer}
+* `gid` {integer}
 * `callback` {Function}
 
 Asynchronous chown(2). No arguments other than a possible exception are given
@@ -563,9 +563,9 @@ to the completion callback.
 added: v0.1.97
 -->
 
-* `path` {string | Buffer}
-* `uid` {Integer}
-* `gid` {Integer}
+* `path` {string|Buffer}
+* `uid` {integer}
+* `gid` {integer}
 
 Synchronous chown(2). Returns `undefined`.
 
@@ -579,7 +579,7 @@ changes:
                  it will emit a deprecation warning.
 -->
 
-* `fd` {Integer}
+* `fd` {integer}
 * `callback` {Function}
 
 Asynchronous close(2).  No arguments other than a possible exception are given
@@ -590,7 +590,7 @@ to the completion callback.
 added: v0.1.21
 -->
 
-* `fd` {Integer}
+* `fd` {integer}
 
 Synchronous close(2). Returns `undefined`.
 
@@ -612,15 +612,15 @@ changes:
     description: The passed `options` object can be a string now.
 -->
 
-* `path` {string | Buffer}
-* `options` {string | Object}
+* `path` {string|Buffer}
+* `options` {string|Object}
   * `flags` {string}
   * `encoding` {string}
-  * `fd` {Integer}
-  * `mode` {Integer}
+  * `fd` {integer}
+  * `mode` {integer}
   * `autoClose` {boolean}
-  * `start` {Integer}
-  * `end` {Integer}
+  * `start` {integer}
+  * `end` {integer}
 
 Returns a new [`ReadStream`][] object. (See [Readable Stream][]).
 
@@ -683,14 +683,14 @@ changes:
     description: The passed `options` object can be a string now.
 -->
 
-* `path` {string | Buffer}
-* `options` {string | Object}
+* `path` {string|Buffer}
+* `options` {string|Object}
   * `flags` {string}
   * `defaultEncoding` {string}
-  * `fd` {Integer}
-  * `mode` {Integer}
+  * `fd` {integer}
+  * `mode` {integer}
   * `autoClose` {boolean}
-  * `start` {Integer}
+  * `start` {integer}
 
 Returns a new [`WriteStream`][] object. (See [Writable Stream][]).
 
@@ -733,7 +733,7 @@ deprecated: v1.0.0
 
 > Stability: 0 - Deprecated: Use [`fs.stat()`][] or [`fs.access()`][] instead.
 
-* `path` {string | Buffer}
+* `path` {string|Buffer}
 * `callback` {Function}
 
 Test whether or not the given path exists by checking with the file system.
@@ -834,7 +834,7 @@ process.
 added: v0.1.21
 -->
 
-* `path` {string | Buffer}
+* `path` {string|Buffer}
 
 Synchronous version of [`fs.exists()`][].
 Returns `true` if the file exists, `false` otherwise.
@@ -854,8 +854,8 @@ changes:
                  it will emit a deprecation warning.
 -->
 
-* `fd` {Integer}
-* `mode` {Integer}
+* `fd` {integer}
+* `mode` {integer}
 * `callback` {Function}
 
 Asynchronous fchmod(2). No arguments other than a possible exception
@@ -866,8 +866,8 @@ are given to the completion callback.
 added: v0.4.7
 -->
 
-* `fd` {Integer}
-* `mode` {Integer}
+* `fd` {integer}
+* `mode` {integer}
 
 Synchronous fchmod(2). Returns `undefined`.
 
@@ -881,9 +881,9 @@ changes:
                  it will emit a deprecation warning.
 -->
 
-* `fd` {Integer}
-* `uid` {Integer}
-* `gid` {Integer}
+* `fd` {integer}
+* `uid` {integer}
+* `gid` {integer}
 * `callback` {Function}
 
 Asynchronous fchown(2). No arguments other than a possible exception are given
@@ -894,9 +894,9 @@ to the completion callback.
 added: v0.4.7
 -->
 
-* `fd` {Integer}
-* `uid` {Integer}
-* `gid` {Integer}
+* `fd` {integer}
+* `uid` {integer}
+* `gid` {integer}
 
 Synchronous fchown(2). Returns `undefined`.
 
@@ -910,7 +910,7 @@ changes:
                  it will emit a deprecation warning.
 -->
 
-* `fd` {Integer}
+* `fd` {integer}
 * `callback` {Function}
 
 Asynchronous fdatasync(2). No arguments other than a possible exception are
@@ -921,7 +921,7 @@ given to the completion callback.
 added: v0.1.96
 -->
 
-* `fd` {Integer}
+* `fd` {integer}
 
 Synchronous fdatasync(2). Returns `undefined`.
 
@@ -935,7 +935,7 @@ changes:
                  it will emit a deprecation warning.
 -->
 
-* `fd` {Integer}
+* `fd` {integer}
 * `callback` {Function}
 
 Asynchronous fstat(2). The callback gets two arguments `(err, stats)` where
@@ -947,7 +947,7 @@ except that the file to be stat-ed is specified by the file descriptor `fd`.
 added: v0.1.95
 -->
 
-* `fd` {Integer}
+* `fd` {integer}
 
 Synchronous fstat(2). Returns an instance of [`fs.Stats`][].
 
@@ -961,7 +961,7 @@ changes:
                  it will emit a deprecation warning.
 -->
 
-* `fd` {Integer}
+* `fd` {integer}
 * `callback` {Function}
 
 Asynchronous fsync(2). No arguments other than a possible exception are given
@@ -972,7 +972,7 @@ to the completion callback.
 added: v0.1.96
 -->
 
-* `fd` {Integer}
+* `fd` {integer}
 
 Synchronous fsync(2). Returns `undefined`.
 
@@ -986,8 +986,8 @@ changes:
                  it will emit a deprecation warning.
 -->
 
-* `fd` {Integer}
-* `len` {Integer} default = `0`
+* `fd` {integer}
+* `len` {integer} default = `0`
 * `callback` {Function}
 
 Asynchronous ftruncate(2). No arguments other than a possible exception are
@@ -1039,8 +1039,8 @@ The last three bytes are null bytes ('\0'), to compensate the over-truncation.
 added: v0.8.6
 -->
 
-* `fd` {Integer}
-* `len` {Integer} default = `0`
+* `fd` {integer}
+* `len` {integer} default = `0`
 
 Synchronous ftruncate(2). Returns `undefined`.
 
@@ -1058,9 +1058,9 @@ changes:
                  time specifiers.
 -->
 
-* `fd` {Integer}
-* `atime` {Integer}
-* `mtime` {Integer}
+* `fd` {integer}
+* `atime` {integer}
+* `mtime` {integer}
 * `callback` {Function}
 
 Change the file timestamps of a file referenced by the supplied file
@@ -1076,9 +1076,9 @@ changes:
                  time specifiers.
 -->
 
-* `fd` {Integer}
-* `atime` {Integer}
-* `mtime` {Integer}
+* `fd` {integer}
+* `atime` {integer}
+* `mtime` {integer}
 
 Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 
@@ -1092,8 +1092,8 @@ changes:
                  it will emit a deprecation warning.
 -->
 
-* `path` {string | Buffer}
-* `mode` {Integer}
+* `path` {string|Buffer}
+* `mode` {integer}
 * `callback` {Function}
 
 Asynchronous lchmod(2). No arguments other than a possible exception
@@ -1106,8 +1106,8 @@ Only available on Mac OS X.
 deprecated: v0.4.7
 -->
 
-* `path` {string | Buffer}
-* `mode` {Integer}
+* `path` {string|Buffer}
+* `mode` {integer}
 
 Synchronous lchmod(2). Returns `undefined`.
 
@@ -1121,9 +1121,9 @@ changes:
                  it will emit a deprecation warning.
 -->
 
-* `path` {string | Buffer}
-* `uid` {Integer}
-* `gid` {Integer}
+* `path` {string|Buffer}
+* `uid` {integer}
+* `gid` {integer}
 * `callback` {Function}
 
 Asynchronous lchown(2). No arguments other than a possible exception are given
@@ -1134,9 +1134,9 @@ to the completion callback.
 deprecated: v0.4.7
 -->
 
-* `path` {string | Buffer}
-* `uid` {Integer}
-* `gid` {Integer}
+* `path` {string|Buffer}
+* `uid` {integer}
+* `gid` {integer}
 
 Synchronous lchown(2). Returns `undefined`.
 
@@ -1150,8 +1150,8 @@ changes:
                  it will emit a deprecation warning.
 -->
 
-* `existingPath` {string | Buffer}
-* `newPath` {string | Buffer}
+* `existingPath` {string|Buffer}
+* `newPath` {string|Buffer}
 * `callback` {Function}
 
 Asynchronous link(2). No arguments other than a possible exception are given to
@@ -1162,8 +1162,8 @@ the completion callback.
 added: v0.1.31
 -->
 
-* `existingPath` {string | Buffer}
-* `newPath` {string | Buffer}
+* `existingPath` {string|Buffer}
+* `newPath` {string|Buffer}
 
 Synchronous link(2). Returns `undefined`.
 
@@ -1177,7 +1177,7 @@ changes:
                  it will emit a deprecation warning.
 -->
 
-* `path` {string | Buffer}
+* `path` {string|Buffer}
 * `callback` {Function}
 
 Asynchronous lstat(2). The callback gets two arguments `(err, stats)` where
@@ -1190,7 +1190,7 @@ not the file that it refers to.
 added: v0.1.30
 -->
 
-* `path` {string | Buffer}
+* `path` {string|Buffer}
 
 Synchronous lstat(2). Returns an instance of [`fs.Stats`][].
 
@@ -1204,8 +1204,8 @@ changes:
                  it will emit a deprecation warning.
 -->
 
-* `path` {string | Buffer}
-* `mode` {Integer}
+* `path` {string|Buffer}
+* `mode` {integer}
 * `callback` {Function}
 
 Asynchronous mkdir(2). No arguments other than a possible exception are given
@@ -1216,8 +1216,8 @@ to the completion callback. `mode` defaults to `0o777`.
 added: v0.1.21
 -->
 
-* `path` {string | Buffer}
-* `mode` {Integer}
+* `path` {string|Buffer}
+* `mode` {integer}
 
 Synchronous mkdir(2). Returns `undefined`.
 
@@ -1235,7 +1235,7 @@ changes:
 -->
 
 * `prefix` {string}
-* `options` {string | Object}
+* `options` {string|Object}
   * `encoding` {string} default = `'utf8'`
 * `callback` {Function}
 
@@ -1297,7 +1297,7 @@ added: v5.10.0
 -->
 
 * `prefix` {string}
-* `options` {string | Object}
+* `options` {string|Object}
   * `encoding` {string} default = `'utf8'`
 
 The synchronous version of [`fs.mkdtemp()`][]. Returns the created
@@ -1311,9 +1311,9 @@ object with an `encoding` property specifying the character encoding to use.
 added: v0.0.2
 -->
 
-* `path` {string | Buffer}
-* `flags` {string | Number}
-* `mode` {Integer}
+* `path` {string|Buffer}
+* `flags` {string|number}
+* `mode` {integer}
 * `callback` {Function}
 
 Asynchronous file open. See open(2). `flags` can be:
@@ -1395,9 +1395,9 @@ fs.open('<directory>', 'a+', (err, fd) => {
 added: v0.1.21
 -->
 
-* `path` {string | Buffer}
-* `flags` {string | Number}
-* `mode` {Integer}
+* `path` {string|Buffer}
+* `flags` {string|number}
+* `mode` {integer}
 
 Synchronous version of [`fs.open()`][]. Returns an integer representing the file
 descriptor.
@@ -1414,11 +1414,11 @@ changes:
     description: The `length` parameter can now be `0`.
 -->
 
-* `fd` {Integer}
-* `buffer` {string | Buffer | Uint8Array}
-* `offset` {Integer}
-* `length` {Integer}
-* `position` {Integer}
+* `fd` {integer}
+* `buffer` {string|Buffer|Uint8Array}
+* `offset` {integer}
+* `length` {integer}
+* `position` {integer}
 * `callback` {Function}
 
 Read data from the file specified by `fd`.
@@ -1444,8 +1444,8 @@ changes:
                  it will emit a deprecation warning.
 -->
 
-* `path` {string | Buffer}
-* `options` {string | Object}
+* `path` {string|Buffer}
+* `options` {string|Object}
   * `encoding` {string} default = `'utf8'`
 * `callback` {Function}
 
@@ -1463,8 +1463,8 @@ the filenames returned will be passed as `Buffer` objects.
 added: v0.1.21
 -->
 
-* `path` {string | Buffer}
-* `options` {string | Object}
+* `path` {string|Buffer}
+* `options` {string|Object}
   * `encoding` {string} default = `'utf8'`
 
 Synchronous readdir(3). Returns an array of filenames excluding `'.'` and
@@ -1492,9 +1492,9 @@ changes:
     description: The `file` parameter can be a file descriptor now.
 -->
 
-* `file` {string | Buffer | Integer} filename or file descriptor
-* `options` {Object | String}
-  * `encoding` {string | Null} default = `null`
+* `file` {string|Buffer|integer} filename or file descriptor
+* `options` {Object|string}
+  * `encoding` {string|null} default = `null`
   * `flag` {string} default = `'r'`
 * `callback` {Function}
 
@@ -1532,9 +1532,9 @@ changes:
     description: The `file` parameter can be a file descriptor now.
 -->
 
-* `file` {string | Buffer | Integer} filename or file descriptor
-* `options` {Object | String}
-  * `encoding` {string | Null} default = `null`
+* `file` {string|Buffer|integer} filename or file descriptor
+* `options` {Object|string}
+  * `encoding` {string|null} default = `null`
   * `flag` {string} default = `'r'`
 
 Synchronous version of [`fs.readFile`][]. Returns the contents of the `file`.
@@ -1552,8 +1552,8 @@ changes:
                  it will emit a deprecation warning.
 -->
 
-* `path` {string | Buffer}
-* `options` {string | Object}
+* `path` {string|Buffer}
+* `options` {string|Object}
   * `encoding` {string} default = `'utf8'`
 * `callback` {Function}
 
@@ -1570,8 +1570,8 @@ the link path returned will be passed as a `Buffer` object.
 added: v0.1.31
 -->
 
-* `path` {string | Buffer}
-* `options` {string | Object}
+* `path` {string|Buffer}
+* `options` {string|Object}
   * `encoding` {string} default = `'utf8'`
 
 Synchronous readlink(2). Returns the symbolic link's string value.
@@ -1590,11 +1590,11 @@ changes:
     description: The `length` parameter can now be `0`.
 -->
 
-* `fd` {Integer}
-* `buffer` {string | Buffer | Uint8Array}
-* `offset` {Integer}
-* `length` {Integer}
-* `position` {Integer}
+* `fd` {integer}
+* `buffer` {string|Buffer|Uint8Array}
+* `offset` {integer}
+* `length` {integer}
+* `position` {integer}
 
 Synchronous version of [`fs.read()`][]. Returns the number of `bytesRead`.
 
@@ -1615,8 +1615,8 @@ changes:
     description: The `cache` parameter was removed.
 -->
 
-* `path` {string | Buffer}
-* `options` {string | Object}
+* `path` {string|Buffer}
+* `options` {string|Object}
   * `encoding` {string} default = `'utf8'`
 * `callback` {Function}
 
@@ -1643,8 +1643,8 @@ changes:
     description: The `cache` parameter was removed.
 -->
 
-* `path` {string | Buffer};
-* `options` {string | Object}
+* `path` {string|Buffer};
+* `options` {string|Object}
   * `encoding` {string} default = `'utf8'`
 
 Synchronous realpath(3). Returns the resolved path.
@@ -1666,8 +1666,8 @@ changes:
                  it will emit a deprecation warning.
 -->
 
-* `oldPath` {string | Buffer}
-* `newPath` {string | Buffer}
+* `oldPath` {string|Buffer}
+* `newPath` {string|Buffer}
 * `callback` {Function}
 
 Asynchronous rename(2). No arguments other than a possible exception are given
@@ -1678,8 +1678,8 @@ to the completion callback.
 added: v0.1.21
 -->
 
-* `oldPath` {string | Buffer}
-* `newPath` {string | Buffer}
+* `oldPath` {string|Buffer}
+* `newPath` {string|Buffer}
 
 Synchronous rename(2). Returns `undefined`.
 
@@ -1693,7 +1693,7 @@ changes:
                  it will emit a deprecation warning.
 -->
 
-* `path` {string | Buffer}
+* `path` {string|Buffer}
 * `callback` {Function}
 
 Asynchronous rmdir(2). No arguments other than a possible exception are given
@@ -1704,7 +1704,7 @@ to the completion callback.
 added: v0.1.21
 -->
 
-* `path` {string | Buffer}
+* `path` {string|Buffer}
 
 Synchronous rmdir(2). Returns `undefined`.
 
@@ -1718,7 +1718,7 @@ changes:
                  it will emit a deprecation warning.
 -->
 
-* `path` {string | Buffer}
+* `path` {string|Buffer}
 * `callback` {Function}
 
 Asynchronous stat(2). The callback gets two arguments `(err, stats)` where
@@ -1739,7 +1739,7 @@ is recommended.
 added: v0.1.21
 -->
 
-* `path` {string | Buffer}
+* `path` {string|Buffer}
 
 Synchronous stat(2). Returns an instance of [`fs.Stats`][].
 
@@ -1748,8 +1748,8 @@ Synchronous stat(2). Returns an instance of [`fs.Stats`][].
 added: v0.1.31
 -->
 
-* `target` {string | Buffer}
-* `path` {string | Buffer}
+* `target` {string|Buffer}
+* `path` {string|Buffer}
 * `type` {string}
 * `callback` {Function}
 
@@ -1773,8 +1773,8 @@ It creates a symbolic link named "new-port" that points to "foo".
 added: v0.1.31
 -->
 
-* `target` {string | Buffer}
-* `path` {string | Buffer}
+* `target` {string|Buffer}
+* `path` {string|Buffer}
 * `type` {string}
 
 Synchronous symlink(2). Returns `undefined`.
@@ -1789,8 +1789,8 @@ changes:
                  it will emit a deprecation warning.
 -->
 
-* `path` {string | Buffer}
-* `len` {Integer} default = `0`
+* `path` {string|Buffer}
+* `len` {integer} default = `0`
 * `callback` {Function}
 
 Asynchronous truncate(2). No arguments other than a possible exception are
@@ -1802,8 +1802,8 @@ first argument. In this case, `fs.ftruncate()` is called.
 added: v0.8.6
 -->
 
-* `path` {string | Buffer}
-* `len` {Integer} default = `0`
+* `path` {string|Buffer}
+* `len` {integer} default = `0`
 
 Synchronous truncate(2). Returns `undefined`. A file descriptor can also be
 passed as the first argument. In this case, `fs.ftruncateSync()` is called.
@@ -1818,7 +1818,7 @@ changes:
                  it will emit a deprecation warning.
 -->
 
-* `path` {string | Buffer}
+* `path` {string|Buffer}
 * `callback` {Function}
 
 Asynchronous unlink(2). No arguments other than a possible exception are given
@@ -1829,7 +1829,7 @@ to the completion callback.
 added: v0.1.21
 -->
 
-* `path` {string | Buffer}
+* `path` {string|Buffer}
 
 Synchronous unlink(2). Returns `undefined`.
 
@@ -1838,7 +1838,7 @@ Synchronous unlink(2). Returns `undefined`.
 added: v0.1.31
 -->
 
-* `filename` {string | Buffer}
+* `filename` {string|Buffer}
 * `listener` {Function}
 
 Stop watching for changes on `filename`. If `listener` is specified, only that
@@ -1866,9 +1866,9 @@ changes:
                  time specifiers.
 -->
 
-* `path` {string | Buffer}
-* `atime` {Integer}
-* `mtime` {Integer}
+* `path` {string|Buffer}
+* `atime` {integer}
+* `mtime` {integer}
 * `callback` {Function}
 
 Change file timestamps of the file referenced by the supplied path.
@@ -1893,9 +1893,9 @@ changes:
                  time specifiers.
 -->
 
-* `path` {string | Buffer}
-* `atime` {Integer}
-* `mtime` {Integer}
+* `path` {string|Buffer}
+* `atime` {integer}
+* `mtime` {integer}
 
 Synchronous version of [`fs.utimes()`][]. Returns `undefined`.
 
@@ -1908,8 +1908,8 @@ changes:
     description: The passed `options` object will never be modified.
 -->
 
-* `filename` {string | Buffer}
-* `options` {string | Object}
+* `filename` {string|Buffer}
+* `options` {string|Object}
   * `persistent` {boolean} Indicates whether the process should continue to run
     as long as files are being watched. default = `true`
   * `recursive` {boolean} Indicates whether all subdirectories should be
@@ -2011,10 +2011,10 @@ fs.watch('somedir', (eventType, filename) => {
 added: v0.1.31
 -->
 
-* `filename` {string | Buffer}
+* `filename` {string|Buffer}
 * `options` {Object}
   * `persistent` {boolean}
-  * `interval` {Integer}
+  * `interval` {integer}
 * `listener` {Function}
 
 Watch for changes on `filename`. The callback `listener` will be called each
@@ -2068,11 +2068,11 @@ changes:
                  it will emit a deprecation warning.
 -->
 
-* `fd` {Integer}
-* `buffer` {Buffer | Uint8Array}
-* `offset` {Integer}
-* `length` {Integer}
-* `position` {Integer}
+* `fd` {integer}
+* `buffer` {Buffer|Uint8Array}
+* `offset` {integer}
+* `length` {integer}
+* `position` {integer}
 * `callback` {Function}
 
 Write `buffer` to the file specified by `fd`.
@@ -2108,9 +2108,9 @@ changes:
                  it will emit a deprecation warning.
 -->
 
-* `fd` {Integer}
+* `fd` {integer}
 * `string` {string}
-* `position` {Integer}
+* `position` {integer}
 * `encoding` {string}
 * `callback` {Function}
 
@@ -2155,11 +2155,11 @@ changes:
     description: The `file` parameter can be a file descriptor now.
 -->
 
-* `file` {string | Buffer | Integer} filename or file descriptor
-* `data` {string | Buffer | Uint8Array}
-* `options` {Object | String}
-  * `encoding` {string | Null} default = `'utf8'`
-  * `mode` {Integer} default = `0o666`
+* `file` {string|Buffer|integer} filename or file descriptor
+* `data` {string|Buffer|Uint8Array}
+* `options` {Object|string}
+  * `encoding` {string|null} default = `'utf8'`
+  * `mode` {integer} default = `0o666`
   * `flag` {string} default = `'w'`
 * `callback` {Function}
 
@@ -2205,11 +2205,11 @@ changes:
     description: The `file` parameter can be a file descriptor now.
 -->
 
-* `file` {string | Buffer | Integer} filename or file descriptor
-* `data` {string | Buffer | Uint8Array}
-* `options` {Object | String}
-  * `encoding` {string | Null} default = `'utf8'`
-  * `mode` {Integer} default = `0o666`
+* `file` {string|Buffer|integer} filename or file descriptor
+* `data` {string|Buffer|Uint8Array}
+* `options` {Object|string}
+  * `encoding` {string|null} default = `'utf8'`
+  * `mode` {integer} default = `0o666`
   * `flag` {string} default = `'w'`
 
 The synchronous version of [`fs.writeFile()`][]. Returns `undefined`.
@@ -2226,11 +2226,11 @@ changes:
     description: The `offset` and `length` parameters are optional now.
 -->
 
-* `fd` {Integer}
-* `buffer` {Buffer | Uint8Array}
-* `offset` {Integer}
-* `length` {Integer}
-* `position` {Integer}
+* `fd` {integer}
+* `buffer` {Buffer|Uint8Array}
+* `offset` {integer}
+* `length` {integer}
+* `position` {integer}
 
 ## fs.writeSync(fd, string[, position[, encoding]])
 <!-- YAML
@@ -2241,9 +2241,9 @@ changes:
     description: The `position` parameter is optional now.
 -->
 
-* `fd` {Integer}
+* `fd` {integer}
 * `string` {string}
-* `position` {Integer}
+* `position` {integer}
 * `encoding` {string}
 
 Synchronous versions of [`fs.write()`][]. Returns the number of bytes written.

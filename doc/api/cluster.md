@@ -332,7 +332,7 @@ if (cluster.isMaster) {
 added: v6.0.0
 -->
 
-* {Boolean}
+* {boolean}
 
 Set by calling `.kill()` or `.disconnect()`. Until then, it is `undefined`.
 
@@ -356,7 +356,7 @@ worker.kill();
 added: v0.8.0
 -->
 
-* {Number}
+* {number}
 
 Each new worker is given its own unique id, this id is stored in the
 `id`.
@@ -691,7 +691,7 @@ This can only be called from the master process.
 added: v0.8.1
 -->
 
-* {Boolean}
+* {boolean}
 
 True if the process is a master. This is determined
 by the `process.env.NODE_UNIQUE_ID`. If `process.env.NODE_UNIQUE_ID` is
@@ -702,7 +702,7 @@ undefined, then `isMaster` is `true`.
 added: v0.6.0
 -->
 
-* {Boolean}
+* {boolean}
 
 True if the process is not a master (it is the negation of `cluster.isMaster`).
 
