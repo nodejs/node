@@ -29,6 +29,16 @@ the working group's repository, or in the working group's repository.
 The process to start a Core Working Group is identical to [creating a 
 Top Level Working Group](https://github.com/nodejs/TSC/blob/master/WORKING_GROUPS.md#starting-a-wg).
 
+## Joining a WG
+
+To find out how to join a working group, consult the GOVERNANCE.md in
+the working group's repository, or in the working group's repository.
+
+## Starting A Core Working Group
+
+The process to start a Core Working Group is identical to [creating a 
+Top Level Working Group](https://github.com/nodejs/TSC/blob/master/WORKING_GROUPS.md#starting-a-wg).
+
 ## Current Working Groups
 
 * [Website](#website)
