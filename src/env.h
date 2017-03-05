@@ -36,14 +36,6 @@ namespace node {
 #define NODE_CONTEXT_EMBEDDER_DATA_INDEX 32
 #endif
 
-// The slot 0 and 1 had already been taken by "gin" and "blink" in Chrome,
-// and the size of isolate's slots is 4 by default, so using 3 should
-// hopefully make node work independently when embedded into other
-// application.
-#ifndef NODE_ISOLATE_SLOT
-#define NODE_ISOLATE_SLOT 3
-#endif
-
 // The number of items passed to push_values_to_array_function has diminishing
 // returns around 8. This should be used at all call sites using said function.
 #ifndef NODE_PUSH_VAL_TO_ARRAY_MAX
