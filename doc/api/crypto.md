@@ -929,8 +929,8 @@ The `private_key` argument can be an object or a string. If `private_key` is a
 string, it is treated as a raw key with no passphrase. If `private_key` is an
 object, it is interpreted as a hash containing two properties:
 
-* `key` : {String} - PEM encoded private key
-* `passphrase` : {String} - passphrase for the private key
+* `key`: {string} - PEM encoded private key
+* `passphrase`: {string} - passphrase for the private key
 
 The `output_format` can specify one of `'latin1'`, `'hex'` or `'base64'`. If
 `output_format` is provided a string is returned; otherwise a [`Buffer`][] is
@@ -1469,8 +1469,8 @@ treated as the key with no passphrase and will use `RSA_PKCS1_OAEP_PADDING`.
 If `private_key` is an object, it is interpreted as a hash object with the
 keys:
 
-* `key` : {String} - PEM encoded private key
-* `passphrase` : {String} - Optional passphrase for the private key
+* `key`: {string} - PEM encoded private key
+* `passphrase`: {string} - Optional passphrase for the private key
 * `padding` : An optional padding value, one of the following:
   * `crypto.constants.RSA_NO_PADDING`
   * `crypto.constants.RSA_PKCS1_PADDING`
@@ -1490,8 +1490,8 @@ treated as the key with no passphrase and will use `RSA_PKCS1_PADDING`.
 If `private_key` is an object, it is interpreted as a hash object with the
 keys:
 
-* `key` : {String} - PEM encoded private key
-* `passphrase` : {String} - Optional passphrase for the private key
+* `key`: {string} - PEM encoded private key
+* `passphrase`: {string} - Optional passphrase for the private key
 * `padding` : An optional padding value, one of the following:
   * `crypto.constants.RSA_NO_PADDING`
   * `crypto.constants.RSA_PKCS1_PADDING`
@@ -1510,8 +1510,8 @@ treated as the key with no passphrase and will use `RSA_PKCS1_PADDING`.
 If `public_key` is an object, it is interpreted as a hash object with the
 keys:
 
-* `key` : {String} - PEM encoded public key
-* `passphrase` : {String} - Optional passphrase for the private key
+* `key`: {string} - PEM encoded public key
+* `passphrase`: {string} - Optional passphrase for the private key
 * `padding` : An optional padding value, one of the following:
   * `crypto.constants.RSA_NO_PADDING`
   * `crypto.constants.RSA_PKCS1_PADDING`
@@ -1534,8 +1534,8 @@ treated as the key with no passphrase and will use `RSA_PKCS1_OAEP_PADDING`.
 If `public_key` is an object, it is interpreted as a hash object with the
 keys:
 
-* `key` : {String} - PEM encoded public key
-* `passphrase` : {String} - Optional passphrase for the private key
+* `key`: {string} - PEM encoded public key
+* `passphrase`: {string} - Optional passphrase for the private key
 * `padding` : An optional padding value, one of the following:
   * `crypto.constants.RSA_NO_PADDING`
   * `crypto.constants.RSA_PKCS1_PADDING`
