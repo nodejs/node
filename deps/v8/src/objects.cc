@@ -7330,7 +7330,13 @@ namespace {
 
 Maybe<bool> GetPropertyDescriptorWithInterceptor(LookupIterator* it,
                                                  PropertyDescriptor* desc) {
-  if (it->state() == LookupIterator::INTERCEPTOR) {
+  bool has_access = true;
+  if (it->state() == LookupIterator::ACCESS_CHECK) {
+    has_access = it->HasAccess() || JSObject::AllCanRead(it);
+    it->Next();
+  }
+
+  if (has_access && it->state() == LookupIterator::INTERCEPTOR) {
     Isolate* isolate = it->isolate();
     Handle<InterceptorInfo> interceptor = it->GetInterceptor();
     if (!interceptor->descriptor()->IsUndefined(isolate)) {
@@ -7374,6 +7380,7 @@ Maybe<bool> GetPropertyDescriptorWithInterceptor(LookupIterator* it,
       }
     }
   }
+  it->Restart();
   return Just(false);
 }
 }  // namespace
