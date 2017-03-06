@@ -607,6 +607,50 @@ THREADED_TEST(SetterCallbackFunctionDeclarationInterceptorThrow) {
 
   CHECK_EQ(set_was_called, false);
 }
+namespace {
+int descriptor_was_called;
+
+void PropertyDescriptorCallback(
+    Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  // Intercept the callback by setting a different descriptor.
+  descriptor_was_called++;
+  const char* code =
+      "var desc = {value: 5};"
+          "desc;";
+  Local<Value> descriptor = v8_compile(code)
+      ->Run(info.GetIsolate()->GetCurrentContext())
+      .ToLocalChecked();
+  info.GetReturnValue().Set(descriptor);
+}
+}  // namespace
+
+// Check that the descriptor callback is called on the global object.
+THREADED_TEST(DescriptorCallbackOnGlobalObject) {
+    v8::HandleScope scope(CcTest::isolate());
+    LocalContext env;
+    v8::Local<v8::FunctionTemplate> templ =
+    v8::FunctionTemplate::New(CcTest::isolate());
+
+    v8::Local<ObjectTemplate> object_template = templ->InstanceTemplate();
+    object_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
+    nullptr, nullptr, PropertyDescriptorCallback, nullptr, nullptr, nullptr));
+    v8::Local<v8::Context> ctx =
+    v8::Context::New(CcTest::isolate(), nullptr, object_template);
+
+    descriptor_was_called = 0;
+
+    // Declare function.
+    v8::Local<v8::String> code = v8_str(
+    "var x = 42; var desc = Object.getOwnPropertyDescriptor(this, 'x'); "
+    "desc.value;");
+    CHECK_EQ(5, v8::Script::Compile(ctx, code)
+    .ToLocalChecked()
+    ->Run(ctx)
+    .ToLocalChecked()
+    ->Int32Value(ctx)
+    .FromJust());
+    CHECK_EQ(1, descriptor_was_called);
+}
 
 
 namespace {
@@ -4578,7 +4622,7 @@ TEST(NamedAllCanReadInterceptor) {
   ExpectInt32("checked.whatever", 17);
   CHECK(!CompileRun("Object.getOwnPropertyDescriptor(checked, 'whatever')")
              ->IsUndefined());
-  CHECK_EQ(5, access_check_data.count);
+  CHECK_EQ(6, access_check_data.count);
 
   access_check_data.result = false;
   ExpectInt32("checked.whatever", intercept_data_0.value);
@@ -4587,7 +4631,7 @@ TEST(NamedAllCanReadInterceptor) {
     CompileRun("Object.getOwnPropertyDescriptor(checked, 'whatever')");
     CHECK(try_catch.HasCaught());
   }
-  CHECK_EQ(7, access_check_data.count);
+  CHECK_EQ(9, access_check_data.count);
 
   intercept_data_1.should_intercept = true;
   ExpectInt32("checked.whatever", intercept_data_1.value);
@@ -4596,7 +4640,7 @@ TEST(NamedAllCanReadInterceptor) {
     CompileRun("Object.getOwnPropertyDescriptor(checked, 'whatever')");
     CHECK(try_catch.HasCaught());
   }
-  CHECK_EQ(9, access_check_data.count);
+  CHECK_EQ(12, access_check_data.count);
   g_access_check_data = nullptr;
 }
 
@@ -4665,7 +4709,7 @@ TEST(IndexedAllCanReadInterceptor) {
   ExpectInt32("checked[15]", 17);
   CHECK(!CompileRun("Object.getOwnPropertyDescriptor(checked, '15')")
              ->IsUndefined());
-  CHECK_EQ(5, access_check_data.count);
+  CHECK_EQ(6, access_check_data.count);
 
   access_check_data.result = false;
   ExpectInt32("checked[15]", intercept_data_0.value);
@@ -4674,7 +4718,7 @@ TEST(IndexedAllCanReadInterceptor) {
     CompileRun("Object.getOwnPropertyDescriptor(checked, '15')");
     CHECK(try_catch.HasCaught());
   }
-  CHECK_EQ(7, access_check_data.count);
+  CHECK_EQ(9, access_check_data.count);
 
   intercept_data_1.should_intercept = true;
   ExpectInt32("checked[15]", intercept_data_1.value);
@@ -4683,7 +4727,7 @@ TEST(IndexedAllCanReadInterceptor) {
     CompileRun("Object.getOwnPropertyDescriptor(checked, '15')");
     CHECK(try_catch.HasCaught());
   }
-  CHECK_EQ(9, access_check_data.count);
+  CHECK_EQ(12, access_check_data.count);
 
   g_access_check_data = nullptr;
 }
