@@ -556,6 +556,32 @@ The `NODE_REPL_MODE` environment variable is used to set the underlying
 `replMode` of an interactive `node` session. Its default value, `magic`, is
 similarly deprecated in favor of `sloppy`.
 
+<a id="DEP0066"></a>
+### DEP0066: outgoingMessage.\_headers, outgoingMessage.\_headerNames
+
+Type: Documentation-only
+
+The `http` module `outgoingMessage._headers` and `outgoingMessage._headerNames`
+properties have been deprecated. Please instead use one of the public methods
+(e.g. `outgoingMessage.getHeader()`, `outgoingMessage.getHeaders()`,
+`outgoingMessage.getHeaderNames()`, `outgoingMessage.hasHeader()`,
+`outgoingMessage.removeHeader()`, `outgoingMessage.setHeader()`) for working
+with outgoing headers.
+
+*Note*: `outgoingMessage._headers` and `outgoingMessage._headerNames` were never
+documented as officially supported properties.
+
+<a id="DEP0067"></a>
+### DEP0067: OutgoingMessage.prototype.\_renderHeaders
+
+Type: Documentation-only
+
+The `http` module `OutgoingMessage.prototype._renderHeaders()` API has been
+deprecated.
+
+*Note*: `OutgoingMessage.prototype._renderHeaders` was never documented as
+an officially supported API.
+
 [alloc]: buffer.html#buffer_class_method_buffer_alloc_size_fill_encoding
 [alloc_unsafe_size]: buffer.html#buffer_class_method_buffer_allocunsafe_size
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
