@@ -221,8 +221,8 @@ static void ares_sockstate_cb(void* data,
       task = ares_task_create(env, sock);
       if (task == nullptr) {
         /* This should never happen unless we're out of memory or something */
-        /* is seriously wrong. The socket won't be polled, but the the query */
-        /* will eventually time out. */
+        /* is seriously wrong. The socket won't be polled, but the query will */
+        /* eventually time out. */
         return;
       }
 
