@@ -534,6 +534,20 @@ deprecated. Please use `ServerResponse.prototype.writeHead()` instead.
 *Note*: The `ServerResponse.prototype.writeHeader()` method was never documented
 as an officially supported API.
 
+<a id="DEP00XX"></a>
+### DEP00XX: repl.REPL_MODE_MAGIC and NODE_REPL_MODE=magic
+
+Type: Documentation-only
+
+The `repl` module's `REPL_MODE_MAGIC` constant, used for `replMode` option, has
+been deprecated. Its behavior has been functionally identical to that of
+`REPL_MODE_SLOPPY` since Node.js v6.0.0, when V8 5.0 was imported. Please use
+`REPL_MODE_SLOPPY` instead.
+
+The `NODE_REPL_MODE` environment variable is used to set the underlying
+`replMode` of an interactive `node` session. Its default value, `magic`, is
+similarly deprecated in favor of `sloppy`.
+
 [alloc]: buffer.html#buffer_class_method_buffer_alloc_size_fill_encoding
 [alloc_unsafe_size]: buffer.html#buffer_class_method_buffer_allocunsafe_size
 [`Buffer.allocUnsafeSlow(size)`]: buffer.html#buffer_class_method_buffer_allocunsafeslow_size
