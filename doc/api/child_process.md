@@ -193,7 +193,7 @@ the process is spawned. The default options are:
 }
 ```
 
-If `timeout` is greater than `0`, the parent will send the the signal
+If `timeout` is greater than `0`, the parent will send the signal
 identified by the `killSignal` property (the default is `'SIGTERM'`) if the
 child runs longer than `timeout` milliseconds.
 
