@@ -86,6 +86,16 @@ assert.strictEqual(util.format('o: %j, a: %j'), 'o: %j, a: %j');
   assert.strictEqual(util.format('%j', o), '[Circular]');
 }
 
+{
+  const o = {
+    toJSON() {
+      throw new Error('Not a circular object but still not serializable');
+    }
+  };
+  assert.throws(() => util.format('%j', o),
+                /^Error: Not a circular object but still not serializable$/);
+}
+
 // Errors
 const err = new Error('foo');
 assert.strictEqual(util.format(err), err.stack);
