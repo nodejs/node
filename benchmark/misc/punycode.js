@@ -42,8 +42,9 @@ function usingICU(val) {
 }
 
 function runPunycode(n, val) {
-  common.v8ForceOptimization(usingPunycode, val);
   var i = 0;
+  for (; i < n; i++)
+    usingPunycode(val);
   bench.start();
   for (; i < n; i++)
     usingPunycode(val);
@@ -51,7 +52,6 @@ function runPunycode(n, val) {
 }
 
 function runICU(n, val) {
-  common.v8ForceOptimization(usingICU, val);
   var i = 0;
   bench.start();
   for (; i < n; i++)

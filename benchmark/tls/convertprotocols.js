@@ -12,8 +12,11 @@ function main(conf) {
 
   var i = 0;
   var m = {};
-  common.v8ForceOptimization(
-    tls.convertNPNProtocols, ['ABC', 'XYZ123', 'FOO'], m);
+  // First call dominates results
+  if (n > 1) {
+    tls.convertNPNProtocols(['ABC', 'XYZ123', 'FOO'], m);
+    m = {};
+  }
   bench.start();
   for (; i < n; i++) tls.convertNPNProtocols(['ABC', 'XYZ123', 'FOO'], m);
   bench.end(n);
