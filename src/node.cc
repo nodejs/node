@@ -2787,24 +2787,26 @@ static void EnvSetter(Local<Name> property,
 static void EnvQuery(Local<Name> property,
                      const PropertyCallbackInfo<Integer>& info) {
   int32_t rc = -1;  // Not found unless proven otherwise.
+  if (property->IsString()) {
 #ifdef __POSIX__
-  node::Utf8Value key(info.GetIsolate(), property);
-  if (getenv(*key))
-    rc = 0;
+    node::Utf8Value key(info.GetIsolate(), property);
+    if (getenv(*key))
+      rc = 0;
 #else  // _WIN32
-  node::TwoByteValue key(info.GetIsolate(), property);
-  WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
-  if (GetEnvironmentVariableW(key_ptr, nullptr, 0) > 0 ||
-      GetLastError() == ERROR_SUCCESS) {
-    rc = 0;
-    if (key_ptr[0] == L'=') {
-      // Environment variables that start with '=' are hidden and read-only.
-      rc = static_cast<int32_t>(v8::ReadOnly) |
-           static_cast<int32_t>(v8::DontDelete) |
-           static_cast<int32_t>(v8::DontEnum);
+    node::TwoByteValue key(info.GetIsolate(), property);
+    WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
+    if (GetEnvironmentVariableW(key_ptr, nullptr, 0) > 0 ||
+        GetLastError() == ERROR_SUCCESS) {
+      rc = 0;
+      if (key_ptr[0] == L'=') {
+        // Environment variables that start with '=' are hidden and read-only.
+        rc = static_cast<int32_t>(v8::ReadOnly) |
+             static_cast<int32_t>(v8::DontDelete) |
+             static_cast<int32_t>(v8::DontEnum);
+      }
     }
-  }
 #endif
+  }
   if (rc != -1)
     info.GetReturnValue().Set(rc);
 }
@@ -2812,14 +2814,16 @@ static void EnvQuery(Local<Name> property,
 
 static void EnvDeleter(Local<Name> property,
                        const PropertyCallbackInfo<Boolean>& info) {
+  if (property->IsString()) {
 #ifdef __POSIX__
-  node::Utf8Value key(info.GetIsolate(), property);
-  unsetenv(*key);
+    node::Utf8Value key(info.GetIsolate(), property);
+    unsetenv(*key);
 #else
-  node::TwoByteValue key(info.GetIsolate(), property);
-  WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
-  SetEnvironmentVariableW(key_ptr, nullptr);
+    node::TwoByteValue key(info.GetIsolate(), property);
+    WCHAR* key_ptr = reinterpret_cast<WCHAR*>(*key);
+    SetEnvironmentVariableW(key_ptr, nullptr);
 #endif
+  }
 
   // process.env never has non-configurable properties, so always
   // return true like the tc39 delete operator.
