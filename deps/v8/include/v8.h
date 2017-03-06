@@ -155,30 +155,6 @@ class GlobalHandles;
 }  // namespace internal
 
 
-/**
- * General purpose unique identifier.
- */
-class UniqueId {
- public:
-  explicit UniqueId(intptr_t data)
-      : data_(data) {}
-
-  bool operator==(const UniqueId& other) const {
-    return data_ == other.data_;
-  }
-
-  bool operator!=(const UniqueId& other) const {
-    return data_ != other.data_;
-  }
-
-  bool operator<(const UniqueId& other) const {
-    return data_ < other.data_;
-  }
-
- private:
-  intptr_t data_;
-};
-
 // --- Handles ---
 
 #define TYPE_CHECK(T, S)                                       \

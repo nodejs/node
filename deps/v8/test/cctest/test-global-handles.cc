@@ -34,7 +34,6 @@
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;
-using v8::UniqueId;
 
 TEST(EternalHandles) {
   CcTest::InitializeVM();
