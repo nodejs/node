@@ -471,7 +471,7 @@ If the data to be written can be generated or fetched on demand, it is
 recommended to encapsulate the logic into a [Readable][] and use
 [`stream.pipe()`][]. However, if calling `write()` is preferred, it is
 possible to respect backpressure and avoid memory issues using the
-the [`'drain'`][] event:
+[`'drain'`][] event:
 
 ```js
 function write (data, cb) {
