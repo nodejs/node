@@ -51,8 +51,8 @@ assert.strictEqual(util.inspect(Object.create({},
                    '{ visible: 1 }'
 );
 assert.strictEqual(util.inspect(Object.assign(new String('hello'),
-                    { [Symbol('foo')]: 123 }), { showHidden: true }),
-                    '{ [String: \'hello\'] [length]: 5, [Symbol(foo)]: 123 }')
+                   { [Symbol('foo')]: 123 }), { showHidden: true }),
+                   '{ [String: \'hello\'] [length]: 5, [Symbol(foo)]: 123 }');
 
 {
   const regexp = /regexp/;
