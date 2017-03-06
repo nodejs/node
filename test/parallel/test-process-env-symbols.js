@@ -18,10 +18,11 @@ assert.throws(() => {
   process.env.foo = symbol;
 }, errRegExp);
 
-// Verify that using a symbol with the in operator throws.
-assert.throws(() => {
-  symbol in process.env;
-}, errRegExp);
+// Verify that using a symbol with the in operator returns false.
+assert.strictEqual(symbol in process.env, false);
+
+// Verify that deleting a symbol key returns true.
+assert.strictEqual(delete process.env[symbol], true);
 
 // Checks that well-known symbols like `Symbol.toStringTag` won’t throw.
 assert.doesNotThrow(() => Object.prototype.toString.call(process.env));
