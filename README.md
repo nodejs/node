@@ -220,6 +220,8 @@ more information about the governance of the Node.js project, see
 * [claudiorodriguez](https://github.com/claudiorodriguez) -
 **Claudio Rodriguez** &lt;cjrodr@yahoo.com&gt;
 * [danbev](https://github.com/danbev) -
+**Daijiro Wachi** &lt;daijiro.wachi@gmail.com&gt; (he/him)
+* [watilde](https://github.com/watilde) -
 **Daniel Bevenius** &lt;daniel.bevenius@gmail.com&gt;
 * [edsadr](https://github.com/edsadr) -
 **Adrian Estrada** &lt;edsadr@gmail.com&gt; (he/him)
