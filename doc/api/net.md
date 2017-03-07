@@ -3,20 +3,28 @@
 > Stability: 2 - Stable
 
 The `net` module provides an asynchronous network API for creating stream-based
-servers ([`net.createServer()`][]) and clients ([`net.createConnection()`][])
-that implement TCP or local communications (domain sockets on UNIX, named pipes
-on Windows). It can be accessed using:
+TCP or [IPC][] servers ([`net.createServer()`][]) and clients
+([`net.createConnection()`][]).
+
+It can be accessed using:
 
 ```js
 const net = require('net');
 ```
+
+## IPC Support
+
+The `net` module supports IPC with named pipes on Windows, and UNIX domain
+sockets on other operating systems.
+
+*Note*: Unix named pipes (FIFOs) are not supported.
 
 ## Class: net.Server
 <!-- YAML
 added: v0.1.90
 -->
 
-This class is used to create a TCP or local server.
+This class is used to create a TCP or [IPC][] server.
 
 ## new net.Server([options][, connectionListener])
 
@@ -129,17 +137,14 @@ Callback should take two arguments `err` and `count`.
 ### server.listen()
 
 Start a server listening for connections. A `net.Server` can be a TCP or
-local (domain sockets on UNIX, named pipes on Windows) server depending on
-what it listens to.
-
-*Note*: Unix named pipes (FIFOs) are not supported.
+a [IPC][] server depending on what it listens to.
 
 Possible signatures:
 
 * [`server.listen(handle[, backlog][, callback])`][`server.listen(handle)`]
 * [`server.listen(options[, callback])`][`server.listen(options)`]
 * [`server.listen(path[, backlog][, callback])`][`server.listen(path)`]
-  for local servers
+  for [IPC][] servers
 * [`server.listen([port][, host][, backlog][, callback])`][`server.listen(port, host)`]
   for TCP servers
 
@@ -239,7 +244,7 @@ added: v0.1.90
 * `backlog` {number} Common parameter of [`server.listen()`][] functions
 * `callback` {Function} Common parameter of [`server.listen()`][] functions
 
-Start a local socket server listening for connections on the given `path`.
+Start a [IPC][] server listening for connections on the given `path`.
 
 On UNIX, the local domain is usually known as the UNIX domain. The path is a
 filesystem path name. It gets truncated to `sizeof(sockaddr_un.sun_path)`
@@ -876,7 +881,7 @@ The `connectListener` parameter will be added as a listener for the
 added: v0.5.0
 -->
 
-Creates a new TCP or local server.
+Creates a new TCP or [IPC][] server.
 
 * `options` {Object}
   * `allowHalfOpen` {boolean} Default to `false`. Indicates whether half-opened
@@ -898,7 +903,7 @@ This allows connections to be passed between processes without any data being
 read by the original process. To begin reading data from a paused socket, call
 [`socket.resume()`][].
 
-The server can be a TCP server or a local server, depending on what it
+The server can be a TCP server or a [IPC][] server, depending on what it
 [`listen()`][`server.listen()`] to.
 
 Here is an example of an TCP echo server which listens for connections
@@ -1002,6 +1007,7 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 [`socket.pause()`]: #net_socket_pause
 [`stream.setEncoding()`]: stream.html#stream_readable_setencoding_encoding
 [half-closed]: https://tools.ietf.org/html/rfc1122#section-4.2.2.13
+[IPC]: #net_ipc_support
 [Readable Stream]: stream.html#stream_class_stream_readable
 [socket(7)]: http://man7.org/linux/man-pages/man7/socket.7.html
 [unspecified IPv6 address]: https://en.wikipedia.org/wiki/IPv6_address#Unspecified_address
