@@ -162,6 +162,50 @@ added: v0.0.1
 
 Cancels a `Timeout` object created by [`setTimeout()`][].
 
+## Manual Timers
+
+It is possible to make any object a timer. Reusing an existing object as a timer
+slightly reduces memory consumption. Another advantage is that you control
+when the timer will be started.
+
+Example:
+
+```js
+var timers = require('timers');
+var atimer = {
+  _onTimeout: function() {
+    console.log('timeout');
+  }
+}
+
+timers.enroll(atimer, 1000); // make the `atimer` object a timer
+timers.active(atimer); // start the timer
+```
+
+### active(object)
+
+* `object` {Timer} A timer created by [`enroll()`][] to start.
+
+Starts a timer that was created by [`enroll()`][]. If the object has an
+`_onTimeout` method, it will be invoked once the timer has completed.
+
+Once a timer has been started, it can be canceled with [`unenroll()`][].
+
+### enroll(object, delay)
+
+* `object` {object} An object to decorate as a timer.
+* `delay` {number} The number of milliseconds to wait before the timer completes.
+
+Decorate an object as a timer and add it to a list of timers to be processed
+via [the Node.js Event Loop][]. Once decorated, the timer can be started with
+[`active()`][].
+
+### unenroll(object)
+
+* `object` {Timer} A timer that has been started by [`active()`][].
+
+Cancel a timer and reset its state.
+
 
 [the Node.js Event Loop]: https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick
 [`TypeError`]: errors.html#errors_class_typeerror
@@ -171,3 +215,6 @@ Cancels a `Timeout` object created by [`setTimeout()`][].
 [`setImmediate()`]: timers.html#timers_setimmediate_callback_args
 [`setInterval()`]: timers.html#timers_setinterval_callback_delay_args
 [`setTimeout()`]: timers.html#timers_settimeout_callback_delay_args
+[`active()`]: timers.html#timers_active_object
+[`enroll()`]: timers.html#timers_enroll_object_delay
+[`unenroll()`]: timers.html#timers_unenroll_object
