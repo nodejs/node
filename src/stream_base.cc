@@ -53,6 +53,9 @@ int StreamBase::Shutdown(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject());
   Local<Object> req_wrap_obj = args[0].As<Object>();
 
+  AsyncWrap* wrap = GetAsyncWrap();
+  if (wrap != nullptr)
+    env->set_init_trigger_id(wrap->get_id());
   ShutdownWrap* req_wrap = new ShutdownWrap(env,
                                             req_wrap_obj,
                                             this,
@@ -129,6 +132,11 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
   if (storage_size > INT_MAX)
     return UV_ENOBUFS;
 
+  AsyncWrap* wrap = GetAsyncWrap();
+  // NOTE: All tests show that GetAsyncWrap() never returns nullptr here. If it
+  // can then replace the CHECK_NE() with if (wrap != nullptr).
+  CHECK_NE(wrap, nullptr);
+  env->set_init_trigger_id(wrap->get_id());
   WriteWrap* req_wrap = WriteWrap::New(env,
                                        req_wrap_obj,
                                        this,
@@ -196,6 +204,7 @@ int StreamBase::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   const char* data = Buffer::Data(args[1]);
   size_t length = Buffer::Length(args[1]);
 
+  AsyncWrap* wrap;
   WriteWrap* req_wrap;
   uv_buf_t buf;
   buf.base = const_cast<char*>(data);
@@ -211,6 +220,9 @@ int StreamBase::WriteBuffer(const FunctionCallbackInfo<Value>& args) {
     goto done;
   CHECK_EQ(count, 1);
 
+  wrap = GetAsyncWrap();
+  if (wrap != nullptr)
+    env->set_init_trigger_id(wrap->get_id());
   // Allocate, or write rest
   req_wrap = WriteWrap::New(env, req_wrap_obj, this, AfterWrite);
 
@@ -242,6 +254,7 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
   Local<Object> req_wrap_obj = args[0].As<Object>();
   Local<String> string = args[1].As<String>();
   Local<Object> send_handle_obj;
+  AsyncWrap* wrap;
   if (args[2]->IsObject())
     send_handle_obj = args[2].As<Object>();
 
@@ -292,6 +305,9 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
     CHECK_EQ(count, 1);
   }
 
+  wrap = GetAsyncWrap();
+  if (wrap != nullptr)
+    env->set_init_trigger_id(wrap->get_id());
   req_wrap = WriteWrap::New(env, req_wrap_obj, this, AfterWrite, storage_size);
 
   data = req_wrap->Extra();
