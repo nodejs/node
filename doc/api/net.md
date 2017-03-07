@@ -17,7 +17,31 @@ const net = require('net');
 The `net` module supports IPC with named pipes on Windows, and UNIX domain
 sockets on other operating systems.
 
-*Note*: Unix named pipes (FIFOs) are not supported.
+### Identifying paths for IPC connections
+
+[`net.connect()`][], [`net.createConnection()`][], [`server.listen()`][] and
+[`socket.connect()`][] take a `path` parameter to identify IPC endpoints.
+
+On UNIX, the local domain is also known as the UNIX domain. The path is a
+filesystem path name. It gets truncated to `sizeof(sockaddr_un.sun_path) - 1`,
+which varies on different operating system between 91 and 107 bytes.
+The typical values are 107 on Linux and 103 on OS X. The path is
+subject to the same naming conventions and permissions checks as would be done
+on file creation. It will be visible in the filesystem, and will *persist until
+unlinked*.
+
+On Windows, the local domain is implemented using a named pipe. The path *must*
+refer to an entry in `\\?\pipe\` or `\\.\pipe\`. Any characters are permitted,
+but the latter may do some processing of pipe names, such as resolving `..`
+sequences. Despite appearances, the pipe name space is flat. Pipes will *not
+persist*, they are removed when the last reference to them is closed. Do not
+forget JavaScript string escaping requires paths to be specified with
+double-backslashes, such as:
+
+```js
+net.createServer().listen(
+    path.join('\\\\?\\pipe', process.cwd(), 'myctl'))
+```
 
 ## Class: net.Server
 <!-- YAML
@@ -206,13 +230,14 @@ added: v0.11.14
 -->
 
 * `options` {Object} Required. Supports the following properties:
-  * `port` {number} Optional.
-  * `host` {string} Optional.
-  * `path` {string} Optional. Will be ignored if `port` is specified.
-  * `backlog` {number} Optional. Common parameter of [`server.listen()`][]
+  * `port` {number}
+  * `host` {string}
+  * `path` {string} Will be ignored if `port` is specified. See
+    [Identifying paths for IPC connections][].
+  * `backlog` {number} Common parameter of [`server.listen()`][]
     functions
-  * `exclusive` {boolean} Optional. Default to `false`
-* `callback` {Function} Optional. Common parameter of [`server.listen()`][]
+  * `exclusive` {boolean} Default to `false`
+* `callback` {Function} Common parameter of [`server.listen()`][]
   functions
 
 If `port` is specified, it behaves the same as
@@ -240,32 +265,12 @@ server.listen({
 added: v0.1.90
 -->
 
-* `path` {string}
+* `path` {String} Path the server should listen to. See
+  [Identifying paths for IPC connections][].
 * `backlog` {number} Common parameter of [`server.listen()`][] functions
 * `callback` {Function} Common parameter of [`server.listen()`][] functions
 
 Start a [IPC][] server listening for connections on the given `path`.
-
-On UNIX, the local domain is usually known as the UNIX domain. The path is a
-filesystem path name. It gets truncated to `sizeof(sockaddr_un.sun_path)`
-bytes, decreased by 1. It varies on different operating system between 91 and
-107 bytes. The typical values are 107 on Linux and 103 on OS X. The path is
-subject to the same naming conventions and permissions checks as would be done
-on file creation, will be visible in the filesystem, and will *persist until
-unlinked*.
-
-On Windows, the local domain is implemented using a named pipe. The path *must*
-refer to an entry in `\\?\pipe\` or `\\.\pipe\`. Any characters are permitted,
-but the latter may do some processing of pipe names, such as resolving `..`
-sequences. Despite appearances, the pipe name space is flat.  Pipes will *not
-persist*, they are removed when the last reference to them is closed. Do not
-forget JavaScript string escaping requires paths to be specified with
-double-backslashes, such as:
-
-```js
-net.createServer().listen(
-    path.join('\\\\?\\pipe', process.cwd(), 'myctl'))
-```
 
 #### server.listen([port][, host][, backlog][, callback])
 <!-- YAML
@@ -566,10 +571,12 @@ For TCP connections, available `options` are:
 For [IPC][] connections, available `options` are:
 
 * `path` {string} Required. Path the client should connect to.
+  See [Identifying paths for IPC connections][].
 
 #### socket.connect(path[, connectListener])
 
-* `path` {string} Path the client should connect to.
+* `path` {string} Path the client should connect to. See
+  [Identifying paths for IPC connections][].
 * `connectListener` {Function} Common parameter of [`socket.connect()`][]
   methods. Will be added as a listener for the [`'connect'`][] event once.
 * Returns: {net.Socket} The socket itself.
@@ -895,6 +902,7 @@ added: v0.1.90
 
 * `path` {string} Path the socket should connect to. Will be passed to
   [`socket.connect(path[, connectListener])`][`socket.connect(path)`].
+  See [Identifying paths for IPC connections][].
 * `connectListener` {Function} Common parameter of the
   [`net.createConnection()`][] functions, an "once" listener for the
   `'connect'` event on the initiating socket. Will be passed to
@@ -1074,6 +1082,7 @@ Returns true if input is a version 6 IP address, otherwise returns false.
 [`stream.setEncoding()`]: stream.html#stream_readable_setencoding_encoding
 [duplex stream]: stream.html#stream_class_stream_duplex
 [half-closed]: https://tools.ietf.org/html/rfc1122#section-4.2.2.13
+[Identifying paths for IPC connections]: #net_identifying_paths_for_ipc_connections
 [IPC]: #net_ipc_support
 [Readable Stream]: stream.html#stream_class_stream_readable
 [socket(7)]: http://man7.org/linux/man-pages/man7/socket.7.html
