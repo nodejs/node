@@ -79,17 +79,30 @@ const keyPem = fs.readFileSync(common.fixturesDir + '/test_key.pem', 'ascii');
       // Test sign and verify with the given parameters
       const s4 = crypto.createSign(algo)
                        .update('Test123')
-                       .sign(keyPem, null, { padding: 'pss', saltLength });
+                       .sign({
+                         key: keyPem,
+                         padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+                         saltLength
+                       });
       verified = crypto.createVerify(algo)
                        .update('Test')
                        .update('123')
-                       .verify(certPem, s4, { padding: 'pss', saltLength });
+                       .verify({
+                         key: certPem,
+                         padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+                         saltLength
+                       }, s4);
       assert.strictEqual(verified, true, 'sign and verify (buffer, PSS)');
 
-      // Setting the salt length to -2 should always work for verification
+      // Setting the salt length to RSA_PSS_SALTLEN_AUTO should always work for
+      // verification
       verified = crypto.createVerify(algo)
                        .update('Test123')
-                       .verify(certPem, s4, { padding: 'pss', saltLength: -2 });
+                       .verify({
+                         key: certPem,
+                         padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+                         saltLength: crypto.constants.RSA_PSS_SALTLEN_AUTO
+                       }, s4);
       assert.strictEqual(verified, true, 'sign and verify (buffer, PSS)');
     });
   });
@@ -99,8 +112,11 @@ const keyPem = fs.readFileSync(common.fixturesDir + '/test_key.pem', 'ascii');
   assert.throws(() => {
     crypto.createSign('RSA-SHA1')
       .update('Test123')
-      .sign(keyPem, { padding: 'foo' });
-  }, /^Error: Padding must be 'pkcs1' or 'pss'$/);
+      .sign({
+        key: keyPem,
+        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING
+      });
+  }, /^Error: Padding must be RSA_PKCS1_PADDING or RSA_PKCS1_PSS_PADDING$/);
 }
 
 // Test throws exception when key options is null

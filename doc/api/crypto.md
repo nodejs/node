@@ -961,7 +961,7 @@ pQhByd5eyj3lgZ7m7jbchtdgyOF8Io/1ng==
 console.log(sign.sign(privateKey).toString('hex'));
 ```
 
-### sign.sign(private_key[, output_format][, options])
+### sign.sign(private_key[, output_format])
 <!-- YAML
 added: v0.1.92
 -->
@@ -975,23 +975,19 @@ Calculates the signature on all the data passed through using either
 
 The `private_key` argument can be an object or a string. If `private_key` is a
 string, it is treated as a raw key with no passphrase. If `private_key` is an
-object, it is interpreted as a hash containing two properties:
+object, it is interpreted as a hash containing some of these properties:
 
-* `key`: {string} - PEM encoded private key
+* `key`: {string} - PEM encoded private key (required)
 * `passphrase`: {string} - passphrase for the private key
+* `padding`: {String} - RSA padding, either `RSA_PKCS1_PADDING` (default) or
+  `RSA_PKCS1_PSS_PADDING`
+* `saltLength`: {number} - salt length for RSASSA-PSS. The special value
+  `RSA_PSS_SALTLEN_DIGEST` sets the salt length to the digest size,
+  `RSA_PSS_SALTLEN_MAX_SIGN` sets it to the maximum permissible value.
 
 The `output_format` can specify one of `'latin1'`, `'hex'` or `'base64'`. If
 `output_format` is provided a string is returned; otherwise a [`Buffer`][] is
 returned.
-
-The optional `options` argument is an object which specifies additional
-cryptographic parameters. Currently, the following options are supported:
-
-* `padding` : {String} - RSA padding, either `'pkcs1'` for RSASSA-PKCS1-v1_5
-  (default) or `'pss'` for RSASSA-PSS
-* `saltLength` : {number} - salt length for RSASSA-PSS. If this is set to `-1`,
-  the salt length will be set to the digest size. If this is set to `-2`
-  (default), the salt length will be set to the maximum permissible value.
 
 The `Sign` object can not be again used after `sign.sign()` method has been
 called. Multiple calls to `sign.sign()` will result in an error being thrown.
@@ -1079,7 +1075,7 @@ then `input_encoding` is ignored.
 
 This can be called many times with new data as it is streamed.
 
-### verifier.verify(object, signature[, signature_format][, options])
+### verifier.verify(object, signature[, signature_format])
 <!-- YAML
 added: v0.1.92
 -->
@@ -1088,23 +1084,23 @@ added: v0.1.92
 - `signature_format` {string}
 
 Verifies the provided data using the given `object` and `signature`.
-The `object` argument is a string containing a PEM encoded object, which can be
-an RSA public key, a DSA public key, or an X.509 certificate.
-The `signature` argument is the previously calculated signature for the data, in
-the `signature_format` which can be `'latin1'`, `'hex'` or `'base64'`.
-If a `signature_format` is specified, the `signature` is expected to be a
-string; otherwise `signature` is expected to be a [`Buffer`][] or
-`Uint8Array`.
+The `object` argument can be either a string containing a PEM encoded object,
+which can be an RSA public key, a DSA public key, or an X.509 certificate,
+or an object with some of the following properties:
+>>>>>>> Various improvements related to PR #11705
 
-The optional `options` argument is an object which specifies additional
-cryptographic parameters. Currently, the following options are supported:
-
-* `padding` : {String} - RSA padding, either `'pkcs1'` for RSASSA-PKCS1-v1_5
+* `key`: {string} - PEM encoded private key (required)
+* `padding`: {string} - RSA padding, either `'pkcs1'` for RSASSA-PKCS1-v1_5
   (default) or `'pss'` for RSASSA-PSS
-* `saltLength` : {number} - salt length for RSASSA-PSS. If this is set to `-1`,
+* `saltLength`: {number} - salt length for RSASSA-PSS. If this is set to `-1`,
   the salt length will be set to the digest size. A value of `-2` (default)
   causes the salt length to be automatically determined based on the PSS block
   structure.
+
+The `signature` argument is the previously calculated signature for the data, in
+the `signature_format` which can be `'latin1'`, `'hex'` or `'base64'`.
+If a `signature_format` is specified, the `signature` is expected to be a
+string; otherwise `signature` is expected to be a [`Buffer`][].
 
 Returns `true` or `false` depending on the validity of the signature for
 the data and public key.
@@ -2061,6 +2057,18 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
   </tr>
   <tr>
     <td><code>RSA_PKCS1_PSS_PADDING</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>RSA_PSS_SALTLEN_DIGEST</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>RSA_PSS_SALTLEN_MAX_SIGN</code></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td><code>RSA_PSS_SALTLEN_AUTO</code></td>
     <td></td>
   </tr>
   <tr>

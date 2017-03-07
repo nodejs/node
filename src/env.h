@@ -179,6 +179,7 @@ namespace node {
   V(output_string, "output")                                                  \
   V(order_string, "order")                                                    \
   V(owner_string, "owner")                                                    \
+  V(padding_string, "padding")                                                \
   V(parse_error_string, "Parse Error")                                        \
   V(path_string, "path")                                                      \
   V(pbkdf2_error_string, "PBKDF2 Error")                                      \
@@ -196,6 +197,7 @@ namespace node {
   V(rename_string, "rename")                                                  \
   V(replacement_string, "replacement")                                        \
   V(retry_string, "retry")                                                    \
+  V(salt_length_string, "saltLength")                                         \
   V(serial_string, "serial")                                                  \
   V(scopeid_string, "scopeid")                                                \
   V(sent_shutdown_string, "sentShutdown")                                     \
