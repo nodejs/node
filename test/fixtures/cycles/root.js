@@ -1,9 +1,9 @@
 const foo = exports.foo = require('./folder/foo');
 
 exports.hello = 'hello';
-exports.sayHello = function() {
+exports.sayHello = function sayHello() {
   return foo.hello();
 };
-exports.calledFromFoo = function() {
+exports.calledFromFoo = function calledFromFoo() {
   return exports.hello;
 };
