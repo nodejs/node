@@ -4,12 +4,12 @@
 #include "util.h"
 #include "util-inl.h"
 
-
 namespace node {
 
 using v8::Context;
 using v8::Local;
 using v8::Object;
+using v8::String;
 using v8::Value;
 using v8::ReadOnly;
 
@@ -28,10 +28,21 @@ using v8::ReadOnly;
 void InitConfig(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context) {
-#ifdef NODE_FIPS_MODE
   Environment* env = Environment::GetCurrent(context);
+
+#ifdef NODE_FIPS_MODE
   READONLY_BOOLEAN_PROPERTY("fipsMode");
 #endif
+
+  if (!config_warning_file.empty()) {
+    Local<String> name = OneByteString(env->isolate(), "warningFile");
+    Local<String> value = String::NewFromUtf8(env->isolate(),
+                                              config_warning_file.data(),
+                                              v8::NewStringType::kNormal,
+                                              config_warning_file.size())
+                                                .ToLocalChecked();
+    target->DefineOwnProperty(env->context(), name, value).FromJust();
+  }
 }
 
 }  // namespace node

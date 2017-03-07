@@ -204,6 +204,61 @@ this, you can either attach a dummy `.catch(() => { })` handler to
 `resource.loaded`, preventing the `'unhandledRejection'` event from being
 emitted, or you can use the [`'rejectionHandled'`][] event.
 
+### Event: 'warning'
+<!-- YAML
+added: REPLACEME
+-->
+
+The `'warning'` event is emitted whenever Node.js emits a process warning.
+
+A process warning is similar to an error in that it describes exceptional
+conditions that are being brought to the user's attention. However, warnings
+are not part of the normal Node.js and JavaScript error handling flow.
+Node.js can emit warnings whenever it detects bad coding practices that could
+lead to sub-optimal application performance, bugs or security vulnerabilities.
+
+The listener function is called with a single `warning` argument whose value is
+an `Error` object. There are three key properties that describe the warning:
+
+* `name` {String} The name of the warning (currently `Warning` by default).
+* `message` {String} A system-provided description of the warning.
+* `stack` {String} A stack trace to the location in the code where the warning
+  was issued.
+* `code` {String} An optional static identifier code associated with the warning
+
+```js
+process.on('warning', (warning) => {
+  console.warn(warning.name);    // Print the warning name
+  console.warn(warning.message); // Print the warning message
+  console.warn(warning.stack);   // Print the stack trace
+  console.warn(warning.code);    // Print the identifier code
+});
+```
+
+By default, Node.js will print process warnings to `stderr`. The `--no-warnings`
+command-line option can be used to suppress the default console output but the
+`'warning'` event will still be emitted by the `process` object.
+
+The `--trace-warnings` command-line option can be used to have the default
+console output for warnings include the full stack trace of the warning.
+
+Launching Node.js using the `--throw-deprecation` command line flag will
+cause custom deprecation warnings to be thrown as exceptions.
+
+Using the `--trace-deprecation` command line flag will cause the custom
+deprecation to be printed to `stderr` along with the stack trace.
+
+Using the `--no-deprecation` command line flag will suppress all reporting
+of the custom deprecation.
+
+The `*-deprecation` command line flags only affect warnings that use the name
+`DeprecationWarning`.
+
+#### Emitting custom warnings
+
+See the [`process.emitWarning()`][process_emit_warning] method for issuing
+custom or application-specific warnings.
+
 ## Exit Codes
 
 Node.js will normally exit with a `0` status code when no more async
@@ -527,6 +582,103 @@ process.env.TEST = 1;
 delete process.env.TEST;
 console.log(process.env.TEST);
 // => undefined
+```
+
+## process.emitWarning(warning[, type[, code]][, ctor])
+<!-- YAML
+added: REPLACEME
+-->
+
+* `warning` {String | Error} The warning to emit.
+* `type` {String} When `warning` is a String, `type` is the name to use
+  for the *type* of warning being emitted. Default: `Warning`.
+* `code` {String} A unique identifier for the warning instance being emitted.
+* `ctor` {Function} When `warning` is a String, `ctor` is an optional
+  function used to limit the generated stack trace. Default
+  `process.emitWarning`
+
+The `process.emitWarning()` method can be used to emit custom or application
+specific process warnings. These can be listened for by adding a handler to the
+[`process.on('warning')`][process_warning] event.
+
+```js
+// Emit a warning using a string...
+process.emitWarning('Something happened!');
+// Emits: (node: 56338) Warning: Something happened!
+```
+
+```js
+// Emit a warning using a string and a type...
+process.emitWarning('Something Happened!', 'CustomWarning');
+// Emits: (node:56338) CustomWarning: Something Happened!
+```
+
+```js
+process.emitWarning('Something happened!', 'CustomWarning', 'WARN001');
+// Emits: (node:56338) CustomWarning [WARN001]: Something Happened!
+```
+
+In each of the previous examples, an `Error` object is generated internally by
+`process.emitWarning()` and passed through to the
+[`process.on('warning')`][process_warning] event.
+
+```js
+process.on('warning', (warning) => {
+  console.warn(warning.name);
+  console.warn(warning.message);
+  console.warn(warning.code);
+  console.warn(warning.stack);
+});
+```
+
+If `warning` is passed as an `Error` object, it will be passed through to the
+`process.on('warning')` event handler unmodified (and the optional `type`,
+`code` and `ctor` arguments will be ignored):
+
+```js
+// Emit a warning using an Error object...
+const myWarning = new Error('Warning! Something happened!');
+// Use the Error name property to specify the type name
+myWarning.name = 'CustomWarning';
+myWarning.code = 'WARN001';
+
+process.emitWarning(myWarning);
+// Emits: (node:56338) CustomWarning [WARN001]: Warning! Something Happened!
+```
+
+A `TypeError` is thrown if `warning` is anything other than a string or `Error`
+object.
+
+Note that while process warnings use `Error` objects, the process warning
+mechanism is **not** a replacement for normal error handling mechanisms.
+
+The following additional handling is implemented if the warning `type` is
+`DeprecationWarning`:
+
+* If the `--throw-deprecation` command-line flag is used, the deprecation
+  warning is thrown as an exception rather than being emitted as an event.
+* If the `--no-deprecation` command-line flag is used, the deprecation
+  warning is suppressed.
+* If the `--trace-deprecation` command-line flag is used, the deprecation
+  warning is printed to `stderr` along with the full stack trace.
+
+### Avoiding duplicate warnings
+
+As a best practice, warnings should be emitted only once per process. To do
+so, it is recommended to place the `emitWarning()` behind a simple boolean
+flag as illustrated in the example below:
+
+```js
+function emitMyWarning() {
+  if (!emitMyWarning.warned) {
+    emitMyWarning.warned = true;
+    process.emitWarning('Only warn once!');
+  }
+}
+emitMyWarning();
+// Emits: (node: 56339) Warning: Only warn once!
+emitMyWarning();
+// Emits nothing
 ```
 
 ## process.execArgv
@@ -1259,6 +1411,8 @@ Will print something like:
   openssl: '1.0.1k' }
 ```
 
+[process_emit_warning]: #process_process_emitwarning_warning_name_ctor
+[process_warning]: #process_event_warning
 [`'message'`]: child_process.html#child_process_event_message
 [`ChildProcess.disconnect()`]: child_process.html#child_process_child_disconnect
 [`ChildProcess.send()`]: child_process.html#child_process_child_send_message_sendhandle_callback
