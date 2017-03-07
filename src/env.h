@@ -39,6 +39,7 @@
 #include <list>
 #include <stdint.h>
 #include <vector>
+#include <stack>
 
 namespace node {
 
@@ -87,7 +88,6 @@ namespace node {
   V(address_string, "address")                                                \
   V(args_string, "args")                                                      \
   V(async, "async")                                                           \
-  V(async_queue_string, "_asyncQueue")                                        \
   V(buffer_string, "buffer")                                                  \
   V(bytes_string, "bytes")                                                    \
   V(bytes_parsed_string, "bytesParsed")                                       \
@@ -254,8 +254,8 @@ namespace node {
   V(as_external, v8::External)                                                \
   V(async_hooks_destroy_function, v8::Function)                               \
   V(async_hooks_init_function, v8::Function)                                  \
-  V(async_hooks_post_function, v8::Function)                                  \
-  V(async_hooks_pre_function, v8::Function)                                   \
+  V(async_hooks_before_function, v8::Function)                                \
+  V(async_hooks_after_function, v8::Function)                                 \
   V(binding_cache_object, v8::Object)                                         \
   V(buffer_constructor_function, v8::Function)                                \
   V(buffer_prototype_object, v8::Object)                                      \
@@ -289,6 +289,11 @@ struct node_ares_task {
   ares_socket_t sock;
   uv_poll_t poll_watcher;
   RB_ENTRY(node_ares_task) node;
+};
+
+struct node_async_ids {
+  double async_id;
+  double trigger_id;
 };
 
 RB_HEAD(node_ares_task_list, node_ares_task);
@@ -331,31 +336,96 @@ class Environment {
  public:
   class AsyncHooks {
    public:
+    // Reason for both UidFields and Fields are that one is stored as a double*
+    // and the other as a uint32_t*.
+    enum Fields {
+      kInit,
+      kBefore,
+      kAfter,
+      kDestroy,
+      kFieldsCount,
+    };
+
+    enum UidFields {
+      kCurrentAsyncId,
+      kCurrentTriggerId,
+      kAsyncUidCntr,
+      kInitTriggerId,
+      kUidFieldsCount,
+    };
+
+    AsyncHooks() = delete;
+
     inline uint32_t* fields();
     inline int fields_count() const;
-    inline bool callbacks_enabled();
-    inline void set_enable_callbacks(uint32_t flag);
+    inline double* uid_fields();
+    inline int uid_fields_count() const;
+    inline v8::Local<v8::String> provider_string(int idx);
+
+    inline void push_ids(double async_id, double trigger_id);
+    inline bool pop_ids(double async_id);
+    inline void clear_id_stack();  // Used in fatal exceptions.
+
+    // Used to propagate the trigger_id to the constructor of any newly created
+    // resources using RAII. Instead of needing to pass the trigger_id along
+    // with other constructor arguments.
+    class InitScope {
+     public:
+      InitScope() = delete;
+      explicit InitScope(Environment* env, double init_trigger_id);
+      ~InitScope();
+
+     private:
+      Environment* env_;
+      double* uid_fields_;
+
+      DISALLOW_COPY_AND_ASSIGN(InitScope);
+    };
+
+    // Used to manage the stack of async and trigger ids as calls are made into
+    // JS. Mainly used in MakeCallback().
+    class ExecScope {
+     public:
+      ExecScope() = delete;
+      explicit ExecScope(Environment* env, double async_id, double trigger_id);
+      ~ExecScope();
+      void Dispose();
+
+     private:
+      Environment* env_;
+      double async_id_;
+      // Manually track if the destructor has run so it isn't accidentally run
+      // twice on RAII cleanup.
+      bool disposed_;
+
+      DISALLOW_COPY_AND_ASSIGN(ExecScope);
+    };
 
    private:
     friend class Environment;  // So we can call the constructor.
-    inline AsyncHooks();
-
-    enum Fields {
-      // Set this to not zero if the init hook should be called.
-      kEnableCallbacks,
-      kFieldsCount
-    };
-
+    inline explicit AsyncHooks(v8::Isolate* isolate);
+    // Keep a list of all Persistent strings used for Provider types.
+    v8::Eternal<v8::String> providers_[AsyncWrap::PROVIDERS_LENGTH];
+    // Used by provider_string().
+    v8::Isolate* isolate_;
+    // Stores the ids of the current execution context stack.
+    std::stack<struct node_async_ids> ids_stack_;
+    // Used to communicate state between C++ and JS cheaply. Is placed in an
+    // Uint32Array() and attached to the async_wrap object.
     uint32_t fields_[kFieldsCount];
+    // Used to communicate ids between C++ and JS cheaply. Placed in a
+    // Float64Array and attached to the async_wrap object. Using a double only
+    // gives us 2^53-1 unique ids, but that should be sufficient.
+    double uid_fields_[kUidFieldsCount];
 
     DISALLOW_COPY_AND_ASSIGN(AsyncHooks);
   };
 
   class AsyncCallbackScope {
    public:
+    AsyncCallbackScope() = delete;
     explicit AsyncCallbackScope(Environment* env);
     ~AsyncCallbackScope();
-
     inline bool in_makecallback();
 
    private:
@@ -452,7 +522,6 @@ class Environment {
 
   inline v8::Isolate* isolate() const;
   inline uv_loop_t* event_loop() const;
-  inline bool async_wrap_callbacks_enabled() const;
   inline bool in_domain() const;
   inline uint32_t watched_providers() const;
 
@@ -489,7 +558,15 @@ class Environment {
   void PrintSyncTrace() const;
   inline void set_trace_sync_io(bool value);
 
-  inline double get_async_wrap_uid();
+  inline bool abort_on_uncaught_exception() const;
+  inline void set_abort_on_uncaught_exception(bool value);
+
+  // The necessary API for async_hooks.
+  inline double new_async_id();
+  inline double current_async_id();
+  inline double trigger_id();
+  inline double get_init_trigger_id();
+  inline void set_init_trigger_id(const double id);
 
   // List of id's that have been destroyed and need the destroy() cb called.
   inline std::vector<double>* destroy_ids_list();
@@ -594,8 +671,8 @@ class Environment {
   bool using_domains_;
   bool printed_error_;
   bool trace_sync_io_;
+  bool abort_on_uncaught_exception_;
   size_t makecallback_cntr_;
-  double async_wrap_id_;
   std::vector<double> destroy_ids_list_;
 #if HAVE_INSPECTOR
   inspector::Agent inspector_agent_;
