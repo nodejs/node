@@ -3986,7 +3986,8 @@ int SignBase::GetRSAOptions(Environment *env, v8::Local<v8::Object> options,
       *padding = paddingValue->Int32Value();
       break;
     default:
-      env->ThrowError("Padding must be RSA_PKCS1_PADDING or RSA_PKCS1_PSS_PADDING");
+      env->ThrowError("Padding must be RSA_PKCS1_PADDING or "
+                      "RSA_PKCS1_PSS_PADDING");
       return 0;
     }
   }
@@ -4234,7 +4235,8 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
   int padding = RSA_PKCS1_PADDING;
   int saltlen = -2;
   if (args[3]->IsObject()) {
-    if (!sign->GetRSAOptions(env, Local<Object>::Cast(args[3]), &padding, &saltlen))
+    Local<Object> options = Local<Object>::Cast(args[3]);
+    if (!sign->GetRSAOptions(env, options, &padding, &saltlen))
       return;
   }
 
@@ -4498,7 +4500,8 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
   int padding = RSA_PKCS1_PADDING;
   int saltlen = -2;
   if (args.Length() >= 4 && args[3]->IsObject()) {
-    if (!verify->GetRSAOptions(env, args[3]->ToObject(), &padding, &saltlen))
+    Local<Object> options = Local<Object>::Cast(args[3]);
+    if (!verify->GetRSAOptions(env, options, &padding, &saltlen))
       return;
   }
 
