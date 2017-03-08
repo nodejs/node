@@ -13,7 +13,7 @@ r.input.emit('data', 'function a() { return 42; } (1)\n');
 r.input.emit('data', 'a\n');
 r.input.emit('data', '.exit');
 
-const expected = '1\n[Function a]\n';
+const expected = '1\n[Function: a]\n';
 const got = r.output.accumulator.join('');
 assert.strictEqual(got, expected);
 
