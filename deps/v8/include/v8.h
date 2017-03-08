@@ -1726,6 +1726,10 @@ class V8_EXPORT ValueSerializer {
      * Allocates memory for the buffer of at least the size provided. The actual
      * size (which may be greater or equal) is written to |actual_size|. If no
      * buffer has been allocated yet, nullptr will be provided.
+     *
+     * If the memory cannot be allocated, nullptr should be returned.
+     * |actual_size| will be ignored. It is assumed that |old_buffer| is still
+     * valid in this case and has not been modified.
      */
     virtual void* ReallocateBufferMemory(void* old_buffer, size_t size,
                                          size_t* actual_size);
@@ -1780,6 +1784,15 @@ class V8_EXPORT ValueSerializer {
                     void TransferSharedArrayBuffer(
                         uint32_t transfer_id,
                         Local<SharedArrayBuffer> shared_array_buffer));
+
+  /*
+   * Indicate whether to treat ArrayBufferView objects as host objects,
+   * i.e. pass them to Delegate::WriteHostObject. This should not be
+   * called when no Delegate was passed.
+   *
+   * The default is not to treat ArrayBufferViews as host objects.
+   */
+  void SetTreatArrayBufferViewsAsHostObjects(bool mode);
 
   /*
    * Write raw data in various common formats to the buffer.

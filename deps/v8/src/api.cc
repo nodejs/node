@@ -3130,6 +3130,10 @@ ValueSerializer::~ValueSerializer() { delete private_; }
 
 void ValueSerializer::WriteHeader() { private_->serializer.WriteHeader(); }
 
+void ValueSerializer::SetTreatArrayBufferViewsAsHostObjects(bool mode) {
+  private_->serializer.SetTreatArrayBufferViewsAsHostObjects(mode);
+}
+
 Maybe<bool> ValueSerializer::WriteValue(Local<Context> context,
                                         Local<Value> value) {
   PREPARE_FOR_EXECUTION_PRIMITIVE(context, ValueSerializer, WriteValue, bool);

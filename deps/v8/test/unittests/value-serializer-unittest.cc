@@ -252,6 +252,13 @@ class ValueSerializerTest : public TestWithIsolate {
         .ToLocalChecked();
   }
 
+  Local<Object> NewDummyUint8Array() {
+    static uint8_t data[] = {4, 5, 6};
+    Local<ArrayBuffer> ab =
+        ArrayBuffer::New(isolate(), static_cast<void*>(data), sizeof(data));
+    return Uint8Array::New(ab, 0, sizeof(data));
+  }
+
  private:
   Local<Context> serialization_context_;
   Local<Context> deserialization_context_;
@@ -455,6 +462,24 @@ TEST_F(ValueSerializerTest, DecodeString) {
                EXPECT_EQ(kEmojiString, Utf8Value(value));
              });
 
+  // And from Latin-1 (for the ones that fit).
+  DecodeTest({0xff, 0x0a, 0x22, 0x00}, [](Local<Value> value) {
+    ASSERT_TRUE(value->IsString());
+    EXPECT_EQ(0, String::Cast(*value)->Length());
+  });
+  DecodeTest({0xff, 0x0a, 0x22, 0x05, 'H', 'e', 'l', 'l', 'o'},
+             [](Local<Value> value) {
+               ASSERT_TRUE(value->IsString());
+               EXPECT_EQ(5, String::Cast(*value)->Length());
+               EXPECT_EQ(kHelloString, Utf8Value(value));
+             });
+  DecodeTest({0xff, 0x0a, 0x22, 0x06, 'Q', 'u', 0xe9, 'b', 'e', 'c'},
+             [](Local<Value> value) {
+               ASSERT_TRUE(value->IsString());
+               EXPECT_EQ(6, String::Cast(*value)->Length());
+               EXPECT_EQ(kQuebecString, Utf8Value(value));
+             });
+
 // And from two-byte strings (endianness dependent).
 #if defined(V8_TARGET_LITTLE_ENDIAN)
   DecodeTest({0xff, 0x09, 0x63, 0x00},
@@ -489,6 +514,8 @@ TEST_F(ValueSerializerTest, DecodeString) {
 TEST_F(ValueSerializerTest, DecodeInvalidString) {
   // UTF-8 string with too few bytes available.
   InvalidDecodeTest({0xff, 0x09, 0x53, 0x10, 'v', '8'});
+  // One-byte string with too few bytes available.
+  InvalidDecodeTest({0xff, 0x0a, 0x22, 0x10, 'v', '8'});
 #if defined(V8_TARGET_LITTLE_ENDIAN)
   // Two-byte string with too few bytes available.
   InvalidDecodeTest({0xff, 0x09, 0x63, 0x10, 'v', '\0', '8', '\0'});
@@ -513,12 +540,16 @@ TEST_F(ValueSerializerTest, EncodeTwoByteStringUsesPadding) {
         return StringFromUtf8(string.c_str());
       },
       [](const std::vector<uint8_t>& data) {
-        // This is a sufficient but not necessary condition to be aligned.
-        // Note that the third byte (0x00) is padding.
-        const uint8_t expected_prefix[] = {0xff, 0x09, 0x00, 0x63, 0x94, 0x03};
-        ASSERT_GT(data.size(), sizeof(expected_prefix) / sizeof(uint8_t));
+        // This is a sufficient but not necessary condition. This test assumes
+        // that the wire format version is one byte long, but is flexible to
+        // what that value may be.
+        const uint8_t expected_prefix[] = {0x00, 0x63, 0x94, 0x03};
+        ASSERT_GT(data.size(), sizeof(expected_prefix) + 2);
+        EXPECT_EQ(0xff, data[0]);
+        EXPECT_GE(data[1], 0x09);
+        EXPECT_LE(data[1], 0x7f);
         EXPECT_TRUE(std::equal(std::begin(expected_prefix),
-                               std::end(expected_prefix), data.begin()));
+                               std::end(expected_prefix), data.begin() + 2));
       });
 }
 
@@ -644,6 +675,14 @@ TEST_F(ValueSerializerTest, DecodeDictionaryObject) {
         ASSERT_TRUE(value->IsObject());
         EXPECT_TRUE(EvaluateScriptForResultBool("result === result.self"));
       });
+}
+
+TEST_F(ValueSerializerTest, InvalidDecodeObjectWithInvalidKeyType) {
+  // Objects which would need conversion to string shouldn't be present as
+  // object keys. The serializer would have obtained them from the own property
+  // keys list, which should only contain names and indices.
+  InvalidDecodeTest(
+      {0xff, 0x09, 0x6f, 0x61, 0x00, 0x40, 0x00, 0x00, 0x7b, 0x01});
 }
 
 TEST_F(ValueSerializerTest, RoundTripOnlyOwnEnumerableStringKeys) {
@@ -1209,6 +1248,36 @@ TEST_F(ValueSerializerTest, DecodeSparseArrayVersion0) {
       });
 }
 
+TEST_F(ValueSerializerTest, RoundTripDenseArrayContainingUndefined) {
+  // In previous serialization versions, this would be interpreted as an absent
+  // property.
+  RoundTripTest("[undefined]", [this](Local<Value> value) {
+    ASSERT_TRUE(value->IsArray());
+    EXPECT_EQ(1u, Array::Cast(*value)->Length());
+    EXPECT_TRUE(EvaluateScriptForResultBool("result.hasOwnProperty(0)"));
+    EXPECT_TRUE(EvaluateScriptForResultBool("result[0] === undefined"));
+  });
+}
+
+TEST_F(ValueSerializerTest, DecodeDenseArrayContainingUndefined) {
+  // In previous versions, "undefined" in a dense array signified absence of the
+  // element (for compatibility). In new versions, it has a separate encoding.
+  DecodeTest({0xff, 0x09, 0x41, 0x01, 0x5f, 0x24, 0x00, 0x01},
+             [this](Local<Value> value) {
+               EXPECT_TRUE(EvaluateScriptForResultBool("!(0 in result)"));
+             });
+  DecodeTest(
+      {0xff, 0x0b, 0x41, 0x01, 0x5f, 0x24, 0x00, 0x01},
+      [this](Local<Value> value) {
+        EXPECT_TRUE(EvaluateScriptForResultBool("0 in result"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result[0] === undefined"));
+      });
+  DecodeTest({0xff, 0x0b, 0x41, 0x01, 0x2d, 0x24, 0x00, 0x01},
+             [this](Local<Value> value) {
+               EXPECT_TRUE(EvaluateScriptForResultBool("!(0 in result)"));
+             });
+}
+
 TEST_F(ValueSerializerTest, RoundTripDate) {
   RoundTripTest("new Date(1e6)", [this](Local<Value> value) {
     ASSERT_TRUE(value->IsDate());
@@ -1435,6 +1504,16 @@ TEST_F(ValueSerializerTest, DecodeValueObjects) {
         EXPECT_TRUE(EvaluateScriptForResultBool("result.a instanceof String"));
         EXPECT_TRUE(EvaluateScriptForResultBool("result.a === result.b"));
       });
+
+  // String object containing a Latin-1 string.
+  DecodeTest({0xff, 0x0c, 0x73, 0x22, 0x06, 'Q', 'u', 0xe9, 'b', 'e', 'c'},
+             [this](Local<Value> value) {
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "Object.getPrototypeOf(result) === String.prototype"));
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "result.valueOf() === 'Qu\\xe9bec'"));
+               EXPECT_TRUE(EvaluateScriptForResultBool("result.length === 6"));
+             });
 }
 
 TEST_F(ValueSerializerTest, RoundTripRegExp) {
@@ -1493,6 +1572,15 @@ TEST_F(ValueSerializerTest, DecodeRegExp) {
       [this](Local<Value> value) {
         EXPECT_TRUE(EvaluateScriptForResultBool("result.a instanceof RegExp"));
         EXPECT_TRUE(EvaluateScriptForResultBool("result.a === result.b"));
+      });
+
+  // RegExp containing a Latin-1 string.
+  DecodeTest(
+      {0xff, 0x0c, 0x52, 0x22, 0x06, 'Q', 'u', 0xe9, 'b', 'e', 'c', 0x02},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsRegExp());
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "result.toString() === '/Qu\\xe9bec/i'"));
       });
 }
 
@@ -2270,8 +2358,9 @@ class ValueSerializerTestWithHostObject : public ValueSerializerTest {
   friend class DeserializerDelegate;
 };
 
-// This is a tag that's not used in V8.
-const uint8_t ValueSerializerTestWithHostObject::kExampleHostObjectTag = '+';
+// This is a tag that is used in V8. Using this ensures that we have separate
+// tag namespaces.
+const uint8_t ValueSerializerTestWithHostObject::kExampleHostObjectTag = 'T';
 
 TEST_F(ValueSerializerTestWithHostObject, RoundTripUint32) {
   // The host can serialize data as uint32_t.
@@ -2440,6 +2529,51 @@ TEST_F(ValueSerializerTestWithHostObject, RoundTripSameObject) {
       [this](Local<Value> value) {
         EXPECT_TRUE(EvaluateScriptForResultBool(
             "result.a instanceof ExampleHostObject"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.a === result.b"));
+      });
+}
+
+TEST_F(ValueSerializerTestWithHostObject, DecodeSimpleHostObject) {
+  EXPECT_CALL(deserializer_delegate_, ReadHostObject(isolate()))
+      .WillRepeatedly(Invoke([this](Isolate*) {
+        EXPECT_TRUE(ReadExampleHostObjectTag());
+        return NewHostObject(deserialization_context(), 0, nullptr);
+      }));
+  DecodeTest(
+      {0xff, 0x0d, 0x5c, kExampleHostObjectTag}, [this](Local<Value> value) {
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "Object.getPrototypeOf(result) === ExampleHostObject.prototype"));
+      });
+}
+
+class ValueSerializerTestWithHostArrayBufferView
+    : public ValueSerializerTestWithHostObject {
+ protected:
+  void BeforeEncode(ValueSerializer* serializer) override {
+    ValueSerializerTestWithHostObject::BeforeEncode(serializer);
+    serializer_->SetTreatArrayBufferViewsAsHostObjects(true);
+  }
+};
+
+TEST_F(ValueSerializerTestWithHostArrayBufferView, RoundTripUint8ArrayInput) {
+  EXPECT_CALL(serializer_delegate_, WriteHostObject(isolate(), _))
+      .WillOnce(Invoke([this](Isolate*, Local<Object> object) {
+        EXPECT_TRUE(object->IsUint8Array());
+        WriteExampleHostObjectTag();
+        return Just(true);
+      }));
+  EXPECT_CALL(deserializer_delegate_, ReadHostObject(isolate()))
+      .WillOnce(Invoke([this](Isolate*) {
+        EXPECT_TRUE(ReadExampleHostObjectTag());
+        return NewDummyUint8Array();
+      }));
+  RoundTripTest(
+      "({ a: new Uint8Array([1, 2, 3]), get b() { return this.a; }})",
+      [this](Local<Value> value) {
+        EXPECT_TRUE(
+            EvaluateScriptForResultBool("result.a instanceof Uint8Array"));
+        EXPECT_TRUE(
+            EvaluateScriptForResultBool("result.a.toString() === '4,5,6'"));
         EXPECT_TRUE(EvaluateScriptForResultBool("result.a === result.b"));
       });
 }

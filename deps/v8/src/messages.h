@@ -675,6 +675,7 @@ class ErrorUtils : public AllStatic {
   T(AsmJsInstantiated, "Instantiated asm.js: %")                               \
   /* DataCloneError messages */                                                \
   T(DataCloneError, "% could not be cloned.")                                  \
+  T(DataCloneErrorOutOfMemory, "Data cannot be cloned, out of memory.")        \
   T(DataCloneErrorNeuteredArrayBuffer,                                         \
     "An ArrayBuffer is neutered and could not be cloned.")                     \
   T(DataCloneErrorSharedArrayBufferTransferred,                                \

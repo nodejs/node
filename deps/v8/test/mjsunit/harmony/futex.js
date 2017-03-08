@@ -111,7 +111,7 @@ if (this.Worker) {
        };`;
 
     var worker = new Worker(workerScript);
-    worker.postMessage({sab: sab, offset: offset}, [sab]);
+    worker.postMessage({sab: sab, offset: offset});
 
     // Spin until the worker is waiting on the futex.
     while (%AtomicsNumWaitersForTesting(i32a, 0) != 1) {}
@@ -123,7 +123,7 @@ if (this.Worker) {
     var worker2 = new Worker(workerScript);
     var offset = 8;
     var i32a2 = new Int32Array(sab, offset);
-    worker2.postMessage({sab: sab, offset: offset}, [sab]);
+    worker2.postMessage({sab: sab, offset: offset});
 
     // Spin until the worker is waiting on the futex.
     while (%AtomicsNumWaitersForTesting(i32a2, 0) != 1) {}
@@ -135,7 +135,7 @@ if (this.Worker) {
     // the real address is the same.
     var worker3 = new Worker(workerScript);
     i32a2 = new Int32Array(sab, 4);
-    worker3.postMessage({sab: sab, offset: 8}, [sab]);
+    worker3.postMessage({sab: sab, offset: 8});
 
     // Spin until the worker is waiting on the futex.
     while (%AtomicsNumWaitersForTesting(i32a2, 1) != 1) {}
@@ -181,7 +181,7 @@ if (this.Worker) {
     var workers = [];
     for (id = 0; id < 4; id++) {
       workers[id] = new Worker(workerScript);
-      workers[id].postMessage({sab: sab, id: id}, [sab]);
+      workers[id].postMessage({sab: sab, id: id});
     }
 
     // Spin until all workers are waiting on the futex.
