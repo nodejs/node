@@ -36,10 +36,12 @@ listenVariants.forEach((listenVariant, i) => {
       return;
     }
     assert.throws(() => listenVariant(port, common.mustNotCall()),
-                  /"port" argument must be >= 0 and < 65536/i);
+                  common.expectsError({code: 'ERR_INVALID_PORT',
+                                       type: RangeError}));
   });
 
   [null, true, false].forEach((port) =>
     assert.throws(() => listenVariant(port, common.mustNotCall()),
-                  /invalid listen argument/i));
+                  common.expectsError({code: 'ERR_INVALID_ARGS',
+                                       type: Error})));
 });

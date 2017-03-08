@@ -7,13 +7,13 @@ connect({
   host: 'localhost',
   port: common.PORT,
   localPort: 'foobar',
-}, /^TypeError: "localPort" option should be a number: foobar$/);
+}, common.expectsError({code: 'ERR_INVALID_PORT', type: RangeError}));
 
 connect({
   host: 'localhost',
   port: common.PORT,
   localAddress: 'foobar',
-}, /^TypeError: "localAddress" option must be a valid IP: foobar$/);
+}, common.expectsError({code: 'ERR_INVALID_IP', type: Error}));
 
 function connect(opts, msg) {
   assert.throws(function() {

@@ -1,6 +1,7 @@
 'use strict';
 
 require('../common');
+const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 
@@ -10,7 +11,7 @@ function connectToServer() {
   const client = net.createConnection(this.address().port, () => {
     assert.throws(() => {
       client.write(1337);
-    }, /Invalid data, chunk must be a string or buffer, not number/);
+    }, common.expectsError({code: 'ERR_INVALID_ARG_TYPE', type: Error}));
 
     client.end();
   })

@@ -7,17 +7,17 @@ const dns = require('dns');
 // Stub `getaddrinfo` to *always* error.
 cares.getaddrinfo = () => process.binding('uv').UV_ENOENT;
 
-assert.throws(() => {
-  dns.lookup(1, {});
-}, /^TypeError: Invalid arguments: hostname must be a string or falsey$/);
+assert.throws(() => dns.lookup(1, {}),
+              common.expectsError({code: 'ERR_INVALID_ARG_TYPE',
+                                   type: TypeError}));
 
-assert.throws(() => {
-  dns.lookup(false, 'cb');
-}, /^TypeError: Invalid arguments: callback must be passed$/);
+assert.throws(() => dns.lookup(false, 'cb'),
+              common.expectsError({code: 'ERR_INVALID_CALLBACK',
+                                   type: TypeError}));
 
-assert.throws(() => {
-  dns.lookup(false, 'options', 'cb');
-}, /^TypeError: Invalid arguments: callback must be passed$/);
+assert.throws(() => dns.lookup(false, 'options', 'cb'),
+              common.expectsError({code: 'ERR_INVALID_CALLBACK',
+                                   type: TypeError}));
 
 assert.throws(() => {
   dns.lookup(false, {
@@ -25,7 +25,7 @@ assert.throws(() => {
     family: 0,
     all: false
   }, () => {});
-}, /^TypeError: Invalid argument: hints must use valid flags$/);
+}, common.expectsError({code: 'ERR_INVALID_FLAG', type: Error}));
 
 assert.throws(() => {
   dns.lookup(false, {
@@ -33,7 +33,7 @@ assert.throws(() => {
     family: 20,
     all: false
   }, () => {});
-}, /^TypeError: Invalid argument: family must be 4 or 6$/);
+}, common.expectsError({code: 'ERR_INVALID_ARG_VALUE', type: Error}));
 
 assert.doesNotThrow(() => {
   dns.lookup(false, {
