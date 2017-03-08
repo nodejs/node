@@ -21,6 +21,7 @@
 
 #include "node.h"
 #include "node_buffer.h"
+#include "node_constants.h"
 #include "node_crypto.h"
 #include "node_crypto_bio.h"
 #include "node_crypto_groups.h"
@@ -4233,7 +4234,7 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
   char* buf = Buffer::Data(args[0]);
 
   int padding = RSA_PKCS1_PADDING;
-  int saltlen = -2;
+  int saltlen = RSA_PSS_SALTLEN_MAX_SIGN;
   if (args[3]->IsObject()) {
     Local<Object> options = Local<Object>::Cast(args[3]);
     if (!sign->GetRSAOptions(env, options, &padding, &saltlen))
@@ -4498,7 +4499,7 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
   }
 
   int padding = RSA_PKCS1_PADDING;
-  int saltlen = -2;
+  int saltlen = RSA_PSS_SALTLEN_AUTO;
   if (args.Length() >= 4 && args[3]->IsObject()) {
     Local<Object> options = Local<Object>::Cast(args[3]);
     if (!verify->GetRSAOptions(env, options, &padding, &saltlen))
