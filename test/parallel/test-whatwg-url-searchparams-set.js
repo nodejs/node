@@ -44,7 +44,10 @@ test(function() {
     params.set('a');
   }, /^TypeError: "name" and "value" arguments must be specified$/);
 
-  const obj = { toString() { throw new Error('toString'); } };
+  const obj = {
+    toString() { throw new Error('toString'); },
+    valueOf() { throw new Error('valueOf'); }
+  };
   const sym = Symbol();
   assert.throws(() => params.append(obj, 'b'), /^Error: toString$/);
   assert.throws(() => params.append('a', obj), /^Error: toString$/);
