@@ -3986,7 +3986,7 @@ int SignBase::GetRSAOptions(Environment *env, v8::Local<v8::Object> options,
       *padding = paddingValue->Int32Value();
       break;
     default:
-      env->ThrowError("Padding must be RSA_PKCS1_PADDING or "
+      env->ThrowError("padding must be RSA_PKCS1_PADDING or "
                       "RSA_PKCS1_PSS_PADDING");
       return 0;
     }
@@ -4098,7 +4098,7 @@ static int Node_SignFinal(EVP_MD_CTX *mdctx, unsigned char *md, unsigned int *s,
   EVP_PKEY_CTX *pkctx = nullptr;
 
   *s = 0;
-  if (!EVP_DigestFinal_ex(mdctx, &(m[0]), &m_len))
+  if (!EVP_DigestFinal_ex(mdctx, m, &m_len))
     return i;
 
   if (mdctx->digest->flags & EVP_MD_FLAG_PKEY_METHOD_SIGNATURE) {

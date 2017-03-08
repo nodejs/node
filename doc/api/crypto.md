@@ -979,9 +979,9 @@ object, it is interpreted as a hash containing some of these properties:
 
 * `key`: {string} - PEM encoded private key (required)
 * `passphrase`: {string} - passphrase for the private key
-* `padding`: {String} - RSA padding, either `RSA_PKCS1_PADDING` (default) or
+* `padding`: {integer} - RSA padding, either `RSA_PKCS1_PADDING` (default) or
   `RSA_PKCS1_PSS_PADDING`
-* `saltLength`: {number} - salt length for RSASSA-PSS. The special value
+* `saltLength`: {integer} - salt length for RSASSA-PSS. The special value
   `RSA_PSS_SALTLEN_DIGEST` sets the salt length to the digest size,
   `RSA_PSS_SALTLEN_MAX_SIGN` sets it to the maximum permissible value.
 
@@ -1090,12 +1090,11 @@ or an object with some of the following properties:
 >>>>>>> Various improvements related to PR #11705
 
 * `key`: {string} - PEM encoded private key (required)
-* `padding`: {string} - RSA padding, either `'pkcs1'` for RSASSA-PKCS1-v1_5
-  (default) or `'pss'` for RSASSA-PSS
-* `saltLength`: {number} - salt length for RSASSA-PSS. If this is set to `-1`,
-  the salt length will be set to the digest size. A value of `-2` (default)
-  causes the salt length to be automatically determined based on the PSS block
-  structure.
+* `padding`: {integer} - RSA padding, either `RSA_PKCS1_PADDING` (default) or
+  `RSA_PKCS1_PSS_PADDING`
+* `saltLength`: {integer} - salt length for RSASSA-PSS. The special value
+  `RSA_PSS_SALTLEN_DIGEST` sets the salt length to the digest size,
+  `RSA_PSS_SALTLEN_AUTO` causes it to be determined automatically.
 
 The `signature` argument is the previously calculated signature for the data, in
 the `signature_format` which can be `'latin1'`, `'hex'` or `'base64'`.

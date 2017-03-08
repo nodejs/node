@@ -997,20 +997,17 @@ void DefineOpenSSLConstants(Local<Object> target) {
     NODE_DEFINE_CONSTANT(target, RSA_PKCS1_PSS_PADDING);
 #endif
 
-#ifndef RSA_PSS_SALTLEN_DIGEST
-#define RSA_PSS_SALTLEN_DIGEST -1
-#endif
+#ifdef RSA_PSS_SALTLEN_DIGEST
     NODE_DEFINE_CONSTANT(target, RSA_PSS_SALTLEN_DIGEST);
-
-#ifndef RSA_PSS_SALTLEN_MAX_SIGN
-#define RSA_PSS_SALTLEN_MAX_SIGN -2
 #endif
+
+#ifdef RSA_PSS_SALTLEN_MAX_SIGN
     NODE_DEFINE_CONSTANT(target, RSA_PSS_SALTLEN_MAX_SIGN);
-
-#ifndef RSA_PSS_SALTLEN_AUTO
-#define RSA_PSS_SALTLEN_AUTO -2
 #endif
+
+#ifdef RSA_PSS_SALTLEN_AUTO
     NODE_DEFINE_CONSTANT(target, RSA_PSS_SALTLEN_AUTO);
+#endif
 
 #if HAVE_OPENSSL
   // NOTE: These are not defines
