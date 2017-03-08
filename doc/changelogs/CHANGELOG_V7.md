@@ -29,6 +29,65 @@
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
 
+<a id="7.7.2"></a>
+## 2017-03-08, Version 7.7.2 (Current), @evanlucas
+
+### Notable changes
+
+* **doc**: add `Daijiro Wachi` to collaborators (Daijiro Wachi) [#11676](https://github.com/nodejs/node/pull/11676)
+* **tty**: add ref() so process.stdin.ref() etc. work (Ben Schmidt) [#7360](https://github.com/nodejs/node/pull/7360)
+* **util**: fix inspecting symbol key in string (Ali BARIN) [#11672](https://github.com/nodejs/node/pull/11672)
+
+### Commits
+
+* [[`f56ca30bf0`](https://github.com/nodejs/node/commit/f56ca30bf0)] - **benchmark,build,doc,lib,src,test**: correct typos (Benjamin Fleischer) [#11189](https://github.com/nodejs/node/pull/11189)
+* [[`02dbae6b3f`](https://github.com/nodejs/node/commit/02dbae6b3f)] - **buffer**: refactor Buffer.prototype.inspect() (Rich Trott) [#11600](https://github.com/nodejs/node/pull/11600)
+* [[`e5b530cb62`](https://github.com/nodejs/node/commit/e5b530cb62)] - **build**: fix llvm version detection in freebsd-10 (Shigeki Ohtsu) [#11668](https://github.com/nodejs/node/pull/11668)
+* [[`ed6d7412a7`](https://github.com/nodejs/node/commit/ed6d7412a7)] - **deps**: fix CLEAR_HASH macro to be usable as a single statement (Sam Roberts) [#11616](https://github.com/nodejs/node/pull/11616)
+* [[`039a1a97d8`](https://github.com/nodejs/node/commit/039a1a97d8)] - **dns**: minor refactor of dns module (James M Snell) [#11597](https://github.com/nodejs/node/pull/11597)
+* [[`3b27b8da9d`](https://github.com/nodejs/node/commit/3b27b8da9d)] - **doc**: fixed readable.isPaused() version annotation (Laurent Fortin) [#11677](https://github.com/nodejs/node/pull/11677)
+* [[`84028888db`](https://github.com/nodejs/node/commit/84028888db)] - **doc**: fix broken URL to event loop guide (Poker) [#11670](https://github.com/nodejs/node/pull/11670)
+* [[`d5c436311c`](https://github.com/nodejs/node/commit/d5c436311c)] - **doc**: remove Locked from stability index (Rich Trott) [#11661](https://github.com/nodejs/node/pull/11661)
+* [[`986d391066`](https://github.com/nodejs/node/commit/986d391066)] - **doc**: unlock module (Rich Trott) [#11661](https://github.com/nodejs/node/pull/11661)
+* [[`d06dbf03cc`](https://github.com/nodejs/node/commit/d06dbf03cc)] - **doc**: fix misleading ASCII comments (Rahat Ahmed) [#11657](https://github.com/nodejs/node/pull/11657)
+* [[`98d33282d9`](https://github.com/nodejs/node/commit/98d33282d9)] - **doc**: add `Daijiro Wachi` to collaborators (Daijiro Wachi) [#11676](https://github.com/nodejs/node/pull/11676)
+* [[`3e79dffd2c`](https://github.com/nodejs/node/commit/3e79dffd2c)] - **doc**: fix WHATWG URL url.protocol example (Richard Lau) [#11647](https://github.com/nodejs/node/pull/11647)
+* [[`e468cd3ee7`](https://github.com/nodejs/node/commit/e468cd3ee7)] - **doc**: argument types for console methods (Amelia Clarke) [#11554](https://github.com/nodejs/node/pull/11554)
+* [[`83c7b245e2`](https://github.com/nodejs/node/commit/83c7b245e2)] - **doc**: fix typo in stream doc (Bradley Curran) [#11560](https://github.com/nodejs/node/pull/11560)
+* [[`a0c117ba95`](https://github.com/nodejs/node/commit/a0c117ba95)] - **doc**: fixup errors.md (Vse Mozhet Byt) [#11566](https://github.com/nodejs/node/pull/11566)
+* [[`b116830d64`](https://github.com/nodejs/node/commit/b116830d64)] - **doc**: add link to references in net.Socket (Joyee Cheung) [#11625](https://github.com/nodejs/node/pull/11625)
+* [[`b968491dc2`](https://github.com/nodejs/node/commit/b968491dc2)] - **doc**: document WHATWG IDNA methods' error handling (Timothy Gu) [#11549](https://github.com/nodejs/node/pull/11549)
+* [[`d329abf1c6`](https://github.com/nodejs/node/commit/d329abf1c6)] - **doc**: use common malformed instead of misformatted (James Sumners) [#11518](https://github.com/nodejs/node/pull/11518)
+* [[`11aea2662f`](https://github.com/nodejs/node/commit/11aea2662f)] - **doc**: fix typo in STYLE_GUIDE.md (Nikolai Vavilov) [#11615](https://github.com/nodejs/node/pull/11615)
+* [[`f972bd81c6`](https://github.com/nodejs/node/commit/f972bd81c6)] - **inspector**: libuv notification on incoming message (Eugene Ostroukhov) [#11617](https://github.com/nodejs/node/pull/11617)
+* [[`a7eba9c71c`](https://github.com/nodejs/node/commit/a7eba9c71c)] - **meta**: move WORKING_GROUPS.md to CTC repo (James M Snell) [#11555](https://github.com/nodejs/node/pull/11555)
+* [[`5963566367`](https://github.com/nodejs/node/commit/5963566367)] - **meta**: remove out of date ROADMAP.md file (James M Snell) [#11556](https://github.com/nodejs/node/pull/11556)
+* [[`b56e851c48`](https://github.com/nodejs/node/commit/b56e851c48)] - **net**: refactor overloaded argument handling (Joyee Cheung) [#11667](https://github.com/nodejs/node/pull/11667)
+* [[`13cb8a69e4`](https://github.com/nodejs/node/commit/13cb8a69e4)] - **net**: remove misleading comment (Ben Noordhuis) [#11573](https://github.com/nodejs/node/pull/11573)
+* [[`e2133f3e57`](https://github.com/nodejs/node/commit/e2133f3e57)] - **os**: improve cpus() performance (Brian White) [#11564](https://github.com/nodejs/node/pull/11564)
+* [[`821d713a38`](https://github.com/nodejs/node/commit/821d713a38)] - **src**: remove outdated FIXME in node_crypto.cc (Daniel Bevenius) [#11669](https://github.com/nodejs/node/pull/11669)
+* [[`1b6ba9effb`](https://github.com/nodejs/node/commit/1b6ba9effb)] - **src**: do not ignore IDNA conversion error (Timothy Gu) [#11549](https://github.com/nodejs/node/pull/11549)
+* [[`fdb4a6c796`](https://github.com/nodejs/node/commit/fdb4a6c796)] - **test**: skip the test with proper TAP message (Sakthipriyan Vairamani (thefourtheye)) [#11584](https://github.com/nodejs/node/pull/11584)
+* [[`5df9110178`](https://github.com/nodejs/node/commit/5df9110178)] - **test**: check the origin of the blob URLs (Daijiro Wachi) [#11426](https://github.com/nodejs/node/pull/11426)
+* [[`b4dcb26681`](https://github.com/nodejs/node/commit/b4dcb26681)] - **test**: changed test1 of test-vm-timeout.js (maurice_hayward) [#11590](https://github.com/nodejs/node/pull/11590)
+* [[`f69685be65`](https://github.com/nodejs/node/commit/f69685be65)] - **test**: remove obsolete eslint-disable comment (Rich Trott) [#11643](https://github.com/nodejs/node/pull/11643)
+* [[`a4d14363a9`](https://github.com/nodejs/node/commit/a4d14363a9)] - **test**: fix args in parallel/test-fs-null-bytes.js (Vse Mozhet Byt) [#11601](https://github.com/nodejs/node/pull/11601)
+* [[`8377374754`](https://github.com/nodejs/node/commit/8377374754)] - **test**: fix tests when npn feature is disabled. (Shigeki Ohtsu) [#11655](https://github.com/nodejs/node/pull/11655)
+* [[`1445e282c3`](https://github.com/nodejs/node/commit/1445e282c3)] - **test**: add test-buffer-prototype-inspect (Rich Trott) [#11600](https://github.com/nodejs/node/pull/11600)
+* [[`00dd20c173`](https://github.com/nodejs/node/commit/00dd20c173)] - **test**: fix flaky test-https-agent-create-connection (Santiago Gimeno) [#11649](https://github.com/nodejs/node/pull/11649)
+* [[`91a222de99`](https://github.com/nodejs/node/commit/91a222de99)] - **test**: enable max-len for test-repl (Rich Trott) [#11559](https://github.com/nodejs/node/pull/11559)
+* [[`924b785d50`](https://github.com/nodejs/node/commit/924b785d50)] - **test**: fix test-internal-util-assertCrypto regex (Daniel Bevenius) [#11620](https://github.com/nodejs/node/pull/11620)
+* [[`cdee945307`](https://github.com/nodejs/node/commit/cdee945307)] - **test**: improve https coverage to check create connection (chiaki-yokoo) [#11435](https://github.com/nodejs/node/pull/11435)
+* [[`4f9253686d`](https://github.com/nodejs/node/commit/4f9253686d)] - **test**: apply strict mode in test-repl (Rich Trott) [#11575](https://github.com/nodejs/node/pull/11575)
+* [[`2601c06486`](https://github.com/nodejs/node/commit/2601c06486)] - **test**: skip tests with common.skip (Sakthipriyan Vairamani (thefourtheye)) [#11585](https://github.com/nodejs/node/pull/11585)
+* [[`6a5d96164a`](https://github.com/nodejs/node/commit/6a5d96164a)] - **test**: more comprehensive IDNA test cases (Timothy Gu) [#11549](https://github.com/nodejs/node/pull/11549)
+* [[`163d2d1624`](https://github.com/nodejs/node/commit/163d2d1624)] - **timers**: unlock the timers API (Rich Trott) [#11580](https://github.com/nodejs/node/pull/11580)
+* [[`d6ac192fa3`](https://github.com/nodejs/node/commit/d6ac192fa3)] - **tls**: fix macro to check NPN feature (Shigeki Ohtsu) [#11655](https://github.com/nodejs/node/pull/11655)
+* [[`ac3deb1481`](https://github.com/nodejs/node/commit/ac3deb1481)] - **tools**: remove NODE_PATH from environment for tests (Rich Trott) [#11612](https://github.com/nodejs/node/pull/11612)
+* [[`3c54f8199c`](https://github.com/nodejs/node/commit/3c54f8199c)] - **tty**: add ref() so process.stdin.ref() etc. work (Ben Schmidt) [#7360](https://github.com/nodejs/node/pull/7360)
+* [[`24e6fcce8b`](https://github.com/nodejs/node/commit/24e6fcce8b)] - **url**: use `hasIntl` instead of `try-catch` (Daijiro Wachi) [#11571](https://github.com/nodejs/node/pull/11571)
+* [[`7b84363636`](https://github.com/nodejs/node/commit/7b84363636)] - **util**: fix inspecting symbol key in string (Ali BARIN) [#11672](https://github.com/nodejs/node/pull/11672)
+
 <a id="7.7.1"></a>
 ## 2017-03-01, Version 7.7.1 (Current), @italoacasas
 
