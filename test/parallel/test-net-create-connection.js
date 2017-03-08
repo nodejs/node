@@ -21,11 +21,8 @@ server.listen(0, 'localhost', function() {
   }
 
   function fail(opts, errtype, msg) {
-    assert.throws(function() {
-      net.createConnection(opts, cb);
-    }, function(err) {
-      return err instanceof errtype && msg === err.message;
-    });
+    assert.throws(() => net.createConnection(opts, cb),
+                  (err) => err instanceof errtype && msg === err.code);
   }
 
   net.createConnection(this.address().port).on('connect', cb);
@@ -38,59 +35,59 @@ server.listen(0, 'localhost', function() {
 
   fail({
     port: true
-  }, TypeError, '"port" option should be a number or string: true');
+  }, TypeError, 'ERR_INVALID_ARG_TYPE');
 
   fail({
     port: false
-  }, TypeError, '"port" option should be a number or string: false');
+  }, TypeError, 'ERR_INVALID_ARG_TYPE');
 
   fail({
     port: []
-  }, TypeError, '"port" option should be a number or string: ');
+  }, TypeError, 'ERR_INVALID_ARG_TYPE');
 
   fail({
     port: {}
-  }, TypeError, '"port" option should be a number or string: [object Object]');
+  }, TypeError, 'ERR_INVALID_ARG_TYPE');
 
   fail({
     port: null
-  }, TypeError, '"port" option should be a number or string: null');
+  }, TypeError, 'ERR_INVALID_ARG_TYPE');
 
   fail({
     port: ''
-  }, RangeError, '"port" option should be >= 0 and < 65536: ');
+  }, RangeError, 'ERR_INVALID_PORT');
 
   fail({
     port: ' '
-  }, RangeError, '"port" option should be >= 0 and < 65536:  ');
+  }, RangeError, 'ERR_INVALID_PORT');
 
   fail({
     port: '0x'
-  }, RangeError, '"port" option should be >= 0 and < 65536: 0x');
+  }, RangeError, 'ERR_INVALID_PORT');
 
   fail({
     port: '-0x1'
-  }, RangeError, '"port" option should be >= 0 and < 65536: -0x1');
+  }, RangeError, 'ERR_INVALID_PORT');
 
   fail({
     port: NaN
-  }, RangeError, '"port" option should be >= 0 and < 65536: NaN');
+  }, RangeError, 'ERR_INVALID_PORT');
 
   fail({
     port: Infinity
-  }, RangeError, '"port" option should be >= 0 and < 65536: Infinity');
+  }, RangeError, 'ERR_INVALID_PORT');
 
   fail({
     port: -1
-  }, RangeError, '"port" option should be >= 0 and < 65536: -1');
+  }, RangeError, 'ERR_INVALID_PORT');
 
   fail({
     port: 65536
-  }, RangeError, '"port" option should be >= 0 and < 65536: 65536');
+  }, RangeError, 'ERR_INVALID_PORT');
 
   fail({
     hints: (dns.ADDRCONFIG | dns.V4MAPPED) + 42,
-  }, TypeError, 'Invalid argument: hints must use valid flags');
+  }, Error, 'ERR_INVALID_FLAG');
 });
 
 // Try connecting to random ports, but do so once the server is closed

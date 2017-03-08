@@ -26,10 +26,14 @@ dns.lookup('::1', common.mustCall((error, result, addressType) => {
 }));
 
 // Try calling resolve with an unsupported type.
-assert.throws(() => dns.resolve('www.google.com', 'HI'), /Unknown type/);
+assert.throws(() => dns.resolve('www.google.com', 'HI'),
+              common.expectsError({code: 'ERR_INVALID_ARG_TYPE',
+                                   type: TypeError}));
 
 // Try calling resolve with an unsupported type that's an object key
-assert.throws(() => dns.resolve('www.google.com', 'toString'), /Unknown type/);
+assert.throws(() => dns.resolve('www.google.com', 'toString'),
+              common.expectsError({code: 'ERR_INVALID_ARG_TYPE',
+                                   type: TypeError}));
 
 // Windows doesn't usually have an entry for localhost 127.0.0.1 in
 // C:\Windows\System32\drivers\etc\hosts
