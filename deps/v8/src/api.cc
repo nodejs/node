@@ -3234,10 +3234,9 @@ Maybe<bool> ValueDeserializer::ReadHeader(Local<Context> context) {
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   DCHECK(read_header);
 
-  // TODO(jbroman): Today, all wire formats are "legacy". When a more supported
-  // format is added, compare the version of the internal serializer to the
-  // minimum non-legacy version number.
-  if (!private_->supports_legacy_wire_format) {
+  static const uint32_t kMinimumNonLegacyVersion = 13;
+  if (GetWireFormatVersion() < kMinimumNonLegacyVersion &&
+      !private_->supports_legacy_wire_format) {
     isolate->Throw(*isolate->factory()->NewError(
         i::MessageTemplate::kDataCloneDeserializationVersionError));
     has_pending_exception = true;
