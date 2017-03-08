@@ -52,7 +52,10 @@ test(function() {
     params.delete();
   }, /^TypeError: "name" argument must be specified$/);
 
-  const obj = { toString() { throw new Error('toString'); } };
+  const obj = {
+    toString() { throw new Error('toString'); },
+    valueOf() { throw new Error('valueOf'); }
+  };
   const sym = Symbol();
   assert.throws(() => params.delete(obj), /^Error: toString$/);
   assert.throws(() => params.delete(sym),
