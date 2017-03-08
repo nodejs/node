@@ -209,7 +209,10 @@ test(() => {
 }
 
 {
-  const obj = { toString() { throw new Error('toString'); } };
+  const obj = {
+    toString() { throw new Error('toString'); },
+    valueOf() { throw new Error('valueOf'); }
+  };
   const sym = Symbol();
 
   assert.throws(() => new URLSearchParams({ a: obj }), /^Error: toString$/);
