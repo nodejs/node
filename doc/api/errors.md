@@ -602,6 +602,12 @@ a invalid value was passed as an IP to a Node.js API.
 The `'ERR_INVALID_PORT'` error code is used generically to identify that
 a invalid value was passed as a PORT to a Node.js API.
 
+<a id="ERR_SETTING_SERVERS"></a>
+### ERR_SETTING_SERVERS
+
+The `'ERR_SETTING_SERVERS'` error code is used generically to identify that
+an error occured setting the DNS servers
+
 
 [`fs.readdir`]: fs.html#fs_fs_readdir_path_options_callback
 [`fs.readFileSync`]: fs.html#fs_fs_readfilesync_file_options
