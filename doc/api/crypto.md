@@ -981,10 +981,10 @@ object, it is interpreted as a hash containing some of these properties:
 * `passphrase`: {string} - passphrase for the private key
 * `padding`: {integer} - RSA padding, either `RSA_PKCS1_PADDING` (default) or
   `RSA_PKCS1_PSS_PADDING`
-* `saltLength`: {integer} - salt length for RSASSA-PSS. The special value
-  `RSA_PSS_SALTLEN_DIGEST` sets the salt length to the digest size,
-  `RSA_PSS_SALTLEN_MAX_SIGN` (default) sets it to the maximum permissible
-  value.
+* `saltLength`: {integer} - salt length for when padding is
+  `RSA_PKCS1_PSS_PADDING`. The special value `RSA_PSS_SALTLEN_DIGEST` sets the
+  salt length to the digest size, `RSA_PSS_SALTLEN_MAX_SIGN` (default) sets it
+  to the maximum permissible value.
 
 The `output_format` can specify one of `'latin1'`, `'hex'` or `'base64'`. If
 `output_format` is provided a string is returned; otherwise a [`Buffer`][] is
@@ -1093,9 +1093,10 @@ or an object with some of the following properties:
 * `key`: {string} - PEM encoded private key (required)
 * `padding`: {integer} - RSA padding, either `RSA_PKCS1_PADDING` (default) or
   `RSA_PKCS1_PSS_PADDING`
-* `saltLength`: {integer} - salt length for RSASSA-PSS. The special value
-  `RSA_PSS_SALTLEN_DIGEST` sets the salt length to the digest size,
-  `RSA_PSS_SALTLEN_AUTO` (default) causes it to be determined automatically.
+* `saltLength`: {integer} - salt length for when padding is
+  `RSA_PKCS1_PSS_PADDING`. The special value `RSA_PSS_SALTLEN_DIGEST` sets the
+  salt length to the digest size, `RSA_PSS_SALTLEN_AUTO` (default) causes it to
+  be determined automatically.
 
 The `signature` argument is the previously calculated signature for the data, in
 the `signature_format` which can be `'latin1'`, `'hex'` or `'base64'`.
@@ -2061,15 +2062,18 @@ the `crypto`, `tls`, and `https` modules and are generally specific to OpenSSL.
   </tr>
   <tr>
     <td><code>RSA_PSS_SALTLEN_DIGEST</code></td>
-    <td></td>
+    <td>Sets the salt length for `RSA_PKCS1_PSS_PADDING` to the digest size
+        when signing or verifying.</td>
   </tr>
   <tr>
     <td><code>RSA_PSS_SALTLEN_MAX_SIGN</code></td>
-    <td></td>
+    <td>Sets the salt length for `RSA_PKCS1_PSS_PADDING` to the maximum
+        permissible value when signing data.</td>
   </tr>
   <tr>
     <td><code>RSA_PSS_SALTLEN_AUTO</code></td>
-    <td></td>
+    <td>Causes the salt length for `RSA_PKCS1_PSS_PADDING` to be determined
+        automatically when verifying a signature.</td>
   </tr>
   <tr>
     <td><code>POINT_CONVERSION_COMPRESSED</code></td>

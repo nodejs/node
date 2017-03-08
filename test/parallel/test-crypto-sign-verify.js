@@ -72,8 +72,8 @@ const keyPem = fs.readFileSync(common.fixturesDir + '/test_key.pem', 'ascii');
 }
 
 {
-  [ 'RSA-SHA1', 'RSA-SHA256' ].forEach((algo) => {
-    [ null, -2, -1, 0, 16, 32, 64 ].forEach((saltLength) => {
+  ['RSA-SHA1', 'RSA-SHA256'].forEach((algo) => {
+    [null, -2, -1, 0, 16, 32, 64].forEach((saltLength) => {
       let verified;
 
       // Test sign and verify with the given parameters
