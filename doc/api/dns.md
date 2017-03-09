@@ -70,33 +70,25 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/744
     description: The `all` option is supported now.
 -->
+- `hostname` {string}
+- `options` {integer | Object}
+  - `family` {integer} The record family. Must be `4` or `6`. IPv4
+    and IPv6 addresses are both returned by default.
+  - `hints` {number} One or more [supported `getaddrinfo` flags][]. Multiple
+    flags may be passed by bitwise `OR`ing their values.
+  - `all` {boolean} When `true`, the callback returns all resolved addresses in
+    an array. Otherwise, returns a single address. Defaults to `false`.
+- `callback` {Function}
+  - `err` {Error}
+  - `address` {string} A string representation of an IPv4 or IPv6 address.
+  - `family` {integer} `4` or `6`, denoting the family of `address`.
 
 Resolves a hostname (e.g. `'nodejs.org'`) into the first found A (IPv4) or
-AAAA (IPv6) record. `options` can be an object or integer. If `options` is
-not provided, then IPv4 and IPv6 addresses are both valid. If `options` is
-an integer, then it must be `4` or `6`.
+AAAA (IPv6) record. All `option` properties are optional. If `options` is an
+integer, then it must be `4` or `6` – if `options` is not provided, then IPv4
+and IPv6 addresses are both returned if found.
 
-Alternatively, `options` can be an object containing these properties:
-
-* `family` {number} - The record family. If present, must be the integer
-  `4` or `6`. If not provided, both IP v4 and v6 addresses are accepted.
-* `hints`: {number} - If present, it should be one or more of the supported
-  `getaddrinfo` flags. If `hints` is not provided, then no flags are passed to
-  `getaddrinfo`. Multiple flags can be passed through `hints` by bitwise
-  `OR`ing their values.
-  See [supported `getaddrinfo` flags][] for more information on supported
-  flags.
-* `all`: {boolean} - When `true`, the callback returns all resolved addresses
-  in an array, otherwise returns a single address. Defaults to `false`.
-
-All properties are optional.
-
-The `callback` function has arguments `(err, address, family)`. `address` is a
-string representation of an IPv4 or IPv6 address. `family` is either the
-integer `4` or `6` and denotes the family of `address` (not necessarily the
-value initially passed to `lookup`).
-
-With the `all` option set to `true`, the arguments change to
+With the `all` option set to `true`, the arguments for `callback` change to
 `(err, addresses)`, with `addresses` being an array of objects with the
 properties `address` and `family`.
 
@@ -147,6 +139,12 @@ on some operating systems (e.g FreeBSD 10.1).
 <!-- YAML
 added: v0.11.14
 -->
+- `address` {string}
+- `port` {number}
+- `callback` {Function}
+  - `err` {Error}
+  - `hostname` {string} e.g. `example.com`
+  - `service` {string} e.g. `http`
 
 Resolves the given `address` and `port` into a hostname and service using
 the operating system's underlying `getnameinfo` implementation.
@@ -155,10 +153,7 @@ If `address` is not a valid IP address, a `TypeError` will be thrown.
 The `port` will be coerced to a number. If it is not a legal port, a `TypeError`
 will be thrown.
 
-The callback has arguments `(err, hostname, service)`. The `hostname` and
-`service` arguments are strings (e.g. `'localhost'` and `'http'` respectively).
-
-On error, `err` is an [`Error`][] object, where `err.code` is the error code.
+On an error, `err` is an [`Error`][] object, where `err.code` is the error code.
 
 ```js
 const dns = require('dns');
@@ -172,6 +167,11 @@ dns.lookupService('127.0.0.1', 22, (err, hostname, service) => {
 <!-- YAML
 added: v0.1.27
 -->
+- `hostname` {string}
+- `rrtype` {string}
+- `callback` {Function}
+  - `err` {Error}
+  - `addresses` {string[] | Object[] | string[][] | Object}
 
 Uses the DNS protocol to resolve a hostname (e.g. `'nodejs.org'`) into an
 array of the record types specified by `rrtype`.
@@ -208,18 +208,21 @@ changes:
     description: This method now supports passing `options`,
                  specifically `options.ttl`.
 -->
+- `hostname` {string} Hostname to resolve.
+- `options` {Object}
+  - `ttl` {boolean} Retrieve the Time-To-Live value (TTL) of each record.
+    When `true`, the callback receives an array of
+    `{ address: '1.2.3.4', ttl: 60 }` objects rather than an array of strings,
+    with the TTL expressed in seconds.
+- `callback` {Function}
+  - `err` {Error}
+  - `addresses` {string[] | Object[]}
 
 Uses the DNS protocol to resolve a IPv4 addresses (`A` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function
 will contain an array of IPv4 addresses (e.g.
 `['74.125.79.104', '74.125.79.105', '74.125.79.106']`).
 
-* `hostname` {string} Hostname to resolve.
-* `options` {Object}
-  * `ttl` {boolean} Retrieve the Time-To-Live value (TTL) of each record.
-    The callback receives an array of `{ address: '1.2.3.4', ttl: 60 }` objects
-    rather than an array of strings.  The TTL is expressed in seconds.
-* `callback` {Function} An `(err, result)` callback function.
 
 ## dns.resolve6(hostname[, options], callback)
 <!-- YAML
@@ -230,22 +233,29 @@ changes:
     description: This method now supports passing `options`,
                  specifically `options.ttl`.
 -->
+- `hostname` {string} Hostname to resolve.
+- `options` {Object}
+  - `ttl` {boolean} Retrieve the Time-To-Live value (TTL) of each record.
+    When `true`, the callback receives an array of
+    `{ address: '0:1:2:3:4:5:6:7', ttl: 60 }` objects rather than an array of
+    strings, with the TTL expressed in seconds.
+- `callback` {Function}
+  - `err` {Error}
+  - `addresses` {string[] | Object[]}
 
 Uses the DNS protocol to resolve a IPv6 addresses (`AAAA` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function
 will contain an array of IPv6 addresses.
 
-* `hostname` {string} Hostname to resolve.
-* `options` {Object}
-  * `ttl` {boolean} Retrieve the Time-To-Live value (TTL) of each record.
-    The callback receives an array of `{ address: '0:1:2:3:4:5:6:7', ttl: 60 }`
-    objects rather than an array of strings.  The TTL is expressed in seconds.
-* `callback` {Function} An `(err, result)` callback function.
 
 ## dns.resolveCname(hostname, callback)
 <!-- YAML
 added: v0.3.2
 -->
+- `hostname` {string}
+- `callback` {Function}
+  - `err` {Error}
+  - `addresses` {string[]}
 
 Uses the DNS protocol to resolve `CNAME` records for the `hostname`. The
 `addresses` argument passed to the `callback` function
@@ -256,6 +266,10 @@ will contain an array of canonical name records available for the `hostname`
 <!-- YAML
 added: v0.1.27
 -->
+- `hostname` {string}
+- `callback` {Function}
+  - `err` {Error}
+  - `addresses` {Object[]}
 
 Uses the DNS protocol to resolve mail exchange records (`MX` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function will
@@ -266,11 +280,14 @@ property (e.g. `[{priority: 10, exchange: 'mx.example.com'}, ...]`).
 <!-- YAML
 added: v0.9.12
 -->
+- `hostname` {string}
+- `callback` {Function}
+  - `err` {Error}
+  - `addresses` {Object[]}
 
 Uses the DNS protocol to resolve regular expression based records (`NAPTR`
-records) for the `hostname`. The `callback` function has arguments
-`(err, addresses)`.  The `addresses` argument passed to the `callback` function
-will contain an array of objects with the following properties:
+records) for the `hostname`. The `addresses` argument passed to the `callback`
+function will contain an array of objects with the following properties:
 
 * `flags`
 * `service`
@@ -296,16 +313,24 @@ For example:
 <!-- YAML
 added: v0.1.90
 -->
+- `hostname` {string}
+- `callback` {Function}
+  - `err` {Error}
+  - `addresses` {string[]}
 
 Uses the DNS protocol to resolve name server records (`NS` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function will
 contain an array of name server records available for `hostname`
 (e.g. `['ns1.example.com', 'ns2.example.com']`).
 
-## dns.resolvePtr(hostname, callback)
+## dns.resolvePtr(hostname)
 <!-- YAML
 added: v6.0.0
 -->
+- `hostname` {string}
+- `callback` {Function}
+  - `err` {Error}
+  - `addresses` {string[]}
 
 Uses the DNS protocol to resolve pointer records (`PTR` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function will
@@ -315,9 +340,13 @@ be an array of strings containing the reply records.
 <!-- YAML
 added: v0.11.10
 -->
+- `hostname` {string}
+- `callback` {Function}
+  - `err` {Error}
+  - `address` {Object}
 
 Uses the DNS protocol to resolve a start of authority record (`SOA` record) for
-the `hostname`. The `addresses` argument passed to the `callback` function will
+the `hostname`. The `address` argument passed to the `callback` function will
 be an object with the following properties:
 
 * `nsname`
@@ -344,6 +373,10 @@ be an object with the following properties:
 <!-- YAML
 added: v0.1.27
 -->
+- `hostname` {string}
+- `callback` {Function}
+  - `err` {Error}
+  - `addresses` {Object[]}
 
 Uses the DNS protocol to resolve service records (`SRV` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function will
@@ -367,6 +400,10 @@ be an array of objects with the following properties:
 <!-- YAML
 added: v0.1.27
 -->
+- `hostname` {string}
+- `callback` {Function}
+  - `err` {Error}
+  - `addresses` {string[][]}
 
 Uses the DNS protocol to resolve text queries (`TXT` records) for the
 `hostname`. The `addresses` argument passed to the `callback` function is
@@ -379,12 +416,13 @@ treated separately.
 <!-- YAML
 added: v0.1.16
 -->
+- `ip` {string}
+- `callback` {Function}
+  - `err` {Error}
+  - `hostnames` {string[]}
 
 Performs a reverse DNS query that resolves an IPv4 or IPv6 address to an
 array of hostnames.
-
-The `callback` function has arguments `(err, hostnames)`, where `hostnames`
-is an array of resolved hostnames for the given `ip`.
 
 On error, `err` is an [`Error`][] object, where `err.code` is
 one of the [DNS error codes][].
@@ -393,11 +431,12 @@ one of the [DNS error codes][].
 <!-- YAML
 added: v0.11.3
 -->
+- `servers` {string[]}
 
 Sets the IP addresses of the servers to be used when resolving. The `servers`
 argument is an array of IPv4 or IPv6 addresses.
 
-If a port specified on the address it will be removed.
+If a port is specified on the address, it will be removed.
 
 An error will be thrown if an invalid address is provided.
 
