@@ -975,7 +975,6 @@ def configure_openssl(o):
   else:
     o['variables']['openssl_fips'] = ''
 
-
   if options.without_ssl:
     return
   configure_library('openssl', o)
