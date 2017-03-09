@@ -85,8 +85,11 @@ class AsyncWrap : public BaseObject {
                          v8::Local<v8::Context> context);
 
   static void GetAsyncId(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  static void DestroyIdsCb(uv_idle_t* handle);
+  static void PushAsyncIds(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void PopAsyncIds(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ClearIdStack(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void AsyncReset(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void QueueDestroyId(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   inline ProviderType provider_type() const;
 
@@ -94,7 +97,7 @@ class AsyncWrap : public BaseObject {
 
   inline double get_trigger_id() const;
 
-  void Reset();
+  void AsyncReset();
 
   // Only call these within a valid HandleScope.
   // TODO(trevnorris): These should return a MaybeLocal.
