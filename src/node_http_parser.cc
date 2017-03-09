@@ -477,7 +477,7 @@ class Parser : public AsyncWrap {
     // Should always be called from the same context.
     CHECK_EQ(env, parser->env());
     // The parser is being reused. Reset the uid and call init() callbacks.
-    parser->Reset();
+    parser->AsyncReset();
     parser->Init(type);
   }
 
