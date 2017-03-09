@@ -134,6 +134,48 @@ RetainedObjectInfo* WrapperInfo(uint16_t class_id, Local<Value> wrapper) {
 // end RetainedAsyncInfo
 
 
+static void DestroyIdsCb(uv_idle_t* handle) {
+  uv_idle_stop(handle);
+
+  Environment* env = Environment::from_destroy_ids_idle_handle(handle);
+
+  HandleScope handle_scope(env->isolate());
+  Context::Scope context_scope(env->context());
+  Local<Function> fn = env->async_hooks_destroy_function();
+
+  TryCatch try_catch(env->isolate());
+
+  std::vector<double> destroy_ids_list;
+  destroy_ids_list.swap(*env->destroy_ids_list());
+  for (auto current_id : destroy_ids_list) {
+    // Want each callback to be cleaned up after itself, instead of cleaning
+    // them all up after the while() loop completes.
+    HandleScope scope(env->isolate());
+    Local<Value> argv = Number::New(env->isolate(), current_id);
+    MaybeLocal<Value> ret = fn->Call(
+        env->context(), Undefined(env->isolate()), 1, &argv);
+
+    if (ret.IsEmpty()) {
+      ClearFatalExceptionHandlers(env);
+      FatalException(env->isolate(), try_catch);
+    }
+  }
+
+  env->destroy_ids_list()->clear();
+}
+
+
+static void PushBackDestroyId(Environment* env, double id) {
+  if (env->async_hooks()->fields()[AsyncHooks::kDestroy] == 0)
+    return;
+
+  if (env->destroy_ids_list()->empty())
+    uv_idle_start(env->destroy_ids_idle_handle(), DestroyIdsCb);
+
+  env->destroy_ids_list()->push_back(id);
+}
+
+
 static void SetupHooks(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -170,6 +212,42 @@ void AsyncWrap::GetAsyncId(const FunctionCallbackInfo<Value>& args) {
 }
 
 
+void AsyncWrap::PushAsyncIds(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  // No need for CHECK(IsNumber()) on args because if FromJust() doesn't fail
+  // then the checks in push_ids() and pop_ids() will.
+  double async_id = args[0]->NumberValue(env->context()).FromJust();
+  double trigger_id = args[1]->NumberValue(env->context()).FromJust();
+  env->async_hooks()->push_ids(async_id, trigger_id);
+}
+
+
+void AsyncWrap::PopAsyncIds(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  double async_id = args[0]->NumberValue(env->context()).FromJust();
+  args.GetReturnValue().Set(env->async_hooks()->pop_ids(async_id));
+}
+
+
+void AsyncWrap::ClearIdStack(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  env->async_hooks()->clear_id_stack();
+}
+
+
+void AsyncWrap::AsyncReset(const FunctionCallbackInfo<Value>& args) {
+  AsyncWrap* wrap;
+  ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
+  wrap->AsyncReset();
+}
+
+
+void AsyncWrap::QueueDestroyId(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsNumber());
+  PushBackDestroyId(Environment::GetCurrent(args), args[0]->NumberValue());
+}
+
+
 void AsyncWrap::Initialize(Local<Object> target,
                            Local<Value> unused,
                            Local<Context> context) {
@@ -178,6 +256,10 @@ void AsyncWrap::Initialize(Local<Object> target,
   HandleScope scope(isolate);
 
   env->SetMethod(target, "setupHooks", SetupHooks);
+  env->SetMethod(target, "pushAsyncIds", PushAsyncIds);
+  env->SetMethod(target, "popAsyncIds", PopAsyncIds);
+  env->SetMethod(target, "clearIdStack", ClearIdStack);
+  env->SetMethod(target, "addIdToDestroyList", QueueDestroyId);
 
   v8::PropertyAttribute ReadOnlyDontDelete =
       static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontDelete);
@@ -252,37 +334,6 @@ void AsyncWrap::Initialize(Local<Object> target,
 }
 
 
-void AsyncWrap::DestroyIdsCb(uv_idle_t* handle) {
-  uv_idle_stop(handle);
-
-  Environment* env = Environment::from_destroy_ids_idle_handle(handle);
-
-  HandleScope handle_scope(env->isolate());
-  Context::Scope context_scope(env->context());
-  Local<Function> fn = env->async_hooks_destroy_function();
-
-  TryCatch try_catch(env->isolate());
-
-  std::vector<double> destroy_ids_list;
-  destroy_ids_list.swap(*env->destroy_ids_list());
-  for (auto current_id : destroy_ids_list) {
-    // Want each callback to be cleaned up after itself, instead of cleaning
-    // them all up after the while() loop completes.
-    HandleScope scope(env->isolate());
-    Local<Value> argv = Number::New(env->isolate(), current_id);
-    MaybeLocal<Value> ret = fn->Call(
-        env->context(), Undefined(env->isolate()), 1, &argv);
-
-    if (ret.IsEmpty()) {
-      ClearFatalExceptionHandlers(env);
-      FatalException(env->isolate(), try_catch);
-    }
-  }
-
-  env->destroy_ids_list()->clear();
-}
-
-
 void LoadAsyncWrapperInfo(Environment* env) {
   HeapProfiler* heap_profiler = env->isolate()->GetHeapProfiler();
 #define V(PROVIDER)                                                           \
@@ -310,21 +361,14 @@ AsyncWrap::AsyncWrap(Environment* env,
 
 
 AsyncWrap::~AsyncWrap() {
-  if (env()->async_hooks()->fields()[AsyncHooks::kDestroy] == 0) {
-    return;
-  }
-
-  if (env()->destroy_ids_list()->empty())
-    uv_idle_start(env()->destroy_ids_idle_handle(), DestroyIdsCb);
-
-  env()->destroy_ids_list()->push_back(get_id());
+  PushBackDestroyId(env(), get_id());
 }
 
 
 // Generalized call for both the constructor and for handles that are pooled
 // and reused over their lifetime. This way a new uid can be assigned when
 // the resource is pulled out of the pool and put back into use.
-void AsyncWrap::Reset() {
+void AsyncWrap::AsyncReset() {
   AsyncHooks* async_hooks = env()->async_hooks();
   async_id_ = env()->new_async_id();
   trigger_id_ = env()->get_init_trigger_id();

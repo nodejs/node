@@ -3,6 +3,27 @@
 const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
+const providers = Object.assign({}, process.binding('async_wrap').Providers);
+
+// Make sure that all Providers are tested.
+{
+  const hooks = require('async_hooks').createHook({
+    init(id, type) {
+      if (type === 'NONE')
+        throw new Error('received a provider type of NONE');
+      delete providers[type];
+    },
+  }).enable();
+  process.on('beforeExit', common.mustCall(() => {
+    process.removeAllListeners('uncaughtException');
+    hooks.disable();
+    delete providers.NONE;  // Should never be used.
+    const obj_keys = Object.keys(providers);
+    if (obj_keys.length > 0)
+      process._rawDebug(obj_keys);
+    assert.strictEqual(obj_keys.length, 0);
+  }));
+}
 
 function testUninitialized(req, ctor_name) {
   assert.strictEqual(typeof req.getAsyncId, 'function');
@@ -185,9 +206,24 @@ if (common.hasCrypto) {
 
 
 {
-  const tty_wrap = process.binding('tty_wrap');
-  if (tty_wrap.isTTY(0)) {
-    testInitialized(new tty_wrap.TTY(0, false), 'TTY');
+  // Do our best to grab a tty fd.
+  const tty_fd = common.getTTYfd();
+  if (tty_fd >= 0) {
+    const tty_wrap = process.binding('tty_wrap');
+    // fd may still be invalid, so guard against it.
+    const handle = (() => {
+      try {
+        return new tty_wrap.TTY(tty_fd, false);
+      } catch (e) {
+        return null;
+      }
+    })();
+    if (handle !== null)
+      testInitialized(handle, 'TTY');
+    else
+      delete providers.TTYWRAP;
+  } else {
+    delete providers.TTYWRAP;
   }
 }
 
