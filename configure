@@ -269,6 +269,10 @@ parser.add_option('--systemtap-includes',
     action='store',
     dest='systemtap_includes',
     help='directory containing systemtap header files')
+parser.add_option('--system-ca-certificates',
+    action='store',
+    dest='system_ca_certs',
+    help='Location of the system-provided certificate bundle')
 
 parser.add_option('--tag',
     action='store',
@@ -913,6 +917,8 @@ def configure_node(o):
     o['variables']['coverage'] = 'true'
   else:
     o['variables']['coverage'] = 'false'
+
+  o['variables']['system_ca_certs'] = options.system_ca_certs or ''
 
 def configure_library(lib, output):
   shared_lib = 'shared_' + lib

@@ -696,7 +696,26 @@ static int X509_up_ref(X509* cert) {
 #endif  // OPENSSL_VERSION_NUMBER < 0x10100000L && !OPENSSL_IS_BORINGSSL
 
 
-static X509_STORE* NewRootCertStore() {
+static X509_STORE* NewRootCertStore(SecureContext* sc) {
+  X509_STORE* store;
+
+#if defined(SYSTEM_CA_CERTS)
+
+  // Use the system CA certificates bundle provided at configure time instead
+  // of the built-in ones.
+  if (SSL_CTX_load_verify_locations(sc->ctx_, SYSTEM_CA_CERTS, NULL) == 1) {
+    store = SSL_CTX_get_cert_store(sc->ctx_);
+  } else { // Empty store
+    // If we can't read the SYSTEM_CERTS location, then the only safe action
+    // is to add no certificates at all. This might be supplemented later by
+    // the environment variable NODE_EXTRA_CA_CERTS
+    store = X509_STORE_new();
+  }
+
+  return store;
+
+#else // use built-in CA certificates
+
   if (root_certs_vector.empty()) {
     for (size_t i = 0; i < arraysize(root_certs); i++) {
       BIO* bp = NodeBIO::NewFixed(root_certs[i], strlen(root_certs[i]));
@@ -710,7 +729,7 @@ static X509_STORE* NewRootCertStore() {
     }
   }
 
-  X509_STORE* store = X509_STORE_new();
+  store = X509_STORE_new();
   if (ssl_openssl_cert_store) {
     X509_STORE_set_default_paths(store);
   } else {
@@ -721,6 +740,7 @@ static X509_STORE* NewRootCertStore() {
   }
 
   return store;
+#endif // SYSTEM_CERTS
 }
 
 
@@ -745,7 +765,7 @@ void SecureContext::AddCACert(const FunctionCallbackInfo<Value>& args) {
   while (X509* x509 =
              PEM_read_bio_X509(bio, nullptr, CryptoPemCallback, nullptr)) {
     if (cert_store == root_cert_store) {
-      cert_store = NewRootCertStore();
+      cert_store = NewRootCertStore(sc);
       SSL_CTX_set_cert_store(sc->ctx_, cert_store);
     }
     X509_STORE_add_cert(cert_store, x509);
@@ -784,7 +804,7 @@ void SecureContext::AddCRL(const FunctionCallbackInfo<Value>& args) {
 
   X509_STORE* cert_store = SSL_CTX_get_cert_store(sc->ctx_);
   if (cert_store == root_cert_store) {
-    cert_store = NewRootCertStore();
+    cert_store = NewRootCertStore(sc);
     SSL_CTX_set_cert_store(sc->ctx_, cert_store);
   }
 
@@ -837,7 +857,7 @@ void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
   (void) &clear_error_on_return;  // Silence compiler warning.
 
   if (!root_cert_store) {
-    root_cert_store = NewRootCertStore();
+    root_cert_store = NewRootCertStore(sc);
 
     if (!extra_root_certs_file.empty()) {
       unsigned long err = AddCertsFromFile(  // NOLINT(runtime/int)
@@ -1079,7 +1099,7 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
       X509* ca = sk_X509_value(extra_certs, i);
 
       if (cert_store == root_cert_store) {
-        cert_store = NewRootCertStore();
+        cert_store = NewRootCertStore(sc);
         SSL_CTX_set_cert_store(sc->ctx_, cert_store);
       }
       X509_STORE_add_cert(cert_store, ca);
