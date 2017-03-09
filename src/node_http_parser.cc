@@ -199,7 +199,12 @@ class Parser : public AsyncWrap {
     CHECK_LT(num_fields_, arraysize(fields_));
     CHECK_EQ(num_fields_, num_values_ + 1);
 
-    fields_[num_fields_ - 1].Update(at, length);
+    if (parser_.header_state && parser_.traditional_case_http_headers) {
+      known_fields_[num_fields_ - 1] = parser_.header_state - 1;
+    } else {
+      known_fields_[num_fields_ - 1] = -1;
+      fields_[num_fields_ - 1].Update(at, length);
+    }
 
     return 0;
   }
@@ -647,7 +652,9 @@ class Parser : public AsyncWrap {
     do {
       size_t j = 0;
       while (i < num_values_ && j < arraysize(argv) / 2) {
-        argv[j * 2] = fields_[i].ToString(env());
+        argv[j * 2] = known_fields_[i] != -1 ?
+          Local<Value>::Cast(Integer::New(env()->isolate(), known_fields_[i])) :
+          fields_[i].ToString(env());
         argv[j * 2 + 1] = values_[i].ToString(env());
         i++;
         j++;
@@ -697,9 +704,11 @@ class Parser : public AsyncWrap {
   }
 
 
+  static const int kNumFields = 32;
   http_parser parser_;
-  StringPtr fields_[32];  // header fields
-  StringPtr values_[32];  // header values
+  unsigned int known_fields_[kNumFields];  // known HTTP header fields
+  StringPtr fields_[kNumFields];  // header fields
+  StringPtr values_[kNumFields];  // header values
   StringPtr url_;
   StringPtr status_message_;
   size_t num_fields_;
@@ -762,6 +771,25 @@ void InitHttpParser(Local<Object> target,
   HTTP_METHOD_MAP(V)
 #undef V
   target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "methods"), methods);
+
+  Local<Array> knownHttpHeaders = Array::New(env->isolate());
+  Local<Object> lowerCaseKnowHttpHeaderObj = Object::New(env->isolate());
+  Local<Array> knownHttpHeaderEntry;
+
+  int index = 0;
+#define XX(headerName, lowerCaseHeaderName, enumFriendlyName, flag)   \
+  knownHttpHeaderEntry = Array::New(env->isolate(), 3);               \
+  knownHttpHeaderEntry->Set(0, FIXED_ONE_BYTE_STRING(env->isolate(),  \
+                               #headerName));                         \
+  knownHttpHeaderEntry->Set(1, FIXED_ONE_BYTE_STRING(env->isolate(),  \
+                               #lowerCaseHeaderName));                \
+  knownHttpHeaderEntry->Set(2, Integer::New(env->isolate(), flag));   \
+  knownHttpHeaders->Set(index++, knownHttpHeaderEntry);
+    HTTP_HEADER_MAP(XX)
+#undef XX
+
+  target->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "knownHttpHeaders"),
+              knownHttpHeaders);
 
   env->SetProtoMethod(t, "close", Parser::Close);
   env->SetProtoMethod(t, "execute", Parser::Execute);
