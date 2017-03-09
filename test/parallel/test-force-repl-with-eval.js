@@ -5,11 +5,11 @@ const spawn = require('child_process').spawn;
 
 // spawn a node child process in "interactive" mode (force the repl) and eval
 const cp = spawn(process.execPath, ['-i', '-e', 'console.log("42")']);
-var gotToEnd = false;
+let gotToEnd = false;
 
 cp.stdout.setEncoding('utf8');
 
-var output = '';
+let output = '';
 cp.stdout.on('data', function(b) {
   output += b;
   if (output === '> 42\n') {

@@ -13,7 +13,7 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
 function filenamePEM(n) {
   return require('path').join(common.fixturesDir, 'keys', n + '.pem');
@@ -23,12 +23,12 @@ function loadPEM(n) {
   return fs.readFileSync(filenamePEM(n));
 }
 
-var serverOptions = {
+const serverOptions = {
   key: loadPEM('agent2-key'),
   cert: loadPEM('agent2-cert')
 };
 
-var SNIContexts = {
+const SNIContexts = {
   'a.example.com': {
     key: loadPEM('agent1-key'),
     cert: loadPEM('agent1-cert')
@@ -44,7 +44,7 @@ var SNIContexts = {
   }
 };
 
-var clientsOptions = [{
+const clientsOptions = [{
   port: undefined,
   ca: [loadPEM('ca1-cert')],
   servername: 'a.example.com',
@@ -74,7 +74,7 @@ var clientsOptions = [{
 const serverResults = [];
 const clientResults = [];
 
-var server = tls.createServer(serverOptions, function(c) {
+const server = tls.createServer(serverOptions, function(c) {
   serverResults.push(c.servername);
 });
 
@@ -85,15 +85,15 @@ server.addContext('chain.example.com', SNIContexts['chain.example.com']);
 server.listen(0, startTest);
 
 function startTest() {
-  var i = 0;
+  let i = 0;
   function start() {
     // No options left
     if (i === clientsOptions.length)
       return server.close();
 
-    var options = clientsOptions[i++];
+    const options = clientsOptions[i++];
     options.port = server.address().port;
-    var client = tls.connect(options, function() {
+    const client = tls.connect(options, function() {
       clientResults.push(
         client.authorizationError &&
         /Hostname\/IP doesn't/.test(client.authorizationError));

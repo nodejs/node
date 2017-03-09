@@ -3,18 +3,18 @@ require('../common');
 const http = require('http');
 const net = require('net');
 
-var once = false;
-var first = null;
-var second = null;
+let once = false;
+let first = null;
+let second = null;
 
 const chunk = Buffer.alloc(1024, 'X');
 
-var size = 0;
+let size = 0;
 
-var more;
-var done;
+let more;
+let done;
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   if (!once)
     server.close();
   once = true;
@@ -41,7 +41,7 @@ var server = http.createServer(function(req, res) {
   });
   first.end('hello');
 }).listen(0, function() {
-  var s = net.connect(this.address().port);
+  const s = net.connect(this.address().port);
   more = function() {
     s.write('GET / HTTP/1.1\r\n\r\n');
   };

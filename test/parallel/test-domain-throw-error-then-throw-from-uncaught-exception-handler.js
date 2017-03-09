@@ -82,7 +82,7 @@ function runTestWithAbortOnUncaughtException() {
 }
 
 function createTestCmdLine(options) {
-  var testCmd = '';
+  let testCmd = '';
 
   if (!common.isWindows) {
     // Do not create core files, as it can take a lot of disk space on

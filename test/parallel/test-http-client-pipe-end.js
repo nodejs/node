@@ -1,10 +1,10 @@
 'use strict';
 // see https://github.com/joyent/node/issues/3257
 
-var common = require('../common');
-var http = require('http');
+const common = require('../common');
+const http = require('http');
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   req.resume();
   req.once('end', function() {
     res.writeHead(200);
@@ -16,7 +16,7 @@ var server = http.createServer(function(req, res) {
 common.refreshTmpDir();
 
 server.listen(common.PIPE, function() {
-  var req = http.request({
+  const req = http.request({
     socketPath: common.PIPE,
     headers: {'Content-Length': '1'},
     method: 'POST',

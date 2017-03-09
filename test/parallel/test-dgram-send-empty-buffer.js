@@ -21,7 +21,7 @@ client.bind(0, common.mustCall(function() {
   }));
 
   const buf = Buffer.alloc(0);
-  var interval = setInterval(function() {
+  let interval = setInterval(function() {
     client.send(buf, 0, 0, port, '127.0.0.1', common.mustCall(function() {}));
   }, 10);
 }));

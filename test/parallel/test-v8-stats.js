@@ -1,10 +1,10 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var v8 = require('v8');
+const assert = require('assert');
+const v8 = require('v8');
 
-var s = v8.getHeapStatistics();
-var keys = [
+const s = v8.getHeapStatistics();
+const keys = [
   'heap_size_limit',
   'total_available_size',
   'total_heap_size',

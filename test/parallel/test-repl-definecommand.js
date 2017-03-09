@@ -6,7 +6,7 @@ const stream = require('stream');
 const assert = require('assert');
 const repl = require('repl');
 
-var output = '';
+let output = '';
 const inputStream = new stream.PassThrough();
 const outputStream = new stream.PassThrough();
 outputStream.on('data', function(d) {

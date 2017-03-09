@@ -453,9 +453,9 @@ if (common.isWindows) {
   // See https://github.com/nodejs/node/issues/7215
   const currentDriveLetter = path.parse(process.cwd()).root.substring(0, 2);
   const resolveFixture = path.join(common.fixturesDir, 'path-resolve.js');
-  var spawnResult = child.spawnSync(
+  const spawnResult = child.spawnSync(
     process.argv[0], [resolveFixture, currentDriveLetter]);
-  var resolvedPath = spawnResult.stdout.toString().trim();
+  const resolvedPath = spawnResult.stdout.toString().trim();
   assert.equal(resolvedPath.toLowerCase(), process.cwd().toLowerCase());
 }
 

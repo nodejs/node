@@ -2,10 +2,10 @@
 // Simple tests of most basic domain functionality.
 
 const common = require('../common');
-var assert = require('assert');
-var domain = require('domain');
+const assert = require('assert');
+const domain = require('domain');
 
-var d = new domain.Domain();
+const d = new domain.Domain();
 
 d.on('error', common.mustCall(function(er) {
   console.error('caught', er);
@@ -28,7 +28,7 @@ d.on('error', common.mustCall(function(er) {
 // handles are created.
 d.run(function() {
   setTimeout(function() {
-    var fs = require('fs');
+    const fs = require('fs');
     fs.readdir(__dirname, function() {
       fs.open('this file does not exist', 'r', function(er) {
         if (er) throw er;

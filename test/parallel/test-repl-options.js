@@ -9,7 +9,7 @@ common.globalCheck = false;
 const stream = new common.ArrayStream();
 
 // 1, mostly defaults
-var r1 = repl.start({
+const r1 = repl.start({
   input: stream,
   output: stream,
   terminal: true
@@ -37,7 +37,7 @@ assert.equal(r1.useColors, r1.rli.terminal);
 // 2
 function writer() {}
 function evaler() {}
-var r2 = repl.start({
+const r2 = repl.start({
   input: stream,
   output: stream,
   terminal: false,
@@ -67,7 +67,7 @@ assert.equal(r2.rli.output, r2.outputStream);
 assert.equal(r2.rli.terminal, false);
 
 // testing out "magic" replMode
-var r3 = repl.start({
+const r3 = repl.start({
   input: stream,
   output: stream,
   writer: writer,

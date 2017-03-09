@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common');
-var dgram = require('dgram');
+const dgram = require('dgram');
 
 {
   // Test the case of unref()'ing a socket with a handle.

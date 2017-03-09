@@ -6,7 +6,7 @@ const Script = require('vm').Script;
 common.globalCheck = false;
 
 console.error('run a string');
-var script = new Script('\'passed\';');
+let script = new Script('\'passed\';');
 const result = script.runInThisContext(script);
 assert.equal('passed', result);
 

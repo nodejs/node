@@ -1,16 +1,16 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var spawn = require('child_process').spawn;
+const common = require('../common');
+const assert = require('assert');
+const spawn = require('child_process').spawn;
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
-var https = require('https');
+const tls = require('tls');
+const https = require('https');
 
-var fs = require('fs');
+const fs = require('fs');
 
 if (!common.opensslCli) {
   common.skip('node compiled without OpenSSL CLI.');
@@ -18,7 +18,7 @@ if (!common.opensslCli) {
 }
 
 // renegotiation limits to test
-var LIMITS = [0, 1, 2, 3, 5, 10, 16];
+const LIMITS = [0, 1, 2, 3, 5, 10, 16];
 
 {
   let n = 0;
@@ -31,15 +31,15 @@ var LIMITS = [0, 1, 2, 3, 5, 10, 16];
 }
 
 function test(next) {
-  var options = {
+  const options = {
     cert: fs.readFileSync(common.fixturesDir + '/test_cert.pem'),
     key: fs.readFileSync(common.fixturesDir + '/test_key.pem')
   };
 
-  var seenError = false;
+  let seenError = false;
 
-  var server = https.createServer(options, function(req, res) {
-    var conn = req.connection;
+  const server = https.createServer(options, function(req, res) {
+    const conn = req.connection;
     conn.on('error', function(err) {
       console.error('Caught exception: ' + err);
       assert(/TLS session renegotiation attack/.test(err));
@@ -50,8 +50,8 @@ function test(next) {
   });
 
   server.listen(common.PORT, function() {
-    var args = ('s_client -connect 127.0.0.1:' + common.PORT).split(' ');
-    var child = spawn(common.opensslCli, args);
+    const args = ('s_client -connect 127.0.0.1:' + common.PORT).split(' ');
+    const child = spawn(common.opensslCli, args);
 
     //child.stdout.pipe(process.stdout);
     //child.stderr.pipe(process.stderr);
@@ -60,8 +60,8 @@ function test(next) {
     child.stderr.resume();
 
     // count handshakes, start the attack after the initial handshake is done
-    var handshakes = 0;
-    var renegs = 0;
+    let handshakes = 0;
+    let renegs = 0;
 
     child.stderr.on('data', function(data) {
       if (seenError) return;
@@ -76,7 +76,7 @@ function test(next) {
       process.nextTick(next);
     });
 
-    var closed = false;
+    let closed = false;
     child.stdin.on('error', function(err) {
       switch (err.code) {
         case 'ECONNRESET':

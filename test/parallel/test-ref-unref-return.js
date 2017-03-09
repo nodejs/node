@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var net = require('net');
-var dgram = require('dgram');
+const assert = require('assert');
+const net = require('net');
+const dgram = require('dgram');
 
 assert.ok((new net.Server()).ref() instanceof net.Server);
 assert.ok((new net.Server()).unref() instanceof net.Server);

@@ -17,7 +17,7 @@ const args = [
   `console.log("${msgOut}"); console.error("${msgErr}");`
 ];
 
-var ret;
+let ret;
 
 
 function checkSpawnSyncRet(ret) {
@@ -51,7 +51,7 @@ if (process.argv.indexOf('spawnchild') !== -1) {
 verifyBufOutput(spawnSync(process.execPath, [__filename, 'spawnchild', 1]));
 verifyBufOutput(spawnSync(process.execPath, [__filename, 'spawnchild', 2]));
 
-var options = {
+let options = {
   input: 1234
 };
 

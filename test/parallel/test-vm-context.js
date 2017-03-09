@@ -1,14 +1,14 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var vm = require('vm');
-var Script = vm.Script;
-var script = new Script('"passed";');
+const vm = require('vm');
+const Script = vm.Script;
+let script = new Script('"passed";');
 
 console.error('run in a new empty context');
-var context = vm.createContext();
-var result = script.runInContext(context);
+let context = vm.createContext();
+let result = script.runInContext(context);
 assert.equal('passed', result);
 
 console.error('create a new pre-populated context');
@@ -29,7 +29,7 @@ assert.throws(function() {
 
 // Issue GH-1140:
 console.error('test runInContext signature');
-var gh1140Exception;
+let gh1140Exception;
 try {
   vm.runInContext('throw new Error()', context, 'expected-filename.js');
 } catch (e) {
@@ -55,7 +55,7 @@ script.runInNewContext({ require: require });
 
 // Issue GH-7529
 script = vm.createScript('delete b');
-var ctx = {};
+let ctx = {};
 Object.defineProperty(ctx, 'b', { configurable: false });
 ctx = vm.createContext(ctx);
 assert.equal(script.runInContext(ctx), false);

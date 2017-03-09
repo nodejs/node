@@ -12,9 +12,9 @@ const options = { stdio: ['inherit', 'inherit', 'pipe', 'ipc'] };
 const child = spawn(process.execPath, args, options);
 
 const outputLines = [];
-var waitingForDebuggers = false;
+let waitingForDebuggers = false;
 
-var pids;
+let pids;
 
 child.stderr.on('data', function(data) {
   const lines = data.toString().replace(/\r/g, '').trim().split('\n');
@@ -76,6 +76,6 @@ function assertOutputLines() {
   expectedLines.sort();
 
   assert.equal(outputLines.length, expectedLines.length);
-  for (var i = 0; i < expectedLines.length; i++)
+  for (let i = 0; i < expectedLines.length; i++)
     assert(RegExp(expectedLines[i]).test(outputLines[i]));
 }

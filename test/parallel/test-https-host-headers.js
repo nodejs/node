@@ -1,12 +1,12 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var https = require('https');
+const https = require('https');
 
 const fs = require('fs');
 const options = {
@@ -37,7 +37,7 @@ testHttps();
 
 function testHttps() {
 
-  var counter = 0;
+  let counter = 0;
 
   function cb(res) {
     counter--;

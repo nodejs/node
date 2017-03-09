@@ -1,18 +1,17 @@
 'use strict';
 const common = require('../common');
-var fs = require('fs');
-var assert = require('assert');
-var path = require('path');
-var file = path.join(common.tmpDir, '/read_stream_fd_test.txt');
-var input = 'hello world';
-var output = '';
-var fd, stream;
+const fs = require('fs');
+const assert = require('assert');
+const path = require('path');
+const file = path.join(common.tmpDir, '/read_stream_fd_test.txt');
+const input = 'hello world';
+let output = '';
 
 common.refreshTmpDir();
 fs.writeFileSync(file, input);
-fd = fs.openSync(file, 'r');
+const fd = fs.openSync(file, 'r');
 
-stream = fs.createReadStream(null, { fd: fd, encoding: 'utf8' });
+const stream = fs.createReadStream(null, { fd: fd, encoding: 'utf8' });
 stream.on('data', function(data) {
   output += data;
 });

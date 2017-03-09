@@ -6,7 +6,7 @@ require('../common');
 const assert = require('assert');
 
 function test(clazz) {
-  var buffer = new clazz(8);
+  const buffer = new clazz(8);
 
   buffer.writeFloatBE(1, 0);
   buffer.writeFloatLE(1, 4);

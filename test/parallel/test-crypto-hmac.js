@@ -1,12 +1,12 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var crypto = require('crypto');
+const crypto = require('crypto');
 
 // Test for binding layer robustness
 {
@@ -17,14 +17,14 @@ var crypto = require('crypto');
 }
 
 // Test HMAC
-var h1 = crypto.createHmac('sha1', 'Node')
+const h1 = crypto.createHmac('sha1', 'Node')
                .update('some data')
                .update('to hmac')
                .digest('hex');
 assert.strictEqual(h1, '19fd6e1ba73d9ed2224dd5094a71babe85d9a892', 'test HMAC');
 
 // Test HMAC (Wikipedia Test Cases)
-var wikipedia = [
+const wikipedia = [
   {
     key: 'key', data: 'The quick brown fox jumps over the lazy dog',
     hmac: {  // HMACs lifted from Wikipedia.
@@ -83,7 +83,7 @@ for (let i = 0, l = wikipedia.length; i < l; i++) {
 
 
 // Test HMAC-SHA-* (rfc 4231 Test Cases)
-var rfc4231 = [
+const rfc4231 = [
   {
     key: Buffer.from('0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b', 'hex'),
     data: Buffer.from('4869205468657265', 'hex'), // 'Hi There'
@@ -249,7 +249,7 @@ for (let i = 0, l = rfc4231.length; i < l; i++) {
 }
 
 // Test HMAC-MD5/SHA1 (rfc 2202 Test Cases)
-var rfc2202_md5 = [
+const rfc2202_md5 = [
   {
     key: Buffer.from('0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b', 'hex'),
     data: 'Hi There',
@@ -302,7 +302,7 @@ var rfc2202_md5 = [
     hmac: '6f630fad67cda0ee1fb1f562db3aa53e'
   }
 ];
-var rfc2202_sha1 = [
+const rfc2202_sha1 = [
   {
     key: Buffer.from('0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b', 'hex'),
     data: 'Hi There',

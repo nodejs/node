@@ -1,13 +1,13 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var https = require('https');
+const https = require('https');
 
-var http = require('http');
+const http = require('http');
 
 https.get('https://www.google.com/', common.mustCall(function(res) {
   res.resume();

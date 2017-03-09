@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var vm = require('vm');
-var spawn = require('child_process').spawn;
+const assert = require('assert');
+const vm = require('vm');
+const spawn = require('child_process').spawn;
 
 if (process.argv[2] === 'child') {
   const code = 'while(true);';
@@ -11,8 +11,8 @@ if (process.argv[2] === 'child') {
 
   vm.runInContext(code, ctx, { timeout: 1 });
 } else {
-  var proc = spawn(process.execPath, process.argv.slice(1).concat('child'));
-  var err = '';
+  const proc = spawn(process.execPath, process.argv.slice(1).concat('child'));
+  let err = '';
   proc.stderr.on('data', function(data) {
     err += data;
   });

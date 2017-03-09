@@ -29,7 +29,7 @@ assert.throws(() => {
 
 out.write = err.write = (d) => {};
 
-var c = new Console(out, err);
+const c = new Console(out, err);
 
 out.write = err.write = common.mustCall((d) => {
   assert.strictEqual(d, 'test\n');

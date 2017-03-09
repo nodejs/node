@@ -11,7 +11,7 @@ server.on('request', function(req, res) {
   res.flushHeaders(); // Should be idempotent.
 });
 server.listen(0, common.localhostIPv4, function() {
-  var req = http.request({
+  const req = http.request({
     method: 'GET',
     host: common.localhostIPv4,
     port: this.address().port,

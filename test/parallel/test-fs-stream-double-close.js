@@ -1,6 +1,6 @@
 'use strict';
-var common = require('../common');
-var fs = require('fs');
+const common = require('../common');
+const fs = require('fs');
 
 common.refreshTmpDir();
 

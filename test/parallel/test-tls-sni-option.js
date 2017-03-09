@@ -13,7 +13,7 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
 function filenamePEM(n) {
   return require('path').join(common.fixturesDir, 'keys', n + '.pem');
@@ -23,13 +23,13 @@ function loadPEM(n) {
   return fs.readFileSync(filenamePEM(n));
 }
 
-var serverOptions = {
+const serverOptions = {
   key: loadPEM('agent2-key'),
   cert: loadPEM('agent2-cert'),
   requestCert: true,
   rejectUnauthorized: false,
   SNICallback: function(servername, callback) {
-    var context = SNIContexts[servername];
+    const context = SNIContexts[servername];
 
     // Just to test asynchronous callback
     setTimeout(function() {
@@ -45,7 +45,7 @@ var serverOptions = {
   }
 };
 
-var SNIContexts = {
+let SNIContexts = {
   'a.example.com': {
     key: loadPEM('agent1-key'),
     cert: loadPEM('agent1-cert'),
@@ -60,7 +60,7 @@ var SNIContexts = {
   }
 };
 
-var clientsOptions = [{
+const clientsOptions = [{
   port: undefined,
   key: loadPEM('agent1-key'),
   cert: loadPEM('agent1-cert'),
@@ -104,7 +104,7 @@ const clientErrors = [];
 let serverError;
 let clientError;
 
-var server = tls.createServer(serverOptions, function(c) {
+const server = tls.createServer(serverOptions, function(c) {
   serverResults.push({ sni: c.servername, authorized: c.authorized });
 });
 
@@ -117,12 +117,12 @@ server.listen(0, startTest);
 
 function startTest() {
   function connectClient(i, callback) {
-    var options = clientsOptions[i];
+    const options = clientsOptions[i];
     clientError = null;
     serverError = null;
 
     options.port = server.address().port;
-    var client = tls.connect(options, function() {
+    const client = tls.connect(options, function() {
       clientResults.push(
           /Hostname\/IP doesn't/.test(client.authorizationError || ''));
       client.destroy();

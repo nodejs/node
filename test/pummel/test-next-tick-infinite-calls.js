@@ -1,7 +1,7 @@
 'use strict';
 require('../common');
 
-var complete = 0;
+let complete = 0;
 
 // This will fail with:
 //  FATAL ERROR: JS Allocation failed - process out of memory

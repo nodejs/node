@@ -21,10 +21,10 @@ else
 
 
 function master() {
-  var listening = 0;
+  let listening = 0;
 
   // Fork 4 workers.
-  for (var i = 0; i < NUM_WORKERS; i++)
+  for (let i = 0; i < NUM_WORKERS; i++)
     cluster.fork();
 
   // Wait until all workers are listening.
@@ -35,7 +35,7 @@ function master() {
     // Start sending messages.
     const buf = Buffer.from('hello world');
     const socket = dgram.createSocket('udp4');
-    var sent = 0;
+    let sent = 0;
     doSend();
 
     function doSend() {
@@ -60,7 +60,7 @@ function master() {
   }
 
   function setupWorker(worker) {
-    var received = 0;
+    let received = 0;
 
     worker.on('message', common.mustCall((msg) => {
       received = msg.received;
@@ -75,10 +75,10 @@ function master() {
 
 
 function worker() {
-  var received = 0;
+  let received = 0;
 
   // Create udp socket and start listening.
-  var socket = dgram.createSocket('udp4');
+  const socket = dgram.createSocket('udp4');
 
   socket.on('message', common.mustCall((data, info) => {
     received++;

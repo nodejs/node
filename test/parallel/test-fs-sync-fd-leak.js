@@ -1,12 +1,14 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var fs = require('fs');
+const assert = require('assert');
+const fs = require('fs');
 
 // ensure that (read|write|append)FileSync() closes the file descriptor
 fs.openSync = function() {
   return 42;
 };
+
+let close_called = 0;
 fs.closeSync = function(fd) {
   assert.equal(fd, 42);
   close_called++;
@@ -32,9 +34,8 @@ ensureThrows(function() {
   fs.appendFileSync('dummy', 'xxx');
 });
 
-var close_called = 0;
 function ensureThrows(cb) {
-  var got_exception = false;
+  let got_exception = false;
 
   close_called = 0;
   try {

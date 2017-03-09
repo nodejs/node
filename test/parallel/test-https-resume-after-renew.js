@@ -1,27 +1,28 @@
 'use strict';
-var common = require('../common');
-var fs = require('fs');
-var https = require('https');
-var crypto = require('crypto');
+const common = require('../common');
+const fs = require('fs');
+const https = require('https');
+const crypto = require('crypto');
 
-var options = {
+const options = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem'),
   ca: fs.readFileSync(common.fixturesDir + '/keys/ca1-cert.pem')
 };
 
-var server = https.createServer(options, function(req, res) {
+const server = https.createServer(options, function(req, res) {
   res.end('hello');
 });
 
-var aes = Buffer.alloc(16, 'S');
-var hmac = Buffer.alloc(16, 'H');
+const aes = Buffer.alloc(16, 'S');
+const hmac = Buffer.alloc(16, 'H');
 
 server._sharedCreds.context.enableTicketKeyCallback();
+let newName, newIV;
 server._sharedCreds.context.onticketkeycallback = function(name, iv, enc) {
   if (enc) {
-    var newName = Buffer.alloc(16, 'A');
-    var newIV = crypto.randomBytes(16);
+    newName = Buffer.alloc(16, 'A');
+    newIV = crypto.randomBytes(16);
   } else {
     // Renew
     return [ 2, hmac, aes ];
@@ -31,7 +32,7 @@ server._sharedCreds.context.onticketkeycallback = function(name, iv, enc) {
 };
 
 server.listen(0, function() {
-  var addr = this.address();
+  const addr = this.address();
 
   function doReq(callback) {
     https.request({

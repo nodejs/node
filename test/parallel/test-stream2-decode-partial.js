@@ -3,7 +3,7 @@ require('../common');
 const Readable = require('_stream_readable');
 const assert = require('assert');
 
-var buf = '';
+let buf = '';
 const euro = new Buffer([0xE2, 0x82, 0xAC]);
 const cent = new Buffer([0xC2, 0xA2]);
 const source = Buffer.concat([euro, cent]);

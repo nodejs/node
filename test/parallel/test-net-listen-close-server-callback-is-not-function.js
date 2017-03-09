@@ -1,8 +1,8 @@
 'use strict';
 const common = require('../common');
-var net = require('net');
+const net = require('net');
 
-var server = net.createServer(common.fail);
+const server = net.createServer(common.fail);
 
 server.on('close', common.mustCall(function() {}));
 

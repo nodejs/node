@@ -3,8 +3,8 @@ const common = require('../common');
 const assert = require('assert');
 const net = require('net');
 const msg = 'test';
-var stopped = true;
-var server1Sock;
+let stopped = true;
+let server1Sock;
 
 
 const server1ConnHandler = function(socket) {

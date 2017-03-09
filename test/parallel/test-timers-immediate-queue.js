@@ -1,6 +1,6 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 // setImmediate should run clear its queued cbs once per event loop turn
 // but immediates queued while processing the current queue should happen
@@ -11,10 +11,10 @@ var assert = require('assert');
 // if we're letting things recursively add to the immediate QUEUE hit will be
 // > QUEUE
 
-var ticked = false;
+let ticked = false;
 
-var hit = 0;
-var QUEUE = 1000;
+let hit = 0;
+const QUEUE = 1000;
 
 function run() {
   if (hit === 0)
@@ -26,7 +26,7 @@ function run() {
   setImmediate(run);
 }
 
-for (var i = 0; i < QUEUE; i++)
+for (let i = 0; i < QUEUE; i++)
   setImmediate(run);
 
 process.on('exit', function() {

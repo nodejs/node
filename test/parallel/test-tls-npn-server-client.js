@@ -13,7 +13,7 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
 
 function filenamePEM(n) {
@@ -24,7 +24,7 @@ function loadPEM(n) {
   return fs.readFileSync(filenamePEM(n));
 }
 
-var serverOptions = {
+const serverOptions = {
   key: loadPEM('agent2-key'),
   cert: loadPEM('agent2-cert'),
   crl: loadPEM('ca2-crl'),
@@ -38,7 +38,7 @@ var serverOptions = {
   NPNProtocols: ['a', 'b', 'c']
 };
 
-var clientsOptions = [{
+const clientsOptions = [{
   port: undefined,
   key: serverOptions.key,
   cert: serverOptions.cert,
@@ -70,7 +70,7 @@ var clientsOptions = [{
 const serverResults = [];
 const clientsResults = [];
 
-var server = tls.createServer(serverOptions, function(c) {
+const server = tls.createServer(serverOptions, function(c) {
   serverResults.push(c.npnProtocol);
 });
 server.listen(0, startTest);
@@ -78,7 +78,7 @@ server.listen(0, startTest);
 function startTest() {
   function connectClient(options, callback) {
     options.port = server.address().port;
-    var client = tls.connect(options, function() {
+    const client = tls.connect(options, function() {
       clientsResults.push(client.npnProtocol);
       client.destroy();
 

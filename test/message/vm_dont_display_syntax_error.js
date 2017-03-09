@@ -1,6 +1,6 @@
 'use strict';
 require('../common');
-var vm = require('vm');
+const vm = require('vm');
 
 console.error('beginning');
 

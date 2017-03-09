@@ -1,17 +1,17 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var net = require('net');
+const assert = require('assert');
+const cluster = require('cluster');
+const net = require('net');
 
 function noop() {}
 
 if (cluster.isMaster) {
-  var worker1 = cluster.fork();
+  const worker1 = cluster.fork();
 
   worker1.on('message', function(port1) {
     assert.equal(port1, port1 | 0, 'first worker could not listen');
-    var worker2 = cluster.fork();
+    const worker2 = cluster.fork();
 
     worker2.on('message', function(port2) {
       assert.equal(port2, port2 | 0, 'second worker could not listen');
@@ -21,7 +21,7 @@ if (cluster.isMaster) {
     });
   });
 } else {
-  var server = net.createServer(noop);
+  const server = net.createServer(noop);
 
   server.on('error', function(err) {
     process.send(err.code);

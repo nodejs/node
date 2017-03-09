@@ -1,17 +1,17 @@
 'use strict';
 require('../common');
-var domain = require('domain');
-var http = require('http');
-var assert = require('assert');
+const domain = require('domain');
+const http = require('http');
+const assert = require('assert');
 
-var objects = { foo: 'bar', baz: {}, num: 42, arr: [1, 2, 3] };
+const objects = { foo: 'bar', baz: {}, num: 42, arr: [1, 2, 3] };
 objects.baz.asdf = objects;
 
-var serverCaught = 0;
-var clientCaught = 0;
+let serverCaught = 0;
+let clientCaught = 0;
 
-var server = http.createServer(function(req, res) {
-  var dom = domain.create();
+const server = http.createServer(function(req, res) {
+  const dom = domain.create();
   req.resume();
   dom.add(req);
   dom.add(res);
@@ -27,7 +27,7 @@ var server = http.createServer(function(req, res) {
   dom.run(function() {
     // Now, an action that has the potential to fail!
     // if you request 'baz', then it'll throw a JSON circular ref error.
-    var data = JSON.stringify(objects[req.url.replace(/[^a-z]/g, '')]);
+    const data = JSON.stringify(objects[req.url.replace(/[^a-z]/g, '')]);
 
     // this line will throw if you pick an unknown key
     assert.notStrictEqual(data, undefined, 'Data should not be undefined');
@@ -43,8 +43,8 @@ function next() {
   const port = this.address().port;
   console.log('listening on localhost:%d', port);
 
-  var requests = 0;
-  var responses = 0;
+  let requests = 0;
+  let responses = 0;
 
   makeReq('/');
   makeReq('/foo');
@@ -55,14 +55,14 @@ function next() {
   function makeReq(p) {
     requests++;
 
-    var dom = domain.create();
+    const dom = domain.create();
     dom.on('error', function(er) {
       clientCaught++;
       console.log('client error', er);
       req.socket.destroy();
     });
 
-    var req = http.get({ host: 'localhost', port: port, path: p });
+    let req = http.get({ host: 'localhost', port: port, path: p });
     dom.add(req);
     req.on('response', function(res) {
       responses++;
@@ -74,7 +74,7 @@ function next() {
       }
 
       dom.add(res);
-      var d = '';
+      let d = '';
       res.on('data', function(c) {
         d += c;
       });

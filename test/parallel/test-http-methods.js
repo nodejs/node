@@ -1,8 +1,8 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var http = require('http');
-var util = require('util');
+const assert = require('assert');
+const http = require('http');
+const util = require('util');
 
 assert(Array.isArray(http.METHODS));
 assert(http.METHODS.length > 0);

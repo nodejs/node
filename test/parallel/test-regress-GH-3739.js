@@ -5,13 +5,13 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
-var dir = path.resolve(common.tmpDir);
+let dir = path.resolve(common.tmpDir);
 
 // Make sure that the tmp directory is clean
 common.refreshTmpDir();
 
 // Make a long path.
-for (var i = 0; i < 50; i++) {
+for (let i = 0; i < 50; i++) {
   dir = dir + '/1234567890';
   try {
     fs.mkdirSync(dir, '0777');

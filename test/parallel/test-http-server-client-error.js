@@ -21,7 +21,7 @@ server.listen(0, function() {
     const client = net.connect(server.address().port);
     client.end('Oopsie-doopsie\r\n');
 
-    var chunks = '';
+    let chunks = '';
     client.on('data', function(chunk) {
       chunks += chunk;
     });

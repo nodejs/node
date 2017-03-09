@@ -5,8 +5,8 @@ const path = require('path');
 const fs = require('fs');
 const exec = require('child_process').exec;
 
-var linkTime;
-var fileTime;
+let linkTime;
+let fileTime;
 
 if (common.isWindows) {
   // On Windows, creating symlinks requires admin privileges.

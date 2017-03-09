@@ -37,8 +37,8 @@ if (process.argv[2] === 'child') {
 
   const msg = Buffer.from('Some bytes');
 
-  var childGotMessage = false;
-  var parentGotMessage = false;
+  let childGotMessage = false;
+  let parentGotMessage = false;
 
   parentServer.once('message', function(msg, rinfo) {
     parentGotMessage = true;

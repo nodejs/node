@@ -170,7 +170,7 @@ function checkErrors(path) {
 
 function checkParseFormat(path, paths) {
   paths.forEach(function(element) {
-    var output = path.parse(element);
+    const output = path.parse(element);
     assert.strictEqual(typeof output.root, 'string');
     assert.strictEqual(typeof output.dir, 'string');
     assert.strictEqual(typeof output.base, 'string');

@@ -14,7 +14,7 @@ require('../common');
 const timers = require('timers');
 const assert = require('assert');
 
-var nbTimersFired = 0;
+let nbTimersFired = 0;
 
 const foo = {
   _onTimeout: function() {

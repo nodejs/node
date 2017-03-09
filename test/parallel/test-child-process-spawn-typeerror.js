@@ -12,7 +12,7 @@ const invalidOptionsMsg = /"options" argument must be an object/;
 const empty = common.fixturesDir + '/empty.js';
 
 assert.throws(function() {
-  var child = spawn(invalidcmd, 'this is not an array');
+  const child = spawn(invalidcmd, 'this is not an array');
   child.on('error', common.fail);
 }, TypeError);
 

@@ -1,16 +1,16 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var execSync = require('child_process').execSync;
-var execFileSync = require('child_process').execFileSync;
+const execSync = require('child_process').execSync;
+const execFileSync = require('child_process').execFileSync;
 
-var TIMER = 200;
-var SLEEP = 2000;
+const TIMER = 200;
+const SLEEP = 2000;
 
-var start = Date.now();
-var err;
-var caught = false;
+const start = Date.now();
+let err;
+let caught = false;
 
 // Verify that stderr is not accessed when a bad shell is used
 assert.throws(
@@ -24,9 +24,10 @@ assert.throws(
   'execFileSync did not throw the expected exception!'
 );
 
+let cmd, ret;
 try {
-  var cmd = `"${process.execPath}" -e "setTimeout(function(){}, ${SLEEP});"`;
-  var ret = execSync(cmd, {timeout: TIMER});
+  cmd = `"${process.execPath}" -e "setTimeout(function(){}, ${SLEEP});"`;
+  ret = execSync(cmd, {timeout: TIMER});
 } catch (e) {
   caught = true;
   assert.strictEqual(e.errno, 'ETIMEDOUT');
@@ -34,7 +35,7 @@ try {
 } finally {
   assert.strictEqual(ret, undefined, 'we should not have a return value');
   assert.strictEqual(caught, true, 'execSync should throw');
-  var end = Date.now() - start;
+  const end = Date.now() - start;
   assert(end < SLEEP);
   assert(err.status > 128 || err.signal);
 }
@@ -43,8 +44,8 @@ assert.throws(function() {
   execSync('iamabadcommand');
 }, /Command failed: iamabadcommand/);
 
-var msg = 'foobar';
-var msgBuf = Buffer.from(msg + '\n');
+const msg = 'foobar';
+const msgBuf = Buffer.from(msg + '\n');
 
 // console.log ends every line with just '\n', even on Windows.
 
@@ -59,7 +60,7 @@ ret = execSync(cmd, { encoding: 'utf8' });
 
 assert.strictEqual(ret, msg + '\n', 'execSync encoding result should match');
 
-var args = [
+const args = [
   '-e',
   `console.log("${msg}");`
 ];

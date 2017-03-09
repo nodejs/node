@@ -1,15 +1,15 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
 function pingPongTest(port, host, on_complete) {
-  var N = 100;
-  var DELAY = 1;
-  var count = 0;
-  var client_ended = false;
+  const N = 100;
+  const DELAY = 1;
+  let count = 0;
+  let client_ended = false;
 
-  var server = net.createServer({ allowHalfOpen: true }, function(socket) {
+  const server = net.createServer({ allowHalfOpen: true }, function(socket) {
     socket.setEncoding('utf8');
 
     socket.on('data', function(data) {
@@ -43,7 +43,7 @@ function pingPongTest(port, host, on_complete) {
   });
 
   server.listen(port, host, common.mustCall(function() {
-    var client = net.createConnection(port, host);
+    const client = net.createConnection(port, host);
 
     client.setEncoding('utf8');
 

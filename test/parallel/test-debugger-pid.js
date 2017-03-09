@@ -3,15 +3,15 @@ const common = require('../common');
 const assert = require('assert');
 const spawn = require('child_process').spawn;
 
-var buffer = '';
+let buffer = '';
 
 // connect to debug agent
-var interfacer = spawn(process.execPath, ['debug', '-p', '655555']);
+const interfacer = spawn(process.execPath, ['debug', '-p', '655555']);
 
 console.error(process.execPath, 'debug', '-p', '655555');
 interfacer.stdout.setEncoding('utf-8');
 interfacer.stderr.setEncoding('utf-8');
-var onData = function(data) {
+const onData = function(data) {
   data = (buffer + data).split('\n');
   buffer = data.pop();
   data.forEach(function(line) {
@@ -21,9 +21,9 @@ var onData = function(data) {
 interfacer.stdout.on('data', onData);
 interfacer.stderr.on('data', onData);
 
-var lineCount = 0;
+let lineCount = 0;
 interfacer.on('line', function(line) {
-  var expected;
+  let expected;
   const pid = interfacer.pid;
   if (common.isWindows) {
     switch (++lineCount) {

@@ -8,7 +8,7 @@ const spawn = require('child_process').spawn;
 // We're trying to reproduce:
 // $ echo "hello\nnode\nand\nworld" | grep o | sed s/o/a/
 
-var grep, sed, echo;
+let grep, sed, echo;
 
 if (common.isWindows) {
   grep = spawn('grep', ['--binary', 'o']),
@@ -82,7 +82,7 @@ grep.stdout.on('end', function(code) {
 });
 
 
-var result = '';
+let result = '';
 
 // print sed's output
 sed.stdout.on('data', function(data) {

@@ -1,11 +1,11 @@
 'use strict';
 const common = require('../common');
-var http = require('http');
+const http = require('http');
 
-var body = 'hello world\n';
+const body = 'hello world\n';
 
 function test(headers) {
-  var server = http.createServer(function(req, res) {
+  const server = http.createServer(function(req, res) {
     console.error('req: %s headers: %j', req.method, headers);
     res.writeHead(200, headers);
     res.end();
@@ -13,7 +13,7 @@ function test(headers) {
   });
 
   server.listen(0, common.mustCall(function() {
-    var request = http.request({
+    const request = http.request({
       port: this.address().port,
       method: 'HEAD',
       path: '/'

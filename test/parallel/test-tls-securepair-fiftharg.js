@@ -10,7 +10,7 @@ const sslcontext = tls.createSecureContext({
   key: fs.readFileSync(common.fixturesDir + '/test_key.pem')
 });
 
-var catchedServername;
+let catchedServername;
 const pair = tls.createSecurePair(sslcontext, true, false, false, {
   SNICallback: common.mustCall(function(servername, cb) {
     catchedServername = servername;

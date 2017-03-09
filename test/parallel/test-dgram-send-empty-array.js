@@ -12,7 +12,7 @@ const dgram = require('dgram');
 
 const client = dgram.createSocket('udp4');
 
-var interval;
+let interval;
 
 client.on('message', common.mustCall(function onMessage(buf, info) {
   const expected = Buffer.alloc(0);

@@ -38,7 +38,7 @@ execFile(node, traceDep, function(er, stdout, stderr) {
   console.error('--trace-deprecation: show stack');
   assert.equal(er, null);
   assert.equal(stdout, '');
-  var stack = stderr.trim().split('\n');
+  const stack = stderr.trim().split('\n');
   // just check the top and bottom.
   assert(/util.debug is deprecated. Use console.error instead./.test(stack[1]));
   assert(/DEBUG: This is deprecated/.test(stack[0]));

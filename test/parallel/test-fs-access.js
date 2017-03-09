@@ -1,13 +1,13 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
-var path = require('path');
-var doesNotExist = path.join(common.tmpDir, '__this_should_not_exist');
-var readOnlyFile = path.join(common.tmpDir, 'read_only_file');
-var readWriteFile = path.join(common.tmpDir, 'read_write_file');
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+const doesNotExist = path.join(common.tmpDir, '__this_should_not_exist');
+const readOnlyFile = path.join(common.tmpDir, 'read_only_file');
+const readWriteFile = path.join(common.tmpDir, 'read_write_file');
 
-var removeFile = function(file) {
+const removeFile = function(file) {
   try {
     fs.unlinkSync(file);
   } catch (err) {
@@ -15,7 +15,7 @@ var removeFile = function(file) {
   }
 };
 
-var createFileWithPerms = function(file, mode) {
+const createFileWithPerms = function(file, mode) {
   removeFile(file);
   fs.writeFileSync(file, '');
   fs.chmodSync(file, mode);
@@ -48,7 +48,7 @@ createFileWithPerms(readWriteFile, 0o666);
  * id, but that's fine. In this case, it is the responsability of the
  * continuous integration platform to take care of that.
  */
-var hasWriteAccessForReadonlyFile = false;
+let hasWriteAccessForReadonlyFile = false;
 if (!common.isWindows && process.getuid() === 0) {
   hasWriteAccessForReadonlyFile = true;
   try {
@@ -107,7 +107,7 @@ assert.doesNotThrow(function() {
 });
 
 assert.doesNotThrow(function() {
-  var mode = fs.F_OK | fs.R_OK | fs.W_OK;
+  const mode = fs.F_OK | fs.R_OK | fs.W_OK;
 
   fs.accessSync(readWriteFile, mode);
 });

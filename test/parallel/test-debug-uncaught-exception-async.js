@@ -7,7 +7,7 @@ const spawn = require('child_process').spawn;
 const emitUncaught = path.join(common.fixturesDir, 'debug-uncaught-async.js');
 const result = spawn(process.execPath, [emitUncaught], {encoding: 'utf8'});
 
-var stderr = '';
+let stderr = '';
 result.stderr.on('data', (data) => {
   stderr += data;
 });

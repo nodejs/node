@@ -193,7 +193,7 @@ assert.equal(Buffer.from('aaaa00a').indexOf('3030', 'hex'), 4);
   assert.equal(-1, twoByteString.indexOf('\u03a3', -2, 'ucs2'));
 }
 
-var mixedByteStringUcs2 =
+const mixedByteStringUcs2 =
     Buffer.from('\u039a\u0391abc\u03a3\u03a3\u0395', 'ucs2');
 assert.equal(6, mixedByteStringUcs2.indexOf('bc', 0, 'ucs2'));
 assert.equal(10, mixedByteStringUcs2.indexOf('\u03a3', 0, 'ucs2'));
@@ -228,7 +228,7 @@ assert.equal(
       6, twoByteString.indexOf('\u03a3\u0395', 0, 'ucs2'), 'Sigma Epsilon');
 }
 
-var mixedByteStringUtf8 = Buffer.from('\u039a\u0391abc\u03a3\u03a3\u0395');
+const mixedByteStringUtf8 = Buffer.from('\u039a\u0391abc\u03a3\u03a3\u0395');
 assert.equal(5, mixedByteStringUtf8.indexOf('bc'));
 assert.equal(5, mixedByteStringUtf8.indexOf('bc', 5));
 assert.equal(5, mixedByteStringUtf8.indexOf('bc', -8));
@@ -238,15 +238,15 @@ assert.equal(-1, mixedByteStringUtf8.indexOf('\u0396'));
 
 // Test complex string indexOf algorithms. Only trigger for long strings.
 // Long string that isn't a simple repeat of a shorter string.
-var longString = 'A';
+let longString = 'A';
 for (let i = 66; i < 76; i++) {  // from 'B' to 'K'
   longString = longString + String.fromCharCode(i) + longString;
 }
 
-var longBufferString = Buffer.from(longString);
+const longBufferString = Buffer.from(longString);
 
 // pattern of 15 chars, repeated every 16 chars in long
-var pattern = 'ABACABADABACABA';
+let pattern = 'ABACABADABACABA';
 for (let i = 0; i < longBufferString.length - pattern.length; i += 7) {
   const index = longBufferString.indexOf(pattern, i);
   assert.equal((i + 15) & ~0xf, index, 'Long ABACABA...-string at index ' + i);
@@ -262,17 +262,17 @@ assert.equal(
     1535, longBufferString.indexOf(pattern, 512), 'Long JABACABA..., Second J');
 
 // Search for a non-ASCII string in a pure ASCII string.
-var asciiString = Buffer.from(
+const asciiString = Buffer.from(
     'arglebargleglopglyfarglebargleglopglyfarglebargleglopglyf');
 assert.equal(-1, asciiString.indexOf('\x2061'));
 assert.equal(3, asciiString.indexOf('leb', 0));
 
 // Search in string containing many non-ASCII chars.
-var allCodePoints = [];
+const allCodePoints = [];
 for (let i = 0; i < 65536; i++) allCodePoints[i] = i;
-var allCharsString = String.fromCharCode.apply(String, allCodePoints);
-var allCharsBufferUtf8 = Buffer.from(allCharsString);
-var allCharsBufferUcs2 = Buffer.from(allCharsString, 'ucs2');
+const allCharsString = String.fromCharCode.apply(String, allCodePoints);
+const allCharsBufferUtf8 = Buffer.from(allCharsString);
+const allCharsBufferUcs2 = Buffer.from(allCharsString, 'ucs2');
 
 // Search for string long enough to trigger complex search with ASCII pattern
 // and UC16 subject.
@@ -309,10 +309,10 @@ assert.strictEqual(Buffer.from('aaaaa').indexOf('b', 'ucs2'), -1);
         length = 4 * length;
       }
 
-      var patternBufferUtf8 = allCharsBufferUtf8.slice(index, index + length);
+      const patternBufferUtf8 = allCharsBufferUtf8.slice(index, index + length);
       assert.equal(index, allCharsBufferUtf8.indexOf(patternBufferUtf8));
 
-      var patternStringUtf8 = patternBufferUtf8.toString();
+      const patternStringUtf8 = patternBufferUtf8.toString();
       assert.equal(index, allCharsBufferUtf8.indexOf(patternStringUtf8));
     }
   }
@@ -327,12 +327,12 @@ assert.strictEqual(Buffer.from('aaaaa').indexOf('b', 'ucs2'), -1);
       const index = indices[i] * 2;
       const length = lengths[lengthIndex];
 
-      var patternBufferUcs2 =
+      const patternBufferUcs2 =
           allCharsBufferUcs2.slice(index, index + length);
       assert.equal(
           index, allCharsBufferUcs2.indexOf(patternBufferUcs2, 0, 'ucs2'));
 
-      var patternStringUcs2 = patternBufferUcs2.toString('ucs2');
+      const patternStringUcs2 = patternBufferUcs2.toString('ucs2');
       assert.equal(
           index, allCharsBufferUcs2.indexOf(patternStringUcs2, 0, 'ucs2'));
     }
@@ -491,7 +491,7 @@ assert.strictEqual(buf_bc.lastIndexOf('你好', 5, 'binary'), -1);
 assert.strictEqual(buf_bc.lastIndexOf(Buffer.from('你好'), 7), -1);
 
 // Test lastIndexOf on a longer buffer:
-var bufferString = new Buffer('a man a plan a canal panama');
+const bufferString = new Buffer('a man a plan a canal panama');
 assert.equal(15, bufferString.lastIndexOf('canal'));
 assert.equal(21, bufferString.lastIndexOf('panama'));
 assert.equal(0, bufferString.lastIndexOf('a man a plan a canal panama'));
@@ -542,16 +542,17 @@ assert.equal(511, longBufferString.lastIndexOf(pattern, 1534));
 
 // countBits returns the number of bits in the binary reprsentation of n.
 function countBits(n) {
-  for (var count = 0; n > 0; count++) {
+  let count;
+  for (count = 0; n > 0; count++) {
     n = n & (n - 1); // remove top bit
   }
   return count;
 }
-var parts = [];
-for (var i = 0; i < 1000000; i++) {
+const parts = [];
+for (let i = 0; i < 1000000; i++) {
   parts.push((countBits(i) % 2 === 0) ? 'yolo' : 'swag');
 }
-var reallyLong = new Buffer(parts.join(' '));
+const reallyLong = new Buffer(parts.join(' '));
 assert.equal('yolo swag swag yolo', reallyLong.slice(0, 19).toString());
 
 // Expensive reverse searches. Stress test lastIndexOf:

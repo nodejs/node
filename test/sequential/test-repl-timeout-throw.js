@@ -8,7 +8,7 @@ const child = spawn(process.execPath, [ '-i' ], {
   stdio: [null, null, 2]
 });
 
-var stdout = '';
+let stdout = '';
 child.stdout.setEncoding('utf8');
 child.stdout.on('data', function(c) {
   process.stdout.write(c);
@@ -30,7 +30,7 @@ child.stdout.once('data', function() {
 
   setTimeout(fsTest, 50);
   function fsTest() {
-    var f = JSON.stringify(__filename);
+    const f = JSON.stringify(__filename);
     child.stdin.write('fs.readFile(' + f + ', thrower);\n');
     setTimeout(eeTest, 50);
   }
@@ -54,6 +54,6 @@ child.stdout.once('data', function() {
 child.on('close', function(c) {
   assert.strictEqual(c, 0);
   // make sure we got 3 throws, in the end.
-  var lastLine = stdout.trim().split(/\r?\n/).pop();
+  const lastLine = stdout.trim().split(/\r?\n/).pop();
   assert.strictEqual(lastLine, '> 3');
 });

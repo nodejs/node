@@ -3,16 +3,16 @@
 // doesn't break anything.
 
 require('../common');
-var assert = require('assert');
-var Stream = require('stream').Stream;
-var rr = [];
-var ww = [];
-var cnt = 100;
-var chunks = 1000;
-var chunkSize = 250;
-var data = Buffer.allocUnsafe(chunkSize);
-var wclosed = 0;
-var rclosed = 0;
+const assert = require('assert');
+const Stream = require('stream').Stream;
+const rr = [];
+const ww = [];
+const cnt = 100;
+const chunks = 1000;
+const chunkSize = 250;
+const data = Buffer.allocUnsafe(chunkSize);
+let wclosed = 0;
+let rclosed = 0;
 
 function FakeStream() {
   Stream.apply(this);
@@ -54,14 +54,14 @@ for (let i = 0; i < chunkSize; i++) {
 }
 
 for (let i = 0; i < cnt; i++) {
-  var r = new FakeStream();
+  const r = new FakeStream();
   r.on('close', function() {
     console.error(this.ID, 'read close');
     rclosed++;
   });
   rr.push(r);
 
-  var w = new FakeStream();
+  const w = new FakeStream();
   w.on('close', function() {
     console.error(this.ID, 'write close');
     wclosed++;
@@ -75,8 +75,8 @@ for (let i = 0; i < cnt; i++) {
 // now start passing through data
 // simulate a relatively fast async stream.
 rr.forEach(function(r) {
-  var cnt = chunks;
-  var paused = false;
+  let cnt = chunks;
+  let paused = false;
 
   r.on('pause', function() {
     paused = true;

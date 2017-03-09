@@ -1,7 +1,7 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var fs = require('fs');
+const assert = require('assert');
+const fs = require('fs');
 
 function test(cb) {
   return function() {
