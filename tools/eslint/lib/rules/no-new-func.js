@@ -34,7 +34,7 @@ module.exports = {
          */
         function validateCallee(node) {
             if (node.callee.name === "Function") {
-                context.report(node, "The Function constructor is eval.");
+                context.report({ node, message: "The Function constructor is eval." });
             }
         }
 

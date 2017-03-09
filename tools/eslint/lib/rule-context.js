@@ -61,36 +61,41 @@ const PASSTHROUGHS = [
 //------------------------------------------------------------------------------
 
 /**
+ * Rule context class
  * Acts as an abstraction layer between rules and the main eslint object.
- * @constructor
- * @param {string} ruleId The ID of the rule using this object.
- * @param {eslint} eslint The eslint object.
- * @param {number} severity The configured severity level of the rule.
- * @param {Array} options The configuration information to be added to the rule.
- * @param {Object} settings The configuration settings passed from the config file.
- * @param {Object} parserOptions The parserOptions settings passed from the config file.
- * @param {Object} parserPath The parser setting passed from the config file.
- * @param {Object} meta The metadata of the rule
  */
-function RuleContext(ruleId, eslint, severity, options, settings, parserOptions, parserPath, meta) {
+class RuleContext {
 
-    // public.
-    this.id = ruleId;
-    this.options = options;
-    this.settings = settings;
-    this.parserOptions = parserOptions;
-    this.parserPath = parserPath;
-    this.meta = meta;
+    /**
+     * @param {string} ruleId The ID of the rule using this object.
+     * @param {eslint} eslint The eslint object.
+     * @param {number} severity The configured severity level of the rule.
+     * @param {Array} options The configuration information to be added to the rule.
+     * @param {Object} settings The configuration settings passed from the config file.
+     * @param {Object} parserOptions The parserOptions settings passed from the config file.
+     * @param {Object} parserPath The parser setting passed from the config file.
+     * @param {Object} meta The metadata of the rule
+     * @param {Object} parserServices The parser services for the rule.
+     */
+    constructor(ruleId, eslint, severity, options, settings, parserOptions, parserPath, meta, parserServices) {
 
-    // private.
-    this.eslint = eslint;
-    this.severity = severity;
+        // public.
+        this.id = ruleId;
+        this.options = options;
+        this.settings = settings;
+        this.parserOptions = parserOptions;
+        this.parserPath = parserPath;
+        this.meta = meta;
 
-    Object.freeze(this);
-}
+        // create a separate copy and freeze it (it's not nice to freeze other people's objects)
+        this.parserServices = Object.freeze(Object.assign({}, parserServices));
 
-RuleContext.prototype = {
-    constructor: RuleContext,
+        // private.
+        this.eslint = eslint;
+        this.severity = severity;
+
+        Object.freeze(this);
+    }
 
     /**
      * Passthrough to eslint.getSourceCode().
@@ -98,7 +103,7 @@ RuleContext.prototype = {
      */
     getSourceCode() {
         return this.eslint.getSourceCode();
-    },
+    }
 
     /**
      * Passthrough to eslint.report() that automatically assigns the rule ID and severity.
@@ -147,7 +152,7 @@ RuleContext.prototype = {
             this.meta
         );
     }
-};
+}
 
 // Copy over passthrough methods. All functions will have 5 or fewer parameters.
 PASSTHROUGHS.forEach(function(name) {

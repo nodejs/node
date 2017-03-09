@@ -10,7 +10,7 @@
   {{# def._validateSwitchRule:if }}
   {{ $it.createErrors = true; }}
   {{# def.resetCompositeRule }}
-  {{=$ifPassed}} = valid{{=$it.level}};
+  {{=$ifPassed}} = {{=$nextValid}};
 #}}
 
 {{## def.validateThen:
@@ -18,7 +18,7 @@
     {{? $sch.then === false }}
       {{# def.error:'switch' }}
     {{?}}
-    var valid{{=$it.level}} = {{= $sch.then }};
+    var {{=$nextValid}} = {{= $sch.then }};
   {{??}}
     {{# def._validateSwitchRule:then }}
   {{?}}
@@ -68,6 +68,6 @@ var {{=$ifPassed}};
 
 {{= $closingBraces }}
 
-var {{=$valid}} = valid{{=$it.level}};
+var {{=$valid}} = {{=$nextValid}};
 
 {{# def.cleanUp }}

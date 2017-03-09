@@ -43,7 +43,7 @@ if (!process.argv[2]) {
   }
 
   const args = ['/c', process.execPath, __filename, 'child',
-              '<', stdinPipeName, '>', stdoutPipeName];
+                '<', stdinPipeName, '>', stdoutPipeName];
 
   const child = spawn(comspec, args);
 

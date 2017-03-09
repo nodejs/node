@@ -291,7 +291,7 @@ const testNonGlobal = repl.start({
 });
 
 const builtins = [['Infinity', '', 'Int16Array', 'Int32Array',
-                                 'Int8Array'], 'I'];
+                   'Int8Array'], 'I'];
 
 if (typeof Intl === 'object') {
   builtins[0].push('Intl');

@@ -117,16 +117,16 @@ function SourceCode(text, ast) {
      */
     this.lines = SourceCode.splitLines(this.text);
 
-    this.tokensAndComments = ast.tokens.concat(ast.comments).sort(function(left, right) {
-        return left.range[0] - right.range[0];
-    });
+    this.tokensAndComments = ast.tokens
+        .concat(ast.comments)
+        .sort((left, right) => left.range[0] - right.range[0]);
 
     // create token store methods
     const tokenStore = createTokenStore(ast.tokens);
 
-    Object.keys(tokenStore).forEach(function(methodName) {
+    Object.keys(tokenStore).forEach(methodName => {
         this[methodName] = tokenStore[methodName];
-    }, this);
+    });
 
     const tokensAndCommentsStore = createTokenStore(this.tokensAndComments);
 
@@ -280,7 +280,7 @@ SourceCode.prototype = {
             }
         });
 
-        return result ? Object.assign({parent: resultParent}, result) : null;
+        return result ? Object.assign({ parent: resultParent }, result) : null;
     },
 
     /**

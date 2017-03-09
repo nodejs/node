@@ -569,21 +569,20 @@ function postprocess(analyzer, node) {
 /**
  * The class to analyze code paths.
  * This class implements the EventGenerator interface.
- *
- * @constructor
- * @param {EventGenerator} eventGenerator - An event generator to wrap.
  */
-function CodePathAnalyzer(eventGenerator) {
-    this.original = eventGenerator;
-    this.emitter = eventGenerator.emitter;
-    this.codePath = null;
-    this.idGenerator = new IdGenerator("s");
-    this.currentNode = null;
-    this.onLooped = this.onLooped.bind(this);
-}
+class CodePathAnalyzer {
 
-CodePathAnalyzer.prototype = {
-    constructor: CodePathAnalyzer,
+    /**
+     * @param {EventGenerator} eventGenerator - An event generator to wrap.
+     */
+    constructor(eventGenerator) {
+        this.original = eventGenerator;
+        this.emitter = eventGenerator.emitter;
+        this.codePath = null;
+        this.idGenerator = new IdGenerator("s");
+        this.currentNode = null;
+        this.onLooped = this.onLooped.bind(this);
+    }
 
     /**
      * Does the process to enter a given AST node.
@@ -608,7 +607,7 @@ CodePathAnalyzer.prototype = {
         this.original.enterNode(node);
 
         this.currentNode = null;
-    },
+    }
 
     /**
      * Does the process to leave a given AST node.
@@ -631,7 +630,7 @@ CodePathAnalyzer.prototype = {
         postprocess(this, node);
 
         this.currentNode = null;
-    },
+    }
 
     /**
      * This is called on a code path looped.
@@ -652,6 +651,6 @@ CodePathAnalyzer.prototype = {
             );
         }
     }
-};
+}
 
 module.exports = CodePathAnalyzer;

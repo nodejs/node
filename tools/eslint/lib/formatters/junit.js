@@ -35,7 +35,7 @@ module.exports = function(results) {
     output += "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
     output += "<testsuites>\n";
 
-    results.forEach(function(result) {
+    results.forEach(result => {
 
         const messages = result.messages;
 
@@ -43,7 +43,7 @@ module.exports = function(results) {
             output += `<testsuite package="org.eslint" time="0" tests="${messages.length}" errors="${messages.length}" name="${result.filePath}">\n`;
         }
 
-        messages.forEach(function(message) {
+        messages.forEach(message => {
             const type = message.fatal ? "error" : "failure";
 
             output += `<testcase time="0" name="org.eslint.${message.ruleId || "unknown"}">`;

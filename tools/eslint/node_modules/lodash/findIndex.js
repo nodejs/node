@@ -14,8 +14,7 @@ var nativeMax = Math.max;
  * @since 1.1.0
  * @category Array
  * @param {Array} array The array to inspect.
- * @param {Function} [predicate=_.identity]
- *  The function invoked per iteration.
+ * @param {Function} [predicate=_.identity] The function invoked per iteration.
  * @param {number} [fromIndex=0] The index to search from.
  * @returns {number} Returns the index of the found element, else `-1`.
  * @example
@@ -42,7 +41,7 @@ var nativeMax = Math.max;
  * // => 2
  */
 function findIndex(array, predicate, fromIndex) {
-  var length = array ? array.length : 0;
+  var length = array == null ? 0 : array.length;
   if (!length) {
     return -1;
   }

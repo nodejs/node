@@ -45,7 +45,7 @@ module.exports = {
             }
 
             if (openParen.loc.start.line !== nodeExpressionEnd.loc.end.line) {
-                context.report(node, openParen.loc.start, msg, { char: openParen.value });
+                context.report({ node, loc: openParen.loc.start, message: msg, data: { char: openParen.value } });
             }
         }
 
@@ -66,7 +66,7 @@ module.exports = {
                 if (node.tag.loc.end.line === node.quasi.loc.start.line) {
                     return;
                 }
-                context.report(node, node.loc.start, TAGGED_TEMPLATE_MESSAGE);
+                context.report({ node, loc: node.loc.start, message: TAGGED_TEMPLATE_MESSAGE });
             },
 
             CallExpression(node) {

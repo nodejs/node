@@ -49,14 +49,12 @@ const MAX_CONFIG_COMBINATIONS = 17, // 16 combinations + 1 for severity only
  * @returns {Object}                  registryItems for each rule in provided rulesConfig
  */
 function makeRegistryItems(rulesConfig) {
-    return Object.keys(rulesConfig).reduce(function(accumulator, ruleId) {
-        accumulator[ruleId] = rulesConfig[ruleId].map(function(config) {
-            return {
-                config,
-                specificity: config.length || 1,
-                errorCount: void 0
-            };
-        });
+    return Object.keys(rulesConfig).reduce((accumulator, ruleId) => {
+        accumulator[ruleId] = rulesConfig[ruleId].map(config => ({
+            config,
+            specificity: config.length || 1,
+            errorCount: void 0
+        }));
         return accumulator;
     }, {});
 }
@@ -173,10 +171,8 @@ Registry.prototype = {
             newRegistry = new Registry();
 
         newRegistry.rules = Object.assign({}, this.rules);
-        ruleIds.forEach(function(ruleId) {
-            const errorFreeItems = newRegistry.rules[ruleId].filter(function(registryItem) {
-                return (registryItem.errorCount === 0);
-            });
+        ruleIds.forEach(ruleId => {
+            const errorFreeItems = newRegistry.rules[ruleId].filter(registryItem => (registryItem.errorCount === 0));
 
             if (errorFreeItems.length > 0) {
                 newRegistry.rules[ruleId] = errorFreeItems;
@@ -198,10 +194,8 @@ Registry.prototype = {
             newRegistry = new Registry();
 
         newRegistry.rules = Object.assign({}, this.rules);
-        ruleIds.forEach(function(ruleId) {
-            newRegistry.rules[ruleId] = newRegistry.rules[ruleId].filter(function(registryItem) {
-                return (typeof registryItem.errorCount !== "undefined");
-            });
+        ruleIds.forEach(ruleId => {
+            newRegistry.rules[ruleId] = newRegistry.rules[ruleId].filter(registryItem => (typeof registryItem.errorCount !== "undefined"));
         });
 
         return newRegistry;
@@ -218,15 +212,13 @@ Registry.prototype = {
         const ruleIds = Object.keys(this.rules),
             failingRegistry = new Registry();
 
-        ruleIds.forEach(function(ruleId) {
-            const failingConfigs = this.rules[ruleId].filter(function(registryItem) {
-                return (registryItem.errorCount > 0);
-            });
+        ruleIds.forEach(ruleId => {
+            const failingConfigs = this.rules[ruleId].filter(registryItem => (registryItem.errorCount > 0));
 
             if (failingConfigs && failingConfigs.length === this.rules[ruleId].length) {
                 failingRegistry.rules[ruleId] = failingConfigs;
             }
-        }.bind(this));
+        });
 
         return failingRegistry;
     },
@@ -239,13 +231,13 @@ Registry.prototype = {
      */
     createConfig() {
         const ruleIds = Object.keys(this.rules),
-            config = {rules: {}};
+            config = { rules: {} };
 
-        ruleIds.forEach(function(ruleId) {
+        ruleIds.forEach(ruleId => {
             if (this.rules[ruleId].length === 1) {
                 config.rules[ruleId] = this.rules[ruleId][0].config;
             }
-        }.bind(this));
+        });
 
         return config;
     },
@@ -261,11 +253,9 @@ Registry.prototype = {
             newRegistry = new Registry();
 
         newRegistry.rules = Object.assign({}, this.rules);
-        ruleIds.forEach(function(ruleId) {
-            newRegistry.rules[ruleId] = this.rules[ruleId].filter(function(registryItem) {
-                return (registryItem.specificity === specificity);
-            });
-        }.bind(this));
+        ruleIds.forEach(ruleId => {
+            newRegistry.rules[ruleId] = this.rules[ruleId].filter(registryItem => (registryItem.specificity === specificity));
+        });
 
         return newRegistry;
     },
@@ -294,16 +284,16 @@ Registry.prototype = {
         const filenames = Object.keys(sourceCodes);
         const totalFilesLinting = filenames.length * ruleSets.length;
 
-        filenames.forEach(function(filename) {
+        filenames.forEach(filename => {
             debug(`Linting file: ${filename}`);
 
             ruleSetIdx = 0;
 
-            ruleSets.forEach(function(ruleSet) {
-                const lintConfig = Object.assign({}, config, {rules: ruleSet});
+            ruleSets.forEach(ruleSet => {
+                const lintConfig = Object.assign({}, config, { rules: ruleSet });
                 const lintResults = eslint.verify(sourceCodes[filename], lintConfig);
 
-                lintResults.forEach(function(result) {
+                lintResults.forEach(result => {
 
                     // It is possible that the error is from a configuration comment
                     // in a linted file, in which case there may not be a config
@@ -342,11 +332,9 @@ function extendFromRecommended(config) {
 
     ConfigOps.normalizeToStrings(newConfig);
 
-    const recRules = Object.keys(recConfig.rules).filter(function(ruleId) {
-        return ConfigOps.isErrorSeverity(recConfig.rules[ruleId]);
-    });
+    const recRules = Object.keys(recConfig.rules).filter(ruleId => ConfigOps.isErrorSeverity(recConfig.rules[ruleId]));
 
-    recRules.forEach(function(ruleId) {
+    recRules.forEach(ruleId => {
         if (lodash.isEqual(recConfig.rules[ruleId], newConfig.rules[ruleId])) {
             delete newConfig.rules[ruleId];
         }

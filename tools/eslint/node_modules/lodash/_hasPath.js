@@ -2,7 +2,6 @@ var castPath = require('./_castPath'),
     isArguments = require('./isArguments'),
     isArray = require('./isArray'),
     isIndex = require('./_isIndex'),
-    isKey = require('./_isKey'),
     isLength = require('./isLength'),
     toKey = require('./_toKey');
 
@@ -16,7 +15,7 @@ var castPath = require('./_castPath'),
  * @returns {boolean} Returns `true` if `path` exists, else `false`.
  */
 function hasPath(object, path, hasFunc) {
-  path = isKey(path, object) ? [path] : castPath(path);
+  path = castPath(path, object);
 
   var index = -1,
       length = path.length,
@@ -32,7 +31,7 @@ function hasPath(object, path, hasFunc) {
   if (result || ++index != length) {
     return result;
   }
-  length = object ? object.length : 0;
+  length = object == null ? 0 : object.length;
   return !!length && isLength(length) && isIndex(key, length) &&
     (isArray(object) || isArguments(object));
 }

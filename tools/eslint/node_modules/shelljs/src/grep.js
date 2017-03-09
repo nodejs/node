@@ -1,12 +1,22 @@
 var common = require('./common');
 var fs = require('fs');
 
+common.register('grep', _grep, {
+  globStart: 2, // don't glob-expand the regex
+  canReceivePipe: true,
+  cmdOptions: {
+    'v': 'inverse',
+    'l': 'nameOnly',
+  },
+});
+
 //@
 //@ ### grep([options,] regex_filter, file [, file ...])
 //@ ### grep([options,] regex_filter, file_array)
 //@ Available options:
 //@
 //@ + `-v`: Inverse the sense of the regex and print the lines not matching the criteria.
+//@ + `-l`: Print only filenames of matching files
 //@
 //@ Examples:
 //@
@@ -16,37 +26,42 @@ var fs = require('fs');
 //@ ```
 //@
 //@ Reads input string from given files and returns a string containing all lines of the
-//@ file that match the given `regex_filter`. Wildcard `*` accepted.
+//@ file that match the given `regex_filter`.
 function _grep(options, regex, files) {
-  options = common.parseOptions(options, {
-    'v': 'inverse'
-  });
+  // Check if this is coming from a pipe
+  var pipe = common.readFromPipe();
 
-  if (!files)
-    common.error('no paths given');
+  if (!files && !pipe) common.error('no paths given', 2);
 
-  if (typeof files === 'string')
-    files = [].slice.call(arguments, 2);
-  // if it's array leave it as it is
+  files = [].slice.call(arguments, 2);
 
-  files = common.expand(files);
+  if (pipe) {
+    files.unshift('-');
+  }
 
-  var grep = '';
-  files.forEach(function(file) {
-    if (!fs.existsSync(file)) {
-      common.error('no such file or directory: ' + file, true);
+  var grep = [];
+  files.forEach(function (file) {
+    if (!fs.existsSync(file) && file !== '-') {
+      common.error('no such file or directory: ' + file, 2, { continue: true });
       return;
     }
 
-    var contents = fs.readFileSync(file, 'utf8'),
-        lines = contents.split(/\r*\n/);
-    lines.forEach(function(line) {
-      var matched = line.match(regex);
-      if ((options.inverse && !matched) || (!options.inverse && matched))
-        grep += line + '\n';
-    });
+    var contents = file === '-' ? pipe : fs.readFileSync(file, 'utf8');
+    var lines = contents.split(/\r*\n/);
+    if (options.nameOnly) {
+      if (contents.match(regex)) {
+        grep.push(file);
+      }
+    } else {
+      lines.forEach(function (line) {
+        var matched = line.match(regex);
+        if ((options.inverse && !matched) || (!options.inverse && matched)) {
+          grep.push(line);
+        }
+      });
+    }
   });
 
-  return common.ShellString(grep);
+  return grep.join('\n') + '\n';
 }
 module.exports = _grep;

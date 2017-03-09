@@ -67,9 +67,9 @@ module.exports = {
          * @private
          */
         function report(node) {
-            context.report(node, "Identifier '{{name}}' is blacklisted.", {
+            context.report({ node, message: "Identifier '{{name}}' is blacklisted.", data: {
                 name: node.name
-            });
+            } });
         }
 
         return {

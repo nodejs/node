@@ -22,9 +22,9 @@ server.listen(0, () => {
     port: server.address().port,
     // Send two content-length header values.
     headers: {'Content-Length': [1, 2]}},
-    (res) => {
-      common.fail('an error should have occurred');
-    }
+                       (res) => {
+                         common.fail('an error should have occurred');
+                       }
   );
   req.on('error', common.mustCall(() => {
     server.close();

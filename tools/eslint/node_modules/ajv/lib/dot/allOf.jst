@@ -3,11 +3,15 @@
 {{# def.setupKeyword }}
 {{# def.setupNextLevel }}
 
-{{ var $currentBaseId = $it.baseId; }}
+{{
+  var $currentBaseId = $it.baseId
+    , $allSchemasEmpty = true;
+}}
 
 {{~ $schema:$sch:$i }}
   {{? {{# def.nonEmptySchema:$sch }} }}
     {{
+      $allSchemasEmpty = false;
       $it.schema = $sch;
       $it.schemaPath = $schemaPath + '[' + $i + ']';
       $it.errSchemaPath = $errSchemaPath + '/' + $i;
@@ -20,7 +24,11 @@
 {{~}}
 
 {{? $breakOnError }}
-  {{= $closingBraces.slice(0,-1) }}
+  {{? $allSchemasEmpty }}
+    if (true) {
+  {{??}}
+    {{= $closingBraces.slice(0,-1) }}
+  {{?}}
 {{?}}
 
 {{# def.cleanUp }}
