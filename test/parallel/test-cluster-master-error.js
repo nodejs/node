@@ -15,7 +15,7 @@ if (cluster.isWorker) {
 } else if (process.argv[2] === 'cluster') {
 
   // Send PID to testcase process
-  var forkNum = 0;
+  let forkNum = 0;
   cluster.on('fork', common.mustCall(function forkEvent(worker) {
 
     // Send PID
@@ -31,7 +31,7 @@ if (cluster.isWorker) {
   }));
 
   // Throw accidental error when all workers are listening
-  var listeningNum = 0;
+  let listeningNum = 0;
   cluster.on('listening', common.mustCall(function listeningEvent() {
 
     // When all workers are listening
@@ -56,8 +56,8 @@ if (cluster.isWorker) {
 
   const fork = require('child_process').fork;
 
-  var masterExited = false;
-  var workersExited = false;
+  let masterExited = false;
+  let workersExited = false;
 
   // List all workers
   const workers = [];
@@ -82,7 +82,7 @@ if (cluster.isWorker) {
 
     const pollWorkers = function() {
       // When master is dead all workers should be dead too
-      var alive = false;
+      let alive = false;
       workers.forEach((pid) => alive = common.isAlive(pid));
       if (alive) {
         setTimeout(pollWorkers, 50);

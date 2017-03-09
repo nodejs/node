@@ -1,11 +1,11 @@
 'use strict';
 require('../common');
-var stream = require('stream');
-var Readable = stream.Readable;
-var Writable = stream.Writable;
-var assert = require('assert');
+let stream = require('stream');
+const Readable = stream.Readable;
+const Writable = stream.Writable;
+const assert = require('assert');
 
-var EE = require('events').EventEmitter;
+const EE = require('events').EventEmitter;
 
 
 // a mock thing a bit like the net.Socket/tcp_wrap.handle interaction
@@ -15,20 +15,20 @@ stream = new Readable({
   encoding: 'utf8'
 });
 
-var source = new EE();
+const source = new EE();
 
 stream._read = function() {
   console.error('stream._read');
   readStart();
 };
 
-var ended = false;
+let ended = false;
 stream.on('end', function() {
   ended = true;
 });
 
 source.on('data', function(chunk) {
-  var ret = stream.push(chunk);
+  const ret = stream.push(chunk);
   console.error('data', stream._readableState.length);
   if (!ret)
     readStop();
@@ -38,7 +38,7 @@ source.on('end', function() {
   stream.push(null);
 });
 
-var reading = false;
+let reading = false;
 
 function readStart() {
   console.error('readStart');
@@ -49,19 +49,19 @@ function readStop() {
   console.error('readStop');
   reading = false;
   process.nextTick(function() {
-    var r = stream.read();
+    const r = stream.read();
     if (r !== null)
       writer.write(r);
   });
 }
 
-var writer = new Writable({
+let writer = new Writable({
   decodeStrings: false
 });
 
-var written = [];
+const written = [];
 
-var expectWritten =
+const expectWritten =
   [ 'asdfgasdfgasdfgasdfg',
     'asdfgasdfgasdfgasdfg',
     'asdfgasdfgasdfgasdfg',
@@ -80,9 +80,9 @@ writer.on('finish', finish);
 
 // now emit some chunks.
 
-var chunk = 'asdfg';
+const chunk = 'asdfg';
 
-var set = 0;
+let set = 0;
 readStart();
 data();
 function data() {

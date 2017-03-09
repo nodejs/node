@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
-var path = require('path');
-var assert = require('assert');
+const common = require('../common');
+const path = require('path');
+const assert = require('assert');
 
 setTimeout(common.mustCall(function() {
   const a = require(path.join(common.fixturesDir, 'a'));

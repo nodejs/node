@@ -9,7 +9,7 @@ let conn;
 
 
 // Server
-var server = net.createServer(function(conn) {
+const server = net.createServer(function(conn) {
   connections++;
   conn.end('This was the year he fell to pieces.');
 

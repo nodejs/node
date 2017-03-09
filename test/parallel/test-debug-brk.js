@@ -7,13 +7,13 @@ let run = () => {};
 function test(extraArgs, stdoutPattern) {
   const next = run;
   run = () => {
-    var procStdout = '';
-    var procStderr = '';
-    var agentStdout = '';
-    var debuggerListening = false;
-    var outputMatched = false;
-    var needToSpawnAgent = true;
-    var needToExit = true;
+    let procStdout = '';
+    let procStderr = '';
+    let agentStdout = '';
+    let debuggerListening = false;
+    let outputMatched = false;
+    let needToSpawnAgent = true;
+    let needToExit = true;
 
     const procArgs = [`--debug-brk=${common.PORT}`].concat(extraArgs);
     const proc = spawn(process.execPath, procArgs);

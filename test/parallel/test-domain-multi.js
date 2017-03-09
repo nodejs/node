@@ -5,14 +5,14 @@ const common = require('../common');
 const domain = require('domain');
 const http = require('http');
 
-var a = domain.create();
+const a = domain.create();
 a.enter(); // this will be our "root" domain
 
 a.on('error', common.fail);
 
 const server = http.createServer((req, res) => {
   // child domain of a.
-  var b = domain.create();
+  const b = domain.create();
   a.add(b);
 
   // treat these EE objects as if they are a part of the b domain

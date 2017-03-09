@@ -1,14 +1,14 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
-var exchanges = 0;
-var starttime = null;
-var timeouttime = null;
-var timeout = 1000;
+let exchanges = 0;
+let starttime = null;
+let timeouttime = null;
+const timeout = 1000;
 
-var echo_server = net.createServer(function(socket) {
+const echo_server = net.createServer(function(socket) {
   socket.setTimeout(timeout);
 
   socket.on('timeout', function() {
@@ -36,7 +36,7 @@ var echo_server = net.createServer(function(socket) {
 echo_server.listen(common.PORT, function() {
   console.log('server listening at ' + common.PORT);
 
-  var client = net.createConnection(common.PORT);
+  const client = net.createConnection(common.PORT);
   client.setEncoding('UTF8');
   client.setTimeout(0); // disable the timeout for client
   client.on('connect', function() {
@@ -79,7 +79,7 @@ process.on('exit', function() {
   assert.ok(starttime != null);
   assert.ok(timeouttime != null);
 
-  var diff = timeouttime - starttime;
+  const diff = timeouttime - starttime;
   console.log('diff = ' + diff);
 
   assert.ok(timeout < diff);

@@ -25,16 +25,16 @@ function next() {
 
   // Work around health check issue
   process.nextTick(() => {
-    for (var i = 0; i < sockets.length; i++)
+    for (let i = 0; i < sockets.length; i++)
       sockets[i].close(close);
   });
 }
 
-var waiting = 2;
+let waiting = 2;
 function close() {
   if (--waiting === 0)
     cluster.worker.disconnect();
 }
 
-for (var i = 0; i < 2; i++)
+for (let i = 0; i < 2; i++)
   dgram.createSocket({ type: 'udp4', reuseAddr: true }).bind(common.PORT, next);

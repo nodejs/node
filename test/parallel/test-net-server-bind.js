@@ -1,13 +1,13 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
 
 // With only a callback, server should get a port assigned by the OS
 
-var address0;
-var server0 = net.createServer(function(socket) { });
+let address0;
+const server0 = net.createServer(function(socket) { });
 
 server0.listen(function() {
   address0 = server0.address();
@@ -18,9 +18,9 @@ server0.listen(function() {
 
 // No callback to listen(), assume we can bind in 100 ms
 
-var address1;
-var connectionKey1;
-var server1 = net.createServer(function(socket) { });
+let address1;
+let connectionKey1;
+const server1 = net.createServer(function(socket) { });
 
 server1.listen(common.PORT);
 
@@ -34,8 +34,8 @@ setTimeout(function() {
 
 // Callback to listen()
 
-var address2;
-var server2 = net.createServer(function(socket) { });
+let address2;
+const server2 = net.createServer(function(socket) { });
 
 server2.listen(common.PORT + 1, function() {
   address2 = server2.address();
@@ -46,8 +46,8 @@ server2.listen(common.PORT + 1, function() {
 
 // Backlog argument
 
-var address3;
-var server3 = net.createServer(function(socket) { });
+let address3;
+const server3 = net.createServer(function(socket) { });
 
 server3.listen(common.PORT + 2, '0.0.0.0', 127, function() {
   address3 = server3.address();
@@ -58,8 +58,8 @@ server3.listen(common.PORT + 2, '0.0.0.0', 127, function() {
 
 // Backlog argument without host argument
 
-var address4;
-var server4 = net.createServer(function(socket) { });
+let address4;
+const server4 = net.createServer(function(socket) { });
 
 server4.listen(common.PORT + 3, 127, function() {
   address4 = server4.address();
@@ -72,7 +72,7 @@ process.on('exit', function() {
   assert.ok(address0.port > 100);
   assert.equal(common.PORT, address1.port);
 
-  var expectedConnectionKey1;
+  let expectedConnectionKey1;
 
   if (address1.family === 'IPv6')
     expectedConnectionKey1 = '6::::' + address1.port;

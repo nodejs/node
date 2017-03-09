@@ -4,7 +4,7 @@ const assert = require('assert');
 const path = require('path');
 const fs = require('fs');
 
-var file = path.join(common.tmpDir, 'write.txt');
+const file = path.join(common.tmpDir, 'write.txt');
 
 common.refreshTmpDir();
 

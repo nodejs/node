@@ -10,7 +10,7 @@ const expectedUsageMessage = `Usage: node debug script.js
        node debug <host>:<port>
        node debug -p <pid>
 `;
-var actualUsageMessage = '';
+let actualUsageMessage = '';
 child.stderr.on('data', function(data) {
   actualUsageMessage += data.toString();
 });

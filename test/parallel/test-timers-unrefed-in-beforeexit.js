@@ -3,7 +3,7 @@
 require('../common');
 const assert = require('assert');
 
-var once = 0;
+let once = 0;
 
 process.on('beforeExit', () => {
   if (once > 1)

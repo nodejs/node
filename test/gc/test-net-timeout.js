@@ -7,7 +7,7 @@ require('../common');
 function serverHandler(sock) {
   sock.setTimeout(120000);
   sock.resume();
-  var timer;
+  let timer;
   sock.on('close', function() {
     clearTimeout(timer);
   });
@@ -29,7 +29,7 @@ let countGC = 0;
 
 console.log('We should do ' + todo + ' requests');
 
-var server = net.createServer(serverHandler);
+const server = net.createServer(serverHandler);
 server.listen(0, getall);
 
 function getall() {
@@ -50,7 +50,7 @@ function getall() {
   setImmediate(getall);
 }
 
-for (var i = 0; i < 10; i++)
+for (let i = 0; i < 10; i++)
   getall();
 
 function afterGC() {

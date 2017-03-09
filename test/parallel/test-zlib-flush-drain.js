@@ -13,8 +13,8 @@ const opts = {
 const deflater = zlib.createDeflate(opts);
 
 // shim deflater.flush so we can count times executed
-var flushCount = 0;
-var drainCount = 0;
+let flushCount = 0;
+let drainCount = 0;
 
 const flush = deflater.flush;
 deflater.flush = function(kind, callback) {
@@ -26,7 +26,7 @@ deflater.write(bigData);
 
 const ws = deflater._writableState;
 const beforeFlush = ws.needDrain;
-var afterFlush = ws.needDrain;
+let afterFlush = ws.needDrain;
 
 deflater.flush(function(err) {
   afterFlush = ws.needDrain;

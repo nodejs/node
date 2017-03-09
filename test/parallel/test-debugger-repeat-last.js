@@ -17,11 +17,11 @@ const args = [
 const proc = spawn(process.execPath, args, { stdio: 'pipe' });
 proc.stdout.setEncoding('utf8');
 
-var stdout = '';
+let stdout = '';
 
-var sentCommand = false;
-var sentEmpty = false;
-var sentExit = false;
+let sentCommand = false;
+let sentEmpty = false;
+let sentExit = false;
 
 proc.stdout.on('data', (data) => {
   stdout += data;

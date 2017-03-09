@@ -3,7 +3,7 @@ const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
-var clientResponses = 0;
+let clientResponses = 0;
 
 const server = http.createServer(common.mustCall(function(req, res) {
   console.error('Server got GET request');
@@ -46,7 +46,7 @@ function doRequest(i) {
     path: '/request' + i
   }, common.mustCall(function(res) {
     console.error('Client got GET response');
-    var data = '';
+    let data = '';
     res.setEncoding('utf8');
     res.on('data', function(chunk) {
       data += chunk;

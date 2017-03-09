@@ -13,7 +13,7 @@ const messages = [
 ];
 const workers = {};
 const listeners = 3;
-
+let dead, listening, sendSocket, done, timer;
 
 // Skip test in FreeBSD jails.
 if (common.inFreeBSDJail) {
@@ -76,10 +76,10 @@ function launchChildProcess() {
         Object.keys(workers).forEach(function(pid) {
           const worker = workers[pid];
 
-          var count = 0;
+          let count = 0;
 
           worker.messagesReceived.forEach(function(buf) {
-            for (var i = 0; i < messages.length; ++i) {
+            for (let i = 0; i < messages.length; ++i) {
               if (buf.toString() === messages[i].toString()) {
                 count++;
                 break;
@@ -110,13 +110,13 @@ function killChildren(children) {
 }
 
 if (process.argv[2] !== 'child') {
-  var listening = 0;
-  var dead = 0;
-  var i = 0;
-  var done = 0;
+  listening = 0;
+  dead = 0;
+  let i = 0;
+  done = 0;
 
   // Exit the test if it doesn't succeed within TIMEOUT.
-  var timer = setTimeout(function() {
+  timer = setTimeout(function() {
     console.error('[PARENT] Responses were not received within %d ms.',
                   TIMEOUT);
     console.error('[PARENT] Fail');
@@ -127,11 +127,11 @@ if (process.argv[2] !== 'child') {
   }, TIMEOUT);
 
   // Launch child processes.
-  for (var x = 0; x < listeners; x++) {
+  for (let x = 0; x < listeners; x++) {
     launchChildProcess(x);
   }
 
-  var sendSocket = dgram.createSocket('udp4');
+  sendSocket = dgram.createSocket('udp4');
 
   // The socket is actually created async now.
   sendSocket.on('listening', function() {

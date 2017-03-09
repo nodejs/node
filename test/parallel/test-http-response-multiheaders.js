@@ -29,7 +29,7 @@ const norepeat = [
 ];
 
 const server = http.createServer(function(req, res) {
-  var num = req.headers['x-num'];
+  const num = req.headers['x-num'];
   if (num === '1') {
     for (const name of norepeat) {
       res.setHeader(name, ['A', 'B']);
@@ -47,7 +47,7 @@ const server = http.createServer(function(req, res) {
 });
 
 server.listen(0, common.mustCall(function() {
-  var count = 0;
+  let count = 0;
   for (let n = 1; n <= 2; n++) {
     // this runs twice, the first time, the server will use
     // setHeader, the second time it uses writeHead. The

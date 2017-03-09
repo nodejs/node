@@ -1,12 +1,12 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
-var N = 200;
-var recv = '', chars_recved = 0;
+const N = 200;
+let recv = '', chars_recved = 0;
 
-var server = net.createServer(function(connection) {
+const server = net.createServer(function(connection) {
   function write(j) {
     if (j >= N) {
       connection.end();
@@ -21,7 +21,7 @@ var server = net.createServer(function(connection) {
 });
 
 server.on('listening', function() {
-  var client = net.createConnection(common.PORT);
+  const client = net.createConnection(common.PORT);
   client.setEncoding('ascii');
   client.on('data', function(d) {
     console.log(d);

@@ -1,16 +1,16 @@
 'use strict';
 // Flags: --expose-gc
 
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var fs = require('fs');
+const fs = require('fs');
 
 assert.strictEqual(
   typeof global.gc,
@@ -38,10 +38,10 @@ tls.createServer({
 }
 
 function done() {
-  var before = process.memoryUsage().rss;
+  const before = process.memoryUsage().rss;
   global.gc();
-  var after = process.memoryUsage().rss;
-  var reclaimed = (before - after) / 1024;
+  const after = process.memoryUsage().rss;
+  const reclaimed = (before - after) / 1024;
   console.log('%d kB reclaimed', reclaimed);
   assert(reclaimed > 256 * 1024);  // it's more like 512M on x64
   process.exit();

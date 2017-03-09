@@ -178,7 +178,7 @@ const tests = [
 const numtests = tests.length;
 
 
-var testsNotRan = tests.length;
+let testsNotRan = tests.length;
 
 process.on('beforeExit', () =>
   assert.strictEqual(testsNotRan, 0)

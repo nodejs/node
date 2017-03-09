@@ -14,8 +14,9 @@ if (!common.enoughTestMem) {
 // v8::String::kMaxLength defined in v8.h
 const kStringMaxLength = process.binding('buffer').kStringMaxLength;
 
+let buf;
 try {
-  var buf = Buffer.allocUnsafe(kStringMaxLength + 1);
+  buf = Buffer.allocUnsafe(kStringMaxLength + 1);
 } catch (e) {
   // If the exception is not due to memory confinement then rethrow it.
   if (e.message !== 'Array buffer allocation failed') throw (e);
@@ -33,7 +34,7 @@ assert.throws(function() {
   buf.toString('latin1');
 }, /"toString\(\)" failed/);
 
-var maxString = buf.toString('latin1', 1);
+let maxString = buf.toString('latin1', 1);
 assert.strictEqual(maxString.length, kStringMaxLength);
 // Free the memory early instead of at the end of the next assignment
 maxString = undefined;

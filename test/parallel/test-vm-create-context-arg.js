@@ -1,7 +1,7 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var vm = require('vm');
+const assert = require('assert');
+const vm = require('vm');
 
 assert.throws(function() {
   vm.createContext('string is not supported');
@@ -13,7 +13,7 @@ assert.doesNotThrow(function() {
 });
 
 assert.doesNotThrow(function() {
-  var sandbox = {};
+  const sandbox = {};
   vm.createContext(sandbox);
   vm.createContext(sandbox);
 });

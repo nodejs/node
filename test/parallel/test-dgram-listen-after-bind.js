@@ -1,14 +1,14 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var dgram = require('dgram');
+const assert = require('assert');
+const dgram = require('dgram');
 
-var socket = dgram.createSocket('udp4');
+const socket = dgram.createSocket('udp4');
 
 socket.bind();
 
-var fired = false;
-var timer = setTimeout(function() {
+let fired = false;
+const timer = setTimeout(function() {
   socket.close();
 }, 100);
 

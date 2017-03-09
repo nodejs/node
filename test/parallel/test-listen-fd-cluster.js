@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var net = require('net');
-var cluster = require('cluster');
+const common = require('../common');
+const assert = require('assert');
+const http = require('http');
+const net = require('net');
+const cluster = require('cluster');
 
 console.error('Cluster listen fd test', process.argv[2] || 'runner');
 
@@ -22,7 +22,7 @@ switch (process.argv[2]) {
   case 'worker': return worker();
 }
 
-var ok;
+let ok;
 
 process.on('exit', function() {
   assert.ok(ok);
@@ -41,7 +41,7 @@ test(function(parent, port) {
     port: port,
     path: '/',
   }).on('response', function(res) {
-    var s = '';
+    let s = '';
     res.on('data', function(c) {
       s += c.toString();
     });
@@ -61,15 +61,15 @@ test(function(parent, port) {
 
 function test(cb) {
   console.error('about to listen in parent');
-  var server = net.createServer(function(conn) {
+  const server = net.createServer(function(conn) {
     console.error('connection on parent');
     conn.end('hello from parent\n');
   }).listen(0, function() {
     const port = this.address().port;
     console.error('server listening on %d', port);
 
-    var spawn = require('child_process').spawn;
-    var master = spawn(process.execPath, [__filename, 'master'], {
+    const spawn = require('child_process').spawn;
+    const master = spawn(process.execPath, [__filename, 'master'], {
       stdio: [ 0, 'pipe', 2, server._handle, 'ipc' ],
       detached: true
     });
@@ -100,7 +100,7 @@ function master() {
   cluster.setupMaster({
     args: [ 'worker' ]
   });
-  var worker = cluster.fork();
+  const worker = cluster.fork();
   worker.on('message', function(msg) {
     if (msg === 'worker ready') {
       process.send('started worker');

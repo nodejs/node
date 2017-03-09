@@ -18,7 +18,7 @@ process.on('SIGUSR1', common.mustCall(function() {
   }, 5);
 }));
 
-var i = 0;
+let i = 0;
 setInterval(function() {
   console.log('running process...' + ++i);
 

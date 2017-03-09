@@ -14,8 +14,9 @@ if (!common.enoughTestMem) {
 // v8::String::kMaxLength defined in v8.h
 const kStringMaxLength = process.binding('buffer').kStringMaxLength;
 
+let buf;
 try {
-  var buf = Buffer.allocUnsafe(kStringMaxLength * 2 + 2);
+  buf = Buffer.allocUnsafe(kStringMaxLength * 2 + 2);
 } catch (e) {
   // If the exception is not due to memory confinement then rethrow it.
   if (e.message !== 'Array buffer allocation failed') throw (e);

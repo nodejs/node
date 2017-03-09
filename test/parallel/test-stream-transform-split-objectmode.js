@@ -1,10 +1,10 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var Transform = require('stream').Transform;
+const Transform = require('stream').Transform;
 
-var parser = new Transform({ readableObjectMode: true });
+const parser = new Transform({ readableObjectMode: true });
 
 assert(parser._readableState.objectMode);
 assert(!parser._writableState.objectMode);
@@ -15,7 +15,7 @@ parser._transform = function(chunk, enc, callback) {
   callback(null, { val: chunk[0] });
 };
 
-var parsed;
+let parsed;
 
 parser.on('data', function(obj) {
   parsed = obj;
@@ -28,7 +28,7 @@ process.on('exit', function() {
 });
 
 
-var serializer = new Transform({ writableObjectMode: true });
+const serializer = new Transform({ writableObjectMode: true });
 
 assert(!serializer._readableState.objectMode);
 assert(serializer._writableState.objectMode);
@@ -39,7 +39,7 @@ serializer._transform = function(obj, _, callback) {
   callback(null, Buffer.from([obj.val]));
 };
 
-var serialized;
+let serialized;
 
 serializer.on('data', function(chunk) {
   serialized = chunk;

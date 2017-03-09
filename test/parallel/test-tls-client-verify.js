@@ -106,7 +106,7 @@ function testServers(index, servers, clientOptions, cb) {
 
 
 function runTest(testIndex) {
-  var tcase = testCases[testIndex];
+  const tcase = testCases[testIndex];
   if (!tcase) return;
 
   const clientOptions = {

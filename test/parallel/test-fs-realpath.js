@@ -4,13 +4,14 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const exec = require('child_process').exec;
-var async_completed = 0, async_expected = 0, unlink = [];
-var skipSymlinks = false;
+let async_completed = 0, async_expected = 0;
+const unlink = [];
+let skipSymlinks = false;
 
 common.refreshTmpDir();
 
-var root = '/';
-var assertEqualPath = assert.strictEqual;
+let root = '/';
+let assertEqualPath = assert.strictEqual;
 if (common.isWindows) {
   // something like "C:\\"
   root = process.cwd().substr(0, 3);
@@ -54,7 +55,7 @@ fs.mkdirSync(path.join(targetsAbsDir, 'nested-index', 'two'));
 function asynctest(testBlock, args, callback, assertBlock) {
   async_expected++;
   testBlock.apply(testBlock, args.concat(function(err) {
-    var ignoreError = false;
+    let ignoreError = false;
     if (assertBlock) {
       try {
         ignoreError = assertBlock.apply(assertBlock, arguments);
@@ -216,7 +217,7 @@ function test_cyclic_link_overprotection(callback) {
   const expected = fs.realpathSync(cycles);
   const folder = cycles + '/folder';
   const link = folder + '/cycles';
-  var testPath = cycles;
+  let testPath = cycles;
   testPath += '/folder/cycles'.repeat(10);
   try { fs.unlinkSync(link); } catch (ex) {}
   fs.symlinkSync(cycles, link, 'dir');
@@ -474,7 +475,7 @@ const tests = [
   test_up_multiple
 ];
 const numtests = tests.length;
-var testsRun = 0;
+let testsRun = 0;
 function runNextTest(err) {
   if (err) throw err;
   const test = tests.shift();

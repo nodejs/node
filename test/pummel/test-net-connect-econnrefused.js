@@ -1,21 +1,22 @@
 'use strict';
 // verify that connect reqs are properly cleaned up
 
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
-var ROUNDS = 10;
-var ATTEMPTS_PER_ROUND = 100;
-var rounds = 1;
-var reqs = 0;
+const ROUNDS = 10;
+const ATTEMPTS_PER_ROUND = 100;
+let rounds = 1;
+let reqs = 0;
 
 pummel();
 
 function pummel() {
   console.log('Round', rounds, '/', ROUNDS);
 
-  for (var pending = 0; pending < ATTEMPTS_PER_ROUND; pending++) {
+  let pending;
+  for (pending = 0; pending < ATTEMPTS_PER_ROUND; pending++) {
     net.createConnection(common.PORT).on('error', function(err) {
       assert.equal(err.code, 'ECONNREFUSED');
       if (--pending > 0) return;
@@ -34,7 +35,7 @@ function check() {
     check_called = true;
   }, 0);
 }
-var check_called = false;
+let check_called = false;
 
 process.on('exit', function() {
   assert.equal(rounds, ROUNDS);

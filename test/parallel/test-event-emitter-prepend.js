@@ -5,7 +5,7 @@ const EventEmitter = require('events');
 const assert = require('assert');
 
 const myEE = new EventEmitter();
-var m = 0;
+let m = 0;
 // This one comes last.
 myEE.on('foo', common.mustCall(() => assert.equal(m, 2)));
 

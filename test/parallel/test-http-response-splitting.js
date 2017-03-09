@@ -17,7 +17,7 @@ const str = '/welcome?lang=bar%c4%8d%c4%8aContent­Length:%200%c4%8d%c4%8a%c' +
 const x = 'fooഊSet-Cookie: foo=barഊഊ<script>alert("Hi!")</script>';
 const y = 'foo⠊Set-Cookie: foo=bar';
 
-var count = 0;
+let count = 0;
 
 function test(res, code, header) {
   assert.throws(() => {

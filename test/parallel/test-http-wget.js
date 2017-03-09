@@ -1,8 +1,8 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var net = require('net');
-var http = require('http');
+const assert = require('assert');
+const net = require('net');
+const http = require('http');
 
 // wget sends an HTTP/1.0 request with Connection: Keep-Alive
 //
@@ -19,7 +19,7 @@ var http = require('http');
 // content-length is not provided, that the connection is in fact
 // closed.
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   res.writeHead(200, {'Content-Type': 'text/plain'});
   res.write('hello ');
   res.write('world\n');
@@ -28,8 +28,8 @@ var server = http.createServer(function(req, res) {
 server.listen(0);
 
 server.on('listening', common.mustCall(function() {
-  var c = net.createConnection(this.address().port);
-  var server_response = '';
+  const c = net.createConnection(this.address().port);
+  let server_response = '';
 
   c.setEncoding('utf8');
 

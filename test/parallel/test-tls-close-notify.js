@@ -1,15 +1,15 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var fs = require('fs');
+const fs = require('fs');
 
-var server = tls.createServer({
+const server = tls.createServer({
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 }, function(c) {
@@ -17,7 +17,7 @@ var server = tls.createServer({
   if (c._handle.shutdownSSL() !== 1)
     c._handle.shutdownSSL();
 }).listen(0, common.mustCall(function() {
-  var c = tls.connect(this.address().port, {
+  const c = tls.connect(this.address().port, {
     rejectUnauthorized: false
   }, common.mustCall(function() {
     // Ensure that we receive 'end' event anyway

@@ -3,7 +3,7 @@ const common = require('../common');
 const assert = require('assert');
 const http = require('http');
 
-var nchunks = 0;
+let nchunks = 0;
 
 const options = {
   method: 'GET',

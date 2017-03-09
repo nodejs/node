@@ -1,11 +1,11 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
-var path = require('path');
-var msg = {test: 'this'};
-var nodePath = process.execPath;
-var copyPath = path.join(common.tmpDir, 'node-copy.exe');
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
+const msg = {test: 'this'};
+const nodePath = process.execPath;
+const copyPath = path.join(common.tmpDir, 'node-copy.exe');
 
 if (process.env.FORK) {
   assert(process.send);
@@ -23,9 +23,9 @@ if (process.env.FORK) {
   fs.chmodSync(copyPath, '0755');
 
   // slow but simple
-  var envCopy = JSON.parse(JSON.stringify(process.env));
+  const envCopy = JSON.parse(JSON.stringify(process.env));
   envCopy.FORK = 'true';
-  var child = require('child_process').fork(__filename, {
+  const child = require('child_process').fork(__filename, {
     execPath: copyPath,
     env: envCopy
   });

@@ -10,7 +10,7 @@ const s = http.createServer(common.mustCall((req, res) => {
   res.setHeader('test', '1');
 
   // toLowerCase() is used on the name argument, so it must be a string.
-  var threw = false;
+  let threw = false;
   try {
     res.setHeader(0xf00, 'bar');
   } catch (e) {

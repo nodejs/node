@@ -51,7 +51,7 @@ zlib.gzip(inputString, function(err, buffer) {
   });
 });
 
-var buffer = Buffer.from(expectedBase64Deflate, 'base64');
+let buffer = Buffer.from(expectedBase64Deflate, 'base64');
 zlib.unzip(buffer, function(err, buffer) {
   assert.equal(buffer.toString(), inputString,
                'decoded inflated string should match');

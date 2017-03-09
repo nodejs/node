@@ -14,7 +14,7 @@ if (!cluster.isMaster) {
   return;
 }
 
-var server = net.createServer(function(s) {
+const server = net.createServer(function(s) {
   if (common.isWindows) {
     s.on('error', function(err) {
       // Prevent possible ECONNRESET errors from popping up
@@ -26,10 +26,10 @@ var server = net.createServer(function(s) {
     s.destroy();
   }, 100);
 }).listen(0, function() {
-  var worker = cluster.fork();
+  const worker = cluster.fork();
 
   function send(callback) {
-    var s = net.connect(server.address().port, function() {
+    const s = net.connect(server.address().port, function() {
       worker.send({}, s, callback);
     });
 

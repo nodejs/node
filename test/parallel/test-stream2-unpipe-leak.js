@@ -1,11 +1,11 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var stream = require('stream');
+const assert = require('assert');
+const stream = require('stream');
 
-var chunk = Buffer.from('hallo');
+const chunk = Buffer.from('hallo');
 
-var util = require('util');
+const util = require('util');
 
 function TestWriter() {
   stream.Writable.call(this);
@@ -16,7 +16,7 @@ TestWriter.prototype._write = function(buffer, encoding, callback) {
   callback(null);
 };
 
-var dest = new TestWriter();
+const dest = new TestWriter();
 
 // Set this high so that we'd trigger a nextTick warning
 // and/or RangeError if we do maybeReadMore wrong.
@@ -29,9 +29,9 @@ TestReader.prototype._read = function(size) {
   this.push(chunk);
 };
 
-var src = new TestReader();
+const src = new TestReader();
 
-for (var i = 0; i < 10; i++) {
+for (let i = 0; i < 10; i++) {
   src.pipe(dest);
   src.unpipe(dest);
 }

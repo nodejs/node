@@ -9,7 +9,7 @@ const assert = require('assert');
  * Test 8 bit signed integers
  */
 function test8(clazz) {
-  var data = new clazz(4);
+  const data = new clazz(4);
 
   data[0] = 0x23;
   assert.equal(0x23, data.readInt8(0));
@@ -29,7 +29,7 @@ function test8(clazz) {
 
 
 function test16(clazz) {
-  var buffer = new clazz(6);
+  const buffer = new clazz(6);
 
   buffer[0] = 0x16;
   buffer[1] = 0x79;
@@ -62,7 +62,7 @@ function test16(clazz) {
 
 
 function test32(clazz) {
-  var buffer = new clazz(6);
+  const buffer = new clazz(6);
 
   buffer[0] = 0x43;
   buffer[1] = 0x53;

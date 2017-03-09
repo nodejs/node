@@ -23,7 +23,7 @@ fs.open(filename, 'w', 0o644, common.mustCall(function(err, fd) {
              assert.equal(expected.length, written);
              fs.closeSync(fd);
 
-             var found = fs.readFileSync(filename, 'utf8');
+             const found = fs.readFileSync(filename, 'utf8');
              assert.deepStrictEqual(expected.toString(), found);
              fs.unlinkSync(filename);
            }));

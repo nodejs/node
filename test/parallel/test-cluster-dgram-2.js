@@ -20,10 +20,10 @@ else
 
 
 function master() {
-  var received = 0;
+  let received = 0;
 
   // Start listening on a socket.
-  var socket = dgram.createSocket('udp4');
+  const socket = dgram.createSocket('udp4');
   socket.bind(common.PORT);
 
   // Disconnect workers when the expected number of messages have been
@@ -42,7 +42,7 @@ function master() {
   }, NUM_WORKERS * PACKETS_PER_WORKER));
 
   // Fork workers.
-  for (var i = 0; i < NUM_WORKERS; i++)
+  for (let i = 0; i < NUM_WORKERS; i++)
     cluster.fork();
 }
 

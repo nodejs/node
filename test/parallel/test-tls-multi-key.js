@@ -1,15 +1,15 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
-var fs = require('fs');
+const tls = require('tls');
+const fs = require('fs');
 
-var options = {
+const options = {
   key: [
     fs.readFileSync(common.fixturesDir + '/keys/ec-key.pem'),
     fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
@@ -20,17 +20,17 @@ var options = {
   ]
 };
 
-var ciphers = [];
+const ciphers = [];
 
-var server = tls.createServer(options, function(conn) {
+const server = tls.createServer(options, function(conn) {
   conn.end('ok');
 }).listen(0, function() {
-  var ecdsa = tls.connect(this.address().port, {
+  const ecdsa = tls.connect(this.address().port, {
     ciphers: 'ECDHE-ECDSA-AES256-GCM-SHA384',
     rejectUnauthorized: false
   }, function() {
     ciphers.push(ecdsa.getCipher());
-    var rsa = tls.connect(server.address().port, {
+    const rsa = tls.connect(server.address().port, {
       ciphers: 'ECDHE-RSA-AES256-GCM-SHA384',
       rejectUnauthorized: false
     }, function() {

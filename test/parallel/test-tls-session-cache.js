@@ -34,9 +34,9 @@ function doTest(testOptions, callback) {
     ca: [cert],
     requestCert: true
   };
-  var requestCount = 0;
-  var resumeCount = 0;
-  var session;
+  let requestCount = 0;
+  let resumeCount = 0;
+  let session;
 
   const server = tls.createServer(options, function(cleartext) {
     cleartext.on('error', function(er) {
@@ -90,7 +90,7 @@ function doTest(testOptions, callback) {
       const client = spawn(common.opensslCli, args, {
         stdio: [ 0, 1, 'pipe' ]
       });
-      var err = '';
+      let err = '';
       client.stderr.setEncoding('utf8');
       client.stderr.on('data', function(chunk) {
         err += chunk;

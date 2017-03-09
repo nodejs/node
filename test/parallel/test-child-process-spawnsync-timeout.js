@@ -2,7 +2,7 @@
 const common = require('../common');
 const assert = require('assert');
 
-var spawnSync = require('child_process').spawnSync;
+const spawnSync = require('child_process').spawnSync;
 
 const TIMER = 200;
 const SLEEP = common.platformTimeout(5000);
@@ -15,8 +15,8 @@ switch (process.argv[2]) {
     }, SLEEP);
     break;
   default:
-    var start = Date.now();
-    var ret = spawnSync(process.execPath, [__filename, 'child'],
+    const start = Date.now();
+    const ret = spawnSync(process.execPath, [__filename, 'child'],
                         {timeout: TIMER});
     assert.strictEqual(ret.error.errno, 'ETIMEDOUT');
     const end = Date.now() - start;

@@ -1,37 +1,37 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var spawn = require('child_process').spawn;
-var fs = require('fs');
-var key = fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem');
-var cert = fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem');
-var nsuccess = 0;
-var ntests = 0;
-var ciphers = 'DHE-RSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256';
+const spawn = require('child_process').spawn;
+const fs = require('fs');
+const key = fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem');
+const cert = fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem');
+let nsuccess = 0;
+let ntests = 0;
+const ciphers = 'DHE-RSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256';
 
 
 function loadDHParam(n) {
-  var path = common.fixturesDir;
+  let path = common.fixturesDir;
   if (n !== 'error') path += '/keys';
   return fs.readFileSync(path + '/dh' + n + '.pem');
 }
 
 function test(keylen, expectedCipher, cb) {
-  var options = {
+  const options = {
     key: key,
     cert: cert,
     ciphers: ciphers,
     dhparam: loadDHParam(keylen)
   };
 
-  var server = tls.createServer(options, function(conn) {
+  const server = tls.createServer(options, function(conn) {
     conn.end();
   });
 
@@ -41,15 +41,15 @@ function test(keylen, expectedCipher, cb) {
   });
 
   server.listen(0, '127.0.0.1', function() {
-    var args = ['s_client', '-connect', `127.0.0.1:${this.address().port}`,
-                '-cipher', ciphers];
+    const args = ['s_client', '-connect', `127.0.0.1:${this.address().port}`,
+                  '-cipher', ciphers];
 
     // for the performance and stability issue in s_client on Windows
     if (common.isWindows)
       args.push('-no_rand_screen');
 
-    var client = spawn(common.opensslCli, args);
-    var out = '';
+    const client = spawn(common.opensslCli, args);
+    let out = '';
     client.stdout.setEncoding('utf8');
     client.stdout.on('data', function(d) {
       out += d;
@@ -57,7 +57,7 @@ function test(keylen, expectedCipher, cb) {
     client.stdout.on('end', function() {
       // DHE key length can be checked -brief option in s_client but it
       // is only supported in openssl 1.0.2 so we cannot check it.
-      var reg = new RegExp('Cipher    : ' + expectedCipher);
+      const reg = new RegExp('Cipher    : ' + expectedCipher);
       if (reg.test(out)) {
         nsuccess++;
         server.close();

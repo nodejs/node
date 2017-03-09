@@ -3,14 +3,14 @@
 // the HTTP client. This test uses a raw TCP server to better control server
 // behavior.
 
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var http = require('http');
-var net = require('net');
+const http = require('http');
+const net = require('net');
 
 // Create a TCP server
-var srv = net.createServer(function(c) {
+const srv = net.createServer(function(c) {
   c.on('data', function(d) {
     c.write('HTTP/1.1 101\r\n');
     c.write('hello: world\r\n');
@@ -39,16 +39,16 @@ srv.listen(0, '127.0.0.1', common.mustCall(function() {
       ['Origin', 'http://www.websocket.org']
     ]
   ];
-  var left = headers.length;
+  let left = headers.length;
   headers.forEach(function(h) {
-    var req = http.get({
+    const req = http.get({
       port: port,
       headers: h
     });
-    var sawUpgrade = false;
+    let sawUpgrade = false;
     req.on('upgrade', common.mustCall(function(res, socket, upgradeHead) {
       sawUpgrade = true;
-      var recvData = upgradeHead;
+      let recvData = upgradeHead;
       socket.on('data', function(d) {
         recvData += d;
       });

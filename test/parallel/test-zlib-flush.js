@@ -22,7 +22,8 @@ deflater.write(chunk, function() {
   deflater.flush(zlib.Z_NO_FLUSH, function() {
     actualNone = deflater.read();
     deflater.flush(function() {
-      var bufs = [], buf;
+      const bufs = [];
+      let buf;
       while (buf = deflater.read())
         bufs.push(buf);
       actualFull = Buffer.concat(bufs);

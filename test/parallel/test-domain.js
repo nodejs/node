@@ -6,24 +6,24 @@ const assert = require('assert');
 const domain = require('domain');
 const events = require('events');
 const fs = require('fs');
-var caught = 0;
-var expectCaught = 0;
+let caught = 0;
+let expectCaught = 0;
 
-var d = new domain.Domain();
-var e = new events.EventEmitter();
+const d = new domain.Domain();
+const e = new events.EventEmitter();
 
 d.on('error', function(er) {
   console.error('caught', er && (er.message || er));
 
-  var er_message = er.message;
-  var er_path = er.path;
+  let er_message = er.message;
+  let er_path = er.path;
 
   // On windows, error messages can contain full path names. If this is the
   // case, remove the directory part.
   if (typeof er_path === 'string') {
-    var slash = er_path.lastIndexOf('\\');
+    const slash = er_path.lastIndexOf('\\');
     if (slash !== -1) {
-      var dir = er_path.slice(0, slash + 1);
+      const dir = er_path.slice(0, slash + 1);
       er_path = er_path.replace(dir, '');
       er_message = er_message.replace(dir, '');
     }
@@ -129,7 +129,7 @@ expectCaught++;
 // set up while in the scope of the d domain.
 d.run(function() {
   process.nextTick(function() {
-    var i = setInterval(function() {
+    const i = setInterval(function() {
       clearInterval(i);
       setTimeout(function() {
         fs.stat('this file does not exist', function(er, stat) {
@@ -166,7 +166,7 @@ function fn() {
   throw new Error('This function should never be called!');
 }
 
-var bound = d.intercept(fn);
+let bound = d.intercept(fn);
 bound(new Error('bound'));
 expectCaught++;
 
@@ -210,7 +210,7 @@ expectCaught++;
 
 
 // implicit addition by being created within a domain-bound context.
-var implicit;
+let implicit;
 
 d.run(function() {
   implicit = new events.EventEmitter();
@@ -223,7 +223,7 @@ setTimeout(function() {
 expectCaught++;
 
 
-var result = d.run(function() {
+let result = d.run(function() {
   return 'return value';
 });
 assert.strictEqual(result, 'return value');
@@ -236,12 +236,12 @@ result = d.run(function(a, b) {
 assert.strictEqual(result, 'return value');
 
 
-var fst = fs.createReadStream('stream for nonexistent file');
+let fst = fs.createReadStream('stream for nonexistent file');
 d.add(fst);
 expectCaught++;
 
 [42, null, , false, function() {}, 'string'].forEach(function(something) {
-  var d = new domain.Domain();
+  const d = new domain.Domain();
   d.run(function() {
     process.nextTick(function() {
       throw something;

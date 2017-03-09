@@ -1,14 +1,14 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var http = require('http');
-var url = require('url');
+const assert = require('assert');
+const http = require('http');
+const url = require('url');
 
-var responses_sent = 0;
-var body0 = '';
-var body1 = '';
+let responses_sent = 0;
+let body0 = '';
+let body1 = '';
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   if (responses_sent === 0) {
     assert.equal('GET', req.method);
     assert.equal('/hello', url.parse(req.url).pathname);
@@ -37,8 +37,8 @@ var server = http.createServer(function(req, res) {
 });
 
 server.listen(0, common.mustCall(function() {
-  var client = http.createClient(this.address().port);
-  var req = client.request('/hello', {'Accept': '*/*', 'Foo': 'bar'});
+  const client = http.createClient(this.address().port);
+  const req = client.request('/hello', {'Accept': '*/*', 'Foo': 'bar'});
   setTimeout(function() {
     req.end();
   }, 100);
@@ -50,7 +50,7 @@ server.listen(0, common.mustCall(function() {
   }));
 
   setTimeout(common.mustCall(function() {
-    var req = client.request('POST', '/world');
+    const req = client.request('POST', '/world');
     req.end();
     req.on('response', common.mustCall(function(res) {
       assert.equal(200, res.statusCode);

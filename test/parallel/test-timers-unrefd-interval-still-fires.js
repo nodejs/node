@@ -6,7 +6,7 @@ const common = require('../common');
 
 const TEST_DURATION = common.platformTimeout(1000);
 const N = 3;
-var nbIntervalFired = 0;
+let nbIntervalFired = 0;
 
 const keepOpen = setTimeout(() => {
   console.error('[FAIL] Interval fired %d/%d times.', nbIntervalFired, N);

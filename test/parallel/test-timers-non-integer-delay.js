@@ -17,11 +17,11 @@
 
 require('../common');
 
-var TIMEOUT_DELAY = 1.1;
-var NB_TIMEOUTS_FIRED = 50;
+const TIMEOUT_DELAY = 1.1;
+const NB_TIMEOUTS_FIRED = 50;
 
-var nbTimeoutFired = 0;
-var interval = setInterval(function() {
+let nbTimeoutFired = 0;
+const interval = setInterval(function() {
   ++nbTimeoutFired;
   if (nbTimeoutFired === NB_TIMEOUTS_FIRED) {
     clearInterval(interval);

@@ -5,16 +5,16 @@
 // Flags: --expose_gc
 
 require('../common');
-var assert = require('assert');
-var HTTPParser = process.binding('http_parser').HTTPParser;
+const assert = require('assert');
+const HTTPParser = process.binding('http_parser').HTTPParser;
 
-var kOnHeaders = HTTPParser.kOnHeaders | 0;
-var kOnHeadersComplete = HTTPParser.kOnHeadersComplete | 0;
-var kOnBody = HTTPParser.kOnBody | 0;
-var kOnMessageComplete = HTTPParser.kOnMessageComplete | 0;
+const kOnHeaders = HTTPParser.kOnHeaders | 0;
+const kOnHeadersComplete = HTTPParser.kOnHeadersComplete | 0;
+const kOnBody = HTTPParser.kOnBody | 0;
+const kOnMessageComplete = HTTPParser.kOnMessageComplete | 0;
 
-var headersComplete = 0;
-var messagesComplete = 0;
+let headersComplete = 0;
+let messagesComplete = 0;
 
 function flushPool() {
   Buffer.allocUnsafe(Buffer.poolSize - 1);
@@ -24,7 +24,7 @@ function flushPool() {
 function demoBug(part1, part2) {
   flushPool();
 
-  var parser = new HTTPParser('REQUEST');
+  const parser = new HTTPParser('REQUEST');
 
   parser.headers = [];
   parser.url = '';
@@ -49,7 +49,7 @@ function demoBug(part1, part2) {
   // We use a function to eliminate references to the Buffer b
   // We want b to be GCed. The parser will hold a bad reference to it.
   (function() {
-    var b = Buffer.from(part1);
+    const b = Buffer.from(part1);
     flushPool();
 
     console.log('parse the first part of the message');
@@ -59,7 +59,7 @@ function demoBug(part1, part2) {
   flushPool();
 
   (function() {
-    var b = Buffer.from(part2);
+    const b = Buffer.from(part2);
 
     console.log('parse the second part of the message');
     parser.execute(b, 0, b.length);

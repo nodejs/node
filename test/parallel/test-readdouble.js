@@ -9,7 +9,7 @@ const assert = require('assert');
  * Test (64 bit) double
  */
 function test(clazz) {
-  var buffer = new clazz(8);
+  const buffer = new clazz(8);
 
   buffer[0] = 0x55;
   buffer[1] = 0x55;

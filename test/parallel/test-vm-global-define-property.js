@@ -1,10 +1,10 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var vm = require('vm');
+const vm = require('vm');
 
-var code =
+const code =
     'Object.defineProperty(this, "f", {\n' +
     '  get: function() { return x; },\n' +
     '  set: function(k) { x = k; },\n' +
@@ -14,10 +14,10 @@ var code =
     'g = f;\n' +
     'f;\n';
 
-var x = {};
-var o = vm.createContext({ console: console, x: x });
+const x = {};
+const o = vm.createContext({ console: console, x: x });
 
-var res = vm.runInContext(code, o, 'test');
+const res = vm.runInContext(code, o, 'test');
 
 assert(res);
 assert.equal(typeof res, 'object');

@@ -1,8 +1,8 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var util = require('util');
-var fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const util = require('util');
+const fs = require('fs');
 
 let tests_ok = 0;
 let tests_run = 0;

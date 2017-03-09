@@ -1,22 +1,22 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var Stream = require('stream');
-var Readable = Stream.Readable;
+const Stream = require('stream');
+const Readable = Stream.Readable;
 
-var r = new Readable();
-var N = 256;
-var reads = 0;
+const r = new Readable();
+const N = 256;
+let reads = 0;
 r._read = function(n) {
   return r.push(++reads === N ? null : Buffer.allocUnsafe(1));
 };
 
 r.on('end', common.mustCall(function() {}));
 
-var w = new Stream();
+const w = new Stream();
 w.writable = true;
-var buffered = 0;
+let buffered = 0;
 w.write = function(c) {
   buffered += c.length;
   process.nextTick(drain);
