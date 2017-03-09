@@ -218,9 +218,24 @@ if (common.hasCrypto) {
 
 
 {
-  const tty_wrap = process.binding('tty_wrap');
-  if (tty_wrap.isTTY(0)) {
-    testInitialized(new tty_wrap.TTY(0, false), 'TTY');
+  // Do our best to grab a tty fd.
+  const tty_fd = common.getTTYfd();
+  if (tty_fd >= 0) {
+    const tty_wrap = process.binding('tty_wrap');
+    // fd may still be invalid, so guard against it.
+    const handle = (() => {
+      try {
+        return new tty_wrap.TTY(tty_fd, false);
+      } catch (e) {
+        return null;
+      }
+    })();
+    if (handle !== null)
+      testInitialized(handle, 'TTY');
+    else
+      delete providers.TTYWRAP;
+  } else {
+    delete providers.TTYWRAP;
   }
 }
 

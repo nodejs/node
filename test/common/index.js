@@ -64,6 +64,50 @@ exports.enoughTestCpu = Array.isArray(cpus) &&
 exports.rootDir = exports.isWindows ? 'c:\\' : '/';
 exports.buildType = process.config.target_defaults.default_configuration;
 
+// If env var is set then enable async_hook hooks for all tests.
+if (process.env.NODE_TEST_WITH_ASYNC_HOOKS) {
+  const destroydIdsList = {};
+  const destroyListList = {};
+  const initHandles = {};
+  const async_wrap = process.binding('async_wrap');
+
+  process.on('exit', () => {
+    // itterate through handles to make sure nothing crashes
+    for (const k in initHandles)
+      util.inspect(initHandles[k]);
+  });
+
+  const _addIdToDestroyList = async_wrap.addIdToDestroyList;
+  async_wrap.addIdToDestroyList = function addIdToDestroyList(id) {
+    if (destroyListList[id] !== undefined) {
+      process._rawDebug(destroyListList[id]);
+      process._rawDebug();
+      throw new Error(`same id added twice (${id})`);
+    }
+    destroyListList[id] = new Error().stack;
+    _addIdToDestroyList(id);
+  };
+
+  require('async_hooks').createHook({
+    init(id, ty, tr, h) {
+      if (initHandles[id]) {
+        throw new Error(`init called twice for same id (${id})`);
+      }
+      initHandles[id] = h;
+    },
+    before() { },
+    after() { },
+    destroy(id) {
+      if (destroydIdsList[id] !== undefined) {
+        process._rawDebug(destroydIdsList[id]);
+        process._rawDebug();
+        throw new Error(`destroy called for same id (${id})`);
+      }
+      destroydIdsList[id] = new Error().stack;
+    },
+  }).enable();
+}
+
 function rimrafSync(p) {
   let st;
   try {
@@ -683,4 +727,19 @@ exports.getArrayBufferViews = function getArrayBufferViews(buf) {
 exports.crashOnUnhandledRejection = function() {
   process.on('unhandledRejection',
              (err) => process.nextTick(() => { throw err; }));
+};
+
+exports.getTTYfd = function getTTYfd() {
+  const tty = require('tty');
+  let tty_fd = 0;
+  if (!tty.isatty(tty_fd)) tty_fd++;
+  else if (!tty.isatty(tty_fd)) tty_fd++;
+  else if (!tty.isatty(tty_fd)) tty_fd++;
+  else try {
+    tty_fd = require('fs').openSync('/dev/tty');
+  } catch (e) {
+    // There aren't any tty fd's available to use.
+    return -1;
+  }
+  return tty_fd;
 };
