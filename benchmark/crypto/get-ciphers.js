@@ -18,6 +18,6 @@ function main(conf) {
       method();
   }
   bench.start();
-  for (; i < n; i++) method();
+  for (i = 0; i < n; i++) method();
   bench.end(n);
 }

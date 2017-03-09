@@ -46,7 +46,7 @@ function runPunycode(n, val) {
   for (; i < n; i++)
     usingPunycode(val);
   bench.start();
-  for (; i < n; i++)
+  for (i = 0; i < n; i++)
     usingPunycode(val);
   bench.end(n);
 }
