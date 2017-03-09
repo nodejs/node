@@ -1,8 +1,8 @@
 'use strict';
 const common = require('../common');
-var net = require('net');
+const net = require('net');
 
-var server = net.createServer(common.mustCall(function(stream) {
+const server = net.createServer(common.mustCall(function(stream) {
   stream.setTimeout(100);
 
   stream.resume();
@@ -20,7 +20,7 @@ var server = net.createServer(common.mustCall(function(stream) {
 }));
 
 server.listen(0, function() {
-  var c = net.createConnection(this.address().port);
+  const c = net.createConnection(this.address().port);
 
   c.on('data', function() {
     c.end();

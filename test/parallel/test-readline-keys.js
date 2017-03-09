@@ -13,11 +13,11 @@ function FakeInput() {
 inherits(FakeInput, PassThrough);
 
 
-var fi = new FakeInput();
-var fo = new FakeInput();
+const fi = new FakeInput();
+const fo = new FakeInput();
 new Interface({ input: fi, output: fo, terminal: true });
 
-var keys = [];
+let keys = [];
 fi.on('keypress', function(s, k) {
   keys.push(k);
 });

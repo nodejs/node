@@ -17,12 +17,12 @@ common.refreshTmpDir();
 
 server.listen(common.PIPE, common.mustCall(function() {
 
-  var options = {
+  const options = {
     socketPath: common.PIPE,
     path: '/'
   };
 
-  var req = http.get(options, common.mustCall(function(res) {
+  const req = http.get(options, common.mustCall(function(res) {
     assert.strictEqual(res.statusCode, 200);
     assert.strictEqual(res.headers['content-type'], 'text/plain');
 

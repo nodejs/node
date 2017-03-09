@@ -1,10 +1,10 @@
 'use strict';
 require('../common');
-var R = require('_stream_readable');
-var assert = require('assert');
+const R = require('_stream_readable');
+const assert = require('assert');
 
-var util = require('util');
-var EE = require('events').EventEmitter;
+const util = require('util');
+const EE = require('events').EventEmitter;
 
 function TestReader(n) {
   R.apply(this);
@@ -16,9 +16,9 @@ function TestReader(n) {
 util.inherits(TestReader, R);
 
 TestReader.prototype._read = function(n) {
-  var max = this._buffer.length - this._pos;
+  const max = this._buffer.length - this._pos;
   n = Math.max(n, 0);
-  var toRead = Math.min(n, max);
+  const toRead = Math.min(n, max);
   if (toRead === 0) {
     // simulate the read buffer filling up with some more bytes some time
     // in the future.
@@ -39,7 +39,7 @@ TestReader.prototype._read = function(n) {
     return;
   }
 
-  var ret = this._buffer.slice(this._pos, this._pos + toRead);
+  const ret = this._buffer.slice(this._pos, this._pos + toRead);
   this._pos += toRead;
   this.push(ret);
 };
@@ -68,8 +68,8 @@ TestWriter.prototype.end = function(c) {
 ////////
 
 // tiny node-tap lookalike.
-var tests = [];
-var count = 0;
+const tests = [];
+let count = 0;
 
 function test(name, fn) {
   count++;
@@ -77,12 +77,12 @@ function test(name, fn) {
 }
 
 function run() {
-  var next = tests.shift();
+  const next = tests.shift();
   if (!next)
     return console.error('ok');
 
-  var name = next[0];
-  var fn = next[1];
+  const name = next[0];
+  const fn = next[1];
   console.log('# %s', name);
   fn({
     same: assert.deepStrictEqual,
@@ -104,34 +104,34 @@ process.nextTick(run);
 
 
 test('a most basic test', function(t) {
-  var r = new TestReader(20);
+  const r = new TestReader(20);
 
-  var reads = [];
-  var expect = [ 'x',
-                 'xx',
-                 'xxx',
-                 'xxxx',
-                 'xxxxx',
-                 'xxxxxxxxx',
-                 'xxxxxxxxxx',
-                 'xxxxxxxxxxxx',
-                 'xxxxxxxxxxxxx',
-                 'xxxxxxxxxxxxxxx',
-                 'xxxxxxxxxxxxxxxxx',
-                 'xxxxxxxxxxxxxxxxxxx',
-                 'xxxxxxxxxxxxxxxxxxxxx',
-                 'xxxxxxxxxxxxxxxxxxxxxxx',
-                 'xxxxxxxxxxxxxxxxxxxxxxxxx',
-                 'xxxxxxxxxxxxxxxxxxxxx' ];
+  const reads = [];
+  const expect = [ 'x',
+                   'xx',
+                   'xxx',
+                   'xxxx',
+                   'xxxxx',
+                   'xxxxxxxxx',
+                   'xxxxxxxxxx',
+                   'xxxxxxxxxxxx',
+                   'xxxxxxxxxxxxx',
+                   'xxxxxxxxxxxxxxx',
+                   'xxxxxxxxxxxxxxxxx',
+                   'xxxxxxxxxxxxxxxxxxx',
+                   'xxxxxxxxxxxxxxxxxxxxx',
+                   'xxxxxxxxxxxxxxxxxxxxxxx',
+                   'xxxxxxxxxxxxxxxxxxxxxxxxx',
+                   'xxxxxxxxxxxxxxxxxxxxx' ];
 
   r.on('end', function() {
     t.same(reads, expect);
     t.end();
   });
 
-  var readSize = 1;
+  let readSize = 1;
   function flow() {
-    var res;
+    let res;
     while (null !== (res = r.read(readSize++))) {
       reads.push(res.toString());
     }
@@ -142,20 +142,20 @@ test('a most basic test', function(t) {
 });
 
 test('pipe', function(t) {
-  var r = new TestReader(5);
+  const r = new TestReader(5);
 
-  var expect = [ 'xxxxx',
-                 'xxxxx',
-                 'xxxxx',
-                 'xxxxx',
-                 'xxxxx',
-                 'xxxxx',
-                 'xxxxx',
-                 'xxxxx',
-                 'xxxxx',
-                 'xxxxx' ];
+  const expect = [ 'xxxxx',
+                   'xxxxx',
+                   'xxxxx',
+                   'xxxxx',
+                   'xxxxx',
+                   'xxxxx',
+                   'xxxxx',
+                   'xxxxx',
+                   'xxxxx',
+                   'xxxxx' ];
 
-  var w = new TestWriter();
+  const w = new TestWriter();
 
   w.on('end', function(received) {
     t.same(received, expect);
@@ -168,10 +168,10 @@ test('pipe', function(t) {
 
 [1, 2, 3, 4, 5, 6, 7, 8, 9].forEach(function(SPLIT) {
   test('unpipe', function(t) {
-    var r = new TestReader(5);
+    const r = new TestReader(5);
 
     // unpipe after 3 writes, then write to another stream instead.
-    var expect = [ 'xxxxx',
+    let expect = [ 'xxxxx',
                    'xxxxx',
                    'xxxxx',
                    'xxxxx',
@@ -183,9 +183,9 @@ test('pipe', function(t) {
                    'xxxxx' ];
     expect = [ expect.slice(0, SPLIT), expect.slice(SPLIT) ];
 
-    var w = [ new TestWriter(), new TestWriter() ];
+    const w = [ new TestWriter(), new TestWriter() ];
 
-    var writes = SPLIT;
+    let writes = SPLIT;
     w[0].on('write', function() {
       if (--writes === 0) {
         r.unpipe();
@@ -196,10 +196,10 @@ test('pipe', function(t) {
       }
     });
 
-    var ended = 0;
+    let ended = 0;
 
-    var ended0 = false;
-    var ended1 = false;
+    let ended0 = false;
+    let ended1 = false;
     w[0].on('end', function(results) {
       t.equal(ended0, false);
       ended0 = true;
@@ -223,21 +223,21 @@ test('pipe', function(t) {
 
 // both writers should get the same exact data.
 test('multipipe', function(t) {
-  var r = new TestReader(5);
-  var w = [ new TestWriter(), new TestWriter() ];
+  const r = new TestReader(5);
+  const w = [ new TestWriter(), new TestWriter() ];
 
-  var expect = [ 'xxxxx',
-                 'xxxxx',
-                 'xxxxx',
-                 'xxxxx',
-                 'xxxxx',
-                 'xxxxx',
-                 'xxxxx',
-                 'xxxxx',
-                 'xxxxx',
-                 'xxxxx' ];
+  const expect = [ 'xxxxx',
+                   'xxxxx',
+                   'xxxxx',
+                   'xxxxx',
+                   'xxxxx',
+                   'xxxxx',
+                   'xxxxx',
+                   'xxxxx',
+                   'xxxxx',
+                   'xxxxx' ];
 
-  var c = 2;
+  let c = 2;
   w[0].on('end', function(received) {
     t.same(received, expect, 'first');
     if (--c === 0) t.end();
@@ -254,10 +254,10 @@ test('multipipe', function(t) {
 
 [1, 2, 3, 4, 5, 6, 7, 8, 9].forEach(function(SPLIT) {
   test('multi-unpipe', function(t) {
-    var r = new TestReader(5);
+    const r = new TestReader(5);
 
     // unpipe after 3 writes, then write to another stream instead.
-    var expect = [ 'xxxxx',
+    let expect = [ 'xxxxx',
                    'xxxxx',
                    'xxxxx',
                    'xxxxx',
@@ -269,9 +269,9 @@ test('multipipe', function(t) {
                    'xxxxx' ];
     expect = [ expect.slice(0, SPLIT), expect.slice(SPLIT) ];
 
-    var w = [ new TestWriter(), new TestWriter(), new TestWriter() ];
+    const w = [ new TestWriter(), new TestWriter(), new TestWriter() ];
 
-    var writes = SPLIT;
+    let writes = SPLIT;
     w[0].on('write', function() {
       if (--writes === 0) {
         r.unpipe();
@@ -280,7 +280,7 @@ test('multipipe', function(t) {
       }
     });
 
-    var ended = 0;
+    let ended = 0;
 
     w[0].on('end', function(results) {
       ended++;
@@ -302,16 +302,16 @@ test('multipipe', function(t) {
 test('back pressure respected', function(t) {
   function noop() {}
 
-  var r = new R({ objectMode: true });
+  const r = new R({ objectMode: true });
   r._read = noop;
-  var counter = 0;
+  let counter = 0;
   r.push(['one']);
   r.push(['two']);
   r.push(['three']);
   r.push(['four']);
   r.push(null);
 
-  var w1 = new R();
+  const w1 = new R();
   w1.write = function(chunk) {
     console.error('w1.emit("close")');
     assert.equal(chunk[0], 'one');
@@ -325,9 +325,9 @@ test('back pressure respected', function(t) {
 
   r.pipe(w1);
 
-  var expected = ['two', 'two', 'three', 'three', 'four', 'four'];
+  const expected = ['two', 'two', 'three', 'three', 'four', 'four'];
 
-  var w2 = new R();
+  let w2 = new R();
   w2.write = function(chunk) {
     console.error('w2 write', chunk, counter);
     assert.equal(chunk[0], expected.shift());
@@ -349,7 +349,7 @@ test('back pressure respected', function(t) {
   };
   w2.end = noop;
 
-  var w3 = new R();
+  let w3 = new R();
   w3.write = function(chunk) {
     console.error('w3 write', chunk, counter);
     assert.equal(chunk[0], expected.shift());
@@ -377,19 +377,19 @@ test('back pressure respected', function(t) {
 });
 
 test('read(0) for ended streams', function(t) {
-  var r = new R();
-  var written = false;
-  var ended = false;
+  const r = new R();
+  let written = false;
+  let ended = false;
   r._read = function(n) {};
 
   r.push(Buffer.from('foo'));
   r.push(null);
 
-  var v = r.read(0);
+  const v = r.read(0);
 
   assert.equal(v, null);
 
-  var w = new R();
+  const w = new R();
 
   w.write = function(buffer) {
     written = true;
@@ -407,8 +407,8 @@ test('read(0) for ended streams', function(t) {
 });
 
 test('sync _read ending', function(t) {
-  var r = new R();
-  var called = false;
+  const r = new R();
+  let called = false;
   r._read = function(n) {
     r.push(null);
   };
@@ -426,9 +426,9 @@ test('sync _read ending', function(t) {
 });
 
 test('adding readable triggers data flow', function(t) {
-  var r = new R({ highWaterMark: 5 });
-  var onReadable = false;
-  var readCalled = 0;
+  const r = new R({ highWaterMark: 5 });
+  let onReadable = false;
+  let readCalled = 0;
 
   r._read = function(n) {
     if (readCalled++ === 2)
@@ -450,9 +450,9 @@ test('adding readable triggers data flow', function(t) {
 });
 
 test('chainable', function(t) {
-  var r = new R();
+  const r = new R();
   r._read = function() {};
-  var r2 = r.setEncoding('utf8').pause().resume().pause();
+  const r2 = r.setEncoding('utf8').pause().resume().pause();
   t.equal(r, r2);
   t.end();
 });

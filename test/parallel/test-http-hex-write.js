@@ -1,10 +1,10 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var http = require('http');
+const http = require('http');
 
-var expect = 'hex\nutf8\n';
+const expect = 'hex\nutf8\n';
 
 http.createServer(function(q, s) {
   s.setHeader('content-length', expect.length);
@@ -15,7 +15,7 @@ http.createServer(function(q, s) {
 }).listen(0, common.mustCall(function() {
   http.request({ port: this.address().port })
     .on('response', common.mustCall(function(res) {
-      var data = '';
+      let data = '';
 
       res.setEncoding('ascii');
       res.on('data', function(c) {

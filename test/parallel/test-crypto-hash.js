@@ -1,44 +1,44 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
-var path = require('path');
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var crypto = require('crypto');
+const crypto = require('crypto');
 
 // Test hashing
-var a1 = crypto.createHash('sha1').update('Test123').digest('hex');
-var a2 = crypto.createHash('sha256').update('Test123').digest('base64');
-var a3 = crypto.createHash('sha512').update('Test123').digest(); // buffer
-var a4 = crypto.createHash('sha1').update('Test123').digest('buffer');
+const a1 = crypto.createHash('sha1').update('Test123').digest('hex');
+const a2 = crypto.createHash('sha256').update('Test123').digest('base64');
+const a3 = crypto.createHash('sha512').update('Test123').digest(); // buffer
+const a4 = crypto.createHash('sha1').update('Test123').digest('buffer');
 
 // stream interface
-var a5 = crypto.createHash('sha512');
+let a5 = crypto.createHash('sha512');
 a5.end('Test123');
 a5 = a5.read();
 
-var a6 = crypto.createHash('sha512');
+let a6 = crypto.createHash('sha512');
 a6.write('Te');
 a6.write('st');
 a6.write('123');
 a6.end();
 a6 = a6.read();
 
-var a7 = crypto.createHash('sha512');
+let a7 = crypto.createHash('sha512');
 a7.end();
 a7 = a7.read();
 
-var a8 = crypto.createHash('sha512');
+let a8 = crypto.createHash('sha512');
 a8.write('');
 a8.end();
 a8 = a8.read();
 
 if (!common.hasFipsCrypto) {
-  var a0 = crypto.createHash('md5').update('Test123').digest('latin1');
+  const a0 = crypto.createHash('md5').update('Test123').digest('latin1');
   assert.strictEqual(
     a0,
     'h\u00ea\u00cb\u0097\u00d8o\fF!\u00fa+\u000e\u0017\u00ca\u00bd\u008c',
@@ -71,14 +71,14 @@ assert.notEqual(a7, undefined, 'no data should return data');
 assert.notEqual(a8, undefined, 'empty string should generate data');
 
 // Test multiple updates to same hash
-var h1 = crypto.createHash('sha1').update('Test123').digest('hex');
-var h2 = crypto.createHash('sha1').update('Test').update('123').digest('hex');
+const h1 = crypto.createHash('sha1').update('Test123').digest('hex');
+const h2 = crypto.createHash('sha1').update('Test').update('123').digest('hex');
 assert.strictEqual(h1, h2, 'multipled updates');
 
 // Test hashing for binary files
-var fn = path.join(common.fixturesDir, 'sample.png');
-var sha1Hash = crypto.createHash('sha1');
-var fileStream = fs.createReadStream(fn);
+const fn = path.join(common.fixturesDir, 'sample.png');
+const sha1Hash = crypto.createHash('sha1');
+const fileStream = fs.createReadStream(fn);
 fileStream.on('data', function(data) {
   sha1Hash.update(data);
 });
@@ -94,7 +94,7 @@ assert.throws(function() {
 }, /Digest method not supported/);
 
 // Default UTF-8 encoding
-var hutf8 = crypto.createHash('sha512').update('УТФ-8 text').digest('hex');
+const hutf8 = crypto.createHash('sha512').update('УТФ-8 text').digest('hex');
 assert.strictEqual(
     hutf8,
     '4b21bbd1a68e690a730ddcb5a8bc94ead9879ffe82580767ad7ec6fa8ba2dea6' +
@@ -104,7 +104,7 @@ assert.notEqual(
     hutf8,
     crypto.createHash('sha512').update('УТФ-8 text', 'latin1').digest('hex'));
 
-var h3 = crypto.createHash('sha256');
+const h3 = crypto.createHash('sha256');
 h3.digest();
 assert.throws(function() {
   h3.digest();

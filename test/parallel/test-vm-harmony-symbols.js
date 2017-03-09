@@ -1,10 +1,10 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var vm = require('vm');
+const assert = require('assert');
+const vm = require('vm');
 
 // The sandbox should have its own Symbol constructor.
-var sandbox = {};
+let sandbox = {};
 vm.runInNewContext('this.Symbol = Symbol', sandbox);
 assert.strictEqual(typeof sandbox.Symbol, 'function');
 assert.notStrictEqual(sandbox.Symbol, Symbol);

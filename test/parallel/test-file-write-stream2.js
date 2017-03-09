@@ -7,14 +7,13 @@ const fs = require('fs');
 
 
 const filepath = path.join(common.tmpDir, 'write.txt');
-var file;
 
 const EXPECTED = '012345678910';
 
 const cb_expected = 'write open drain write drain close error ';
-var cb_occurred = '';
+let cb_occurred = '';
 
-var countDrains = 0;
+let countDrains = 0;
 
 
 process.on('exit', function() {
@@ -41,7 +40,7 @@ function removeTestFile() {
 common.refreshTmpDir();
 
 // drain at 0, return false at 10.
-file = fs.createWriteStream(filepath, {
+const file = fs.createWriteStream(filepath, {
   highWaterMark: 11
 });
 
@@ -80,7 +79,7 @@ file.on('error', function(err) {
 });
 
 
-for (var i = 0; i < 11; i++) {
+for (let i = 0; i < 11; i++) {
   const ret = file.write(i + '');
   console.error('%d %j', i, ret);
 

@@ -3,14 +3,14 @@
 // the HTTP client. This test uses a raw TCP server to better control server
 // behavior.
 
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var http = require('http');
-var net = require('net');
+const http = require('http');
+const net = require('net');
 
 // Create a TCP server
-var srv = net.createServer(function(c) {
+const srv = net.createServer(function(c) {
   c.on('data', function(d) {
     c.write('HTTP/1.1 101\r\n');
     c.write('hello: world\r\n');
@@ -27,7 +27,7 @@ var srv = net.createServer(function(c) {
 
 srv.listen(0, '127.0.0.1', common.mustCall(function() {
 
-  var options = {
+  const options = {
     port: this.address().port,
     host: '127.0.0.1',
     headers: {
@@ -35,13 +35,13 @@ srv.listen(0, '127.0.0.1', common.mustCall(function() {
       'upgrade': 'websocket'
     }
   };
-  var name = options.host + ':' + options.port;
+  const name = options.host + ':' + options.port;
 
-  var req = http.request(options);
+  const req = http.request(options);
   req.end();
 
   req.on('upgrade', common.mustCall(function(res, socket, upgradeHead) {
-    var recvData = upgradeHead;
+    let recvData = upgradeHead;
     socket.on('data', function(d) {
       recvData += d;
     });
@@ -51,9 +51,9 @@ srv.listen(0, '127.0.0.1', common.mustCall(function() {
     }));
 
     console.log(res.headers);
-    var expectedHeaders = { 'hello': 'world',
-                            'connection': 'upgrade',
-                            'upgrade': 'websocket' };
+    const expectedHeaders = { 'hello': 'world',
+                              'connection': 'upgrade',
+                              'upgrade': 'websocket' };
     assert.deepStrictEqual(expectedHeaders, res.headers);
 
     // Make sure this request got removed from the pool.

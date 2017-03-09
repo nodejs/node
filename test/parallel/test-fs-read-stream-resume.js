@@ -9,7 +9,7 @@ const file = path.join(common.fixturesDir, 'x.txt');
 let data = '';
 let first = true;
 
-var stream = fs.createReadStream(file);
+const stream = fs.createReadStream(file);
 stream.setEncoding('utf8');
 stream.on('data', function(chunk) {
   data += chunk;

@@ -28,8 +28,9 @@ function parent() {
   });
 
   // Write until the buffer fills up.
+  let buf;
   do {
-    var buf = Buffer.alloc(BUFSIZE, '.');
+    buf = Buffer.alloc(BUFSIZE, '.');
     sent += BUFSIZE;
   } while (child.stdin.write(buf));
 

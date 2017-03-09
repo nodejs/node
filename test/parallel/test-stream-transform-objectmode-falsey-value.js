@@ -1,16 +1,16 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var stream = require('stream');
-var PassThrough = stream.PassThrough;
+const stream = require('stream');
+const PassThrough = stream.PassThrough;
 
-var src = new PassThrough({ objectMode: true });
-var tx = new PassThrough({ objectMode: true });
-var dest = new PassThrough({ objectMode: true });
+const src = new PassThrough({ objectMode: true });
+const tx = new PassThrough({ objectMode: true });
+const dest = new PassThrough({ objectMode: true });
 
-var expect = [ -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ];
-var results = [];
+const expect = [ -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ];
+const results = [];
 process.on('exit', function() {
   assert.deepStrictEqual(results, expect);
   console.log('ok');
@@ -22,8 +22,8 @@ dest.on('data', function(x) {
 
 src.pipe(tx).pipe(dest);
 
-var i = -1;
-var int = setInterval(function() {
+let i = -1;
+const int = setInterval(function() {
   if (i > 10) {
     src.end();
     clearInterval(int);

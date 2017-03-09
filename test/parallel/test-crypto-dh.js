@@ -11,13 +11,13 @@ const DH_NOT_SUITABLE_GENERATOR = crypto.constants.DH_NOT_SUITABLE_GENERATOR;
 
 // Test Diffie-Hellman with two parties sharing a secret,
 // using various encodings as we go along
-var dh1 = crypto.createDiffieHellman(common.hasFipsCrypto ? 1024 : 256);
-var p1 = dh1.getPrime('buffer');
-var dh2 = crypto.createDiffieHellman(p1, 'buffer');
-var key1 = dh1.generateKeys();
-var key2 = dh2.generateKeys('hex');
-var secret1 = dh1.computeSecret(key2, 'hex', 'base64');
-var secret2 = dh2.computeSecret(key1, 'latin1', 'buffer');
+const dh1 = crypto.createDiffieHellman(common.hasFipsCrypto ? 1024 : 256);
+const p1 = dh1.getPrime('buffer');
+const dh2 = crypto.createDiffieHellman(p1, 'buffer');
+let key1 = dh1.generateKeys();
+let key2 = dh2.generateKeys('hex');
+let secret1 = dh1.computeSecret(key2, 'hex', 'base64');
+let secret2 = dh2.computeSecret(key1, 'latin1', 'buffer');
 
 assert.equal(secret1, secret2.toString('base64'));
 assert.equal(dh1.verifyError, 0);
@@ -41,8 +41,8 @@ assert.throws(function() {
 
 // Create "another dh1" using generated keys from dh1,
 // and compute secret again
-var dh3 = crypto.createDiffieHellman(p1, 'buffer');
-var privkey1 = dh1.getPrivateKey();
+const dh3 = crypto.createDiffieHellman(p1, 'buffer');
+const privkey1 = dh1.getPrivateKey();
 dh3.setPublicKey(key1);
 dh3.setPrivateKey(privkey1);
 
@@ -52,7 +52,7 @@ assert.deepStrictEqual(dh1.getPublicKey(), dh3.getPublicKey());
 assert.deepStrictEqual(dh1.getPrivateKey(), dh3.getPrivateKey());
 assert.equal(dh3.verifyError, 0);
 
-var secret3 = dh3.computeSecret(key2, 'hex', 'base64');
+const secret3 = dh3.computeSecret(key2, 'hex', 'base64');
 
 assert.equal(secret1, secret3);
 
@@ -72,12 +72,12 @@ assert.throws(function() {
 }
 
 // Create a shared using a DH group.
-var alice = crypto.createDiffieHellmanGroup('modp5');
-var bob = crypto.createDiffieHellmanGroup('modp5');
+const alice = crypto.createDiffieHellmanGroup('modp5');
+const bob = crypto.createDiffieHellmanGroup('modp5');
 alice.generateKeys();
 bob.generateKeys();
-var aSecret = alice.computeSecret(bob.getPublicKey()).toString('hex');
-var bSecret = bob.computeSecret(alice.getPublicKey()).toString('hex');
+const aSecret = alice.computeSecret(bob.getPublicKey()).toString('hex');
+const bSecret = bob.computeSecret(alice.getPublicKey()).toString('hex');
 assert.equal(aSecret, bSecret);
 assert.equal(alice.verifyError, DH_NOT_SUITABLE_GENERATOR);
 assert.equal(bob.verifyError, DH_NOT_SUITABLE_GENERATOR);
@@ -85,8 +85,8 @@ assert.equal(bob.verifyError, DH_NOT_SUITABLE_GENERATOR);
 /* Ensure specific generator (buffer) works as expected.
  * The values below (modp2/modp2buf) are for a 1024 bits long prime from
  * RFC 2412 E.2, see https://tools.ietf.org/html/rfc2412. */
-var modp2 = crypto.createDiffieHellmanGroup('modp2');
-var modp2buf = Buffer.from([
+const modp2 = crypto.createDiffieHellmanGroup('modp2');
+const modp2buf = Buffer.from([
   0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xc9, 0x0f,
   0xda, 0xa2, 0x21, 0x68, 0xc2, 0x34, 0xc4, 0xc6, 0x62, 0x8b,
   0x80, 0xdc, 0x1c, 0xd1, 0x29, 0x02, 0x4e, 0x08, 0x8a, 0x67,
@@ -101,51 +101,52 @@ var modp2buf = Buffer.from([
   0x1f, 0xe6, 0x49, 0x28, 0x66, 0x51, 0xec, 0xe6, 0x53, 0x81,
   0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 ]);
-var exmodp2 = crypto.createDiffieHellman(modp2buf, Buffer.from([2]));
+const exmodp2 = crypto.createDiffieHellman(modp2buf, Buffer.from([2]));
 modp2.generateKeys();
 exmodp2.generateKeys();
-var modp2Secret = modp2.computeSecret(exmodp2.getPublicKey()).toString('hex');
-var exmodp2Secret = exmodp2.computeSecret(modp2.getPublicKey()).toString('hex');
+let modp2Secret = modp2.computeSecret(exmodp2.getPublicKey()).toString('hex');
+const exmodp2Secret = exmodp2.computeSecret(modp2.getPublicKey())
+                                                 .toString('hex');
 assert.equal(modp2Secret, exmodp2Secret);
 assert.equal(modp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
 assert.equal(exmodp2.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
 
 // Ensure specific generator (string with encoding) works as expected.
-var exmodp2_2 = crypto.createDiffieHellman(modp2buf, '02', 'hex');
+const exmodp2_2 = crypto.createDiffieHellman(modp2buf, '02', 'hex');
 exmodp2_2.generateKeys();
 modp2Secret = modp2.computeSecret(exmodp2_2.getPublicKey()).toString('hex');
-var exmodp2_2Secret = exmodp2_2.computeSecret(modp2.getPublicKey())
+const exmodp2_2Secret = exmodp2_2.computeSecret(modp2.getPublicKey())
                                .toString('hex');
 assert.equal(modp2Secret, exmodp2_2Secret);
 assert.equal(exmodp2_2.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
 
 // Ensure specific generator (string without encoding) works as expected.
-var exmodp2_3 = crypto.createDiffieHellman(modp2buf, '\x02');
+const exmodp2_3 = crypto.createDiffieHellman(modp2buf, '\x02');
 exmodp2_3.generateKeys();
 modp2Secret = modp2.computeSecret(exmodp2_3.getPublicKey()).toString('hex');
-var exmodp2_3Secret = exmodp2_3.computeSecret(modp2.getPublicKey())
+const exmodp2_3Secret = exmodp2_3.computeSecret(modp2.getPublicKey())
                                .toString('hex');
 assert.equal(modp2Secret, exmodp2_3Secret);
 assert.equal(exmodp2_3.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
 
 // Ensure specific generator (numeric) works as expected.
-var exmodp2_4 = crypto.createDiffieHellman(modp2buf, 2);
+const exmodp2_4 = crypto.createDiffieHellman(modp2buf, 2);
 exmodp2_4.generateKeys();
 modp2Secret = modp2.computeSecret(exmodp2_4.getPublicKey()).toString('hex');
-var exmodp2_4Secret = exmodp2_4.computeSecret(modp2.getPublicKey())
+const exmodp2_4Secret = exmodp2_4.computeSecret(modp2.getPublicKey())
                                .toString('hex');
 assert.equal(modp2Secret, exmodp2_4Secret);
 assert.equal(exmodp2_4.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
 
-var p = 'FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74' +
-        '020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F1437' +
-        '4FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED' +
-        'EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381FFFFFFFFFFFFFFFF';
-var bad_dh = crypto.createDiffieHellman(p, 'hex');
+const p = 'FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74' +
+          '020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F1437' +
+          '4FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED' +
+          'EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381FFFFFFFFFFFFFFFF';
+const bad_dh = crypto.createDiffieHellman(p, 'hex');
 assert.equal(bad_dh.verifyError, DH_NOT_SUITABLE_GENERATOR);
 
 

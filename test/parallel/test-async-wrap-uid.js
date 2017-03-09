@@ -6,7 +6,7 @@ const assert = require('assert');
 const async_wrap = process.binding('async_wrap');
 
 // Give the event loop time to clear out the final uv_close().
-var si_cntr = 3;
+let si_cntr = 3;
 process.on('beforeExit', () => {
   if (--si_cntr > 0) setImmediate(() => {});
 });

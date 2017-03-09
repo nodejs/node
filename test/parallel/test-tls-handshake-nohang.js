@@ -1,11 +1,11 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
 // neither should hang
 tls.createSecurePair(null, false, false, false);

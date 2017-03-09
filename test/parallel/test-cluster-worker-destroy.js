@@ -8,8 +8,8 @@
  */
 
 const common = require('../common');
-var cluster = require('cluster');
-var worker1, worker2;
+const cluster = require('cluster');
+let worker1, worker2;
 
 if (cluster.isMaster) {
   worker1 = cluster.fork();

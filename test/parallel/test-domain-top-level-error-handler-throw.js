@@ -13,8 +13,8 @@ const domainErrHandlerExMessage = 'exception from domain error handler';
 const internalExMessage = 'You should NOT see me';
 
 if (process.argv[2] === 'child') {
-  var domain = require('domain');
-  var d = domain.create();
+  const domain = require('domain');
+  const d = domain.create();
 
   d.on('error', function() {
     throw new Error(domainErrHandlerExMessage);
@@ -26,11 +26,11 @@ if (process.argv[2] === 'child') {
     });
   });
 } else {
-  var fork = require('child_process').fork;
-  var assert = require('assert');
+  const fork = require('child_process').fork;
+  const assert = require('assert');
 
-  var child = fork(process.argv[1], ['child'], {silent: true});
-  var stderrOutput = '';
+  const child = fork(process.argv[1], ['child'], {silent: true});
+  let stderrOutput = '';
   if (child) {
     child.stderr.on('data', function onStderrData(data) {
       stderrOutput += data.toString();
@@ -45,8 +45,8 @@ if (process.argv[2] === 'child') {
     });
 
     child.on('exit', function onChildExited(exitCode, signal) {
-      var expectedExitCode = 7;
-      var expectedSignal = null;
+      const expectedExitCode = 7;
+      const expectedSignal = null;
 
       assert.strictEqual(exitCode, expectedExitCode);
       assert.strictEqual(signal, expectedSignal);

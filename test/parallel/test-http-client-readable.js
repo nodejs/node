@@ -13,7 +13,7 @@ util.inherits(FakeAgent, http.Agent);
 
 FakeAgent.prototype.createConnection = function() {
   const s = new Duplex();
-  var once = false;
+  let once = false;
 
   s._read = function() {
     if (once)
@@ -38,7 +38,7 @@ FakeAgent.prototype.createConnection = function() {
   return s;
 };
 
-var received = '';
+let received = '';
 
 const req = http.request({
   agent: new FakeAgent()

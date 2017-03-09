@@ -24,7 +24,7 @@ const unzips = [ zlib.Unzip(),
                  zlib.Gunzip(),
                  zlib.Inflate(),
                  zlib.InflateRaw() ];
-var hadError = [];
+const hadError = [];
 unzips.forEach(function(uz, i) {
   console.error('Error for ' + uz.constructor.name);
   uz.on('error', function(er) {

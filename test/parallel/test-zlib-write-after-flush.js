@@ -8,7 +8,7 @@ const gunz = zlib.createUnzip();
 
 gzip.pipe(gunz);
 
-var output = '';
+let output = '';
 const input = 'A line of data\n';
 gunz.setEncoding('utf8');
 gunz.on('data', function(c) {

@@ -5,7 +5,7 @@ require('../common');
 const assert = require('assert');
 const zlib = require('zlib');
 
-var hadRun = 0;
+let hadRun = 0;
 
 const expect = 'blahblahblahblahblahblah';
 const opts = {
@@ -38,7 +38,7 @@ const opts = {
     });
   });
 
-  var result = zlib[method[0] + 'Sync'](expect, opts);
+  let result = zlib[method[0] + 'Sync'](expect, opts);
   result = zlib[method[1] + 'Sync'](result, opts);
   assert.equal(result, expect,
                'Should get original string after ' +

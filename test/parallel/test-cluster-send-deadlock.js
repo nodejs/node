@@ -2,20 +2,20 @@
 // Testing mutual send of handles: from master to worker, and from worker to
 // master.
 
-var common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const cluster = require('cluster');
+const net = require('net');
 
 if (cluster.isMaster) {
-  var worker = cluster.fork();
+  const worker = cluster.fork();
   worker.on('exit', function(code, signal) {
     assert.strictEqual(code, 0, 'Worker exited with an error code');
     assert(!signal, 'Worker exited by a signal');
     server.close();
   });
 
-  var server = net.createServer(function(socket) {
+  let server = net.createServer(function(socket) {
     worker.send('handle', socket);
   });
 
@@ -25,9 +25,9 @@ if (cluster.isMaster) {
 } else {
   process.on('message', function(msg, handle) {
     if (msg === 'listen') {
-      var client1 = net.connect({ host: 'localhost', port: common.PORT });
-      var client2 = net.connect({ host: 'localhost', port: common.PORT });
-      var waiting = 2;
+      const client1 = net.connect({ host: 'localhost', port: common.PORT });
+      const client2 = net.connect({ host: 'localhost', port: common.PORT });
+      let waiting = 2;
       client1.on('close', onclose);
       client2.on('close', onclose);
       function onclose() {

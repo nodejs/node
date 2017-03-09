@@ -3,9 +3,9 @@ require('../common');
 const assert = require('assert');
 const http = require('http');
 
-var complete;
+let complete;
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   // We should not see the queued /thatotherone request within the server
   // as it should be aborted before it is sent.
   assert.equal(req.url, '/');
@@ -22,10 +22,10 @@ var server = http.createServer(function(req, res) {
 server.listen(0, function() {
   console.log('listen', server.address().port);
 
-  var agent = new http.Agent({maxSockets: 1});
+  const agent = new http.Agent({maxSockets: 1});
   assert.equal(Object.keys(agent.sockets).length, 0);
 
-  var options = {
+  const options = {
     hostname: 'localhost',
     port: server.address().port,
     method: 'GET',
@@ -33,12 +33,12 @@ server.listen(0, function() {
     agent: agent
   };
 
-  var req1 = http.request(options);
+  const req1 = http.request(options);
   req1.on('response', function(res1) {
     assert.equal(Object.keys(agent.sockets).length, 1);
     assert.equal(Object.keys(agent.requests).length, 0);
 
-    var req2 = http.request({
+    const req2 = http.request({
       method: 'GET',
       host: 'localhost',
       port: server.address().port,

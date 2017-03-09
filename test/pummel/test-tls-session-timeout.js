@@ -1,5 +1,5 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 
 if (!common.opensslCli) {
   common.skip('node compiled without OpenSSL CLI.');
@@ -22,19 +22,19 @@ doTest();
 //   that we used has expired by now.
 
 function doTest() {
-  var assert = require('assert');
-  var tls = require('tls');
-  var fs = require('fs');
-  var join = require('path').join;
-  var spawn = require('child_process').spawn;
+  const assert = require('assert');
+  const tls = require('tls');
+  const fs = require('fs');
+  const join = require('path').join;
+  const spawn = require('child_process').spawn;
 
-  var SESSION_TIMEOUT = 1;
+  const SESSION_TIMEOUT = 1;
 
-  var keyFile = join(common.fixturesDir, 'agent.key');
-  var certFile = join(common.fixturesDir, 'agent.crt');
-  var key = fs.readFileSync(keyFile);
-  var cert = fs.readFileSync(certFile);
-  var options = {
+  const keyFile = join(common.fixturesDir, 'agent.key');
+  const certFile = join(common.fixturesDir, 'agent.crt');
+  const key = fs.readFileSync(keyFile);
+  const cert = fs.readFileSync(certFile);
+  const options = {
     key: key,
     cert: cert,
     ca: [cert],
@@ -47,41 +47,41 @@ function doTest() {
   // file containing a proper serialization of a session ticket.
   // To avoid a source control diff, we copy the ticket to a temporary file.
 
-  var sessionFileName = (function() {
-    var ticketFileName = 'tls-session-ticket.txt';
-    var fixturesPath = join(common.fixturesDir, ticketFileName);
-    var tmpPath = join(common.tmpDir, ticketFileName);
+  const sessionFileName = (function() {
+    const ticketFileName = 'tls-session-ticket.txt';
+    const fixturesPath = join(common.fixturesDir, ticketFileName);
+    const tmpPath = join(common.tmpDir, ticketFileName);
     fs.writeFileSync(tmpPath, fs.readFileSync(fixturesPath));
     return tmpPath;
   }());
 
   // Expects a callback -- cb(connectionType : enum ['New'|'Reused'])
 
-  var Client = function(cb) {
-    var flags = [
+  const Client = function(cb) {
+    const flags = [
       's_client',
       '-connect', 'localhost:' + common.PORT,
       '-sess_in', sessionFileName,
       '-sess_out', sessionFileName
     ];
-    var client = spawn(common.opensslCli, flags, {
+    const client = spawn(common.opensslCli, flags, {
       stdio: ['ignore', 'pipe', 'ignore']
     });
 
-    var clientOutput = '';
+    let clientOutput = '';
     client.stdout.on('data', function(data) {
       clientOutput += data.toString();
     });
     client.on('exit', function(code) {
-      var connectionType;
-      var grepConnectionType = function(line) {
-        var matches = line.match(/(New|Reused), /);
+      let connectionType;
+      const grepConnectionType = function(line) {
+        const matches = line.match(/(New|Reused), /);
         if (matches) {
           connectionType = matches[1];
           return true;
         }
       };
-      var lines = clientOutput.split('\n');
+      const lines = clientOutput.split('\n');
       if (!lines.some(grepConnectionType)) {
         throw new Error('unexpected output from openssl client');
       }
@@ -89,7 +89,7 @@ function doTest() {
     });
   };
 
-  var server = tls.createServer(options, function(cleartext) {
+  const server = tls.createServer(options, function(cleartext) {
     cleartext.on('error', function(er) {
       if (er.code !== 'ECONNRESET')
         throw er;

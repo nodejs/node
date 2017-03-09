@@ -1,7 +1,7 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var net = require('net');
+const assert = require('assert');
+const net = require('net');
 
 assert.equal(net.isIP('127.0.0.1'), 4);
 assert.equal(net.isIP('x127.0.0.1'), 0);

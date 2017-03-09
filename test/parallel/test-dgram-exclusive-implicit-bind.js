@@ -40,11 +40,11 @@ const dgram = require('dgram');
 // with ENOTSUP.
 
 if (cluster.isMaster) {
-  var messages = 0;
+  let messages = 0;
   const ports = {};
   const pids = [];
 
-  var target = dgram.createSocket('udp4');
+  const target = dgram.createSocket('udp4');
 
   const done = common.mustCall(function() {
     cluster.disconnect();
@@ -84,7 +84,7 @@ if (cluster.isMaster) {
 }
 
 const source = dgram.createSocket('udp4');
-var interval;
+let interval;
 
 source.on('close', function() {
   clearInterval(interval);

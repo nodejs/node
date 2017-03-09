@@ -11,11 +11,11 @@ const net = require('net');
 const COUNT = httpCommon.parsers.max + 1;
 
 const parsers = new Array(COUNT);
-for (var i = 0; i < parsers.length; i++)
+for (let i = 0; i < parsers.length; i++)
   parsers[i] = httpCommon.parsers.alloc();
 
-var gotRequests = 0;
-var gotResponses = 0;
+let gotRequests = 0;
+let gotResponses = 0;
 
 function execAndClose() {
   if (parsers.length === 0)
@@ -50,7 +50,7 @@ function execAndClose() {
   };
 }
 
-var server = net.createServer(function(c) {
+const server = net.createServer(function(c) {
   if (++gotRequests === COUNT)
     server.close();
   c.end('HTTP/1.1 200 OK\r\n\r\n', function() {

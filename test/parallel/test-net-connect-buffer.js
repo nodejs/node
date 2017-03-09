@@ -1,17 +1,17 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var net = require('net');
+const assert = require('assert');
+const net = require('net');
 
-var dataWritten = false;
-var connectHappened = false;
+let dataWritten = false;
+let connectHappened = false;
 
-var tcp = net.Server(function(s) {
+const tcp = net.Server(function(s) {
   tcp.close();
 
   console.log('tcp server connection');
 
-  var buf = '';
+  let buf = '';
   s.on('data', function(d) {
     buf += d;
   });
@@ -30,7 +30,7 @@ var tcp = net.Server(function(s) {
 });
 
 tcp.listen(0, function() {
-  var socket = net.Stream({ highWaterMark: 0 });
+  const socket = net.Stream({ highWaterMark: 0 });
 
   console.log('Connecting to socket ');
 
@@ -65,13 +65,13 @@ tcp.listen(0, function() {
 
   // Write a string that contains a multi-byte character sequence to test that
   // `bytesWritten` is incremented with the # of bytes, not # of characters.
-  var a = "L'État, c'est ";
-  var b = 'moi';
+  const a = "L'État, c'est ";
+  const b = 'moi';
 
   // We're still connecting at this point so the datagram is first pushed onto
   // the connect queue. Make sure that it's not added to `bytesWritten` again
   // when the actual write happens.
-  var r = socket.write(a, function(er) {
+  const r = socket.write(a, function(er) {
     console.error('write cb');
     dataWritten = true;
     assert.ok(connectHappened);

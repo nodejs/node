@@ -19,7 +19,7 @@ const options = {
 };
 
 const clientSessions = [];
-var serverRequests = 0;
+let serverRequests = 0;
 
 const agent = new https.Agent({
   maxCachedSessions: 0
@@ -29,7 +29,7 @@ const server = https.createServer(options, function(req, res) {
   serverRequests++;
   res.end('ok');
 }).listen(0, function() {
-  var waiting = TOTAL_REQS;
+  let waiting = TOTAL_REQS;
   function request() {
     const options = {
       agent: agent,

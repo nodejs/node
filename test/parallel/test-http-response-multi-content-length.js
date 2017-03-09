@@ -24,7 +24,7 @@ const server = http.createServer((req, res) => {
   res.end('ok');
 });
 
-var count = 0;
+let count = 0;
 
 server.listen(0, common.mustCall(() => {
   for (let n = 1; n <= MAX_COUNT; n++) {

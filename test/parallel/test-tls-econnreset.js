@@ -1,14 +1,14 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var cacert =
+const cacert =
 `-----BEGIN CERTIFICATE-----
 MIIBxTCCAX8CAnXnMA0GCSqGSIb3DQEBBQUAMH0xCzAJBgNVBAYTAlVTMQswCQYD
 VQQIEwJDQTEWMBQGA1UEBxMNU2FuIEZyYW5jaXNjbzEZMBcGA1UEChMQU3Ryb25n
@@ -22,7 +22,7 @@ AVkCAwEAATANBgkqhkiG9w0BAQUFAAMxALA1uS4CqQXRSAyYTfio5oyLGz71a+NM
 +0AFLBwh5AQjhGd0FcenU4OfHxyDEOJT/Q==
 -----END CERTIFICATE-----`;
 
-var cert =
+const cert =
 `-----BEGIN CERTIFICATE-----
 MIIBfDCCATYCAgQaMA0GCSqGSIb3DQEBBQUAMH0xCzAJBgNVBAYTAlVTMQswCQYD
 VQQIEwJDQTEWMBQGA1UEBxMNU2FuIEZyYW5jaXNjbzEZMBcGA1UEChMQU3Ryb25n
@@ -34,7 +34,7 @@ AQABoxkwFzAVBgNVHREEDjAMhwQAAAAAhwR/AAABMA0GCSqGSIb3DQEBBQUAAzEA
 cGpYrhkrb7mIh9DNhV0qp7pGjqBzlHqB7KQXw2luLDp//6dyHBMexDCQznkhZKRU
 -----END CERTIFICATE-----`;
 
-var key =
+const key =
 `-----BEGIN RSA PRIVATE KEY-----
 MIH0AgEAAjEAx+QjQtZTXmk9TAhA0ydFWGE6JuLRNCYBq7wUG2DAR8YrTVal8ZRo
 mvVrjUrxSrvHAgMBAAECMBCGccvSwC2r8Z9Zh1JtirQVxaL1WWpAQfmVwLe0bAgg
@@ -44,30 +44,31 @@ pQIZAMMwxuS3XiO7two2sQF6W+JTYyX1DPCwAQIZAOYg1TvEGT38k8e8jygv8E8w
 YqrWTeQFNQ==
 -----END RSA PRIVATE KEY-----`;
 
-var ca = [ cert, cacert ];
+const ca = [ cert, cacert ];
 
-var clientError = null;
-var connectError = null;
+let clientError = null;
+let connectError = null;
 
-var server = tls.createServer({ ca: ca, cert: cert, key: key }, function(conn) {
-  throw 'unreachable';
-}).on('tlsClientError', function(err, conn) {
-  assert(!clientError && conn);
-  clientError = err;
-}).listen(0, function() {
-  var options = {
+const server =
+    tls.createServer({ ca: ca, cert: cert, key: key }, function(conn) {
+      throw 'unreachable';
+    }).on('tlsClientError', function(err, conn) {
+      assert(!clientError && conn);
+      clientError = err;
+    }).listen(0, function() {
+      const options = {
     ciphers: 'AES128-GCM-SHA256',
     port: this.address().port,
     ca: ca
-  };
-  tls.connect(options).on('error', function(err) {
-    assert(!connectError);
+      };
+      tls.connect(options).on('error', function(err) {
+        assert(!connectError);
 
-    connectError = err;
-    this.destroy();
-    server.close();
-  }).write('123');
-});
+        connectError = err;
+        this.destroy();
+        server.close();
+      }).write('123');
+    });
 
 process.on('exit', function() {
   assert(clientError);

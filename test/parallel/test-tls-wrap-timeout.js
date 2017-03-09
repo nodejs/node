@@ -27,8 +27,8 @@ const server = tls.createServer(options, common.mustCall((c) => {
   });
 }));
 
-var socket;
-var lastIdleStart;
+let socket;
+let lastIdleStart;
 
 server.listen(0, () => {
   socket = net.connect(server.address().port, function() {

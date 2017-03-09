@@ -1,19 +1,19 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var net = require('net');
+const common = require('../common');
+const assert = require('assert');
+const net = require('net');
 
-var tests_run = 0;
+let tests_run = 0;
 
 function pingPongTest(port, host, on_complete) {
-  var N = 1000;
-  var count = 0;
-  var sent_final_ping = false;
+  const N = 1000;
+  let count = 0;
+  let sent_final_ping = false;
 
-  var server = net.createServer({ allowHalfOpen: true }, function(socket) {
+  const server = net.createServer({ allowHalfOpen: true }, function(socket) {
     assert.equal(true, socket.remoteAddress !== null);
     assert.equal(true, socket.remoteAddress !== undefined);
-    var address = socket.remoteAddress;
+    const address = socket.remoteAddress;
     if (host === '127.0.0.1') {
       assert.equal(address, '127.0.0.1');
     } else if (host == null || host === 'localhost') {
@@ -49,7 +49,7 @@ function pingPongTest(port, host, on_complete) {
   });
 
   server.listen(port, host, function() {
-    var client = net.createConnection(port, host);
+    const client = net.createConnection(port, host);
 
     client.setEncoding('utf8');
 

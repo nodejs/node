@@ -6,7 +6,7 @@ require('../common');
 const assert = require('assert');
 const isLegalPort = require('internal/net').isLegalPort;
 
-for (var n = 0; n <= 0xFFFF; n++) {
+for (let n = 0; n <= 0xFFFF; n++) {
   assert(isLegalPort(n));
   assert(isLegalPort('' + n));
   assert(`0x${n.toString(16)}`);

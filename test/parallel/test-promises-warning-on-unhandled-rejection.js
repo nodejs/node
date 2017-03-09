@@ -7,7 +7,7 @@
 const common = require('../common');
 const assert = require('assert');
 
-var b = 0;
+let b = 0;
 
 process.on('warning', common.mustCall((warning) => {
   switch (b++) {

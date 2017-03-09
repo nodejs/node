@@ -1,26 +1,26 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
-var fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const fs = require('fs');
 
-var watchSeenOne = 0;
-var watchSeenTwo = 0;
-var watchSeenThree = 0;
-var watchSeenFour = 0;
+let watchSeenOne = 0;
+let watchSeenTwo = 0;
+let watchSeenThree = 0;
+let watchSeenFour = 0;
 
-var testDir = common.tmpDir;
+const testDir = common.tmpDir;
 
-var filenameOne = 'watch.txt';
-var filepathOne = path.join(testDir, filenameOne);
+const filenameOne = 'watch.txt';
+const filepathOne = path.join(testDir, filenameOne);
 
-var filenameTwo = 'hasOwnProperty';
-var filepathTwo = filenameTwo;
-var filepathTwoAbs = path.join(testDir, filenameTwo);
+const filenameTwo = 'hasOwnProperty';
+const filepathTwo = filenameTwo;
+const filepathTwoAbs = path.join(testDir, filenameTwo);
 
-var filenameThree = 'charm'; // because the third time is
+const filenameThree = 'charm'; // because the third time is
 
-var filenameFour = 'get';
+const filenameFour = 'get';
 
 process.on('exit', function() {
   fs.unlinkSync(filepathOne);

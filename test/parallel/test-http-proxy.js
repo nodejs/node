@@ -1,26 +1,26 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var http = require('http');
-var url = require('url');
+const assert = require('assert');
+const http = require('http');
+const url = require('url');
 
-var cookies = [
+const cookies = [
   'session_token=; path=/; expires=Sun, 15-Sep-2030 13:48:52 GMT',
   'prefers_open_id=; path=/; expires=Thu, 01-Jan-1970 00:00:00 GMT'
 ];
 
-var headers = {'content-type': 'text/plain',
-               'set-cookie': cookies,
-               'hello': 'world' };
+const headers = {'content-type': 'text/plain',
+                 'set-cookie': cookies,
+                 'hello': 'world' };
 
-var backend = http.createServer(function(req, res) {
+const backend = http.createServer(function(req, res) {
   console.error('backend request');
   res.writeHead(200, headers);
   res.write('hello world\n');
   res.end();
 });
 
-var proxy = http.createServer(function(req, res) {
+const proxy = http.createServer(function(req, res) {
   console.error('proxy req headers: ' + JSON.stringify(req.headers));
   http.get({
     port: backend.address().port,
@@ -46,9 +46,9 @@ var proxy = http.createServer(function(req, res) {
   });
 });
 
-var body = '';
+let body = '';
 
-var nlistening = 0;
+let nlistening = 0;
 function startReq() {
   nlistening++;
   if (nlistening < 2) return;

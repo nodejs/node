@@ -9,9 +9,9 @@ if (!common.hasIPv6) {
 }
 
 const hosts = common.localIPv6Hosts;
-var hostIdx = 0;
-var host = hosts[hostIdx];
-var localhostTries = 10;
+let hostIdx = 0;
+let host = hosts[hostIdx];
+let localhostTries = 10;
 
 const server = net.createServer({allowHalfOpen: true}, function(socket) {
   socket.resume();

@@ -2,8 +2,8 @@
 // Make sure that the nested domains don't cause the domain stack to grow
 
 require('../common');
-var assert = require('assert');
-var domain = require('domain');
+const assert = require('assert');
+const domain = require('domain');
 
 process.on('exit', function(c) {
   assert.equal(domain._stack.length, 0);

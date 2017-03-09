@@ -13,8 +13,9 @@ const options = {
 let gotHttpsResp = false;
 let gotHttpResp = false;
 
+let https;
 if (common.hasCrypto) {
-  var https = require('https');
+  https = require('https');
 } else {
   common.skip('missing crypto');
 }

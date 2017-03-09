@@ -5,7 +5,7 @@ const assert = require('assert');
 const zlib = require('zlib');
 const gz = zlib.Gzip();
 const emptyBuffer = Buffer.alloc(0);
-var received = 0;
+let received = 0;
 gz.on('data', function(c) {
   received += c.length;
 });

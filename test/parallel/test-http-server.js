@@ -1,17 +1,17 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var net = require('net');
-var http = require('http');
-var url = require('url');
-var qs = require('querystring');
+const assert = require('assert');
+const net = require('net');
+const http = require('http');
+const url = require('url');
+const qs = require('querystring');
 
-var request_number = 0;
-var requests_sent = 0;
-var server_response = '';
-var client_got_eof = false;
+let request_number = 0;
+let requests_sent = 0;
+let server_response = '';
+let client_got_eof = false;
 
-var server = http.createServer(function(req, res) {
+const server = http.createServer(function(req, res) {
   res.id = request_number;
   req.id = request_number++;
 
@@ -48,7 +48,7 @@ server.listen(0);
 server.httpAllowHalfOpen = true;
 
 server.on('listening', function() {
-  var c = net.createConnection(this.address().port);
+  const c = net.createConnection(this.address().port);
 
   c.setEncoding('utf8');
 
@@ -94,10 +94,10 @@ process.on('exit', function() {
   assert.strictEqual(4, request_number);
   assert.strictEqual(4, requests_sent);
 
-  var hello = new RegExp('/hello');
+  const hello = new RegExp('/hello');
   assert.notStrictEqual(null, hello.exec(server_response));
 
-  var quit = new RegExp('/quit');
+  const quit = new RegExp('/quit');
   assert.notStrictEqual(null, quit.exec(server_response));
 
   assert.strictEqual(true, client_got_eof);

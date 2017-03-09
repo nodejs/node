@@ -7,7 +7,7 @@ const fs = require('fs');
 const util = require('util');
 const stream = require('stream');
 
-var zlibPairs = [
+let zlibPairs = [
   [zlib.Deflate, zlib.Inflate],
   [zlib.Gzip, zlib.Gunzip],
   [zlib.Deflate, zlib.Unzip],
@@ -16,18 +16,18 @@ var zlibPairs = [
 ];
 
 // how fast to trickle through the slowstream
-var trickle = [128, 1024, 1024 * 1024];
+let trickle = [128, 1024, 1024 * 1024];
 
 // tunable options for zlib classes.
 
 // several different chunk sizes
-var chunkSize = [128, 1024, 1024 * 16, 1024 * 1024];
+let chunkSize = [128, 1024, 1024 * 16, 1024 * 1024];
 
 // this is every possible value.
-var level = [-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-var windowBits = [8, 9, 10, 11, 12, 13, 14, 15];
-var memLevel = [1, 2, 3, 4, 5, 6, 7, 8, 9];
-var strategy = [0, 1, 2, 3, 4];
+let level = [-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+let windowBits = [8, 9, 10, 11, 12, 13, 14, 15];
+let memLevel = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+let strategy = [0, 1, 2, 3, 4];
 
 // it's nice in theory to test every combination, but it
 // takes WAY too long.  Maybe a pummel test could do this?
@@ -40,7 +40,7 @@ if (!process.env.PUMMEL) {
   strategy = [0];
 }
 
-var testFiles = ['person.jpg', 'elipses.txt', 'empty.txt'];
+let testFiles = ['person.jpg', 'elipses.txt', 'empty.txt'];
 
 if (process.env.FAST) {
   zlibPairs = [[zlib.Gzip, zlib.Unzip]];
@@ -72,8 +72,8 @@ BufferStream.prototype.write = function(c) {
 BufferStream.prototype.end = function(c) {
   if (c) this.write(c);
   // flatten
-  var buf = Buffer.allocUnsafe(this.length);
-  var i = 0;
+  const buf = Buffer.allocUnsafe(this.length);
+  let i = 0;
   this.chunks.forEach(function(c) {
     c.copy(buf, i);
     i += c.length;
@@ -108,8 +108,8 @@ SlowStream.prototype.resume = function() {
       this.ended = true;
       return this.emit('end');
     }
-    var end = Math.min(this.offset + this.trickle, this.length);
-    var c = this.chunk.slice(this.offset, end);
+    const end = Math.min(this.offset + this.trickle, this.length);
+    const c = this.chunk.slice(this.offset, end);
     this.offset += c.length;
     this.emit('data', c);
     process.nextTick(emit);
@@ -134,12 +134,12 @@ SlowStream.prototype.end = function(chunk) {
 // for each of the files, make sure that compressing and
 // decompressing results in the same data, for every combination
 // of the options set above.
-var failures = 0;
-var total = 0;
-var done = 0;
+let failures = 0;
+let total = 0;
+let done = 0;
 
 Object.keys(tests).forEach(function(file) {
-  var test = tests[file];
+  const test = tests[file];
   chunkSize.forEach(function(chunkSize) {
     trickle.forEach(function(trickle) {
       windowBits.forEach(function(windowBits) {
@@ -147,29 +147,30 @@ Object.keys(tests).forEach(function(file) {
           memLevel.forEach(function(memLevel) {
             strategy.forEach(function(strategy) {
               zlibPairs.forEach(function(pair) {
-                var Def = pair[0];
-                var Inf = pair[1];
-                var opts = { level: level,
-                             windowBits: windowBits,
-                             memLevel: memLevel,
-                             strategy: strategy };
+                const Def = pair[0];
+                const Inf = pair[1];
+                const opts = { level: level,
+                               windowBits: windowBits,
+                               memLevel: memLevel,
+                               strategy: strategy };
 
                 total++;
 
-                var def = new Def(opts);
-                var inf = new Inf(opts);
-                var ss = new SlowStream(trickle);
-                var buf = new BufferStream();
+                const def = new Def(opts);
+                const inf = new Inf(opts);
+                const ss = new SlowStream(trickle);
+                const buf = new BufferStream();
 
                 // verify that the same exact buffer comes out the other end.
                 buf.on('data', function(c) {
-                  var msg = file + ' ' +
-                            chunkSize + ' ' +
-                            JSON.stringify(opts) + ' ' +
-                            Def.name + ' -> ' + Inf.name;
-                  var ok = true;
-                  var testNum = ++done;
-                  for (var i = 0; i < Math.max(c.length, test.length); i++) {
+                  const msg = file + ' ' +
+                              chunkSize + ' ' +
+                              JSON.stringify(opts) + ' ' +
+                              Def.name + ' -> ' + Inf.name;
+                  let ok = true;
+                  const testNum = ++done;
+                  let i;
+                  for (i = 0; i < Math.max(c.length, test.length); i++) {
                     if (c[i] !== test[i]) {
                       ok = false;
                       failures++;

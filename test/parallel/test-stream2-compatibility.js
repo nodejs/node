@@ -1,12 +1,12 @@
 'use strict';
 require('../common');
-var R = require('_stream_readable');
-var W = require('_stream_writable');
-var assert = require('assert');
+const R = require('_stream_readable');
+const W = require('_stream_writable');
+const assert = require('assert');
 
-var util = require('util');
+const util = require('util');
 
-var ondataCalled = 0;
+let ondataCalled = 0;
 
 function TestReader() {
   R.apply(this);
@@ -24,7 +24,7 @@ TestReader.prototype._read = function(n) {
   this._buffer = Buffer.alloc(0);
 };
 
-var reader = new TestReader();
+const reader = new TestReader();
 setImmediate(function() {
   assert.equal(ondataCalled, 1);
   console.log('ok');
@@ -43,7 +43,7 @@ TestWriter.prototype._write = function(chunk, enc, cb) {
   cb();
 };
 
-var writer = new TestWriter();
+const writer = new TestWriter();
 
 process.on('exit', function() {
   assert.strictEqual(reader.readable, false);

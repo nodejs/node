@@ -1,13 +1,13 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var http = require('http');
+const assert = require('assert');
+const http = require('http');
 
-var outstanding_reqs = 0;
-var test_req_body = 'some stuff...\n';
-var test_res_body = 'other stuff!\n';
-var sent_continue = false;
-var got_continue = false;
+let outstanding_reqs = 0;
+const test_req_body = 'some stuff...\n';
+const test_res_body = 'other stuff!\n';
+let sent_continue = false;
+let got_continue = false;
 
 function handler(req, res) {
   assert.equal(sent_continue, true, 'Full response sent before 100 Continue');
@@ -19,7 +19,7 @@ function handler(req, res) {
   res.end(test_res_body);
 }
 
-var server = http.createServer(handler);
+const server = http.createServer(handler);
 server.on('checkContinue', function(req, res) {
   console.error('Server got Expect: 100-continue...');
   res.writeContinue();
@@ -32,7 +32,7 @@ server.listen(0);
 
 
 server.on('listening', function() {
-  var req = http.request({
+  const req = http.request({
     port: this.address().port,
     method: 'POST',
     path: '/world',
@@ -40,7 +40,7 @@ server.on('listening', function() {
   });
   console.error('Client sending request...');
   outstanding_reqs++;
-  var body = '';
+  let body = '';
   req.on('continue', function() {
     console.error('Client got 100 Continue...');
     got_continue = true;

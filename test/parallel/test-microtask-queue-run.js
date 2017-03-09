@@ -1,12 +1,12 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 function enqueueMicrotask(fn) {
   Promise.resolve().then(fn);
 }
 
-var done = 0;
+let done = 0;
 
 process.on('exit', function() {
   assert.equal(done, 2);
@@ -22,7 +22,7 @@ setTimeout(function() {
 
 // no nextTick, microtask with nextTick
 setTimeout(function() {
-  var called = false;
+  let called = false;
 
   enqueueMicrotask(function() {
     process.nextTick(function() {

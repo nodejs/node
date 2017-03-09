@@ -3,16 +3,16 @@ const common = require('../common');
 // disable strict server certificate validation by the client
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
-var assert = require('assert');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var https = require('https');
+const https = require('https');
 
-var fs = require('fs');
-var path = require('path');
+const fs = require('fs');
+const path = require('path');
 
 function file(fname) {
   return path.resolve(common.fixturesDir, 'keys', fname);
@@ -23,60 +23,60 @@ function read(fname) {
 }
 
 // key1 is signed by ca1.
-var key1 = read('agent1-key.pem');
-var cert1 = read('agent1-cert.pem');
+const key1 = read('agent1-key.pem');
+const cert1 = read('agent1-cert.pem');
 
 // key2 has a self signed cert
-var key2 = read('agent2-key.pem');
-var cert2 = read('agent2-cert.pem');
+const key2 = read('agent2-key.pem');
+const cert2 = read('agent2-cert.pem');
 
 // key3 is signed by ca2.
-var key3 = read('agent3-key.pem');
-var cert3 = read('agent3-cert.pem');
+const key3 = read('agent3-key.pem');
+const cert3 = read('agent3-cert.pem');
 
-var ca1 = read('ca1-cert.pem');
-var ca2 = read('ca2-cert.pem');
+const ca1 = read('ca1-cert.pem');
+const ca2 = read('ca2-cert.pem');
 
 // different agents to use different CA lists.
 // this api is beyond bad.
-var agent0 = new https.Agent();
-var agent1 = new https.Agent({ ca: [ca1] });
-var agent2 = new https.Agent({ ca: [ca2] });
-var agent3 = new https.Agent({ ca: [ca1, ca2] });
+const agent0 = new https.Agent();
+const agent1 = new https.Agent({ ca: [ca1] });
+const agent2 = new https.Agent({ ca: [ca2] });
+const agent3 = new https.Agent({ ca: [ca1, ca2] });
 
-var options1 = {
+const options1 = {
   key: key1,
   cert: cert1
 };
 
-var options2 = {
+const options2 = {
   key: key2,
   cert: cert2
 };
 
-var options3 = {
+const options3 = {
   key: key3,
   cert: cert3
 };
 
-var server1 = server(options1);
-var server2 = server(options2);
-var server3 = server(options3);
+const server1 = server(options1);
+const server2 = server(options2);
+const server3 = server(options3);
 
-var listenWait = 0;
+let listenWait = 0;
 
 server1.listen(0, listening());
 server2.listen(0, listening());
 server3.listen(0, listening());
 
-var responseErrors = {};
-var expectResponseCount = 0;
-var responseCount = 0;
-var pending = 0;
+const responseErrors = {};
+let expectResponseCount = 0;
+let responseCount = 0;
+let pending = 0;
 
 
 function server(options, port) {
-  var s = https.createServer(options, handler);
+  const s = https.createServer(options, handler);
   s.requests = [];
   s.expectCount = 0;
   return s;
@@ -101,7 +101,7 @@ function listening() {
 
 function makeReq(path, port, error, host, ca) {
   pending++;
-  var options = {
+  const options = {
     port: port,
     path: path,
     ca: ca
@@ -125,9 +125,9 @@ function makeReq(path, port, error, host, ca) {
   if (host) {
     options.headers = { host: host };
   }
-  var req = https.get(options);
+  const req = https.get(options);
   expectResponseCount++;
-  var server = port === server1.address().port ? server1
+  const server = port === server1.address().port ? server1
       : port === server2.address().port ? server2
       : port === server3.address().port ? server3
       : null;

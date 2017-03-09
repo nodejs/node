@@ -1,15 +1,15 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var util = require('util');
-var net = require('net');
-var http = require('http');
+const util = require('util');
+const net = require('net');
+const http = require('http');
 
 
-var requests_recv = 0;
-var requests_sent = 0;
-var request_upgradeHead = null;
+let requests_recv = 0;
+let requests_sent = 0;
+let request_upgradeHead = null;
 
 function createTestServer() {
   return new testServer();
@@ -37,7 +37,7 @@ function testServer() {
     request_upgradeHead = upgradeHead;
 
     socket.on('data', function(d) {
-      var data = d.toString('utf8');
+      const data = d.toString('utf8');
       if (data === 'kill') {
         socket.end();
       } else {
@@ -60,9 +60,9 @@ function writeReq(socket, data, encoding) {
   connection: Upgrade with listener
 -----------------------------------------------*/
 function test_upgrade_with_listener() {
-  var conn = net.createConnection(server.address().port);
+  const conn = net.createConnection(server.address().port);
   conn.setEncoding('utf8');
-  var state = 0;
+  let state = 0;
 
   conn.on('connect', function() {
     writeReq(conn,
@@ -99,10 +99,10 @@ function test_upgrade_with_listener() {
 /*-----------------------------------------------
   connection: Upgrade, no listener
 -----------------------------------------------*/
-var test_upgrade_no_listener_ended = false;
+let test_upgrade_no_listener_ended = false;
 
 function test_upgrade_no_listener() {
-  var conn = net.createConnection(server.address().port);
+  const conn = net.createConnection(server.address().port);
   conn.setEncoding('utf8');
 
   conn.on('connect', function() {
@@ -127,7 +127,7 @@ function test_upgrade_no_listener() {
   connection: normal
 -----------------------------------------------*/
 function test_standard_http() {
-  var conn = net.createConnection(server.address().port);
+  const conn = net.createConnection(server.address().port);
   conn.setEncoding('utf8');
 
   conn.on('connect', function() {
@@ -146,7 +146,7 @@ function test_standard_http() {
 }
 
 
-var server = createTestServer();
+let server = createTestServer();
 
 server.listen(0, function() {
   // All tests get chained after this:

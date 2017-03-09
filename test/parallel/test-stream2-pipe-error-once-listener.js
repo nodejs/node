@@ -1,11 +1,11 @@
 'use strict';
 require('../common');
 
-var util = require('util');
-var stream = require('stream');
+const util = require('util');
+const stream = require('stream');
 
 
-var Read = function() {
+const Read = function() {
   stream.Readable.call(this);
 };
 util.inherits(Read, stream.Readable);
@@ -16,7 +16,7 @@ Read.prototype._read = function(size) {
 };
 
 
-var Write = function() {
+const Write = function() {
   stream.Writable.call(this);
 };
 util.inherits(Write, stream.Writable);
@@ -26,8 +26,8 @@ Write.prototype._write = function(buffer, encoding, cb) {
   this.emit('alldone');
 };
 
-var read = new Read();
-var write = new Write();
+const read = new Read();
+const write = new Write();
 
 write.once('error', function(err) {});
 write.once('alldone', function(err) {

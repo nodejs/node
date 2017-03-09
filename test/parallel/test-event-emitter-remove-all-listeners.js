@@ -66,7 +66,7 @@ function listener() {}
 
 {
   const ee = new events.EventEmitter();
-  var expectLength = 2;
+  let expectLength = 2;
   ee.on('removeListener', function(name, listener) {
     assert.strictEqual(expectLength--, this.listeners('baz').length);
   });

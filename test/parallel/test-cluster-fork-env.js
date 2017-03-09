@@ -1,7 +1,7 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
+const assert = require('assert');
+const cluster = require('cluster');
 
 if (cluster.isWorker) {
   const result = cluster.worker.send({
@@ -12,7 +12,7 @@ if (cluster.isWorker) {
   assert.strictEqual(result, true);
 } else if (cluster.isMaster) {
 
-  var checks = {
+  const checks = {
     using: false,
     overwrite: false
   };
@@ -22,7 +22,7 @@ if (cluster.isWorker) {
   process.env['cluster_test_overwrite'] = 'old';
 
   // Fork worker
-  var worker = cluster.fork({
+  const worker = cluster.fork({
     'cluster_test_prop': 'custom',
     'cluster_test_overwrite': 'new'
   });

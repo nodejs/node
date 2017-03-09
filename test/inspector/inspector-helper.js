@@ -110,7 +110,7 @@ function makeBufferingDataCallback(dataCallback) {
       buffer = Buffer.alloc(0);
     else
       buffer = Buffer.from(lines.pop(), 'utf8');
-    for (var line of lines)
+    for (const line of lines)
       dataCallback(line);
   };
 }
@@ -222,7 +222,7 @@ TestSession.prototype.sendInspectorCommands = function(commands) {
 };
 
 TestSession.prototype.createCallbackWithTimeout_ = function(message) {
-  var promise = new Promise((resolve) => {
+  const promise = new Promise((resolve) => {
     this.enqueue((callback) => {
       const timeoutId = timeout(message);
       resolve(() => {

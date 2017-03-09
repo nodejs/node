@@ -6,13 +6,13 @@ const buffer = require('buffer');
 
 buffer.INSPECT_MAX_BYTES = 2;
 
-var b = Buffer.allocUnsafe(4);
+let b = Buffer.allocUnsafe(4);
 b.fill('1234');
 
-var s = buffer.SlowBuffer(4);
+let s = buffer.SlowBuffer(4);
 s.fill('1234');
 
-var expected = '<Buffer 31 32 ... >';
+let expected = '<Buffer 31 32 ... >';
 
 assert.strictEqual(util.inspect(b), expected);
 assert.strictEqual(util.inspect(s), expected);

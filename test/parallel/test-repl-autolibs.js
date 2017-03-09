@@ -1,8 +1,8 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var util = require('util');
-var repl = require('repl');
+const assert = require('assert');
+const util = require('util');
+const repl = require('repl');
 
 // This test adds global variables
 common.globalCheck = false;
@@ -13,7 +13,7 @@ repl.start('', putIn, null, true);
 test1();
 
 function test1() {
-  var gotWrite = false;
+  let gotWrite = false;
   putIn.write = function(data) {
     gotWrite = true;
     if (data.length) {
@@ -31,7 +31,7 @@ function test1() {
 }
 
 function test2() {
-  var gotWrite = false;
+  let gotWrite = false;
   putIn.write = function(data) {
     gotWrite = true;
     if (data.length) {
@@ -41,7 +41,7 @@ function test2() {
       assert.equal(val, global.url);
     }
   };
-  var val = {};
+  let val = {};
   global.url = val;
   assert(!gotWrite);
   putIn.run(['url']);

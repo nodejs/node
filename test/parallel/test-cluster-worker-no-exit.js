@@ -1,13 +1,13 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var cluster = require('cluster');
-var net = require('net');
+const assert = require('assert');
+const cluster = require('cluster');
+const net = require('net');
 
-var destroyed;
-var success;
-var worker;
-var server;
+let destroyed;
+let success;
+let worker;
+let server;
 
 // workers do not exit on disconnect, they exit under normal node rules: when
 // they have nothing keeping their loop alive, like an active connection
@@ -35,7 +35,7 @@ if (cluster.isMaster) {
     });
 
   }).listen(common.PORT, function() {
-    var port = this.address().port;
+    const port = this.address().port;
 
     worker = cluster.fork()
       .on('online', function() {

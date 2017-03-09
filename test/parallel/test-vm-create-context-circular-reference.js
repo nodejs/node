@@ -1,9 +1,9 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var vm = require('vm');
+const assert = require('assert');
+const vm = require('vm');
 
-var sbx = {};
+let sbx = {};
 sbx.window = sbx;
 
 sbx = vm.createContext(sbx);

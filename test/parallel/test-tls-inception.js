@@ -54,7 +54,7 @@ a.listen(0, function() {
       rejectUnauthorized: false
     });
     ssl.setEncoding('utf8');
-    var buf = '';
+    let buf = '';
     ssl.on('data', function(data) {
       buf += data;
     });

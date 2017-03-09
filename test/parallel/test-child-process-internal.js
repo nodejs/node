@@ -1,11 +1,11 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
 //messages
-var PREFIX = 'NODE_';
-var normal = {cmd: 'foo' + PREFIX};
-var internal = {cmd: PREFIX + 'bar'};
+const PREFIX = 'NODE_';
+const normal = {cmd: 'foo' + PREFIX};
+const internal = {cmd: PREFIX + 'bar'};
 
 if (process.argv[2] === 'child') {
   //send non-internal message containing PREFIX at a non prefix position
@@ -18,8 +18,8 @@ if (process.argv[2] === 'child') {
 
 } else {
 
-  var fork = require('child_process').fork;
-  var child = fork(process.argv[1], ['child']);
+  const fork = require('child_process').fork;
+  const child = fork(process.argv[1], ['child']);
 
   child.once('message', common.mustCall(function(data) {
     assert.deepStrictEqual(data, normal);

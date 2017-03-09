@@ -1,10 +1,10 @@
 'use strict';
 require('../common');
-var assert = require('assert');
-var i;
+const assert = require('assert');
+let i;
 
-var N = 30;
-var done = [];
+const N = 30;
+const done = [];
 
 function get_printer(timeout) {
   return function() {

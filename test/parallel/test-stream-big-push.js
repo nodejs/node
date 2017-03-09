@@ -18,7 +18,7 @@ function _read() {
     }, 1);
     reads++;
   } else if (reads === 1) {
-    var ret = r.push(str);
+    const ret = r.push(str);
     assert.strictEqual(ret, false);
     reads++;
   } else {
@@ -32,10 +32,10 @@ r.on('end', common.mustCall(function() {}));
 
 // push some data in to start.
 // we've never gotten any read event at this point.
-var ret = r.push(str);
+const ret = r.push(str);
 // should be false.  > hwm
 assert(!ret);
-var chunk = r.read();
+let chunk = r.read();
 assert.strictEqual(chunk, str);
 chunk = r.read();
 assert.strictEqual(chunk, null);

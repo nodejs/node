@@ -1,13 +1,13 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var fork = require('child_process').fork;
-var net = require('net');
-var count = 12;
+const assert = require('assert');
+const fork = require('child_process').fork;
+const net = require('net');
+const count = 12;
 
 if (process.argv[2] === 'child') {
-  var needEnd = [];
-  var id = process.argv[3];
+  const needEnd = [];
+  const id = process.argv[3];
 
   process.on('message', function(m, socket) {
     if (!socket) return;
@@ -60,11 +60,11 @@ if (process.argv[2] === 'child') {
 
 } else {
 
-  var child1 = fork(process.argv[1], ['child', '1']);
-  var child2 = fork(process.argv[1], ['child', '2']);
-  var child3 = fork(process.argv[1], ['child', '3']);
+  const child1 = fork(process.argv[1], ['child', '1']);
+  const child2 = fork(process.argv[1], ['child', '2']);
+  const child3 = fork(process.argv[1], ['child', '3']);
 
-  var server = net.createServer();
+  const server = net.createServer();
 
   let connected = 0;
   let closed = 0;
@@ -94,10 +94,10 @@ if (process.argv[2] === 'child') {
     }
   });
 
-  var disconnected = 0;
+  let disconnected = 0;
   server.on('listening', function() {
 
-    var j = count, client;
+    let j = count, client;
     while (j--) {
       client = net.connect(this.address().port, '127.0.0.1');
       client.on('error', function() {
@@ -112,7 +112,7 @@ if (process.argv[2] === 'child') {
     }
   });
 
-  var closeEmitted = false;
+  let closeEmitted = false;
   server.on('close', common.mustCall(function() {
     closeEmitted = true;
 
@@ -123,7 +123,7 @@ if (process.argv[2] === 'child') {
 
   server.listen(0, '127.0.0.1');
 
-  var closeServer = function() {
+  let closeServer = function() {
     server.close();
 
     setTimeout(function() {

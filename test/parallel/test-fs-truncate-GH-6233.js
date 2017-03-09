@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const fs = require('fs');
 
-var filename = common.tmpDir + '/truncate-file.txt';
+const filename = common.tmpDir + '/truncate-file.txt';
 
 common.refreshTmpDir();
 

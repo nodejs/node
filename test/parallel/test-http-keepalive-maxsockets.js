@@ -1,25 +1,25 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var http = require('http');
+const http = require('http');
 
 
-var serverSockets = [];
-var server = http.createServer(function(req, res) {
+const serverSockets = [];
+const server = http.createServer(function(req, res) {
   if (serverSockets.indexOf(req.socket) === -1) {
     serverSockets.push(req.socket);
   }
   res.end(req.url);
 });
 server.listen(0, function() {
-  var agent = http.Agent({
+  const agent = http.Agent({
     keepAlive: true,
     maxSockets: 5,
     maxFreeSockets: 2
   });
 
-  var closed = false;
+  let closed = false;
   makeReqs(10, function(er) {
     assert.ifError(er);
     assert.equal(count(agent.freeSockets), 2);
@@ -49,7 +49,7 @@ server.listen(0, function() {
   // make 10 requests in parallel,
   // then 10 more when they all finish.
   function makeReqs(n, cb) {
-    for (var i = 0; i < n; i++)
+    for (let i = 0; i < n; i++)
       makeReq(i, then);
 
     function then(er) {
@@ -66,7 +66,7 @@ server.listen(0, function() {
       path: '/' + i,
       agent: agent
     }, function(res) {
-      var data = '';
+      let data = '';
       res.setEncoding('ascii');
       res.on('data', function(c) {
         data += c;

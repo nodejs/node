@@ -13,7 +13,7 @@ const assert = require('assert');
  *  - Correctly interpreting values that are beyond the signed range as unsigned
  */
 function test8(clazz) {
-  var data = new clazz(4);
+  const data = new clazz(4);
 
   data.writeUInt8(23, 0);
   data.writeUInt8(23, 1);
@@ -42,8 +42,8 @@ function test8(clazz) {
 
 
 function test16(clazz) {
-  var value = 0x2343;
-  var data = new clazz(4);
+  let value = 0x2343;
+  const data = new clazz(4);
 
   data.writeUInt16BE(value, 0);
   assert.equal(0x23, data[0]);
@@ -81,8 +81,8 @@ function test16(clazz) {
 
 
 function test32(clazz) {
-  var data = new clazz(6);
-  var value = 0xe7f90a6d;
+  const data = new clazz(6);
+  const value = 0xe7f90a6d;
 
   data.writeUInt32BE(value, 0);
   assert.equal(0xe7, data[0]);
@@ -124,10 +124,10 @@ function test32(clazz) {
 
 function testUint(clazz) {
   const data = new clazz(8);
-  var val = 1;
+  let val = 1;
 
   // Test 0 to 5 bytes.
-  for (var i = 0; i <= 5; i++) {
+  for (let i = 0; i <= 5; i++) {
     const errmsg = `byteLength: ${i}`;
     assert.throws(function() {
       data.writeUIntBE(val, 0, i);

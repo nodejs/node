@@ -40,7 +40,7 @@ function tempFd(callback) {
 }
 
 function tempFdSync(callback) {
-  var fd = fs.openSync(fn, 'r');
+  const fd = fs.openSync(fn, 'r');
   callback(fd);
   fs.closeSync(fd);
 }

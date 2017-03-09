@@ -5,7 +5,7 @@ const assert = require('assert');
 const zero = [];
 const one = [ Buffer.from('asdf') ];
 const long = [];
-for (var i = 0; i < 10; i++) long.push(Buffer.from('asdf'));
+for (let i = 0; i < 10; i++) long.push(Buffer.from('asdf'));
 
 const flatZero = Buffer.concat(zero);
 const flatOne = Buffer.concat(one);

@@ -1,9 +1,9 @@
 'use strict';
-var common = require('../common');
-var net = require('net');
-var assert = require('assert');
-var fp = '/tmp/fadagagsdfgsdf';
-var c = net.connect(fp);
+const common = require('../common');
+const net = require('net');
+const assert = require('assert');
+const fp = '/tmp/fadagagsdfgsdf';
+const c = net.connect(fp);
 
 c.on('connect', common.fail);
 

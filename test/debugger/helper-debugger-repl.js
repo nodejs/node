@@ -1,15 +1,15 @@
 'use strict';
 const common = require('../common');
-var assert = require('assert');
-var spawn = require('child_process').spawn;
+const assert = require('assert');
+const spawn = require('child_process').spawn;
 
 process.env.NODE_DEBUGGER_TIMEOUT = 2000;
-var port = common.PORT;
+const port = common.PORT;
 
-var child;
-var buffer = '';
-var expected = [];
-var quit;
+let child;
+let buffer = '';
+const expected = [];
+let quit;
 
 function startDebugger(scriptToDebug) {
   scriptToDebug = process.env.NODE_DEBUGGER_TEST_SCRIPT ||
@@ -34,23 +34,23 @@ function startDebugger(scriptToDebug) {
     console.log(line);
     assert.ok(expected.length > 0, 'Got unexpected line: ' + line);
 
-    var expectedLine = expected[0].lines.shift();
+    const expectedLine = expected[0].lines.shift();
     assert.ok(line.match(expectedLine) !== null, line + ' != ' + expectedLine);
 
     if (expected[0].lines.length === 0) {
-      var callback = expected[0].callback;
+      const callback = expected[0].callback;
       expected.shift();
       callback && callback();
     }
   });
 
-  var childClosed = false;
+  let childClosed = false;
   child.on('close', function(code) {
     assert(!code);
     childClosed = true;
   });
 
-  var quitCalled = false;
+  let quitCalled = false;
   quit = function() {
     if (quitCalled || childClosed) return;
     quitCalled = true;
@@ -60,7 +60,7 @@ function startDebugger(scriptToDebug) {
 
   setTimeout(function() {
     console.error('dying badly buffer=%j', buffer);
-    var err = 'Timeout';
+    let err = 'Timeout';
     if (expected.length > 0 && expected[0].lines) {
       err = err + '. Expected: ' + expected[0].lines.shift();
     }
@@ -95,7 +95,7 @@ function addTest(input, output) {
       child.stdin.write(expected[0].input + '\n');
 
       if (!expected[0].lines) {
-        var callback = expected[0].callback;
+        const callback = expected[0].callback;
         expected.shift();
 
         callback && callback();
@@ -107,17 +107,17 @@ function addTest(input, output) {
   expected.push({input: input, lines: output, callback: next});
 }
 
-var handshakeLines = [
+const handshakeLines = [
   /listening on /,
   /connecting.* ok/
 ];
 
-var initialBreakLines = [
+const initialBreakLines = [
   /break in .*:1/,
   /1/, /2/, /3/
 ];
 
-var initialLines = handshakeLines.concat(initialBreakLines);
+const initialLines = handshakeLines.concat(initialBreakLines);
 
 // Process initial lines
 addTest(null, initialLines);

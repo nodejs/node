@@ -20,6 +20,6 @@ fs.read(fd,
           assert.deepStrictEqual(bufferAsync, Buffer.from(expected));
         }));
 
-var r = fs.readSync(fd, bufferSync, 0, expected.length, 0);
+const r = fs.readSync(fd, bufferSync, 0, expected.length, 0);
 assert.deepStrictEqual(bufferSync, Buffer.from(expected));
 assert.equal(r, expected.length);

@@ -8,14 +8,15 @@ const buffer_dir = Buffer.from(string_dir);
 
 const encodings = ['ascii', 'utf8', 'utf16le', 'ucs2',
                    'base64', 'binary', 'hex'];
-var expected = {};
+const expected = {};
 encodings.forEach((encoding) => {
   expected[encoding] = buffer_dir.toString(encoding);
 });
 
 
 // test sync version
-for (var encoding in expected) {
+let encoding;
+for (encoding in expected) {
   const expected_value = expected[encoding];
   let result;
 

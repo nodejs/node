@@ -17,8 +17,8 @@ FakeInput.prototype.write = function() {};
 FakeInput.prototype.end = function() {};
 
 function isWarned(emitter) {
-  for (var name in emitter) {
-    var listeners = emitter[name];
+  for (const name in emitter) {
+    const listeners = emitter[name];
     if (listeners.warned) return true;
   }
   return false;
@@ -53,9 +53,9 @@ function isWarned(emitter) {
 }
 
 [ true, false ].forEach(function(terminal) {
-  var fi;
-  var rli;
-  var called;
+  let fi;
+  let rli;
+  let called;
 
   // disable history
   fi = new FakeInput();
@@ -126,8 +126,8 @@ function isWarned(emitter) {
   // sending multiple newlines at once
   fi = new FakeInput();
   rli = new readline.Interface({ input: fi, output: fi, terminal: terminal });
-  var expectedLines = ['foo', 'bar', 'baz'];
-  var callCount = 0;
+  let expectedLines = ['foo', 'bar', 'baz'];
+  let callCount = 0;
   rli.on('line', function(line) {
     assert.equal(line, expectedLines[callCount]);
     callCount++;
@@ -265,7 +265,7 @@ function isWarned(emitter) {
 
   // \t does not become part of the input when there is a completer function
   fi = new FakeInput();
-  var completer = function(line) {
+  const completer = function(line) {
     return [[], line];
   };
   rli = new readline.Interface({
@@ -280,7 +280,7 @@ function isWarned(emitter) {
     assert.strictEqual(called, false);
     called = true;
   });
-  for (var character of '\tfo\to\t') {
+  for (const character of '\tfo\to\t') {
     fi.emit('data', character);
   }
   fi.emit('data', '\n');
@@ -304,7 +304,7 @@ function isWarned(emitter) {
   });
 
   // sending a multi-byte utf8 char over multiple writes
-  var buf = Buffer.from('☮', 'utf8');
+  const buf = Buffer.from('☮', 'utf8');
   fi = new FakeInput();
   rli = new readline.Interface({ input: fi, output: fi, terminal: terminal });
   callCount = 0;
@@ -324,7 +324,7 @@ function isWarned(emitter) {
   // check that nothing fails if 'keypress' event throws.
   fi = new FakeInput();
   rli = new readline.Interface({ input: fi, output: fi, terminal: true });
-  var keys = [];
+  const keys = [];
   fi.on('keypress', function(key) {
     keys.push(key);
     if (key === 'X') {
@@ -358,7 +358,7 @@ function isWarned(emitter) {
     rli.question(expectedLines[0], function() {
       rli.close();
     });
-    var cursorPos = rli._getCursorPos();
+    let cursorPos = rli._getCursorPos();
     assert.equal(cursorPos.rows, 0);
     assert.equal(cursorPos.cols, expectedLines[0].length);
     rli.close();
@@ -425,8 +425,8 @@ function isWarned(emitter) {
   assert.deepStrictEqual(fi.listeners(terminal ? 'keypress' : 'data'), []);
 
   // check EventEmitter memory leak
-  for (var i = 0; i < 12; i++) {
-    var rl = readline.createInterface({
+  for (let i = 0; i < 12; i++) {
+    const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout
     });

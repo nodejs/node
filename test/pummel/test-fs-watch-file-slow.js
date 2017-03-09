@@ -1,13 +1,13 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
-var path = require('path');
-var fs = require('fs');
+const common = require('../common');
+const assert = require('assert');
+const path = require('path');
+const fs = require('fs');
 
-var FILENAME = path.join(common.tmpDir, 'watch-me');
-var TIMEOUT = 1300;
+const FILENAME = path.join(common.tmpDir, 'watch-me');
+const TIMEOUT = 1300;
 
-var nevents = 0;
+let nevents = 0;
 
 try {
   fs.unlinkSync(FILENAME);

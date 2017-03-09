@@ -1,14 +1,14 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
-var Buffer = require('buffer').Buffer;
-var SlowBuffer = require('buffer').SlowBuffer;
+const Buffer = require('buffer').Buffer;
+const SlowBuffer = require('buffer').SlowBuffer;
 
 // counter to ensure unique value is always copied
-var cntr = 0;
+let cntr = 0;
 
-var b = Buffer(1024); // safe constructor
+const b = Buffer(1024); // safe constructor
 
 console.log('b.length == %d', b.length);
 assert.strictEqual(1024, b.length);
@@ -24,15 +24,15 @@ for (let i = 0; i < 1024; i++) {
   assert.strictEqual(i % 256, b[i]);
 }
 
-var c = Buffer(512);
+const c = Buffer(512);
 console.log('c.length == %d', c.length);
 assert.strictEqual(512, c.length);
 
-var d = new Buffer([]);
+const d = new Buffer([]);
 assert.strictEqual(0, d.length);
 
-var ui32 = new Uint32Array(4).fill(42);
-var e = Buffer(ui32);
+const ui32 = new Uint32Array(4).fill(42);
+const e = Buffer(ui32);
 for (const [key, value] of e.entries()) {
   assert.deepStrictEqual(value, ui32[key]);
 }
@@ -179,7 +179,7 @@ Buffer(8).fill('');
 }
 
 // copy string longer than buffer length (failure will segfault)
-var bb = Buffer(10);
+const bb = Buffer(10);
 bb.fill('hello crazy world');
 
 
@@ -214,7 +214,7 @@ assert.equal(b.copy(c, 0, 100, 10), 0);
 // when targetStart > targetLength, zero copied
 assert.equal(b.copy(c, 512, 0, 10), 0);
 
-var caught_error;
+let caught_error;
 
 // invalid encoding for Buffer.toString
 caught_error = null;
@@ -352,7 +352,7 @@ assert.equal(rangeBuffer.toString({toString: function() {
 }}), 'abc');
 
 // testing for smart defaults and ability to pass string values as offset
-var writeTest = new Buffer('abcdes');
+const writeTest = new Buffer('abcdes');
 writeTest.write('n', 'ascii');
 writeTest.write('o', '1', 'ascii');
 writeTest.write('d', '2', 'ascii');
@@ -394,20 +394,20 @@ assert.equal(writeTest.toString(), 'nodejs');
 
 // UTF-8 slice test
 
-var utf8String = '¡hέlló wôrld!';
-var offset = 100;
+const utf8String = '¡hέlló wôrld!';
+const offset = 100;
 
 b.write(utf8String, 0, Buffer.byteLength(utf8String), 'utf8');
-var utf8Slice = b.toString('utf8', 0, Buffer.byteLength(utf8String));
+let utf8Slice = b.toString('utf8', 0, Buffer.byteLength(utf8String));
 assert.equal(utf8String, utf8Slice);
 
-var written = b.write(utf8String, offset, 'utf8');
+let written = b.write(utf8String, offset, 'utf8');
 assert.equal(Buffer.byteLength(utf8String), written);
 utf8Slice = b.toString('utf8', offset, offset + Buffer.byteLength(utf8String));
 assert.equal(utf8String, utf8Slice);
 
-var sliceA = b.slice(offset, offset + Buffer.byteLength(utf8String));
-var sliceB = b.slice(offset, offset + Buffer.byteLength(utf8String));
+const sliceA = b.slice(offset, offset + Buffer.byteLength(utf8String));
+const sliceB = b.slice(offset, offset + Buffer.byteLength(utf8String));
 for (let i = 0; i < Buffer.byteLength(utf8String); i++) {
   assert.equal(sliceA[i], sliceB[i]);
 }
@@ -514,10 +514,10 @@ for (let i = 0; i < Buffer.byteLength(utf8String); i++) {
 }
 
 
-var arrayIsh = {0: 0, 1: 1, 2: 2, 3: 3, length: 4};
-var g = new Buffer(arrayIsh);
+const arrayIsh = {0: 0, 1: 1, 2: 2, 3: 3, length: 4};
+let g = new Buffer(arrayIsh);
 assert.deepStrictEqual(g, new Buffer([0, 1, 2, 3]));
-var strArrayIsh = {0: '0', 1: '1', 2: '2', 3: '3', length: 4};
+const strArrayIsh = {0: '0', 1: '1', 2: '2', 3: '3', length: 4};
 g = new Buffer(strArrayIsh);
 assert.deepStrictEqual(g, new Buffer([0, 1, 2, 3]));
 
@@ -670,7 +670,7 @@ assert.equal(
 );
 
 // This string encodes single '.' character in UTF-16
-var dot = new Buffer('//4uAA==', 'base64');
+const dot = new Buffer('//4uAA==', 'base64');
 assert.equal(dot[0], 0xff);
 assert.equal(dot[1], 0xfe);
 assert.equal(dot[2], 0x2e);
@@ -722,11 +722,11 @@ assert.equal(0, Buffer('hello').slice(0, 0).length);
 
 // test hex toString
 console.log('Create hex string from buffer');
-var hexb = new Buffer(256);
+const hexb = new Buffer(256);
 for (let i = 0; i < 256; i++) {
   hexb[i] = i;
 }
-var hexStr = hexb.toString('hex');
+const hexStr = hexb.toString('hex');
 assert.equal(hexStr,
              '000102030405060708090a0b0c0d0e0f' +
              '101112131415161718191a1b1c1d1e1f' +
@@ -746,7 +746,7 @@ assert.equal(hexStr,
              'f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff');
 
 console.log('Create buffer from hex string');
-var hexb2 = new Buffer(hexStr, 'hex');
+const hexb2 = new Buffer(hexStr, 'hex');
 for (let i = 0; i < 256; i++) {
   assert.equal(hexb2[i], hexb[i]);
 }
@@ -773,7 +773,7 @@ assert.strictEqual(Buffer.from('A', 'base64').length, 0);
 
 function buildBuffer(data) {
   if (Array.isArray(data)) {
-    var buffer = Buffer(data.length);
+    const buffer = Buffer(data.length);
     data.forEach(function(v, k) {
       buffer[k] = v;
     });
@@ -782,7 +782,7 @@ function buildBuffer(data) {
   return null;
 }
 
-var x = buildBuffer([0x81, 0xa3, 0x66, 0x6f, 0x6f, 0xa3, 0x62, 0x61, 0x72]);
+const x = buildBuffer([0x81, 0xa3, 0x66, 0x6f, 0x6f, 0xa3, 0x62, 0x61, 0x72]);
 
 console.log(x.inspect());
 assert.equal('<Buffer 81 a3 66 6f 6f a3 62 61 72>', x.inspect());
@@ -991,7 +991,7 @@ assert.equal(0, Buffer('hello').slice(0, 0).length);
 {
   // test for buffer overrun
   const buf = new Buffer([0, 0, 0, 0, 0]); // length: 5
-  var sub = buf.slice(0, 4);         // length: 4
+  const sub = buf.slice(0, 4);         // length: 4
   written = sub.write('12345', 'latin1');
   assert.equal(written, 4);
   assert.equal(buf[4], 0);
@@ -1087,55 +1087,55 @@ assert.throws(function() {
 
 // issue GH-5587
 assert.throws(function() {
-  var buf = new Buffer(8);
+  const buf = new Buffer(8);
   buf.writeFloatLE(0, 5);
 }, RangeError);
 assert.throws(function() {
-  var buf = new Buffer(16);
+  const buf = new Buffer(16);
   buf.writeDoubleLE(0, 9);
 }, RangeError);
 
 
 // attempt to overflow buffers, similar to previous bug in array buffers
 assert.throws(function() {
-  var buf = Buffer(8);
+  const buf = Buffer(8);
   buf.readFloatLE(0xffffffff);
 }, RangeError);
 
 assert.throws(function() {
-  var buf = Buffer(8);
+  const buf = Buffer(8);
   buf.writeFloatLE(0.0, 0xffffffff);
 }, RangeError);
 
 assert.throws(function() {
-  var buf = Buffer(8);
+  const buf = Buffer(8);
   buf.readFloatLE(0xffffffff);
 }, RangeError);
 
 assert.throws(function() {
-  var buf = Buffer(8);
+  const buf = Buffer(8);
   buf.writeFloatLE(0.0, 0xffffffff);
 }, RangeError);
 
 
 // ensure negative values can't get past offset
 assert.throws(function() {
-  var buf = Buffer(8);
+  const buf = Buffer(8);
   buf.readFloatLE(-1);
 }, RangeError);
 
 assert.throws(function() {
-  var buf = Buffer(8);
+  const buf = Buffer(8);
   buf.writeFloatLE(0.0, -1);
 }, RangeError);
 
 assert.throws(function() {
-  var buf = Buffer(8);
+  const buf = Buffer(8);
   buf.readFloatLE(-1);
 }, RangeError);
 
 assert.throws(function() {
-  var buf = Buffer(8);
+  const buf = Buffer(8);
   buf.writeFloatLE(0.0, -1);
 }, RangeError);
 
@@ -1155,7 +1155,7 @@ assert.throws(function() {
 }
 
 [16, 32].forEach(function(bits) {
-  var buf = new Buffer(bits / 8 - 1);
+  const buf = new Buffer(bits / 8 - 1);
 
   assert.throws(function() { buf['readUInt' + bits + 'BE'](0); },
                 RangeError,
@@ -1175,7 +1175,7 @@ assert.throws(function() {
 });
 
 [16, 32].forEach(function(bits) {
-  var buf = new Buffer([0xFF, 0xFF, 0xFF, 0xFF]);
+  const buf = new Buffer([0xFF, 0xFF, 0xFF, 0xFF]);
 
   assert.equal(buf['readUInt' + bits + 'BE'](0),
                 (0xFFFFFFFF >>> (32 - bits)));
@@ -1389,10 +1389,10 @@ assert.throws(function() {
 
 if (common.hasCrypto) {
   // Test truncation after decode
-  var crypto = require('crypto');
+  const crypto = require('crypto');
 
-  var b1 = new Buffer('YW55=======', 'base64');
-  var b2 = new Buffer('YW55', 'base64');
+  const b1 = new Buffer('YW55=======', 'base64');
+  const b2 = new Buffer('YW55', 'base64');
 
   assert.equal(
     crypto.createHash('sha1').update(b1).digest('hex'),
@@ -1426,17 +1426,17 @@ if (common.hasCrypto) {
 }
 
 assert.throws(function() {
-  var b = Buffer(1);
+  const b = Buffer(1);
   Buffer.compare(b, 'abc');
 });
 
 assert.throws(function() {
-  var b = Buffer(1);
+  const b = Buffer(1);
   Buffer.compare('abc', b);
 });
 
 assert.throws(function() {
-  var b = Buffer(1);
+  const b = Buffer(1);
   b.compare('abc');
 });
 
@@ -1454,14 +1454,14 @@ assert.throws(function() {
 }
 
 assert.throws(function() {
-  var b = Buffer(1);
+  const b = Buffer(1);
   b.equals('abc');
 });
 
 // Regression test for https://github.com/nodejs/node/issues/649.
 assert.throws(function() { Buffer(1422561062959).toString('utf8'); });
 
-var ps = Buffer.poolSize;
+const ps = Buffer.poolSize;
 Buffer.poolSize = 0;
 assert.equal(Buffer(1).parent, undefined);
 Buffer.poolSize = ps;

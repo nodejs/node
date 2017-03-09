@@ -1,9 +1,9 @@
 'use strict';
 require('../common');
-var assert = require('assert');
+const assert = require('assert');
 
-var N = 5;
-var n = 0;
+const N = 5;
+let n = 0;
 
 function f() {
   if (++n < N) setTimeout(f, 5);

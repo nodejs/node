@@ -1,7 +1,7 @@
 'use strict';
-var common = require('../common');
+const common = require('../common');
 
-var repl = require('repl');
+const repl = require('repl');
 
 const putIn = new common.ArrayStream();
 repl.start('', putIn);

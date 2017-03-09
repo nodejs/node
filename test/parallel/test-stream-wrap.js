@@ -7,16 +7,16 @@ const Duplex = require('stream').Duplex;
 const ShutdownWrap = process.binding('stream_wrap').ShutdownWrap;
 
 function testShutdown(callback) {
-  var stream = new Duplex({
+  const stream = new Duplex({
     read: function() {
     },
     write: function() {
     }
   });
 
-  var wrap = new StreamWrap(stream);
+  const wrap = new StreamWrap(stream);
 
-  var req = new ShutdownWrap();
+  const req = new ShutdownWrap();
   req.oncomplete = function(code) {
     assert(code < 0);
     callback();

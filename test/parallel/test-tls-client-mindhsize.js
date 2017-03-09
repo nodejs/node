@@ -1,35 +1,35 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   process.exit();
 }
-var tls = require('tls');
+const tls = require('tls');
 
-var fs = require('fs');
-var key = fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem');
-var cert = fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem');
+const fs = require('fs');
+const key = fs.readFileSync(common.fixturesDir + '/keys/agent2-key.pem');
+const cert = fs.readFileSync(common.fixturesDir + '/keys/agent2-cert.pem');
 
-var nsuccess = 0;
-var nerror = 0;
+let nsuccess = 0;
+let nerror = 0;
 
 function loadDHParam(n) {
-  var path = common.fixturesDir;
+  let path = common.fixturesDir;
   if (n !== 'error') path += '/keys';
   return fs.readFileSync(path + '/dh' + n + '.pem');
 }
 
 function test(size, err, next) {
-  var options = {
+  const options = {
     key: key,
     cert: cert,
     dhparam: loadDHParam(size),
     ciphers: 'DHE-RSA-AES128-GCM-SHA256'
   };
 
-  var server = tls.createServer(options, function(conn) {
+  const server = tls.createServer(options, function(conn) {
     conn.end();
   });
 
@@ -42,7 +42,7 @@ function test(size, err, next) {
     // client set minimum DH parameter size to 2048 bits so that
     // it fails when it make a connection to the tls server where
     // dhparams is 1024 bits
-    var client = tls.connect({
+    const client = tls.connect({
       minDHSize: 2048,
       port: this.address().port,
       rejectUnauthorized: false

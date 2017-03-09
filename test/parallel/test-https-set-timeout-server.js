@@ -1,19 +1,19 @@
 'use strict';
-var common = require('../common');
-var assert = require('assert');
+const common = require('../common');
+const assert = require('assert');
 
 if (!common.hasCrypto) {
   common.skip('missing crypto');
   return;
 }
-var https = require('https');
+const https = require('https');
 
-var tls = require('tls');
-var fs = require('fs');
+const tls = require('tls');
+const fs = require('fs');
 
-var tests = [];
+const tests = [];
 
-var serverOptions = {
+const serverOptions = {
   key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
   cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
 };
@@ -25,7 +25,7 @@ function test(fn) {
 }
 
 function run() {
-  var fn = tests.shift();
+  const fn = tests.shift();
   if (fn) {
     console.log('# %s', fn.name);
     fn(run);
@@ -35,11 +35,11 @@ function run() {
 }
 
 test(function serverTimeout(cb) {
-  var server = https.createServer(serverOptions, function(req, res) {
+  const server = https.createServer(serverOptions, function(req, res) {
     // just do nothing, we should get a timeout event.
   });
   server.listen(0, common.mustCall(function() {
-    var s = server.setTimeout(50, common.mustCall(function(socket) {
+    const s = server.setTimeout(50, common.mustCall(function(socket) {
       socket.destroy();
       server.close();
       cb();
@@ -62,9 +62,9 @@ test(function serverRequestTimeout(cb) {
     }));
   }
 
-  var server = https.createServer(serverOptions, common.mustCall(handler));
+  let server = https.createServer(serverOptions, common.mustCall(handler));
   server.listen(0, function() {
-    var req = https.request({
+    const req = https.request({
       port: this.address().port,
       method: 'POST',
       rejectUnauthorized: false
@@ -85,7 +85,7 @@ test(function serverResponseTimeout(cb) {
     }));
   }
 
-  var server = https.createServer(serverOptions, common.mustCall(handler));
+  let server = https.createServer(serverOptions, common.mustCall(handler));
   server.listen(0, function() {
     https.get({
       port: this.address().port,
@@ -100,7 +100,7 @@ test(function serverRequestNotTimeoutAfterEnd(cb) {
     req.setTimeout(50, common.fail);
     res.on('timeout', common.mustCall(function(socket) {}));
   }
-  var server = https.createServer(serverOptions, common.mustCall(handler));
+  const server = https.createServer(serverOptions, common.mustCall(handler));
   server.on('timeout', function(socket) {
     socket.destroy();
     server.close();
@@ -115,11 +115,11 @@ test(function serverRequestNotTimeoutAfterEnd(cb) {
 });
 
 test(function serverResponseTimeoutWithPipeline(cb) {
-  var caughtTimeout = '';
+  let caughtTimeout = '';
   process.on('exit', function() {
     assert.equal(caughtTimeout, '/2');
   });
-  var server = https.createServer(serverOptions, function(req, res) {
+  const server = https.createServer(serverOptions, function(req, res) {
     res.setTimeout(50, function() {
       caughtTimeout += req.url;
     });
@@ -131,12 +131,12 @@ test(function serverResponseTimeoutWithPipeline(cb) {
     cb();
   });
   server.listen(0, function() {
-    var options = {
+    const options = {
       port: this.address().port,
       allowHalfOpen: true,
       rejectUnauthorized: false
     };
-    var c = tls.connect(options, function() {
+    const c = tls.connect(options, function() {
       c.write('GET /1 HTTP/1.1\r\nHost: localhost\r\n\r\n');
       c.write('GET /2 HTTP/1.1\r\nHost: localhost\r\n\r\n');
       c.write('GET /3 HTTP/1.1\r\nHost: localhost\r\n\r\n');
@@ -145,19 +145,19 @@ test(function serverResponseTimeoutWithPipeline(cb) {
 });
 
 test(function idleTimeout(cb) {
-  var server = https.createServer(serverOptions,
-                                  common.mustCall(function(req, res) {
-                                    req.on('timeout', common.fail);
-                                    res.on('timeout', common.fail);
-                                    res.end();
-                                  }));
+  const server = https.createServer(serverOptions,
+                                    common.mustCall(function(req, res) {
+                                      req.on('timeout', common.fail);
+                                      res.on('timeout', common.fail);
+                                      res.end();
+                                    }));
   server.setTimeout(50, common.mustCall(function(socket) {
     socket.destroy();
     server.close();
     cb();
   }));
   server.listen(0, function() {
-    var options = {
+    const options = {
       port: this.address().port,
       allowHalfOpen: true,
       rejectUnauthorized: false

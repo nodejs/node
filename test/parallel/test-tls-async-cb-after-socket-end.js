@@ -1,9 +1,9 @@
 'use strict';
 
-var common = require('../common');
+const common = require('../common');
 
-var path = require('path');
-var fs = require('fs');
+const path = require('path');
+const fs = require('fs');
 const SSL_OP_NO_TICKET = require('crypto').constants.SSL_OP_NO_TICKET;
 
 if (!common.hasCrypto) {
@@ -11,19 +11,19 @@ if (!common.hasCrypto) {
   return;
 }
 
-var tls = require('tls');
+const tls = require('tls');
 
-var options = {
+const options = {
   secureOptions: SSL_OP_NO_TICKET,
   key: fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem')),
   cert: fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))
 };
 
-var server = tls.createServer(options, function(c) {
+const server = tls.createServer(options, function(c) {
 });
 
-var sessionCb = null;
-var client = null;
+let sessionCb = null;
+let client = null;
 
 server.on('newSession', function(key, session, done) {
   done();
@@ -36,18 +36,18 @@ server.on('resumeSession', function(id, cb) {
 });
 
 server.listen(0, function() {
-  var clientOpts = {
+  const clientOpts = {
     port: this.address().port,
     rejectUnauthorized: false,
     session: false
   };
 
-  var s1 = tls.connect(clientOpts, function() {
+  const s1 = tls.connect(clientOpts, function() {
     clientOpts.session = s1.getSession();
     console.log('1st secure');
 
     s1.destroy();
-    var s2 = tls.connect(clientOpts, function(s) {
+    const s2 = tls.connect(clientOpts, function(s) {
       console.log('2nd secure');
 
       s2.destroy();

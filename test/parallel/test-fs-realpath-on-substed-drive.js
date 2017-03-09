@@ -14,7 +14,8 @@ let result;
 // create a subst drive
 const driveLetters = 'ABCDEFGHIJKLMNOPQRSTUWXYZ';
 let drive;
-for (var i = 0; i < driveLetters.length; ++i) {
+let i;
+for (i = 0; i < driveLetters.length; ++i) {
   drive = `${driveLetters[i]}:`;
   result = spawnSync('subst', [drive, common.fixturesDir]);
   if (result.status === 0)
